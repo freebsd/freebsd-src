@@ -588,6 +588,87 @@ pbr_common_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "ipsec" "cleanup"
+ipsec_head()
+{
+	atf_set descr 'Transport pfsync over IPSec'
+	atf_set require.user root
+}
+
+ipsec_body()
+{
+	if ! sysctl -q kern.features.ipsec >/dev/null ; then
+		atf_skip "This test requires ipsec"
+	fi
+
+	# Run the common test, to set up pfsync
+	common_body
+
+	# But we want unicast pfsync
+	jexec one ifconfig pfsync0 syncpeer 192.0.2.2
+	jexec two ifconfig pfsync0 syncpeer 192.0.2.1
+
+	# Flush existing states
+	jexec one pfctl -Fs
+	jexec two pfctl -Fs
+
+	# Now define an ipsec policy to run over the epair_sync interfaces
+	echo "flush;
+	spdflush;
+	spdadd 192.0.2.1/32 192.0.2.2/32 any -P out ipsec esp/transport//require;
+	spdadd 192.0.2.2/32 192.0.2.1/32 any -P in ipsec esp/transport//require;
+	add 192.0.2.1 192.0.2.2 esp 0x1000 -E aes-gcm-16 \"12345678901234567890\";
+	add 192.0.2.2 192.0.2.1 esp 0x1001 -E aes-gcm-16 \"12345678901234567890\";" \
+	    | jexec one setkey -c
+
+	echo "flush;
+	spdflush;
+	spdadd 192.0.2.2/32 192.0.2.1/32 any -P out ipsec esp/transport//require;
+	spdadd 192.0.2.1/32 192.0.2.2/32 any -P in ipsec esp/transport//require;
+	add 192.0.2.1 192.0.2.2 esp 0x1000 -E aes-gcm-16 \"12345678901234567891\";
+	add 192.0.2.2 192.0.2.1 esp 0x1001 -E aes-gcm-16 \"12345678901234567891\";" \
+	    | jexec two setkey -c
+
+	# We've set incompatible keys, so pfsync will be broken.
+	ping -c 1 -S 198.51.100.254 198.51.100.1
+
+	# Give pfsync time to do its thing
+	sleep 2
+
+	if jexec two pfctl -s states | grep icmp | grep 198.51.100.1 | \
+	    grep 198.51.100.2 ; then
+		atf_fail "state synced although IPSec should have prevented it"
+	fi
+
+	# Flush existing states
+	jexec one pfctl -Fs
+	jexec two pfctl -Fs
+
+	# Fix the IPSec key to match
+	echo "flush;
+	spdflush;
+	spdadd 192.0.2.2/32 192.0.2.1/32 any -P out ipsec esp/transport//require;
+	spdadd 192.0.2.1/32 192.0.2.2/32 any -P in ipsec esp/transport//require;
+	add 192.0.2.1 192.0.2.2 esp 0x1000 -E aes-gcm-16 \"12345678901234567890\";
+	add 192.0.2.2 192.0.2.1 esp 0x1001 -E aes-gcm-16 \"12345678901234567890\";" \
+	    | jexec two setkey -c
+
+	ping -c 1 -S 198.51.100.254 198.51.100.1
+
+	# Give pfsync time to do its thing
+	sleep 2
+
+	if ! jexec two pfctl -s states | grep icmp | grep 198.51.100.1 | \
+	    grep 198.51.100.2 ; then
+		atf_fail "state not found on synced host"
+	fi
+}
+
+ipsec_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic"
@@ -596,4 +677,5 @@ atf_init_test_cases()
 	atf_add_test_case "bulk"
 	atf_add_test_case "pbr"
 	atf_add_test_case "pfsync_pbr"
+	atf_add_test_case "ipsec"
 }
