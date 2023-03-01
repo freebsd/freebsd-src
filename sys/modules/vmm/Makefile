@@ -61,9 +61,7 @@ SRCS+=	vmcb.c		\
 	amdvi_hw.c	\
 	svm_msr.c
 
-.if ${KERN_OPTS:MBHYVE_SNAPSHOT} != ""
-SRCS+=	vmm_snapshot.c
-.endif
+SRCS.BHYVE_SNAPSHOT=	vmm_snapshot.c
 
 CLEANFILES=	vmx_assym.h vmx_genassym.o svm_assym.h svm_genassym.o
 

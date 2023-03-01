@@ -10,10 +10,8 @@ SRCS+=	g_uzip.h g_uzip_dapi.h g_uzip_lzma.h g_uzip_zlib.h g_uzip_softc.h \
     g_uzip_wrkthr.h
 
 # This works for buildkernel, but will disable zstd in geom_uzip out of tree.
-.if ${KERN_OPTS:MZSTDIO} != ""
-SRCS+=	g_uzip_zstd.c g_uzip_zstd.h
+SRCS.ZSTDIO+=	g_uzip_zstd.c g_uzip_zstd.h
 CFLAGS.g_uzip_zstd.c+=	-I${SRCTOP}/sys/contrib/zstd/lib/freebsd
-.endif
 
 #CFLAGS=	-g -DINVARIANT_SUPPORT -DINVARIANTS
 
