@@ -38,7 +38,7 @@ sysctl_by_name_body()
 
 
 atf_test_case sysctl_nflag
-sysctl_nflag()
+sysctl_nflag_head()
 {
 	atf_set "descr" "Verify -n argument"
 }
@@ -49,7 +49,7 @@ sysctl_nflag_body()
 
 
 atf_test_case sysctl_eflag
-sysctl_eflag()
+sysctl_eflag_head()
 {
 	atf_set "descr" "Verify -e argument"
 }
@@ -60,7 +60,7 @@ sysctl_eflag_body()
 
 
 atf_test_case sysctl_tflag
-sysctl_tflag()
+sysctl_tflag_head()
 {
 	atf_set "descr" "Verify -t argument"
 }
@@ -71,7 +71,7 @@ sysctl_tflag_body()
 
 
 atf_test_case sysctl_dflag
-sysctl_dflag()
+sysctl_dflag_head()
 {
 	atf_set "descr" "Verify -d argument"
 }
@@ -82,7 +82,7 @@ sysctl_dflag_body()
 
 
 atf_test_case sysctl_tflag_dflag
-sysctl_tflag_dflag()
+sysctl_tflag_dflag_head()
 {
 	atf_set "descr" "Verify -t -d arguments"
 }
@@ -94,7 +94,7 @@ sysctl_tflag_dflag_body()
 
 
 atf_test_case sysctl_nflag_tflag_dflag
-sysctl_nflag_tflag_dflag()
+sysctl_nflag_tflag_dflag_head()
 {
 	atf_set "descr" "Verify -n -t -d arguments"
 }
