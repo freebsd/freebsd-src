@@ -3406,6 +3406,9 @@ buf_daemon_shutdown(void *arg __unused, int howto __unused)
 {
 	int error;
 
+	if (KERNEL_PANICKED())
+		return;
+
 	mtx_lock(&bdlock);
 	bd_shutdown = true;
 	wakeup(&bd_request);
