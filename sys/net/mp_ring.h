@@ -40,7 +40,7 @@ typedef u_int (*mp_ring_drain_t)(struct ifmp_ring *, u_int, u_int);
 typedef u_int (*mp_ring_can_drain_t)(struct ifmp_ring *);
 typedef void (*mp_ring_serial_t)(struct ifmp_ring *);
 
-#if defined(__powerpc__) || defined(__mips__) || defined(__i386__)
+#if defined(__powerpc__) || defined(__i386__)
 #define MP_RING_NO_64BIT_ATOMICS
 #endif
 
