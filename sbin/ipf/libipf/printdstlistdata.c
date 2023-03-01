@@ -11,8 +11,7 @@
 void
 printdstlistdata( ippool_dst_t *pool, int opts)
 {
-
-	if ((opts & OPT_DEBUG) == 0) {
+	if ((opts & OPT_DEBUG) == 0 || opts & OPT_SAVEOUT) {
 		if ((pool->ipld_flags & IPDST_DELETE) != 0)
 			PRINTF("# ");
 		PRINTF("pool ");
@@ -24,7 +23,7 @@ printdstlistdata( ippool_dst_t *pool, int opts)
 
 	printunit(pool->ipld_unit);
 
-	if ((opts & OPT_DEBUG) == 0) {
+	if ((opts & OPT_DEBUG) == 0 || opts & OPT_SAVEOUT) {
 		PRINTF("/dstlist (name %s;", pool->ipld_name);
 		if (pool->ipld_policy != IPLDP_NONE) {
 			PRINTF(" policy ");
