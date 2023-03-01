@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/consio.h>
 #include <sys/kbio.h>
 
-#if defined(__arm__) || defined(__mips__) || defined(__powerpc__)
+#if defined(__arm__) || defined(__powerpc__)
 #include <machine/sc_machdep.h>
 #else
 #include <machine/pc/display.h>
