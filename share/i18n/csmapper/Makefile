@@ -10,7 +10,7 @@ SUBDIR_PARALLEL=
 mapper.dir: ${SUBDIR}
 	newfile=$$(for i in ${SUBDIR}; do \
 		cat $$i/mapper.dir.$$i; \
-	done); \
+	done; cat ${.CURDIR}/mapper.dir.src); \
 	[ "$$newfile" = "$$(cat ${.TARGET} 2>/dev/null)" ] || \
 		printf '%s\n' "$$newfile" >${.TARGET}
 mapper.dir.db: mapper.dir
@@ -22,7 +22,7 @@ CLEANFILES+= mapper.dir mapper.dir.db
 charset.pivot: ${SUBDIR}
 	newfile=$$(for i in ${SUBDIR}; do \
 		cat $$i/charset.pivot.$$i; \
-	done); \
+	done; cat ${.CURDIR}/charset.pivot.src); \
 	[ "$$newfile" = "$$(cat ${.TARGET} 2>/dev/null)" ] || \
 		printf '%s\n' "$$newfile" >${.TARGET}
 charset.pivot.pvdb: charset.pivot
