@@ -103,7 +103,32 @@ vt_efifb_init(struct vt_device *vd)
 	struct fb_info	*info;
 	struct efi_fb	*efifb;
 	caddr_t		kmdp;
+	int		memattr;
 	int		roff, goff, boff;
+	char		attr[16];
+
+	/*
+	 * XXX TODO: I think there's more nuance here than we're acknowledging,
+	 * and we should look into it.  It may be that the framebuffer lives in
+	 * a segment of memory that doesn't support one or both of these.  We
+	 * should likely be consulting the memory map for any applicable
+	 * cacheability attributes before making a final decision.
+	 */
+	memattr = VM_MEMATTR_WRITE_COMBINING;
+	if (TUNABLE_STR_FETCH("hw.efifb.cache_attr", attr, sizeof(attr))) {
+		/*
+		 * We'll allow WC but it's currently the default, UC is the only
+		 * other tested one at this time.
+		 */
+		if (strcasecmp(attr, "wc") != 0 &&
+		    strcasecmp(attr, "uc") != 0) {
+			printf("efifb: unsupported cache attr specified: %s\n",
+			    attr);
+			printf("efifb: expected \"wc\" or \"uc\"\n");
+		} else if (strcasecmp(attr, "uc") == 0) {
+			memattr = VM_MEMATTR_UNCACHEABLE;
+		}
+	}
 
 	info = vd->vd_softc;
 	if (info == NULL)
@@ -141,7 +166,7 @@ vt_efifb_init(struct vt_device *vd)
 	info->fb_size = info->fb_height * info->fb_stride;
 	info->fb_pbase = efifb->fb_addr;
 	info->fb_vbase = (intptr_t)pmap_mapdev_attr(info->fb_pbase,
-	    info->fb_size, VM_MEMATTR_WRITE_COMBINING);
+	    info->fb_size, memattr);
 
 	vt_fb_init(vd);
 
