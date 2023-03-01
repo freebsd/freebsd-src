@@ -1243,7 +1243,7 @@ set_defaults(void)
 int
 main(int argc, char *argv[])
 {
-	int c, error, err;
+	int c, error;
 	int max_vcpus, memflags;
 	struct vmctx *ctx;
 	uint64_t rip;
@@ -1444,8 +1444,8 @@ main(int argc, char *argv[])
 	if (get_config_bool_default("memory.guest_in_core", false))
 		memflags |= VM_MEM_F_INCORE;
 	vm_set_memflags(ctx, memflags);
-	err = vm_setup_memory(ctx, memsize, VM_MMAP_ALL);
-	if (err) {
+	error = vm_setup_memory(ctx, memsize, VM_MMAP_ALL);
+	if (error) {
 		fprintf(stderr, "Unable to setup memory (%d)\n", errno);
 		exit(4);
 	}
