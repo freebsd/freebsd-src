@@ -40,6 +40,9 @@ printdstl_live( ippool_dst_t *d, int fd, char *name, int opts,
 	if ((d->ipld_flags & IPHASH_DELETE) != 0)
 		PRINTF("# ");
 
+	if (opts & OPT_SAVEOUT)
+		PRINTF("{\n");
+
 	if ((opts & OPT_DEBUG) == 0)
 		PRINTF("\t{");
 
