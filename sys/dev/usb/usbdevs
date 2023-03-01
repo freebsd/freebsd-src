@@ -3988,6 +3988,7 @@ product QUECTEL EC25		0x0125	LTE modem
 product QUECTEL EM05		0x0127	LTE modem
 product QUECTEL EP06_E		0x0306	LTE modem
 product QUECTEL EM12_G          0x0512  LTE modem
+product QUECTEL EM160R		0x0620	LTE modem
 
 /* Quickshot products */
 product QUICKSHOT STRIKEPAD	0x6238	USB StrikePad
