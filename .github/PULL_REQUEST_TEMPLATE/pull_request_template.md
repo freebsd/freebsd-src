@@ -1,4 +1,4 @@
-Please include this information, either here or in your commit messges for the
+Please include this information, either here or in your commit messages for the
 pull request, as appropriate (or delete the line if there's nothing relevant.
 
 PR:		<If and which Problem Report is related.>
