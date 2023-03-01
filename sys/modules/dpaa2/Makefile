@@ -21,12 +21,10 @@ SRCS+=	bus_if.h device_if.h miibus_if.h
 SRCS+=	pcib_if.h pci_if.h
 SRCS+=	opt_acpi.h opt_platform.h
 
-.if !empty(OPT_ACPI)
-SRCS+=	dpaa2_mc_acpi.c \
+SRCS.DEV_ACPI=	dpaa2_mc_acpi.c \
 	memac_mdio_acpi.c \
 	acpi_if.h \
 	acpi_bus_if.h
-.endif
 
 .if !empty(OPT_FDT)
 SRCS+=	dpaa2_mc_fdt.c \
