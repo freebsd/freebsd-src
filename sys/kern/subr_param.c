@@ -171,7 +171,7 @@ void
 init_param1(void)
 {
 
-#if !defined(__mips__) && !defined(__arm64__)
+#if !defined(__arm64__)
 	TUNABLE_INT_FETCH("kern.kstack_pages", &kstack_pages);
 #endif
 	hz = -1;
