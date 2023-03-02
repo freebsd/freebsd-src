@@ -171,6 +171,7 @@ main(int argc, char *argv[])
 	sigemptyset(&mask_susp);
 	sigemptyset(&mask_read);
 	sigemptyset(&mask_term);
+	sigemptyset(&mask_orig);
 
 	while ((ch = getopt_long(argc, argv, shortopts, longopts, NULL)) != -1) {
 		switch (ch) {
