@@ -249,31 +249,22 @@ hostdisk_one_disk(struct host_dirent64 *dent, void *argp __unused)
 	return (true);
 }
 
-static bool
-hostdisk_fake_one_disk(struct host_dirent64 *dent, void *argp)
+static void
+hostdisk_fake_one_disk(char *override)
 {
-	char *override_dir = argp;
-	char *fn = NULL;
 	hdinfo_t *hd = NULL;
 	struct host_kstat sb;
 
-	/*
-	 * We only do regular files. Each one is treated as a disk image
-	 * accessible via /dev/${dent->d_name}.
-	 */
-	if (dent->d_type != HOST_DT_REG && dent->d_type != HOST_DT_LNK)
-		return (true);
-	if (asprintf(&fn, "%s/%s", override_dir, dent->d_name) == -1)
-		return (true);
-	if (host_stat(fn, &sb) != 0)
-		goto err;
+	if (host_stat(override, &sb) != 0)
+		return;
 	if (!HOST_S_ISREG(sb.st_mode))
-		return (true);
+		return;
 	if (sb.st_size == 0)
-		goto err;
+		return;
 	if ((hd = calloc(1, sizeof(*hd))) == NULL)
+		return;
+	if ((hd->hd_dev = strdup(override)) == NULL)
 		goto err;
-	hd->hd_dev = fn;
 	hd->hd_size = sb.st_size;
 	hd->hd_sectorsize = 512;	/* XXX configurable? */
 	hd->hd_sectors = hd->hd_size / hd->hd_sectorsize;
@@ -284,12 +275,10 @@ hostdisk_fake_one_disk(struct host_dirent64 *dent, void *argp)
 	printf("%s: %ju %ju %ju\n",
 	    hd->hd_dev, hd->hd_size, hd->hd_sectors, hd->hd_sectorsize);
 	STAILQ_INSERT_TAIL(&hdinfo, hd, hd_link);
-	/* XXX no partiions? -- is that OK? */
-	return (true);
+	return;
 err:
+	free(__DECONST(void *, hd->hd_dev));
 	free(hd);
-	free(fn);
-	return (true);
 }
 
 static void
@@ -299,7 +288,7 @@ hostdisk_find_block_devices(void)
 
 	override=getenv("hostdisk_override");
 	if (override != NULL)
-		foreach_file(override, hostdisk_fake_one_disk, override, 0);
+		hostdisk_fake_one_disk(override);
 	else
 		foreach_file(SYSBLK, hostdisk_one_disk, NULL, 0);
 }
@@ -540,7 +529,7 @@ hostdisk_gen_probe(void)
 				return (rv);
 		}
 	}
-	return (false);
+	return (NULL);
 }
 
 #ifdef LOADER_ZFS_SUPPORT
