@@ -232,23 +232,22 @@ main(int argc, const char **argv)
 	bootdev = getenv("bootdev");
 	if (bootdev == NULL)
 		bootdev = hostdisk_gen_probe();
-	if (bootdev == NULL)
-		bootdev="zfs:";
 	hostfs_root = getenv("hostfs_root");
 	if (hostfs_root == NULL)
 		hostfs_root = "/";
 #if defined(LOADER_ZFS_SUPPORT)
-	if (strcmp(bootdev, "zfs:") == 0) {
+	if (bootdev == NULL || strcmp(bootdev, "zfs:") == 0) {
 		/*
 		 * Pseudo device that says go find the right ZFS pool. This will be
 		 * the first pool that we find that passes the sanity checks (eg looks
 		 * like it might be vbootable) and sets currdev to the right thing based
 		 * on active BEs, etc
 		 */
-		hostdisk_zfs_find_default();
-	} else
+		if (hostdisk_zfs_find_default())
+			bootdev = getenv("currdev");
+	}
 #endif
-	{
+	if (bootdev != NULL) {
 		/*
 		 * Otherwise, honor what's on the command line. If we've been
 		 * given a specific ZFS partition, then we'll honor it w/o BE
@@ -256,6 +255,8 @@ main(int argc, const char **argv)
 		 * boot than the default one in the pool.
 		 */
 		set_currdev(bootdev);
+	} else {
+		panic("Bootdev is still NULL");
 	}
 
 	printf("Boot device: %s with hostfs_root %s\n", bootdev, hostfs_root);
