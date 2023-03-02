@@ -344,10 +344,11 @@ get_phys_buffer(vm_offset_t dest, const size_t len, void **buf)
 		/* how much space does this segment have */
 		sz = space_avail(dest);
 		/* Clip to 45% of available memory (need 2 copies) */
-		sz = min(sz, rounddown2(mem_avail * 45 / 100, SEGALIGN));
+		sz = MIN(sz, rounddown2(mem_avail * 45 / 100, SEGALIGN));
+		printf("limit to 45%% of mem_avail %zd\n", sz);
 		/* And only use 95% of what we can allocate */
-		sz = min(sz, rounddown2(
-		    (commit_limit - committed_as) * 95 / 100, SEGALIGN));
+		sz = MIN(sz,
+		    rounddown2((commit_limit - committed_as) * 95 / 100, SEGALIGN));
 		printf("Allocating %zd MB for first segment\n", sz >> 20);
 	}
 
