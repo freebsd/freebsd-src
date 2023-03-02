@@ -286,6 +286,9 @@ populate_avail_from_iomem(void)
 	fd = open("host:/proc/iomem", O_RDONLY);
 	if (fd == -1) {
 		printf("Can't get memory map\n");
+		init_avail();
+		// Hack: 32G of RAM starting at 4G
+		add_avail(4ull << 30, 36ull << 30, system_ram);
 		return false;
 	}
 
