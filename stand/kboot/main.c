@@ -86,6 +86,11 @@ memory_limits(void)
 				committed_as <<= 10; /* Units are kB */
 			}
 		}
+	} else {
+		/* Otherwise, on FreeBSD host, for testing 32GB host: */
+		mem_avail = 31ul << 30;			/* 31GB free */
+		commit_limit = mem_avail * 9 / 10;	/* 90% comittable */
+		committed_as = 20ul << 20;		/* 20MB used */
 	}
 	printf("Commit limit: %lld Committed bytes %lld Available %lld\n",
 	    (long long)commit_limit, (long long)committed_as,
