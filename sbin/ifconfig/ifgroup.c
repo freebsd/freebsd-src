@@ -114,7 +114,7 @@ printgroup(const char *groupname)
 {
 	struct ifgroupreq	 ifgr;
 	struct ifg_req		*ifg;
-	int			 len, cnt = 0;
+	int			 len;
 	int			 s;
 
 	s = socket(AF_LOCAL, SOCK_DGRAM, 0);
@@ -140,7 +140,6 @@ printgroup(const char *groupname)
 	    ifg++) {
 		len -= sizeof(struct ifg_req);
 		printf("%s\n", ifg->ifgrq_member);
-		cnt++;
 	}
 	free(ifgr.ifgr_groups);
 
