@@ -18,6 +18,8 @@
 #
 # $FreeBSD$
 
+#NO_UNIVERSE
+
 ident		VYBRID
 include 	"std.armv7"
 include 	"../freescale/vybrid/std.vybrid"
