@@ -47,7 +47,7 @@ struct trapframe {
 	uint64_t tf_elr;
 	uint64_t tf_spsr;
 	uint64_t tf_esr;
-	uint64_t pad; /* struct must be 16B aligned */
+	uint64_t tf_far;
 	uint64_t tf_x[30];
 };
 
