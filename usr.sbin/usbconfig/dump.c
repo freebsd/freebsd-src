@@ -264,7 +264,6 @@ dump_extra(struct libusb20_me_struct *str, const char *plevel)
 		}
 		printf("\n");
 	}
-	return;
 }
 
 static void
@@ -276,7 +275,6 @@ dump_endpoint(struct libusb20_device *pdev,
 	edesc = &ep->desc;
 	LIBUSB20_ENDPOINT_DESC(DUMP3, edesc);
 	dump_extra(&ep->extra, "  " "  " "  ");
-	return;
 }
 
 static void
@@ -294,7 +292,6 @@ dump_iface(struct libusb20_device *pdev,
 		printf("\n     Endpoint %u\n", z);
 		dump_endpoint(pdev, iface->endpoints + z);
 	}
-	return;
 }
 
 void
@@ -353,7 +350,6 @@ dump_be_quirk_names(struct libusb20_backend *pbe)
 			printf("%s\n", q.quirkname);
 	}
 	printf("\n");
-	return;
 }
 
 void
@@ -385,7 +381,6 @@ dump_be_dev_quirks(struct libusb20_backend *pbe)
 		}
 	}
 	printf("\n");
-	return;
 }
 
 void
@@ -395,7 +390,6 @@ dump_device_desc(struct libusb20_device *pdev)
 
 	ddesc = libusb20_dev_get_device_desc(pdev);
 	LIBUSB20_DEVICE_DESC(DUMP0, ddesc);
-	return;
 }
 
 void
@@ -444,7 +438,6 @@ dump_config(struct libusb20_device *pdev, uint8_t all_cfg)
 		printf("\n");
 		free(pcfg);
 	}
-	return;
 }
 
 void
