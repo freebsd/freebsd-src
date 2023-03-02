@@ -98,7 +98,6 @@ mkbuf(char **buf, int *oldlen, int newlen)
 	if (*buf == NULL)
 		err(1, "malloc");
 	*oldlen = newlen;
-	return;
 }
 
 int
