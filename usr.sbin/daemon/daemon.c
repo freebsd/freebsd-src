@@ -79,8 +79,10 @@ static void open_pid_files(const char *, const char *, struct pidfh **,
 static void do_output(const unsigned char *, size_t, struct log_params *);
 static void daemon_sleep(time_t, long);
 
-static volatile sig_atomic_t terminate = 0, child_gone = 0, pid = 0,
-  do_log_reopen = 0;
+static volatile sig_atomic_t terminate = 0;
+static volatile sig_atomic_t child_gone = 0;
+static volatile sig_atomic_t pid = 0;
+static volatile sig_atomic_t do_log_reopen = 0;
 
 static const char shortopts[] = "+cfHSp:P:ru:o:s:l:t:m:R:T:h";
 
@@ -139,27 +141,37 @@ usage(int exitcode)
 int
 main(int argc, char *argv[])
 {
-	const char *pidfile, *ppidfile, *title, *user, *outfn, *logtag;
-	int ch, nochdir, noclose, restart, dosyslog, child_eof;
-	sigset_t mask_susp, mask_orig, mask_read, mask_term;
-	struct log_params logpar;
-	int pfd[2] = { -1, -1 }, outfd = -1;
-	int stdmask, logpri, logfac, log_reopen;
-	struct pidfh *ppfh, *pfh;
-	char *p;
+	char *p = NULL;
+	const char *pidfile = NULL;
+	const char *logtag = "daemon";
+	const char *outfn = NULL;
+	const char *ppidfile = NULL;
+	const char *title = NULL;
+	const char *user = NULL;
+	int ch = 0;
+	int child_eof = 0;
+	int dosyslog = 0;
+	int log_reopen = 0;
+	int logfac = LOG_DAEMON;
+	int logpri = LOG_NOTICE;
+	int nochdir = 1;
+	int noclose = 1;
+	int outfd = -1;
+	int pfd[2] = { -1, -1 };
+	int restart = 0;
+	int stdmask = STDOUT_FILENO | STDERR_FILENO;
+	struct log_params logpar = { 0 };
+	struct pidfh *ppfh = NULL;
+	struct pidfh *pfh = NULL;
+	sigset_t mask_orig;
+	sigset_t mask_read;
+	sigset_t mask_term;
+	sigset_t mask_susp;
 
-	memset(&logpar, 0, sizeof(logpar));
-	stdmask = STDOUT_FILENO | STDERR_FILENO;
-	ppidfile = pidfile = user = NULL;
-	nochdir = noclose = 1;
-	logpri = LOG_NOTICE;
-	logfac = LOG_DAEMON;
-	logtag = "daemon";
-	restart = 0;
-	dosyslog = 0;
-	log_reopen = 0;
-	outfn = NULL;
-	title = NULL;
+	sigemptyset(&mask_susp);
+	sigemptyset(&mask_read);
+	sigemptyset(&mask_term);
+
 	while ((ch = getopt_long(argc, argv, shortopts, longopts, NULL)) != -1) {
 		switch (ch) {
 		case 'c':
@@ -251,7 +263,6 @@ main(int argc, char *argv[])
 		openlog(logtag, LOG_PID | LOG_NDELAY, logfac);
         }
 
-	ppfh = pfh = NULL;
 	/*
 	 * Try to open the pidfile before calling daemon(3),
 	 * to be able to report the error intelligently
@@ -294,18 +305,15 @@ main(int argc, char *argv[])
 		sigemptyset(&act_hup.sa_mask);
 
 		/* Block these when avoiding racing before sigsuspend(). */
-		sigemptyset(&mask_susp);
 		sigaddset(&mask_susp, SIGTERM);
 		sigaddset(&mask_susp, SIGCHLD);
 		/* Block SIGTERM when we lack a valid child PID. */
-		sigemptyset(&mask_term);
 		sigaddset(&mask_term, SIGTERM);
 		/*
 		 * When reading, we wish to avoid SIGCHLD. SIGTERM
 		 * has to be caught, otherwise we'll be stuck until
 		 * the read() returns - if it returns.
 		 */
-		sigemptyset(&mask_read);
 		sigaddset(&mask_read, SIGCHLD);
 		/* Block SIGTERM to avoid racing until we have forked. */
 		if (sigprocmask(SIG_BLOCK, &mask_term, &mask_orig)) {
@@ -406,7 +414,6 @@ restart:
 	 * might have closed its stdout and stderr, so we must wait for
 	 * the SIGCHLD to ensure that the process is actually gone.
 	 */
-	child_eof = 0;
 	for (;;) {
 		/*
 		 * We block SIGCHLD when listening, but SIGTERM we accept
