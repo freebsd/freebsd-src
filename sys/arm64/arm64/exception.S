@@ -65,9 +65,10 @@ __FBSDID("$FreeBSD$");
 	mrs	x10, elr_el1
 	mrs	x11, spsr_el1
 	mrs	x12, esr_el1
+	mrs	x13, far_el1
 	stp	x18,  lr, [sp, #(TF_SP - TF_X)]!
-	str	x10, [sp, #(TF_ELR)]
-	stp	x11, x12, [sp, #(TF_SPSR)]
+	stp	x10, x11, [sp, #(TF_ELR)]
+	stp	x12, x13, [sp, #(TF_ESR)]
 	mrs	x18, tpidr_el1
 .endm
 
@@ -211,25 +212,10 @@ ENTRY(handle_el1h_irq)
 END(handle_el1h_irq)
 
 ENTRY(handle_el0_sync)
-	/*
-	 * Read the fault address early. The current thread structure may
-	 * be transiently unmapped if it is part of a memory range being
-	 * promoted or demoted to/from a superpage. As this involves a
-	 * break-before-make sequence there is a short period of time where
-	 * an access will raise an exception. If this happens the fault
-	 * address will be changed to the kernel address so a later read of
-	 * far_el1 will give the wrong value.
-	 *
-	 * The earliest memory access that could trigger a fault is in a
-	 * function called by the save_registers macro so this is the latest
-	 * we can read the userspace value.
-	 */
-	mrs	x19, far_el1
 	save_registers 0
 	ldr	x0, [x18, #PC_CURTHREAD]
 	mov	x1, sp
 	str	x1, [x0, #TD_FRAME]
-	mov	x2, x19
 	bl	do_el0_sync
 	do_ast
 	restore_registers 0
