@@ -18,6 +18,8 @@
 #
 # $FreeBSD$
 
+#NO_UNIVERSE
+
 ident		EFIKA_MX
 
 include 	"std.armv7"
