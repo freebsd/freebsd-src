@@ -348,8 +348,6 @@ sock6_open(struct flags *flags
 	}
 #endif /* IPSEC_POLICY_IPSEC */
 #endif /* IPSEC */
-
-	return;
 }
 
 static void
@@ -414,8 +412,6 @@ sock4_open(struct flags *flags
 	}
 #endif /* IPSEC_POLICY_IPSEC */
 #endif /* IPSEC */
-
-	return;
 }
 
 static void
