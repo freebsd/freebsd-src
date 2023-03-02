@@ -812,7 +812,6 @@ options 	NETGRAPH_VJC
 options 	NETGRAPH_VLAN
 
 # NgATM - Netgraph ATM
-options 	NGATM_ATM
 options 	NGATM_ATMBASE
 options 	NGATM_SSCOP
 options 	NGATM_SSCFU
