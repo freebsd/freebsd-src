@@ -18,6 +18,8 @@
 #
 # $FreeBSD$
 
+#NO_UNIVERSE
+
 ident		SOCFPGA
 include 	"std.armv7"
 include 	"../altera/socfpga/std.socfpga"
