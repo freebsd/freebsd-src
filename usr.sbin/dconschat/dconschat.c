@@ -681,7 +681,6 @@ dconschat_init_socket(struct dcons_state *dc, int port, char *host, int sport)
 	error = kevent(dc->kq, &kev, 1, NULL, 0, &dc->to);
 	if (error < 0)
 		err(1, "kevent");
-	return;
 }
 
 static int
