@@ -644,8 +644,6 @@ clean_gi(int argc, char *argv[])
 			generic_initerr = 1;
 		}
 	}
-
-	return;
 }
 
 void
@@ -656,8 +654,6 @@ tclean_gi(int argc, char *argv[])
 	/* (...and the fact that 'clean' is priv and 'tclean' is not) */
 	clean_gi(argc, argv);
 	cln_testonly = 1;
-
-	return;
 }
 
 void
