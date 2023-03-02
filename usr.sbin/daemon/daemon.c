@@ -60,10 +60,10 @@ __FBSDID("$FreeBSD$");
 #define LBUF_SIZE 4096
 
 struct log_params {
-	int logpri;
+	const char *output_filename;
+	int syslog_priority;
 	int noclose;
-	int outfd;
-	const char *outfn;
+	int output_fd;
 	bool syslog_enabled;
 };
 
@@ -143,26 +143,27 @@ int
 main(int argc, char *argv[])
 {
 	bool supervision_enabled = false;
-	bool syslog_enabled = false;
 	bool log_reopen = false;
 	char *p = NULL;
 	const char *pidfile = NULL;
-	const char *logtag = "daemon";
-	const char *outfn = NULL;
+	const char *syslog_tag = "daemon";
 	const char *ppidfile = NULL;
 	const char *title = NULL;
 	const char *user = NULL;
 	int ch = 0;
 	int child_eof = 0;
-	int logfac = LOG_DAEMON;
-	int logpri = LOG_NOTICE;
+	int syslog_facility = LOG_DAEMON;
 	int nochdir = 1;
-	int noclose = 1;
-	int outfd = -1;
 	int pfd[2] = { -1, -1 };
 	int restart = 0;
 	int stdmask = STDOUT_FILENO | STDERR_FILENO;
-	struct log_params logpar = { 0 };
+	struct log_params logpar = {
+		.syslog_enabled = false,
+		.syslog_priority = LOG_NOTICE,
+		.noclose = 1,
+		.output_fd = -1,
+		.output_filename = NULL
+        };
 	struct pidfh *ppfh = NULL;
 	struct pidfh *pfh = NULL;
 	sigset_t mask_orig;
@@ -181,17 +182,17 @@ main(int argc, char *argv[])
 			nochdir = 0;
 			break;
 		case 'f':
-			noclose = 0;
+			logpar.noclose = 0;
 			break;
 		case 'H':
 			log_reopen = true;
 			break;
 		case 'l':
-			logfac = get_log_mapping(optarg, facilitynames);
-			if (logfac == -1) {
+			syslog_facility = get_log_mapping(optarg, facilitynames);
+			if (syslog_facility == -1) {
 				errx(5, "unrecognized syslog facility");
                         }
-			syslog_enabled = true;
+			logpar.syslog_enabled = true;
 			break;
 		case 'm':
 			stdmask = strtol(optarg, &p, 10);
@@ -200,7 +201,7 @@ main(int argc, char *argv[])
                         }
 			break;
 		case 'o':
-			outfn = optarg;
+			logpar.output_filename = optarg;
 			break;
 		case 'p':
 			pidfile = optarg;
@@ -218,21 +219,21 @@ main(int argc, char *argv[])
                         }
 			break;
 		case 's':
-			logpri = get_log_mapping(optarg, prioritynames);
-			if (logpri == -1) {
+			logpar.syslog_priority = get_log_mapping(optarg, prioritynames);
+			if (logpar.syslog_priority == -1) {
 				errx(4, "unrecognized syslog priority");
                         }
-			syslog_enabled = true;
+			logpar.syslog_enabled = true;
 			break;
 		case 'S':
-			syslog_enabled = true;
+			logpar.syslog_enabled = true;
 			break;
 		case 't':
 			title = optarg;
 			break;
 		case 'T':
-			logtag = optarg;
-			syslog_enabled = true;
+			syslog_tag = optarg;
+			logpar.syslog_enabled = true;
 			break;
 		case 'u':
 			user = optarg;
@@ -255,15 +256,15 @@ main(int argc, char *argv[])
 		title = argv[0];
         }
 
-	if (outfn) {
-		outfd = open_log(outfn);
-		if (outfd == -1) {
+	if (logpar.output_filename) {
+		logpar.output_fd = open_log(logpar.output_filename);
+		if (logpar.output_fd == -1) {
 			err(7, "open");
                 }
 	}
 
-	if (syslog_enabled) {
-		openlog(logtag, LOG_PID | LOG_NDELAY, logfac);
+	if (logpar.syslog_enabled) {
+		openlog(syslog_tag, LOG_PID | LOG_NDELAY, syslog_facility);
         }
 
 	/*
@@ -271,7 +272,7 @@ main(int argc, char *argv[])
 	 * to be able to report the error intelligently
 	 */
 	open_pid_files(pidfile, ppidfile, &pfh, &ppfh);
-	if (daemon(nochdir, noclose) == -1) {
+	if (daemon(nochdir, logpar.noclose) == -1) {
 		warn("daemon");
 		goto exit;
 	}
@@ -295,11 +296,11 @@ main(int argc, char *argv[])
 	 * To achieve this daemon catches SIGTERM and
 	 * forwards it to the child, expecting to get SIGCHLD eventually.
 	 */
-	supervision_enabled = pidfile  != NULL ||
+	supervision_enabled = pidfile != NULL ||
 		ppidfile != NULL ||
-		restart  != 0    ||
-		outfd    != -1   ||
-		syslog_enabled == true;
+		restart != 0 ||
+		logpar.output_fd != -1   ||
+		logpar.syslog_enabled == true;
 
 	if (supervision_enabled) {
 		struct sigaction act_term = { 0 };
@@ -348,12 +349,7 @@ main(int argc, char *argv[])
 		 * not have superuser privileges.
 		 */
 		(void)madvise(NULL, 0, MADV_PROTECT);
-		logpar.outfd = outfd;
-		logpar.syslog_enabled = syslog_enabled;
-		logpar.logpri = logpri;
-		logpar.noclose = noclose;
-		logpar.outfn = outfn;
-		if (log_reopen && outfd >= 0 &&
+		if (log_reopen && logpar.output_fd >= 0 &&
 		    sigaction(SIGHUP, &act_hup, NULL) == -1) {
 			warn("sigaction");
 			goto exit;
@@ -484,10 +480,10 @@ restart:
 		goto restart;
 	}
 exit:
-	close(outfd);
+	close(logpar.output_fd);
 	close(pfd[0]);
 	close(pfd[1]);
-	if (syslog_enabled) {
+	if (logpar.syslog_enabled) {
 		closelog();
         }
 	pidfile_remove(pfh);
@@ -648,13 +644,13 @@ do_output(const unsigned char *buf, size_t len, struct log_params *logpar)
 		return;
         }
 	if (logpar->syslog_enabled) {
-		syslog(logpar->logpri, "%.*s", (int)len, buf);
+		syslog(logpar->syslog_priority, "%.*s", (int)len, buf);
         }
-	if (logpar->outfd != -1) {
-		if (write(logpar->outfd, buf, len) == -1)
+	if (logpar->output_fd != -1) {
+		if (write(logpar->output_fd, buf, len) == -1)
 			warn("write");
 	}
-	if (logpar->noclose && !logpar->syslog_enabled && logpar->outfd == -1) {
+	if (logpar->noclose && !logpar->syslog_enabled && logpar->output_fd == -1) {
 		printf("%.*s", (int)len, buf);
         }
 }
@@ -708,10 +704,10 @@ reopen_log(struct log_params *lpp)
 	int outfd;
 
 	do_log_reopen = 0;
-	outfd = open_log(lpp->outfn);
-	if (lpp->outfd >= 0) {
-		close(lpp->outfd);
+	outfd = open_log(lpp->output_filename);
+	if (lpp->output_fd >= 0) {
+		close(lpp->output_fd);
         }
-	lpp->outfd = outfd;
+	lpp->output_fd = outfd;
 }
 
