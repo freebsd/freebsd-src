@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -141,6 +142,7 @@ usage(int exitcode)
 int
 main(int argc, char *argv[])
 {
+	bool supervision_enabled = false;
 	char *p = NULL;
 	const char *pidfile = NULL;
 	const char *logtag = "daemon";
@@ -275,18 +277,31 @@ main(int argc, char *argv[])
 	}
 	/* Write out parent pidfile if needed. */
 	pidfile_write(ppfh);
+
 	/*
-	 * If the pidfile or restart option is specified the daemon
-	 * executes the command in a forked process and wait on child
-	 * exit to remove the pidfile or restart the command. Normally
-	 * we don't want the monitoring daemon to be terminated
-	 * leaving the running process and the stale pidfile, so we
-	 * catch SIGTERM and forward it to the children expecting to
-	 * get SIGCHLD eventually. We also must fork() to obtain a
-	 * readable pipe with the child for writing to a log file
-	 * and syslog.
+	 * Supervision mode is enabled if one of the following options are used:
+	 * --child-pidfile -p
+	 * --supervisor-pidfile -P
+	 * --restart -r / --restart-delay -R
+	 * --syslog -S
+	 * --syslog-facility -l
+	 * --syslog-priority -s
+	 * --syslog-tag -T
+	 *
+	 * In supervision mode daemon executes the command in a forked process
+	 * and observes the child by waiting for SIGCHILD. In supervision mode
+	 * daemon must never exit before the child, this is necessary  to prevent
+	 * orphaning the child and leaving a stale pid file.
+	 * To achieve this daemon catches SIGTERM and
+	 * forwards it to the child, expecting to get SIGCHLD eventually.
 	 */
-	if (pidfile || ppidfile || restart || outfd != -1 || dosyslog) {
+	supervision_enabled = pidfile  != NULL ||
+		ppidfile != NULL ||
+		restart  != 0    ||
+		outfd    != -1   ||
+		dosyslog != 0;
+
+	if (supervision_enabled) {
 		struct sigaction act_term = { 0 };
 		struct sigaction act_chld = { 0 };
 		struct sigaction act_hup = { 0 };
