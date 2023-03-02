@@ -81,7 +81,7 @@ static void daemon_sleep(time_t, long);
 
 static volatile sig_atomic_t terminate = 0;
 static volatile sig_atomic_t child_gone = 0;
-static volatile sig_atomic_t pid = 0;
+static volatile sig_atomic_t pid = -1;
 static volatile sig_atomic_t do_log_reopen = 0;
 
 static const char shortopts[] = "+cfHSp:P:ru:o:s:l:t:m:R:T:h";
@@ -286,7 +286,6 @@ main(int argc, char *argv[])
 	 * readable pipe with the child for writing to a log file
 	 * and syslog.
 	 */
-	pid = -1;
 	if (pidfile || ppidfile || restart || outfd != -1 || dosyslog) {
 		struct sigaction act_term, act_chld, act_hup;
 
