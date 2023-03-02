@@ -78,7 +78,8 @@ __FBSDID("$FreeBSD$");
 #define	VFS_MOUNTARG_SIZE_MAX	(1024 * 64)
 
 static int	vfs_domount(struct thread *td, const char *fstype, char *fspath,
-		    uint64_t fsflags, struct vfsoptlist **optlist);
+		    uint64_t fsflags, bool jail_export,
+		    struct vfsoptlist **optlist);
 static void	free_mntarg(struct mntarg *ma);
 
 static int	usermount = 0;
@@ -806,7 +807,7 @@ vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 	struct vfsopt *opt, *tmp_opt;
 	char *fstype, *fspath, *errmsg;
 	int error, fstypelen, fspathlen, errmsg_len, errmsg_pos;
-	bool autoro;
+	bool autoro, has_nonexport, jail_export;
 
 	errmsg = fspath = NULL;
 	errmsg_len = fspathlen = 0;
@@ -843,14 +844,36 @@ vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 	}
 
 	/*
+	 * Check to see that "export" is only used with the "update", "fstype",
+	 * "fspath", "from" and "errmsg" options when in a vnet jail.
+	 * These are the ones used to set/update exports by mountd(8).
+	 * If only the above options are set in a jail that can run mountd(8),
+	 * then the jail_export argument of vfs_domount() will be true.
+	 * When jail_export is true, the vfs_suser() check does not cause
+	 * failure, but limits the update to exports only.
+	 * This allows mountd(8) running within the vnet jail
+	 * to export file systems visible within the jail, but
+	 * mounted outside of the jail.
+	 */
+	/*
 	 * We need to see if we have the "update" option
 	 * before we call vfs_domount(), since vfs_domount() has special
 	 * logic based on MNT_UPDATE.  This is very important
 	 * when we want to update the root filesystem.
 	 */
+	has_nonexport = false;
+	jail_export = false;
 	TAILQ_FOREACH_SAFE(opt, optlist, link, tmp_opt) {
 		int do_freeopt = 0;
 
+		if (jailed(td->td_ucred) &&
+		    strcmp(opt->name, "export") != 0 &&
+		    strcmp(opt->name, "update") != 0 &&
+		    strcmp(opt->name, "fstype") != 0 &&
+		    strcmp(opt->name, "fspath") != 0 &&
+		    strcmp(opt->name, "from") != 0 &&
+		    strcmp(opt->name, "errmsg") != 0)
+			has_nonexport = true;
 		if (strcmp(opt->name, "update") == 0) {
 			fsflags |= MNT_UPDATE;
 			do_freeopt = 1;
@@ -933,9 +956,10 @@ vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 			fsflags |= MNT_SYNCHRONOUS;
 		else if (strcmp(opt->name, "union") == 0)
 			fsflags |= MNT_UNION;
-		else if (strcmp(opt->name, "export") == 0)
+		else if (strcmp(opt->name, "export") == 0) {
 			fsflags |= MNT_EXPORTED;
-		else if (strcmp(opt->name, "automounted") == 0) {
+			jail_export = true;
+		} else if (strcmp(opt->name, "automounted") == 0) {
 			fsflags |= MNT_AUTOMOUNTED;
 			do_freeopt = 1;
 		} else if (strcmp(opt->name, "nocover") == 0) {
@@ -965,7 +989,15 @@ vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 		goto bail;
 	}
 
-	error = vfs_domount(td, fstype, fspath, fsflags, &optlist);
+	/*
+	 * If has_nonexport is true or the caller is not running within a
+	 * vnet prison that can run mountd(8), set jail_export false.
+	 */
+	if (has_nonexport || !jailed(td->td_ucred) ||
+	    !prison_check_nfsd(td->td_ucred))
+		jail_export = false;
+
+	error = vfs_domount(td, fstype, fspath, fsflags, jail_export, &optlist);
 	if (error == ENOENT) {
 		error = EINVAL;
 		if (errmsg != NULL)
@@ -983,7 +1015,8 @@ vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 		printf("%s: R/W mount failed, possibly R/O media,"
 		    " trying R/O mount\n", __func__);
 		fsflags |= MNT_RDONLY;
-		error = vfs_domount(td, fstype, fspath, fsflags, &optlist);
+		error = vfs_domount(td, fstype, fspath, fsflags, jail_export,
+		    &optlist);
 	}
 bail:
 	/* copyout the errmsg */
@@ -1273,6 +1306,7 @@ vfs_domount_update(
 	struct thread *td,		/* Calling thread. */
 	struct vnode *vp,		/* Mount point vnode. */
 	uint64_t fsflags,		/* Flags common to all filesystems. */
+	bool jail_export,		/* Got export option in vnet prison. */
 	struct vfsoptlist **optlist	/* Options local to the filesystem. */
 	)
 {
@@ -1284,6 +1318,7 @@ vfs_domount_update(
 	int error, export_error, i, len;
 	uint64_t flag;
 	gid_t *grps;
+	bool vfs_suser_failed;
 
 	ASSERT_VOP_ELOCKED(vp, __func__);
 	KASSERT((fsflags & MNT_UPDATE) != 0, ("MNT_UPDATE should be here"));
@@ -1312,7 +1347,20 @@ vfs_domount_update(
 	 * Only privileged root, or (if MNT_USER is set) the user that
 	 * did the original mount is permitted to update it.
 	 */
+	/*
+	 * For the case of mountd(8) doing exports in a jail, the vfs_suser()
+	 * call does not cause failure.  vfs_domount() has already checked
+	 * that "root" is doing this and vfs_suser() will fail when
+	 * the file system has been mounted outside the jail.
+	 * jail_export set true indicates that "export" is not mixed
+	 * with other options that change mount behaviour.
+	 */
+	vfs_suser_failed = false;
 	error = vfs_suser(mp, td);
+	if (jail_export && error != 0) {
+		error = 0;
+		vfs_suser_failed = true;
+	}
 	if (error != 0) {
 		vput(vp);
 		return (error);
@@ -1342,11 +1390,26 @@ vfs_domount_update(
 		error = EBUSY;
 		goto end;
 	}
-	mp->mnt_flag &= ~MNT_UPDATEMASK;
-	mp->mnt_flag |= fsflags & (MNT_RELOAD | MNT_FORCE | MNT_UPDATE |
-	    MNT_SNAPSHOT | MNT_ROOTFS | MNT_UPDATEMASK | MNT_RDONLY);
-	if ((mp->mnt_flag & MNT_ASYNC) == 0)
-		mp->mnt_kern_flag &= ~MNTK_ASYNC;
+	if (vfs_suser_failed) {
+		KASSERT((fsflags & (MNT_EXPORTED | MNT_UPDATE)) ==
+		    (MNT_EXPORTED | MNT_UPDATE),
+		    ("%s: jailed export did not set expected fsflags",
+		     __func__));
+		/*
+		 * For this case, only MNT_UPDATE and
+		 * MNT_EXPORTED have been set in fsflags
+		 * by the options.  Only set MNT_UPDATE,
+		 * since that is the one that would be set
+		 * when set in fsflags, below.
+		 */
+		mp->mnt_flag |= MNT_UPDATE;
+	} else {
+		mp->mnt_flag &= ~MNT_UPDATEMASK;
+		mp->mnt_flag |= fsflags & (MNT_RELOAD | MNT_FORCE | MNT_UPDATE |
+		    MNT_SNAPSHOT | MNT_ROOTFS | MNT_UPDATEMASK | MNT_RDONLY);
+		if ((mp->mnt_flag & MNT_ASYNC) == 0)
+			mp->mnt_kern_flag &= ~MNTK_ASYNC;
+	}
 	rootvp = vfs_cache_root_clear(mp);
 	MNT_IUNLOCK(mp);
 	mp->mnt_optnew = *optlist;
@@ -1357,7 +1420,17 @@ vfs_domount_update(
 	 * XXX The final recipients of VFS_MOUNT just overwrite the ndp they
 	 * get.  No freeing of cn_pnbuf.
 	 */
-	error = VFS_MOUNT(mp);
+	/*
+	 * For the case of mountd(8) doing exports from within a vnet jail,
+	 * "from" is typically not set correctly such that VFS_MOUNT() will
+	 * return ENOENT. It is not obvious that VFS_MOUNT() ever needs to be
+	 * called when mountd is doing exports, but this check only applies to
+	 * the specific case where it is running inside a vnet jail, to
+	 * avoid any POLA violation.
+	 */
+	error = 0;
+	if (!jail_export)
+		error = VFS_MOUNT(mp);
 
 	export_error = 0;
 	/* Process the export option. */
@@ -1495,6 +1568,7 @@ vfs_domount(
 	const char *fstype,		/* Filesystem type. */
 	char *fspath,			/* Mount path. */
 	uint64_t fsflags,		/* Flags common to all filesystems. */
+	bool jail_export,		/* Got export option in vnet prison. */
 	struct vfsoptlist **optlist	/* Options local to the filesystem. */
 	)
 {
@@ -1512,7 +1586,11 @@ vfs_domount(
 	if (strlen(fstype) >= MFSNAMELEN || strlen(fspath) >= MNAMELEN)
 		return (ENAMETOOLONG);
 
-	if (jailed(td->td_ucred) || usermount == 0) {
+	if (jail_export) {
+		error = priv_check(td, PRIV_NFS_DAEMON);
+		if (error)
+			return (error);
+	} else if (jailed(td->td_ucred) || usermount == 0) {
 		if ((error = priv_check(td, PRIV_VFS_MOUNT)) != 0)
 			return (error);
 	}
@@ -1593,7 +1671,8 @@ vfs_domount(
 		}
 		free(pathbuf, M_TEMP);
 	} else
-		error = vfs_domount_update(td, vp, fsflags, optlist);
+		error = vfs_domount_update(td, vp, fsflags, jail_export,
+		    optlist);
 
 out:
 	NDFREE_PNBUF(&nd);
