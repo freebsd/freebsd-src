@@ -40,7 +40,7 @@
 
 #include "partedit.h"
 
-#define MIN_FREE_SPACE		(1024*1024*1024) /* 1 GB */
+#define MIN_FREE_SPACE		(1023*1024*1024) /* Just under 1 GB */
 #define SWAP_SIZE(available)	MIN(available/20, 4*1024*1024*1024LL)
 
 static char *wizard_partition(struct gmesh *mesh, const char *disk);
