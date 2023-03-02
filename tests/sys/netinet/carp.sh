@@ -106,6 +106,64 @@ basic_v4_cleanup()
 	vnet_cleanup
 }
 
+
+atf_test_case "unicast_v4" "cleanup"
+unicast_v4_head()
+{
+	atf_set descr 'Unicast CARP test (IPv4)'
+	atf_set require.user root
+}
+
+unicast_v4_body()
+{
+	carp_init
+
+	bridge=$(vnet_mkbridge)
+	epair_one=$(vnet_mkepair)
+	epair_two=$(vnet_mkepair)
+
+	vnet_mkjail carp_uni_v4_one ${bridge} ${epair_one}a ${epair_two}a
+	vnet_mkjail carp_uni_v4_two ${epair_one}b
+	vnet_mkjail carp_uni_v4_three ${epair_two}b
+
+	jexec carp_uni_v4_one ifconfig ${bridge} 192.0.2.4/29 up
+	jexec carp_uni_v4_one sysctl net.inet.ip.forwarding=1
+	jexec carp_uni_v4_one ifconfig ${bridge} addm ${epair_one}a \
+	    addm ${epair_two}a
+	jexec carp_uni_v4_one ifconfig ${epair_one}a up
+	jexec carp_uni_v4_one ifconfig ${epair_two}a up
+	jexec carp_uni_v4_one ifconfig ${bridge} inet alias 198.51.100.1/25
+	jexec carp_uni_v4_one ifconfig ${bridge} inet alias 198.51.100.129/25
+
+	jexec carp_uni_v4_two ifconfig ${epair_one}b 198.51.100.2/25 up
+	jexec carp_uni_v4_two route add default 198.51.100.1
+	jexec carp_uni_v4_two ifconfig ${epair_one}b add vhid 1 \
+	    peer 198.51.100.130 192.0.2.1/29
+
+	jexec carp_uni_v4_three ifconfig ${epair_two}b 198.51.100.130/25 up
+	jexec carp_uni_v4_three route add default 198.51.100.129
+	jexec carp_uni_v4_three ifconfig ${epair_two}b add vhid 1 \
+	    peer 198.51.100.2 192.0.2.1/29
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore jexec carp_uni_v4_two \
+	    ping -c 1 198.51.100.130
+
+	wait_for_carp carp_uni_v4_two ${epair_one}b \
+	    carp_uni_v4_three ${epair_two}b
+
+	atf_check -s exit:0 -o ignore jexec carp_uni_v4_one \
+	    ping -c 3 192.0.2.1
+
+	jexec carp_uni_v4_two ifconfig
+	jexec carp_uni_v4_three ifconfig
+}
+
+unicast_v4_cleanup()
+{
+	vnet_cleanup
+}
+
 atf_test_case "basic_v6" "cleanup"
 basic_v6_head()
 {
@@ -290,6 +348,7 @@ switch_cleanup()
 atf_init_test_cases()
 {
 	atf_add_test_case "basic_v4"
+	atf_add_test_case "unicast_v4"
 	atf_add_test_case "basic_v6"
 	atf_add_test_case "negative_demotion"
 	atf_add_test_case "nd6_ns_source_mac"
