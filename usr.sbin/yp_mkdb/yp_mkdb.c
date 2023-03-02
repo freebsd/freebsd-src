@@ -92,7 +92,6 @@ unwind(char *map)
 		    (int)data.size, (char *)data.data);
 
 	(void)(dbp->close)(dbp);
-	return;
 }
 
 int
