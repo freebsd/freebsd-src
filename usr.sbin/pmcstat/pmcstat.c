@@ -349,8 +349,6 @@ pmcstat_print_pmcs(void)
 	(void) fprintf(args.pa_printfile, "\n");
 
 	pmcstat_print_counters();
-
-	return;
 }
 
 void
