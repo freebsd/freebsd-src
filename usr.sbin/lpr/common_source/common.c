@@ -554,8 +554,6 @@ trstat_init(struct printer *pp, const char *fname, int filenum)
 	 * save those away along with the file-number */
 	pp->jobdfnum = filenum;
 	lpd_gettime(&pp->tr_start, pp->tr_timestr, (size_t)TIMESTR_SIZE);
-
-	return;
 }
 
 void
