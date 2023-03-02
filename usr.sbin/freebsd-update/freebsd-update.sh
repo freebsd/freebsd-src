@@ -2547,7 +2547,7 @@ manually...
 				read dummy </dev/tty
 				${EDITOR} `pwd`/merge/new/${F} < /dev/tty
 
-				if ! egrep -q '^(<<<<<<<|=======|>>>>>>>)([[:space:]].*)?$' $(pwd)/merge/new/${F} ; then
+				if ! grep -qE '^(<<<<<<<|=======|>>>>>>>)([[:space:]].*)?$' $(pwd)/merge/new/${F} ; then
 					break
 				fi
 				cat <<-EOF
