@@ -103,7 +103,7 @@ struct ftgpio_device {
 } ftgpio_devices[] = {
 	{
 		.devid = 0x0704,
-		.descr = "GPIO Controller on Fintek Super I/O",
+		.descr = "Fintek F81865",
 	},
 };
 
@@ -289,18 +289,12 @@ static bool
 ftgpio_pin_is_output(struct ftgpio_softc *sc, uint32_t pin_num)
 {
 	unsigned group, index;
-	uint8_t  group_io, ioreg;
 	bool is_output;
 
 	index = FTGPIO_PIN_GETINDEX(pin_num);
 	group = FTGPIO_PIN_GETGROUP(pin_num);
 
-	ioreg    = ftgpio_group_get_ioreg(sc, REG_OUTPUT_ENABLE, group);
-	group_io = superio_read(sc->dev, ioreg);
-	FTGPIO_VERBOSE_PRINTF(sc->dev, "group GPIO%u io is 0x%x (ioreg=0x%x)\n",
-		group, group_io, ioreg);
-
-	is_output = group_io & (1 << index);
+	is_output = ftgpio_group_get_status(sc, group) & (1 << index);
 	FTGPIO_VERBOSE_PRINTF(sc->dev, "pin %u<GPIO%u%u> io is %s\n",
 		pin_num, group, index, (is_output ? "output" : "input"));
 	return (is_output);
