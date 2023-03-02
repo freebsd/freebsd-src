@@ -503,7 +503,6 @@ NETGRAPH
 NETGRAPH_DEBUG		opt_netgraph.h
 NETGRAPH_ASYNC		opt_netgraph.h
 NETGRAPH_ATMLLC		opt_netgraph.h
-NETGRAPH_ATM_ATMPIF	opt_netgraph.h
 NETGRAPH_BLUETOOTH	opt_netgraph.h
 NETGRAPH_BLUETOOTH_BT3C	opt_netgraph.h
 NETGRAPH_BLUETOOTH_H4	opt_netgraph.h
