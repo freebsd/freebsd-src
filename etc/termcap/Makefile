@@ -1,5 +1,6 @@
 .PATH: ${SRCTOP}/share/termcap
 
+PACKAGE=	runtime
 CLEANFILES+=	termcap.small
 CONFS=		termcap.small
 
