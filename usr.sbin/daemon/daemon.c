@@ -154,7 +154,7 @@ main(int argc, char *argv[])
 	const char *user = NULL;
 	int ch = 0;
 	int keep_cur_workdir = 1;
-	int pfd[2] = { -1, -1 };
+	int pipe_fd[2] = { -1, -1 };
 	int restart = 0;
 	int stdmask = STDOUT_FILENO | STDERR_FILENO;
 	struct log_params logparams = {
@@ -360,7 +360,7 @@ main(int argc, char *argv[])
 			goto exit;
 		}
 restart:
-		if (pipe(pfd)) {
+		if (pipe(pipe_fd)) {
 			err(1, "pipe");
 		}
 		/*
@@ -389,23 +389,23 @@ restart:
 		 * and dup'd pipes.
 		 */
 		if (supervision_enabled) {
-			close(pfd[0]);
+			close(pipe_fd[0]);
 			if (sigprocmask(SIG_SETMASK, &mask_orig, NULL)) {
 				err(1, "sigprogmask");
 			}
 			if (stdmask & STDERR_FILENO) {
-				if (dup2(pfd[1], STDERR_FILENO) == -1) {
+				if (dup2(pipe_fd[1], STDERR_FILENO) == -1) {
 					err(1, "dup2");
 				}
 			}
 			if (stdmask & STDOUT_FILENO) {
-				if (dup2(pfd[1], STDOUT_FILENO) == -1) {
+				if (dup2(pipe_fd[1], STDOUT_FILENO) == -1) {
 					err(1, "dup2");
 				}
 			}
-			if (pfd[1] != STDERR_FILENO &&
-			    pfd[1] != STDOUT_FILENO) {
-				close(pfd[1]);
+			if (pipe_fd[1] != STDERR_FILENO &&
+			    pipe_fd[1] != STDOUT_FILENO) {
+				close(pipe_fd[1]);
 			}
 		}
 		execvp(argv[0], argv);
@@ -424,8 +424,8 @@ restart:
 		warn("sigprocmask");
 		goto exit;
 	}
-	close(pfd[1]);
-	pfd[1] = -1;
+	close(pipe_fd[1]);
+	pipe_fd[1] = -1;
 
 	setproctitle("%s[%d]", title, (int)pid);
 	/*
@@ -463,8 +463,9 @@ restart:
 				warn("sigprocmask");
 				goto exit;
 			}
-			while (!terminate && !child_gone)
+			while (!terminate && !child_gone) {
 				sigsuspend(&mask_orig);
+			}
 			if (sigprocmask(SIG_UNBLOCK, &mask_susp, NULL)) {
 				warn("sigprocmask");
 				goto exit;
@@ -477,7 +478,7 @@ restart:
 			goto exit;
 		}
 
-		child_eof = !listen_child(pfd[0], &logparams);
+		child_eof = !listen_child(pipe_fd[0], &logparams);
 
 		if (sigprocmask(SIG_UNBLOCK, &mask_read, NULL)) {
 			warn("sigprocmask");
@@ -493,14 +494,14 @@ restart:
 		goto exit;
 	}
 	if (restart && !terminate) {
-		close(pfd[0]);
-		pfd[0] = -1;
+		close(pipe_fd[0]);
+		pipe_fd[0] = -1;
 		goto restart;
 	}
 exit:
 	close(logparams.output_fd);
-	close(pfd[0]);
-	close(pfd[1]);
+	close(pipe_fd[0]);
+	close(pipe_fd[1]);
 	if (logparams.syslog_enabled) {
 		closelog();
 	}
