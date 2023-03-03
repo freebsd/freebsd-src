@@ -2853,12 +2853,8 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		/*
 		 * If the link MTU changed, do network layer specific procedure.
 		 */
-		if (ifp->if_mtu != oldmtu) {
-#ifdef INET6
-			nd6_setmtu(ifp);
-#endif
-			rt_updatemtu(ifp);
-		}
+		if (ifp->if_mtu != oldmtu)
+			if_notifymtu(ifp);
 		break;
 	}
 
@@ -4468,6 +4464,15 @@ if_setmtu(if_t ifp, int mtu)
 {
 	ifp->if_mtu = mtu;
 	return (0);
+}
+
+void
+if_notifymtu(if_t ifp)
+{
+#ifdef INET6
+	nd6_setmtu(ifp);
+#endif
+	rt_updatemtu(ifp);
 }
 
 int
