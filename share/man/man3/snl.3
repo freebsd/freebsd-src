@@ -75,9 +75,13 @@
 .Ft "bool"
 .Fn snl_attr_get_flag "struct snl_state *ss" "struct nlattr *nla" "void *target"
 .Ft "bool"
+.Fn snl_attr_get_uint8 "struct snl_state *ss" "struct nlattr *nla" "void *target"
+.Ft "bool"
 .Fn snl_attr_get_uint16 "struct snl_state *ss" "struct nlattr *nla" "void *target"
 .Ft "bool"
 .Fn snl_attr_get_uint32 "struct snl_state *ss" "struct nlattr *nla" "void *target"
+.Ft "bool"
+.Fn snl_attr_get_uint64 "struct snl_state *ss" "struct nlattr *nla" "void *target"
 .Ft "bool"
 .Fn snl_attr_get_string "struct snl_state *ss" "struct nlattr *nla" "void *target"
 .Ft "bool"
@@ -181,10 +185,14 @@ A number of predefined getters for the common data types exist.
 .Fn snl_attr_get_flag
 converts a flag-type attribute to an uint8_t value of 1 or 0, depending on the
 attribute presence.
+.Fn snl_attr_get_uint8
+stores a uint8_t type attribute into the uint8_t target field.
 .Fn snl_attr_get_uint16
 stores a uint16_t type attribute into the uint16_t target field.
 .Fn snl_attr_get_uint32
 stores a uint32_t type attribute into the uint32_t target field.
+.Fn snl_attr_get_uint64
+stores a uint64_t type attribute into the uint64_t target field.
 .Fn snl_attr_get_ip
 and
 .Fn snl_attr_get_ipvia
