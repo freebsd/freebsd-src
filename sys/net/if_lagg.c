@@ -77,14 +77,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_lagg.h>
 #include <net/ieee8023ad_lacp.h>
 
-#ifdef INET6
-/*
- * XXX: declare here to avoid to include many inet6 related files..
- * should be more generalized?
- */
-extern void	nd6_setmtu(struct ifnet *);
-#endif
-
 #ifdef DEV_NETMAP
 MODULE_DEPEND(if_lagg, netmap, 1, 1, 1);
 #endif
@@ -1636,12 +1628,8 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		 * LAGG MTU may change during addition of the first port.
 		 * If it did, do network layer specific procedure.
 		 */
-		if (ifp->if_mtu != oldmtu) {
-#ifdef INET6
-			nd6_setmtu(ifp);
-#endif
-			rt_updatemtu(ifp);
-		}
+		if (ifp->if_mtu != oldmtu)
+			if_notifymtu(ifp);
 
 		VLAN_CAPABILITIES(ifp);
 		break;

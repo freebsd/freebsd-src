@@ -85,14 +85,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/if_ether.h>
 #endif
 
-#ifdef INET6
-/*
- * XXX: declare here to avoid to include many inet6 related files..
- * should be more generalized?
- */
-extern void	nd6_setmtu(struct ifnet *);
-#endif
-
 #define	VLAN_DEF_HWIDTH	4
 #define	VLAN_IFFLAGS	(IFF_BROADCAST | IFF_MULTICAST)
 
@@ -2110,12 +2102,8 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		 * VLAN MTU may change during addition of the vlandev.
 		 * If it did, do network layer specific procedure.
 		 */
-		if (ifp->if_mtu != oldmtu) {
-#ifdef INET6
-			nd6_setmtu(ifp);
-#endif
-			rt_updatemtu(ifp);
-		}
+		if (ifp->if_mtu != oldmtu)
+			if_notifymtu(ifp);
 		break;
 
 	case SIOCGETVLAN:
