@@ -486,7 +486,7 @@ smbios_probe(const caddr_t addr)
 
 #ifdef HAS_SMBV3
 	if (isv3) {
-		smbios.length = SMBIOS_GET16(saddr, 0x0c);	/* Structure Table Length */
+		smbios.length = SMBIOS_GET32(saddr, 0x0c);	/* Structure Table Length */
 		paddr = SMBIOS_GET64(saddr, 0x10);		/* Structure Table Address */
 		smbios.count = -1;				/* not present in V3 */
 		smbios.ver = 0;					/* not present in V3 */
