@@ -24,7 +24,7 @@ Source Roadmap:
 | crypto | crypto drivers |
 | ddb | interactive kernel debugger - `ddb(4)` |
 | fs | most filesystems, excluding UFS, NFS, and ZFS |
-| dev | device drivers |
+| dev | device drivers and other arch independent code |
 | gdb | kernel remote GDB stub - `gdb(4)` |
 | geom | GEOM framework - `geom(4)` |
 | i386 | i386 (32-bit x86) architecture support |
