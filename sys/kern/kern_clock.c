@@ -304,13 +304,13 @@ SYSINIT(deadlkres, SI_SUB_CLOCKS, SI_ORDER_ANY, kthread_start, &deadlkres_kd);
 
 static SYSCTL_NODE(_debug, OID_AUTO, deadlkres, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Deadlock resolver");
-SYSCTL_INT(_debug_deadlkres, OID_AUTO, slptime_threshold, CTLFLAG_RW,
+SYSCTL_INT(_debug_deadlkres, OID_AUTO, slptime_threshold, CTLFLAG_RWTUN,
     &slptime_threshold, 0,
     "Number of seconds within is valid to sleep on a sleepqueue");
-SYSCTL_INT(_debug_deadlkres, OID_AUTO, blktime_threshold, CTLFLAG_RW,
+SYSCTL_INT(_debug_deadlkres, OID_AUTO, blktime_threshold, CTLFLAG_RWTUN,
     &blktime_threshold, 0,
     "Number of seconds within is valid to block on a turnstile");
-SYSCTL_INT(_debug_deadlkres, OID_AUTO, sleepfreq, CTLFLAG_RW, &sleepfreq, 0,
+SYSCTL_INT(_debug_deadlkres, OID_AUTO, sleepfreq, CTLFLAG_RWTUN, &sleepfreq, 0,
     "Number of seconds between any deadlock resolver thread run");
 #endif	/* DEADLKRES */
 
