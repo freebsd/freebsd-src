@@ -640,6 +640,18 @@ MKTEMP=${WORLDTMP}/legacy/usr/bin/mktemp
 MKTEMP=mktemp
 .endif
 INSTALLTMP!=	${MKTEMP} -d -u -t install
+
+.if ${.MAKE.OS} == "FreeBSD"
+# When building on FreeBSD we always copy the host tools instead of linking
+# into INSTALLTMP to avoid issues with incompatible libraries (see r364030).
+# Note: we could create links if we don't intend to update the current machine.
+INSTALLTMP_COPY_HOST_TOOL=cp
+.else
+# However, this is not necessary on Linux/macOS. Additionally, copying the host
+# tools to another directory with cp results in AMFI Launch Constraint
+# Violations on macOS Ventura as part of its System Integrity Protection.
+INSTALLTMP_COPY_HOST_TOOL=ln -s
+.endif
 .endif
 
 .if make(stagekernel) || make(distributekernel)
@@ -1394,7 +1406,7 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 			fi; \
 		    done); \
 	fi; \
-	cp $$libs $$progs ${INSTALLTMP}
+	${INSTALLTMP_COPY_HOST_TOOL} $$libs $$progs ${INSTALLTMP}
 	cp -R $${PATH_LOCALE:-"/usr/share/locale"} ${INSTALLTMP}/locale
 .if defined(NO_ROOT)
 	-mkdir -p ${METALOG:H}
