@@ -246,6 +246,8 @@ ng_sscop_constructor(node_p node)
 {
 	struct priv *p;
 
+	gone_in(14, "ng_sscop: netgraph ATM modules");
+
 	p = malloc(sizeof(*p), M_NG_SSCOP, M_WAITOK | M_ZERO);
 
 	if ((p->sscop = sscop_create(node, &sscop_funcs)) == NULL) {

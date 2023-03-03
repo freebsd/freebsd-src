@@ -225,6 +225,8 @@ ng_uni_constructor(node_p node)
 {
 	struct priv *priv;
 
+	gone_in(14, "ng_uni: netgraph ATM modules");
+
 	priv = malloc(sizeof(*priv), M_NG_UNI, M_WAITOK | M_ZERO);
 
 	if ((priv->uni = uni_create(node, &uni_funcs)) == NULL) {
