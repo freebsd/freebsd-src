@@ -1,6 +1,5 @@
 /*-
  * Copyright (c) 2010,2018 The FreeBSD Foundation
- * All rights reserved.
  *
  * This software was developed by Shteryana Sotirova Shopova under
  * sponsorship from the FreeBSD Foundation.
