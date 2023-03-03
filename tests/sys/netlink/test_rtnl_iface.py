@@ -313,7 +313,6 @@ class TestRtNlIface(NetlinkTestTemplate, SingleVnetTestTemplate):
     # *      {{nla_len=8, nla_type=IFLA_INFO_KIND}, "vlan"...},
     # *      {{nla_len=12, nla_type=IFLA_INFO_DATA}, "\x06\x00\x01\x00\x16\x00\x00\x00"}
     # */
-    @pytest.mark.skip(reason="vlan support needs more work")
     @pytest.mark.require_user("root")
     def test_create_vlan_plain(self):
         """Creates 802.1Q VLAN interface in vlanXX and ifX fashion"""
