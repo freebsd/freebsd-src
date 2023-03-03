@@ -93,6 +93,8 @@ ng_atmllc_constructor(node_p node)
 {
 	struct	ng_atmllc_priv *priv;
 
+	gone_in(14, "ng_atmllc");
+
 	priv = malloc(sizeof(*priv), M_NETGRAPH, M_WAITOK | M_ZERO);
 	NG_NODE_SET_PRIVATE(node, priv);
 
