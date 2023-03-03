@@ -452,22 +452,16 @@ restart:
 		 */
 		if (child_gone && child_eof) {
 			break;
-		} else if (terminate) {
+		}
+
+		if (terminate) {
 			goto exit;
-		} else if (!child_eof) {
-			if (sigprocmask(SIG_BLOCK, &mask_read, NULL)) {
-				warn("sigprocmask");
-				goto exit;
-			}
-			child_eof = !listen_child(pfd[0], &logparams);
-			if (sigprocmask(SIG_UNBLOCK, &mask_read, NULL)) {
-				warn("sigprocmask");
-				goto exit;
-			}
-		} else {
+		}
+
+		if (child_eof) {
 			if (sigprocmask(SIG_BLOCK, &mask_susp, NULL)) {
 				warn("sigprocmask");
-	 			goto exit;
+				goto exit;
 			}
 			while (!terminate && !child_gone)
 				sigsuspend(&mask_orig);
@@ -475,7 +469,21 @@ restart:
 				warn("sigprocmask");
 				goto exit;
 			}
+			continue;
 		}
+
+		if (sigprocmask(SIG_BLOCK, &mask_read, NULL)) {
+			warn("sigprocmask");
+			goto exit;
+		}
+
+		child_eof = !listen_child(pfd[0], &logparams);
+
+		if (sigprocmask(SIG_UNBLOCK, &mask_read, NULL)) {
+			warn("sigprocmask");
+			goto exit;
+		}
+
 	}
 	if (restart && !terminate) {
 		daemon_sleep(restart, 0);
