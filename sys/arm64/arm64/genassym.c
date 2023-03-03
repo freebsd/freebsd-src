@@ -45,6 +45,7 @@ ASSYM(BP_KERN_DELTA, offsetof(struct arm64_bootparams, kern_delta));
 ASSYM(BP_KERN_STACK, offsetof(struct arm64_bootparams, kern_stack));
 ASSYM(BP_KERN_TTBR0, offsetof(struct arm64_bootparams, kern_ttbr0));
 ASSYM(BP_BOOT_EL, offsetof(struct arm64_bootparams, boot_el));
+ASSYM(BP_HCR_EL2, offsetof(struct arm64_bootparams, hcr_el2));
 
 ASSYM(PCPU_SIZE, sizeof(struct pcpu));
 ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));

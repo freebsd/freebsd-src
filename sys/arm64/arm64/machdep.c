@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/armreg.h>
 #include <machine/cpu.h>
 #include <machine/debug_monitor.h>
+#include <machine/hypervisor.h>
 #include <machine/kdb.h>
 #include <machine/machdep.h>
 #include <machine/metadata.h>
@@ -124,6 +125,7 @@ static struct trapframe proc0_tf;
 int early_boot = 1;
 int cold = 1;
 static int boot_el;
+static uint64_t hcr_el2;
 
 struct kva_md_info kmi;
 
@@ -191,7 +193,11 @@ bool
 has_hyp(void)
 {
 
-	return (boot_el == 2);
+	/*
+	 * XXX The E2H check is wrong, but it's close enough for now.  Needs to
+	 * be re-evaluated once we're running regularly in EL2.
+	 */
+	return (boot_el == 2 && (hcr_el2 & HCR_E2H) == 0);
 }
 
 static void
@@ -865,6 +871,7 @@ initarm(struct arm64_bootparams *abp)
 	TSRAW(&thread0, TS_ENTER, __func__, NULL);
 
 	boot_el = abp->boot_el;
+	hcr_el2 = abp->hcr_el2;
 
 	/* Parse loader or FDT boot parametes. Determine last used address. */
 	lastaddr = parse_boot_param(abp);
