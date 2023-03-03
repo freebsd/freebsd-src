@@ -77,6 +77,8 @@ static struct mtx ngatm_unilist_mtx;
 static void
 uni_msg_init(void)
 {
+	gone_in(14, "ngatmbase: netgraph ATM modules");
+
 	mtx_init(&ngatm_unilist_mtx, "netgraph UNI msg header lists", NULL,
 	    MTX_DEF);
 }

@@ -536,6 +536,8 @@ ng_sscfu_constructor(node_p node)
 {
 	struct priv *priv;
 
+	gone_in(14, "ng_sscfu: netgraph ATM modules");
+
 	priv = malloc(sizeof(*priv), M_NG_SSCFU, M_WAITOK | M_ZERO);
 
 	if ((priv->sscf = sscfu_create(node, &sscfu_funcs)) == NULL) {
