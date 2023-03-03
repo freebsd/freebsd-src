@@ -296,7 +296,6 @@ enum {
 #define	MTAG_IPFW_CALL	1308397630	/* call stack */
 
 struct ip_fw_args;
-typedef int	(*ip_fw_chk_ptr_t)(struct ip_fw_args *args);
 typedef int	(*ip_fw_ctl_ptr_t)(struct sockopt *);
 VNET_DECLARE(ip_fw_ctl_ptr_t, ip_fw_ctl_ptr);
 #define	V_ip_fw_ctl_ptr		VNET(ip_fw_ctl_ptr)
