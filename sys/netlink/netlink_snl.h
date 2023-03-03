@@ -356,6 +356,17 @@ snl_attr_get_flag(struct snl_state *ss __unused, struct nlattr *nla, void *targe
 }
 
 static inline bool
+snl_attr_get_uint8(struct snl_state *ss __unused, struct nlattr *nla,
+    const void *arg __unused, void *target)
+{
+	if (NLA_DATA_LEN(nla) == sizeof(uint8_t)) {
+		*((uint8_t *)target) = *((const uint8_t *)NLA_DATA_CONST(nla));
+		return (true);
+	}
+	return (false);
+}
+
+static inline bool
 snl_attr_get_uint16(struct snl_state *ss __unused, struct nlattr *nla,
     const void *arg __unused, void *target)
 {
@@ -372,6 +383,17 @@ snl_attr_get_uint32(struct snl_state *ss __unused, struct nlattr *nla,
 {
 	if (NLA_DATA_LEN(nla) == sizeof(uint32_t)) {
 		*((uint32_t *)target) = *((const uint32_t *)NLA_DATA_CONST(nla));
+		return (true);
+	}
+	return (false);
+}
+
+static inline bool
+snl_attr_get_uint64(struct snl_state *ss __unused, struct nlattr *nla,
+    const void *arg __unused, void *target)
+{
+	if (NLA_DATA_LEN(nla) == sizeof(uint64_t)) {
+		memcpy(target, NLA_DATA_CONST(nla), sizeof(uint64_t));
 		return (true);
 	}
 	return (false);
@@ -416,7 +438,8 @@ snl_attr_get_nested(struct snl_state *ss, struct nlattr *nla, const void *arg, v
 }
 
 static inline bool
-snl_attr_get_nla(struct snl_state *ss __unused, struct nlattr *nla, void *target)
+snl_attr_get_nla(struct snl_state *ss __unused, struct nlattr *nla,
+    const void *arg __unused, void *target)
 {
 	*((struct nlattr **)target) = nla;
 	return (true);
