@@ -1263,7 +1263,8 @@ ATF_TC_BODY(largepage_basic, tc)
 		for (size_t p = 0; p < ps[i] / ps[0]; p++) {
 			ATF_REQUIRE_MSG((vec[p] & MINCORE_INCORE) != 0,
 			    "page %zu is not mapped", p);
-			ATF_REQUIRE_MSG((vec[p] & MINCORE_PSIND(i)) != 0,
+			ATF_REQUIRE_MSG((vec[p] & MINCORE_SUPER) ==
+			    MINCORE_PSIND(i),
 			    "page %zu is not in a %zu-byte superpage",
 			    p, ps[i]);
 		}
@@ -1426,7 +1427,8 @@ ATF_TC_BODY(largepage_mmap, tc)
 		for (size_t p = 0; p < ps[i] / ps[0]; p++) {
 			ATF_REQUIRE_MSG((vec[p] & MINCORE_INCORE) != 0,
 			    "page %zu is not resident", p);
-			ATF_REQUIRE_MSG((vec[p] & MINCORE_PSIND(i)) != 0,
+			ATF_REQUIRE_MSG((vec[p] & MINCORE_SUPER) ==
+			    MINCORE_PSIND(i),
 			    "page %zu is not resident", p);
 		}
 
@@ -1761,7 +1763,7 @@ ATF_TC_BODY(largepage_minherit, tc)
 			*(volatile char *)addr = 0;
 			if (mincore(addr, ps[0], &v) != 0)
 				_exit(1);
-			if ((v & MINCORE_PSIND(i)) == 0)
+			if ((v & MINCORE_SUPER) == 0)
 				_exit(2);
 			_exit(0);
 		}
@@ -1910,7 +1912,7 @@ ATF_TC_BODY(largepage_reopen, tc)
 	ATF_REQUIRE(vec != NULL);
 	ATF_REQUIRE_MSG(mincore(addr, ps[psind], vec) == 0,
 	    "mincore failed; error=%d", errno);
-	ATF_REQUIRE_MSG((vec[0] & MINCORE_PSIND(psind)) != 0,
+	ATF_REQUIRE_MSG((vec[0] & MINCORE_SUPER) == MINCORE_PSIND(psind),
 	    "page not mapped into a %zu-byte superpage", ps[psind]);
 
 	ATF_REQUIRE_MSG(shm_unlink(test_path) == 0,
