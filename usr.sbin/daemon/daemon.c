@@ -147,6 +147,7 @@ main(int argc, char *argv[])
 	bool supervision_enabled = false;
 	bool log_reopen = false;
 	bool child_eof = false;
+	bool restart_enabled = false;
 	char *p = NULL;
 	const char *child_pidfile = NULL;
 	const char *parent_pidfile = NULL;
@@ -155,7 +156,7 @@ main(int argc, char *argv[])
 	int ch = 0;
 	int keep_cur_workdir = 1;
 	int pipe_fd[2] = { -1, -1 };
-	int restart = 0;
+	int restart_delay = 1;
 	int stdmask = STDOUT_FILENO | STDERR_FILENO;
 	struct log_params logparams = {
 		.syslog_enabled = false,
@@ -213,11 +214,12 @@ main(int argc, char *argv[])
 			parent_pidfile = optarg;
 			break;
 		case 'r':
-			restart = 1;
+			restart_enabled = true;
 			break;
 		case 'R':
-			restart = strtol(optarg, &p, 0);
-			if (p == optarg || restart < 1) {
+			restart_enabled = true;
+			restart_delay = strtol(optarg, &p, 0);
+			if (p == optarg || restart_delay < 1) {
 				errx(6, "invalid restart delay");
 			}
 			break;
@@ -303,8 +305,8 @@ main(int argc, char *argv[])
 	 */
 	supervision_enabled = child_pidfile != NULL ||
 		parent_pidfile != NULL ||
-		restart != 0 ||
-		logparams.output_fd != -1   ||
+		restart_enabled  == true ||
+		logparams.output_fd != -1 ||
 		logparams.syslog_enabled == true;
 
 	if (supervision_enabled) {
@@ -486,14 +488,14 @@ restart:
 		}
 
 	}
-	if (restart && !terminate) {
-		daemon_sleep(restart, 0);
+	if (restart_enabled && !terminate) {
+		daemon_sleep(restart_delay, 0);
 	}
 	if (sigprocmask(SIG_BLOCK, &mask_term, NULL)) {
 		warn("sigprocmask");
 		goto exit;
 	}
-	if (restart && !terminate) {
+	if (restart_enabled && !terminate) {
 		close(pipe_fd[0]);
 		pipe_fd[0] = -1;
 		goto restart;
