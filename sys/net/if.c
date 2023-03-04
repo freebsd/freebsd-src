@@ -4535,6 +4535,71 @@ if_foreach(if_foreach_cb_t cb, void *cb_arg)
 	return (error);
 }
 
+/*
+ * Iterates over the list of interfaces, permitting callback function @cb to sleep.
+ * Stops iteration if @cb returns non-zero error code.
+ * Returns the last error code from @cb.
+ * @match_cb: optional match callback limiting the iteration to only matched interfaces
+ * @match_arg: argument to pass to @match_cb
+ * @cb: iteration callback
+ * @cb_arg: argument to pass to @cb
+ */
+int
+if_foreach_sleep(if_foreach_match_t match_cb, void *match_arg, if_foreach_cb_t cb,
+    void *cb_arg)
+{
+	int match_count = 0, array_size = 16; /* 128 bytes for malloc */
+	struct ifnet **match_array = NULL;
+	int error = 0;
+
+	MPASS(cb);
+
+	while (true) {
+		struct ifnet **new_array;
+		int new_size = array_size;
+		struct epoch_tracker et;
+		struct ifnet *ifp;
+
+		while (new_size < match_count)
+			new_size *= 2;
+		new_array = malloc(new_size * sizeof(void *), M_TEMP, M_WAITOK);
+		if (match_array != NULL)
+			memcpy(new_array, match_array, array_size * sizeof(void *));
+		free(match_array, M_TEMP);
+		match_array = new_array;
+		array_size = new_size;
+
+		match_count = 0;
+		NET_EPOCH_ENTER(et);
+		CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+			if (match_cb != NULL && !match_cb(ifp, match_arg))
+				continue;
+			if (match_count < array_size) {
+				if (if_try_ref(ifp))
+					match_array[match_count++] = ifp;
+			} else
+				match_count++;
+		}
+		NET_EPOCH_EXIT(et);
+
+		if (match_count > array_size) {
+			for (int i = 0; i < array_size; i++)
+				if_rele(match_array[i]);
+			continue;
+		} else {
+			for (int i = 0; i < match_count; i++) {
+				if (error == 0)
+					error = cb(match_array[i], cb_arg);
+				if_rele(match_array[i]);
+			}
+			free(match_array, M_TEMP);
+			break;
+		}
+	}
+
+	return (error);
+}
+
 u_int
 if_foreach_lladdr(if_t ifp, iflladdr_cb_t cb, void *cb_arg)
 {
