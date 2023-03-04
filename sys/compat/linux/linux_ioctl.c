@@ -2189,7 +2189,7 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 	cbs.max_len = maxphys - 1;
 
 	/* handle the 'request buffer size' case */
-	if ((l_uintptr_t)ifc.ifc_buf == PTROUT(NULL)) {
+	if (PTRIN(ifc.ifc_buf) == NULL) {
 		ifc.ifc_len = 0;
 		NET_EPOCH_ENTER(et);
 		if_foreach(linux_ifconf_ifnet_cb, &ifc);
