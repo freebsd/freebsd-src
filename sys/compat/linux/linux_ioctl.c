@@ -2185,8 +2185,6 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 	error = copyin(uifc, &ifc, sizeof(ifc));
 	if (error != 0)
 		return (error);
-	full = 0;
-	cbs.max_len = maxphys - 1;
 
 	/* handle the 'request buffer size' case */
 	if (PTRIN(ifc.ifc_buf) == NULL) {
@@ -2196,9 +2194,11 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 		NET_EPOCH_EXIT(et);
 		return (copyout(&ifc, uifc, sizeof(ifc)));
 	}
-
 	if (ifc.ifc_len <= 0)
 		return (EINVAL);
+
+	full = 0;
+	cbs.max_len = maxphys - 1;
 
 again:
 	if (ifc.ifc_len <= cbs.max_len) {
