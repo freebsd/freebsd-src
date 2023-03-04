@@ -57,6 +57,10 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_util.h>
 
 _Static_assert(LINUX_IFNAMSIZ == IFNAMSIZ, "Linux IFNAMSIZ");
+_Static_assert(sizeof(struct sockaddr) == sizeof(struct l_sockaddr),
+    "Linux struct sockaddr size");
+_Static_assert(offsetof(struct sockaddr, sa_data) ==
+    offsetof(struct l_sockaddr, sa_data), "Linux struct sockaddr layout");
 
 static bool use_real_ifnames = false;
 SYSCTL_BOOL(_compat_linux, OID_AUTO, use_real_ifnames, CTLFLAG_RWTUN,
