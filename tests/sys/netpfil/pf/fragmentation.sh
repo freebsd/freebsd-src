@@ -327,6 +327,43 @@ reassemble_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "no_df" "cleanup"
+no_df_head()
+{
+	atf_set descr 'Test removing of DF flag'
+	atf_set require.user root
+}
+
+no_df_body()
+{
+	setup_router_server_ipv4
+
+	# Tester can send long packets which will get fragmented by the router.
+	# Replies from server will come in fragments which might get
+	# reassembled resulting in a long reply packet sent back to tester.
+	ifconfig ${epair_tester}a mtu 9000
+	jexec router ifconfig ${epair_tester}b mtu 9000
+	jexec router ifconfig ${epair_server}a mtu 1500
+	jexec server ifconfig ${epair_server}b mtu 1500
+
+	# Sanity check.
+	ping_server_check_reply exit:0 --ping-type=icmp
+
+	# Enable packet reassembly with clearing of the no-df flag.
+	pft_set_rules router \
+		"scrub all fragment reassemble no-df" \
+		"block" \
+		"pass inet proto icmp all icmp-type echoreq"
+	# Ping with non-fragmentable packets.
+	# pf will strip the DF flag resulting in fragmentation and packets
+	# getting properly forwarded.
+	ping_server_check_reply exit:0 --ping-type=icmp --send-length=2000 --send-flags DF
+}
+no_df_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "too_many_fragments"
@@ -336,4 +373,5 @@ atf_init_test_cases()
 	atf_add_test_case "overindex"
 	atf_add_test_case "overlimit"
 	atf_add_test_case "reassemble"
+	atf_add_test_case "no_df"
 }

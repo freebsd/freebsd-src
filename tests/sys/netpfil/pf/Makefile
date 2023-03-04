@@ -7,7 +7,6 @@ TESTS_SUBDIRS+=	ioctl
 
 ATF_TESTS_SH+=	altq \
 		anchor \
-		checksum \
 		dup \
 		ether \
 		forward \
@@ -18,6 +17,7 @@ ATF_TESTS_SH+=	altq \
 		macro \
 		map_e \
 		match \
+		modulate \
 		names \
 		nat \
 		pass_block \
@@ -27,7 +27,9 @@ ATF_TESTS_SH+=	altq \
 		rdr \
 		ridentifier \
 		route_to \
+		rtable \
 		rules_counter \
+		scrub \
 		set_skip \
 		set_tos \
 		src_track \
