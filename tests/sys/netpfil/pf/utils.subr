@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: BSD-2-Clause-FreeBSD
 #
 # Copyright (c) 2017 Kristof Provost <kp@FreeBSD.org>
+# Copyright (c) 2023 Kajetan Staszkiewicz <vegeta@tuxpowered.net>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -27,6 +28,7 @@
 # SUCH DAMAGE.
 
 . $(atf_get_srcdir)/../../common/vnet.subr
+common_dir=$(atf_get_srcdir)/../common
 
 pft_onerror()
 {
@@ -152,4 +154,138 @@ altq_init()
 altq_cleanup()
 {
 	pft_cleanup
+}
+
+# Create a bare router jail.
+# This function lacks target configuration.
+setup_router_ipv4()
+{
+	pft_init
+
+	epair_tester=$(vnet_mkepair)
+	epair_server=$(vnet_mkepair)
+
+	net_tester=192.0.2.0/24
+	net_tester_mask=24
+	net_tester_host_router=192.0.2.1
+	net_tester_host_tester=192.0.2.2
+
+	net_server=198.51.100.0/24
+	net_server_mask=24
+	net_server_host_router=198.51.100.1
+	net_server_host_server=198.51.100.2
+
+	vnet_mkjail router ${epair_tester}b ${epair_server}a
+
+	ifconfig ${epair_tester}a ${net_tester_host_tester}/${net_tester_mask} up
+	route add -net ${net_server} ${net_tester_host_router}
+
+	jexec router ifconfig ${epair_tester}b ${net_tester_host_router}/${net_tester_mask} up
+	jexec router sysctl net.inet.ip.forwarding=1
+	jexec router ifconfig ${epair_server}a ${net_server_host_router}/${net_server_mask} up
+
+	jexec router pfctl -e
+}
+
+# Create a router jail.
+# The target for tests does not exist but a static ARP entry does
+# so packets to it can be properly routed.
+setup_router_dummy_ipv4()
+{
+	setup_router_ipv4
+	jexec router arp -s ${net_server_host_server} 00:01:02:03:04:05
+	ifconfig ${epair_server}b up
+}
+
+# Create a router and a server jail.
+# The server is capable of responding to pings from the tester.
+setup_router_server_ipv4()
+{
+	setup_router_ipv4
+	vnet_mkjail server ${epair_server}b
+	jexec server ifconfig ${epair_server}b ${net_server_host_server}/${net_server_mask} up
+	jexec server route add -net ${net_tester} ${net_server_host_router}
+	jexec server nc -4l 666 &
+	sleep 1 # Give nc time to start and listen
+}
+
+# Create a bare router jail.
+# This function lacks target configuration.
+setup_router_ipv6()
+{
+	pft_init
+
+	epair_tester=$(vnet_mkepair)
+	epair_server=$(vnet_mkepair)
+
+	net_tester=2001:db8:42::/64
+	net_tester_mask=64
+	net_tester_host_router=2001:db8:42::1
+	net_tester_host_tester=2001:db8:42::2
+
+	net_server=2001:db8:43::/64
+	net_server_mask=64
+	net_server_host_router=2001:db8:43::1
+	net_server_host_server=2001:db8:43::2
+
+	vnet_mkjail router ${epair_tester}b ${epair_server}a
+
+	ifconfig ${epair_tester}a inet6 ${net_tester_host_tester}/${net_tester_mask}up no_dad
+	route add -6 ${net_server} ${net_tester_host_router}
+
+	jexec router ifconfig ${epair_tester}b inet6 ${net_tester_host_router}/${net_tester_mask} up no_dad
+	jexec router sysctl net.inet6.ip6.forwarding=1
+	jexec router ifconfig ${epair_server}a inet6 ${net_server_host_router}/${net_server_mask} up no_dad
+
+	jexec router pfctl -e
+}
+
+# Create a router jail.
+# The target for tests does not exist but a static NDP entry does
+# so packets to it can be properly routed.
+setup_router_dummy_ipv6()
+{
+	setup_router_ipv6
+	jexec router ndp -s ${net_server_host_server} 00:01:02:03:04:05
+	ifconfig ${epair_server}b up
+}
+
+# Create a router and a server jail.
+# The server is capable of responding to pings from tester.
+setup_router_server_ipv6()
+{
+	setup_router_ipv6
+	vnet_mkjail server ${epair_server}b
+	jexec server ifconfig ${epair_server}b inet6 ${net_server_host_server}/${net_server_mask} up no_dad
+	jexec server route add -6 ${net_tester} ${net_server_host_router}
+	jexec server nc -6l 666 &
+	sleep 1 # Give nc time to start and listen
+}
+
+# Ping the dummy static NDP target.
+# Check for pings being forwarded through the router towards the target.
+ping_dummy_check_request()
+{
+	exit_condition=$1
+	shift
+	params=$@
+	atf_check -s ${exit_condition} ${common_dir}/pft_ping.py \
+	    --sendif ${epair_tester}a \
+	    --to ${net_server_host_server} \
+	    --recvif ${epair_server}b \
+	$params
+}
+
+# Ping the server jail.
+# Check for responses coming back throught the router back to the tester.
+ping_server_check_reply()
+{
+	exit_condition=$1
+	shift
+	params=$@
+	atf_check -s ${exit_condition} ${common_dir}/pft_ping.py \
+	    --sendif ${epair_tester}a \
+	    --to ${net_server_host_server} \
+	    --replyif ${epair_tester}a \
+	$params
 }

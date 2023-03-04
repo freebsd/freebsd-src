@@ -1,6 +1,8 @@
+# $FreeBSD$
+#
 # SPDX-License-Identifier: BSD-2-Clause-FreeBSD
 #
-# Copyright (c) 2020 Kristof Provost <kp@FreeBSD.org>
+# Copyright (c) 2023 Kajetan Staszkiewicz <vegetga@tuxpowered.net>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -25,62 +27,54 @@
 
 . $(atf_get_srcdir)/utils.subr
 
-common_dir=$(atf_get_srcdir)/../common
-
-atf_test_case "unaligned" "cleanup"
-unaligned_head()
+atf_test_case "modulate_v4" "cleanup"
+modulate_v4_head()
 {
-	atf_set descr 'Test unaligned checksum updates'
+	atf_set descr 'IPv4 TCP sequence number modulation'
 	atf_set require.user root
 	atf_set require.progs scapy
 }
 
-unaligned_body()
+modulate_v4_body()
 {
-	pft_init
+	setup_router_dummy_ipv4
 
-	epair_in=$(vnet_mkepair)
-	epair_out=$(vnet_mkepair)
-
-	vnet_mkjail alcatraz ${epair_in}b ${epair_out}a
-
-	ifconfig ${epair_in}a 192.0.2.2/24 up
-	route add -net 198.51.100.0/24 192.0.2.1
-
-	jexec alcatraz ifconfig ${epair_in}b 192.0.2.1/24 up
-	jexec alcatraz sysctl net.inet.ip.forwarding=1
-
-	jexec alcatraz ifconfig ${epair_out}a 198.51.100.1/24 up
-	jexec alcatraz arp -s 198.51.100.2 00:01:02:03:04:05
-
-	ifconfig ${epair_out}b up
-
-	jexec alcatraz pfctl -e
-	pft_set_rules alcatraz \
-		"scrub on ${epair_in}b reassemble tcp max-mss 1200"
-
-	# Check aligned
-	atf_check -s exit:0 ${common_dir}/pft_ping.py \
-		--sendif ${epair_in}a \
-		--to 198.51.100.2 \
-		--recvif ${epair_out}b \
-		--ping-type tcpsyn
-
-	# And unaligned
-	atf_check -s exit:0 ${common_dir}/pft_ping.py \
-		--sendif ${epair_in}a \
-		--to 198.51.100.2 \
-		--recvif ${epair_out}b \
-		--ping-type tcpsyn \
-		--send-tcpopt-unaligned
+	pft_set_rules router \
+		"pass in on ${epair_tester}b modulate state"
+	ping_dummy_check_request exit:0 --ping-type=tcpsyn --send-seq 42 # Sanity check
+	ping_dummy_check_request exit:1 --ping-type=tcpsyn --send-seq 42 --expect-seq 42
 }
 
-unaligned_cleanup()
+modulate_v4_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "modulate_v6" "cleanup"
+modulate_v6_head()
+{
+	atf_set descr 'IPv6 TCP sequence number modulation'
+	atf_set require.user root
+	atf_set require.progs scapy
+}
+
+modulate_v6_body()
+{
+	setup_router_dummy_ipv6
+
+	pft_set_rules router \
+		"pass in on ${epair_tester}b modulate state"
+	ping_dummy_check_request exit:0 --ping-type=tcpsyn --send-seq 42 # Sanity check
+	ping_dummy_check_request exit:1 --ping-type=tcpsyn --send-seq 42 --expect-seq 42
+}
+
+modulate_v6_cleanup()
 {
 	pft_cleanup
 }
 
 atf_init_test_cases()
 {
-	atf_add_test_case "unaligned"
+	atf_add_test_case "modulate_v4"
+	atf_add_test_case "modulate_v6"
 }
