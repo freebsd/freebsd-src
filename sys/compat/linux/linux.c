@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_util.h>
 
-CTASSERT(LINUX_IFNAMSIZ == IFNAMSIZ);
+_Static_assert(LINUX_IFNAMSIZ == IFNAMSIZ, "Linux IFNAMSIZ");
 
 static bool use_real_ifnames = false;
 SYSCTL_BOOL(_compat_linux, OID_AUTO, use_real_ifnames, CTLFLAG_RWTUN,

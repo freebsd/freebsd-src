@@ -86,8 +86,6 @@ __FBSDID("$FreeBSD$");
 
 #include <cam/scsi/scsi_sg.h>
 
-CTASSERT(LINUX_IFNAMSIZ == IFNAMSIZ);
-
 #define	DEFINE_LINUX_IOCTL_SET(shortname, SHORTNAME)		\
 static linux_ioctl_function_t linux_ioctl_ ## shortname;	\
 static struct linux_ioctl_handler shortname ## _handler = {	\
