@@ -434,10 +434,17 @@ ifname_linux_to_bsd(struct thread *td, const char *lxname, char *bsdname)
 unsigned short
 linux_ifflags(struct ifnet *ifp)
 {
-	unsigned short fl, flags;
+	unsigned short flags;
 
-	fl = (if_getflags(ifp) | if_getdrvflags(ifp)) & 0xffff;
-	flags = 0;
+	flags = if_getflags(ifp) | if_getdrvflags(ifp);
+	return (bsd_to_linux_ifflags(flags));
+}
+
+unsigned short
+bsd_to_linux_ifflags(int fl)
+{
+	unsigned short flags = 0;
+
 	if (fl & IFF_UP)
 		flags |= LINUX_IFF_UP;
 	if (fl & IFF_BROADCAST)
