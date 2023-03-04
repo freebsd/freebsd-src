@@ -72,6 +72,16 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_time.h>
 #include <compat/linux/linux_util.h>
 
+_Static_assert(offsetof(struct l_ifreq, ifr_ifru) ==
+    offsetof(struct ifreq, ifr_ifru),
+    "Linux ifreq members names should be equal to FreeeBSD");
+_Static_assert(offsetof(struct l_ifreq, ifr_index) ==
+    offsetof(struct ifreq, ifr_index),
+    "Linux ifreq members names should be equal to FreeeBSD");
+_Static_assert(offsetof(struct l_ifreq, ifr_name) ==
+    offsetof(struct ifreq, ifr_name),
+    "Linux ifreq members names should be equal to FreeeBSD");
+
 #define	SECURITY_CONTEXT_STRING	"unconfined"
 
 static int linux_sendmsg_common(struct thread *, l_int, struct l_msghdr *,

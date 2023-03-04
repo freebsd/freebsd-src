@@ -2097,7 +2097,7 @@ linux_ioctl_ifname(struct thread *td, struct l_ifreq *uifr)
 	error = copyin(uifr, &ifr, sizeof(ifr));
 	if (error != 0)
 		return (error);
-	ret = ifname_bsd_to_linux_idx(ifr.ifr_ifindex, ifr.ifr_name,
+	ret = ifname_bsd_to_linux_idx(ifr.ifr_index, ifr.ifr_name,
 	    LINUX_IFNAMSIZ);
 	if (ret > 0)
 		return (copyout(&ifr, uifr, sizeof(ifr)));
