@@ -416,33 +416,34 @@ ifname_linux_to_bsd(struct thread *td, const char *lxname, char *bsdname)
 	return (arg.ifp);
 }
 
-void
-linux_ifflags(struct ifnet *ifp, short *flags)
+unsigned short
+linux_ifflags(struct ifnet *ifp)
 {
-	unsigned short fl;
+	unsigned short fl, flags;
 
 	fl = (if_getflags(ifp) | if_getdrvflags(ifp)) & 0xffff;
-	*flags = 0;
+	flags = 0;
 	if (fl & IFF_UP)
-		*flags |= LINUX_IFF_UP;
+		flags |= LINUX_IFF_UP;
 	if (fl & IFF_BROADCAST)
-		*flags |= LINUX_IFF_BROADCAST;
+		flags |= LINUX_IFF_BROADCAST;
 	if (fl & IFF_DEBUG)
-		*flags |= LINUX_IFF_DEBUG;
+		flags |= LINUX_IFF_DEBUG;
 	if (fl & IFF_LOOPBACK)
-		*flags |= LINUX_IFF_LOOPBACK;
+		flags |= LINUX_IFF_LOOPBACK;
 	if (fl & IFF_POINTOPOINT)
-		*flags |= LINUX_IFF_POINTOPOINT;
+		flags |= LINUX_IFF_POINTOPOINT;
 	if (fl & IFF_DRV_RUNNING)
-		*flags |= LINUX_IFF_RUNNING;
+		flags |= LINUX_IFF_RUNNING;
 	if (fl & IFF_NOARP)
-		*flags |= LINUX_IFF_NOARP;
+		flags |= LINUX_IFF_NOARP;
 	if (fl & IFF_PROMISC)
-		*flags |= LINUX_IFF_PROMISC;
+		flags |= LINUX_IFF_PROMISC;
 	if (fl & IFF_ALLMULTI)
-		*flags |= LINUX_IFF_ALLMULTI;
+		flags |= LINUX_IFF_ALLMULTI;
 	if (fl & IFF_MULTICAST)
-		*flags |= LINUX_IFF_MULTICAST;
+		flags |= LINUX_IFF_MULTICAST;
+	return (flags);
 }
 
 static u_int

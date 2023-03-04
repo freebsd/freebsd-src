@@ -98,13 +98,11 @@ static int
 linsysfs_ifnet_flags(PFS_FILL_ARGS)
 {
 	struct ifnet *ifp;
-	unsigned short flags;
 
 	ifp = ifname_linux_to_bsd(td, pn->pn_parent->pn_name, NULL);
 	if (ifp == NULL)
 		return (ENOENT);
-	linux_ifflags(ifp, &flags);
-	sbuf_printf(sb, "0x%x\n", flags);
+	sbuf_printf(sb, "0x%x\n", linux_ifflags(ifp));
 	return (0);
 }
 

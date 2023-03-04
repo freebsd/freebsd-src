@@ -2237,9 +2237,9 @@ again:
 static int
 linux_gifflags(struct thread *td, struct ifnet *ifp, struct l_ifreq *ifr)
 {
-	l_short flags;
+	unsigned short flags;
 
-	linux_ifflags(ifp, &flags);
+	flags = linux_ifflags(ifp);
 
 	return (copyout(&flags, &ifr->ifr_flags, sizeof(flags)));
 }
