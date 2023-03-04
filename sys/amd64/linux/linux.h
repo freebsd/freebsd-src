@@ -224,17 +224,6 @@ union l_semun {
 	l_uintptr_t	__pad;
 };
 
-struct l_ifconf {
-	int	ifc_len;
-	union {
-		l_uintptr_t	ifcu_buf;
-		l_uintptr_t	ifcu_req;
-	} ifc_ifcu;
-};
-
-#define	ifc_buf		ifc_ifcu.ifcu_buf
-#define	ifc_req		ifc_ifcu.ifcu_req
-
 #define LINUX_ARCH_SET_GS		0x1001
 #define LINUX_ARCH_SET_FS		0x1002
 #define LINUX_ARCH_GET_FS		0x1003
