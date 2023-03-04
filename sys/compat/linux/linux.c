@@ -342,7 +342,7 @@ ifname_bsd_to_linux_ifp(struct ifnet *ifp, char *lxname, size_t len)
  * bsdname and lxname need to be least IFNAMSIZ bytes long, but
  * can point to the same buffer.
  */
-struct ifname_linux_to_bsd_cb_s {
+struct ifname_linux_to_ifp_cb_s {
 	bool		is_lo;
 	bool		is_eth;
 	int		ethno;
@@ -352,9 +352,9 @@ struct ifname_linux_to_bsd_cb_s {
 };
 
 static int
-ifname_linux_to_bsd_cb(if_t ifp, void *arg)
+ifname_linux_to_ifp_cb(if_t ifp, void *arg)
 {
-	struct ifname_linux_to_bsd_cb_s *cbs = arg;
+	struct ifname_linux_to_ifp_cb_s *cbs = arg;
 
 	NET_EPOCH_ASSERT();
 
@@ -379,16 +379,17 @@ out:
 }
 
 struct ifnet *
-ifname_linux_to_bsd(struct thread *td, const char *lxname, char *bsdname)
+ifname_linux_to_ifp(struct thread *td, const char *lxname)
 {
-	struct ifname_linux_to_bsd_cb_s arg = {
+	struct ifname_linux_to_ifp_cb_s arg = {
 		.ethno = 0,
 		.lxname = lxname,
 		.ifp = NULL,
 	};
-	struct epoch_tracker et;
-	int len, ret;
+	int len;
 	char *ep;
+
+	NET_EPOCH_ASSERT();
 
 	for (len = 0; len < LINUX_IFNAMSIZ; ++len)
 		if (!isalpha(lxname[len]) || lxname[len] == '\0')
@@ -406,14 +407,24 @@ ifname_linux_to_bsd(struct thread *td, const char *lxname, char *bsdname)
 		return (NULL);
 	arg.is_eth = (len == 3 && strncmp(lxname, "eth", len) == 0);
 
+	if_foreach(ifname_linux_to_ifp_cb, &arg);
+	return (arg.ifp);
+}
+
+struct ifnet *
+ifname_linux_to_bsd(struct thread *td, const char *lxname, char *bsdname)
+{
+	struct epoch_tracker et;
+	struct ifnet *ifp;
+
 	CURVNET_SET(TD_TO_VNET(td));
 	NET_EPOCH_ENTER(et);
-	ret = if_foreach(ifname_linux_to_bsd_cb, &arg);
+	ifp = ifname_linux_to_ifp(td, lxname);
+	if (ifp != NULL && bsdname != NULL)
+		strlcpy(bsdname, if_name(ifp), IFNAMSIZ);
 	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
-	if (ret > 0 && arg.ifp != NULL && bsdname != NULL)
-		strlcpy(bsdname, if_name(arg.ifp), IFNAMSIZ);
-	return (arg.ifp);
+	return (ifp);
 }
 
 unsigned short
