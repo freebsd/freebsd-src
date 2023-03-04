@@ -336,11 +336,13 @@ struct l_ifmap {
 	/* 3 bytes spare */
 };
 
+/*
+ * Careful changing the declaration of this structure.
+ * To use FreeBSD names to access the struct l_ifreq members the
+ * member names of struct l_ifreq should be equal to the FreeBSD.
+ */
 struct l_ifreq {
-	union {
-		char	ifrn_name[LINUX_IFNAMSIZ];
-	} ifr_ifrn;
-
+	char	ifr_name[LINUX_IFNAMSIZ];
 	union {
 		struct l_sockaddr	ifru_addr;
 		struct l_sockaddr	ifru_dstaddr;
@@ -348,7 +350,7 @@ struct l_ifreq {
 		struct l_sockaddr	ifru_netmask;
 		struct l_sockaddr	ifru_hwaddr;
 		l_short		ifru_flags[1];
-		l_int		ifru_ivalue;
+		l_int		ifru_index;
 		l_int		ifru_mtu;
 		struct l_ifmap	ifru_map;
 		char		ifru_slave[LINUX_IFNAMSIZ];
@@ -357,8 +359,9 @@ struct l_ifreq {
 	} ifr_ifru;
 };
 
-#define	ifr_name	ifr_ifrn.ifrn_name	/* Interface name */
+/*
+ * Define here members which are not exists in the FreeBSD struct ifreq.
+ */
 #define	ifr_hwaddr	ifr_ifru.ifru_hwaddr	/* MAC address */
-#define	ifr_ifindex	ifr_ifru.ifru_ivalue	/* Interface index */
 
 #endif /* _LINUX_SOCKET_H_ */
