@@ -436,6 +436,8 @@ linux_ifflags(struct ifnet *ifp)
 {
 	unsigned short flags;
 
+	NET_EPOCH_ASSERT();
+
 	flags = if_getflags(ifp) | if_getdrvflags(ifp);
 	return (bsd_to_linux_ifflags(flags));
 }
