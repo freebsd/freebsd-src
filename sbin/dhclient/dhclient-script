@@ -318,13 +318,12 @@ fi
 case $reason in
 MEDIUM)
 	eval "$IFCONFIG $interface $medium"
-	eval "$IFCONFIG $interface inet -alias 0.0.0.0 $medium" >/dev/null 2>&1
 	sleep 1
 	;;
 
 PREINIT)
 	delete_old_alias
-	$IFCONFIG $interface inet alias 0.0.0.0 netmask 255.0.0.0 broadcast 255.255.255.255 up
+	eval "$IFCONFIG $interface up"
 	;;
 
 ARPCHECK|ARPSEND)
