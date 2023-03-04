@@ -1479,11 +1479,48 @@ linprocfs_doprocmem(PFS_FILL_ARGS)
  * Filler function for proc/net/dev
  */
 static int
+linprocfs_donetdev_cb(if_t ifp, void *arg)
+{
+	char ifname[LINUX_IFNAMSIZ];
+	struct sbuf *sb = arg;
+
+	if (ifname_bsd_to_linux_ifp(ifp, ifname, sizeof(ifname)) <= 0)
+		return (ENODEV);
+
+	sbuf_printf(sb, "%6.6s: ", ifname);
+	sbuf_printf(sb, "%7ju %7ju %4ju %4ju %4lu %5lu %10lu %9ju ",
+	    (uintmax_t)if_getcounter(ifp, IFCOUNTER_IBYTES),
+	    (uintmax_t)if_getcounter(ifp, IFCOUNTER_IPACKETS),
+	    (uintmax_t)if_getcounter(ifp, IFCOUNTER_IERRORS),
+	    (uintmax_t)if_getcounter(ifp, IFCOUNTER_IQDROPS),
+						/* rx_missed_errors */
+	    0UL,				/* rx_fifo_errors */
+	    0UL,				/* rx_length_errors +
+						 * rx_over_errors +
+						 * rx_crc_errors +
+						 * rx_frame_errors */
+	    0UL,				/* rx_compressed */
+	    (uintmax_t)if_getcounter(ifp, IFCOUNTER_IMCASTS));
+						/* XXX-BZ rx only? */
+	sbuf_printf(sb, "%8ju %7ju %4ju %4ju %4lu %5ju %7lu %10lu\n",
+	    (uintmax_t)if_getcounter(ifp, IFCOUNTER_OBYTES),
+	    (uintmax_t)if_getcounter(ifp, IFCOUNTER_OPACKETS),
+	    (uintmax_t)if_getcounter(ifp, IFCOUNTER_OERRORS),
+	    (uintmax_t)if_getcounter(ifp, IFCOUNTER_OQDROPS),
+	    0UL,				/* tx_fifo_errors */
+	    (uintmax_t)if_getcounter(ifp, IFCOUNTER_COLLISIONS),
+	    0UL,				/* tx_carrier_errors +
+						 * tx_aborted_errors +
+						 * tx_window_errors +
+						 * tx_heartbeat_errors*/
+	    0UL);				/* tx_compressed */
+	return (0);
+}
+
+static int
 linprocfs_donetdev(PFS_FILL_ARGS)
 {
 	struct epoch_tracker et;
-	char ifname[16]; /* XXX LINUX_IFNAMSIZ */
-	struct ifnet *ifp;
 
 	sbuf_printf(sb, "%6s|%58s|%s\n"
 	    "%6s|%58s|%58s\n",
@@ -1494,36 +1531,7 @@ linprocfs_donetdev(PFS_FILL_ARGS)
 
 	CURVNET_SET(TD_TO_VNET(curthread));
 	NET_EPOCH_ENTER(et);
-	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-		ifname_bsd_to_linux_ifp(ifp, ifname, sizeof(ifname));
-		sbuf_printf(sb, "%6.6s: ", ifname);
-		sbuf_printf(sb, "%7ju %7ju %4ju %4ju %4lu %5lu %10lu %9ju ",
-		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_IBYTES),
-		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_IPACKETS),
-		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_IERRORS),
-		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_IQDROPS),
-							/* rx_missed_errors */
-		    0UL,				/* rx_fifo_errors */
-		    0UL,				/* rx_length_errors +
-							 * rx_over_errors +
-							 * rx_crc_errors +
-							 * rx_frame_errors */
-		    0UL,				/* rx_compressed */
-		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_IMCASTS));
-							/* XXX-BZ rx only? */
-		sbuf_printf(sb, "%8ju %7ju %4ju %4ju %4lu %5ju %7lu %10lu\n",
-		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_OBYTES),
-		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_OPACKETS),
-		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_OERRORS),
-		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_OQDROPS),
-		    0UL,				/* tx_fifo_errors */
-		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_COLLISIONS),
-		    0UL,				/* tx_carrier_errors +
-							 * tx_aborted_errors +
-							 * tx_window_errors +
-							 * tx_heartbeat_errors*/
-		    0UL);				/* tx_compressed */
-	}
+	if_foreach(linprocfs_donetdev_cb, sb);
 	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
 
