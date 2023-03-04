@@ -477,6 +477,8 @@ int
 linux_ifhwaddr(struct ifnet *ifp, struct l_sockaddr *lsa)
 {
 
+	NET_EPOCH_ASSERT();
+
 	if (IFP_IS_LOOP(ifp)) {
 		bzero(lsa, sizeof(*lsa));
 		lsa->sa_family = LINUX_ARPHRD_LOOPBACK;
