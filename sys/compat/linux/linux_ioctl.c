@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sbuf.h>
 #include <sys/sockio.h>
 #include <sys/soundcard.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
 #include <sys/sx.h>
@@ -2187,22 +2188,17 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 	full = 0;
 	cbs.max_len = maxphys - 1;
 
-	CURVNET_SET(TD_TO_VNET(td));
 	/* handle the 'request buffer size' case */
 	if ((l_uintptr_t)ifc.ifc_buf == PTROUT(NULL)) {
 		ifc.ifc_len = 0;
 		NET_EPOCH_ENTER(et);
 		if_foreach(linux_ifconf_ifnet_cb, &ifc);
 		NET_EPOCH_EXIT(et);
-		error = copyout(&ifc, uifc, sizeof(ifc));
-		CURVNET_RESTORE();
-		return (error);
+		return (copyout(&ifc, uifc, sizeof(ifc)));
 	}
 
-	if (ifc.ifc_len <= 0) {
-		CURVNET_RESTORE();
+	if (ifc.ifc_len <= 0)
 		return (EINVAL);
-	}
 
 again:
 	if (ifc.ifc_len <= cbs.max_len) {
@@ -2229,52 +2225,132 @@ again:
 	if (error == 0)
 		error = copyout(&ifc, uifc, sizeof(ifc));
 	sbuf_delete(sb);
-	CURVNET_RESTORE();
 
 	return (error);
 }
 
 static int
-linux_gifflags(struct thread *td, struct ifnet *ifp, struct l_ifreq *ifr)
+linux_ioctl_socket_ifreq(struct thread *td, int fd, u_int cmd,
+    struct l_ifreq *uifr)
 {
-	unsigned short flags;
+	struct l_ifreq lifr;
+	struct ifreq bifr;
+	size_t ifrusiz;
+	int error, temp_flags;
 
-	flags = linux_ifflags(ifp);
+	switch (cmd) {
+	case LINUX_SIOCGIFINDEX:
+		cmd = SIOCGIFINDEX;
+		break;
+	case LINUX_SIOCGIFFLAGS:
+		cmd = SIOCGIFFLAGS;
+		break;
+	case LINUX_SIOCGIFADDR:
+		cmd = SIOCGIFADDR;
+		break;
+	case LINUX_SIOCSIFADDR:
+		cmd = SIOCSIFADDR;
+		break;
+	case LINUX_SIOCGIFDSTADDR:
+		cmd = SIOCGIFDSTADDR;
+		break;
+	case LINUX_SIOCGIFBRDADDR:
+		cmd = SIOCGIFBRDADDR;
+		break;
+	case LINUX_SIOCGIFNETMASK:
+		cmd = SIOCGIFNETMASK;
+		break;
+	case LINUX_SIOCSIFNETMASK:
+		cmd = SIOCSIFNETMASK;
+		break;
+	case LINUX_SIOCGIFMTU:
+		cmd = SIOCGIFMTU;
+		break;
+	case LINUX_SIOCSIFMTU:
+		cmd = SIOCSIFMTU;
+		break;
+	case LINUX_SIOCGIFHWADDR:
+		cmd = SIOCGHWADDR;
+		break;
+	/*
+	 * XXX This is slightly bogus, but these ioctls are currently
+	 * XXX only used by the aironet (if_an) network driver.
+	 */
+	case LINUX_SIOCDEVPRIVATE:
+		cmd = SIOCGPRIVATE_0;
+		break;
+	case LINUX_SIOCDEVPRIVATE+1:
+		cmd = SIOCGPRIVATE_1;
+		break;
+	default:
+		return (ENOIOCTL);
+	}
 
-	return (copyout(&flags, &ifr->ifr_flags, sizeof(flags)));
-}
+	error = copyin(uifr, &lifr, sizeof(lifr));
+	if (error != 0)
+		return (error);
+	bzero(&bifr, sizeof(bifr));
 
-static int
-linux_gifhwaddr(struct ifnet *ifp, struct l_ifreq *ifr)
-{
-	struct l_sockaddr lsa;
+	/*
+	 * The size of Linux enum ifr_ifru is bigger than
+	 * the FreeBSD size due to the struct ifmap.
+	 */
+	ifrusiz = (sizeof(lifr) > sizeof(bifr) ? sizeof(bifr) :
+	    sizeof(lifr)) - offsetof(struct l_ifreq, ifr_ifru);
+	bcopy(&lifr.ifr_ifru, &bifr.ifr_ifru, ifrusiz);
 
-	if (linux_ifhwaddr(ifp, &lsa) != 0)
-		return (ENOENT);
-
-	return (copyout(&lsa, &ifr->ifr_hwaddr, sizeof(lsa)));
-}
-
- /*
-* If we fault in bsd_to_linux_ifreq() then we will fault when we call
-* the native ioctl().  Thus, we don't really need to check the return
-* value of this function.
-*/
-static int
-bsd_to_linux_ifreq(struct ifreq *arg)
-{
-	struct ifreq ifr;
-	size_t ifr_len = sizeof(struct ifreq);
-	int error;
-
-	if ((error = copyin(arg, &ifr, ifr_len)))
+	error = ifname_linux_to_bsd(td, lifr.ifr_name, bifr.ifr_name);
+	if (error != 0)
 		return (error);
 
-	*(u_short *)&ifr.ifr_addr = ifr.ifr_addr.sa_family;
+	/* Translate in values. */
+	switch (cmd) {
+	case SIOCGIFINDEX:
+		bifr.ifr_index = lifr.ifr_index;
+		break;
+	case SIOCSIFADDR:
+	case SIOCSIFNETMASK:
+		bifr.ifr_addr.sa_len = sizeof(struct sockaddr);
+		bifr.ifr_addr.sa_family =
+		    linux_to_bsd_domain(lifr.ifr_addr.sa_family);
+		break;
+	default:
+		break;
+	}
 
-	error = copyout(&ifr, arg, ifr_len);
+	error = kern_ioctl(td, fd, cmd, (caddr_t)&bifr);
+	if (error != 0)
+		return (error);
+	bzero(&lifr.ifr_ifru, sizeof(lifr.ifr_ifru));
 
-	return (error);
+	/* Translate out values. */
+ 	switch (cmd) {
+	case SIOCGIFINDEX:
+		lifr.ifr_index = bifr.ifr_index;
+		break;
+	case SIOCGIFFLAGS:
+		temp_flags = bifr.ifr_flags | (bifr.ifr_flagshigh << 16);
+		lifr.ifr_flags = bsd_to_linux_ifflags(temp_flags);
+		break;
+	case SIOCGIFADDR:
+	case SIOCSIFADDR:
+	case SIOCGIFDSTADDR:
+	case SIOCGIFBRDADDR:
+	case SIOCGIFNETMASK:
+		bcopy(&bifr.ifr_addr, &lifr.ifr_addr, sizeof(bifr.ifr_addr));
+		lifr.ifr_addr.sa_family =
+		    bsd_to_linux_domain(bifr.ifr_addr.sa_family);
+		break;
+	case SIOCGHWADDR:
+		bcopy(&bifr.ifr_addr, &lifr.ifr_hwaddr, sizeof(bifr.ifr_addr));
+		lifr.ifr_hwaddr.sa_family = LINUX_ARPHRD_ETHER;
+		break;
+	default:
+		bcopy(&bifr.ifr_ifru, &lifr.ifr_ifru, ifrusiz);
+		break;
+	}
+
+	return (copyout(&lifr, uifr, sizeof(lifr)));
 }
 
 /*
@@ -2284,84 +2360,34 @@ bsd_to_linux_ifreq(struct ifreq *arg)
 static int
 linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 {
-	char lifname[LINUX_IFNAMSIZ], ifname[IFNAMSIZ];
-	struct ifnet *ifp;
 	struct file *fp;
 	int error, type;
-
-	ifp = NULL;
-	error = 0;
 
 	error = fget(td, args->fd, &cap_ioctl_rights, &fp);
 	if (error != 0)
 		return (error);
 	type = fp->f_type;
 	fdrop(fp, td);
+
+	CURVNET_SET(TD_TO_VNET(td));
+
 	if (type != DTYPE_SOCKET) {
 		/* not a socket - probably a tap / vmnet device */
 		switch (args->cmd) {
 		case LINUX_SIOCGIFADDR:
 		case LINUX_SIOCSIFADDR:
 		case LINUX_SIOCGIFFLAGS:
-			return (linux_ioctl_special(td, args));
+			error = linux_ioctl_special(td, args);
+			break;
 		default:
-			return (ENOIOCTL);
+			error = ENOIOCTL;
+			break;
 		}
+		CURVNET_RESTORE();
+		return (error);
 	}
 
-	switch (args->cmd & 0xffff) {
-	case LINUX_FIOGETOWN:
-	case LINUX_FIOSETOWN:
-	case LINUX_SIOCADDMULTI:
-	case LINUX_SIOCATMARK:
-	case LINUX_SIOCDELMULTI:
-	case LINUX_SIOCGIFNAME:
-	case LINUX_SIOCGIFCONF:
-	case LINUX_SIOCGPGRP:
-	case LINUX_SIOCSPGRP:
-	case LINUX_SIOCGIFCOUNT:
-		/* these ioctls don't take an interface name */
-		break;
-
-	case LINUX_SIOCGIFFLAGS:
-	case LINUX_SIOCGIFADDR:
-	case LINUX_SIOCSIFADDR:
-	case LINUX_SIOCGIFDSTADDR:
-	case LINUX_SIOCGIFBRDADDR:
-	case LINUX_SIOCGIFNETMASK:
-	case LINUX_SIOCSIFNETMASK:
-	case LINUX_SIOCGIFMTU:
-	case LINUX_SIOCSIFMTU:
-	case LINUX_SIOCSIFNAME:
-	case LINUX_SIOCGIFHWADDR:
-	case LINUX_SIOCSIFHWADDR:
-	case LINUX_SIOCDEVPRIVATE:
-	case LINUX_SIOCDEVPRIVATE+1:
-	case LINUX_SIOCGIFINDEX:
-		/* copy in the interface name and translate it. */
-		error = copyin((void *)args->arg, lifname, LINUX_IFNAMSIZ);
-		if (error != 0)
-			return (error);
-		memset(ifname, 0, sizeof(ifname));
-		ifp = ifname_linux_to_bsd(td, lifname, ifname);
-		if (ifp == NULL)
-			return (EINVAL);
-		/*
-		 * We need to copy it back out in case we pass the
-		 * request on to our native ioctl(), which will expect
-		 * the ifreq to be in user space and have the correct
-		 * interface name.
-		 */
-		error = copyout(ifname, (void *)args->arg, IFNAMSIZ);
-		if (error != 0)
-			return (error);
-		break;
-
-	default:
-		return (ENOIOCTL);
-	}
-
-	switch (args->cmd & 0xffff) {
+	switch (args->cmd) {
 	case LINUX_FIOSETOWN:
 		args->cmd = FIOSETOWN;
 		error = sys_ioctl(td, (struct ioctl_args *)args);
@@ -2397,67 +2423,6 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 		error = linux_ifconf(td, (struct ifconf *)args->arg);
 		break;
 
-	case LINUX_SIOCGIFFLAGS:
-		args->cmd = SIOCGIFFLAGS;
-		error = linux_gifflags(td, ifp, (struct l_ifreq *)args->arg);
-		break;
-
-	case LINUX_SIOCGIFADDR:
-		args->cmd = SIOCGIFADDR;
-		error = sys_ioctl(td, (struct ioctl_args *)args);
-		bsd_to_linux_ifreq((struct ifreq *)args->arg);
-		break;
-
-	case LINUX_SIOCSIFADDR:
-		/* XXX probably doesn't work, included for completeness */
-		args->cmd = SIOCSIFADDR;
-		error = sys_ioctl(td, (struct ioctl_args *)args);
-		break;
-
-	case LINUX_SIOCGIFDSTADDR:
-		args->cmd = SIOCGIFDSTADDR;
-		error = sys_ioctl(td, (struct ioctl_args *)args);
-		bsd_to_linux_ifreq((struct ifreq *)args->arg);
-		break;
-
-	case LINUX_SIOCGIFBRDADDR:
-		args->cmd = SIOCGIFBRDADDR;
-		error = sys_ioctl(td, (struct ioctl_args *)args);
-		bsd_to_linux_ifreq((struct ifreq *)args->arg);
-		break;
-
-	case LINUX_SIOCGIFNETMASK:
-		args->cmd = SIOCGIFNETMASK;
-		error = sys_ioctl(td, (struct ioctl_args *)args);
-		bsd_to_linux_ifreq((struct ifreq *)args->arg);
-		break;
-
-	case LINUX_SIOCSIFNETMASK:
-		error = ENOIOCTL;
-		break;
-
-	case LINUX_SIOCGIFMTU:
-		args->cmd = SIOCGIFMTU;
-		error = sys_ioctl(td, (struct ioctl_args *)args);
-		break;
-
-	case LINUX_SIOCSIFMTU:
-		args->cmd = SIOCSIFMTU;
-		error = sys_ioctl(td, (struct ioctl_args *)args);
-		break;
-
-	case LINUX_SIOCSIFNAME:
-		error = ENOIOCTL;
-		break;
-
-	case LINUX_SIOCGIFHWADDR:
-		error = linux_gifhwaddr(ifp, (struct l_ifreq *)args->arg);
-		break;
-
-	case LINUX_SIOCSIFHWADDR:
-		error = ENOIOCTL;
-		break;
-
 	case LINUX_SIOCADDMULTI:
 		args->cmd = SIOCADDMULTI;
 		error = sys_ioctl(td, (struct ioctl_args *)args);
@@ -2468,34 +2433,17 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 		error = sys_ioctl(td, (struct ioctl_args *)args);
 		break;
 
-	case LINUX_SIOCGIFINDEX:
-		args->cmd = SIOCGIFINDEX;
-		error = sys_ioctl(td, (struct ioctl_args *)args);
-		break;
-
 	case LINUX_SIOCGIFCOUNT:
 		error = 0;
 		break;
 
-	/*
-	 * XXX This is slightly bogus, but these ioctls are currently
-	 * XXX only used by the aironet (if_an) network driver.
-	 */
-	case LINUX_SIOCDEVPRIVATE:
-		args->cmd = SIOCGPRIVATE_0;
-		error = sys_ioctl(td, (struct ioctl_args *)args);
-		break;
-
-	case LINUX_SIOCDEVPRIVATE+1:
-		args->cmd = SIOCGPRIVATE_1;
-		error = sys_ioctl(td, (struct ioctl_args *)args);
+	default:
+		error = linux_ioctl_socket_ifreq(td, args->fd, args->cmd,
+		    PTRIN(args->arg));
 		break;
 	}
 
-	if (ifp != NULL)
-		/* restore the original interface name */
-		copyout(lifname, (void *)args->arg, LINUX_IFNAMSIZ);
-
+	CURVNET_RESTORE();
 	return (error);
 }
 

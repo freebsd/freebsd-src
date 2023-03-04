@@ -411,7 +411,7 @@ ifname_linux_to_ifp(struct thread *td, const char *lxname)
 	return (arg.ifp);
 }
 
-struct ifnet *
+int
 ifname_linux_to_bsd(struct thread *td, const char *lxname, char *bsdname)
 {
 	struct epoch_tracker et;
@@ -424,7 +424,7 @@ ifname_linux_to_bsd(struct thread *td, const char *lxname, char *bsdname)
 		strlcpy(bsdname, if_name(ifp), IFNAMSIZ);
 	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
-	return (ifp);
+	return (ifp != NULL ? 0 : EINVAL);
 }
 
 unsigned short
