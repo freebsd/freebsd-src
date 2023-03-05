@@ -193,23 +193,24 @@ io_sandbox_enter(int src_fd)
 	cap_rights_t rights;
 
 	if (cap_rights_limit(src_fd, cap_rights_init(&rights,
-			CAP_EVENT, CAP_FCNTL, CAP_LOOKUP, CAP_READ, CAP_SEEK)))
+			CAP_EVENT, CAP_FCNTL, CAP_LOOKUP, CAP_READ, CAP_SEEK)) < 0 &&
+	    errno != ENOSYS)
 		goto error;
 
 	if (cap_rights_limit(STDOUT_FILENO, cap_rights_init(&rights,
 			CAP_EVENT, CAP_FCNTL, CAP_FSTAT, CAP_LOOKUP,
-			CAP_WRITE, CAP_SEEK)))
+			CAP_WRITE, CAP_SEEK)) < 0 && errno != ENOSYS)
 		goto error;
 
 	if (cap_rights_limit(user_abort_pipe[0], cap_rights_init(&rights,
-			CAP_EVENT)))
+			CAP_EVENT)) < 0 && errno != ENOSYS)
 		goto error;
 
 	if (cap_rights_limit(user_abort_pipe[1], cap_rights_init(&rights,
-			CAP_WRITE)))
+			CAP_WRITE)) < 0 && errno != ENOSYS)
 		goto error;
 
-	if (cap_enter())
+	if (cap_enter() < 0 && errno != ENOSYS)
 		goto error;
 
 #elif defined(HAVE_PLEDGE)
