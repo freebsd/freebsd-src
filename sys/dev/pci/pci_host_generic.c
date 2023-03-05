@@ -54,6 +54,15 @@ __FBSDID("$FreeBSD$");
 
 #include "pcib_if.h"
 
+#if defined(VM_MEMATTR_DEVICE_NP)
+#define	PCI_UNMAPPED
+#define	PCI_RF_FLAGS	RF_UNMAPPED
+#else
+#error
+#define	PCI_RF_FLAGS	0
+#endif
+
+
 /* Forward prototypes */
 
 static uint32_t generic_pcie_read_config(device_t dev, u_int bus, u_int slot,
@@ -69,6 +78,10 @@ static int generic_pcie_write_ivar(device_t dev, device_t child, int index,
 int
 pci_host_generic_core_attach(device_t dev)
 {
+#ifdef PCI_UNMAPPED
+	struct resource_map_request req;
+	struct resource_map map;
+#endif
 	struct generic_pcie_core_softc *sc;
 	uint64_t phys_base;
 	uint64_t pci_base;
@@ -95,12 +108,23 @@ pci_host_generic_core_attach(device_t dev)
 		return (error);
 
 	rid = 0;
-	sc->res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	sc->res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+	    PCI_RF_FLAGS | RF_ACTIVE);
 	if (sc->res == NULL) {
 		device_printf(dev, "could not allocate memory.\n");
 		error = ENXIO;
 		goto err_resource;
 	}
+#ifdef PCI_UNMAPPED
+	resource_init_map_request(&req);
+	req.memattr = VM_MEMATTR_DEVICE_NP;
+	error = bus_map_resource(dev, SYS_RES_MEMORY, sc->res, &req, &map);
+	if (error != 0) {
+		device_printf(dev, "could not map memory.\n");
+		return (error);
+	}
+	rman_set_mapping(sc->res, &map);
+#endif
 
 	sc->bst = rman_get_bustag(sc->res);
 	sc->bsh = rman_get_bushandle(sc->res);

@@ -745,6 +745,8 @@ thunder_pem_probe(device_t dev)
 static int
 thunder_pem_attach(device_t dev)
 {
+	struct resource_map_request req;
+	struct resource_map map;
 	devclass_t pci_class;
 	device_t parent;
 	struct thunder_pem_softc *sc;
@@ -766,11 +768,20 @@ thunder_pem_attach(device_t dev)
 		rid = RID_PEM_SPACE;
 
 	sc->reg = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &rid, RF_ACTIVE);
+	    &rid, RF_ACTIVE | RF_UNMAPPED);
 	if (sc->reg == NULL) {
 		device_printf(dev, "Failed to allocate resource\n");
 		return (ENXIO);
 	}
+	resource_init_map_request(&req);
+	req.memattr = VM_MEMATTR_DEVICE_NP;
+	error = bus_map_resource(dev, SYS_RES_MEMORY, sc->reg, &req, &map);
+	if (error != 0) {
+		device_printf(dev, "could not map memory.\n");
+		return (error);
+	}
+	rman_set_mapping(sc->reg, &map);
+
 	sc->reg_bst = rman_get_bustag(sc->reg);
 	sc->reg_bsh = rman_get_bushandle(sc->reg);
 
