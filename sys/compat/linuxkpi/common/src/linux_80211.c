@@ -174,10 +174,13 @@ lkpi_lsta_remove(struct lkpi_sta *lsta, struct lkpi_vif *lvif)
 {
 	struct ieee80211_node *ni;
 
+	IMPROVE("XXX-BZ remove tqe_prev check once ni-sta-state-sync is fixed");
+
 	ni = lsta->ni;
 
 	LKPI_80211_LVIF_LOCK(lvif);
-	TAILQ_REMOVE(&lvif->lsta_head, lsta, lsta_entry);
+	if (lsta->lsta_entry.tqe_prev != NULL)
+		TAILQ_REMOVE(&lvif->lsta_head, lsta, lsta_entry);
 	LKPI_80211_LVIF_UNLOCK(lvif);
 
 	lsta->ni = NULL;
