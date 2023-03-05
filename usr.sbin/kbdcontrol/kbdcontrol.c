@@ -107,13 +107,8 @@ static const char fkey_table[96][MAXFK] = {
 /* 93-96 */	""      , ""      , ""      , ""      ,
 	};
 
-static const int delays[]  = {250, 500, 750, 1000};
-static const int repeats[] = { 34,  38,  42,  46,  50,  55,  59,  63,
-		      68,  76,  84,  92, 100, 110, 118, 126,
-		     136, 152, 168, 184, 200, 220, 236, 252,
-		     272, 304, 336, 368, 400, 440, 472, 504};
 static const int ndelays = (sizeof(delays) / sizeof(int));
-static const int nrepeats = (sizeof(repeats) / sizeof(int));
+static const int nrepeats = (sizeof(rates) / sizeof(int));
 static int	hex = 0;
 static int	paths_configured = 0;
 static int	token;
@@ -1058,14 +1053,11 @@ set_keyrates(char *opt)
 	int r, d;
 
 	if (!strcmp(opt, "slow")) {
-		delay = 1000, repeat = 500;
-		d = 3, r = 31;
+		delay = 1000, repeat = 504 , d = 3, r = 31;
 	} else if (!strcmp(opt, "normal")) {
-		delay = 500, repeat = 125;
-		d = 1, r = 15;
+		delay = 500, repeat = 126, d = 1, r = 15;
 	} else if (!strcmp(opt, "fast")) {
-		delay = repeat = 0;
-		d = r = 0;
+		delay = repeat = d = r = 0;
 	} else {
 		int		n;
 		char		*v1;
@@ -1085,7 +1077,7 @@ badopt:
 				break;
 		d = n;
 		for (n = 0; n < nrepeats - 1; n++)
-			if (repeat <= repeats[n])
+			if (repeat <= rates[n])
 				break;
 		r = n;
 	}
@@ -1093,6 +1085,7 @@ badopt:
 	arg[0] = delay;
 	arg[1] = repeat;
 	if (ioctl(0, KDSETREPEAT, arg)) {
+		warn("fallback, setting keyboard rate via legacy interface (KDSETRAD), will be removed soon");
 		if (ioctl(0, KDSETRAD, (d << 5) | r))
 			warn("setting keyboard rate");
 	}

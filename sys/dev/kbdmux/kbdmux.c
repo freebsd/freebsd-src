@@ -963,17 +963,6 @@ kbdmux_check_char(keyboard_t *kbd)
 static int
 kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 {
-	static int	 delays[] = {
-		250, 500, 750, 1000
-	};
-
-	static int	 rates[]  =  {
-		34,  38,  42,  46,  50,   55,  59,  63,
-		68,  76,  84,  92,  100, 110, 118, 126,
-		136, 152, 168, 184, 200, 220, 236, 252,
-		272, 304, 336, 368, 400, 440, 472, 504
-	};
-
 	kbdmux_state_t	*state = (kbdmux_state_t *) kbd->kb_data;
 	kbdmux_kbd_t	*k;
 	keyboard_info_t	*ki;
