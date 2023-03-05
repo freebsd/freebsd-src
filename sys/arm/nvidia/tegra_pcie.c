@@ -392,7 +392,7 @@ tegra_pcbib_map_cfg(struct tegra_pcib_softc *sc, u_int bus, u_int slot,
     u_int func, u_int reg)
 {
 	bus_size_t offs;
-	int rv;
+	int flags, rv;
 
 	offs = sc->cfg_base_addr;
 	offs |= PCI_CFG_BUS(bus) | PCI_CFG_DEV(slot) | PCI_CFG_FUN(func) |
@@ -402,7 +402,12 @@ tegra_pcbib_map_cfg(struct tegra_pcib_softc *sc, u_int bus, u_int slot,
 	if (sc->cfg_handle != 0)
 		bus_space_unmap(sc->bus_tag, sc->cfg_handle, 0x800);
 
-	rv = bus_space_map(sc->bus_tag, offs, 0x800, 0, &sc->cfg_handle);
+#if defined(BUS_SPACE_MAP_NONPOSTED)
+	flags = BUS_SPACE_MAP_NONPOSTED;
+#else
+	flags = 0;
+#endif
+	rv = bus_space_map(sc->bus_tag, offs, 0x800, flags, &sc->cfg_handle);
 	if (rv != 0)
 		device_printf(sc->dev, "Cannot map config space\n");
 	else
