@@ -75,8 +75,9 @@ __FBSDID("$FreeBSD$");
 #define	GT_PHYS_SECURE		0
 #define	GT_PHYS_NONSECURE	1
 #define	GT_VIRT			2
-#define	GT_HYP			3
-#define	GT_IRQ_COUNT		4
+#define	GT_HYP_PHYS		3
+#define	GT_HYP_VIRT		4
+#define	GT_IRQ_COUNT		5
 
 #define	GT_CTRL_ENABLE		(1 << 0)
 #define	GT_CTRL_INT_MASK	(1 << 1)
@@ -103,13 +104,49 @@ struct arm_tmr_softc {
 
 static struct arm_tmr_softc *arm_tmr_sc = NULL;
 
-static struct resource_spec timer_spec[] = {
-	{ SYS_RES_IRQ,	GT_PHYS_SECURE,		RF_ACTIVE },
+#ifdef DEV_ACPI
+static struct resource_spec timer_acpi_spec[] = {
+	{ SYS_RES_IRQ,	GT_PHYS_SECURE,		RF_ACTIVE | RF_OPTIONAL },
 	{ SYS_RES_IRQ,	GT_PHYS_NONSECURE,	RF_ACTIVE },
-	{ SYS_RES_IRQ,	GT_VIRT,		RF_ACTIVE | RF_OPTIONAL },
-	{ SYS_RES_IRQ,	GT_HYP,			RF_ACTIVE | RF_OPTIONAL	},
+	{ SYS_RES_IRQ,	GT_VIRT,		RF_ACTIVE },
+	{ SYS_RES_IRQ,	GT_HYP_PHYS,		RF_ACTIVE | RF_OPTIONAL	},
 	{ -1, 0 }
 };
+#endif
+
+static const struct arm_tmr_irq_defs {
+	int idx;
+	const char *name;
+	int flags;
+} arm_tmr_irq_defs[] = {
+	{
+		.idx = GT_PHYS_SECURE,
+		.name = "sec-phys",
+		.flags = RF_ACTIVE | RF_OPTIONAL,
+	},
+	{
+		.idx = GT_PHYS_NONSECURE,
+		.name = "phys",
+		.flags = RF_ACTIVE,
+	},
+	{
+		.idx = GT_VIRT,
+		.name = "virt",
+		.flags = RF_ACTIVE,
+	},
+	{
+		.idx = GT_HYP_PHYS,
+		.name = "hyp-phys",
+		.flags = RF_ACTIVE | RF_OPTIONAL,
+	},
+	{
+		.idx = GT_HYP_VIRT,
+		.name = "hyp-virt",
+		.flags = RF_ACTIVE | RF_OPTIONAL,
+	},
+};
+
+static int arm_tmr_attach(device_t);
 
 static uint32_t arm_tmr_fill_vdso_timehands(struct vdso_timehands *vdso_th,
     struct timecounter *tc);
@@ -338,6 +375,108 @@ arm_tmr_fdt_probe(device_t dev)
 
 	return (ENXIO);
 }
+
+static int
+arm_tmr_fdt_attach(device_t dev)
+{
+	struct arm_tmr_softc *sc;
+	const struct arm_tmr_irq_defs *irq_def;
+	size_t i;
+	phandle_t node;
+	int error, rid;
+	bool has_names;
+
+	sc = device_get_softc(dev);
+	node = ofw_bus_get_node(dev);
+
+	has_names = OF_hasprop(node, "interrupt-names");
+	for (i = 0; i < nitems(arm_tmr_irq_defs); i++) {
+		int flags;
+
+		/*
+		 * If we don't have names to go off of, we assume that they're
+		 * in the "usual" order with sec-phys first and allocate by idx.
+		 */
+		irq_def = &arm_tmr_irq_defs[i];
+		rid = irq_def->idx;
+		flags = irq_def->flags;
+		if (has_names) {
+			error = ofw_bus_find_string_index(node,
+			    "interrupt-names", irq_def->name, &rid);
+
+			/*
+			 * If we have names, missing a name means we don't
+			 * have it.
+			 */
+			if (error != 0) {
+				/*
+				 * Could be noisy on a lot of platforms for no
+				 * good cause.
+				 */
+				if (bootverbose || (flags & RF_OPTIONAL) == 0) {
+					device_printf(dev,
+					    "could not find irq for %s interrupt '%s'\n",
+					    (flags & RF_OPTIONAL) != 0 ?
+					    "optional" : "required",
+					    irq_def->name);
+				}
+
+				if ((flags & RF_OPTIONAL) == 0)
+					goto out;
+
+				continue;
+			}
+
+			/*
+			 * Warn about failing to activate if we did actually
+			 * have the name present.
+			 */
+			flags &= ~RF_OPTIONAL;
+		}
+
+		sc->res[irq_def->idx] = bus_alloc_resource_any(dev,
+		    SYS_RES_IRQ, &rid, flags);
+
+		if (sc->res[irq_def->idx] == NULL) {
+			device_printf(dev,
+			    "could not allocate irq for %s interrupt '%s'\n",
+			    (flags & RF_OPTIONAL) != 0 ? "optional" :
+			    "required", irq_def->name);
+
+			if ((flags & RF_OPTIONAL) == 0) {
+				error = ENXIO;
+				goto out;
+			}
+
+			continue;
+		}
+
+		if (bootverbose) {
+			device_printf(dev,
+			    "allocated irq for '%s'\n", irq_def->name);
+		}
+	}
+
+	error = arm_tmr_attach(dev);
+out:
+	if (error != 0) {
+		for (i = 0; i < GT_IRQ_COUNT; i++) {
+			if (sc->res[i] != NULL) {
+				/*
+				 * rid may not match the index into sc->res in
+				 * a number of cases; e.g., optional sec-phys or
+				 * interrupt-names specifying them in a
+				 * different order than expected.
+				 */
+				bus_release_resource(dev, SYS_RES_IRQ,
+				    rman_get_rid(sc->res[i]), sc->res[i]);
+			}
+		}
+	}
+
+	return (error);
+
+}
 #endif
 
 #ifdef DEV_ACPI
@@ -390,12 +529,31 @@ arm_tmr_acpi_probe(device_t dev)
 	device_set_desc(dev, "ARM Generic Timer");
 	return (BUS_PROBE_NOWILDCARD);
 }
+
+static int
+arm_tmr_acpi_attach(device_t dev)
+{
+	struct arm_tmr_softc *sc;
+	int error;
+
+	sc = device_get_softc(dev);
+	if (bus_alloc_resources(dev, timer_acpi_spec, sc->res)) {
+		device_printf(dev, "could not allocate resources\n");
+		return (ENXIO);
+	}
+
+	error = arm_tmr_attach(dev);
+	if (error != 0)
+		bus_release_resources(dev, timer_acpi_spec, sc->res);
+	return (error);
+}
 #endif
 
 static int
 arm_tmr_attach(device_t dev)
 {
 	struct arm_tmr_softc *sc;
+	const struct arm_tmr_irq_defs *irq_def;
 #ifdef FDT
 	phandle_t node;
 	pcell_t clock;
@@ -436,9 +594,12 @@ arm_tmr_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	if (bus_alloc_resources(dev, timer_spec, sc->res)) {
-		device_printf(dev, "could not allocate resources\n");
-		return (ENXIO);
+	/* Confirm that non-optional irqs were allocated before coming in. */
+	for (i = 0; i < nitems(arm_tmr_irq_defs); i++) {
+		irq_def = &arm_tmr_irq_defs[i];
+
+		MPASS(sc->res[irq_def->idx] != NULL ||
+		    (irq_def->flags & RF_OPTIONAL) != 0);
 	}
 
 #ifdef __aarch64__
@@ -467,6 +628,8 @@ arm_tmr_attach(device_t dev)
 		    arm_tmr_intr, NULL, sc, &sc->ihl[i]);
 		if (error) {
 			device_printf(dev, "Unable to alloc int resource.\n");
+			for (int j = first_timer; j < i; j++)
+				bus_teardown_intr(dev, sc->res[j], &sc->ihl[j]);
 			return (ENXIO);
 		}
 	}
@@ -504,7 +667,7 @@ arm_tmr_attach(device_t dev)
 #ifdef FDT
 static device_method_t arm_tmr_fdt_methods[] = {
 	DEVMETHOD(device_probe,		arm_tmr_fdt_probe),
-	DEVMETHOD(device_attach,	arm_tmr_attach),
+	DEVMETHOD(device_attach,	arm_tmr_fdt_attach),
 	{ 0, 0 }
 };
 
@@ -523,7 +686,7 @@ EARLY_DRIVER_MODULE(timer, ofwbus, arm_tmr_fdt_driver, arm_tmr_fdt_devclass,
 static device_method_t arm_tmr_acpi_methods[] = {
 	DEVMETHOD(device_identify,	arm_tmr_acpi_identify),
 	DEVMETHOD(device_probe,		arm_tmr_acpi_probe),
-	DEVMETHOD(device_attach,	arm_tmr_attach),
+	DEVMETHOD(device_attach,	arm_tmr_acpi_attach),
 	{ 0, 0 }
 };
 
