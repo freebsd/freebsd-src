@@ -69,6 +69,13 @@ struct log_params {
 	bool syslog_enabled;
 };
 
+struct daemon_state {
+	int pipe_fd[2];
+	struct pidfh *parent_pidfh;
+	struct pidfh *child_pidfh;
+	struct log_params * logparams;
+};
+
 static void restrict_process(const char *);
 static void handle_term(int);
 static void handle_chld(int);
@@ -77,10 +84,10 @@ static int  open_log(const char *);
 static void reopen_log(struct log_params *);
 static bool listen_child(int, struct log_params *);
 static int  get_log_mapping(const char *, const CODE *);
-static void open_pid_files(const char *, const char *, struct pidfh **,
-			   struct pidfh **);
+static void open_pid_files(const char *, const char *, struct daemon_state *);
 static void do_output(const unsigned char *, size_t, struct log_params *);
 static void daemon_sleep(time_t, long);
+static void daemon_terminate(struct daemon_state *, int);
 
 static volatile sig_atomic_t terminate = 0;
 static volatile sig_atomic_t child_gone = 0;
@@ -155,7 +162,6 @@ main(int argc, char *argv[])
 	const char *user = NULL;
 	int ch = 0;
 	int keep_cur_workdir = 1;
-	int pipe_fd[2] = { -1, -1 };
 	int restart_delay = 1;
 	int stdmask = STDOUT_FILENO | STDERR_FILENO;
 	struct log_params logparams = {
@@ -167,8 +173,12 @@ main(int argc, char *argv[])
 		.output_fd = -1,
 		.output_filename = NULL
 	};
-	struct pidfh *parent_pidfh = NULL;
-	struct pidfh *child_pidfh = NULL;
+	struct daemon_state state = {
+		.pipe_fd = { -1, -1 },
+		.parent_pidfh = NULL,
+		.child_pidfh = NULL,
+		.logparams = &logparams
+	};
 	sigset_t mask_orig;
 	sigset_t mask_read;
 	sigset_t mask_term;
@@ -309,13 +319,13 @@ main(int argc, char *argv[])
 	 * Try to open the pidfile before calling daemon(3),
 	 * to be able to report the error intelligently
 	 */
-	open_pid_files(child_pidfile, parent_pidfile, &child_pidfh, &parent_pidfh);
+	open_pid_files(child_pidfile, parent_pidfile, &state);
 	if (daemon(keep_cur_workdir, logparams.keep_fds_open) == -1) {
 		warn("daemon");
-		goto exit;
+		daemon_terminate(&state, 1);
 	}
 	/* Write out parent pidfile if needed. */
-	pidfile_write(parent_pidfh);
+	pidfile_write(state.parent_pidfh);
 
 	if (supervision_enabled) {
 		struct sigaction act_term = { 0 };
@@ -348,15 +358,15 @@ main(int argc, char *argv[])
 		/* Block SIGTERM to avoid racing until we have forked. */
 		if (sigprocmask(SIG_BLOCK, &mask_term, &mask_orig)) {
 			warn("sigprocmask");
-			goto exit;
+			daemon_terminate(&state, 1);
 		}
 		if (sigaction(SIGTERM, &act_term, NULL) == -1) {
 			warn("sigaction");
-			goto exit;
+			daemon_terminate(&state, 1);
 		}
 		if (sigaction(SIGCHLD, &act_chld, NULL) == -1) {
 			warn("sigaction");
-			goto exit;
+			daemon_terminate(&state, 1);
 		}
 		/*
 		 * Try to protect against pageout kill. Ignore the
@@ -367,10 +377,10 @@ main(int argc, char *argv[])
 		if (log_reopen && logparams.output_fd >= 0 &&
 		    sigaction(SIGHUP, &act_hup, NULL) == -1) {
 			warn("sigaction");
-			goto exit;
+			daemon_terminate(&state, 1);
 		}
 restart:
-		if (pipe(pipe_fd)) {
+		if (pipe(state.pipe_fd)) {
 			err(1, "pipe");
 		}
 		/*
@@ -383,13 +393,13 @@ restart:
 	/* fork failed, this can only happen when supervision is enabled */
 	if (pid == -1) {
 		warn("fork");
-		goto exit;
+		daemon_terminate(&state, 1);
 	}
 
 
 	/* fork succeeded, this is child's branch or supervision is disabled */
 	if (pid == 0) {
-		pidfile_write(child_pidfh);
+		pidfile_write(state.child_pidfh);
 
 		if (user != NULL) {
 			restrict_process(user);
@@ -399,23 +409,23 @@ restart:
 		 * and dup'd pipes.
 		 */
 		if (supervision_enabled) {
-			close(pipe_fd[0]);
+			close(state.pipe_fd[0]);
 			if (sigprocmask(SIG_SETMASK, &mask_orig, NULL)) {
 				err(1, "sigprogmask");
 			}
 			if (stdmask & STDERR_FILENO) {
-				if (dup2(pipe_fd[1], STDERR_FILENO) == -1) {
+				if (dup2(state.pipe_fd[1], STDERR_FILENO) == -1) {
 					err(1, "dup2");
 				}
 			}
 			if (stdmask & STDOUT_FILENO) {
-				if (dup2(pipe_fd[1], STDOUT_FILENO) == -1) {
+				if (dup2(state.pipe_fd[1], STDOUT_FILENO) == -1) {
 					err(1, "dup2");
 				}
 			}
-			if (pipe_fd[1] != STDERR_FILENO &&
-			    pipe_fd[1] != STDOUT_FILENO) {
-				close(pipe_fd[1]);
+			if (state.pipe_fd[1] != STDERR_FILENO &&
+			    state.pipe_fd[1] != STDOUT_FILENO) {
+				close(state.pipe_fd[1]);
 			}
 		}
 		execvp(argv[0], argv);
@@ -432,10 +442,10 @@ restart:
 	 */
 	if (sigprocmask(SIG_UNBLOCK, &mask_term, NULL)) {
 		warn("sigprocmask");
-		goto exit;
+		daemon_terminate(&state, 1);
 	}
-	close(pipe_fd[1]);
-	pipe_fd[1] = -1;
+	close(state.pipe_fd[1]);
+	state.pipe_fd[1] = -1;
 
 	setproctitle("%s[%d]", title, (int)pid);
 	/*
@@ -465,34 +475,34 @@ restart:
 		}
 
 		if (terminate) {
-			goto exit;
+			daemon_terminate(&state, 1);
 		}
 
 		if (child_eof) {
 			if (sigprocmask(SIG_BLOCK, &mask_susp, NULL)) {
 				warn("sigprocmask");
-				goto exit;
+				daemon_terminate(&state, 1);
 			}
 			while (!terminate && !child_gone) {
 				sigsuspend(&mask_orig);
 			}
 			if (sigprocmask(SIG_UNBLOCK, &mask_susp, NULL)) {
 				warn("sigprocmask");
-				goto exit;
+				daemon_terminate(&state, 1);
 			}
 			continue;
 		}
 
 		if (sigprocmask(SIG_BLOCK, &mask_read, NULL)) {
 			warn("sigprocmask");
-			goto exit;
+			daemon_terminate(&state, 1);
 		}
 
-		child_eof = !listen_child(pipe_fd[0], &logparams);
+		child_eof = !listen_child(state.pipe_fd[0], &logparams);
 
 		if (sigprocmask(SIG_UNBLOCK, &mask_read, NULL)) {
 			warn("sigprocmask");
-			goto exit;
+			daemon_terminate(&state, 1);
 		}
 
 	}
@@ -501,23 +511,14 @@ restart:
 	}
 	if (sigprocmask(SIG_BLOCK, &mask_term, NULL)) {
 		warn("sigprocmask");
-		goto exit;
+		daemon_terminate(&state, 1);
 	}
 	if (restart_enabled && !terminate) {
-		close(pipe_fd[0]);
-		pipe_fd[0] = -1;
+		close(state.pipe_fd[0]);
+		state.pipe_fd[0] = -1;
 		goto restart;
 	}
-exit:
-	close(logparams.output_fd);
-	close(pipe_fd[0]);
-	close(pipe_fd[1]);
-	if (logparams.syslog_enabled) {
-		closelog();
-	}
-	pidfile_remove(child_pidfh);
-	pidfile_remove(parent_pidfh);
-	exit(1); /* If daemon(3) succeeded exit status does not matter. */
+	daemon_terminate(&state, 1);
 }
 
 static void
@@ -534,14 +535,14 @@ daemon_sleep(time_t secs, long nsecs)
 
 static void
 open_pid_files(const char *pidfile, const char *ppidfile,
-	       struct pidfh **pfh, struct pidfh **ppfh)
+	       struct daemon_state * state)
 {
 	pid_t fpid;
 	int serrno;
 
 	if (pidfile) {
-		*pfh = pidfile_open(pidfile, 0600, &fpid);
-		if (*pfh == NULL) {
+		state->child_pidfh = pidfile_open(pidfile, 0600, &fpid);
+		if (state->child_pidfh == NULL) {
 			if (errno == EEXIST) {
 				errx(3, "process already running, pid: %d",
 				    fpid);
@@ -551,10 +552,10 @@ open_pid_files(const char *pidfile, const char *ppidfile,
 	}
 	/* Do the same for the actual daemon process. */
 	if (ppidfile) {
-		*ppfh = pidfile_open(ppidfile, 0600, &fpid);
-		if (*ppfh == NULL) {
+		state->parent_pidfh = pidfile_open(ppidfile, 0600, &fpid);
+		if (state->parent_pidfh == NULL) {
 			serrno = errno;
-			pidfile_remove(*pfh);
+			pidfile_remove(state->child_pidfh);
 			errno = serrno;
 			if (errno == EEXIST) {
 				errx(3, "process already running, pid: %d",
@@ -742,3 +743,20 @@ reopen_log(struct log_params *logparams)
 	logparams->output_fd = outfd;
 }
 
+static _Noreturn void
+daemon_terminate(struct daemon_state * state, int exitcode)
+{
+	if (state == NULL) {
+		exit(1);
+	}
+	close(state->logparams->output_fd);
+	close(state->pipe_fd[0]);
+	close(state->pipe_fd[1]);
+	if (state->logparams->syslog_enabled) {
+		closelog();
+	}
+	pidfile_remove(state->child_pidfh);
+	pidfile_remove(state->parent_pidfh);
+
+	exit(exitcode);
+}
