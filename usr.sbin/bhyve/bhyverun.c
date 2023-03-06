@@ -1579,12 +1579,13 @@ main(int argc, char *argv[])
 	/*
 	 * checkpointing thread for communication with bhyvectl
 	 */
-	if (init_checkpoint_thread(ctx) < 0)
-		printf("Failed to start checkpoint thread!\r\n");
+	if (init_checkpoint_thread(ctx) != 0)
+		errx(EX_OSERR, "Failed to start checkpoint thread");
 
 	if (restore_file != NULL) {
 		destroy_restore_state(&rstate);
-		vm_restore_time(ctx);
+		if (vm_restore_time(ctx) < 0)
+			err(EX_OSERR, "Unable to restore time");
 
 		for (int i = 0; i < guest_ncpus; i++) {
 			if (i == BSP)
