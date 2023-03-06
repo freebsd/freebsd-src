@@ -565,7 +565,7 @@ nexus_fdt_activate_resource(device_t bus, device_t child, int type, int rid,
 		node = ofw_bus_get_node(child);
 		if (node != -1) {
 			parent = OF_parent(node);
-			if (parent != -1 &&
+			if (parent != 0 &&
 			    OF_hasprop(parent, "nonposted-mmio")) {
 				flags |= BUS_SPACE_MAP_NONPOSTED;
 			}
