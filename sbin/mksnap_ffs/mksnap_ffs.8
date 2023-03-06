@@ -32,9 +32,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $FreeBSD$
-.\"
-.Dd October 3, 2016
+.Dd March 5, 2023
 .Dt MKSNAP_FFS 8
 .Os
 .Sh NAME
@@ -48,6 +46,18 @@ The
 .Nm
 utility creates a snapshot named
 .Ar snapshot_name .
+This name is a path in the file system being snapshotted.
+Typically this is under the
+.Pa .snap
+directory in the root of the file system, but it can
+be anywhere.
+Snapshots can be listed using the
+.Xr snapinfo 8
+command.
+.Pp
+After a snapshot is taken it appears as a file.
+The file is the size of the file system from which it was taken.
+It can be moved, renamed or deleted (which removes the snapshot).
 .Pp
 The group ownership of the file is set to
 .Dq Li operator ;
@@ -62,15 +72,22 @@ Create a snapshot of
 .Pa /usr/home
 file system and mount the snapshot elsewhere:
 .Bd -literal -offset indent
-mksnap_ffs /usr/home/snapshot
-mdconfig -a -t vnode -o readonly -f /usr/home/snapshot
+mksnap_ffs /usr/home/.snap/snap1
+mdconfig -a -t vnode -o readonly -f /usr/home/.snap/snap1
 mount -o ro /dev/md0 /mnt/
 .Ed
+.Pp
+Delete a snapshot:
+.Bd -literal -offset indent
+rm /usr/home/.snap/snap1
+.Ed
 .Sh SEE ALSO
+.Xr rm 1 ,
 .Xr chmod 2 ,
 .Xr chown 8 ,
 .Xr mdconfig 8 ,
-.Xr mount 8
+.Xr mount 8 ,
+.Xr snapinfo 8
 .Sh HISTORY
 The
 .Nm
