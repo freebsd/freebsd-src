@@ -519,6 +519,11 @@ ip_input(struct mbuf *m)
 			goto bad;
 		}
 	}
+	/* The unspecified address can appear only as a src address - RFC1122 */
+	if (__predict_false(ntohl(ip->ip_dst.s_addr) == INADDR_ANY)) {
+		IPSTAT_INC(ips_badaddr);
+		goto bad;
+	}
 
 	if (m->m_pkthdr.csum_flags & CSUM_IP_CHECKED) {
 		sum = !(m->m_pkthdr.csum_flags & CSUM_IP_VALID);
