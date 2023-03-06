@@ -900,7 +900,7 @@ ktls_alloc_snd_tag(struct inpcb *inp, struct ktls_session *tls, bool force,
 	 * existing pacing rate.
 	 */
 	if (tp->t_pacing_rate != -1 &&
-	    (ifp->if_capenable & IFCAP_TXTLS_RTLMT) != 0) {
+	    (if_getcapenable(ifp) & IFCAP_TXTLS_RTLMT) != 0) {
 		params.hdr.type = IF_SND_TAG_TYPE_TLS_RATE_LIMIT;
 		params.tls_rate_limit.inp = inp;
 		params.tls_rate_limit.tls = tls;
@@ -915,17 +915,17 @@ ktls_alloc_snd_tag(struct inpcb *inp, struct ktls_session *tls, bool force,
 	params.hdr.numa_domain = inp->inp_numa_domain;
 	INP_RUNLOCK(inp);
 
-	if ((ifp->if_capenable & IFCAP_MEXTPG) == 0) {
+	if ((if_getcapenable(ifp) & IFCAP_MEXTPG) == 0) {
 		error = EOPNOTSUPP;
 		goto out;
 	}
 	if (inp->inp_vflag & INP_IPV6) {
-		if ((ifp->if_capenable & IFCAP_TXTLS6) == 0) {
+		if ((if_getcapenable(ifp) & IFCAP_TXTLS6) == 0) {
 			error = EOPNOTSUPP;
 			goto out;
 		}
 	} else {
-		if ((ifp->if_capenable & IFCAP_TXTLS4) == 0) {
+		if ((if_getcapenable(ifp) & IFCAP_TXTLS4) == 0) {
 			error = EOPNOTSUPP;
 			goto out;
 		}
@@ -1000,12 +1000,12 @@ ktls_alloc_rcv_tag(struct inpcb *inp, struct ktls_session *tls,
 	INP_RUNLOCK(inp);
 
 	if (inp->inp_vflag & INP_IPV6) {
-		if ((ifp->if_capenable2 & IFCAP2_RXTLS6) == 0) {
+		if ((if_getcapenable2(ifp) & IFCAP2_RXTLS6) == 0) {
 			error = EOPNOTSUPP;
 			goto out;
 		}
 	} else {
-		if ((ifp->if_capenable2 & IFCAP2_RXTLS4) == 0) {
+		if ((if_getcapenable2(ifp) & IFCAP2_RXTLS4) == 0) {
 			error = EOPNOTSUPP;
 			goto out;
 		}
@@ -1618,10 +1618,10 @@ ktls_reset_receive_tag(void *context, int pending)
 	INP_RUNLOCK(inp);
 
 	if (inp->inp_vflag & INP_IPV6) {
-		if ((ifp->if_capenable2 & IFCAP2_RXTLS6) == 0)
+		if ((if_getcapenable2(ifp) & IFCAP2_RXTLS6) == 0)
 			goto out;
 	} else {
-		if ((ifp->if_capenable2 & IFCAP2_RXTLS4) == 0)
+		if ((if_getcapenable2(ifp) & IFCAP2_RXTLS4) == 0)
 			goto out;
 	}
 
