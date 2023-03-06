@@ -1604,7 +1604,7 @@ sender_body(void *data)
 	uint64_t n = targ->g->npackets / targ->g->nthreads;
 	uint64_t sent = 0;
 	uint64_t event = 0;
-	int options = targ->g->options | OPT_COPY;
+	int options = targ->g->options;
 	struct timespec nexttime = { 0, 0}; // XXX silence compiler
 	int rate_limit = targ->g->tx_rate;
 	struct pkt *pkt = &targ->pkt;
@@ -1678,6 +1678,19 @@ sender_body(void *data)
 			targ->frags++;
 	}
 	D("frags %u frag_size %u", targ->frags, targ->frag_size);
+
+	/* mark all slots of all rings as changed so initial copy will be done */
+	for (i = targ->nmd->first_tx_ring; i <= targ->nmd->last_tx_ring; i++) {
+		uint32_t j;
+		struct netmap_slot *slot;
+
+		txring = NETMAP_TXRING(nifp, i);
+		for (j = 0; j < txring->num_slots; j++) {
+			slot = &txring->slot[j];
+			slot->flags = NS_BUF_CHANGED;
+		}
+	}
+
 	while (!targ->cancel && (n == 0 || sent < n)) {
 		int rv;
 
@@ -1714,10 +1727,6 @@ sender_body(void *data)
 		/*
 		 * scan our queues and send on those with room
 		 */
-		if (options & OPT_COPY && sent > 100000 && !(targ->g->options & OPT_COPY) ) {
-			D("drop copy");
-			options &= ~OPT_COPY;
-		}
 		for (i = targ->nmd->first_tx_ring; i <= targ->nmd->last_tx_ring; i++) {
 			int m;
 			uint64_t limit = rate_limit ?  tosend : targ->g->burst;
