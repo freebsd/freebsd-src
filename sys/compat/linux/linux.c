@@ -329,7 +329,7 @@ ifname_bsd_to_linux_ifp(struct ifnet *ifp, char *lxname, size_t len)
 	 * Linux loopback interface name is lo (not lo0),
 	 * we translate lo to lo0, loX to loX.
 	 */
-	if (IFP_IS_LOOP(ifp) && strncmp(ifp->if_xname, "lo0", IFNAMSIZ) == 0)
+	if (IFP_IS_LOOP(ifp) && strncmp(if_name(ifp), "lo0", IFNAMSIZ) == 0)
 		return (strlcpy(lxname, "lo", len));
 
 	/* Short-circuit non ethernet interfaces. */
