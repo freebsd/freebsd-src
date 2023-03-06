@@ -67,6 +67,7 @@ struct log_params {
 	int keep_fds_open;
 	int output_fd;
 	bool syslog_enabled;
+	bool log_reopen;
 };
 
 struct daemon_state {
@@ -152,7 +153,6 @@ int
 main(int argc, char *argv[])
 {
 	bool supervision_enabled = false;
-	bool log_reopen = false;
 	bool child_eof = false;
 	bool restart_enabled = false;
 	char *p = NULL;
@@ -166,6 +166,7 @@ main(int argc, char *argv[])
 	int stdmask = STDOUT_FILENO | STDERR_FILENO;
 	struct log_params logparams = {
 		.syslog_enabled = false,
+		.log_reopen = false,
 		.syslog_priority = LOG_NOTICE,
 		.syslog_tag = "daemon",
 		.syslog_facility = LOG_DAEMON,
@@ -215,7 +216,7 @@ main(int argc, char *argv[])
 			logparams.keep_fds_open = 0;
 			break;
 		case 'H':
-			log_reopen = true;
+			logparams.log_reopen = true;
 			break;
 		case 'l':
 			logparams.syslog_facility = get_log_mapping(optarg,
@@ -374,7 +375,7 @@ main(int argc, char *argv[])
 		 * not have superuser privileges.
 		 */
 		(void)madvise(NULL, 0, MADV_PROTECT);
-		if (log_reopen && logparams.output_fd >= 0 &&
+		if (logparams.log_reopen && logparams.output_fd >= 0 &&
 		    sigaction(SIGHUP, &act_hup, NULL) == -1) {
 			warn("sigaction");
 			daemon_terminate(&state, 1);
