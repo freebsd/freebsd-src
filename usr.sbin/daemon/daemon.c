@@ -59,32 +59,28 @@ __FBSDID("$FreeBSD$");
 
 #define LBUF_SIZE 4096
 
-struct log_params {
-	const char *output_filename;
-	const char *syslog_tag;
-	int syslog_priority;
-	int syslog_facility;
-	int keep_fds_open;
-	int output_fd;
-	bool syslog_enabled;
-	bool log_reopen;
-};
-
 struct daemon_state {
 	int pipe_fd[2];
 	const char *child_pidfile;
 	const char *parent_pidfile;
+	const char *output_filename;
+	const char *syslog_tag;
 	const char *title;
 	const char *user;
 	struct pidfh *parent_pidfh;
 	struct pidfh *child_pidfh;
-	struct log_params * logparams;
 	int keep_cur_workdir;
 	int restart_delay;
 	int stdmask;
+	int syslog_priority;
+	int syslog_facility;
+	int keep_fds_open;
+	int output_fd;
 	bool supervision_enabled;
 	bool child_eof;
 	bool restart_enabled;
+	bool syslog_enabled;
+	bool log_reopen;
 };
 
 static void restrict_process(const char *);
@@ -93,11 +89,11 @@ static void handle_term(int);
 static void handle_chld(int);
 static void handle_hup(int);
 static int  open_log(const char *);
-static void reopen_log(struct log_params *);
-static bool listen_child(int, struct log_params *);
+static void reopen_log(struct daemon_state *);
+static bool listen_child(int, struct daemon_state *);
 static int  get_log_mapping(const char *, const CODE *);
 static void open_pid_files(const char *, const char *, struct daemon_state *);
-static void do_output(const unsigned char *, size_t, struct log_params *);
+static void do_output(const unsigned char *, size_t, struct daemon_state *);
 static void daemon_sleep(time_t, long);
 static void daemon_terminate(struct daemon_state *, int);
 
@@ -165,16 +161,6 @@ main(int argc, char *argv[])
 {
 	char *p = NULL;
 	int ch = 0;
-	struct log_params logparams = {
-		.syslog_enabled = false,
-		.log_reopen = false,
-		.syslog_priority = LOG_NOTICE,
-		.syslog_tag = "daemon",
-		.syslog_facility = LOG_DAEMON,
-		.keep_fds_open = 1,
-		.output_fd = -1,
-		.output_filename = NULL
-	};
 	struct daemon_state state = {
 		.pipe_fd = { -1, -1 },
 		.parent_pidfh = NULL,
@@ -183,13 +169,20 @@ main(int argc, char *argv[])
 		.parent_pidfile = NULL,
 		.title = NULL,
 		.user = NULL,
-		.logparams = &logparams,
 		.supervision_enabled = false,
 		.child_eof = false,
 		.restart_enabled = false,
 		.keep_cur_workdir = 1,
 		.restart_delay = 1,
 		.stdmask = STDOUT_FILENO | STDERR_FILENO,
+		.syslog_enabled = false,
+		.log_reopen = false,
+		.syslog_priority = LOG_NOTICE,
+		.syslog_tag = "daemon",
+		.syslog_facility = LOG_DAEMON,
+		.keep_fds_open = 1,
+		.output_fd = -1,
+		.output_filename = NULL,
 	};
 	sigset_t mask_orig;
 	sigset_t mask_read;
@@ -236,18 +229,18 @@ main(int argc, char *argv[])
 			state.keep_cur_workdir = 0;
 			break;
 		case 'f':
-			logparams.keep_fds_open = 0;
+			state.keep_fds_open = 0;
 			break;
 		case 'H':
-			logparams.log_reopen = true;
+			state.log_reopen = true;
 			break;
 		case 'l':
-			logparams.syslog_facility = get_log_mapping(optarg,
+			state.syslog_facility = get_log_mapping(optarg,
 			    facilitynames);
-			if (logparams.syslog_facility == -1) {
+			if (state.syslog_facility == -1) {
 				errx(5, "unrecognized syslog facility");
 			}
-			logparams.syslog_enabled = true;
+			state.syslog_enabled = true;
 			state.supervision_enabled = true;
 			break;
 		case 'm':
@@ -257,7 +250,7 @@ main(int argc, char *argv[])
 			}
 			break;
 		case 'o':
-			logparams.output_filename = optarg;
+			state.output_filename = optarg;
 			/*
 			 * TODO: setting output filename doesn't have to turn
 			 * the supervision mode on. For non-supervised mode
@@ -286,24 +279,24 @@ main(int argc, char *argv[])
 			}
 			break;
 		case 's':
-			logparams.syslog_priority = get_log_mapping(optarg,
+			state.syslog_priority = get_log_mapping(optarg,
 			    prioritynames);
-			if (logparams.syslog_priority == -1) {
+			if (state.syslog_priority == -1) {
 				errx(4, "unrecognized syslog priority");
 			}
-			logparams.syslog_enabled = true;
+			state.syslog_enabled = true;
 			state.supervision_enabled = true;
 			break;
 		case 'S':
-			logparams.syslog_enabled = true;
+			state.syslog_enabled = true;
 			state.supervision_enabled = true;
 			break;
 		case 't':
 			state.title = optarg;
 			break;
 		case 'T':
-			logparams.syslog_tag = optarg;
-			logparams.syslog_enabled = true;
+			state.syslog_tag = optarg;
+			state.syslog_enabled = true;
 			state.supervision_enabled = true;
 			break;
 		case 'u':
@@ -327,16 +320,16 @@ main(int argc, char *argv[])
 		state.title = argv[0];
 	}
 
-	if (logparams.output_filename) {
-		logparams.output_fd = open_log(logparams.output_filename);
-		if (logparams.output_fd == -1) {
+	if (state.output_filename) {
+		state.output_fd = open_log(state.output_filename);
+		if (state.output_fd == -1) {
 			err(7, "open");
 		}
 	}
 
-	if (logparams.syslog_enabled) {
-		openlog(logparams.syslog_tag, LOG_PID | LOG_NDELAY,
-		    logparams.syslog_facility);
+	if (state.syslog_enabled) {
+		openlog(state.syslog_tag, LOG_PID | LOG_NDELAY,
+		    state.syslog_facility);
 	}
 
 	/*
@@ -344,7 +337,7 @@ main(int argc, char *argv[])
 	 * to be able to report the error intelligently
 	 */
 	open_pid_files(state.child_pidfile, state.parent_pidfile, &state);
-	if (daemon(state.keep_cur_workdir, logparams.keep_fds_open) == -1) {
+	if (daemon(state.keep_cur_workdir, state.keep_fds_open) == -1) {
 		warn("daemon");
 		daemon_terminate(&state, 1);
 	}
@@ -484,7 +477,7 @@ restart:
 			daemon_terminate(&state, 1);
 		}
 
-		state.child_eof = !listen_child(state.pipe_fd[0], &logparams);
+		state.child_eof = !listen_child(state.pipe_fd[0], &state);
 
 		if (sigprocmask(SIG_UNBLOCK, &mask_read, NULL)) {
 			warn("sigprocmask");
@@ -590,17 +583,17 @@ restrict_process(const char *user)
  * continue reading.
  */
 static bool
-listen_child(int fd, struct log_params *logpar)
+listen_child(int fd, struct daemon_state *state)
 {
 	static unsigned char buf[LBUF_SIZE];
 	static size_t bytes_read = 0;
 	int rv;
 
-	assert(logpar);
+	assert(state);
 	assert(bytes_read < LBUF_SIZE - 1);
 
 	if (do_log_reopen) {
-		reopen_log(logpar);
+		reopen_log(state);
 	}
 	rv = read(fd, buf + bytes_read, LBUF_SIZE - bytes_read - 1);
 	if (rv > 0) {
@@ -617,7 +610,7 @@ listen_child(int fd, struct log_params *logpar)
 		while ((cp = memchr(buf, '\n', bytes_read)) != NULL) {
 			size_t bytes_line = cp - buf + 1;
 			assert(bytes_line <= bytes_read);
-			do_output(buf, bytes_line, logpar);
+			do_output(buf, bytes_line, state);
 			bytes_read -= bytes_line;
 			memmove(buf, cp + 1, bytes_read);
 		}
@@ -625,7 +618,7 @@ listen_child(int fd, struct log_params *logpar)
 		if (bytes_read < LBUF_SIZE - 1) {
 			return true;
 		}
-		do_output(buf, bytes_read, logpar);
+		do_output(buf, bytes_read, state);
 		bytes_read = 0;
 		return true;
 	} else if (rv == -1) {
@@ -639,7 +632,7 @@ listen_child(int fd, struct log_params *logpar)
 	}
 	/* Upon EOF, we have to flush what's left of the buffer. */
 	if (bytes_read > 0) {
-		do_output(buf, bytes_read, logpar);
+		do_output(buf, bytes_read, state);
 		bytes_read = 0;
 	}
 	return false;
@@ -651,24 +644,24 @@ listen_child(int fd, struct log_params *logpar)
  * everything back to parent's stdout.
  */
 static void
-do_output(const unsigned char *buf, size_t len, struct log_params *logpar)
+do_output(const unsigned char *buf, size_t len, struct daemon_state *state)
 {
 	assert(len <= LBUF_SIZE);
-	assert(logpar);
+	assert(state);
 
 	if (len < 1) {
 		return;
 	}
-	if (logpar->syslog_enabled) {
-		syslog(logpar->syslog_priority, "%.*s", (int)len, buf);
+	if (state->syslog_enabled) {
+		syslog(state->syslog_priority, "%.*s", (int)len, buf);
 	}
-	if (logpar->output_fd != -1) {
-		if (write(logpar->output_fd, buf, len) == -1)
+	if (state->output_fd != -1) {
+		if (write(state->output_fd, buf, len) == -1)
 			warn("write");
 	}
-	if (logpar->keep_fds_open &&
-	    !logpar->syslog_enabled &&
-	    logpar->output_fd == -1) {
+	if (state->keep_fds_open &&
+	    !state->syslog_enabled &&
+	    state->output_fd == -1) {
 		printf("%.*s", (int)len, buf);
 	}
 }
@@ -704,8 +697,8 @@ setup_signals(struct daemon_state *state)
 	}
 
 	/* Setup SIGHUP if configured*/
-	if (state->logparams->log_reopen == false ||
-	    state->logparams->output_fd < 0) {
+	if (state->log_reopen == false ||
+	    state->output_fd < 0) {
 		return;
 	}
 
@@ -761,28 +754,28 @@ open_log(const char *outfn)
 }
 
 static void
-reopen_log(struct log_params *logparams)
+reopen_log(struct daemon_state *state)
 {
 	int outfd;
 
 	do_log_reopen = 0;
-	outfd = open_log(logparams->output_filename);
-	if (logparams->output_fd >= 0) {
-		close(logparams->output_fd);
+	outfd = open_log(state->output_filename);
+	if (state->output_fd >= 0) {
+		close(state->output_fd);
 	}
-	logparams->output_fd = outfd;
+	state->output_fd = outfd;
 }
 
 static _Noreturn void
-daemon_terminate(struct daemon_state * state, int exitcode)
+daemon_terminate(struct daemon_state *state, int exitcode)
 {
 	if (state == NULL) {
 		exit(1);
 	}
-	close(state->logparams->output_fd);
+	close(state->output_fd);
 	close(state->pipe_fd[0]);
 	close(state->pipe_fd[1]);
-	if (state->logparams->syslog_enabled) {
+	if (state->syslog_enabled) {
 		closelog();
 	}
 	pidfile_remove(state->child_pidfh);
