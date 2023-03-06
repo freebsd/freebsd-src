@@ -78,6 +78,7 @@ struct daemon_state {
 };
 
 static void restrict_process(const char *);
+static void setup_signals(struct daemon_state *);
 static void handle_term(int);
 static void handle_chld(int);
 static void handle_hup(int);
@@ -341,46 +342,19 @@ main(int argc, char *argv[])
 	pidfile_write(state.parent_pidfh);
 
 	if (supervision_enabled) {
-		struct sigaction act_term = { 0 };
-		struct sigaction act_chld = { 0 };
-		struct sigaction act_hup = { 0 };
-
-		/* Avoid PID racing with SIGCHLD and SIGTERM. */
-		act_term.sa_handler = handle_term;
-		sigemptyset(&act_term.sa_mask);
-		sigaddset(&act_term.sa_mask, SIGCHLD);
-
-		act_chld.sa_handler = handle_chld;
-		sigemptyset(&act_chld.sa_mask);
-		sigaddset(&act_chld.sa_mask, SIGTERM);
-
-		act_hup.sa_handler = handle_hup;
-		sigemptyset(&act_hup.sa_mask);
 
 		/* Block SIGTERM to avoid racing until we have forked. */
 		if (sigprocmask(SIG_BLOCK, &mask_term, &mask_orig)) {
 			warn("sigprocmask");
 			daemon_terminate(&state, 1);
 		}
-		if (sigaction(SIGTERM, &act_term, NULL) == -1) {
-			warn("sigaction");
-			daemon_terminate(&state, 1);
-		}
-		if (sigaction(SIGCHLD, &act_chld, NULL) == -1) {
-			warn("sigaction");
-			daemon_terminate(&state, 1);
-		}
+		setup_signals(&state);
 		/*
 		 * Try to protect against pageout kill. Ignore the
 		 * error, madvise(2) will fail only if a process does
 		 * not have superuser privileges.
 		 */
 		(void)madvise(NULL, 0, MADV_PROTECT);
-		if (logparams.log_reopen && logparams.output_fd >= 0 &&
-		    sigaction(SIGHUP, &act_hup, NULL) == -1) {
-			warn("sigaction");
-			daemon_terminate(&state, 1);
-		}
 restart:
 		if (pipe(state.pipe_fd)) {
 			err(1, "pipe");
@@ -686,6 +660,47 @@ do_output(const unsigned char *buf, size_t len, struct log_params *logpar)
 	    !logpar->syslog_enabled &&
 	    logpar->output_fd == -1) {
 		printf("%.*s", (int)len, buf);
+	}
+}
+
+
+/* Setup SIGTERM, SIGCHLD and SIGHUP handlers
+ * To avoid racing SIGCHLD with SIGTERM corresponding
+ * signal handlers mask the other signal.
+ */
+static void
+setup_signals(struct daemon_state *state)
+{
+	struct sigaction act_term = { 0 };
+	struct sigaction act_chld = { 0 };
+	struct sigaction act_hup = { 0 };
+
+	/* Setup SIGTERM */
+	act_term.sa_handler = handle_term;
+	sigemptyset(&act_term.sa_mask);
+	sigaddset(&act_term.sa_mask, SIGCHLD);
+	if (sigaction(SIGTERM, &act_term, NULL) == -1) {
+		warn("sigaction");
+		daemon_terminate(state, 1);
+	}
+
+	/* Setup SIGCHLD */
+	act_chld.sa_handler = handle_chld;
+	sigemptyset(&act_chld.sa_mask);
+	sigaddset(&act_chld.sa_mask, SIGTERM);
+	if (sigaction(SIGCHLD, &act_chld, NULL) == -1) {
+		warn("sigaction");
+		daemon_terminate(state, 1);
+	}
+
+	/* Setup SIGHUP */
+	act_hup.sa_handler = handle_hup;
+	sigemptyset(&act_hup.sa_mask);
+
+	if (state->logparams->log_reopen && state->logparams->output_fd >= 0 &&
+	    sigaction(SIGHUP, &act_hup, NULL) == -1) {
+		warn("sigaction");
+		daemon_terminate(state, 1);
 	}
 }
 
