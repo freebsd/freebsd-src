@@ -79,6 +79,7 @@ struct daemon_state {
 	struct pidfh *parent_pidfh;
 	struct pidfh *child_pidfh;
 	struct log_params * logparams;
+	int keep_cur_workdir;
 	bool supervision_enabled;
 	bool child_eof;
 	bool restart_enabled;
@@ -162,7 +163,6 @@ main(int argc, char *argv[])
 {
 	char *p = NULL;
 	int ch = 0;
-	int keep_cur_workdir = 1;
 	int restart_delay = 1;
 	int stdmask = STDOUT_FILENO | STDERR_FILENO;
 	struct log_params logparams = {
@@ -187,6 +187,7 @@ main(int argc, char *argv[])
 		.supervision_enabled = false,
 		.child_eof = false,
 		.restart_enabled = false,
+		.keep_cur_workdir = 1,
 	};
 	sigset_t mask_orig;
 	sigset_t mask_read;
@@ -230,7 +231,7 @@ main(int argc, char *argv[])
 	while ((ch = getopt_long(argc, argv, shortopts, longopts, NULL)) != -1) {
 		switch (ch) {
 		case 'c':
-			keep_cur_workdir = 0;
+			state.keep_cur_workdir = 0;
 			break;
 		case 'f':
 			logparams.keep_fds_open = 0;
@@ -341,7 +342,7 @@ main(int argc, char *argv[])
 	 * to be able to report the error intelligently
 	 */
 	open_pid_files(state.child_pidfile, state.parent_pidfile, &state);
-	if (daemon(keep_cur_workdir, logparams.keep_fds_open) == -1) {
+	if (daemon(state.keep_cur_workdir, logparams.keep_fds_open) == -1) {
 		warn("daemon");
 		daemon_terminate(&state, 1);
 	}
