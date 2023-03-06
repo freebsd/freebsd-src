@@ -105,6 +105,7 @@ OLD_FILES+=usr/include/netnatm/sig/unidef.h
 OLD_FILES+=usr/include/netnatm/sig/unisig.h
 OLD_DIRS+=usr/include/netnatm/sig
 OLD_FILES+=usr/include/netnatm/unimsg.h
+OLD_DIRS+=usr/include/netnatm
 OLD_FILES+=usr/lib/libngatm.a
 OLD_FILES+=usr/lib/libngatm.so
 OLD_LIBS+=usr/lib/libngatm.so.4
