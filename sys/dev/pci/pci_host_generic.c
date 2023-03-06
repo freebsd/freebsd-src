@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 #define	PCI_UNMAPPED
 #define	PCI_RF_FLAGS	RF_UNMAPPED
 #else
-#error
 #define	PCI_RF_FLAGS	0
 #endif
 
