@@ -188,39 +188,14 @@ epair_tx_start_deferred(void *arg, int pending)
 	if_rele(sc->ifp);
 }
 
-static int
-epair_menq(struct mbuf *m, struct epair_softc *osc)
+static struct epair_queue *
+epair_select_queue(struct epair_softc *sc, struct mbuf *m)
 {
-	struct ifnet *ifp, *oifp;
-	int len, ret;
-	int ridx;
-	short mflags;
-	struct epair_queue *q = NULL;
 	uint32_t bucket;
 #ifdef RSS
 	struct ether_header *eh;
-#endif
+	int ret;
 
-	/*
-	 * I know this looks weird. We pass the "other sc" as we need that one
-	 * and can get both ifps from it as well.
-	 */
-	oifp = osc->ifp;
-	ifp = osc->oifp;
-
-	M_ASSERTPKTHDR(m);
-	epair_clear_mbuf(m);
-	if_setrcvif(m, oifp);
-	M_SETFIB(m, oifp->if_fib);
-
-	/* Save values as once the mbuf is queued, it's not ours anymore. */
-	len = m->m_pkthdr.len;
-	mflags = m->m_flags;
-
-	MPASS(m->m_nextpkt == NULL);
-	MPASS((m->m_pkthdr.csum_flags & CSUM_SND_TAG) == 0);
-
-#ifdef RSS
 	ret = rss_m2bucket(m, &bucket);
 	if (ret) {
 		/* Actually hash the packet. */
@@ -246,7 +221,43 @@ epair_menq(struct mbuf *m, struct epair_softc *osc)
 #else
 	bucket = 0;
 #endif
-	q = &osc->queues[bucket];
+	return (&sc->queues[bucket]);
+}
+
+static void
+epair_prepare_mbuf(struct mbuf *m, struct ifnet *src_ifp)
+{
+	M_ASSERTPKTHDR(m);
+	epair_clear_mbuf(m);
+	if_setrcvif(m, src_ifp);
+	M_SETFIB(m, src_ifp->if_fib);
+
+	MPASS(m->m_nextpkt == NULL);
+	MPASS((m->m_pkthdr.csum_flags & CSUM_SND_TAG) == 0);
+}
+
+static void
+epair_menq(struct mbuf *m, struct epair_softc *osc)
+{
+	struct ifnet *ifp, *oifp;
+	int len, ret;
+	int ridx;
+	bool mcast;
+
+	/*
+	 * I know this looks weird. We pass the "other sc" as we need that one
+	 * and can get both ifps from it as well.
+	 */
+	oifp = osc->ifp;
+	ifp = osc->oifp;
+
+	epair_prepare_mbuf(m, oifp);
+
+	/* Save values as once the mbuf is queued, it's not ours anymore. */
+	len = m->m_pkthdr.len;
+	mcast = (m->m_flags & (M_BCAST | M_MCAST)) != 0;
+
+	struct epair_queue *q = epair_select_queue(osc, m);
 
 	atomic_set_long(&q->state, (1 << BIT_MBUF_QUEUED));
 	ridx = atomic_load_int(&q->ridx);
@@ -255,7 +266,7 @@ epair_menq(struct mbuf *m, struct epair_softc *osc)
 		/* Ring is full. */
 		if_inc_counter(ifp, IFCOUNTER_OQDROPS, 1);
 		m_freem(m);
-		return (0);
+		return;
 	}
 
 	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
@@ -265,15 +276,13 @@ epair_menq(struct mbuf *m, struct epair_softc *osc)
 	 * the logic another time.
 	 */
 	if_inc_counter(ifp, IFCOUNTER_OBYTES, len);
-	if (mflags & (M_BCAST|M_MCAST))
+	if (mcast)
 		if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
 	/* Someone else received the packet. */
 	if_inc_counter(oifp, IFCOUNTER_IPACKETS, 1);
 
 	if (!atomic_testandset_long(&q->state, BIT_QUEUE_TASK))
-		taskqueue_enqueue(epair_tasks.tq[bucket], &q->tx_task);
-
-	return (0);
+		taskqueue_enqueue(epair_tasks.tq[q->id], &q->tx_task);
 }
 
 static void
@@ -317,8 +326,10 @@ epair_transmit(struct ifnet *ifp, struct mbuf *m)
 {
 	struct epair_softc *sc;
 	struct ifnet *oifp;
-	int error, len;
-	short mflags;
+#ifdef ALTQ
+	int len;
+	bool mcast;
+#endif
 
 	if (m == NULL)
 		return (0);
@@ -355,10 +366,12 @@ epair_transmit(struct ifnet *ifp, struct mbuf *m)
 		m_freem(m);
 		return (0);
 	}
-	len = m->m_pkthdr.len;
-	mflags = m->m_flags;
 
 #ifdef ALTQ
+	len = m->m_pkthdr.len;
+	mcast = (m->m_flags & (M_BCAST | M_MCAST)) != 0;
+	int error = 0;
+
 	/* Support ALTQ via the classic if_start() path. */
 	IF_LOCK(&ifp->if_snd);
 	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {
@@ -368,7 +381,7 @@ epair_transmit(struct ifnet *ifp, struct mbuf *m)
 		IF_UNLOCK(&ifp->if_snd);
 		if (!error) {
 			if_inc_counter(ifp, IFCOUNTER_OBYTES, len);
-			if (mflags & (M_BCAST|M_MCAST))
+			if (mcast)
 				if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
 			epair_start(ifp);
 		}
@@ -377,8 +390,8 @@ epair_transmit(struct ifnet *ifp, struct mbuf *m)
 	IF_UNLOCK(&ifp->if_snd);
 #endif
 
-	error = epair_menq(m, oifp->if_softc);
-	return (error);
+	epair_menq(m, oifp->if_softc);
+	return (0);
 }
 
 static int
