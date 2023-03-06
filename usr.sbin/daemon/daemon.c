@@ -76,6 +76,7 @@ struct daemon_state {
 	struct pidfh *child_pidfh;
 	struct log_params * logparams;
 	bool supervision_enabled;
+	bool child_eof;
 };
 
 static void restrict_process(const char *);
@@ -154,7 +155,6 @@ usage(int exitcode)
 int
 main(int argc, char *argv[])
 {
-	bool child_eof = false;
 	bool restart_enabled = false;
 	char *p = NULL;
 	const char *child_pidfile = NULL;
@@ -181,6 +181,7 @@ main(int argc, char *argv[])
 		.child_pidfh = NULL,
 		.logparams = &logparams,
 		.supervision_enabled = false,
+		.child_eof = false,
 	};
 	sigset_t mask_orig;
 	sigset_t mask_read;
@@ -447,7 +448,7 @@ restart:
 		 * to depart. To handle the second option, a different
 		 * approach would be needed (procctl()?)
 		 */
-		if (child_gone && child_eof) {
+		if (child_gone && state.child_eof) {
 			break;
 		}
 
@@ -455,7 +456,7 @@ restart:
 			daemon_terminate(&state, 1);
 		}
 
-		if (child_eof) {
+		if (state.child_eof) {
 			if (sigprocmask(SIG_BLOCK, &mask_susp, NULL)) {
 				warn("sigprocmask");
 				daemon_terminate(&state, 1);
@@ -475,7 +476,7 @@ restart:
 			daemon_terminate(&state, 1);
 		}
 
-		child_eof = !listen_child(state.pipe_fd[0], &logparams);
+		state.child_eof = !listen_child(state.pipe_fd[0], &logparams);
 
 		if (sigprocmask(SIG_UNBLOCK, &mask_read, NULL)) {
 			warn("sigprocmask");
