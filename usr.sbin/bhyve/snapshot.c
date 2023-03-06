@@ -1517,6 +1517,9 @@ init_checkpoint_thread(struct vmctx *ctx)
 	int socket_fd;
 	pthread_t checkpoint_pthread;
 	int err;
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_t rights;
+#endif
 
 	memset(&addr, 0, sizeof(addr));
 
@@ -1547,6 +1550,13 @@ init_checkpoint_thread(struct vmctx *ctx)
 		goto fail;
 	}
 
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_init(&rights, CAP_ACCEPT, CAP_READ, CAP_RECV, CAP_WRITE,
+	    CAP_SEND, CAP_GETSOCKOPT);
+
+	if (caph_rights_limit(socket_fd, &rights) == -1)
+		errx(EX_OSERR, "Unable to apply rights for sandbox");
+#endif
 	checkpoint_info = calloc(1, sizeof(*checkpoint_info));
 	checkpoint_info->ctx = ctx;
 	checkpoint_info->socket_fd = socket_fd;
