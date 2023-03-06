@@ -80,6 +80,7 @@ struct daemon_state {
 	struct pidfh *child_pidfh;
 	struct log_params * logparams;
 	int keep_cur_workdir;
+	int restart_delay;
 	bool supervision_enabled;
 	bool child_eof;
 	bool restart_enabled;
@@ -163,7 +164,6 @@ main(int argc, char *argv[])
 {
 	char *p = NULL;
 	int ch = 0;
-	int restart_delay = 1;
 	int stdmask = STDOUT_FILENO | STDERR_FILENO;
 	struct log_params logparams = {
 		.syslog_enabled = false,
@@ -188,6 +188,7 @@ main(int argc, char *argv[])
 		.child_eof = false,
 		.restart_enabled = false,
 		.keep_cur_workdir = 1,
+		.restart_delay = 1,
 	};
 	sigset_t mask_orig;
 	sigset_t mask_read;
@@ -278,8 +279,8 @@ main(int argc, char *argv[])
 			break;
 		case 'R':
 			state.restart_enabled = true;
-			restart_delay = strtol(optarg, &p, 0);
-			if (p == optarg || restart_delay < 1) {
+			state.restart_delay = strtol(optarg, &p, 0);
+			if (p == optarg || state.restart_delay < 1) {
 				errx(6, "invalid restart delay");
 			}
 			break;
@@ -491,7 +492,7 @@ restart:
 
 	}
 	if (state.restart_enabled && !terminate) {
-		daemon_sleep(restart_delay, 0);
+		daemon_sleep(state.restart_delay, 0);
 	}
 	if (sigprocmask(SIG_BLOCK, &mask_term, NULL)) {
 		warn("sigprocmask");
