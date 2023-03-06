@@ -211,6 +211,67 @@ basic_v6_cleanup()
 	vnet_cleanup
 }
 
+atf_test_case "unicast_v6" "cleanup"
+unicast_v6_head()
+{
+	atf_set descr 'Unicast CARP test (IPv6)'
+	atf_set require.user root
+}
+
+unicast_v6_body()
+{
+	carp_init
+
+	bridge=$(vnet_mkbridge)
+	epair_one=$(vnet_mkepair)
+	epair_two=$(vnet_mkepair)
+
+	vnet_mkjail carp_uni_v6_one ${bridge} ${epair_one}a ${epair_two}a
+	vnet_mkjail carp_uni_v6_two ${epair_one}b
+	vnet_mkjail carp_uni_v6_three ${epair_two}b
+
+	jexec carp_uni_v6_one sysctl net.inet6.ip6.forwarding=1
+	jexec carp_uni_v6_one ifconfig ${bridge} addm ${epair_one}a \
+	    addm ${epair_two}a
+	jexec carp_uni_v6_one ifconfig ${epair_one}a up
+	jexec carp_uni_v6_one ifconfig ${epair_two}a up
+	jexec carp_uni_v6_one ifconfig ${bridge} inet6 2001:db8::0:4/64 up \
+	    no_dad
+	jexec carp_uni_v6_one ifconfig ${bridge} inet6 alias 2001:db8:1::1/64 \
+	    no_dad up
+	jexec carp_uni_v6_one ifconfig ${bridge} inet6 alias 2001:db8:2::1/64 \
+	    no_dad up
+
+	jexec carp_uni_v6_two ifconfig ${epair_one}b inet6 2001:db8:1::2/64 \
+	    no_dad up
+	jexec carp_uni_v6_two route -6 add default 2001:db8:1::1
+	jexec carp_uni_v6_two ifconfig ${epair_one}b inet6 add vhid 1 \
+	    peer6 2001:db8:2::2 \
+	    2001:db8::0:1/64
+
+	jexec carp_uni_v6_three ifconfig ${epair_two}b inet6 2001:db8:2::2/64 \
+	    no_dad up
+	jexec carp_uni_v6_three route -6 add default 2001:db8:2::1
+	jexec carp_uni_v6_three ifconfig ${epair_two}b inet6 add vhid 1 \
+	    peer6 2001:db8:1::2 \
+	    2001:db8::0:1/64
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore jexec carp_uni_v6_two \
+	    ping -6 -c 1 2001:db8:2::2
+
+	wait_for_carp carp_uni_v6_two ${epair_one}b \
+	    carp_uni_v6_three ${epair_two}b
+
+	atf_check -s exit:0 -o ignore jexec carp_uni_v6_one \
+	    ping -6 -c 3 2001:db8::0:1
+}
+
+unicast_v6_cleanup()
+{
+	vnet_cleanup
+}
+
 atf_test_case "negative_demotion" "cleanup"
 negative_demotion_head()
 {
@@ -350,6 +411,7 @@ atf_init_test_cases()
 	atf_add_test_case "basic_v4"
 	atf_add_test_case "unicast_v4"
 	atf_add_test_case "basic_v6"
+	atf_add_test_case "unicast_v6"
 	atf_add_test_case "negative_demotion"
 	atf_add_test_case "nd6_ns_source_mac"
 	atf_add_test_case "switch"
