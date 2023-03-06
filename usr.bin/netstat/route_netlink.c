@@ -163,7 +163,7 @@ SNL_DECLARE_ATTR_PARSER(metrics_mp_parser, nla_p_mp_rtmetrics);
 static const struct snl_attr_parser psnh[] = {
 	{ .type = NL_RTA_GATEWAY, .off = _OUT(gw), .cb = snl_attr_get_ip },
 	{ .type = NL_RTA_METRICS, .arg = &metrics_mp_parser, .cb = snl_attr_get_nested },
-	{ .type = NL_RTA_RTFLAGS, .off = _OUT(gw), .cb = snl_attr_get_uint32 },
+	{ .type = NL_RTA_RTFLAGS, .off = _OUT(rta_rtflags), .cb = snl_attr_get_uint32 },
 	{ .type = NL_RTA_VIA, .off = _OUT(gw), .cb = snl_attr_get_ipvia },
 };
 
@@ -321,6 +321,16 @@ struct sockaddr_dl_short {
 };
 
 static void
+add_scopeid(struct sockaddr *sa, int ifindex)
+{
+	if (sa->sa_family == AF_INET6) {
+		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sa;
+		if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr))
+			sin6->sin6_scope_id = ifindex;
+	}
+}
+
+static void
 p_path(struct nl_parsed_route *rt, bool is_mpath)
 {
 	struct sockaddr_in6 mask6;
@@ -330,6 +340,8 @@ p_path(struct nl_parsed_route *rt, bool is_mpath)
 	int protrusion;
 
 	gen_mask(rt->rtm_family, rt->rtm_dst_len, pmask);
+	add_scopeid(rt->rta_dst, rt->rta_oif);
+	add_scopeid(rt->rta_gw, rt->rta_oif);
 	protrusion = p_sockaddr("destination", rt->rta_dst, pmask, rt->rta_rtflags, wid.dst);
 	protrusion = p_sockaddr("gateway", rt->rta_gw, NULL, RTF_HOST,
 	    wid.gw - protrusion);
