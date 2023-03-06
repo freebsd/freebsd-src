@@ -1679,12 +1679,12 @@ static int
 send_message(const char *vmname, nvlist_t *nvl)
 {
 	struct sockaddr_un addr;
-	int err, socket_fd;
+	int err = 0, socket_fd;
 
 	socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
 	if (socket_fd < 0) {
 		perror("Error creating bhyvectl socket");
-		err = -1;
+		err = errno;
 		goto done;
 	}
 
@@ -1700,8 +1700,10 @@ send_message(const char *vmname, nvlist_t *nvl)
 		goto done;
 	}
 
-	if (nvlist_send(socket_fd, nvl) < 0)
+	if (nvlist_send(socket_fd, nvl) < 0) {
 		perror("nvlist_send() failed");
+		err = errno;
+	}
 	nvlist_destroy(nvl);
 
 done:
