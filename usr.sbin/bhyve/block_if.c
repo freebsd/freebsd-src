@@ -1009,7 +1009,7 @@ blockif_pause(struct blockif_ctxt *bc)
 		pthread_cond_wait(&bc->bc_work_done_cond, &bc->bc_mtx);
 	pthread_mutex_unlock(&bc->bc_mtx);
 
-	if (blockif_flush_bc(bc))
+	if (!bc->bc_rdonly && blockif_flush_bc(bc))
 		fprintf(stderr, "%s: [WARN] failed to flush backing file.\r\n",
 			__func__);
 }
