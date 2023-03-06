@@ -74,6 +74,7 @@ struct daemon_state {
 	int pipe_fd[2];
 	const char *child_pidfile;
 	const char *parent_pidfile;
+	const char *title;
 	struct pidfh *parent_pidfh;
 	struct pidfh *child_pidfh;
 	struct log_params * logparams;
@@ -159,7 +160,6 @@ int
 main(int argc, char *argv[])
 {
 	char *p = NULL;
-	const char *title = NULL;
 	const char *user = NULL;
 	int ch = 0;
 	int keep_cur_workdir = 1;
@@ -181,6 +181,7 @@ main(int argc, char *argv[])
 		.child_pidfh = NULL,
 		.child_pidfile = NULL,
 		.parent_pidfile = NULL,
+		.title = NULL,
 		.logparams = &logparams,
 		.supervision_enabled = false,
 		.child_eof = false,
@@ -294,7 +295,7 @@ main(int argc, char *argv[])
 			state.supervision_enabled = true;
 			break;
 		case 't':
-			title = optarg;
+			state.title = optarg;
 			break;
 		case 'T':
 			logparams.syslog_tag = optarg;
@@ -318,8 +319,8 @@ main(int argc, char *argv[])
 		usage(1);
 	}
 
-	if (!title) {
-		title = argv[0];
+	if (state.title == NULL) {
+		state.title = argv[0];
 	}
 
 	if (logparams.output_filename) {
@@ -428,7 +429,7 @@ restart:
 	close(state.pipe_fd[1]);
 	state.pipe_fd[1] = -1;
 
-	setproctitle("%s[%d]", title, (int)pid);
+	setproctitle("%s[%d]", state.title, (int)pid);
 	/*
 	 * As we have closed the write end of pipe for parent process,
 	 * we might detect the child's exit by reading EOF. The child
