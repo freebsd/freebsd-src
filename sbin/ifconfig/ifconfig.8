@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd February 1, 2023
+.Dd March 6, 2023
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -3086,6 +3086,22 @@ The following states are recognized:
 .Cm MASTER
 and
 .Cm BACKUP .
+.It Cm peer Ar address
+Set the address to send (IPv4)
+.Xr carp 4
+announcements to.
+.It Cm mcast
+Restore the default destination address for (IPv4)
+.Xr carp 4
+announcements, which is 224.0.0.18.
+.It Cm peer6 Ar address
+Set the address to send (IPv6)
+.Xr carp 4
+announcements to.
+.It Cm mcast6
+Restore the default destination address for (IPv4)
+.Xr carp 4
+announcements, which is ff02::12.
 .El
 .Sh ENVIRONMENT
 The following environment variables affect the execution of
