@@ -27,6 +27,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/sysctl.h>
 
 #include <errno.h>
 #include <inttypes.h>
@@ -34,6 +35,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <libgeom.h>
 #include <bsddialog.h>
@@ -41,9 +43,28 @@
 #include "partedit.h"
 
 #define MIN_FREE_SPACE		(1023*1024*1024) /* Just under 1 GB */
-#define SWAP_SIZE(available)	MIN(available/20, 4*1024*1024*1024LL)
 
 static char *wizard_partition(struct gmesh *mesh, const char *disk);
+
+/*
+ * Determine default swap (partition) size in bytes for a given amount of free
+ * disk space in bytes.  The algorithm should likely be revisited in light of
+ * contemporary memory and disk sizes.
+ */
+static intmax_t
+swap_size(intmax_t available)
+{
+	intmax_t swapsize;
+	unsigned long swap_maxpages;
+	size_t sz;
+
+	swapsize = MIN(available/20, 4*1024*1024*1024LL);
+	sz = sizeof(swap_maxpages);
+	if (sysctlbyname("vm.swap_maxpages", &swap_maxpages, &sz, NULL, 0) == 0)
+		swapsize = MIN(swapsize, (intmax_t)swap_maxpages * getpagesize());
+
+	return (swapsize);
+}
 
 int
 part_wizard(const char *fsreq)
@@ -383,7 +404,7 @@ wizard_makeparts(struct gmesh *mesh, const char *disk, const char *fstype,
 		return (!retval); /* Editor -> return 0 */
 	}
 
-	swapsize = SWAP_SIZE(available);
+	swapsize = swap_size(available);
 	humanize_number(swapsizestr, 7, swapsize, "B", HN_AUTOSCALE,
 	    HN_NOSPACE | HN_DECIMAL);
 	humanize_number(rootsizestr, 7, available - swapsize - 1024*1024,
