@@ -1476,7 +1476,7 @@ superblock_inclusive(struct superblock *block, struct pf_opt_rule *por)
 			}
 
 			if (closest >= 0)
-				DEBUG("superblock break @ %d on %s+%xh",
+				DEBUG("superblock break @ %d on %s+%zxh",
 				    por->por_rule.nr,
 				    pf_rule_desc[closest].prf_name,
 				    i - pf_rule_desc[closest].prf_offset -
