@@ -1338,6 +1338,8 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	}
 
 done:
+	if (error == 0 && laddr->s_addr == INADDR_ANY)
+		return (EHOSTUNREACH);
 	return (error);
 }
 
