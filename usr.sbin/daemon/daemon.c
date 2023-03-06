@@ -73,6 +73,7 @@ struct log_params {
 struct daemon_state {
 	int pipe_fd[2];
 	const char *child_pidfile;
+	const char *parent_pidfile;
 	struct pidfh *parent_pidfh;
 	struct pidfh *child_pidfh;
 	struct log_params * logparams;
@@ -158,7 +159,6 @@ int
 main(int argc, char *argv[])
 {
 	char *p = NULL;
-	const char *parent_pidfile = NULL;
 	const char *title = NULL;
 	const char *user = NULL;
 	int ch = 0;
@@ -180,6 +180,7 @@ main(int argc, char *argv[])
 		.parent_pidfh = NULL,
 		.child_pidfh = NULL,
 		.child_pidfile = NULL,
+		.parent_pidfile = NULL,
 		.logparams = &logparams,
 		.supervision_enabled = false,
 		.child_eof = false,
@@ -265,7 +266,7 @@ main(int argc, char *argv[])
 			state.supervision_enabled = true;
 			break;
 		case 'P':
-			parent_pidfile = optarg;
+			state.parent_pidfile = optarg;
 			state.supervision_enabled = true;
 			break;
 		case 'r':
@@ -337,7 +338,7 @@ main(int argc, char *argv[])
 	 * Try to open the pidfile before calling daemon(3),
 	 * to be able to report the error intelligently
 	 */
-	open_pid_files(state.child_pidfile, parent_pidfile, &state);
+	open_pid_files(state.child_pidfile, state.parent_pidfile, &state);
 	if (daemon(keep_cur_workdir, logparams.keep_fds_open) == -1) {
 		warn("daemon");
 		daemon_terminate(&state, 1);
