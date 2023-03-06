@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 
 struct daemon_state {
 	int pipe_fd[2];
+	char **argv;
 	const char *child_pidfile;
 	const char *parent_pidfile;
 	const char *output_filename;
@@ -291,6 +292,7 @@ main(int argc, char *argv[])
 	}
 	argc -= optind;
 	argv += optind;
+	state.argv = argv;
 
 	if (argc == 0) {
 		usage(1);
@@ -769,6 +771,7 @@ daemon_state_init(struct daemon_state *state)
 {
 	memset(state, 0, sizeof(struct daemon_state));
 	*state = (struct daemon_state) {
+		.argv = NULL,
 		.pipe_fd = { -1, -1 },
 		.parent_pidfh = NULL,
 		.child_pidfh = NULL,
