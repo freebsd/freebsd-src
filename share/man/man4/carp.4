@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 1, 2018
+.Dd March 6, 2023
 .Dt CARP 4
 .Os
 .Sh NAME
@@ -76,6 +76,23 @@ These values can be configured using
 .Xr ifconfig 8 ,
 or through the
 .Dv SIOCSVH
+.Xr ioctl 2 .
+.Pp
+CARP defaults to using multicast messages, but can be configured to unicast
+announcements to peers using the
+.Cm peer
+and
+.Cm peer6
+parameters. Default addresses can be restored using
+.Cm mcast
+and
+.Cm mcast6 .
+Note that TTL verification is disabled if the peer address is not a multicast
+address.
+These values can be configured using
+.Xr ifconfig 8 ,
+or through the
+.Dv SIOCSPEER
 .Xr ioctl 2 .
 .Pp
 CARP virtual hosts can be configured on multicast-capable interfaces: Ethernet,
