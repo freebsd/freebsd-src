@@ -86,8 +86,7 @@ usage(bool cpu_intel)
 	"       [--create]\n"
 	"       [--destroy]\n"
 #ifdef BHYVE_SNAPSHOT
-	"       [--checkpoint=<filename>]\n"
-	"       [--suspend=<filename>]\n"
+	"       [--checkpoint=<filename> | --suspend=<filename>]\n"
 #endif
 	"       [--get-all]\n"
 	"       [--get-stats]\n"
@@ -299,7 +298,6 @@ static int unassign_pptdev, bus, slot, func;
 static int run;
 static int get_cpu_topology;
 #ifdef BHYVE_SNAPSHOT
-static int vm_checkpoint_opt;
 static int vm_suspend_opt;
 #endif
 
@@ -1743,7 +1741,7 @@ main(int argc, char *argv[])
 	struct tm tm;
 	struct option *opts;
 #ifdef BHYVE_SNAPSHOT
-	char *checkpoint_file, *suspend_file;
+	char *checkpoint_file = NULL;
 #endif
 
 	cpu_intel = cpu_vendor_intel();
@@ -1905,12 +1903,12 @@ main(int argc, char *argv[])
 			break;
 #ifdef BHYVE_SNAPSHOT
 		case SET_CHECKPOINT_FILE:
-			vm_checkpoint_opt = 1;
-			checkpoint_file = optarg;
-			break;
 		case SET_SUSPEND_FILE:
-			vm_suspend_opt = 1;
-			suspend_file = optarg;
+			if (checkpoint_file != NULL)
+				usage(cpu_intel);
+
+			checkpoint_file = optarg;
+			vm_suspend_opt = (ch == SET_SUSPEND_FILE);
 			break;
 #endif
 		default:
@@ -2385,11 +2383,8 @@ main(int argc, char *argv[])
 		vm_destroy(ctx);
 
 #ifdef BHYVE_SNAPSHOT
-	if (!error && vm_checkpoint_opt)
-		error = snapshot_request(vmname, checkpoint_file, false);
-
-	if (!error && vm_suspend_opt)
-		error = snapshot_request(vmname, suspend_file, true);
+	if (!error && checkpoint_file)
+		error = snapshot_request(vmname, checkpoint_file, vm_suspend_opt);
 #endif
 
 	free (opts);
