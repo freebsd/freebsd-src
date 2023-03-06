@@ -75,6 +75,7 @@ struct daemon_state {
 	const char *child_pidfile;
 	const char *parent_pidfile;
 	const char *title;
+	const char *user;
 	struct pidfh *parent_pidfh;
 	struct pidfh *child_pidfh;
 	struct log_params * logparams;
@@ -160,7 +161,6 @@ int
 main(int argc, char *argv[])
 {
 	char *p = NULL;
-	const char *user = NULL;
 	int ch = 0;
 	int keep_cur_workdir = 1;
 	int restart_delay = 1;
@@ -182,6 +182,7 @@ main(int argc, char *argv[])
 		.child_pidfile = NULL,
 		.parent_pidfile = NULL,
 		.title = NULL,
+		.user = NULL,
 		.logparams = &logparams,
 		.supervision_enabled = false,
 		.child_eof = false,
@@ -303,7 +304,7 @@ main(int argc, char *argv[])
 			state.supervision_enabled = true;
 			break;
 		case 'u':
-			user = optarg;
+			state.user = optarg;
 			break;
 		case 'h':
 			usage(0);
@@ -383,8 +384,8 @@ restart:
 	if (pid == 0) {
 		pidfile_write(state.child_pidfh);
 
-		if (user != NULL) {
-			restrict_process(user);
+		if (state.user != NULL) {
+			restrict_process(state.user);
 		}
 		/*
 		 * In supervision mode, the child gets the original sigmask,
