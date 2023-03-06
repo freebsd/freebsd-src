@@ -77,6 +77,7 @@ struct daemon_state {
 	struct log_params * logparams;
 	bool supervision_enabled;
 	bool child_eof;
+	bool restart_enabled;
 };
 
 static void restrict_process(const char *);
@@ -155,7 +156,6 @@ usage(int exitcode)
 int
 main(int argc, char *argv[])
 {
-	bool restart_enabled = false;
 	char *p = NULL;
 	const char *child_pidfile = NULL;
 	const char *parent_pidfile = NULL;
@@ -182,6 +182,7 @@ main(int argc, char *argv[])
 		.logparams = &logparams,
 		.supervision_enabled = false,
 		.child_eof = false,
+		.restart_enabled = false,
 	};
 	sigset_t mask_orig;
 	sigset_t mask_read;
@@ -267,11 +268,11 @@ main(int argc, char *argv[])
 			state.supervision_enabled = true;
 			break;
 		case 'r':
-			restart_enabled = true;
+			state.restart_enabled = true;
 			state.supervision_enabled = true;
 			break;
 		case 'R':
-			restart_enabled = true;
+			state.restart_enabled = true;
 			restart_delay = strtol(optarg, &p, 0);
 			if (p == optarg || restart_delay < 1) {
 				errx(6, "invalid restart delay");
@@ -484,14 +485,14 @@ restart:
 		}
 
 	}
-	if (restart_enabled && !terminate) {
+	if (state.restart_enabled && !terminate) {
 		daemon_sleep(restart_delay, 0);
 	}
 	if (sigprocmask(SIG_BLOCK, &mask_term, NULL)) {
 		warn("sigprocmask");
 		daemon_terminate(&state, 1);
 	}
-	if (restart_enabled && !terminate) {
+	if (state.restart_enabled && !terminate) {
 		close(state.pipe_fd[0]);
 		state.pipe_fd[0] = -1;
 		goto restart;
