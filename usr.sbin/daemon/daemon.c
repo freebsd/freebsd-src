@@ -95,6 +95,7 @@ static bool listen_child(int, struct daemon_state *);
 static int  get_log_mapping(const char *, const CODE *);
 static void open_pid_files(const char *, const char *, struct daemon_state *);
 static void do_output(const unsigned char *, size_t, struct daemon_state *);
+static void daemon_mainloop(struct daemon_state *);
 static void daemon_sleep(time_t, long);
 static void daemon_terminate(struct daemon_state *, int);
 static void daemon_state_init(struct daemon_state *);
@@ -164,28 +165,8 @@ main(int argc, char *argv[])
 	char *p = NULL;
 	int ch = 0;
 	struct daemon_state state;
-	sigset_t mask_orig;
-	sigset_t mask_read;
-	sigset_t mask_term;
-	sigset_t mask_susp;
 
 	daemon_state_init(&state);
-	sigemptyset(&mask_susp);
-	sigemptyset(&mask_read);
-	sigemptyset(&mask_term);
-	sigemptyset(&mask_orig);
-
-	/* Block these when avoiding racing before sigsuspend(). */
-	sigaddset(&mask_susp, SIGTERM);
-	sigaddset(&mask_susp, SIGCHLD);
-	/* Block SIGTERM when we lack a valid child PID. */
-	sigaddset(&mask_term, SIGTERM);
-	/*
-	 * When reading, we wish to avoid SIGCHLD. SIGTERM
-	 * has to be caught, otherwise we'll be stuck until
-	 * the read() returns - if it returns.
-	 */
-	sigaddset(&mask_read, SIGCHLD);
 
 	/*
 	 * Supervision mode is enabled if one of the following options are used:
@@ -328,11 +309,6 @@ main(int argc, char *argv[])
 
 	if (state.supervision_enabled) {
 
-		/* Block SIGTERM to avoid racing until we have forked. */
-		if (sigprocmask(SIG_BLOCK, &mask_term, &mask_orig)) {
-			warn("sigprocmask");
-			daemon_terminate(&state, 1);
-		}
 		setup_signals(&state);
 		/*
 		 * Try to protect against pageout kill. Ignore the
@@ -340,13 +316,70 @@ main(int argc, char *argv[])
 		 * not have superuser privileges.
 		 */
 		(void)madvise(NULL, 0, MADV_PROTECT);
-restart:
-		if (pipe(state.pipe_fd)) {
+	}
+
+	do {
+		daemon_mainloop(&state);
+		close(state.pipe_fd[0]);
+		state.pipe_fd[0] = -1;
+	} while (state.restart_enabled && !terminate);
+
+	daemon_terminate(&state, 0);
+}
+
+
+static void
+daemon_mainloop(struct daemon_state *state)
+{
+	sigset_t mask_orig;
+	sigset_t mask_read;
+	sigset_t mask_term;
+	sigset_t mask_susp;
+
+	/*
+	 * Important signal handling logic:
+	 * --------------------------------
+	 * - SIGTERM is masked while there is no child.
+	 *
+	 * - SIGCHLD is masked while reading from the pipe. SIGTERM has to be
+	 *   caught, to avoid indefinite blocking on read().
+	 *
+	 * - Both SIGCHLD and SIGTERM are masked before calling sigsuspend()
+	 *   to avoid racing.
+	 *
+	 * - After SIGTERM is recieved and propagated to the child there are
+	 *   several options on what to do next:
+	 *   - read until EOF
+	 *   - read until EOF but only for a while
+	 *   - bail immediately
+	 *   Currently the third option is used, because otherwise there is no
+	 *   guarantee that read() won't block indefinitely if the child refuses
+	 *   to depart. To handle the second option, a different approach
+	 *   would be needed (procctl()?).
+	 *
+	 * - Child's exit might be detected by receiveing EOF from the pipe.
+	 *   But the child might have closed its stdout and stderr, so deamon
+	 *   must wait for the SIGCHLD to ensure that the child is actually gone.
+	 */
+	sigemptyset(&mask_susp);
+	sigemptyset(&mask_read);
+	sigemptyset(&mask_term);
+	sigemptyset(&mask_orig);
+	sigaddset(&mask_susp, SIGTERM);
+	sigaddset(&mask_susp, SIGCHLD);
+	sigaddset(&mask_term, SIGTERM);
+	sigaddset(&mask_read, SIGCHLD);
+
+	if (sigprocmask(SIG_BLOCK, &mask_term, &mask_orig)) {
+		warn("sigprocmask");
+		daemon_terminate(state, 1);
+	}
+
+	if (state->supervision_enabled) {
+		if (pipe(state->pipe_fd)) {
 			err(1, "pipe");
 		}
-		/*
-		 * Spawn a child to exec the command.
-		 */
+		/* Spawn a child to exec the command */
 		child_gone = 0;
 		pid = fork();
 	}
@@ -354,44 +387,43 @@ restart:
 	/* fork failed, this can only happen when supervision is enabled */
 	if (pid == -1) {
 		warn("fork");
-		daemon_terminate(&state, 1);
+		daemon_terminate(state, 1);
 	}
-
 
 	/* fork succeeded, this is child's branch or supervision is disabled */
 	if (pid == 0) {
-		pidfile_write(state.child_pidfh);
+		pidfile_write(state->child_pidfh);
 
-		if (state.user != NULL) {
-			restrict_process(state.user);
+		if (state->user != NULL) {
+			restrict_process(state->user);
 		}
 		/*
 		 * In supervision mode, the child gets the original sigmask,
 		 * and dup'd pipes.
 		 */
-		if (state.supervision_enabled) {
-			close(state.pipe_fd[0]);
+		if (state->supervision_enabled) {
+			close(state->pipe_fd[0]);
 			if (sigprocmask(SIG_SETMASK, &mask_orig, NULL)) {
 				err(1, "sigprogmask");
 			}
-			if (state.stdmask & STDERR_FILENO) {
-				if (dup2(state.pipe_fd[1], STDERR_FILENO) == -1) {
+			if (state->stdmask & STDERR_FILENO) {
+				if (dup2(state->pipe_fd[1], STDERR_FILENO) == -1) {
 					err(1, "dup2");
 				}
 			}
-			if (state.stdmask & STDOUT_FILENO) {
-				if (dup2(state.pipe_fd[1], STDOUT_FILENO) == -1) {
+			if (state->stdmask & STDOUT_FILENO) {
+				if (dup2(state->pipe_fd[1], STDOUT_FILENO) == -1) {
 					err(1, "dup2");
 				}
 			}
-			if (state.pipe_fd[1] != STDERR_FILENO &&
-			    state.pipe_fd[1] != STDOUT_FILENO) {
-				close(state.pipe_fd[1]);
+			if (state->pipe_fd[1] != STDERR_FILENO &&
+			    state->pipe_fd[1] != STDOUT_FILENO) {
+				close(state->pipe_fd[1]);
 			}
 		}
-		execvp(argv[0], argv);
+		execvp(state->argv[0], state->argv);
 		/* execvp() failed - report error and exit this process */
-		err(1, "%s", argv[0]);
+		err(1, "%s", state->argv[0]);
 	}
 
 	/*
@@ -399,87 +431,64 @@ restart:
 	 * fork succeeded, this is the parent branch, this can only happen when
 	 * supervision is enabled
 	 *
-	 * Unblock SIGTERM after we know we have a valid child PID to signal.
+	 * Unblock SIGTERM - now there is a valid child PID to signal to.
 	 */
 	if (sigprocmask(SIG_UNBLOCK, &mask_term, NULL)) {
 		warn("sigprocmask");
-		daemon_terminate(&state, 1);
+		daemon_terminate(state, 1);
 	}
-	close(state.pipe_fd[1]);
-	state.pipe_fd[1] = -1;
+	close(state->pipe_fd[1]);
+	state->pipe_fd[1] = -1;
 
-	setproctitle("%s[%d]", state.title, (int)pid);
-	/*
-	 * As we have closed the write end of pipe for parent process,
-	 * we might detect the child's exit by reading EOF. The child
-	 * might have closed its stdout and stderr, so we must wait for
-	 * the SIGCHLD to ensure that the process is actually gone.
-	 */
+	setproctitle("%s[%d]", state->title, (int)pid);
+
 	for (;;) {
-		/*
-		 * We block SIGCHLD when listening, but SIGTERM we accept
-		 * so the read() won't block if we wish to depart.
-		 *
-		 * Upon receiving SIGTERM, we have several options after
-		 * sending the SIGTERM to our child:
-		 * - read until EOF
-		 * - read until EOF but only for a while
-		 * - bail immediately
-		 *
-		 * We go for the third, as otherwise we have no guarantee
-		 * that we won't block indefinitely if the child refuses
-		 * to depart. To handle the second option, a different
-		 * approach would be needed (procctl()?)
-		 */
-		if (child_gone && state.child_eof) {
+		if (child_gone && state->child_eof) {
 			break;
 		}
 
 		if (terminate) {
-			daemon_terminate(&state, 1);
+			daemon_terminate(state, 1);
 		}
 
-		if (state.child_eof) {
+		if (state->child_eof) {
 			if (sigprocmask(SIG_BLOCK, &mask_susp, NULL)) {
 				warn("sigprocmask");
-				daemon_terminate(&state, 1);
+				daemon_terminate(state, 1);
 			}
 			while (!terminate && !child_gone) {
 				sigsuspend(&mask_orig);
 			}
 			if (sigprocmask(SIG_UNBLOCK, &mask_susp, NULL)) {
 				warn("sigprocmask");
-				daemon_terminate(&state, 1);
+				daemon_terminate(state, 1);
 			}
 			continue;
 		}
 
 		if (sigprocmask(SIG_BLOCK, &mask_read, NULL)) {
 			warn("sigprocmask");
-			daemon_terminate(&state, 1);
+			daemon_terminate(state, 1);
 		}
 
-		state.child_eof = !listen_child(state.pipe_fd[0], &state);
+		state->child_eof = !listen_child(state->pipe_fd[0], state);
 
 		if (sigprocmask(SIG_UNBLOCK, &mask_read, NULL)) {
 			warn("sigprocmask");
-			daemon_terminate(&state, 1);
+			daemon_terminate(state, 1);
 		}
+	}
 
-	}
-	if (state.restart_enabled && !terminate) {
-		daemon_sleep(state.restart_delay, 0);
-	}
+	/* mask SIGTERM - there is no child at this moment */
 	if (sigprocmask(SIG_BLOCK, &mask_term, NULL)) {
 		warn("sigprocmask");
-		daemon_terminate(&state, 1);
+		daemon_terminate(state, 1);
 	}
-	if (state.restart_enabled && !terminate) {
-		close(state.pipe_fd[0]);
-		state.pipe_fd[0] = -1;
-		goto restart;
+
+	/* sleep before exiting mainloop if restart is enabled */
+	if (state->restart_enabled && !terminate) {
+		daemon_sleep(state->restart_delay, 0);
 	}
-	daemon_terminate(&state, 1);
 }
 
 static void
