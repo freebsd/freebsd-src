@@ -1136,7 +1136,7 @@ cpsw_ports_down(struct cpsw_softc *sc)
 	ifp1 = psc->ifp;
 	psc = device_get_softc(sc->port[1].dev);
 	ifp2 = psc->ifp;
-	if ((ifp1->if_flags & IFF_UP) == 0 && (ifp2->if_flags & IFF_UP) == 0)
+	if ((if_getflags(ifp1) & IFF_UP) == 0 && (if_getflags(ifp2) & IFF_UP) == 0)
 		return (1);
 
 	return (0);
