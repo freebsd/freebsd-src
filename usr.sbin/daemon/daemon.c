@@ -96,6 +96,7 @@ static void open_pid_files(const char *, const char *, struct daemon_state *);
 static void do_output(const unsigned char *, size_t, struct daemon_state *);
 static void daemon_sleep(time_t, long);
 static void daemon_terminate(struct daemon_state *, int);
+static void daemon_state_init(struct daemon_state *);
 
 static volatile sig_atomic_t terminate = 0;
 static volatile sig_atomic_t child_gone = 0;
@@ -161,34 +162,13 @@ main(int argc, char *argv[])
 {
 	char *p = NULL;
 	int ch = 0;
-	struct daemon_state state = {
-		.pipe_fd = { -1, -1 },
-		.parent_pidfh = NULL,
-		.child_pidfh = NULL,
-		.child_pidfile = NULL,
-		.parent_pidfile = NULL,
-		.title = NULL,
-		.user = NULL,
-		.supervision_enabled = false,
-		.child_eof = false,
-		.restart_enabled = false,
-		.keep_cur_workdir = 1,
-		.restart_delay = 1,
-		.stdmask = STDOUT_FILENO | STDERR_FILENO,
-		.syslog_enabled = false,
-		.log_reopen = false,
-		.syslog_priority = LOG_NOTICE,
-		.syslog_tag = "daemon",
-		.syslog_facility = LOG_DAEMON,
-		.keep_fds_open = 1,
-		.output_fd = -1,
-		.output_filename = NULL,
-	};
+	struct daemon_state state;
 	sigset_t mask_orig;
 	sigset_t mask_read;
 	sigset_t mask_term;
 	sigset_t mask_susp;
 
+	daemon_state_init(&state);
 	sigemptyset(&mask_susp);
 	sigemptyset(&mask_read);
 	sigemptyset(&mask_term);
@@ -782,4 +762,33 @@ daemon_terminate(struct daemon_state *state, int exitcode)
 	pidfile_remove(state->parent_pidfh);
 
 	exit(exitcode);
+}
+
+static void
+daemon_state_init(struct daemon_state *state)
+{
+	memset(state, 0, sizeof(struct daemon_state));
+	*state = (struct daemon_state) {
+		.pipe_fd = { -1, -1 },
+		.parent_pidfh = NULL,
+		.child_pidfh = NULL,
+		.child_pidfile = NULL,
+		.parent_pidfile = NULL,
+		.title = NULL,
+		.user = NULL,
+		.supervision_enabled = false,
+		.child_eof = false,
+		.restart_enabled = false,
+		.keep_cur_workdir = 1,
+		.restart_delay = 1,
+		.stdmask = STDOUT_FILENO | STDERR_FILENO,
+		.syslog_enabled = false,
+		.log_reopen = false,
+		.syslog_priority = LOG_NOTICE,
+		.syslog_tag = "daemon",
+		.syslog_facility = LOG_DAEMON,
+		.keep_fds_open = 1,
+		.output_fd = -1,
+		.output_filename = NULL,
+	};
 }
