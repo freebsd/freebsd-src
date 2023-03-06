@@ -693,12 +693,15 @@ setup_signals(struct daemon_state *state)
 		daemon_terminate(state, 1);
 	}
 
-	/* Setup SIGHUP */
+	/* Setup SIGHUP if configured*/
+	if (state->logparams->log_reopen == false ||
+	    state->logparams->output_fd < 0) {
+		return;
+	}
+
 	act_hup.sa_handler = handle_hup;
 	sigemptyset(&act_hup.sa_mask);
-
-	if (state->logparams->log_reopen && state->logparams->output_fd >= 0 &&
-	    sigaction(SIGHUP, &act_hup, NULL) == -1) {
+	if (sigaction(SIGHUP, &act_hup, NULL) == -1) {
 		warn("sigaction");
 		daemon_terminate(state, 1);
 	}
