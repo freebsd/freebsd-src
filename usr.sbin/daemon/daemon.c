@@ -81,6 +81,7 @@ struct daemon_state {
 	struct log_params * logparams;
 	int keep_cur_workdir;
 	int restart_delay;
+	int stdmask;
 	bool supervision_enabled;
 	bool child_eof;
 	bool restart_enabled;
@@ -164,7 +165,6 @@ main(int argc, char *argv[])
 {
 	char *p = NULL;
 	int ch = 0;
-	int stdmask = STDOUT_FILENO | STDERR_FILENO;
 	struct log_params logparams = {
 		.syslog_enabled = false,
 		.log_reopen = false,
@@ -189,6 +189,7 @@ main(int argc, char *argv[])
 		.restart_enabled = false,
 		.keep_cur_workdir = 1,
 		.restart_delay = 1,
+		.stdmask = STDOUT_FILENO | STDERR_FILENO,
 	};
 	sigset_t mask_orig;
 	sigset_t mask_read;
@@ -250,8 +251,8 @@ main(int argc, char *argv[])
 			state.supervision_enabled = true;
 			break;
 		case 'm':
-			stdmask = strtol(optarg, &p, 10);
-			if (p == optarg || stdmask < 0 || stdmask > 3) {
+			state.stdmask = strtol(optarg, &p, 10);
+			if (p == optarg || state.stdmask < 0 || state.stdmask > 3) {
 				errx(6, "unrecognized listening mask");
 			}
 			break;
@@ -398,12 +399,12 @@ restart:
 			if (sigprocmask(SIG_SETMASK, &mask_orig, NULL)) {
 				err(1, "sigprogmask");
 			}
-			if (stdmask & STDERR_FILENO) {
+			if (state.stdmask & STDERR_FILENO) {
 				if (dup2(state.pipe_fd[1], STDERR_FILENO) == -1) {
 					err(1, "dup2");
 				}
 			}
-			if (stdmask & STDOUT_FILENO) {
+			if (state.stdmask & STDOUT_FILENO) {
 				if (dup2(state.pipe_fd[1], STDOUT_FILENO) == -1) {
 					err(1, "dup2");
 				}
