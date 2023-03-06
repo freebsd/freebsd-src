@@ -368,6 +368,8 @@ in6_pcbladdr(struct inpcb *inp, struct sockaddr_in6 *sin6,
 	    inp, inp->inp_cred, scope_ambiguous, &in6a, NULL);
 	if (error)
 		return (error);
+	if (IN6_IS_ADDR_UNSPECIFIED(&in6a))
+		return (EHOSTUNREACH);
 
 	/*
 	 * Do not update this earlier, in case we return with an error.
