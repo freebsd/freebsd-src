@@ -1704,9 +1704,9 @@ send_message(const char *vmname, nvlist_t *nvl)
 		perror("nvlist_send() failed");
 		err = errno;
 	}
+done:
 	nvlist_destroy(nvl);
 
-done:
 	if (socket_fd >= 0)
 		close(socket_fd);
 	return (err);
