@@ -190,6 +190,18 @@ main(int argc, char *argv[])
 	sigemptyset(&mask_term);
 	sigemptyset(&mask_orig);
 
+	/* Block these when avoiding racing before sigsuspend(). */
+	sigaddset(&mask_susp, SIGTERM);
+	sigaddset(&mask_susp, SIGCHLD);
+	/* Block SIGTERM when we lack a valid child PID. */
+	sigaddset(&mask_term, SIGTERM);
+	/*
+	 * When reading, we wish to avoid SIGCHLD. SIGTERM
+	 * has to be caught, otherwise we'll be stuck until
+	 * the read() returns - if it returns.
+	 */
+	sigaddset(&mask_read, SIGCHLD);
+
 	/*
 	 * Supervision mode is enabled if one of the following options are used:
 	 * --child-pidfile -p
@@ -345,17 +357,6 @@ main(int argc, char *argv[])
 		act_hup.sa_handler = handle_hup;
 		sigemptyset(&act_hup.sa_mask);
 
-		/* Block these when avoiding racing before sigsuspend(). */
-		sigaddset(&mask_susp, SIGTERM);
-		sigaddset(&mask_susp, SIGCHLD);
-		/* Block SIGTERM when we lack a valid child PID. */
-		sigaddset(&mask_term, SIGTERM);
-		/*
-		 * When reading, we wish to avoid SIGCHLD. SIGTERM
-		 * has to be caught, otherwise we'll be stuck until
-		 * the read() returns - if it returns.
-		 */
-		sigaddset(&mask_read, SIGCHLD);
 		/* Block SIGTERM to avoid racing until we have forked. */
 		if (sigprocmask(SIG_BLOCK, &mask_term, &mask_orig)) {
 			warn("sigprocmask");
