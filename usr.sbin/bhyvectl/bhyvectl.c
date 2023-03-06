@@ -1707,7 +1707,7 @@ send_message(const char *vmname, nvlist_t *nvl)
 	nvlist_destroy(nvl);
 
 done:
-	if (socket_fd > 0)
+	if (socket_fd >= 0)
 		close(socket_fd);
 	return (err);
 }
