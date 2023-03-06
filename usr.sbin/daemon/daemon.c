@@ -75,6 +75,7 @@ struct daemon_state {
 	struct pidfh *parent_pidfh;
 	struct pidfh *child_pidfh;
 	struct log_params * logparams;
+	bool supervision_enabled;
 };
 
 static void restrict_process(const char *);
@@ -153,7 +154,6 @@ usage(int exitcode)
 int
 main(int argc, char *argv[])
 {
-	bool supervision_enabled = false;
 	bool child_eof = false;
 	bool restart_enabled = false;
 	char *p = NULL;
@@ -179,7 +179,8 @@ main(int argc, char *argv[])
 		.pipe_fd = { -1, -1 },
 		.parent_pidfh = NULL,
 		.child_pidfh = NULL,
-		.logparams = &logparams
+		.logparams = &logparams,
+		.supervision_enabled = false,
 	};
 	sigset_t mask_orig;
 	sigset_t mask_read;
@@ -238,7 +239,7 @@ main(int argc, char *argv[])
 				errx(5, "unrecognized syslog facility");
 			}
 			logparams.syslog_enabled = true;
-			supervision_enabled = true;
+			state.supervision_enabled = true;
 			break;
 		case 'm':
 			stdmask = strtol(optarg, &p, 10);
@@ -254,19 +255,19 @@ main(int argc, char *argv[])
 			 * daemon could open the specified file and set it's
 			 * descriptor as both stderr and stout before execve()
 			 */
-			supervision_enabled = true;
+			state.supervision_enabled = true;
 			break;
 		case 'p':
 			child_pidfile = optarg;
-			supervision_enabled = true;
+			state.supervision_enabled = true;
 			break;
 		case 'P':
 			parent_pidfile = optarg;
-			supervision_enabled = true;
+			state.supervision_enabled = true;
 			break;
 		case 'r':
 			restart_enabled = true;
-			supervision_enabled = true;
+			state.supervision_enabled = true;
 			break;
 		case 'R':
 			restart_enabled = true;
@@ -282,11 +283,11 @@ main(int argc, char *argv[])
 				errx(4, "unrecognized syslog priority");
 			}
 			logparams.syslog_enabled = true;
-			supervision_enabled = true;
+			state.supervision_enabled = true;
 			break;
 		case 'S':
 			logparams.syslog_enabled = true;
-			supervision_enabled = true;
+			state.supervision_enabled = true;
 			break;
 		case 't':
 			title = optarg;
@@ -294,7 +295,7 @@ main(int argc, char *argv[])
 		case 'T':
 			logparams.syslog_tag = optarg;
 			logparams.syslog_enabled = true;
-			supervision_enabled = true;
+			state.supervision_enabled = true;
 			break;
 		case 'u':
 			user = optarg;
@@ -341,7 +342,7 @@ main(int argc, char *argv[])
 	/* Write out parent pidfile if needed. */
 	pidfile_write(state.parent_pidfh);
 
-	if (supervision_enabled) {
+	if (state.supervision_enabled) {
 
 		/* Block SIGTERM to avoid racing until we have forked. */
 		if (sigprocmask(SIG_BLOCK, &mask_term, &mask_orig)) {
@@ -384,7 +385,7 @@ restart:
 		 * In supervision mode, the child gets the original sigmask,
 		 * and dup'd pipes.
 		 */
-		if (supervision_enabled) {
+		if (state.supervision_enabled) {
 			close(state.pipe_fd[0]);
 			if (sigprocmask(SIG_SETMASK, &mask_orig, NULL)) {
 				err(1, "sigprogmask");
