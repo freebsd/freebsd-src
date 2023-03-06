@@ -57,7 +57,7 @@ flip(void *ap, size_t len)
 	unsigned char bit, buf, mask, old __unused;
 
 	cp = (unsigned char *)ap;
-	byte = random_long(0, len);
+	byte = random_long(0, len - 1);
 	bit = random_long(0,7);
 	mask = ~(1 << bit);
 	buf = cp[byte];
@@ -111,6 +111,8 @@ main(int argc, char *argv[])
 	if (size == 0) {
 		if (fstat(fd, &st) == -1)
 			err(1, "stat %s", argv[0]);
+		if ((st.st_mode & S_IFREG) == 0)
+			errx(1, "%s must be a regular file\n", argv[0]);
 		size = st.st_size;
 	}
 
