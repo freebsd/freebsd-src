@@ -93,7 +93,7 @@ static int  open_log(const char *);
 static void reopen_log(struct daemon_state *);
 static bool listen_child(int, struct daemon_state *);
 static int  get_log_mapping(const char *, const CODE *);
-static void open_pid_files(const char *, const char *, struct daemon_state *);
+static void open_pid_files(struct daemon_state *);
 static void do_output(const unsigned char *, size_t, struct daemon_state *);
 static void daemon_mainloop(struct daemon_state *);
 static void daemon_sleep(time_t, long);
@@ -299,7 +299,7 @@ main(int argc, char *argv[])
 	 * Try to open the pidfile before calling daemon(3),
 	 * to be able to report the error intelligently
 	 */
-	open_pid_files(state.child_pidfile, state.parent_pidfile, &state);
+	open_pid_files(&state);
 	if (daemon(state.keep_cur_workdir, state.keep_fds_open) == -1) {
 		warn("daemon");
 		daemon_terminate(&state, 1);
@@ -504,25 +504,24 @@ daemon_sleep(time_t secs, long nsecs)
 }
 
 static void
-open_pid_files(const char *pidfile, const char *ppidfile,
-	       struct daemon_state * state)
+open_pid_files(struct daemon_state *state)
 {
 	pid_t fpid;
 	int serrno;
 
-	if (pidfile) {
-		state->child_pidfh = pidfile_open(pidfile, 0600, &fpid);
+	if (state->child_pidfile) {
+		state->child_pidfh = pidfile_open(state->child_pidfile, 0600, &fpid);
 		if (state->child_pidfh == NULL) {
 			if (errno == EEXIST) {
 				errx(3, "process already running, pid: %d",
 				    fpid);
 			}
-			err(2, "pidfile ``%s''", pidfile);
+			err(2, "pidfile ``%s''", state->child_pidfile);
 		}
 	}
 	/* Do the same for the actual daemon process. */
-	if (ppidfile) {
-		state->parent_pidfh = pidfile_open(ppidfile, 0600, &fpid);
+	if (state->parent_pidfile) {
+		state->parent_pidfh = pidfile_open(state->parent_pidfile, 0600, &fpid);
 		if (state->parent_pidfh == NULL) {
 			serrno = errno;
 			pidfile_remove(state->child_pidfh);
@@ -531,7 +530,7 @@ open_pid_files(const char *pidfile, const char *ppidfile,
 				errx(3, "process already running, pid: %d",
 				     fpid);
 			}
-			err(2, "ppidfile ``%s''", ppidfile);
+			err(2, "ppidfile ``%s''", state->parent_pidfile);
 		}
 	}
 }
