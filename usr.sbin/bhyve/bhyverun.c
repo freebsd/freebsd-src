@@ -1562,6 +1562,17 @@ main(int argc, char *argv[])
 	 */
 	setproctitle("%s", vmname);
 
+#ifdef BHYVE_SNAPSHOT
+	/* initialize mutex/cond variables */
+	init_snapshot();
+
+	/*
+	 * checkpointing thread for communication with bhyvectl
+	 */
+	if (init_checkpoint_thread(ctx) != 0)
+		errx(EX_OSERR, "Failed to start checkpoint thread");
+#endif
+
 #ifndef WITHOUT_CAPSICUM
 	caph_cache_catpages();
 
@@ -1573,15 +1584,6 @@ main(int argc, char *argv[])
 #endif
 
 #ifdef BHYVE_SNAPSHOT
-	/* initialize mutex/cond variables */
-	init_snapshot();
-
-	/*
-	 * checkpointing thread for communication with bhyvectl
-	 */
-	if (init_checkpoint_thread(ctx) != 0)
-		errx(EX_OSERR, "Failed to start checkpoint thread");
-
 	if (restore_file != NULL) {
 		destroy_restore_state(&rstate);
 		if (vm_restore_time(ctx) < 0)
