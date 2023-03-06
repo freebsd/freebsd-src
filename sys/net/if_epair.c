@@ -239,7 +239,7 @@ epair_menq(struct mbuf *m, struct epair_softc *osc)
 	struct ifnet *ifp, *oifp;
 	int len, ret;
 	int ridx;
-	short mflags;
+	bool mcast;
 
 	/*
 	 * I know this looks weird. We pass the "other sc" as we need that one
@@ -252,7 +252,7 @@ epair_menq(struct mbuf *m, struct epair_softc *osc)
 
 	/* Save values as once the mbuf is queued, it's not ours anymore. */
 	len = m->m_pkthdr.len;
-	mflags = m->m_flags;
+	mcast = (m->m_flags & (M_BCAST | M_MCAST)) != 0;
 
 	struct epair_queue *q = epair_select_queue(osc, m);
 
@@ -273,7 +273,7 @@ epair_menq(struct mbuf *m, struct epair_softc *osc)
 	 * the logic another time.
 	 */
 	if_inc_counter(ifp, IFCOUNTER_OBYTES, len);
-	if (mflags & (M_BCAST|M_MCAST))
+	if (mcast)
 		if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
 	/* Someone else received the packet. */
 	if_inc_counter(oifp, IFCOUNTER_IPACKETS, 1);
@@ -325,7 +325,7 @@ epair_transmit(struct ifnet *ifp, struct mbuf *m)
 	struct ifnet *oifp;
 #ifdef ALTQ
 	int len;
-	short mflags;
+	bool mcast;
 #endif
 
 	if (m == NULL)
@@ -366,7 +366,7 @@ epair_transmit(struct ifnet *ifp, struct mbuf *m)
 
 #ifdef ALTQ
 	len = m->m_pkthdr.len;
-	mflags = m->m_flags;
+	mcast = (m->m_flags & (M_BCAST | M_MCAST)) != 0;
 	int error = 0;
 
 	/* Support ALTQ via the classic if_start() path. */
@@ -378,7 +378,7 @@ epair_transmit(struct ifnet *ifp, struct mbuf *m)
 		IF_UNLOCK(&ifp->if_snd);
 		if (!error) {
 			if_inc_counter(ifp, IFCOUNTER_OBYTES, len);
-			if (mflags & (M_BCAST|M_MCAST))
+			if (mcast)
 				if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
 			epair_start(ifp);
 		}
