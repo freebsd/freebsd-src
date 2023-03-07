@@ -132,6 +132,7 @@ struct faultstate {
 	struct timeval	oom_start_time;
 	bool		oom_started;
 	int		nera;
+	bool		can_read_lock;
 
 	/* Page reference for cow. */
 	vm_page_t m_cow;
@@ -168,6 +169,12 @@ enum fault_status {
 	FAULT_HARD,		/* Performed I/O. */
 	FAULT_SOFT,		/* Found valid page. */
 	FAULT_PROTECTION_FAILURE, /* Invalid access. */
+};
+
+enum fault_next_status {
+	FAULT_NEXT_GOTOBJ = 1,
+	FAULT_NEXT_NOOBJ,
+	FAULT_NEXT_RESTART,
 };
 
 static void vm_fault_dontneed(const struct faultstate *fs, vm_offset_t vaddr,
@@ -278,7 +285,7 @@ static void
 unlock_and_deallocate(struct faultstate *fs)
 {
 
-	VM_OBJECT_WUNLOCK(fs->object);
+	VM_OBJECT_UNLOCK(fs->object);
 	fault_deallocate(fs);
 }
 
@@ -736,6 +743,26 @@ vm_fault_trap(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	return (result);
 }
 
+static bool
+vm_fault_object_ensure_wlocked(struct faultstate *fs)
+{
+	if (fs->object == fs->first_object)
+		VM_OBJECT_ASSERT_WLOCKED(fs->object);
+
+	if (!fs->can_read_lock)  {
+		VM_OBJECT_ASSERT_WLOCKED(fs->object);
+		return (true);
+	}
+
+	if (VM_OBJECT_WOWNED(fs->object))
+		return (true);
+
+	if (VM_OBJECT_TRYUPGRADE(fs->object))
+		return (true);
+
+	return (false);
+}
+
 static enum fault_status
 vm_fault_lock_vnode(struct faultstate *fs, bool objlocked)
 {
@@ -1042,12 +1069,15 @@ vm_fault_cow(struct faultstate *fs)
 	curthread->td_cow++;
 }
 
-static bool
+static enum fault_next_status
 vm_fault_next(struct faultstate *fs)
 {
 	vm_object_t next_object;
 
-	VM_OBJECT_ASSERT_WLOCKED(fs->object);
+	if (fs->object == fs->first_object || !fs->can_read_lock)
+		VM_OBJECT_ASSERT_WLOCKED(fs->object);
+	else
+		VM_OBJECT_ASSERT_LOCKED(fs->object);
 
 	/*
 	 * The requested page does not exist at this object/
@@ -1062,8 +1092,14 @@ vm_fault_next(struct faultstate *fs)
 	if (fs->object == fs->first_object) {
 		fs->first_m = fs->m;
 		fs->m = NULL;
-	} else
+	} else {
+		if (!vm_fault_object_ensure_wlocked(fs)) {
+			fs->can_read_lock = false;
+			unlock_and_deallocate(fs);
+			return (FAULT_NEXT_RESTART);
+		}
 		fault_page_free(&fs->m);
+	}
 
 	/*
 	 * Move on to the next object.  Lock the next object before
@@ -1071,18 +1107,21 @@ vm_fault_next(struct faultstate *fs)
 	 */
 	next_object = fs->object->backing_object;
 	if (next_object == NULL)
-		return (false);
+		return (FAULT_NEXT_NOOBJ);
 	MPASS(fs->first_m != NULL);
 	KASSERT(fs->object != next_object, ("object loop %p", next_object));
-	VM_OBJECT_WLOCK(next_object);
+	if (fs->can_read_lock)
+		VM_OBJECT_RLOCK(next_object);
+	else
+		VM_OBJECT_WLOCK(next_object);
 	vm_object_pip_add(next_object, 1);
 	if (fs->object != fs->first_object)
 		vm_object_pip_wakeup(fs->object);
 	fs->pindex += OFF_TO_IDX(fs->object->backing_object_offset);
-	VM_OBJECT_WUNLOCK(fs->object);
+	VM_OBJECT_UNLOCK(fs->object);
 	fs->object = next_object;
 
-	return (true);
+	return (FAULT_NEXT_GOTOBJ);
 }
 
 static void
@@ -1364,7 +1403,7 @@ vm_fault_busy_sleep(struct faultstate *fs)
 	unlock_map(fs);
 	if (fs->m != vm_page_lookup(fs->object, fs->pindex) ||
 	    !vm_page_busy_sleep(fs->m, "vmpfw", 0))
-		VM_OBJECT_WUNLOCK(fs->object);
+		VM_OBJECT_UNLOCK(fs->object);
 	VM_CNT_INC(v_intrans);
 	vm_object_deallocate(fs->first_object);
 }
@@ -1383,7 +1422,10 @@ vm_fault_object(struct faultstate *fs, int *behindp, int *aheadp)
 	enum fault_status res;
 	bool dead;
 
-	VM_OBJECT_ASSERT_WLOCKED(fs->object);
+	if (fs->object == fs->first_object || !fs->can_read_lock)
+		VM_OBJECT_ASSERT_WLOCKED(fs->object);
+	else
+		VM_OBJECT_ASSERT_LOCKED(fs->object);
 
 	/*
 	 * If the object is marked for imminent termination, we retry
@@ -1415,7 +1457,7 @@ vm_fault_object(struct faultstate *fs, int *behindp, int *aheadp)
 		 * done.
 		 */
 		if (vm_page_all_valid(fs->m)) {
-			VM_OBJECT_WUNLOCK(fs->object);
+			VM_OBJECT_UNLOCK(fs->object);
 			return (FAULT_SOFT);
 		}
 	}
@@ -1427,6 +1469,11 @@ vm_fault_object(struct faultstate *fs, int *behindp, int *aheadp)
 	 */
 	if (fs->m == NULL && (fault_object_needs_getpages(fs->object) ||
 	    fs->object == fs->first_object)) {
+		if (!vm_fault_object_ensure_wlocked(fs)) {
+			fs->can_read_lock = false;
+			unlock_and_deallocate(fs);
+			return (FAULT_RESTART);
+		}
 		res = vm_fault_allocate(fs);
 		if (res != FAULT_CONTINUE)
 			return (res);
@@ -1448,7 +1495,7 @@ vm_fault_object(struct faultstate *fs, int *behindp, int *aheadp)
 		 * prevents simultaneous faults and collapses while
 		 * the object lock is dropped.
 		 */
-		VM_OBJECT_WUNLOCK(fs->object);
+		VM_OBJECT_UNLOCK(fs->object);
 		res = vm_fault_getpages(fs, behindp, aheadp);
 		if (res == FAULT_CONTINUE)
 			VM_OBJECT_WLOCK(fs->object);
@@ -1465,6 +1512,7 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	struct faultstate fs;
 	int ahead, behind, faultcount, rv;
 	enum fault_status res;
+	enum fault_next_status res_next;
 	bool hardfault;
 
 	VM_CNT_INC(v_vm_faults);
@@ -1480,6 +1528,7 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	fs.lookup_still_valid = false;
 	fs.oom_started = false;
 	fs.nera = -1;
+	fs.can_read_lock = true;
 	faultcount = 0;
 	hardfault = false;
 
@@ -1590,15 +1639,19 @@ RetryFault:
 		 * traverse into a backing object or zero fill if none is
 		 * found.
 		 */
-		if (vm_fault_next(&fs))
+		res_next = vm_fault_next(&fs);
+		if (res_next == FAULT_NEXT_RESTART)
+			goto RetryFault;
+		else if (res_next == FAULT_NEXT_GOTOBJ)
 			continue;
+		MPASS(res_next == FAULT_NEXT_NOOBJ);
 		if ((fs.fault_flags & VM_FAULT_NOFILL) != 0) {
 			if (fs.first_object == fs.object)
 				fault_page_free(&fs.first_m);
 			unlock_and_deallocate(&fs);
 			return (KERN_OUT_OF_BOUNDS);
 		}
-		VM_OBJECT_WUNLOCK(fs.object);
+		VM_OBJECT_UNLOCK(fs.object);
 		vm_fault_zerofill(&fs);
 		/* Don't try to prefault neighboring pages. */
 		faultcount = 1;
