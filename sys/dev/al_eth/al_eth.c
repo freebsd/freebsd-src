@@ -339,8 +339,6 @@ al_attach(device_t dev)
 
 	adapter->netdev = ifp = if_alloc(IFT_ETHER);
 
-	adapter->netdev->if_link_state = LINK_STATE_DOWN;
-
 	if_setsoftc(ifp, adapter);
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
@@ -391,7 +389,7 @@ al_attach(device_t dev)
 	adapter->link_poll_interval = AL_ETH_DEFAULT_LINK_POLL_INTERVAL;
 	adapter->max_rx_buff_alloc_size = AL_ETH_DEFAULT_MAX_RX_BUFF_ALLOC_SIZE;
 
-	al_eth_req_rx_buff_size(adapter, adapter->netdev->if_mtu);
+	al_eth_req_rx_buff_size(adapter, if_getmtu(adapter->netdev));
 
 	adapter->link_config.force_1000_base_x = AL_ETH_DEFAULT_FORCE_1000_BASEX;
 
@@ -1483,7 +1481,7 @@ al_eth_rx_checksum(struct al_eth_adapter *adapter,
 {
 
 	/* if IPv4 and error */
-	if (unlikely((adapter->netdev->if_capenable & IFCAP_RXCSUM) &&
+	if (unlikely((if_getcapenable(adapter->netdev) & IFCAP_RXCSUM) &&
 	    (hal_pkt->l3_proto_idx == AL_ETH_PROTO_ID_IPv4) &&
 	    (hal_pkt->flags & AL_ETH_RX_FLAGS_L3_CSUM_ERR))) {
 		device_printf(adapter->dev,"rx ipv4 header checksum error\n");
@@ -1491,7 +1489,7 @@ al_eth_rx_checksum(struct al_eth_adapter *adapter,
 	}
 
 	/* if IPv6 and error */
-	if (unlikely((adapter->netdev->if_capenable & IFCAP_RXCSUM_IPV6) &&
+	if (unlikely((if_getcapenable(adapter->netdev) & IFCAP_RXCSUM_IPV6) &&
 	    (hal_pkt->l3_proto_idx == AL_ETH_PROTO_ID_IPv6) &&
 	    (hal_pkt->flags & AL_ETH_RX_FLAGS_L3_CSUM_ERR))) {
 		device_printf(adapter->dev,"rx ipv6 header checksum error\n");
@@ -1632,8 +1630,8 @@ al_eth_rx_recv_work(void *arg, int pending)
 			break;
 		}
 
-		if (__predict_true(rx_ring->netdev->if_capenable & IFCAP_RXCSUM ||
-		    rx_ring->netdev->if_capenable & IFCAP_RXCSUM_IPV6)) {
+		if (__predict_true(if_getcapenable(rx_ring->netdev) & IFCAP_RXCSUM ||
+		    if_getcapenable(rx_ring->netdev) & IFCAP_RXCSUM_IPV6)) {
 			al_eth_rx_checksum(rx_ring->adapter, hal_pkt, mbuf);
 		}
 
@@ -1661,7 +1659,7 @@ al_eth_rx_recv_work(void *arg, int pending)
 		}
 
 		if (do_if_input)
-			(*rx_ring->netdev->if_input)(rx_ring->netdev, mbuf);
+			if_input(rx_ring->netdev, mbuf);
 
 	} while (1);
 
@@ -2545,7 +2543,7 @@ al_eth_setup_rx_resources(struct al_eth_adapter *adapter, unsigned int qid)
 	memset(q_params->cdesc_base, 0, rx_ring->cdescs_size);
 
 	/* Create LRO for the ring */
-	if ((adapter->netdev->if_capenable & IFCAP_LRO) != 0) {
+	if ((if_getcapenable(adapter->netdev) & IFCAP_LRO) != 0) {
 		int err = tcp_lro_init(&rx_ring->lro);
 		if (err != 0) {
 			device_printf(adapter->dev,
@@ -3106,7 +3104,7 @@ al_eth_up_complete(struct al_eth_adapter *adapter)
 
 	al_eth_configure_int_mode(adapter);
 	al_eth_config_rx_fwd(adapter);
-	al_eth_change_mtu(adapter, adapter->netdev->if_mtu);
+	al_eth_change_mtu(adapter, if_getmtu(adapter->netdev));
 	al_eth_udma_queues_enable_all(adapter);
 	al_eth_refill_all_rx_bufs(adapter);
 	al_eth_interrupts_unmask(adapter);
@@ -3233,7 +3231,7 @@ al_eth_up(struct al_eth_adapter *adapter)
 	adapter->up = true;
 
 	if (adapter->mac_mode == AL_ETH_MAC_MODE_10GbE_Serial)
-		adapter->netdev->if_link_state = LINK_STATE_UP;
+		if_link_state_change(adapter->netdev, LINK_STATE_UP);
 
 	if (adapter->mac_mode == AL_ETH_MAC_MODE_RGMII) {
 		mii_mediachg(adapter->mii);
@@ -3310,12 +3308,12 @@ al_ioctl(if_t ifp, u_long command, caddr_t data)
 		error = al_eth_check_mtu(adapter, ifr->ifr_mtu);
 		if (error != 0) {
 			device_printf(adapter->dev, "ioctl wrong mtu %u\n",
-			    adapter->netdev->if_mtu);
+			    if_getmtu(adapter->netdev));
 			break;
 		}
 
 		if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
-		adapter->netdev->if_mtu = ifr->ifr_mtu;
+		if_setmtu(adapter->netdev, ifr->ifr_mtu);
 		al_init(adapter);
 		break;
 	}
@@ -3515,10 +3513,10 @@ al_miibus_statchg(device_t dev)
 	if ((adapter->mii->mii_media_status & IFM_AVALID) != 0) {
 		if (adapter->mii->mii_media_status & IFM_ACTIVE) {
 			device_printf(adapter->dev, "link is UP\n");
-			adapter->netdev->if_link_state = LINK_STATE_UP;
+			if_link_state_change(adapter->netdev, LINK_STATE_UP);
 		} else {
 			device_printf(adapter->dev, "link is DOWN\n");
-			adapter->netdev->if_link_state = LINK_STATE_DOWN;
+			if_link_state_change(adapter->netdev, LINK_STATE_DOWN);
 		}
 	}
 }
@@ -3533,7 +3531,7 @@ al_miibus_linkchg(device_t dev)
 	if (adapter->mii == NULL)
 		return;
 
-	if ((adapter->netdev->if_flags & IFF_UP) == 0)
+	if ((if_getflags(adapter->netdev) & IFF_UP) == 0)
 		return;
 
 	/* Ignore link changes when link is not ready */
