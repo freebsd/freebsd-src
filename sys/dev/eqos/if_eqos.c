@@ -222,9 +222,9 @@ eqos_miibus_statchg(device_t dev)
 }
 
 static void
-eqos_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
+eqos_media_status(if_t ifp, struct ifmediareq *ifmr)
 {
-	struct eqos_softc *sc = ifp->if_softc;
+	struct eqos_softc *sc = if_getsoftc(ifp);
 	struct mii_data *mii = device_get_softc(sc->miibus);
 
 	EQOS_LOCK(sc);
@@ -235,9 +235,9 @@ eqos_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 }
 
 static int
-eqos_media_change(struct ifnet *ifp)
+eqos_media_change(if_t ifp)
 {
-	struct eqos_softc *sc = ifp->if_softc;
+	struct eqos_softc *sc = if_getsoftc(ifp);
 	int error;
 
 	EQOS_LOCK(sc);
@@ -408,7 +408,7 @@ eqos_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 static void
 eqos_setup_rxfilter(struct eqos_softc *sc)
 {
-	struct ifnet *ifp = sc->ifp;
+	if_t ifp = sc->ifp;
 	uint32_t pfil, hash[2];
 	const uint8_t *eaddr;
 	uint32_t val;
@@ -422,10 +422,10 @@ eqos_setup_rxfilter(struct eqos_softc *sc)
 	    GMAC_MAC_PACKET_FILTER_PCF_MASK);
 	hash[0] = hash[1] = 0xffffffff;
 
-	if ((ifp->if_flags & IFF_PROMISC)) {
+	if ((if_getflags(ifp) & IFF_PROMISC)) {
 		pfil |= GMAC_MAC_PACKET_FILTER_PR |
 		    GMAC_MAC_PACKET_FILTER_PCF_ALL;
-	} else if ((ifp->if_flags & IFF_ALLMULTI)) {
+	} else if ((if_getflags(ifp) & IFF_ALLMULTI)) {
 		pfil |= GMAC_MAC_PACKET_FILTER_PM;
 	} else {
 		hash[0] = hash[1] = 0;
@@ -434,7 +434,7 @@ eqos_setup_rxfilter(struct eqos_softc *sc)
 	}
 
 	/* Write our unicast address */
-	eaddr = IF_LLADDR(ifp);
+	eaddr = if_getlladdr(ifp);
 	val = eaddr[4] | (eaddr[5] << 8);
 	WR4(sc, GMAC_MAC_ADDRESS0_HIGH, val);
 	val = eaddr[0] | (eaddr[1] << 8) | (eaddr[2] << 16) |
@@ -489,7 +489,7 @@ static void
 eqos_init(void *if_softc)
 {
 	struct eqos_softc *sc = if_softc;
-	struct ifnet *ifp = sc->ifp;
+	if_t ifp = sc->ifp;
 	struct mii_data *mii = device_get_softc(sc->miibus);
 	uint32_t val;
 
@@ -569,9 +569,9 @@ eqos_init(void *if_softc)
 }
 
 static void
-eqos_start_locked(struct ifnet *ifp)
+eqos_start_locked(if_t ifp)
 {
-	struct eqos_softc *sc = ifp->if_softc;
+	struct eqos_softc *sc = if_getsoftc(ifp);
 	struct mbuf *m;
 	int pending = 0;
 
@@ -613,9 +613,9 @@ eqos_start_locked(struct ifnet *ifp)
 }
 
 static void
-eqos_start(struct ifnet *ifp)
+eqos_start(if_t ifp)
 {
-	struct eqos_softc *sc = ifp->if_softc;
+	struct eqos_softc *sc = if_getsoftc(ifp);
 
 	EQOS_LOCK(sc);
 	eqos_start_locked(ifp);
@@ -625,7 +625,7 @@ eqos_start(struct ifnet *ifp)
 static void
 eqos_stop(struct eqos_softc *sc)
 {
-	struct ifnet *ifp = sc->ifp;
+	if_t ifp = sc->ifp;
 	uint32_t val;
 	int retry;
 
@@ -676,7 +676,7 @@ eqos_stop(struct eqos_softc *sc)
 static void
 eqos_rxintr(struct eqos_softc *sc)
 {
-	struct ifnet *ifp = sc->ifp;
+	if_t ifp = sc->ifp;
 	struct mbuf *m;
 	uint32_t rdes3;
 	int error, length;
@@ -706,7 +706,7 @@ eqos_rxintr(struct eqos_softc *sc)
 			m_adj(m, -ETHER_CRC_LEN);
 
 			EQOS_UNLOCK(sc);
-			(*ifp->if_input)(ifp, m);
+			if_input(ifp, m);
 			EQOS_LOCK(sc);
 		}
 
@@ -729,7 +729,7 @@ eqos_rxintr(struct eqos_softc *sc)
 static void
 eqos_txintr(struct eqos_softc *sc)
 {
-	struct ifnet *ifp = sc->ifp;
+	if_t ifp = sc->ifp;
 	struct eqos_bufmap *bmap;
 	uint32_t tdes3;
 
@@ -865,9 +865,9 @@ eqos_intr(void *arg)
 }
 
 static int
-eqos_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+eqos_ioctl(if_t ifp, u_long cmd, caddr_t data)
 {
-	struct eqos_softc *sc = ifp->if_softc;
+	struct eqos_softc *sc = if_getsoftc(ifp);
 	struct ifreq *ifr = (struct ifreq *)data;
 	struct mii_data *mii;
 	int flags, mask;
@@ -1105,7 +1105,7 @@ static int
 eqos_attach(device_t dev)
 {
 	struct eqos_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t ver;
 	uint8_t eaddr[ETHER_ADDR_LEN];
 	u_int userver, snpsver;
@@ -1178,7 +1178,7 @@ eqos_attach(device_t dev)
 
 	/* Setup ethernet interface */
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
-	ifp->if_softc = sc;
+	if_setsoftc(ifp, sc);
 	if_initname(ifp, device_get_name(sc->dev), device_get_unit(sc->dev));
 	if_setflags(sc->ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
 	if_setstartfn(ifp, eqos_start);
@@ -1213,7 +1213,7 @@ eqos_detach(device_t dev)
 		EQOS_LOCK(sc);
 		eqos_stop(sc);
 		EQOS_UNLOCK(sc);
-		sc->ifp->if_flags &= ~IFF_UP;
+		if_setflagbits(sc->ifp, 0, IFF_UP);
 		ether_ifdetach(sc->ifp);
 	}
 
