@@ -271,6 +271,10 @@ LIBVERIEXEC?=	${LIBVERIEXECDIR}/libveriexec.a
 # 2nd+ order consumers.  Auto-generating this would be better.
 _DP_80211=	sbuf bsdxml
 _DP_9p=		sbuf
+.if ${MK_CASPER} != "no"
+_DP_9p+=	casper cap_pwd cap_grp
+.endif
+
 # XXX: Not bootstrapped so uses host version on non-FreeBSD, so don't use a
 # FreeBSD-specific dependency list
 .if ${.MAKE.OS} == "FreeBSD" || !defined(BOOTSTRAPPING)
