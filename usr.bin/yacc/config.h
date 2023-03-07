@@ -105,7 +105,7 @@
 /* #undef USE_VALGRIND */
 
 /* Define to 1 to enable backtracking extension */
-#define YYBTYACC 1
+/* #undef YYBTYACC */
 
 /* Define to 1 if you want to perform memory-leak testing. */
 /* #undef YY_NO_LEAKS */
