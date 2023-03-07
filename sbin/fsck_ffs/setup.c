@@ -58,10 +58,11 @@ __FBSDID("$FreeBSD$");
 
 #include "fsck.h"
 
-struct inoinfo **inphead, **inpsort;	/* info about all inodes */
-struct inode snaplist[FSMAXSNAP + 1];	/* list of active snapshots */
-int snapcnt;				/* number of active snapshots */
-char *copybuf;				/* buffer to copy snapshot blocks */
+struct inohash *inphash;	       /* hash list of directory inode info */
+struct inoinfo **inpsort;	       /* disk order list of directory inodes */
+struct inode snaplist[FSMAXSNAP + 1];  /* list of active snapshots */
+int snapcnt;			       /* number of active snapshots */
+char *copybuf;			       /* buffer to copy snapshot blocks */
 
 static int sbhashfailed;
 #define POWEROF2(num)	(((num) & ((num) - 1)) == 0)
@@ -165,14 +166,14 @@ setup(char *dev)
 		    (unsigned)(sizeof(struct inostatlist) * (sblock.fs_ncg)));
 		goto badsb;
 	}
-	numdirs = MAX(sblock.fs_cstotal.cs_ndir, 128);
-	dirhash = numdirs;
+	numdirs = sblock.fs_cstotal.cs_ndir;
+	dirhash = MAX(numdirs / 2, 1);
 	inplast = 0;
 	listmax = numdirs + 10;
 	inpsort = (struct inoinfo **)Calloc(listmax, sizeof(struct inoinfo *));
-	inphead = (struct inoinfo **)Calloc(numdirs, sizeof(struct inoinfo *));
-	if (inpsort == NULL || inphead == NULL) {
-		printf("cannot alloc %ju bytes for inphead\n",
+	inphash = (struct inohash *)Calloc(dirhash, sizeof(struct inohash));
+	if (inpsort == NULL || inphash == NULL) {
+		printf("cannot alloc %ju bytes for inphash\n",
 		    (uintmax_t)numdirs * sizeof(struct inoinfo *));
 		goto badsb;
 	}
