@@ -359,7 +359,7 @@ dtsec_if_enable_locked(struct dtsec_softc *sc)
 	if (error != E_OK)
 		return (EIO);
 
-	sc->sc_ifnet->if_drv_flags |= IFF_DRV_RUNNING;
+	if_setdrvflagbits(sc->sc_ifnet, IFF_DRV_RUNNING, 0);
 
 	/* Refresh link state */
 	dtsec_miibus_statchg(sc->sc_dev);
@@ -386,7 +386,7 @@ dtsec_if_disable_locked(struct dtsec_softc *sc)
 	if (error != E_OK)
 		return (EIO);
 
-	sc->sc_ifnet->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_setdrvflagbits(sc->sc_ifnet, 0, IFF_DRV_RUNNING);
 
 	return (0);
 }
@@ -415,7 +415,7 @@ dtsec_if_ioctl(if_t ifp, u_long command, caddr_t data)
 	case SIOCSIFFLAGS:
 		DTSEC_LOCK(sc);
 
-		if (sc->sc_ifnet->if_flags & IFF_UP)
+		if (if_getflags(sc->sc_ifnet) & IFF_UP)
 			error = dtsec_if_enable_locked(sc);
 		else
 			error = dtsec_if_disable_locked(sc);
@@ -482,7 +482,7 @@ dtsec_if_init_locked(struct dtsec_softc *sc)
 	if (sc->sc_mii)
 		callout_reset(&sc->sc_tick_callout, hz, dtsec_if_tick, sc);
 
-	if (sc->sc_ifnet->if_flags & IFF_UP) {
+	if (if_getflags(sc->sc_ifnet) & IFF_UP) {
 		error = dtsec_if_enable_locked(sc);
 		if (error != 0)
 			goto err;

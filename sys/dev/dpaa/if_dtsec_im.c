@@ -77,7 +77,7 @@ dtsec_im_fm_port_rx_callback(t_Handle app, uint8_t *data, uint16_t length,
 
 	m = m_devget(data, length, 0, sc->sc_ifnet, NULL);
 	if (m)
-		(*sc->sc_ifnet->if_input)(sc->sc_ifnet, m);
+		if_input(sc->sc_ifnet, m);
 
 	XX_FreeSmart(data);
 
@@ -234,11 +234,11 @@ dtsec_im_if_start_locked(struct dtsec_softc *sc)
 	if ((sc->sc_mii->mii_media_status & IFM_ACTIVE) == 0)
 		return;
 
-	if ((sc->sc_ifnet->if_drv_flags & IFF_DRV_RUNNING) != IFF_DRV_RUNNING)
+	if ((if_getdrvflags(sc->sc_ifnet) & IFF_DRV_RUNNING) != IFF_DRV_RUNNING)
 		return;
 
-	while (!IFQ_DRV_IS_EMPTY(&sc->sc_ifnet->if_snd)) {
-		IFQ_DRV_DEQUEUE(&sc->sc_ifnet->if_snd, m);
+	while (!if_sendq_empty(sc->sc_ifnet)) {
+		m = if_dequeue(sc->sc_ifnet);
 		if (m == NULL)
 			break;
 
