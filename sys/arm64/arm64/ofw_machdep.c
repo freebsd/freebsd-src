@@ -43,7 +43,8 @@ OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
 {
 	bus_addr_t addr;
 	bus_size_t size;
-	int err;
+	phandle_t parent;
+	int err, flags;
 
 	err = ofw_reg_to_paddr(dev, regno, &addr, &size, NULL);
 	if (err != 0)
@@ -54,5 +55,10 @@ OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
 	if (sz != NULL)
 		*sz = size;
 
-	return (bus_space_map(*tag, addr, size, 0, handle));
+	flags = 0;
+	parent = OF_parent(dev);
+	if (parent > 0 && OF_hasprop(parent, "nonposted-mmio"))
+		flags |= BUS_SPACE_MAP_NONPOSTED;
+
+	return (bus_space_map(*tag, addr, size, flags, handle));
 }
