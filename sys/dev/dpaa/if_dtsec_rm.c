@@ -389,7 +389,7 @@ dtsec_rm_fqr_rx_callback(t_Handle app, t_Handle fqr, t_Handle portal,
 	m->m_len = DPAA_FD_GET_LENGTH(frame);
 	m_fixhdr(m);
 
-	(*sc->sc_ifnet->if_input)(sc->sc_ifnet, m);
+	if_input(sc->sc_ifnet, m);
 
 	return (e_RX_STORE_RESPONSE_CONTINUE);
 
@@ -555,10 +555,10 @@ dtsec_rm_if_start_locked(struct dtsec_softc *sc)
 	if ((sc->sc_mii->mii_media_status & IFM_ACTIVE) == 0)
 		return;
 
-	if ((sc->sc_ifnet->if_drv_flags & IFF_DRV_RUNNING) != IFF_DRV_RUNNING)
+	if ((if_getdrvflags(sc->sc_ifnet) & IFF_DRV_RUNNING) != IFF_DRV_RUNNING)
 		return;
 
-	while (!IFQ_DRV_IS_EMPTY(&sc->sc_ifnet->if_snd)) {
+	while (!if_sendq_empty(sc->sc_ifnet)) {
 		/* Check length of the TX queue */
 		qlen = qman_fqr_get_counter(sc->sc_tx_fqr, 0,
 		    e_QM_FQR_COUNTERS_FRAME);
@@ -572,7 +572,7 @@ dtsec_rm_if_start_locked(struct dtsec_softc *sc)
 		if (fi == NULL)
 			return;
 
-		IFQ_DRV_DEQUEUE(&sc->sc_ifnet->if_snd, m0);
+		m0 = if_dequeue(sc->sc_ifnet);
 		if (m0 == NULL) {
 			dtsec_rm_fi_free(sc, fi);
 			return;
