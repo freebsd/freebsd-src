@@ -219,9 +219,10 @@ pass1(void)
 		 * If we were not able to determine in advance which inodes
 		 * were in use, then reduce the size of the inoinfo structure
 		 * to the size necessary to describe the inodes that we
-		 * really found.
+		 * really found. Always leave map space in the first cylinder
+		 * group in case we need to a root or lost+found directory.
 		 */
-		if (inumber == lastino)
+		if (inumber == lastino || c == 0)
 			continue;
 		inostathead[c].il_numalloced = inosused;
 		if (inosused == 0) {
@@ -348,24 +349,38 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
 			}
 		}
 	}
-	for (j = ndb; ndb < UFS_NDADDR && j < UFS_NDADDR; j++)
-		if (DIP(dp, di_db[j]) != 0) {
-			if (debug)
-				printf("invalid direct addr[%d]: %ju\n", j,
-				    (uintmax_t)DIP(dp, di_db[j]));
-			pfatal("INVALID DIRECT BLOCK");
-			goto unknown;
+	for (j = ndb; ndb < UFS_NDADDR && j < UFS_NDADDR; j++) {
+		if (DIP(dp, di_db[j]) == 0)
+			continue;
+		if (debug)
+			printf("invalid direct addr[%d]: %ju\n", j,
+			    (uintmax_t)DIP(dp, di_db[j]));
+		pfatal("INVALID DIRECT BLOCK");
+		ginode(inumber, &ip);
+		prtinode(&ip);
+		if (reply("CLEAR") == 1) {
+			DIP_SET(ip.i_dp, di_db[j], 0);
+			inodirty(&ip);
 		}
+		irelse(&ip);
+	}
 	for (j = 0, ndb -= UFS_NDADDR; ndb > 0; j++)
 		ndb /= NINDIR(&sblock);
-	for (; j < UFS_NIADDR; j++)
-		if (DIP(dp, di_ib[j]) != 0) {
-			if (debug)
-				printf("invalid indirect addr: %ju\n",
-				    (uintmax_t)DIP(dp, di_ib[j]));
-			pfatal("INVALID INDIRECT BLOCK");
-			goto unknown;
+	for (; j < UFS_NIADDR; j++) {
+		if (DIP(dp, di_ib[j]) == 0)
+			continue;
+		if (debug)
+			printf("invalid indirect addr: %ju\n",
+			    (uintmax_t)DIP(dp, di_ib[j]));
+		pfatal("INVALID INDIRECT BLOCK");
+		ginode(inumber, &ip);
+		prtinode(&ip);
+		if (reply("CLEAR") == 1) {
+			DIP_SET(ip.i_dp, di_ib[j], 0);
+			inodirty(&ip);
 		}
+		irelse(&ip);
+	}
 	if (ftypeok(dp) == 0) {
 		pfatal("UNKNOWN FILE TYPE");
 		goto unknown;

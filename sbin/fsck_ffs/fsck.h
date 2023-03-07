@@ -303,8 +303,8 @@ extern struct dups *muldup;		/* end of unique duplicate dup block numbers */
 /*
  * Inode cache data structures.
  */
-extern struct inoinfo {
-	struct	inoinfo *i_nexthash;	/* next entry in hash chain */
+struct inoinfo {
+	SLIST_ENTRY(inoinfo) i_hash;	/* hash list */
 	ino_t	i_number;		/* inode number of this entry */
 	ino_t	i_parent;		/* inode number of parent */
 	ino_t	i_dotdot;		/* inode number of `..' */
@@ -312,7 +312,9 @@ extern struct inoinfo {
 	u_int	i_flags;		/* flags, see below */
 	u_int	i_numblks;		/* size of block array in bytes */
 	ufs2_daddr_t i_blks[1];		/* actually longer */
-} **inphead, **inpsort;
+};
+extern SLIST_HEAD(inohash, inoinfo) *inphash;
+extern struct inoinfo **inpsort;
 /*
  * flags for struct inoinfo
  */
@@ -480,6 +482,7 @@ int		findino(struct inodesc *);
 int		findname(struct inodesc *);
 void		flush(int fd, struct bufarea *bp);
 int		freeblock(struct inodesc *);
+void		freedirino(ino_t ino, ino_t parent);
 void		freeino(ino_t ino);
 void		freeinodebuf(void);
 void		fsckinit(void);
@@ -517,6 +520,7 @@ void		prtbuf(struct bufarea *, const char *, ...) __printflike(2, 3);
 void		prtinode(struct inode *);
 void		pwarn(const char *fmt, ...) __printflike(1, 2);
 int		readsb(void);
+int		removecachedino(ino_t);
 int		reply(const char *question);
 void		rwerror(const char *mesg, ufs2_daddr_t blk);
 void		sblock_init(void);

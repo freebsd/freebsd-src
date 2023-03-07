@@ -166,7 +166,7 @@ reply(const char *question)
 struct inostat *
 inoinfo(ino_t inum)
 {
-	static struct inostat unallocated = { USTATE, 0, 0 };
+	static struct inostat unallocated = { USTATE, 0, 0, 0 };
 	struct inostatlist *ilp;
 	int iloff;
 
@@ -613,8 +613,7 @@ void
 ckfini(int markclean)
 {
 	struct bufarea *bp, *nbp;
-	struct inoinfo *inp, *ninp;
-	int ofsmodified, cnt, cg, i;
+	int ofsmodified, cnt, cg;
 
 	if (bkgrdflag) {
 		unlink(snapname);
@@ -782,19 +781,7 @@ ckfini(int markclean)
 		free(inostathead);
 	}
 	inostathead = NULL;
-	if (inpsort != NULL)
-		free(inpsort);
-	inpsort = NULL;
-	if (inphead != NULL) {
-		for (i = 0; i < dirhash; i++) {
-			for (inp = inphead[i]; inp != NULL; inp = ninp) {
-				ninp = inp->i_nexthash;
-				free(inp);
-			}
-		}
-		free(inphead);
-	}
-	inphead = NULL;
+	inocleanup();
 	finalIOstats();
 	(void)close(fsreadfd);
 	(void)close(fswritefd);
@@ -1015,6 +1002,7 @@ check_cgmagic(int cg, struct bufarea *cgbp, int request_rebuild)
 	struct cg *cgp = cgbp->b_un.b_cg;
 	uint32_t cghash, calchash;
 	static int prevfailcg = -1;
+	long start;
 	int error;
 
 	/*
@@ -1039,6 +1027,43 @@ check_cgmagic(int cg, struct bufarea *cgbp, int request_rebuild)
 	} else if (sblock.fs_magic == FS_UFS2_MAGIC) {
 		CHK(cgp->cg_niblk, !=, sblock.fs_ipg, "%jd");
 		CHK(cgp->cg_initediblk, >, sblock.fs_ipg, "%jd");
+	}
+	if (cgbase(&sblock, cg) + sblock.fs_fpg < sblock.fs_size) {
+		CHK(cgp->cg_ndblk, !=, sblock.fs_fpg, "%jd");
+	} else {
+		CHK(cgp->cg_ndblk, !=, sblock.fs_size - cgbase(&sblock, cg),
+		    "%jd");
+	}
+	start = &cgp->cg_space[0] - (u_char *)(&cgp->cg_firstfield);
+	if (sblock.fs_magic == FS_UFS2_MAGIC) {
+		CHK(cgp->cg_iusedoff, !=, start, "%jd");
+	} else if (sblock.fs_magic == FS_UFS1_MAGIC) {
+		CHK(cgp->cg_niblk, !=, 0, "%jd");
+		CHK(cgp->cg_initediblk, !=, 0, "%jd");
+		CHK(cgp->cg_old_ncyl, !=, sblock.fs_old_cpg, "%jd");
+		CHK(cgp->cg_old_niblk, !=, sblock.fs_ipg, "%jd");
+		CHK(cgp->cg_old_btotoff, !=, start, "%jd");
+		CHK(cgp->cg_old_boff, !=, cgp->cg_old_btotoff +
+		    sblock.fs_old_cpg * sizeof(int32_t), "%jd");
+		CHK(cgp->cg_iusedoff, !=, cgp->cg_old_boff +
+		    sblock.fs_old_cpg * sizeof(u_int16_t), "%jd");
+	}
+	CHK(cgp->cg_freeoff, !=,
+	    cgp->cg_iusedoff + howmany(sblock.fs_ipg, CHAR_BIT), "%jd");
+	if (sblock.fs_contigsumsize == 0) {
+		CHK(cgp->cg_nextfreeoff, !=,
+		    cgp->cg_freeoff + howmany(sblock.fs_fpg, CHAR_BIT), "%jd");
+	} else {
+		CHK(cgp->cg_nclusterblks, !=, cgp->cg_ndblk / sblock.fs_frag,
+		    "%jd");
+		CHK(cgp->cg_clustersumoff, !=,
+		    roundup(cgp->cg_freeoff + howmany(sblock.fs_fpg, CHAR_BIT),
+		    sizeof(u_int32_t)) - sizeof(u_int32_t), "%jd");
+		CHK(cgp->cg_clusteroff, !=, cgp->cg_clustersumoff +
+		    (sblock.fs_contigsumsize + 1) * sizeof(u_int32_t), "%jd");
+		CHK(cgp->cg_nextfreeoff, !=, cgp->cg_clusteroff +
+		    howmany(fragstoblks(&sblock, sblock.fs_fpg), CHAR_BIT),
+		    "%jd");
 	}
 	if (error == 0)
 		return (1);
@@ -1068,13 +1093,15 @@ check_cgmagic(int cg, struct bufarea *cgbp, int request_rebuild)
 		cgp->cg_ndblk = sblock.fs_fpg;
 	else
 		cgp->cg_ndblk = sblock.fs_size - cgbase(&sblock, cg);
-	cgp->cg_iusedoff = &cgp->cg_space[0] - (u_char *)(&cgp->cg_firstfield);
-	if (sblock.fs_magic == FS_UFS1_MAGIC) {
+	start = &cgp->cg_space[0] - (u_char *)(&cgp->cg_firstfield);
+	if (sblock.fs_magic == FS_UFS2_MAGIC) {
+		cgp->cg_iusedoff = start;
+	} else if (sblock.fs_magic == FS_UFS1_MAGIC) {
 		cgp->cg_niblk = 0;
 		cgp->cg_initediblk = 0;
 		cgp->cg_old_ncyl = sblock.fs_old_cpg;
 		cgp->cg_old_niblk = sblock.fs_ipg;
-		cgp->cg_old_btotoff = cgp->cg_iusedoff;
+		cgp->cg_old_btotoff = start;
 		cgp->cg_old_boff = cgp->cg_old_btotoff +
 		    sblock.fs_old_cpg * sizeof(int32_t);
 		cgp->cg_iusedoff = cgp->cg_old_boff +
@@ -1112,7 +1139,7 @@ allocblk(long startcg, long frags,
 	}
 	if (frags <= 0 || frags > sblock.fs_frag)
 		return (0);
-	for (blkno = cgdata(&sblock, startcg);
+	for (blkno = MAX(cgdata(&sblock, startcg), 0);
 	     blkno < maxfsblock - sblock.fs_frag;
 	     blkno += sblock.fs_frag) {
 		if ((newblk = (*checkblkavail)(blkno, frags)) == 0)
@@ -1122,7 +1149,7 @@ allocblk(long startcg, long frags,
 		if (newblk < 0)
 			blkno = -newblk;
 	}
-	for (blkno = cgdata(&sblock, 0);
+	for (blkno = MAX(cgdata(&sblock, 0), 0);
 	     blkno < cgbase(&sblock, startcg) - sblock.fs_frag;
 	     blkno += sblock.fs_frag) {
 		if ((newblk = (*checkblkavail)(blkno, frags)) == 0)
@@ -1145,6 +1172,8 @@ std_checkblkavail(blkno, frags)
 	ufs2_daddr_t j, k, baseblk;
 	long cg;
 
+	if ((u_int64_t)blkno > sblock.fs_size)
+		return (0);
 	for (j = 0; j <= sblock.fs_frag - frags; j++) {
 		if (testbmap(blkno + j))
 			continue;

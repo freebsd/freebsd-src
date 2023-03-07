@@ -85,7 +85,7 @@ pass2(void)
 	case DCLEAR:
 		pfatal("DUPS/BAD IN ROOT INODE");
 		if (reply("REALLOCATE")) {
-			freeino(UFS_ROOTINO);
+			freedirino(UFS_ROOTINO, UFS_ROOTINO);
 			if (allocdir(UFS_ROOTINO, UFS_ROOTINO, 0755) !=
 			    UFS_ROOTINO)
 				errx(EEXIT, "CANNOT ALLOCATE ROOT INODE");
@@ -294,8 +294,6 @@ pass2check(struct inodesc *idesc)
 	/*
 	 * check for "."
 	 */
-	if (dirp->d_ino > maxino)
-		goto chk2;
 	if (idesc->id_entryno != 0)
 		goto chk1;
 	if (dirp->d_ino != 0 && strcmp(dirp->d_name, ".") == 0) {
@@ -370,6 +368,20 @@ chk1:
 		dirp->d_reclen = proto.d_reclen;
 	}
 	if (dirp->d_ino != 0 && strcmp(dirp->d_name, "..") == 0) {
+		if (dirp->d_ino > maxino) {
+			direrror(idesc->id_number, "BAD INODE NUMBER FOR '..'");
+			/*
+			 * If we know parent set it now, otherwise let it
+			 * point to the root inode and it will get cleaned
+			 * up later if that is not correct.
+			 */
+			if (inp->i_parent != 0)
+				dirp->d_ino = inp->i_parent;
+			else
+				dirp->d_ino = UFS_ROOTINO;
+			if (reply("FIX") == 1)
+				ret |= ALTERED;
+		}
 		inp->i_dotdot = dirp->d_ino;
 		if (dirp->d_type != DT_DIR) {
 			direrror(idesc->id_number, "BAD TYPE VALUE FOR '..'");
