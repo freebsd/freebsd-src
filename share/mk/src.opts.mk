@@ -143,7 +143,6 @@ __DEFAULT_YES_OPTIONS = \
     MAILWRAPPER \
     MAKE \
     MLX5TOOL \
-    NDIS \
     NETCAT \
     NETGRAPH \
     NLS_CATALOGS \
