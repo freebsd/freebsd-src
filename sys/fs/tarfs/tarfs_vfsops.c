@@ -991,7 +991,7 @@ tarfs_mount(struct mount *mp)
 	MNT_IUNLOCK(mp);
 
 	vfs_getnewfsid(mp);
-	vfs_mountedfrom(mp, "tarfs");
+	vfs_mountedfrom(mp, from);
 	TARFS_DPF(FS, "%s: success\n", __func__);
 
 	return (0);

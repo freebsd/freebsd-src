@@ -38,10 +38,12 @@ tarfs_basic_head() {
 	atf_set "require.user" "root"
 }
 tarfs_basic_body() {
+	local tarball="${PWD}/tarfs_test.tar.zst"
 	kldload -n tarfs || atf_skip "This test requires tarfs and could not load it"
 	mkdir "${mnt}"
-	"${mktar}" tarfs_test.tar.zst
-	atf_check mount -rt tarfs tarfs_test.tar.zst "${mnt}"
+	"${mktar}" "${tarball}"
+	atf_check mount -rt tarfs "${tarball}" "${mnt}"
+	atf_check -o match:"^${tarball} on ${mnt} \(tarfs," mount
 	atf_check_equal "$(stat -f%d,%i "${mnt}"/sparse_file)" "$(stat -f%d,%i "${mnt}"/hard_link)"
 	atf_check_equal "$(stat -f%d,%i "${mnt}"/sparse_file)" "$(stat -L -f%d,%i "${mnt}"/short_link)"
 	atf_check_equal "$(stat -f%d,%i "${mnt}"/sparse_file)" "$(stat -L -f%d,%i "${mnt}"/long_link)"
