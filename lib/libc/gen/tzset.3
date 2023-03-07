@@ -31,12 +31,11 @@
 .\"	@(#)tzset.3	8.2 (Berkeley) 11/17/93
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2023
+.Dd March 6, 2023
 .Dt TZSET 3
 .Os
 .Sh NAME
-.Nm tzset ,
-.Nm tzsetwall
+.Nm tzset
 .Nd initialize time conversion information
 .Sh LIBRARY
 .Lb libc
@@ -44,8 +43,6 @@
 .In time.h
 .Ft void
 .Fn tzset void
-.Ft void
-.Fn tzsetwall void
 .Sh DESCRIPTION
 The
 .Fn tzset
@@ -99,17 +96,6 @@ environment variable does not specify a
 file and cannot be interpreted as a direct specification,
 .Tn UTC
 is used.
-.Pp
-The
-.Fn tzsetwall
-function is equivalent to calling
-.Fn tzset
-with the
-.Ev TZ
-environment variable unset.
-It is deprecated and may not be available in
-.Fx 14.0
-and later.
 .Sh SPECIFICATION FORMAT
 When
 .Ev TZ
@@ -336,7 +322,5 @@ leap seconds are loaded from
 .Sh HISTORY
 The
 .Fn tzset
-and
-.Fn tzsetwall
-functions first appeared in
+function first appeared in
 .Bx 4.4 .

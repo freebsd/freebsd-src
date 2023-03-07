@@ -52,6 +52,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20230306: remove tzsetwall(3)
+OLD_FILES+=usr/share/man/man3/tzsetwall.3.gz
+
 # 20230208: new clang import which bumps version from 14.0.5 to 15.0.7
 OLD_FILES+=usr/lib/clang/14.0.5/include/cuda_wrappers/algorithm
 OLD_FILES+=usr/lib/clang/14.0.5/include/cuda_wrappers/complex
