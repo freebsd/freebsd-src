@@ -42,6 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/endian.h>
 
+#include <vm/vm.h>
+
 #ifdef FDT
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
