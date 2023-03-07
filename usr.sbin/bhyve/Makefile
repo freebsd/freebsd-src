@@ -89,14 +89,6 @@ SRCS+=	vmm_instruction_emul.c
 
 LIBADD=	vmmapi md nv pthread z util sbuf cam 9p
 
-.if ${MK_CASPER} != "no"
-LIBADD+=	casper
-LIBADD+=	cap_pwd
-LIBADD+=	cap_grp
-# Temporary disable capsicum, until we integrate checkpoint code with it.
-#CFLAGS+=-DWITH_CASPER
-.endif
-
 .if ${MK_BHYVE_SNAPSHOT} != "no"
 LIBADD+= ucl xo
 .endif

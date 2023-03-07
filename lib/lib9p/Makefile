@@ -6,8 +6,11 @@
 CFLAGS+=	-I${.CURDIR}
 CFLAGS+=	-I${.CURDIR}/../../contrib/lib9p
 
+LIBADD=		sbuf
+
 .if ${MK_CASPER} != "no"
 CFLAGS+=	-DWITH_CASPER
+LIBADD+=	casper cap_pwd cap_grp
 .endif
 
 LIB=		9p
@@ -27,7 +30,5 @@ SRCS=		connection.c \
 
 INCSDIR=	${INCLUDEDIR}/lib9p
 INCS=		fid.h lib9p.h backend/fs.h
-
-LIBADD=		sbuf
 
 .include <bsd.lib.mk>
