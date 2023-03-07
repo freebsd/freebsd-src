@@ -102,3 +102,17 @@ ifconfig_socket(ifconfig_handle_t *h, const int addressfamily, int *s)
 	*s = h->sockets[addressfamily];
 	return (0);
 }
+
+void
+ifconfig_error_clear(ifconfig_handle_t *h)
+{
+	h->error.errtype = OK;
+	h->error.errcode = 0;
+}
+
+void
+ifconfig_error(ifconfig_handle_t *h, ifconfig_errtype type, int error)
+{
+	h->error.errtype = type;
+	h->error.errcode = error;
+}
