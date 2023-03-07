@@ -866,6 +866,13 @@ runtime linker.
 .Pp
 This is a default setting on
 arm/armv6, arm/armv7, arm64/aarch64, i386/i386, powerpc/powerpc, powerpc/powerpc64le, riscv/riscv64 and riscv/riscv64sf.
+.It Va WITH_LIB32
+On 64-bit platforms, build the 32-bit library set and a
+.Nm ld-elf32.so.1
+runtime linker.
+.Pp
+This is a default setting on
+amd64/amd64 and powerpc/powerpc64.
 .It Va WITHOUT_LLD
 Do not build LLVM's lld linker.
 .It Va WITHOUT_LLDB
@@ -1266,6 +1273,13 @@ When set, it enforces these options:
 .It
 .Va WITHOUT_OFED_EXTRA
 .El
+.It Va WITH_OFED
+Build the
+.Dq "OpenFabrics Enterprise Distribution"
+InfiniBand software stack, including kernel modules and userspace libraries.
+.Pp
+This is a default setting on
+amd64/amd64, arm64/aarch64, i386/i386, powerpc/powerpc, powerpc/powerpc64, powerpc/powerpc64le, riscv/riscv64 and riscv/riscv64sf.
 .It Va WITH_OFED_EXTRA
 Build the non-essential components of the
 .Dq "OpenFabrics Enterprise Distribution"
@@ -1435,6 +1449,11 @@ utility.
 Build
 .Xr rpcbind 8
 with warmstart support.
+.It Va WITHOUT_SCTP_SUPPORT
+Disable support in the kernel for the
+.Xr sctp 4
+Stream Control Transmission Protocol
+loadable kernel module.
 .It Va WITHOUT_SENDMAIL
 Do not build
 .Xr sendmail 8
@@ -1743,6 +1762,13 @@ ZFS-specific functionality.
 .Pp
 This is a default setting on
 powerpc/powerpc.
+.It Va WITH_ZFS
+Build the ZFS file system kernel module, libraries, and user commands.
+Also enable ZFS support in utilities and libraries which implement
+ZFS-specific functionality.
+.Pp
+This is a default setting on
+amd64/amd64, arm/armv6, arm/armv7, arm64/aarch64, i386/i386, powerpc/powerpc64, powerpc/powerpc64le, riscv/riscv64 and riscv/riscv64sf.
 .It Va WITHOUT_ZONEINFO
 Do not build the timezone database.
 When set, it enforces these options:
