@@ -72,7 +72,7 @@ static unsigned char const *carpr_key;
 static void
 carp_status(int s)
 {
-	struct carpreq carpr[CARP_MAXVHID];
+	struct ifconfig_carp carpr[CARP_MAXVHID];
 
 	if (ifconfig_carp_get_info(lifh, name, carpr, CARP_MAXVHID) == -1)
 		return;
@@ -129,16 +129,14 @@ setcarp_vhid(const char *val, int d, int s, const struct afswtch *afp)
 static void
 setcarp_callback(int s, void *arg __unused)
 {
-	struct carpreq carpr;
+	struct ifconfig_carp carpr = { };
 
-	bzero(&carpr, sizeof(struct carpreq));
+	if (ifconfig_carp_get_vhid(lifh, name, &carpr, carpr_vhid) == -1) {
+		if (ifconfig_err_errno(lifh) != ENOENT)
+			return;
+	}
+
 	carpr.carpr_vhid = carpr_vhid;
-	carpr.carpr_count = 1;
-	ifr.ifr_data = (caddr_t)&carpr;
-
-	if (ioctl(s, SIOCGVH, (caddr_t)&ifr) == -1 && errno != ENOENT)
-		err(1, "SIOCGVH");
-
 	if (carpr_key != NULL)
 		/* XXX Should hash the password into the key here? */
 		strlcpy(carpr.carpr_key, carpr_key, CARP_KEY_LEN);
@@ -149,7 +147,7 @@ setcarp_callback(int s, void *arg __unused)
 	if (carpr_state > -1)
 		carpr.carpr_state = carpr_state;
 
-	if (ioctl(s, SIOCSVH, (caddr_t)&ifr) == -1)
+	if (ifconfig_carp_set_info(lifh, name, &carpr))
 		err(1, "SIOCSVH");
 }
 
