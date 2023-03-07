@@ -2,9 +2,11 @@ import ipaddress
 import socket
 
 import pytest
+from atf_python.sys.net.tools import ToolsHelper
 from atf_python.sys.net.netlink import NetlinkRtMessage
 from atf_python.sys.net.netlink import NetlinkTestTemplate
 from atf_python.sys.net.netlink import NlAttrIp
+from atf_python.sys.net.netlink import NlAttrU32
 from atf_python.sys.net.netlink import NlConst
 from atf_python.sys.net.netlink import NlmBaseFlags
 from atf_python.sys.net.netlink import NlmGetFlags
@@ -21,6 +23,27 @@ class TestRtNlRoute(NetlinkTestTemplate, SingleVnetTestTemplate):
     def setup_method(self, method):
         super().setup_method(method)
         self.setup_netlink(NlConst.NETLINK_ROUTE)
+
+    @pytest.mark.timeout(5)
+    def test_add_route6_ll_gw(self):
+        epair_ifname = self.vnet.iface_alias_map["if1"].name
+        epair_ifindex = socket.if_nametoindex(epair_ifname)
+
+        msg = NetlinkRtMessage(self.helper, NlRtMsgType.RTM_NEWROUTE)
+        msg.set_request()
+        msg.add_nlflags([NlmNewFlags.NLM_F_CREATE])
+        msg.base_hdr.rtm_family = socket.AF_INET6
+        msg.base_hdr.rtm_dst_len = 64
+        msg.add_nla(NlAttrIp(RtattrType.RTA_DST, "2001:db8:2::"))
+        msg.add_nla(NlAttrIp(RtattrType.RTA_GATEWAY, "fe80::1"))
+        msg.add_nla(NlAttrU32(RtattrType.RTA_OIF, epair_ifindex))
+
+        rx_msg = self.get_reply(msg)
+        assert rx_msg.is_type(NlMsgType.NLMSG_ERROR)
+        assert rx_msg.error_code == 0
+
+        ToolsHelper.print_net_debug()
+        ToolsHelper.print_output("netstat -6onW")
 
     @pytest.mark.timeout(20)
     def test_buffer_override(self):
