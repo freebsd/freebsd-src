@@ -36,8 +36,6 @@
 
 #include <jail.h>
 
-#define CONF_FILE	"/etc/jail.conf"
-
 #define DEP_FROM	0
 #define DEP_TO		1
 

@@ -455,7 +455,7 @@ jail_start()
 	_ALL)
 		command=$jail_program
 		rc_flags=$jail_flags
-		command_args="-f $jail_conf -c"
+		command_args="-c"
 		if ! checkyesno jail_parallel_start; then
 			command_args="$command_args -p1"
 		fi
@@ -543,7 +543,7 @@ jail_stop()
 	_ALL)
 		command=$jail_program
 		rc_flags=$jail_flags
-		command_args="-f $jail_conf -r"
+		command_args="-r"
 		if checkyesno jail_reverse_stop; then
 			$jail_jls name | tail -r
 		else

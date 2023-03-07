@@ -32,12 +32,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/errno.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/sysctl.h>
 
-#include <arpa/inet.h>
 #include <netinet/in.h>
 
+#include <arpa/inet.h>
 #include <err.h>
+#include <glob.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -123,6 +125,14 @@ static const struct ipspec intparams[] = {
     [KP_VNET] =			{"vnet",		0},
 };
 
+static void
+check_glob(int rc) {
+	if (rc == GLOB_NOSPACE)
+		err(1, "Failed to allocate memory for glob!");
+	else if (rc == GLOB_ABORTED)
+		err(1, "Error encountered parsing glob!");
+}
+
 /*
  * Parse the jail configuration file.
  */
@@ -136,18 +146,43 @@ load_config(void)
 	struct cfstring *s, *vs, *ns;
 	struct cfvar *v, *vv;
 	char *ep;
-	int did_self, jseq, pgen;
+	int did_self, jseq, pgen, rc;
 
-	if (!strcmp(cfname, "-")) {
-		cfname = "STDIN";
-		yyin = stdin;
-	} else {
+	glob_t g;
+	memset(&g, 0, sizeof(g));
+	rc = glob("/etc/jail.conf", GLOB_DOOFFS, NULL, &g);
+	check_glob(rc);
+	rc = glob("/etc/jail.conf.d/*.conf", GLOB_DOOFFS | GLOB_APPEND, NULL, &g);
+	check_glob(rc);
+	rc = glob("/etc/jail.*.conf", GLOB_DOOFFS | GLOB_APPEND, NULL, &g);
+	check_glob(rc);
+	if (cfname != NULL && strcmp(cfname, "-")) {
+		struct stat st;
+		memset(&st, 0, sizeof(st));
+		if (stat(cfname, &st) != 0)
+			err(1, "No such file %s!", cfname);
+		rc = glob(cfname, GLOB_DOOFFS | GLOB_APPEND, NULL, &g);
+	}
+	if (g.gl_pathc == 0)
+		err(1, "No config file found!");
+	for (size_t i = 0; i < g.gl_pathc; ++i) {
+		cfname = g.gl_pathv[i];
 		yyin = fopen(cfname, "r");
 		if (!yyin)
 			err(1, "%s", cfname);
+		if (yyparse() || yynerrs) {
+			fclose(yyin);
+			exit(1);
+		}
+		fclose(yyin);
 	}
-	if (yyparse() || yynerrs)
-		exit(1);
+	if (cfname != NULL && !strcmp(cfname, "-")) {
+		cfname = "STDIN";
+		yyin = stdin;
+		if (yyparse() || yynerrs) {
+			exit(1);
+		}
+	}
 
 	/* Separate the wildcard jails out from the actual jails. */
 	jseq = 0;

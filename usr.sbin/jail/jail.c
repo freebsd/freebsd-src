@@ -134,7 +134,6 @@ static const enum intparam stopcommands[] = {
 int
 main(int argc, char **argv)
 {
-	struct stat st;
 	FILE *jfp;
 	struct cfjail *j;
 	char *JidFile;
@@ -152,7 +151,7 @@ main(int argc, char **argv)
 	op = 0;
 	dflag = Rflag = 0;
 	docf = 1;
-	cfname = CONF_FILE;
+	cfname = NULL;
 	JidFile = NULL;
 
 	while ((ch = getopt(argc, argv, "cde:f:hiJ:lmn:p:qrRs:u:U:v")) != -1) {
@@ -294,13 +293,13 @@ main(int argc, char **argv)
 		/* Jail remove, perhaps using the config file */
 		if (!docf || argc == 0)
 			usage();
-		if (!Rflag)
+		docf = !Rflag;
+		if (docf) {
 			for (i = 0; i < argc; i++)
 				if (strchr(argv[i], '='))
 					usage();
-		if ((docf = !Rflag &&
-		     (!strcmp(cfname, "-") || stat(cfname, &st) == 0)))
 			load_config();
+		}
 		note_remove = docf || argc > 1 || wild_jail_name(argv[0]);
 	} else if (argc > 1 || (argc == 1 && strchr(argv[0], '='))) {
 		/* Single jail specified on the command line */
