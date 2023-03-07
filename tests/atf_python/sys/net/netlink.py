@@ -29,6 +29,12 @@ def align4(val: int) -> int:
     return roundup2(val, 4)
 
 
+def enum_or_int(val) -> int:
+    if isinstance(val, Enum):
+        return val.value
+    return val
+
+
 class SockaddrNl(Structure):
     _fields_ = [
         ("nl_len", c_ubyte),
@@ -125,8 +131,8 @@ class NlRtMsgType(Enum):
     RTM_DELROUTE = 25
     RTM_GETROUTE = 26
     RTM_NEWNEIGH = 28
-    RTM_DELNEIGH = 27
-    RTM_GETNEIGH = 28
+    RTM_DELNEIGH = 29
+    RTM_GETNEIGH = 30
     RTM_NEWRULE = 32
     RTM_DELRULE = 33
     RTM_GETRULE = 34
@@ -491,6 +497,39 @@ class IfattrType(Enum):
     IFA_TARGET_NETNSID = auto()
 
 
+class NdMsg(Structure):
+    _fields_ = [
+        ("ndm_family", c_ubyte),
+        ("ndm_pad1", c_ubyte),
+        ("ndm_pad2", c_ubyte),
+        ("ndm_ifindex", c_uint),
+        ("ndm_state", c_ushort),
+        ("ndm_flags", c_ubyte),
+        ("ndm_type", c_ubyte),
+    ]
+
+
+class NdAttrType(Enum):
+    NDA_UNSPEC = 0
+    NDA_DST = 1
+    NDA_LLADDR = 2
+    NDA_CACHEINFO = 3
+    NDA_PROBES = 4
+    NDA_VLAN = 5
+    NDA_PORT = 6
+    NDA_VNI = 7
+    NDA_IFINDEX = 8
+    NDA_MASTER = 9
+    NDA_LINK_NETNSID = 10
+    NDA_SRC_VNI = 11
+    NDA_PROTOCOL = 12
+    NDA_NH_ID = 13
+    NDA_FDB_EXT_ATTRS = 14
+    NDA_FLAGS_EXT = 15
+    NDA_NDM_STATE_MASK = 16
+    NDA_NDM_FLAGS_MASK = 17
+
+
 class GenlMsgHdr(Structure):
     _fields_ = [
         ("cmd", c_ubyte),
@@ -702,7 +741,7 @@ class NlAttrNested(NlAttr):
 
 class NlAttrU32(NlAttr):
     def __init__(self, nla_type, val):
-        self.u32 = val
+        self.u32 = enum_or_int(val)
         super().__init__(nla_type, b"")
 
     @property
@@ -729,7 +768,7 @@ class NlAttrU32(NlAttr):
 
 class NlAttrU16(NlAttr):
     def __init__(self, nla_type, val):
-        self.u16 = val
+        self.u16 = enum_or_int(val)
         super().__init__(nla_type, b"")
 
     @property
@@ -756,7 +795,7 @@ class NlAttrU16(NlAttr):
 
 class NlAttrU8(NlAttr):
     def __init__(self, nla_type, val):
-        self.u8 = val
+        self.u8 = enum_or_int(val)
         super().__init__(nla_type, b"")
 
     @property
@@ -840,6 +879,11 @@ class NlAttrIfindex(NlAttrU32):
         except OSError:
             pass
         return " iface=if#{}".format(self.u32)
+
+
+class NlAttrMac(NlAttr):
+    def _print_attr_value(self):
+        return ["{:02}".format(int(d)) for d in data[4:]].join(":")
 
 
 class NlAttrTable(NlAttrU32):
@@ -1067,26 +1111,44 @@ rtnl_ifa_attrs = prepare_attrs_map(
 )
 
 
+rtnl_nd_attrs = prepare_attrs_map(
+    [
+        AttrDescr(NdAttrType.NDA_DST, NlAttrIp),
+        AttrDescr(NdAttrType.NDA_IFINDEX, NlAttrIfindex),
+        AttrDescr(NdAttrType.NDA_FLAGS_EXT, NlAttrU32),
+        AttrDescr(NdAttrType.NDA_LLADDR, NlAttrMac),
+    ]
+)
+
+
 class BaseNetlinkMessage(object):
     def __init__(self, helper, nlmsg_type):
-        self.nlmsg_type = nlmsg_type
+        self.nlmsg_type = enum_or_int(nlmsg_type)
         self.ut = unittest.TestCase()
         self.nla_list = []
         self._orig_data = None
         self.helper = helper
         self.nl_hdr = Nlmsghdr(
-            nlmsg_type=nlmsg_type, nlmsg_seq=helper.get_seq(), nlmsg_pid=helper.pid
+            nlmsg_type=self.nlmsg_type, nlmsg_seq=helper.get_seq(), nlmsg_pid=helper.pid
         )
         self.base_hdr = None
+
+    def set_request(self, need_ack=True):
+        self.add_nlflags([NlmBaseFlags.NLM_F_REQUEST])
+        if need_ack:
+            self.add_nlflags([NlmBaseFlags.NLM_F_ACK])
+
+    def add_nlflags(self, flags: List):
+        int_flags = 0
+        for flag in flags:
+            int_flags |= enum_or_int(flag)
+        self.nl_hdr.nlmsg_flags |= int_flags
 
     def add_nla(self, nla):
         self.nla_list.append(nla)
 
     def _get_nla(self, nla_list, nla_type):
-        if isinstance(nla_type, Enum):
-            nla_type_raw = nla_type.value
-        else:
-            nla_type_raw = nla_type
+        nla_type_raw = enum_or_int(nla_type)
         for nla in nla_list:
             if nla.nla_type == nla_type_raw:
                 return nla
@@ -1102,10 +1164,7 @@ class BaseNetlinkMessage(object):
         return Nlmsghdr.from_buffer_copy(data), sizeof(Nlmsghdr)
 
     def is_type(self, nlmsg_type):
-        if isinstance(nlmsg_type, Enum):
-            nlmsg_type_raw = nlmsg_type.value
-        else:
-            nlmsg_type_raw = nlmsg_type
+        nlmsg_type_raw = enum_or_int(nlmsg_type)
         return nlmsg_type_raw == self.nl_hdr.nlmsg_type
 
     def is_reply(self, hdr):
@@ -1422,6 +1481,37 @@ class NetlinkIfaMessage(BaseNetlinkRtMessage):
         )
 
 
+class NetlinkNdMessage(BaseNetlinkRtMessage):
+    messages = [
+        NlRtMsgType.RTM_NEWNEIGH.value,
+        NlRtMsgType.RTM_DELNEIGH.value,
+        NlRtMsgType.RTM_GETNEIGH.value,
+    ]
+    nl_attrs_map = rtnl_nd_attrs
+
+    def __init__(self, helper, nlm_type):
+        super().__init__(helper, nlm_type)
+        self.base_hdr = NdMsg()
+
+    def parse_base_header(self, data):
+        if len(data) < sizeof(NdMsg):
+            raise ValueError("length less than NdMsg header")
+        nd_hdr = NdMsg.from_buffer_copy(data)
+        return (nd_hdr, sizeof(NdMsg))
+
+    def print_base_header(self, hdr, prepend=""):
+        family = self.helper.get_af_name(hdr.ndm_family)
+        print(
+            "{}family={}, ndm_ifindex={}, ndm_state={}, ndm_flags={}".format(  # noqa: E501
+                prepend,
+                family,
+                hdr.ndm_ifindex,
+                hdr.ndm_state,
+                hdr.ndm_flags,
+            )
+        )
+
+
 class Nlsock:
     def __init__(self, family, helper):
         self.helper = helper
@@ -1435,6 +1525,7 @@ class Nlsock:
             NetlinkRtMessage,
             NetlinkIflaMessage,
             NetlinkIfaMessage,
+            NetlinkNdMessage,
             NetlinkDoneMessage,
             NetlinkErrorMessage,
         ]
