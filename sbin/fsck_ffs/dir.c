@@ -63,7 +63,6 @@ static struct	dirtemplate dirhead = {
 static int chgino(struct inodesc *);
 static int dircheck(struct inodesc *, struct bufarea *, struct direct *);
 static int expanddir(struct inode *ip, char *name);
-static void freedir(ino_t ino, ino_t parent);
 static struct direct *fsck_readdir(struct inodesc *);
 static struct bufarea *getdirblk(ufs2_daddr_t blkno, long size);
 static int lftempname(char *bufp, ino_t ino);
@@ -517,7 +516,7 @@ linkup(ino_t orphan, ino_t parentdir, char *name)
 						if (preen)
 							printf(" (CREATED)\n");
 					} else {
-						freedir(lfdir, UFS_ROOTINO);
+						freedirino(lfdir, UFS_ROOTINO);
 						lfdir = 0;
 						if (preen)
 							printf("\n");
@@ -583,8 +582,7 @@ linkup(ino_t orphan, ino_t parentdir, char *name)
 		inoinfo(lfdir)->ino_linkcnt++;
 		pwarn("DIR I=%lu CONNECTED. ", (u_long)orphan);
 		inp = getinoinfo(parentdir);
-		if (parentdir != (ino_t)-1 && inp != NULL &&
-		    (inp->i_flags & INFO_NEW) == 0) {
+		if (parentdir != (ino_t)-1 && inp != NULL) {
 			printf("PARENT WAS I=%lu\n", (u_long)parentdir);
 			/*
 			 * If the parent directory did not have to
@@ -594,7 +592,8 @@ linkup(ino_t orphan, ino_t parentdir, char *name)
 			 * fixes the parent link count so that fsck does
 			 * not need to be rerun.
 			 */
-			inoinfo(parentdir)->ino_linkcnt++;
+			if ((inp->i_flags & INFO_NEW) != 0)
+				inoinfo(parentdir)->ino_linkcnt++;
 		}
 		if (preen == 0)
 			printf("\n");
@@ -837,13 +836,12 @@ allocdir(ino_t parent, ino_t request, int mode)
 	DIP_SET(dp, di_nlink, 2);
 	inodirty(&ip);
 	if (ino == UFS_ROOTINO) {
-		inoinfo(ino)->ino_linkcnt = DIP(dp, di_nlink);
-		if ((inp = getinoinfo(ino)) == NULL)
-			inp = cacheino(dp, ino);
-		else
-			inp->i_flags = INFO_NEW;
+		inp = cacheino(dp, ino);
 		inp->i_parent = parent;
 		inp->i_dotdot = parent;
+		inp->i_flags |= INFO_NEW;
+		inoinfo(ino)->ino_type = DT_DIR;
+		inoinfo(ino)->ino_linkcnt = DIP(dp, di_nlink);
 		irelse(&ip);
 		return(ino);
 	}
@@ -855,6 +853,8 @@ allocdir(ino_t parent, ino_t request, int mode)
 	inp = cacheino(dp, ino);
 	inp->i_parent = parent;
 	inp->i_dotdot = parent;
+	inp->i_flags |= INFO_NEW;
+	inoinfo(ino)->ino_type = DT_DIR;
 	inoinfo(ino)->ino_state = inoinfo(parent)->ino_state;
 	if (inoinfo(ino)->ino_state == DSTATE) {
 		inoinfo(ino)->ino_linkcnt = DIP(dp, di_nlink);
@@ -872,8 +872,8 @@ allocdir(ino_t parent, ino_t request, int mode)
 /*
  * free a directory inode
  */
-static void
-freedir(ino_t ino, ino_t parent)
+void
+freedirino(ino_t ino, ino_t parent)
 {
 	struct inode ip;
 	union dinode *dp;
@@ -885,6 +885,7 @@ freedir(ino_t ino, ino_t parent)
 		inodirty(&ip);
 		irelse(&ip);
 	}
+	removecachedino(ino);
 	freeino(ino);
 }
 
