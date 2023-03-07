@@ -347,6 +347,8 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int flags,
 		    #lhs, (intmax_t)lhs, #op, #rhs, (intmax_t)rhs, wmsg);\
 		if (error == 0)						\
 			error = warnerr;				\
+		if (warnerr == 0)					\
+			lhs = rhs;					\
 	}
 #define FCHK2(lhs1, op1, rhs1, lhs2, op2, rhs2, fmt)			\
 	if (lhs1 op1 rhs1 && lhs2 op2 rhs2) {				\
@@ -359,16 +361,6 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int flags,
 			return (ENOENT);				\
 		if (error == 0)						\
 			error = ENOENT;					\
-	}
-#define WCHK2(lhs1, op1, rhs1, lhs2, op2, rhs2, fmt)			\
-	if (lhs1 op1 rhs1 && lhs2 op2 rhs2) {				\
-		MPRINT("UFS%d superblock failed: %s (" #fmt ") %s %s ("	\
-		    #fmt ") && %s (" #fmt ") %s %s (" #fmt ")%s\n",	\
-		    fs->fs_magic == FS_UFS1_MAGIC ? 1 : 2, #lhs1,	\
-		    (intmax_t)lhs1, #op1, #rhs1, (intmax_t)rhs1, #lhs2,	\
-		    (intmax_t)lhs2, #op2, #rhs2, (intmax_t)rhs2, wmsg);	\
-		if (error == 0)						\
-			error = warnerr;				\
 	}
 
 static int
@@ -408,6 +400,7 @@ validate_sblock(struct fs *fs, int flags)
 		} else if (fs->fs_magic == FS_UFS1_MAGIC) {
 			FCHK(fs->fs_sblockloc, <, 0, %jd);
 			FCHK(fs->fs_sblockloc, >, SBLOCK_UFS1, %jd);
+			FCHK(fs->fs_old_ncyl, !=, fs->fs_ncg, %jd);
 		}
 		FCHK(fs->fs_frag, <, 1, %jd);
 		FCHK(fs->fs_frag, >, MAXFRAG, %jd);
@@ -431,6 +424,30 @@ validate_sblock(struct fs *fs, int flags)
 		FCHK(fs->fs_sblkno, !=, roundup(
 		    howmany(fs->fs_sblockloc + SBLOCKSIZE, fs->fs_fsize),
 		    fs->fs_frag), %jd);
+		FCHK(CGSIZE(fs), >, fs->fs_bsize, %jd);
+		/* Only need to validate these if reading in csum data */
+		if ((flags & UFS_NOCSUM) != 0)
+			return (error);
+		FCHK((u_int64_t)fs->fs_ipg * fs->fs_ncg, >,
+		    (((int64_t)(1)) << 32) - INOPB(fs), %jd);
+		FCHK(fs->fs_cstotal.cs_nifree, <, 0, %jd);
+		FCHK(fs->fs_cstotal.cs_nifree, >,
+		    (u_int64_t)fs->fs_ipg * fs->fs_ncg, %jd);
+		FCHK(fs->fs_cstotal.cs_ndir, >,
+		    ((u_int64_t)fs->fs_ipg * fs->fs_ncg) -
+		    fs->fs_cstotal.cs_nifree, %jd);
+		FCHK(fs->fs_size, <, 8 * fs->fs_frag, %jd);
+		FCHK(fs->fs_size, <=, ((int64_t)fs->fs_ncg - 1) * fs->fs_fpg,
+		    %jd);
+		FCHK(fs->fs_size, >, (int64_t)fs->fs_ncg * fs->fs_fpg, %jd);
+		FCHK(fs->fs_csaddr, <, 0, %jd);
+		FCHK(fs->fs_cssize, !=,
+		    fragroundup(fs, fs->fs_ncg * sizeof(struct csum)), %jd);
+		FCHK(dtog(fs, fs->fs_csaddr), >, fs->fs_ncg, %jd);
+		FCHK(fs->fs_csaddr, <, cgdmin(fs, dtog(fs, fs->fs_csaddr)),
+		    %jd);
+		FCHK(dtog(fs, fs->fs_csaddr + howmany(fs->fs_cssize,
+		    fs->fs_fsize)), >, dtog(fs, fs->fs_csaddr), %jd);
 		return (error);
 	}
 	if (fs->fs_magic == FS_UFS2_MAGIC) {
@@ -511,6 +528,7 @@ validate_sblock(struct fs *fs, int flags)
 	FCHK(fs->fs_old_cgoffset, <, 0, %jd);
 	FCHK2(fs->fs_old_cgoffset, >, 0, ~fs->fs_old_cgmask, <, 0, %jd);
 	FCHK(fs->fs_old_cgoffset * (~fs->fs_old_cgmask), >, fs->fs_fpg, %jd);
+	FCHK(CGSIZE(fs), >, fs->fs_bsize, %jd);
 	/*
 	 * If anything has failed up to this point, it is usafe to proceed
 	 * as checks below may divide by zero or make other fatal calculations.
