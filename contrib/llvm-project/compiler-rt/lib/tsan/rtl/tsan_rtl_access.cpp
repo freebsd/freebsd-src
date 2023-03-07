@@ -145,15 +145,6 @@ void TraceTime(ThreadState* thr) {
   TraceEvent(thr, ev);
 }
 
-ALWAYS_INLINE RawShadow LoadShadow(RawShadow* p) {
-  return static_cast<RawShadow>(
-      atomic_load((atomic_uint32_t*)p, memory_order_relaxed));
-}
-
-ALWAYS_INLINE void StoreShadow(RawShadow* sp, RawShadow s) {
-  atomic_store((atomic_uint32_t*)sp, static_cast<u32>(s), memory_order_relaxed);
-}
-
 NOINLINE void DoReportRace(ThreadState* thr, RawShadow* shadow_mem, Shadow cur,
                            Shadow old,
                            AccessType typ) SANITIZER_NO_THREAD_SAFETY_ANALYSIS {
@@ -170,10 +161,10 @@ NOINLINE void DoReportRace(ThreadState* thr, RawShadow* shadow_mem, Shadow cur,
   // the slot locked because of the fork. But MemoryRangeFreed is not
   // called during fork because fork sets ignore_reads_and_writes,
   // so simply unlocking the slot should be fine.
-  if (typ & kAccessFree)
+  if (typ & kAccessSlotLocked)
     SlotUnlock(thr);
   ReportRace(thr, shadow_mem, cur, Shadow(old), typ);
-  if (typ & kAccessFree)
+  if (typ & kAccessSlotLocked)
     SlotLock(thr);
 }
 
@@ -611,8 +602,8 @@ void MemoryRangeFreed(ThreadState* thr, uptr pc, uptr addr, uptr size) {
   // can cause excessive memory consumption (user does not necessary touch
   // the whole range) and most likely unnecessary.
   size = Min<uptr>(size, 1024);
-  const AccessType typ =
-      kAccessWrite | kAccessFree | kAccessCheckOnly | kAccessNoRodata;
+  const AccessType typ = kAccessWrite | kAccessFree | kAccessSlotLocked |
+                         kAccessCheckOnly | kAccessNoRodata;
   TraceMemoryAccessRange(thr, pc, addr, size, typ);
   RawShadow* shadow_mem = MemToShadow(addr);
   Shadow cur(thr->fast_state, 0, kShadowCell, typ);

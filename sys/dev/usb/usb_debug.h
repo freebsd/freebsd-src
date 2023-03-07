@@ -64,16 +64,17 @@ void	usb_dump_endpoint(struct usb_endpoint *ep);
 void	usb_dump_xfer(struct usb_xfer *xfer);
 
 #ifdef USB_DEBUG
-extern unsigned int usb_port_reset_delay;
-extern unsigned int usb_port_root_reset_delay;
-extern unsigned int usb_port_reset_recovery;
-extern unsigned int usb_port_powerup_delay;
-extern unsigned int usb_port_resume_delay;
-extern unsigned int usb_set_address_settle;
-extern unsigned int usb_resume_delay;
-extern unsigned int usb_resume_wait;
-extern unsigned int usb_resume_recovery;
-extern unsigned int usb_extra_power_up_time;
+extern unsigned usb_port_reset_delay;
+extern unsigned usb_port_root_reset_delay;
+extern unsigned usb_port_reset_recovery;
+extern unsigned usb_port_powerup_delay;
+extern unsigned usb_port_resume_delay;
+extern unsigned usb_set_address_settle;
+extern unsigned usb_resume_delay;
+extern unsigned usb_resume_wait;
+extern unsigned usb_resume_recovery;
+extern unsigned usb_extra_power_up_time;
+extern unsigned usb_enum_nice_time;
 #else
 #define usb_port_reset_delay		USB_PORT_RESET_DELAY
 #define usb_port_root_reset_delay	USB_PORT_ROOT_RESET_DELAY
@@ -85,6 +86,7 @@ extern unsigned int usb_extra_power_up_time;
 #define usb_resume_wait			USB_RESUME_WAIT
 #define usb_resume_recovery		USB_RESUME_RECOVERY
 #define usb_extra_power_up_time		USB_EXTRA_POWER_UP_TIME
+#define usb_enum_nice_time		USB_ENUM_NICE_TIME
 #endif
 
 #endif					/* _USB_DEBUG_H_ */

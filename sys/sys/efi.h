@@ -44,6 +44,8 @@
 	{0xb122a263,0x3661,0x4f68,0x99,0x29,{0x78,0xf8,0xb0,0xd6,0x21,0x80}}
 #define	EFI_PROPERTIES_TABLE			\
 	{0x880aaca3,0x4adc,0x4a04,0x90,0x79,{0xb7,0x47,0x34,0x08,0x25,0xe5}}
+#define LINUX_EFI_MEMRESERVE_TABLE			\
+	{0x888eb0c6,0x8ede,0x4ff5,0xa8,0xf0,{0x9a,0xee,0x5c,0xb9,0x77,0xc2}}
 
 enum efi_reset {
 	EFI_RESET_COLD = 0,
@@ -200,6 +202,34 @@ struct efi_systbl {
 };
 
 extern vm_paddr_t efi_systbl_phys;
+
+/*
+ * When memory is reserved for some use, Linux will add a
+ * LINUX_EFI_MEMSERVE_TABLE to the cfgtbl array of tables to communicate
+ * this. At present, Linux only uses this as part of its workaround for a GICv3
+ * issue where you can't stop the controller long enough to move it's config and
+ * pending vectors. When the LinuxBoot environment kexec's a new kernel, the new
+ * kernel needs to use this old memory (and not use it for any other purpose).
+ *
+ * Linux stores the PA of this table in the cfgtbl. And all the addresses are
+ * the physical address of 'reserved' memory. The mr_next field creates a linked
+ * list of these tables, and all must be walked. If mr_count is 0, that entry
+ * should be ignored. There is no checksum for these tables, nor do they have
+ * a efi_tblhdr.
+ *
+ * This table is only documented in the Linux code in drivers/firmware/efi/efi.c.
+ */
+struct linux_efi_memreserve_entry {
+	vm_offset_t	mre_base;	/* PA of reserved area */
+	vm_offset_t	mre_size;	/* Size of area */
+};
+
+struct linux_efi_memreserve {
+	uint32_t	mr_size;	/* Total size of table in bytes */
+	uint32_t	mr_count;	/* Count of entries used */
+	vm_offset_t	mr_next;	/* Next in chain (though unused?) */
+	struct linux_efi_memreserve_entry mr_entry[];
+};
 
 struct efirt_callinfo;
 

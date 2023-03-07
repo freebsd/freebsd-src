@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef FDT
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
 #include "ofw_bus_if.h"
 #endif
@@ -92,6 +93,7 @@ static	int nexus_attach(device_t);
 #ifdef FDT
 static device_probe_t	nexus_fdt_probe;
 static device_attach_t	nexus_fdt_attach;
+static bus_activate_resource_t nexus_fdt_activate_resource;
 #endif
 #ifdef DEV_ACPI
 static device_probe_t	nexus_acpi_probe;
@@ -104,6 +106,8 @@ static	struct resource *nexus_alloc_resource(device_t, device_t, int, int *,
     rman_res_t, rman_res_t, rman_res_t, u_int);
 static	int nexus_activate_resource(device_t, device_t, int, int,
     struct resource *);
+static	int nexus_adjust_resource(device_t, device_t, int, struct resource *,
+    rman_res_t, rman_res_t);
 static	int nexus_map_resource(device_t, device_t, int, struct resource *,
     struct resource_map_request *, struct resource_map *);
 static int nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
@@ -135,6 +139,7 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_add_child,	nexus_add_child),
 	DEVMETHOD(bus_alloc_resource,	nexus_alloc_resource),
 	DEVMETHOD(bus_activate_resource,	nexus_activate_resource),
+	DEVMETHOD(bus_adjust_resource,	nexus_adjust_resource),
 	DEVMETHOD(bus_map_resource,	nexus_map_resource),
 	DEVMETHOD(bus_config_intr,	nexus_config_intr),
 	DEVMETHOD(bus_get_resource_list, nexus_get_reslist),
@@ -274,6 +279,27 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 }
 
 static int
+nexus_adjust_resource(device_t bus __unused, device_t child __unused, int type,
+    struct resource *r, rman_res_t start, rman_res_t end)
+{
+	struct rman *rm;
+
+	switch (type) {
+	case SYS_RES_IRQ:
+		rm = &irq_rman;
+		break;
+	case SYS_RES_MEMORY:
+		rm = &mem_rman;
+		break;
+	default:
+		return (EINVAL);
+	}
+	if (rman_is_region_manager(r, rm) == 0)
+		return (EINVAL);
+	return (rman_adjust_resource(r, start, end));
+}
+
+static int
 nexus_release_resource(device_t bus, device_t child, int type, int rid,
     struct resource *res)
 {
@@ -342,9 +368,10 @@ nexus_get_bus_tag(device_t bus __unused, device_t child __unused)
 }
 
 static int
-nexus_activate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
+nexus_activate_resource_flags(device_t bus, device_t child, int type, int rid,
+    struct resource *r, int flags)
 {
+	struct resource_map_request args;
 	struct resource_map map;
 	int err;
 
@@ -358,7 +385,10 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
 		if ((rman_get_flags(r) & RF_UNMAPPED) == 0) {
-			err = nexus_map_resource(bus, child, type, r, NULL,
+			resource_init_map_request(&args);
+			if ((flags & BUS_SPACE_MAP_NONPOSTED) != 0)
+				args.memattr = VM_MEMATTR_DEVICE_NP;
+			err = nexus_map_resource(bus, child, type, r, &args,
 			    &map);
 			if (err != 0) {
 				rman_deactivate_resource(r);
@@ -376,6 +406,13 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 		}
 	}
 	return (0);
+}
+
+static int
+nexus_activate_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+	return (nexus_activate_resource_flags(dev, child, type, rid, r, 0));
 }
 
 static struct resource_list *
@@ -473,6 +510,9 @@ static device_method_t nexus_fdt_methods[] = {
 	DEVMETHOD(device_probe,		nexus_fdt_probe),
 	DEVMETHOD(device_attach,	nexus_fdt_attach),
 
+	/* Bus interface */
+	DEVMETHOD(bus_activate_resource,	nexus_fdt_activate_resource),
+
 	/* OFW interface */
 	DEVMETHOD(ofw_bus_map_intr,	nexus_ofw_map_intr),
 
@@ -503,6 +543,39 @@ nexus_fdt_attach(device_t dev)
 
 	nexus_add_child(dev, 10, "ofwbus", 0);
 	return (nexus_attach(dev));
+}
+
+static int
+nexus_fdt_activate_resource(device_t bus, device_t child, int type, int rid,
+    struct resource *r)
+{
+	phandle_t node, parent;
+	int flags;
+
+	flags = 0;
+	switch (type) {
+	case SYS_RES_MEMORY:
+	case SYS_RES_IOPORT:
+		/*
+		 * If the fdt parent has the nonposted-mmio property we
+		 * need to use non-posted IO to access the device. When
+		 * we find this property set the BUS_SPACE_MAP_NONPOSTED
+		 * flag to be passed to bus_space_map.
+		 */
+		node = ofw_bus_get_node(child);
+		if (node != -1) {
+			parent = OF_parent(node);
+			if (parent != -1 &&
+			    OF_hasprop(parent, "nonposted-mmio")) {
+				flags |= BUS_SPACE_MAP_NONPOSTED;
+			}
+		}
+		break;
+	default:
+		break;
+	}
+
+	return (nexus_activate_resource_flags(bus, child, type, rid, r, flags));
 }
 
 static int

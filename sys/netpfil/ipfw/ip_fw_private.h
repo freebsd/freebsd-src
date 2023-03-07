@@ -719,7 +719,7 @@ void ipfw_objhash_bitmap_swap(struct namedobj_instance *ni,
 void ipfw_objhash_bitmap_free(void *idx, int blocks);
 void ipfw_objhash_set_hashf(struct namedobj_instance *ni, objhash_hash_f *f);
 struct named_object *ipfw_objhash_lookup_name(struct namedobj_instance *ni,
-    uint32_t set, char *name);
+    uint32_t set, const char *name);
 struct named_object *ipfw_objhash_lookup_name_type(struct namedobj_instance *ni,
     uint32_t set, uint32_t type, const char *name);
 struct named_object *ipfw_objhash_lookup_kidx(struct namedobj_instance *ni,

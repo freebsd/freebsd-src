@@ -27,6 +27,7 @@
 
 #include "Plugins/LanguageRuntime/CPlusPlus/CPPLanguageRuntime.h"
 #include "Plugins/TypeSystem/Clang/TypeSystemClang.h"
+#include "lldb/lldb-enumerations.h"
 #include <tuple>
 
 using namespace lldb;
@@ -79,7 +80,7 @@ bool lldb_private::formatters::LibcxxFunctionSummaryProvider(
 
   switch (callable_info.callable_case) {
   case CPPLanguageRuntime::LibCppStdFunctionCallableCase::Invalid:
-    stream.Printf(" __f_ = %" PRIu64, callable_info.member__f_pointer_value);
+    stream.Printf(" __f_ = %" PRIu64, callable_info.member_f_pointer_value);
     return false;
     break;
   case CPPLanguageRuntime::LibCppStdFunctionCallableCase::Lambda:
@@ -228,7 +229,7 @@ bool lldb_private::formatters::LibCxxMapIteratorSyntheticFrontEnd::Update() {
   if (!valobj_sp)
     return false;
 
-  static ConstString g___i_("__i_");
+  static ConstString g_i_("__i_");
 
   // this must be a ValueObject* because it is a child of the ValueObject we
   // are producing children for it if were a ValueObjectSP, we would end up
@@ -258,7 +259,7 @@ bool lldb_private::formatters::LibCxxMapIteratorSyntheticFrontEnd::Update() {
                          nullptr)
                      .get();
     if (m_pair_ptr) {
-      auto __i_(valobj_sp->GetChildMemberWithName(g___i_, true));
+      auto __i_(valobj_sp->GetChildMemberWithName(g_i_, true));
       if (!__i_) {
         m_pair_ptr = nullptr;
         return false;
@@ -283,6 +284,22 @@ bool lldb_private::formatters::LibCxxMapIteratorSyntheticFrontEnd::Update() {
             llvm::dyn_cast_or_null<TypeSystemClang>(pair_type.GetTypeSystem());
         if (!ast_ctx)
           return false;
+
+        // Mimick layout of std::__tree_iterator::__ptr_ and read it in
+        // from process memory.
+        //
+        // The following shows the contiguous block of memory:
+        //
+        //        +-----------------------------+ class __tree_end_node
+        // __ptr_ | pointer __left_;            |
+        //        +-----------------------------+ class __tree_node_base
+        //        | pointer __right_;           |
+        //        | __parent_pointer __parent_; |
+        //        | bool __is_black_;           |
+        //        +-----------------------------+ class __tree_node
+        //        | __node_value_type __value_; | <<< our key/value pair
+        //        +-----------------------------+
+        //
         CompilerType tree_node_type = ast_ctx->CreateStructForIdentifier(
             ConstString(),
             {{"ptr0",
@@ -296,7 +313,7 @@ bool lldb_private::formatters::LibCxxMapIteratorSyntheticFrontEnd::Update() {
         llvm::Optional<uint64_t> size = tree_node_type.GetByteSize(nullptr);
         if (!size)
           return false;
-        DataBufferSP buffer_sp(new DataBufferHeap(*size, 0));
+        WritableDataBufferSP buffer_sp(new DataBufferHeap(*size, 0));
         ProcessSP process_sp(target_sp->GetProcessSP());
         Status error;
         process_sp->ReadMemory(addr, buffer_sp->GetBytes(),
@@ -356,6 +373,156 @@ SyntheticChildrenFrontEnd *
 lldb_private::formatters::LibCxxMapIteratorSyntheticFrontEndCreator(
     CXXSyntheticChildren *, lldb::ValueObjectSP valobj_sp) {
   return (valobj_sp ? new LibCxxMapIteratorSyntheticFrontEnd(valobj_sp)
+                    : nullptr);
+}
+
+lldb_private::formatters::LibCxxUnorderedMapIteratorSyntheticFrontEnd::
+    LibCxxUnorderedMapIteratorSyntheticFrontEnd(lldb::ValueObjectSP valobj_sp)
+    : SyntheticChildrenFrontEnd(*valobj_sp) {
+  if (valobj_sp)
+    Update();
+}
+
+bool lldb_private::formatters::LibCxxUnorderedMapIteratorSyntheticFrontEnd::
+    Update() {
+  m_pair_sp.reset();
+  m_iter_ptr = nullptr;
+
+  ValueObjectSP valobj_sp = m_backend.GetSP();
+  if (!valobj_sp)
+    return false;
+
+  TargetSP target_sp(valobj_sp->GetTargetSP());
+
+  if (!target_sp)
+    return false;
+
+  if (!valobj_sp)
+    return false;
+
+  auto exprPathOptions = ValueObject::GetValueForExpressionPathOptions()
+                             .DontCheckDotVsArrowSyntax()
+                             .SetSyntheticChildrenTraversal(
+                                 ValueObject::GetValueForExpressionPathOptions::
+                                     SyntheticChildrenTraversal::None);
+
+  // This must be a ValueObject* because it is a child of the ValueObject we
+  // are producing children for it if were a ValueObjectSP, we would end up
+  // with a loop (iterator -> synthetic -> child -> parent == iterator) and
+  // that would in turn leak memory by never allowing the ValueObjects to die
+  // and free their memory.
+  m_iter_ptr =
+      valobj_sp
+          ->GetValueForExpressionPath(".__i_.__node_", nullptr, nullptr,
+                                      exprPathOptions, nullptr)
+          .get();
+
+  if (m_iter_ptr) {
+    auto iter_child(
+        valobj_sp->GetChildMemberWithName(ConstString("__i_"), true));
+    if (!iter_child) {
+      m_iter_ptr = nullptr;
+      return false;
+    }
+
+    CompilerType node_type(iter_child->GetCompilerType()
+                               .GetTypeTemplateArgument(0)
+                               .GetPointeeType());
+
+    CompilerType pair_type(node_type.GetTypeTemplateArgument(0));
+
+    std::string name;
+    uint64_t bit_offset_ptr;
+    uint32_t bitfield_bit_size_ptr;
+    bool is_bitfield_ptr;
+
+    pair_type = pair_type.GetFieldAtIndex(
+        0, name, &bit_offset_ptr, &bitfield_bit_size_ptr, &is_bitfield_ptr);
+    if (!pair_type) {
+      m_iter_ptr = nullptr;
+      return false;
+    }
+
+    uint64_t addr = m_iter_ptr->GetValueAsUnsigned(LLDB_INVALID_ADDRESS);
+    m_iter_ptr = nullptr;
+
+    if (addr == 0 || addr == LLDB_INVALID_ADDRESS)
+      return false;
+
+    TypeSystemClang *ast_ctx =
+        llvm::dyn_cast_or_null<TypeSystemClang>(pair_type.GetTypeSystem());
+    if (!ast_ctx)
+      return false;
+
+    // Mimick layout of std::__hash_iterator::__node_ and read it in
+    // from process memory.
+    //
+    // The following shows the contiguous block of memory:
+    //
+    //         +-----------------------------+ class __hash_node_base
+    // __node_ | __next_pointer __next_;     |
+    //         +-----------------------------+ class __hash_node
+    //         | size_t __hash_;             |
+    //         | __node_value_type __value_; | <<< our key/value pair
+    //         +-----------------------------+
+    //
+    CompilerType tree_node_type = ast_ctx->CreateStructForIdentifier(
+        ConstString(),
+        {{"__next_",
+          ast_ctx->GetBasicType(lldb::eBasicTypeVoid).GetPointerType()},
+         {"__hash_", ast_ctx->GetBasicType(lldb::eBasicTypeUnsignedLongLong)},
+         {"__value_", pair_type}});
+    llvm::Optional<uint64_t> size = tree_node_type.GetByteSize(nullptr);
+    if (!size)
+      return false;
+    WritableDataBufferSP buffer_sp(new DataBufferHeap(*size, 0));
+    ProcessSP process_sp(target_sp->GetProcessSP());
+    Status error;
+    process_sp->ReadMemory(addr, buffer_sp->GetBytes(),
+                           buffer_sp->GetByteSize(), error);
+    if (error.Fail())
+      return false;
+    DataExtractor extractor(buffer_sp, process_sp->GetByteOrder(),
+                            process_sp->GetAddressByteSize());
+    auto pair_sp = CreateValueObjectFromData(
+        "pair", extractor, valobj_sp->GetExecutionContextRef(), tree_node_type);
+    if (pair_sp)
+      m_pair_sp = pair_sp->GetChildAtIndex(2, true);
+  }
+
+  return false;
+}
+
+size_t lldb_private::formatters::LibCxxUnorderedMapIteratorSyntheticFrontEnd::
+    CalculateNumChildren() {
+  return 2;
+}
+
+lldb::ValueObjectSP lldb_private::formatters::
+    LibCxxUnorderedMapIteratorSyntheticFrontEnd::GetChildAtIndex(size_t idx) {
+  if (m_pair_sp)
+    return m_pair_sp->GetChildAtIndex(idx, true);
+  return lldb::ValueObjectSP();
+}
+
+bool lldb_private::formatters::LibCxxUnorderedMapIteratorSyntheticFrontEnd::
+    MightHaveChildren() {
+  return true;
+}
+
+size_t lldb_private::formatters::LibCxxUnorderedMapIteratorSyntheticFrontEnd::
+    GetIndexOfChildWithName(ConstString name) {
+  if (name == "first")
+    return 0;
+  if (name == "second")
+    return 1;
+  return UINT32_MAX;
+}
+
+SyntheticChildrenFrontEnd *
+lldb_private::formatters::LibCxxUnorderedMapIteratorSyntheticFrontEndCreator(
+    CXXSyntheticChildren *, lldb::ValueObjectSP valobj_sp) {
+  return (valobj_sp ? new LibCxxUnorderedMapIteratorSyntheticFrontEnd(valobj_sp)
                     : nullptr);
 }
 
@@ -546,69 +713,78 @@ bool lldb_private::formatters::LibcxxContainerSummaryProvider(
                                        nullptr, nullptr, &valobj, false, false);
 }
 
-// the field layout in a libc++ string (cap, side, data or data, size, cap)
-enum LibcxxStringLayoutMode {
-  eLibcxxStringLayoutModeCSD = 0,
-  eLibcxxStringLayoutModeDSC = 1,
-  eLibcxxStringLayoutModeInvalid = 0xffff
-};
+/// The field layout in a libc++ string (cap, side, data or data, size, cap).
+namespace {
+enum class StringLayout { CSD, DSC };
+}
 
 /// Determine the size in bytes of \p valobj (a libc++ std::string object) and
 /// extract its data payload. Return the size + payload pair.
+// TODO: Support big-endian architectures.
 static llvm::Optional<std::pair<uint64_t, ValueObjectSP>>
 ExtractLibcxxStringInfo(ValueObject &valobj) {
-  ValueObjectSP D(valobj.GetChildAtIndexPath({0, 0, 0, 0}));
-  if (!D)
+  ValueObjectSP valobj_r_sp =
+      valobj.GetChildMemberWithName(ConstString("__r_"), /*can_create=*/true);
+  if (!valobj_r_sp || !valobj_r_sp->GetError().Success())
     return {};
 
-  ValueObjectSP layout_decider(
-      D->GetChildAtIndexPath(llvm::ArrayRef<size_t>({0, 0})));
-
-  // this child should exist
-  if (!layout_decider)
+  // __r_ is a compressed_pair of the actual data and the allocator. The data we
+  // want is in the first base class.
+  ValueObjectSP valobj_r_base_sp =
+      valobj_r_sp->GetChildAtIndex(0, /*can_create=*/true);
+  if (!valobj_r_base_sp)
     return {};
 
-  ConstString g_data_name("__data_");
-  ConstString g_size_name("__size_");
+  ValueObjectSP valobj_rep_sp = valobj_r_base_sp->GetChildMemberWithName(
+      ConstString("__value_"), /*can_create=*/true);
+  if (!valobj_rep_sp)
+    return {};
+
+  ValueObjectSP l = valobj_rep_sp->GetChildMemberWithName(ConstString("__l"),
+                                                          /*can_create=*/true);
+  if (!l)
+    return {};
+
+  StringLayout layout = l->GetIndexOfChildWithName(ConstString("__data_")) == 0
+                            ? StringLayout::DSC
+                            : StringLayout::CSD;
+
   bool short_mode = false; // this means the string is in short-mode and the
                            // data is stored inline
-  LibcxxStringLayoutMode layout = (layout_decider->GetName() == g_data_name)
-                                      ? eLibcxxStringLayoutModeDSC
-                                      : eLibcxxStringLayoutModeCSD;
+  bool using_bitmasks = true; // Whether the class uses bitmasks for the mode
+                              // flag (pre-D123580).
+  uint64_t size;
   uint64_t size_mode_value = 0;
 
-  if (layout == eLibcxxStringLayoutModeDSC) {
-    ValueObjectSP size_mode(D->GetChildAtIndexPath({1, 1, 0}));
-    if (!size_mode)
-      return {};
+  ValueObjectSP short_sp = valobj_rep_sp->GetChildMemberWithName(
+      ConstString("__s"), /*can_create=*/true);
+  if (!short_sp)
+    return {};
 
-    if (size_mode->GetName() != g_size_name) {
-      // we are hitting the padding structure, move along
-      size_mode = D->GetChildAtIndexPath({1, 1, 1});
-      if (!size_mode)
-        return {};
-    }
+  ValueObjectSP is_long =
+      short_sp->GetChildMemberWithName(ConstString("__is_long_"), true);
+  ValueObjectSP size_sp =
+      short_sp->GetChildAtNamePath({ConstString("__size_")});
+  if (!size_sp)
+    return {};
 
-    size_mode_value = (size_mode->GetValueAsUnsigned(0));
-    short_mode = ((size_mode_value & 0x80) == 0);
+  if (is_long) {
+    using_bitmasks = false;
+    short_mode = !is_long->GetValueAsUnsigned(/*fail_value=*/0);
+    size = size_sp->GetValueAsUnsigned(/*fail_value=*/0);
   } else {
-    ValueObjectSP size_mode(D->GetChildAtIndexPath({1, 0, 0}));
-    if (!size_mode)
-      return {};
-
-    size_mode_value = (size_mode->GetValueAsUnsigned(0));
-    short_mode = ((size_mode_value & 1) == 0);
+    // The string mode is encoded in the size field.
+    size_mode_value = size_sp->GetValueAsUnsigned(0);
+    uint8_t mode_mask = layout == StringLayout::DSC ? 0x80 : 1;
+    short_mode = (size_mode_value & mode_mask) == 0;
   }
 
   if (short_mode) {
-    ValueObjectSP s(D->GetChildAtIndex(1, true));
-    if (!s)
-      return {};
-    ValueObjectSP location_sp = s->GetChildAtIndex(
-        (layout == eLibcxxStringLayoutModeDSC) ? 0 : 1, true);
-    const uint64_t size = (layout == eLibcxxStringLayoutModeDSC)
-                              ? size_mode_value
-                              : ((size_mode_value >> 1) % 256);
+    ValueObjectSP location_sp =
+        short_sp->GetChildMemberWithName(ConstString("__data_"), true);
+    if (using_bitmasks)
+      size = (layout == StringLayout::DSC) ? size_mode_value
+                                           : ((size_mode_value >> 1) % 256);
 
     // When the small-string optimization takes place, the data must fit in the
     // inline string buffer (23 bytes on x86_64/Darwin). If it doesn't, it's
@@ -623,22 +799,19 @@ ExtractLibcxxStringInfo(ValueObject &valobj) {
     return std::make_pair(size, location_sp);
   }
 
-  ValueObjectSP l(D->GetChildAtIndex(0, true));
-  if (!l)
-    return {};
   // we can use the layout_decider object as the data pointer
-  ValueObjectSP location_sp = (layout == eLibcxxStringLayoutModeDSC)
-                                  ? layout_decider
-                                  : l->GetChildAtIndex(2, true);
-  ValueObjectSP size_vo(l->GetChildAtIndex(1, true));
-  const unsigned capacity_index =
-      (layout == eLibcxxStringLayoutModeDSC) ? 2 : 0;
-  ValueObjectSP capacity_vo(l->GetChildAtIndex(capacity_index, true));
+  ValueObjectSP location_sp =
+      l->GetChildMemberWithName(ConstString("__data_"), /*can_create=*/true);
+  ValueObjectSP size_vo =
+      l->GetChildMemberWithName(ConstString("__size_"), /*can_create=*/true);
+  ValueObjectSP capacity_vo =
+      l->GetChildMemberWithName(ConstString("__cap_"), /*can_create=*/true);
   if (!size_vo || !location_sp || !capacity_vo)
     return {};
-  const uint64_t size = size_vo->GetValueAsUnsigned(LLDB_INVALID_OFFSET);
-  const uint64_t capacity =
-      capacity_vo->GetValueAsUnsigned(LLDB_INVALID_OFFSET);
+  size = size_vo->GetValueAsUnsigned(LLDB_INVALID_OFFSET);
+  uint64_t capacity = capacity_vo->GetValueAsUnsigned(LLDB_INVALID_OFFSET);
+  if (!using_bitmasks && layout == StringLayout::CSD)
+    capacity *= 2;
   if (size == LLDB_INVALID_OFFSET || capacity == LLDB_INVALID_OFFSET ||
       capacity < size)
     return {};

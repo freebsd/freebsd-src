@@ -31,6 +31,10 @@
 #ifndef	_SYS_PHYSMEM_H_
 #define	_SYS_PHYSMEM_H_
 
+#ifndef _KERNEL
+#include <stdbool.h>
+#endif
+
 /*
  * Routines to help configure physical ram.
  *
@@ -54,6 +58,7 @@ void physmem_exclude_region(vm_paddr_t pa, vm_size_t sz, uint32_t flags);
 size_t physmem_avail(vm_paddr_t *avail, size_t maxavail);
 void physmem_init_kernel_globals(void);
 void physmem_print_tables(void);
+bool physmem_excluded(vm_paddr_t pa, vm_size_t sz);
 
 /*
  * Convenience routines for FDT.

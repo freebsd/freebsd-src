@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (C) 2019 - 2020 Intel Corporation
+ * Copyright (C) 2019 - 2022 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -140,6 +140,14 @@ struct irdma_get_context_resp {
 };
 struct irdma_ureg_mr {
 	struct ibv_reg_mr	ibv_cmd;
+	__u16 reg_type; /* enum irdma_memreg_type */
+	__u16 cq_pages;
+	__u16 rq_pages;
+	__u16 sq_pages;
+
+};
+struct irdma_urereg_mr {
+	struct ibv_rereg_mr	ibv_cmd;
 	__u16 reg_type; /* enum irdma_memreg_type */
 	__u16 cq_pages;
 	__u16 rq_pages;

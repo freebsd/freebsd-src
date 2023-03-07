@@ -214,7 +214,10 @@ static uint64_t
 mlx5e_mbuf_tstmp(struct mlx5e_priv *priv, uint64_t hw_tstmp)
 {
 	struct mlx5e_clbr_point *cp, dcp;
-	uint64_t a1, a2, res;
+	uint64_t tstmp_sec, tstmp_nsec;
+	uint64_t hw_clocks;
+	uint64_t rt_cur_to_prev, res_s, res_n, res_s_modulo, res;
+	uint64_t hw_clk_div;
 	u_int gen;
 
 	do {
@@ -224,19 +227,49 @@ mlx5e_mbuf_tstmp(struct mlx5e_priv *priv, uint64_t hw_tstmp)
 			return (0);
 		dcp = *cp;
 		atomic_thread_fence_acq();
-	} while (gen != cp->clbr_gen);
-
-	a1 = (hw_tstmp - dcp.clbr_hw_prev) >> MLX5E_TSTMP_PREC;
-	a2 = (dcp.base_curr - dcp.base_prev) >> MLX5E_TSTMP_PREC;
-	res = (a1 * a2) << MLX5E_TSTMP_PREC;
-
+	} while (gen != dcp.clbr_gen);
 	/*
-	 * Divisor cannot be zero because calibration callback
-	 * checks for the condition and disables timestamping
-	 * if clock halted.
+	 * Our goal here is to have a result that is:
+	 *
+	 * (                             (cur_time - prev_time)   )
+	 * ((hw_tstmp - hw_prev) *  ----------------------------- ) + prev_time
+	 * (                             (hw_cur - hw_prev)       )
+	 *
+	 * With the constraints that we cannot use float and we
+	 * don't want to overflow the uint64_t numbers we are using.
+	 *
+	 * The plan is to take the clocking value of the hw timestamps
+	 * and split them into seconds and nanosecond equivalent portions.
+	 * Then we operate on the two portions seperately making sure to
+	 * bring back the carry over from the seconds when we divide.
+	 *
+	 * First up lets get the two divided into separate entities
+	 * i.e. the seconds. We use the clock frequency for this.
+	 * Note that priv->cclk was setup with the clock frequency
+	 * in hz so we are all set to go.
 	 */
-	res /= (dcp.clbr_hw_curr - dcp.clbr_hw_prev) >> MLX5E_TSTMP_PREC;
-
+	hw_clocks = hw_tstmp - dcp.clbr_hw_prev;
+	tstmp_sec = hw_clocks / priv->cclk;
+	tstmp_nsec = hw_clocks % priv->cclk;
+	/* Now work with them separately */
+	rt_cur_to_prev = (dcp.base_curr - dcp.base_prev);
+	res_s = tstmp_sec * rt_cur_to_prev;
+	res_n = tstmp_nsec * rt_cur_to_prev;
+	/* Now lets get our divider */
+	hw_clk_div = dcp.clbr_hw_curr - dcp.clbr_hw_prev;
+	/* Make sure to save the remainder from the seconds divide */
+	res_s_modulo = res_s % hw_clk_div;
+	res_s /= hw_clk_div;
+	/* scale the remainder to where it should be */
+	res_s_modulo *= priv->cclk;
+	/* Now add in the remainder */
+	res_n += res_s_modulo;
+	/* Now do the divide */
+	res_n /= hw_clk_div;
+	res_s *= priv->cclk;
+	/* Recombine the two */
+	res = res_s + res_n;
+	/* And now add in the base time to get to the real timestamp */
 	res += dcp.base_prev;
 	return (res);
 }
@@ -246,7 +279,7 @@ mlx5e_build_rx_mbuf(struct mlx5_cqe64 *cqe,
     struct mlx5e_rq *rq, struct mbuf *mb,
     u32 cqe_bcnt)
 {
-	struct ifnet *ifp = rq->ifp;
+	if_t ifp = rq->ifp;
 	struct mlx5e_channel *c;
 	struct mbuf *mb_head;
 	int lro_num_seg;	/* HW LRO session aggregated packets counter */
@@ -342,7 +375,7 @@ mlx5e_build_rx_mbuf(struct mlx5_cqe64 *cqe,
 		} else {
 			rq->stats.csum_none++;
 		}
-	} else if (likely((ifp->if_capenable & (IFCAP_RXCSUM |
+	} else if (likely((if_getcapenable(ifp) & (IFCAP_RXCSUM |
 	    IFCAP_RXCSUM_IPV6)) != 0) &&
 	    ((cqe->hds_ip_ext & (CQE_L2_OK | CQE_L3_OK | CQE_L4_OK)) ==
 	    (CQE_L2_OK | CQE_L3_OK | CQE_L4_OK))) {
@@ -370,10 +403,11 @@ mlx5e_build_rx_mbuf(struct mlx5_cqe64 *cqe,
 			tstmp &= ~MLX5_CQE_TSTMP_PTP;
 			mb->m_flags |= M_TSTMP_HPREC;
 		}
-		mb->m_pkthdr.rcv_tstmp = tstmp;
-		mb->m_flags |= M_TSTMP;
+		if (tstmp != 0) {
+			mb->m_pkthdr.rcv_tstmp = tstmp;
+			mb->m_flags |= M_TSTMP;
+		}
 	}
-
 	switch (get_cqe_tls_offload(cqe)) {
 	case CQE_TLS_OFFLOAD_DECRYPTED:
 		/* set proper checksum flag for decrypted packets */
@@ -467,7 +501,7 @@ mlx5e_poll_rx_cq(struct mlx5e_rq *rq, int budget)
 	struct pfil_head *pfil;
 	int i, rv;
 
-	CURVNET_SET_QUIET(rq->ifp->if_vnet);
+	CURVNET_SET_QUIET(if_getvnet(rq->ifp));
 	pfil = rq->channel->priv->pfil;
 	for (i = 0; i < budget; i++) {
 		struct mlx5e_rx_wqe *wqe;
@@ -502,9 +536,8 @@ mlx5e_poll_rx_cq(struct mlx5e_rq *rq, int budget)
 		}
 		if (pfil != NULL && PFIL_HOOKED_IN(pfil)) {
 			seglen = MIN(byte_cnt, MLX5E_MAX_RX_BYTES);
-			rv = pfil_run_hooks(rq->channel->priv->pfil,
-			    rq->mbuf[wqe_counter].data, rq->ifp,
-			    seglen | PFIL_MEMPTR | PFIL_IN, NULL);
+			rv = pfil_mem_in(rq->channel->priv->pfil,
+			    rq->mbuf[wqe_counter].data, seglen, rq->ifp, &mb);
 
 			switch (rv) {
 			case PFIL_DROPPED:
@@ -522,7 +555,6 @@ mlx5e_poll_rx_cq(struct mlx5e_rq *rq, int budget)
 				 * and receive the new mbuf allocated
 				 * by the Filter
 				 */
-				mb = pfil_mem2mbuf(rq->mbuf[wqe_counter].data);
 				goto rx_common;
 			default:
 				/*
@@ -554,17 +586,17 @@ rx_common:
 		rq->stats.bytes += byte_cnt;
 		rq->stats.packets++;
 #ifdef NUMA
-		mb->m_pkthdr.numa_domain = rq->ifp->if_numa_domain;
+		mb->m_pkthdr.numa_domain = if_getnumadomain(rq->ifp);
 #endif
 
 #if !defined(HAVE_TCP_LRO_RX)
 		tcp_lro_queue_mbuf(&rq->lro, mb);
 #else
 		if (mb->m_pkthdr.csum_flags == 0 ||
-		    (rq->ifp->if_capenable & IFCAP_LRO) == 0 ||
+		    (if_getcapenable(rq->ifp) & IFCAP_LRO) == 0 ||
 		    rq->lro.lro_cnt == 0 ||
 		    tcp_lro_rx(&rq->lro, mb, 0) != 0) {
-			rq->ifp->if_input(rq->ifp, mb);
+			if_input(rq->ifp, mb);
 		}
 #endif
 wq_ll_pop:
@@ -600,7 +632,7 @@ mlx5e_rx_cq_comp(struct mlx5_core_cq *mcq, struct mlx5_eqe *eqe __unused)
 		mb->m_data[14] = rq->ix;
 		mb->m_pkthdr.rcvif = rq->ifp;
 		mb->m_pkthdr.leaf_rcvif = rq->ifp;
-		rq->ifp->if_input(rq->ifp, mb);
+		if_input(rq->ifp, mb);
 	}
 #endif
 	for (int j = 0; j != MLX5E_MAX_TX_NUM_TC; j++) {

@@ -238,7 +238,10 @@ enum tcp_log_events {
 	TCP_HYSTART,		/* TCP Hystart logging 65 */
 	TCP_CHG_QUERY,		/* Change query during fnc_init() 66 */
 	TCP_RACK_LOG_COLLAPSE,	/* Window collapse by peer 67 */
-	TCP_LOG_END		/* End (keep at end)                68 */
+	TCP_RACK_TP_TRIGGERED,	/* A rack tracepoint is triggered 68 */
+	TCP_HYBRID_PACING_LOG,	/* Hybrid pacing log 69 */
+	TCP_LOG_PRU,		/* TCP protocol user request        70 */
+	TCP_LOG_END		/* End (keep at end)                71 */
 };
 
 enum tcp_log_states {
@@ -330,6 +333,7 @@ struct tcp_log_dev_log_queue {
  * len indicates the length of the packet. If no packet, use 0.
  * stackinfo is optional; if present, it will appear in the record.
  */
+struct tcpcb;
 #ifdef TCP_LOG_FORCEVERBOSE
 #define	TCP_LOG_EVENT	TCP_LOG_EVENT_VERBOSE
 #else

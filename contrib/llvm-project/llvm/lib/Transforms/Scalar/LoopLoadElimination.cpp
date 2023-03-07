@@ -61,7 +61,6 @@
 #include <algorithm>
 #include <cassert>
 #include <forward_list>
-#include <set>
 #include <tuple>
 #include <utility>
 
@@ -213,7 +212,8 @@ public:
         continue;
 
       // Only progagate the value if they are of the same type.
-      if (Store->getPointerOperandType() != Load->getPointerOperandType())
+      if (Store->getPointerOperandType() != Load->getPointerOperandType() ||
+          getLoadStoreType(Store) != getLoadStoreType(Load))
         continue;
 
       Candidates.emplace_front(Load, Store);
@@ -528,7 +528,7 @@ public:
       return false;
     }
 
-    if (LAI.getPSE().getUnionPredicate().getComplexity() >
+    if (LAI.getPSE().getPredicate().getComplexity() >
         LoadElimSCEVCheckThreshold) {
       LLVM_DEBUG(dbgs() << "Too many SCEV run-time checks needed.\n");
       return false;
@@ -539,7 +539,7 @@ public:
       return false;
     }
 
-    if (!Checks.empty() || !LAI.getPSE().getUnionPredicate().isAlwaysTrue()) {
+    if (!Checks.empty() || !LAI.getPSE().getPredicate().isAlwaysTrue()) {
       if (LAI.hasConvergentOp()) {
         LLVM_DEBUG(dbgs() << "Versioning is needed but not allowed with "
                              "convergent calls\n");
@@ -706,8 +706,12 @@ FunctionPass *llvm::createLoopLoadEliminationPass() {
 
 PreservedAnalyses LoopLoadEliminationPass::run(Function &F,
                                                FunctionAnalysisManager &AM) {
-  auto &SE = AM.getResult<ScalarEvolutionAnalysis>(F);
   auto &LI = AM.getResult<LoopAnalysis>(F);
+  // There are no loops in the function. Return before computing other expensive
+  // analyses.
+  if (LI.empty())
+    return PreservedAnalyses::all();
+  auto &SE = AM.getResult<ScalarEvolutionAnalysis>(F);
   auto &TTI = AM.getResult<TargetIRAnalysis>(F);
   auto &DT = AM.getResult<DominatorTreeAnalysis>(F);
   auto &TLI = AM.getResult<TargetLibraryAnalysis>(F);

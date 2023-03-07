@@ -39,6 +39,6 @@ edquota -g -f /tmp -e /tmp:1500000:1400000:200000:180000 $testuser
 quotaon /tmp
 
 su $testuser -c "export runRUNTIME=60m; cd ../testcases/mkdir; \
-    ./mkdir -t 30m -i 200 -v -v"
+    ./mkdir -t 10m -i 200 -v -v"
 
 quotaoff /tmp

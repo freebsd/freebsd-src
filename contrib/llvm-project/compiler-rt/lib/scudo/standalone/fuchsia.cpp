@@ -17,6 +17,7 @@
 #include <lib/sync/mutex.h> // for sync_mutex_t
 #include <stdlib.h>         // for getenv()
 #include <zircon/compiler.h>
+#include <zircon/process.h>
 #include <zircon/sanitizer.h>
 #include <zircon/syscalls.h>
 
@@ -56,8 +57,9 @@ void *map(void *Addr, uptr Size, const char *Name, uptr Flags,
   if (Flags & MAP_NOACCESS)
     return allocateVmar(Size, Data, AllowNoMem);
 
-  const zx_handle_t Vmar = Data ? Data->Vmar : _zx_vmar_root_self();
-  CHECK_NE(Vmar, ZX_HANDLE_INVALID);
+  const zx_handle_t Vmar = (Data && Data->Vmar != ZX_HANDLE_INVALID)
+                               ? Data->Vmar
+                               : _zx_vmar_root_self();
 
   zx_status_t Status;
   zx_handle_t Vmo;
@@ -88,6 +90,8 @@ void *map(void *Addr, uptr Size, const char *Name, uptr Flags,
   uintptr_t P;
   zx_vm_option_t MapFlags =
       ZX_VM_PERM_READ | ZX_VM_PERM_WRITE | ZX_VM_ALLOW_FAULTS;
+  if (Addr)
+    DCHECK(Data);
   const uint64_t Offset =
       Addr ? reinterpret_cast<uintptr_t>(Addr) - Data->VmarBase : 0;
   if (Offset)
@@ -123,7 +127,9 @@ void unmap(void *Addr, uptr Size, uptr Flags, MapPlatformData *Data) {
     CHECK_EQ(_zx_vmar_destroy(Vmar), ZX_OK);
     CHECK_EQ(_zx_handle_close(Vmar), ZX_OK);
   } else {
-    const zx_handle_t Vmar = Data ? Data->Vmar : _zx_vmar_root_self();
+    const zx_handle_t Vmar = (Data && Data->Vmar != ZX_HANDLE_INVALID)
+                                 ? Data->Vmar
+                                 : _zx_vmar_root_self();
     const zx_status_t Status =
         _zx_vmar_unmap(Vmar, reinterpret_cast<uintptr_t>(Addr), Size);
     if (UNLIKELY(Status != ZX_OK))

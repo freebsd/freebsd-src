@@ -150,23 +150,13 @@ private:
     return getPCRelEncoding(MI, OpNum, Fixups,
                             SystemZ::FK_390_PC24DBL, 3, false);
   }
-
-private:
-  FeatureBitset computeAvailableFeatures(const FeatureBitset &FB) const;
-  void
-  verifyInstructionPredicates(const MCInst &MI,
-                              const FeatureBitset &AvailableFeatures) const;
 };
 
 } // end anonymous namespace
 
-void SystemZMCCodeEmitter::
-encodeInstruction(const MCInst &MI, raw_ostream &OS,
-                  SmallVectorImpl<MCFixup> &Fixups,
-                  const MCSubtargetInfo &STI) const {
-  verifyInstructionPredicates(MI,
-                              computeAvailableFeatures(STI.getFeatureBits()));
-
+void SystemZMCCodeEmitter::encodeInstruction(const MCInst &MI, raw_ostream &OS,
+                                             SmallVectorImpl<MCFixup> &Fixups,
+                                             const MCSubtargetInfo &STI) const {
   MemOpsEmitted = 0;
   uint64_t Bits = getBinaryCodeForInstr(MI, Fixups, STI);
   unsigned Size = MCII.get(MI.getOpcode()).getSize();
@@ -329,11 +319,9 @@ SystemZMCCodeEmitter::getPCRelEncoding(const MCInst &MI, unsigned OpNum,
   return 0;
 }
 
-#define ENABLE_INSTR_PREDICATE_VERIFIER
 #include "SystemZGenMCCodeEmitter.inc"
 
 MCCodeEmitter *llvm::createSystemZMCCodeEmitter(const MCInstrInfo &MCII,
-                                                const MCRegisterInfo &MRI,
                                                 MCContext &Ctx) {
   return new SystemZMCCodeEmitter(MCII, Ctx);
 }

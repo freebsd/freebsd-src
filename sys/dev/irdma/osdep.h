@@ -87,8 +87,6 @@
 
 /* a couple of linux size defines */
 #define SZ_128     128
-#define SZ_2K     SZ_128 * 16
-#define SZ_1G   (SZ_1K * SZ_1K * SZ_1K)
 #define SPEED_1000     1000
 #define SPEED_10000   10000
 #define SPEED_20000   20000
@@ -103,6 +101,9 @@
 #define __aligned_u64 uint64_t __aligned(8)
 
 #define VLAN_PRIO_SHIFT 13
+#if __FreeBSD_version < 1400000
+#define IB_USER_VERBS_EX_CMD_MODIFY_QP IB_USER_VERBS_CMD_MODIFY_QP
+#endif
 
 /*
  * debug definition section
@@ -133,7 +134,7 @@ do {									\
 #define irdma_dev_warn(a, b, ...) printf(b, ##__VA_ARGS__) /*dev_warn(a, b)*/
 #define irdma_dev_info(a, b, ...) printf(b, ##__VA_ARGS__)
 #define irdma_pr_warn printf
-#define ibdev_err(ibdev, fmt, ...)  irdma_dev_err(&((ibdev)->dev), fmt, ##__VA_ARGS__)
+#define ibdev_err(ibdev, fmt, ...)  printf("%s:"fmt, (ibdev)->name, ##__VA_ARGS__)
 
 #define dump_struct(s, sz, name)	\
 do {				\
@@ -183,8 +184,10 @@ struct irdma_dev_ctx {
 #define irdma_usec_delay(x) DELAY(x)
 #define mdelay(x) DELAY((x) * 1000)
 
-#define rt_tos2priority(tos) (((tos >> 1) & 0x8 >> 1) | ((tos >> 2) ^ ((tos >> 3) << 1)))
+#define rt_tos2priority(tos) (tos >> 5)
 #define ah_attr_to_dmac(attr) ((attr).dmac)
+#define kc_ib_modify_qp_is_ok(cur_state, next_state, type, mask, ll) \
+        ib_modify_qp_is_ok(cur_state, next_state, type, mask)
 #define kc_rdma_gid_attr_network_type(sgid_attr, gid_type, gid) \
         ib_gid_to_network_type(gid_type, gid)
 #define irdma_del_timer_compat(tt) del_timer((tt))

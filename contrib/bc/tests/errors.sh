@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -36,20 +36,33 @@ testdir=$(dirname "$script")
 
 outputdir=${BC_TEST_OUTPUT_DIR:-$testdir}
 
-# Command-line processing.
-if [ "$#" -eq 0 ]; then
+# Just print the usage and exit with an error. This can receive a message to
+# print.
+# @param 1  A message to print.
+usage() {
+	if [ $# -eq 1 ]; then
+		printf '%s\n\n' "$1"
+	fi
 	printf 'usage: %s dir [exec args...]\n' "$script"
 	exit 1
+}
+
+# Command-line processing.
+if [ "$#" -eq 0 ]; then
+	usage "Not enough arguments"
 else
 	d="$1"
 	shift
+	check_d_arg "$d"
 fi
 
 if [ "$#" -lt 1 ]; then
 	exe="$testdir/../bin/$d"
+	check_exec_arg "$exe"
 else
 	exe="$1"
 	shift
+	check_exec_arg "$exe"
 fi
 
 # I use these, so unset them to make the tests work.
@@ -85,12 +98,12 @@ fi
 
 printf 'Running %s command-line error tests...' "$d"
 
-printf '%s\n' "$halt" | "$exe" "$@" -e "1+1" -f- -e "2+2" 2> "$out" > /dev/null
+printf '%s\n' "$halt" 2> /dev/null | "$exe" "$@" -e "1+1" -f- -e "2+2" 2> "$out" > /dev/null
 err="$?"
 
 checkerrtest "$d" "$err" "command-line -e test" "$out" "$exebase"
 
-printf '%s\n' "$halt" | "$exe" "$@" -e "1+1" -f- -f "$testdir/$d/decimal.txt" 2> "$out" > /dev/null
+printf '%s\n' "$halt" 2> /dev/null | "$exe" "$@" -e "1+1" -f- -f "$testdir/$d/decimal.txt" 2> "$out" > /dev/null
 err="$?"
 
 checkerrtest "$d" "$err" "command-line -f test" "$out" "$exebase"
@@ -110,7 +123,7 @@ for testfile in $testdir/$d/*errors.txt; do
 
 		# Just test warnings.
 		line="last"
-		printf '%s\n' "$line" | "$exe" "$@" "-lw"  2> "$out" > /dev/null
+		printf '%s\n' "$line" 2> /dev/null | "$exe" "$@" "-lw"  2> "$out" > /dev/null
 		err="$?"
 
 		if [ "$err" -ne 0 ]; then
@@ -137,7 +150,7 @@ for testfile in $testdir/$d/*errors.txt; do
 
 		rm -f "$out"
 
-		printf '%s\n' "$line" | "$exe" "$@" "$options" 2> "$out" > /dev/null
+		printf '%s\n' "$line" 2> /dev/null | "$exe" "$@" "$options" 2> "$out" > /dev/null
 		err="$?"
 
 		checkerrtest "$d" "$err" "$line" "$out" "$exebase"

@@ -52,6 +52,7 @@ _PREMK_LIBDIR:=	${LIBDIR}
 .endif
 
 .include "src.sys.mk"
+.-include <site.sys.mk>
 
 .if ${.MAKE.MODE:Mmeta*} != ""
 # we can afford to use cookies to prevent some targets

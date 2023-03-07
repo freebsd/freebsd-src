@@ -190,7 +190,7 @@ histedit(void)
 			if (el != NULL) {
 				if (hist)
 					el_set(el, EL_HIST, history, hist);
-				el_set(el, EL_PROMPT, getprompt);
+				el_set(el, EL_PROMPT_ESC, getprompt, '\001');
 				el_set(el, EL_ADDFN, "sh-complete",
 				    "Filename completion",
 				    sh_complete);

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: fonts,v 1.50 2022/03/21 21:28:13 christos Exp $
+# $File: fonts,v 1.51 2022/08/16 11:16:39 christos Exp $
 # fonts:  file(1) magic for font data
 #
 0	search/1	FONT		ASCII vfont text
@@ -442,6 +442,7 @@
 # https://www.w3.org/TR/WOFF2/
 0	string		wOF2	Web Open Font Format (Version 2)
 !:mime font/woff2
+!:ext	woff2
 >0	use		woff
 #>20	belong		x	\b, totalCompressedSize %d
 >24	beshort		x	\b, version %d

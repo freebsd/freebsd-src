@@ -1,6 +1,6 @@
 # License
 
-Copyright (c) 2018-2021 Gavin D. Howard <yzena.tech@gmail.com>
+Copyright (c) 2018-2023 Gavin D. Howard <gavin@gavinhoward.com>
 
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
@@ -31,7 +31,7 @@ copyrights and license:
 Copyright (c) 2010-2014, Salvatore Sanfilippo <antirez at gmail dot com><br>
 Copyright (c) 2010-2013, Pieter Noordhuis <pcnoordhuis at gmail dot com><br>
 Copyright (c) 2018 rain-1 <rain1@openmailbox.org><br>
-Copyright (c) 2018-2021, Gavin D. Howard <yzena.tech@gmail.com>
+Copyright (c) 2018-2023, Gavin D. Howard <gavin@gavinhoward.com>
 
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
@@ -60,7 +60,7 @@ The files `src/rand.c` and `include/rand.h` are under the following copyrights
 and license:
 
 Copyright (c) 2014-2017 Melissa O'Neill and PCG Project contributors
-Copyright (c) 2018-2021 Gavin D. Howard <yzena.tech@gmail.com>
+Copyright (c) 2018-2023 Gavin D. Howard <gavin@gavinhoward.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in

@@ -197,7 +197,7 @@ int		 parse_config(struct env *, const char *, int);
 int		 cmdline_symset(char *);
 
 /* ldapclient.c */
-pid_t		 ldapclient(int []);
+pid_t		 ldapclient(int [2]);
 
 /* ypldap.c */
 void		 purge_config(struct env *);

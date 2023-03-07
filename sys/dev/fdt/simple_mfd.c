@@ -89,7 +89,7 @@ simple_mfd_syscon_read_4(struct syscon *syscon, bus_size_t offset)
 	uint32_t val;
 
 	sc = device_get_softc(syscon->pdev);
-	SYSCON_ASSERT_LOCKED(sc);;
+	SYSCON_ASSERT_LOCKED(sc);
 	val = bus_read_4(sc->mem_res, offset);
 	return (val);
 }

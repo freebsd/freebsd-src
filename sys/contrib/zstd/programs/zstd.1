@@ -1,5 +1,5 @@
 .
-.TH "ZSTD" "1" "December 2020" "zstd 1.4.8" "User Commands"
+.TH "ZSTD" "1" "January 2022" "zstd 1.5.2" "User Commands"
 .
 .SH "NAME"
 \fBzstd\fR \- zstd, zstdmt, unzstd, zstdcat \- Compress or decompress \.zst files
@@ -105,10 +105,13 @@ Display information related to a zstd compressed file, such as size, ratio, and 
 \fB\-\-fast[=#]\fR: switch to ultra\-fast compression levels\. If \fB=#\fR is not present, it defaults to \fB1\fR\. The higher the value, the faster the compression speed, at the cost of some compression ratio\. This setting overwrites compression level if one was set previously\. Similarly, if a compression level is set after \fB\-\-fast\fR, it overrides it\.
 .
 .IP "\(bu" 4
-\fB\-T#\fR, \fB\-\-threads=#\fR: Compress using \fB#\fR working threads (default: 1)\. If \fB#\fR is 0, attempt to detect and use the number of physical CPU cores\. In all cases, the nb of threads is capped to ZSTDMT_NBWORKERS_MAX==200\. This modifier does nothing if \fBzstd\fR is compiled without multithread support\.
+\fB\-T#\fR, \fB\-\-threads=#\fR: Compress using \fB#\fR working threads (default: 1)\. If \fB#\fR is 0, attempt to detect and use the number of physical CPU cores\. In all cases, the nb of threads is capped to \fBZSTDMT_NBWORKERS_MAX\fR, which is either 64 in 32\-bit mode, or 256 for 64\-bit environments\. This modifier does nothing if \fBzstd\fR is compiled without multithread support\.
 .
 .IP "\(bu" 4
 \fB\-\-single\-thread\fR: Does not spawn a thread for compression, use a single thread for both I/O and compression\. In this mode, compression is serialized with I/O, which is slightly slower\. (This is different from \fB\-T1\fR, which spawns 1 compression thread in parallel of I/O)\. This mode is the only one available when multithread support is disabled\. Single\-thread mode features lower memory usage\. Final compressed result is slightly different from \fB\-T1\fR\.
+.
+.IP "\(bu" 4
+\fB\-\-auto\-threads={physical,logical} (default: physical)\fR: When using a default amount of threads via \fB\-T0\fR, choose the default based on the number of detected physical or logical cores\.
 .
 .IP "\(bu" 4
 \fB\-\-adapt[=min=#,max=#]\fR : \fBzstd\fR will dynamically adapt compression level to perceived I/O conditions\. Compression level adaptation can be observed live by using command \fB\-v\fR\. Adaptation can be constrained between supplied \fBmin\fR and \fBmax\fR levels\. The feature works when combined with multi\-threading and \fB\-\-long\fR mode\. It does not work with \fB\-\-single\-thread\fR\. It sets window size to 8 MB by default (can be changed manually, see \fBwlog\fR)\. Due to the chaotic nature of dynamic adaptation, compressed result is not reproducible\. \fInote\fR : at the time of this writing, \fB\-\-adapt\fR can remain stuck at low speed when combined with multiple worker threads (>=2)\.
@@ -129,7 +132,7 @@ Note: If \fBwindowLog\fR is set to larger than 27, \fB\-\-long=windowLog\fR or \
 Note: cannot use both this and \-D together Note: \fB\-\-long\fR mode will be automatically activated if chainLog < fileLog (fileLog being the windowLog required to cover the whole file)\. You can also manually force it\. Node: for all levels, you can use \-\-patch\-from in \-\-single\-thread mode to improve compression ratio at the cost of speed Note: for level 19, you can get increased compression ratio at the cost of speed by specifying \fB\-\-zstd=targetLength=\fR to be something large (i\.e 4096), and by setting a large \fB\-\-zstd=chainLog=\fR
 .
 .IP "\(bu" 4
-\fB\-\-rsyncable\fR : \fBzstd\fR will periodically synchronize the compression state to make the compressed file more rsync\-friendly\. There is a negligible impact to compression ratio, and the faster compression levels will see a small compression speed hit\. This feature does not work with \fB\-\-single\-thread\fR\. You probably don\'t want to use it with long range mode, since it will decrease the effectiveness of the synchronization points, but your milage may vary\.
+\fB\-\-rsyncable\fR : \fBzstd\fR will periodically synchronize the compression state to make the compressed file more rsync\-friendly\. There is a negligible impact to compression ratio, and the faster compression levels will see a small compression speed hit\. This feature does not work with \fB\-\-single\-thread\fR\. You probably don\'t want to use it with long range mode, since it will decrease the effectiveness of the synchronization points, but your mileage may vary\.
 .
 .IP "\(bu" 4
 \fB\-C\fR, \fB\-\-[no\-]check\fR: add integrity check computed from uncompressed data (default: enabled)
@@ -146,6 +149,9 @@ Note: cannot use both this and \-D together Note: \fB\-\-long\fR mode will be au
 .IP
 This is also used during compression when using with \-\-patch\-from=\. In this case, this parameter overrides that maximum size allowed for a dictionary\. (128 MB)\.
 .
+.IP
+Additionally, this can be used to limit memory for dictionary training\. This parameter overrides the default limit of 2 GB\. zstd will load training samples up to the memory limit and ignore the rest\.
+.
 .IP "\(bu" 4
 \fB\-\-stream\-size=#\fR : Sets the pledged source size of input coming from a stream\. This value must be exact, as it will be included in the produced frame header\. Incorrect stream sizes will cause an error\. This information will be used to better optimize compression parameters, resulting in better and potentially faster compression, especially for smaller source sizes\.
 .
@@ -156,10 +162,10 @@ This is also used during compression when using with \-\-patch\-from=\. In this 
 \fB\-o FILE\fR: save result into \fBFILE\fR
 .
 .IP "\(bu" 4
-\fB\-f\fR, \fB\-\-force\fR: overwrite output without prompting, and (de)compress symbolic links
+\fB\-f\fR, \fB\-\-force\fR: disable input and output checks\. Allows overwriting existing files, input from console, output to stdout, operating on links, block devices, etc\.
 .
 .IP "\(bu" 4
-\fB\-c\fR, \fB\-\-stdout\fR: force write to standard output, even if it is the console
+\fB\-c\fR, \fB\-\-stdout\fR: write to standard output (even if it is the console)
 .
 .IP "\(bu" 4
 \fB\-\-[no\-]sparse\fR: enable / disable sparse FS support, to make files with many zeroes smaller on disk\. Creating sparse files may save disk space and speed up decompression by reducing the amount of disk I/O\. default: enabled when output is into a file, and disabled when output is stdout\. This setting overrides default and can force sparse mode over stdout\.
@@ -171,7 +177,7 @@ This is also used during compression when using with \-\-patch\-from=\. In this 
 \fB\-k\fR, \fB\-\-keep\fR: keep source file(s) after successful compression or decompression\. This is the default behavior\.
 .
 .IP "\(bu" 4
-\fB\-r\fR: operate recursively on directories
+\fB\-r\fR: operate recursively on directories\. It selects all files in the named directory and all its subdirectories\. This can be useful both to reduce command line typing, and to circumvent shell expansion limitations, when there are a lot of files and naming breaks the maximum size of a command line\.
 .
 .IP "\(bu" 4
 \fB\-\-filelist FILE\fR read a list of files to process as content from \fBFILE\fR\. Format is compatible with \fBls\fR output, with one file per line\.
@@ -218,7 +224,7 @@ Using environment variables to set parameters has security implications\. Theref
 \fBZSTD_CLEVEL\fR can be used to set the level between 1 and 19 (the "normal" range)\. If the value of \fBZSTD_CLEVEL\fR is not a valid integer, it will be ignored with a warning message\. \fBZSTD_CLEVEL\fR just replaces the default compression level (\fB3\fR)\.
 .
 .P
-\fBZSTD_NBTHREADS\fR can be used to set the number of threads \fBzstd\fR will attempt to use during compression\. If the value of \fBZSTD_NBTHREADS\fR is not a valid unsigned integer, it will be ignored with a warning message\. \'ZSTD_NBTHREADS\fBhas a default value of (\fR1\fB), and is capped at ZSTDMT_NBWORKERS_MAX==200\.\fRzstd` must be compiled with multithread support for this to have any effect\.
+\fBZSTD_NBTHREADS\fR can be used to set the number of threads \fBzstd\fR will attempt to use during compression\. If the value of \fBZSTD_NBTHREADS\fR is not a valid unsigned integer, it will be ignored with a warning message\. \fBZSTD_NBTHREADS\fR has a default value of (\fB1\fR), and is capped at ZSTDMT_NBWORKERS_MAX==200\. \fBzstd\fR must be compiled with multithread support for this to have any effect\.
 .
 .P
 They can both be overridden by corresponding command line arguments: \fB\-#\fR for compression level and \fB\-T#\fR for number of compression threads\.
@@ -228,10 +234,10 @@ They can both be overridden by corresponding command line arguments: \fB\-#\fR f
 .
 .TP
 \fB\-\-train FILEs\fR
-Use FILEs as training set to create a dictionary\. The training set should contain a lot of small files (> 100), and weight typically 100x the target dictionary size (for example, 10 MB for a 100 KB dictionary)\.
+Use FILEs as training set to create a dictionary\. The training set should contain a lot of small files (> 100), and weight typically 100x the target dictionary size (for example, 10 MB for a 100 KB dictionary)\. \fB\-\-train\fR can be combined with \fB\-r\fR to indicate a directory rather than listing all the files, which can be useful to circumvent shell expansion limits\.
 .
 .IP
-Supports multithreading if \fBzstd\fR is compiled with threading support\. Additional parameters can be specified with \fB\-\-train\-fastcover\fR\. The legacy dictionary builder can be accessed with \fB\-\-train\-legacy\fR\. The cover dictionary builder can be accessed with \fB\-\-train\-cover\fR\. Equivalent to \fB\-\-train\-fastcover=d=8,steps=4\fR\.
+\fB\-\-train\fR supports multithreading if \fBzstd\fR is compiled with threading support (default)\. Additional parameters can be specified with \fB\-\-train\-fastcover\fR\. The legacy dictionary builder can be accessed with \fB\-\-train\-legacy\fR\. The slower cover dictionary builder can be accessed with \fB\-\-train\-cover\fR\. Default is equivalent to \fB\-\-train\-fastcover=d=8,steps=4\fR\.
 .
 .TP
 \fB\-o file\fR
@@ -247,7 +253,11 @@ Use \fB#\fR compression level during training (optional)\. Will generate statist
 .
 .TP
 \fB\-B#\fR
-Split input files in blocks of size # (default: no split)
+Split input files into blocks of size # (default: no split)
+.
+.TP
+\fB\-M#\fR, \fB\-\-memory=#\fR
+Limit the amount of sample data loaded for training (default: 2 GB)\. See above for details\.
 .
 .TP
 \fB\-\-dictID=#\fR
@@ -342,6 +352,9 @@ set process priority to real\-time
 \fBMethodology:\fR For both compression and decompression speed, the entire input is compressed/decompressed in\-memory to measure speed\. A run lasts at least 1 sec, so when files are small, they are compressed/decompressed several times per run, in order to improve measurement accuracy\.
 .
 .SH "ADVANCED COMPRESSION OPTIONS"
+.
+.SS "\-B#:"
+Select the size of each compression job\. This parameter is only available when multi\-threading is enabled\. Each compression job is run in parallel, so this value indirectly impacts the nb of active threads\. Default job size varies depending on compression level (generally \fB4 * windowSize\fR)\. \fB\-B#\fR makes it possible to manually select a custom size\. Note that job size must respect a minimum value which is enforced transparently\. This minimum is either 512 KB, or \fBoverlapSize\fR, whichever is largest\. Different job sizes will lead to (slightly) different compressed frames\.
 .
 .SS "\-\-zstd[=options]:"
 \fBzstd\fR provides 22 predefined compression levels\. The selected or default predefined compression level can be changed with advanced compression options\. The \fIoptions\fR are provided as a comma\-separated list\. You may specify only the options you want to change and the rest will be taken from the selected or default compression level\. The list of available \fIoptions\fR:
@@ -480,9 +493,6 @@ The following parameters sets advanced compression options to something similar 
 .
 .P
 \fB\-\-zstd\fR=wlog=23,clog=23,hlog=22,slog=6,mml=3,tlen=48,strat=6
-.
-.SS "\-B#:"
-Select the size of each compression job\. This parameter is available only when multi\-threading is enabled\. Default value is \fB4 * windowSize\fR, which means it varies depending on compression level\. \fB\-B#\fR makes it possible to select a custom value\. Note that job size must respect a minimum value which is enforced transparently\. This minimum is either 1 MB, or \fBoverlapSize\fR, whichever is largest\.
 .
 .SH "BUGS"
 Report bugs at: https://github\.com/facebook/zstd/issues

@@ -24,10 +24,8 @@
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCStreamer.h"
-#include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/SectionKind.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 using namespace llvm;
@@ -241,6 +239,13 @@ SectionKind TargetLoweringObjectFile::getKindForGlobal(const GlobalObject *GO,
       return SectionKind::getBSSExtern();
     return SectionKind::getBSS();
   }
+
+  // Global variables with '!exclude' should get the exclude section kind if
+  // they have an explicit section and no other metadata.
+  if (GVar->hasSection())
+    if (MDNode *MD = GVar->getMetadata(LLVMContext::MD_exclude))
+      if (!MD->getNumOperands())
+        return SectionKind::getExclude();
 
   // If the global is marked constant, we can put it into a mergable section,
   // a mergable string section, or general .data if it contains relocations.

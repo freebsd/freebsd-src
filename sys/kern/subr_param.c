@@ -84,6 +84,7 @@ static int sysctl_kern_vm_guest(SYSCTL_HANDLER_ARGS);
 
 int	hz;				/* system clock's frequency */
 int	tick;				/* usec per tick (1000000 / hz) */
+time_t	tick_seconds_max;		/* max hz * seconds an integer can hold */
 struct bintime tick_bt;			/* bintime per tick (1s / hz) */
 sbintime_t tick_sbt;
 int	maxusers;			/* base tunable */
@@ -111,6 +112,10 @@ u_long	sgrowsiz;			/* amount to grow stack */
 
 SYSCTL_INT(_kern, OID_AUTO, hz, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &hz, 0,
     "Number of clock ticks per second");
+SYSCTL_INT(_kern, OID_AUTO, hz_max, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, HZ_MAXIMUM,
+    "Maximum hz value supported");
+SYSCTL_INT(_kern, OID_AUTO, hz_min, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, HZ_MINIMUM,
+    "Minimum hz value supported");
 SYSCTL_INT(_kern, OID_AUTO, nbuf, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &nbuf, 0,
     "Number of buffers in the buffer cache");
 SYSCTL_INT(_kern, OID_AUTO, nswbuf, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &nswbuf, 0,
@@ -166,16 +171,24 @@ void
 init_param1(void)
 {
 
-#if !defined(__mips__) && !defined(__arm64__)
+#if !defined(__arm64__)
 	TUNABLE_INT_FETCH("kern.kstack_pages", &kstack_pages);
 #endif
 	hz = -1;
 	TUNABLE_INT_FETCH("kern.hz", &hz);
 	if (hz == -1)
 		hz = vm_guest > VM_GUEST_NO ? HZ_VM : HZ;
+
+	/* range check the "hz" value */
+	if (__predict_false(hz < HZ_MINIMUM))
+		hz = HZ_MINIMUM;
+	else if (__predict_false(hz > HZ_MAXIMUM))
+		hz = HZ_MAXIMUM;
+
 	tick = 1000000 / hz;
 	tick_sbt = SBT_1S / hz;
 	tick_bt = sbttobt(tick_sbt);
+	tick_seconds_max = INT_MAX / hz;
 
 	/*
 	 * Arrange for ticks to wrap 10 minutes after boot to help catch

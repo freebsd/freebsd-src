@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 28, 2022
+.Dd June 3, 2022
 .Dt PMC 3
 .Os
 .Sh NAME
@@ -131,7 +131,7 @@ The CPUs known to the PMC library are named by the
 enumeration.
 Supported CPUs include:
 .Pp
-.Bl -tag -width "Li PMC_CPU_INTEL_CORE2" -compact
+.Bl -tag -width "Li PMC_CPU_ARMV7_CORTEX_A15" -compact
 .It Li PMC_CPU_AMD_K7
 .Tn "AMD Athlon"
 CPUs.
@@ -161,14 +161,66 @@ and
 CPUs, and other CPUs conforming to version 2 of the
 .Tn Intel
 performance measurement architecture.
+.It Li PMC_CPU_PPC_7450
+.Tn PowerPC
+MPC7450 CPUs.
+.It Li PMC_CPU_PPC_E500
+.Tn PowerPC
+e500 Core CPUs.
+.It Li PMC_CPU_PPC_970
+.Tn IBM
+.Tn PowerPC
+970 CPUs.
+.It Li PMC_CPU_PPC_POWER8
+.Tn IBM
+.Tn POWER8 and
+.Tn POWER9
+CPUs.
+.It Li GENERIC
+Generic
+.It Li PMC_CPU_ARMV7_CORTEX_A5
+.Tn ARMv7
+.Tn Cortex A5
+CPUs.
+.It Li PMC_CPU_ARMV7_CORTEX_A7
+.Tn ARMv7
+.Tn Cortex A7
+CPUs.
+.It Li PMC_CPU_ARMV7_CORTEX_A8
+.Tn ARMv7
+.Tn Cortex A8
+CPUs.
+.It Li PMC_CPU_ARMV7_CORTEX_A9
+.Tn ARMv7
+.Tn Cortex A9
+CPUs.
+.It Li PMC_CPU_ARMV7_CORTEX_A15
+.Tn ARMv7 Cortex A15
+CPUs.
+.It Li PMC_CPU_ARMV7_CORTEX_A17
+.Tn ARMv7
+.Tn Cortex A17
+CPUs.
+.It Li PMC_CPU_ARMV8_CORTEX_A53
+ARMv8
+.Tn Cortex A53
+CPUs.
+.It Li PMC_CPU_ARMV8_CORTEX_A57
+ARMv8
+.Tn Cortex A57
+CPUs.
+.It Li PMC_CPU_ARMV8_CORTEX_A76
+ARMv8
+.Tn Cortex A76
+CPUs.
 .El
 .Ss Supported PMCs
-PMC supported by this library are named by the
+PMCs supported by this library are named by the
 .Vt enum pmc_class
 enumeration.
-Supported PMC kinds include:
+Supported PMC classes include:
 .Pp
-.Bl -tag -width "Li PMC_CLASS_IAF" -compact
+.Bl -tag -width "Li PMC_CLASS_POWER8" -compact
 .It Li PMC_CLASS_IAF
 Fixed function hardware counters presents in CPUs conforming to the
 .Tn Intel
@@ -187,6 +239,18 @@ Programmable hardware counters present in
 CPUs.
 .It Li PMC_CLASS_TSC
 The timestamp counter on i386 and amd64 architecture CPUs.
+.It Li PMC_CLASS_ARMV7
+.Tn ARMv7
+.It Li PMC_CLASS_ARMV8
+.Tn ARMv8
+.It Li PMC_CLASS_PPC970
+.Tn IBM
+.Tn PowerPC
+970 class.
+.It Li PMC_CLASS_POWER8
+.Tn IBM
+.Tn POWER8
+class.
 .It Li PMC_CLASS_SOFT
 Software events.
 .El
@@ -361,10 +425,10 @@ driver will send a PMC owning process a
 signal if:
 .Bl -bullet
 .It
-If any process-mode PMC allocated by it loses all its
+any process-mode PMC allocated by it loses all its
 target processes.
 .It
-If the driver encounters an error when writing log data to a
+the driver encounters an error when writing log data to a
 configured log file.
 This error may be retrieved by a subsequent call to
 .Fn pmc_flush_logfile .
@@ -409,7 +473,7 @@ and process scope PMCs are detached from their targets using
 function
 .Fn pmc_detach .
 .It
-Before the process exits, its may release its PMCs using function
+Before the process exits, it may release its PMCs using function
 .Fn pmc_release .
 Any configured log file may be closed using function
 .Fn pmc_configure_logfile .

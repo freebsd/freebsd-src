@@ -32,6 +32,8 @@
 # $FreeBSD$
 #
 
+#include "opt_platform.h"
+
 #include <sys/types.h>
 #include <sys/taskqueue.h>
 #include <sys/bus.h>
@@ -138,6 +140,7 @@ METHOD void ctx_free {
 	struct iommu_ctx	*ioctx;
 };
 
+#ifdef FDT
 #
 # Notify controller we have machine-dependent data.
 #
@@ -147,3 +150,4 @@ METHOD int ofw_md_data {
 	pcell_t *cells;
 	int ncells;
 };
+#endif

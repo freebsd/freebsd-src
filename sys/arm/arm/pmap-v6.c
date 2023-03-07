@@ -1780,7 +1780,7 @@ pmap_init(void)
 	 */
 	s = (vm_size_t)(pv_npg * sizeof(struct md_page));
 	s = round_page(s);
-	pv_table = (struct md_page *)kmem_malloc(s, M_WAITOK | M_ZERO);
+	pv_table = kmem_malloc(s, M_WAITOK | M_ZERO);
 	for (i = 0; i < pv_npg; i++)
 		TAILQ_INIT(&pv_table[i].pv_list);
 
@@ -2213,7 +2213,7 @@ pmap_pinit(pmap_t pmap)
 	 */
 
 	if (pmap->pm_pt1 == NULL) {
-		pmap->pm_pt1 = (pt1_entry_t *)kmem_alloc_contig(NB_IN_PT1,
+		pmap->pm_pt1 = kmem_alloc_contig(NB_IN_PT1,
 		    M_NOWAIT | M_ZERO, 0, -1UL, NB_IN_PT1, 0, pt_memattr);
 		if (pmap->pm_pt1 == NULL)
 			return (0);
@@ -2229,7 +2229,7 @@ pmap_pinit(pmap_t pmap)
 		 *      be used no matter which process is current. Its mapping
 		 *      in PT2MAP can be used only for current process.
 		 */
-		pmap->pm_pt2tab = (pt2_entry_t *)kmem_alloc_attr(NB_IN_PT2TAB,
+		pmap->pm_pt2tab = kmem_alloc_attr(NB_IN_PT2TAB,
 		    M_NOWAIT | M_ZERO, 0, -1UL, pt_memattr);
 		if (pmap->pm_pt2tab == NULL) {
 			/*
@@ -2237,7 +2237,7 @@ pmap_pinit(pmap_t pmap)
 			 *      UMA_ZONE_NOFREE flag, it's important to leave
 			 *      no allocation in pmap if initialization failed.
 			 */
-			kmem_free((vm_offset_t)pmap->pm_pt1, NB_IN_PT1);
+			kmem_free(pmap->pm_pt1, NB_IN_PT1);
 			pmap->pm_pt1 = NULL;
 			return (0);
 		}
@@ -2739,27 +2739,9 @@ pmap_unuse_pt2(pmap_t pmap, vm_offset_t va, struct spglist *free)
  *
  *************************************/
 
-CTASSERT(sizeof(struct pv_chunk) == PAGE_SIZE);
-CTASSERT(_NPCM == 11);
-CTASSERT(_NPCPV == 336);
-
-static __inline struct pv_chunk *
-pv_to_chunk(pv_entry_t pv)
-{
-
-	return ((struct pv_chunk *)((uintptr_t)pv & ~(uintptr_t)PAGE_MASK));
-}
-
-#define PV_PMAP(pv) (pv_to_chunk(pv)->pc_pmap)
-
-#define	PC_FREE0_9	0xfffffffful	/* Free values for index 0 through 9 */
-#define	PC_FREE10	((1ul << (_NPCPV % 32)) - 1)	/* Free values for index 10 */
-
 static const uint32_t pc_freemask[_NPCM] = {
-	PC_FREE0_9, PC_FREE0_9, PC_FREE0_9,
-	PC_FREE0_9, PC_FREE0_9, PC_FREE0_9,
-	PC_FREE0_9, PC_FREE0_9, PC_FREE0_9,
-	PC_FREE0_9, PC_FREE10
+	[0 ... _NPCM - 2] = PC_FREEN,
+	[_NPCM - 1] = PC_FREEL
 };
 
 SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_count, CTLFLAG_RD, &pv_entry_count, 0,

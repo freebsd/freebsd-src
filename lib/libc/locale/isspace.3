@@ -32,11 +32,12 @@
 .\"     @(#)isspace.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd April 2, 2022
+.Dd December 19, 2022
 .Dt ISSPACE 3
 .Os
 .Sh NAME
-.Nm isspace
+.Nm isspace ,
+.Nm isspace_l
 .Nd white-space character test
 .Sh LIBRARY
 .Lb libc
@@ -49,7 +50,9 @@
 .Sh DESCRIPTION
 The
 .Fn isspace
-function tests for white-space characters.
+and
+.Fn isspace_l
+functions test for white-space characters.
 For any locale, this includes the following standard characters:
 .Bl -column \&`\et''___ \&``\et''___ \&``\et''___ \&``\et''___ \&``\et''___ \&``\et''___
 .It "\&``\et''" Ta "``\en''" Ta "``\ev''" Ta "``\ef''" Ta "``\er''" Ta "`` ''"
@@ -57,7 +60,9 @@ For any locale, this includes the following standard characters:
 .Pp
 In the "C" locale,
 .Fn isspace
-returns non-zero for these characters only.
+and
+.Fn isspace_l
+return non-zero for these characters only.
 The value of the argument must be representable as an
 .Vt "unsigned char"
 or the value of
@@ -84,11 +89,16 @@ type in locales with large character sets is considered obsolete
 and may not be supported in future releases.
 The
 .Fn iswspace
+or
+.Fn iswspace_l
 function should be used instead.
 .Sh SEE ALSO
 .Xr ctype 3 ,
+.Xr ctype_l 3 ,
 .Xr iswspace 3 ,
+.Xr iswspace_l 3 ,
 .Xr multibyte 3 ,
+.Xr xlocale 3 ,
 .Xr ascii 7
 .Sh STANDARDS
 The

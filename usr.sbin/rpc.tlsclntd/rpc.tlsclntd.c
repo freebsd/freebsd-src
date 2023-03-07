@@ -285,7 +285,14 @@ main(int argc, char **argv)
 		err(1, "Can't register service for local rpctlscd socket");
 	}
 
-	rpctls_syscall(RPCTLS_SYSC_CLSETPATH, _PATH_RPCTLSCDSOCK);
+	if (rpctls_syscall(RPCTLS_SYSC_CLSETPATH, _PATH_RPCTLSCDSOCK) < 0) {
+		if (rpctls_debug_level == 0) {
+			syslog(LOG_ERR,
+			    "Can't set upcall socket path errno=%d", errno);
+			exit(1);
+		}
+		err(1, "Can't set upcall socket path");
+	}
 
 	rpctls_svc_run();
 
@@ -673,8 +680,8 @@ rpctls_connect(SSL_CTX *ctx, int s, char *certname, u_int certlen, X509 **certp)
 	ret = SSL_connect(ssl);
 	if (ret != 1) {
 		rpctls_verbose_out("rpctls_connect: "
-		    "SSL_connect failed %d\n",
-		    ret);
+		    "SSL_connect failed %d: %s\n",
+		    ret, ERR_error_string(ERR_get_error(), NULL));
 		SSL_free(ssl);
 		return (NULL);
 	}

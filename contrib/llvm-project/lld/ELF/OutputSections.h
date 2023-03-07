@@ -9,21 +9,16 @@
 #ifndef LLD_ELF_OUTPUT_SECTIONS_H
 #define LLD_ELF_OUTPUT_SECTIONS_H
 
-#include "Config.h"
 #include "InputSection.h"
 #include "LinkerScript.h"
-#include "Relocations.h"
 #include "lld/Common/LLVM.h"
-#include "llvm/MC/StringTableBuilder.h"
-#include "llvm/Object/ELF.h"
+
 #include <array>
 
 namespace lld {
 namespace elf {
 
 struct PhdrEntry;
-class InputSection;
-class InputSectionBase;
 
 struct CompressedData {
   std::unique_ptr<SmallVector<uint8_t, 0>[]> shards;
@@ -36,15 +31,13 @@ struct CompressedData {
 // It is composed of multiple InputSections.
 // The writer creates multiple OutputSections and assign them unique,
 // non-overlapping file offsets and VAs.
-class OutputSection final : public SectionCommand, public SectionBase {
+class OutputSection final : public SectionBase {
 public:
   OutputSection(StringRef name, uint32_t type, uint64_t flags);
 
   static bool classof(const SectionBase *s) {
     return s->kind() == SectionBase::Output;
   }
-
-  static bool classof(const SectionCommand *c);
 
   uint64_t getLMA() const { return ptLoad ? addr + ptLoad->lmaOffset : addr; }
   template <typename ELFT> void writeHeaderTo(typename ELFT::Shdr *sHdr);
@@ -97,7 +90,7 @@ public:
   std::string memoryRegionName;
   std::string lmaRegionName;
   bool nonAlloc = false;
-  bool noload = false;
+  bool typeIsSet = false;
   bool expressionsUseSymbols = false;
   bool usedInExpression = false;
   bool inOverlay = false;
@@ -106,6 +99,10 @@ public:
   // if the section was later removed (e.g. because it is a synthetic section
   // that wasn't needed). This is needed for orphan placement.
   bool hasInputSections = false;
+
+  // The output section description is specified between DATA_SEGMENT_ALIGN and
+  // DATA_RELRO_END.
+  bool relro = false;
 
   void finalize();
   template <class ELFT> void writeTo(uint8_t *buf);
@@ -124,10 +121,22 @@ private:
   std::array<uint8_t, 4> getFiller();
 };
 
+struct OutputDesc final : SectionCommand {
+  OutputSection osec;
+  OutputDesc(StringRef name, uint32_t type, uint64_t flags)
+      : SectionCommand(OutputSectionKind), osec(name, type, flags) {}
+
+  static bool classof(const SectionCommand *c) {
+    return c->kind == OutputSectionKind;
+  }
+};
+
 int getPriority(StringRef s);
 
 InputSection *getFirstInputSection(const OutputSection *os);
-SmallVector<InputSection *, 0> getInputSections(const OutputSection &os);
+llvm::ArrayRef<InputSection *>
+getInputSections(const OutputSection &os,
+                 SmallVector<InputSection *, 0> &storage);
 
 // All output sections that are handled by the linker specially are
 // globally accessible. Writer initializes them, so don't use them

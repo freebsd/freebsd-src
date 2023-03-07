@@ -50,6 +50,8 @@ struct aw_r_intc_gicp_softc {
 
 static struct ofw_compat_data compat_data[] = {
 	{"allwinner,sun6i-a31-r-intc",	1},
+	{"allwinner,sun6i-a64-r-intc",	1},
+	{"allwinner,sun50i-h6-r-intc",	1},
 	{NULL,				0}
 };
 

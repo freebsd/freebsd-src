@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_private.h>
 #include <net/if_types.h>
 #include <net/infiniband.h>
 #include <net/if_lagg.h>
@@ -73,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcpip.h>
 #include <netinet/tcp_hpts.h>
 #include <netinet/tcp_log_buf.h>
+#include <netinet/tcp_fsm.h>
 #include <netinet/udp.h>
 #include <netinet6/ip6_var.h>
 
@@ -717,11 +719,9 @@ tcp_lro_log(struct tcpcb *tp, const struct lro_ctrl *lc,
 			log.u_bbr.inhpts = 1;
 		else
 			log.u_bbr.inhpts = 0;
-		TCP_LOG_EVENTP(tp, NULL,
-			       &tp->t_inpcb->inp_socket->so_rcv,
-			       &tp->t_inpcb->inp_socket->so_snd,
-			       TCP_LOG_LRO, 0,
-			       0, &log, false, &tv);
+		TCP_LOG_EVENTP(tp, NULL, &tptosocket(tp)->so_rcv,
+		    &tptosocket(tp)->so_snd,
+		    TCP_LOG_LRO, 0, 0, &log, false, &tv);
 	}
 }
 #endif
@@ -1359,8 +1359,7 @@ tcp_lro_flush_tcphpts(struct lro_ctrl *lc, struct lro_entry *le)
 	tp = intotcpcb(inp);
 
 	/* Check if the inp is dead, Jim. */
-	if (tp == NULL ||
-	    (inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT))) {
+	if (tp->t_state == TCPS_TIME_WAIT) {
 		INP_WUNLOCK(inp);
 		return (TCP_LRO_CANNOT);
 	}

@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/epoch.h>
 #include <sys/eventhandler.h>
 #include <sys/resourcevar.h>
+#include <sys/sched.h>
 #include <sys/socket.h>			/* needed by net/if.h		*/
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
@@ -506,7 +507,7 @@ ether_poll_register(poll_handler_t *h, if_t ifp)
 		if (pr[i].ifp == ifp && pr[i].handler != NULL) {
 			mtx_unlock(&poll_mtx);
 			log(LOG_DEBUG, "ether_poll_register: %s: handler"
-			    " already registered\n", ifp->if_xname);
+			    " already registered\n", if_name(ifp));
 			return (EEXIST);
 		}
 
@@ -536,7 +537,7 @@ ether_poll_deregister(if_t ifp)
 			break;
 	if (i == poll_handlers) {
 		log(LOG_DEBUG, "ether_poll_deregister: %s: not found!\n",
-		    ifp->if_xname);
+		    if_name(ifp));
 		mtx_unlock(&poll_mtx);
 		return (ENOENT);
 	}
@@ -565,8 +566,7 @@ poll_idle(void)
 		if (poll_in_idle_loop && poll_handlers > 0) {
 			idlepoll_sleeping = 0;
 			ether_poll(poll_each_burst);
-			thread_lock(td);
-			mi_switch(SW_VOL);
+			sched_relinquish(td);
 		} else {
 			idlepoll_sleeping = 1;
 			tsleep(&idlepoll_sleeping, 0, "pollid", hz * 3);

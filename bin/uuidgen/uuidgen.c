@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2002 Marcel Moolenaar
+ * Copyright (c) 2022 Tobias C. Berner
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,8 +41,66 @@ __FBSDID("$FreeBSD$");
 static void
 usage(void)
 {
-	(void)fprintf(stderr, "usage: uuidgen [-1] [-n count] [-o filename]\n");
+	(void)fprintf(stderr,
+	    "usage: uuidgen [-1] [-r] [-n count] [-o filename]\n");
 	exit(1);
+}
+
+static void
+uuid_to_compact_string(const uuid_t *u, char **s, uint32_t *status)
+{
+	uuid_t nil;
+
+	if (status != NULL)
+		*status = uuid_s_ok;
+
+	if (s == NULL)
+		return;
+
+	if (u == NULL) {
+		u = &nil;
+		uuid_create_nil(&nil, NULL);
+	}
+
+	asprintf(s, "%08x%04x%04x%02x%02x%02x%02x%02x%02x%02x%02x",
+	    u->time_low, u->time_mid, u->time_hi_and_version,
+	    u->clock_seq_hi_and_reserved, u->clock_seq_low, u->node[0],
+	    u->node[1], u->node[2], u->node[3], u->node[4], u->node[5]);
+
+	if (*s == NULL && status != NULL)
+		*status = uuid_s_no_memory;
+}
+
+static int
+uuidgen_v4(struct uuid *store, int count)
+{
+	int size;
+	struct uuid *item;
+
+	if (count < 1) {
+		errno = EINVAL;
+		return (-1);
+	}
+	size = sizeof(struct uuid) * count;
+	arc4random_buf(store, size);
+	item = store;
+	for (int i = 0; i < count; ++i) {
+		/*
+		 * Set the two most significant bits (bits 6 and 7) of the
+		 * clock_seq_hi_and_reserved to zero and one, respectively.
+		 */
+		item->clock_seq_hi_and_reserved &= ~(3 << 6);
+		item->clock_seq_hi_and_reserved |= (2 << 6);
+		/*
+		 * Set the four most significant bits (bits 12 through 15) of
+		 * the time_hi_and_version field to the 4-bit version number
+		 * from  Section 4.1.3.
+		 */
+		item->time_hi_and_version &= ~(15 << 12);
+		item->time_hi_and_version |= (4 << 12);
+		item++;
+	};
+	return (0);
 }
 
 int
@@ -50,15 +109,23 @@ main(int argc, char *argv[])
 	FILE *fp;
 	uuid_t *store, *uuid;
 	char *p;
-	int ch, count, i, iterate, status;
+	int ch, count, i, iterate, status, version;
+	void (*tostring)(const uuid_t *, char **, uint32_t *) = uuid_to_string;
 
-	count = -1;	/* no count yet */
-	fp = stdout;	/* default output file */
-	iterate = 0;	/* not one at a time */
-	while ((ch = getopt(argc, argv, "1n:o:")) != -1)
+	count = -1;  /* no count yet */
+	fp = stdout; /* default output file */
+	iterate = 0; /* not one at a time */
+	version = 1; /* create uuid v1 by default */
+	while ((ch = getopt(argc, argv, "1crn:o:")) != -1)
 		switch (ch) {
 		case '1':
 			iterate = 1;
+			break;
+		case 'c':
+			tostring = uuid_to_compact_string;
+			break;
+		case 'r':
+			version = 4;
 			break;
 		case 'n':
 			if (count > 0)
@@ -92,27 +159,41 @@ main(int argc, char *argv[])
 	if (count == -1)
 		count = 1;
 
-	store = (uuid_t*)malloc(sizeof(uuid_t) * count);
+	store = (uuid_t *)malloc(sizeof(uuid_t) * count);
 	if (store == NULL)
 		err(1, "malloc()");
 
 	if (!iterate) {
 		/* Get them all in a single batch */
-		if (uuidgen(store, count) != 0)
-			err(1, "uuidgen()");
+		if (version == 1) {
+			if (uuidgen(store, count) != 0)
+				err(1, "uuidgen()");
+		} else if (version == 4) {
+			if (uuidgen_v4(store, count) != 0)
+				err(1, "uuidgen_v4()");
+		} else {
+			err(1, "unsupported version");
+		}
 	} else {
 		uuid = store;
 		for (i = 0; i < count; i++) {
-			if (uuidgen(uuid++, 1) != 0)
-				err(1, "uuidgen()");
+			if (version == 1) {
+				if (uuidgen(uuid++, 1) != 0)
+					err(1, "uuidgen()");
+			} else if (version == 4) {
+				if (uuidgen_v4(uuid++, 1) != 0)
+					err(1, "uuidgen_v4()");
+			} else {
+				err(1, "unsupported version");
+			}
 		}
 	}
 
 	uuid = store;
 	while (count--) {
-		uuid_to_string(uuid++, &p, &status);
+		tostring(uuid++, &p, &status);
 		if (status != uuid_s_ok)
-		     err(1, "cannot stringify a UUID");
+			err(1, "cannot stringify a UUID");
 		fprintf(fp, "%s\n", p);
 		free(p);
 	}

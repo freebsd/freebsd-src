@@ -34,7 +34,6 @@ using namespace llvm;
 STATISTIC(MCNumEmitted, "Number of MC instructions emitted");
 
 MCCodeEmitter *llvm::createPPCMCCodeEmitter(const MCInstrInfo &MCII,
-                                            const MCRegisterInfo &MRI,
                                             MCContext &Ctx) {
   return new PPCMCCodeEmitter(MCII, Ctx);
 }
@@ -47,10 +46,12 @@ getDirectBrEncoding(const MCInst &MI, unsigned OpNo,
 
   if (MO.isReg() || MO.isImm())
     return getMachineOpValue(MI, MO, Fixups, STI);
+
+  const PPCInstrInfo *InstrInfo = static_cast<const PPCInstrInfo *>(&MCII);
+  unsigned Opcode = MI.getOpcode();
   // Add a fixup for the branch target.
   Fixups.push_back(MCFixup::create(0, MO.getExpr(),
-                                   ((MI.getOpcode() == PPC::BL8_NOTOC ||
-                                     MI.getOpcode() == PPC::BL8_NOTOC_TLS)
+                                   (InstrInfo->isNoTOCCallInstr(Opcode)
                                         ? (MCFixupKind)PPC::fixup_ppc_br24_notoc
                                         : (MCFixupKind)PPC::fixup_ppc_br24)));
   return 0;
@@ -448,12 +449,9 @@ getMachineOpValue(const MCInst &MI, const MCOperand &MO,
   return MO.getImm();
 }
 
-void PPCMCCodeEmitter::encodeInstruction(
-    const MCInst &MI, raw_ostream &OS, SmallVectorImpl<MCFixup> &Fixups,
-    const MCSubtargetInfo &STI) const {
-  verifyInstructionPredicates(MI,
-                              computeAvailableFeatures(STI.getFeatureBits()));
-
+void PPCMCCodeEmitter::encodeInstruction(const MCInst &MI, raw_ostream &OS,
+                                         SmallVectorImpl<MCFixup> &Fixups,
+                                         const MCSubtargetInfo &STI) const {
   uint64_t Bits = getBinaryCodeForInstr(MI, Fixups, STI);
 
   // Output the constant in big/little endian byte order.
@@ -491,5 +489,4 @@ bool PPCMCCodeEmitter::isPrefixedInstruction(const MCInst &MI) const {
   return InstrInfo->isPrefixed(Opcode);
 }
 
-#define ENABLE_INSTR_PREDICATE_VERIFIER
 #include "PPCGenMCCodeEmitter.inc"

@@ -26,12 +26,14 @@ public:
 
   MemoryRegionInfo() = default;
   MemoryRegionInfo(RangeType range, OptionalBool read, OptionalBool write,
-                   OptionalBool execute, OptionalBool mapped, ConstString name,
+                   OptionalBool execute, OptionalBool shared,
+                   OptionalBool mapped, ConstString name,
                    OptionalBool flash, lldb::offset_t blocksize,
                    OptionalBool memory_tagged, OptionalBool stack_memory)
       : m_range(range), m_read(read), m_write(write), m_execute(execute),
-        m_mapped(mapped), m_name(name), m_flash(flash), m_blocksize(blocksize),
-        m_memory_tagged(memory_tagged), m_is_stack_memory(stack_memory) {}
+        m_shared(shared), m_mapped(mapped), m_name(name), m_flash(flash),
+        m_blocksize(blocksize), m_memory_tagged(memory_tagged),
+        m_is_stack_memory(stack_memory) {}
 
   RangeType &GetRange() { return m_range; }
 
@@ -45,6 +47,8 @@ public:
 
   OptionalBool GetExecutable() const { return m_execute; }
 
+  OptionalBool GetShared() const { return m_shared; }
+
   OptionalBool GetMapped() const { return m_mapped; }
 
   ConstString GetName() const { return m_name; }
@@ -56,6 +60,8 @@ public:
   void SetWritable(OptionalBool val) { m_write = val; }
 
   void SetExecutable(OptionalBool val) { m_execute = val; }
+
+  void SetShared(OptionalBool val) { m_shared = val; }
 
   void SetMapped(OptionalBool val) { m_mapped = val; }
 
@@ -95,6 +101,7 @@ public:
   bool operator==(const MemoryRegionInfo &rhs) const {
     return m_range == rhs.m_range && m_read == rhs.m_read &&
            m_write == rhs.m_write && m_execute == rhs.m_execute &&
+           m_shared == rhs.m_shared &&
            m_mapped == rhs.m_mapped && m_name == rhs.m_name &&
            m_flash == rhs.m_flash && m_blocksize == rhs.m_blocksize &&
            m_memory_tagged == rhs.m_memory_tagged &&
@@ -107,13 +114,13 @@ public:
   /// Get the target system's VM page size in bytes.
   /// \return
   ///     0 is returned if this information is unavailable.
-  int GetPageSize() { return m_pagesize; }
+  int GetPageSize() const { return m_pagesize; }
 
   /// Get a vector of target VM pages that are dirty -- that have been
   /// modified -- within this memory region.  This is an Optional return
   /// value; it will only be available if the remote stub was able to
   /// detail this.
-  llvm::Optional<std::vector<lldb::addr_t>> &GetDirtyPageList() {
+  const llvm::Optional<std::vector<lldb::addr_t>> &GetDirtyPageList() const {
     return m_dirty_pages;
   }
 
@@ -124,8 +131,8 @@ public:
   void SetPageSize(int pagesize) { m_pagesize = pagesize; }
 
   void SetDirtyPageList(std::vector<lldb::addr_t> pagelist) {
-    if (m_dirty_pages.hasValue())
-      m_dirty_pages.getValue().clear();
+    if (m_dirty_pages)
+      m_dirty_pages.value().clear();
     m_dirty_pages = std::move(pagelist);
   }
 
@@ -134,6 +141,7 @@ protected:
   OptionalBool m_read = eDontKnow;
   OptionalBool m_write = eDontKnow;
   OptionalBool m_execute = eDontKnow;
+  OptionalBool m_shared = eDontKnow;
   OptionalBool m_mapped = eDontKnow;
   ConstString m_name;
   OptionalBool m_flash = eDontKnow;
@@ -163,7 +171,7 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &OS,
 // Forward-declarable wrapper.
 class MemoryRegionInfos : public std::vector<lldb_private::MemoryRegionInfo> {
 public:
-  //using std::vector<lldb_private::MemoryRegionInfo>::vector;
+  using std::vector<lldb_private::MemoryRegionInfo>::vector;
 };
 
 }

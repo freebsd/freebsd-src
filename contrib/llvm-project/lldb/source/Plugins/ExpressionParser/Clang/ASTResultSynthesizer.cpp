@@ -14,6 +14,7 @@
 #include "Plugins/TypeSystem/Clang/TypeSystemClang.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Utility/LLDBAssert.h"
+#include "lldb/Utility/LLDBLog.h"
 #include "lldb/Utility/Log.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
@@ -53,7 +54,7 @@ void ASTResultSynthesizer::Initialize(ASTContext &Context) {
 }
 
 void ASTResultSynthesizer::TransformTopLevelDecl(Decl *D) {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS));
+  Log *log = GetLog(LLDBLog::Expressions);
 
   if (NamedDecl *named_decl = dyn_cast<NamedDecl>(D)) {
     if (log && log->GetVerbose()) {
@@ -112,7 +113,7 @@ bool ASTResultSynthesizer::HandleTopLevelDecl(DeclGroupRef D) {
 }
 
 bool ASTResultSynthesizer::SynthesizeFunctionResult(FunctionDecl *FunDecl) {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS));
+  Log *log = GetLog(LLDBLog::Expressions);
 
   if (!m_sema)
     return false;
@@ -154,7 +155,7 @@ bool ASTResultSynthesizer::SynthesizeFunctionResult(FunctionDecl *FunDecl) {
 
 bool ASTResultSynthesizer::SynthesizeObjCMethodResult(
     ObjCMethodDecl *MethodDecl) {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS));
+  Log *log = GetLog(LLDBLog::Expressions);
 
   if (!m_sema)
     return false;
@@ -196,9 +197,30 @@ bool ASTResultSynthesizer::SynthesizeObjCMethodResult(
   return ret;
 }
 
+/// Returns true if LLDB can take the address of the given lvalue for the sake
+/// of capturing the expression result. Returns false if LLDB should instead
+/// store the expression result in a result variable.
+static bool CanTakeAddressOfLValue(const Expr *lvalue_expr) {
+  assert(lvalue_expr->getValueKind() == VK_LValue &&
+         "lvalue_expr not a lvalue");
+
+  QualType qt = lvalue_expr->getType();
+  // If the lvalue has const-qualified non-volatile integral or enum type, then
+  // the underlying value might come from a const static data member as
+  // described in C++11 [class.static.data]p3. If that's the case, then the
+  // value might not have an address if the user didn't also define the member
+  // in a namespace scope. Taking the address would cause that LLDB later fails
+  // to link the expression, so those lvalues should be stored in a result
+  // variable.
+  if (qt->isIntegralOrEnumerationType() && qt.isConstQualified() &&
+      !qt.isVolatileQualified())
+    return false;
+  return true;
+}
+
 bool ASTResultSynthesizer::SynthesizeBodyResult(CompoundStmt *Body,
                                                 DeclContext *DC) {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS));
+  Log *log = GetLog(LLDBLog::Expressions);
 
   ASTContext &Ctx(*m_ast_context);
 
@@ -264,6 +286,10 @@ bool ASTResultSynthesizer::SynthesizeBodyResult(CompoundStmt *Body,
   //   - During dematerialization, $0 is marked up as a load address with value
   //     equal to the contents of the structure entry.
   //
+  //   - Note: if we cannot take an address of the resulting Lvalue (e.g. it's
+  //     a static const member without an out-of-class definition), then we
+  //     follow the Rvalue route.
+  //
   // For Rvalues
   //
   //   - In AST result synthesis the expression E is transformed into an
@@ -303,7 +329,7 @@ bool ASTResultSynthesizer::SynthesizeBodyResult(CompoundStmt *Body,
 
   clang::VarDecl *result_decl = nullptr;
 
-  if (is_lvalue) {
+  if (is_lvalue && CanTakeAddressOfLValue(last_expr)) {
     IdentifierInfo *result_ptr_id;
 
     if (expr_type->isFunctionType())
@@ -407,7 +433,7 @@ void ASTResultSynthesizer::MaybeRecordPersistentType(TypeDecl *D) {
   if (name.size() == 0 || name[0] != '$')
     return;
 
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS));
+  Log *log = GetLog(LLDBLog::Expressions);
 
   ConstString name_cs(name.str().c_str());
 
@@ -427,7 +453,7 @@ void ASTResultSynthesizer::RecordPersistentDecl(NamedDecl *D) {
   if (name.size() == 0)
     return;
 
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS));
+  Log *log = GetLog(LLDBLog::Expressions);
 
   ConstString name_cs(name.str().c_str());
 
@@ -455,7 +481,7 @@ void ASTResultSynthesizer::CommitPersistentDecls() {
         &scratch_ctx->getASTContext(), decl);
 
     if (!D_scratch) {
-      Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS));
+      Log *log = GetLog(LLDBLog::Expressions);
 
       if (log) {
         std::string s;

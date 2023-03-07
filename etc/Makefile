@@ -11,6 +11,7 @@ NLS_ALIASES=	POSIX C \
 # No need as it is empty and just causes rebuilds since this file does so much.
 UPDATE_DEPENDFILE=	no
 
+SUBDIR+=termcap
 .if ${MK_SENDMAIL} != "no"
 SUBDIR+=sendmail
 .endif
@@ -58,6 +59,8 @@ distribution:
 	${_+_}cd ${SRCTOP}/usr.sbin/rmt; ${MAKE} etc-rmt
 	${INSTALL_SYMLINK} -T "package=runtime" ../var/run/os-release \
 		${DESTDIR}/etc/os-release
+	${INSTALL_SYMLINK} -T "package=runtime" ../var/db/machine-id \
+		${DESTDIR}/etc/machine-id
 .if ${MK_UNBOUND} != "no"
 	if [ ! -e ${DESTDIR}/etc/unbound ]; then \
 		${INSTALL_SYMLINK} -T "package=unbound" \
@@ -118,13 +121,11 @@ MTREES+=	mtree/BSD.sendmail.dist		/
 MTREES+=	../${mtree}			/
 .endfor
 
-# Clean up some directories that where mistakenly created as files that
-# should not have been as part of the nvi update in r281994.
-# This should be removed after 11.0-RELEASE.
-DISTRIB_CLEANUP_SHARE_FILES=	${SHAREDIR}/doc/usd/10.exref ${SHAREDIR}/doc/usd/11.edit
-DISTRIB_CLEANUP_SHARE_FILES+=	${SHAREDIR}/doc/usd/12.vi ${SHAREDIR}/doc/usd/13.viref
+# Clean up files that have changed into directories, as mtree cannot handle this
+# scenario.
+DISTRIB_CLEANUP_FILES+=	${INCLUDEDIR}/c++/v1/__string
 distrib-cleanup: .PHONY
-	for file in ${DISTRIB_CLEANUP_SHARE_FILES}; do \
+	for file in ${DISTRIB_CLEANUP_FILES}; do \
 		if [ -f ${DESTDIR}/$${file} ]; then \
 			rm -f ${DESTDIR}/$${file}; \
 		fi; \

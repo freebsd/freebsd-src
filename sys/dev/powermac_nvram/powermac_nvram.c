@@ -156,14 +156,14 @@ powermac_nvram_attach(device_t dev)
 	 */
 	i = (i/4) - 2;
 
-	sc->sc_bank0 = (vm_offset_t)pmap_mapdev(reg[i], NVRAM_SIZE * 2);
-	sc->sc_bank1 = sc->sc_bank0 + NVRAM_SIZE;
+	sc->sc_bank0 = pmap_mapdev(reg[i], NVRAM_SIZE * 2);
+	sc->sc_bank1 = (char *)sc->sc_bank0 + NVRAM_SIZE;
 
-	gen0 = powermac_nvram_check((void *)sc->sc_bank0);
-	gen1 = powermac_nvram_check((void *)sc->sc_bank1);
+	gen0 = powermac_nvram_check(sc->sc_bank0);
+	gen1 = powermac_nvram_check(sc->sc_bank1);
 
 	if (gen0 == -1 && gen1 == -1) {
-		if ((void *)sc->sc_bank0 != NULL)
+		if (sc->sc_bank0 != NULL)
 			pmap_unmapdev(sc->sc_bank0, NVRAM_SIZE * 2);
 		device_printf(dev, "both banks appear to be corrupt\n");
 		return ENXIO;
@@ -172,7 +172,7 @@ powermac_nvram_attach(device_t dev)
 	    gen0, gen1);
 
 	sc->sc_bank = (gen0 > gen1) ? sc->sc_bank0 : sc->sc_bank1;
-	bcopy((void *)sc->sc_bank, (void *)sc->sc_data, NVRAM_SIZE);
+	bcopy(sc->sc_bank, sc->sc_data, NVRAM_SIZE);
 
 	sc->sc_cdev = make_dev(&powermac_nvram_cdevsw, 0, 0, 0, 0600,
 	    "powermac_nvram");
@@ -190,7 +190,7 @@ powermac_nvram_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	if ((void *)sc->sc_bank0 != NULL)
+	if (sc->sc_bank0 != NULL)
 		pmap_unmapdev(sc->sc_bank0, NVRAM_SIZE * 2);
 
 	if (sc->sc_cdev != NULL)
@@ -224,12 +224,12 @@ powermac_nvram_close(struct cdev *dev, int fflag, int devtype, struct thread *td
 {
 	struct powermac_nvram_softc *sc = dev->si_drv1;
 	struct core99_header *header;
-	vm_offset_t bank;
+	void *bank;
 
 	sx_xlock(&sc->sc_lock);
 	if (sc->sc_wpos != sizeof(sc->sc_data)) {
 		/* Short write, restore in-memory copy */
-		bcopy((void *)sc->sc_bank, (void *)sc->sc_data, NVRAM_SIZE);
+		bcopy(sc->sc_bank, sc->sc_data, NVRAM_SIZE);
 		sc->sc_isopen = 0;
 		sx_xunlock(&sc->sc_lock);
 		return 0;
@@ -249,8 +249,8 @@ powermac_nvram_close(struct cdev *dev, int fflag, int devtype, struct thread *td
 	    (uint8_t *)&(header->adler_checksum));
 
 	bank = (sc->sc_bank == sc->sc_bank0) ? sc->sc_bank1 : sc->sc_bank0;
-	if (erase_bank(sc->sc_dev, (uint8_t *)bank) != 0 ||
-	    write_bank(sc->sc_dev, (uint8_t *)bank, sc->sc_data) != 0) {
+	if (erase_bank(sc->sc_dev, bank) != 0 ||
+	    write_bank(sc->sc_dev, bank, sc->sc_data) != 0) {
 		sc->sc_isopen = 0;
 		sx_xunlock(&sc->sc_lock);
 		return ENOSPC;
@@ -360,7 +360,7 @@ adler_checksum(uint8_t *data, int len)
 	high = 0;
 	for (i = 0; i < len; i++) {
 		if ((i % 5000) == 0) {
-			high %= 65521UL;
+			low %= 65521UL;
 			high %= 65521UL;
 		}
 		low += data[i];

@@ -429,13 +429,13 @@ xdr_uint16_t(XDR *xdrs, uint16_t *u_int16_p)
 bool_t
 xdr_char(XDR *xdrs, char *cp)
 {
-	int i;
+	u_int i;
 
-	i = (*cp);
-	if (!xdr_int(xdrs, &i)) {
+	i = *((unsigned char *)cp);
+	if (!xdr_u_int(xdrs, &i)) {
 		return (FALSE);
 	}
-	*cp = i;
+	*((unsigned char *)cp) = i;
 	return (TRUE);
 }
 

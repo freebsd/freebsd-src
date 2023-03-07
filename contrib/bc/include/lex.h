@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -43,10 +43,30 @@
 #include <vector.h>
 #include <lang.h>
 
-// Two convencience macros for throwing errors in lex code. They take care of
-// plumbing like passing in the current line the lexer is on.
+/**
+ * A convenience macro for throwing errors in lex code. This takes care of
+ * plumbing like passing in the current line the lexer is on.
+ * @param l  The lexer.
+ * @param e  The error.
+ */
+#if BC_DEBUG
+#define bc_lex_err(l, e) (bc_vm_handleError((e), __FILE__, __LINE__, (l)->line))
+#else // BC_DEBUG
 #define bc_lex_err(l, e) (bc_vm_handleError((e), (l)->line))
+#endif // BC_DEBUG
+
+/**
+ * A convenience macro for throwing errors in lex code. This takes care of
+ * plumbing like passing in the current line the lexer is on.
+ * @param l  The lexer.
+ * @param e  The error.
+ */
+#if BC_DEBUG
+#define bc_lex_verr(l, e, ...) \
+	(bc_vm_handleError((e), __FILE__, __LINE__, (l)->line, __VA_ARGS__))
+#else // BC_DEBUG
 #define bc_lex_verr(l, e, ...) (bc_vm_handleError((e), (l)->line, __VA_ARGS__))
+#endif // BC_DEBUG
 
 // BC_LEX_NEG_CHAR returns the char that corresponds to negative for the
 // current calculator.
@@ -136,6 +156,7 @@ typedef enum BcLexType
 	BC_LEX_OP_MINUS,
 
 #if BC_ENABLE_EXTRA_MATH
+
 	/// Places (truncate or extend) operator.
 	BC_LEX_OP_PLACES,
 
@@ -144,6 +165,7 @@ typedef enum BcLexType
 
 	/// Right (decimal) shift operator.
 	BC_LEX_OP_RSHIFT,
+
 #endif // BC_ENABLE_EXTRA_MATH
 
 	/// Equal operator.
@@ -171,6 +193,7 @@ typedef enum BcLexType
 	BC_LEX_OP_BOOL_AND,
 
 #if BC_ENABLED
+
 	/// Power assignment operator.
 	BC_LEX_OP_ASSIGN_POWER,
 
@@ -314,6 +337,12 @@ typedef enum BcLexType
 	/// bc abs keyword.
 	BC_LEX_KW_ABS,
 
+	/// bc is_number keyword.
+	BC_LEX_KW_IS_NUMBER,
+
+	/// bc is_string keyword.
+	BC_LEX_KW_IS_STRING,
+
 #if BC_ENABLE_EXTRA_MATH
 
 	/// bc irand keyword.
@@ -353,8 +382,10 @@ typedef enum BcLexType
 	BC_LEX_KW_MAXSCALE,
 
 #if BC_ENABLE_EXTRA_MATH
+
 	/// bc maxrand keyword.
 	BC_LEX_KW_MAXRAND,
+
 #endif // BC_ENABLE_EXTRA_MATH
 
 	/// bc line_length keyword.
@@ -377,6 +408,9 @@ typedef enum BcLexType
 	BC_LEX_KW_ELSE,
 
 #if DC_ENABLED
+
+	/// dc extended registers keyword.
+	BC_LEX_EXTENDED_REGISTERS,
 
 	/// A special token for dc to calculate equal without a register.
 	BC_LEX_EQ_NO_REG,
@@ -418,8 +452,10 @@ typedef enum BcLexType
 	BC_LEX_STORE_SCALE,
 
 #if BC_ENABLE_EXTRA_MATH
+
 	/// Store seed command.
 	BC_LEX_STORE_SEED,
+
 #endif // BC_ENABLE_EXTRA_MATH
 
 	/// Load variable onto stack command.
@@ -487,14 +523,8 @@ typedef struct BcLex
 	/// string.
 	BcVec str;
 
-	/// If this is true, the lexer is processing stdin and can ask for more data
-	/// if a string or comment are not properly terminated.
-	bool is_stdin;
-
-	/// If this is true, the lexer is processing expressions from the
-	/// command-line and can ask for more data if a string or comment are not
-	/// properly terminated.
-	bool is_exprs;
+	/// The mode the lexer is in.
+	BcMode mode;
 
 } BcLex;
 
@@ -506,7 +536,7 @@ void
 bc_lex_init(BcLex* l);
 
 /**
- * Frees a lexer. This is not guarded by #ifndef NDEBUG because a separate
+ * Frees a lexer. This is not guarded by #if BC_DEBUG because a separate
  * parser is created at runtime to parse read() expressions and dc strings, and
  * that parser needs a lexer.
  * @param l  The lexer to free.
@@ -524,14 +554,12 @@ bc_lex_file(BcLex* l, const char* file);
 
 /**
  * Sets the text the lexer will lex.
- * @param l         The lexer.
- * @param text      The text to lex.
- * @param is_stdin  True if the text is from stdin, false otherwise.
- * @param is_exprs  True if the text is from command-line expressions, false
- *                  otherwise.
+ * @param l     The lexer.
+ * @param text  The text to lex.
+ * @param mode  The mode to lex in.
  */
 void
-bc_lex_text(BcLex* l, const char* text, bool is_stdin, bool is_exprs);
+bc_lex_text(BcLex* l, const char* text, BcMode mode);
 
 /**
  * Generic next function for the parser to call. It takes care of calling the

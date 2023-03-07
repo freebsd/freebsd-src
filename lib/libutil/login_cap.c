@@ -95,6 +95,101 @@ allocarray(size_t sz)
 
 
 /*
+ * This is a variant of strcspn, which checks for quoted
+ * strings.  That is,:
+ *   strcspn_quote("how 'now, brown' cow", ",", NULL);
+ * will return the index for the nul, rather than the comma, because
+ * the string is quoted.  It does not handle escaped characters
+ * at this time.
+ */
+static size_t
+strcspn_quote(const char *str, const char *exclude, int *is_quoted)
+{
+	size_t indx = 0;
+	char quote = 0;
+
+	if (str == NULL)
+		return 0;
+
+	if (is_quoted)
+		*is_quoted = 0;
+
+	for (indx = 0; str[indx] != 0; indx++) {
+		if (quote && str[indx] == quote) {
+			if (is_quoted)
+				*is_quoted = 1;
+			quote = 0;
+			continue;
+		}
+		if (quote == 0 &&
+		    (str[indx] == '\'' || str[indx] == '"')) {
+			quote = str[indx];
+			continue;
+		}
+		if (quote == 0 &&
+		    strchr(exclude, str[indx]) != NULL)
+			return indx;
+	}
+	return indx;
+}
+
+/*
+ * Remove quotes from the given string.
+ * It's a very simplistic approach:  the first
+ * single or double quote it finds, it looks for
+ * the next one, and if it finds it, moves the
+ * entire string backwards in two chunks
+ * (first quote + 1 to first quote, length
+ * rest of string, and then second quote + 1
+ * to second quote, length rest of the string).
+ */
+static void
+remove_quotes(char *str)
+{
+	static const char *quote_chars = "'\"";
+	char qc = 0;
+	int found = 0;
+
+	do {
+		char *loc = NULL;
+
+		found = 0;
+		/*
+		 * If qc is 0, then we haven't found
+		 * a quote yet, so do a strcspn search.
+		 */
+		if (qc == 0) {
+			size_t indx;
+			indx = strcspn(str, quote_chars);
+			if (str[indx] == '\0')
+				return;	/* We're done */
+			loc = str + indx;
+			qc = str[indx];
+		} else {
+			/*
+			 * We've found a quote character,
+			 * so use strchr to find the next one.
+			 */
+			loc = strchr(str, qc);
+			if (loc == NULL)
+				return;
+			qc = 0;
+		}
+		if (loc) {
+			/*
+			 * This gives us the location of the
+			 * quoted character.  We need to move
+			 * the entire string down, from loc+1
+			 * to loc.
+			 */
+			size_t len = strlen(loc + 1) + 1;
+			memmove(loc, loc + 1, len);
+			found = 1;
+		}
+	} while (found != 0);
+}
+
+/*
  * arrayize()
  * Turn a simple string <str> separated by any of
  * the set of <chars> into an array.  The last element
@@ -112,7 +207,7 @@ arrayize(const char *str, const char *chars, int *size)
 
     /* count the sub-strings */
     for (i = 0, cptr = str; *cptr; i++) {
-	int count = strcspn(cptr, chars);
+        int count = strcspn_quote(cptr, chars, NULL);
 	cptr += count;
 	if (*cptr)
 	    ++cptr;
@@ -126,11 +221,21 @@ arrayize(const char *str, const char *chars, int *size)
 	    /* now split the string */
 	    i = 0;
 	    while (*ptr) {
-		int count = strcspn(ptr, chars);
+		int quoted = 0;
+		int count = strcspn_quote(ptr, chars, &quoted);
+		char *base = ptr;
 		res[i++] = ptr;
 		ptr += count;
 		if (*ptr)
 		    *ptr++ = '\0';
+		/*
+		 * If the string contains a quoted element, we
+		 * need to remove the quotes.
+		 */
+		if (quoted) {
+			remove_quotes(base);
+		}
+					    
 	    }
 	    res[i] = NULL;
 	}

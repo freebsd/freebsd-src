@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 9, 1999
+.Dd February 26, 2023
 .Dt ATKBDC 4
 .Os
 .Sh NAME
@@ -35,6 +35,8 @@
 .Sh SYNOPSIS
 .Cd "options KBD_RESETDELAY=N"
 .Cd "options KBD_MAXWAIT=N"
+.Cd "options KBD_DELAY1=N"
+.Cd "options KBD_DELAY2=N"
 .Cd "options KBDIO_DEBUG=N"
 .Cd "device atkbdc"
 .Pp
@@ -90,6 +92,13 @@ The default values are
 and 5
 for
 .Fa Y .
+.It Em KBD_DELAY1=X, KBD_DELAY2=Y
+DELAY1 sets the intitial key repeat delay to
+.Fa X .
+The default value is 500ms.
+DELAY2 sets the key repeat delay to
+.Fa Y .
+The default value is 100ms.
 .It Em KBDIO_DEBUG=N
 Sets the debug level to
 .Fa N .

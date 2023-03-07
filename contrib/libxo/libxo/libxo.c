@@ -6979,8 +6979,21 @@ xo_do_open_container (xo_handle_t *xop, xo_xof_flags_t flags, const char *name)
 	    pre_nl = XOF_ISSET(xop, XOF_PRETTY) ? ",\n" : ", ";
 	xop->xo_stack[xop->xo_depth].xs_flags |= XSF_NOT_FIRST;
 
+	/* If we need underscores, make a local copy and doctor it */
+	const char *new_name = name;
+	if (XOF_ISSET(xop, XOF_UNDERSCORES)) {
+	    size_t len = strlen(name);
+	    const char *old_name = name;
+	    char *buf, *cp, *ep;
+
+	    buf = alloca(len + 1);
+	    for (cp = buf, ep = buf + len + 1; cp < ep; cp++, old_name++)
+		*cp = (*old_name == '-') ? '_' : *old_name;
+	    new_name = buf;
+	}
+
 	rc = xo_printf(xop, "%s%*s\"%s\": {%s",
-		       pre_nl, xo_indent(xop), "", name, ppn);
+		       pre_nl, xo_indent(xop), "", new_name, ppn);
 	break;
 
     case XO_STYLE_SDPARAMS:
@@ -7142,8 +7155,21 @@ xo_do_open_list (xo_handle_t *xop, xo_xof_flags_t flags, const char *name)
 	    pre_nl = XOF_ISSET(xop, XOF_PRETTY) ? ",\n" : ", ";
 	xop->xo_stack[xop->xo_depth].xs_flags |= XSF_NOT_FIRST;
 
+	/* If we need underscores, make a local copy and doctor it */
+	const char *new_name = name;
+	if (XOF_ISSET(xop, XOF_UNDERSCORES)) {
+	    size_t len = strlen(name);
+	    const char *old_name = name;
+	    char *buf, *cp, *ep;
+
+	    buf = alloca(len + 1);
+	    for (cp = buf, ep = buf + len + 1; cp < ep; cp++, old_name++)
+		*cp = (*old_name == '-') ? '_' : *old_name;
+	    new_name = buf;
+	}
+
 	rc = xo_printf(xop, "%s%*s\"%s\": [%s",
-		       pre_nl, xo_indent(xop), "", name, ppn);
+		       pre_nl, xo_indent(xop), "", new_name, ppn);
 	break;
 
     case XO_STYLE_ENCODER:

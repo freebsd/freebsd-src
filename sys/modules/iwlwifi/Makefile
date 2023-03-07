@@ -4,6 +4,8 @@ DEVIWLWIFIDIR=	${SRCTOP}/sys/contrib/dev/iwlwifi
 
 .PATH: ${DEVIWLWIFIDIR}
 
+WITH_DEBUGFS=	0
+
 KMOD=	if_iwlwifi
 
 SRCS=	iwl-drv.c
@@ -26,6 +28,12 @@ SRCS+=	pcie/drv.c pcie/rx.c pcie/trans-gen2.c pcie/trans.c
 SRCS+=	pcie/tx-gen2.c pcie/tx.c
 SRCS+=	queue/tx.c
 
+.if defined(WITH_DEBUGFS) && ${WITH_DEBUGFS} > 0
+SRCS+=	fw/debugfs.c mvm/debugfs.c mvm/debugfs-vif.c
+CFLAGS+=	-DCONFIG_IWLWIFI_DEBUGFS=${WITH_DEBUGFS}
+CFLAGS+=	-DCONFIG_MAC80211_DEBUGFS=${WITH_DEBUGFS}
+.endif
+
 SRCS+=	iwl-devtrace.c
 
 # Other
@@ -35,7 +43,7 @@ SRCS+=	opt_wlan.h opt_inet6.h opt_inet.h opt_acpi.h
 CFLAGS+=	-DKBUILD_MODNAME='"iwlwifi"'
 
 CFLAGS+=	-I${DEVIWLWIFIDIR}
-CFLAGS+=	-I${SRCTOP}/sys/compat/linuxkpi/common/include
+CFLAGS+=	${LINUXKPI_INCLUDES}
 CFLAGS+=	-DCONFIG_IWLDVM=0
 CFLAGS+=	-DCONFIG_IWLMVM=1
 # Helpful after fresh imports.
@@ -45,12 +53,10 @@ CFLAGS+=	-DCONFIG_IWLMVM=1
 #CFLAGS+=	-DCONFIG_INET=1		# Need LKPI TSO implementation.
 #CFLAGS+=	-DCONFIG_IPV6=1
 CFLAGS+=	-DCONFIG_IWLWIFI_DEBUG=1
-#CFLAGS+=	-DCONFIG_IWLWIFI_DEBUGFS=1
 #CFLAGS+=	-DCONFIG_IWLWIFI_LEDS=1
 #CFLAGS+=	-DCONFIG_IWLWIFI_OPMODE_MODULAR=1
 CFLAGS+=	-DCONFIG_IWLWIFI_DEVICE_TRACING=1
 #CFLAGS+=	-DCONFIG_LOCKDEP=1
-#CFLAGS+=	-DCONFIG_MAC80211_DEBUGFS=1
 #CFLAGS+=	-DCONFIG_NL80211_TESTMODE=1
 #CFLAGS+=	-DCONFIG_PM=1
 #CFLAGS+=	-DCONFIG_PM_SLEEP=1

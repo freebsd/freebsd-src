@@ -91,4 +91,8 @@ smbios_walk_table(uint8_t *p, int entries, smbios_callback_t cb, void *arg)
 	}
 }
 
+#ifdef _KERNEL
+void identify_hypervisor_smbios(void);
+#endif
+
 #endif /* _SMBIOS_H_ */

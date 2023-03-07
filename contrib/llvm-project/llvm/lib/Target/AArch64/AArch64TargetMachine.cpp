@@ -12,6 +12,7 @@
 #include "AArch64TargetMachine.h"
 #include "AArch64.h"
 #include "AArch64MachineFunctionInfo.h"
+#include "AArch64MachineScheduler.h"
 #include "AArch64MacroFusion.h"
 #include "AArch64Subtarget.h"
 #include "AArch64TargetObjectFile.h"
@@ -21,7 +22,9 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
+#include "llvm/CodeGen/CFIFixup.h"
 #include "llvm/CodeGen/CSEConfigBase.h"
+#include "llvm/CodeGen/GlobalISel/CSEInfo.h"
 #include "llvm/CodeGen/GlobalISel/IRTranslator.h"
 #include "llvm/CodeGen/GlobalISel/InstructionSelect.h"
 #include "llvm/CodeGen/GlobalISel/Legalizer.h"
@@ -31,6 +34,7 @@
 #include "llvm/CodeGen/MIRParser/MIParser.h"
 #include "llvm/CodeGen/MachineScheduler.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/Function.h"
@@ -58,6 +62,11 @@ static cl::opt<bool>
     EnableCondBrTuning("aarch64-enable-cond-br-tune",
                        cl::desc("Enable the conditional branch tuning pass"),
                        cl::init(true), cl::Hidden);
+
+static cl::opt<bool> EnableAArch64CopyPropagation(
+    "aarch64-enable-copy-propagation",
+    cl::desc("Enable the copy propagation with AArch64 copy instr"),
+    cl::init(true), cl::Hidden);
 
 static cl::opt<bool> EnableMCR("aarch64-enable-mcr",
                                cl::desc("Enable the machine combiner pass"),
@@ -119,7 +128,7 @@ static cl::opt<bool>
 static cl::opt<bool>
     EnableGEPOpt("aarch64-enable-gep-opt", cl::Hidden,
                  cl::desc("Enable optimizations on complex GEPs"),
-                 cl::init(false));
+                 cl::init(true));
 
 static cl::opt<bool>
     BranchRelaxation("aarch64-enable-branch-relax", cl::Hidden, cl::init(true),
@@ -265,7 +274,7 @@ static Reloc::Model getEffectiveRelocModel(const Triple &TT,
   // On ELF platforms the default static relocation model has a smart enough
   // linker to cope with referencing external symbols defined in a shared
   // library. Hence DynamicNoPIC doesn't need to be promoted to PIC.
-  if (!RM.hasValue() || *RM == Reloc::DynamicNoPIC)
+  if (!RM || *RM == Reloc::DynamicNoPIC)
     return Reloc::Static;
   return *RM;
 }
@@ -354,6 +363,10 @@ AArch64TargetMachine::AArch64TargetMachine(const Target &T, const Triple &TT,
 
   // AArch64 supports the debug entry values.
   setSupportsDebugEntryValues(true);
+
+  // AArch64 supports fixing up the DWARF unwind information.
+  if (!getMCAsmInfo()->usesWindowsCFI())
+    setCFIFixup(true);
 }
 
 AArch64TargetMachine::~AArch64TargetMachine() = default;
@@ -379,7 +392,7 @@ AArch64TargetMachine::getSubtargetImpl(const Function &F) const {
   if (VScaleRangeAttr.isValid()) {
     Optional<unsigned> VScaleMax = VScaleRangeAttr.getVScaleRangeMax();
     MinSVEVectorSize = VScaleRangeAttr.getVScaleRangeMin() * 128;
-    MaxSVEVectorSize = VScaleMax ? VScaleMax.getValue() * 128 : 0;
+    MaxSVEVectorSize = VScaleMax ? *VScaleMax * 128 : 0;
   } else {
     MinSVEVectorSize = SVEVectorBitsMinOpt;
     MaxSVEVectorSize = SVEVectorBitsMaxOpt;
@@ -468,15 +481,17 @@ public:
   ScheduleDAGInstrs *
   createPostMachineScheduler(MachineSchedContext *C) const override {
     const AArch64Subtarget &ST = C->MF->getSubtarget<AArch64Subtarget>();
+    ScheduleDAGMI *DAG =
+        new ScheduleDAGMI(C, std::make_unique<AArch64PostRASchedStrategy>(C),
+                          /* RemoveKillFlags=*/true);
     if (ST.hasFusion()) {
       // Run the Macro Fusion after RA again since literals are expanded from
       // pseudos then (v. addPreSched2()).
-      ScheduleDAGMI *DAG = createGenericSchedPostRA(C);
       DAG->addMutation(createAArch64MacroFusionDAGMutation());
       return DAG;
     }
 
-    return nullptr;
+    return DAG;
   }
 
   void addIRPasses()  override;
@@ -504,7 +519,7 @@ public:
 } // end anonymous namespace
 
 TargetTransformInfo
-AArch64TargetMachine::getTargetTransformInfo(const Function &F) {
+AArch64TargetMachine::getTargetTransformInfo(const Function &F) const {
   return TargetTransformInfo(AArch64TTIImpl(this, F));
 }
 
@@ -548,17 +563,6 @@ void AArch64PassConfig::addIRPasses() {
       addPass(createFalkorMarkStridedAccessesPass());
   }
 
-  TargetPassConfig::addIRPasses();
-
-  addPass(createAArch64StackTaggingPass(
-      /*IsOptNone=*/TM->getOptLevel() == CodeGenOpt::None));
-
-  // Match interleaved memory accesses to ldN/stN intrinsics.
-  if (TM->getOptLevel() != CodeGenOpt::None) {
-    addPass(createInterleavedLoadCombinePass());
-    addPass(createInterleavedAccessPass());
-  }
-
   if (TM->getOptLevel() == CodeGenOpt::Aggressive && EnableGEPOpt) {
     // Call SeparateConstOffsetFromGEP pass to extract constants within indices
     // and lower a GEP with multiple indices to either arithmetic operations or
@@ -572,9 +576,23 @@ void AArch64PassConfig::addIRPasses() {
     addPass(createLICMPass());
   }
 
+  TargetPassConfig::addIRPasses();
+
+  addPass(createAArch64StackTaggingPass(
+      /*IsOptNone=*/TM->getOptLevel() == CodeGenOpt::None));
+
+  // Match interleaved memory accesses to ldN/stN intrinsics.
+  if (TM->getOptLevel() != CodeGenOpt::None) {
+    addPass(createInterleavedLoadCombinePass());
+    addPass(createInterleavedAccessPass());
+  }
+
   // Add Control Flow Guard checks.
   if (TM->getTargetTriple().isOSWindows())
     addPass(createCFGuardCheckPass());
+
+  if (TM->Options.JMCInstrument)
+    addPass(createJMCInstrumenterPass());
 }
 
 // Pass Pipeline Configuration
@@ -760,6 +778,10 @@ void AArch64PassConfig::addPreEmitPass() {
   if (TM->getOptLevel() >= CodeGenOpt::Aggressive && EnableLoadStoreOpt)
     addPass(createAArch64LoadStoreOptimizationPass());
 
+  if (TM->getOptLevel() >= CodeGenOpt::Aggressive &&
+      EnableAArch64CopyPropagation)
+    addPass(createMachineCopyPropagationPass(true));
+
   addPass(createAArch64A53Fix835769());
 
   if (EnableBranchTargets)
@@ -805,8 +827,7 @@ AArch64TargetMachine::convertFuncInfoToYAML(const MachineFunction &MF) const {
 bool AArch64TargetMachine::parseMachineFunctionInfo(
     const yaml::MachineFunctionInfo &MFI, PerFunctionMIParsingState &PFS,
     SMDiagnostic &Error, SMRange &SourceRange) const {
-  const auto &YamlMFI =
-      reinterpret_cast<const yaml::AArch64FunctionInfo &>(MFI);
+  const auto &YamlMFI = static_cast<const yaml::AArch64FunctionInfo &>(MFI);
   MachineFunction &MF = PFS.MF;
   MF.getInfo<AArch64FunctionInfo>()->initializeBaseYamlFields(YamlMFI);
   return false;

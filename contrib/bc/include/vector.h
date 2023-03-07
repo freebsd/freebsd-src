@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -59,9 +59,6 @@ typedef unsigned char uchar;
  */
 typedef void (*BcVecFree)(void* ptr);
 
-// Forward declaration.
-struct BcId;
-
 #if BC_LONG_BIT >= 64
 
 /// An integer to shrink the size of a vector by using these instead of size_t.
@@ -88,12 +85,12 @@ typedef enum BcDtorType
 
 #if !BC_ENABLE_LIBRARY
 
-#ifndef NDEBUG
+#if BC_DEBUG
 
 	/// BcFunc destructor.
 	BC_DTOR_FUNC,
 
-#endif // NDEBUG
+#endif // BC_DEBUG
 
 	/// BcSlab destructor.
 	BC_DTOR_SLAB,
@@ -322,7 +319,7 @@ void
 bc_vec_free(void* vec);
 
 /**
- * Attempts to insert an item into a map and returns true if it succeeded, false
+ * Attempts to insert an ID into a map and returns true if it succeeded, false
  * if the item already exists.
  * @param v     The map vector to insert into.
  * @param name  The name of the item to insert. This name is assumed to be owned
@@ -426,17 +423,6 @@ bc_slabvec_init(BcVec* restrict v);
  */
 char*
 bc_slabvec_strdup(BcVec* restrict v, const char* str);
-
-#if BC_ENABLED
-
-/**
- * Undoes the last allocation on the slab vector. This allows bc to have a
- * heap-based stacks for strings. This is used by the bc parser.
- */
-void
-bc_slabvec_undo(BcVec* restrict v, size_t len);
-
-#endif // BC_ENABLED
 
 /**
  * Clears a slab vector. This deallocates all but the first slab and clears the

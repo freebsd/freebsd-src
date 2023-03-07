@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-client.h,v 1.36 2022/03/31 03:07:03 djm Exp $ */
+/* $OpenBSD: sftp-client.h,v 1.38 2022/09/19 10:43:12 djm Exp $ */
 
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
@@ -141,28 +141,29 @@ int do_fsync(struct sftp_conn *conn, u_char *, u_int);
  * Download 'remote_path' to 'local_path'. Preserve permissions and times
  * if 'pflag' is set
  */
-int do_download(struct sftp_conn *, const char *, const char *,
-    Attrib *, int, int, int);
+int do_download(struct sftp_conn *, const char *, const char *, Attrib *,
+    int, int, int, int);
 
 /*
  * Recursively download 'remote_directory' to 'local_directory'. Preserve
  * times if 'pflag' is set
  */
-int download_dir(struct sftp_conn *, const char *, const char *,
-    Attrib *, int, int, int, int, int);
+int download_dir(struct sftp_conn *, const char *, const char *, Attrib *,
+    int, int, int, int, int, int);
 
 /*
  * Upload 'local_path' to 'remote_path'. Preserve permissions and times
  * if 'pflag' is set
  */
-int do_upload(struct sftp_conn *, const char *, const char *, int, int, int);
+int do_upload(struct sftp_conn *, const char *, const char *,
+    int, int, int, int);
 
 /*
  * Recursively upload 'local_directory' to 'remote_directory'. Preserve
  * times if 'pflag' is set
  */
-int upload_dir(struct sftp_conn *, const char *, const char *, int, int, int,
-    int, int);
+int upload_dir(struct sftp_conn *, const char *, const char *,
+    int, int, int, int, int, int);
 
 /*
  * Download a 'from_path' from the 'from' connection and upload it to
@@ -181,6 +182,15 @@ int crossload_dir(struct sftp_conn *from, struct sftp_conn *to,
     const char *from_path, const char *to_path,
     Attrib *dirattrib, int preserve_flag, int print_flag,
     int follow_link_flag);
+
+/*
+ * User/group ID to name translation.
+ */
+int can_get_users_groups_by_id(struct sftp_conn *conn);
+int do_get_users_groups_by_id(struct sftp_conn *conn,
+    const u_int *uids, u_int nuids,
+    const u_int *gids, u_int ngids,
+    char ***usernamesp, char ***groupnamesp);
 
 /* Concatenate paths, taking care of slashes. Caller must free result. */
 char *path_append(const char *, const char *);

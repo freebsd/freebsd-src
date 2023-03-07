@@ -568,8 +568,6 @@ void mlx5_fpga_client_unregister(struct mlx5_fpga_client *client)
 }
 EXPORT_SYMBOL(mlx5_fpga_client_unregister);
 
-#if (__FreeBSD_version >= 1100000)
 MODULE_DEPEND(mlx5fpga, linuxkpi, 1, 1, 1);
-#endif
 MODULE_DEPEND(mlx5fpga, mlx5, 1, 1, 1);
 MODULE_VERSION(mlx5fpga, 1);

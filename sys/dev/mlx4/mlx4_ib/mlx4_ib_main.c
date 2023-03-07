@@ -131,10 +131,10 @@ static int num_ib_ports(struct mlx4_dev *dev)
 	return ib_ports;
 }
 
-static struct ifnet *mlx4_ib_get_netdev(struct ib_device *device, u8 port_num)
+static if_t mlx4_ib_get_netdev(struct ib_device *device, u8 port_num)
 {
 	struct mlx4_ib_dev *ibdev = to_mdev(device);
-	struct ifnet *dev;
+	if_t dev;
 
 	rcu_read_lock();
 	dev = mlx4_get_protocol_dev(ibdev->dev, MLX4_PROT_ETH, port_num);
@@ -142,11 +142,11 @@ static struct ifnet *mlx4_ib_get_netdev(struct ib_device *device, u8 port_num)
 #if 0
 	if (dev) {
 		if (mlx4_is_bonded(ibdev->dev)) {
-			struct ifnet *upper = NULL;
+			if_t upper = NULL;
 
 			upper = netdev_master_upper_dev_get_rcu(dev);
 			if (upper) {
-				struct ifnet *active;
+				if_t active;
 
 				active = bond_option_active_slave_get_rcu(mlx4_netdev_priv(upper));
 				if (active)
@@ -691,7 +691,7 @@ static int eth_link_query_port(struct ib_device *ibdev, u8 port,
 
 	struct mlx4_ib_dev *mdev = to_mdev(ibdev);
 	struct mlx4_ib_iboe *iboe = &mdev->iboe;
-	struct ifnet *ndev;
+	if_t ndev;
 	enum ib_mtu tmp;
 	struct mlx4_cmd_mailbox *mailbox;
 	int err = 0;
@@ -731,11 +731,11 @@ static int eth_link_query_port(struct ib_device *ibdev, u8 port,
 	if (!ndev)
 		goto out_unlock;
 
-	tmp = iboe_get_mtu(ndev->if_mtu);
+	tmp = iboe_get_mtu(if_getmtu(ndev));
 	props->active_mtu = tmp ? min(props->max_mtu, tmp) : IB_MTU_256;
 
-	props->state		= ((ndev->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
-				   ndev->if_link_state == LINK_STATE_UP) ?
+	props->state		= ((if_getdrvflags(ndev) & IFF_DRV_RUNNING) != 0 &&
+				   if_getlinkstate(ndev) == LINK_STATE_UP) ?
 					IB_PORT_ACTIVE : IB_PORT_DOWN;
 	props->phys_state	= state_to_phys_state(props->state);
 out_unlock:
@@ -1252,7 +1252,7 @@ static void mlx4_ib_delete_counters_table(struct mlx4_ib_dev *ibdev,
 int mlx4_ib_add_mc(struct mlx4_ib_dev *mdev, struct mlx4_ib_qp *mqp,
 		   union ib_gid *gid)
 {
-	struct ifnet *ndev;
+	if_t ndev;
 	int ret = 0;
 
 	if (!mqp->port)
@@ -1868,7 +1868,7 @@ static int mlx4_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	struct mlx4_ib_dev *mdev = to_mdev(ibqp->device);
 	struct mlx4_dev *dev = mdev->dev;
 	struct mlx4_ib_qp *mqp = to_mqp(ibqp);
-	struct ifnet *ndev;
+	if_t ndev;
 	struct mlx4_ib_gid_entry *ge;
 	struct mlx4_flow_reg_id reg_id = {0, 0};
 	enum mlx4_protocol prot =  MLX4_PROT_IB_IPV6;
@@ -2192,14 +2192,14 @@ static void mlx4_ib_diag_cleanup(struct mlx4_ib_dev *ibdev)
 
 #define MLX4_IB_INVALID_MAC	((u64)-1)
 static void mlx4_ib_update_qps(struct mlx4_ib_dev *ibdev,
-			       struct ifnet *dev,
+			       if_t dev,
 			       int port)
 {
 	u64 new_smac = 0;
 	u64 release_mac = MLX4_IB_INVALID_MAC;
 	struct mlx4_ib_qp *qp;
 
-	new_smac = mlx4_mac_to_u64(IF_LLADDR(dev));
+	new_smac = mlx4_mac_to_u64(if_getlladdr(dev));
 
 	atomic64_set(&ibdev->iboe.mac[port - 1], new_smac);
 
@@ -2247,7 +2247,7 @@ unlock:
 }
 
 static void mlx4_ib_scan_netdevs(struct mlx4_ib_dev *ibdev,
-				 struct ifnet *dev,
+				 if_t dev,
 				 unsigned long event)
 
 {
@@ -2278,10 +2278,10 @@ static void mlx4_ib_scan_netdevs(struct mlx4_ib_dev *ibdev,
 static int mlx4_ib_netdev_event(struct notifier_block *this,
 				unsigned long event, void *ptr)
 {
-	struct ifnet *dev = netdev_notifier_info_to_ifp(ptr);
+	if_t dev = netdev_notifier_info_to_ifp(ptr);
 	struct mlx4_ib_dev *ibdev;
 
-	if (dev->if_vnet != &init_net)
+	if (if_getvnet(dev) != &init_net)
 		return NOTIFY_DONE;
 
 	ibdev = container_of(this, struct mlx4_ib_dev, iboe.nb);
@@ -3014,15 +3014,15 @@ static void handle_bonded_port_state_event(struct work_struct *work)
 	kfree(ew);
 	spin_lock_bh(&ibdev->iboe.lock);
 	for (i = 0; i < MLX4_MAX_PORTS; ++i) {
-		struct ifnet *curr_netdev = ibdev->iboe.netdevs[i];
+		if_t curr_netdev = ibdev->iboe.netdevs[i];
 		enum ib_port_state curr_port_state;
 
 		if (!curr_netdev)
 			continue;
 
 		curr_port_state =
-			((curr_netdev->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
-			 curr_netdev->if_link_state == LINK_STATE_UP) ?
+			((if_getdrvflags(curr_netdev) & IFF_DRV_RUNNING) != 0 &&
+			 if_getlinkstate(curr_netdev) == LINK_STATE_UP) ?
 			IB_PORT_ACTIVE : IB_PORT_DOWN;
 
 		bonded_port_state = (bonded_port_state != IB_PORT_ACTIVE) ?

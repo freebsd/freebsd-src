@@ -483,7 +483,7 @@ kdb_switch(void)
 }
 
 /*
- * The machine independent parts of context switching.
+ * mi_switch(9): The machine-independent parts of context switching.
  *
  * The thread lock is required on entry and is no longer held on return.
  */
@@ -500,10 +500,15 @@ mi_switch(int flags)
 	if (!TD_ON_LOCK(td) && !TD_IS_RUNNING(td))
 		mtx_assert(&Giant, MA_NOTOWNED);
 #endif
+	/* thread_lock() performs spinlock_enter(). */
 	KASSERT(td->td_critnest == 1 || KERNEL_PANICKED(),
-		("mi_switch: switch in a critical section"));
+	    ("mi_switch: switch in a critical section"));
 	KASSERT((flags & (SW_INVOL | SW_VOL)) != 0,
 	    ("mi_switch: switch must be voluntary or involuntary"));
+	KASSERT((flags & SW_TYPE_MASK) != 0,
+	    ("mi_switch: a switch reason (type) must be specified"));
+	KASSERT((flags & SW_TYPE_MASK) < SWT_COUNT,
+	    ("mi_switch: invalid switch reason %d", (flags & SW_TYPE_MASK)));
 
 	/*
 	 * Don't perform context switches from the debugger.
@@ -658,7 +663,7 @@ synch_setup(void *dummy __unused)
 	loadav(NULL);
 }
 
-int
+bool
 should_yield(void)
 {
 

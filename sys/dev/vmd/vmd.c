@@ -65,18 +65,29 @@ struct vmd_type {
 	int		flags;
 #define BUS_RESTRICT	1
 #define VECTOR_OFFSET	2
+#define CAN_BYPASS_MSI	4
 };
 
 #define VMD_CAP		0x40
 #define VMD_BUS_RESTRICT	0x1
 
 #define VMD_CONFIG	0x44
+#define VMD_BYPASS_MSI		0x2
 #define VMD_BUS_START(x)	((x >> 8) & 0x3)
 
 #define VMD_LOCK	0x70
 
 SYSCTL_NODE(_hw, OID_AUTO, vmd, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Intel Volume Management Device tuning parameters");
+
+/*
+ * By default all VMD devices remap children MSI/MSI-X interrupts into their
+ * own.  It creates additional isolation, but also complicates things due to
+ * sharing, etc.  Fortunately some VMD devices can bypass the remapping.
+ */
+static int vmd_bypass_msi = 1;
+SYSCTL_INT(_hw_vmd, OID_AUTO, bypass_msi, CTLFLAG_RWTUN, &vmd_bypass_msi, 0,
+    "Bypass MSI remapping on capable hardware");
 
 /*
  * All MSIs within a group share address, so VMD can't distinguish them.
@@ -97,11 +108,13 @@ SYSCTL_INT(_hw_vmd, OID_AUTO, max_msix, CTLFLAG_RWTUN, &vmd_max_msix, 0,
 
 static struct vmd_type vmd_devs[] = {
         { 0x8086, 0x201d, "Intel Volume Management Device", 0 },
-        { 0x8086, 0x28c0, "Intel Volume Management Device", BUS_RESTRICT },
+        { 0x8086, 0x28c0, "Intel Volume Management Device", BUS_RESTRICT | CAN_BYPASS_MSI },
         { 0x8086, 0x467f, "Intel Volume Management Device", BUS_RESTRICT | VECTOR_OFFSET },
         { 0x8086, 0x4c3d, "Intel Volume Management Device", BUS_RESTRICT | VECTOR_OFFSET },
+        { 0x8086, 0x7d0b, "Intel Volume Management Device", BUS_RESTRICT | VECTOR_OFFSET },
         { 0x8086, 0x9a0b, "Intel Volume Management Device", BUS_RESTRICT | VECTOR_OFFSET },
         { 0x8086, 0xa77f, "Intel Volume Management Device", BUS_RESTRICT | VECTOR_OFFSET },
+        { 0x8086, 0xad0b, "Intel Volume Management Device", BUS_RESTRICT | VECTOR_OFFSET },
         { 0, 0, NULL, 0 }
 };
 
@@ -214,6 +227,19 @@ vmd_write_config(device_t dev, u_int b, u_int s, u_int f, u_int reg,
 	default:
 		__assert_unreachable();
 	}
+}
+
+static void
+vmd_set_msi_bypass(device_t dev, bool enable)
+{
+	uint16_t val;
+
+	val = pci_read_config(dev, VMD_CONFIG, 2);
+	if (enable)
+		val |= VMD_BYPASS_MSI;
+	else
+		val &= ~VMD_BYPASS_MSI;
+	pci_write_config(dev, VMD_CONFIG, val, 2);
 }
 
 static int
@@ -340,7 +366,10 @@ vmd_attach(device_t dev)
 	LIST_INIT(&sc->vmd_users);
 	sc->vmd_fist_vector = (t->flags & VECTOR_OFFSET) ? 1 : 0;
 	sc->vmd_msix_count = pci_msix_count(dev);
-	if (pci_alloc_msix(dev, &sc->vmd_msix_count) == 0) {
+	if (vmd_bypass_msi && (t->flags & CAN_BYPASS_MSI)) {
+		sc->vmd_msix_count = 0;
+		vmd_set_msi_bypass(dev, true);
+	} else if (pci_alloc_msix(dev, &sc->vmd_msix_count) == 0) {
 		sc->vmd_irq = malloc(sizeof(struct vmd_irq) *
 		    sc->vmd_msix_count, M_DEVBUF, M_WAITOK | M_ZERO);
 		for (i = 0; i < sc->vmd_msix_count; i++) {
@@ -362,6 +391,7 @@ vmd_attach(device_t dev)
 				goto fail;
 			}
 		}
+		vmd_set_msi_bypass(dev, false);
 	}
 
 	sc->vmd_dma_tag = bus_get_dma_tag(dev);
@@ -386,6 +416,8 @@ vmd_detach(device_t dev)
 	error = device_delete_children(dev);
 	if (error)
 		return (error);
+	if (sc->vmd_msix_count == 0)
+		vmd_set_msi_bypass(dev, false);
 	vmd_free(sc);
 	return (0);
 }
@@ -482,6 +514,11 @@ vmd_alloc_msi(device_t dev, device_t child, int count, int maxcount,
 	struct vmd_irq_user *u;
 	int i, ibest = 0, best = INT_MAX;
 
+	if (sc->vmd_msix_count == 0) {
+		return (PCIB_ALLOC_MSI(device_get_parent(device_get_parent(dev)),
+		    child, count, maxcount, irqs));
+	}
+
 	if (count > vmd_max_msi)
 		return (ENOSPC);
 	LIST_FOREACH(u, &sc->vmd_users, viu_link) {
@@ -513,6 +550,11 @@ vmd_release_msi(device_t dev, device_t child, int count, int *irqs)
 	struct vmd_softc *sc = device_get_softc(dev);
 	struct vmd_irq_user *u;
 
+	if (sc->vmd_msix_count == 0) {
+		return (PCIB_RELEASE_MSI(device_get_parent(device_get_parent(dev)),
+		    child, count, irqs));
+	}
+
 	LIST_FOREACH(u, &sc->vmd_users, viu_link) {
 		if (u->viu_child == child) {
 			sc->vmd_irq[u->viu_vector].vi_nusers -= count;
@@ -530,6 +572,11 @@ vmd_alloc_msix(device_t dev, device_t child, int *irq)
 	struct vmd_softc *sc = device_get_softc(dev);
 	struct vmd_irq_user *u;
 	int i, ibest = 0, best = INT_MAX;
+
+	if (sc->vmd_msix_count == 0) {
+		return (PCIB_ALLOC_MSIX(device_get_parent(device_get_parent(dev)),
+		    child, irq));
+	}
 
 	i = 0;
 	LIST_FOREACH(u, &sc->vmd_users, viu_link) {
@@ -562,6 +609,11 @@ vmd_release_msix(device_t dev, device_t child, int irq)
 	struct vmd_softc *sc = device_get_softc(dev);
 	struct vmd_irq_user *u;
 
+	if (sc->vmd_msix_count == 0) {
+		return (PCIB_RELEASE_MSIX(device_get_parent(device_get_parent(dev)),
+		    child, irq));
+	}
+
 	LIST_FOREACH(u, &sc->vmd_users, viu_link) {
 		if (u->viu_child == child &&
 		    sc->vmd_irq[u->viu_vector].vi_irq == irq) {
@@ -579,6 +631,11 @@ vmd_map_msi(device_t dev, device_t child, int irq, uint64_t *addr, uint32_t *dat
 {
 	struct vmd_softc *sc = device_get_softc(dev);
 	int i;
+
+	if (sc->vmd_msix_count == 0) {
+		return (PCIB_MAP_MSI(device_get_parent(device_get_parent(dev)),
+		    child, irq, addr, data));
+	}
 
 	for (i = sc->vmd_fist_vector; i < sc->vmd_msix_count; i++) {
 		if (sc->vmd_irq[i].vi_irq == irq)

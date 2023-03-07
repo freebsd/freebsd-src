@@ -124,11 +124,11 @@ SYSCTL_INT(_hw_usb_ucom, OID_AUTO, debug, CTLFLAG_RWTUN,
 static uint8_t ucom_cons_rx_buf[UCOM_CONS_BUFSIZE];
 static uint8_t ucom_cons_tx_buf[UCOM_CONS_BUFSIZE];
 
-static unsigned int ucom_cons_rx_low = 0;
-static unsigned int ucom_cons_rx_high = 0;
+static unsigned ucom_cons_rx_low = 0;
+static unsigned ucom_cons_rx_high = 0;
 
-static unsigned int ucom_cons_tx_low = 0;
-static unsigned int ucom_cons_tx_high = 0;
+static unsigned ucom_cons_tx_low = 0;
+static unsigned ucom_cons_tx_high = 0;
 
 static int ucom_cons_unit = -1;
 static int ucom_cons_subunit = 0;
@@ -1392,7 +1392,7 @@ ucom_get_data(struct ucom_softc *sc, struct usb_page_cache *pc,
 	UCOM_MTX_ASSERT(sc, MA_OWNED);
 
 	if (sc->sc_flag & UCOM_FLAG_CONSOLE) {
-		unsigned int temp;
+		unsigned temp;
 
 		/* get total TX length */
 
@@ -1470,7 +1470,7 @@ ucom_put_data(struct ucom_softc *sc, struct usb_page_cache *pc,
 	UCOM_MTX_ASSERT(sc, MA_OWNED);
 
 	if (sc->sc_flag & UCOM_FLAG_CONSOLE) {
-		unsigned int temp;
+		unsigned temp;
 
 		/* get maximum RX length */
 
@@ -1652,7 +1652,7 @@ static void
 ucom_cnputc(struct consdev *cd, int c)
 {
 	struct ucom_softc *sc = ucom_cons_softc;
-	unsigned int temp;
+	unsigned temp;
 
 	if (sc == NULL)
 		return;

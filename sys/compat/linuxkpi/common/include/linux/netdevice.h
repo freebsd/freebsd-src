@@ -5,7 +5,7 @@
  * Copyright (c) 2013-2019 Mellanox Technologies, Ltd.
  * All rights reserved.
  * Copyright (c) 2020-2021 The FreeBSD Foundation
- * Copyright (c) 2020-2021 Bjoern A. Zeeb
+ * Copyright (c) 2020-2022 Bjoern A. Zeeb
  *
  * Portions of this software were developed by Björn Zeeb
  * under sponsorship from the FreeBSD Foundation.
@@ -53,6 +53,7 @@
 #include <net/if_var.h>
 #include <net/if_dl.h>
 
+#include <linux/kernel.h>
 #include <linux/bitops.h>
 #include <linux/list.h>
 #include <linux/device.h>
@@ -134,6 +135,7 @@ struct net_device {
 	/* Not properly typed as-of now. */
 	int	flags, type;
 	int	name_assign_type, needed_headroom;
+	int	threaded;
 
 	void (*priv_destructor)(struct net_device *);
 
@@ -182,6 +184,30 @@ int	unregister_inetaddr_notifier(struct notifier_block *);
 
 #define	NAPI_POLL_WEIGHT			64	/* budget */
 
+/*
+ * There are drivers directly testing napi state bits, so we need to publicly
+ * expose them.  If you ask me, those accesses should be hid behind an
+ * inline function and the bit flags not be directly exposed.
+ */
+enum napi_state_bits {
+	/*
+	 * Official Linux flags encountered.
+	 */
+	NAPI_STATE_SCHED = 1,
+
+	/*
+	 * Our internal versions (for now).
+	 */
+	/* Do not schedule new things while we are waiting to clear things. */
+	LKPI_NAPI_FLAG_DISABLE_PENDING = 0,
+	/* To synchronise that only one poll is ever running. */
+	LKPI_NAPI_FLAG_IS_SCHEDULED = 1,
+	/* If trying to schedule while poll is running. Need to re-schedule. */
+	LKPI_NAPI_FLAG_LOST_RACE_TRY_AGAIN = 2,
+	/* When shutting down forcefully prevent anything from running task/poll. */
+	LKPI_NAPI_FLAG_SHUTDOWN = 3,
+};
+
 struct napi_struct {
 	TAILQ_ENTRY(napi_struct)	entry;
 
@@ -191,11 +217,12 @@ struct napi_struct {
 	int			budget;
 	int			rx_count;
 
+
 	/*
 	 * These flags mostly need to be checked/changed atomically
 	 * (multiple together in some cases).
 	 */
-	volatile unsigned long	_flags;
+	volatile unsigned long	state;
 
 	/* FreeBSD internal. */
 	/* Use task for now, so we can easily switch between direct and task. */
@@ -204,7 +231,7 @@ struct napi_struct {
 
 void linuxkpi_init_dummy_netdev(struct net_device *);
 void linuxkpi_netif_napi_add(struct net_device *, struct napi_struct *,
-    int(*napi_poll)(struct napi_struct *, int), int);
+    int(*napi_poll)(struct napi_struct *, int));
 void linuxkpi_netif_napi_del(struct napi_struct *);
 bool linuxkpi_napi_schedule_prep(struct napi_struct *);
 void linuxkpi___napi_schedule(struct napi_struct *);
@@ -218,8 +245,8 @@ void linuxkpi_napi_synchronize(struct napi_struct *);
 
 #define	init_dummy_netdev(_n)						\
 	linuxkpi_init_dummy_netdev(_n)
-#define	netif_napi_add(_nd, _ns, _p, _b)				\
-	linuxkpi_netif_napi_add(_nd, _ns, _p, _b)
+#define	netif_napi_add(_nd, _ns, _p)					\
+	linuxkpi_netif_napi_add(_nd, _ns, _p)
 #define	netif_napi_del(_n)						\
 	linuxkpi_netif_napi_del(_n)
 #define	napi_schedule_prep(_n)						\
@@ -240,6 +267,15 @@ void linuxkpi_napi_synchronize(struct napi_struct *);
 	linuxkpi_napi_enable(_n)
 #define	napi_synchronize(_n)						\
 	linuxkpi_napi_synchronize(_n)
+
+
+static inline void
+netif_napi_add_tx(struct net_device *dev, struct napi_struct *napi,
+    int(*napi_poll)(struct napi_struct *, int))
+{
+
+	netif_napi_add(dev, napi, napi_poll);
+}
 
 /* -------------------------------------------------------------------------- */
 
@@ -283,6 +319,126 @@ synchronize_net(void)
 	synchronize_rcu();
 }
 
+static __inline void
+netif_receive_skb_list(struct list_head *head)
+{
+
+	pr_debug("%s: TODO\n", __func__);
+}
+
+static __inline int
+napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
+{
+
+	pr_debug("%s: TODO\n", __func__);
+	return (-1);
+}
+
+static __inline void
+ether_setup(struct net_device *ndev)
+{
+
+	pr_debug("%s: TODO\n", __func__);
+}
+
+static __inline void
+dev_net_set(struct net_device *dev, void *p)
+{
+
+	pr_debug("%s: TODO\n", __func__);
+}
+
+/* -------------------------------------------------------------------------- */
+
+static __inline bool
+netif_carrier_ok(struct net_device *ndev)
+{
+	pr_debug("%s: TODO\n", __func__);
+	return (false);
+}
+
+static __inline void
+netif_carrier_off(struct net_device *ndev)
+{
+	pr_debug("%s: TODO\n", __func__);
+}
+
+static __inline void
+netif_carrier_on(struct net_device *ndev)
+{
+	pr_debug("%s: TODO\n", __func__);
+}
+
+/* -------------------------------------------------------------------------- */
+
+static __inline bool
+netif_queue_stopped(struct net_device *ndev)
+{
+	pr_debug("%s: TODO\n", __func__);
+	return (false);
+}
+
+static __inline void
+netif_stop_queue(struct net_device *ndev)
+{
+	pr_debug("%s: TODO\n", __func__);
+}
+
+static __inline void
+netif_wake_queue(struct net_device *ndev)
+{
+	pr_debug("%s: TODO\n", __func__);
+}
+
+/* -------------------------------------------------------------------------- */
+
+static __inline int
+register_netdevice(struct net_device *ndev)
+{
+
+	/* assert rtnl_locked? */
+	pr_debug("%s: TODO\n", __func__);
+	return (0);
+}
+
+static __inline int
+register_netdev(struct net_device *ndev)
+{
+	int error;
+
+	/* lock */
+	error = register_netdevice(ndev);
+	/* unlock */
+	pr_debug("%s: TODO\n", __func__);
+	return (error);
+}
+
+static __inline void
+unregister_netdev(struct net_device *ndev)
+{
+	pr_debug("%s: TODO\n", __func__);
+}
+
+static __inline void
+unregister_netdevice(struct net_device *ndev)
+{
+	pr_debug("%s: TODO\n", __func__);
+}
+
+/* -------------------------------------------------------------------------- */
+
+static __inline void
+netif_rx(struct sk_buff *skb)
+{
+	pr_debug("%s: TODO\n", __func__);
+}
+
+static __inline void
+netif_rx_ni(struct sk_buff *skb)
+{
+	pr_debug("%s: TODO\n", __func__);
+}
+
 /* -------------------------------------------------------------------------- */
 
 struct net_device *linuxkpi_alloc_netdev(size_t, const char *, uint32_t,
@@ -306,5 +462,6 @@ netdev_priv(const struct net_device *ndev)
 
 #define	rtnl_lock()		do { } while(0)
 #define	rtnl_unlock()		do { } while(0)
+#define	rcu_dereference_rtnl(x)	READ_ONCE(x)
 
 #endif	/* _LINUXKPI_LINUX_NETDEVICE_H */

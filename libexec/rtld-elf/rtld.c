@@ -269,7 +269,7 @@ static int osreldate;
 size_t *pagesizes;
 size_t page_size;
 
-static int stack_prot = PROT_READ | PROT_WRITE | RTLD_DEFAULT_STACK_EXEC;
+static int stack_prot = PROT_READ | PROT_WRITE | PROT_EXEC;
 static int max_stack_flags;
 
 /*
@@ -1200,6 +1200,8 @@ static const struct {
 	{ .kw = "${OSREL}", .pass_obj = false, .subst = uts.release },
 	{ .kw = "$PLATFORM", .pass_obj = false, .subst = uts.machine },
 	{ .kw = "${PLATFORM}", .pass_obj = false, .subst = uts.machine },
+	{ .kw = "$LIB", .pass_obj = false, .subst = TOKEN_LIB },
+	{ .kw = "${LIB}", .pass_obj = false, .subst = TOKEN_LIB },
 };
 
 static char *
@@ -2530,10 +2532,6 @@ initlist_add_objects(Obj_Entry *obj, Obj_Entry *tail, Objlist *list)
 	obj->on_fini_list = true;
     }
 }
-
-#ifndef FPTR_TARGET
-#define FPTR_TARGET(f)	((Elf_Addr) (f))
-#endif
 
 static void
 free_needed_filtees(Needed_Entry *n, RtldLockState *lockstate)
@@ -4956,7 +4954,12 @@ trace_print_obj(Obj_Entry *obj, const char *name, const char *path,
 	const char *fmt;
 	int c;
 
-	fmt = strncmp(name, "lib", 3) == 0 ? fmt1 : fmt2;	/* XXX bogus */
+	if (fmt1 == NULL)
+		fmt = fmt2;
+	else
+		/* XXX bogus */
+		fmt = strncmp(name, "lib", 3) == 0 ? fmt1 : fmt2;
+
 	while ((c = *fmt++) != '\0') {
 		switch (c) {
 		default:
@@ -5038,19 +5041,23 @@ trace_loaded_objects(Obj_Entry *obj, bool show_preload)
 	}
 
 	if (show_preload) {
+		if (ld_get_env_var(LD_TRACE_LOADED_OBJECTS_FMT2) == NULL)
+			fmt2 = "\t%p (%x)\n";
 		first_spurious = true;
+
 		TAILQ_FOREACH(obj, &obj_list, next) {
 			if (obj->marker || obj == obj_main || obj->traced)
 				continue;
 
-			if (first_spurious) {
+			if (list_containers && first_spurious) {
 				rtld_printf("[preloaded]\n");
 				first_spurious = false;
 			}
+
 			Name_Entry *fname = STAILQ_FIRST(&obj->names);
 			name = fname == NULL ? "<unknown>" : fname->name;
 			trace_print_obj(obj, name, obj->path, main_local,
-			    fmt1, fmt2);
+			    NULL, fmt2);
 		}
 	}
 }
@@ -6192,6 +6199,8 @@ static const struct auxfmt {
 	AUXFMT(AT_PS_STRINGS, "%p"),
 	AUXFMT(AT_FXRNG, "%p"),
 	AUXFMT(AT_KPRELOAD, "%p"),
+	AUXFMT(AT_USRSTACKBASE, "%#lx"),
+	AUXFMT(AT_USRSTACKLIM, "%#lx"),
 };
 
 static bool

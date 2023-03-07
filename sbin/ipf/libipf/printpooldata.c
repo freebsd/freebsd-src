@@ -12,7 +12,9 @@ void
 printpooldata(ip_pool_t *pool, int opts)
 {
 
-	if ((opts & OPT_DEBUG) == 0) {
+	if (opts & OPT_SAVEOUT) {
+		PRINTF("pool ");
+	} else if ((opts & OPT_DEBUG) == 0) {
 		if ((pool->ipo_flags & IPOOL_ANON) != 0)
 			PRINTF("# 'anonymous' tree %s\n", pool->ipo_name);
 		if ((pool->ipo_flags & IPOOL_DELETE) != 0)
@@ -32,7 +34,11 @@ printpooldata(ip_pool_t *pool, int opts)
 
 	printunit(pool->ipo_unit);
 
-	if ((opts & OPT_DEBUG) == 0) {
+	if ((opts & OPT_SAVEOUT)) {
+		PRINTF("/tree (%s \"\%s\";)\n",
+			(!*pool->ipo_name || ISDIGIT(*pool->ipo_name)) ? \
+			"number" : "name", pool->ipo_name);
+	} else if ((opts & OPT_DEBUG) == 0) {
 		PRINTF(" type=tree %s=%s\n",
 			(!*pool->ipo_name || ISDIGIT(*pool->ipo_name)) ? \
 			"number" : "name", pool->ipo_name);

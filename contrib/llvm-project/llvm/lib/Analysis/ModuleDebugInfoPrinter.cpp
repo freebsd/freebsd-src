@@ -15,8 +15,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/ModuleDebugInfoPrinter.h"
-#include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/Passes.h"
+#include "llvm/BinaryFormat/Dwarf.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/InitializePasses.h"
@@ -95,7 +95,7 @@ static void printModuleDebugInfo(raw_ostream &O, const Module *M,
     O << '\n';
   }
 
-  for (auto GVU : Finder.global_variables()) {
+  for (auto *GVU : Finder.global_variables()) {
     const auto *GV = GVU->getVariable();
     O << "Global variable: " << GV->getName();
     printFile(O, GV->getFilename(), GV->getDirectory(), GV->getLine());

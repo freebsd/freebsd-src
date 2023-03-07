@@ -440,7 +440,7 @@ zyd_detach(device_t dev)
 {
 	struct zyd_softc *sc = device_get_softc(dev);
 	struct ieee80211com *ic = &sc->sc_ic;
-	unsigned int x;
+	unsigned x;
 
 	/*
 	 * Prevent further allocations from RX/TX data

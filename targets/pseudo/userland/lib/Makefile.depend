@@ -111,7 +111,6 @@ DIRDEPS = \
 	lib/libnetgraph \
 	lib/libngatm \
 	lib/libnv \
-	lib/libopie \
 	lib/libpam/libpam \
 	lib/libpam/modules/pam_chroot \
 	lib/libpam/modules/pam_deny \
@@ -125,8 +124,6 @@ DIRDEPS = \
 	lib/libpam/modules/pam_lastlog \
 	lib/libpam/modules/pam_login_access \
 	lib/libpam/modules/pam_nologin \
-	lib/libpam/modules/pam_opie \
-	lib/libpam/modules/pam_opieaccess \
 	lib/libpam/modules/pam_passwdqc \
 	lib/libpam/modules/pam_permit \
 	lib/libpam/modules/pam_radius \

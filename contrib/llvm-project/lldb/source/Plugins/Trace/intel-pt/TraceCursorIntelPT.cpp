@@ -17,84 +17,123 @@ using namespace lldb_private;
 using namespace lldb_private::trace_intel_pt;
 using namespace llvm;
 
-TraceCursorIntelPT::TraceCursorIntelPT(ThreadSP thread_sp,
-                                       DecodedThreadSP decoded_thread_sp)
-    : TraceCursor(thread_sp), m_decoded_thread_sp(decoded_thread_sp) {
-  assert(!m_decoded_thread_sp->GetInstructions().empty() &&
-         "a trace should have at least one instruction or error");
-  m_pos = m_decoded_thread_sp->GetInstructions().size() - 1;
+TraceCursorIntelPT::TraceCursorIntelPT(
+    ThreadSP thread_sp, DecodedThreadSP decoded_thread_sp,
+    const Optional<LinuxPerfZeroTscConversion> &tsc_conversion,
+    Optional<uint64_t> beginning_of_time_nanos)
+    : TraceCursor(thread_sp), m_decoded_thread_sp(decoded_thread_sp),
+      m_tsc_conversion(tsc_conversion),
+      m_beginning_of_time_nanos(beginning_of_time_nanos) {
+  Seek(0, SeekType::End);
 }
 
-size_t TraceCursorIntelPT::GetInternalInstructionSize() {
-  return m_decoded_thread_sp->GetInstructions().size();
+void TraceCursorIntelPT::Next() {
+  m_pos += IsForwards() ? 1 : -1;
+  ClearTimingRangesIfInvalid();
 }
 
-bool TraceCursorIntelPT::Next() {
-  auto canMoveOne = [&]() {
-    if (IsForwards())
-      return m_pos + 1 < GetInternalInstructionSize();
-    return m_pos > 0;
-  };
-
-  size_t initial_pos = m_pos;
-
-  while (canMoveOne()) {
-    m_pos += IsForwards() ? 1 : -1;
-    if (!m_ignore_errors && IsError())
-      return true;
-    if (GetInstructionControlFlowType() & m_granularity)
-      return true;
+void TraceCursorIntelPT::ClearTimingRangesIfInvalid() {
+  if (m_tsc_range_calculated) {
+    if (!m_tsc_range || m_pos < 0 || !m_tsc_range->InRange(m_pos)) {
+      m_tsc_range = None;
+      m_tsc_range_calculated = false;
+    }
   }
 
-  // Didn't find any matching instructions
-  m_pos = initial_pos;
-  return false;
+  if (m_nanoseconds_range_calculated) {
+    if (!m_nanoseconds_range || m_pos < 0 ||
+        !m_nanoseconds_range->InRange(m_pos)) {
+      m_nanoseconds_range = None;
+      m_nanoseconds_range_calculated = false;
+    }
+  }
 }
 
-size_t TraceCursorIntelPT::Seek(int64_t offset, SeekType origin) {
-  int64_t last_index = GetInternalInstructionSize() - 1;
+const Optional<DecodedThread::TSCRange> &
+TraceCursorIntelPT::GetTSCRange() const {
+  if (!m_tsc_range_calculated) {
+    m_tsc_range_calculated = true;
+    m_tsc_range = m_decoded_thread_sp->GetTSCRangeByIndex(m_pos);
+  }
+  return m_tsc_range;
+}
 
-  auto fitPosToBounds = [&](int64_t raw_pos) -> int64_t {
-    return std::min(std::max((int64_t)0, raw_pos), last_index);
-  };
+const Optional<DecodedThread::NanosecondsRange> &
+TraceCursorIntelPT::GetNanosecondsRange() const {
+  if (!m_nanoseconds_range_calculated) {
+    m_nanoseconds_range_calculated = true;
+    m_nanoseconds_range =
+        m_decoded_thread_sp->GetNanosecondsRangeByIndex(m_pos);
+  }
+  return m_nanoseconds_range;
+}
 
+bool TraceCursorIntelPT::Seek(int64_t offset, SeekType origin) {
   switch (origin) {
-  case TraceCursor::SeekType::Set:
-    m_pos = fitPosToBounds(offset);
-    return m_pos;
+  case TraceCursor::SeekType::Beginning:
+    m_pos = offset;
+    break;
   case TraceCursor::SeekType::End:
-    m_pos = fitPosToBounds(offset + last_index);
-    return last_index - m_pos;
+    m_pos = m_decoded_thread_sp->GetItemsCount() - 1 + offset;
+    break;
   case TraceCursor::SeekType::Current:
-    int64_t new_pos = fitPosToBounds(offset + m_pos);
-    int64_t dist = m_pos - new_pos;
-    m_pos = new_pos;
-    return std::abs(dist);
+    m_pos += offset;
   }
+
+  ClearTimingRangesIfInvalid();
+
+  return HasValue();
 }
 
-bool TraceCursorIntelPT::IsError() {
-  return m_decoded_thread_sp->GetInstructions()[m_pos].IsError();
+bool TraceCursorIntelPT::HasValue() const {
+  return m_pos >= 0 &&
+         static_cast<uint64_t>(m_pos) < m_decoded_thread_sp->GetItemsCount();
 }
 
-Error TraceCursorIntelPT::GetError() {
-  return m_decoded_thread_sp->GetInstructions()[m_pos].ToError();
+lldb::TraceItemKind TraceCursorIntelPT::GetItemKind() const {
+  return m_decoded_thread_sp->GetItemKindByIndex(m_pos);
 }
 
-lldb::addr_t TraceCursorIntelPT::GetLoadAddress() {
-  return m_decoded_thread_sp->GetInstructions()[m_pos].GetLoadAddress();
+const char *TraceCursorIntelPT::GetError() const {
+  return m_decoded_thread_sp->GetErrorByIndex(m_pos);
 }
 
-Optional<uint64_t> TraceCursorIntelPT::GetTimestampCounter() {
-  return m_decoded_thread_sp->GetInstructions()[m_pos].GetTimestampCounter();
+lldb::addr_t TraceCursorIntelPT::GetLoadAddress() const {
+  return m_decoded_thread_sp->GetInstructionLoadAddress(m_pos);
 }
 
-TraceInstructionControlFlowType
-TraceCursorIntelPT::GetInstructionControlFlowType() {
-  lldb::addr_t next_load_address =
-      m_pos + 1 < GetInternalInstructionSize()
-          ? m_decoded_thread_sp->GetInstructions()[m_pos + 1].GetLoadAddress()
-          : LLDB_INVALID_ADDRESS;
-  return m_decoded_thread_sp->GetInstructions()[m_pos].GetControlFlowType(
-      next_load_address);
+Optional<uint64_t> TraceCursorIntelPT::GetHWClock() const {
+  if (const Optional<DecodedThread::TSCRange> &range = GetTSCRange())
+    return range->tsc;
+  return None;
 }
+
+Optional<double> TraceCursorIntelPT::GetWallClockTime() const {
+  if (const Optional<DecodedThread::NanosecondsRange> &range =
+          GetNanosecondsRange())
+    return range->GetInterpolatedTime(m_pos, *m_beginning_of_time_nanos,
+                                      *m_tsc_conversion);
+  return None;
+}
+
+Optional<lldb::cpu_id_t> TraceCursorIntelPT::GetCPU() const {
+  return m_decoded_thread_sp->GetCPUByIndex(m_pos);
+}
+
+lldb::TraceEvent TraceCursorIntelPT::GetEventType() const {
+  return m_decoded_thread_sp->GetEventByIndex(m_pos);
+}
+
+bool TraceCursorIntelPT::GoToId(user_id_t id) {
+  if (!HasId(id))
+    return false;
+  m_pos = id;
+  ClearTimingRangesIfInvalid();
+  return true;
+}
+
+bool TraceCursorIntelPT::HasId(lldb::user_id_t id) const {
+  return id < m_decoded_thread_sp->GetItemsCount();
+}
+
+user_id_t TraceCursorIntelPT::GetId() const { return m_pos; }

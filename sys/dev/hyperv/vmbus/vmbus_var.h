@@ -81,10 +81,6 @@ struct vmbus_pcpu_data {
 	struct task		message_task;	/* message task */
 } __aligned(CACHE_LINE_SIZE);
 
-#if __FreeBSD_version < 1100000
-typedef u_long rman_res_t;
-#endif
-
 struct vmbus_softc {
 	void			(*vmbus_event_proc)(struct vmbus_softc *, int);
 	u_long			*vmbus_tx_evtflags;
@@ -135,6 +131,12 @@ struct vmbus_softc {
 	/* The list of usable MMIO ranges for PCIe pass-through */
 	struct pcib_host_resources vmbus_mmio_res;
 #endif
+
+#if defined(__aarch64__)
+	struct resource *ires;
+	void *icookie;
+	int vector;
+#endif
 };
 
 #define VMBUS_FLAG_ATTACHED	0x0001	/* vmbus was attached */
@@ -151,7 +153,9 @@ struct vmbus_msghc;
 void		vmbus_handle_intr(struct trapframe *);
 int		vmbus_add_child(struct vmbus_channel *);
 int		vmbus_delete_child(struct vmbus_channel *);
+#if !defined(__aarch64__)
 void		vmbus_et_intr(struct trapframe *);
+#endif
 uint32_t	vmbus_gpadl_alloc(struct vmbus_softc *);
 
 struct vmbus_msghc *
@@ -172,4 +176,11 @@ void		vmbus_msghc_wakeup(struct vmbus_softc *,
 		    const struct vmbus_message *);
 void		vmbus_msghc_reset(struct vmbus_msghc *, size_t);
 
+void    vmbus_handle_timer_intr1(struct vmbus_message *msg_base,
+        struct trapframe *frame);
+
+void    vmbus_synic_setup1(void *xsc);
+void    vmbus_synic_teardown1(void);
+int     vmbus_setup_intr1(struct vmbus_softc *sc);
+void    vmbus_intr_teardown1(struct vmbus_softc *sc);
 #endif	/* !_VMBUS_VAR_H_ */

@@ -36,6 +36,7 @@
 #include "llvm/IR/Verifier.h"
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/InitializePasses.h"
+#include "llvm/MC/MCTargetOptionsCommandFlags.h"
 #include "llvm/MC/SubtargetFeature.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Pass.h"
@@ -46,7 +47,6 @@
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/InitLLVM.h"
-#include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/PluginLoader.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/TargetSelect.h"
@@ -117,12 +117,10 @@ static cl::opt<bool>
 
 // Determine optimization level.
 static cl::opt<char>
-OptLevel("O",
-         cl::desc("Optimization level. [-O0, -O1, -O2, or -O3] "
-                  "(default = '-O2')"),
-         cl::Prefix,
-         cl::ZeroOrMore,
-         cl::init(' '));
+    OptLevel("O",
+             cl::desc("Optimization level. [-O0, -O1, -O2, or -O3] "
+                      "(default = '-O2')"),
+             cl::Prefix, cl::init(' '));
 
 static cl::opt<std::string>
 TargetTriple("mtriple", cl::desc("Override target triple for module"));
@@ -193,7 +191,11 @@ static cl::opt<std::string> RemarksFormat(
     cl::value_desc("format"), cl::init("yaml"));
 
 namespace {
-static ManagedStatic<std::vector<std::string>> RunPassNames;
+
+std::vector<std::string> &getRunPassNames() {
+  static std::vector<std::string> RunPassNames;
+  return RunPassNames;
+}
 
 struct RunPassOption {
   void operator=(const std::string &Val) const {
@@ -202,7 +204,7 @@ struct RunPassOption {
     SmallVector<StringRef, 8> PassNames;
     StringRef(Val).split(PassNames, ',', -1, false);
     for (auto PassName : PassNames)
-      RunPassNames->push_back(std::string(PassName));
+      getRunPassNames().push_back(std::string(PassName));
   }
 };
 }
@@ -212,7 +214,7 @@ static RunPassOption RunPassOpt;
 static cl::opt<RunPassOption, true, cl::parser<std::string>> RunPass(
     "run-pass",
     cl::desc("Run compiler only for specified passes (comma separated list)"),
-    cl::value_desc("pass-name"), cl::ZeroOrMore, cl::location(RunPassOpt));
+    cl::value_desc("pass-name"), cl::location(RunPassOpt));
 
 static int compileModule(char **, LLVMContext &);
 
@@ -357,8 +359,6 @@ int main(int argc, char **argv) {
   initializeCodeGen(*Registry);
   initializeLoopStrengthReducePass(*Registry);
   initializeLowerIntrinsicsPass(*Registry);
-  initializeEntryExitInstrumenterPass(*Registry);
-  initializePostInlineEntryExitInstrumenterPass(*Registry);
   initializeUnreachableBlockElimLegacyPassPass(*Registry);
   initializeConstantHoistingLegacyPassPass(*Registry);
   initializeScalarOpts(*Registry);
@@ -369,6 +369,7 @@ int main(int argc, char **argv) {
   initializeHardwareLoopsPass(*Registry);
   initializeTransformUtils(*Registry);
   initializeReplaceWithVeclibLegacyPass(*Registry);
+  initializeTLSVariableHoistLegacyPassPass(*Registry);
 
   // Initialize debugging passes.
   initializeScavengerTestPass(*Registry);
@@ -501,14 +502,26 @@ static int compileModule(char **argv, LLVMContext &Context) {
         TargetMachine::parseBinutilsVersion(BinutilsVersion);
     Options.DisableIntegratedAS = NoIntegratedAssembler;
     Options.MCOptions.ShowMCEncoding = ShowMCEncoding;
-    Options.MCOptions.MCUseDwarfDirectory = DwarfDirectory;
     Options.MCOptions.AsmVerbose = AsmVerbose;
     Options.MCOptions.PreserveAsmComments = PreserveComments;
     Options.MCOptions.IASSearchPaths = IncludeDirs;
     Options.MCOptions.SplitDwarfFile = SplitDwarfFile;
+    if (DwarfDirectory.getPosition()) {
+      Options.MCOptions.MCUseDwarfDirectory =
+          DwarfDirectory ? MCTargetOptions::EnableDwarfDirectory
+                         : MCTargetOptions::DisableDwarfDirectory;
+    } else {
+      // -dwarf-directory is not set explicitly. Some assemblers
+      // (e.g. GNU as or ptxas) do not support `.file directory'
+      // syntax prior to DWARFv5. Let the target decide the default
+      // value.
+      Options.MCOptions.MCUseDwarfDirectory =
+          MCTargetOptions::DefaultDwarfDirectory;
+    }
   };
 
   Optional<Reloc::Model> RM = codegen::getExplicitRelocModel();
+  Optional<CodeModel::Model> CM = codegen::getExplicitCodeModel();
 
   const Target *TheTarget = nullptr;
   std::unique_ptr<TargetMachine> Target;
@@ -535,14 +548,13 @@ static int compileModule(char **argv, LLVMContext &Context) {
 
       // On AIX, setting the relocation model to anything other than PIC is
       // considered a user error.
-      if (TheTriple.isOSAIX() && RM.hasValue() && *RM != Reloc::PIC_)
+      if (TheTriple.isOSAIX() && RM && *RM != Reloc::PIC_)
         reportError("invalid relocation model, AIX only supports PIC",
                     InputFilename);
 
       InitializeOptions(TheTriple);
       Target = std::unique_ptr<TargetMachine>(TheTarget->createTargetMachine(
-          TheTriple.getTriple(), CPUStr, FeaturesStr, Options, RM,
-          codegen::getExplicitCodeModel(), OLvl));
+          TheTriple.getTriple(), CPUStr, FeaturesStr, Options, RM, CM, OLvl));
       assert(Target && "Could not allocate target machine!");
 
       return Target->createDataLayout().getStringRepresentation();
@@ -562,6 +574,10 @@ static int compileModule(char **argv, LLVMContext &Context) {
     }
     if (!TargetTriple.empty())
       M->setTargetTriple(Triple::normalize(TargetTriple));
+
+    Optional<CodeModel::Model> CM_IR = M->getCodeModel();
+    if (!CM && CM_IR)
+      Target->setCodeModel(CM_IR.value());
   } else {
     TheTriple = Triple(Triple::normalize(TargetTriple));
     if (TheTriple.getTriple().empty())
@@ -578,7 +594,7 @@ static int compileModule(char **argv, LLVMContext &Context) {
 
     // On AIX, setting the relocation model to anything other than PIC is
     // considered a user error.
-    if (TheTriple.isOSAIX() && RM.hasValue() && *RM != Reloc::PIC_) {
+    if (TheTriple.isOSAIX() && RM && *RM != Reloc::PIC_) {
       WithColor::error(errs(), argv[0])
           << "invalid relocation model, AIX only supports PIC.\n";
       return 1;
@@ -586,8 +602,7 @@ static int compileModule(char **argv, LLVMContext &Context) {
 
     InitializeOptions(TheTriple);
     Target = std::unique_ptr<TargetMachine>(TheTarget->createTargetMachine(
-        TheTriple.getTriple(), CPUStr, FeaturesStr, Options, RM,
-        codegen::getExplicitCodeModel(), OLvl));
+        TheTriple.getTriple(), CPUStr, FeaturesStr, Options, RM, CM, OLvl));
     assert(Target && "Could not allocate target machine!");
 
     // If we don't have a module then just exit now. We do this down
@@ -662,7 +677,7 @@ static int compileModule(char **argv, LLVMContext &Context) {
 
     // Construct a custom pass pipeline that starts after instruction
     // selection.
-    if (!RunPassNames->empty()) {
+    if (!getRunPassNames().empty()) {
       if (!MIR) {
         WithColor::warning(errs(), argv[0])
             << "run-pass is for .mir file only.\n";
@@ -680,7 +695,7 @@ static int compileModule(char **argv, LLVMContext &Context) {
       PM.add(&TPC);
       PM.add(MMIWP);
       TPC.printAndVerify("");
-      for (const std::string &RunPassName : *RunPassNames) {
+      for (const std::string &RunPassName : getRunPassNames()) {
         if (addPass(PM, argv0, RunPassName, TPC))
           return 1;
       }

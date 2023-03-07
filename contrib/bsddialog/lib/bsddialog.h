@@ -30,7 +30,7 @@
 
 #include <stdbool.h>
 
-#define LIBBSDDIALOG_VERSION     "0.3"
+#define LIBBSDDIALOG_VERSION     "0.4"
 
 /* Exit status */
 #define BSDDIALOG_ERROR          -1
@@ -136,14 +136,14 @@ struct bsddialog_menuitem {
 	const char *bottomdesc;
 };
 
-enum bsddialog_grouptype {
+enum bsddialog_menutype {
 	BSDDIALOG_CHECKLIST,
 	BSDDIALOG_RADIOLIST,
 	BSDDIALOG_SEPARATOR,
 };
 
 struct bsddialog_menugroup {
-	enum bsddialog_grouptype type;
+	enum bsddialog_menutype type;
 	unsigned int nitems;
 	struct bsddialog_menuitem *items;
 };
@@ -173,6 +173,10 @@ int bsddialog_clearterminal(void);
 const char *bsddialog_geterror(void);
 
 /* Dialogs */
+int
+bsddialog_calendar(struct bsddialog_conf *conf, const char *text, int rows,
+    int cols, unsigned int *yy, unsigned int *mm, unsigned int *dd);
+
 int
 bsddialog_checklist(struct bsddialog_conf *conf, const char *text, int rows,
     int cols, unsigned int menurows, unsigned int nitems,

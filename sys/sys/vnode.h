@@ -58,6 +58,11 @@
  */
 enum vtype	{ VNON, VREG, VDIR, VBLK, VCHR, VLNK, VSOCK, VFIFO, VBAD,
 		  VMARKER };
+#define VLASTTYPE VMARKER
+
+enum vstate	{ VSTATE_UNINITIALIZED, VSTATE_CONSTRUCTED, VSTATE_DESTROYING,
+		  VSTATE_DEAD };
+#define VLASTSTATE VSTATE_DEAD
 
 enum vgetstate	{ VGET_NONE, VGET_HOLDCNT, VGET_USECOUNT };
 /*
@@ -106,6 +111,7 @@ struct vnode {
 	 * owned by the filesystem (XXX: and vgone() ?)
 	 */
 	enum	vtype v_type:8;			/* u vnode type */
+	enum	vstate v_state:8;		/* u vnode state */
 	short	v_irflag;			/* i frequently read flags */
 	seqc_t	v_seqc;				/* i modification count */
 	uint32_t v_nchash;			/* u namecache hash */
@@ -276,6 +282,7 @@ struct xvnode {
 #define	VV_FORCEINSMQ	0x1000	/* force the insmntque to succeed */
 #define	VV_READLINK	0x2000	/* fdescfs linux vnode */
 #define	VV_UNREF	0x4000	/* vunref, do not drop lock in inactive() */
+#define	VV_CROSSLOCK	0x8000	/* vnode lock is shared w/ root mounted here */
 
 #define	VMP_LAZYLIST	0x0001	/* Vnode is on mnt's lazy list */
 
@@ -431,7 +438,8 @@ extern int		vttoif_tab[];
 #define	V_WAIT		0x0001	/* vn_start_write: sleep for suspend */
 #define	V_NOWAIT	0x0002	/* vn_start_write: don't sleep for suspend */
 #define	V_XSLEEP	0x0004	/* vn_start_write: just return after sleep */
-#define	V_MNTREF	0x0010	/* vn_start_write: mp is already ref-ed */
+#define	V_PCATCH	0x0008	/* vn_start_write: make the sleep interruptible */
+#define	V_VALID_FLAGS (V_WAIT | V_NOWAIT | V_XSLEEP | V_PCATCH)
 
 #define	VR_START_WRITE	0x0001	/* vfs_write_resume: start write atomically */
 #define	VR_NO_SUSPCLR	0x0002	/* vfs_write_resume: do not clear suspension */
@@ -675,9 +683,15 @@ void	cache_vop_rmdir(struct vnode *dvp, struct vnode *vp);
 #ifdef INVARIANTS
 void	cache_validate(struct vnode *dvp, struct vnode *vp,
 	    struct componentname *cnp);
+void	cache_assert_no_entries(struct vnode *vp);
 #else
 static inline void
 cache_validate(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
+{
+}
+
+static inline void
+cache_assert_no_entries(struct vnode *vp)
 {
 }
 #endif
@@ -706,6 +720,9 @@ struct vnode *
 int	vn_commname(struct vnode *vn, char *buf, u_int buflen);
 int	vn_path_to_global_path(struct thread *td, struct vnode *vp,
 	    char *path, u_int pathlen);
+int	vn_path_to_global_path_hardlink(struct thread *td, struct vnode *vp,
+	    struct vnode *dvp, char *path, u_int pathlen, const char *leaf_name,
+	    size_t leaf_length);
 int	vaccess(enum vtype type, mode_t file_mode, uid_t file_uid,
 	    gid_t file_gid, accmode_t accmode, struct ucred *cred);
 int	vaccess_vexec_smr(mode_t file_mode, uid_t file_uid, gid_t file_gid,
@@ -785,6 +802,10 @@ int	vn_rdwr_inchunks(enum uio_rw rw, struct vnode *vp, void *base,
 int	vn_read_from_obj(struct vnode *vp, struct uio *uio);
 int	vn_rlimit_fsize(const struct vnode *vp, const struct uio *uio,
 	    struct thread *td);
+int	vn_rlimit_fsizex(const struct vnode *vp, struct uio *uio,
+	    off_t maxfsz, ssize_t *resid_adj, struct thread *td);
+void	vn_rlimit_fsizex_res(struct uio *uio, ssize_t resid_adj);
+int	vn_rlimit_trunc(u_quad_t size, struct thread *td);
 int	vn_start_write(struct vnode *vp, struct mount **mpp, int flags);
 int	vn_start_secondary_write(struct vnode *vp, struct mount **mpp,
 	    int flags);
@@ -1114,11 +1135,32 @@ int vn_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
     struct thread *td);
 int vn_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
     struct thread *td);
+int vn_getsize_locked(struct vnode *vp, off_t *size, struct ucred *active_cred);
+int vn_getsize(struct vnode *vp, off_t *size, struct ucred *active_cred);
 
 void vn_fsid(struct vnode *vp, struct vattr *va);
 
 int vn_dir_check_exec(struct vnode *vp, struct componentname *cnp);
 int vn_lktype_write(struct mount *mp, struct vnode *vp);
+
+#ifdef INVARIANTS
+void vn_set_state_validate(struct vnode *vp, enum vstate state);
+#endif
+
+static inline void
+vn_set_state(struct vnode *vp, enum vstate state)
+{
+#ifdef INVARIANTS
+	vn_set_state_validate(vp, state);
+#endif
+	vp->v_state = state;
+}
+
+static inline enum vstate
+vn_get_state(struct vnode *vp)
+{
+	return (vp->v_state);
+}
 
 #define VOP_UNLOCK_FLAGS(vp, flags)	({				\
 	struct vnode *_vp = (vp);					\

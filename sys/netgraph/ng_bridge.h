@@ -148,6 +148,7 @@ struct ng_bridge_move_host {
 #define NG_BRIDGE_MOVE_HOST_TYPE_INFO(entype)	{		\
 	  { "addr",		(entype)		},	\
 	  { "hook",		&ng_parse_hookbuf_type	},	\
+	  { NULL }						\
 }
 
 /* Netgraph control messages */

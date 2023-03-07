@@ -921,11 +921,8 @@ set_widget_size(struct bsddialog_conf *conf, int rows, int cols, int *h, int *w)
 		*h = maxheight;
 	else if (rows < BSDDIALOG_FULLSCREEN)
 		RETURN_ERROR("Negative (less than -1) height");
-	else if (rows > BSDDIALOG_AUTOSIZE) {
-		if ((*h = rows) > maxheight)
-			RETURN_ERROR("Height too big (> terminal height - "
-			    "shadow)");
-	}
+	else if (rows > BSDDIALOG_AUTOSIZE) /* fixed rows */
+		*h = MIN(rows, maxheight); /* rows is at most maxheight */
 	/* rows == AUTOSIZE: each widget has to set its size */
 
 	if ((maxwidth = widget_max_width(conf)) == BSDDIALOG_ERROR)
@@ -935,11 +932,8 @@ set_widget_size(struct bsddialog_conf *conf, int rows, int cols, int *h, int *w)
 		*w = maxwidth;
 	else if (cols < BSDDIALOG_FULLSCREEN)
 		RETURN_ERROR("Negative (less than -1) width");
-	else if (cols > BSDDIALOG_AUTOSIZE) {
-		if ((*w = cols) > maxwidth)
-			RETURN_ERROR("Width too big (> terminal width - "
-			    "shadow)");
-	}
+	else if (cols > BSDDIALOG_AUTOSIZE) /* fixed cols */
+		*w = MIN(cols, maxwidth); /* cols is at most maxwidth */
 	/* cols == AUTOSIZE: each widget has to set its size */
 
 	return (0);

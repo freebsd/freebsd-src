@@ -77,17 +77,18 @@ public:
     explicit operator bool() const { return (help_callback != nullptr); }
   };
 
-  struct ArgumentTableEntry // Entries in the main argument information table
-  {
+  /// Entries in the main argument information table.
+  struct ArgumentTableEntry {
     lldb::CommandArgumentType arg_type;
     const char *arg_name;
     CommandCompletions::CommonCompletionTypes completion_type;
+    OptionEnumValues enum_values;
     ArgumentHelpCallback help_function;
     const char *help_text;
   };
 
-  struct CommandArgumentData // Used to build individual command argument lists
-  {
+  /// Used to build individual command argument lists.
+  struct CommandArgumentData {
     lldb::CommandArgumentType arg_type;
     ArgumentRepetitionType arg_repetition;
     /// This arg might be associated only with some particular option set(s). By
@@ -103,9 +104,6 @@ public:
 
   typedef std::vector<CommandArgumentData>
       CommandArgumentEntry; // Used to build individual command argument lists
-
-  static ArgumentTableEntry g_arguments_data
-      [lldb::eArgTypeLastArg]; // Main argument information table
 
   typedef std::map<std::string, lldb::CommandObjectSP> CommandMap;
 
@@ -202,8 +200,6 @@ public:
 
   virtual Options *GetOptions();
 
-  static const ArgumentTableEntry *GetArgumentTable();
-
   static lldb::CommandArgumentType LookupArgumentName(llvm::StringRef arg_name);
 
   static const ArgumentTableEntry *
@@ -276,14 +272,13 @@ public:
   ///    The command arguments.
   ///
   /// \return
-  ///     nullptr if there is no special repeat command - it will use the
+  ///     llvm::None if there is no special repeat command - it will use the
   ///     current command line.
-  ///     Otherwise a pointer to the command to be repeated.
-  ///     If the returned string is the empty string, the command won't be
-  ///     repeated.
-  virtual const char *GetRepeatCommand(Args &current_command_args,
-                                       uint32_t index) {
-    return nullptr;
+  ///     Otherwise a std::string containing the command to be repeated.
+  ///     If the string is empty, the command won't be allow repeating.
+  virtual llvm::Optional<std::string>
+  GetRepeatCommand(Args &current_command_args, uint32_t index) {
+    return llvm::None;
   }
 
   bool HasOverrideCallback() const {
@@ -327,15 +322,20 @@ protected:
   }
 
   virtual const char *GetInvalidProcessDescription() {
-    return "invalid process";
+    return "Command requires a current process.";
   }
 
-  virtual const char *GetInvalidThreadDescription() { return "invalid thread"; }
+  virtual const char *GetInvalidThreadDescription() {
+    return "Command requires a process which is currently stopped.";
+  }
 
-  virtual const char *GetInvalidFrameDescription() { return "invalid frame"; }
+  virtual const char *GetInvalidFrameDescription() {
+    return "Command requires a process, which is currently stopped.";
+  }
 
   virtual const char *GetInvalidRegContextDescription() {
-    return "invalid frame, no registers";
+    return "invalid frame, no registers, command requires a process which is "
+           "currently stopped.";
   }
 
   // This is for use in the command interpreter, when you either want the

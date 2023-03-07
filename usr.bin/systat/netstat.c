@@ -43,6 +43,7 @@ static const char sccsid[] = "@(#)netstat.c	8.1 (Berkeley) 6/6/93";
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
+#include <sys/callout.h>
 #define	_WANT_SOCKET
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
@@ -68,7 +69,6 @@ static const char sccsid[] = "@(#)netstat.c	8.1 (Berkeley) 6/6/93";
 #include <netinet/tcp_timer.h>
 #define	_WANT_TCPCB
 #include <netinet/tcp_var.h>
-#include <netinet/tcp_debug.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 
@@ -222,17 +222,9 @@ again:
 		if (nports && !checkport(&inpcb.inp_inc))
 			continue;
 		if (istcp) {
-			if (inpcb.inp_flags & INP_TIMEWAIT) {
-				bzero(&sockb, sizeof(sockb));
-				enter_kvm(&inpcb, &sockb, TCPS_TIME_WAIT,
-					 "tcp");
-			} else {
-				KREAD(inpcb.inp_socket, &sockb,
-					sizeof (sockb));
-				KREAD(inpcb.inp_ppcb, &tcpcb, sizeof (tcpcb));
-				enter_kvm(&inpcb, &sockb, tcpcb.t_state,
-					"tcp");
-			}
+			KREAD(inpcb.inp_socket, &sockb, sizeof (sockb));
+			KREAD(inpcb.inp_ppcb, &tcpcb, sizeof (tcpcb));
+			enter_kvm(&inpcb, &sockb, tcpcb.t_state, "tcp");
 		} else
 			enter_kvm(&inpcb, &sockb, 0, "udp");
 	}

@@ -553,7 +553,6 @@ do {								\
 		    offsetof(struct in6_ifstat, tag) / sizeof(uint64_t)], 1);\
 } while (/*CONSTCOND*/ 0)
 
-extern u_char inet6ctlerrmap[];
 VNET_DECLARE(unsigned long, in6_maxmtu);
 #define	V_in6_maxmtu			VNET(in6_maxmtu)
 #endif /* _KERNEL */
@@ -777,35 +776,13 @@ static __inline struct in6_multi *
 in6m_ifmultiaddr_get_inm(struct ifmultiaddr *ifma)
 {
 
-	NET_EPOCH_ASSERT();
-
 	return ((ifma->ifma_addr->sa_family != AF_INET6 ||	
 	    (ifma->ifma_flags & IFMA_F_ENQUEUED) == 0) ? NULL :
 	    ifma->ifma_protospec);
 }
 
-/*
- * Look up an in6_multi record for an IPv6 multicast address
- * on the interface ifp.
- * If no record found, return NULL.
- *
- * SMPng: The IN6_MULTI_LOCK and must be held and must be in network epoch.
- */
-static __inline struct in6_multi *
-in6m_lookup_locked(struct ifnet *ifp, const struct in6_addr *mcaddr)
-{
-	struct ifmultiaddr *ifma;
-	struct in6_multi *inm;
-
-	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-		inm = in6m_ifmultiaddr_get_inm(ifma);
-		if (inm == NULL)
-			continue;
-		if (IN6_ARE_ADDR_EQUAL(&inm->in6m_addr, mcaddr))
-			return (inm);
-	}
-	return (NULL);
-}
+struct in6_multi *
+in6m_lookup_locked(struct ifnet *ifp, const struct in6_addr *mcaddr);
 
 /*
  * Wrapper for in6m_lookup_locked().
@@ -889,6 +866,7 @@ int	in6_update_ifa(struct ifnet *, struct in6_aliasreq *,
 	struct in6_ifaddr *, int);
 void	in6_prepare_ifra(struct in6_aliasreq *, const struct in6_addr *,
 	const struct in6_addr *);
+int	in6_addifaddr(struct ifnet *, struct in6_aliasreq *, struct in6_ifaddr *);
 void	in6_purgeaddr(struct ifaddr *);
 void	in6_purgeifaddr(struct in6_ifaddr *);
 int	in6if_do_dad(struct ifnet *);

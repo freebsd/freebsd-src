@@ -613,6 +613,7 @@ loop:
 		return (error);
 	}
 	if (devfs_allocv_drop_refs(0, dmp, de)) {
+		vgone(vp);
 		vput(vp);
 		return (ENOENT);
 	}
@@ -620,6 +621,7 @@ loop:
 	mac_devfs_vnode_associate(mp, de, vp);
 #endif
 	sx_xunlock(&dmp->dm_lock);
+	vn_set_state(vp, VSTATE_CONSTRUCTED);
 	*vpp = vp;
 	return (0);
 }
@@ -1140,7 +1142,6 @@ devfs_lookupx(struct vop_lookup_args *ap, int *dm_unlock)
 	if (de == NULL || de->de_flags & DE_WHITEOUT) {
 		if ((nameiop == CREATE || nameiop == RENAME) &&
 		    (flags & (LOCKPARENT | WANTPARENT)) && (flags & ISLASTCN)) {
-			cnp->cn_flags |= SAVENAME;
 			return (EJUSTRETURN);
 		}
 		return (ENOENT);

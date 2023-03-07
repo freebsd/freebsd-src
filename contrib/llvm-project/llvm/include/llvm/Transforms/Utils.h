@@ -50,15 +50,6 @@ extern char &LowerSwitchID;
 
 //===----------------------------------------------------------------------===//
 //
-// EntryExitInstrumenter pass - Instrument function entry/exit with calls to
-// mcount(), @__cyg_profile_func_{enter,exit} and the like. There are two
-// variants, intended to run pre- and post-inlining, respectively.
-//
-FunctionPass *createEntryExitInstrumenterPass();
-FunctionPass *createPostInlineEntryExitInstrumenterPass();
-
-//===----------------------------------------------------------------------===//
-//
 // BreakCriticalEdges - Break all of the critical edges in the CFG by inserting
 // a dummy basic block. This pass may be "required" by passes that cannot deal
 // with critical edges. For this usage, a pass must call:
@@ -115,13 +106,6 @@ ModulePass *createStripNonLineTableDebugLegacyPass();
 
 //===----------------------------------------------------------------------===//
 //
-// ControlHeightReudction - Merges conditional blocks of code and reduces the
-// number of conditional branches in the hot paths based on profiles.
-//
-FunctionPass *createControlHeightReductionLegacyPass();
-
-//===----------------------------------------------------------------------===//
-//
 // InjectTLIMappingsLegacy - populates the VFABI attribute with the
 // scalar-to-vector mappings from the TargetLibraryInfo.
 //
@@ -155,6 +139,12 @@ FunctionPass *createAssumeSimplifyPass();
 // don't block SCEV.
 //
 Pass *createCanonicalizeFreezeInLoopsPass();
+
+//===----------------------------------------------------------------------===//
+// LowerGlobalDtorsLegacy - Lower @llvm.global_dtors by creating wrapper
+// functions that are registered in @llvm.global_ctors and which contain a call
+// to `__cxa_atexit` to register their destructor functions.
+ModulePass *createLowerGlobalDtorsLegacyPass();
 } // namespace llvm
 
 #endif

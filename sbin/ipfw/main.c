@@ -30,6 +30,7 @@
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
+#include <libgen.h>
 
 #include "ipfw2.h"
 
@@ -682,7 +683,7 @@ main(int ac, char *av[])
 	}
 #endif
 
-	if (strcmp(av[0], "dnctl") == 0)
+	if (strcmp("dnctl", basename(av[0])) == 0)
 		g_co.prog = cmdline_prog_dnctl;
 	else
 		g_co.prog = cmdline_prog_ipfw;

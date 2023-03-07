@@ -73,10 +73,9 @@
 
 void	in6_pcbpurgeif0(struct inpcbinfo *, struct ifnet *);
 void	in6_losing(struct inpcb *);
-int	in6_pcbbind(struct inpcb *, struct sockaddr *, struct ucred *);
-int	in6_pcbconnect(struct inpcb *, struct sockaddr *, struct ucred *);
-int	in6_pcbconnect_mbuf(struct inpcb *, struct sockaddr *,
-	    struct ucred *, struct mbuf *, bool);
+int	in6_pcbbind(struct inpcb *, struct sockaddr_in6 *, struct ucred *);
+int	in6_pcbconnect(struct inpcb *, struct sockaddr_in6 *, struct ucred *,
+	    bool);
 void	in6_pcbdisconnect(struct inpcb *);
 struct	inpcb *
 	in6_pcblookup_local(struct inpcbinfo *,
@@ -85,7 +84,7 @@ struct	inpcb *
 struct inpcb *
 	in6_pcblookup_hash_locked(struct inpcbinfo *pcbinfo,
 	    struct in6_addr *faddr, u_int fport_arg, struct in6_addr *laddr,
-	    u_int lport_arg, int lookupflags, struct ifnet *ifp, uint8_t);
+	    u_int lport_arg, int lookupflags, uint8_t);
 struct	inpcb *
 	in6_pcblookup(struct inpcbinfo *, struct in6_addr *,
 			   u_int, struct in6_addr *, u_int, int,
@@ -94,8 +93,8 @@ struct	inpcb *
 	in6_pcblookup_mbuf(struct inpcbinfo *, struct in6_addr *,
 			   u_int, struct in6_addr *, u_int, int,
 			   struct ifnet *ifp, struct mbuf *);
-void	in6_pcbnotify(struct inpcbinfo *, struct sockaddr *,
-			   u_int, const struct sockaddr *, u_int, int, void *,
+void	in6_pcbnotify(struct inpcbinfo *, struct sockaddr_in6 *, u_int,
+			   const struct sockaddr_in6 *, u_int, int, void *,
 			   struct inpcb *(*)(struct inpcb *, int));
 struct inpcb *
 	in6_rtchange(struct inpcb *, int);

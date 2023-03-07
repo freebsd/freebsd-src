@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 
 char machine[] = "arm";
 
-SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD,
+SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD | CTLFLAG_CAPRD,
 	machine, 0, "Machine class");
 
 static char cpu_model[64];

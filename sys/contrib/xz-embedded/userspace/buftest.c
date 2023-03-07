@@ -27,13 +27,14 @@ int main(void)
 
 	s = xz_dec_init(XZ_SINGLE, 0);
 	if (s == NULL) {
-		fputs("Initialization failed", stderr);
+		fputs("Initialization failed\n", stderr);
 		return 1;
 	}
 
 	b.in = in;
 	b.in_pos = 0;
 	b.in_size = fread(in, 1, sizeof(in), stdin);
+
 	b.out = out;
 	b.out_pos = 0;
 	b.out_size = sizeof(out);

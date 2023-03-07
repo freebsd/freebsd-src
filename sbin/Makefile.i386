@@ -2,4 +2,3 @@
 
 SUBDIR += bsdlabel
 SUBDIR += fdisk
-SUBDIR += sconfig

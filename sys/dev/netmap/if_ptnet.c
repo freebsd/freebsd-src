@@ -93,12 +93,7 @@
 #error "INET not defined, cannot support offloadings"
 #endif
 
-#if __FreeBSD_version >= 1100000
 static uint64_t	ptnet_get_counter(if_t, ift_counter);
-#else
-typedef struct ifnet *if_t;
-#define if_getsoftc(_ifp)   (_ifp)->if_softc
-#endif
 
 //#define PTNETMAP_STATS
 //#define DEBUG
@@ -413,16 +408,14 @@ ptnet_attach(device_t dev)
 	}
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_baudrate = IF_Gbps(10);
-	ifp->if_softc = sc;
-	ifp->if_flags = IFF_BROADCAST | IFF_MULTICAST | IFF_SIMPLEX;
-	ifp->if_init = ptnet_init;
-	ifp->if_ioctl = ptnet_ioctl;
-#if __FreeBSD_version >= 1100000
-	ifp->if_get_counter = ptnet_get_counter;
-#endif
-	ifp->if_transmit = ptnet_transmit;
-	ifp->if_qflush = ptnet_qflush;
+	if_setbaudrate(ifp, IF_Gbps(10));
+	if_setsoftc(ifp, sc);
+	if_setflags(ifp, IFF_BROADCAST | IFF_MULTICAST | IFF_SIMPLEX);
+	if_setinitfn(ifp, ptnet_init);
+	if_setioctlfn(ifp, ptnet_ioctl);
+	if_setget_counter(ifp, ptnet_get_counter);
+	if_settransmitfn(ifp, ptnet_transmit);
+	if_setqflushfn(ifp, ptnet_qflush);
 
 	ifmedia_init(&sc->media, IFM_IMASK, ptnet_media_change,
 		     ptnet_media_status);
@@ -440,25 +433,25 @@ ptnet_attach(device_t dev)
 
 	ether_ifattach(ifp, sc->hwaddr);
 
-	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
-	ifp->if_capabilities |= IFCAP_JUMBO_MTU | IFCAP_VLAN_MTU;
+	if_setifheaderlen(ifp, sizeof(struct ether_vlan_header));
+	if_setcapabilitiesbit(ifp, IFCAP_JUMBO_MTU | IFCAP_VLAN_MTU, 0);
 
 	if (sc->ptfeatures & PTNETMAP_F_VNET_HDR) {
 		/* Similarly to what the vtnet driver does, we can emulate
 		 * VLAN offloadings by inserting and removing the 802.1Q
 		 * header during transmit and receive. We are then able
 		 * to do checksum offloading of VLAN frames. */
-		ifp->if_capabilities |= IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6
+		if_setcapabilitiesbit(ifp, IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6
 					| IFCAP_VLAN_HWCSUM
 					| IFCAP_TSO | IFCAP_LRO
 					| IFCAP_VLAN_HWTSO
-					| IFCAP_VLAN_HWTAGGING;
+					| IFCAP_VLAN_HWTAGGING, 0);
 	}
 
-	ifp->if_capenable = ifp->if_capabilities;
+	if_setcapenable(ifp, if_getcapabilities(ifp));
 #ifdef DEVICE_POLLING
 	/* Don't enable polling by default. */
-	ifp->if_capabilities |= IFCAP_POLLING;
+	if_setcapabilitiesbit(ifp, IFCAP_POLLING, 0);
 #endif
 	snprintf(sc->lock_name, sizeof(sc->lock_name),
 		 "%s", device_get_nameunit(dev));
@@ -524,7 +517,7 @@ ptnet_detach(device_t dev)
 	ptnet_device_shutdown(sc);
 
 #ifdef DEVICE_POLLING
-	if (sc->ifp->if_capenable & IFCAP_POLLING) {
+	if (if_getcapenable(sc->ifp) & IFCAP_POLLING) {
 		ether_poll_deregister(sc->ifp);
 	}
 #endif
@@ -768,9 +761,9 @@ ptnet_ioctl(if_t ifp, u_long cmd, caddr_t data)
 
 	switch (cmd) {
 	case SIOCSIFFLAGS:
-		device_printf(dev, "SIOCSIFFLAGS %x\n", ifp->if_flags);
+		device_printf(dev, "SIOCSIFFLAGS %x\n", if_getflags(ifp));
 		PTNET_CORE_LOCK(sc);
-		if (ifp->if_flags & IFF_UP) {
+		if (if_getflags(ifp) & IFF_UP) {
 			/* Network stack wants the iff to be up. */
 			err = ptnet_init_locked(sc);
 		} else {
@@ -784,8 +777,8 @@ ptnet_ioctl(if_t ifp, u_long cmd, caddr_t data)
 
 	case SIOCSIFCAP:
 		device_printf(dev, "SIOCSIFCAP %x %x\n",
-			      ifr->ifr_reqcap, ifp->if_capenable);
-		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+			      ifr->ifr_reqcap, if_getcapenable(ifp));
+		mask = ifr->ifr_reqcap ^ if_getcapenable(ifp);
 #ifdef DEVICE_POLLING
 		if (mask & IFCAP_POLLING) {
 			struct ptnet_queue *pq;
@@ -797,7 +790,7 @@ ptnet_ioctl(if_t ifp, u_long cmd, caddr_t data)
 					break;
 				}
 				/* Stop queues and sync with taskqueues. */
-				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+				if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 				for (i = 0; i < sc->num_rings; i++) {
 					pq = sc-> queues + i;
 					/* Make sure the worker sees the
@@ -811,7 +804,7 @@ ptnet_ioctl(if_t ifp, u_long cmd, caddr_t data)
 								&pq->task);
 					}
 				}
-				ifp->if_drv_flags |= IFF_DRV_RUNNING;
+				if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
 			} else {
 				err = ether_poll_deregister(ifp);
 				for (i = 0; i < sc->num_rings; i++) {
@@ -823,7 +816,7 @@ ptnet_ioctl(if_t ifp, u_long cmd, caddr_t data)
 			}
 		}
 #endif  /* DEVICE_POLLING */
-		ifp->if_capenable = ifr->ifr_reqcap;
+		if_setcapenable(ifp, ifr->ifr_reqcap);
 		break;
 
 	case SIOCSIFMTU:
@@ -833,7 +826,7 @@ ptnet_ioctl(if_t ifp, u_long cmd, caddr_t data)
 			err = EINVAL;
 		} else {
 			PTNET_CORE_LOCK(sc);
-			ifp->if_mtu = ifr->ifr_mtu;
+			if_setmtu(ifp, ifr->ifr_mtu);
 			PTNET_CORE_UNLOCK(sc);
 		}
 		break;
@@ -860,22 +853,22 @@ ptnet_init_locked(struct ptnet_softc *sc)
 	unsigned int nm_buf_size;
 	int ret;
 
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 		return 0; /* nothing to do */
 	}
 
 	device_printf(sc->dev, "%s\n", __func__);
 
 	/* Translate offload capabilities according to if_capenable. */
-	ifp->if_hwassist = 0;
-	if (ifp->if_capenable & IFCAP_TXCSUM)
-		ifp->if_hwassist |= PTNET_CSUM_OFFLOAD;
-	if (ifp->if_capenable & IFCAP_TXCSUM_IPV6)
-		ifp->if_hwassist |= PTNET_CSUM_OFFLOAD_IPV6;
-	if (ifp->if_capenable & IFCAP_TSO4)
-		ifp->if_hwassist |= CSUM_IP_TSO;
-	if (ifp->if_capenable & IFCAP_TSO6)
-		ifp->if_hwassist |= CSUM_IP6_TSO;
+	if_sethwassist(ifp, 0);
+	if (if_getcapenable(ifp) & IFCAP_TXCSUM)
+		if_sethwassistbits(ifp, PTNET_CSUM_OFFLOAD, 0);
+	if (if_getcapenable(ifp) & IFCAP_TXCSUM_IPV6)
+		if_sethwassistbits(ifp, PTNET_CSUM_OFFLOAD_IPV6, 0);
+	if (if_getcapenable(ifp) & IFCAP_TSO4)
+		if_sethwassistbits(ifp, CSUM_IP_TSO, 0);
+	if (if_getcapenable(ifp) & IFCAP_TSO6)
+		if_sethwassistbits(ifp, CSUM_IP6_TSO, 0);
 
 	/*
 	 * Prepare the interface for netmap mode access.
@@ -926,7 +919,7 @@ ptnet_init_locked(struct ptnet_softc *sc)
 	callout_reset(&sc->tick, hz, ptnet_tick, sc);
 #endif
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
 
 	return 0;
 
@@ -953,14 +946,14 @@ ptnet_stop(struct ptnet_softc *sc)
 
 	device_printf(sc->dev, "%s\n", __func__);
 
-	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+	if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING)) {
 		return 0; /* nothing to do */
 	}
 
 	/* Clear the driver-ready flag, and synchronize with all the queues,
 	 * so that after this loop we are sure nobody is working anymore with
 	 * the device. This scheme is taken from the vtnet driver. */
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 	callout_stop(&sc->tick);
 	for (i = 0; i < sc->num_rings; i++) {
 		PTNET_Q_LOCK(sc->queues + i);
@@ -1014,7 +1007,6 @@ ptnet_media_change(if_t ifp)
 	return 0;
 }
 
-#if __FreeBSD_version >= 1100000
 static uint64_t
 ptnet_get_counter(if_t ifp, ift_counter cnt)
 {
@@ -1052,7 +1044,6 @@ ptnet_get_counter(if_t ifp, ift_counter cnt)
 		return (if_get_counter_default(ifp, cnt));
 	}
 }
-#endif
 
 
 #ifdef PTNETMAP_STATS
@@ -1207,7 +1198,7 @@ ptnet_nm_register(struct netmap_adapter *na, int onoff)
 				pq = sc->queues + i;
 				pq->ktoa->kern_need_kick = 1;
 				pq->atok->appl_need_kick =
-					(!(ifp->if_capenable & IFCAP_POLLING)
+					(!(if_getcapenable(ifp) & IFCAP_POLLING)
 						&& i >= sc->num_tx_rings);
 			}
 
@@ -1416,7 +1407,7 @@ ptnet_drain_transmit_queue(struct ptnet_queue *pq, unsigned int budget,
 		return 0;
 	}
 
-	if (unlikely(!(ifp->if_drv_flags & IFF_DRV_RUNNING))) {
+	if (unlikely(!(if_getdrvflags(ifp) & IFF_DRV_RUNNING))) {
 		PTNET_Q_UNLOCK(pq);
 		nm_prlim(1, "Interface is down");
 		return ENETDOWN;
@@ -1618,7 +1609,7 @@ ptnet_transmit(if_t ifp, struct mbuf *m)
 		return err;
 	}
 
-	if (ifp->if_capenable & IFCAP_POLLING) {
+	if (if_getcapenable(ifp) & IFCAP_POLLING) {
 		/* If polling is on, the transmit queues will be
 		 * drained by the poller. */
 		return 0;
@@ -1702,7 +1693,7 @@ ptnet_rx_eof(struct ptnet_queue *pq, unsigned int budget, bool may_resched)
 
 	PTNET_Q_LOCK(pq);
 
-	if (unlikely(!(ifp->if_drv_flags & IFF_DRV_RUNNING))) {
+	if (unlikely(!(if_getdrvflags(ifp) & IFF_DRV_RUNNING))) {
 		goto unlock;
 	}
 
@@ -1846,7 +1837,7 @@ host_sync:
 		mhead->m_pkthdr.flowid = pq->kring_id;
 		M_HASHTYPE_SET(mhead, M_HASHTYPE_OPAQUE);
 
-		if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) {
+		if (if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING) {
 			struct ether_header *eh;
 
 			eh = mtod(mhead, struct ether_header *);
@@ -1883,7 +1874,7 @@ skip:
 			pq->stats.bytes += mhead->m_pkthdr.len;
 
 			PTNET_Q_UNLOCK(pq);
-			(*ifp->if_input)(ifp, mhead);
+			if_input(ifp, mhead);
 			PTNET_Q_LOCK(pq);
 			/* The ring->head index (and related indices) are
 			 * updated under pq lock by ptnet_ring_update().
@@ -1892,7 +1883,7 @@ skip:
 			 * ring from there. */
 			head = ring->head;
 
-			if (unlikely(!(ifp->if_drv_flags & IFF_DRV_RUNNING))) {
+			if (unlikely(!(if_getdrvflags(ifp) & IFF_DRV_RUNNING))) {
 				/* The interface has gone down while we didn't
 				 * have the lock. Stop any processing and exit. */
 				goto unlock;

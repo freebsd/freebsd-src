@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Symbol/Function.h"
+#include "lldb/Core/Debugger.h"
 #include "lldb/Core/Disassembler.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleList.h"
@@ -18,6 +19,7 @@
 #include "lldb/Symbol/SymbolFile.h"
 #include "lldb/Target/Language.h"
 #include "lldb/Target/Target.h"
+#include "lldb/Utility/LLDBLog.h"
 #include "lldb/Utility/Log.h"
 #include "llvm/Support/Casting.h"
 
@@ -122,7 +124,7 @@ size_t InlineFunctionInfo::MemorySize() const {
 
 lldb::addr_t CallEdge::GetLoadAddress(lldb::addr_t unresolved_pc,
                                       Function &caller, Target &target) {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_STEP));
+  Log *log = GetLog(LLDBLog::Step);
 
   const Address &caller_start_addr = caller.GetAddressRange().GetBaseAddress();
 
@@ -152,7 +154,7 @@ void DirectCallEdge::ParseSymbolFileAndResolve(ModuleList &images) {
   if (resolved)
     return;
 
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_STEP));
+  Log *log = GetLog(LLDBLog::Step);
   LLDB_LOG(log, "DirectCallEdge: Lazily parsing the call graph for {0}",
            lazy_callee.symbol_name);
 
@@ -191,14 +193,13 @@ Function *DirectCallEdge::GetCallee(ModuleList &images, ExecutionContext &) {
 
 Function *IndirectCallEdge::GetCallee(ModuleList &images,
                                       ExecutionContext &exe_ctx) {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_STEP));
+  Log *log = GetLog(LLDBLog::Step);
   Status error;
   Value callee_addr_val;
-  if (!call_target.Evaluate(&exe_ctx, exe_ctx.GetRegisterContext(),
-                            /*loclist_base_load_addr=*/LLDB_INVALID_ADDRESS,
-                            /*initial_value_ptr=*/nullptr,
-                            /*object_address_ptr=*/nullptr, callee_addr_val,
-                            &error)) {
+  if (!call_target.Evaluate(
+          &exe_ctx, exe_ctx.GetRegisterContext(), LLDB_INVALID_ADDRESS,
+          /*initial_value_ptr=*/nullptr,
+          /*object_address_ptr=*/nullptr, callee_addr_val, &error)) {
     LLDB_LOGF(log, "IndirectCallEdge: Could not evaluate expression: %s",
               error.AsCString());
     return nullptr;
@@ -295,7 +296,7 @@ llvm::ArrayRef<std::unique_ptr<CallEdge>> Function::GetCallEdges() {
   if (m_call_edges_resolved)
     return m_call_edges;
 
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_STEP));
+  Log *log = GetLog(LLDBLog::Step);
   LLDB_LOG(log, "GetCallEdges: Attempting to parse call site info for {0}",
            GetDisplayName());
 
@@ -347,12 +348,9 @@ Block &Function::GetBlock(bool can_create) {
     if (module_sp) {
       module_sp->GetSymbolFile()->ParseBlocksRecursive(*this);
     } else {
-      Host::SystemLog(Host::eSystemLogError,
-                      "error: unable to find module "
-                      "shared pointer for function '%s' "
-                      "in %s\n",
-                      GetName().GetCString(),
-                      m_comp_unit->GetPrimaryFile().GetPath().c_str());
+      Debugger::ReportError(llvm::formatv(
+          "unable to find module shared pointer for function '{0}' in {1}",
+          GetName().GetCString(), m_comp_unit->GetPrimaryFile().GetPath()));
     }
     m_block.SetBlockInfoHasBeenParsed(true, true);
   }
@@ -441,8 +439,9 @@ bool Function::GetDisassembly(const ExecutionContext &exe_ctx,
   if (disassembler_sp) {
     const bool show_address = true;
     const bool show_bytes = false;
-    disassembler_sp->GetInstructionList().Dump(&strm, show_address, show_bytes,
-                                               &exe_ctx);
+    const bool show_control_flow_kind = false;
+    disassembler_sp->GetInstructionList().Dump(
+        &strm, show_address, show_bytes, show_control_flow_kind, &exe_ctx);
     return true;
   }
   return false;

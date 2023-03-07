@@ -252,13 +252,6 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, numopensockets, CTLFLAG_RD,
     &numopensockets, 0, "Number of open sockets");
 
 /*
- * accept_mtx locks down per-socket fields relating to accept queues.  See
- * socketvar.h for an annotation of the protected fields of struct socket.
- */
-struct mtx accept_mtx;
-MTX_SYSINIT(accept_mtx, &accept_mtx, "accept", MTX_DEF);
-
-/*
  * so_global_mtx protects so_gencnt, numopensockets, and the per-socket
  * so_gencnt field.
  */
@@ -800,7 +793,7 @@ sonewconn(struct socket *head, int connstatus)
 		return (NULL);
 	}
 
-	solisten_enqueue(so, connstatus);
+	(void)solisten_enqueue(so, connstatus);
 
 	return (so);
 }
@@ -808,8 +801,10 @@ sonewconn(struct socket *head, int connstatus)
 /*
  * Enqueue socket cloned by solisten_clone() to the listen queue of the
  * listener it has been cloned from.
+ *
+ * Return 'true' if socket landed on complete queue, otherwise 'false'.
  */
-void
+bool
 solisten_enqueue(struct socket *so, int connstatus)
 {
 	struct socket *head = so->so_listen;
@@ -827,6 +822,7 @@ solisten_enqueue(struct socket *so, int connstatus)
 		so->so_qstate = SQ_COMP;
 		head->sol_qlen++;
 		solisten_wakeup(head);	/* unlocks */
+		return (true);
 	} else {
 		/*
 		 * Keep removing sockets from the head until there's room for
@@ -853,6 +849,7 @@ solisten_enqueue(struct socket *so, int connstatus)
 		so->so_qstate = SQ_INCOMP;
 		head->sol_incqlen++;
 		SOLISTEN_UNLOCK(head);
+		return (false);
 	}
 }
 
@@ -1348,10 +1345,14 @@ soconnectat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
 	int error;
 
 	CURVNET_SET(so->so_vnet);
+
 	/*
 	 * If protocol is connection-based, can only connect once.
 	 * Otherwise, if connected, try to disconnect first.  This allows
 	 * user to disconnect by connecting to, e.g., a null address.
+	 *
+	 * Note, this check is racy and may need to be re-evaluated at the
+	 * protocol layer.
 	 */
 	if (so->so_state & (SS_ISCONNECTED|SS_ISCONNECTING) &&
 	    ((so->so_proto->pr_flags & PR_CONNREQUIRED) ||
@@ -1825,6 +1826,14 @@ out:
 	return (error);
 }
 
+/*
+ * Send to a socket from a kernel thread.
+ *
+ * XXXGL: in almost all cases uio is NULL and the mbuf is supplied.
+ * Exception is nfs/bootp_subr.c.  It is arguable that the VNET context needs
+ * to be set at all.  This function should just boil down to a static inline
+ * calling the protocol method.
+ */
 int
 sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
     struct mbuf *top, struct mbuf *control, int flags, struct thread *td)
@@ -1835,6 +1844,54 @@ sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	error = so->so_proto->pr_sosend(so, addr, uio,
 	    top, control, flags, td);
 	CURVNET_RESTORE();
+	return (error);
+}
+
+/*
+ * send(2), write(2) or aio_write(2) on a socket.
+ */
+int
+sousrsend(struct socket *so, struct sockaddr *addr, struct uio *uio,
+    struct mbuf *control, int flags, struct proc *userproc)
+{
+	struct thread *td;
+	ssize_t len;
+	int error;
+
+	td = uio->uio_td;
+	len = uio->uio_resid;
+	CURVNET_SET(so->so_vnet);
+	error = so->so_proto->pr_sosend(so, addr, uio, NULL, control, flags,
+	    td);
+	CURVNET_RESTORE();
+	if (error != 0) {
+		/*
+		 * Clear transient errors for stream protocols if they made
+		 * some progress.  Make exclusion for aio(4) that would
+		 * schedule a new write in case of EWOULDBLOCK and clear
+		 * error itself.  See soaio_process_job().
+		 */
+		if (uio->uio_resid != len &&
+		    (so->so_proto->pr_flags & PR_ATOMIC) == 0 &&
+		    userproc == NULL &&
+		    (error == ERESTART || error == EINTR ||
+		    error == EWOULDBLOCK))
+			error = 0;
+		/* Generation of SIGPIPE can be controlled per socket. */
+		if (error == EPIPE && (so->so_options & SO_NOSIGPIPE) == 0 &&
+		    (flags & MSG_NOSIGNAL) == 0) {
+			if (userproc != NULL) {
+				/* aio(4) job */
+				PROC_LOCK(userproc);
+				kern_psignal(userproc, SIGPIPE);
+				PROC_UNLOCK(userproc);
+			} else {
+				PROC_LOCK(td->td_proc);
+				tdsignal(td, SIGPIPE);
+				PROC_UNLOCK(td->td_proc);
+			}
+		}
+	}
 	return (error);
 }
 
@@ -3105,21 +3162,9 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 		case SO_RCVBUF:
 		case SO_SNDLOWAT:
 		case SO_RCVLOWAT:
-			error = sooptcopyin(sopt, &optval, sizeof optval,
-			    sizeof optval);
+			error = so->so_proto->pr_setsbopt(so, sopt);
 			if (error)
 				goto bad;
-
-			/*
-			 * Values < 1 make no sense for any of these options,
-			 * so disallow them.
-			 */
-			if (optval < 1) {
-				error = EINVAL;
-				goto bad;
-			}
-
-			error = sbsetopt(so, sopt->sopt_name, optval);
 			break;
 
 		case SO_SNDTIMEO:

@@ -442,7 +442,7 @@ CpaStatus LacHash_PerformParamCheck(CpaInstanceHandle instanceHandle,
 *      This function sends 2 requests to the CPM for the hmac precompute
 *      operations. The results of the ipad and opad state calculation
 *      is copied into pState1 and pState2 (e.g. these may be the state1 and
-*      state2 buffers in a hash content desciptor) and when
+*      state2 buffers in a hash content descriptor) and when
 *      the final operation has completed the condition passed as a param to
 *      this function is set to true.
 *
@@ -525,7 +525,7 @@ CpaStatus LacSymHash_AesECBPreCompute(CpaInstanceHandle instanceHandle,
 *
 * @description
 *      This function registers the precompute callback handler function, which
-*      is different to the default one used by symmetric. Content desciptors
+*      is different to the default one used by symmetric. Content descriptors
 *      are preallocted for the hmac precomputes as they are constant for these
 *      operations.
 *

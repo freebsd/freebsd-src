@@ -210,7 +210,6 @@ struct	ip_timestamp {
  */
 #define	MAXTTL		255		/* maximum time to live (seconds) */
 #define	IPDEFTTL	64		/* default ttl, from RFC 1340 */
-#define	IPFRAGTTL	60		/* time to live for frags, slowhz */
 #define	IPTTLDEC	1		/* subtracted when forwarding */
 #define	IP_MSS		576		/* default maximum segment size */
 

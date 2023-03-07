@@ -6,6 +6,7 @@ LIB=	bsddialog
 PRIVATELIB=	yes
 SHLIB_MAJOR=	0
 SRCS=	barbox.c \
+	calendarbox.c \
 	formbox.c \
 	infobox.c \
 	lib_util.c \

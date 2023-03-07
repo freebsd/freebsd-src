@@ -113,6 +113,8 @@ def warn_four_char_character_literal : Warning<
 // Unicode and UCNs
 def err_invalid_utf8 : Error<
   "source file is not valid UTF-8">;
+def warn_invalid_utf8_in_comment : Extension<
+  "invalid UTF-8 in comment">, InGroup<DiagGroup<"invalid-utf8">>;
 def err_character_not_allowed : Error<
   "unexpected character <U+%0>">;
 def err_character_not_allowed_identifier : Error<
@@ -128,8 +130,15 @@ def warn_utf8_symbol_zero_width : Warning<
   "some environments">, InGroup<DiagGroup<"unicode-zero-width">>;
 
 def ext_delimited_escape_sequence : Extension<
-  "delimited escape sequences are a Clang extension">,
+  "%select{delimited|named}0 escape sequences are a "
+  "%select{Clang|C++2b}1 extension">,
   InGroup<DiagGroup<"delimited-escape-sequence-extension">>;
+
+def warn_cxx2b_delimited_escape_sequence : Warning<
+  "%select{delimited|named}0 escape sequences are "
+  "incompatible with C++ standards before C++2b">,
+  InGroup<CXXPre2bCompat>, DefaultIgnore;
+
 def err_delimited_escape_empty : Error<
   "delimited escape sequence cannot be empty">;
 def err_delimited_escape_missing_brace: Error<
@@ -138,6 +147,13 @@ def err_delimited_escape_invalid : Error<
   "invalid digit '%0' in escape sequence">;
 def err_hex_escape_no_digits : Error<
   "\\%0 used with no following hex digits">;
+def err_invalid_ucn_name : Error<
+  "'%0' is not a valid Unicode character name">;
+def note_invalid_ucn_name_loose_matching : Note<
+  "characters names in Unicode escape sequences are sensitive to case and whitespaces">;
+def note_invalid_ucn_name_candidate : Note<
+  "did you mean %0 ('%2' U+%1)?">;
+
 def warn_ucn_escape_no_digits : Warning<
   "\\%0 used with no following hex digits; "
   "treating as '\\' followed by identifier">, InGroup<Unicode>;
@@ -145,10 +161,10 @@ def err_ucn_escape_incomplete : Error<
   "incomplete universal character name">;
 def warn_delimited_ucn_incomplete : Warning<
   "incomplete delimited universal character name; "
-  "treating as '\\' 'u' '{' identifier">, InGroup<Unicode>;
+  "treating as '\\' '%0' '{' identifier">, InGroup<Unicode>;
 def warn_delimited_ucn_empty : Warning<
   "empty delimited universal character name; "
-  "treating as '\\' 'u' '{' '}'">, InGroup<Unicode>;
+  "treating as '\\' '%0' '{' '}'">, InGroup<Unicode>;
 def warn_ucn_escape_incomplete : Warning<
   "incomplete universal character name; "
   "treating as '\\' followed by identifier">, InGroup<Unicode>;
@@ -315,11 +331,9 @@ def pp_pragma_sysheader_in_main_file : Warning<
   "#pragma system_header ignored in main file">,
   InGroup<DiagGroup<"pragma-system-header-outside-header">>;
 
-def err_pragma_include_instead_not_sysheader : Error<
-  "'#pragma clang include_instead' cannot be used outside of system headers">;
-def err_pragma_include_instead_system_reserved : Error<
-  "header '%0' is an implementation detail; #include %select{'%2'|either '%2' "
-  "or '%3'|one of %2}1 instead">;
+def err_illegal_use_of_flt_eval_macro : Error<
+  "'__FLT_EVAL_METHOD__' cannot be expanded inside a scope containing "
+  "'#pragma clang fp eval_method'">;
 
 def pp_poisoning_existing_macro : Warning<"poisoning existing macro">;
 def pp_out_of_date_dependency : Warning<
@@ -373,7 +387,15 @@ def ext_pp_include_search_ms : ExtWarn<
 def ext_pp_ident_directive : Extension<"#ident is a language extension">;
 def ext_pp_include_next_directive : Extension<
   "#include_next is a language extension">, InGroup<GNUIncludeNext>;
-def ext_pp_warning_directive : Extension<"#warning is a language extension">;
+
+def ext_pp_warning_directive : Extension<
+  "#warning is a %select{C2x|C++2b}0 extension">;
+def warn_cxx2b_compat_warning_directive : Warning<
+  "#warning is incompatible with C++ standards before C++2b">,
+  InGroup<CXXPre2bCompat>, DefaultIgnore;
+def warn_c2x_compat_warning_directive : Warning<
+  "#warning is incompatible with C standards before C2x">,
+  InGroup<CPre2xCompat>, DefaultIgnore;
 
 def ext_pp_extra_tokens_at_eol : ExtWarn<
   "extra tokens at end of #%0 directive">, InGroup<ExtraTokens>;
@@ -429,7 +451,13 @@ def note_macro_expansion_here : Note<"expansion of macro %0 requested here">;
 def ext_pp_opencl_variadic_macros : Extension<
   "variadic macros are a Clang extension in OpenCL">;
 
-def err_pp_invalid_directive : Error<"invalid preprocessing directive">;
+def ext_pp_gnu_line_directive : Extension<
+  "this style of line directive is a GNU extension">,
+  InGroup<GNULineMarker>;
+def err_pp_invalid_directive : Error<
+  "invalid preprocessing directive%select{|, did you mean '#%1'?}0">;
+def warn_pp_invalid_directive : Warning<
+  err_pp_invalid_directive.Text>, InGroup<DiagGroup<"unknown-directives">>;
 def err_pp_directive_required : Error<
   "%0 must be used within a preprocessing directive">;
 def err_pp_file_not_found : Error<"'%0' file not found">, DefaultFatal;
@@ -696,6 +724,23 @@ def warn_cxx98_compat_pp_line_too_big : Warning<
   "#line number greater than 32767 is incompatible with C++98">,
   InGroup<CXX98CompatPedantic>, DefaultIgnore;
 
+def warn_c2x_compat_pp_directive : Warning<
+  "use of a '#%select{<BUG IF SEEN>|elifdef|elifndef}0' directive "
+  "is incompatible with C standards before C2x">,
+  InGroup<CPre2xCompat>, DefaultIgnore;
+def ext_c2x_pp_directive : ExtWarn<
+  "use of a '#%select{<BUG IF SEEN>|elifdef|elifndef}0' directive "
+  "is a C2x extension">,
+  InGroup<C2x>;
+def warn_cxx2b_compat_pp_directive : Warning<
+  "use of a '#%select{<BUG IF SEEN>|elifdef|elifndef}0' directive "
+  "is incompatible with C++ standards before C++2b">,
+  InGroup<CXXPre2bCompat>, DefaultIgnore;
+def ext_cxx2b_pp_directive : ExtWarn<
+  "use of a '#%select{<BUG IF SEEN>|elifdef|elifndef}0' directive "
+  "is a C++2b extension">,
+  InGroup<CXX2b>;
+
 def err_pp_visibility_non_macro : Error<"no macro named %0">;
 
 def err_pp_arc_cf_code_audited_syntax : Error<"expected 'begin' or 'end'">;
@@ -814,9 +859,9 @@ def warn_framework_include_private_from_public : Warning<
   "public framework header includes private framework header '%0'"
   >, InGroup<FrameworkIncludePrivateFromPublic>;
 
-def warn_auto_module_import : Warning<
+def remark_pp_include_directive_modular_translation : Remark<
   "treating #%select{include|import|include_next|__include_macros}0 as an "
-  "import of module '%1'">, InGroup<AutoImport>, DefaultIgnore;
+  "import of module '%1'">, InGroup<ModuleIncludeDirectiveTranslation>;
 def note_implicit_top_level_module_import_here : Note<
   "submodule of top-level module '%0' implicitly imported here">;
 def warn_uncovered_module_header : Warning<
@@ -878,11 +923,11 @@ def err_pp_eof_in_assume_nonnull : Error<
 
 }
 
-let CategoryName = "Dependency Directive Source Minimization Issue" in {
+let CategoryName = "Dependency Directive Source Scanner Issue" in {
 
-def err_dep_source_minimizer_missing_sema_after_at_import : Error<
+def err_dep_source_scanner_missing_semi_after_at_import : Error<
   "could not find ';' after @import">;
-def err_dep_source_minimizer_unexpected_tokens_at_import : Error<
+def err_dep_source_scanner_unexpected_tokens_at_import : Error<
   "unexpected extra tokens at end of @import declaration">;
 
 }

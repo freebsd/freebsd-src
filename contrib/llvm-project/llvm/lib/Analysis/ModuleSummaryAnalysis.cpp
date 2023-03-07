@@ -38,7 +38,6 @@
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
-#include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/ModuleSummaryIndex.h"
@@ -165,7 +164,8 @@ static void addIntrinsicToSummary(
     SetVector<FunctionSummary::ConstVCall> &TypeCheckedLoadConstVCalls,
     DominatorTree &DT) {
   switch (CI->getCalledFunction()->getIntrinsicID()) {
-  case Intrinsic::type_test: {
+  case Intrinsic::type_test:
+  case Intrinsic::public_type_test: {
     auto *TypeMDVal = cast<MetadataAsValue>(CI->getArgOperand(1));
     auto *TypeId = dyn_cast<MDString>(TypeMDVal->getMetadata());
     if (!TypeId)
@@ -368,7 +368,7 @@ static void computeFunctionSummary(
         // We should have named any anonymous globals
         assert(CalledFunction->hasName());
         auto ScaledCount = PSI->getProfileCount(*CB, BFI);
-        auto Hotness = ScaledCount ? getHotness(ScaledCount.getValue(), PSI)
+        auto Hotness = ScaledCount ? getHotness(*ScaledCount, PSI)
                                    : CalleeInfo::HotnessType::Unknown;
         if (ForceSummaryEdgesCold != FunctionSummary::FSHT_None)
           Hotness = CalleeInfo::HotnessType::Cold;
@@ -401,7 +401,7 @@ static void computeFunctionSummary(
         // to enable importing for subsequent indirect call promotion and
         // inlining.
         if (auto *MD = I.getMetadata(LLVMContext::MD_callees)) {
-          for (auto &Op : MD->operands()) {
+          for (const auto &Op : MD->operands()) {
             Function *Callee = mdconst::extract_or_null<Function>(Op);
             if (Callee)
               CallGraphEdges[Index.getOrInsertValueInfo(Callee)];
@@ -413,7 +413,7 @@ static void computeFunctionSummary(
         auto CandidateProfileData =
             ICallAnalysis.getPromotionCandidatesForInstruction(
                 &I, NumVals, TotalCount, NumCandidates);
-        for (auto &Candidate : CandidateProfileData)
+        for (const auto &Candidate : CandidateProfileData)
           CallGraphEdges[Index.getOrInsertValueInfo(Candidate.Value)]
               .updateHotness(getHotness(Candidate.Count, PSI));
       }
@@ -452,7 +452,7 @@ static void computeFunctionSummary(
     // If both load and store instruction reference the same variable
     // we won't be able to optimize it. Add all such reference edges
     // to RefEdges set.
-    for (auto &VI : StoreRefEdges)
+    for (const auto &VI : StoreRefEdges)
       if (LoadRefEdges.remove(VI))
         RefEdges.insert(VI);
 
@@ -460,11 +460,11 @@ static void computeFunctionSummary(
     // All new reference edges inserted in two loops below are either
     // read or write only. They will be grouped in the end of RefEdges
     // vector, so we can use a single integer value to identify them.
-    for (auto &VI : LoadRefEdges)
+    for (const auto &VI : LoadRefEdges)
       RefEdges.insert(VI);
 
     unsigned FirstWORef = RefEdges.size();
-    for (auto &VI : StoreRefEdges)
+    for (const auto &VI : StoreRefEdges)
       RefEdges.insert(VI);
 
     Refs = RefEdges.takeVector();
@@ -490,8 +490,7 @@ static void computeFunctionSummary(
                               HasIndirBranchToBlockAddress;
   GlobalValueSummary::GVFlags Flags(
       F.getLinkage(), F.getVisibility(), NotEligibleForImport,
-      /* Live = */ false, F.isDSOLocal(),
-      F.hasLinkOnceODRLinkage() && F.hasGlobalUnnamedAddr());
+      /* Live = */ false, F.isDSOLocal(), F.canBeOmittedFromSymbolTable());
   FunctionSummary::FFlags FunFlags{
       F.hasFnAttribute(Attribute::ReadNone),
       F.hasFnAttribute(Attribute::ReadOnly),
@@ -612,8 +611,7 @@ static void computeVariableSummary(ModuleSummaryIndex &Index,
   bool NonRenamableLocal = isNonRenamableLocal(V);
   GlobalValueSummary::GVFlags Flags(
       V.getLinkage(), V.getVisibility(), NonRenamableLocal,
-      /* Live = */ false, V.isDSOLocal(),
-      V.hasLinkOnceODRLinkage() && V.hasGlobalUnnamedAddr());
+      /* Live = */ false, V.isDSOLocal(), V.canBeOmittedFromSymbolTable());
 
   VTableFuncList VTableFuncs;
   // If splitting is not enabled, then we compute the summary information
@@ -649,16 +647,18 @@ static void computeVariableSummary(ModuleSummaryIndex &Index,
   Index.addGlobalValueSummary(V, std::move(GVarSummary));
 }
 
-static void
-computeAliasSummary(ModuleSummaryIndex &Index, const GlobalAlias &A,
-                    DenseSet<GlobalValue::GUID> &CantBePromoted) {
+static void computeAliasSummary(ModuleSummaryIndex &Index, const GlobalAlias &A,
+                                DenseSet<GlobalValue::GUID> &CantBePromoted) {
+  // Skip summary for indirect function aliases as summary for aliasee will not
+  // be emitted.
+  const GlobalObject *Aliasee = A.getAliaseeObject();
+  if (isa<GlobalIFunc>(Aliasee))
+    return;
   bool NonRenamableLocal = isNonRenamableLocal(A);
   GlobalValueSummary::GVFlags Flags(
       A.getLinkage(), A.getVisibility(), NonRenamableLocal,
-      /* Live = */ false, A.isDSOLocal(),
-      A.hasLinkOnceODRLinkage() && A.hasGlobalUnnamedAddr());
+      /* Live = */ false, A.isDSOLocal(), A.canBeOmittedFromSymbolTable());
   auto AS = std::make_unique<AliasSummary>(Flags);
-  auto *Aliasee = A.getAliaseeObject();
   auto AliaseeVI = Index.getValueInfo(Aliasee->getGUID());
   assert(AliaseeVI && "Alias expects aliasee summary to be available");
   assert(AliaseeVI.getSummaryList().size() == 1 &&
@@ -672,7 +672,7 @@ computeAliasSummary(ModuleSummaryIndex &Index, const GlobalAlias &A,
 // Set LiveRoot flag on entries matching the given value name.
 static void setLiveRoot(ModuleSummaryIndex &Index, StringRef Name) {
   if (ValueInfo VI = Index.getValueInfo(GlobalValue::getGUID(Name)))
-    for (auto &Summary : VI.getSummaryList())
+    for (const auto &Summary : VI.getSummaryList())
       Summary->setLive(true);
 }
 
@@ -733,8 +733,7 @@ ModuleSummaryIndex llvm::buildModuleSummaryIndex(
               GlobalValue::InternalLinkage, GlobalValue::DefaultVisibility,
               /* NotEligibleToImport = */ true,
               /* Live = */ true,
-              /* Local */ GV->isDSOLocal(),
-              GV->hasLinkOnceODRLinkage() && GV->hasGlobalUnnamedAddr());
+              /* Local */ GV->isDSOLocal(), GV->canBeOmittedFromSymbolTable());
           CantBePromoted.insert(GV->getGUID());
           // Create the appropriate summary type.
           if (Function *F = dyn_cast<Function>(GV)) {
@@ -781,7 +780,7 @@ ModuleSummaryIndex llvm::buildModuleSummaryIndex(
 
   // Compute summaries for all functions defined in module, and save in the
   // index.
-  for (auto &F : M) {
+  for (const auto &F : M) {
     if (F.isDeclaration())
       continue;
 
@@ -815,6 +814,13 @@ ModuleSummaryIndex llvm::buildModuleSummaryIndex(
   // index.
   for (const GlobalAlias &A : M.aliases())
     computeAliasSummary(Index, A, CantBePromoted);
+
+  // Iterate through ifuncs, set their resolvers all alive.
+  for (const GlobalIFunc &I : M.ifuncs()) {
+    I.applyAlongResolverPath([&Index](const GlobalValue &GV) {
+      Index.getGlobalValueSummary(GV)->setLive(true);
+    });
+  }
 
   for (auto *V : LocalsUsed) {
     auto *Summary = Index.getGlobalValueSummary(*V);

@@ -31,6 +31,10 @@
 #ifndef _DEV_KBD_KBDREG_H_
 #define _DEV_KBD_KBDREG_H_
 
+#ifdef _KERNEL
+
+#include "opt_kbd.h"			/* KBD_DELAY* */
+
 /* forward declarations */
 typedef struct keyboard keyboard_t;
 struct keymap;
@@ -151,8 +155,12 @@ struct keyboard {
 	void		*kb_data;	/* the driver's private data */
 	int		kb_delay1;
 	int		kb_delay2;
-#define KB_DELAY1	500
-#define KB_DELAY2	100
+#ifndef KBD_DELAY1
+#define KBD_DELAY1	500
+#endif
+#ifndef KBD_DELAY2
+#define KBD_DELAY2	100
+#endif
 	unsigned long	kb_count;	/* # of processed key strokes */
 	u_char		kb_lastact[NUM_KEYS/2];
 	struct cdev *kb_dev;
@@ -407,4 +415,5 @@ int 	genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg);
 int 	genkbd_keyaction(keyboard_t *kbd, int keycode, int up,
 			 int *shiftstate, int *accents);
 
+#endif
 #endif /* !_DEV_KBD_KBDREG_H_ */

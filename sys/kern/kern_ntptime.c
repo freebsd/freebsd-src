@@ -653,8 +653,7 @@ ntp_update_second(int64_t *adjustment, time_t *newsec)
  * is selected by the STA_MODE status bit.
  */
 static void
-hardupdate(offset)
-	long offset;		/* clock offset (ns) */
+hardupdate(long offset /* clock offset (ns) */)
 {
 	long mtemp;
 	l_fp ftemp;
@@ -733,11 +732,11 @@ hardupdate(offset)
  * variables, except for the actual time and frequency variables, which
  * are determined by this routine and updated atomically.
  *
- * tsp  - time at PPS
- * nsec - hardware counter at PPS
+ * tsp  - time at current PPS event
+ * delta_nsec - time elapsed between the previous and current PPS event
  */
 void
-hardpps(struct timespec *tsp, long nsec)
+hardpps(struct timespec *tsp, long delta_nsec)
 {
 	long u_sec, u_nsec, v_nsec; /* temps */
 	l_fp ftemp;
@@ -772,19 +771,10 @@ hardpps(struct timespec *tsp, long nsec)
 	pps_tf[0].tv_nsec = u_nsec;
 
 	/*
-	 * Compute the difference between the current and previous
-	 * counter values. If the difference exceeds 0.5 s, assume it
-	 * has wrapped around, so correct 1.0 s. If the result exceeds
-	 * the tick interval, the sample point has crossed a tick
-	 * boundary during the last second, so correct the tick. Very
-	 * intricate.
+	 * Update the frequency accumulator using the difference between the
+	 * current and previous PPS event measured directly by the timecounter.
 	 */
-	u_nsec = nsec;
-	if (u_nsec > (NANOSECOND >> 1))
-		u_nsec -= NANOSECOND;
-	else if (u_nsec < -(NANOSECOND >> 1))
-		u_nsec += NANOSECOND;
-	pps_fcount += u_nsec;
+	pps_fcount += delta_nsec - NANOSECOND;
 	if (v_nsec > MAXFREQ || v_nsec < -MAXFREQ)
 		goto out;
 	time_status &= ~STA_PPSJITTER;

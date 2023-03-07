@@ -77,9 +77,11 @@ __FBSDID("$FreeBSD$");
 #include "gic_v3_reg.h"
 #include "gic_v3_var.h"
 
+static bus_print_child_t gic_v3_print_child;
 static bus_get_domain_t gic_v3_get_domain;
 static bus_read_ivar_t gic_v3_read_ivar;
 static bus_write_ivar_t gic_v3_write_ivar;
+static bus_alloc_resource_t gic_v3_alloc_resource;
 
 static pic_disable_intr_t gic_v3_disable_intr;
 static pic_enable_intr_t gic_v3_enable_intr;
@@ -119,9 +121,12 @@ static device_method_t gic_v3_methods[] = {
 	DEVMETHOD(device_detach,	gic_v3_detach),
 
 	/* Bus interface */
+	DEVMETHOD(bus_print_child,	gic_v3_print_child),
 	DEVMETHOD(bus_get_domain,	gic_v3_get_domain),
 	DEVMETHOD(bus_read_ivar,	gic_v3_read_ivar),
 	DEVMETHOD(bus_write_ivar,	gic_v3_write_ivar),
+	DEVMETHOD(bus_alloc_resource,	gic_v3_alloc_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	gic_v3_disable_intr),
@@ -377,6 +382,13 @@ gic_v3_attach(device_t dev)
 
 	mtx_init(&sc->gic_mbi_mtx, "GICv3 mbi lock", NULL, MTX_DEF);
 	if (sc->gic_mbi_start > 0) {
+		if (!sc->gic_mbi_end) {
+			/*
+			 * This is to address SPI based msi ranges, where
+			 * SPI range is not specified in ACPI
+			 */
+			sc->gic_mbi_end = sc->gic_nirqs - 1;
+		}
 		gic_v3_reserve_msi_range(dev, sc->gic_mbi_start,
 		    sc->gic_mbi_end - sc->gic_mbi_start);
 
@@ -433,10 +445,26 @@ gic_v3_detach(device_t dev)
 	for (i = 0; i <= mp_maxid; i++)
 		free(sc->gic_redists.pcpu[i], M_GIC_V3);
 
+	free(sc->ranges, M_GIC_V3);
 	free(sc->gic_res, M_GIC_V3);
 	free(sc->gic_redists.regions, M_GIC_V3);
 
 	return (0);
+}
+
+static int
+gic_v3_print_child(device_t bus, device_t child)
+{
+	struct resource_list *rl;
+	int retval = 0;
+
+	rl = BUS_GET_RESOURCE_LIST(bus, child);
+	KASSERT(rl != NULL, ("%s: No resource list", __func__));
+	retval += bus_print_child_header(bus, child);
+	retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#jx");
+	retval += bus_print_child_footer(bus, child);
+
+	return (retval);
 }
 
 static int
@@ -456,6 +484,7 @@ static int
 gic_v3_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
 	struct gic_v3_softc *sc;
+	struct gic_v3_devinfo *di;
 
 	sc = device_get_softc(dev);
 
@@ -481,6 +510,12 @@ gic_v3_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 		    ("gic_v3_read_ivar: Invalid bus type %u", sc->gic_bus));
 		*result = sc->gic_bus;
 		return (0);
+	case GIC_IVAR_VGIC:
+		di = device_get_ivars(child);
+		if (di == NULL)
+			return (EINVAL);
+		*result = di->is_vgic;
+		return (0);
 	}
 
 	return (ENOENT);
@@ -498,6 +533,59 @@ gic_v3_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 	}
 
 	return (ENOENT);
+}
+
+static struct resource *
+gic_v3_alloc_resource(device_t bus, device_t child, int type, int *rid,
+    rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
+{
+	struct gic_v3_softc *sc;
+	struct resource_list_entry *rle;
+	struct resource_list *rl;
+	int j;
+
+	/* We only allocate memory */
+	if (type != SYS_RES_MEMORY)
+		return (NULL);
+
+	sc = device_get_softc(bus);
+
+	if (RMAN_IS_DEFAULT_RANGE(start, end)) {
+		rl = BUS_GET_RESOURCE_LIST(bus, child);
+		if (rl == NULL)
+			return (NULL);
+
+		/* Find defaults for this rid */
+		rle = resource_list_find(rl, type, *rid);
+		if (rle == NULL)
+			return (NULL);
+
+		start = rle->start;
+		end = rle->end;
+		count = rle->count;
+	}
+
+	/* Remap through ranges property */
+	for (j = 0; j < sc->nranges; j++) {
+		if (start >= sc->ranges[j].bus && end <
+		    sc->ranges[j].bus + sc->ranges[j].size) {
+			start -= sc->ranges[j].bus;
+			start += sc->ranges[j].host;
+			end -= sc->ranges[j].bus;
+			end += sc->ranges[j].host;
+			break;
+		}
+	}
+	if (j == sc->nranges && sc->nranges != 0) {
+		if (bootverbose)
+			device_printf(bus, "Could not map resource "
+			    "%#jx-%#jx\n", (uintmax_t)start, (uintmax_t)end);
+
+		return (NULL);
+	}
+
+	return (bus_generic_alloc_resource(bus, child, type, rid, start, end,
+	    count, flags));
 }
 
 int

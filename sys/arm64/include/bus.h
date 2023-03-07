@@ -92,10 +92,6 @@
 #define	BUS_SPACE_BARRIER_READ	0x01
 #define	BUS_SPACE_BARRIER_WRITE	0x02
 
-#if defined(SAN_NEEDS_INTERCEPTORS) && !defined(SAN_RUNTIME)
-#include <sys/bus_san.h>
-#else
-
 struct bus_space {
 	/* cookie */
 	void		*bs_cookie;
@@ -282,6 +278,10 @@ struct bus_space {
 			   bus_size_t, uint64_t);
 };
 
+#if defined(SAN_NEEDS_INTERCEPTORS) && !defined(SAN_RUNTIME)
+#include <sys/bus_san.h>
+#else
+
 /*
  * Utility macros; INTERNAL USE ONLY.
  */
@@ -458,6 +458,15 @@ struct bus_space {
 #define	bus_space_set_multi_8(t, h, o, v, c)				\
 	__bs_set(sm,8,(t),(h),(o),(v),(c))
 
+#define	bus_space_set_multi_stream_1(t, h, o, v, c)			\
+	bus_space_set_multi_1((t), (h), (o), (v), (c))
+#define	bus_space_set_multi_stream_2(t, h, o, v, c)			\
+	bus_space_set_multi_2((t), (h), (o), (v), (c))
+#define	bus_space_set_multi_stream_4(t, h, o, v, c)			\
+	bus_space_set_multi_4((t), (h), (o), (v), (c))
+#define	bus_space_set_multi_stream_8(t, h, o, v, c)			\
+	bus_space_set_multi_8((t), (h), (o), (v), (c))
+
 /*
  * Set region operations.
  */
@@ -469,6 +478,15 @@ struct bus_space {
 	__bs_set(sr,4,(t),(h),(o),(v),(c))
 #define	bus_space_set_region_8(t, h, o, v, c)				\
 	__bs_set(sr,8,(t),(h),(o),(v),(c))
+
+#define	bus_space_set_region_stream_1(t, h, o, v, c)			\
+	bus_space_set_region_1((t), (h), (o), (v), (c))
+#define	bus_space_set_region_stream_2(t, h, o, v, c)			\
+	bus_space_set_region_2((t), (h), (o), (v), (c))
+#define	bus_space_set_region_stream_4(t, h, o, v, c)			\
+	bus_space_set_region_4((t), (h), (o), (v), (c))
+#define	bus_space_set_region_stream_8(t, h, o, v, c)			\
+	bus_space_set_region_8((t), (h), (o), (v), (c))
 
 /*
  * Copy operations.

@@ -19,7 +19,7 @@ typedef struct {
 
 	/// Name of the file from which to read filenames. This is NULL
 	/// if --files or --files0 was not used.
-	char *files_name;
+	const char *files_name;
 
 	/// File opened for reading from which filenames are read. This is
 	/// non-NULL only if files_name is non-NULL.

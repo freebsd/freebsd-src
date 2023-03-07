@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -54,9 +54,7 @@
 #endif // _WIN32
 
 // This pulls in cross-platform stuff.
-#include "../include/bcl.h"
-
-#define BC_ERR(v) (v)
+#include <status.h>
 
 // clang-format off
 
@@ -70,7 +68,7 @@ static const char* const bc_gen_ex_end = "{{ end }}";
 // This is exactly what it looks like. It just slaps a simple license header on
 // the generated C source file.
 static const char* const bc_gen_header =
-	"// Copyright (c) 2018-2021 Gavin D. Howard and contributors.\n"
+	"// Copyright (c) 2018-2023 Gavin D. Howard and contributors.\n"
 	"// Licensed under the 2-clause BSD license.\n"
 	"// *** AUTOMATICALLY GENERATED FROM %s. DO NOT MODIFY. ***\n\n";
 // clang-format on
@@ -159,11 +157,11 @@ bc_read_file(const char* path)
 
 	assert(path != NULL);
 
-#ifndef NDEBUG
+#if BC_DEBUG
 	// Need this to quiet MSan.
 	// NOLINTNEXTLINE
 	memset(&pstat, 0, sizeof(struct stat));
-#endif // NDEBUG
+#endif // BC_DEBUG
 
 	fd = bc_read_open(path, O_RDONLY);
 
@@ -362,7 +360,7 @@ main(int argc, char* argv[])
 	has_define = (argc > 6 && strcmp("", argv[6]) != 0);
 	define = has_define ? argv[6] : "";
 
-	remove_tabs = (argc > 7);
+	remove_tabs = (argc > 7 && atoi(argv[7]) != 0);
 
 	in = bc_read_file(argv[1]);
 	if (in == NULL) return INVALID_INPUT_FILE;

@@ -86,14 +86,6 @@
 #define LINUX_LIST_HEAD(name) \
 	struct list_head name = LINUX_LIST_HEAD_INIT(name)
 
-#ifndef LIST_HEAD_DEF
-#define	LIST_HEAD_DEF
-struct list_head {
-	struct list_head *next;
-	struct list_head *prev;
-};
-#endif
-
 static inline void
 INIT_LIST_HEAD(struct list_head *list)
 {
@@ -504,7 +496,12 @@ static inline int list_is_last(const struct list_head *list,
 	     (pos) && ({ n = (pos)->member.next; 1; });			\
 	     pos = hlist_entry_safe(n, typeof(*(pos)), member))
 
+#if defined(LINUXKPI_VERSION) && LINUXKPI_VERSION >= 51300
+extern void list_sort(void *priv, struct list_head *head, int (*cmp)(void *priv,
+    const struct list_head *a, const struct list_head *b));
+#else
 extern void list_sort(void *priv, struct list_head *head, int (*cmp)(void *priv,
     struct list_head *a, struct list_head *b));
+#endif
 
 #endif /* _LINUXKPI_LINUX_LIST_H_ */

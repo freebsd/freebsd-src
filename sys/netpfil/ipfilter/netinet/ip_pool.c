@@ -886,7 +886,7 @@ ipf_pool_insert_node(ipf_main_softc_t *softc, ipf_pool_softc_t *softp,
 /*              op(I)    - pointer to iplookup struct with call details     */
 /* Locks:       WRITE(ipf_poolrw)                                           */
 /*                                                                          */
-/* Creates a new group according to the paramters passed in via the         */
+/* Creates a new group according to the parameters passed in via the        */
 /* iplookupop structure.  Does not check to see if the group already exists */
 /* when being inserted - assume this has already been done.  If the pool is */
 /* marked as being anonymous, give it a new, unique, identifier.  Call any  */
@@ -1018,11 +1018,11 @@ ipf_pool_remove_node(ipf_main_softc_t *softc, ipf_pool_softc_t *softp,
 /* Returns:     int    - 0 = success, else error                            */
 /* Parameters:  softc(I) - pointer to soft context main structure           */
 /*              softp(I) - pointer to soft context pool information         */
-/*              unit(I)  - ipfilter device to which we are working on      */
+/*              unit(I)  - ipfilter device to which we are working on       */
 /*              name(I)  - name of the pool                                 */
 /* Locks:       WRITE(ipf_poolrw) or WRITE(ipf_global)                      */
 /*                                                                          */
-/* Search for a pool using paramters passed in and if it's not otherwise    */
+/* Search for a pool using parameters passed in and if it's not otherwise   */
 /* busy, free it.  If it is busy, clear all of its nodes, mark it for being */
 /* deleted and return an error saying it is busy.                           */
 /*                                                                          */

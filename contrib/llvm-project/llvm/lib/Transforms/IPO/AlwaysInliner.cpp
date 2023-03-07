@@ -1,4 +1,4 @@
-//===- InlineAlways.cpp - Code to inline always_inline functions ----------===//
+//===- AlwaysInliner.cpp - Code to inline always_inline functions ----------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -16,15 +16,10 @@
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/InlineCost.h"
+#include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/Analysis/ProfileSummaryInfo.h"
-#include "llvm/Analysis/TargetLibraryInfo.h"
-#include "llvm/IR/CallingConv.h"
-#include "llvm/IR/DataLayout.h"
-#include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
-#include "llvm/IR/Type.h"
 #include "llvm/InitializePasses.h"
-#include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/IPO/Inliner.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
@@ -60,31 +55,38 @@ PreservedAnalyses AlwaysInlinerPass::run(Module &M,
       for (User *U : F.users())
         if (auto *CB = dyn_cast<CallBase>(U))
           if (CB->getCalledFunction() == &F &&
-              CB->hasFnAttr(Attribute::AlwaysInline))
-            Calls.insert(CB);
+                CB->hasFnAttr(Attribute::AlwaysInline) &&
+                !CB->getAttributes().hasFnAttr(Attribute::NoInline))
+              Calls.insert(CB);
 
       for (CallBase *CB : Calls) {
         Function *Caller = CB->getCaller();
         OptimizationRemarkEmitter ORE(Caller);
-        auto OIC = shouldInline(
-            *CB,
-            [&](CallBase &CB) {
-              return InlineCost::getAlways("always inline attribute");
-            },
-            ORE);
-        assert(OIC);
-        emitInlinedIntoBasedOnCost(ORE, CB->getDebugLoc(), CB->getParent(), F,
-                                   *Caller, *OIC, false, DEBUG_TYPE);
+        DebugLoc DLoc = CB->getDebugLoc();
+        BasicBlock *Block = CB->getParent();
 
         InlineFunctionInfo IFI(
             /*cg=*/nullptr, GetAssumptionCache, &PSI,
-            &FAM.getResult<BlockFrequencyAnalysis>(*(CB->getCaller())),
+            &FAM.getResult<BlockFrequencyAnalysis>(*Caller),
             &FAM.getResult<BlockFrequencyAnalysis>(F));
 
         InlineResult Res = InlineFunction(
             *CB, IFI, &FAM.getResult<AAManager>(F), InsertLifetime);
-        assert(Res.isSuccess() && "unexpected failure to inline");
-        (void)Res;
+        if (!Res.isSuccess()) {
+          ORE.emit([&]() {
+            return OptimizationRemarkMissed(DEBUG_TYPE, "NotInlined", DLoc,
+                                            Block)
+                   << "'" << ore::NV("Callee", &F) << "' is not inlined into '"
+                   << ore::NV("Caller", Caller)
+                   << "': " << ore::NV("Reason", Res.getFailureReason());
+          });
+          continue;
+        }
+
+        emitInlinedIntoBasedOnCost(
+            ORE, DLoc, Block, F, *Caller,
+            InlineCost::getAlways("always inline attribute"),
+            /*ForProfileContext=*/false, DEBUG_TYPE);
 
         // Merge the attributes based on the inlining.
         AttributeFuncs::mergeAttributesForInlining(*Caller, F);
@@ -209,6 +211,9 @@ InlineCost AlwaysInlinerLegacyPass::getInlineCost(CallBase &CB) {
 
   if (!CB.hasFnAttr(Attribute::AlwaysInline))
     return InlineCost::getNever("no alwaysinline attribute");
+
+  if (Callee->hasFnAttribute(Attribute::AlwaysInline) && CB.isNoInline())
+    return InlineCost::getNever("noinline call site attribute");
 
   auto IsViable = isInlineViable(*Callee);
   if (!IsViable.isSuccess())

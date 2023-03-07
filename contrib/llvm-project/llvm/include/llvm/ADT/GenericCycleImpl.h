@@ -66,6 +66,44 @@ void GenericCycle<ContextT>::getExitBlocks(
   }
 }
 
+template <typename ContextT>
+auto GenericCycle<ContextT>::getCyclePreheader() const -> BlockT * {
+  BlockT *Predecessor = getCyclePredecessor();
+  if (!Predecessor)
+    return nullptr;
+
+  assert(isReducible() && "Cycle Predecessor must be in a reducible cycle!");
+
+  if (succ_size(Predecessor) != 1)
+    return nullptr;
+
+  // Make sure we are allowed to hoist instructions into the predecessor.
+  if (!Predecessor->isLegalToHoistInto())
+    return nullptr;
+
+  return Predecessor;
+}
+
+template <typename ContextT>
+auto GenericCycle<ContextT>::getCyclePredecessor() const -> BlockT * {
+  if (!isReducible())
+    return nullptr;
+
+  BlockT *Out = nullptr;
+
+  // Loop over the predecessors of the header node...
+  BlockT *Header = getHeader();
+  for (const auto Pred : predecessors(Header)) {
+    if (!contains(Pred)) {
+      if (Out && Out != Pred)
+        return nullptr;
+      Out = Pred;
+    }
+  }
+
+  return Out;
+}
+
 /// \brief Helper class for computing cycle information.
 template <typename ContextT> class GenericCycleInfoCompute {
   using BlockT = typename ContextT::BlockT;
@@ -106,8 +144,12 @@ private:
 };
 
 template <typename ContextT>
-auto GenericCycleInfo<ContextT>::getTopLevelParentCycle(
-    const BlockT *Block) const -> CycleT * {
+auto GenericCycleInfo<ContextT>::getTopLevelParentCycle(BlockT *Block)
+    -> CycleT * {
+  auto Cycle = BlockMapTopLevel.find(Block);
+  if (Cycle != BlockMapTopLevel.end())
+    return Cycle->second;
+
   auto MapIt = BlockMap.find(Block);
   if (MapIt == BlockMap.end())
     return nullptr;
@@ -115,12 +157,15 @@ auto GenericCycleInfo<ContextT>::getTopLevelParentCycle(
   auto *C = MapIt->second;
   while (C->ParentCycle)
     C = C->ParentCycle;
+  BlockMapTopLevel.try_emplace(Block, C);
   return C;
 }
 
 template <typename ContextT>
-void GenericCycleInfo<ContextT>::moveToNewParent(CycleT *NewParent,
-                                                 CycleT *Child) {
+void GenericCycleInfo<ContextT>::moveTopLevelCycleToNewParent(CycleT *NewParent,
+                                                              CycleT *Child) {
+  assert((!Child->ParentCycle && !NewParent->ParentCycle) &&
+         "NewParent and Child must be both top level cycle!\n");
   auto &CurrentContainer =
       Child->ParentCycle ? Child->ParentCycle->Children : TopLevelCycles;
   auto Pos = llvm::find_if(CurrentContainer, [=](const auto &Ptr) -> bool {
@@ -131,6 +176,13 @@ void GenericCycleInfo<ContextT>::moveToNewParent(CycleT *NewParent,
   *Pos = std::move(CurrentContainer.back());
   CurrentContainer.pop_back();
   Child->ParentCycle = NewParent;
+
+  NewParent->Blocks.insert(NewParent->Blocks.end(), Child->block_begin(),
+                           Child->block_end());
+
+  for (auto &It : BlockMapTopLevel)
+    if (It.second == Child)
+      It.second = NewParent;
 }
 
 /// \brief Main function of the cycle info computations.
@@ -202,10 +254,7 @@ void GenericCycleInfoCompute<ContextT>::run(BlockT *EntryBlock) {
                      << "discovered child cycle "
                      << Info.Context.print(BlockParent->getHeader()) << "\n");
           // Make BlockParent the child of NewCycle.
-          Info.moveToNewParent(NewCycle.get(), BlockParent);
-          NewCycle->Blocks.insert(NewCycle->Blocks.end(),
-                                  BlockParent->block_begin(),
-                                  BlockParent->block_end());
+          Info.moveTopLevelCycleToNewParent(NewCycle.get(), BlockParent);
 
           for (auto *ChildEntry : BlockParent->entries())
             ProcessPredecessors(ChildEntry);
@@ -219,6 +268,7 @@ void GenericCycleInfoCompute<ContextT>::run(BlockT *EntryBlock) {
         assert(!is_contained(NewCycle->Blocks, Block));
         NewCycle->Blocks.push_back(Block);
         ProcessPredecessors(Block);
+        Info.BlockMapTopLevel.try_emplace(Block, NewCycle.get());
       }
     } while (!Worklist.empty());
 
@@ -267,8 +317,8 @@ void GenericCycleInfoCompute<ContextT>::dfs(BlockT *EntryBlock) {
       DFSTreeStack.emplace_back(TraverseStack.size());
       llvm::append_range(TraverseStack, successors(Block));
 
-      LLVM_ATTRIBUTE_UNUSED
       bool Added = BlockDFSInfo.try_emplace(Block, ++Counter).second;
+      (void)Added;
       assert(Added);
       BlockPreorder.push_back(Block);
       LLVM_DEBUG(errs() << "  preorder number: " << Counter << "\n");
@@ -298,6 +348,7 @@ void GenericCycleInfoCompute<ContextT>::dfs(BlockT *EntryBlock) {
 template <typename ContextT> void GenericCycleInfo<ContextT>::clear() {
   TopLevelCycles.clear();
   BlockMap.clear();
+  BlockMapTopLevel.clear();
 }
 
 /// \brief Compute the cycle info for a function.
@@ -326,6 +377,19 @@ auto GenericCycleInfo<ContextT>::getCycle(const BlockT *Block) const
   return nullptr;
 }
 
+/// \brief get the depth for the cycle which containing a given block.
+///
+/// \returns the depth for the innermost cycle containing \p Block or 0 if it is
+///          not contained in any cycle.
+template <typename ContextT>
+unsigned GenericCycleInfo<ContextT>::getCycleDepth(const BlockT *Block) const {
+  CycleT *Cycle = getCycle(Block);
+  if (!Cycle)
+    return 0;
+  return Cycle->getDepth();
+}
+
+#ifndef NDEBUG
 /// \brief Validate the internal consistency of the cycle tree.
 ///
 /// Note that this does \em not check that cycles are really cycles in the CFG,
@@ -391,6 +455,7 @@ bool GenericCycleInfo<ContextT>::validateTree() const {
 
   return true;
 }
+#endif
 
 /// \brief Print the cycle info.
 template <typename ContextT>

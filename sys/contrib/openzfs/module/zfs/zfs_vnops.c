@@ -61,21 +61,23 @@ static ulong_t zfs_fsync_sync_cnt = 4;
 int
 zfs_fsync(znode_t *zp, int syncflag, cred_t *cr)
 {
+	int error = 0;
 	zfsvfs_t *zfsvfs = ZTOZSB(zp);
 
-	(void) tsd_set(zfs_fsyncer_key, (void *)zfs_fsync_sync_cnt);
+	(void) tsd_set(zfs_fsyncer_key, (void *)(uintptr_t)zfs_fsync_sync_cnt);
 
 	if (zfsvfs->z_os->os_sync != ZFS_SYNC_DISABLED) {
-		ZFS_ENTER(zfsvfs);
-		ZFS_VERIFY_ZP(zp);
+		if ((error = zfs_enter_verify_zp(zfsvfs, zp, FTAG)) != 0)
+			goto out;
 		atomic_inc_32(&zp->z_sync_writes_cnt);
 		zil_commit(zfsvfs->z_log, zp->z_id);
 		atomic_dec_32(&zp->z_sync_writes_cnt);
-		ZFS_EXIT(zfsvfs);
+		zfs_exit(zfsvfs, FTAG);
 	}
+out:
 	tsd_set(zfs_fsyncer_key, NULL);
 
-	return (0);
+	return (error);
 }
 
 
@@ -104,7 +106,7 @@ zfs_holey_common(znode_t *zp, ulong_t cmd, loff_t *off)
 		hole = B_FALSE;
 
 	/* Flush any mmap()'d data to disk */
-	if (zn_has_cached_data(zp))
+	if (zn_has_cached_data(zp, 0, file_sz - 1))
 		zn_flush_cached_data(zp, B_FALSE);
 
 	lr = zfs_rangelock_enter(&zp->z_rangelock, 0, file_sz, RL_READER);
@@ -146,12 +148,12 @@ zfs_holey(znode_t *zp, ulong_t cmd, loff_t *off)
 	zfsvfs_t *zfsvfs = ZTOZSB(zp);
 	int error;
 
-	ZFS_ENTER(zfsvfs);
-	ZFS_VERIFY_ZP(zp);
+	if ((error = zfs_enter_verify_zp(zfsvfs, zp, FTAG)) != 0)
+		return (error);
 
 	error = zfs_holey_common(zp, cmd, off);
 
-	ZFS_EXIT(zfsvfs);
+	zfs_exit(zfsvfs, FTAG);
 	return (error);
 }
 #endif /* SEEK_HOLE && SEEK_DATA */
@@ -162,19 +164,29 @@ zfs_access(znode_t *zp, int mode, int flag, cred_t *cr)
 	zfsvfs_t *zfsvfs = ZTOZSB(zp);
 	int error;
 
-	ZFS_ENTER(zfsvfs);
-	ZFS_VERIFY_ZP(zp);
+	if ((error = zfs_enter_verify_zp(zfsvfs, zp, FTAG)) != 0)
+		return (error);
 
 	if (flag & V_ACE_MASK)
-		error = zfs_zaccess(zp, mode, flag, B_FALSE, cr);
+#if defined(__linux__)
+		error = zfs_zaccess(zp, mode, flag, B_FALSE, cr,
+		    kcred->user_ns);
+#else
+		error = zfs_zaccess(zp, mode, flag, B_FALSE, cr,
+		    NULL);
+#endif
 	else
-		error = zfs_zaccess_rwx(zp, mode, flag, cr);
+#if defined(__linux__)
+		error = zfs_zaccess_rwx(zp, mode, flag, cr, kcred->user_ns);
+#else
+		error = zfs_zaccess_rwx(zp, mode, flag, cr, NULL);
+#endif
 
-	ZFS_EXIT(zfsvfs);
+	zfs_exit(zfsvfs, FTAG);
 	return (error);
 }
 
-static unsigned long zfs_vnops_read_chunk_size = 1024 * 1024; /* Tunable */
+static uint64_t zfs_vnops_read_chunk_size = 1024 * 1024; /* Tunable */
 
 /*
  * Read bytes from specified file into supplied buffer.
@@ -201,17 +213,17 @@ zfs_read(struct znode *zp, zfs_uio_t *uio, int ioflag, cred_t *cr)
 	boolean_t frsync = B_FALSE;
 
 	zfsvfs_t *zfsvfs = ZTOZSB(zp);
-	ZFS_ENTER(zfsvfs);
-	ZFS_VERIFY_ZP(zp);
+	if ((error = zfs_enter_verify_zp(zfsvfs, zp, FTAG)) != 0)
+		return (error);
 
 	if (zp->z_pflags & ZFS_AV_QUARANTINED) {
-		ZFS_EXIT(zfsvfs);
+		zfs_exit(zfsvfs, FTAG);
 		return (SET_ERROR(EACCES));
 	}
 
 	/* We don't copy out anything useful for directories. */
 	if (Z_ISDIR(ZTOTYPE(zp))) {
-		ZFS_EXIT(zfsvfs);
+		zfs_exit(zfsvfs, FTAG);
 		return (SET_ERROR(EISDIR));
 	}
 
@@ -219,7 +231,7 @@ zfs_read(struct znode *zp, zfs_uio_t *uio, int ioflag, cred_t *cr)
 	 * Validate file offset
 	 */
 	if (zfs_uio_offset(uio) < (offset_t)0) {
-		ZFS_EXIT(zfsvfs);
+		zfs_exit(zfsvfs, FTAG);
 		return (SET_ERROR(EINVAL));
 	}
 
@@ -227,7 +239,7 @@ zfs_read(struct znode *zp, zfs_uio_t *uio, int ioflag, cred_t *cr)
 	 * Fasttrack empty reads
 	 */
 	if (zfs_uio_resid(uio) == 0) {
-		ZFS_EXIT(zfsvfs);
+		zfs_exit(zfsvfs, FTAG);
 		return (0);
 	}
 
@@ -276,7 +288,8 @@ zfs_read(struct znode *zp, zfs_uio_t *uio, int ioflag, cred_t *cr)
 			error = mappedread_sf(zp, nbytes, uio);
 		else
 #endif
-		if (zn_has_cached_data(zp) && !(ioflag & O_DIRECT)) {
+		if (zn_has_cached_data(zp, zfs_uio_offset(uio),
+		    zfs_uio_offset(uio) + nbytes - 1) && !(ioflag & O_DIRECT)) {
 			error = mappedread(zp, nbytes, uio);
 		} else {
 			error = dmu_read_uio_dbuf(sa_get_db(zp->z_sa_hdl),
@@ -312,7 +325,7 @@ out:
 	zfs_rangelock_exit(lr);
 
 	ZFS_ACCESSTIME_STAMP(zfsvfs, zp);
-	ZFS_EXIT(zfsvfs);
+	zfs_exit(zfsvfs, FTAG);
 	return (error);
 }
 
@@ -404,8 +417,8 @@ zfs_write(znode_t *zp, zfs_uio_t *uio, int ioflag, cred_t *cr)
 		return (0);
 
 	zfsvfs_t *zfsvfs = ZTOZSB(zp);
-	ZFS_ENTER(zfsvfs);
-	ZFS_VERIFY_ZP(zp);
+	if ((error = zfs_enter_verify_zp(zfsvfs, zp, FTAG)) != 0)
+		return (error);
 
 	sa_bulk_attr_t bulk[4];
 	int count = 0;
@@ -422,7 +435,7 @@ zfs_write(znode_t *zp, zfs_uio_t *uio, int ioflag, cred_t *cr)
 	 * so check it explicitly here.
 	 */
 	if (zfs_is_readonly(zfsvfs)) {
-		ZFS_EXIT(zfsvfs);
+		zfs_exit(zfsvfs, FTAG);
 		return (SET_ERROR(EROFS));
 	}
 
@@ -434,7 +447,7 @@ zfs_write(znode_t *zp, zfs_uio_t *uio, int ioflag, cred_t *cr)
 	if ((zp->z_pflags & ZFS_IMMUTABLE) ||
 	    ((zp->z_pflags & ZFS_APPENDONLY) && !(ioflag & O_APPEND) &&
 	    (zfs_uio_offset(uio) < zp->z_size))) {
-		ZFS_EXIT(zfsvfs);
+		zfs_exit(zfsvfs, FTAG);
 		return (SET_ERROR(EPERM));
 	}
 
@@ -443,7 +456,7 @@ zfs_write(znode_t *zp, zfs_uio_t *uio, int ioflag, cred_t *cr)
 	 */
 	offset_t woff = ioflag & O_APPEND ? zp->z_size : zfs_uio_offset(uio);
 	if (woff < 0) {
-		ZFS_EXIT(zfsvfs);
+		zfs_exit(zfsvfs, FTAG);
 		return (SET_ERROR(EINVAL));
 	}
 
@@ -455,7 +468,7 @@ zfs_write(znode_t *zp, zfs_uio_t *uio, int ioflag, cred_t *cr)
 	 * Skip this if uio contains loaned arc_buf.
 	 */
 	if (zfs_uio_prefaultpages(MIN(n, max_blksz), uio)) {
-		ZFS_EXIT(zfsvfs);
+		zfs_exit(zfsvfs, FTAG);
 		return (SET_ERROR(EFAULT));
 	}
 
@@ -490,7 +503,7 @@ zfs_write(znode_t *zp, zfs_uio_t *uio, int ioflag, cred_t *cr)
 
 	if (zn_rlimit_fsize(zp, uio)) {
 		zfs_rangelock_exit(lr);
-		ZFS_EXIT(zfsvfs);
+		zfs_exit(zfsvfs, FTAG);
 		return (SET_ERROR(EFBIG));
 	}
 
@@ -498,7 +511,7 @@ zfs_write(znode_t *zp, zfs_uio_t *uio, int ioflag, cred_t *cr)
 
 	if (woff >= limit) {
 		zfs_rangelock_exit(lr);
-		ZFS_EXIT(zfsvfs);
+		zfs_exit(zfsvfs, FTAG);
 		return (SET_ERROR(EFBIG));
 	}
 
@@ -684,7 +697,8 @@ zfs_write(znode_t *zp, zfs_uio_t *uio, int ioflag, cred_t *cr)
 			zfs_uioskip(uio, nbytes);
 			tx_bytes = nbytes;
 		}
-		if (tx_bytes && zn_has_cached_data(zp) &&
+		if (tx_bytes &&
+		    zn_has_cached_data(zp, woff, woff + tx_bytes - 1) &&
 		    !(ioflag & O_DIRECT)) {
 			update_pages(zp, woff, tx_bytes, zfsvfs->z_os);
 		}
@@ -761,7 +775,7 @@ zfs_write(znode_t *zp, zfs_uio_t *uio, int ioflag, cred_t *cr)
 	 */
 	if (zfsvfs->z_replay || zfs_uio_resid(uio) == start_resid ||
 	    error == EFAULT) {
-		ZFS_EXIT(zfsvfs);
+		zfs_exit(zfsvfs, FTAG);
 		return (error);
 	}
 
@@ -773,7 +787,7 @@ zfs_write(znode_t *zp, zfs_uio_t *uio, int ioflag, cred_t *cr)
 	dataset_kstats_update_write_kstats(&zfsvfs->z_kstat, nwritten);
 	task_io_account_write(nwritten);
 
-	ZFS_EXIT(zfsvfs);
+	zfs_exit(zfsvfs, FTAG);
 	return (0);
 }
 
@@ -784,10 +798,10 @@ zfs_getsecattr(znode_t *zp, vsecattr_t *vsecp, int flag, cred_t *cr)
 	int error;
 	boolean_t skipaclchk = (flag & ATTR_NOACLCHECK) ? B_TRUE : B_FALSE;
 
-	ZFS_ENTER(zfsvfs);
-	ZFS_VERIFY_ZP(zp);
+	if ((error = zfs_enter_verify_zp(zfsvfs, zp, FTAG)) != 0)
+		return (error);
 	error = zfs_getacl(zp, vsecp, skipaclchk, cr);
-	ZFS_EXIT(zfsvfs);
+	zfs_exit(zfsvfs, FTAG);
 
 	return (error);
 }
@@ -800,15 +814,15 @@ zfs_setsecattr(znode_t *zp, vsecattr_t *vsecp, int flag, cred_t *cr)
 	boolean_t skipaclchk = (flag & ATTR_NOACLCHECK) ? B_TRUE : B_FALSE;
 	zilog_t	*zilog = zfsvfs->z_log;
 
-	ZFS_ENTER(zfsvfs);
-	ZFS_VERIFY_ZP(zp);
+	if ((error = zfs_enter_verify_zp(zfsvfs, zp, FTAG)) != 0)
+		return (error);
 
 	error = zfs_setacl(zp, vsecp, skipaclchk, cr);
 
 	if (zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
 		zil_commit(zilog, 0);
 
-	ZFS_EXIT(zfsvfs);
+	zfs_exit(zfsvfs, FTAG);
 	return (error);
 }
 
@@ -864,7 +878,7 @@ zfs_get_data(void *arg, uint64_t gen, lr_write_t *lr, char *buf,
 		return (SET_ERROR(ENOENT));
 	}
 
-	zgd = (zgd_t *)kmem_zalloc(sizeof (zgd_t), KM_SLEEP);
+	zgd = kmem_zalloc(sizeof (zgd_t), KM_SLEEP);
 	zgd->zgd_lwb = lwb;
 	zgd->zgd_private = zp;
 
@@ -989,5 +1003,5 @@ EXPORT_SYMBOL(zfs_write);
 EXPORT_SYMBOL(zfs_getsecattr);
 EXPORT_SYMBOL(zfs_setsecattr);
 
-ZFS_MODULE_PARAM(zfs_vnops, zfs_vnops_, read_chunk_size, ULONG, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_vnops, zfs_vnops_, read_chunk_size, U64, ZMOD_RW,
 	"Bytes to read per chunk");

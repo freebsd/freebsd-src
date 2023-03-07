@@ -32,10 +32,28 @@
 
 #include <linux/types.h>
 
-#define	ETHTOOL_FWVERS_LEN	64
+#define	ETH_GSTRING_LEN	(2 * IF_NAMESIZE)	/* Increase if not large enough */
+
+#define	ETHTOOL_FWVERS_LEN	32
 
 struct ethtool_stats {
 	uint8_t __dummy[0];
+};
+
+enum ethtool_ss {
+	ETH_SS_STATS,
+};
+
+struct ethtool_drvinfo {
+	char			driver[32];
+	char			version[32];
+	char			fw_version[ETHTOOL_FWVERS_LEN];
+	char			bus_info[32];
+};
+
+struct net_device;
+struct ethtool_ops {
+	void(*get_drvinfo)(struct net_device *, struct ethtool_drvinfo *);
 };
 
 #endif	/* _LINUXKPI_LINUX_ETHTOOL_H_ */

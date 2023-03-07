@@ -22,11 +22,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 29, 2022
+.Dd September 23, 2022
 .Dt BSDDIALOG 3
 .Os
 .Sh NAME
 .Nm bsddialog_backtitle ,
+.Nm bsddialog_calendar ,
 .Nm bsddialog_clearterminal ,
 .Nm bsddialog_color ,
 .Nm bsddialog_color_attrs ,
@@ -62,6 +63,16 @@
 .Ft int
 .Fn bsddialog_backtitle "struct bsddialog_conf *conf" "const char *backtitle"
 .Ft int
+.Fo bsddialog_calendar
+.Fa "struct bsddialog_conf *conf"
+.Fa "const char *text"
+.Fa "int rows"
+.Fa "int cols"
+.Fa "unsigned int *yy"
+.Fa "unsigned int *mm"
+.Fa "unsigned int *dd"
+.Fc
+.Ft int
 .Fo bsddialog_checklist
 .Fa "struct bsddialog_conf *conf"
 .Fa "const char *text"
@@ -75,7 +86,7 @@
 .Ft int
 .Fn bsddialog_clearterminal "void"
 .Ft int
-.Fo bsddialog_datebox"
+.Fo bsddialog_datebox
 .Fa "struct bsddialog_conf *conf"
 .Fa "const char *text"
 .Fa "int rows"
@@ -476,7 +487,8 @@ function.
 buttons always active, avoidind focus switch between buttons and input fields or
 input boxes in
 .Fn bsddialog_form ,
-.Fn bsddialog_datebox
+.Fn bsddialog_datebox ,
+.Fn bsddialog_calendar
 and
 .Fn bsddialog_timebox .
 .It Fa conf.button.without_ok
@@ -515,7 +527,10 @@ to true,
 and
 .Fa conf.x
 to
-.Dv BSDDIALOG_CENTER .
+.Dv BSDDIALOG_CENTER ,
+.Fa conf.text.cols_per_row
+to
+.Dv 10 .
 .Pp
 .Fn bsddialog_infobox
 builds a dialog without buttons and returns instantly.
@@ -531,8 +546,10 @@ builds a dialog waiting until the timeout in
 .Fa seconds
 expires or a button is pressed.
 .Pp
+.Fn bsddialog_calendar
+and
 .Fn bsddialog_datebox
-builds a dialog to select a date,
+build a dialog to select a date,
 .Fa yy ,
 .Fa mm ,
 and
@@ -606,14 +623,14 @@ builds a dialog with collections of checklists, radiolists and separators.
 A collection is a set defined like:
 .Pp
 .Bd -literal -offset indent -compact
-enum bsddialog_grouptype {
+enum bsddialog_menutype {
 	BSDDIALOG_CHECKLIST,
 	BSDDIALOG_RADIOLIST,
 	BSDDIALOG_SEPARATOR,
 };
 
 struct bsddialog_menugroup {
-	enum bsddialog_grouptype type;
+	enum bsddialog_menutype type;
 	unsigned int nitems;
 	struct bsddialog_menuitem *items;
 };
@@ -1013,7 +1030,7 @@ struct bsddialog_menuitem check[2] = {
 struct bsddialog_menuitem sep[1] = {
     { "3", true, 0, "Radiolist", "(desc)", "" }
 };
-struct bsddialog_menuitem radio[5] = {
+struct bsddialog_menuitem radio[2] = {
     { "4", true,  0, "Name 1", "Desc 1", "Radio Bottom Desc 1" },
     { "5", false, 0, "Name 2", "Desc 2", "Radio Bottom Desc 2" }
 };

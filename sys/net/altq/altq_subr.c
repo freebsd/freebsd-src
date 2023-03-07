@@ -46,6 +46,7 @@
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/vnet.h>
@@ -78,14 +79,9 @@
  * internal function prototypes
  */
 static void	tbr_timeout(void *);
-int (*altq_input)(struct mbuf *, int) = NULL;
 static struct mbuf *tbr_dequeue(struct ifaltq *, int);
 static int tbr_timer = 0;	/* token bucket regulator timer */
-#if !defined(__FreeBSD__) || (__FreeBSD_version < 600000)
-static struct callout tbr_callout = CALLOUT_INITIALIZER;
-#else
 static struct callout tbr_callout;
-#endif
 
 #ifdef ALTQ3_CLFIER_COMPAT
 static int 	extract_ports4(struct mbuf *, struct ip *, struct flowinfo_in *);
@@ -152,9 +148,7 @@ ALTQ_FEATURE(fairq, "ALTQ Fair Queuing discipline");
 
 /* look up the queue state by the interface name and the queueing type. */
 void *
-altq_lookup(name, type)
-	char *name;
-	int type;
+altq_lookup(char *name, int type)
 {
 	struct ifnet *ifp;
 
@@ -168,13 +162,10 @@ altq_lookup(name, type)
 }
 
 int
-altq_attach(ifq, type, discipline, enqueue, dequeue, request)
-	struct ifaltq *ifq;
-	int type;
-	void *discipline;
-	int (*enqueue)(struct ifaltq *, struct mbuf *, struct altq_pktattr *);
-	struct mbuf *(*dequeue)(struct ifaltq *, int);
-	int (*request)(struct ifaltq *, int, void *);
+altq_attach(struct ifaltq *ifq, int type, void *discipline,
+	int (*enqueue)(struct ifaltq *, struct mbuf *, struct altq_pktattr *),
+	struct mbuf *(*dequeue)(struct ifaltq *, int),
+	int (*request)(struct ifaltq *, int, void *))
 {
 	IFQ_LOCK(ifq);
 	if (!ALTQ_IS_READY(ifq)) {
@@ -193,8 +184,7 @@ altq_attach(ifq, type, discipline, enqueue, dequeue, request)
 }
 
 int
-altq_detach(ifq)
-	struct ifaltq *ifq;
+altq_detach(struct ifaltq *ifq)
 {
 	IFQ_LOCK(ifq);
 
@@ -223,8 +213,7 @@ altq_detach(ifq)
 }
 
 int
-altq_enable(ifq)
-	struct ifaltq *ifq;
+altq_enable(struct ifaltq *ifq)
 {
 	int s;
 
@@ -251,8 +240,7 @@ altq_enable(ifq)
 }
 
 int
-altq_disable(ifq)
-	struct ifaltq *ifq;
+altq_disable(struct ifaltq *ifq)
 {
 	int s;
 
@@ -274,9 +262,7 @@ altq_disable(ifq)
 
 #ifdef ALTQ_DEBUG
 void
-altq_assert(file, line, failedexpr)
-	const char *file, *failedexpr;
-	int line;
+altq_assert(const char *file, int line, const char *failedexpr)
 {
 	(void)printf("altq assertion \"%s\" failed: file \"%s\", line %d\n",
 		     failedexpr, file, line);
@@ -297,9 +283,7 @@ altq_assert(file, line, failedexpr)
 #define	TBR_UNSCALE(x)	((x) >> TBR_SHIFT)
 
 static struct mbuf *
-tbr_dequeue(ifq, op)
-	struct ifaltq *ifq;
-	int op;
+tbr_dequeue(struct ifaltq *ifq, int op)
 {
 	struct tb_regulator *tbr;
 	struct mbuf *m;
@@ -349,9 +333,7 @@ tbr_dequeue(ifq, op)
  * if the specified rate is zero, the token bucket regulator is deleted.
  */
 int
-tbr_set(ifq, profile)
-	struct ifaltq *ifq;
-	struct tb_profile *profile;
+tbr_set(struct ifaltq *ifq, struct tb_profile *profile)
 {
 	struct tb_regulator *tbr, *otbr;
 
@@ -429,8 +411,7 @@ tbr_set(ifq, profile)
  * MPSAFE
  */
 static void
-tbr_timeout(arg)
-	void *arg;
+tbr_timeout(void *arg)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
 	struct ifnet *ifp;
@@ -758,9 +739,7 @@ altq_getqstats(struct pf_altq *a, void *ubuf, int *nbytes, int version)
  * read and write diffserv field in IPv4 or IPv6 header
  */
 u_int8_t
-read_dsfield(m, pktattr)
-	struct mbuf *m;
-	struct altq_pktattr *pktattr;
+read_dsfield(struct mbuf *m, struct altq_pktattr *pktattr)
 {
 	struct mbuf *m0;
 	u_int8_t ds_field = 0;
@@ -883,7 +862,6 @@ u_int32_t machclk_per_tick;
 extern u_int64_t cpu_tsc_freq;
 #endif
 
-#if (__FreeBSD_version >= 700035)
 /* Update TSC freq with the value indicated by the caller. */
 static void
 tsc_freq_changed(void *arg, const struct cf_level *level, int status)
@@ -892,7 +870,7 @@ tsc_freq_changed(void *arg, const struct cf_level *level, int status)
 	if (status != 0)
 		return;
 
-#if (__FreeBSD_version >= 701102) && (defined(__amd64__) || defined(__i386__))
+#if defined(__amd64__) || defined(__i386__)
 	/* If TSC is P-state invariant, don't do anything. */
 	if (tsc_is_invariant)
 		return;
@@ -903,7 +881,6 @@ tsc_freq_changed(void *arg, const struct cf_level *level, int status)
 }
 EVENTHANDLER_DEFINE(cpufreq_post_change, tsc_freq_changed, NULL,
     EVENTHANDLER_PRI_LAST);
-#endif /* __FreeBSD_version >= 700035 */
 
 static void
 init_machclk_setup(void)

@@ -39,7 +39,7 @@
 #define MINWTIME   14 /* 3 windows and their borders */
 
 static void
-drawquare(struct bsddialog_conf *conf, WINDOW *win, const char *fmt,
+drawsquare(struct bsddialog_conf *conf, WINDOW *win, const char *fmt,
     const void *value, bool focus)
 {
 	int h, l, w;
@@ -167,7 +167,7 @@ bsddialog_timebox(struct bsddialog_conf *conf, const char* text, int rows,
 	loop = focusbuttons = true;
 	while (loop) {
 		for (i = 0; i < 3; i++)
-			drawquare(conf, c[i].win, "%02d", &c[i].value,
+			drawsquare(conf, c[i].win, "%02d", &c[i].value,
 			    sel == i);
 
 		if (get_wch(&input) == ERR)
@@ -341,8 +341,6 @@ bsddialog_datebox(struct bsddialog_conf *conf, const char *text, int rows,
 		{ "October", 31 }, { "November", 30 }, { "December",  31 }
 	};
 
-#define ISLEAF(year) ((year % 4 == 0 && year % 100 != 0) || year % 400 == 0)
-
 	for (i = 0 ; i < 3; i++) {
 		if (c[i].value > c[i].max)
 			c[i].value = c[i].max;
@@ -350,7 +348,7 @@ bsddialog_datebox(struct bsddialog_conf *conf, const char *text, int rows,
 			c[i].value = 1;
 	}
 	c[2].max = m[c[1].value -1].days;
-	if (c[1].value == 2 && ISLEAF(c[0].value))
+	if (c[1].value == 2 && ISLEAP(c[0].value))
 		c[2].max = 29;
 	if (c[2].value > c[2].max)
 		c[2].value = c[2].max;
@@ -385,10 +383,10 @@ bsddialog_datebox(struct bsddialog_conf *conf, const char *text, int rows,
 	sel = -1;
 	loop = focusbuttons = true;
 	while (loop) {
-		drawquare(conf, c[0].win, "%4d", &c[0].value, sel == 0);
-		drawquare(conf, c[1].win, "%9s", m[c[1].value-1].name,
+		drawsquare(conf, c[0].win, "%4d", &c[0].value, sel == 0);
+		drawsquare(conf, c[1].win, "%9s", m[c[1].value-1].name,
 		    sel == 1);
-		drawquare(conf, c[2].win, "%02d", &c[2].value, sel == 2);
+		drawsquare(conf, c[2].win, "%02d", &c[2].value, sel == 2);
 
 		if (get_wch(&input) == ERR)
 			continue;
@@ -456,7 +454,7 @@ bsddialog_datebox(struct bsddialog_conf *conf, const char *text, int rows,
 				/* if mount change */
 				c[2].max = m[c[1].value -1].days;
 				/* if year change */
-				if (c[1].value == 2 && ISLEAF(c[0].value))
+				if (c[1].value == 2 && ISLEAP(c[0].value))
 					c[2].max = 29;
 				/* set new day */
 				if (c[2].value > c[2].max)
@@ -471,7 +469,7 @@ bsddialog_datebox(struct bsddialog_conf *conf, const char *text, int rows,
 			/* if mount change */
 			c[2].max = m[c[1].value -1].days;
 			/* if year change */
-			if (c[1].value == 2 && ISLEAF(c[0].value))
+			if (c[1].value == 2 && ISLEAP(c[0].value))
 				c[2].max = 29;
 			/* set new day */
 			if (c[2].value > c[2].max)

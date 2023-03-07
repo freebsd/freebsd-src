@@ -740,7 +740,7 @@ ctl_io_sbuf(union ctl_io *io, struct sbuf *sb)
 	case CTL_IO_SCSI:
 		sbuf_cat(sb, path_str);
 		ctl_scsi_command_string(&io->scsiio, NULL, sb);
-		sbuf_printf(sb, " Tag: %#x/%d, Prio: %d\n",
+		sbuf_printf(sb, " Tag: %#jx/%d, Prio: %d\n",
 			    io->scsiio.tag_num, io->scsiio.tag_type,
 			    io->scsiio.priority);
 		break;
@@ -754,7 +754,7 @@ ctl_io_sbuf(union ctl_io *io, struct sbuf *sb)
 			sbuf_printf(sb, "Task Action: %s", task_desc);
 		switch (io->taskio.task_action) {
 		case CTL_TASK_ABORT_TASK:
-			sbuf_printf(sb, " Tag: %#x/%d\n",
+			sbuf_printf(sb, " Tag: %#jx/%d\n",
 			    io->taskio.tag_num, io->taskio.tag_type);
 			break;
 		default:
@@ -869,7 +869,7 @@ ctl_data_print(union ctl_io *io)
 	for (i = 0; i < len; ) {
 		sbuf_new(&sb, str, sizeof(str), SBUF_FIXEDLEN);
 		sbuf_cat(&sb, path_str);
-		sbuf_printf(&sb, " %#6x:%04x:", io->scsiio.tag_num, i);
+		sbuf_printf(&sb, " %#jx:%04x:", io->scsiio.tag_num, i);
 		for (j = 0; j < 16 && i < len; i++, j++) {
 			if (j == 8)
 				sbuf_cat(&sb, " ");

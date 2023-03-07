@@ -29,11 +29,12 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_platform.h"
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/gpio.h>
 #include <sys/kernel.h>
 #include <sys/kobj.h>
-#include <sys/systm.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
 
@@ -45,7 +46,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/extres/regulator/regulator_fixed.h>
 
+#ifdef FDT
 #include "regdev_if.h"
+#endif
 
 MALLOC_DEFINE(M_FIXEDREGULATOR, "fixedregulator", "Fixed regulator");
 

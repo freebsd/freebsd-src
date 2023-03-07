@@ -3515,7 +3515,7 @@ SCIC_SDS_REQUEST_T *scic_sds_controller_get_io_request_from_tag(
  *            the set of free remote node ids
  * @param[in] the_devce This is the device object which is requesting the a
  *            remote node id
- * @param[out] node_id This is the remote node id that is assinged to the
+ * @param[out] node_id This is the remote node id that is assigned to the
  *             device if one is available
  *
  * @return SCI_STATUS

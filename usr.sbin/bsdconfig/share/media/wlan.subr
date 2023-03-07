@@ -781,7 +781,7 @@ f_dialog_scan_wireless()
 # f_dialog_wireless_edit $ssid
 #
 # Display a menu to allow the user to either create a new entry for the
-# wpa_supplicants.conf(5) file, or to edit values for an existing entry.
+# wpa_supplicant.conf(5) file, or to edit values for an existing entry.
 #
 # If more than one wireless network is found to match $ssid, a sub-menu is
 # presented, allowing the user to select the desired network.
@@ -914,7 +914,7 @@ f_dialog_wireless_edit()
 	#
 	# XXXDT Unfinished
 	# This is where we display a menu that edits the entry
-	# And then we modify the wpa_supplicants.conf(5) config file
+	# And then we modify the wpa_supplicant.conf(5) config file
 	# XXXDT Unfinished
 	#
 
@@ -1208,7 +1208,7 @@ f_menu_wpa_scan_results()
 
 # f_dialog_menu_wireless_edit
 #
-# Display a list of wireless networks configured in wpa_supplicants.conf(5) and
+# Display a list of wireless networks configured in wpa_supplicant.conf(5) and
 # (if wpa_supplicant(8) is running) also displays scan results for unconfigured
 # wireless networks.
 #
@@ -1247,7 +1247,7 @@ f_dialog_menu_wireless_edit()
 		fi
 		if [ "$do_parse" -a "$DIALOG_MENU_WLAN_SHOW_CONFIGURED" ]
 		then
-			f_dprintf "$funcname: Parsing wpa_supplicants.conf(5)"
+			f_dprintf "$funcname: Parsing wpa_supplicant.conf(5)"
 			f_wpa_supplicant_parse "$conf_file" \
 			                       WIRELESS_ NWIRELESS_CONFIGS
 			f_dprintf "%s: Parsed %i wireless configurations" \
@@ -1262,7 +1262,7 @@ f_dialog_menu_wireless_edit()
 
 			#
 			# Add both items scanned from the airwaves and networks
-			# parsed from wpa_supplicants.conf(5). Latter items are
+			# parsed from wpa_supplicant.conf(5). Latter items are
 			# marked, sorted, and added to top of list above the
 			# former (which are unmarked and sorted separately).
 			#

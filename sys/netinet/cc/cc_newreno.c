@@ -99,7 +99,7 @@ static size_t	newreno_data_sz(void);
 
 VNET_DECLARE(uint32_t, newreno_beta);
 #define V_newreno_beta VNET(newreno_beta)
-VNET_DEFINE(uint32_t, newreno_beta_ecn) = 80;
+VNET_DECLARE(uint32_t, newreno_beta_ecn);
 #define V_newreno_beta_ecn VNET(newreno_beta_ecn)
 
 struct cc_algo newreno_cc_algo = {
@@ -160,8 +160,8 @@ newreno_log_hystart_event(struct cc_var *ccv, struct newreno *nreno, uint8_t mod
 		log.u_bbr.delivered = nreno->css_lowrtt_fas;
 		log.u_bbr.pkt_epoch = ccv->flags;
 		TCP_LOG_EVENTP(tp, NULL,
-		    &tp->t_inpcb->inp_socket->so_rcv,
-		    &tp->t_inpcb->inp_socket->so_snd,
+		    &tptosocket(tp)->so_rcv,
+		    &tptosocket(tp)->so_snd,
 		    TCP_HYSTART, 0,
 		    0, &log, false, &tv);
 	}
@@ -178,7 +178,7 @@ newreno_cb_init(struct cc_var *ccv, void *ptr)
 {
 	struct newreno *nreno;
 
-	INP_WLOCK_ASSERT(ccv->ccvc.tcp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(ccv->ccvc.tcp));
 	if (ptr == NULL) {
 		ccv->cc_data = malloc(sizeof(struct newreno), M_CC_MEM, M_NOWAIT);
 		if (ccv->cc_data == NULL)
@@ -460,8 +460,6 @@ newreno_ctl_output(struct cc_var *ccv, struct sockopt *sopt, void *buf)
 			nreno->beta = opt->val;
 			break;
 		case CC_NEWRENO_BETA_ECN:
-			if ((!V_cc_do_abe) && ((nreno->newreno_flags & CC_NEWRENO_BETA_ECN) == 0))
-				return (EACCES);
 			nreno->beta_ecn = opt->val;
 			nreno->newreno_flags |= CC_NEWRENO_BETA_ECN_ENABLED;
 			break;
@@ -472,12 +470,10 @@ newreno_ctl_output(struct cc_var *ccv, struct sockopt *sopt, void *buf)
 	case SOPT_GET:
 		switch (opt->name) {
 		case CC_NEWRENO_BETA:
-			opt->val = (nreno == NULL) ?
-			    V_newreno_beta : nreno->beta;
+			opt->val =  nreno->beta;
 			break;
 		case CC_NEWRENO_BETA_ECN:
-			opt->val = (nreno == NULL) ?
-			    V_newreno_beta_ecn : nreno->beta_ecn;
+			opt->val = nreno->beta_ecn;
 			break;
 		default:
 			return (ENOPROTOOPT);

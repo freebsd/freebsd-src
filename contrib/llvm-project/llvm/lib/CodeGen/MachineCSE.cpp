@@ -34,7 +34,6 @@
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/InitializePasses.h"
-#include "llvm/MC/MCInstrDesc.h"
 #include "llvm/MC/MCRegister.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/Pass.h"
@@ -89,6 +88,11 @@ namespace {
       AU.addPreserved<MachineDominatorTree>();
       AU.addRequired<MachineBlockFrequencyInfo>();
       AU.addPreserved<MachineBlockFrequencyInfo>();
+    }
+
+    MachineFunctionProperties getRequiredProperties() const override {
+      return MachineFunctionProperties()
+        .set(MachineFunctionProperties::Property::IsSSA);
     }
 
     void releaseMemory() override {
@@ -411,7 +415,7 @@ bool MachineCSE::isCSECandidate(MachineInstr *MI) {
     // Okay, this instruction does a load. As a refinement, we allow the target
     // to decide whether the loaded value is actually a constant. If so, we can
     // actually use it as a load.
-    if (!MI->isDereferenceableInvariantLoad(AA))
+    if (!MI->isDereferenceableInvariantLoad())
       // FIXME: we should be able to hoist loads with no other side effects if
       // there are no other instructions which can change memory in this loop.
       // This is a trivial form of alias analysis.

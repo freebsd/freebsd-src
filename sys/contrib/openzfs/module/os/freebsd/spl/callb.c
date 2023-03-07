@@ -146,7 +146,7 @@ callb_add_common(boolean_t (*func)(void *arg, int code),
 		cv_wait(&ct->ct_busy_cv, &ct->ct_lock);
 	if ((cp = ct->ct_freelist) == NULL) {
 		ct->ct_ncallb++;
-		cp = (callb_t *)kmem_zalloc(sizeof (callb_t), KM_SLEEP);
+		cp = kmem_zalloc(sizeof (callb_t), KM_SLEEP);
 	}
 	ct->ct_freelist = cp->c_next;
 	cp->c_thread = t;
@@ -160,8 +160,7 @@ callb_add_common(boolean_t (*func)(void *arg, int code),
 		    "too long -- truncated to %d chars",
 		    name, CB_MAXNAME);
 #endif
-	(void) strncpy(cp->c_name, name, CB_MAXNAME);
-	cp->c_name[CB_MAXNAME] = '\0';
+	(void) strlcpy(cp->c_name, name, sizeof (cp->c_name));
 
 	/*
 	 * Insert the new callb at the head of its class list.
@@ -264,7 +263,7 @@ callb_execute_class(int class, int code)
 	mutex_enter(&ct->ct_lock);
 
 	for (cp = ct->ct_first_cb[class];
-	    cp != NULL && ret == 0; cp = cp->c_next) {
+	    cp != NULL && ret == NULL; cp = cp->c_next) {
 		while (cp->c_flag & CALLB_EXECUTING)
 			cv_wait(&cp->c_done_cv, &ct->ct_lock);
 		/*

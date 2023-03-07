@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -29,6 +29,8 @@
 
 scriptdir=$(dirname "$0")
 
+. "$scriptdir/functions.sh"
+
 cd "$scriptdir/.."
 
 if [ "$#" -gt 0 ]; then
@@ -47,3 +49,5 @@ for f in $files; do
 	sed -i 's|^#else  //|#else //|g' "$f"
 
 done
+
+sed -i 's|^       // clang-format on|			// clang-format on|g' src/program.c

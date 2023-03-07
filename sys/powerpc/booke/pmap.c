@@ -333,7 +333,7 @@ static void		mmu_booke_deactivate(struct thread *);
 static void		mmu_booke_bootstrap(vm_offset_t, vm_offset_t);
 static void		*mmu_booke_mapdev(vm_paddr_t, vm_size_t);
 static void		*mmu_booke_mapdev_attr(vm_paddr_t, vm_size_t, vm_memattr_t);
-static void		mmu_booke_unmapdev(vm_offset_t, vm_size_t);
+static void		mmu_booke_unmapdev(void *, vm_size_t);
 static vm_paddr_t	mmu_booke_kextract(vm_offset_t);
 static void		mmu_booke_kenter(vm_offset_t, vm_paddr_t);
 static void		mmu_booke_kenter_attr(vm_offset_t, vm_paddr_t, vm_memattr_t);
@@ -2313,14 +2313,15 @@ mmu_booke_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
  * 'Unmap' a range mapped by mmu_booke_mapdev().
  */
 static void
-mmu_booke_unmapdev(vm_offset_t va, vm_size_t size)
+mmu_booke_unmapdev(void *p, vm_size_t size)
 {
 #ifdef SUPPORTS_SHRINKING_TLB1
-	vm_offset_t base, offset;
+	vm_offset_t base, offset, va;
 
 	/*
 	 * Unmap only if this is inside kernel virtual space.
 	 */
+	va = (vm_offset_t)p;
 	if ((va >= VM_MIN_KERNEL_ADDRESS) && (va <= VM_MAX_KERNEL_ADDRESS)) {
 		base = trunc_page(va);
 		offset = va & PAGE_MASK;

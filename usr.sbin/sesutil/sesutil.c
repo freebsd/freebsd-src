@@ -417,6 +417,17 @@ objmap(int argc, char **argv __unused)
 		usage(stderr, "map");
 	}
 
+	memset(&e_desc, 0, sizeof(e_desc));
+	/* SES4r02 allows element descriptors of up to 65536 characters */
+	e_desc.elm_desc_str = calloc(UINT16_MAX, sizeof(char));
+	if (e_desc.elm_desc_str == NULL)
+		xo_err(EXIT_FAILURE, "calloc()");
+
+	e_devname.elm_devnames = calloc(128, sizeof(char));
+	if (e_devname.elm_devnames == NULL)
+		xo_err(EXIT_FAILURE, "calloc()");
+	e_devname.elm_names_size = 128;
+
 	/* Get the list of ses devices */
 	if (glob(uflag, 0, NULL, &g) == GLOB_NOMATCH) {
 		globfree(&g);
@@ -481,29 +492,16 @@ objmap(int argc, char **argv __unused)
 				xo_err(EXIT_FAILURE, "ENCIOC_GETELMSTAT");
 			}
 			/* Get the description of the element */
-			memset(&e_desc, 0, sizeof(e_desc));
 			e_desc.elm_idx = e_ptr[j].elm_idx;
 			e_desc.elm_desc_len = UINT16_MAX;
-			/* XXX memory leak! */
-			e_desc.elm_desc_str = calloc(UINT16_MAX, sizeof(char));
-			if (e_desc.elm_desc_str == NULL) {
-				close(fd);
-				xo_err(EXIT_FAILURE, "calloc()");
-			}
 			if (ioctl(fd, ENCIOC_GETELMDESC,
 			    (caddr_t) &e_desc) < 0) {
 				close(fd);
 				xo_err(EXIT_FAILURE, "ENCIOC_GETELMDESC");
 			}
+			e_desc.elm_desc_str[e_desc.elm_desc_len] = '\0';
 			/* Get the device name(s) of the element */
-			memset(&e_devname, 0, sizeof(e_devname));
 			e_devname.elm_idx = e_ptr[j].elm_idx;
-			e_devname.elm_names_size = 128;
-			e_devname.elm_devnames = calloc(128, sizeof(char));
-			if (e_devname.elm_devnames == NULL) {
-				close(fd);
-				xo_err(EXIT_FAILURE, "calloc()");
-			}
 			if (ioctl(fd, ENCIOC_GETELMDEVNAMES,
 			    (caddr_t) &e_devname) <0) {
 				/* Continue even if we can't look up devnames */
@@ -526,13 +524,14 @@ objmap(int argc, char **argv __unused)
 			}
 			print_extra_status(e_ptr[j].elm_type, e_status.cstat, PRINT_STYLE_DASHED);
 			xo_close_instance("elements");
-			free(e_devname.elm_devnames);
 		}
 		xo_close_list("elements");
 		free(e_ptr);
 		close(fd);
 	}
 	globfree(&g);
+	free(e_devname.elm_devnames);
+	free(e_desc.elm_desc_str);
 	xo_close_list("enclosures");
 	xo_close_container("sesutil");
 	xo_finish();
@@ -618,7 +617,7 @@ static void
 show_device(int fd, int elm_idx, encioc_elm_status_t e_status, encioc_elm_desc_t e_desc)
 {
 	encioc_elm_devnames_t e_devname;
-	char *model, *serial;
+	char *model = NULL, *serial = NULL;
 	off_t size;
 
 	/* Get the device name(s) of the element */
@@ -635,8 +634,6 @@ show_device(int fd, int elm_idx, encioc_elm_status_t e_status, encioc_elm_desc_t
 	    (caddr_t) &e_devname) < 0) {
 		/* We don't care if this fails */
 		e_devname.elm_devnames[0] = '\0';
-		model = NULL;
-		serial = NULL;
 		size = -1;
 	} else {
 		skip_pass_devices(e_devname.elm_devnames, 128);
@@ -661,6 +658,8 @@ show_device(int fd, int elm_idx, encioc_elm_status_t e_status, encioc_elm_desc_t
 	print_extra_status(ELMTYP_ARRAY_DEV, e_status.cstat, PRINT_STYLE_CSV);
 	xo_emit("\n");
 	xo_close_instance("elements");
+	free(serial);
+	free(model);
 	free(e_devname.elm_devnames);
 }
 
@@ -726,6 +725,10 @@ show(int argc, char **argv __unused)
 	}
 
 	first_ses = true;
+
+	e_desc.elm_desc_str = calloc(UINT16_MAX, sizeof(char));
+	if (e_desc.elm_desc_str == NULL)
+		xo_err(EXIT_FAILURE, "calloc()");
 
 	/* Get the list of ses devices */
 	if (glob(uflag, 0, NULL, &g) == GLOB_NOMATCH) {
@@ -808,19 +811,14 @@ show(int argc, char **argv __unused)
 				continue;
 
 			/* Get the description of the element */
-			memset(&e_desc, 0, sizeof(e_desc));
 			e_desc.elm_idx = e_ptr[j].elm_idx;
 			e_desc.elm_desc_len = UINT16_MAX;
-			e_desc.elm_desc_str = calloc(UINT16_MAX, sizeof(char));
-			if (e_desc.elm_desc_str == NULL) {
-				close(fd);
-				xo_err(EXIT_FAILURE, "calloc()");
-			}
 			if (ioctl(fd, ENCIOC_GETELMDESC,
 			    (caddr_t) &e_desc) < 0) {
 				close(fd);
 				xo_err(EXIT_FAILURE, "ENCIOC_GETELMDESC");
 			}
+			e_desc.elm_desc_str[e_desc.elm_desc_len] = '\0';
 
 			switch (e_ptr[j].elm_type) {
 			case ELMTYP_DEVICE:
@@ -862,6 +860,7 @@ show(int argc, char **argv __unused)
 		close(fd);
 	}
 	globfree(&g);
+	free(e_desc.elm_desc_str);
 	xo_close_list("enclosures");
 	xo_close_container("sesutil");
 	xo_finish();

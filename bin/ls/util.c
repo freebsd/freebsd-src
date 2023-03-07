@@ -227,9 +227,9 @@ usage(void)
 {
 	(void)fprintf(stderr,
 #ifdef COLORLS
-	"usage: ls [-ABCFGHILPRSTUWZabcdfghiklmnopqrstuwxy1,] [--color=when] [-D format]"
+	"usage: ls [-ABCFGHILPRSTUWZabcdfghiklmnopqrstuvwxy1,] [--color=when] [-D format]"
 #else
-	"usage: ls [-ABCFHILPRSTUWZabcdfghiklmnopqrstuwxy1,] [-D format]"
+	"usage: ls [-ABCFHILPRSTUWZabcdfghiklmnopqrstuvwxy1,] [-D format]"
 #endif
 		      " [file ...]\n");
 	exit(1);

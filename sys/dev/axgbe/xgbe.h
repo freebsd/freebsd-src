@@ -1010,7 +1010,7 @@ struct xgbe_version_data {
 };
 
 struct xgbe_prv_data {
-	struct ifnet *netdev;
+	if_t netdev;
 
 	struct platform_device *pdev;
 	struct acpi_device *adev;
@@ -1310,7 +1310,7 @@ struct axgbe_if_softc {
 	if_softc_ctx_t	  scctx;
 	if_shared_ctx_t	 sctx;
 	if_ctx_t		ctx;
-	struct ifnet	    *ifp;
+	if_t			ifp;
 	struct ifmedia	  *media;
 	unsigned int		link_status;
 };
@@ -1326,7 +1326,7 @@ void xgbe_get_all_hw_features(struct xgbe_prv_data *);
 void xgbe_init_rx_coalesce(struct xgbe_prv_data *);
 void xgbe_init_tx_coalesce(struct xgbe_prv_data *);
 
-int xgbe_calc_rx_buf_size(struct ifnet *netdev, unsigned int mtu);
+int xgbe_calc_rx_buf_size(if_t netdev, unsigned int mtu);
 
 void axgbe_sysctl_init(struct xgbe_prv_data *pdata);
 void axgbe_sysctl_exit(struct xgbe_prv_data *pdata);

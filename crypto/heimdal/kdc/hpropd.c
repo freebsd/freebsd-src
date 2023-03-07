@@ -107,7 +107,9 @@ main(int argc, char **argv)
     }
 
     argc -= optidx;
+#ifndef __clang_analyzer__
     argv += optidx;
+#endif
 
     if (argc != 0)
 	usage(1);
@@ -125,6 +127,7 @@ main(int argc, char **argv)
 	krb5_ticket *ticket;
 	char *server;
 
+        memset(&ss, 0, sizeof(ss));
 	sock = STDIN_FILENO;
 #ifdef SUPPORT_INETD
 	if (inetd_flag == -1) {

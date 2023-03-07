@@ -29,6 +29,8 @@
 #ifndef _LINUXKPI_LINUX_SMP_H_
 #define	_LINUXKPI_LINUX_SMP_H_
 
+#include <asm/smp.h>
+
 /*
  * Important note about the use of the function provided below:
  *

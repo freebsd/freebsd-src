@@ -204,7 +204,7 @@ qualifiers are specified, the default is to enable both.
 Sandy Bridge programmable PMCs support the following events:
 .Bl -tag -width indent
 .It Li LD_BLOCKS.DATA_UNKNOWN
-.Pq EVENT_03H, Umask 01H
+.Pq Event 03H, Umask 01H
 Blocked loads due to store buffer blocks with unknown data.
 .It Li LD_BLOCKS.STORE_FORWARD
 .Pq Event 03H, Umask 02H
@@ -213,7 +213,7 @@ Loads blocked by overlapping with store buffer that cannot be forwarded.
 .Pq Event 03H, Umask 08H
 # of Split loads blocked due to resource not available.
 .It Li LD_BLOCKS.ALL_BLOCK
-.Pq EVENT_03H, Umask 10H
+.Pq Event 03H, Umask 10H
 Number of cases where any load is blocked but has no DCU miss.
 .It Li  MISALIGN_MEM_REF.LOADS
 .Pq Event 05H, Umask  01H
@@ -323,10 +323,10 @@ RFOs that miss cache lines.
 .Pq Event 27H, Umask 04H
 RFOs that hit cache lines in E state.
 .It Li L2_STORE_LOCK_RQSTS.HIT_M
-.Pq EVENT_27H, Umask 08H
+.Pq Event 27H, Umask 08H
 RFOs that hit cache lines in M state.
 .It Li L2_STORE_LOCK_RQSTS.ALL
-.Pq EVENT_27H, Umask 0FH
+.Pq Event 27H, Umask 0FH
 RFOs that access cache lines in any state.
 .It Li L2_L1D_WB_RQSTS.HIT_E
 .Pq Event 28H, Umask 04H

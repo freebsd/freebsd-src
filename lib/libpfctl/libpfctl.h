@@ -57,6 +57,7 @@ struct pfctl_status {
 	uint64_t	src_nodes;
 	char		ifname[IFNAMSIZ];
 	uint8_t		pf_chksum[PF_MD5_DIGEST_LENGTH];
+	bool		syncookies_active;
 
 	struct pfctl_status_counters	 counters;
 	struct pfctl_status_counters	 lcounters;
@@ -102,13 +103,14 @@ struct pfctl_eth_rule {
 	uint64_t		 evaluations;
 	uint64_t		 packets[2];
 	uint64_t		 bytes[2];
-	uint32_t		 last_active_timestamp;
+	time_t			 last_active_timestamp;
 
 	/* Action */
 	char			 qname[PF_QNAME_SIZE];
 	char			 tagname[PF_TAG_NAME_SIZE];
 	uint16_t		 dnpipe;
 	uint32_t		 dnflags;
+	char			 bridge_to[IFNAMSIZ];
 	uint8_t			 action;
 
 	struct pfctl_eth_anchor	*anchor;
@@ -175,7 +177,7 @@ struct pfctl_rule {
 	uint64_t		 evaluations;
 	uint64_t		 packets[2];
 	uint64_t		 bytes[2];
-	uint32_t		 last_active_timestamp;
+	time_t			 last_active_timestamp;
 
 	struct pfi_kif		*kif;
 	struct pfctl_anchor	*anchor;

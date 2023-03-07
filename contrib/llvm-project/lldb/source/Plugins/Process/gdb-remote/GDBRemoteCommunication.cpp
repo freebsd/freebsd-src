@@ -67,8 +67,8 @@ GDBRemoteCommunication::GDBRemoteCommunication(const char *comm_name,
       m_packet_timeout(1),
 #endif
       m_echo_number(0), m_supports_qEcho(eLazyBoolCalculate), m_history(512),
-      m_send_acks(true), m_compression_type(CompressionType::None),
-      m_listen_url() {
+      m_send_acks(true), m_is_platform(false),
+      m_compression_type(CompressionType::None), m_listen_url() {
 }
 
 // Destructor
@@ -122,6 +122,29 @@ GDBRemoteCommunication::SendPacketNoLock(llvm::StringRef payload) {
   std::string packet_str = std::string(packet.GetString());
 
   return SendRawPacketNoLock(packet_str);
+}
+
+GDBRemoteCommunication::PacketResult
+GDBRemoteCommunication::SendNotificationPacketNoLock(
+    llvm::StringRef notify_type, std::deque<std::string> &queue,
+    llvm::StringRef payload) {
+  PacketResult ret = PacketResult::Success;
+
+  // If there are no notification in the queue, send the notification
+  // packet.
+  if (queue.empty()) {
+    StreamString packet(0, 4, eByteOrderBig);
+    packet.PutChar('%');
+    packet.Write(notify_type.data(), notify_type.size());
+    packet.PutChar(':');
+    packet.Write(payload.data(), payload.size());
+    packet.PutChar('#');
+    packet.PutHex8(CalculcateChecksum(payload));
+    ret = SendRawPacketNoLock(packet.GetString(), true);
+  }
+
+  queue.push_back(payload.str());
+  return ret;
 }
 
 GDBRemoteCommunication::PacketResult
@@ -843,7 +866,7 @@ Status GDBRemoteCommunication::StartListenThread(const char *hostname,
   m_listen_url = listen_url;
   SetConnection(std::make_unique<ConnectionFileDescriptor>());
   llvm::Expected<HostThread> listen_thread = ThreadLauncher::LaunchThread(
-      listen_url, GDBRemoteCommunication::ListenThread, this);
+      listen_url, [this] { return GDBRemoteCommunication::ListenThread(); });
   if (!listen_thread)
     return Status(listen_thread.takeError());
   m_listen_thread = *listen_thread;
@@ -857,23 +880,22 @@ bool GDBRemoteCommunication::JoinListenThread() {
   return true;
 }
 
-lldb::thread_result_t
-GDBRemoteCommunication::ListenThread(lldb::thread_arg_t arg) {
-  GDBRemoteCommunication *comm = (GDBRemoteCommunication *)arg;
+lldb::thread_result_t GDBRemoteCommunication::ListenThread() {
   Status error;
   ConnectionFileDescriptor *connection =
-      (ConnectionFileDescriptor *)comm->GetConnection();
+      (ConnectionFileDescriptor *)GetConnection();
 
   if (connection) {
     // Do the listen on another thread so we can continue on...
     if (connection->Connect(
-            comm->m_listen_url.c_str(), [comm](llvm::StringRef port_str) {
+            m_listen_url.c_str(),
+            [this](llvm::StringRef port_str) {
               uint16_t port = 0;
               llvm::to_integer(port_str, port, 10);
-              comm->m_port_promise.set_value(port);
+              m_port_promise.set_value(port);
             },
             &error) != eConnectionStatusSuccess)
-      comm->SetConnection(nullptr);
+      SetConnection(nullptr);
   }
   return {};
 }
@@ -1244,7 +1266,7 @@ GDBRemoteCommunication::ConnectLocally(GDBRemoteCommunication &client,
 
 GDBRemoteCommunication::ScopedTimeout::ScopedTimeout(
     GDBRemoteCommunication &gdb_comm, std::chrono::seconds timeout)
-    : m_gdb_comm(gdb_comm), m_timeout_modified(false) {
+    : m_gdb_comm(gdb_comm), m_saved_timeout(0), m_timeout_modified(false) {
   auto curr_timeout = gdb_comm.GetPacketTimeout();
   // Only update the timeout if the timeout is greater than the current
   // timeout. If the current timeout is larger, then just use that.

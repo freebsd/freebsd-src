@@ -13,7 +13,6 @@
 
 #include "llvm/CodeGen/DebugHandlerBase.h"
 #include "llvm/ADT/Optional.h"
-#include "llvm/ADT/Twine.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstr.h"
@@ -305,7 +304,7 @@ void DebugHandlerBase::beginFunction(const MachineFunction *MF) {
         LabelsBeforeInsn[Entries.front().getInstr()] = Asm->getFunctionBegin();
       if (Entries.front().getInstr()->getDebugExpression()->isFragment()) {
         // Mark all non-overlapping initial fragments.
-        for (auto I = Entries.begin(); I != Entries.end(); ++I) {
+        for (const auto *I = Entries.begin(); I != Entries.end(); ++I) {
           if (!I->isDbgValue())
             continue;
           const DIExpression *Fragment = I->getInstr()->getDebugExpression();

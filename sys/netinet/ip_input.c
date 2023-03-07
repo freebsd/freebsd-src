@@ -35,6 +35,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_bootp.h"
+#include "opt_inet.h"
 #include "opt_ipstealth.h"
 #include "opt_ipsec.h"
 #include "opt_route.h"
@@ -62,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_var.h>
 #include <net/if_dl.h>
+#include <net/if_private.h>
 #include <net/pfil.h>
 #include <net/route.h>
 #include <net/route/nhop.h>
@@ -517,6 +519,11 @@ ip_input(struct mbuf *m)
 			goto bad;
 		}
 	}
+	/* The unspecified address can appear only as a src address - RFC1122 */
+	if (__predict_false(ntohl(ip->ip_dst.s_addr) == INADDR_ANY)) {
+		IPSTAT_INC(ips_badaddr);
+		goto bad;
+	}
 
 	if (m->m_pkthdr.csum_flags & CSUM_IP_CHECKED) {
 		sum = !(m->m_pkthdr.csum_flags & CSUM_IP_VALID);
@@ -531,12 +538,6 @@ ip_input(struct mbuf *m)
 		IPSTAT_INC(ips_badsum);
 		goto bad;
 	}
-
-#ifdef ALTQ
-	if (altq_input != NULL && (*altq_input)(m, AF_INET) == 0)
-		/* packet is dropped by traffic conditioner */
-		return;
-#endif
 
 	ip_len = ntohs(ip->ip_len);
 	if (__predict_false(ip_len < hlen)) {
@@ -615,7 +616,7 @@ tooshort:
 		goto passin;
 
 	odst = ip->ip_dst;
-	if (pfil_run_hooks(V_inet_pfil_head, &m, ifp, PFIL_IN, NULL) !=
+	if (pfil_mbuf_in(V_inet_pfil_head, &m, ifp, NULL) !=
 	    PFIL_PASS)
 		return;
 	if (m == NULL)			/* consumed by filter */
@@ -878,15 +879,6 @@ ipproto_unregister(uint8_t proto)
 	} else
 		return (ENOENT);
 }
-
-u_char inetctlerrmap[PRC_NCMDS] = {
-	0,		0,		0,		0,
-	0,		EMSGSIZE,	EHOSTDOWN,	EHOSTUNREACH,
-	EHOSTUNREACH,	EHOSTUNREACH,	ECONNREFUSED,	ECONNREFUSED,
-	EMSGSIZE,	EHOSTUNREACH,	0,		0,
-	0,		0,		EHOSTUNREACH,	0,
-	ENOPROTOOPT,	ECONNREFUSED
-};
 
 /*
  * Forward a packet.  If some error occurs return the sender

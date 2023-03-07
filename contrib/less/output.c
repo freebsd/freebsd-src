@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2021  Mark Nudelman
+ * Copyright (C) 1984-2022  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -594,8 +594,13 @@ less_printf(fmt, parg)
 				parg++;
 				break;
 			case 'c':
-				putchr(parg->p_char);
-				col++;
+				s = prchar(parg->p_char);
+				parg++;
+				while (*s != '\0')
+				{
+					putchr(*s++);
+					col++;
+				}
 				break;
 			case '%':
 				putchr('%');

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2021  Mark Nudelman
+ * Copyright (C) 1984-2022  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -27,6 +27,7 @@ extern int is_tty;
 extern int sigs;
 extern int hshift;
 extern int want_filesize;
+extern int consecutive_nulls;
 extern IFILE curr_ifile;
 extern IFILE old_ifile;
 extern struct scrpos initial_scrpos;
@@ -438,6 +439,7 @@ edit_ifile(ifile)
 	get_pos(curr_ifile, &initial_scrpos);
 	new_file = TRUE;
 	ch_init(f, chflags);
+	consecutive_nulls = 0;
 
 	if (!(chflags & CH_HELPFILE))
 	{

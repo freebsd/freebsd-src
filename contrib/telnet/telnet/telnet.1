@@ -28,7 +28,7 @@
 .\"	@(#)telnet.1	8.6 (Berkeley) 6/1/94
 .\" $FreeBSD$
 .\"
-.Dd June 21, 2021
+.Dd September 29, 2022
 .Dt TELNET 1
 .Os
 .Sh NAME
@@ -1103,10 +1103,6 @@ Displays the legal
 .Pq Ic unset
 commands.
 .El
-.It Ic opie Ar sequence challenge
-The
-.Ic opie
-command computes a response to the OPIE challenge.
 .It Ic slc Ar state
 The
 .Ic slc
@@ -1465,7 +1461,7 @@ user customized telnet startup values
 .Xr rsh 1 ,
 .Xr hosts 5 ,
 .Xr nologin 5 ,
-.Xr telnetd 8
+.Xr telnetd 8 Pq Pa ports/net/freebsd-telnetd
 .Sh HISTORY
 The
 .Nm

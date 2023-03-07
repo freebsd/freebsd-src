@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2016-2021, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -205,12 +205,21 @@ static int ZWRAP_initializeCStream(ZWRAP_CCtx* zwc, const void* dict, size_t dic
     if (zwc == NULL || zwc->zbc == NULL) return Z_STREAM_ERROR;
 
     if (!pledgedSrcSize) pledgedSrcSize = zwc->pledgedSrcSize;
-    {   ZSTD_parameters const params = ZSTD_getParams(zwc->compressionLevel, pledgedSrcSize, dictSize);
-        size_t initErr;
+    {   unsigned initErr = 0;
+        ZSTD_parameters const params = ZSTD_getParams(zwc->compressionLevel, pledgedSrcSize, dictSize);
+        ZSTD_CCtx_params* cctxParams = ZSTD_createCCtxParams();
+        if (!cctxParams) return Z_STREAM_ERROR;
         LOG_WRAPPERC("pledgedSrcSize=%d windowLog=%d chainLog=%d hashLog=%d searchLog=%d minMatch=%d strategy=%d\n",
                     (int)pledgedSrcSize, params.cParams.windowLog, params.cParams.chainLog, params.cParams.hashLog, params.cParams.searchLog, params.cParams.minMatch, params.cParams.strategy);
-        initErr = ZSTD_initCStream_advanced(zwc->zbc, dict, dictSize, params, pledgedSrcSize);
-        if (ZSTD_isError(initErr)) return Z_STREAM_ERROR;
+
+        initErr |= ZSTD_isError(ZSTD_CCtx_reset(zwc->zbc, ZSTD_reset_session_only));
+        initErr |= ZSTD_isError(ZSTD_CCtxParams_init_advanced(cctxParams, params));
+        initErr |= ZSTD_isError(ZSTD_CCtx_setParametersUsingCCtxParams(zwc->zbc, cctxParams));
+        initErr |= ZSTD_isError(ZSTD_CCtx_setPledgedSrcSize(zwc->zbc, pledgedSrcSize));
+        initErr |= ZSTD_isError(ZSTD_CCtx_loadDictionary(zwc->zbc, dict, dictSize));
+
+        ZSTD_freeCCtxParams(cctxParams);
+        if (initErr) return Z_STREAM_ERROR;
     }
 
     return Z_OK;
@@ -372,9 +381,15 @@ ZEXTERN int ZEXPORT z_deflate OF((z_streamp strm, int flush))
     } else {
         if (zwc->totalInBytes == 0) {
             if (zwc->comprState == ZWRAP_useReset) {
-                size_t const resetErr = ZSTD_resetCStream(zwc->zbc, (flush == Z_FINISH) ? strm->avail_in : zwc->pledgedSrcSize);
+                size_t resetErr = ZSTD_CCtx_reset(zwc->zbc, ZSTD_reset_session_only);
                 if (ZSTD_isError(resetErr)) {
-                    LOG_WRAPPERC("ERROR: ZSTD_resetCStream errorCode=%s\n",
+                    LOG_WRAPPERC("ERROR: ZSTD_CCtx_reset errorCode=%s\n",
+                                ZSTD_getErrorName(resetErr));
+                    return ZWRAPC_finishWithError(zwc, strm, 0);
+                }
+                resetErr = ZSTD_CCtx_setPledgedSrcSize(zwc->zbc, (flush == Z_FINISH) ? strm->avail_in : zwc->pledgedSrcSize);
+                if (ZSTD_isError(resetErr)) {
+                    LOG_WRAPPERC("ERROR: ZSTD_CCtx_setPledgedSrcSize errorCode=%s\n",
                                 ZSTD_getErrorName(resetErr));
                     return ZWRAPC_finishWithError(zwc, strm, 0);
                 }
@@ -829,7 +844,7 @@ ZEXTERN int ZEXPORT z_inflate OF((z_streamp strm, int flush))
                     goto error;
                 }
             } else {
-                size_t const resetErr = ZSTD_resetDStream(zwd->zbd);
+                size_t const resetErr = ZSTD_DCtx_reset(zwd->zbd, ZSTD_reset_session_only);
                 if (ZSTD_isError(resetErr)) goto error;
             }
         } else {
@@ -849,7 +864,7 @@ ZEXTERN int ZEXPORT z_inflate OF((z_streamp strm, int flush))
                     goto error;
                 }
             } else {
-                size_t const resetErr = ZSTD_resetDStream(zwd->zbd);
+                size_t const resetErr = ZSTD_DCtx_reset(zwd->zbd, ZSTD_reset_session_only);
                 if (ZSTD_isError(resetErr)) goto error;
             }
 
@@ -1174,3 +1189,10 @@ ZEXTERN const z_crc_t FAR * ZEXPORT z_get_crc_table    OF((void))
     return get_crc_table();
 }
 #endif
+
+                        /* Error function */
+ZEXTERN const char * ZEXPORT z_zError OF((int err))
+{
+    /* Just use zlib Error function */
+    return zError(err);
+}

@@ -217,6 +217,7 @@ smbfs_node_alloc(struct mount *mp, struct vnode *dvp, const char *dirnm,
 		free(np, M_SMBNODE);
 		return (error);
 	}
+	vn_set_state(vp, VSTATE_CONSTRUCTED);
 	error = vfs_hash_insert(vp, smbfs_hash(name, nmlen), LK_EXCLUSIVE,
 	    td, &vp2, smbfs_vnode_cmp, &sc);
 	if (error) 
@@ -256,10 +257,7 @@ smbfs_nget(struct mount *mp, struct vnode *dvp, const char *name, int nmlen,
  * Free smbnode, and give vnode back to system
  */
 int
-smbfs_reclaim(ap)                     
-        struct vop_reclaim_args /* {
-		struct vnode *a_vp;
-        } */ *ap;
+smbfs_reclaim(struct vop_reclaim_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct vnode *dvp;
@@ -295,10 +293,7 @@ smbfs_reclaim(ap)
 }
 
 int
-smbfs_inactive(ap)
-	struct vop_inactive_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
+smbfs_inactive(struct vop_inactive_args *ap)
 {
 	struct thread *td = curthread;
 	struct ucred *cred = td->td_ucred;

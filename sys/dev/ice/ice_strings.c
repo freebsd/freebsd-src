@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2021, Intel Corporation
+/*  Copyright (c) 2022, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -624,6 +624,8 @@ ice_fec_str(enum ice_fec_mode mode)
 		return ICE_FEC_STRING_BASER;
 	case ICE_FEC_NONE:
 		return ICE_FEC_STRING_NONE;
+	case ICE_FEC_DIS_AUTO:
+		return ICE_FEC_STRING_DIS_AUTO;
 	}
 
 	/* The compiler generates errors on unhandled enum values if we omit
@@ -762,6 +764,8 @@ ice_fwd_act_str(enum ice_sw_fwd_act_type action)
 		return "FWD_TO_QGRP";
 	case ICE_DROP_PACKET:
 		return "DROP_PACKET";
+	case ICE_LG_ACTION:
+		return "LG_ACTION";
 	case ICE_INVAL_ACT:
 		return "INVAL_ACT";
 	}
@@ -1037,6 +1041,8 @@ ice_state_to_str(enum ice_state state)
 		return "LLDP_RX_FLTR_FROM_DRIVER";
 	case ICE_STATE_MULTIPLE_TCS:
 		return "MULTIPLE_TCS";
+	case ICE_STATE_DO_FW_DEBUG_DUMP:
+		return "DO_FW_DEBUG_DUMP";
 	case ICE_STATE_LAST:
 		return NULL;
 	}

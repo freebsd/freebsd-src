@@ -1412,7 +1412,7 @@ filter_cmd(int argc, const char *argv[], int hashfilter)
 			/*
 			 * No numeric index means this must be a request to
 			 * create a new hashfilter and we are already at the
-			 * paramter/value list.
+			 * parameter/value list.
 			 */
 			idx = (uint32_t) -1;
 			goto setf;

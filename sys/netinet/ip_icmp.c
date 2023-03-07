@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <net/if_types.h>
 #include <net/route.h>
 #include <net/route/route_ctl.h>
@@ -66,7 +67,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_options.h>
 #include <netinet/sctp.h>
 #include <netinet/tcp.h>
-#include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
 #include <netinet/icmp_var.h>
 
@@ -403,6 +403,55 @@ freeit:
 	m_freem(n);
 }
 
+int
+icmp_errmap(const struct icmp *icp)
+{
+
+	switch (icp->icmp_type) {
+	case ICMP_UNREACH:
+		switch (icp->icmp_code) {
+		case ICMP_UNREACH_NET:
+		case ICMP_UNREACH_HOST:
+		case ICMP_UNREACH_SRCFAIL:
+		case ICMP_UNREACH_NET_UNKNOWN:
+		case ICMP_UNREACH_HOST_UNKNOWN:
+		case ICMP_UNREACH_ISOLATED:
+		case ICMP_UNREACH_TOSNET:
+		case ICMP_UNREACH_TOSHOST:
+		case ICMP_UNREACH_HOST_PRECEDENCE:
+		case ICMP_UNREACH_PRECEDENCE_CUTOFF:
+			return (EHOSTUNREACH);
+		case ICMP_UNREACH_NEEDFRAG:
+			return (EMSGSIZE);
+		case ICMP_UNREACH_PROTOCOL:
+		case ICMP_UNREACH_PORT:
+		case ICMP_UNREACH_NET_PROHIB:
+		case ICMP_UNREACH_HOST_PROHIB:
+		case ICMP_UNREACH_FILTER_PROHIB:
+			return (ECONNREFUSED);
+		default:
+			return (0);
+		}
+	case ICMP_TIMXCEED:
+		switch (icp->icmp_code) {
+		case ICMP_TIMXCEED_INTRANS:
+			return (EHOSTUNREACH);
+		default:
+			return (0);
+		}
+	case ICMP_PARAMPROB:
+		switch (icp->icmp_code) {
+		case ICMP_PARAMPROB_ERRATPTR:
+		case ICMP_PARAMPROB_OPTABSENT:
+			return (ENOPROTOOPT);
+		default:
+			return (0);
+		}
+	default:
+		return (0);
+	}
+}
+
 /*
  * Process a received ICMP message.
  */
@@ -484,56 +533,21 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 	code = icp->icmp_code;
 	switch (icp->icmp_type) {
 	case ICMP_UNREACH:
-		switch (code) {
-			case ICMP_UNREACH_NET:
-			case ICMP_UNREACH_HOST:
-			case ICMP_UNREACH_SRCFAIL:
-			case ICMP_UNREACH_NET_UNKNOWN:
-			case ICMP_UNREACH_HOST_UNKNOWN:
-			case ICMP_UNREACH_ISOLATED:
-			case ICMP_UNREACH_TOSNET:
-			case ICMP_UNREACH_TOSHOST:
-			case ICMP_UNREACH_HOST_PRECEDENCE:
-			case ICMP_UNREACH_PRECEDENCE_CUTOFF:
-				code = PRC_UNREACH_NET;
-				break;
-
-			case ICMP_UNREACH_NEEDFRAG:
-				code = PRC_MSGSIZE;
-				break;
-
-			/*
-			 * RFC 1122, Sections 3.2.2.1 and 4.2.3.9.
-			 * Treat subcodes 2,3 as immediate RST
-			 */
-			case ICMP_UNREACH_PROTOCOL:
-				code = PRC_UNREACH_PROTOCOL;
-				break;
-			case ICMP_UNREACH_PORT:
-				code = PRC_UNREACH_PORT;
-				break;
-
-			case ICMP_UNREACH_NET_PROHIB:
-			case ICMP_UNREACH_HOST_PROHIB:
-			case ICMP_UNREACH_FILTER_PROHIB:
-				code = PRC_UNREACH_ADMIN_PROHIB;
-				break;
-
-			default:
-				goto badcode;
-		}
-		goto deliver;
+		if (code > ICMP_UNREACH_PRECEDENCE_CUTOFF)
+			goto badcode;
+		else
+			goto deliver;
 
 	case ICMP_TIMXCEED:
-		if (code > 1)
+		if (code > ICMP_TIMXCEED_REASS)
 			goto badcode;
-		code += PRC_TIMXCEED_INTRANS;
-		goto deliver;
+		else
+			goto deliver;
 
 	case ICMP_PARAMPROB:
-		if (code > 1)
+		if (code > ICMP_PARAMPROB_LENGTH)
 			goto badcode;
-		code = PRC_PARAMPROB;
+
 	deliver:
 		/*
 		 * Problem with datagram; advise higher level routines.
@@ -546,11 +560,13 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 		/* Discard ICMP's in response to multicast packets */
 		if (IN_MULTICAST(ntohl(icp->icmp_ip.ip_dst.s_addr)))
 			goto badcode;
+		/* Filter out responses to INADDR_ANY, protocols ignore it. */
+		if (icp->icmp_ip.ip_dst.s_addr == INADDR_ANY)
+			goto freeit;
 #ifdef ICMPPRINTFS
 		if (icmpprintfs)
 			printf("deliver to protocol %d\n", icp->icmp_ip.ip_p);
 #endif
-		icmpsrc.sin_addr = icp->icmp_ip.ip_dst;
 		/*
 		 * XXX if the packet contains [IPv4 AH TCP], we can't make a
 		 * notification to TCP layer.
@@ -573,8 +589,7 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 		 *   ICMP_ADVLENPREF. See its definition in ip_icmp.h.
 		 */
 		if (ip_ctlprotox[icp->icmp_ip.ip_p] != NULL)
-			ip_ctlprotox[icp->icmp_ip.ip_p](code,
-			    (struct sockaddr *)&icmpsrc, &icp->icmp_ip);
+			ip_ctlprotox[icp->icmp_ip.ip_p](icp);
 		break;
 
 	badcode:

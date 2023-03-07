@@ -109,6 +109,7 @@ struct iommu_domain {
 	struct iommu_map_entries_tailq unload_entries; /* (d) Entries to
 							 unload */
 	struct iommu_gas_entries_tree rb_root; /* (d) */
+	struct iommu_map_entry *start_gap;     /* (d) */
 	iommu_gaddr_t end;		/* (c) Highest address + 1 in
 					   the guest AS */
 	struct iommu_map_entry *first_place, *last_place; /* (d) */

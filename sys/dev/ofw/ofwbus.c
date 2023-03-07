@@ -39,16 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/pcpu.h>
 #include <sys/rman.h>
-#ifdef INTRNG
-#include <sys/intr.h>
-#endif
-
-#include <vm/vm.h>
-#include <vm/pmap.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -62,69 +54,45 @@ __FBSDID("$FreeBSD$");
  * The ofwbus (which is a pseudo-bus actually) iterates over the nodes that
  * hang from the Open Firmware root node and adds them as devices to this bus
  * (except some special nodes which are excluded) so that drivers can be
- * attached to them.
- *
+ * attached to them. There should be only one ofwbus in the system, added
+ * directly as a child of nexus0.
  */
 
-struct ofwbus_softc {
-	struct simplebus_softc simplebus_sc;
-	struct rman	sc_intr_rman;
-	struct rman	sc_mem_rman;
-};
-
-#ifndef __aarch64__
-static device_identify_t ofwbus_identify;
-#endif
 static device_probe_t ofwbus_probe;
 static device_attach_t ofwbus_attach;
 static bus_alloc_resource_t ofwbus_alloc_resource;
-static bus_adjust_resource_t ofwbus_adjust_resource;
 static bus_release_resource_t ofwbus_release_resource;
 
 static device_method_t ofwbus_methods[] = {
 	/* Device interface */
-#ifndef __aarch64__
-	DEVMETHOD(device_identify,	ofwbus_identify),
-#endif
 	DEVMETHOD(device_probe,		ofwbus_probe),
 	DEVMETHOD(device_attach,	ofwbus_attach),
 
 	/* Bus interface */
 	DEVMETHOD(bus_alloc_resource,	ofwbus_alloc_resource),
-	DEVMETHOD(bus_adjust_resource,	ofwbus_adjust_resource),
+	DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
 	DEVMETHOD(bus_release_resource,	ofwbus_release_resource),
 
 	DEVMETHOD_END
 };
 
 DEFINE_CLASS_1(ofwbus, ofwbus_driver, ofwbus_methods,
-    sizeof(struct ofwbus_softc), simplebus_driver);
+    sizeof(struct simplebus_softc), simplebus_driver);
 EARLY_DRIVER_MODULE(ofwbus, nexus, ofwbus_driver, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(ofwbus, 1);
-
-#ifndef __aarch64__
-static void
-ofwbus_identify(driver_t *driver, device_t parent)
-{
-
-	/* Check if Open Firmware has been instantiated */
-	if (OF_peer(0) == 0)
-		return;
-
-	if (device_find_child(parent, "ofwbus", -1) == NULL)
-		BUS_ADD_CHILD(parent, 0, "ofwbus", -1);
-}
-#endif
 
 static int
 ofwbus_probe(device_t dev)
 {
 
-#ifdef __aarch64__
 	if (OF_peer(0) == 0)
 		return (ENXIO);
-#endif
+
+	/* Only one instance of ofwbus. */
+	if (device_get_unit(dev) != 0)
+		panic("ofwbus added with non-zero unit number: %d\n",
+		    device_get_unit(dev));
 
 	device_set_desc(dev, "Open Firmware Device Tree");
 	return (BUS_PROBE_NOWILDCARD);
@@ -133,11 +101,8 @@ ofwbus_probe(device_t dev)
 static int
 ofwbus_attach(device_t dev)
 {
-	struct ofwbus_softc *sc;
 	phandle_t node;
 	struct ofw_bus_devinfo obd;
-
-	sc = device_get_softc(dev);
 
 	node = OF_peer(0);
 
@@ -152,15 +117,6 @@ ofwbus_attach(device_t dev)
 	 * ofw_bus_devinfo from it. Pass node to simplebus_init directly.
 	 */
 	simplebus_init(dev, node);
-	sc->sc_intr_rman.rm_type = RMAN_ARRAY;
-	sc->sc_intr_rman.rm_descr = "Interrupts";
-	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
-	sc->sc_mem_rman.rm_descr = "Device Memory";
-	if (rman_init(&sc->sc_intr_rman) != 0 ||
-	    rman_init(&sc->sc_mem_rman) != 0 ||
-	    rman_manage_region(&sc->sc_intr_rman, 0, ~0) != 0 ||
-	    rman_manage_region(&sc->sc_mem_rman, 0, BUS_SPACE_MAXADDR) != 0)
-		panic("%s: failed to set up rmans.", __func__);
 
 	/*
 	 * Allow devices to identify.
@@ -182,15 +138,12 @@ static struct resource *
 ofwbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
-	struct ofwbus_softc *sc;
-	struct rman *rm;
 	struct resource *rv;
 	struct resource_list_entry *rle;
-	int isdefault, passthrough;
+	bool isdefault, passthrough;
 
 	isdefault = RMAN_IS_DEFAULT_RANGE(start, end);
 	passthrough = (device_get_parent(child) != bus);
-	sc = device_get_softc(bus);
 	rle = NULL;
 	if (!passthrough && isdefault) {
 		rle = resource_list_find(BUS_GET_RESOURCE_LIST(bus, child),
@@ -206,28 +159,11 @@ ofwbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		end = ummax(rle->end, start + count - 1);
 	}
 
-	switch (type) {
-	case SYS_RES_IRQ:
-		rm = &sc->sc_intr_rman;
-		break;
-	case SYS_RES_MEMORY:
-		rm = &sc->sc_mem_rman;
-		break;
-	default:
-		return (NULL);
-	}
-
-	rv = rman_reserve_resource(rm, start, end, count, flags & ~RF_ACTIVE,
-	    child);
+	/* Let nexus handle the allocation. */
+	rv = bus_generic_alloc_resource(bus, child, type, rid, start, end,
+	    count, flags);
 	if (rv == NULL)
 		return (NULL);
-	rman_set_rid(rv, *rid);
-
-	if ((flags & RF_ACTIVE) != 0 && bus_activate_resource(child, type,
-	    *rid, rv) != 0) {
-		rman_release_resource(rv);
-		return (NULL);
-	}
 
 	if (!passthrough && rle != NULL) {
 		rle->res = rv;
@@ -240,41 +176,11 @@ ofwbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 }
 
 static int
-ofwbus_adjust_resource(device_t bus, device_t child __unused, int type,
-    struct resource *r, rman_res_t start, rman_res_t end)
-{
-	struct ofwbus_softc *sc;
-	struct rman *rm;
-	device_t ofwbus;
-
-	ofwbus = bus;
-	while (strcmp(device_get_name(device_get_parent(ofwbus)), "root") != 0)
-		ofwbus = device_get_parent(ofwbus);
-	sc = device_get_softc(ofwbus);
-	switch (type) {
-	case SYS_RES_IRQ:
-		rm = &sc->sc_intr_rman;
-		break;
-	case SYS_RES_MEMORY:
-		rm = &sc->sc_mem_rman;
-		break;
-	default:
-		return (EINVAL);
-	}
-	if (rm == NULL)
-		return (ENXIO);
-	if (rman_is_region_manager(r, rm) == 0)
-		return (EINVAL);
-	return (rman_adjust_resource(r, start, end));
-}
-
-static int
 ofwbus_release_resource(device_t bus, device_t child, int type,
     int rid, struct resource *r)
 {
 	struct resource_list_entry *rle;
-	int passthrough;
-	int error;
+	bool passthrough;
 
 	passthrough = (device_get_parent(child) != bus);
 	if (!passthrough) {
@@ -285,10 +191,6 @@ ofwbus_release_resource(device_t bus, device_t child, int type,
 			rle->res = NULL;
 	}
 
-	if ((rman_get_flags(r) & RF_ACTIVE) != 0) {
-		error = bus_deactivate_resource(child, type, rid, r);
-		if (error)
-			return (error);
-	}
-	return (rman_release_resource(r));
+	/* Let nexus handle the release. */
+	return (bus_generic_release_resource(bus, child, type, rid, r));
 }

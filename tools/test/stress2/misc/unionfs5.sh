@@ -50,8 +50,8 @@ for i in $md1 $md2; do
 	mdconfig -l | grep -q md$i && mdconfig -d -u $i
 done
 
-mdconfig -a -t swap -s 2g -u $md1
-mdconfig -a -t swap -s 2g -u $md2
+mdconfig -a -t swap -s 5g -u $md1
+mdconfig -a -t swap -s 5g -u $md2
 newfs $newfs_flags -n md$md1 > /dev/null
 newfs $newfs_flags -n md$md2 > /dev/null
 mount /dev/md$md1 $mp1
@@ -68,11 +68,12 @@ else
 	echo "Using FFS"
 	export RUNDIR=$mp1/stressX
 fi
-export runRUNTIME=2m 
+export CTRLDIR=$mp2/stressX.control
+export runRUNTIME=2m
 
-(cd ../testcases/mkdir; ./mkdir -t 2m -i 20)
+(cd ../testcases/mkdir; ./mkdir -t 2m -i 20 -l 100)
 
-find $RUNDIR -ls | head -5
+find $RUNDIR -ls | grep -v 'stressX$' | head -5
 while mount | grep -Eq "on $mp2 .*unionfs"; do
 	umount $mp2 && break
 	sleep 5

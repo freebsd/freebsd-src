@@ -12,6 +12,9 @@ Additional copyright information also exists for some sources in this tree - ple
 The Makefile in this directory supports a number of targets for building components (or all) of the FreeBSD source tree.
 See build(7), config(8), [FreeBSD handbook on building userland](https://docs.freebsd.org/en/books/handbook/cutting-edge/#makeworld), and [Handbook for kernels](https://docs.freebsd.org/en/books/handbook/kernelconfig/) for more information, including setting make(1) variables.
 
+For information on the CPU architectures and platforms supported by FreeBSD, see the [FreeBSD
+website's Platforms page](https://www.freebsd.org/platforms/).
+
 Source Roadmap:
 ---------------
 | Directory | Description |
@@ -32,8 +35,8 @@ Source Roadmap:
 | secure | Cryptographic libraries and commands. |
 | share | Shared resources. |
 | stand | Boot loader sources. |
-| sys | Kernel sources. |
-| sys/`arch`/conf | Kernel configuration files. GENERIC is the configuration used in release builds. NOTES contains documentation of all possible entries. |
+| sys | Kernel sources (see [sys/README.md](sys/README.md)). |
+| targets | Support for experimental `DIRDEPS_BUILD` |
 | tests | Regression tests which can be run by Kyua.  See [tests/README](tests/README) for additional information. |
 | tools | Utilities for regression testing and miscellaneous tasks. |
 | usr.bin | User commands. |

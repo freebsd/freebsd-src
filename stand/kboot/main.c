@@ -27,14 +27,15 @@
 __FBSDID("$FreeBSD$");
 
 #include <stand.h>
-#include <sys/endian.h>
 #include <sys/param.h>
+#include <sys/boot.h>
 #include <fdt_platform.h>
 
 #include <machine/cpufunc.h>
 #include <bootstrap.h>
 #include "host_syscall.h"
 #include "kboot.h"
+#include "stand.h"
 
 struct arch_switch	archsw;
 extern void *_end;
@@ -44,259 +45,233 @@ ssize_t kboot_copyin(const void *src, vm_offset_t dest, const size_t len);
 ssize_t kboot_copyout(vm_offset_t src, void *dest, const size_t len);
 ssize_t kboot_readin(readin_handle_t fd, vm_offset_t dest, const size_t len);
 int kboot_autoload(void);
-uint64_t kboot_loadaddr(u_int type, void *data, uint64_t addr);
-static void kboot_kseg_get(int *nseg, void **ptr);
+static void kboot_zfs_probe(void);
 
 extern int command_fdt_internal(int argc, char *argv[]);
 
-struct region_desc {
-	uint64_t start;
-	uint64_t end;
-};
+#define PA_INVAL (vm_offset_t)-1
+static vm_offset_t pa_start = PA_INVAL;
+static vm_offset_t padding;
+static vm_offset_t offset;
 
-static uint64_t
-kboot_get_phys_load_segment(void)
+static uint64_t commit_limit;
+static uint64_t committed_as;
+static uint64_t mem_avail;
+
+static void
+memory_limits(void)
 {
 	int fd;
-	uint64_t entry[2];
-	static uint64_t load_segment = ~(0UL);
-	uint64_t val_64;
-	uint32_t val_32;
-	struct region_desc rsvd_reg[32];
-	int rsvd_reg_cnt = 0;
-	int ret, a, b;
-	uint64_t start, end;
+	char buf[128];
 
-	if (load_segment == ~(0UL)) {
-
-		/* Default load address is 0x00000000 */
-		load_segment = 0UL;
-
-		/* Read reserved regions */
-		fd = host_open("/proc/device-tree/reserved-ranges", O_RDONLY, 0);
-		if (fd >= 0) {
-			while (host_read(fd, &entry[0], sizeof(entry)) == sizeof(entry)) {
-				rsvd_reg[rsvd_reg_cnt].start = be64toh(entry[0]);
-				rsvd_reg[rsvd_reg_cnt].end =
-				    be64toh(entry[1]) + rsvd_reg[rsvd_reg_cnt].start - 1;
-				rsvd_reg_cnt++;
-			}
-			host_close(fd);
-		}
-		/* Read where the kernel ends */
-		fd = host_open("/proc/device-tree/chosen/linux,kernel-end", O_RDONLY, 0);
-		if (fd >= 0) {
-			ret = host_read(fd, &val_64, sizeof(val_64));
-
-			if (ret == sizeof(uint64_t)) {
-				rsvd_reg[rsvd_reg_cnt].start = 0;
-				rsvd_reg[rsvd_reg_cnt].end = be64toh(val_64) - 1;
-			} else {
-				memcpy(&val_32, &val_64, sizeof(val_32));
-				rsvd_reg[rsvd_reg_cnt].start = 0;
-				rsvd_reg[rsvd_reg_cnt].end = be32toh(val_32) - 1;
-			}
-			rsvd_reg_cnt++;
-
-			host_close(fd);
-		}
-		/* Read memory size (SOCKET0 only) */
-		fd = host_open("/proc/device-tree/memory@0/reg", O_RDONLY, 0);
-		if (fd < 0)
-			fd = host_open("/proc/device-tree/memory/reg", O_RDONLY, 0);
-		if (fd >= 0) {
-			ret = host_read(fd, &entry, sizeof(entry));
-
-			/* Memory range in start:length format */
-			entry[0] = be64toh(entry[0]);
-			entry[1] = be64toh(entry[1]);
-
-			/* Reserve everything what is before start */
-			if (entry[0] != 0) {
-				rsvd_reg[rsvd_reg_cnt].start = 0;
-				rsvd_reg[rsvd_reg_cnt].end = entry[0] - 1;
-				rsvd_reg_cnt++;
-			}
-			/* Reserve everything what is after end */
-			if (entry[1] != 0xffffffffffffffffUL) {
-				rsvd_reg[rsvd_reg_cnt].start = entry[0] + entry[1];
-				rsvd_reg[rsvd_reg_cnt].end = 0xffffffffffffffffUL;
-				rsvd_reg_cnt++;
-			}
-
-			host_close(fd);
-		}
-
-		/* Sort entries in ascending order (bubble) */
-		for (a = rsvd_reg_cnt - 1; a > 0; a--) {
-			for (b = 0; b < a; b++) {
-				if (rsvd_reg[b].start > rsvd_reg[b + 1].start) {
-					struct region_desc tmp;
-					tmp = rsvd_reg[b];
-					rsvd_reg[b] = rsvd_reg[b + 1];
-					rsvd_reg[b + 1] = tmp;
-				}
+	/*
+	 * To properly size the slabs, we need to find how much memory we can
+	 * commit to using. commit_limit is the max, while commited_as is the
+	 * current total. We can use these later to allocate the largetst amount
+	 * of memory possible so we can support larger ram disks than we could
+	 * by using fixed segment sizes. We also grab the memory available so
+	 * we don't use more than 49% of that.
+	 */
+	fd = open("host:/proc/meminfo", O_RDONLY);
+	if (fd != -1) {
+		while (fgetstr(buf, sizeof(buf), fd) > 0) {
+			if (strncmp(buf, "MemAvailable:", 13) == 0) {
+				mem_avail = strtoll(buf + 13, NULL, 0);
+				mem_avail <<= 10; /* Units are kB */
+			} else if (strncmp(buf, "CommitLimit:", 12) == 0) {
+				commit_limit = strtoll(buf + 13, NULL, 0);
+				commit_limit <<= 10; /* Units are kB */
+			} else if (strncmp(buf, "Committed_AS:", 13) == 0) {
+				committed_as = strtoll(buf + 14, NULL, 0);
+				committed_as <<= 10; /* Units are kB */
 			}
 		}
-
-		/* Join overlapping/adjacent regions */
-		for (a = 0; a < rsvd_reg_cnt - 1; ) {
-
-			if ((rsvd_reg[a + 1].start >= rsvd_reg[a].start) &&
-			    ((rsvd_reg[a + 1].start - 1) <= rsvd_reg[a].end)) {
-				/* We have overlapping/adjacent regions! */
-				rsvd_reg[a].end =
-				    MAX(rsvd_reg[a].end, rsvd_reg[a + a].end);
-
-				for (b = a + 1; b < rsvd_reg_cnt - 1; b++)
-					rsvd_reg[b] = rsvd_reg[b + 1];
-				rsvd_reg_cnt--;
-			} else
-				a++;
-		}
-
-		/* Find the first free region */
-		if (rsvd_reg_cnt > 0) {
-			start = 0;
-			end = rsvd_reg[0].start;
-			for (a = 0; a < rsvd_reg_cnt - 1; a++) {
-				if ((start >= rsvd_reg[a].start) &&
-				    (start <= rsvd_reg[a].end)) {
-					start = rsvd_reg[a].end + 1;
-					end = rsvd_reg[a + 1].start;
-				} else
-					break;
-			}
-
-			if (start != end) {
-				uint64_t align = 64UL*1024UL*1024UL;
-
-				/* Align both to 64MB boundary */
-				start = (start + align - 1UL) & ~(align - 1UL);
-				end = ((end + 1UL) & ~(align - 1UL)) - 1UL;
-
-				if (start < end)
-					load_segment = start;
-			}
-		}
+	} else {
+		/* Otherwise, on FreeBSD host, for testing 32GB host: */
+		mem_avail = 31ul << 30;			/* 31GB free */
+		commit_limit = mem_avail * 9 / 10;	/* 90% comittable */
+		committed_as = 20ul << 20;		/* 20MB used */
 	}
-
-	return (load_segment);
+	printf("Commit limit: %lld Committed bytes %lld Available %lld\n",
+	    (long long)commit_limit, (long long)committed_as,
+	    (long long)mem_avail);
+	close(fd);
 }
 
-uint8_t
-kboot_get_kernel_machine_bits(void)
-{
-	static uint8_t bits = 0;
-	struct old_utsname utsname;
-	int ret;
-
-	if (bits == 0) {
-		/* Default is 32-bit kernel */
-		bits = 32;
-
-		/* Try to get system type */
-		memset(&utsname, 0, sizeof(utsname));
-		ret = host_uname(&utsname);
-		if (ret == 0) {
-			if (strcmp(utsname.machine, "ppc64") == 0)
-				bits = 64;
-			else if (strcmp(utsname.machine, "ppc64le") == 0)
-				bits = 64;
-		}
-	}
-
-	return (bits);
-}
-
+/*
+ * NB: getdev should likely be identical to this most places, except maybe
+ * we should move to storing the length of the platform devdesc.
+ */
 int
 kboot_getdev(void **vdev, const char *devspec, const char **path)
 {
-	int i, rv;
-	const char *devpath, *filepath;
-	struct devsw *dv;
-	struct devdesc *desc;
+	struct devdesc **dev = (struct devdesc **)vdev;
+	int				rv;
 
-	if (devspec == NULL) {
-		rv = kboot_getdev(vdev, getenv("currdev"), NULL);
-		if (rv == 0 && path != NULL)
+	/*
+	 * If it looks like this is just a path and no device, go with the
+	 * current device.
+	 */
+	if (devspec == NULL || strchr(devspec, ':') == NULL) {
+		if (((rv = devparse(dev, getenv("currdev"), NULL)) == 0) &&
+		    (path != NULL))
 			*path = devspec;
 		return (rv);
 	}
-	if (strchr(devspec, ':') != NULL) {
-		devpath = devspec;
-		filepath = strchr(devspec, ':') + 1;
-	} else {
-		devpath = getenv("currdev");
-		filepath = devspec;
+
+	/*
+	 * Try to parse the device name off the beginning of the devspec
+	 */
+	return (devparse(dev, devspec, path));
+}
+
+static int
+parse_args(int argc, const char **argv)
+{
+	int howto = 0;
+
+	/*
+	 * When run as init, sometimes argv[0] is a EFI-ESP path, other times
+	 * it's the name of the init program, and sometimes it's a placeholder
+	 * string, so we exclude it here. For the other args, look for DOS-like
+	 * and Unix-like absolte paths and exclude parsing it if we find that,
+	 * otherwise parse it as a command arg (so looking for '-X', 'foo' or
+	 * 'foo=bar'). This is a little different than EFI where it argv[0]
+	 * often times is the first argument passed in. There are cases when
+	 * linux-booting via EFI that we have the EFI path we used to run
+	 * bootXXX.efi as the arguments to init, so we need to exclude the paths
+	 * there as well.
+	 */
+	for (int i = 1; i < argc; i++) {
+		if (argv[i][0] != '\\' && argv[i][0] != '/') {
+			howto |= boot_parse_arg(argv[i]);
+		}
 	}
 
-	for (i = 0; (dv = devsw[i]) != NULL; i++) {
-		if (strncmp(dv->dv_name, devpath, strlen(dv->dv_name)) == 0)
-			goto found;
+	return (howto);
+}
+
+static vm_offset_t rsdp;
+
+static vm_offset_t
+kboot_rsdp_from_efi(void)
+{
+	char buffer[512 + 1];
+	char *walker, *ep;
+
+	if (!file2str("/sys/firmware/efi/systab", buffer, sizeof(buffer)))
+		return (0);	/* Not an EFI system */
+	ep = buffer + strlen(buffer);
+	walker = buffer;
+	while (walker < ep) {
+		if (strncmp("ACPI20=", walker, 7) == 0)
+			return((vm_offset_t)strtoull(walker + 7, NULL, 0));
+		if (strncmp("ACPI=", walker, 5) == 0)
+			return((vm_offset_t)strtoull(walker + 5, NULL, 0));
+		walker += strcspn(walker, "\n");
 	}
-	return (ENOENT);
-
-found:
-	if (path != NULL && filepath != NULL)
-		*path = filepath;
-	else if (path != NULL)
-		*path = strchr(devspec, ':') + 1;
-
-	if (vdev != NULL) {
-		desc = malloc(sizeof(*desc));
-		desc->d_dev = dv;
-		desc->d_unit = 0;
-		desc->d_opendata = strdup(devpath);
-		*vdev = desc;
-	}
-
 	return (0);
+}
+
+static void
+find_acpi(void)
+{
+	rsdp = kboot_rsdp_from_efi();
+#if 0	/* maybe for amd64 */
+	if (rsdp == 0)
+		rsdp = find_rsdp_arch();
+#endif
+}
+
+vm_offset_t
+acpi_rsdp(void)
+{
+	return (rsdp);
+}
+
+bool
+has_acpi(void)
+{
+	return rsdp != 0;
 }
 
 int
 main(int argc, const char **argv)
 {
 	void *heapbase;
-	const size_t heapsize = 15*1024*1024;
+	const size_t heapsize = 64*1024*1024;
 	const char *bootdev;
-
-	/* Give us a sane world if we're running as init */
-	do_init();
-
-	/*
-	 * Setup the heap 15MB should be plenty
-	 */
-	heapbase = host_getmem(heapsize);
-	setheap(heapbase, heapbase + heapsize);
-
-	/*
-	 * Set up console.
-	 */
-	cons_probe();
-
-	/* Choose bootdev if provided */
-	if (argc > 1)
-		bootdev = argv[1];
-	else
-		bootdev = "";
-
-	printf("Boot device: %s\n", bootdev);
 
 	archsw.arch_getdev = kboot_getdev;
 	archsw.arch_copyin = kboot_copyin;
 	archsw.arch_copyout = kboot_copyout;
 	archsw.arch_readin = kboot_readin;
 	archsw.arch_autoload = kboot_autoload;
-	archsw.arch_loadaddr = kboot_loadaddr;
-	archsw.arch_kexec_kseg_get = kboot_kseg_get;
+	archsw.arch_zfs_probe = kboot_zfs_probe;
+
+	/* Give us a sane world if we're running as init */
+	do_init();
+
+	/*
+	 * Setup the heap, 64MB is minimum for ZFS booting
+	 */
+	heapbase = host_getmem(heapsize);
+	setheap(heapbase, heapbase + heapsize);
+
+	/* Parse the command line args -- ignoring for now the console selection */
+	parse_args(argc, argv);
+
+	/*
+	 * Set up console.
+	 */
+	cons_probe();
+
+	/* Initialize all the devices */
+	devinit();
+
+	bootdev = getenv("bootdev");
+	if (bootdev == NULL)
+		bootdev = hostdisk_gen_probe();
+	hostfs_root = getenv("hostfs_root");
+	if (hostfs_root == NULL)
+		hostfs_root = "/";
+#if defined(LOADER_ZFS_SUPPORT)
+	if (bootdev == NULL || strcmp(bootdev, "zfs:") == 0) {
+		/*
+		 * Pseudo device that says go find the right ZFS pool. This will be
+		 * the first pool that we find that passes the sanity checks (eg looks
+		 * like it might be vbootable) and sets currdev to the right thing based
+		 * on active BEs, etc
+		 */
+		if (hostdisk_zfs_find_default())
+			bootdev = getenv("currdev");
+	}
+#endif
+	if (bootdev != NULL) {
+		/*
+		 * Otherwise, honor what's on the command line. If we've been
+		 * given a specific ZFS partition, then we'll honor it w/o BE
+		 * processing that would otherwise pick a different snapshot to
+		 * boot than the default one in the pool.
+		 */
+		set_currdev(bootdev);
+	} else {
+		panic("Bootdev is still NULL");
+	}
+
+	printf("Boot device: %s with hostfs_root %s\n", bootdev, hostfs_root);
 
 	printf("\n%s", bootprog_info);
 
-	setenv("currdev", bootdev, 1);
-	setenv("loaddev", bootdev, 1);
 	setenv("LINES", "24", 1);
-	setenv("usefdt", "1", 1);
+
+	memory_limits();
+	enumerate_memory_arch();
+
+	/*
+	 * Find acpi, if it exists
+	 */
+	find_acpi();
 
 	interact();			/* doesn't return */
 
@@ -346,34 +321,55 @@ time(time_t *tloc)
 struct host_kexec_segment loaded_segments[HOST_KEXEC_SEGMENT_MAX];
 int nkexec_segments = 0;
 
+#define SEGALIGN (1ul<<20)
+
 static ssize_t
 get_phys_buffer(vm_offset_t dest, const size_t len, void **buf)
 {
 	int i = 0;
-	const size_t segsize = 8*1024*1024;
+	const size_t segsize = 64*1024*1024;
+	size_t sz, amt, l;
 
 	if (nkexec_segments == HOST_KEXEC_SEGMENT_MAX)
 		panic("Tried to load too many kexec segments");
 	for (i = 0; i < nkexec_segments; i++) {
 		if (dest >= (vm_offset_t)loaded_segments[i].mem &&
 		    dest < (vm_offset_t)loaded_segments[i].mem +
-		    loaded_segments[i].memsz)
+		    loaded_segments[i].bufsz) /* Need to use bufsz since memsz is in use size */
 			goto out;
 	}
 
-	loaded_segments[nkexec_segments].buf = host_getmem(segsize);
-	loaded_segments[nkexec_segments].bufsz = segsize;
-	loaded_segments[nkexec_segments].mem = (void *)rounddown2(dest,segsize);
-	loaded_segments[nkexec_segments].memsz = segsize;
+	sz = segsize;
+	if (nkexec_segments == 0) {
+		/* how much space does this segment have */
+		sz = space_avail(dest);
+		/* Clip to 45% of available memory (need 2 copies) */
+		sz = MIN(sz, rounddown2(mem_avail * 45 / 100, SEGALIGN));
+		printf("limit to 45%% of mem_avail %zd\n", sz);
+		/* And only use 95% of what we can allocate */
+		sz = MIN(sz,
+		    rounddown2((commit_limit - committed_as) * 95 / 100, SEGALIGN));
+		printf("Allocating %zd MB for first segment\n", sz >> 20);
+	}
+
+	loaded_segments[nkexec_segments].buf = host_getmem(sz);
+	loaded_segments[nkexec_segments].bufsz = sz;
+	loaded_segments[nkexec_segments].mem = (void *)rounddown2(dest,SEGALIGN);
+	loaded_segments[nkexec_segments].memsz = 0;
 
 	i = nkexec_segments;
 	nkexec_segments++;
 
 out:
-	*buf = loaded_segments[i].buf + (dest -
-	    (vm_offset_t)loaded_segments[i].mem);
-	return (min(len,loaded_segments[i].bufsz - (dest -
-	    (vm_offset_t)loaded_segments[i].mem)));
+	/*
+	 * Keep track of the highest amount used in a segment
+	 */
+	amt = dest - (vm_offset_t)loaded_segments[i].mem;
+	l = min(len,loaded_segments[i].bufsz - amt);
+	*buf = loaded_segments[i].buf + amt;
+	if (amt + l > loaded_segments[i].memsz)
+		loaded_segments[i].memsz = amt + l;
+	return (l);
 }
 
 ssize_t
@@ -382,9 +378,17 @@ kboot_copyin(const void *src, vm_offset_t dest, const size_t len)
 	ssize_t segsize, remainder;
 	void *destbuf;
 
+	if (pa_start == PA_INVAL) {
+		pa_start = kboot_get_phys_load_segment();
+//		padding = 2 << 20; /* XXX amd64: revisit this when we make it work */
+		padding = 0;
+		offset = dest;
+		get_phys_buffer(pa_start, len, &destbuf);
+	}
+
 	remainder = len;
 	do {
-		segsize = get_phys_buffer(dest, remainder, &destbuf);
+		segsize = get_phys_buffer(dest + pa_start + padding - offset, remainder, &destbuf);
 		bcopy(src, destbuf, segsize);
 		remainder -= segsize;
 		src += segsize;
@@ -402,7 +406,7 @@ kboot_copyout(vm_offset_t src, void *dest, const size_t len)
 
 	remainder = len;
 	do {
-		segsize = get_phys_buffer(src, remainder, &srcbuf);
+		segsize = get_phys_buffer(src + pa_start + padding - offset, remainder, &srcbuf);
 		bcopy(srcbuf, dest, segsize);
 		remainder -= segsize;
 		src += segsize;
@@ -452,35 +456,40 @@ kboot_autoload(void)
 	return (0);
 }
 
-uint64_t
-kboot_loadaddr(u_int type, void *data, uint64_t addr)
-{
-
-	if (type == LOAD_ELF)
-		addr = roundup(addr, PAGE_SIZE);
-	else
-		addr += kboot_get_phys_load_segment();
-
-	return (addr);
-}
-
-static void
+void
 kboot_kseg_get(int *nseg, void **ptr)
 {
-#if 0
-	int a;
-
-	for (a = 0; a < nkexec_segments; a++) {
-		printf("kseg_get: %jx %jx %jx %jx\n",
+	printf("kseg_get: %d segments\n", nkexec_segments);
+	printf("VA               SZ       PA               MEMSZ\n");
+	printf("---------------- -------- ---------------- -----\n");
+	for (int a = 0; a < nkexec_segments; a++) {
+		/*
+		 * Truncate each segment to just what we've used in the segment,
+		 * rounded up to the next page.
+		 */
+		loaded_segments[a].memsz = roundup2(loaded_segments[a].memsz,PAGE_SIZE);
+		loaded_segments[a].bufsz = loaded_segments[a].memsz;
+		printf("%016jx %08jx %016jx %08jx\n",
 			(uintmax_t)loaded_segments[a].buf,
 			(uintmax_t)loaded_segments[a].bufsz,
 			(uintmax_t)loaded_segments[a].mem,
 			(uintmax_t)loaded_segments[a].memsz);
 	}
-#endif
 
 	*nseg = nkexec_segments;
 	*ptr = &loaded_segments[0];
+}
+
+static void
+kboot_zfs_probe(void)
+{
+#if defined(LOADER_ZFS_SUPPORT)
+	/*
+	 * Open all the disks and partitions we can find to see if there are ZFS
+	 * pools on them.
+	 */
+	hostdisk_zfs_probe();
+#endif
 }
 
 /*

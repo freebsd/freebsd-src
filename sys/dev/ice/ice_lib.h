@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2021, Intel Corporation
+/*  Copyright (c) 2022, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -119,6 +119,9 @@ extern bool ice_enable_tx_lldp_filter;
 /* global sysctl indicating whether FW health status events should be enabled */
 extern bool ice_enable_health_events;
 
+/* global sysctl indicating whether to enable 5-layer scheduler topology */
+extern bool ice_tx_balance_en;
+
 /**
  * @struct ice_bar_info
  * @brief PCI BAR mapping information
@@ -202,6 +205,16 @@ struct ice_bar_info {
  */
 #define ICE_NVM_ACCESS \
 	(((((((('E' << 4) + '1') << 4) + 'K') << 4) + 'G') << 4) | 5)
+
+/**
+ * ICE_DEBUG_DUMP
+ * @brief Private ioctl command number for retrieving debug dump data
+ *
+ * The ioctl command number used by a userspace tool for accessing the driver for
+ * getting debug dump data from the firmware.
+ */
+#define ICE_DEBUG_DUMP \
+	(((((((('E' << 4) + '1') << 4) + 'K') << 4) + 'G') << 4) | 6)
 
 #define ICE_AQ_LEN		1023
 #define ICE_MBXQ_LEN		512
@@ -329,6 +342,7 @@ enum ice_rx_dtype {
 #define ICE_FEC_STRING_RS	"RS-FEC"
 #define ICE_FEC_STRING_BASER	"FC-FEC/BASE-R"
 #define ICE_FEC_STRING_NONE	"None"
+#define ICE_FEC_STRING_DIS_AUTO	"Auto (w/ No-FEC)"
 
 /* Strings used for displaying Flow Control mode
  *
@@ -363,6 +377,12 @@ enum ice_rx_dtype {
 					 ICE_PROMISC_UCAST_RX | \
 					 ICE_PROMISC_MCAST_TX | \
 					 ICE_PROMISC_MCAST_RX)
+
+/*
+ * Only certain cluster IDs are valid for the FW debug dump functionality,
+ * so define a mask of those here.
+ */
+#define ICE_FW_DEBUG_DUMP_VALID_CLUSTER_MASK	0x1af
 
 struct ice_softc;
 
@@ -549,6 +569,20 @@ struct ice_vsi {
 };
 
 /**
+ * @struct ice_debug_dump_cmd
+ * @brief arguments/return value for debug dump ioctl
+ */
+struct ice_debug_dump_cmd {
+	u32 offset;		/* offset to read/write from table, in bytes */
+	u16 cluster_id;
+	u16 table_id;
+	u16 data_size;		/* size of data field, in bytes */
+	u16 reserved1;
+	u32 reserved2;
+	u8 data[];
+};
+
+/**
  * @enum ice_state
  * @brief Driver state flags
  *
@@ -574,6 +608,7 @@ enum ice_state {
 	ICE_STATE_LINK_DEFAULT_OVERRIDE_PENDING,
 	ICE_STATE_LLDP_RX_FLTR_FROM_DRIVER,
 	ICE_STATE_MULTIPLE_TCS,
+	ICE_STATE_DO_FW_DEBUG_DUMP,
 	/* This entry must be last */
 	ICE_STATE_LAST,
 };
@@ -832,8 +867,8 @@ void ice_add_txq_sysctls(struct ice_tx_queue *txq);
 void ice_add_rxq_sysctls(struct ice_rx_queue *rxq);
 int  ice_config_rss(struct ice_vsi *vsi);
 void ice_clean_all_vsi_rss_cfg(struct ice_softc *sc);
-void ice_load_pkg_file(struct ice_softc *sc);
-void ice_log_pkg_init(struct ice_softc *sc, enum ice_status *pkg_status);
+enum ice_status ice_load_pkg_file(struct ice_softc *sc);
+void ice_log_pkg_init(struct ice_softc *sc, enum ice_ddp_state pkg_status);
 uint64_t ice_get_ifnet_counter(struct ice_vsi *vsi, ift_counter counter);
 void ice_save_pci_info(struct ice_hw *hw, device_t dev);
 int  ice_replay_all_vsi_cfg(struct ice_softc *sc);
@@ -865,5 +900,7 @@ void ice_free_intr_tracking(struct ice_softc *sc);
 void ice_set_default_local_lldp_mib(struct ice_softc *sc);
 void ice_init_health_events(struct ice_softc *sc);
 void ice_cfg_pba_num(struct ice_softc *sc);
+int ice_handle_debug_dump_ioctl(struct ice_softc *sc, struct ifdrv *ifd);
+u8 ice_dcb_get_tc_map(const struct ice_dcbx_cfg *dcbcfg);
 
 #endif /* _ICE_LIB_H_ */

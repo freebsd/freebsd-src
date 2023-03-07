@@ -46,11 +46,12 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <fcntl.h>
 
-#include "bhyverun.h"
 #include "atkbdc.h"
-#include "debug.h"
+#include "bhyverun.h"
 #include "config.h"
 #include "console.h"
+#include "debug.h"
+#include "ps2kbd.h"
 
 /* keyboard device commands */
 #define	PS2KC_RESET_DEV		0xff
@@ -100,10 +101,10 @@ struct extended_translation {
  * FIXME: Pause/break and Print Screen/SysRq require special handling.
  */
 static struct extended_translation extended_translations[128] = {
-		{0xff08, 0x66},		/* Back space */
-		{0xff09, 0x0d},		/* Tab */
-		{0xff0d, 0x5a},		/* Return */
-		{0xff1b, 0x76},		/* Escape */
+		{0xff08, 0x66, 0},		/* Back space */
+		{0xff09, 0x0d, 0},		/* Tab */
+		{0xff0d, 0x5a, 0},		/* Return */
+		{0xff1b, 0x76, 0},		/* Escape */
 		{0xff50, 0x6c, SCANCODE_E0_PREFIX}, 	/* Home */
 		{0xff51, 0x6b, SCANCODE_E0_PREFIX}, 	/* Left arrow */
 		{0xff52, 0x75, SCANCODE_E0_PREFIX}, 	/* Up arrow */
@@ -114,59 +115,59 @@ static struct extended_translation extended_translations[128] = {
 		{0xff57, 0x69, SCANCODE_E0_PREFIX}, 	/* End */
 		{0xff63, 0x70, SCANCODE_E0_PREFIX}, 	/* Ins */
 		{0xff8d, 0x5a, SCANCODE_E0_PREFIX}, 	/* Keypad Enter */
-		{0xffe1, 0x12},		/* Left shift */
-		{0xffe2, 0x59},		/* Right shift */
-		{0xffe3, 0x14},		/* Left control */
+		{0xffe1, 0x12, 0},		/* Left shift */
+		{0xffe2, 0x59, 0},		/* Right shift */
+		{0xffe3, 0x14, 0},		/* Left control */
 		{0xffe4, 0x14, SCANCODE_E0_PREFIX}, 	/* Right control */
 		/* {0xffe7, XXX}, Left meta */
 		/* {0xffe8, XXX}, Right meta */
-		{0xffe9, 0x11},		/* Left alt */
+		{0xffe9, 0x11, 0},		/* Left alt */
 		{0xfe03, 0x11, SCANCODE_E0_PREFIX}, 	/* AltGr */
 		{0xffea, 0x11, SCANCODE_E0_PREFIX}, 	/* Right alt */
 		{0xffeb, 0x1f, SCANCODE_E0_PREFIX}, 	/* Left Windows */
 		{0xffec, 0x27, SCANCODE_E0_PREFIX}, 	/* Right Windows */
-		{0xffbe, 0x05},		/* F1 */
-		{0xffbf, 0x06},		/* F2 */
-		{0xffc0, 0x04},		/* F3 */
-		{0xffc1, 0x0c},		/* F4 */
-		{0xffc2, 0x03},		/* F5 */
-		{0xffc3, 0x0b},		/* F6 */
-		{0xffc4, 0x83},		/* F7 */
-		{0xffc5, 0x0a},		/* F8 */
-		{0xffc6, 0x01},		/* F9 */
-		{0xffc7, 0x09},		/* F10 */
-		{0xffc8, 0x78},		/* F11 */
-		{0xffc9, 0x07},		/* F12 */
+		{0xffbe, 0x05, 0},		/* F1 */
+		{0xffbf, 0x06, 0},		/* F2 */
+		{0xffc0, 0x04, 0},		/* F3 */
+		{0xffc1, 0x0c, 0},		/* F4 */
+		{0xffc2, 0x03, 0},		/* F5 */
+		{0xffc3, 0x0b, 0},		/* F6 */
+		{0xffc4, 0x83, 0},		/* F7 */
+		{0xffc5, 0x0a, 0},		/* F8 */
+		{0xffc6, 0x01, 0},		/* F9 */
+		{0xffc7, 0x09, 0},		/* F10 */
+		{0xffc8, 0x78, 0},		/* F11 */
+		{0xffc9, 0x07, 0},		/* F12 */
 		{0xffff, 0x71, SCANCODE_E0_PREFIX},	/* Del */
-		{0xff14, 0x7e},		/* ScrollLock */
+		{0xff14, 0x7e, 0},		/* ScrollLock */
 		/* NumLock and Keypads*/
-		{0xff7f, 0x77}, 	/* NumLock */
+		{0xff7f, 0x77, 0}, 	/* NumLock */
 		{0xffaf, 0x4a, SCANCODE_E0_PREFIX}, 	/* Keypad slash */
-		{0xffaa, 0x7c}, 	/* Keypad asterisk */
-		{0xffad, 0x7b}, 	/* Keypad minus */
-		{0xffab, 0x79}, 	/* Keypad plus */
-		{0xffb7, 0x6c}, 	/* Keypad 7 */
-		{0xff95, 0x6c}, 	/* Keypad home */
-		{0xffb8, 0x75}, 	/* Keypad 8 */
-		{0xff97, 0x75}, 	/* Keypad up arrow */
-		{0xffb9, 0x7d}, 	/* Keypad 9 */
-		{0xff9a, 0x7d}, 	/* Keypad PgUp */
-		{0xffb4, 0x6b}, 	/* Keypad 4 */
-		{0xff96, 0x6b}, 	/* Keypad left arrow */
-		{0xffb5, 0x73}, 	/* Keypad 5 */
-		{0xff9d, 0x73}, 	/* Keypad empty */
-		{0xffb6, 0x74}, 	/* Keypad 6 */
-		{0xff98, 0x74}, 	/* Keypad right arrow */
-		{0xffb1, 0x69}, 	/* Keypad 1 */
-		{0xff9c, 0x69}, 	/* Keypad end */
-		{0xffb2, 0x72}, 	/* Keypad 2 */
-		{0xff99, 0x72}, 	/* Keypad down arrow */
-		{0xffb3, 0x7a}, 	/* Keypad 3 */
-		{0xff9b, 0x7a}, 	/* Keypad PgDown */
-		{0xffb0, 0x70}, 	/* Keypad 0 */
-		{0xff9e, 0x70}, 	/* Keypad ins */
-		{0xffae, 0x71}, 	/* Keypad . */
-		{0xff9f, 0x71}, 	/* Keypad del */
+		{0xffaa, 0x7c, 0}, 	/* Keypad asterisk */
+		{0xffad, 0x7b, 0}, 	/* Keypad minus */
+		{0xffab, 0x79, 0}, 	/* Keypad plus */
+		{0xffb7, 0x6c, 0}, 	/* Keypad 7 */
+		{0xff95, 0x6c, 0}, 	/* Keypad home */
+		{0xffb8, 0x75, 0}, 	/* Keypad 8 */
+		{0xff97, 0x75, 0}, 	/* Keypad up arrow */
+		{0xffb9, 0x7d, 0}, 	/* Keypad 9 */
+		{0xff9a, 0x7d, 0}, 	/* Keypad PgUp */
+		{0xffb4, 0x6b, 0}, 	/* Keypad 4 */
+		{0xff96, 0x6b, 0}, 	/* Keypad left arrow */
+		{0xffb5, 0x73, 0}, 	/* Keypad 5 */
+		{0xff9d, 0x73, 0}, 	/* Keypad empty */
+		{0xffb6, 0x74, 0}, 	/* Keypad 6 */
+		{0xff98, 0x74, 0}, 	/* Keypad right arrow */
+		{0xffb1, 0x69, 0}, 	/* Keypad 1 */
+		{0xff9c, 0x69, 0}, 	/* Keypad end */
+		{0xffb2, 0x72, 0}, 	/* Keypad 2 */
+		{0xff99, 0x72, 0}, 	/* Keypad down arrow */
+		{0xffb3, 0x7a, 0}, 	/* Keypad 3 */
+		{0xff9b, 0x7a, 0}, 	/* Keypad PgDown */
+		{0xffb0, 0x70, 0}, 	/* Keypad 0 */
+		{0xff9e, 0x70, 0}, 	/* Keypad ins */
+		{0xffae, 0x71, 0}, 	/* Keypad . */
+		{0xff9f, 0x71, 0}, 	/* Keypad del */
 		{0, 0, 0} 		/* Terminator */
 };
 
@@ -191,7 +192,7 @@ static uint8_t ascii_translations[128] = {
 };
 
 /* ScanCode set1 to set2 lookup table */
-const uint8_t keyset1to2_translations[128] = {
+static const uint8_t keyset1to2_translations[128] = {
 		   0, 0x76, 0x16, 0x1E, 0x26, 0x25, 0x2e, 0x36,
 		0x3d, 0x3e, 0x46, 0x45, 0x4e, 0x55, 0x66, 0x0d,
 		0x15, 0x1d, 0x24, 0x2d, 0x2c, 0x35, 0x3c, 0x43,
@@ -346,10 +347,11 @@ static void
 ps2kbd_keysym_queue(struct ps2kbd_softc *sc,
     int down, uint32_t keysym, uint32_t keycode)
 {
-	assert(pthread_mutex_isowned_np(&sc->mtx));
+	const struct extended_translation *trans;
 	int e0_prefix, found;
 	uint8_t code;
-	struct extended_translation *trans;
+
+	assert(pthread_mutex_isowned_np(&sc->mtx));
 
 	if (keycode) {
 		code =  keyset1to2_translations[(uint8_t)(keycode & 0x7f)];
@@ -362,8 +364,8 @@ ps2kbd_keysym_queue(struct ps2kbd_softc *sc,
 			e0_prefix = 0;
 			found = 1;
 		} else {
-			for (trans = &(extended_translations[0]); trans->keysym != 0;
-		    	trans++) {
+			for (trans = &extended_translations[0];
+			    trans->keysym != 0; trans++) {
 				if (keysym == trans->keysym) {
 					code = trans->scancode;
 					e0_prefix = trans->flags & SCANCODE_E0_PREFIX;
@@ -410,10 +412,10 @@ ps2kbd_update_extended_translation(uint32_t keycode, uint32_t scancode, uint32_t
 {
 	int i = 0;
 
-	do	{
+	do {
 		if (extended_translations[i].keysym == keycode)
 			break;
-	} while(extended_translations[++i].keysym);
+	} while (extended_translations[++i].keysym);
 
 	if (i == (sizeof(extended_translations) / sizeof(struct extended_translation) - 1))
 		return;
@@ -438,7 +440,7 @@ ps2kbd_setkbdlayout(void)
 	char path[MAX_PATHNAME];
 	char *buf, *next, *line;
 	struct stat sb;
-	size_t sz;
+	ssize_t sz;
 	uint8_t ascii;
 	uint32_t keycode, scancode, prefix;
 
@@ -456,11 +458,11 @@ ps2kbd_setkbdlayout(void)
 	if (fd == -1)
 		goto out;
 
-	sz = read(fd, buf, sb.st_size );
+	sz = read(fd, buf, sb.st_size);
 
 	close(fd);
 
-	if (sz != sb.st_size )
+	if (sz < 0 || sz != sb.st_size)
 		goto out;
 
 	next = buf;

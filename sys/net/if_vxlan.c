@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <net/if_clone.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
@@ -376,8 +377,9 @@ static int	vxlan_set_user_config(struct vxlan_softc *,
 		     struct ifvxlanparam *);
 static int	vxlan_set_reqcap(struct vxlan_softc *, struct ifnet *, int);
 static void	vxlan_set_hwcaps(struct vxlan_softc *);
-static int	vxlan_clone_create(struct if_clone *, int, caddr_t);
-static void	vxlan_clone_destroy(struct ifnet *);
+static int	vxlan_clone_create(struct if_clone *, char *, size_t,
+		    struct ifc_data *, struct ifnet **);
+static int	vxlan_clone_destroy(struct if_clone *, struct ifnet *, uint32_t);
 
 static uint32_t vxlan_mac_hash(struct vxlan_softc *, const uint8_t *);
 static int	vxlan_media_change(struct ifnet *);
@@ -2503,7 +2505,7 @@ vxlan_encap4(struct vxlan_softc *sc, const union vxlan_sockaddr *fvxlsa,
 	struct ip *ip;
 	struct in_addr srcaddr, dstaddr;
 	uint16_t srcport, dstport;
-	int len, mcast, error;
+	int plen, mcast, error;
 	struct route route, *ro;
 	struct sockaddr_in *sin;
 	uint32_t csum_flags;
@@ -2516,6 +2518,7 @@ vxlan_encap4(struct vxlan_softc *sc, const union vxlan_sockaddr *fvxlsa,
 	dstaddr = fvxlsa->in4.sin_addr;
 	dstport = fvxlsa->in4.sin_port;
 
+	plen = m->m_pkthdr.len;
 	M_PREPEND(m, sizeof(struct ip) + sizeof(struct vxlanudphdr),
 	    M_NOWAIT);
 	if (m == NULL) {
@@ -2523,11 +2526,9 @@ vxlan_encap4(struct vxlan_softc *sc, const union vxlan_sockaddr *fvxlsa,
 		return (ENOBUFS);
 	}
 
-	len = m->m_pkthdr.len;
-
 	ip = mtod(m, struct ip *);
 	ip->ip_tos = 0;
-	ip->ip_len = htons(len);
+	ip->ip_len = htons(m->m_pkthdr.len);
 	ip->ip_off = 0;
 	ip->ip_ttl = sc->vxl_ttl;
 	ip->ip_p = IPPROTO_UDP;
@@ -2593,7 +2594,7 @@ vxlan_encap4(struct vxlan_softc *sc, const union vxlan_sockaddr *fvxlsa,
 	error = ip_output(m, NULL, ro, 0, sc->vxl_im4o, NULL);
 	if (error == 0) {
 		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
-		if_inc_counter(ifp, IFCOUNTER_OBYTES, len);
+		if_inc_counter(ifp, IFCOUNTER_OBYTES, plen);
 		if (mcast != 0)
 			if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
 	} else
@@ -2615,7 +2616,7 @@ vxlan_encap6(struct vxlan_softc *sc, const union vxlan_sockaddr *fvxlsa,
 	struct ip6_hdr *ip6;
 	const struct in6_addr *srcaddr, *dstaddr;
 	uint16_t srcport, dstport;
-	int len, mcast, error;
+	int plen, mcast, error;
 	struct route_in6 route, *ro;
 	struct sockaddr_in6 *sin6;
 	uint32_t csum_flags;
@@ -2628,14 +2629,13 @@ vxlan_encap6(struct vxlan_softc *sc, const union vxlan_sockaddr *fvxlsa,
 	dstaddr = &fvxlsa->in6.sin6_addr;
 	dstport = fvxlsa->in6.sin6_port;
 
+	plen = m->m_pkthdr.len;
 	M_PREPEND(m, sizeof(struct ip6_hdr) + sizeof(struct vxlanudphdr),
 	    M_NOWAIT);
 	if (m == NULL) {
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return (ENOBUFS);
 	}
-
-	len = m->m_pkthdr.len;
 
 	ip6 = mtod(m, struct ip6_hdr *);
 	ip6->ip6_flow = 0;		/* BMV: Keep in forwarding entry? */
@@ -2711,7 +2711,7 @@ vxlan_encap6(struct vxlan_softc *sc, const union vxlan_sockaddr *fvxlsa,
 	error = ip6_output(m, NULL, ro, 0, sc->vxl_im6o, NULL, NULL);
 	if (error == 0) {
 		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
-		if_inc_counter(ifp, IFCOUNTER_OBYTES, len);
+		if_inc_counter(ifp, IFCOUNTER_OBYTES, plen);
 		if (mcast != 0)
 			if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
 	} else
@@ -2848,6 +2848,12 @@ vxlan_input(struct vxlan_socket *vso, uint32_t vni, struct mbuf **m0,
 		return (ENOENT);
 
 	ifp = sc->vxl_ifp;
+	if (m->m_len < ETHER_HDR_LEN &&
+	    (m = m_pullup(m, ETHER_HDR_LEN)) == NULL) {
+		*m0 = NULL;
+		error = ENOBUFS;
+		goto out;
+	}
 	eh = mtod(m, struct ether_header *);
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
@@ -2887,6 +2893,7 @@ vxlan_input(struct vxlan_socket *vso, uint32_t vni, struct mbuf **m0,
 		m->m_pkthdr.csum_data = 0;
 	}
 
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	(*ifp->if_input)(ifp, m);
 	*m0 = NULL;
 	error = 0;
@@ -3194,7 +3201,8 @@ done:
 }
 
 static int
-vxlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
+vxlan_clone_create(struct if_clone *ifc, char *name, size_t len,
+    struct ifc_data *ifd, struct ifnet **ifpp)
 {
 	struct vxlan_softc *sc;
 	struct ifnet *ifp;
@@ -3202,15 +3210,15 @@ vxlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	int error;
 
 	sc = malloc(sizeof(struct vxlan_softc), M_VXLAN, M_WAITOK | M_ZERO);
-	sc->vxl_unit = unit;
+	sc->vxl_unit = ifd->unit;
 	sc->vxl_fibnum = curthread->td_proc->p_fibnum;
 	vxlan_set_default_config(sc);
 	error = vxlan_stats_alloc(sc);
 	if (error != 0)
 		goto fail;
 
-	if (params != 0) {
-		error = copyin(params, &vxlp, sizeof(vxlp));
+	if (ifd->params != NULL) {
+		error = ifc_copyin(ifd, &vxlp, sizeof(vxlp));
 		if (error)
 			goto fail;
 
@@ -3234,7 +3242,7 @@ vxlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	vxlan_sysctl_setup(sc);
 
 	ifp->if_softc = sc;
-	if_initname(ifp, vxlan_name, unit);
+	if_initname(ifp, vxlan_name, ifd->unit);
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_init = vxlan_init;
 	ifp->if_ioctl = vxlan_ioctl;
@@ -3257,6 +3265,7 @@ vxlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	VXLAN_WLOCK(sc);
 	vxlan_setup_interface_hdrlen(sc);
 	VXLAN_WUNLOCK(sc);
+	*ifpp = ifp;
 
 	return (0);
 
@@ -3265,8 +3274,8 @@ fail:
 	return (error);
 }
 
-static void
-vxlan_clone_destroy(struct ifnet *ifp)
+static int
+vxlan_clone_destroy(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags)
 {
 	struct vxlan_softc *sc;
 
@@ -3286,6 +3295,8 @@ vxlan_clone_destroy(struct ifnet *ifp)
 	rm_destroy(&sc->vxl_lock);
 	vxlan_stats_free(sc);
 	free(sc, M_VXLAN);
+
+	return (0);
 }
 
 /* BMV: Taken from if_bridge. */
@@ -3639,8 +3650,13 @@ vxlan_load(void)
 	LIST_INIT(&vxlan_socket_list);
 	vxlan_ifdetach_event_tag = EVENTHANDLER_REGISTER(ifnet_departure_event,
 	    vxlan_ifdetach_event, NULL, EVENTHANDLER_PRI_ANY);
-	vxlan_cloner = if_clone_simple(vxlan_name, vxlan_clone_create,
-	    vxlan_clone_destroy, 0);
+
+	struct if_clone_addreq req = {
+		.create_f = vxlan_clone_create,
+		.destroy_f = vxlan_clone_destroy,
+		.flags = IFC_F_AUTOUNIT,
+	};
+	vxlan_cloner = ifc_attach_cloner(vxlan_name, &req);
 }
 
 static void
@@ -3649,7 +3665,7 @@ vxlan_unload(void)
 
 	EVENTHANDLER_DEREGISTER(ifnet_departure_event,
 	    vxlan_ifdetach_event_tag);
-	if_clone_detach(vxlan_cloner);
+	ifc_detach_cloner(vxlan_cloner);
 	mtx_destroy(&vxlan_list_mtx);
 	MPASS(LIST_EMPTY(&vxlan_socket_list));
 }

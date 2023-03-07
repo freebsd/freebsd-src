@@ -168,6 +168,29 @@ bool hasFlag(const Record *OptionOrGroup, StringRef OptionFlag) {
   return false;
 }
 
+bool isIncluded(const Record *OptionOrGroup, const Record *DocInfo) {
+  assert(DocInfo->getValue("IncludedFlags") && "Missing includeFlags");
+  for (StringRef Inclusion : DocInfo->getValueAsListOfStrings("IncludedFlags"))
+    if (hasFlag(OptionOrGroup, Inclusion))
+      return true;
+  return false;
+}
+
+bool isGroupIncluded(const DocumentedGroup &Group, const Record *DocInfo) {
+  if (isIncluded(Group.Group, DocInfo))
+    return true;
+  for (auto &O : Group.Options)
+    if (isIncluded(O.Option, DocInfo))
+      return true;
+  for (auto &G : Group.Groups) {
+    if (isIncluded(G.Group, DocInfo))
+      return true;
+    if (isGroupIncluded(G, DocInfo))
+      return true;
+  }
+  return false;
+}
+
 bool isExcluded(const Record *OptionOrGroup, const Record *DocInfo) {
   // FIXME: Provide a flag to specify the set of exclusions.
   for (StringRef Exclusion : DocInfo->getValueAsListOfStrings("ExcludedFlags"))
@@ -238,6 +261,8 @@ void emitOptionWithArgs(StringRef Prefix, const Record *Option,
   }
 }
 
+constexpr StringLiteral DefaultMetaVarName = "<arg>";
+
 void emitOptionName(StringRef Prefix, const Record *Option, raw_ostream &OS) {
   // Find the arguments to list after the option.
   unsigned NumArgs = getNumArgsForKind(Option->getValueAsDef("Kind"), Option);
@@ -247,7 +272,7 @@ void emitOptionName(StringRef Prefix, const Record *Option, raw_ostream &OS) {
   if (HasMetaVarName)
     Args.push_back(std::string(Option->getValueAsString("MetaVarName")));
   else if (NumArgs == 1)
-    Args.push_back("<arg>");
+    Args.push_back(DefaultMetaVarName.str());
 
   // Fill up arguments if this option didn't provide a meta var name or it
   // supports an unlimited number of arguments. We can't see how many arguments
@@ -302,6 +327,8 @@ void emitOption(const DocumentedOption &Option, const Record *DocInfo,
                 raw_ostream &OS) {
   if (isExcluded(Option.Option, DocInfo))
     return;
+  if (DocInfo->getValue("IncludedFlags") && !isIncluded(Option.Option, DocInfo))
+    return;
   if (Option.Option->getValueAsDef("Kind")->getName() == "KIND_UNKNOWN" ||
       Option.Option->getValueAsDef("Kind")->getName() == "KIND_INPUT")
     return;
@@ -341,8 +368,30 @@ void emitOption(const DocumentedOption &Option, const Record *DocInfo,
   OS << "\n\n";
 
   // Emit the description, if we have one.
+  const Record *R = Option.Option;
   std::string Description =
-      getRSTStringWithTextFallback(Option.Option, "DocBrief", "HelpText");
+      getRSTStringWithTextFallback(R, "DocBrief", "HelpText");
+
+  if (!isa<UnsetInit>(R->getValueInit("Values"))) {
+    if (!Description.empty() && Description.back() != '.')
+      Description.push_back('.');
+
+    StringRef MetaVarName;
+    if (!isa<UnsetInit>(R->getValueInit("MetaVarName")))
+      MetaVarName = R->getValueAsString("MetaVarName");
+    else
+      MetaVarName = DefaultMetaVarName;
+
+    SmallVector<StringRef> Values;
+    SplitString(R->getValueAsString("Values"), Values, ",");
+    Description += (" " + MetaVarName + " must be '").str();
+    if (Values.size() > 1) {
+      Description += join(Values.begin(), Values.end() - 1, "', '");
+      Description += "' or '";
+    }
+    Description += (Values.back() + "'.").str();
+  }
+
   if (!Description.empty())
     OS << Description << "\n\n";
 }
@@ -353,6 +402,9 @@ void emitDocumentation(int Depth, const Documentation &Doc,
 void emitGroup(int Depth, const DocumentedGroup &Group, const Record *DocInfo,
                raw_ostream &OS) {
   if (isExcluded(Group.Group, DocInfo))
+    return;
+
+  if (DocInfo->getValue("IncludedFlags") && !isGroupIncluded(Group, DocInfo))
     return;
 
   emitHeading(Depth,

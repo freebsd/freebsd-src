@@ -255,9 +255,9 @@ error_supers(struct module_qstate* qstate, int id, struct module_qstate* super)
 				log_err("out of memory adding missing");
 		}
 		delegpt_mark_neg(dpns, qstate->qinfo.qtype);
-		dpns->resolved = 1; /* mark as failed */
 		if((dpns->got4 == 2 || !ie->supports_ipv4) &&
 			(dpns->got6 == 2 || !ie->supports_ipv6)) {
+			dpns->resolved = 1; /* mark as failed */
 			target_count_increase_nx(super_iq, 1);
 		}
 	}
@@ -596,15 +596,17 @@ errinf_reply(struct module_qstate* qstate, struct iter_qstate* iq)
 {
 	if(qstate->env->cfg->val_log_level < 2 && !qstate->env->cfg->log_servfail)
 		return;
-	if((qstate->reply && qstate->reply->addrlen != 0) ||
-		(iq->fail_reply && iq->fail_reply->addrlen != 0)) {
+	if((qstate->reply && qstate->reply->remote_addrlen != 0) ||
+		(iq->fail_reply && iq->fail_reply->remote_addrlen != 0)) {
 		char from[256], frm[512];
-		if(qstate->reply && qstate->reply->addrlen != 0)
-			addr_to_str(&qstate->reply->addr, qstate->reply->addrlen,
-				from, sizeof(from));
+		if(qstate->reply && qstate->reply->remote_addrlen != 0)
+			addr_to_str(&qstate->reply->remote_addr,
+				qstate->reply->remote_addrlen, from,
+				sizeof(from));
 		else
-			addr_to_str(&iq->fail_reply->addr, iq->fail_reply->addrlen,
-				from, sizeof(from));
+			addr_to_str(&iq->fail_reply->remote_addr,
+				iq->fail_reply->remote_addrlen, from,
+				sizeof(from));
 		snprintf(frm, sizeof(frm), "from %s", from);
 		errinf(qstate, frm);
 	}
@@ -1218,6 +1220,15 @@ generate_dnskey_prefetch(struct module_qstate* qstate,
 		(qstate->query_flags&BIT_RD) && !(qstate->query_flags&BIT_CD)){
 		return;
 	}
+	/* we do not generate this prefetch when the query list is full,
+	 * the query is fetched, if needed, when the validator wants it.
+	 * At that time the validator waits for it, after spawning it.
+	 * This means there is one state that uses cpu and a socket, the
+	 * spawned while this one waits, and not several at the same time,
+	 * if we had created the lookup here. And this helps to keep
+	 * the total load down, but the query still succeeds to resolve. */
+	if(mesh_jostle_exceeded(qstate->env->mesh))
+		return;
 
 	/* if the DNSKEY is in the cache this lookup will stop quickly */
 	log_nametypeclass(VERB_ALGO, "schedule dnskey prefetch", 
@@ -1303,7 +1314,7 @@ processInitRequest(struct module_qstate* qstate, struct iter_qstate* iq,
 
 	/* We enforce a maximum number of query restarts. This is primarily a
 	 * cheap way to prevent CNAME loops. */
-	if(iq->query_restart_count > MAX_RESTART_COUNT) {
+	if(iq->query_restart_count > ie->max_query_restarts) {
 		verbose(VERB_QUERY, "request has exceeded the maximum number"
 			" of query restarts with %d", iq->query_restart_count);
 		errinf(qstate, "request has exceeded the maximum number "
@@ -1911,6 +1922,14 @@ query_for_targets(struct module_qstate* qstate, struct iter_qstate* iq,
 				return 0;
 			}
 			query_count++;
+			/* If the mesh query list is full, exit the loop here.
+			 * This makes the routine spawn one query at a time,
+			 * and this means there is no query state load
+			 * increase, because the spawned state uses cpu and a
+			 * socket while this state waits for that spawned
+			 * state. Next time we can look up further targets */
+			if(mesh_jostle_exceeded(qstate->env->mesh))
+				break;
 		}
 		/* Send the A request. */
 		if(ie->supports_ipv4 &&
@@ -1925,6 +1944,9 @@ query_for_targets(struct module_qstate* qstate, struct iter_qstate* iq,
 				return 0;
 			}
 			query_count++;
+			/* If the mesh query list is full, exit the loop. */
+			if(mesh_jostle_exceeded(qstate->env->mesh))
+				break;
 		}
 
 		/* mark this target as in progress. */
@@ -2085,6 +2107,15 @@ processLastResort(struct module_qstate* qstate, struct iter_qstate* iq,
 			}
 			ns->done_pside6 = 1;
 			query_count++;
+			if(mesh_jostle_exceeded(qstate->env->mesh)) {
+				/* Wait for the lookup; do not spawn multiple
+				 * lookups at a time. */
+				verbose(VERB_ALGO, "try parent-side glue lookup");
+				iq->num_target_queries += query_count;
+				target_count_increase(iq, query_count);
+				qstate->ext_state[id] = module_wait_subquery;
+				return 0;
+			}
 		}
 		if(ie->supports_ipv4 && !ns->done_pside4) {
 			/* Send the A request. */
@@ -2233,6 +2264,7 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 	size_t qout_orig_len = 0;
 	int sq_check_ratelimit = 1;
 	int sq_was_ratelimited = 0;
+	int can_do_promisc = 0;
 
 	/* NOTE: a request will encounter this state for each target it
 	 * needs to send a query to. That is, at least one per referral,
@@ -2244,14 +2276,13 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 		iq->num_current_queries, iq->sent_count);
 
 	/* Make sure that we haven't run away */
-	/* FIXME: is this check even necessary? */
 	if(iq->referral_count > MAX_REFERRAL_COUNT) {
 		verbose(VERB_QUERY, "request has exceeded the maximum "
 			"number of referrrals with %d", iq->referral_count);
 		errinf(qstate, "exceeded the maximum of referrals");
 		return error_response(qstate, id, LDNS_RCODE_SERVFAIL);
 	}
-	if(iq->sent_count > MAX_SENT_COUNT) {
+	if(iq->sent_count > ie->max_sent_count) {
 		verbose(VERB_QUERY, "request has exceeded the maximum "
 			"number of sends with %d", iq->sent_count);
 		errinf(qstate, "exceeded the maximum number of sends");
@@ -2561,6 +2592,11 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 		&& iq->num_target_queries == 0
 		&& (!iq->target_count || iq->target_count[TARGET_COUNT_NX]==0)
 		&& iq->sent_count < TARGET_FETCH_STOP) {
+		can_do_promisc = 1;
+	}
+	/* if the mesh query list is full, then do not waste cpu and sockets to
+	 * fetch promiscuous targets. They can be looked up when needed. */
+	if(can_do_promisc && !mesh_jostle_exceeded(qstate->env->mesh)) {
 		tf_policy = ie->target_fetch_policy[iq->depth];
 	}
 
@@ -2593,7 +2629,7 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 		 * the original query is one that matched too, so we have
 		 * caps_server+1 number of matching queries now */
 		if(iq->caps_server+1 >= naddr*3 ||
-			iq->caps_server*2+2 >= MAX_SENT_COUNT) {
+			iq->caps_server*2+2 >= (size_t)ie->max_sent_count) {
 			/* *2 on sentcount check because ipv6 may fail */
 			/* we're done, process the response */
 			verbose(VERB_ALGO, "0x20 fallback had %d responses "
@@ -2732,6 +2768,37 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 		return 0;
 	}
 
+	/* We have a target. We could have created promiscuous target
+	 * queries but we are currently under pressure (mesh_jostle_exceeded).
+	 * If we are configured to allow promiscuous target queries and haven't
+	 * gone out to the network for a target query for this delegation, then
+	 * it is possible to slip in a promiscuous one with a 1/10 chance. */
+	if(can_do_promisc && tf_policy == 0 && iq->depth == 0
+		&& iq->depth < ie->max_dependency_depth
+		&& ie->target_fetch_policy[iq->depth] != 0
+		&& iq->dp_target_count == 0
+		&& !ub_random_max(qstate->env->rnd, 10)) {
+		int extra = 0;
+		verbose(VERB_ALGO, "available target exists in cache but "
+			"attempt to get extra 1 target");
+		(void)query_for_targets(qstate, iq, ie, id, 1, &extra);
+		/* errors ignored, these targets are not strictly necessary for
+		* this result, we do not have to reply with SERVFAIL */
+		if(extra > 0) {
+			iq->num_target_queries += extra;
+			target_count_increase(iq, extra);
+			check_waiting_queries(iq, qstate, id);
+			/* undo qname minimise step because we'll get back here
+			 * to do it again */
+			if(qout_orig && iq->minimise_count > 0) {
+				iq->minimise_count--;
+				iq->qinfo_out.qname = qout_orig;
+				iq->qinfo_out.qname_len = qout_orig_len;
+			}
+			return 0;
+		}
+	}
+
 	/* Do not check ratelimit for forwarding queries or if we already got a
 	 * pass. */
 	sq_check_ratelimit = (!(iq->chase_flags & BIT_RD) && !iq->ratelimit_ok);
@@ -2839,6 +2906,8 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 		(int)((iq->chase_flags&BIT_RD) || iq->chase_to_rd),
 		iq->response, &iq->qinfo_out, iq->dp);
 	iq->chase_to_rd = 0;
+	/* remove TC flag, if this is erroneously set by TCP upstream */
+	iq->response->rep->flags &= ~BIT_TC;
 	if(type == RESPONSE_TYPE_REFERRAL && (iq->chase_flags&BIT_RD) &&
 		!iq->auth_zone_response) {
 		/* When forwarding (RD bit is set), we handle referrals 
@@ -2862,8 +2931,8 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 			 * use dnssec-lame-bypass if it needs to query there.*/
 			if(qstate->reply) {
 				struct delegpt_addr* a = delegpt_find_addr(
-					iq->dp, &qstate->reply->addr,
-					qstate->reply->addrlen);
+					iq->dp, &qstate->reply->remote_addr,
+					qstate->reply->remote_addrlen);
 				if(a) a->dnsseclame = 1;
 			}
 			/* test the answer is from the zone we expected,
@@ -2959,9 +3028,9 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 		(*qstate->env->detach_subs)(qstate);
 		iq->num_target_queries = 0;
 		if(qstate->reply)
-			sock_list_insert(&qstate->reply_origin, 
-				&qstate->reply->addr, qstate->reply->addrlen, 
-				qstate->region);
+			sock_list_insert(&qstate->reply_origin,
+				&qstate->reply->remote_addr,
+				qstate->reply->remote_addrlen, qstate->region);
 		if(iq->minimisation_state != DONOT_MINIMISE_STATE
 			&& !(iq->chase_flags & BIT_RD)) {
 			if(FLAGS_GET_RCODE(iq->response->rep->flags) != 
@@ -3216,9 +3285,9 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 		(*qstate->env->detach_subs)(qstate);
 		iq->num_target_queries = 0;
 		if(qstate->reply)
-			sock_list_insert(&qstate->reply_origin, 
-				&qstate->reply->addr, qstate->reply->addrlen, 
-				qstate->region);
+			sock_list_insert(&qstate->reply_origin,
+				&qstate->reply->remote_addr,
+				qstate->reply->remote_addrlen, qstate->region);
 		verbose(VERB_ALGO, "cleared outbound list for query restart");
 		/* go to INIT_REQUEST_STATE for new qname. */
 		return next_state(iq, INIT_REQUEST_STATE);
@@ -3232,9 +3301,10 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 		} else if(qstate->reply) {
 			/* need addr for lameness cache, but we may have
 			 * gotten this from cache, so test to be sure */
-			if(!infra_set_lame(qstate->env->infra_cache, 
-				&qstate->reply->addr, qstate->reply->addrlen, 
-				iq->dp->name, iq->dp->namelen, 
+			if(!infra_set_lame(qstate->env->infra_cache,
+				&qstate->reply->remote_addr,
+				qstate->reply->remote_addrlen,
+				iq->dp->name, iq->dp->namelen,
 				*qstate->env->now, dnsseclame, 0,
 				iq->qchase.qtype))
 				log_err("mark host lame: out of memory");
@@ -3251,8 +3321,9 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 			 * gotten this from cache, so test to be sure */
 			verbose(VERB_DETAIL, "mark as REC_LAME");
 			if(!infra_set_lame(qstate->env->infra_cache, 
-				&qstate->reply->addr, qstate->reply->addrlen, 
-				iq->dp->name, iq->dp->namelen, 
+				&qstate->reply->remote_addr,
+				qstate->reply->remote_addrlen,
+				iq->dp->name, iq->dp->namelen,
 				*qstate->env->now, 0, 1, iq->qchase.qtype))
 				log_err("mark host lame: out of memory");
 		} 
@@ -3493,12 +3564,13 @@ processTargetResponse(struct module_qstate* qstate, int id,
 	} else {
 		verbose(VERB_ALGO, "iterator TargetResponse failed");
 		delegpt_mark_neg(dpns, qstate->qinfo.qtype);
-		dpns->resolved = 1; /* fail the target */
 		if((dpns->got4 == 2 || !ie->supports_ipv4) &&
-			(dpns->got6 == 2 || !ie->supports_ipv6) &&
+			(dpns->got6 == 2 || !ie->supports_ipv6)) {
+			dpns->resolved = 1; /* fail the target */
 			/* do not count cached answers */
-			(qstate->reply_origin && qstate->reply_origin->len != 0)) {
-			target_count_increase_nx(foriq, 1);
+			if(qstate->reply_origin && qstate->reply_origin->len != 0) {
+				target_count_increase_nx(foriq, 1);
+			}
 		}
 	}
 }
@@ -3980,8 +4052,8 @@ process_response(struct module_qstate* qstate, struct iter_qstate* iq,
 	if(!iq->response)
 		goto handle_it;
 	log_query_info(VERB_DETAIL, "response for", &qstate->qinfo);
-	log_name_addr(VERB_DETAIL, "reply from", iq->dp->name, 
-		&qstate->reply->addr, qstate->reply->addrlen);
+	log_name_addr(VERB_DETAIL, "reply from", iq->dp->name,
+		&qstate->reply->remote_addr, qstate->reply->remote_addrlen);
 	if(verbosity >= VERB_ALGO)
 		log_dns_msg("incoming scrubbed packet:", &iq->response->qinfo, 
 			iq->response->rep);

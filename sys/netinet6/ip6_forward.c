@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/route/nhop.h>
@@ -196,6 +197,15 @@ again:
 		goto bad;
 	}
 
+	if (nh->nh_flags & (NHF_BLACKHOLE | NHF_REJECT)) {
+		IP6STAT_INC(ip6s_cantforward);
+		if ((nh->nh_flags & NHF_REJECT) && (mcopy != NULL)) {
+			icmp6_error(mcopy, ICMP6_DST_UNREACH,
+			    ICMP6_DST_UNREACH_REJECT, 0);
+		}
+		goto bad;
+	}
+
 	/*
 	 * Source scope check: if a packet can't be delivered to its
 	 * destination for the reason that the destination is beyond the scope
@@ -313,8 +323,8 @@ again:
 
 	odst = ip6->ip6_dst;
 	/* Run through list of hooks for forwarded packets. */
-	if (pfil_run_hooks(V_inet6_pfil_head, &m, nh->nh_ifp, PFIL_OUT |
-	    PFIL_FWD, NULL) != PFIL_PASS)
+	if (pfil_mbuf_out(V_inet6_pfil_head, &m, nh->nh_ifp,
+	    NULL) != PFIL_PASS)
 		goto freecopy;
 	ip6 = mtod(m, struct ip6_hdr *);
 

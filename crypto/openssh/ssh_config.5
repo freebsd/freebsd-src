@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.371 2022/03/31 17:58:44 naddy Exp $
-.Dd $Mdocdate: August 19 2022 $
+.\" $OpenBSD: ssh_config.5,v 1.378 2023/01/13 07:13:40 jmc Exp $
+.Dd $Mdocdate: January 13 2023 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -645,6 +645,12 @@ will act as a SOCKS server.
 Multiple forwardings may be specified, and
 additional forwardings can be given on the command line.
 Only the superuser can forward privileged ports.
+.It Cm EnableEscapeCommandline
+Enables the command line option in the
+.Cm EscapeChar
+menu for interactive sessions (default
+.Ql ~C ) .
+By default, the command line is disabled.
 .It Cm EnableSSHKeysign
 Setting this option to
 .Cm yes
@@ -1013,6 +1019,10 @@ section.
 .It Cm IdentityFile
 Specifies a file from which the user's DSA, ECDSA, authenticator-hosted ECDSA,
 Ed25519, authenticator-hosted Ed25519 or RSA authentication identity is read.
+You can also specify a public key file to use the corresponding
+private key that is loaded in
+.Xr ssh-agent 1
+when the private key file is not present locally.
 The default is
 .Pa ~/.ssh/id_rsa ,
 .Pa ~/.ssh/id_ecdsa ,
@@ -1534,9 +1544,9 @@ extension required for restricted
 .Xr ssh-agent 1
 forwarding.
 .It Cm RekeyLimit
-Specifies the maximum amount of data that may be transmitted before the
-session key is renegotiated, optionally followed by a maximum amount of
-time that may pass before the session key is renegotiated.
+Specifies the maximum amount of data that may be transmitted or received
+before the session key is renegotiated, optionally followed by a maximum
+amount of time that may pass before the session key is renegotiated.
 The first argument is specified in bytes and may have a suffix of
 .Sq K ,
 .Sq M ,
@@ -1636,6 +1646,17 @@ and
 .Fl T
 flags for
 .Xr ssh 1 .
+.It Cm RequiredRSASize
+Specifies the minimum RSA key size (in bits) that
+.Xr ssh 1
+will accept.
+User authentication keys smaller than this limit will be ignored.
+Servers that present host keys smaller than this limit will cause the
+connection to be terminated.
+The default is
+.Cm 1024
+bits.
+Note that this limit may only be raised from the default.
 .It Cm RevokedHostKeys
 Specifies revoked host public keys.
 Keys listed in this file will be refused for host authentication.
@@ -1946,6 +1967,11 @@ the tokens described in the
 section and environment variables as described in the
 .Sx ENVIRONMENT VARIABLES
 section.
+A value of
+.Cm none
+causes
+.Xr ssh 1
+to ignore any user-specific known hosts files.
 The default is
 .Pa ~/.ssh/known_hosts ,
 .Pa ~/.ssh/known_hosts2 .
@@ -1965,10 +1991,7 @@ need to confirm new host keys according to the
 .Cm StrictHostKeyChecking
 option.
 The default is
-.Cm yes
-if compiled with LDNS and
-.Cm no
-otherwise.
+.Cm no .
 .Pp
 See also
 .Sx VERIFYING HOST KEYS
@@ -2128,7 +2151,9 @@ accepts the tokens %% and %h.
 accepts all tokens.
 .Pp
 .Cm ProxyCommand
-accepts the tokens %%, %h, %n, %p, and %r.
+and
+.Cm ProxyJump
+accept the tokens %%, %h, %n, %p, and %r.
 .Sh ENVIRONMENT VARIABLES
 Arguments to some keywords can be expanded at runtime from environment
 variables on the client by enclosing them in

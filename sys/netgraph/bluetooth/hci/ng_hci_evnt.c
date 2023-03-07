@@ -399,6 +399,10 @@ le_advertizing_report(ng_hci_unit_p unit, struct mbuf *event)
 
 		/* Get remote unit address */
 		NG_HCI_M_PULLUP(event, sizeof(u_int8_t));
+		if (event == NULL) {
+			error = ENOBUFS;
+			goto out;
+		}
 		addr_type = *mtod(event, u_int8_t *);
 		m_adj(event, sizeof(u_int8_t));
 

@@ -25,6 +25,10 @@
  * SUCH DAMAGE.
  */
 
+#ifndef lint
+FILE_RCSID("@(#)$File: memtest.c,v 1.3 2022/09/13 18:46:07 christos Exp $")
+#endif
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>

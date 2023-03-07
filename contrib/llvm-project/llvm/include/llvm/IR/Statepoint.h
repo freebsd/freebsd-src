@@ -54,7 +54,6 @@ enum class StatepointFlags {
 // These two are defined in IntrinsicInst since they're part of the
 // IntrinsicInst class hierarchy.
 class GCRelocateInst;
-class GCResultInst;
 
 /// Represents a gc.statepoint intrinsic call.  This extends directly from
 /// CallBase as the IntrinsicInst only supports calls and gc.statepoint is
@@ -121,9 +120,8 @@ public:
   /// Return the type of the value returned by the call underlying the
   /// statepoint.
   Type *getActualReturnType() const {
-    auto *CalleeTy =
-        getActualCalledOperand()->getType()->getPointerElementType();
-    return cast<FunctionType>(CalleeTy)->getReturnType();
+    auto *FT = cast<FunctionType>(getParamElementType(CalledFunctionPos));
+    return FT->getReturnType();
   }
 
 

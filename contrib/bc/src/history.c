@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -159,12 +159,14 @@ volatile sig_atomic_t bc_history_inlinelib;
 static char* bc_history_prompt;
 static char bc_history_no_prompt[] = "";
 static HistEvent bc_history_event;
+static bool bc_history_use_prompt;
 
 static char*
 bc_history_promptFunc(EditLine* el)
 {
 	BC_UNUSED(el);
-	return BC_PROMPT ? bc_history_prompt : bc_history_no_prompt;
+	return BC_PROMPT && bc_history_use_prompt ? bc_history_prompt :
+	                                            bc_history_no_prompt;
 }
 
 void
@@ -195,7 +197,7 @@ bc_history_init(BcHistory* h)
 	h->hist = history_init();
 	if (BC_ERR(h->hist == NULL)) bc_vm_fatalError(BC_ERR_FATAL_ALLOC_ERR);
 
-	h->el = el_init(vm.name, stdin, stdout, stderr);
+	h->el = el_init(vm->name, stdin, stdout, stderr);
 	if (BC_ERR(h->el == NULL)) bc_vm_fatalError(BC_ERR_FATAL_ALLOC_ERR);
 
 	// I want history and a prompt.
@@ -255,8 +257,18 @@ bc_history_line(BcHistory* h, BcVec* vec, const char* prompt)
 		else bc_history_prompt = bc_vm_strdup(prompt);
 	}
 
+	bc_history_use_prompt = true;
+
+	line = NULL;
+	len = -1;
+	errno = EINTR;
+
 	// Get the line.
-	line = el_gets(h->el, &len);
+	while (line == NULL && len == -1 && errno == EINTR)
+	{
+		line = el_gets(h->el, &len);
+		bc_history_use_prompt = false;
+	}
 
 	// If there is no line...
 	if (BC_ERR(line == NULL))
@@ -269,7 +281,7 @@ bc_history_line(BcHistory* h, BcVec* vec, const char* prompt)
 		}
 		else
 		{
-			bc_file_printf(&vm.fout, "\n");
+			bc_file_printf(&vm->fout, "\n");
 			s = BC_STATUS_EOF;
 		}
 	}
@@ -368,7 +380,7 @@ bc_history_line(BcHistory* h, BcVec* vec, const char* prompt)
 	}
 	else if (h->line == NULL)
 	{
-		bc_file_printf(&vm.fout, "%s\n", "^D");
+		bc_file_printf(&vm->fout, "%s\n", "^D");
 		s = BC_STATUS_EOF;
 	}
 	else bc_vec_string(vec, 1, "\n");
@@ -566,9 +578,11 @@ bc_history_nextLen(const char* buf, size_t buf_len, size_t pos, size_t* col_len)
 	{
 		BC_UNREACHABLE
 
+#if !BC_CLANG
 		if (col_len != NULL) *col_len = 0;
 
 		return 0;
+#endif // !BC_CLANG
 	}
 
 	// Store the width of the character on screen.
@@ -617,7 +631,9 @@ bc_history_prevLen(const char* buf, size_t pos)
 
 	BC_UNREACHABLE
 
+#if !BC_CLANG
 	return 0;
+#endif // BC_CLANG
 }
 
 /**
@@ -670,6 +686,7 @@ static BcStatus
 bc_history_readCode(char* buf, size_t buf_len, uint32_t* cp, size_t* nread)
 {
 	ssize_t n;
+	uchar byte;
 
 	assert(buf_len >= 1);
 
@@ -683,7 +700,7 @@ bc_history_readCode(char* buf, size_t buf_len, uint32_t* cp, size_t* nread)
 	if (BC_ERR(n <= 0)) goto err;
 
 	// Get the byte.
-	uchar byte = ((uchar*) buf)[0];
+	byte = ((uchar*) buf)[0];
 
 	// Once again, this is the UTF-8 decoding algorithm, but it has reads
 	// instead of actual decoding.
@@ -898,8 +915,8 @@ bc_history_cursorPos(void)
 	BC_SIG_ASSERT_LOCKED;
 
 	// Report cursor location.
-	bc_file_write(&vm.fout, bc_flush_none, "\x1b[6n", 4);
-	bc_file_flush(&vm.fout, bc_flush_none);
+	bc_file_write(&vm->fout, bc_flush_none, "\x1b[6n", 4);
+	bc_file_flush(&vm->fout, bc_flush_none);
 
 	// Read the response: ESC [ rows ; cols R.
 	for (i = 0; i < sizeof(buf) - 1; ++i)
@@ -942,7 +959,7 @@ bc_history_columns(void)
 	struct winsize ws;
 	int ret;
 
-	ret = ioctl(vm.fout.fd, TIOCGWINSZ, &ws);
+	ret = ioctl(vm->fout.fd, TIOCGWINSZ, &ws);
 
 	if (BC_ERR(ret == -1 || !ws.ws_col))
 	{
@@ -954,16 +971,16 @@ bc_history_columns(void)
 		if (BC_ERR(start == SIZE_MAX)) return BC_HIST_DEF_COLS;
 
 		// Go to right margin and get position.
-		bc_file_write(&vm.fout, bc_flush_none, "\x1b[999C", 6);
-		bc_file_flush(&vm.fout, bc_flush_none);
+		bc_file_write(&vm->fout, bc_flush_none, "\x1b[999C", 6);
+		bc_file_flush(&vm->fout, bc_flush_none);
 		cols = bc_history_cursorPos();
 		if (BC_ERR(cols == SIZE_MAX)) return BC_HIST_DEF_COLS;
 
 		// Restore position.
 		if (cols > start)
 		{
-			bc_file_printf(&vm.fout, "\x1b[%zuD", cols - start);
-			bc_file_flush(&vm.fout, bc_flush_none);
+			bc_file_printf(&vm->fout, "\x1b[%zuD", cols - start);
+			bc_file_flush(&vm->fout, bc_flush_none);
 		}
 
 		return cols;
@@ -1021,7 +1038,7 @@ bc_history_refresh(BcHistory* h)
 
 	BC_SIG_ASSERT_LOCKED;
 
-	bc_file_flush(&vm.fout, bc_flush_none);
+	bc_file_flush(&vm->fout, bc_flush_none);
 
 	// Get to the prompt column position from the left.
 	while (h->pcol + bc_history_colPos(buf, len, pos) >= h->cols)
@@ -1040,7 +1057,7 @@ bc_history_refresh(BcHistory* h)
 	}
 
 	// Cursor to left edge.
-	bc_file_write(&vm.fout, bc_flush_none, "\r", 1);
+	bc_file_write(&vm->fout, bc_flush_none, "\r", 1);
 
 	// Take the extra stuff into account. This is where history makes sure to
 	// preserve stuff that was printed without a newline.
@@ -1053,16 +1070,16 @@ bc_history_refresh(BcHistory* h)
 		len += extras_len;
 		pos += extras_len;
 
-		bc_file_write(&vm.fout, bc_flush_none, h->extras.v, extras_len);
+		bc_file_write(&vm->fout, bc_flush_none, h->extras.v, extras_len);
 	}
 
 	// Write the prompt, if desired.
-	if (BC_PROMPT) bc_file_write(&vm.fout, bc_flush_none, h->prompt, h->plen);
+	if (BC_PROMPT) bc_file_write(&vm->fout, bc_flush_none, h->prompt, h->plen);
 
-	bc_file_write(&vm.fout, bc_flush_none, h->buf.v, len - extras_len);
+	bc_file_write(&vm->fout, bc_flush_none, h->buf.v, len - extras_len);
 
 	// Erase to right.
-	bc_file_write(&vm.fout, bc_flush_none, "\x1b[0K", 4);
+	bc_file_write(&vm->fout, bc_flush_none, "\x1b[0K", 4);
 
 	// We need to be sure to grow this.
 	if (pos >= h->buf.len - extras_len) bc_vec_grow(&h->buf, pos + extras_len);
@@ -1070,13 +1087,13 @@ bc_history_refresh(BcHistory* h)
 	// Move cursor to original position. Do NOT move the putchar of '\r' to the
 	// printf with colpos. That causes a bug where the cursor will go to the end
 	// of the line when there is no prompt.
-	bc_file_putchar(&vm.fout, bc_flush_none, '\r');
+	bc_file_putchar(&vm->fout, bc_flush_none, '\r');
 	colpos = bc_history_colPos(h->buf.v, len - extras_len, pos) + h->pcol;
 
 	// Set the cursor position again.
-	if (colpos) bc_file_printf(&vm.fout, "\x1b[%zuC", colpos);
+	if (colpos) bc_file_printf(&vm->fout, "\x1b[%zuC", colpos);
 
-	bc_file_flush(&vm.fout, bc_flush_none);
+	bc_file_flush(&vm->fout, bc_flush_none);
 }
 
 /**
@@ -1114,8 +1131,8 @@ bc_history_edit_insert(BcHistory* h, const char* cbuf, size_t clen)
 		if (colpos < h->cols)
 		{
 			// Avoid a full update of the line in the trivial case.
-			bc_file_write(&vm.fout, bc_flush_none, cbuf, clen);
-			bc_file_flush(&vm.fout, bc_flush_none);
+			bc_file_write(&vm->fout, bc_flush_none, cbuf, clen);
+			bc_file_flush(&vm->fout, bc_flush_none);
 		}
 		else bc_history_refresh(h);
 	}
@@ -1450,6 +1467,9 @@ bc_history_swap(BcHistory* h)
 
 	BC_SIG_ASSERT_LOCKED;
 
+	// If there are no characters, skip.
+	if (!h->pos) return;
+
 	// Get the length of the previous and next characters.
 	pcl = bc_history_prevLen(h->buf.v, h->pos);
 	ncl = bc_history_nextLen(h->buf.v, BC_HIST_BUF_LEN(h), h->pos, NULL);
@@ -1706,9 +1726,9 @@ bc_history_add(BcHistory* h, char* line)
 static void
 bc_history_add_empty(BcHistory* h)
 {
-	BC_SIG_ASSERT_LOCKED;
-
 	const char* line = "";
+
+	BC_SIG_ASSERT_LOCKED;
 
 	// If there is something already there...
 	if (h->history.len)
@@ -1768,12 +1788,13 @@ bc_history_printCtrl(BcHistory* h, unsigned int c)
 	// Pop the string.
 	bc_vec_npop(&h->buf, sizeof(str));
 	bc_vec_pushByte(&h->buf, '\0');
+	h->pos = 0;
 
 	if (c != BC_ACTION_CTRL_C && c != BC_ACTION_CTRL_D)
 	{
 		// We sometimes want to print a newline; for the times we don't; it's
 		// because newlines are taken care of elsewhere.
-		bc_file_write(&vm.fout, bc_flush_none, newline, sizeof(newline) - 1);
+		bc_file_write(&vm->fout, bc_flush_none, newline, sizeof(newline) - 1);
 		bc_history_refresh(h);
 	}
 }
@@ -1796,7 +1817,7 @@ bc_history_edit(BcHistory* h, const char* prompt)
 	// Don't write the saved output the first time. This is because it has
 	// already been written to output. In other words, don't uncomment the
 	// line below or add anything like it.
-	// bc_file_write(&vm.fout, bc_flush_none, h->extras.v, h->extras.len - 1);
+	// bc_file_write(&vm->fout, bc_flush_none, h->extras.v, h->extras.len - 1);
 
 	// Write the prompt if desired.
 	if (BC_PROMPT)
@@ -1805,8 +1826,8 @@ bc_history_edit(BcHistory* h, const char* prompt)
 		h->plen = strlen(prompt);
 		h->pcol = bc_history_promptColLen(prompt, h->plen);
 
-		bc_file_write(&vm.fout, bc_flush_none, prompt, h->plen);
-		bc_file_flush(&vm.fout, bc_flush_none);
+		bc_file_write(&vm->fout, bc_flush_none, prompt, h->plen);
+		bc_file_flush(&vm->fout, bc_flush_none);
 	}
 
 	// This is the input loop.
@@ -1851,14 +1872,14 @@ bc_history_edit(BcHistory* h, const char* prompt)
 				// Quit if the user wants it.
 				if (!BC_SIGINT)
 				{
-					vm.status = BC_STATUS_QUIT;
+					vm->status = BC_STATUS_QUIT;
 					BC_SIG_UNLOCK;
 					BC_JMP;
 				}
 
 				// Print the ready message.
-				bc_file_write(&vm.fout, bc_flush_none, vm.sigmsg, vm.siglen);
-				bc_file_write(&vm.fout, bc_flush_none, bc_program_ready_msg,
+				bc_file_write(&vm->fout, bc_flush_none, vm->sigmsg, vm->siglen);
+				bc_file_write(&vm->fout, bc_flush_none, bc_program_ready_msg,
 				              bc_program_ready_msg_len);
 				bc_history_reset(h);
 				bc_history_refresh(h);
@@ -1964,7 +1985,7 @@ bc_history_edit(BcHistory* h, const char* prompt)
 			// Clear screen.
 			case BC_ACTION_CTRL_L:
 			{
-				bc_file_write(&vm.fout, bc_flush_none, "\x1b[H\x1b[2J", 7);
+				bc_file_write(&vm->fout, bc_flush_none, "\x1b[H\x1b[2J", 7);
 				bc_history_refresh(h);
 				break;
 			}
@@ -1992,7 +2013,7 @@ bc_history_edit(BcHistory* h, const char* prompt)
 						bc_history_raise(h, SIGQUIT);
 					}
 #else // _WIN32
-					vm.status = BC_STATUS_QUIT;
+					vm->status = BC_STATUS_QUIT;
 					BC_SIG_UNLOCK;
 					BC_JMP;
 #endif // _WIN32
@@ -2032,7 +2053,7 @@ bc_history_line(BcHistory* h, BcVec* vec, const char* prompt)
 	BcStatus s;
 	char* line;
 
-	assert(vm.fout.len == 0);
+	assert(vm->fout.len == 0);
 
 	bc_history_enableRaw(h);
 
@@ -2042,8 +2063,8 @@ bc_history_line(BcHistory* h, BcVec* vec, const char* prompt)
 		s = bc_history_edit(h, prompt);
 
 		// Print a newline and flush.
-		bc_file_write(&vm.fout, bc_flush_none, "\n", 1);
-		bc_file_flush(&vm.fout, bc_flush_none);
+		bc_file_write(&vm->fout, bc_flush_none, "\n", 1);
+		bc_file_flush(&vm->fout, bc_flush_none);
 
 		BC_SIG_LOCK;
 
@@ -2166,11 +2187,11 @@ bc_history_free(BcHistory* h)
 	SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), h->orig_in);
 	SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), h->orig_out);
 #endif // _WIN32
-#ifndef NDEBUG
+#if BC_DEBUG
 	bc_vec_free(&h->buf);
 	bc_vec_free(&h->history);
 	bc_vec_free(&h->extras);
-#endif // NDEBUG
+#endif // BC_DEBUG
 }
 
 #if BC_DEBUG_CODE
@@ -2212,7 +2233,7 @@ bc_history_printKeyCodes(BcHistory* h)
 
 		// Go left edge manually, we are in raw mode.
 		bc_vm_putchar('\r', bc_flush_none);
-		bc_file_flush(&vm.fout, bc_flush_none);
+		bc_file_flush(&vm->fout, bc_flush_none);
 	}
 
 	bc_history_disableRaw(h);

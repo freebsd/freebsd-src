@@ -34,6 +34,7 @@
 #include <sys/poll.h>
 #include <sys/fcntl.h>
 
+#include <linux/eventpoll.h>
 #include <linux/wait.h>
 #include <linux/file.h>
 

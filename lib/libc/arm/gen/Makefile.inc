@@ -23,7 +23,7 @@ MAN+=	\
 	arm_drain_writebuf.2 \
 	arm_sync_icache.2 \
 
-.if ${MACHINE_ARCH:Marmv[67]*} && (!defined(CPUTYPE) || ${CPUTYPE:M*soft*} == "")
+.if !defined(CPUTYPE) || ${CPUTYPE:M*soft*} == ""
 
 SRCS+=	\
 	fpgetmask_vfp.c \

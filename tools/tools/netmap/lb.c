@@ -388,7 +388,8 @@ static void sigint_h(int sig)
 	signal(SIGINT, SIG_DFL);
 }
 
-static void usage()
+static void
+usage(void)
 {
 	printf("usage: lb [options]\n");
 	printf("where options are:\n");
@@ -617,7 +618,6 @@ int main(int argc, char **argv)
 	int ch;
 	uint32_t i;
 	int rv;
-	unsigned int iter = 0;
 	int poll_timeout = 10; /* default */
 
 	glob_arg.ifname[0] = '\0';
@@ -897,7 +897,6 @@ run:
 
 	while (!do_abort) {
 		u_int polli = 0;
-		iter++;
 
 		for (i = 0; i < npipes; ++i) {
 			struct netmap_ring *ring = ports[i].ring;

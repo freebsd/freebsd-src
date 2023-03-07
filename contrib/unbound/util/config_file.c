@@ -99,6 +99,7 @@ config_create(void)
 	cfg->stat_interval = 0;
 	cfg->stat_cumulative = 0;
 	cfg->stat_extended = 0;
+	cfg->stat_inhibit_zero = 1;
 	cfg->num_threads = 1;
 	cfg->port = UNBOUND_DNS_PORT;
 	cfg->do_ip4 = 1;
@@ -336,6 +337,8 @@ config_create(void)
 	cfg->ip_ratelimit_backoff = 0;
 	cfg->ratelimit_backoff = 0;
 	cfg->outbound_msg_retry = 5;
+	cfg->max_sent_count = 32;
+	cfg->max_query_restarts = 11;
 	cfg->qname_minimisation = 1;
 	cfg->qname_minimisation_strict = 0;
 	cfg->shm_enable = 0;
@@ -516,6 +519,7 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_YNO("use-syslog:", use_syslog)
 	else S_STR("log-identity:", log_identity)
 	else S_YNO("extended-statistics:", stat_extended)
+	else S_YNO("statistics-inhibit-zero:", stat_inhibit_zero)
 	else S_YNO("statistics-cumulative:", stat_cumulative)
 	else S_YNO("shm-enable:", shm_enable)
 	else S_NUMBER_OR_ZERO("shm-key:", shm_key)
@@ -778,6 +782,8 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_YNO("ip-ratelimit-backoff:", ip_ratelimit_backoff)
 	else S_YNO("ratelimit-backoff:", ratelimit_backoff)
 	else S_NUMBER_NONZERO("outbound-msg-retry:", outbound_msg_retry)
+	else S_NUMBER_NONZERO("max-sent-count:", max_sent_count)
+	else S_NUMBER_NONZERO("max-query-restarts:", max_query_restarts)
 	else S_SIZET_NONZERO("fast-server-num:", fast_server_num)
 	else S_NUMBER_OR_ZERO("fast-server-permil:", fast_server_permil)
 	else S_YNO("qname-minimisation:", qname_minimisation)
@@ -786,6 +792,7 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_SIZET_NONZERO("pad-responses-block-size:", pad_responses_block_size)
 	else S_YNO("pad-queries:", pad_queries)
 	else S_SIZET_NONZERO("pad-queries-block-size:", pad_queries_block_size)
+	else S_STRLIST("proxy-protocol-port:", proxy_protocol_port)
 #ifdef USE_IPSECMOD
 	else S_YNO("ipsecmod-enabled:", ipsecmod_enabled)
 	else S_YNO("ipsecmod-ignore-bogus:", ipsecmod_ignore_bogus)
@@ -822,7 +829,7 @@ int config_set_option(struct config_file* cfg, const char* opt,
 		 * stub-ssl-upstream, forward-zone, auth-zone
 		 * name, forward-addr, forward-host,
 		 * ratelimit-for-domain, ratelimit-below-domain,
-		 * local-zone-tag, access-control-view,
+		 * local-zone-tag, access-control-view, interface-*,
 		 * send-client-subnet, client-subnet-always-forward,
 		 * max-client-subnet-ipv4, max-client-subnet-ipv6,
 		 * min-client-subnet-ipv4, min-client-subnet-ipv6,
@@ -995,6 +1002,7 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_DEC(opt, "statistics-interval", stat_interval)
 	else O_YNO(opt, "statistics-cumulative", stat_cumulative)
 	else O_YNO(opt, "extended-statistics", stat_extended)
+	else O_YNO(opt, "statistics-inhibit-zero", stat_inhibit_zero)
 	else O_YNO(opt, "shm-enable", shm_enable)
 	else O_DEC(opt, "shm-key", shm_key)
 	else O_YNO(opt, "use-syslog", use_syslog)
@@ -1237,6 +1245,8 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_YNO(opt, "ip-ratelimit-backoff", ip_ratelimit_backoff)
 	else O_YNO(opt, "ratelimit-backoff", ratelimit_backoff)
 	else O_UNS(opt, "outbound-msg-retry", outbound_msg_retry)
+	else O_UNS(opt, "max-sent-count", max_sent_count)
+	else O_UNS(opt, "max-query-restarts", max_query_restarts)
 	else O_DEC(opt, "fast-server-num", fast_server_num)
 	else O_DEC(opt, "fast-server-permil", fast_server_permil)
 	else O_DEC(opt, "val-sig-skew-min", val_sig_skew_min)
@@ -1252,11 +1262,17 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_LS3(opt, "access-control-tag-action", acl_tag_actions)
 	else O_LS3(opt, "access-control-tag-data", acl_tag_datas)
 	else O_LS2(opt, "access-control-view", acl_view)
+	else O_LS2(opt, "interface-action", interface_actions)
+	else O_LTG(opt, "interface-tag", interface_tags)
+	else O_LS3(opt, "interface-tag-action", interface_tag_actions)
+	else O_LS3(opt, "interface-tag-data", interface_tag_datas)
+	else O_LS2(opt, "interface-view", interface_view)
 	else O_YNO(opt, "pad-responses", pad_responses)
 	else O_DEC(opt, "pad-responses-block-size", pad_responses_block_size)
 	else O_YNO(opt, "pad-queries", pad_queries)
 	else O_DEC(opt, "pad-queries-block-size", pad_queries_block_size)
 	else O_LS2(opt, "edns-client-strings", edns_client_strings)
+	else O_LST(opt, "proxy-protocol-port", proxy_protocol_port)
 #ifdef USE_IPSECMOD
 	else O_YNO(opt, "ipsecmod-enabled", ipsecmod_enabled)
 	else O_YNO(opt, "ipsecmod-ignore-bogus", ipsecmod_ignore_bogus)
@@ -1302,6 +1318,7 @@ create_cfg_parser(struct config_file* cfg, char* filename, const char* chroot)
 	cfg_parser->errors = 0;
 	cfg_parser->cfg = cfg;
 	cfg_parser->chroot = chroot;
+	cfg_parser->started_toplevel = 0;
 	init_cfg_parse();
 }
 
@@ -1606,10 +1623,16 @@ config_delete(struct config_file* cfg)
 	config_deltrplstrlist(cfg->local_zone_overrides);
 	config_del_strarray(cfg->tagname, cfg->num_tags);
 	config_del_strbytelist(cfg->local_zone_tags);
-	config_del_strbytelist(cfg->acl_tags);
 	config_del_strbytelist(cfg->respip_tags);
+	config_deldblstrlist(cfg->acl_view);
+	config_del_strbytelist(cfg->acl_tags);
 	config_deltrplstrlist(cfg->acl_tag_actions);
 	config_deltrplstrlist(cfg->acl_tag_datas);
+	config_deldblstrlist(cfg->interface_actions);
+	config_deldblstrlist(cfg->interface_view);
+	config_del_strbytelist(cfg->interface_tags);
+	config_deltrplstrlist(cfg->interface_tag_actions);
+	config_deltrplstrlist(cfg->interface_tag_datas);
 	config_delstrlist(cfg->control_ifs.first);
 	free(cfg->server_key_file);
 	free(cfg->server_cert_file);
@@ -1630,6 +1653,7 @@ config_delete(struct config_file* cfg)
 	config_delstrlist(cfg->python_script);
 	config_delstrlist(cfg->dynlib_file);
 	config_deldblstrlist(cfg->edns_client_strings);
+	config_delstrlist(cfg->proxy_protocol_port);
 #ifdef USE_IPSECMOD
 	free(cfg->ipsecmod_hook);
 	config_delstrlist(cfg->ipsecmod_whitelist);
@@ -1800,6 +1824,9 @@ void ub_c_error_msg(const char* fmt, ...)
 void ub_c_error(const char *str)
 {
 	cfg_parser->errors++;
+	if(strcmp(str, "syntax error")==0 && cfg_parser->started_toplevel ==0)
+		str = "syntax error, is there no section start after an "
+			"include-toplevel directive perhaps.";
 	fprintf(stderr, "%s:%d: error: %s\n", cfg_parser->filename,
 		cfg_parser->line, str);
 }
@@ -2608,4 +2635,36 @@ int cfg_has_https(struct config_file* cfg)
 			return 1;
 	}
 	return 0;
+}
+
+/** see if interface is PROXYv2, its port number == the proxy port number */
+int
+if_is_pp2(const char* ifname, const char* port,
+	struct config_strlist* proxy_protocol_port)
+{
+	struct config_strlist* s;
+	char* p = strchr(ifname, '@');
+	for(s = proxy_protocol_port; s; s = s->next) {
+		if(p && atoi(p+1) == atoi(s->str))
+			return 1;
+		if(!p && atoi(port) == atoi(s->str))
+			return 1;
+	}
+	return 0;
+}
+
+/** see if interface is DNSCRYPT, its port number == the dnscrypt port number */
+int
+if_is_dnscrypt(const char* ifname, const char* port, int dnscrypt_port)
+{
+#ifdef USE_DNSCRYPT
+	return ((strchr(ifname, '@') &&
+		atoi(strchr(ifname, '@')+1) == dnscrypt_port) ||
+		(!strchr(ifname, '@') && atoi(port) == dnscrypt_port));
+#else
+	(void)ifname;
+	(void)port;
+	(void)dnscrypt_port;
+	return 0;
+#endif
 }

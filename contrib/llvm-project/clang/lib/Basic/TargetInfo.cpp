@@ -131,7 +131,7 @@ TargetInfo::TargetInfo(const llvm::Triple &T) : Triple(T) {
   ARMCDECoprocMask = 0;
 
   // Default to no types using fpret.
-  RealTypeUsesObjCFPRet = 0;
+  RealTypeUsesObjCFPRetMask = 0;
 
   // Default to not using fp2ret for __Complex long double
   ComplexLongDoubleUsesFP2Ret = false;
@@ -150,6 +150,9 @@ TargetInfo::TargetInfo(const llvm::Triple &T) : Triple(T) {
   PlatformMinVersion = VersionTuple();
 
   MaxOpenCLWorkGroupSize = 1024;
+
+  MaxBitIntWidth.reset();
+
   ProgramAddrSpace = 0;
 }
 
@@ -284,6 +287,8 @@ TargetInfo::IntType TargetInfo::getLeastIntTypeByWidth(unsigned BitWidth,
 
 FloatModeKind TargetInfo::getRealTypeByWidth(unsigned BitWidth,
                                              FloatModeKind ExplicitType) const {
+  if (getHalfWidth() == BitWidth)
+    return FloatModeKind::Half;
   if (getFloatWidth() == BitWidth)
     return FloatModeKind::Float;
   if (getDoubleWidth() == BitWidth)
@@ -449,6 +454,20 @@ void TargetInfo::adjust(DiagnosticsEngine &Diags, LangOptions &Opts) {
     } else if (Opts.LongDoubleSize == 128) {
       LongDoubleWidth = LongDoubleAlign = 128;
       LongDoubleFormat = &llvm::APFloat::IEEEquad();
+    } else if (Opts.LongDoubleSize == 80) {
+      LongDoubleFormat = &llvm::APFloat::x87DoubleExtended();
+      if (getTriple().isWindowsMSVCEnvironment()) {
+        LongDoubleWidth = 128;
+        LongDoubleAlign = 128;
+      } else { // Linux
+        if (getTriple().getArch() == llvm::Triple::x86) {
+          LongDoubleWidth = 96;
+          LongDoubleAlign = 32;
+        } else {
+          LongDoubleWidth = 128;
+          LongDoubleAlign = 128;
+        }
+      }
     }
   }
 
@@ -464,6 +483,9 @@ void TargetInfo::adjust(DiagnosticsEngine &Diags, LangOptions &Opts) {
     Diags.Report(diag::err_opt_not_valid_on_target) << "-fprotect-parens";
     Opts.ProtectParens = false;
   }
+
+  if (Opts.MaxBitIntWidth)
+    MaxBitIntWidth = Opts.MaxBitIntWidth;
 }
 
 bool TargetInfo::initFeatureMap(
@@ -481,7 +503,7 @@ bool TargetInfo::initFeatureMap(
 TargetInfo::CallingConvKind
 TargetInfo::getCallingConvKind(bool ClangABICompat4) const {
   if (getCXXABI() != TargetCXXABI::Microsoft &&
-      (ClangABICompat4 || getTriple().getOS() == llvm::Triple::PS4))
+      (ClangABICompat4 || getTriple().isPS4()))
     return CCK_ClangABI4OrPS4;
   return CCK_Default;
 }

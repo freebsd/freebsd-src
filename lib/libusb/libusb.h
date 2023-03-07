@@ -550,6 +550,7 @@ void	libusb_lock_events(libusb_context * ctx);
 void	libusb_unlock_events(libusb_context * ctx);
 int	libusb_event_handling_ok(libusb_context * ctx);
 int	libusb_event_handler_active(libusb_context * ctx);
+void	libusb_interrupt_event_handler(libusb_context *ctx);
 void	libusb_lock_event_waiters(libusb_context * ctx);
 void	libusb_unlock_event_waiters(libusb_context * ctx);
 int	libusb_wait_for_event(libusb_context * ctx, struct timeval *tv);

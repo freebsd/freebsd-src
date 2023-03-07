@@ -1918,14 +1918,16 @@ nfs_sync(struct mount *mp, int waitfor)
 	}
 	MNT_IUNLOCK(mp);
 
+	if (waitfor == MNT_LAZY)
+		return (0);
+
 	/*
 	 * Force stale buffer cache information to be flushed.
 	 */
 loop:
 	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
 		/* XXX Racy bv_cnt check. */
-		if (NFSVOPISLOCKED(vp) || vp->v_bufobj.bo_dirty.bv_cnt == 0 ||
-		    waitfor == MNT_LAZY) {
+		if (NFSVOPISLOCKED(vp) || vp->v_bufobj.bo_dirty.bv_cnt == 0) {
 			VI_UNLOCK(vp);
 			continue;
 		}

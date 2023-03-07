@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 22, 2018
+.Dd September 9, 2022
 .Dt LIBSA 3
 .Os
 .Sh NAME
@@ -502,6 +502,49 @@ Returns -1 on error, 0 at EOF, or 1 if the user elects to quit while reading.
 .Sh MISC
 .Bl -hang -width 10n
 .It Xo
+.Ft char *
+.Fn devformat "struct devdesc *"
+.Xc
+.Pp
+Format the specified device as a string.
+.It Xo
+.Ft int
+.Fn devparse "struct devdesc **dev" "const char *devdesc" "const char **path"
+.Xc
+.Pp
+Parse the
+.Dv devdesc
+string of the form
+.Sq device:[/path/to/file] .
+The
+.Dv devsw
+table is used to match the start of the
+.Sq device
+string with
+.Fa dv_name .
+If
+.Fa dv_parsedev
+is non-NULL, then it will be called to parse the rest of the string and allocate
+the
+.Dv struct devdesc
+for this path.
+If NULL, then a default routine will be called that will allocate a simple
+.Dv struct devdesc ,
+parse a unit number and ensure there's no trailing characters.
+If
+.Dv path
+is non-NULL, then a pointer to the remainder of the
+.Dv devdesc
+string after the device specification is written.
+.It Xo
+.Ft int
+.Fn devinit void
+Calls all the
+.Fa dv_init
+routines in the
+.Dv devsw
+array, returning the number of routines that returned an error.
+.It Xo
 .Ft void
 .Fn twiddle void
 .Xc
@@ -615,7 +658,7 @@ The device driver itself will already have been called for the close; this call
 should clean up any allocation made by devopen only.
 .It Xo
 .Ft void
-.Fn abort
+.Fn __abort
 .Xc
 .Pp
 Calls
@@ -687,6 +730,112 @@ pointers should be terminated with a NULL.
 Devices are exported by the supporting code via the array
 .Vt struct devsw *devsw[]
 which is a NULL terminated array of pointers to device switch structures.
+.Sh DRIVER INTERFACE
+The driver needs to provide a common set of entry points that are
+used by
+.Nm libsa
+to interface with the device.
+.Bd -literal
+struct devsw {
+    const char	dv_name[DEV_NAMLEN];
+    int		dv_type;
+    int		(*dv_init)(void);
+    int		(*dv_strategy)(void *devdata, int rw, daddr_t blk,
+			size_t size, char *buf, size_t *rsize);
+    int		(*dv_open)(struct open_file *f, ...);
+    int		(*dv_close)(struct open_file *f);
+    int		(*dv_ioctl)(struct open_file *f, u_long cmd, void *data);
+    int		(*dv_print)(int verbose);
+    void	(*dv_cleanup)(void);
+    char *	(*dv_fmtdev)(struct devdesc *);
+    int		(*dv_parsedev)(struct devdesc **dev, const char *devpart,
+    		const char **path);
+    bool	(*dv_match)(struct devsw *dv, const char *devspec);
+};
+.Ed
+.Bl -tag -width ".Fn dv_strategy"
+.It Fn dv_name
+The device's name.
+.It Fn dv_type
+Type of device.
+The supported types are:
+.Bl -tag -width "DEVT_NONE"
+.It DEVT_NONE
+.It DEVT_DISK
+.It DEVT_NET
+.It DEVT_CD
+.It DEVT_ZFS
+.It DEVT_FD
+.El
+Each type may have its own associated (struct type_devdesc),
+which has the generic (struct devdesc) as its first member.
+.It Fn dv_init
+Driver initialization routine.
+This routine should probe for available units.
+Drivers are responsible for maintaining lists of units for later enumeration.
+No other driver routines may be called before
+.Fn dv_init
+returns.
+.It Fn dv_open
+The driver open routine.
+.It Fn dv_close
+The driver close routine.
+.It Fn dv_ioctl
+The driver ioctl routine.
+.It Fn dv_print
+Prints information about the available devices.
+Information should be presented with
+.Fn pager_output .
+.It Fn dv_cleanup
+Cleans up any memory used by the device before the next stage is run.
+.It Fn dv_fmtdev
+Converts the specified devdesc to the canonical string representation
+for that device.
+.It Fn dv_parsedev
+Parses the device portion of a file path.
+The
+.Dv devpart
+will point to the
+.Sq tail
+of device name, possibly followed by a colon and a path within the device.
+The
+.Sq tail
+is, by convention, the part of the device specification that follows the
+.Fa dv_name
+part of the string.
+So when
+.Fa devparse
+is parsing the string
+.Dq disk3p5:/xxx ,
+.Dv devpart
+will point to the
+.Sq 3
+in that string.
+The parsing routine is expected to allocate a new
+.Dv struct devdesc
+or subclass and return it in
+.Dv dev
+when successful.
+This routine should set
+.Dv path
+to point to the portion of the string after device specification, or
+.Dq /xxx
+in the earlier example.
+Generally, code needing to parse a path will use
+.Fa devparse
+instead of calling this routine directly.
+.It Fn dv_match
+.Dv NULL
+to specify that all device paths starting with
+.Fa dv_name
+match.
+Otherwise, this function returns 0 for a match and a non-zero
+.Dv errno
+to indicate why it didn't match.
+This is helpful when you claim the device path after using it to query
+properties on systems that have uniform naming for different types of
+devices.
+.El
 .Sh HISTORY
 The
 .Nm

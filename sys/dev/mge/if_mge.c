@@ -100,15 +100,15 @@ static int mge_miibus_writereg(device_t dev, int phy, int reg, int value);
 static int mge_mdio_readreg(device_t dev, int phy, int reg);
 static int mge_mdio_writereg(device_t dev, int phy, int reg, int value);
 
-static int mge_ifmedia_upd(struct ifnet *ifp);
-static void mge_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr);
+static int mge_ifmedia_upd(if_t ifp);
+static void mge_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr);
 
 static void mge_init(void *arg);
 static void mge_init_locked(void *arg);
-static void mge_start(struct ifnet *ifp);
-static void mge_start_locked(struct ifnet *ifp);
+static void mge_start(if_t ifp);
+static void mge_start_locked(if_t ifp);
 static void mge_watchdog(struct mge_softc *sc);
-static int mge_ioctl(struct ifnet *ifp, u_long command, caddr_t data);
+static int mge_ioctl(if_t ifp, u_long command, caddr_t data);
 
 static uint32_t mge_tfut_ipg(uint32_t val, int ver);
 static uint32_t mge_rx_ipg(uint32_t val, int ver);
@@ -144,7 +144,7 @@ static void mge_get_dma_addr(void *arg, bus_dma_segment_t *segs, int nseg,
 static void mge_free_dma(struct mge_softc *sc);
 static void mge_free_desc(struct mge_softc *sc, struct mge_desc_wrapper* tab,
     uint32_t size, bus_dma_tag_t buffer_tag, uint8_t free_mbufs);
-static void mge_offload_process_frame(struct ifnet *ifp, struct mbuf *frame,
+static void mge_offload_process_frame(if_t ifp, struct mbuf *frame,
     uint32_t status, uint16_t bufsize);
 static void mge_offload_setup_descriptor(struct mge_softc *sc,
     struct mge_desc_wrapper *dw);
@@ -441,7 +441,7 @@ mge_set_mac_address(struct mge_softc *sc)
 
 	MGE_GLOBAL_LOCK_ASSERT(sc);
 
-	if_mac = (char *)IF_LLADDR(sc->ifp);
+	if_mac = (char *)if_getlladdr(sc->ifp);
 
 	mac_l = (if_mac[4] << 8) | (if_mac[5]);
 	mac_h = (if_mac[0] << 24)| (if_mac[1] << 16) |
@@ -478,7 +478,7 @@ mge_set_prom_mode(struct mge_softc *sc, uint8_t queue)
 	uint32_t reg_val, i;
 
 	/* Enable or disable promiscuous mode as needed */
-	if (sc->ifp->if_flags & IFF_PROMISC) {
+	if (if_getflags(sc->ifp) & IFF_PROMISC) {
 		port_config = MGE_READ(sc, MGE_PORT_CONFIG);
 		port_config |= PORT_CONFIG_UPM;
 		MGE_WRITE(sc, MGE_PORT_CONFIG, port_config);
@@ -739,15 +739,15 @@ mge_reinit_rx(struct mge_softc *sc)
 static poll_handler_t mge_poll;
 
 static int
-mge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
+mge_poll(if_t ifp, enum poll_cmd cmd, int count)
 {
-	struct mge_softc *sc = ifp->if_softc;
+	struct mge_softc *sc = if_getsoftc(ifp);
 	uint32_t int_cause, int_cause_ext;
 	int rx_npkts = 0;
 
 	MGE_RECEIVE_LOCK(sc);
 
-	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+	if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING)) {
 		MGE_RECEIVE_UNLOCK(sc);
 		return (rx_npkts);
 	}
@@ -782,7 +782,7 @@ mge_attach(device_t dev)
 {
 	struct mge_softc *sc;
 	struct mii_softc *miisc;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint8_t hwaddr[ETHER_ADDR_LEN];
 	int i, error, phy;
 
@@ -857,27 +857,26 @@ mge_attach(device_t dev)
 	}
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_softc = sc;
-	ifp->if_flags = IFF_SIMPLEX | IFF_MULTICAST | IFF_BROADCAST;
-	ifp->if_capabilities = IFCAP_VLAN_MTU;
+	if_setsoftc(ifp, sc);
+	if_setflags(ifp, IFF_SIMPLEX | IFF_MULTICAST | IFF_BROADCAST);
+	if_setcapabilities(ifp, IFCAP_VLAN_MTU);
 	if (sc->mge_hw_csum) {
-		ifp->if_capabilities |= IFCAP_HWCSUM;
-		ifp->if_hwassist = MGE_CHECKSUM_FEATURES;
+		if_setcapabilitiesbit(ifp, IFCAP_HWCSUM, 0);
+		if_sethwassist(ifp, MGE_CHECKSUM_FEATURES);
 	}
-	ifp->if_capenable = ifp->if_capabilities;
+	if_setcapenable(ifp, if_getcapabilities(ifp));
 
 #ifdef DEVICE_POLLING
 	/* Advertise that polling is supported */
-	ifp->if_capabilities |= IFCAP_POLLING;
+	if_setcapabilitiesbit(ifp, IFCAP_POLLING, 0);
 #endif
 
-	ifp->if_init = mge_init;
-	ifp->if_start = mge_start;
-	ifp->if_ioctl = mge_ioctl;
+	if_setinitfn(ifp, mge_init);
+	if_setstartfn(ifp, mge_start);
+	if_setioctlfn(ifp, mge_ioctl);
 
-	ifp->if_snd.ifq_drv_maxlen = MGE_TX_DESC_NUM - 1;
-	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
-	IFQ_SET_READY(&ifp->if_snd);
+	if_setsendqlen(ifp, MGE_TX_DESC_NUM - 1);
+	if_setsendqready(ifp);
 
 	mge_get_mac_address(sc, hwaddr);
 	ether_ifattach(ifp, hwaddr);
@@ -985,12 +984,12 @@ mge_detach(device_t dev)
 }
 
 static void
-mge_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+mge_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
 	struct mge_softc *sc;
 	struct mii_data *mii;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	MGE_GLOBAL_LOCK(sc);
 
 	if (!sc->phy_attached) {
@@ -1044,9 +1043,9 @@ mge_set_port_serial_control(uint32_t media)
 }
 
 static int
-mge_ifmedia_upd(struct ifnet *ifp)
+mge_ifmedia_upd(if_t ifp)
 {
-	struct mge_softc *sc = ifp->if_softc;
+	struct mge_softc *sc = if_getsoftc(ifp);
 
 	/*
 	 * Do not do anything for switch here, as updating media between
@@ -1055,7 +1054,7 @@ mge_ifmedia_upd(struct ifnet *ifp)
 	 */
 	if (sc->phy_attached) {
 		MGE_GLOBAL_LOCK(sc);
-		if (ifp->if_flags & IFF_UP) {
+		if (if_getflags(ifp) & IFF_UP) {
 			sc->mge_media_status = sc->mii->mii_media.ifm_media;
 			mii_mediachg(sc->mii);
 
@@ -1201,15 +1200,15 @@ mge_init_locked(void *arg)
 	 * * ...only if polling is not turned on. Disable interrupts explicitly
 	 * if polling is enabled.
 	 */
-	if (sc->ifp->if_capenable & IFCAP_POLLING)
+	if (if_getcapenable(sc->ifp) & IFCAP_POLLING)
 		mge_intrs_ctrl(sc, 0);
 	else
 #endif /* DEVICE_POLLING */
 	mge_intrs_ctrl(sc, 1);
 
 	/* Activate network interface */
-	sc->ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(sc->ifp, IFF_DRV_RUNNING, 0);
+	if_setdrvflagbits(sc->ifp, 0, IFF_DRV_OACTIVE);
 	sc->wd_timer = 0;
 
 	/* Schedule watchdog timeout */
@@ -1227,7 +1226,7 @@ mge_intr_rxtx(void *arg)
 	MGE_GLOBAL_LOCK(sc);
 
 #ifdef DEVICE_POLLING
-	if (sc->ifp->if_capenable & IFCAP_POLLING) {
+	if (if_getcapenable(sc->ifp) & IFCAP_POLLING) {
 		MGE_GLOBAL_UNLOCK(sc);
 		return;
 	}
@@ -1257,7 +1256,7 @@ static void
 mge_intr_err(void *arg)
 {
 	struct mge_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	sc = arg;
 	ifp = sc->ifp;
@@ -1268,7 +1267,7 @@ static void
 mge_intr_misc(void *arg)
 {
 	struct mge_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	sc = arg;
 	ifp = sc->ifp;
@@ -1284,7 +1283,7 @@ mge_intr_rx(void *arg) {
 	MGE_RECEIVE_LOCK(sc);
 
 #ifdef DEVICE_POLLING
-	if (sc->ifp->if_capenable & IFCAP_POLLING) {
+	if (if_getcapenable(sc->ifp) & IFCAP_POLLING) {
 		MGE_RECEIVE_UNLOCK(sc);
 		return;
 	}
@@ -1323,7 +1322,7 @@ mge_intr_rx_check(struct mge_softc *sc, uint32_t int_cause,
 static int
 mge_intr_rx_locked(struct mge_softc *sc, int count)
 {
-	struct ifnet *ifp = sc->ifp;
+	if_t ifp = sc->ifp;
 	uint32_t status;
 	uint16_t bufsize;
 	struct mge_desc_wrapper* dw;
@@ -1367,7 +1366,7 @@ mge_intr_rx_locked(struct mge_softc *sc, int count)
 			    bufsize);
 
 			MGE_RECEIVE_UNLOCK(sc);
-			(*ifp->if_input)(ifp, mb);
+			if_input(ifp, mb);
 			MGE_RECEIVE_LOCK(sc);
 			rx_npkts++;
 		}
@@ -1391,7 +1390,7 @@ static void
 mge_intr_sum(void *arg)
 {
 	struct mge_softc *sc = arg;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	ifp = sc->ifp;
 	if_printf(ifp, "%s\n", __FUNCTION__);
@@ -1406,7 +1405,7 @@ mge_intr_tx(void *arg)
 	MGE_TRANSMIT_LOCK(sc);
 
 #ifdef DEVICE_POLLING
-	if (sc->ifp->if_capenable & IFCAP_POLLING) {
+	if (if_getcapenable(sc->ifp) & IFCAP_POLLING) {
 		MGE_TRANSMIT_UNLOCK(sc);
 		return;
 	}
@@ -1425,7 +1424,7 @@ mge_intr_tx(void *arg)
 static void
 mge_intr_tx_locked(struct mge_softc *sc)
 {
-	struct ifnet *ifp = sc->ifp;
+	if_t ifp = sc->ifp;
 	struct mge_desc_wrapper *dw;
 	struct mge_desc *desc;
 	uint32_t status;
@@ -1473,14 +1472,14 @@ mge_intr_tx_locked(struct mge_softc *sc)
 
 	if (send) {
 		/* Now send anything that was pending */
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 		mge_start_locked(ifp);
 	}
 }
 static int
-mge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
+mge_ioctl(if_t ifp, u_long command, caddr_t data)
 {
-	struct mge_softc *sc = ifp->if_softc;
+	struct mge_softc *sc = if_getsoftc(ifp);
 	struct ifreq *ifr = (struct ifreq *)data;
 	int mask, error;
 	uint32_t flags;
@@ -1491,9 +1490,9 @@ mge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCSIFFLAGS:
 		MGE_GLOBAL_LOCK(sc);
 
-		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				flags = ifp->if_flags ^ sc->mge_if_flags;
+		if (if_getflags(ifp) & IFF_UP) {
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
+				flags = if_getflags(ifp) ^ sc->mge_if_flags;
 				if (flags & IFF_PROMISC)
 					mge_set_prom_mode(sc,
 					    MGE_RX_DEFAULT_QUEUE);
@@ -1503,29 +1502,29 @@ mge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			} else
 				mge_init_locked(sc);
 		}
-		else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		else if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 			mge_stop(sc);
 
-		sc->mge_if_flags = ifp->if_flags;
+		sc->mge_if_flags = if_getflags(ifp);
 		MGE_GLOBAL_UNLOCK(sc);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 			MGE_GLOBAL_LOCK(sc);
 			mge_setup_multicast(sc);
 			MGE_GLOBAL_UNLOCK(sc);
 		}
 		break;
 	case SIOCSIFCAP:
-		mask = ifp->if_capenable ^ ifr->ifr_reqcap;
+		mask = if_getcapenable(ifp) ^ ifr->ifr_reqcap;
 		if (mask & IFCAP_HWCSUM) {
-			ifp->if_capenable &= ~IFCAP_HWCSUM;
-			ifp->if_capenable |= IFCAP_HWCSUM & ifr->ifr_reqcap;
-			if (ifp->if_capenable & IFCAP_TXCSUM)
-				ifp->if_hwassist = MGE_CHECKSUM_FEATURES;
+			if_setcapenablebit(ifp, 0, IFCAP_HWCSUM);
+			if_setcapenablebit(ifp, IFCAP_HWCSUM & ifr->ifr_reqcap, 0);
+			if (if_getcapenable(ifp) & IFCAP_TXCSUM)
+				if_sethwassist(ifp, MGE_CHECKSUM_FEATURES);
 			else
-				ifp->if_hwassist = 0;
+				if_sethwassist(ifp, 0);
 		}
 #ifdef DEVICE_POLLING
 		if (mask & IFCAP_POLLING) {
@@ -1536,13 +1535,13 @@ mge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 				MGE_GLOBAL_LOCK(sc);
 				mge_intrs_ctrl(sc, 0);
-				ifp->if_capenable |= IFCAP_POLLING;
+				if_setcapenablebit(ifp, IFCAP_POLLING, 0);
 				MGE_GLOBAL_UNLOCK(sc);
 			} else {
 				error = ether_poll_deregister(ifp);
 				MGE_GLOBAL_LOCK(sc);
 				mge_intrs_ctrl(sc, 1);
-				ifp->if_capenable &= ~IFCAP_POLLING;
+				if_setcapenablebit(ifp, 0, IFCAP_POLLING);
 				MGE_GLOBAL_UNLOCK(sc);
 			}
 		}
@@ -1626,7 +1625,7 @@ mge_shutdown(device_t dev)
 	MGE_GLOBAL_LOCK(sc);
 
 #ifdef DEVICE_POLLING
-        if (sc->ifp->if_capenable & IFCAP_POLLING)
+        if (if_getcapenable(sc->ifp) & IFCAP_POLLING)
 		ether_poll_deregister(sc->ifp);
 #endif
 
@@ -1719,7 +1718,7 @@ mge_tick(void *msc)
 static void
 mge_watchdog(struct mge_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 
 	ifp = sc->ifp;
 
@@ -1735,9 +1734,9 @@ mge_watchdog(struct mge_softc *sc)
 }
 
 static void
-mge_start(struct ifnet *ifp)
+mge_start(if_t ifp)
 {
-	struct mge_softc *sc = ifp->if_softc;
+	struct mge_softc *sc = if_getsoftc(ifp);
 
 	MGE_TRANSMIT_LOCK(sc);
 
@@ -1747,23 +1746,23 @@ mge_start(struct ifnet *ifp)
 }
 
 static void
-mge_start_locked(struct ifnet *ifp)
+mge_start_locked(if_t ifp)
 {
 	struct mge_softc *sc;
 	struct mbuf *m0, *mtmp;
 	uint32_t reg_val, queued = 0;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 
 	MGE_TRANSMIT_LOCK_ASSERT(sc);
 
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING)
 		return;
 
 	for (;;) {
 		/* Get packet from the queue */
-		IF_DEQUEUE(&ifp->if_snd, m0);
+		m0 = if_dequeue(ifp);
 		if (m0 == NULL)
 			break;
 
@@ -1786,8 +1785,8 @@ mge_start_locked(struct ifnet *ifp)
 
 		/* Check for free descriptors */
 		if (sc->tx_desc_used_count + 1 >= MGE_TX_DESC_NUM) {
-			IF_PREPEND(&ifp->if_snd, m0);
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			if_sendq_prepend(ifp, m0);
+			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 			break;
 		}
 
@@ -1809,7 +1808,7 @@ mge_start_locked(struct ifnet *ifp)
 static void
 mge_stop(struct mge_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	volatile uint32_t reg_val, status;
 	struct mge_desc_wrapper *dw;
 	struct mge_desc *desc;
@@ -1817,14 +1816,14 @@ mge_stop(struct mge_softc *sc)
 
 	ifp = sc->ifp;
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
 		return;
 
 	/* Stop tick engine */
 	callout_stop(&sc->wd_callout);
 
 	/* Disable interface */
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	if_setdrvflagbits(ifp, 0, (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
 	sc->wd_timer = 0;
 
 	/* Disable interrupts */
@@ -1891,12 +1890,12 @@ mge_suspend(device_t dev)
 }
 
 static void
-mge_offload_process_frame(struct ifnet *ifp, struct mbuf *frame,
+mge_offload_process_frame(if_t ifp, struct mbuf *frame,
     uint32_t status, uint16_t bufsize)
 {
 	int csum_flags = 0;
 
-	if (ifp->if_capenable & IFCAP_RXCSUM) {
+	if (if_getcapenable(ifp) & IFCAP_RXCSUM) {
 		if ((status & MGE_RX_L3_IS_IP) && (status & MGE_RX_IP_OK))
 			csum_flags |= CSUM_IP_CHECKED | CSUM_IP_VALID;
 
@@ -2051,11 +2050,11 @@ static void
 mge_setup_multicast(struct mge_softc *sc)
 {
 	struct mge_hash_maddr_ctx ctx;
-	struct ifnet *ifp = sc->ifp;
+	if_t ifp = sc->ifp;
 	static const uint8_t v = (MGE_RX_DEFAULT_QUEUE << 1) | 1;
 	int i;
 
-	if (ifp->if_flags & IFF_ALLMULTI) {
+	if (if_getflags(ifp) & IFF_ALLMULTI) {
 		for (i = 0; i < MGE_MCAST_REG_NUMBER; i++)
 			ctx.smt[i] = ctx.omt[i] =
 			    (v << 24) | (v << 16) | (v << 8) | v;

@@ -151,7 +151,7 @@ MODULE_PARM_DESC(spl_kmem_cache_kmem_threads,
 
 struct list_head spl_kmem_cache_list;   /* List of caches */
 struct rw_semaphore spl_kmem_cache_sem; /* Cache list lock */
-taskq_t *spl_kmem_cache_taskq;		/* Task queue for aging / reclaim */
+static taskq_t *spl_kmem_cache_taskq;   /* Task queue for aging / reclaim */
 
 static void spl_cache_shrink(spl_kmem_cache_t *skc, void *obj);
 
@@ -701,12 +701,12 @@ spl_kmem_cache_create(const char *name, size_t size, size_t align,
 
 	skc->skc_magic = SKC_MAGIC;
 	skc->skc_name_size = strlen(name) + 1;
-	skc->skc_name = (char *)kmalloc(skc->skc_name_size, lflags);
+	skc->skc_name = kmalloc(skc->skc_name_size, lflags);
 	if (skc->skc_name == NULL) {
 		kfree(skc);
 		return (NULL);
 	}
-	strncpy(skc->skc_name, name, skc->skc_name_size);
+	strlcpy(skc->skc_name, name, skc->skc_name_size);
 
 	skc->skc_ctor = ctor;
 	skc->skc_dtor = dtor;
@@ -791,10 +791,8 @@ spl_kmem_cache_create(const char *name, size_t size, size_t align,
 	} else {
 		unsigned long slabflags = 0;
 
-		if (size > (SPL_MAX_KMEM_ORDER_NR_PAGES * PAGE_SIZE)) {
-			rc = EINVAL;
+		if (size > (SPL_MAX_KMEM_ORDER_NR_PAGES * PAGE_SIZE))
 			goto out;
-		}
 
 #if defined(SLAB_USERCOPY)
 		/*
@@ -815,10 +813,8 @@ spl_kmem_cache_create(const char *name, size_t size, size_t align,
 		skc->skc_linux_cache = kmem_cache_create(
 		    skc->skc_name, size, align, slabflags, NULL);
 #endif
-		if (skc->skc_linux_cache == NULL) {
-			rc = ENOMEM;
+		if (skc->skc_linux_cache == NULL)
 			goto out;
-		}
 	}
 
 	down_write(&spl_kmem_cache_sem);
@@ -1451,6 +1447,9 @@ spl_kmem_cache_init(void)
 	    spl_kmem_cache_kmem_threads, maxclsyspri,
 	    spl_kmem_cache_kmem_threads * 8, INT_MAX,
 	    TASKQ_PREPOPULATE | TASKQ_DYNAMIC);
+
+	if (spl_kmem_cache_taskq == NULL)
+		return (-ENOMEM);
 
 	return (0);
 }

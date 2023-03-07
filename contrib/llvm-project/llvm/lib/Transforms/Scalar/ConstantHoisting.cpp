@@ -52,6 +52,7 @@
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Operator.h"
 #include "llvm/IR/Value.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
@@ -610,9 +611,9 @@ ConstantHoistingPass::maximizeConstantsInRange(ConstCandVecType::iterator S,
                                    ConstCand->ConstInt->getValue());
         if (Diff) {
           const InstructionCost ImmCosts =
-              TTI->getIntImmCodeSizeCost(Opcode, OpndIdx, Diff.getValue(), Ty);
+              TTI->getIntImmCodeSizeCost(Opcode, OpndIdx, Diff.value(), Ty);
           Cost -= ImmCosts;
-          LLVM_DEBUG(dbgs() << "Offset " << Diff.getValue() << " "
+          LLVM_DEBUG(dbgs() << "Offset " << Diff.value() << " "
                             << "has penalty: " << ImmCosts << "\n"
                             << "Adjusted cost: " << Cost << "\n");
         }

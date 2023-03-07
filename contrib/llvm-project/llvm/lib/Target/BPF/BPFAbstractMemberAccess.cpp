@@ -77,6 +77,7 @@
 #include "BPF.h"
 #include "BPFCORE.h"
 #include "BPFTargetMachine.h"
+#include "llvm/BinaryFormat/Dwarf.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Instruction.h"
@@ -123,7 +124,7 @@ public:
   struct CallInfo {
     uint32_t Kind;
     uint32_t AccessIndex;
-    Align RecordAlignment;
+    MaybeAlign RecordAlignment;
     MDNode *Metadata;
     Value *Base;
   };
@@ -142,12 +143,19 @@ private:
   Module *M = nullptr;
 
   static std::map<std::string, GlobalVariable *> GEPGlobals;
-  // A map to link preserve_*_access_index instrinsic calls.
+  // A map to link preserve_*_access_index intrinsic calls.
   std::map<CallInst *, std::pair<CallInst *, CallInfo>> AIChain;
-  // A map to hold all the base preserve_*_access_index instrinsic calls.
+  // A map to hold all the base preserve_*_access_index intrinsic calls.
   // The base call is not an input of any other preserve_*
   // intrinsics.
   std::map<CallInst *, CallInfo> BaseAICalls;
+  // A map to hold <AnonRecord, TypeDef> relationships
+  std::map<DICompositeType *, DIDerivedType *> AnonRecords;
+
+  void CheckAnonRecordType(DIDerivedType *ParentTy, DIType *Ty);
+  void CheckCompositeType(DIDerivedType *ParentTy, DICompositeType *CTy);
+  void CheckDerivedType(DIDerivedType *ParentTy, DIDerivedType *DTy);
+  void ResetMetadata(struct CallInfo &CInfo);
 
   bool doTransformation(Function &F);
 
@@ -169,7 +177,7 @@ private:
                           uint32_t &StartBitOffset, uint32_t &EndBitOffset);
   uint32_t GetFieldInfo(uint32_t InfoKind, DICompositeType *CTy,
                         uint32_t AccessIndex, uint32_t PatchImm,
-                        Align RecordAlignment);
+                        MaybeAlign RecordAlignment);
 
   Value *computeBaseAndAccessKey(CallInst *Call, CallInfo &CInfo,
                                  std::string &AccessKey, MDNode *&BaseMeta);
@@ -220,8 +228,78 @@ bool BPFAbstractMemberAccess::run(Function &F) {
   if (M->debug_compile_units().empty())
     return false;
 
+  // For each argument/return/local_variable type, trace the type
+  // pattern like '[derived_type]* [composite_type]' to check
+  // and remember (anon record -> typedef) relations where the
+  // anon record is defined as
+  //   typedef [const/volatile/restrict]* [anon record]
+  DISubprogram *SP = F.getSubprogram();
+  if (SP && SP->isDefinition()) {
+    for (DIType *Ty: SP->getType()->getTypeArray())
+      CheckAnonRecordType(nullptr, Ty);
+    for (const DINode *DN : SP->getRetainedNodes()) {
+      if (const auto *DV = dyn_cast<DILocalVariable>(DN))
+        CheckAnonRecordType(nullptr, DV->getType());
+    }
+  }
+
   DL = &M->getDataLayout();
   return doTransformation(F);
+}
+
+void BPFAbstractMemberAccess::ResetMetadata(struct CallInfo &CInfo) {
+  if (auto Ty = dyn_cast<DICompositeType>(CInfo.Metadata)) {
+    if (AnonRecords.find(Ty) != AnonRecords.end()) {
+      if (AnonRecords[Ty] != nullptr)
+        CInfo.Metadata = AnonRecords[Ty];
+    }
+  }
+}
+
+void BPFAbstractMemberAccess::CheckCompositeType(DIDerivedType *ParentTy,
+                                                 DICompositeType *CTy) {
+  if (!CTy->getName().empty() || !ParentTy ||
+      ParentTy->getTag() != dwarf::DW_TAG_typedef)
+    return;
+
+  if (AnonRecords.find(CTy) == AnonRecords.end()) {
+    AnonRecords[CTy] = ParentTy;
+    return;
+  }
+
+  // Two or more typedef's may point to the same anon record.
+  // If this is the case, set the typedef DIType to be nullptr
+  // to indicate the duplication case.
+  DIDerivedType *CurrTy = AnonRecords[CTy];
+  if (CurrTy == ParentTy)
+    return;
+  AnonRecords[CTy] = nullptr;
+}
+
+void BPFAbstractMemberAccess::CheckDerivedType(DIDerivedType *ParentTy,
+                                               DIDerivedType *DTy) {
+  DIType *BaseType = DTy->getBaseType();
+  if (!BaseType)
+    return;
+
+  unsigned Tag = DTy->getTag();
+  if (Tag == dwarf::DW_TAG_pointer_type)
+    CheckAnonRecordType(nullptr, BaseType);
+  else if (Tag == dwarf::DW_TAG_typedef)
+    CheckAnonRecordType(DTy, BaseType);
+  else
+    CheckAnonRecordType(ParentTy, BaseType);
+}
+
+void BPFAbstractMemberAccess::CheckAnonRecordType(DIDerivedType *ParentTy,
+                                                  DIType *Ty) {
+  if (!Ty)
+    return;
+
+  if (auto *CTy = dyn_cast<DICompositeType>(Ty))
+    return CheckCompositeType(ParentTy, CTy);
+  else if (auto *DTy = dyn_cast<DIDerivedType>(Ty))
+    return CheckDerivedType(ParentTy, DTy);
 }
 
 static bool SkipDIDerivedTag(unsigned Tag, bool skipTypedef) {
@@ -270,7 +348,7 @@ static uint32_t calcArraySize(const DICompositeType *CTy, uint32_t StartDim) {
 
 static Type *getBaseElementType(const CallInst *Call) {
   // Element type is stored in an elementtype() attribute on the first param.
-  return Call->getAttributes().getParamElementType(0);
+  return Call->getParamElementType(0);
 }
 
 /// Check whether a call is a preserve_*_access_index intrinsic call or not.
@@ -297,10 +375,9 @@ bool BPFAbstractMemberAccess::IsPreserveDIAccessIndexCall(const CallInst *Call,
     CInfo.Metadata = Call->getMetadata(LLVMContext::MD_preserve_access_index);
     if (!CInfo.Metadata)
       report_fatal_error("Missing metadata for llvm.preserve.union.access.index intrinsic");
+    ResetMetadata(CInfo);
     CInfo.AccessIndex = getConstant(Call->getArgOperand(1));
     CInfo.Base = Call->getArgOperand(0);
-    CInfo.RecordAlignment =
-        DL->getABITypeAlign(CInfo.Base->getType()->getPointerElementType());
     return true;
   }
   if (GV->getName().startswith("llvm.preserve.struct.access.index")) {
@@ -308,6 +385,7 @@ bool BPFAbstractMemberAccess::IsPreserveDIAccessIndexCall(const CallInst *Call,
     CInfo.Metadata = Call->getMetadata(LLVMContext::MD_preserve_access_index);
     if (!CInfo.Metadata)
       report_fatal_error("Missing metadata for llvm.preserve.struct.access.index intrinsic");
+    ResetMetadata(CInfo);
     CInfo.AccessIndex = getConstant(Call->getArgOperand(2));
     CInfo.Base = Call->getArgOperand(0);
     CInfo.RecordAlignment = DL->getABITypeAlign(getBaseElementType(Call));
@@ -333,6 +411,8 @@ bool BPFAbstractMemberAccess::IsPreserveDIAccessIndexCall(const CallInst *Call,
       report_fatal_error("Incorrect flag for llvm.bpf.preserve.type.info intrinsic");
     if (Flag == BPFCoreSharedInfo::PRESERVE_TYPE_INFO_EXISTENCE)
       CInfo.AccessIndex = BPFCoreSharedInfo::TYPE_EXISTENCE;
+    else if (Flag == BPFCoreSharedInfo::PRESERVE_TYPE_INFO_MATCH)
+      CInfo.AccessIndex = BPFCoreSharedInfo::TYPE_MATCH;
     else
       CInfo.AccessIndex = BPFCoreSharedInfo::TYPE_SIZE;
     return true;
@@ -592,10 +672,20 @@ void BPFAbstractMemberAccess::GetStorageBitRange(DIDerivedType *MemberTy,
                                                  uint32_t &EndBitOffset) {
   uint32_t MemberBitSize = MemberTy->getSizeInBits();
   uint32_t MemberBitOffset = MemberTy->getOffsetInBits();
+
+  if (RecordAlignment > 8) {
+    // If the Bits are within an aligned 8-byte, set the RecordAlignment
+    // to 8, other report the fatal error.
+    if (MemberBitOffset / 64 != (MemberBitOffset + MemberBitSize) / 64)
+      report_fatal_error("Unsupported field expression for llvm.bpf.preserve.field.info, "
+                         "requiring too big alignment");
+    RecordAlignment = Align(8);
+  }
+
   uint32_t AlignBits = RecordAlignment.value() * 8;
-  if (RecordAlignment > 8 || MemberBitSize > AlignBits)
+  if (MemberBitSize > AlignBits)
     report_fatal_error("Unsupported field expression for llvm.bpf.preserve.field.info, "
-                       "requiring too big alignment");
+                       "bitfield size greater than record alignment");
 
   StartBitOffset = MemberBitOffset & ~(AlignBits - 1);
   if ((StartBitOffset + AlignBits) < (MemberBitOffset + MemberBitSize))
@@ -608,7 +698,7 @@ uint32_t BPFAbstractMemberAccess::GetFieldInfo(uint32_t InfoKind,
                                                DICompositeType *CTy,
                                                uint32_t AccessIndex,
                                                uint32_t PatchImm,
-                                               Align RecordAlignment) {
+                                               MaybeAlign RecordAlignment) {
   if (InfoKind == BPFCoreSharedInfo::FIELD_EXISTENCE)
       return 1;
 
@@ -624,7 +714,7 @@ uint32_t BPFAbstractMemberAccess::GetFieldInfo(uint32_t InfoKind,
         PatchImm += MemberTy->getOffsetInBits() >> 3;
       } else {
         unsigned SBitOffset, NextSBitOffset;
-        GetStorageBitRange(MemberTy, RecordAlignment, SBitOffset,
+        GetStorageBitRange(MemberTy, *RecordAlignment, SBitOffset,
                            NextSBitOffset);
         PatchImm += SBitOffset >> 3;
       }
@@ -643,7 +733,8 @@ uint32_t BPFAbstractMemberAccess::GetFieldInfo(uint32_t InfoKind,
         return SizeInBits >> 3;
 
       unsigned SBitOffset, NextSBitOffset;
-      GetStorageBitRange(MemberTy, RecordAlignment, SBitOffset, NextSBitOffset);
+      GetStorageBitRange(MemberTy, *RecordAlignment, SBitOffset,
+                         NextSBitOffset);
       SizeInBits = NextSBitOffset - SBitOffset;
       if (SizeInBits & (SizeInBits - 1))
         report_fatal_error("Unsupported field expression for llvm.bpf.preserve.field.info");
@@ -703,7 +794,7 @@ uint32_t BPFAbstractMemberAccess::GetFieldInfo(uint32_t InfoKind,
     }
 
     unsigned SBitOffset, NextSBitOffset;
-    GetStorageBitRange(MemberTy, RecordAlignment, SBitOffset, NextSBitOffset);
+    GetStorageBitRange(MemberTy, *RecordAlignment, SBitOffset, NextSBitOffset);
     if (NextSBitOffset - SBitOffset > 64)
       report_fatal_error("too big field size for llvm.bpf.preserve.field.info");
 
@@ -734,7 +825,7 @@ uint32_t BPFAbstractMemberAccess::GetFieldInfo(uint32_t InfoKind,
     }
 
     unsigned SBitOffset, NextSBitOffset;
-    GetStorageBitRange(MemberTy, RecordAlignment, SBitOffset, NextSBitOffset);
+    GetStorageBitRange(MemberTy, *RecordAlignment, SBitOffset, NextSBitOffset);
     if (NextSBitOffset - SBitOffset > 64)
       report_fatal_error("too big field size for llvm.bpf.preserve.field.info");
 
@@ -923,7 +1014,8 @@ MDNode *BPFAbstractMemberAccess::computeAccessKey(CallInst *Call,
 
   int64_t PatchImm;
   std::string AccessStr("0");
-  if (CInfo.AccessIndex == BPFCoreSharedInfo::TYPE_EXISTENCE) {
+  if (CInfo.AccessIndex == BPFCoreSharedInfo::TYPE_EXISTENCE ||
+      CInfo.AccessIndex == BPFCoreSharedInfo::TYPE_MATCH) {
     PatchImm = 1;
   } else if (CInfo.AccessIndex == BPFCoreSharedInfo::TYPE_SIZE) {
     // typedef debuginfo type has size 0, get the eventual base type.
@@ -933,8 +1025,11 @@ MDNode *BPFAbstractMemberAccess::computeAccessKey(CallInst *Call,
     // ENUM_VALUE_EXISTENCE and ENUM_VALUE
     IsInt32Ret = false;
 
-    const auto *CE = cast<ConstantExpr>(Call->getArgOperand(1));
-    const GlobalVariable *GV = cast<GlobalVariable>(CE->getOperand(0));
+    // The argument could be a global variable or a getelementptr with base to
+    // a global variable depending on whether the clang option `opaque-options`
+    // is set or not.
+    const GlobalVariable *GV =
+        cast<GlobalVariable>(Call->getArgOperand(1)->stripPointerCasts());
     assert(GV->hasInitializer());
     const ConstantDataArray *DA = cast<ConstantDataArray>(GV->getInitializer());
     assert(DA->isString());

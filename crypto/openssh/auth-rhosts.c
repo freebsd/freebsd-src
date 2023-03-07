@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-rhosts.c,v 1.56 2022/02/23 21:21:49 djm Exp $ */
+/* $OpenBSD: auth-rhosts.c,v 1.57 2022/12/09 00:17:40 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -19,6 +19,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include <errno.h>
 #include <fcntl.h>
 #ifdef HAVE_NETGROUP_H
 # include <netgroup.h>
@@ -283,6 +284,7 @@ auth_rhosts2(struct passwd *pw, const char *client_user, const char *hostname,
 		xasprintf(&path, "%s/%s",
 		    pw->pw_dir, rhosts_files[rhosts_file_index]);
 		if (stat(path, &st) == -1) {
+			debug3_f("stat %s: %s", path, strerror(errno));
 			free(path);
 			continue;
 		}

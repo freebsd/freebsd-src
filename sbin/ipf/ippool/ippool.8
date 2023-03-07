@@ -18,7 +18,7 @@ ippool \- user interface to the IPFilter pools
 -F [-dv] [-o <role>] [-t <type>]
 .br
 .B ippool
--l [-dv] [-m <name>] [-t <type>] [-o <role>] [-M <core>] [-N <namelist>]
+-l [-dDv] [-m <name>] [-t <type>] [-o <role>] [-M <core>] [-N <namelist>]
 .br
 .B ippool
 -r [-dnv] [-m <name>] [-o <role>] [-t <type>] -i <ipaddr>[/<netmask>]
@@ -120,6 +120,10 @@ as a number of seconds.
 .B -u
 When parsing a configuration file, rather than load new pool data into the
 kernel, unload it.
+.TP
+.B -D
+When used in conjuction with -l, dump the ippool configuration to stdout in
+a format that can be subsequently used as input into ippool -f.
 .TP
 .SH FILES
 .br

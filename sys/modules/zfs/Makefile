@@ -143,6 +143,7 @@ SRCS+= spl_atomic.c
 SRCS+=	abd_os.c \
 	crypto_os.c \
 	dmu_os.c \
+	event_os.c \
 	hkdf.c \
 	kmod_core.c \
 	spa_os.c \
@@ -242,7 +243,6 @@ SRCS+=	abd.c \
 	sha256.c \
 	skein_zfs.c \
 	spa.c \
-	spa_boot.c \
 	spa_checkpoint.c \
 	spa_config.c \
 	spa_errlog.c \
@@ -348,10 +348,11 @@ CFLAGS.gcc+= -Wno-pointer-to-int-cast
 
 CFLAGS.lapi.c= -Wno-cast-qual
 CFLAGS.lcompat.c= -Wno-cast-qual
+CFLAGS.ldo.c= ${NO_WINFINITE_RECURSION}
 CFLAGS.lobject.c= -Wno-cast-qual
 CFLAGS.ltable.c= -Wno-cast-qual
 CFLAGS.lvm.c= -Wno-cast-qual
-CFLAGS.nvpair.c= -Wno-cast-qual -DHAVE_RPC_TYPES
+CFLAGS.nvpair.c= -Wno-cast-qual -DHAVE_RPC_TYPES ${NO_WSTRINGOP_OVERREAD}
 CFLAGS.spl_string.c= -Wno-cast-qual
 CFLAGS.spl_vm.c= -Wno-cast-qual
 CFLAGS.spl_zlib.c= -Wno-cast-qual

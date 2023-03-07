@@ -97,7 +97,7 @@ struct blockif_elem {
 };
 
 struct blockif_ctxt {
-	int			bc_magic;
+	unsigned int		bc_magic;
 	int			bc_fd;
 	int			bc_ischr;
 	int			bc_isgeom;
@@ -233,40 +233,44 @@ blockif_flush_bc(struct blockif_ctxt *bc)
 static void
 blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 {
+	struct spacectl_range range;
 	struct blockif_req *br;
 	off_t arg[2];
-	ssize_t clen, len, off, boff, voff;
+	ssize_t n;
+	size_t clen, len, off, boff, voff;
 	int i, err;
-	struct spacectl_range range;
 
 	br = be->be_req;
+	assert(br->br_resid >= 0);
+
 	if (br->br_iovcnt <= 1)
 		buf = NULL;
 	err = 0;
 	switch (be->be_op) {
 	case BOP_READ:
 		if (buf == NULL) {
-			if ((len = preadv(bc->bc_fd, br->br_iov, br->br_iovcnt,
-				   br->br_offset)) < 0)
+			if ((n = preadv(bc->bc_fd, br->br_iov, br->br_iovcnt,
+			    br->br_offset)) < 0)
 				err = errno;
 			else
-				br->br_resid -= len;
+				br->br_resid -= n;
 			break;
 		}
 		i = 0;
 		off = voff = 0;
 		while (br->br_resid > 0) {
 			len = MIN(br->br_resid, MAXPHYS);
-			if (pread(bc->bc_fd, buf, len, br->br_offset +
-			    off) < 0) {
+			n = pread(bc->bc_fd, buf, len, br->br_offset + off);
+			if (n < 0) {
 				err = errno;
 				break;
 			}
+			len = (size_t)n;
 			boff = 0;
 			do {
 				clen = MIN(len - boff, br->br_iov[i].iov_len -
 				    voff);
-				memcpy(br->br_iov[i].iov_base + voff,
+				memcpy((uint8_t *)br->br_iov[i].iov_base + voff,
 				    buf + boff, clen);
 				if (clen < br->br_iov[i].iov_len - voff)
 					voff += clen;
@@ -286,11 +290,11 @@ blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 			break;
 		}
 		if (buf == NULL) {
-			if ((len = pwritev(bc->bc_fd, br->br_iov, br->br_iovcnt,
-				    br->br_offset)) < 0)
+			if ((n = pwritev(bc->bc_fd, br->br_iov, br->br_iovcnt,
+			    br->br_offset)) < 0)
 				err = errno;
 			else
-				br->br_resid -= len;
+				br->br_resid -= n;
 			break;
 		}
 		i = 0;
@@ -302,7 +306,8 @@ blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 				clen = MIN(len - boff, br->br_iov[i].iov_len -
 				    voff);
 				memcpy(buf + boff,
-				    br->br_iov[i].iov_base + voff, clen);
+				    (uint8_t *)br->br_iov[i].iov_base + voff,
+				    clen);
 				if (clen < br->br_iov[i].iov_len - voff)
 					voff += clen;
 				else {
@@ -311,13 +316,14 @@ blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be, uint8_t *buf)
 				}
 				boff += clen;
 			} while (boff < len);
-			if (pwrite(bc->bc_fd, buf, len, br->br_offset +
-			    off) < 0) {
+
+			n = pwrite(bc->bc_fd, buf, len, br->br_offset + off);
+			if (n < 0) {
 				err = errno;
 				break;
 			}
-			off += len;
-			br->br_resid -= len;
+			off += n;
+			br->br_resid -= n;
 		}
 		break;
 	case BOP_FLUSH:
@@ -409,7 +415,8 @@ blockif_thr(void *arg)
 }
 
 static void
-blockif_sigcont_handler(int signal, enum ev_type type, void *arg)
+blockif_sigcont_handler(int signal __unused, enum ev_type type __unused,
+    void *arg __unused)
 {
 	struct blockif_sig_elem *bse;
 
@@ -656,7 +663,7 @@ err:
 }
 
 static void
-blockif_resized(int fd, enum ev_type type, void *arg)
+blockif_resized(int fd, enum ev_type type __unused, void *arg)
 {
 	struct blockif_ctxt *bc;
 	struct stat sb;
@@ -692,6 +699,8 @@ blockif_register_resize_callback(struct blockif_ctxt *bc, blockif_resize_cb *cb,
 
 	if (cb == NULL)
 		return (EINVAL);
+
+	err = 0;
 
 	pthread_mutex_lock(&bc->bc_mtx);
 	if (bc->bc_resize_cb != NULL) {
@@ -907,10 +916,10 @@ blockif_chs(struct blockif_ctxt *bc, uint16_t *c, uint8_t *h, uint8_t *s)
 	sectors = bc->bc_size / bc->bc_sectsz;
 
 	/* Clamp the size to the largest possible with CHS */
-	if (sectors > 65535UL*16*255)
-		sectors = 65535UL*16*255;
+	if (sectors > 65535L * 16 * 255)
+		sectors = 65535L * 16 * 255;
 
-	if (sectors >= 65536UL*16*63) {
+	if (sectors >= 65536L * 16 * 63) {
 		secpt = 255;
 		heads = 16;
 		hcyl = sectors / secpt;
@@ -1000,7 +1009,7 @@ blockif_pause(struct blockif_ctxt *bc)
 		pthread_cond_wait(&bc->bc_work_done_cond, &bc->bc_mtx);
 	pthread_mutex_unlock(&bc->bc_mtx);
 
-	if (blockif_flush_bc(bc))
+	if (!bc->bc_rdonly && blockif_flush_bc(bc))
 		fprintf(stderr, "%s: [WARN] failed to flush backing file.\r\n",
 			__func__);
 }

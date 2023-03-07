@@ -118,7 +118,7 @@ static void cb_exit(void *arg, int v);
  */
 
 static void
-cb_putc(void *arg, int ch)
+cb_putc(void *arg __unused, int ch)
 {
 	char c = ch;
 
@@ -126,7 +126,7 @@ cb_putc(void *arg, int ch)
 }
 
 static int
-cb_getc(void *arg)
+cb_getc(void *arg __unused)
 {
 	char c;
 
@@ -136,7 +136,7 @@ cb_getc(void *arg)
 }
 
 static int
-cb_poll(void *arg)
+cb_poll(void *arg __unused)
 {
 	int n;
 
@@ -160,7 +160,7 @@ struct cb_file {
 };
 
 static int
-cb_open(void *arg, const char *filename, void **hp)
+cb_open(void *arg __unused, const char *filename, void **hp)
 {
 	struct cb_file *cf;
 	char path[PATH_MAX];
@@ -202,7 +202,7 @@ out:
 }
 
 static int
-cb_close(void *arg, void *h)
+cb_close(void *arg __unused, void *h)
 {
 	struct cb_file *cf = h;
 
@@ -216,7 +216,7 @@ cb_close(void *arg, void *h)
 }
 
 static int
-cb_isdir(void *arg, void *h)
+cb_isdir(void *arg __unused, void *h)
 {
 	struct cb_file *cf = h;
 
@@ -224,7 +224,7 @@ cb_isdir(void *arg, void *h)
 }
 
 static int
-cb_read(void *arg, void *h, void *buf, size_t size, size_t *resid)
+cb_read(void *arg __unused, void *h, void *buf, size_t size, size_t *resid)
 {
 	struct cb_file *cf = h;
 	ssize_t sz;
@@ -239,8 +239,8 @@ cb_read(void *arg, void *h, void *buf, size_t size, size_t *resid)
 }
 
 static int
-cb_readdir(void *arg, void *h, uint32_t *fileno_return, uint8_t *type_return,
-	   size_t *namelen_return, char *name)
+cb_readdir(void *arg __unused, void *h, uint32_t *fileno_return,
+    uint8_t *type_return, size_t *namelen_return, char *name)
 {
 	struct cb_file *cf = h;
 	struct dirent *dp;
@@ -266,7 +266,7 @@ cb_readdir(void *arg, void *h, uint32_t *fileno_return, uint8_t *type_return,
 }
 
 static int
-cb_seek(void *arg, void *h, uint64_t offset, int whence)
+cb_seek(void *arg __unused, void *h, uint64_t offset, int whence)
 {
 	struct cb_file *cf = h;
 
@@ -278,7 +278,7 @@ cb_seek(void *arg, void *h, uint64_t offset, int whence)
 }
 
 static int
-cb_stat(void *arg, void *h, struct stat *sbp)
+cb_stat(void *arg __unused, void *h, struct stat *sbp)
 {
 	struct cb_file *cf = h;
 
@@ -299,7 +299,7 @@ cb_stat(void *arg, void *h, struct stat *sbp)
  */
 
 static int
-cb_diskread(void *arg, int unit, uint64_t from, void *to, size_t size,
+cb_diskread(void *arg __unused, int unit, uint64_t from, void *to, size_t size,
     size_t *resid)
 {
 	ssize_t n;
@@ -314,8 +314,8 @@ cb_diskread(void *arg, int unit, uint64_t from, void *to, size_t size,
 }
 
 static int
-cb_diskwrite(void *arg, int unit, uint64_t offset, void *src, size_t size,
-    size_t *resid)
+cb_diskwrite(void *arg __unused, int unit, uint64_t offset, void *src,
+    size_t size, size_t *resid)
 {
 	ssize_t n;
 
@@ -329,7 +329,7 @@ cb_diskwrite(void *arg, int unit, uint64_t offset, void *src, size_t size,
 }
 
 static int
-cb_diskioctl(void *arg, int unit, u_long cmd, void *data)
+cb_diskioctl(void *arg __unused, int unit, u_long cmd, void *data)
 {
 	struct stat sb;
 
@@ -359,7 +359,7 @@ cb_diskioctl(void *arg, int unit, u_long cmd, void *data)
  * Guest virtual machine i/o callbacks
  */
 static int
-cb_copyin(void *arg, const void *from, uint64_t to, size_t size)
+cb_copyin(void *arg __unused, const void *from, uint64_t to, size_t size)
 {
 	char *ptr;
 
@@ -374,7 +374,7 @@ cb_copyin(void *arg, const void *from, uint64_t to, size_t size)
 }
 
 static int
-cb_copyout(void *arg, uint64_t from, void *to, size_t size)
+cb_copyout(void *arg __unused, uint64_t from, void *to, size_t size)
 {
 	char *ptr;
 
@@ -389,7 +389,7 @@ cb_copyout(void *arg, uint64_t from, void *to, size_t size)
 }
 
 static void
-cb_setreg(void *arg, int r, uint64_t v)
+cb_setreg(void *arg __unused, int r, uint64_t v)
 {
 	int error;
 	enum vm_reg_name vmreg;
@@ -418,7 +418,7 @@ cb_setreg(void *arg, int r, uint64_t v)
 }
 
 static void
-cb_setmsr(void *arg, int r, uint64_t v)
+cb_setmsr(void *arg __unused, int r, uint64_t v)
 {
 	int error;
 	enum vm_reg_name vmreg;
@@ -446,7 +446,7 @@ cb_setmsr(void *arg, int r, uint64_t v)
 }
 
 static void
-cb_setcr(void *arg, int r, uint64_t v)
+cb_setcr(void *arg __unused, int r, uint64_t v)
 {
 	int error;
 	enum vm_reg_name vmreg;
@@ -481,7 +481,7 @@ cb_setcr(void *arg, int r, uint64_t v)
 }
 
 static void
-cb_setgdt(void *arg, uint64_t base, size_t size)
+cb_setgdt(void *arg __unused, uint64_t base, size_t size)
 {
 	int error;
 
@@ -495,7 +495,7 @@ cb_setgdt(void *arg, uint64_t base, size_t size)
 }
 
 static void
-cb_exec(void *arg, uint64_t rip)
+cb_exec(void *arg __unused, uint64_t rip)
 {
 	int error;
 
@@ -518,14 +518,14 @@ cb_exec(void *arg, uint64_t rip)
  */
 
 static void
-cb_delay(void *arg, int usec)
+cb_delay(void *arg __unused, int usec)
 {
 
 	usleep(usec);
 }
 
 static void
-cb_exit(void *arg, int v)
+cb_exit(void *arg __unused, int v)
 {
 
 	tcsetattr(consout_fd, TCSAFLUSH, &oldterm);
@@ -533,7 +533,7 @@ cb_exit(void *arg, int v)
 }
 
 static void
-cb_getmem(void *arg, uint64_t *ret_lowmem, uint64_t *ret_highmem)
+cb_getmem(void *arg __unused, uint64_t *ret_lowmem, uint64_t *ret_highmem)
 {
 
 	*ret_lowmem = vm_get_lowmem_size(ctx);
@@ -548,17 +548,21 @@ struct env {
 static SLIST_HEAD(envhead, env) envhead;
 
 static void
-addenv(char *str)
+addenv(const char *str)
 {
 	struct env *env;
 
 	env = malloc(sizeof(struct env));
-	env->str = str;
+	if (env == NULL)
+		err(EX_OSERR, "malloc");
+	env->str = strdup(str);
+	if (env->str == NULL)
+		err(EX_OSERR, "strdup");
 	SLIST_INSERT_HEAD(&envhead, env, next);
 }
 
 static char *
-cb_getenv(void *arg, int num)
+cb_getenv(void *arg __unused, int num)
 {
 	int i;
 	struct env *env;
@@ -574,22 +578,22 @@ cb_getenv(void *arg, int num)
 }
 
 static int
-cb_vm_set_register(void *arg, int vcpu, int reg, uint64_t val)
+cb_vm_set_register(void *arg __unused, int vcpu, int reg, uint64_t val)
 {
 
 	return (vm_set_register(ctx, vcpu, reg, val));
 }
 
 static int
-cb_vm_set_desc(void *arg, int vcpu, int reg, uint64_t base, u_int limit,
-    u_int access)
+cb_vm_set_desc(void *arg __unused, int vcpu, int reg, uint64_t base,
+    u_int limit, u_int access)
 {
 
 	return (vm_set_desc(ctx, vcpu, reg, base, limit, access));
 }
 
 static void
-cb_swap_interpreter(void *arg, const char *interp_req)
+cb_swap_interpreter(void *arg __unused, const char *interp_req)
 {
 
 	/*
@@ -690,7 +694,7 @@ disk_open(char *path)
 	if (ndisks >= NDISKS)
 		return (ERANGE);
 
-	fd = open(path, O_RDONLY);
+	fd = open(path, O_RDWR);
 	if (fd < 0)
 		return (errno);
 

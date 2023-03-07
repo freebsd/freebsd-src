@@ -33,15 +33,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/capsicum.h>
-#include <sys/clock.h>
-#include <sys/dirent.h>
-#include <sys/fcntl.h>
-#include <sys/file.h>
-#include <sys/filedesc.h>
-#include <sys/kernel.h>
+#include <sys/systm.h>
 #include <sys/ktr.h>
-#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mman.h>
@@ -49,15 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
-#include <sys/resource.h>
-#include <sys/resourcevar.h>
-#include <sys/sched.h>
 #include <sys/syscallsubr.h>
-#include <sys/sysproto.h>
-#include <sys/systm.h>
-#include <sys/unistd.h>
-#include <sys/vnode.h>
-#include <sys/wait.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -74,6 +59,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/pmap.h>
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
@@ -84,13 +70,9 @@ __FBSDID("$FreeBSD$");
 
 #include <amd64/linux/linux.h>
 #include <amd64/linux/linux_proto.h>
-#include <compat/linux/linux_emul.h>
-#include <compat/linux/linux_file.h>
 #include <compat/linux/linux_fork.h>
-#include <compat/linux/linux_ipc.h>
 #include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_mmap.h>
-#include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
 
 #define	LINUX_ARCH_AMD64		0xc000003e

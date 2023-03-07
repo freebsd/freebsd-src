@@ -854,6 +854,24 @@ siftr_chkpkt(struct mbuf **m, struct ifnet *ifp, int flags,
 		goto ret;
 
 	/*
+	 * Create a tcphdr struct starting at the correct offset
+	 * in the IP packet. ip->ip_hl gives the ip header length
+	 * in 4-byte words, so multiply it to get the size in bytes.
+	 */
+	ip_hl = (ip->ip_hl << 2);
+	th = (struct tcphdr *)((caddr_t)ip + ip_hl);
+
+	/*
+	 * Only pkts selected by the tcp port filter
+	 * can be inserted into the pkt_queue
+	 */
+	if ((siftr_port_filter != 0) &&
+	    (siftr_port_filter != ntohs(th->th_sport)) &&
+	    (siftr_port_filter != ntohs(th->th_dport))) {
+		goto ret;
+	}
+
+	/*
 	 * If a kernel subsystem reinjects packets into the stack, our pfil
 	 * hook will be called multiple times for the same packet.
 	 * Make sure we only process unique packets.
@@ -865,14 +883,6 @@ siftr_chkpkt(struct mbuf **m, struct ifnet *ifp, int flags,
 		ss->n_in++;
 	else
 		ss->n_out++;
-
-	/*
-	 * Create a tcphdr struct starting at the correct offset
-	 * in the IP packet. ip->ip_hl gives the ip header length
-	 * in 4-byte words, so multiply it to get the size in bytes.
-	 */
-	ip_hl = (ip->ip_hl << 2);
-	th = (struct tcphdr *)((caddr_t)ip + ip_hl);
 
 	/*
 	 * If the pfil hooks don't provide a pointer to the
@@ -896,10 +906,9 @@ siftr_chkpkt(struct mbuf **m, struct ifnet *ifp, int flags,
 
 	/*
 	 * If we can't find the TCP control block (happens occasionaly for a
-	 * packet sent during the shutdown phase of a TCP connection),
-	 * or we're in the timewait state, bail
+	 * packet sent during the shutdown phase of a TCP connection), bail
 	 */
-	if (tp == NULL || inp->inp_flags & INP_TIMEWAIT) {
+	if (tp == NULL) {
 		if (dir == PFIL_IN)
 			ss->nskip_in_tcpcb++;
 		else
@@ -908,15 +917,6 @@ siftr_chkpkt(struct mbuf **m, struct ifnet *ifp, int flags,
 		goto inp_unlock;
 	}
 
-	/*
-	 * Only pkts selected by the tcp port filter
-	 * can be inserted into the pkt_queue
-	 */
-	if ((siftr_port_filter != 0) &&
-	    (siftr_port_filter != ntohs(inp->inp_lport)) &&
-	    (siftr_port_filter != ntohs(inp->inp_fport))) {
-		goto inp_unlock;
-	}
 
 	pn = malloc(sizeof(struct pkt_node), M_SIFTR_PKTNODE, M_NOWAIT|M_ZERO);
 
@@ -1040,6 +1040,23 @@ siftr_chkpkt6(struct mbuf **m, struct ifnet *ifp, int flags,
 		goto ret6;
 
 	/*
+	 * Create a tcphdr struct starting at the correct offset
+	 * in the ipv6 packet.
+	 */
+	ip6_hl = sizeof(struct ip6_hdr);
+	th = (struct tcphdr *)((caddr_t)ip6 + ip6_hl);
+
+	/*
+	 * Only pkts selected by the tcp port filter
+	 * can be inserted into the pkt_queue
+	 */
+	if ((siftr_port_filter != 0) &&
+	    (siftr_port_filter != ntohs(th->th_sport)) &&
+	    (siftr_port_filter != ntohs(th->th_dport))) {
+		goto ret6;
+	}
+
+	/*
 	 * If a kernel subsystem reinjects packets into the stack, our pfil
 	 * hook will be called multiple times for the same packet.
 	 * Make sure we only process unique packets.
@@ -1051,15 +1068,6 @@ siftr_chkpkt6(struct mbuf **m, struct ifnet *ifp, int flags,
 		ss->n_in++;
 	else
 		ss->n_out++;
-
-	ip6_hl = sizeof(struct ip6_hdr);
-
-	/*
-	 * Create a tcphdr struct starting at the correct offset
-	 * in the ipv6 packet. ip->ip_hl gives the ip header length
-	 * in 4-byte words, so multiply it to get the size in bytes.
-	 */
-	th = (struct tcphdr *)((caddr_t)ip6 + ip6_hl);
 
 	/*
 	 * For inbound packets, the pfil hooks don't provide a pointer to the
@@ -1081,10 +1089,9 @@ siftr_chkpkt6(struct mbuf **m, struct ifnet *ifp, int flags,
 
 	/*
 	 * If we can't find the TCP control block (happens occasionaly for a
-	 * packet sent during the shutdown phase of a TCP connection),
-	 * or we're in the timewait state, bail.
+	 * packet sent during the shutdown phase of a TCP connection), bail
 	 */
-	if (tp == NULL || inp->inp_flags & INP_TIMEWAIT) {
+	if (tp == NULL) {
 		if (dir == PFIL_IN)
 			ss->nskip_in_tcpcb++;
 		else
@@ -1093,15 +1100,6 @@ siftr_chkpkt6(struct mbuf **m, struct ifnet *ifp, int flags,
 		goto inp_unlock6;
 	}
 
-	/*
-	 * Only pkts selected by the tcp port filter
-	 * can be inserted into the pkt_queue
-	 */
-	if ((siftr_port_filter != 0) &&
-	    (siftr_port_filter != ntohs(inp->inp_lport)) &&
-	    (siftr_port_filter != ntohs(inp->inp_fport))) {
-		goto inp_unlock6;
-	}
 
 	pn = malloc(sizeof(struct pkt_node), M_SIFTR_PKTNODE, M_NOWAIT|M_ZERO);
 
@@ -1128,8 +1126,7 @@ inp_unlock6:
 		INP_RUNLOCK(inp);
 
 ret6:
-	/* Returning 0 ensures pfil will not discard the pkt. */
-	return (0);
+	return (PFIL_PASS);
 }
 #endif /* #ifdef SIFTR_IPV6 */
 
@@ -1142,18 +1139,16 @@ VNET_DEFINE_STATIC(pfil_hook_t, siftr_inet6_hook);
 static int
 siftr_pfil(int action)
 {
-	struct pfil_hook_args pha;
-	struct pfil_link_args pla;
-
-	pha.pa_version = PFIL_VERSION;
-	pha.pa_flags = PFIL_IN | PFIL_OUT;
-	pha.pa_modname = "siftr";
-	pha.pa_ruleset = NULL;
-	pha.pa_rulname = "default";
-
-	pla.pa_version = PFIL_VERSION;
-	pla.pa_flags = PFIL_IN | PFIL_OUT |
-	    PFIL_HEADPTR | PFIL_HOOKPTR;
+	struct pfil_hook_args pha = {
+		.pa_version = PFIL_VERSION,
+		.pa_flags = PFIL_IN | PFIL_OUT,
+		.pa_modname = "siftr",
+		.pa_rulname = "default",
+	};
+	struct pfil_link_args pla = {
+		.pa_version = PFIL_VERSION,
+		.pa_flags = PFIL_IN | PFIL_OUT | PFIL_HEADPTR | PFIL_HOOKPTR,
+	};
 
 	VNET_ITERATOR_DECL(vnet_iter);
 
@@ -1162,14 +1157,14 @@ siftr_pfil(int action)
 		CURVNET_SET(vnet_iter);
 
 		if (action == HOOK) {
-			pha.pa_func = siftr_chkpkt;
+			pha.pa_mbuf_chk = siftr_chkpkt;
 			pha.pa_type = PFIL_TYPE_IP4;
 			V_siftr_inet_hook = pfil_add_hook(&pha);
 			pla.pa_hook = V_siftr_inet_hook;
 			pla.pa_head = V_inet_pfil_head;
 			(void)pfil_link(&pla);
 #ifdef SIFTR_IPV6
-			pha.pa_func = siftr_chkpkt6;
+			pha.pa_mbuf_chk = siftr_chkpkt6;
 			pha.pa_type = PFIL_TYPE_IP6;
 			V_siftr_inet6_hook = pfil_add_hook(&pha);
 			pla.pa_hook = V_siftr_inet6_hook;

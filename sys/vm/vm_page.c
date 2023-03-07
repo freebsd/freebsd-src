@@ -1483,6 +1483,7 @@ vm_page_insert_after(vm_page_t m, vm_object_t object, vm_pindex_t pindex,
 		return (1);
 	}
 	vm_page_insert_radixdone(m, object, mpred);
+	vm_pager_page_inserted(object, m);
 	return (0);
 }
 
@@ -1556,6 +1557,8 @@ vm_page_object_remove(vm_page_t m)
 	/* Deferred free of swap space. */
 	if ((m->a.flags & PGA_SWAP_FREE) != 0)
 		vm_pager_page_unswapped(m);
+
+	vm_pager_page_removed(object, m);
 
 	m->object = NULL;
 	mrem = vm_radix_remove(&object->rtree, m->pindex);
@@ -1879,6 +1882,7 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
 
 	vm_page_insert_radixdone(m, new_object, mpred);
 	vm_page_dirty(m);
+	vm_pager_page_inserted(new_object, m);
 	return (0);
 }
 
@@ -2023,6 +2027,8 @@ vm_page_alloc_domain_after(vm_object_t object, vm_pindex_t pindex, int domain,
 
 	flags = 0;
 	m = NULL;
+	if (!vm_pager_can_alloc_page(object, pindex))
+		return (NULL);
 again:
 #if VM_NRESERVLEVEL > 0
 	/*
@@ -2548,7 +2554,7 @@ vm_page_alloc_check(vm_page_t m)
 	KASSERT(pmap_page_get_memattr(m) == VM_MEMATTR_DEFAULT,
 	    ("page %p has unexpected memattr %d",
 	    m, pmap_page_get_memattr(m)));
-	KASSERT(m->valid == 0, ("free page %p is valid", m));
+	KASSERT(vm_page_none_valid(m), ("free page %p is valid", m));
 	pmap_vm_page_alloc_check(m);
 }
 
@@ -3656,18 +3662,31 @@ vm_page_pqbatch_submit(vm_page_t m, uint8_t queue)
 {
 	struct vm_batchqueue *bq;
 	struct vm_pagequeue *pq;
-	int domain;
+	int domain, slots_remaining;
 
 	KASSERT(queue < PQ_COUNT, ("invalid queue %d", queue));
 
 	domain = vm_page_domain(m);
 	critical_enter();
 	bq = DPCPU_PTR(pqbatch[domain][queue]);
-	if (vm_batchqueue_insert(bq, m)) {
+	slots_remaining = vm_batchqueue_insert(bq, m);
+	if (slots_remaining > (VM_BATCHQUEUE_SIZE >> 1)) {
+		/* keep building the bq */
+		critical_exit();
+		return;
+	} else if (slots_remaining > 0 ) {
+		/* Try to process the bq if we can get the lock */
+		pq = &VM_DOMAIN(domain)->vmd_pagequeues[queue];
+		if (vm_pagequeue_trylock(pq)) {
+			vm_pqbatch_process(pq, bq, queue);
+			vm_pagequeue_unlock(pq);
+		}
 		critical_exit();
 		return;
 	}
 	critical_exit();
+
+	/* if we make it here, the bq is full so wait for the lock */
 
 	pq = &VM_DOMAIN(domain)->vmd_pagequeues[queue];
 	vm_pagequeue_lock(pq);
@@ -4141,7 +4160,12 @@ vm_page_mvqueue(vm_page_t m, const uint8_t nqueue, const uint16_t nflag)
 		if (nqueue == PQ_ACTIVE)
 			new.act_count = max(old.act_count, ACT_INIT);
 		if (old.queue == nqueue) {
-			if (nqueue != PQ_ACTIVE)
+			/*
+			 * There is no need to requeue pages already in the
+			 * active queue.
+			 */
+			if (nqueue != PQ_ACTIVE ||
+			    (old.flags & PGA_ENQUEUED) == 0)
 				new.flags |= nflag;
 		} else {
 			new.flags |= nflag;
@@ -4195,7 +4219,8 @@ void
 vm_page_unswappable(vm_page_t m)
 {
 
-	KASSERT(!vm_page_wired(m) && (m->oflags & VPO_UNMANAGED) == 0,
+	VM_OBJECT_ASSERT_LOCKED(m->object);
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("page %p already unswappable", m));
 
 	vm_page_dequeue(m);
@@ -4221,7 +4246,7 @@ vm_page_release_toq(vm_page_t m, uint8_t nqueue, const bool noreuse)
 	 * If we were asked to not cache the page, place it near the head of the
 	 * inactive queue so that is reclaimed sooner.
 	 */
-	if (noreuse || m->valid == 0) {
+	if (noreuse || vm_page_none_valid(m)) {
 		nqueue = PQ_INACTIVE;
 		nflag = PGA_REQUEUE_HEAD;
 	} else {
@@ -4238,7 +4263,8 @@ vm_page_release_toq(vm_page_t m, uint8_t nqueue, const bool noreuse)
 		 * referenced and avoid any queue operations.
 		 */
 		new.flags &= ~PGA_QUEUE_OP_MASK;
-		if (nflag != PGA_REQUEUE_HEAD && old.queue == PQ_ACTIVE)
+		if (nflag != PGA_REQUEUE_HEAD && old.queue == PQ_ACTIVE &&
+		    (old.flags & PGA_ENQUEUED) != 0)
 			new.flags |= PGA_REFERENCED;
 		else {
 			new.flags |= nflag;
@@ -4687,6 +4713,10 @@ retrylookup:
 		*mp = NULL;
 		return (VM_PAGER_FAIL);
 	} else if ((m = vm_page_alloc(object, pindex, pflags)) == NULL) {
+		if (!vm_pager_can_alloc_page(object, pindex)) {
+			*mp = NULL;
+			return (VM_PAGER_AGAIN);
+		}
 		goto retrylookup;
 	}
 
@@ -4698,7 +4728,8 @@ retrylookup:
 		ma[0] = m;
 		for (i = 1; i < after; i++) {
 			if ((ma[i] = vm_page_next(ma[i - 1])) != NULL) {
-				if (ma[i]->valid || !vm_page_tryxbusy(ma[i]))
+				if (vm_page_any_valid(ma[i]) ||
+				    !vm_page_tryxbusy(ma[i]))
 					break;
 			} else {
 				ma[i] = vm_page_alloc(object, m->pindex + i,
@@ -5386,7 +5417,7 @@ vm_page_is_valid(vm_page_t m, int base, int size)
 	vm_page_bits_t bits;
 
 	bits = vm_page_bits(base, size);
-	return (m->valid != 0 && (m->valid & bits) == bits);
+	return (vm_page_any_valid(m) && (m->valid & bits) == bits);
 }
 
 /*

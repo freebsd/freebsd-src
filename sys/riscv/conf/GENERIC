@@ -31,8 +31,11 @@ options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	IPSEC_SUPPORT		# Allow kldload of ipsec and tcpmd5
-options		ROUTE_MPATH		# Multipath routing support
+options 	NETLINK			# netlink(4) support
+options 	ROUTE_MPATH		# Multipath routing support
 options 	TCP_OFFLOAD		# TCP offload
+options 	TCP_BLACKBOX		# Enhanced TCP event logging
+options 	TCP_RFC7413		# TCP Fast Open
 options 	SCTP_SUPPORT		# Allow kldload of SCTP
 options 	FFS			# Berkeley Fast Filesystem
 options 	SOFTUPDATES		# Enable FFS soft updates support
@@ -49,7 +52,6 @@ options 	CD9660			# ISO 9660 Filesystem
 options 	PROCFS			# Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		# Pseudo-filesystem framework
 options 	TMPFS			# Efficient memory filesystem
-options 	GEOM_PART_GPT		# GUID Partition Tables.
 options 	GEOM_RAID		# Soft RAID functionality.
 options 	GEOM_LABEL		# Provides labelization
 options 	COMPAT_FREEBSD12	# Compatible with FreeBSD12
@@ -76,7 +78,6 @@ options 	RACCT			# Resource accounting framework
 options 	RACCT_DEFAULT_TO_DISABLED # Set kern.racct.enable=0 by default
 options 	RCTL			# Resource limits
 options 	SMP
-options 	INTRNG
 
 # RISC-V SBI console
 device		rcons
@@ -140,6 +141,7 @@ device		vt
 device		kbdmux
 
 # RTC
+device		da9063_rtc	# Dialog Semiconductor DA9063 RTC
 device		goldfish_rtc	# QEMU RTC
 
 # Ethernet drivers
@@ -157,6 +159,9 @@ device		gpio
 # SPI
 device		spibus
 device		spigen
+
+# Power management controllers
+device		da9063_pmic	# Dialog Semiconductor DA9063 PMIC
 
 # Uncomment for memory disk
 # options 	MD_ROOT
@@ -184,7 +189,7 @@ options 	ALT_BREAK_TO_DEBUGGER	# Enter debugger on keyboard escape sequence
 options 	VERBOSE_SYSINIT=0	# Support debug.verbose_sysinit, off by default
 
 # Kernel dump features.
-options		ZSTDIO			# zstd-compressed kernel and user dumps
+options 	ZSTDIO			# zstd-compressed kernel and user dumps
 
 # Pseudo devices.
 device		crypto		# core crypto support

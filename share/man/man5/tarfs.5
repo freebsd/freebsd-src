@@ -1,0 +1,104 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2022 Klara, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd February 14, 2023
+.Dt TARFS 5
+.Os
+.Sh NAME
+.Nm tarfs
+.Nd tarball filesystem
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following line in
+your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options TARFS"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place the
+following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+tarfs_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver implements a read-only filesystem backed by a
+.Xr tar 5
+file.
+Currently, only POSIX archives, optionally compressed with
+.Xr zstd 1 ,
+are supported.
+.Pp
+The preferred I/O size for
+.Nm
+filesystems can be adjusted using the
+.Va vfs.tarfs.ioshift
+sysctl setting and tunable.
+Setting it to 0 will reset it to its default value.
+Note that changes to this setting only apply to filesystems mounted
+after the change.
+.Sh DIAGNOSTICS
+If enabled by the
+.Dv TARFS_DEBUG
+kernel option, the
+.Va vfs.tarfs.debug
+sysctl setting can be used to control debugging output from the
+.Nm
+driver.
+Debugging output for individual sections of the driver can be enabled
+by adding together the relevant values from the table below.
+.Bl -column Value Description
+.It 0x01 Ta Memory allocations
+.It 0x02 Ta Checksum calculations
+.It 0x04 Ta Filesystem operations (vfsops)
+.It 0x08 Ta Path lookups
+.It 0x10 Ta File operations (vnops)
+.It 0x20 Ta General I/O
+.It 0x40 Ta Decompression
+.It 0x80 Ta Decompression index
+.It 0x100 Ta Sparse file mapping
+.It 0x200 Ta Bounce buffer usage
+.El
+.Sh SEE ALSO
+.Xr tar 1 ,
+.Xr zstd 1 ,
+.Xr fstab 5 ,
+.Xr tar 5 ,
+.Xr mount 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+.An -nosplit
+The
+.Nm
+driver was developed by
+.An Stephen J. Kiernan Aq Mt stevek@FreeBSD.org
+and
+.An Dag-Erling Smørgrav Aq Mt des@FreeBSD.org
+for Juniper Networks and Klara Systems.
+This manual page was written by
+.An Dag-Erling Smørgrav Aq Mt des@FreeBSD.org
+for Juniper Networks and Klara Systems.

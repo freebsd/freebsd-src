@@ -32,7 +32,7 @@
 .\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
 .\" $FreeBSD$
 .\"
-.Dd August 31, 2020
+.Dd October 31, 2022
 .Dt LS 1
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .Nd list directory contents
 .Sh SYNOPSIS
 .Nm
-.Op Fl ABCFGHILPRSTUWZabcdfghiklmnopqrstuwxy1\&,
+.Op Fl ABCFGHILPRSTUWZabcdfghiklmnopqrstuvwxy1\&,
 .Op Fl -color Ns = Ns Ar when
 .Op Fl D Ar format
 .Op Ar
@@ -399,6 +399,15 @@ of the file for sorting
 .Pq Fl t
 or printing
 .Pq Fl l .
+.It Fl v
+Sort following a natural ordering, using
+.Xr strverscmp 3
+instead of
+.Xr strcoll 3
+as the comparison function.
+E.g., files lexicographically ordered
+"bloem1", "bloem10", and "bloem9" would instead be ordered
+"bloem1", "bloem9", and "bloem10", as one would perhaps expect.
 .It Fl w
 Force raw printing of non-printable characters.
 This is the default
@@ -883,8 +892,10 @@ specification.
 .Xr sort 1 ,
 .Xr xterm 1 Pq Pa ports/x11/xterm ,
 .Xr localeconv 3 ,
+.Xr strcoll 3 ,
 .Xr strftime 3 ,
 .Xr strmode 3 ,
+.Xr strverscmp 3 ,
 .Xr termcap 5 ,
 .Xr maclabel 7 ,
 .Xr sticky 7 ,
@@ -902,7 +913,7 @@ utility conforms to
 and
 .St -p1003.1-2008 .
 The options
-.Fl B , D , G , I , T , U , W , Z , b , h , w , y
+.Fl B , D , G , I , T , U , W , Z , b , h , v , w , y
 and
 .Fl ,
 are non-standard extensions.
@@ -918,6 +929,11 @@ An
 .Nm
 command appeared in
 .At v1 .
+.Pp
+The
+.Fl v
+option was added in
+.Fx 14.0 .
 .Sh BUGS
 To maintain backward compatibility, the relationships between the many
 options are quite complex.

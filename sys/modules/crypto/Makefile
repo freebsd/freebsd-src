@@ -98,7 +98,6 @@ SRCS	+= curve25519.c
 CFLAGS.curve25519.c		+= -I${LIBSODIUM_INC} -I${LIBSODIUM_COMPAT}
 
 SRCS	+= opt_param.h cryptodev_if.h bus_if.h device_if.h
-SRCS	+= opt_compat.h
 SRCS	+= opt_ddb.h
 SRCS	+= cbc_mac.c
 SRCS	+= xform_cbc_mac.c

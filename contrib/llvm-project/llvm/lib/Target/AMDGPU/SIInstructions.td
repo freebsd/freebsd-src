@@ -14,12 +14,24 @@ class GCNPat<dag pattern, dag result> : Pat<pattern, result>, GCNPredicateContro
 
 }
 
+class UniformSextInreg<ValueType VT> : PatFrag<
+  (ops node:$src),
+  (sext_inreg $src, VT),
+  [{ return !N->isDivergent(); }]>;
+
+class DivergentSextInreg<ValueType VT> : PatFrag<
+  (ops node:$src),
+  (sext_inreg $src, VT),
+  [{ return N->isDivergent(); }]>;
+
 include "SOPInstructions.td"
 include "VOPInstructions.td"
 include "SMInstructions.td"
 include "FLATInstructions.td"
 include "BUFInstructions.td"
 include "EXPInstructions.td"
+include "LDSDIRInstructions.td"
+include "VINTERPInstructions.td"
 
 //===----------------------------------------------------------------------===//
 // VINTRP Instructions
@@ -176,19 +188,33 @@ def EXIT_STRICT_WQM : SPseudoInstSI <(outs SReg_1:$sdst), (ins SReg_1:$src0)> {
   let mayStore = 0;
 }
 
+// Pseudo instructions used for @llvm.fptrunc.round upward
+// and @llvm.fptrunc.round downward.
+// These intrinsics will be legalized to G_FPTRUNC_ROUND_UPWARD
+// and G_FPTRUNC_ROUND_DOWNWARD before being lowered to
+// FPTRUNC_UPWARD_PSEUDO and FPTRUNC_DOWNWARD_PSEUDO.
+// The final codegen is done in the ModeRegister pass.
+let Uses = [MODE, EXEC] in {
+def FPTRUNC_UPWARD_PSEUDO : VPseudoInstSI <(outs VGPR_32:$vdst),
+  (ins VGPR_32:$src0),
+  [(set f16:$vdst, (SIfptrunc_round_upward f32:$src0))]>;
+
+def FPTRUNC_DOWNWARD_PSEUDO : VPseudoInstSI <(outs VGPR_32:$vdst),
+  (ins VGPR_32:$src0),
+  [(set f16:$vdst, (SIfptrunc_round_downward f32:$src0))]>;
+} // End Uses = [MODE, EXEC]
+
 // Invert the exec mask and overwrite the inactive lanes of dst with inactive,
 // restoring it after we're done.
 let Defs = [SCC] in {
 def V_SET_INACTIVE_B32 : VPseudoInstSI <(outs VGPR_32:$vdst),
-  (ins VGPR_32: $src, VSrc_b32:$inactive),
+  (ins VSrc_b32: $src, VSrc_b32:$inactive),
   [(set i32:$vdst, (int_amdgcn_set_inactive i32:$src, i32:$inactive))]> {
-  let Constraints = "$src = $vdst";
 }
 
 def V_SET_INACTIVE_B64 : VPseudoInstSI <(outs VReg_64:$vdst),
-  (ins VReg_64: $src, VSrc_b64:$inactive),
+  (ins VSrc_b64: $src, VSrc_b64:$inactive),
   [(set i64:$vdst, (int_amdgcn_set_inactive i64:$src, i64:$inactive))]> {
-  let Constraints = "$src = $vdst";
 }
 } // End Defs = [SCC]
 
@@ -287,6 +313,20 @@ def WAVE_BARRIER : SPseudoInstSI<(outs), (ins),
   let isConvergent = 1;
   let FixedSize = 1;
   let Size = 0;
+  let isMeta = 1;
+}
+
+def SCHED_BARRIER : SPseudoInstSI<(outs), (ins i32imm:$mask),
+  [(int_amdgcn_sched_barrier (i32 timm:$mask))]> {
+  let SchedRW = [];
+  let hasNoSchedulingInfo = 1;
+  let hasSideEffects = 1;
+  let mayLoad = 0;
+  let mayStore = 0;
+  let isConvergent = 1;
+  let FixedSize = 1;
+  let Size = 0;
+  let isMeta = 1;
 }
 
 // SI pseudo instructions. These are used by the CFG structurizer pass
@@ -424,6 +464,7 @@ def SI_MASKED_UNREACHABLE : SPseudoInstSI <(outs), (ins),
   let Size = 0;
   let hasNoSchedulingInfo = 1;
   let FixedSize = 1;
+  let isMeta = 1;
 }
 
 // Used as an isel pseudo to directly emit initialization with an
@@ -459,11 +500,14 @@ def SI_RETURN_TO_EPILOG : SPseudoInstSI <
   let hasNoSchedulingInfo = 1;
   let DisableWQM = 1;
   let FixedSize = 1;
+
+  // TODO: Should this be true?
+  let isMeta = 0;
 }
 
 // Return for returning function calls.
 def SI_RETURN : SPseudoInstSI <
-  (outs), (ins), [],
+  (outs), (ins), [(AMDGPUret_flag)],
   "; return"> {
   let isTerminator = 1;
   let isBarrier = 1;
@@ -496,6 +540,7 @@ def : GCNPat<
 def SI_CALL : SPseudoInstSI <
   (outs SReg_64:$dst), (ins SSrc_b64:$src0, unknown:$callee)> {
   let Size = 4;
+  let FixedSize = 1;
   let isCall = 1;
   let UseNamedOperandTable = 1;
   let SchedRW = [WriteBranch];
@@ -508,6 +553,7 @@ def SI_TCRETURN : SPseudoInstSI <(outs),
   (ins SReg_64:$src0, unknown:$callee, i32imm:$fpdiff),
   [(AMDGPUtc_return i64:$src0, tglobaladdr:$callee, i32:$fpdiff)]> {
   let Size = 4;
+  let FixedSize = 1;
   let isCall = 1;
   let isTerminator = 1;
   let isReturn = 1;
@@ -1212,6 +1258,26 @@ def : Pat <
   (v4f16 (EXTRACT_SUBREG v8f16:$vec, sub2_sub3))
 >;
 
+def : Pat <
+  (extract_subvector v16i16:$vec, (i32 0)),
+  (v8i16 (EXTRACT_SUBREG v16i16:$vec, sub0_sub1_sub2_sub3))
+>;
+
+def : Pat <
+  (extract_subvector v16i16:$vec, (i32 8)),
+  (v8i16 (EXTRACT_SUBREG v16i16:$vec, sub4_sub5_sub6_sub7))
+>;
+
+def : Pat <
+  (extract_subvector v16f16:$vec, (i32 0)),
+  (v8f16 (EXTRACT_SUBREG v16f16:$vec, sub0_sub1_sub2_sub3))
+>;
+
+def : Pat <
+  (extract_subvector v16f16:$vec, (i32 8)),
+  (v8f16 (EXTRACT_SUBREG v16f16:$vec, sub4_sub5_sub6_sub7))
+>;
+
 foreach Index = 0-31 in {
   def Extract_Element_v32i32_#Index : Extract_Element <
     i32, v32i32, Index, !cast<SubRegIndex>(sub#Index)
@@ -1371,7 +1437,26 @@ def : BitConvert <v8i32, v4i64, VReg_256>;
 def : BitConvert <v8f32, v4i64, VReg_256>;
 def : BitConvert <v8i32, v4f64, VReg_256>;
 def : BitConvert <v8f32, v4f64, VReg_256>;
-
+def : BitConvert <v16i16, v16f16, SReg_256>;
+def : BitConvert <v16f16, v16i16, SReg_256>;
+def : BitConvert <v16i16, v16f16, VReg_256>;
+def : BitConvert <v16f16, v16i16, VReg_256>;
+def : BitConvert <v16f16, v8i32, VReg_256>;
+def : BitConvert <v16i16, v8i32, VReg_256>;
+def : BitConvert <v16f16, v8f32, VReg_256>;
+def : BitConvert <v16i16, v8f32, VReg_256>;
+def : BitConvert <v8i32, v16f16, VReg_256>;
+def : BitConvert <v8i32, v16i16, VReg_256>;
+def : BitConvert <v8f32, v16f16, VReg_256>;
+def : BitConvert <v8f32, v16i16, VReg_256>;
+def : BitConvert <v16f16, v4i64, VReg_256>;
+def : BitConvert <v16i16, v4i64, VReg_256>;
+def : BitConvert <v16f16, v4f64, VReg_256>;
+def : BitConvert <v16i16, v4f64, VReg_256>;
+def : BitConvert <v4i64, v16f16, VReg_256>;
+def : BitConvert <v4i64, v16i16, VReg_256>;
+def : BitConvert <v4f64, v16f16, VReg_256>;
+def : BitConvert <v4f64, v16i16, VReg_256>;
 
 // 512-bit bitcast
 def : BitConvert <v16i32, v16f32, VReg_512>;
@@ -1941,12 +2026,6 @@ def : GCNPat <
 //===----------------------------------------------------------------------===//
 // Conversion Patterns
 //===----------------------------------------------------------------------===//
-
-class UniformSextInreg<ValueType VT> : PatFrag<
-  (ops node:$src),
-  (sext_inreg $src, VT),
-  [{ return !N->isDivergent(); }]>;
-
 def : GCNPat<(i32 (UniformSextInreg<i1> i32:$src)),
   (S_BFE_I32 i32:$src, (i32 65536))>; // 0 | 1 << 16
 
@@ -1981,23 +2060,28 @@ def : GCNPat <
   (S_BFE_I64 i64:$src, (i32 0x200000)) // 0 | 32 << 16
 >;
 
-
-class DivergentSextInreg<ValueType VT> : PatFrag<
-  (ops node:$src),
-  (sext_inreg $src, VT),
-  [{ return N->isDivergent(); }]>;
-
-def : GCNPat<(i32 (DivergentSextInreg<i1> i32:$src)),
+def : GCNPat<
+  (i32 (DivergentSextInreg<i1> i32:$src)),
   (V_BFE_I32_e64 i32:$src, (i32 0), (i32 1))>;
 
 def : GCNPat <
   (i16 (DivergentSextInreg<i1> i16:$src)),
-  (V_BFE_I32_e64 $src, (i32 0), (i32 1)) // 0 | 1 << 16
+  (V_BFE_I32_e64 $src, (i32 0), (i32 1))
 >;
 
 def : GCNPat <
   (i16 (DivergentSextInreg<i8> i16:$src)),
-  (V_BFE_I32_e64 $src, (i32 0), (i32 8)) // 0 | 8 << 16
+  (V_BFE_I32_e64 $src, (i32 0), (i32 8))
+>;
+
+def : GCNPat<
+  (i32 (DivergentSextInreg<i8> i32:$src)),
+  (V_BFE_I32_e64 i32:$src, (i32 0), (i32 8))
+>;
+
+def : GCNPat <
+  (i32 (DivergentSextInreg<i16> i32:$src)),
+  (V_BFE_I32_e64 $src, (i32 0), (i32 16))
 >;
 
 def : GCNPat <
@@ -2010,14 +2094,14 @@ def : GCNPat <
 def : GCNPat <
   (i64 (DivergentSextInreg<i8> i64:$src)),
   (REG_SEQUENCE VReg_64,
-    (V_BFE_I32_e64 (i32 (EXTRACT_SUBREG i64:$src, sub0)), (i32 0), (i32 8)/* 0 | 8 << 16 */), sub0,
+    (V_BFE_I32_e64 (i32 (EXTRACT_SUBREG i64:$src, sub0)), (i32 0), (i32 8)), sub0,
     (V_ASHRREV_I32_e32 (i32 31), (V_BFE_I32_e64 (i32 (EXTRACT_SUBREG i64:$src, sub0)), (i32 0), (i32 8))), sub1)
 >;
 
 def : GCNPat <
   (i64 (DivergentSextInreg<i16> i64:$src)),
   (REG_SEQUENCE VReg_64,
-    (V_BFE_I32_e64 (i32 (EXTRACT_SUBREG i64:$src, sub0)), (i32 0), (i32 16)/* 0 | 16 << 16 */), sub0,
+    (V_BFE_I32_e64 (i32 (EXTRACT_SUBREG i64:$src, sub0)), (i32 0), (i32 16)), sub0,
     (V_ASHRREV_I32_e32 (i32 31), (V_BFE_I32_e64 (i32 (EXTRACT_SUBREG i64:$src, sub0)), (i32 0), (i32 16))), sub1)
 >;
 
@@ -2053,9 +2137,15 @@ def : ZExt_i64_i1_Pat<anyext>;
 // FIXME: We need to use COPY_TO_REGCLASS to work-around the fact that
 // REG_SEQUENCE patterns don't support instructions with multiple outputs.
 def : GCNPat <
-  (i64 (sext i32:$src)),
+  (i64 (UniformUnaryFrag<sext> i32:$src)),
     (REG_SEQUENCE SReg_64, $src, sub0,
     (i32 (COPY_TO_REGCLASS (S_ASHR_I32 $src, (i32 31)), SReg_32_XM0)), sub1)
+>;
+
+def : GCNPat <
+  (i64 (DivergentUnaryFrag<sext> i32:$src)),
+    (REG_SEQUENCE VReg_64, $src, sub0,
+    (i32 (COPY_TO_REGCLASS (V_ASHRREV_I32_e64 (i32 31), $src), VGPR_32)), sub1)
 >;
 
 def : GCNPat <
@@ -2235,6 +2325,30 @@ def : GCNPat <
 // the src is lowered. e.g. fptrunc + fma may be lowered to a
 // v_fma_mix* instruction which does not zero, or may not.
 def : GCNPat<
+  (i32 (DivergentUnaryFrag<abs> i32:$src)),
+  (V_MAX_I32_e64 (V_SUB_CO_U32_e32 (i32 0), $src), $src)>;
+
+let AddedComplexity = 1 in {
+def : GCNPat<
+  (i32 (DivergentUnaryFrag<abs> i32:$src)),
+  (V_MAX_I32_e64 (V_SUB_U32_e32 (i32 0), $src), $src)>{
+  let SubtargetPredicate = HasAddNoCarryInsts;
+}
+}  // AddedComplexity = 1
+
+def : GCNPat<
+  (i32 (DivergentUnaryFrag<zext> i16:$src)),
+  (V_AND_B32_e64 (S_MOV_B32 (i32 0xffff)), $src)
+>;
+
+def : GCNPat<
+  (i64 (DivergentUnaryFrag<zext> i16:$src)),
+  (REG_SEQUENCE VReg_64,
+    (V_AND_B32_e64 (S_MOV_B32 (i32 0xffff)), $src), sub0,
+    (S_MOV_B32 (i32 0)), sub1)
+>;
+
+def : GCNPat<
   (i32 (zext (i16 (bitconvert fp16_zeros_high_16bits:$src)))),
   (COPY VSrc_b16:$src)>;
 
@@ -2267,6 +2381,34 @@ def : GCNPat <
 def : GCNPat <
   (i1 (DivergentUnaryFrag<trunc> i16:$a)),
   (V_CMP_EQ_U32_e64 (V_AND_B32_e64 (i32 1), $a), (i32 1))
+>;
+
+def IMMBitSelConst : SDNodeXForm<imm, [{
+  return CurDAG->getTargetConstant(1ULL << N->getZExtValue(), SDLoc(N),
+                                   MVT::i32);
+}]>;
+
+// Matching separate SRL and TRUNC instructions
+// with dependent operands (SRL dest is source of TRUNC)
+// generates three instructions. However, by using bit shifts,
+// the V_LSHRREV_B32_e64 result can be directly used in the
+// operand of the V_AND_B32_e64 instruction:
+// (trunc i32 (srl i32 $a, i32 $b)) ->
+// v_and_b32_e64 $a, (1 << $b), $a
+// v_cmp_ne_u32_e64 $a, 0, $a
+
+// Handle the VALU case.
+def : GCNPat <
+  (i1 (DivergentUnaryFrag<trunc> (i32 (srl i32:$a, (i32 imm:$b))))),
+  (V_CMP_NE_U32_e64 (V_AND_B32_e64 (i32 (IMMBitSelConst $b)), $a),
+    (i32 0))
+>;
+
+// Handle the scalar case.
+def : GCNPat <
+  (i1 (UniformUnaryFrag<trunc> (i32 (srl i32:$a, (i32 imm:$b))))),
+  (S_CMP_LG_U32 (S_AND_B32 (i32 (IMMBitSelConst $b)), $a),
+    (i32 0))
 >;
 
 def : GCNPat <
@@ -2350,6 +2492,11 @@ def : GCNPat <
 
 }
 
+def : GCNPat<
+  (i64 (DivergentUnaryFrag<bitreverse> i64:$a)),
+  (REG_SEQUENCE VReg_64,
+   (V_BFREV_B32_e64 (i32 (EXTRACT_SUBREG VReg_64:$a, sub1))), sub0,
+   (V_BFREV_B32_e64 (i32 (EXTRACT_SUBREG VReg_64:$a, sub0))), sub1)>;
 
 // Prefer selecting to max when legal, but using mul is always valid.
 let AddedComplexity = -5 in {
@@ -2508,12 +2655,12 @@ def : GCNPat <
 >;
 
 def : GCNPat <
-  (v2i16 (build_vector (i16 SReg_32:$src0), (i16 undef))),
+  (v2i16 (UniformBinFrag<build_vector> (i16 SReg_32:$src0), (i16 undef))),
   (COPY_TO_REGCLASS SReg_32:$src0, SReg_32)
 >;
 
 def : GCNPat <
-  (v2i16 (build_vector (i16 VGPR_32:$src0), (i16 undef))),
+  (v2i16 (DivergentBinFrag<build_vector> (i16 VGPR_32:$src0), (i16 undef))),
   (COPY_TO_REGCLASS VGPR_32:$src0, VGPR_32)
 >;
 
@@ -2597,6 +2744,15 @@ def : GCNPat <
 >;
 } // End SubtargetPredicate = HasVOP3PInsts
 
+// With multiple uses of the shift, this will duplicate the shift and
+// increase register pressure.
+let SubtargetPredicate = isGFX11Plus in
+def : GCNPat <
+  (v2i16 (build_vector (i16 (trunc (srl_oneuse SReg_32:$src0, (i32 16)))), (i16 SReg_32:$src1))),
+  (v2i16 (S_PACK_HL_B32_B16 SReg_32:$src0, SReg_32:$src1))
+>;
+
+
 def : GCNPat <
   (v2f16 (scalar_to_vector f16:$src0)),
   (COPY $src0)
@@ -2678,18 +2834,18 @@ def : GCNPat <
 // an inline immediate than -c.
 // TODO: Also do for 64-bit.
 def : GCNPat<
-  (add i32:$src0, (i32 NegSubInlineConst32:$src1)),
+  (UniformBinFrag<add> i32:$src0, (i32 NegSubInlineConst32:$src1)),
   (S_SUB_I32 SReg_32:$src0, NegSubInlineConst32:$src1)
 >;
 
 def : GCNPat<
-  (add i32:$src0, (i32 NegSubInlineConst32:$src1)),
+  (DivergentBinFrag<add> i32:$src0, (i32 NegSubInlineConst32:$src1)),
   (V_SUB_U32_e64 VS_32:$src0, NegSubInlineConst32:$src1)> {
   let SubtargetPredicate = HasAddNoCarryInsts;
 }
 
 def : GCNPat<
-  (add i32:$src0, (i32 NegSubInlineConst32:$src1)),
+  (DivergentBinFrag<add> i32:$src0, (i32 NegSubInlineConst32:$src1)),
   (V_SUB_CO_U32_e64 VS_32:$src0, NegSubInlineConst32:$src1)> {
   let SubtargetPredicate = NotHasAddNoCarryInsts;
 }
@@ -2703,20 +2859,21 @@ def : GCNPat<
   (S_MOV_B32 SReg_32:$src)
 >;
 
-multiclass BFMPatterns <ValueType vt, InstSI BFM, InstSI MOV> {
+multiclass BFMPatterns <ValueType vt, PatFrag SHL, PatFrag ADD, InstSI BFM> {
   def : GCNPat <
-    (vt (shl (vt (add (vt (shl 1, vt:$a)), -1)), vt:$b)),
+    (vt (SHL (vt (add (vt (shl 1, vt:$a)), -1)), vt:$b)),
     (BFM $a, $b)
   >;
 
   def : GCNPat <
-    (vt (add (vt (shl 1, vt:$a)), -1)),
-    (BFM $a, (MOV (i32 0)))
+    (vt (ADD (vt (shl 1, vt:$a)), -1)),
+    (BFM $a, (i32 0))
   >;
 }
 
-defm : BFMPatterns <i32, S_BFM_B32, S_MOV_B32>;
-// FIXME: defm : BFMPatterns <i64, S_BFM_B64, S_MOV_B64>;
+defm : BFMPatterns <i32, UniformBinFrag<shl>, UniformBinFrag<add>, S_BFM_B32>;
+// FIXME: defm : BFMPatterns <i64, UniformBinFrag<shl>, UniformBinFrag<add>, S_BFM_B64>;
+defm : BFMPatterns <i32, DivergentBinFrag<shl>, DivergentBinFrag<add>, V_BFM_B32_e64>;
 
 // Bitfield extract patterns
 
@@ -2863,6 +3020,35 @@ multiclass Int16Med3Pat<Instruction med3Inst,
 
 def : FPMed3Pat<f32, V_MED3_F32_e64>;
 
+class
+IntMinMaxPat<Instruction minmaxInst, SDPatternOperator min_or_max,
+             SDPatternOperator max_or_min_oneuse> : AMDGPUPat <
+  (DivergentBinFrag<min_or_max> (max_or_min_oneuse i32:$src0, i32:$src1),
+                                i32:$src2),
+  (minmaxInst VSrc_b32:$src0, VSrc_b32:$src1, VSrc_b32:$src2)
+>;
+
+class
+FPMinMaxPat<Instruction minmaxInst, ValueType vt, SDPatternOperator min_or_max,
+            SDPatternOperator max_or_min_oneuse> : GCNPat <
+  (min_or_max (max_or_min_oneuse (VOP3Mods vt:$src0, i32:$src0_mods),
+                                 (VOP3Mods vt:$src1, i32:$src1_mods)),
+               (vt (VOP3Mods vt:$src2, i32:$src2_mods))),
+  (minmaxInst $src0_mods, $src0, $src1_mods, $src1, $src2_mods, $src2,
+              DSTCLAMP.NONE, DSTOMOD.NONE)
+>;
+
+let OtherPredicates = [isGFX11Plus] in {
+def : IntMinMaxPat<V_MAXMIN_I32_e64, smin, smax_oneuse>;
+def : IntMinMaxPat<V_MINMAX_I32_e64, smax, smin_oneuse>;
+def : IntMinMaxPat<V_MAXMIN_U32_e64, umin, umax_oneuse>;
+def : IntMinMaxPat<V_MINMAX_U32_e64, umax, umin_oneuse>;
+def : FPMinMaxPat<V_MINMAX_F32_e64, f32, fmaxnum_like, fminnum_like_oneuse>;
+def : FPMinMaxPat<V_MAXMIN_F32_e64, f32, fminnum_like, fmaxnum_like_oneuse>;
+def : FPMinMaxPat<V_MINMAX_F16_e64, f16, fmaxnum_like, fminnum_like_oneuse>;
+def : FPMinMaxPat<V_MAXMIN_F16_e64, f16, fminnum_like, fmaxnum_like_oneuse>;
+}
+
 let OtherPredicates = [isGFX9Plus] in {
 def : FP16Med3Pat<f16, V_MED3_F16_e64>;
 defm : Int16Med3Pat<V_MED3_I16_e64, smin, smax, smax_oneuse, smin_oneuse>;
@@ -3007,6 +3193,19 @@ def G_AMDGPU_CLAMP : AMDGPUGenericInstruction {
   let hasSideEffects = 0;
 }
 
+// Integer multiply-add: arg0 * arg1 + arg2.
+//
+// arg0 and arg1 are 32-bit integers (interpreted as signed or unsigned),
+// arg2 is a 64-bit integer. Result is a 64-bit integer and a 1-bit carry-out.
+class G_AMDGPU_MAD_64_32 : AMDGPUGenericInstruction {
+  let OutOperandList = (outs type0:$dst, type1:$carry_out);
+  let InOperandList = (ins type2:$arg0, type2:$arg1, type0:$arg2);
+  let hasSideEffects = 0;
+}
+
+def G_AMDGPU_MAD_U64_U32 : G_AMDGPU_MAD_64_32;
+def G_AMDGPU_MAD_I64_I32 : G_AMDGPU_MAD_64_32;
+
 // Atomic cmpxchg. $cmpval ad $newval are packed in a single vector
 // operand Expects a MachineMemOperand in addition to explicit
 // operands.
@@ -3129,4 +3328,16 @@ def G_SI_CALL : AMDGPUGenericInstruction {
   let SchedRW = [WriteBranch];
   // TODO: Should really base this on the call target
   let isConvergent = 1;
+}
+
+def G_FPTRUNC_ROUND_UPWARD : AMDGPUGenericInstruction {
+  let OutOperandList = (outs type0:$vdst);
+  let InOperandList = (ins type1:$src0);
+  let hasSideEffects = 0;
+}
+
+def G_FPTRUNC_ROUND_DOWNWARD : AMDGPUGenericInstruction {
+  let OutOperandList = (outs type0:$vdst);
+  let InOperandList = (ins type1:$src0);
+  let hasSideEffects = 0;
 }

@@ -265,7 +265,7 @@ qcom_clk_rcg2_init(struct clknode *clk, device_t dev)
 	struct qcom_clk_rcg2_sc *sc;
 	uint32_t reg;
 	uint32_t idx;
-	bool enabled;
+	bool enabled __unused;
 
 	sc = clknode_get_softc(clk);
 
@@ -282,6 +282,7 @@ qcom_clk_rcg2_init(struct clknode *clk, device_t dev)
 		enabled = false;
 	else
 		enabled = true;
+
 	/* mux settings */
 	CLKDEV_READ_4(clknode_get_device(sc->clknode),
 	    QCOM_CLK_RCG2_CFG_OFFSET(sc), &reg);
@@ -289,8 +290,9 @@ qcom_clk_rcg2_init(struct clknode *clk, device_t dev)
 
 	idx = (reg & QCOM_CLK_RCG2_CFG_SRC_SEL_MASK)
 	    >> QCOM_CLK_RCG2_CFG_SRC_SEL_SHIFT;
-	DPRINTF(clknode_get_device(sc->clknode), "%s: mux index %u\n",
-	    __func__, idx);
+	DPRINTF(clknode_get_device(sc->clknode),
+	    "%s: mux index %u, enabled=%d\n",
+	    __func__, idx, enabled);
 	clknode_init_parent_idx(clk, idx);
 
 	/*
@@ -565,7 +567,7 @@ qcom_clk_rcg2_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 	}
 
 	DPRINTF(clknode_get_device(sc->clknode),
-	    "%s: requsted freq=%llu, target freq=%llu,"
+	    "%s: requested freq=%llu, target freq=%llu,"
 	    " parent choice=%s, parent_freq=%llu\n",
 	    __func__,
 	    *fout,

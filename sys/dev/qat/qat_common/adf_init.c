@@ -213,7 +213,7 @@ adf_set_ssm_wdtimer(struct adf_accel_dev *accel_dev)
 	unsigned int mask;
 	u32 clk_per_sec = hw_data->get_clock_speed(hw_data);
 	u32 timer_val = ADF_WDT_TIMER_SYM_COMP_MS * (clk_per_sec / 1000);
-	u32 timer_val_pke = ADF_SSM_WDT_PKE_DEFAULT_VALUE;
+	u32 timer_val_pke = ADF_GEN2_SSM_WDT_PKE_DEFAULT_VALUE;
 	char timer_str[ADF_CFG_MAX_VAL_LEN_IN_BYTES] = { 0 };
 
 	/* Get Watch Dog Timer for CySym+Comp from the configuration */
@@ -289,6 +289,12 @@ adf_dev_init(struct adf_accel_dev *accel_dev)
 		return EFAULT;
 	}
 
+	if (hw_data->init_device && hw_data->init_device(accel_dev)) {
+		device_printf(GET_DEV(accel_dev),
+			      "Failed to initialize device\n");
+		return EFAULT;
+	}
+
 	if (hw_data->init_accel_units && hw_data->init_accel_units(accel_dev)) {
 		device_printf(GET_DEV(accel_dev),
 			      "Failed initialize accel_units\n");
@@ -343,7 +349,8 @@ adf_dev_init(struct adf_accel_dev *accel_dev)
 
 	hw_data->enable_error_correction(accel_dev);
 
-	if (hw_data->enable_vf2pf_comms(accel_dev)) {
+	if (hw_data->enable_vf2pf_comms &&
+	    hw_data->enable_vf2pf_comms(accel_dev)) {
 		device_printf(GET_DEV(accel_dev),
 			      "QAT: Failed to enable vf2pf comms\n");
 		return EFAULT;

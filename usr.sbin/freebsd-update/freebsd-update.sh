@@ -2543,8 +2543,21 @@ The following file could not be merged automatically: ${F}
 Press Enter to edit this file in ${EDITOR} and resolve the conflicts
 manually...
 			EOF
-			read dummy </dev/tty
-			${EDITOR} `pwd`/merge/new/${F} < /dev/tty
+			while true; do
+				read dummy </dev/tty
+				${EDITOR} `pwd`/merge/new/${F} < /dev/tty
+
+				if ! grep -qE '^(<<<<<<<|=======|>>>>>>>)([[:space:]].*)?$' $(pwd)/merge/new/${F} ; then
+					break
+				fi
+				cat <<-EOF
+
+Merge conflict markers remain in: ${F}
+These must be resolved for the system to be functional.
+
+Press Enter to return to editing this file.
+				EOF
+			done
 		done < failed.merges
 		rm failed.merges
 
@@ -3491,6 +3504,9 @@ fi
 
 # Set LC_ALL in order to avoid problems with character ranges like [A-Z].
 export LC_ALL=C
+
+# Clear environment variables that may affect operation of tools that we use.
+unset GREP_OPTIONS
 
 get_params $@
 for COMMAND in ${COMMANDS}; do

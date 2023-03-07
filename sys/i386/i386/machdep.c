@@ -116,6 +116,8 @@ __FBSDID("$FreeBSD$");
 
 #include <net/netisr.h>
 
+#include <dev/smbios/smbios.h>
+
 #include <machine/bootinfo.h>
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -1433,6 +1435,7 @@ init386(int first)
 	}
 
 	identify_hypervisor();
+	identify_hypervisor_smbios();
 
 	/* Init basic tunables, hz etc */
 	init_param1();
@@ -1646,6 +1649,8 @@ machdep_init_trampoline(void)
 
 	/* Re-initialize new IDT since the handlers were relocated */
 	setidt_disp = trampoline - start_exceptions;
+	if (bootverbose)
+		printf("Trampoline disposition %#zx\n", setidt_disp);
 	fixup_idt();
 
 	r_idt.rd_limit = sizeof(struct gate_descriptor) * NIDT - 1;

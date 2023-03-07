@@ -9,7 +9,7 @@ divert(-1)
 #
 #
 
-ifelse(defn(`_ARG_'), `', 
+ifelse(defn(`_ARG_'), `',
 	`errprint(`*** ERROR: missing argument for FEATURE(`enhdnsbl')')')
 divert(0)
 ifdef(`_EDNSBL_R_',`dnl',`dnl

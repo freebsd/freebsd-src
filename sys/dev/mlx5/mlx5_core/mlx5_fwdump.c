@@ -410,6 +410,7 @@ mlx5_ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	struct mlx5_fw_update *fu;
 	struct firmware fake_fw;
 	struct mlx5_eeprom_get *eeprom_info;
+	void *fw_data;
 	int error;
 
 	error = 0;
@@ -461,21 +462,21 @@ mlx5_ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		error = mlx5_dbsf_to_core(devaddr, &mdev);
 		if (error != 0)
 			break;
-		bzero(&fake_fw, sizeof(fake_fw));
-		fake_fw.name = "umlx_fw_up";
-		fake_fw.datasize = fu->img_fw_data_len;
-		fake_fw.version = 1;
-		fake_fw.data = (void *)kmem_malloc(fu->img_fw_data_len,
-		    M_WAITOK);
+		fw_data = kmem_malloc(fu->img_fw_data_len, M_WAITOK);
 		if (fake_fw.data == NULL) {
 			error = ENOMEM;
 			break;
 		}
-		error = copyin(fu->img_fw_data, __DECONST(void *, fake_fw.data),
-		    fu->img_fw_data_len);
-		if (error == 0)
+		error = copyin(fu->img_fw_data, fw_data, fu->img_fw_data_len);
+		if (error == 0) {
+			bzero(&fake_fw, sizeof(fake_fw));
+			fake_fw.name = "umlx_fw_up";
+			fake_fw.datasize = fu->img_fw_data_len;
+			fake_fw.version = 1;
+			fake_fw.data = fw_data;
 			error = -mlx5_firmware_flash(mdev, &fake_fw);
-		kmem_free((vm_offset_t)fake_fw.data, fu->img_fw_data_len);
+		}
+		kmem_free(fw_data, fu->img_fw_data_len);
 		break;
 	case MLX5_FW_RESET:
 		if ((fflag & FWRITE) == 0) {

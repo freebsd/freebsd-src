@@ -127,10 +127,15 @@ public:
 
   void emitPrologue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
 
+  void inlineStackProbe(MachineFunction &MF,
+                        MachineBasicBlock &PrologMBB) const override;
+
   bool hasFP(const MachineFunction &MF) const override;
 
   void processFunctionBeforeFrameFinalized(MachineFunction &MF,
                                            RegScavenger *RS) const override;
+
+  void determineFrameLayout(MachineFunction &MF) const;
 };
 } // end namespace llvm
 

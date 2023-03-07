@@ -50,10 +50,10 @@ __FBSDID("$FreeBSD$");
 
 #include <capsicum_helpers.h>
 #include <ctype.h>
-#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <locale.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -66,9 +66,11 @@ __FBSDID("$FreeBSD$");
 #include <libcasper.h>
 #include <casper/cap_fileargs.h>
 
+static const char *stdin_filename = "stdin";
+
 static fileargs_t *fa;
 static uintmax_t tlinect, twordct, tcharct, tlongline;
-static int doline, doword, dochar, domulti, dolongline;
+static bool doline, doword, dochar, domulti, dolongline;
 static volatile sig_atomic_t siginfo;
 static xo_handle_t *stderr_handle;
 
@@ -102,26 +104,26 @@ main(int argc, char *argv[])
 
 	argc = xo_parse_args(argc, argv);
 	if (argc < 0)
-		return (argc);
+		exit(EXIT_FAILURE);
 
 	while ((ch = getopt(argc, argv, "clmwL")) != -1)
 		switch((char)ch) {
 		case 'l':
-			doline = 1;
+			doline = true;
 			break;
 		case 'w':
-			doword = 1;
+			doword = true;
 			break;
 		case 'c':
-			dochar = 1;
-			domulti = 0;
+			dochar = true;
+			domulti = false;
 			break;
 		case 'L':
-			dolongline = 1;
+			dolongline = true;
 			break;
 		case 'm':
-			domulti = 1;
-			dochar = 0;
+			domulti = true;
+			dochar = false;
 			break;
 		case '?':
 		default:
@@ -134,27 +136,17 @@ main(int argc, char *argv[])
 
 	fa = fileargs_init(argc, argv, O_RDONLY, 0,
 	    cap_rights_init(&rights, CAP_READ, CAP_FSTAT), FA_OPEN);
-	if (fa == NULL) {
-		xo_warn("Unable to init casper");
-		exit(1);
-	}
-
+	if (fa == NULL)
+		xo_err(EXIT_FAILURE, "Unable to initialize casper");
 	caph_cache_catpages();
-	if (caph_limit_stdio() < 0) {
-		xo_warn("Unable to limit stdio");
-		fileargs_free(fa);
-		exit(1);
-	}
-
-	if (caph_enter_casper() < 0) {
-		xo_warn("Unable to enter capability mode");
-		fileargs_free(fa);
-		exit(1);
-	}
+	if (caph_limit_stdio() < 0)
+		xo_err(EXIT_FAILURE, "Unable to limit stdio");
+	if (caph_enter_casper() < 0)
+		xo_err(EXIT_FAILURE, "Unable to enter capability mode");
 
 	/* Wc's flags are on by default. */
-	if (doline + doword + dochar + domulti + dolongline == 0)
-		doline = doword = dochar = 1;
+	if (!(doline || doword || dochar || domulti || dolongline))
+		doline = doword = dochar = true;
 
 	stderr_handle = xo_create_to_file(stderr, XO_STYLE_TEXT, 0);
 	xo_open_container("wc");
@@ -162,19 +154,19 @@ main(int argc, char *argv[])
 
 	errors = 0;
 	total = 0;
-	if (!*argv) {
-	 	xo_open_instance("file");
-		if (cnt((char *)NULL) != 0)
+	if (argc == 0) {
+		xo_open_instance("file");
+		if (cnt(NULL) != 0)
 			++errors;
-	 	xo_close_instance("file");
+		xo_close_instance("file");
 	} else {
-		do {
-	 		xo_open_instance("file");
-			if (cnt(*argv) != 0)
+		while (argc--) {
+			xo_open_instance("file");
+			if (cnt(*argv++) != 0)
 				++errors;
-	 		xo_close_instance("file");
+			xo_close_instance("file");
 			++total;
-		} while(*++argv);
+		}
 	}
 
 	xo_close_list("file");
@@ -187,8 +179,9 @@ main(int argc, char *argv[])
 
 	fileargs_free(fa);
 	xo_close_container("wc");
-	xo_finish();
-	exit(errors == 0 ? 0 : 1);
+	if (xo_finish() < 0)
+		xo_err(EXIT_FAILURE, "stdout");
+	exit(errors == 0 ? EXIT_SUCCESS : EXIT_FAILURE);
 }
 
 static void
@@ -212,7 +205,7 @@ show_cnt(const char *file, uintmax_t linect, uintmax_t wordct,
 		xo_emit_h(xop, " {:characters/%7ju/%ju}", charct);
 	if (dolongline)
 		xo_emit_h(xop, " {:long-lines/%7ju/%ju}", llct);
-	if (file != NULL)
+	if (file != stdin_filename)
 		xo_emit_h(xop, " {:filename/%s}\n", file);
 	else
 		xo_emit_h(xop, "\n");
@@ -221,20 +214,22 @@ show_cnt(const char *file, uintmax_t linect, uintmax_t wordct,
 static int
 cnt(const char *file)
 {
+	static char buf[MAXBSIZE];
 	struct stat sb;
-	uintmax_t linect, wordct, charct, llct, tmpll;
-	int fd, len, warned;
-	size_t clen;
-	short gotsp;
-	u_char *p;
-	u_char buf[MAXBSIZE];
-	wchar_t wch;
 	mbstate_t mbs;
+	const char *p;
+	uintmax_t linect, wordct, charct, llct, tmpll;
+	ssize_t len;
+	size_t clen;
+	int fd;
+	wchar_t wch;
+	bool gotsp, warned;
 
 	linect = wordct = charct = llct = tmpll = 0;
-	if (file == NULL)
+	if (file == NULL) {
 		fd = STDIN_FILENO;
-	else if ((fd = fileargs_open(fa, file)) < 0) {
+		file = stdin_filename;
+	} else if ((fd = fileargs_open(fa, file)) < 0) {
 		xo_warn("%s: open", file);
 		return (1);
 	}
@@ -246,7 +241,7 @@ cnt(const char *file)
 	 */
 	if (doline == 0 && dolongline == 0) {
 		if (fstat(fd, &sb)) {
-			xo_warn("%s: fstat", file != NULL ? file : "stdin");
+			xo_warn("%s: fstat", file);
 			(void)close(fd);
 			return (1);
 		}
@@ -265,9 +260,9 @@ cnt(const char *file)
 	 * lines than to get words, since the word count requires locale
 	 * handling.
 	 */
-	while ((len = read(fd, buf, MAXBSIZE))) {
-		if (len == -1) {
-			xo_warn("%s: read", file != NULL ? file : "stdin");
+	while ((len = read(fd, buf, sizeof(buf))) != 0) {
+		if (len < 0) {
+			xo_warn("%s: read", file);
 			(void)close(fd);
 			return (1);
 		}
@@ -275,14 +270,16 @@ cnt(const char *file)
 			show_cnt(file, linect, wordct, charct, llct);
 		charct += len;
 		if (doline || dolongline) {
-			for (p = buf; len--; ++p)
+			for (p = buf; len > 0; --len, ++p) {
 				if (*p == '\n') {
 					if (tmpll > llct)
 						llct = tmpll;
 					tmpll = 0;
 					++linect;
-				} else
+				} else {
 					tmpll++;
+				}
+			}
 		}
 	}
 	reset_siginfo();
@@ -297,12 +294,12 @@ cnt(const char *file)
 	return (0);
 
 	/* Do it the hard way... */
-word:	gotsp = 1;
-	warned = 0;
+word:	gotsp = true;
+	warned = false;
 	memset(&mbs, 0, sizeof(mbs));
-	while ((len = read(fd, buf, MAXBSIZE)) != 0) {
-		if (len == -1) {
-			xo_warn("%s: read", file != NULL ? file : "stdin");
+	while ((len = read(fd, buf, sizeof(buf))) != 0) {
+		if (len < 0) {
+			xo_warn("%s: read", file);
 			(void)close(fd);
 			return (1);
 		}
@@ -313,21 +310,20 @@ word:	gotsp = 1;
 			if (!domulti || MB_CUR_MAX == 1) {
 				clen = 1;
 				wch = (unsigned char)*p;
-			} else if ((clen = mbrtowc(&wch, p, len, &mbs)) ==
-			    (size_t)-1) {
+			} else if ((clen = mbrtowc(&wch, p, len, &mbs)) == 0) {
+				clen = 1;
+			} else if (clen == (size_t)-1) {
 				if (!warned) {
 					errno = EILSEQ;
-					xo_warn("%s",
-					    file != NULL ? file : "stdin");
-					warned = 1;
+					xo_warn("%s", file);
+					warned = true;
 				}
 				memset(&mbs, 0, sizeof(mbs));
 				clen = 1;
 				wch = (unsigned char)*p;
-			} else if (clen == (size_t)-2)
+			} else if (clen == (size_t)-2) {
 				break;
-			else if (clen == 0)
-				clen = 1;
+			}
 			charct++;
 			if (wch != L'\n')
 				tmpll++;
@@ -339,18 +335,19 @@ word:	gotsp = 1;
 				tmpll = 0;
 				++linect;
 			}
-			if (iswspace(wch))
-				gotsp = 1;
-			else if (gotsp) {
-				gotsp = 0;
+			if (iswspace(wch)) {
+				gotsp = true;
+			} else if (gotsp) {
+				gotsp = false;
 				++wordct;
 			}
 		}
 	}
 	reset_siginfo();
-	if (domulti && MB_CUR_MAX > 1)
+	if (domulti && MB_CUR_MAX > 1) {
 		if (mbrtowc(NULL, NULL, 0, &mbs) == (size_t)-1 && !warned)
-			xo_warn("%s", file != NULL ? file : "stdin");
+			xo_warn("%s", file);
+	}
 	if (doline)
 		tlinect += linect;
 	if (doword)
@@ -368,5 +365,5 @@ static void
 usage(void)
 {
 	xo_error("usage: wc [-Lclmw] [file ...]\n");
-	exit(1);
+	exit(EXIT_FAILURE);
 }

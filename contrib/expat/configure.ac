@@ -81,11 +81,14 @@ dnl
 dnl If the API changes incompatibly set LIBAGE back to 0
 dnl
 
-LIBCURRENT=9   # sync
-LIBREVISION=7  # with
-LIBAGE=8       # CMakeLists.txt!
+LIBCURRENT=9    # sync
+LIBREVISION=10  # with
+LIBAGE=8        # CMakeLists.txt!
 
 AC_CONFIG_HEADERS([expat_config.h])
+AH_TOP([#ifndef EXPAT_CONFIG_H
+#define EXPAT_CONFIG_H 1])
+AH_BOTTOM([#endif // ndef EXPAT_CONFIG_H])
 
 AM_PROG_AR
 AC_PROG_INSTALL
@@ -134,8 +137,9 @@ AS_CASE(["$LD"],[*clang*],
      [*linux*],[archive_cmds='$CC -shared $pic_flag $libobjs $deplibs $compiler_flags $wl-soname $wl$soname -o $lib'])])
 
 EXPATCFG_COMPILER_SUPPORTS_VISIBILITY([
-  AX_APPEND_FLAG([-fvisibility=hidden],       [AM_CFLAGS])
-  AX_APPEND_FLAG([-DXML_ENABLE_VISIBILITY=1], [AM_CPPFLAGS])])
+  AX_APPEND_FLAG([-fvisibility=hidden],              [AM_CFLAGS])
+  AS_IF([test "${enable_shared}" = yes],
+        [AX_APPEND_FLAG([-DXML_ENABLE_VISIBILITY=1], [AM_CPPFLAGS])])])
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 

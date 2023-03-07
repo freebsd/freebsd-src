@@ -1,5 +1,5 @@
-.\" $File: file.man,v 1.144 2021/02/05 22:08:31 christos Exp $
-.Dd February 5, 2021
+.\" $File: file.man,v 1.146 2022/10/26 16:56:14 christos Exp $
+.Dd October 26, 2022
 .Dt FILE __CSECTION__
 .Os
 .Sh NAME

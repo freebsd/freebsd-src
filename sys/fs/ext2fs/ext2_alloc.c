@@ -480,6 +480,7 @@ ext2_valloc(struct vnode *pvp, int mode, struct ucred *cred, struct vnode **vpp)
 	ip->i_birthtime = ts.tv_sec;
 	ip->i_birthnsec = ts.tv_nsec;
 
+	vn_set_state(vp, VSTATE_CONSTRUCTED);
 	*vpp = vp;
 
 	return (0);
@@ -1067,7 +1068,7 @@ ext2_alloccg(struct inode *ip, int cg, daddr_t bpref, int size)
 		start = dtogd(fs, bpref) / NBBY;
 	else
 		start = 0;
-	end = howmany(fs->e2fs_fpg, NBBY) - start;
+	end = howmany(fs->e2fs_fpg, NBBY);
 retry:
 	runlen = 0;
 	runstart = 0;

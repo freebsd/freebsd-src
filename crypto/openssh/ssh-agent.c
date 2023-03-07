@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-agent.c,v 1.287 2022/01/14 03:43:48 djm Exp $ */
+/* $OpenBSD: ssh-agent.c,v 1.294 2022/12/04 11:03:11 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -87,7 +87,6 @@
 #include "ssherr.h"
 #include "match.h"
 #include "msg.h"
-#include "ssherr.h"
 #include "pathnames.h"
 #include "ssh-pkcs11.h"
 #include "sk-api.h"
@@ -826,21 +825,13 @@ process_sign_request2(SocketEntry *e)
 		goto send;
 	}
 	if (sshkey_is_sk(id->key)) {
-		if (strncmp(id->key->sk_application, "ssh:", 4) != 0 &&
+		if (restrict_websafe &&
+		    strncmp(id->key->sk_application, "ssh:", 4) != 0 &&
 		    !check_websafe_message_contents(key, data)) {
 			/* error already logged */
 			goto send;
 		}
-		if ((id->key->sk_flags & SSH_SK_USER_VERIFICATION_REQD)) {
-			/* XXX include sig_dest */
-			xasprintf(&prompt, "Enter PIN%sfor %s key %s: ",
-			    (id->key->sk_flags & SSH_SK_USER_PRESENCE_REQD) ?
-			    " and confirm user presence " : " ",
-			    sshkey_type(id->key), fp);
-			pin = read_passphrase(prompt, RP_USE_ASKPASS);
-			free(prompt);
-			prompt = NULL;
-		} else if ((id->key->sk_flags & SSH_SK_USER_PRESENCE_REQD)) {
+		if (id->key->sk_flags & SSH_SK_USER_PRESENCE_REQD) {
 			notifier = notify_start(0,
 			    "Confirm user presence for key %s %s%s%s",
 			    sshkey_type(id->key), fp,
@@ -855,10 +846,8 @@ process_sign_request2(SocketEntry *e)
 		debug_fr(r, "sshkey_sign");
 		if (pin == NULL && !retried && sshkey_is_sk(id->key) &&
 		    r == SSH_ERR_KEY_WRONG_PASSPHRASE) {
-			if (notifier) {
-				notify_complete(notifier, NULL);
-				notifier = NULL;
-			}
+			notify_complete(notifier, NULL);
+			notifier = NULL;
 			/* XXX include sig_dest */
 			xasprintf(&prompt, "Enter PIN%sfor %s key %s: ",
 			    (id->key->sk_flags & SSH_SK_USER_PRESENCE_REQD) ?
@@ -874,6 +863,7 @@ process_sign_request2(SocketEntry *e)
 	/* Success */
 	ok = 0;
  send:
+	debug_f("good signature");
 	notify_complete(notifier, "User presence confirmed");
 
 	if (ok == 0) {
@@ -1588,6 +1578,7 @@ process_ext_session_bind(SocketEntry *e)
 	/* success */
 	r = 0;
  out:
+	free(fp);
 	sshkey_free(key);
 	sshbuf_free(sid);
 	sshbuf_free(sig);
@@ -2022,9 +2013,9 @@ usage(void)
 {
 	fprintf(stderr,
 	    "usage: ssh-agent [-c | -s] [-Ddx] [-a bind_address] [-E fingerprint_hash]\n"
-	    "                 [-P allowed_providers] [-t life]\n"
-	    "       ssh-agent [-a bind_address] [-E fingerprint_hash] [-P allowed_providers]\n"
-	    "                 [-t life] command [arg ...]\n"
+	    "                 [-O option] [-P allowed_providers] [-t life]\n"
+	    "       ssh-agent [-a bind_address] [-E fingerprint_hash] [-O option]\n"
+	    "                 [-P allowed_providers] [-t life] command [arg ...]\n"
 	    "       ssh-agent [-c | -s] -k\n");
 	exit(1);
 }

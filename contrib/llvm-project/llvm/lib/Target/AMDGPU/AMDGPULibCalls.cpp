@@ -376,15 +376,7 @@ static bool HasNative(AMDGPULibFunc::EFuncId id) {
   return false;
 }
 
-struct TableRef {
-  size_t size;
-  const TableEntry *table; // variable size: from 0 to (size - 1)
-
-  TableRef() : size(0), table(nullptr) {}
-
-  template <size_t N>
-  TableRef(const TableEntry (&tbl)[N]) : size(N), table(&tbl[0]) {}
-};
+using TableRef = ArrayRef<TableEntry>;
 
 static TableRef getOptTable(AMDGPULibFunc::EFuncId id) {
   switch(id) {
@@ -698,11 +690,10 @@ bool AMDGPULibCalls::fold(CallInst *CI, AliasAnalysis *AA) {
 bool AMDGPULibCalls::TDOFold(CallInst *CI, const FuncInfo &FInfo) {
   // Table-Driven optimization
   const TableRef tr = getOptTable(FInfo.getId());
-  if (tr.size==0)
+  if (tr.empty())
     return false;
 
-  int const sz = (int)tr.size;
-  const TableEntry * const ftbl = tr.table;
+  int const sz = (int)tr.size();
   Value *opr0 = CI->getArgOperand(0);
 
   if (getVecSize(FInfo) > 1) {
@@ -714,8 +705,8 @@ bool AMDGPULibCalls::TDOFold(CallInst *CI, const FuncInfo &FInfo) {
         assert(eltval && "Non-FP arguments in math function!");
         bool found = false;
         for (int i=0; i < sz; ++i) {
-          if (eltval->isExactlyValue(ftbl[i].input)) {
-            DVal.push_back(ftbl[i].result);
+          if (eltval->isExactlyValue(tr[i].input)) {
+            DVal.push_back(tr[i].result);
             found = true;
             break;
           }
@@ -746,8 +737,8 @@ bool AMDGPULibCalls::TDOFold(CallInst *CI, const FuncInfo &FInfo) {
     // Scalar version
     if (ConstantFP *CF = dyn_cast<ConstantFP>(opr0)) {
       for (int i = 0; i < sz; ++i) {
-        if (CF->isExactlyValue(ftbl[i].input)) {
-          Value *nval = ConstantFP::get(CF->getType(), ftbl[i].result);
+        if (CF->isExactlyValue(tr[i].input)) {
+          Value *nval = ConstantFP::get(CF->getType(), tr[i].result);
           LLVM_DEBUG(errs() << "AMDIC: " << *CI << " ---> " << *nval << "\n");
           replaceCall(nval);
           return true;
@@ -1593,8 +1584,9 @@ bool AMDGPULibCalls::evaluateCall(CallInst *aCI, const FuncInfo &FInfo) {
 
   // max vector size is 16, and sincos will generate two results.
   double DVal0[16], DVal1[16];
+  int FuncVecSize = getVecSize(FInfo);
   bool hasTwoResults = (FInfo.getId() == AMDGPULibFunc::EI_SINCOS);
-  if (getVecSize(FInfo) == 1) {
+  if (FuncVecSize == 1) {
     if (!evaluateScalarMathFunc(FInfo, DVal0[0],
                                 DVal1[0], copr0, copr1, copr2)) {
       return false;
@@ -1603,7 +1595,7 @@ bool AMDGPULibCalls::evaluateCall(CallInst *aCI, const FuncInfo &FInfo) {
     ConstantDataVector *CDV0 = dyn_cast_or_null<ConstantDataVector>(copr0);
     ConstantDataVector *CDV1 = dyn_cast_or_null<ConstantDataVector>(copr1);
     ConstantDataVector *CDV2 = dyn_cast_or_null<ConstantDataVector>(copr2);
-    for (int i=0; i < getVecSize(FInfo); ++i) {
+    for (int i = 0; i < FuncVecSize; ++i) {
       Constant *celt0 = CDV0 ? CDV0->getElementAsConstant(i) : nullptr;
       Constant *celt1 = CDV1 ? CDV1->getElementAsConstant(i) : nullptr;
       Constant *celt2 = CDV2 ? CDV2->getElementAsConstant(i) : nullptr;
@@ -1616,19 +1608,19 @@ bool AMDGPULibCalls::evaluateCall(CallInst *aCI, const FuncInfo &FInfo) {
 
   LLVMContext &context = CI->getParent()->getParent()->getContext();
   Constant *nval0, *nval1;
-  if (getVecSize(FInfo) == 1) {
+  if (FuncVecSize == 1) {
     nval0 = ConstantFP::get(CI->getType(), DVal0[0]);
     if (hasTwoResults)
       nval1 = ConstantFP::get(CI->getType(), DVal1[0]);
   } else {
     if (getArgType(FInfo) == AMDGPULibFunc::F32) {
       SmallVector <float, 0> FVal0, FVal1;
-      for (int i=0; i < getVecSize(FInfo); ++i)
+      for (int i = 0; i < FuncVecSize; ++i)
         FVal0.push_back((float)DVal0[i]);
       ArrayRef<float> tmp0(FVal0);
       nval0 = ConstantDataVector::get(context, tmp0);
       if (hasTwoResults) {
-        for (int i=0; i < getVecSize(FInfo); ++i)
+        for (int i = 0; i < FuncVecSize; ++i)
           FVal1.push_back((float)DVal1[i]);
         ArrayRef<float> tmp1(FVal1);
         nval1 = ConstantDataVector::get(context, tmp1);

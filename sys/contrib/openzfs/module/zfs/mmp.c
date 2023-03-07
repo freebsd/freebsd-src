@@ -156,7 +156,7 @@
  * vary with the I/O load and this observed value is the ub_mmp_delay which is
  * stored in the uberblock.  The minimum allowed value is 100 ms.
  */
-ulong_t zfs_multihost_interval = MMP_DEFAULT_INTERVAL;
+uint64_t zfs_multihost_interval = MMP_DEFAULT_INTERVAL;
 
 /*
  * Used to control the duration of the activity test on import.  Smaller values
@@ -303,8 +303,10 @@ mmp_next_leaf(spa_t *spa)
 
 	do {
 		leaf = list_next(&spa->spa_leaf_list, leaf);
-		if (leaf == NULL)
+		if (leaf == NULL) {
 			leaf = list_head(&spa->spa_leaf_list);
+			ASSERT3P(leaf, !=, NULL);
+		}
 
 		/*
 		 * We skip unwritable, offline, detached, and dRAID spare
@@ -548,11 +550,11 @@ mmp_thread(void *arg)
 	uint32_t mmp_fail_intervals = MMP_FAIL_INTVS_OK(
 	    zfs_multihost_fail_intervals);
 	hrtime_t mmp_fail_ns = mmp_fail_intervals * mmp_interval;
-	boolean_t last_spa_suspended = suspended;
-	boolean_t last_spa_multihost = multihost;
-	uint64_t last_mmp_interval = mmp_interval;
-	uint32_t last_mmp_fail_intervals = mmp_fail_intervals;
-	hrtime_t last_mmp_fail_ns = mmp_fail_ns;
+	boolean_t last_spa_suspended;
+	boolean_t last_spa_multihost;
+	uint64_t last_mmp_interval;
+	uint32_t last_mmp_fail_intervals;
+	hrtime_t last_mmp_fail_ns;
 	callb_cpr_t cpr;
 	int skip_wait = 0;
 
@@ -734,7 +736,7 @@ mmp_signal_all_threads(void)
 
 /* BEGIN CSTYLED */
 ZFS_MODULE_PARAM_CALL(zfs_multihost, zfs_multihost_, interval,
-	param_set_multihost_interval, param_get_ulong, ZMOD_RW,
+	param_set_multihost_interval, spl_param_get_u64, ZMOD_RW,
 	"Milliseconds between mmp writes to each leaf");
 /* END CSTYLED */
 

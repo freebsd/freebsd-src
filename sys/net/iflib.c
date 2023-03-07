@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <net/if_types.h>
 #include <net/if_media.h>
 #include <net/bpf.h>
@@ -210,6 +211,7 @@ struct iflib_ctx {
 #define isc_rxd_flush ifc_txrx.ift_rxd_flush
 #define isc_legacy_intr ifc_txrx.ift_legacy_intr
 #define isc_txq_select ifc_txrx.ift_txq_select
+#define isc_txq_select_v2 ifc_txrx.ift_txq_select_v2
 	eventhandler_tag ifc_vlan_attach_event;
 	eventhandler_tag ifc_vlan_detach_event;
 	struct ether_addr ifc_mac;
@@ -800,7 +802,7 @@ static int
 iflib_netmap_register(struct netmap_adapter *na, int onoff)
 {
 	if_t ifp = na->ifp;
-	if_ctx_t ctx = ifp->if_softc;
+	if_ctx_t ctx = if_getsoftc(ifp);
 	int status;
 
 	CTX_LOCK(ctx);
@@ -825,7 +827,7 @@ iflib_netmap_register(struct netmap_adapter *na, int onoff)
 
 	iflib_init_locked(ctx);
 	IFDI_CRCSTRIP_SET(ctx, onoff, iflib_crcstrip); // XXX why twice ?
-	status = ifp->if_drv_flags & IFF_DRV_RUNNING ? 0 : 1;
+	status = if_getdrvflags(ifp) & IFF_DRV_RUNNING ? 0 : 1;
 	if (status)
 		nm_clear_native_flags(na);
 	CTX_UNLOCK(ctx);
@@ -836,7 +838,7 @@ static int
 iflib_netmap_config(struct netmap_adapter *na, struct nm_config_info *info)
 {
 	if_t ifp = na->ifp;
-	if_ctx_t ctx = ifp->if_softc;
+	if_ctx_t ctx = if_getsoftc(ifp);
 	iflib_rxq_t rxq = &ctx->ifc_rxqs[0];
 	iflib_fl_t fl = &rxq->ifr_fl[0];
 
@@ -1001,7 +1003,7 @@ iflib_netmap_txsync(struct netmap_kring *kring, int flags)
 	 */
 	u_int report_frequency = kring->nkr_num_slots >> 1;
 	/* device-specific */
-	if_ctx_t ctx = ifp->if_softc;
+	if_ctx_t ctx = if_getsoftc(ifp);
 	iflib_txq_t txq = &ctx->ifc_txqs[kring->ring_id];
 
 	bus_dmamap_sync(txq->ift_ifdi->idi_tag, txq->ift_ifdi->idi_map,
@@ -1173,7 +1175,7 @@ iflib_netmap_rxsync(struct netmap_kring *kring, int flags)
 	int force_update = (flags & NAF_FORCE_READ) || kring->nr_kflags & NKR_PENDINTR;
 	int i = 0, rx_bytes = 0, rx_pkts = 0;
 
-	if_ctx_t ctx = ifp->if_softc;
+	if_ctx_t ctx = if_getsoftc(ifp);
 	if_shared_ctx_t sctx = ctx->ifc_sctx;
 	if_softc_ctx_t scctx = &ctx->ifc_softc_ctx;
 	iflib_rxq_t rxq = &ctx->ifc_rxqs[kring->ring_id];
@@ -1292,7 +1294,7 @@ iflib_netmap_rxsync(struct netmap_kring *kring, int flags)
 static void
 iflib_netmap_intr(struct netmap_adapter *na, int onoff)
 {
-	if_ctx_t ctx = na->ifp->if_softc;
+	if_ctx_t ctx = if_getsoftc(na->ifp);
 
 	CTX_LOCK(ctx);
 	if (onoff) {
@@ -2642,8 +2644,9 @@ iflib_stop(if_ctx_t ctx)
 			bzero((void *)di->idi_vaddr, di->idi_size);
 	}
 	for (i = 0; i < scctx->isc_nrxqsets; i++, rxq++) {
-		gtaskqueue_drain(rxq->ifr_task.gt_taskqueue,
-		    &rxq->ifr_task.gt_task);
+		if (rxq->ifr_task.gt_taskqueue != NULL)
+			gtaskqueue_drain(rxq->ifr_task.gt_taskqueue,
+				 &rxq->ifr_task.gt_task);
 
 		rxq->ifr_cq_cidx = 0;
 		for (j = 0, di = rxq->ifr_ifdi; j < sctx->isc_nrxqs; j++, di++)
@@ -2710,7 +2713,6 @@ rxd_frag_to_sd(iflib_rxq_t rxq, if_rxd_frag_t irf, bool unload, if_rxsd_t sd,
 	cidx = irf->irf_idx;
 	fl = &rxq->ifr_fl[flid];
 	sd->ifsd_fl = fl;
-	m = fl->ifl_sds.ifsd_m[cidx];
 	sd->ifsd_cl = &fl->ifl_sds.ifsd_cl[cidx];
 	fl->ifl_credits--;
 #if MEMORY_LOGGING
@@ -2729,8 +2731,7 @@ rxd_frag_to_sd(iflib_rxq_t rxq, if_rxd_frag_t irf, bool unload, if_rxsd_t sd,
 		payload  = *sd->ifsd_cl;
 		payload +=  ri->iri_pad;
 		len = ri->iri_len - ri->iri_pad;
-		*pf_rv = pfil_run_hooks(rxq->pfil, payload, ri->iri_ifp,
-		    len | PFIL_MEMPTR | PFIL_IN, NULL);
+		*pf_rv = pfil_mem_in(rxq->pfil, payload, len, ri->iri_ifp, &m);
 		switch (*pf_rv) {
 		case PFIL_DROPPED:
 		case PFIL_CONSUMED:
@@ -2743,8 +2744,8 @@ rxd_frag_to_sd(iflib_rxq_t rxq, if_rxd_frag_t irf, bool unload, if_rxsd_t sd,
 		case PFIL_REALLOCED:
 			/*
 			 * The filter copied it.  Everything is recycled.
+			 * 'm' points at new mbuf.
 			 */
-			m = pfil_mem2mbuf(payload);
 			unload = 0;
 			break;
 		case PFIL_PASS:
@@ -2752,12 +2753,14 @@ rxd_frag_to_sd(iflib_rxq_t rxq, if_rxd_frag_t irf, bool unload, if_rxsd_t sd,
 			 * Filter said it was OK, so receive like
 			 * normal
 			 */
+			m = fl->ifl_sds.ifsd_m[cidx];
 			fl->ifl_sds.ifsd_m[cidx] = NULL;
 			break;
 		default:
 			MPASS(0);
 		}
 	} else {
+		m = fl->ifl_sds.ifsd_m[cidx];
 		fl->ifl_sds.ifsd_m[cidx] = NULL;
 		if (pf_rv != NULL)
 			*pf_rv = PFIL_PASS;
@@ -2887,7 +2890,7 @@ iflib_rxd_pkt_get(iflib_rxq_t rxq, if_rxd_info_t ri)
 static void
 iflib_get_ip_forwarding(struct lro_ctrl *lc, bool *v4, bool *v6)
 {
-	CURVNET_SET(lc->ifp->if_vnet);
+	CURVNET_SET(lc->ifp->if_vnet); /* XXX - DRVAPI */
 #if defined(INET6)
 	*v6 = V_ip6_forwarding;
 #endif
@@ -2977,7 +2980,7 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 	}
 
 	/* pfil needs the vnet to be set */
-	CURVNET_SET_QUIET(ifp->if_vnet);
+	CURVNET_SET_QUIET(ifp->if_vnet); /* XXX - DRVAPI */
 	for (budget_left = budget; budget_left > 0 && avail > 0;) {
 		if (__predict_false(!CTX_ACTIVE(ctx))) {
 			DBG_COUNTER_INC(rx_ctx_inactive);
@@ -3050,7 +3053,7 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 			if (!lro_possible) {
 				lro_possible = iflib_check_lro_possible(m, v4_forwarding, v6_forwarding);
 				if (lro_possible && mf != NULL) {
-					ifp->if_input(ifp, mf);
+					if_input(ifp, mf);
 					DBG_COUNTER_INC(rx_if_input);
 					mt = mf = NULL;
 				}
@@ -3063,7 +3066,7 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 		}
 #endif
 		if (lro_possible) {
-			ifp->if_input(ifp, m);
+			if_input(ifp, m);
 			DBG_COUNTER_INC(rx_if_input);
 			continue;
 		}
@@ -3075,7 +3078,7 @@ iflib_rxeof(iflib_rxq_t rxq, qidx_t budget)
 		mt = m;
 	}
 	if (mf != NULL) {
-		ifp->if_input(ifp, mf);
+		if_input(ifp, mf);
 		DBG_COUNTER_INC(rx_if_input);
 	}
 
@@ -3195,12 +3198,154 @@ print_pkt(if_pkt_info_t pi)
 #define IS_TSO6(pi) ((pi)->ipi_csum_flags & CSUM_IP6_TSO)
 #define IS_TX_OFFLOAD6(pi) ((pi)->ipi_csum_flags & (CSUM_IP6_TCP | CSUM_IP6_TSO))
 
+/**
+ * Parses out ethernet header information in the given mbuf.
+ * Returns in pi: ipi_etype (EtherType) and ipi_ehdrlen (Ethernet header length)
+ *
+ * This will account for the VLAN header if present.
+ *
+ * XXX: This doesn't handle QinQ, which could prevent TX offloads for those
+ * types of packets.
+ */
+static int
+iflib_parse_ether_header(if_pkt_info_t pi, struct mbuf **mp, uint64_t *pullups)
+{
+	struct ether_vlan_header *eh;
+	struct mbuf *m;
+
+	m = *mp;
+	if (__predict_false(m->m_len < sizeof(*eh))) {
+		(*pullups)++;
+		if (__predict_false((m = m_pullup(m, sizeof(*eh))) == NULL))
+			return (ENOMEM);
+	}
+	eh = mtod(m, struct ether_vlan_header *);
+	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
+		pi->ipi_etype = ntohs(eh->evl_proto);
+		pi->ipi_ehdrlen = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
+	} else {
+		pi->ipi_etype = ntohs(eh->evl_encap_proto);
+		pi->ipi_ehdrlen = ETHER_HDR_LEN;
+	}
+	*mp = m;
+
+	return (0);
+}
+
+/**
+ * Parse up to the L3 header and extract IPv4/IPv6 header information into pi.
+ * Currently this information includes: IP ToS value, IP header version/presence
+ *
+ * This is missing some checks and doesn't edit the packet content as it goes,
+ * unlike iflib_parse_header(), in order to keep the amount of code here minimal.
+ */
+static int
+iflib_parse_header_partial(if_pkt_info_t pi, struct mbuf **mp, uint64_t *pullups)
+{
+	struct mbuf *m;
+	int err;
+
+	*pullups = 0;
+	m = *mp;
+	if (!M_WRITABLE(m)) {
+		if ((m = m_dup(m, M_NOWAIT)) == NULL) {
+			return (ENOMEM);
+		} else {
+			m_freem(*mp);
+			DBG_COUNTER_INC(tx_frees);
+			*mp = m;
+		}
+	}
+
+	/* Fills out pi->ipi_etype */
+	err = iflib_parse_ether_header(pi, mp, pullups);
+	if (err)
+		return (err);
+	m = *mp;
+
+	switch (pi->ipi_etype) {
+#ifdef INET
+	case ETHERTYPE_IP:
+	{
+		struct mbuf *n;
+		struct ip *ip = NULL;
+		int miniplen;
+
+		miniplen = min(m->m_pkthdr.len, pi->ipi_ehdrlen + sizeof(*ip));
+		if (__predict_false(m->m_len < miniplen)) {
+			/*
+			 * Check for common case where the first mbuf only contains
+			 * the Ethernet header
+			 */
+			if (m->m_len == pi->ipi_ehdrlen) {
+				n = m->m_next;
+				MPASS(n);
+				/* If next mbuf contains at least the minimal IP header, then stop */
+				if (n->m_len >= sizeof(*ip)) {
+					ip = (struct ip *)n->m_data;
+				} else {
+					(*pullups)++;
+					if (__predict_false((m = m_pullup(m, miniplen)) == NULL))
+						return (ENOMEM);
+					ip = (struct ip *)(m->m_data + pi->ipi_ehdrlen);
+				}
+			} else {
+				(*pullups)++;
+				if (__predict_false((m = m_pullup(m, miniplen)) == NULL))
+					return (ENOMEM);
+				ip = (struct ip *)(m->m_data + pi->ipi_ehdrlen);
+			}
+		} else {
+			ip = (struct ip *)(m->m_data + pi->ipi_ehdrlen);
+		}
+
+		/* Have the IPv4 header w/ no options here */
+		pi->ipi_ip_hlen = ip->ip_hl << 2;
+		pi->ipi_ipproto = ip->ip_p;
+		pi->ipi_ip_tos = ip->ip_tos;
+		pi->ipi_flags |= IPI_TX_IPV4;
+
+		break;
+	}
+#endif
+#ifdef INET6
+	case ETHERTYPE_IPV6:
+	{
+		struct ip6_hdr *ip6;
+
+		if (__predict_false(m->m_len < pi->ipi_ehdrlen + sizeof(struct ip6_hdr))) {
+			(*pullups)++;
+			if (__predict_false((m = m_pullup(m, pi->ipi_ehdrlen + sizeof(struct ip6_hdr))) == NULL))
+				return (ENOMEM);
+		}
+		ip6 = (struct ip6_hdr *)(m->m_data + pi->ipi_ehdrlen);
+
+		/* Have the IPv6 fixed header here */
+		pi->ipi_ip_hlen = sizeof(struct ip6_hdr);
+		pi->ipi_ipproto = ip6->ip6_nxt;
+		pi->ipi_ip_tos = IPV6_TRAFFIC_CLASS(ip6);
+		pi->ipi_flags |= IPI_TX_IPV6;
+
+		break;
+	}
+#endif
+	default:
+		pi->ipi_csum_flags &= ~CSUM_OFFLOAD;
+		pi->ipi_ip_hlen = 0;
+		break;
+	}
+	*mp = m;
+
+	return (0);
+
+}
+
 static int
 iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 {
 	if_shared_ctx_t sctx = txq->ift_ctx->ifc_sctx;
-	struct ether_vlan_header *eh;
 	struct mbuf *m;
+	int err;
 
 	m = *mp;
 	if ((sctx->isc_flags & IFLIB_NEED_SCRATCH) &&
@@ -3214,24 +3359,11 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 		}
 	}
 
-	/*
-	 * Determine where frame payload starts.
-	 * Jump over vlan headers if already present,
-	 * helpful for QinQ too.
-	 */
-	if (__predict_false(m->m_len < sizeof(*eh))) {
-		txq->ift_pullups++;
-		if (__predict_false((m = m_pullup(m, sizeof(*eh))) == NULL))
-			return (ENOMEM);
-	}
-	eh = mtod(m, struct ether_vlan_header *);
-	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
-		pi->ipi_etype = ntohs(eh->evl_proto);
-		pi->ipi_ehdrlen = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
-	} else {
-		pi->ipi_etype = ntohs(eh->evl_encap_proto);
-		pi->ipi_ehdrlen = ETHER_HDR_LEN;
-	}
+	/* Fills out pi->ipi_etype */
+	err = iflib_parse_ether_header(pi, mp, &txq->ift_pullups);
+	if (__predict_false(err))
+		return (err);
+	m = *mp;
 
 	switch (pi->ipi_etype) {
 #ifdef INET
@@ -3276,6 +3408,7 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 		}
 		pi->ipi_ip_hlen = ip->ip_hl << 2;
 		pi->ipi_ipproto = ip->ip_p;
+		pi->ipi_ip_tos = ip->ip_tos;
 		pi->ipi_flags |= IPI_TX_IPV4;
 
 		/* TCP checksum offload may require TCP header length */
@@ -3329,6 +3462,7 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 
 		/* XXX-BZ this will go badly in case of ext hdrs. */
 		pi->ipi_ipproto = ip6->ip6_nxt;
+		pi->ipi_ip_tos = IPV6_TRAFFIC_CLASS(ip6);
 		pi->ipi_flags |= IPI_TX_IPV6;
 
 		/* TCP checksum offload may require TCP header length */
@@ -3883,7 +4017,7 @@ iflib_txq_drain(struct ifmp_ring *r, uint32_t cidx, uint32_t pidx)
 		bytes_sent += m->m_pkthdr.len;
 		mcast_sent += !!(m->m_flags & M_MCAST);
 
-		if (__predict_false(!(ifp->if_drv_flags & IFF_DRV_RUNNING)))
+		if (__predict_false(!(if_getdrvflags(ifp) & IFF_DRV_RUNNING)))
 			break;
 		ETHER_BPF_MTAP(ifp, m);
 		rang = iflib_txd_db_check(txq, false);
@@ -3969,7 +4103,7 @@ _task_fn_tx(void *context)
 		goto skip_ifmp;
 #endif
 #ifdef ALTQ
-	if (ALTQ_IS_ENABLED(&ifp->if_snd))
+	if (ALTQ_IS_ENABLED(&ifp->if_snd)) /* XXX - DRVAPI */
 		iflib_altq_if_start(ifp);
 #endif
 	if (txq->ift_db_pending)
@@ -4146,13 +4280,12 @@ iflib_if_init(void *arg)
 static int
 iflib_if_transmit(if_t ifp, struct mbuf *m)
 {
-	if_ctx_t	ctx = if_getsoftc(ifp);
-
+	if_ctx_t ctx = if_getsoftc(ifp);
 	iflib_txq_t txq;
 	int err, qidx;
-	int abdicate = ctx->ifc_sysctl_tx_abdicate;
+	int abdicate;
 
-	if (__predict_false((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || !LINK_ACTIVE(ctx))) {
+	if (__predict_false((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0 || !LINK_ACTIVE(ctx))) {
 		DBG_COUNTER_INC(tx_frees);
 		m_freem(m);
 		return (ENETDOWN);
@@ -4162,7 +4295,24 @@ iflib_if_transmit(if_t ifp, struct mbuf *m)
 	/* ALTQ-enabled interfaces always use queue 0. */
 	qidx = 0;
 	/* Use driver-supplied queue selection method if it exists */
-	if (ctx->isc_txq_select)
+	if (ctx->isc_txq_select_v2) {
+		struct if_pkt_info pi;
+		uint64_t early_pullups = 0;
+		pkt_info_zero(&pi);
+
+		err = iflib_parse_header_partial(&pi, &m, &early_pullups);
+		if (__predict_false(err != 0)) {
+			/* Assign pullups for bad pkts to default queue */
+			ctx->ifc_txqs[0].ift_pullups += early_pullups;
+			DBG_COUNTER_INC(encap_txd_encap_fail);
+			return (err);
+		}
+		/* Let driver make queueing decision */
+		qidx = ctx->isc_txq_select_v2(ctx->ifc_softc, m, &pi);
+		ctx->ifc_txqs[qidx].ift_pullups += early_pullups;
+	}
+	/* Backwards compatibility w/ simpler queue select */
+	else if (ctx->isc_txq_select)
 		qidx = ctx->isc_txq_select(ctx->ifc_softc, m);
 	/* If not, use iflib's standard method */
 	else if ((NTXQSETS(ctx) > 1) && M_HASHTYPE_GET(m) && !ALTQ_IS_ENABLED(&ifp->if_snd))
@@ -4207,6 +4357,8 @@ iflib_if_transmit(if_t ifp, struct mbuf *m)
 	}
 #endif
 	DBG_COUNTER_INC(tx_seen);
+	abdicate = ctx->ifc_sysctl_tx_abdicate;
+
 	err = ifmp_ring_enqueue(txq->ift_br, (void **)&m, 1, TX_BATCH_SIZE, abdicate);
 
 	if (abdicate)
@@ -4251,7 +4403,7 @@ iflib_if_transmit(if_t ifp, struct mbuf *m)
 static void
 iflib_altq_if_start(if_t ifp)
 {
-	struct ifaltq *ifq = &ifp->if_snd;
+	struct ifaltq *ifq = &ifp->if_snd; /* XXX - DRVAPI */
 	struct mbuf *m;
 
 	IFQ_LOCK(ifq);
@@ -4268,8 +4420,8 @@ iflib_altq_if_transmit(if_t ifp, struct mbuf *m)
 {
 	int err;
 
-	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {
-		IFQ_ENQUEUE(&ifp->if_snd, m, err);
+	if (ALTQ_IS_ENABLED(&ifp->if_snd)) { /* XXX - DRVAPI */
+		IFQ_ENQUEUE(&ifp->if_snd, m, err); /* XXX - DRVAPI */
 		if (err == 0)
 			iflib_altq_if_start(ifp);
 	} else
@@ -4697,7 +4849,7 @@ iflib_add_pfil(if_ctx_t ctx)
 	pa.pa_version = PFIL_VERSION;
 	pa.pa_flags = PFIL_IN;
 	pa.pa_type = PFIL_TYPE_ETHERNET;
-	pa.pa_headname = ctx->ifc_ifp->if_xname;
+	pa.pa_headname = if_name(ctx->ifc_ifp);
 	pfil = pfil_head_register(&pa);
 
 	for (i = 0, rxq = ctx->ifc_rxqs; i < NRXQSETS(ctx); i++, rxq++) {
@@ -5340,7 +5492,7 @@ iflib_pseudo_register(device_t dev, if_shared_ctx_t sctx, if_ctx_t *ctxp,
 	if_setcapabilities(ifp, scctx->isc_capabilities | IFCAP_HWSTATS | IFCAP_LINKSTATE);
 	if_setcapenable(ifp, scctx->isc_capenable | IFCAP_HWSTATS | IFCAP_LINKSTATE);
 
-	ifp->if_flags |= IFF_NOGROUP;
+	if_setflagbits(ifp, IFF_NOGROUP, 0);
 	if (sctx->isc_flags & IFLIB_PSEUDO) {
 		ifmedia_add(ctx->ifc_mediap, IFM_ETHER | IFM_AUTO, 0, NULL);
 		ifmedia_set(ctx->ifc_mediap, IFM_ETHER | IFM_AUTO);

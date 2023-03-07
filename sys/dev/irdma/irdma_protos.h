@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2016 - 2021 Intel Corporation
+ * Copyright (c) 2016 - 2022 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -45,8 +45,7 @@
 #define CQP_TIMEOUT_THRESHOLD	500
 
 /* init operations */
-int irdma_sc_dev_init(enum irdma_vers ver, struct irdma_sc_dev *dev,
-		      struct irdma_device_init_info *info);
+int irdma_sc_dev_init(struct irdma_sc_dev *dev, struct irdma_device_init_info *info);
 void irdma_sc_cqp_post_sq(struct irdma_sc_cqp *cqp);
 __le64 *irdma_sc_cqp_get_next_send_wqe(struct irdma_sc_cqp *cqp, u64 scratch);
 int irdma_sc_mr_fast_register(struct irdma_sc_qp *qp,
@@ -56,7 +55,7 @@ void irdma_init_config_check(struct irdma_config_check *cc,
 			     u8 traffic_class,
 			     u16 qs_handle);
 /* HMC/FPM functions */
-int irdma_sc_init_iw_hmc(struct irdma_sc_dev *dev, u8 hmc_fn_id);
+int irdma_sc_init_iw_hmc(struct irdma_sc_dev *dev, u16 hmc_fn_id);
 /* stats misc */
 int irdma_cqp_gather_stats_cmd(struct irdma_sc_dev *dev,
 			       struct irdma_vsi_pestat *pestat, bool wait);
@@ -114,7 +113,7 @@ int irdma_free_dma_mem(struct irdma_hw *hw, struct irdma_dma_mem *mem);
 u8 irdma_get_encoded_wqe_size(u32 wqsize, enum irdma_queue_type queue_type);
 void irdma_modify_qp_to_err(struct irdma_sc_qp *sc_qp);
 int irdma_sc_static_hmc_pages_allocated(struct irdma_sc_cqp *cqp, u64 scratch,
-					u8 hmc_fn_id, bool post_sq,
+					u16 hmc_fn_id, bool post_sq,
 					bool poll_registers);
 int irdma_cfg_fpm_val(struct irdma_sc_dev *dev, u32 qp_count);
 int irdma_get_rdma_features(struct irdma_sc_dev *dev);
@@ -129,9 +128,9 @@ void dumpcls(struct irdma_sc_dev *dev);
 int irdma_cqp_sds_cmd(struct irdma_sc_dev *dev,
 		      struct irdma_update_sds_info *info);
 int irdma_cqp_query_fpm_val_cmd(struct irdma_sc_dev *dev,
-				struct irdma_dma_mem *val_mem, u8 hmc_fn_id);
+				struct irdma_dma_mem *val_mem, u16 hmc_fn_id);
 int irdma_cqp_commit_fpm_val_cmd(struct irdma_sc_dev *dev,
-				 struct irdma_dma_mem *val_mem, u8 hmc_fn_id);
+				 struct irdma_dma_mem *val_mem, u16 hmc_fn_id);
 int irdma_alloc_query_fpm_buf(struct irdma_sc_dev *dev,
 			      struct irdma_dma_mem *mem);
 int irdma_cqp_manage_hmc_fcn_cmd(struct irdma_sc_dev *dev,

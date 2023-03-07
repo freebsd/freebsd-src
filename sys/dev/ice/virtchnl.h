@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2021, Intel Corporation
+/*  Copyright (c) 2022, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -196,10 +196,12 @@ enum virtchnl_ops {
 	/* opcodes 60 through 65 are reserved */
 	VIRTCHNL_OP_GET_QOS_CAPS = 66,
 	VIRTCHNL_OP_CONFIG_QUEUE_TC_MAP = 67,
-	/* opcode 68, 69 are reserved */
+	/* opcode 68 through 70 are reserved */
 	VIRTCHNL_OP_ENABLE_QUEUES_V2 = 107,
 	VIRTCHNL_OP_DISABLE_QUEUES_V2 = 108,
 	VIRTCHNL_OP_MAP_QUEUE_VECTOR = 111,
+	VIRTCHNL_OP_CONFIG_QUEUE_BW = 112,
+	VIRTCHNL_OP_CONFIG_QUANTA = 113,
 	VIRTCHNL_OP_MAX,
 };
 
@@ -274,12 +276,6 @@ static inline const char *virtchnl_op_str(enum virtchnl_ops v_opcode)
 		return "VIRTCHNL_OP_DEL_FDIR_FILTER";
 	case VIRTCHNL_OP_GET_MAX_RSS_QREGION:
 		return "VIRTCHNL_OP_GET_MAX_RSS_QREGION";
-	case VIRTCHNL_OP_ENABLE_QUEUES_V2:
-		return "VIRTCHNL_OP_ENABLE_QUEUES_V2";
-	case VIRTCHNL_OP_DISABLE_QUEUES_V2:
-		return "VIRTCHNL_OP_DISABLE_QUEUES_V2";
-	case VIRTCHNL_OP_MAP_QUEUE_VECTOR:
-		return "VIRTCHNL_OP_MAP_QUEUE_VECTOR";
 	case VIRTCHNL_OP_GET_OFFLOAD_VLAN_V2_CAPS:
 		return "VIRTCHNL_OP_GET_OFFLOAD_VLAN_V2_CAPS";
 	case VIRTCHNL_OP_ADD_VLAN_V2:
@@ -298,6 +294,12 @@ static inline const char *virtchnl_op_str(enum virtchnl_ops v_opcode)
 		return "VIRTCHNL_OP_ENABLE_VLAN_FILTERING_V2";
 	case VIRTCHNL_OP_DISABLE_VLAN_FILTERING_V2:
 		return "VIRTCHNL_OP_DISABLE_VLAN_FILTERING_V2";
+	case VIRTCHNL_OP_ENABLE_QUEUES_V2:
+		return "VIRTCHNL_OP_ENABLE_QUEUES_V2";
+	case VIRTCHNL_OP_DISABLE_QUEUES_V2:
+		return "VIRTCHNL_OP_DISABLE_QUEUES_V2";
+	case VIRTCHNL_OP_MAP_QUEUE_VECTOR:
+		return "VIRTCHNL_OP_MAP_QUEUE_VECTOR";
 	case VIRTCHNL_OP_MAX:
 		return "VIRTCHNL_OP_MAX";
 	default:
@@ -492,21 +494,14 @@ VIRTCHNL_CHECK_STRUCT_LEN(24, virtchnl_txq_info);
 /* RX descriptor IDs (range from 0 to 63) */
 enum virtchnl_rx_desc_ids {
 	VIRTCHNL_RXDID_0_16B_BASE		= 0,
-	/* 32B_BASE and FLEX_SPLITQ share desc ids as default descriptors
-	 * because they can be differentiated based on queue model; e.g. single
-	 * queue model can only use 32B_BASE and split queue model can only use
-	 * FLEX_SPLITQ.  Having these as 1 allows them to be used as default
-	 * descriptors without negotiation.
-	 */
 	VIRTCHNL_RXDID_1_32B_BASE		= 1,
-	VIRTCHNL_RXDID_1_FLEX_SPLITQ		= 1,
 	VIRTCHNL_RXDID_2_FLEX_SQ_NIC		= 2,
 	VIRTCHNL_RXDID_3_FLEX_SQ_SW		= 3,
 	VIRTCHNL_RXDID_4_FLEX_SQ_NIC_VEB	= 4,
 	VIRTCHNL_RXDID_5_FLEX_SQ_NIC_ACL	= 5,
 	VIRTCHNL_RXDID_6_FLEX_SQ_NIC_2		= 6,
 	VIRTCHNL_RXDID_7_HW_RSVD		= 7,
-	/* 9 through 15 are reserved */
+	/* 8 through 15 are reserved */
 	VIRTCHNL_RXDID_16_COMMS_GENERIC 	= 16,
 	VIRTCHNL_RXDID_17_COMMS_AUX_VLAN 	= 17,
 	VIRTCHNL_RXDID_18_COMMS_AUX_IPV4 	= 18,
@@ -520,7 +515,6 @@ enum virtchnl_rx_desc_ids {
 enum virtchnl_rx_desc_id_bitmasks {
 	VIRTCHNL_RXDID_0_16B_BASE_M		= BIT(VIRTCHNL_RXDID_0_16B_BASE),
 	VIRTCHNL_RXDID_1_32B_BASE_M		= BIT(VIRTCHNL_RXDID_1_32B_BASE),
-	VIRTCHNL_RXDID_1_FLEX_SPLITQ_M		= BIT(VIRTCHNL_RXDID_1_FLEX_SPLITQ),
 	VIRTCHNL_RXDID_2_FLEX_SQ_NIC_M		= BIT(VIRTCHNL_RXDID_2_FLEX_SQ_NIC),
 	VIRTCHNL_RXDID_3_FLEX_SQ_SW_M		= BIT(VIRTCHNL_RXDID_3_FLEX_SQ_SW),
 	VIRTCHNL_RXDID_4_FLEX_SQ_NIC_VEB_M	= BIT(VIRTCHNL_RXDID_4_FLEX_SQ_NIC_VEB),
@@ -1211,6 +1205,46 @@ struct virtchnl_rss_lut {
 
 VIRTCHNL_CHECK_STRUCT_LEN(6, virtchnl_rss_lut);
 
+/* enum virthcnl_hash_filter
+ *
+ * Bits defining the hash filters in the hena field of the virtchnl_rss_hena
+ * structure. Each bit indicates a specific hash filter for RSS.
+ *
+ * Note that not all bits are supported on all hardware. The VF should use
+ * VIRTCHNL_OP_GET_RSS_HENA_CAPS to determine which bits the PF is capable of
+ * before using VIRTCHNL_OP_SET_RSS_HENA to enable specific filters.
+ */
+enum virtchnl_hash_filter {
+	/* Bits 0 through 28 are reserved for future use */
+	/* Bit 29, 30, and 32 are not supported on XL710 a X710 */
+	VIRTCHNL_HASH_FILTER_UNICAST_IPV4_UDP		= 29,
+	VIRTCHNL_HASH_FILTER_MULTICAST_IPV4_UDP		= 30,
+	VIRTCHNL_HASH_FILTER_IPV4_UDP			= 31,
+	VIRTCHNL_HASH_FILTER_IPV4_TCP_SYN_NO_ACK	= 32,
+	VIRTCHNL_HASH_FILTER_IPV4_TCP			= 33,
+	VIRTCHNL_HASH_FILTER_IPV4_SCTP			= 34,
+	VIRTCHNL_HASH_FILTER_IPV4_OTHER			= 35,
+	VIRTCHNL_HASH_FILTER_FRAG_IPV4			= 36,
+	/* Bits 37 and 38 are reserved for future use */
+	/* Bit 39, 40, and 42 are not supported on XL710 a X710 */
+	VIRTCHNL_HASH_FILTER_UNICAST_IPV6_UDP		= 39,
+	VIRTCHNL_HASH_FILTER_MULTICAST_IPV6_UDP		= 40,
+	VIRTCHNL_HASH_FILTER_IPV6_UDP			= 41,
+	VIRTCHNL_HASH_FILTER_IPV6_TCP_SYN_NO_ACK	= 42,
+	VIRTCHNL_HASH_FILTER_IPV6_TCP			= 43,
+	VIRTCHNL_HASH_FILTER_IPV6_SCTP			= 44,
+	VIRTCHNL_HASH_FILTER_IPV6_OTHER			= 45,
+	VIRTCHNL_HASH_FILTER_FRAG_IPV6			= 46,
+	/* Bit 37 is reserved for future use */
+	VIRTCHNL_HASH_FILTER_FCOE_OX			= 48,
+	VIRTCHNL_HASH_FILTER_FCOE_RX			= 49,
+	VIRTCHNL_HASH_FILTER_FCOE_OTHER			= 50,
+	/* Bits 51 through 62 are reserved for future use */
+	VIRTCHNL_HASH_FILTER_L2_PAYLOAD			= 63,
+};
+
+#define VIRTCHNL_HASH_FILTER_INVALID	(0)
+
 /* VIRTCHNL_OP_GET_RSS_HENA_CAPS
  * VIRTCHNL_OP_SET_RSS_HENA
  * VF sends these messages to get and set the hash filter enable bits for RSS.
@@ -1219,6 +1253,7 @@ VIRTCHNL_CHECK_STRUCT_LEN(6, virtchnl_rss_lut);
  * traffic types that are hashed by the hardware.
  */
 struct virtchnl_rss_hena {
+	/* see enum virtchnl_hash_filter */
 	u64 hena;
 };
 
@@ -1378,13 +1413,6 @@ struct virtchnl_pf_event {
 			u8 link_status;
 			u8 pad[3];
 		} link_event_adv;
-		struct {
-			/* link_speed provided in Mbps */
-			u32 link_speed;
-			u16 vport_id;
-			u8 link_status;
-			u8 pad;
-		} link_event_adv_vport;
 	} event_data;
 
 	s32 severity;
@@ -1410,6 +1438,7 @@ enum virtchnl_vfr_states {
 };
 
 #define VIRTCHNL_MAX_NUM_PROTO_HDRS	32
+#define VIRTCHNL_MAX_SIZE_RAW_PACKET	1024
 #define PROTO_HDR_SHIFT			5
 #define PROTO_HDR_FIELD_START(proto_hdr_type) \
 					(proto_hdr_type << PROTO_HDR_SHIFT)
@@ -1581,6 +1610,10 @@ enum virtchnl_proto_hdr_field {
 		PROTO_HDR_FIELD_START(VIRTCHNL_PROTO_HDR_GTPU_EH_PDU_DWN),
 	VIRTCHNL_PROTO_HDR_GTPU_UP_QFI =
 		PROTO_HDR_FIELD_START(VIRTCHNL_PROTO_HDR_GTPU_EH_PDU_UP),
+	/* L2TPv2 */
+	VIRTCHNL_PROTO_HDR_L2TPV2_SESS_ID =
+		PROTO_HDR_FIELD_START(VIRTCHNL_PROTO_HDR_L2TPV2),
+	VIRTCHNL_PROTO_HDR_L2TPV2_LEN_SESS_ID,
 };
 
 struct virtchnl_proto_hdr {
@@ -1601,13 +1634,26 @@ struct virtchnl_proto_hdrs {
 	u8 tunnel_level;
 	/**
 	 * specify where protocol header start from.
+	 * must be 0 when sending a raw packet request.
 	 * 0 - from the outer layer
 	 * 1 - from the first inner layer
 	 * 2 - from the second inner layer
 	 * ....
-	 **/
-	int count; /* the proto layers must < VIRTCHNL_MAX_NUM_PROTO_HDRS */
-	struct virtchnl_proto_hdr proto_hdr[VIRTCHNL_MAX_NUM_PROTO_HDRS];
+	 */
+	int count;
+	/**
+	 * number of proto layers, must < VIRTCHNL_MAX_NUM_PROTO_HDRS
+	 * must be 0 for a raw packet request.
+	 */
+	union {
+		struct virtchnl_proto_hdr
+			proto_hdr[VIRTCHNL_MAX_NUM_PROTO_HDRS];
+		struct {
+			u16 pkt_len;
+			u8 spec[VIRTCHNL_MAX_SIZE_RAW_PACKET];
+			u8 mask[VIRTCHNL_MAX_SIZE_RAW_PACKET];
+		} raw;
+	};
 };
 
 VIRTCHNL_CHECK_STRUCT_LEN(2312, virtchnl_proto_hdrs);
@@ -1796,18 +1842,28 @@ struct virtchnl_queue_tc_mapping {
 
 VIRTCHNL_CHECK_STRUCT_LEN(12, virtchnl_queue_tc_mapping);
 
-/* TX and RX queue types are valid in legacy as well as split queue models.
- * With Split Queue model, 2 additional types are introduced - TX_COMPLETION
- * and RX_BUFFER. In split queue model, RX corresponds to the queue where HW
- * posts completions.
- */
+/* VIRTCHNL_OP_CONFIG_QUEUE_BW */
+struct virtchnl_queue_bw {
+	u16 queue_id;
+	u8 tc;
+	u8 pad;
+	struct virtchnl_shaper_bw shaper;
+};
+
+VIRTCHNL_CHECK_STRUCT_LEN(12, virtchnl_queue_bw);
+
+struct virtchnl_queues_bw_cfg {
+	u16 vsi_id;
+	u16 num_queues;
+	struct virtchnl_queue_bw cfg[1];
+};
+
+VIRTCHNL_CHECK_STRUCT_LEN(16, virtchnl_queues_bw_cfg);
+
+/* queue types */
 enum virtchnl_queue_type {
 	VIRTCHNL_QUEUE_TYPE_TX			= 0,
 	VIRTCHNL_QUEUE_TYPE_RX			= 1,
-	VIRTCHNL_QUEUE_TYPE_TX_COMPLETION	= 2,
-	VIRTCHNL_QUEUE_TYPE_RX_BUFFER		= 3,
-	VIRTCHNL_QUEUE_TYPE_CONFIG_TX		= 4,
-	VIRTCHNL_QUEUE_TYPE_CONFIG_RX		= 5
 };
 
 /* structure to specify a chunk of contiguous queues */
@@ -1831,19 +1887,13 @@ VIRTCHNL_CHECK_STRUCT_LEN(12, virtchnl_queue_chunks);
 
 /* VIRTCHNL_OP_ENABLE_QUEUES_V2
  * VIRTCHNL_OP_DISABLE_QUEUES_V2
- * VIRTCHNL_OP_DEL_QUEUES
  *
- * If VIRTCHNL version was negotiated in VIRTCHNL_OP_VERSION as 2.0
- * then all of these ops are available.
+ * These opcodes can be used if VIRTCHNL_VF_LARGE_NUM_QPAIRS was negotiated in
+ * VIRTCHNL_OP_GET_VF_RESOURCES
  *
- * If VIRTCHNL_VF_LARGE_NUM_QPAIRS was negotiated in VIRTCHNL_OP_GET_VF_RESOURCES
- * then VIRTCHNL_OP_ENABLE_QUEUES_V2 and VIRTCHNL_OP_DISABLE_QUEUES_V2 are
- * available.
- *
- * PF sends these messages to enable, disable or delete queues specified in
- * chunks. PF sends virtchnl_del_ena_dis_queues struct to specify the queues
- * to be enabled/disabled/deleted. Also applicable to single queue RX or
- * TX. CP performs requested action and returns status.
+ * VF sends virtchnl_ena_dis_queues struct to specify the queues to be
+ * enabled/disabled in chunks. Also applicable to single queue RX or
+ * TX. PF performs requested action and returns status.
  */
 struct virtchnl_del_ena_dis_queues {
 	u16 vport_id;
@@ -1877,13 +1927,13 @@ VIRTCHNL_CHECK_STRUCT_LEN(16, virtchnl_queue_vector);
 
 /* VIRTCHNL_OP_MAP_QUEUE_VECTOR
  *
- * If VIRTCHNL_VF_LARGE_NUM_QPAIRS was negotiated in VIRTCHNL_OP_GET_VF_RESOURCES
- * then only VIRTCHNL_OP_MAP_QUEUE_VECTOR is available.
+ * This opcode can be used only if VIRTCHNL_VF_LARGE_NUM_QPAIRS was negotiated
+ * in VIRTCHNL_OP_GET_VF_RESOURCES
  *
- * PF sends this message to map or unmap queues to vectors and ITR index
- * registers. External data buffer contains virtchnl_queue_vector_maps structure
+ * VF sends this message to map queues to vectors and ITR index registers.
+ * External data buffer contains virtchnl_queue_vector_maps structure
  * that contains num_qv_maps of virtchnl_queue_vector structures.
- * CP maps the requested queue vector maps after validating the queue and vector
+ * PF maps the requested queue vector maps after validating the queue and vector
  * ids and returns a status code.
  */
 struct virtchnl_queue_vector_maps {
@@ -1894,6 +1944,13 @@ struct virtchnl_queue_vector_maps {
 };
 
 VIRTCHNL_CHECK_STRUCT_LEN(24, virtchnl_queue_vector_maps);
+
+struct virtchnl_quanta_cfg {
+	u16 quanta_size;
+	struct virtchnl_queue_chunk queue_select;
+};
+
+VIRTCHNL_CHECK_STRUCT_LEN(12, virtchnl_quanta_cfg);
 
 /* Since VF messages are limited by u16 size, precalculate the maximum possible
  * values of nested elements in virtchnl structures that virtual channel can
@@ -2128,6 +2185,31 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 			}
 			valid_len += (q_tc->num_tc - 1) *
 					 sizeof(q_tc->tc[0]);
+		}
+		break;
+	case VIRTCHNL_OP_CONFIG_QUEUE_BW:
+		valid_len = sizeof(struct virtchnl_queues_bw_cfg);
+		if (msglen >= valid_len) {
+			struct virtchnl_queues_bw_cfg *q_bw =
+				(struct virtchnl_queues_bw_cfg *)msg;
+			if (q_bw->num_queues == 0) {
+				err_msg_format = true;
+				break;
+			}
+			valid_len += (q_bw->num_queues - 1) *
+					 sizeof(q_bw->cfg[0]);
+		}
+		break;
+	case VIRTCHNL_OP_CONFIG_QUANTA:
+		valid_len = sizeof(struct virtchnl_quanta_cfg);
+		if (msglen >= valid_len) {
+			struct virtchnl_quanta_cfg *q_quanta =
+				(struct virtchnl_quanta_cfg *)msg;
+			if (q_quanta->quanta_size == 0 ||
+			    q_quanta->queue_select.num_queues == 0) {
+				err_msg_format = true;
+				break;
+			}
 		}
 		break;
 	case VIRTCHNL_OP_GET_OFFLOAD_VLAN_V2_CAPS:

@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_tcpdebug.h"
 #include "opt_ratelimit.h"
 #include "opt_kern_tls.h"
 #include <sys/param.h>
@@ -95,13 +94,11 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
+#include <netinet/tcp_ecn.h>
 #include <netinet/tcp_hpts.h>
 #include <netinet/tcp_lro.h>
 #include <netinet/cc/cc.h>
 #include <netinet/tcp_log_buf.h>
-#ifdef TCPDEBUG
-#include <netinet/tcp_debug.h>
-#endif				/* TCPDEBUG */
 #ifdef TCP_OFFLOAD
 #include <netinet/tcp_offload.h>
 #endif
@@ -113,6 +110,7 @@ __FBSDID("$FreeBSD$");
 #include <netipsec/ipsec_support.h>
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 #include <netipsec/ipsec.h>
@@ -402,7 +400,10 @@ ctf_process_inbound_raw(struct tcpcb *tp, struct socket *so, struct mbuf *m, int
 	uint16_t drop_hdrlen;
 	uint8_t iptos, no_vn=0;
 
+	inp = tptoinpcb(tp);
+	INP_WLOCK_ASSERT(inp);
 	NET_EPOCH_ASSERT();
+
 	if (m)
 		ifp = m_rcvif(m);
 	else
@@ -479,8 +480,8 @@ skip_vnet:
 			 * been compressed. We assert the inp has
 			 * the flag set to enable this!
 			 */
-			KASSERT((tp->t_inpcb->inp_flags2 & INP_MBUF_ACKCMP),
-				("tp:%p inp:%p no INP_MBUF_ACKCMP flags?", tp, tp->t_inpcb));
+			KASSERT((inp->inp_flags2 & INP_MBUF_ACKCMP),
+			    ("tp:%p inp:%p no INP_MBUF_ACKCMP flags?", tp, inp));
 			tlen = 0;
 			drop_hdrlen = 0;
 			th = NULL;
@@ -495,8 +496,6 @@ skip_vnet:
 			KMOD_TCPSTAT_INC(tcps_rcvtotal);
 		else
 			KMOD_TCPSTAT_ADD(tcps_rcvtotal, (m->m_len / sizeof(struct tcp_ackent)));
-		inp = tp->t_inpcb;
-		INP_WLOCK_ASSERT(inp);
 		retval = (*tp->t_fb->tfb_do_segment_nounlock)(m, th, so, tp, drop_hdrlen, tlen,
 							      iptos, nxt_pkt, &tv);
 		if (retval) {
@@ -570,7 +569,7 @@ ctf_do_dropwithreset(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th,
 {
 	if (tp != NULL) {
 		tcp_dropwithreset(m, th, tp, tlen, rstreason);
-		INP_WUNLOCK(tp->t_inpcb);
+		INP_WUNLOCK(tptoinpcb(tp));
 	} else
 		tcp_dropwithreset(m, th, NULL, tlen, rstreason);
 }
@@ -758,7 +757,7 @@ ctf_do_drop(struct mbuf *m, struct tcpcb *tp)
 	 * Drop space held by incoming segment and return.
 	 */
 	if (tp != NULL)
-		INP_WUNLOCK(tp->t_inpcb);
+		INP_WUNLOCK(tptoinpcb(tp));
 	if (m)
 		m_freem(m);
 }
@@ -860,7 +859,7 @@ __ctf_process_rst(struct mbuf *m, struct tcphdr *th, struct socket *so,
  * and valid.
  */
 void
-ctf_challenge_ack(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp, int32_t * ret_val)
+ctf_challenge_ack(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp, uint8_t iptos, int32_t * ret_val)
 {
 
 	NET_EPOCH_ASSERT();
@@ -873,6 +872,7 @@ ctf_challenge_ack(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp, int32_t *
 		*ret_val = 1;
 		ctf_do_drop(m, tp);
 	} else {
+		tcp_ecn_input_syn_sent(tp, tcp_get_flags(th), iptos);
 		/* Send challenge ACK. */
 		tcp_respond(tp, mtod(m, void *), th, m, tp->rcv_nxt,
 		    tp->snd_nxt, TH_ACK);
@@ -972,7 +972,7 @@ ctf_do_dropwithreset_conn(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th,
 	tcp_dropwithreset(m, th, tp, tlen, rstreason);
 	tp = tcp_drop(tp, ETIMEDOUT);
 	if (tp)
-		INP_WUNLOCK(tp->t_inpcb);
+		INP_WUNLOCK(tptoinpcb(tp));
 }
 
 uint32_t
@@ -1008,8 +1008,8 @@ ctf_log_sack_filter(struct tcpcb *tp, int num_sack_blks, struct sackblk *sack_bl
 			log.u_bbr.pkts_out = sack_blocks[3].end;
 		}
 		TCP_LOG_EVENTP(tp, NULL,
-		    &tp->t_inpcb->inp_socket->so_rcv,
-		    &tp->t_inpcb->inp_socket->so_snd,
+		    &tptosocket(tp)->so_rcv,
+		    &tptosocket(tp)->so_snd,
 		    TCP_SACK_FILTER_RES, 0,
 		    0, &log, false, &tv);
 	}

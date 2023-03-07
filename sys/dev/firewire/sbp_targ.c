@@ -1663,7 +1663,7 @@ sbp_targ_mgm_handler(struct fw_xfer *xfer)
 		} else {
 			orbi->status.dead = 1;
 			orbi->status.status = STATUS_ACCESS_DENY;
-			printf("%s: reconnection faild id=%d\n",
+			printf("%s: reconnection failed id=%d\n",
 			    __func__, orb4->id);
 		}
 		break;

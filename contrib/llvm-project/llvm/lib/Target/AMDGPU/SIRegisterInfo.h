@@ -51,6 +51,17 @@ private:
 public:
   SIRegisterInfo(const GCNSubtarget &ST);
 
+  struct SpilledReg {
+    Register VGPR;
+    int Lane = -1;
+
+    SpilledReg() = default;
+    SpilledReg(Register R, int L) : VGPR(R), Lane(L) {}
+
+    bool hasLane() { return Lane != -1; }
+    bool hasReg() { return VGPR != 0; }
+  };
+
   /// \returns the sub reg enum value for the given \p Channel
   /// (e.g. getSubRegFromChannel(0) -> AMDGPU::sub0)
   static unsigned getSubRegFromChannel(unsigned Channel, unsigned NumRegs = 1);
@@ -64,6 +75,8 @@ public:
   MCRegister reservedPrivateSegmentBufferReg(const MachineFunction &MF) const;
 
   BitVector getReservedRegs(const MachineFunction &MF) const override;
+  bool isAsmClobberable(const MachineFunction &MF,
+                        MCRegister PhysReg) const override;
 
   const MCPhysReg *getCalleeSavedRegs(const MachineFunction *MF) const override;
   const MCPhysReg *getCalleeSavedRegsViaCopy(const MachineFunction *MF) const;
@@ -304,15 +317,11 @@ public:
   MCRegister getReturnAddressReg(const MachineFunction &MF) const;
 
   const TargetRegisterClass *
-  getRegClassForSizeOnBank(unsigned Size,
-                           const RegisterBank &Bank,
-                           const MachineRegisterInfo &MRI) const;
+  getRegClassForSizeOnBank(unsigned Size, const RegisterBank &Bank) const;
 
   const TargetRegisterClass *
-  getRegClassForTypeOnBank(LLT Ty,
-                           const RegisterBank &Bank,
-                           const MachineRegisterInfo &MRI) const {
-    return getRegClassForSizeOnBank(Ty.getSizeInBits(), Bank, MRI);
+  getRegClassForTypeOnBank(LLT Ty, const RegisterBank &Bank) const {
+    return getRegClassForSizeOnBank(Ty.getSizeInBits(), Bank);
   }
 
   const TargetRegisterClass *
@@ -334,6 +343,8 @@ public:
   const TargetRegisterClass *getVGPR64Class() const;
 
   MCRegister getVCC() const;
+
+  MCRegister getExec() const;
 
   const TargetRegisterClass *getRegClass(unsigned RCID) const;
 
@@ -376,6 +387,11 @@ public:
   // Returns true if a given register class is properly aligned for
   // the subtarget.
   bool isProperlyAlignedRC(const TargetRegisterClass &RC) const;
+
+  // Given \p RC returns corresponding aligned register class if required
+  // by the subtarget.
+  const TargetRegisterClass *
+  getProperlyAlignedRC(const TargetRegisterClass *RC) const;
 
   /// Return all SGPR128 which satisfy the waves per execution unit requirement
   /// of the subtarget.

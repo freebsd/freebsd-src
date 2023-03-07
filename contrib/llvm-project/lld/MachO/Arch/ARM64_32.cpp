@@ -31,38 +31,31 @@ struct ARM64_32 : ARM64Common {
   ARM64_32();
   void writeStub(uint8_t *buf, const Symbol &) const override;
   void writeStubHelperHeader(uint8_t *buf) const override;
-  void writeStubHelperEntry(uint8_t *buf, const DylibSymbol &,
+  void writeStubHelperEntry(uint8_t *buf, const Symbol &,
                             uint64_t entryAddr) const override;
-  const RelocAttrs &getRelocAttrs(uint8_t type) const override;
 };
 
 } // namespace
 
 // These are very similar to ARM64's relocation attributes, except that we don't
 // have the BYTE8 flag set.
-const RelocAttrs &ARM64_32::getRelocAttrs(uint8_t type) const {
-  static const std::array<RelocAttrs, 11> relocAttrsArray{{
+static constexpr std::array<RelocAttrs, 11> relocAttrsArray{{
 #define B(x) RelocAttrBits::x
-      {"UNSIGNED", B(UNSIGNED) | B(ABSOLUTE) | B(EXTERN) | B(LOCAL) | B(BYTE4)},
-      {"SUBTRACTOR", B(SUBTRAHEND) | B(EXTERN) | B(BYTE4)},
-      {"BRANCH26", B(PCREL) | B(EXTERN) | B(BRANCH) | B(BYTE4)},
-      {"PAGE21", B(PCREL) | B(EXTERN) | B(BYTE4)},
-      {"PAGEOFF12", B(ABSOLUTE) | B(EXTERN) | B(BYTE4)},
-      {"GOT_LOAD_PAGE21", B(PCREL) | B(EXTERN) | B(GOT) | B(BYTE4)},
-      {"GOT_LOAD_PAGEOFF12",
-       B(ABSOLUTE) | B(EXTERN) | B(GOT) | B(LOAD) | B(BYTE4)},
-      {"POINTER_TO_GOT", B(PCREL) | B(EXTERN) | B(GOT) | B(POINTER) | B(BYTE4)},
-      {"TLVP_LOAD_PAGE21", B(PCREL) | B(EXTERN) | B(TLV) | B(BYTE4)},
-      {"TLVP_LOAD_PAGEOFF12",
-       B(ABSOLUTE) | B(EXTERN) | B(TLV) | B(LOAD) | B(BYTE4)},
-      {"ADDEND", B(ADDEND)},
+    {"UNSIGNED", B(UNSIGNED) | B(ABSOLUTE) | B(EXTERN) | B(LOCAL) | B(BYTE4)},
+    {"SUBTRACTOR", B(SUBTRAHEND) | B(EXTERN) | B(BYTE4)},
+    {"BRANCH26", B(PCREL) | B(EXTERN) | B(BRANCH) | B(BYTE4)},
+    {"PAGE21", B(PCREL) | B(EXTERN) | B(BYTE4)},
+    {"PAGEOFF12", B(ABSOLUTE) | B(EXTERN) | B(BYTE4)},
+    {"GOT_LOAD_PAGE21", B(PCREL) | B(EXTERN) | B(GOT) | B(BYTE4)},
+    {"GOT_LOAD_PAGEOFF12",
+     B(ABSOLUTE) | B(EXTERN) | B(GOT) | B(LOAD) | B(BYTE4)},
+    {"POINTER_TO_GOT", B(PCREL) | B(EXTERN) | B(GOT) | B(POINTER) | B(BYTE4)},
+    {"TLVP_LOAD_PAGE21", B(PCREL) | B(EXTERN) | B(TLV) | B(BYTE4)},
+    {"TLVP_LOAD_PAGEOFF12",
+     B(ABSOLUTE) | B(EXTERN) | B(TLV) | B(LOAD) | B(BYTE4)},
+    {"ADDEND", B(ADDEND)},
 #undef B
-  }};
-  assert(type < relocAttrsArray.size() && "invalid relocation type");
-  if (type >= relocAttrsArray.size())
-    return invalidRelocAttrs;
-  return relocAttrsArray[type];
-}
+}};
 
 // The stub code is fairly similar to ARM64's, except that we load pointers into
 // 32-bit 'w' registers, instead of the 64-bit 'x' ones.
@@ -96,7 +89,7 @@ static constexpr uint32_t stubHelperEntryCode[] = {
     0x00000000, // 08: l0: .long 0
 };
 
-void ARM64_32::writeStubHelperEntry(uint8_t *buf8, const DylibSymbol &sym,
+void ARM64_32::writeStubHelperEntry(uint8_t *buf8, const Symbol &sym,
                                     uint64_t entryVA) const {
   ::writeStubHelperEntry(buf8, stubHelperEntryCode, sym, entryVA);
 }
@@ -105,9 +98,15 @@ ARM64_32::ARM64_32() : ARM64Common(ILP32()) {
   cpuType = CPU_TYPE_ARM64_32;
   cpuSubtype = CPU_SUBTYPE_ARM64_V8;
 
+  modeDwarfEncoding = 0x04000000;              // UNWIND_ARM_MODE_DWARF
+  subtractorRelocType = GENERIC_RELOC_INVALID; // FIXME
+  unsignedRelocType = GENERIC_RELOC_INVALID;   // FIXME
+
   stubSize = sizeof(stubCode);
   stubHelperHeaderSize = sizeof(stubHelperHeaderCode);
   stubHelperEntrySize = sizeof(stubHelperEntryCode);
+
+  relocAttrs = {relocAttrsArray.data(), relocAttrsArray.size()};
 }
 
 TargetInfo *macho::createARM64_32TargetInfo() {

@@ -15,9 +15,11 @@ MAN=	bhyve.8 bhyve_config.5
 BHYVE_SYSDIR?=${SRCTOP}
 
 SRCS=	\
+	acpi_device.c		\
 	atkbdc.c		\
 	acpi.c			\
 	audio.c			\
+	basl.c			\
 	bhyvegc.c		\
 	bhyverun.c		\
 	block_if.c		\
@@ -131,7 +133,12 @@ CFLAGS+= -DBHYVE_SNAPSHOT
 CFLAGS+=-DGDB_LOG
 .endif
 
-WARNS?=	2
+# Disable thread safety analysis since it only finds very simple bugs and
+# yields many false positives.
+NO_WTHREAD_SAFETY=
+
+NO_WCAST_ALIGN=
 
 SUBDIR=	kbdlayout
+
 .include <bsd.prog.mk>

@@ -28,6 +28,7 @@
 #include "llvm/CodeGen/FunctionLoweringInfo.h"
 #include "llvm/CodeGen/ISDOpcodes.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
@@ -188,7 +189,7 @@ namespace {
     }
 
     /// getSmallIPtrImm - Return a target constant of pointer type.
-    inline SDValue getSmallIPtrImm(unsigned Imm, const SDLoc &dl) {
+    inline SDValue getSmallIPtrImm(uint64_t Imm, const SDLoc &dl) {
       return CurDAG->getTargetConstant(
           Imm, dl, PPCLowering->getPointerTy(CurDAG->getDataLayout()));
     }
@@ -202,7 +203,7 @@ namespace {
     /// base register.  Return the virtual register that holds this value.
     SDNode *getGlobalBaseReg();
 
-    void selectFrameIndex(SDNode *SN, SDNode *N, unsigned Offset = 0);
+    void selectFrameIndex(SDNode *SN, SDNode *N, uint64_t Offset = 0);
 
     // Select - Convert the specified operand from a target-independent to a
     // target-specific node if it hasn't already been changed.
@@ -639,7 +640,7 @@ static bool isOpcWithIntImmediate(SDNode *N, unsigned Opc, unsigned& Imm) {
          && isInt32Immediate(N->getOperand(1).getNode(), Imm);
 }
 
-void PPCDAGToDAGISel::selectFrameIndex(SDNode *SN, SDNode *N, unsigned Offset) {
+void PPCDAGToDAGISel::selectFrameIndex(SDNode *SN, SDNode *N, uint64_t Offset) {
   SDLoc dl(SN);
   int FI = cast<FrameIndexSDNode>(N)->getIndex();
   SDValue TFI = CurDAG->getTargetFrameIndex(FI, N->getValueType(0));
@@ -4645,7 +4646,8 @@ static bool mayUseP9Setb(SDNode *N, const ISD::CondCode &CC, SelectionDAG *DAG,
 static bool isSWTestOp(SDValue N) {
   if (N.getOpcode() == PPCISD::FTSQRT)
     return true;
-  if (N.getNumOperands() < 1 || !isa<ConstantSDNode>(N.getOperand(0)))
+  if (N.getNumOperands() < 1 || !isa<ConstantSDNode>(N.getOperand(0)) ||
+      N.getOpcode() != ISD::INTRINSIC_WO_CHAIN)
     return false;
   switch (N.getConstantOperandVal(0)) {
   case Intrinsic::ppc_vsx_xvtdivdp:
@@ -5377,7 +5379,7 @@ void PPCDAGToDAGISel::Select(SDNode *N) {
       // If this is equivalent to an add, then we can fold it with the
       // FrameIndex calculation.
       if ((LHSKnown.Zero.getZExtValue()|~(uint64_t)Imm) == ~0ULL) {
-        selectFrameIndex(N, N->getOperand(0).getNode(), (int)Imm);
+        selectFrameIndex(N, N->getOperand(0).getNode(), (int64_t)Imm);
         return;
       }
     }
@@ -5435,7 +5437,7 @@ void PPCDAGToDAGISel::Select(SDNode *N) {
     int16_t Imm;
     if (N->getOperand(0)->getOpcode() == ISD::FrameIndex &&
         isIntS16Immediate(N->getOperand(1), Imm)) {
-      selectFrameIndex(N, N->getOperand(0).getNode(), (int)Imm);
+      selectFrameIndex(N, N->getOperand(0).getNode(), (int64_t)Imm);
       return;
     }
 
@@ -5471,7 +5473,8 @@ void PPCDAGToDAGISel::Select(SDNode *N) {
   }
   case ISD::MUL: {
     SDValue Op1 = N->getOperand(1);
-    if (Op1.getOpcode() != ISD::Constant || Op1.getValueType() != MVT::i64)
+    if (Op1.getOpcode() != ISD::Constant ||
+        (Op1.getValueType() != MVT::i64 && Op1.getValueType() != MVT::i32))
       break;
 
     // If the multiplier fits int16, we can handle it with mulli.
@@ -5484,13 +5487,27 @@ void PPCDAGToDAGISel::Select(SDNode *N) {
     // (mul X, c1 << c2) -> (rldicr (mulli X, c1) c2). We do this in ISEL due to
     // DAGCombiner prefers (shl (mul X, c1), c2) -> (mul X, c1 << c2).
     uint64_t ImmSh = Imm >> Shift;
-    if (isInt<16>(ImmSh)) {
-      uint64_t SextImm = SignExtend64(ImmSh & 0xFFFF, 16);
+    if (!isInt<16>(ImmSh))
+      break;
+
+    uint64_t SextImm = SignExtend64(ImmSh & 0xFFFF, 16);
+    if (Op1.getValueType() == MVT::i64) {
       SDValue SDImm = CurDAG->getTargetConstant(SextImm, dl, MVT::i64);
       SDNode *MulNode = CurDAG->getMachineNode(PPC::MULLI8, dl, MVT::i64,
                                                N->getOperand(0), SDImm);
-      CurDAG->SelectNodeTo(N, PPC::RLDICR, MVT::i64, SDValue(MulNode, 0),
-                           getI32Imm(Shift, dl), getI32Imm(63 - Shift, dl));
+
+      SDValue Ops[] = {SDValue(MulNode, 0), getI32Imm(Shift, dl),
+                       getI32Imm(63 - Shift, dl)};
+      CurDAG->SelectNodeTo(N, PPC::RLDICR, MVT::i64, Ops);
+      return;
+    } else {
+      SDValue SDImm = CurDAG->getTargetConstant(SextImm, dl, MVT::i32);
+      SDNode *MulNode = CurDAG->getMachineNode(PPC::MULLI, dl, MVT::i32,
+                                              N->getOperand(0), SDImm);
+
+      SDValue Ops[] = {SDValue(MulNode, 0), getI32Imm(Shift, dl),
+                       getI32Imm(0, dl), getI32Imm(31 - Shift, dl)};
+      CurDAG->SelectNodeTo(N, PPC::RLWINM, MVT::i32, Ops);
       return;
     }
     break;

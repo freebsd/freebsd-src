@@ -129,7 +129,7 @@ static output_t make_output(const uint32_t input_cv[8],
  * bytes. For that reason, chaining values in the CV stack are represented as
  * bytes.
  */
-static void output_chaining_value(const blake3_impl_ops_t *ops,
+static void output_chaining_value(const blake3_ops_t *ops,
     const output_t *ctx, uint8_t cv[32])
 {
 	uint32_t cv_words[8];
@@ -139,7 +139,7 @@ static void output_chaining_value(const blake3_impl_ops_t *ops,
 	store_cv_words(cv, cv_words);
 }
 
-static void output_root_bytes(const blake3_impl_ops_t *ops, const output_t *ctx,
+static void output_root_bytes(const blake3_ops_t *ops, const output_t *ctx,
     uint64_t seek, uint8_t *out, size_t out_len)
 {
 	uint64_t output_block_counter = seek / 64;
@@ -163,7 +163,7 @@ static void output_root_bytes(const blake3_impl_ops_t *ops, const output_t *ctx,
 	}
 }
 
-static void chunk_state_update(const blake3_impl_ops_t *ops,
+static void chunk_state_update(const blake3_ops_t *ops,
     blake3_chunk_state_t *ctx, const uint8_t *input, size_t input_len)
 {
 	if (ctx->buf_len > 0) {
@@ -189,9 +189,7 @@ static void chunk_state_update(const blake3_impl_ops_t *ops,
 		input_len -= BLAKE3_BLOCK_LEN;
 	}
 
-	size_t take = chunk_state_fill_buf(ctx, input, input_len);
-	input += take;
-	input_len -= take;
+	chunk_state_fill_buf(ctx, input, input_len);
 }
 
 static output_t chunk_state_output(const blake3_chunk_state_t *ctx)
@@ -230,7 +228,7 @@ static size_t left_len(size_t content_len)
  * number of chunks hashed. These chunks are never the root and never empty;
  * those cases use a different codepath.
  */
-static size_t compress_chunks_parallel(const blake3_impl_ops_t *ops,
+static size_t compress_chunks_parallel(const blake3_ops_t *ops,
     const uint8_t *input, size_t input_len, const uint32_t key[8],
     uint64_t chunk_counter, uint8_t flags, uint8_t *out)
 {
@@ -274,11 +272,11 @@ static size_t compress_chunks_parallel(const blake3_impl_ops_t *ops,
  * return it as an additional output.) These parents are never the root and
  * never empty; those cases use a different codepath.
  */
-static size_t compress_parents_parallel(const blake3_impl_ops_t *ops,
+static size_t compress_parents_parallel(const blake3_ops_t *ops,
     const uint8_t *child_chaining_values, size_t num_chaining_values,
     const uint32_t key[8], uint8_t flags, uint8_t *out)
 {
-	const uint8_t *parents_array[MAX_SIMD_DEGREE_OR_2];
+	const uint8_t *parents_array[MAX_SIMD_DEGREE_OR_2] = {0};
 	size_t parents_array_len = 0;
 
 	while (num_chaining_values - (2 * parents_array_len) >= 2) {
@@ -320,7 +318,7 @@ static size_t compress_parents_parallel(const blake3_impl_ops_t *ops,
  * of implementing this special rule? Because we don't want to limit SIMD or
  * multi-threading parallelism for that update().
  */
-static size_t blake3_compress_subtree_wide(const blake3_impl_ops_t *ops,
+static size_t blake3_compress_subtree_wide(const blake3_ops_t *ops,
     const uint8_t *input, size_t input_len, const uint32_t key[8],
     uint64_t chunk_counter, uint8_t flags, uint8_t *out)
 {
@@ -406,7 +404,7 @@ static size_t blake3_compress_subtree_wide(const blake3_impl_ops_t *ops,
  * As with compress_subtree_wide(), this function is not used on inputs of 1
  * chunk or less. That's a different codepath.
  */
-static void compress_subtree_to_parent_node(const blake3_impl_ops_t *ops,
+static void compress_subtree_to_parent_node(const blake3_ops_t *ops,
     const uint8_t *input, size_t input_len, const uint32_t key[8],
     uint64_t chunk_counter, uint8_t flags, uint8_t out[2 * BLAKE3_OUT_LEN])
 {

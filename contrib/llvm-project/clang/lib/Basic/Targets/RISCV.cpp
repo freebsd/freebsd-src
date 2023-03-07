@@ -158,8 +158,10 @@ void RISCVTargetInfo::getTargetDefines(const LangOptions &Opts,
     Builder.defineMacro(Twine("__riscv_", ExtName), Twine(Version));
   }
 
-  if (ISAInfo->hasExtension("m")) {
+  if (ISAInfo->hasExtension("m") || ISAInfo->hasExtension("zmmul"))
     Builder.defineMacro("__riscv_mul");
+
+  if (ISAInfo->hasExtension("m")) {
     Builder.defineMacro("__riscv_div");
     Builder.defineMacro("__riscv_muldiv");
   }
@@ -188,7 +190,7 @@ void RISCVTargetInfo::getTargetDefines(const LangOptions &Opts,
   if (ISAInfo->hasExtension("c"))
     Builder.defineMacro("__riscv_compressed");
 
-  if (ISAInfo->hasExtension("zve32x") || ISAInfo->hasExtension("v"))
+  if (ISAInfo->hasExtension("zve32x"))
     Builder.defineMacro("__riscv_vector");
 }
 
@@ -232,8 +234,14 @@ bool RISCVTargetInfo::initFeatureMap(
     return false;
   }
 
-  return TargetInfo::initFeatureMap(Features, Diags, CPU,
-                                    (*ParseResult)->toFeatureVector());
+  // RISCVISAInfo makes implications for ISA features
+  std::vector<std::string> ImpliedFeatures = (*ParseResult)->toFeatureVector();
+  // Add non-ISA features like `relax` and `save-restore` back
+  for (const std::string &Feature : FeaturesVec)
+    if (!llvm::is_contained(ImpliedFeatures, Feature))
+      ImpliedFeatures.push_back(Feature);
+
+  return TargetInfo::initFeatureMap(Features, Diags, CPU, ImpliedFeatures);
 }
 
 /// Return true if has this feature, need to sync with handleTargetFeatures.
@@ -245,8 +253,8 @@ bool RISCVTargetInfo::hasFeature(StringRef Feature) const {
                     .Case("riscv64", Is64Bit)
                     .Case("64bit", Is64Bit)
                     .Default(None);
-  if (Result.hasValue())
-    return Result.getValue();
+  if (Result)
+    return Result.value();
 
   if (ISAInfo->isSupportedExtensionFeature(Feature))
     return ISAInfo->hasExtension(Feature);
@@ -272,7 +280,7 @@ bool RISCVTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
   }
 
   if (ABI.empty())
-    ABI = llvm::RISCV::computeDefaultABIFromArch(*ISAInfo).str();
+    ABI = ISAInfo->computeDefaultABI().str();
 
   return true;
 }

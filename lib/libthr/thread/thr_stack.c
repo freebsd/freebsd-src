@@ -30,7 +30,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/auxv.h>
 #include <sys/mman.h>
 #include <sys/queue.h>
 #include <sys/resource.h>
@@ -147,21 +148,13 @@ _thr_stack_fix_protection(struct pthread *thrd)
 static void
 singlethread_map_stacks_exec(void)
 {
-	int mib[2];
-	struct rlimit rlim;
-	u_long usrstack;
-	size_t len;
+	char *usrstack;
+	size_t stacksz;
 
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_USRSTACK;
-	len = sizeof(usrstack);
-	if (sysctl(mib, sizeof(mib) / sizeof(mib[0]), &usrstack, &len, NULL, 0)
-	    == -1)
+	if (!__thr_get_main_stack_base(&usrstack) ||
+	    !__thr_get_main_stack_lim(&stacksz))
 		return;
-	if (getrlimit(RLIMIT_STACK, &rlim) == -1)
-		return;
-	mprotect((void *)(uintptr_t)(usrstack - rlim.rlim_cur),
-	    rlim.rlim_cur, _rtld_get_stack_prot());
+	mprotect(usrstack - stacksz, stacksz, _rtld_get_stack_prot());
 }
 
 void

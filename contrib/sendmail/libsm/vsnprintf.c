@@ -42,7 +42,7 @@ sm_vsnprintf(str, n, fmt, ap)
 	char *str;
 	size_t n;
 	const char *fmt;
-	SM_VA_LOCAL_DECL
+	va_list ap;
 {
 	int ret;
 	char dummy;

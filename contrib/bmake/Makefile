@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.120 2022/07/26 23:02:54 sjg Exp $
+#	$Id: Makefile,v 1.123 2023/01/28 02:49:20 sjg Exp $
 
 PROG=	bmake
 
@@ -88,7 +88,7 @@ OS := ${.MAKE.OS:U${uname -s:L:sh}}
 # are we 4.4BSD ?
 isBSD44:=${BSD44_LIST:M${OS}}
 
-.if ${isBSD44} == ""
+.if ${isBSD44} == "" && ${OS:NDarwin:NLinux} != ""
 MANTARGET= cat
 INSTALL?=${srcdir}/install-sh
 .if ${MACHINE} == "sun386"
@@ -201,13 +201,13 @@ install: install-mk
 .endif
 
 beforeinstall:
-	test -d ${DESTDIR}${BINDIR} || ${INSTALL} -m 775 -d ${DESTDIR}${BINDIR}
-	test -d ${DESTDIR}${MANDEST} || ${INSTALL} -m 775 -d ${DESTDIR}${MANDEST}
+	test -d ${DESTDIR}${BINDIR} || ${INSTALL} -m ${DIRMODE} -d ${DESTDIR}${BINDIR}
+	test -d ${DESTDIR}${MANDEST} || ${INSTALL} -m ${DIRMODE} -d ${DESTDIR}${MANDEST}
 
 install-mk:
 .if exists(${MKSRC}/install-mk)
-	test -d ${DESTDIR}${SHARE_MK} || ${INSTALL} -m 775 -d ${DESTDIR}${SHARE_MK}
-	sh ${MKSRC}/install-mk -v -m 644 ${DESTDIR}${SHARE_MK}
+	test -d ${DESTDIR}${SHARE_MK} || ${INSTALL} -m ${DIRMODE} -d ${DESTDIR}${SHARE_MK}
+	sh ${MKSRC}/install-mk -v -m ${NONBINMODE} ${DESTDIR}${SHARE_MK}
 .else
 	@echo need to unpack mk.tar.gz under ${srcdir} or set MKSRC; false
 .endif

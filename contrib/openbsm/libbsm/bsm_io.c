@@ -4597,7 +4597,7 @@ au_read_rec(FILE *fp, u_char **buf)
 
 		if (fread(bptr, 1, ntohs(filenamelen), fp) <
 		    ntohs(filenamelen)) {
-			free(buf);
+			free(*buf);
 			errno = EINVAL;
 			return (-1);
 		}

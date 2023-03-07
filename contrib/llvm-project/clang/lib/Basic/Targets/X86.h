@@ -14,6 +14,7 @@
 #define LLVM_CLANG_LIB_BASIC_TARGETS_X86_H
 
 #include "OSTargets.h"
+#include "clang/Basic/BitmaskEnum.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Basic/TargetOptions.h"
 #include "llvm/ADT/Triple.h"
@@ -124,6 +125,7 @@ class LLVM_LIBRARY_VISIBILITY X86TargetInfo : public TargetInfo {
   bool HasMOVBE = false;
   bool HasPREFETCHWT1 = false;
   bool HasRDPID = false;
+  bool HasRDPRU = false;
   bool HasRetpolineExternalThunk = false;
   bool HasLAHFSAHF = false;
   bool HasWBNOINVD = false;
@@ -154,6 +156,8 @@ protected:
 public:
   X86TargetInfo(const llvm::Triple &Triple, const TargetOptions &)
       : TargetInfo(Triple) {
+    BFloat16Width = BFloat16Align = 16;
+    BFloat16Format = &llvm::APFloat::BFloat();
     LongDoubleFormat = &llvm::APFloat::x87DoubleExtended();
     AddrSpaceMap = &X86AddrSpaceMap;
     HasStrictFP = true;
@@ -168,10 +172,14 @@ public:
     return LongDoubleFormat == &llvm::APFloat::IEEEquad() ? "g" : "e";
   }
 
-  unsigned getFloatEvalMethod() const override {
+  LangOptions::FPEvalMethodKind getFPEvalMethod() const override {
     // X87 evaluates with 80 bits "long double" precision.
-    return SSELevel == NoSSE ? 2 : 0;
+    return SSELevel == NoSSE ? LangOptions::FPEvalMethodKind::FEM_Extended
+                             : LangOptions::FPEvalMethodKind::FEM_Source;
   }
+
+  // EvalMethod `source` is not supported for targets with `NoSSE` feature.
+  bool supportSourceEvalMethod() const override { return SSELevel > NoSSE; }
 
   ArrayRef<const char *> getGCCRegNames() const override;
 
@@ -197,6 +205,8 @@ public:
       StringRef Name,
       llvm::SmallVectorImpl<StringRef> &Features) const override;
 
+  StringRef getCPUSpecificTuneName(StringRef Name) const override;
+
   Optional<unsigned> getCPUCacheLineSize() const override;
 
   bool validateAsmConstraint(const char *&Name,
@@ -221,14 +231,18 @@ public:
   bool validateInputSize(const llvm::StringMap<bool> &FeatureMap,
                          StringRef Constraint, unsigned Size) const override;
 
-  virtual bool
+  bool
   checkCFProtectionReturnSupported(DiagnosticsEngine &Diags) const override {
-    return true;
+    if (CPU == llvm::X86::CK_None || CPU >= llvm::X86::CK_PentiumPro)
+      return true;
+    return TargetInfo::checkCFProtectionReturnSupported(Diags);
   };
 
-  virtual bool
+  bool
   checkCFProtectionBranchSupported(DiagnosticsEngine &Diags) const override {
-    return true;
+    if (CPU == llvm::X86::CK_None || CPU >= llvm::X86::CK_PentiumPro)
+      return true;
+    return TargetInfo::checkCFProtectionBranchSupported(Diags);
   };
 
   virtual bool validateOperandSize(const llvm::StringMap<bool> &FeatureMap,
@@ -388,6 +402,8 @@ public:
   uint64_t getPointerAlignV(unsigned AddrSpace) const override {
     return getPointerWidthV(AddrSpace);
   }
+
+  const char *getBFloat16Mangling() const override { return "u6__bf16"; };
 };
 
 // X86-32 generic target
@@ -412,9 +428,9 @@ public:
     RegParmMax = 3;
 
     // Use fpret for all types.
-    RealTypeUsesObjCFPRet =
-        ((1 << (int)FloatModeKind::Float) | (1 << (int)FloatModeKind::Double) |
-         (1 << (int)FloatModeKind::LongDouble));
+    RealTypeUsesObjCFPRetMask =
+        (unsigned)(FloatModeKind::Float | FloatModeKind::Double |
+                   FloatModeKind::LongDouble);
 
     // x86-32 has atomics up to 8 bytes
     MaxAtomicPromoteWidth = 64;
@@ -471,13 +487,13 @@ public:
   NetBSDI386TargetInfo(const llvm::Triple &Triple, const TargetOptions &Opts)
       : NetBSDTargetInfo<X86_32TargetInfo>(Triple, Opts) {}
 
-  unsigned getFloatEvalMethod() const override {
+  LangOptions::FPEvalMethodKind getFPEvalMethod() const override {
     VersionTuple OsVersion = getTriple().getOSVersion();
     // New NetBSD uses the default rounding mode.
     if (OsVersion >= VersionTuple(6, 99, 26) || OsVersion.getMajor() == 0)
-      return X86_32TargetInfo::getFloatEvalMethod();
+      return X86_32TargetInfo::getFPEvalMethod();
     // NetBSD before 6.99.26 defaults to "double" rounding.
-    return 1;
+    return LangOptions::FPEvalMethodKind::FEM_Double;
   }
 };
 
@@ -693,7 +709,7 @@ public:
                                         "64-i64:64-f80:128-n8:16:32:64-S128");
 
     // Use fpret only for long double.
-    RealTypeUsesObjCFPRet = (1 << (int)FloatModeKind::LongDouble);
+    RealTypeUsesObjCFPRetMask = (unsigned)FloatModeKind::LongDouble;
 
     // Use fp2ret for _Complex long double.
     ComplexLongDoubleUsesFP2Ret = true;

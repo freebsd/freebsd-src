@@ -26,6 +26,8 @@ const char *getEdgeKindName(Edge::Kind K) {
     return "R_RISCV_64";
   case R_RISCV_BRANCH:
     return "R_RISCV_BRANCH";
+  case R_RISCV_JAL:
+    return "R_RISCV_JAL";
   case R_RISCV_HI20:
     return "R_RISCV_HI20";
   case R_RISCV_LO12_I:
@@ -56,6 +58,8 @@ const char *getEdgeKindName(Edge::Kind K) {
     return "R_RISCV_SUB16";
   case R_RISCV_SUB8:
     return "R_RISCV_SUB8";
+  case R_RISCV_SUB6:
+    return "R_RISCV_SUB6";
   case R_RISCV_SET6:
     return "R_RISCV_SET6";
   case R_RISCV_SET8:

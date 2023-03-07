@@ -1086,7 +1086,6 @@ static void handle_le_connection_event(ng_hci_event_pkt_t* e, bool verbose)
 					conn_event->master_clock_accuracy));
 		}
 	}
-	return;
 }
 
 static int
@@ -1208,8 +1207,6 @@ static void handle_le_remote_features_event(ng_hci_event_pkt_t* e)
 			hci_le_features2str(feat_event->features,
 				buffer, sizeof(buffer)));
 	}
-
-	return;
 } /* handle_le_remote_features_event */
 
 static int le_rand(int s, int argc, char *argv[])

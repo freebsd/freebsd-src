@@ -27,6 +27,7 @@
 #include "lldb/Target/Target.h"
 #include "lldb/Target/UnixSignals.h"
 #include "lldb/Utility/LLDBAssert.h"
+#include "lldb/Utility/LLDBLog.h"
 #include "lldb/Utility/Log.h"
 #include "lldb/Utility/State.h"
 #include "llvm/BinaryFormat/Magic.h"
@@ -232,7 +233,8 @@ ProcessMinidump::ProcessMinidump(lldb::TargetSP target_sp,
                                  const FileSpec &core_file,
                                  DataBufferSP core_data)
     : PostMortemProcess(target_sp, listener_sp), m_core_file(core_file),
-      m_core_data(std::move(core_data)), m_is_wow64(false) {}
+      m_core_data(std::move(core_data)), m_active_exception(nullptr),
+      m_is_wow64(false) {}
 
 ProcessMinidump::~ProcessMinidump() {
   Clear();
@@ -291,12 +293,12 @@ Status ProcessMinidump::DoLoadCore() {
 
   llvm::Optional<lldb::pid_t> pid = m_minidump_parser->GetPid();
   if (!pid) {
-    GetTarget().GetDebugger().GetAsyncErrorStream()->PutCString(
-        "Unable to retrieve process ID from minidump file, setting process ID "
-        "to 1.\n");
+    Debugger::ReportWarning("unable to retrieve process ID from minidump file, "
+                            "setting process ID to 1",
+                            GetTarget().GetDebugger().GetID());
     pid = 1;
   }
-  SetID(pid.getValue());
+  SetID(*pid);
 
   return error;
 }
@@ -480,7 +482,7 @@ bool ProcessMinidump::DoUpdateThreadList(ThreadList &old_thread_list,
 ModuleSP ProcessMinidump::GetOrCreateModule(UUID minidump_uuid,
                                             llvm::StringRef name,
                                             ModuleSpec module_spec) {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
+  Log *log = GetLog(LLDBLog::DynamicLoader);
   Status error;
 
   ModuleSP module_sp =
@@ -528,7 +530,7 @@ void ProcessMinidump::ReadModuleList() {
   std::vector<const minidump::Module *> filtered_modules =
       m_minidump_parser->GetFilteredModuleList();
 
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
+  Log *log = GetLog(LLDBLog::DynamicLoader);
 
   for (auto module : filtered_modules) {
     std::string name = cantFail(m_minidump_parser->GetMinidumpFile().getString(

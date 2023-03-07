@@ -86,6 +86,14 @@ struct snps_dwc3_softc {
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
 	uint32_t		snpsid;
+	uint32_t		snpsversion;
+	uint32_t		snpsrevision;
+	uint32_t		snpsversion_type;
+#ifdef FDT
+	clk_t			clk_ref;
+	clk_t			clk_suspend;
+	clk_t			clk_bus;
+#endif
 };
 
 #define	DWC3_WRITE(_sc, _off, _val)		\
@@ -94,6 +102,17 @@ struct snps_dwc3_softc {
     bus_space_read_4(_sc->bst, _sc->bsh, _off)
 
 #define	IS_DMA_32B	1
+
+static void
+xhci_interrupt_poll(void *_sc)
+{
+	struct xhci_softc *sc = _sc;
+
+	USB_BUS_UNLOCK(&sc->sc_bus);
+	xhci_interrupt(sc);
+	USB_BUS_LOCK(&sc->sc_bus);
+	usb_callout_reset(&sc->sc_callout, 1, (void *)&xhci_interrupt_poll, sc);
+}
 
 static int
 snps_dwc3_attach_xhci(device_t dev)
@@ -125,18 +144,29 @@ snps_dwc3_attach_xhci(device_t dev)
 	sprintf(sc->sc_vendor, "Synopsys");
 	device_set_desc(sc->sc_bus.bdev, "Synopsys");
 
-	err = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, (driver_intr_t *)xhci_interrupt, sc, &sc->sc_intr_hdl);
-	if (err != 0) {
-		device_printf(dev, "Failed to setup IRQ, %d\n", err);
-		sc->sc_intr_hdl = NULL;
-		return (err);
+	if (xhci_use_polling() == 0) {
+		err = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
+		    NULL, (driver_intr_t *)xhci_interrupt, sc, &sc->sc_intr_hdl);
+		if (err != 0) {
+			device_printf(dev, "Failed to setup IRQ, %d\n", err);
+			sc->sc_intr_hdl = NULL;
+			return (err);
+		}
 	}
 
 	err = xhci_init(sc, dev, IS_DMA_32B);
 	if (err != 0) {
 		device_printf(dev, "Failed to init XHCI, with error %d\n", err);
 		return (ENXIO);
+	}
+
+	usb_callout_init_mtx(&sc->sc_callout, &sc->sc_bus.bus_mtx, 0);
+
+	if (xhci_use_polling() != 0) {
+		device_printf(dev, "Interrupt polling at %dHz\n", hz);
+		USB_BUS_LOCK(&sc->sc_bus);
+		xhci_interrupt_poll(sc);
+		USB_BUS_UNLOCK(&sc->sc_bus);
 	}
 
 	err = xhci_start_controller(sc);
@@ -384,8 +414,31 @@ snps_dwc3_common_attach(device_t dev, bool is_fdt)
 	sc->bsh = rman_get_bushandle(sc->mem_res);
 
 	sc->snpsid = DWC3_READ(sc, DWC3_GSNPSID);
-	if (bootverbose)
-		device_printf(sc->dev, "snps id: %#012x\n", sc->snpsid);
+	sc->snpsversion = DWC3_VERSION(sc->snpsid);
+	sc->snpsrevision = DWC3_REVISION(sc->snpsid);
+	if (sc->snpsversion == DWC3_1_IP_ID ||
+	    sc->snpsversion == DWC3_2_IP_ID) {
+		sc->snpsrevision = DWC3_READ(sc, DWC3_1_VER_NUMBER);
+		sc->snpsversion_type = DWC3_READ(sc, DWC3_1_VER_TYPE);
+	}
+	if (bootverbose) {
+		switch (sc->snpsversion) {
+		case DWC3_IP_ID:
+			device_printf(sc->dev, "SNPS Version: DWC3 (%x %x)\n",
+			    sc->snpsversion, sc->snpsrevision);
+			break;
+		case DWC3_1_IP_ID:
+			device_printf(sc->dev, "SNPS Version: DWC3.1 (%x %x %x)\n",
+			    sc->snpsversion, sc->snpsrevision,
+			    sc->snpsversion_type);
+			break;
+		case DWC3_2_IP_ID:
+			device_printf(sc->dev, "SNPS Version: DWC3.2 (%x %x %x)\n",
+			    sc->snpsversion, sc->snpsrevision,
+			    sc->snpsversion_type);
+			break;
+		}
+	}
 #ifdef DWC3_DEBUG
 	snps_dwc3_dump_ctrlparams(sc);
 #endif
@@ -394,9 +447,33 @@ snps_dwc3_common_attach(device_t dev, bool is_fdt)
 	if (!is_fdt)
 		goto skip_phys;
 
-	/* Get the phys */
 	node = ofw_bus_get_node(dev);
 
+	/* Get the clocks if any */
+	if (ofw_bus_is_compatible(dev, "rockchip,rk3328-dwc3") == 1 ||
+	    ofw_bus_is_compatible(dev, "rockchip,rk3568-dwc3") == 1) {
+		if (clk_get_by_ofw_name(dev, node, "ref_clk", &sc->clk_ref) != 0)
+			device_printf(dev, "Cannot get ref_clk\n");
+		if (clk_get_by_ofw_name(dev, node, "suspend_clk", &sc->clk_suspend) != 0)
+			device_printf(dev, "Cannot get suspend_clk\n");
+		if (clk_get_by_ofw_name(dev, node, "bus_clk", &sc->clk_bus) != 0)
+			device_printf(dev, "Cannot get bus_clk\n");
+	}
+
+	if (sc->clk_ref != NULL) {
+		if (clk_enable(sc->clk_ref) != 0)
+			device_printf(dev, "Cannot enable ref_clk\n");
+	}
+	if (sc->clk_suspend != NULL) {
+		if (clk_enable(sc->clk_suspend) != 0)
+			device_printf(dev, "Cannot enable suspend_clk\n");
+	}
+	if (sc->clk_bus != NULL) {
+		if (clk_enable(sc->clk_bus) != 0)
+			device_printf(dev, "Cannot enable bus_clk\n");
+	}
+
+	/* Get the phys */
 	usb2_phy = usb3_phy = NULL;
 	error = phy_get_by_ofw_name(dev, node, "usb2-phy", &usb2_phy);
 	if (error == 0 && usb2_phy != NULL)
@@ -404,12 +481,19 @@ snps_dwc3_common_attach(device_t dev, bool is_fdt)
 	error = phy_get_by_ofw_name(dev, node, "usb3-phy", &usb3_phy);
 	if (error == 0 && usb3_phy != NULL)
 		phy_enable(usb3_phy);
-	else {
-		reg = DWC3_READ(sc, DWC3_GUCTL1);
-		if (bootverbose)
-			device_printf(dev, "Forcing USB2 clock only\n");
-		reg |= DWC3_GUCTL1_DEV_FORCE_20_CLK_FOR_30_CLK;
-		DWC3_WRITE(sc, DWC3_GUCTL1, reg);
+	if (sc->snpsversion == DWC3_IP_ID) {
+		if (sc->snpsrevision >= 0x290A) {
+			uint32_t hwparams3;
+
+			hwparams3 = DWC3_READ(sc, DWC3_GHWPARAMS3);
+			if (DWC3_HWPARAMS3_SSPHY(hwparams3) == DWC3_HWPARAMS3_SSPHY_DISABLE) {
+				reg = DWC3_READ(sc, DWC3_GUCTL1);
+				if (bootverbose)
+					device_printf(dev, "Forcing USB2 clock only\n");
+				reg |= DWC3_GUCTL1_DEV_FORCE_20_CLK_FOR_30_CLK;
+				DWC3_WRITE(sc, DWC3_GUCTL1, reg);
+			}
+		}
 	}
 	snps_dwc3_configure_phy(sc, node);
 skip_phys:
@@ -427,6 +511,16 @@ skip_phys:
 	snsp_dwc3_dump_regs(sc, "Post XHCI init");
 #endif
 
+#ifdef FDT
+	if (error) {
+		if (sc->clk_ref != NULL)
+			clk_disable(sc->clk_ref);
+		if (sc->clk_suspend != NULL)
+			clk_disable(sc->clk_suspend);
+		if (sc->clk_bus != NULL)
+			clk_disable(sc->clk_bus);
+	}
+#endif
 	return (error);
 }
 

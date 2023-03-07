@@ -169,7 +169,7 @@ inline raw_ostream &operator<<(raw_ostream &OS, const Metadata &MD) {
 /// Metadata wrapper in the Value hierarchy.
 ///
 /// A member of the \a Value hierarchy to represent a reference to metadata.
-/// This allows, e.g., instrinsics to have metadata as operands.
+/// This allows, e.g., intrinsics to have metadata as operands.
 ///
 /// Notably, this is the only thing in either hierarchy that is allowed to
 /// reference \a LocalAsMetadata.
@@ -302,7 +302,8 @@ public:
   ///
   /// Replace all uses of this with \c MD, which is allowed to be null.
   void replaceAllUsesWith(Metadata *MD);
-
+   /// Replace all uses of the constant with Undef in debug info metadata
+  static void SalvageDebugInfo(const Constant &C); 
   /// Returns the list of all DIArgList users of this.
   SmallVector<Metadata *> getAllArgListUsers();
 
@@ -774,10 +775,21 @@ class MDOperand {
 
 public:
   MDOperand() = default;
-  MDOperand(MDOperand &&) = delete;
   MDOperand(const MDOperand &) = delete;
-  MDOperand &operator=(MDOperand &&) = delete;
+  MDOperand(MDOperand &&Op) {
+    MD = Op.MD;
+    if (MD)
+      (void)MetadataTracking::retrack(Op.MD, MD);
+    Op.MD = nullptr;
+  }
   MDOperand &operator=(const MDOperand &) = delete;
+  MDOperand &operator=(MDOperand &&Op) {
+    MD = Op.MD;
+    if (MD)
+      (void)MetadataTracking::retrack(Op.MD, MD);
+    Op.MD = nullptr;
+    return *this;
+  }
   ~MDOperand() { untrack(); }
 
   Metadata *get() const { return MD; }
@@ -922,13 +934,123 @@ struct TempMDNodeDeleter {
 /// If an unresolved node is part of a cycle, \a resolveCycles() needs
 /// to be called on some member of the cycle once all temporary nodes have been
 /// replaced.
+///
+/// MDNodes can be large or small, as well as resizable or non-resizable.
+/// Large MDNodes' operands are allocated in a separate storage vector,
+/// whereas small MDNodes' operands are co-allocated. Distinct and temporary
+/// MDnodes are resizable, but only MDTuples support this capability.
+///
+/// Clients can add operands to resizable MDNodes using push_back().
 class MDNode : public Metadata {
   friend class ReplaceableMetadataImpl;
   friend class LLVMContextImpl;
   friend class DIArgList;
 
-  unsigned NumOperands;
-  unsigned NumUnresolved;
+  /// The header that is coallocated with an MDNode along with its "small"
+  /// operands. It is located immediately before the main body of the node.
+  /// The operands are in turn located immediately before the header.
+  /// For resizable MDNodes, the space for the storage vector is also allocated
+  /// immediately before the header, overlapping with the operands.
+  /// Explicity set alignment because bitfields by default have an
+  /// alignment of 1 on z/OS.
+  struct alignas(alignof(size_t)) Header {
+    bool IsResizable : 1;
+    bool IsLarge : 1;
+    size_t SmallSize : 4;
+    size_t SmallNumOps : 4;
+    size_t : sizeof(size_t) * CHAR_BIT - 10;
+
+    unsigned NumUnresolved = 0;
+    using LargeStorageVector = SmallVector<MDOperand, 0>;
+
+    static constexpr size_t NumOpsFitInVector =
+        sizeof(LargeStorageVector) / sizeof(MDOperand);
+    static_assert(
+        NumOpsFitInVector * sizeof(MDOperand) == sizeof(LargeStorageVector),
+        "sizeof(LargeStorageVector) must be a multiple of sizeof(MDOperand)");
+
+    static constexpr size_t MaxSmallSize = 15;
+
+    static constexpr size_t getOpSize(unsigned NumOps) {
+      return sizeof(MDOperand) * NumOps;
+    }
+    /// Returns the number of operands the node has space for based on its
+    /// allocation characteristics.
+    static size_t getSmallSize(size_t NumOps, bool IsResizable, bool IsLarge) {
+      return IsLarge ? NumOpsFitInVector
+                     : std::max(NumOps, NumOpsFitInVector * IsResizable);
+    }
+    /// Returns the number of bytes allocated for operands and header.
+    static size_t getAllocSize(StorageType Storage, size_t NumOps) {
+      return getOpSize(
+                 getSmallSize(NumOps, isResizable(Storage), isLarge(NumOps))) +
+             sizeof(Header);
+    }
+
+    /// Only temporary and distinct nodes are resizable.
+    static bool isResizable(StorageType Storage) { return Storage != Uniqued; }
+    static bool isLarge(size_t NumOps) { return NumOps > MaxSmallSize; }
+
+    size_t getAllocSize() const {
+      return getOpSize(SmallSize) + sizeof(Header);
+    }
+    void *getAllocation() {
+      return reinterpret_cast<char *>(this + 1) -
+             alignTo(getAllocSize(), alignof(uint64_t));
+    }
+
+    void *getLargePtr() const {
+      static_assert(alignof(LargeStorageVector) <= alignof(Header),
+                    "LargeStorageVector too strongly aligned");
+      return reinterpret_cast<char *>(const_cast<Header *>(this)) -
+             sizeof(LargeStorageVector);
+    }
+
+    void *getSmallPtr();
+
+    LargeStorageVector &getLarge() {
+      assert(IsLarge);
+      return *reinterpret_cast<LargeStorageVector *>(getLargePtr());
+    }
+
+    const LargeStorageVector &getLarge() const {
+      assert(IsLarge);
+      return *reinterpret_cast<const LargeStorageVector *>(getLargePtr());
+    }
+
+    void resizeSmall(size_t NumOps);
+    void resizeSmallToLarge(size_t NumOps);
+    void resize(size_t NumOps);
+
+    explicit Header(size_t NumOps, StorageType Storage);
+    ~Header();
+
+    MutableArrayRef<MDOperand> operands() {
+      if (IsLarge)
+        return getLarge();
+      return makeMutableArrayRef(
+          reinterpret_cast<MDOperand *>(this) - SmallSize, SmallNumOps);
+    }
+
+    ArrayRef<MDOperand> operands() const {
+      if (IsLarge)
+        return getLarge();
+      return makeArrayRef(reinterpret_cast<const MDOperand *>(this) - SmallSize,
+                          SmallNumOps);
+    }
+
+    unsigned getNumOperands() const {
+      if (!IsLarge)
+        return SmallNumOps;
+      return getLarge().size();
+    }
+  };
+
+  Header &getHeader() { return *(reinterpret_cast<Header *>(this) - 1); }
+
+  const Header &getHeader() const {
+    return *(reinterpret_cast<const Header *>(this) - 1);
+  }
 
   ContextAndReplaceableUses Context;
 
@@ -937,7 +1059,7 @@ protected:
          ArrayRef<Metadata *> Ops1, ArrayRef<Metadata *> Ops2 = None);
   ~MDNode() = default;
 
-  void *operator new(size_t Size, unsigned NumOps);
+  void *operator new(size_t Size, size_t NumOps, StorageType Storage);
   void operator delete(void *Mem);
 
   /// Required by std, but never called.
@@ -952,8 +1074,8 @@ protected:
 
   void dropAllReferences();
 
-  MDOperand *mutable_begin() { return mutable_end() - NumOperands; }
-  MDOperand *mutable_end() { return reinterpret_cast<MDOperand *>(this); }
+  MDOperand *mutable_begin() { return getHeader().operands().begin(); }
+  MDOperand *mutable_end() { return getHeader().operands().end(); }
 
   using mutable_op_range = iterator_range<MDOperand *>;
 
@@ -999,7 +1121,7 @@ public:
   /// As forward declarations are resolved, their containers should get
   /// resolved automatically.  However, if this (or one of its operands) is
   /// involved in a cycle, \a resolveCycles() needs to be called explicitly.
-  bool isResolved() const { return !isTemporary() && !NumUnresolved; }
+  bool isResolved() const { return !isTemporary() && !getNumUnresolved(); }
 
   bool isUniqued() const { return Storage == Uniqued; }
   bool isDistinct() const { return Storage == Distinct; }
@@ -1093,10 +1215,24 @@ protected:
   /// Sets the operand directly, without worrying about uniquing.
   void setOperand(unsigned I, Metadata *New);
 
+  unsigned getNumUnresolved() const { return getHeader().NumUnresolved; }
+
+  void setNumUnresolved(unsigned N) { getHeader().NumUnresolved = N; }
   void storeDistinctInContext();
   template <class T, class StoreT>
   static T *storeImpl(T *N, StorageType Storage, StoreT &Store);
   template <class T> static T *storeImpl(T *N, StorageType Storage);
+
+  /// Resize the node to hold \a NumOps operands.
+  ///
+  /// \pre \a isTemporary() or \a isDistinct()
+  /// \pre MetadataID == MDTupleKind
+  void resize(size_t NumOps) {
+    assert(!isUniqued() && "Resizing is not supported for uniqued nodes");
+    assert(getMetadataID() == MDTupleKind &&
+           "Resizing is not supported for this node kind");
+    getHeader().resize(NumOps);
+  }
 
 private:
   void handleChangedOperand(void *Ref, Metadata *New);
@@ -1151,15 +1287,15 @@ public:
     return const_cast<MDNode *>(this)->mutable_end();
   }
 
-  op_range operands() const { return op_range(op_begin(), op_end()); }
+  ArrayRef<MDOperand> operands() const { return getHeader().operands(); }
 
   const MDOperand &getOperand(unsigned I) const {
-    assert(I < NumOperands && "Out of range");
-    return op_begin()[I];
+    assert(I < getNumOperands() && "Out of range");
+    return getHeader().operands()[I];
   }
 
   /// Return number of MDNode operands.
-  unsigned getNumOperands() const { return NumOperands; }
+  unsigned getNumOperands() const { return getHeader().getNumOperands(); }
 
   /// Methods for support type inquiry through isa, cast, and dyn_cast:
   static bool classof(const Metadata *MD) {
@@ -1209,7 +1345,9 @@ class MDTuple : public MDNode {
                           StorageType Storage, bool ShouldCreate = true);
 
   TempMDTuple cloneImpl() const {
-    return getTemporary(getContext(), SmallVector<Metadata *, 4>(operands()));
+    ArrayRef<MDOperand> Operands = operands();
+    return getTemporary(getContext(), SmallVector<Metadata *, 4>(
+                                          Operands.begin(), Operands.end()));
   }
 
 public:
@@ -1243,6 +1381,16 @@ public:
 
   /// Return a (temporary) clone of this.
   TempMDTuple clone() const { return cloneImpl(); }
+
+  /// Append an element to the tuple. This will resize the node.
+  void push_back(Metadata *MD) {
+    size_t NumOps = getNumOperands();
+    resize(NumOps + 1);
+    setOperand(NumOps, MD);
+  }
+
+  /// Shrink the operands by 1.
+  void pop_back() { resize(getNumOperands() - 1); }
 
   static bool classof(const Metadata *MD) {
     return MD->getMetadataID() == MDTupleKind;

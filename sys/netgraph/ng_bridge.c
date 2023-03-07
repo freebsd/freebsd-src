@@ -74,9 +74,6 @@
 #include <net/vnet.h>
 
 #include <netinet/in.h>
-#if 0	/* not used yet */
-#include <netinet/ip_fw.h>
-#endif
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_parse.h>
@@ -859,13 +856,6 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 			return (ELOOP);
 		}
 	}
-
-	/* Run packet through ipfw processing, if enabled */
-#if 0
-	if (priv->conf.ipfw[linkNum] && V_fw_enable && V_ip_fw_chk_ptr != NULL) {
-		/* XXX not implemented yet */
-	}
-#endif
 
 	/*
 	 * If unicast and destination host known, deliver to host's link,

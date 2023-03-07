@@ -81,7 +81,6 @@
 #include <sys/arc.h>
 #include <sys/callb.h>
 #include <sys/systeminfo.h>
-#include <sys/spa_boot.h>
 #include <sys/zfs_ioctl.h>
 #include <sys/dsl_scan.h>
 #include <sys/zfeature.h>
@@ -219,7 +218,7 @@ static int		spa_load_print_vdev_tree = B_FALSE;
  * there are also risks of performing an inadvertent rewind as we might be
  * missing all the vdevs with the latest uberblocks.
  */
-unsigned long	zfs_max_missing_tvds = 0;
+uint64_t	zfs_max_missing_tvds = 0;
 
 /*
  * The parameters below are similar to zfs_max_missing_tvds but are only
@@ -910,7 +909,16 @@ spa_change_guid(spa_t *spa)
 	    spa_change_guid_sync, &guid, 5, ZFS_SPACE_CHECK_RESERVED);
 
 	if (error == 0) {
-		spa_write_cachefile(spa, B_FALSE, B_TRUE);
+		/*
+		 * Clear the kobj flag from all the vdevs to allow
+		 * vdev_cache_process_kobj_evt() to post events to all the
+		 * vdevs since GUID is updated.
+		 */
+		vdev_clear_kobj_evt(spa->spa_root_vdev);
+		for (int i = 0; i < spa->spa_l2cache.sav_count; i++)
+			vdev_clear_kobj_evt(spa->spa_l2cache.sav_vdevs[i]);
+
+		spa_write_cachefile(spa, B_FALSE, B_TRUE, B_TRUE);
 		spa_event_notify(spa, NULL, NULL, ESC_ZFS_POOL_REGUID);
 	}
 
@@ -1706,9 +1714,9 @@ spa_unload(spa_t *spa)
 	 */
 	spa_l2cache_drop(spa);
 
-	for (int i = 0; i < spa->spa_spares.sav_count; i++)
-		vdev_free(spa->spa_spares.sav_vdevs[i]);
 	if (spa->spa_spares.sav_vdevs) {
+		for (int i = 0; i < spa->spa_spares.sav_count; i++)
+			vdev_free(spa->spa_spares.sav_vdevs[i]);
 		kmem_free(spa->spa_spares.sav_vdevs,
 		    spa->spa_spares.sav_count * sizeof (void *));
 		spa->spa_spares.sav_vdevs = NULL;
@@ -1719,11 +1727,11 @@ spa_unload(spa_t *spa)
 	}
 	spa->spa_spares.sav_count = 0;
 
-	for (int i = 0; i < spa->spa_l2cache.sav_count; i++) {
-		vdev_clear_stats(spa->spa_l2cache.sav_vdevs[i]);
-		vdev_free(spa->spa_l2cache.sav_vdevs[i]);
-	}
 	if (spa->spa_l2cache.sav_vdevs) {
+		for (int i = 0; i < spa->spa_l2cache.sav_count; i++) {
+			vdev_clear_stats(spa->spa_l2cache.sav_vdevs[i]);
+			vdev_free(spa->spa_l2cache.sav_vdevs[i]);
+		}
 		kmem_free(spa->spa_l2cache.sav_vdevs,
 		    spa->spa_l2cache.sav_count * sizeof (void *));
 		spa->spa_l2cache.sav_vdevs = NULL;
@@ -1781,20 +1789,21 @@ spa_load_spares(spa_t *spa)
 	/*
 	 * First, close and free any existing spare vdevs.
 	 */
-	for (i = 0; i < spa->spa_spares.sav_count; i++) {
-		vd = spa->spa_spares.sav_vdevs[i];
+	if (spa->spa_spares.sav_vdevs) {
+		for (i = 0; i < spa->spa_spares.sav_count; i++) {
+			vd = spa->spa_spares.sav_vdevs[i];
 
-		/* Undo the call to spa_activate() below */
-		if ((tvd = spa_lookup_by_guid(spa, vd->vdev_guid,
-		    B_FALSE)) != NULL && tvd->vdev_isspare)
-			spa_spare_remove(tvd);
-		vdev_close(vd);
-		vdev_free(vd);
-	}
+			/* Undo the call to spa_activate() below */
+			if ((tvd = spa_lookup_by_guid(spa, vd->vdev_guid,
+			    B_FALSE)) != NULL && tvd->vdev_isspare)
+				spa_spare_remove(tvd);
+			vdev_close(vd);
+			vdev_free(vd);
+		}
 
-	if (spa->spa_spares.sav_vdevs)
 		kmem_free(spa->spa_spares.sav_vdevs,
 		    spa->spa_spares.sav_count * sizeof (void *));
+	}
 
 	if (spa->spa_spares.sav_config == NULL)
 		nspares = 0;
@@ -2005,23 +2014,24 @@ out:
 	/*
 	 * Purge vdevs that were dropped
 	 */
-	for (i = 0; i < oldnvdevs; i++) {
-		uint64_t pool;
+	if (oldvdevs) {
+		for (i = 0; i < oldnvdevs; i++) {
+			uint64_t pool;
 
-		vd = oldvdevs[i];
-		if (vd != NULL) {
-			ASSERT(vd->vdev_isl2cache);
+			vd = oldvdevs[i];
+			if (vd != NULL) {
+				ASSERT(vd->vdev_isl2cache);
 
-			if (spa_l2cache_exists(vd->vdev_guid, &pool) &&
-			    pool != 0ULL && l2arc_vdev_present(vd))
-				l2arc_remove_vdev(vd);
-			vdev_clear_stats(vd);
-			vdev_free(vd);
+				if (spa_l2cache_exists(vd->vdev_guid, &pool) &&
+				    pool != 0ULL && l2arc_vdev_present(vd))
+					l2arc_remove_vdev(vd);
+				vdev_clear_stats(vd);
+				vdev_free(vd);
+			}
 		}
-	}
 
-	if (oldvdevs)
 		kmem_free(oldvdevs, oldnvdevs * sizeof (void *));
+	}
 
 	for (i = 0; i < sav->sav_count; i++)
 		nvlist_free(l2cache[i]);
@@ -2302,7 +2312,7 @@ spa_load_verify_done(zio_t *zio)
  * Maximum number of inflight bytes is the log2 fraction of the arc size.
  * By default, we set it to 1/16th of the arc.
  */
-static int spa_load_verify_shift = 4;
+static uint_t spa_load_verify_shift = 4;
 static int spa_load_verify_metadata = B_TRUE;
 static int spa_load_verify_data = B_TRUE;
 
@@ -5221,7 +5231,7 @@ spa_open_common(const char *pool, spa_t **spapp, const void *tag,
 			 */
 			spa_unload(spa);
 			spa_deactivate(spa);
-			spa_write_cachefile(spa, B_TRUE, B_TRUE);
+			spa_write_cachefile(spa, B_TRUE, B_TRUE, B_FALSE);
 			spa_remove(spa);
 			if (locked)
 				mutex_exit(&spa_namespace_lock);
@@ -5259,7 +5269,7 @@ spa_open_common(const char *pool, spa_t **spapp, const void *tag,
 	 * If we've recovered the pool, pass back any information we
 	 * gathered while doing the load.
 	 */
-	if (state == SPA_LOAD_RECOVER) {
+	if (state == SPA_LOAD_RECOVER && config != NULL) {
 		fnvlist_add_nvlist(*config, ZPOOL_CONFIG_LOAD_INFO,
 		    spa->spa_load_info);
 	}
@@ -5535,7 +5545,7 @@ spa_get_stats(const char *name, nvlist_t **config,
 
 			fnvlist_add_uint64(*config,
 			    ZPOOL_CONFIG_ERRCOUNT,
-			    spa_get_errlog_size(spa));
+			    spa_approx_errlog_size(spa));
 
 			if (spa_suspended(spa)) {
 				fnvlist_add_uint64(*config,
@@ -6045,7 +6055,7 @@ spa_create(const char *pool, nvlist_t *nvroot, nvlist_t *props,
 
 	spa_spawn_aux_threads(spa);
 
-	spa_write_cachefile(spa, B_FALSE, B_TRUE);
+	spa_write_cachefile(spa, B_FALSE, B_TRUE, B_TRUE);
 
 	/*
 	 * Don't count references from objsets that are already closed
@@ -6108,7 +6118,7 @@ spa_import(char *pool, nvlist_t *config, nvlist_t *props, uint64_t flags)
 		if (props != NULL)
 			spa_configfile_set(spa, props, B_FALSE);
 
-		spa_write_cachefile(spa, B_FALSE, B_TRUE);
+		spa_write_cachefile(spa, B_FALSE, B_TRUE, B_FALSE);
 		spa_event_notify(spa, NULL, NULL, ESC_ZFS_POOL_IMPORT);
 		zfs_dbgmsg("spa_import: verbatim import of %s", pool);
 		mutex_exit(&spa_namespace_lock);
@@ -6428,6 +6438,7 @@ spa_export_common(const char *pool, int new_state, nvlist_t **oldconfig,
 	}
 
 	if (spa->spa_sync_on) {
+		vdev_t *rvd = spa->spa_root_vdev;
 		/*
 		 * A pool cannot be exported if it has an active shared spare.
 		 * This is to prevent other pools stealing the active spare
@@ -6447,13 +6458,10 @@ spa_export_common(const char *pool, int new_state, nvlist_t **oldconfig,
 		 * dirty data resulting from the initialization is
 		 * committed to disk before we unload the pool.
 		 */
-		if (spa->spa_root_vdev != NULL) {
-			vdev_t *rvd = spa->spa_root_vdev;
-			vdev_initialize_stop_all(rvd, VDEV_INITIALIZE_ACTIVE);
-			vdev_trim_stop_all(rvd, VDEV_TRIM_ACTIVE);
-			vdev_autotrim_stop_all(spa);
-			vdev_rebuild_stop_all(spa);
-		}
+		vdev_initialize_stop_all(rvd, VDEV_INITIALIZE_ACTIVE);
+		vdev_trim_stop_all(rvd, VDEV_TRIM_ACTIVE);
+		vdev_autotrim_stop_all(spa);
+		vdev_rebuild_stop_all(spa);
 
 		/*
 		 * We want this to be reflected on every label,
@@ -6463,7 +6471,7 @@ spa_export_common(const char *pool, int new_state, nvlist_t **oldconfig,
 		if (new_state != POOL_STATE_UNINITIALIZED && !hardforce) {
 			spa_config_enter(spa, SCL_ALL, FTAG, RW_WRITER);
 			spa->spa_state = new_state;
-			vdev_config_dirty(spa->spa_root_vdev);
+			vdev_config_dirty(rvd);
 			spa_config_exit(spa, SCL_ALL, FTAG);
 		}
 
@@ -6506,7 +6514,7 @@ export_spa:
 
 	if (new_state != POOL_STATE_UNINITIALIZED) {
 		if (!hardforce)
-			spa_write_cachefile(spa, B_TRUE, B_TRUE);
+			spa_write_cachefile(spa, B_TRUE, B_TRUE, B_FALSE);
 		spa_remove(spa);
 	} else {
 		/*
@@ -6797,8 +6805,8 @@ spa_vdev_attach(spa_t *spa, uint64_t guid, nvlist_t *nvroot, int replacing,
 
 	pvd = oldvd->vdev_parent;
 
-	if ((error = spa_config_parse(spa, &newrootvd, nvroot, NULL, 0,
-	    VDEV_ALLOC_ATTACH)) != 0)
+	if (spa_config_parse(spa, &newrootvd, nvroot, NULL, 0,
+	    VDEV_ALLOC_ATTACH) != 0)
 		return (spa_vdev_exit(spa, NULL, txg, EINVAL));
 
 	if (newrootvd->vdev_children != 1)
@@ -6813,10 +6821,12 @@ spa_vdev_attach(spa_t *spa, uint64_t guid, nvlist_t *nvroot, int replacing,
 		return (spa_vdev_exit(spa, newrootvd, txg, error));
 
 	/*
-	 * Spares can't replace logs
+	 * log, dedup and special vdevs should not be replaced by spares.
 	 */
-	if (oldvd->vdev_top->vdev_islog && newvd->vdev_isspare)
+	if ((oldvd->vdev_top->vdev_alloc_bias != VDEV_BIAS_NONE ||
+	    oldvd->vdev_top->vdev_islog) && newvd->vdev_isspare) {
 		return (spa_vdev_exit(spa, newrootvd, txg, ENOTSUP));
+	}
 
 	/*
 	 * A dRAID spare can only replace a child of its parent dRAID vdev.
@@ -7154,7 +7164,7 @@ spa_vdev_detach(spa_t *spa, uint64_t guid, uint64_t pguid, int replace_done)
 	 * it may be that the unwritability of the disk is the reason
 	 * it's being detached!
 	 */
-	error = vdev_label_init(vd, 0, VDEV_LABEL_REMOVE);
+	(void) vdev_label_init(vd, 0, VDEV_LABEL_REMOVE);
 
 	/*
 	 * Remove vd from its parent and compact the parent's children.
@@ -8861,36 +8871,36 @@ spa_sync_props(void *arg, dmu_tx_t *tx)
 				spa_history_log_internal(spa, "set", tx,
 				    "%s=%lld", nvpair_name(elem),
 				    (longlong_t)intval);
+
+				switch (prop) {
+				case ZPOOL_PROP_DELEGATION:
+					spa->spa_delegation = intval;
+					break;
+				case ZPOOL_PROP_BOOTFS:
+					spa->spa_bootfs = intval;
+					break;
+				case ZPOOL_PROP_FAILUREMODE:
+					spa->spa_failmode = intval;
+					break;
+				case ZPOOL_PROP_AUTOTRIM:
+					spa->spa_autotrim = intval;
+					spa_async_request(spa,
+					    SPA_ASYNC_AUTOTRIM_RESTART);
+					break;
+				case ZPOOL_PROP_AUTOEXPAND:
+					spa->spa_autoexpand = intval;
+					if (tx->tx_txg != TXG_INITIAL)
+						spa_async_request(spa,
+						    SPA_ASYNC_AUTOEXPAND);
+					break;
+				case ZPOOL_PROP_MULTIHOST:
+					spa->spa_multihost = intval;
+					break;
+				default:
+					break;
+				}
 			} else {
 				ASSERT(0); /* not allowed */
-			}
-
-			switch (prop) {
-			case ZPOOL_PROP_DELEGATION:
-				spa->spa_delegation = intval;
-				break;
-			case ZPOOL_PROP_BOOTFS:
-				spa->spa_bootfs = intval;
-				break;
-			case ZPOOL_PROP_FAILUREMODE:
-				spa->spa_failmode = intval;
-				break;
-			case ZPOOL_PROP_AUTOTRIM:
-				spa->spa_autotrim = intval;
-				spa_async_request(spa,
-				    SPA_ASYNC_AUTOTRIM_RESTART);
-				break;
-			case ZPOOL_PROP_AUTOEXPAND:
-				spa->spa_autoexpand = intval;
-				if (tx->tx_txg != TXG_INITIAL)
-					spa_async_request(spa,
-					    SPA_ASYNC_AUTOEXPAND);
-				break;
-			case ZPOOL_PROP_MULTIHOST:
-				spa->spa_multihost = intval;
-				break;
-			default:
-				break;
 			}
 		}
 
@@ -9989,7 +9999,7 @@ EXPORT_SYMBOL(spa_prop_clear_bootfs);
 EXPORT_SYMBOL(spa_event_notify);
 
 /* BEGIN CSTYLED */
-ZFS_MODULE_PARAM(zfs_spa, spa_, load_verify_shift, INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_spa, spa_, load_verify_shift, UINT, ZMOD_RW,
 	"log2 fraction of arc that can be used by inflight I/Os when "
 	"verifying pool during import");
 /* END CSTYLED */
@@ -10010,7 +10020,7 @@ ZFS_MODULE_PARAM(zfs_zio, zio_, taskq_batch_tpq, UINT, ZMOD_RD,
 	"Number of threads per IO worker taskqueue");
 
 /* BEGIN CSTYLED */
-ZFS_MODULE_PARAM(zfs, zfs_, max_missing_tvds, ULONG, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs, zfs_, max_missing_tvds, U64, ZMOD_RW,
 	"Allow importing pool with up to this number of missing top-level "
 	"vdevs (in read-only mode)");
 /* END CSTYLED */

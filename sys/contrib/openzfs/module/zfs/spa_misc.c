@@ -304,20 +304,20 @@ int zfs_free_leak_on_eio = B_FALSE;
  * has not completed in zfs_deadman_synctime_ms is considered "hung" resulting
  * in one of three behaviors controlled by zfs_deadman_failmode.
  */
-unsigned long zfs_deadman_synctime_ms = 600000UL;  /* 10 min. */
+uint64_t zfs_deadman_synctime_ms = 600000UL;  /* 10 min. */
 
 /*
  * This value controls the maximum amount of time zio_wait() will block for an
  * outstanding IO.  By default this is 300 seconds at which point the "hung"
  * behavior will be applied as described for zfs_deadman_synctime_ms.
  */
-unsigned long zfs_deadman_ziotime_ms = 300000UL;  /* 5 min. */
+uint64_t zfs_deadman_ziotime_ms = 300000UL;  /* 5 min. */
 
 /*
  * Check time in milliseconds. This defines the frequency at which we check
  * for hung I/O.
  */
-unsigned long zfs_deadman_checktime_ms = 60000UL;  /* 1 min. */
+uint64_t zfs_deadman_checktime_ms = 60000UL;  /* 1 min. */
 
 /*
  * By default the deadman is enabled.
@@ -343,7 +343,7 @@ const char *zfs_deadman_failmode = "wait";
  * the worst case is:
  *     (VDEV_RAIDZ_MAXPARITY + 1) * SPA_DVAS_PER_BP * 2 == 24
  */
-int spa_asize_inflation = 24;
+uint_t spa_asize_inflation = 24;
 
 /*
  * Normally, we don't allow the last 3.2% (1/(2^spa_slop_shift)) of space in
@@ -383,7 +383,7 @@ int spa_asize_inflation = 24;
  *
  * See also the comments in zfs_space_check_t.
  */
-int spa_slop_shift = 5;
+uint_t spa_slop_shift = 5;
 static const uint64_t spa_min_slop = 128ULL * 1024 * 1024;
 static const uint64_t spa_max_slop = 128ULL * 1024 * 1024 * 1024;
 static const int spa_allocators = 4;
@@ -428,7 +428,7 @@ static int zfs_user_indirect_is_special = B_TRUE;
  * Once we allocate 100 - zfs_special_class_metadata_reserve_pct we only
  * let metadata into the class.
  */
-static int zfs_special_class_metadata_reserve_pct = 25;
+static uint_t zfs_special_class_metadata_reserve_pct = 25;
 
 /*
  * ==========================================================================
@@ -1290,7 +1290,7 @@ spa_vdev_config_exit(spa_t *spa, vdev_t *vd, uint64_t txg, int error,
 	 * If the config changed, update the config cache.
 	 */
 	if (config_changed)
-		spa_write_cachefile(spa, B_FALSE, B_TRUE);
+		spa_write_cachefile(spa, B_FALSE, B_TRUE, B_TRUE);
 }
 
 /*
@@ -1385,7 +1385,7 @@ spa_vdev_state_exit(spa_t *spa, vdev_t *vd, int error)
 	 */
 	if (config_changed) {
 		mutex_enter(&spa_namespace_lock);
-		spa_write_cachefile(spa, B_FALSE, B_TRUE);
+		spa_write_cachefile(spa, B_FALSE, B_TRUE, B_FALSE);
 		mutex_exit(&spa_namespace_lock);
 	}
 
@@ -1536,7 +1536,7 @@ snprintf_blkptr(char *buf, size_t buflen, const blkptr_t *bp)
 		compress = zio_compress_table[BP_GET_COMPRESS(bp)].ci_name;
 	}
 
-	SNPRINTF_BLKPTR(snprintf, ' ', buf, buflen, bp, type, checksum,
+	SNPRINTF_BLKPTR(kmem_scnprintf, ' ', buf, buflen, bp, type, checksum,
 	    compress);
 }
 
@@ -1654,10 +1654,10 @@ spa_altroot(spa_t *spa, char *buf, size_t buflen)
 	if (spa->spa_root == NULL)
 		buf[0] = '\0';
 	else
-		(void) strncpy(buf, spa->spa_root, buflen);
+		(void) strlcpy(buf, spa->spa_root, buflen);
 }
 
-int
+uint32_t
 spa_sync_pass(spa_t *spa)
 {
 	return (spa->spa_sync_pass);
@@ -2556,7 +2556,6 @@ spa_scan_stat_init(spa_t *spa)
 	spa->spa_scan_pass_scrub_spent_paused = 0;
 	spa->spa_scan_pass_exam = 0;
 	spa->spa_scan_pass_issued = 0;
-	vdev_scan_stat_init(spa->spa_root_vdev);
 }
 
 /*
@@ -2922,13 +2921,13 @@ ZFS_MODULE_PARAM(zfs, zfs_, recover, INT, ZMOD_RW,
 ZFS_MODULE_PARAM(zfs, zfs_, free_leak_on_eio, INT, ZMOD_RW,
 	"Set to ignore IO errors during free and permanently leak the space");
 
-ZFS_MODULE_PARAM(zfs_deadman, zfs_deadman_, checktime_ms, ULONG, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_deadman, zfs_deadman_, checktime_ms, U64, ZMOD_RW,
 	"Dead I/O check interval in milliseconds");
 
 ZFS_MODULE_PARAM(zfs_deadman, zfs_deadman_, enabled, INT, ZMOD_RW,
 	"Enable deadman timer");
 
-ZFS_MODULE_PARAM(zfs_spa, spa_, asize_inflation, INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_spa, spa_, asize_inflation, UINT, ZMOD_RW,
 	"SPA size estimate multiplication factor");
 
 ZFS_MODULE_PARAM(zfs, zfs_, ddt_data_is_special, INT, ZMOD_RW,
@@ -2943,17 +2942,17 @@ ZFS_MODULE_PARAM_CALL(zfs_deadman, zfs_deadman_, failmode,
 	"Failmode for deadman timer");
 
 ZFS_MODULE_PARAM_CALL(zfs_deadman, zfs_deadman_, synctime_ms,
-	param_set_deadman_synctime, param_get_ulong, ZMOD_RW,
+	param_set_deadman_synctime, spl_param_get_u64, ZMOD_RW,
 	"Pool sync expiration time in milliseconds");
 
 ZFS_MODULE_PARAM_CALL(zfs_deadman, zfs_deadman_, ziotime_ms,
-	param_set_deadman_ziotime, param_get_ulong, ZMOD_RW,
+	param_set_deadman_ziotime, spl_param_get_u64, ZMOD_RW,
 	"IO expiration time in milliseconds");
 
-ZFS_MODULE_PARAM(zfs, zfs_, special_class_metadata_reserve_pct, INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs, zfs_, special_class_metadata_reserve_pct, UINT, ZMOD_RW,
 	"Small file blocks in special vdevs depends on this much "
 	"free space available");
 /* END CSTYLED */
 
 ZFS_MODULE_PARAM_CALL(zfs_spa, spa_, slop_shift, param_set_slop_shift,
-	param_get_int, ZMOD_RW, "Reserved free space in pool");
+	param_get_uint, ZMOD_RW, "Reserved free space in pool");

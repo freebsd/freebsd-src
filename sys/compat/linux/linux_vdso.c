@@ -26,8 +26,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
-
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 #define	__ELF_WORD_SIZE	32
 #else
@@ -35,22 +33,20 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/elf.h>
 #include <sys/imgact.h>
-#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
-#include <sys/queue.h>
 #include <sys/sysent.h>
 
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_param.h>
 
 #include <compat/linux/linux_vdso.h>
 

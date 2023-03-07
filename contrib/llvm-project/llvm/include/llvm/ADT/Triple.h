@@ -56,7 +56,10 @@ public:
     bpfel,          // eBPF or extended BPF or 64-bit BPF (little endian)
     bpfeb,          // eBPF or extended BPF or 64-bit BPF (big endian)
     csky,           // CSKY: csky
+    dxil,           // DXIL 32-bit DirectX bytecode
     hexagon,        // Hexagon: hexagon
+    loongarch32,    // LoongArch (32-bit): loongarch32
+    loongarch64,    // LoongArch (64-bit): loongarch64
     m68k,           // M68k: Motorola 680x0 family
     mips,           // MIPS: mips, mipsallegrex, mipsr6
     mipsel,         // MIPSEL: mipsel, mipsallegrexe, mipsr6el
@@ -146,7 +149,15 @@ public:
 
     MipsSubArch_r6,
 
-    PPCSubArch_spe
+    PPCSubArch_spe,
+
+    // SPIR-V sub-arch corresponds to its version.
+    SPIRVSubArch_v10,
+    SPIRVSubArch_v11,
+    SPIRVSubArch_v12,
+    SPIRVSubArch_v13,
+    SPIRVSubArch_v14,
+    SPIRVSubArch_v15,
   };
   enum VendorType {
     UnknownVendor,
@@ -195,9 +206,11 @@ public:
     NVCL,       // NVIDIA OpenCL
     AMDHSA,     // AMD HSA Runtime
     PS4,
+    PS5,
     ELFIAMCU,
     TvOS,       // Apple tvOS
     WatchOS,    // Apple watchOS
+    DriverKit,  // Apple DriverKit
     Mesa3D,
     Contiki,
     AMDPAL,     // AMD PAL Runtime
@@ -205,7 +218,8 @@ public:
     Hurd,       // GNU/Hurd
     WASI,       // Experimental WebAssembly OS
     Emscripten,
-    LastOSType = Emscripten
+    ShaderModel, // DirectX ShaderModel
+    LastOSType = ShaderModel
   };
   enum EnvironmentType {
     UnknownEnvironment,
@@ -232,15 +246,35 @@ public:
     CoreCLR,
     Simulator, // Simulator variants of other systems, e.g., Apple's iOS
     MacABI, // Mac Catalyst variant of Apple's iOS deployment target.
-    LastEnvironmentType = MacABI
+    
+    // Shader Stages
+    Pixel,
+    Vertex,
+    Geometry,
+    Hull,
+    Domain,
+    Compute,
+    Library,
+    RayGeneration,
+    Intersection,
+    AnyHit,
+    ClosestHit,
+    Miss,
+    Callable,
+    Mesh,
+    Amplification,
+
+    LastEnvironmentType = Amplification
   };
   enum ObjectFormatType {
     UnknownObjectFormat,
 
     COFF,
+    DXContainer,
     ELF,
     GOFF,
     MachO,
+    SPIRV,
     Wasm,
     XCOFF,
   };
@@ -249,22 +283,22 @@ private:
   std::string Data;
 
   /// The parsed arch type.
-  ArchType Arch;
+  ArchType Arch{};
 
   /// The parsed subarchitecture type.
-  SubArchType SubArch;
+  SubArchType SubArch{};
 
   /// The parsed vendor type.
-  VendorType Vendor;
+  VendorType Vendor{};
 
   /// The parsed OS type.
-  OSType OS;
+  OSType OS{};
 
   /// The parsed Environment type.
-  EnvironmentType Environment;
+  EnvironmentType Environment{};
 
   /// The object format type.
-  ObjectFormatType ObjectFormat;
+  ObjectFormatType ObjectFormat{};
 
 public:
   /// @name Constructors
@@ -272,7 +306,7 @@ public:
 
   /// Default constructor is the same as an empty string and leaves all
   /// triple fields unknown.
-  Triple() : Arch(), SubArch(), Vendor(), OS(), Environment(), ObjectFormat() {}
+  Triple() = default;
 
   explicit Triple(const Twine &Str);
   Triple(const Twine &ArchStr, const Twine &VendorStr, const Twine &OSStr);
@@ -359,6 +393,9 @@ public:
   /// Parse the version number as with getOSVersion.  This should only be called
   /// with WatchOS or generic triples.
   VersionTuple getWatchOSVersion() const;
+
+  /// Parse the version number as with getOSVersion.
+  VersionTuple getDriverKitVersion() const;
 
   /// @}
   /// @name Direct Component Access
@@ -462,11 +499,14 @@ public:
     return getSubArch() == Triple::ARMSubArch_v7k;
   }
 
+  /// Is this an Apple DriverKit triple.
+  bool isDriverKit() const { return getOS() == Triple::DriverKit; }
+
   bool isOSzOS() const { return getOS() == Triple::ZOS; }
 
-  /// Is this a "Darwin" OS (macOS, iOS, tvOS or watchOS).
+  /// Is this a "Darwin" OS (macOS, iOS, tvOS, watchOS, or DriverKit).
   bool isOSDarwin() const {
-    return isMacOSX() || isiOS() || isWatchOS();
+    return isMacOSX() || isiOS() || isWatchOS() || isDriverKit();
   }
 
   bool isSimulatorEnvironment() const {
@@ -640,18 +680,22 @@ public:
     return getObjectFormat() == Triple::XCOFF;
   }
 
-  /// Tests whether the target is the PS4 CPU
-  bool isPS4CPU() const {
+  /// Tests whether the target is the PS4 platform.
+  bool isPS4() const {
     return getArch() == Triple::x86_64 &&
            getVendor() == Triple::SCEI &&
            getOS() == Triple::PS4;
   }
 
-  /// Tests whether the target is the PS4 platform
-  bool isPS4() const {
-    return getVendor() == Triple::SCEI &&
-           getOS() == Triple::PS4;
+  /// Tests whether the target is the PS5 platform.
+  bool isPS5() const {
+    return getArch() == Triple::x86_64 &&
+      getVendor() == Triple::SCEI &&
+      getOS() == Triple::PS5;
   }
+
+  /// Tests whether the target is the PS4 or PS5 platform.
+  bool isPS() const { return isPS4() || isPS5(); }
 
   /// Tests whether the target is Android
   bool isAndroid() const { return getEnvironment() == Triple::Android; }
@@ -674,6 +718,11 @@ public:
            getEnvironment() == Triple::MuslEABI ||
            getEnvironment() == Triple::MuslEABIHF ||
            getEnvironment() == Triple::MuslX32;
+  }
+
+  /// Tests whether the target is DXIL.
+  bool isDXIL() const {
+    return getArch() == Triple::dxil;
   }
 
   /// Tests whether the target is SPIR (32- or 64-bit).
@@ -774,6 +823,11 @@ public:
                : PointerWidth == 64;
   }
 
+  /// Tests whether the target is LoongArch (32- and 64-bit).
+  bool isLoongArch() const {
+    return getArch() == Triple::loongarch32 || getArch() == Triple::loongarch64;
+  }
+
   /// Tests whether the target is MIPS 32-bit (little and big endian).
   bool isMIPS32() const {
     return getArch() == Triple::mips || getArch() == Triple::mipsel;
@@ -809,6 +863,17 @@ public:
   bool isRISCV() const {
     return getArch() == Triple::riscv32 || getArch() == Triple::riscv64;
   }
+
+  /// Tests whether the target is 32-bit SPARC (little and big endian).
+  bool isSPARC32() const {
+    return getArch() == Triple::sparc || getArch() == Triple::sparcel;
+  }
+
+  /// Tests whether the target is 64-bit SPARC (big endian).
+  bool isSPARC64() const { return getArch() == Triple::sparcv9; }
+
+  /// Tests whether the target is SPARC.
+  bool isSPARC() const { return isSPARC32() || isSPARC64(); }
 
   /// Tests whether the target is SystemZ.
   bool isSystemZ() const {
@@ -863,7 +928,7 @@ public:
   }
 
   /// Tests if the environment supports dllimport/export annotations.
-  bool hasDLLImportExport() const { return isOSWindows() || isPS4CPU(); }
+  bool hasDLLImportExport() const { return isOSWindows() || isPS(); }
 
   /// @}
   /// @name Mutators
@@ -971,7 +1036,7 @@ public:
 
   /// Get the "prefix" canonical name for the \p Kind architecture. This is the
   /// prefix used by the architecture specific builtins, and is suitable for
-  /// passing to \see Intrinsic::getIntrinsicForGCCBuiltin().
+  /// passing to \see Intrinsic::getIntrinsicForClangBuiltin().
   ///
   /// \return - The architecture prefix, or 0 if none is defined.
   static StringRef getArchTypePrefix(ArchType Kind);

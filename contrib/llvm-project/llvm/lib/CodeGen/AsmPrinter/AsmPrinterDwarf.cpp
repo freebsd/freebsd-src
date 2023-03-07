@@ -10,7 +10,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "ByteStreamer.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/BinaryFormat/Dwarf.h"
 #include "llvm/CodeGen/AsmPrinter.h"
@@ -19,14 +18,11 @@
 #include "llvm/IR/DataLayout.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCDwarf.h"
-#include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSection.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
-#include "llvm/MC/MachineLocation.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
-#include "llvm/Target/TargetMachine.h"
 #include <cstdint>
 using namespace llvm;
 
@@ -162,7 +158,7 @@ void AsmPrinter::emitDwarfSymbolReference(const MCSymbol *Label,
     if (MAI->needsDwarfSectionOffsetDirective()) {
       assert(!isDwarf64() &&
              "emitting DWARF64 is not implemented for COFF targets");
-      OutStreamer->EmitCOFFSecRel32(Label, /*Offset=*/0);
+      OutStreamer->emitCOFFSecRel32(Label, /*Offset=*/0);
       return;
     }
 
@@ -277,6 +273,12 @@ void AsmPrinter::emitCFIInstruction(const MCCFIInstruction &Inst) const {
   case MCCFIInstruction::OpUndefined:
     OutStreamer->emitCFIUndefined(Inst.getRegister());
     break;
+  case MCCFIInstruction::OpRememberState:
+    OutStreamer->emitCFIRememberState();
+    break;
+  case MCCFIInstruction::OpRestoreState:
+    OutStreamer->emitCFIRestoreState();
+    break;
   }
 }
 
@@ -307,7 +309,7 @@ void AsmPrinter::emitDwarfDIE(const DIE &Die) const {
 
   // Emit the DIE children if any.
   if (Die.hasChildren()) {
-    for (auto &Child : Die.children())
+    for (const auto &Child : Die.children())
       emitDwarfDIE(Child);
 
     OutStreamer->AddComment("End Of Children Mark");

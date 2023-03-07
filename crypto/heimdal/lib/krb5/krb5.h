@@ -914,3 +914,22 @@ extern KRB5_LIB_VARIABLE const char *krb5_cc_type_scc;
 
 #endif /* __KRB5_H__ */
 
+/* clang analyzer workarounds */
+
+#ifdef __clang_analyzer__
+/*
+ * The clang analyzer (lint) can't know that krb5_enomem() always returns
+ * non-zero, so code like:
+ *
+ *      if ((x = malloc(...)) == NULL)
+ *          ret = krb5_enomem(context)
+ *      if (ret == 0)
+ *          *x = ...;
+ *
+ * causes false positives.
+ *
+ * The fix is to make krb5_enomem() a macro that always evaluates to ENOMEM.
+ */
+#define krb5_enomem(c) (krb5_enomem(c), ENOMEM)
+#endif
+

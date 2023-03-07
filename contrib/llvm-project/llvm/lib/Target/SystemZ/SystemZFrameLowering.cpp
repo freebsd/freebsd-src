@@ -13,6 +13,7 @@
 #include "SystemZMachineFunctionInfo.h"
 #include "SystemZRegisterInfo.h"
 #include "SystemZSubtarget.h"
+#include "llvm/CodeGen/LivePhysRegs.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
@@ -95,8 +96,7 @@ typedef std::vector<SZFrameSortingObj> SZFrameObjVec;
 void SystemZELFFrameLowering::orderFrameObjects(
     const MachineFunction &MF, SmallVectorImpl<int> &ObjectsToAllocate) const {
   const MachineFrameInfo &MFI = MF.getFrameInfo();
-  const SystemZInstrInfo *TII =
-      static_cast<const SystemZInstrInfo *>(MF.getSubtarget().getInstrInfo());
+  auto *TII = MF.getSubtarget<SystemZSubtarget>().getInstrInfo();
 
   // Make a vector of sorting objects to track all MFI objects and mark those
   // to be sorted as valid.
@@ -911,6 +911,54 @@ SystemZXPLINKFrameLowering::SystemZXPLINKFrameLowering()
         XPLINKSpillOffsetTable[I].Offset;
 }
 
+// Checks if the function is a potential candidate for being a XPLeaf routine.
+static bool isXPLeafCandidate(const MachineFunction &MF) {
+  const MachineFrameInfo &MFFrame = MF.getFrameInfo();
+  const MachineRegisterInfo &MRI = MF.getRegInfo();
+  const SystemZSubtarget &Subtarget = MF.getSubtarget<SystemZSubtarget>();
+  auto *Regs =
+      static_cast<SystemZXPLINK64Registers *>(Subtarget.getSpecialRegisters());
+
+  // If function calls other functions including alloca, then it is not a XPLeaf
+  // routine.
+  if (MFFrame.hasCalls())
+    return false;
+
+  // If the function has var Sized Objects, then it is not a XPLeaf routine.
+  if (MFFrame.hasVarSizedObjects())
+    return false;
+
+  // If the function adjusts the stack, then it is not a XPLeaf routine.
+  if (MFFrame.adjustsStack())
+    return false;
+
+  // If function modifies the stack pointer register, then it is not a XPLeaf
+  // routine.
+  if (MRI.isPhysRegModified(Regs->getStackPointerRegister()))
+    return false;
+
+  // If function modifies the ADA register, then it is not a XPLeaf routine.
+  if (MRI.isPhysRegModified(Regs->getAddressOfCalleeRegister()))
+    return false;
+
+  // If function modifies the return address register, then it is not a XPLeaf
+  // routine.
+  if (MRI.isPhysRegModified(Regs->getReturnFunctionAddressRegister()))
+    return false;
+
+  // If the backchain pointer should be stored, then it is not a XPLeaf routine.
+  if (MF.getFunction().hasFnAttribute("backchain"))
+    return false;
+
+  // If function acquires its own stack frame, then it is not a XPLeaf routine.
+  // At the time this function is called, only slots for local variables are
+  // allocated, so this is a very rough estimate.
+  if (MFFrame.estimateStackSize(MF) > 0)
+    return false;
+
+  return true;
+}
+
 bool SystemZXPLINKFrameLowering::assignCalleeSavedSpillSlots(
     MachineFunction &MF, const TargetRegisterInfo *TRI,
     std::vector<CalleeSavedInfo> &CSI) const {
@@ -918,72 +966,86 @@ bool SystemZXPLINKFrameLowering::assignCalleeSavedSpillSlots(
   SystemZMachineFunctionInfo *MFI = MF.getInfo<SystemZMachineFunctionInfo>();
   const SystemZSubtarget &Subtarget = MF.getSubtarget<SystemZSubtarget>();
   auto &Regs = Subtarget.getSpecialRegisters<SystemZXPLINK64Registers>();
-
-  // Scan the call-saved GPRs and find the bounds of the register spill area.
-  unsigned LowGPR = 0;
-  int LowOffset = INT32_MAX;
-  unsigned HighGPR = LowGPR;
-  int HighOffset = -1;
-
-  unsigned RegSP = Regs.getStackPointerRegister();
   auto &GRRegClass = SystemZ::GR64BitRegClass;
-  const unsigned RegSize = 8;
 
-  auto ProcessCSI = [&](std::vector<CalleeSavedInfo> &CSIList) {
-    for (auto &CS : CSIList) {
-      Register Reg = CS.getReg();
-      int Offset = RegSpillOffsets[Reg];
-      if (Offset >= 0) {
-        if (GRRegClass.contains(Reg)) {
-          if (LowOffset > Offset) {
-            LowOffset = Offset;
-            LowGPR = Reg;
-          }
-
-          if (Offset > HighOffset) {
-            HighOffset = Offset;
-            HighGPR = Reg;
-          }
-        }
-        int FrameIdx = MFFrame.CreateFixedSpillStackObject(RegSize, Offset);
-        CS.setFrameIdx(FrameIdx);
-      } else
-        CS.setFrameIdx(INT32_MAX);
-    }
-  };
-
-  std::vector<CalleeSavedInfo> Spills;
+  // At this point, the result of isXPLeafCandidate() is not accurate because
+  // the size of the save area has not yet been determined. If
+  // isXPLeafCandidate() indicates a potential leaf function, and there are no
+  // callee-save registers, then it is indeed a leaf function, and we can early
+  // exit.
+  // TODO: It is possible for leaf functions to use callee-saved registers.
+  // It can use the 0-2k range between R4 and the caller's stack frame without
+  // acquiring its own stack frame.
+  bool IsLeaf = CSI.empty() && isXPLeafCandidate(MF);
+  if (IsLeaf)
+    return true;
 
   // For non-leaf functions:
   // - the address of callee (entry point) register R6 must be saved
-  Spills.push_back(CalleeSavedInfo(Regs.getAddressOfCalleeRegister()));
+  CSI.push_back(CalleeSavedInfo(Regs.getAddressOfCalleeRegister()));
+  CSI.back().setRestored(false);
+
+  // The return address register R7 must be saved and restored.
+  CSI.push_back(CalleeSavedInfo(Regs.getReturnFunctionAddressRegister()));
 
   // If the function needs a frame pointer, or if the backchain pointer should
   // be stored, then save the stack pointer register R4.
   if (hasFP(MF) || MF.getFunction().hasFnAttribute("backchain"))
-    Spills.push_back(CalleeSavedInfo(RegSP));
+    CSI.push_back(CalleeSavedInfo(Regs.getStackPointerRegister()));
+
+  // Scan the call-saved GPRs and find the bounds of the register spill area.
+  Register LowRestoreGPR = 0;
+  int LowRestoreOffset = INT32_MAX;
+  Register LowSpillGPR = 0;
+  int LowSpillOffset = INT32_MAX;
+  Register HighGPR = 0;
+  int HighOffset = -1;
+
+  for (auto &CS : CSI) {
+    Register Reg = CS.getReg();
+    int Offset = RegSpillOffsets[Reg];
+    if (Offset >= 0) {
+      if (GRRegClass.contains(Reg)) {
+        if (LowSpillOffset > Offset) {
+          LowSpillOffset = Offset;
+          LowSpillGPR = Reg;
+        }
+        if (CS.isRestored() && LowRestoreOffset > Offset) {
+          LowRestoreOffset = Offset;
+          LowRestoreGPR = Reg;
+        }
+
+        if (Offset > HighOffset) {
+          HighOffset = Offset;
+          HighGPR = Reg;
+        }
+        // Non-volatile GPRs are saved in the dedicated register save area at
+        // the bottom of the stack and are not truly part of the "normal" stack
+        // frame. Mark the frame index as NoAlloc to indicate it as such.
+        unsigned RegSize = 8;
+        int FrameIdx = MFFrame.CreateFixedSpillStackObject(RegSize, Offset);
+        CS.setFrameIdx(FrameIdx);
+        MFFrame.setStackID(FrameIdx, TargetStackID::NoAlloc);
+      }
+    } else {
+      Register Reg = CS.getReg();
+      const TargetRegisterClass *RC = TRI->getMinimalPhysRegClass(Reg);
+      Align Alignment = TRI->getSpillAlign(*RC);
+      unsigned Size = TRI->getSpillSize(*RC);
+      Alignment = std::min(Alignment, getStackAlign());
+      int FrameIdx = MFFrame.CreateStackObject(Size, Alignment, true);
+      CS.setFrameIdx(FrameIdx);
+    }
+  }
 
   // Save the range of call-saved registers, for use by the
   // prologue/epilogue inserters.
-  ProcessCSI(CSI);
-  MFI->setRestoreGPRRegs(LowGPR, HighGPR, LowOffset);
+  if (LowRestoreGPR)
+    MFI->setRestoreGPRRegs(LowRestoreGPR, HighGPR, LowRestoreOffset);
 
   // Save the range of call-saved registers, for use by the epilogue inserter.
-  ProcessCSI(Spills);
-  MFI->setSpillGPRRegs(LowGPR, HighGPR, LowOffset);
-
-  // Create spill slots for the remaining registers.
-  for (auto &CS : CSI) {
-    if (CS.getFrameIdx() != INT32_MAX)
-      continue;
-    Register Reg = CS.getReg();
-    const TargetRegisterClass *RC = TRI->getMinimalPhysRegClass(Reg);
-    Align Alignment = TRI->getSpillAlign(*RC);
-    unsigned Size = TRI->getSpillSize(*RC);
-    Alignment = std::min(Alignment, getStackAlign());
-    int FrameIdx = MFFrame.CreateStackObject(Size, Alignment, true);
-    CS.setFrameIdx(FrameIdx);
-  }
+  assert(LowSpillGPR && "Expected registers to spill");
+  MFI->setSpillGPRRegs(LowSpillGPR, HighGPR, LowSpillOffset);
 
   return true;
 }
@@ -1001,13 +1063,6 @@ void SystemZXPLINKFrameLowering::determineCalleeSaves(MachineFunction &MF,
   // frame pointer will be clobbered.
   if (HasFP)
     SavedRegs.set(Regs.getFramePointerRegister());
-
-  // If the function is not an XPLeaf function, we need to save the
-  // return address register. We also always use that register for
-  // the return instruction, so it needs to be restored in the
-  // epilogue even though that register is considered to be volatile.
-  // #TODO: Implement leaf detection.
-  SavedRegs.set(Regs.getReturnFunctionAddressRegister());
 }
 
 bool SystemZXPLINKFrameLowering::spillCalleeSavedRegisters(
@@ -1142,22 +1197,16 @@ void SystemZXPLINKFrameLowering::emitPrologue(MachineFunction &MF,
   auto &Regs = Subtarget.getSpecialRegisters<SystemZXPLINK64Registers>();
   MachineFrameInfo &MFFrame = MF.getFrameInfo();
   MachineInstr *StoreInstr = nullptr;
+
+  determineFrameLayout(MF);
+
   bool HasFP = hasFP(MF);
   // Debug location must be unknown since the first debug location is used
   // to determine the end of the prologue.
   DebugLoc DL;
   uint64_t Offset = 0;
 
-  // TODO: Support leaf functions; only add size of save+reserved area when
-  // function is non-leaf.
-  MFFrame.setStackSize(MFFrame.getStackSize() + Regs.getCallFrameSize());
-  uint64_t StackSize = MFFrame.getStackSize();
-
-  // FIXME: Implement support for large stack sizes, when the stack extension
-  // routine needs to be called.
-  if (StackSize > 1024 * 1024) {
-    llvm_unreachable("Huge Stack Frame not yet supported on z/OS");
-  }
+  const uint64_t StackSize = MFFrame.getStackSize();
 
   if (ZFI->getSpillGPRRegs().LowGPR) {
     // Skip over the GPR saves.
@@ -1201,6 +1250,18 @@ void SystemZXPLINKFrameLowering::emitPrologue(MachineFunction &MF,
 
     emitIncrement(MBB, InsertPt, DL, Regs.getStackPointerRegister(), Delta,
                   ZII);
+
+    // If the requested stack size is larger than the guard page, then we need
+    // to check if we need to call the stack extender. This requires adding a
+    // conditional branch, but splitting the prologue block is not possible at
+    // this point since it would invalidate the SaveBlocks / RestoreBlocks sets
+    // of PEI in the single block function case. Build a pseudo to be handled
+    // later by inlineStackProbe().
+    const uint64_t GuardPageSize = 1024 * 1024;
+    if (StackSize > GuardPageSize) {
+      assert(StoreInstr && "Wrong insertion point");
+      BuildMI(MBB, InsertPt, DL, ZII->get(SystemZ::XPLINK_STACKALLOC));
+    }
   }
 
   if (HasFP) {
@@ -1212,8 +1273,8 @@ void SystemZXPLINKFrameLowering::emitPrologue(MachineFunction &MF,
     // Mark the FramePtr as live at the beginning of every block except
     // the entry block.  (We'll have marked R8 as live on entry when
     // saving the GPRs.)
-    for (auto I = std::next(MF.begin()), E = MF.end(); I != E; ++I)
-      I->addLiveIn(Regs.getFramePointerRegister());
+    for (MachineBasicBlock &B : llvm::drop_begin(MF))
+      B.addLiveIn(Regs.getFramePointerRegister());
   }
 }
 
@@ -1239,6 +1300,74 @@ void SystemZXPLINKFrameLowering::emitEpilogue(MachineFunction &MF,
   }
 }
 
+// Emit a compare of the stack pointer against the stack floor, and a call to
+// the LE stack extender if needed.
+void SystemZXPLINKFrameLowering::inlineStackProbe(
+    MachineFunction &MF, MachineBasicBlock &PrologMBB) const {
+  auto *ZII =
+      static_cast<const SystemZInstrInfo *>(MF.getSubtarget().getInstrInfo());
+
+  MachineInstr *StackAllocMI = nullptr;
+  for (MachineInstr &MI : PrologMBB)
+    if (MI.getOpcode() == SystemZ::XPLINK_STACKALLOC) {
+      StackAllocMI = &MI;
+      break;
+    }
+  if (StackAllocMI == nullptr)
+    return;
+
+  MachineBasicBlock &MBB = PrologMBB;
+  const DebugLoc DL = StackAllocMI->getDebugLoc();
+
+  // The 2nd half of block MBB after split.
+  MachineBasicBlock *NextMBB;
+
+  // Add new basic block for the call to the stack overflow function.
+  MachineBasicBlock *StackExtMBB =
+      MF.CreateMachineBasicBlock(MBB.getBasicBlock());
+  MF.push_back(StackExtMBB);
+
+  // LG r3,72(,r3)
+  BuildMI(StackExtMBB, DL, ZII->get(SystemZ::LG), SystemZ::R3D)
+      .addReg(SystemZ::R3D)
+      .addImm(72)
+      .addReg(0);
+  // BASR r3,r3
+  BuildMI(StackExtMBB, DL, ZII->get(SystemZ::CallBASR_STACKEXT))
+      .addReg(SystemZ::R3D);
+
+  // LLGT r3,1208
+  BuildMI(MBB, StackAllocMI, DL, ZII->get(SystemZ::LLGT), SystemZ::R3D)
+      .addReg(0)
+      .addImm(1208)
+      .addReg(0);
+  // CG r4,64(,r3)
+  BuildMI(MBB, StackAllocMI, DL, ZII->get(SystemZ::CG))
+      .addReg(SystemZ::R4D)
+      .addReg(SystemZ::R3D)
+      .addImm(64)
+      .addReg(0);
+  // JLL b'0100',F'37'
+  BuildMI(MBB, StackAllocMI, DL, ZII->get(SystemZ::BRC))
+      .addImm(SystemZ::CCMASK_ICMP)
+      .addImm(SystemZ::CCMASK_CMP_LT)
+      .addMBB(StackExtMBB);
+
+  NextMBB = SystemZ::splitBlockBefore(StackAllocMI, &MBB);
+  MBB.addSuccessor(NextMBB);
+  MBB.addSuccessor(StackExtMBB);
+
+  // Add jump back from stack extension BB.
+  BuildMI(StackExtMBB, DL, ZII->get(SystemZ::J)).addMBB(NextMBB);
+  StackExtMBB->addSuccessor(NextMBB);
+
+  StackAllocMI->eraseFromParent();
+
+  // Compute the live-in lists for the new blocks.
+  recomputeLiveIns(*NextMBB);
+  recomputeLiveIns(*StackExtMBB);
+}
+
 bool SystemZXPLINKFrameLowering::hasFP(const MachineFunction &MF) const {
   return (MF.getFrameInfo().hasVarSizedObjects());
 }
@@ -1251,4 +1380,33 @@ void SystemZXPLINKFrameLowering::processFunctionBeforeFrameFinalized(
 
   // Setup stack frame offset
   MFFrame.setOffsetAdjustment(Regs.getStackPointerBias());
+}
+
+// Determines the size of the frame, and creates the deferred spill objects.
+void SystemZXPLINKFrameLowering::determineFrameLayout(
+    MachineFunction &MF) const {
+  MachineFrameInfo &MFFrame = MF.getFrameInfo();
+  const SystemZSubtarget &Subtarget = MF.getSubtarget<SystemZSubtarget>();
+  auto *Regs =
+      static_cast<SystemZXPLINK64Registers *>(Subtarget.getSpecialRegisters());
+
+  uint64_t StackSize = MFFrame.getStackSize();
+  if (StackSize == 0)
+    return;
+
+  // Add the size of the register save area and the reserved area to the size.
+  StackSize += Regs->getCallFrameSize();
+  MFFrame.setStackSize(StackSize);
+
+  // We now know the stack size. Create the fixed spill stack objects for the
+  // register save area now. This has no impact on the stack frame layout, as
+  // this is already computed. However, it makes sure that all callee saved
+  // registers have a valid frame index assigned.
+  const unsigned RegSize = MF.getDataLayout().getPointerSize();
+  for (auto &CS : MFFrame.getCalleeSavedInfo()) {
+    int Offset = RegSpillOffsets[CS.getReg()];
+    if (Offset >= 0)
+      CS.setFrameIdx(
+          MFFrame.CreateFixedSpillStackObject(RegSize, Offset - StackSize));
+  }
 }

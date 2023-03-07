@@ -1,4 +1,4 @@
-/*	$NetBSD: make.c,v 1.255 2022/05/07 17:49:47 rillig Exp $	*/
+/*	$NetBSD: make.c,v 1.258 2022/12/05 23:28:08 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -104,7 +104,7 @@
 #include "job.h"
 
 /*	"@(#)make.c	8.1 (Berkeley) 6/6/93"	*/
-MAKE_RCSID("$NetBSD: make.c,v 1.255 2022/05/07 17:49:47 rillig Exp $");
+MAKE_RCSID("$NetBSD: make.c,v 1.258 2022/12/05 23:28:08 rillig Exp $");
 
 /* Sequence # to detect recursion. */
 static unsigned int checked_seqno = 1;
@@ -175,17 +175,15 @@ GNodeFlags_ToString(GNodeFlags flags, void **freeIt)
 	Buffer buf;
 
 	Buf_InitSize(&buf, 32);
-#define ADD(flag, name) Buf_AddFlag(&buf, flags.flag, name)
-	ADD(remake, "REMAKE");
-	ADD(childMade, "CHILDMADE");
-	ADD(force, "FORCE");
-	ADD(doneWait, "DONE_WAIT");
-	ADD(doneOrder, "DONE_ORDER");
-	ADD(fromDepend, "FROM_DEPEND");
-	ADD(doneAllsrc, "DONE_ALLSRC");
-	ADD(cycle, "CYCLE");
-	ADD(doneCycle, "DONECYCLE");
-#undef ADD
+	Buf_AddFlag(&buf, flags.remake, "REMAKE");
+	Buf_AddFlag(&buf, flags.childMade, "CHILDMADE");
+	Buf_AddFlag(&buf, flags.force, "FORCE");
+	Buf_AddFlag(&buf, flags.doneWait, "DONE_WAIT");
+	Buf_AddFlag(&buf, flags.doneOrder, "DONE_ORDER");
+	Buf_AddFlag(&buf, flags.fromDepend, "FROM_DEPEND");
+	Buf_AddFlag(&buf, flags.doneAllsrc, "DONE_ALLSRC");
+	Buf_AddFlag(&buf, flags.cycle, "CYCLE");
+	Buf_AddFlag(&buf, flags.doneCycle, "DONECYCLE");
 	return buf.len == 0 ? "none" : (*freeIt = Buf_DoneData(&buf));
 }
 
@@ -462,7 +460,7 @@ Make_HandleUse(GNode *cgn, GNode *pgn)
 	}
 
 	pgn->type |=
-	    cgn->type & ~(OP_OPMASK | OP_USE | OP_USEBEFORE | OP_TRANSFORM);
+	    cgn->type & (unsigned)~(OP_OPMASK | OP_USE | OP_USEBEFORE | OP_TRANSFORM);
 }
 
 /*
@@ -820,7 +818,7 @@ UnmarkChildren(GNode *gn)
 
 	for (ln = gn->children.first; ln != NULL; ln = ln->next) {
 		GNode *child = ln->datum;
-		child->type &= ~OP_MARK;
+		child->type &= (unsigned)~OP_MARK;
 	}
 }
 
@@ -1077,7 +1075,7 @@ MakeStartJobs(void)
 		if (GNode_IsOODate(gn)) {
 			DEBUG0(MAKE, "out-of-date\n");
 			if (opts.query)
-				return true;
+				return strcmp(gn->name, ".MAIN") != 0;
 			GNode_SetLocalVars(gn);
 			Job_Make(gn);
 			have_token = false;

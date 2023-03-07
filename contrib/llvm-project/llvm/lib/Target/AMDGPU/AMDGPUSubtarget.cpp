@@ -40,19 +40,14 @@ using namespace llvm;
 #include "AMDGPUGenSubtargetInfo.inc"
 #undef AMDGPUSubtarget
 
-static cl::opt<bool> DisablePowerSched(
-  "amdgpu-disable-power-sched",
-  cl::desc("Disable scheduling to minimize mAI power bursts"),
+static cl::opt<bool> EnablePowerSched(
+  "amdgpu-enable-power-sched",
+  cl::desc("Enable scheduling to minimize mAI power bursts"),
   cl::init(false));
 
 static cl::opt<bool> EnableVGPRIndexMode(
   "amdgpu-vgpr-index-mode",
   cl::desc("Use GPR indexing mode instead of movrel for vector indexing"),
-  cl::init(false));
-
-static cl::opt<bool> EnableFlatScratch(
-  "amdgpu-enable-flat-scratch",
-  cl::desc("Use flat scratch instructions"),
   cl::init(false));
 
 static cl::opt<bool> UseAA("amdgpu-use-aa-in-codegen",
@@ -159,26 +154,7 @@ GCNSubtarget::initializeSubtargetDependencies(const Triple &TT,
   return *this;
 }
 
-AMDGPUSubtarget::AMDGPUSubtarget(const Triple &TT) :
-  TargetTriple(TT),
-  GCN3Encoding(false),
-  Has16BitInsts(false),
-  HasMadMixInsts(false),
-  HasMadMacF32Insts(false),
-  HasDsSrc2Insts(false),
-  HasSDWA(false),
-  HasVOP3PInsts(false),
-  HasMulI24(true),
-  HasMulU24(true),
-  HasSMulHi(false),
-  HasInv2PiInlineImm(false),
-  HasFminFmaxLegacy(true),
-  EnablePromoteAlloca(false),
-  HasTrigReducedRange(false),
-  MaxWavesPerEU(10),
-  LocalMemorySize(0),
-  WavefrontSizeLog2(0)
-  { }
+AMDGPUSubtarget::AMDGPUSubtarget(const Triple &TT) : TargetTriple(TT) {}
 
 GCNSubtarget::GCNSubtarget(const Triple &TT, StringRef GPU, StringRef FS,
                            const GCNTargetMachine &TM)
@@ -187,120 +163,7 @@ GCNSubtarget::GCNSubtarget(const Triple &TT, StringRef GPU, StringRef FS,
     AMDGPUSubtarget(TT),
     TargetTriple(TT),
     TargetID(*this),
-    Gen(INVALID),
     InstrItins(getInstrItineraryForCPU(GPU)),
-    LDSBankCount(0),
-    MaxPrivateElementSize(0),
-
-    FastFMAF32(false),
-    FastDenormalF32(false),
-    HalfRate64Ops(false),
-    FullRate64Ops(false),
-
-    FlatForGlobal(false),
-    AutoWaitcntBeforeBarrier(false),
-    UnalignedScratchAccess(false),
-    UnalignedAccessMode(false),
-
-    HasApertureRegs(false),
-    SupportsXNACK(false),
-    EnableXNACK(false),
-    EnableTgSplit(false),
-    EnableCuMode(false),
-    TrapHandler(false),
-
-    EnableLoadStoreOpt(false),
-    EnableUnsafeDSOffsetFolding(false),
-    EnableSIScheduler(false),
-    EnableDS128(false),
-    EnablePRTStrictNull(false),
-    DumpCode(false),
-
-    FP64(false),
-    CIInsts(false),
-    GFX8Insts(false),
-    GFX9Insts(false),
-    GFX90AInsts(false),
-    GFX10Insts(false),
-    GFX10_3Insts(false),
-    GFX7GFX8GFX9Insts(false),
-    SGPRInitBug(false),
-    NegativeScratchOffsetBug(false),
-    NegativeUnalignedScratchOffsetBug(false),
-    HasSMemRealTime(false),
-    HasIntClamp(false),
-    HasFmaMixInsts(false),
-    HasMovrel(false),
-    HasVGPRIndexMode(false),
-    HasScalarStores(false),
-    HasScalarAtomics(false),
-    HasSDWAOmod(false),
-    HasSDWAScalar(false),
-    HasSDWASdst(false),
-    HasSDWAMac(false),
-    HasSDWAOutModsVOPC(false),
-    HasDPP(false),
-    HasDPP8(false),
-    Has64BitDPP(false),
-    HasPackedFP32Ops(false),
-    HasExtendedImageInsts(false),
-    HasR128A16(false),
-    HasGFX10A16(false),
-    HasG16(false),
-    HasNSAEncoding(false),
-    NSAMaxSize(0),
-    GFX10_AEncoding(false),
-    GFX10_BEncoding(false),
-    HasDLInsts(false),
-    HasDot1Insts(false),
-    HasDot2Insts(false),
-    HasDot3Insts(false),
-    HasDot4Insts(false),
-    HasDot5Insts(false),
-    HasDot6Insts(false),
-    HasDot7Insts(false),
-    HasMAIInsts(false),
-    HasPkFmacF16Inst(false),
-    HasAtomicFaddInsts(false),
-    SupportsSRAMECC(false),
-    EnableSRAMECC(false),
-    HasNoSdstCMPX(false),
-    HasVscnt(false),
-    HasGetWaveIdInst(false),
-    HasSMemTimeInst(false),
-    HasShaderCyclesRegister(false),
-    HasVOP3Literal(false),
-    HasNoDataDepHazard(false),
-    FlatAddressSpace(false),
-    FlatInstOffsets(false),
-    FlatGlobalInsts(false),
-    FlatScratchInsts(false),
-    ScalarFlatScratchInsts(false),
-    HasArchitectedFlatScratch(false),
-    AddNoCarryInsts(false),
-    HasUnpackedD16VMem(false),
-    LDSMisalignedBug(false),
-    HasMFMAInlineLiteralBug(false),
-    UnalignedBufferAccess(false),
-    UnalignedDSAccess(false),
-    HasPackedTID(false),
-
-    ScalarizeGlobal(false),
-
-    HasVcmpxPermlaneHazard(false),
-    HasVMEMtoScalarWriteHazard(false),
-    HasSMEMtoVectorWriteHazard(false),
-    HasInstFwdPrefetchBug(false),
-    HasVcmpxExecWARHazard(false),
-    HasLdsBranchVmemWARHazard(false),
-    HasNSAtoVMEMBug(false),
-    HasNSAClauseBug(false),
-    HasOffset3fBug(false),
-    HasFlatSegmentOffsetBug(false),
-    HasImageStoreD16Bug(false),
-    HasImageGather4D16Bug(false),
-
-    FeatureDisable(false),
     InstrInfo(initializeSubtargetDependencies(TT, GPU, FS)),
     TLInfo(TM, *this),
     FrameLowering(TargetFrameLowering::StackGrowsUp, getStackAlignment(), 0) {
@@ -314,11 +177,6 @@ GCNSubtarget::GCNSubtarget(const Triple &TT, StringRef GPU, StringRef FS,
   *this, *static_cast<AMDGPURegisterBankInfo *>(RegBankInfo.get()), TM));
 }
 
-bool GCNSubtarget::enableFlatScratch() const {
-  return flatScratchIsArchitected() ||
-         (EnableFlatScratch && hasFlatScratchInsts());
-}
-
 unsigned GCNSubtarget::getConstantBusLimit(unsigned Opcode) const {
   if (getGeneration() < GFX10)
     return 1;
@@ -326,12 +184,15 @@ unsigned GCNSubtarget::getConstantBusLimit(unsigned Opcode) const {
   switch (Opcode) {
   case AMDGPU::V_LSHLREV_B64_e64:
   case AMDGPU::V_LSHLREV_B64_gfx10:
+  case AMDGPU::V_LSHLREV_B64_e64_gfx11:
   case AMDGPU::V_LSHL_B64_e64:
   case AMDGPU::V_LSHRREV_B64_e64:
   case AMDGPU::V_LSHRREV_B64_gfx10:
+  case AMDGPU::V_LSHRREV_B64_e64_gfx11:
   case AMDGPU::V_LSHR_B64_e64:
   case AMDGPU::V_ASHRREV_I64_e64:
   case AMDGPU::V_ASHRREV_I64_gfx10:
+  case AMDGPU::V_ASHRREV_I64_e64_gfx11:
   case AMDGPU::V_ASHR_I64_e64:
     return 1;
   }
@@ -658,7 +519,8 @@ unsigned AMDGPUSubtarget::getImplicitArgNumBytes(const Function &F) const {
     return 16;
 
   // Assume all implicit inputs are used by default
-  return AMDGPU::getIntegerAttribute(F, "amdgpu-implicitarg-num-bytes", 56);
+  unsigned NBytes = (AMDGPU::getAmdhsaCodeObjectVersion() >= 5) ? 256 : 56;
+  return AMDGPU::getIntegerAttribute(F, "amdgpu-implicitarg-num-bytes", NBytes);
 }
 
 uint64_t AMDGPUSubtarget::getExplicitKernArgSize(const Function &F,
@@ -673,13 +535,11 @@ uint64_t AMDGPUSubtarget::getExplicitKernArgSize(const Function &F,
   for (const Argument &Arg : F.args()) {
     const bool IsByRef = Arg.hasByRefAttr();
     Type *ArgTy = IsByRef ? Arg.getParamByRefType() : Arg.getType();
-    MaybeAlign Alignment = IsByRef ? Arg.getParamAlign() : None;
-    if (!Alignment)
-      Alignment = DL.getABITypeAlign(ArgTy);
-
+    Align Alignment = DL.getValueOrABITypeAlignment(
+        IsByRef ? Arg.getParamAlign() : None, ArgTy);
     uint64_t AllocSize = DL.getTypeAllocSize(ArgTy);
     ExplicitArgBytes = alignTo(ExplicitArgBytes, Alignment) + AllocSize;
-    MaxAlign = max(MaxAlign, Alignment);
+    MaxAlign = std::max(MaxAlign, Alignment);
   }
 
   return ExplicitArgBytes;
@@ -876,13 +736,18 @@ static unsigned getMaxNumPreloadedSGPRs() {
                           2 + // dispatch ID
                           2 + // flat scratch init
                           2;  // Implicit buffer ptr
+
   // Max number of system SGPRs
   unsigned MaxSystemSGPRs = 1 + // WorkGroupIDX
                             1 + // WorkGroupIDY
                             1 + // WorkGroupIDZ
                             1 + // WorkGroupInfo
                             1;  // private segment wave byte offset
-  return MaxUserSGPRs + MaxSystemSGPRs;
+
+  // Max number of synthetic SGPRs
+  unsigned SyntheticSGPRs = 1; // LDSKernelId
+
+  return MaxUserSGPRs + MaxSystemSGPRs + SyntheticSGPRs;
 }
 
 unsigned GCNSubtarget::getMaxNumSGPRs(const Function &F) const {
@@ -992,34 +857,6 @@ struct FillMFMAShadowMutation : ScheduleDAGMutation {
     return MI && TII->isVALU(*MI);
   }
 
-  bool canAddEdge(const SUnit *Succ, const SUnit *Pred) const {
-    if (Pred->NodeNum < Succ->NodeNum)
-      return true;
-
-    SmallVector<const SUnit*, 64> Succs({Succ}), Preds({Pred});
-
-    for (unsigned I = 0; I < Succs.size(); ++I) {
-      for (const SDep &SI : Succs[I]->Succs) {
-        const SUnit *SU = SI.getSUnit();
-        if (SU != Succs[I] && !llvm::is_contained(Succs, SU))
-          Succs.push_back(SU);
-      }
-    }
-
-    SmallPtrSet<const SUnit*, 32> Visited;
-    while (!Preds.empty()) {
-      const SUnit *SU = Preds.pop_back_val();
-      if (llvm::is_contained(Succs, SU))
-        return false;
-      Visited.insert(SU);
-      for (const SDep &SI : SU->Preds)
-        if (SI.getSUnit() != SU && !Visited.count(SI.getSUnit()))
-          Preds.push_back(SI.getSUnit());
-    }
-
-    return true;
-  }
-
   // Link as many SALU instructions in chain as possible. Return the size
   // of the chain. Links up to MaxChain instructions.
   unsigned linkSALUChain(SUnit *From, SUnit *To, unsigned MaxChain,
@@ -1035,18 +872,20 @@ struct FillMFMAShadowMutation : ScheduleDAGMutation {
       LLVM_DEBUG(dbgs() << "Inserting edge from\n" ; DAG->dumpNode(*From);
                  dbgs() << "to\n"; DAG->dumpNode(*SU); dbgs() << '\n');
 
-      if (SU->addPred(SDep(From, SDep::Artificial), false))
-        ++Linked;
+      if (SU != From && From != &DAG->ExitSU && DAG->canAddEdge(SU, From))
+        if (DAG->addEdge(SU, SDep(From, SDep::Artificial)))
+          ++Linked;
 
       for (SDep &SI : From->Succs) {
         SUnit *SUv = SI.getSUnit();
-        if (SUv != From && isVALU(SUv) && canAddEdge(SUv, SU))
-          SUv->addPred(SDep(SU, SDep::Artificial), false);
+        if (SUv != From && SU != &DAG->ExitSU && isVALU(SUv) &&
+            DAG->canAddEdge(SUv, SU))
+          DAG->addEdge(SUv, SDep(SU, SDep::Artificial));
       }
 
       for (SDep &SI : SU->Succs) {
         SUnit *Succ = SI.getSUnit();
-        if (Succ != SU && isSALU(Succ) && canAddEdge(From, Succ))
+        if (Succ != SU && isSALU(Succ))
           Worklist.push_back(Succ);
       }
     }
@@ -1056,7 +895,7 @@ struct FillMFMAShadowMutation : ScheduleDAGMutation {
 
   void apply(ScheduleDAGInstrs *DAGInstrs) override {
     const GCNSubtarget &ST = DAGInstrs->MF.getSubtarget<GCNSubtarget>();
-    if (!ST.hasMAIInsts() || DisablePowerSched)
+    if (!ST.hasMAIInsts())
       return;
     DAG = static_cast<ScheduleDAGMI*>(DAGInstrs);
     const TargetSchedModel *TSchedModel = DAGInstrs->getSchedModel();
@@ -1089,7 +928,8 @@ struct FillMFMAShadowMutation : ScheduleDAGMutation {
         if (Visited.count(&*LastSALU))
           continue;
 
-        if (!isSALU(&*LastSALU) || !canAddEdge(&*LastSALU, &SU))
+        if (&SU == &DAG->ExitSU || &SU == &*LastSALU || !isSALU(&*LastSALU) ||
+            !DAG->canAddEdge(&*LastSALU, &SU))
           continue;
 
         Lat -= linkSALUChain(&SU, &*LastSALU, Lat, Visited);
@@ -1106,7 +946,8 @@ void GCNSubtarget::getPostRAMutations(
 
 std::unique_ptr<ScheduleDAGMutation>
 GCNSubtarget::createFillMFMAShadowMutation(const TargetInstrInfo *TII) const {
-  return std::make_unique<FillMFMAShadowMutation>(&InstrInfo);
+  return EnablePowerSched ? std::make_unique<FillMFMAShadowMutation>(&InstrInfo)
+                          : nullptr;
 }
 
 const AMDGPUSubtarget &AMDGPUSubtarget::get(const MachineFunction &MF) {

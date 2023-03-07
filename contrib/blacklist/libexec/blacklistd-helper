@@ -81,7 +81,7 @@ add)
 		    /sbin/pfctl -a "$2/$6" -f -
 		# insert $ip/$mask into per-protocol/port anchored table
 		/sbin/pfctl -qa "$2/$6" -t "port$6" -T add "$addr/$mask" && \
-		    /sbin/pfctl -q -k $addr && echo OK
+		    /sbin/pfctl -qk "$addr" && echo OK
 		;;
 	esac
 	;;
@@ -119,8 +119,7 @@ flush)
 		;;
 	pf)
 		# dynamically determine which anchors exist
-		anchors=$(/sbin/pfctl -a $2 -s Anchors)
-		for anchor in $anchors; do
+		for anchor in $(/sbin/pfctl -a "$2" -s Anchors); do
 			/sbin/pfctl -a $anchor -t "port${anchor##*/}" -T flush
 			/sbin/pfctl -a $anchor -F rules
 		done

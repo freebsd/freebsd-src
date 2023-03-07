@@ -20,10 +20,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+
 #include <err.h>
 #include <fcntl.h>
 #include <md5.h>
@@ -75,6 +75,7 @@ extern const char *SHA224_TestOutput[MDTESTCOUNT];
 extern const char *SHA256_TestOutput[MDTESTCOUNT];
 extern const char *SHA384_TestOutput[MDTESTCOUNT];
 extern const char *SHA512_TestOutput[MDTESTCOUNT];
+extern const char *SHA512t224_TestOutput[MDTESTCOUNT];
 extern const char *SHA512t256_TestOutput[MDTESTCOUNT];
 extern const char *RIPEMD160_TestOutput[MDTESTCOUNT];
 extern const char *SKEIN256_TestOutput[MDTESTCOUNT];
@@ -138,6 +139,9 @@ static const struct Algorithm_t Algorithm[] = {
 	{ "sha512", "SHA512", &SHA512_TestOutput, (DIGEST_Init*)&SHA512_Init,
 		(DIGEST_Update*)&SHA512_Update, (DIGEST_End*)&SHA512_End,
 		&SHA512_Data, &SHA512_Fd },
+	{ "sha512t224", "SHA512t224", &SHA512t224_TestOutput, (DIGEST_Init*)&SHA512_224_Init,
+		(DIGEST_Update*)&SHA512_224_Update, (DIGEST_End*)&SHA512_224_End,
+		&SHA512_224_Data, &SHA512_224_Fd },
 	{ "sha512t256", "SHA512t256", &SHA512t256_TestOutput, (DIGEST_Init*)&SHA512_256_Init,
 		(DIGEST_Update*)&SHA512_256_Update, (DIGEST_End*)&SHA512_256_End,
 		&SHA512_256_Data, &SHA512_256_Fd },
@@ -364,6 +368,8 @@ main(int argc, char *argv[])
 			if ((fd = open(*argv, O_RDONLY)) < 0) {
 				warn("%s", *argv);
 				failed++;
+				if (cflag && gnu_emu)
+					rec = rec->next;
 				continue;
 			}
 			/*
@@ -583,6 +589,17 @@ const char *SHA512_TestOutput[MDTESTCOUNT] = {
 	"1e07be23c26a86ea37ea810c8ec7809352515a970e9253c26f536cfc7a9996c45c8370583e0a78fa4a90041d71a4ceab7423f19c71b9d5a3e01249f0bebd5894",
 	"72ec1ef1124a45b047e8b7c75a932195135bb61de24ec0d1914042246e0aec3a2354e093d76f3048b456764346900cb130d2a4fd5dd16abb5e30bcb850dee843",
 	"e8a835195e039708b13d9131e025f4441dbdc521ce625f245a436dcd762f54bf5cb298d96235e6c6a304e087ec8189b9512cbdf6427737ea82793460c367b9c3"
+};
+
+const char *SHA512t224_TestOutput[MDTESTCOUNT] = {
+	"6ed0dd02806fa89e25de060c19d3ac86cabb87d6a0ddd05c333b84f4",
+	"d5cdb9ccc769a5121d4175f2bfdd13d6310e0d3d361ea75d82108327",
+	"4634270f707b6a54daae7530460842e20e37ed265ceee9a43e8924aa",
+	"ad1a4db188fe57064f4f24609d2a83cd0afb9b398eb2fcaeaae2c564",
+	"ff83148aa07ec30655c1b40aff86141c0215fe2a54f767d3f38743d8",
+	"a8b4b9174b99ffc67d6f49be9981587b96441051e16e6dd036b140d3",
+	"ae988faaa47e401a45f704d1272d99702458fea2ddc6582827556dd2",
+	"b3c3b945249b0c8c94aba76ea887bcaad5401665a1fbeb384af4d06b"
 };
 
 const char *SHA512t256_TestOutput[MDTESTCOUNT] = {

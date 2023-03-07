@@ -62,7 +62,7 @@ SYSTEM_LD= \
 KERNEL_EXTRA+= ${KERNEL_KO}.bin
 KERNEL_EXTRA_INSTALL+= ${KERNEL_KO}.bin
 
-.if !empty(DDB_ENABLED) || !empty(DTR_ENABLED) || !empty(HWPMC_ENABLED)
+.if !empty(DDB_ENABLED) || !empty(DTRACE_ENABLED) || !empty(HWPMC_ENABLED)
 CFLAGS += -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
 .endif
 

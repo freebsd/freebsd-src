@@ -64,6 +64,7 @@
 #include "lldb/Target/ThreadPlanStack.h"
 #include "lldb/Target/UnixSignals.h"
 #include "lldb/Utility/Event.h"
+#include "lldb/Utility/LLDBLog.h"
 #include "lldb/Utility/Log.h"
 #include "lldb/Utility/NameMatches.h"
 #include "lldb/Utility/ProcessInfo.h"
@@ -432,14 +433,15 @@ Process::Process(lldb::TargetSP target_sp, ListenerSP listener_sp,
       m_profile_data_comm_mutex(), m_profile_data(), m_iohandler_sync(0),
       m_memory_cache(*this), m_allocated_memory_cache(*this),
       m_should_detach(false), m_next_event_action_up(), m_public_run_lock(),
-      m_private_run_lock(), m_finalizing(false),
+      m_private_run_lock(), m_currently_handling_do_on_removals(false),
+      m_resume_requested(false), m_finalizing(false),
       m_clear_thread_plans_on_stop(false), m_force_next_event_delivery(false),
       m_last_broadcast_state(eStateInvalid), m_destroy_in_process(false),
-      m_can_interpret_function_calls(false), m_warnings_issued(),
-      m_run_thread_plan_lock(), m_can_jit(eCanJITDontKnow) {
+      m_can_interpret_function_calls(false), m_run_thread_plan_lock(),
+      m_can_jit(eCanJITDontKnow) {
   CheckInWithManager();
 
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_OBJECT));
+  Log *log = GetLog(LLDBLog::Object);
   LLDB_LOGF(log, "%p Process::Process()", static_cast<void *>(this));
 
   if (!m_unix_signals_sp)
@@ -489,7 +491,7 @@ Process::Process(lldb::TargetSP target_sp, ListenerSP listener_sp,
 }
 
 Process::~Process() {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_OBJECT));
+  Log *log = GetLog(LLDBLog::Object);
   LLDB_LOGF(log, "%p Process::~Process()", static_cast<void *>(this));
   StopPrivateStateThread();
 
@@ -630,7 +632,7 @@ void Process::SyncIOHandler(uint32_t iohandler_id,
 
   auto Result = m_iohandler_sync.WaitForValueNotEqualTo(iohandler_id, timeout);
 
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_PROCESS));
+  Log *log = GetLog(LLDBLog::Process);
   if (Result) {
     LLDB_LOG(
         log,
@@ -657,7 +659,7 @@ StateType Process::WaitForProcessToStop(const Timeout<std::micro> &timeout,
   if (state == eStateDetached || state == eStateExited)
     return state;
 
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_PROCESS));
+  Log *log = GetLog(LLDBLog::Process);
   LLDB_LOG(log, "timeout = {0}", timeout);
 
   if (!wait_always && StateIsStoppedState(state, true) &&
@@ -954,7 +956,7 @@ void Process::RestoreProcessEvents() { RestoreBroadcaster(); }
 StateType Process::GetStateChangedEvents(EventSP &event_sp,
                                          const Timeout<std::micro> &timeout,
                                          ListenerSP hijack_listener_sp) {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_PROCESS));
+  Log *log = GetLog(LLDBLog::Process);
   LLDB_LOG(log, "timeout = {0}, event_sp)...", timeout);
 
   ListenerSP listener_sp = hijack_listener_sp;
@@ -976,7 +978,7 @@ StateType Process::GetStateChangedEvents(EventSP &event_sp,
 }
 
 Event *Process::PeekAtStateChangedEvents() {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_PROCESS));
+  Log *log = GetLog(LLDBLog::Process);
 
   LLDB_LOGF(log, "Process::%s...", __FUNCTION__);
 
@@ -997,7 +999,7 @@ Event *Process::PeekAtStateChangedEvents() {
 StateType
 Process::GetStateChangedEventsPrivate(EventSP &event_sp,
                                       const Timeout<std::micro> &timeout) {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_PROCESS));
+  Log *log = GetLog(LLDBLog::Process);
   LLDB_LOG(log, "timeout = {0}, event_sp)...", timeout);
 
   StateType state = eStateInvalid;
@@ -1016,7 +1018,7 @@ Process::GetStateChangedEventsPrivate(EventSP &event_sp,
 bool Process::GetEventsPrivate(EventSP &event_sp,
                                const Timeout<std::micro> &timeout,
                                bool control_only) {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_PROCESS));
+  Log *log = GetLog(LLDBLog::Process);
   LLDB_LOG(log, "timeout = {0}, event_sp)...", timeout);
 
   if (control_only)
@@ -1050,8 +1052,7 @@ bool Process::SetExitStatus(int status, const char *cstr) {
   // Use a mutex to protect setting the exit status.
   std::lock_guard<std::mutex> guard(m_exit_status_mutex);
 
-  Log *log(lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_STATE |
-                                                  LIBLLDB_LOG_PROCESS));
+  Log *log(GetLog(LLDBLog::State | LLDBLog::Process));
   LLDB_LOGF(
       log, "Process::SetExitStatus (status=%i (0x%8.8x), description=%s%s%s)",
       status, status, cstr ? "\"" : "", cstr ? cstr : "NULL", cstr ? "\"" : "");
@@ -1106,7 +1107,7 @@ bool Process::SetProcessExitStatus(
     int signo,      // Zero for no signal
     int exit_status // Exit value of process if signal is zero
     ) {
-  Log *log(lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_PROCESS));
+  Log *log = GetLog(LLDBLog::Process);
   LLDB_LOGF(log,
             "Process::SetProcessExitStatus (pid=%" PRIu64
             ", exited=%i, signal=%i, exit_status=%i)\n",
@@ -1307,8 +1308,7 @@ void Process::SetPublicState(StateType new_state, bool restarted) {
     GetTarget().GetStatistics().SetFirstPublicStopTime();
   }
 
-  Log *log(lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_STATE |
-                                                  LIBLLDB_LOG_PROCESS));
+  Log *log(GetLog(LLDBLog::State | LLDBLog::Process));
   LLDB_LOGF(log, "Process::SetPublicState (state = %s, restarted = %i)",
             StateAsCString(new_state), restarted);
   const StateType old_state = m_public_state.GetValue();
@@ -1337,8 +1337,7 @@ void Process::SetPublicState(StateType new_state, bool restarted) {
 }
 
 Status Process::Resume() {
-  Log *log(lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_STATE |
-                                                  LIBLLDB_LOG_PROCESS));
+  Log *log(GetLog(LLDBLog::State | LLDBLog::Process));
   LLDB_LOGF(log, "Process::Resume -- locking run lock");
   if (!m_public_run_lock.TrySetRunning()) {
     Status error("Resume request failed - process still running.");
@@ -1356,8 +1355,7 @@ Status Process::Resume() {
 static const char *g_resume_sync_name = "lldb.Process.ResumeSynchronous.hijack";
 
 Status Process::ResumeSynchronous(Stream *stream) {
-  Log *log(lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_STATE |
-                                                  LIBLLDB_LOG_PROCESS));
+  Log *log(GetLog(LLDBLog::State | LLDBLog::Process));
   LLDB_LOGF(log, "Process::ResumeSynchronous -- locking run lock");
   if (!m_public_run_lock.TrySetRunning()) {
     Status error("Resume request failed - process still running.");
@@ -1416,8 +1414,7 @@ void Process::SetPrivateState(StateType new_state) {
   if (m_finalizing)
     return;
 
-  Log *log(lldb_private::GetLogIfAnyCategoriesSet(
-      LIBLLDB_LOG_STATE | LIBLLDB_LOG_PROCESS | LIBLLDB_LOG_UNWIND));
+  Log *log(GetLog(LLDBLog::State | LLDBLog::Process | LLDBLog::Unwind));
   bool state_changed = false;
 
   LLDB_LOGF(log, "Process::SetPrivateState (%s)", StateAsCString(new_state));
@@ -1755,7 +1752,7 @@ size_t Process::GetSoftwareBreakpointTrapOpcode(BreakpointSite *bp_site) {
 Status Process::EnableSoftwareBreakpoint(BreakpointSite *bp_site) {
   Status error;
   assert(bp_site != nullptr);
-  Log *log(lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_BREAKPOINTS));
+  Log *log = GetLog(LLDBLog::Breakpoints);
   const addr_t bp_addr = bp_site->GetLoadAddress();
   LLDB_LOGF(
       log, "Process::EnableSoftwareBreakpoint (site_id = %d) addr = 0x%" PRIx64,
@@ -1831,7 +1828,7 @@ Status Process::EnableSoftwareBreakpoint(BreakpointSite *bp_site) {
 Status Process::DisableSoftwareBreakpoint(BreakpointSite *bp_site) {
   Status error;
   assert(bp_site != nullptr);
-  Log *log(lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_BREAKPOINTS));
+  Log *log = GetLog(LLDBLog::Breakpoints);
   addr_t bp_addr = bp_site->GetLoadAddress();
   lldb::user_id_t breakID = bp_site->GetID();
   LLDB_LOGF(log,
@@ -1923,6 +1920,9 @@ Status Process::DisableSoftwareBreakpoint(BreakpointSite *bp_site) {
 //#define VERIFY_MEMORY_READS
 
 size_t Process::ReadMemory(addr_t addr, void *buf, size_t size, Status &error) {
+  if (ABISP abi_sp = GetABI())
+    addr = abi_sp->FixAnyAddress(addr);
+
   error.Clear();
   if (!GetDisableMemoryCache()) {
 #if defined(VERIFY_MEMORY_READS)
@@ -2035,6 +2035,9 @@ size_t Process::ReadMemoryFromInferior(addr_t addr, void *buf, size_t size,
                                        Status &error) {
   LLDB_SCOPED_TIMER();
 
+  if (ABISP abi_sp = GetABI())
+    addr = abi_sp->FixAnyAddress(addr);
+
   if (buf == nullptr || size == 0)
     return 0;
 
@@ -2117,6 +2120,9 @@ size_t Process::WriteMemoryPrivate(addr_t addr, const void *buf, size_t size,
 
 size_t Process::WriteMemory(addr_t addr, const void *buf, size_t size,
                             Status &error) {
+  if (ABISP abi_sp = GetABI())
+    addr = abi_sp->FixAnyAddress(addr);
+
 #if defined(ENABLE_MEMORY_CACHING)
   m_memory_cache.Flush(addr, size);
 #endif
@@ -2265,7 +2271,7 @@ addr_t Process::AllocateMemory(size_t size, uint32_t permissions,
   return m_allocated_memory_cache.AllocateMemory(size, permissions, error);
 #else
   addr_t allocated_addr = DoAllocateMemory(size, permissions, error);
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_PROCESS));
+  Log *log = GetLog(LLDBLog::Process);
   LLDB_LOGF(log,
             "Process::AllocateMemory(size=%" PRIu64
             ", permissions=%s) => 0x%16.16" PRIx64
@@ -2289,7 +2295,7 @@ addr_t Process::CallocateMemory(size_t size, uint32_t permissions,
 
 bool Process::CanJIT() {
   if (m_can_jit == eCanJITDontKnow) {
-    Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_PROCESS));
+    Log *log = GetLog(LLDBLog::Process);
     Status err;
 
     uint64_t allocated_memory = AllocateMemory(
@@ -2335,7 +2341,7 @@ Status Process::DeallocateMemory(addr_t ptr) {
 #else
   error = DoDeallocateMemory(ptr);
 
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_PROCESS));
+  Log *log = GetLog(LLDBLog::Process);
   LLDB_LOGF(log,
             "Process::DeallocateMemory(addr=0x%16.16" PRIx64
             ") => err = %s (m_stop_id = %u, m_memory_id = %u)",
@@ -2348,7 +2354,7 @@ Status Process::DeallocateMemory(addr_t ptr) {
 ModuleSP Process::ReadModuleFromMemory(const FileSpec &file_spec,
                                        lldb::addr_t header_addr,
                                        size_t size_to_read) {
-  Log *log = lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_HOST);
+  Log *log = GetLog(LLDBLog::Host);
   if (log) {
     LLDB_LOGF(log,
               "Process::ReadModuleFromMemory reading %s binary from memory",
@@ -2433,6 +2439,39 @@ void Process::LoadOperatingSystemPlugin(bool flush) {
 }
 
 Status Process::Launch(ProcessLaunchInfo &launch_info) {
+  StateType state_after_launch = eStateInvalid;
+  EventSP first_stop_event_sp;
+  Status status =
+      LaunchPrivate(launch_info, state_after_launch, first_stop_event_sp);
+  if (status.Fail())
+    return status;
+
+  if (state_after_launch != eStateStopped &&
+      state_after_launch != eStateCrashed)
+    return Status();
+
+  // Note, the stop event was consumed above, but not handled. This
+  // was done to give DidLaunch a chance to run. The target is either
+  // stopped or crashed. Directly set the state.  This is done to
+  // prevent a stop message with a bunch of spurious output on thread
+  // status, as well as not pop a ProcessIOHandler.
+  SetPublicState(state_after_launch, false);
+
+  if (PrivateStateThreadIsValid())
+    ResumePrivateStateThread();
+  else
+    StartPrivateStateThread();
+
+  // Target was stopped at entry as was intended. Need to notify the
+  // listeners about it.
+  if (launch_info.GetFlags().Test(eLaunchFlagStopAtEntry))
+    HandlePrivateEvent(first_stop_event_sp);
+
+  return Status();
+}
+
+Status Process::LaunchPrivate(ProcessLaunchInfo &launch_info, StateType &state,
+                              EventSP &event_sp) {
   Status error;
   m_abi_sp.reset();
   m_dyld_up.reset();
@@ -2449,7 +2488,7 @@ Status Process::Launch(ProcessLaunchInfo &launch_info) {
   // be a way to express this path, without actually having a module.
   // The way to do that is to set the ExecutableFile in the LaunchInfo.
   // Figure that out here:
-  
+
   FileSpec exe_spec_to_use;
   if (!exe_module) {
     if (!launch_info.GetExecutableFile()) {
@@ -2459,7 +2498,7 @@ Status Process::Launch(ProcessLaunchInfo &launch_info) {
     exe_spec_to_use = launch_info.GetExecutableFile();
   } else
     exe_spec_to_use = exe_module->GetFileSpec();
-  
+
   if (exe_module && FileSystem::Instance().Exists(exe_module->GetFileSpec())) {
     // Install anything that might need to be installed prior to launching.
     // For host systems, this will do nothing, but if we are connected to a
@@ -2468,6 +2507,7 @@ Status Process::Launch(ProcessLaunchInfo &launch_info) {
     if (error.Fail())
       return error;
   }
+
   // Listen and queue events that are broadcasted during the process launch.
   ListenerSP listener_sp(Listener::MakeListener("LaunchEventHijack"));
   HijackProcessEvents(listener_sp);
@@ -2477,93 +2517,88 @@ Status Process::Launch(ProcessLaunchInfo &launch_info) {
     PausePrivateStateThread();
 
   error = WillLaunch(exe_module);
-  if (error.Success()) {
-    const bool restarted = false;
-    SetPublicState(eStateLaunching, restarted);
-    m_should_detach = false;
-
-    if (m_public_run_lock.TrySetRunning()) {
-      // Now launch using these arguments.
-      error = DoLaunch(exe_module, launch_info);
-    } else {
-      // This shouldn't happen
-      error.SetErrorString("failed to acquire process run lock");
-    }
-
-    if (error.Fail()) {
-      if (GetID() != LLDB_INVALID_PROCESS_ID) {
-        SetID(LLDB_INVALID_PROCESS_ID);
-        const char *error_string = error.AsCString();
-        if (error_string == nullptr)
-          error_string = "launch failed";
-        SetExitStatus(-1, error_string);
-      }
-    } else {
-      EventSP event_sp;
-
-      // Now wait for the process to launch and return control to us, and then
-      // call DidLaunch:
-      StateType state = WaitForProcessStopPrivate(event_sp, seconds(10));
-
-      if (state == eStateInvalid || !event_sp) {
-        // We were able to launch the process, but we failed to catch the
-        // initial stop.
-        error.SetErrorString("failed to catch stop after launch");
-        SetExitStatus(0, "failed to catch stop after launch");
-        Destroy(false);
-      } else if (state == eStateStopped || state == eStateCrashed) {
-        DidLaunch();
-
-        DynamicLoader *dyld = GetDynamicLoader();
-        if (dyld)
-          dyld->DidLaunch();
-
-        GetJITLoaders().DidLaunch();
-
-        SystemRuntime *system_runtime = GetSystemRuntime();
-        if (system_runtime)
-          system_runtime->DidLaunch();
-
-        if (!m_os_up)
-          LoadOperatingSystemPlugin(false);
-
-        // We successfully launched the process and stopped, now it the
-        // right time to set up signal filters before resuming.
-        UpdateAutomaticSignalFiltering();
-
-        // Note, the stop event was consumed above, but not handled. This
-        // was done to give DidLaunch a chance to run. The target is either
-        // stopped or crashed. Directly set the state.  This is done to
-        // prevent a stop message with a bunch of spurious output on thread
-        // status, as well as not pop a ProcessIOHandler.
-        // We are done with the launch hijack listener, and this stop should
-        // go to the public state listener:
-        RestoreProcessEvents();
-        SetPublicState(state, false);
-
-        if (PrivateStateThreadIsValid())
-          ResumePrivateStateThread();
-        else
-          StartPrivateStateThread();
-
-        // Target was stopped at entry as was intended. Need to notify the
-        // listeners about it.
-        if (state == eStateStopped &&
-            launch_info.GetFlags().Test(eLaunchFlagStopAtEntry))
-          HandlePrivateEvent(event_sp);
-      } else if (state == eStateExited) {
-        // We exited while trying to launch somehow.  Don't call DidLaunch
-        // as that's not likely to work, and return an invalid pid.
-        HandlePrivateEvent(event_sp);
-      }
-    }
-  } else {
+  if (error.Fail()) {
     std::string local_exec_file_path = exe_spec_to_use.GetPath();
-    error.SetErrorStringWithFormat("file doesn't exist: '%s'",
-                                   local_exec_file_path.c_str());
+    return Status("file doesn't exist: '%s'", local_exec_file_path.c_str());
   }
 
-  return error;
+  const bool restarted = false;
+  SetPublicState(eStateLaunching, restarted);
+  m_should_detach = false;
+
+  if (m_public_run_lock.TrySetRunning()) {
+    // Now launch using these arguments.
+    error = DoLaunch(exe_module, launch_info);
+  } else {
+    // This shouldn't happen
+    error.SetErrorString("failed to acquire process run lock");
+  }
+
+  if (error.Fail()) {
+    if (GetID() != LLDB_INVALID_PROCESS_ID) {
+      SetID(LLDB_INVALID_PROCESS_ID);
+      const char *error_string = error.AsCString();
+      if (error_string == nullptr)
+        error_string = "launch failed";
+      SetExitStatus(-1, error_string);
+    }
+    return error;
+  }
+
+  // Now wait for the process to launch and return control to us, and then
+  // call DidLaunch:
+  state = WaitForProcessStopPrivate(event_sp, seconds(10));
+
+  if (state == eStateInvalid || !event_sp) {
+    // We were able to launch the process, but we failed to catch the
+    // initial stop.
+    error.SetErrorString("failed to catch stop after launch");
+    SetExitStatus(0, error.AsCString());
+    Destroy(false);
+    return error;
+  }
+
+  if (state == eStateExited) {
+    // We exited while trying to launch somehow.  Don't call DidLaunch
+    // as that's not likely to work, and return an invalid pid.
+    HandlePrivateEvent(event_sp);
+    return Status();
+  }
+
+  if (state == eStateStopped || state == eStateCrashed) {
+    DidLaunch();
+
+    // Now that we know the process type, update its signal responses from the
+    // ones stored in the Target:
+    if (m_unix_signals_sp) {
+      StreamSP warning_strm = GetTarget().GetDebugger().GetAsyncErrorStream();
+      GetTarget().UpdateSignalsFromDummy(m_unix_signals_sp, warning_strm);
+    }
+
+    DynamicLoader *dyld = GetDynamicLoader();
+    if (dyld)
+      dyld->DidLaunch();
+
+    GetJITLoaders().DidLaunch();
+
+    SystemRuntime *system_runtime = GetSystemRuntime();
+    if (system_runtime)
+      system_runtime->DidLaunch();
+
+    if (!m_os_up)
+      LoadOperatingSystemPlugin(false);
+
+    // We successfully launched the process and stopped, now it the
+    // right time to set up signal filters before resuming.
+    UpdateAutomaticSignalFiltering();
+    return Status();
+  }
+
+  return Status("Unexpected process state after the launch: %s, expected %s, "
+                "%s, %s or %s",
+                StateAsCString(state), StateAsCString(eStateInvalid),
+                StateAsCString(eStateExited), StateAsCString(eStateStopped),
+                StateAsCString(eStateCrashed));
 }
 
 Status Process::LoadCore() {
@@ -2601,7 +2636,7 @@ Status Process::LoadCore() {
         WaitForProcessToStop(llvm::None, &event_sp, true, listener_sp);
 
     if (!StateIsStoppedState(state, false)) {
-      Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_PROCESS));
+      Log *log = GetLog(LLDBLog::Process);
       LLDB_LOGF(log, "Process::Halt() failed to stop, state is: %s",
                 StateAsCString(state));
       error.SetErrorString(
@@ -2641,7 +2676,7 @@ SystemRuntime *Process::GetSystemRuntime() {
 Process::AttachCompletionHandler::AttachCompletionHandler(Process *process,
                                                           uint32_t exec_count)
     : NextEventAction(process), m_exec_count(exec_count) {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_PROCESS));
+  Log *log = GetLog(LLDBLog::Process);
   LLDB_LOGF(
       log,
       "Process::AttachCompletionHandler::%s process=%p, exec_count=%" PRIu32,
@@ -2650,7 +2685,7 @@ Process::AttachCompletionHandler::AttachCompletionHandler(Process *process,
 
 Process::NextEventAction::EventActionResult
 Process::AttachCompletionHandler::PerformAction(lldb::EventSP &event_sp) {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_PROCESS));
+  Log *log = GetLog(LLDBLog::Process);
 
   StateType state = ProcessEventData::GetStateFromEvent(event_sp.get());
   LLDB_LOGF(log,
@@ -2843,8 +2878,7 @@ Status Process::Attach(ProcessAttachInfo &attach_info) {
 }
 
 void Process::CompleteAttach() {
-  Log *log(lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_PROCESS |
-                                                  LIBLLDB_LOG_TARGET));
+  Log *log(GetLog(LLDBLog::Process | LLDBLog::Target));
   LLDB_LOGF(log, "Process::%s()", __FUNCTION__);
 
   // Let the process subclass figure out at much as it can about the process
@@ -2868,21 +2902,22 @@ void Process::CompleteAttach() {
   // switch architectures.
   PlatformSP platform_sp(GetTarget().GetPlatform());
   assert(platform_sp);
+  ArchSpec process_host_arch = GetSystemArchitecture();
   if (platform_sp) {
     const ArchSpec &target_arch = GetTarget().GetArchitecture();
     if (target_arch.IsValid() &&
-        !platform_sp->IsCompatibleArchitecture(target_arch, false, nullptr)) {
+        !platform_sp->IsCompatibleArchitecture(target_arch, process_host_arch,
+                                               false, nullptr)) {
       ArchSpec platform_arch;
-      platform_sp =
-          platform_sp->GetPlatformForArchitecture(target_arch, &platform_arch);
+      platform_sp = GetTarget().GetDebugger().GetPlatformList().GetOrCreate(
+          target_arch, process_host_arch, &platform_arch);
       if (platform_sp) {
         GetTarget().SetPlatform(platform_sp);
         GetTarget().SetArchitecture(platform_arch);
-        LLDB_LOGF(log,
-                  "Process::%s switching platform to %s and architecture "
-                  "to %s based on info from attach",
-                  __FUNCTION__, platform_sp->GetName().AsCString(""),
-                  platform_arch.GetTriple().getTriple().c_str());
+        LLDB_LOG(log,
+                 "switching platform to {0} and architecture to {1} based on "
+                 "info from attach",
+                 platform_sp->GetName(), platform_arch.GetTriple().getTriple());
       }
     } else if (!process_arch.IsValid()) {
       ProcessInstanceInfo process_info;
@@ -2900,6 +2935,12 @@ void Process::CompleteAttach() {
                   GetID());
       }
     }
+  }
+  // Now that we know the process type, update its signal responses from the
+  // ones stored in the Target:
+  if (m_unix_signals_sp) {
+    StreamSP warning_strm = GetTarget().GetDebugger().GetAsyncErrorStream();
+    GetTarget().UpdateSignalsFromDummy(m_unix_signals_sp, warning_strm);
   }
 
   // We have completed the attach, now it is time to find the dynamic loader
@@ -2999,8 +3040,7 @@ Status Process::ConnectRemote(llvm::StringRef remote_url) {
 }
 
 Status Process::PrivateResume() {
-  Log *log(lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_PROCESS |
-                                                  LIBLLDB_LOG_STEP));
+  Log *log(GetLog(LLDBLog::Process | LLDBLog::Step));
   LLDB_LOGF(log,
             "Process::PrivateResume() m_stop_id = %u, public state: %s "
             "private state: %s",
@@ -3104,7 +3144,7 @@ Status Process::StopForDestroyOrDetach(lldb::EventSP &exit_event_sp) {
   // still need to interrupt.
   if (m_public_state.GetValue() == eStateRunning ||
       m_private_state.GetValue() == eStateRunning) {
-    Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_PROCESS));
+    Log *log = GetLog(LLDBLog::Process);
     LLDB_LOGF(log, "Process::%s() About to stop.", __FUNCTION__);
 
     ListenerSP listener_sp(
@@ -3311,8 +3351,7 @@ bool Process::ShouldBroadcastEvent(Event *event_ptr) {
   const StateType state =
       Process::ProcessEventData::GetStateFromEvent(event_ptr);
   bool return_value = true;
-  Log *log(lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_EVENTS |
-                                                  LIBLLDB_LOG_PROCESS));
+  Log *log(GetLog(LLDBLog::Events | LLDBLog::Process));
 
   switch (state) {
   case eStateDetached:
@@ -3463,7 +3502,7 @@ bool Process::ShouldBroadcastEvent(Event *event_ptr) {
 }
 
 bool Process::StartPrivateStateThread(bool is_secondary_thread) {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EVENTS));
+  Log *log = GetLog(LLDBLog::Events);
 
   bool already_running = PrivateStateThreadIsValid();
   LLDB_LOGF(log, "Process::%s()%s ", __FUNCTION__,
@@ -3494,15 +3533,15 @@ bool Process::StartPrivateStateThread(bool is_secondary_thread) {
                "<lldb.process.internal-state(pid=%" PRIu64 ")>", GetID());
   }
 
-  // Create the private state thread, and start it running.
-  PrivateStateThreadArgs *args_ptr =
-      new PrivateStateThreadArgs(this, is_secondary_thread);
   llvm::Expected<HostThread> private_state_thread =
-      ThreadLauncher::LaunchThread(thread_name, Process::PrivateStateThread,
-                                   (void *)args_ptr, 8 * 1024 * 1024);
+      ThreadLauncher::LaunchThread(
+          thread_name,
+          [this, is_secondary_thread] {
+            return RunPrivateStateThread(is_secondary_thread);
+          },
+          8 * 1024 * 1024);
   if (!private_state_thread) {
-    LLDB_LOG(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_HOST),
-             "failed to launch host thread: {}",
+    LLDB_LOG(GetLog(LLDBLog::Host), "failed to launch host thread: {}",
              llvm::toString(private_state_thread.takeError()));
     return false;
   }
@@ -3525,7 +3564,7 @@ void Process::StopPrivateStateThread() {
   if (m_private_state_thread.IsJoinable())
     ControlPrivateStateThread(eBroadcastInternalStateControlStop);
   else {
-    Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_PROCESS));
+    Log *log = GetLog(LLDBLog::Process);
     LLDB_LOGF(
         log,
         "Went to stop the private state thread, but it was already invalid.");
@@ -3533,7 +3572,7 @@ void Process::StopPrivateStateThread() {
 }
 
 void Process::ControlPrivateStateThread(uint32_t signal) {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_PROCESS));
+  Log *log = GetLog(LLDBLog::Process);
 
   assert(signal == eBroadcastInternalStateControlStop ||
          signal == eBroadcastInternalStateControlPause ||
@@ -3591,7 +3630,7 @@ void Process::SendAsyncInterrupt() {
 }
 
 void Process::HandlePrivateEvent(EventSP &event_sp) {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_PROCESS));
+  Log *log = GetLog(LLDBLog::Process);
   m_resume_requested = false;
 
   const StateType new_state =
@@ -3715,18 +3754,10 @@ Status Process::HaltPrivate() {
   return error;
 }
 
-thread_result_t Process::PrivateStateThread(void *arg) {
-  std::unique_ptr<PrivateStateThreadArgs> args_up(
-      static_cast<PrivateStateThreadArgs *>(arg));
-  thread_result_t result =
-      args_up->process->RunPrivateStateThread(args_up->is_secondary_thread);
-  return result;
-}
-
 thread_result_t Process::RunPrivateStateThread(bool is_secondary_thread) {
   bool control_only = true;
 
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_PROCESS));
+  Log *log = GetLog(LLDBLog::Process);
   LLDB_LOGF(log, "Process::%s (arg = %p, pid = %" PRIu64 ") thread starting...",
             __FUNCTION__, static_cast<void *>(this), GetID());
 
@@ -3854,8 +3885,7 @@ Process::ProcessEventData::ProcessEventData() : EventData(), m_process_wp() {}
 
 Process::ProcessEventData::ProcessEventData(const ProcessSP &process_sp,
                                             StateType state)
-    : EventData(), m_process_wp(), m_state(state), m_restarted(false),
-      m_update_state(0), m_interrupted(false) {
+    : EventData(), m_process_wp(), m_state(state) {
   if (process_sp)
     m_process_wp = process_sp;
 }
@@ -3926,8 +3956,7 @@ bool Process::ProcessEventData::ShouldStop(Event *event_ptr,
   for (idx = 0; idx < not_suspended_thread_list.GetSize(); ++idx) {
     curr_thread_list = process_sp->GetThreadList();
     if (curr_thread_list.GetSize() != num_threads) {
-      Log *log(lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_STEP |
-                                                      LIBLLDB_LOG_PROCESS));
+      Log *log(GetLog(LLDBLog::Step | LLDBLog::Process));
       LLDB_LOGF(
           log,
           "Number of threads changed from %u to %u while processing event.",
@@ -3938,8 +3967,7 @@ bool Process::ProcessEventData::ShouldStop(Event *event_ptr,
     lldb::ThreadSP thread_sp = not_suspended_thread_list.GetThreadAtIndex(idx);
 
     if (thread_sp->GetIndexID() != thread_index_array[idx]) {
-      Log *log(lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_STEP |
-                                                      LIBLLDB_LOG_PROCESS));
+      Log *log(GetLog(LLDBLog::Step | LLDBLog::Process));
       LLDB_LOGF(log,
                 "The thread at position %u changed from %u to %u while "
                 "processing event.",
@@ -4232,7 +4260,7 @@ size_t Process::GetAsyncProfileData(char *buf, size_t buf_size, Status &error) {
   std::string &one_profile_data = m_profile_data.front();
   size_t bytes_available = one_profile_data.size();
   if (bytes_available > 0) {
-    Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_PROCESS));
+    Log *log = GetLog(LLDBLog::Process);
     LLDB_LOGF(log, "Process::GetProfileData (buf = %p, size = %" PRIu64 ")",
               static_cast<void *>(buf), static_cast<uint64_t>(buf_size));
     if (bytes_available > buf_size) {
@@ -4253,7 +4281,7 @@ size_t Process::GetSTDOUT(char *buf, size_t buf_size, Status &error) {
   std::lock_guard<std::recursive_mutex> guard(m_stdio_communication_mutex);
   size_t bytes_available = m_stdout_data.size();
   if (bytes_available > 0) {
-    Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_PROCESS));
+    Log *log = GetLog(LLDBLog::Process);
     LLDB_LOGF(log, "Process::GetSTDOUT (buf = %p, size = %" PRIu64 ")",
               static_cast<void *>(buf), static_cast<uint64_t>(buf_size));
     if (bytes_available > buf_size) {
@@ -4272,7 +4300,7 @@ size_t Process::GetSTDERR(char *buf, size_t buf_size, Status &error) {
   std::lock_guard<std::recursive_mutex> gaurd(m_stdio_communication_mutex);
   size_t bytes_available = m_stderr_data.size();
   if (bytes_available > 0) {
-    Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_PROCESS));
+    Log *log = GetLog(LLDBLog::Process);
     LLDB_LOGF(log, "Process::GetSTDERR (buf = %p, size = %" PRIu64 ")",
               static_cast<void *>(buf), static_cast<uint64_t>(buf_size));
     if (bytes_available > buf_size) {
@@ -4306,6 +4334,12 @@ public:
 
   ~IOHandlerProcessSTDIO() override = default;
 
+  void SetIsRunning(bool running) {
+    std::lock_guard<std::mutex> guard(m_mutex);
+    SetIsDone(!running);
+    m_is_running = running;
+  }
+
   // Each IOHandler gets to run until it is done. It should read data from the
   // "in" and place output into "out" and "err and return when done.
   void Run() override {
@@ -4325,49 +4359,52 @@ public:
 // FD_ZERO, FD_SET are not supported on windows
 #ifndef _WIN32
     const int pipe_read_fd = m_pipe.GetReadFileDescriptor();
-    m_is_running = true;
-    while (!GetIsDone()) {
+    SetIsRunning(true);
+    while (true) {
+      {
+        std::lock_guard<std::mutex> guard(m_mutex);
+        if (GetIsDone())
+          break;
+      }
+
       SelectHelper select_helper;
       select_helper.FDSetRead(read_fd);
       select_helper.FDSetRead(pipe_read_fd);
       Status error = select_helper.Select();
 
-      if (error.Fail()) {
-        SetIsDone(true);
-      } else {
-        char ch = 0;
-        size_t n;
-        if (select_helper.FDIsSetRead(read_fd)) {
-          n = 1;
-          if (m_read_file.Read(&ch, n).Success() && n == 1) {
-            if (m_write_file.Write(&ch, n).Fail() || n != 1)
-              SetIsDone(true);
-          } else
-            SetIsDone(true);
-        }
-        if (select_helper.FDIsSetRead(pipe_read_fd)) {
-          size_t bytes_read;
-          // Consume the interrupt byte
-          Status error = m_pipe.Read(&ch, 1, bytes_read);
-          if (error.Success()) {
-            switch (ch) {
-            case 'q':
-              SetIsDone(true);
-              break;
-            case 'i':
-              if (StateIsRunningState(m_process->GetState()))
-                m_process->SendAsyncInterrupt();
-              break;
-            }
-          }
+      if (error.Fail())
+        break;
+
+      char ch = 0;
+      size_t n;
+      if (select_helper.FDIsSetRead(read_fd)) {
+        n = 1;
+        if (m_read_file.Read(&ch, n).Success() && n == 1) {
+          if (m_write_file.Write(&ch, n).Fail() || n != 1)
+            break;
+        } else
+          break;
+      }
+
+      if (select_helper.FDIsSetRead(pipe_read_fd)) {
+        size_t bytes_read;
+        // Consume the interrupt byte
+        Status error = m_pipe.Read(&ch, 1, bytes_read);
+        if (error.Success()) {
+          if (ch == 'q')
+            break;
+          if (ch == 'i')
+            if (StateIsRunningState(m_process->GetState()))
+              m_process->SendAsyncInterrupt();
         }
       }
     }
-    m_is_running = false;
+    SetIsRunning(false);
 #endif
   }
 
   void Cancel() override {
+    std::lock_guard<std::mutex> guard(m_mutex);
     SetIsDone(true);
     // Only write to our pipe to cancel if we are in
     // IOHandlerProcessSTDIO::Run(). We can end up with a python command that
@@ -4424,7 +4461,8 @@ protected:
   NativeFile m_write_file; // Write to this file (usually the primary pty for
                            // getting io to debuggee)
   Pipe m_pipe;
-  std::atomic<bool> m_is_running{false};
+  std::mutex m_mutex;
+  bool m_is_running = false;
 };
 
 void Process::SetSTDIOFileDescriptor(int fd) {
@@ -4453,7 +4491,7 @@ bool Process::ProcessIOHandlerIsActive() {
 bool Process::PushProcessIOHandler() {
   IOHandlerSP io_handler_sp(m_process_input_reader);
   if (io_handler_sp) {
-    Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_PROCESS));
+    Log *log = GetLog(LLDBLog::Process);
     LLDB_LOGF(log, "Process::%s pushing IO handler", __FUNCTION__);
 
     io_handler_sp->SetIsDone(false);
@@ -4491,7 +4529,7 @@ namespace {
 class RestorePlanState {
 public:
   RestorePlanState(lldb::ThreadPlanSP thread_plan_sp)
-      : m_thread_plan_sp(thread_plan_sp), m_already_reset(false) {
+      : m_thread_plan_sp(thread_plan_sp) {
     if (m_thread_plan_sp) {
       m_private = m_thread_plan_sp->GetPrivate();
       m_is_controlling = m_thread_plan_sp->IsControllingPlan();
@@ -4512,10 +4550,10 @@ public:
 
 private:
   lldb::ThreadPlanSP m_thread_plan_sp;
-  bool m_already_reset;
-  bool m_private;
-  bool m_is_controlling;
-  bool m_okay_to_discard;
+  bool m_already_reset = false;
+  bool m_private = false;
+  bool m_is_controlling = false;
+  bool m_okay_to_discard = false;
 };
 } // anonymous namespace
 
@@ -4562,7 +4600,7 @@ HandleStoppedEvent(lldb::tid_t thread_id, const ThreadPlanSP &thread_plan_sp,
                    EventSP &event_to_broadcast_sp,
                    const EvaluateExpressionOptions &options,
                    bool handle_interrupts) {
-  Log *log = GetLogIfAnyCategoriesSet(LIBLLDB_LOG_STEP | LIBLLDB_LOG_PROCESS);
+  Log *log = GetLog(LLDBLog::Step | LLDBLog::Process);
 
   ThreadSP thread_sp = thread_plan_sp->GetTarget()
                            .GetProcessSP()
@@ -4730,8 +4768,7 @@ Process::RunThreadPlan(ExecutionContext &exe_ctx,
   lldb::StateType old_state = eStateInvalid;
   lldb::ThreadPlanSP stopper_base_plan_sp;
 
-  Log *log(lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_STEP |
-                                                  LIBLLDB_LOG_PROCESS));
+  Log *log(GetLog(LLDBLog::Step | LLDBLog::Process));
   if (m_private_state_thread.EqualsThread(Host::GetCurrentThread())) {
     // Yikes, we are running on the private state thread!  So we can't wait for
     // public events on this thread, since we are the thread that is generating
@@ -5498,7 +5535,7 @@ size_t Process::GetThreadStatus(Stream &strm,
                            stop_format);
       ++num_thread_infos_dumped;
     } else {
-      Log *log(lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_PROCESS));
+      Log *log = GetLog(LLDBLog::Process);
       LLDB_LOGF(log, "Process::GetThreadStatus - thread 0x" PRIu64
                      " vanished while running Thread::GetStatus.");
     }
@@ -5586,7 +5623,7 @@ lldb::addr_t Process::GetDataAddressMask() {
 }
 
 void Process::DidExec() {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_PROCESS));
+  Log *log = GetLog(LLDBLog::Process);
   LLDB_LOGF(log, "Process::%s()", __FUNCTION__);
 
   Target &target = GetTarget();
@@ -5683,48 +5720,12 @@ void Process::ModulesDidLoad(ModuleList &module_list) {
   }
 }
 
-void Process::PrintWarning(uint64_t warning_type, const void *repeat_key,
-                           const char *fmt, ...) {
-  bool print_warning = true;
-
-  StreamSP stream_sp = GetTarget().GetDebugger().GetAsyncOutputStream();
-  if (!stream_sp)
-    return;
-
-  if (repeat_key != nullptr) {
-    WarningsCollection::iterator it = m_warnings_issued.find(warning_type);
-    if (it == m_warnings_issued.end()) {
-      m_warnings_issued[warning_type] = WarningsPointerSet();
-      m_warnings_issued[warning_type].insert(repeat_key);
-    } else {
-      if (it->second.find(repeat_key) != it->second.end()) {
-        print_warning = false;
-      } else {
-        it->second.insert(repeat_key);
-      }
-    }
-  }
-
-  if (print_warning) {
-    va_list args;
-    va_start(args, fmt);
-    stream_sp->PrintfVarArg(fmt, args);
-    va_end(args);
-  }
-}
-
 void Process::PrintWarningOptimization(const SymbolContext &sc) {
   if (!GetWarningsOptimization())
     return;
-  if (!sc.module_sp)
+  if (!sc.module_sp || !sc.function || !sc.function->GetIsOptimized())
     return;
-  if (!sc.module_sp->GetFileSpec().GetFilename().IsEmpty() && sc.function &&
-      sc.function->GetIsOptimized()) {
-    PrintWarning(Process::Warnings::eWarningsOptimization, sc.module_sp.get(),
-                 "%s was compiled with optimization - stepping may behave "
-                 "oddly; variables may not be available.\n",
-                 sc.module_sp->GetFileSpec().GetFilename().GetCString());
-  }
+  sc.module_sp->ReportWarningOptimization(GetTarget().GetDebugger().GetID());
 }
 
 void Process::PrintWarningUnsupportedLanguage(const SymbolContext &sc) {
@@ -5737,13 +5738,10 @@ void Process::PrintWarningUnsupportedLanguage(const SymbolContext &sc) {
     return;
   LanguageSet plugins =
       PluginManager::GetAllTypeSystemSupportedLanguagesForTypes();
-  if (!plugins[language]) {
-    PrintWarning(Process::Warnings::eWarningsUnsupportedLanguage,
-                 sc.module_sp.get(),
-                 "This version of LLDB has no plugin for the language \"%s\". "
-                 "Inspection of frame variables will be limited.\n",
-                 Language::GetNameForLanguageType(language));
-  }
+  if (plugins[language])
+    return;
+  sc.module_sp->ReportWarningUnsupportedLanguage(
+      language, GetTarget().GetDebugger().GetID());
 }
 
 bool Process::GetProcessInfo(ProcessInstanceInfo &info) {
@@ -5856,7 +5854,7 @@ Process::AdvanceAddressToNextBranchInstruction(Address default_stop_addr,
 Status Process::GetMemoryRegionInfo(lldb::addr_t load_addr,
                                     MemoryRegionInfo &range_info) {
   if (const lldb::ABISP &abi = GetABI())
-    load_addr = abi->FixDataAddress(load_addr);
+    load_addr = abi->FixAnyAddress(load_addr);
   return DoGetMemoryRegionInfo(load_addr, range_info);
 }
 
@@ -5891,7 +5889,7 @@ Status Process::GetMemoryRegions(lldb_private::MemoryRegionInfos &region_list) {
       range_end != LLDB_INVALID_ADDRESS &&
       // If we have non-address bits and some are set then the end
       // is at or beyond the end of mappable memory.
-      !(abi && (abi->FixDataAddress(range_end) != range_end)));
+      !(abi && (abi->FixAnyAddress(range_end) != range_end)));
 
   return error;
 }
@@ -5907,7 +5905,7 @@ Process::ConfigureStructuredData(ConstString type_name,
 
 void Process::MapSupportedStructuredDataPlugins(
     const StructuredData::Array &supported_type_names) {
-  Log *log(lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_PROCESS));
+  Log *log = GetLog(LLDBLog::Process);
 
   // Bail out early if there are no type names to map.
   if (supported_type_names.GetSize() == 0) {

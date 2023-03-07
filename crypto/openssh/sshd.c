@@ -1,4 +1,4 @@
-/* $OpenBSD: sshd.c,v 1.585 2022/03/18 04:04:11 djm Exp $ */
+/* $OpenBSD: sshd.c,v 1.596 2023/01/18 01:50:21 millert Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -928,7 +928,7 @@ usage(void)
 		fprintf(stderr, "%s, %s\n",
 		    SSH_RELEASE, SSH_OPENSSL_VERSION);
 	fprintf(stderr,
-"usage: sshd [-46DdeiqTt] [-C connection_spec] [-c host_cert_file]\n"
+"usage: sshd [-46DdeiqTtV] [-C connection_spec] [-c host_cert_file]\n"
 "            [-E log_file] [-f config_file] [-g login_grace_time]\n"
 "            [-h host_key_file] [-o option] [-p port] [-u len]\n"
 	);
@@ -964,14 +964,10 @@ send_rexec_state(int fd, struct sshbuf *conf)
 	 *		string	filename
 	 *		string	contents
 	 *	}
-	 *	string	rng_seed (if required)
 	 */
 	if ((r = sshbuf_put_stringb(m, conf)) != 0 ||
 	    (r = sshbuf_put_stringb(m, inc)) != 0)
 		fatal_fr(r, "compose config");
-#if defined(WITH_OPENSSL) && !defined(OPENSSL_PRNG_ONLY)
-	rexec_send_rng_seed(m);
-#endif
 	if (ssh_msg_send(fd, 0, m) == -1)
 		error_f("ssh_msg_send failed");
 
@@ -1003,10 +999,6 @@ recv_rexec_state(int fd, struct sshbuf *conf)
 	if ((r = sshbuf_get_string(m, &cp, &len)) != 0 ||
 	    (r = sshbuf_get_stringb(m, inc)) != 0)
 		fatal_fr(r, "parse config");
-
-#if defined(WITH_OPENSSL) && !defined(OPENSSL_PRNG_ONLY)
-	rexec_recv_rng_seed(m);
-#endif
 
 	if (conf != NULL && (r = sshbuf_put(conf, cp, len)))
 		fatal_fr(r, "sshbuf_put");
@@ -1324,8 +1316,12 @@ server_accept_loop(int *sock_in, int *sock_out, int *newsock, int *config_s)
 				continue;
 			}
 #endif /* LIBWRAP */
-			if (unset_nonblock(*newsock) == -1 ||
-			    pipe(startup_p) == -1) {
+			if (unset_nonblock(*newsock) == -1) {
+				close(*newsock);
+				continue;
+			}
+			if (pipe(startup_p) == -1) {
+				error_f("pipe(startup_p): %s", strerror(errno));
 				close(*newsock);
 				continue;
 			}
@@ -1567,7 +1563,7 @@ accumulate_host_timing_secret(struct sshbuf *server_cfg,
 	if ((buf = sshbuf_new()) == NULL)
 		fatal_f("could not allocate buffer");
 	if ((r = sshkey_private_serialize(key, buf)) != 0)
-		fatal_fr(r, "decode key");
+		fatal_fr(r, "encode %s key", sshkey_ssh_name(key));
 	if (ssh_digest_update(ctx, sshbuf_ptr(buf), sshbuf_len(buf)) != 0)
 		fatal_f("ssh_digest_update");
 	sshbuf_reset(buf);
@@ -1607,11 +1603,15 @@ main(int ac, char **av)
 	int keytype;
 	Authctxt *authctxt;
 	struct connection_info *connection_info = NULL;
+	sigset_t sigmask;
 
 #ifdef HAVE_SECUREWARE
 	(void)set_auth_parameters(ac, av);
 #endif
 	__progname = ssh_get_progname(av[0]);
+
+	sigemptyset(&sigmask);
+	sigprocmask(SIG_SETMASK, &sigmask, NULL);
 
 	/* Save argv. Duplicate so setproctitle emulation doesn't clobber it */
 	saved_argc = ac;
@@ -1633,14 +1633,12 @@ main(int ac, char **av)
 	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
 	sanitise_stdfd();
 
-	seed_rng();
-
 	/* Initialize configuration options to their default values. */
 	initialize_server_options(&options);
 
 	/* Parse command-line arguments. */
 	while ((opt = getopt(ac, av,
-	    "C:E:b:c:f:g:h:k:o:p:u:46DQRTdeiqrt")) != -1) {
+	    "C:E:b:c:f:g:h:k:o:p:u:46DQRTdeiqrtV")) != -1) {
 		switch (opt) {
 		case '4':
 			options.address_family = AF_INET;
@@ -1741,7 +1739,10 @@ main(int ac, char **av)
 				exit(1);
 			free(line);
 			break;
-		case '?':
+		case 'V':
+			fprintf(stderr, "%s, %s\n",
+			    SSH_VERSION, SSH_OPENSSL_VERSION);
+			exit(0);
 		default:
 			usage();
 			break;
@@ -1755,6 +1756,8 @@ main(int ac, char **av)
 		closefrom(REEXEC_MIN_FREE_FD);
 	else
 		closefrom(REEXEC_DEVCRYPTO_RESERVED_FD);
+
+	seed_rng();
 
 	/* If requested, redirect the logs to the specified logfile. */
 	if (logfile != NULL)
@@ -1922,6 +1925,13 @@ main(int ac, char **av)
 			if ((r = sshkey_from_private(key, &pubkey)) != 0)
 				fatal_r(r, "Could not demote key: \"%s\"",
 				    options.host_key_files[i]);
+		}
+		if (pubkey != NULL && (r = sshkey_check_rsa_length(pubkey,
+		    options.required_rsa_size)) != 0) {
+			error_fr(r, "Host key %s", options.host_key_files[i]);
+			sshkey_free(pubkey);
+			sshkey_free(key);
+			continue;
 		}
 		sensitive_data.host_keys[i] = key;
 		sensitive_data.host_pubkeys[i] = pubkey;
@@ -2244,6 +2254,7 @@ main(int ac, char **av)
 	/* Prepare the channels layer */
 	channel_init_channels(ssh);
 	channel_set_af(ssh, options.address_family);
+	process_channel_timeouts(ssh, &options);
 	process_permitopen(ssh, &options);
 
 	/* Set SO_KEEPALIVE if requested. */
@@ -2463,14 +2474,14 @@ do_ssh2_kex(struct ssh *ssh)
 {
 	char *myproposal[PROPOSAL_MAX] = { KEX_SERVER };
 	struct kex *kex;
+	char *prop_kex = NULL, *prop_enc = NULL, *prop_hostkey = NULL;
 	int r;
 
-	myproposal[PROPOSAL_KEX_ALGS] = compat_kex_proposal(ssh,
+	myproposal[PROPOSAL_KEX_ALGS] = prop_kex = compat_kex_proposal(ssh,
 	    options.kex_algorithms);
-	myproposal[PROPOSAL_ENC_ALGS_CTOS] = compat_cipher_proposal(ssh,
-	    options.ciphers);
-	myproposal[PROPOSAL_ENC_ALGS_STOC] = compat_cipher_proposal(ssh,
-	    options.ciphers);
+	myproposal[PROPOSAL_ENC_ALGS_CTOS] =
+	    myproposal[PROPOSAL_ENC_ALGS_STOC] = prop_enc =
+	    compat_cipher_proposal(ssh, options.ciphers);
 	myproposal[PROPOSAL_MAC_ALGS_CTOS] =
 	    myproposal[PROPOSAL_MAC_ALGS_STOC] = options.macs;
 
@@ -2483,8 +2494,8 @@ do_ssh2_kex(struct ssh *ssh)
 		ssh_packet_set_rekey_limits(ssh, options.rekey_limit,
 		    options.rekey_interval);
 
-	myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] = compat_pkalg_proposal(
-	    ssh, list_hostkey_types());
+	myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] = prop_hostkey =
+	   compat_pkalg_proposal(ssh, list_hostkey_types());
 
 	/* start key exchange */
 	if ((r = kex_setup(ssh, myproposal)) != 0)
@@ -2519,6 +2530,9 @@ do_ssh2_kex(struct ssh *ssh)
 	    (r = ssh_packet_write_wait(ssh)) != 0)
 		fatal_fr(r, "send test");
 #endif
+	free(prop_kex);
+	free(prop_enc);
+	free(prop_hostkey);
 	debug("KEX done");
 }
 

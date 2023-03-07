@@ -449,7 +449,9 @@ struct uio;
 int	getsockaddr(struct sockaddr **namp, const struct sockaddr *uaddr,
 	    size_t len);
 int	getsock_cap(struct thread *td, int fd, cap_rights_t *rightsp,
-	    struct file **fpp, u_int *fflagp, struct filecaps *havecaps);
+	    struct file **fpp, struct filecaps *havecaps);
+int	getsock(struct thread *td, int fd, cap_rights_t *rightsp,
+	    struct file **fpp);
 void	soabort(struct socket *so);
 int	soaccept(struct socket *so, struct sockaddr **nam);
 void	soaio_enqueue(struct task *task);
@@ -474,7 +476,7 @@ int	solisten(struct socket *so, int backlog, struct thread *td);
 void	solisten_proto(struct socket *so, int backlog);
 void	solisten_proto_abort(struct socket *so);
 int	solisten_proto_check(struct socket *so);
-void	solisten_enqueue(struct socket *, int);
+bool	solisten_enqueue(struct socket *, int);
 int	solisten_dequeue(struct socket *, struct socket **, int);
 struct socket *
 	solisten_clone(struct socket *);
@@ -504,6 +506,8 @@ void	sorflush(struct socket *so);
 int	sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	    struct mbuf *top, struct mbuf *control, int flags,
 	    struct thread *td);
+int	sousrsend(struct socket *so, struct sockaddr *addr, struct uio *uio,
+	    struct mbuf *control, int flags, struct proc *);
 int	sosend_dgram(struct socket *so, struct sockaddr *addr,
 	    struct uio *uio, struct mbuf *top, struct mbuf *control,
 	    int flags, struct thread *td);

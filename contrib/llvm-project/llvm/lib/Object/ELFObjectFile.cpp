@@ -21,7 +21,6 @@
 #include "llvm/Object/Error.h"
 #include "llvm/Support/ARMAttributeParser.h"
 #include "llvm/Support/ARMBuildAttributes.h"
-#include "llvm/Support/Endian.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/RISCVAttributeParser.h"
@@ -31,7 +30,6 @@
 #include <cstdint>
 #include <memory>
 #include <string>
-#include <system_error>
 #include <utility>
 
 using namespace llvm;
@@ -169,12 +167,12 @@ SubtargetFeatures ELFObjectFileBase::getARMFeatures() const {
   bool isV7 = false;
   Optional<unsigned> Attr =
       Attributes.getAttributeValue(ARMBuildAttrs::CPU_arch);
-  if (Attr.hasValue())
-    isV7 = Attr.getValue() == ARMBuildAttrs::v7;
+  if (Attr)
+    isV7 = Attr.value() == ARMBuildAttrs::v7;
 
   Attr = Attributes.getAttributeValue(ARMBuildAttrs::CPU_arch_profile);
-  if (Attr.hasValue()) {
-    switch (Attr.getValue()) {
+  if (Attr) {
+    switch (Attr.value()) {
     case ARMBuildAttrs::ApplicationProfile:
       Features.AddFeature("aclass");
       break;
@@ -192,8 +190,8 @@ SubtargetFeatures ELFObjectFileBase::getARMFeatures() const {
   }
 
   Attr = Attributes.getAttributeValue(ARMBuildAttrs::THUMB_ISA_use);
-  if (Attr.hasValue()) {
-    switch (Attr.getValue()) {
+  if (Attr) {
+    switch (Attr.value()) {
     default:
       break;
     case ARMBuildAttrs::Not_Allowed:
@@ -207,8 +205,8 @@ SubtargetFeatures ELFObjectFileBase::getARMFeatures() const {
   }
 
   Attr = Attributes.getAttributeValue(ARMBuildAttrs::FP_arch);
-  if (Attr.hasValue()) {
-    switch (Attr.getValue()) {
+  if (Attr) {
+    switch (Attr.value()) {
     default:
       break;
     case ARMBuildAttrs::Not_Allowed:
@@ -231,8 +229,8 @@ SubtargetFeatures ELFObjectFileBase::getARMFeatures() const {
   }
 
   Attr = Attributes.getAttributeValue(ARMBuildAttrs::Advanced_SIMD_arch);
-  if (Attr.hasValue()) {
-    switch (Attr.getValue()) {
+  if (Attr) {
+    switch (Attr.value()) {
     default:
       break;
     case ARMBuildAttrs::Not_Allowed:
@@ -250,8 +248,8 @@ SubtargetFeatures ELFObjectFileBase::getARMFeatures() const {
   }
 
   Attr = Attributes.getAttributeValue(ARMBuildAttrs::MVE_arch);
-  if (Attr.hasValue()) {
-    switch (Attr.getValue()) {
+  if (Attr) {
+    switch (Attr.value()) {
     default:
       break;
     case ARMBuildAttrs::Not_Allowed:
@@ -269,8 +267,8 @@ SubtargetFeatures ELFObjectFileBase::getARMFeatures() const {
   }
 
   Attr = Attributes.getAttributeValue(ARMBuildAttrs::DIV_use);
-  if (Attr.hasValue()) {
-    switch (Attr.getValue()) {
+  if (Attr) {
+    switch (Attr.value()) {
     default:
       break;
     case ARMBuildAttrs::DisallowDIV:
@@ -305,11 +303,11 @@ SubtargetFeatures ELFObjectFileBase::getRISCVFeatures() const {
   }
 
   Optional<StringRef> Attr = Attributes.getAttributeString(RISCVAttrs::ARCH);
-  if (Attr.hasValue()) {
+  if (Attr) {
     // The Arch pattern is [rv32|rv64][i|e]version(_[m|a|f|d|c]version)*
     // Version string pattern is (major)p(minor). Major and minor are optional.
     // For example, a version number could be 2p0, 2, or p92.
-    StringRef Arch = Attr.getValue();
+    StringRef Arch = *Attr;
     if (Arch.consume_front("rv32"))
       Features.AddFeature("64bit", false);
     else if (Arch.consume_front("rv64"))
@@ -360,6 +358,8 @@ Optional<StringRef> ELFObjectFileBase::tryGetCPUName() const {
   switch (getEMachine()) {
   case ELF::EM_AMDGPU:
     return getAMDGPUCPUName();
+  case ELF::EM_PPC64:
+    return StringRef("future");
   default:
     return None;
   }
@@ -461,6 +461,8 @@ StringRef ELFObjectFileBase::getAMDGPUCPUName() const {
     return "gfx90a";
   case ELF::EF_AMDGPU_MACH_AMDGCN_GFX90C:
     return "gfx90c";
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX940:
+    return "gfx940";
 
   // AMDGCN GFX10.
   case ELF::EF_AMDGPU_MACH_AMDGCN_GFX1010:
@@ -483,6 +485,18 @@ StringRef ELFObjectFileBase::getAMDGPUCPUName() const {
     return "gfx1034";
   case ELF::EF_AMDGPU_MACH_AMDGCN_GFX1035:
     return "gfx1035";
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX1036:
+    return "gfx1036";
+
+  // AMDGCN GFX11.
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX1100:
+    return "gfx1100";
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX1101:
+    return "gfx1101";
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX1102:
+    return "gfx1102";
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX1103:
+    return "gfx1103";
   default:
     llvm_unreachable("Unknown EF_AMDGPU_MACH value");
   }
@@ -509,8 +523,8 @@ void ELFObjectFileBase::setARMSubArch(Triple &TheTriple) const {
 
   Optional<unsigned> Attr =
       Attributes.getAttributeValue(ARMBuildAttrs::CPU_arch);
-  if (Attr.hasValue()) {
-    switch (Attr.getValue()) {
+  if (Attr) {
+    switch (Attr.value()) {
     case ARMBuildAttrs::v4:
       Triple += "v4";
       break;
@@ -541,8 +555,8 @@ void ELFObjectFileBase::setARMSubArch(Triple &TheTriple) const {
     case ARMBuildAttrs::v7: {
       Optional<unsigned> ArchProfileAttr =
           Attributes.getAttributeValue(ARMBuildAttrs::CPU_arch_profile);
-      if (ArchProfileAttr.hasValue() &&
-          ArchProfileAttr.getValue() == ARMBuildAttrs::MicroControllerProfile)
+      if (ArchProfileAttr &&
+          ArchProfileAttr.value() == ARMBuildAttrs::MicroControllerProfile)
         Triple += "v7m";
       else
         Triple += "v7";
@@ -571,6 +585,9 @@ void ELFObjectFileBase::setARMSubArch(Triple &TheTriple) const {
       break;
     case ARMBuildAttrs::v8_1_M_Main:
       Triple += "v8.1m.main";
+      break;
+    case ARMBuildAttrs::v9_A:
+      Triple += "v9a";
       break;
     }
   }
@@ -656,6 +673,36 @@ ELFObjectFileBase::getPltAddresses() const {
 }
 
 template <class ELFT>
+Expected<std::vector<BBAddrMap>>
+readBBAddrMapImpl(const ELFFile<ELFT> &EF,
+                  Optional<unsigned> TextSectionIndex) {
+  using Elf_Shdr = typename ELFT::Shdr;
+  std::vector<BBAddrMap> BBAddrMaps;
+  const auto &Sections = cantFail(EF.sections());
+  for (const Elf_Shdr &Sec : Sections) {
+    if (Sec.sh_type != ELF::SHT_LLVM_BB_ADDR_MAP &&
+        Sec.sh_type != ELF::SHT_LLVM_BB_ADDR_MAP_V0)
+      continue;
+    if (TextSectionIndex) {
+      Expected<const Elf_Shdr *> TextSecOrErr = EF.getSection(Sec.sh_link);
+      if (!TextSecOrErr)
+        return createError("unable to get the linked-to section for " +
+                           describe(EF, Sec) + ": " +
+                           toString(TextSecOrErr.takeError()));
+      if (*TextSectionIndex != std::distance(Sections.begin(), *TextSecOrErr))
+        continue;
+    }
+    Expected<std::vector<BBAddrMap>> BBAddrMapOrErr = EF.decodeBBAddrMap(Sec);
+    if (!BBAddrMapOrErr)
+      return createError("unable to read " + describe(EF, Sec) + ": " +
+                         toString(BBAddrMapOrErr.takeError()));
+    std::move(BBAddrMapOrErr->begin(), BBAddrMapOrErr->end(),
+              std::back_inserter(BBAddrMaps));
+  }
+  return BBAddrMaps;
+}
+
+template <class ELFT>
 static Expected<std::vector<VersionEntry>>
 readDynsymVersionsImpl(const ELFFile<ELFT> &EF,
                        ELFObjectFileBase::elf_symbol_iterator_range Symbols) {
@@ -722,4 +769,18 @@ ELFObjectFileBase::readDynsymVersions() const {
     return readDynsymVersionsImpl(Obj->getELFFile(), Symbols);
   return readDynsymVersionsImpl(cast<ELF64BEObjectFile>(this)->getELFFile(),
                                 Symbols);
+}
+
+Expected<std::vector<BBAddrMap>>
+ELFObjectFileBase::readBBAddrMap(Optional<unsigned> TextSectionIndex) const {
+  if (const auto *Obj = dyn_cast<ELF32LEObjectFile>(this))
+    return readBBAddrMapImpl(Obj->getELFFile(), TextSectionIndex);
+  if (const auto *Obj = dyn_cast<ELF64LEObjectFile>(this))
+    return readBBAddrMapImpl(Obj->getELFFile(), TextSectionIndex);
+  if (const auto *Obj = dyn_cast<ELF32BEObjectFile>(this))
+    return readBBAddrMapImpl(Obj->getELFFile(), TextSectionIndex);
+  if (const auto *Obj = cast<ELF64BEObjectFile>(this))
+    return readBBAddrMapImpl(Obj->getELFFile(), TextSectionIndex);
+  else
+    llvm_unreachable("Unsupported binary format");
 }

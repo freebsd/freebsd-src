@@ -57,14 +57,11 @@ vm_snapshot_buf_err(const char *bufname, const enum vm_snapshot_op op)
 }
 
 int
-vm_snapshot_buf(volatile void *data, size_t data_size,
-	     struct vm_snapshot_meta *meta)
+vm_snapshot_buf(void *data, size_t data_size, struct vm_snapshot_meta *meta)
 {
 	struct vm_snapshot_buffer *buffer;
 	int op;
-	void *nv_data;
 
-	nv_data = __DEVOLATILE(void *, data);
 	buffer = &meta->buffer;
 	op = meta->op;
 
@@ -74,9 +71,9 @@ vm_snapshot_buf(volatile void *data, size_t data_size,
 	}
 
 	if (op == VM_SNAPSHOT_SAVE)
-		copyout(nv_data, buffer->buf, data_size);
+		copyout(data, buffer->buf, data_size);
 	else if (op == VM_SNAPSHOT_RESTORE)
-		copyin(buffer->buf, nv_data, data_size);
+		copyin(buffer->buf, data, data_size);
 	else
 		return (EINVAL);
 
@@ -106,13 +103,11 @@ vm_get_snapshot_size(struct vm_snapshot_meta *meta)
 }
 
 int
-vm_snapshot_buf_cmp(volatile void *data, size_t data_size,
-		    struct vm_snapshot_meta *meta)
+vm_snapshot_buf_cmp(void *data, size_t data_size, struct vm_snapshot_meta *meta)
 {
 	struct vm_snapshot_buffer *buffer;
 	int op;
 	int ret;
-	void *_data = *(void **)(void *)&data;
 
 	buffer = &meta->buffer;
 	op = meta->op;
@@ -125,9 +120,9 @@ vm_snapshot_buf_cmp(volatile void *data, size_t data_size,
 
 	if (op == VM_SNAPSHOT_SAVE) {
 		ret = 0;
-		copyout(_data, buffer->buf, data_size);
+		copyout(data, buffer->buf, data_size);
 	} else if (op == VM_SNAPSHOT_RESTORE) {
-		ret = memcmp(_data, buffer->buf, data_size);
+		ret = memcmp(data, buffer->buf, data_size);
 	} else {
 		ret = EINVAL;
 		goto done;

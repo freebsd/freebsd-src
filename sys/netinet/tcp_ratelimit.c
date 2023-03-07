@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_tcpdebug.h"
 #include "opt_ratelimit.h"
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -50,13 +49,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/ck.h>
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #define TCPSTATES		/* for logging */
 #include <netinet/tcp_var.h>
-#ifdef INET6
-#include <netinet6/tcp6_var.h>
-#endif
 #include <netinet/tcp_hpts.h>
 #include <netinet/tcp_log_buf.h>
 #include <netinet/tcp_ratelimit.h>
@@ -259,6 +256,10 @@ static uint32_t wait_time_floor = 8000;	/* 8 ms */
 static uint32_t rs_hw_floor_mss = 16;
 static uint32_t num_of_waits_allowed = 1; /* How many time blocks are we willing to wait */
 
+static uint32_t mss_divisor = RL_DEFAULT_DIVISOR;
+static uint32_t even_num_segs = 1;
+static uint32_t even_threshold = 4;
+
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, rl, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TCP Ratelimit stats");
 SYSCTL_UINT(_net_inet_tcp_rl, OID_AUTO, alive, CTLFLAG_RW,
@@ -281,6 +282,15 @@ SYSCTL_UINT(_net_inet_tcp_rl, OID_AUTO, hw_floor_mss, CTLFLAG_RW,
     &rs_hw_floor_mss, 16,
     "Number of mss that are a minum for hardware pacing?");
 
+SYSCTL_INT(_net_inet_tcp_rl, OID_AUTO, divisor, CTLFLAG_RW,
+    &mss_divisor, RL_DEFAULT_DIVISOR,
+    "The value divided into bytes per second to help establish mss size");
+SYSCTL_INT(_net_inet_tcp_rl, OID_AUTO, even, CTLFLAG_RW,
+    &even_num_segs, 1,
+    "Do we round mss size up to an even number of segments for delayed ack");
+SYSCTL_INT(_net_inet_tcp_rl, OID_AUTO, eventhresh, CTLFLAG_RW,
+    &even_threshold, 4,
+    "At what number of mss do we start rounding up to an even number of mss?");
 
 static void
 rl_add_syctl_entries(struct sysctl_oid *rl_sysctl_root, struct tcp_rate_set *rs)
@@ -1320,14 +1330,15 @@ const struct tcp_hwrate_limit_table *
 tcp_set_pacing_rate(struct tcpcb *tp, struct ifnet *ifp,
     uint64_t bytes_per_sec, int flags, int *error, uint64_t *lower_rate)
 {
+	struct inpcb *inp = tptoinpcb(tp);
 	const struct tcp_hwrate_limit_table *rte;
 #ifdef KERN_TLS
 	struct ktls_session *tls;
 #endif
 
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(inp);
 
-	if (tp->t_inpcb->inp_snd_tag == NULL) {
+	if (inp->inp_snd_tag == NULL) {
 		/*
 		 * We are setting up a rate for the first time.
 		 */
@@ -1339,8 +1350,8 @@ tcp_set_pacing_rate(struct tcpcb *tp, struct ifnet *ifp,
 		}
 #ifdef KERN_TLS
 		tls = NULL;
-		if (tp->t_inpcb->inp_socket->so_snd.sb_flags & SB_TLS_IFNET) {
-			tls = tp->t_inpcb->inp_socket->so_snd.sb_tls_info;
+		if (tp->t_nic_ktls_xmit != 0) {
+			tls = tptosocket(tp)->so_snd.sb_tls_info;
 
 			if ((ifp->if_capenable & IFCAP_TXTLS_RTLMT) == 0 ||
 			    tls->mode != TCP_TLS_MODE_IFNET) {
@@ -1350,7 +1361,7 @@ tcp_set_pacing_rate(struct tcpcb *tp, struct ifnet *ifp,
 			}
 		}
 #endif
-		rte = rt_setup_rate(tp->t_inpcb, ifp, bytes_per_sec, flags, error, lower_rate);
+		rte = rt_setup_rate(inp, ifp, bytes_per_sec, flags, error, lower_rate);
 		if (rte)
 			rl_increment_using(rte);
 #ifdef KERN_TLS
@@ -1361,7 +1372,7 @@ tcp_set_pacing_rate(struct tcpcb *tp, struct ifnet *ifp,
 			 * tag to a TLS ratelimit tag.
 			 */
 			MPASS(tls->snd_tag->sw->type == IF_SND_TAG_TYPE_TLS);
-			ktls_output_eagain(tp->t_inpcb, tls);
+			ktls_output_eagain(inp, tls);
 		}
 #endif
 	} else {
@@ -1384,6 +1395,7 @@ tcp_chg_pacing_rate(const struct tcp_hwrate_limit_table *crte,
     struct tcpcb *tp, struct ifnet *ifp,
     uint64_t bytes_per_sec, int flags, int *error, uint64_t *lower_rate)
 {
+	struct inpcb *inp = tptoinpcb(tp);
 	const struct tcp_hwrate_limit_table *nrte;
 	const struct tcp_rate_set *rs;
 #ifdef KERN_TLS
@@ -1391,7 +1403,7 @@ tcp_chg_pacing_rate(const struct tcp_hwrate_limit_table *crte,
 #endif
 	int err;
 
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(inp);
 
 	if (crte == NULL) {
 		/* Wrong interface */
@@ -1401,8 +1413,8 @@ tcp_chg_pacing_rate(const struct tcp_hwrate_limit_table *crte,
 	}
 
 #ifdef KERN_TLS
-	if (tp->t_inpcb->inp_socket->so_snd.sb_flags & SB_TLS_IFNET) {
-		tls = tp->t_inpcb->inp_socket->so_snd.sb_tls_info;
+	if (tp->t_nic_ktls_xmit) {
+		tls = tptosocket(tp)->so_snd.sb_tls_info;
 		if (tls->mode != TCP_TLS_MODE_IFNET)
 			tls = NULL;
 		else if (tls->snd_tag != NULL &&
@@ -1430,7 +1442,7 @@ tcp_chg_pacing_rate(const struct tcp_hwrate_limit_table *crte,
 		}
 	}
 #endif
-	if (tp->t_inpcb->inp_snd_tag == NULL) {
+	if (inp->inp_snd_tag == NULL) {
 		/* Wrong interface */
 		tcp_rel_pacing_rate(crte, tp);
 		if (error)
@@ -1469,7 +1481,7 @@ tcp_chg_pacing_rate(const struct tcp_hwrate_limit_table *crte,
 		err = ktls_modify_txrtlmt(tls, nrte->rate);
 	else
 #endif
-		err = in_pcbmodify_txrtlmt(tp->t_inpcb, nrte->rate);
+		err = in_pcbmodify_txrtlmt(inp, nrte->rate);
 	if (err) {
 		struct tcp_rate_set *lrs;
 		uint64_t pre;
@@ -1478,8 +1490,8 @@ tcp_chg_pacing_rate(const struct tcp_hwrate_limit_table *crte,
 		lrs = __DECONST(struct tcp_rate_set *, rs);
 		pre = atomic_fetchadd_64(&lrs->rs_flows_using, -1);
 		/* Do we still have a snd-tag attached? */
-		if (tp->t_inpcb->inp_snd_tag)
-			in_pcbdetach_txrtlmt(tp->t_inpcb);
+		if (inp->inp_snd_tag)
+			in_pcbdetach_txrtlmt(inp);
 
 		if (pre == 1) {
 			struct epoch_tracker et;
@@ -1511,11 +1523,12 @@ tcp_chg_pacing_rate(const struct tcp_hwrate_limit_table *crte,
 void
 tcp_rel_pacing_rate(const struct tcp_hwrate_limit_table *crte, struct tcpcb *tp)
 {
+	struct inpcb *inp = tptoinpcb(tp);
 	const struct tcp_rate_set *crs;
 	struct tcp_rate_set *rs;
 	uint64_t pre;
 
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(inp);
 
 	tp->t_pacing_rate = -1;
 	crs = crte->ptbl;
@@ -1546,7 +1559,7 @@ tcp_rel_pacing_rate(const struct tcp_hwrate_limit_table *crte, struct tcpcb *tp)
 	 * ktls_output_eagain() to reset the send tag to a plain
 	 * TLS tag?
 	 */
-	in_pcbdetach_txrtlmt(tp->t_inpcb);
+	in_pcbdetach_txrtlmt(inp);
 }
 
 #define ONE_POINT_TWO_MEG 150000 /* 1.2 megabits in bytes */
@@ -1576,16 +1589,16 @@ tcp_log_pacing_size(struct tcpcb *tp, uint64_t bw, uint32_t segsiz, uint32_t new
 		log.u_bbr.cur_del_rate = bw;
 		log.u_bbr.delRate = hw_rate;
 		TCP_LOG_EVENTP(tp, NULL,
-		    &tp->t_inpcb->inp_socket->so_rcv,
-		    &tp->t_inpcb->inp_socket->so_snd,
+		    &tptosocket(tp)->so_rcv,
+		    &tptosocket(tp)->so_snd,
 		    TCP_HDWR_PACE_SIZE, 0,
 		    0, &log, false, &tv);
 	}
 }
 
 uint32_t
-tcp_get_pacing_burst_size (struct tcpcb *tp, uint64_t bw, uint32_t segsiz, int can_use_1mss,
-   const struct tcp_hwrate_limit_table *te, int *err)
+tcp_get_pacing_burst_size_w_divisor(struct tcpcb *tp, uint64_t bw, uint32_t segsiz, int can_use_1mss,
+   const struct tcp_hwrate_limit_table *te, int *err, int divisor)
 {
 	/*
 	 * We use the google formula to calculate the
@@ -1593,20 +1606,35 @@ tcp_get_pacing_burst_size (struct tcpcb *tp, uint64_t bw, uint32_t segsiz, int c
 	 * bw < 24Meg
 	 *   tso = 2mss
 	 * else
-	 *   tso = min(bw/1000, 64k)
+	 *   tso = min(bw/(div=1000), 64k)
 	 *
 	 * Note for these calculations we ignore the
 	 * packet overhead (enet hdr, ip hdr and tcp hdr).
+	 * We only get the google formula when we have
+	 * divisor = 1000, which is the default for now.
 	 */
 	uint64_t lentim, res, bytes;
 	uint32_t new_tso, min_tso_segs;
 
-	bytes = bw / 1000;
-	if (bytes > (64 * 1000))
-		bytes = 64 * 1000;
+	/* It can't be zero */
+	if ((divisor == 0) ||
+	    (divisor < RL_MIN_DIVISOR)) {
+		if (mss_divisor)
+			bytes = bw / mss_divisor;
+		else
+			bytes = bw / 1000;
+	} else
+		bytes = bw / divisor;
+	/* We can't ever send more than 65k in a TSO */
+	if (bytes > 0xffff) {
+		bytes = 0xffff;
+	}
 	/* Round up */
 	new_tso = (bytes + segsiz - 1) / segsiz;
-	if (can_use_1mss && (bw < ONE_POINT_TWO_MEG))
+	/* Are we enforcing even boundaries? */
+	if (even_num_segs && (new_tso & 1) && (new_tso > even_threshold))
+		new_tso++;
+	if (can_use_1mss)
 		min_tso_segs = 1;
 	else
 		min_tso_segs = 2;

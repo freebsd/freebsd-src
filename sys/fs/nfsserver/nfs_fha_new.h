@@ -95,11 +95,7 @@ struct fha_info {
 
 struct fha_params {
 	struct fha_hash_slot fha_hash[FHA_HASH_SIZE];
-	struct sysctl_ctx_list sysctl_ctx;
-	struct sysctl_oid *sysctl_tree;
-	struct fha_ctls ctls;
 	char server_name[32];
-	SVCPOOL **pool;
 };
 
 SVCTHREAD *fhanew_assign(SVCTHREAD *this_thread, struct svc_req *req);

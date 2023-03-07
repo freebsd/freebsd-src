@@ -44,6 +44,7 @@ __KERNEL_RCSID(0, "$NetBSD: subr_asan.c,v 1.26 2020/09/10 14:10:46 maxv Exp $");
 #include <sys/sysctl.h>
 
 #include <machine/asan.h>
+#include <machine/bus.h>
 
 /* ASAN constants. Part of the compiler ABI. */
 #define KASAN_SHADOW_MASK		(KASAN_SHADOW_SCALE - 1)
@@ -255,6 +256,9 @@ kasan_mark(const void *addr, size_t size, size_t redzsize, uint8_t code)
 {
 	size_t i, n, redz;
 	int8_t *shad;
+
+	if (__predict_false(!kasan_enabled))
+		return;
 
 	if ((vm_offset_t)addr >= DMAP_MIN_ADDRESS &&
 	    (vm_offset_t)addr < DMAP_MAX_ADDRESS)
@@ -839,6 +843,7 @@ ASAN_ATOMIC_FUNC_FCMPSET(int, u_int);
 ASAN_ATOMIC_FUNC_FCMPSET(long, u_long);
 ASAN_ATOMIC_FUNC_FCMPSET(ptr, uintptr_t);
 
+_ASAN_ATOMIC_FUNC_LOAD(bool, bool);
 ASAN_ATOMIC_FUNC_LOAD(8, uint8_t);
 ASAN_ATOMIC_FUNC_LOAD(16, uint16_t);
 ASAN_ATOMIC_FUNC_LOAD(32, uint32_t);
@@ -849,6 +854,7 @@ ASAN_ATOMIC_FUNC_LOAD(int, u_int);
 ASAN_ATOMIC_FUNC_LOAD(long, u_long);
 ASAN_ATOMIC_FUNC_LOAD(ptr, uintptr_t);
 
+_ASAN_ATOMIC_FUNC_STORE(bool, bool);
 ASAN_ATOMIC_FUNC_STORE(8, uint8_t);
 ASAN_ATOMIC_FUNC_STORE(16, uint16_t);
 ASAN_ATOMIC_FUNC_STORE(32, uint32_t);
@@ -1016,6 +1022,32 @@ ASAN_BUS_SET_FUNC(multi, 4, uint32_t)
 ASAN_BUS_SET_FUNC(region, 4, uint32_t)
 ASAN_BUS_SET_FUNC(multi_stream, 4, uint32_t)
 ASAN_BUS_SET_FUNC(region_stream, 4, uint32_t)
+
+#define	ASAN_BUS_PEEK_FUNC(width, type)					\
+	int kasan_bus_space_peek_##width(bus_space_tag_t tag,		\
+	    bus_space_handle_t hnd, bus_size_t offset, type *valuep)	\
+	{								\
+		return (bus_space_peek_##width(tag, hnd, offset,	\
+		    valuep));						\
+	}
+
+ASAN_BUS_PEEK_FUNC(1, uint8_t)
+ASAN_BUS_PEEK_FUNC(2, uint16_t)
+ASAN_BUS_PEEK_FUNC(4, uint32_t)
+ASAN_BUS_PEEK_FUNC(8, uint64_t)
+
+#define	ASAN_BUS_POKE_FUNC(width, type)					\
+	int kasan_bus_space_poke_##width(bus_space_tag_t tag,		\
+	    bus_space_handle_t hnd, bus_size_t offset, type value)	\
+	{								\
+		return (bus_space_poke_##width(tag, hnd, offset,	\
+		    value));						\
+	}
+
+ASAN_BUS_POKE_FUNC(1, uint8_t)
+ASAN_BUS_POKE_FUNC(2, uint16_t)
+ASAN_BUS_POKE_FUNC(4, uint32_t)
+ASAN_BUS_POKE_FUNC(8, uint64_t)
 
 /* -------------------------------------------------------------------------- */
 

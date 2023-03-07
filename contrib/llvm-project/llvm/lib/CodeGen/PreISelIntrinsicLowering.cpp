@@ -18,10 +18,9 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Instructions.h"
-#include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
-#include "llvm/IR/User.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
@@ -71,6 +70,8 @@ static CallInst::TailCallKind getOverridingTailCallKind(const Function &F) {
 
 static bool lowerObjCCall(Function &F, const char *NewFn,
                           bool setNonLazyBind = false) {
+  assert(IntrinsicInst::mayLowerToFunctionCall(F.getIntrinsicID()) &&
+         "Pre-ISel intrinsics do lower into regular function calls");
   if (F.use_empty())
     return false;
 
@@ -109,7 +110,9 @@ static bool lowerObjCCall(Function &F, const char *NewFn,
 
     IRBuilder<> Builder(CI->getParent(), CI->getIterator());
     SmallVector<Value *, 8> Args(CI->args());
-    CallInst *NewCI = Builder.CreateCall(FCache, Args);
+    SmallVector<llvm::OperandBundleDef, 1> BundleList;
+    CI->getOperandBundlesAsDefs(BundleList);
+    CallInst *NewCI = Builder.CreateCall(FCache, Args, BundleList);
     NewCI->setName(CI->getName());
 
     // Try to set the most appropriate TailCallKind based on both the current

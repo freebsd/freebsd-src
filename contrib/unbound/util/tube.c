@@ -45,6 +45,9 @@
 #include "util/netevent.h"
 #include "util/fptr_wlist.h"
 #include "util/ub_event.h"
+#ifdef HAVE_POLL_H
+#include <poll.h>
+#endif
 
 #ifndef USE_WINSOCK
 /* on unix */
@@ -396,20 +399,28 @@ int tube_read_msg(struct tube* tube, uint8_t** buf, uint32_t* len,
 	return 1;
 }
 
-/** perform a select() on the fd */
+/** perform poll() on the fd */
 static int
 pollit(int fd, struct timeval* t)
 {
-	fd_set r;
+	struct pollfd fds;
+	int pret;
+	int msec = -1;
+	memset(&fds, 0, sizeof(fds));
+	fds.fd = fd;
+	fds.events = POLLIN | POLLERR | POLLHUP;
 #ifndef S_SPLINT_S
-	FD_ZERO(&r);
-	FD_SET(FD_SET_T fd, &r);
+	if(t)
+		msec = t->tv_sec*1000 + t->tv_usec/1000;
 #endif
-	if(select(fd+1, &r, NULL, NULL, t) == -1) {
+
+	pret = poll(&fds, 1, msec);
+
+	if(pret == -1)
 		return 0;
-	}
-	errno = 0;
-	return (int)(FD_ISSET(fd, &r));
+	if(pret != 0)
+		return 1;
+	return 0;
 }
 
 int tube_poll(struct tube* tube)
@@ -422,6 +433,31 @@ int tube_poll(struct tube* tube)
 int tube_wait(struct tube* tube)
 {
 	return pollit(tube->sr, NULL);
+}
+
+int tube_wait_timeout(struct tube* tube, int msec)
+{
+	int ret = 0;
+
+	while(1) {
+		struct pollfd fds;
+		memset(&fds, 0, sizeof(fds));
+
+		fds.fd = tube->sr;
+		fds.events = POLLIN | POLLERR | POLLHUP;
+		ret = poll(&fds, 1, msec);
+
+		if(ret == -1) {
+			if(errno == EAGAIN || errno == EINTR)
+				continue;
+			return -1;
+		}
+		break;
+	}
+
+	if(ret != 0)
+		return 1;
+	return 0;
 }
 
 int tube_read_fd(struct tube* tube)
@@ -507,6 +543,7 @@ struct tube* tube_create(void)
 	if(tube->event == WSA_INVALID_EVENT) {
 		free(tube);
 		log_err("WSACreateEvent: %s", wsa_strerror(WSAGetLastError()));
+		return NULL;
 	}
 	if(!WSAResetEvent(tube->event)) {
 		log_err("WSAResetEvent: %s", wsa_strerror(WSAGetLastError()));
@@ -645,6 +682,26 @@ int tube_wait(struct tube* tube)
 	if(res == WSA_WAIT_IO_COMPLETION) {
 		/* a bit unexpected, since we were not alertable */
 		return 0;
+	}
+	return 1;
+}
+
+int tube_wait_timeout(struct tube* tube, int msec)
+{
+	/* block on eventhandle */
+	DWORD res = WSAWaitForMultipleEvents(
+		1 /* one event in array */,
+		&tube->event /* the event to wait for, our pipe signal */,
+		0 /* wait for all events is false */,
+		msec /* wait for timeout */,
+		0 /* we are not alertable for IO completion routines */
+		);
+	if(res == WSA_WAIT_TIMEOUT) {
+		return 0;
+	}
+	if(res == WSA_WAIT_IO_COMPLETION) {
+		/* a bit unexpected, since we were not alertable */
+		return -1;
 	}
 	return 1;
 }

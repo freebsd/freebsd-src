@@ -246,6 +246,7 @@ public:
   void VisitLabelStmt(const LabelStmt *Node);
   void VisitGotoStmt(const GotoStmt *Node);
   void VisitCaseStmt(const CaseStmt *Node);
+  void VisitCompoundStmt(const CompoundStmt *Node);
   void VisitConstantExpr(const ConstantExpr *Node);
   void VisitCallExpr(const CallExpr *Node);
   void VisitCXXOperatorCallExpr(const CXXOperatorCallExpr *Node);
@@ -317,6 +318,8 @@ public:
   void VisitTagType(const TagType *T);
   void VisitTemplateTypeParmType(const TemplateTypeParmType *T);
   void VisitAutoType(const AutoType *T);
+  void VisitDeducedTemplateSpecializationType(
+      const DeducedTemplateSpecializationType *T);
   void VisitTemplateSpecializationType(const TemplateSpecializationType *T);
   void VisitInjectedClassNameType(const InjectedClassNameType *T);
   void VisitObjCInterfaceType(const ObjCInterfaceType *T);

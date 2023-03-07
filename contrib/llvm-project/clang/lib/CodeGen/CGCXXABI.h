@@ -41,6 +41,8 @@ struct CatchTypeInfo;
 
 /// Implements C++ ABI-specific code generation functions.
 class CGCXXABI {
+  friend class CodeGenModule;
+
 protected:
   CodeGenModule &CGM;
   std::unique_ptr<MangleContext> MangleCtx;
@@ -56,7 +58,10 @@ protected:
     return CGF.CXXABIThisValue;
   }
   Address getThisAddress(CodeGenFunction &CGF) {
-    return Address(CGF.CXXABIThisValue, CGF.CXXABIThisAlignment);
+    return Address(
+        CGF.CXXABIThisValue,
+        CGF.ConvertTypeForMem(CGF.CXXABIThisDecl->getType()->getPointeeType()),
+        CGF.CXXABIThisAlignment);
   }
 
   /// Issue a diagnostic about unsupported features in the ABI.

@@ -21,5 +21,5 @@ ifelse(defn(`_ARG_'), `',  `',
 ')
 	')
 
-dnl be backward compatible by default 
+dnl be backward compatible by default
 ifelse(len(X`'_ARG2_), `1', `define(`_DELAY_COMPAT_8_10_', 1)', `')

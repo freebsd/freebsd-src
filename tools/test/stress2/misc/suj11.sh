@@ -42,7 +42,7 @@ newfs -j md$mdstart > /dev/null
 mount /dev/md$mdstart $mntpoint
 chmod 777 $mntpoint
 
-export runRUNTIME=30m
+export runRUNTIME=10m
 export RUNDIR=$mntpoint/stressX
 
 su $testuser -c 'cd ..; ./run.sh marcus.cfg' > /dev/null 2>&1

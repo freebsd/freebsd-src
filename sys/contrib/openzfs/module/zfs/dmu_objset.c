@@ -32,6 +32,7 @@
  * Copyright (c) 2018, loli10K <ezomori.nozomu@gmail.com>. All rights reserved.
  * Copyright (c) 2019, Klara Inc.
  * Copyright (c) 2019, Allan Jude
+ * Copyright (c) 2022 Hewlett Packard Enterprise Development LP.
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
@@ -287,7 +288,9 @@ redundant_metadata_changed_cb(void *arg, uint64_t newval)
 	 * Inheritance and range checking should have been done by now.
 	 */
 	ASSERT(newval == ZFS_REDUNDANT_METADATA_ALL ||
-	    newval == ZFS_REDUNDANT_METADATA_MOST);
+	    newval == ZFS_REDUNDANT_METADATA_MOST ||
+	    newval == ZFS_REDUNDANT_METADATA_SOME ||
+	    newval == ZFS_REDUNDANT_METADATA_NONE);
 
 	os->os_redundant_metadata = newval;
 }
@@ -479,7 +482,7 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 		arc_flags_t aflags = ARC_FLAG_WAIT;
 		zbookmark_phys_t zb;
 		int size;
-		enum zio_flag zio_flags = ZIO_FLAG_CANFAIL;
+		zio_flag_t zio_flags = ZIO_FLAG_CANFAIL;
 		SET_BOOKMARK(&zb, ds ? ds->ds_object : DMU_META_OBJSET,
 		    ZB_ROOT_OBJECT, ZB_ROOT_LEVEL, ZB_ROOT_BLKID);
 
@@ -1691,19 +1694,9 @@ dmu_objset_sync(objset_t *os, zio_t *pio, dmu_tx_t *tx)
 	}
 
 	zio = arc_write(pio, os->os_spa, tx->tx_txg,
-	    blkptr_copy, os->os_phys_buf, dmu_os_is_l2cacheable(os),
+	    blkptr_copy, os->os_phys_buf, B_FALSE, dmu_os_is_l2cacheable(os),
 	    &zp, dmu_objset_write_ready, NULL, NULL, dmu_objset_write_done,
 	    os, ZIO_PRIORITY_ASYNC_WRITE, ZIO_FLAG_MUSTSUCCEED, &zb);
-
-	/*
-	 * In the codepath dsl_dataset_sync()->dmu_objset_sync() we cannot
-	 * rely on the zio above completing and calling back
-	 * dmu_objset_write_done()->dsl_dataset_block_born() before
-	 * dsl_dataset_sync() actually activates feature flags near its end.
-	 * Decide here if any features need to be activated, before
-	 * dsl_dataset_sync() completes its run.
-	 */
-	dsl_dataset_feature_set_activation(blkptr_copy, os->os_dsl_dataset);
 
 	/*
 	 * Sync special dnodes - the parent IO for the sync is the root block
@@ -2414,13 +2407,6 @@ dmu_objset_id_quota_upgrade_cb(objset_t *os)
 	if (!dmu_objset_projectquota_enabled(os) &&
 	    dmu_objset_userobjspace_present(os))
 		return (SET_ERROR(ENOTSUP));
-
-	if (dmu_objset_userobjused_enabled(os))
-		dmu_objset_ds(os)->ds_feature_activation[
-		    SPA_FEATURE_USEROBJ_ACCOUNTING] = (void *)B_TRUE;
-	if (dmu_objset_projectquota_enabled(os))
-		dmu_objset_ds(os)->ds_feature_activation[
-		    SPA_FEATURE_PROJECT_QUOTA] = (void *)B_TRUE;
 
 	err = dmu_objset_space_upgrade(os);
 	if (err)

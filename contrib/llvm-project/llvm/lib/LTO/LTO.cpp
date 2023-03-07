@@ -134,7 +134,6 @@ void llvm::computeLTOCacheKey(
   AddUnsigned(Conf.CGOptLevel);
   AddUnsigned(Conf.CGFileType);
   AddUnsigned(Conf.OptLevel);
-  AddUnsigned(Conf.UseNewPM);
   AddUnsigned(Conf.Freestanding);
   AddString(Conf.OptPipeline);
   AddString(Conf.AAPipeline);
@@ -640,11 +639,11 @@ Error LTO::addModule(InputFile &Input, unsigned ModI,
   if (!LTOInfo)
     return LTOInfo.takeError();
 
-  if (EnableSplitLTOUnit.hasValue()) {
+  if (EnableSplitLTOUnit) {
     // If only some modules were split, flag this in the index so that
     // we can skip or error on optimizations that need consistently split
     // modules (whole program devirt and lower type tests).
-    if (EnableSplitLTOUnit.getValue() != LTOInfo->EnableSplitLTOUnit)
+    if (*EnableSplitLTOUnit != LTOInfo->EnableSplitLTOUnit)
       ThinLTO.CombinedIndex.setPartiallySplitLTOUnits();
   } else
     EnableSplitLTOUnit = LTOInfo->EnableSplitLTOUnit;
@@ -820,9 +819,10 @@ LTO::addRegularLTO(BitcodeModule BM, ArrayRef<InputFile::Symbol> Syms,
       // For now they aren't reported correctly by ModuleSymbolTable.
       auto &CommonRes = RegularLTO.Commons[std::string(Sym.getIRName())];
       CommonRes.Size = std::max(CommonRes.Size, Sym.getCommonSize());
-      MaybeAlign SymAlign(Sym.getCommonAlignment());
-      if (SymAlign)
-        CommonRes.Align = max(*SymAlign, CommonRes.Align);
+      if (uint32_t SymAlignValue = Sym.getCommonAlignment()) {
+        const Align SymAlign(SymAlignValue);
+        CommonRes.Align = std::max(SymAlign, CommonRes.Align.valueOrOne());
+      }
       CommonRes.Prevailing |= Res.Prevailing;
     }
   }
@@ -885,8 +885,7 @@ Error LTO::linkRegularLTO(RegularLTOState::AddedModule Mod,
     Keep.push_back(GV);
   }
 
-  return RegularLTO.Mover->move(std::move(Mod.M), Keep,
-                                [](GlobalValue &, IRMover::ValueAdder) {},
+  return RegularLTO.Mover->move(std::move(Mod.M), Keep, nullptr,
                                 /* IsPerformingImport */ false);
 }
 
@@ -1104,6 +1103,8 @@ Error LTO::runRegularLTO(AddStreamFn AddStream) {
   updateVCallVisibilityInModule(*RegularLTO.CombinedModule,
                                 Conf.HasWholeProgramVisibility,
                                 DynamicExportSymbols);
+  updatePublicTypeTestCalls(*RegularLTO.CombinedModule,
+                            Conf.HasWholeProgramVisibility);
 
   if (Conf.PreOptModuleHook &&
       !Conf.PreOptModuleHook(0, *RegularLTO.CombinedModule))
@@ -1162,14 +1163,18 @@ protected:
   const Config &Conf;
   ModuleSummaryIndex &CombinedIndex;
   const StringMap<GVSummaryMapTy> &ModuleToDefinedGVSummaries;
+  lto::IndexWriteCallback OnWrite;
+  bool ShouldEmitImportsFiles;
 
 public:
   ThinBackendProc(const Config &Conf, ModuleSummaryIndex &CombinedIndex,
-                  const StringMap<GVSummaryMapTy> &ModuleToDefinedGVSummaries)
+                  const StringMap<GVSummaryMapTy> &ModuleToDefinedGVSummaries,
+                  lto::IndexWriteCallback OnWrite, bool ShouldEmitImportsFiles)
       : Conf(Conf), CombinedIndex(CombinedIndex),
-        ModuleToDefinedGVSummaries(ModuleToDefinedGVSummaries) {}
+        ModuleToDefinedGVSummaries(ModuleToDefinedGVSummaries),
+        OnWrite(OnWrite), ShouldEmitImportsFiles(ShouldEmitImportsFiles) {}
 
-  virtual ~ThinBackendProc() {}
+  virtual ~ThinBackendProc() = default;
   virtual Error start(
       unsigned Task, BitcodeModule BM,
       const FunctionImporter::ImportMapTy &ImportList,
@@ -1178,6 +1183,30 @@ public:
       MapVector<StringRef, BitcodeModule> &ModuleMap) = 0;
   virtual Error wait() = 0;
   virtual unsigned getThreadCount() = 0;
+
+  // Write sharded indices and (optionally) imports to disk
+  Error emitFiles(const FunctionImporter::ImportMapTy &ImportList,
+                  llvm::StringRef ModulePath,
+                  const std::string &NewModulePath) {
+    std::map<std::string, GVSummaryMapTy> ModuleToSummariesForIndex;
+    std::error_code EC;
+    gatherImportedSummariesForModule(ModulePath, ModuleToDefinedGVSummaries,
+                                     ImportList, ModuleToSummariesForIndex);
+
+    raw_fd_ostream OS(NewModulePath + ".thinlto.bc", EC,
+                      sys::fs::OpenFlags::OF_None);
+    if (EC)
+      return errorCodeToError(EC);
+    writeIndexToFile(CombinedIndex, OS, &ModuleToSummariesForIndex);
+
+    if (ShouldEmitImportsFiles) {
+      EC = EmitImportsFiles(ModulePath, NewModulePath + ".imports",
+                            ModuleToSummariesForIndex);
+      if (EC)
+        return errorCodeToError(EC);
+    }
+    return Error::success();
+  }
 };
 
 namespace {
@@ -1191,15 +1220,19 @@ class InProcessThinBackend : public ThinBackendProc {
   Optional<Error> Err;
   std::mutex ErrMu;
 
+  bool ShouldEmitIndexFiles;
+
 public:
   InProcessThinBackend(
       const Config &Conf, ModuleSummaryIndex &CombinedIndex,
       ThreadPoolStrategy ThinLTOParallelism,
       const StringMap<GVSummaryMapTy> &ModuleToDefinedGVSummaries,
-      AddStreamFn AddStream, FileCache Cache)
-      : ThinBackendProc(Conf, CombinedIndex, ModuleToDefinedGVSummaries),
+      AddStreamFn AddStream, FileCache Cache, lto::IndexWriteCallback OnWrite,
+      bool ShouldEmitIndexFiles, bool ShouldEmitImportsFiles)
+      : ThinBackendProc(Conf, CombinedIndex, ModuleToDefinedGVSummaries,
+                        OnWrite, ShouldEmitImportsFiles),
         BackendThreadPool(ThinLTOParallelism), AddStream(std::move(AddStream)),
-        Cache(std::move(Cache)) {
+        Cache(std::move(Cache)), ShouldEmitIndexFiles(ShouldEmitIndexFiles) {
     for (auto &Name : CombinedIndex.cfiFunctionDefs())
       CfiFunctionDefs.insert(
           GlobalValue::getGUID(GlobalValue::dropLLVMManglingEscape(Name)));
@@ -1227,6 +1260,11 @@ public:
     };
 
     auto ModuleID = BM.getModuleIdentifier();
+
+    if (ShouldEmitIndexFiles) {
+      if (auto E = emitFiles(ImportList, ModuleID, ModuleID.str()))
+        return E;
+    }
 
     if (!Cache || !CombinedIndex.modulePaths().count(ModuleID) ||
         all_of(CombinedIndex.getModuleHash(ModuleID),
@@ -1286,6 +1324,9 @@ public:
         },
         BM, std::ref(CombinedIndex), std::ref(ImportList), std::ref(ExportList),
         std::ref(ResolvedODR), std::ref(DefinedGlobals), std::ref(ModuleMap));
+
+    if (OnWrite)
+      OnWrite(std::string(ModulePath));
     return Error::success();
   }
 
@@ -1303,13 +1344,16 @@ public:
 };
 } // end anonymous namespace
 
-ThinBackend lto::createInProcessThinBackend(ThreadPoolStrategy Parallelism) {
+ThinBackend lto::createInProcessThinBackend(ThreadPoolStrategy Parallelism,
+                                            lto::IndexWriteCallback OnWrite,
+                                            bool ShouldEmitIndexFiles,
+                                            bool ShouldEmitImportsFiles) {
   return [=](const Config &Conf, ModuleSummaryIndex &CombinedIndex,
              const StringMap<GVSummaryMapTy> &ModuleToDefinedGVSummaries,
              AddStreamFn AddStream, FileCache Cache) {
     return std::make_unique<InProcessThinBackend>(
         Conf, CombinedIndex, Parallelism, ModuleToDefinedGVSummaries, AddStream,
-        Cache);
+        Cache, OnWrite, ShouldEmitIndexFiles, ShouldEmitImportsFiles);
   };
 }
 
@@ -1336,9 +1380,7 @@ std::string lto::getThinLTOOutputFile(const std::string &Path,
 namespace {
 class WriteIndexesThinBackend : public ThinBackendProc {
   std::string OldPrefix, NewPrefix;
-  bool ShouldEmitImportsFiles;
   raw_fd_ostream *LinkedObjectsFile;
-  lto::IndexWriteCallback OnWrite;
 
 public:
   WriteIndexesThinBackend(
@@ -1346,10 +1388,10 @@ public:
       const StringMap<GVSummaryMapTy> &ModuleToDefinedGVSummaries,
       std::string OldPrefix, std::string NewPrefix, bool ShouldEmitImportsFiles,
       raw_fd_ostream *LinkedObjectsFile, lto::IndexWriteCallback OnWrite)
-      : ThinBackendProc(Conf, CombinedIndex, ModuleToDefinedGVSummaries),
+      : ThinBackendProc(Conf, CombinedIndex, ModuleToDefinedGVSummaries,
+                        OnWrite, ShouldEmitImportsFiles),
         OldPrefix(OldPrefix), NewPrefix(NewPrefix),
-        ShouldEmitImportsFiles(ShouldEmitImportsFiles),
-        LinkedObjectsFile(LinkedObjectsFile), OnWrite(OnWrite) {}
+        LinkedObjectsFile(LinkedObjectsFile) {}
 
   Error start(
       unsigned Task, BitcodeModule BM,
@@ -1364,23 +1406,8 @@ public:
     if (LinkedObjectsFile)
       *LinkedObjectsFile << NewModulePath << '\n';
 
-    std::map<std::string, GVSummaryMapTy> ModuleToSummariesForIndex;
-    gatherImportedSummariesForModule(ModulePath, ModuleToDefinedGVSummaries,
-                                     ImportList, ModuleToSummariesForIndex);
-
-    std::error_code EC;
-    raw_fd_ostream OS(NewModulePath + ".thinlto.bc", EC,
-                      sys::fs::OpenFlags::OF_None);
-    if (EC)
-      return errorCodeToError(EC);
-    writeIndexToFile(CombinedIndex, OS, &ModuleToSummariesForIndex);
-
-    if (ShouldEmitImportsFiles) {
-      EC = EmitImportsFiles(ModulePath, NewModulePath + ".imports",
-                            ModuleToSummariesForIndex);
-      if (EC)
-        return errorCodeToError(EC);
-    }
+    if (auto E = emitFiles(ImportList, ModulePath, NewModulePath))
+      return E;
 
     if (OnWrite)
       OnWrite(std::string(ModulePath));
@@ -1457,6 +1484,8 @@ Error LTO::runThinLTO(AddStreamFn AddStream, FileCache Cache,
 
   std::set<GlobalValue::GUID> ExportedGUIDs;
 
+  if (hasWholeProgramVisibility(Conf.HasWholeProgramVisibility))
+    ThinLTO.CombinedIndex.setWithWholeProgramVisibility();
   // If allowed, upgrade public vcall visibility to linkage unit visibility in
   // the summaries before whole program devirtualization below.
   updateVCallVisibilityInIndex(ThinLTO.CombinedIndex,
@@ -1621,9 +1650,8 @@ lto::setupStatsFile(StringRef StatsFilename) {
 // is to sort them per size so that the largest module get schedule as soon as
 // possible. This is purely a compile-time optimization.
 std::vector<int> lto::generateModulesOrdering(ArrayRef<BitcodeModule *> R) {
-  std::vector<int> ModulesOrdering;
-  ModulesOrdering.resize(R.size());
-  std::iota(ModulesOrdering.begin(), ModulesOrdering.end(), 0);
+  auto Seq = llvm::seq<int>(0, R.size());
+  std::vector<int> ModulesOrdering(Seq.begin(), Seq.end());
   llvm::sort(ModulesOrdering, [&](int LeftIndex, int RightIndex) {
     auto LSize = R[LeftIndex]->getBuffer().size();
     auto RSize = R[RightIndex]->getBuffer().size();

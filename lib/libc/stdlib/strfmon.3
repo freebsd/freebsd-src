@@ -24,11 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 25, 2012
+.Dd January 25, 2023
 .Dt STRFMON 3
 .Os
 .Sh NAME
-.Nm strfmon
+.Nm strfmon ,
+.Nm strfmon_l
 .Nd convert monetary value to string
 .Sh LIBRARY
 .Lb libc
@@ -36,13 +37,15 @@
 .In monetary.h
 .Ft ssize_t
 .Fn strfmon "char * restrict s" "size_t maxsize" "const char * restrict format" "..."
+.In monetary.h
+.In xlocale.h
 .Ft ssize_t
 .Fn strfmon_l "char * restrict s" "size_t maxsize" "locale_t loc" "const char * restrict format" "..."
 .Sh DESCRIPTION
 The
 .Fn strfmon
 function places characters into the array pointed to by
-.Fa s
+.Fa s ,
 as controlled by the string pointed to by
 .Fa format .
 No more than
@@ -51,9 +54,9 @@ bytes are placed into the array.
 .Pp
 The
 .Fn strfmon_l
-function does the same as
+function takes an explicit locale argument, whereas the
 .Fn strfmon
-but takes an explicit locale rather than using the current locale.
+function uses the current global or per-thread locale.
 .Pp
 The format string is composed of zero or more directives:
 ordinary characters (not
@@ -98,12 +101,18 @@ By default, there is no minimum width.
 A
 .Sq Cm #
 sign followed by a decimal number specifying the maximum
-expected number of digits after the radix character.
+expected number of digits before the radix character.
+When this option is used, values that do not exceed the
+specified number of digits are formatted so they will be
+correctly aligned with other values printed using the same
+format.
+This includes always leaving space for a possible sign
+indicator, even if none is needed for a particular value.
 .It
 A
 .Sq Cm \&.
 character followed by a decimal number specifying the number
-the number of digits after the radix character.
+of digits after the radix character.
 .It
 One of the following conversion specifiers:
 .Bl -tag -width "XXX"
@@ -122,12 +131,14 @@ character is written.
 .El
 .El
 .Sh RETURN VALUES
-If the total number of resulting bytes including the terminating
+If the total number of resulting bytes, including the terminating
 .Dv NUL
-byte is not more than
+byte, is not more than
 .Fa maxsize ,
 .Fn strfmon
-returns the number of bytes placed into the array pointed to by
+and
+.Fn strfmon_l
+return the number of bytes placed into the array pointed to by
 .Fa s ,
 not including the terminating
 .Dv NUL
@@ -137,11 +148,31 @@ the contents of the array are indeterminate,
 and
 .Va errno
 is set to indicate the error.
-.Pp
-The
-.Fn strfmon_l
-function returns the same values as
-.Fn strfmon .
+.Sh EXAMPLES
+The following example will format the value
+.Dq Li 1234567.89
+to the string
+.Dq Li $1,234,567.89 :
+.Bd -literal -offset indent
+#include <stdio.h>
+#include <monetary.h>
+#include <xlocale.h>
+
+int
+main()
+{
+	char string[100];
+	double money = 1234567.89;
+
+	if (setlocale(LC_MONETARY, "en_US.UTF-8") == NULL) {
+		fprintf(stderr, "Unable to setlocale().\\n");
+		return (1);
+	}
+
+	strfmon(string, sizeof(string) - 1, "%n", money);
+	printf("%s\\n", string);
+}
+.Ed
 .Sh ERRORS
 The
 .Fn strfmon
@@ -155,7 +186,8 @@ The format string is invalid.
 Not enough memory for temporary buffers.
 .El
 .Sh SEE ALSO
-.Xr localeconv 3
+.Xr localeconv 3 ,
+.Xr xlocale 3
 .Sh STANDARDS
 The
 .Fn strfmon

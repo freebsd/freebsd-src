@@ -283,8 +283,9 @@ unsigned Decl::getTemplateDepth() const {
   return cast<Decl>(DC)->getTemplateDepth();
 }
 
-const DeclContext *Decl::getParentFunctionOrMethod() const {
-  for (const DeclContext *DC = getDeclContext();
+const DeclContext *Decl::getParentFunctionOrMethod(bool LexicalParent) const {
+  for (const DeclContext *DC = LexicalParent ? getLexicalDeclContext()
+                                             : getDeclContext();
        DC && !DC->isTranslationUnit() && !DC->isNamespace();
        DC = DC->getParent())
     if (DC->isFunctionOrMethod())
@@ -838,6 +839,7 @@ unsigned Decl::getIdentifierNamespaceForKind(Kind DeclKind) {
     case ExternCContext:
     case Decomposition:
     case MSGuid:
+    case UnnamedGlobalConstant:
     case TemplateParamObject:
 
     case UsingDirective:
@@ -1161,6 +1163,8 @@ bool DeclContext::isDependentContext() const {
 
     if (Record->isDependentLambda())
       return true;
+    if (Record->isNeverDependentLambda())
+      return false;
   }
 
   if (const auto *Function = dyn_cast<FunctionDecl>(this)) {
@@ -1534,7 +1538,11 @@ void DeclContext::removeDecl(Decl *D) {
       if (Map) {
         StoredDeclsMap::iterator Pos = Map->find(ND->getDeclName());
         assert(Pos != Map->end() && "no lookup entry for decl");
-        Pos->second.remove(ND);
+        StoredDeclsList &List = Pos->second;
+        List.remove(ND);
+        // Clean up the entry if there are no more decls.
+        if (List.isNull())
+          Map->erase(Pos);
       }
     } while (DC->isTransparentContext() && (DC = DC->getParent()));
   }

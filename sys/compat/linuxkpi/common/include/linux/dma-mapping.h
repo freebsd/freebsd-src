@@ -95,6 +95,8 @@ int linux_dma_tag_init(struct device *, u64);
 int linux_dma_tag_init_coherent(struct device *, u64);
 void *linux_dma_alloc_coherent(struct device *dev, size_t size,
     dma_addr_t *dma_handle, gfp_t flag);
+void *linuxkpi_dmam_alloc_coherent(struct device *dev, size_t size,
+    dma_addr_t *dma_handle, gfp_t flag);
 dma_addr_t linux_dma_map_phys(struct device *dev, vm_paddr_t phys, size_t len);
 void linux_dma_unmap(struct device *dev, dma_addr_t dma_addr, size_t size);
 int linux_dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl,
@@ -159,13 +161,21 @@ dma_zalloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	return (dma_alloc_coherent(dev, size, dma_handle, flag | __GFP_ZERO));
 }
 
+static inline void *
+dmam_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
+    gfp_t flag)
+{
+
+	return (linuxkpi_dmam_alloc_coherent(dev, size, dma_handle, flag));
+}
+
 static inline void
 dma_free_coherent(struct device *dev, size_t size, void *cpu_addr,
     dma_addr_t dma_addr)
 {
 
 	linux_dma_unmap(dev, dma_addr, size);
-	kmem_free((vm_offset_t)cpu_addr, size);
+	kmem_free(cpu_addr, size);
 }
 
 static inline dma_addr_t
@@ -278,11 +288,15 @@ dma_sync_single_range_for_device(struct device *dev, dma_addr_t dma_handle,
 {
 }
 
+#define	DMA_MAPPING_ERROR	(~(dma_addr_t)0)
+
 static inline int
 dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
 
-	return (dma_addr == 0);
+	if (dma_addr == 0 || dma_addr == DMA_MAPPING_ERROR)
+		return (-ENOMEM);
+	return (0);
 }
 
 static inline unsigned int dma_set_max_seg_size(struct device *dev,
@@ -347,8 +361,13 @@ dma_map_sgtable(struct device *dev, struct sg_table *sgt,
     enum dma_data_direction dir,
     unsigned long attrs)
 {
+	int nents;
 
-	return (dma_map_sg_attrs(dev, sgt->sgl, sgt->nents, dir, attrs));
+	nents = dma_map_sg_attrs(dev, sgt->sgl, sgt->nents, dir, attrs);
+	if (nents < 0)
+		return (nents);
+	sgt->nents = nents;
+	return (0);
 }
 
 static inline void

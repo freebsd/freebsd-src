@@ -22,6 +22,7 @@
 #include "llvm/Support/Error.h"
 #include "llvm/Support/ErrorOr.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Host.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
@@ -30,7 +31,6 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include <memory>
 #include <string>
 #include <system_error>
@@ -256,6 +256,14 @@ Expected<StringRef> ArchiveMemberHeader::getName(uint64_t Size) const {
     if (Name.size() == 1) // Linker member.
       return Name;
     if (Name.size() == 2 && Name[1] == '/') // String table.
+      return Name;
+    // System libraries from the Windows SDK for Windows 11 contain this symbol.
+    // It looks like a CFG guard: we just skip it for now.
+    if (Name.equals("/<XFGHASHMAP>/"))
+      return Name;
+    // Some libraries (e.g., arm64rt.lib) from the Windows WDK
+    // (version 10.0.22000.0) contain this undocumented special member.
+    if (Name.equals("/<ECSYMBOLS>/"))
       return Name;
     // It's a long name.
     // Get the string table offset.
@@ -922,6 +930,14 @@ Archive::Archive(MemoryBufferRef Source, Error &Err)
   Err = Error::success();
 }
 
+object::Archive::Kind Archive::getDefaultKindForHost() {
+  Triple HostTriple(sys::getProcessTriple());
+  return HostTriple.isOSDarwin()
+             ? object::Archive::K_DARWIN
+             : (HostTriple.isOSAIX() ? object::Archive::K_AIXBIG
+                                     : object::Archive::K_GNU);
+}
+
 Archive::child_iterator Archive::child_begin(Error &Err,
                                              bool SkipInternal) const {
   if (isEmpty())
@@ -949,14 +965,15 @@ StringRef Archive::Symbol::getName() const {
 Expected<Archive::Child> Archive::Symbol::getMember() const {
   const char *Buf = Parent->getSymbolTable().begin();
   const char *Offsets = Buf;
-  if (Parent->kind() == K_GNU64 || Parent->kind() == K_DARWIN64)
+  if (Parent->kind() == K_GNU64 || Parent->kind() == K_DARWIN64 ||
+      Parent->kind() == K_AIXBIG)
     Offsets += sizeof(uint64_t);
   else
     Offsets += sizeof(uint32_t);
   uint64_t Offset = 0;
   if (Parent->kind() == K_GNU) {
     Offset = read32be(Offsets + SymbolIndex * 4);
-  } else if (Parent->kind() == K_GNU64) {
+  } else if (Parent->kind() == K_GNU64 || Parent->kind() == K_AIXBIG) {
     Offset = read64be(Offsets + SymbolIndex * 8);
   } else if (Parent->kind() == K_BSD) {
     // The SymbolIndex is an index into the ranlib structs that start at
@@ -1089,6 +1106,8 @@ Archive::symbol_iterator Archive::symbol_begin() const {
     // Skip the byte count of the string table.
     buf += sizeof(uint64_t);
     buf += ran_strx;
+  } else if (kind() == K_AIXBIG) {
+    buf = getStringTable().begin();
   } else {
     uint32_t member_count = 0;
     uint32_t symbol_count = 0;
@@ -1111,7 +1130,7 @@ uint32_t Archive::getNumberOfSymbols() const {
   const char *buf = getSymbolTable().begin();
   if (kind() == K_GNU)
     return read32be(buf);
-  if (kind() == K_GNU64)
+  if (kind() == K_GNU64 || kind() == K_AIXBIG)
     return read64be(buf);
   if (kind() == K_BSD)
     return read32le(buf) / 8;
@@ -1163,6 +1182,58 @@ BigArchive::BigArchive(MemoryBufferRef Source, Error &Err)
     // TODO: Out-of-line.
     Err = malformedError("malformed AIX big archive: last member offset \"" +
                          RawOffset + "\" is not a number");
+
+  // Calculate the global symbol table.
+  uint64_t GlobSymOffset = 0;
+  RawOffset = getFieldRawString(ArFixLenHdr->GlobSymOffset);
+  if (RawOffset.getAsInteger(10, GlobSymOffset))
+    // TODO: add test case.
+    Err = malformedError(
+        "malformed AIX big archive: global symbol table offset \"" + RawOffset +
+        "\" is not a number");
+
+  if (Err)
+    return;
+
+  if (GlobSymOffset > 0) {
+    uint64_t BufferSize = Data.getBufferSize();
+    uint64_t GlobalSymTblContentOffset =
+        GlobSymOffset + sizeof(BigArMemHdrType);
+    if (GlobalSymTblContentOffset > BufferSize) {
+      Err = malformedError("global symbol table header at offset 0x" +
+                           Twine::utohexstr(GlobSymOffset) + " and size 0x" +
+                           Twine::utohexstr(sizeof(BigArMemHdrType)) +
+                           " goes past the end of file");
+      return;
+    }
+
+    const char *GlobSymTblLoc = Data.getBufferStart() + GlobSymOffset;
+    const BigArMemHdrType *GlobalSymHdr =
+        reinterpret_cast<const BigArMemHdrType *>(GlobSymTblLoc);
+    RawOffset = getFieldRawString(GlobalSymHdr->Size);
+    uint64_t Size;
+    if (RawOffset.getAsInteger(10, Size)) {
+      // TODO: add test case.
+      Err = malformedError(
+          "malformed AIX big archive: global symbol table size \"" + RawOffset +
+          "\" is not a number");
+      return;
+    }
+    if (GlobalSymTblContentOffset + Size > BufferSize) {
+      Err = malformedError("global symbol table content at offset 0x" +
+                           Twine::utohexstr(GlobalSymTblContentOffset) +
+                           " and size 0x" + Twine::utohexstr(Size) +
+                           " goes past the end of file");
+      return;
+    }
+    SymbolTable = StringRef(GlobSymTblLoc + sizeof(BigArMemHdrType), Size);
+    unsigned SymNum = getNumberOfSymbols();
+    unsigned SymOffsetsSize = 8 * (SymNum + 1);
+    uint64_t SymbolTableStringSize = Size - SymOffsetsSize;
+    StringTable =
+        StringRef(GlobSymTblLoc + sizeof(BigArMemHdrType) + SymOffsetsSize,
+                  SymbolTableStringSize);
+  }
 
   child_iterator I = child_begin(Err, false);
   if (Err)

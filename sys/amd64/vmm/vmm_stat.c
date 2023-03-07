@@ -70,6 +70,9 @@ vmm_stat_register(void *arg)
 	if (vst->scope == VMM_STAT_SCOPE_AMD && !vmm_is_svm())
 		return;
 
+	if (vst->nelems == VMM_STAT_NELEMS_VCPU)
+		vst->nelems = vm_maxcpu;
+
 	if (vst_num_elems + vst->nelems >= MAX_VMM_STAT_ELEMS) {
 		printf("Cannot accommodate vmm stat type \"%s\"!\n", vst->desc);
 		return;
@@ -82,15 +85,12 @@ vmm_stat_register(void *arg)
 }
 
 int
-vmm_stat_copy(struct vm *vm, int vcpu, int index, int count, int *num_stats,
+vmm_stat_copy(struct vcpu *vcpu, int index, int count, int *num_stats,
     uint64_t *buf)
 {
 	struct vmm_stat_type *vst;
 	uint64_t *stats;
 	int i, tocopy;
-
-	if (vcpu < 0 || vcpu >= vm_get_maxcpus(vm))
-		return (EINVAL);
 
 	if (index < 0 || count < 0)
 		return (EINVAL);
@@ -109,11 +109,11 @@ vmm_stat_copy(struct vm *vm, int vcpu, int index, int count, int *num_stats,
 	for (i = 0; i < vst_num_types; i++) {
 		vst = vsttab[i];
 		if (vst->func != NULL)
-			(*vst->func)(vm, vcpu, vst);
+			(*vst->func)(vcpu, vst);
 	}
 
 	/* Copy over the stats */
-	stats = vcpu_stats(vm, vcpu);
+	stats = vcpu_stats(vcpu);
 	memcpy(buf, stats + index, tocopy * sizeof(stats[0]));
 	*num_stats = tocopy;
 	return (0);

@@ -15,6 +15,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Object/COFF.h"
 #include "llvm/Support/CachePruning.h"
+#include "llvm/Support/VirtualFileSystem.h"
 #include <cstdint>
 #include <map>
 #include <set>
@@ -140,6 +141,7 @@ struct Configuration {
   // True if we are creating a DLL.
   bool dll = false;
   StringRef implib;
+  bool noimplib = false;
   std::vector<Export> exports;
   bool hadExplicitExports;
   std::set<std::string> delayLoads;
@@ -170,8 +172,6 @@ struct Configuration {
   // Used for /opt:lldltocachepolicy=policy
   llvm::CachePruningPolicy ltoCachePolicy;
 
-  // Used for /opt:[no]ltonewpassmanager
-  bool ltoNewPassManager = false;
   // Used for /opt:[no]ltodebugpassmanager
   bool ltoDebugPassManager = false;
 
@@ -238,6 +238,9 @@ struct Configuration {
 
   // Used for /print-symbol-order:
   StringRef printSymbolOrder;
+
+  // Used for /vfsoverlay:
+  std::unique_ptr<llvm::vfs::FileSystem> vfs;
 
   uint64_t align = 4096;
   uint64_t imageBase = -1;

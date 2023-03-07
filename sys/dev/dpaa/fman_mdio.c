@@ -134,6 +134,8 @@ pqmdio_fdt_attach(device_t dev)
 	bus_get_resource(dev, SYS_RES_MEMORY, 0, &start, &count);
 	sc->sc_offset = start;
 
+	OF_device_register_xref(OF_xref_from_node(ofw_bus_get_node(dev)), dev);
+
 	mtx_init(&sc->sc_lock, device_get_nameunit(dev), "QorIQ MDIO lock",
 	    MTX_DEF);
 
@@ -204,7 +206,8 @@ pqmdio_miibus_writereg(device_t dev, int phy, int reg, int value)
 	return (0);
 }
 
-DRIVER_MODULE(pqmdio, fman, pqmdio_driver, 0, 0);
+EARLY_DRIVER_MODULE(pqmdio, fman, pqmdio_driver, 0, 0,
+    BUS_PASS_SUPPORTDEV);
 DRIVER_MODULE(miibus, pqmdio, miibus_driver, 0, 0);
 MODULE_DEPEND(pqmdio, miibus, 1, 1, 1);
 

@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2020 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2022 by Delphix. All rights reserved.
  * Copyright (c) 2011 Nexenta Systems, Inc. All rights reserved.
  * Copyright (c) 2017, Intel Corporation.
  * Copyright (c) 2019, Klara Inc.
@@ -83,7 +83,7 @@ static uint64_t zio_buf_cache_frees[SPA_MAXBLOCKSIZE >> SPA_MINBLOCKSHIFT];
 #endif
 
 /* Mark IOs as "slow" if they take longer than 30 seconds */
-static int zio_slow_io_ms = (30 * MILLISEC);
+static uint_t zio_slow_io_ms = (30 * MILLISEC);
 
 #define	BP_SPANB(indblkshift, level) \
 	(((uint64_t)1) << ((level) * ((indblkshift) - SPA_BLKPTRSHIFT)))
@@ -114,9 +114,15 @@ static int zio_slow_io_ms = (30 * MILLISEC);
  * fragmented systems, which may have very few free segments of this size,
  * and may need to load new metaslabs to satisfy 128K allocations.
  */
-int zfs_sync_pass_deferred_free = 2; /* defer frees starting in this pass */
-static int zfs_sync_pass_dont_compress = 8; /* don't compress s. i. t. p. */
-static int zfs_sync_pass_rewrite = 2; /* rewrite new bps s. i. t. p. */
+
+/* defer frees starting in this pass */
+uint_t zfs_sync_pass_deferred_free = 2;
+
+/* don't compress starting in this pass */
+static uint_t zfs_sync_pass_dont_compress = 8;
+
+/* rewrite new bps starting in this pass */
+static uint_t zfs_sync_pass_rewrite = 2;
 
 /*
  * An allocating zio is one that either currently has the DVA allocate
@@ -506,8 +512,9 @@ zio_decrypt(zio_t *zio, abd_t *data, uint64_t size)
 
 	/*
 	 * If this is an authenticated block, just check the MAC. It would be
-	 * nice to separate this out into its own flag, but for the moment
-	 * enum zio_flag is out of bits.
+	 * nice to separate this out into its own flag, but when this was done,
+	 * we had run out of bits in what is now zio_flag_t. Future cleanup
+	 * could make this a flag bit.
 	 */
 	if (BP_IS_AUTHENTICATED(bp)) {
 		if (ot == DMU_OT_OBJSET) {
@@ -717,7 +724,9 @@ zio_notify_parent(zio_t *pio, zio_t *zio, enum zio_wait_type wait,
 
 		/*
 		 * If we can tell the caller to execute this parent next, do
-		 * so.  Otherwise dispatch the parent zio as its own task.
+		 * so. We only do this if the parent's zio type matches the
+		 * child's type. Otherwise dispatch the parent zio in its
+		 * own taskq.
 		 *
 		 * Having the caller execute the parent when possible reduces
 		 * locking on the zio taskq's, reduces context switch
@@ -736,7 +745,8 @@ zio_notify_parent(zio_t *pio, zio_t *zio, enum zio_wait_type wait,
 		 * parent-child relationships, as we do with the "mega zio"
 		 * of writes for spa_sync(), and the chain of ZIL blocks.
 		 */
-		if (next_to_executep != NULL && *next_to_executep == NULL) {
+		if (next_to_executep != NULL && *next_to_executep == NULL &&
+		    pio->io_type == zio->io_type) {
 			*next_to_executep = pio;
 		} else {
 			zio_taskq_dispatch(pio, type, B_FALSE);
@@ -796,7 +806,7 @@ static zio_t *
 zio_create(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
     abd_t *data, uint64_t lsize, uint64_t psize, zio_done_func_t *done,
     void *private, zio_type_t type, zio_priority_t priority,
-    enum zio_flag flags, vdev_t *vd, uint64_t offset,
+    zio_flag_t flags, vdev_t *vd, uint64_t offset,
     const zbookmark_phys_t *zb, enum zio_stage stage,
     enum zio_stage pipeline)
 {
@@ -895,7 +905,7 @@ zio_destroy(zio_t *zio)
 
 zio_t *
 zio_null(zio_t *pio, spa_t *spa, vdev_t *vd, zio_done_func_t *done,
-    void *private, enum zio_flag flags)
+    void *private, zio_flag_t flags)
 {
 	zio_t *zio;
 
@@ -907,7 +917,7 @@ zio_null(zio_t *pio, spa_t *spa, vdev_t *vd, zio_done_func_t *done,
 }
 
 zio_t *
-zio_root(spa_t *spa, zio_done_func_t *done, void *private, enum zio_flag flags)
+zio_root(spa_t *spa, zio_done_func_t *done, void *private, zio_flag_t flags)
 {
 	return (zio_null(NULL, spa, NULL, done, private, flags));
 }
@@ -1093,7 +1103,7 @@ zfs_dva_valid(spa_t *spa, const dva_t *dva, const blkptr_t *bp)
 zio_t *
 zio_read(zio_t *pio, spa_t *spa, const blkptr_t *bp,
     abd_t *data, uint64_t size, zio_done_func_t *done, void *private,
-    zio_priority_t priority, enum zio_flag flags, const zbookmark_phys_t *zb)
+    zio_priority_t priority, zio_flag_t flags, const zbookmark_phys_t *zb)
 {
 	zio_t *zio;
 
@@ -1111,7 +1121,7 @@ zio_write(zio_t *pio, spa_t *spa, uint64_t txg, blkptr_t *bp,
     abd_t *data, uint64_t lsize, uint64_t psize, const zio_prop_t *zp,
     zio_done_func_t *ready, zio_done_func_t *children_ready,
     zio_done_func_t *physdone, zio_done_func_t *done,
-    void *private, zio_priority_t priority, enum zio_flag flags,
+    void *private, zio_priority_t priority, zio_flag_t flags,
     const zbookmark_phys_t *zb)
 {
 	zio_t *zio;
@@ -1154,7 +1164,7 @@ zio_write(zio_t *pio, spa_t *spa, uint64_t txg, blkptr_t *bp,
 zio_t *
 zio_rewrite(zio_t *pio, spa_t *spa, uint64_t txg, blkptr_t *bp, abd_t *data,
     uint64_t size, zio_done_func_t *done, void *private,
-    zio_priority_t priority, enum zio_flag flags, zbookmark_phys_t *zb)
+    zio_priority_t priority, zio_flag_t flags, zbookmark_phys_t *zb)
 {
 	zio_t *zio;
 
@@ -1197,7 +1207,6 @@ zio_free(spa_t *spa, uint64_t txg, const blkptr_t *bp)
 	 */
 	if (BP_IS_EMBEDDED(bp))
 		return;
-	metaslab_check_free(spa, bp);
 
 	/*
 	 * Frees that are for the currently-syncing txg, are not going to be
@@ -1214,6 +1223,7 @@ zio_free(spa_t *spa, uint64_t txg, const blkptr_t *bp)
 	    txg != spa->spa_syncing_txg ||
 	    (spa_sync_pass(spa) >= zfs_sync_pass_deferred_free &&
 	    !spa_feature_is_active(spa, SPA_FEATURE_LOG_SPACEMAP))) {
+		metaslab_check_free(spa, bp);
 		bplist_append(&spa->spa_free_bplist[txg & TXG_MASK], bp);
 	} else {
 		VERIFY3P(zio_free_sync(NULL, spa, txg, bp, 0), ==, NULL);
@@ -1227,7 +1237,7 @@ zio_free(spa_t *spa, uint64_t txg, const blkptr_t *bp)
  */
 zio_t *
 zio_free_sync(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
-    enum zio_flag flags)
+    zio_flag_t flags)
 {
 	ASSERT(!BP_IS_HOLE(bp));
 	ASSERT(spa_syncing_txg(spa) == txg);
@@ -1260,7 +1270,7 @@ zio_free_sync(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
 
 zio_t *
 zio_claim(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
-    zio_done_func_t *done, void *private, enum zio_flag flags)
+    zio_done_func_t *done, void *private, zio_flag_t flags)
 {
 	zio_t *zio;
 
@@ -1297,7 +1307,7 @@ zio_claim(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
 
 zio_t *
 zio_ioctl(zio_t *pio, spa_t *spa, vdev_t *vd, int cmd,
-    zio_done_func_t *done, void *private, enum zio_flag flags)
+    zio_done_func_t *done, void *private, zio_flag_t flags)
 {
 	zio_t *zio;
 	int c;
@@ -1322,7 +1332,7 @@ zio_ioctl(zio_t *pio, spa_t *spa, vdev_t *vd, int cmd,
 zio_t *
 zio_trim(zio_t *pio, vdev_t *vd, uint64_t offset, uint64_t size,
     zio_done_func_t *done, void *private, zio_priority_t priority,
-    enum zio_flag flags, enum trim_flag trim_flags)
+    zio_flag_t flags, enum trim_flag trim_flags)
 {
 	zio_t *zio;
 
@@ -1342,7 +1352,7 @@ zio_trim(zio_t *pio, vdev_t *vd, uint64_t offset, uint64_t size,
 zio_t *
 zio_read_phys(zio_t *pio, vdev_t *vd, uint64_t offset, uint64_t size,
     abd_t *data, int checksum, zio_done_func_t *done, void *private,
-    zio_priority_t priority, enum zio_flag flags, boolean_t labels)
+    zio_priority_t priority, zio_flag_t flags, boolean_t labels)
 {
 	zio_t *zio;
 
@@ -1363,7 +1373,7 @@ zio_read_phys(zio_t *pio, vdev_t *vd, uint64_t offset, uint64_t size,
 zio_t *
 zio_write_phys(zio_t *pio, vdev_t *vd, uint64_t offset, uint64_t size,
     abd_t *data, int checksum, zio_done_func_t *done, void *private,
-    zio_priority_t priority, enum zio_flag flags, boolean_t labels)
+    zio_priority_t priority, zio_flag_t flags, boolean_t labels)
 {
 	zio_t *zio;
 
@@ -1400,7 +1410,7 @@ zio_write_phys(zio_t *pio, vdev_t *vd, uint64_t offset, uint64_t size,
 zio_t *
 zio_vdev_child_io(zio_t *pio, blkptr_t *bp, vdev_t *vd, uint64_t offset,
     abd_t *data, uint64_t size, int type, zio_priority_t priority,
-    enum zio_flag flags, zio_done_func_t *done, void *private)
+    zio_flag_t flags, zio_done_func_t *done, void *private)
 {
 	enum zio_stage pipeline = ZIO_VDEV_CHILD_PIPELINE;
 	zio_t *zio;
@@ -1474,7 +1484,7 @@ zio_vdev_child_io(zio_t *pio, blkptr_t *bp, vdev_t *vd, uint64_t offset,
 
 zio_t *
 zio_vdev_delegated_io(vdev_t *vd, uint64_t offset, abd_t *data, uint64_t size,
-    zio_type_t type, zio_priority_t priority, enum zio_flag flags,
+    zio_type_t type, zio_priority_t priority, zio_flag_t flags,
     zio_done_func_t *done, void *private)
 {
 	zio_t *zio;
@@ -1640,7 +1650,7 @@ zio_write_compress(zio_t *zio)
 	blkptr_t *bp = zio->io_bp;
 	uint64_t lsize = zio->io_lsize;
 	uint64_t psize = zio->io_size;
-	int pass = 1;
+	uint32_t pass = 1;
 
 	/*
 	 * If our children haven't all reached the ready stage,
@@ -2024,7 +2034,7 @@ zio_deadman_impl(zio_t *pio, int ziodepth)
 		    "delta=%llu queued=%llu io=%llu "
 		    "path=%s "
 		    "last=%llu type=%d "
-		    "priority=%d flags=0x%x stage=0x%x "
+		    "priority=%d flags=0x%llx stage=0x%x "
 		    "pipeline=0x%x pipeline-trace=0x%x "
 		    "objset=%llu object=%llu "
 		    "level=%llu blkid=%llu "
@@ -2034,8 +2044,8 @@ zio_deadman_impl(zio_t *pio, int ziodepth)
 		    (u_longlong_t)delta, pio->io_delta, pio->io_delay,
 		    vd ? vd->vdev_path : "NULL",
 		    vq ? vq->vq_io_complete_ts : 0, pio->io_type,
-		    pio->io_priority, pio->io_flags, pio->io_stage,
-		    pio->io_pipeline, pio->io_pipeline_trace,
+		    pio->io_priority, (u_longlong_t)pio->io_flags,
+		    pio->io_stage, pio->io_pipeline, pio->io_pipeline_trace,
 		    (u_longlong_t)zb->zb_objset, (u_longlong_t)zb->zb_object,
 		    (u_longlong_t)zb->zb_level, (u_longlong_t)zb->zb_blkid,
 		    (u_longlong_t)pio->io_offset, (u_longlong_t)pio->io_size,
@@ -2768,7 +2778,7 @@ zio_write_gang_member_ready(zio_t *zio)
 	ASSERT3U(zio->io_prop.zp_copies, ==, gio->io_prop.zp_copies);
 	ASSERT3U(zio->io_prop.zp_copies, <=, BP_GET_NDVAS(zio->io_bp));
 	ASSERT3U(pio->io_prop.zp_copies, <=, BP_GET_NDVAS(pio->io_bp));
-	ASSERT3U(BP_GET_NDVAS(zio->io_bp), <=, BP_GET_NDVAS(pio->io_bp));
+	VERIFY3U(BP_GET_NDVAS(zio->io_bp), <=, BP_GET_NDVAS(pio->io_bp));
 
 	mutex_enter(&pio->io_lock);
 	for (int d = 0; d < BP_GET_NDVAS(zio->io_bp); d++) {
@@ -2806,18 +2816,20 @@ zio_write_gang_block(zio_t *pio, metaslab_class_t *mc)
 	uint64_t resid = pio->io_size;
 	uint64_t lsize;
 	int copies = gio->io_prop.zp_copies;
-	int gbh_copies;
 	zio_prop_t zp;
 	int error;
 	boolean_t has_data = !(pio->io_flags & ZIO_FLAG_NODATA);
 
 	/*
-	 * encrypted blocks need DVA[2] free so encrypted gang headers can't
-	 * have a third copy.
+	 * If one copy was requested, store 2 copies of the GBH, so that we
+	 * can still traverse all the data (e.g. to free or scrub) even if a
+	 * block is damaged.  Note that we can't store 3 copies of the GBH in
+	 * all cases, e.g. with encryption, which uses DVA[2] for the IV+salt.
 	 */
-	gbh_copies = MIN(copies + 1, spa_max_replication(spa));
-	if (gio->io_prop.zp_encrypt && gbh_copies >= SPA_DVAS_PER_BP)
-		gbh_copies = SPA_DVAS_PER_BP - 1;
+	int gbh_copies = copies;
+	if (gbh_copies == 1) {
+		gbh_copies = MIN(2, spa_max_replication(spa));
+	}
 
 	int flags = METASLAB_HINTBP_FAVOR | METASLAB_GANG_HEADER;
 	if (pio->io_flags & ZIO_FLAG_IO_ALLOCATING) {
@@ -2967,6 +2979,7 @@ zio_nop_write(zio_t *zio)
 	blkptr_t *bp_orig = &zio->io_bp_orig;
 	zio_prop_t *zp = &zio->io_prop;
 
+	ASSERT(BP_IS_HOLE(bp));
 	ASSERT(BP_GET_LEVEL(bp) == 0);
 	ASSERT(!(zio->io_flags & ZIO_FLAG_IO_REWRITE));
 	ASSERT(zp->zp_nopwrite);
@@ -3000,8 +3013,7 @@ zio_nop_write(zio_t *zio)
 		ASSERT3U(BP_GET_PSIZE(bp), ==, BP_GET_PSIZE(bp_orig));
 		ASSERT3U(BP_GET_LSIZE(bp), ==, BP_GET_LSIZE(bp_orig));
 		ASSERT(zp->zp_compress != ZIO_COMPRESS_OFF);
-		ASSERT(memcmp(&bp->blk_prop, &bp_orig->blk_prop,
-		    sizeof (uint64_t)) == 0);
+		ASSERT3U(bp->blk_prop, ==, bp_orig->blk_prop);
 
 		/*
 		 * If we're overwriting a block that is currently on an
@@ -3009,11 +3021,13 @@ zio_nop_write(zio_t *zio)
 		 * allow a new block to be allocated on a concrete vdev.
 		 */
 		spa_config_enter(zio->io_spa, SCL_VDEV, FTAG, RW_READER);
-		vdev_t *tvd = vdev_lookup_top(zio->io_spa,
-		    DVA_GET_VDEV(&bp->blk_dva[0]));
-		if (tvd->vdev_ops == &vdev_indirect_ops) {
-			spa_config_exit(zio->io_spa, SCL_VDEV, FTAG);
-			return (zio);
+		for (int d = 0; d < BP_GET_NDVAS(bp_orig); d++) {
+			vdev_t *tvd = vdev_lookup_top(zio->io_spa,
+			    DVA_GET_VDEV(&bp_orig->blk_dva[d]));
+			if (tvd->vdev_ops == &vdev_indirect_ops) {
+				spa_config_exit(zio->io_spa, SCL_VDEV, FTAG);
+				return (zio);
+			}
 		}
 		spa_config_exit(zio->io_spa, SCL_VDEV, FTAG);
 
@@ -3354,7 +3368,7 @@ zio_ddt_write(zio_t *zio)
 	return (zio);
 }
 
-ddt_entry_t *freedde; /* for debugging */
+static ddt_entry_t *freedde; /* for debugging */
 
 static zio_t *
 zio_ddt_free(zio_t *zio)
@@ -3917,7 +3931,7 @@ zio_vdev_io_done(zio_t *zio)
 
 	ops->vdev_op_io_done(zio);
 
-	if (unexpected_error)
+	if (unexpected_error && vd->vdev_remove_wanted == B_FALSE)
 		VERIFY(vdev_probe(vd, zio) == NULL);
 
 	return (zio);
@@ -4304,12 +4318,12 @@ zio_checksum_verify(zio_t *zio)
 		zio->io_error = error;
 		if (error == ECKSUM &&
 		    !(zio->io_flags & ZIO_FLAG_SPECULATIVE)) {
-			(void) zfs_ereport_start_checksum(zio->io_spa,
-			    zio->io_vd, &zio->io_bookmark, zio,
-			    zio->io_offset, zio->io_size, &info);
 			mutex_enter(&zio->io_vd->vdev_stat_lock);
 			zio->io_vd->vdev_stat.vs_checksum_errors++;
 			mutex_exit(&zio->io_vd->vdev_stat_lock);
+			(void) zfs_ereport_start_checksum(zio->io_spa,
+			    zio->io_vd, &zio->io_bookmark, zio,
+			    zio->io_offset, zio->io_size, &info);
 		}
 	}
 
@@ -5051,13 +5065,13 @@ ZFS_MODULE_PARAM(zfs_zio, zio_, slow_io_ms, INT, ZMOD_RW,
 ZFS_MODULE_PARAM(zfs_zio, zio_, requeue_io_start_cut_in_line, INT, ZMOD_RW,
 	"Prioritize requeued I/O");
 
-ZFS_MODULE_PARAM(zfs, zfs_, sync_pass_deferred_free,  INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs, zfs_, sync_pass_deferred_free,  UINT, ZMOD_RW,
 	"Defer frees starting in this pass");
 
-ZFS_MODULE_PARAM(zfs, zfs_, sync_pass_dont_compress, INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs, zfs_, sync_pass_dont_compress, UINT, ZMOD_RW,
 	"Don't compress starting in this pass");
 
-ZFS_MODULE_PARAM(zfs, zfs_, sync_pass_rewrite, INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs, zfs_, sync_pass_rewrite, UINT, ZMOD_RW,
 	"Rewrite new bps starting in this pass");
 
 ZFS_MODULE_PARAM(zfs_zio, zio_, dva_throttle_enabled, INT, ZMOD_RW,

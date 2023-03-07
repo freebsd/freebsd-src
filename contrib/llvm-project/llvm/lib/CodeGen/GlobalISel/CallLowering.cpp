@@ -11,16 +11,16 @@
 ///
 //===----------------------------------------------------------------------===//
 
+#include "llvm/CodeGen/GlobalISel/CallLowering.h"
 #include "llvm/CodeGen/Analysis.h"
 #include "llvm/CodeGen/CallingConvLower.h"
-#include "llvm/CodeGen/GlobalISel/CallLowering.h"
-#include "llvm/CodeGen/GlobalISel/Utils.h"
 #include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
+#include "llvm/CodeGen/GlobalISel/Utils.h"
+#include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/TargetLowering.h"
 #include "llvm/IR/DataLayout.h"
-#include "llvm/IR/Instructions.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Target/TargetMachine.h"
@@ -116,7 +116,7 @@ bool CallLowering::lowerCall(MachineIRBuilder &MIRBuilder, const CallBase &CB,
   // we'll pass to the assigner function.
   unsigned i = 0;
   unsigned NumFixedArgs = CB.getFunctionType()->getNumParams();
-  for (auto &Arg : CB.args()) {
+  for (const auto &Arg : CB.args()) {
     ArgInfo OrigArg{ArgRegs[i], *Arg.get(), i, getAttributesForArgIdx(CB, i),
                     i < NumFixedArgs};
     setArgFlags(OrigArg, i + AttributeList::FirstArgIndex, DL, CB);
@@ -500,6 +500,12 @@ static void buildCopyToRegs(MachineIRBuilder &B, ArrayRef<Register> DstRegs,
   LLT DstTy = MRI.getType(DstRegs[0]);
   LLT LCMTy = getCoverTy(SrcTy, PartTy);
 
+  if (PartTy.isVector() && LCMTy == PartTy) {
+    assert(DstRegs.size() == 1);
+    B.buildPadVectorWithUndefElements(DstRegs[0], SrcReg);
+    return;
+  }
+
   const unsigned DstSize = DstTy.getSizeInBits();
   const unsigned SrcSize = SrcTy.getSizeInBits();
   unsigned CoveringSize = LCMTy.getSizeInBits();
@@ -698,10 +704,12 @@ bool CallLowering::handleAssignments(ValueHandler &Handler,
                       ValTy, extendOpFromFlags(Args[i].Flags[0]));
     }
 
+    bool BigEndianPartOrdering = TLI->hasBigEndianPartOrdering(OrigVT, DL);
     for (unsigned Part = 0; Part < NumParts; ++Part) {
       Register ArgReg = Args[i].Regs[Part];
       // There should be Regs.size() ArgLocs per argument.
-      VA = ArgLocs[j + Part];
+      unsigned Idx = BigEndianPartOrdering ? NumParts - 1 - Part : Part;
+      CCValAssign &VA = ArgLocs[j + Idx];
       const ISD::ArgFlagsTy Flags = Args[i].Flags[Part];
 
       if (VA.isMemLoc() && !Flags.isByVal()) {
@@ -952,7 +960,7 @@ bool CallLowering::parametersInCSRMatch(
     const SmallVectorImpl<CCValAssign> &OutLocs,
     const SmallVectorImpl<ArgInfo> &OutArgs) const {
   for (unsigned i = 0; i < OutLocs.size(); ++i) {
-    auto &ArgLoc = OutLocs[i];
+    const auto &ArgLoc = OutLocs[i];
     // If it's not a register, it's fine.
     if (!ArgLoc.isRegLoc())
       continue;

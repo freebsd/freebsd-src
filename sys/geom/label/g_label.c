@@ -394,6 +394,10 @@ g_label_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	if (pp->acw > 0)
 		return (NULL);
 
+	/* Skip broken disks that don't set their sector size */
+	if (pp->sectorsize == 0)
+		return (NULL);
+
 	if (strcmp(pp->geom->class->name, mp->name) == 0)
 		return (NULL);
 

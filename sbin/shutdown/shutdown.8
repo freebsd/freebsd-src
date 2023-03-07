@@ -28,7 +28,7 @@
 .\"     @(#)shutdown.8	8.2 (Berkeley) 4/27/95
 .\" $FreeBSD$
 .\"
-.Dd January 11, 2020
+.Dd November 7, 2022
 .Dt SHUTDOWN 8
 .Os
 .Sh NAME
@@ -56,6 +56,10 @@ utility provides an automated shutdown procedure for super-users
 to nicely notify users when the system is shutting down,
 saving them from system administrators, hackers, and gurus, who
 would otherwise not bother with such niceties.
+In order to use the
+.Nm
+command, the user must have root privileges or be a member of the
+operator group.
 .Pp
 The following options are available:
 .Bl -tag -width indent

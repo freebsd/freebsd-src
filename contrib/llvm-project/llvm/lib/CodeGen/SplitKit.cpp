@@ -347,13 +347,11 @@ void SplitAnalysis::analyze(const LiveInterval *li) {
 //===----------------------------------------------------------------------===//
 
 /// Create a new SplitEditor for editing the LiveInterval analyzed by SA.
-SplitEditor::SplitEditor(SplitAnalysis &SA, AliasAnalysis &AA,
-                         LiveIntervals &LIS, VirtRegMap &VRM,
+SplitEditor::SplitEditor(SplitAnalysis &SA, LiveIntervals &LIS, VirtRegMap &VRM,
                          MachineDominatorTree &MDT,
                          MachineBlockFrequencyInfo &MBFI, VirtRegAuxInfo &VRAI)
-    : SA(SA), AA(AA), LIS(LIS), VRM(VRM),
-      MRI(VRM.getMachineFunction().getRegInfo()), MDT(MDT),
-      TII(*VRM.getMachineFunction().getSubtarget().getInstrInfo()),
+    : SA(SA), LIS(LIS), VRM(VRM), MRI(VRM.getMachineFunction().getRegInfo()),
+      MDT(MDT), TII(*VRM.getMachineFunction().getSubtarget().getInstrInfo()),
       TRI(*VRM.getMachineFunction().getSubtarget().getRegisterInfo()),
       MBFI(MBFI), VRAI(VRAI), RegAssign(Allocator) {}
 
@@ -371,9 +369,7 @@ void SplitEditor::reset(LiveRangeEdit &LRE, ComplementSpillMode SM) {
     LICalc[1].reset(&VRM.getMachineFunction(), LIS.getSlotIndexes(), &MDT,
                     &LIS.getVNInfoAllocator());
 
-  // We don't need an AliasAnalysis since we will only be performing
-  // cheap-as-a-copy remats anyway.
-  Edit->anyRematerializable(nullptr);
+  Edit->anyRematerializable();
 }
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
@@ -389,17 +385,34 @@ LLVM_DUMP_METHOD void SplitEditor::dump() const {
 }
 #endif
 
-LiveInterval::SubRange &SplitEditor::getSubRangeForMaskExact(LaneBitmask LM,
-                                                             LiveInterval &LI) {
-  for (LiveInterval::SubRange &S : LI.subranges())
+/// Find a subrange corresponding to the exact lane mask @p LM in the live
+/// interval @p LI. The interval @p LI is assumed to contain such a subrange.
+/// This function is used to find corresponding subranges between the
+/// original interval and the new intervals.
+template <typename T> auto &getSubrangeImpl(LaneBitmask LM, T &LI) {
+  for (auto &S : LI.subranges())
     if (S.LaneMask == LM)
       return S;
   llvm_unreachable("SubRange for this mask not found");
 }
 
-LiveInterval::SubRange &SplitEditor::getSubRangeForMask(LaneBitmask LM,
-                                                        LiveInterval &LI) {
-  for (LiveInterval::SubRange &S : LI.subranges())
+LiveInterval::SubRange &getSubRangeForMaskExact(LaneBitmask LM,
+                                                LiveInterval &LI) {
+  return getSubrangeImpl(LM, LI);
+}
+
+const LiveInterval::SubRange &getSubRangeForMaskExact(LaneBitmask LM,
+                                                      const LiveInterval &LI) {
+  return getSubrangeImpl(LM, LI);
+}
+
+/// Find a subrange corresponding to the lane mask @p LM, or a superset of it,
+/// in the live interval @p LI. The interval @p LI is assumed to contain such
+/// a subrange.  This function is used to find corresponding subranges between
+/// the original interval and the new intervals.
+const LiveInterval::SubRange &getSubRangeForMask(LaneBitmask LM,
+                                                 const LiveInterval &LI) {
+  for (const LiveInterval::SubRange &S : LI.subranges())
     if ((S.LaneMask & LM) == LM)
       return S;
   llvm_unreachable("SubRange for this mask not found");
@@ -566,10 +579,8 @@ SlotIndex SplitEditor::buildCopy(Register FromReg, Register ToReg,
   return Def;
 }
 
-VNInfo *SplitEditor::defFromParent(unsigned RegIdx,
-                                   VNInfo *ParentVNI,
-                                   SlotIndex UseIdx,
-                                   MachineBasicBlock &MBB,
+VNInfo *SplitEditor::defFromParent(unsigned RegIdx, const VNInfo *ParentVNI,
+                                   SlotIndex UseIdx, MachineBasicBlock &MBB,
                                    MachineBasicBlock::iterator I) {
   SlotIndex Def;
   LiveInterval *LI = &LIS.getInterval(Edit->get(RegIdx));
@@ -937,7 +948,7 @@ SplitEditor::findShallowDominator(MachineBasicBlock *MBB,
 void SplitEditor::computeRedundantBackCopies(
     DenseSet<unsigned> &NotToHoistSet, SmallVectorImpl<VNInfo *> &BackCopies) {
   LiveInterval *LI = &LIS.getInterval(Edit->get(0));
-  LiveInterval *Parent = &Edit->getParent();
+  const LiveInterval *Parent = &Edit->getParent();
   SmallVector<SmallPtrSet<VNInfo *, 8>, 8> EqualVNs(Parent->getNumValNums());
   SmallPtrSet<VNInfo *, 8> DominatedVNIs;
 
@@ -952,7 +963,7 @@ void SplitEditor::computeRedundantBackCopies(
   // For VNI aggregation of each ParentVNI, collect dominated, i.e.,
   // redundant VNIs to BackCopies.
   for (unsigned i = 0, e = Parent->getNumValNums(); i != e; ++i) {
-    VNInfo *ParentVNI = Parent->getValNumInfo(i);
+    const VNInfo *ParentVNI = Parent->getValNumInfo(i);
     if (!NotToHoistSet.count(ParentVNI->id))
       continue;
     SmallPtrSetIterator<VNInfo *> It1 = EqualVNs[ParentVNI->id].begin();
@@ -990,7 +1001,7 @@ void SplitEditor::computeRedundantBackCopies(
 void SplitEditor::hoistCopies() {
   // Get the complement interval, always RegIdx 0.
   LiveInterval *LI = &LIS.getInterval(Edit->get(0));
-  LiveInterval *Parent = &Edit->getParent();
+  const LiveInterval *Parent = &Edit->getParent();
 
   // Track the nearest common dominator for all back-copies for each ParentVNI,
   // indexed by ParentVNI->id.
@@ -1067,7 +1078,7 @@ void SplitEditor::hoistCopies() {
     if (!Dom.first || Dom.second.isValid())
       continue;
     // This value needs a hoisted copy inserted at the end of Dom.first.
-    VNInfo *ParentVNI = Parent->getValNumInfo(i);
+    const VNInfo *ParentVNI = Parent->getValNumInfo(i);
     MachineBasicBlock *DefMBB = LIS.getMBBFromIndex(ParentVNI->def);
     // Get a less loopy dominator than Dom.first.
     Dom.first = findShallowDominator(Dom.first, DefMBB);
@@ -1237,11 +1248,11 @@ void SplitEditor::extendPHIRange(MachineBasicBlock &B, LiveIntervalCalc &LIC,
     SlotIndex LastUse = End.getPrevSlot();
     // The predecessor may not have a live-out value. That is OK, like an
     // undef PHI operand.
-    LiveInterval &PLI = Edit->getParent();
+    const LiveInterval &PLI = Edit->getParent();
     // Need the cast because the inputs to ?: would otherwise be deemed
     // "incompatible": SubRange vs LiveInterval.
-    LiveRange &PSR = !LM.all() ? getSubRangeForMaskExact(LM, PLI)
-                               : static_cast<LiveRange &>(PLI);
+    const LiveRange &PSR = !LM.all() ? getSubRangeForMaskExact(LM, PLI)
+                                     : static_cast<const LiveRange &>(PLI);
     if (PSR.liveAt(LastUse))
       LIC.extend(LR, End, /*PhysReg=*/0, Undefs);
   }
@@ -1254,7 +1265,7 @@ void SplitEditor::extendPHIKillRanges() {
   // remove it. Otherwise, extend the live interval to reach the end indexes
   // of all predecessor blocks.
 
-  LiveInterval &ParentLI = Edit->getParent();
+  const LiveInterval &ParentLI = Edit->getParent();
   for (const VNInfo *V : ParentLI.valnos) {
     if (V->isUnused() || !V->isPHIDef())
       continue;
@@ -1270,7 +1281,7 @@ void SplitEditor::extendPHIKillRanges() {
   SmallVector<SlotIndex, 4> Undefs;
   LiveIntervalCalc SubLIC;
 
-  for (LiveInterval::SubRange &PS : ParentLI.subranges()) {
+  for (const LiveInterval::SubRange &PS : ParentLI.subranges()) {
     for (const VNInfo *V : PS.valnos) {
       if (V->isUnused() || !V->isPHIDef())
         continue;
@@ -1337,13 +1348,34 @@ void SplitEditor::rewriteAssigned(bool ExtendRanges) {
         continue;
       // We may want to extend a live range for a partial redef, or for a use
       // tied to an early clobber.
-      Idx = Idx.getPrevSlot();
-      if (!Edit->getParent().liveAt(Idx))
+      if (!Edit->getParent().liveAt(Idx.getPrevSlot()))
         continue;
-    } else
-      Idx = Idx.getRegSlot(true);
+    } else {
+      assert(MO.isUse());
+      bool IsEarlyClobber = false;
+      if (MO.isTied()) {
+        // We want to extend a live range into `e` slot rather than `r` slot if
+        // tied-def is early clobber, because the `e` slot already contained
+        // in the live range of early-clobber tied-def operand, give an example
+        // here:
+        //  0  %0 = ...
+        // 16  early-clobber %0 = Op %0 (tied-def 0), ...
+        // 32  ... = Op %0
+        // Before extend:
+        //   %0 = [0r, 0d) [16e, 32d)
+        // The point we want to extend is 0d to 16e not 16r in this case, but if
+        // we use 16r here we will extend nothing because that already contained
+        // in [16e, 32d).
+        unsigned OpIdx = MI->getOperandNo(&MO);
+        unsigned DefOpIdx = MI->findTiedOperandIdx(OpIdx);
+        const MachineOperand &DefOp = MI->getOperand(DefOpIdx);
+        IsEarlyClobber = DefOp.isEarlyClobber();
+      }
 
-    SlotIndex Next = Idx.getNextSlot();
+      Idx = Idx.getRegSlot(IsEarlyClobber);
+    }
+
+    SlotIndex Next = Idx;
     if (LI.hasSubRanges()) {
       // We have to delay extending subranges until we have seen all operands
       // defining the register. This is because a <def,read-undef> operand
@@ -1418,7 +1450,7 @@ void SplitEditor::deleteRematVictims() {
   if (Dead.empty())
     return;
 
-  Edit->eliminateDeadDefs(Dead, None, &AA);
+  Edit->eliminateDeadDefs(Dead, None);
 }
 
 void SplitEditor::forceRecomputeVNI(const VNInfo &ParentVNI) {
@@ -1510,9 +1542,8 @@ void SplitEditor::finish(SmallVectorImpl<unsigned> *LRMap) {
 
   // Provide a reverse mapping from original indices to Edit ranges.
   if (LRMap) {
-    LRMap->clear();
-    for (unsigned i = 0, e = Edit->size(); i != e; ++i)
-      LRMap->push_back(i);
+    auto Seq = llvm::seq<unsigned>(0, Edit->size());
+    LRMap->assign(Seq.begin(), Seq.end());
   }
 
   // Now check if any registers were separated into multiple components.

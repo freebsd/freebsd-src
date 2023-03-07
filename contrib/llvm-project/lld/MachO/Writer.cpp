@@ -20,6 +20,7 @@
 #include "SyntheticSections.h"
 #include "Target.h"
 #include "UnwindInfoSection.h"
+#include "llvm/Support/Parallel.h"
 
 #include "lld/Common/Arrays.h"
 #include "lld/Common/CommonLinkerContext.h"
@@ -458,9 +459,11 @@ public:
     auto *c = reinterpret_cast<build_version_command *>(buf);
     c->cmd = LC_BUILD_VERSION;
     c->cmdsize = getSize();
+
     c->platform = static_cast<uint32_t>(platformInfo.target.Platform);
     c->minos = encodeVersion(platformInfo.minimum);
     c->sdk = encodeVersion(platformInfo.sdk);
+
     c->ntools = ntools;
     auto *t = reinterpret_cast<build_tool_version *>(&c[1]);
     t->tool = TOOL_LD;
@@ -594,6 +597,9 @@ static void prepareBranchTarget(Symbol *sym) {
         in.weakBinding->addEntry(sym, in.lazyPointers->isec,
                                  sym->stubsIndex * target->wordSize);
       }
+    } else if (defined->interposable) {
+      if (in.stubs->addEntry(sym))
+        in.lazyBinding->addEntry(sym);
     }
   } else {
     llvm_unreachable("invalid branch target symbol type");
@@ -605,7 +611,7 @@ static bool needsBinding(const Symbol *sym) {
   if (isa<DylibSymbol>(sym))
     return true;
   if (const auto *defined = dyn_cast<Defined>(sym))
-    return defined->isExternalWeakDef();
+    return defined->isExternalWeakDef() || defined->interposable;
   return false;
 }
 
@@ -653,7 +659,7 @@ void Writer::scanRelocations() {
       }
       if (auto *sym = r.referent.dyn_cast<Symbol *>()) {
         if (auto *undefined = dyn_cast<Undefined>(sym))
-          treatUndefinedSymbol(*undefined);
+          treatUndefinedSymbol(*undefined, isec, r.offset);
         // treatUndefinedSymbol() can replace sym with a DylibSymbol; re-check.
         if (!isa<Undefined>(sym) && validateSymbolRelocation(sym, isec, r))
           prepareSymbolRelocation(sym, isec, r);
@@ -669,7 +675,7 @@ void Writer::scanRelocations() {
     }
   }
 
-  in.unwindInfo->prepareRelocations();
+  in.unwindInfo->prepare();
 }
 
 void Writer::scanSymbols() {
@@ -765,74 +771,89 @@ template <class LP> void Writer::createLoadCommands() {
   else
     in.header->addLoadCommand(make<LCMinVersion>(config->platformInfo));
 
+  if (config->secondaryPlatformInfo) {
+    in.header->addLoadCommand(
+        make<LCBuildVersion>(*config->secondaryPlatformInfo));
+  }
+
   // This is down here to match ld64's load command order.
   if (config->outputType == MH_EXECUTE)
     in.header->addLoadCommand(make<LCMain>());
 
+  // See ld64's OutputFile::buildDylibOrdinalMapping for the corresponding
+  // library ordinal computation code in ld64.
   int64_t dylibOrdinal = 1;
   DenseMap<StringRef, int64_t> ordinalForInstallName;
+
+  std::vector<DylibFile *> dylibFiles;
   for (InputFile *file : inputFiles) {
-    if (auto *dylibFile = dyn_cast<DylibFile>(file)) {
-      if (dylibFile->isBundleLoader) {
-        dylibFile->ordinal = BIND_SPECIAL_DYLIB_MAIN_EXECUTABLE;
-        // Shortcut since bundle-loader does not re-export the symbols.
+    if (auto *dylibFile = dyn_cast<DylibFile>(file))
+      dylibFiles.push_back(dylibFile);
+  }
+  for (size_t i = 0; i < dylibFiles.size(); ++i)
+    dylibFiles.insert(dylibFiles.end(), dylibFiles[i]->extraDylibs.begin(),
+                      dylibFiles[i]->extraDylibs.end());
 
-        dylibFile->reexport = false;
-        continue;
-      }
+  for (DylibFile *dylibFile : dylibFiles) {
+    if (dylibFile->isBundleLoader) {
+      dylibFile->ordinal = BIND_SPECIAL_DYLIB_MAIN_EXECUTABLE;
+      // Shortcut since bundle-loader does not re-export the symbols.
 
-      // Don't emit load commands for a dylib that is not referenced if:
-      // - it was added implicitly (via a reexport, an LC_LOAD_DYLINKER --
-      //   if it's on the linker command line, it's explicit)
-      // - or it's marked MH_DEAD_STRIPPABLE_DYLIB
-      // - or the flag -dead_strip_dylibs is used
-      // FIXME: `isReferenced()` is currently computed before dead code
-      // stripping, so references from dead code keep a dylib alive. This
-      // matches ld64, but it's something we should do better.
-      if (!dylibFile->isReferenced() && !dylibFile->forceNeeded &&
-          (!dylibFile->explicitlyLinked || dylibFile->deadStrippable ||
-           config->deadStripDylibs))
-        continue;
-
-      // Several DylibFiles can have the same installName. Only emit a single
-      // load command for that installName and give all these DylibFiles the
-      // same ordinal.
-      // This can happen in several cases:
-      // - a new framework could change its installName to an older
-      //   framework name via an $ld$ symbol depending on platform_version
-      // - symlinks (for example, libpthread.tbd is a symlink to libSystem.tbd;
-      //   Foo.framework/Foo.tbd is usually a symlink to
-      //   Foo.framework/Versions/Current/Foo.tbd, where
-      //   Foo.framework/Versions/Current is usually a symlink to
-      //   Foo.framework/Versions/A)
-      // - a framework can be linked both explicitly on the linker
-      //   command line and implicitly as a reexport from a different
-      //   framework. The re-export will usually point to the tbd file
-      //   in Foo.framework/Versions/A/Foo.tbd, while the explicit link will
-      //   usually find Foo.framework/Foo.tbd. These are usually symlinks,
-      //   but in a --reproduce archive they will be identical but distinct
-      //   files.
-      // In the first case, *semantically distinct* DylibFiles will have the
-      // same installName.
-      int64_t &ordinal = ordinalForInstallName[dylibFile->installName];
-      if (ordinal) {
-        dylibFile->ordinal = ordinal;
-        continue;
-      }
-
-      ordinal = dylibFile->ordinal = dylibOrdinal++;
-      LoadCommandType lcType =
-          dylibFile->forceWeakImport || dylibFile->refState == RefState::Weak
-              ? LC_LOAD_WEAK_DYLIB
-              : LC_LOAD_DYLIB;
-      in.header->addLoadCommand(make<LCDylib>(lcType, dylibFile->installName,
-                                              dylibFile->compatibilityVersion,
-                                              dylibFile->currentVersion));
-
-      if (dylibFile->reexport)
-        in.header->addLoadCommand(
-            make<LCDylib>(LC_REEXPORT_DYLIB, dylibFile->installName));
+      dylibFile->reexport = false;
+      continue;
     }
+
+    // Don't emit load commands for a dylib that is not referenced if:
+    // - it was added implicitly (via a reexport, an LC_LOAD_DYLINKER --
+    //   if it's on the linker command line, it's explicit)
+    // - or it's marked MH_DEAD_STRIPPABLE_DYLIB
+    // - or the flag -dead_strip_dylibs is used
+    // FIXME: `isReferenced()` is currently computed before dead code
+    // stripping, so references from dead code keep a dylib alive. This
+    // matches ld64, but it's something we should do better.
+    if (!dylibFile->isReferenced() && !dylibFile->forceNeeded &&
+        (!dylibFile->isExplicitlyLinked() || dylibFile->deadStrippable ||
+         config->deadStripDylibs))
+      continue;
+
+    // Several DylibFiles can have the same installName. Only emit a single
+    // load command for that installName and give all these DylibFiles the
+    // same ordinal.
+    // This can happen in several cases:
+    // - a new framework could change its installName to an older
+    //   framework name via an $ld$ symbol depending on platform_version
+    // - symlinks (for example, libpthread.tbd is a symlink to libSystem.tbd;
+    //   Foo.framework/Foo.tbd is usually a symlink to
+    //   Foo.framework/Versions/Current/Foo.tbd, where
+    //   Foo.framework/Versions/Current is usually a symlink to
+    //   Foo.framework/Versions/A)
+    // - a framework can be linked both explicitly on the linker
+    //   command line and implicitly as a reexport from a different
+    //   framework. The re-export will usually point to the tbd file
+    //   in Foo.framework/Versions/A/Foo.tbd, while the explicit link will
+    //   usually find Foo.framework/Foo.tbd. These are usually symlinks,
+    //   but in a --reproduce archive they will be identical but distinct
+    //   files.
+    // In the first case, *semantically distinct* DylibFiles will have the
+    // same installName.
+    int64_t &ordinal = ordinalForInstallName[dylibFile->installName];
+    if (ordinal) {
+      dylibFile->ordinal = ordinal;
+      continue;
+    }
+
+    ordinal = dylibFile->ordinal = dylibOrdinal++;
+    LoadCommandType lcType =
+        dylibFile->forceWeakImport || dylibFile->refState == RefState::Weak
+            ? LC_LOAD_WEAK_DYLIB
+            : LC_LOAD_DYLIB;
+    in.header->addLoadCommand(make<LCDylib>(lcType, dylibFile->installName,
+                                            dylibFile->compatibilityVersion,
+                                            dylibFile->currentVersion));
+
+    if (dylibFile->reexport)
+      in.header->addLoadCommand(
+          make<LCDylib>(LC_REEXPORT_DYLIB, dylibFile->installName));
   }
 
   if (functionStartsSection)
@@ -857,7 +878,7 @@ static void sortSegmentsAndSections() {
   sortOutputSegments();
 
   DenseMap<const InputSection *, size_t> isecPriorities =
-      buildInputSectionPriorities();
+      priorityBuilder.buildInputSectionPriorities();
 
   uint32_t sectionIndex = 0;
   for (OutputSegment *seg : outputSegments) {
@@ -939,8 +960,14 @@ template <class LP> void Writer::createOutputSections() {
     StringRef segname = it.first.first;
     ConcatOutputSection *osec = it.second;
     assert(segname != segment_names::ld);
-    if (osec->isNeeded())
+    if (osec->isNeeded()) {
+      // See comment in ObjFile::splitEhFrames()
+      if (osec->name == section_names::ehFrame &&
+          segname == segment_names::text)
+        osec->align = target->wordSize;
+
       getOrCreateOutputSegment(segname)->addOutputSection(osec);
+    }
   }
 
   for (SyntheticSection *ssec : syntheticSections) {
@@ -969,6 +996,21 @@ template <class LP> void Writer::createOutputSections() {
 void Writer::finalizeAddresses() {
   TimeTraceScope timeScope("Finalize addresses");
   uint64_t pageSize = target->getPageSize();
+
+  // We could parallelize this loop, but local benchmarking indicates it is
+  // faster to do it all in the main thread.
+  for (OutputSegment *seg : outputSegments) {
+    if (seg == linkEditSegment)
+      continue;
+    for (OutputSection *osec : seg->getSections()) {
+      if (!osec->isNeeded())
+        continue;
+      // Other kinds of OutputSections have already been finalized.
+      if (auto concatOsec = dyn_cast<ConcatOutputSection>(osec))
+        concatOsec->finalizeContents();
+    }
+  }
+
   // Ensure that segments (and the sections they contain) are allocated
   // addresses in ascending order, which dyld requires.
   //
@@ -1048,17 +1090,21 @@ void Writer::openFile() {
                                FileOutputBuffer::F_executable);
 
   if (!bufferOrErr)
-    error("failed to open " + config->outputFile + ": " +
+    fatal("failed to open " + config->outputFile + ": " +
           llvm::toString(bufferOrErr.takeError()));
-  else
-    buffer = std::move(*bufferOrErr);
+  buffer = std::move(*bufferOrErr);
+  in.bufferStart = buffer->getBufferStart();
 }
 
 void Writer::writeSections() {
   uint8_t *buf = buffer->getBufferStart();
+  std::vector<const OutputSection *> osecs;
   for (const OutputSegment *seg : outputSegments)
-    for (const OutputSection *osec : seg->getSections())
-      osec->writeTo(buf + osec->fileOff);
+    append_range(osecs, seg->getSections());
+
+  parallelForEach(osecs.begin(), osecs.end(), [&](const OutputSection *osec) {
+    osec->writeTo(buf + osec->fileOff);
+  });
 }
 
 // In order to utilize multiple cores, we first split the buffer into chunks,
@@ -1072,7 +1118,8 @@ void Writer::writeUuid() {
   // Round-up integer division
   size_t chunkSize = (data.size() + chunkCount - 1) / chunkCount;
   std::vector<ArrayRef<uint8_t>> chunks = split(data, chunkSize);
-  std::vector<uint64_t> hashes(chunks.size());
+  // Leave one slot for filename
+  std::vector<uint64_t> hashes(chunks.size() + 1);
   SmallVector<std::shared_future<void>> threadFutures;
   threadFutures.reserve(chunks.size());
   for (size_t i = 0; i < chunks.size(); ++i)
@@ -1080,20 +1127,25 @@ void Writer::writeUuid() {
         [&](size_t j) { hashes[j] = xxHash64(chunks[j]); }, i));
   for (std::shared_future<void> &future : threadFutures)
     future.wait();
-
+  // Append the output filename so that identical binaries with different names
+  // don't get the same UUID.
+  hashes[chunks.size()] = xxHash64(sys::path::filename(config->finalOutput));
   uint64_t digest = xxHash64({reinterpret_cast<uint8_t *>(hashes.data()),
                               hashes.size() * sizeof(uint64_t)});
   uuidCommand->writeUuid(digest);
 }
 
 void Writer::writeCodeSignature() {
-  if (codeSignatureSection)
+  if (codeSignatureSection) {
+    TimeTraceScope timeScope("Write code signature");
     codeSignatureSection->writeHashes(buffer->getBufferStart());
+  }
 }
 
 void Writer::writeOutputFile() {
   TimeTraceScope timeScope("Write output file");
   openFile();
+  reportPendingUndefinedSymbols();
   if (errorCount())
     return;
   writeSections();
@@ -1116,11 +1168,16 @@ template <class LP> void Writer::run() {
   scanRelocations();
 
   // Do not proceed if there was an undefined symbol.
+  reportPendingUndefinedSymbols();
   if (errorCount())
     return;
 
   if (in.stubHelper->isNeeded())
     in.stubHelper->setup();
+
+  if (in.objCImageInfo->isNeeded())
+    in.objCImageInfo->finalizeContents();
+
   // At this point, we should know exactly which output sections are needed,
   // courtesy of scanSymbols() and scanRelocations().
   createOutputSections<LP>();
@@ -1167,15 +1224,16 @@ void macho::createSyntheticSections() {
   in.stubs = make<StubsSection>();
   in.stubHelper = make<StubHelperSection>();
   in.unwindInfo = makeUnwindInfoSection();
+  in.objCImageInfo = make<ObjCImageInfoSection>();
 
   // This section contains space for just a single word, and will be used by
   // dyld to cache an address to the image loader it uses.
   uint8_t *arr = bAlloc().Allocate<uint8_t>(target->wordSize);
   memset(arr, 0, target->wordSize);
-  in.imageLoaderCache = make<ConcatInputSection>(
-      segment_names::data, section_names::data, /*file=*/nullptr,
+  in.imageLoaderCache = makeSyntheticInputSection(
+      segment_names::data, section_names::data, S_REGULAR,
       ArrayRef<uint8_t>{arr, target->wordSize},
-      /*align=*/target->wordSize, /*flags=*/S_REGULAR);
+      /*align=*/target->wordSize);
   // References from dyld are not visible to us, so ensure this section is
   // always treated as live.
   in.imageLoaderCache->live = true;

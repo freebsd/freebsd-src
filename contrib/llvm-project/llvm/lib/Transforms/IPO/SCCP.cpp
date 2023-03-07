@@ -18,6 +18,7 @@
 #include "llvm/InitializePasses.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/Scalar/SCCP.h"
+#include "llvm/Transforms/Utils/SCCPSolver.h"
 
 using namespace llvm;
 
@@ -147,7 +148,7 @@ struct FunctionSpecializationLegacyPass : public ModulePass {
     AU.addRequired<TargetTransformInfoWrapperPass>();
   }
 
-  virtual bool runOnModule(Module &M) override {
+  bool runOnModule(Module &M) override {
     if (skipModule(M))
       return false;
 

@@ -179,6 +179,7 @@ TESTS_SRCS= \
 	test_read_format_tar_empty_pax.c	\
 	test_read_format_tar_empty_with_gnulabel.c	\
 	test_read_format_tar_filename.c		\
+	test_read_format_tar_invalid_pax_size.c \
 	test_read_format_tbz.c			\
 	test_read_format_tgz.c			\
 	test_read_format_tlz.c			\
@@ -589,6 +590,7 @@ ${PACKAGE}FILES+=	test_read_format_tar_empty_filename.tar.uu
 ${PACKAGE}FILES+=	test_read_format_tar_empty_with_gnulabel.tar.uu
 ${PACKAGE}FILES+=	test_read_format_tar_empty_pax.tar.Z.uu
 ${PACKAGE}FILES+=	test_read_format_tar_filename_koi8r.tar.Z.uu
+${PACKAGE}FILES+=	test_read_format_tar_invalid_pax_size.tar.uu
 ${PACKAGE}FILES+=	test_read_format_ustar_filename_cp866.tar.Z.uu
 ${PACKAGE}FILES+=	test_read_format_ustar_filename_eucjp.tar.Z.uu
 ${PACKAGE}FILES+=	test_read_format_ustar_filename_koi8r.tar.Z.uu

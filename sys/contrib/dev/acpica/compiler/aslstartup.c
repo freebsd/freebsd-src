@@ -317,7 +317,7 @@ AslDetectSourceFileType (
     else
     {
         fprintf (stderr,
-            "Binary file does not contain a valid ACPI table\n");
+            "Binary file does not contain a valid standard ACPI table\n");
     }
 
     Type = ASL_INPUT_TYPE_BINARY;

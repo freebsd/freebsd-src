@@ -10,9 +10,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "SDNodeDbgValue.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APInt.h"
-#include "llvm/ADT/None.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/CodeGen/ISDOpcodes.h"
@@ -45,7 +45,6 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetIntrinsicInfo.h"
 #include "llvm/Target/TargetMachine.h"
-#include "SDNodeDbgValue.h"
 #include <cstdint>
 #include <iterator>
 
@@ -231,6 +230,10 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
   case ISD::MUL:                        return "mul";
   case ISD::MULHU:                      return "mulhu";
   case ISD::MULHS:                      return "mulhs";
+  case ISD::AVGFLOORU:                  return "avgflooru";
+  case ISD::AVGFLOORS:                  return "avgfloors";
+  case ISD::AVGCEILU:                   return "avgceilu";
+  case ISD::AVGCEILS:                   return "avgceils";
   case ISD::ABDS:                       return "abds";
   case ISD::ABDU:                       return "abdu";
   case ISD::SDIV:                       return "sdiv";
@@ -267,6 +270,7 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
   case ISD::FCOPYSIGN:                  return "fcopysign";
   case ISD::FGETSIGN:                   return "fgetsign";
   case ISD::FCANONICALIZE:              return "fcanonicalize";
+  case ISD::IS_FPCLASS:                 return "is_fpclass";
   case ISD::FPOW:                       return "fpow";
   case ISD::STRICT_FPOW:                return "strict_fpow";
   case ISD::SMIN:                       return "smin";
@@ -361,6 +365,8 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
   case ISD::STRICT_FP16_TO_FP:          return "strict_fp16_to_fp";
   case ISD::FP_TO_FP16:                 return "fp_to_fp16";
   case ISD::STRICT_FP_TO_FP16:          return "strict_fp_to_fp16";
+  case ISD::BF16_TO_FP:                 return "bf16_to_fp";
+  case ISD::FP_TO_BF16:                 return "fp_to_bf16";
   case ISD::LROUND:                     return "lround";
   case ISD::STRICT_LROUND:              return "strict_lround";
   case ISD::LLROUND:                    return "llround";
@@ -480,6 +486,10 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
   case ISD::VECREDUCE_UMIN:             return "vecreduce_umin";
   case ISD::VECREDUCE_FMAX:             return "vecreduce_fmax";
   case ISD::VECREDUCE_FMIN:             return "vecreduce_fmin";
+  case ISD::STACKMAP:
+    return "stackmap";
+  case ISD::PATCHPOINT:
+    return "patchpoint";
 
     // Vector Predication
 #define BEGIN_REGISTER_VP_SDNODE(SDID, LEGALARG, NAME, ...)                    \
@@ -814,6 +824,8 @@ void SDNode::print_details(raw_ostream &OS, const SelectionDAG *G) const {
   } else if (const LifetimeSDNode *LN = dyn_cast<LifetimeSDNode>(this)) {
     if (LN->hasOffset())
       OS << "<" << LN->getOffset() << " to " << LN->getOffset() + LN->getSize() << ">";
+  } else if (const auto *AA = dyn_cast<AssertAlignSDNode>(this)) {
+    OS << '<' << AA->getAlign().value() << '>';
   }
 
   if (VerboseDAGDumping) {

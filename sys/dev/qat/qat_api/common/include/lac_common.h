@@ -756,17 +756,14 @@ typedef struct mtx *lac_lock_t;
 #define LAC_SPINLOCK(lock)                                                     \
 	({                                                                     \
 		(void)qatUtilsLock(lock);                                      \
-		CPA_STATUS_SUCCESS;                                            \
 	})
 #define LAC_SPINUNLOCK(lock)                                                   \
 	({                                                                     \
 		(void)qatUtilsUnlock(lock);                                    \
-		CPA_STATUS_SUCCESS;                                            \
 	})
 #define LAC_SPINLOCK_DESTROY(lock)                                             \
 	({                                                                     \
 		(void)qatUtilsLockDestroy(lock);                               \
-		CPA_STATUS_SUCCESS;                                            \
 	})
 
 #define LAC_CONST_PTR_CAST(castee) ((void *)(LAC_ARCH_UINT)(castee))

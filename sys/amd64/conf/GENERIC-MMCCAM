@@ -2,12 +2,14 @@
 # and testing on bhyve
 # $FreeBSD$
 
+#NO_UNIVERSE
+
 include         MINIMAL
 
 ident		GENERIC-MMCCAM
 
 # Access GPT-formatted and labeled root volume
-options         GEOM_LABEL
+options 	GEOM_LABEL
 
 # UART -- for bhyve console
 device          uart
@@ -25,8 +27,8 @@ device		pass
 device		scbus
 device		da
 
-options	       MMCCAM
+options 	MMCCAM
 
 # Add CAMDEBUG stuff
-options	       CAMDEBUG
-options	       CAM_DEBUG_FLAGS=(CAM_DEBUG_INFO|CAM_DEBUG_PROBE|CAM_DEBUG_PERIPH)
+options 	CAMDEBUG
+options 	CAM_DEBUG_FLAGS=(CAM_DEBUG_INFO|CAM_DEBUG_PROBE|CAM_DEBUG_PERIPH)

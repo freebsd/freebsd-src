@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -79,7 +79,7 @@ bc_lex_comment(BcLex* l)
 		got_more = false;
 
 		// If we are in stdin mode, the buffer must be the one used for stdin.
-		assert(!vm.is_stdin || buf == vm.buffer.v);
+		assert(vm->mode != BC_MODE_STDIN || buf == vm->buffer.v);
 
 		// Find the end of the comment.
 		for (i = l->i; !end; i += !end)
@@ -94,7 +94,7 @@ bc_lex_comment(BcLex* l)
 			if (BC_ERR(!c || buf[i + 1] == '\0'))
 			{
 				// Read more, if possible.
-				if (!vm.eof && (l->is_stdin || l->is_exprs))
+				if (!vm->eof && l->mode != BC_MODE_FILE)
 				{
 					got_more = bc_lex_readLine(l);
 				}
@@ -293,7 +293,7 @@ bc_lex_file(BcLex* l, const char* file)
 {
 	assert(l != NULL && file != NULL);
 	l->line = 1;
-	vm.file = file;
+	vm->file = file;
 }
 
 void
@@ -320,7 +320,7 @@ bc_lex_next(BcLex* l)
 	// is so the parser doesn't get inundated with whitespace.
 	do
 	{
-		vm.next(l);
+		vm->next(l);
 	}
 	while (l->t == BC_LEX_WHITESPACE);
 }
@@ -349,22 +349,46 @@ bc_lex_readLine(BcLex* l)
 	BC_SIG_UNLOCK;
 
 	// Make sure we read from the appropriate place.
-	if (l->is_stdin) good = bc_vm_readLine(false);
-	else
+	switch (l->mode)
 	{
-		assert(l->is_exprs);
-		good = bc_vm_readBuf(false);
+		case BC_MODE_EXPRS:
+		{
+			good = bc_vm_readBuf(false);
+			break;
+		}
+
+		case BC_MODE_FILE:
+		{
+			good = false;
+			break;
+		}
+
+		case BC_MODE_STDIN:
+		{
+			good = bc_vm_readLine(false);
+			break;
+		}
+
+#ifdef __GNUC__
+#ifndef __clang__
+		default:
+		{
+			// We should never get here.
+			abort();
+		}
+#endif // __clang__
+#endif // __GNUC__
 	}
 
 	BC_SIG_LOCK;
 
-	bc_lex_fixText(l, vm.buffer.v, vm.buffer.len - 1);
+	bc_lex_fixText(l, vm->buffer.v, vm->buffer.len - 1);
 
 	return good;
 }
 
 void
-bc_lex_text(BcLex* l, const char* text, bool is_stdin, bool is_exprs)
+bc_lex_text(BcLex* l, const char* text, BcMode mode)
 {
 	BC_SIG_ASSERT_LOCKED;
 
@@ -373,10 +397,7 @@ bc_lex_text(BcLex* l, const char* text, bool is_stdin, bool is_exprs)
 	bc_lex_fixText(l, text, strlen(text));
 	l->i = 0;
 	l->t = l->last = BC_LEX_INVALID;
-	l->is_stdin = is_stdin;
-	l->is_exprs = is_exprs;
-
-	assert(!l->is_stdin || !l->is_exprs);
+	l->mode = mode;
 
 	bc_lex_next(l);
 }

@@ -136,7 +136,7 @@ pf_match_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 	int			 asd = 0;
 
 	r = TAILQ_FIRST(pf_main_ruleset.rules[rs_num].active.ptr);
-	while (r && rm == NULL) {
+	while (r != NULL) {
 		struct pf_rule_addr	*src = NULL, *dst = NULL;
 		struct pf_addr_wrap	*xdst = NULL;
 
@@ -191,6 +191,12 @@ pf_match_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 				rtableid = r->rtableid;
 			if (r->anchor == NULL) {
 				rm = r;
+				if (rm->action == PF_NONAT ||
+				    rm->action == PF_NORDR ||
+				    rm->action == PF_NOBINAT) {
+					rm = NULL;
+				}
+				break;
 			} else
 				pf_step_into_anchor(anchor_stack, &asd,
 				    &ruleset, rs_num, &r, NULL, NULL);
@@ -205,9 +211,6 @@ pf_match_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 	if (rtableid >= 0)
 		M_SETFIB(m, rtableid);
 
-	if (rm != NULL && (rm->action == PF_NONAT ||
-	    rm->action == PF_NORDR || rm->action == PF_NOBINAT))
-		return (NULL);
 	return (rm);
 }
 

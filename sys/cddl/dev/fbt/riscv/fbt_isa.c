@@ -45,6 +45,7 @@
 #define	FBT_PATCHVAL		MATCH_EBREAK
 #define	FBT_ENTRY		"entry"
 #define	FBT_RETURN		"return"
+#define	FBT_AFRAMES		5
 
 int
 fbt_invop(uintptr_t addr, struct trapframe *frame, uintptr_t rval)
@@ -57,7 +58,7 @@ fbt_invop(uintptr_t addr, struct trapframe *frame, uintptr_t rval)
 
 	for (; fbt != NULL; fbt = fbt->fbtp_hashnext) {
 		if ((uintptr_t)fbt->fbtp_patchpoint == addr) {
-			cpu->cpu_dtrace_caller = addr;
+			cpu->cpu_dtrace_caller = frame->tf_ra - INSN_SIZE;
 
 			if (fbt->fbtp_roffset == 0) {
 				dtrace_probe(fbt->fbtp_id, frame->tf_a[0],
@@ -196,7 +197,7 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 	fbt = malloc(sizeof (fbt_probe_t), M_FBT, M_WAITOK | M_ZERO);
 	fbt->fbtp_name = name;
 	fbt->fbtp_id = dtrace_probe_create(fbt_id, modname,
-	    name, FBT_ENTRY, 3, fbt);
+	    name, FBT_ENTRY, FBT_AFRAMES, fbt);
 	fbt->fbtp_patchpoint = instr;
 	fbt->fbtp_ctl = lf;
 	fbt->fbtp_loadcnt = lf->loadcnt;
@@ -239,7 +240,7 @@ again:
 	fbt->fbtp_name = name;
 	if (retfbt == NULL) {
 		fbt->fbtp_id = dtrace_probe_create(fbt_id, modname,
-		    name, FBT_RETURN, 3, fbt);
+		    name, FBT_RETURN, FBT_AFRAMES, fbt);
 	} else {
 		retfbt->fbtp_probenext = fbt;
 		fbt->fbtp_id = retfbt->fbtp_id;

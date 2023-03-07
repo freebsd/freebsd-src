@@ -3988,10 +3988,10 @@ int
 archive_mstring_get_mbs_l(struct archive *a, struct archive_mstring *aes,
     const char **p, size_t *length, struct archive_string_conv *sc)
 {
-	int r, ret = 0;
-
-	(void)r; /* UNUSED */
+	int ret = 0;
 #if defined(_WIN32) && !defined(__CYGWIN__)
+	int r;
+
 	/*
 	 * Internationalization programming on Windows must use Wide
 	 * characters because Windows platform cannot make locale UTF-8.

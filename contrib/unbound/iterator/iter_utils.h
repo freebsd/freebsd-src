@@ -62,6 +62,15 @@ struct ub_packed_rrset_key;
 struct module_stack;
 struct outside_network;
 
+/* max number of lookups in the cache for target nameserver names.
+ * This stops, for large delegations, N*N lookups in the cache. */
+#define ITERATOR_NAME_CACHELOOKUP_MAX	3
+/* max number of lookups in the cache for parentside glue for nameserver names
+ * This stops, for larger delegations, N*N lookups in the cache.
+ * It is a little larger than the nonpside max, so it allows a couple extra
+ * lookups of parent side glue. */
+#define ITERATOR_NAME_CACHELOOKUP_MAX_PSIDE	5
+
 /**
  * Process config options and set iterator module state.
  * Sets default values if no config is found.

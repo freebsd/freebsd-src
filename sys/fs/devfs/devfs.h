@@ -185,8 +185,7 @@ extern unsigned devfs_rule_depth;
 #define DEVFS_DMP_HOLD(dmp)	((dmp)->dm_holdcnt++)
 #define DEVFS_DMP_DROP(dmp)	(--(dmp)->dm_holdcnt == 0)
 
-#define	DEVFS_DEL_VNLOCKED	0x01
-#define	DEVFS_DEL_NORECURSE	0x02
+#define	DEVFS_DEL_NORECURSE	0x01
 
 void	devfs_rules_apply(struct devfs_mount *, struct devfs_dirent *);
 void	devfs_rules_cleanup(struct devfs_mount *);

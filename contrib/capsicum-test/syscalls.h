@@ -47,16 +47,29 @@ inline int bogus_mount_() {
 
 /* Mappings for extended attribute functions */
 #include <sys/extattr.h>
+#include <errno.h>
+static const char *fbsd_extattr_skip_prefix(const char *p) {
+  if (*p++ == 'u' && *p++ == 's' && *p++ == 'e' && *p++ == 'r' && *p++ == '.')
+    return p;
+  errno = EINVAL;
+  return NULL;
+}
 inline ssize_t flistxattr_(int fd, char *list, size_t size) {
   return extattr_list_fd(fd, EXTATTR_NAMESPACE_USER, list, size);
 }
 inline ssize_t fgetxattr_(int fd, const char *name, void *value, size_t size) {
+  if (!(name = fbsd_extattr_skip_prefix(name)))
+    return -1;
   return extattr_get_fd(fd, EXTATTR_NAMESPACE_USER, name, value, size);
 }
 inline int fsetxattr_(int fd, const char *name, const void *value, size_t size, int) {
+  if (!(name = fbsd_extattr_skip_prefix(name)))
+    return -1;
   return extattr_set_fd(fd, EXTATTR_NAMESPACE_USER, name, value, size);
 }
 inline int fremovexattr_(int fd, const char *name) {
+  if (!(name = fbsd_extattr_skip_prefix(name)))
+    return -1;
   return extattr_delete_fd(fd, EXTATTR_NAMESPACE_USER, name);
 }
 

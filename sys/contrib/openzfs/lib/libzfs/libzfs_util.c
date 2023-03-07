@@ -170,6 +170,8 @@ libzfs_error_description(libzfs_handle_t *hdl)
 		return (dgettext(TEXT_DOMAIN, "I/O error"));
 	case EZFS_INTR:
 		return (dgettext(TEXT_DOMAIN, "signal received"));
+	case EZFS_CKSUM:
+		return (dgettext(TEXT_DOMAIN, "insufficient replicas"));
 	case EZFS_ISSPARE:
 		return (dgettext(TEXT_DOMAIN, "device is reserved as a hot "
 		    "spare"));
@@ -302,6 +304,9 @@ libzfs_error_description(libzfs_handle_t *hdl)
 	case EZFS_NOT_USER_NAMESPACE:
 		return (dgettext(TEXT_DOMAIN, "the provided file "
 		    "was not a user namespace file"));
+	case EZFS_RESUME_EXISTS:
+		return (dgettext(TEXT_DOMAIN, "Resuming recv on existing "
+		    "dataset without force"));
 	case EZFS_UNKNOWN:
 		return (dgettext(TEXT_DOMAIN, "unknown error"));
 	default:
@@ -395,6 +400,10 @@ zfs_common_error(libzfs_handle_t *hdl, int error, const char *fmt,
 
 	case EINTR:
 		zfs_verror(hdl, EZFS_INTR, fmt, ap);
+		return (-1);
+
+	case ECKSUM:
+		zfs_verror(hdl, EZFS_CKSUM, fmt, ap);
 		return (-1);
 	}
 
@@ -679,7 +688,7 @@ zpool_standard_error_fmt(libzfs_handle_t *hdl, int error, const char *fmt, ...)
 	case ENOSPC:
 	case EDQUOT:
 		zfs_verror(hdl, EZFS_NOSPC, fmt, ap);
-		return (-1);
+		break;
 
 	case EAGAIN:
 		zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
@@ -1240,7 +1249,7 @@ zcmd_read_dst_nvlist(libzfs_handle_t *hdl, zfs_cmd_t *zc, nvlist_t **nvlp)
 static void
 zprop_print_headers(zprop_get_cbdata_t *cbp, zfs_type_t type)
 {
-	zprop_list_t *pl = cbp->cb_proplist;
+	zprop_list_t *pl;
 	int i;
 	char *title;
 	size_t len;
@@ -1673,6 +1682,18 @@ zprop_parse_value(libzfs_handle_t *hdl, nvpair_t *elem, int prop,
 		}
 
 		/*
+		 * Special handling for "checksum_*=none". In this case it's not
+		 * 0 but UINT64_MAX.
+		 */
+		if ((type & ZFS_TYPE_VDEV) && isnone &&
+		    (prop == VDEV_PROP_CHECKSUM_N ||
+		    prop == VDEV_PROP_CHECKSUM_T ||
+		    prop == VDEV_PROP_IO_N ||
+		    prop == VDEV_PROP_IO_T)) {
+			*ivalp = UINT64_MAX;
+		}
+
+		/*
 		 * Special handling for setting 'refreservation' to 'auto'.  Use
 		 * UINT64_MAX to tell the caller to use zfs_fix_auto_resv().
 		 * 'auto' is only allowed on volumes.
@@ -2001,15 +2022,20 @@ use_color(void)
 void
 color_start(const char *color)
 {
-	if (use_color())
+	if (use_color()) {
 		fputs(color, stdout);
+		fflush(stdout);
+	}
 }
 
 void
 color_end(void)
 {
-	if (use_color())
+	if (use_color()) {
 		fputs(ANSI_RESET, stdout);
+		fflush(stdout);
+	}
+
 }
 
 /* printf() with a color.  If color is NULL, then do a normal printf. */

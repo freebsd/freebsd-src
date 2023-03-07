@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -37,7 +37,7 @@ usage: %s [options] [file...]
 
 dc is a reverse-polish notation command-line calculator which supports unlimited
 precision arithmetic. For details, use `man %s` or see the online documentation
-at https://git.yzena.com/gavin/bc/src/tag/%s/manuals/bc/%s.1.md.
+at https://git.gavinhoward.com/gavin/bc/src/tag/%s/manuals/bc/%s.1.md.
 
 This dc is (mostly) compatible with the OpenBSD dc and the GNU dc. See the
 OpenBSD man page (http://man.openbsd.org/OpenBSD-current/man1/dc.1) and the GNU
@@ -71,6 +71,29 @@ This dc has a few differences from the two above:
      that requires a register name is taken as the register name.
 
 Options:
+
+  -C  --no-digit-clamp
+
+      Disables clamping of digits that are larger than or equal to the current
+      ibase when parsing numbers.
+
+      This means that the value added to a number from a digit is always that
+      digit's value multiplied by the value of ibase raised to the power of the
+      digit's position, which starts from 0 at the least significant digit.
+
+      If multiple of this option and the -c option are given, the last is used.
+
+  -c  --digit-clamp
+
+      Enables clamping of digits that are larger than or equal to the current
+      ibase when parsing numbers.
+
+      This means that digits that the value added to a number from a digit that
+      is greater than or equal to the ibase is the value of ibase minus 1 all
+      multiplied by the value of ibase raised to the power of the digit's
+      position, which starts from 0 at the least significant digit.
+
+      If multiple of this option and the -C option are given, the last is used.
 {{ A H N HN }}
 
   -E  seed  --seed=seed
@@ -155,11 +178,15 @@ Environment variables:
       If an integer and non-zero, reset on SIGINT, rather than exit, when in
       interactive mode.
 
+      If zero, do not reset on SIGINT in all cases, but exit instead.
+
       Overrides the default, which is %s.
 
   DC_TTY_MODE
 
       If an integer and non-zero, enable TTY mode when it is available.
+
+      If zero, disable TTY mode in all cases.
 
       Overrides the default, which is TTY mode %s.
 
@@ -167,11 +194,20 @@ Environment variables:
 
       If an integer and non-zero, enable prompt when TTY mode is possible.
 
+      If zero, disable prompt in all cases.
+
       Overrides the default, which is prompt %s.
 
   DC_EXPR_EXIT
 
       If an integer and non-zero, exit when expressions or expression files are
       given on the command-line, and does not exit when an integer and zero.
+
+      Overrides the default, which is %s.
+
+  DC_DIGIT_CLAMP
+
+      If an integer and non-zero, clamp digits larger than or equal to the
+      current ibase when parsing numbers.
 
       Overrides the default, which is %s.

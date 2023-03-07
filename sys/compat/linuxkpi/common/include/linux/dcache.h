@@ -29,8 +29,9 @@
 #ifndef _LINUXKPI_LINUX_DCACHE_H
 #define	_LINUXKPI_LINUX_DCACHE_H
 
-struct vnode;
-struct pfs_node;
+#include <sys/vnode.h>
+
+#include <fs/pseudofs/pseudofs.h>
 
 struct dentry {
 	struct vnode *d_inode;

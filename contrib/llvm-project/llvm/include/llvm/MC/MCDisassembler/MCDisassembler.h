@@ -40,26 +40,35 @@ struct SymbolInfoTy {
 
 private:
   bool IsXCOFF;
+  bool HasType;
 
 public:
   SymbolInfoTy(uint64_t Addr, StringRef Name,
                Optional<XCOFF::StorageMappingClass> Smc, Optional<uint32_t> Idx,
                bool Label)
-      : Addr(Addr), Name(Name), XCOFFSymInfo(Smc, Idx, Label), IsXCOFF(true) {}
-  SymbolInfoTy(uint64_t Addr, StringRef Name, uint8_t Type)
-      : Addr(Addr), Name(Name), Type(Type), IsXCOFF(false) {}
+      : Addr(Addr), Name(Name), XCOFFSymInfo(Smc, Idx, Label), IsXCOFF(true),
+        HasType(false) {}
+  SymbolInfoTy(uint64_t Addr, StringRef Name, uint8_t Type,
+               bool IsXCOFF = false)
+      : Addr(Addr), Name(Name), Type(Type), IsXCOFF(IsXCOFF), HasType(true) {}
   bool isXCOFF() const { return IsXCOFF; }
 
 private:
   friend bool operator<(const SymbolInfoTy &P1, const SymbolInfoTy &P2) {
-    assert(P1.IsXCOFF == P2.IsXCOFF &&
-           "P1.IsXCOFF should be equal to P2.IsXCOFF.");
+    assert((P1.IsXCOFF == P2.IsXCOFF && P1.HasType == P2.HasType) &&
+           "The value of IsXCOFF and HasType in P1 and P2 should be the same "
+           "respectively.");
+
+    if (P1.IsXCOFF && P1.HasType)
+      return std::tie(P1.Addr, P1.Type, P1.Name) <
+             std::tie(P2.Addr, P2.Type, P2.Name);
+
     if (P1.IsXCOFF)
       return std::tie(P1.Addr, P1.XCOFFSymInfo, P1.Name) <
              std::tie(P2.Addr, P2.XCOFFSymInfo, P2.Name);
 
     return std::tie(P1.Addr, P1.Name, P1.Type) <
-             std::tie(P2.Addr, P2.Name, P2.Type);
+           std::tie(P2.Addr, P2.Name, P2.Type);
   }
 };
 
@@ -162,6 +171,29 @@ public:
   // It should help move much of the target specific code from llvm-objdump to
   // respective target disassemblers.
 
+  /// Suggest a distance to skip in a buffer of data to find the next
+  /// place to look for the start of an instruction. For example, if
+  /// all instructions have a fixed alignment, this might advance to
+  /// the next multiple of that alignment.
+  ///
+  /// If not overridden, the default is 1.
+  ///
+  /// \param Address  - The address, in the memory space of region, of the
+  ///                   starting point (typically the first byte of something
+  ///                   that did not decode as a valid instruction at all).
+  /// \param Bytes    - A reference to the actual bytes at Address. May be
+  ///                   needed in order to determine the width of an
+  ///                   unrecognized instruction (e.g. in Thumb this is a simple
+  ///                   consistent criterion that doesn't require knowing the
+  ///                   specific instruction). The caller can pass as much data
+  ///                   as they have available, and the function is required to
+  ///                   make a reasonable default choice if not enough data is
+  ///                   available to make a better one.
+  /// \return         - A number of bytes to skip. Must always be greater than
+  ///                   zero. May be greater than the size of Bytes.
+  virtual uint64_t suggestBytesToSkip(ArrayRef<uint8_t> Bytes,
+                                      uint64_t Address) const;
+
 private:
   MCContext &Ctx;
 
@@ -172,10 +204,9 @@ protected:
 
 public:
   // Helpers around MCSymbolizer
-  bool tryAddingSymbolicOperand(MCInst &Inst,
-                                int64_t Value,
-                                uint64_t Address, bool IsBranch,
-                                uint64_t Offset, uint64_t InstSize) const;
+  bool tryAddingSymbolicOperand(MCInst &Inst, int64_t Value, uint64_t Address,
+                                bool IsBranch, uint64_t Offset, uint64_t OpSize,
+                                uint64_t InstSize) const;
 
   void tryAddingPcLoadReferenceComment(int64_t Value, uint64_t Address) const;
 

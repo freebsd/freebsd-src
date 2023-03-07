@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <net/netisr.h>
 
 #include <netinet/in.h>
@@ -190,7 +191,6 @@ divert_packet(struct mbuf *m, bool incoming)
 		in_delayed_cksum(m);
 		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 	}
-#endif
 #if defined(SCTP) || defined(SCTP_SUPPORT)
 	if (m->m_pkthdr.csum_flags & CSUM_SCTP) {
 		struct ip *ip;
@@ -199,6 +199,7 @@ divert_packet(struct mbuf *m, bool incoming)
 		sctp_delayed_cksum(m, (uint32_t)(ip->ip_hl << 2));
 		m->m_pkthdr.csum_flags &= ~CSUM_SCTP;
 	}
+#endif
 #endif
 #ifdef INET6
 	if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6) {
@@ -763,5 +764,4 @@ static moduledata_t ipdivertmod = {
 };
 
 DECLARE_MODULE(ipdivert, ipdivertmod, SI_SUB_PROTO_FIREWALL, SI_ORDER_ANY);
-MODULE_DEPEND(ipdivert, ipfw, 3, 3, 3);
 MODULE_VERSION(ipdivert, 1);

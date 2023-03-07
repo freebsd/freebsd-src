@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <net/route/nhop.h>
 #include <netinet/in.h>
 #include <netinet6/scope6_var.h>
-#include <netinet6/in6_var.h>
 
 #include <vm/uma.h>
 
@@ -154,8 +153,7 @@ rt_free(struct rtentry *rt)
 
 	KASSERT(rt != NULL, ("%s: NULL rt", __func__));
 
-	epoch_call(net_epoch_preempt, destroy_rtentry_epoch,
-	    &rt->rt_epoch_ctx);
+	NET_EPOCH_CALL(destroy_rtentry_epoch, &rt->rt_epoch_ctx);
 }
 
 void

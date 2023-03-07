@@ -54,12 +54,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/syscon/syscon.h>
 
 enum rk_dwc3_type {
-	RK3328 = 1,
-	RK3399,
+	RK3399 = 1,
 };
 
 static struct ofw_compat_data compat_data[] = {
-	{ "rockchip,rk3328-dwc3",	RK3328 },
 	{ "rockchip,rk3399-dwc3",	RK3399 },
 	{ NULL,				0 }
 };

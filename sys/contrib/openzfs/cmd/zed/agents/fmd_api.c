@@ -372,7 +372,7 @@ zed_log_fault(nvlist_t *nvl, const char *uuid, const char *code)
 	if (code != NULL)
 		zed_log_msg(LOG_INFO, "\t%s: %s", FM_SUSPECT_DIAG_CODE, code);
 	if (nvlist_lookup_uint8(nvl, FM_FAULT_CERTAINTY, &byte) == 0)
-		zed_log_msg(LOG_INFO, "\t%s: %llu", FM_FAULT_CERTAINTY, byte);
+		zed_log_msg(LOG_INFO, "\t%s: %hhu", FM_FAULT_CERTAINTY, byte);
 	if (nvlist_lookup_nvlist(nvl, FM_FAULT_RESOURCE, &rsrc) == 0) {
 		if (nvlist_lookup_string(rsrc, FM_FMRI_SCHEME, &strval) == 0)
 			zed_log_msg(LOG_INFO, "\t%s: %s", FM_FMRI_SCHEME,
@@ -616,6 +616,7 @@ fmd_timer_install(fmd_hdl_t *hdl, void *arg, fmd_event_t *ep, hrtime_t delta)
 	sev.sigev_notify_function = _timer_notify;
 	sev.sigev_notify_attributes = NULL;
 	sev.sigev_value.sival_ptr = ftp;
+	sev.sigev_signo = 0;
 
 	timer_create(CLOCK_REALTIME, &sev, &ftp->ft_tid);
 	timer_settime(ftp->ft_tid, 0, &its, NULL);

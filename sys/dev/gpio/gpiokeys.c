@@ -194,6 +194,10 @@ gpiokeys_key_event(struct gpiokeys_softc *sc, struct gpiokey *key, int pressed)
 		evdev_push_key(sc->sc_evdev, key->evcode, pressed);
 		evdev_sync(sc->sc_evdev);
 	}
+	if (evdev_is_grabbed(sc->sc_evdev)) {
+		GPIOKEYS_UNLOCK(sc);
+		return;
+	}
 #endif
 	if (key->keycode != GPIOKEY_NONE) {
 		code = key->keycode & SCAN_KEYCODE_MASK;
@@ -890,11 +894,15 @@ gpiokeys_ioctl_locked(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		return (gpiokeys_set_typematic(kbd, *(int *)arg));
 
 	case PIO_KEYMAP:		/* set keyboard translation table */
-	case OPIO_KEYMAP:		/* set keyboard translation table
-					 * (compat) */
 	case PIO_KEYMAPENT:		/* set keyboard translation table
 					 * entry */
 	case PIO_DEADKEYMAP:		/* set accent key translation table */
+#ifdef COMPAT_FREEBSD13
+	case OPIO_KEYMAP:		/* set keyboard translation table
+					 * (compat) */
+	case OPIO_DEADKEYMAP:		/* set accent key translation table
+					 * (compat) */
+#endif /* COMPAT_FREEBSD13 */
 		sc->sc_accents = 0;
 		/* FALLTHROUGH */
 	default:

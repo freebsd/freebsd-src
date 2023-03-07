@@ -1,4 +1,4 @@
-#	$OpenBSD: hostbased.sh,v 1.3 2022/01/08 07:55:26 dtucker Exp $
+#	$OpenBSD: hostbased.sh,v 1.4 2022/12/07 11:45:43 dtucker Exp $
 #	Placed in the Public Domain.
 
 # This test requires external setup and thus is skipped unless
@@ -8,7 +8,7 @@
 # - ssh-keysign must be installed and setuid.
 # - "EnableSSHKeysign yes" must be in the system ssh_config.
 # - the system's own real FQDN the system-wide shosts.equiv.
-# - the system's real public key fingerprints must me in global ssh_known_hosts.
+# - the system's real public key fingerprints must be in global ssh_known_hosts.
 #
 tid="hostbased"
 

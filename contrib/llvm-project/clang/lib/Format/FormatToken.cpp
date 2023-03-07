@@ -74,6 +74,20 @@ bool FormatToken::isTypeOrIdentifier() const {
   return isSimpleTypeSpecifier() || Tok.isOneOf(tok::kw_auto, tok::identifier);
 }
 
+bool FormatToken::opensBlockOrBlockTypeList(const FormatStyle &Style) const {
+  // C# Does not indent object initialisers as continuations.
+  if (is(tok::l_brace) && getBlockKind() == BK_BracedInit && Style.isCSharp())
+    return true;
+  if (is(TT_TemplateString) && opensScope())
+    return true;
+  return is(TT_ArrayInitializerLSquare) || is(TT_ProtoExtensionLSquare) ||
+         (is(tok::l_brace) &&
+          (getBlockKind() == BK_Block || is(TT_DictLiteral) ||
+           (!Style.Cpp11BracedListStyle && NestingLevel == 0))) ||
+         (is(tok::less) && (Style.Language == FormatStyle::LK_Proto ||
+                            Style.Language == FormatStyle::LK_TextProto));
+}
+
 TokenRole::~TokenRole() {}
 
 void TokenRole::precomputeFormattingInfos(const FormatToken *Token) {}
@@ -92,8 +106,9 @@ unsigned CommaSeparatedList::formatAfterToken(LineState &State,
       State.NextToken->Previous->getPreviousNonComment();
   if (!LBrace || !LBrace->isOneOf(tok::l_brace, TT_ArrayInitializerLSquare) ||
       LBrace->is(BK_Block) || LBrace->is(TT_DictLiteral) ||
-      LBrace->Next->is(TT_DesignatedInitializerPeriod))
+      LBrace->Next->is(TT_DesignatedInitializerPeriod)) {
     return 0;
+  }
 
   // Calculate the number of code points we have to format this list. As the
   // first token is already placed, we have to subtract it.
@@ -158,15 +173,17 @@ static unsigned CodePointsBetween(const FormatToken *Begin,
 void CommaSeparatedList::precomputeFormattingInfos(const FormatToken *Token) {
   // FIXME: At some point we might want to do this for other lists, too.
   if (!Token->MatchingParen ||
-      !Token->isOneOf(tok::l_brace, TT_ArrayInitializerLSquare))
+      !Token->isOneOf(tok::l_brace, TT_ArrayInitializerLSquare)) {
     return;
+  }
 
   // In C++11 braced list style, we should not format in columns unless they
   // have many items (20 or more) or we allow bin-packing of function call
   // arguments.
   if (Style.Cpp11BracedListStyle && !Style.BinPackArguments &&
-      Commas.size() < 19)
+      Commas.size() < 19) {
     return;
+  }
 
   // Limit column layout for JavaScript array initializers to 20 or more items
   // for now to introduce it carefully. We can become more aggressive if this
@@ -186,6 +203,9 @@ void CommaSeparatedList::precomputeFormattingInfos(const FormatToken *Token) {
   // The lengths of an item if it is put at the end of the line. This includes
   // trailing comments which are otherwise ignored for column alignment.
   SmallVector<unsigned, 8> EndOfLineItemLength;
+  MustBreakBeforeItem.reserve(Commas.size() + 1);
+  EndOfLineItemLength.reserve(Commas.size() + 1);
+  ItemLengths.reserve(Commas.size() + 1);
 
   bool HasSeparatingComment = false;
   for (unsigned i = 0, e = Commas.size() + 1; i != e; ++i) {
@@ -221,8 +241,9 @@ void CommaSeparatedList::precomputeFormattingInfos(const FormatToken *Token) {
 
       // Consume trailing comments so the are included in EndOfLineItemLength.
       if (ItemEnd->Next && !ItemEnd->Next->HasUnescapedNewline &&
-          ItemEnd->Next->isTrailingComment())
+          ItemEnd->Next->isTrailingComment()) {
         ItemEnd = ItemEnd->Next;
+      }
     }
     EndOfLineItemLength.push_back(CodePointsBetween(ItemBegin, ItemEnd));
     // If there is a trailing comma in the list, the next item will start at the
@@ -243,7 +264,7 @@ void CommaSeparatedList::precomputeFormattingInfos(const FormatToken *Token) {
   // We can never place more than ColumnLimit / 3 items in a row (because of the
   // spaces and the comma).
   unsigned MaxItems = Style.ColumnLimit / 3;
-  std::vector<unsigned> MinSizeInColumn;
+  SmallVector<unsigned> MinSizeInColumn;
   MinSizeInColumn.reserve(MaxItems);
   for (unsigned Columns = 1; Columns <= MaxItems; ++Columns) {
     ColumnFormat Format;
@@ -283,8 +304,9 @@ void CommaSeparatedList::precomputeFormattingInfos(const FormatToken *Token) {
             if (Format.ColumnSizes[i] - MinSizeInColumn[i] > 10)
               return true;
           return false;
-        }())
+        }()) {
       continue;
+    }
 
     // Ignore layouts that are bound to violate the column limit.
     if (Format.TotalWidth > Style.ColumnLimit && Columns > 1)

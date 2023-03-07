@@ -131,7 +131,7 @@ struct boot_catalog_entry {
 	char entry_type;
 	union {
 		boot_catalog_validation_entry		VE;
-		boot_catalog_initial_entry 		IE;
+		boot_catalog_initial_entry		IE;
 		boot_catalog_section_header		SH;
 		boot_catalog_section_entry		SE;
 		boot_catalog_section_entry_extension	EX;
@@ -144,7 +144,7 @@ struct boot_catalog_entry {
 struct cd9660_boot_image {
 	char *filename;
 	int size;
-	int sector; 			/* copied to LoadRBA */
+	int sector;			/* copied to LoadRBA */
 	int num_sectors;
 	unsigned int loadSegment;
 	u_char targetMode;

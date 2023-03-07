@@ -998,8 +998,9 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "Usage: unzip [-aCcfjLlnopqtuvyZ1] [-d dir] "
-		"[-x pattern] [-P password] zipfile\n");
+	fprintf(stderr,
+"Usage: unzip [-aCcfjLlnopqtuvyZ1] [-d dir] [-x pattern] [-P password] zipfile\n"
+"             [member ...]\n");
 	exit(EXIT_FAILURE);
 }
 

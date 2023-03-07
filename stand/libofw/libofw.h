@@ -28,6 +28,8 @@
 #include "openfirm.h"
 #include <readin.h>
 
+#define DEVT_OFDISK	1001
+
 struct ofw_devdesc {
 	struct devdesc			dd;
 	union {
@@ -43,9 +45,9 @@ struct ofw_devdesc {
 };
 
 extern int	ofw_getdev(void **vdev, const char *devspec, const char **path);
-extern ev_sethook_t ofw_setcurrdev;
 
 extern struct devsw		ofwdisk;
+extern struct devsw		ofw_netdev;
 extern struct netif_driver	ofwnet;
 
 int	ofwn_getunit(const char *);
@@ -59,12 +61,12 @@ extern int	ofw_autoload(void);
 
 void	ofw_memmap(int);
 
+phandle_t ofw_path_to_handle(const char *ofwpath, const char *want_type, const char **path);
+int ofw_common_parsedev(struct devdesc **dev, const char *devspec, const char **path,
+    const char *ofwtype);
+
 struct preloaded_file;
 struct file_format;
-
-/* MD code implementing MI interfaces */
-vm_offset_t md_load(char *args, vm_offset_t *modulep, vm_offset_t *dtb);
-vm_offset_t md_load64(char *args, vm_offset_t *modulep, vm_offset_t *dtb);
 
 extern void	reboot(void);
 

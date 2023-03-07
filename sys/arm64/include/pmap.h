@@ -43,6 +43,7 @@
 #include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/_pv_entry.h>
 
 #include <vm/_vm_radix.h>
 
@@ -97,42 +98,6 @@ struct pmap {
 };
 typedef struct pmap *pmap_t;
 
-typedef struct pv_entry {
-	vm_offset_t		pv_va;	/* virtual address for mapping */
-	TAILQ_ENTRY(pv_entry)	pv_next;
-} *pv_entry_t;
-
-/*
- * pv_entries are allocated in chunks per-process.  This avoids the
- * need to track per-pmap assignments.
- */
-#if PAGE_SIZE == PAGE_SIZE_4K
-#define	_NPCPV	168
-#define	_NPAD	0
-#elif PAGE_SIZE == PAGE_SIZE_16K
-#define	_NPCPV	677
-#define	_NPAD	1
-#else
-#error Unsupported page size
-#endif
-#define	_NPCM	howmany(_NPCPV, 64)
-
-#define	PV_CHUNK_HEADER							\
-	pmap_t			pc_pmap;				\
-	TAILQ_ENTRY(pv_chunk)	pc_list;				\
-	uint64_t		pc_map[_NPCM];	/* bitmap; 1 = free */	\
-	TAILQ_ENTRY(pv_chunk)	pc_lru;
-
-struct pv_chunk_header {
-	PV_CHUNK_HEADER
-};
-
-struct pv_chunk {
-	PV_CHUNK_HEADER
-	struct pv_entry		pc_pventry[_NPCPV];
-	uint64_t		pc_pad[_NPAD];
-};
-
 struct thread;
 
 #ifdef _KERNEL
@@ -174,7 +139,7 @@ extern vm_offset_t virtual_end;
 #define	pmap_vm_page_alloc_check(m)
 
 void	pmap_activate_vm(pmap_t);
-void	pmap_bootstrap(vm_offset_t, vm_offset_t, vm_paddr_t, vm_size_t);
+void	pmap_bootstrap(vm_paddr_t, vm_size_t);
 int	pmap_change_attr(vm_offset_t va, vm_size_t size, int mode);
 int	pmap_change_prot(vm_offset_t va, vm_size_t size, vm_prot_t prot);
 void	pmap_kenter(vm_offset_t sva, vm_size_t size, vm_paddr_t pa, int mode);
@@ -192,8 +157,8 @@ void	pmap_disable_promotion(vm_offset_t sva, vm_size_t size);
 
 void	*pmap_mapdev(vm_paddr_t, vm_size_t);
 void	*pmap_mapbios(vm_paddr_t, vm_size_t);
-void	pmap_unmapdev(vm_offset_t, vm_size_t);
-void	pmap_unmapbios(vm_offset_t, vm_size_t);
+void	pmap_unmapdev(void *, vm_size_t);
+void	pmap_unmapbios(void *, vm_size_t);
 
 boolean_t pmap_map_io_transient(vm_page_t *, vm_offset_t *, int, boolean_t);
 void	pmap_unmap_io_transient(vm_page_t *, vm_offset_t *, int, boolean_t);

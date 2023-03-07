@@ -2,7 +2,7 @@
 
 SPDX-License-Identifier: BSD-2-Clause
 
-Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -34,7 +34,7 @@ dc - arbitrary-precision decimal reverse-Polish notation calculator
 
 # SYNOPSIS
 
-**dc** [**-hiPRvVx**] [**-\-version**] [**-\-help**] [**-\-interactive**] [**-\-no-prompt**] [**-\-no-read-prompt**] [**-\-extended-register**] [**-e** *expr*] [**-\-expression**=*expr*...] [**-f** *file*...] [**-\-file**=*file*...] [*file*...]
+**dc** [**-cChiPRvVx**] [**-\-version**] [**-\-help**] [**-\-digit-clamp**] [**-\-no-digit-clamp**] [**-\-interactive**] [**-\-no-prompt**] [**-\-no-read-prompt**] [**-\-extended-register**] [**-e** *expr*] [**-\-expression**=*expr*...] [**-f** *file*...] [**-\-file**=*file*...] [*file*...]
 
 # DESCRIPTION
 
@@ -55,73 +55,40 @@ this dc(1) will always start with a **scale** of **10**.
 
 The following are the options that dc(1) accepts.
 
-**-h**, **-\-help**
+**-C**, **-\-no-digit-clamp**
 
-:   Prints a usage message and quits.
+:   Disables clamping of digits greater than or equal to the current **ibase**
+    when parsing numbers.
 
-**-v**, **-V**, **-\-version**
+    This means that the value added to a number from a digit is always that
+    digit's value multiplied by the value of ibase raised to the power of the
+    digit's position, which starts from 0 at the least significant digit.
 
-:   Print the version information (copyright header) and exit.
+    If this and/or the **-c** or **-\-digit-clamp** options are given multiple
+    times, the last one given is used.
 
-**-i**, **-\-interactive**
-
-:   Forces interactive mode. (See the **INTERACTIVE MODE** section.)
-
-    This is a **non-portable extension**.
-
-**-L**, **-\-no-line-length**
-
-:   Disables line length checking and prints numbers without backslashes and
-    newlines. In other words, this option sets **BC_LINE_LENGTH** to **0** (see
-    the **ENVIRONMENT VARIABLES** section).
+    This option overrides the **DC_DIGIT_CLAMP** environment variable (see the
+    **ENVIRONMENT VARIABLES** section) and the default, which can be queried
+    with the **-h** or **-\-help** options.
 
     This is a **non-portable extension**.
 
-**-P**, **-\-no-prompt**
+**-c**, **-\-digit-clamp**
 
-:   Disables the prompt in TTY mode. (The prompt is only enabled in TTY mode.
-    See the **TTY MODE** section.) This is mostly for those users that do not
-    want a prompt or are not used to having them in dc(1). Most of those users
-    would want to put this option in **DC_ENV_ARGS**.
+:   Enables clamping of digits greater than or equal to the current **ibase**
+    when parsing numbers.
 
-    These options override the **DC_PROMPT** and **DC_TTY_MODE** environment
-    variables (see the **ENVIRONMENT VARIABLES** section).
+    This means that digits that the value added to a number from a digit that is
+    greater than or equal to the ibase is the value of ibase minus 1 all
+    multiplied by the value of ibase raised to the power of the digit's
+    position, which starts from 0 at the least significant digit.
 
-    This is a **non-portable extension**.
+    If this and/or the **-C** or **-\-no-digit-clamp** options are given
+    multiple times, the last one given is used.
 
-**-R**, **-\-no-read-prompt**
-
-:   Disables the read prompt in TTY mode. (The read prompt is only enabled in
-    TTY mode. See the **TTY MODE** section.) This is mostly for those users that
-    do not want a read prompt or are not used to having them in dc(1). Most of
-    those users would want to put this option in **BC_ENV_ARGS** (see the
-    **ENVIRONMENT VARIABLES** section). This option is also useful in hash bang
-    lines of dc(1) scripts that prompt for user input.
-
-    This option does not disable the regular prompt because the read prompt is
-    only used when the **?** command is used.
-
-    These options *do* override the **DC_PROMPT** and **DC_TTY_MODE**
-    environment variables (see the **ENVIRONMENT VARIABLES** section), but only
-    for the read prompt.
-
-    This is a **non-portable extension**.
-
-**-x** **-\-extended-register**
-
-:   Enables extended register mode. See the *Extended Register Mode* subsection
-    of the **REGISTERS** section for more information.
-
-    This is a **non-portable extension**.
-
-**-z**, **-\-leading-zeroes**
-
-:   Makes dc(1) print all numbers greater than **-1** and less than **1**, and
-    not equal to **0**, with a leading zero.
-
-    This can be set for individual numbers with the **plz(x)**, plznl(x)**,
-    **pnlz(x)**, and **pnlznl(x)** functions in the extended math library (see
-    the **LIBRARY** section).
+    This option overrides the **DC_DIGIT_CLAMP** environment variable (see the
+    **ENVIRONMENT VARIABLES** section) and the default, which can be queried
+    with the **-h** or **-\-help** options.
 
     This is a **non-portable extension**.
 
@@ -157,12 +124,30 @@ The following are the options that dc(1) accepts.
 
     This is a **non-portable extension**.
 
+**-h**, **-\-help**
+
+:   Prints a usage message and exits.
+
 **-I** *ibase*, **-\-ibase**=*ibase*
 
 :   Sets the builtin variable **ibase** to the value *ibase* assuming that
     *ibase* is in base 10. It is a fatal error if *ibase* is not a valid number.
 
     If multiple instances of this option are given, the last is used.
+
+    This is a **non-portable extension**.
+
+**-i**, **-\-interactive**
+
+:   Forces interactive mode. (See the **INTERACTIVE MODE** section.)
+
+    This is a **non-portable extension**.
+
+**-L**, **-\-no-line-length**
+
+:   Disables line length checking and prints numbers without backslashes and
+    newlines. In other words, this option sets **BC_LINE_LENGTH** to **0** (see
+    the **ENVIRONMENT VARIABLES** section).
 
     This is a **non-portable extension**.
 
@@ -175,12 +160,60 @@ The following are the options that dc(1) accepts.
 
     This is a **non-portable extension**.
 
+**-P**, **-\-no-prompt**
+
+:   Disables the prompt in TTY mode. (The prompt is only enabled in TTY mode.
+    See the **TTY MODE** section.) This is mostly for those users that do not
+    want a prompt or are not used to having them in dc(1). Most of those users
+    would want to put this option in **DC_ENV_ARGS**.
+
+    These options override the **DC_PROMPT** and **DC_TTY_MODE** environment
+    variables (see the **ENVIRONMENT VARIABLES** section).
+
+    This is a **non-portable extension**.
+
+**-R**, **-\-no-read-prompt**
+
+:   Disables the read prompt in TTY mode. (The read prompt is only enabled in
+    TTY mode. See the **TTY MODE** section.) This is mostly for those users that
+    do not want a read prompt or are not used to having them in dc(1). Most of
+    those users would want to put this option in **BC_ENV_ARGS** (see the
+    **ENVIRONMENT VARIABLES** section). This option is also useful in hash bang
+    lines of dc(1) scripts that prompt for user input.
+
+    This option does not disable the regular prompt because the read prompt is
+    only used when the **?** command is used.
+
+    These options *do* override the **DC_PROMPT** and **DC_TTY_MODE**
+    environment variables (see the **ENVIRONMENT VARIABLES** section), but only
+    for the read prompt.
+
+    This is a **non-portable extension**.
+
 **-S** *scale*, **-\-scale**=*scale*
 
 :   Sets the builtin variable **scale** to the value *scale* assuming that
     *scale* is in base 10. It is a fatal error if *scale* is not a valid number.
 
     If multiple instances of this option are given, the last is used.
+
+    This is a **non-portable extension**.
+
+**-v**, **-V**, **-\-version**
+
+:   Print the version information (copyright header) and exits.
+
+**-x** **-\-extended-register**
+
+:   Enables extended register mode. See the *Extended Register Mode* subsection
+    of the **REGISTERS** section for more information.
+
+    This is a **non-portable extension**.
+
+**-z**, **-\-leading-zeroes**
+
+:   Makes dc(1) print all numbers greater than **-1** and less than **1**, and
+    not equal to **0**, with a leading zero.
 
     This is a **non-portable extension**.
 
@@ -263,15 +296,40 @@ Comments go from **#** until, and not including, the next newline. This is a
 
 Numbers are strings made up of digits, uppercase letters up to **F**, and at
 most **1** period for a radix. Numbers can have up to **DC_NUM_MAX** digits.
-Uppercase letters are equal to **9** + their position in the alphabet (i.e.,
-**A** equals **10**, or **9+1**). If a digit or letter makes no sense with the
-current value of **ibase**, they are set to the value of the highest valid digit
-in **ibase**.
+Uppercase letters are equal to **9** plus their position in the alphabet (i.e.,
+**A** equals **10**, or **9+1**).
 
-Single-character numbers (i.e., **A** alone) take the value that they would have
-if they were valid digits, regardless of the value of **ibase**. This means that
-**A** alone always equals decimal **10** and **F** alone always equals decimal
-**15**.
+If a digit or letter makes no sense with the current value of **ibase** (i.e.,
+they are greater than or equal to the current value of **ibase**), then the
+behavior depends on the existence of the **-c**/**-\-digit-clamp** or
+**-C**/**-\-no-digit-clamp** options (see the **OPTIONS** section), the
+existence and setting of the **DC_DIGIT_CLAMP** environment variable (see the
+**ENVIRONMENT VARIABLES** section), or the default, which can be queried with
+the **-h**/**-\-help** option.
+
+If clamping is off, then digits or letters that are greater than or equal to the
+current value of **ibase** are not changed. Instead, their given value is
+multiplied by the appropriate power of **ibase** and added into the number. This
+means that, with an **ibase** of **3**, the number **AB** is equal to
+**3\^1\*A+3\^0\*B**, which is **3** times **10** plus **11**, or **41**.
+
+If clamping is on, then digits or letters that are greater than or equal to the
+current value of **ibase** are set to the value of the highest valid digit in
+**ibase** before being multiplied by the appropriate power of **ibase** and
+added into the number. This means that, with an **ibase** of **3**, the number
+**AB** is equal to **3\^1\*2+3\^0\*2**, which is **3** times **2** plus **2**,
+or **8**.
+
+There is one exception to clamping: single-character numbers (i.e., **A**
+alone). Such numbers are never clamped and always take the value they would have
+in the highest possible **ibase**. This means that **A** alone always equals
+decimal **10** and **Z** alone always equals decimal **35**. This behavior is
+mandated by the standard for bc(1) (see the STANDARDS section) and is meant to
+provide an easy way to set the current **ibase** (with the **i** command)
+regardless of the current value of **ibase**.
+
+If clamping is on, and the clamped value of a character is needed, use a leading
+zero, i.e., for **A**, use **0A**.
 
 # COMMANDS
 
@@ -769,6 +827,8 @@ will be printed with a newline after and then popped from the stack.
     is exactly as many as is needed to make dc(1) exit with the **Q** command,
     so the sequence **,Q** will make dc(1) exit.
 
+    This is a **non-portable extension**.
+
 ## Status
 
 These commands query status of the stack or its top value.
@@ -790,6 +850,20 @@ These commands query status of the stack or its top value.
     If it is a number, pushes the *scale* of the value onto the stack.
 
     If it is a string, pushes **0**.
+
+**u**
+
+:   Pops one value off of the stack. If the value is a number, this pushes **1**
+    onto the stack. Otherwise (if it is a string), it pushes **0**.
+
+    This is a **non-portable extension**.
+
+**t**
+
+:   Pops one value off of the stack. If the value is a string, this pushes **1**
+    onto the stack. Otherwise (if it is a number), it pushes **0**.
+
+    This is a **non-portable extension**.
 
 **z**
 
@@ -839,6 +913,12 @@ other character produces a parse error (see the **ERRORS** section).
 
 :   Pushes the line length set by **DC_LINE_LENGTH** (see the **ENVIRONMENT
     VARIABLES** section) onto the stack.
+
+**gx**
+
+:   Pushes **1** onto the stack if extended register mode is on, **0**
+    otherwise. See the *Extended Register Mode* subsection of the **REGISTERS**
+    section for more information.
 
 **gz**
 
@@ -974,7 +1054,8 @@ be hit.
 
 # ENVIRONMENT VARIABLES
 
-dc(1) recognizes the following environment variables:
+As **non-portable extensions**, dc(1) recognizes the following environment
+variables:
 
 **DC_ENV_ARGS**
 
@@ -1059,6 +1140,21 @@ dc(1) recognizes the following environment variables:
     variable exists and contains an integer, a non-zero value makes dc(1) exit
     after executing the expressions and expression files, and a zero value makes
     dc(1) not exit.
+
+    This environment variable overrides the default, which can be queried with
+    the **-h** or **-\-help** options.
+
+**DC_DIGIT_CLAMP**
+
+:   When parsing numbers and if this environment variable exists and contains an
+    integer, a non-zero value makes dc(1) clamp digits that are greater than or
+    equal to the current **ibase** so that all such digits are considered equal
+    to the **ibase** minus 1, and a zero value disables such clamping so that
+    those digits are always equal to their value, which is multiplied by the
+    power of the **ibase**.
+
+    This never applies to single-digit numbers, as per the bc(1) standard (see
+    the **STANDARDS** section).
 
     This environment variable overrides the default, which can be queried with
     the **-h** or **-\-help** options.
@@ -1157,10 +1253,8 @@ setting is used. The default setting can be queried with the **-h** or
 **-\-help** options.
 
 TTY mode is different from interactive mode because interactive mode is required
-in the bc(1) specification at
-https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html , and
-interactive mode requires only **stdin** and **stdout** to be connected to a
-terminal.
+in the bc(1) specification (see the **STANDARDS** section), and interactive mode
+requires only **stdin** and **stdout** to be connected to a terminal.
 
 ## Command-Line History
 
@@ -1243,14 +1337,14 @@ bc(1)
 
 # STANDARDS
 
-The dc(1) utility operators are compliant with the operators in the IEEE Std
-1003.1-2017 (“POSIX.1-2017”) specification at
-https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html for bc(1).
+The dc(1) utility operators and some behavior are compliant with the operators
+in the IEEE Std 1003.1-2017 (“POSIX.1-2017”) bc(1) specification at
+https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html .
 
 # BUGS
 
-None are known. Report bugs at https://git.yzena.com/gavin/bc.
+None are known. Report bugs at https://git.gavinhoward.com/gavin/bc .
 
 # AUTHOR
 
-Gavin D. Howard <gavin@yzena.com> and contributors.
+Gavin D. Howard <gavin@gavinhoward.com> and contributors.

@@ -28,8 +28,6 @@
 #ifndef _LINUX_MI_H_
 #define _LINUX_MI_H_
 
-#include <sys/queue.h>
-
 /*
  * Private Brandinfo flags
  */
@@ -264,11 +262,39 @@ struct l_statx {
 	uint64_t __spare2[13];
 };
 
+/*
+ * statfs f_flags
+ */
+#define	LINUX_ST_RDONLY			0x0001
+#define	LINUX_ST_NOSUID			0x0002
+#define	LINUX_ST_NODEV			0x0004	/* No native analogue */
+#define	LINUX_ST_NOEXEC			0x0008
+#define	LINUX_ST_SYNCHRONOUS		0x0010
+#define	LINUX_ST_VALID			0x0020
+#define	LINUX_ST_MANDLOCK		0x0040	/* No native analogue */
+#define	LINUX_ST_NOATIME		0x0400
+#define	LINUX_ST_NODIRATIME		0x0800	/* No native analogue */
+#define	LINUX_ST_RELATIME		0x1000	/* No native analogue */
+#define	LINUX_ST_NOSYMFOLLOW		0x2000
+
 #define	lower_32_bits(n)	((uint32_t)((n) & 0xffffffff))
 
 #ifdef KTRACE
 #define	linux_ktrsigset(s, l)	\
 	ktrstruct("l_sigset_t", (s), l)
 #endif
+
+/*
+ * Criteria for interface name translation
+ */
+#define	IFP_IS_ETH(ifp)		(if_gettype(ifp) == IFT_ETHER)
+#define	IFP_IS_LOOP(ifp)	(if_gettype(ifp) == IFT_LOOP)
+
+struct ifnet;
+
+bool linux_use_real_ifname(const struct ifnet *);
+
+void linux_netlink_register(void);
+void linux_netlink_deregister(void);
 
 #endif /* _LINUX_MI_H_ */

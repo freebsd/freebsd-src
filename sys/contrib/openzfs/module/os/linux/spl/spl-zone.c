@@ -25,7 +25,6 @@
  */
 
 #include <sys/types.h>
-#include <sys/mutex.h>
 #include <sys/sysmacros.h>
 #include <sys/kmem.h>
 #include <linux/file.h>
@@ -36,6 +35,8 @@
 #include <linux/statfs.h>
 #include <linux/proc_ns.h>
 #endif
+
+#include <sys/mutex.h>
 
 static kmutex_t zone_datasets_lock;
 static struct list_head zone_datasets;
@@ -49,7 +50,7 @@ typedef struct zone_datasets {
 typedef struct zone_dataset {
 	struct list_head zd_list;	/* zone_dataset linkage */
 	size_t zd_dsnamelen;		/* length of name */
-	char zd_dsname[0];		/* name of the member dataset */
+	char zd_dsname[];		/* name of the member dataset */
 } zone_dataset_t;
 
 #if defined(CONFIG_USER_NS) && defined(HAVE_USER_NS_COMMON_INUM)
@@ -203,8 +204,7 @@ zone_dataset_attach(cred_t *cred, const char *dataset, int userns_fd)
 
 	zd = kmem_alloc(sizeof (zone_dataset_t) + dsnamelen + 1, KM_SLEEP);
 	zd->zd_dsnamelen = dsnamelen;
-	strncpy(zd->zd_dsname, dataset, dsnamelen);
-	zd->zd_dsname[dsnamelen] = '\0';
+	strlcpy(zd->zd_dsname, dataset, dsnamelen + 1);
 	INIT_LIST_HEAD(&zd->zd_list);
 	list_add_tail(&zd->zd_list, &zds->zds_datasets);
 
@@ -415,8 +415,8 @@ spl_zone_fini(void)
 			    zone_dataset_t, zd_list);
 			list_del(&zd->zd_list);
 			kmem_free(zd, sizeof (*zd) + zd->zd_dsnamelen + 1);
-			put_user_ns(zds->zds_userns);
 		}
+		put_user_ns(zds->zds_userns);
 		list_del(&zds->zds_list);
 		kmem_free(zds, sizeof (*zds));
 	}

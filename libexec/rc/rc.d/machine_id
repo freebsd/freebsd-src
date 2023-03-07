@@ -1,0 +1,34 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: machine_id
+# REQUIRE: mountcritremote FILESYSTEMS
+# BEFORE:  LOGIN
+
+. /etc/rc.subr
+
+: ${machine_id_file:=/var/db/machine-id}
+: ${machine_id_perms:=444}
+name="machine_id"
+desc="Update ${machine_id_file}"
+rcvar="machine_id_enable"
+start_cmd="machine_id_start"
+stop_cmd=":"
+
+
+machine_id_start()
+{
+	if [ ! -f ${machine_id_file} ] ; then
+		startmsg -n "Creating ${machine_id_file} "
+		t=$(mktemp -t machine-id)
+		/bin/uuidgen -r -c -o $t
+		install -C -o root -g wheel -m ${machine_id_perms} "$t" "${machine_id_file}"
+		rm -f "$t"
+		startmsg 'done.'
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

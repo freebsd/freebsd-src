@@ -25,18 +25,18 @@ let mayLoad = 1, mayStore = 0, hasSideEffects = 1, isTrap = 1 in {
   def TRAP    : I<0x0B, RawFrm, (outs), (ins), "ud2", [(trap)]>, TB;
 
   def UD1Wm   : I<0xB9, MRMSrcMem, (outs), (ins GR16:$src1, i16mem:$src2),
-                  "ud1{w} {$src2, $src1|$src1, $src2}", []>, TB, OpSize16;
+                  "ud1{w}\t{$src2, $src1|$src1, $src2}", []>, TB, OpSize16;
   def UD1Lm   : I<0xB9, MRMSrcMem, (outs), (ins GR32:$src1, i32mem:$src2),
-                  "ud1{l} {$src2, $src1|$src1, $src2}", []>, TB, OpSize32;
+                  "ud1{l}\t{$src2, $src1|$src1, $src2}", []>, TB, OpSize32;
   def UD1Qm   : RI<0xB9, MRMSrcMem, (outs), (ins GR64:$src1, i64mem:$src2),
-                   "ud1{q} {$src2, $src1|$src1, $src2}", []>, TB;
+                   "ud1{q}\t{$src2, $src1|$src1, $src2}", []>, TB;
 
   def UD1Wr   : I<0xB9, MRMSrcReg, (outs), (ins GR16:$src1, GR16:$src2),
-                  "ud1{w} {$src2, $src1|$src1, $src2}", []>, TB, OpSize16;
+                  "ud1{w}\t{$src2, $src1|$src1, $src2}", []>, TB, OpSize16;
   def UD1Lr   : I<0xB9, MRMSrcReg, (outs), (ins GR32:$src1, GR32:$src2),
-                  "ud1{l} {$src2, $src1|$src1, $src2}", []>, TB, OpSize32;
+                  "ud1{l}\t{$src2, $src1|$src1, $src2}", []>, TB, OpSize32;
   def UD1Qr   : RI<0xB9, MRMSrcReg, (outs), (ins GR64:$src1, GR64:$src2),
-                   "ud1{q} {$src2, $src1|$src1, $src2}", []>, TB;
+                   "ud1{q}\t{$src2, $src1|$src1, $src2}", []>, TB;
 }
 
 let isTerminator = 1 in
@@ -71,9 +71,9 @@ def SYSEXIT64 :RI<0x35, RawFrm, (outs), (ins), "sysexitq", []>, TB,
 } // SchedRW
 
 def : Pat<(debugtrap),
-          (INT3)>, Requires<[NotPS4]>;
+          (INT3)>, Requires<[NotPS]>;
 def : Pat<(debugtrap),
-          (INT (i8 0x41))>, Requires<[IsPS4]>;
+          (INT (i8 0x41))>, Requires<[IsPS]>;
 
 //===----------------------------------------------------------------------===//
 //  Input/Output Instructions.
@@ -733,6 +733,15 @@ def PTWRITE64r : RI<0xAE, MRM4r, (outs), (ins GR64:$dst),
                     "ptwrite{q}\t$dst", [(int_x86_ptwrite64 GR64:$dst)]>, XS,
                     Requires<[In64BitMode, HasPTWRITE]>;
 } // SchedRW
+
+//===----------------------------------------------------------------------===//
+// RDPRU - Read Processor Register instruction.
+
+let SchedRW = [WriteSystem] in {
+let Uses = [ECX], Defs = [EAX, EDX] in
+   def RDPRU : I<0x01, MRM_FD, (outs), (ins), "rdpru", []>, PS,
+               Requires<[HasRDPRU]>;
+}
 
 //===----------------------------------------------------------------------===//
 // Platform Configuration instruction

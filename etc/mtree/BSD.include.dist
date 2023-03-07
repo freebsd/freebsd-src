@@ -31,11 +31,17 @@
             ..
             __coroutine
             ..
+            __debug_utils
+            ..
             __filesystem
             ..
             __format
             ..
             __functional
+            ..
+            __fwd
+            ..
+            __ios
             ..
             __iterator
             ..
@@ -47,7 +53,11 @@
             ..
             __ranges
             ..
+            __string
+            ..
             __thread
+            ..
+            __type_traits
             ..
             __utility
             ..
@@ -135,6 +145,8 @@
         veriexec
         ..
         vkbd
+        ..
+        wg
         ..
         wi
         ..
@@ -268,6 +280,10 @@
         ..
     ..
     netinet6
+    ..
+    netlink
+        route
+        ..
     ..
     netipsec
     ..

@@ -86,6 +86,10 @@ struct worker {
 	struct daemon* daemon;
 	/** thread id */
 	ub_thread_type thr_id;
+#ifdef HAVE_GETTID
+	/** thread tid, the LWP id. */
+	pid_t thread_tid;
+#endif
 	/** pipe, for commands for this worker */
 	struct tube* cmd;
 	/** the event base this worker works with */
@@ -114,7 +118,7 @@ struct worker {
 	/** do we need to restart or quit (on signal) */
 	int need_to_exit;
 	/** allocation cache for this thread */
-	struct alloc_cache alloc;
+	struct alloc_cache *alloc;
 	/** per thread statistics */
 	struct ub_server_stats stats;
 	/** thread scratch regional */
@@ -127,6 +131,8 @@ struct worker {
 	/** dnstap environment, changed for this thread */
 	struct dt_env dtenv;
 #endif
+	/** reuse existing cache on reload if other conditions allow it. */
+	int reuse_cache;
 };
 
 /**

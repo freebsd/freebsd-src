@@ -30,6 +30,7 @@
  * result in corrupted pools.
  */
 
+#include <zfs_prop.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -140,8 +141,12 @@ zhack_import(char *target, boolean_t readonly)
 	g_importargs.can_be_active = readonly;
 	g_pool = strdup(target);
 
-	error = zpool_find_config(NULL, target, &config, &g_importargs,
-	    &libzpool_config_ops);
+	libpc_handle_t lpch = {
+		.lpc_lib_handle = NULL,
+		.lpc_ops = &libzpool_config_ops,
+		.lpc_printerr = B_TRUE
+	};
+	error = zpool_find_config(&lpch, target, &config, &g_importargs);
 	if (error)
 		fatal(NULL, FTAG, "cannot import '%s'", target);
 
@@ -295,6 +300,8 @@ zhack_do_feature_enable(int argc, char **argv)
 			feature.fi_flags |= ZFEATURE_FLAG_READONLY_COMPAT;
 			break;
 		case 'd':
+			if (desc != NULL)
+				free(desc);
 			desc = strdup(optarg);
 			break;
 		default:
@@ -640,8 +647,6 @@ zhack_do_label(int argc, char **argv)
 int
 main(int argc, char **argv)
 {
-	extern void zfs_prop_init(void);
-
 	char *path[MAX_NUM_PATHS];
 	const char *subcommand;
 	int rv = 0;

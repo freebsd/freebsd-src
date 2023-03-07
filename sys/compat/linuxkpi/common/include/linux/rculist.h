@@ -44,6 +44,11 @@
 	     &(pos)->member != (head);					\
 	     pos = list_entry_rcu((pos)->member.next, typeof(*(pos)), member))
 
+#define	list_for_each_entry_from_rcu(pos, head, member) \
+	for (; \
+	     &(pos)->member != (head);					\
+	     pos = list_entry_rcu((pos)->member.next, typeof(*(pos)), member))
+
 #define	list_for_each_entry_lockless(pos, head, member) \
 	list_for_each_entry_rcu(pos, head, member)
 

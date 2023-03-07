@@ -41,9 +41,12 @@ def color_diagnostics_eq: Joined<["--"], "color-diagnostics=">,
     MetaVarName<"[auto,always,never]">;
 def defaultlib : P<"defaultlib", "Add the library to the list of input files">;
 def delayload : P<"delayload", "Delay loaded DLL name">;
+def diasdkdir : P<"diasdkdir", "Set the location of the DIA SDK">;
 def entry   : P<"entry", "Name of entry point symbol">;
 def errorlimit : P<"errorlimit",
     "Maximum number of errors to emit before stopping (0 = no limit)">;
+def exclude_symbols  : P<"exclude-symbols", "Exclude symbols from automatic export">,
+    MetaVarName<"<symbol[,symbol,...]>">;
 def export  : P<"export", "Export a function">;
 // No help text because /failifmismatch is not intended to be used by the user.
 def failifmismatch : P<"failifmismatch", "">;
@@ -55,6 +58,8 @@ def guard   : P<"guard", "Control flow guard">;
 def heap    : P<"heap", "Size of the heap">;
 def ignore : P<"ignore", "Specify warning codes to ignore">;
 def implib  : P<"implib", "Import library name">;
+def noimplib : F<"noimplib">,
+    HelpText<"Don't output an import lib">;
 def lib : F<"lib">,
     HelpText<"Act like lib.exe; must be first argument if present">;
 def libpath : P<"libpath", "Additional library search path">;
@@ -89,9 +94,16 @@ def stack   : P<"stack", "Size of the stack">;
 def stub    : P<"stub", "Specify DOS stub file">;
 def subsystem : P<"subsystem", "Specify subsystem">;
 def timestamp : P<"timestamp", "Specify the PE header timestamp">;
+def vctoolsdir : P<"vctoolsdir", "Set the location of the VC tools">;
+def vctoolsversion : P<"vctoolsversion",
+    "Specify which VC tools version to use">;
 def version : P<"version", "Specify a version number in the PE header">;
 def wholearchive_file : P<"wholearchive",
     "Include all object files from this library">;
+def winsdkdir : P<"winsdkdir", "Set the location of the Windows SDK">;
+def winsdkversion : P<"winsdkversion", "Specify which SDK version to use">;
+def winsysroot : P<"winsysroot",
+    "Adds several subdirectories to the library search paths">;
 
 def disallowlib : Joined<["/", "-", "/?", "-?"], "disallowlib:">,
     Alias<nodefaultlib>;
@@ -158,7 +170,8 @@ def force_multiple : F<"force:multiple">,
     HelpText<"Allow multiply defined symbols when creating executables">;
 def force_multipleres : F<"force:multipleres">,
     HelpText<"Allow multiply defined resources when creating executables">;
-defm WX : B<"WX", "Treat warnings as errors", "Don't treat warnings as errors">;
+defm WX : B<"WX", "Treat warnings as errors",
+                  "Don't treat warnings as errors (default)">;
 
 defm allowbind : B<"allowbind", "Enable DLL binding (default)",
                    "Disable DLL binding">;
@@ -255,7 +268,7 @@ def threads
     : P<"threads", "Number of threads. '1' disables multi-threading. By "
                    "default all available hardware threads are used">;
 def call_graph_ordering_file: P<
-    "call-graph-ordering-file", 
+    "call-graph-ordering-file",
     "Layout sections to optimize the given callgraph">;
 defm call_graph_profile_sort: B<
     "call-graph-profile-sort",
@@ -266,6 +279,8 @@ def print_symbol_order: P<
     "Print a symbol order specified by /call-graph-ordering-file and "
     "/call-graph-profile-sort into the specified file">;
 def wrap : P_priv<"wrap">;
+
+def vfsoverlay : P<"vfsoverlay", "Path to a vfsoverlay yaml file to optionally look for /defaultlib's in">;
 
 // Flags for debugging
 def lldmap : F<"lldmap">;
@@ -285,6 +300,8 @@ def nologo : F<"nologo">;
 def throwingnew : F<"throwingnew">;
 def editandcontinue : F<"editandcontinue">;
 def fastfail : F<"fastfail">;
+def kernel : F<"kernel">;
+def pdbcompress : F<"pdbcompress">;
 
 def delay : P_priv<"delay">;
 def errorreport : P_priv<"errorreport">;

@@ -43,6 +43,11 @@
 typedef	irqreturn_t	(*irq_handler_t)(int, void *);
 
 #define	IRQF_SHARED	RF_SHAREABLE
+#define	IRQF_NOBALANCING	0
+
+#define	IRQ_DISABLE_UNLAZY	0
+
+#define	IRQ_NOTCONNECTED	(1U << 31)
 
 int  lkpi_request_irq(struct device *, unsigned int, irq_handler_t,
 	irq_handler_t, unsigned long, const char *, void *);
@@ -71,6 +76,14 @@ request_threaded_irq(int irq, irq_handler_t handler,
 }
 
 static inline int
+devm_request_irq(struct device *dev, int irq,
+    irq_handler_t handler, unsigned long flags, const char *name, void *arg)
+{
+
+	return (lkpi_request_irq(dev, irq, handler, NULL, flags, name, arg));
+}
+
+static inline int
 devm_request_threaded_irq(struct device *dev, int irq,
     irq_handler_t handler, irq_handler_t thread_handler,
     unsigned long flags, const char *name, void *arg)
@@ -88,6 +101,12 @@ enable_irq(unsigned int irq)
 
 static inline void
 disable_irq(unsigned int irq)
+{
+	lkpi_disable_irq(irq);
+}
+
+static inline void
+disable_irq_nosync(unsigned int irq)
 {
 	lkpi_disable_irq(irq);
 }
@@ -111,22 +130,36 @@ devm_free_irq(struct device *xdev, unsigned int irq, void *p)
 }
 
 static inline int
-irq_set_affinity_hint(int vector, cpumask_t *mask)
+irq_set_affinity_hint(int vector, const cpumask_t *mask)
 {
 	int error;
 
 	if (mask != NULL)
-		error = intr_setaffinity(vector, CPU_WHICH_IRQ, mask);
+		error = intr_setaffinity(vector, CPU_WHICH_IRQ, __DECONST(cpumask_t *, mask));
 	else
 		error = intr_setaffinity(vector, CPU_WHICH_IRQ, cpuset_root);
 
 	return (-error);
 }
 
+static inline struct msi_desc *
+irq_get_msi_desc(unsigned int irq)
+{
+
+	return (lkpi_pci_msi_desc_alloc(irq));
+}
+
+static inline void
+irq_set_status_flags(unsigned int irq __unused, unsigned long flags __unused)
+{
+}
+
 /*
  * LinuxKPI tasklet support
  */
+struct tasklet_struct;
 typedef void tasklet_func_t(unsigned long);
+typedef void tasklet_callback_t(struct tasklet_struct *);
 
 struct tasklet_struct {
 	TAILQ_ENTRY(tasklet_struct) entry;
@@ -135,6 +168,8 @@ struct tasklet_struct {
 	volatile u_int tasklet_state;
 	atomic_t count;
 	unsigned long data;
+	tasklet_callback_t *callback;
+	bool use_callback;
 };
 
 #define	DECLARE_TASKLET(_name, _func, _data)	\
@@ -142,6 +177,11 @@ struct tasklet_struct _name = { .func = (_func), .data = (_data) }
 
 #define	tasklet_hi_schedule(t)	tasklet_schedule(t)
 
+/* Some other compat code in the tree has this defined as well. */
+#define	from_tasklet(_dev, _t, _field)		\
+    container_of(_t, typeof(*(_dev)), _field)
+
+void tasklet_setup(struct tasklet_struct *, tasklet_callback_t *);
 extern void tasklet_schedule(struct tasklet_struct *);
 extern void tasklet_kill(struct tasklet_struct *);
 extern void tasklet_init(struct tasklet_struct *, tasklet_func_t *,
@@ -152,5 +192,6 @@ extern void tasklet_disable_nosync(struct tasklet_struct *);
 extern int tasklet_trylock(struct tasklet_struct *);
 extern void tasklet_unlock(struct tasklet_struct *);
 extern void tasklet_unlock_wait(struct tasklet_struct *ts);
+#define	tasklet_unlock_spin_wait(ts)	tasklet_unlock_wait(ts)
 
 #endif	/* _LINUXKPI_LINUX_INTERRUPT_H_ */

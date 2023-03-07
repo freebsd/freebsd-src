@@ -28,29 +28,21 @@
 #ifndef _COMPAT_LINUX_ELF_H_
 #define _COMPAT_LINUX_ELF_H_
 
-struct l_elf_siginfo {
-	l_int		si_signo;
-	l_int		si_code;
-	l_int		si_errno;
-};
+struct note_info_list;
 
-typedef struct linux_pt_regset l_elf_gregset_t;
+/* Linux core notes are labeled "CORE" */
+#define	LINUX_ABI_VENDOR	"CORE"
 
-struct linux_elf_prstatus {
-	struct l_elf_siginfo pr_info;
-	l_short		pr_cursig;
-	l_ulong		pr_sigpend;
-	l_ulong		pr_sighold;
-	l_pid_t		pr_pid;
-	l_pid_t		pr_ppid;
-	l_pid_t		pr_pgrp;
-	l_pid_t		pr_sid;
-	l_timeval	pr_utime;
-	l_timeval	pr_stime;
-	l_timeval	pr_cutime;
-	l_timeval	pr_cstime;
-	l_elf_gregset_t	pr_reg;
-	l_int		pr_fpvalid;
-};
+/* Elf notes */
+#define	GNU_ABI_VENDOR		"GNU"
+#define	GNU_ABI_LINUX		0
+
+/* This adds "linux32_" and "linux64_" prefixes. */
+#define	__linuxN(x)	__CONCAT(__CONCAT(__CONCAT(linux,__ELF_WORD_SIZE),_),x)
+
+void 	__linuxN(prepare_notes)(struct thread *, struct note_info_list *,
+	    size_t *);
+int	__linuxN(copyout_strings)(struct image_params *, uintptr_t *);
+bool	linux_trans_osrel(const Elf_Note *note, int32_t *osrel);
 
 #endif

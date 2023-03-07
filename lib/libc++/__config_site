@@ -6,14 +6,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _LIBCPP_CONFIG_SITE
-#define _LIBCPP_CONFIG_SITE
+#ifndef _LIBCPP___CONFIG_SITE
+#define _LIBCPP___CONFIG_SITE
 
-/* #undef _LIBCPP_ABI_VERSION */
-/* #undef _LIBCPP_ABI_UNSTABLE */
+#define _LIBCPP_ABI_VERSION 1
+#define _LIBCPP_ABI_NAMESPACE __1
 /* #undef _LIBCPP_ABI_FORCE_ITANIUM */
 /* #undef _LIBCPP_ABI_FORCE_MICROSOFT */
-/* #undef _LIBCPP_HIDE_FROM_ABI_PER_TU_BY_DEFAULT */
 /* #undef _LIBCPP_HAS_NO_THREADS */
 /* #undef _LIBCPP_HAS_NO_MONOTONIC_CLOCK */
 /* #undef _LIBCPP_HAS_MUSL_LIBC */
@@ -25,15 +24,25 @@
 #define _LIBCPP_HAS_NO_VENDOR_AVAILABILITY_ANNOTATIONS
 /* #undef _LIBCPP_NO_VCRUNTIME */
 /* #undef _LIBCPP_TYPEINFO_COMPARISON_IMPLEMENTATION */
-/* #undef _LIBCPP_ABI_NAMESPACE */
 /* #undef _LIBCPP_HAS_NO_FILESYSTEM_LIBRARY */
 /* #undef _LIBCPP_HAS_PARALLEL_ALGORITHMS */
 /* #undef _LIBCPP_HAS_NO_RANDOM_DEVICE */
 /* #undef _LIBCPP_HAS_NO_LOCALIZATION */
 /* #undef _LIBCPP_HAS_NO_WIDE_CHARACTERS */
-/* #undef _LIBCPP_HAS_NO_INCOMPLETE_FORMAT */
-/* #undef _LIBCPP_HAS_NO_INCOMPLETE_RANGES */
+#define _LIBCPP_ENABLE_ASSERTIONS_DEFAULT 0
+/* #undef _LIBCPP_ENABLE_DEBUG_MODE */
+
+// __USE_MINGW_ANSI_STDIO gets redefined on MinGW
+#ifdef __clang__
+#  pragma clang diagnostic push
+#  pragma clang diagnostic ignored "-Wmacro-redefined"
+#endif
 
 
 
-#endif // _LIBCPP_CONFIG_SITE
+
+#ifdef __clang__
+#  pragma clang diagnostic pop
+#endif
+
+#endif // _LIBCPP___CONFIG_SITE

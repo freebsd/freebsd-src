@@ -1175,8 +1175,7 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 
 	TAILQ_REMOVE(&qpair->free_tr, tr, tailq);
 	TAILQ_INSERT_TAIL(&qpair->outstanding_tr, tr, tailq);
-	if (!qpair->timer_armed)
-		tr->deadline = SBT_MAX;
+	tr->deadline = SBT_MAX;
 	tr->req = req;
 
 	switch (req->type) {

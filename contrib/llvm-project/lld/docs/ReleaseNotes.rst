@@ -5,13 +5,6 @@ lld |release| Release Notes
 .. contents::
     :local:
 
-.. only:: PreRelease
-
-  .. warning::
-     These are in-progress notes for the upcoming LLVM |release| release.
-     Release notes for previous releases can be found on
-     `the Download Page <https://releases.llvm.org/download.html>`_.
-
 Introduction
 ============
 
@@ -25,178 +18,195 @@ Non-comprehensive list of changes in this release
 
 ELF Improvements
 ----------------
+* ``--package-metadata=`` has been added to create package metadata notes
+  (`D131439 <https://reviews.llvm.org/D131439>`_)
 
-* ``--export-dynamic-symbol-list`` has been added.
-  (`D107317 <https://reviews.llvm.org/D107317>`_)
-* ``--why-extract`` has been added to query why archive members/lazy object files are extracted.
-  (`D109572 <https://reviews.llvm.org/D109572>`_)
-* If ``-Map`` is specified, ``--cref`` will be printed to the specified file.
-  (`D114663 <https://reviews.llvm.org/D114663>`_)
-* ``-z bti-report`` and ``-z cet-report`` are now supported.
-  (`D113901 <https://reviews.llvm.org/D113901>`_)
-* ``--lto-pgo-warn-mismatch`` has been added.
-  (`D104431 <https://reviews.llvm.org/D104431>`_)
-* Archives without an index (symbol table) are now supported and work with
-  ``--warn-backrefs``. One may build such an archive with ``llvm-ar rcS
-  [--thin]`` to save space.
-  (`D117284 <https://reviews.llvm.org/D117284>`_)
-  The archive index may be `entirely ignored <https://reviews.llvm.org/D119074>`_
-  in a future release.
-* No longer deduplicate local symbol names at the default optimization level of ``-O1``.
-  This results in a larger ``.strtab`` (usually less than 1%) but a faster link
-  time. Use optimization level ``-O2`` to restore the deduplication. The ``-O2``
-  deduplication may be dropped in the future to help parallel ``.symtab`` write.
-* In relocatable output, relocations to discarded symbols now use tombstone
-  values.
-  (`D116946 <https://reviews.llvm.org/D116946>`_)
-* Orphan section placement now picks a more suitable segment. Previously the
-  algorithm might pick a readonly segment for a writable orphan section and make
-  the segment writable.
-  (`D111717 <https://reviews.llvm.org/D111717>`_)
-* An empty output section moved by an ``INSERT`` comment now gets appropriate
-  flags.
-  (`D118529 <https://reviews.llvm.org/D118529>`_)
-* Negation in a memory region attribute is now correctly handled.
-  (`D113771 <https://reviews.llvm.org/D113771>`_)
-* ``--compress-debug-sections=zlib`` is now run in parallel. ``{clang,gcc} -gz`` link
-  actions are significantly faster.
-  (`D117853 <https://reviews.llvm.org/D117853>`_)
-* "relocation out of range" diagnostics and a few uncommon diagnostics
-  now report an object file location beside a source file location.
-  (`D112518 <https://reviews.llvm.org/D117853>`_)
-* The write of ``.rela.dyn`` and ``SHF_MERGE|SHF_STRINGS`` sections (e.g.
-  ``.debug_str``) is now run in parallel.
-
-Architecture specific changes:
-
-* The AArch64 port now supports adrp+ldr and adrp+add optimizations.
-  ``--no-relax`` can suppress the optimization.
-  (`D112063 <https://reviews.llvm.org/D112063>`_)
-  (`D117614 <https://reviews.llvm.org/D117614>`_)
-* The x86-32 port now supports TLSDESC (``-mtls-dialect=gnu2``).
-  (`D112582 <https://reviews.llvm.org/D112582>`_)
-* The x86-64 port now handles non-RAX/non-adjacent ``R_X86_64_GOTPC32_TLSDESC``
-  and ``R_X86_64_TLSDESC_CALL`` (``-mtls-dialect=gnu2``).
-  (`D114416 <https://reviews.llvm.org/D114416>`_)
-* The x86-32 and x86-64 ports now support mixed TLSDESC and TLS GD, i.e. mixing
-  objects compiled with and without ``-mtls-dialect=gnu2`` referencing the same
-  TLS variable is now supported.
-  (`D114416 <https://reviews.llvm.org/D114416>`_)
-* For x86-64, ``--no-relax`` now suppresses ``R_X86_64_GOTPCRELX`` and
-  ``R_X86_64_REX_GOTPCRELX`` GOT optimization
-  (`D113615 <https://reviews.llvm.org/D113615>`_)
-* ``R_X86_64_PLTOFF64`` is now supported.
-  (`D112386 <https://reviews.llvm.org/D112386>`_)
-* ``R_AARCH64_NONE``, ``R_PPC_NONE``, and ``R_PPC64_NONE`` in input REL
-  relocation sections are now supported.
+* ``-z pack-relative-relocs`` is now available to support ``DT_RELR`` for glibc 2.36+.
+  (`D120701 <https://reviews.llvm.org/D120701>`_)
+* ``--no-fortran-common`` (pre 12.0.0 behavior) is now the default.
+* ``--load-pass-plugin`` has been added to load a new pass manager plugin.
+  (`D120490 <https://reviews.llvm.org/D120490>`_)
+* ``--android-memtag-{mode=,stack,heap}`` have been added to synthesize SHT_NOTE for memory tags on Android.
+  (`D119384 <https://reviews.llvm.org/D119384>`_)
+* ``FORCE_LLD_DIAGNOSTICS_CRASH`` environment variable is now available to force LLD to crash.
+  (`D128195 <https://reviews.llvm.org/D128195>`_)
+* ``--wrap`` semantics have been refined.
+  (`rG7288b85cc80f1ce5509aeea860e6b4232cd3ca01 <https://reviews.llvm.org/rG7288b85cc80f1ce5509aeea860e6b4232cd3ca01>`_)
+  (`D118756 <https://reviews.llvm.org/D118756>`_)
+  (`D124056 <https://reviews.llvm.org/D124056>`_)
+* ``--build-id={md5,sha1}`` are now implemented with truncated BLAKE3.
+  (`D121531 <https://reviews.llvm.org/D121531>`_)
+* ``--emit-relocs``: ``.rel[a].eh_frame`` relocation offsets are now adjusted.
+  (`D122459 <https://reviews.llvm.org/D122459>`_)
+* ``--emit-relocs``: fixed missing ``STT_SECTION`` when the first input section is synthetic.
+  (`D122463 <https://reviews.llvm.org/D122463>`_)
+* ``(TYPE=<value>)`` can now be used in linker scripts.
+  (`D118840 <https://reviews.llvm.org/D118840>`_)
+* Local symbol initialization is now performed in parallel.
+  (`D119909 <https://reviews.llvm.org/D119909>`_)
+  (`D120626 <https://reviews.llvm.org/D120626>`_)
 
 Breaking changes
 ----------------
 
-* ``e_entry`` no longer falls back to the address of ``.text`` if the entry symbol does not exist.
-  Instead, a value of 0 will be written.
-  (`D110014 <https://reviews.llvm.org/D110014>`_)
-* ``--lto-pseudo-probe-for-profiling`` has been removed. In LTO, the compiler
-  enables this feature automatically.
-  (`D110209 <https://reviews.llvm.org/D110209>`_)
-* Use of ``--[no-]define-common``, ``-d``, ``-dc``, and ``-dp`` will now get a
-  warning. They will be removed or ignored in 15.0.0.
-  (`llvm-project#53660 <https://github.com/llvm/llvm-project/issues/53660>`_)
+* Archives are now parsed as ``--start-lib`` object files. If a member is neither
+  an ELF relocatable object file nor an LLVM bitcode file, ld.lld will give a warning.
+  (`D119074 <https://reviews.llvm.org/D119074>`_)
+* The GNU ld incompatible ``--no-define-common`` has been removed.
+* The obscure ``-dc``/``-dp`` options have been removed.
+  (`D119108 <https://reviews.llvm.org/D119108>`_)
+* ``-d`` is now ignored.
+* If a prevailing COMDAT group defines STB_WEAK symbol, having a STB_GLOBAL symbol in a non-prevailing group is now rejected with a diagnostic.
+  (`D120626 <https://reviews.llvm.org/D120626>`_)
+* Support for the legacy ``.zdebug`` format has been removed. Run
+  ``objcopy --decompress-debug-sections`` in case old object files use ``.zdebug``.
+  (`D126793 <https://reviews.llvm.org/D126793>`_)
+* ``--time-trace-file=<file>`` has been removed.
+  Use ``--time-trace=<file>`` instead.
+  (`D128451 <https://reviews.llvm.org/D128451>`_)
 
 COFF Improvements
 -----------------
 
-* Correctly handle a signed immediate offset in ARM64 adr/adrp relocations.
-  (`D114347 <https://reviews.llvm.org/D114347>`_)
-
-* Omit section and label symbols from the symbol table.
-  (`D113866 <https://reviews.llvm.org/D113866>`_)
+* Added autodetection of MSVC toolchain, a la clang-cl.  Also added
+  ``/winsysroot:`` support for explicit specification of MSVC toolchain
+  location, similar to clang-cl's ``/winsysroot``. For now,
+  ``/winsysroot:`` requires also passing in an explicit ``/machine:`` flag.
+  (`D118070 <https://reviews.llvm.org/D118070>`_)
+* ...
 
 MinGW Improvements
 ------------------
 
-* ``--heap`` is now handled.
-  (`D118405 <https://reviews.llvm.org/D118405>`_)
+* The ``--disable-reloc-section`` option is now supported.
+  (`D127478 <https://reviews.llvm.org/D127478>`_)
+* The ``--exclude-symbols`` option is now supported.
+  (`D130118 <https://reviews.llvm.org/D130118>`_)
 
-Mach-O Improvements
--------------------
+* Support for an entirely new object file directive, ``-exclude-symbols:``,
+  has been implemented. (`D130120 <https://reviews.llvm.org/D130120>`_)
 
-* The ``ld64.lld.darwinnew`` symlink has been removed. Use ``ld64.lld`` to
-  invoke the Mach-O backend from now on. Moreover, the symlink
-  ``ld64.lld.darwinold`` -- and the old Mach-O LLD code that it pointed to --
-  have been removed. (`D114842 <https://reviews.llvm.org/D114842>`_)
-* The "cannot export hidden symbol" error has been downgraded to a warning.
-  (`D107011 <https://reviews.llvm.org/D107011>`_)
-* Common bitcode symbols are now supported.
-  (`D107027 <https://reviews.llvm.org/D107027>`_)
-* Weak references in bitcode are now supported.
-  (`D115949 <https://reviews.llvm.org/D115949>`_)
-* Thunk insertion now works more reliably.
-  (`D108897 <https://reviews.llvm.org/D108897>`_,
-  `D108924 <https://reviews.llvm.org/D108924>`_,
-  `D109079  <https://reviews.llvm.org/D109079>`_,
-  `D116705 <https://reviews.llvm.org/D116705>`_)
-* ``-ObjC`` now loads archive members before the symbol resolution phase.
-  (`D108781 <https://reviews.llvm.org/D108781>`_)
-* ``-oso_prefix`` is now supported.
-  (`D112291 <https://reviews.llvm.org/D112291>`_)
-* Properly encode binaries with zero exported symbols. Tools like
-  ``codesign_allocate`` no longer choke on those binaries.
-  (`D112589 <https://reviews.llvm.org/D112589>`_)
-* We no longer treat architecture mismatches as a fatal error. Use
-  ``-arch_errors_fatal`` if that behavior is still desired.
-  (`D113082 <https://reviews.llvm.org/D113082>`_)
-* Several performance improvements were done to speed LLD up on projects with
-  a lot of framework flags and library lookups. Large Swift-based projects
-  will benefit significantly.
-  (`D113073 <https://reviews.llvm.org/D113073>`_,
-  `D113063 <https://reviews.llvm.org/D113063>`_,
-  `D113153 <https://reviews.llvm.org/D113153>`_,
-  `D113235 <https://reviews.llvm.org/D113235>`_)
-* Several memory-reduction optimizations were done to reduce LLD's RSS
-  footprint.
-  (`D113813 <https://reviews.llvm.org/D113813>`_,
-  `D113818 <https://reviews.llvm.org/D113818>`_)
-* Symbol patterns from ``-[un]exported_symbols_list`` are now processed in
-  parallel. (`D113820 <https://reviews.llvm.org/D113820>`_)
-* ``.weak_def_can_be_hidden`` symbols can now be exported.
-  (`D113167 <https://reviews.llvm.org/D113167>`_)
-* ``-S`` -- to omit debug info -- is now handled.
-  (`D112594 <https://reviews.llvm.org/D112594>`_)
-* ``-v`` now writes to stderr instead of stdout.
-  (`D113020 <https://reviews.llvm.org/D113020>`_)
-* Private externs with GOT relocations are now marked as LOCAL in the indirect
-  symbol table. This allows ``strip -x`` to remove more symbols.
-  (`D111852 <https://reviews.llvm.org/D111852>`_)
-* We no longer generate bogus addresses when ``__TEXT,__gcc_except_tab`` is
-  renamed. (`D113582 <https://reviews.llvm.org/D113582>`_)
-* Unreferenced weak dylib symbols no longer trigger fetches from an archive.
-  (`D115092 <https://reviews.llvm.org/D115092>`_)
-* ``$ld$hide`` symbols are now supported.
-  (`D115775 <https://reviews.llvm.org/D115775>`_)
-* Symbols imported via ``-weak_framework`` are now properly marked as weak refs.
-  (`D114397 <https://reviews.llvm.org/D114397>`_)
-* ``--warn-dylib-install-name`` and ``--no-warn-dylib-install-name`` were added
-  to toggle LLD-specific warnings around the use of ``-install_name``.
-  (`D113534 <https://reviews.llvm.org/D113534>`_)
-* Passing both ``--icf=all`` and ``-no_deduplicate`` no longer results in a
-  warning. (`D110672 <https://reviews.llvm.org/D110672>`_)
-* ICF now deduplicates functions with (identical) unwind info too.
-  (`D109946 <https://reviews.llvm.org/D109946>`_)
-* We now support ordering sections based on call graph profile data.
-  (`D112164 <https://reviews.llvm.org/D112164>`_)
-* Map file output now proceeds in parallel with output of the binary.
-  (`D117069 <https://reviews.llvm.org/D117069>`_)
-* The map file now contains dead-stripped symbols too.
-  (`D114737  <https://reviews.llvm.org/D114737>`_)
-* Multiple TLV sections with different alignments are now handled properly.
-  (`D116263 <https://reviews.llvm.org/D116263>`_)
-* ``--start-lib`` and ``--end-lib`` are now supported.
-  (`D116913  <https://reviews.llvm.org/D116913>`_)
-* ``-noall_load`` is now supported.
-  (`D117629 <https://reviews.llvm.org/D117629>`_)
-* ``-add_empty_section`` is now supported.
-  (`D117749 <https://reviews.llvm.org/D117749>`_)
+MachO Improvements
+------------------
+
+* We now support proper relocation and pruning of EH frames. **Note:** this
+  comes at some performance overhead on x86_64 builds, and we recommend adding
+  the ``-femit-dwarf-unwind=no-compact-unwind`` compile flag to avoid it.
+  (`D129540 <https://reviews.llvm.org/D129540>`_,
+  `D122258 <https://reviews.llvm.org/D122258>`_)
+
+New flags
+#########
+
+* ``-load_hidden`` and ``-hidden-l`` are now supported.
+  (`D130473 <https://reviews.llvm.org/D130473>`_,
+  `D130529 <https://reviews.llvm.org/D130529>`_)
+* ``-alias`` is now supported. (`D129938 <https://reviews.llvm.org/D129938>`_)
+* ``-no_exported_symbols`` and  ``-exported_symbols_list <empty file>`` are now
+  supported. (`D127562 <https://reviews.llvm.org/D127562>`_)
+* ``-w`` -- to suppress warnings -- is now supported.
+  (`D127564 <https://reviews.llvm.org/D127564>`_)
+* ``-non_global_symbols_strip_list``, ``-non_global_symbols_no_strip_list``, and
+  ``-x`` are now supported. (`D126046 <https://reviews.llvm.org/D126046>`_)
+* ``--icf=safe`` is now supported.
+  (`D128938 <https://reviews.llvm.org/D128938>`_,
+  `D123752 <https://reviews.llvm.org/D123752>`_)
+* ``-why_live`` is now supported.
+  (`D120377 <https://reviews.llvm.org/D120377>`_)
+* ``-pagezero_size`` is now supported.
+  (`D118724 <https://reviews.llvm.org/D118724>`_)
+
+Improvements
+############
+
+* Linker optimization hints are now supported.
+  (`D129427 <https://reviews.llvm.org/D129427>`_,
+  `D129059 <https://reviews.llvm.org/D129059>`_,
+  `D128942 <https://reviews.llvm.org/D128942>`_,
+  `D128093 <https://reviews.llvm.org/D128093>`_)
+* Rebase opcodes are now encoded more compactly.
+  (`D130180 <https://reviews.llvm.org/D130180>`_,
+  `D128798 <https://reviews.llvm.org/D128798>`_)
+* C-strings are now aligned more compactly.
+  (`D121342 <https://reviews.llvm.org/D121342>`_)
+* ``--deduplicate-literals`` (and ``--icf={safe,all}``) now fold the
+  ``__cfstring`` section.
+  (`D130134  <https://reviews.llvm.org/D130134>`_,
+  `D120137 <https://reviews.llvm.org/D120137>`_)
+* ICF now folds the ``__objc_classrefs`` section.
+  (`D121053 <https://reviews.llvm.org/D121053>`_)
+* ICF now folds functions with identical LSDAs.
+  (`D129830 <https://reviews.llvm.org/D129830>`_)
+* STABS entries for folded functions are now omitted.
+  (`D123252 <https://reviews.llvm.org/D123252>`_)
+* ``__objc_imageinfo`` sections are now folded.
+  (`D130125 <https://reviews.llvm.org/D130125>`_)
+* Dylibs with ``LC_DYLD_EXPORTS_TRIE`` can now be read.
+  (`D129430 <https://reviews.llvm.org/D129430>`_)
+* Writing zippered dylibs is now supported.
+  (`D124887 <https://reviews.llvm.org/D124887>`_)
+* C-string literals are now included in the mapfile.
+  (`D118077 <https://reviews.llvm.org/D118077>`_)
+* Symbol names in several more diagnostics are now demangled.
+  (`D130490 <https://reviews.llvm.org/D130490>`_,
+  `D127110 <https://reviews.llvm.org/D127110>`_,
+  `D125732 <https://reviews.llvm.org/D125732>`_)
+* Source information is now included in symbol error messages.
+  (`D128425 <https://reviews.llvm.org/D128425>`_,
+  `D128184 <https://reviews.llvm.org/D128184>`_)
+* Numerous other improvements were made to diagnostic messages.
+  (`D127753 <https://reviews.llvm.org/D127753>`_,
+  `D127696 <https://reviews.llvm.org/D127696>`_,
+  `D127670 <https://reviews.llvm.org/D127670>`_,
+  `D118903 <https://reviews.llvm.org/D118903>`_,
+  `D118798 <https://reviews.llvm.org/D118798>`_)
+* Many performance and memory improvements were made.
+  (`D130000 <https://reviews.llvm.org/D130000>`_,
+  `D128298 <https://reviews.llvm.org/D128298>`_,
+  `D128290 <https://reviews.llvm.org/D128290>`_,
+  `D126800 <https://reviews.llvm.org/D126800>`_,
+  `D126785 <https://reviews.llvm.org/D126785>`_,
+  `D121052 <https://reviews.llvm.org/D121052>`_)
+* Order files and call graph sorting can now be used together.
+  (`D117354 <https://reviews.llvm.org/D117354>`_)
+* Give LTO more precise symbol resolutions, which allows optimizations to be
+  more effective.
+  (`D119506 <https://reviews.llvm.org/D119506>`_,
+  `D119372 <https://reviews.llvm.org/D119372>`_,
+  `D119767 <https://reviews.llvm.org/D119767>`_)
+* Added partial support for linking object files built with DTrace probes.
+  (`D129062 <https://reviews.llvm.org/D129062>`_)
+
+Fixes
+#####
+
+* Programs using Swift linked with the 14.0 SDK but an older deployment target
+  no longer crash at startup when running on older iOS versions. This is because
+  we now correctly support ``$ld$previous`` symbols that contain an explicit
+  symbol name. (`D130725 <https://reviews.llvm.org/D130725>`_)
+* Match ld64's behavior when an archive is specified both via
+  ``LC_LINKER_OPTION`` and via the command line.
+  (`D129556 <https://reviews.llvm.org/D129556>`_)
+* ``-ObjC`` now correctly loads archives with Swift sections.
+  (`D125250 <https://reviews.llvm.org/D125250>`_)
+* ``-lto_object_path`` now accepts a filename (instead of just a directory
+  name.) (`D129705 <https://reviews.llvm.org/D129705>`_)
+* The ``LC_UUID`` hash now includes the output file's name.
+  (`D122843 <https://reviews.llvm.org/D122843>`_)
+* ``-flat_namespace`` now correctly makes all extern symbols in a dylib
+  interposable. (`D119294 <https://reviews.llvm.org/D119294>`_)
+* Fixed compact unwind output when linking on 32-bit hosts.
+  (`D129363 <https://reviews.llvm.org/D129363>`_)
+* Exporting private symbols no longer triggers an assertion.
+  (`D124143 <https://reviews.llvm.org/D124143>`_)
+* MacOS-only ``.tbd`` files are now supported when targeting Catalyst.
+  (`D124336 <https://reviews.llvm.org/D124336>`_)
+* Thunk symbols now have local visibility, avoiding false duplicate symbol
+  errors. (`D122624 <https://reviews.llvm.org/D122624>`_)
+* Fixed handling of relocatable object files within frameworks.
+  (`D114841 <https://reviews.llvm.org/D114841>`_)
+* Fixed the PPC64R2SaveStub to only use non-pc-relative code.
+  (`D129580 <https://reviews.llvm.org/D129580>`_)
 
 WebAssembly Improvements
 ------------------------

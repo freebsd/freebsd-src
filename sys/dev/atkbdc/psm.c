@@ -5111,6 +5111,10 @@ psmsoftintr(void *arg)
 			break;
 		}
 
+	/* Store last packet for reinjection if it has not been set already */
+	if (timevalisset(&sc->idletimeout) && sc->idlepacket.inputbytes == 0)
+		sc->idlepacket = *pb;
+
 #ifdef EVDEV_SUPPORT
 	if (evdev_rcpt_mask & EVDEV_RCPT_HW_MOUSE &&
 	    sc->hw.model != MOUSE_MODEL_ELANTECH &&
@@ -5144,6 +5148,10 @@ psmsoftintr(void *arg)
 		evdev_push_mouse_btn(sc->evdev_r, ms.button);
 		evdev_sync(sc->evdev_r);
 	}
+
+	if ((sc->evdev_a != NULL && evdev_is_grabbed(sc->evdev_a)) ||
+	    (sc->evdev_r != NULL && evdev_is_grabbed(sc->evdev_r)))
+		goto next;
 #endif
 
 	/* scale values */
@@ -5163,10 +5171,6 @@ psmsoftintr(void *arg)
 				y = -y;
 		}
 	}
-
-	/* Store last packet for reinjection if it has not been set already */
-	if (timevalisset(&sc->idletimeout) && sc->idlepacket.inputbytes == 0)
-		sc->idlepacket = *pb;
 
 	ms.dx = x;
 	ms.dy = y;
@@ -7391,9 +7395,8 @@ found:
  * All values should be numbers derived from getmicrouptime().
  */
 static int
-timeelapsed(start, secs, usecs, now)
-	const struct timeval *start, *now;
-	int secs, usecs;
+timeelapsed(const struct timeval *start, int secs, int usecs,
+    const struct timeval *now)
 {
 	struct timeval snow, tv;
 

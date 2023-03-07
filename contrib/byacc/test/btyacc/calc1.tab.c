@@ -3,8 +3,8 @@
 /* (use YYMAJOR/YYMINOR for ifdefs dependent on parser version) */
 
 #define YYBYACC 1
-#define YYMAJOR 1
-#define YYMINOR 9
+#define YYMAJOR 2
+#define YYMINOR 0
 #define YYCHECK "yyyymmdd"
 
 #define YYEMPTY        (-1)
@@ -813,7 +813,7 @@ YYPARSE_DECL()
     yyps->save = 0;
 #endif /* YYBTYACC */
     yym = 0;
-    yyn = 0;
+    /* yyn is set below */
     yynerrs = 0;
     yyerrflag = 0;
     yychar = YYEMPTY;
@@ -1326,78 +1326,91 @@ case 3:
 	{
 		(void) printf("%15.8f\n", yystack.l_mark[-1].dval);
 	}
+#line 1330 "calc1.tab.c"
 break;
 case 4:
 #line 61 "calc1.y"
 	{
 		(void) printf("(%15.8f, %15.8f)\n", yystack.l_mark[-1].vval.lo, yystack.l_mark[-1].vval.hi);
 	}
+#line 1337 "calc1.tab.c"
 break;
 case 5:
 #line 65 "calc1.y"
 	{
 		dreg[yystack.l_mark[-3].ival] = yystack.l_mark[-1].dval;
 	}
+#line 1344 "calc1.tab.c"
 break;
 case 6:
 #line 69 "calc1.y"
 	{
 		vreg[yystack.l_mark[-3].ival] = yystack.l_mark[-1].vval;
 	}
+#line 1351 "calc1.tab.c"
 break;
 case 7:
 #line 73 "calc1.y"
 	{
 		yyerrok;
 	}
+#line 1358 "calc1.tab.c"
 break;
 case 9:
 #line 80 "calc1.y"
 	{
 		yyval.dval = dreg[yystack.l_mark[0].ival];
 	}
+#line 1365 "calc1.tab.c"
 break;
 case 10:
 #line 84 "calc1.y"
 	{
 		yyval.dval = yystack.l_mark[-2].dval + yystack.l_mark[0].dval;
 	}
+#line 1372 "calc1.tab.c"
 break;
 case 11:
 #line 88 "calc1.y"
 	{
 		yyval.dval = yystack.l_mark[-2].dval - yystack.l_mark[0].dval;
 	}
+#line 1379 "calc1.tab.c"
 break;
 case 12:
 #line 92 "calc1.y"
 	{
 		yyval.dval = yystack.l_mark[-2].dval * yystack.l_mark[0].dval;
 	}
+#line 1386 "calc1.tab.c"
 break;
 case 13:
 #line 96 "calc1.y"
 	{
 		yyval.dval = yystack.l_mark[-2].dval / yystack.l_mark[0].dval;
 	}
+#line 1393 "calc1.tab.c"
 break;
 case 14:
 #line 100 "calc1.y"
 	{
 		yyval.dval = -yystack.l_mark[0].dval;
 	}
+#line 1400 "calc1.tab.c"
 break;
 case 15:
 #line 104 "calc1.y"
 	{
 		yyval.dval = yystack.l_mark[-1].dval;
 	}
+#line 1407 "calc1.tab.c"
 break;
 case 16:
 #line 110 "calc1.y"
 	{
 		yyval.vval.hi = yyval.vval.lo = yystack.l_mark[0].dval;
 	}
+#line 1414 "calc1.tab.c"
 break;
 case 17:
 #line 114 "calc1.y"
@@ -1410,12 +1423,14 @@ case 17:
 			YYERROR;
 		}
 	}
+#line 1427 "calc1.tab.c"
 break;
 case 18:
 #line 124 "calc1.y"
 	{
 		yyval.vval = vreg[yystack.l_mark[0].ival];
 	}
+#line 1434 "calc1.tab.c"
 break;
 case 19:
 #line 128 "calc1.y"
@@ -1423,6 +1438,7 @@ case 19:
 		yyval.vval.hi = yystack.l_mark[-2].vval.hi + yystack.l_mark[0].vval.hi;
 		yyval.vval.lo = yystack.l_mark[-2].vval.lo + yystack.l_mark[0].vval.lo;
 	}
+#line 1442 "calc1.tab.c"
 break;
 case 20:
 #line 133 "calc1.y"
@@ -1430,6 +1446,7 @@ case 20:
 		yyval.vval.hi = yystack.l_mark[-2].dval + yystack.l_mark[0].vval.hi;
 		yyval.vval.lo = yystack.l_mark[-2].dval + yystack.l_mark[0].vval.lo;
 	}
+#line 1450 "calc1.tab.c"
 break;
 case 21:
 #line 138 "calc1.y"
@@ -1437,6 +1454,7 @@ case 21:
 		yyval.vval.hi = yystack.l_mark[-2].vval.hi - yystack.l_mark[0].vval.lo;
 		yyval.vval.lo = yystack.l_mark[-2].vval.lo - yystack.l_mark[0].vval.hi;
 	}
+#line 1458 "calc1.tab.c"
 break;
 case 22:
 #line 143 "calc1.y"
@@ -1444,18 +1462,21 @@ case 22:
 		yyval.vval.hi = yystack.l_mark[-2].dval - yystack.l_mark[0].vval.lo;
 		yyval.vval.lo = yystack.l_mark[-2].dval - yystack.l_mark[0].vval.hi;
 	}
+#line 1466 "calc1.tab.c"
 break;
 case 23:
 #line 148 "calc1.y"
 	{
 		yyval.vval = vmul( yystack.l_mark[-2].vval.lo, yystack.l_mark[-2].vval.hi, yystack.l_mark[0].vval );
 	}
+#line 1473 "calc1.tab.c"
 break;
 case 24:
 #line 152 "calc1.y"
 	{
 		yyval.vval = vmul (yystack.l_mark[-2].dval, yystack.l_mark[-2].dval, yystack.l_mark[0].vval );
 	}
+#line 1480 "calc1.tab.c"
 break;
 case 25:
 #line 156 "calc1.y"
@@ -1463,6 +1484,7 @@ case 25:
 		if (dcheck(yystack.l_mark[0].vval)) YYERROR;
 		yyval.vval = vdiv ( yystack.l_mark[-2].vval.lo, yystack.l_mark[-2].vval.hi, yystack.l_mark[0].vval );
 	}
+#line 1488 "calc1.tab.c"
 break;
 case 26:
 #line 161 "calc1.y"
@@ -1470,6 +1492,7 @@ case 26:
 		if (dcheck ( yystack.l_mark[0].vval )) YYERROR;
 		yyval.vval = vdiv (yystack.l_mark[-2].dval, yystack.l_mark[-2].dval, yystack.l_mark[0].vval );
 	}
+#line 1496 "calc1.tab.c"
 break;
 case 27:
 #line 166 "calc1.y"
@@ -1477,14 +1500,16 @@ case 27:
 		yyval.vval.hi = -yystack.l_mark[0].vval.lo;
 		yyval.vval.lo = -yystack.l_mark[0].vval.hi;
 	}
+#line 1504 "calc1.tab.c"
 break;
 case 28:
 #line 171 "calc1.y"
 	{
 		yyval.vval = yystack.l_mark[-1].vval;
 	}
+#line 1511 "calc1.tab.c"
 break;
-#line 1488 "calc1.tab.c"
+#line 1513 "calc1.tab.c"
     default:
         break;
     }

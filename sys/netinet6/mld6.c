@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <net/route.h>
 #include <net/vnet.h>
 
@@ -103,7 +104,7 @@ __FBSDID("$FreeBSD$");
 #define KTR_MLD KTR_INET6
 #endif
 
-static void	mli_delete_locked(const struct ifnet *);
+static void	mli_delete_locked(struct ifnet *);
 static void	mld_dispatch_packet(struct mbuf *);
 static void	mld_dispatch_queue(struct mbufq *, int);
 static void	mld_final_leave(struct in6_multi *, struct mld_ifsoftc *);
@@ -569,7 +570,7 @@ mld_domifdetach(struct ifnet *ifp)
 }
 
 static void
-mli_delete_locked(const struct ifnet *ifp)
+mli_delete_locked(struct ifnet *ifp)
 {
 	struct mld_ifsoftc *mli, *tmli;
 

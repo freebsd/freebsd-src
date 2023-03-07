@@ -117,7 +117,6 @@ using namespace llvm;
 
 static cl::opt<unsigned>
     MaxVarsPrep("ppc-formprep-max-vars", cl::Hidden, cl::init(24),
-                cl::ZeroOrMore,
                 cl::desc("Potential common base number threshold per function "
                          "for PPC loop prep"));
 
@@ -569,7 +568,7 @@ bool PPCLoopInstrFormPrep::rewriteLoadStoresForCommoningChains(
     const SCEVAddRecExpr *BasePtrSCEV = cast<SCEVAddRecExpr>(BaseSCEV);
 
     // Make sure the base is able to expand.
-    if (!isSafeToExpand(BasePtrSCEV->getStart(), *SE))
+    if (!SCEVE.isSafeToExpand(BasePtrSCEV->getStart()))
       return MadeChange;
 
     assert(BasePtrSCEV->isAffine() &&
@@ -603,7 +602,7 @@ bool PPCLoopInstrFormPrep::rewriteLoadStoresForCommoningChains(
       // Make sure offset is able to expand. Only need to check one time as the
       // offsets are reused between different chains.
       if (!BaseElemIdx)
-        if (!isSafeToExpand(OffsetSCEV, *SE))
+        if (!SCEVE.isSafeToExpand(OffsetSCEV))
           return false;
 
       Value *OffsetValue = SCEVE.expandCodeFor(
@@ -1019,14 +1018,13 @@ bool PPCLoopInstrFormPrep::rewriteLoadStores(
   if (!BasePtrSCEV->isAffine())
     return MadeChange;
 
-  if (!isSafeToExpand(BasePtrSCEV->getStart(), *SE))
-    return MadeChange;
-
-  SmallPtrSet<Value *, 16> DeletedPtrs;
-
   BasicBlock *Header = L->getHeader();
   SCEVExpander SCEVE(*SE, Header->getModule()->getDataLayout(),
                      "loopprepare-formrewrite");
+  if (!SCEVE.isSafeToExpand(BasePtrSCEV->getStart()))
+    return MadeChange;
+
+  SmallPtrSet<Value *, 16> DeletedPtrs;
 
   // For some DS form load/store instructions, it can also be an update form,
   // if the stride is constant and is a multipler of 4. Use update form if

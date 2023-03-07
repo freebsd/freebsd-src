@@ -61,6 +61,8 @@ typedef enum {
  *  |       |        |as intmd|     |        |       |       |    |      |     |
  *  |       |        |  buf   |     |        |       |       |    |      |     |
  *  + ===== + ------ + -----  + --- + ------ + ----- + ----- + -- + ---- + --- +
+ * Note: For QAT 2.0 Disable Secure Ram, DisType0 Header and Enhanced ASB bits
+ * are don't care. i.e., these features are removed from QAT 2.0.
  */
 
 /** Flag usage */
@@ -182,6 +184,28 @@ typedef enum {
 	  << ICP_QAT_FW_COMP_RET_DISABLE_TYPE0_HEADER_DATA_BITPOS) |           \
 	 ((secure_ram & ICP_QAT_FW_COMP_DISABLE_SECURE_RAM_AS_INTMD_BUF_MASK)  \
 	  << ICP_QAT_FW_COMP_DISABLE_SECURE_RAM_AS_INTMD_BUF_BITPOS))
+
+/**
+******************************************************************************
+* @ingroup icp_qat_fw_comp
+*
+* @description
+* Macro used for the generation of the command flags for Compression Request.
+* This should always be used for the generation of the flags. No direct sets or
+* masks should be performed on the flags data
+*
+* @param sesstype         Session Type
+* @param autoselect       AutoSelectBest
+*                         Selects between compressed and uncompressed output.
+*                         No distinction made between static and dynamic
+*                         compressed data.
+*
+*********************************************************************************/
+#define ICP_QAT_FW_COMP_20_FLAGS_BUILD(sesstype, autoselect)                   \
+	(((sesstype & ICP_QAT_FW_COMP_SESSION_TYPE_MASK)                       \
+	  << ICP_QAT_FW_COMP_SESSION_TYPE_BITPOS) |                            \
+	 ((autoselect & ICP_QAT_FW_COMP_AUTO_SELECT_BEST_MASK)                 \
+	  << ICP_QAT_FW_COMP_AUTO_SELECT_BEST_BITPOS))
 
 /**
  ******************************************************************************
@@ -375,14 +399,16 @@ typedef struct icp_qat_fw_comp_req_params_s {
  *
  *****************************************************************************/
 #define ICP_QAT_FW_COMP_REQ_PARAM_FLAGS_BUILD(                                 \
-    sop, eop, bfinal, cnv, cnvnr, crc)                                         \
+    sop, eop, bfinal, cnv, cnvnr, cnvdfx, crc)                                 \
 	(((sop & ICP_QAT_FW_COMP_SOP_MASK) << ICP_QAT_FW_COMP_SOP_BITPOS) |    \
 	 ((eop & ICP_QAT_FW_COMP_EOP_MASK) << ICP_QAT_FW_COMP_EOP_BITPOS) |    \
 	 ((bfinal & ICP_QAT_FW_COMP_BFINAL_MASK)                               \
 	  << ICP_QAT_FW_COMP_BFINAL_BITPOS) |                                  \
 	 ((cnv & ICP_QAT_FW_COMP_CNV_MASK) << ICP_QAT_FW_COMP_CNV_BITPOS) |    \
-	 ((cnvnr & ICP_QAT_FW_COMP_CNV_RECOVERY_MASK)                          \
-	  << ICP_QAT_FW_COMP_CNV_RECOVERY_BITPOS) |                            \
+	 ((cnvnr & ICP_QAT_FW_COMP_CNVNR_MASK)                                 \
+	  << ICP_QAT_FW_COMP_CNVNR_BITPOS) |                                   \
+	 ((cnvdfx & ICP_QAT_FW_COMP_CNV_DFX_MASK)                              \
+	  << ICP_QAT_FW_COMP_CNV_DFX_BITPOS) |                                 \
 	 ((crc & ICP_QAT_FW_COMP_CRC_MODE_MASK)                                \
 	  << ICP_QAT_FW_COMP_CRC_MODE_BITPOS))
 
@@ -443,6 +469,14 @@ typedef struct icp_qat_fw_comp_req_params_s {
 /**< @ingroup icp_qat_fw_comp
  * Flag indicating that a cnv recovery is to be performed on the request */
 
+#define ICP_QAT_FW_COMP_NO_CNV_DFX 0
+/**< @ingroup icp_qat_fw_comp
+ * Flag indicating that NO CNV inject error is to be performed on the request */
+
+#define ICP_QAT_FW_COMP_CNV_DFX 1
+/**< @ingroup icp_qat_fw_comp
+ * Flag indicating that CNV inject error is to be performed on the request */
+
 #define ICP_QAT_FW_COMP_CRC_MODE_LEGACY 0
 /**< @ingroup icp_qat_fw_comp
  * Flag representing to use the legacy CRC mode */
@@ -491,6 +525,22 @@ typedef struct icp_qat_fw_comp_req_params_s {
 /**< @ingroup icp_qat_fw_comp
  * Starting bit position for the CNV Recovery bit */
 
+#define ICP_QAT_FW_COMP_CNVNR_MASK 0x1
+/**< @ingroup icp_qat_fw_comp
+ * One bit mask for the CNV Recovery bit */
+
+#define ICP_QAT_FW_COMP_CNVNR_BITPOS 17
+/**< @ingroup icp_qat_fw_comp
+ * Starting bit position for the CNV Recovery bit */
+
+#define ICP_QAT_FW_COMP_CNV_DFX_BITPOS 18
+/**< @ingroup icp_qat_fw_comp
+ * Starting bit position for the CNV DFX bit */
+
+#define ICP_QAT_FW_COMP_CNV_DFX_MASK 0x1
+/**< @ingroup icp_qat_fw_comp
+ * One bit mask for the CNV DFX bit */
+
 #define ICP_QAT_FW_COMP_CRC_MODE_BITPOS 19
 /**< @ingroup icp_qat_fw_comp
  * Starting bit position for CRC mode */
@@ -498,6 +548,14 @@ typedef struct icp_qat_fw_comp_req_params_s {
 #define ICP_QAT_FW_COMP_CRC_MODE_MASK 0x1
 /**< @ingroup icp_qat_fw_comp
  * One bit mask used to determine CRC mode */
+
+#define ICP_QAT_FW_COMP_XXHASH_ACC_MODE_BITPOS 20
+/**< @ingroup icp_qat_fw_comp
+ * Starting bit position for xxHash accumulate mode */
+
+#define ICP_QAT_FW_COMP_XXHASH_ACC_MODE_MASK 0x1
+/**< @ingroup icp_qat_fw_comp
+ * One bit mask used to determine xxHash accumulate mode */
 
 /**
  ******************************************************************************
@@ -577,6 +635,38 @@ typedef struct icp_qat_fw_comp_req_params_s {
 /**
  ******************************************************************************
  * @ingroup icp_qat_fw_comp
+ *
+ * @description
+ *        Macro for extraction of the xxHash accumulate mode bit
+ *
+ * @param flags        Flags to extract the xxHash accumulate mode bit from
+ *
+ *****************************************************************************/
+#define ICP_QAT_FW_COMP_XXHASH_ACC_MODE_GET(flags)                             \
+	QAT_FIELD_GET(flags,                                                   \
+		      ICP_QAT_FW_COMP_XXHASH_ACC_MODE_BITPOS,                  \
+		      ICP_QAT_FW_COMP_XXHASH_ACC_MODE_MASK)
+
+/**
+ ******************************************************************************
+ * @ingroup icp_qat_fw_comp
+ *
+ * @description
+ *        Macro for setting of the xxHash accumulate mode bit
+ *
+ * @param flags        Flags to set the xxHash accumulate mode bit to
+ * @param val          xxHash accumulate mode to set
+ *
+ *****************************************************************************/
+#define ICP_QAT_FW_COMP_XXHASH_ACC_MODE_SET(flags, val)                        \
+	QAT_FIELD_SET(flags,                                                   \
+		      val,                                                     \
+		      ICP_QAT_FW_COMP_XXHASH_ACC_MODE_BITPOS,                  \
+		      ICP_QAT_FW_COMP_XXHASH_ACC_MODE_MASK)
+
+/**
+ ******************************************************************************
+ * @ingroup icp_qat_fw_comp
  *        Definition of the translator request parameters block
  * @description
  *        Definition of the translator processing request parameters block
@@ -589,10 +679,11 @@ typedef struct icp_qat_fw_xlt_req_params_s {
 	/**< LWs 20-21 */
 	uint64_t inter_buff_ptr;
 	/**< This field specifies the physical address of an intermediate
-	  *  buffer SGL array. The array contains a pair of 64-bit
-	  *  intermediate buffer pointers to SGL buffer descriptors, one pair
-	  *  per CPM. Please refer to the CPM1.6 Firmware Interface HLD
-	  *  specification for more details. */
+	 *  buffer SGL array. The array contains a pair of 64-bit
+	 *  intermediate buffer pointers to SGL buffer descriptors, one pair
+	 *  per CPM. Please refer to the CPM1.6 Firmware Interface HLD
+	 *  specification for more details.
+	 *  Placeholder for QAT2.0. */
 } icp_qat_fw_xlt_req_params_t;
 
 /**
@@ -1025,5 +1116,32 @@ typedef enum {
 	  << QAT_FW_COMP_BANK_B_BITPOS) |                                      \
 	 (((bank_a_enable)&QAT_FW_COMP_BANK_FLAG_MASK)                         \
 	  << QAT_FW_COMP_BANK_A_BITPOS))
+
+/**
+ *****************************************************************************
+ * @ingroup icp_qat_fw_comp
+ *      Definition of the xxhash32 acc state buffer
+ * @description
+ *      This is data structure used in stateful lite for xxhash32
+ *
+ *****************************************************************************/
+typedef struct xxhash_acc_state_buff_s {
+	/**< LW 0 */
+	uint32_t in_counter;
+	/**< Accumulated (total) consumed bytes. As oppose to the per request
+	 * IBC in the response.*/
+
+	/**< LW 1 */
+	uint32_t out_counter;
+	/**< OBC as in the response.*/
+
+	/**< LW 2-5 */
+	uint32_t xxhash_state[4];
+	/**< Initial value is set by IA to the values stated in HAS.*/
+
+	/**< LW 6-9 */
+	uint32_t clear_txt[4];
+	/**< Set to 0 for the first request.*/
+} xxhash_acc_state_buff_t;
 
 #endif /* _ICP_QAT_FW_COMP_H_ */

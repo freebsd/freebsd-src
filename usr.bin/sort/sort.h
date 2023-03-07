@@ -43,15 +43,7 @@
 
 #define	VERSION	"2.3-FreeBSD"
 
-#ifdef WITHOUT_NLS
 #define	getstr(n)	 nlsstr[n]
-#else
-#include <nl_types.h>
-
-extern nl_catd catalog;
-#define	getstr(n)	\
-	(catalog == (nl_catd)-1 ? nlsstr[n] : catgets(catalog, 1, n, nlsstr[n]))
-#endif
 
 extern const char *nlsstr[];
 

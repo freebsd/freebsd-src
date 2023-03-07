@@ -133,9 +133,9 @@ public:
     }
 
     bool isPoisoned() const {
-      return BBGuards &&
-             std::any_of(BBGuards->begin(), BBGuards->end(),
-                         [](const auto &BB) { return BB.second.isPoisoned(); });
+      return BBGuards && llvm::any_of(*BBGuards, [](const auto &BB) {
+               return BB.second.isPoisoned();
+             });
     }
 
     static void printDiff(raw_ostream &out, const CFG &Before,
@@ -186,17 +186,6 @@ public:
 protected:
   // Register required callbacks.
   void registerRequiredCallbacks(PassInstrumentationCallbacks &PIC);
-
-  // Return true when this is a defined function for which printing
-  // of changes is desired.
-  bool isInterestingFunction(const Function &F);
-
-  // Return true when this is a pass for which printing of changes is desired.
-  bool isInterestingPass(StringRef PassID);
-
-  // Return true when this is a pass on IR for which printing
-  // of changes is desired.
-  bool isInteresting(Any IR, StringRef PassID);
 
   // Called on the first IR processed.
   virtual void handleInitialIR(Any IR) = 0;
@@ -392,13 +381,13 @@ public:
 
 protected:
   // Create a representation of the IR.
-  virtual void generateIRRepresentation(Any IR, StringRef PassID,
-                                        IRDataT<EmptyData> &Output) override;
+  void generateIRRepresentation(Any IR, StringRef PassID,
+                                IRDataT<EmptyData> &Output) override;
 
   // Called when an interesting IR has changed.
-  virtual void handleAfter(StringRef PassID, std::string &Name,
-                           const IRDataT<EmptyData> &Before,
-                           const IRDataT<EmptyData> &After, Any) override;
+  void handleAfter(StringRef PassID, std::string &Name,
+                   const IRDataT<EmptyData> &Before,
+                   const IRDataT<EmptyData> &After, Any) override;
 
   void handleFunctionCompare(StringRef Name, StringRef Prefix, StringRef PassID,
                              StringRef Divider, bool InModule, unsigned Minor,
@@ -491,6 +480,25 @@ protected:
   std::unique_ptr<raw_fd_ostream> HTML;
 };
 
+// Print IR on crash.
+class PrintCrashIRInstrumentation {
+public:
+  PrintCrashIRInstrumentation()
+      : SavedIR("*** Dump of IR Before Last Pass Unknown ***") {}
+  ~PrintCrashIRInstrumentation();
+  void registerCallbacks(PassInstrumentationCallbacks &PIC);
+  void reportCrashIR();
+
+protected:
+  std::string SavedIR;
+
+private:
+  // The crash reporter that will report on a crash.
+  static PrintCrashIRInstrumentation *CrashReporter;
+  // Crash handler registered when print-on-crash is specified.
+  static void SignalHandler(void *);
+};
+
 /// This class provides an interface to register all the standard pass
 /// instrumentations and manages their state (if any).
 class StandardInstrumentations {
@@ -504,6 +512,7 @@ class StandardInstrumentations {
   PseudoProbeVerifier PseudoProbeVerification;
   InLineChangePrinter PrintChangedDiff;
   DotCfgChangeReporter WebsiteChangeReporter;
+  PrintCrashIRInstrumentation PrintCrashIR;
   VerifyInstrumentation Verify;
 
   bool VerifyEach;

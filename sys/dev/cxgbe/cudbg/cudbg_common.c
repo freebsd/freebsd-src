@@ -61,8 +61,8 @@ void release_scratch_buff(struct cudbg_buffer *pscratch_buff,
 {
 	pdbg_buff->size += pscratch_buff->size;
 	/* Reset the used buffer to zero.
- 	 * If we dont do this, then it will effect the ext entity logic.
- 	 */
+	 * If we dont do this, then it will effect the ext entity logic.
+	 */
 	memset(pscratch_buff->data, 0, pscratch_buff->size);
 	pscratch_buff->data = NULL;
 	pscratch_buff->offset = 0;

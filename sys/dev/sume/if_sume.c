@@ -214,7 +214,7 @@ sume_rx_build_mbuf(struct sume_adapter *adapter, uint32_t len)
 {
 	struct nf_priv *nf_priv;
 	struct mbuf *m;
-	struct ifnet *ifp = NULL;
+	if_t ifp = NULL;
 	int np;
 	uint16_t dport, plen, magic;
 	device_t dev = adapter->dev;
@@ -253,12 +253,12 @@ sume_rx_build_mbuf(struct sume_adapter *adapter, uint32_t len)
 		return (NULL);
 	}
 	ifp = adapter->ifp[np];
-	nf_priv = ifp->if_softc;
+	nf_priv = if_getsoftc(ifp);
 	nf_priv->stats.rx_packets++;
 	nf_priv->stats.rx_bytes += plen;
 
 	/* If the interface is down, well, we are done. */
-	if (!(ifp->if_flags & IFF_UP)) {
+	if (!(if_getflags(ifp) & IFF_UP)) {
 		nf_priv->stats.ifc_down_packets++;
 		nf_priv->stats.ifc_down_bytes += plen;
 		return (NULL);
@@ -324,7 +324,7 @@ sume_intr_handler(void *arg)
 	int ch, loops;
 	device_t dev = adapter->dev;
 	struct mbuf *m = NULL;
-	struct ifnet *ifp = NULL;
+	if_t ifp = NULL;
 	struct riffa_chnl_dir *send, *recv;
 
 	SUME_LOCK(adapter);
@@ -540,7 +540,7 @@ sume_intr_handler(void *arg)
 
 	if (m != NULL) {
 		ifp = m->m_pkthdr.rcvif;
-		(*ifp->if_input)(ifp, m);
+		if_input(ifp, m);
 	}
 }
 
@@ -876,10 +876,10 @@ get_modreg_value(struct nf_priv *nf_priv, struct sume_ifreq *sifr)
 }
 
 static int
-sume_if_ioctl(struct ifnet *ifp, unsigned long cmd, caddr_t data)
+sume_if_ioctl(if_t ifp, unsigned long cmd, caddr_t data)
 {
 	struct ifreq *ifr = (struct ifreq *) data;
-	struct nf_priv *nf_priv = ifp->if_softc;
+	struct nf_priv *nf_priv = if_getsoftc(ifp);
 	struct sume_ifreq sifr;
 	int error = 0;
 
@@ -917,7 +917,7 @@ sume_if_ioctl(struct ifnet *ifp, unsigned long cmd, caddr_t data)
 
 	case SIOCSIFFLAGS:
 		/* Silence tcpdump 'promisc mode not supported' warning. */
-		if (ifp->if_flags & IFF_PROMISC)
+		if (if_getflags(ifp) & IFF_PROMISC)
 			break;
 
 	default:
@@ -929,26 +929,26 @@ sume_if_ioctl(struct ifnet *ifp, unsigned long cmd, caddr_t data)
 }
 
 static int
-sume_media_change(struct ifnet *ifp)
+sume_media_change(if_t ifp)
 {
-	struct nf_priv *nf_priv = ifp->if_softc;
+	struct nf_priv *nf_priv = if_getsoftc(ifp);
 	struct ifmedia *ifm = &nf_priv->media;
 
 	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
 		return (EINVAL);
 
 	if (IFM_SUBTYPE(ifm->ifm_media) == IFM_10G_SR)
-		ifp->if_baudrate = ifmedia_baudrate(IFM_ETHER | IFM_10G_SR);
+		if_setbaudrate(ifp, ifmedia_baudrate(IFM_ETHER | IFM_10G_SR));
 	else
-		ifp->if_baudrate = ifmedia_baudrate(ifm->ifm_media);
+		if_setbaudrate(ifp, ifmedia_baudrate(ifm->ifm_media));
 
 	return (0);
 }
 
 static void
-sume_update_link_status(struct ifnet *ifp)
+sume_update_link_status(if_t ifp)
 {
-	struct nf_priv *nf_priv = ifp->if_softc;
+	struct nf_priv *nf_priv = if_getsoftc(ifp);
 	struct sume_adapter *adapter = nf_priv->adapter;
 	struct sume_ifreq sifr;
 	int link_status;
@@ -977,13 +977,13 @@ sume_update_link_status(struct ifnet *ifp)
 }
 
 static void
-sume_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
+sume_media_status(if_t ifp, struct ifmediareq *ifmr)
 {
-	struct nf_priv *nf_priv = ifp->if_softc;
+	struct nf_priv *nf_priv = if_getsoftc(ifp);
 	struct ifmedia *ifm = &nf_priv->media;
 
 	if (ifm->ifm_cur->ifm_media == (IFM_ETHER | IFM_10G_SR) &&
-	    (ifp->if_flags & IFF_UP))
+	    (if_getflags(ifp) & IFF_UP))
 		ifmr->ifm_active = IFM_ETHER | IFM_10G_SR;
 	else
 		ifmr->ifm_active = ifm->ifm_cur->ifm_media;
@@ -1006,10 +1006,10 @@ sume_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
  * transaction.
  */
 static int
-sume_if_start_locked(struct ifnet *ifp)
+sume_if_start_locked(if_t ifp)
 {
 	struct mbuf *m;
-	struct nf_priv *nf_priv = ifp->if_softc;
+	struct nf_priv *nf_priv = if_getsoftc(ifp);
 	struct sume_adapter *adapter = nf_priv->adapter;
 	struct riffa_chnl_dir *send = adapter->send[SUME_RIFFA_CHANNEL_DATA];
 	uint8_t *outbuf;
@@ -1020,7 +1020,7 @@ sume_if_start_locked(struct ifnet *ifp)
 	KASSERT(send->state == SUME_RIFFA_CHAN_STATE_IDLE,
 	    ("SUME not in IDLE state"));
 
-	IFQ_DEQUEUE(&ifp->if_snd, m);
+	m = if_dequeue(ifp);
 	if (m == NULL)
 		return (EINVAL);
 
@@ -1106,12 +1106,12 @@ sume_if_start_locked(struct ifnet *ifp)
 }
 
 static void
-sume_if_start(struct ifnet *ifp)
+sume_if_start(if_t ifp)
 {
-	struct nf_priv *nf_priv = ifp->if_softc;
+	struct nf_priv *nf_priv = if_getsoftc(ifp);
 	struct sume_adapter *adapter = nf_priv->adapter;
 
-	if (!adapter->running || !(ifp->if_flags & IFF_UP))
+	if (!adapter->running || !(if_getflags(ifp) & IFF_UP))
 		return;
 
 	SUME_LOCK(adapter);
@@ -1136,9 +1136,9 @@ check_tx_queues(struct sume_adapter *adapter)
 
 	/* Check all interfaces */
 	for (i = last_ifc + 1; i < last_ifc + SUME_NPORTS + 1; i++) {
-		struct ifnet *ifp = adapter->ifp[i % SUME_NPORTS];
+		if_t ifp = adapter->ifp[i % SUME_NPORTS];
 
-		if (!(ifp->if_flags & IFF_UP))
+		if (!(if_getflags(ifp) & IFF_UP))
 			continue;
 
 		if (!sume_if_start_locked(ifp))
@@ -1149,7 +1149,7 @@ check_tx_queues(struct sume_adapter *adapter)
 static int
 sume_ifp_alloc(struct sume_adapter *adapter, uint32_t port)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	struct nf_priv *nf_priv = malloc(sizeof(struct nf_priv), M_SUME,
 	    M_ZERO | M_WAITOK);
 
@@ -1160,7 +1160,7 @@ sume_ifp_alloc(struct sume_adapter *adapter, uint32_t port)
 	}
 
 	adapter->ifp[port] = ifp;
-	ifp->if_softc = nf_priv;
+	if_setsoftc(ifp, nf_priv);
 
 	nf_priv->adapter = adapter;
 	nf_priv->unit = alloc_unr(unr);
@@ -1168,11 +1168,11 @@ sume_ifp_alloc(struct sume_adapter *adapter, uint32_t port)
 	nf_priv->link_up = 0;
 
 	if_initname(ifp, SUME_ETH_DEVICE_NAME, nf_priv->unit);
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
 
-	ifp->if_init = sume_if_init;
-	ifp->if_start = sume_if_start;
-	ifp->if_ioctl = sume_if_ioctl;
+	if_setinitfn(ifp, sume_if_init);
+	if_setstartfn(ifp, sume_if_start);
+	if_setioctlfn(ifp, sume_if_ioctl);
 
 	uint8_t hw_addr[ETHER_ADDR_LEN] = DEFAULT_ETHER_ADDRESS;
 	hw_addr[ETHER_ADDR_LEN-1] = nf_priv->unit;
@@ -1183,7 +1183,7 @@ sume_ifp_alloc(struct sume_adapter *adapter, uint32_t port)
 	ifmedia_add(&nf_priv->media, IFM_ETHER | IFM_10G_SR, 0, NULL);
 	ifmedia_set(&nf_priv->media, IFM_ETHER | IFM_10G_SR);
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
 
 	return (0);
 }
@@ -1317,11 +1317,11 @@ sume_sysctl_init(struct sume_adapter *adapter)
 	    CTLFLAG_RD, &adapter->bytes_err, 0, "rx error bytes");
 
 	for (i = SUME_NPORTS - 1; i >= 0; i--) {
-		struct ifnet *ifp = adapter->ifp[i];
+		if_t ifp = adapter->ifp[i];
 		if (ifp == NULL)
 			continue;
 
-		struct nf_priv *nf_priv = ifp->if_softc;
+		struct nf_priv *nf_priv = if_getsoftc(ifp);
 
 		snprintf(namebuf, MAX_IFC_NAME_LEN, "%s%d",
 		    SUME_ETH_DEVICE_NAME, nf_priv->unit);
@@ -1409,10 +1409,10 @@ sume_get_stats(void *context, int pending)
 	int i;
 
 	for (i = 0; i < SUME_NPORTS; i++) {
-		struct ifnet *ifp = adapter->ifp[i];
+		if_t ifp = adapter->ifp[i];
 
-		if (ifp->if_flags & IFF_UP) {
-			struct nf_priv *nf_priv = ifp->if_softc;
+		if (if_getflags(ifp) & IFF_UP) {
+			struct nf_priv *nf_priv = if_getsoftc(ifp);
 			struct sume_ifreq sifr;
 
 			sume_update_link_status(ifp);
@@ -1543,19 +1543,19 @@ sume_detach(device_t dev)
 	}
 
 	for (i = 0; i < SUME_NPORTS; i++) {
-		struct ifnet *ifp = adapter->ifp[i];
+		if_t ifp = adapter->ifp[i];
 		if (ifp == NULL)
 			continue;
 
-		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-		nf_priv = ifp->if_softc;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
+		nf_priv = if_getsoftc(ifp);
 
-		if (ifp->if_flags & IFF_UP)
+		if (if_getflags(ifp) & IFF_UP)
 			if_down(ifp);
 		ifmedia_removeall(&nf_priv->media);
 		free_unr(unr, nf_priv->unit);
 
-		ifp->if_flags &= ~IFF_UP;
+		if_setflagbits(ifp, 0, IFF_UP);
 		ether_ifdetach(ifp);
 		if_free(ifp);
 

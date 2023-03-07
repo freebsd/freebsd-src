@@ -1,7 +1,7 @@
 /*
  * strlen benchmark.
  *
- * Copyright (c) 2020, Arm Limited.
+ * Copyright (c) 2020-2021, Arm Limited.
  * SPDX-License-Identifier: MIT
  */
 
@@ -13,10 +13,10 @@
 #include "stringlib.h"
 #include "benchlib.h"
 
-#define ITERS 2000
+#define ITERS 5000
 #define ITERS2 20000000
 #define ITERS3 2000000
-#define NUM_STRLEN 16384
+#define NUM_TESTS 16384
 
 #define MAX_ALIGN 32
 #define MAX_STRLEN 256
@@ -49,7 +49,7 @@ static const struct fun
 };
 #undef F
 
-static uint16_t strlen_tests[NUM_STRLEN];
+static uint16_t strlen_tests[NUM_TESTS];
 
 typedef struct { uint16_t size; uint16_t freq; } freq_data_t;
 typedef struct { uint8_t align; uint16_t freq; } align_data_t;
@@ -117,7 +117,7 @@ init_strlen_tests (void)
 
   /* Create a random set of strlen input strings using the string length
      and alignment distributions.  */
-  for (int n = 0; n < NUM_STRLEN; n++)
+  for (int n = 0; n < NUM_TESTS; n++)
     {
       int align = strlen_align_arr[rand32 (0) & ALIGN_MASK];
       int exp_len = strlen_len_arr[rand32 (0) & SIZE_MASK];
@@ -141,14 +141,14 @@ int main (void)
       size_t res = 0, strlen_size = 0, mask = maskv;
       printf ("%22s ", funtab[f].name);
 
-      for (int c = 0; c < NUM_STRLEN; c++)
+      for (int c = 0; c < NUM_TESTS; c++)
 	strlen_size += funtab[f].fun (a + strlen_tests[c]);
       strlen_size *= ITERS;
 
       /* Measure latency of strlen result with (res & mask).  */
       uint64_t t = clock_get_ns ();
       for (int i = 0; i < ITERS; i++)
-	for (int c = 0; c < NUM_STRLEN; c++)
+	for (int c = 0; c < NUM_TESTS; c++)
 	  res = funtab[f].fun (a + strlen_tests[c] + (res & mask));
       t = clock_get_ns () - t;
       printf ("%.2f\n", (double)strlen_size / t);

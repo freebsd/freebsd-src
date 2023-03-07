@@ -230,8 +230,7 @@ namespace {
 
     bool IsGuaranteedToExecute(MachineBasicBlock *BB);
 
-    bool isTriviallyReMaterializable(const MachineInstr &MI,
-                                     AAResults *AA) const;
+    bool isTriviallyReMaterializable(const MachineInstr &MI) const;
 
     void EnterScope(MachineBasicBlock *MBB);
 
@@ -240,7 +239,7 @@ namespace {
     void ExitScopeIfDone(
         MachineDomTreeNode *Node,
         DenseMap<MachineDomTreeNode *, unsigned> &OpenChildren,
-        DenseMap<MachineDomTreeNode *, MachineDomTreeNode *> &ParentMap);
+        const DenseMap<MachineDomTreeNode *, MachineDomTreeNode *> &ParentMap);
 
     void HoistOutOfLoop(MachineDomTreeNode *HeaderN);
 
@@ -666,9 +665,9 @@ bool MachineLICMBase::IsGuaranteedToExecute(MachineBasicBlock *BB) {
 /// virtual register uses. Even though rematerializable RA might not actually
 /// rematerialize it in this scenario. In that case we do not want to hoist such
 /// instruction out of the loop in a belief RA will sink it back if needed.
-bool MachineLICMBase::isTriviallyReMaterializable(const MachineInstr &MI,
-                                                  AAResults *AA) const {
-  if (!TII->isTriviallyReMaterializable(MI, AA))
+bool MachineLICMBase::isTriviallyReMaterializable(
+    const MachineInstr &MI) const {
+  if (!TII->isTriviallyReMaterializable(MI))
     return false;
 
   for (const MachineOperand &MO : MI.operands()) {
@@ -696,19 +695,16 @@ void MachineLICMBase::ExitScope(MachineBasicBlock *MBB) {
 /// destroy ancestors which are now done.
 void MachineLICMBase::ExitScopeIfDone(MachineDomTreeNode *Node,
     DenseMap<MachineDomTreeNode*, unsigned> &OpenChildren,
-    DenseMap<MachineDomTreeNode*, MachineDomTreeNode*> &ParentMap) {
+    const DenseMap<MachineDomTreeNode*, MachineDomTreeNode*> &ParentMap) {
   if (OpenChildren[Node])
     return;
 
-  // Pop scope.
-  ExitScope(Node->getBlock());
-
-  // Now traverse upwards to pop ancestors whose offsprings are all done.
-  while (MachineDomTreeNode *Parent = ParentMap[Node]) {
-    unsigned Left = --OpenChildren[Parent];
-    if (Left != 0)
+  for(;;) {
+    ExitScope(Node->getBlock());
+    // Now traverse upwards to pop ancestors whose offsprings are all done.
+    MachineDomTreeNode *Parent = ParentMap.lookup(Node);
+    if (!Parent || --OpenChildren[Parent] != 0)
       break;
-    ExitScope(Parent->getBlock());
     Node = Parent;
   }
 }
@@ -999,6 +995,9 @@ bool MachineLICMBase::IsLICMCandidate(MachineInstr &I) {
   if (I.isConvergent())
     return false;
 
+  if (!TII->shouldHoist(I, CurLoop))
+    return false;
+
   return true;
 }
 
@@ -1174,7 +1173,7 @@ bool MachineLICMBase::IsProfitableToHoist(MachineInstr &MI) {
 
   // Rematerializable instructions should always be hoisted providing the
   // register allocator can just pull them down again when needed.
-  if (isTriviallyReMaterializable(MI, AA))
+  if (isTriviallyReMaterializable(MI))
     return true;
 
   // FIXME: If there are long latency loop-invariant instructions inside the
@@ -1227,8 +1226,8 @@ bool MachineLICMBase::IsProfitableToHoist(MachineInstr &MI) {
 
   // High register pressure situation, only hoist if the instruction is going
   // to be remat'ed.
-  if (!isTriviallyReMaterializable(MI, AA) &&
-      !MI.isDereferenceableInvariantLoad(AA)) {
+  if (!isTriviallyReMaterializable(MI) &&
+      !MI.isDereferenceableInvariantLoad()) {
     LLVM_DEBUG(dbgs() << "Can't remat / high reg-pressure: " << MI);
     return false;
   }
@@ -1247,7 +1246,7 @@ MachineInstr *MachineLICMBase::ExtractHoistableLoad(MachineInstr *MI) {
   // If not, we may be able to unfold a load and hoist that.
   // First test whether the instruction is loading from an amenable
   // memory location.
-  if (!MI->isDereferenceableInvariantLoad(AA))
+  if (!MI->isDereferenceableInvariantLoad())
     return nullptr;
 
   // Next determine the register class for a temporary register.

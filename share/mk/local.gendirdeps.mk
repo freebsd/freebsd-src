@@ -70,3 +70,5 @@ GENDIRDEPS_FILTER+= ${GENDIRDEPS_FILTER_VARS:@v@S,/${$v}/,/_{${v}}/,@:NS,//,*:u}
 
 # avoid churn for now
 LOCAL_DEPENDS_GUARD= _{DEP_RELDIR} == _{_DEP_RELDIR}
+
+.-include <site.gendirdeps.mk>

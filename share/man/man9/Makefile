@@ -190,12 +190,13 @@ MAN=	accept_filter.9 \
 	ifnet.9 \
 	inittodr.9 \
 	insmntque.9 \
+	intr_event.9 \
 	intro.9 \
-	ithread.9 \
 	kasan.9 \
 	KASSERT.9 \
 	kern_reboot.9 \
 	kern_testfrwk.9 \
+	kern_yield.9 \
 	kernacc.9 \
 	kernel_mount.9 \
 	khelp.9 \
@@ -241,11 +242,11 @@ MAN=	accept_filter.9 \
 	OF_package_to_path.9 \
 	ofw_bus_is_compatible.9 \
 	ofw_bus_status_okay.9 \
+	ofw_graph.9 \
 	osd.9 \
 	owll.9 \
 	own.9 \
 	panic.9 \
-	PCBGROUP.9 \
 	p_candebug.9 \
 	p_cansee.9 \
 	pci.9 \
@@ -302,7 +303,6 @@ MAN=	accept_filter.9 \
 	rijndael.9 \
 	rman.9 \
 	rmlock.9 \
-	rtalloc.9 \
 	rtentry.9 \
 	runqueue.9 \
 	rwlock.9 \
@@ -319,6 +319,7 @@ MAN=	accept_filter.9 \
 	signal.9 \
 	sleep.9 \
 	sleepqueue.9 \
+	smr.9 \
 	socket.9 \
 	stack.9 \
 	store.9 \
@@ -705,6 +706,14 @@ MLINKS+=bus_space.9 bus_space_alloc.9 \
 	bus_space.9 bus_space_copy_region_stream_8.9 \
 	bus_space.9 bus_space_free.9 \
 	bus_space.9 bus_space_map.9 \
+	bus_space.9 bus_space_peek_1.9 \
+	bus_space.9 bus_space_peek_2.9 \
+	bus_space.9 bus_space_peek_4.9 \
+	bus_space.9 bus_space_peek_8.9 \
+	bus_space.9 bus_space_poke_1.9 \
+	bus_space.9 bus_space_poke_2.9 \
+	bus_space.9 bus_space_poke_4.9 \
+	bus_space.9 bus_space_poke_8.9 \
 	bus_space.9 bus_space_read_1.9 \
 	bus_space.9 bus_space_read_2.9 \
 	bus_space.9 bus_space_read_4.9 \
@@ -1022,13 +1031,19 @@ MLINKS+=dnv.9 dnvlist.9 \
 	dnv.9 dnvlist_take_number.9 \
 	dnv.9 dnvlist_take_nvlist.9 \
 	dnv.9 dnvlist_take_string.9
-MLINKS+=domain.9 DOMAIN_SET.9 \
+MLINKS+=domain.9 protosw.9 \
 	domain.9 domain_add.9 \
-	domain.9 domain_init.9 \
-	domain.9 pfctlinput.9 \
-	domain.9 pffinddomain.9 \
-	domain.9 pffindproto.9 \
-	domain.9 pffindtype.9
+	domain.9 protosw_register.9 \
+	domain.9 protosw_unregister.9
+MLINKS+=dpcpu.9 DPCPU_DECLARE.9 \
+	dpcpu.9 DPCPU_DEFINE.9 \
+	dpcpu.9 DPCPU_DEFINE_STATIC.9 \
+	dpcpu.9 DPCPU_GET.9 \
+	dpcpu.9 DPCPU_ID_PTR.9 \
+	dpcpu.9 DPCPU_ID_GET.9 \
+	dpcpu.9 DPCPU_ID_SET.9 \
+	dpcpu.9 DPCPU_PTR.9 \
+	dpcpu.9 DPCPU_SET.9
 MLINKS+=drbr.9 drbr_free.9 \
 	drbr.9 drbr_enqueue.9 \
 	drbr.9 drbr_dequeue.9 \
@@ -1313,12 +1328,14 @@ MLINKS+=ifnet.9 if_addmulti.9 \
 	ifnet.9 ifunit.9 \
 	ifnet.9 ifunit_ref.9
 MLINKS+=insmntque.9 insmntque1.9
-MLINKS+=ithread.9 ithread_add_handler.9 \
-	ithread.9 ithread_create.9 \
-	ithread.9 ithread_destroy.9 \
-	ithread.9 ithread_priority.9 \
-	ithread.9 ithread_remove_handler.9 \
-	ithread.9 ithread_schedule.9
+MLINKS+=intr_event.9 intr_event_add_handler.9 \
+	intr_event.9 intr_event_create.9 \
+	intr_event.9 intr_event_destroy.9 \
+	intr_event.9 intr_event_handle.9 \
+	intr_event.9 intr_event_remove_handler.9 \
+	intr_event.9 intr_priority.9
+MLINKS+=kern_yield.9 maybe_yield.9 \
+	kern_yield.9 should_yield.9
 MLINKS+=kernacc.9 useracc.9
 MLINKS+=kernel_mount.9 free_mntarg.9 \
 	kernel_mount.9 mount_arg.9 \
@@ -1412,13 +1429,19 @@ MLINKS+=make_dev.9 destroy_dev.9 \
 	make_dev.9 make_dev_p.9 \
 	make_dev.9 make_dev_s.9
 MLINKS+=malloc.9 free.9 \
+	malloc.9 malloc_aligned.9 \
 	malloc.9 malloc_domainset.9 \
+	malloc.9 malloc_domainset_aligned.9 \
+	malloc.9 malloc_domainset_exec.9 \
+	malloc.9 malloc_exec.9 \
+	malloc.9 malloc_usable_size.9 \
 	malloc.9 mallocarray.9 \
 	malloc.9 mallocarray_domainset.9 \
 	malloc.9 MALLOC_DECLARE.9 \
 	malloc.9 MALLOC_DEFINE.9 \
 	malloc.9 realloc.9 \
-	malloc.9 reallocf.9
+	malloc.9 reallocf.9 \
+	malloc.9 zfree.9
 MLINKS+=mbchain.9 mb_detach.9 \
 	mbchain.9 mb_done.9 \
 	mbchain.9 mb_fixhdr.9 \
@@ -1693,6 +1716,12 @@ MLINKS+=ofw_bus_is_compatible.9 ofw_bus_is_compatible_strict.9 \
 	ofw_bus_is_compatible.9 ofw_bus_search_compatible.9
 MLINKS+= ofw_bus_status_okay.9 ofw_bus_get_status.9 \
 	ofw_bus_status_okay.9 ofw_bus_node_status_okay.9
+MLINKS+=ofw_graph.9 ofw_graph_get_device_by_port_ep.9 \
+	ofw_graph.9 ofw_graph_get_endpoint_by_idx.9 \
+	ofw_graph.9 ofw_graph_get_port_by_idx.9 \
+	ofw_graph.9 ofw_graph_get_remove_endpoint.9 \
+	ofw_graph.9 ofw_graph_get_remove_parent.9 \
+	ofw_graph.9 ofw_graph_port_get_num_endpoints.9
 MLINKS+=osd.9 osd_call.9 \
 	osd.9 osd_del.9 \
 	osd.9 osd_deregister.9 \
@@ -1704,15 +1733,6 @@ MLINKS+=osd.9 osd_call.9 \
 	osd.9 osd_set.9 \
 	osd.9 osd_set_reserved.9
 MLINKS+=panic.9 vpanic.9
-MLINKS+=PCBGROUP.9 in_pcbgroup_byhash.9 \
-	PCBGROUP.9 in_pcbgroup_byinpcb.9 \
-	PCBGROUP.9 in_pcbgroup_destroy.9 \
-	PCBGROUP.9 in_pcbgroup_enabled.9 \
-	PCBGROUP.9 in_pcbgroup_init.9 \
-	PCBGROUP.9 in_pcbgroup_remove.9 \
-	PCBGROUP.9 in_pcbgroup_update.9 \
-	PCBGROUP.9 in_pcbgroup_update_mbuf.9 \
-	PCBGROUP.9 in6_pcbgroup_byhash.9
 MLINKS+=pci.9 pci_alloc_msi.9 \
 	pci.9 pci_alloc_msix.9 \
 	pci.9 pci_disable_busmaster.9 \
@@ -1862,19 +1882,6 @@ MLINKS+=rmlock.9 rm_assert.9 \
 	rmlock.9 rm_wlock.9 \
 	rmlock.9 rm_wowned.9 \
 	rmlock.9 rm_wunlock.9
-MLINKS+=rtalloc.9 rtalloc1.9 \
-	rtalloc.9 rtalloc_ign.9 \
-	rtalloc.9 RT_ADDREF.9 \
-	rtalloc.9 RT_LOCK.9 \
-	rtalloc.9 RT_REMREF.9 \
-	rtalloc.9 RT_RTFREE.9 \
-	rtalloc.9 RT_UNLOCK.9 \
-	rtalloc.9 RTFREE_LOCKED.9 \
-	rtalloc.9 RTFREE.9 \
-	rtalloc.9 rtfree.9 \
-	rtalloc.9 rtalloc1_fib.9 \
-	rtalloc.9 rtalloc_ign_fib.9 \
-	rtalloc.9 rtalloc_fib.9
 MLINKS+=runqueue.9 choosethread.9 \
 	runqueue.9 procrunnable.9 \
 	runqueue.9 remrunqueue.9 \
@@ -2045,6 +2052,14 @@ MLINKS+=sleepqueue.9 init_sleepqueues.9 \
 	sleepqueue.9 sleepq_type.9 \
 	sleepqueue.9 sleepq_wait.9 \
 	sleepqueue.9 sleepq_wait_sig.9
+MLINKS+=smr.9 smr_advance.9 \
+	smr.9 smr_create.9 \
+	smr.9 smr_destroy.9 \
+	smr.9 smr_enter.9 \
+	smr.9 smr_exit.9 \
+	smr.9 smr_poll.9 \
+	smr.9 smr_synchronize.9 \
+	smr.9 smr_wait.9
 MLINKS+=socket.9 soabort.9 \
 	socket.9 soaccept.9 \
 	socket.9 sobind.9 \
@@ -2334,9 +2349,7 @@ MLINKS+=vm_map_lookup.9 vm_map_lookup_done.9
 MLINKS+=vm_map_max.9 vm_map_min.9 \
 	vm_map_max.9 vm_map_pmap.9
 MLINKS+=vm_map_stack.9 vm_map_growstack.9
-MLINKS+=vm_map_wire.9 vm_map_wire_mapped.9 \
-	vm_page_wire.9 vm_page_unwire.9 \
-	vm_page_wire.9 vm_page_unwire_noq.9
+MLINKS+=vm_map_wire.9 vm_map_unwire.9
 MLINKS+=vm_page_alloc.9 vm_page_alloc_after.9 \
 	vm_page_alloc.9 vm_page_alloc_contig.9 \
 	vm_page_alloc.9 vm_page_alloc_contig_domain.9 \
@@ -2375,7 +2388,9 @@ MLINKS+=vm_page_free.9 vm_page_free_toq.9 \
 	vm_page_free.9 vm_page_free_zero.9 \
 	vm_page_free.9 vm_page_try_to_free.9
 MLINKS+=vm_page_insert.9 vm_page_remove.9
-MLINKS+=vm_page_wire.9 vm_page_unwire.9
+MLINKS+=vm_page_wire.9 vm_page_unwire.9 \
+	vm_page_wire.9 vm_page_unwire_noq.9 \
+	vm_page_wire.9 vm_page_wire_mapped.9
 MLINKS+=VOP_ACCESS.9 VOP_ACCESSX.9
 MLINKS+=VOP_ATTRIB.9 VOP_GETATTR.9 \
 	VOP_ATTRIB.9 VOP_SETATTR.9 \
@@ -2435,7 +2450,6 @@ MLINKS+=superio.9 superio_devid.9 \
 	superio.9 superio_dev_disable.9 \
 	superio.9 superio_dev_enable.9 \
 	superio.9 superio_dev_enabled.9 \
-	superio.9 superio_find_dev.9 \
 	superio.9 superio_find_dev.9 \
 	superio.9 superio_get_dma.9 \
 	superio.9 superio_get_iobase.9 \

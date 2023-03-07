@@ -34,9 +34,6 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif
-#ifdef HAVE_SYS_MOUNT_H
-#include <sys/mount.h>
-#endif
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
@@ -54,6 +51,8 @@ __FBSDID("$FreeBSD$");
 #endif
 #ifdef HAVE_LINUX_FS_H
 #include <linux/fs.h>
+#elif HAVE_SYS_MOUNT_H
+#include <sys/mount.h>
 #endif
 /*
  * Some Linux distributions have both linux/ext2_fs.h and ext2fs/ext2_fs.h.
@@ -2103,6 +2102,8 @@ tree_push(struct tree *t, const char *path, int filesystem_id,
 	struct tree_entry *te;
 
 	te = calloc(1, sizeof(*te));
+	if (te == NULL)
+		__archive_errx(1, "Out of memory");
 	te->next = t->stack;
 	te->parent = t->current;
 	if (te->parent)

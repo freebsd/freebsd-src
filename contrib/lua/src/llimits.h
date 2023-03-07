@@ -150,22 +150,6 @@ typedef LUAI_UACINT l_uacInt;
 
 
 /*
-** macros to improve jump prediction (used mainly for error handling)
-*/
-#if !defined(likely)
-
-#if defined(__GNUC__)
-#define likely(x)	(__builtin_expect(((x) != 0), 1))
-#define unlikely(x)	(__builtin_expect(((x) != 0), 0))
-#else
-#define likely(x)	(x)
-#define unlikely(x)	(x)
-#endif
-
-#endif
-
-
-/*
 ** non-return type
 */
 #if !defined(l_noret)
@@ -179,6 +163,20 @@ typedef LUAI_UACINT l_uacInt;
 #endif
 
 #endif
+
+
+/*
+** Inline functions
+*/
+#if !defined(LUA_USE_C89)
+#define l_inline	inline
+#elif defined(__GNUC__)
+#define l_inline	__inline__
+#else
+#define l_inline	/* empty */
+#endif
+
+#define l_sinline	static l_inline
 
 
 /*
@@ -363,7 +361,7 @@ typedef l_uint32 Instruction;
 #define condchangemem(L,pre,pos)	((void)0)
 #else
 #define condchangemem(L,pre,pos)  \
-	{ if (G(L)->gcrunning) { pre; luaC_fullgc(L, 0); pos; } }
+	{ if (gcrunning(G(L))) { pre; luaC_fullgc(L, 0); pos; } }
 #endif
 
 #endif

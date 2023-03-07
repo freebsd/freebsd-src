@@ -71,7 +71,7 @@ update_uefi_bootentry()
 		return
 	fi
 
-	$DIALOG --backtitle "$OSNAME Installer" --title 'Boot configuration' \
+	$DIALOG --backtitle "$OSNAME Installer" --title 'Boot Configuration' \
 	    --yesno "There are multiple \"$OSNAME\" EFI boot entries. Would you like to remove them all and add a new one?" 0 0
 	if [ $? -eq $DIALOG_OK ]; then
 		for entry in $(efibootmgr | awk "\$NF == \"$EFI_LABEL_NAME\" { sub(/.*Boot/,\"\", \$1); sub(/\*/,\"\", \$1); print \$1 }"); do
@@ -86,7 +86,7 @@ update_uefi_bootentry()
 	efibootmgr --create --activate --label "$FREEBSD_BOOTLABEL" --loader "${mntpt}/${FREEBSD_BOOTNAME}" > /dev/null
 }
 
-f_dialog_title "Boot configuration"
+f_dialog_title "Boot Configuration"
 f_dialog_backtitle "$OSNAME Installer"
 
 if [ `uname -m` == powerpc ]; then

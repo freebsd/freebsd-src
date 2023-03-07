@@ -57,11 +57,9 @@ extern ssize_t userboot_copyin(const void *, vm_offset_t, size_t);
 extern ssize_t userboot_copyout(vm_offset_t, void *, size_t);
 extern ssize_t userboot_readin(readin_handle_t, vm_offset_t, size_t);
 extern int userboot_getdev(void **, const char *, const char **);
-int	userboot_setcurrdev(struct env_var *ev, int flags, const void *value);
 
 int	bi_getboothowto(char *kargs);
 void	bi_setboothowto(int howto);
-vm_offset_t	bi_copyenv(vm_offset_t addr);
 int	bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip,
     vm_offset_t *modulep, vm_offset_t *kernend);
 int	bi_load64(char *args, vm_offset_t *modulep, vm_offset_t *kernend);

@@ -105,7 +105,7 @@ extern	void ath_tx_update_tim(struct ath_softc *sc,
  * if_ath.c and do the ath_start() call there.  Once that's done,
  * we can kill this.
  */
-extern void ath_start(struct ifnet *ifp);
+extern void ath_start(if_t ifp);
 extern	void ath_start_task(void *arg, int npending);
 
 extern void ath_tx_dump(struct ath_softc *sc, struct ath_txq *txq);

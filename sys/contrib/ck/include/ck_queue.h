@@ -153,6 +153,11 @@ struct {									\
 	    (var);								\
 	    (var) = CK_SLIST_NEXT((var), field))
 
+#define	CK_SLIST_FOREACH_FROM(var, head, field)					\
+	for ((var) = ((var) != NULL ? (var) : CK_SLIST_FIRST((head)));		\
+	    (var);								\
+	    (var) = CK_SLIST_NEXT((var), field))
+
 #define	CK_SLIST_FOREACH_SAFE(var, head, field, tvar)				\
 	for ((var) = CK_SLIST_FIRST(head);					\
 	    (var) && ((tvar) = CK_SLIST_NEXT(var, field), 1);			\
@@ -261,6 +266,11 @@ struct {								\
 	for((var) = CK_STAILQ_FIRST((head));				\
 	   (var);							\
 	   (var) = CK_STAILQ_NEXT((var), field))
+
+#define	CK_STAILQ_FOREACH_FROM(var, head, field)			\
+	for ((var) = ((var) != NULL ? (var) : CK_STAILQ_FIRST((head)));	\
+	    (var);							\
+	    (var) = CK_STAILQ_NEXT((var), field))
 
 #define	CK_STAILQ_FOREACH_SAFE(var, head, field, tvar)			\
 	for ((var) = CK_STAILQ_FIRST((head));				\
@@ -371,6 +381,11 @@ struct {									\
 
 #define	CK_LIST_FOREACH(var, head, field)					\
 	for ((var) = CK_LIST_FIRST((head));					\
+	    (var);								\
+	    (var) = CK_LIST_NEXT((var), field))
+
+#define	CK_LIST_FOREACH_FROM(var, head, field)					\
+	for ((var) = ((var) != NULL ? (var) : CK_LIST_FIRST((head)));		\
 	    (var);								\
 	    (var) = CK_LIST_NEXT((var), field))
 

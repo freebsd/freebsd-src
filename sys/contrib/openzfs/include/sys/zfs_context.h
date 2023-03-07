@@ -50,6 +50,7 @@ extern "C" {
 #include <sys/kmem.h>
 #include <sys/kmem_cache.h>
 #include <sys/vmem.h>
+#include <sys/misc.h>
 #include <sys/taskq.h>
 #include <sys/param.h>
 #include <sys/disp.h>
@@ -150,10 +151,14 @@ extern "C" {
 
 extern void dprintf_setup(int *argc, char **argv);
 
-extern void cmn_err(int, const char *, ...);
-extern void vcmn_err(int, const char *, va_list);
-extern __attribute__((noreturn)) void panic(const char *, ...);
-extern __attribute__((noreturn)) void vpanic(const char *, va_list);
+extern void cmn_err(int, const char *, ...)
+    __attribute__((format(printf, 2, 3)));
+extern void vcmn_err(int, const char *, va_list)
+    __attribute__((format(printf, 2, 0)));
+extern void panic(const char *, ...)
+    __attribute__((format(printf, 1, 2), noreturn));
+extern void vpanic(const char *, va_list)
+    __attribute__((format(printf, 1, 0), noreturn));
 
 #define	fm_panic	panic
 
@@ -219,7 +224,6 @@ typedef pthread_t	kthread_t;
 #define	TS_JOINABLE	0x00000004
 
 #define	curthread	((void *)(uintptr_t)pthread_self())
-#define	kpreempt(x)	yield()
 #define	getcomm()	"unknown"
 
 #define	thread_create_named(name, stk, stksize, func, arg, len, \
@@ -248,9 +252,11 @@ extern kthread_t *zk_thread_create(void (*func)(void *), void *arg,
 #define	issig(why)	(FALSE)
 #define	ISSIG(thr, why)	(FALSE)
 
+#define	KPREEMPT_SYNC		(-1)
+
+#define	kpreempt(x)		sched_yield()
 #define	kpreempt_disable()	((void)0)
 #define	kpreempt_enable()	((void)0)
-#define	cond_resched()		sched_yield()
 
 /*
  * Mutexes
@@ -688,6 +694,11 @@ extern char *kmem_vasprintf(const char *fmt, va_list adx);
 extern char *kmem_asprintf(const char *fmt, ...);
 #define	kmem_strfree(str) kmem_free((str), strlen(str) + 1)
 #define	kmem_strdup(s)  strdup(s)
+
+#ifndef __cplusplus
+extern int kmem_scnprintf(char *restrict str, size_t size,
+    const char *restrict fmt, ...);
+#endif
 
 /*
  * Hostname information

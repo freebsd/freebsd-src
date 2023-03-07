@@ -305,6 +305,8 @@ pf_counter_u64_zero(struct pf_counter_u64 *pfcu64)
 		critical_exit();					\
 	} while (0)
 
+#define pf_timestamp_pcpu_zone	(sizeof(time_t) == 4 ? pcpu_zone_4 : pcpu_zone_8)
+_Static_assert(sizeof(time_t) == 4 || sizeof(time_t) == 8, "unexpected time_t size");
 
 SYSCTL_DECL(_net_pf);
 MALLOC_DECLARE(M_PFHASH);
@@ -681,13 +683,15 @@ struct pf_keth_rule {
 	counter_u64_t		 evaluations;
 	counter_u64_t		 packets[2];
 	counter_u64_t		 bytes[2];
-	uint32_t		*timestamp;
+	time_t			*timestamp;
 
 	/* Action */
 	char			 qname[PF_QNAME_SIZE];
 	int			 qid;
 	char			 tagname[PF_TAG_NAME_SIZE];
 	uint16_t		 tag;
+	char			 bridge_to_name[IFNAMSIZ];
+	struct pfi_kkif		*bridge_to;
 	uint8_t			 action;
 	uint16_t		 dnpipe;
 	uint32_t		 dnflags;
@@ -721,7 +725,7 @@ struct pf_krule {
 	struct pf_counter_u64	 evaluations;
 	struct pf_counter_u64	 packets[2];
 	struct pf_counter_u64	 bytes[2];
-	uint32_t		*timestamp;
+	time_t			*timestamp;
 
 	struct pfi_kkif		*kif;
 	struct pf_kanchor	*anchor;
@@ -1985,7 +1989,7 @@ VNET_DECLARE(void *, pf_swi_cookie);
 VNET_DECLARE(struct intr_event *, pf_swi_ie);
 #define	V_pf_swi_ie	VNET(pf_swi_ie)
 
-VNET_DECLARE(uint64_t, pf_stateid[MAXCPU]);
+VNET_DECLARE(struct unrhdr64, pf_stateid);
 #define	V_pf_stateid	VNET(pf_stateid)
 
 TAILQ_HEAD(pf_altqqueue, pf_altq);
@@ -2259,6 +2263,7 @@ int			 pf_set_syncookies(struct pfioc_nv *);
 int			 pf_synflood_check(struct pf_pdesc *);
 void			 pf_syncookie_send(struct mbuf *m, int off,
 			    struct pf_pdesc *);
+bool			 pf_syncookie_check(struct pf_pdesc *);
 u_int8_t		 pf_syncookie_validate(struct pf_pdesc *);
 struct mbuf *		 pf_syncookie_recreate_syn(uint8_t, int,
 			    struct pf_pdesc *);

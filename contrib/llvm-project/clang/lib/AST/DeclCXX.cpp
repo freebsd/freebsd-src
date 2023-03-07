@@ -146,16 +146,16 @@ CXXRecordDecl *CXXRecordDecl::Create(const ASTContext &C, TagKind TK,
 CXXRecordDecl *
 CXXRecordDecl::CreateLambda(const ASTContext &C, DeclContext *DC,
                             TypeSourceInfo *Info, SourceLocation Loc,
-                            bool Dependent, bool IsGeneric,
+                            unsigned DependencyKind, bool IsGeneric,
                             LambdaCaptureDefault CaptureDefault) {
   auto *R = new (C, DC) CXXRecordDecl(CXXRecord, TTK_Class, C, DC, Loc, Loc,
                                       nullptr, nullptr);
   R->setBeingDefined(true);
-  R->DefinitionData =
-      new (C) struct LambdaDefinitionData(R, Info, Dependent, IsGeneric,
-                                          CaptureDefault);
+  R->DefinitionData = new (C) struct LambdaDefinitionData(
+      R, Info, DependencyKind, IsGeneric, CaptureDefault);
   R->setMayHaveOutOfDateDef(false);
   R->setImplicit(true);
+
   C.getTypeDeclType(R, /*PrevDecl=*/nullptr);
   return R;
 }
@@ -825,29 +825,11 @@ void CXXRecordDecl::addedMember(Decl *D) {
       data().HasInheritedDefaultConstructor = true;
   }
 
-  // Handle destructors.
-  if (const auto *DD = dyn_cast<CXXDestructorDecl>(D)) {
-    SMKind |= SMF_Destructor;
-
-    if (DD->isUserProvided())
-      data().HasIrrelevantDestructor = false;
-    // If the destructor is explicitly defaulted and not trivial or not public
-    // or if the destructor is deleted, we clear HasIrrelevantDestructor in
-    // finishedDefaultedOrDeletedMember.
-
-    // C++11 [class.dtor]p5:
-    //   A destructor is trivial if [...] the destructor is not virtual.
-    if (DD->isVirtual()) {
-      data().HasTrivialSpecialMembers &= ~SMF_Destructor;
-      data().HasTrivialSpecialMembersForCall &= ~SMF_Destructor;
-    }
-
-    if (DD->isNoReturn())
-      data().IsAnyDestructorNoReturn = true;
-  }
-
   // Handle member functions.
   if (const auto *Method = dyn_cast<CXXMethodDecl>(D)) {
+    if (isa<CXXDestructorDecl>(D))
+      SMKind |= SMF_Destructor;
+
     if (Method->isCopyAssignmentOperator()) {
       SMKind |= SMF_CopyAssignment;
 
@@ -893,31 +875,9 @@ void CXXRecordDecl::addedMember(Decl *D) {
       data().HasTrivialSpecialMembersForCall &=
           data().DeclaredSpecialMembers | ~SMKind;
 
-      if (!Method->isImplicit() && !Method->isUserProvided()) {
-        // This method is user-declared but not user-provided. We can't work out
-        // whether it's trivial yet (not until we get to the end of the class).
-        // We'll handle this method in finishedDefaultedOrDeletedMember.
-      } else if (Method->isTrivial()) {
-        data().HasTrivialSpecialMembers |= SMKind;
-        data().HasTrivialSpecialMembersForCall |= SMKind;
-      } else if (Method->isTrivialForCall()) {
-        data().HasTrivialSpecialMembersForCall |= SMKind;
-        data().DeclaredNonTrivialSpecialMembers |= SMKind;
-      } else {
-        data().DeclaredNonTrivialSpecialMembers |= SMKind;
-        // If this is a user-provided function, do not set
-        // DeclaredNonTrivialSpecialMembersForCall here since we don't know
-        // yet whether the method would be considered non-trivial for the
-        // purpose of calls (attribute "trivial_abi" can be dropped from the
-        // class later, which can change the special method's triviality).
-        if (!Method->isUserProvided())
-          data().DeclaredNonTrivialSpecialMembersForCall |= SMKind;
-      }
-
       // Note when we have declared a declared special member, and suppress the
       // implicit declaration of this special member.
       data().DeclaredSpecialMembers |= SMKind;
-
       if (!Method->isImplicit()) {
         data().UserDeclaredSpecialMembers |= SMKind;
 
@@ -933,6 +893,12 @@ void CXXRecordDecl::addedMember(Decl *D) {
         // Also, a user-declared move assignment operator makes a class non-POD.
         // This is an extension in C++03.
         data().PlainOldData = false;
+      }
+      // We delay updating destructor relevant properties until
+      // addedSelectedDestructor.
+      // FIXME: Defer this for the other special member functions as well.
+      if (!Method->isIneligibleOrNotSelected()) {
+        addedEligibleSpecialMemberFunction(Method, SMKind);
       }
     }
 
@@ -1390,6 +1356,54 @@ void CXXRecordDecl::addedMember(Decl *D) {
 
     if (Using->getDeclName().getCXXOverloadedOperator() == OO_Equal)
       data().HasInheritedAssignment = true;
+  }
+}
+
+void CXXRecordDecl::addedSelectedDestructor(CXXDestructorDecl *DD) {
+  DD->setIneligibleOrNotSelected(false);
+  addedEligibleSpecialMemberFunction(DD, SMF_Destructor);
+}
+
+void CXXRecordDecl::addedEligibleSpecialMemberFunction(const CXXMethodDecl *MD,
+                                               unsigned SMKind) {
+  if (const auto *DD = dyn_cast<CXXDestructorDecl>(MD)) {
+    if (DD->isUserProvided())
+      data().HasIrrelevantDestructor = false;
+    // If the destructor is explicitly defaulted and not trivial or not public
+    // or if the destructor is deleted, we clear HasIrrelevantDestructor in
+    // finishedDefaultedOrDeletedMember.
+
+    // C++11 [class.dtor]p5:
+    //   A destructor is trivial if [...] the destructor is not virtual.
+    if (DD->isVirtual()) {
+      data().HasTrivialSpecialMembers &= ~SMF_Destructor;
+      data().HasTrivialSpecialMembersForCall &= ~SMF_Destructor;
+    }
+
+    if (DD->isNoReturn())
+      data().IsAnyDestructorNoReturn = true;
+  }
+
+  if (!MD->isImplicit() && !MD->isUserProvided()) {
+    // This method is user-declared but not user-provided. We can't work
+    // out whether it's trivial yet (not until we get to the end of the
+    // class). We'll handle this method in
+    // finishedDefaultedOrDeletedMember.
+  } else if (MD->isTrivial()) {
+    data().HasTrivialSpecialMembers |= SMKind;
+    data().HasTrivialSpecialMembersForCall |= SMKind;
+  } else if (MD->isTrivialForCall()) {
+    data().HasTrivialSpecialMembersForCall |= SMKind;
+    data().DeclaredNonTrivialSpecialMembers |= SMKind;
+  } else {
+    data().DeclaredNonTrivialSpecialMembers |= SMKind;
+    // If this is a user-provided function, do not set
+    // DeclaredNonTrivialSpecialMembersForCall here since we don't know
+    // yet whether the method would be considered non-trivial for the
+    // purpose of calls (attribute "trivial_abi" can be dropped from the
+    // class later, which can change the special method's triviality).
+    if (!MD->isUserProvided())
+      data().DeclaredNonTrivialSpecialMembersForCall |= SMKind;
   }
 }
 
@@ -1895,7 +1909,14 @@ CXXDestructorDecl *CXXRecordDecl::getDestructor() const {
 
   DeclContext::lookup_result R = lookup(Name);
 
-  return R.empty() ? nullptr : dyn_cast<CXXDestructorDecl>(R.front());
+  // If a destructor was marked as not selected, we skip it. We don't always
+  // have a selected destructor: dependent types, unnamed structs.
+  for (auto *Decl : R) {
+    auto* DD = dyn_cast<CXXDestructorDecl>(Decl);
+    if (DD && !DD->isIneligibleOrNotSelected())
+      return DD;
+  }
+  return nullptr;
 }
 
 static bool isDeclContextInNamespace(const DeclContext *DC) {
@@ -2389,7 +2410,7 @@ bool CXXMethodDecl::isMoveAssignmentOperator() const {
     return false;
 
   QualType ParamType = getParamDecl(0)->getType();
-  if (!isa<RValueReferenceType>(ParamType))
+  if (!ParamType->isRValueReferenceType())
     return false;
   ParamType = ParamType->getPointeeType();
 
@@ -2968,8 +2989,10 @@ UsingShadowDecl::UsingShadowDecl(Kind K, ASTContext &C, DeclContext *DC,
                                  BaseUsingDecl *Introducer, NamedDecl *Target)
     : NamedDecl(K, DC, Loc, Name), redeclarable_base(C),
       UsingOrNextShadow(Introducer) {
-  if (Target)
+  if (Target) {
+    assert(!isa<UsingShadowDecl>(Target));
     setTargetDecl(Target);
+  }
   setImplicit();
 }
 
@@ -3361,6 +3384,38 @@ APValue &MSGuidDecl::getAsAPValue() const {
   }
 
   return APVal;
+}
+
+void UnnamedGlobalConstantDecl::anchor() {}
+
+UnnamedGlobalConstantDecl::UnnamedGlobalConstantDecl(const ASTContext &C,
+                                                     DeclContext *DC,
+                                                     QualType Ty,
+                                                     const APValue &Val)
+    : ValueDecl(Decl::UnnamedGlobalConstant, DC, SourceLocation(),
+                DeclarationName(), Ty),
+      Value(Val) {
+  // Cleanup the embedded APValue if required (note that our destructor is never
+  // run)
+  if (Value.needsCleanup())
+    C.addDestruction(&Value);
+}
+
+UnnamedGlobalConstantDecl *
+UnnamedGlobalConstantDecl::Create(const ASTContext &C, QualType T,
+                                  const APValue &Value) {
+  DeclContext *DC = C.getTranslationUnitDecl();
+  return new (C, DC) UnnamedGlobalConstantDecl(C, DC, T, Value);
+}
+
+UnnamedGlobalConstantDecl *
+UnnamedGlobalConstantDecl::CreateDeserialized(ASTContext &C, unsigned ID) {
+  return new (C, ID)
+      UnnamedGlobalConstantDecl(C, nullptr, QualType(), APValue());
+}
+
+void UnnamedGlobalConstantDecl::printName(llvm::raw_ostream &OS) const {
+  OS << "unnamed-global-constant";
 }
 
 static const char *getAccessName(AccessSpecifier AS) {

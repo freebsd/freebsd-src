@@ -574,7 +574,7 @@ extern	HAL_BOOL ar5212ResetCalValid(struct ath_hal *ah,
 		const struct ieee80211_channel *);
 extern	int16_t ar5212GetNoiseFloor(struct ath_hal *ah);
 extern	void ar5212InitNfCalHistBuffer(struct ath_hal *);
-extern	int16_t ar5212GetNfHistMid(const int16_t calData[]);
+extern	int16_t ar5212GetNfHistMid(const int16_t calData[AR512_NF_CAL_HIST_MAX]);
 extern	void ar5212SetSpurMitigation(struct ath_hal *,
 		 const struct ieee80211_channel *);
 extern	HAL_BOOL ar5212SetAntennaSwitchInternal(struct ath_hal *ah,

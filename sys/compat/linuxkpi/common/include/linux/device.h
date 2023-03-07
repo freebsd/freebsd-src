@@ -4,6 +4,10 @@
  * Copyright (c) 2010 Panasas, Inc.
  * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
  * All rights reserved.
+ * Copyright (c) 2021-2022 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Björn Zeeb
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,7 +41,6 @@
 #include <linux/sysfs.h>
 #include <linux/list.h>
 #include <linux/compiler.h>
-#include <linux/types.h>
 #include <linux/module.h>
 #include <linux/workqueue.h>
 #include <linux/kdev_t.h>
@@ -45,13 +48,13 @@
 #include <linux/pm.h>
 #include <linux/idr.h>
 #include <linux/ratelimit.h>	/* via linux/dev_printk.h */
+#include <linux/fwnode.h>
 #include <asm/atomic.h>
 
 #include <sys/bus.h>
 #include <sys/backlight.h>
 
 struct device;
-struct fwnode_handle;
 
 struct class {
 	const char	*name;
@@ -67,6 +70,7 @@ struct class {
 
 struct dev_pm_ops {
 	int (*prepare)(struct device *dev);
+	void (*complete)(struct device *dev);
 	int (*suspend)(struct device *dev);
 	int (*suspend_late)(struct device *dev);
 	int (*resume)(struct device *dev);
@@ -124,6 +128,8 @@ struct device {
 
 	spinlock_t	devres_lock;
 	struct list_head devres_head;
+
+	struct dev_pm_info	power;
 };
 
 extern struct device linux_root_device;
@@ -201,6 +207,14 @@ show_class_attr_string(struct class *class,
 	}					\
 } while (0)
 
+#define	dev_warn_once(dev, ...) do {		\
+	static bool __dev_warn_once;		\
+	if (!__dev_warn_once) {			\
+		__dev_warn_once = 1;		\
+		dev_warn(dev, __VA_ARGS__);	\
+	}					\
+} while (0)
+
 #define	dev_err_once(dev, ...) do {		\
 	static bool __dev_err_once;		\
 	if (!__dev_err_once) {			\
@@ -219,6 +233,12 @@ show_class_attr_string(struct class *class,
 	static linux_ratelimit_t __ratelimited;	\
 	if (linux_ratelimited(&__ratelimited))	\
 		dev_warn(dev, __VA_ARGS__);	\
+} while (0)
+
+#define	dev_dbg_ratelimited(dev, ...) do {	\
+	static linux_ratelimit_t __ratelimited;	\
+	if (linux_ratelimited(&__ratelimited))	\
+		dev_dbg(dev, __VA_ARGS__);	\
 } while (0)
 
 /* Public and LinuxKPI internal devres functions. */
@@ -525,6 +545,24 @@ device_reprobe(struct device *dev)
 	return (-error);
 }
 
+static inline void
+device_set_wakeup_enable(struct device *dev __unused, bool enable __unused)
+{
+
+	/*
+	 * XXX-BZ TODO This is used by wireless drivers supporting WoWLAN which
+	 * we currently do not support.
+	 */
+}
+
+static inline int
+device_wakeup_enable(struct device *dev)
+{
+
+	device_set_wakeup_enable(dev, true);
+	return (0);
+}
+
 #define	dev_pm_set_driver_flags(dev, flags) do { \
 } while (0)
 
@@ -599,6 +637,21 @@ devm_kmalloc(struct device *dev, size_t size, gfp_t gfp)
 		lkpi_devres_add(dev, p);
 
 	return (p);
+}
+
+static inline void *
+devm_kmemdup(struct device *dev, const void *src, size_t len, gfp_t gfp)
+{
+	void *dst;
+
+	if (len == 0)
+		return (NULL);
+
+	dst = devm_kmalloc(dev, len, gfp);
+	if (dst != NULL)
+		memcpy(dst, src, len);
+
+	return (dst);
 }
 
 #define	devm_kzalloc(_dev, _size, _gfp)				\

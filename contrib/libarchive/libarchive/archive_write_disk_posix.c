@@ -1996,6 +1996,8 @@ archive_write_disk_new(void)
 		free(a);
 		return (NULL);
 	}
+	a->path_safe.s[0] = 0;
+
 #ifdef HAVE_ZLIB_H
 	a->decmpfs_compression_level = 5;
 #endif
@@ -2793,7 +2795,7 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 	char *tail;
 	char *head;
 	int last;
-	char c;
+	char c = '\0';
 	int r;
 	struct stat st;
 	int chdir_fd;

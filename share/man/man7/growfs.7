@@ -24,46 +24,119 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 3, 2020
+.Dd November 22, 2022
 .Dt GROWFS 7
 .Os
 .Sh NAME
-.Nm growfs
-.Nd start up script to grow the root file-system
+.Nm growfs ,
+.Nm growfs_fstab
+.Nd start up scripts to grow the root file system and add swap
 .Sh DESCRIPTION
+The
+.Nm
+script normally runs at the first boot after system installation.
+If the boot disk is larger than the root file system and boot partitions,
+and the root file system is in the last partition,
+.Nm
+can expand the root file system.
+It can also add a swap partition, with a default size of 10% of the boot disk.
+Swap is limited to twice the memory size up to 4 GB,
+8 GB up to 8 GB of memory, and memory size over 8 GB.
+It is also limited to the
+.Xr sysctl 8
+value of
+.Li vm.swap_maxpages
+divided by 2.
+By default, no swap partition is created if an existing swap partition is found
+or is listed in
+.Pa /etc/fstab ,
+or the disk is under 15 GB.
+The
+.Nm growfs_fstab
+script adds any new swap partition to
+.Pa /etc/fstab
+after the root file system is made writable,
+and enables its use as a dump partition if the
+.Va dumpdev
+variable from
+.Xr rc.conf 5
+is set to
+.Li AUTO .
+.Pp
 The following options in
 .Pa /etc/rc.conf
 control the behavior of
 .Nm :
-.Bl -tag -width ".Va growfs_enable" -offset indent
+.Bl -tag -width ".Va growfs_swap_size" -offset indent
 .It Va growfs_enable
 .Pq Dq Li NO
 If set to
 .Dq Li YES ,
-the first time the machine boots, the root file-system will be automatically
-expanded, if possible, to fill up all available space after it.
+the first time the machine boots, the root file system will be automatically
+expanded, if possible, to fill up all available space after it,
+after optionally adding a swap device at the end.
+.It Va growfs_swap_size
+.Pq Dq Li \&
+If set to
+.Dq Li 0 ,
+the addition of a swap partition is disabled.
+An empty value
+.Pq Dq Li \&
+allows the creation of a swap partition with the default size.
+If set to another value,
+the swap partition will be created with the specified size in bytes,
+even if another swap partition is detected.
 .El
 .Pp
-To expand the root file-system with-out rebooting, run the following command:
+A setting for
+.Va growfs_swap_size
+can be set in the kernel environment, in which case it overrides
+the value from
+.Pa /etc/rc.conf .
+.Pp
+To expand the root file system without rebooting, run the following command:
 .Dl % /etc/rc.d/growfs onestart
+In addition, if a swap partition is added, run the command:
+.Dl % /etc/rc.d/growfs_fstab onestart
+Note that if a disk is expanded again,
+and if the root file system had previously been expanded
+and a swap partition added, it is necessary to delete the swap
+partition before this procedure
+in order to expand the root file system to the new size.
+A new swap partition can be created during the expansion.
 .Sh IMPLEMENTATION NOTES
+The
+.Nm
+script only attempts to expand the root file system,
+and free space must be available immediately after the root partition.
+It is normally used on images that have a single file system.
 The script requires that
-.Pa awk
-be present and on the path.
+.Xr awk 1
+be present and in the path.
 This usually means that
 .Pa /usr
-should be mounted prior to running the script.
+must be available prior to running the script.
 .Sh FILES
-.Pa /etc/rc.conf
+.Bl -tag -compact -width Pa
+.It Pa /etc/fstab
+.It Pa /etc/rc.conf
+.El
 .Sh EXIT STATUS
 .Ex -std
+.Sh SEE ALSO
+.Xr fstab 5 ,
+.Xr rc.conf 5 ,
+.Xr growfs 8 ,
+.Xr zpool 8
 .Sh HISTORY
 The
 .Nm
 manual page first appeared in
 .Fx 10.1 .
-.Sh SEE ALSO
-.Xr rc.conf 5
+The ability to add a swap partition was added in
+.Fx 14.0 .
 .Sh AUTHORS
 The man page and script were written by
 .An John-Mark Gurney Aq Mt jmg@FreeBSD.org .
+The ability to create a swap partition was added by
+.An Michael Karels Aq Mt karels@FreeBSD.org .

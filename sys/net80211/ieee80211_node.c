@@ -59,6 +59,12 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 
+#ifdef IEEE80211_DEBUG_REFCNT
+#define	__debrefcnt_used
+#else
+#define	__debrefcnt_used	__unused
+#endif
+
 /*
  * IEEE80211_NODE_HASHSIZE must be a power of 2.
  */
@@ -89,7 +95,7 @@ static void node_getsignal(const struct ieee80211_node *, int8_t *, int8_t *);
 static void node_getmimoinfo(const struct ieee80211_node *,
 	struct ieee80211_mimo_info *);
 
-static void _ieee80211_free_node(struct ieee80211_node *);
+static void __ieee80211_free_node(struct ieee80211_node *);
 
 static void node_reclaim(struct ieee80211_node_table *nt,
 	struct ieee80211_node *ni);
@@ -1436,7 +1442,7 @@ ieee80211_alloc_node(struct ieee80211_node_table *nt,
 		vap->iv_stats.is_rx_nodealloc++;
 		ieee80211_psq_cleanup(&ni->ni_psq);
 		ieee80211_ratectl_node_deinit(ni);
-		_ieee80211_free_node(ni);
+		__ieee80211_free_node(ni);
 		return NULL;
 	}
 
@@ -1488,7 +1494,7 @@ ieee80211_tmp_node(struct ieee80211vap *vap,
 			vap->iv_stats.is_rx_nodealloc++;
 			ieee80211_psq_cleanup(&ni->ni_psq);
 			ieee80211_ratectl_node_deinit(ni);
-			_ieee80211_free_node(ni);
+			__ieee80211_free_node(ni);
 			return NULL;
 		}
 
@@ -1586,13 +1592,9 @@ ieee80211_node_create_wds(struct ieee80211vap *vap,
 }
 
 struct ieee80211_node *
-#ifdef IEEE80211_DEBUG_REFCNT
-ieee80211_find_node_locked_debug(struct ieee80211_node_table *nt,
-	const uint8_t macaddr[IEEE80211_ADDR_LEN], const char *func, int line)
-#else
-ieee80211_find_node_locked(struct ieee80211_node_table *nt,
-	const uint8_t macaddr[IEEE80211_ADDR_LEN])
-#endif
+_ieee80211_find_node_locked(struct ieee80211_node_table *nt,
+    const uint8_t macaddr[IEEE80211_ADDR_LEN],
+    const char *func __debrefcnt_used, int line __debrefcnt_used)
 {
 	struct ieee80211_node *ni;
 	int hash;
@@ -1617,32 +1619,22 @@ ieee80211_find_node_locked(struct ieee80211_node_table *nt,
 }
 
 struct ieee80211_node *
-#ifdef IEEE80211_DEBUG_REFCNT
-ieee80211_find_node_debug(struct ieee80211_node_table *nt,
-	const uint8_t macaddr[IEEE80211_ADDR_LEN], const char *func, int line)
-#else
-ieee80211_find_node(struct ieee80211_node_table *nt,
-	const uint8_t macaddr[IEEE80211_ADDR_LEN])
-#endif
+_ieee80211_find_node(struct ieee80211_node_table *nt,
+    const uint8_t macaddr[IEEE80211_ADDR_LEN],
+    const char *func __debrefcnt_used, int line __debrefcnt_used)
 {
 	struct ieee80211_node *ni;
 
 	IEEE80211_NODE_LOCK(nt);
-	ni = ieee80211_find_node_locked(nt, macaddr);
+	ni = _ieee80211_find_node_locked(nt, macaddr, func, line);
 	IEEE80211_NODE_UNLOCK(nt);
 	return ni;
 }
 
 struct ieee80211_node *
-#ifdef IEEE80211_DEBUG_REFCNT
-ieee80211_find_vap_node_locked_debug(struct ieee80211_node_table *nt,
-	const struct ieee80211vap *vap,
-	const uint8_t macaddr[IEEE80211_ADDR_LEN], const char *func, int line)
-#else
-ieee80211_find_vap_node_locked(struct ieee80211_node_table *nt,
-	const struct ieee80211vap *vap,
-	const uint8_t macaddr[IEEE80211_ADDR_LEN])
-#endif
+_ieee80211_find_vap_node_locked(struct ieee80211_node_table *nt,
+    const struct ieee80211vap *vap, const uint8_t macaddr[IEEE80211_ADDR_LEN],
+    const char *func __debrefcnt_used, int line __debrefcnt_used)
 {
 	struct ieee80211_node *ni;
 	int hash;
@@ -1668,20 +1660,14 @@ ieee80211_find_vap_node_locked(struct ieee80211_node_table *nt,
 }
 
 struct ieee80211_node *
-#ifdef IEEE80211_DEBUG_REFCNT
-ieee80211_find_vap_node_debug(struct ieee80211_node_table *nt,
-	const struct ieee80211vap *vap,
-	const uint8_t macaddr[IEEE80211_ADDR_LEN], const char *func, int line)
-#else
-ieee80211_find_vap_node(struct ieee80211_node_table *nt,
-	const struct ieee80211vap *vap,
-	const uint8_t macaddr[IEEE80211_ADDR_LEN])
-#endif
+_ieee80211_find_vap_node(struct ieee80211_node_table *nt,
+    const struct ieee80211vap *vap, const uint8_t macaddr[IEEE80211_ADDR_LEN],
+    const char *func __debrefcnt_used, int line __debrefcnt_used)
 {
 	struct ieee80211_node *ni;
 
 	IEEE80211_NODE_LOCK(nt);
-	ni = ieee80211_find_vap_node_locked(nt, vap, macaddr);
+	ni = _ieee80211_find_vap_node_locked(nt, vap, macaddr, func, line);
 	IEEE80211_NODE_UNLOCK(nt);
 	return ni;
 }
@@ -1933,11 +1919,12 @@ ieee80211_add_neighbor(struct ieee80211vap *vap,
 
 static __inline struct ieee80211_node *
 _find_rxnode(struct ieee80211_node_table *nt,
-    const struct ieee80211_frame_min *wh)
+    const struct ieee80211_frame_min *wh,
+    const char *func __debrefcnt_used, int line __debrefcnt_used)
 {
 	if (IS_BCAST_PROBEREQ(wh))
 		return NULL;		/* spam bcast probe req to all vap's */
-	return ieee80211_find_node_locked(nt, wh->i_addr2);
+	return _ieee80211_find_node_locked(nt, wh->i_addr2, func, line);
 }
 
 /*
@@ -1946,20 +1933,16 @@ _find_rxnode(struct ieee80211_node_table *nt,
  * we can return NULL if the sender is not in the table.
  */
 struct ieee80211_node *
-#ifdef IEEE80211_DEBUG_REFCNT
-ieee80211_find_rxnode_debug(struct ieee80211com *ic,
-	const struct ieee80211_frame_min *wh, const char *func, int line)
-#else
-ieee80211_find_rxnode(struct ieee80211com *ic,
-	const struct ieee80211_frame_min *wh)
-#endif
+_ieee80211_find_rxnode(struct ieee80211com *ic,
+    const struct ieee80211_frame_min *wh,
+    const char *func __debrefcnt_used, int line __debrefcnt_used)
 {
 	struct ieee80211_node_table *nt;
 	struct ieee80211_node *ni;
 
 	nt = &ic->ic_sta;
 	IEEE80211_NODE_LOCK(nt);
-	ni = _find_rxnode(nt, wh);
+	ni = _find_rxnode(nt, wh, func, line);
 	IEEE80211_NODE_UNLOCK(nt);
 
 	return ni;
@@ -1974,14 +1957,9 @@ ieee80211_find_rxnode(struct ieee80211com *ic,
  * key assigned to it.
  */
 struct ieee80211_node *
-#ifdef IEEE80211_DEBUG_REFCNT
-ieee80211_find_rxnode_withkey_debug(struct ieee80211com *ic,
-	const struct ieee80211_frame_min *wh, ieee80211_keyix keyix,
-	const char *func, int line)
-#else
-ieee80211_find_rxnode_withkey(struct ieee80211com *ic,
-	const struct ieee80211_frame_min *wh, ieee80211_keyix keyix)
-#endif
+_ieee80211_find_rxnode_withkey(struct ieee80211com *ic,
+    const struct ieee80211_frame_min *wh, ieee80211_keyix keyix,
+    const char *func __debrefcnt_used, int line __debrefcnt_used)
 {
 	struct ieee80211_node_table *nt;
 	struct ieee80211_node *ni;
@@ -1993,7 +1971,7 @@ ieee80211_find_rxnode_withkey(struct ieee80211com *ic,
 	else
 		ni = NULL;
 	if (ni == NULL) {
-		ni = _find_rxnode(nt, wh);
+		ni = _find_rxnode(nt, wh, func, line);
 		if (ni != NULL && nt->nt_keyixmap != NULL) {
 			/*
 			 * If the station has a unicast key cache slot
@@ -2029,14 +2007,9 @@ ieee80211_find_rxnode_withkey(struct ieee80211com *ic,
  * a data frame.  This handles node discovery in adhoc networks.
  */
 struct ieee80211_node *
-#ifdef IEEE80211_DEBUG_REFCNT
-ieee80211_find_txnode_debug(struct ieee80211vap *vap,
-	const uint8_t macaddr[IEEE80211_ADDR_LEN],
-	const char *func, int line)
-#else
-ieee80211_find_txnode(struct ieee80211vap *vap,
-	const uint8_t macaddr[IEEE80211_ADDR_LEN])
-#endif
+_ieee80211_find_txnode(struct ieee80211vap *vap,
+    const uint8_t macaddr[IEEE80211_ADDR_LEN],
+    const char *func __debrefcnt_used, int line __debrefcnt_used)
 {
 	struct ieee80211_node_table *nt = &vap->iv_ic->ic_sta;
 	struct ieee80211_node *ni;
@@ -2054,7 +2027,7 @@ ieee80211_find_txnode(struct ieee80211vap *vap,
 	    IEEE80211_IS_MULTICAST(macaddr))
 		ni = ieee80211_ref_node(vap->iv_bss);
 	else
-		ni = ieee80211_find_node_locked(nt, macaddr);
+		ni = _ieee80211_find_node_locked(nt, macaddr, func, line);
 	IEEE80211_NODE_UNLOCK(nt);
 
 	if (ni == NULL) {
@@ -2083,7 +2056,7 @@ ieee80211_find_txnode(struct ieee80211vap *vap,
 }
 
 static void
-_ieee80211_free_node(struct ieee80211_node *ni)
+__ieee80211_free_node(struct ieee80211_node *ni)
 {
 	struct ieee80211_node_table *nt = ni->ni_table;
 
@@ -2132,11 +2105,8 @@ node_clear_keyixmap(struct ieee80211_node_table *nt, struct ieee80211_node *ni)
 }
 
 void
-#ifdef IEEE80211_DEBUG_REFCNT
-ieee80211_free_node_debug(struct ieee80211_node *ni, const char *func, int line)
-#else
-ieee80211_free_node(struct ieee80211_node *ni)
-#endif
+_ieee80211_free_node(struct ieee80211_node *ni,
+    const char *func __debrefcnt_used, int line __debrefcnt_used)
 {
 	struct ieee80211_node_table *nt = ni->ni_table;
 
@@ -2151,14 +2121,14 @@ ieee80211_free_node(struct ieee80211_node *ni)
 			/*
 			 * Last reference, reclaim state.
 			 */
-			_ieee80211_free_node(ni);
+			__ieee80211_free_node(ni);
 		} else if (ieee80211_node_refcnt(ni) == 1)
 			if (node_clear_keyixmap(nt, ni))
-				_ieee80211_free_node(ni);
+				__ieee80211_free_node(ni);
 		IEEE80211_NODE_UNLOCK(nt);
 	} else {
 		if (ieee80211_node_dectestref(ni))
-			_ieee80211_free_node(ni);
+			__ieee80211_free_node(ni);
 	}
 }
 
@@ -2246,7 +2216,7 @@ node_reclaim(struct ieee80211_node_table *nt, struct ieee80211_node *ni)
 		 */
 		ieee80211_del_node_nt(nt, ni);
 	} else
-		_ieee80211_free_node(ni);
+		__ieee80211_free_node(ni);
 }
 
 /*

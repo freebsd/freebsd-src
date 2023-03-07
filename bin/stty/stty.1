@@ -32,7 +32,7 @@
 .\"     @(#)stty.1	8.4 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd May 24, 2022
+.Dd September 27, 2022
 .Dt STTY 1
 .Os
 .Sh NAME
@@ -594,6 +594,32 @@ Same as the control character
 Same as the control character
 .Cm reprint .
 .El
+.Sh INTERACTION WITH JOB CONTROL
+Modifications to the terminal settings are treated by job control
+(see
+.Xr termios 4 )
+same as writes.
+When the
+.Nm
+utility is executing in a background process group,
+such attempts result in the kernel sending the
+.Dv SIGTTOU
+signal and stopping the process until its group is returned
+to foreground.
+The non-blocking open of the terminal device with the
+.Fl f
+option to
+.Nm
+does not affect the behavior.
+If it is desirable to modify the settings from the background,
+.Xr sh 1
+users might utilize the following idiom:
+.Bd -literal
+(trap '' TTOU; stty -f /dev/tty sane)
+.Ed
+.Pp
+Note that changing terminal settings for a running foreground
+job that is not prepared for it might cause inconsistencies.
 .Sh EXIT STATUS
 .Ex -std
 .Sh SEE ALSO

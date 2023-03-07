@@ -21,7 +21,6 @@
 #include "llvm/CodeGen/DIE.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstr.h"
-#include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/TargetFrameLowering.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
@@ -67,12 +66,12 @@ DwarfCompileUnit::DwarfCompileUnit(unsigned UID, const DICompileUnit *Node,
 /// DW_FORM_addr or DW_FORM_GNU_addr_index.
 void DwarfCompileUnit::addLabelAddress(DIE &Die, dwarf::Attribute Attribute,
                                        const MCSymbol *Label) {
+  if ((Skeleton || !DD->useSplitDwarf()) && Label)
+    DD->addArangeLabel(SymbolCU(this, Label));
+
   // Don't use the address pool in non-fission or in the skeleton unit itself.
   if ((!DD->useSplitDwarf() || !Skeleton) && DD->getDwarfVersion() < 5)
     return addLocalLabelAddress(Die, Attribute, Label);
-
-  if (Label)
-    DD->addArangeLabel(SymbolCU(this, Label));
 
   bool UseAddrOffsetFormOrExpressions =
       DD->useAddrOffsetForm() || DD->useAddrOffsetExpressions();
@@ -108,9 +107,6 @@ void DwarfCompileUnit::addLabelAddress(DIE &Die, dwarf::Attribute Attribute,
 void DwarfCompileUnit::addLocalLabelAddress(DIE &Die,
                                             dwarf::Attribute Attribute,
                                             const MCSymbol *Label) {
-  if (Label)
-    DD->addArangeLabel(SymbolCU(this, Label));
-
   if (Label)
     addAttribute(Die, Attribute, dwarf::DW_FORM_addr, DIELabel(Label));
   else
@@ -169,7 +165,9 @@ DIE *DwarfCompileUnit::getOrCreateGlobalVariableDIE(
   } else {
     DeclContext = GV->getScope();
     // Add name and type.
-    addString(*VariableDIE, dwarf::DW_AT_name, GV->getDisplayName());
+    StringRef DisplayName = GV->getDisplayName();
+    if (!DisplayName.empty())
+      addString(*VariableDIE, dwarf::DW_AT_name, GV->getDisplayName());
     if (GTy)
       addType(*VariableDIE, GTy);
 
@@ -303,8 +301,11 @@ void DwarfCompileUnit::addLocationAttribute(
                   DD->useGNUTLSOpcode() ? dwarf::DW_OP_GNU_push_tls_address
                                         : dwarf::DW_OP_form_tls_address);
         }
-      } else if (Asm->TM.getRelocationModel() == Reloc::RWPI ||
-                 Asm->TM.getRelocationModel() == Reloc::ROPI_RWPI) {
+      } else if ((Asm->TM.getRelocationModel() == Reloc::RWPI ||
+                  Asm->TM.getRelocationModel() == Reloc::ROPI_RWPI) &&
+                 !Asm->getObjFileLowering()
+                      .getKindForGlobal(Global, Asm->TM)
+                      .isReadOnly()) {
         auto FormAndOp = GetPointerSizedFormAndOp();
         // Constant
         addUInt(*Loc, dwarf::DW_FORM_data1, FormAndOp.Op);
@@ -505,7 +506,7 @@ DIE &DwarfCompileUnit::updateSubprogramScopeDIE(const DISubprogram *SP) {
           // FIXME: when writing dwo, we need to avoid relocations. Probably
           // the "right" solution is to treat globals the way func and data
           // symbols are (with entries in .debug_addr).
-          // For now, since we only ever use index 0, this should work as-is.       
+          // For now, since we only ever use index 0, this should work as-is.
           addUInt(*Loc, dwarf::DW_FORM_data4, FrameBase.Location.WasmLoc.Index);
         }
         addUInt(*Loc, dwarf::DW_FORM_data1, dwarf::DW_OP_stack_value);
@@ -847,7 +848,7 @@ DIE *DwarfCompileUnit::constructVariableDIEImpl(const DbgVariable &DV,
   Optional<unsigned> NVPTXAddressSpace;
   DIELoc *Loc = new (DIEValueAllocator) DIELoc;
   DIEDwarfExpression DwarfExpr(*Asm, *this, *Loc);
-  for (auto &Fragment : DV.getFrameIndexExprs()) {
+  for (const auto &Fragment : DV.getFrameIndexExprs()) {
     Register FrameReg;
     const DIExpression *Expr = Fragment.Expr;
     const TargetFrameLowering *TFI = Asm->MF->getSubtarget().getFrameLowering();
@@ -969,7 +970,7 @@ sortLocalVars(SmallVectorImpl<DbgVariable *> &Input) {
   SmallDenseSet<DbgVariable *, 8> Visiting;
 
   // Initialize the worklist and the DIVariable lookup table.
-  for (auto Var : reverse(Input)) {
+  for (auto *Var : reverse(Input)) {
     DbgVar.insert({Var->getVariable(), Var});
     WorkList.push_back({Var, 0});
   }
@@ -1004,7 +1005,7 @@ sortLocalVars(SmallVectorImpl<DbgVariable *> &Input) {
     // Push dependencies and this node onto the worklist, so that this node is
     // visited again after all of its dependencies are handled.
     WorkList.push_back({Var, 1});
-    for (auto *Dependency : dependencies(Var)) {
+    for (const auto *Dependency : dependencies(Var)) {
       // Don't add dependency if it is in a different lexical scope or a global.
       if (const auto *Dep = dyn_cast<const DILocalVariable>(Dependency))
         if (DbgVariable *Var = DbgVar.lookup(Dep))

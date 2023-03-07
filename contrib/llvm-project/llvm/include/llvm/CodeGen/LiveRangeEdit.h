@@ -32,7 +32,6 @@
 
 namespace llvm {
 
-class AAResults;
 class LiveIntervals;
 class MachineInstr;
 class MachineOperand;
@@ -66,7 +65,7 @@ public:
   };
 
 private:
-  LiveInterval *Parent;
+  const LiveInterval *const Parent;
   SmallVectorImpl<Register> &NewRegs;
   MachineRegisterInfo &MRI;
   LiveIntervals &LIS;
@@ -93,7 +92,7 @@ private:
   SmallPtrSet<const VNInfo *, 4> Rematted;
 
   /// scanRemattable - Identify the Parent values that may rematerialize.
-  void scanRemattable(AAResults *aa);
+  void scanRemattable();
 
   /// foldAsLoad - If LI has a single use and a single def that can be folded as
   /// a load, eliminate the register by folding the def into the use.
@@ -103,8 +102,7 @@ private:
                                 SmallPtrSet<LiveInterval *, 8>>;
 
   /// Helper for eliminateDeadDefs.
-  void eliminateDeadDef(MachineInstr *MI, ToShrinkSet &ToShrink,
-                        AAResults *AA);
+  void eliminateDeadDef(MachineInstr *MI, ToShrinkSet &ToShrink);
 
   /// MachineRegisterInfo callback to notify when new virtual
   /// registers are created.
@@ -129,7 +127,7 @@ public:
   ///            be done.  This could be the case if called before Regalloc.
   /// @param deadRemats The collection of all the instructions defining an
   ///                   original reg and are dead after remat.
-  LiveRangeEdit(LiveInterval *parent, SmallVectorImpl<Register> &newRegs,
+  LiveRangeEdit(const LiveInterval *parent, SmallVectorImpl<Register> &newRegs,
                 MachineFunction &MF, LiveIntervals &lis, VirtRegMap *vrm,
                 Delegate *delegate = nullptr,
                 SmallPtrSet<MachineInstr *, 32> *deadRemats = nullptr)
@@ -141,7 +139,7 @@ public:
 
   ~LiveRangeEdit() override { MRI.resetDelegate(this); }
 
-  LiveInterval &getParent() const {
+  const LiveInterval &getParent() const {
     assert(Parent && "No parent LiveInterval");
     return *Parent;
   }
@@ -184,20 +182,19 @@ public:
   /// anyRematerializable - Return true if any parent values may be
   /// rematerializable.
   /// This function must be called before any rematerialization is attempted.
-  bool anyRematerializable(AAResults *);
+  bool anyRematerializable();
 
   /// checkRematerializable - Manually add VNI to the list of rematerializable
   /// values if DefMI may be rematerializable.
-  bool checkRematerializable(VNInfo *VNI, const MachineInstr *DefMI,
-                             AAResults *);
+  bool checkRematerializable(VNInfo *VNI, const MachineInstr *DefMI);
 
   /// Remat - Information needed to rematerialize at a specific location.
   struct Remat {
-    VNInfo *ParentVNI;              // parent_'s value at the remat location.
+    const VNInfo *const ParentVNI;  // parent_'s value at the remat location.
     MachineInstr *OrigMI = nullptr; // Instruction defining OrigVNI. It contains
                                     // the real expr for remat.
 
-    explicit Remat(VNInfo *ParentVNI) : ParentVNI(ParentVNI) {}
+    explicit Remat(const VNInfo *ParentVNI) : ParentVNI(ParentVNI) {}
   };
 
   /// allUsesAvailableAt - Return true if all registers used by OrigMI at
@@ -242,8 +239,7 @@ public:
   /// allocator.  These registers should not be split into new intervals
   /// as currently those new intervals are not guaranteed to spill.
   void eliminateDeadDefs(SmallVectorImpl<MachineInstr *> &Dead,
-                         ArrayRef<Register> RegsBeingSpilled = None,
-                         AAResults *AA = nullptr);
+                         ArrayRef<Register> RegsBeingSpilled = None);
 
   /// calculateRegClassAndHint - Recompute register class and hint for each new
   /// register.

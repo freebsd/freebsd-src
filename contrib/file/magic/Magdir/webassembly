@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: webassembly,v 1.3 2019/04/19 00:42:27 christos Exp $
+# $File: webassembly,v 1.4 2022/08/16 11:16:39 christos Exp $
 # webassembly:  file(1) magic for WebAssembly modules
 #
 # WebAssembly is a virtual architecture developed by a W3C Community
@@ -12,4 +12,6 @@
 
 0	string	\0asm	WebAssembly (wasm) binary module
 >4	lelong	=1	version %#x (MVP)
+!:mime  application/wasm
+!:ext   wasm
 >4	lelong	>1	version %#x

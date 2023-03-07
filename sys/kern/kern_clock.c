@@ -74,10 +74,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>
 #include <sys/timetc.h>
 
-#ifdef GPROF
-#include <sys/gmon.h>
-#endif
-
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
 PMC_SOFT_DEFINE( , , clock, hard);
@@ -304,13 +300,13 @@ SYSINIT(deadlkres, SI_SUB_CLOCKS, SI_ORDER_ANY, kthread_start, &deadlkres_kd);
 
 static SYSCTL_NODE(_debug, OID_AUTO, deadlkres, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Deadlock resolver");
-SYSCTL_INT(_debug_deadlkres, OID_AUTO, slptime_threshold, CTLFLAG_RW,
+SYSCTL_INT(_debug_deadlkres, OID_AUTO, slptime_threshold, CTLFLAG_RWTUN,
     &slptime_threshold, 0,
     "Number of seconds within is valid to sleep on a sleepqueue");
-SYSCTL_INT(_debug_deadlkres, OID_AUTO, blktime_threshold, CTLFLAG_RW,
+SYSCTL_INT(_debug_deadlkres, OID_AUTO, blktime_threshold, CTLFLAG_RWTUN,
     &blktime_threshold, 0,
     "Number of seconds within is valid to block on a turnstile");
-SYSCTL_INT(_debug_deadlkres, OID_AUTO, sleepfreq, CTLFLAG_RW, &sleepfreq, 0,
+SYSCTL_INT(_debug_deadlkres, OID_AUTO, sleepfreq, CTLFLAG_RWTUN, &sleepfreq, 0,
     "Number of seconds between any deadlock resolver thread run");
 #endif	/* DEADLKRES */
 
@@ -556,60 +552,81 @@ hardclock_sync(int cpu)
 }
 
 /*
- * Compute number of ticks in the specified amount of time.
+ * Regular integer scaling formula without losing precision:
+ */
+#define	TIME_INT_SCALE(value, mul, div) \
+	(((value) / (div)) * (mul) + (((value) % (div)) * (mul)) / (div))
+
+/*
+ * Macro for converting seconds and microseconds into actual ticks,
+ * based on the given hz value:
+ */
+#define	TIME_TO_TICKS(sec, usec, hz) \
+	((sec) * (hz) + TIME_INT_SCALE(usec, hz, 1 << 6) / (1000000 >> 6))
+
+#define	TIME_ASSERT_VALID_HZ(hz)	\
+	_Static_assert(TIME_TO_TICKS(INT_MAX / (hz) - 1, 999999, hz) >= 0 && \
+		       TIME_TO_TICKS(INT_MAX / (hz) - 1, 999999, hz) < INT_MAX,	\
+		       "tvtohz() can overflow the regular integer type")
+
+/*
+ * Compile time assert the maximum and minimum values to fit into a
+ * regular integer when computing TIME_TO_TICKS():
+ */
+TIME_ASSERT_VALID_HZ(HZ_MAXIMUM);
+TIME_ASSERT_VALID_HZ(HZ_MINIMUM);
+
+/*
+ * The formula is mostly linear, but test some more common values just
+ * in case:
+ */
+TIME_ASSERT_VALID_HZ(1024);
+TIME_ASSERT_VALID_HZ(1000);
+TIME_ASSERT_VALID_HZ(128);
+TIME_ASSERT_VALID_HZ(100);
+
+/*
+ * Compute number of ticks representing the specified amount of time.
+ * If the specified time is negative, a value of 1 is returned. This
+ * function returns a value from 1 up to and including INT_MAX.
  */
 int
 tvtohz(struct timeval *tv)
 {
-	unsigned long ticks;
-	long sec, usec;
+	int retval;
 
 	/*
-	 * If the number of usecs in the whole seconds part of the time
-	 * difference fits in a long, then the total number of usecs will
-	 * fit in an unsigned long.  Compute the total and convert it to
-	 * ticks, rounding up and adding 1 to allow for the current tick
-	 * to expire.  Rounding also depends on unsigned long arithmetic
-	 * to avoid overflow.
-	 *
-	 * Otherwise, if the number of ticks in the whole seconds part of
-	 * the time difference fits in a long, then convert the parts to
-	 * ticks separately and add, using similar rounding methods and
-	 * overflow avoidance.  This method would work in the previous
-	 * case but it is slightly slower and assumes that hz is integral.
-	 *
-	 * Otherwise, round the time difference down to the maximum
-	 * representable value.
-	 *
-	 * If ints have 32 bits, then the maximum value for any timeout in
-	 * 10ms ticks is 248 days.
+	 * The values passed here may come from user-space and these
+	 * checks ensure "tv_usec" is within its allowed range:
 	 */
-	sec = tv->tv_sec;
-	usec = tv->tv_usec;
-	if (usec < 0) {
-		sec--;
-		usec += 1000000;
-	}
-	if (sec < 0) {
-#ifdef DIAGNOSTIC
-		if (usec > 0) {
-			sec++;
-			usec -= 1000000;
+
+	/* check for tv_usec underflow */
+	if (__predict_false(tv->tv_usec < 0)) {
+		tv->tv_sec += tv->tv_usec / 1000000;
+		tv->tv_usec = tv->tv_usec % 1000000;
+		/* convert tv_usec to a positive value */
+		if (__predict_true(tv->tv_usec < 0)) {
+			tv->tv_usec += 1000000;
+			tv->tv_sec -= 1;
 		}
-		printf("tvotohz: negative time difference %ld sec %ld usec\n",
-		       sec, usec);
-#endif
-		ticks = 1;
-	} else if (sec <= LONG_MAX / 1000000)
-		ticks = howmany(sec * 1000000 + (unsigned long)usec, tick) + 1;
-	else if (sec <= LONG_MAX / hz)
-		ticks = sec * hz
-			+ howmany((unsigned long)usec, tick) + 1;
-	else
-		ticks = LONG_MAX;
-	if (ticks > INT_MAX)
-		ticks = INT_MAX;
-	return ((int)ticks);
+	/* check for tv_usec overflow */
+	} else if (__predict_false(tv->tv_usec >= 1000000)) {
+		tv->tv_sec += tv->tv_usec / 1000000;
+		tv->tv_usec = tv->tv_usec % 1000000;
+	}
+
+	/* check for tv_sec underflow */
+	if (__predict_false(tv->tv_sec < 0))
+		return (1);
+	/* check for tv_sec overflow (including room for the tv_usec part) */
+	else if (__predict_false(tv->tv_sec >= tick_seconds_max))
+		return (INT_MAX);
+
+	/* cast to "int" to avoid platform differences */
+	retval = TIME_TO_TICKS((int)tv->tv_sec, (int)tv->tv_usec, hz);
+
+	/* add one additional tick */
+	return (retval + 1);
 }
 
 /*
@@ -754,10 +771,6 @@ void
 profclock(int cnt, int usermode, uintfptr_t pc)
 {
 	struct thread *td;
-#ifdef GPROF
-	struct gmonparam *g;
-	uintfptr_t i;
-#endif
 
 	td = curthread;
 	if (usermode) {
@@ -770,20 +783,6 @@ profclock(int cnt, int usermode, uintfptr_t pc)
 		if (td->td_proc->p_flag & P_PROFIL)
 			addupc_intr(td, pc, cnt);
 	}
-#ifdef GPROF
-	else {
-		/*
-		 * Kernel statistics are just like addupc_intr, only easier.
-		 */
-		g = &_gmonparam;
-		if (g->state == GMON_PROF_ON && pc >= g->lowpc) {
-			i = PC_TO_I(g, pc);
-			if (i < g->textsize) {
-				KCOUNT(g, i) += cnt;
-			}
-		}
-	}
-#endif
 #ifdef HWPMC_HOOKS
 	if (td->td_intr_frame != NULL)
 		PMC_SOFT_CALL_TF( , , clock, prof, td->td_intr_frame);
@@ -829,30 +828,11 @@ watchdog_config(void *unused __unused, u_int cmd, int *error)
 }
 
 /*
- * Handle a watchdog timeout by dumping interrupt information and
- * then either dropping to DDB or panicking.
+ * Handle a watchdog timeout by dropping to DDB or panicking.
  */
 static void
 watchdog_fire(void)
 {
-	int nintr;
-	uint64_t inttotal;
-	u_long *curintr;
-	char *curname;
-
-	curintr = intrcnt;
-	curname = intrnames;
-	inttotal = 0;
-	nintr = sintrcnt / sizeof(u_long);
-
-	printf("interrupt                   total\n");
-	while (--nintr >= 0) {
-		if (*curintr)
-			printf("%-12s %20lu\n", curname, *curintr);
-		curname += strlen(curname) + 1;
-		inttotal += *curintr++;
-	}
-	printf("Total        %20ju\n", (uintmax_t)inttotal);
 
 #if defined(KDB) && !defined(KDB_UNATTENDED)
 	kdb_backtrace();

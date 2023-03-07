@@ -157,7 +157,6 @@ struct pargs {
  *	k*- only accessed by curthread and from an interrupt
  *	kx- only accessed by curthread and by debugger
  *      l - the attaching proc or attaching proc parent
- *      m - Giant
  *      n - not locked, lazy
  *      o - ktrace lock
  *      q - td_contested lock
@@ -169,7 +168,6 @@ struct pargs {
  *      x - created at fork, only changes during single threading in exec
  *      y - created at first aio, doesn't change until exit or exec at which
  *          point we are single-threaded and only curthread changes it
- *      z - zombie threads lock
  *
  * If the locking key specifies two identifiers (for example, p_pptr) then
  * either lock is sufficient for read access, but both locks must be held
@@ -260,7 +258,7 @@ struct thread {
 	u_char		td_base_ithread_pri; /* (t) Base ithread pri */
 	struct kmsan_td	*td_kmsan;	/* (k) KMSAN state */
 
-/* Cleared during fork1() */
+/* Cleared during fork1(), thread_create(), or kthread_add(). */
 #define	td_startzero td_flags
 	int		td_flags;	/* (t) TDF_* flags. */
 	int		td_ast;		/* (t) TDA_* indicators */
@@ -326,7 +324,7 @@ struct thread {
 	u_int		td_ucredref;	/* (k) references on td_realucred */
 #define	td_endzero td_sigmask
 
-/* Copied during fork1() or create_thread(). */
+/* Copied during fork1(), thread_create(), or kthread_add(). */
 #define	td_startcopy td_endzero
 	sigset_t	td_sigmask;	/* (c) Current signal mask. */
 	u_char		td_rqindex;	/* (t) Run queue index. */
@@ -346,7 +344,7 @@ struct thread {
 #define	td_endcopy td_pcb
 
 /*
- * Fields that must be manually set in fork1() or create_thread()
+ * Fields that must be manually set in fork1(), thread_create(), kthread_add(),
  * or already have been set in the allocator, constructor, etc.
  */
 	struct pcb	*td_pcb;	/* (k) Kernel VA of pcb and kstack. */
@@ -386,7 +384,7 @@ struct thread {
 	int		td_oncpu;	/* (t) Which cpu we are on. */
 	void		*td_lkpi_task;	/* LinuxKPI task struct pointer */
 	int		td_pmcpend;
-	void		*td_coredump;	/* (c) coredump request. */
+	void		*td_remotereq;	/* (c) dbg remote request. */
 	off_t		td_ktr_io_lim;	/* (k) limit for ktrace file size */
 #ifdef EPOCH_TRACE
 	SLIST_HEAD(, epoch_tracker) td_epochs;
@@ -524,7 +522,9 @@ enum {
 #define	TDB_FSTP	0x00001000 /* The thread is PT_ATTACH leader */
 #define	TDB_STEP	0x00002000 /* (x86) PSL_T set for PT_STEP */
 #define	TDB_SSWITCH	0x00004000 /* Suspended in ptracestop */
-#define	TDB_COREDUMPRQ	0x00008000 /* Coredump request */
+#define	TDB_BOUNDARY	0x00008000 /* ptracestop() at boundary */
+#define	TDB_COREDUMPREQ	0x00010000 /* Coredump request */
+#define	TDB_SCREMOTEREQ	0x00020000 /* Remote syscall request */
 
 /*
  * "Private" flags kept in td_pflags:
@@ -559,7 +559,7 @@ enum {
 #define	TDP_RESETSPUR	0x04000000 /* Reset spurious page fault history. */
 #define	TDP_NERRNO	0x08000000 /* Last errno is already in td_errno */
 #define	TDP_UIOHELD	0x10000000 /* Current uio has pages held in td_ma */
-#define	TDP_UNUSED0	0x20000000 /* UNUSED */
+#define	TDP_INTCPCALLOUT 0x20000000 /* used by netinet/tcp_timer.c */
 #define	TDP_EXECVMSPC	0x40000000 /* Execve destroyed old vmspace */
 #define	TDP_SIGFASTPENDING 0x80000000 /* Pending signal due to sigfastblock */
 
@@ -904,22 +904,20 @@ struct proc {
 
 #ifdef _KERNEL
 
-/* Types and flags for mi_switch(). */
+/* Types and flags for mi_switch(9). */
 #define	SW_TYPE_MASK		0xff	/* First 8 bits are switch type */
-#define	SWT_NONE		0	/* Unspecified switch. */
-#define	SWT_PREEMPT		1	/* Switching due to preemption. */
-#define	SWT_OWEPREEMPT		2	/* Switching due to owepreempt. */
-#define	SWT_TURNSTILE		3	/* Turnstile contention. */
-#define	SWT_SLEEPQ		4	/* Sleepq wait. */
-#define	SWT_SLEEPQTIMO		5	/* Sleepq timeout wait. */
-#define	SWT_RELINQUISH		6	/* yield call. */
-#define	SWT_NEEDRESCHED		7	/* NEEDRESCHED was set. */
-#define	SWT_IDLE		8	/* Switching from the idle thread. */
-#define	SWT_IWAIT		9	/* Waiting for interrupts. */
-#define	SWT_SUSPEND		10	/* Thread suspended. */
-#define	SWT_REMOTEPREEMPT	11	/* Remote processor preempted. */
-#define	SWT_REMOTEWAKEIDLE	12	/* Remote processor preempted idle. */
-#define	SWT_COUNT		13	/* Number of switch types. */
+#define	SWT_OWEPREEMPT		1	/* Switching due to owepreempt. */
+#define	SWT_TURNSTILE		2	/* Turnstile contention. */
+#define	SWT_SLEEPQ		3	/* Sleepq wait. */
+#define	SWT_RELINQUISH		4	/* yield call. */
+#define	SWT_NEEDRESCHED		5	/* NEEDRESCHED was set. */
+#define	SWT_IDLE		6	/* Switching from the idle thread. */
+#define	SWT_IWAIT		7	/* Waiting for interrupts. */
+#define	SWT_SUSPEND		8	/* Thread suspended. */
+#define	SWT_REMOTEPREEMPT	9	/* Remote processor preempted. */
+#define	SWT_REMOTEWAKEIDLE	10	/* Remote processor preempted idle. */
+#define	SWT_BIND		11	/* Thread bound to a new CPU. */
+#define	SWT_COUNT		12	/* Number of switch types. */
 /* Flags */
 #define	SW_VOL		0x0100		/* Voluntary switch. */
 #define	SW_INVOL	0x0200		/* Involuntary switch. */
@@ -1217,7 +1215,7 @@ void	sess_hold(struct session *);
 void	sess_release(struct session *);
 int	setrunnable(struct thread *, int);
 void	setsugid(struct proc *p);
-int	should_yield(void);
+bool	should_yield(void);
 int	sigonstack(size_t sp);
 void	stopevent(struct proc *, u_int, u_int);
 struct	thread *tdfind(lwpid_t, pid_t);
@@ -1322,13 +1320,6 @@ curthread_pflags2_restore(int save)
 {
 
 	curthread->td_pflags2 &= save;
-}
-
-static __inline bool
-kstack_contains(struct thread *td, vm_offset_t va, size_t len)
-{
-	return (va >= td->td_kstack && va + len >= va &&
-	    va + len <= td->td_kstack + td->td_kstack_pages * PAGE_SIZE);
 }
 
 static __inline __pure2 struct td_sched *

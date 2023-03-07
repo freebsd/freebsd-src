@@ -339,7 +339,7 @@ vga_render(struct bhyvegc *gc, void *arg)
 }
 
 static uint64_t
-vga_mem_rd_handler(struct vmctx *ctx, uint64_t addr, void *arg1)
+vga_mem_rd_handler(struct vmctx *ctx __unused, uint64_t addr, void *arg1)
 {
 	struct vga_softc *sc = arg1;
 	uint8_t map_sel;
@@ -399,7 +399,8 @@ vga_mem_rd_handler(struct vmctx *ctx, uint64_t addr, void *arg1)
 }
 
 static void
-vga_mem_wr_handler(struct vmctx *ctx, uint64_t addr, uint8_t val, void *arg1)
+vga_mem_wr_handler(struct vmctx *ctx __unused, uint64_t addr, uint8_t val,
+    void *arg1)
 {
 	struct vga_softc *sc = arg1;
 	uint8_t c0, c1, c2, c3;
@@ -653,8 +654,8 @@ vga_mem_wr_handler(struct vmctx *ctx, uint64_t addr, uint8_t val, void *arg1)
 }
 
 static int
-vga_mem_handler(struct vmctx *ctx, int vcpu, int dir, uint64_t addr,
-		int size, uint64_t *val, void *arg1, long arg2)
+vga_mem_handler(struct vmctx *ctx, int vcpu __unused, int dir, uint64_t addr,
+    int size, uint64_t *val, void *arg1, long arg2 __unused)
 {
 	if (dir == MEM_F_WRITE) {
 		switch (size) {
@@ -714,8 +715,8 @@ vga_mem_handler(struct vmctx *ctx, int vcpu, int dir, uint64_t addr,
 }
 
 static int
-vga_port_in_handler(struct vmctx *ctx, int in, int port, int bytes,
-		    uint8_t *val, void *arg)
+vga_port_in_handler(struct vmctx *ctx __unused, int in __unused, int port,
+    int bytes __unused, uint8_t *val, void *arg)
 {
 	struct vga_softc *sc = arg;
 
@@ -941,8 +942,8 @@ vga_port_in_handler(struct vmctx *ctx, int in, int port, int bytes,
 }
 
 static int
-vga_port_out_handler(struct vmctx *ctx, int in, int port, int bytes,
-		     uint8_t val, void *arg)
+vga_port_out_handler(struct vmctx *ctx __unused, int in __unused, int port,
+    int bytes __unused, uint8_t val, void *arg)
 {
 	struct vga_softc *sc = arg;
 
@@ -1214,8 +1215,8 @@ vga_port_out_handler(struct vmctx *ctx, int in, int port, int bytes,
 }
 
 static int
-vga_port_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
-		 uint32_t *eax, void *arg)
+vga_port_handler(struct vmctx *ctx, int in, int port,
+    int bytes, uint32_t *eax, void *arg)
 {
 	uint8_t val;
 	int error;

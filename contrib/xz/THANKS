@@ -8,27 +8,34 @@ has been important. :-) In alphabetical order:
   - H. Peter Anvin
   - Jeff Bastian
   - Nelson H. F. Beebe
+  - Karl Beldan
   - Karl Berry
   - Anders F. Björklund
   - Emmanuel Blot
   - Melanie Blower
+  - Alexander Bluhm
   - Martin Blumenstingl
   - Ben Boeckel
   - Jakub Bogusz
+  - Adam Borowski
   - Maarten Bosmans
   - Trent W. Buck
+  - Kevin R. Bulgrien
   - James Buren
   - David Burklund
   - Daniel Mealha Cabrita
   - Milo Casagrande
   - Marek Černocký
   - Tomer Chachamu
+  - Vitaly Chikunov
   - Antoine Cœur
   - Gabi Davar
+  - İhsan Doğan
   - Chris Donawa
   - Andrew Dudman
   - Markus Duft
   - İsmail Dönmez
+  - Paul Eggert
   - Robert Elz
   - Gilles Espinasse
   - Denis Excoffier
@@ -36,7 +43,11 @@ has been important. :-) In alphabetical order:
   - Michael Fox
   - Mike Frysinger
   - Daniel Richard G.
+  - Tomasz Gajc
+  - Bjarni Ingi Gislason
+  - John Paul Adrian Glaubitz
   - Bill Glessner
+  - Michał Górny
   - Jason Gorski
   - Juan Manuel Guerrero
   - Diederik de Haas
@@ -44,18 +55,24 @@ has been important. :-) In alphabetical order:
   - Christian Hesse
   - Vincenzo Innocente
   - Peter Ivanov
+  - Nicholas Jackson
+  - Sam James
+  - Hajin Jang
   - Jouk Jansen
   - Jun I Jin
   - Kiyoshi Kanazawa
   - Per Øyvind Karlsen
+  - Iouri Kharon
   - Thomas Klausner
   - Richard Koch
   - Ville Koskinen
   - Jan Kratochvil
   - Christian Kujau
   - Stephan Kulow
+  - Ilya Kurdyukov
   - Peter Lawler
   - James M Leddy
+  - Vincent Lefevre
   - Hin-Tak Leung
   - Andraž 'ruskie' Levstik
   - Cary Lewis
@@ -63,12 +80,17 @@ has been important. :-) In alphabetical order:
   - Xin Li
   - Eric Lindblad
   - Lorenzo De Liso
+  - H.J. Lu
   - Bela Lubkin
   - Gregory Margo
   - Julien Marrec
+  - Ed Maste
   - Martin Matuška
+  - Ivan A. Melnikov
   - Jim Meyering
   - Arkadiusz Miskiewicz
+  - Nathan Moinvaziri
+  - Étienne Mollier
   - Conley Moorhous
   - Rafał Mużyło
   - Adrien Nader
@@ -77,6 +99,7 @@ has been important. :-) In alphabetical order:
   - Jonathan Nieder
   - Andre Noll
   - Peter O'Gorman
+  - Daniel Packard
   - Filip Palian
   - Peter Pallinger
   - Rui Paulo
@@ -88,12 +111,15 @@ has been important. :-) In alphabetical order:
   - Trần Ngọc Quân
   - Pavel Raiskup
   - Ole André Vadla Ravnås
+  - Eric S. Raymond
   - Robert Readman
   - Bernhard Reutner-Fischer
-  - Eric S. Raymond
+  - Markus Rickert
   - Cristian Rodríguez
   - Christian von Roques
+  - Boud Roukema
   - Torsten Rupp
+  - Stephen Sachs
   - Jukka Salmi
   - Alexandre Sauvé
   - Benno Schulenberg
@@ -102,11 +128,13 @@ has been important. :-) In alphabetical order:
   - Dan Shechter
   - Stuart Shelton
   - Sebastian Andrzej Siewior
+  - Ville Skyttä
   - Brad Smith
   - Bruce Stark
   - Pippijn van Steenhoven
   - Jonathan Stott
   - Dan Stromberg
+  - Jia Tan
   - Vincent Torri
   - Paul Townsend
   - Mohammed Adnène Trojette
@@ -117,6 +145,7 @@ has been important. :-) In alphabetical order:
   - Adam Walling
   - Jeffrey Walton
   - Christian Weisgerber
+  - Dan Weiss
   - Bert Wesarg
   - Fredrik Wikstrom
   - Jim Wilcoxson

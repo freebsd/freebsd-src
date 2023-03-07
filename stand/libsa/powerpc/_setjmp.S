@@ -115,3 +115,5 @@ ASENTRY_NOPROF(_longjmp)
 	mr 3, 4
 	blr
 ASEND(_longjmp)
+
+	.section .note.GNU-stack,"",%progbits

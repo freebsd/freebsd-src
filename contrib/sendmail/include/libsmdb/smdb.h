@@ -357,12 +357,12 @@ extern smdb_open_func	smdb_open_database;
 # if NEWDB
 extern smdb_open_func	smdb_db_open;
 # else
-#  define smdb_db_open 	NULL
+#  define smdb_db_open	NULL
 # endif
 # if NDBM
 extern smdb_open_func	smdb_ndbm_open;
 # else
-#  define smdb_ndbm_open 	NULL
+#  define smdb_ndbm_open	NULL
 # endif
 extern int		smdb_add_extension __P((char *, int, char *, char *));
 extern int		smdb_setup_file __P((char *, char *, int, long,
@@ -380,6 +380,6 @@ extern int		smdb_unlock_map __P((SMDB_DATABASE *));
 # if CDB
 extern smdb_open_func	smdb_cdb_open;
 # else
-#  define smdb_cdb_open 	NULL
+#  define smdb_cdb_open	NULL
 # endif
 #endif /* ! _SMDB_H_ */

@@ -87,18 +87,6 @@ static bool getMRCDeprecationInfo(MCInst &MI, const MCSubtargetInfo &STI,
   return false;
 }
 
-static bool getITDeprecationInfo(MCInst &MI, const MCSubtargetInfo &STI,
-                                 std::string &Info) {
-  if (STI.getFeatureBits()[llvm::ARM::HasV8Ops] && MI.getOperand(1).isImm() &&
-      MI.getOperand(1).getImm() != 8) {
-    Info = "applying IT instruction to more than one subsequent instruction is "
-           "deprecated";
-    return true;
-  }
-
-  return false;
-}
-
 static bool getARMStoreDeprecationInfo(MCInst &MI, const MCSubtargetInfo &STI,
                                        std::string &Info) {
   assert(!STI.getFeatureBits()[llvm::ARM::ModeThumb] &&
@@ -145,6 +133,7 @@ static bool getARMLoadDeprecationInfo(MCInst &MI, const MCSubtargetInfo &STI,
 }
 
 #define GET_INSTRINFO_MC_DESC
+#define ENABLE_INSTR_PREDICATE_VERIFIER
 #include "ARMGenInstrInfo.inc"
 
 #define GET_SUBTARGETINFO_MC_DESC

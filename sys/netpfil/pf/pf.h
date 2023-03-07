@@ -598,6 +598,7 @@ struct pf_rule {
 
 /* scrub flags */
 #define	PFRULE_NODF		0x0100
+#define	PFRULE_FRAGMENT_NOREASS	0x0200
 #define PFRULE_RANDOMID		0x0800
 #define PFRULE_REASSEMBLE_TCP	0x1000
 #define PFRULE_SET_TOS		0x2000

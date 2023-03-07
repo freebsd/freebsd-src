@@ -67,7 +67,7 @@ struct mge_desc_wrapper {
 };
 
 struct mge_softc {
-	struct ifnet	*ifp;		/* per-interface network data */
+	if_t		ifp;		/* per-interface network data */
 
 	phandle_t	node;
 

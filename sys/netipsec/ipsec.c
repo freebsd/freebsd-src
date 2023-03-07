@@ -666,10 +666,7 @@ ipsec4_capability(struct mbuf *m, u_int cap)
 		return (0);
 	case IPSEC_CAP_OPERABLE:
 		/* Do we have active security policies? */
-		if (key_havesp(IPSEC_DIR_INBOUND) != 0 ||
-		    key_havesp(IPSEC_DIR_OUTBOUND) != 0)
-			return (1);
-		return (0);
+		return (key_havesp_any());
 	};
 	return (EOPNOTSUPP);
 }
@@ -835,10 +832,7 @@ ipsec6_capability(struct mbuf *m, u_int cap)
 		return (0);
 	case IPSEC_CAP_OPERABLE:
 		/* Do we have active security policies? */
-		if (key_havesp(IPSEC_DIR_INBOUND) != 0 ||
-		    key_havesp(IPSEC_DIR_OUTBOUND) != 0)
-			return (1);
-		return (0);
+		return (key_havesp_any());
 	};
 	return (EOPNOTSUPP);
 }
@@ -1017,7 +1011,7 @@ ipsec_check_history(const struct mbuf *m, struct secpolicy *sp, u_int idx)
 /*
  * Check security policy requirements against the actual
  * packet contents.  Return one if the packet should be
- * reject as "invalid"; otherwiser return zero to have the
+ * rejected as "invalid"; otherwise return zero to have the
  * packet treated as "valid".
  *
  * OUT:

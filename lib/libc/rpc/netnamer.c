@@ -64,7 +64,7 @@ static char    *NETID = "netid.byname";
 static char    *NETIDFILE = "/etc/netid";
 
 static int getnetid( char *, char * );
-static int _getgroups( char *, gid_t * );
+static int _getgroups( char *, gid_t [NGRPS] );
 
 /*
  * Convert network-name into unix credential

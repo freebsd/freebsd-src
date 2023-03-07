@@ -377,8 +377,10 @@ init_proc0(vm_offset_t kstack)
 	thread0.td_pcb = (struct pcb *)(thread0.td_kstack +
 	    thread0.td_kstack_pages * PAGE_SIZE) - 1;
 	thread0.td_pcb->pcb_flags = 0;
+	thread0.td_pcb->pcb_fpflags = 0;
 	thread0.td_pcb->pcb_vfpcpu = -1;
 	thread0.td_pcb->pcb_vfpstate.fpscr = VFPSCR_DN;
+	thread0.td_pcb->pcb_vfpsaved = &thread0.td_pcb->pcb_vfpstate;
 	thread0.td_frame = &proc0_tf;
 	pcpup->pc_curpcb = thread0.td_pcb;
 }

@@ -30,7 +30,7 @@ SUBDIR = \
 
 .if !empty(OPT_FDT)
 SUBDIR += rx8803 \
-	  tca6416 \
+	  tca64xx \
 	  tmp461
 .endif
 

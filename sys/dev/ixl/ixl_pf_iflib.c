@@ -352,14 +352,14 @@ ixl_setup_interface(device_t dev, struct ixl_pf *pf)
 	struct ixl_vsi *vsi = &pf->vsi;
 	if_ctx_t ctx = vsi->ctx;
 	struct i40e_hw *hw = &pf->hw;
-	struct ifnet *ifp = iflib_get_ifp(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
 	struct i40e_aq_get_phy_abilities_resp abilities;
 	enum i40e_status_code aq_error = 0;
 
 	INIT_DBG_DEV(dev, "begin");
 
 	vsi->shared->isc_max_frame_size =
-	    ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN
+	    if_getmtu(ifp) + ETHER_HDR_LEN + ETHER_CRC_LEN
 	    + ETHER_VLAN_ENCAP_LEN;
 
 	if (IXL_PF_IN_RECOVERY_MODE(pf))

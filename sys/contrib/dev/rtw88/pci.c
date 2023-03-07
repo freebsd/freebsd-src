@@ -1801,8 +1801,7 @@ static void rtw_pci_napi_init(struct rtw_dev *rtwdev)
 	struct rtw_pci *rtwpci = (struct rtw_pci *)rtwdev->priv;
 
 	init_dummy_netdev(&rtwpci->netdev);
-	netif_napi_add(&rtwpci->netdev, &rtwpci->napi, rtw_pci_napi_poll,
-		       NAPI_POLL_WEIGHT);
+	netif_napi_add(&rtwpci->netdev, &rtwpci->napi, rtw_pci_napi_poll);
 }
 
 static void rtw_pci_napi_deinit(struct rtw_dev *rtwdev)
@@ -1955,6 +1954,6 @@ MODULE_VERSION(rtw_pci, 1);
 MODULE_DEPEND(rtw_pci, linuxkpi, 1, 1, 1);
 MODULE_DEPEND(rtw_pci, linuxkpi_wlan, 1, 1, 1);
 #ifdef CONFIG_RTW88_DEBUGFS
-MODULE_DEPEND(rtw_pci, debugfs, 1, 1, 1);
+MODULE_DEPEND(rtw_pci, lindebugfs, 1, 1, 1);
 #endif
 #endif

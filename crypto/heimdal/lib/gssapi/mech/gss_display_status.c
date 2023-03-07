@@ -91,8 +91,7 @@ routine_error(OM_uint32 v)
 	"Incorrect channel bindings were supplied",
 	"An invalid status code was supplied",
 	"A token had an invalid MIC",
-	"No credentials were supplied, "
-	"or the credentials were unavailable or inaccessible.",
+	"No credentials were supplied, or the credentials were unavailable or inaccessible.",
 	"No context has been established",
 	"A token was invalid",
 	"A credential was invalid",

@@ -180,7 +180,7 @@ struct sume_adapter {
 	struct riffa_chnl_dir	**recv;
 	struct riffa_chnl_dir	**send;
 	device_t		dev;
-	struct ifnet		*ifp[SUME_NPORTS];
+	if_t			ifp[SUME_NPORTS];
 	struct resource		*bar0_addr;
 	bus_space_tag_t		bt;
 	bus_space_handle_t	bh;

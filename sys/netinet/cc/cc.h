@@ -70,7 +70,9 @@ VNET_DECLARE(int, cc_abe_frlossreduce);
 #define	V_cc_abe_frlossreduce		VNET(cc_abe_frlossreduce)
 
 /* Define the new net.inet.tcp.cc sysctl tree. */
+#ifdef _SYS_SYSCTL_H_
 SYSCTL_DECL(_net_inet_tcp_cc);
+#endif
 
 /* For CC modules that use hystart++ */
 extern uint32_t hystart_lowcwnd;
@@ -84,7 +86,9 @@ extern uint32_t hystart_bblogs;
 /* CC housekeeping functions. */
 int	cc_register_algo(struct cc_algo *add_cc);
 int	cc_deregister_algo(struct cc_algo *remove_cc);
+#endif /* _KERNEL */
 
+#if defined(_KERNEL) || defined(_WANT_TCPCB)
 /*
  * Wrapper around transport structs that contain same-named congestion
  * control variables. Allows algos to be shared amongst multiple CC aware
@@ -112,7 +116,7 @@ struct cc_var {
 #define	CCF_IPHDR_CE		0x0010	/* Does this packet set CE bit? */
 #define	CCF_TCPHDR_CWR		0x0020	/* Does this packet set CWR bit? */
 #define	CCF_MAX_CWND		0x0040	/* Have we reached maximum cwnd? */
-#define	CCF_CHG_MAX_CWND	0x0080	/* Cubic max_cwnd changed, for K */
+#define	CCF_CHG_MAX_CWND	0x0080	/* CUBIC max_cwnd changed, for K */
 #define	CCF_USR_IWND		0x0100	/* User specified initial window */
 #define	CCF_USR_IWND_INIT_NSEG	0x0200	/* Convert segs to bytes on conn init */
 #define CCF_HYSTART_ALLOWED	0x0400	/* If the CC supports it Hystart is allowed */
@@ -124,7 +128,7 @@ struct cc_var {
 #define	CC_DUPACK	0x0002	/* Duplicate ACK. */
 #define	CC_PARTIALACK	0x0004	/* Not yet. */
 #define	CC_SACK		0x0008	/* Not yet. */
-#endif /* _KERNEL */
+#endif /* defined(_KERNEL) || defined(_WANT_TCPCB) */
 
 /*
  * Congestion signal types passed to the cong_signal() hook. The highest order 8
@@ -207,10 +211,10 @@ struct cc_algo {
 #define CC_MODULE_BEING_REMOVED		0x01	/* The module is being removed */
 
 /* Macro to obtain the CC algo's struct ptr. */
-#define	CC_ALGO(tp)	((tp)->cc_algo)
+#define	CC_ALGO(tp)	((tp)->t_cc)
 
 /* Macro to obtain the CC algo's data ptr. */
-#define	CC_DATA(tp)	((tp)->ccv->cc_data)
+#define	CC_DATA(tp)	((tp)->t_ccv.cc_data)
 
 /* Macro to obtain the system default CC algo's struct ptr. */
 #define	CC_DEFAULT_ALGO()	V_default_cc_ptr

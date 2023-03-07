@@ -637,7 +637,7 @@ netmap_set_all_rings(struct netmap_adapter *na, int stopped)
  * onload).
  */
 void
-netmap_disable_all_rings(struct ifnet *ifp)
+netmap_disable_all_rings(if_t ifp)
 {
 	if (NM_NA_VALID(ifp)) {
 		netmap_set_all_rings(NA(ifp), NM_KR_LOCKED);
@@ -650,7 +650,7 @@ netmap_disable_all_rings(struct ifnet *ifp)
  * napi_enable().
  */
 void
-netmap_enable_all_rings(struct ifnet *ifp)
+netmap_enable_all_rings(if_t ifp)
 {
 	if (NM_NA_VALID(ifp)) {
 		netmap_set_all_rings(NA(ifp), 0 /* enabled */);
@@ -658,7 +658,7 @@ netmap_enable_all_rings(struct ifnet *ifp)
 }
 
 void
-netmap_make_zombie(struct ifnet *ifp)
+netmap_make_zombie(if_t ifp)
 {
 	if (NM_NA_VALID(ifp)) {
 		struct netmap_adapter *na = NA(ifp);
@@ -669,7 +669,7 @@ netmap_make_zombie(struct ifnet *ifp)
 }
 
 void
-netmap_undo_zombie(struct ifnet *ifp)
+netmap_undo_zombie(if_t ifp)
 {
 	if (NM_NA_VALID(ifp)) {
 		struct netmap_adapter *na = NA(ifp);
@@ -762,6 +762,10 @@ int
 netmap_update_config(struct netmap_adapter *na)
 {
 	struct nm_config_info info;
+
+	if (na->ifp && !nm_is_bwrap(na)) {
+		strlcpy(na->name, if_name(na->ifp), sizeof(na->name));
+	}
 
 	bzero(&info, sizeof(info));
 	if (na->nm_config == NULL ||
@@ -1190,7 +1194,7 @@ netmap_dtor(void *data)
  * After this call the queue is empty.
  */
 static void
-netmap_send_up(struct ifnet *dst, struct mbq *q)
+netmap_send_up(if_t dst, struct mbq *q)
 {
 	struct mbuf *m;
 	struct mbuf *head = NULL, *prev = NULL;
@@ -1461,7 +1465,7 @@ netmap_rxsync_from_host(struct netmap_kring *kring, int flags)
  */
 static void netmap_hw_dtor(struct netmap_adapter *); /* needed by NM_IS_NATIVE() */
 int
-netmap_get_hw_na(struct ifnet *ifp, struct netmap_mem_d *nmd, struct netmap_adapter **na)
+netmap_get_hw_na(if_t ifp, struct netmap_mem_d *nmd, struct netmap_adapter **na)
 {
 	/* generic support */
 	int i = netmap_admode;	/* Take a snapshot. */
@@ -1551,7 +1555,7 @@ assign_mem:
  */
 int
 netmap_get_na(struct nmreq_header *hdr,
-	      struct netmap_adapter **na, struct ifnet **ifp,
+	      struct netmap_adapter **na, if_t *ifp,
 	      struct netmap_mem_d *nmd, int create)
 {
 	struct nmreq_register *req = (struct nmreq_register *)(uintptr_t)hdr->nr_body;
@@ -1667,7 +1671,7 @@ out:
 
 /* undo netmap_get_na() */
 void
-netmap_unget_na(struct netmap_adapter *na, struct ifnet *ifp)
+netmap_unget_na(struct netmap_adapter *na, if_t ifp)
 {
 	if (ifp)
 		if_rele(ifp);
@@ -1706,8 +1710,8 @@ netmap_unget_na(struct netmap_adapter *na, struct ifnet *ifp)
 u_int
 nm_txsync_prologue(struct netmap_kring *kring, struct netmap_ring *ring)
 {
-	u_int head = ring->head; /* read only once */
-	u_int cur = ring->cur; /* read only once */
+	u_int head = NM_ACCESS_ONCE(ring->head);
+	u_int cur = NM_ACCESS_ONCE(ring->cur);
 	u_int n = kring->nkr_num_slots;
 
 	nm_prdis(5, "%s kcur %d ktail %d head %d cur %d tail %d",
@@ -1784,8 +1788,8 @@ nm_rxsync_prologue(struct netmap_kring *kring, struct netmap_ring *ring)
 	 * - cur could in principle go back, however it does not matter
 	 *   because we are processing a brand new rxsync()
 	 */
-	cur = kring->rcur = ring->cur;	/* read only once */
-	head = kring->rhead = ring->head;	/* read only once */
+	cur = kring->rcur = NM_ACCESS_ONCE(ring->cur);
+	head = kring->rhead = NM_ACCESS_ONCE(ring->head);
 #if 1 /* kernel sanity checks */
 	NM_FAIL_ON(kring->nr_hwcur >= n || kring->nr_hwtail >= n);
 #endif /* kernel sanity checks */
@@ -2252,12 +2256,12 @@ netmap_buf_size_validate(const struct netmap_adapter *na, unsigned mtu) {
 			nm_prerr("error: large MTU (%d) needed "
 				 "but %s does not support "
 				 "NS_MOREFRAG", mtu,
-				 na->ifp->if_xname);
+				 if_name(na->ifp));
 			return EINVAL;
 		} else if (nbs < na->rx_buf_maxsize) {
 			nm_prerr("error: using NS_MOREFRAG on "
 				 "%s requires netmap buf size "
-				 ">= %u", na->ifp->if_xname,
+				 ">= %u", if_name(na->ifp),
 				 na->rx_buf_maxsize);
 			return EINVAL;
 		} else {
@@ -2265,7 +2269,7 @@ netmap_buf_size_validate(const struct netmap_adapter *na, unsigned mtu) {
 				 "%s needs to support "
 				 "NS_MOREFRAG "
 				 "(MTU=%u,netmap_buf_size=%u)",
-				 na->ifp->if_xname, mtu, nbs);
+				 if_name(na->ifp), mtu, nbs);
 		}
 	}
 	return 0;
@@ -2740,7 +2744,7 @@ netmap_ioctl(struct netmap_priv_d *priv, u_long cmd, caddr_t data,
 	struct mbq q;	/* packets from RX hw queues to host stack */
 	struct netmap_adapter *na = NULL;
 	struct netmap_mem_d *nmd = NULL;
-	struct ifnet *ifp = NULL;
+	if_t ifp = NULL;
 	int error = 0;
 	u_int i, qfirst, qlast;
 	struct netmap_kring **krings;
@@ -3035,7 +3039,7 @@ netmap_ioctl(struct netmap_priv_d *priv, u_long cmd, caddr_t data,
 			/* Build a nmreq_register out of the nmreq_port_hdr,
 			 * so that we can call netmap_get_bdg_na(). */
 			struct nmreq_register regreq;
-			struct ifnet *ifp;
+			if_t ifp;
 
 			bzero(&regreq, sizeof(regreq));
 			regreq.nr_mode = NR_REG_ALL_NIC;
@@ -3969,7 +3973,7 @@ netmap_attach_common(struct netmap_adapter *na)
 
 #ifdef __FreeBSD__
 	if (na->na_flags & NAF_HOST_RINGS && na->ifp) {
-		na->if_input = na->ifp->if_input; /* for netmap_send_up */
+		na->if_input = if_getinputfn(na->ifp); /* for netmap_send_up */
 	}
 	na->pdev = na; /* make sure netmap_mem_map() is called */
 #endif /* __FreeBSD__ */
@@ -4059,7 +4063,7 @@ int
 netmap_attach_ext(struct netmap_adapter *arg, size_t size, int override_reg)
 {
 	struct netmap_hw_adapter *hwna = NULL;
-	struct ifnet *ifp = NULL;
+	if_t ifp = NULL;
 
 	if (size < sizeof(struct netmap_hw_adapter)) {
 		if (netmap_debug & NM_DEBUG_ON)
@@ -4095,7 +4099,7 @@ netmap_attach_ext(struct netmap_adapter *arg, size_t size, int override_reg)
 		goto fail;
 	hwna->up = *arg;
 	hwna->up.na_flags |= NAF_HOST_RINGS | NAF_NATIVE;
-	strlcpy(hwna->up.name, ifp->if_xname, sizeof(hwna->up.name));
+	strlcpy(hwna->up.name, if_name(ifp), sizeof(hwna->up.name));
 	if (override_reg) {
 		hwna->nm_hw_register = hwna->up.nm_register;
 		hwna->up.nm_register = netmap_hw_reg;
@@ -4193,7 +4197,7 @@ netmap_hw_krings_create(struct netmap_adapter *na)
  * Called on module unload by the netmap-enabled drivers
  */
 void
-netmap_detach(struct ifnet *ifp)
+netmap_detach(if_t ifp)
 {
 	struct netmap_adapter *na;
 
@@ -4239,7 +4243,7 @@ netmap_detach(struct ifnet *ifp)
  * we make sure to make the mode change visible here.
  */
 int
-netmap_transmit(struct ifnet *ifp, struct mbuf *m)
+netmap_transmit(if_t ifp, struct mbuf *m)
 {
 	struct netmap_adapter *na = NA(ifp);
 	struct netmap_kring *kring, *tx_kring;
@@ -4325,8 +4329,10 @@ netmap_transmit(struct ifnet *ifp, struct mbuf *m)
 	mbq_unlock(q);
 
 done:
-	if (m)
+	if (m) {
+		if_inc_counter(ifp, IFCOUNTER_OQDROPS, 1);
 		m_freem(m);
+	}
 	/* unconditionally wake up listeners */
 	kring->nm_notify(kring, 0);
 	/* this is normally netmap_notify(), but for nics
@@ -4477,7 +4483,7 @@ netmap_common_irq(struct netmap_adapter *na, u_int q, u_int *work_done)
  * calls the proper forwarding routine.
  */
 int
-netmap_rx_irq(struct ifnet *ifp, u_int q, u_int *work_done)
+netmap_rx_irq(if_t ifp, u_int q, u_int *work_done)
 {
 	struct netmap_adapter *na = NA(ifp);
 
@@ -4502,7 +4508,7 @@ netmap_rx_irq(struct ifnet *ifp, u_int q, u_int *work_done)
 void
 nm_set_native_flags(struct netmap_adapter *na)
 {
-	struct ifnet *ifp = na->ifp;
+	if_t ifp = na->ifp;
 
 	/* We do the setup for intercepting packets only if we are the
 	 * first user of this adapter. */
@@ -4518,7 +4524,7 @@ nm_set_native_flags(struct netmap_adapter *na)
 void
 nm_clear_native_flags(struct netmap_adapter *na)
 {
-	struct ifnet *ifp = na->ifp;
+	if_t ifp = na->ifp;
 
 	/* We undo the setup for intercepting packets only if we are the
 	 * last user of this adapter. */

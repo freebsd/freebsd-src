@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: windows,v 1.44 2022/05/31 17:39:08 christos Exp $
+# $File: windows,v 1.46 2022/07/02 17:46:09 christos Exp $
 # windows:  file(1) magic for Microsoft Windows
 #
 # This file is mainly reserved for files where programs
@@ -15,14 +15,84 @@
 
 
 # Summary: Outlook Express DBX file
-# Extension: .dbx
 # Created by: Christophe Monniez
-0	string	\xCF\xAD\x12\xFE	MS Outlook Express DBX file
->4	byte	=0xC5			\b, message database
->4	byte	=0xC6			\b, folder database
->4	byte	=0xC7			\b, account information
->4	byte	=0x30			\b, offline database
+# Update:	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/Outlook_Express_Database
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/d/dbx.trid.xml
+#		https://sourceforge.net/projects/ol2mbox/files/LibDBX/
+#		v1.0.4/libdbx_1.0.4.tar.gz/FILE-FORMAT 
+# Note:		called "Outlook Express Database" by TrID and DROID via PUID fmt/838 fmt/839
+#		and partly verified by `undbx --verbosity 4 Posteingang.dbx`
+0	string	\xCF\xAD\x12\xFE
+# skip DROID fmt-838-signature-id-1193.dbx fmt-839-signature-id-1194.dbx by check for valid file size
+>0x7C	ulelong	>0			MS Outlook Express DBX file
+#!:mime		application/octet-stream
+#!:mime		application/vnd.ms-outlook
+!:mime		application/x-ms-dbx
+!:ext	dbx
+>>4	byte	=0xC5			\b, message database
+>>4	byte	=0xC6			\b, folder database
+>>4	byte	=0xC7			\b, account information
+>>4	byte	=0x30			\b, offline database
+# version like: 5.2 5.5 (typical)
+>>20	ulequad	!0x0000000500000005	\b, version
+# major version
+>>>24	ulelong	x			%u
+# minor version
+>>>20	ulelong	x			\b.%u
+# CLSID: 6F74FDC5-E366-11d1-9A4E-00C04FA309D4~Message 6F74FDC6-E366-11D1-9A4E-00C04FA309D4~Folder
+# 26FE9D30-1A8F-11D2-AABF-006097D474C4~offline
+#>>4	guid	x			\b, CLSID %s
+# file size; total size of file; sometimes real size a little bit higher
+>>0x7C	ulelong	x			\b, ~ %u bytes
+# highest Email ID; the next email will have a number one higher than this
+>>0x5c	ulelong	x			\b, highest ID %#x
+# item count; number of items stored in this DBX file
+>>0xC4	ulelong	x			\b, %u item
+# plural s
+>>0xC4	ulelong	!1			\bs
+# index pointer; file offset pointing to a page of Data Indexes
+>>0xE4	ulelong	>0			\b, index pointer %#x
 
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/Nickfile
+#		https://www.nirsoft.net/utils/outlook_nk2_edit.html
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/n/nk2.trid.xml
+#		https://github.com/libyal/libnk2/blob/main/documentation
+#		Nickfile%20(NK2)%20format.asciidoc
+# Note:		called "Outlook Nickfile" by TrID & TestDisk and
+#		"Outlook Nickname File" by Microsoft Outlook and
+#		"Outlook AutoComplete File" by Nirsoft NK2Edit
+#		partly verfied by NK2Edit Raw Text Edit Mode
+0	ubelong		0x0DF0ADBA	MS Outlook Nickfile
+#!:mime		application/octet-stream
+#!:mime		application/vnd.ms-outlook
+!:mime		application/x-ms-nickfile
+!:ext	nk2/dat/bak
+# nick is used by "older" Outlook; dat is used by "newer" Outlook (probably 2010 - 2016); bak is used for backup
+#!:ext	nick/nk2/dat/bak
+# Unknown; probably a version indicator like: 0000000Ah 0000000Ch 
+>4	ulelong		x		\b, probably version %u
+# Unknown2; probably a version indicator like: 1 0
+>8	ulelong		x		\b.%u
+# number of rows (nickname or alias items) in file
+>12	ulelong		x		\b, %u items
+# number of item entries/columns/properties value like: 17h
+>16	ulelong		x		\b, %u entries
+# value type/property tag: 001Fh~4 bytes for data size of UTF-16 LE string
+>20	uleshort	x		\b, value type %#4.4x
+# entry type/property identifier: 6001h~PR_DOTSTUFF_STATE/PR_NICK_NAME_W
+>22	uleshort	x		\b, entry type %#4.4x
+# Reserved like: 0013FD90h
+#>24	ulelong		x		\b, reserved %#8.8x
+# value data array/Irrelevant Union like: 0000000004E31A80h
+#>28	ulequad		x		\b, data %#16.16llx
+# UTF-16
+>20	uleshort	=0x001F
+# unicode string bytes like: 2Ch
+>>36	ulelong		x		\b, %u bytes
+# unicode string value PT_UNICODE like: janesmith@contoso.org
+>>40	lestring16	x		"%s"
 
 # Summary: Windows crash dump
 # Extension: .dmp
@@ -429,9 +499,95 @@
 
 # Summary: Outlook Personal Folders
 # Created by: unknown
-0	lelong		0x4E444221	Microsoft Outlook email folder
->10	leshort		0x0e		(<=2002)
->10	leshort		0x17		(>=2003)
+# Update:	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/Personal_Folder_File
+#		https://en.wikipedia.org/wiki/Personal_Storage_Table
+# Reference:	https://interoperability.blob.core.windows.net/files/MS-PST/%5bMS-PST%5d.pdf
+#		http://mark0.net/download/triddefs_xml.7z/defs/p/pab.trid.xml
+# dwMagic !BDN
+0	lelong		0x4E444221
+# skip DROID x-fmt-75-signature-id-472.pab x-fmt-248-signature-id-260.pst x-fmt-249-signature-id-261.pst
+# by check for existance of bPlatformCreate value
+>14	ubyte	x		Microsoft Outlook
+#!:mime		application/octet-stream
+# NOT official registered !
+!:mime		application/vnd.ms-outlook
+# dwCRCPartial; 32-bit cyclic redundancy check (CRC) value of followin 471 bytes; zero for 64-bit
+#>>4	ulelong		!0			\b, CRC %#x
+# wMagicClient; AB (4142h) is used for PAB files; SM (534Dh) is used for PST files; SO (534Fh) is used for OST files
+#>>8	leshort		x			\b, wMagicClient=%#x
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/p/pab.trid.xml
+# Note:		called "Microsoft Personal Address Book" by TrID and
+#		"Microsoft Outlook Personal Address Book" by DROID via x-fmt/75
+>>8	leshort		0x4142			Personal Address Book
+#!:mime	application/x-ms-pab
+!:ext	pab
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/p/pst.trid.xml
+#		http://mark0.net/download/triddefs_xml.7z/defs/p/pst-unicode.trid.xml
+# Note:		called "Microsoft OutLook Personal Folder" by TrID and
+#		by DROID via x-fmt/248 for ANSI and via x-fmt/249 for Unicode
+#>>8	leshort		0x4D53			\b, PST~
+# called "Microsoft Outlook email folder" in ./windows version 1.37 and older
+>>8	leshort		0x4D53			Personal Storage
+#!:mime	application/x-ms-pst
+!:ext	pst
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/o/ost.trid.xml
+# Note:		called "Outlook Exchange Offline Storage" by TrID
+>>8	leshort		0x4F53			Offline Storage
+#!:mime	application/x-ms-ost
+!:ext	ost
+# wVer; file format version. 14 or 15 if the file is ANSI; > 21 or 23(=17h) if Unicode; 37 for written by Outlook with WIP
+>>10	uleshort	x			(
+# probably NO intermediate versions exist
+>>10	leshort		<0x10			\b<=2002, ANSI,
+>>10	leshort		>0x14			\b>=2003, Unicode,
+>>10	uleshort	x			version %u)
+# wVerClient; client file format version like: 19 22
+#>>12	uleshort	x			\b, wVerClient=%u
+# bPlatformCreate; This value MUST be set to 1 but also found 2
+>>14	ubyte		>1			\b, bPlatformCreate=%u
+# bPlatformAccess; This value MUST be set to 1 but also found 2
+>>15	ubyte		>1			\b, bPlatformAccess=%u
+# dwReserved1; SHOULD ignore and NOT modify this value; SHOULD initialize to zero
+>>16	ulelong		!0			\b, dwReserved1=%#x
+# dwReserved2; SHOULD ignore and NOT modify this value; SHOULD initialize to zero
+>>20	ulelong		!0			\b, dwReserved2=%#x
+# ANSI 32-bit variant Outlook 1997-2002
+>>10	uleshort	<16
+# bidNextB; next BlockID (ANSI 4 bytes)
+#>>>24		ulelong	!0			\b, bidNextB=%#x
+# bidNextP; Next available back BlockID pointer
+#>>>28		ulelong	!0			\b, bidNextP=%#x
+# dwUnique; value monotonically increased when modifying PST; so CRC is changing
+>>>32		ulelong	!0			\b, dwUnique=%#x
+# rgnid[128]; A fixed array of 32 NodeIDs, each corresponding to one of the 32 possible NID_TYPEs
+#>>>36		ubequad	x			\b, rgnid=%#llx...
+# dwReserved; Implementations SHOULD ignore this value and SHOULD NOT modify it; Initialized zero
+>>>164		ulelong	!0			\b, dwReserved=%#x
+# ibFileEof; the size of the PST file, in bytes (ANSI 4 bytes)
+>>>168		ulelong	x			\b, %u bytes
+# ibAMapLast; offset to the last AMap page
+#>>>172		ulelong	x			\b, ibAMapLast=%#x
+# bSentinel; MUST be set to 0x80
+>>>460		ubyte	!0x80			\b, bSentinel=%#x
+# bCryptMethod: 0~No encryption 1~encryption with permutation 2~encryption with cyclic 16~encryption with Windows Information Protection (WIP)
+>>>461		ubyte	>0			\b, bCryptMethod=%u
+# UNICODE 64-bit variant Outlook 2003-2007
+>>10	uleshort >20
+# bidUnused; Unused 8 bytes padding (Unicode only); sometimes like: 0x0000000100000004
+>>>24		ulequad	!0x0000000100000004	\b, bidUnused=%#16.16llx
+# dwUnique; value monotonically increased when modifying PST; so CRC is changing
+>>>40		ulelong	!0			\b, dwUnique=%#x
+# rgnid[] (128 bytes): A fixed array of 32 NIDs, each corresponding to one of the 32 possible
+#>>>44		ubequad	x			\b, rgnid=%#llx...
+# ibFileEof; the size of the PST file, in bytes (Unicode 8 bytes)
+>>>184		ulequad	x			\b, %llu bytes
+# bSentinel; MUST be set to 0x80
+>>>512		ubyte	!0x80			\b, bSentinel=%#x
+# bCryptMethod; Encryption type like: 0 1 2 16
+>>>513		ubyte	>0			\b, bCryptMethod=%u
+# dwCRC; 32-bit CRC of the of the previous 516 bytes
+>>>524		ulelong		x		\b, CRC32 %#x
 
 
 # Summary: Windows help cache

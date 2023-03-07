@@ -14,6 +14,7 @@
 #define LLVM_LIB_TARGET_BPF_MCTARGETDESC_BPFMCTARGETDESC_H
 
 #include "llvm/Config/config.h"
+#include "llvm/MC/MCContext.h"
 #include "llvm/Support/DataTypes.h"
 
 #include <memory>
@@ -30,10 +31,8 @@ class MCTargetOptions;
 class Target;
 
 MCCodeEmitter *createBPFMCCodeEmitter(const MCInstrInfo &MCII,
-                                      const MCRegisterInfo &MRI,
                                       MCContext &Ctx);
 MCCodeEmitter *createBPFbeMCCodeEmitter(const MCInstrInfo &MCII,
-                                        const MCRegisterInfo &MRI,
                                         MCContext &Ctx);
 
 MCAsmBackend *createBPFAsmBackend(const Target &T, const MCSubtargetInfo &STI,
@@ -55,6 +54,7 @@ std::unique_ptr<MCObjectTargetWriter> createBPFELFObjectWriter(uint8_t OSABI);
 // Defines symbolic names for the BPF instructions.
 //
 #define GET_INSTRINFO_ENUM
+#define GET_INSTRINFO_MC_HELPER_DECLS
 #include "BPFGenInstrInfo.inc"
 
 #define GET_SUBTARGETINFO_ENUM

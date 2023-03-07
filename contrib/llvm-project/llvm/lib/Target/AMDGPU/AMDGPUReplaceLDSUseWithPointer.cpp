@@ -83,7 +83,7 @@
 #include "AMDGPU.h"
 #include "GCNSubtarget.h"
 #include "Utils/AMDGPUBaseInfo.h"
-#include "Utils/AMDGPULDSUtils.h"
+#include "Utils/AMDGPUMemoryUtils.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SetOperations.h"
@@ -141,7 +141,7 @@ class ReplaceLDSUseImpl {
   std::vector<GlobalVariable *> collectLDSRequiringPointerReplace() {
     // Collect LDS which requires module lowering.
     std::vector<GlobalVariable *> LDSGlobals =
-        llvm::AMDGPU::findVariablesToLower(M);
+        llvm::AMDGPU::findVariablesToLower(M, nullptr);
 
     // Remove LDS which don't qualify for replacement.
     llvm::erase_if(LDSGlobals, [&](GlobalVariable *GV) {
@@ -442,7 +442,7 @@ class CollectReachableCallees {
         continue;
 
       for (const auto &GI : *CGN) {
-        auto *RCB = cast<CallBase>(GI.first.getValue());
+        auto *RCB = cast<CallBase>(*GI.first);
         auto *RCGN = GI.second;
 
         if (auto *DCallee = RCGN->getFunction()) {

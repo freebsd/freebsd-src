@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <errno.h>
+#include <paths.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -139,6 +140,115 @@ checkpath(const char *path, char *resolved)
 	return (0);
 }
 
+int
+checkpath_allow_file(const char *path, char *resolved)
+{
+	struct stat sb;
+
+	if (realpath(path, resolved) == NULL || stat(resolved, &sb) != 0)
+		return (1);
+	if (!S_ISDIR(sb.st_mode) && !S_ISREG(sb.st_mode)) {
+		errno = ENOTDIR;
+		return (1);
+	}
+	return (0);
+}
+
+/*
+ * Get the mount point information for name. Name may be mount point name
+ * or device name (with or without /dev/ preprended).
+ */
+struct statfs *
+getmntpoint(const char *name)
+{
+	struct stat devstat, mntdevstat;
+	char device[sizeof(_PATH_DEV) - 1 + MNAMELEN];
+	char *ddevname;
+	struct statfs *mntbuf, *statfsp;
+	int i, mntsize, isdev;
+	u_long len;
+
+	if (stat(name, &devstat) != 0)
+		return (NULL);
+	if (S_ISCHR(devstat.st_mode) || S_ISBLK(devstat.st_mode))
+		isdev = 1;
+	else
+		isdev = 0;
+	mntsize = getmntinfo(&mntbuf, MNT_NOWAIT);
+	for (i = 0; i < mntsize; i++) {
+		statfsp = &mntbuf[i];
+		if (isdev == 0) {
+			if (strcmp(name, statfsp->f_mntonname))
+				continue;
+			return (statfsp);
+		}
+		ddevname = statfsp->f_mntfromname;
+		if (*ddevname != '/') {
+			if ((len = strlen(_PATH_DEV) + strlen(ddevname) + 1) >
+			    sizeof(statfsp->f_mntfromname) ||
+			    len > sizeof(device))
+				continue;
+			strncpy(device, _PATH_DEV, len);
+			strncat(device, ddevname, len);
+			if (stat(device, &mntdevstat) == 0)
+				strncpy(statfsp->f_mntfromname, device, len);
+		}
+		if (stat(ddevname, &mntdevstat) == 0 &&
+		    mntdevstat.st_rdev == devstat.st_rdev)
+			return (statfsp);
+	}
+	return (NULL);
+}
+
+/*
+ * If possible reload a mounted filesystem.
+ * When prtmsg != NULL print a warning if a reload is attempted, but fails.
+ * Return 0 on success, 1 on failure.
+ */
+int
+chkdoreload(struct statfs *mntp,
+	void (*prtmsg)(const char *, ...) __printflike(1,2))
+{
+	struct iovec *iov;
+	int iovlen, error;
+	char errmsg[255];
+
+	/*
+	 * If the filesystem is not mounted it does not need to be reloaded.
+	 * If it is mounted for writing, then it could not have been opened
+	 * for writing by a utility, so does not need to be reloaded.
+	 */
+	if (mntp == NULL || (mntp->f_flags & MNT_RDONLY) == 0)
+		return (0);
+
+	/*
+	 * We modified a mounted file system.  Do a mount update on
+	 * it so we can continue using it as safely as possible.
+	 */
+	iov = NULL;
+	iovlen = 0;
+	errmsg[0] = '\0';
+	build_iovec(&iov, &iovlen, "fstype", __DECONST(void *, "ffs"), 4);
+	build_iovec(&iov, &iovlen, "from", mntp->f_mntfromname, (size_t)-1);
+	build_iovec(&iov, &iovlen, "fspath", mntp->f_mntonname, (size_t)-1);
+	build_iovec(&iov, &iovlen, "errmsg", errmsg, sizeof(errmsg));
+	build_iovec(&iov, &iovlen, "update", NULL, 0);
+	build_iovec(&iov, &iovlen, "reload", NULL, 0);
+	/*
+	 * XX: We need the following line until we clean up
+	 * nmount parsing of root mounts and NFS root mounts.
+	 */
+	build_iovec(&iov, &iovlen, "ro", NULL, 0);
+	error = nmount(iov, iovlen, mntp->f_flags);
+	free_iovec(&iov, &iovlen);
+	if (error == 0)
+		return (0);
+	if (prtmsg != NULL)
+		prtmsg("mount reload of '%s' failed: %s %s\n\n",
+		    mntp->f_mntonname, strerror(errno), errmsg);
+	return (1);
+}
+
 void
 build_iovec(struct iovec **iov, int *iovlen, const char *name, void *val,
 	    size_t len)
@@ -193,7 +303,7 @@ free_iovec(struct iovec **iov, int *iovlen)
 {
 	int i;
 
-	for (i = 0; i < *iovlen; i++)
+	for (i = 0; i < *iovlen; i += 2)
 		free((*iov)[i].iov_base);
 	free(*iov);
 }

@@ -45,16 +45,35 @@ MALLOC_DEFINE(M_LSEQ, "seq_file", "seq_file");
 ssize_t
 seq_read(struct linux_file *f, char *ubuf, size_t size, off_t *ppos)
 {
-	struct seq_file *m = f->private_data;
+	struct seq_file *m;
+	struct sbuf *sbuf;
 	void *p;
-	int rc;
-	off_t pos = 0;
+	ssize_t rc;
 
-	p = m->op->start(m, &pos);
+	m = f->private_data;
+	sbuf = m->buf;
+
+	p = m->op->start(m, ppos);
 	rc = m->op->show(m, p);
 	if (rc)
 		return (rc);
-	return (size);
+
+	rc = sbuf_finish(sbuf);
+	if (rc)
+		return (rc);
+
+	rc = sbuf_len(sbuf);
+	if (*ppos >= rc || size < 1)
+		return (-EINVAL);
+
+	size = min(rc - *ppos, size);
+	rc = strscpy(ubuf, sbuf_data(sbuf) + *ppos, size + 1);
+
+	/* add 1 for null terminator */
+	if (rc > 0)
+		rc += 1;
+
+	return (rc);
 }
 
 int
@@ -101,16 +120,37 @@ seq_open(struct linux_file *f, const struct seq_operations *op)
 {
 	struct seq_file *p;
 
-	if (f->private_data != NULL)
-		log(LOG_WARNING, "%s private_data not NULL", __func__);
-
 	if ((p = malloc(sizeof(*p), M_LSEQ, M_NOWAIT|M_ZERO)) == NULL)
 		return (-ENOMEM);
 
-	f->private_data = p;
-	p->op = op;
+	p->buf = sbuf_new_auto();
 	p->file = f;
+	p->op = op;
+	f->private_data = (void *) p;
 	return (0);
+}
+
+void *
+__seq_open_private(struct linux_file *f, const struct seq_operations *op, int size)
+{
+	struct seq_file *seq_file;
+	void *private;
+	int error;
+
+	private = malloc(size, M_LSEQ, M_NOWAIT|M_ZERO);
+	if (private == NULL)
+		return (NULL);
+
+	error = seq_open(f, op);
+	if (error < 0) {
+		free(private, M_LSEQ);
+		return (NULL);
+	}
+
+	seq_file = (struct seq_file *)f->private_data;
+	seq_file->private = private;
+
+	return (private);
 }
 
 int
@@ -138,10 +178,25 @@ int
 seq_release(struct inode *inode __unused, struct linux_file *file)
 {
 	struct seq_file *m;
+	struct sbuf *s;
 
 	m = file->private_data;
+	s = m->buf;
+
+	sbuf_delete(s);
 	free(m, M_LSEQ);
+
 	return (0);
+}
+
+int
+seq_release_private(struct inode *inode __unused, struct linux_file *f)
+{
+	struct seq_file *seq;
+
+	seq = (struct seq_file *)f->private_data;
+	free(seq->private, M_LSEQ);
+	return (seq_release(inode, f));
 }
 
 int
@@ -159,4 +214,20 @@ single_release(struct vnode *v, struct linux_file *f)
 	rc = seq_release(v, f);
 	free(__DECONST(void *, op), M_LSEQ);
 	return (rc);
+}
+
+void
+lkpi_seq_vprintf(struct seq_file *m, const char *fmt, va_list args)
+{
+	sbuf_vprintf(m->buf, fmt, args);
+}
+
+void
+lkpi_seq_printf(struct seq_file *m, const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+	seq_vprintf(m, fmt, args);
+	va_end(args);
 }

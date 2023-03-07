@@ -77,9 +77,7 @@ r88e_classify_intr(struct rtwn_softc *sc, void *buf, int len)
 void
 r88e_ratectl_tx_complete(struct rtwn_softc *sc, uint8_t *buf, int len)
 {
-#if __FreeBSD_version >= 1200012
 	struct ieee80211_ratectl_tx_status txs;
-#endif
 	struct r88e_tx_rpt_ccx *rpt;
 	struct ieee80211_node *ni;
 	uint8_t macid;
@@ -120,7 +118,6 @@ r88e_ratectl_tx_complete(struct rtwn_softc *sc, uint8_t *buf, int len)
 		    (rpt->rptb1 & R88E_RPTB1_PKT_OK) ? "" : " not",
 		    ntries);
 
-#if __FreeBSD_version >= 1200012
 		txs.flags = IEEE80211_RATECTL_STATUS_LONG_RETRY |
 			    IEEE80211_RATECTL_STATUS_FINAL_RATE;
 		txs.long_retries = ntries;
@@ -139,16 +136,6 @@ r88e_ratectl_tx_complete(struct rtwn_softc *sc, uint8_t *buf, int len)
 		else
 			txs.status = IEEE80211_RATECTL_TX_FAIL_UNSPECIFIED;
 		ieee80211_ratectl_tx_complete(ni, &txs);
-#else
-		struct ieee80211vap *vap = ni->ni_vap;
-		if (rpt->rptb1 & R88E_RPTB1_PKT_OK) {
-			ieee80211_ratectl_tx_complete(vap, ni,
-			    IEEE80211_RATECTL_TX_SUCCESS, &ntries, NULL);
-		} else {
-			ieee80211_ratectl_tx_complete(vap, ni,
-			    IEEE80211_RATECTL_TX_FAILURE, &ntries, NULL);
-		}
-#endif
 	} else {
 		RTWN_DPRINTF(sc, RTWN_DEBUG_INTR, "%s: macid %u, ni is NULL\n",
 		    __func__, macid);

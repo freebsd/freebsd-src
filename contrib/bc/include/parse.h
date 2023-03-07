@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -80,26 +80,12 @@
  */
 #define BC_PARSE_IS_INITED(p, prg) ((p)->prog == (prg))
 
-#if BC_ENABLED
-
-/**
- * Returns true if the current parser state allows parsing, false otherwise.
- * @param p  The parser.
- * @return   True if parsing can proceed, false otherwise.
- */
-#define BC_PARSE_CAN_PARSE(p) \
-	((p).l.t != BC_LEX_EOF && (p).l.t != BC_LEX_KW_DEFINE)
-
-#else // BC_ENABLED
-
 /**
  * Returns true if the current parser state allows parsing, false otherwise.
  * @param p  The parser.
  * @return   True if parsing can proceed, false otherwise.
  */
 #define BC_PARSE_CAN_PARSE(p) ((p).l.t != BC_LEX_EOF)
-
-#endif // BC_ENABLED
 
 /**
  * Pushes the instruction @a i onto the bytecode vector for the current
@@ -119,22 +105,32 @@
 #define bc_parse_pushIndex(p, idx) (bc_vec_pushIndex(&(p)->func->code, (idx)))
 
 /**
- * A convenience macro for throwing errors in parse code. They take care of
+ * A convenience macro for throwing errors in parse code. This takes care of
  * plumbing like passing in the current line the lexer is on.
  * @param p  The parser.
  * @param e  The error.
  */
+#if BC_DEBUG
+#define bc_parse_err(p, e) \
+	(bc_vm_handleError((e), __FILE__, __LINE__, (p)->l.line))
+#else // BC_DEBUG
 #define bc_parse_err(p, e) (bc_vm_handleError((e), (p)->l.line))
+#endif // BC_DEBUG
 
 /**
- * A convenience macro for throwing errors in parse code. They take care of
+ * A convenience macro for throwing errors in parse code. This takes care of
  * plumbing like passing in the current line the lexer is on.
  * @param p    The parser.
  * @param e    The error.
  * @param ...  The varags that are needed.
  */
+#if BC_DEBUG
+#define bc_parse_verr(p, e, ...) \
+	(bc_vm_handleError((e), __FILE__, __LINE__, (p)->l.line, __VA_ARGS__))
+#else // BC_DEBUG
 #define bc_parse_verr(p, e, ...) \
 	(bc_vm_handleError((e), (p)->l.line, __VA_ARGS__))
+#endif // BC_DEBUG
 
 // Forward declarations.
 struct BcParse;
@@ -219,7 +215,7 @@ void
 bc_parse_init(BcParse* p, struct BcProgram* prog, size_t func);
 
 /**
- * Frees a parser. This is not guarded by #ifndef NDEBUG because a separate
+ * Frees a parser. This is not guarded by #if BC_DEBUG because a separate
  * parser is created at runtime to parse read() expressions and dc strings.
  * @param p  The parser to free.
  */
@@ -268,14 +264,12 @@ bc_parse_pushName(const BcParse* p, char* name, bool var);
 
 /**
  * Sets the text that the parser will parse.
- * @param p         The parser.
- * @param text      The text to lex.
- * @param is_stdin  True if the text is from stdin, false otherwise.
- * @param is_exprs  True if the text is from command-line expressions, false
- *                  otherwise.
+ * @param p     The parser.
+ * @param text  The text to lex.
+ * @param mode  The mode to parse in.
  */
 void
-bc_parse_text(BcParse* p, const char* text, bool is_stdin, bool is_exprs);
+bc_parse_text(BcParse* p, const char* text, BcMode mode);
 
 // References to const 0 and 1 strings for special cases. bc and dc have
 // specific instructions for 0 and 1 because they pop up so often and (in the

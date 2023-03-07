@@ -169,7 +169,8 @@ esp_init(struct secasvar *sav, struct xformsw *xsp)
 	}
 
 	/* subtract off the salt, RFC4106, 8.1 and RFC3686, 5.1 */
-	keylen = _KEYLEN(sav->key_enc) - SAV_ISCTRORGCM(sav) * 4;
+	keylen = _KEYLEN(sav->key_enc) - SAV_ISCTRORGCM(sav) * 4 -
+	    SAV_ISCHACHA(sav) * 4;
 	if (txform->minkey > keylen || keylen > txform->maxkey) {
 		DPRINTF(("%s: invalid key length %u, must be in the range "
 			"[%u..%u] for algorithm %s\n", __func__,
@@ -178,7 +179,7 @@ esp_init(struct secasvar *sav, struct xformsw *xsp)
 		return EINVAL;
 	}
 
-	if (SAV_ISCTRORGCM(sav))
+	if (SAV_ISCTRORGCM(sav) || SAV_ISCHACHA(sav))
 		sav->ivlen = 8;	/* RFC4106 3.1 and RFC3686 3.1 */
 	else
 		sav->ivlen = txform->ivsize;
@@ -226,6 +227,12 @@ esp_init(struct secasvar *sav, struct xformsw *xsp)
 		csp.csp_mode = CSP_MODE_AEAD;
 		if (sav->flags & SADB_X_SAFLAGS_ESN)
 			csp.csp_flags |= CSP_F_SEPARATE_AAD;
+	} else if (sav->alg_enc == SADB_X_EALG_CHACHA20POLY1305) {
+		sav->alg_auth = SADB_X_AALG_CHACHA20POLY1305;
+		sav->tdb_authalgxform = &auth_hash_poly1305;
+		csp.csp_mode = CSP_MODE_AEAD;
+		if (sav->flags & SADB_X_SAFLAGS_ESN)
+			csp.csp_flags |= CSP_F_SEPARATE_AAD;
 	} else if (sav->alg_auth != 0) {
 		csp.csp_mode = CSP_MODE_ETA;
 		if (sav->flags & SADB_X_SAFLAGS_ESN)
@@ -238,7 +245,7 @@ esp_init(struct secasvar *sav, struct xformsw *xsp)
 	if (csp.csp_cipher_alg != CRYPTO_NULL_CBC) {
 		csp.csp_cipher_key = sav->key_enc->key_data;
 		csp.csp_cipher_klen = _KEYBITS(sav->key_enc) / 8 -
-		    SAV_ISCTRORGCM(sav) * 4;
+		    SAV_ISCTRORGCM(sav) * 4 - SAV_ISCHACHA(sav) * 4;
 	};
 	csp.csp_ivlen = txform->ivsize;
 
@@ -368,7 +375,7 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 
 	if (esph != NULL) {
 		crp->crp_op = CRYPTO_OP_VERIFY_DIGEST;
-		if (SAV_ISGCM(sav))
+		if (SAV_ISGCM(sav) || SAV_ISCHACHA(sav))
 			crp->crp_aad_length = 8; /* RFC4106 5, SPI + SN */
 		else
 			crp->crp_aad_length = hlen;
@@ -428,7 +435,7 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	crp->crp_payload_length = m->m_pkthdr.len - (skip + hlen + alen);
 
 	/* Generate or read cipher IV. */
-	if (SAV_ISCTRORGCM(sav)) {
+	if (SAV_ISCTRORGCM(sav) || SAV_ISCHACHA(sav)) {
 		ivp = &crp->crp_iv[0];
 
 		/*
@@ -811,7 +818,7 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 		SECREPLAY_UNLOCK(sav->replay);
 	}
 	cryptoid = sav->tdb_cryptoid;
-	if (SAV_ISCTRORGCM(sav))
+	if (SAV_ISCTRORGCM(sav) || SAV_ISCHACHA(sav))
 		cntr = sav->cntr++;
 	SECASVAR_RUNLOCK(sav);
 
@@ -878,7 +885,7 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 
 	/* Generate cipher and ESP IVs. */
 	ivp = &crp->crp_iv[0];
-	if (SAV_ISCTRORGCM(sav)) {
+	if (SAV_ISCTRORGCM(sav) || SAV_ISCHACHA(sav)) {
 		/*
 		 * See comment in esp_input() for details on the
 		 * cipher IV.  A simple per-SA counter stored in
@@ -914,7 +921,7 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	if (esph) {
 		/* Authentication descriptor. */
 		crp->crp_op |= CRYPTO_OP_COMPUTE_DIGEST;
-		if (SAV_ISGCM(sav))
+		if (SAV_ISGCM(sav) || SAV_ISCHACHA(sav))
 			crp->crp_aad_length = 8; /* RFC4106 5, SPI + SN */
 		else
 			crp->crp_aad_length = hlen;

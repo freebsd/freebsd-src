@@ -13,6 +13,7 @@
 #include "X86InstrFoldTables.h"
 #include "X86InstrInfo.h"
 #include "llvm/ADT/STLExtras.h"
+#include <atomic>
 #include <vector>
 
 using namespace llvm;
@@ -292,8 +293,8 @@ static const X86MemoryFoldTableEntry MemoryFoldTable0[] = {
   { X86::JMP32r_NT,           X86::JMP32m_NT,           TB_FOLDED_LOAD },
   { X86::JMP64r,              X86::JMP64m,              TB_FOLDED_LOAD },
   { X86::JMP64r_NT,           X86::JMP64m_NT,           TB_FOLDED_LOAD },
-  { X86::MMX_MOVD64from64rr,  X86::MMX_MOVD64from64rm,  TB_FOLDED_STORE | TB_NO_REVERSE },
-  { X86::MMX_MOVD64grr,       X86::MMX_MOVD64mr,        TB_FOLDED_STORE | TB_NO_REVERSE },
+  { X86::MMX_MOVD64from64rr,  X86::MMX_MOVQ64mr,        TB_FOLDED_STORE },
+  { X86::MMX_MOVD64grr,       X86::MMX_MOVD64mr,        TB_FOLDED_STORE },
   { X86::MOV16ri,             X86::MOV16mi,             TB_FOLDED_STORE },
   { X86::MOV16rr,             X86::MOV16mr,             TB_FOLDED_STORE },
   { X86::MOV32ri,             X86::MOV32mi,             TB_FOLDED_STORE },
@@ -6102,7 +6103,7 @@ llvm::lookupFoldTable(unsigned RegOp, unsigned OpNum) {
 namespace {
 
 // This class stores the memory unfolding tables. It is instantiated as a
-// ManagedStatic to lazily init the unfolding table.
+// function scope static variable to lazily init the unfolding table.
 struct X86MemUnfoldTable {
   // Stores memory unfolding tables entries sorted by opcode.
   std::vector<X86MemoryFoldTableEntry> Table;
@@ -6159,11 +6160,10 @@ struct X86MemUnfoldTable {
 };
 }
 
-static ManagedStatic<X86MemUnfoldTable> MemUnfoldTable;
-
 const X86MemoryFoldTableEntry *
 llvm::lookupUnfoldTable(unsigned MemOp) {
-  auto &Table = MemUnfoldTable->Table;
+  static X86MemUnfoldTable MemUnfoldTable;
+  auto &Table = MemUnfoldTable.Table;
   auto I = llvm::lower_bound(Table, MemOp);
   if (I != Table.end() && I->KeyOp == MemOp)
     return &*I;

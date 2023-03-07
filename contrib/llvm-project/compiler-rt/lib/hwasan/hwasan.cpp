@@ -25,6 +25,7 @@
 #include "sanitizer_common/sanitizer_common.h"
 #include "sanitizer_common/sanitizer_flag_parser.h"
 #include "sanitizer_common/sanitizer_flags.h"
+#include "sanitizer_common/sanitizer_interface_internal.h"
 #include "sanitizer_common/sanitizer_libc.h"
 #include "sanitizer_common/sanitizer_procmaps.h"
 #include "sanitizer_common/sanitizer_stackdepot.h"
@@ -573,6 +574,12 @@ u8 __hwasan_generate_tag() {
   Thread *t = GetCurrentThread();
   if (!t) return kFallbackTag;
   return t->GenerateRandomTag();
+}
+
+void __hwasan_add_frame_record(u64 frame_record_info) {
+  Thread *t = GetCurrentThread();
+  if (t)
+    t->stack_allocations()->push(frame_record_info);
 }
 
 #if !SANITIZER_SUPPORTS_WEAK_HOOKS

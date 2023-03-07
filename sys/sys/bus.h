@@ -72,6 +72,7 @@ typedef enum device_property_type {
 	DEVICE_PROP_BUFFER = 1,
 	DEVICE_PROP_UINT32 = 2,
 	DEVICE_PROP_UINT64 = 3,
+	DEVICE_PROP_HANDLE = 4,
 } device_property_type_t;
 
 /**
@@ -252,17 +253,19 @@ typedef void driver_intr_t(void*);
 
 /**
  * @brief Interrupt type bits.
- * 
- * These flags are used both by newbus interrupt
- * registration (nexus.c) and also in struct intrec, which defines
- * interrupt properties.
  *
- * XXX We should probably revisit this and remove the vestiges of the
- * spls implicit in names like INTR_TYPE_TTY. In the meantime, don't
- * confuse things by renaming them (Grog, 18 July 2000).
+ * These flags may be passed by drivers to bus_setup_intr(9) when
+ * registering a new interrupt handler. The field is overloaded to
+ * specify both the interrupt's type and any special properties.
  *
- * Buses which do interrupt remapping will want to change their type
- * to reflect what sort of devices are underneath.
+ * The INTR_TYPE* bits will be passed to intr_priority(9) to determine
+ * the scheduling priority of the handler's ithread. Historically, each
+ * type was assigned a unique scheduling preference, but now only
+ * INTR_TYPE_CLK receives a default priority higher than other
+ * interrupts. See sys/priority.h.
+ *
+ * Buses may choose to modify or augment these flags as appropriate,
+ * e.g. nexus may apply INTR_EXCL.
  */
 enum intr_type {
 	INTR_TYPE_TTY = 1,
@@ -758,6 +761,7 @@ void	bus_data_generation_update(void);
 #define BUS_LOCATOR_ACPI	"ACPI"
 #define BUS_LOCATOR_FREEBSD	"FreeBSD"
 #define BUS_LOCATOR_UEFI	"UEFI"
+#define BUS_LOCATOR_OFW		"OFW"
 
 extern int bus_current_pass;
 

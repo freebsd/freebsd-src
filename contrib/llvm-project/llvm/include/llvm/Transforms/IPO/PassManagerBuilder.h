@@ -16,7 +16,6 @@
 
 #include "llvm-c/Transforms/PassManagerBuilder.h"
 #include <functional>
-#include <memory>
 #include <string>
 #include <vector>
 
@@ -165,25 +164,9 @@ public:
   bool VerifyInput;
   bool VerifyOutput;
   bool MergeFunctions;
-  bool PrepareForLTO;
-  bool PrepareForThinLTO;
-  bool PerformThinLTO;
   bool DivergentTarget;
   unsigned LicmMssaOptCap;
   unsigned LicmMssaNoAccForPromotionCap;
-
-  /// Enable profile instrumentation pass.
-  bool EnablePGOInstrGen;
-  /// Enable profile context sensitive instrumentation pass.
-  bool EnablePGOCSInstrGen;
-  /// Enable profile context sensitive profile use pass.
-  bool EnablePGOCSInstrUse;
-  /// Profile data file name that the instrumentation will be written to.
-  std::string PGOInstrGen;
-  /// Path of the profile data file.
-  std::string PGOInstrUse;
-  /// Path of the sample Profile data file.
-  std::string PGOSampleUse;
 
 private:
   /// ExtensionList - This is list of all of the extensions that are registered.
@@ -212,9 +195,6 @@ private:
   void addExtensionsToPM(ExtensionPointTy ETy,
                          legacy::PassManagerBase &PM) const;
   void addInitialAliasAnalysisPasses(legacy::PassManagerBase &PM) const;
-  void addLTOOptimizationPasses(legacy::PassManagerBase &PM);
-  void addLateLTOOptimizationPasses(legacy::PassManagerBase &PM);
-  void addPGOInstrPasses(legacy::PassManagerBase &MPM, bool IsCS);
   void addFunctionSimplificationPasses(legacy::PassManagerBase &MPM);
   void addVectorPasses(legacy::PassManagerBase &PM, bool IsFullLTO);
 
@@ -226,8 +206,6 @@ public:
 
   /// populateModulePassManager - This sets up the primary pass manager.
   void populateModulePassManager(legacy::PassManagerBase &MPM);
-  void populateLTOPassManager(legacy::PassManagerBase &PM);
-  void populateThinLTOPassManager(legacy::PassManagerBase &PM);
 };
 
 /// Registers a function for adding a standard set of passes.  This should be

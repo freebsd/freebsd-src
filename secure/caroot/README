@@ -12,7 +12,7 @@ It will:
 	2) Download the latest certdata.txt from Mozilla (fetchcerts)
 	3) Split certdata.txt into the individual .pem files (updatecerts)
 
-Then the results should manually be inspected (svn status)
+Then the results should manually be inspected (git status)
 	1) Any no-longer-trusted certificates should be moved to the
 	untrusted directory (git mv)
 	2) any newly added certificates will need to be added (git add)

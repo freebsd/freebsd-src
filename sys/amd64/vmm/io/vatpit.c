@@ -336,8 +336,7 @@ vatpit_update_mode(struct vatpit *vatpit, uint8_t val)
 }
 
 int
-vatpit_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
-    uint32_t *eax)
+vatpit_handler(struct vm *vm, bool in, int port, int bytes, uint32_t *eax)
 {
 	struct vatpit *vatpit;
 	struct channel *c;
@@ -419,7 +418,7 @@ vatpit_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
 }
 
 int
-vatpit_nmisc_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
+vatpit_nmisc_handler(struct vm *vm, bool in, int port, int bytes,
     uint32_t *eax)
 {
 	struct vatpit *vatpit;
@@ -471,6 +470,7 @@ vatpit_cleanup(struct vatpit *vatpit)
 	for (i = 0; i < 3; i++)
 		callout_drain(&vatpit->channel[i].callout);
 
+	mtx_destroy(&vatpit->mtx);
 	free(vatpit, M_VATPIT);
 }
 

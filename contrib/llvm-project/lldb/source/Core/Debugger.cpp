@@ -9,6 +9,7 @@
 #include "lldb/Core/Debugger.h"
 
 #include "lldb/Breakpoint/Breakpoint.h"
+#include "lldb/Core/DebuggerEvents.h"
 #include "lldb/Core/FormatEntity.h"
 #include "lldb/Core/Mangled.h"
 #include "lldb/Core/ModuleList.h"
@@ -43,13 +44,13 @@
 #include "lldb/Target/ThreadList.h"
 #include "lldb/Utility/AnsiTerminal.h"
 #include "lldb/Utility/Event.h"
+#include "lldb/Utility/LLDBLog.h"
 #include "lldb/Utility/Listener.h"
 #include "lldb/Utility/Log.h"
 #include "lldb/Utility/Reproducer.h"
 #include "lldb/Utility/ReproducerProvider.h"
 #include "lldb/Utility/State.h"
 #include "lldb/Utility/Stream.h"
-#include "lldb/Utility/StreamCallback.h"
 #include "lldb/Utility/StreamString.h"
 
 #if defined(_WIN32)
@@ -64,6 +65,7 @@
 #include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Process.h"
+#include "llvm/Support/ThreadPool.h"
 #include "llvm/Support/Threading.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -377,10 +379,42 @@ bool Debugger::SetUseColor(bool b) {
   return ret;
 }
 
+bool Debugger::GetShowProgress() const {
+  const uint32_t idx = ePropertyShowProgress;
+  return m_collection_sp->GetPropertyAtIndexAsBoolean(
+      nullptr, idx, g_debugger_properties[idx].default_uint_value != 0);
+}
+
+bool Debugger::SetShowProgress(bool show_progress) {
+  const uint32_t idx = ePropertyShowProgress;
+  return m_collection_sp->SetPropertyAtIndexAsBoolean(nullptr, idx,
+                                                      show_progress);
+}
+
+llvm::StringRef Debugger::GetShowProgressAnsiPrefix() const {
+  const uint32_t idx = ePropertyShowProgressAnsiPrefix;
+  return m_collection_sp->GetPropertyAtIndexAsString(nullptr, idx, "");
+}
+
+llvm::StringRef Debugger::GetShowProgressAnsiSuffix() const {
+  const uint32_t idx = ePropertyShowProgressAnsiSuffix;
+  return m_collection_sp->GetPropertyAtIndexAsString(nullptr, idx, "");
+}
+
 bool Debugger::GetUseAutosuggestion() const {
   const uint32_t idx = ePropertyShowAutosuggestion;
   return m_collection_sp->GetPropertyAtIndexAsBoolean(
       nullptr, idx, g_debugger_properties[idx].default_uint_value != 0);
+}
+
+llvm::StringRef Debugger::GetAutosuggestionAnsiPrefix() const {
+  const uint32_t idx = ePropertyShowAutosuggestionAnsiPrefix;
+  return m_collection_sp->GetPropertyAtIndexAsString(nullptr, idx, "");
+}
+
+llvm::StringRef Debugger::GetAutosuggestionAnsiSuffix() const {
+  const uint32_t idx = ePropertyShowAutosuggestionAnsiSuffix;
+  return m_collection_sp->GetPropertyAtIndexAsString(nullptr, idx, "");
 }
 
 bool Debugger::GetUseSourceCache() const {
@@ -635,9 +669,9 @@ void Debugger::Destroy(DebuggerSP &debugger_sp) {
     CommandReturnObject result(debugger_sp->GetUseColor());
     cmd_interpreter.SaveTranscript(result);
     if (result.Succeeded())
-      debugger_sp->GetOutputStream() << result.GetOutputData() << '\n';
+      (*debugger_sp->GetAsyncOutputStream()) << result.GetOutputData() << '\n';
     else
-      debugger_sp->GetErrorStream() << result.GetErrorData() << '\n';
+      (*debugger_sp->GetAsyncErrorStream()) << result.GetErrorData() << '\n';
   }
 
   debugger_sp->Clear();
@@ -723,8 +757,8 @@ Debugger::Debugger(lldb::LogOutputCallback log_callback, void *baton)
       m_forward_listener_sp(), m_clear_once() {
   m_instance_name.SetString(llvm::formatv("debugger_{0}", GetID()).str());
   if (log_callback)
-    m_log_callback_stream_sp =
-        std::make_shared<StreamCallback>(log_callback, baton);
+    m_callback_handler_sp =
+        std::make_shared<CallbackLogHandler>(log_callback, baton);
   m_command_interpreter_up->Initialize();
   // Always add our default platform to the platform list
   PlatformSP default_platform_sp(Platform::GetHostPlatform());
@@ -865,7 +899,8 @@ Status Debugger::SetInputString(const char *data) {
     return result;
   }
 
-  write(fds[WRITE], data, size);
+  int r = write(fds[WRITE], data, size);
+  (void)r;
   // Close the write end of the pipe, so that the command interpreter will exit
   // when it consumes all the data.
   llvm::sys::Process::SafelyCloseFileDescriptor(fds[WRITE]);
@@ -1041,9 +1076,12 @@ bool Debugger::CheckTopIOHandlerTypes(IOHandler::Type top_type,
 }
 
 void Debugger::PrintAsync(const char *s, size_t len, bool is_stdout) {
-  lldb_private::StreamFile &stream =
-      is_stdout ? GetOutputStream() : GetErrorStream();
-  m_io_handler_stack.PrintAsync(&stream, s, len);
+  bool printed = m_io_handler_stack.PrintAsync(s, len, is_stdout);
+  if (!printed) {
+    lldb::StreamFileSP stream =
+        is_stdout ? m_output_stream_sp : m_error_stream_sp;
+    stream->Write(s, len);
+  }
 }
 
 ConstString Debugger::GetTopIOHandlerControlSequence(char ch) {
@@ -1163,11 +1201,11 @@ bool Debugger::PopIOHandler(const IOHandlerSP &pop_reader_sp) {
 }
 
 StreamSP Debugger::GetAsyncOutputStream() {
-  return std::make_shared<StreamAsynchronousIO>(*this, true);
+  return std::make_shared<StreamAsynchronousIO>(*this, true, GetUseColor());
 }
 
 StreamSP Debugger::GetAsyncErrorStream() {
-  return std::make_shared<StreamAsynchronousIO>(*this, false);
+  return std::make_shared<StreamAsynchronousIO>(*this, false, GetUseColor());
 }
 
 size_t Debugger::GetNumDebuggers() {
@@ -1253,38 +1291,8 @@ void Debugger::SetLoggingCallback(lldb::LogOutputCallback log_callback,
   // For simplicity's sake, I am not going to deal with how to close down any
   // open logging streams, I just redirect everything from here on out to the
   // callback.
-  m_log_callback_stream_sp =
-      std::make_shared<StreamCallback>(log_callback, baton);
-}
-
-ConstString Debugger::ProgressEventData::GetFlavorString() {
-  static ConstString g_flavor("Debugger::ProgressEventData");
-  return g_flavor;
-}
-
-ConstString Debugger::ProgressEventData::GetFlavor() const {
-  return Debugger::ProgressEventData::GetFlavorString();
-}
-
-void Debugger::ProgressEventData::Dump(Stream *s) const {
-  s->Printf(" id = %" PRIu64 ", message = \"%s\"", m_id, m_message.c_str());
-  if (m_completed == 0 || m_completed == m_total)
-    s->Printf(", type = %s", m_completed == 0 ? "start" : "end");
-  else
-    s->PutCString(", type = update");
-  // If m_total is UINT64_MAX, there is no progress to report, just "start"
-  // and "end". If it isn't we will show the completed and total amounts.
-  if (m_total != UINT64_MAX)
-    s->Printf(", progress = %" PRIu64 " of %" PRIu64, m_completed, m_total);
-}
-
-const Debugger::ProgressEventData *
-Debugger::ProgressEventData::GetEventDataFromEvent(const Event *event_ptr) {
-  if (event_ptr)
-    if (const EventData *event_data = event_ptr->GetData())
-      if (event_data->GetFlavor() == ProgressEventData::GetFlavorString())
-        return static_cast<const ProgressEventData *>(event_ptr->GetData());
-  return nullptr;
+  m_callback_handler_sp =
+      std::make_shared<CallbackLogHandler>(log_callback, baton);
 }
 
 static void PrivateReportProgress(Debugger &debugger, uint64_t progress_id,
@@ -1295,9 +1303,9 @@ static void PrivateReportProgress(Debugger &debugger, uint64_t progress_id,
   const uint32_t event_type = Debugger::eBroadcastBitProgress;
   if (!debugger.GetBroadcaster().EventTypeHasListeners(event_type))
     return;
-  EventSP event_sp(new Event(event_type, new Debugger::ProgressEventData(
-                                             progress_id, message, completed,
-                                             total, is_debugger_specific)));
+  EventSP event_sp(new Event(
+      event_type, new ProgressEventData(progress_id, message, completed, total,
+                                        is_debugger_specific)));
   debugger.GetBroadcaster().BroadcastEvent(event_sp);
 }
 
@@ -1305,7 +1313,7 @@ void Debugger::ReportProgress(uint64_t progress_id, const std::string &message,
                               uint64_t completed, uint64_t total,
                               llvm::Optional<lldb::user_id_t> debugger_id) {
   // Check if this progress is for a specific debugger.
-  if (debugger_id.hasValue()) {
+  if (debugger_id) {
     // It is debugger specific, grab it and deliver the event if the debugger
     // still exists.
     DebuggerSP debugger_sp = FindDebuggerWithID(*debugger_id);
@@ -1325,27 +1333,116 @@ void Debugger::ReportProgress(uint64_t progress_id, const std::string &message,
   }
 }
 
+static void PrivateReportDiagnostic(Debugger &debugger,
+                                    DiagnosticEventData::Type type,
+                                    std::string message,
+                                    bool debugger_specific) {
+  uint32_t event_type = 0;
+  switch (type) {
+  case DiagnosticEventData::Type::Warning:
+    event_type = Debugger::eBroadcastBitWarning;
+    break;
+  case DiagnosticEventData::Type::Error:
+    event_type = Debugger::eBroadcastBitError;
+    break;
+  }
+
+  Broadcaster &broadcaster = debugger.GetBroadcaster();
+  if (!broadcaster.EventTypeHasListeners(event_type)) {
+    // Diagnostics are too important to drop. If nobody is listening, print the
+    // diagnostic directly to the debugger's error stream.
+    DiagnosticEventData event_data(type, std::move(message), debugger_specific);
+    StreamSP stream = debugger.GetAsyncErrorStream();
+    event_data.Dump(stream.get());
+    return;
+  }
+  EventSP event_sp = std::make_shared<Event>(
+      event_type,
+      new DiagnosticEventData(type, std::move(message), debugger_specific));
+  broadcaster.BroadcastEvent(event_sp);
+}
+
+void Debugger::ReportDiagnosticImpl(DiagnosticEventData::Type type,
+                                    std::string message,
+                                    llvm::Optional<lldb::user_id_t> debugger_id,
+                                    std::once_flag *once) {
+  auto ReportDiagnosticLambda = [&]() {
+    // Check if this progress is for a specific debugger.
+    if (debugger_id) {
+      // It is debugger specific, grab it and deliver the event if the debugger
+      // still exists.
+      DebuggerSP debugger_sp = FindDebuggerWithID(*debugger_id);
+      if (debugger_sp)
+        PrivateReportDiagnostic(*debugger_sp, type, std::move(message), true);
+      return;
+    }
+    // The progress event is not debugger specific, iterate over all debuggers
+    // and deliver a progress event to each one.
+    if (g_debugger_list_ptr && g_debugger_list_mutex_ptr) {
+      std::lock_guard<std::recursive_mutex> guard(*g_debugger_list_mutex_ptr);
+      for (const auto &debugger : *g_debugger_list_ptr)
+        PrivateReportDiagnostic(*debugger, type, message, false);
+    }
+  };
+
+  if (once)
+    std::call_once(*once, ReportDiagnosticLambda);
+  else
+    ReportDiagnosticLambda();
+}
+
+void Debugger::ReportWarning(std::string message,
+                             llvm::Optional<lldb::user_id_t> debugger_id,
+                             std::once_flag *once) {
+  ReportDiagnosticImpl(DiagnosticEventData::Type::Warning, std::move(message),
+                       debugger_id, once);
+}
+
+void Debugger::ReportError(std::string message,
+                           llvm::Optional<lldb::user_id_t> debugger_id,
+                           std::once_flag *once) {
+
+  ReportDiagnosticImpl(DiagnosticEventData::Type::Error, std::move(message),
+                       debugger_id, once);
+}
+
+static std::shared_ptr<LogHandler>
+CreateLogHandler(LogHandlerKind log_handler_kind, int fd, bool should_close,
+                 size_t buffer_size) {
+  switch (log_handler_kind) {
+  case eLogHandlerStream:
+    return std::make_shared<StreamLogHandler>(fd, should_close, buffer_size);
+  case eLogHandlerCircular:
+    return std::make_shared<RotatingLogHandler>(buffer_size);
+  case eLogHandlerSystem:
+    return std::make_shared<SystemLogHandler>();
+  case eLogHandlerCallback:
+    return {};
+  }
+  return {};
+}
+
 bool Debugger::EnableLog(llvm::StringRef channel,
                          llvm::ArrayRef<const char *> categories,
                          llvm::StringRef log_file, uint32_t log_options,
+                         size_t buffer_size, LogHandlerKind log_handler_kind,
                          llvm::raw_ostream &error_stream) {
-  const bool should_close = true;
-  const bool unbuffered = true;
 
-  std::shared_ptr<llvm::raw_ostream> log_stream_sp;
-  if (m_log_callback_stream_sp) {
-    log_stream_sp = m_log_callback_stream_sp;
+  std::shared_ptr<LogHandler> log_handler_sp;
+  if (m_callback_handler_sp) {
+    log_handler_sp = m_callback_handler_sp;
     // For now when using the callback mode you always get thread & timestamp.
     log_options |=
         LLDB_LOG_OPTION_PREPEND_TIMESTAMP | LLDB_LOG_OPTION_PREPEND_THREAD_NAME;
   } else if (log_file.empty()) {
-    log_stream_sp = std::make_shared<llvm::raw_fd_ostream>(
-        GetOutputFile().GetDescriptor(), !should_close, unbuffered);
+    log_handler_sp =
+        CreateLogHandler(log_handler_kind, GetOutputFile().GetDescriptor(),
+                         /*should_close=*/false, buffer_size);
   } else {
-    auto pos = m_log_streams.find(log_file);
-    if (pos != m_log_streams.end())
-      log_stream_sp = pos->second.lock();
-    if (!log_stream_sp) {
+    auto pos = m_stream_handlers.find(log_file);
+    if (pos != m_stream_handlers.end())
+      log_handler_sp = pos->second.lock();
+    if (!log_handler_sp) {
       File::OpenOptions flags =
           File::eOpenOptionWriteOnly | File::eOpenOptionCanCreate;
       if (log_options & LLDB_LOG_OPTION_APPEND)
@@ -1360,18 +1457,18 @@ bool Debugger::EnableLog(llvm::StringRef channel,
         return false;
       }
 
-      log_stream_sp = std::make_shared<llvm::raw_fd_ostream>(
-          (*file)->GetDescriptor(), should_close, unbuffered);
-      m_log_streams[log_file] = log_stream_sp;
+      log_handler_sp =
+          CreateLogHandler(log_handler_kind, (*file)->GetDescriptor(),
+                           /*should_close=*/true, buffer_size);
+      m_stream_handlers[log_file] = log_handler_sp;
     }
   }
-  assert(log_stream_sp);
+  assert(log_handler_sp);
 
   if (log_options == 0)
-    log_options =
-        LLDB_LOG_OPTION_PREPEND_THREAD_NAME | LLDB_LOG_OPTION_THREADSAFE;
+    log_options = LLDB_LOG_OPTION_PREPEND_THREAD_NAME;
 
-  return Log::EnableLogChannel(log_stream_sp, log_options, channel, categories,
+  return Log::EnableLogChannel(log_handler_sp, log_options, channel, categories,
                                error_stream);
 }
 
@@ -1575,7 +1672,7 @@ void Debugger::CancelForwardEvents(const ListenerSP &listener_sp) {
   m_forward_listener_sp.reset();
 }
 
-void Debugger::DefaultEventHandler() {
+lldb::thread_result_t Debugger::DefaultEventHandler() {
   ListenerSP listener_sp(GetListener());
   ConstString broadcaster_class_target(Target::GetStaticBroadcasterClass());
   ConstString broadcaster_class_process(Process::GetStaticBroadcasterClass());
@@ -1603,6 +1700,10 @@ void Debugger::DefaultEventHandler() {
       CommandInterpreter::eBroadcastBitQuitCommandReceived |
           CommandInterpreter::eBroadcastBitAsynchronousOutputData |
           CommandInterpreter::eBroadcastBitAsynchronousErrorData);
+
+  listener_sp->StartListeningForEvents(
+      &m_broadcaster,
+      eBroadcastBitProgress | eBroadcastBitWarning | eBroadcastBitError);
 
   // Let the thread that spawned us know that we have started up and that we
   // are now listening to all required events so no events get missed
@@ -1653,6 +1754,13 @@ void Debugger::DefaultEventHandler() {
                 }
               }
             }
+          } else if (broadcaster == &m_broadcaster) {
+            if (event_type & Debugger::eBroadcastBitProgress)
+              HandleProgressEvent(event_sp);
+            else if (event_type & Debugger::eBroadcastBitWarning)
+              HandleDiagnosticEvent(event_sp);
+            else if (event_type & Debugger::eBroadcastBitError)
+              HandleDiagnosticEvent(event_sp);
           }
         }
 
@@ -1661,10 +1769,6 @@ void Debugger::DefaultEventHandler() {
       }
     }
   }
-}
-
-lldb::thread_result_t Debugger::EventHandlerThread(lldb::thread_arg_t arg) {
-  ((Debugger *)arg)->DefaultEventHandler();
   return {};
 }
 
@@ -1686,14 +1790,14 @@ bool Debugger::StartEventHandlerThread() {
 
     // Use larger 8MB stack for this thread
     llvm::Expected<HostThread> event_handler_thread =
-        ThreadLauncher::LaunchThread(thread_name, EventHandlerThread, this,
-                                     g_debugger_event_thread_stack_bytes);
+        ThreadLauncher::LaunchThread(
+            thread_name, [this] { return DefaultEventHandler(); },
+            g_debugger_event_thread_stack_bytes);
 
     if (event_handler_thread) {
       m_event_handler_thread = *event_handler_thread;
     } else {
-      LLDB_LOG(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_HOST),
-               "failed to launch host thread: {}",
+      LLDB_LOG(GetLog(LLDBLog::Host), "failed to launch host thread: {}",
                llvm::toString(event_handler_thread.takeError()));
     }
 
@@ -1716,11 +1820,104 @@ void Debugger::StopEventHandlerThread() {
   }
 }
 
-lldb::thread_result_t Debugger::IOHandlerThread(lldb::thread_arg_t arg) {
-  Debugger *debugger = (Debugger *)arg;
-  debugger->RunIOHandlers();
-  debugger->StopEventHandlerThread();
+lldb::thread_result_t Debugger::IOHandlerThread() {
+  RunIOHandlers();
+  StopEventHandlerThread();
   return {};
+}
+
+void Debugger::HandleProgressEvent(const lldb::EventSP &event_sp) {
+  auto *data = ProgressEventData::GetEventDataFromEvent(event_sp.get());
+  if (!data)
+    return;
+
+  // Do some bookkeeping for the current event, regardless of whether we're
+  // going to show the progress.
+  const uint64_t id = data->GetID();
+  if (m_current_event_id) {
+    Log *log = GetLog(LLDBLog::Events);
+    if (log && log->GetVerbose()) {
+      StreamString log_stream;
+      log_stream.AsRawOstream()
+          << static_cast<void *>(this) << " Debugger(" << GetID()
+          << ")::HandleProgressEvent( m_current_event_id = "
+          << *m_current_event_id << ", data = { ";
+      data->Dump(&log_stream);
+      log_stream << " } )";
+      log->PutString(log_stream.GetString());
+    }
+    if (id != *m_current_event_id)
+      return;
+    if (data->GetCompleted() == data->GetTotal())
+      m_current_event_id.reset();
+  } else {
+    m_current_event_id = id;
+  }
+
+  // Decide whether we actually are going to show the progress. This decision
+  // can change between iterations so check it inside the loop.
+  if (!GetShowProgress())
+    return;
+
+  // Determine whether the current output file is an interactive terminal with
+  // color support. We assume that if we support ANSI escape codes we support
+  // vt100 escape codes.
+  File &file = GetOutputFile();
+  if (!file.GetIsInteractive() || !file.GetIsTerminalWithColors())
+    return;
+
+  StreamSP output = GetAsyncOutputStream();
+
+  // Print over previous line, if any.
+  output->Printf("\r");
+
+  if (data->GetCompleted() == data->GetTotal()) {
+    // Clear the current line.
+    output->Printf("\x1B[2K");
+    output->Flush();
+    return;
+  }
+
+  // Trim the progress message if it exceeds the window's width and print it.
+  std::string message = data->GetMessage();
+  if (data->IsFinite())
+    message = llvm::formatv("[{0}/{1}] {2}", data->GetCompleted(),
+                            data->GetTotal(), message)
+                  .str();
+
+  // Trim the progress message if it exceeds the window's width and print it.
+  const uint32_t term_width = GetTerminalWidth();
+  const uint32_t ellipsis = 3;
+  if (message.size() + ellipsis >= term_width)
+    message = message.substr(0, term_width - ellipsis);
+
+  const bool use_color = GetUseColor();
+  llvm::StringRef ansi_prefix = GetShowProgressAnsiPrefix();
+  if (!ansi_prefix.empty())
+    output->Printf(
+        "%s", ansi::FormatAnsiTerminalCodes(ansi_prefix, use_color).c_str());
+
+  output->Printf("%s...", message.c_str());
+
+  llvm::StringRef ansi_suffix = GetShowProgressAnsiSuffix();
+  if (!ansi_suffix.empty())
+    output->Printf(
+        "%s", ansi::FormatAnsiTerminalCodes(ansi_suffix, use_color).c_str());
+
+  // Clear until the end of the line.
+  output->Printf("\x1B[K\r");
+
+  // Flush the output.
+  output->Flush();
+}
+
+void Debugger::HandleDiagnosticEvent(const lldb::EventSP &event_sp) {
+  auto *data = DiagnosticEventData::GetEventDataFromEvent(event_sp.get());
+  if (!data)
+    return;
+
+  StreamSP stream = GetAsyncErrorStream();
+  data->Dump(stream.get());
 }
 
 bool Debugger::HasIOHandlerThread() { return m_io_handler_thread.IsJoinable(); }
@@ -1728,13 +1925,12 @@ bool Debugger::HasIOHandlerThread() { return m_io_handler_thread.IsJoinable(); }
 bool Debugger::StartIOHandlerThread() {
   if (!m_io_handler_thread.IsJoinable()) {
     llvm::Expected<HostThread> io_handler_thread = ThreadLauncher::LaunchThread(
-        "lldb.debugger.io-handler", IOHandlerThread, this,
+        "lldb.debugger.io-handler", [this] { return IOHandlerThread(); },
         8 * 1024 * 1024); // Use larger 8MB stack for this thread
     if (io_handler_thread) {
       m_io_handler_thread = *io_handler_thread;
     } else {
-      LLDB_LOG(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_HOST),
-               "failed to launch host thread: {}",
+      LLDB_LOG(GetLog(LLDBLog::Host), "failed to launch host thread: {}",
                llvm::toString(io_handler_thread.takeError()));
     }
   }
@@ -1806,4 +2002,14 @@ Status Debugger::RunREPL(LanguageType language, const char *repl_options) {
   repl_sp->RunLoop();
 
   return err;
+}
+
+llvm::ThreadPool &Debugger::GetThreadPool() {
+  // NOTE: intentional leak to avoid issues with C++ destructor chain
+  static llvm::ThreadPool *g_thread_pool = nullptr;
+  static llvm::once_flag g_once_flag;
+  llvm::call_once(g_once_flag, []() {
+    g_thread_pool = new llvm::ThreadPool(llvm::optimal_concurrency());
+  });
+  return *g_thread_pool;
 }

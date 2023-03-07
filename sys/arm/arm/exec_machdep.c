@@ -100,17 +100,18 @@ get_vfpcontext(struct thread *td, mcontext_vfp_t *vfp)
 {
 	struct pcb *pcb;
 
+	MPASS(td == curthread || TD_IS_SUSPENDED(td) ||
+	    P_SHOULDSTOP(td->td_proc));
+
 	pcb = td->td_pcb;
-	if (td == curthread) {
+	if ((pcb->pcb_fpflags & PCB_FP_STARTED) != 0 && td == curthread) {
 		critical_enter();
 		vfp_store(&pcb->pcb_vfpstate, false);
 		critical_exit();
-	} else
-		MPASS(TD_IS_SUSPENDED(td));
-	memset(vfp, 0, sizeof(*vfp));
-	memcpy(vfp->mcv_reg, pcb->pcb_vfpstate.reg,
-	    sizeof(vfp->mcv_reg));
-	vfp->mcv_fpscr = pcb->pcb_vfpstate.fpscr;
+	}
+	KASSERT(pcb->pcb_vfpsaved == &pcb->pcb_vfpstate,
+		("Called get_vfpcontext while the kernel is using the VFP"));
+	memcpy(vfp, &pcb->pcb_vfpstate, sizeof(*vfp));
 }
 
 /*
@@ -126,11 +127,10 @@ set_vfpcontext(struct thread *td, mcontext_vfp_t *vfp)
 		critical_enter();
 		vfp_discard(td);
 		critical_exit();
-	} else
-		MPASS(TD_IS_SUSPENDED(td));
-	memcpy(pcb->pcb_vfpstate.reg, vfp->mcv_reg,
-	    sizeof(pcb->pcb_vfpstate.reg));
-	pcb->pcb_vfpstate.fpscr = vfp->mcv_fpscr;
+	}
+	KASSERT(pcb->pcb_vfpsaved == &pcb->pcb_vfpstate,
+		("Called set_vfpcontext while the kernel is using the VFP"));
+	memcpy(&pcb->pcb_vfpstate, vfp, sizeof(*vfp));
 }
 #endif
 
@@ -166,6 +166,8 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
 {
 	struct trapframe *tf = td->td_frame;
 	__greg_t *gr = mcp->__gregs;
+	mcontext_vfp_t	mcontext_vfp;
+	int rv;
 
 	if (clear_ret & GET_MC_CLEAR_RET) {
 		gr[_REG_R0] = 0;
@@ -190,9 +192,19 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
 	gr[_REG_LR]   = tf->tf_usr_lr;
 	gr[_REG_PC]   = tf->tf_pc;
 
-	mcp->mc_vfp_size = 0;
-	mcp->mc_vfp_ptr = NULL;
-	memset(&mcp->mc_spare, 0, sizeof(mcp->mc_spare));
+#ifdef VFP
+	if (mcp->mc_vfp_size != sizeof(mcontext_vfp_t))
+		return (EINVAL);
+	get_vfpcontext(td, &mcontext_vfp);
+#else
+	bzero(&mcontext_vfp, sizeof(mcontext_vfp));
+#endif
+
+	if (mcp->mc_vfp_ptr != NULL) {
+		rv = copyout(&mcontext_vfp, mcp->mc_vfp_ptr,  sizeof(mcontext_vfp));
+		if (rv != 0)
+			return (rv);
+	}
 
 	return (0);
 }
@@ -306,14 +318,6 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Populate the siginfo frame. */
 	bzero(&frame, sizeof(frame));
 	get_mcontext(td, &frame.sf_uc.uc_mcontext, 0);
-#ifdef VFP
-	get_vfpcontext(td, &frame.sf_vfp);
-	frame.sf_uc.uc_mcontext.mc_vfp_size = sizeof(fp->sf_vfp);
-	frame.sf_uc.uc_mcontext.mc_vfp_ptr = &fp->sf_vfp;
-#else
-	frame.sf_uc.uc_mcontext.mc_vfp_size = 0;
-	frame.sf_uc.uc_mcontext.mc_vfp_ptr = NULL;
-#endif
 	frame.sf_si = ksi->ksi_info;
 	frame.sf_uc.uc_sigmask = *mask;
 	frame.sf_uc.uc_stack = td->td_sigstk;

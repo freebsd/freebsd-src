@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/broadcom/bcm2835/bcm2835_clkman.h>
 
 static struct ofw_compat_data compat_data[] = {
+	{"brcm,bcm2711-cprman",		1},
 	{"brcm,bcm2835-cprman",		1},
 	{"broadcom,bcm2835-cprman",	1},
 	{NULL,				0}

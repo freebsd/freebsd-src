@@ -268,7 +268,7 @@ static void
 wdc_get_dui_log_size(int fd, uint32_t opcode, uint8_t data_area,
 	uint64_t *log_size, int len_off)
 {
-	uint8_t *hdr;
+	uint8_t *hdr, *tofree;
 	uint8_t max_sections;
 	int i, j;
 	uint16_t hdr_ver;
@@ -277,7 +277,7 @@ wdc_get_dui_log_size(int fd, uint32_t opcode, uint8_t data_area,
 
 	dui_size = 0;
 	len = 1024;
-	hdr = (uint8_t*)malloc(len);
+	tofree = hdr = (uint8_t*)malloc(len);
 	if (hdr == NULL)
 		errx(EX_OSERR, "Can't get buffer to read header");
 	wdc_get_data_dui(fd, opcode, len, 0, hdr, len);
@@ -315,7 +315,7 @@ wdc_get_dui_log_size(int fd, uint32_t opcode, uint8_t data_area,
 		errx(EX_PROTOCOL, "ERROR : No valid header ");
 
 	*log_size = dui_size;
-	free(hdr);
+	free(tofree);
 }
 
 static void
@@ -783,7 +783,6 @@ static void
 print_hgst_info_log(const struct nvme_controller_data *cdata __unused, void *buf, uint32_t size __unused)
 {
 	uint8_t	*walker, *end, *subpage;
-	int pages;
 	uint16_t len;
 	uint8_t subtype, res;
 
@@ -791,8 +790,7 @@ print_hgst_info_log(const struct nvme_controller_data *cdata __unused, void *buf
 	printf("===================\n");
 
 	walker = buf;
-	pages = *walker++;
-	walker++;
+	walker += 2;			/* Page count */
 	len = le16dec(walker);
 	walker += 2;
 	end = walker + len;		/* Length is exclusive of this header */

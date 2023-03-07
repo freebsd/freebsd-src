@@ -39,6 +39,7 @@
 /*
  * mem.c
  */
+void *sort_calloc(size_t, size_t);
 void *sort_malloc(size_t);
 void sort_free(const void *ptr);
 void *sort_realloc(void *, size_t);

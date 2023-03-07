@@ -40,12 +40,10 @@ std::string NormalizePath(llvm::StringRef path) {
 PathMappingList::PathMappingList() : m_pairs() {}
 
 PathMappingList::PathMappingList(ChangedCallback callback, void *callback_baton)
-    : m_pairs(), m_callback(callback), m_callback_baton(callback_baton),
-      m_mod_id(0) {}
+    : m_pairs(), m_callback(callback), m_callback_baton(callback_baton) {}
 
 PathMappingList::PathMappingList(const PathMappingList &rhs)
-    : m_pairs(rhs.m_pairs), m_callback(nullptr), m_callback_baton(nullptr),
-      m_mod_id(0) {}
+    : m_pairs(rhs.m_pairs) {}
 
 const PathMappingList &PathMappingList::operator=(const PathMappingList &rhs) {
   if (this != &rhs) {
@@ -190,7 +188,7 @@ PathMappingList::RemapPath(llvm::StringRef mapping_path,
         continue;
     }
     FileSpec remapped(it.second.GetStringRef());
-    auto orig_style = FileSpec::GuessPathStyle(prefix).getValueOr(
+    auto orig_style = FileSpec::GuessPathStyle(prefix).value_or(
         llvm::sys::path::Style::native);
     AppendPathComponents(remapped, path, orig_style);
     if (!only_if_exists || FileSystem::Instance().Exists(remapped))
@@ -206,7 +204,7 @@ bool PathMappingList::ReverseRemapPath(const FileSpec &file, FileSpec &fixed) co
     if (!path_ref.consume_front(it.second.GetStringRef()))
       continue;
     auto orig_file = it.first.GetStringRef();
-    auto orig_style = FileSpec::GuessPathStyle(orig_file).getValueOr(
+    auto orig_style = FileSpec::GuessPathStyle(orig_file).value_or(
         llvm::sys::path::Style::native);
     fixed.SetFile(orig_file, orig_style);
     AppendPathComponents(fixed, path_ref, orig_style);

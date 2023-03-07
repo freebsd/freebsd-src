@@ -38,7 +38,6 @@ MCAsmBackend *createM68kAsmBackend(const Target &T, const MCSubtargetInfo &STI,
                                    const MCTargetOptions &Options);
 
 MCCodeEmitter *createM68kMCCodeEmitter(const MCInstrInfo &MCII,
-                                       const MCRegisterInfo &MRI,
                                        MCContext &Ctx);
 
 /// Construct an M68k ELF object writer.
@@ -53,6 +52,7 @@ std::unique_ptr<MCObjectTargetWriter> createM68kELFObjectWriter(uint8_t OSABI);
 
 // Defines symbolic names for the M68k instructions.
 #define GET_INSTRINFO_ENUM
+#define GET_INSTRINFO_MC_HELPER_DECLS
 #include "M68kGenInstrInfo.inc"
 
 #define GET_SUBTARGETINFO_ENUM

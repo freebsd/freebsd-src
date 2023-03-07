@@ -66,13 +66,6 @@ struct mdproc {
 
 #include <machine/md_var.h>
 
-/* Get the current kernel thread stack usage. */
-#define GET_STACK_USAGE(total, used) do {				\
-	struct thread	*td = curthread;				\
-	(total) = (vm_offset_t)get_pcb_td(td) - td->td_kstack;		\
-	(used) = (vm_offset_t)get_pcb_td(td) - (vm_offset_t)&td;	\
-} while (0)
-
 void 	set_user_ldt(struct mdproc *);
 struct 	proc_ldt *user_ldt_alloc(struct mdproc *, int);
 void 	user_ldt_free(struct thread *);

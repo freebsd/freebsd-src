@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-hostbased.c,v 1.49 2022/01/06 22:01:14 djm Exp $ */
+/* $OpenBSD: auth2-hostbased.c,v 1.50 2022/09/17 10:34:29 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -117,6 +117,11 @@ userauth_hostbased(struct ssh *ssh, const char *method)
 		logit_fr(r, "certificate signature algorithm %s",
 		    (key->cert == NULL || key->cert->signature_type == NULL) ?
 		    "(null)" : key->cert->signature_type);
+		goto done;
+	}
+	if ((r = sshkey_check_rsa_length(key,
+	    options.required_rsa_size)) != 0) {
+		logit_r(r, "refusing %s key", sshkey_type(key));
 		goto done;
 	}
 

@@ -346,7 +346,7 @@ SCI_STATUS scic_sds_mpc_agent_validate_phy_configuration(
 
       if (phy_mask != 0)
       {
-         // Make sure that one or more of the phys were not already assinged to
+         // Make sure that one or more of the phys were not already assigned to
          // a different port.
          if ((phy_mask & ~assigned_phy_mask) == 0)
          {

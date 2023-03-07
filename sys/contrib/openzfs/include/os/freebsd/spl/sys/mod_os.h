@@ -31,10 +31,6 @@
 
 #include <sys/sysctl.h>
 
-#define	EXPORT_SYMBOL(x)
-#define	module_param(a, b, c)
-#define	MODULE_PARM_DESC(a, b)
-
 #define	ZMOD_RW CTLFLAG_RWTUN
 #define	ZMOD_RD CTLFLAG_RDTUN
 
@@ -47,7 +43,7 @@
 
 #define	ZFS_MODULE_PARAM_CALL_IMPL(parent, name, perm, args, desc) \
     SYSCTL_DECL(parent); \
-    SYSCTL_PROC(parent, OID_AUTO, name, perm | args, desc)
+    SYSCTL_PROC(parent, OID_AUTO, name, CTLFLAG_MPSAFE | perm | args, desc)
 
 #define	ZFS_MODULE_PARAM_CALL( \
     scope_prefix, name_prefix, name, func, _, perm, desc) \
@@ -56,41 +52,50 @@
 
 #define	ZFS_MODULE_VIRTUAL_PARAM_CALL ZFS_MODULE_PARAM_CALL
 
-#define	param_set_arc_long_args(var) \
-    CTLTYPE_ULONG, &var, 0, param_set_arc_long, "LU"
-
-#define	param_set_arc_min_args(var) \
-    CTLTYPE_ULONG, &var, 0, param_set_arc_min, "LU"
-
-#define	param_set_arc_max_args(var) \
-    CTLTYPE_ULONG, &var, 0, param_set_arc_max, "LU"
+#define	param_set_arc_u64_args(var) \
+    CTLTYPE_U64, &var, 0, param_set_arc_u64, "QU"
 
 #define	param_set_arc_int_args(var) \
     CTLTYPE_INT, &var, 0, param_set_arc_int, "I"
+
+#define	param_set_arc_min_args(var) \
+    CTLTYPE_U64, NULL, 0, param_set_arc_min, "QU"
+
+#define	param_set_arc_max_args(var) \
+    CTLTYPE_U64, NULL, 0, param_set_arc_max, "QU"
+
+#define	param_set_arc_free_target_args(var) \
+    CTLTYPE_UINT, NULL, 0, param_set_arc_free_target, "IU"
+
+#define	param_set_arc_no_grow_shift_args(var) \
+    CTLTYPE_INT, NULL, 0, param_set_arc_no_grow_shift, "I"
 
 #define	param_set_deadman_failmode_args(var) \
     CTLTYPE_STRING, NULL, 0, param_set_deadman_failmode, "A"
 
 #define	param_set_deadman_synctime_args(var) \
-    CTLTYPE_ULONG, NULL, 0, param_set_deadman_synctime, "LU"
+    CTLTYPE_U64, NULL, 0, param_set_deadman_synctime, "QU"
 
 #define	param_set_deadman_ziotime_args(var) \
-    CTLTYPE_ULONG, NULL, 0, param_set_deadman_ziotime, "LU"
+    CTLTYPE_U64, NULL, 0, param_set_deadman_ziotime, "QU"
 
 #define	param_set_multihost_interval_args(var) \
-    CTLTYPE_ULONG, &var, 0, param_set_multihost_interval, "LU"
+    CTLTYPE_U64, NULL, 0, param_set_multihost_interval, "QU"
 
 #define	param_set_slop_shift_args(var) \
-    CTLTYPE_INT, &var, 0, param_set_slop_shift, "I"
+    CTLTYPE_INT, NULL, 0, param_set_slop_shift, "I"
 
 #define	param_set_min_auto_ashift_args(var) \
-    CTLTYPE_U64, &var, 0, param_set_min_auto_ashift, "QU"
+    CTLTYPE_UINT, NULL, 0, param_set_min_auto_ashift, "IU"
 
 #define	param_set_max_auto_ashift_args(var) \
-    CTLTYPE_U64, &var, 0, param_set_max_auto_ashift, "QU"
+    CTLTYPE_UINT, NULL, 0, param_set_max_auto_ashift, "IU"
 
 #define	fletcher_4_param_set_args(var) \
     CTLTYPE_STRING, NULL, 0, fletcher_4_param, "A"
+
+#define	blake3_param_set_args(var) \
+    CTLTYPE_STRING, NULL, 0, blake3_param, "A"
 
 #include <sys/kernel.h>
 #define	module_init(fn) \

@@ -17,10 +17,10 @@
 
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/PostOrderIterator.h"
-#include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SparseSet.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/CodeGen/MachineBranchProbabilityInfo.h"
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineFunction.h"
@@ -30,7 +30,6 @@
 #include "llvm/CodeGen/MachineOptimizationRemarkEmitter.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/MachineTraceMetrics.h"
-#include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
@@ -577,7 +576,7 @@ static bool hasSameValue(const MachineRegisterInfo &MRI,
 
   // If the instruction could modify memory, or there may be some intervening
   // store between the two, we can't consider them to be equal.
-  if (TDef->mayLoadOrStore() && !TDef->isDereferenceableInvariantLoad(nullptr))
+  if (TDef->mayLoadOrStore() && !TDef->isDereferenceableInvariantLoad())
     return false;
 
   // We also can't guarantee that they are the same if, for example, the
@@ -664,8 +663,8 @@ void SSAIfConv::rewritePHIOperands() {
         PI.PHI->getOperand(i-1).setMBB(Head);
         PI.PHI->getOperand(i-2).setReg(DstReg);
       } else if (MBB == getFPred()) {
-        PI.PHI->RemoveOperand(i-1);
-        PI.PHI->RemoveOperand(i-2);
+        PI.PHI->removeOperand(i-1);
+        PI.PHI->removeOperand(i-2);
       }
     }
     LLVM_DEBUG(dbgs() << "          --> " << *PI.PHI);
@@ -809,7 +808,7 @@ void updateDomTree(MachineDominatorTree *DomTree, const SSAIfConv &IfConv,
   // TBB and FBB should not dominate any blocks.
   // Tail children should be transferred to Head.
   MachineDomTreeNode *HeadNode = DomTree->getNode(IfConv.Head);
-  for (auto B : Removed) {
+  for (auto *B : Removed) {
     MachineDomTreeNode *Node = DomTree->getNode(B);
     assert(Node != HeadNode && "Cannot erase the head node");
     while (Node->getNumChildren()) {
@@ -827,7 +826,7 @@ void updateLoops(MachineLoopInfo *Loops,
     return;
   // If-conversion doesn't change loop structure, and it doesn't mess with back
   // edges, so updating LoopInfo is simply removing the dead blocks.
-  for (auto B : Removed)
+  for (auto *B : Removed)
     Loops->removeBlock(B);
 }
 } // namespace
@@ -1066,7 +1065,7 @@ bool EarlyIfConverter::runOnMachineFunction(MachineFunction &MF) {
   // if-conversion in a single pass. The tryConvertIf() function may erase
   // blocks, but only blocks dominated by the head block. This makes it safe to
   // update the dominator tree while the post-order iterator is still active.
-  for (auto DomNode : post_order(DomTree))
+  for (auto *DomNode : post_order(DomTree))
     if (tryConvertIf(DomNode->getBlock()))
       Changed = true;
 
@@ -1199,7 +1198,7 @@ bool EarlyIfPredicator::runOnMachineFunction(MachineFunction &MF) {
   // if-conversion in a single pass. The tryConvertIf() function may erase
   // blocks, but only blocks dominated by the head block. This makes it safe to
   // update the dominator tree while the post-order iterator is still active.
-  for (auto DomNode : post_order(DomTree))
+  for (auto *DomNode : post_order(DomTree))
     if (tryConvertIf(DomNode->getBlock()))
       Changed = true;
 

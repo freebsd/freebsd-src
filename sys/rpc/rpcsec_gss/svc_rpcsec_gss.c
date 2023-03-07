@@ -102,8 +102,9 @@ struct svc_rpc_gss_callback {
 	SLIST_ENTRY(svc_rpc_gss_callback) cb_link;
 	rpc_gss_callback_t	cb_callback;
 };
-static SLIST_HEAD(svc_rpc_gss_callback_list, svc_rpc_gss_callback)
-	svc_rpc_gss_callbacks = SLIST_HEAD_INITIALIZER(svc_rpc_gss_callbacks);
+SLIST_HEAD(svc_rpc_gss_callback_list, svc_rpc_gss_callback);
+KGSS_VNET_DEFINE_STATIC(struct svc_rpc_gss_callback_list,
+    svc_rpc_gss_callbacks) = SLIST_HEAD_INITIALIZER(svc_rpc_gss_callbacks);
 
 struct svc_rpc_gss_svc_name {
 	SLIST_ENTRY(svc_rpc_gss_svc_name) sn_link;
@@ -114,8 +115,9 @@ struct svc_rpc_gss_svc_name {
 	u_int			sn_program;
 	u_int			sn_version;
 };
-static SLIST_HEAD(svc_rpc_gss_svc_name_list, svc_rpc_gss_svc_name)
-	svc_rpc_gss_svc_names = SLIST_HEAD_INITIALIZER(svc_rpc_gss_svc_names);
+SLIST_HEAD(svc_rpc_gss_svc_name_list, svc_rpc_gss_svc_name);
+KGSS_VNET_DEFINE_STATIC(struct svc_rpc_gss_svc_name_list,
+    svc_rpc_gss_svc_names) = SLIST_HEAD_INITIALIZER(svc_rpc_gss_svc_names);
 
 enum svc_rpc_gss_client_state {
 	CLIENT_NEW,				/* still authenticating */
@@ -197,23 +199,54 @@ SYSCTL_UINT(_kern_rpc_gss, OID_AUTO, client_count, CTLFLAG_RD,
     &svc_rpc_gss_client_count, 0,
     "Number of rpc-gss clients");
 
-struct svc_rpc_gss_client_list *svc_rpc_gss_client_hash;
-struct svc_rpc_gss_client_list svc_rpc_gss_clients;
-static uint32_t svc_rpc_gss_next_clientid = 1;
+KGSS_VNET_DEFINE(struct svc_rpc_gss_client_list *, svc_rpc_gss_client_hash);
+KGSS_VNET_DEFINE(struct svc_rpc_gss_client_list, svc_rpc_gss_clients);
+KGSS_VNET_DEFINE_STATIC(uint32_t, svc_rpc_gss_next_clientid) = 1;
 
 static void
-svc_rpc_gss_init(void *arg)
+svc_rpc_gss_init(void *unused __unused)
 {
-	int i;
 
-	svc_rpc_gss_client_hash = mem_alloc(sizeof(struct svc_rpc_gss_client_list) * svc_rpc_gss_client_hash_size);
-	for (i = 0; i < svc_rpc_gss_client_hash_size; i++)
-		TAILQ_INIT(&svc_rpc_gss_client_hash[i]);
-	TAILQ_INIT(&svc_rpc_gss_clients);
 	svc_auth_reg(RPCSEC_GSS, svc_rpc_gss, rpc_gss_svc_getcred);
 	sx_init(&svc_rpc_gss_lock, "gsslock");
 }
-SYSINIT(svc_rpc_gss_init, SI_SUB_KMEM, SI_ORDER_ANY, svc_rpc_gss_init, NULL);
+SYSINIT(svc_rpc_gss_init, SI_SUB_VFS, SI_ORDER_ANY,
+    svc_rpc_gss_init, NULL);
+
+static void
+svc_rpc_gss_cleanup(void *unused __unused)
+{
+
+	sx_destroy(&svc_rpc_gss_lock);
+}
+SYSUNINIT(svc_rpc_gss_cleanup, SI_SUB_VFS, SI_ORDER_ANY,
+    svc_rpc_gss_cleanup, NULL);
+
+static void
+svc_rpc_gss_vnetinit(void *unused __unused)
+{
+	int i;
+
+	KGSS_VNET(svc_rpc_gss_client_hash) = mem_alloc(
+	    sizeof(struct svc_rpc_gss_client_list) *
+	    svc_rpc_gss_client_hash_size);
+	for (i = 0; i < svc_rpc_gss_client_hash_size; i++)
+		TAILQ_INIT(&KGSS_VNET(svc_rpc_gss_client_hash)[i]);
+	TAILQ_INIT(&KGSS_VNET(svc_rpc_gss_clients));
+}
+VNET_SYSINIT(svc_rpc_gss_vnetinit, SI_SUB_VNET_DONE, SI_ORDER_ANY,
+    svc_rpc_gss_vnetinit, NULL);
+
+static void
+svc_rpc_gss_vnet_cleanup(void *unused __unused)
+{
+
+	mem_free(KGSS_VNET(svc_rpc_gss_client_hash),
+	    sizeof(struct svc_rpc_gss_client_list) *
+	    svc_rpc_gss_client_hash_size);
+}
+VNET_SYSUNINIT(svc_rpc_gss_vnet_cleanup, SI_SUB_VNET_DONE, SI_ORDER_ANY,
+    svc_rpc_gss_vnet_cleanup, NULL);
 
 bool_t
 rpc_gss_set_callback(rpc_gss_callback_t *cb)
@@ -227,7 +260,7 @@ rpc_gss_set_callback(rpc_gss_callback_t *cb)
 	}
 	scb->cb_callback = *cb;
 	sx_xlock(&svc_rpc_gss_lock);
-	SLIST_INSERT_HEAD(&svc_rpc_gss_callbacks, scb, cb_link);
+	SLIST_INSERT_HEAD(&KGSS_VNET(svc_rpc_gss_callbacks), scb, cb_link);
 	sx_xunlock(&svc_rpc_gss_lock);
 
 	return (TRUE);
@@ -239,11 +272,11 @@ rpc_gss_clear_callback(rpc_gss_callback_t *cb)
 	struct svc_rpc_gss_callback *scb;
 
 	sx_xlock(&svc_rpc_gss_lock);
-	SLIST_FOREACH(scb, &svc_rpc_gss_callbacks, cb_link) {
+	SLIST_FOREACH(scb, &KGSS_VNET(svc_rpc_gss_callbacks), cb_link) {
 		if (scb->cb_callback.program == cb->program
 		    && scb->cb_callback.version == cb->version
 		    && scb->cb_callback.callback == cb->callback) {
-			SLIST_REMOVE(&svc_rpc_gss_callbacks, scb,
+			SLIST_REMOVE(&KGSS_VNET(svc_rpc_gss_callbacks), scb,
 			    svc_rpc_gss_callback, cb_link);
 			sx_xunlock(&svc_rpc_gss_lock);
 			mem_free(scb, sizeof(*scb));
@@ -314,7 +347,7 @@ rpc_gss_set_svc_name(const char *principal, const char *mechanism,
 	}
 
 	sx_xlock(&svc_rpc_gss_lock);
-	SLIST_INSERT_HEAD(&svc_rpc_gss_svc_names, sname, sn_link);
+	SLIST_INSERT_HEAD(&KGSS_VNET(svc_rpc_gss_svc_names), sname, sn_link);
 	sx_xunlock(&svc_rpc_gss_lock);
 
 	return (TRUE);
@@ -327,10 +360,10 @@ rpc_gss_clear_svc_name(u_int program, u_int version)
 	struct svc_rpc_gss_svc_name *sname;
 
 	sx_xlock(&svc_rpc_gss_lock);
-	SLIST_FOREACH(sname, &svc_rpc_gss_svc_names, sn_link) {
+	SLIST_FOREACH(sname, &KGSS_VNET(svc_rpc_gss_svc_names), sn_link) {
 		if (sname->sn_program == program
 		    && sname->sn_version == version) {
-			SLIST_REMOVE(&svc_rpc_gss_svc_names, sname,
+			SLIST_REMOVE(&KGSS_VNET(svc_rpc_gss_svc_names), sname,
 			    svc_rpc_gss_svc_name, sn_link);
 			sx_xunlock(&svc_rpc_gss_lock);
 			gss_release_cred(&min_stat, &sname->sn_cred);
@@ -478,7 +511,7 @@ rpc_gss_svc_getcred(struct svc_req *req, struct ucred **crp, int *flavorp)
 	cr->cr_uid = cr->cr_ruid = cr->cr_svuid = uc->uid;
 	cr->cr_rgid = cr->cr_svgid = uc->gid;
 	crsetgroups(cr, uc->gidlen, uc->gidlist);
-	cr->cr_prison = &prison0;
+	cr->cr_prison = curthread->td_ucred->cr_prison;
 	prison_hold(cr->cr_prison);
 	*crp = crhold(cr);
 
@@ -543,7 +576,8 @@ svc_rpc_gss_find_client(struct svc_rpc_gss_clientid *id)
 	if (id->ci_hostid != hostid || id->ci_boottime != boottime.tv_sec)
 		return (NULL);
 
-	list = &svc_rpc_gss_client_hash[id->ci_id % svc_rpc_gss_client_hash_size];
+	list = &KGSS_VNET(svc_rpc_gss_client_hash)
+	    [id->ci_id % svc_rpc_gss_client_hash_size];
 	sx_xlock(&svc_rpc_gss_lock);
 	TAILQ_FOREACH(client, list, cl_link) {
 		if (client->cl_id.ci_id == id->ci_id) {
@@ -551,9 +585,10 @@ svc_rpc_gss_find_client(struct svc_rpc_gss_clientid *id)
 			 * Move this client to the front of the LRU
 			 * list.
 			 */
-			TAILQ_REMOVE(&svc_rpc_gss_clients, client, cl_alllink);
-			TAILQ_INSERT_HEAD(&svc_rpc_gss_clients, client,
+			TAILQ_REMOVE(&KGSS_VNET(svc_rpc_gss_clients), client,
 			    cl_alllink);
+			TAILQ_INSERT_HEAD(&KGSS_VNET(svc_rpc_gss_clients),
+			    client, cl_alllink);
 			refcount_acquire(&client->cl_refs);
 			break;
 		}
@@ -586,7 +621,7 @@ svc_rpc_gss_create_client(void)
 	client->cl_id.ci_hostid = hostid;
 	getboottime(&boottime);
 	client->cl_id.ci_boottime = boottime.tv_sec;
-	client->cl_id.ci_id = svc_rpc_gss_next_clientid++;
+	client->cl_id.ci_id = KGSS_VNET(svc_rpc_gss_next_clientid)++;
 
 	/*
 	 * Start the client off with a short expiration time. We will
@@ -596,10 +631,11 @@ svc_rpc_gss_create_client(void)
 	client->cl_locked = FALSE;
 	client->cl_expiration = time_uptime + 5*60;
 
-	list = &svc_rpc_gss_client_hash[client->cl_id.ci_id % svc_rpc_gss_client_hash_size];
+	list = &KGSS_VNET(svc_rpc_gss_client_hash)
+	    [client->cl_id.ci_id % svc_rpc_gss_client_hash_size];
 	sx_xlock(&svc_rpc_gss_lock);
 	TAILQ_INSERT_HEAD(list, client, cl_link);
-	TAILQ_INSERT_HEAD(&svc_rpc_gss_clients, client, cl_alllink);
+	TAILQ_INSERT_HEAD(&KGSS_VNET(svc_rpc_gss_clients), client, cl_alllink);
 	svc_rpc_gss_client_count++;
 	sx_xunlock(&svc_rpc_gss_lock);
 	return (client);
@@ -653,9 +689,10 @@ svc_rpc_gss_forget_client_locked(struct svc_rpc_gss_client *client)
 	struct svc_rpc_gss_client_list *list;
 
 	sx_assert(&svc_rpc_gss_lock, SX_XLOCKED);
-	list = &svc_rpc_gss_client_hash[client->cl_id.ci_id % svc_rpc_gss_client_hash_size];
+	list = &KGSS_VNET(svc_rpc_gss_client_hash)
+	    [client->cl_id.ci_id % svc_rpc_gss_client_hash_size];
 	TAILQ_REMOVE(list, client, cl_link);
-	TAILQ_REMOVE(&svc_rpc_gss_clients, client, cl_alllink);
+	TAILQ_REMOVE(&KGSS_VNET(svc_rpc_gss_clients), client, cl_alllink);
 	svc_rpc_gss_client_count--;
 }
 
@@ -668,7 +705,8 @@ svc_rpc_gss_forget_client(struct svc_rpc_gss_client *client)
 	struct svc_rpc_gss_client_list *list;
 	struct svc_rpc_gss_client *tclient;
 
-	list = &svc_rpc_gss_client_hash[client->cl_id.ci_id % svc_rpc_gss_client_hash_size];
+	list = &KGSS_VNET(svc_rpc_gss_client_hash)
+	    [client->cl_id.ci_id % svc_rpc_gss_client_hash_size];
 	sx_xlock(&svc_rpc_gss_lock);
 	TAILQ_FOREACH(tclient, list, cl_link) {
 		/*
@@ -699,17 +737,18 @@ svc_rpc_gss_timeout_clients(void)
 	 * svc_rpc_gss_clients in LRU order.
 	 */
 	sx_xlock(&svc_rpc_gss_lock);
-	client = TAILQ_LAST(&svc_rpc_gss_clients, svc_rpc_gss_client_list);
+	client = TAILQ_LAST(&KGSS_VNET(svc_rpc_gss_clients),
+	    svc_rpc_gss_client_list);
 	while (svc_rpc_gss_client_count > svc_rpc_gss_client_max && client != NULL) {
 		svc_rpc_gss_forget_client_locked(client);
 		sx_xunlock(&svc_rpc_gss_lock);
 		svc_rpc_gss_release_client(client);
 		sx_xlock(&svc_rpc_gss_lock);
-		client = TAILQ_LAST(&svc_rpc_gss_clients,
+		client = TAILQ_LAST(&KGSS_VNET(svc_rpc_gss_clients),
 		    svc_rpc_gss_client_list);
 	}
 again:
-	TAILQ_FOREACH(client, &svc_rpc_gss_clients, cl_alllink) {
+	TAILQ_FOREACH(client, &KGSS_VNET(svc_rpc_gss_clients), cl_alllink) {
 		if (client->cl_state == CLIENT_STALE
 		    || now > client->cl_expiration) {
 			svc_rpc_gss_forget_client_locked(client);
@@ -878,7 +917,8 @@ svc_rpc_gss_accept_sec_context(struct svc_rpc_gss_client *client,
 	 */
 	sx_xlock(&svc_rpc_gss_lock);
 	if (!client->cl_sname) {
-		SLIST_FOREACH(sname, &svc_rpc_gss_svc_names, sn_link) {
+		SLIST_FOREACH(sname, &KGSS_VNET(svc_rpc_gss_svc_names),
+		    sn_link) {
 			if (sname->sn_program == rqst->rq_prog
 			    && sname->sn_version == rqst->rq_vers) {
 			retry:
@@ -1132,7 +1172,7 @@ svc_rpc_gss_callback(struct svc_rpc_gss_client *client, struct svc_req *rqst)
 	 * See if we have a callback for this guy.
 	 */
 	result = TRUE;
-	SLIST_FOREACH(scb, &svc_rpc_gss_callbacks, cb_link) {
+	SLIST_FOREACH(scb, &KGSS_VNET(svc_rpc_gss_callbacks), cb_link) {
 		if (scb->cb_callback.program == rqst->rq_prog
 		    && scb->cb_callback.version == rqst->rq_vers) {
 			/*
@@ -1268,6 +1308,7 @@ svc_rpc_gss(struct svc_req *rqst, struct rpc_msg *msg)
 	int			 call_stat;
 	enum auth_stat		 result;
 	
+	KGSS_CURVNET_SET_QUIET(KGSS_TD_TO_VNET(curthread));
 	rpc_gss_log_debug("in svc_rpc_gss()");
 	
 	/* Garbage collect old clients. */
@@ -1277,8 +1318,10 @@ svc_rpc_gss(struct svc_req *rqst, struct rpc_msg *msg)
 	rqst->rq_verf = _null_auth;
 
 	/* Deserialize client credentials. */
-	if (rqst->rq_cred.oa_length <= 0)
+	if (rqst->rq_cred.oa_length <= 0) {
+		KGSS_CURVNET_RESTORE();
 		return (AUTH_BADCRED);
+	}
 	
 	memset(&gc, 0, sizeof(gc));
 	
@@ -1287,6 +1330,7 @@ svc_rpc_gss(struct svc_req *rqst, struct rpc_msg *msg)
 	
 	if (!xdr_rpc_gss_cred(&xdrs, &gc)) {
 		XDR_DESTROY(&xdrs);
+		KGSS_CURVNET_RESTORE();
 		return (AUTH_BADCRED);
 	}
 	XDR_DESTROY(&xdrs);
@@ -1522,6 +1566,7 @@ out:
 		svc_rpc_gss_release_client(client);
 
 	xdr_free((xdrproc_t) xdr_rpc_gss_cred, (char *) &gc);
+	KGSS_CURVNET_RESTORE();
 	return (result);
 }
 

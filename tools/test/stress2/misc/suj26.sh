@@ -45,7 +45,7 @@ newfs $opt md$mdstart > /dev/null 2>&1
 mount /dev/md$mdstart $mntpoint
 chmod 777 $mntpoint
 
-export runRUNTIME=30m
+export runRUNTIME=10m
 export RUNDIR=$mntpoint/stressX
 export creatINCARNATIONS=2
 

@@ -112,7 +112,7 @@ protected:
 
 class ProcessAttachInfo : public ProcessInstanceInfo {
 public:
-  ProcessAttachInfo() {}
+  ProcessAttachInfo() = default;
 
   ProcessAttachInfo(const ProcessLaunchInfo &launch_info)
       : m_resume_count(0), m_wait_for_launch(false), m_ignore_existing(true),
@@ -364,9 +364,6 @@ public:
     eBroadcastInternalStateControlPause = (1 << 1),
     eBroadcastInternalStateControlResume = (1 << 2)
   };
-
-  /// Process warning types.
-  enum Warnings { eWarningsOptimization = 1, eWarningsUnsupportedLanguage = 2 };
 
   typedef Range<lldb::addr_t, lldb::addr_t> LoadRange;
   // We use a read/write lock to allow on or more clients to access the process
@@ -696,6 +693,9 @@ protected:
   virtual JITLoaderList &GetJITLoaders();
 
 public:
+  /// Get the system architecture for this process.
+  virtual ArchSpec GetSystemArchitecture() { return {}; }
+
   /// Get the system runtime plug-in for this process.
   ///
   /// \return
@@ -1715,8 +1715,8 @@ public:
   ///     an error saying so.
   ///     If it does, either the memory tags or an error describing a
   ///     failure to read or unpack them.
-  llvm::Expected<std::vector<lldb::addr_t>> ReadMemoryTags(lldb::addr_t addr,
-                                                           size_t len);
+  virtual llvm::Expected<std::vector<lldb::addr_t>>
+  ReadMemoryTags(lldb::addr_t addr, size_t len);
 
   /// Write memory tags for a range of memory.
   /// (calls DoWriteMemoryTags to do the target specific work)
@@ -2634,35 +2634,6 @@ protected:
   // Called internally
   void CompleteAttach();
 
-  /// Print a user-visible warning one time per Process
-  ///
-  /// A facility for printing a warning to the user once per repeat_key.
-  ///
-  /// warning_type is from the Process::Warnings enums. repeat_key is a
-  /// pointer value that will be used to ensure that the warning message is
-  /// not printed multiple times.  For instance, with a warning about a
-  /// function being optimized, you can pass the CompileUnit pointer to have
-  /// the warning issued for only the first function in a CU, or the Function
-  /// pointer to have it issued once for every function, or a Module pointer
-  /// to have it issued once per Module.
-  ///
-  /// Classes outside Process should call a specific PrintWarning method so
-  /// that the warning strings are all centralized in Process, instead of
-  /// calling PrintWarning() directly.
-  ///
-  /// \param [in] warning_type
-  ///     One of the types defined in Process::Warnings.
-  ///
-  /// \param [in] repeat_key
-  ///     A pointer value used to ensure that the warning is only printed once.
-  ///     May be nullptr, indicating that the warning is printed unconditionally
-  ///     every time.
-  ///
-  /// \param [in] fmt
-  ///     printf style format string
-  void PrintWarning(uint64_t warning_type, const void *repeat_key,
-                    const char *fmt, ...) __attribute__((format(printf, 4, 5)));
-
   // NextEventAction provides a way to register an action on the next event
   // that is delivered to this process.  There is currently only one next event
   // action allowed in the process at one time.  If a new "NextEventAction" is
@@ -2827,8 +2798,6 @@ protected:
   // Type definitions
   typedef std::map<lldb::LanguageType, lldb::LanguageRuntimeSP>
       LanguageRuntimeCollection;
-  typedef std::unordered_set<const void *> WarningsPointerSet;
-  typedef std::map<uint64_t, WarningsPointerSet> WarningsCollection;
 
   struct PreResumeCallbackAndBaton {
     bool (*callback)(void *);
@@ -2958,11 +2927,9 @@ protected:
                                           /// ShouldBroadcastEvent.
   std::map<lldb::addr_t, lldb::addr_t> m_resolved_indirect_addresses;
   bool m_destroy_in_process;
-  bool m_can_interpret_function_calls;  // Some targets, e.g the OSX kernel,
-                                        // don't support the ability to modify
-                                        // the stack.
-  WarningsCollection m_warnings_issued; // A set of object pointers which have
-                                        // already had warnings printed
+  bool m_can_interpret_function_calls; // Some targets, e.g the OSX kernel,
+                                       // don't support the ability to modify
+                                       // the stack.
   std::mutex m_run_thread_plan_lock;
   StructuredDataPluginMap m_structured_data_plugin_map;
 
@@ -2989,17 +2956,6 @@ protected:
   void ResumePrivateStateThread();
 
 private:
-  struct PrivateStateThreadArgs {
-    PrivateStateThreadArgs(Process *p, bool s)
-        : process(p), is_secondary_thread(s){};
-    Process *process;
-    bool is_secondary_thread;
-  };
-
-  // arg is a pointer to a new'ed PrivateStateThreadArgs structure.
-  // PrivateStateThread will free it for you.
-  static lldb::thread_result_t PrivateStateThread(void *arg);
-
   // The starts up the private state thread that will watch for events from the
   // debugee. Pass true for is_secondary_thread in the case where you have to
   // temporarily spin up a secondary state thread to handle events from a hand-
@@ -3072,6 +3028,9 @@ private:
   bool ShouldBroadcastEvent(Event *event_ptr);
 
   void ControlPrivateStateThread(uint32_t signal);
+
+  Status LaunchPrivate(ProcessLaunchInfo &launch_info, lldb::StateType &state,
+                       lldb::EventSP &event_sp);
 
   Process(const Process &) = delete;
   const Process &operator=(const Process &) = delete;

@@ -175,7 +175,7 @@ DEFINE_PMAP_IFUNC(void, cpu_bootstrap, (int));
 DEFINE_PMAP_IFUNC(void *, mapdev, (vm_paddr_t, vm_size_t));
 DEFINE_PMAP_IFUNC(void *, mapdev_attr, (vm_paddr_t, vm_size_t, vm_memattr_t));
 DEFINE_PMAP_IFUNC(void, page_set_memattr, (vm_page_t, vm_memattr_t));
-DEFINE_PMAP_IFUNC(void, unmapdev, (vm_offset_t, vm_size_t));
+DEFINE_PMAP_IFUNC(void, unmapdev, (void *, vm_size_t));
 DEFINE_PMAP_IFUNC(int, map_user_ptr,
     (pmap_t, volatile const void *, void **, size_t, size_t *));
 DEFINE_PMAP_IFUNC(int, decode_kernel_ptr, (vm_offset_t, int *, vm_offset_t *));
@@ -224,7 +224,7 @@ pmap_mmu_install(char *name, int prio)
 
 /* MMU "pre-bootstrap" init, used to install extra resolvers, etc. */
 void
-pmap_mmu_init()
+pmap_mmu_init(void)
 {
 	if (mmu_obj->funcs->install != NULL)
 		(mmu_obj->funcs->install)();

@@ -230,7 +230,7 @@ static struct pingpong_dest *pp_server_exch_dest(struct pingpong_context *ctx,
 	struct addrinfo *res, *t;
 	struct addrinfo hints = {
 		.ai_flags    = AI_PASSIVE,
-		.ai_family   = AF_INET,
+		.ai_family   = AF_UNSPEC,
 		.ai_socktype = SOCK_STREAM
 	};
 	char *service;

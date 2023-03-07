@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -34,23 +34,52 @@ testdir=$(dirname "$script")
 
 outputdir=${BC_TEST_OUTPUT_DIR:-$testdir}
 
-# Command-line processing.
-if [ "$#" -lt 2 ]; then
-	printf 'usage: %s dir test [exec args...]\n' "$script"
+# Just print the usage and exit with an error. This can receive a message to
+# print.
+# @param 1  A message to print.
+usage() {
+	if [ $# -eq 1 ]; then
+		printf '%s\n\n' "$1"
+	fi
+	printf 'usage: %s dir test problematic_tests [exec args...]\n' "$script"
 	exit 1
+}
+
+# Command-line processing.
+if [ "$#" -lt 3 ]; then
+	usage "Not enough arguments"
 else
+
 	d="$1"
 	shift
+	check_d_arg "$d"
 
 	t="$1"
 	shift
+
+	problematic="$1"
+	shift
+	check_bool_arg "$problematic"
+
 fi
+
+testfile="$testdir/$d/errors/$t"
+check_file_arg "$testfile"
 
 if [ "$#" -lt 1 ]; then
 	exe="$testdir/../bin/$d"
 else
 	exe="$1"
 	shift
+fi
+
+# Just skip tests that are problematic on FreeBSD. These tests can cause FreeBSD
+# to kill bc from memory exhaustion because of overcommit.
+if [ "$d" = "bc" ] && [ "$problematic" -eq 0 ]; then
+	if [ "$t" = "33.txt" ]; then
+		printf 'Skipping problematic %s error file %s...\n' "$d" "$t"
+		exit 0
+	fi
 fi
 
 # I use these, so unset them to make the tests work.
@@ -78,22 +107,38 @@ else
 	halt="q"
 fi
 
-testfile="$testdir/$d/errors/$t"
+printf 'Running %s error file %s with clamping...' "$d" "$t"
 
-printf 'Running %s error file %s...' "$d" "$t"
-
-printf '%s\n' "$halt" | "$exe" "$@" $opts "$testfile" 2> "$out" > /dev/null
+printf '%s\n' "$halt" 2> /dev/null | "$exe" "$@" $opts -c "$testfile" 2> "$out" > /dev/null
 err="$?"
 
 checkerrtest "$d" "$err" "$testfile" "$out" "$exebase" > /dev/null
 
 printf 'pass\n'
 
-printf 'Running %s error file %s through cat...' "$d" "$t"
+printf 'Running %s error file %s without clamping...' "$d" "$t"
 
-cat "$testfile" | "$exe" "$@" $opts 2> "$out" > /dev/null
+printf '%s\n' "$halt" 2> /dev/null | "$exe" "$@" $opts -C "$testfile" 2> "$out" > /dev/null
 err="$?"
 
-checkcrash "$d" "$err" "$testfile"
+checkerrtest "$d" "$err" "$testfile" "$out" "$exebase" > /dev/null
+
+printf 'pass\n'
+
+printf 'Running %s error file %s through cat with clamping...' "$d" "$t"
+
+cat "$testfile" 2> /dev/null | "$exe" "$@" $opts -c 2> "$out" > /dev/null
+err="$?"
+
+checkerrtest "$d" "$err" "$testfile" "$out" "$exebase"
+
+printf 'pass\n'
+
+printf 'Running %s error file %s through cat without clamping...' "$d" "$t"
+
+cat "$testfile" 2> /dev/null | "$exe" "$@" $opts -C 2> "$out" > /dev/null
+err="$?"
+
+checkerrtest "$d" "$err" "$testfile" "$out" "$exebase"
 
 printf 'pass\n'

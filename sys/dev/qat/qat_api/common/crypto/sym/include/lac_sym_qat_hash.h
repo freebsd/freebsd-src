@@ -126,6 +126,10 @@ typedef struct lac_sym_qat_hash_state_buffer_info_s {
  * @param[in] useOptimisedContentDesc   Indicate if optimised content desc
  *                                      is used for this session.
  *
+ * @param[in] useStatefulSha3ContentDesc
+ *                                      Indicate if stateful SHA3 content desc
+ *                                      is used for this session.
+ *
  * @param[in] pPrecompute               For auth mode, this is the pointer
  *                                      to the precompute data. Otherwise this
  *                                      should be set to NULL
@@ -145,6 +149,7 @@ LacSymQat_HashContentDescInit(icp_qat_la_bulk_req_ftr_t *pMsg,
 			      icp_qat_hw_auth_mode_t qatHashMode,
 			      CpaBoolean useSymConstantsTable,
 			      CpaBoolean useOptimisedContentDesc,
+			      CpaBoolean useStatefulSha3ContentDesc,
 			      lac_sym_qat_hash_precompute_info_t *pPrecompute,
 			      Cpa32U *pHashBlkSizeInBytes);
 

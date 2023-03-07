@@ -49,3 +49,4 @@ ECHO_TRACE?=	true
 .endif
 
 .include "src.sys.env.mk"
+.-include <site.sys.env.mk>

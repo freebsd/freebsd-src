@@ -142,7 +142,7 @@ struct vtnet_txq {
 
 struct vtnet_softc {
 	device_t		 vtnet_dev;
-	struct ifnet		*vtnet_ifp;
+	if_t			 vtnet_ifp;
 	struct vtnet_rxq	*vtnet_rxqs;
 	struct vtnet_txq	*vtnet_txqs;
 	pfil_head_t		 vtnet_pfil;

@@ -12,8 +12,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Utils/FunctionImportUtils.h"
-#include "llvm/IR/Constants.h"
-#include "llvm/IR/InstIterator.h"
 using namespace llvm;
 
 /// Checks if we should import SGV as a definition, otherwise import as a
@@ -37,6 +35,13 @@ bool FunctionImportGlobalProcessing::doImportAsDefinition(
 bool FunctionImportGlobalProcessing::shouldPromoteLocalToGlobal(
     const GlobalValue *SGV, ValueInfo VI) {
   assert(SGV->hasLocalLinkage());
+
+  // Ifuncs and ifunc alias does not have summary.
+  if (isa<GlobalIFunc>(SGV) ||
+      (isa<GlobalAlias>(SGV) &&
+       isa<GlobalIFunc>(cast<GlobalAlias>(SGV)->getAliaseeObject())))
+    return false;
+
   // Both the imported references and the original local variable must
   // be promoted.
   if (!isPerformingImport() && !isModuleExporting())

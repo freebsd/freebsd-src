@@ -94,18 +94,6 @@ static const MCPhysReg Mips64DPRegs[8] = {
   Mips::D16_64, Mips::D17_64, Mips::D18_64, Mips::D19_64
 };
 
-// If I is a shifted mask, set the size (Size) and the first bit of the
-// mask (Pos), and return true.
-// For example, if I is 0x003ff800, (Pos, Size) = (11, 11).
-static bool isShiftedMask(uint64_t I, uint64_t &Pos, uint64_t &Size) {
-  if (!isShiftedMask_64(I))
-    return false;
-
-  Size = countPopulation(I);
-  Pos = countTrailingZeros(I);
-  return true;
-}
-
 // The MIPS MSA ABI passes vector arguments in the integer register set.
 // The number of integer registers used is dependant on the ABI used.
 MVT MipsTargetLowering::getRegisterTypeForCallingConv(LLVMContext &Context,
@@ -492,15 +480,8 @@ MipsTargetLowering::MipsTargetLowering(const MipsTargetMachine &TM,
 
   setOperationAction(ISD::TRAP, MVT::Other, Legal);
 
-  setTargetDAGCombine(ISD::SDIVREM);
-  setTargetDAGCombine(ISD::UDIVREM);
-  setTargetDAGCombine(ISD::SELECT);
-  setTargetDAGCombine(ISD::AND);
-  setTargetDAGCombine(ISD::OR);
-  setTargetDAGCombine(ISD::ADD);
-  setTargetDAGCombine(ISD::SUB);
-  setTargetDAGCombine(ISD::AssertZext);
-  setTargetDAGCombine(ISD::SHL);
+  setTargetDAGCombine({ISD::SDIVREM, ISD::UDIVREM, ISD::SELECT, ISD::AND,
+                       ISD::OR, ISD::ADD, ISD::SUB, ISD::AssertZext, ISD::SHL});
 
   if (ABI.IsO32()) {
     // These libcalls are not available in 32-bit.
@@ -792,14 +773,15 @@ static SDValue performANDCombine(SDNode *N, SelectionDAG &DAG,
   EVT ValTy = N->getValueType(0);
   SDLoc DL(N);
 
-  uint64_t Pos = 0, SMPos, SMSize;
+  uint64_t Pos = 0;
+  unsigned SMPos, SMSize;
   ConstantSDNode *CN;
   SDValue NewOperand;
   unsigned Opc;
 
   // Op's second operand must be a shifted mask.
   if (!(CN = dyn_cast<ConstantSDNode>(Mask)) ||
-      !isShiftedMask(CN->getZExtValue(), SMPos, SMSize))
+      !isShiftedMask_64(CN->getZExtValue(), SMPos, SMSize))
     return SDValue();
 
   if (FirstOperandOpc == ISD::SRA || FirstOperandOpc == ISD::SRL) {
@@ -873,7 +855,7 @@ static SDValue performORCombine(SDNode *N, SelectionDAG &DAG,
     return SDValue();
 
   SDValue And0 = N->getOperand(0), And1 = N->getOperand(1);
-  uint64_t SMPos0, SMSize0, SMPos1, SMSize1;
+  unsigned SMPos0, SMSize0, SMPos1, SMSize1;
   ConstantSDNode *CN, *CN1;
 
   // See if Op's first operand matches (and $src1 , mask0).
@@ -881,7 +863,7 @@ static SDValue performORCombine(SDNode *N, SelectionDAG &DAG,
     return SDValue();
 
   if (!(CN = dyn_cast<ConstantSDNode>(And0.getOperand(1))) ||
-      !isShiftedMask(~CN->getSExtValue(), SMPos0, SMSize0))
+      !isShiftedMask_64(~CN->getSExtValue(), SMPos0, SMSize0))
     return SDValue();
 
   // See if Op's second operand matches (and (shl $src, pos), mask1).
@@ -889,7 +871,7 @@ static SDValue performORCombine(SDNode *N, SelectionDAG &DAG,
       And1.getOperand(0).getOpcode() == ISD::SHL) {
 
     if (!(CN = dyn_cast<ConstantSDNode>(And1.getOperand(1))) ||
-        !isShiftedMask(CN->getZExtValue(), SMPos1, SMSize1))
+        !isShiftedMask_64(CN->getZExtValue(), SMPos1, SMSize1))
       return SDValue();
 
     // The shift masks must have the same position and size.
@@ -966,6 +948,14 @@ static SDValue performMADD_MSUBCombine(SDNode *ROOTNode, SelectionDAG &CurDAG,
   // successful.
   if (ROOTNode->getOperand(0).getOpcode() != ISD::MUL &&
       ROOTNode->getOperand(1).getOpcode() != ISD::MUL)
+    return SDValue();
+
+  // In the case where we have a multiplication as the left operand of
+  // of a subtraction, we can't combine into a MipsISD::MSub node as the
+  // the instruction definition of msub(u) places the multiplication on
+  // on the right.
+  if (ROOTNode->getOpcode() == ISD::SUB &&
+      ROOTNode->getOperand(0).getOpcode() == ISD::MUL)
     return SDValue();
 
   // We don't handle vector types here.
@@ -1116,7 +1106,8 @@ static SDValue performSHLCombine(SDNode *N, SelectionDAG &DAG,
   EVT ValTy = N->getValueType(0);
   SDLoc DL(N);
 
-  uint64_t Pos = 0, SMPos, SMSize;
+  uint64_t Pos = 0;
+  unsigned SMPos, SMSize;
   ConstantSDNode *CN;
   SDValue NewOperand;
 
@@ -1134,7 +1125,7 @@ static SDValue performSHLCombine(SDNode *N, SelectionDAG &DAG,
 
   // AND's second operand must be a shifted mask.
   if (!(CN = dyn_cast<ConstantSDNode>(FirstOperand.getOperand(1))) ||
-      !isShiftedMask(CN->getZExtValue(), SMPos, SMSize))
+      !isShiftedMask_64(CN->getZExtValue(), SMPos, SMSize))
     return SDValue();
 
   // Return if the shifted mask does not start at bit 0 or the sum of its size
@@ -1189,8 +1180,24 @@ bool MipsTargetLowering::isCheapToSpeculateCtlz() const {
   return Subtarget.hasMips32();
 }
 
+bool MipsTargetLowering::hasBitTest(SDValue X, SDValue Y) const {
+  // We can use ANDI+SLTIU as a bit test. Y contains the bit position.
+  // For MIPSR2 or later, we may be able to use the `ext` instruction or its'
+  // double-word variants.
+  if (auto *C = dyn_cast<ConstantSDNode>(Y))
+    return C->getAPIntValue().ule(15);
+
+  return false;
+}
+
 bool MipsTargetLowering::shouldFoldConstantShiftPairToMask(
     const SDNode *N, CombineLevel Level) const {
+  assert(((N->getOpcode() == ISD::SHL &&
+           N->getOperand(0).getOpcode() == ISD::SRL) ||
+          (N->getOpcode() == ISD::SRL &&
+           N->getOperand(0).getOpcode() == ISD::SHL)) &&
+         "Expected shift-shift mask");
+
   if (N->getOperand(0).getValueType().isVector())
     return false;
   return true;
@@ -2677,7 +2684,7 @@ SDValue MipsTargetLowering::lowerLOAD(SDValue Op, SelectionDAG &DAG) const {
     return Op;
 
   // Return if load is aligned or if MemVT is neither i32 nor i64.
-  if ((LD->getAlignment() >= MemVT.getSizeInBits() / 8) ||
+  if ((LD->getAlign().value() >= (MemVT.getSizeInBits() / 8)) ||
       ((MemVT != MVT::i32) && (MemVT != MVT::i64)))
     return SDValue();
 
@@ -2791,7 +2798,7 @@ static SDValue lowerFP_TO_SINT_STORE(StoreSDNode *SD, SelectionDAG &DAG,
   SDValue Tr = DAG.getNode(MipsISD::TruncIntFP, SDLoc(Val), FPTy,
                            Val.getOperand(0));
   return DAG.getStore(SD->getChain(), SDLoc(SD), Tr, SD->getBasePtr(),
-                      SD->getPointerInfo(), SD->getAlignment(),
+                      SD->getPointerInfo(), SD->getAlign(),
                       SD->getMemOperand()->getFlags());
 }
 
@@ -2801,7 +2808,7 @@ SDValue MipsTargetLowering::lowerSTORE(SDValue Op, SelectionDAG &DAG) const {
 
   // Lower unaligned integer stores.
   if (!Subtarget.systemSupportsUnalignedAccess() &&
-      (SD->getAlignment() < MemVT.getSizeInBits() / 8) &&
+      (SD->getAlign().value() < (MemVT.getSizeInBits() / 8)) &&
       ((MemVT == MVT::i32) || (MemVT == MVT::i64)))
     return lowerUnalignedIntStore(SD, DAG, Subtarget.isLittle());
 

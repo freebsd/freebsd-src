@@ -208,7 +208,7 @@ pmc_filter_handler(uint32_t *lwplist, int lwpcount, uint32_t *pidlist, int pidco
 	char cpuid[PMC_CPUID_LEN];
 	char *proclist[LIST_MAX];
 	char *threadlist[LIST_MAX];
-	int i, pmccount, copies, eventcount;
+	int i, pmccount, eventcount;
 	int proccount, threadcount;
 	uint32_t idx;
 	idmap pidmap, tidmap;
@@ -247,7 +247,6 @@ pmc_filter_handler(uint32_t *lwplist, int lwpcount, uint32_t *pidlist, int pidco
 	pmclog_close(ps);
 	if ((ps = static_cast < struct pmclog_parse_state *>(pmclog_open(infd)))== NULL)
 		errx(EX_OSERR, "ERROR: Cannot allocate pmclog parse state: %s\n", strerror(errno));
-	copies = 0;
 	while (pmclog_read(ps, &ev) == 0) {
 		if (ev.pl_type == PMCLOG_TYPE_THR_CREATE)
 			tidmap[ev.pl_u.pl_tc.pl_tid] = ev.pl_u.pl_tc.pl_tdname;

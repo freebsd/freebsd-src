@@ -2,7 +2,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2008-2022 Hans Petter Selasky
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -123,6 +123,10 @@ SYSCTL_PROC(_hw_usb_timings, OID_AUTO, extra_power_up_time,
     CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, &usb_extra_power_up_time,
     sizeof(usb_extra_power_up_time), usb_timings_sysctl_handler, "IU",
     "Extra PowerUp Time");
+SYSCTL_PROC(_hw_usb_timings, OID_AUTO, enum_nice_time,
+    CTLTYPE_UINT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, &usb_enum_nice_time,
+    sizeof(usb_enum_nice_time), usb_timings_sysctl_handler, "IU",
+    "Enumeration thread nice time");
 #endif
 
 /*------------------------------------------------------------------------*
@@ -235,16 +239,17 @@ usb_dump_xfer(struct usb_xfer *xfer)
 }
 
 #ifdef USB_DEBUG
-unsigned int usb_port_reset_delay	= USB_PORT_RESET_DELAY;
-unsigned int usb_port_root_reset_delay	= USB_PORT_ROOT_RESET_DELAY;
-unsigned int usb_port_reset_recovery	= USB_PORT_RESET_RECOVERY;
-unsigned int usb_port_powerup_delay	= USB_PORT_POWERUP_DELAY;
-unsigned int usb_port_resume_delay	= USB_PORT_RESUME_DELAY;
-unsigned int usb_set_address_settle	= USB_SET_ADDRESS_SETTLE;
-unsigned int usb_resume_delay		= USB_RESUME_DELAY;
-unsigned int usb_resume_wait		= USB_RESUME_WAIT;
-unsigned int usb_resume_recovery	= USB_RESUME_RECOVERY;
-unsigned int usb_extra_power_up_time	= USB_EXTRA_POWER_UP_TIME;
+unsigned usb_port_reset_delay	= USB_PORT_RESET_DELAY;
+unsigned usb_port_root_reset_delay	= USB_PORT_ROOT_RESET_DELAY;
+unsigned usb_port_reset_recovery	= USB_PORT_RESET_RECOVERY;
+unsigned usb_port_powerup_delay	= USB_PORT_POWERUP_DELAY;
+unsigned usb_port_resume_delay	= USB_PORT_RESUME_DELAY;
+unsigned usb_set_address_settle	= USB_SET_ADDRESS_SETTLE;
+unsigned usb_resume_delay		= USB_RESUME_DELAY;
+unsigned usb_resume_wait		= USB_RESUME_WAIT;
+unsigned usb_resume_recovery	= USB_RESUME_RECOVERY;
+unsigned usb_extra_power_up_time	= USB_EXTRA_POWER_UP_TIME;
+unsigned usb_enum_nice_time		= USB_ENUM_NICE_TIME;
 
 /*------------------------------------------------------------------------*
  *	usb_timings_sysctl_handler

@@ -26,6 +26,8 @@
  * the management of skid buffers in the firmware */
 #define DC_DEST_BUFFER_DYN_MIN_SIZE (128)
 #define DC_DEST_BUFFER_STA_MIN_SIZE (64)
+#define DC_DEST_BUFFER_DYN_MIN_SIZE_GEN4 (512)
+#define DC_DEST_BUFFER_STA_MIN_SIZE_GEN4 (1024)
 /* C62x and C3xxx pcie rev0 devices require an additional 32bytes */
 #define DC_DEST_BUFFER_STA_ADDITIONAL_SIZE (32)
 
@@ -93,8 +95,10 @@
  * those are used to inform hardware of specifying CRC parameters to be used
  * when calculating CRCs */
 #define DC_CRC_POLY_DEFAULT 0x04c11db7
+#define DC_CRC64_POLY_DEFAULT 0x42f0e1eba9ea3693ULL
 #define DC_XOR_FLAGS_DEFAULT 0xe0000
 #define DC_XOR_OUT_DEFAULT 0xffffffff
+#define DC_XOR64_OUT_DEFAULT 0x0ULL
 #define DC_INVALID_CRC 0x0
 
 /**
@@ -147,6 +151,13 @@ typedef struct dc_compression_cookie_s {
 	/**< virtual userspace ptr to source SGL */
 	CpaBufferList *pUserDestBuff;
 	/**< virtual userspace ptr to destination SGL */
+	CpaDcCallbackFn pCbFunc;
+	/**< Callback function defined for the traditional sessionless API */
+	CpaDcChecksum checksumType;
+	/**< Type of checksum */
+	dc_integrity_crc_fw_t dataIntegrityCrcs;
+	/**< Data integrity table */
+
 } dc_compression_cookie_t;
 
 /**
@@ -164,6 +175,9 @@ typedef struct dc_compression_cookie_s {
  *
  *****************************************************************************/
 void dcCompression_ProcessCallback(void *pRespMsg);
+
+CpaStatus dcCheckOpData(sal_compression_service_t *pService,
+			CpaDcOpData *pOpData);
 
 /**
 *****************************************************************************

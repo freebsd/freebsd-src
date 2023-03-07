@@ -506,6 +506,31 @@ xen_acpi_cpu_probe(device_t dev)
 	return (BUS_PROBE_SPECIFIC);
 }
 
+static bool
+is_processor_online(unsigned int acpi_id)
+{
+	unsigned int i, maxid;
+	struct xen_platform_op op = {
+		.cmd = XENPF_get_cpuinfo,
+	};
+	int ret = HYPERVISOR_platform_op(&op);
+
+	if (ret)
+		return (false);
+
+	maxid = op.u.pcpu_info.max_present;
+	for (i = 0; i <= maxid; i++) {
+		op.u.pcpu_info.xen_cpuid = i;
+		ret = HYPERVISOR_platform_op(&op);
+		if (ret)
+			continue;
+		if (op.u.pcpu_info.acpi_id == acpi_id)
+			return (op.u.pcpu_info.flags & XEN_PCPU_FLAGS_ONLINE);
+	}
+
+	return (false);
+}
+
 static int
 xen_acpi_cpu_attach(device_t dev)
 {
@@ -543,6 +568,10 @@ xen_acpi_cpu_attach(device_t dev)
 			return (ENXIO);
 		}
 	}
+
+	if (!is_processor_online(sc->cpu_acpi_id))
+		/* Processor is not online, attach the driver and ignore it. */
+		return (0);
 
 	/*
 	 * Install the notify handler now: even if we fail to parse or upload

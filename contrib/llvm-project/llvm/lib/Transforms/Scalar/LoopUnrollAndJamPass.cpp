@@ -22,6 +22,7 @@
 #include "llvm/Analysis/DependenceAnalysis.h"
 #include "llvm/Analysis/LoopAnalysisManager.h"
 #include "llvm/Analysis/LoopInfo.h"
+#include "llvm/Analysis/LoopNestAnalysis.h"
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/Analysis/ScalarEvolution.h"
@@ -42,10 +43,8 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Scalar.h"
-#include "llvm/Transforms/Utils.h"
-#include "llvm/Transforms/Utils/LCSSA.h"
+#include "llvm/Transforms/Scalar/LoopPassManager.h"
 #include "llvm/Transforms/Utils/LoopPeel.h"
-#include "llvm/Transforms/Utils/LoopSimplify.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
 #include "llvm/Transforms/Utils/UnrollLoop.h"
 #include <cassert>
@@ -331,14 +330,23 @@ tryToUnrollAndJamLoop(Loop *L, DominatorTree &DT, LoopInfo *LI,
   SmallPtrSet<const Value *, 32> EphValues;
   CodeMetrics::collectEphemeralValues(L, &AC, EphValues);
   Loop *SubLoop = L->getSubLoops()[0];
-  unsigned InnerLoopSize =
+  InstructionCost InnerLoopSizeIC =
       ApproximateLoopSize(SubLoop, NumInlineCandidates, NotDuplicatable,
                           Convergent, TTI, EphValues, UP.BEInsns);
-  unsigned OuterLoopSize =
+  InstructionCost OuterLoopSizeIC =
       ApproximateLoopSize(L, NumInlineCandidates, NotDuplicatable, Convergent,
                           TTI, EphValues, UP.BEInsns);
-  LLVM_DEBUG(dbgs() << "  Outer Loop Size: " << OuterLoopSize << "\n");
-  LLVM_DEBUG(dbgs() << "  Inner Loop Size: " << InnerLoopSize << "\n");
+  LLVM_DEBUG(dbgs() << "  Outer Loop Size: " << OuterLoopSizeIC << "\n");
+  LLVM_DEBUG(dbgs() << "  Inner Loop Size: " << InnerLoopSizeIC << "\n");
+
+  if (!InnerLoopSizeIC.isValid() || !OuterLoopSizeIC.isValid()) {
+    LLVM_DEBUG(dbgs() << "  Not unrolling loop which contains instructions"
+                      << " with invalid cost.\n");
+    return LoopUnrollResult::Unmodified;
+  }
+  unsigned InnerLoopSize = *InnerLoopSizeIC.getValue();
+  unsigned OuterLoopSize = *OuterLoopSizeIC.getValue();
+
   if (NotDuplicatable) {
     LLVM_DEBUG(dbgs() << "  Not unrolling loop which contains non-duplicatable "
                          "instructions.\n");
@@ -364,8 +372,8 @@ tryToUnrollAndJamLoop(Loop *L, DominatorTree &DT, LoopInfo *LI,
   Optional<MDNode *> NewInnerEpilogueLoopID = makeFollowupLoopID(
       OrigOuterLoopID, {LLVMLoopUnrollAndJamFollowupAll,
                         LLVMLoopUnrollAndJamFollowupRemainderInner});
-  if (NewInnerEpilogueLoopID.hasValue())
-    SubLoop->setLoopID(NewInnerEpilogueLoopID.getValue());
+  if (NewInnerEpilogueLoopID)
+    SubLoop->setLoopID(NewInnerEpilogueLoopID.value());
 
   // Find trip count and trip multiple
   BasicBlock *Latch = L->getLoopLatch();
@@ -394,15 +402,15 @@ tryToUnrollAndJamLoop(Loop *L, DominatorTree &DT, LoopInfo *LI,
     Optional<MDNode *> NewOuterEpilogueLoopID = makeFollowupLoopID(
         OrigOuterLoopID, {LLVMLoopUnrollAndJamFollowupAll,
                           LLVMLoopUnrollAndJamFollowupRemainderOuter});
-    if (NewOuterEpilogueLoopID.hasValue())
-      EpilogueOuterLoop->setLoopID(NewOuterEpilogueLoopID.getValue());
+    if (NewOuterEpilogueLoopID)
+      EpilogueOuterLoop->setLoopID(NewOuterEpilogueLoopID.value());
   }
 
   Optional<MDNode *> NewInnerLoopID =
       makeFollowupLoopID(OrigOuterLoopID, {LLVMLoopUnrollAndJamFollowupAll,
                                            LLVMLoopUnrollAndJamFollowupInner});
-  if (NewInnerLoopID.hasValue())
-    SubLoop->setLoopID(NewInnerLoopID.getValue());
+  if (NewInnerLoopID)
+    SubLoop->setLoopID(NewInnerLoopID.value());
   else
     SubLoop->setLoopID(OrigSubLoopID);
 
@@ -410,8 +418,8 @@ tryToUnrollAndJamLoop(Loop *L, DominatorTree &DT, LoopInfo *LI,
     Optional<MDNode *> NewOuterLoopID = makeFollowupLoopID(
         OrigOuterLoopID,
         {LLVMLoopUnrollAndJamFollowupAll, LLVMLoopUnrollAndJamFollowupOuter});
-    if (NewOuterLoopID.hasValue()) {
-      L->setLoopID(NewOuterLoopID.getValue());
+    if (NewOuterLoopID) {
+      L->setLoopID(NewOuterLoopID.value());
 
       // Do not setLoopAlreadyUnrolled if a followup was given.
       return UnrollResult;

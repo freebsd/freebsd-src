@@ -325,6 +325,24 @@ lzma_block_buffer_encode(lzma_block *block, const lzma_allocator *allocator,
 }
 
 
+#ifdef HAVE_SYMBOL_VERSIONS_LINUX
+// This is for compatibility with binaries linked against liblzma that
+// has been patched with xz-5.2.2-compat-libs.patch from RHEL/CentOS 7.
+LZMA_SYMVER_API("lzma_block_uncomp_encode@XZ_5.2.2",
+	lzma_ret, lzma_block_uncomp_encode_522)(lzma_block *block,
+		const uint8_t *in, size_t in_size,
+		uint8_t *out, size_t *out_pos, size_t out_size)
+		lzma_nothrow lzma_attr_warn_unused_result
+		__attribute__((__alias__("lzma_block_uncomp_encode_52")));
+
+LZMA_SYMVER_API("lzma_block_uncomp_encode@@XZ_5.2",
+	lzma_ret, lzma_block_uncomp_encode_52)(lzma_block *block,
+		const uint8_t *in, size_t in_size,
+		uint8_t *out, size_t *out_pos, size_t out_size)
+		lzma_nothrow lzma_attr_warn_unused_result;
+
+#define lzma_block_uncomp_encode lzma_block_uncomp_encode_52
+#endif
 extern LZMA_API(lzma_ret)
 lzma_block_uncomp_encode(lzma_block *block,
 		const uint8_t *in, size_t in_size,

@@ -45,11 +45,13 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/param.h>
+#include <sys/jail.h>
 #include <sys/lock.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
@@ -104,6 +106,8 @@ svc_dg_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 	struct sockaddr* sa;
 	int error;
 
+	if (jailed(curthread->td_ucred))
+		return (NULL);
 	if (!__rpc_socket2sockinfo(so, &si)) {
 		printf(svc_dg_str, svc_dg_err1);
 		return (NULL);
@@ -288,10 +292,7 @@ svc_dg_destroy(SVCXPRT *xprt)
 
 static bool_t
 /*ARGSUSED*/
-svc_dg_control(xprt, rq, in)
-	SVCXPRT *xprt;
-	const u_int	rq;
-	void		*in;
+svc_dg_control(SVCXPRT *xprt, const u_int rq, void *in)
 {
 
 	return (FALSE);

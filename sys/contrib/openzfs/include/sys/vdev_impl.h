@@ -61,14 +61,15 @@ typedef struct vdev_cache vdev_cache_t;
 typedef struct vdev_cache_entry vdev_cache_entry_t;
 struct abd;
 
-extern int zfs_vdev_queue_depth_pct;
-extern int zfs_vdev_def_queue_depth;
-extern uint32_t zfs_vdev_async_write_max_active;
+extern uint_t zfs_vdev_queue_depth_pct;
+extern uint_t zfs_vdev_def_queue_depth;
+extern uint_t zfs_vdev_async_write_max_active;
 
 /*
  * Virtual device operations
  */
 typedef int	vdev_init_func_t(spa_t *spa, nvlist_t *nv, void **tsd);
+typedef void	vdev_kobj_post_evt_func_t(vdev_t *vd);
 typedef void	vdev_fini_func_t(vdev_t *vd);
 typedef int	vdev_open_func_t(vdev_t *vd, uint64_t *size, uint64_t *max_size,
     uint64_t *ashift, uint64_t *pshift);
@@ -123,6 +124,7 @@ typedef const struct vdev_ops {
 	vdev_config_generate_func_t	*vdev_op_config_generate;
 	vdev_nparity_func_t		*vdev_op_nparity;
 	vdev_ndisks_func_t		*vdev_op_ndisks;
+	vdev_kobj_post_evt_func_t	*vdev_op_kobj_evt_post;
 	char				vdev_op_type[16];
 	boolean_t			vdev_op_leaf;
 } vdev_ops_t;
@@ -297,6 +299,7 @@ struct vdev {
 	uint64_t	vdev_islog;	/* is an intent log device	*/
 	uint64_t	vdev_noalloc;	/* device is passivated?	*/
 	uint64_t	vdev_removing;	/* device is being removed?	*/
+	uint64_t	vdev_failfast;	/* device failfast setting	*/
 	boolean_t	vdev_ishole;	/* is a hole in the namespace	*/
 	uint64_t	vdev_top_zap;
 	vdev_alloc_bias_t vdev_alloc_bias; /* metaslab allocation bias	*/
@@ -436,6 +439,7 @@ struct vdev {
 	boolean_t	vdev_isl2cache;	/* was a l2cache device		*/
 	boolean_t	vdev_copy_uberblocks;  /* post expand copy uberblocks */
 	boolean_t	vdev_resilver_deferred;  /* resilver deferred */
+	boolean_t	vdev_kobj_flag; /* kobj event record */
 	vdev_queue_t	vdev_queue;	/* I/O deadline schedule queue	*/
 	vdev_cache_t	vdev_cache;	/* physical block cache		*/
 	spa_aux_vdev_t	*vdev_aux;	/* for l2cache and spares vdevs	*/
@@ -465,6 +469,14 @@ struct vdev {
 	zfs_ratelimit_t vdev_delay_rl;
 	zfs_ratelimit_t vdev_deadman_rl;
 	zfs_ratelimit_t vdev_checksum_rl;
+
+	/*
+	 * Checksum and IO thresholds for tuning ZED
+	 */
+	uint64_t	vdev_checksum_n;
+	uint64_t	vdev_checksum_t;
+	uint64_t	vdev_io_n;
+	uint64_t	vdev_io_t;
 };
 
 #define	VDEV_PAD_SIZE		(8 << 10)
@@ -641,12 +653,13 @@ extern int vdev_obsolete_counts_are_precise(vdev_t *vd, boolean_t *are_precise);
  */
 int vdev_checkpoint_sm_object(vdev_t *vd, uint64_t *sm_obj);
 void vdev_metaslab_group_create(vdev_t *vd);
+uint64_t vdev_best_ashift(uint64_t logical, uint64_t a, uint64_t b);
 
 /*
  * Vdev ashift optimization tunables
  */
-extern uint64_t zfs_vdev_min_auto_ashift;
-extern uint64_t zfs_vdev_max_auto_ashift;
+extern uint_t zfs_vdev_min_auto_ashift;
+extern uint_t zfs_vdev_max_auto_ashift;
 int param_set_min_auto_ashift(ZFS_MODULE_PARAM_ARGS);
 int param_set_max_auto_ashift(ZFS_MODULE_PARAM_ARGS);
 

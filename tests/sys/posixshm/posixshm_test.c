@@ -195,7 +195,7 @@ shm_fill(int fd, off_t offset, off_t len)
 		return (1);
 
 	while (len > 0) {
-		blen = len < (off_t)page_size ? len : page_size;
+		blen = len < (off_t)page_size ? (size_t)len : page_size;
 		memset(buf, byte_to_fill, blen);
 		if (pwrite(fd, buf, blen, offset) != (ssize_t)blen) {
 			error = 1;
@@ -236,7 +236,7 @@ check_content_dealloc(int fd, off_t hole_start, off_t hole_len, off_t shm_sz)
 	offset = hole_start;
 	resid = hole_len;
 	while (resid > 0) {
-		blen = resid < (off_t)page_size ? resid : page_size;
+		blen = resid < (off_t)page_size ? (size_t)resid : page_size;
 		if (pread(fd, buf, blen, offset) != (ssize_t)blen) {
 			error = 1;
 			break;
@@ -257,7 +257,7 @@ check_content_dealloc(int fd, off_t hole_start, off_t hole_len, off_t shm_sz)
 	offset = 0;
 	resid = hole_start;
 	while (resid > 0) {
-		blen = resid < (off_t)page_size ? resid : page_size;
+		blen = resid < (off_t)page_size ? (size_t)resid : page_size;
 		if (pread(fd, buf, blen, offset) != (ssize_t)blen) {
 			error = 1;
 			break;
@@ -276,7 +276,7 @@ check_content_dealloc(int fd, off_t hole_start, off_t hole_len, off_t shm_sz)
 	offset = hole_start + hole_len;
 	resid = shm_sz - offset;
 	while (resid > 0) {
-		blen = resid < (off_t)page_size ? resid : page_size;
+		blen = resid < (off_t)page_size ? (size_t)resid : page_size;
 		if (pread(fd, buf, blen, offset) != (ssize_t)blen) {
 			error = 1;
 			break;
@@ -1081,7 +1081,7 @@ ATF_TC_BODY(fallocate, tc)
 	ATF_REQUIRE_MSG((error = posix_fallocate(fd, sz, sz)) == 0,
 	    "posix_fallocate failed; error=%d", error);
 	ATF_REQUIRE(fstat(fd, &st) == 0);
-	ATF_REQUIRE(st.st_size == (sz * 2));
+	ATF_REQUIRE(st.st_size == sz * 2);
 
 	close(fd);
 }
@@ -1097,7 +1097,7 @@ ATF_TC_BODY(fspacectl, tc)
 	page_size = getpagesize();
 	shm_sz = shm_max_pages * page_size;
 
-	fd = shm_open("/testtest", O_RDWR|O_CREAT, 0666);
+	fd = shm_open("/testtest", O_RDWR | O_CREAT, 0666);
 	ATF_REQUIRE_MSG(fd >= 0, "shm_open failed; errno:%d", errno);
 	ATF_REQUIRE_MSG((error = posix_fallocate(fd, 0, shm_sz)) == 0,
 	    "posix_fallocate failed; error=%d", error);
@@ -1115,7 +1115,7 @@ ATF_TC_BODY(fspacectl, tc)
 	/* Unaligned fspacectl(fd, SPACECTL_DEALLOC, ...) */
 	ATF_REQUIRE(shm_fill(fd, 0, shm_sz) == 0);
 	range.r_offset = offset = page_size / 2;
-	range.r_len = length = ((shm_max_pages - 1) * page_size) +
+	range.r_len = length = (shm_max_pages - 1) * page_size +
 	    (page_size / 2) - offset;
 	ATF_CHECK_MSG(fspacectl(fd, SPACECTL_DEALLOC, &range, 0, &range) == 0,
 	    "Unaligned fspacectl failed; errno=%d", errno);
@@ -1143,7 +1143,7 @@ ATF_TC_BODY(fspacectl, tc)
 	/* Aligned fspacectl(fd, SPACECTL_DEALLOC, ...) past shm_sz */
 	ATF_REQUIRE(shm_fill(fd, 0, shm_sz) == 0);
 	range.r_offset = offset = page_size;
-	range.r_len = length = ((shm_max_pages + 1) * page_size) - offset;
+	range.r_len = length = (shm_max_pages + 1) * page_size - offset;
 	ATF_CHECK_MSG(fspacectl(fd, SPACECTL_DEALLOC, &range, 0, &range) == 0,
 	    "Aligned fspacectl past shm_sz failed; errno=%d", errno);
 	ATF_CHECK_MSG(check_content_dealloc(fd, offset, length, shm_sz) == 0,
@@ -1152,11 +1152,43 @@ ATF_TC_BODY(fspacectl, tc)
 	/* Unaligned fspacectl(fd, SPACECTL_DEALLOC, ...) past shm_sz */
 	ATF_REQUIRE(shm_fill(fd, 0, shm_sz) == 0);
 	range.r_offset = offset = page_size / 2;
-	range.r_len = length = ((shm_max_pages + 1) * page_size) - offset;
+	range.r_len = length = (shm_max_pages + 1) * page_size - offset;
 	ATF_CHECK_MSG(fspacectl(fd, SPACECTL_DEALLOC, &range, 0, &range) == 0,
 	    "Unaligned fspacectl past shm_sz failed; errno=%d", errno);
 	ATF_CHECK_MSG(check_content_dealloc(fd, offset, length, shm_sz) == 0,
 	    "Unaligned fspacectl past shm_sz content checking failed");
+
+	ATF_REQUIRE(close(fd) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(accounting);
+ATF_TC_BODY(accounting, tc)
+{
+	struct spacectl_range range;
+	struct stat st;
+	off_t shm_sz, len;
+	size_t page_size;
+	int fd, error;
+
+	page_size = getpagesize();
+	shm_sz = shm_max_pages * page_size;
+
+	fd = shm_open("/testtest1", O_RDWR | O_CREAT, 0666);
+	ATF_REQUIRE_MSG(fd >= 0, "shm_open failed; errno:%d", errno);
+	ATF_REQUIRE_MSG((error = posix_fallocate(fd, 0, shm_sz)) == 0,
+	    "posix_fallocate failed; error=%d", error);
+
+	ATF_REQUIRE(shm_fill(fd, 0, shm_sz) == 0);
+	ATF_REQUIRE(fstat(fd, &st) == 0);
+	ATF_REQUIRE(st.st_blksize * st.st_blocks == (blkcnt_t)shm_sz);
+
+	range.r_offset = page_size;
+	range.r_len = len = (shm_max_pages - 1) * page_size -
+	    range.r_offset;
+	ATF_CHECK_MSG(fspacectl(fd, SPACECTL_DEALLOC, &range, 0, &range) == 0,
+	    "SPACECTL_DEALLOC failed; errno=%d", errno);
+	ATF_REQUIRE(fstat(fd, &st) == 0);
+	ATF_REQUIRE(st.st_blksize * st.st_blocks == (blkcnt_t)(shm_sz - len));
 
 	ATF_REQUIRE(close(fd) == 0);
 }
@@ -1231,7 +1263,8 @@ ATF_TC_BODY(largepage_basic, tc)
 		for (size_t p = 0; p < ps[i] / ps[0]; p++) {
 			ATF_REQUIRE_MSG((vec[p] & MINCORE_INCORE) != 0,
 			    "page %zu is not mapped", p);
-			ATF_REQUIRE_MSG((vec[p] & MINCORE_PSIND(i)) != 0,
+			ATF_REQUIRE_MSG((vec[p] & MINCORE_SUPER) ==
+			    MINCORE_PSIND(i),
 			    "page %zu is not in a %zu-byte superpage",
 			    p, ps[i]);
 		}
@@ -1394,7 +1427,8 @@ ATF_TC_BODY(largepage_mmap, tc)
 		for (size_t p = 0; p < ps[i] / ps[0]; p++) {
 			ATF_REQUIRE_MSG((vec[p] & MINCORE_INCORE) != 0,
 			    "page %zu is not resident", p);
-			ATF_REQUIRE_MSG((vec[p] & MINCORE_PSIND(i)) != 0,
+			ATF_REQUIRE_MSG((vec[p] & MINCORE_SUPER) ==
+			    MINCORE_PSIND(i),
 			    "page %zu is not resident", p);
 		}
 
@@ -1475,6 +1509,8 @@ ATF_TC_BODY(largepage_madvise, tc)
 		    0);
 		ATF_REQUIRE_MSG(addr != MAP_FAILED,
 		    "mmap(%zu bytes) failed; error=%d", ps[i], errno);
+
+		memset(addr, 0, ps[i]);
 
 		/* Advice that requires clipping. */
 		largepage_madvise(addr, ps[0], MADV_NORMAL, EINVAL);
@@ -1727,7 +1763,7 @@ ATF_TC_BODY(largepage_minherit, tc)
 			*(volatile char *)addr = 0;
 			if (mincore(addr, ps[0], &v) != 0)
 				_exit(1);
-			if ((v & MINCORE_PSIND(i)) == 0)
+			if ((v & MINCORE_SUPER) == 0)
 				_exit(2);
 			_exit(0);
 		}
@@ -1876,7 +1912,7 @@ ATF_TC_BODY(largepage_reopen, tc)
 	ATF_REQUIRE(vec != NULL);
 	ATF_REQUIRE_MSG(mincore(addr, ps[psind], vec) == 0,
 	    "mincore failed; error=%d", errno);
-	ATF_REQUIRE_MSG((vec[0] & MINCORE_PSIND(psind)) != 0,
+	ATF_REQUIRE_MSG((vec[0] & MINCORE_SUPER) == MINCORE_PSIND(psind),
 	    "page not mapped into a %zu-byte superpage", ps[psind]);
 
 	ATF_REQUIRE_MSG(shm_unlink(test_path) == 0,
@@ -1920,6 +1956,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, mode);
 	ATF_TP_ADD_TC(tp, fallocate);
 	ATF_TP_ADD_TC(tp, fspacectl);
+	ATF_TP_ADD_TC(tp, accounting);
 	ATF_TP_ADD_TC(tp, largepage_basic);
 	ATF_TP_ADD_TC(tp, largepage_config);
 	ATF_TP_ADD_TC(tp, largepage_mmap);

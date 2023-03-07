@@ -2222,11 +2222,11 @@ int __kmp_fork_call(ident_t *loc, int gtid,
       } else
 // only one notification scheme (either "submit" or "forking/joined", not both)
 #endif /* USE_ITT_NOTIFY */
-          if ((__itt_frame_begin_v3_ptr || KMP_ITT_DEBUG) &&
-              __kmp_forkjoin_frames && !__kmp_forkjoin_frames_mode) {
-        // Mark start of "parallel" region for Intel(R) VTune(TM) analyzer.
-        __kmp_itt_region_forking(gtid, team->t.t_nproc, 0);
-      }
+        if ((__itt_frame_begin_v3_ptr || KMP_ITT_DEBUG) &&
+            __kmp_forkjoin_frames && !__kmp_forkjoin_frames_mode) {
+          // Mark start of "parallel" region for Intel(R) VTune(TM) analyzer.
+          __kmp_itt_region_forking(gtid, team->t.t_nproc, 0);
+        }
     }
 #endif /* USE_ITT_BUILD */
 
@@ -2641,6 +2641,11 @@ void __kmp_join_call(ident_t *loc, int gtid
 
   __kmp_release_bootstrap_lock(&__kmp_forkjoin_lock);
 
+#if KMP_AFFINITY_SUPPORTED
+  if (master_th->th.th_team->t.t_level == 0 && __kmp_affin_reset) {
+    __kmp_reset_root_init_mask(gtid);
+  }
+#endif
 #if OMPT_SUPPORT
   int flags =
       OMPT_INVOKER(fork_context) |
@@ -3276,7 +3281,7 @@ static void __kmp_initialize_root(kmp_root_t *root) {
                           __kmp_nested_proc_bind.bind_types[0], &r_icvs,
                           0 // argc
                           USE_NESTED_HOT_ARG(NULL) // primary thread is unknown
-                          );
+      );
 #if USE_DEBUGGER
   // Non-NULL value should be assigned to make the debugger display the root
   // team.
@@ -3313,7 +3318,7 @@ static void __kmp_initialize_root(kmp_root_t *root) {
                           __kmp_nested_proc_bind.bind_types[0], &r_icvs,
                           0 // argc
                           USE_NESTED_HOT_ARG(NULL) // primary thread is unknown
-                          );
+      );
   KF_TRACE(10, ("__kmp_initialize_root: after hot_team = %p\n", hot_team));
 
   root->r.r_hot_team = hot_team;
@@ -3669,11 +3674,16 @@ static int __kmp_expand_threads(int nNeed) {
              __kmp_threads_capacity * sizeof(kmp_info_t *));
   KMP_MEMCPY(newRoot, __kmp_root,
              __kmp_threads_capacity * sizeof(kmp_root_t *));
+  // Put old __kmp_threads array on a list. Any ongoing references to the old
+  // list will be valid. This list is cleaned up at library shutdown.
+  kmp_old_threads_list_t *node =
+      (kmp_old_threads_list_t *)__kmp_allocate(sizeof(kmp_old_threads_list_t));
+  node->threads = __kmp_threads;
+  node->next = __kmp_old_threads_list;
+  __kmp_old_threads_list = node;
 
-  kmp_info_t **temp_threads = __kmp_threads;
   *(kmp_info_t * *volatile *)&__kmp_threads = newThreads;
   *(kmp_root_t * *volatile *)&__kmp_root = newRoot;
-  __kmp_free(temp_threads);
   added += newCapacity - __kmp_threads_capacity;
   *(volatile int *)&__kmp_threads_capacity = newCapacity;
 
@@ -6960,10 +6970,12 @@ static void __kmp_do_serial_initialize(void) {
   /* Initialize internal memory allocator */
   __kmp_init_allocator();
 
-  /* Register the library startup via an environment variable and check to see
-     whether another copy of the library is already registered. */
-
-  __kmp_register_library_startup();
+  /* Register the library startup via an environment variable or via mapped
+     shared memory file and check to see whether another copy of the library is
+     already registered. Since forked child process is often terminated, we
+     postpone the registration till middle initialization in the child */
+  if (__kmp_need_register_serial)
+    __kmp_register_library_startup();
 
   /* TODO reinitialization of library */
   if (TCR_4(__kmp_global.g.g_done)) {
@@ -7249,6 +7261,12 @@ static void __kmp_do_middle_initialize(void) {
   }
 
   KA_TRACE(10, ("__kmp_middle_initialize: enter\n"));
+
+  if (UNLIKELY(!__kmp_need_register_serial)) {
+    // We are in a forked child process. The registration was skipped during
+    // serial initialization in __kmp_atfork_child handler. Do it here.
+    __kmp_register_library_startup();
+  }
 
   // Save the previous value for the __kmp_dflt_team_nth so that
   // we can avoid some reinitialization if it hasn't changed.
@@ -8101,6 +8119,15 @@ void __kmp_cleanup(void) {
   __kmp_root = NULL;
   __kmp_threads_capacity = 0;
 
+  // Free old __kmp_threads arrays if they exist.
+  kmp_old_threads_list_t *ptr = __kmp_old_threads_list;
+  while (ptr) {
+    kmp_old_threads_list_t *next = ptr->next;
+    __kmp_free(ptr->threads);
+    __kmp_free(ptr);
+    ptr = next;
+  }
+
 #if KMP_USE_DYNAMIC_LOCK
   __kmp_cleanup_indirect_user_locks();
 #else
@@ -8286,7 +8313,7 @@ void __kmp_aux_set_library(enum library_type arg) {
     break;
   case library_throughput:
     if (__kmp_dflt_blocktime == KMP_MAX_BLOCKTIME)
-      __kmp_dflt_blocktime = 200;
+      __kmp_dflt_blocktime = KMP_DEFAULT_BLOCKTIME;
     break;
   default:
     KMP_FATAL(UnknownLibraryType, arg);
@@ -8707,7 +8734,8 @@ __kmp_determine_reduction_method(
   KMP_DEBUG_ASSERT(lck); // it would be nice to test ( lck != 0 )
 
 #define FAST_REDUCTION_ATOMIC_METHOD_GENERATED                                 \
-  ((loc->flags & (KMP_IDENT_ATOMIC_REDUCE)) == (KMP_IDENT_ATOMIC_REDUCE))
+  (loc &&                                                                      \
+   ((loc->flags & (KMP_IDENT_ATOMIC_REDUCE)) == (KMP_IDENT_ATOMIC_REDUCE)))
 #define FAST_REDUCTION_TREE_METHOD_GENERATED ((reduce_data) && (reduce_func))
 
   retval = critical_reduce_block;
@@ -8953,19 +8981,16 @@ void __kmp_resize_dist_barrier(kmp_team_t *team, int old_nthreads,
     KMP_DEBUG_ASSERT(team->t.t_threads[f]->th.th_used_in_team.load() == 2);
   }
   // Release all the workers
-  kmp_uint64 new_value; // new value for go
-  new_value = team->t.b->go_release();
+  team->t.b->go_release();
 
   KMP_MFENCE();
 
   // Workers should see transition status 2 and move to 0; but may need to be
   // woken up first
-  size_t my_go_index;
   int count = old_nthreads - 1;
   while (count > 0) {
     count = old_nthreads - 1;
     for (int f = 1; f < old_nthreads; ++f) {
-      my_go_index = f / team->t.b->threads_per_go;
       if (other_threads[f]->th.th_used_in_team.load() != 0) {
         if (__kmp_dflt_blocktime != KMP_MAX_BLOCKTIME) { // Wake up the workers
           kmp_atomic_flag_64<> *flag = (kmp_atomic_flag_64<> *)CCAST(

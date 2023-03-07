@@ -117,6 +117,8 @@ __FBSDID("$FreeBSD$");
 
 #include <net/netisr.h>
 
+#include <dev/smbios/smbios.h>
+
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
@@ -220,8 +222,7 @@ void (*vmm_resume_p)(void);
 bool efi_boot;
 
 static void
-cpu_startup(dummy)
-	void *dummy;
+cpu_startup(void *dummy)
 {
 	uintmax_t memsize;
 	char *sysenv;
@@ -584,9 +585,7 @@ DB_SHOW_COMMAND_FLAGS(dbregs, db_show_dbregs, DB_CMD_MEMSAFE)
 #endif
 
 void
-sdtossd(sd, ssd)
-	struct user_segment_descriptor *sd;
-	struct soft_segment_descriptor *ssd;
+sdtossd(struct user_segment_descriptor *sd, struct soft_segment_descriptor *ssd)
 {
 
 	ssd->ssd_base  = (sd->sd_hibase << 24) | sd->sd_lobase;
@@ -600,9 +599,7 @@ sdtossd(sd, ssd)
 }
 
 void
-ssdtosd(ssd, sd)
-	struct soft_segment_descriptor *ssd;
-	struct user_segment_descriptor *sd;
+ssdtosd(struct soft_segment_descriptor *ssd, struct user_segment_descriptor *sd)
 {
 
 	sd->sd_lobase = (ssd->ssd_base) & 0xffffff;
@@ -618,9 +615,7 @@ ssdtosd(ssd, sd)
 }
 
 void
-ssdtosyssd(ssd, sd)
-	struct soft_segment_descriptor *ssd;
-	struct system_segment_descriptor *sd;
+ssdtosyssd(struct soft_segment_descriptor *ssd, struct system_segment_descriptor *sd)
 {
 
 	sd->sd_lobase = (ssd->ssd_base) & 0xffffff;
@@ -1322,6 +1317,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
 	identify_cpu1();
 	identify_hypervisor();
+	identify_hypervisor_smbios();
 	identify_cpu_fixup_bsp();
 	identify_cpu2();
 	initializecpucache();
@@ -1340,6 +1336,14 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	} else {
 		pmap_pcid_enabled = 0;
 	}
+
+	/*
+	 * Now we can do small core initialization, after the PCID
+	 * CPU features and user knobs are evaluated.
+	 */
+	TUNABLE_INT_FETCH("vm.pmap.pcid_invlpg_workaround",
+	    &pmap_pcid_invlpg_workaround_uena);
+	cpu_init_small_core();
 
 	link_elf_ireloc(kmdp);
 

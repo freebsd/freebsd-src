@@ -43,6 +43,8 @@ public:
                       bool isReferencedDynamically, bool noDeadStrip,
                       bool isWeakDefCanBeHidden);
 
+  Defined *aliasDefined(Defined *src, StringRef target);
+
   Symbol *addUndefined(StringRef name, InputFile *, bool isWeakRef);
 
   Symbol *addCommon(StringRef name, InputFile *, uint64_t size, uint32_t align,
@@ -69,7 +71,12 @@ private:
   std::vector<Symbol *> symVector;
 };
 
-void treatUndefinedSymbol(const Undefined &, StringRef source = "");
+void reportPendingUndefinedSymbols();
+
+// Call reportPendingUndefinedSymbols() to emit diagnostics.
+void treatUndefinedSymbol(const Undefined &, StringRef source);
+void treatUndefinedSymbol(const Undefined &, const InputSection *,
+                          uint64_t offset);
 
 extern std::unique_ptr<SymbolTable> symtab;
 

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: jpeg,v 1.36 2021/08/28 12:30:52 christos Exp $
+# $File: jpeg,v 1.37 2022/06/17 18:03:35 christos Exp $
 # JPEG images
 # SunOS 5.5.1 had
 #
@@ -103,43 +103,152 @@
 #>>(2.S+2)	use			jpeg_segment
 
 # HSI is Handmade Software's proprietary JPEG encoding scheme
+# Update:	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/HSI_JPEG
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/b/bitmap-hsi1.trid.xml
+# Note:         called by TrID "HSI JPEG bitmap"
 0	string		hsi1		JPEG image data, HSI proprietary
+#!:mime	application/octet-stream
+!:mime	image/x-hsi
+!:ext	hsi/jpg
 
 # From: David Santinoli <david@santinoli.com>
 0	string		\x00\x00\x00\x0C\x6A\x50\x20\x20\x0D\x0A\x87\x0A	JPEG 2000
+# delete from ./animation (version 1.87) with jP (=6A50h) magic at offset 4
 # From: Johan van der Knijff <johan.vanderknijff@kb.nl>
 # Added sub-entries for JP2, JPX, JPM and MJ2 formats; added mimetypes
 # https://github.com/bitsgalore/jp2kMagic
 #
 # Now read value of 'Brand' field, which yields a few possibilities:
+# Update:	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/JP2
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/b/bitmap-jpeg2k.trid.xml
+# Note:         called by TrID "JPEG 2000 bitmap"
 >20	string		\x6a\x70\x32\x20	Part 1 (JP2)
+# aliases	image/jpeg2000, image/jpeg2000-image, image/x-jpeg2000-image
 !:mime	image/jp2
+!:ext	jp2
+# URL:		http://fileformats.archiveteam.org/wiki/JPX
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/b/bitmap-jpx.trid.xml
+# Note:         called by TrID "JPEG 2000 eXtended bitmap"
 >20	string		\x6a\x70\x78\x20	Part 2 (JPX)
 !:mime	image/jpx
+!:ext	jpf/jpx
+# URL:		http://fileformats.archiveteam.org/wiki/JPM
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/b/bitmap-jpm.trid.xml
+# Note:         called by TrID "JPEG 2000 eXtended bitmap"
 >20	string		\x6a\x70\x6d\x20	Part 6 (JPM)
 !:mime	image/jpm
+!:ext	jpm
+# URL:		http://fileformats.archiveteam.org/wiki/MJ2
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/v/video-mj2.trid.xml
+# Note:         called by TrID "Motion JPEG 2000 video"
 >20	string		\x6d\x6a\x70\x32	Part 3 (MJ2)
 !:mime	video/mj2
+!:ext	mj2/mjp2
 
 # Type: JPEG 2000 codesream
 # From: Mathieu Malaterre <mathieu.malaterre@gmail.com>
+# Update:	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/JPEG_2000_codestream
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/b/bitmap-jpc.trid.xml
+# Note:         called by TrID "JPEG-2000 Code Stream bitmap"
 0	belong		0xff4fff51						JPEG 2000 codestream
-45	beshort		0xff52
+# value like: 0701h FF50h
+#>45	ubeshort	x	\b, at 45 %#4.4x
+#!:mime	application/octet-stream
+# https://reposcope.com/mimetype/image/x-jp2-codestream
+!:mime	image/x-jp2-codestream
+!:ext	jpc/j2c/j2k
+# MAYBE also JHC like in byte_causal.jhc ?
+# WHAT IS THAT? DEAD ENTRY?
+#45	beshort		0xff52
 
 # JPEG extended range
+# URL:		http://fileformats.archiveteam.org/wiki/JPEG_XR
+# Reference:	https://www.itu.int/rec/T-REC-T.832
+#		http://mark0.net/download/triddefs_xml.7z/defs/b/bitmap-wmp.trid.xml
+# Note:         called by TrID "JPEG XR bitmap"
 0	string		\x49\x49\xbc
+# FILE_VERSION_ID; shall be equal to 1; other values are reserved for future use
 >3	byte		1
+# FIRST_IFD_OFFSET; shall be an integer multiple of 2; so skip DROID fmt-590-signature-id-931.wdp
 >>4	lelong%2	0	JPEG-XR
+#!:mime	image/vnd.ms-photo
 !:mime	image/jxr
-!:ext	jxr
+# NO example for HDP !
+!:ext	jxr/wdp/hdp
+# MAYBE also WMP ?
+#!:ext	jxr/wdp/hdp/wmp
+# moved from ./images (version 1.205 ), merged and
+# partly verified by XnView `nconvert -info abydos.jxr FLOWER.wdp`
+# example: https://web.archive.org/web/20160403012904/
+# http://shikino.co.jp/solution/upfile/FLOWER.wdp.zip
+>90	bequad		0x574D50484F544F00
+>>98	byte&0x08	=0x08			\b, hard tiling
+>>99	byte&0x80	=0x80			\b, tiling present
+>>99	byte&0x40	=0x40			\b, codestream present
+>>99	byte&0x38	x			\b, spatial xform=
+>>99	byte&0x38	0x00			\bTL
+>>99	byte&0x38	0x08			\bBL
+>>99	byte&0x38	0x10			\bTR
+>>99	byte&0x38	0x18			\bBR
+>>99	byte&0x38	0x20			\bBT
+>>99	byte&0x38	0x28			\bRB
+>>99	byte&0x38	0x30			\bLT
+>>99	byte&0x38	0x38			\bLB
+>>100	byte&0x80	=0x80			\b, short header
+>>>102	beshort+1	x			\b, %d
+>>>104	beshort+1	x			\bx%d
+>>100	byte&0x80	=0x00			\b, long header
+>>>102	belong+1	x			\b, %x
+>>>106	belong+1	x			\bx%x
+>>101	beshort&0xf	x			\b, bitdepth=
+>>>101	beshort&0xf	0x0			\b1-WHITE=1
+>>>101	beshort&0xf	0x1			\b8
+>>>101	beshort&0xf	0x2			\b16
+>>>101	beshort&0xf	0x3			\b16-SIGNED
+>>>101	beshort&0xf	0x4			\b16-FLOAT
+>>>101	beshort&0xf	0x5			\b(reserved 5)
+>>>101	beshort&0xf	0x6			\b32-SIGNED
+>>>101	beshort&0xf	0x7			\b32-FLOAT
+>>>101	beshort&0xf	0x8			\b5
+>>>101	beshort&0xf	0x9			\b10
+>>>101	beshort&0xf	0xa			\b5-6-5
+>>>101	beshort&0xf	0xb			\b(reserved %d)
+>>>101	beshort&0xf	0xc			\b(reserved %d)
+>>>101	beshort&0xf	0xd			\b(reserved %d)
+>>>101	beshort&0xf	0xe			\b(reserved %d)
+>>>101	beshort&0xf	0xf			\b1-BLACK=1
+>>101	beshort&0xf0	x			\b, colorfmt=
+>>>101	beshort&0xf0	0x00			\bYONLY
+>>>101	beshort&0xf0	0x10			\bYUV240
+>>>101	beshort&0xf0	0x20			\bYWV422
+>>>101	beshort&0xf0	0x30			\bYWV444
+>>>101	beshort&0xf0	0x40			\bCMYK
+>>>101	beshort&0xf0	0x50			\bCMYKDIRECT
+>>>101	beshort&0xf0	0x60			\bNCOMPONENT
+>>>101	beshort&0xf0	0x70			\bRGB
+>>>101	beshort&0xf0	0x80			\bRGBE
+>>>101	beshort&0xf0	>0x80			\b(reserved %#x)
 
 # JPEG XL
 # From: Ian Tester
+# Update:	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/JPEG_XL
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/b/bitmap-jxl.trid.xml
+# Note:         called by TrID "JPEG XL bitmap"
 0	string	\xff\x0a				JPEG XL codestream
-!:mime  image/jxl
+#!:mime  image/jxl
+!:mime	image/x-jxl
 !:ext jxl
 
 # JPEG XL (transcoded JPEG file)
+# Update:	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/JPEG_XL
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/b/bitmap-jxl-iso.trid.xml 
+# Note:         called by TrID "JPEG XL bitmap (ISOBMFF)"
 0	string	\x00\x00\x00\x0cJXL\x20\x0d\x0a\x87\x0a	JPEG XL container
-!:mime  image/jxl
+#!:mime  image/jxl
+!:mime	image/x-jxl
 !:ext jxl

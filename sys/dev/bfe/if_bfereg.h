@@ -583,7 +583,7 @@ struct bfe_hw_stats {
 
 struct bfe_softc
 {
-    struct ifnet            *bfe_ifp;     /* interface info */
+    if_t                    bfe_ifp;     /* interface info */
     device_t                bfe_dev;
     device_t                bfe_miibus;
     bus_dma_tag_t           bfe_tag;

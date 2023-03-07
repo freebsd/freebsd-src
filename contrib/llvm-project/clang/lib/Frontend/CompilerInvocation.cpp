@@ -94,6 +94,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstring>
+#include <fstream>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -105,6 +106,20 @@ using namespace clang;
 using namespace driver;
 using namespace options;
 using namespace llvm::opt;
+
+//===----------------------------------------------------------------------===//
+// Helpers.
+//===----------------------------------------------------------------------===//
+
+// Parse misexpect tolerance argument value.
+// Valid option values are integers in the range [0, 100)
+inline Expected<Optional<uint64_t>> parseToleranceOption(StringRef Arg) {
+  int64_t Val;
+  if (Arg.getAsInteger(10, Val))
+    return llvm::createStringError(llvm::inconvertibleErrorCode(),
+                                   "Not an integer: %s", Arg.data());
+  return Val;
+}
 
 //===----------------------------------------------------------------------===//
 // Initialization.
@@ -503,6 +518,22 @@ static bool FixupInvocation(CompilerInvocation &Invocation,
     Diags.Report(diag::warn_ignored_hip_only_option)
         << Args.getLastArg(OPT_gpu_max_threads_per_block_EQ)->getAsString(Args);
 
+  // When these options are used, the compiler is allowed to apply
+  // optimizations that may affect the final result. For example
+  // (x+y)+z is transformed to x+(y+z) but may not give the same
+  // final result; it's not value safe.
+  // Another example can be to simplify x/x to 1.0 but x could be 0.0, INF
+  // or NaN. Final result may then differ. An error is issued when the eval
+  // method is set with one of these options.
+  if (Args.hasArg(OPT_ffp_eval_method_EQ)) {
+    if (LangOpts.ApproxFunc)
+      Diags.Report(diag::err_incompatible_fp_eval_method_options) << 0;
+    if (LangOpts.AllowFPReassoc)
+      Diags.Report(diag::err_incompatible_fp_eval_method_options) << 1;
+    if (LangOpts.AllowRecip)
+      Diags.Report(diag::err_incompatible_fp_eval_method_options) << 2;
+  }
+
   // -cl-strict-aliasing needs to emit diagnostic in the case where CL > 1.0.
   // This option should be deprecated for CL > 1.0 because
   // this option was added for compatibility with OpenCL 1.0.
@@ -525,11 +556,6 @@ static bool FixupInvocation(CompilerInvocation &Invocation,
       Diags.Report(diag::err_drv_argument_not_allowed_with)
           << A->getSpelling() << T.getTriple();
   }
-
-  if (!CodeGenOpts.ProfileRemappingFile.empty() && CodeGenOpts.LegacyPassManager)
-    Diags.Report(diag::err_drv_argument_only_allowed_with)
-        << Args.getLastArg(OPT_fprofile_remapping_file_EQ)->getAsString(Args)
-        << "-fno-legacy-pass-manager";
 
   return Diags.getNumErrors() == NumErrorsBefore;
 }
@@ -790,18 +816,6 @@ static void GenerateAnalyzerArgs(AnalyzerOptions &Opts,
 #include "clang/Driver/Options.inc"
 #undef ANALYZER_OPTION_WITH_MARSHALLING
 
-  if (Opts.AnalysisStoreOpt != RegionStoreModel) {
-    switch (Opts.AnalysisStoreOpt) {
-#define ANALYSIS_STORE(NAME, CMDFLAG, DESC, CREATFN)                           \
-  case NAME##Model:                                                            \
-    GenerateArg(Args, OPT_analyzer_store, CMDFLAG, SA);                        \
-    break;
-#include "clang/StaticAnalyzer/Core/Analyses.def"
-    default:
-      llvm_unreachable("Tried to generate unknown analysis store.");
-    }
-  }
-
   if (Opts.AnalysisConstraintsOpt != RangeConstraintsModel) {
     switch (Opts.AnalysisConstraintsOpt) {
 #define ANALYSIS_CONSTRAINTS(NAME, CMDFLAG, DESC, CREATFN)                     \
@@ -889,20 +903,13 @@ static bool ParseAnalyzerArgs(AnalyzerOptions &Opts, ArgList &Args,
 #include "clang/Driver/Options.inc"
 #undef ANALYZER_OPTION_WITH_MARSHALLING
 
-  if (Arg *A = Args.getLastArg(OPT_analyzer_store)) {
-    StringRef Name = A->getValue();
-    AnalysisStores Value = llvm::StringSwitch<AnalysisStores>(Name)
-#define ANALYSIS_STORE(NAME, CMDFLAG, DESC, CREATFN) \
-      .Case(CMDFLAG, NAME##Model)
-#include "clang/StaticAnalyzer/Core/Analyses.def"
-      .Default(NumStores);
-    if (Value == NumStores) {
-      Diags.Report(diag::err_drv_invalid_value)
-        << A->getAsString(Args) << Name;
-    } else {
-      Opts.AnalysisStoreOpt = Value;
-    }
-  }
+  if (Args.hasArg(OPT_analyzer_store))
+    Diags.Report(diag::warn_analyzer_deprecated_option) << "-analyzer-store"
+                                                        << "clang-16";
+  if (Args.hasArg(OPT_analyzer_opt_analyze_nested_blocks))
+    Diags.Report(diag::warn_analyzer_deprecated_option)
+        << "-analyzer-opt-analyze-nested-blocks"
+        << "clang-16";
 
   if (Arg *A = Args.getLastArg(OPT_analyzer_constraints)) {
     StringRef Name = A->getValue();
@@ -915,6 +922,11 @@ static bool ParseAnalyzerArgs(AnalyzerOptions &Opts, ArgList &Args,
       Diags.Report(diag::err_drv_invalid_value)
         << A->getAsString(Args) << Name;
     } else {
+#ifndef LLVM_WITH_Z3
+      if (Value == AnalysisConstraints::Z3ConstraintsModel) {
+        Diags.Report(diag::err_analyzer_not_built_with_z3);
+      }
+#endif // LLVM_WITH_Z3
       Opts.AnalysisConstraintsOpt = Value;
     }
   }
@@ -1062,7 +1074,7 @@ static void initOption(AnalyzerOptions::ConfigTable &Config,
     else
       OptionField = DefaultVal;
   } else
-    OptionField = PossiblyInvalidVal.getValue();
+    OptionField = *PossiblyInvalidVal;
 }
 
 static void initOption(AnalyzerOptions::ConfigTable &Config,
@@ -1081,25 +1093,22 @@ static void initOption(AnalyzerOptions::ConfigTable &Config,
 static void parseAnalyzerConfigs(AnalyzerOptions &AnOpts,
                                  DiagnosticsEngine *Diags) {
   // TODO: There's no need to store the entire configtable, it'd be plenty
-  // enough tostore checker options.
+  // enough to store checker options.
 
 #define ANALYZER_OPTION(TYPE, NAME, CMDFLAG, DESC, DEFAULT_VAL)                \
   initOption(AnOpts.Config, Diags, AnOpts.NAME, CMDFLAG, DEFAULT_VAL);
-
-#define ANALYZER_OPTION_DEPENDS_ON_USER_MODE(TYPE, NAME, CMDFLAG, DESC,        \
-                                           SHALLOW_VAL, DEEP_VAL)              \
-  switch (AnOpts.getUserMode()) {                                              \
-  case UMK_Shallow:                                                            \
-    initOption(AnOpts.Config, Diags, AnOpts.NAME, CMDFLAG, SHALLOW_VAL);       \
-    break;                                                                     \
-  case UMK_Deep:                                                               \
-    initOption(AnOpts.Config, Diags, AnOpts.NAME, CMDFLAG, DEEP_VAL);          \
-    break;                                                                     \
-  }                                                                            \
-
+#define ANALYZER_OPTION_DEPENDS_ON_USER_MODE(...)
 #include "clang/StaticAnalyzer/Core/AnalyzerOptions.def"
-#undef ANALYZER_OPTION
-#undef ANALYZER_OPTION_DEPENDS_ON_USER_MODE
+
+  assert(AnOpts.UserMode == "shallow" || AnOpts.UserMode == "deep");
+  const bool InShallowMode = AnOpts.UserMode == "shallow";
+
+#define ANALYZER_OPTION(...)
+#define ANALYZER_OPTION_DEPENDS_ON_USER_MODE(TYPE, NAME, CMDFLAG, DESC,        \
+                                             SHALLOW_VAL, DEEP_VAL)            \
+  initOption(AnOpts.Config, Diags, AnOpts.NAME, CMDFLAG,                       \
+             InShallowMode ? SHALLOW_VAL : DEEP_VAL);
+#include "clang/StaticAnalyzer/Core/AnalyzerOptions.def"
 
   // At this point, AnalyzerOptions is configured. Let's validate some options.
 
@@ -1473,6 +1482,12 @@ void CompilerInvocation::GenerateCodeGenArgs(
   else if (Opts.CFProtectionBranch)
     GenerateArg(Args, OPT_fcf_protection_EQ, "branch", SA);
 
+  if (Opts.IBTSeal)
+    GenerateArg(Args, OPT_mibt_seal, SA);
+
+  if (Opts.FunctionReturnThunks)
+    GenerateArg(Args, OPT_mfunction_return_EQ, "thunk-extern", SA);
+
   for (const auto &F : Opts.LinkBitcodeFiles) {
     bool Builtint = F.LinkFlags == llvm::Linker::Flags::LinkOnlyNeeded &&
                     F.PropagateAttrs && F.Internalize;
@@ -1492,7 +1507,8 @@ void CompilerInvocation::GenerateCodeGenArgs(
   if (Opts.FPDenormalMode != llvm::DenormalMode::getIEEE())
     GenerateArg(Args, OPT_fdenormal_fp_math_EQ, Opts.FPDenormalMode.str(), SA);
 
-  if (Opts.FP32DenormalMode != llvm::DenormalMode::getIEEE())
+  if ((Opts.FPDenormalMode != Opts.FP32DenormalMode) ||
+      (Opts.FP32DenormalMode != llvm::DenormalMode::getIEEE()))
     GenerateArg(Args, OPT_fdenormal_fp_math_f32_EQ, Opts.FP32DenormalMode.str(),
                 SA);
 
@@ -1529,6 +1545,9 @@ void CompilerInvocation::GenerateCodeGenArgs(
                   ? Twine(*Opts.DiagnosticsHotnessThreshold)
                   : "auto",
               SA);
+
+  GenerateArg(Args, OPT_fdiagnostics_misexpect_tolerance_EQ,
+              Twine(*Opts.DiagnosticsMisExpectTolerance), SA);
 
   for (StringRef Sanitizer : serializeSanitizerKinds(Opts.SanitizeRecover))
     GenerateArg(Args, OPT_fsanitize_recover_EQ, Sanitizer, SA);
@@ -1591,23 +1610,22 @@ bool CompilerInvocation::ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args,
 
   // At O0 we want to fully disable inlining outside of cases marked with
   // 'alwaysinline' that are required for correctness.
-  Opts.setInlining((Opts.OptimizationLevel == 0)
-                       ? CodeGenOptions::OnlyAlwaysInlining
-                       : CodeGenOptions::NormalInlining);
-  // Explicit inlining flags can disable some or all inlining even at
-  // optimization levels above zero.
-  if (Arg *InlineArg = Args.getLastArg(
-          options::OPT_finline_functions, options::OPT_finline_hint_functions,
-          options::OPT_fno_inline_functions, options::OPT_fno_inline)) {
-    if (Opts.OptimizationLevel > 0) {
-      const Option &InlineOpt = InlineArg->getOption();
-      if (InlineOpt.matches(options::OPT_finline_functions))
-        Opts.setInlining(CodeGenOptions::NormalInlining);
-      else if (InlineOpt.matches(options::OPT_finline_hint_functions))
-        Opts.setInlining(CodeGenOptions::OnlyHintInlining);
-      else
-        Opts.setInlining(CodeGenOptions::OnlyAlwaysInlining);
-    }
+  if (Opts.OptimizationLevel == 0) {
+    Opts.setInlining(CodeGenOptions::OnlyAlwaysInlining);
+  } else if (const Arg *A = Args.getLastArg(options::OPT_finline_functions,
+                                            options::OPT_finline_hint_functions,
+                                            options::OPT_fno_inline_functions,
+                                            options::OPT_fno_inline)) {
+    // Explicit inlining flags can disable some or all inlining even at
+    // optimization levels above zero.
+    if (A->getOption().matches(options::OPT_finline_functions))
+      Opts.setInlining(CodeGenOptions::NormalInlining);
+    else if (A->getOption().matches(options::OPT_finline_hint_functions))
+      Opts.setInlining(CodeGenOptions::OnlyHintInlining);
+    else
+      Opts.setInlining(CodeGenOptions::OnlyAlwaysInlining);
+  } else {
+    Opts.setInlining(CodeGenOptions::NormalInlining);
   }
 
   // PIC defaults to -fno-direct-access-external-data while non-PIC defaults to
@@ -1710,10 +1728,6 @@ bool CompilerInvocation::ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args,
 
     // -ftime-report= is only for new pass manager.
     if (A->getOption().getID() == OPT_ftime_report_EQ) {
-      if (Opts.LegacyPassManager)
-        Diags.Report(diag::err_drv_argument_only_allowed_with)
-            << A->getAsString(Args) << "-fno-legacy-pass-manager";
-
       StringRef Val = A->getValue();
       if (Val == "per-pass")
         Opts.TimePassesPerRun = false;
@@ -1814,6 +1828,27 @@ bool CompilerInvocation::ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args,
       Diags.Report(diag::err_drv_invalid_value) << A->getAsString(Args) << Name;
   }
 
+  if (const Arg *A = Args.getLastArg(OPT_mfunction_return_EQ)) {
+    auto Val = llvm::StringSwitch<llvm::FunctionReturnThunksKind>(A->getValue())
+                   .Case("keep", llvm::FunctionReturnThunksKind::Keep)
+                   .Case("thunk-extern", llvm::FunctionReturnThunksKind::Extern)
+                   .Default(llvm::FunctionReturnThunksKind::Invalid);
+    // SystemZ might want to add support for "expolines."
+    if (!T.isX86())
+      Diags.Report(diag::err_drv_argument_not_allowed_with)
+          << A->getSpelling() << T.getTriple();
+    else if (Val == llvm::FunctionReturnThunksKind::Invalid)
+      Diags.Report(diag::err_drv_invalid_value)
+          << A->getAsString(Args) << A->getValue();
+    else if (Val == llvm::FunctionReturnThunksKind::Extern &&
+             Args.getLastArgValue(OPT_mcmodel_EQ).equals("large"))
+      Diags.Report(diag::err_drv_argument_not_allowed_with)
+          << A->getAsString(Args)
+          << Args.getLastArg(OPT_mcmodel_EQ)->getAsString(Args);
+    else
+      Opts.FunctionReturnThunks = static_cast<unsigned>(Val);
+  }
+
   if (Opts.PrepareForLTO && Args.hasArg(OPT_mibt_seal))
     Opts.IBTSeal = 1;
 
@@ -1847,6 +1882,7 @@ bool CompilerInvocation::ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args,
   if (Arg *A = Args.getLastArg(OPT_fdenormal_fp_math_EQ)) {
     StringRef Val = A->getValue();
     Opts.FPDenormalMode = llvm::parseDenormalFPAttribute(Val);
+    Opts.FP32DenormalMode = Opts.FPDenormalMode;
     if (!Opts.FPDenormalMode.isValid())
       Diags.Report(diag::err_drv_invalid_value) << A->getAsString(Args) << Val;
   }
@@ -1888,6 +1924,12 @@ bool CompilerInvocation::ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args,
 
     const Option &O = A->getOption();
     Opts.EnableAIXExtendedAltivecABI = O.matches(OPT_mabi_EQ_vec_extabi);
+  }
+
+  if (Arg *A = Args.getLastArg(OPT_mabi_EQ_quadword_atomics)) {
+    if (!T.isOSAIX() || T.isPPC32())
+      Diags.Report(diag::err_drv_unsupported_opt_for_target)
+        << A->getSpelling() << T.str();
   }
 
   bool NeedLocTracking = false;
@@ -1939,11 +1981,28 @@ bool CompilerInvocation::ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args,
           << "-fdiagnostics-hotness-threshold=";
     } else {
       Opts.DiagnosticsHotnessThreshold = *ResultOrErr;
-      if ((!Opts.DiagnosticsHotnessThreshold.hasValue() ||
-           Opts.DiagnosticsHotnessThreshold.getValue() > 0) &&
+      if ((!Opts.DiagnosticsHotnessThreshold ||
+           Opts.DiagnosticsHotnessThreshold.value() > 0) &&
           !UsingProfile)
         Diags.Report(diag::warn_drv_diagnostics_hotness_requires_pgo)
             << "-fdiagnostics-hotness-threshold=";
+    }
+  }
+
+  if (auto *arg =
+          Args.getLastArg(options::OPT_fdiagnostics_misexpect_tolerance_EQ)) {
+    auto ResultOrErr = parseToleranceOption(arg->getValue());
+
+    if (!ResultOrErr) {
+      Diags.Report(diag::err_drv_invalid_diagnotics_misexpect_tolerance)
+          << "-fdiagnostics-misexpect-tolerance=";
+    } else {
+      Opts.DiagnosticsMisExpectTolerance = *ResultOrErr;
+      if ((!Opts.DiagnosticsMisExpectTolerance ||
+           Opts.DiagnosticsMisExpectTolerance.value() > 0) &&
+          !UsingProfile)
+        Diags.Report(diag::warn_drv_diagnostics_misexpect_requires_pgo)
+            << "-fdiagnostics-misexpect-tolerance=";
     }
   }
 
@@ -1977,8 +2036,8 @@ bool CompilerInvocation::ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args,
   else if (Args.hasArg(options::OPT_fno_finite_loops))
     Opts.FiniteLoops = CodeGenOptions::FiniteLoopsKind::Never;
 
-  Opts.EmitIEEENaNCompliantInsts =
-      Args.hasFlag(options::OPT_mamdgpu_ieee, options::OPT_mno_amdgpu_ieee);
+  Opts.EmitIEEENaNCompliantInsts = Args.hasFlag(
+      options::OPT_mamdgpu_ieee, options::OPT_mno_amdgpu_ieee, true);
   if (!Opts.EmitIEEENaNCompliantInsts && !LangOptsRef.NoHonorNaNs)
     Diags.Report(diag::err_drv_amdgpu_ieee_without_no_honor_nans);
 
@@ -2102,11 +2161,9 @@ static bool parseShowColorsArgs(const ArgList &Args, bool DefaultColor) {
   } ShowColors = DefaultColor ? Colors_Auto : Colors_Off;
   for (auto *A : Args) {
     const Option &O = A->getOption();
-    if (O.matches(options::OPT_fcolor_diagnostics) ||
-        O.matches(options::OPT_fdiagnostics_color)) {
+    if (O.matches(options::OPT_fcolor_diagnostics)) {
       ShowColors = Colors_On;
-    } else if (O.matches(options::OPT_fno_color_diagnostics) ||
-               O.matches(options::OPT_fno_diagnostics_color)) {
+    } else if (O.matches(options::OPT_fno_color_diagnostics)) {
       ShowColors = Colors_Off;
     } else if (O.matches(options::OPT_fdiagnostics_color_EQ)) {
       StringRef Value(A->getValue());
@@ -2406,7 +2463,6 @@ static const auto &getFrontendActionTable() {
       {frontend::EmitLLVM, OPT_emit_llvm},
       {frontend::EmitLLVMOnly, OPT_emit_llvm_only},
       {frontend::EmitCodeGenOnly, OPT_emit_codegen_only},
-      {frontend::EmitCodeGenOnly, OPT_emit_codegen_only},
       {frontend::EmitObj, OPT_emit_obj},
       {frontend::ExtractAPI, OPT_extract_api},
 
@@ -2416,6 +2472,7 @@ static const auto &getFrontendActionTable() {
       {frontend::GenerateModule, OPT_emit_module},
       {frontend::GenerateModuleInterface, OPT_emit_module_interface},
       {frontend::GenerateHeaderModule, OPT_emit_header_module},
+      {frontend::GenerateHeaderUnit, OPT_emit_header_unit},
       {frontend::GeneratePCH, OPT_emit_pch},
       {frontend::GenerateInterfaceStubs, OPT_emit_interface_stubs},
       {frontend::InitOnly, OPT_init_only},
@@ -2432,7 +2489,7 @@ static const auto &getFrontendActionTable() {
       {frontend::MigrateSource, OPT_migrate},
       {frontend::RunPreprocessorOnly, OPT_Eonly},
       {frontend::PrintDependencyDirectivesSourceMinimizerOutput,
-          OPT_print_dependency_directives_minimized_source},
+       OPT_print_dependency_directives_minimized_source},
   };
 
   return Table;
@@ -2551,10 +2608,10 @@ static void GenerateFrontendArgs(const FrontendOptions &Opts,
   for (const auto &ModuleFile : Opts.ModuleFiles)
     GenerateArg(Args, OPT_fmodule_file, ModuleFile, SA);
 
-  if (Opts.AuxTargetCPU.hasValue())
+  if (Opts.AuxTargetCPU)
     GenerateArg(Args, OPT_aux_target_cpu, *Opts.AuxTargetCPU, SA);
 
-  if (Opts.AuxTargetFeatures.hasValue())
+  if (Opts.AuxTargetFeatures)
     for (const auto &Feature : *Opts.AuxTargetFeatures)
       GenerateArg(Args, OPT_aux_target_feature, Feature, SA);
 
@@ -2562,6 +2619,20 @@ static void GenerateFrontendArgs(const FrontendOptions &Opts,
     StringRef Preprocessed = Opts.DashX.isPreprocessed() ? "-cpp-output" : "";
     StringRef ModuleMap =
         Opts.DashX.getFormat() == InputKind::ModuleMap ? "-module-map" : "";
+    StringRef HeaderUnit = "";
+    switch (Opts.DashX.getHeaderUnitKind()) {
+    case InputKind::HeaderUnit_None:
+      break;
+    case InputKind::HeaderUnit_User:
+      HeaderUnit = "-user";
+      break;
+    case InputKind::HeaderUnit_System:
+      HeaderUnit = "-system";
+      break;
+    case InputKind::HeaderUnit_Abs:
+      HeaderUnit = "-header-unit";
+      break;
+    }
     StringRef Header = IsHeader ? "-header" : "";
 
     StringRef Lang;
@@ -2604,9 +2675,13 @@ static void GenerateFrontendArgs(const FrontendOptions &Opts,
     case Language::LLVM_IR:
       Lang = "ir";
       break;
+    case Language::HLSL:
+      Lang = "hlsl";
+      break;
     }
 
-    GenerateArg(Args, OPT_x, Lang + Header + ModuleMap + Preprocessed, SA);
+    GenerateArg(Args, OPT_x,
+                Lang + HeaderUnit + Header + ModuleMap + Preprocessed, SA);
   }
 
   // OPT_INPUT has a unique class, generate it directly.
@@ -2751,13 +2826,32 @@ static bool ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args,
   if (const Arg *A = Args.getLastArg(OPT_x)) {
     StringRef XValue = A->getValue();
 
-    // Parse suffixes: '<lang>(-header|[-module-map][-cpp-output])'.
+    // Parse suffixes:
+    // '<lang>(-[{header-unit,user,system}-]header|[-module-map][-cpp-output])'.
     // FIXME: Supporting '<lang>-header-cpp-output' would be useful.
     bool Preprocessed = XValue.consume_back("-cpp-output");
     bool ModuleMap = XValue.consume_back("-module-map");
-    IsHeaderFile = !Preprocessed && !ModuleMap &&
-                   XValue != "precompiled-header" &&
-                   XValue.consume_back("-header");
+    // Detect and consume the header indicator.
+    bool IsHeader =
+        XValue != "precompiled-header" && XValue.consume_back("-header");
+
+    // If we have c++-{user,system}-header, that indicates a header unit input
+    // likewise, if the user put -fmodule-header together with a header with an
+    // absolute path (header-unit-header).
+    InputKind::HeaderUnitKind HUK = InputKind::HeaderUnit_None;
+    if (IsHeader || Preprocessed) {
+      if (XValue.consume_back("-header-unit"))
+        HUK = InputKind::HeaderUnit_Abs;
+      else if (XValue.consume_back("-system"))
+        HUK = InputKind::HeaderUnit_System;
+      else if (XValue.consume_back("-user"))
+        HUK = InputKind::HeaderUnit_User;
+    }
+
+    // The value set by this processing is an un-preprocessed source which is
+    // not intended to be a module map or header unit.
+    IsHeaderFile = IsHeader && !Preprocessed && !ModuleMap &&
+                   HUK == InputKind::HeaderUnit_None;
 
     // Principal languages.
     DashX = llvm::StringSwitch<InputKind>(XValue)
@@ -2770,18 +2864,21 @@ static bool ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args,
                 .Case("objective-c", Language::ObjC)
                 .Case("objective-c++", Language::ObjCXX)
                 .Case("renderscript", Language::RenderScript)
+                .Case("hlsl", Language::HLSL)
                 .Default(Language::Unknown);
 
     // "objc[++]-cpp-output" is an acceptable synonym for
     // "objective-c[++]-cpp-output".
-    if (DashX.isUnknown() && Preprocessed && !IsHeaderFile && !ModuleMap)
+    if (DashX.isUnknown() && Preprocessed && !IsHeaderFile && !ModuleMap &&
+        HUK == InputKind::HeaderUnit_None)
       DashX = llvm::StringSwitch<InputKind>(XValue)
                   .Case("objc", Language::ObjC)
                   .Case("objc++", Language::ObjCXX)
                   .Default(Language::Unknown);
 
     // Some special cases cannot be combined with suffixes.
-    if (DashX.isUnknown() && !Preprocessed && !ModuleMap && !IsHeaderFile)
+    if (DashX.isUnknown() && !Preprocessed && !IsHeaderFile && !ModuleMap &&
+        HUK == InputKind::HeaderUnit_None)
       DashX = llvm::StringSwitch<InputKind>(XValue)
                   .Case("cpp-output", InputKind(Language::C).getPreprocessed())
                   .Case("assembler-with-cpp", Language::Asm)
@@ -2796,6 +2893,12 @@ static bool ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args,
 
     if (Preprocessed)
       DashX = DashX.getPreprocessed();
+    // A regular header is considered mutually exclusive with a header unit.
+    if (HUK != InputKind::HeaderUnit_None) {
+      DashX = DashX.withHeaderUnit(HUK);
+      IsHeaderFile = true;
+    } else if (IsHeaderFile)
+      DashX = DashX.getHeader();
     if (ModuleMap)
       DashX = DashX.withFormat(InputKind::ModuleMap);
   }
@@ -2805,6 +2908,11 @@ static bool ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args,
   Opts.Inputs.clear();
   if (Inputs.empty())
     Inputs.push_back("-");
+
+  if (DashX.getHeaderUnitKind() != InputKind::HeaderUnit_None &&
+      Inputs.size() > 1)
+    Diags.Report(diag::err_drv_header_unit_extra_inputs) << Inputs[1];
+
   for (unsigned i = 0, e = Inputs.size(); i != e; ++i) {
     InputKind IK = DashX;
     if (IK.isUnknown()) {
@@ -3103,155 +3211,6 @@ static bool ParseHeaderSearchArgs(HeaderSearchOptions &Opts, ArgList &Args,
   return Diags.getNumErrors() == NumErrorsBefore;
 }
 
-void CompilerInvocation::setLangDefaults(LangOptions &Opts, InputKind IK,
-                                         const llvm::Triple &T,
-                                         std::vector<std::string> &Includes,
-                                         LangStandard::Kind LangStd) {
-  // Set some properties which depend solely on the input kind; it would be nice
-  // to move these to the language standard, and have the driver resolve the
-  // input kind + language standard.
-  //
-  // FIXME: Perhaps a better model would be for a single source file to have
-  // multiple language standards (C / C++ std, ObjC std, OpenCL std, OpenMP std)
-  // simultaneously active?
-  if (IK.getLanguage() == Language::Asm) {
-    Opts.AsmPreprocessor = 1;
-  } else if (IK.isObjectiveC()) {
-    Opts.ObjC = 1;
-  }
-
-  if (LangStd == LangStandard::lang_unspecified) {
-    // Based on the base language, pick one.
-    switch (IK.getLanguage()) {
-    case Language::Unknown:
-    case Language::LLVM_IR:
-      llvm_unreachable("Invalid input kind!");
-    case Language::OpenCL:
-      LangStd = LangStandard::lang_opencl12;
-      break;
-    case Language::OpenCLCXX:
-      LangStd = LangStandard::lang_openclcpp10;
-      break;
-    case Language::CUDA:
-      LangStd = LangStandard::lang_cuda;
-      break;
-    case Language::Asm:
-    case Language::C:
-#if defined(CLANG_DEFAULT_STD_C)
-      LangStd = CLANG_DEFAULT_STD_C;
-#else
-      // The PS4 uses C99 as the default C standard.
-      if (T.isPS4())
-        LangStd = LangStandard::lang_gnu99;
-      else
-        LangStd = LangStandard::lang_gnu17;
-#endif
-      break;
-    case Language::ObjC:
-#if defined(CLANG_DEFAULT_STD_C)
-      LangStd = CLANG_DEFAULT_STD_C;
-#else
-      LangStd = LangStandard::lang_gnu11;
-#endif
-      break;
-    case Language::CXX:
-    case Language::ObjCXX:
-#if defined(CLANG_DEFAULT_STD_CXX)
-      LangStd = CLANG_DEFAULT_STD_CXX;
-#else
-      LangStd = LangStandard::lang_gnucxx14;
-#endif
-      break;
-    case Language::RenderScript:
-      LangStd = LangStandard::lang_c99;
-      break;
-    case Language::HIP:
-      LangStd = LangStandard::lang_hip;
-      break;
-    }
-  }
-
-  const LangStandard &Std = LangStandard::getLangStandardForKind(LangStd);
-  Opts.LangStd = LangStd;
-  Opts.LineComment = Std.hasLineComments();
-  Opts.C99 = Std.isC99();
-  Opts.C11 = Std.isC11();
-  Opts.C17 = Std.isC17();
-  Opts.C2x = Std.isC2x();
-  Opts.CPlusPlus = Std.isCPlusPlus();
-  Opts.CPlusPlus11 = Std.isCPlusPlus11();
-  Opts.CPlusPlus14 = Std.isCPlusPlus14();
-  Opts.CPlusPlus17 = Std.isCPlusPlus17();
-  Opts.CPlusPlus20 = Std.isCPlusPlus20();
-  Opts.CPlusPlus2b = Std.isCPlusPlus2b();
-  Opts.GNUMode = Std.isGNUMode();
-  Opts.GNUCVersion = 0;
-  Opts.HexFloats = Std.hasHexFloats();
-  Opts.ImplicitInt = Std.hasImplicitInt();
-
-  // Set OpenCL Version.
-  Opts.OpenCL = Std.isOpenCL();
-  if (LangStd == LangStandard::lang_opencl10)
-    Opts.OpenCLVersion = 100;
-  else if (LangStd == LangStandard::lang_opencl11)
-    Opts.OpenCLVersion = 110;
-  else if (LangStd == LangStandard::lang_opencl12)
-    Opts.OpenCLVersion = 120;
-  else if (LangStd == LangStandard::lang_opencl20)
-    Opts.OpenCLVersion = 200;
-  else if (LangStd == LangStandard::lang_opencl30)
-    Opts.OpenCLVersion = 300;
-  else if (LangStd == LangStandard::lang_openclcpp10)
-    Opts.OpenCLCPlusPlusVersion = 100;
-  else if (LangStd == LangStandard::lang_openclcpp2021)
-    Opts.OpenCLCPlusPlusVersion = 202100;
-
-  // OpenCL has some additional defaults.
-  if (Opts.OpenCL) {
-    Opts.AltiVec = 0;
-    Opts.ZVector = 0;
-    Opts.setDefaultFPContractMode(LangOptions::FPM_On);
-    Opts.OpenCLCPlusPlus = Opts.CPlusPlus;
-    Opts.OpenCLPipes = Opts.getOpenCLCompatibleVersion() == 200;
-    Opts.OpenCLGenericAddressSpace = Opts.getOpenCLCompatibleVersion() == 200;
-
-    // Include default header file for OpenCL.
-    if (Opts.IncludeDefaultHeader) {
-      if (Opts.DeclareOpenCLBuiltins) {
-        // Only include base header file for builtin types and constants.
-        Includes.push_back("opencl-c-base.h");
-      } else {
-        Includes.push_back("opencl-c.h");
-      }
-    }
-  }
-
-  Opts.HIP = IK.getLanguage() == Language::HIP;
-  Opts.CUDA = IK.getLanguage() == Language::CUDA || Opts.HIP;
-  if (Opts.HIP) {
-    // HIP toolchain does not support 'Fast' FPOpFusion in backends since it
-    // fuses multiplication/addition instructions without contract flag from
-    // device library functions in LLVM bitcode, which causes accuracy loss in
-    // certain math functions, e.g. tan(-1e20) becomes -0.933 instead of 0.8446.
-    // For device library functions in bitcode to work, 'Strict' or 'Standard'
-    // FPOpFusion options in backends is needed. Therefore 'fast-honor-pragmas'
-    // FP contract option is used to allow fuse across statements in frontend
-    // whereas respecting contract flag in backend.
-    Opts.setDefaultFPContractMode(LangOptions::FPM_FastHonorPragmas);
-  } else if (Opts.CUDA) {
-    // Allow fuse across statements disregarding pragmas.
-    Opts.setDefaultFPContractMode(LangOptions::FPM_Fast);
-  }
-
-  Opts.RenderScript = IK.getLanguage() == Language::RenderScript;
-
-  // OpenCL and C++ both have bool, true, false keywords.
-  Opts.Bool = Opts.OpenCL || Opts.CPlusPlus;
-
-  // OpenCL has half keyword
-  Opts.Half = Opts.OpenCL;
-}
-
 /// Check if input file kind and language standard are compatible.
 static bool IsInputCompatibleWithStandard(InputKind IK,
                                           const LangStandard &S) {
@@ -3289,6 +3248,9 @@ static bool IsInputCompatibleWithStandard(InputKind IK,
     // FIXME: The -std= value is not ignored; it affects the tokenization
     // and preprocessing rules if we're preprocessing this asm input.
     return true;
+
+  case Language::HLSL:
+    return S.getLanguage() == Language::HLSL;
   }
 
   llvm_unreachable("unexpected input language");
@@ -3320,6 +3282,9 @@ static StringRef GetInputKindName(InputKind IK) {
     return "Asm";
   case Language::LLVM_IR:
     return "LLVM IR";
+
+  case Language::HLSL:
+    return "HLSL";
 
   case Language::Unknown:
     break;
@@ -3456,6 +3421,8 @@ void CompilerInvocation::GenerateLangArgs(const LangOptions &Opts,
     GenerateArg(Args, OPT_mlong_double_128, SA);
   else if (Opts.LongDoubleSize == 64)
     GenerateArg(Args, OPT_mlong_double_64, SA);
+  else if (Opts.LongDoubleSize == 80)
+    GenerateArg(Args, OPT_mlong_double_80, SA);
 
   // Not generating '-mrtd', it's just an alias for '-fdefault-calling-conv='.
 
@@ -3483,9 +3450,6 @@ void CompilerInvocation::GenerateLangArgs(const LangOptions &Opts,
     if (Opts.OpenMP != 50)
       GenerateArg(Args, OPT_fopenmp_version_EQ, Twine(Opts.OpenMP), SA);
   }
-
-  if (Opts.OpenMPTargetNewRuntime)
-    GenerateArg(Args, OPT_fopenmp_target_new_runtime, SA);
 
   if (Opts.OpenMPThreadSubscription)
     GenerateArg(Args, OPT_fopenmp_assume_threads_oversubscription, SA);
@@ -3560,6 +3524,8 @@ void CompilerInvocation::GenerateLangArgs(const LangOptions &Opts,
     GenerateArg(Args, OPT_fclang_abi_compat_EQ, "11.0", SA);
   else if (Opts.getClangABICompat() == LangOptions::ClangABI::Ver12)
     GenerateArg(Args, OPT_fclang_abi_compat_EQ, "12.0", SA);
+  else if (Opts.getClangABICompat() == LangOptions::ClangABI::Ver14)
+    GenerateArg(Args, OPT_fclang_abi_compat_EQ, "14.0", SA);
 
   if (Opts.getSignReturnAddressScope() ==
       LangOptions::SignReturnAddressScopeKind::All)
@@ -3581,8 +3547,16 @@ void CompilerInvocation::GenerateLangArgs(const LangOptions &Opts,
   else
     GenerateArg(Args, OPT_fno_experimental_relative_cxx_abi_vtables, SA);
 
+  if (Opts.UseTargetPathSeparator)
+    GenerateArg(Args, OPT_ffile_reproducible, SA);
+  else
+    GenerateArg(Args, OPT_fno_file_reproducible, SA);
+
   for (const auto &MP : Opts.MacroPrefixMap)
     GenerateArg(Args, OPT_fmacro_prefix_map_EQ, MP.first + "=" + MP.second, SA);
+
+  if (!Opts.RandstructSeed.empty())
+    GenerateArg(Args, OPT_frandomize_layout_seed_EQ, Opts.RandstructSeed, SA);
 }
 
 bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
@@ -3680,7 +3654,7 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
   Opts.IncludeDefaultHeader = Args.hasArg(OPT_finclude_default_header);
   Opts.DeclareOpenCLBuiltins = Args.hasArg(OPT_fdeclare_opencl_builtins);
 
-  CompilerInvocation::setLangDefaults(Opts, IK, T, Includes, LangStd);
+  LangOptions::setLangDefaults(Opts, IK.getLanguage(), T, Includes, LangStd);
 
   // The key paths of codegen options defined in Options.td start with
   // "LangOpts->". Let's provide the expected variable name and type.
@@ -3767,8 +3741,8 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
     VersionTuple GNUCVer;
     bool Invalid = GNUCVer.tryParse(A->getValue());
     unsigned Major = GNUCVer.getMajor();
-    unsigned Minor = GNUCVer.getMinor().getValueOr(0);
-    unsigned Patch = GNUCVer.getSubminor().getValueOr(0);
+    unsigned Minor = GNUCVer.getMinor().value_or(0);
+    unsigned Patch = GNUCVer.getSubminor().value_or(0);
     if (Invalid || GNUCVer.getBuild() || Minor >= 100 || Patch >= 100) {
       Diags.Report(diag::err_drv_invalid_value)
           << A->getAsString(Args) << A->getValue();
@@ -3776,28 +3750,7 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
     Opts.GNUCVersion = Major * 100 * 100 + Minor * 100 + Patch;
   }
 
-  // In AIX OS, the -mignore-xcoff-visibility is enable by default if there is
-  // no -fvisibility=* option.
-  // This is the reason why '-fvisibility' needs to be always generated:
-  // its absence implies '-mignore-xcoff-visibility'.
-  //
-  // Suppose the original cc1 command line does contain '-fvisibility default':
-  // '-mignore-xcoff-visibility' should not be implied.
-  // * If '-fvisibility' is not generated (as most options with default values
-  //   don't), its absence would imply '-mignore-xcoff-visibility'. This changes
-  //   the command line semantics.
-  // * If '-fvisibility' is generated regardless of its presence and value,
-  //   '-mignore-xcoff-visibility' won't be implied and the command line
-  //   semantics are kept intact.
-  //
-  // When the original cc1 command line does **not** contain '-fvisibility',
-  // '-mignore-xcoff-visibility' is implied. The generated command line will
-  // contain both '-fvisibility default' and '-mignore-xcoff-visibility' and
-  // subsequent calls to `CreateFromArgs`/`generateCC1CommandLine` will always
-  // produce the same arguments.
-
-  if (T.isOSAIX() && (Args.hasArg(OPT_mignore_xcoff_visibility) ||
-                      !Args.hasArg(OPT_fvisibility)))
+  if (T.isOSAIX() && (Args.hasArg(OPT_mignore_xcoff_visibility)))
     Opts.IgnoreXCOFFVisibility = 1;
 
   if (Args.hasArg(OPT_ftrapv)) {
@@ -3816,8 +3769,8 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
       Diags.Report(diag::err_drv_invalid_value) << A->getAsString(Args)
                                                 << A->getValue();
     Opts.MSCompatibilityVersion = VT.getMajor() * 10000000 +
-                                  VT.getMinor().getValueOr(0) * 100000 +
-                                  VT.getSubminor().getValueOr(0);
+                                  VT.getMinor().value_or(0) * 100000 +
+                                  VT.getSubminor().value_or(0);
   }
 
   // Mimicking gcc's behavior, trigraphs are only enabled if -trigraphs
@@ -3839,11 +3792,19 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
   Opts.NoBuiltin = Args.hasArg(OPT_fno_builtin) || Opts.Freestanding;
   if (!Opts.NoBuiltin)
     getAllNoBuiltinFuncValues(Args, Opts.NoBuiltinFuncs);
-  Opts.LongDoubleSize = Args.hasArg(OPT_mlong_double_128)
-                            ? 128
-                            : Args.hasArg(OPT_mlong_double_64) ? 64 : 0;
+  if (Arg *A = Args.getLastArg(options::OPT_LongDouble_Group)) {
+    if (A->getOption().matches(options::OPT_mlong_double_64))
+      Opts.LongDoubleSize = 64;
+    else if (A->getOption().matches(options::OPT_mlong_double_80))
+      Opts.LongDoubleSize = 80;
+    else if (A->getOption().matches(options::OPT_mlong_double_128))
+      Opts.LongDoubleSize = 128;
+    else
+      Opts.LongDoubleSize = 0;
+  }
   if (Opts.FastRelaxedMath)
     Opts.setDefaultFPContractMode(LangOptions::FPM_Fast);
+
   llvm::sort(Opts.ModuleFeatures);
 
   // -mrtd option
@@ -3875,9 +3836,6 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
       Opts.OpenMP && Args.hasArg(options::OPT_fopenmp_enable_irbuilder);
   bool IsTargetSpecified =
       Opts.OpenMPIsDevice || Args.hasArg(options::OPT_fopenmp_targets_EQ);
-  Opts.OpenMPTargetNewRuntime =
-      Opts.OpenMPIsDevice &&
-      Args.hasArg(options::OPT_fopenmp_target_new_runtime);
 
   Opts.ConvergentFunctions = Opts.ConvergentFunctions || Opts.OpenMPIsDevice;
 
@@ -3925,17 +3883,13 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
   // Set either by a specific value or to a default if not specified.
   if (Opts.OpenMPIsDevice && (Args.hasArg(OPT_fopenmp_target_debug) ||
                               Args.hasArg(OPT_fopenmp_target_debug_EQ))) {
-    if (Opts.OpenMPTargetNewRuntime) {
-      Opts.OpenMPTargetDebug = getLastArgIntValue(
-          Args, OPT_fopenmp_target_debug_EQ, Opts.OpenMPTargetDebug, Diags);
-      if (!Opts.OpenMPTargetDebug && Args.hasArg(OPT_fopenmp_target_debug))
-        Opts.OpenMPTargetDebug = 1;
-    } else {
-      Diags.Report(diag::err_drv_debug_no_new_runtime);
-    }
+    Opts.OpenMPTargetDebug = getLastArgIntValue(
+        Args, OPT_fopenmp_target_debug_EQ, Opts.OpenMPTargetDebug, Diags);
+    if (!Opts.OpenMPTargetDebug && Args.hasArg(OPT_fopenmp_target_debug))
+      Opts.OpenMPTargetDebug = 1;
   }
 
-  if (Opts.OpenMPIsDevice && Opts.OpenMPTargetNewRuntime) {
+  if (Opts.OpenMPIsDevice) {
     if (Args.hasArg(OPT_fopenmp_assume_teams_oversubscription))
       Opts.OpenMPTeamSubscription = true;
     if (Args.hasArg(OPT_fopenmp_assume_threads_oversubscription))
@@ -4062,6 +4016,8 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
         Opts.setClangABICompat(LangOptions::ClangABI::Ver11);
       else if (Major <= 12)
         Opts.setClangABICompat(LangOptions::ClangABI::Ver12);
+      else if (Major <= 14)
+        Opts.setClangABICompat(LangOptions::ClangABI::Ver14);
     } else if (Ver != "latest") {
       Diags.Report(diag::err_drv_invalid_value)
           << A->getAsString(Args) << A->getValue();
@@ -4125,12 +4081,31 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
         {std::string(Split.first), std::string(Split.second)});
   }
 
+  Opts.UseTargetPathSeparator =
+      !Args.getLastArg(OPT_fno_file_reproducible) &&
+      (Args.getLastArg(OPT_ffile_compilation_dir_EQ) ||
+       Args.getLastArg(OPT_fmacro_prefix_map_EQ) ||
+       Args.getLastArg(OPT_ffile_reproducible));
+
   // Error if -mvscale-min is unbounded.
   if (Arg *A = Args.getLastArg(options::OPT_mvscale_min_EQ)) {
     unsigned VScaleMin;
     if (StringRef(A->getValue()).getAsInteger(10, VScaleMin) || VScaleMin == 0)
       Diags.Report(diag::err_cc1_unbounded_vscale_min);
   }
+
+  if (const Arg *A = Args.getLastArg(OPT_frandomize_layout_seed_file_EQ)) {
+    std::ifstream SeedFile(A->getValue(0));
+
+    if (!SeedFile.is_open())
+      Diags.Report(diag::err_drv_cannot_open_randomize_layout_seed_file)
+          << A->getValue(0);
+
+    std::getline(SeedFile, Opts.RandstructSeed);
+  }
+
+  if (const Arg *A = Args.getLastArg(OPT_frandomize_layout_seed_EQ))
+    Opts.RandstructSeed = A->getValue(0);
 
   return Diags.getNumErrors() == NumErrorsBefore;
 }
@@ -4153,6 +4128,7 @@ static bool isStrictlyPreprocessorAction(frontend::ActionKind Action) {
   case frontend::GenerateModule:
   case frontend::GenerateModuleInterface:
   case frontend::GenerateHeaderModule:
+  case frontend::GenerateHeaderUnit:
   case frontend::GeneratePCH:
   case frontend::GenerateInterfaceStubs:
   case frontend::ParseSyntaxOnly:
@@ -4233,6 +4209,10 @@ static void GeneratePreprocessorArgs(PreprocessorOptions &Opts,
     if (LangOpts.OpenCL && LangOpts.IncludeDefaultHeader &&
         ((LangOpts.DeclareOpenCLBuiltins && I == "opencl-c-base.h") ||
          I == "opencl-c.h"))
+      continue;
+    // Don't generate HLSL includes. They are implied by other flags that are
+    // generated elsewhere.
+    if (LangOpts.HLSL && I == "hlsl.h")
       continue;
 
     GenerateArg(Args, OPT_include, I, SA);
@@ -4356,6 +4336,8 @@ static void GeneratePreprocessorOutputArgs(
     GenerateArg(Args, OPT_dM, SA);
   if (!Generate_dM && Opts.ShowMacros)
     GenerateArg(Args, OPT_dD, SA);
+  if (Opts.DirectivesOnly)
+    GenerateArg(Args, OPT_fdirectives_only, SA);
 }
 
 static bool ParsePreprocessorOutputArgs(PreprocessorOutputOptions &Opts,
@@ -4378,6 +4360,7 @@ static bool ParsePreprocessorOutputArgs(PreprocessorOutputOptions &Opts,
 
   Opts.ShowCPP = isStrictlyPreprocessorAction(Action) && !Args.hasArg(OPT_dM);
   Opts.ShowMacros = Args.hasArg(OPT_dM) || Args.hasArg(OPT_dD);
+  Opts.DirectivesOnly = Args.hasArg(OPT_fdirectives_only);
 
   return Diags.getNumErrors() == NumErrorsBefore;
 }
@@ -4400,6 +4383,9 @@ static void GenerateTargetArgs(const TargetOptions &Opts,
   if (!Opts.SDKVersion.empty())
     GenerateArg(Args, OPT_target_sdk_version_EQ, Opts.SDKVersion.getAsString(),
                 SA);
+  if (!Opts.DarwinTargetVariantSDKVersion.empty())
+    GenerateArg(Args, OPT_darwin_target_variant_sdk_version_EQ,
+                Opts.DarwinTargetVariantSDKVersion.getAsString(), SA);
 }
 
 static bool ParseTargetArgs(TargetOptions &Opts, ArgList &Args,
@@ -4426,6 +4412,15 @@ static bool ParseTargetArgs(TargetOptions &Opts, ArgList &Args,
           << A->getAsString(Args) << A->getValue();
     else
       Opts.SDKVersion = Version;
+  }
+  if (Arg *A =
+          Args.getLastArg(options::OPT_darwin_target_variant_sdk_version_EQ)) {
+    llvm::VersionTuple Version;
+    if (Version.tryParse(A->getValue()))
+      Diags.Report(diag::err_drv_invalid_value)
+          << A->getAsString(Args) << A->getValue();
+    else
+      Opts.DarwinTargetVariantSDKVersion = Version;
   }
 
   return Diags.getNumErrors() == NumErrorsBefore;
@@ -4477,6 +4472,13 @@ bool CompilerInvocation::CreateFromArgsImpl(
                 Diags);
   if (Res.getFrontendOpts().ProgramAction == frontend::RewriteObjC)
     LangOpts.ObjCExceptions = 1;
+
+  for (auto Warning : Res.getDiagnosticOpts().Warnings) {
+    if (Warning == "misexpect" &&
+        !Diags.isIgnored(diag::warn_profile_data_misexpect, SourceLocation())) {
+      Res.getCodeGenOpts().MisExpect = true;
+    }
+  }
 
   if (LangOpts.CUDA) {
     // During CUDA device-side compilation, the aux triple is the

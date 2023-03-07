@@ -54,6 +54,8 @@ static ipf_rdx_node_t *ipf_rx_match(ipf_rdx_head_t *, addrfamily_t *);
 /* ------------------------------------------------------------------------ */
 /* Function:    count_mask_bits                                             */
 /* Returns:     number of consecutive bits starting at "mask".              */
+/* Parameters:  mask(I)  - netmask                                          */
+/*              lastp(I) - pointer to last word with a bit set              */
 /*                                                                          */
 /* Count the number of bits set in the address section of addrfamily_t and  */
 /* return both that number and a pointer to the last word with a bit set if */
@@ -91,7 +93,7 @@ count_mask_bits(addrfamily_t *mask, u_32_t **lastp)
 /*                         associated with addr and mask.                   */
 /*                                                                          */
 /* Initialise the fields in a pair of radix tree nodes according to the     */
-/* data supplied in the paramters "addr" and "mask". It is expected that    */
+/* data supplied in the parameters "addr" and "mask". It is expected that    */
 /* "mask" will contain a consecutive string of bits set. Masks with gaps in */
 /* the middle are not handled by this implementation.                       */
 /* ------------------------------------------------------------------------ */
@@ -316,7 +318,7 @@ ipf_rx_attach_mask(ipf_rdx_node_t *node, ipf_rdx_mask_t *mask)
 /* by the netmask.                                                          */
 /* ------------------------------------------------------------------------ */
 static ipf_rdx_node_t *
-ipf_rx_insert(ipf_rdx_head_t *head, ipf_rdx_node_t *nodes, int *dup)
+ipf_rx_insert(ipf_rdx_head_t *head, ipf_rdx_node_t nodes[2], int *dup)
 {
 	ipf_rdx_mask_t **pmask;
 	ipf_rdx_node_t *node;

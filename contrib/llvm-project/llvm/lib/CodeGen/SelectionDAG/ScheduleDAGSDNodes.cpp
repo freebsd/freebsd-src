@@ -749,7 +749,7 @@ ProcessSDDbgValues(SDNode *N, SelectionDAG *DAG, InstrEmitter &Emitter,
   // source order number as N.
   MachineBasicBlock *BB = Emitter.getBlock();
   MachineBasicBlock::iterator InsertPos = Emitter.getInsertPos();
-  for (auto DV : DAG->GetDbgValues(N)) {
+  for (auto *DV : DAG->GetDbgValues(N)) {
     if (DV->isEmitted())
       continue;
     unsigned DVOrder = DV->getOrder();
@@ -884,7 +884,7 @@ EmitSchedule(MachineBasicBlock::iterator &InsertPos) {
 
     if (MI->isCandidateForCallSiteEntry() &&
         DAG->getTarget().Options.EmitCallSiteInfo)
-      MF.addCallArgsForwardingRegs(MI, DAG->getSDCallSiteInfo(Node));
+      MF.addCallArgsForwardingRegs(MI, DAG->getCallSiteInfo(Node));
 
     if (DAG->getNoMergeSiteInfo(Node)) {
       MI->setFlag(MachineInstr::MIFlag::NoMerge);

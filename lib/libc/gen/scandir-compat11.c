@@ -58,8 +58,8 @@ __FBSDID("$FreeBSD$");
 
 #define	SELECT(x)	select(x)
 
-static int freebsd11_alphasort_thunk(void *thunk, const void *p1,
-    const void *p2);
+static int freebsd11_scandir_thunk_cmp(const void *p1, const void *p2,
+    void *thunk);
 
 int
 freebsd11_scandir(const char *dirname, struct freebsd11_dirent ***namelist,
@@ -116,7 +116,7 @@ freebsd11_scandir(const char *dirname, struct freebsd11_dirent ***namelist,
 	closedir(dirp);
 	if (numitems && dcomp != NULL)
 		qsort_r(names, numitems, sizeof(struct freebsd11_dirent *),
-		    &dcomp, freebsd11_alphasort_thunk);
+		    freebsd11_scandir_thunk_cmp, &dcomp);
 	*namelist = names;
 	return (numitems);
 
@@ -141,7 +141,7 @@ freebsd11_alphasort(const struct freebsd11_dirent **d1,
 }
 
 static int
-freebsd11_alphasort_thunk(void *thunk, const void *p1, const void *p2)
+freebsd11_scandir_thunk_cmp(const void *p1, const void *p2, void *thunk)
 {
 	int (*dc)(const struct freebsd11_dirent **, const struct
 	    freebsd11_dirent **);

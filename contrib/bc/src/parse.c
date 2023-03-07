@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -64,10 +64,9 @@ bc_parse_pushName(const BcParse* p, char* name, bool var)
  * @param inst  The instruction to push.
  * @param idx   The index to push.
  */
-static void
-bc_parse_update(BcParse* p, uchar inst, size_t idx)
+static inline void
+bc_parse_pushInstIdx(BcParse* p, uchar inst, size_t idx)
 {
-	bc_parse_updateFunc(p, p->fidx);
 	bc_parse_push(p, inst);
 	bc_parse_pushIndex(p, idx);
 }
@@ -77,20 +76,26 @@ bc_parse_addString(BcParse* p)
 {
 	size_t idx;
 
-	idx = bc_program_addString(p->prog, p->l.str.v, p->fidx);
+	idx = bc_program_addString(p->prog, p->l.str.v);
 
 	// Push the string info.
-	bc_parse_update(p, BC_INST_STR, p->fidx);
-	bc_parse_pushIndex(p, idx);
+	bc_parse_pushInstIdx(p, BC_INST_STR, idx);
 }
 
 static void
 bc_parse_addNum(BcParse* p, const char* string)
 {
-	BcVec* consts = &p->func->consts;
+	BcProgram* prog = p->prog;
 	size_t idx;
-	BcConst* c;
-	BcVec* slabs;
+
+	// XXX: This function has an implicit assumption: that string is a valid C
+	// string with a nul terminator. This is because of the unchecked array
+	// accesses below. I can't check this with an assert() because that could
+	// lead to out-of-bounds access.
+	//
+	// XXX: In fact, just for safety's sake, assume that this function needs a
+	// non-empty string with a nul terminator, just in case bc_parse_zero or
+	// bc_parse_one change in the future, which I doubt.
 
 	BC_SIG_ASSERT_LOCKED;
 
@@ -108,25 +113,33 @@ bc_parse_addNum(BcParse* p, const char* string)
 		return;
 	}
 
-	// Get the index.
-	idx = consts->len;
+	if (bc_map_insert(&prog->const_map, string, prog->consts.len, &idx))
+	{
+		BcConst* c;
+		BcId* id = bc_vec_item(&prog->const_map, idx);
 
-	// Get the right slab.
-	slabs = p->fidx == BC_PROG_MAIN || p->fidx == BC_PROG_READ ?
-	            &vm.main_const_slab :
-	            &vm.other_slabs;
+		// Get the index.
+		idx = id->idx;
 
-	// Push an empty constant.
-	c = bc_vec_pushEmpty(consts);
+		// Push an empty constant.
+		c = bc_vec_pushEmpty(&prog->consts);
 
-	// Set the fields.
-	c->val = bc_slabvec_strdup(slabs, string);
-	c->base = BC_NUM_BIGDIG_MAX;
+		// Set the fields. We reuse the string in the ID (allocated by
+		// bc_map_insert()), because why not?
+		c->val = id->name;
+		c->base = BC_NUM_BIGDIG_MAX;
 
-	// We need this to be able to tell that the number has not been allocated.
-	bc_num_clear(&c->num);
+		// We need this to be able to tell that the number has not been
+		// allocated.
+		bc_num_clear(&c->num);
+	}
+	else
+	{
+		BcId* id = bc_vec_item(&prog->const_map, idx);
+		idx = id->idx;
+	}
 
-	bc_parse_update(p, BC_INST_NUM, idx);
+	bc_parse_pushInstIdx(p, BC_INST_NUM, idx);
 }
 
 void
@@ -164,13 +177,13 @@ bc_parse_number(BcParse* p)
 }
 
 void
-bc_parse_text(BcParse* p, const char* text, bool is_stdin, bool is_exprs)
+bc_parse_text(BcParse* p, const char* text, BcMode mode)
 {
 	BC_SIG_LOCK;
 
 	// Make sure the pointer isn't invalidated.
 	p->func = bc_vec_item(&p->prog->fns, p->fidx);
-	bc_lex_text(&p->l, text, is_stdin, is_exprs);
+	bc_lex_text(&p->l, text, mode);
 
 	BC_SIG_UNLOCK;
 }
@@ -207,10 +220,10 @@ bc_parse_reset(BcParse* p)
 	bc_program_reset(p->prog);
 
 	// Jump if there is an error.
-	if (BC_ERR(vm.status)) BC_JMP;
+	if (BC_ERR(vm->status)) BC_JMP;
 }
 
-#ifndef NDEBUG
+#if BC_DEBUG
 void
 bc_parse_free(BcParse* p)
 {
@@ -231,7 +244,7 @@ bc_parse_free(BcParse* p)
 
 	bc_lex_free(&p->l);
 }
-#endif // NDEBUG
+#endif // BC_DEBUG
 
 void
 bc_parse_init(BcParse* p, BcProgram* prog, size_t func)

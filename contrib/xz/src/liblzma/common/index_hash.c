@@ -122,7 +122,7 @@ lzma_index_hash_size(const lzma_index_hash *index_hash)
 
 
 /// Updates the sizes and the hash without any validation.
-static lzma_ret
+static void
 hash_append(lzma_index_hash_info *info, lzma_vli unpadded_size,
 		lzma_vli uncompressed_size)
 {
@@ -136,7 +136,7 @@ hash_append(lzma_index_hash_info *info, lzma_vli unpadded_size,
 	lzma_check_update(&info->check, LZMA_CHECK_BEST,
 			(const uint8_t *)(sizes), sizeof(sizes));
 
-	return LZMA_OK;
+	return;
 }
 
 
@@ -145,15 +145,14 @@ lzma_index_hash_append(lzma_index_hash *index_hash, lzma_vli unpadded_size,
 		lzma_vli uncompressed_size)
 {
 	// Validate the arguments.
-	if (index_hash->sequence != SEQ_BLOCK
+	if (index_hash == NULL || index_hash->sequence != SEQ_BLOCK
 			|| unpadded_size < UNPADDED_SIZE_MIN
 			|| unpadded_size > UNPADDED_SIZE_MAX
 			|| uncompressed_size > LZMA_VLI_MAX)
 		return LZMA_PROG_ERROR;
 
 	// Update the hash.
-	return_if_error(hash_append(&index_hash->blocks,
-			unpadded_size, uncompressed_size));
+	hash_append(&index_hash->blocks, unpadded_size, uncompressed_size);
 
 	// Validate the properties of *info are still in allowed limits.
 	if (index_hash->blocks.blocks_size > LZMA_VLI_MAX
@@ -191,7 +190,7 @@ lzma_index_hash_decode(lzma_index_hash *index_hash, const uint8_t *in,
 	switch (index_hash->sequence) {
 	case SEQ_BLOCK:
 		// Check the Index Indicator is present.
-		if (in[(*in_pos)++] != 0x00)
+		if (in[(*in_pos)++] != INDEX_INDICATOR)
 			return LZMA_DATA_ERROR;
 
 		index_hash->sequence = SEQ_COUNT;
@@ -239,9 +238,9 @@ lzma_index_hash_decode(lzma_index_hash *index_hash, const uint8_t *in,
 			index_hash->sequence = SEQ_UNCOMPRESSED;
 		} else {
 			// Update the hash.
-			return_if_error(hash_append(&index_hash->records,
+			hash_append(&index_hash->records,
 					index_hash->unpadded_size,
-					index_hash->uncompressed_size));
+					index_hash->uncompressed_size);
 
 			// Verify that we don't go over the known sizes. Note
 			// that this validation is simpler than the one used
@@ -313,8 +312,11 @@ lzma_index_hash_decode(lzma_index_hash *index_hash, const uint8_t *in,
 				return LZMA_OK;
 
 			if (((index_hash->crc32 >> (index_hash->pos * 8))
-					& 0xFF) != in[(*in_pos)++])
+					& 0xFF) != in[(*in_pos)++]) {
+#ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
 				return LZMA_DATA_ERROR;
+#endif
+			}
 
 		} while (++index_hash->pos < 4);
 

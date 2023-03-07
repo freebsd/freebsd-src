@@ -818,11 +818,31 @@ add_keymap_path(const char *path)
 	STAILQ_INSERT_TAIL(&pathlist, pe, next);
 }
 
+#ifdef OPIO_DEADKEYMAP
+static void
+to_old_accentmap(accentmap_t *from, oaccentmap_t *to)
+{
+	int i, j;
+
+	to->n_accs = from->n_accs;
+	for (i = 0; i < NUM_DEADKEYS; i++) {
+		for (j = 0; j < NUM_ACCENTCHARS; j++) {
+			to->acc[i].map[j][0] = from->acc[i].map[j][0];
+			to->acc[i].map[j][1] = from->acc[i].map[j][1];
+			to->acc[i].accchar = from->acc[i].accchar;
+		}
+	}
+}
+#endif /* OPIO_DEADKEYMAP */
+
 static void
 load_keymap(char *opt, int dumponly)
 {
 	keymap_t keymap;
 	accentmap_t accentmap;
+#ifdef OPIO_DEADKEYMAP
+	oaccentmap_t oaccentmap;
+#endif /* OPIO_DEADKEYMAP */
 	struct pathent *pe;
 	FILE	*file;
 	int	j;
@@ -882,23 +902,55 @@ load_keymap(char *opt, int dumponly)
 	}
 	if ((accentmap.n_accs > 0) 
 		&& (ioctl(0, PIO_DEADKEYMAP, &accentmap) < 0)) {
-		warn("setting accentmap");
-		fclose(file);
-		return;
+#ifdef OPIO_DEADKEYMAP
+		to_old_accentmap(&accentmap, &oaccentmap);
+		if (ioctl(0, OPIO_DEADKEYMAP, &oaccentmap) < 0)
+#endif /* OGIO_DEADKEYMAP */
+		{
+			warn("setting accentmap");
+			fclose(file);
+			return;
+		}
 	}
 }
+
+#ifdef OPIO_DEADKEYMAP
+static void
+to_new_accentmap(oaccentmap_t *from, accentmap_t *to)
+{
+	int i, j;
+
+	to->n_accs = from->n_accs;
+	for (i = 0; i < NUM_DEADKEYS; i++) {
+		for (j = 0; j < NUM_ACCENTCHARS; j++) {
+			to->acc[i].map[j][0] = from->acc[i].map[j][0];
+			to->acc[i].map[j][1] = from->acc[i].map[j][1];
+			to->acc[i].accchar = from->acc[i].accchar;
+		}
+	}
+}
+#endif /* OPIO_DEADKEYMAP */
 
 static void
 print_keymap(void)
 {
 	keymap_t keymap;
 	accentmap_t accentmap;
+#ifdef OGIO_DEADKEYMAP
+	oaccentmap_t oaccentmap;
+#endif /* OPIO_DEADKEYMAP */
 	int i;
 
 	if (ioctl(0, GIO_KEYMAP, &keymap) < 0)
 		err(1, "getting keymap");
-	if (ioctl(0, GIO_DEADKEYMAP, &accentmap) < 0)
-		memset(&accentmap, 0, sizeof(accentmap));
+	if (ioctl(0, GIO_DEADKEYMAP, &accentmap) < 0) {
+#ifdef OGIO_DEADKEYMAP
+		if (ioctl(0, OGIO_DEADKEYMAP, &oaccentmap) == 0)
+			to_new_accentmap(&oaccentmap, &accentmap);
+		else
+#endif /* OGIO_DEADKEYMAP */
+			memset(&accentmap, 0, sizeof(accentmap));
+	}
     	printf(
 "#                                                         alt\n"
 "# scan                       cntrl          alt    alt   cntrl lock\n"

@@ -101,6 +101,11 @@ SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, tls10_cbc_encrypts,
     CTLFLAG_RD, &ocf_tls10_cbc_encrypts,
     "Total number of OCF TLS 1.0 CBC encryption operations");
 
+static COUNTER_U64_DEFINE_EARLY(ocf_tls11_cbc_decrypts);
+SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, tls11_cbc_decrypts,
+    CTLFLAG_RD, &ocf_tls11_cbc_decrypts,
+    "Total number of OCF TLS 1.1/1.2 CBC decryption operations");
+
 static COUNTER_U64_DEFINE_EARLY(ocf_tls11_cbc_encrypts);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, tls11_cbc_encrypts,
     CTLFLAG_RD, &ocf_tls11_cbc_encrypts,
@@ -416,8 +421,129 @@ ktls_ocf_tls_cbc_encrypt(struct ktls_ocf_encrypt_state *state,
 	return (error);
 }
 
+static int
+check_padding(void *arg, void *data, u_int len)
+{
+	uint8_t pad = *(uint8_t *)arg;
+	const char *cp = data;
+
+	while (len > 0) {
+		if (*cp != pad)
+			return (EBADMSG);
+		cp++;
+		len--;
+	}
+	return (0);
+}
+
+static int
+ktls_ocf_tls_cbc_decrypt(struct ktls_session *tls,
+    const struct tls_record_layer *hdr, struct mbuf *m, uint64_t seqno,
+    int *trailer_len)
+{
+	struct tls_mac_data ad;
+	struct cryptop crp;
+	struct uio uio;
+	struct ktls_ocf_session *os;
+	struct iovec *iov;
+	struct mbuf *n;
+	u_int iovcnt;
+	int i, error, skip;
+	uint16_t tls_len, tls_comp_len;
+	uint8_t pad;
+
+	os = tls->ocf_session;
+
+	/*
+	 * Ensure record is a multiple of the cipher block size and
+	 * contains at least an explicit IV, MAC, and at least one
+	 * padding byte.
+	 */
+	tls_len = ntohs(hdr->tls_length);
+	if (tls_len % AES_BLOCK_LEN != 0 ||
+	    tls_len < AES_BLOCK_LEN + roundup2(os->mac_len + 1, AES_BLOCK_LEN))
+		return (EMSGSIZE);
+
+	/* First, decrypt the record. */
+	crypto_initreq(&crp, os->sid);
+	crp.crp_iv_start = sizeof(*hdr);
+	crp.crp_payload_start = tls->params.tls_hlen;
+	crp.crp_payload_length = tls_len - AES_BLOCK_LEN;
+	crypto_use_mbuf(&crp, m);
+	crp.crp_op = CRYPTO_OP_DECRYPT;
+	crp.crp_flags = CRYPTO_F_CBIMM;
+
+	counter_u64_add(ocf_tls11_cbc_decrypts, 1);
+
+	error = ktls_ocf_dispatch(os, &crp);
+	crypto_destroyreq(&crp);
+	if (error)
+		return (error);
+
+	/* Verify the padding. */
+	m_copydata(m, sizeof(*hdr) + tls_len - 1, 1, &pad);
+	*trailer_len = os->mac_len + pad + 1;
+	if (AES_BLOCK_LEN + *trailer_len > tls_len)
+		return (EBADMSG);
+	error = m_apply(m, sizeof(*hdr) + tls_len - (pad + 1), pad + 1,
+	    check_padding, &pad);
+	if (error)
+		return (error);
+
+	/* Verify the MAC. */
+	tls_comp_len = tls_len - (AES_BLOCK_LEN + *trailer_len);
+	memset(&uio, 0, sizeof(uio));
+
+	/*
+	 * Allocate and populate the iov.  Have to skip over the TLS
+	 * header in 'm' as it is not part of the MAC input.
+	 */
+	iovcnt = 1;
+	for (n = m; n != NULL; n = n->m_next)
+		iovcnt++;
+	iov = malloc(iovcnt * sizeof(*iov), M_KTLS_OCF, M_WAITOK);
+	iov[0].iov_base = &ad;
+	iov[0].iov_len = sizeof(ad);
+	skip = sizeof(*hdr) + AES_BLOCK_LEN;
+	for (i = 1, n = m; n != NULL; i++, n = n->m_next) {
+		if (n->m_len < skip) {
+			skip -= n->m_len;
+			continue;
+		}
+		iov[i].iov_base = mtod(n, char *) + skip;
+		iov[i].iov_len = n->m_len - skip;
+		skip = 0;
+	}
+	uio.uio_iov = iov;
+	uio.uio_iovcnt = i;
+	uio.uio_segflg = UIO_SYSSPACE;
+	uio.uio_td = curthread;
+	uio.uio_resid = sizeof(ad) + tls_len - AES_BLOCK_LEN;
+
+	/* Initialize the AAD. */
+	ad.seq = htobe64(seqno);
+	ad.type = hdr->tls_type;
+	ad.tls_vmajor = hdr->tls_vmajor;
+	ad.tls_vminor = hdr->tls_vminor;
+	ad.tls_length = htons(tls_comp_len);
+
+	crypto_initreq(&crp, os->mac_sid);
+	crp.crp_payload_start = 0;
+	crp.crp_payload_length = sizeof(ad) + tls_comp_len;
+	crp.crp_digest_start = crp.crp_payload_length;
+	crp.crp_op = CRYPTO_OP_VERIFY_DIGEST;
+	crp.crp_flags = CRYPTO_F_CBIMM;
+	crypto_use_uio(&crp, &uio);
+	error = ktls_ocf_dispatch(os, &crp);
+
+	crypto_destroyreq(&crp);
+	free(iov, M_KTLS_OCF);
+	return (error);
+}
+
 static const struct ktls_ocf_sw ktls_ocf_tls_cbc_sw = {
-	.encrypt = ktls_ocf_tls_cbc_encrypt
+	.encrypt = ktls_ocf_tls_cbc_encrypt,
+	.decrypt = ktls_ocf_tls_cbc_decrypt
 };
 
 static int
@@ -512,9 +638,15 @@ ktls_ocf_tls12_aead_decrypt(struct ktls_session *tls,
 	struct cryptop crp;
 	struct ktls_ocf_session *os;
 	int error;
-	uint16_t tls_comp_len;
+	uint16_t tls_comp_len, tls_len;
 
 	os = tls->ocf_session;
+
+	/* Ensure record contains at least an explicit IV and tag. */
+	tls_len = ntohs(hdr->tls_length);
+	if (tls_len + sizeof(*hdr) < tls->params.tls_hlen +
+	    tls->params.tls_tlen)
+		return (EMSGSIZE);
 
 	crypto_initreq(&crp, os->sid);
 
@@ -535,10 +667,10 @@ ktls_ocf_tls12_aead_decrypt(struct ktls_session *tls,
 
 	/* Setup the AAD. */
 	if (tls->params.cipher_algorithm == CRYPTO_AES_NIST_GCM_16)
-		tls_comp_len = ntohs(hdr->tls_length) -
+		tls_comp_len = tls_len -
 		    (AES_GMAC_HASH_LEN + sizeof(uint64_t));
 	else
-		tls_comp_len = ntohs(hdr->tls_length) - POLY1305_HASH_LEN;
+		tls_comp_len = tls_len - POLY1305_HASH_LEN;
 	ad.seq = htobe64(seqno);
 	ad.type = hdr->tls_type;
 	ad.tls_vmajor = hdr->tls_vmajor;
@@ -604,8 +736,14 @@ ktls_ocf_tls12_aead_recrypt(struct ktls_session *tls,
 	char *buf;
 	u_int payload_len;
 	int error;
+	uint16_t tls_len;
 
 	os = tls->ocf_session;
+
+	/* Ensure record contains at least an explicit IV and tag. */
+	tls_len = ntohs(hdr->tls_length);
+	if (tls_len < sizeof(uint64_t) + AES_GMAC_HASH_LEN)
+		return (EMSGSIZE);
 
 	crypto_initreq(&crp, os->recrypt_sid);
 
@@ -617,8 +755,7 @@ ktls_ocf_tls12_aead_recrypt(struct ktls_session *tls,
 	memcpy(crp.crp_iv + TLS_AEAD_GCM_LEN, hdr + 1, sizeof(uint64_t));
 	be32enc(crp.crp_iv + AES_GCM_IV_LEN, 2);
 
-	payload_len = ntohs(hdr->tls_length) -
-	    (AES_GMAC_HASH_LEN + sizeof(uint64_t));
+	payload_len = tls_len - (AES_GMAC_HASH_LEN + sizeof(uint64_t));
 	crp.crp_op = CRYPTO_OP_ENCRYPT;
 	crp.crp_flags = CRYPTO_F_CBIMM | CRYPTO_F_IV_SEPARATE;
 	crypto_use_mbuf(&crp, m);
@@ -732,14 +869,16 @@ ktls_ocf_tls13_aead_decrypt(struct ktls_session *tls,
 	struct ktls_ocf_session *os;
 	int error;
 	u_int tag_len;
+	uint16_t tls_len;
 
 	os = tls->ocf_session;
 
 	tag_len = tls->params.tls_tlen - 1;
 
 	/* Payload must contain at least one byte for the record type. */
-	if (ntohs(hdr->tls_length) < tag_len + 1)
-		return (EBADMSG);
+	tls_len = ntohs(hdr->tls_length);
+	if (tls_len < tag_len + 1)
+		return (EMSGSIZE);
 
 	crypto_initreq(&crp, os->sid);
 
@@ -756,7 +895,7 @@ ktls_ocf_tls13_aead_decrypt(struct ktls_session *tls,
 	crp.crp_aad_length = sizeof(ad);
 
 	crp.crp_payload_start = tls->params.tls_hlen;
-	crp.crp_payload_length = ntohs(hdr->tls_length) - tag_len;
+	crp.crp_payload_length = tls_len - tag_len;
 	crp.crp_digest_start = crp.crp_payload_start + crp.crp_payload_length;
 
 	crp.crp_op = CRYPTO_OP_DECRYPT | CRYPTO_OP_VERIFY_DIGEST;
@@ -784,8 +923,14 @@ ktls_ocf_tls13_aead_recrypt(struct ktls_session *tls,
 	char *buf;
 	u_int payload_len;
 	int error;
+	uint16_t tls_len;
 
 	os = tls->ocf_session;
+
+	/* Payload must contain at least one byte for the record type. */
+	tls_len = ntohs(hdr->tls_length);
+	if (tls_len < AES_GMAC_HASH_LEN + 1)
+		return (EMSGSIZE);
 
 	crypto_initreq(&crp, os->recrypt_sid);
 
@@ -797,7 +942,7 @@ ktls_ocf_tls13_aead_recrypt(struct ktls_session *tls,
 	*(uint64_t *)(crp.crp_iv + 4) ^= htobe64(seqno);
 	be32enc(crp.crp_iv + 12, 2);
 
-	payload_len = ntohs(hdr->tls_length) - AES_GMAC_HASH_LEN;
+	payload_len = tls_len - AES_GMAC_HASH_LEN;
 	crp.crp_op = CRYPTO_OP_ENCRYPT;
 	crp.crp_flags = CRYPTO_F_CBIMM | CRYPTO_F_IV_SEPARATE;
 	crypto_use_mbuf(&crp, m);
@@ -912,8 +1057,9 @@ ktls_ocf_try(struct socket *so, struct ktls_session *tls, int direction)
 		    tls->params.tls_vminor > TLS_MINOR_VER_TWO)
 			return (EPROTONOSUPPORT);
 
-		/* AES-CBC is not supported for receive. */
-		if (direction == KTLS_RX)
+		/* AES-CBC is not supported for receive for TLS 1.0. */
+		if (direction == KTLS_RX &&
+		    tls->params.tls_vminor == TLS_MINOR_VER_ZERO)
 			return (EPROTONOSUPPORT);
 
 		csp.csp_flags |= CSP_F_SEPARATE_OUTPUT;

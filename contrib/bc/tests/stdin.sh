@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -37,24 +37,37 @@ testdir=$(dirname "$script")
 
 outputdir=${BC_TEST_OUTPUT_DIR:-$testdir}
 
-# Command-line processing.
-if [ "$#" -lt 1 ]; then
+# Just print the usage and exit with an error. This can receive a message to
+# print.
+# @param 1  A message to print.
+usage() {
+	if [ $# -eq 1 ]; then
+		printf '%s\n\n' "$1"
+	fi
 	printf 'usage: %s dir [exe [args...]]\n' "$0"
 	printf 'valid dirs are:\n'
 	printf '\n'
 	cat "$testdir/all.txt"
 	printf '\n'
 	exit 1
+}
+
+# Command-line processing.
+if [ "$#" -lt 1 ]; then
+	usage "Not enough arguments"
 fi
 
 d="$1"
 shift
+check_d_arg "$d"
 
 if [ "$#" -gt 0 ]; then
 	exe="$1"
 	shift
+	check_exec_arg "$exe"
 else
 	exe="$testdir/../bin/$d"
+	check_exec_arg "$exe"
 fi
 
 out="$outputdir/${d}_outputs/stdin_results.txt"

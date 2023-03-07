@@ -17,6 +17,8 @@
 #
 # $FreeBSD$
 
+#NO_UNIVERSE
+
 ident		ALPINE
 
 include 	"std.armv7"

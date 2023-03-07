@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-ARM64				opt_global.h
+ARM64				opt_global.h		# for cpu ARM64 to work
 INTRNG				opt_global.h
 SOCDEV_PA			opt_global.h
 THUNDERX_PASS_1_1_ERRATA	opt_global.h
@@ -34,4 +34,5 @@ SOC_NVIDIA_TEGRA210		opt_soc.h
 SOC_NXP_LS			opt_soc.h
 SOC_ROCKCHIP_RK3328		opt_soc.h
 SOC_ROCKCHIP_RK3399		opt_soc.h
+SOC_ROCKCHIP_RK3568		opt_soc.h
 SOC_XILINX_ZYNQ			opt_soc.h

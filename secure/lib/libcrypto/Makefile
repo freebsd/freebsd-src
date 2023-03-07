@@ -12,6 +12,7 @@ SHLIB_MAJOR=	111
 VERSION_MAP=	${.CURDIR}/Version.map
 
 NO_LINT=
+PCFILES=	libcrypto.pc
 
 .include "Makefile.man"
 .include "Makefile.inc"
@@ -120,6 +121,7 @@ SRCS+=	ppc.S ppc-mont.S
 .else
 SRCS+=	bn_asm.c
 .endif
+SRCS+=	rsa_sup_mul.c
 
 # Full of strict aliasing violations that LLVM has been seen to break with
 # optimisations, which can lead to ECDSA signatures not working. See

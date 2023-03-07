@@ -151,6 +151,8 @@ static struct hidquirk_entry hidquirks[HID_DEV_QUIRKS_MAX] = {
 	USB_QUIRK(CORSAIR, STRAFE2, 0x0000, 0xffff, HQ_KBD_BOOTPROTO),
 	/* Holtek USB gaming keyboard */
 	USB_QUIRK(HOLTEK, F85, 0x0000, 0xffff, HQ_KBD_BOOTPROTO),
+	/* Quirk for Kensington Slimblade Trackball */
+	USB_QUIRK(KENSINGTON, SLIMBLADE, 0x0000, 0xffff, HQ_MS_VENDOR_BTN),
 };
 #undef HID_QUIRK_VP
 #undef USB_QUIRK

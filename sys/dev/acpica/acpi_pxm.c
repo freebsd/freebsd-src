@@ -666,7 +666,7 @@ acpi_pxm_set_cpu_locality(void)
 			    pc->pc_domain);
 	}
 	/* XXXMJ the page is leaked. */
-	pmap_unmapbios((vm_offset_t)cpus, sizeof(*cpus) * max_cpus);
+	pmap_unmapbios(cpus, sizeof(*cpus) * max_cpus);
 	srat_physaddr = 0;
 	cpus = NULL;
 }

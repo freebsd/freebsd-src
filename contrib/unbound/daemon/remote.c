@@ -105,8 +105,6 @@
 
 /** what to put on statistics lines between var and value, ": " or "=" */
 #define SQ "="
-/** if true, inhibits a lot of =0 lines from the stats output */
-static const int inhibit_zero = 1;
 
 /** subtract timers and the values do not overflow or become negative */
 static void
@@ -494,8 +492,8 @@ int remote_accept_callback(struct comm_point* c, void* arg, int err,
 	n->c->do_not_close = 0;
 	comm_point_stop_listening(n->c);
 	comm_point_start_listening(n->c, -1, REMOTE_CONTROL_TCP_TIMEOUT);
-	memcpy(&n->c->repinfo.addr, &addr, addrlen);
-	n->c->repinfo.addrlen = addrlen;
+	memcpy(&n->c->repinfo.remote_addr, &addr, addrlen);
+	n->c->repinfo.remote_addrlen = addrlen;
 	if(rc->use_cert) {
 		n->shake_state = rc_hs_read;
 		n->ssl = SSL_new(rc->ctx);
@@ -684,8 +682,9 @@ do_stop(RES* ssl, struct worker* worker)
 
 /** do the reload command */
 static void
-do_reload(RES* ssl, struct worker* worker)
+do_reload(RES* ssl, struct worker* worker, int reuse_cache)
 {
+	worker->reuse_cache = reuse_cache;
 	worker->need_to_exit = 0;
 	comm_base_exit(worker->base);
 	send_ok(ssl);
@@ -920,7 +919,7 @@ print_hist(RES* ssl, struct ub_stats_info* s)
 
 /** print extended stats */
 static int
-print_ext(RES* ssl, struct ub_stats_info* s)
+print_ext(RES* ssl, struct ub_stats_info* s, int inhibit_zero)
 {
 	int i;
 	char nm[32];
@@ -1129,7 +1128,7 @@ do_stats(RES* ssl, struct worker* worker, int reset)
 			return;
 		if(!print_hist(ssl, &total))
 			return;
-		if(!print_ext(ssl, &total))
+		if(!print_ext(ssl, &total, daemon->cfg->stat_inhibit_zero))
 			return;
 	}
 }
@@ -1963,6 +1962,8 @@ do_flush_name(RES* ssl, struct worker* w, char* arg)
 	do_cache_remove(w, nm, nmlen, LDNS_RR_TYPE_PTR, LDNS_RR_CLASS_IN);
 	do_cache_remove(w, nm, nmlen, LDNS_RR_TYPE_SRV, LDNS_RR_CLASS_IN);
 	do_cache_remove(w, nm, nmlen, LDNS_RR_TYPE_NAPTR, LDNS_RR_CLASS_IN);
+	do_cache_remove(w, nm, nmlen, LDNS_RR_TYPE_SVCB, LDNS_RR_CLASS_IN);
+	do_cache_remove(w, nm, nmlen, LDNS_RR_TYPE_HTTPS, LDNS_RR_CLASS_IN);
 	
 	free(nm);
 	send_ok(ssl);
@@ -3029,8 +3030,11 @@ execute_cmd(struct daemon_remote* rc, RES* ssl, char* cmd,
 	if(cmdcmp(p, "stop", 4)) {
 		do_stop(ssl, worker);
 		return;
+	} else if(cmdcmp(p, "reload_keep_cache", 17)) {
+		do_reload(ssl, worker, 1);
+		return;
 	} else if(cmdcmp(p, "reload", 6)) {
-		do_reload(ssl, worker);
+		do_reload(ssl, worker, 0);
 		return;
 	} else if(cmdcmp(p, "stats_noreset", 13)) {
 		do_stats(ssl, worker, 0);
@@ -3304,7 +3308,7 @@ remote_handshake_later(struct daemon_remote* rc, struct rc_state* s,
 		if(r == 0)
 			log_err("remote control connection closed prematurely");
 		log_addr(VERB_OPS, "failed connection from",
-			&s->c->repinfo.addr, s->c->repinfo.addrlen);
+			&s->c->repinfo.remote_addr, s->c->repinfo.remote_addrlen);
 		log_crypto_err("remote control failed ssl");
 		clean_point(rc, s);
 	}

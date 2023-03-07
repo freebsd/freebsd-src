@@ -242,6 +242,13 @@ Labels are text that appears before a value.
 .Bd -literal -offset indent
     xo_emit("{Lwc:Cost}{:cost/%u}\\n", cost);
 .Ed
+.Pp
+If a label needs to include a slash, it must be escaped using two
+backslashes, one for the C compiler and one for
+.Nm libxo .
+.Bd -literal -offset indent
+    xo_emit("{Lc:Low\\\\/warn level}{:level/%s}\\n", level);
+.Ed
 .Ss "The Note Role ({N:})"
 Notes are text that appears after a value.
 .Bd -literal -offset indent

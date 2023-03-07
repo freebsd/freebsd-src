@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <net.h>
 #include <netif.h>
 
+#include "libofw.h"
 #include "openfirm.h"
 
 static int	ofwn_probe(struct netif *, void *);
@@ -53,22 +54,26 @@ static void	ofwn_end(struct netif *);
 extern struct netif_stats	ofwn_stats[];
 
 struct netif_dif ofwn_ifs[] = {
-	/*	dif_unit	dif_nsel	dif_stats	dif_private	*/
-	{	0,		1,		&ofwn_stats[0],	0,	},
+	{
+		.dif_unit=0,
+		.dif_nsel=1,
+		.dif_stats=&ofwn_stats[0],
+		.dif_private=0,
+	},
 };
 
 struct netif_stats ofwn_stats[nitems(ofwn_ifs)];
 
 struct netif_driver ofwnet = {
-	"net",			/* netif_bname */
-	ofwn_match,		/* netif_match */
-	ofwn_probe,		/* netif_probe */
-	ofwn_init,		/* netif_init */
-	ofwn_get,		/* netif_get */
-	ofwn_put,		/* netif_put */
-	ofwn_end,		/* netif_end */
-	ofwn_ifs,		/* netif_ifs */
-	nitems(ofwn_ifs)		/* netif_nifs */
+	.netif_bname="net",
+	.netif_match=ofwn_match,
+	.netif_probe=ofwn_probe,
+	.netif_init=ofwn_init,
+	.netif_get=ofwn_get,
+	.netif_put=ofwn_put,
+	.netif_end=ofwn_end,
+	.netif_ifs=ofwn_ifs,
+	.netif_nifs=nitems(ofwn_ifs)
 };
 
 static ihandle_t	netinstance;
@@ -189,8 +194,6 @@ ofwn_get(struct iodesc *desc, void **pkt, time_t timeout)
 	return (length);
 }
 
-extern char *strchr();
-
 static void
 ofwn_init(struct iodesc *desc, void *machdep_hint)
 {
@@ -265,3 +268,61 @@ ofwn_getunit(const char *path)
 	return -1;
 }
 #endif
+
+/*
+ * To properly match network devices, we have to subclass the netdev device.
+ * It has a different devdesc than a normal network device (which is fine:
+ * it's a struct superset) and different matching criteria (since it has to
+ * look at the path, find a handle and see if that handle is a network node
+ * or not).
+ */
+
+static int ofwnd_init(void);
+static int ofwnd_parsedev(struct devdesc **, const char *, const char **);
+static bool ofwnd_match(struct devsw *, const char *);
+static char *ofwnd_fmtdev(struct devdesc *);
+
+struct devsw ofw_netdev = {
+	.dv_name = "network",
+	.dv_type = DEVT_NET,
+	.dv_init = ofwnd_init,
+	.dv_match = ofwnd_match,
+	.dv_fmtdev = ofwnd_fmtdev,
+	.dv_parsedev = ofwnd_parsedev,
+};
+
+static int ofwnd_init(void)
+{
+	netdev.dv_init();
+	ofw_netdev.dv_strategy = netdev.dv_strategy;
+	ofw_netdev.dv_open = netdev.dv_open;
+	ofw_netdev.dv_close = netdev.dv_close;
+	ofw_netdev.dv_ioctl = netdev.dv_ioctl;
+	ofw_netdev.dv_print = netdev.dv_print;
+	ofw_netdev.dv_fmtdev = netdev.dv_fmtdev;
+	/* parsedev is unique to ofwnd */
+	/* match is unique to ofwnd */
+	return (0);
+}
+
+static int
+ofwnd_parsedev(struct devdesc **dev, const char *devspec, const char **path)
+{
+	return (ofw_common_parsedev(dev, devspec, path, ofw_netdev.dv_name));
+}
+
+static bool
+ofwnd_match(struct devsw *devsw, const char *devspec)
+{
+	const char *path;
+
+	return (ofw_path_to_handle(devspec, devsw->dv_name, &path) != -1);
+}
+
+static char *
+ofwnd_fmtdev(struct devdesc *idev)
+{
+	struct ofw_devdesc *dev = (struct ofw_devdesc *)idev;
+
+	return (dev->d_path);
+}

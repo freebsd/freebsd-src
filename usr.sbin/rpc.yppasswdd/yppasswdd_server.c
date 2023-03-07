@@ -135,8 +135,6 @@ copy_yp_pass(char *p, int x, int m)
 	yp_password.pw_fields |= _PWF_DIR;
         EXPAND(yp_password.pw_shell);
 	yp_password.pw_fields |= _PWF_SHELL;
-
-	return;
 }
 
 static int

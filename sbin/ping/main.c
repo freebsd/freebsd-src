@@ -180,48 +180,48 @@ usage(void)
 #ifdef INET
 	    "\tping [-4AaDdfHnoQqRrv] [-C pcp] [-c count] "
 	    "[-G sweepmaxsize]\n"
-	    "	    [-g sweepminsize] [-h sweepincrsize] [-i wait] "
+	    "\t    [-g sweepminsize] [-h sweepincrsize] [-i wait] "
 	    "[-l preload]\n"
-	    "	    [-M mask | time] [-m ttl] "
+	    "\t    [-M mask | time] [-m ttl] "
 #ifdef IPSEC
 	    "[-P policy] "
 #endif
 	    "[-p pattern] [-S src_addr] \n"
-	    "	    [-s packetsize] [-t timeout] [-W waittime] [-z tos] "
+	    "\t    [-s packetsize] [-t timeout] [-W waittime] [-z tos] "
 	    "IPv4-host\n"
 	    "\tping [-4AaDdfHLnoQqRrv] [-C pcp] [-c count] [-I iface] "
 	    "[-i wait]\n"
-	    "	    [-l preload] [-M mask | time] [-m ttl] "
+	    "\t    [-l preload] [-M mask | time] [-m ttl] "
 #ifdef IPSEC
 	    "[-P policy] "
 #endif
 	    "[-p pattern]\n"
-	    "	    [-S src_addr] [-s packetsize] [-T ttl] [-t timeout] [-W waittime]\n"
-	    "            [-z tos] IPv4-mcast-group\n"
+	    "\t    [-S src_addr] [-s packetsize] [-T ttl] [-t timeout] [-W waittime]\n"
+	    "\t    [-z tos] IPv4-mcast-group\n"
 #endif /* INET */
 #ifdef INET6
-            "\tping [-6AaDd"
+	    "\tping [-6AaDd"
 #if defined(IPSEC) && !defined(IPSEC_POLICY_IPSEC)
-            "E"
+	    "E"
 #endif
-            "fHnNoOq"
+	    "fHnNoOq"
 #ifdef IPV6_USE_MIN_MTU
-            "u"
+	    "u"
 #endif
-            "vyY"
+	    "vyY"
 #if defined(IPSEC) && !defined(IPSEC_POLICY_IPSEC)
-            "Z"
+	    "Z"
 #endif
 	    "] "
-            "[-b bufsiz] [-c count] [-e gateway]\n"
-            "            [-I interface] [-i wait] [-k addrtype] [-l preload] "
-            "[-m hoplimit]\n"
-            "            [-p pattern]"
+	    "[-b bufsiz] [-c count] [-e gateway]\n"
+	    "\t    [-I interface] [-i wait] [-k addrtype] [-l preload] "
+	    "[-m hoplimit]\n"
+	    "\t    [-p pattern]"
 #if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
-            " [-P policy]"
+	    " [-P policy]"
 #endif
-            " [-S sourceaddr] [-s packetsize] [-t timeout]\n"
-	    "	    [-W waittime] [-z tclass] [IPv6-hops ...] IPv6-host\n"
+	    " [-S sourceaddr] [-s packetsize] [-t timeout]\n"
+	    "\t    [-W waittime] [-z tclass] [IPv6-hops ...] IPv6-host\n"
 #endif	/* INET6 */
 	    );
 

@@ -66,8 +66,6 @@ void *MemprofDoesNotSupportStaticLinkage();
 // memprof_thread.cpp
 MemprofThread *CreateMainThread();
 
-void ReadContextStack(void *context, uptr *stack, uptr *ssize);
-
 // Wrapper for TLS/TSD.
 void TSDInit(void (*destructor)(void *tsd));
 void *TSDGet();
@@ -75,21 +73,6 @@ void TSDSet(void *tsd);
 void PlatformTSDDtor(void *tsd);
 
 void *MemprofDlSymNext(const char *sym);
-
-// Add convenient macro for interface functions that may be represented as
-// weak hooks.
-#define MEMPROF_MALLOC_HOOK(ptr, size)                                         \
-  do {                                                                         \
-    if (&__sanitizer_malloc_hook)                                              \
-      __sanitizer_malloc_hook(ptr, size);                                      \
-    RunMallocHooks(ptr, size);                                                 \
-  } while (false)
-#define MEMPROF_FREE_HOOK(ptr)                                                 \
-  do {                                                                         \
-    if (&__sanitizer_free_hook)                                                \
-      __sanitizer_free_hook(ptr);                                              \
-    RunFreeHooks(ptr);                                                         \
-  } while (false)
 
 extern int memprof_inited;
 extern int memprof_timestamp_inited;

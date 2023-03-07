@@ -203,10 +203,10 @@ constexpr FeatureBitset FeaturesTigerlake =
     FeatureCLWB | FeatureMOVDIRI | FeatureSHSTK | FeatureKL | FeatureWIDEKL;
 constexpr FeatureBitset FeaturesSapphireRapids =
     FeaturesICLServer | FeatureAMX_BF16 | FeatureAMX_INT8 | FeatureAMX_TILE |
-    FeatureAVX512BF16 | FeatureAVX512FP16 | FeatureAVX512VP2INTERSECT |
-    FeatureAVXVNNI | FeatureCLDEMOTE | FeatureENQCMD | FeatureMOVDIR64B |
-    FeatureMOVDIRI | FeaturePTWRITE | FeatureSERIALIZE | FeatureSHSTK |
-    FeatureTSXLDTRK | FeatureUINTR | FeatureWAITPKG;
+    FeatureAVX512BF16 | FeatureAVX512FP16 | FeatureAVXVNNI | FeatureCLDEMOTE |
+    FeatureENQCMD | FeatureMOVDIR64B | FeatureMOVDIRI | FeaturePTWRITE |
+    FeatureSERIALIZE | FeatureSHSTK | FeatureTSXLDTRK | FeatureUINTR |
+    FeatureWAITPKG;
 
 // Intel Atom processors.
 // Bonnell has feature parity with Core2 and adds MOVBE.
@@ -285,8 +285,9 @@ constexpr FeatureBitset FeaturesZNVER1 =
     FeatureSSE | FeatureSSE2 | FeatureSSE3 | FeatureSSSE3 | FeatureSSE4_1 |
     FeatureSSE4_2 | FeatureSSE4_A | FeatureXSAVE | FeatureXSAVEC |
     FeatureXSAVEOPT | FeatureXSAVES;
-constexpr FeatureBitset FeaturesZNVER2 =
-    FeaturesZNVER1 | FeatureCLWB | FeatureRDPID | FeatureWBNOINVD;
+constexpr FeatureBitset FeaturesZNVER2 = FeaturesZNVER1 | FeatureCLWB |
+                                         FeatureRDPID | FeatureRDPRU |
+                                         FeatureWBNOINVD;
 static constexpr FeatureBitset FeaturesZNVER3 = FeaturesZNVER2 |
                                                 FeatureINVPCID | FeaturePKU |
                                                 FeatureVAES | FeatureVPCLMULQDQ;
@@ -366,7 +367,7 @@ constexpr ProcInfo Processors[] = {
   // Tigerlake microarchitecture based processors.
   { {"tigerlake"}, CK_Tigerlake, FEATURE_AVX512VP2INTERSECT, FeaturesTigerlake },
   // Sapphire Rapids microarchitecture based processors.
-  { {"sapphirerapids"}, CK_SapphireRapids, FEATURE_AVX512VP2INTERSECT, FeaturesSapphireRapids },
+  { {"sapphirerapids"}, CK_SapphireRapids, FEATURE_AVX512BF16, FeaturesSapphireRapids },
   // Alderlake microarchitecture based processors.
   { {"alderlake"}, CK_Alderlake, FEATURE_AVX2, FeaturesAlderlake },
   // Knights Landing processor.
@@ -490,6 +491,7 @@ constexpr FeatureBitset ImpliedFeaturesPREFETCHWT1 = {};
 constexpr FeatureBitset ImpliedFeaturesPRFCHW = {};
 constexpr FeatureBitset ImpliedFeaturesPTWRITE = {};
 constexpr FeatureBitset ImpliedFeaturesRDPID = {};
+constexpr FeatureBitset ImpliedFeaturesRDPRU = {};
 constexpr FeatureBitset ImpliedFeaturesRDRND = {};
 constexpr FeatureBitset ImpliedFeaturesRDSEED = {};
 constexpr FeatureBitset ImpliedFeaturesRTM = {};

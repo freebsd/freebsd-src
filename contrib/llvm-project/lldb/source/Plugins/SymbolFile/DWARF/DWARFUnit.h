@@ -11,8 +11,9 @@
 
 #include "DWARFDIE.h"
 #include "DWARFDebugInfoEntry.h"
-#include "lldb/lldb-enumerations.h"
 #include "lldb/Utility/XcodeSDK.h"
+#include "lldb/lldb-enumerations.h"
+#include "llvm/DebugInfo/DWARF/DWARFDebugRnglists.h"
 #include "llvm/Support/RWMutex.h"
 #include <atomic>
 
@@ -68,7 +69,8 @@ public:
   dw_offset_t GetTypeOffset() const { return m_type_offset; }
   uint64_t GetDWOId() const { return m_dwo_id; }
   bool IsTypeUnit() const {
-    return m_unit_type == DW_UT_type || m_unit_type == DW_UT_split_type;
+    return m_unit_type == llvm::dwarf::DW_UT_type ||
+           m_unit_type == llvm::dwarf::DW_UT_split_type;
   }
   uint32_t GetNextUnitOffset() const { return m_offset + m_length + 4; }
 
@@ -153,7 +155,7 @@ public:
   const DWARFAbbreviationDeclarationSet *GetAbbreviations() const;
   dw_offset_t GetAbbrevOffset() const;
   uint8_t GetAddressByteSize() const { return m_header.GetAddressByteSize(); }
-  dw_addr_t GetAddrBase() const { return m_addr_base.getValueOr(0); }
+  dw_addr_t GetAddrBase() const { return m_addr_base.value_or(0); }
   dw_addr_t GetBaseAddress() const { return m_base_addr; }
   dw_offset_t GetLineTableOffset();
   dw_addr_t GetRangesBase() const { return m_ranges_base; }
@@ -163,6 +165,8 @@ public:
   void SetRangesBase(dw_addr_t ranges_base);
   void SetStrOffsetsBase(dw_offset_t str_offsets_base);
   virtual void BuildAddressRangeTable(DWARFDebugAranges *debug_aranges) = 0;
+
+  dw_addr_t ReadAddressFromDebugAddrSection(uint32_t index) const;
 
   lldb::ByteOrder GetByteOrder() const;
 

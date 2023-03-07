@@ -2,6 +2,7 @@
 
 .PATH: ${SRCTOP}/sys/contrib/openzfs/cmd
 
+PACKAGE=	zfs
 PROG=	zhack
 MAN=
 

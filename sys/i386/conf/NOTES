@@ -484,8 +484,6 @@ device		cpufreq
 
 # bxe:  Broadcom NetXtreme II (BCM5771X/BCM578XX) PCIe 10Gb Ethernet
 #       adapters.
-# ce:   Cronyx Tau-PCI/32 sync single/dual port G.703/E1 serial adaptor
-#       with 32 HDLC subchannels, requires NETGRAPH
 # igc:	Intel I225 2.5G Ethernet adapter
 # ipw:	Intel PRO/Wireless 2100 IEEE 802.11 adapter
 # iwi:	Intel PRO/Wireless 2200BG/2225BG/2915ABG IEEE 802.11 adapters
@@ -505,7 +503,6 @@ device		cpufreq
 # Order for ISA/EISA devices is important here
 
 device          bxe             # Broadcom NetXtreme II BCM5771X/BCM578XX 10GbE
-device		ce
 envvar		hint.cs.0.at="isa"
 envvar		hint.cs.0.port="0x300"
 envvar		hint.ed.0.at="isa"
@@ -706,6 +703,7 @@ device 		kvm_clock	# KVM paravirtual clock driver
 
 options 	HYPERV
 device		hyperv		# HyperV drivers
+device		hvhid		# HyperV HID device
 
 #####################################################################
 
@@ -885,4 +883,9 @@ options 	VM_KMEM_SIZE
 options 	VM_KMEM_SIZE_MAX
 options 	VM_KMEM_SIZE_SCALE
 
-
+
+#####################################################################
+# Items broken on i386 that are generally available elsewhere
+
+# Device uses bus_read_8 and friends, so can't work. Remove it from lint.
+nodevice	bnxt

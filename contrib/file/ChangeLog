@@ -1,3 +1,32 @@
+2022-09-13  14:55  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.43
+
+2022-09-10   9:17  Christos Zoulas <christos@zoulas.com>
+
+	* Add octal indirect magic (Michal Gorny)
+
+2022-08-17  11:43  Christos Zoulas <christos@zoulas.com>
+
+	* PR/374: avoid infinite loop in non-wide code (piru)
+	* PR/373: Obey MAGIC_CONTINUE with multiple magic files (vismarli)
+
+2022-07-26  11:10  Christos Zoulas <christos@zoulas.com>
+
+	* Fix bug with large flist (Florian Weimer)
+
+2022-07-07  13:21  Christos Zoulas <christos@zoulas.com>
+
+        * PR/364: Detect non-nul-terminated core filenames from QEMU
+	  (mam-ableton)
+
+2022-07-04  15:45  Christos Zoulas <christos@zoulas.com>
+
+	* PR/359: Add support for http://ndjson.org/ (darose)
+	* PR/362: Fix wide printing (ro-ee)
+	* PR/358: Fix width for -f - (jpalus)
+	* PR/356: Fix JSON constant parsing (davewhite)
+
 2022-06-10   9:40  Christos Zoulas <christos@zoulas.com>
 
 	* release 5.42

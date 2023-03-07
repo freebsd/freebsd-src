@@ -247,6 +247,26 @@ cpu_auxmsr(void)
 	return (PCPU_GET(cpuid));
 }
 
+void
+cpu_init_small_core(void)
+{
+	u_int r[4];
+
+	if (cpu_high < 0x1a)
+		return;
+
+	cpuid_count(0x1a, 0, r);
+	if ((r[0] & CPUID_HYBRID_CORE_MASK) != CPUID_HYBRID_SMALL_CORE)
+		return;
+
+	PCPU_SET(small_core, 1);
+	if (pmap_pcid_enabled && invpcid_works &&
+	    pmap_pcid_invlpg_workaround_uena) {
+		PCPU_SET(pcid_invlpg_workaround, 1);
+		pmap_pcid_invlpg_workaround = 1;
+	}
+}
+
 /*
  * Initialize CPU control registers
  */
@@ -259,7 +279,7 @@ initializecpu(void)
 	cr4 = rcr4();
 	if ((cpu_feature & CPUID_XMM) && (cpu_feature & CPUID_FXSR)) {
 		cr4 |= CR4_FXSR | CR4_XMM;
-		cpu_fxsr = hw_instruction_sse = 1;
+		hw_instruction_sse = 1;
 	}
 	if (cpu_stdext_feature & CPUID_STDEXT_FSGSBASE)
 		cr4 |= CR4_FSGSBASE;
@@ -317,6 +337,9 @@ initializecpu(void)
 	if ((amd_feature & AMDID_RDTSCP) != 0 ||
 	    (cpu_stdext_feature2 & CPUID_STDEXT2_RDPID) != 0)
 		wrmsr(MSR_TSC_AUX, cpu_auxmsr());
+
+	if (!IS_BSP())
+		cpu_init_small_core();
 }
 
 void

@@ -863,7 +863,7 @@ mpr_user_pass_thru(struct mpr_softc *sc, mpr_pass_thru_t *data)
 			}
 			mpr_unlock(sc);
 			copyout(cm->cm_reply, PTRIN(data->PtrReply),
-			    data->ReplySize);
+			    MIN(sz, data->ReplySize));
 			mpr_lock(sc);
 		}
 		mprsas_free_tm(sc, cm);
@@ -1087,7 +1087,8 @@ mpr_user_pass_thru(struct mpr_softc *sc, mpr_pass_thru_t *data)
 			    data->ReplySize, sz);
 		}
 		mpr_unlock(sc);
-		copyout(cm->cm_reply, PTRIN(data->PtrReply), data->ReplySize);
+		copyout(cm->cm_reply, PTRIN(data->PtrReply),
+		    MIN(sz, data->ReplySize));
 		mpr_lock(sc);
 
 		if ((function == MPI2_FUNCTION_SCSI_IO_REQUEST) ||
@@ -2065,7 +2066,7 @@ mpr_user_event_report(struct mpr_softc *sc, mpr_event_report_t *data)
 	if ((size >= sizeof(sc->recorded_events)) && (status == 0)) {
 		mpr_unlock(sc);
 		if (copyout((void *)sc->recorded_events,
-		    PTRIN(data->PtrEvents), size) != 0)
+		    PTRIN(data->PtrEvents), sizeof(sc->recorded_events)) != 0)
 			status = EFAULT;
 		mpr_lock(sc);
 	} else {

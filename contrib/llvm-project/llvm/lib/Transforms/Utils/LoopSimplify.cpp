@@ -40,8 +40,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Utils/LoopSimplify.h"
-#include "llvm/ADT/DepthFirstIterator.h"
-#include "llvm/ADT/SetOperations.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
@@ -59,14 +57,11 @@
 #include "llvm/Analysis/ScalarEvolutionAliasAnalysis.h"
 #include "llvm/IR/CFG.h"
 #include "llvm/IR/Constants.h"
-#include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
-#include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
-#include "llvm/IR/Type.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -132,7 +127,7 @@ BasicBlock *llvm::InsertPreheaderForLoop(Loop *L, DominatorTree *DT,
       // If the loop is branched to from an indirect terminator, we won't
       // be able to fully transform the loop, because it prohibits
       // edge splitting.
-      if (P->getTerminator()->isIndirectTerminator())
+      if (isa<IndirectBrInst>(P->getTerminator()))
         return nullptr;
 
       // Keep track of it.
@@ -181,7 +176,7 @@ static PHINode *findPHIToPartitionLoops(Loop *L, DominatorTree *DT,
   for (BasicBlock::iterator I = L->getHeader()->begin(); isa<PHINode>(I); ) {
     PHINode *PN = cast<PHINode>(I);
     ++I;
-    if (Value *V = SimplifyInstruction(PN, {DL, nullptr, DT, AC})) {
+    if (Value *V = simplifyInstruction(PN, {DL, nullptr, DT, AC})) {
       // This is a degenerate PHI already, don't modify it!
       PN->replaceAllUsesWith(V);
       PN->eraseFromParent();
@@ -261,7 +256,7 @@ static Loop *separateNestedLoop(Loop *L, BasicBlock *Preheader,
     if (PN->getIncomingValue(i) != PN ||
         !L->contains(PN->getIncomingBlock(i))) {
       // We can't split indirect control flow edges.
-      if (PN->getIncomingBlock(i)->getTerminator()->isIndirectTerminator())
+      if (isa<IndirectBrInst>(PN->getIncomingBlock(i)->getTerminator()))
         return nullptr;
       OuterLoopPreds.push_back(PN->getIncomingBlock(i));
     }
@@ -380,7 +375,7 @@ static BasicBlock *insertUniqueBackedgeBlock(Loop *L, BasicBlock *Preheader,
   std::vector<BasicBlock*> BackedgeBlocks;
   for (BasicBlock *P : predecessors(Header)) {
     // Indirect edges cannot be split, so we must fail if we find one.
-    if (P->getTerminator()->isIndirectTerminator())
+    if (isa<IndirectBrInst>(P->getTerminator()))
       return nullptr;
 
     if (P != Preheader) BackedgeBlocks.push_back(P);
@@ -602,7 +597,7 @@ ReprocessLoop:
   PHINode *PN;
   for (BasicBlock::iterator I = L->getHeader()->begin();
        (PN = dyn_cast<PHINode>(I++)); )
-    if (Value *V = SimplifyInstruction(PN, {DL, nullptr, DT, AC})) {
+    if (Value *V = simplifyInstruction(PN, {DL, nullptr, DT, AC})) {
       if (SE) SE->forgetValue(PN);
       if (!PreserveLCSSA || LI->replacementPreservesLCSSAForm(PN, V)) {
         PN->replaceAllUsesWith(V);

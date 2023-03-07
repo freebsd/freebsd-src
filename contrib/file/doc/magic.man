@@ -1,5 +1,5 @@
-.\" $File: magic.man,v 1.99 2021/05/09 22:37:23 christos Exp $
-.Dd May 9, 2021
+.\" $File: magic.man,v 1.100 2022/09/10 13:19:26 christos Exp $
+.Dd September 10, 2022
 .Dt MAGIC __FSECTION__
 .Os
 .\" install as magic.4 on USG, magic.5 on V7, Berkeley and Linux systems.
@@ -359,6 +359,9 @@ For example the magic entries:
 -0	offset	<=100	must be more than 100 \e
     bytes and is only %lld
 .Ed
+.It Dv octal
+A string representing an octal number.
+.El
 .El
 .Pp
 For compatibility with the Single
@@ -645,6 +648,7 @@ The following types are recognized:
 .It i	ID3	Little	4
 .It I	ID3	Big	4
 .It m	Middle	Middle	4
+.It o	Octal	Textual	Variable
 .It q	Quad	Little	8
 .It Q	Quad	Big	8
 .El

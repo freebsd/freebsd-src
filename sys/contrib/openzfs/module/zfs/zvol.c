@@ -429,7 +429,7 @@ zvol_replay_truncate(void *arg1, void *arg2, boolean_t byteswap)
 	if (error != 0) {
 		dmu_tx_abort(tx);
 	} else {
-		zil_replaying(zv->zv_zilog, tx);
+		(void) zil_replaying(zv->zv_zilog, tx);
 		dmu_tx_commit(tx);
 		error = dmu_free_long_range(zv->zv_objset, ZVOL_OBJ, offset,
 		    length);
@@ -475,7 +475,7 @@ zvol_replay_write(void *arg1, void *arg2, boolean_t byteswap)
 		dmu_tx_abort(tx);
 	} else {
 		dmu_write(os, ZVOL_OBJ, offset, length, data, tx);
-		zil_replaying(zv->zv_zilog, tx);
+		(void) zil_replaying(zv->zv_zilog, tx);
 		dmu_tx_commit(tx);
 	}
 
@@ -514,6 +514,8 @@ zil_replay_func_t *const zvol_replay_vector[TX_MAX_TYPE] = {
 	zvol_replay_err,	/* TX_MKDIR_ACL_ATTR */
 	zvol_replay_err,	/* TX_WRITE2 */
 	zvol_replay_err,	/* TX_SETSAXATTR */
+	zvol_replay_err,	/* TX_RENAME_EXCHANGE */
+	zvol_replay_err,	/* TX_RENAME_WHITEOUT */
 };
 
 /*
@@ -644,7 +646,7 @@ zvol_get_data(void *arg, uint64_t arg2, lr_write_t *lr, char *buf,
 	ASSERT3P(zio, !=, NULL);
 	ASSERT3U(size, !=, 0);
 
-	zgd = (zgd_t *)kmem_zalloc(sizeof (zgd_t), KM_SLEEP);
+	zgd = kmem_zalloc(sizeof (zgd_t), KM_SLEEP);
 	zgd->zgd_lwb = lwb;
 
 	/*
@@ -1026,8 +1028,7 @@ zvol_add_clones(const char *dsname, list_t *minors_list)
 out:
 	if (dd != NULL)
 		dsl_dir_rele(dd, FTAG);
-	if (dp != NULL)
-		dsl_pool_rele(dp, FTAG);
+	dsl_pool_rele(dp, FTAG);
 }
 
 /*
@@ -1075,7 +1076,7 @@ zvol_create_minors_cb(const char *dsname, void *arg)
 			 * traverse snapshots only, do not traverse children,
 			 * and skip the 'dsname'
 			 */
-			error = dmu_objset_find(dsname,
+			(void) dmu_objset_find(dsname,
 			    zvol_create_snap_minor_cb, (void *)job,
 			    DS_FIND_SNAPSHOTS);
 		}

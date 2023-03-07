@@ -649,6 +649,8 @@ zfs_rmnode(znode_t *zp)
 	objset_t	*os = zfsvfs->z_os;
 	znode_t		*xzp = NULL;
 	dmu_tx_t	*tx;
+	znode_hold_t	*zh;
+	uint64_t	z_id = zp->z_id;
 	uint64_t	acl_obj;
 	uint64_t	xattr_obj;
 	uint64_t	links;
@@ -666,8 +668,9 @@ zfs_rmnode(znode_t *zp)
 			 * Not enough space to delete some xattrs.
 			 * Leave it in the unlinked set.
 			 */
+			zh = zfs_znode_hold_enter(zfsvfs, z_id);
 			zfs_znode_dmu_fini(zp);
-
+			zfs_znode_hold_exit(zfsvfs, zh);
 			return;
 		}
 	}
@@ -686,7 +689,9 @@ zfs_rmnode(znode_t *zp)
 			 * Not enough space or we were interrupted by unmount.
 			 * Leave the file in the unlinked set.
 			 */
+			zh = zfs_znode_hold_enter(zfsvfs, z_id);
 			zfs_znode_dmu_fini(zp);
+			zfs_znode_hold_exit(zfsvfs, zh);
 			return;
 		}
 	}
@@ -726,7 +731,9 @@ zfs_rmnode(znode_t *zp)
 		 * which point we'll call zfs_unlinked_drain() to process it).
 		 */
 		dmu_tx_abort(tx);
+		zh = zfs_znode_hold_enter(zfsvfs, z_id);
 		zfs_znode_dmu_fini(zp);
+		zfs_znode_hold_exit(zfsvfs, zh);
 		goto out;
 	}
 
@@ -926,6 +933,74 @@ zfs_dropname(zfs_dirlock_t *dl, znode_t *zp, znode_t *dzp, dmu_tx_t *tx,
 	return (error);
 }
 
+static int
+zfs_drop_nlink_locked(znode_t *zp, dmu_tx_t *tx, boolean_t *unlinkedp)
+{
+	zfsvfs_t	*zfsvfs = ZTOZSB(zp);
+	int		zp_is_dir = S_ISDIR(ZTOI(zp)->i_mode);
+	boolean_t	unlinked = B_FALSE;
+	sa_bulk_attr_t	bulk[3];
+	uint64_t	mtime[2], ctime[2];
+	uint64_t	links;
+	int		count = 0;
+	int		error;
+
+	if (zp_is_dir && !zfs_dirempty(zp))
+		return (SET_ERROR(ENOTEMPTY));
+
+	if (ZTOI(zp)->i_nlink <= zp_is_dir) {
+		zfs_panic_recover("zfs: link count on %lu is %u, "
+		    "should be at least %u", zp->z_id,
+		    (int)ZTOI(zp)->i_nlink, zp_is_dir + 1);
+		set_nlink(ZTOI(zp), zp_is_dir + 1);
+	}
+	drop_nlink(ZTOI(zp));
+	if (ZTOI(zp)->i_nlink == zp_is_dir) {
+		zp->z_unlinked = B_TRUE;
+		clear_nlink(ZTOI(zp));
+		unlinked = B_TRUE;
+	} else {
+		SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_CTIME(zfsvfs),
+		    NULL, &ctime, sizeof (ctime));
+		SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_FLAGS(zfsvfs),
+		    NULL, &zp->z_pflags, sizeof (zp->z_pflags));
+		zfs_tstamp_update_setup(zp, STATE_CHANGED, mtime,
+		    ctime);
+	}
+	links = ZTOI(zp)->i_nlink;
+	SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_LINKS(zfsvfs),
+	    NULL, &links, sizeof (links));
+	error = sa_bulk_update(zp->z_sa_hdl, bulk, count, tx);
+	ASSERT3U(error, ==, 0);
+
+	if (unlinkedp != NULL)
+		*unlinkedp = unlinked;
+	else if (unlinked)
+		zfs_unlinked_add(zp, tx);
+
+	return (0);
+}
+
+/*
+ * Forcefully drop an nlink reference from (zp) and mark it for deletion if it
+ * was the last link. This *must* only be done to znodes which have already
+ * been zfs_link_destroy()'d with ZRENAMING. This is explicitly only used in
+ * the error path of zfs_rename(), where we have to correct the nlink count if
+ * we failed to link the target as well as failing to re-link the original
+ * znodes.
+ */
+int
+zfs_drop_nlink(znode_t *zp, dmu_tx_t *tx, boolean_t *unlinkedp)
+{
+	int error;
+
+	mutex_enter(&zp->z_lock);
+	error = zfs_drop_nlink_locked(zp, tx, unlinkedp);
+	mutex_exit(&zp->z_lock);
+
+	return (error);
+}
+
 /*
  * Unlink zp from dl, and mark zp for deletion if this was the last link. Can
  * fail if zp is a mount point (EBUSY) or a non-empty directory (ENOTEMPTY).
@@ -966,31 +1041,9 @@ zfs_link_destroy(zfs_dirlock_t *dl, znode_t *zp, dmu_tx_t *tx, int flag,
 			return (error);
 		}
 
-		if (ZTOI(zp)->i_nlink <= zp_is_dir) {
-			zfs_panic_recover("zfs: link count on %lu is %u, "
-			    "should be at least %u", zp->z_id,
-			    (int)ZTOI(zp)->i_nlink, zp_is_dir + 1);
-			set_nlink(ZTOI(zp), zp_is_dir + 1);
-		}
-		drop_nlink(ZTOI(zp));
-		if (ZTOI(zp)->i_nlink == zp_is_dir) {
-			zp->z_unlinked = B_TRUE;
-			clear_nlink(ZTOI(zp));
-			unlinked = B_TRUE;
-		} else {
-			SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_CTIME(zfsvfs),
-			    NULL, &ctime, sizeof (ctime));
-			SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_FLAGS(zfsvfs),
-			    NULL, &zp->z_pflags, sizeof (zp->z_pflags));
-			zfs_tstamp_update_setup(zp, STATE_CHANGED, mtime,
-			    ctime);
-		}
-		links = ZTOI(zp)->i_nlink;
-		SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_LINKS(zfsvfs),
-		    NULL, &links, sizeof (links));
-		error = sa_bulk_update(zp->z_sa_hdl, bulk, count, tx);
-		count = 0;
-		ASSERT(error == 0);
+		/* The only error is !zfs_dirempty() and we checked earlier. */
+		error = zfs_drop_nlink_locked(zp, tx, &unlinked);
+		ASSERT3U(error, ==, 0);
 		mutex_exit(&zp->z_lock);
 	} else {
 		error = zfs_dropname(dl, zp, dzp, tx, flag);
@@ -1066,11 +1119,8 @@ zfs_make_xattrdir(znode_t *zp, vattr_t *vap, znode_t **xzpp, cred_t *cr)
 
 	*xzpp = NULL;
 
-	if ((error = zfs_zaccess(zp, ACE_WRITE_NAMED_ATTRS, 0, B_FALSE, cr)))
-		return (error);
-
 	if ((error = zfs_acl_ids_create(zp, IS_XATTR, vap, cr, NULL,
-	    &acl_ids)) != 0)
+	    &acl_ids, kcred->user_ns)) != 0)
 		return (error);
 	if (zfs_acl_ids_overquota(zfsvfs, &acl_ids, zp->z_projid)) {
 		zfs_acl_ids_free(&acl_ids);
@@ -1218,7 +1268,8 @@ zfs_sticky_remove_access(znode_t *zdp, znode_t *zp, cred_t *cr)
 	    cr, ZFS_OWNER);
 
 	if ((uid = crgetuid(cr)) == downer || uid == fowner ||
-	    zfs_zaccess(zp, ACE_WRITE_DATA, 0, B_FALSE, cr) == 0)
+	    zfs_zaccess(zp, ACE_WRITE_DATA, 0, B_FALSE, cr,
+	    kcred->user_ns) == 0)
 		return (0);
 	else
 		return (secpolicy_vnode_remove(cr));

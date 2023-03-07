@@ -30,10 +30,10 @@
 #include "llvm/CodeGen/MachineInstrBundle.h"
 #include "llvm/CodeGen/ScheduleDAG.h"
 #include "llvm/CodeGen/ScheduleDAGInstrs.h"
+#include "llvm/CodeGen/ScheduleDAGMutation.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/MC/MCInstrDesc.h"
-#include "llvm/MC/MCInstrItineraries.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -239,7 +239,7 @@ void VLIWPacketizerList::PacketizeMIs(MachineBasicBlock *MBB,
     });
     if (ResourceAvail && shouldAddToPacket(MI)) {
       // Dependency check for MI with instructions in CurrentPacketMIs.
-      for (auto MJ : CurrentPacketMIs) {
+      for (auto *MJ : CurrentPacketMIs) {
         SUnit *SUJ = MIToSUnit[MJ];
         assert(SUJ && "Missing SUnit Info!");
 

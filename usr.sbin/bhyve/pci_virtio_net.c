@@ -145,19 +145,18 @@ static int pci_vtnet_snapshot(void *, struct vm_snapshot_meta *);
 #endif
 
 static struct virtio_consts vtnet_vi_consts = {
-	"vtnet",		/* our name */
-	VTNET_MAXQ - 1,		/* we currently support 2 virtqueues */
-	sizeof(struct virtio_net_config), /* config reg size */
-	pci_vtnet_reset,	/* reset */
-	NULL,			/* device-wide qnotify -- not used */
-	pci_vtnet_cfgread,	/* read PCI config */
-	pci_vtnet_cfgwrite,	/* write PCI config */
-	pci_vtnet_neg_features,	/* apply negotiated features */
-	VTNET_S_HOSTCAPS,	/* our capabilities */
+	.vc_name =	"vtnet",
+	.vc_nvq =	VTNET_MAXQ - 1,
+	.vc_cfgsize =	sizeof(struct virtio_net_config),
+	.vc_reset =	pci_vtnet_reset,
+	.vc_cfgread =	pci_vtnet_cfgread,
+	.vc_cfgwrite =	pci_vtnet_cfgwrite,
+	.vc_apply_features = pci_vtnet_neg_features,
+	.vc_hv_caps =	VTNET_S_HOSTCAPS,
 #ifdef BHYVE_SNAPSHOT
-	pci_vtnet_pause,	/* pause rx/tx threads */
-	pci_vtnet_resume,	/* resume rx/tx threads */
-	pci_vtnet_snapshot,	/* save / restore device state */
+	.vc_pause =	pci_vtnet_pause,
+	.vc_resume =	pci_vtnet_resume,
+	.vc_snapshot =	pci_vtnet_snapshot,
 #endif
 };
 
@@ -400,7 +399,7 @@ pci_vtnet_rx(struct pci_vtnet_softc *sc)
  * an entire ethernet frame + rx header.
  */
 static void
-pci_vtnet_rx_callback(int fd, enum ev_type type, void *param)
+pci_vtnet_rx_callback(int fd __unused, enum ev_type type __unused, void *param)
 {
 	struct pci_vtnet_softc *sc = param;
 
@@ -561,7 +560,7 @@ pci_vtnet_ping_ctlq(void *vsc, struct vqueue_info *vq)
 #endif
 
 static int
-pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
+pci_vtnet_init(struct pci_devinst *pi, nvlist_t *nvl)
 {
 	struct pci_vtnet_softc *sc;
 	const char *value;
@@ -786,9 +785,11 @@ pci_vtnet_snapshot(void *vsc, struct vm_snapshot_meta *meta)
 	 */
 
 	SNAPSHOT_VAR_OR_LEAVE(sc->vsc_features, meta, ret, done);
+	SNAPSHOT_VAR_OR_LEAVE(sc->features_negotiated, meta, ret, done);
 
 	/* Force reapply negociated features at restore time */
-	if (meta->op == VM_SNAPSHOT_RESTORE) {
+	if (meta->op == VM_SNAPSHOT_RESTORE &&
+	    sc->features_negotiated) {
 		pci_vtnet_neg_features(sc, sc->vsc_features);
 		netbe_rx_enable(sc->vsc_be);
 	}

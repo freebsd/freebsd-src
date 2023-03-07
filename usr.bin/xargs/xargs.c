@@ -315,8 +315,10 @@ parse_input(int argc, char *argv[])
 	switch (ch = getchar()) {
 	case EOF:
 		/* No arguments since last exec. */
-		if (p == bbp)
-			xexit(*av, rval);
+		if (p == bbp) {
+			waitchildren(*av, 1);
+			exit(rval);
+		}
 		goto arg1;
 	case ' ':
 	case '\t':
@@ -406,8 +408,10 @@ arg2:
 					*xp++ = *avj;
 			}
 			prerun(argc, av);
-			if (ch == EOF || foundeof)
-				xexit(*av, rval);
+			if (ch == EOF || foundeof) {
+				waitchildren(*av, 1);
+				exit(rval);
+			}
 			p = bbp;
 			xp = bxp;
 			count = 0;

@@ -930,7 +930,8 @@ mkmonthb(int y, int m, int jd_flag, struct monthlines *mlines)
 					dt.d = j - jan1 + 1;
 				else
 					sdateb(j, &dt);
-				if (j == highlightdate && !flag_nohighlight)
+				if (j == highlightdate && !flag_nohighlight
+				 && isatty(STDOUT_FILENO))
 					highlight(mlines->lines[i] + k,
 					    ds + dt.d * dw, dw, &l);
 				else

@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <net/infiniband.h>
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_lagg.h>

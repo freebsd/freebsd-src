@@ -213,7 +213,8 @@ public:
 
   InstructionCost getShuffleCost(TTI::ShuffleKind Kind, VectorType *Tp,
                                  ArrayRef<int> Mask, int Index,
-                                 VectorType *SubTp);
+                                 VectorType *SubTp,
+                                 ArrayRef<const Value *> Args = None);
 
   bool preferInLoopReduction(unsigned Opcode, Type *Ty,
                              TTI::ReductionFlags Flags) const;
@@ -287,17 +288,15 @@ public:
                                 AssumptionCache &AC,
                                 TargetLibraryInfo *LibInfo,
                                 HardwareLoopInfo &HWLoopInfo);
-  bool preferPredicateOverEpilogue(Loop *L, LoopInfo *LI,
-                                   ScalarEvolution &SE,
-                                   AssumptionCache &AC,
-                                   TargetLibraryInfo *TLI,
+  bool preferPredicateOverEpilogue(Loop *L, LoopInfo *LI, ScalarEvolution &SE,
+                                   AssumptionCache &AC, TargetLibraryInfo *TLI,
                                    DominatorTree *DT,
-                                   const LoopAccessInfo *LAI);
+                                   LoopVectorizationLegality *LVL);
   void getUnrollingPreferences(Loop *L, ScalarEvolution &SE,
                                TTI::UnrollingPreferences &UP,
                                OptimizationRemarkEmitter *ORE);
 
-  bool emitGetActiveLaneMask() const;
+  PredicationStyle emitGetActiveLaneMask() const;
 
   void getPeelingPreferences(Loop *L, ScalarEvolution &SE,
                              TTI::PeelingPreferences &PP);

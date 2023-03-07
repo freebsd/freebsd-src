@@ -32,7 +32,7 @@ DEFINE_TEST(test_archive_api_feature)
 
 	/* This is the (hopefully) final versioning API. */
 	assertEqualInt(ARCHIVE_VERSION_NUMBER, archive_version_number());
-	sprintf(buff, "libarchive %d.%d.%d",
+	snprintf(buff, sizeof(buff), "libarchive %d.%d.%d",
 	    archive_version_number() / 1000000,
 	    (archive_version_number() / 1000) % 1000,
 	    archive_version_number() % 1000);

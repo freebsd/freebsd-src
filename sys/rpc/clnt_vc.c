@@ -116,8 +116,6 @@ static const struct clnt_ops clnt_vc_ops = {
 
 static void clnt_vc_upcallsdone(struct ct_data *);
 
-static int	fake_wchan;
-
 /*
  * Create a client handle for a connection.
  * Default options are set, which the user can change using clnt_control()'s.
@@ -453,7 +451,9 @@ call_again:
 		mtx_lock(&ct->ct_lock);
 		TAILQ_REMOVE(&ct->ct_pending, cr, cr_link);
 		/* Sleep for 1 clock tick before trying the sosend() again. */
-		msleep(&fake_wchan, &ct->ct_lock, 0, "rpclpsnd", 1);
+		mtx_unlock(&ct->ct_lock);
+		pause("rpclpsnd", 1);
+		mtx_lock(&ct->ct_lock);
 		goto call_again;
 	}
 

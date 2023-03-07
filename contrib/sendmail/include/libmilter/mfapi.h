@@ -476,7 +476,7 @@ LIBMILTER_API int smfi_insheader __P((SMFICTX *, int, char *, char *));
 **  as a result of adding this header.
 **
 **	SMFICTX *ctx; Opaque context structure
-**  	int idx; index into the header list where the insertion should happen
+**	int idx; index into the header list where the insertion should happen
 **	char *headerh; Header field name
 **	char *headerv; Header field value
 */

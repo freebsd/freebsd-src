@@ -776,10 +776,10 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void **vaddr, int flags,
 	    howmany(dmat->maxsize, MIN(dmat->maxsegsz, PAGE_SIZE)) &&
 	    dmat->alignment <= PAGE_SIZE &&
 	    (dmat->boundary % PAGE_SIZE) == 0) {
-		*vaddr = (void *)kmem_alloc_attr(dmat->maxsize, mflags, 0,
+		*vaddr = kmem_alloc_attr(dmat->maxsize, mflags, 0,
 		    dmat->lowaddr, memattr);
 	} else {
-		*vaddr = (void *)kmem_alloc_contig(dmat->maxsize, mflags, 0,
+		*vaddr = kmem_alloc_contig(dmat->maxsize, mflags, 0,
 		    dmat->lowaddr, dmat->alignment, dmat->boundary, memattr);
 	}
 	if (*vaddr == NULL) {
@@ -822,7 +822,7 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	    !exclusion_bounce(dmat))
 		uma_zfree(bufzone->umazone, vaddr);
 	else
-		kmem_free((vm_offset_t)vaddr, dmat->maxsize);
+		kmem_free(vaddr, dmat->maxsize);
 
 	dmat->map_count--;
 	if (map->flags & DMAMAP_COHERENT)

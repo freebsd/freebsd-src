@@ -102,9 +102,9 @@ out:
 }
 
 uint64_t
-sfxge_get_counter(struct ifnet *ifp, ift_counter c)
+sfxge_get_counter(if_t ifp, ift_counter c)
 {
-	struct sfxge_softc *sc = ifp->if_softc;
+	struct sfxge_softc *sc = if_getsoftc(ifp);
 	uint64_t *mac_stats;
 	uint64_t val;
 
@@ -327,7 +327,7 @@ sfxge_mac_link_update(struct sfxge_softc *sc, efx_link_mode_t mode)
 
 	/* Push link state update to the OS */
 	link_state = (SFXGE_LINK_UP(sc) ? LINK_STATE_UP : LINK_STATE_DOWN);
-	sc->ifnet->if_baudrate = sfxge_link_baudrate[port->link_mode];
+	if_setbaudrate(sc->ifnet, sfxge_link_baudrate[port->link_mode]);
 	if_link_state_change(sc->ifnet, link_state);
 }
 
@@ -373,7 +373,7 @@ sfxge_copy_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 static int
 sfxge_mac_multicast_list_set(struct sfxge_softc *sc)
 {
-	struct ifnet *ifp = sc->ifnet;
+	if_t ifp = sc->ifnet;
 	struct sfxge_port *port = &sc->port;
 	int rc = 0;
 
@@ -400,21 +400,21 @@ sfxge_mac_multicast_list_set(struct sfxge_softc *sc)
 static int
 sfxge_mac_filter_set_locked(struct sfxge_softc *sc)
 {
-	struct ifnet *ifp = sc->ifnet;
+	if_t ifp = sc->ifnet;
 	struct sfxge_port *port = &sc->port;
 	boolean_t all_mulcst;
 	int rc;
 
 	mtx_assert(&port->lock, MA_OWNED);
 
-	all_mulcst = !!(ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI));
+	all_mulcst = !!(if_getflags(ifp) & (IFF_PROMISC | IFF_ALLMULTI));
 
 	rc = sfxge_mac_multicast_list_set(sc);
 	/* Fallback to all multicast if cannot set multicast list */
 	if (rc != 0)
 		all_mulcst = B_TRUE;
 
-	rc = efx_mac_filter_set(sc->enp, !!(ifp->if_flags & IFF_PROMISC),
+	rc = efx_mac_filter_set(sc->enp, !!(if_getflags(ifp) & IFF_PROMISC),
 				(port->mcast_count > 0), all_mulcst, B_TRUE);
 
 	return (rc);
@@ -483,7 +483,7 @@ sfxge_port_start(struct sfxge_softc *sc)
 {
 	uint8_t mac_addr[ETHER_ADDR_LEN];
 	struct epoch_tracker et;
-	struct ifnet *ifp = sc->ifnet;
+	if_t ifp = sc->ifnet;
 	struct sfxge_port *port;
 	efx_nic_t *enp;
 	size_t pdu;
@@ -507,7 +507,7 @@ sfxge_port_start(struct sfxge_softc *sc)
 		goto fail;
 
 	/* Set the SDU */
-	pdu = EFX_MAC_PDU(ifp->if_mtu);
+	pdu = EFX_MAC_PDU(if_getmtu(ifp));
 	if ((rc = efx_mac_pdu_set(enp, pdu)) != 0)
 		goto fail2;
 
@@ -517,8 +517,7 @@ sfxge_port_start(struct sfxge_softc *sc)
 
 	/* Set the unicast address */
 	NET_EPOCH_ENTER(et);
-	bcopy(LLADDR((struct sockaddr_dl *)ifp->if_addr->ifa_addr),
-	      mac_addr, sizeof(mac_addr));
+	bcopy(if_getlladdr(ifp), mac_addr, sizeof(mac_addr));
 	NET_EPOCH_EXIT(et);
 	if ((rc = efx_mac_addr_set(enp, mac_addr)) != 0)
 		goto fail4;
@@ -860,13 +859,13 @@ static const int sfxge_link_mode[EFX_PHY_MEDIA_NTYPES][EFX_LINK_NMODES] = {
 };
 
 static void
-sfxge_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
+sfxge_media_status(if_t ifp, struct ifmediareq *ifmr)
 {
 	struct sfxge_softc *sc;
 	efx_phy_media_type_t medium_type;
 	efx_link_mode_t mode;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	SFXGE_ADAPTER_LOCK(sc);
 
 	ifmr->ifm_status = IFM_AVALID;
@@ -976,14 +975,14 @@ sfxge_phy_cap_mask(struct sfxge_softc *sc, int ifmedia, uint32_t *phy_cap_mask)
 }
 
 static int
-sfxge_media_change(struct ifnet *ifp)
+sfxge_media_change(if_t ifp)
 {
 	struct sfxge_softc *sc;
 	struct ifmedia_entry *ifm;
 	int rc;
 	uint32_t phy_cap_mask;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	ifm = sc->media.ifm_cur;
 
 	SFXGE_ADAPTER_LOCK(sc);

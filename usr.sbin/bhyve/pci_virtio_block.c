@@ -208,19 +208,19 @@ static int pci_vtblk_snapshot(void *, struct vm_snapshot_meta *);
 #endif
 
 static struct virtio_consts vtblk_vi_consts = {
-	"vtblk",		/* our name */
-	1,			/* we support 1 virtqueue */
-	sizeof(struct vtblk_config),	/* config reg size */
-	pci_vtblk_reset,	/* reset */
-	pci_vtblk_notify,	/* device-wide qnotify */
-	pci_vtblk_cfgread,	/* read PCI config */
-	pci_vtblk_cfgwrite,	/* write PCI config */
-	NULL,			/* apply negotiated features */
-	VTBLK_S_HOSTCAPS,	/* our capabilities */
+	.vc_name =	"vtblk",
+	.vc_nvq =	1,
+	.vc_cfgsize =	sizeof(struct vtblk_config),
+	.vc_reset =	pci_vtblk_reset,
+	.vc_qnotify =	pci_vtblk_notify,
+	.vc_cfgread =	pci_vtblk_cfgread,
+	.vc_cfgwrite =	pci_vtblk_cfgwrite,
+	.vc_apply_features = NULL,
+	.vc_hv_caps =	VTBLK_S_HOSTCAPS,
 #ifdef BHYVE_SNAPSHOT
-	pci_vtblk_pause,	/* pause blockif threads */
-	pci_vtblk_resume,	/* resume blockif threads */
-	pci_vtblk_snapshot,	/* save / restore device state */
+	.vc_pause =	pci_vtblk_pause,
+	.vc_resume =	pci_vtblk_resume,
+	.vc_snapshot =	pci_vtblk_snapshot,
 #endif
 };
 
@@ -437,7 +437,8 @@ pci_vtblk_notify(void *vsc, struct vqueue_info *vq)
 }
 
 static void
-pci_vtblk_resized(struct blockif_ctxt *bctxt, void *arg, size_t new_size)
+pci_vtblk_resized(struct blockif_ctxt *bctxt __unused, void *arg,
+    size_t new_size)
 {
 	struct pci_vtblk_softc *sc;
 
@@ -449,9 +450,9 @@ pci_vtblk_resized(struct blockif_ctxt *bctxt, void *arg, size_t new_size)
 }
 
 static int
-pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
+pci_vtblk_init(struct pci_devinst *pi, nvlist_t *nvl)
 {
-	char bident[sizeof("XX:X:X")];
+	char bident[sizeof("XXX:XXX")];
 	struct blockif_ctxt *bctxt;
 	const char *path, *serial;
 	MD5_CTX mdctx;
@@ -463,7 +464,7 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 	/*
 	 * The supplied backing file has to exist
 	 */
-	snprintf(bident, sizeof(bident), "%d:%d", pi->pi_slot, pi->pi_func);
+	snprintf(bident, sizeof(bident), "%u:%u", pi->pi_slot, pi->pi_func);
 	bctxt = blockif_open(nvl, bident);
 	if (bctxt == NULL) {
 		perror("Could not open backing file");
@@ -565,7 +566,8 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 }
 
 static int
-pci_vtblk_cfgwrite(void *vsc, int offset, int size, uint32_t value)
+pci_vtblk_cfgwrite(void *vsc __unused, int offset, int size __unused,
+    uint32_t value __unused)
 {
 
 	DPRINTF(("vtblk: write to readonly reg %d", offset));

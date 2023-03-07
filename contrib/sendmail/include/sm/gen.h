@@ -77,4 +77,16 @@
 typedef int SM_ATOMIC_INT_T;
 typedef unsigned int SM_ATOMIC_UINT_T;
 
+#if _FFR_EAI && !defined(USE_EAI)
+# define USE_EAI 1
+#endif
+
+#if USE_EAI && !defined(_FFR_LOGASIS)
+# define _FFR_LOGASIS 1
+#endif
+
+#if USE_EAI || _FFR_EIGHT_BIT_ADDR_OK
+# define _FFR_8BITENVADDR 1
+#endif
+
 #endif /* SM_GEN_H */

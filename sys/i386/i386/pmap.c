@@ -1050,7 +1050,7 @@ __CONCAT(PMTYPE, init)(void)
 	 */
 	s = (vm_size_t)(pv_npg * sizeof(struct md_page));
 	s = round_page(s);
-	pv_table = (struct md_page *)kmem_malloc(s, M_WAITOK | M_ZERO);
+	pv_table = kmem_malloc(s, M_WAITOK | M_ZERO);
 	for (i = 0; i < pv_npg; i++)
 		TAILQ_INIT(&pv_table[i].pv_list);
 
@@ -2287,27 +2287,9 @@ __CONCAT(PMTYPE, growkernel)(vm_offset_t addr)
  * page management routines.
  ***************************************************/
 
-CTASSERT(sizeof(struct pv_chunk) == PAGE_SIZE);
-CTASSERT(_NPCM == 11);
-CTASSERT(_NPCPV == 336);
-
-static __inline struct pv_chunk *
-pv_to_chunk(pv_entry_t pv)
-{
-
-	return ((struct pv_chunk *)((uintptr_t)pv & ~(uintptr_t)PAGE_MASK));
-}
-
-#define PV_PMAP(pv) (pv_to_chunk(pv)->pc_pmap)
-
-#define	PC_FREE0_9	0xfffffffful	/* Free values for index 0 through 9 */
-#define	PC_FREE10	((1ul << (_NPCPV % 32)) - 1)	/* Free values for index 10 */
-
 static const uint32_t pc_freemask[_NPCM] = {
-	PC_FREE0_9, PC_FREE0_9, PC_FREE0_9,
-	PC_FREE0_9, PC_FREE0_9, PC_FREE0_9,
-	PC_FREE0_9, PC_FREE0_9, PC_FREE0_9,
-	PC_FREE0_9, PC_FREE10
+	[0 ... _NPCM - 2] = PC_FREEN,
+	[_NPCM - 1] = PC_FREEL
 };
 
 #ifdef PV_STATS
@@ -2865,7 +2847,7 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 	 * If the page table page is not leftover from an earlier promotion,
 	 * initialize it.
 	 */
-	if (mpte->valid == 0)
+	if (vm_page_none_valid(mpte))
 		pmap_fill_ptp(firstpte, newpte);
 
 	KASSERT((*firstpte & PG_FRAME) == (newpte & PG_FRAME),
@@ -2940,7 +2922,7 @@ pmap_remove_kernel_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 	 * If this page table page was unmapped by a promotion, then it
 	 * contains valid mappings.  Zero it to invalidate those mappings.
 	 */
-	if (mpte->valid != 0)
+	if (vm_page_any_valid(mpte))
 		pagezero((void *)&KPTmap[i386_btop(trunc_4mpage(va))]);
 
 	/*
@@ -3004,7 +2986,7 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
 	} else {
 		mpte = pmap_remove_pt_page(pmap, sva);
 		if (mpte != NULL) {
-			KASSERT(mpte->valid == VM_PAGE_BITS_ALL,
+			KASSERT(vm_page_all_valid(mpte),
 			    ("pmap_remove_pde: pte page not promoted"));
 			pmap->pm_stats.resident_count--;
 			KASSERT(mpte->ref_count == NPTEPG,
@@ -4227,7 +4209,7 @@ __CONCAT(PMTYPE, object_init_pt)(pmap_t pmap, vm_offset_t addr,
 		if (!vm_object_populate(object, pindex, pindex + atop(size)))
 			return;
 		p = vm_page_lookup(object, pindex);
-		KASSERT(p->valid == VM_PAGE_BITS_ALL,
+		KASSERT(vm_page_all_valid(p),
 		    ("pmap_object_init_pt: invalid page %p", p));
 		pat_mode = p->md.pat_mode;
 
@@ -4247,7 +4229,7 @@ __CONCAT(PMTYPE, object_init_pt)(pmap_t pmap, vm_offset_t addr,
 		p = TAILQ_NEXT(p, listq);
 		for (pa = ptepa + PAGE_SIZE; pa < ptepa + size;
 		    pa += PAGE_SIZE) {
-			KASSERT(p->valid == VM_PAGE_BITS_ALL,
+			KASSERT(vm_page_all_valid(p),
 			    ("pmap_object_init_pt: invalid page %p", p));
 			if (pa != VM_PAGE_TO_PHYS(p) ||
 			    pat_mode != p->md.pat_mode)
@@ -4855,7 +4837,7 @@ __CONCAT(PMTYPE, remove_pages)(pmap_t pmap)
 					}
 					mpte = pmap_remove_pt_page(pmap, pv->pv_va);
 					if (mpte != NULL) {
-						KASSERT(mpte->valid == VM_PAGE_BITS_ALL,
+						KASSERT(vm_page_all_valid(mpte),
 						    ("pmap_remove_pages: pte page not promoted"));
 						pmap->pm_stats.resident_count--;
 						KASSERT(mpte->ref_count == NPTEPG,
@@ -5503,12 +5485,13 @@ __CONCAT(PMTYPE, mapdev_attr)(vm_paddr_t pa, vm_size_t size, int mode,
 }
 
 static void
-__CONCAT(PMTYPE, unmapdev)(vm_offset_t va, vm_size_t size)
+__CONCAT(PMTYPE, unmapdev)(void *p, vm_size_t size)
 {
 	struct pmap_preinit_mapping *ppim;
-	vm_offset_t offset;
+	vm_offset_t offset, va;
 	int i;
 
+	va = (vm_offset_t)p;
 	if (va >= PMAP_MAP_LOW && va <= KERNBASE && va + size <= KERNBASE)
 		return;
 	offset = va & PAGE_MASK;

@@ -14,8 +14,7 @@
 : ${BSDDIALOG_CANCEL=1}
 : ${BSDDIALOG_ESC=5}
 
-TIME=$(./bsddialog --title " timebox " \
-	--timebox "Tab / Left / Right to move\nUp / Down to select" 10 40 \
+TIME=$(./bsddialog --title " timebox " --timebox "Hello World!" 8 25 \
 3>&1 1>&2 2>&3 3>&-)
 
 case $? in

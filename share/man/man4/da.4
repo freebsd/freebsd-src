@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 20, 2017
+.Dd September 10, 2022
 .Dt DA 4
 .Os
 .Sh NAME
@@ -133,6 +133,29 @@ variables and
 .Xr loader 8
 tunables:
 .Bl -tag -width 12
+.It Va kern.cam.da.default_timeout
+This variable determines how long the
+.Nm
+driver will wait before timing out an outstanding command.
+The units for this value are seconds, and the default is currently 60
+seconds.
+.It Va kern.cam.da.disable_wp_protection
+Disable detection of write-protected disks.
+Default is disabled.
+.Po
+detection of write-protected disks is enabled
+.Pc .
+.It Va kern.cam.da.enable_biospeedup
+Enable
+.Dv BIO_SPEEDUP
+processing.
+Default is enabled.
+.It Va kern.cam.da.enable_uma_ccbs
+Use UMA for CCBs.
+Default is enabled.
+.It Va kern.cam.da.poll_period
+Media polling period in seconds.
+Default is 3 seconds.
 .It Va kern.cam.da.retry_count
 This variable determines how many times the
 .Nm
@@ -142,19 +165,20 @@ the
 .Nm
 driver dump routine.
 This value currently defaults to 4.
-.It Va kern.cam.da.default_timeout
-This variable determines how long the
+.It Va kern.cam.da.send_ordered
+Send Ordered Tags.
+On shutdown, step through all the
 .Nm
-driver will wait before timing out an outstanding command.
-The units for this value are seconds, and the default is currently 60
-seconds.
+peripheral drivers, and if the device is still open,
+sync the disk to physical media.
+Default is enabled.
 .It Va kern.cam.sort_io_queue
-.It Va kern.cam.da. Ns Ar X Ns Va .sort_io_queue
+.It Va kern.cam.da . Ns Ar X Ns Va .sort_io_queue
 These variables determine whether request queue should be sorted trying
 to optimize head seeks.
 Set to 1 to enable sorting, 0 to disable, -1 to leave it as-is.
 The default is sorting enabled for HDDs and disabled for SSDs.
-.It Va kern.cam.da. Ns Ar X Ns Va .delete_method
+.It Va kern.cam.da . Ns Ar X Ns Va .delete_method
 This variable specifies method to handle BIO_DELETE requests:
 .Bl -tag -width "ATA_TRIM"
 .It ATA_TRIM
@@ -170,7 +194,7 @@ WRITE SAME(10) command without UNMAP flag,
 .It DISABLE
 disable BIO_DELETE support.
 .El
-.It Va kern.cam.da. Ns Ar X Ns Va .minimum_cmd_size
+.It Va kern.cam.da . Ns Ar X Ns Va .minimum_cmd_size
 This variable determines what the minimum READ/WRITE CDB size is for a
 given
 .Nm

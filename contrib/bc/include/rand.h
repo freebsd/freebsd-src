@@ -13,7 +13,7 @@
  * This code is under the following license:
  *
  * Copyright (c) 2014-2017 Melissa O'Neill and PCG Project contributors
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -53,11 +53,11 @@
 #if BC_ENABLE_LIBRARY
 #define BC_RAND_USE_FREE (1)
 #else // BC_ENABLE_LIBRARY
-#ifndef NDEBUG
+#if BC_DEBUG
 #define BC_RAND_USE_FREE (1)
-#else // NDEBUG
+#else // BC_DEBUG
 #define BC_RAND_USE_FREE (0)
-#endif // NDEBUG
+#endif // BC_DEBUG
 #endif // BC_ENABLE_LIBRARY
 
 /**

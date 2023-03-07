@@ -83,31 +83,3 @@ bi_setboothowto(int howto)
 
     boot_howto_to_env(howto);
 }
-
-/*
- * Copy the environment into the load area starting at (addr).
- * Each variable is formatted as <name>=<value>, with a single nul
- * separating each variable, and a double nul terminating the environment.
- */
-vm_offset_t
-bi_copyenv(vm_offset_t addr)
-{
-    struct env_var	*ep;
-    
-    /* traverse the environment */
-    for (ep = environ; ep != NULL; ep = ep->ev_next) {
-        CALLBACK(copyin, ep->ev_name, addr, strlen(ep->ev_name));
-	addr += strlen(ep->ev_name);
-	CALLBACK(copyin, "=", addr, 1);
-	addr++;
-	if (ep->ev_value != NULL) {
-            CALLBACK(copyin, ep->ev_value, addr, strlen(ep->ev_value));
-	    addr += strlen(ep->ev_value);
-	}
-	CALLBACK(copyin, "", addr, 1);
-	addr++;
-    }
-    CALLBACK(copyin, "", addr, 1);
-    addr++;
-    return(addr);
-}

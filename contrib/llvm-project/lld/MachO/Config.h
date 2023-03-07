@@ -30,7 +30,6 @@ namespace macho {
 
 class InputSection;
 class Symbol;
-struct SymbolPriorityEntry;
 
 using NamePair = std::pair<llvm::StringRef, llvm::StringRef>;
 using SectionRenameMap = llvm::DenseMap<NamePair, NamePair>;
@@ -44,8 +43,8 @@ struct PlatformInfo {
 
 inline uint32_t encodeVersion(const llvm::VersionTuple &version) {
   return ((version.getMajor() << 020) |
-          (version.getMinor().getValueOr(0) << 010) |
-          version.getSubminor().getValueOr(0));
+          (version.getMinor().value_or(0) << 010) |
+          version.getSubminor().value_or(0));
 }
 
 enum class NamespaceKind {
@@ -95,6 +94,13 @@ public:
   bool match(llvm::StringRef symbolName) const;
 };
 
+enum class SymtabPresence {
+  All,
+  None,
+  SelectivelyIncluded,
+  SelectivelyExcluded,
+};
+
 struct Configuration {
   Symbol *entry = nullptr;
   bool hasReexports = false;
@@ -103,12 +109,11 @@ struct Configuration {
   bool archMultiple = false;
   bool exportDynamic = false;
   bool forceLoadObjC = false;
-  bool forceLoadSwift = false;
+  bool forceLoadSwift = false; // Only applies to LC_LINKER_OPTIONs.
   bool staticLink = false;
   bool implicitDylibs = false;
   bool isPic = false;
   bool headerPadMaxInstallNames = false;
-  bool ltoNewPassManager = LLVM_ENABLE_NEW_PASS_MANAGER;
   bool markDeadStrippableDylib = false;
   bool printDylibSearch = false;
   bool printEachFile = false;
@@ -125,6 +130,7 @@ struct Configuration {
   bool dedupLiterals = true;
   bool omitDebugInfo = false;
   bool warnDylibInstallName = false;
+  bool ignoreOptimizationHints = false;
   uint32_t headerPad;
   uint32_t dylibCompatibilityVersion = 0;
   uint32_t dylibCurrentVersion = 0;
@@ -153,6 +159,7 @@ struct Configuration {
   bool deadStrip = false;
   bool errorForArchMismatch = false;
   PlatformInfo platformInfo;
+  llvm::Optional<PlatformInfo> secondaryPlatformInfo;
   NamespaceKind namespaceKind = NamespaceKind::twolevel;
   UndefinedSymbolTreatment undefinedSymbolTreatment =
       UndefinedSymbolTreatment::error;
@@ -170,18 +177,21 @@ struct Configuration {
   std::vector<SectionAlign> sectionAlignments;
   std::vector<SegmentProtection> segmentProtections;
 
-  llvm::DenseMap<llvm::StringRef, SymbolPriorityEntry> priorities;
-  llvm::MapVector<std::pair<const InputSection *, const InputSection *>,
-                  uint64_t>
-      callGraphProfile;
   bool callGraphProfileSort = false;
   llvm::StringRef printSymbolOrder;
 
   SectionRenameMap sectionRenameMap;
   SegmentRenameMap segmentRenameMap;
 
+  bool hasExplicitExports = false;
   SymbolPatterns exportedSymbols;
   SymbolPatterns unexportedSymbols;
+  SymbolPatterns whyLive;
+
+  std::vector<std::pair<llvm::StringRef, llvm::StringRef>> aliasedSymbols;
+
+  SymtabPresence localSymbolsPresence = SymtabPresence::All;
+  SymbolPatterns localSymbolPatterns;
 
   bool zeroModTime = false;
 
@@ -192,27 +202,6 @@ struct Configuration {
   llvm::MachO::PlatformType platform() const {
     return platformInfo.target.Platform;
   }
-};
-
-// The symbol with the highest priority should be ordered first in the output
-// section (modulo input section contiguity constraints). Using priority
-// (highest first) instead of order (lowest first) has the convenient property
-// that the default-constructed zero priority -- for symbols/sections without a
-// user-defined order -- naturally ends up putting them at the end of the
-// output.
-struct SymbolPriorityEntry {
-  // The priority given to a matching symbol, regardless of which object file
-  // it originated from.
-  size_t anyObjectFile = 0;
-  // The priority given to a matching symbol from a particular object file.
-  llvm::DenseMap<llvm::StringRef, size_t> objectFiles;
-};
-
-// Whether to force-load an archive.
-enum class ForceLoad {
-  Default, // Apply -all_load or -ObjC behaviors if those flags are enabled
-  Yes,     // Always load the archive, regardless of other flags
-  No,      // Never load the archive, regardless of other flags
 };
 
 extern std::unique_ptr<Configuration> config;

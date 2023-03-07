@@ -215,10 +215,6 @@ prepare_elf32(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf32_t *dep)
 			    dofr[j].dofr_offset;
 			rel->r_info = ELF32_R_INFO(count + dep->de_global,
 			    R_386_PC32);
-#elif defined(__mips__)
-/* XXX */
-			printf("%s:%s(%d): MIPS not implemented\n",
-			    __FUNCTION__, __FILE__, __LINE__);
 #elif defined(__powerpc__)
 			/*
 			 * Add 4 bytes to hit the low half of this 64-bit
@@ -229,9 +225,9 @@ prepare_elf32(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf32_t *dep)
 			rel->r_info = ELF32_R_INFO(count + dep->de_global,
 			    R_PPC_REL32);
 #elif defined(__riscv)
-/* XXX */
-			printf("%s:%s(%d): RISC-V not implemented\n",
-			    __FUNCTION__, __FILE__, __LINE__);
+			rel->r_offset = s->dofs_offset + dofr[j].dofr_offset;
+			rel->r_info = ELF32_R_INFO(count + dep->de_global,
+			    R_RISCV_32_PCREL);
 #else
 #error unknown ISA
 #endif
@@ -401,15 +397,15 @@ prepare_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf64_t *dep)
 			    R_AARCH64_PREL64);
 #elif defined(__arm__)
 /* XXX */
-#elif defined(__mips__)
-/* XXX */
 #elif defined(__powerpc__)
 			rel->r_offset = s->dofs_offset +
 			    dofr[j].dofr_offset;
 			rel->r_info = ELF64_R_INFO(count + dep->de_global,
 			    R_PPC64_REL64);
 #elif defined(__riscv)
-/* XXX */
+			rel->r_offset = s->dofs_offset + dofr[j].dofr_offset;
+			rel->r_info = ELF64_R_INFO(count + dep->de_global,
+			    R_RISCV_32_PCREL);
 #elif defined(__i386) || defined(__amd64)
 			rel->r_offset = s->dofs_offset +
 			    dofr[j].dofr_offset;
@@ -504,14 +500,28 @@ dump_elf32(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 	elf_file.ehdr.e_type = ET_REL;
 #if defined(__arm__)
 	elf_file.ehdr.e_machine = EM_ARM;
-#elif defined(__mips__)
-	elf_file.ehdr.e_machine = EM_MIPS;
 #elif defined(__powerpc__)
 	elf_file.ehdr.e_machine = EM_PPC;
 #elif defined(__i386) || defined(__amd64)
 	elf_file.ehdr.e_machine = EM_386;
 #elif defined(__aarch64__)
 	elf_file.ehdr.e_machine = EM_AARCH64;
+#elif defined(__riscv)
+	elf_file.ehdr.e_machine = EM_RISCV;
+
+	/* Set the ELF flags according to our current ABI */
+#if defined(__riscv_compressed)
+	elf_file.ehdr.e_flags |= EF_RISCV_RVC;
+#endif
+#if defined(__riscv_float_abi_soft)
+	elf_file.ehdr.e_flags |= EF_RISCV_FLOAT_ABI_SOFT;
+#endif
+#if defined(__riscv_float_abi_single)
+	elf_file.ehdr.e_flags |= EF_RISCV_FLOAT_ABI_SINGLE;
+#endif
+#if defined(__riscv_float_abi_double)
+	elf_file.ehdr.e_flags |= EF_RISCV_FLOAT_ABI_DOUBLE;
+#endif
 #endif
 	elf_file.ehdr.e_version = EV_CURRENT;
 	elf_file.ehdr.e_shoff = sizeof (Elf32_Ehdr);
@@ -644,8 +654,6 @@ dump_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 	elf_file.ehdr.e_type = ET_REL;
 #if defined(__arm__)
 	elf_file.ehdr.e_machine = EM_ARM;
-#elif defined(__mips__)
-	elf_file.ehdr.e_machine = EM_MIPS;
 #elif defined(__powerpc64__)
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 	elf_file.ehdr.e_flags = 2;
@@ -655,6 +663,22 @@ dump_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 	elf_file.ehdr.e_machine = EM_AMD64;
 #elif defined(__aarch64__)
 	elf_file.ehdr.e_machine = EM_AARCH64;
+#elif defined(__riscv)
+	elf_file.ehdr.e_machine = EM_RISCV;
+
+	/* Set the ELF flags according to our current ABI */
+#if defined(__riscv_compressed)
+	elf_file.ehdr.e_flags |= EF_RISCV_RVC;
+#endif
+#if defined(__riscv_float_abi_soft)
+	elf_file.ehdr.e_flags |= EF_RISCV_FLOAT_ABI_SOFT;
+#endif
+#if defined(__riscv_float_abi_single)
+	elf_file.ehdr.e_flags |= EF_RISCV_FLOAT_ABI_SINGLE;
+#endif
+#if defined(__riscv_float_abi_double)
+	elf_file.ehdr.e_flags |= EF_RISCV_FLOAT_ABI_DOUBLE;
+#endif
 #endif
 	elf_file.ehdr.e_version = EV_CURRENT;
 	elf_file.ehdr.e_shoff = sizeof (Elf64_Ehdr);
@@ -843,17 +867,6 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 	    __LINE__);
 	return (-1);
 }
-#elif defined(__mips__)
-#define	DT_REL_NONE		R_MIPS_NONE
-
-static int
-dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
-    uint32_t *off)
-{
-	printf("%s:%s(%d): MIPS not implemented\n", __FUNCTION__, __FILE__,
-	    __LINE__);
-	return (-1);
-}
 #elif defined(__powerpc__)
 /* The sentinel is 'xor r3,r3,r3'. */
 #define DT_OP_XOR_R3	0x7c631a78
@@ -938,14 +951,74 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 	return (0);
 }
 #elif defined(__riscv)
+#define	DT_OP_NOP		0x00000013 /* addi x0, x0, 0 */
+#define	DT_OP_RET		0x00008067 /* jalr x0, x1, 0 */
+#define	DT_OP_IS_AUIPC(op)	(((op) & 0x7f) == 0x17)
+#define	DT_OP_IS_JALR(op)	(((op) & 0x707f) == 0x67)
+#define	DT_OP_JALR_CALL		0x000080e7 /* jalr x1, x1, 0 */
+#define	DT_OP_JALR_TAIL		0x00030067 /* jalr x0, x6, 0 */
 #define	DT_REL_NONE		R_RISCV_NONE
+
 static int
 dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
     uint32_t *off)
 {
-	printf("%s:%s(%d): RISC-V implementation required\n", __FUNCTION__,
-	    __FILE__, __LINE__);
-	return (-1);
+	uint32_t *ip;
+
+	/*
+	 * XXX: this implementation is untested, but should serve as a decent
+	 * starting point.
+	 */
+
+	/*
+	 * Ensure that the offset is aligned on a compressed-instruction
+	 * boundary.
+	 */
+	if ((rela->r_offset & (sizeof (uint16_t) - 1)) != 0)
+		return (-1);
+
+	/*
+	 * We only know about some specific relocation types.
+	 * We also recognize relocation type NONE, since that gets used for
+	 * relocations of USDT probes, and we might be re-processing a file.
+	 */
+	if (GELF_R_TYPE(rela->r_info) != R_RISCV_CALL &&
+	    GELF_R_TYPE(rela->r_info) != R_RISCV_CALL_PLT &&
+	    GELF_R_TYPE(rela->r_info) != R_RISCV_NONE)
+		return (-1);
+
+	ip = (uint32_t *)(p + rela->r_offset);
+
+	/*
+	 * We may have already processed this object file in an earlier linker
+	 * invocation. Check to see if the present instruction sequence matches
+	 * the one we would install below.
+	 */
+	if (ip[0] == DT_OP_NOP && (ip[1] == DT_OP_NOP || ip[1] == DT_OP_RET))
+		return (0);
+
+	/*
+	 * We expect a auipc+jalr pair, either from a call or a tail.
+	 *  - call: auipc x1 0; jalr x1, x1, 0
+	 *  - tail: auipc x6 0; jalr x0, x6, 0
+	 */
+	if (!DT_OP_IS_AUIPC(ip[0]) || !DT_OP_IS_JALR(ip[1]))
+		return (-1);
+
+	/*
+	 * On riscv, we do not have to differentiate between regular probes and
+	 * is-enabled probes. Calls are to be converted into a no-op whereas
+	 * tail calls should become a return.
+	 */
+	if (ip[1] == DT_OP_JALR_CALL) {
+		ip[0] = DT_OP_NOP;
+		ip[1] = DT_OP_NOP;
+	} else {
+		ip[0] = DT_OP_NOP;
+		ip[1] = DT_OP_RET;
+	}
+
+	return (0);
 }
 
 #elif defined(__i386) || defined(__amd64)
@@ -1167,9 +1240,7 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 
 	if (dtp->dt_oflags & DTRACE_O_LP64) {
 		eclass = ELFCLASS64;
-#if defined(__mips__)
-		emachine1 = emachine2 = EM_MIPS;
-#elif defined(__powerpc__)
+#if defined(__powerpc__)
 		emachine1 = emachine2 = EM_PPC64;
 #if !defined(_CALL_ELF) || _CALL_ELF == 1
 		uses_funcdesc = 1;
@@ -1178,14 +1249,14 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 		emachine1 = emachine2 = EM_AMD64;
 #elif defined(__aarch64__)
 		emachine1 = emachine2 = EM_AARCH64;
+#elif defined(__riscv)
+		emachine1 = emachine2 = EM_RISCV;
 #endif
 		symsize = sizeof (Elf64_Sym);
 	} else {
 		eclass = ELFCLASS32;
 #if defined(__arm__)
 		emachine1 = emachine2 = EM_ARM;
-#elif defined(__mips__)
-		emachine1 = emachine2 = EM_MIPS;
 #elif defined(__powerpc__)
 		emachine1 = emachine2 = EM_PPC;
 #elif defined(__i386) || defined(__amd64)
@@ -1612,6 +1683,7 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 			 * invocation.
 			 */
 			if (rsym.st_shndx != SHN_ABS) {
+				rsym.st_info = GELF_ST_INFO(STB_WEAK, STT_FUNC);
 				rsym.st_shndx = SHN_ABS;
 				(void) gelf_update_sym(data_sym, ndx, &rsym);
 			}

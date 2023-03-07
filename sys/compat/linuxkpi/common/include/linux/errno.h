@@ -34,6 +34,8 @@
 #include <sys/errno.h>
 
 #define	EBADRQC		56	/* Bad request code */
+#define	EBADSLT		57	/* Invalid slot */
+#define	ENOKEY		126	/* Required key not available */
 
 #define	ECHRNG		EDOM
 #define	ETIME		ETIMEDOUT

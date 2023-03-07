@@ -98,19 +98,6 @@ static struct mtx unitmtx;
 
 MTX_SYSINIT(unit, &unitmtx, "unit# allocation", MTX_DEF);
 
-#ifdef UNR64_LOCKED
-uint64_t
-alloc_unr64(struct unrhdr64 *unr64)
-{
-	uint64_t item;
-
-	mtx_lock(&unitmtx);
-	item = unr64->counter++;
-	mtx_unlock(&unitmtx);
-	return (item);
-}
-#endif
-
 #else /* ...USERLAND */
 
 #include <bitstring.h>

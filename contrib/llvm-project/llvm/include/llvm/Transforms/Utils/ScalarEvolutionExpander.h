@@ -15,13 +15,10 @@
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
-#include "llvm/ADT/Optional.h"
-#include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Analysis/InstSimplifyFolder.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
 #include "llvm/Analysis/ScalarEvolutionNormalization.h"
-#include "llvm/Analysis/TargetFolder.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/ValueHandle.h"
@@ -30,19 +27,6 @@
 
 namespace llvm {
 extern cl::opt<unsigned> SCEVCheapExpansionBudget;
-
-/// Return true if the given expression is safe to expand in the sense that
-/// all materialized values are safe to speculate anywhere their operands are
-/// defined, and the expander is capable of expanding the expression.
-/// CanonicalMode indicates whether the expander will be used in canonical mode.
-bool isSafeToExpand(const SCEV *S, ScalarEvolution &SE,
-                    bool CanonicalMode = true);
-
-/// Return true if the given expression is safe to expand in the sense that
-/// all materialized values are defined and safe to speculate at the specified
-/// location and their operands are defined at this location.
-bool isSafeToExpandAt(const SCEV *S, const Instruction *InsertionPoint,
-                      ScalarEvolution &SE);
 
 /// struct for holding enough information to help calculate the cost of the
 /// given SCEV when expanded into IR.
@@ -273,6 +257,16 @@ public:
                                SmallVectorImpl<WeakTrackingVH> &DeadInsts,
                                const TargetTransformInfo *TTI = nullptr);
 
+  /// Return true if the given expression is safe to expand in the sense that
+  /// all materialized values are safe to speculate anywhere their operands are
+  /// defined, and the expander is capable of expanding the expression.
+  bool isSafeToExpand(const SCEV *S) const;
+
+  /// Return true if the given expression is safe to expand in the sense that
+  /// all materialized values are defined and safe to speculate at the specified
+  /// location and their operands are defined at this location.
+  bool isSafeToExpandAt(const SCEV *S, const Instruction *InsertionPoint) const;
+
   /// Insert code to directly compute the specified SCEV expression into the
   /// program.  The code is inserted into the specified block.
   Value *expandCodeFor(const SCEV *SH, Type *Ty, Instruction *I) {
@@ -293,8 +287,9 @@ public:
   Value *expandCodeForPredicate(const SCEVPredicate *Pred, Instruction *Loc);
 
   /// A specialized variant of expandCodeForPredicate, handling the case when
-  /// we are expanding code for a SCEVEqualPredicate.
-  Value *expandEqualPredicate(const SCEVEqualPredicate *Pred, Instruction *Loc);
+  /// we are expanding code for a SCEVComparePredicate.
+  Value *expandComparePredicate(const SCEVComparePredicate *Pred,
+                                Instruction *Loc);
 
   /// Generates code that evaluates if the \p AR expression will overflow.
   Value *generateOverflowCheck(const SCEVAddRecExpr *AR, Instruction *Loc,
@@ -384,8 +379,8 @@ public:
   /// Note that this function does not perform an exhaustive search. I.e if it
   /// didn't find any value it does not mean that there is no such value.
   ///
-  Optional<ScalarEvolution::ValueOffsetPair>
-  getRelatedExistingExpansion(const SCEV *S, const Instruction *At, Loop *L);
+  Value *getRelatedExistingExpansion(const SCEV *S, const Instruction *At,
+                                     Loop *L);
 
   /// Returns a suitable insert point after \p I, that dominates \p
   /// MustDominate. Skips instructions inserted by the expander.
@@ -443,21 +438,15 @@ private:
   Value *expandAddToGEP(const SCEV *Op, PointerType *PTy, Type *Ty, Value *V);
 
   /// Find a previous Value in ExprValueMap for expand.
-  ScalarEvolution::ValueOffsetPair
-  FindValueInExprValueMap(const SCEV *S, const Instruction *InsertPt);
+  Value *FindValueInExprValueMap(const SCEV *S, const Instruction *InsertPt);
 
   Value *expand(const SCEV *S);
 
   /// Determine the most "relevant" loop for the given SCEV.
   const Loop *getRelevantLoop(const SCEV *);
 
-  Value *expandSMaxExpr(const SCEVNAryExpr *S);
-
-  Value *expandUMaxExpr(const SCEVNAryExpr *S);
-
-  Value *expandSMinExpr(const SCEVNAryExpr *S);
-
-  Value *expandUMinExpr(const SCEVNAryExpr *S);
+  Value *expandMinMaxExpr(const SCEVNAryExpr *S, Intrinsic::ID IntrinID,
+                          Twine Name, bool IsSequential = false);
 
   Value *visitConstant(const SCEVConstant *S) { return S->getValue(); }
 

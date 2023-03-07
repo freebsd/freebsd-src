@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -28,6 +28,7 @@
 #
 
 # Just print the usage and exit with an error.
+# @param 1  A message to print.
 usage() {
 	if [ $# -eq 1 ]; then
 		printf '%s\n' "$1"
@@ -183,13 +184,14 @@ all_locales=0
 while getopts "l" opt; do
 
 	case "$opt" in
-		l) all_locales=1 ; shift ;;
+		l) all_locales=1 ;;
 		?) usage "Invalid option: $opt" ;;
 	esac
 
 done
+shift $(($OPTIND - 1))
 
-test "$#" -ge 2 || usage
+test "$#" -ge 2 || usage "Must have at least two arguments"
 
 nlspath="$1"
 shift
@@ -240,10 +242,14 @@ for file in $locales_dir/*.msg; do
 		continue
 	fi
 
+	printf 'Installing %s...' "$locale"
+
 	# Generate the proper location for the cat file.
 	loc=$(gen_nlspath "$destdir/$nlspath" "$locale" "$main_exec")
 
 	gencatfile "$loc" "$file"
+
+	printf 'done\n'
 
 done
 
@@ -275,6 +281,8 @@ for file in $locales_dir/*.msg; do
 	# Make sure to skip non-symlinks; they are already done.
 	if [ -L "$file" ]; then
 
+		printf 'Linking %s...' "$locale"
+
 		# This song and dance is because we want to generate relative symlinks.
 		# They take less space, but also, they are more resilient to being
 		# moved.
@@ -294,6 +302,8 @@ for file in $locales_dir/*.msg; do
 		# Finally, symlink to the install of the generated cat file that
 		# corresponds to the correct msg file.
 		ln -fs "$rel" "$loc"
+
+		printf 'done\n'
 	fi
 
 done

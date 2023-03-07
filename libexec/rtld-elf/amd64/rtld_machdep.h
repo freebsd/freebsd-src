@@ -69,9 +69,6 @@ typedef struct {
 
 void *__tls_get_addr(tls_index *ti) __exported;
 
-#define	RTLD_DEFAULT_STACK_PF_EXEC	PF_X
-#define	RTLD_DEFAULT_STACK_EXEC		PROT_EXEC
-
 #define md_abi_variant_hook(x)
 
 size_t calculate_first_tls_offset(size_t size, size_t align, size_t offset);

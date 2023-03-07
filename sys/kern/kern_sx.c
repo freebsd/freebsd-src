@@ -1039,7 +1039,7 @@ _sx_slock_hard(struct sx *sx, int opts, uintptr_t x LOCK_FILE_LINE_ARG_DEF)
 #if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
 	uintptr_t state = 0;
 #endif
-	int extra_work = 0;
+	int extra_work __sdt_used = 0;
 
 	td = curthread;
 

@@ -1,0 +1,344 @@
+.\" This file is in the public domain, so clarified as of
+.\" 2009-05-17 by Arthur David Olson.
+.TH NEWCTIME 3
+.SH NAME
+asctime, ctime, difftime, gmtime, localtime, mktime \- convert date and time
+.SH SYNOPSIS
+.nf
+.ie \n(.g .ds - \f(CR-\fP
+.el .ds - \-
+.B #include <time.h>
+.PP
+.BR "extern char *tzname[];" " /\(** (optional) \(**/"
+.PP
+.B char *ctime(time_t const *clock);
+.PP
+.B char *ctime_r(time_t const *clock, char *buf);
+.PP
+.B double difftime(time_t time1, time_t time0);
+.PP
+.B char *asctime(struct tm const *tm);
+.PP
+.B "char *asctime_r(struct tm const *restrict tm,"
+.B "    char *restrict result);"
+.PP
+.B struct tm *localtime(time_t const *clock);
+.PP
+.B "struct tm *localtime_r(time_t const *restrict clock,"
+.B "    struct tm *restrict result);"
+.PP
+.B "struct tm *localtime_rz(timezone_t restrict zone,"
+.B "    time_t const *restrict clock,"
+.B "    struct tm *restrict result);"
+.PP
+.B struct tm *gmtime(time_t const *clock);
+.PP
+.B "struct tm *gmtime_r(time_t const *restrict clock,"
+.B "    struct tm *restrict result);"
+.PP
+.B time_t mktime(struct tm *tm);
+.PP
+.B "time_t mktime_z(timezone_t restrict zone,"
+.B "    struct tm *restrict tm);"
+.PP
+.B cc ... \*-ltz
+.fi
+.SH DESCRIPTION
+.ie '\(en'' .ds en \-
+.el .ds en \(en
+.ie '\(lq'' .ds lq \&"\"
+.el .ds lq \(lq\"
+.ie '\(rq'' .ds rq \&"\"
+.el .ds rq \(rq\"
+.de q
+\\$3\*(lq\\$1\*(rq\\$2
+..
+The
+.B ctime
+function
+converts a long integer, pointed to by
+.IR clock ,
+and returns a pointer to a
+string of the form
+.br
+.ce
+.eo
+Thu Nov 24 18:22:48 1986\n\0
+.br
+.ec
+Years requiring fewer than four characters are padded with leading zeroes.
+For years longer than four characters, the string is of the form
+.br
+.ce
+.eo
+Thu Nov 24 18:22:48     81986\n\0
+.ec
+.br
+with five spaces before the year.
+These unusual formats are designed to make it less likely that older
+software that expects exactly 26 bytes of output will mistakenly output
+misleading values for out-of-range years.
+.PP
+The
+.BI * clock
+timestamp represents the time in seconds since 1970-01-01 00:00:00
+Coordinated Universal Time (UTC).
+The POSIX standard says that timestamps must be nonnegative
+and must ignore leap seconds.
+Many implementations extend POSIX by allowing negative timestamps,
+and can therefore represent timestamps that predate the
+introduction of UTC and are some other flavor of Universal Time (UT).
+Some implementations support leap seconds, in contradiction to POSIX.
+.PP
+The
+.B localtime
+and
+.B gmtime
+functions
+return pointers to
+.q "tm"
+structures, described below.
+The
+.B localtime
+function
+corrects for the time zone and any time zone adjustments
+(such as Daylight Saving Time in the United States).
+After filling in the
+.q "tm"
+structure,
+.B localtime
+sets the
+.BR tm_isdst 'th
+element of
+.B tzname
+to a pointer to a string that's the time zone abbreviation to be used with
+.BR localtime 's
+return value.
+.PP
+The
+.B gmtime
+function
+converts to Coordinated Universal Time.
+.PP
+The
+.B asctime
+function
+converts a time value contained in a
+.q "tm"
+structure to a string,
+as shown in the above example,
+and returns a pointer to the string.
+.PP
+The
+.B mktime
+function
+converts the broken-down time,
+expressed as local time,
+in the structure pointed to by
+.I tm
+into a calendar time value with the same encoding as that of the values
+returned by the
+.B time
+function.
+The original values of the
+.B tm_wday
+and
+.B tm_yday
+components of the structure are ignored,
+and the original values of the other components are not restricted
+to their normal ranges.
+(A positive or zero value for
+.B tm_isdst
+causes
+.B mktime
+to presume initially that daylight saving time
+respectively,
+is or is not in effect for the specified time.
+A negative value for
+.B tm_isdst
+causes the
+.B mktime
+function to attempt to divine whether daylight saving time is in effect
+for the specified time; in this case it does not use a consistent
+rule and may give a different answer when later
+presented with the same argument.)
+On successful completion, the values of the
+.B tm_wday
+and
+.B tm_yday
+components of the structure are set appropriately,
+and the other components are set to represent the specified calendar time,
+but with their values forced to their normal ranges; the final value of
+.B tm_mday
+is not set until
+.B tm_mon
+and
+.B tm_year
+are determined.
+The
+.B mktime
+function
+returns the specified calendar time;
+If the calendar time cannot be represented,
+it returns \-1.
+.PP
+The
+.B difftime
+function
+returns the difference between two calendar times,
+.RI ( time1
+\-
+.IR time0 ),
+expressed in seconds.
+.PP
+The
+.BR ctime_r ,
+.BR localtime_r ,
+.BR gmtime_r ,
+and
+.B asctime_r
+functions
+are like their unsuffixed counterparts, except that they accept an
+additional argument specifying where to store the result if successful.
+.PP
+The
+.B localtime_rz
+and
+.B mktime_z
+functions
+are like their unsuffixed counterparts, except that they accept an
+extra initial
+.B zone
+argument specifying the timezone to be used for conversion.
+If
+.B zone
+is null, UT is used; otherwise,
+.B zone
+should be have been allocated by
+.B tzalloc
+and should not be freed until after all uses (e.g., by calls to
+.BR strftime )
+of the filled-in
+.B tm_zone
+fields.
+.PP
+Declarations of all the functions and externals, and the
+.q "tm"
+structure,
+are in the
+.B <time.h>
+header file.
+The structure (of type)
+.B struct tm
+includes the following fields:
+.RS
+.PP
+.nf
+.ta 2n +\w'long tm_gmtoff;nn'u
+	int tm_sec;	/\(** seconds (0\*(en60) \(**/
+	int tm_min;	/\(** minutes (0\*(en59) \(**/
+	int tm_hour;	/\(** hours (0\*(en23) \(**/
+	int tm_mday;	/\(** day of month (1\*(en31) \(**/
+	int tm_mon;	/\(** month of year (0\*(en11) \(**/
+	int tm_year;	/\(** year \- 1900 \(**/
+	int tm_wday;	/\(** day of week (Sunday = 0) \(**/
+	int tm_yday;	/\(** day of year (0\*(en365) \(**/
+	int tm_isdst;	/\(** is daylight saving time in effect? \(**/
+	char \(**tm_zone;	/\(** time zone abbreviation (optional) \(**/
+	long tm_gmtoff;	/\(** offset from UT in seconds (optional) \(**/
+.fi
+.RE
+.PP
+The
+.B tm_isdst
+field
+is non-zero if daylight saving time is in effect.
+.PP
+The
+.B tm_gmtoff
+field
+is the offset (in seconds) of the time represented
+from UT, with positive values indicating east
+of the Prime Meridian.
+The field's name is derived from Greenwich Mean Time, a precursor of UT.
+.PP
+In
+.B "struct tm"
+the
+.B tm_zone
+and
+.B tm_gmtoff
+fields exist, and are filled in, only if arrangements to do
+so were made when the library containing these functions was
+created.
+Similarly, the
+.B tzname
+variable is optional; also, there is no guarantee that
+.B tzname
+will
+continue to exist in this form in future releases of this code.
+.SH FILES
+.ta \w'/usr/share/zoneinfo/posixrules\0\0'u
+/usr/share/zoneinfo	timezone information directory
+.br
+/usr/share/zoneinfo/localtime	local timezone file
+.br
+/usr/share/zoneinfo/posixrules	used with POSIX-style TZ's
+.br
+/usr/share/zoneinfo/GMT	for UTC leap seconds
+.sp
+If
+.B /usr/share/zoneinfo/GMT
+is absent,
+UTC leap seconds are loaded from
+.BR /usr/share/zoneinfo/posixrules .
+.SH SEE ALSO
+getenv(3),
+newstrftime(3),
+newtzset(3),
+time(2),
+tzfile(5)
+.SH NOTES
+The return values of
+.BR asctime ,
+.BR ctime ,
+.BR gmtime ,
+and
+.B localtime
+point to static data
+overwritten by each call.
+The
+.B tzname
+variable (once set) and the
+.B tm_zone
+field of a returned
+.B "struct tm"
+both point to an array of characters that
+can be freed or overwritten by later calls to the functions
+.BR localtime ,
+.BR tzfree ,
+and
+.BR tzset ,
+if these functions affect the timezone information that specifies the
+abbreviation in question.
+The remaining functions and data are thread-safe.
+.PP
+The
+.BR asctime ,
+.BR asctime_r ,
+.BR ctime ,
+and
+.B ctime_r
+functions
+behave strangely for years before 1000 or after 9999.
+The 1989 and 1999 editions of the C Standard say
+that years from \-99 through 999 are converted without
+extra spaces, but this conflicts with longstanding
+tradition and with this implementation.
+The 2011 edition says that the behavior
+is undefined if the year is before 1000 or after 9999.
+Traditional implementations of these two functions are
+restricted to years in the range 1900 through 2099.
+To avoid this portability mess, new programs should use
+.B strftime
+instead.

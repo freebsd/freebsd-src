@@ -28,6 +28,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_platform.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -67,6 +69,11 @@ struct rx8803_time {
 	uint8_t day;
 	uint8_t mon;
 	uint8_t year;
+};
+
+static struct ofw_compat_data compat_data[] = {
+	{"epson,rx8803", 1},
+	{NULL,           0},
 };
 
 static int rx8803_probe(device_t dev);
@@ -191,7 +198,10 @@ static int
 rx8803_probe(device_t dev)
 {
 
-	if (!ofw_bus_is_compatible(dev, "epson,rx8803"))
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "Epson RX8803 Real Time Clock");
@@ -238,4 +248,6 @@ static driver_t rx8803_driver = {
 };
 
 DRIVER_MODULE(rx8803, iicbus, rx8803_driver, NULL, NULL);
+MODULE_VERSION(rx8803, 1);
 MODULE_DEPEND(rx8803, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
+IICBUS_FDT_PNP_INFO(compat_data);

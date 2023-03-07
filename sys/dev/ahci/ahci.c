@@ -1484,7 +1484,7 @@ ahci_ch_intr_main(struct ahci_channel *ch, uint32_t istatus)
 			ahci_done(ch, fccb);
 		}
 		for (i = 0; i < ch->numslots; i++) {
-			/* XXX: reqests in loading state. */
+			/* XXX: requests in loading state. */
 			if (((err >> i) & 1) == 0)
 				continue;
 			if (port >= 0 &&
@@ -2605,10 +2605,14 @@ static int
 ahci_sata_connect(struct ahci_channel *ch)
 {
 	u_int32_t status;
-	int timeout, found = 0;
+	int timeout, timeoutslot, found = 0;
 
-	/* Wait up to 100ms for "connect well" */
-	for (timeout = 0; timeout < 1000 ; timeout++) {
+	/*
+	 * Wait for "connect well", up to 100ms by default and
+	 * up to 500ms for devices with the SLOWDEV quirk.
+	 */
+	timeoutslot = ((ch->quirks & AHCI_Q_SLOWDEV) ? 5000 : 1000);
+	for (timeout = 0; timeout < timeoutslot; timeout++) {
 		status = ATA_INL(ch->r_mem, AHCI_P_SSTS);
 		if ((status & ATA_SS_DET_MASK) != ATA_SS_DET_NO_DEVICE)
 			found = 1;
@@ -2627,7 +2631,7 @@ ahci_sata_connect(struct ahci_channel *ch)
 			break;
 		DELAY(100);
 	}
-	if (timeout >= 1000 || !found) {
+	if (timeout >= timeoutslot || !found) {
 		if (bootverbose) {
 			device_printf(ch->dev,
 			    "SATA connect timeout time=%dus status=%08x\n",

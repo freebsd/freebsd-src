@@ -77,7 +77,7 @@ kadm5_c_get_principal(void *server_handle,
     ret = tmp;
     krb5_clear_error_message(context->context);
     if(ret == 0)
-	kadm5_ret_principal_ent(sp, out);
+	ret = kadm5_ret_principal_ent(sp, out);
     krb5_storage_free(sp);
     krb5_data_free (&reply);
     return ret;

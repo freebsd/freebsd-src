@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2021  Mark Nudelman
+ * Copyright (C) 1984-2022  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -36,24 +36,46 @@ extern int sigs;
 extern int utf_mode;
 extern int wheel_lines;
 
-/*
- * Get name of tty device.
- */
 #if !MSDOS_COMPILER
-	public char *
-tty_device(VOID_PARAM)
+	static int
+open_tty_device(dev)
+	constant char* dev;
 {
-	char *dev = NULL;
-#if HAVE_TTYNAME
-	dev = ttyname(2);
+#if OS2
+	/* The __open() system call translates "/dev/tty" to "con". */
+	return __open(dev, OPEN_READ);
+#else
+	return open(dev, OPEN_READ);
 #endif
-	if (dev == NULL)
-		dev = "/dev/tty";
+}
+
+/*
+ * Open the tty device.
+ * Try ttyname(), then try /dev/tty, then use file descriptor 2.
+ * In Unix, file descriptor 2 is usually attached to the screen,
+ * but also usually lets you read from the keyboard.
+ */
+	public int
+open_tty(VOID_PARAM)
+{
+	int fd = -1;
 #if LESSTEST
 	if (ttyin_name != NULL)
-		dev = ttyin_name;
+		fd = open_tty_device(ttyin_name);
 #endif /*LESSTEST*/
-	return dev;
+#if HAVE_TTYNAME
+	if (fd < 0)
+	{
+		constant char *dev = ttyname(2);
+		if (dev != NULL)
+			fd = open_tty_device(dev);
+	}
+#endif
+	if (fd < 0)
+		fd = open_tty_device("/dev/tty");
+	if (fd < 0)
+		fd = 2;
+	return fd;
 }
 #endif /* MSDOS_COMPILER */
 
@@ -93,20 +115,7 @@ open_getchr(VOID_PARAM)
 	(void) __djgpp_set_ctrl_c(1);
 #endif
 #else
-	/*
-	 * Try /dev/tty.
-	 * If that doesn't work, use file descriptor 2,
-	 * which in Unix is usually attached to the screen,
-	 * but also usually lets you read from the keyboard.
-	 */
-#if OS2
-	/* The __open() system call translates "/dev/tty" to "con". */
-	tty = __open(tty_device(), OPEN_READ);
-#else
-	tty = open(tty_device(), OPEN_READ);
-#endif
-	if (tty < 0)
-		tty = 2;
+	tty = open_tty();
 #endif
 #endif
 }

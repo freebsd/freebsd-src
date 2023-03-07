@@ -272,30 +272,46 @@ import_pool()
 # with more logging etc.
 load_module_initrd()
 {
-	[ -n "$ROOTDELAY" ] && ZFS_INITRD_PRE_MOUNTROOT_SLEEP="$ROOTDELAY"
+	ZFS_INITRD_PRE_MOUNTROOT_SLEEP=${ROOTDELAY:-0}
 
-	if [ "$ZFS_INITRD_PRE_MOUNTROOT_SLEEP" -gt 0 ] 2>/dev/null
-	then
-		if [ "$quiet" != "y" ]; then
-			zfs_log_begin_msg "Sleeping for" \
-				"$ZFS_INITRD_PRE_MOUNTROOT_SLEEP seconds..."
+	if [ "$ZFS_INITRD_PRE_MOUNTROOT_SLEEP" -gt 0 ]; then
+		[ "$quiet" != "y" ] && zfs_log_begin_msg "Delaying for up to '${ZFS_INITRD_PRE_MOUNTROOT_SLEEP}' seconds."
+	fi
+
+	START=$(/bin/date -u +%s)
+	END=$((START+ZFS_INITRD_PRE_MOUNTROOT_SLEEP))
+	while true; do
+
+		# Wait for all of the /dev/{hd,sd}[a-z] device nodes to appear.
+		if command -v wait_for_udev > /dev/null 2>&1 ; then
+			wait_for_udev 10
+		elif command -v wait_for_dev > /dev/null 2>&1 ; then
+			wait_for_dev
 		fi
-		sleep "$ZFS_INITRD_PRE_MOUNTROOT_SLEEP"
+
+		#
+		# zpool import refuse to import without a valid
+		# /proc/self/mounts
+		#
+		[ ! -f /proc/self/mounts ] && mount proc /proc
+
+		# Load the module
+		if load_module "zfs"; then
+			ret=0
+			break
+		else
+			ret=1
+		fi
+
+		[ "$(/bin/date -u +%s)" -gt "$END" ] && break
+		sleep 1
+
+	done
+	if [ "$ZFS_INITRD_PRE_MOUNTROOT_SLEEP" -gt 0 ]; then
 		[ "$quiet" != "y" ] && zfs_log_end_msg
 	fi
 
-	# Wait for all of the /dev/{hd,sd}[a-z] device nodes to appear.
-	if command -v wait_for_udev > /dev/null 2>&1 ; then
-		wait_for_udev 10
-	elif command -v wait_for_dev > /dev/null 2>&1 ; then
-		wait_for_dev
-	fi
-
-	# zpool import refuse to import without a valid /proc/self/mounts
-	[ ! -f /proc/self/mounts ] && mount proc /proc
-
-	# Load the module
-	load_module "zfs" || return 1
+	[ "$ret" -ne 0 ] && return 1
 
 	if [ "$ZFS_INITRD_POST_MODPROBE_SLEEP" -gt 0 ] 2>/dev/null
 	then
@@ -333,25 +349,23 @@ mount_fs()
 		# Can't use the mountpoint property. Might be one of our
 		# clones. Check the 'org.zol:mountpoint' property set in
 		# clone_snap() if that's usable.
-		mountpoint=$(get_fs_value "$fs" org.zol:mountpoint)
-		if [ "$mountpoint" = "legacy" ] ||
-		   [ "$mountpoint" = "none" ] ||
-		   [ "$mountpoint" = "-" ]
+		mountpoint1=$(get_fs_value "$fs" org.zol:mountpoint)
+		if [ "$mountpoint1" = "legacy" ] ||
+		   [ "$mountpoint1" = "none" ] ||
+		   [ "$mountpoint1" = "-" ]
 		then
 			if [ "$fs" != "${ZFS_BOOTFS}" ]; then
 				# We don't have a proper mountpoint and this
 				# isn't the root fs.
 				return 0
-			else
-				# Last hail-mary: Hope 'rootmnt' is set!
-				mountpoint=""
 			fi
-		fi
-
-		# If it's not a legacy filesystem, it can only be a
-		# native one...
-		if [ "$mountpoint" = "legacy" ]; then
-			ZFS_CMD="mount.zfs"
+			# Last hail-mary: Hope 'rootmnt' is set!
+			mountpoint=""
+			if [ "$mountpoint" = "legacy" ]; then
+				ZFS_CMD="mount.zfs"
+			fi
+		else
+			mountpoint="$mountpoint1"
 		fi
 	fi
 
@@ -505,7 +519,7 @@ clone_snap()
 		echo "Error: $ZFS_ERROR"
 		echo ""
 		echo "Failed to clone snapshot."
-		echo "Make sure that the any problems are corrected and then make sure"
+		echo "Make sure that any problems are corrected and then make sure"
 		echo "that the dataset '$destfs' exists and is bootable."
 		shell
 	else
@@ -640,8 +654,8 @@ setup_snapshot_booting()
 			#       rpool/ROOT/debian/boot@snap2	=> rpool/ROOT/debian_snap2/boot
 			#       rpool/ROOT/debian/usr@snap2	=> rpool/ROOT/debian_snap2/usr
 			#       rpool/ROOT/debian/var@snap2	=> rpool/ROOT/debian_snap2/var
-			subfs="${s##$rootfs}"
-			subfs="${subfs%%@$snapname}"
+			subfs="${s##"$rootfs"}"
+			subfs="${subfs%%@"$snapname"}"
 
 			destfs="${rootfs}_${snapname}" # base fs.
 			[ -n "$subfs" ] && destfs="${destfs}$subfs" # + sub fs.

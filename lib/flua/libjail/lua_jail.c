@@ -78,7 +78,7 @@ l_jail_filter(const char *param_name, void *data __unused)
 
 	/*
 	 * Allowing lastjid will mess up our iteration over all jails on the
-	 * system, as this is a special paramter that indicates where the search
+	 * system, as this is a special parameter that indicates where the search
 	 * starts from.  We'll always add jid and name, so just silently remove
 	 * these.
 	 */

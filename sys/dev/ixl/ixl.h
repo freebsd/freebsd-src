@@ -164,9 +164,6 @@
 #define IXL_VF_MAX_HDR_BUFFER	0x840
 #define IXL_VF_MAX_FRAME	0x3FFF
 
-/* ERJ: hardware can support ~2k (SW5+) filters between all functions */
-#define IXL_MAX_FILTERS		256
-
 #define IXL_NVM_VERSION_LO_SHIFT	0
 #define IXL_NVM_VERSION_LO_MASK		(0xff << IXL_NVM_VERSION_LO_SHIFT)
 #define IXL_NVM_VERSION_HI_SHIFT	12
@@ -195,7 +192,7 @@
 #define IXL_VLAN_ANY		-1
 
 /* Maximum number of MAC/VLAN filters supported by HW */
-#define IXL_MAX_VLAN_FILTERS	256
+#define IXL_MAX_VLAN_FILTERS	255
 
 #define CSUM_OFFLOAD_IPV4	(CSUM_IP|CSUM_TCP|CSUM_UDP|CSUM_SCTP)
 #define CSUM_OFFLOAD_IPV6	(CSUM_TCP_IPV6|CSUM_UDP_IPV6|CSUM_SCTP_IPV6)
@@ -273,7 +270,6 @@
 	(CSUM_IP|CSUM_IP_TSO)
 
 /* Pre-11 counter(9) compatibility */
-#if __FreeBSD_version >= 1100036
 #define IXL_SET_IPACKETS(vsi, count)	(vsi)->ipackets = (count)
 #define IXL_SET_IERRORS(vsi, count)	(vsi)->ierrors = (count)
 #define IXL_SET_OPACKETS(vsi, count)	(vsi)->opackets = (count)
@@ -286,20 +282,6 @@
 #define IXL_SET_IQDROPS(vsi, count)	(vsi)->iqdrops = (count)
 #define IXL_SET_OQDROPS(vsi, count)	(vsi)->oqdrops = (count)
 #define IXL_SET_NOPROTO(vsi, count)	(vsi)->noproto = (count)
-#else
-#define IXL_SET_IPACKETS(vsi, count)	(vsi)->ifp->if_ipackets = (count)
-#define IXL_SET_IERRORS(vsi, count)	(vsi)->ifp->if_ierrors = (count)
-#define IXL_SET_OPACKETS(vsi, count)	(vsi)->ifp->if_opackets = (count)
-#define IXL_SET_OERRORS(vsi, count)	(vsi)->ifp->if_oerrors = (count)
-#define IXL_SET_COLLISIONS(vsi, count)	(vsi)->ifp->if_collisions = (count)
-#define IXL_SET_IBYTES(vsi, count)	(vsi)->ifp->if_ibytes = (count)
-#define IXL_SET_OBYTES(vsi, count)	(vsi)->ifp->if_obytes = (count)
-#define IXL_SET_IMCASTS(vsi, count)	(vsi)->ifp->if_imcasts = (count)
-#define IXL_SET_OMCASTS(vsi, count)	(vsi)->ifp->if_omcasts = (count)
-#define IXL_SET_IQDROPS(vsi, count)	(vsi)->ifp->if_iqdrops = (count)
-#define IXL_SET_OQDROPS(vsi, odrops)	(vsi)->ifp->if_snd.ifq_drops = (odrops)
-#define IXL_SET_NOPROTO(vsi, count)	(vsi)->noproto = (count)
-#endif
 
 /* For stats sysctl naming */
 #define IXL_QUEUE_NAME_LEN 32
@@ -422,7 +404,7 @@ LIST_HEAD(ixl_ftl_head, ixl_mac_filter);
 struct ixl_vsi {
 	if_ctx_t		ctx;
 	if_softc_ctx_t		shared;
-	struct ifnet		*ifp;
+	if_t			ifp;
 	device_t		dev;
 	struct i40e_hw		*hw;
 	struct ifmedia		*media;

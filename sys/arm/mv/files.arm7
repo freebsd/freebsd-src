@@ -34,3 +34,7 @@ dev/usb/controller/ehci_mv.c	optional	ehci
 dev/usb/controller/generic_xhci.c	optional	xhci
 dev/usb/controller/generic_xhci_fdt.c	optional	xhci
 dev/ahci/ahci_mv_fdt.c		optional	ahci
+
+arm/mv/clk/armada38x_coreclk.c	standard
+arm/mv/clk/armada38x_gen.c	standard
+arm/mv/clk/armada38x_gateclk.c	standard

@@ -16,9 +16,9 @@
 #include "llvm/ADT/StringSet.h"
 #include <string>
 
-namespace clang{
-namespace tooling{
-namespace dependencies{
+namespace clang {
+namespace tooling {
+namespace dependencies {
 
 /// The full dependencies and module graph for a specific input.
 struct FullDependencies {
@@ -42,25 +42,20 @@ struct FullDependencies {
   /// determined that the differences are benign for this compilation.
   std::vector<ModuleID> ClangModuleDeps;
 
-  /// Get additional arguments suitable for appending to the original Clang
-  /// command line.
-  ///
-  /// \param LookupPCMPath This function is called to fill in "-fmodule-file="
-  ///                      arguments and the "-o" argument. It needs to return
-  ///                      a path for where the PCM for the given module is to
-  ///                      be located.
-  /// \param LookupModuleDeps This function is called to collect the full
-  ///                         transitive set of dependencies for this
-  ///                         compilation and fill in "-fmodule-map-file="
-  ///                         arguments.
-  std::vector<std::string> getAdditionalArgs(
-      std::function<StringRef(ModuleID)> LookupPCMPath,
-      std::function<const ModuleDeps &(ModuleID)> LookupModuleDeps) const;
+  /// The original command line of the TU (excluding the compiler executable).
+  std::vector<std::string> OriginalCommandLine;
 
-  /// Get additional arguments suitable for appending to the original Clang
-  /// command line, excluding arguments containing modules-related paths:
-  /// "-fmodule-file=", "-fmodule-map-file=".
-  std::vector<std::string> getAdditionalArgsWithoutModulePaths() const;
+  /// Get the full command line.
+  ///
+  /// \param LookupModuleOutput This function is called to fill in
+  ///                           "-fmodule-file=", "-o" and other output
+  ///                           arguments for dependencies.
+  std::vector<std::string> getCommandLine(
+      llvm::function_ref<std::string(const ModuleID &, ModuleOutputKind)>
+          LookupOutput) const;
+
+  /// Get the full command line, excluding -fmodule-file=" arguments.
+  std::vector<std::string> getCommandLineWithoutModulePaths() const;
 };
 
 struct FullDependenciesResult {
@@ -73,7 +68,9 @@ struct FullDependenciesResult {
 class DependencyScanningTool {
 public:
   /// Construct a dependency scanning tool.
-  DependencyScanningTool(DependencyScanningService &Service);
+  DependencyScanningTool(DependencyScanningService &Service,
+                         llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> FS =
+                             llvm::vfs::createPhysicalFileSystem());
 
   /// Print out the dependency information into a string using the dependency
   /// file format that is specified in the options (-MD is the default) and

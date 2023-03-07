@@ -90,14 +90,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_syncache.h>
 #include <netinet/tcp_ecn.h>
-#ifdef INET6
-#include <netinet6/tcp6_var.h>
-#endif
 #ifdef TCP_OFFLOAD
 #include <netinet/toecore.h>
 #endif
 #include <netinet/udp.h>
-#include <netinet/udp_var.h>
 
 #include <netipsec/ipsec_support.h>
 
@@ -517,7 +513,7 @@ syncache_timer(void *xsch)
 			continue;
 		}
 		if (sc->sc_rxmits > V_tcp_ecn_maxretries) {
-			sc->sc_flags &= ~SCF_ECN;
+			sc->sc_flags &= ~SCF_ECN_MASK;
 		}
 		if (sc->sc_rxmits > V_tcp_syncache.rexmt_limit) {
 			if ((s = tcp_log_addrs(&sc->sc_inc, NULL, NULL, NULL))) {
@@ -874,7 +870,6 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	}
 
 	if (sc->sc_inc.inc_flags & INC_ISIPV6) {
-		struct in6_addr laddr6;
 		struct sockaddr_in6 sin6;
 
 		sin6.sin6_family = AF_INET6;
@@ -882,17 +877,11 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		sin6.sin6_addr = sc->sc_inc.inc6_faddr;
 		sin6.sin6_port = sc->sc_inc.inc_fport;
 		sin6.sin6_flowinfo = sin6.sin6_scope_id = 0;
-		laddr6 = inp->in6p_laddr;
-		if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
-			inp->in6p_laddr = sc->sc_inc.inc6_laddr;
 		INP_HASH_WLOCK(&V_tcbinfo);
-		error = in6_pcbconnect_mbuf(inp, (struct sockaddr *)&sin6,
-		    thread0.td_ucred, m, false);
+		error = in6_pcbconnect(inp, &sin6, thread0.td_ucred, false);
 		INP_HASH_WUNLOCK(&V_tcbinfo);
-		if (error != 0) {
-			inp->in6p_laddr = laddr6;
+		if (error != 0)
 			goto abort;
-		}
 		/* Override flowlabel from in6_pcbconnect. */
 		inp->inp_flow &= ~IPV6_FLOWLABEL_MASK;
 		inp->inp_flow |= sc->sc_flowlabel;
@@ -903,7 +892,6 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 #endif
 #ifdef INET
 	{
-		struct in_addr laddr;
 		struct sockaddr_in sin;
 
 		inp->inp_options = (m) ? ip_srcroute(m) : NULL;
@@ -918,17 +906,11 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		sin.sin_addr = sc->sc_inc.inc_faddr;
 		sin.sin_port = sc->sc_inc.inc_fport;
 		bzero((caddr_t)sin.sin_zero, sizeof(sin.sin_zero));
-		laddr = inp->inp_laddr;
-		if (inp->inp_laddr.s_addr == INADDR_ANY)
-			inp->inp_laddr = sc->sc_inc.inc_laddr;
 		INP_HASH_WLOCK(&V_tcbinfo);
-		error = in_pcbconnect(inp, (struct sockaddr *)&sin,
-		    thread0.td_ucred, false);
+		error = in_pcbconnect(inp, &sin, thread0.td_ucred, false);
 		INP_HASH_WUNLOCK(&V_tcbinfo);
-		if (error != 0) {
-			inp->inp_laddr = laddr;
+		if (error != 0)
 			goto abort;
-		}
 	}
 #endif /* INET */
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
@@ -1030,6 +1012,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	/*
 	 * Copy and activate timers.
 	 */
+	tp->t_maxunacktime = sototcpcb(lso)->t_maxunacktime;
 	tp->t_keepinit = sototcpcb(lso)->t_keepinit;
 	tp->t_keepidle = sototcpcb(lso)->t_keepidle;
 	tp->t_keepintvl = sototcpcb(lso)->t_keepintvl;
@@ -1039,7 +1022,8 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	TCPSTAT_INC(tcps_accepts);
 	TCP_PROBE6(state__change, NULL, tp, NULL, tp, NULL, TCPS_LISTEN);
 
-	solisten_enqueue(so, SS_ISCONNECTED);
+	if (!solisten_enqueue(so, SS_ISCONNECTED))
+		tp->t_flags |= TF_SONOTCONN;
 
 	return (so);
 
@@ -1315,9 +1299,10 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 
 	*lsop = syncache_socket(sc, *lsop, m);
 
-	if (*lsop == NULL)
+	if (__predict_false(*lsop == NULL)) {
 		TCPSTAT_INC(tcps_sc_aborted);
-	else
+		TCPSTATES_DEC(TCPS_SYN_RECEIVED);
+	} else
 		TCPSTAT_INC(tcps_sc_completed);
 
 /* how do we find the inp for the new socket? */
@@ -1565,11 +1550,12 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		else
 			sc->sc_flags &= ~SCF_TIMESTAMP;
 		/*
-		 * Disable ECN if needed.
+		 * Adjust ECN response if needed, e.g. different
+		 * IP ECN field, or a fallback by the remote host.
 		 */
-		if ((sc->sc_flags & SCF_ECN) &&
-		    ((tcp_get_flags(th) & (TH_ECE|TH_CWR)) != (TH_ECE|TH_CWR))) {
-			sc->sc_flags &= ~SCF_ECN;
+		if (sc->sc_flags & SCF_ECN_MASK) {
+			sc->sc_flags &= ~SCF_ECN_MASK;
+			sc->sc_flags = tcp_ecn_syncache_add(tcp_get_flags(th), iptos);
 		}
 #ifdef MAC
 		/*
@@ -1680,12 +1666,12 @@ skip_alloc:
 		 * A timestamp received in a SYN makes
 		 * it ok to send timestamp requests and replies.
 		 */
-		if (to->to_flags & TOF_TS) {
+		if ((to->to_flags & TOF_TS) && (V_tcp_do_rfc1323 != 2)) {
 			sc->sc_tsreflect = to->to_tsval;
 			sc->sc_flags |= SCF_TIMESTAMP;
 			sc->sc_tsoff = tcp_new_ts_offset(inc);
 		}
-		if (to->to_flags & TOF_SCALE) {
+		if ((to->to_flags & TOF_SCALE) && (V_tcp_do_rfc1323 != 3)) {
 			int wscale = 0;
 
 			/*

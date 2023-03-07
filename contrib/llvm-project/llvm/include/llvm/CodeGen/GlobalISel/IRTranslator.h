@@ -22,11 +22,10 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/CodeGenCommonISel.h"
 #include "llvm/CodeGen/FunctionLoweringInfo.h"
-#include "llvm/CodeGen/GlobalISel/CSEMIRBuilder.h"
+#include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/SwiftErrorValueTracking.h"
 #include "llvm/CodeGen/SwitchLoweringUtils.h"
-#include "llvm/IR/Intrinsics.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/CodeGen.h"
 #include <memory>
@@ -247,12 +246,6 @@ private:
                                MachineIRBuilder &MIRBuilder);
 
   bool translateInlineAsm(const CallBase &CB, MachineIRBuilder &MIRBuilder);
-
-  /// Returns true if the value should be split into multiple LLTs.
-  /// If \p Offsets is given then the split type's offsets will be stored in it.
-  /// If \p Offsets is not empty it will be cleared first.
-  bool valueIsSplit(const Value &V,
-                    SmallVectorImpl<uint64_t> *Offsets = nullptr);
 
   /// Common code for translating normal calls or invokes.
   bool translateCallBase(const CallBase &CB, MachineIRBuilder &MIRBuilder);
@@ -576,6 +569,7 @@ private:
   /// Current optimization remark emitter. Used to report failures.
   std::unique_ptr<OptimizationRemarkEmitter> ORE;
 
+  AAResults *AA;
   FunctionLoweringInfo FuncInfo;
 
   // True when either the Target Machine specifies no optimizations or the
@@ -596,7 +590,7 @@ private:
       assert(irt && "irt is null!");
     }
 
-    virtual void addSuccessorWithProb(
+    void addSuccessorWithProb(
         MachineBasicBlock *Src, MachineBasicBlock *Dst,
         BranchProbability Prob = BranchProbability::getUnknown()) override {
       IRT->addSuccessorWithProb(Src, Dst, Prob);

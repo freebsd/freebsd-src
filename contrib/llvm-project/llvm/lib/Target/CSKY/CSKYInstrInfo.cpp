@@ -14,6 +14,7 @@
 #include "CSKYConstantPoolValue.h"
 #include "CSKYMachineFunctionInfo.h"
 #include "CSKYTargetMachine.h"
+#include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/MC/MCContext.h"
 
 #define DEBUG_TYPE "csky-instr-info"
@@ -222,9 +223,10 @@ bool CSKYInstrInfo::reverseBranchCondition(
 
 Register CSKYInstrInfo::movImm(MachineBasicBlock &MBB,
                                MachineBasicBlock::iterator MBBI,
-                               const DebugLoc &DL, int64_t Val,
+                               const DebugLoc &DL, uint64_t Val,
                                MachineInstr::MIFlag Flag) const {
-  assert(isUInt<32>(Val) && "should be uint32");
+  if (!isInt<32>(Val))
+    report_fatal_error("Should only materialize 32-bit constants.");
 
   MachineRegisterInfo &MRI = MBB.getParent()->getRegInfo();
 
@@ -475,9 +477,6 @@ void CSKYInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                 MachineBasicBlock::iterator I,
                                 const DebugLoc &DL, MCRegister DestReg,
                                 MCRegister SrcReg, bool KillSrc) const {
-
-  MachineRegisterInfo &MRI = MBB.getParent()->getRegInfo();
-
   if (CSKY::GPRRegClass.contains(SrcReg) &&
       CSKY::CARRYRegClass.contains(DestReg)) {
     if (STI.hasE2()) {
@@ -519,7 +518,7 @@ void CSKYInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
 
   unsigned Opcode = 0;
   if (CSKY::GPRRegClass.contains(DestReg, SrcReg))
-    Opcode = CSKY::MOV32;
+    Opcode = STI.hasE2() ? CSKY::MOV32 : CSKY::MOV16;
   else if (v2sf && CSKY::sFPR32RegClass.contains(DestReg, SrcReg))
     Opcode = CSKY::FMOV_S;
   else if (v3sf && CSKY::FPR32RegClass.contains(DestReg, SrcReg))

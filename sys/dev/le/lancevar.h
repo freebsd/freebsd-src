@@ -38,7 +38,7 @@
 #define	_DEV_LE_LANCEVAR_H_
 
 struct lance_softc {
-	struct ifnet	*sc_ifp;
+	if_t		sc_ifp;
 	struct ifmedia	sc_media;
 	struct mtx	sc_mtx;
 	struct callout	sc_wdog_ch;

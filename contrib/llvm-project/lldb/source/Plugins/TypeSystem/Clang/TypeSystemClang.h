@@ -35,7 +35,6 @@
 #include "lldb/Utility/ConstString.h"
 #include "lldb/Utility/Flags.h"
 #include "lldb/Utility/Log.h"
-#include "lldb/Utility/Logging.h"
 #include "lldb/lldb-enumerations.h"
 
 class DWARFASTParserClang;
@@ -92,7 +91,7 @@ public:
   void SetOwningModule(OptionalClangModuleID id);
   /// \}
 };
-  
+
 /// A TypeSystem implementation based on Clang.
 ///
 /// This class uses a single clang::ASTContext as the backend for storing
@@ -335,7 +334,7 @@ public:
 
     llvm::SmallVector<const char *, 2> names;
     llvm::SmallVector<clang::TemplateArgument, 2> args;
-    
+
     const char * pack_name = nullptr;
     std::unique_ptr<TemplateParameterInfos> packed_args;
   };
@@ -540,7 +539,7 @@ public:
 #ifndef NDEBUG
   bool Verify(lldb::opaque_compiler_type_t type) override;
 #endif
-  
+
   bool IsArrayType(lldb::opaque_compiler_type_t type,
                    CompilerType *element_type, uint64_t *size,
                    bool *is_incomplete) override;
@@ -813,16 +812,17 @@ public:
                                 const char *name, bool omit_empty_base_classes,
                                 std::vector<uint32_t> &child_indexes) override;
 
-  size_t GetNumTemplateArguments(lldb::opaque_compiler_type_t type) override;
+  size_t GetNumTemplateArguments(lldb::opaque_compiler_type_t type,
+                                 bool expand_pack) override;
 
   lldb::TemplateArgumentKind
-  GetTemplateArgumentKind(lldb::opaque_compiler_type_t type,
-                          size_t idx) override;
+  GetTemplateArgumentKind(lldb::opaque_compiler_type_t type, size_t idx,
+                          bool expand_pack) override;
   CompilerType GetTypeTemplateArgument(lldb::opaque_compiler_type_t type,
-                                       size_t idx) override;
+                                       size_t idx, bool expand_pack) override;
   llvm::Optional<CompilerType::IntegralTemplateArgument>
-  GetIntegralTemplateArgument(lldb::opaque_compiler_type_t type,
-                              size_t idx) override;
+  GetIntegralTemplateArgument(lldb::opaque_compiler_type_t type, size_t idx,
+                              bool expand_pack) override;
 
   CompilerType GetTypeForFormatters(void *type) override;
 

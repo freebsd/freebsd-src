@@ -15,20 +15,14 @@
 #ifndef LLVM_CODEGEN_REGALLOCSCORE_H_
 #define LLVM_CODEGEN_REGALLOCSCORE_H_
 
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/SetVector.h"
-#include "llvm/ADT/StringMap.h"
-#include "llvm/Analysis/ProfileSummaryInfo.h"
-#include "llvm/Analysis/Utils/TFUtils.h"
-#include "llvm/CodeGen/MachineBlockFrequencyInfo.h"
-#include "llvm/CodeGen/MachineFunction.h"
-#include "llvm/CodeGen/SelectionDAGNodes.h"
-#include "llvm/IR/Module.h"
-#include <cassert>
-#include <cstdint>
-#include <limits>
+#include "llvm/ADT/STLFunctionalExtras.h"
 
 namespace llvm {
+
+class MachineBasicBlock;
+class MachineBlockFrequencyInfo;
+class MachineFunction;
+class MachineInstr;
 
 /// Regalloc score.
 class RegAllocScore final {
@@ -67,8 +61,7 @@ public:
 /// different policies, the better policy would have a smaller score.
 /// The implementation is the overload below (which is also easily unittestable)
 RegAllocScore calculateRegAllocScore(const MachineFunction &MF,
-                                     const MachineBlockFrequencyInfo &MBFI,
-                                     AAResults &AAResults);
+                                     const MachineBlockFrequencyInfo &MBFI);
 
 /// Implementation of the above, which is also more easily unittestable.
 RegAllocScore calculateRegAllocScore(

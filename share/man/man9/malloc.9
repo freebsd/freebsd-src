@@ -29,16 +29,25 @@
 .\" $NetBSD: malloc.9,v 1.3 1996/11/11 00:05:11 lukem Exp $
 .\" $FreeBSD$
 .\"
-.Dd July 2, 2021
+.Dd October 12, 2022
 .Dt MALLOC 9
 .Os
 .Sh NAME
 .Nm malloc ,
+.Nm mallocarray ,
 .Nm free ,
+.Nm zfree ,
 .Nm realloc ,
 .Nm reallocf ,
+.Nm malloc_usable_size ,
+.Nm malloc_aligned ,
+.Nm malloc_exec ,
+.Nm MALLOC_DECLARE ,
 .Nm MALLOC_DEFINE ,
-.Nm MALLOC_DECLARE
+.Nm malloc_domainset ,
+.Nm malloc_domainset_aligned ,
+.Nm malloc_domainset_exec ,
+.Nm mallocarray_domainset
 .Nd kernel memory management routines
 .Sh SYNOPSIS
 .In sys/types.h
@@ -73,6 +82,7 @@
 .Fn MALLOC_DEFINE type shortdesc longdesc
 .In sys/param.h
 .In sys/domainset.h
+.In sys/malloc.h
 .Ft void *
 .Fn malloc_domainset "size_t size" "struct malloc_type *type" "struct domainset *ds" "int flags"
 .Ft void *
@@ -116,7 +126,8 @@ Both
 and
 .Fn malloc_domainset_exec
 can be used to return executable memory.
-Not all platforms enforce a distinction between executable and non-executable memory.
+Not all platforms enforce a distinction between executable and non-executable
+memory.
 .Pp
 The
 .Fn mallocarray

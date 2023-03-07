@@ -11,7 +11,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Utils/ModuleUtils.h"
-#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/VectorUtils.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
@@ -237,8 +236,8 @@ std::string llvm::getUniqueModuleId(Module *M) {
   return ("." + Str).str();
 }
 
-void VFABI::setVectorVariantNames(
-    CallInst *CI, const SmallVector<std::string, 8> &VariantMappings) {
+void VFABI::setVectorVariantNames(CallInst *CI,
+                                  ArrayRef<std::string> VariantMappings) {
   if (VariantMappings.empty())
     return;
 
@@ -255,8 +254,8 @@ void VFABI::setVectorVariantNames(
   for (const std::string &VariantMapping : VariantMappings) {
     LLVM_DEBUG(dbgs() << "VFABI: adding mapping '" << VariantMapping << "'\n");
     Optional<VFInfo> VI = VFABI::tryDemangleForVFABI(VariantMapping, *M);
-    assert(VI.hasValue() && "Cannot add an invalid VFABI name.");
-    assert(M->getNamedValue(VI.getValue().VectorName) &&
+    assert(VI && "Cannot add an invalid VFABI name.");
+    assert(M->getNamedValue(VI.value().VectorName) &&
            "Cannot add variant to attribute: "
            "vector function declaration is missing.");
   }
@@ -266,14 +265,23 @@ void VFABI::setVectorVariantNames(
 }
 
 void llvm::embedBufferInModule(Module &M, MemoryBufferRef Buf,
-                               StringRef SectionName) {
-  // Embed the buffer into the module.
+                               StringRef SectionName, Align Alignment) {
+  // Embed the memory buffer into the module.
   Constant *ModuleConstant = ConstantDataArray::get(
       M.getContext(), makeArrayRef(Buf.getBufferStart(), Buf.getBufferSize()));
   GlobalVariable *GV = new GlobalVariable(
       M, ModuleConstant->getType(), true, GlobalValue::PrivateLinkage,
       ModuleConstant, "llvm.embedded.object");
   GV->setSection(SectionName);
+  GV->setAlignment(Alignment);
+
+  LLVMContext &Ctx = M.getContext();
+  NamedMDNode *MD = M.getOrInsertNamedMetadata("llvm.embedded.objects");
+  Metadata *MDVals[] = {ConstantAsMetadata::get(GV),
+                        MDString::get(Ctx, SectionName)};
+
+  MD->addOperand(llvm::MDNode::get(Ctx, MDVals));
+  GV->setMetadata(LLVMContext::MD_exclude, llvm::MDNode::get(Ctx, {}));
 
   appendToCompilerUsed(M, GV);
 }

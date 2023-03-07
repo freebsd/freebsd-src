@@ -135,8 +135,12 @@ int
 der_copy_octet_string (const heim_octet_string *from, heim_octet_string *to)
 {
     to->length = from->length;
-    to->data   = malloc(to->length);
-    if(to->length != 0 && to->data == NULL)
+    if (from->data == NULL) {
+        to->data = NULL;
+        return 0;
+    }
+    to->data = malloc(to->length);
+    if (to->length != 0 && to->data == NULL)
 	return ENOMEM;
     memcpy(to->data, from->data, to->length);
     return 0;

@@ -86,6 +86,7 @@
 #include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/if_mib.h>
+#include <net/if_private.h>
 #include <net/if_vlan_var.h>
 #include <net/radix.h>
 #include <net/route.h>
@@ -279,7 +280,7 @@ static void	if_input_default(struct ifnet *, struct mbuf *);
 static int	if_requestencap_default(struct ifnet *, struct if_encap_req *);
 static void	if_route(struct ifnet *, int flag, int fam);
 static int	if_setflag(struct ifnet *, int, int, int *, int);
-static int	if_transmit(struct ifnet *ifp, struct mbuf *m);
+static int	if_transmit_default(struct ifnet *ifp, struct mbuf *m);
 static void	if_unroute(struct ifnet *, int flag, int fam);
 static int	if_delmulti_locked(struct ifnet *, struct ifmultiaddr *, int);
 static void	do_link_state_change(void *, int);
@@ -421,13 +422,13 @@ ifnet_byindexgen(uint16_t idx, uint16_t gen)
  */
 
 static void
-if_init(void *arg __unused)
+if_init_idxtable(void *arg __unused)
 {
 
 	ifindex_table = malloc(if_indexlim * sizeof(*ifindex_table),
 	    M_IFNET, M_WAITOK | M_ZERO);
 }
-SYSINIT(if_init, SI_SUB_INIT_IF, SI_ORDER_SECOND, if_init, NULL);
+SYSINIT(if_init, SI_SUB_INIT_IF, SI_ORDER_SECOND, if_init_idxtable, NULL);
 
 static void
 vnet_if_init(const void *unused __unused)
@@ -653,7 +654,7 @@ if_free_deferred(epoch_context_t ctx)
 	for (int i = 0; i < IFCOUNTERS; i++)
 		counter_u64_free(ifp->if_counters[i]);
 
-	free(ifp->if_description, M_IFDESCR);
+	if_freedescr(ifp->if_description);
 	free(ifp->if_hw_addr, M_IFADDR);
 	free(ifp, M_IFNET);
 }
@@ -854,7 +855,7 @@ if_attach_internal(struct ifnet *ifp, bool vmove)
 	    (ifp->if_transmit != NULL && ifp->if_qflush != NULL),
 	    ("transmit and qflush must both either be set or both be NULL"));
 	if (ifp->if_transmit == NULL) {
-		ifp->if_transmit = if_transmit;
+		ifp->if_transmit = if_transmit_default;
 		ifp->if_qflush = if_qflush;
 	}
 	if (ifp->if_input == NULL)
@@ -1545,14 +1546,13 @@ _if_delgroup_locked(struct ifnet *ifp, struct ifg_list *ifgl,
 	IFNET_WUNLOCK();
 
 	epoch_wait_preempt(net_epoch_preempt);
+	EVENTHANDLER_INVOKE(group_change_event, groupname);
 	if (freeifgl) {
 		EVENTHANDLER_INVOKE(group_detach_event, ifgl->ifgl_group);
 		free(ifgl->ifgl_group, M_TEMP);
 	}
 	free(ifgm, M_TEMP);
 	free(ifgl, M_TEMP);
-
-	EVENTHANDLER_INVOKE(group_change_event, groupname);
 }
 
 /*
@@ -2138,7 +2138,7 @@ if_unroute(struct ifnet *ifp, int flag, int fam)
 
 	if (ifp->if_carp)
 		(*carp_linkstate_p)(ifp);
-	rt_ifmsg(ifp);
+	rt_ifmsg(ifp, IFF_UP);
 }
 
 /*
@@ -2155,7 +2155,7 @@ if_route(struct ifnet *ifp, int flag, int fam)
 	getmicrotime(&ifp->if_lastchange);
 	if (ifp->if_carp)
 		(*carp_linkstate_p)(ifp);
-	rt_ifmsg(ifp);
+	rt_ifmsg(ifp, IFF_UP);
 #ifdef INET6
 	in6_if_up(ifp);
 #endif
@@ -2199,7 +2199,7 @@ do_link_state_change(void *arg, int pending)
 	link_state = ifp->if_link_state;
 
 	CURVNET_SET(ifp->if_vnet);
-	rt_ifmsg(ifp);
+	rt_ifmsg(ifp, 0);
 	if (ifp->if_vlantrunk != NULL)
 		(*vlan_link_state_p)(ifp);
 
@@ -2386,7 +2386,7 @@ ifr_data_get_ptr(void *ifrp)
 }
 
 struct ifcap_nv_bit_name {
-	int cap_bit;
+	uint64_t cap_bit;
 	const char *cap_name;
 };
 #define CAPNV(x) {.cap_bit = IFCAP_##x, \
@@ -2478,7 +2478,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	int new_flags, temp_flags;
 	size_t namelen, onamelen;
 	size_t descrlen, nvbuflen;
-	char *descrbuf, *odescrbuf;
+	char *descrbuf;
 	char new_name[IFNAMSIZ];
 	char old_name[IFNAMSIZ], strbuf[IFNAMSIZ + 8];
 	struct ifaddr *ifa;
@@ -2610,23 +2610,17 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		else if (ifr_buffer_get_length(ifr) == 0)
 			descrbuf = NULL;
 		else {
-			descrbuf = malloc(ifr_buffer_get_length(ifr),
-			    M_IFDESCR, M_WAITOK | M_ZERO);
+			descrbuf = if_allocdescr(ifr_buffer_get_length(ifr), M_WAITOK);
 			error = copyin(ifr_buffer_get_buffer(ifr), descrbuf,
 			    ifr_buffer_get_length(ifr) - 1);
 			if (error) {
-				free(descrbuf, M_IFDESCR);
+				if_freedescr(descrbuf);
 				break;
 			}
 		}
 
-		sx_xlock(&ifdescr_sx);
-		odescrbuf = ifp->if_description;
-		ifp->if_description = descrbuf;
-		sx_xunlock(&ifdescr_sx);
-
+		if_setdescr(ifp, descrbuf);
 		getmicrotime(&ifp->if_lastchange);
-		free(odescrbuf, M_IFDESCR);
 		break;
 
 	case SIOCGIFFIB:
@@ -2851,7 +2845,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		error = (*ifp->if_ioctl)(ifp, cmd, data);
 		if (error == 0) {
 			getmicrotime(&ifp->if_lastchange);
-			rt_ifmsg(ifp);
+			rt_ifmsg(ifp, 0);
 #ifdef INET
 			DEBUGNET_NOTIFY_MTU(ifp);
 #endif
@@ -2859,12 +2853,8 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		/*
 		 * If the link MTU changed, do network layer specific procedure.
 		 */
-		if (ifp->if_mtu != oldmtu) {
-#ifdef INET6
-			nd6_setmtu(ifp);
-#endif
-			rt_updatemtu(ifp);
-		}
+		if (ifp->if_mtu != oldmtu)
+			if_notifymtu(ifp);
 		break;
 	}
 
@@ -3280,7 +3270,7 @@ if_setflag(struct ifnet *ifp, int flag, int pflag, int *refcount, int onswitch)
 	if (error)
 		goto recover;
 	/* Notify userland that interface flags have changed */
-	rt_ifmsg(ifp);
+	rt_ifmsg(ifp, flag);
 	return (0);
 
 recover:
@@ -3970,7 +3960,6 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 static int
 if_requestencap_default(struct ifnet *ifp, struct if_encap_req *req)
 {
-
 	if (req->rtype != IFENCAP_LL)
 		return (EOPNOTSUPP);
 
@@ -4040,7 +4029,6 @@ if_tunnel_check_nesting(struct ifnet *ifp, struct mbuf *m, uint32_t cookie,
 int
 if_gethwaddr(struct ifnet *ifp, struct ifreq *ifr)
 {
-
 	if (ifp->if_hw_addr == NULL)
 		return (ENODEV);
 
@@ -4116,7 +4104,7 @@ if_start(struct ifnet *ifp)
  * that have not implemented it
  */
 static int
-if_transmit(struct ifnet *ifp, struct mbuf *m)
+if_transmit_default(struct ifnet *ifp, struct mbuf *m)
 {
 	int error;
 
@@ -4127,7 +4115,6 @@ if_transmit(struct ifnet *ifp, struct mbuf *m)
 static void
 if_input_default(struct ifnet *ifp __unused, struct mbuf *m)
 {
-
 	m_freem(m);
 }
 
@@ -4202,69 +4189,183 @@ if_setbaudrate(struct ifnet *ifp, uint64_t baudrate)
 }
 
 uint64_t
-if_getbaudrate(if_t ifp)
+if_getbaudrate(const if_t ifp)
 {
-
-	return (((struct ifnet *)ifp)->if_baudrate);
+	return (ifp->if_baudrate);
 }
 
 int
 if_setcapabilities(if_t ifp, int capabilities)
 {
-	((struct ifnet *)ifp)->if_capabilities = capabilities;
+	ifp->if_capabilities = capabilities;
 	return (0);
 }
 
 int
 if_setcapabilitiesbit(if_t ifp, int setbit, int clearbit)
 {
-	((struct ifnet *)ifp)->if_capabilities |= setbit;
-	((struct ifnet *)ifp)->if_capabilities &= ~clearbit;
-
+	ifp->if_capabilities &= ~clearbit;
+	ifp->if_capabilities |= setbit;
 	return (0);
 }
 
 int
-if_getcapabilities(if_t ifp)
+if_getcapabilities(const if_t ifp)
 {
-	return ((struct ifnet *)ifp)->if_capabilities;
+	return (ifp->if_capabilities);
 }
 
 int 
 if_setcapenable(if_t ifp, int capabilities)
 {
-	((struct ifnet *)ifp)->if_capenable = capabilities;
+	ifp->if_capenable = capabilities;
 	return (0);
 }
 
 int 
 if_setcapenablebit(if_t ifp, int setcap, int clearcap)
 {
-	if(setcap) 
-		((struct ifnet *)ifp)->if_capenable |= setcap;
-	if(clearcap)
-		((struct ifnet *)ifp)->if_capenable &= ~clearcap;
+	ifp->if_capenable &= ~clearcap;
+	ifp->if_capenable |= setcap;
+	return (0);
+}
 
+int
+if_setcapabilities2(if_t ifp, int capabilities)
+{
+	ifp->if_capabilities2 = capabilities;
+	return (0);
+}
+
+int
+if_setcapabilities2bit(if_t ifp, int setbit, int clearbit)
+{
+	ifp->if_capabilities2 &= ~clearbit;
+	ifp->if_capabilities2 |= setbit;
+	return (0);
+}
+
+int
+if_getcapabilities2(const if_t ifp)
+{
+	return (ifp->if_capabilities2);
+}
+
+int
+if_setcapenable2(if_t ifp, int capabilities2)
+{
+	ifp->if_capenable2 = capabilities2;
+	return (0);
+}
+
+int
+if_setcapenable2bit(if_t ifp, int setcap, int clearcap)
+{
+	ifp->if_capenable2 &= ~clearcap;
+	ifp->if_capenable2 |= setcap;
 	return (0);
 }
 
 const char *
-if_getdname(if_t ifp)
+if_getdname(const if_t ifp)
 {
-	return ((struct ifnet *)ifp)->if_dname;
+	return (ifp->if_dname);
+}
+
+void
+if_setdname(if_t ifp, const char *dname)
+{
+	ifp->if_dname = dname;
+}
+
+const char *
+if_name(if_t ifp)
+{
+	return (ifp->if_xname);
+}
+
+int
+if_setname(if_t ifp, const char *name)
+{
+	if (strlen(name) > sizeof(ifp->if_xname) - 1)
+		return (ENAMETOOLONG);
+	strcpy(ifp->if_xname, name);
+
+	return (0);
 }
 
 int 
 if_togglecapenable(if_t ifp, int togglecap)
 {
-	((struct ifnet *)ifp)->if_capenable ^= togglecap;
+	ifp->if_capenable ^= togglecap;
 	return (0);
 }
 
 int
-if_getcapenable(if_t ifp)
+if_getcapenable(const if_t ifp)
 {
-	return ((struct ifnet *)ifp)->if_capenable;
+	return (ifp->if_capenable);
+}
+
+int
+if_togglecapenable2(if_t ifp, int togglecap)
+{
+	ifp->if_capenable2 ^= togglecap;
+	return (0);
+}
+
+int
+if_getcapenable2(const if_t ifp)
+{
+	return (ifp->if_capenable2);
+}
+
+int
+if_getdunit(const if_t ifp)
+{
+	return (ifp->if_dunit);
+}
+
+int
+if_getindex(const if_t ifp)
+{
+	return (ifp->if_index);
+}
+
+int
+if_getidxgen(const if_t ifp)
+{
+	return (ifp->if_idxgen);
+}
+
+void
+if_setdescr(if_t ifp, char *descrbuf)
+{
+	sx_xlock(&ifdescr_sx);
+	char *odescrbuf = ifp->if_description;
+	ifp->if_description = descrbuf;
+	sx_xunlock(&ifdescr_sx);
+
+	if_freedescr(odescrbuf);
+}
+
+char *
+if_allocdescr(size_t sz, int malloc_flag)
+{
+	malloc_flag &= (M_WAITOK | M_NOWAIT);
+	return (malloc(sz, M_IFDESCR, M_ZERO | malloc_flag));
+}
+
+void
+if_freedescr(char *descrbuf)
+{
+	free(descrbuf, M_IFDESCR);
+}
+
+int
+if_getalloctype(const if_t ifp)
+{
+	return (ifp->if_alloctype);
 }
 
 /*
@@ -4282,29 +4383,28 @@ if_setdev(if_t ifp, void *dev)
 int
 if_setdrvflagbits(if_t ifp, int set_flags, int clear_flags)
 {
-	((struct ifnet *)ifp)->if_drv_flags |= set_flags;
-	((struct ifnet *)ifp)->if_drv_flags &= ~clear_flags;
+	ifp->if_drv_flags &= ~clear_flags;
+	ifp->if_drv_flags |= set_flags;
 
 	return (0);
 }
 
 int
-if_getdrvflags(if_t ifp)
+if_getdrvflags(const if_t ifp)
 {
-	return ((struct ifnet *)ifp)->if_drv_flags;
+	return (ifp->if_drv_flags);
 }
 
 int
 if_setdrvflags(if_t ifp, int flags)
 {
-	((struct ifnet *)ifp)->if_drv_flags = flags;
+	ifp->if_drv_flags = flags;
 	return (0);
 }
 
 int
 if_setflags(if_t ifp, int flags)
 {
-
 	ifp->if_flags = flags;
 	return (0);
 }
@@ -4312,30 +4412,29 @@ if_setflags(if_t ifp, int flags)
 int
 if_setflagbits(if_t ifp, int set, int clear)
 {
-	((struct ifnet *)ifp)->if_flags |= set;
-	((struct ifnet *)ifp)->if_flags &= ~clear;
-
+	ifp->if_flags &= ~clear;
+	ifp->if_flags |= set;
 	return (0);
 }
 
 int
-if_getflags(if_t ifp)
+if_getflags(const if_t ifp)
 {
-	return ((struct ifnet *)ifp)->if_flags;
+	return (ifp->if_flags);
 }
 
 int
 if_clearhwassist(if_t ifp)
 {
-	((struct ifnet *)ifp)->if_hwassist = 0;
+	ifp->if_hwassist = 0;
 	return (0);
 }
 
 int
 if_sethwassistbits(if_t ifp, int toset, int toclear)
 {
-	((struct ifnet *)ifp)->if_hwassist |= toset;
-	((struct ifnet *)ifp)->if_hwassist &= ~toclear;
+	ifp->if_hwassist &= ~toclear;
+	ifp->if_hwassist |= toset;
 
 	return (0);
 }
@@ -4343,40 +4442,56 @@ if_sethwassistbits(if_t ifp, int toset, int toclear)
 int
 if_sethwassist(if_t ifp, int hwassist_bit)
 {
-	((struct ifnet *)ifp)->if_hwassist = hwassist_bit;
+	ifp->if_hwassist = hwassist_bit;
 	return (0);
 }
 
 int
-if_gethwassist(if_t ifp)
+if_gethwassist(const if_t ifp)
 {
-	return ((struct ifnet *)ifp)->if_hwassist;
+	return (ifp->if_hwassist);
+}
+
+int
+if_togglehwassist(if_t ifp, int toggle_bits)
+{
+	ifp->if_hwassist ^= toggle_bits;
+	return (0);
 }
 
 int
 if_setmtu(if_t ifp, int mtu)
 {
-	((struct ifnet *)ifp)->if_mtu = mtu;
+	ifp->if_mtu = mtu;
 	return (0);
 }
 
-int
-if_getmtu(if_t ifp)
+void
+if_notifymtu(if_t ifp)
 {
-	return ((struct ifnet *)ifp)->if_mtu;
+#ifdef INET6
+	nd6_setmtu(ifp);
+#endif
+	rt_updatemtu(ifp);
 }
 
 int
-if_getmtu_family(if_t ifp, int family)
+if_getmtu(const if_t ifp)
+{
+	return (ifp->if_mtu);
+}
+
+int
+if_getmtu_family(const if_t ifp, int family)
 {
 	struct domain *dp;
 
 	SLIST_FOREACH(dp, &domains, dom_next) {
 		if (dp->dom_family == family && dp->dom_ifmtu != NULL)
-			return (dp->dom_ifmtu((struct ifnet *)ifp));
+			return (dp->dom_ifmtu(ifp));
 	}
 
-	return (((struct ifnet *)ifp)->if_mtu);
+	return (ifp->if_mtu);
 }
 
 /*
@@ -4399,6 +4514,90 @@ if_lladdr_count(if_t ifp)
 	NET_EPOCH_EXIT(et);
 
 	return (count);
+}
+
+int
+if_foreach(if_foreach_cb_t cb, void *cb_arg)
+{
+	if_t ifp;
+	int error;
+
+	NET_EPOCH_ASSERT();
+	MPASS(cb);
+
+	error = 0;
+	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+		error = cb(ifp, cb_arg);
+		if (error != 0)
+			break;
+	}
+
+	return (error);
+}
+
+/*
+ * Iterates over the list of interfaces, permitting callback function @cb to sleep.
+ * Stops iteration if @cb returns non-zero error code.
+ * Returns the last error code from @cb.
+ * @match_cb: optional match callback limiting the iteration to only matched interfaces
+ * @match_arg: argument to pass to @match_cb
+ * @cb: iteration callback
+ * @cb_arg: argument to pass to @cb
+ */
+int
+if_foreach_sleep(if_foreach_match_t match_cb, void *match_arg, if_foreach_cb_t cb,
+    void *cb_arg)
+{
+	int match_count = 0, array_size = 16; /* 128 bytes for malloc */
+	struct ifnet **match_array = NULL;
+	int error = 0;
+
+	MPASS(cb);
+
+	while (true) {
+		struct ifnet **new_array;
+		int new_size = array_size;
+		struct epoch_tracker et;
+		struct ifnet *ifp;
+
+		while (new_size < match_count)
+			new_size *= 2;
+		new_array = malloc(new_size * sizeof(void *), M_TEMP, M_WAITOK);
+		if (match_array != NULL)
+			memcpy(new_array, match_array, array_size * sizeof(void *));
+		free(match_array, M_TEMP);
+		match_array = new_array;
+		array_size = new_size;
+
+		match_count = 0;
+		NET_EPOCH_ENTER(et);
+		CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+			if (match_cb != NULL && !match_cb(ifp, match_arg))
+				continue;
+			if (match_count < array_size) {
+				if (if_try_ref(ifp))
+					match_array[match_count++] = ifp;
+			} else
+				match_count++;
+		}
+		NET_EPOCH_EXIT(et);
+
+		if (match_count > array_size) {
+			for (int i = 0; i < array_size; i++)
+				if_rele(match_array[i]);
+			continue;
+		} else {
+			for (int i = 0; i < match_count; i++) {
+				if (error == 0)
+					error = cb(match_array[i], cb_arg);
+				if_rele(match_array[i]);
+			}
+			free(match_array, M_TEMP);
+			break;
+		}
+	}
+
+	return (error);
 }
 
 u_int
@@ -4462,17 +4661,38 @@ if_foreach_llmaddr(if_t ifp, iflladdr_cb_t cb, void *cb_arg)
 	return (count);
 }
 
+u_int
+if_foreach_addr_type(if_t ifp, int type, if_addr_cb_t cb, void *cb_arg)
+{
+	struct epoch_tracker et;
+	struct ifaddr *ifa;
+	u_int count;
+
+	MPASS(cb);
+
+	count = 0;
+	NET_EPOCH_ENTER(et);
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family != type)
+			continue;
+		count += (*cb)(cb_arg, ifa, count);
+	}
+	NET_EPOCH_EXIT(et);
+
+	return (count);
+}
+
 int
 if_setsoftc(if_t ifp, void *softc)
 {
-	((struct ifnet *)ifp)->if_softc = softc;
+	ifp->if_softc = softc;
 	return (0);
 }
 
 void *
-if_getsoftc(if_t ifp)
+if_getsoftc(const if_t ifp)
 {
-	return ((struct ifnet *)ifp)->if_softc;
+	return (ifp->if_softc);
 }
 
 void 
@@ -4492,85 +4712,114 @@ if_setvtag(struct mbuf *m, uint16_t tag)
 uint16_t
 if_getvtag(struct mbuf *m)
 {
-
 	return (m->m_pkthdr.ether_vtag);
 }
 
 int
 if_sendq_empty(if_t ifp)
 {
-	return IFQ_DRV_IS_EMPTY(&((struct ifnet *)ifp)->if_snd);
+	return (IFQ_DRV_IS_EMPTY(&ifp->if_snd));
 }
 
 struct ifaddr *
-if_getifaddr(if_t ifp)
+if_getifaddr(const if_t ifp)
 {
-	return ((struct ifnet *)ifp)->if_addr;
+	return (ifp->if_addr);
 }
 
 int
-if_getamcount(if_t ifp)
+if_getamcount(const if_t ifp)
 {
-	return ((struct ifnet *)ifp)->if_amcount;
+	return (ifp->if_amcount);
 }
 
 int
 if_setsendqready(if_t ifp)
 {
-	IFQ_SET_READY(&((struct ifnet *)ifp)->if_snd);
+	IFQ_SET_READY(&ifp->if_snd);
 	return (0);
 }
 
 int
 if_setsendqlen(if_t ifp, int tx_desc_count)
 {
-	IFQ_SET_MAXLEN(&((struct ifnet *)ifp)->if_snd, tx_desc_count);
-	((struct ifnet *)ifp)->if_snd.ifq_drv_maxlen = tx_desc_count;
-
+	IFQ_SET_MAXLEN(&ifp->if_snd, tx_desc_count);
+	ifp->if_snd.ifq_drv_maxlen = tx_desc_count;
 	return (0);
+}
+
+void
+if_setnetmapadapter(if_t ifp, struct netmap_adapter *na)
+{
+	ifp->if_netmap = na;
+}
+
+struct netmap_adapter *
+if_getnetmapadapter(if_t ifp)
+{
+	return (ifp->if_netmap);
 }
 
 int
 if_vlantrunkinuse(if_t ifp)
 {
-	return ((struct ifnet *)ifp)->if_vlantrunk != NULL?1:0;
+	return (ifp->if_vlantrunk != NULL);
+}
+
+void
+if_init(if_t ifp, void *ctx)
+{
+	(*ifp->if_init)(ctx);
+}
+
+void
+if_input(if_t ifp, struct mbuf* sendmp)
+{
+	(*ifp->if_input)(ifp, sendmp);
 }
 
 int
-if_input(if_t ifp, struct mbuf* sendmp)
+if_transmit(if_t ifp, struct mbuf *m)
 {
-	(*((struct ifnet *)ifp)->if_input)((struct ifnet *)ifp, sendmp);
-	return (0);
+	return ((*ifp->if_transmit)(ifp, m));
+}
 
+int
+if_resolvemulti(if_t ifp, struct sockaddr **srcs, struct sockaddr *dst)
+{
+	if (ifp->if_resolvemulti == NULL)
+		return (EOPNOTSUPP);
+
+	return (ifp->if_resolvemulti(ifp, srcs, dst));
 }
 
 struct mbuf *
 if_dequeue(if_t ifp)
 {
 	struct mbuf *m;
-	IFQ_DRV_DEQUEUE(&((struct ifnet *)ifp)->if_snd, m);
 
+	IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
 	return (m);
 }
 
 int
 if_sendq_prepend(if_t ifp, struct mbuf *m)
 {
-	IFQ_DRV_PREPEND(&((struct ifnet *)ifp)->if_snd, m);
+	IFQ_DRV_PREPEND(&ifp->if_snd, m);
 	return (0);
 }
 
 int
 if_setifheaderlen(if_t ifp, int len)
 {
-	((struct ifnet *)ifp)->if_hdrlen = len;
+	ifp->if_hdrlen = len;
 	return (0);
 }
 
 caddr_t
-if_getlladdr(if_t ifp)
+if_getlladdr(const if_t ifp)
 {
-	return (IF_LLADDR((struct ifnet *)ifp));
+	return (IF_LLADDR(ifp));
 }
 
 void *
@@ -4580,115 +4829,279 @@ if_gethandle(u_char type)
 }
 
 void
-if_bpfmtap(if_t ifh, struct mbuf *m)
+if_bpfmtap(if_t ifp, struct mbuf *m)
 {
-	struct ifnet *ifp = (struct ifnet *)ifh;
-
 	BPF_MTAP(ifp, m);
 }
 
 void
-if_etherbpfmtap(if_t ifh, struct mbuf *m)
+if_etherbpfmtap(if_t ifp, struct mbuf *m)
 {
-	struct ifnet *ifp = (struct ifnet *)ifh;
-
 	ETHER_BPF_MTAP(ifp, m);
 }
 
 void
-if_vlancap(if_t ifh)
+if_vlancap(if_t ifp)
 {
-	struct ifnet *ifp = (struct ifnet *)ifh;
 	VLAN_CAPABILITIES(ifp);
 }
 
 int
 if_sethwtsomax(if_t ifp, u_int if_hw_tsomax)
 {
-
-	((struct ifnet *)ifp)->if_hw_tsomax = if_hw_tsomax;
+	ifp->if_hw_tsomax = if_hw_tsomax;
         return (0);
 }
 
 int
 if_sethwtsomaxsegcount(if_t ifp, u_int if_hw_tsomaxsegcount)
 {
-
-	((struct ifnet *)ifp)->if_hw_tsomaxsegcount = if_hw_tsomaxsegcount;
+	ifp->if_hw_tsomaxsegcount = if_hw_tsomaxsegcount;
         return (0);
 }
 
 int
 if_sethwtsomaxsegsize(if_t ifp, u_int if_hw_tsomaxsegsize)
 {
-
-	((struct ifnet *)ifp)->if_hw_tsomaxsegsize = if_hw_tsomaxsegsize;
+	ifp->if_hw_tsomaxsegsize = if_hw_tsomaxsegsize;
         return (0);
 }
 
 u_int
-if_gethwtsomax(if_t ifp)
+if_gethwtsomax(const if_t ifp)
 {
-
-	return (((struct ifnet *)ifp)->if_hw_tsomax);
+	return (ifp->if_hw_tsomax);
 }
 
 u_int
-if_gethwtsomaxsegcount(if_t ifp)
+if_gethwtsomaxsegcount(const if_t ifp)
 {
-
-	return (((struct ifnet *)ifp)->if_hw_tsomaxsegcount);
+	return (ifp->if_hw_tsomaxsegcount);
 }
 
 u_int
-if_gethwtsomaxsegsize(if_t ifp)
+if_gethwtsomaxsegsize(const if_t ifp)
 {
-
-	return (((struct ifnet *)ifp)->if_hw_tsomaxsegsize);
+	return (ifp->if_hw_tsomaxsegsize);
 }
 
 void
-if_setinitfn(if_t ifp, void (*init_fn)(void *))
+if_setinitfn(if_t ifp, if_init_fn_t init_fn)
 {
-	((struct ifnet *)ifp)->if_init = init_fn;
+	ifp->if_init = init_fn;
 }
 
 void
-if_setioctlfn(if_t ifp, int (*ioctl_fn)(if_t, u_long, caddr_t))
+if_setinputfn(if_t ifp, if_input_fn_t input_fn)
 {
-	((struct ifnet *)ifp)->if_ioctl = (void *)ioctl_fn;
+	ifp->if_input = input_fn;
+}
+
+if_input_fn_t
+if_getinputfn(if_t ifp)
+{
+	return (ifp->if_input);
 }
 
 void
-if_setstartfn(if_t ifp, void (*start_fn)(if_t))
+if_setioctlfn(if_t ifp, if_ioctl_fn_t ioctl_fn)
 {
-	((struct ifnet *)ifp)->if_start = (void *)start_fn;
+	ifp->if_ioctl = ioctl_fn;
+}
+
+void
+if_setoutputfn(if_t ifp, if_output_fn_t output_fn)
+{
+	ifp->if_output = output_fn;
+}
+
+void
+if_setstartfn(if_t ifp, if_start_fn_t start_fn)
+{
+	ifp->if_start = start_fn;
+}
+
+if_start_fn_t
+if_getstartfn(if_t ifp)
+{
+	return (ifp->if_start);
 }
 
 void
 if_settransmitfn(if_t ifp, if_transmit_fn_t start_fn)
 {
-	((struct ifnet *)ifp)->if_transmit = start_fn;
+	ifp->if_transmit = start_fn;
 }
 
-void if_setqflushfn(if_t ifp, if_qflush_fn_t flush_fn)
+if_transmit_fn_t
+if_gettransmitfn(if_t ifp)
 {
-	((struct ifnet *)ifp)->if_qflush = flush_fn;
+	return (ifp->if_transmit);
+}
 
+void
+if_setqflushfn(if_t ifp, if_qflush_fn_t flush_fn)
+{
+	ifp->if_qflush = flush_fn;
+}
+
+void
+if_setsndtagallocfn(if_t ifp, if_snd_tag_alloc_t alloc_fn)
+{
+	ifp->if_snd_tag_alloc = alloc_fn;
+}
+
+int
+if_snd_tag_alloc(if_t ifp, union if_snd_tag_alloc_params *params,
+    struct m_snd_tag **mstp)
+{
+	if (ifp->if_snd_tag_alloc == NULL)
+		return (EOPNOTSUPP);
+	return (ifp->if_snd_tag_alloc(ifp, params, mstp));
 }
 
 void
 if_setgetcounterfn(if_t ifp, if_get_counter_t fn)
 {
-
 	ifp->if_get_counter = fn;
+}
+
+void
+if_setreassignfn(if_t ifp, if_reassign_fn_t fn)
+{
+	ifp->if_reassign = fn;
+}
+
+void
+if_setratelimitqueryfn(if_t ifp, if_ratelimit_query_t fn)
+{
+	ifp->if_ratelimit_query = fn;
+}
+
+void
+if_setdebugnet_methods(if_t ifp, struct debugnet_methods *m)
+{
+	ifp->if_debugnet_methods = m;
+}
+
+struct label *
+if_getmaclabel(if_t ifp)
+{
+	return (ifp->if_label);
+}
+
+void
+if_setmaclabel(if_t ifp, struct label *label)
+{
+	ifp->if_label = label;
+}
+
+int
+if_gettype(if_t ifp)
+{
+	return (ifp->if_type);
+}
+
+void *
+if_getllsoftc(if_t ifp)
+{
+	return (ifp->if_llsoftc);
+}
+
+void
+if_setllsoftc(if_t ifp, void *llsoftc)
+{
+	ifp->if_llsoftc = llsoftc;
+};
+
+int
+if_getlinkstate(if_t ifp)
+{
+	return (ifp->if_link_state);
+}
+
+const uint8_t *
+if_getbroadcastaddr(if_t ifp)
+{
+	return (ifp->if_broadcastaddr);
+}
+
+void
+if_setbroadcastaddr(if_t ifp, const uint8_t *addr)
+{
+	ifp->if_broadcastaddr = addr;
+}
+
+int
+if_getnumadomain(if_t ifp)
+{
+	return (ifp->if_numa_domain);
+}
+
+uint64_t
+if_getcounter(if_t ifp, ift_counter counter)
+{
+	return (ifp->if_get_counter(ifp, counter));
+}
+
+bool
+if_altq_is_enabled(if_t ifp)
+{
+	return (ALTQ_IS_ENABLED(&ifp->if_snd));
+}
+
+struct vnet *
+if_getvnet(if_t ifp)
+{
+	return (ifp->if_vnet);
+}
+
+void *
+if_getafdata(if_t ifp, int af)
+{
+	return (ifp->if_afdata[af]);
+}
+
+u_int
+if_getfib(if_t ifp)
+{
+	return (ifp->if_fib);
+}
+
+uint8_t
+if_getaddrlen(if_t ifp)
+{
+	return (ifp->if_addrlen);
+}
+
+struct bpf_if *
+if_getbpf(if_t ifp)
+{
+	return (ifp->if_bpf);
+}
+
+struct ifvlantrunk *
+if_getvlantrunk(if_t ifp)
+{
+	return (ifp->if_vlantrunk);
+}
+
+uint8_t
+if_getpcp(if_t ifp)
+{
+	return (ifp->if_pcp);
+}
+
+void *
+if_getl2com(if_t ifp)
+{
+	return (ifp->if_l2com);
 }
 
 #ifdef DDB
 static void
 if_show_ifnet(struct ifnet *ifp)
 {
-
 	if (ifp == NULL)
 		return;
 	db_printf("%s:\n", ifp->if_xname);
@@ -4738,7 +5151,6 @@ if_show_ifnet(struct ifnet *ifp)
 
 DB_SHOW_COMMAND(ifnet, db_show_ifnet)
 {
-
 	if (!have_addr) {
 		db_printf("usage: show ifnet <struct ifnet *>\n");
 		return;

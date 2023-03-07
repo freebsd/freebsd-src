@@ -6,6 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "InputFiles.h"
 #include "SymbolTable.h"
 #include "Symbols.h"
 #include "SyntheticSections.h"
@@ -196,8 +197,8 @@ static bool addOptional(StringRef name, uint64_t value,
   Symbol *sym = symtab->find(name);
   if (!sym || sym->isDefined())
     return false;
-  sym->resolve(Defined{/*file=*/nullptr, saver().save(name), STB_GLOBAL,
-                       STV_HIDDEN, STT_FUNC, value,
+  sym->resolve(Defined{/*file=*/nullptr, StringRef(), STB_GLOBAL, STV_HIDDEN,
+                       STT_FUNC, value,
                        /*size=*/0, /*section=*/nullptr});
   defined.push_back(cast<Defined>(sym));
   return true;
@@ -621,7 +622,7 @@ static uint32_t getEFlags(InputFile *file) {
 // This file implements v2 ABI. This function makes sure that all
 // object files have v2 or an unspecified version as an ABI version.
 uint32_t PPC64::calcEFlags() const {
-  for (InputFile *f : objectFiles) {
+  for (InputFile *f : ctx->objectFiles) {
     uint32_t flag = getEFlags(f);
     if (flag == 1)
       error(toString(f) + ": ABI version 1 is not supported");

@@ -604,18 +604,17 @@ fill_vmtotal(struct vmtotal *vmtp)
 }
 
 /* Determine how many cpu columns, and what index they are in kern.cp_times */
-static int
+static void
 getcpuinfo(u_long *maskp, int *maxidp)
 {
 	long *times;
 	u_long mask;
 	size_t size;
-	int empty, i, j, maxcpu, maxid, ncpus;
+	int empty, i, j, maxcpu, maxid;
 
 	if (kd != NULL)
 		xo_errx(1, "not implemented");
 	mask = 0;
-	ncpus = 0;
 	size = sizeof(maxcpu);
 	mysysctl("kern.smp.maxcpus", &maxcpu, &size);
 	if (size != sizeof(maxcpu))
@@ -632,16 +631,13 @@ getcpuinfo(u_long *maskp, int *maxidp)
 			if (times[i * CPUSTATES + j] != 0)
 				empty = 0;
 		}
-		if (!empty) {
+		if (!empty)
 			mask |= (1ul << i);
-			ncpus++;
-		}
 	}
 	if (maskp)
 		*maskp = mask;
 	if (maxidp)
 		*maxidp = maxid;
-	return (ncpus);
 }
 
 
@@ -670,12 +666,11 @@ dovmstat(unsigned int interval, int reps)
 	u_long cpumask;
 	size_t size;
 	time_t uptime, halfuptime;
-	int ncpus, maxid, rate_adj, retval;
+	int maxid, rate_adj, retval;
 
 	uptime = getuptime() / 1000000000LL;
 	halfuptime = uptime / 2;
 	rate_adj = 1;
-	ncpus = 1;
 	maxid = 0;
 	cpumask = 0;
 
@@ -714,7 +709,7 @@ dovmstat(unsigned int interval, int reps)
 	}
 
 	if (Pflag) {
-		ncpus = getcpuinfo(&cpumask, &maxid);
+		getcpuinfo(&cpumask, &maxid);
 		size_cp_times = sizeof(long) * (maxid + 1) * CPUSTATES;
 		cur_cp_times = calloc(1, size_cp_times);
 		last_cp_times = calloc(1, size_cp_times);
@@ -1289,29 +1284,26 @@ static void
 print_intrcnts(unsigned long *intrcnts, unsigned long *old_intrcnts,
     char *intrnames, unsigned int nintr, size_t istrnamlen, long long period_ms)
 {
-	unsigned long *intrcnt, *old_intrcnt;
-	char *intrname;
 	uint64_t inttotal, old_inttotal, total_count, total_rate;
 	unsigned long count, rate;
 	unsigned int i;
 
 	inttotal = 0;
 	old_inttotal = 0;
-	intrname = intrnames;
 	xo_open_list("interrupt");
-	for (i = 0, intrcnt=intrcnts, old_intrcnt=old_intrcnts; i < nintr; i++) {
-		if (intrname[0] != '\0' && (*intrcnt != 0 || aflag)) {
-			count = *intrcnt - *old_intrcnt;
+	for (i = 0; i < nintr; i++) {
+		if (intrnames[0] != '\0' && (*intrcnts != 0 || aflag)) {
+			count = *intrcnts - *old_intrcnts;
 			rate = ((uint64_t)count * 1000 + period_ms / 2) / period_ms;
 			xo_open_instance("interrupt");
 			xo_emit("{d:name/%-*s}{ket:name/%s} "
 			    "{:total/%20lu} {:rate/%10lu}\n",
-			    (int)istrnamlen, intrname, intrname, count, rate);
+			    (int)istrnamlen, intrnames, intrnames, count, rate);
 			xo_close_instance("interrupt");
 		}
-		intrname += strlen(intrname) + 1;
-		inttotal += *intrcnt++;
-		old_inttotal += *old_intrcnt++;
+		intrnames += strlen(intrnames) + 1;
+		inttotal += *intrcnts++;
+		old_inttotal += *old_intrcnts++;
 	}
 	total_count = inttotal - old_inttotal;
 	total_rate = (total_count * 1000 + period_ms / 2) / period_ms;
@@ -1357,7 +1349,7 @@ dointr(unsigned int interval, int reps)
 	/* Determine the length of the longest interrupt name */
 	intrname = intrnames;
 	istrnamlen = strlen("interrupt");
-	while(*intrname != '\0') {
+	while (intrname < intrnames + inamlen) {
 		clen = strlen(intrname);
 		if (clen > istrnamlen)
 			istrnamlen = clen;

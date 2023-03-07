@@ -29,8 +29,10 @@
 #define	_LINUXKPI_LINUX_SHRINKER_H_
 
 #include <sys/queue.h>
+#include <linux/gfp.h>
 
 struct shrink_control {
+	gfp_t		gfp_mask;
 	unsigned long	nr_to_scan;
 	unsigned long	nr_scanned;
 };
@@ -49,8 +51,10 @@ struct shrinker {
 
 int	linuxkpi_register_shrinker(struct shrinker *s);
 void	linuxkpi_unregister_shrinker(struct shrinker *s);
+void	linuxkpi_synchronize_shrinkers(void);
 
 #define	register_shrinker(s)	linuxkpi_register_shrinker(s)
 #define	unregister_shrinker(s)	linuxkpi_unregister_shrinker(s)
+#define	synchronize_shrinkers()	linuxkpi_synchronize_shrinkers()
 
 #endif	/* _LINUXKPI_LINUX_SHRINKER_H_ */

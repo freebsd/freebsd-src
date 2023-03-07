@@ -36,6 +36,9 @@
 
 struct m_snd_tag;
 
+#define RL_MIN_DIVISOR 50
+#define RL_DEFAULT_DIVISOR 1000
+
 /* Flags on an individual rate */
 #define HDWRPACE_INITED 	0x0001
 #define HDWRPACE_TAGPRESENT	0x0002
@@ -121,6 +124,14 @@ tcp_chg_pacing_rate(const struct tcp_hwrate_limit_table *crte,
 void
 tcp_rel_pacing_rate(const struct tcp_hwrate_limit_table *crte,
     struct tcpcb *tp);
+
+uint32_t
+tcp_get_pacing_burst_size_w_divisor(struct tcpcb *tp, uint64_t bw, uint32_t segsiz, int can_use_1mss,
+    const struct tcp_hwrate_limit_table *te, int *err, int divisor);
+
+void
+tcp_rl_log_enobuf(const struct tcp_hwrate_limit_table *rte);
+
 #else
 static inline const struct tcp_hwrate_limit_table *
 tcp_set_pacing_rate(struct tcpcb *tp, struct ifnet *ifp,
@@ -160,8 +171,56 @@ tcp_hw_highest_rate_ifp(struct ifnet *ifp, struct inpcb *inp)
 	return (0);
 }
 
+static inline uint32_t
+tcp_get_pacing_burst_size_w_divisor(struct tcpcb *tp, uint64_t bw, uint32_t segsiz, int can_use_1mss,
+   const struct tcp_hwrate_limit_table *te, int *err, int divisor)
+{
+	/*
+	 * We use the google formula to calculate the
+	 * TSO size. I.E.
+	 * bw < 24Meg
+	 *   tso = 2mss
+	 * else
+	 *   tso = min(bw/(div=1000), 64k)
+	 *
+	 * Note for these calculations we ignore the
+	 * packet overhead (enet hdr, ip hdr and tcp hdr).
+	 * We only get the google formula when we have
+	 * divisor = 1000, which is the default for now.
+	 */
+	uint64_t bytes;
+	uint32_t new_tso, min_tso_segs;
+
+	/* It can't be zero */
+	if ((divisor == 0) ||
+	    (divisor < RL_MIN_DIVISOR)) {
+		bytes = bw / RL_DEFAULT_DIVISOR;
+	} else
+		bytes = bw / divisor;
+	/* We can't ever send more than 65k in a TSO */
+	if (bytes > 0xffff) {
+		bytes = 0xffff;
+	}
+	/* Round up */
+	new_tso = (bytes + segsiz - 1) / segsiz;
+	if (can_use_1mss)
+		min_tso_segs = 1;
+	else
+		min_tso_segs = 2;
+	if (new_tso < min_tso_segs)
+		new_tso = min_tso_segs;
+	new_tso *= segsiz;
+	return (new_tso);
+}
+
+/* Do nothing if RATELIMIT is not defined */
+static void
+tcp_rl_log_enobuf(const struct tcp_hwrate_limit_table *rte)
+{
+}
 
 #endif
+
 /*
  * Given a b/w and a segsiz, and optional hardware
  * rate limit, return the ideal size to burst
@@ -170,13 +229,15 @@ tcp_hw_highest_rate_ifp(struct ifnet *ifp, struct inpcb *inp)
  * limit, if not it will bottom out at 2mss (think
  * delayed ack).
  */
-uint32_t
+static inline uint32_t
 tcp_get_pacing_burst_size(struct tcpcb *tp, uint64_t bw, uint32_t segsiz, int can_use_1mss,
-   const struct tcp_hwrate_limit_table *te, int *err);
+			  const struct tcp_hwrate_limit_table *te, int *err)
+{
 
-
-void
-tcp_rl_log_enobuf(const struct tcp_hwrate_limit_table *rte);
+	return (tcp_get_pacing_burst_size_w_divisor(tp, bw, segsiz,
+						    can_use_1mss,
+						    te, err, 0));
+}
 
 #endif
 #endif

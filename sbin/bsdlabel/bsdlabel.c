@@ -146,7 +146,7 @@ main(int argc, char *argv[])
 	FILE *t;
 	int ch, error, fd;
 	const char *name;
-	
+
 	error = 0;
 	name = NULL;
 
@@ -1094,7 +1094,7 @@ checklabel(struct disklabel *lp)
 	struct partition *pp;
 	int i, errors = 0;
 	char part;
-	u_long base_offset, needed, total_size, total_percent, current_offset;
+	u_long base_offset, needed, total_percent, current_offset;
 	long free_space;
 	int seen_default_offset;
 	int hog_part;
@@ -1173,7 +1173,6 @@ checklabel(struct disklabel *lp)
 
 
 	/* first allocate space to the partitions, then offsets */
-	total_size = 0; /* in sectors */
 	total_percent = 0; /* in percent */
 	hog_part = -1;
 	/* find all fixed partitions */
@@ -1234,9 +1233,6 @@ checklabel(struct disklabel *lp)
 						size /= lp->d_secsize;
 						pp->p_size = size;
 					}
-					/* else already in sectors */
-					if (i != RAW_PART)
-						total_size += size;
 				}
 			}
 		}
@@ -1272,7 +1268,6 @@ checklabel(struct disklabel *lp)
 				if (part_set[i] && part_size_type[i] == '%') {
 					/* careful of overflows! and integer roundoff */
 					pp->p_size = ((double)pp->p_size/100) * free_space;
-					total_size += pp->p_size;
 
 					/* FIX we can lose a sector or so due to roundoff per
 					   partition.  A more complex algorithm could avoid that */
@@ -1328,7 +1323,6 @@ checklabel(struct disklabel *lp)
 		} else {
 			lp->d_partitions[hog_part].p_size = current_offset -
 			    base_offset - needed;
-			total_size += lp->d_partitions[hog_part].p_size;
 		}
 	}
 

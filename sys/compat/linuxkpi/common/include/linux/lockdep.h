@@ -48,8 +48,13 @@ struct pin_cookie {
 #define	lockdep_set_current_reclaim_state(g) do { } while (0)
 #define	lockdep_clear_current_reclaim_state() do { } while (0)
 #define	lockdep_init_map(_map, _name, _key, _x) do { } while(0)
+#define	lockdep_register_key(key) do { } while(0)
+#define	lockdep_unregister_key(key) do { } while(0)
 
 #ifdef INVARIANTS
+#define	lockdep_assert(cond) do { WARN_ON(!cond); } while (0)
+#define	lockdep_assert_once(cond) do { WARN_ON_ONCE(!cond); } while (0)
+
 #define	lockdep_assert_not_held(m) do {					\
 	struct lock_object *__lock = (struct lock_object *)(m);		\
 	LOCK_CLASS(__lock)->lc_assert(__lock, LA_UNLOCKED);		\
@@ -65,6 +70,8 @@ struct pin_cookie {
 	LOCK_CLASS(__lock)->lc_assert(__lock, LA_LOCKED | LA_NOTRECURSED); \
 } while (0)
 
+#define	lockdep_assert_none_held_once() do { } while (0)
+
 static __inline bool
 lockdep_is_held(void *__m)
 {
@@ -77,8 +84,12 @@ lockdep_is_held(void *__m)
 #define	lockdep_is_held_type(_m, _t) lockdep_is_held(_m)
 
 #else
+#define	lockdep_assert(cond) do { } while (0)
+#define	lockdep_assert_once(cond) do { } while (0)
+
 #define	lockdep_assert_not_held(m) do { (void)(m); } while (0)
 #define	lockdep_assert_held(m) do { (void)(m); } while (0)
+#define	lockdep_assert_none_held_once() do { } while (0)
 
 #define	lockdep_assert_held_once(m) do { (void)(m); } while (0)
 

@@ -50,14 +50,6 @@
 
 #include "regset.h"
 
-/*
- * Wee need some reasonable default to prevent backtrace code
- * from wandering too far
- */
-#define	MAX_FUNCTION_SIZE 0x10000
-#define	MAX_PROLOGUE_SIZE 0x100
-
-
 uint8_t dtrace_fuword8_nocheck(void *);
 uint16_t dtrace_fuword16_nocheck(void *);
 uint32_t dtrace_fuword32_nocheck(void *);

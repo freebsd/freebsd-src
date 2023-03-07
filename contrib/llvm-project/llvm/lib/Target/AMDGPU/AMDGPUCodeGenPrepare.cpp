@@ -626,13 +626,13 @@ bool AMDGPUCodeGenPrepare::foldBinOpIntoSelect(BinaryOperator &BO) const {
   Constant *FoldedT = SelOpNo ?
     ConstantFoldBinaryOpOperands(BO.getOpcode(), CBO, CT, *DL) :
     ConstantFoldBinaryOpOperands(BO.getOpcode(), CT, CBO, *DL);
-  if (isa<ConstantExpr>(FoldedT))
+  if (!FoldedT || isa<ConstantExpr>(FoldedT))
     return false;
 
   Constant *FoldedF = SelOpNo ?
     ConstantFoldBinaryOpOperands(BO.getOpcode(), CBO, CF, *DL) :
     ConstantFoldBinaryOpOperands(BO.getOpcode(), CF, CBO, *DL);
-  if (isa<ConstantExpr>(FoldedF))
+  if (!FoldedF || isa<ConstantExpr>(FoldedF))
     return false;
 
   IRBuilder<> Builder(&BO);
@@ -877,7 +877,7 @@ static Value* getMulHu(IRBuilder<> &Builder, Value *LHS, Value *RHS) {
   return getMul64(Builder, LHS, RHS).second;
 }
 
-/// Figure out how many bits are really needed for this ddivision. \p AtLeast is
+/// Figure out how many bits are really needed for this division. \p AtLeast is
 /// an optimization hint to bypass the second ComputeNumSignBits call if we the
 /// first one is insufficient. Returns -1 on failure.
 int AMDGPUCodeGenPrepare::getDivNumBits(BinaryOperator &I,

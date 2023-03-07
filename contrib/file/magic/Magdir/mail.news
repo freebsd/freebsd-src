@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: mail.news,v 1.28 2021/09/11 19:20:15 christos Exp $
+# $File: mail.news,v 1.29 2022/06/17 18:02:19 christos Exp $
 # mail.news:  file(1) magic for mail and news
 #
 # Unfortunately, saved netnews also has From line added in some news software.
@@ -44,8 +44,54 @@
 #0	string/t		Content-	MIME entity text
 
 # TNEF files...
-0	lelong		0x223E9F78	Transport Neutral Encapsulation Format
+# URL:		http://fileformats.archiveteam.org/wiki/Transport_Neutral_Encapsulation_Format
+#		https://en.wikipedia.org/wiki/Transport_Neutral_Encapsulation_Format
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/t/tnef.trid.xml
+#		https://interoperability.blob.core.windows.net/files/MS-OXTNEF/%5bMS-OXTNEF%5d-210817.pdf
+# Update:	Joerg Jenderek
+# Note:		moved and merged from ./msdos (version 1.154) there just called "TNEF"
+#		partly verified by `tnef --list -v -f voice.tnef` and `ytnef -v  triples.tnef`
+# TNEF magic From "Joomy" <joomy@se-ed.net>
+# TNEF_SIGNATURE 
+0	lelong		0x223E9F78	Transport Neutral Encapsulation Format (TNEF)
 !:mime	application/vnd.ms-tnef
+# winmail.dat or win.dat by Microsoft Outlook
+!:ext	tnef/dat
+# https://docs.microsoft.com/en-us/openspecs/exchange_server_protocols/ms-oxtnef/7fdb64ee-7f63-4d95-9af1-c672e7475c3a
+# LegacyKey
+#>4	uleshort	x		\b, key %#4.4x
+# attrLevelMessage; Level where attribute applies like: 1~attrLevelMessage 2~attrLevelAttachment
+>6	ubyte		!1		\b, 1st level %#2.2x
+# other ID (like 02900000h) or TnefVersion ID (idTnefVersion=06900800h)
+>7	ubelong		!0x06900800	\b, 1st id %#8.8x
+>7	ubelong		=0x06900800
+# TnefVersion lenght like: 4
+>>11	ulelong		!4		\b, TnefVersion length %x
+# TNEFVersionData; TnefVersion data like: 00010000h
+>>15	ulelong		!0x00010000h	\b, version %#8.8x
+# Checksum like: 1
+>>19	uleshort	!1		\b, checksum %#4.4x
+# attrLevelMessage; level of attOemCodepage like: 1
+>>21	ubyte		!1		\b, level %#2.2x
+# idOEMCodePage; OEMCodePage ID like: 07900600h
+>>22	ubelong		=0x07900600	\b, OEM codepage
+# OEMCodePage length like: 8
+>>>26	ulelong		=8		
+# OEMCodePageData; PrimaryCodePage like: 1251 1252
+>>>>30	ulelong		x		%u
+# OEMCodePageData; SecondaryCodePage; unused and SHOULD contain zero
+>>>>34	ulelong		!0		and %u
+# OEMCodePageData Checksum like: E7h E8h
+>>>>38	uleshort	x		(checksum %#x)
+# attrLevelMessage of attMessageClass like: 1
+>>40	ubyte		!1		\b, level %u
+# idMessageClass; ID of attMessageClass like: 08800700h
+>>41	ubelong		=0x08800700	\b, MessageAttribute
+# attMessageClass length like: 16 24 25
+#>>>45	ulelong		x		(length %u)
+# attMessageClass data like: "IPM.Microsoft Mail.Note" "IPM.Note.Portada Newseum"
+# "IPM.Appointment" "IPM.Note.Microsoft.Voicemail.UM.CA"
+>>>45	pstring/l	x		"%s"
 
 # From: Kevin Sullivan <ksulliva@psc.edu>
 0	string		*mbx*		MBX mail folder

@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_private.h>
 #include <net/if_types.h>
 #include <net/ethernet.h>
 
@@ -1552,7 +1553,7 @@ ieee80211_get_channel_center_freq(const struct ieee80211_channel *c)
  * For 5, 10, 20MHz channels it'll be the normally configured channel
  * frequency.
  *
- * For 40MHz, 80MHz, 160Mhz channels it'll the centre of the
+ * For 40MHz, 80MHz, 160MHz channels it will be the centre of the
  * wide channel, not the centre of the primary channel (that's ic_freq).
  *
  * For 80+80MHz channels this will be the centre of the primary

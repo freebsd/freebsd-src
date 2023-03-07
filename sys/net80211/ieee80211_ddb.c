@@ -364,7 +364,7 @@ _db_show_vap(const struct ieee80211vap *vap, int showmesh, int showprocs)
 		db_printf("(%p)", vap->iv_mesh);
 #endif
 	db_printf(" state %s", ieee80211_state_name[vap->iv_state]);
-	db_printf(" ifp %p(%s)", vap->iv_ifp, vap->iv_ifp->if_xname);
+	db_printf(" ifp %p(%s)", vap->iv_ifp, if_name(vap->iv_ifp));
 	db_printf("\n");
 
 	db_printf("\tic %p", vap->iv_ic);
@@ -540,7 +540,7 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta,
 
 	db_printf("COM: %p:", ic);
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
-		db_printf(" %s(%p)", vap->iv_ifp->if_xname, vap);
+		db_printf(" %s(%p)", if_name(vap->iv_ifp), vap);
 	db_printf("\n");
 	db_printf("\tsoftc %p", ic->ic_softc);
 	db_printf("\tname %s", ic->ic_name);
@@ -706,7 +706,7 @@ _db_show_all_vaps(void *arg, struct ieee80211com *ic)
 		const struct ieee80211vap *vap;
 		db_printf("%s: com %p vaps:", ic->ic_name, ic);
 		TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
-			db_printf(" %s(%p)", vap->iv_ifp->if_xname, vap);
+			db_printf(" %s(%p)", if_name(vap->iv_ifp), vap);
 		db_printf("\n");
 	} else
 		_db_show_com(ic, 1, 1, 1, 1);

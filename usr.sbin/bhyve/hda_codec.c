@@ -465,7 +465,7 @@ hda_codec_init(struct hda_codec_inst *hci, const char *play,
 static int
 hda_codec_reset(struct hda_codec_inst *hci)
 {
-	struct hda_ops *hops = NULL;
+	const struct hda_ops *hops = NULL;
 	struct hda_codec_softc *sc = NULL;
 	struct hda_codec_stream *st = NULL;
 	int i;
@@ -500,8 +500,8 @@ hda_codec_reset(struct hda_codec_inst *hci)
 static int
 hda_codec_command(struct hda_codec_inst *hci, uint32_t cmd_data)
 {
+	const struct hda_ops *hops = NULL;
 	struct hda_codec_softc *sc = NULL;
-	struct hda_ops *hops = NULL;
 	uint8_t cad = 0, nid = 0;
 	uint16_t verb = 0, payload = 0;
 	uint32_t res = 0;
@@ -677,9 +677,9 @@ hda_codec_audio_output_nid(struct hda_codec_softc *sc, uint16_t verb,
 static void
 hda_codec_audio_output_do_transfer(void *arg)
 {
+	const struct hda_ops *hops = NULL;
 	struct hda_codec_softc *sc = (struct hda_codec_softc *)arg;
 	struct hda_codec_inst *hci = NULL;
-	struct hda_ops *hops = NULL;
 	struct hda_codec_stream *st = NULL;
 	struct audio *aud = NULL;
 	int err;
@@ -738,9 +738,9 @@ hda_codec_audio_input_nid(struct hda_codec_softc *sc, uint16_t verb,
 static void
 hda_codec_audio_input_do_transfer(void *arg)
 {
+	const struct hda_ops *hops = NULL;
 	struct hda_codec_softc *sc = (struct hda_codec_softc *)arg;
 	struct hda_codec_inst *hci = NULL;
-	struct hda_ops *hops = NULL;
 	struct hda_codec_stream *st = NULL;
 	struct audio *aud = NULL;
 	int err;

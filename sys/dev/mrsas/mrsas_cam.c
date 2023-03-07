@@ -222,12 +222,6 @@ mrsas_cam_attach(struct mrsas_softc *sc)
 	}
 	mtx_unlock(&sc->sim_lock);
 
-#if (__FreeBSD_version <= 704000)
-	if (mrsas_bus_scan(sc)) {
-		device_printf(sc->mrsas_dev, "Error in bus scan.\n");
-		return (1);
-	}
-#endif
 	return (0);
 }
 
@@ -346,11 +340,7 @@ mrsas_action(struct cam_sim *sim, union ccb *ccb)
 			ccb->cpi.version_num = 1;
 			ccb->cpi.hba_inquiry = 0;
 			ccb->cpi.target_sprt = 0;
-#if (__FreeBSD_version >= 902001)
 			ccb->cpi.hba_misc = PIM_UNMAPPED;
-#else
-			ccb->cpi.hba_misc = 0;
-#endif
 			ccb->cpi.hba_eng_cnt = 0;
 			ccb->cpi.max_lun = MRSAS_SCSI_MAX_LUNS;
 			ccb->cpi.unit_number = cam_sim_unit(sim);
@@ -368,9 +358,7 @@ mrsas_action(struct cam_sim *sim, union ccb *ccb)
 				ccb->cpi.max_target = MRSAS_MAX_PD - 1;
 			else
 				ccb->cpi.max_target = MRSAS_MAX_LD_IDS - 1;
-#if (__FreeBSD_version > 704000)
 			ccb->cpi.maxio = sc->max_sectors_per_req * 512;
-#endif
 			ccb->ccb_h.status = CAM_REQ_CMP;
 			xpt_done(ccb);
 			break;
@@ -418,13 +406,8 @@ mrsas_scsiio_timeout(void *data)
 	 * on OCR enable/disable property of Controller from ocr_thread
 	 * context.
 	 */
-#if (__FreeBSD_version >= 1000510)
 	callout_reset_sbt(&cmd->cm_callout, SBT_1S * 180, 0,
 	    mrsas_scsiio_timeout, cmd, 0);
-#else
-	callout_reset(&cmd->cm_callout, (180000 * hz) / 1000,
-	    mrsas_scsiio_timeout, cmd);
-#endif
 
 	if (cmd->ccb_ptr->cpi.bus_id == 0)
 		target_id = cmd->ccb_ptr->ccb_h.target_id;
@@ -492,8 +475,6 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 	} else
 		cmd->flags = MRSAS_DIR_NONE;	/* no data */
 
-/* For FreeBSD 9.2 and higher */
-#if (__FreeBSD_version >= 902001)
 	/*
 	 * XXX We don't yet support physical addresses here.
 	 */
@@ -526,24 +507,7 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 		ccb->ccb_h.status = CAM_REQ_INVALID;
 		goto done;
 	}
-#else
-	if (!(ccb_h->flags & CAM_DATA_PHYS)) {	/* Virtual data address */
-		if (!(ccb_h->flags & CAM_SCATTER_VALID)) {
-			cmd->length = csio->dxfer_len;
-			if (cmd->length)
-				cmd->data = csio->data_ptr;
-		} else {
-			mrsas_release_mpt_cmd(cmd);
-			ccb_h->status = CAM_REQ_INVALID;
-			goto done;
-		}
-	} else {			/* Data addresses are physical. */
-		mrsas_release_mpt_cmd(cmd);
-		ccb_h->status = CAM_REQ_INVALID;
-		ccb_h->status &= ~CAM_SIM_QUEUED;
-		goto done;
-	}
-#endif
+
 	/* save ccb ptr */
 	cmd->ccb_ptr = ccb;
 
@@ -624,13 +588,8 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 	 * Start timer for IO timeout. Default timeout value is 90 second.
 	 */
 	cmd->callout_owner = true;
-#if (__FreeBSD_version >= 1000510)
 	callout_reset_sbt(&cmd->cm_callout, SBT_1S * 180, 0,
 	    mrsas_scsiio_timeout, cmd, 0);
-#else
-	callout_reset(&cmd->cm_callout, (180000 * hz) / 1000,
-	    mrsas_scsiio_timeout, cmd);
-#endif
 
 	if (mrsas_atomic_read(&sc->fw_outstanding) > sc->io_cmds_highwater)
 		sc->io_cmds_highwater++;
@@ -1435,13 +1394,8 @@ mrsas_map_request(struct mrsas_softc *sc,
 	if (cmd->data != NULL) {
 		/* Map data buffer into bus space */
 		mtx_lock(&sc->io_lock);
-#if (__FreeBSD_version >= 902001)
 		retcode = bus_dmamap_load_ccb(sc->data_tag, cmd->data_dmamap, ccb,
 		    mrsas_data_load_cb, cmd, 0);
-#else
-		retcode = bus_dmamap_load(sc->data_tag, cmd->data_dmamap, cmd->data,
-		    cmd->length, mrsas_data_load_cb, cmd, BUS_DMA_NOWAIT);
-#endif
 		mtx_unlock(&sc->io_lock);
 		if (retcode)
 			device_printf(sc->mrsas_dev, "bus_dmamap_load(): retcode = %d\n", retcode);
@@ -1935,7 +1889,7 @@ mrsas_tm_response_code(struct mrsas_softc *sc,
 /*
  * mrsas_issue_tm:  Fires the TM command to FW and waits for completion
  * input:           Adapter instance soft state
- *                  reqest descriptor compiled by mrsas_reset_targets
+ *                  request descriptor compiled by mrsas_reset_targets
  *
  * Returns FAIL if TM command TIMEDOUT from FW else SUCCESS.
  */

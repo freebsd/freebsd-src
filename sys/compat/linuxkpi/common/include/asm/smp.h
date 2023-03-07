@@ -29,6 +29,10 @@
 #ifndef _LINUXKPI_ASM_SMP_H_
 #define	_LINUXKPI_ASM_SMP_H_
 
+#include <linux/jump_label.h>
+#include <linux/preempt.h>
+#include <asm/fpu/api.h>
+
 #if defined(__i386__) || defined(__amd64__)
 
 #define	wbinvd_on_all_cpus()	linux_wbinvd_on_all_cpus()

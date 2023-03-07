@@ -12,6 +12,7 @@
 #include "Target.h"
 
 #include "lld/Common/ErrorHandler.h"
+#include "mach-o/compact_unwind_encoding.h"
 #include "llvm/BinaryFormat/MachO.h"
 #include "llvm/Support/Endian.h"
 
@@ -32,37 +33,32 @@ struct X86_64 : TargetInfo {
 
   void writeStub(uint8_t *buf, const Symbol &) const override;
   void writeStubHelperHeader(uint8_t *buf) const override;
-  void writeStubHelperEntry(uint8_t *buf, const DylibSymbol &,
+  void writeStubHelperEntry(uint8_t *buf, const Symbol &,
                             uint64_t entryAddr) const override;
 
   void relaxGotLoad(uint8_t *loc, uint8_t type) const override;
-  const RelocAttrs &getRelocAttrs(uint8_t type) const override;
   uint64_t getPageSize() const override { return 4 * 1024; }
-};
 
+  void handleDtraceReloc(const Symbol *sym, const Reloc &r,
+                         uint8_t *loc) const override;
+};
 } // namespace
 
-const RelocAttrs &X86_64::getRelocAttrs(uint8_t type) const {
-  static const std::array<RelocAttrs, 10> relocAttrsArray{{
+static constexpr std::array<RelocAttrs, 10> relocAttrsArray{{
 #define B(x) RelocAttrBits::x
-      {"UNSIGNED",
-       B(UNSIGNED) | B(ABSOLUTE) | B(EXTERN) | B(LOCAL) | B(BYTE4) | B(BYTE8)},
-      {"SIGNED", B(PCREL) | B(EXTERN) | B(LOCAL) | B(BYTE4)},
-      {"BRANCH", B(PCREL) | B(EXTERN) | B(BRANCH) | B(BYTE4)},
-      {"GOT_LOAD", B(PCREL) | B(EXTERN) | B(GOT) | B(LOAD) | B(BYTE4)},
-      {"GOT", B(PCREL) | B(EXTERN) | B(GOT) | B(POINTER) | B(BYTE4)},
-      {"SUBTRACTOR", B(SUBTRAHEND) | B(EXTERN) | B(BYTE4) | B(BYTE8)},
-      {"SIGNED_1", B(PCREL) | B(EXTERN) | B(LOCAL) | B(BYTE4)},
-      {"SIGNED_2", B(PCREL) | B(EXTERN) | B(LOCAL) | B(BYTE4)},
-      {"SIGNED_4", B(PCREL) | B(EXTERN) | B(LOCAL) | B(BYTE4)},
-      {"TLV", B(PCREL) | B(EXTERN) | B(TLV) | B(LOAD) | B(BYTE4)},
+    {"UNSIGNED",
+     B(UNSIGNED) | B(ABSOLUTE) | B(EXTERN) | B(LOCAL) | B(BYTE4) | B(BYTE8)},
+    {"SIGNED", B(PCREL) | B(EXTERN) | B(LOCAL) | B(BYTE4)},
+    {"BRANCH", B(PCREL) | B(EXTERN) | B(BRANCH) | B(BYTE4)},
+    {"GOT_LOAD", B(PCREL) | B(EXTERN) | B(GOT) | B(LOAD) | B(BYTE4)},
+    {"GOT", B(PCREL) | B(EXTERN) | B(GOT) | B(POINTER) | B(BYTE4)},
+    {"SUBTRACTOR", B(SUBTRAHEND) | B(EXTERN) | B(BYTE4) | B(BYTE8)},
+    {"SIGNED_1", B(PCREL) | B(EXTERN) | B(LOCAL) | B(BYTE4)},
+    {"SIGNED_2", B(PCREL) | B(EXTERN) | B(LOCAL) | B(BYTE4)},
+    {"SIGNED_4", B(PCREL) | B(EXTERN) | B(LOCAL) | B(BYTE4)},
+    {"TLV", B(PCREL) | B(EXTERN) | B(TLV) | B(LOAD) | B(BYTE4)},
 #undef B
-  }};
-  assert(type < relocAttrsArray.size() && "invalid relocation type");
-  if (type >= relocAttrsArray.size())
-    return invalidRelocAttrs;
-  return relocAttrsArray[type];
-}
+}};
 
 static int pcrelOffset(uint8_t type) {
   switch (type) {
@@ -102,9 +98,9 @@ void X86_64::relocateOne(uint8_t *loc, const Reloc &r, uint64_t value,
   switch (r.length) {
   case 2:
     if (r.type == X86_64_RELOC_UNSIGNED)
-      checkUInt(r, value, 32);
+      checkUInt(loc, r, value, 32);
     else
-      checkInt(r, value, 32);
+      checkInt(loc, r, value, 32);
     write32le(loc, value);
     break;
   case 3:
@@ -127,7 +123,7 @@ void X86_64::relocateOne(uint8_t *loc, const Reloc &r, uint64_t value,
 static void writeRipRelative(SymbolDiagnostic d, uint8_t *buf, uint64_t bufAddr,
                              uint64_t bufOff, uint64_t destAddr) {
   uint64_t rip = bufAddr + bufOff;
-  checkInt(d, destAddr - rip, 32);
+  checkInt(buf, d, destAddr - rip, 32);
   // For the instructions we care about, the RIP-relative address is always
   // stored in the last 4 bytes of the instruction.
   write32le(buf + bufOff - 4, destAddr - rip);
@@ -166,7 +162,7 @@ static constexpr uint8_t stubHelperEntry[] = {
     0xe9, 0, 0, 0, 0, // 0x5: jmp <__stub_helper>
 };
 
-void X86_64::writeStubHelperEntry(uint8_t *buf, const DylibSymbol &sym,
+void X86_64::writeStubHelperEntry(uint8_t *buf, const Symbol &sym,
                                   uint64_t entryAddr) const {
   memcpy(buf, stubHelperEntry, sizeof(stubHelperEntry));
   write32le(buf + 1, sym.lazyBindOffset);
@@ -185,12 +181,38 @@ X86_64::X86_64() : TargetInfo(LP64()) {
   cpuType = CPU_TYPE_X86_64;
   cpuSubtype = CPU_SUBTYPE_X86_64_ALL;
 
+  modeDwarfEncoding = UNWIND_X86_MODE_DWARF;
+  subtractorRelocType = X86_64_RELOC_SUBTRACTOR;
+  unsignedRelocType = X86_64_RELOC_UNSIGNED;
+
   stubSize = sizeof(stub);
   stubHelperHeaderSize = sizeof(stubHelperHeader);
   stubHelperEntrySize = sizeof(stubHelperEntry);
+
+  relocAttrs = {relocAttrsArray.data(), relocAttrsArray.size()};
 }
 
 TargetInfo *macho::createX86_64TargetInfo() {
   static X86_64 t;
   return &t;
+}
+
+void X86_64::handleDtraceReloc(const Symbol *sym, const Reloc &r,
+                               uint8_t *loc) const {
+  assert(r.type == X86_64_RELOC_BRANCH);
+
+  if (config->outputType == MH_OBJECT)
+    return;
+
+  if (sym->getName().startswith("___dtrace_probe")) {
+    // change call site to a NOP
+    loc[-1] = 0x90;
+    write32le(loc, 0x00401F0F);
+  } else if (sym->getName().startswith("___dtrace_isenabled")) {
+    // change call site to a clear eax
+    loc[-1] = 0x33;
+    write32le(loc, 0x909090C0);
+  } else {
+    error("Unrecognized dtrace symbol prefix: " + toString(*sym));
+  }
 }

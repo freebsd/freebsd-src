@@ -295,6 +295,8 @@ sysmouse_event(mouse_info_t *info)
 
 #ifdef EVDEV_SUPPORT
 	smdev_evdev_write(x, y, z, mouse_status.button);
+	if (evdev_is_grabbed(sysmouse_evdev))
+		goto done;
 #endif
 
 	if (!tty_opened(sysmouse_tty))

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2021  Mark Nudelman
+ * Copyright (C) 1984-2022  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -68,6 +68,8 @@ extern int linenums;
 extern int sigs;
 extern int sc_height;
 extern int screen_trashed;
+extern int header_lines;
+extern int nonum_headers;
 
 /*
  * Initialize the line number structures.
@@ -484,11 +486,24 @@ scan_eof(VOID_PARAM)
 	ierror("Determining length of file", NULL_PARG);
 	while (pos != NULL_POSITION)
 	{
-        /* For efficiency, only add one every 256 line numbers. */
-        if ((linenum++ % 256) == 0)
-            add_lnum(linenum, pos);
+		/* For efficiency, only add one every 256 line numbers. */
+		if ((linenum++ % 256) == 0)
+			add_lnum(linenum, pos);
 		pos = forw_raw_line(pos, (char **)NULL, (int *)NULL);
 		if (ABORT_SIGS())
 			break;
 	}
+}
+
+/*
+ * Return a line number adjusted for display
+ * (handles the --no-number-headers option).
+ */
+	public LINENUM
+vlinenum(linenum)
+	LINENUM linenum;
+{
+	if (nonum_headers)
+		linenum = (linenum < header_lines) ? 0 : linenum - header_lines;
+	return linenum;
 }

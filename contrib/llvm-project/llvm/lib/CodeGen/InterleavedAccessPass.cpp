@@ -46,6 +46,7 @@
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/TargetLowering.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
@@ -57,7 +58,6 @@
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
-#include "llvm/IR/Type.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
@@ -310,10 +310,11 @@ bool InterleavedAccess::lowerInterleavedLoad(
       Extracts.push_back(Extract);
       continue;
     }
-    auto *BI = dyn_cast<BinaryOperator>(User);
-    if (BI && BI->hasOneUse()) {
-      if (auto *SVI = dyn_cast<ShuffleVectorInst>(*BI->user_begin())) {
-        BinOpShuffles.insert(SVI);
+    if (auto *BI = dyn_cast<BinaryOperator>(User)) {
+      if (all_of(BI->users(),
+                 [](auto *U) { return isa<ShuffleVectorInst>(U); })) {
+        for (auto *SVI : BI->users())
+          BinOpShuffles.insert(cast<ShuffleVectorInst>(SVI));
         continue;
       }
     }
@@ -540,7 +541,7 @@ bool InterleavedAccess::runOnFunction(Function &F) {
       Changed |= lowerInterleavedStore(SI, DeadInsts);
   }
 
-  for (auto I : DeadInsts)
+  for (auto *I : DeadInsts)
     I->eraseFromParent();
 
   return Changed;

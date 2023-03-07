@@ -55,7 +55,8 @@ grp_set_passwd(struct group *grp, bool update, int fd, bool precrypted)
 	int		 b;
 	int		 istty;
 	struct termios	 t, n;
-	char		*p, line[256];
+	static char      line[256];
+	char		*p;
 
 	if (fd == -1)
 		return;
@@ -276,6 +277,8 @@ pw_group_next(int argc, char **argv, char *arg1 __unused)
 		case 'q':
 			quiet = true;
 			break;
+		default:
+			exit(EX_USAGE);
 		}
 	}
 
@@ -333,6 +336,8 @@ pw_group_show(int argc, char **argv, char *arg1)
 		case 'a':
 			all = true;
 			break;
+		default:
+			exit(EX_USAGE);
 		}
 	}
 
@@ -390,6 +395,8 @@ pw_group_del(int argc, char **argv, char *arg1)
 		case 'Y':
 			nis = true;
 			break;
+		default:
+			exit(EX_USAGE);
 		}
 	}
 
@@ -548,6 +555,8 @@ pw_group_add(int argc, char **argv, char *arg1)
 		case 'Y':
 			nis = true;
 			break;
+		default:
+			exit(EX_USAGE);
 		}
 	}
 
@@ -640,6 +649,8 @@ pw_group_mod(int argc, char **argv, char *arg1)
 		case 'Y':
 			nis = true;
 			break;
+		default:
+			exit(EX_USAGE);
 		}
 	}
 	if (quiet)

@@ -43,17 +43,20 @@ static bool hasDuplicates(const SmallVectorImpl<VPBlockBase *> &VPBlockVec) {
 /// \p Region. Checks in this function are generic for VPBlockBases. They are
 /// not specific for VPBasicBlocks or VPRegionBlocks.
 static void verifyBlocksInRegion(const VPRegionBlock *Region) {
-  for (const VPBlockBase *VPB :
-       make_range(df_iterator<const VPBlockBase *>::begin(Region->getEntry()),
-                  df_iterator<const VPBlockBase *>::end(Region->getExit()))) {
+  for (const VPBlockBase *VPB : make_range(
+           df_iterator<const VPBlockBase *>::begin(Region->getEntry()),
+           df_iterator<const VPBlockBase *>::end(Region->getExiting()))) {
     // Check block's parent.
     assert(VPB->getParent() == Region && "VPBlockBase has wrong parent");
 
+    auto *VPBB = dyn_cast<VPBasicBlock>(VPB);
     // Check block's condition bit.
-    if (VPB->getNumSuccessors() > 1)
-      assert(VPB->getCondBit() && "Missing condition bit!");
+    if (VPB->getNumSuccessors() > 1 || (VPBB && VPBB->isExiting()))
+      assert(VPBB && VPBB->getTerminator() &&
+             "Block has multiple successors but doesn't "
+             "have a proper branch recipe!");
     else
-      assert(!VPB->getCondBit() && "Unexpected condition bit!");
+      assert((!VPBB || !VPBB->getTerminator()) && "Unexpected branch recipe!");
 
     // Check block's successors.
     const auto &Successors = VPB->getSuccessors();
@@ -94,13 +97,14 @@ static void verifyBlocksInRegion(const VPRegionBlock *Region) {
 /// VPBlockBases. Do not recurse inside nested VPRegionBlocks.
 static void verifyRegion(const VPRegionBlock *Region) {
   const VPBlockBase *Entry = Region->getEntry();
-  const VPBlockBase *Exit = Region->getExit();
+  const VPBlockBase *Exiting = Region->getExiting();
 
-  // Entry and Exit shouldn't have any predecessor/successor, respectively.
+  // Entry and Exiting shouldn't have any predecessor/successor, respectively.
   assert(!Entry->getNumPredecessors() && "Region entry has predecessors.");
-  assert(!Exit->getNumSuccessors() && "Region exit has successors.");
+  assert(!Exiting->getNumSuccessors() &&
+         "Region exiting block has successors.");
   (void)Entry;
-  (void)Exit;
+  (void)Exiting;
 
   verifyBlocksInRegion(Region);
 }
@@ -111,9 +115,9 @@ static void verifyRegionRec(const VPRegionBlock *Region) {
   verifyRegion(Region);
 
   // Recurse inside nested regions.
-  for (const VPBlockBase *VPB :
-       make_range(df_iterator<const VPBlockBase *>::begin(Region->getEntry()),
-                  df_iterator<const VPBlockBase *>::end(Region->getExit()))) {
+  for (const VPBlockBase *VPB : make_range(
+           df_iterator<const VPBlockBase *>::begin(Region->getEntry()),
+           df_iterator<const VPBlockBase *>::end(Region->getExiting()))) {
     if (const auto *SubRegion = dyn_cast<VPRegionBlock>(VPB))
       verifyRegionRec(SubRegion);
   }
@@ -129,35 +133,109 @@ void VPlanVerifier::verifyHierarchicalCFG(
   verifyRegionRec(TopRegion);
 }
 
-bool VPlanVerifier::verifyPlanIsValid(const VPlan &Plan) {
-  auto Iter = depth_first(
-      VPBlockRecursiveTraversalWrapper<const VPBlockBase *>(Plan.getEntry()));
-  for (const VPBasicBlock *VPBB :
-       VPBlockUtils::blocksOnly<const VPBasicBlock>(Iter)) {
-    // Verify that phi-like recipes are at the beginning of the block, with no
-    // other recipes in between.
-    auto RecipeI = VPBB->begin();
-    auto End = VPBB->end();
-    while (RecipeI != End && RecipeI->isPhi())
-      RecipeI++;
-
-    while (RecipeI != End) {
-      if (RecipeI->isPhi() && !isa<VPBlendRecipe>(&*RecipeI)) {
-        errs() << "Found phi-like recipe after non-phi recipe";
-
-#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
-        errs() << ": ";
-        RecipeI->dump();
-        errs() << "after\n";
-        std::prev(RecipeI)->dump();
-#endif
-        return false;
-      }
-      RecipeI++;
-    }
+static bool
+verifyVPBasicBlock(const VPBasicBlock *VPBB,
+                   DenseMap<const VPBlockBase *, unsigned> &BlockNumbering) {
+  // Verify that phi-like recipes are at the beginning of the block, with no
+  // other recipes in between.
+  auto RecipeI = VPBB->begin();
+  auto End = VPBB->end();
+  unsigned NumActiveLaneMaskPhiRecipes = 0;
+  while (RecipeI != End && RecipeI->isPhi()) {
+    if (isa<VPActiveLaneMaskPHIRecipe>(RecipeI))
+      NumActiveLaneMaskPhiRecipes++;
+    RecipeI++;
   }
 
-  const VPRegionBlock *TopRegion = cast<VPRegionBlock>(Plan.getEntry());
+  if (NumActiveLaneMaskPhiRecipes > 1) {
+    errs() << "There should be no more than one VPActiveLaneMaskPHIRecipe";
+    return false;
+  }
+
+  while (RecipeI != End) {
+    if (RecipeI->isPhi() && !isa<VPBlendRecipe>(&*RecipeI)) {
+      errs() << "Found phi-like recipe after non-phi recipe";
+
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+      errs() << ": ";
+      RecipeI->dump();
+      errs() << "after\n";
+      std::prev(RecipeI)->dump();
+#endif
+      return false;
+    }
+    RecipeI++;
+  }
+
+  // Verify that defs in VPBB dominate all their uses. The current
+  // implementation is still incomplete.
+  DenseMap<const VPRecipeBase *, unsigned> RecipeNumbering;
+  unsigned Cnt = 0;
+  for (const VPRecipeBase &R : *VPBB)
+    RecipeNumbering[&R] = Cnt++;
+
+  for (const VPRecipeBase &R : *VPBB) {
+    for (const VPValue *V : R.definedValues()) {
+      for (const VPUser *U : V->users()) {
+        auto *UI = dyn_cast<VPRecipeBase>(U);
+        if (!UI || isa<VPHeaderPHIRecipe>(UI))
+          continue;
+
+        // If the user is in the same block, check it comes after R in the
+        // block.
+        if (UI->getParent() == VPBB) {
+          if (RecipeNumbering[UI] < RecipeNumbering[&R]) {
+            errs() << "Use before def!\n";
+            return false;
+          }
+          continue;
+        }
+
+        // Skip blocks outside any region for now and blocks outside
+        // replicate-regions.
+        auto *ParentR = VPBB->getParent();
+        if (!ParentR || !ParentR->isReplicator())
+          continue;
+
+        // For replicators, verify that VPPRedInstPHIRecipe defs are only used
+        // in subsequent blocks.
+        if (isa<VPPredInstPHIRecipe>(&R)) {
+          auto I = BlockNumbering.find(UI->getParent());
+          unsigned BlockNumber = I == BlockNumbering.end() ? std::numeric_limits<unsigned>::max() : I->second;
+          if (BlockNumber < BlockNumbering[ParentR]) {
+            errs() << "Use before def!\n";
+            return false;
+          }
+          continue;
+        }
+
+        // All non-VPPredInstPHIRecipe recipes in the block must be used in
+        // the replicate region only.
+        if (UI->getParent()->getParent() != ParentR) {
+          errs() << "Use before def!\n";
+          return false;
+        }
+      }
+    }
+  }
+  return true;
+}
+
+bool VPlanVerifier::verifyPlanIsValid(const VPlan &Plan) {
+  DenseMap<const VPBlockBase *, unsigned> BlockNumbering;
+  unsigned Cnt = 0;
+  auto Iter = depth_first(
+      VPBlockRecursiveTraversalWrapper<const VPBlockBase *>(Plan.getEntry()));
+  for (const VPBlockBase *VPB : Iter) {
+    BlockNumbering[VPB] = Cnt++;
+    auto *VPBB = dyn_cast<VPBasicBlock>(VPB);
+    if (!VPBB)
+      continue;
+    if (!verifyVPBasicBlock(VPBB, BlockNumbering))
+      return false;
+  }
+
+  const VPRegionBlock *TopRegion = Plan.getVectorLoopRegion();
   const VPBasicBlock *Entry = dyn_cast<VPBasicBlock>(TopRegion->getEntry());
   if (!Entry) {
     errs() << "VPlan entry block is not a VPBasicBlock\n";
@@ -170,22 +248,23 @@ bool VPlanVerifier::verifyPlanIsValid(const VPlan &Plan) {
     return false;
   }
 
-  const VPBasicBlock *Exit = dyn_cast<VPBasicBlock>(TopRegion->getExit());
-  if (!Exit) {
-    errs() << "VPlan exit block is not a VPBasicBlock\n";
+  const VPBasicBlock *Exiting = dyn_cast<VPBasicBlock>(TopRegion->getExiting());
+  if (!Exiting) {
+    errs() << "VPlan exiting block is not a VPBasicBlock\n";
     return false;
   }
 
-  if (Exit->empty()) {
-    errs() << "VPlan vector loop exit must end with BranchOnCount "
-              "VPInstruction but is empty\n";
+  if (Exiting->empty()) {
+    errs() << "VPlan vector loop exiting block must end with BranchOnCount or "
+              "BranchOnCond VPInstruction but is empty\n";
     return false;
   }
 
-  auto *LastInst = dyn_cast<VPInstruction>(std::prev(Exit->end()));
-  if (!LastInst || LastInst->getOpcode() != VPInstruction::BranchOnCount) {
-    errs() << "VPlan vector loop exit must end with BranchOnCount "
-              "VPInstruction\n";
+  auto *LastInst = dyn_cast<VPInstruction>(std::prev(Exiting->end()));
+  if (!LastInst || (LastInst->getOpcode() != VPInstruction::BranchOnCount &&
+                    LastInst->getOpcode() != VPInstruction::BranchOnCond)) {
+    errs() << "VPlan vector loop exit must end with BranchOnCount or "
+              "BranchOnCond VPInstruction\n";
     return false;
   }
 
@@ -197,10 +276,17 @@ bool VPlanVerifier::verifyPlanIsValid(const VPlan &Plan) {
       errs() << "region entry block has predecessors\n";
       return false;
     }
-    if (Region->getExit()->getNumSuccessors() != 0) {
-      errs() << "region exit block has successors\n";
+    if (Region->getExiting()->getNumSuccessors() != 0) {
+      errs() << "region exiting block has successors\n";
       return false;
     }
   }
+
+  for (auto &KV : Plan.getLiveOuts())
+    if (KV.second->getNumOperands() != 1) {
+      errs() << "live outs must have a single operand\n";
+      return false;
+    }
+
   return true;
 }

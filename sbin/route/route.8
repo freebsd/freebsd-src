@@ -28,7 +28,7 @@
 .\"     @(#)route.8	8.3 (Berkeley) 3/19/94
 .\" $FreeBSD$
 .\"
-.Dd December 15, 2021
+.Dd February 26, 2023
 .Dt ROUTE 8
 .Os
 .Sh NAME
@@ -134,7 +134,7 @@ The flush command has the syntax:
 .Bd -ragged -offset indent -compact
 .Nm
 .Op Fl n
-.Cm flush Oc Oo Ar family Oc Op Fl fib Ar number
+.Cm flush Oo Ar family Oc Op Fl fib Ar number
 .Ed
 .Pp
 If the
@@ -228,10 +228,10 @@ is interpreted as
 .Fl host Li 128.32.0.130 ;
 .Fl net Li 128.32
 is interpreted as
-.Li 128.32.0.0;
+.Li 128.32.0.0 ;
 .Fl net Li 128.32.130
 is interpreted as
-.Li 128.32.130.0;
+.Li 128.32.130.0 ;
 and
 .Li 192.168.64/20
 is interpreted as
@@ -265,9 +265,7 @@ if the local or remote addresses change.
 The optional
 .Fl netmask
 modifier is intended
-to achieve the effect of an
-.Tn OSI
-.Tn ESIS
+to achieve the effect of an OSI ESIS
 redirect with the netmask option,
 or to manually add subnet routes with
 netmasks different from that of the implied network interface
@@ -378,9 +376,7 @@ In a
 or
 .Cm add
 command where the destination and gateway are not sufficient to specify
-the route (as in the
-.Tn ISO
-case where several interfaces may have the
+the route (as in the ISO case where several interfaces may have the
 same address), the
 .Fl ifp
 or
@@ -405,6 +401,60 @@ and
 .Dv RTM_CHANGE .
 As such, only the super-user may modify
 the routing tables.
+.Pp
+.Fx provides support for scalable multipath routing.
+It is activated by default, but can be turned off by setting the
+.Va net.route.multipath
+.Xr sysctl 8
+MIB to 0.
+.Pp
+There are multiple route lookup algorithms available.
+They can be configured by setting
+.Va net.route.algo.inet.algo
+for IPv4 and
+.Va net.route.algo.inet6.algo
+for IPv6
+.Xr sysctl 8
+MIBs.
+.Pp
+A list of available algorithms can be obtained by accessing the
+following
+.Xr sysctl 8
+MIBs
+.Va net.route.algo.inet.algo_list
+for IPv4 and
+.Va net.route.algo.inet6.algo_list
+for IPv6.
+.Pp
+The following algorithms are available:
+.Bl -tag -width radix_lockless
+.It radix
+Base system radix backend.
+.It bsearch
+Lockless binary search in a special IP array, tailored for a small FIB
+with <16 routes.
+This algorithm is only available for IPv4.
+.It radix_lockless
+Lockless immutable radix, re-created on every rtable change,
+tailored for a small FIB with <1000 routes.
+.It dpdk_lpm
+DPDK DIR24-8-based lookups, lockless datastructure, optimized
+for a large FIB.
+In order to use the dpdk_lpm algorithm one or both of the
+following kernel modules must be loaded via
+.Xr loader.conf 5 :
+.Bl -tag -width dpdk_lpm6.ko -compact
+.It dpdk_lpm4.ko
+DPDK implementation for IPv4.
+.It dpdk_lpm6.ko
+DPDK implementation for IPv6.
+.El
+.El
+.Pp
+The algorithms are selected automatically based on the size of the routing
+table of the system.
+They can be changed, but not every algorithm performs best for every
+FIB size.
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES
@@ -480,10 +530,10 @@ same route as the one being changed.
 The next-hop gateway should be reachable through a different route.
 .El
 .Sh SEE ALSO
-.\".Xr esis 4 ,
 .Xr netstat 1 ,
 .Xr netintro 4 ,
 .Xr route 4 ,
+.Xr loader.conf 5 ,
 .Xr arp 8 ,
 .Xr routed 8
 .Sh HISTORY

@@ -86,6 +86,7 @@
 #define	TCPTV_KEEP_IDLE	(120*60*hz)		/* dflt time before probing */
 #define	TCPTV_KEEPINTVL	( 75*hz)		/* default probe interval */
 #define	TCPTV_KEEPCNT	8			/* max probes before drop */
+#define	TCPTV_MAXUNACKTIME	0		/* max time without making progress */
 
 #define TCPTV_FINWAIT2_TIMEOUT (60*hz)         /* FIN_WAIT_2 timeout if no receiver */
 
@@ -126,11 +127,6 @@
  */
 #define TCP_RTT_INVALIDATE (TCP_MAXRXTSHIFT / 4)
 
-#ifdef	TCPTIMERS
-static const char *tcptimers[] =
-    { "REXMT", "PERSIST", "KEEP", "2MSL", "DELACK" };
-#endif
-
 /*
  * Force a time value to be in a certain range.
  */
@@ -144,45 +140,22 @@ static const char *tcptimers[] =
 
 #ifdef _KERNEL
 
-struct xtcp_timer;
-
-struct tcp_timer {
-	struct	callout tt_rexmt;	/* retransmit timer */
-	struct	callout tt_persist;	/* retransmit persistence */
-	struct	callout tt_keep;	/* keepalive */
-	struct	callout tt_2msl;	/* 2*msl TIME_WAIT timer */
-	struct	callout tt_delack;	/* delayed ACK timer */
-	uint32_t	tt_flags;	/* Timers flags */
-	uint32_t	tt_draincnt;	/* Count being drained */
-};
-
-/*
- * Flags for the tt_flags field.
- */
-#define TT_DELACK	0x0001
-#define TT_REXMT	0x0002
-#define TT_PERSIST	0x0004
-#define TT_KEEP		0x0008
-#define TT_2MSL		0x0010
-#define TT_MASK		(TT_DELACK|TT_REXMT|TT_PERSIST|TT_KEEP|TT_2MSL)
-
-/*
- * Suspend flags - used when suspending a timer
- * from ever running again.
- */
-#define TT_DELACK_SUS	0x0100
-#define TT_REXMT_SUS	0x0200
-#define TT_PERSIST_SUS	0x0400
-#define TT_KEEP_SUS	0x0800
-#define TT_2MSL_SUS	0x1000
-
-#define TT_STOPPED	0x00010000
-
 #define	TP_KEEPINIT(tp)	((tp)->t_keepinit ? (tp)->t_keepinit : tcp_keepinit)
 #define	TP_KEEPIDLE(tp)	((tp)->t_keepidle ? (tp)->t_keepidle : tcp_keepidle)
 #define	TP_KEEPINTVL(tp) ((tp)->t_keepintvl ? (tp)->t_keepintvl : tcp_keepintvl)
 #define	TP_KEEPCNT(tp)	((tp)->t_keepcnt ? (tp)->t_keepcnt : tcp_keepcnt)
 #define	TP_MAXIDLE(tp)	(TP_KEEPCNT(tp) * TP_KEEPINTVL(tp))
+#define	TP_MAXUNACKTIME(tp)	\
+    ((tp)->t_maxunacktime ? (tp)->t_maxunacktime : tcp_maxunacktime)
+
+/*
+ * Obtain the time until the restransmit timer should fire.
+ * This macro ensures the restransmit timer fires at the earlier of the
+ * t_rxtcur value or the time the maxunacktime would be exceeded.
+ */
+#define	TP_RXTCUR(tp)							\
+    ((TP_MAXUNACKTIME(tp) == 0 || tp->t_acktime == 0) ? tp->t_rxtcur :	\
+    max(1, min(tp->t_rxtcur, tp->t_acktime + TP_MAXUNACKTIME(tp) - ticks)))
 
 extern int tcp_persmin;			/* minimum persist interval */
 extern int tcp_persmax;			/* maximum persist interval */
@@ -191,6 +164,7 @@ extern int tcp_keepidle;		/* time before keepalive probes begin */
 extern int tcp_keepintvl;		/* time between keepalive probes */
 extern int tcp_keepcnt;			/* number of keepalives */
 extern int tcp_delacktime;		/* time before sending a delayed ACK */
+extern int tcp_maxunacktime;		/* max time without making progress */
 extern int tcp_maxpersistidle;
 extern int tcp_rexmit_initial;
 extern int tcp_rexmit_min;
@@ -213,17 +187,6 @@ VNET_DECLARE(int, tcp_v6pmtud_blackhole_mss);
 #define V_tcp_v6pmtud_blackhole_mss	VNET(tcp_v6pmtud_blackhole_mss)
 VNET_DECLARE(int, tcp_msl);
 #define V_tcp_msl			VNET(tcp_msl)
-
-void tcp_inpinfo_lock_del(struct inpcb *inp, struct tcpcb *tp);
-
-void	tcp_timer_init(void);
-void	tcp_timer_2msl(void *xtp);
-struct tcptw *
-	tcp_tw_2msl_scan(int reuse);	/* XXX temporary? */
-void	tcp_timer_keep(void *xtp);
-void	tcp_timer_persist(void *xtp);
-void	tcp_timer_rexmt(void *xtp);
-void	tcp_timer_delack(void *xtp);
 
 #endif /* _KERNEL */
 

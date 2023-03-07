@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
 #include <net/if_llatbl.h>
@@ -220,7 +221,7 @@ toe_listen_start(struct inpcb *inp, void *arg)
 	KASSERT(inp->inp_pcbinfo == &V_tcbinfo,
 	    ("%s: inp is not a TCP inp", __func__));
 
-	if (inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT))
+	if (inp->inp_flags & INP_DROPPED)
 		return;
 
 	tp = intotcpcb(inp);
@@ -239,7 +240,7 @@ toe_listen_start(struct inpcb *inp, void *arg)
 static void
 toe_listen_start_event(void *arg __unused, struct tcpcb *tp)
 {
-	struct inpcb *inp = tp->t_inpcb;
+	struct inpcb *inp = tptoinpcb(tp);
 
 	INP_WLOCK_ASSERT(inp);
 	KASSERT(tp->t_state == TCPS_LISTEN,
@@ -253,7 +254,7 @@ toe_listen_stop_event(void *arg __unused, struct tcpcb *tp)
 {
 	struct toedev *tod;
 #ifdef INVARIANTS
-	struct inpcb *inp = tp->t_inpcb;
+	struct inpcb *inp = tptoinpcb(tp);
 #endif
 
 	INP_WLOCK_ASSERT(inp);
@@ -322,7 +323,7 @@ register_toedev(struct toedev *tod)
 	registered_toedevs++;
 	mtx_unlock(&toedev_lock);
 
-	inp_apply_all(toe_listen_start, tod);
+	inp_apply_all(&V_tcbinfo, toe_listen_start, tod);
 
 	return (0);
 }
@@ -386,6 +387,7 @@ int
 toe_4tuple_check(struct in_conninfo *inc, struct tcphdr *th, struct ifnet *ifp)
 {
 	struct inpcb *inp;
+	struct tcpcb *tp;
 
 	if (inc->inc_flags & INC_ISIPV6) {
 		inp = in6_pcblookup(&V_tcbinfo, &inc->inc6_faddr,
@@ -398,7 +400,8 @@ toe_4tuple_check(struct in_conninfo *inc, struct tcphdr *th, struct ifnet *ifp)
 	if (inp != NULL) {
 		INP_RLOCK_ASSERT(inp);
 
-		if ((inp->inp_flags & INP_TIMEWAIT) && th != NULL) {
+		tp = intotcpcb(inp);
+		if (tp->t_state == TCPS_TIME_WAIT && th != NULL) {
 			if (!tcp_twcheck(inp, NULL, th, NULL, 0))
 				return (EADDRINUSE);
 		} else {

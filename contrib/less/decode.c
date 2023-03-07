@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2021  Mark Nudelman
+ * Copyright (C) 1984-2022  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -206,7 +206,7 @@ static unsigned char edittable[] =
 	ESC,SK(SK_DELETE),0,            EC_W_DELETE,    /* ESC DELETE */
 	SK(SK_CTL_DELETE),0,            EC_W_DELETE,    /* CTRL-DELETE */
 	SK(SK_CTL_BACKSPACE),0,         EC_W_BACKSPACE, /* CTRL-BACKSPACE */
-	ESC,'\b',0,                     EC_W_BACKSPACE, /* ESC BACKSPACE */
+	ESC,SK(SK_BACKSPACE),0,         EC_W_BACKSPACE, /* ESC BACKSPACE */
 	ESC,'0',0,                      EC_HOME,        /* ESC 0 */
 	SK(SK_HOME),0,                  EC_HOME,        /* HOME */
 	ESC,'$',0,                      EC_END,         /* ESC $ */
@@ -268,7 +268,7 @@ expand_special_keys(table, len)
 			}
 			/*
 			 * After SK_SPECIAL_KEY, next byte is the type
-			 * of special key (one of the SK_* contants),
+			 * of special key (one of the SK_* constants),
 			 * and the byte after that is the number of bytes,
 			 * N, reserved by the abbreviation (including the
 			 * SK_SPECIAL_KEY and key type bytes).
@@ -785,6 +785,7 @@ new_lesskey(buf, len, sysvar)
 	int sysvar;
 {
 	char *p;
+	char *end;
 	int c;
 	int n;
 
@@ -797,6 +798,7 @@ new_lesskey(buf, len, sysvar)
 	    buf[len-1] != C2_END_LESSKEY_MAGIC)
 		return (-1);
 	p = buf + 4;
+	end = buf + len;
 	for (;;)
 	{
 		c = *p++;
@@ -804,16 +806,22 @@ new_lesskey(buf, len, sysvar)
 		{
 		case CMD_SECTION:
 			n = gint(&p);
+			if (n < 0 || p+n >= end)
+				return (-1);
 			add_fcmd_table(p, n);
 			p += n;
 			break;
 		case EDIT_SECTION:
 			n = gint(&p);
+			if (n < 0 || p+n >= end)
+				return (-1);
 			add_ecmd_table(p, n);
 			p += n;
 			break;
 		case VAR_SECTION:
 			n = gint(&p);
+			if (n < 0 || p+n >= end)
+				return (-1);
 			add_var_table((sysvar) ? 
 				&list_sysvar_tables : &list_var_tables, p, n);
 			p += n;
@@ -891,7 +899,8 @@ lesskey(filename, sysvar)
 	 * Figure out if this is an old-style (before version 241)
 	 * or new-style lesskey file format.
 	 */
-	if (buf[0] != C0_LESSKEY_MAGIC || buf[1] != C1_LESSKEY_MAGIC ||
+	if (len < 4 || 
+	    buf[0] != C0_LESSKEY_MAGIC || buf[1] != C1_LESSKEY_MAGIC ||
 	    buf[2] != C2_LESSKEY_MAGIC || buf[3] != C3_LESSKEY_MAGIC)
 		return (old_lesskey(buf, (int)len));
 	return (new_lesskey(buf, (int)len, sysvar));
@@ -943,9 +952,20 @@ add_hometable(call_lesskey, envname, def_filename, sysvar)
 		filename = save(def_filename);
 	else /* def_filename is just basename */
 	{
+		/* Remove first char (normally a dot) unless stored in $HOME. */
 		char *xdg = lgetenv("XDG_CONFIG_HOME");
 		if (!isnullenv(xdg))
-			filename = dirfile(xdg, def_filename+1, 1);
+			filename = dirfile(xdg, &def_filename[1], 1);
+		if (filename == NULL)
+		{
+			char *home = lgetenv("HOME");
+			if (!isnullenv(home))
+			{
+				char *cfg_dir = dirfile(home, ".config", 0);
+				filename = dirfile(cfg_dir, &def_filename[1], 1);
+				free(cfg_dir);
+			}
+		}
 		if (filename == NULL)
 			filename = homefile(def_filename);
 	}

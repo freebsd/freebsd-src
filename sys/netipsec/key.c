@@ -592,6 +592,7 @@ static struct supported_ealgs {
 	{ SADB_X_EALG_AESCTR,		&enc_xform_aes_icm },
 	{ SADB_X_EALG_AESGCM16,		&enc_xform_aes_nist_gcm },
 	{ SADB_X_EALG_AESGMAC,		&enc_xform_aes_nist_gmac },
+	{ SADB_X_EALG_CHACHA20POLY1305,	&enc_xform_chacha20_poly1305 },
 };
 
 static struct supported_aalgs {
@@ -606,6 +607,7 @@ static struct supported_aalgs {
 	{ SADB_X_AALG_AES128GMAC,	&auth_hash_nist_gmac_aes_128 },
 	{ SADB_X_AALG_AES192GMAC,	&auth_hash_nist_gmac_aes_192 },
 	{ SADB_X_AALG_AES256GMAC,	&auth_hash_nist_gmac_aes_256 },
+	{ SADB_X_AALG_CHACHA20POLY1305,	&auth_hash_poly1305 },
 };
 
 static struct supported_calgs {
@@ -804,8 +806,35 @@ int
 key_havesp(u_int dir)
 {
 
-	return (dir == IPSEC_DIR_INBOUND || dir == IPSEC_DIR_OUTBOUND ?
-		TAILQ_FIRST(&V_sptree[dir]) != NULL : 1);
+	IPSEC_ASSERT(dir == IPSEC_DIR_INBOUND || dir == IPSEC_DIR_OUTBOUND,
+		("invalid direction %u", dir));
+	return (TAILQ_FIRST(&V_sptree[dir]) != NULL);
+}
+
+int
+key_havesp_any(void)
+{
+
+	return (V_spd_size != 0);
+}
+
+/*
+ * Allocate a single mbuf with a buffer of the desired length.  The buffer is
+ * pre-zeroed to help ensure that uninitialized pad bytes are not leaked.
+ */
+static struct mbuf *
+key_mget(u_int len)
+{
+	struct mbuf *m;
+
+	KASSERT(len <= MCLBYTES,
+	    ("%s: invalid buffer length %u", __func__, len));
+
+	m = m_get2(len, M_NOWAIT, MT_DATA, M_PKTHDR);
+	if (m == NULL)
+		return (NULL);
+	memset(mtod(m, void *), 0, len);
+	return (m);
 }
 
 /* %%% IPsec policy management */
@@ -888,6 +917,7 @@ key_allocsp(struct secpolicyindex *spidx, u_int dir)
 	struct spdcache_entry *entry, *lastentry, *tmpentry;
 	struct secpolicy *sp;
 	uint32_t hashv;
+	time_t ts;
 	int nb_entries;
 
 	if (!SPDCACHE_ACTIVE()) {
@@ -940,7 +970,9 @@ key_allocsp(struct secpolicyindex *spidx, u_int dir)
 
 out:
 	if (sp != NULL) {	/* found a SPD entry */
-		sp->lastused = time_second;
+		ts = time_second;
+		if (__predict_false(sp->lastused != ts))
+			sp->lastused = ts;
 		KEYDBG(IPSEC_STAMP,
 		    printf("%s: return SP(%p)\n", __func__, sp));
 		KEYDBG(IPSEC_DATA, kdebug_secpolicy(sp));
@@ -2343,14 +2375,8 @@ key_spddelete2(struct socket *so, struct mbuf *m,
 	/* create new sadb_msg to reply. */
 	len = PFKEY_ALIGN8(sizeof(struct sadb_msg));
 
-	MGETHDR(n, M_NOWAIT, MT_DATA);
-	if (n && len > MHLEN) {
-		if (!(MCLGET(n, M_NOWAIT))) {
-			m_freem(n);
-			n = NULL;
-		}
-	}
-	if (!n)
+	n = key_mget(len);
+	if (n == NULL)
 		return key_senderror(so, m, ENOBUFS);
 
 	n->m_len = len;
@@ -3782,14 +3808,8 @@ key_setsadbmsg(u_int8_t type, u_int16_t tlen, u_int8_t satype, u_int32_t seq,
 	len = PFKEY_ALIGN8(sizeof(struct sadb_msg));
 	if (len > MCLBYTES)
 		return NULL;
-	MGETHDR(m, M_NOWAIT, MT_DATA);
-	if (m && len > MHLEN) {
-		if (!(MCLGET(m, M_NOWAIT))) {
-			m_freem(m);
-			m = NULL;
-		}
-	}
-	if (!m)
+	m = key_mget(len);
+	if (m == NULL)
 		return NULL;
 	m->m_pkthdr.len = m->m_len = len;
 	m->m_next = NULL;
@@ -4969,14 +4989,8 @@ key_getspi(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	len = PFKEY_ALIGN8(sizeof(struct sadb_msg)) +
 	    PFKEY_ALIGN8(sizeof(struct sadb_sa));
 
-	MGETHDR(n, M_NOWAIT, MT_DATA);
-	if (len > MHLEN) {
-		if (!(MCLGET(n, M_NOWAIT))) {
-			m_freem(n);
-			n = NULL;
-		}
-	}
-	if (!n) {
+	n = key_mget(len);
+	if (n == NULL) {
 		error = ENOBUFS;
 		goto fail;
 	}
@@ -7191,14 +7205,8 @@ key_register(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	if (len > MCLBYTES)
 		return key_senderror(so, m, ENOBUFS);
 
-	MGETHDR(n, M_NOWAIT, MT_DATA);
-	if (n != NULL && len > MHLEN) {
-		if (!(MCLGET(n, M_NOWAIT))) {
-			m_freem(n);
-			n = NULL;
-		}
-	}
-	if (!n)
+	n = key_mget(len);
+	if (n == NULL)
 		return key_senderror(so, m, ENOBUFS);
 
 	n->m_pkthdr.len = n->m_len = len;
@@ -7829,14 +7837,8 @@ key_parse(struct mbuf *m, struct socket *so)
 	if (m->m_next) {
 		struct mbuf *n;
 
-		MGETHDR(n, M_NOWAIT, MT_DATA);
-		if (n && m->m_pkthdr.len > MHLEN) {
-			if (!(MCLGET(n, M_NOWAIT))) {
-				m_free(n);
-				n = NULL;
-			}
-		}
-		if (!n) {
+		n = key_mget(m->m_pkthdr.len);
+		if (n == NULL) {
 			m_freem(m);
 			return ENOBUFS;
 		}

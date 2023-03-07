@@ -29,16 +29,21 @@ options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
 options 	KDTRACE_FRAME		# Ensure frames are compiled in
 options 	VFP			# Floating-point support
 options 	RACCT_DEFAULT_TO_DISABLED # Set kern.racct.enable=0 by default
-options 	INTRNG
 
 # SoC support
 options 	SOC_ALLWINNER_A64
 options 	SOC_ALLWINNER_H5
-options 	SOC_CAVM_THUNDERX
-options 	SOC_HISI_HI6220
+options 	SOC_ALLWINNER_H6
 options 	SOC_BRCM_BCM2837
 options 	SOC_BRCM_BCM2838
+options 	SOC_BRCM_NS2
+options 	SOC_CAVM_THUNDERX
+options 	SOC_FREESCALE_IMX8
+options 	SOC_HISI_HI6220
+options 	SOC_INTEL_STRATIX10
 options 	SOC_MARVELL_8K
+options 	SOC_NVIDIA_TEGRA210
+options 	SOC_NXP_LS
 options 	SOC_ROCKCHIP_RK3328
 options 	SOC_ROCKCHIP_RK3399
 options 	SOC_XILINX_ZYNQ
@@ -62,6 +67,9 @@ device		virtio_pci
 device		virtio_mmio
 device		virtio_blk
 device		vtnet
+
+# Microsoft Hyper-V
+device		hyperv
 
 # CPU frequency control
 device		cpufreq
@@ -177,7 +185,7 @@ device		aw_pwm
 device		vt_efifb
 
 # EVDEV support
-options		EVDEV_SUPPORT		# evdev support in legacy drivers
+options 	EVDEV_SUPPORT		# evdev support in legacy drivers
 device		aw_cir
 
 # Pseudo devices.
@@ -211,7 +219,7 @@ options 	CAMDEBUG
 options 	CAM_DEBUG_FLAGS=(CAM_DEBUG_INFO|CAM_DEBUG_PROBE|CAM_DEBUG_PERIPH)
 
 # bring in camified MMC too
-options		MMCCAM
+options 	MMCCAM
 
 # arm64 doesn't support inb/outb, so disable chipset probing which needs it
 nooptions 	PPC_PROBE_CHIPSET
@@ -237,7 +245,7 @@ options 	COMPAT_FREEBSD32	# Compatible with FreeBSD/arm
 #####################################################################
 # ZFS support
 
-options		ZFS
+options 	ZFS
 
 #
 # HID-over-I2C support

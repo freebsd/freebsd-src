@@ -126,15 +126,15 @@ static struct db_command db_cmds[] = {
 	DB_CMD("set",		db_set_cmd,		CS_OWN|DB_CMD_MEMSAFE),
 	DB_CMD("write",		db_write_cmd,		CS_MORE|CS_SET_DOT),
 	DB_CMD("w",		db_write_cmd,		CS_MORE|CS_SET_DOT),
-	DB_CMD("delete",	db_delete_cmd,		DB_CMD_MEMSAFE),
-	DB_CMD("d",		db_delete_cmd,		DB_CMD_MEMSAFE),
+	DB_CMD("delete",	db_delete_cmd,		0),
+	DB_CMD("d",		db_delete_cmd,		0),
 	DB_CMD("dump",		db_dump,		DB_CMD_MEMSAFE),
-	DB_CMD("break",		db_breakpoint_cmd,	DB_CMD_MEMSAFE),
-	DB_CMD("b",		db_breakpoint_cmd,	DB_CMD_MEMSAFE),
-	DB_CMD("dwatch",	db_deletewatch_cmd,	DB_CMD_MEMSAFE),
-	DB_CMD("watch",		db_watchpoint_cmd,	CS_MORE|DB_CMD_MEMSAFE),
-	DB_CMD("dhwatch",	db_deletehwatch_cmd,	DB_CMD_MEMSAFE),
-	DB_CMD("hwatch",	db_hwatchpoint_cmd,	DB_CMD_MEMSAFE),
+	DB_CMD("break",		db_breakpoint_cmd,	0),
+	DB_CMD("b",		db_breakpoint_cmd,	0),
+	DB_CMD("dwatch",	db_deletewatch_cmd,	0),
+	DB_CMD("watch",		db_watchpoint_cmd,	CS_MORE),
+	DB_CMD("dhwatch",	db_deletehwatch_cmd,	0),
+	DB_CMD("hwatch",	db_hwatchpoint_cmd,	0),
 	DB_CMD("step",		db_single_step_cmd,	DB_CMD_MEMSAFE),
 	DB_CMD("s",		db_single_step_cmd,	DB_CMD_MEMSAFE),
 	DB_CMD("continue",	db_continue_cmd,	DB_CMD_MEMSAFE),
@@ -745,7 +745,7 @@ out:
 
 static void
 db_reset(db_expr_t addr, bool have_addr, db_expr_t count __unused,
-    char *modif __unused)
+    char *modif)
 {
 	int delay, loop;
 
@@ -768,6 +768,18 @@ db_reset(db_expr_t addr, bool have_addr, db_expr_t count __unused,
 			if (cncheckc() != -1)
 				return;
 		}
+	}
+
+	/*
+	 * Conditionally try the standard reboot path, so any registered
+	 * shutdown/reset handlers have a chance to run first. Some platforms
+	 * may not support the machine-dependent mechanism used by cpu_reset()
+	 * and rely on some other non-standard mechanism to perform the reset.
+	 * For example, the BCM2835 watchdog driver or gpio-poweroff driver.
+	 */
+	if (modif[0] != 's') {
+		kern_reboot(RB_NOSYNC);
+		/* NOTREACHED */
 	}
 
 	cpu_reset();

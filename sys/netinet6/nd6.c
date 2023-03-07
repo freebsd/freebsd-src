@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_dl.h>
+#include <net/if_private.h>
 #include <net/if_types.h>
 #include <net/route.h>
 #include <net/route/route_ctl.h>
@@ -284,8 +285,8 @@ nd6_ifattach(struct ifnet *ifp)
 	 * default regardless of the V_ip6_auto_linklocal configuration to
 	 * give a reasonable default behavior.
 	 */
-	if ((V_ip6_auto_linklocal && ifp->if_type != IFT_BRIDGE) ||
-	    (ifp->if_flags & IFF_LOOPBACK))
+	if ((V_ip6_auto_linklocal && ifp->if_type != IFT_BRIDGE &&
+	    ifp->if_type != IFT_WIREGUARD) || (ifp->if_flags & IFF_LOOPBACK))
 		nd->flags |= ND6_IFF_AUTO_LINKLOCAL;
 	/*
 	 * A loopback interface does not need to accept RTADV.
@@ -2369,7 +2370,6 @@ nd6_resolve_slow(struct ifnet *ifp, int family, int flags, struct mbuf *m,
 	struct in6_addr *psrc, src;
 	int send_ns, ll_len;
 	char *lladdr;
-	size_t dropped;
 
 	NET_EPOCH_ASSERT();
 
@@ -2436,8 +2436,12 @@ nd6_resolve_slow(struct ifnet *ifp, int family, int flags, struct mbuf *m,
 	 * packet queue in the mbuf.  When it exceeds nd6_maxqueuelen,
 	 * the oldest packet in the queue will be removed.
 	 */
-	dropped = lltable_append_entry_queue(lle, m, V_nd6_maxqueuelen);
-	ICMP6STAT_ADD(icp6s_dropped, dropped);
+	if (m != NULL) {
+		size_t dropped;
+
+		dropped = lltable_append_entry_queue(lle, m, V_nd6_maxqueuelen);
+		ICMP6STAT_ADD(icp6s_dropped, dropped);
+	}
 
 	/*
 	 * If there has been no NS for the neighbor after entering the

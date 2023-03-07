@@ -396,7 +396,8 @@ tests = ['zdb_001_neg', 'zfs_001_neg', 'zfs_allow_001_neg',
     'zpool_history_001_neg', 'zpool_offline_001_neg', 'zpool_online_001_neg',
     'zpool_remove_001_neg', 'zpool_scrub_001_neg', 'zpool_set_001_neg',
     'zpool_status_001_neg', 'zpool_upgrade_001_neg', 'arcstat_001_pos',
-    'arc_summary_001_pos', 'arc_summary_002_neg', 'zpool_wait_privilege']
+    'arc_summary_001_pos', 'arc_summary_002_neg', 'zpool_wait_privilege',
+    'zilstat_001_pos']
 user =
 tags = ['functional', 'cli_user', 'misc']
 
@@ -549,6 +550,7 @@ tests = ['recv_dedup', 'recv_dedup_encrypted_zvol', 'rsend_001_pos',
     'rsend_014_pos', 'rsend_016_neg', 'send-c_verify_contents',
     'send-c_volume', 'send-c_zstreamdump', 'send-c_recv_dedup',
     'send-L_toggle', 'send_encrypted_hierarchy', 'send_encrypted_props',
+    'send_encrypted_freeobjects',
     'send_encrypted_truncated_files', 'send_freeobjects', 'send_holds',
     'send_mixed_raw', 'send-wR_encrypted_zvol', 'send_partial_dataset',
     'send_invalid']
@@ -623,3 +625,9 @@ tags = ['functional', 'zvol', 'zvol_swap']
 [tests/functional/zpool_influxdb]
 tests = ['zpool_influxdb']
 tags = ['functional', 'zpool_influxdb']
+
+[tests/functional/pyzfs]
+tests = ['pyzfs_unittest']
+pre =
+post =
+tags = ['functional', 'pyzfs']

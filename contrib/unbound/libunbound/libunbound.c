@@ -305,11 +305,31 @@ ub_ctx_delete(struct ub_ctx* ctx)
 	int do_stop = 1;
 	if(!ctx) return;
 
+	/* if the delete is called but it has forked, and before the fork
+	 * the context was finalized, then the bg worker is not stopped
+	 * from here. There is one worker, but two contexts that refer to
+	 * it and only one should clean up, the one with getpid == pipe_pid.*/
+	if(ctx->created_bg && ctx->pipe_pid != getpid()) {
+		do_stop = 0;
+#ifndef USE_WINSOCK
+		/* Stop events from getting deregistered, if the backend is
+		 * epoll, the epoll fd is the same as the other process.
+		 * That process should deregister them. */
+		if(ctx->qq_pipe->listen_com)
+			ctx->qq_pipe->listen_com->event_added = 0;
+		if(ctx->qq_pipe->res_com)
+			ctx->qq_pipe->res_com->event_added = 0;
+		if(ctx->rr_pipe->listen_com)
+			ctx->rr_pipe->listen_com->event_added = 0;
+		if(ctx->rr_pipe->res_com)
+			ctx->rr_pipe->res_com->event_added = 0;
+#endif
+	}
 	/* see if bg thread is created and if threads have been killed */
 	/* no locks, because those may be held by terminated threads */
 	/* for processes the read pipe is closed and we see that on read */
 #ifdef HAVE_PTHREAD
-	if(ctx->created_bg && ctx->dothread) {
+	if(ctx->created_bg && ctx->dothread && do_stop) {
 		if(pthread_kill(ctx->bg_tid, 0) == ESRCH) {
 			/* thread has been killed */
 			do_stop = 0;
@@ -318,6 +338,23 @@ ub_ctx_delete(struct ub_ctx* ctx)
 #endif /* HAVE_PTHREAD */
 	if(do_stop)
 		ub_stop_bg(ctx);
+	if(ctx->created_bg && ctx->pipe_pid != getpid() && ctx->thread_worker) {
+		/* This delete is happening from a different process. Delete
+		 * the thread worker from this process memory space. The
+		 * thread is not there to do so, so it is freed here. */
+		struct ub_event_base* evbase = comm_base_internal(
+			ctx->thread_worker->base);
+		libworker_delete_event(ctx->thread_worker);
+		ctx->thread_worker = NULL;
+#ifdef USE_MINI_EVENT
+		ub_event_base_free(evbase);
+#else
+		/* cannot event_base_free, because the epoll_fd cleanup
+		 * in libevent could stop the original event_base in the
+		 * other process from working. */
+		free(evbase);
+#endif
+	}
 	libworker_delete_event(ctx->event_worker);
 
 	modstack_desetup(&ctx->mods, ctx->env);
@@ -951,7 +988,7 @@ ub_ctx_set_fwd(struct ub_ctx* ctx, const char* addr)
 	lock_basic_unlock(&ctx->cfglock);
 
 	/* check syntax for addr */
-	if(!extstrtoaddr(addr, &storage, &stlen)) {
+	if(!extstrtoaddr(addr, &storage, &stlen, UNBOUND_DNS_PORT)) {
 		errno=EINVAL;
 		return UB_SYNTAX;
 	}
@@ -1031,7 +1068,7 @@ int ub_ctx_set_stub(struct ub_ctx* ctx, const char* zone, const char* addr,
 	if(addr) {
 		struct sockaddr_storage storage;
 		socklen_t stlen;
-		if(!extstrtoaddr(addr, &storage, &stlen)) {
+		if(!extstrtoaddr(addr, &storage, &stlen, UNBOUND_DNS_PORT)) {
 			errno=EINVAL;
 			return UB_SYNTAX;
 		}

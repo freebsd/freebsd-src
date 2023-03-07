@@ -106,8 +106,7 @@ bool MetadataVerifier::verifyKernelArgs(msgpack::DocNode &Node) {
     return false;
   if (!verifyIntegerEntry(ArgsMap, ".offset", true))
     return false;
-  if (!verifyScalarEntry(ArgsMap, ".value_kind", true,
-                         msgpack::Type::String,
+  if (!verifyScalarEntry(ArgsMap, ".value_kind", true, msgpack::Type::String,
                          [](msgpack::DocNode &SNode) {
                            return StringSwitch<bool>(SNode.getString())
                                .Case("by_value", true)
@@ -133,6 +132,7 @@ bool MetadataVerifier::verifyKernelArgs(msgpack::DocNode &Node) {
                                .Case("hidden_none", true)
                                .Case("hidden_printf_buffer", true)
                                .Case("hidden_hostcall_buffer", true)
+                               .Case("hidden_heap_v1", true)
                                .Case("hidden_default_queue", true)
                                .Case("hidden_completion_action", true)
                                .Case("hidden_multigrid_sync_arg", true)
@@ -259,6 +259,9 @@ bool MetadataVerifier::verifyKernel(msgpack::DocNode &Node) {
   if (!verifyIntegerEntry(KernelMap, ".group_segment_fixed_size", true))
     return false;
   if (!verifyIntegerEntry(KernelMap, ".private_segment_fixed_size", true))
+    return false;
+  if (!verifyScalarEntry(KernelMap, ".uses_dynamic_stack", false,
+                         msgpack::Type::Boolean))
     return false;
   if (!verifyIntegerEntry(KernelMap, ".kernarg_segment_align", true))
     return false;

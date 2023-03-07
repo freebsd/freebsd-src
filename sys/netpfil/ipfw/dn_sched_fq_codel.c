@@ -194,6 +194,9 @@ codel_enqueue(struct fq_codel_flow *q, struct mbuf *m, struct fq_codel_si *si)
 	*(aqm_time_t *)(mtag + 1) = AQM_UNOW;
 	m_tag_prepend(m, mtag);
 
+	if (m->m_pkthdr.rcvif != NULL)
+		m_rcvif_serialize(m);
+
 	mq_append(&q->mq, m);
 	fq_update_stats(q, si, len, 0);
 	return 0;

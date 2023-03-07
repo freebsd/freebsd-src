@@ -11,5 +11,10 @@ device		pl061			# Arm PL061 GPIO controller
 # Serial (COM) ports
 device		pl011
 
+# Firmware
+device		scmi			# System Control Management Interface
+
+device		arm_doorbell		# ARM Message Handling Unit (MHU)
+
 options 	FDT
 device		acpi

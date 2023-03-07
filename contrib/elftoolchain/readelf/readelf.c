@@ -3263,8 +3263,7 @@ dump_symtab(struct readelf *re, int i)
 		return;
 	if (!get_ent_count(s, &len))
 		return;
-	printf("Symbol table (%s)", s->name);
-	printf(" contains %d entries:\n", len);
+	printf("\nSymbol table '%s' contains %d entries:\n", s->name, len);
 	printf("%7s%9s%14s%5s%8s%6s%9s%5s\n", "Num:", "Value", "Size", "Type",
 	    "Bind", "Vis", "Ndx", "Name");
 
@@ -4939,8 +4938,10 @@ dump_dwarf_line(struct readelf *re)
 			return;
 		}
 		if (dwarf_attrval_unsigned(die, DW_AT_stmt_list, &offset,
-		    &de) != DW_DLV_OK)
+		    &de) != DW_DLV_OK) {
+			dwarf_dealloc(re->dbg, die, DW_DLA_DIE);
 			continue;
+		}
 
 		length = re->dw_read(d, &offset, 4);
 		if (length == 0xffffffff) {
@@ -4951,6 +4952,7 @@ dump_dwarf_line(struct readelf *re)
 
 		if (length > d->d_size - offset) {
 			warnx("invalid .dwarf_line section");
+			dwarf_dealloc(re->dbg, die, DW_DLA_DIE);
 			continue;
 		}
 
@@ -5148,9 +5150,8 @@ dump_dwarf_line(struct readelf *re)
 				    (uintmax_t) line);
 				p++;
 			}
-
-
 		}
+		dwarf_dealloc(re->dbg, die, DW_DLA_DIE);
 	}
 	if (ret == DW_DLV_ERROR)
 		warnx("dwarf_next_cu_header: %s", dwarf_errmsg(de));
@@ -5193,9 +5194,9 @@ dump_dwarf_line_decoded(struct readelf *re)
 		printf("%-37s %11s   %s\n", "Filename", "Line Number",
 		    "Starting Address");
 		if (dwarf_srclines(die, &linebuf, &linecount, &de) != DW_DLV_OK)
-			continue;
+			goto done;
 		if (dwarf_srcfiles(die, &srcfiles, &srccount, &de) != DW_DLV_OK)
-			continue;
+			goto done;
 		for (i = 0; i < linecount; i++) {
 			ln = linebuf[i];
 			if (dwarf_line_srcfileno(ln, &fn, &de) != DW_DLV_OK)
@@ -5209,6 +5210,8 @@ dump_dwarf_line_decoded(struct readelf *re)
 			    (uintmax_t) lineaddr);
 		}
 		putchar('\n');
+done:
+		dwarf_dealloc(re->dbg, die, DW_DLA_DIE);
 	}
 }
 
@@ -5841,7 +5844,8 @@ dump_dwarf_ranges_foreach(struct readelf *re, Dwarf_Die die, Dwarf_Addr base)
 	Dwarf_Addr base0;
 	Dwarf_Half attr;
 	Dwarf_Signed attr_count, cnt;
-	Dwarf_Unsigned off, bytecnt;
+	Dwarf_Unsigned bytecnt;
+	Dwarf_Off off;
 	int i, j, ret;
 
 	if ((ret = dwarf_attrlist(die, &attr_list, &attr_count, &de)) !=
@@ -5858,11 +5862,12 @@ dump_dwarf_ranges_foreach(struct readelf *re, Dwarf_Die die, Dwarf_Addr base)
 		}
 		if (attr != DW_AT_ranges)
 			continue;
-		if (dwarf_formudata(attr_list[i], &off, &de) != DW_DLV_OK) {
-			warnx("dwarf_formudata failed: %s", dwarf_errmsg(de));
+		if (dwarf_global_formref(attr_list[i], &off, &de) != DW_DLV_OK) {
+			warnx("dwarf_global_formref failed: %s",
+			    dwarf_errmsg(de));
 			continue;
 		}
-		if (dwarf_get_ranges(re->dbg, (Dwarf_Off) off, &ranges, &cnt,
+		if (dwarf_get_ranges(re->dbg, off, &ranges, &cnt,
 		    &bytecnt, &de) != DW_DLV_OK)
 			continue;
 		base0 = base;
@@ -5901,6 +5906,8 @@ cont_search:
 		warnx("dwarf_siblingof: %s", dwarf_errmsg(de));
 	else if (ret == DW_DLV_OK)
 		dump_dwarf_ranges_foreach(re, ret_die, base);
+
+	dwarf_dealloc(re->dbg, die, DW_DLA_DIE);
 }
 
 static void
@@ -6205,7 +6212,7 @@ dump_dwarf_frame_section(struct readelf *re, struct section *s, int alt)
 	Dwarf_Small cie_version;
 	Dwarf_Ptr fde_addr, fde_inst, cie_inst;
 	char *cie_aug, c;
-	int i, eh_frame;
+	int i, ret, eh_frame;
 	Dwarf_Error de;
 
 	printf("\nThe section %s contains:\n\n", s->name);
@@ -6220,10 +6227,13 @@ dump_dwarf_frame_section(struct readelf *re, struct section *s, int alt)
 		}
 	} else if (!strcmp(s->name, ".eh_frame")) {
 		eh_frame = 1;
-		if (dwarf_get_fde_list_eh(re->dbg, &cie_list, &cie_count,
-		    &fde_list, &fde_count, &de) != DW_DLV_OK) {
-			warnx("dwarf_get_fde_list_eh failed: %s",
-			    dwarf_errmsg(de));
+		ret = dwarf_get_fde_list_eh(re->dbg, &cie_list, &cie_count,
+		    &fde_list, &fde_count, &de);
+		if (ret != DW_DLV_OK) {
+			if (ret == DW_DLV_ERROR) {
+				warnx("dwarf_get_fde_list_eh failed: %s",
+				    dwarf_errmsg(de));
+			}
 			return;
 		}
 	} else

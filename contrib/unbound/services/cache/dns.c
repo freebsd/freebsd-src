@@ -404,6 +404,9 @@ cache_fill_missing(struct module_env* env, uint16_t qclass,
 	struct ub_packed_rrset_key* akey;
 	time_t now = *env->now;
 	for(ns = dp->nslist; ns; ns = ns->next) {
+		if(ns->cache_lookup_count > ITERATOR_NAME_CACHELOOKUP_MAX)
+			continue;
+		ns->cache_lookup_count++;
 		akey = rrset_cache_lookup(env->rrset_cache, ns->name, 
 			ns->namelen, LDNS_RR_TYPE_A, qclass, 0, now, 0);
 		if(akey) {
@@ -633,6 +636,14 @@ tomsg(struct module_env* env, struct query_info* q, struct reply_info* r,
 				r->serve_expired_ttl < now) {
 				return NULL;
 			}
+			/* Ignore expired failure answers */
+			if(FLAGS_GET_RCODE(r->flags) !=
+				LDNS_RCODE_NOERROR &&
+				FLAGS_GET_RCODE(r->flags) !=
+				LDNS_RCODE_NXDOMAIN &&
+				FLAGS_GET_RCODE(r->flags) !=
+				LDNS_RCODE_YXDOMAIN)
+				return 0;
 		} else {
 			return NULL;
 		}

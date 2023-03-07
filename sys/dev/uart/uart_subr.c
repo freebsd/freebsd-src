@@ -54,9 +54,6 @@ __FBSDID("$FreeBSD$");
 static struct uart_class *uart_classes[] = {
 	&uart_ns8250_class,
 	&uart_z8530_class,
-#if defined(__arm__)
-	&uart_s3c2410_class,
-#endif
 };
 
 static bus_addr_t

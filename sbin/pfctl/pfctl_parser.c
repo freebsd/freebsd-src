@@ -622,6 +622,8 @@ print_status(struct pfctl_status *s, struct pfctl_syncookies *cookies, int opts)
 		assert(cookies->mode <= PFCTL_SYNCOOKIES_ADAPTIVE);
 		printf("  %-25s %s\n", "mode",
 		    PFCTL_SYNCOOKIES_MODE_NAMES[cookies->mode]);
+		printf("  %-25s %s\n", "active",
+		    s->syncookies_active ? "active" : "inactive");
 	}
 }
 
@@ -772,6 +774,8 @@ print_eth_rule(struct pfctl_eth_rule *r, const char *anchor_call,
 		else
 			printf(" on %s", r->ifname);
 	}
+	if (r->bridge_to[0])
+		printf(" bridge-to %s", r->bridge_to);
 	if (r->proto)
 		printf(" proto 0x%04x", r->proto);
 
@@ -811,6 +815,7 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 	    "anchor", "nat-anchor", "nat-anchor", "binat-anchor",
 	    "binat-anchor", "rdr-anchor", "rdr-anchor" };
 	int	i, opts;
+	char	*p;
 
 	if (verbose)
 		printf("@%d ", r->nr);
@@ -819,9 +824,10 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 	else if (r->action > PF_NORDR)
 		printf("action(%d)", r->action);
 	else if (anchor_call[0]) {
-		if (anchor_call[0] == '_') {
+		p = strrchr(anchor_call, '/');
+		if (p ? p[1] == '_' : anchor_call[0] == '_')
 			printf("%s", anchortypes[r->action]);
-		} else
+		else
 			printf("%s \"%s\"", anchortypes[r->action],
 			    anchor_call);
 	} else {
@@ -1125,7 +1131,8 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 		if (r->rule_flag & PFRULE_REASSEMBLE_TCP)
 			printf(" reassemble tcp");
 
-		printf(" fragment reassemble");
+		printf(" fragment %sreassemble",
+		    r->rule_flag & PFRULE_FRAGMENT_NOREASS ? "no " : "");
 	}
 	i = 0;
 	while (r->label[i][0])

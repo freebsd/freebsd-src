@@ -64,7 +64,7 @@ static void mlx4_en_sysctl_conf(struct mlx4_en_priv *priv);
 static int mlx4_en_low_latency_recv(struct napi_struct *napi)
 {
 	struct mlx4_en_cq *cq = container_of(napi, struct mlx4_en_cq, napi);
-	struct ifnet *dev = cq->dev;
+	if_t dev = cq->dev;
 	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 	struct mlx4_en_rx_ring *rx_ring = priv->rx_ring[cq->ring];
 	int done;
@@ -288,7 +288,7 @@ mlx4_en_filter_find(struct mlx4_en_priv *priv, __be32 src_ip, __be32 dst_ip,
 }
 
 static int
-mlx4_en_filter_rfs(struct ifnet *net_dev, const struct sk_buff *skb,
+mlx4_en_filter_rfs(if_t net_dev, const struct sk_buff *skb,
 		   u16 rxq_index, u32 flow_id)
 {
 	struct mlx4_en_priv *priv = mlx4_netdev_priv(net_dev);
@@ -400,7 +400,7 @@ static void mlx4_en_filter_rfs_expire(struct mlx4_en_priv *priv)
 }
 #endif
 
-static void mlx4_en_vlan_rx_add_vid(void *arg, struct ifnet *dev, u16 vid)
+static void mlx4_en_vlan_rx_add_vid(void *arg, if_t dev, u16 vid)
 {
 	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
@@ -427,7 +427,7 @@ static void mlx4_en_vlan_rx_add_vid(void *arg, struct ifnet *dev, u16 vid)
 
 }
 
-static void mlx4_en_vlan_rx_kill_vid(void *arg, struct ifnet *dev, u16 vid)
+static void mlx4_en_vlan_rx_kill_vid(void *arg, if_t dev, u16 vid)
 {
 	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
@@ -558,15 +558,15 @@ static int mlx4_en_get_qp(struct mlx4_en_priv *priv)
 	int index = 0;
 	int err = 0;
 	int *qpn = &priv->base_qpn;
-	u64 mac = mlx4_mac_to_u64(IF_LLADDR(priv->dev));
+	u64 mac = mlx4_mac_to_u64(if_getlladdr(priv->dev));
 
 	en_dbg(DRV, priv, "Registering MAC: %pM for adding\n",
-	       IF_LLADDR(priv->dev));
+	       if_getlladdr(priv->dev));
 	index = mlx4_register_mac(dev, priv->port, mac);
 	if (index < 0) {
 		err = index;
 		en_err(priv, "Failed adding MAC: %pM\n",
-		       IF_LLADDR(priv->dev));
+		       if_getlladdr(priv->dev));
 		return err;
 	}
 
@@ -594,9 +594,9 @@ static void mlx4_en_put_qp(struct mlx4_en_priv *priv)
 	int qpn = priv->base_qpn;
 
 	if (dev->caps.steering_mode == MLX4_STEERING_MODE_A0) {
-		u64 mac = mlx4_mac_to_u64(IF_LLADDR(priv->dev));
+		u64 mac = mlx4_mac_to_u64(if_getlladdr(priv->dev));
 		en_dbg(DRV, priv, "Registering MAC: %pM for deleting\n",
-		       IF_LLADDR(priv->dev));
+		       if_getlladdr(priv->dev));
 		mlx4_unregister_mac(dev, priv->port, mac);
 	} else {
 		en_dbg(DRV, priv, "Releasing qp: port %d, qpn %d\n",
@@ -606,7 +606,7 @@ static void mlx4_en_put_qp(struct mlx4_en_priv *priv)
 	}
 }
 
-static void mlx4_en_clear_uclist(struct ifnet *dev)
+static void mlx4_en_clear_uclist(if_t dev)
 {
 	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 	struct mlx4_en_addr_list *tmp, *uc_to_del;
@@ -635,7 +635,7 @@ static u_int mlx4_copy_addr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 	return (1);
 }
 
-static void mlx4_en_cache_uclist(struct ifnet *dev)
+static void mlx4_en_cache_uclist(if_t dev)
 {
 	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 
@@ -643,7 +643,7 @@ static void mlx4_en_cache_uclist(struct ifnet *dev)
 	if_foreach_lladdr(dev, mlx4_copy_addr, priv);
 }
 
-static void mlx4_en_clear_mclist(struct ifnet *dev)
+static void mlx4_en_clear_mclist(if_t dev)
 {
 	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 	struct mlx4_en_addr_list *tmp, *mc_to_del;
@@ -671,7 +671,7 @@ static u_int mlx4_copy_maddr(void *arg, struct sockaddr_dl *sdl, u_int count)
 	return (1);
 }
 
-static void mlx4_en_cache_mclist(struct ifnet *dev)
+static void mlx4_en_cache_mclist(if_t dev)
 {
 	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 
@@ -728,7 +728,7 @@ static void update_addr_list_flags(struct mlx4_en_priv *priv,
 	}
 }
 
-static void mlx4_en_set_rx_mode(struct ifnet *dev)
+static void mlx4_en_set_rx_mode(if_t dev)
 {
 	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 
@@ -842,7 +842,7 @@ static void mlx4_en_clear_promisc_mode(struct mlx4_en_priv *priv,
 }
 
 static void mlx4_en_do_multicast(struct mlx4_en_priv *priv,
-				 struct ifnet *dev,
+				 if_t dev,
 				 struct mlx4_en_dev *mdev)
 {
 	struct mlx4_en_addr_list *addr_list, *tmp;
@@ -854,7 +854,7 @@ static void mlx4_en_do_multicast(struct mlx4_en_priv *priv,
 	 * Enable/disable the multicast filter according to
 	 * IFF_ALLMULTI and IFF_PROMISC:
 	 */
-	if (dev->if_flags & (IFF_ALLMULTI | IFF_PROMISC)) {
+	if (if_getflags(dev) & (IFF_ALLMULTI | IFF_PROMISC)) {
 		err = mlx4_SET_MCAST_FLTR(mdev->dev, priv->port, 0,
 					  0, MLX4_MCAST_DISABLE);
 		if (err)
@@ -977,7 +977,7 @@ static void mlx4_en_do_multicast(struct mlx4_en_priv *priv,
 }
 
 static void mlx4_en_do_unicast(struct mlx4_en_priv *priv,
-			       struct ifnet *dev,
+			       if_t dev,
 			       struct mlx4_en_dev *mdev)
 {
 	struct mlx4_en_addr_list *addr_list, *tmp;
@@ -1011,7 +1011,7 @@ static void mlx4_en_do_set_rx_mode(struct work_struct *work)
 	struct mlx4_en_priv *priv = container_of(work, struct mlx4_en_priv,
 						 rx_mode_task);
 	struct mlx4_en_dev *mdev = priv->mdev;
-	struct ifnet *dev = priv->dev;
+	if_t dev = priv->dev;
 
 	mutex_lock(&mdev->state_lock);
 	if (!mdev->device_up) {
@@ -1026,8 +1026,8 @@ static void mlx4_en_do_set_rx_mode(struct work_struct *work)
 		if (priv->port_state.link_state) {
 			priv->last_link_state = MLX4_DEV_EVENT_PORT_UP;
 			/* update netif baudrate */
-			priv->dev->if_baudrate =
-			    IF_Mbps(priv->port_state.link_speed);
+			if_setbaudrate(priv->dev,
+			    IF_Mbps(priv->port_state.link_speed));
 			/* Important note: the following call for if_link_state_change
 			 * is needed for interface up scenario (start port, link state
 			 * change) */
@@ -1040,7 +1040,7 @@ static void mlx4_en_do_set_rx_mode(struct work_struct *work)
 	mlx4_en_do_unicast(priv, dev, mdev);
 
 	/* Promsicuous mode: disable all filters */
-	if ((dev->if_flags & IFF_PROMISC) ||
+	if ((if_getflags(dev) & IFF_PROMISC) ||
 	    (priv->flags & MLX4_EN_FLAG_FORCE_PROMISC)) {
 		mlx4_en_set_promisc_mode(priv, mdev);
 	} else if (priv->flags & MLX4_EN_FLAG_PROMISC) {
@@ -1085,7 +1085,7 @@ static void mlx4_en_set_default_moderation(struct mlx4_en_priv *priv)
 	priv->tx_usecs = MLX4_EN_TX_COAL_TIME;
 	en_dbg(INTR, priv, "Default coalesing params for mtu: %u - "
 	       "rx_frames:%d rx_usecs:%d\n",
-	       (unsigned)priv->dev->if_mtu, priv->rx_frames, priv->rx_usecs);
+	       (unsigned)if_getmtu(priv->dev), priv->rx_frames, priv->rx_usecs);
 
 	/* Setup cq moderation params */
 	for (i = 0; i < priv->rx_ring_num; i++) {
@@ -1236,7 +1236,7 @@ static void mlx4_en_linkstate(struct work_struct *work)
 			en_info(priv, "Link Down\n");
 			if_link_state_change(priv->dev, LINK_STATE_DOWN);
 			/* update netif baudrate */
-			priv->dev->if_baudrate = 0;
+			if_setbaudrate(priv->dev, 0);
 
 		/* make sure the port is up before notifying the OS.
 		 * This is tricky since we get here on INIT_PORT and
@@ -1247,8 +1247,8 @@ static void mlx4_en_linkstate(struct work_struct *work)
 		} else if (priv->port_up && (linkstate == MLX4_DEV_EVENT_PORT_UP)){
 			if (mlx4_en_QUERY_PORT(priv->mdev, priv->port))
 				en_info(priv, "Query port failed\n");
-			priv->dev->if_baudrate =
-			    IF_Mbps(priv->port_state.link_speed);
+			if_setbaudrate(priv->dev,
+			    IF_Mbps(priv->port_state.link_speed));
 			en_info(priv, "Link Up\n");
 			if_link_state_change(priv->dev, LINK_STATE_UP);
 		}
@@ -1258,7 +1258,7 @@ static void mlx4_en_linkstate(struct work_struct *work)
 }
 
 
-int mlx4_en_start_port(struct ifnet *dev)
+int mlx4_en_start_port(if_t dev)
 {
 	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
@@ -1284,7 +1284,7 @@ int mlx4_en_start_port(struct ifnet *dev)
 	INIT_LIST_HEAD(&priv->ethtool_list);
 
 	/* Calculate Rx buf size */
-	dev->if_mtu = min(dev->if_mtu, priv->max_mtu);
+	if_setmtu(dev, min(if_getmtu(dev), priv->max_mtu));
         mlx4_en_calc_rx_buf(dev);
 	en_dbg(DRV, priv, "Rx buf size:%d\n", priv->rx_mb_size);
 
@@ -1420,8 +1420,7 @@ int mlx4_en_start_port(struct ifnet *dev)
 	priv->port_up = true;
 
         /* Enable the queues. */
-        dev->if_drv_flags &= ~IFF_DRV_OACTIVE;
-        dev->if_drv_flags |= IFF_DRV_RUNNING;
+        if_setdrvflagbits(dev, IFF_DRV_RUNNING, IFF_DRV_OACTIVE);
 #ifdef CONFIG_DEBUG_FS
 	mlx4_en_create_debug_files(priv);
 #endif
@@ -1451,7 +1450,7 @@ cq_err:
 }
 
 
-void mlx4_en_stop_port(struct ifnet *dev)
+void mlx4_en_stop_port(if_t dev)
 {
 	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
@@ -1560,7 +1559,7 @@ void mlx4_en_stop_port(struct ifnet *dev)
 
         callout_stop(&priv->watchdog_timer);
 
-        dev->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+        if_setdrvflagbits(dev, 0, IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 }
 
 static void mlx4_en_restart(struct work_struct *work)
@@ -1568,7 +1567,7 @@ static void mlx4_en_restart(struct work_struct *work)
 	struct mlx4_en_priv *priv = container_of(work, struct mlx4_en_priv,
 						 watchdog_task);
 	struct mlx4_en_dev *mdev = priv->mdev;
-	struct ifnet *dev = priv->dev;
+	if_t dev = priv->dev;
 	struct mlx4_en_tx_ring *ring;
 	int i;
 
@@ -1601,7 +1600,7 @@ reset:
 	mutex_unlock(&mdev->state_lock);
 }
 
-static void mlx4_en_clear_stats(struct ifnet *dev)
+static void mlx4_en_clear_stats(if_t dev)
 {
 	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
@@ -1635,7 +1634,7 @@ static void mlx4_en_open(void* arg)
 
         struct mlx4_en_priv *priv;
         struct mlx4_en_dev *mdev;
-        struct ifnet *dev;
+        if_t dev;
         int err = 0;
 
         priv = arg;
@@ -1760,7 +1759,7 @@ struct en_port_attribute en_port_attr_##_name = __ATTR_RO(_name)
 #define EN_PORT_ATTR(_name, _mode, _show, _store) \
 struct en_port_attribute en_port_attr_##_name = __ATTR(_name, _mode, _show, _store)
 
-void mlx4_en_destroy_netdev(struct ifnet *dev)
+void mlx4_en_destroy_netdev(if_t dev)
 {
 	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
@@ -1815,14 +1814,14 @@ void mlx4_en_destroy_netdev(struct ifnet *dev)
 
 }
 
-static int mlx4_en_change_mtu(struct ifnet *dev, int new_mtu)
+static int mlx4_en_change_mtu(if_t dev, int new_mtu)
 {
 	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
 	int err = 0;
 
 	en_dbg(DRV, priv, "Change MTU called - current:%u new:%u\n",
-	       (unsigned)dev->if_mtu, (unsigned)new_mtu);
+	       (unsigned)if_getmtu(dev), (unsigned)new_mtu);
 
 	if ((new_mtu < MLX4_EN_MIN_MTU) || (new_mtu > priv->max_mtu)) {
 		en_err(priv, "Bad MTU size:%d, max %u.\n", new_mtu,
@@ -1830,8 +1829,8 @@ static int mlx4_en_change_mtu(struct ifnet *dev, int new_mtu)
 		return -EPERM;
 	}
 	mutex_lock(&mdev->state_lock);
-	dev->if_mtu = new_mtu;
-	if (dev->if_drv_flags & IFF_DRV_RUNNING) {
+	if_setmtu(dev, new_mtu);
+	if (if_getdrvflags(dev) & IFF_DRV_RUNNING) {
 		if (!mdev->device_up) {
 			/* NIC is probably restarting - let watchdog task reset
 			 *                          * the port */
@@ -1886,11 +1885,11 @@ static int mlx4_en_calc_media(struct mlx4_en_priv *priv)
 	return (active);
 }
 
-static void mlx4_en_media_status(struct ifnet *dev, struct ifmediareq *ifmr)
+static void mlx4_en_media_status(if_t dev, struct ifmediareq *ifmr)
 {
 	struct mlx4_en_priv *priv;
 
-	priv = dev->if_softc;
+	priv = if_getsoftc(dev);
 	ifmr->ifm_status = IFM_AVALID;
 	if (priv->last_link_state != MLX4_DEV_EVENT_PORT_DOWN)
 		ifmr->ifm_status |= IFM_ACTIVE;
@@ -1899,7 +1898,7 @@ static void mlx4_en_media_status(struct ifnet *dev, struct ifmediareq *ifmr)
 	return;
 }
 
-static int mlx4_en_media_change(struct ifnet *dev)
+static int mlx4_en_media_change(if_t dev)
 {
 	struct mlx4_en_priv *priv;
         struct ifmedia *ifm;
@@ -1907,7 +1906,7 @@ static int mlx4_en_media_change(struct ifnet *dev)
 	int txpause;
 	int error;
 
-	priv = dev->if_softc;
+	priv = if_getsoftc(dev);
 	ifm = &priv->media;
 	rxpause = txpause = 0;
 	error = 0;
@@ -1946,7 +1945,7 @@ static int mlx4_en_media_change(struct ifnet *dev)
 	return (error);
 }
 
-static int mlx4_en_ioctl(struct ifnet *dev, u_long command, caddr_t data)
+static int mlx4_en_ioctl(if_t dev, u_long command, caddr_t data)
 {
 	struct mlx4_en_priv *priv;
 	struct mlx4_en_dev *mdev;
@@ -1960,7 +1959,7 @@ static int mlx4_en_ioctl(struct ifnet *dev, u_long command, caddr_t data)
 
 	error = 0;
 	mask = 0;
-	priv = dev->if_softc;
+	priv = if_getsoftc(dev);
 
 	/* check if detaching */
 	if (priv == NULL || priv->gone != 0)
@@ -1974,8 +1973,8 @@ static int mlx4_en_ioctl(struct ifnet *dev, u_long command, caddr_t data)
 		error = -mlx4_en_change_mtu(dev, ifr->ifr_mtu);
 		break;
 	case SIOCSIFFLAGS:
-		if (dev->if_flags & IFF_UP) {
-			if ((dev->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+		if (if_getflags(dev) & IFF_UP) {
+			if ((if_getdrvflags(dev) & IFF_DRV_RUNNING) == 0) {
 				mutex_lock(&mdev->state_lock);
 				mlx4_en_start_port(dev);
 				mutex_unlock(&mdev->state_lock);
@@ -1984,7 +1983,7 @@ static int mlx4_en_ioctl(struct ifnet *dev, u_long command, caddr_t data)
 			}
 		} else {
 			mutex_lock(&mdev->state_lock);
-			if (dev->if_drv_flags & IFF_DRV_RUNNING) {
+			if (if_getdrvflags(dev) & IFF_DRV_RUNNING) {
 				mlx4_en_stop_port(dev);
 				if_link_state_change(dev, LINK_STATE_DOWN);
 			}
@@ -2001,73 +2000,72 @@ static int mlx4_en_ioctl(struct ifnet *dev, u_long command, caddr_t data)
 		break;
 	case SIOCSIFCAP:
 		mutex_lock(&mdev->state_lock);
-		mask = ifr->ifr_reqcap ^ dev->if_capenable;
+		mask = ifr->ifr_reqcap ^ if_getcapenable(dev);
 		if (mask & IFCAP_TXCSUM) {
-			dev->if_capenable ^= IFCAP_TXCSUM;
-			dev->if_hwassist ^= (CSUM_TCP | CSUM_UDP | CSUM_IP);
+			if_togglecapenable(dev, IFCAP_TXCSUM);
+			if_togglehwassist(dev, CSUM_TCP | CSUM_UDP | CSUM_IP);
 
-			if (IFCAP_TSO4 & dev->if_capenable &&
-			    !(IFCAP_TXCSUM & dev->if_capenable)) {
+			if (IFCAP_TSO4 & if_getcapenable(dev) &&
+			    !(IFCAP_TXCSUM & if_getcapenable(dev))) {
 				mask &= ~IFCAP_TSO4;
-				dev->if_capenable &= ~IFCAP_TSO4;
-				dev->if_hwassist &= ~CSUM_IP_TSO;
+				if_setcapenablebit(dev, 0, IFCAP_TSO4);
+				if_sethwassistbits(dev, 0, CSUM_IP_TSO);
 				if_printf(dev,
 				    "tso4 disabled due to -txcsum.\n");
 			}
 		}
 		if (mask & IFCAP_TXCSUM_IPV6) {
-			dev->if_capenable ^= IFCAP_TXCSUM_IPV6;
-			dev->if_hwassist ^= (CSUM_UDP_IPV6 | CSUM_TCP_IPV6);
+			if_togglecapenable(dev, IFCAP_TXCSUM_IPV6);
+			if_togglehwassist(dev, (CSUM_UDP_IPV6 | CSUM_TCP_IPV6));
 
-			if (IFCAP_TSO6 & dev->if_capenable &&
-			    !(IFCAP_TXCSUM_IPV6 & dev->if_capenable)) {
+			if (IFCAP_TSO6 & if_getcapenable(dev) &&
+			    !(IFCAP_TXCSUM_IPV6 & if_getcapenable(dev))) {
 				mask &= ~IFCAP_TSO6;
-				dev->if_capenable &= ~IFCAP_TSO6;
-				dev->if_hwassist &= ~CSUM_IP6_TSO;
+				if_setcapenablebit(dev, 0, IFCAP_TSO6);
+				if_sethwassistbits(dev, 0, CSUM_IP6_TSO);
 				if_printf(dev,
 				    "tso6 disabled due to -txcsum6.\n");
 			}
 		}
 		if (mask & IFCAP_RXCSUM)
-			dev->if_capenable ^= IFCAP_RXCSUM;
+			if_togglecapenable(dev, IFCAP_RXCSUM);
 		if (mask & IFCAP_RXCSUM_IPV6)
-			dev->if_capenable ^= IFCAP_RXCSUM_IPV6;
+			if_togglecapenable(dev, IFCAP_RXCSUM_IPV6);
 
 		if (mask & IFCAP_TSO4) {
-			if (!(IFCAP_TSO4 & dev->if_capenable) &&
-			    !(IFCAP_TXCSUM & dev->if_capenable)) {
+			if (!(IFCAP_TSO4 & if_getcapenable(dev)) &&
+			    !(IFCAP_TXCSUM & if_getcapenable(dev))) {
 				if_printf(dev, "enable txcsum first.\n");
 				error = EAGAIN;
 				goto out;
 			}
-			dev->if_capenable ^= IFCAP_TSO4;
-			dev->if_hwassist ^= CSUM_IP_TSO;
+			if_togglecapenable(dev, IFCAP_TSO4);
+			if_togglehwassist(dev, CSUM_IP_TSO);
 		}
 		if (mask & IFCAP_TSO6) {
-			if (!(IFCAP_TSO6 & dev->if_capenable) &&
-			    !(IFCAP_TXCSUM_IPV6 & dev->if_capenable)) {
+			if (!(IFCAP_TSO6 & if_getcapenable(dev)) &&
+			    !(IFCAP_TXCSUM_IPV6 & if_getcapenable(dev))) {
 				if_printf(dev, "enable txcsum6 first.\n");
 				error = EAGAIN;
 				goto out;
 			}
-			dev->if_capenable ^= IFCAP_TSO6;
-			dev->if_hwassist ^= CSUM_IP6_TSO;
+			if_togglecapenable(dev, IFCAP_TSO6);
+			if_togglehwassist(dev, CSUM_IP6_TSO);
 		}
 		if (mask & IFCAP_LRO)
-			dev->if_capenable ^= IFCAP_LRO;
+			if_togglecapenable(dev, IFCAP_LRO);
 		if (mask & IFCAP_VLAN_HWTAGGING)
-			dev->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+			if_togglecapenable(dev, IFCAP_VLAN_HWTAGGING);
 		if (mask & IFCAP_VLAN_HWFILTER)
-			dev->if_capenable ^= IFCAP_VLAN_HWFILTER;
+			if_togglecapenable(dev, IFCAP_VLAN_HWFILTER);
 		if (mask & IFCAP_WOL_MAGIC)
-			dev->if_capenable ^= IFCAP_WOL_MAGIC;
-		if (dev->if_drv_flags & IFF_DRV_RUNNING)
+			if_togglecapenable(dev, IFCAP_WOL_MAGIC);
+		if (if_getdrvflags(dev) & IFF_DRV_RUNNING)
 			mlx4_en_start_port(dev);
 out:
 		mutex_unlock(&mdev->state_lock);
 		VLAN_CAPABILITIES(dev);
 		break;
-#if __FreeBSD_version >= 1100036
 	case SIOCGI2C: {
 		struct ifi2creq i2c;
 
@@ -2091,7 +2089,6 @@ out:
 		error = copyout(&i2c, ifr_data_get_ptr(ifr), sizeof(i2c));
 		break;
 	}
-#endif
 	case SIOCGIFRSSKEY:
 		ifrk = (struct ifrsskey *)data;
 		ifrk->ifrk_func = RSS_FUNC_TOEPLITZ;
@@ -2137,8 +2134,9 @@ out:
 int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 			struct mlx4_en_port_profile *prof)
 {
-	struct ifnet *dev;
+	if_t dev;
 	struct mlx4_en_priv *priv;
+	uint32_t hwassist;
 	uint8_t dev_addr[ETHER_ADDR_LEN];
 	int err;
 	int i;
@@ -2150,16 +2148,16 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 		kfree(priv);
 		return -ENOMEM;
 	}
-	dev->if_softc = priv;
+	if_setsoftc(dev, priv);
 	if_initname(dev, "mlxen", (device_get_unit(
 	    mdev->pdev->dev.bsddev) * MLX4_MAX_PORTS) + port - 1);
-	dev->if_mtu = ETHERMTU;
-	dev->if_init = mlx4_en_open;
-	dev->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	dev->if_ioctl = mlx4_en_ioctl;
-	dev->if_transmit = mlx4_en_transmit;
-	dev->if_qflush = mlx4_en_qflush;
-	dev->if_snd.ifq_maxlen = prof->tx_ring_size;
+	if_setmtu(dev, ETHERMTU);
+	if_setinitfn(dev, mlx4_en_open);
+	if_setflags(dev, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setioctlfn(dev, mlx4_en_ioctl);
+	if_settransmitfn(dev, mlx4_en_transmit);
+	if_setqflushfn(dev, mlx4_en_qflush);
+	if_setsendqlen(dev, prof->tx_ring_size);
 
 	/*
 	 * Initialize driver private data
@@ -2253,32 +2251,30 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	/*
 	 * Set driver features
 	 */
-	dev->if_capabilities |= IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6;
-	dev->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING;
-	dev->if_capabilities |= IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWFILTER;
-	dev->if_capabilities |= IFCAP_LINKSTATE | IFCAP_JUMBO_MTU;
-	dev->if_capabilities |= IFCAP_LRO;
-	dev->if_capabilities |= IFCAP_HWSTATS;
+	if_setcapabilitiesbit(dev, IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6 |
+	    IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING |
+	    IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWFILTER |
+	    IFCAP_LINKSTATE | IFCAP_JUMBO_MTU |
+	    IFCAP_LRO | IFCAP_HWSTATS, 0);
 
 	if (mdev->LSO_support)
-		dev->if_capabilities |= IFCAP_TSO4 | IFCAP_TSO6 | IFCAP_VLAN_HWTSO;
+		if_setcapabilitiesbit(dev, IFCAP_TSO4 | IFCAP_TSO6 | IFCAP_VLAN_HWTSO, 0);
 
-#if __FreeBSD_version >= 1100000
 	/* set TSO limits so that we don't have to drop TX packets */
-	dev->if_hw_tsomax = MLX4_EN_TX_MAX_PAYLOAD_SIZE - (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN) /* hdr */;
-	dev->if_hw_tsomaxsegcount = MLX4_EN_TX_MAX_MBUF_FRAGS - 1 /* hdr */;
-	dev->if_hw_tsomaxsegsize = MLX4_EN_TX_MAX_MBUF_SIZE;
-#endif
+	if_sethwtsomax(dev, MLX4_EN_TX_MAX_PAYLOAD_SIZE - (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN) /* hdr */);
+	if_sethwtsomaxsegcount(dev, MLX4_EN_TX_MAX_MBUF_FRAGS - 1 /* hdr */);
+	if_sethwtsomaxsegsize(dev, MLX4_EN_TX_MAX_MBUF_SIZE);
 
-	dev->if_capenable = dev->if_capabilities;
+	if_setcapenable(dev, if_getcapabilities(dev));
 
-	dev->if_hwassist = 0;
-	if (dev->if_capenable & (IFCAP_TSO4 | IFCAP_TSO6))
-		dev->if_hwassist |= CSUM_TSO;
-	if (dev->if_capenable & IFCAP_TXCSUM)
-		dev->if_hwassist |= (CSUM_TCP | CSUM_UDP | CSUM_IP);
-	if (dev->if_capenable & IFCAP_TXCSUM_IPV6)
-		dev->if_hwassist |= (CSUM_UDP_IPV6 | CSUM_TCP_IPV6);
+	hwassist = 0;
+	if (if_getcapenable(dev) & (IFCAP_TSO4 | IFCAP_TSO6))
+		hwassist |= CSUM_TSO;
+	if (if_getcapenable(dev) & IFCAP_TXCSUM)
+		hwassist |= (CSUM_TCP | CSUM_UDP | CSUM_IP);
+	if (if_getcapenable(dev) & IFCAP_TXCSUM_IPV6)
+		hwassist |= (CSUM_UDP_IPV6 | CSUM_TCP_IPV6);
+	if_sethwassist(dev, hwassist);
 
 
         /* Register for VLAN events */
@@ -2319,7 +2315,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
         en_warn(priv, "Using %d RX rings\n", prof->rx_ring_num);
 
 
-	priv->rx_mb_size = dev->if_mtu + ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN;
+	priv->rx_mb_size = if_getmtu(dev) + ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN;
 	err = mlx4_SET_PORT_general(mdev->dev, priv->port,
 				    priv->rx_mb_size,
 				    prof->tx_pause, prof->tx_ppp,
@@ -2350,7 +2346,7 @@ out:
 	return err;
 }
 
-static int mlx4_en_set_ring_size(struct ifnet *dev,
+static int mlx4_en_set_ring_size(if_t dev,
     int rx_size, int tx_size)
 {
         struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
@@ -2424,7 +2420,7 @@ static int mlx4_en_set_tx_ring_size(SYSCTL_HANDLER_ARGS)
         return (error);
 }
 
-static int mlx4_en_get_module_info(struct ifnet *dev,
+static int mlx4_en_get_module_info(if_t dev,
 				   struct ethtool_modinfo *modinfo)
 {
 	struct mlx4_en_priv *priv = mlx4_netdev_priv(dev);
@@ -2471,7 +2467,7 @@ static int mlx4_en_get_module_info(struct ifnet *dev,
 	return 0;
 }
 
-static int mlx4_en_get_module_eeprom(struct ifnet *dev,
+static int mlx4_en_get_module_eeprom(if_t dev,
 				     struct ethtool_eeprom *ee,
 				     u8 *data)
 {
@@ -2655,7 +2651,7 @@ static int mlx4_en_set_rx_ppp(SYSCTL_HANDLER_ARGS)
 
 static void mlx4_en_sysctl_conf(struct mlx4_en_priv *priv)
 {
-        struct ifnet *dev;
+        if_t dev;
         struct sysctl_ctx_list *ctx;
         struct sysctl_oid *node;
         struct sysctl_oid_list *node_list;
@@ -2668,7 +2664,7 @@ static void mlx4_en_sysctl_conf(struct mlx4_en_priv *priv)
 
         sysctl_ctx_init(ctx);
         priv->conf_sysctl = SYSCTL_ADD_NODE(ctx, SYSCTL_STATIC_CHILDREN(_hw),
-            OID_AUTO, dev->if_xname, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+            OID_AUTO, if_name(dev), CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
 	    "mlx4 10gig ethernet");
         node = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(priv->conf_sysctl), OID_AUTO,
             "conf", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Configuration");
@@ -2896,7 +2892,7 @@ static void mlx4_en_sysctl_stat(struct mlx4_en_priv *priv)
 
 #ifdef DEBUGNET
 static void
-mlx4_en_debugnet_init(struct ifnet *dev, int *nrxr, int *ncl, int *clsize)
+mlx4_en_debugnet_init(if_t dev, int *nrxr, int *ncl, int *clsize)
 {
 	struct mlx4_en_priv *priv;
 
@@ -2909,12 +2905,12 @@ mlx4_en_debugnet_init(struct ifnet *dev, int *nrxr, int *ncl, int *clsize)
 }
 
 static void
-mlx4_en_debugnet_event(struct ifnet *dev, enum debugnet_ev event)
+mlx4_en_debugnet_event(if_t dev, enum debugnet_ev event)
 {
 }
 
 static int
-mlx4_en_debugnet_transmit(struct ifnet *dev, struct mbuf *m)
+mlx4_en_debugnet_transmit(if_t dev, struct mbuf *m)
 {
 	struct mlx4_en_priv *priv;
 	int err;
@@ -2931,7 +2927,7 @@ mlx4_en_debugnet_transmit(struct ifnet *dev, struct mbuf *m)
 }
 
 static int
-mlx4_en_debugnet_poll(struct ifnet *dev, int count)
+mlx4_en_debugnet_poll(if_t dev, int count)
 {
 	struct mlx4_en_priv *priv;
 

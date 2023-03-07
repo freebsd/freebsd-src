@@ -12,21 +12,18 @@
 //===----------------------------------------------------------------------===//
 
 #include "CodeGenRegisters.h"
-#include "CodeGenTarget.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/IntEqClasses.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Record.h"
@@ -204,12 +201,16 @@ namespace {
 class RegUnitIterator {
   CodeGenRegister::Vec::const_iterator RegI, RegE;
   CodeGenRegister::RegUnitList::iterator UnitI, UnitE;
+  static CodeGenRegister::RegUnitList Sentinel;
 
 public:
   RegUnitIterator(const CodeGenRegister::Vec &Regs):
     RegI(Regs.begin()), RegE(Regs.end()) {
 
-    if (RegI != RegE) {
+    if (RegI == RegE) {
+      UnitI = Sentinel.end();
+      UnitE = Sentinel.end();
+    } else {
       UnitI = (*RegI)->getRegUnits().begin();
       UnitE = (*RegI)->getRegUnits().end();
       advance();
@@ -239,6 +240,8 @@ protected:
     }
   }
 };
+
+CodeGenRegister::RegUnitList RegUnitIterator::Sentinel;
 
 } // end anonymous namespace
 
@@ -635,6 +638,7 @@ struct TupleExpander : SetTheory::Expander {
       Def->getValueAsListOfStrings("RegAsmNames");
 
     // Zip them up.
+    RecordKeeper &RK = Def->getRecords();
     for (unsigned n = 0; n != Length; ++n) {
       std::string Name;
       Record *Proto = Lists[0][n];
@@ -651,13 +655,13 @@ struct TupleExpander : SetTheory::Expander {
       SmallVector<Init *, 2> CostPerUse;
       CostPerUse.insert(CostPerUse.end(), CostList->begin(), CostList->end());
 
-      StringInit *AsmName = StringInit::get("");
+      StringInit *AsmName = StringInit::get(RK, "");
       if (!RegNames.empty()) {
         if (RegNames.size() <= n)
           PrintFatalError(Def->getLoc(),
                           "Register tuple definition missing name for '" +
                             Name + "'.");
-        AsmName = StringInit::get(RegNames[n]);
+        AsmName = StringInit::get(RK, RegNames[n]);
       }
 
       // Create a new Record representing the synthesized register. This record
@@ -696,7 +700,7 @@ struct TupleExpander : SetTheory::Expander {
 
         // Composite registers are always covered by sub-registers.
         if (Field == "CoveredBySubRegs")
-          RV.setValue(BitInit::get(true));
+          RV.setValue(BitInit::get(RK, true));
 
         // Copy fields from the RegisterTuples def.
         if (Field == "SubRegIndices" ||
@@ -855,6 +859,26 @@ void CodeGenRegisterClass::inheritProperties(CodeGenRegBank &RegBank) {
     for (unsigned j = 0, je = Super.Orders[i].size(); j != je; ++j)
       if (contains(RegBank.getReg(Super.Orders[i][j])))
         Orders[i].push_back(Super.Orders[i][j]);
+}
+
+bool CodeGenRegisterClass::hasType(const ValueTypeByHwMode &VT) const {
+  if (llvm::is_contained(VTs, VT))
+    return true;
+
+  // If VT is not identical to any of this class's types, but is a simple
+  // type, check if any of the types for this class contain it under some
+  // mode.
+  // The motivating example came from RISCV, where (likely because of being
+  // guarded by "64-bit" predicate), the type of X5 was {*:[i64]}, but the
+  // type in GRC was {*:[i32], m1:[i64]}.
+  if (VT.isSimple()) {
+    MVT T = VT.getSimple();
+    for (const ValueTypeByHwMode &OurVT : VTs) {
+      if (llvm::count_if(OurVT, [T](auto &&P) { return P.second == T; }))
+        return true;
+    }
+  }
+  return false;
 }
 
 bool CodeGenRegisterClass::contains(const CodeGenRegister *Reg) const {
@@ -1106,6 +1130,17 @@ void CodeGenRegisterClass::buildRegUnitSet(const CodeGenRegBank &RegBank,
 }
 
 //===----------------------------------------------------------------------===//
+//                           CodeGenRegisterCategory
+//===----------------------------------------------------------------------===//
+
+CodeGenRegisterCategory::CodeGenRegisterCategory(CodeGenRegBank &RegBank,
+                                                 Record *R)
+    : TheDef(R), Name(std::string(R->getName())) {
+  for (Record *RegClass : R->getValueAsListOfDefs("Classes"))
+    Classes.push_back(RegBank.getRegClass(RegClass));
+}
+
+//===----------------------------------------------------------------------===//
 //                               CodeGenRegBank
 //===----------------------------------------------------------------------===//
 
@@ -1222,6 +1257,12 @@ CodeGenRegBank::CodeGenRegBank(RecordKeeper &Records,
   for (auto &RC : RegClasses)
     RC.EnumValue = i++;
   CodeGenRegisterClass::computeSubClasses(*this);
+
+  // Read in the register category definitions.
+  std::vector<Record *> RCats =
+      Records.getAllDerivedDefinitions("RegisterCategory");
+  for (auto *R : RCats)
+    RegCategories.emplace_back(*this, R);
 }
 
 // Create a synthetic CodeGenSubRegIndex without a corresponding Record.
@@ -1794,6 +1835,7 @@ void CodeGenRegBank::computeRegUnitWeights() {
   unsigned NumIters = 0;
   for (bool Changed = true; Changed; ++NumIters) {
     assert(NumIters <= NumNativeRegUnits && "Runaway register unit weights");
+    (void) NumIters;
     Changed = false;
     for (auto &Reg : Registers) {
       CodeGenRegister::RegUnitList NormalUnits;

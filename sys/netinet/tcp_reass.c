@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_tcpdebug.h"
 
 /* For debugging we want counters and BB logging */
 /* #define TCP_REASS_COUNTERS 1 */
@@ -80,11 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_log_buf.h>
 #include <netinet/tcp_hpts.h>
 #endif
-#include <netinet6/tcp6_var.h>
 #include <netinet/tcpip.h>
-#ifdef TCPDEBUG
-#include <netinet/tcp_debug.h>
-#endif /* TCPDEBUG */
 
 #define TCP_R_LOG_ADD		1
 #define TCP_R_LOG_LIMIT_REACHED 2
@@ -204,6 +199,7 @@ static void
 tcp_log_reassm(struct tcpcb *tp, struct tseg_qent *q, struct tseg_qent *p,
     tcp_seq seq, int len, uint8_t action, int instance)
 {
+	struct socket *so = tptosocket(tp);
 	uint32_t cts;
 	struct timeval tv;
 
@@ -231,9 +227,7 @@ tcp_log_reassm(struct tcpcb *tp, struct tseg_qent *q, struct tseg_qent *p,
 		log.u_bbr.flex7 = instance;
 		log.u_bbr.flex8 = action;
 		log.u_bbr.timeStamp = cts;
-		TCP_LOG_EVENTP(tp, NULL,
-		    &tp->t_inpcb->inp_socket->so_rcv,
-		    &tp->t_inpcb->inp_socket->so_snd,
+		TCP_LOG_EVENTP(tp, NULL, &so->so_rcv, &so->so_snd,
 		    TCP_LOG_REASS, 0,
 		    len, &log, false, &tv);
 	}
@@ -306,7 +300,7 @@ tcp_reass_flush(struct tcpcb *tp)
 {
 	struct tseg_qent *qe;
 
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
 	while ((qe = TAILQ_FIRST(&tp->t_segq)) != NULL) {
 		TAILQ_REMOVE(&tp->t_segq, qe, tqe_q);
@@ -531,12 +525,13 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, tcp_seq *seq_start,
 	struct tseg_qent *nq = NULL;
 	struct tseg_qent *te = NULL;
 	struct mbuf *mlast = NULL;
-	struct sockbuf *sb;
-	struct socket *so = tp->t_inpcb->inp_socket;
+	struct inpcb *inp = tptoinpcb(tp);
+	struct socket *so = tptosocket(tp);
+	struct sockbuf *sb = &so->so_rcv;
 	char *s = NULL;
 	int flags, i, lenofoh;
 
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(inp);
 	/*
 	 * XXX: tcp_reass() is rather inefficient with its data structures
 	 * and should be rewritten (see NetBSD for optimizations).
@@ -598,7 +593,6 @@ strip_fin:
 	 * Will it fit?
 	 */
 	lenofoh = tcp_reass_overhead_of_chain(m, &mlast);
-	sb = &tp->t_inpcb->inp_socket->so_rcv;
 	if ((th->th_seq != tp->rcv_nxt || !TCPS_HAVEESTABLISHED(tp->t_state)) &&
 	    (sb->sb_mbcnt + tp->t_segqmbuflen + lenofoh) > sb->sb_mbmax) {
 		/* No room */
@@ -609,7 +603,7 @@ strip_fin:
 #ifdef TCP_REASS_LOGGING
 		tcp_log_reassm(tp, NULL, NULL, th->th_seq, lenofoh, TCP_R_LOG_LIMIT_REACHED, 0);
 #endif
-		if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL, NULL))) {
+		if ((s = tcp_log_addrs(&inp->inp_inc, th, NULL, NULL))) {
 			log(LOG_DEBUG, "%s; %s: mbuf count limit reached, "
 			    "segment dropped\n", s, __func__);
 			free(s, M_TCPLOG);
@@ -988,7 +982,7 @@ new_entry:
 			 */
 			TCPSTAT_INC(tcps_rcvreassfull);
 			*tlenp = 0;
-			if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL, NULL))) {
+			if ((s = tcp_log_addrs(&inp->inp_inc, th, NULL, NULL))) {
 				log(LOG_DEBUG, "%s; %s: queue limit reached, "
 				    "segment dropped\n", s, __func__);
 				free(s, M_TCPLOG);
@@ -1004,7 +998,7 @@ new_entry:
 					 tcp_reass_maxqueuelen)) {
 			TCPSTAT_INC(tcps_rcvreassfull);
 			*tlenp = 0;
-			if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL, NULL))) {
+			if ((s = tcp_log_addrs(&inp->inp_inc, th, NULL, NULL))) {
 				log(LOG_DEBUG, "%s; %s: queue limit reached, "
 				    "segment dropped\n", s, __func__);
 				free(s, M_TCPLOG);
@@ -1025,8 +1019,7 @@ new_entry:
 		TCPSTAT_INC(tcps_rcvmemdrop);
 		m_freem(m);
 		*tlenp = 0;
-		if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL,
-				       NULL))) {
+		if ((s = tcp_log_addrs(&inp->inp_inc, th, NULL, NULL))) {
 			log(LOG_DEBUG, "%s; %s: global zone limit "
 			    "reached, segment dropped\n", s, __func__);
 			free(s, M_TCPLOG);

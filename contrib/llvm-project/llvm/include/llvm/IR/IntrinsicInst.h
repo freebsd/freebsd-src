@@ -31,13 +31,14 @@
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
-#include "llvm/IR/Metadata.h"
 #include "llvm/IR/Value.h"
 #include "llvm/Support/Casting.h"
 #include <cassert>
 #include <cstdint>
 
 namespace llvm {
+
+class Metadata;
 
 /// A wrapper class for inspecting calls to intrinsic functions.
 /// This allows the standard isa/dyncast/cast functionality to work with calls
@@ -83,7 +84,7 @@ public:
     }
   }
 
-  // Checks if the intrinsic is an annotation.
+  /// Checks if the intrinsic is an annotation.
   bool isAssumeLikeIntrinsic() const {
     switch (getIntrinsicID()) {
     default: break;
@@ -106,7 +107,11 @@ public:
     return false;
   }
 
-  // Methods for support type inquiry through isa, cast, and dyn_cast:
+  /// Check if the intrinsic might lower into a regular function call in the
+  /// course of IR transformations
+  static bool mayLowerToFunctionCall(Intrinsic::ID IID);
+
+  /// Methods for support type inquiry through isa, cast, and dyn_cast:
   static bool classof(const CallInst *I) {
     if (const Function *CF = I->getCalledFunction())
       return CF->isIntrinsic();
@@ -472,6 +477,38 @@ public:
   /// @}
 };
 
+class VPCastIntrinsic : public VPIntrinsic {
+public:
+  static bool isVPCast(Intrinsic::ID ID);
+
+  /// Methods for support type inquiry through isa, cast, and dyn_cast:
+  /// @{
+  static bool classof(const IntrinsicInst *I) {
+    return VPCastIntrinsic::isVPCast(I->getIntrinsicID());
+  }
+  static bool classof(const Value *V) {
+    return isa<IntrinsicInst>(V) && classof(cast<IntrinsicInst>(V));
+  }
+  /// @}
+};
+
+class VPCmpIntrinsic : public VPIntrinsic {
+public:
+  static bool isVPCmp(Intrinsic::ID ID);
+
+  CmpInst::Predicate getPredicate() const;
+
+  /// Methods for support type inquiry through isa, cast, and dyn_cast:
+  /// @{
+  static bool classof(const IntrinsicInst *I) {
+    return VPCmpIntrinsic::isVPCmp(I->getIntrinsicID());
+  }
+  static bool classof(const Value *V) {
+    return isa<IntrinsicInst>(V) && classof(cast<IntrinsicInst>(V));
+  }
+  /// @}
+};
+
 /// This is the common base class for constrained floating point intrinsics.
 class ConstrainedFPIntrinsic : public IntrinsicInst {
 public:
@@ -492,6 +529,9 @@ public:
 class ConstrainedFPCmpIntrinsic : public ConstrainedFPIntrinsic {
 public:
   FCmpInst::Predicate getPredicate() const;
+  bool isSignaling() const {
+    return getIntrinsicID() == Intrinsic::experimental_constrained_fcmps;
+  }
 
   // Methods for support type inquiry through isa, cast, and dyn_cast:
   static bool classof(const IntrinsicInst *I) {
@@ -723,11 +763,6 @@ public:
     setArgOperand(ARG_DEST, Ptr);
   }
 
-  /// FIXME: Remove this function once transition to Align is over.
-  /// Use the version that takes MaybeAlign instead of this one.
-  void setDestAlignment(unsigned Alignment) {
-    setDestAlignment(MaybeAlign(Alignment));
-  }
   void setDestAlignment(MaybeAlign Alignment) {
     removeParamAttr(ARG_DEST, Attribute::Alignment);
     if (Alignment)
@@ -942,6 +977,7 @@ public:
     case Intrinsic::memcpy:
     case Intrinsic::memmove:
     case Intrinsic::memset:
+    case Intrinsic::memset_inline:
     case Intrinsic::memcpy_inline:
       return true;
     default:
@@ -953,12 +989,33 @@ public:
   }
 };
 
-/// This class wraps the llvm.memset intrinsic.
+/// This class wraps the llvm.memset and llvm.memset.inline intrinsics.
 class MemSetInst : public MemSetBase<MemIntrinsic> {
 public:
   // Methods for support type inquiry through isa, cast, and dyn_cast:
   static bool classof(const IntrinsicInst *I) {
-    return I->getIntrinsicID() == Intrinsic::memset;
+    switch (I->getIntrinsicID()) {
+    case Intrinsic::memset:
+    case Intrinsic::memset_inline:
+      return true;
+    default:
+      return false;
+    }
+  }
+  static bool classof(const Value *V) {
+    return isa<IntrinsicInst>(V) && classof(cast<IntrinsicInst>(V));
+  }
+};
+
+/// This class wraps the llvm.memset.inline intrinsic.
+class MemSetInlineInst : public MemSetInst {
+public:
+  ConstantInt *getLength() const {
+    return cast<ConstantInt>(MemSetInst::getLength());
+  }
+  // Methods for support type inquiry through isa, cast, and dyn_cast:
+  static bool classof(const IntrinsicInst *I) {
+    return I->getIntrinsicID() == Intrinsic::memset_inline;
   }
   static bool classof(const Value *V) {
     return isa<IntrinsicInst>(V) && classof(cast<IntrinsicInst>(V));
@@ -1043,6 +1100,7 @@ public:
     case Intrinsic::memcpy_inline:
     case Intrinsic::memmove:
     case Intrinsic::memset:
+    case Intrinsic::memset_inline:
     case Intrinsic::memcpy_element_unordered_atomic:
     case Intrinsic::memmove_element_unordered_atomic:
     case Intrinsic::memset_element_unordered_atomic:
@@ -1064,6 +1122,7 @@ public:
   static bool classof(const IntrinsicInst *I) {
     switch (I->getIntrinsicID()) {
     case Intrinsic::memset:
+    case Intrinsic::memset_inline:
     case Intrinsic::memset_element_unordered_atomic:
       return true;
     default:
@@ -1301,9 +1360,6 @@ public:
   }
 };
 
-// Defined in Statepoint.h -- NOT a subclass of IntrinsicInst
-class GCStatepointInst;
-
 /// Common base class for representing values projected from a statepoint.
 /// Currently, the only projections available are gc.result and gc.relocate.
 class GCProjectionInst : public IntrinsicInst {
@@ -1326,7 +1382,7 @@ public:
   }
 
   /// The statepoint with which this gc.relocate is associated.
-  const GCStatepointInst *getStatepoint() const;
+  const Value *getStatepoint() const;
 };
 
 /// Represents calls to the gc.relocate intrinsic.

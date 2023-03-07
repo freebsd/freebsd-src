@@ -255,7 +255,13 @@ static void
 fs_populate_path(const fsnode *cur, struct fs_populate_arg *arg,
     char *path, size_t sz, int *dirfdp)
 {
-	if (cur->root == NULL) {
+	if (cur->contents != NULL) {
+		size_t n;
+
+		*dirfdp = AT_FDCWD;
+		n = strlcpy(path, cur->contents, sz);
+		assert(n < sz);
+	} else if (cur->root == NULL) {
 		size_t n;
 
 		*dirfdp = SLIST_FIRST(&arg->dirs)->dirfd;
@@ -286,20 +292,39 @@ fs_open(const fsnode *cur, struct fs_populate_arg *arg, int flags)
 	return (fd);
 }
 
+static int
+fs_open_can_fail(const fsnode *cur, struct fs_populate_arg *arg, int flags)
+{
+	int fd;
+	char path[PATH_MAX];
+
+	fs_populate_path(cur, arg, path, sizeof(path), &fd);
+
+	return (openat(fd, path, flags));
+}
+
 static void
 fs_readlink(const fsnode *cur, struct fs_populate_arg *arg,
     char *buf, size_t bufsz)
 {
 	char path[PATH_MAX];
-	ssize_t n;
 	int fd;
 
-	fs_populate_path(cur, arg, path, sizeof(path), &fd);
+	if (cur->symlink != NULL) {
+		size_t n;
 
-	n = readlinkat(fd, path, buf, bufsz - 1);
-	if (n == -1)
-		err(1, "readlinkat(%s)", cur->name);
-	buf[n] = '\0';
+		n = strlcpy(buf, cur->symlink, bufsz);
+		assert(n < bufsz);
+	} else {
+		ssize_t n;
+
+		fs_populate_path(cur, arg, path, sizeof(path), &fd);
+
+		n = readlinkat(fd, path, buf, bufsz - 1);
+		if (n == -1)
+			err(1, "readlinkat(%s)", cur->name);
+		buf[n] = '\0';
+	}
 }
 
 static void
@@ -576,7 +601,12 @@ fs_populate_dir(fsnode *cur, struct fs_populate_arg *arg)
 	 */
 	if (!SLIST_EMPTY(&arg->dirs)) {
 		fs_populate_dirent(arg, cur, dnid);
-		dirfd = fs_open(cur, arg, O_DIRECTORY | O_RDONLY);
+		/*
+		 * We only need the directory fd if we're finding files in
+		 * it.  If it's just there for other directories or
+		 * files using contents= we don't need to succeed here.
+		 */
+		dirfd = fs_open_can_fail(cur, arg, O_DIRECTORY | O_RDONLY);
 	} else {
 		arg->rootdirid = dnid;
 		dirfd = arg->rootdirfd;

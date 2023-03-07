@@ -346,6 +346,15 @@ const char *CodeCompletionString::getTypedText() const {
   return nullptr;
 }
 
+std::string CodeCompletionString::getAllTypedText() const {
+  std::string Res;
+  for (const Chunk &C : *this)
+    if (C.Kind == CK_TypedText)
+      Res += C.Text;
+
+  return Res;
+}
+
 const char *CodeCompletionAllocator::CopyString(const Twine &String) {
   SmallString<128> Data;
   StringRef Ref = String.toStringRef(Data);
@@ -506,13 +515,21 @@ CodeCompleteConsumer::OverloadCandidate::getFunctionType() const {
 
   case CK_FunctionType:
     return Type;
-
+  case CK_FunctionProtoTypeLoc:
+    return ProtoTypeLoc.getTypePtr();
   case CK_Template:
   case CK_Aggregate:
     return nullptr;
   }
 
   llvm_unreachable("Invalid CandidateKind!");
+}
+
+const FunctionProtoTypeLoc
+CodeCompleteConsumer::OverloadCandidate::getFunctionProtoTypeLoc() const {
+  if (Kind == CK_FunctionProtoTypeLoc)
+    return ProtoTypeLoc;
+  return FunctionProtoTypeLoc();
 }
 
 unsigned CodeCompleteConsumer::OverloadCandidate::getNumParams() const {
@@ -588,7 +605,12 @@ CodeCompleteConsumer::OverloadCandidate::getParamDecl(unsigned N) const {
   if (const auto *FD = getFunction()) {
     if (N < FD->param_size())
       return FD->getParamDecl(N);
+  } else if (Kind == CK_FunctionProtoTypeLoc) {
+    if (N < ProtoTypeLoc.getNumParams()) {
+      return ProtoTypeLoc.getParam(N);
+    }
   }
+
   return nullptr;
 }
 
@@ -621,8 +643,7 @@ void PrintingCodeCompleteConsumer::ProcessCodeCompleteResults(
   std::stable_sort(Results, Results + NumResults);
 
   if (!Context.getPreferredType().isNull())
-    OS << "PREFERRED-TYPE: " << Context.getPreferredType().getAsString()
-       << "\n";
+    OS << "PREFERRED-TYPE: " << Context.getPreferredType() << '\n';
 
   StringRef Filter = SemaRef.getPreprocessor().getCodeCompletionFilter();
   // Print the completions.

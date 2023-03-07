@@ -478,7 +478,7 @@ dn_pack_import(void *arg __unused, void **store, int count, int domain __unused,
 	int i;
 
 	for (i = 0; i < count; i++) {
-		m = m_get(MT_DATA, M_NOWAIT);
+		m = m_get(M_NOWAIT, MT_DATA);
 		if (m == NULL)
 			break;
 		clust = uma_zalloc(dn_zone_clust, M_NOWAIT);
@@ -621,7 +621,7 @@ debugnet_mbuf_reinit(int nmbuf, int nclust, int clsize)
 	    NULL, UMA_ZONE_NOBUCKET);
 
 	while (nmbuf-- > 0) {
-		m = m_get(MT_DATA, M_WAITOK);
+		m = m_get(M_WAITOK, MT_DATA);
 		uma_zfree(dn_zone_mbuf, m);
 	}
 	while (nclust-- > 0) {
@@ -1586,9 +1586,7 @@ m_snd_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
     struct m_snd_tag **mstp)
 {
 
-	if (ifp->if_snd_tag_alloc == NULL)
-		return (EOPNOTSUPP);
-	return (ifp->if_snd_tag_alloc(ifp, params, mstp));
+	return (if_snd_tag_alloc(ifp, params, mstp));
 }
 
 void
@@ -1620,13 +1618,13 @@ m_rcvif_serialize(struct mbuf *m)
 	u_short idx, gen;
 
 	M_ASSERTPKTHDR(m);
-	idx = m->m_pkthdr.rcvif->if_index;
-	gen = m->m_pkthdr.rcvif->if_idxgen;
+	idx = if_getindex(m->m_pkthdr.rcvif);
+	gen = if_getidxgen(m->m_pkthdr.rcvif);
 	m->m_pkthdr.rcvidx = idx;
 	m->m_pkthdr.rcvgen = gen;
 	if (__predict_false(m->m_pkthdr.leaf_rcvif != NULL)) {
-		idx = m->m_pkthdr.leaf_rcvif->if_index;
-		gen = m->m_pkthdr.leaf_rcvif->if_idxgen;
+		idx = if_getindex(m->m_pkthdr.leaf_rcvif);
+		gen = if_getidxgen(m->m_pkthdr.leaf_rcvif);
 	} else {
 		idx = -1;
 		gen = 0;
@@ -1644,7 +1642,7 @@ m_rcvif_restore(struct mbuf *m)
 	NET_EPOCH_ASSERT();
 
 	ifp = ifnet_byindexgen(m->m_pkthdr.rcvidx, m->m_pkthdr.rcvgen);
-	if (ifp == NULL || (ifp->if_flags & IFF_DYING))
+	if (ifp == NULL || (if_getflags(ifp) & IFF_DYING))
 		return (NULL);
 
 	if (__predict_true(m->m_pkthdr.leaf_rcvidx == (u_short)-1)) {
@@ -1652,7 +1650,7 @@ m_rcvif_restore(struct mbuf *m)
 	} else {
 		leaf_ifp = ifnet_byindexgen(m->m_pkthdr.leaf_rcvidx,
 		    m->m_pkthdr.leaf_rcvgen);
-		if (__predict_false(leaf_ifp != NULL && (leaf_ifp->if_flags & IFF_DYING)))
+		if (__predict_false(leaf_ifp != NULL && (if_getflags(leaf_ifp) & IFF_DYING)))
 			leaf_ifp = NULL;
 	}
 

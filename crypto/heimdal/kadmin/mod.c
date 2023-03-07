@@ -106,7 +106,7 @@ static void
 add_aliases(krb5_context contextp, kadm5_principal_ent_rec *princ,
 	    struct getarg_strings *strings)
 {
-    krb5_error_code ret;
+    krb5_error_code ret = 0;
     HDB_extension ext;
     krb5_data buf;
     krb5_principal p;
@@ -127,9 +127,16 @@ add_aliases(krb5_context contextp, kadm5_principal_ent_rec *princ,
 		   sizeof(ext.data.u.aliases.aliases.val[0]));
 	ext.data.u.aliases.aliases.len = strings->num_strings;
 
-	for (i = 0; i < strings->num_strings; i++) {
+	for (i = 0; ret == 0 && i < strings->num_strings; i++) {
 	    ret = krb5_parse_name(contextp, strings->strings[i], &p);
-	    ret = copy_Principal(p, &ext.data.u.aliases.aliases.val[i]);
+            if (ret)
+                krb5_err(contextp, 1, ret, "Could not parse alias %s",
+                         strings->strings[i]);
+            if (ret == 0)
+                ret = copy_Principal(p, &ext.data.u.aliases.aliases.val[i]);
+            if (ret)
+                krb5_err(contextp, 1, ret, "Could not copy parsed alias %s",
+                         strings->strings[i]);
 	    krb5_free_principal(contextp, p);
 	}
     }

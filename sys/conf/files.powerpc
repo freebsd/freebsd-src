@@ -42,60 +42,62 @@ dev/iicbus/ofw_iicbus.c		optional	iicbus aim
 dev/iicbus/ofw_iicbus_if.m	optional	iicbus aim
 dev/ipmi/ipmi.c			optional	ipmi
 dev/ipmi/ipmi_opal.c		optional	powernv ipmi
-dev/ice/if_ice_iflib.c		optional	ice pci powerpc64 \
+dev/ice/if_ice_iflib.c		optional	ice pci powerpc64 | ice pci powerpc64le \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
-dev/ice/ice_lib.c		optional	ice pci powerpc64 \
+dev/ice/ice_lib.c		optional	ice pci powerpc64 | ice pci powerpc64le \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
-dev/ice/ice_osdep.c		optional	ice pci powerpc64 \
+dev/ice/ice_osdep.c		optional	ice pci powerpc64 | ice pci powerpc64le \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
-dev/ice/ice_resmgr.c		optional	ice pci powerpc64 \
+dev/ice/ice_resmgr.c		optional	ice pci powerpc64 | ice pci powerpc64le \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
-dev/ice/ice_strings.c		optional	ice pci powerpc64 \
+dev/ice/ice_strings.c		optional	ice pci powerpc64 | ice pci powerpc64le \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
-dev/ice/ice_iflib_recovery_txrx.c	optional	ice pci powerpc64 \
+dev/ice/ice_iflib_recovery_txrx.c	optional	ice pci powerpc64 | ice pci powerpc64le \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
-dev/ice/ice_iflib_txrx.c	optional	ice pci powerpc64 \
+dev/ice/ice_iflib_txrx.c	optional	ice pci powerpc64 | ice pci powerpc64le \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
-dev/ice/ice_common.c		optional	ice pci powerpc64 \
+dev/ice/ice_common.c		optional	ice pci powerpc64 | ice pci powerpc64le \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
-dev/ice/ice_controlq.c		optional	ice pci powerpc64 \
+dev/ice/ice_controlq.c		optional	ice pci powerpc64 | ice pci powerpc64le \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
-dev/ice/ice_dcb.c		optional	ice pci powerpc64 \
+dev/ice/ice_dcb.c		optional	ice pci powerpc64 | ice pci powerpc64le \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
-dev/ice/ice_flex_pipe.c		optional	ice pci powerpc64 \
+dev/ice/ice_flex_pipe.c		optional	ice pci powerpc64 | ice pci powerpc64le \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
-dev/ice/ice_flow.c		optional	ice pci powerpc64 \
+dev/ice/ice_flow.c		optional	ice pci powerpc64 | ice pci powerpc64le \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
-dev/ice/ice_nvm.c		optional	ice pci powerpc64 \
+dev/ice/ice_nvm.c		optional	ice pci powerpc64 | ice pci powerpc64le \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
-dev/ice/ice_sched.c		optional	ice pci powerpc64 \
+dev/ice/ice_sched.c		optional	ice pci powerpc64 | ice pci powerpc64le \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
-dev/ice/ice_switch.c		optional	ice pci powerpc64 \
+dev/ice/ice_switch.c		optional	ice pci powerpc64 | ice pci powerpc64le \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
-dev/ice/ice_vlan_mode.c		optional	ice pci powerpc64 \
+dev/ice/ice_vlan_mode.c		optional	ice pci powerpc64 | ice pci powerpc64le \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
-dev/ice/ice_fw_logging.c	optional	ice pci powerpc64 \
+dev/ice/ice_fw_logging.c	optional	ice pci powerpc64 | ice pci powerpc64le \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
-dev/ice/ice_fwlog.c		optional	ice pci powerpc64 \
+dev/ice/ice_fwlog.c		optional	ice pci powerpc64 | ice pci powerpc64le \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
-dev/ice/ice_rdma.c		optional	ice pci powerpc64 \
+dev/ice/ice_rdma.c		optional	ice pci powerpc64 | ice pci powerpc64le \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
-dev/ice/irdma_if.m		optional	ice pci powerpc64 \
+dev/ice/irdma_if.m		optional	ice pci powerpc64 | ice pci powerpc64le \
 	compile-with "${NORMAL_M} -I$S/dev/ice"
-dev/ice/irdma_di_if.m		optional	ice pci powerpc64 \
+dev/ice/irdma_di_if.m		optional	ice pci powerpc64 | ice pci powerpc64le \
 	compile-with "${NORMAL_M} -I$S/dev/ice"
-ice_ddp.c			optional	ice_ddp powerpc64 \
-	compile-with	"${AWK} -f $S/tools/fw_stub.awk ice_ddp.fw:ice_ddp:0x01031b00 -mice_ddp -c${.TARGET}"	\
+dev/ice/ice_ddp_common.c	optional	ice pci powerpc64 | ice pci powerpc64le \
+	compile-with "${NORMAL_C} -I$S/dev/ice"
+ice_ddp.c			optional	ice_ddp powerpc64 | ice pci powerpc64le \
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk ice_ddp.fw:ice_ddp:0x01031e00 -mice_ddp -c${.TARGET}"	\
 	no-ctfconvert no-implicit-rule before-depend local  \
 	clean		"ice_ddp.c"
-ice_ddp.fwo			optional	ice_ddp powerpc64 \
+ice_ddp.fwo			optional	ice_ddp powerpc64 | ice pci powerpc64le \
 	dependency	"ice_ddp.fw"			\
 	compile-with	"${NORMAL_FWO}"			\
 	no-implicit-rule				\
 	clean		"ice_ddp.fwo"
-ice_ddp.fw			optional	ice_ddp powerpc64 \
-	dependency	"$S/contrib/dev/ice/ice-1.3.27.0.pkg" \
-	compile-with	"${CP} $S/contrib/dev/ice/ice-1.3.27.0.pkg ice_ddp.fw" \
+ice_ddp.fw			optional	ice_ddp powerpc64 | ice pci powerpc64le \
+	dependency	"$S/contrib/dev/ice/ice-1.3.30.0.pkg" \
+	compile-with	"${CP} $S/contrib/dev/ice/ice-1.3.30.0.pkg ice_ddp.fw" \
 	no-obj no-implicit-rule				\
 	clean		"ice_ddp.fw"
 dev/ixl/if_ixl.c		optional	ixl pci powerpc64 \
@@ -188,7 +190,9 @@ libkern/memcmp.c		standard
 libkern/memset.c		standard
 libkern/moddi3.c		optional	powerpc | powerpcspe
 libkern/qdivrem.c		optional	powerpc | powerpcspe
+libkern/strcmp.c		standard
 libkern/strlen.c		standard
+libkern/strncmp.c		standard
 libkern/ucmpdi2.c		optional	powerpc | powerpcspe
 libkern/udivdi3.c		optional	powerpc | powerpcspe
 libkern/umoddi3.c		optional	powerpc | powerpcspe

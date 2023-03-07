@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 18, 2022
+.Dd August 16, 2022
 .Dt RC.SUBR 8
 .Os
 .Sh NAME
@@ -685,6 +685,9 @@ This is a generic version of
 .Va ${name}_fib ,
 or
 .Va ${name}_nice .
+.It Va ${name}_setup
+Command to be run prior to
+.Va command .
 .It Ar argument Ns Va _cmd
 Shell commands which override the default method for
 .Ar argument .

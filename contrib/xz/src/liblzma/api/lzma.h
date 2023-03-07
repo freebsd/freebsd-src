@@ -219,7 +219,8 @@
  */
 #ifndef lzma_nothrow
 #	if defined(__cplusplus)
-#		if __cplusplus >= 201103L
+#		if __cplusplus >= 201103L || (defined(_MSVC_LANG) \
+				&& _MSVC_LANG >= 201103L)
 #			define lzma_nothrow noexcept
 #		else
 #			define lzma_nothrow throw()

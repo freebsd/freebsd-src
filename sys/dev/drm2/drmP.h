@@ -497,7 +497,7 @@ struct drm_agp_head {
  * Scatter-gather memory.
  */
 struct drm_sg_mem {
-	vm_offset_t vaddr;
+	void *vaddr;
 	vm_paddr_t *busaddr;
 	vm_pindex_t pages;
 };

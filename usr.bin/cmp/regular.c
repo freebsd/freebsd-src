@@ -120,6 +120,13 @@ c_regular(int fd1, const char *file1, off_t skip1, off_t len1,
 	p2 = m2 + (skip2 - off2);
 
 	for (byte = line = 1; length--; ++byte) {
+#ifdef SIGINFO
+		if (info) {
+			(void)fprintf(stderr, "%s %s char %zu line %zu\n",
+			    file1, file2, (size_t)byte, (size_t)line);
+			info = 0;
+		}
+#endif
 		if ((ch = *p1) != *p2) {
 			if (xflag) {
 				dfound = 1;

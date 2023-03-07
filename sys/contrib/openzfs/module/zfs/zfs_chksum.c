@@ -81,15 +81,15 @@ chksum_kstat_headers(char *buf, size_t size)
 {
 	ssize_t off = 0;
 
-	off += snprintf(buf + off, size, "%-23s", "implementation");
-	off += snprintf(buf + off, size - off, "%8s", "1k");
-	off += snprintf(buf + off, size - off, "%8s", "4k");
-	off += snprintf(buf + off, size - off, "%8s", "16k");
-	off += snprintf(buf + off, size - off, "%8s", "64k");
-	off += snprintf(buf + off, size - off, "%8s", "256k");
-	off += snprintf(buf + off, size - off, "%8s", "1m");
-	off += snprintf(buf + off, size - off, "%8s", "4m");
-	(void) snprintf(buf + off, size - off, "%8s\n", "16m");
+	off += kmem_scnprintf(buf + off, size, "%-23s", "implementation");
+	off += kmem_scnprintf(buf + off, size - off, "%8s", "1k");
+	off += kmem_scnprintf(buf + off, size - off, "%8s", "4k");
+	off += kmem_scnprintf(buf + off, size - off, "%8s", "16k");
+	off += kmem_scnprintf(buf + off, size - off, "%8s", "64k");
+	off += kmem_scnprintf(buf + off, size - off, "%8s", "256k");
+	off += kmem_scnprintf(buf + off, size - off, "%8s", "1m");
+	off += kmem_scnprintf(buf + off, size - off, "%8s", "4m");
+	(void) kmem_scnprintf(buf + off, size - off, "%8s\n", "16m");
 
 	return (0);
 }
@@ -102,23 +102,23 @@ chksum_kstat_data(char *buf, size_t size, void *data)
 	char b[24];
 
 	cs = (chksum_stat_t *)data;
-	snprintf(b, 23, "%s-%s", cs->name, cs->impl);
-	off += snprintf(buf + off, size - off, "%-23s", b);
-	off += snprintf(buf + off, size - off, "%8llu",
+	kmem_scnprintf(b, 23, "%s-%s", cs->name, cs->impl);
+	off += kmem_scnprintf(buf + off, size - off, "%-23s", b);
+	off += kmem_scnprintf(buf + off, size - off, "%8llu",
 	    (u_longlong_t)cs->bs1k);
-	off += snprintf(buf + off, size - off, "%8llu",
+	off += kmem_scnprintf(buf + off, size - off, "%8llu",
 	    (u_longlong_t)cs->bs4k);
-	off += snprintf(buf + off, size - off, "%8llu",
+	off += kmem_scnprintf(buf + off, size - off, "%8llu",
 	    (u_longlong_t)cs->bs16k);
-	off += snprintf(buf + off, size - off, "%8llu",
+	off += kmem_scnprintf(buf + off, size - off, "%8llu",
 	    (u_longlong_t)cs->bs64k);
-	off += snprintf(buf + off, size - off, "%8llu",
+	off += kmem_scnprintf(buf + off, size - off, "%8llu",
 	    (u_longlong_t)cs->bs256k);
-	off += snprintf(buf + off, size - off, "%8llu",
+	off += kmem_scnprintf(buf + off, size - off, "%8llu",
 	    (u_longlong_t)cs->bs1m);
-	off += snprintf(buf + off, size - off, "%8llu",
+	off += kmem_scnprintf(buf + off, size - off, "%8llu",
 	    (u_longlong_t)cs->bs4m);
-	(void) snprintf(buf + off, size - off, "%8llu\n",
+	(void) kmem_scnprintf(buf + off, size - off, "%8llu\n",
 	    (u_longlong_t)cs->bs16m);
 
 	return (0);
@@ -244,13 +244,14 @@ chksum_benchmark(void)
 #endif
 
 	chksum_stat_t *cs;
-	int cbid = 0, id;
+	int cbid = 0;
 	uint64_t max = 0;
+	uint32_t id, id_save;
 
 	/* space for the benchmark times */
 	chksum_stat_cnt = 4;
-	chksum_stat_cnt += blake3_get_impl_count();
-	chksum_stat_data = (chksum_stat_t *)kmem_zalloc(
+	chksum_stat_cnt += blake3_impl_getcnt();
+	chksum_stat_data = kmem_zalloc(
 	    sizeof (chksum_stat_t) * chksum_stat_cnt, KM_SLEEP);
 
 	/* edonr - needs to be the first one here (slow CPU check) */
@@ -290,20 +291,24 @@ chksum_benchmark(void)
 	chksum_benchit(cs);
 
 	/* blake3 */
-	for (id = 0; id < blake3_get_impl_count(); id++) {
-		blake3_set_impl_id(id);
+	id_save = blake3_impl_getid();
+	for (id = 0; id < blake3_impl_getcnt(); id++) {
+		blake3_impl_setid(id);
 		cs = &chksum_stat_data[cbid++];
 		cs->init = abd_checksum_blake3_tmpl_init;
 		cs->func = abd_checksum_blake3_native;
 		cs->free = abd_checksum_blake3_tmpl_free;
 		cs->name = "blake3";
-		cs->impl = blake3_get_impl_name();
+		cs->impl = blake3_impl_getname();
 		chksum_benchit(cs);
 		if (cs->bs256k > max) {
 			max = cs->bs256k;
-			blake3_set_impl_fastest(id);
+			blake3_impl_set_fastest(id);
 		}
 	}
+
+	/* restore initial value */
+	blake3_impl_setid(id_save);
 }
 
 void
@@ -329,9 +334,6 @@ chksum_init(void)
 		    chksum_kstat_addr);
 		kstat_install(chksum_kstat);
 	}
-
-	/* setup implementations */
-	blake3_setup_impl();
 }
 
 void

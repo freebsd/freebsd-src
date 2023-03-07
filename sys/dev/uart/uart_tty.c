@@ -77,6 +77,9 @@ CONSOLE_DRIVER(
 
 static struct uart_devinfo uart_console;
 
+/* TTY swi(9) event. Allows all uart soft handlers to share one ithread. */
+static struct intr_event *tty_intr_event;
+
 static void
 uart_cnprobe(struct consdev *cp)
 {

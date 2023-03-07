@@ -111,7 +111,7 @@
 static __attribute__((noreturn)) void txg_sync_thread(void *arg);
 static __attribute__((noreturn)) void txg_quiesce_thread(void *arg);
 
-int zfs_txg_timeout = 5;	/* max seconds worth of delta per txg */
+uint_t zfs_txg_timeout = 5;	/* max seconds worth of delta per txg */
 
 /*
  * Prepare the txg subsystem.
@@ -429,7 +429,7 @@ txg_quiesce(dsl_pool_t *dp, uint64_t txg)
 }
 
 static void
-txg_do_callbacks(list_t *cb_list)
+txg_do_callbacks(void *cb_list)
 {
 	dmu_tx_do_callbacks(cb_list, 0);
 
@@ -479,7 +479,7 @@ txg_dispatch_callbacks(dsl_pool_t *dp, uint64_t txg)
 
 		list_move_tail(cb_list, &tc->tc_callbacks[g]);
 
-		(void) taskq_dispatch(tx->tx_commit_cb_taskq, (task_func_t *)
+		(void) taskq_dispatch(tx->tx_commit_cb_taskq,
 		    txg_do_callbacks, cb_list, TQ_SLEEP);
 	}
 }
@@ -1069,5 +1069,5 @@ EXPORT_SYMBOL(txg_wait_callbacks);
 EXPORT_SYMBOL(txg_stalled);
 EXPORT_SYMBOL(txg_sync_waiting);
 
-ZFS_MODULE_PARAM(zfs_txg, zfs_txg_, timeout, INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_txg, zfs_txg_, timeout, UINT, ZMOD_RW,
 	"Max seconds worth of delta per txg");

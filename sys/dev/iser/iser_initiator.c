@@ -290,7 +290,7 @@ iser_buf_to_sg(void *buf, struct iser_data_buf *data_buf)
 		offset = ((uintptr_t)buf) & ~PAGE_MASK;
 		len = min(PAGE_SIZE - offset, tlen);
 		sg_set_buf(sg, buf, len);
-		buf = (void *)(((u64)buf) + (u64)len);
+		buf = (void *)((uintptr_t)buf + len);
 	}
 
 	data_buf->size = i;

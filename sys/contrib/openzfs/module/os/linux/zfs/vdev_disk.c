@@ -56,7 +56,7 @@ static void *zfs_vdev_holder = VDEV_HOLDER;
  * device is missing. The missing path may be transient since the links
  * can be briefly removed and recreated in response to udev events.
  */
-static unsigned zfs_vdev_open_timeout_ms = 1000;
+static uint_t zfs_vdev_open_timeout_ms = 1000;
 
 /*
  * Size of the "reserved" partition, in blocks.
@@ -71,8 +71,14 @@ typedef struct dio_request {
 	atomic_t		dr_ref;		/* References */
 	int			dr_error;	/* Bio error */
 	int			dr_bio_count;	/* Count of bio's */
-	struct bio		*dr_bio[0];	/* Attached bio's */
+	struct bio		*dr_bio[];	/* Attached bio's */
 } dio_request_t;
+
+/*
+ * BIO request failfast mask.
+ */
+
+static unsigned int zfs_vdev_failfast_mask = 1;
 
 static fmode_t
 vdev_bdev_mode(spa_mode_t spa_mode)
@@ -173,10 +179,22 @@ vdev_disk_error(zio_t *zio)
 	 * which is safe from any context.
 	 */
 	printk(KERN_WARNING "zio pool=%s vdev=%s error=%d type=%d "
-	    "offset=%llu size=%llu flags=%x\n", spa_name(zio->io_spa),
+	    "offset=%llu size=%llu flags=%llu\n", spa_name(zio->io_spa),
 	    zio->io_vd->vdev_path, zio->io_error, zio->io_type,
 	    (u_longlong_t)zio->io_offset, (u_longlong_t)zio->io_size,
 	    zio->io_flags);
+}
+
+static void
+vdev_disk_kobj_evt_post(vdev_t *v)
+{
+	vdev_disk_t *vd = v->vdev_tsd;
+	if (vd && vd->vd_bdev) {
+		spl_signal_kobj_evt(vd->vd_bdev);
+	} else {
+		vdev_dbgmsg(v, "vdev_disk_t is NULL for VDEV:%s\n",
+		    v->vdev_path);
+	}
 }
 
 static int
@@ -290,6 +308,13 @@ vdev_disk_open(vdev_t *v, uint64_t *psize, uint64_t *max_psize,
 		bdev = blkdev_get_by_path(v->vdev_path, mode | FMODE_EXCL,
 		    zfs_vdev_holder);
 		if (unlikely(PTR_ERR(bdev) == -ENOENT)) {
+			/*
+			 * There is no point of waiting since device is removed
+			 * explicitly
+			 */
+			if (v->vdev_removed)
+				break;
+
 			schedule_timeout(MSEC_TO_TICK(10));
 		} else if (unlikely(PTR_ERR(bdev) == -ERESTARTSYS)) {
 			timeout = MSEC2NSEC(zfs_vdev_open_timeout_ms * 10);
@@ -400,7 +425,7 @@ vdev_disk_dio_get(dio_request_t *dr)
 	atomic_inc(&dr->dr_ref);
 }
 
-static int
+static void
 vdev_disk_dio_put(dio_request_t *dr)
 {
 	int rc = atomic_dec_return(&dr->dr_ref);
@@ -424,14 +449,11 @@ vdev_disk_dio_put(dio_request_t *dr)
 			zio_delay_interrupt(zio);
 		}
 	}
-
-	return (rc);
 }
 
 BIO_END_IO_PROTO(vdev_disk_physio_completion, bio, error)
 {
 	dio_request_t *dr = bio->bi_private;
-	int rc;
 
 	if (dr->dr_error == 0) {
 #ifdef HAVE_1ARG_BIO_END_IO_T
@@ -445,7 +467,7 @@ BIO_END_IO_PROTO(vdev_disk_physio_completion, bio, error)
 	}
 
 	/* Drop reference acquired by __vdev_disk_physio */
-	rc = vdev_disk_dio_put(dr);
+	vdev_disk_dio_put(dr);
 }
 
 static inline void
@@ -640,8 +662,11 @@ __vdev_disk_physio(struct block_device *bdev, zio_t *zio,
 retry:
 	dr = vdev_disk_dio_alloc(bio_count);
 
-	if (zio && !(zio->io_flags & (ZIO_FLAG_IO_RETRY | ZIO_FLAG_TRYHARD)))
-		bio_set_flags_failfast(bdev, &flags);
+	if (!(zio->io_flags & (ZIO_FLAG_IO_RETRY | ZIO_FLAG_TRYHARD)) &&
+	    zio->io_vd->vdev_failfast == B_TRUE) {
+		bio_set_flags_failfast(bdev, &flags, zfs_vdev_failfast_mask & 1,
+		    zfs_vdev_failfast_mask & 2, zfs_vdev_failfast_mask & 4);
+	}
 
 	dr->dr_zio = zio;
 
@@ -714,7 +739,7 @@ retry:
 	if (dr->dr_bio_count > 1)
 		blk_finish_plug(&plug);
 
-	(void) vdev_disk_dio_put(dr);
+	vdev_disk_dio_put(dr);
 
 	return (error);
 }
@@ -901,7 +926,7 @@ vdev_disk_io_done(zio_t *zio)
 		vdev_t *v = zio->io_vd;
 		vdev_disk_t *vd = v->vdev_tsd;
 
-		if (zfs_check_media_change(vd->vd_bdev)) {
+		if (!zfs_check_disk_status(vd->vd_bdev)) {
 			invalidate_bdev(vd->vd_bdev);
 			v->vdev_remove_wanted = B_TRUE;
 			spa_async_request(zio->io_spa, SPA_ASYNC_REMOVE);
@@ -957,7 +982,8 @@ vdev_ops_t vdev_disk_ops = {
 	.vdev_op_nparity = NULL,
 	.vdev_op_ndisks = NULL,
 	.vdev_op_type = VDEV_TYPE_DISK,		/* name of this vdev type */
-	.vdev_op_leaf = B_TRUE			/* leaf vdev */
+	.vdev_op_leaf = B_TRUE,			/* leaf vdev */
+	.vdev_op_kobj_evt_post = vdev_disk_kobj_evt_post
 };
 
 /*
@@ -986,17 +1012,17 @@ MODULE_PARM_DESC(zfs_vdev_scheduler, "I/O scheduler");
 int
 param_set_min_auto_ashift(const char *buf, zfs_kernel_param_t *kp)
 {
-	uint64_t val;
+	uint_t val;
 	int error;
 
-	error = kstrtoull(buf, 0, &val);
+	error = kstrtouint(buf, 0, &val);
 	if (error < 0)
 		return (SET_ERROR(error));
 
 	if (val < ASHIFT_MIN || val > zfs_vdev_max_auto_ashift)
 		return (SET_ERROR(-EINVAL));
 
-	error = param_set_ulong(buf, kp);
+	error = param_set_uint(buf, kp);
 	if (error < 0)
 		return (SET_ERROR(error));
 
@@ -1006,19 +1032,25 @@ param_set_min_auto_ashift(const char *buf, zfs_kernel_param_t *kp)
 int
 param_set_max_auto_ashift(const char *buf, zfs_kernel_param_t *kp)
 {
-	uint64_t val;
+	uint_t val;
 	int error;
 
-	error = kstrtoull(buf, 0, &val);
+	error = kstrtouint(buf, 0, &val);
 	if (error < 0)
 		return (SET_ERROR(error));
 
 	if (val > ASHIFT_MAX || val < zfs_vdev_min_auto_ashift)
 		return (SET_ERROR(-EINVAL));
 
-	error = param_set_ulong(buf, kp);
+	error = param_set_uint(buf, kp);
 	if (error < 0)
 		return (SET_ERROR(error));
 
 	return (0);
 }
+
+ZFS_MODULE_PARAM(zfs_vdev, zfs_vdev_, open_timeout_ms, UINT, ZMOD_RW,
+	"Timeout before determining that a device is missing");
+
+ZFS_MODULE_PARAM(zfs_vdev, zfs_vdev_, failfast_mask, UINT, ZMOD_RW,
+	"Defines failfast mask: 1 - device, 2 - transport, 4 - driver");

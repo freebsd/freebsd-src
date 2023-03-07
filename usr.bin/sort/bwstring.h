@@ -67,12 +67,6 @@ struct bwstring
 	};
 };
 
-struct reader_buffer
-{
-	wchar_t			*fgetwln_z_buffer;
-	size_t			 fgetwln_z_buffer_size;
-};
-
 typedef void *bwstring_iterator;
 
 #define	BWSLEN(s) ((mb_cur_max == 1) ? (s)->cdata.len : (s)->wdata.len)
@@ -97,14 +91,11 @@ struct bwstring *bwsdup(const struct bwstring *s);
 struct bwstring *bwssbdup(const wchar_t *str, size_t size);
 struct bwstring *bwscsbdup(const unsigned char *str, size_t size);
 void bwsfree(const struct bwstring *s);
-size_t bwscpy(struct bwstring *dst, const struct bwstring *src);
-struct bwstring *bwsncpy(struct bwstring *dst, const struct bwstring *src, size_t size);
 struct bwstring *bwsnocpy(struct bwstring *dst, const struct bwstring *src, size_t offset, size_t size);
 int bwscmp(const struct bwstring *bws1, const struct bwstring *bws2, size_t offset);
 int bwsncmp(const struct bwstring *bws1, const struct bwstring *bws2, size_t offset, size_t len);
 int bwscoll(const struct bwstring *bws1, const struct bwstring *bws2, size_t offset);
 size_t bwsfwrite(struct bwstring *bws, FILE *f, bool zero_ended);
-struct bwstring *bwsfgetln(FILE *file, size_t *len, bool zero_ended, struct reader_buffer *rb);
 
 static inline bwstring_iterator
 bws_begin(struct bwstring *bws)

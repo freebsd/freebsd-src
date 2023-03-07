@@ -49,6 +49,7 @@
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <netinet/in.h>
 
 #include <netpfil/pf/pf.h>
@@ -574,8 +575,7 @@ priq_getq(struct priq_class *cl)
 }
 
 static struct mbuf *
-priq_pollq(cl)
-	struct priq_class *cl;
+priq_pollq(struct priq_class *cl)
 {
 	return qhead(cl->cl_q);
 }

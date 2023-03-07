@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=	console-tools
 PROG=	kbdmap
 CFLAGS+=	-I${SRCTOP}/contrib/bsddialog/lib
 LIBADD=	bsddialog

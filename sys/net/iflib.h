@@ -131,7 +131,9 @@ typedef struct if_pkt_info {
 	uint8_t			ipi_mflags;	/* packet mbuf flags */
 
 	uint32_t		ipi_tcp_seq;	/* tcp seqno */
-	uint32_t		__spare0__;
+	uint8_t			ipi_ip_tos;	/* IP ToS field data */
+	uint8_t			__spare0__;
+	uint16_t		__spare1__;
 } *if_pkt_info_t;
 
 typedef struct if_irq {
@@ -188,6 +190,7 @@ typedef struct if_txrx {
 	void (*ift_rxd_flush) (void *, uint16_t qsidx, uint8_t flidx, qidx_t pidx);
 	int (*ift_legacy_intr) (void *);
 	qidx_t (*ift_txq_select) (void *, struct mbuf *);
+	qidx_t (*ift_txq_select_v2) (void *, struct mbuf *, if_pkt_info_t);
 } *if_txrx_t;
 
 typedef struct if_softc_ctx {
@@ -416,6 +419,13 @@ typedef enum {
  * as ift_txq_select in struct if_txrx
  */
 #define IFLIB_FEATURE_QUEUE_SELECT	1400050
+/*
+ * Driver can set its own TX queue selection function
+ * as ift_txq_select_v2 in struct if_txrx. This includes
+ * having iflib send L3+ extra header information to the
+ * function.
+ */
+#define IFLIB_FEATURE_QUEUE_SELECT_V2	1400073
 
 /*
  * These enum values are used in iflib_needs_restart to indicate to iflib

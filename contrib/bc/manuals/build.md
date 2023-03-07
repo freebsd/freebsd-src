@@ -40,7 +40,7 @@ accepted build options.
 ## Windows
 
 For releases, Windows builds of `bc`, `dc`, and `bcl` are available for download
-from <https://git.yzena.com/gavin/bc> and GitHub.
+from <https://git.gavinhoward.com/gavin/bc> and GitHub.
 
 However, if you wish to build it yourself, this `bc` can be built using Visual
 Studio or MSBuild.
@@ -132,7 +132,7 @@ the environment variable `GEN_EMU`.
 
 This `bc` supports `CC`, `HOSTCC`, `HOST_CC`, `CFLAGS`, `HOSTCFLAGS`,
 `HOST_CFLAGS`, `CPPFLAGS`, `LDFLAGS`, `LDLIBS`, `PREFIX`, `DESTDIR`, `BINDIR`,
-`DATAROOTDIR`, `DATADIR`, `MANDIR`, `MAN1DIR`, `LOCALEDIR` `EXECSUFFIX`,
+`DATAROOTDIR`, `DATADIR`, `MANDIR`, `MAN1DIR`, `MAN3DIR`, `EXECSUFFIX`,
 `EXECPREFIX`, `LONG_BIT`, `GEN_HOST`, and `GEN_EMU` environment variables in
 `configure.sh`. Any values of those variables given to `configure.sh` will be
 put into the generated Makefile.
@@ -205,6 +205,10 @@ Can be overridden by passing the `--prefix` option to `configure.sh`.
 
 Defaults to `/usr/local`.
 
+***WARNING***: Locales ignore the prefix because they *must* be installed at a
+fixed location to work at all. If you do not want that to happen, you must
+disable locales (NLS) completely.
+
 #### `DESTDIR`
 
 Path to prepend onto `PREFIX`. This is mostly for distro and package
@@ -272,13 +276,13 @@ Can be overridden by passing the `--man1dir` option to `configure.sh`.
 
 Defaults to `$MANDIR/man1`.
 
-#### `LOCALEDIR`
+#### `MAN3DIR`
 
-The directory to install locales in.
+The directory to install Section 3 manpages in.
 
-Can be overridden by passing the `--localedir` option to `configure.sh`.
+Can be overridden by passing the `--man3dir` option to `configure.sh`.
 
-Defaults to `$DATAROOTDIR/locale`.
+Defaults to `$MANDIR/man3`.
 
 #### `EXECSUFFIX`
 
@@ -354,6 +358,30 @@ following forms:
 --option arg
 --option=arg
 ```
+
+#### Predefined Builds
+
+To quickly get a release build of a `bc` and `dc` that is (by default)
+compatible with the BSD `bc` and `dc`, use the `-p` or `--predefined-build-type`
+options:
+
+```
+./configure.sh -pBSD
+./configure.sh --predefined-build-type=BSD
+```
+
+Both commands are equivalent.
+
+To quickly get a release build of a `bc` and `dc` that is (by default)
+compatible with the GNU `bc` and `dc`, use the `-p` or `--predefined-build-type`
+options:
+
+```
+./configure.sh -pGNU
+./configure.sh --predefined-build-type=GNU
+```
+
+Both commands are equivalent.
 
 #### Library
 
@@ -435,7 +463,7 @@ This option affects the [build type][7].
 History support can be provided by editline, in order to implement `vi`-like
 keybindings and other features.
 
-To enable editline support pass either the `-e` flag or the `--enable-editline`
+To enable editline support, pass either the `-e` flag or the `--enable-editline`
 option to `configure.sh`, as follows:
 
 ```
@@ -447,12 +475,16 @@ Both commands are equivalent.
 
 This is ignored if history is disabled.
 
+This option is only used if it is after any other `-e`/`--enable-editline`
+options, any `-r`/`--enable-readline` options, and any
+`-i`/`--enable-internal-history` options.
+
 ##### Readline
 
 History support can be provided by readline, in order to implement `vi`-like
 keybindings and other features.
 
-To enable readline support pass either the `-r` flag or the `--enable-readline`
+To enable readline support, pass either the `-r` flag or the `--enable-readline`
 option to `configure.sh`, as follows:
 
 ```
@@ -463,6 +495,30 @@ option to `configure.sh`, as follows:
 Both commands are equivalent.
 
 This is ignored if history is disabled.
+
+This option is only used if it is after any other `-r`/`--enable-readline`
+options, any `-e`/`--enable-editline` options, and any
+`-i`/`--enable-internal-history` options.
+
+##### Internal History
+
+History support is also available as an internal implementation with no
+dependencies. This is the default if editline and readline are not selected.
+
+However, if `-p` option is used, then this option can be useful for selecting
+the internal history regardless of what the predefined build has.
+
+To enable the internal history, pass either the `-i` flag or the
+`--enable-internal-history` option to `configure.sh` as follows:
+
+```
+./configure.sh -i
+./configure.sh --enable-internal-history
+```
+
+This option is only used if it is after any other
+`-i`/`--enable-internal-history` options, any `-e`/`--enable-editline` options,
+and any `-r`/`--enable-readline` options.
 
 #### NLS (Locale Support)
 
@@ -480,6 +536,10 @@ NLS (locale support) is automatically disabled when building for Windows or on
 another platform that does not support the POSIX locale API or utilities.
 
 This option affects the [build type][7].
+
+***WARNING***: Locales ignore the prefix because they *must* be installed at a
+fixed location to work at all. If you do not want that to happen, you must
+disable locales (NLS) completely.
 
 #### Extra Math
 
@@ -607,6 +667,32 @@ environment variables to override them, is below:
 |                 | for dc should be on  |              |                      |
 |                 | in tty mode.         |              |                      |
 | --------------- | -------------------- | ------------ | -------------------- |
+| bc.expr_exit    | Whether to exit bc   |            1 | BC_EXPR_EXIT         |
+|                 | if an expression or  |              |                      |
+|                 | expression file is   |              |                      |
+|                 | given with the -e or |              |                      |
+|                 | -f options.          |              |                      |
+| --------------- | -------------------- | ------------ | -------------------- |
+| dc.expr_exit    | Whether to exit dc   |            1 | DC_EXPR_EXIT         |
+|                 | if an expression or  |              |                      |
+|                 | expression file is   |              |                      |
+|                 | given with the -e or |              |                      |
+|                 | -f options.          |              |                      |
+| --------------- | -------------------- | ------------ | -------------------- |
+| bc.digit_clamp  | Whether to have bc   |            0 | BC_DIGIT_CLAMP       |
+|                 | clamp digits that    |              |                      |
+|                 | are greater than or  |              |                      |
+|                 | equal to the current |              |                      |
+|                 | ibase when parsing   |              |                      |
+|                 | numbers.             |              |                      |
+| --------------- | -------------------- | ------------ | -------------------- |
+| dc.digit_clamp  | Whether to have dc   |            0 | DC_DIGIT_CLAMP       |
+|                 | clamp digits that    |              |                      |
+|                 | are greater than or  |              |                      |
+|                 | equal to the current |              |                      |
+|                 | ibase when parsing   |              |                      |
+|                 | numbers.             |              |                      |
+| --------------- | -------------------- | ------------ | -------------------- |
 ```
 
 These settings are not meant to be changed on a whim. They are meant to ensure
@@ -623,19 +709,22 @@ The relevant `autotools`-style install options are supported in `configure.sh`:
 * `--datadir`
 * `--mandir`
 * `--man1dir`
-* `--localedir`
+* `--man3dir`
 
 An example is:
 
 ```
-./configure.sh --prefix=/usr --localedir /usr/share/nls
+./configure.sh --prefix=/usr
 make
 make install
 ```
 
 They correspond to the environment variables `$PREFIX`, `$BINDIR`,
-`$DATAROOTDIR`, `$DATADIR`, `$MANDIR`, `$MAN1DIR`, and `$LOCALEDIR`,
-respectively.
+`$DATAROOTDIR`, `$DATADIR`, `$MANDIR`, `$MAN1DIR`, `$MAN3DIR`, and respectively.
+
+***WARNING***: Locales ignore the prefix because they *must* be installed at a
+fixed location to work at all. If you do not want that to happen, you must
+disable locales (NLS) completely.
 
 ***WARNING***: If the option is given, the value of the corresponding
 environment variable is overridden.
@@ -671,6 +760,10 @@ have, regardless. To enable that behavior, you can pass the `-l` flag or the
 ```
 
 Both commands are equivalent.
+
+***WARNING***: Locales ignore the prefix because they *must* be installed at a
+fixed location to work at all. If you do not want that to happen, you must
+disable locales (NLS) completely.
 
 ### Optimization
 
@@ -872,6 +965,22 @@ Both commands are equivalent.
 
 ***WARNING***: Both `bc` and `dc` must be built for test coverage. Otherwise,
 `configure.sh` will give an error.
+
+#### Problematic Tests
+
+Some tests are problematic, in that they can cause `SIGKILL` on FreeBSD or
+`SIGSEGV` on Linux from being killed by the "OOM Killer" part of the kernel. On
+Linux, these tests are usually fine, but on FreeBSD, they are usually a problem.
+
+To disable problematic tests, pass the `-P` flag or the
+`--disable-problematic-tests` option to `configure.sh` as follows:
+
+```
+./configure.sh -P
+./configure.sh --disable-problematic-tests
+```
+
+Both commands are equivalent.
 
 [1]: https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html
 [2]: https://www.gnu.org/software/bc/

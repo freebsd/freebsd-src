@@ -18,7 +18,6 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/StringSet.h"
 #include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/IR/AutoUpgrade.h"
 #include "llvm/IR/Constants.h"
@@ -33,8 +32,6 @@
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Linker/IRMover.h"
-#include "llvm/Object/ModuleSymbolTable.h"
-#include "llvm/Object/SymbolicFile.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
@@ -1112,12 +1109,13 @@ void llvm::thinLTOFinalizeInModule(Module &TheModule,
         llvm_unreachable("Expected GV to be converted");
     } else {
       // If all copies of the original symbol had global unnamed addr and
-      // linkonce_odr linkage, it should be an auto hide symbol. In that case
-      // the thin link would have marked it as CanAutoHide. Add hidden visibility
-      // to the symbol to preserve the property.
+      // linkonce_odr linkage, or if all of them had local unnamed addr linkage
+      // and are constants, then it should be an auto hide symbol. In that case
+      // the thin link would have marked it as CanAutoHide. Add hidden
+      // visibility to the symbol to preserve the property.
       if (NewLinkage == GlobalValue::WeakODRLinkage &&
           GS->second->canAutoHide()) {
-        assert(GV.hasLinkOnceODRLinkage() && GV.hasGlobalUnnamedAddr());
+        assert(GV.canBeOmittedFromSymbolTable());
         GV.setVisibility(GlobalValue::HiddenVisibility);
       }
 
@@ -1149,6 +1147,14 @@ void llvm::thinLTOInternalizeModule(Module &TheModule,
   // Declare a callback for the internalize pass that will ask for every
   // candidate GlobalValue if it can be internalized or not.
   auto MustPreserveGV = [&](const GlobalValue &GV) -> bool {
+    // It may be the case that GV is on a chain of an ifunc, its alias and
+    // subsequent aliases. In this case, the summary for the value is not
+    // available.
+    if (isa<GlobalIFunc>(&GV) ||
+        (isa<GlobalAlias>(&GV) &&
+         isa<GlobalIFunc>(cast<GlobalAlias>(&GV)->getAliaseeObject())))
+      return true;
+
     // Lookup the linkage recorded in the summaries during global analysis.
     auto GS = DefinedGlobals.find(GV.getGUID());
     if (GS == DefinedGlobals.end()) {
@@ -1279,7 +1285,7 @@ Expected<bool> FunctionImporter::importFunctions(
       }
     }
     for (GlobalAlias &GA : SrcModule->aliases()) {
-      if (!GA.hasName())
+      if (!GA.hasName() || isa<GlobalIFunc>(GA.getAliaseeObject()))
         continue;
       auto GUID = GA.getGUID();
       auto Import = ImportGUIDs.count(GUID);
@@ -1330,10 +1336,9 @@ Expected<bool> FunctionImporter::importFunctions(
                << " from " << SrcModule->getSourceFileName() << "\n";
     }
 
-    if (Error Err = Mover.move(
-            std::move(SrcModule), GlobalsToImport.getArrayRef(),
-            [](GlobalValue &, IRMover::ValueAdder) {},
-            /*IsPerformingImport=*/true))
+    if (Error Err = Mover.move(std::move(SrcModule),
+                               GlobalsToImport.getArrayRef(), nullptr,
+                               /*IsPerformingImport=*/true))
       report_fatal_error(Twine("Function Import: link error: ") +
                          toString(std::move(Err)));
 
@@ -1416,29 +1421,6 @@ static bool doImportingForModule(Module &M) {
   return *Result;
 }
 
-namespace {
-
-/// Pass that performs cross-module function import provided a summary file.
-class FunctionImportLegacyPass : public ModulePass {
-public:
-  /// Pass identification, replacement for typeid
-  static char ID;
-
-  explicit FunctionImportLegacyPass() : ModulePass(ID) {}
-
-  /// Specify pass name for debug output
-  StringRef getPassName() const override { return "Function Importing"; }
-
-  bool runOnModule(Module &M) override {
-    if (skipModule(M))
-      return false;
-
-    return doImportingForModule(M);
-  }
-};
-
-} // end anonymous namespace
-
 PreservedAnalyses FunctionImportPass::run(Module &M,
                                           ModuleAnalysisManager &AM) {
   if (!doImportingForModule(M))
@@ -1446,15 +1428,3 @@ PreservedAnalyses FunctionImportPass::run(Module &M,
 
   return PreservedAnalyses::none();
 }
-
-char FunctionImportLegacyPass::ID = 0;
-INITIALIZE_PASS(FunctionImportLegacyPass, "function-import",
-                "Summary Based Function Import", false, false)
-
-namespace llvm {
-
-Pass *createFunctionImportPass() {
-  return new FunctionImportLegacyPass();
-}
-
-} // end namespace llvm

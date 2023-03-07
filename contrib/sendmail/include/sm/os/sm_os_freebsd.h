@@ -26,17 +26,18 @@
 #       define SM_CONF_STRL		1
 #    endif
 #  endif
+#  if __FreeBSD_version >= 1200059
+#   ifndef SM_CONF_SEM
+#    define SM_CONF_SEM	2 /* union semun is no longer declared by default */
+#   endif
+#  endif
 #endif
 
 #ifndef SM_CONF_SHM
 # define SM_CONF_SHM	1
 #endif
 #ifndef SM_CONF_SEM
-# if __FreeBSD_version >= 1200059
-#  define SM_CONF_SEM	2 /* union semun is no longer declared by default */
-# else
-#  define SM_CONF_SEM	1
-# endif
+# define SM_CONF_SEM	1
 #endif
 #ifndef SM_CONF_MSG
 # define SM_CONF_MSG	1

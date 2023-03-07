@@ -89,7 +89,7 @@ public:
   void add(std::function<void()> F) override {
     {
       std::lock_guard<std::mutex> Lock(Mutex);
-      WorkStack.push(F);
+      WorkStack.push(std::move(F));
     }
     Cond.notify_one();
   }
@@ -102,7 +102,7 @@ private:
       Cond.wait(Lock, [&] { return Stop || !WorkStack.empty(); });
       if (Stop)
         break;
-      auto Task = WorkStack.top();
+      auto Task = std::move(WorkStack.top());
       WorkStack.pop();
       Lock.unlock();
       Task();
@@ -161,7 +161,7 @@ TaskGroup::~TaskGroup() {
 void TaskGroup::spawn(std::function<void()> F) {
   if (Parallel) {
     L.inc();
-    Executor::getDefaultExecutor()->add([&, F] {
+    Executor::getDefaultExecutor()->add([&, F = std::move(F)] {
       F();
       L.dec();
     });
@@ -175,8 +175,8 @@ void TaskGroup::spawn(std::function<void()> F) {
 } // namespace llvm
 #endif // LLVM_ENABLE_THREADS
 
-void llvm::parallelForEachN(size_t Begin, size_t End,
-                            llvm::function_ref<void(size_t)> Fn) {
+void llvm::parallelFor(size_t Begin, size_t End,
+                       llvm::function_ref<void(size_t)> Fn) {
   // If we have zero or one items, then do not incur the overhead of spinning up
   // a task group.  They are surprisingly expensive, and because they do not
   // support nested parallelism, a single entry task group can block parallel

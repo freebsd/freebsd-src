@@ -3,8 +3,8 @@
 /* (use YYMAJOR/YYMINOR for ifdefs dependent on parser version) */
 
 #define YYBYACC 1
-#define YYMAJOR 1
-#define YYMINOR 9
+#define YYMAJOR 2
+#define YYMINOR 0
 #define YYCHECK "yyyymmdd"
 
 #define YYEMPTY        (-1)
@@ -18,102 +18,102 @@
 #define YYDEBUGSTR YYPREFIX "debug"
 
 #ifndef yyparse
-#define yyparse    expr.oxout_parse
+#define yyparse    expr_oxout_parse
 #endif /* yyparse */
 
 #ifndef yylex
-#define yylex      expr.oxout_lex
+#define yylex      expr_oxout_lex
 #endif /* yylex */
 
 #ifndef yyerror
-#define yyerror    expr.oxout_error
+#define yyerror    expr_oxout_error
 #endif /* yyerror */
 
 #ifndef yychar
-#define yychar     expr.oxout_char
+#define yychar     expr_oxout_char
 #endif /* yychar */
 
 #ifndef yyval
-#define yyval      expr.oxout_val
+#define yyval      expr_oxout_val
 #endif /* yyval */
 
 #ifndef yylval
-#define yylval     expr.oxout_lval
+#define yylval     expr_oxout_lval
 #endif /* yylval */
 
 #ifndef yydebug
-#define yydebug    expr.oxout_debug
+#define yydebug    expr_oxout_debug
 #endif /* yydebug */
 
 #ifndef yynerrs
-#define yynerrs    expr.oxout_nerrs
+#define yynerrs    expr_oxout_nerrs
 #endif /* yynerrs */
 
 #ifndef yyerrflag
-#define yyerrflag  expr.oxout_errflag
+#define yyerrflag  expr_oxout_errflag
 #endif /* yyerrflag */
 
 #ifndef yylhs
-#define yylhs      expr.oxout_lhs
+#define yylhs      expr_oxout_lhs
 #endif /* yylhs */
 
 #ifndef yylen
-#define yylen      expr.oxout_len
+#define yylen      expr_oxout_len
 #endif /* yylen */
 
 #ifndef yydefred
-#define yydefred   expr.oxout_defred
+#define yydefred   expr_oxout_defred
 #endif /* yydefred */
 
 #ifndef yystos
-#define yystos     expr.oxout_stos
+#define yystos     expr_oxout_stos
 #endif /* yystos */
 
 #ifndef yydgoto
-#define yydgoto    expr.oxout_dgoto
+#define yydgoto    expr_oxout_dgoto
 #endif /* yydgoto */
 
 #ifndef yysindex
-#define yysindex   expr.oxout_sindex
+#define yysindex   expr_oxout_sindex
 #endif /* yysindex */
 
 #ifndef yyrindex
-#define yyrindex   expr.oxout_rindex
+#define yyrindex   expr_oxout_rindex
 #endif /* yyrindex */
 
 #ifndef yygindex
-#define yygindex   expr.oxout_gindex
+#define yygindex   expr_oxout_gindex
 #endif /* yygindex */
 
 #ifndef yytable
-#define yytable    expr.oxout_table
+#define yytable    expr_oxout_table
 #endif /* yytable */
 
 #ifndef yycheck
-#define yycheck    expr.oxout_check
+#define yycheck    expr_oxout_check
 #endif /* yycheck */
 
 #ifndef yyname
-#define yyname     expr.oxout_name
+#define yyname     expr_oxout_name
 #endif /* yyname */
 
 #ifndef yyrule
-#define yyrule     expr.oxout_rule
+#define yyrule     expr_oxout_rule
 #endif /* yyrule */
 
 #if YYBTYACC
 
 #ifndef yycindex
-#define yycindex   expr.oxout_cindex
+#define yycindex   expr_oxout_cindex
 #endif /* yycindex */
 
 #ifndef yyctable
-#define yyctable   expr.oxout_ctable
+#define yyctable   expr_oxout_ctable
 #endif /* yyctable */
 
 #endif /* YYBTYACC */
 
-#define YYPREFIX "expr.oxout_"
+#define YYPREFIX "expr_oxout_"
 
 #define YYPURE 0
 
@@ -199,44 +199,44 @@ extern int YYPARSE_DECL();
 #define CONST 258
 #define YYERRCODE 256
 typedef int YYINT;
-static const YYINT expr.oxout_lhs[] = {                  -1,
+static const YYINT expr_oxout_lhs[] = {                  -1,
     2,    0,    1,    3,    3,    3,    3,    3,    3,    3,
 };
-static const YYINT expr.oxout_len[] = {                   2,
+static const YYINT expr_oxout_len[] = {                   2,
     0,    2,    1,    3,    3,    3,    3,    3,    1,    1,
 };
-static const YYINT expr.oxout_defred[] = {                1,
+static const YYINT expr_oxout_defred[] = {                1,
     0,    0,    9,   10,    0,    2,    0,    0,    0,    0,
     0,    0,    8,    0,    0,    4,    0,
 };
 #if defined(YYDESTRUCT_CALL) || defined(YYSTYPE_TOSTRING)
-static const YYINT expr.oxout_stos[] = {                  0,
+static const YYINT expr_oxout_stos[] = {                  0,
   260,  262,  257,  258,   40,  261,  263,  263,   43,   45,
    42,   47,   41,  263,  263,  263,  263,
 };
 #endif /* YYDESTRUCT_CALL || YYSTYPE_TOSTRING */
-static const YYINT expr.oxout_dgoto[] = {                 1,
+static const YYINT expr_oxout_dgoto[] = {                 1,
     6,    2,    7,
 };
-static const YYINT expr.oxout_sindex[] = {                0,
+static const YYINT expr_oxout_sindex[] = {                0,
     0,  -40,    0,    0,  -40,    0,  -18,  -24,  -40,  -40,
   -40,  -40,    0,  -37,  -37,    0,  -39,
 };
-static const YYINT expr.oxout_rindex[] = {                0,
+static const YYINT expr_oxout_rindex[] = {                0,
     0,    0,    0,    0,    0,    0,    6,    0,    0,    0,
     0,    0,    0,    2,    8,    0,    1,
 };
 #if YYBTYACC
-static const YYINT expr.oxout_cindex[] = {                0,
+static const YYINT expr_oxout_cindex[] = {                0,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    0,
 };
 #endif
-static const YYINT expr.oxout_gindex[] = {                0,
+static const YYINT expr_oxout_gindex[] = {                0,
     0,    0,    4,
 };
 #define YYTABLESIZE 218
-static const YYINT expr.oxout_table[] = {                 5,
+static const YYINT expr_oxout_table[] = {                 5,
     6,    5,   11,    0,   11,    3,    0,    7,    8,   12,
     0,    0,   14,   15,   16,   17,   13,   11,    9,    0,
    10,    0,   12,   11,    9,    0,   10,    0,   12,    0,
@@ -260,7 +260,7 @@ static const YYINT expr.oxout_table[] = {                 5,
     0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
     0,    0,    0,    0,    0,    0,    3,    4,
 };
-static const YYINT expr.oxout_check[] = {                40,
+static const YYINT expr_oxout_check[] = {                40,
     0,    0,   42,   -1,   42,    0,   -1,    0,    5,   47,
    -1,   -1,    9,   10,   11,   12,   41,   42,   43,   -1,
    45,   -1,   47,   42,   43,   -1,   45,   -1,   47,   -1,
@@ -285,7 +285,7 @@ static const YYINT expr.oxout_check[] = {                40,
    -1,   -1,   -1,   -1,   -1,   -1,  257,  258,
 };
 #if YYBTYACC
-static const YYINT expr.oxout_ctable[] = {               -1,
+static const YYINT expr_oxout_ctable[] = {               -1,
    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
    -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
@@ -318,7 +318,7 @@ static const YYINT expr.oxout_ctable[] = {               -1,
 #define YYUNDFTOKEN 264
 #define YYTRANSLATE(a) ((a) > YYMAXTOKEN ? YYUNDFTOKEN : (a))
 #if YYDEBUG
-static const char *const expr.oxout_name[] = {
+static const char *const expr_oxout_name[] = {
 
 "$end",0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,"'('","')'","'*'","'+'",0,"'-'",0,"'/'",0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -329,7 +329,7 @@ static const char *const expr.oxout_name[] = {
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"error","ID",
 "CONST","$accept","yyyAugNonterm","s","$$1","expr","illegal-symbol",
 };
-static const char *const expr.oxout_rule[] = {
+static const char *const expr_oxout_rule[] = {
 "$accept : yyyAugNonterm",
 "$$1 :",
 "yyyAugNonterm : $$1 s",
@@ -532,8 +532,8 @@ void yyyfatal(char *msg)
 
 
 void yyyHandleOverflow(char which) 
-  {char *msg1,*msg2; 
-   long  oldSize,newSize; 
+  {char *msg1 = "?", *msg2; 
+   long  oldSize = 0, newSize; 
    switch(which) 
      {
       case yyySSALof : 
@@ -840,7 +840,7 @@ if (yyyCond(1) != yyyPass) {
 }
 if (yyyCond(2) != yyyPass) {
 #line 23 "expr.Y"
- printf("postfix:  ")/* missing ; */
+ printf("postfix:  ");
                    
 #line 497 "expr.oxout.y"
 }
@@ -1142,11 +1142,11 @@ void yyyYoxInit(void)
    static int yyyInitDone = 0;
    if (yyyInitDone) return;
  
-   if ((yyyRS = (struct yyyRSitem *) 
-         calloc((size_t)(yyyRSmaxSize+1), (size_t)sizeof(struct yyyRSitem))
+   if ((yyyRS = (yyyRSitem *) 
+         calloc((size_t)(yyyRSmaxSize+1), (size_t)sizeof(yyyRSitem))
        )  
        == 
-       ((struct yyyRSitem *) NULL) 
+       ((yyyRSitem *) NULL) 
       )   
       yyyfatal("malloc error in ox ready set space allocation\n");  
    yyyRS++; 
@@ -1201,7 +1201,7 @@ void yyyGenIntNode(long yyyProdNum, int yyyRHSlength, int yyyNattrbs, struct yyy
             (yyyRCT *) calloc((size_t)yyyNattrbs, (size_t)sizeof(yyyRCT));  
    if ((*yyyOxStackItem)->node->refCountList == (yyyRCT *) NULL) 
       yyyfatal("malloc error in ox reference count list space allocation\n");  
-   (*yyyOxStackItem)->node->prodNum = yyyProdNum; 
+   (*yyyOxStackItem)->node->prodNum = (int) yyyProdNum; 
    va_start(ap, yyval_OxAttrbs); 
    for (i=1;i<=yyyRHSlength;i++) 
      {yyySIT *yaccStDum = va_arg(ap,struct yyyOxAttrbs *)->yyyOxStackItem;
@@ -1302,9 +1302,9 @@ void yyyAdjustINRC(long yyyProdNum, int yyyRHSlength, long startP, long stopP, s
 
 
 
-void yyyGenLeaf(int nAttrbs,int typeNum,long startP,long stopP,YYSTYPE *yylval) 
+void yyyGenLeaf(int nAttrbs,int typeNum,long startP,long stopP,YYSTYPE *mylval) 
   {yyyRCT *rcPdum; 
-   yyySIT **yyyOxStackItem = &yylval->yyyOxAttrbs.yyyOxStackItem; 
+   yyySIT **yyyOxStackItem = &mylval->yyyOxAttrbs.yyyOxStackItem; 
    (*yyyOxStackItem) = (yyySIT *) malloc((size_t)sizeof(yyySIT)); 
    if ((*yyyOxStackItem) == (yyySIT *) NULL) 
       yyyfatal("malloc error in ox yacc semantic stack space allocation\n");
@@ -1955,7 +1955,7 @@ YYPARSE_DECL()
     yyps->save = 0;
 #endif /* YYBTYACC */
     yym = 0;
-    yyn = 0;
+    /* yyn is set below */
     yynerrs = 0;
     yyerrflag = 0;
     yychar = YYEMPTY;
@@ -2466,62 +2466,72 @@ yyreduce:
 case 1:
 #line 64 "expr.oxout.y"
 	{yyyYoxInit();}
+#line 2470 "expr.oxout.tab.c"
 break;
 case 2:
 #line 66 "expr.oxout.y"
 	{
 		 yyyDecorate(); yyyExecuteRRsection(yystack.l_mark[0].yyyOxAttrbs.yyyOxStackItem->node);
 		}
+#line 2477 "expr.oxout.tab.c"
 break;
 case 3:
 #line 73 "expr.oxout.y"
 	{if(yyyYok){
 yyyGenIntNode(1,1,0,&yyval.yyyOxAttrbs,&yystack.l_mark[0].yyyOxAttrbs);
 yyyAdjustINRC(1,1,0,0,&yyval.yyyOxAttrbs,&yystack.l_mark[0].yyyOxAttrbs);}}
+#line 2484 "expr.oxout.tab.c"
 break;
 case 4:
 #line 80 "expr.oxout.y"
 	{if(yyyYok){
 yyyGenIntNode(2,3,0,&yyval.yyyOxAttrbs,&yystack.l_mark[-2].yyyOxAttrbs,&yystack.l_mark[-1].yyyOxAttrbs,&yystack.l_mark[0].yyyOxAttrbs);
 yyyAdjustINRC(2,3,0,0,&yyval.yyyOxAttrbs,&yystack.l_mark[-2].yyyOxAttrbs,&yystack.l_mark[-1].yyyOxAttrbs,&yystack.l_mark[0].yyyOxAttrbs);}}
+#line 2491 "expr.oxout.tab.c"
 break;
 case 5:
 #line 87 "expr.oxout.y"
 	{if(yyyYok){
 yyyGenIntNode(3,3,0,&yyval.yyyOxAttrbs,&yystack.l_mark[-2].yyyOxAttrbs,&yystack.l_mark[-1].yyyOxAttrbs,&yystack.l_mark[0].yyyOxAttrbs);
 yyyAdjustINRC(3,3,0,0,&yyval.yyyOxAttrbs,&yystack.l_mark[-2].yyyOxAttrbs,&yystack.l_mark[-1].yyyOxAttrbs,&yystack.l_mark[0].yyyOxAttrbs);}}
+#line 2498 "expr.oxout.tab.c"
 break;
 case 6:
 #line 94 "expr.oxout.y"
 	{if(yyyYok){
 yyyGenIntNode(4,3,0,&yyval.yyyOxAttrbs,&yystack.l_mark[-2].yyyOxAttrbs,&yystack.l_mark[-1].yyyOxAttrbs,&yystack.l_mark[0].yyyOxAttrbs);
 yyyAdjustINRC(4,3,0,0,&yyval.yyyOxAttrbs,&yystack.l_mark[-2].yyyOxAttrbs,&yystack.l_mark[-1].yyyOxAttrbs,&yystack.l_mark[0].yyyOxAttrbs);}}
+#line 2505 "expr.oxout.tab.c"
 break;
 case 7:
 #line 101 "expr.oxout.y"
 	{if(yyyYok){
 yyyGenIntNode(5,3,0,&yyval.yyyOxAttrbs,&yystack.l_mark[-2].yyyOxAttrbs,&yystack.l_mark[-1].yyyOxAttrbs,&yystack.l_mark[0].yyyOxAttrbs);
 yyyAdjustINRC(5,3,0,0,&yyval.yyyOxAttrbs,&yystack.l_mark[-2].yyyOxAttrbs,&yystack.l_mark[-1].yyyOxAttrbs,&yystack.l_mark[0].yyyOxAttrbs);}}
+#line 2512 "expr.oxout.tab.c"
 break;
 case 8:
 #line 108 "expr.oxout.y"
 	{if(yyyYok){
 yyyGenIntNode(6,3,0,&yyval.yyyOxAttrbs,&yystack.l_mark[-2].yyyOxAttrbs,&yystack.l_mark[-1].yyyOxAttrbs,&yystack.l_mark[0].yyyOxAttrbs);
 yyyAdjustINRC(6,3,0,0,&yyval.yyyOxAttrbs,&yystack.l_mark[-2].yyyOxAttrbs,&yystack.l_mark[-1].yyyOxAttrbs,&yystack.l_mark[0].yyyOxAttrbs);}}
+#line 2519 "expr.oxout.tab.c"
 break;
 case 9:
 #line 114 "expr.oxout.y"
 	{if(yyyYok){
 yyyGenIntNode(7,1,0,&yyval.yyyOxAttrbs,&yystack.l_mark[0].yyyOxAttrbs);
 yyyAdjustINRC(7,1,0,0,&yyval.yyyOxAttrbs,&yystack.l_mark[0].yyyOxAttrbs);}}
+#line 2526 "expr.oxout.tab.c"
 break;
 case 10:
 #line 121 "expr.oxout.y"
 	{if(yyyYok){
 yyyGenIntNode(8,1,0,&yyval.yyyOxAttrbs,&yystack.l_mark[0].yyyOxAttrbs);
 yyyAdjustINRC(8,1,0,0,&yyval.yyyOxAttrbs,&yystack.l_mark[0].yyyOxAttrbs);}}
+#line 2533 "expr.oxout.tab.c"
 break;
-#line 2525 "expr.oxout.tab.c"
+#line 2535 "expr.oxout.tab.c"
     default:
         break;
     }

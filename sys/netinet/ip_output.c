@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <net/if_vlan_var.h>
 #include <net/if_llatbl.h>
 #include <net/ethernet.h>
@@ -115,17 +116,13 @@ ip_output_pfil(struct mbuf **mp, struct ifnet *ifp, int flags,
 	struct mbuf *m;
 	struct in_addr odst;
 	struct ip *ip;
-	int pflags = PFIL_OUT;
-
-	if (flags & IP_FORWARDING)
-		pflags |= PFIL_FWD;
 
 	m = *mp;
 	ip = mtod(m, struct ip *);
 
 	/* Run through list of hooks for output packets. */
 	odst.s_addr = ip->ip_dst.s_addr;
-	switch (pfil_run_hooks(V_inet_pfil_head, mp, ifp, pflags, inp)) {
+	switch (pfil_mbuf_out(V_inet_pfil_head, mp, ifp, inp)) {
 	case PFIL_DROPPED:
 		*error = EACCES;
 		/* FALLTHROUGH */
@@ -871,16 +868,14 @@ ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
 	ip_len = ntohs(ip->ip_len);
 	ip_off = ntohs(ip->ip_off);
 
-	if (ip_off & IP_DF) {	/* Fragmentation not allowed */
-		IPSTAT_INC(ips_cantfrag);
-		return EMSGSIZE;
-	}
-
 	/*
-	 * Must be able to put at least 8 bytes per fragment.
+	 * Packet shall not have "Don't Fragment" flag and have at least 8
+	 * bytes of payload.
 	 */
-	if (len < 8)
-		return EMSGSIZE;
+	if (__predict_false((ip_off & IP_DF) || len < 8)) {
+		IPSTAT_INC(ips_cantfrag);
+		return (EMSGSIZE);
+	}
 
 	/*
 	 * If the interface will not calculate checksums on
@@ -1171,10 +1166,6 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 					break;
 			}
 			/* FALLTHROUGH */
-		case IP_BINDMULTI:
-#ifdef	RSS
-		case IP_RSS_LISTEN_BUCKET:
-#endif
 		case IP_TOS:
 		case IP_TTL:
 		case IP_MINTTL:
@@ -1267,22 +1258,10 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 			case IP_RECVTOS:
 				OPTSET(INP_RECVTOS);
 				break;
-			case IP_BINDMULTI:
-				OPTSET2(INP_BINDMULTI, optval);
-				break;
 			case IP_RECVFLOWID:
 				OPTSET2(INP_RECVFLOWID, optval);
 				break;
-#ifdef	RSS
-			case IP_RSS_LISTEN_BUCKET:
-				if ((optval >= 0) &&
-				    (optval < rss_getnumbuckets())) {
-					inp->inp_rss_listen_bucket = optval;
-					OPTSET2(INP_RSS_BUCKET_SET, 1);
-				} else {
-					error = EINVAL;
-				}
-				break;
+#ifdef RSS
 			case IP_RECVRSSBUCKETID:
 				OPTSET2(INP_RECVRSSBUCKETID, optval);
 				break;
@@ -1421,7 +1400,6 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_DONTFRAG:
 		case IP_BINDANY:
 		case IP_RECVTOS:
-		case IP_BINDMULTI:
 		case IP_FLOWID:
 		case IP_FLOWTYPE:
 		case IP_RECVFLOWID:
@@ -1514,9 +1492,6 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 				optval = OPTBIT2(INP_RECVRSSBUCKETID);
 				break;
 #endif
-			case IP_BINDMULTI:
-				optval = OPTBIT2(INP_BINDMULTI);
-				break;
 			case IP_VLAN_PCP:
 				if (OPTBIT2(INP_2PCP_SET)) {
 					optval = (inp->inp_flags2 &

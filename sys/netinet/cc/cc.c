@@ -81,7 +81,7 @@ __FBSDID("$FreeBSD$");
  * Have a sane default if no CC_DEFAULT is specified in the kernel config file.
  */
 #ifndef CC_DEFAULT
-#define CC_DEFAULT "newreno"
+#define CC_DEFAULT "cubic"
 #endif
 
 uint32_t hystart_minrtt_thresh = 4000;
@@ -106,6 +106,7 @@ VNET_DEFINE(struct cc_algo *, default_cc_ptr) = NULL;
 
 VNET_DEFINE(uint32_t, newreno_beta) = 50;
 #define V_newreno_beta VNET(newreno_beta)
+VNET_DEFINE(uint32_t, newreno_beta_ecn) = 80;
 
 void
 cc_refer(struct cc_algo *algo)

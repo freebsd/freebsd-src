@@ -32,11 +32,12 @@
 .\"     @(#)islower.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd April 2, 2022
+.Dd December 19, 2022
 .Dt ISLOWER 3
 .Os
 .Sh NAME
-.Nm islower
+.Nm islower ,
+.Nm islower_l
 .Nd lower-case character test
 .Sh LIBRARY
 .Lb libc
@@ -49,7 +50,9 @@
 .Sh DESCRIPTION
 The
 .Fn islower
-function tests for any lower-case letters.
+and
+.Fn islower_l
+functions test for any lower-case letters.
 The value of the argument must be representable as an
 .Vt "unsigned char"
 or the value of
@@ -86,11 +89,17 @@ type in locales with large character sets is considered obsolete
 and may not be supported in future releases.
 The
 .Fn iswlower
+or
+.Fn iswlower_l
 function should be used instead.
 .Sh SEE ALSO
 .Xr ctype 3 ,
+.Xr ctype_l 3 ,
 .Xr iswlower 3 ,
+.Xr iswlower_l 3 ,
 .Xr tolower 3 ,
+.Xr tolower_l 3 ,
+.Xr xlocale 3 ,
 .Xr ascii 7
 .Sh STANDARDS
 The

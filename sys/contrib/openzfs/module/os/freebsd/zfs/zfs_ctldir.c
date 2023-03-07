@@ -977,12 +977,13 @@ zfsctl_snapdir_lookup(struct vop_lookup_args *ap)
 		 */
 		VI_LOCK(*vpp);
 		if (((*vpp)->v_iflag & VI_MOUNT) == 0) {
+			VI_UNLOCK(*vpp);
 			/*
 			 * Upgrade to exclusive lock in order to:
 			 * - avoid race conditions
 			 * - satisfy the contract of mount_snapshot()
 			 */
-			err = VOP_LOCK(*vpp, LK_TRYUPGRADE | LK_INTERLOCK);
+			err = VOP_LOCK(*vpp, LK_TRYUPGRADE);
 			if (err == 0)
 				break;
 		} else {
@@ -1053,7 +1054,8 @@ zfsctl_snapdir_readdir(struct vop_readdir_args *ap)
 		return (error);
 	}
 
-	ZFS_ENTER(zfsvfs);
+	if ((error = zfs_enter(zfsvfs, FTAG)) != 0)
+		return (error);
 	for (;;) {
 		uint64_t cookie;
 		uint64_t id;
@@ -1070,7 +1072,7 @@ zfsctl_snapdir_readdir(struct vop_readdir_args *ap)
 					*eofp = 1;
 				error = 0;
 			}
-			ZFS_EXIT(zfsvfs);
+			zfs_exit(zfsvfs, FTAG);
 			return (error);
 		}
 
@@ -1083,7 +1085,7 @@ zfsctl_snapdir_readdir(struct vop_readdir_args *ap)
 		if (error != 0) {
 			if (error == ENAMETOOLONG)
 				error = 0;
-			ZFS_EXIT(zfsvfs);
+			zfs_exit(zfsvfs, FTAG);
 			return (SET_ERROR(error));
 		}
 		zfs_uio_setoffset(&uio, cookie + dots_offset);
@@ -1101,7 +1103,8 @@ zfsctl_snapdir_getattr(struct vop_getattr_args *ap)
 	uint64_t snap_count;
 	int err;
 
-	ZFS_ENTER(zfsvfs);
+	if ((err = zfs_enter(zfsvfs, FTAG)) != 0)
+		return (err);
 	ds = dmu_objset_ds(zfsvfs->z_os);
 	zfsctl_common_getattr(vp, vap);
 	vap->va_ctime = dmu_objset_snap_cmtime(zfsvfs->z_os);
@@ -1111,14 +1114,14 @@ zfsctl_snapdir_getattr(struct vop_getattr_args *ap)
 		err = zap_count(dmu_objset_pool(ds->ds_objset)->dp_meta_objset,
 		    dsl_dataset_phys(ds)->ds_snapnames_zapobj, &snap_count);
 		if (err != 0) {
-			ZFS_EXIT(zfsvfs);
+			zfs_exit(zfsvfs, FTAG);
 			return (err);
 		}
 		vap->va_nlink += snap_count;
 	}
 	vap->va_size = vap->va_nlink;
 
-	ZFS_EXIT(zfsvfs);
+	zfs_exit(zfsvfs, FTAG);
 	return (0);
 }
 

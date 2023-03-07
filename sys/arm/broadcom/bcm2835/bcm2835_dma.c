@@ -328,6 +328,9 @@ bcm_dma_allocate(int req_ch)
 	int ch = BCM_DMA_CH_INVALID;
 	int i;
 
+	if (sc == NULL)
+		return (BCM_DMA_CH_INVALID);
+
 	if (req_ch >= BCM_DMA_CH_MAX)
 		return (BCM_DMA_CH_INVALID);
 
@@ -343,13 +346,10 @@ bcm_dma_allocate(int req_ch)
 				break;
 			}
 		}
-	}
-	else {
-		if (sc->sc_dma_ch[req_ch].flags & BCM_DMA_CH_FREE) {
-			ch = req_ch;
-			sc->sc_dma_ch[ch].flags &= ~BCM_DMA_CH_FREE;
-			sc->sc_dma_ch[ch].flags |= BCM_DMA_CH_USED;
-		}
+	} else if (sc->sc_dma_ch[req_ch].flags & BCM_DMA_CH_FREE) {
+		ch = req_ch;
+		sc->sc_dma_ch[ch].flags &= ~BCM_DMA_CH_FREE;
+		sc->sc_dma_ch[ch].flags |= BCM_DMA_CH_USED;
 	}
 
 	mtx_unlock(&sc->sc_mtx);
@@ -363,6 +363,9 @@ int
 bcm_dma_free(int ch)
 {
 	struct bcm_dma_softc *sc = bcm_dma_sc;
+
+	if (sc == NULL)
+		return (-1);
 
 	if (ch < 0 || ch >= BCM_DMA_CH_MAX)
 		return (-1);
@@ -391,6 +394,9 @@ bcm_dma_setup_intr(int ch, void (*func)(int, void *), void *arg)
 {
 	struct bcm_dma_softc *sc = bcm_dma_sc;
 	struct bcm_dma_cb *cb;
+
+	if (sc == NULL)
+		return (-1);
 
 	if (ch < 0 || ch >= BCM_DMA_CH_MAX)
 		return (-1);
@@ -531,6 +537,9 @@ bcm_dma_reg_dump(int ch)
 	int i;
 	uint32_t reg;
 
+	if (sc == NULL)
+		return;
+
 	if (ch < 0 || ch >= BCM_DMA_CH_MAX)
 		return;
 
@@ -557,6 +566,9 @@ bcm_dma_start(int ch, vm_paddr_t src, vm_paddr_t dst, int len)
 {
 	struct bcm_dma_softc *sc = bcm_dma_sc;
 	struct bcm_dma_cb *cb;
+
+	if (sc == NULL)
+		return (-1);
 
 	if (ch < 0 || ch >= BCM_DMA_CH_MAX)
 		return (-1);
@@ -596,6 +608,9 @@ bcm_dma_length(int ch)
 {
 	struct bcm_dma_softc *sc = bcm_dma_sc;
 	struct bcm_dma_cb *cb;
+
+	if (sc == NULL)
+		return (0);
 
 	if (ch < 0 || ch >= BCM_DMA_CH_MAX)
 		return (0);
@@ -764,5 +779,6 @@ static driver_t bcm_dma_driver = {
 	sizeof(struct bcm_dma_softc),
 };
 
-DRIVER_MODULE(bcm_dma, simplebus, bcm_dma_driver, 0, 0);
+EARLY_DRIVER_MODULE(bcm_dma, simplebus, bcm_dma_driver, 0, 0,
+    BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(bcm_dma, 1);

@@ -56,8 +56,17 @@ typedef const struct pool_config_ops {
 /*
  * An instance of pool_config_ops_t is expected in the caller's binary.
  */
-_LIBZUTIL_H const pool_config_ops_t libzfs_config_ops;
-_LIBZUTIL_H const pool_config_ops_t libzpool_config_ops;
+_LIBZUTIL_H pool_config_ops_t libzfs_config_ops;
+_LIBZUTIL_H pool_config_ops_t libzpool_config_ops;
+
+typedef enum lpc_error {
+	LPC_SUCCESS = 0,	/* no error -- success */
+	LPC_BADCACHE = 2000,	/* out of memory */
+	LPC_BADPATH,	/* must be an absolute path */
+	LPC_NOMEM,	/* out of memory */
+	LPC_EACCESS,	/* some devices require root privileges */
+	LPC_UNKNOWN
+} lpc_error_t;
 
 typedef struct importargs {
 	char **path;		/* a list of paths to search		*/
@@ -70,10 +79,20 @@ typedef struct importargs {
 	nvlist_t *policy;	/* load policy (max txg, rewind, etc.)	*/
 } importargs_t;
 
-_LIBZUTIL_H nvlist_t *zpool_search_import(void *, importargs_t *,
-    const pool_config_ops_t *);
-_LIBZUTIL_H int zpool_find_config(void *, const char *, nvlist_t **,
-    importargs_t *, const pool_config_ops_t *);
+typedef struct libpc_handle {
+	int lpc_error;
+	boolean_t lpc_printerr;
+	boolean_t lpc_open_access_error;
+	boolean_t lpc_desc_active;
+	char lpc_desc[1024];
+	pool_config_ops_t *lpc_ops;
+	void *lpc_lib_handle;
+} libpc_handle_t;
+
+_LIBZUTIL_H const char *libpc_error_description(libpc_handle_t *);
+_LIBZUTIL_H nvlist_t *zpool_search_import(libpc_handle_t *, importargs_t *);
+_LIBZUTIL_H int zpool_find_config(libpc_handle_t *, const char *, nvlist_t **,
+    importargs_t *);
 
 _LIBZUTIL_H const char * const * zpool_default_search_paths(size_t *count);
 _LIBZUTIL_H int zpool_read_label(int, nvlist_t **, int *);
@@ -151,7 +170,9 @@ struct zfs_cmd;
  * List of colors to use
  */
 #define	ANSI_RED	"\033[0;31m"
+#define	ANSI_GREEN	"\033[0;32m"
 #define	ANSI_YELLOW	"\033[0;33m"
+#define	ANSI_BLUE	"\033[0;34m"
 #define	ANSI_RESET	"\033[0m"
 #define	ANSI_BOLD	"\033[1m"
 
@@ -161,6 +182,14 @@ _LIBZUTIL_H int printf_color(const char *color, const char *format, ...);
 
 _LIBZUTIL_H const char *zfs_basename(const char *path);
 _LIBZUTIL_H ssize_t zfs_dirnamelen(const char *path);
+#ifdef __linux__
+extern char **environ;
+_LIBZUTIL_H void zfs_setproctitle_init(int argc, char *argv[], char *envp[]);
+_LIBZUTIL_H void zfs_setproctitle(const char *fmt, ...);
+#else
+#define	zfs_setproctitle(fmt, ...)	setproctitle(fmt, ##__VA_ARGS__)
+#define	zfs_setproctitle_init(x, y, z)	((void)0)
+#endif
 
 /*
  * These functions are used by the ZFS libraries and cmd/zpool code, but are

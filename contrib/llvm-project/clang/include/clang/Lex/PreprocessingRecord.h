@@ -49,7 +49,6 @@ void operator delete(void *ptr, clang::PreprocessingRecord &PR,
 
 namespace clang {
 
-class FileEntry;
 class IdentifierInfo;
 class MacroInfo;
 class SourceManager;
@@ -242,13 +241,12 @@ class Token;
     unsigned ImportedModule : 1;
 
     /// The file that was included.
-    const FileEntry *File;
+    Optional<FileEntryRef> File;
 
   public:
-    InclusionDirective(PreprocessingRecord &PPRec,
-                       InclusionKind Kind, StringRef FileName,
-                       bool InQuotes, bool ImportedModule,
-                       const FileEntry *File, SourceRange Range);
+    InclusionDirective(PreprocessingRecord &PPRec, InclusionKind Kind,
+                       StringRef FileName, bool InQuotes, bool ImportedModule,
+                       Optional<FileEntryRef> File, SourceRange Range);
 
     /// Determine what kind of inclusion directive this is.
     InclusionKind getKind() const { return static_cast<InclusionKind>(Kind); }
@@ -266,7 +264,7 @@ class Token;
 
     /// Retrieve the file entry for the actual file that was included
     /// by this directive.
-    const FileEntry *getFile() const { return File; }
+    Optional<FileEntryRef> getFile() const { return File; }
 
     // Implement isa/cast/dyncast/etc.
     static bool classof(const PreprocessedEntity *PE) {
@@ -531,7 +529,7 @@ class Token;
     void InclusionDirective(SourceLocation HashLoc, const Token &IncludeTok,
                             StringRef FileName, bool IsAngled,
                             CharSourceRange FilenameRange,
-                            const FileEntry *File, StringRef SearchPath,
+                            Optional<FileEntryRef> File, StringRef SearchPath,
                             StringRef RelativePath, const Module *Imported,
                             SrcMgr::CharacteristicKind FileType) override;
     void Ifdef(SourceLocation Loc, const Token &MacroNameTok,

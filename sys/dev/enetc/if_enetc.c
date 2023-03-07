@@ -581,7 +581,7 @@ enetc_get_hwaddr(struct enetc_softc *sc)
 static void
 enetc_set_hwaddr(struct enetc_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	uint16_t high;
 	uint32_t low;
 	uint8_t *hwaddr;
@@ -823,7 +823,7 @@ static void
 enetc_setup_multicast(if_ctx_t ctx)
 {
 	struct enetc_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint64_t bitmap = 0;
 	uint8_t revid;
 
@@ -905,7 +905,7 @@ enetc_init(if_ctx_t ctx)
 {
 	struct enetc_softc *sc;
 	struct mii_data *miid;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint16_t max_frame_length;
 	int baudrate;
 
@@ -1335,7 +1335,7 @@ static uint64_t
 enetc_get_counter(if_ctx_t ctx, ift_counter cnt)
 {
 	struct enetc_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	sc = iflib_get_softc(ctx);
 	ifp = iflib_get_ifp(ctx);
@@ -1481,7 +1481,7 @@ enetc_media_change(if_t ifp)
 	struct enetc_softc *sc;
 	struct mii_data *miid;
 
-	sc = iflib_get_softc(ifp->if_softc);
+	sc = iflib_get_softc(if_getsoftc(ifp));
 	miid = device_get_softc(sc->miibus);
 
 	mii_mediachg(miid);
@@ -1494,7 +1494,7 @@ enetc_media_status(if_t ifp, struct ifmediareq* ifmr)
 	struct enetc_softc *sc;
 	struct mii_data *miid;
 
-	sc = iflib_get_softc(ifp->if_softc);
+	sc = iflib_get_softc(if_getsoftc(ifp));
 	miid = device_get_softc(sc->miibus);
 
 	mii_pollstat(miid);
@@ -1515,7 +1515,7 @@ enetc_fixed_media_status(if_t ifp, struct ifmediareq* ifmr)
 {
 	struct enetc_softc *sc;
 
-	sc = iflib_get_softc(ifp->if_softc);
+	sc = iflib_get_softc(if_getsoftc(ifp));
 
 	ifmr->ifm_status = IFM_AVALID | IFM_ACTIVE;
 	ifmr->ifm_active = sc->fixed_ifmedia.ifm_cur->ifm_media;

@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 #include <libzutil.h>
 #include <sys/crypto/icp.h>
 #include <sys/processor.h>
@@ -769,10 +770,8 @@ random_get_pseudo_bytes(uint8_t *ptr, size_t len)
 int
 ddi_strtoull(const char *str, char **nptr, int base, u_longlong_t *result)
 {
-	(void) nptr;
-	char *end;
-
-	*result = strtoull(str, &end, base);
+	errno = 0;
+	*result = strtoull(str, nptr, base);
 	if (*result == 0)
 		return (errno);
 	return (0);
@@ -956,6 +955,35 @@ kmem_asprintf(const char *fmt, ...)
 	return (buf);
 }
 
+/*
+ * kmem_scnprintf() will return the number of characters that it would have
+ * printed whenever it is limited by value of the size variable, rather than
+ * the number of characters that it did print. This can cause misbehavior on
+ * subsequent uses of the return value, so we define a safe version that will
+ * return the number of characters actually printed, minus the NULL format
+ * character.  Subsequent use of this by the safe string functions is safe
+ * whether it is snprintf(), strlcat() or strlcpy().
+ */
+int
+kmem_scnprintf(char *restrict str, size_t size, const char *restrict fmt, ...)
+{
+	int n;
+	va_list ap;
+
+	/* Make the 0 case a no-op so that we do not return -1 */
+	if (size == 0)
+		return (0);
+
+	va_start(ap, fmt);
+	n = vsnprintf(str, size, fmt, ap);
+	va_end(ap);
+
+	if (n >= size)
+		n = size - 1;
+
+	return (n);
+}
+
 zfs_file_t *
 zfs_onexit_fd_hold(int fd, minor_t *minorp)
 {
@@ -972,7 +1000,7 @@ zfs_onexit_fd_rele(zfs_file_t *fp)
 
 int
 zfs_onexit_add_cb(minor_t minor, void (*func)(void *), void *data,
-    uint64_t *action_handle)
+    uintptr_t *action_handle)
 {
 	(void) minor, (void) func, (void) data, (void) action_handle;
 	return (0);

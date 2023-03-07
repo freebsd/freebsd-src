@@ -59,10 +59,10 @@ static volatile int alarmed = 0;
 
 static void   chat_alrm(int);
 static int    chat_unalarm(void);
-static int    getdigit(unsigned char **, int, int);
+static int    getdigit(char **, int, int);
 static char   **read_chat(char **);
 static char   *cleanchr(char **, unsigned char);
-static const char *cleanstr(const unsigned char *, int);
+static const char *cleanstr(const char *, int);
 static const char *result(int);
 static int    chat_expect(const char *);
 static int    chat_send(char const *);
@@ -104,7 +104,7 @@ chat_unalarm(void)
  */
 
 static int
-getdigit(unsigned char **ptr, int base, int max)
+getdigit(char **ptr, int base, int max)
 {
 	int i, val = 0;
 	char * q;
@@ -149,10 +149,10 @@ read_chat(char **chatstr)
 			     p != NULL;
 			     p = strtok(NULL, ws))
 			{
-				unsigned char *q, *r;
+				char *q, *r;
 
 				/* Read escapes */
-				for (q = r = (unsigned char *)p; *r; ++q)
+				for (q = r = p; *r; ++q)
 				{
 					if (*q == '\\')
 					{
@@ -248,7 +248,7 @@ cleanchr(char **buf, unsigned char ch)
 		l = 2;
 		ch &= 0x7f;
 	} else
-	l = 0;
+		l = 0;
 
 	if (ch < 32) {
 		tmp[l++] = '^';
@@ -271,9 +271,9 @@ cleanchr(char **buf, unsigned char ch)
  */
 
 static const char *
-cleanstr(const unsigned char *s, int l)
+cleanstr(const char *s, int l)
 {
-	static unsigned char * tmp = NULL;
+	static char * tmp = NULL;
 	static int tmplen = 0;
 
 	if (tmplen < l * 4 + 1)
@@ -344,7 +344,7 @@ chat_expect(const char *str)
 
 						if (chat_debug & CHATDEBUG_RECEIVE)
 							syslog(LOG_DEBUG, "chat_recv '%s' m=%d",
-								cleanchr(NULL, ch), i);
+							    cleanchr(NULL, ch), i);
 
 						if (ch == str[i])
 							got[i++] = ch;
@@ -365,9 +365,9 @@ chat_expect(const char *str)
 				}
 			}
 			alarm(0);
-        		chat_unalarm();
-        		alarmed = 0;
-        		free(got);
+			chat_unalarm();
+			alarmed = 0;
+			free(got);
 		}
 	}
 
@@ -399,13 +399,13 @@ chat_send(char const *str)
                         unsigned char ch = (unsigned char)*str++;
 
                         if (alarmed)
-        			r = 3;
+				r = 3;
                         else if (ch == PAUSE_CH)
 				usleep(500000); /* 1/2 second */
 			else  {
 				usleep(10000);	/* be kind to modem */
                                 if (write(STDOUT_FILENO, &ch, 1) != 1)
-        		  		r = alarmed ? 3 : 2;
+					r = alarmed ? 3 : 2;
                         }
                 }
                 alarm(0);
@@ -414,7 +414,7 @@ chat_send(char const *str)
 	}
 
         if (chat_debug & CHATDEBUG_SEND)
-          syslog(LOG_DEBUG, "chat_send %s", result(r));
+		syslog(LOG_DEBUG, "chat_send %s", result(r));
 
         return r;
 }
@@ -481,7 +481,7 @@ getty_chat(char *scrstr, int timeout, int debug)
                 }
 
                 if (chat_debug & CHATDEBUG_MISC)
-                  syslog(LOG_DEBUG, "getty_chat %s", result(r));
+			syslog(LOG_DEBUG, "getty_chat %s", result(r));
 
         }
         return r;

@@ -84,14 +84,14 @@ clear this information; they are not generally needed.
 .Bd  -literal -offset indent
     for (i = 0; i < 1000; i++) {
         xo_open_instance("item");
-        xo_emit_f(XOEF_RETAIN, "{:name}  {:count/%d}\n",
+        xo_emit_f(XOEF_RETAIN, "{:name}  {:count/%d}\\n",
                   name[i], count[i]);
     }
 .Ed
 .Pp
 In this example, the caller desires to clear the retained information.
 .Bd  -literal -offset indent
-    const char *fmt = "{:name}  {:count/%d}\n";
+    const char *fmt = "{:name}  {:count/%d}\\n";
     for (i = 0; i < 1000; i++) {
         xo_open_instance("item");
         xo_emit_f(XOEF_RETAIN, fmt, name[i], count[i]);

@@ -250,6 +250,8 @@ LUA_API int lua_type (lua_State *L, int idx) {
 
 LUA_API const char *lua_typename (lua_State *L, int t) {
   UNUSED(L);
+  if (t > 8 || t < 0)
+    return "internal_type_error";
   return ttypename(t);
 }
 
@@ -442,7 +444,7 @@ LUA_API const void *lua_topointer (lua_State *L, int idx) {
     case LUA_TTABLE: return hvalue(o);
     case LUA_TLCL: return clLvalue(o);
     case LUA_TCCL: return clCvalue(o);
-    case LUA_TLCF: return cast(void *, cast(size_t, fvalue(o)));
+    case LUA_TLCF: return cast(void *, cast(uintptr_t, fvalue(o)));
     case LUA_TTHREAD: return thvalue(o);
     case LUA_TUSERDATA:
     case LUA_TLIGHTUSERDATA:

@@ -80,7 +80,7 @@ SX_SYSINIT(vfsconf, &vfsconf_sx, "vfsconf");
 static int	vfs_typenumhash = 1;
 SYSCTL_INT(_vfs, OID_AUTO, typenumhash, CTLFLAG_RDTUN, &vfs_typenumhash, 0,
     "Set vfc_typenum using a hash calculation on vfc_name, so that it does not"
-    "change when file systems are loaded in a different order.");
+    " change when file systems are loaded in a different order.");
 
 /*
  * A Zen vnode attribute structure.
@@ -525,7 +525,7 @@ vfs_register(struct vfsconf *vfc)
 	 * number.
 	 */
 	sysctl_wlock();
-	SLIST_FOREACH(oidp, SYSCTL_CHILDREN(&sysctl___vfs), oid_link) {
+	RB_FOREACH(oidp, sysctl_oid_list, SYSCTL_CHILDREN(&sysctl___vfs)) {
 		if (strcmp(oidp->oid_name, vfc->vfc_name) == 0) {
 			sysctl_unregister_oid(oidp);
 			oidp->oid_number = vfc->vfc_typenum;

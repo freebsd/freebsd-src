@@ -97,6 +97,9 @@
 /* bdev_*_io_acct() available */
 /* #undef HAVE_BDEV_IO_ACCT */
 
+/* bdev_kobj() exists */
+/* #undef HAVE_BDEV_KOBJ */
+
 /* bdev_max_discard_sectors() is available */
 /* #undef HAVE_BDEV_MAX_DISCARD_SECTORS */
 
@@ -251,6 +254,9 @@
 /* DECLARE_EVENT_CLASS() is available */
 /* #undef HAVE_DECLARE_EVENT_CLASS */
 
+/* dentry aliases are in d_u member */
+/* #undef HAVE_DENTRY_D_U_ALIASES */
+
 /* dequeue_signal() takes 4 arguments */
 /* #undef HAVE_DEQUEUE_SIGNAL_4ARG */
 
@@ -290,11 +296,17 @@
 /* fault_in_iov_iter_readable() is available */
 /* #undef HAVE_FAULT_IN_IOV_ITER_READABLE */
 
+/* filemap_range_has_page() is available */
+/* #undef HAVE_FILEMAP_RANGE_HAS_PAGE */
+
 /* fops->aio_fsync() exists */
 /* #undef HAVE_FILE_AIO_FSYNC */
 
 /* file_dentry() is available */
 /* #undef HAVE_FILE_DENTRY */
+
+/* fops->fadvise() exists */
+/* #undef HAVE_FILE_FADVISE */
 
 /* file_inode() is available */
 /* #undef HAVE_FILE_INODE */
@@ -305,11 +317,17 @@
 /* iops->follow_link() nameidata */
 /* #undef HAVE_FOLLOW_LINK_NAMEIDATA */
 
+/* Define if compiler supports -Wformat-overflow */
+/* #undef HAVE_FORMAT_OVERFLOW */
+
 /* fops->fsync() with range */
 /* #undef HAVE_FSYNC_RANGE */
 
 /* fops->fsync() without dentry */
 /* #undef HAVE_FSYNC_WITHOUT_DENTRY */
+
+/* yes */
+/* #undef HAVE_GENERIC_FADVISE */
 
 /* generic_fillattr requires struct user_namespace* */
 /* #undef HAVE_GENERIC_FILLATTR_USERNS */
@@ -338,6 +356,9 @@
 /* iops->get_acl() takes rcu */
 /* #undef HAVE_GET_ACL_RCU */
 
+/* has iops->get_inode_acl() */
+/* #undef HAVE_GET_INODE_ACL */
+
 /* iops->get_link() cookie */
 /* #undef HAVE_GET_LINK_COOKIE */
 
@@ -350,8 +371,17 @@
 /* has_capability() is available */
 /* #undef HAVE_HAS_CAPABILITY */
 
+/* iattr->ia_vfsuid and iattr->ia_vfsgid exist */
+/* #undef HAVE_IATTR_VFSID */
+
 /* Define if you have the iconv() function and it works. */
 #define HAVE_ICONV 1
+
+/* APIs for idmapped mount are present */
+/* #undef HAVE_IDMAP_MNT_API */
+
+/* Define if compiler supports -Wimplicit-fallthrough */
+/* #undef HAVE_IMPLICIT_FALLTHROUGH */
 
 /* Define if compiler supports -Winfinite-recursion */
 /* #undef HAVE_INFINITE_RECURSION */
@@ -439,6 +469,9 @@
 
 /* uncached_acl_sentinel() exists */
 /* #undef HAVE_KERNEL_GET_ACL_HANDLE_CACHE */
+
+/* Define if compiler supports -Winfinite-recursion */
+/* #undef HAVE_KERNEL_INFINITE_RECURSION */
 
 /* kernel does stack verification */
 /* #undef HAVE_KERNEL_OBJTOOL */
@@ -530,6 +563,9 @@
 /* folio_wait_bit() exists */
 /* #undef HAVE_PAGEMAP_FOLIO_WAIT_BIT */
 
+/* part_to_dev() exists */
+/* #undef HAVE_PART_TO_DEV */
+
 /* iops->getattr() takes a path */
 /* #undef HAVE_PATH_IOPS_GETATTR */
 
@@ -577,6 +613,12 @@
 
 /* register_shrinker is vararg */
 /* #undef HAVE_REGISTER_SHRINKER_VARARG */
+
+/* iops->rename2() exists */
+/* #undef HAVE_RENAME2 */
+
+/* struct inode_operations_wrapper takes .rename2() */
+/* #undef HAVE_RENAME2_OPERATIONS_WRAPPER */
 
 /* iops->rename() wants flags */
 /* #undef HAVE_RENAME_WANTS_FLAGS */
@@ -628,6 +670,9 @@
 
 /* iops->set_acl() takes 4 args */
 /* #undef HAVE_SET_ACL_USERNS */
+
+/* iops->set_acl() takes 4 args, arg2 is struct dentry * */
+/* #undef HAVE_SET_ACL_USERNS_DENTRY_ARG2 */
 
 /* set_cached_acl() is usable */
 /* #undef HAVE_SET_CACHED_ACL_USABLE */
@@ -718,6 +763,9 @@
 /* i_op->tmpfile() exists */
 /* #undef HAVE_TMPFILE */
 
+/* i_op->tmpfile() uses old dentry signature */
+/* #undef HAVE_TMPFILE_DENTRY */
+
 /* i_op->tmpfile() has userns */
 /* #undef HAVE_TMPFILE_USERNS */
 
@@ -802,6 +850,9 @@
 /* xattr_handler->get() wants both dentry and inode */
 /* #undef HAVE_XATTR_GET_DENTRY_INODE */
 
+/* xattr_handler->get() wants dentry and inode and flags */
+/* #undef HAVE_XATTR_GET_DENTRY_INODE_FLAGS */
+
 /* xattr_handler->get() wants xattr_handler */
 /* #undef HAVE_XATTR_GET_HANDLER */
 
@@ -871,9 +922,6 @@
 /* make_request_fn() return type */
 /* #undef MAKE_REQUEST_FN_RET */
 
-/* hardened module_param_call */
-/* #undef MODULE_PARAM_CALL_CONST */
-
 /* struct shrink_control has nid */
 /* #undef SHRINK_CONTROL_HAS_NID */
 
@@ -940,7 +988,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_ga582d5299"
+#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_g57cfae4a2"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -949,7 +997,7 @@
 /* #undef ZFS_META_DATA */
 
 /* Define the maximum compatible kernel version. */
-#define ZFS_META_KVER_MAX "5.19"
+#define ZFS_META_KVER_MAX "6.1"
 
 /* Define the minimum compatible kernel version. */
 #define ZFS_META_KVER_MIN "3.10"
@@ -970,7 +1018,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_ga582d5299"
+#define ZFS_META_RELEASE "FreeBSD_g57cfae4a2"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.1.99"

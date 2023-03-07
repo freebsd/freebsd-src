@@ -58,7 +58,7 @@ struct ShuffleVectorPseudo {
   ShuffleVectorPseudo(unsigned Opc, Register Dst,
                       std::initializer_list<SrcOp> SrcOps)
       : Opc(Opc), Dst(Dst), SrcOps(SrcOps){};
-  ShuffleVectorPseudo() {}
+  ShuffleVectorPseudo() = default;
 };
 
 /// Check if a vector shuffle corresponds to a REV instruction with the
@@ -997,8 +997,8 @@ public:
       report_fatal_error("Invalid rule identifier");
   }
 
-  virtual bool combine(GISelChangeObserver &Observer, MachineInstr &MI,
-                       MachineIRBuilder &B) const override;
+  bool combine(GISelChangeObserver &Observer, MachineInstr &MI,
+               MachineIRBuilder &B) const override;
 };
 
 bool AArch64PostLegalizerLoweringInfo::combine(GISelChangeObserver &Observer,

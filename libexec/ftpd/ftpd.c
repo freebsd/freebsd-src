@@ -77,7 +77,6 @@ __FBSDID("$FreeBSD$");
 #include <netdb.h>
 #include <pwd.h>
 #include <grp.h>
-#include <opie.h>
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -179,10 +178,6 @@ static char	wtmpid[20];
 static int	auth_pam(struct passwd**, const char*);
 pam_handle_t	*pamh = NULL;
 #endif
-
-static struct opie	opiedata;
-static char		opieprompt[OPIE_CHALLENGE_MAX+1];
-static int		pwok;
 
 char	*pid_file = NULL; /* means default location to pidfile(3) */
 
@@ -1065,20 +1060,7 @@ user(char *name)
 	if (logging)
 		strlcpy(curname, name, sizeof(curname));
 
-	pwok = 0;
-#ifdef USE_PAM
-	/* XXX Kluge! The conversation mechanism needs to be fixed. */
-#endif
-	if (opiechallenge(&opiedata, name, opieprompt) == 0) {
-		pwok = (pw != NULL) &&
-		       opieaccessfile(remotehost) &&
-		       opiealways(pw->pw_dir);
-		reply(331, "Response to %s %s for %s.",
-		      opieprompt, pwok ? "requested" : "required", name);
-	} else {
-		pwok = 1;
-		reply(331, "Password required for %s.", name);
-	}
+	reply(331, "Password required for %s.", name);
 	askpasswd = 1;
 	/*
 	 * Delay before reading passwd after first failed
@@ -1393,20 +1375,12 @@ pass(char *passwd)
 #ifdef USE_PAM
 		rval = auth_pam(&pw, passwd);
 		if (rval >= 0) {
-			opieunlock();
 			goto skip;
 		}
 #endif
-		if (opieverify(&opiedata, passwd) == 0)
-			xpasswd = pw->pw_passwd;
-		else if (pwok) {
-			xpasswd = crypt(passwd, pw->pw_passwd);
-			if (passwd[0] == '\0' && pw->pw_passwd[0] != '\0')
-				xpasswd = ":";
-		} else {
-			rval = 1;
-			goto skip;
-		}
+		xpasswd = crypt(passwd, pw->pw_passwd);
+		if (passwd[0] == '\0' && pw->pw_passwd[0] != '\0')
+			xpasswd = ":";
 		rval = strcmp(pw->pw_passwd, xpasswd);
 		if (pw->pw_expire && time(NULL) >= pw->pw_expire)
 			rval = 1;	/* failure */

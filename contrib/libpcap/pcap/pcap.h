@@ -85,7 +85,10 @@
 #endif /* _WIN32/MSDOS/UN*X */
 
 #include <pcap/socket.h>	/* for SOCKET, as the active-mode rpcap APIs use it */
-#include <net/bpf.h>
+
+#ifndef PCAP_DONT_INCLUDE_PCAP_BPF_H
+#include <pcap/bpf.h>
+#endif
 
 #include <stdio.h>
 

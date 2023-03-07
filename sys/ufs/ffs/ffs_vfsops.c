@@ -413,8 +413,11 @@ ffs_mount(struct mount *mp)
 	/*
 	 * If this is a snapshot request, take the snapshot.
 	 */
-	if (mp->mnt_flag & MNT_SNAPSHOT)
+	if (mp->mnt_flag & MNT_SNAPSHOT) {
+		if ((mp->mnt_flag & MNT_UPDATE) == 0)
+			return (EINVAL);
 		return (ffs_snapshot(mp, fspec));
+	}
 
 	/*
 	 * Must not call namei() while owning busy ref.
@@ -601,11 +604,12 @@ ffs_mount(struct mount *mp)
 				     (FS_SUJ | FS_NEEDSFSCK)) == 0 &&
 				     (fs->fs_flags & FS_DOSOFTDEP))) {
 					printf("WARNING: %s was not properly "
-					   "dismounted\n", fs->fs_fsmnt);
+					   "dismounted\n",
+					   mp->mnt_stat.f_mntonname);
 				} else {
 					vfs_mount_error(mp,
 					   "R/W mount of %s denied. %s.%s",
-					   fs->fs_fsmnt,
+					   mp->mnt_stat.f_mntonname,
 					   "Filesystem is not clean - run fsck",
 					   (fs->fs_flags & FS_SUJ) == 0 ? "" :
 					   " Forced mount will invalidate"
@@ -807,8 +811,8 @@ ffs_reload(struct mount *mp, int flags)
 	UFS_LOCK(ump);
 	if (fs->fs_pendingblocks != 0 || fs->fs_pendinginodes != 0) {
 		printf("WARNING: %s: reload pending error: blocks %jd "
-		    "files %d\n", fs->fs_fsmnt, (intmax_t)fs->fs_pendingblocks,
-		    fs->fs_pendinginodes);
+		    "files %d\n", mp->mnt_stat.f_mntonname,
+		    (intmax_t)fs->fs_pendingblocks, fs->fs_pendinginodes);
 		fs->fs_pendingblocks = 0;
 		fs->fs_pendinginodes = 0;
 	}
@@ -921,8 +925,6 @@ ffs_mountfs(struct vnode *odevvp, struct mount *mp, struct thread *td)
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 
 	devvp = mntfs_allocvp(mp, odevvp);
-	VOP_UNLOCK(odevvp);
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 	KASSERT(devvp->v_type == VCHR, ("reclaimed devvp"));
 	dev = devvp->v_rdev;
 	KASSERT(dev->si_snapdata == NULL, ("non-NULL snapshot data"));
@@ -971,10 +973,11 @@ ffs_mountfs(struct vnode *odevvp, struct mount *mp, struct thread *td)
 		    ((fs->fs_flags & (FS_SUJ | FS_NEEDSFSCK)) == 0 &&
 		     (fs->fs_flags & FS_DOSOFTDEP))) {
 			printf("WARNING: %s was not properly dismounted\n",
-			    fs->fs_fsmnt);
+			    mp->mnt_stat.f_mntonname);
 		} else {
-			vfs_mount_error(mp, "R/W mount of %s denied. %s%s",
-			    fs->fs_fsmnt, "Filesystem is not clean - run fsck.",
+			vfs_mount_error(mp, "R/W mount on %s denied. "
+			    "Filesystem is not clean - run fsck.%s",
+			    mp->mnt_stat.f_mntonname,
 			    (fs->fs_flags & FS_SUJ) == 0 ? "" :
 			    " Forced mount will invalidate journal contents");
 			error = EPERM;
@@ -983,7 +986,8 @@ ffs_mountfs(struct vnode *odevvp, struct mount *mp, struct thread *td)
 		if ((fs->fs_pendingblocks != 0 || fs->fs_pendinginodes != 0) &&
 		    (mp->mnt_flag & MNT_FORCE)) {
 			printf("WARNING: %s: lost blocks %jd files %d\n",
-			    fs->fs_fsmnt, (intmax_t)fs->fs_pendingblocks,
+			    mp->mnt_stat.f_mntonname,
+			    (intmax_t)fs->fs_pendingblocks,
 			    fs->fs_pendinginodes);
 			fs->fs_pendingblocks = 0;
 			fs->fs_pendinginodes = 0;
@@ -991,8 +995,8 @@ ffs_mountfs(struct vnode *odevvp, struct mount *mp, struct thread *td)
 	}
 	if (fs->fs_pendingblocks != 0 || fs->fs_pendinginodes != 0) {
 		printf("WARNING: %s: mount pending error: blocks %jd "
-		    "files %d\n", fs->fs_fsmnt, (intmax_t)fs->fs_pendingblocks,
-		    fs->fs_pendinginodes);
+		    "files %d\n", mp->mnt_stat.f_mntonname,
+		    (intmax_t)fs->fs_pendingblocks, fs->fs_pendinginodes);
 		fs->fs_pendingblocks = 0;
 		fs->fs_pendinginodes = 0;
 	}
@@ -1444,9 +1448,6 @@ ffs_unmount(struct mount *mp, int mntflags)
 	free(fs, M_UFSMNT);
 	free(ump, M_UFSMNT);
 	mp->mnt_data = NULL;
-	MNT_ILOCK(mp);
-	mp->mnt_flag &= ~MNT_LOCAL;
-	MNT_IUNLOCK(mp);
 	if (td->td_su == mp) {
 		td->td_su = NULL;
 		vfs_rel(mp);
@@ -2022,6 +2023,7 @@ ffs_vgetf(struct mount *mp,
 	}
 #endif
 
+	vn_set_state(vp, VSTATE_CONSTRUCTED);
 	*vpp = vp;
 	return (0);
 }

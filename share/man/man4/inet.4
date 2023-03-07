@@ -28,7 +28,7 @@
 .\"     From: @(#)inet.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd August 1, 2022
+.Dd September 8, 2022
 .Dt INET 4
 .Os
 .Sh NAME
@@ -186,6 +186,8 @@ Defaults to off.
 .It Va fragpackets
 Integer: Current number of IPv4 fragment reassembly queue entries
 for the VNET (read-only).
+.It Va fragttl
+Integer: time to live for IPv4 packet fragments in the per-VNET reassemby queue.
 .It Va loopback_prefixlen
 Integer: prefix length of the address space reserved for loopback purposes.
 The default is 8, meaning that 127.0.0.0/8 is reserved for loopback,
@@ -278,6 +280,8 @@ The number must be between 512 and 32768 inclusive.
 This is a per-VNET value.
 .It Va random_id_total
 Integer: count of IP IDs created (read-only, per-VNET).
+.It Va reass_hashsize
+Number of hash slots in the IPv4 reassembly queue (loader tunable).
 .It Va redirect
 Boolean: enable/disable sending of ICMP redirects in response to
 .Tn IP

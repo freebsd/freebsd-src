@@ -82,7 +82,7 @@ hid_get_data_unsigned(const uint8_t *buf, hid_size_t len,
 }
 static __inline void
 hid_put_data_unsigned(uint8_t *buf, hid_size_t len, struct hid_location *loc,
-    unsigned int value)
+    unsigned value)
 {
 	return (hid_put_udata(buf, len, loc, value));
 }

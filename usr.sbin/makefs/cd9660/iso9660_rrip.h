@@ -209,7 +209,7 @@ struct ISO_SUSP_ATTRIBUTES {
 	char type_of[2];
 	char last_in_suf;	/* last entry in the System Use Field? */
 	/* Dan's addons - will merge later. This allows use of a switch */
-	char susp_type; 	/* SUSP or RRIP */
+	char susp_type;		/* SUSP or RRIP */
 	char entry_type;	/* Record type */
 	char write_location;
 	TAILQ_ENTRY(ISO_SUSP_ATTRIBUTES) rr_ll;

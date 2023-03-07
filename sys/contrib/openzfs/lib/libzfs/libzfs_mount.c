@@ -22,7 +22,7 @@
 /*
  * Copyright 2015 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2014, 2021 by Delphix. All rights reserved.
+ * Copyright (c) 2014, 2022 by Delphix. All rights reserved.
  * Copyright 2016 Igor Kozhukhov <ikozhukhov@gmail.com>
  * Copyright 2017 RackTop Systems.
  * Copyright (c) 2018 Datto Inc.
@@ -788,6 +788,16 @@ zfs_commit_shares(const enum sa_protocol *proto)
 		sa_commit_shares(*p);
 }
 
+void
+zfs_truncate_shares(const enum sa_protocol *proto)
+{
+	if (proto == NULL)
+		proto = share_all_proto;
+
+	for (const enum sa_protocol *p = proto; *p != SA_NO_PROTOCOL; ++p)
+		sa_truncate_shares(*p);
+}
+
 /*
  * Unshare the given filesystem.
  */
@@ -930,7 +940,7 @@ zfs_iter_cb(zfs_handle_t *zhp, void *data)
 	}
 
 	libzfs_add_handle(cbp, zhp);
-	if (zfs_iter_filesystems(zhp, zfs_iter_cb, cbp) != 0) {
+	if (zfs_iter_filesystems(zhp, 0, zfs_iter_cb, cbp) != 0) {
 		zfs_close(zhp);
 		return (-1);
 	}
@@ -1279,7 +1289,7 @@ zpool_enable_datasets(zpool_handle_t *zhp, const char *mntopts, int flags)
 	 * over all child filesystems.
 	 */
 	libzfs_add_handle(&cb, zfsp);
-	if (zfs_iter_filesystems(zfsp, zfs_iter_cb, &cb) != 0)
+	if (zfs_iter_filesystems(zfsp, 0, zfs_iter_cb, &cb) != 0)
 		goto out;
 
 	/*
@@ -1412,10 +1422,10 @@ zpool_disable_datasets(zpool_handle_t *zhp, boolean_t force)
 	 * Walk through and first unshare everything.
 	 */
 	for (i = 0; i < used; i++) {
-		for (enum sa_protocol i = 0; i < SA_PROTOCOL_COUNT; ++i) {
-			if (sa_is_shared(sets[i].mountpoint, i) &&
+		for (enum sa_protocol p = 0; p < SA_PROTOCOL_COUNT; ++p) {
+			if (sa_is_shared(sets[i].mountpoint, p) &&
 			    unshare_one(hdl, sets[i].mountpoint,
-			    sets[i].mountpoint, i) != 0)
+			    sets[i].mountpoint, p) != 0)
 				goto out;
 		}
 	}

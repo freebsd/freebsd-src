@@ -35,6 +35,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/endian.h>
 #include <sys/limits.h>
 
 #ifndef _KERNEL
@@ -144,6 +145,7 @@ static int validate_sblock(struct fs *, int);
  *     EIO: non-existent or truncated superblock.
  *     EIO: error reading summary information.
  *     ENOENT: no usable known superblock found.
+ *     EILSEQ: filesystem with wrong byte order found.
  *     ENOMEM: failed to allocate space for the superblock.
  *     EINVAL: The previous newfs operation on this volume did not complete.
  *         The administrator must complete newfs before using this volume.
@@ -383,6 +385,17 @@ validate_sblock(struct fs *fs, int flags)
 	warnerr = (flags & UFS_NOWARNFAIL) == UFS_NOWARNFAIL ? 0 : ENOENT;
 	wmsg = warnerr ? "" : " (Ignored)";
 	/*
+	 * Check for endian mismatch between machine and filesystem.
+	 */
+	if (((fs->fs_magic != FS_UFS2_MAGIC) &&
+	    (bswap32(fs->fs_magic) == FS_UFS2_MAGIC)) ||
+	    ((fs->fs_magic != FS_UFS1_MAGIC) &&
+	    (bswap32(fs->fs_magic) == FS_UFS1_MAGIC))) {
+		MPRINT("UFS superblock failed due to endian mismatch "
+		    "between machine and filesystem\n");
+		return(EILSEQ);
+	}
+	/*
 	 * If just validating for recovery, then do just the minimal
 	 * checks needed for the superblock fields needed to find
 	 * alternate superblocks.
@@ -407,7 +420,7 @@ validate_sblock(struct fs *fs, int flags)
 		FCHK(powerof2(fs->fs_fsize), ==, 0, %jd);
 		FCHK(fs->fs_sbsize, >, SBLOCKSIZE, %jd);
 		FCHK(fs->fs_sbsize, <, (signed)sizeof(struct fs), %jd);
-		FCHK(fs->fs_sbsize % fs->fs_fsize, !=, 0, %jd);
+		FCHK(fs->fs_sbsize % sectorsize, !=, 0, %jd);
 		FCHK(fs->fs_fpg, <, 3 * fs->fs_frag, %jd);
 		FCHK(fs->fs_ncg, <, 1, %jd);
 		FCHK(fs->fs_fsbtodb, !=, ILOG2(fs->fs_fsize / sectorsize), %jd);
@@ -473,13 +486,15 @@ validate_sblock(struct fs *fs, int flags)
 	FCHK(fs->fs_fpg, <, 3 * fs->fs_frag, %jd);
 	FCHK(fs->fs_ncg, <, 1, %jd);
 	FCHK(fs->fs_ipg, <, fs->fs_inopb, %jd);
-	FCHK(fs->fs_ipg * fs->fs_ncg, >, (((int64_t)(1)) << 32) - INOPB(fs),
-	    %jd);
+	FCHK((u_int64_t)fs->fs_ipg * fs->fs_ncg, >,
+	    (((int64_t)(1)) << 32) - INOPB(fs), %jd);
 	FCHK(fs->fs_cstotal.cs_nifree, <, 0, %jd);
-	FCHK(fs->fs_cstotal.cs_nifree, >, fs->fs_ipg * fs->fs_ncg, %jd);
+	FCHK(fs->fs_cstotal.cs_nifree, >, (u_int64_t)fs->fs_ipg * fs->fs_ncg,
+	    %jd);
 	FCHK(fs->fs_cstotal.cs_ndir, <, 0, %jd);
 	FCHK(fs->fs_cstotal.cs_ndir, >,
-	    (fs->fs_ipg * fs->fs_ncg) - fs->fs_cstotal.cs_nifree, %jd);
+	    ((u_int64_t)fs->fs_ipg * fs->fs_ncg) - fs->fs_cstotal.cs_nifree,
+	    %jd);
 	FCHK(fs->fs_sbsize, >, SBLOCKSIZE, %jd);
 	FCHK(fs->fs_sbsize, <, (signed)sizeof(struct fs), %jd);
 	FCHK(fs->fs_maxbsize, <, fs->fs_bsize, %jd);
@@ -503,7 +518,7 @@ validate_sblock(struct fs *fs, int flags)
 	 */
 	if (error)
 		return (error);
-	FCHK(fs->fs_sbsize % fs->fs_fsize, !=, 0, %jd);
+	FCHK(fs->fs_sbsize % sectorsize, !=, 0, %jd);
 	FCHK(fs->fs_ipg % fs->fs_inopb, !=, 0, %jd);
 	FCHK(fs->fs_sblkno, !=, roundup(
 	    howmany(fs->fs_sblockloc + SBLOCKSIZE, fs->fs_fsize),
@@ -546,8 +561,8 @@ validate_sblock(struct fs *fs, int flags)
 	 * and ends in the data area of the same cylinder group.
 	 */
 	FCHK(fs->fs_size, <, 8 * fs->fs_frag, %jd);
-	FCHK(fs->fs_size, <=, (fs->fs_ncg - 1) * fs->fs_fpg, %jd);
-	FCHK(fs->fs_size, >, fs->fs_ncg * fs->fs_fpg, %jd);
+	FCHK(fs->fs_size, <=, ((int64_t)fs->fs_ncg - 1) * fs->fs_fpg, %jd);
+	FCHK(fs->fs_size, >, (int64_t)fs->fs_ncg * fs->fs_fpg, %jd);
 	/*
 	 * If we are not requested to read in the csum data stop here
 	 * as the correctness of the remaining values is only important
@@ -625,8 +640,16 @@ ffs_sbsearch(void *devfd, struct fs **fsp, int reqflags,
 	 * failure can be avoided.
 	 */
 	flags = UFS_NOMSG | nocsum;
-	if (ffs_sbget(devfd, fsp, UFS_STDSB, flags, filltype, readfunc) == 0)
-		return (0);
+	error = ffs_sbget(devfd, fsp, UFS_STDSB, flags, filltype, readfunc);
+	/*
+	 * If successful or endian error, no need to try further.
+	 */
+	if (error == 0 || error == EILSEQ) {
+		if (msg && error == EILSEQ)
+			printf("UFS superblock failed due to endian mismatch "
+			    "between machine and filesystem\n");
+		return (error);
+	}
 	/*
 	 * First try: ignoring hash failures.
 	 */
@@ -675,6 +698,7 @@ ffs_sbsearch(void *devfd, struct fs **fsp, int reqflags,
 		 * but some devices lie. So we just try a plausible range.
 		 */
 		error = ENOENT;
+		fsrbuf = NULL;
 		for (secsize = dbtob(1); secsize <= SBLOCKSIZE; secsize *= 2)
 			if ((error = (*readfunc)(devfd, (SBLOCK_UFS2 - secsize),
 			    &fsrbuf, secsize)) == 0)

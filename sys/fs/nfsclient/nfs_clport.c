@@ -286,6 +286,7 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 		uma_zfree(newnfsnode_zone, np);
 		return (error);
 	}
+	vn_set_state(vp, VSTATE_CONSTRUCTED);
 	error = vfs_hash_insert(vp, hash, lkflags, 
 	    td, &nvp, newnfs_vncmpf, nfhp);
 	if (error)
@@ -1014,18 +1015,18 @@ nfscl_getmyip(struct nfsmount *nmp, struct in6_addr *paddr, int *isinet6p)
 		NET_EPOCH_ENTER(et);
 		CURVNET_SET(CRED_TO_VNET(nmp->nm_sockreq.nr_cred));
 		nh = fib4_lookup(fibnum, sin->sin_addr, 0, NHR_NONE, 0);
-		CURVNET_RESTORE();
-		if (nh != NULL)
+		if (nh != NULL) {
 			addr = IA_SIN(ifatoia(nh->nh_ifa))->sin_addr;
+			if (IN_LOOPBACK(ntohl(addr.s_addr))) {
+				/* Ignore loopback addresses */
+				nh = NULL;
+			}
+		}
+		CURVNET_RESTORE();
 		NET_EPOCH_EXIT(et);
+
 		if (nh == NULL)
 			return (NULL);
-
-		if (IN_LOOPBACK(ntohl(addr.s_addr))) {
-			/* Ignore loopback addresses */
-			return (NULL);
-		}
-
 		*isinet6p = 0;
 		*((struct in_addr *)paddr) = addr;
 
@@ -1179,7 +1180,6 @@ nfscl_maperr(struct thread *td, int error, uid_t uid, gid_t gid)
 	case NFSERR_FHEXPIRED:
 	case NFSERR_RESOURCE:
 	case NFSERR_MOVED:
-	case NFSERR_NOFILEHANDLE:
 	case NFSERR_MINORVERMISMATCH:
 	case NFSERR_OLDSTATEID:
 	case NFSERR_BADSEQID:
@@ -1189,6 +1189,14 @@ nfscl_maperr(struct thread *td, int error, uid_t uid, gid_t gid)
 	case NFSERR_OPILLEGAL:
 		printf("nfsv4 client/server protocol prob err=%d\n",
 		    error);
+		return (EIO);
+	case NFSERR_NOFILEHANDLE:
+		printf("nfsv4 no file handle: usually means the file "
+		    "system is not exported on the NFSv4 server\n");
+		return (EIO);
+	case NFSERR_WRONGSEC:
+		tprintf(p, LOG_INFO, "NFSv4 error WrongSec: You probably need a"
+		    " Kerberos TGT\n");
 		return (EIO);
 	default:
 		tprintf(p, LOG_INFO, "nfsv4 err=%d\n", error);
@@ -1268,10 +1276,11 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 	struct mount *mp;
 	struct nfsmount *nmp;
 
+	NFSD_CURVNET_SET(NFSD_TD_TO_VNET(td));
 	if (uap->flag & NFSSVC_CBADDSOCK) {
 		error = copyin(uap->argp, (caddr_t)&nfscbdarg, sizeof(nfscbdarg));
 		if (error)
-			return (error);
+			goto out;
 		/*
 		 * Since we don't know what rights might be required,
 		 * pretend that we need them all. It is better to be too
@@ -1280,10 +1289,11 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 		error = fget(td, nfscbdarg.sock,
 		    cap_rights_init_one(&rights, CAP_SOCK_CLIENT), &fp);
 		if (error)
-			return (error);
+			goto out;
 		if (fp->f_type != DTYPE_SOCKET) {
 			fdrop(fp, td);
-			return (EPERM);
+			error = EPERM;
+			goto out;
 		}
 		error = nfscbd_addsock(fp);
 		fdrop(fp, td);
@@ -1292,12 +1302,14 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 			nfscl_enablecallb = 1;
 		}
 	} else if (uap->flag & NFSSVC_NFSCBD) {
-		if (uap->argp == NULL) 
-			return (EINVAL);
+		if (uap->argp == NULL) {
+			error = EINVAL;
+			goto out;
+		}
 		error = copyin(uap->argp, (caddr_t)&nfscbdarg2,
 		    sizeof(nfscbdarg2));
 		if (error)
-			return (error);
+			goto out;
 		error = nfscbd_nfsd(td, &nfscbdarg2);
 	} else if (uap->flag & NFSSVC_DUMPMNTOPTS) {
 		error = copyin(uap->argp, &dumpmntopts, sizeof(dumpmntopts));
@@ -1383,6 +1395,8 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 	} else {
 		error = EINVAL;
 	}
+out:
+	NFSD_CURVNET_RESTORE();
 	return (error);
 }
 

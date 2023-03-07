@@ -27,10 +27,8 @@ SM_RCSID("@(#)$Id: ldap.c,v 1.86 2013-11-22 20:51:43 ca Exp $")
 # include <sm/errstring.h>
 # include <sm/ldap.h>
 # include <sm/string.h>
-#  ifdef EX_OK
-#   undef EX_OK			/* for SVr4.2 SMP */
-#  endif
 # include <sm/sysexits.h>
+# include <sm/sendmail.h>
 
 SM_DEBUG_T SmLDAPTrace = SM_DEBUG_INITIALIZER("sm_trace_ldap",
 	"@(#)$Debug: sm_trace_ldap - trace LDAP operations $");
@@ -49,17 +47,17 @@ static SM_LDAP_RECURSE_ENTRY *sm_ldap_add_recurse __P((SM_LDAP_RECURSE_LIST **, 
 **
 */
 
-#if _FFR_LDAP_VERSION
-# if defined(LDAP_VERSION_MAX) && _FFR_LDAP_VERSION > LDAP_VERSION_MAX
-    ERROR FFR_LDAP_VERSION > _LDAP_VERSION_MAX
-# endif
-# if defined(LDAP_VERSION_MIN) && _FFR_LDAP_VERSION < LDAP_VERSION_MIN
-    ERROR FFR_LDAP_VERSION < _LDAP_VERSION_MIN
-# endif
-# define SM_LDAP_VERSION_DEFAULT	_FFR_LDAP_VERSION
-#else /* _FFR_LDAP_VERSION */
-# define SM_LDAP_VERSION_DEFAULT	0
-#endif /* _FFR_LDAP_VERSION */
+# if _FFR_LDAP_VERSION
+#  if defined(LDAP_VERSION_MAX) && _FFR_LDAP_VERSION > LDAP_VERSION_MAX
+#   ERROR "_FFR_LDAP_VERSION > LDAP_VERSION_MAX"
+#  endif
+#  if defined(LDAP_VERSION_MIN) && _FFR_LDAP_VERSION < LDAP_VERSION_MIN
+#   ERROR "_FFR_LDAP_VERSION < LDAP_VERSION_MAX"
+#  endif
+#  define SM_LDAP_VERSION_DEFAULT	_FFR_LDAP_VERSION
+# else /* _FFR_LDAP_VERSION */
+#  define SM_LDAP_VERSION_DEFAULT	0
+# endif /* _FFR_LDAP_VERSION */
 
 void
 sm_ldap_clear(lmap)
@@ -100,7 +98,7 @@ sm_ldap_clear(lmap)
 	lmap->ldap_multi_args = false;
 }
 
-#  if _FFR_SM_LDAP_DBG && defined(LBER_OPT_LOG_PRINT_FN)
+# if _FFR_SM_LDAP_DBG && defined(LBER_OPT_LOG_PRINT_FN)
 static void ldap_debug_cb __P((const char *msg));
 
 static void
@@ -110,7 +108,7 @@ ldap_debug_cb(msg)
 	if (sm_debug_active(&SmLDAPTrace, 4))
 		sm_dprintf("%s", msg);
 }
-#  endif /* _FFR_SM_LDAP_DBG && defined(LBER_OPT_LOG_PRINT_FN) */
+# endif /* _FFR_SM_LDAP_DBG && defined(LBER_OPT_LOG_PRINT_FN) */
 
 
 # if LDAP_NETWORK_TIMEOUT && defined(LDAP_OPT_NETWORK_TIMEOUT)
@@ -298,7 +296,7 @@ do									\
 	if (ev != NULL)							\
 		sm_clrevent(ev);					\
 } while (0)
-#endif /* !USE_LDAP_INIT || !LDAP_NETWORK_TIMEOUT */
+# endif /* !USE_LDAP_INIT || !LDAP_NETWORK_TIMEOUT */
 
 bool
 sm_ldap_start(name, lmap)
@@ -336,7 +334,7 @@ sm_ldap_start(name, lmap)
 
 	if (lmap->ldap_uri != NULL)
 	{
-#if SM_CONF_LDAP_INITIALIZE
+# if SM_CONF_LDAP_INITIALIZE
 		if (sm_debug_active(&SmLDAPTrace, 9))
 			sm_dprintf("ldap_initialize(%s)\n", lmap->ldap_uri);
 		/* LDAP server supports URIs so use them directly */
@@ -345,7 +343,7 @@ sm_ldap_start(name, lmap)
 			sm_dprintf("ldap_initialize(%s)=%d, ld=%p\n", lmap->ldap_uri, save_errno, ld);
 		sm_ldap_setoptsg(lmap);
 
-#else /* SM_CONF_LDAP_INITIALIZE */
+# else /* SM_CONF_LDAP_INITIALIZE */
 		LDAPURLDesc *ludp = NULL;
 
 		/* Blast apart URL and use the ldap_init/ldap_open below */
@@ -365,7 +363,7 @@ sm_ldap_start(name, lmap)
 		}
 		lmap->ldap_port = ludp->lud_port;
 		ldap_free_urldesc(ludp);
-#endif /* SM_CONF_LDAP_INITIALIZE */
+# endif /* SM_CONF_LDAP_INITIALIZE */
 	}
 
 	if (ld == NULL)
@@ -537,9 +535,9 @@ sm_ldap_search_m(lmap, argv)
 
 		if (lmap->ldap_multi_args)
 		{
-#if SM_LDAP_ARGS < 10
-# ERROR _SM_LDAP_ARGS must be 10
-#endif /* SM_LDAP_ARGS < 10 */
+# if SM_LDAP_ARGS < 10
+#  ERROR _SM_LDAP_ARGS must be 10
+# endif
 			if (q[1] == 's')
 				key = argv[0];
 			else if (q[1] >= '0' && q[1] <= '9')
@@ -549,9 +547,9 @@ sm_ldap_search_m(lmap, argv)
 				{
 # if SM_LDAP_ERROR_ON_MISSING_ARGS
 					return SM_LDAP_ERR_ARG_MISS;
-# else /* SM_LDAP_ERROR_ON_MISSING_ARGS */
+# else
 					key = "";
-# endif /* SM_LDAP_ERROR_ON_MISSING_ARGS */
+# endif
 				}
 			}
 			else
@@ -907,7 +905,7 @@ sm_ldap_results(lmap, msgid, flags, delim, rpool, result,
 				continue;
 			}
 
-#if _FFR_LDAP_SINGLEDN
+# if _FFR_LDAP_SINGLEDN
 			if (bitset(SM_LDAP_SINGLEDN, flags) && *result != NULL)
 			{
 				/* only wanted one match */
@@ -915,7 +913,7 @@ sm_ldap_results(lmap, msgid, flags, delim, rpool, result,
 				errno = ENOENT;
 				return EX_NOTFOUND;
 			}
-#endif /* _FFR_LDAP_SINGLEDN */
+# endif /* _FFR_LDAP_SINGLEDN */
 
 			/* record completed DN's to prevent loops */
 			dn = ldap_get_dn(lmap->ldap_ld, entry);
@@ -970,8 +968,8 @@ sm_ldap_results(lmap, msgid, flags, delim, rpool, result,
 				type = SM_LDAP_ATTR_NONE;
 				for (i = 0; lmap->ldap_attr[i] != NULL; i++)
 				{
-					if (sm_strcasecmp(lmap->ldap_attr[i],
-							  attr) == 0)
+					if (SM_STRCASEEQ(lmap->ldap_attr[i],
+							 attr))
 					{
 						type = lmap->ldap_attr_type[i];
 						needobjclass = lmap->ldap_attr_needobjclass[i];
@@ -1342,9 +1340,9 @@ sm_ldap_results(lmap, msgid, flags, delim, rpool, result,
 		statp = EX_TEMPFAIL;
 		switch (save_errno)
 		{
-#ifdef LDAP_SERVER_DOWN
+# ifdef LDAP_SERVER_DOWN
 		  case LDAP_SERVER_DOWN:
-#endif /* LDAP_SERVER_DOWN */
+# endif
 		  case LDAP_TIMEOUT:
 		  case ETIMEDOUT:
 		  case LDAP_UNAVAILABLE:
@@ -1504,9 +1502,9 @@ sm_ldap_results(lmap, msgid, flags, delim, rpool, result,
 				statp = EX_TEMPFAIL;
 				switch (save_errno)
 				{
-#ifdef LDAP_SERVER_DOWN
+# ifdef LDAP_SERVER_DOWN
 				  case LDAP_SERVER_DOWN:
-#endif /* LDAP_SERVER_DOWN */
+# endif
 				  case LDAP_TIMEOUT:
 				  case ETIMEDOUT:
 				  case LDAP_UNAVAILABLE:
@@ -1616,4 +1614,4 @@ sm_ldap_geterrno(ld)
 # endif /* defined(LDAP_VERSION_MAX) && LDAP_VERSION_MAX >= 3 */
 	return err;
 }
-# endif /* LDAPMAP */
+#endif /* LDAPMAP */

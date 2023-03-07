@@ -31,6 +31,7 @@
  * Copyright (c) 2022 Axcient.
  */
 
+#include <sys/arc.h>
 #include <sys/spa_impl.h>
 #include <sys/dmu.h>
 #include <sys/dmu_impl.h>
@@ -67,13 +68,19 @@
 #endif
 #include <sys/zfs_file.h>
 
-static int zfs_recv_queue_length = SPA_MAXBLOCKSIZE;
-static int zfs_recv_queue_ff = 20;
-static int zfs_recv_write_batch_size = 1024 * 1024;
+static uint_t zfs_recv_queue_length = SPA_MAXBLOCKSIZE;
+static uint_t zfs_recv_queue_ff = 20;
+static uint_t zfs_recv_write_batch_size = 1024 * 1024;
 static int zfs_recv_best_effort_corrective = 0;
 
 static const void *const dmu_recv_tag = "dmu_recv_tag";
 const char *const recv_clone_name = "%recv";
+
+typedef enum {
+	ORNS_NO,
+	ORNS_YES,
+	ORNS_MAYBE
+} or_need_sync_t;
 
 static int receive_read_payload_and_next_header(dmu_recv_cookie_t *ra, int len,
     void *buf);
@@ -128,6 +135,9 @@ struct receive_writer_arg {
 	uint8_t or_mac[ZIO_DATA_MAC_LEN];
 	boolean_t or_byteorder;
 	zio_t *heal_pio;
+
+	/* Keep track of DRR_FREEOBJECTS right after DRR_OBJECT_RANGE */
+	or_need_sync_t or_need_sync;
 };
 
 typedef struct dmu_recv_begin_arg {
@@ -646,7 +656,7 @@ dmu_recv_begin_check(void *arg, dmu_tx_t *tx)
 		 * so add the DS_HOLD_FLAG_DECRYPT flag only if we are dealing
 		 * with a dataset we may encrypt.
 		 */
-		if (drba->drba_dcp != NULL &&
+		if (drba->drba_dcp == NULL ||
 		    drba->drba_dcp->cp_crypt != ZIO_CRYPT_OFF) {
 			dsflags |= DS_HOLD_FLAG_DECRYPT;
 		}
@@ -1045,11 +1055,22 @@ dmu_recv_resume_begin_check(void *arg, dmu_tx_t *tx)
 		dsflags |= DS_HOLD_FLAG_DECRYPT;
 	}
 
+	boolean_t recvexist = B_TRUE;
 	if (dsl_dataset_hold_flags(dp, recvname, dsflags, FTAG, &ds) != 0) {
 		/* %recv does not exist; continue in tofs */
+		recvexist = B_FALSE;
 		error = dsl_dataset_hold_flags(dp, tofs, dsflags, FTAG, &ds);
 		if (error != 0)
 			return (error);
+	}
+
+	/*
+	 * Resume of full/newfs recv on existing dataset should be done with
+	 * force flag
+	 */
+	if (recvexist && drrb->drr_fromguid == 0 && !drc->drc_force) {
+		dsl_dataset_rele_flags(ds, dsflags, FTAG);
+		return (SET_ERROR(ZFS_ERR_RESUME_EXISTS));
 	}
 
 	/* check that ds is marked inconsistent */
@@ -1235,19 +1256,29 @@ dmu_recv_begin(char *tofs, char *tosnap, dmu_replay_record_t *drr_begin,
 
 	uint32_t payloadlen = drc->drc_drr_begin->drr_payloadlen;
 	void *payload = NULL;
+
+	/*
+	 * Since OpenZFS 2.0.0, we have enforced a 64MB limit in userspace
+	 * configurable via ZFS_SENDRECV_MAX_NVLIST. We enforce 256MB as a hard
+	 * upper limit. Systems with less than 1GB of RAM will see a lower
+	 * limit from `arc_all_memory() / 4`.
+	 */
+	if (payloadlen > (MIN((1U << 28), arc_all_memory() / 4)))
+		return (E2BIG);
+
 	if (payloadlen != 0)
-		payload = kmem_alloc(payloadlen, KM_SLEEP);
+		payload = vmem_alloc(payloadlen, KM_SLEEP);
 
 	err = receive_read_payload_and_next_header(drc, payloadlen,
 	    payload);
 	if (err != 0) {
-		kmem_free(payload, payloadlen);
+		vmem_free(payload, payloadlen);
 		return (err);
 	}
 	if (payloadlen != 0) {
 		err = nvlist_unpack(payload, payloadlen, &drc->drc_begin_nvl,
 		    KM_SLEEP);
-		kmem_free(payload, payloadlen);
+		vmem_free(payload, payloadlen);
 		if (err != 0) {
 			kmem_free(drc->drc_next_rrd,
 			    sizeof (*drc->drc_next_rrd));
@@ -1333,7 +1364,7 @@ do_corrective_recv(struct receive_writer_arg *rwa, struct drr_write *drrw,
 	dnode_t *dn;
 	abd_t *abd = rrd->abd;
 	zio_cksum_t bp_cksum = bp->blk_cksum;
-	enum zio_flag flags = ZIO_FLAG_SPECULATIVE |
+	zio_flag_t flags = ZIO_FLAG_SPECULATIVE |
 	    ZIO_FLAG_DONT_CACHE | ZIO_FLAG_DONT_RETRY | ZIO_FLAG_CANFAIL;
 
 	if (rwa->raw)
@@ -1489,11 +1520,11 @@ receive_read(dmu_recv_cookie_t *drc, int len, void *buf)
 	    (drc->drc_featureflags & DMU_BACKUP_FEATURE_RAW) != 0);
 
 	while (done < len) {
-		ssize_t resid;
+		ssize_t resid = len - done;
 		zfs_file_t *fp = drc->drc_fp;
 		int err = zfs_file_read(fp, (char *)buf + done,
 		    len - done, &resid);
-		if (resid == len - done) {
+		if (err == 0 && resid == len - done) {
 			/*
 			 * Note: ECKSUM or ZFS_ERR_STREAM_TRUNCATED indicates
 			 * that the receive was interrupted and can
@@ -1874,6 +1905,8 @@ receive_object(struct receive_writer_arg *rwa, struct drr_object *drro,
 	if (err == 0) {
 		err = receive_handle_existing_object(rwa, drro, &doi, data,
 		    &object_to_hold, &new_blksz);
+		if (err != 0)
+			return (err);
 	} else if (err == EEXIST) {
 		/*
 		 * The object requested is currently an interior slot of a
@@ -1890,9 +1923,21 @@ receive_object(struct receive_writer_arg *rwa, struct drr_object *drro,
 		/* object was freed and we are about to allocate a new one */
 		object_to_hold = DMU_NEW_OBJECT;
 	} else {
+		/*
+		 * If the only record in this range so far was DRR_FREEOBJECTS
+		 * with at least one actually freed object, it's possible that
+		 * the block will now be converted to a hole. We need to wait
+		 * for the txg to sync to prevent races.
+		 */
+		if (rwa->or_need_sync == ORNS_YES)
+			txg_wait_synced(dmu_objset_pool(rwa->os), 0);
+
 		/* object is free and we are about to allocate a new one */
 		object_to_hold = DMU_NEW_OBJECT;
 	}
+
+	/* Only relevant for the first object in the range */
+	rwa->or_need_sync = ORNS_NO;
 
 	/*
 	 * If this is a multi-slot dnode there is a chance that this
@@ -2087,6 +2132,9 @@ receive_freeobjects(struct receive_writer_arg *rwa,
 
 		if (err != 0)
 			return (err);
+
+		if (rwa->or_need_sync == ORNS_MAYBE)
+			rwa->or_need_sync = ORNS_YES;
 	}
 	if (next_err != ESRCH)
 		return (next_err);
@@ -2173,7 +2221,7 @@ flush_write_batch_impl(struct receive_writer_arg *rwa)
 			zio_prop_t zp;
 			dmu_write_policy(rwa->os, dn, 0, 0, &zp);
 
-			enum zio_flag zio_flags = 0;
+			zio_flag_t zio_flags = 0;
 
 			if (rwa->raw) {
 				zp.zp_encrypt = B_TRUE;
@@ -2579,6 +2627,8 @@ receive_object_range(struct receive_writer_arg *rwa,
 	memcpy(rwa->or_iv, drror->drr_iv, ZIO_DATA_IV_LEN);
 	memcpy(rwa->or_mac, drror->drr_mac, ZIO_DATA_MAC_LEN);
 	rwa->or_byteorder = byteorder;
+
+	rwa->or_need_sync = ORNS_MAYBE;
 
 	return (0);
 }
@@ -3716,13 +3766,13 @@ dmu_objset_is_receiving(objset_t *os)
 	    os->os_dsl_dataset->ds_owner == dmu_recv_tag);
 }
 
-ZFS_MODULE_PARAM(zfs_recv, zfs_recv_, queue_length, INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_recv, zfs_recv_, queue_length, UINT, ZMOD_RW,
 	"Maximum receive queue length");
 
-ZFS_MODULE_PARAM(zfs_recv, zfs_recv_, queue_ff, INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_recv, zfs_recv_, queue_ff, UINT, ZMOD_RW,
 	"Receive queue fill fraction");
 
-ZFS_MODULE_PARAM(zfs_recv, zfs_recv_, write_batch_size, INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_recv, zfs_recv_, write_batch_size, UINT, ZMOD_RW,
 	"Maximum amount of writes to batch into one transaction");
 
 ZFS_MODULE_PARAM(zfs_recv, zfs_recv_, best_effort_corrective, INT, ZMOD_RW,

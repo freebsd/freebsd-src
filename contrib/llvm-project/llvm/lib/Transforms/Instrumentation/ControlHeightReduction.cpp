@@ -26,6 +26,7 @@
 #include "llvm/IR/CFG.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/MDBuilder.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/InitializePasses.h"
@@ -102,70 +103,29 @@ static void parseCHRFilterFiles() {
 }
 
 namespace {
-class ControlHeightReductionLegacyPass : public FunctionPass {
-public:
-  static char ID;
-
-  ControlHeightReductionLegacyPass() : FunctionPass(ID) {
-    initializeControlHeightReductionLegacyPassPass(
-        *PassRegistry::getPassRegistry());
-    parseCHRFilterFiles();
-  }
-
-  bool runOnFunction(Function &F) override;
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addRequired<BlockFrequencyInfoWrapperPass>();
-    AU.addRequired<DominatorTreeWrapperPass>();
-    AU.addRequired<ProfileSummaryInfoWrapperPass>();
-    AU.addRequired<RegionInfoPass>();
-    AU.addPreserved<GlobalsAAWrapperPass>();
-  }
-};
-} // end anonymous namespace
-
-char ControlHeightReductionLegacyPass::ID = 0;
-
-INITIALIZE_PASS_BEGIN(ControlHeightReductionLegacyPass,
-                      "chr",
-                      "Reduce control height in the hot paths",
-                      false, false)
-INITIALIZE_PASS_DEPENDENCY(BlockFrequencyInfoWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(ProfileSummaryInfoWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(RegionInfoPass)
-INITIALIZE_PASS_END(ControlHeightReductionLegacyPass,
-                    "chr",
-                    "Reduce control height in the hot paths",
-                    false, false)
-
-FunctionPass *llvm::createControlHeightReductionLegacyPass() {
-  return new ControlHeightReductionLegacyPass();
-}
-
-namespace {
 
 struct CHRStats {
-  CHRStats() : NumBranches(0), NumBranchesDelta(0),
-               WeightedNumBranchesDelta(0) {}
+  CHRStats() = default;
   void print(raw_ostream &OS) const {
     OS << "CHRStats: NumBranches " << NumBranches
        << " NumBranchesDelta " << NumBranchesDelta
        << " WeightedNumBranchesDelta " << WeightedNumBranchesDelta;
   }
-  uint64_t NumBranches;       // The original number of conditional branches /
-                              // selects
-  uint64_t NumBranchesDelta;  // The decrease of the number of conditional
-                              // branches / selects in the hot paths due to CHR.
-  uint64_t WeightedNumBranchesDelta; // NumBranchesDelta weighted by the profile
-                                     // count at the scope entry.
+  // The original number of conditional branches / selects
+  uint64_t NumBranches = 0;
+  // The decrease of the number of conditional branches / selects in the hot
+  // paths due to CHR.
+  uint64_t NumBranchesDelta = 0;
+  // NumBranchesDelta weighted by the profile count at the scope entry.
+  uint64_t WeightedNumBranchesDelta = 0;
 };
 
 // RegInfo - some properties of a Region.
 struct RegInfo {
-  RegInfo() : R(nullptr), HasBranch(false) {}
-  RegInfo(Region *RegionIn) : R(RegionIn), HasBranch(false) {}
-  Region *R;
-  bool HasBranch;
+  RegInfo() = default;
+  RegInfo(Region *RegionIn) : R(RegionIn) {}
+  Region *R = nullptr;
+  bool HasBranch = false;
   SmallVector<SelectInst *, 8> Selects;
 };
 
@@ -769,9 +729,21 @@ CHRScope * CHR::findScope(Region *R) {
       return nullptr;
   // If any of the basic blocks have address taken, we must skip this region
   // because we cannot clone basic blocks that have address taken.
-  for (BasicBlock *BB : R->blocks())
+  for (BasicBlock *BB : R->blocks()) {
     if (BB->hasAddressTaken())
       return nullptr;
+    // If we encounter llvm.coro.id, skip this region because if the basic block
+    // is cloned, we end up inserting a token type PHI node to the block with
+    // llvm.coro.begin.
+    // FIXME: This could lead to less optimal codegen, because the region is
+    // excluded, it can prevent CHR from merging adjacent regions into bigger
+    // scope and hoisting more branches.
+    for (Instruction &I : *BB)
+      if (auto *II = dyn_cast<IntrinsicInst>(&I))
+        if (II->getIntrinsicID() == Intrinsic::coro_id)
+          return nullptr;
+  }
+
   if (Exit) {
     // Try to find an if-then block (check if R is an if-then).
     // if (cond) {
@@ -1752,7 +1724,7 @@ void CHR::transformScopes(CHRScope *Scope, DenseSet<PHINode *> &TrivialPHIs) {
   // Create the combined branch condition and constant-fold the branches/selects
   // in the hot path.
   fixupBranchesAndSelects(Scope, PreEntryBlock, MergedBr,
-                          ProfileCount.getValueOr(0));
+                          ProfileCount.value_or(0));
 }
 
 // A helper for transformScopes. Clone the blocks in the scope (excluding the
@@ -1949,28 +1921,27 @@ void CHR::fixupSelect(SelectInst *SI, CHRScope *Scope,
 // A helper for fixupBranch/fixupSelect. Add a branch condition to the merged
 // condition.
 void CHR::addToMergedCondition(bool IsTrueBiased, Value *Cond,
-                               Instruction *BranchOrSelect,
-                               CHRScope *Scope,
-                               IRBuilder<> &IRB,
-                               Value *&MergedCondition) {
-  if (IsTrueBiased) {
-    MergedCondition = IRB.CreateAnd(MergedCondition, Cond);
-  } else {
+                               Instruction *BranchOrSelect, CHRScope *Scope,
+                               IRBuilder<> &IRB, Value *&MergedCondition) {
+  if (!IsTrueBiased) {
     // If Cond is an icmp and all users of V except for BranchOrSelect is a
     // branch, negate the icmp predicate and swap the branch targets and avoid
     // inserting an Xor to negate Cond.
-    bool Done = false;
-    if (auto *ICmp = dyn_cast<ICmpInst>(Cond))
-      if (negateICmpIfUsedByBranchOrSelectOnly(ICmp, BranchOrSelect, Scope)) {
-        MergedCondition = IRB.CreateAnd(MergedCondition, Cond);
-        Done = true;
-      }
-    if (!Done) {
-      Value *Negate = IRB.CreateXor(
-          ConstantInt::getTrue(F.getContext()), Cond);
-      MergedCondition = IRB.CreateAnd(MergedCondition, Negate);
-    }
+    auto *ICmp = dyn_cast<ICmpInst>(Cond);
+    if (!ICmp ||
+        !negateICmpIfUsedByBranchOrSelectOnly(ICmp, BranchOrSelect, Scope))
+      Cond = IRB.CreateXor(ConstantInt::getTrue(F.getContext()), Cond);
   }
+
+  // Select conditions can be poison, while branching on poison is immediate
+  // undefined behavior. As such, we need to freeze potentially poisonous
+  // conditions derived from selects.
+  if (isa<SelectInst>(BranchOrSelect) &&
+      !isGuaranteedNotToBeUndefOrPoison(Cond))
+    Cond = IRB.CreateFreeze(Cond);
+
+  // Use logical and to avoid propagating poison from later conditions.
+  MergedCondition = IRB.CreateLogicalAnd(MergedCondition, Cond);
 }
 
 void CHR::transformScopes(SmallVectorImpl<CHRScope *> &CHRScopes) {
@@ -2069,18 +2040,6 @@ bool CHR::run() {
   }
 
   return Changed;
-}
-
-bool ControlHeightReductionLegacyPass::runOnFunction(Function &F) {
-  BlockFrequencyInfo &BFI =
-      getAnalysis<BlockFrequencyInfoWrapperPass>().getBFI();
-  DominatorTree &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
-  ProfileSummaryInfo &PSI =
-      getAnalysis<ProfileSummaryInfoWrapperPass>().getPSI();
-  RegionInfo &RI = getAnalysis<RegionInfoPass>().getRegionInfo();
-  std::unique_ptr<OptimizationRemarkEmitter> OwnedORE =
-      std::make_unique<OptimizationRemarkEmitter>(&F);
-  return CHR(F, BFI, DT, PSI, RI, *OwnedORE.get()).run();
 }
 
 namespace llvm {

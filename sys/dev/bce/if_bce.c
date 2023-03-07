@@ -453,14 +453,14 @@ static void bce_free_pg_chain		(struct bce_softc *);
 static struct mbuf *bce_tso_setup	(struct bce_softc *,
     struct mbuf **, u16 *);
 static int  bce_tx_encap			(struct bce_softc *, struct mbuf **);
-static void bce_start_locked		(struct ifnet *);
-static void bce_start			(struct ifnet *);
-static int  bce_ioctl			(struct ifnet *, u_long, caddr_t);
-static uint64_t bce_get_counter		(struct ifnet *, ift_counter);
+static void bce_start_locked		(if_t);
+static void bce_start			(if_t);
+static int  bce_ioctl			(if_t, u_long, caddr_t);
+static uint64_t bce_get_counter		(if_t, ift_counter);
 static void bce_watchdog		(struct bce_softc *);
-static int  bce_ifmedia_upd		(struct ifnet *);
-static int  bce_ifmedia_upd_locked	(struct ifnet *);
-static void bce_ifmedia_sts		(struct ifnet *, struct ifmediareq *);
+static int  bce_ifmedia_upd		(if_t);
+static int  bce_ifmedia_upd_locked	(if_t);
+static void bce_ifmedia_sts		(if_t, struct ifmediareq *);
 static void bce_ifmedia_sts_rphy	(struct bce_softc *, struct ifmediareq *);
 static void bce_init_locked		(struct bce_softc *);
 static void bce_init				(void *);
@@ -1052,7 +1052,7 @@ static int
 bce_attach(device_t dev)
 {
 	struct bce_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	u32 val;
 	int count, error, rc = 0, rid;
 
@@ -1371,28 +1371,28 @@ bce_attach(device_t dev)
 	}
 
 	/* Initialize the ifnet interface. */
-	ifp->if_softc	= sc;
+	if_setsoftc(ifp, sc);
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_flags	= IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_ioctl	= bce_ioctl;
-	ifp->if_start	= bce_start;
-	ifp->if_get_counter = bce_get_counter;
-	ifp->if_init	= bce_init;
-	ifp->if_mtu	= ETHERMTU;
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setioctlfn(ifp, bce_ioctl);
+	if_setstartfn(ifp, bce_start);
+	if_setgetcounterfn(ifp, bce_get_counter);
+	if_setinitfn(ifp, bce_init);
+	if_setmtu(ifp, ETHERMTU);
 
 	if (bce_tso_enable) {
-		ifp->if_hwassist = BCE_IF_HWASSIST | CSUM_TSO;
-		ifp->if_capabilities = BCE_IF_CAPABILITIES | IFCAP_TSO4 |
-		    IFCAP_VLAN_HWTSO;
+		if_sethwassist(ifp, BCE_IF_HWASSIST | CSUM_TSO);
+		if_setcapabilities(ifp, BCE_IF_CAPABILITIES | IFCAP_TSO4 |
+		    IFCAP_VLAN_HWTSO);
 	} else {
-		ifp->if_hwassist = BCE_IF_HWASSIST;
-		ifp->if_capabilities = BCE_IF_CAPABILITIES;
+		if_sethwassist(ifp, BCE_IF_HWASSIST);
+		if_setcapabilities(ifp, BCE_IF_CAPABILITIES);
 	}
 
 	if ((sc->bce_phy_flags & BCE_PHY_REMOTE_CAP_FLAG) != 0)
-		ifp->if_capabilities |= IFCAP_LINKSTATE;
+		if_setcapabilitiesbit(ifp, IFCAP_LINKSTATE, 0);
 
-	ifp->if_capenable = ifp->if_capabilities;
+	if_setcapenable(ifp, if_getcapabilities(ifp));
 
 	/*
 	 * Assume standard mbuf sizes for buffer allocation.
@@ -1403,14 +1403,13 @@ bce_attach(device_t dev)
 	    (ETHER_MAX_LEN - ETHER_HDR_LEN - ETHER_CRC_LEN));
 
 	/* Recalculate our buffer allocation sizes. */
-	ifp->if_snd.ifq_drv_maxlen = USABLE_TX_BD_ALLOC;
-	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
-	IFQ_SET_READY(&ifp->if_snd);
+	if_setsendqlen(ifp, USABLE_TX_BD_ALLOC);
+	if_setsendqready(ifp);
 
 	if (sc->bce_phy_flags & BCE_PHY_2_5G_CAPABLE_FLAG)
-		ifp->if_baudrate = IF_Mbps(2500ULL);
+		if_setbaudrate(ifp, IF_Mbps(2500ULL));
 	else
-		ifp->if_baudrate = IF_Mbps(1000);
+		if_setbaudrate(ifp, IF_Mbps(1000));
 
 	/* Handle any special PHY initialization for SerDes PHYs. */
 	bce_init_media(sc);
@@ -1534,7 +1533,7 @@ static int
 bce_detach(device_t dev)
 {
 	struct bce_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp;
+	if_t ifp;
 	u32 msg;
 
 	DBENTER(BCE_VERBOSE_UNLOAD | BCE_VERBOSE_RESET);
@@ -4835,7 +4834,7 @@ bce_set_mac_addr(struct bce_softc *sc)
 static void
 bce_stop(struct bce_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 
 	DBENTER(BCE_VERBOSE_RESET);
 
@@ -4865,7 +4864,7 @@ bce_stop(struct bce_softc *sc)
 
 	sc->bce_link_up = FALSE;
 
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	if_setdrvflagbits(ifp, 0, (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
 
 	DBEXIT(BCE_VERBOSE_RESET);
 }
@@ -6072,9 +6071,9 @@ bce_get_rphy_link(struct bce_softc *sc)
 /*   0 for success, positive value for failure.                             */
 /****************************************************************************/
 static int
-bce_ifmedia_upd(struct ifnet *ifp)
+bce_ifmedia_upd(if_t ifp)
 {
-	struct bce_softc *sc = ifp->if_softc;
+	struct bce_softc *sc = if_getsoftc(ifp);
 	int error;
 
 	DBENTER(BCE_VERBOSE);
@@ -6094,9 +6093,9 @@ bce_ifmedia_upd(struct ifnet *ifp)
 /*   Nothing.                                                               */
 /****************************************************************************/
 static int
-bce_ifmedia_upd_locked(struct ifnet *ifp)
+bce_ifmedia_upd_locked(if_t ifp)
 {
-	struct bce_softc *sc = ifp->if_softc;
+	struct bce_softc *sc = if_getsoftc(ifp);
 	struct mii_data *mii;
 	struct mii_softc *miisc;
 	struct ifmedia *ifm;
@@ -6212,7 +6211,7 @@ bce_ifmedia_upd_locked(struct ifnet *ifp)
 static void
 bce_ifmedia_sts_rphy(struct bce_softc *sc, struct ifmediareq *ifmr)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	u32 link;
 
 	ifp = sc->bce_ifp;
@@ -6226,39 +6225,39 @@ bce_ifmedia_sts_rphy(struct bce_softc *sc, struct ifmediareq *ifmr)
 		ifmr->ifm_status |= IFM_ACTIVE;
 	else {
 		ifmr->ifm_active |= IFM_NONE;
-		ifp->if_baudrate = 0;
+		if_setbaudrate(ifp, 0);
 		return;
 	}
 	switch (link & BCE_LINK_STATUS_SPEED_MASK) {
 	case BCE_LINK_STATUS_10HALF:
 		ifmr->ifm_active |= IFM_10_T | IFM_HDX;
-		ifp->if_baudrate = IF_Mbps(10UL);
+		if_setbaudrate(ifp, IF_Mbps(10UL));
 		break;
 	case BCE_LINK_STATUS_10FULL:
 		ifmr->ifm_active |= IFM_10_T | IFM_FDX;
-		ifp->if_baudrate = IF_Mbps(10UL);
+		if_setbaudrate(ifp, IF_Mbps(10UL));
 		break;
 	case BCE_LINK_STATUS_100HALF:
 		ifmr->ifm_active |= IFM_100_TX | IFM_HDX;
-		ifp->if_baudrate = IF_Mbps(100UL);
+		if_setbaudrate(ifp, IF_Mbps(100UL));
 		break;
 	case BCE_LINK_STATUS_100FULL:
 		ifmr->ifm_active |= IFM_100_TX | IFM_FDX;
-		ifp->if_baudrate = IF_Mbps(100UL);
+		if_setbaudrate(ifp, IF_Mbps(100UL));
 		break;
 	case BCE_LINK_STATUS_1000HALF:
 		if ((sc->bce_phy_flags & BCE_PHY_REMOTE_PORT_FIBER_FLAG) == 0)
 			ifmr->ifm_active |= IFM_1000_T | IFM_HDX;
 		else
 			ifmr->ifm_active |= IFM_1000_SX | IFM_HDX;
-		ifp->if_baudrate = IF_Mbps(1000UL);
+		if_setbaudrate(ifp, IF_Mbps(1000UL));
 		break;
 	case BCE_LINK_STATUS_1000FULL:
 		if ((sc->bce_phy_flags & BCE_PHY_REMOTE_PORT_FIBER_FLAG) == 0)
 			ifmr->ifm_active |= IFM_1000_T | IFM_FDX;
 		else
 			ifmr->ifm_active |= IFM_1000_SX | IFM_FDX;
-		ifp->if_baudrate = IF_Mbps(1000UL);
+		if_setbaudrate(ifp, IF_Mbps(1000UL));
 		break;
 	case BCE_LINK_STATUS_2500HALF:
 		if ((sc->bce_phy_flags & BCE_PHY_REMOTE_PORT_FIBER_FLAG) == 0) {
@@ -6266,7 +6265,7 @@ bce_ifmedia_sts_rphy(struct bce_softc *sc, struct ifmediareq *ifmr)
 			return;
 		} else
 			ifmr->ifm_active |= IFM_2500_SX | IFM_HDX;
-		ifp->if_baudrate = IF_Mbps(2500UL);
+		if_setbaudrate(ifp, IF_Mbps(2500UL));
 		break;
 	case BCE_LINK_STATUS_2500FULL:
 		if ((sc->bce_phy_flags & BCE_PHY_REMOTE_PORT_FIBER_FLAG) == 0) {
@@ -6274,7 +6273,7 @@ bce_ifmedia_sts_rphy(struct bce_softc *sc, struct ifmediareq *ifmr)
 			return;
 		} else
 			ifmr->ifm_active |= IFM_2500_SX | IFM_FDX;
-		ifp->if_baudrate = IF_Mbps(2500UL);
+		if_setbaudrate(ifp, IF_Mbps(2500UL));
 		break;
 	default:
 		ifmr->ifm_active |= IFM_NONE;
@@ -6294,16 +6293,16 @@ bce_ifmedia_sts_rphy(struct bce_softc *sc, struct ifmediareq *ifmr)
 /*   Nothing.                                                               */
 /****************************************************************************/
 static void
-bce_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+bce_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
-	struct bce_softc *sc = ifp->if_softc;
+	struct bce_softc *sc = if_getsoftc(ifp);
 	struct mii_data *mii;
 
 	DBENTER(BCE_VERBOSE_PHY);
 
 	BCE_LOCK(sc);
 
-	if ((ifp->if_flags & IFF_UP) == 0) {
+	if ((if_getflags(ifp) & IFF_UP) == 0) {
 		BCE_UNLOCK(sc);
 		return;
 	}
@@ -6415,7 +6414,7 @@ bce_get_hw_rx_cons(struct bce_softc *sc)
 static void
 bce_rx_intr(struct bce_softc *sc)
 {
-	struct ifnet *ifp = sc->bce_ifp;
+	if_t ifp = sc->bce_ifp;
 	struct l2_fhdr *l2fhdr;
 	struct ether_vlan_header *vh;
 	unsigned int pkt_len;
@@ -6642,7 +6641,7 @@ bce_rx_intr(struct bce_softc *sc)
 		m0->m_pkthdr.csum_flags = 0;
 
 		/* Validate the checksum if offload enabled. */
-		if (ifp->if_capenable & IFCAP_RXCSUM) {
+		if (if_getcapenable(ifp) & IFCAP_RXCSUM) {
 			/* Check for an IP datagram. */
 		 	if (!(status & L2_FHDR_STATUS_SPLIT) &&
 			    (status & L2_FHDR_STATUS_IP_DATAGRAM)) {
@@ -6674,7 +6673,7 @@ bce_rx_intr(struct bce_softc *sc)
 		if ((status & L2_FHDR_STATUS_L2_VLAN_TAG) &&
 		    !(sc->rx_mode & BCE_EMAC_RX_MODE_KEEP_VLAN_TAG)) {
 			DBRUN(sc->vlan_tagged_frames_rcvd++);
-			if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) {
+			if (if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING) {
 				DBRUN(sc->vlan_tagged_frames_stripped++);
 				m0->m_pkthdr.ether_vtag =
 				    l2fhdr->l2_fhdr_vlan_tag;
@@ -6716,7 +6715,7 @@ bce_rx_intr_next_rx:
 			sc->pg_cons = sw_pg_cons;
 
 			BCE_UNLOCK(sc);
-			(*ifp->if_input)(ifp, m0);
+			if_input(ifp, m0);
 			BCE_LOCK(sc);
 
 			/* Recover our place. */
@@ -6785,7 +6784,7 @@ bce_get_hw_tx_cons(struct bce_softc *sc)
 static void
 bce_tx_intr(struct bce_softc *sc)
 {
-	struct ifnet *ifp = sc->bce_ifp;
+	if_t ifp = sc->bce_ifp;
 	u16 hw_tx_cons, sw_tx_cons, sw_tx_chain_cons;
 
 	DBENTER(BCE_VERBOSE_SEND | BCE_VERBOSE_INTR);
@@ -6878,11 +6877,11 @@ bce_tx_intr(struct bce_softc *sc)
 
 	/* Clear the tx hardware queue full flag. */
 	if (sc->used_tx_bd < sc->max_tx_bd) {
-		DBRUNIF((ifp->if_drv_flags & IFF_DRV_OACTIVE),
+		DBRUNIF((if_getdrvflags(ifp) & IFF_DRV_OACTIVE),
 		    DBPRINT(sc, BCE_INFO_SEND,
 		    "%s(): Open TX chain! %d/%d (used/total)\n",
 		    __FUNCTION__, sc->used_tx_bd, sc->max_tx_bd));
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 	}
 
 	sc->tx_cons = sw_tx_cons;
@@ -6944,7 +6943,7 @@ bce_enable_intr(struct bce_softc *sc, int coal_now)
 static void
 bce_init_locked(struct bce_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	u32 ether_mtu = 0;
 
 	DBENTER(BCE_VERBOSE_RESET);
@@ -6954,7 +6953,7 @@ bce_init_locked(struct bce_softc *sc)
 	ifp = sc->bce_ifp;
 
 	/* Check if the driver is still running and bail out if it is. */
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 		goto bce_init_locked_exit;
 
 	bce_stop(sc);
@@ -6978,30 +6977,30 @@ bce_init_locked(struct bce_softc *sc)
 	}
 
 	/* Load our MAC address. */
-	bcopy(IF_LLADDR(sc->bce_ifp), sc->eaddr, ETHER_ADDR_LEN);
+	bcopy(if_getlladdr(sc->bce_ifp), sc->eaddr, ETHER_ADDR_LEN);
 	bce_set_mac_addr(sc);
 
 	if (bce_hdr_split == FALSE)
-		bce_get_rx_buffer_sizes(sc, ifp->if_mtu);
+		bce_get_rx_buffer_sizes(sc, if_getmtu(ifp));
 	/*
 	 * Calculate and program the hardware Ethernet MTU
  	 * size. Be generous on the receive if we have room
  	 * and allowed by the user.
 	 */
 	if (bce_strict_rx_mtu == TRUE)
-		ether_mtu = ifp->if_mtu;
+		ether_mtu = if_getmtu(ifp);
 	else {
 		if (bce_hdr_split == TRUE) {
-			if (ifp->if_mtu <= sc->rx_bd_mbuf_data_len + MCLBYTES)
+			if (if_getmtu(ifp) <= sc->rx_bd_mbuf_data_len + MCLBYTES)
 				ether_mtu = sc->rx_bd_mbuf_data_len +
 				    MCLBYTES;
 			else
-				ether_mtu = ifp->if_mtu;
+				ether_mtu = if_getmtu(ifp);
 		} else {
-			if (ifp->if_mtu <= sc->rx_bd_mbuf_data_len)
+			if (if_getmtu(ifp) <= sc->rx_bd_mbuf_data_len)
 				ether_mtu = sc->rx_bd_mbuf_data_len;
 			else
-				ether_mtu = ifp->if_mtu;
+				ether_mtu = if_getmtu(ifp);
 		}
 	}
 
@@ -7038,8 +7037,8 @@ bce_init_locked(struct bce_softc *sc)
 	bce_ifmedia_upd_locked(ifp);
 
 	/* Let the OS know the driver is up and running. */
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
+	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 
 	callout_reset(&sc->bce_tick_callout, hz, bce_tick, sc);
 
@@ -7057,7 +7056,7 @@ bce_init_locked_exit:
 static void
 bce_mgmt_init_locked(struct bce_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 
 	DBENTER(BCE_VERBOSE_RESET);
 
@@ -7425,9 +7424,9 @@ bce_tx_encap_exit:
 /*   Nothing.                                                               */
 /****************************************************************************/
 static void
-bce_start_locked(struct ifnet *ifp)
+bce_start_locked(if_t ifp)
 {
-	struct bce_softc *sc = ifp->if_softc;
+	struct bce_softc *sc = if_getsoftc(ifp);
 	struct mbuf *m_head = NULL;
 	int count = 0;
 	u16 tx_prod, tx_chain_prod __unused;
@@ -7452,7 +7451,7 @@ bce_start_locked(struct ifnet *ifp)
 		goto bce_start_locked_exit;
 	}
 
-	if (IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
+	if (if_sendq_empty(ifp)) {
 		DBPRINT(sc, BCE_INFO_SEND, "%s(): Transmit queue empty.\n",
 		    __FUNCTION__);
 		goto bce_start_locked_exit;
@@ -7463,7 +7462,7 @@ bce_start_locked(struct ifnet *ifp)
 	 */
 	while (sc->used_tx_bd < sc->max_tx_bd) {
 		/* Check for any frames to send. */
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
+		m_head = if_dequeue(ifp);
 
 		/* Stop when the transmit queue is empty. */
 		if (m_head == NULL)
@@ -7477,8 +7476,8 @@ bce_start_locked(struct ifnet *ifp)
 		 */
 		if (bce_tx_encap(sc, &m_head)) {
 			if (m_head != NULL)
-				IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+				if_sendq_prepend(ifp, m_head);
+			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 			DBPRINT(sc, BCE_INFO_SEND,
 			    "TX chain is closed for business! Total "
 			    "tx_bd used = %d\n", sc->used_tx_bd);
@@ -7518,9 +7517,9 @@ bce_start_locked_exit:
 /*   Nothing.                                                               */
 /****************************************************************************/
 static void
-bce_start(struct ifnet *ifp)
+bce_start(if_t ifp)
 {
-	struct bce_softc *sc = ifp->if_softc;
+	struct bce_softc *sc = if_getsoftc(ifp);
 
 	DBENTER(BCE_VERBOSE_SEND);
 
@@ -7538,9 +7537,9 @@ bce_start(struct ifnet *ifp)
 /*   0 for success, positive value for failure.                             */
 /****************************************************************************/
 static int
-bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
+bce_ioctl(if_t ifp, u_long command, caddr_t data)
 {
-	struct bce_softc *sc = ifp->if_softc;
+	struct bce_softc *sc = if_getsoftc(ifp);
 	struct ifreq *ifr = (struct ifreq *) data;
 	struct mii_data *mii;
 	int mask, error = 0;
@@ -7559,12 +7558,12 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 		DBPRINT(sc, BCE_INFO_MISC,
 		    "SIOCSIFMTU: Changing MTU from %d to %d\n",
-		    (int) ifp->if_mtu, (int) ifr->ifr_mtu);
+		    (int) if_getmtu(ifp), (int) ifr->ifr_mtu);
 
 		BCE_LOCK(sc);
-		ifp->if_mtu = ifr->ifr_mtu;
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		if_setmtu(ifp, ifr->ifr_mtu);
+		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
+			if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 			bce_init_locked(sc);
 		}
 		BCE_UNLOCK(sc);
@@ -7577,8 +7576,8 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		BCE_LOCK(sc);
 
 		/* Check if the interface is up. */
-		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		if (if_getflags(ifp) & IFF_UP) {
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 				/* Change promiscuous/multicast flags as necessary. */
 				bce_set_rx_mode(sc);
 			} else {
@@ -7587,7 +7586,7 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			}
 		} else {
 			/* The interface is down, check if driver is running. */
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 				bce_stop(sc);
 
 				/* If MFW is running, restart the controller a bit. */
@@ -7609,7 +7608,7 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		    "Received SIOCADDMULTI/SIOCDELMULTI\n");
 
 		BCE_LOCK(sc);
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 			bce_set_rx_mode(sc);
 		BCE_UNLOCK(sc);
 
@@ -7632,42 +7631,42 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	/* Set interface capability */
 	case SIOCSIFCAP:
-		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+		mask = ifr->ifr_reqcap ^ if_getcapenable(ifp);
 		DBPRINT(sc, BCE_INFO_MISC,
 		    "Received SIOCSIFCAP = 0x%08X\n", (u32) mask);
 
 		/* Toggle the TX checksum capabilities enable flag. */
 		if (mask & IFCAP_TXCSUM &&
-		    ifp->if_capabilities & IFCAP_TXCSUM) {
-			ifp->if_capenable ^= IFCAP_TXCSUM;
-			if (IFCAP_TXCSUM & ifp->if_capenable)
-				ifp->if_hwassist |= BCE_IF_HWASSIST;
+		    if_getcapabilities(ifp) & IFCAP_TXCSUM) {
+			if_togglecapenable(ifp, IFCAP_TXCSUM);
+			if (IFCAP_TXCSUM & if_getcapenable(ifp))
+				if_sethwassistbits(ifp, BCE_IF_HWASSIST, 0);
 			else
-				ifp->if_hwassist &= ~BCE_IF_HWASSIST;
+				if_sethwassistbits(ifp, 0, BCE_IF_HWASSIST);
 		}
 
 		/* Toggle the RX checksum capabilities enable flag. */
 		if (mask & IFCAP_RXCSUM &&
-		    ifp->if_capabilities & IFCAP_RXCSUM)
-			ifp->if_capenable ^= IFCAP_RXCSUM;
+		    if_getcapabilities(ifp) & IFCAP_RXCSUM)
+			if_togglecapenable(ifp, IFCAP_RXCSUM);
 
 		/* Toggle the TSO capabilities enable flag. */
 		if (bce_tso_enable && (mask & IFCAP_TSO4) &&
-		    ifp->if_capabilities & IFCAP_TSO4) {
-			ifp->if_capenable ^= IFCAP_TSO4;
-			if (IFCAP_TSO4 & ifp->if_capenable)
-				ifp->if_hwassist |= CSUM_TSO;
+		    if_getcapabilities(ifp) & IFCAP_TSO4) {
+			if_togglecapenable(ifp, IFCAP_TSO4);
+			if (IFCAP_TSO4 & if_getcapenable(ifp))
+				if_sethwassistbits(ifp, CSUM_TSO, 0);
 			else
-				ifp->if_hwassist &= ~CSUM_TSO;
+				if_sethwassistbits(ifp, 0, CSUM_TSO);
 		}
 
 		if (mask & IFCAP_VLAN_HWCSUM &&
-		    ifp->if_capabilities & IFCAP_VLAN_HWCSUM)
-			ifp->if_capenable ^= IFCAP_VLAN_HWCSUM;
+		    if_getcapabilities(ifp) & IFCAP_VLAN_HWCSUM)
+			if_togglecapenable(ifp, IFCAP_VLAN_HWCSUM);
 
 		if ((mask & IFCAP_VLAN_HWTSO) != 0 &&
-		    (ifp->if_capabilities & IFCAP_VLAN_HWTSO) != 0)
-			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
+		    (if_getcapabilities(ifp) & IFCAP_VLAN_HWTSO) != 0)
+			if_togglecapenable(ifp, IFCAP_VLAN_HWTSO);
 		/*
 		 * Don't actually disable VLAN tag stripping as
 		 * management firmware (ASF/IPMI/UMP) requires the
@@ -7676,11 +7675,11 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		 * appending stripped VLAN tag.
 		 */
 		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
-		    (ifp->if_capabilities & IFCAP_VLAN_HWTAGGING)) {
-			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
-			if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
+		    (if_getcapabilities(ifp) & IFCAP_VLAN_HWTAGGING)) {
+			if_togglecapenable(ifp, IFCAP_VLAN_HWTAGGING);
+			if ((if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING)
 			    == 0)
-				ifp->if_capenable &= ~IFCAP_VLAN_HWTSO;
+				if_setcapenablebit(ifp, 0, IFCAP_VLAN_HWTSO);
 		}
 		VLAN_CAPABILITIES(ifp);
 		break;
@@ -7756,7 +7755,7 @@ bce_watchdog(struct bce_softc *sc)
 
 	DBRUN(bce_breakpoint(sc));
 
-	sc->bce_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_setdrvflagbits(sc->bce_ifp, 0, IFF_DRV_RUNNING);
 
 	bce_init_locked(sc);
 	sc->watchdog_timeouts++;
@@ -7781,7 +7780,7 @@ static void
 bce_intr(void *xsc)
 {
 	struct bce_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	u32 status_attn_bits;
 	u16 hw_rx_cons, hw_tx_cons;
 
@@ -7900,8 +7899,8 @@ bce_intr(void *xsc)
 	bce_enable_intr(sc, 0);
 
 	/* Handle any frames that arrived while handling the interrupt. */
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-	    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING &&
+	    !if_sendq_empty(ifp))
 		bce_start_locked(ifp);
 
 bce_intr_exit:
@@ -7931,7 +7930,7 @@ bce_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 static void
 bce_set_rx_mode(struct bce_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	u32 hashes[NUM_MC_HASH_REGISTERS] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 	u32 rx_mode, sort_mode;
 	int i;
@@ -7959,13 +7958,13 @@ bce_set_rx_mode(struct bce_softc *sc)
 	 * Check for promiscuous, all multicast, or selected
 	 * multicast address filtering.
 	 */
-	if (ifp->if_flags & IFF_PROMISC) {
+	if (if_getflags(ifp) & IFF_PROMISC) {
 		DBPRINT(sc, BCE_INFO_MISC, "Enabling promiscuous mode.\n");
 
 		/* Enable promiscuous mode. */
 		rx_mode |= BCE_EMAC_RX_MODE_PROMISCUOUS;
 		sort_mode |= BCE_RPM_SORT_USER0_PROM_EN;
-	} else if (ifp->if_flags & IFF_ALLMULTI) {
+	} else if (if_getflags(ifp) & IFF_ALLMULTI) {
 		DBPRINT(sc, BCE_INFO_MISC, "Enabling all multicast mode.\n");
 
 		/* Enable all multicast addresses. */
@@ -8207,7 +8206,7 @@ bce_stats_update(struct bce_softc *sc)
 }
 
 static uint64_t
-bce_get_counter(struct ifnet *ifp, ift_counter cnt)
+bce_get_counter(if_t ifp, ift_counter cnt)
 {
 	struct bce_softc *sc;
 	uint64_t rv;
@@ -8313,7 +8312,7 @@ bce_tick(void *xsc)
 {
 	struct bce_softc *sc = xsc;
 	struct mii_data *mii;
-	struct ifnet *ifp;
+	if_t ifp;
 	struct ifmediareq ifmr;
 
 	ifp = sc->bce_ifp;
@@ -8367,7 +8366,7 @@ bce_tick(void *xsc)
 	}
 	if (sc->bce_link_up == TRUE) {
 		/* Now that link is up, handle any outstanding TX traffic. */
-		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
+		if (!if_sendq_empty(ifp)) {
 			DBPRINT(sc, BCE_VERBOSE_MISC, "%s(): Found "
 			    "pending TX traffic.\n", __FUNCTION__);
 			bce_start_locked(ifp);

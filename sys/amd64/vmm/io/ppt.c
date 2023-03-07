@@ -182,7 +182,9 @@ ppt_detach(device_t dev)
 	num_pptdevs--;
 	TAILQ_REMOVE(&pptdev_list, ppt, next);
 	pci_disable_busmaster(dev);
-	iommu_add_device(iommu_host_domain(), pci_get_rid(dev));
+
+	if (iommu_host_domain() != NULL)
+		iommu_add_device(iommu_host_domain(), pci_get_rid(dev));
 
 	return (0);
 }
@@ -544,7 +546,7 @@ pptintr(void *arg)
 }
 
 int
-ppt_setup_msi(struct vm *vm, int vcpu, int bus, int slot, int func,
+ppt_setup_msi(struct vm *vm, int bus, int slot, int func,
 	      uint64_t addr, uint64_t msg, int numvec)
 {
 	int i, rid, flags;
@@ -637,7 +639,7 @@ ppt_setup_msi(struct vm *vm, int vcpu, int bus, int slot, int func,
 }
 
 int
-ppt_setup_msix(struct vm *vm, int vcpu, int bus, int slot, int func,
+ppt_setup_msix(struct vm *vm, int bus, int slot, int func,
 	       int idx, uint64_t addr, uint64_t msg, uint32_t vector_control)
 {
 	struct pptdev *ppt;

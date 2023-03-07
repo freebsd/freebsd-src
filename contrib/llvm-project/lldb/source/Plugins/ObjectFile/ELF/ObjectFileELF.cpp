@@ -26,6 +26,7 @@
 #include "lldb/Target/Target.h"
 #include "lldb/Utility/ArchSpec.h"
 #include "lldb/Utility/DataBufferHeap.h"
+#include "lldb/Utility/LLDBLog.h"
 #include "lldb/Utility/Log.h"
 #include "lldb/Utility/RangeMap.h"
 #include "lldb/Utility/Status.h"
@@ -235,7 +236,7 @@ bool ELFNote::Parse(const DataExtractor &data, lldb::offset_t *offset) {
 
   const char *cstr = data.GetCStr(offset, llvm::alignTo(n_namesz, 4));
   if (cstr == nullptr) {
-    Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_SYMBOLS));
+    Log *log = GetLog(LLDBLog::Symbols);
     LLDB_LOGF(log, "Failed to parse note name lacking nul terminator");
 
     return false;
@@ -309,9 +310,19 @@ static uint32_t riscvVariantFromElfFlags(const elf::ELFHeader &header) {
   }
 }
 
+static uint32_t ppc64VariantFromElfFlags(const elf::ELFHeader &header) {
+  uint32_t endian = header.e_ident[EI_DATA];
+  if (endian == ELFDATA2LSB)
+    return ArchSpec::eCore_ppc64le_generic;
+  else
+    return ArchSpec::eCore_ppc64_generic;
+}
+
 static uint32_t subTypeFromElfHeader(const elf::ELFHeader &header) {
   if (header.e_machine == llvm::ELF::EM_MIPS)
     return mipsVariantFromElfFlags(header);
+  else if (header.e_machine == llvm::ELF::EM_PPC64)
+    return ppc64VariantFromElfFlags(header);
   else if (header.e_machine == llvm::ELF::EM_RISCV)
     return riscvVariantFromElfFlags(header);
 
@@ -335,16 +346,18 @@ void ObjectFileELF::Terminate() {
 }
 
 ObjectFile *ObjectFileELF::CreateInstance(const lldb::ModuleSP &module_sp,
-                                          DataBufferSP &data_sp,
+                                          DataBufferSP data_sp,
                                           lldb::offset_t data_offset,
                                           const lldb_private::FileSpec *file,
                                           lldb::offset_t file_offset,
                                           lldb::offset_t length) {
+  bool mapped_writable = false;
   if (!data_sp) {
-    data_sp = MapFileData(*file, length, file_offset);
+    data_sp = MapFileDataWritable(*file, length, file_offset);
     if (!data_sp)
       return nullptr;
     data_offset = 0;
+    mapped_writable = true;
   }
 
   assert(data_sp);
@@ -358,9 +371,18 @@ ObjectFile *ObjectFileELF::CreateInstance(const lldb::ModuleSP &module_sp,
 
   // Update the data to contain the entire file if it doesn't already
   if (data_sp->GetByteSize() < length) {
-    data_sp = MapFileData(*file, length, file_offset);
+    data_sp = MapFileDataWritable(*file, length, file_offset);
     if (!data_sp)
       return nullptr;
+    data_offset = 0;
+    mapped_writable = true;
+    magic = data_sp->GetBytes();
+  }
+
+  // If we didn't map the data as writable take ownership of the buffer.
+  if (!mapped_writable) {
+    data_sp = std::make_shared<DataBufferHeap>(data_sp->GetBytes(),
+                                               data_sp->GetByteSize());
     data_offset = 0;
     magic = data_sp->GetBytes();
   }
@@ -378,7 +400,7 @@ ObjectFile *ObjectFileELF::CreateInstance(const lldb::ModuleSP &module_sp,
 }
 
 ObjectFile *ObjectFileELF::CreateMemoryInstance(
-    const lldb::ModuleSP &module_sp, DataBufferSP &data_sp,
+    const lldb::ModuleSP &module_sp, WritableDataBufferSP data_sp,
     const lldb::ProcessSP &process_sp, lldb::addr_t header_addr) {
   if (data_sp && data_sp->GetByteSize() > (llvm::ELF::EI_NIDENT)) {
     const uint8_t *magic = data_sp->GetBytes();
@@ -504,7 +526,7 @@ size_t ObjectFileELF::GetModuleSpecifications(
     const lldb_private::FileSpec &file, lldb::DataBufferSP &data_sp,
     lldb::offset_t data_offset, lldb::offset_t file_offset,
     lldb::offset_t length, lldb_private::ModuleSpecList &specs) {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_MODULES));
+  Log *log = GetLog(LLDBLog::Modules);
 
   const size_t initial_count = specs.GetSize();
 
@@ -627,7 +649,7 @@ size_t ObjectFileELF::GetModuleSpecifications(
 // ObjectFile protocol
 
 ObjectFileELF::ObjectFileELF(const lldb::ModuleSP &module_sp,
-                             DataBufferSP &data_sp, lldb::offset_t data_offset,
+                             DataBufferSP data_sp, lldb::offset_t data_offset,
                              const FileSpec *file, lldb::offset_t file_offset,
                              lldb::offset_t length)
     : ObjectFile(module_sp, file, file_offset, length, data_sp, data_offset) {
@@ -636,7 +658,7 @@ ObjectFileELF::ObjectFileELF(const lldb::ModuleSP &module_sp,
 }
 
 ObjectFileELF::ObjectFileELF(const lldb::ModuleSP &module_sp,
-                             DataBufferSP &header_data_sp,
+                             DataBufferSP header_data_sp,
                              const lldb::ProcessSP &process_sp,
                              addr_t header_addr)
     : ObjectFile(module_sp, process_sp, header_addr, header_data_sp) {}
@@ -998,7 +1020,7 @@ lldb_private::Status
 ObjectFileELF::RefineModuleDetailsFromNote(lldb_private::DataExtractor &data,
                                            lldb_private::ArchSpec &arch_spec,
                                            lldb_private::UUID &uuid) {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_MODULES));
+  Log *log = GetLog(LLDBLog::Modules);
   Status error;
 
   lldb::offset_t offset = 0;
@@ -1174,26 +1196,28 @@ ObjectFileELF::RefineModuleDetailsFromNote(lldb_private::DataExtractor &data,
       // register info
       arch_spec.GetTriple().setOS(llvm::Triple::OSType::Linux);
     } else if (note.n_name == LLDB_NT_OWNER_CORE) {
-      // Parse the NT_FILE to look for stuff in paths to shared libraries As
-      // the contents look like this in a 64 bit ELF core file: count     =
-      // 0x000000000000000a (10) page_size = 0x0000000000001000 (4096) Index
-      // start              end                file_ofs           path =====
-      // 0x0000000000401000 0x0000000000000000 /tmp/a.out [  1]
-      // 0x0000000000600000 0x0000000000601000 0x0000000000000000 /tmp/a.out [
-      // 2] 0x0000000000601000 0x0000000000602000 0x0000000000000001 /tmp/a.out
-      // [  3] 0x00007fa79c9ed000 0x00007fa79cba8000 0x0000000000000000
-      // /lib/x86_64-linux-gnu/libc-2.19.so [  4] 0x00007fa79cba8000
-      // 0x00007fa79cda7000 0x00000000000001bb /lib/x86_64-linux-
-      // gnu/libc-2.19.so [  5] 0x00007fa79cda7000 0x00007fa79cdab000
-      // 0x00000000000001ba /lib/x86_64-linux-gnu/libc-2.19.so [  6]
-      // 0x00007fa79cdab000 0x00007fa79cdad000 0x00000000000001be /lib/x86_64
-      // -linux-gnu/libc-2.19.so [  7] 0x00007fa79cdb2000 0x00007fa79cdd5000
-      // 0x0000000000000000 /lib/x86_64-linux-gnu/ld-2.19.so [  8]
-      // 0x00007fa79cfd4000 0x00007fa79cfd5000 0x0000000000000022 /lib/x86_64
-      // -linux-gnu/ld-2.19.so [  9] 0x00007fa79cfd5000 0x00007fa79cfd6000
-      // 0x0000000000000023 /lib/x86_64-linux-gnu/ld-2.19.so In the 32 bit ELFs
-      // the count, page_size, start, end, file_ofs are uint32_t For reference:
-      // see readelf source code (in binutils).
+      // Parse the NT_FILE to look for stuff in paths to shared libraries
+      // The contents look like this in a 64 bit ELF core file:
+      //
+      // count     = 0x000000000000000a (10)
+      // page_size = 0x0000000000001000 (4096)
+      // Index start              end                file_ofs           path
+      // ===== ------------------ ------------------ ------------------ -------------------------------------
+      // [  0] 0x0000000000401000 0x0000000000000000                    /tmp/a.out
+      // [  1] 0x0000000000600000 0x0000000000601000 0x0000000000000000 /tmp/a.out
+      // [  2] 0x0000000000601000 0x0000000000602000 0x0000000000000001 /tmp/a.out
+      // [  3] 0x00007fa79c9ed000 0x00007fa79cba8000 0x0000000000000000 /lib/x86_64-linux-gnu/libc-2.19.so
+      // [  4] 0x00007fa79cba8000 0x00007fa79cda7000 0x00000000000001bb /lib/x86_64-linux-gnu/libc-2.19.so
+      // [  5] 0x00007fa79cda7000 0x00007fa79cdab000 0x00000000000001ba /lib/x86_64-linux-gnu/libc-2.19.so
+      // [  6] 0x00007fa79cdab000 0x00007fa79cdad000 0x00000000000001be /lib/x86_64-linux-gnu/libc-2.19.so
+      // [  7] 0x00007fa79cdb2000 0x00007fa79cdd5000 0x0000000000000000 /lib/x86_64-linux-gnu/ld-2.19.so
+      // [  8] 0x00007fa79cfd4000 0x00007fa79cfd5000 0x0000000000000022 /lib/x86_64-linux-gnu/ld-2.19.so
+      // [  9] 0x00007fa79cfd5000 0x00007fa79cfd6000 0x0000000000000023 /lib/x86_64-linux-gnu/ld-2.19.so
+      //
+      // In the 32 bit ELFs the count, page_size, start, end, file_ofs are
+      // uint32_t.
+      //
+      // For reference: see readelf source code (in binutils).
       if (note.n_type == NT_FILE) {
         uint64_t count = data.GetAddress(&offset);
         const char *cstr;
@@ -1361,11 +1385,33 @@ size_t ObjectFileELF::GetSectionHeaderInfo(SectionHeaderColl &section_headers,
       arch_spec.SetFlags(ArchSpec::eARM_abi_hard_float);
   }
 
+  if (arch_spec.GetMachine() == llvm::Triple::riscv32 ||
+      arch_spec.GetMachine() == llvm::Triple::riscv64) {
+    uint32_t flags = arch_spec.GetFlags();
+
+    if (header.e_flags & llvm::ELF::EF_RISCV_RVC)
+      flags |= ArchSpec::eRISCV_rvc;
+    if (header.e_flags & llvm::ELF::EF_RISCV_RVE)
+      flags |= ArchSpec::eRISCV_rve;
+
+    if ((header.e_flags & llvm::ELF::EF_RISCV_FLOAT_ABI_SINGLE) ==
+        llvm::ELF::EF_RISCV_FLOAT_ABI_SINGLE)
+      flags |= ArchSpec::eRISCV_float_abi_single;
+    else if ((header.e_flags & llvm::ELF::EF_RISCV_FLOAT_ABI_DOUBLE) ==
+             llvm::ELF::EF_RISCV_FLOAT_ABI_DOUBLE)
+      flags |= ArchSpec::eRISCV_float_abi_double;
+    else if ((header.e_flags & llvm::ELF::EF_RISCV_FLOAT_ABI_QUAD) ==
+             llvm::ELF::EF_RISCV_FLOAT_ABI_QUAD)
+      flags |= ArchSpec::eRISCV_float_abi_quad;
+
+    arch_spec.SetFlags(flags);
+  }
+
   // If there are no section headers we are done.
   if (header.e_shnum == 0)
     return 0;
 
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_MODULES));
+  Log *log = GetLog(LLDBLog::Modules);
 
   section_headers.resize(header.e_shnum);
   if (section_headers.size() != header.e_shnum)
@@ -1561,7 +1607,7 @@ lldb::user_id_t ObjectFileELF::GetSectionIndexByName(const char *name) {
 }
 
 static SectionType GetSectionTypeFromName(llvm::StringRef Name) {
-  if (Name.consume_front(".debug_") || Name.consume_front(".zdebug_")) {
+  if (Name.consume_front(".debug_")) {
     return llvm::StringSwitch<SectionType>(Name)
         .Case("abbrev", eSectionTypeDWARFDebugAbbrev)
         .Case("abbrev.dwo", eSectionTypeDWARFDebugAbbrevDwo)
@@ -1678,9 +1724,9 @@ class VMAddressProvider {
   ObjectFile::Type ObjectType;
   addr_t NextVMAddress = 0;
   VMMap::Allocator Alloc;
-  VMMap Segments = VMMap(Alloc);
-  VMMap Sections = VMMap(Alloc);
-  lldb_private::Log *Log = GetLogIfAllCategoriesSet(LIBLLDB_LOG_MODULES);
+  VMMap Segments{Alloc};
+  VMMap Sections{Alloc};
+  lldb_private::Log *Log = GetLog(LLDBLog::Modules);
   size_t SegmentCount = 0;
   std::string SegmentName;
 
@@ -2596,8 +2642,11 @@ unsigned ObjectFileELF::ApplyRelocations(
         if (symbol) {
           addr_t value = symbol->GetAddressRef().GetFileAddress();
           DataBufferSP &data_buffer_sp = debug_data.GetSharedDataBuffer();
+          // ObjectFileELF creates a WritableDataBuffer in CreateInstance.
+          WritableDataBuffer *data_buffer =
+              llvm::cast<WritableDataBuffer>(data_buffer_sp.get());
           uint64_t *dst = reinterpret_cast<uint64_t *>(
-              data_buffer_sp->GetBytes() + rel_section->GetFileOffset() +
+              data_buffer->GetBytes() + rel_section->GetFileOffset() +
               ELFRelocation::RelocOffset64(rel));
           uint64_t val_offset = value + ELFRelocation::RelocAddend64(rel);
           memcpy(dst, &val_offset, sizeof(uint64_t));
@@ -2616,15 +2665,17 @@ unsigned ObjectFileELF::ApplyRelocations(
                ((int64_t)value > INT32_MAX && (int64_t)value < INT32_MIN)) ||
               (reloc_type(rel) == R_AARCH64_ABS32 &&
                ((int64_t)value > INT32_MAX && (int64_t)value < INT32_MIN))) {
-            Log *log =
-                lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_MODULES);
+            Log *log = GetLog(LLDBLog::Modules);
             LLDB_LOGF(log, "Failed to apply debug info relocations");
             break;
           }
           uint32_t truncated_addr = (value & 0xFFFFFFFF);
           DataBufferSP &data_buffer_sp = debug_data.GetSharedDataBuffer();
+          // ObjectFileELF creates a WritableDataBuffer in CreateInstance.
+          WritableDataBuffer *data_buffer =
+              llvm::cast<WritableDataBuffer>(data_buffer_sp.get());
           uint32_t *dst = reinterpret_cast<uint32_t *>(
-              data_buffer_sp->GetBytes() + rel_section->GetFileOffset() +
+              data_buffer->GetBytes() + rel_section->GetFileOffset() +
               ELFRelocation::RelocOffset32(rel));
           memcpy(dst, &truncated_addr, sizeof(uint32_t));
         }
@@ -3314,8 +3365,7 @@ size_t ObjectFileELF::ReadSectionData(Section *section,
     return section->GetObjectFile()->ReadSectionData(section, section_data);
 
   size_t result = ObjectFile::ReadSectionData(section, section_data);
-  if (result == 0 || !llvm::object::Decompressor::isCompressedELFSection(
-                         section->Get(), section->GetName().GetStringRef()))
+  if (result == 0 || !(section->Get() & llvm::ELF::SHF_COMPRESSED))
     return result;
 
   auto Decompressor = llvm::object::Decompressor::create(
@@ -3335,8 +3385,7 @@ size_t ObjectFileELF::ReadSectionData(Section *section,
   auto buffer_sp =
       std::make_shared<DataBufferHeap>(Decompressor->getDecompressedSize(), 0);
   if (auto error = Decompressor->decompress(
-          {reinterpret_cast<char *>(buffer_sp->GetBytes()),
-           size_t(buffer_sp->GetByteSize())})) {
+          {buffer_sp->GetBytes(), size_t(buffer_sp->GetByteSize())})) {
     GetModule()->ReportWarning(
         "Decompression of section '%s' failed: %s",
         section->GetName().GetCString(),
@@ -3387,4 +3436,11 @@ ObjectFileELF::GetLoadableData(Target &target) {
     loadables.push_back(loadable);
   }
   return loadables;
+}
+
+lldb::WritableDataBufferSP
+ObjectFileELF::MapFileDataWritable(const FileSpec &file, uint64_t Size,
+                                   uint64_t Offset) {
+  return FileSystem::Instance().CreateWritableDataBuffer(file.GetPath(), Size,
+                                                         Offset);
 }

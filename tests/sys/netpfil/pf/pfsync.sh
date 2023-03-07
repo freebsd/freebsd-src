@@ -73,11 +73,11 @@ common_body()
 	jexec one pfctl -e
 	pft_set_rules one \
 		"set skip on ${epair_sync}a" \
-		"pass keep state"
+		"pass out keep state"
 	jexec two pfctl -e
 	pft_set_rules two \
 		"set skip on ${epair_sync}b" \
-		"pass keep state"
+		"pass out keep state"
 
 	ifconfig ${epair_one}b 198.51.100.254/24 up
 
@@ -172,7 +172,7 @@ defer_body()
 		"set skip on ${epair_sync}a" \
 		"pass keep state"
 
-	atf_check -s exit:1 env PYTHONPATH=${common_dir} \
+	atf_check -s exit:3 env PYTHONPATH=${common_dir} \
 		$(atf_get_srcdir)/pfsync_defer.py \
 		--syncdev ${epair_sync}b \
 		--indev ${epair_in}b \
@@ -417,12 +417,11 @@ pbr_common_body()
 		alias 198.18.1.10/32 vhid 11 pass 3WjvVVw7 advskew 50
 	jexec gw_route_to_master sysctl net.inet.ip.forwarding=1
 	jexec gw_route_to_master sysctl net.inet.carp.preempt=1
-	jexec gw_route_to_master ifconfig ${epair_sync_gw_route_to}a name if_pfsync
-	sed -i '' -e 's/'${epair_sync_gw_route_to}'a/if_pfsync/g' created_interfaces.lst
-	jexec gw_route_to_master ifconfig ${epair_gw_route_to_master_bridge0}a name if_br0
-	sed -i '' -e 's/'${epair_gw_route_to_master_bridge0}'a/if_br0/g' created_interfaces.lst
-	jexec gw_route_to_master ifconfig ${epair_gw_route_to_master_bridge1}a name if_br1
-	sed -i '' -e 's/'${epair_gw_route_to_master_bridge1}'a/if_br1/g' created_interfaces.lst
+
+	vnet_ifrename_jail gw_route_to_master ${epair_sync_gw_route_to}a if_pfsync
+	vnet_ifrename_jail gw_route_to_master ${epair_gw_route_to_master_bridge0}a if_br0
+	vnet_ifrename_jail gw_route_to_master ${epair_gw_route_to_master_bridge1}a if_br1
+
 	jexec gw_route_to_master ifconfig pfsync0 \
 		syncpeer 198.19.10.2 \
 		syncdev if_pfsync \
@@ -451,12 +450,11 @@ pbr_common_body()
 		alias 198.18.1.10/32 vhid 11 pass 3WjvVVw7 advskew 100
 	jexec gw_route_to_backup sysctl net.inet.ip.forwarding=1
 	jexec gw_route_to_backup sysctl net.inet.carp.preempt=1
-	jexec gw_route_to_backup ifconfig ${epair_sync_gw_route_to}b name if_pfsync
-	sed -i '' -e 's/'${epair_sync_gw_route_to}'b/if_pfsync/g' created_interfaces.lst
-	jexec gw_route_to_backup ifconfig ${epair_gw_route_to_backup_bridge0}a name if_br0
-	sed -i '' -e 's/'${epair_gw_route_to_backup_bridge0}'a/if_br0/g' created_interfaces.lst
-	jexec gw_route_to_backup ifconfig ${epair_gw_route_to_backup_bridge1}a name if_br1
-	sed -i '' -e 's/'${epair_gw_route_to_backup_bridge1}'a/if_br1/g' created_interfaces.lst
+
+	vnet_ifrename_jail gw_route_to_backup ${epair_sync_gw_route_to}b if_pfsync
+	vnet_ifrename_jail gw_route_to_backup ${epair_gw_route_to_backup_bridge0}a if_br0
+	vnet_ifrename_jail gw_route_to_backup ${epair_gw_route_to_backup_bridge1}a if_br1
+
 	jexec gw_route_to_backup ifconfig pfsync0 \
 		syncpeer 198.19.10.1 \
 		syncdev if_pfsync \
@@ -484,12 +482,11 @@ pbr_common_body()
 		alias 198.18.2.20/32 vhid 22 pass 3WjvVVw7 advskew 50
 	jexec gw_reply_to_master sysctl net.inet.ip.forwarding=1
 	jexec gw_reply_to_master sysctl net.inet.carp.preempt=1
-	jexec gw_reply_to_master ifconfig ${epair_sync_gw_reply_to}a name if_pfsync
-	sed -i '' -e 's/'${epair_sync_gw_reply_to}'a/if_pfsync/g' created_interfaces.lst
-	jexec gw_reply_to_master ifconfig ${epair_gw_reply_to_master_bridge1}a name if_br1
-	sed -i '' -e 's/'${epair_gw_reply_to_master_bridge1}'a/if_br1/g' created_interfaces.lst
-	jexec gw_reply_to_master ifconfig ${epair_gw_reply_to_master_bridge2}a name if_br2
-	sed -i '' -e 's/'${epair_gw_reply_to_master_bridge2}'a/if_br2/g' created_interfaces.lst
+
+	vnet_ifrename_jail gw_reply_to_master ${epair_sync_gw_reply_to}a if_pfsync
+	vnet_ifrename_jail gw_reply_to_master ${epair_gw_reply_to_master_bridge1}a if_br1
+	vnet_ifrename_jail gw_reply_to_master ${epair_gw_reply_to_master_bridge2}a if_br2
+
 	jexec gw_reply_to_master ifconfig pfsync0 \
 		syncpeer 198.19.20.2 \
 		syncdev if_pfsync \
@@ -517,12 +514,11 @@ pbr_common_body()
 		alias 198.18.2.20/32 vhid 22 pass 3WjvVVw7 advskew 100
 	jexec gw_reply_to_backup sysctl net.inet.ip.forwarding=1
 	jexec gw_reply_to_backup sysctl net.inet.carp.preempt=1
-	jexec gw_reply_to_backup ifconfig ${epair_sync_gw_reply_to}b name if_pfsync
-	sed -i '' -e 's/'${epair_sync_gw_reply_to}'b/if_pfsync/g' created_interfaces.lst
-	jexec gw_reply_to_backup ifconfig ${epair_gw_reply_to_backup_bridge1}a name if_br1
-	sed -i '' -e 's/'${epair_gw_reply_to_backup_bridge1}'a/if_br1/g' created_interfaces.lst
-	jexec gw_reply_to_backup ifconfig ${epair_gw_reply_to_backup_bridge2}a name if_br2
-	sed -i '' -e 's/'${epair_gw_reply_to_backup_bridge2}'a/if_br2/g' created_interfaces.lst
+
+	vnet_ifrename_jail gw_reply_to_backup ${epair_sync_gw_reply_to}b if_pfsync
+	vnet_ifrename_jail gw_reply_to_backup ${epair_gw_reply_to_backup_bridge1}a if_br1
+	vnet_ifrename_jail gw_reply_to_backup ${epair_gw_reply_to_backup_bridge2}a if_br2
+
 	jexec gw_reply_to_backup ifconfig pfsync0 \
 		syncpeer 198.19.20.1 \
 		syncdev if_pfsync \
@@ -584,43 +580,93 @@ pbr_common_body()
 		sleep 1
 	done
 
-	# As cleanup is long and may lead to a timeout,
-	# it's run directly into the body part.
-	# (as cleanup timeout is not settable)
-	jail -r \
-		client \
-		gw_route_to_master \
-		gw_route_to_backup \
-		gw_reply_to_master \
-		gw_reply_to_backup \
-		server
-	for ifname in $(grep -E -e 'if_' -e 'epair.*a' -e 'bridge' created_interfaces.lst)
-	do
-		ifconfig $ifname >/dev/null 2>&1 && ifconfig $ifname destroy
-	done
-
 	atf_check -s exit:0 -e ignore -o ignore grep ', 0.0% packet loss' ping.stdout
 }
 
 pbr_common_cleanup()
 {
-	for jailname in client gw_route_to_master gw_route_to_backup gw_reply_to_master gw_reply_to_backup server
-	do
-		if $(jls | grep -q $jailname); then
-			jail -r $jailname
-		else
-			echo "$jailname already cleaned"
-		fi
-	done
-	for ifname in $(grep -E -e 'if_' -e 'epair.*a' -e 'bridge' created_interfaces.lst)
-	do
-		ifconfig $ifname >/dev/null 2>&1
-		if [ "$?" -eq "0" ]; then
-			ifconfig $ifname destroy
-		else
-			echo "$ifname already destroyed"
-		fi
-	done
+	pft_cleanup
+}
+
+atf_test_case "ipsec" "cleanup"
+ipsec_head()
+{
+	atf_set descr 'Transport pfsync over IPSec'
+	atf_set require.user root
+}
+
+ipsec_body()
+{
+	if ! sysctl -q kern.features.ipsec >/dev/null ; then
+		atf_skip "This test requires ipsec"
+	fi
+
+	# Run the common test, to set up pfsync
+	common_body
+
+	# But we want unicast pfsync
+	jexec one ifconfig pfsync0 syncpeer 192.0.2.2
+	jexec two ifconfig pfsync0 syncpeer 192.0.2.1
+
+	# Flush existing states
+	jexec one pfctl -Fs
+	jexec two pfctl -Fs
+
+	# Now define an ipsec policy to run over the epair_sync interfaces
+	echo "flush;
+	spdflush;
+	spdadd 192.0.2.1/32 192.0.2.2/32 any -P out ipsec esp/transport//require;
+	spdadd 192.0.2.2/32 192.0.2.1/32 any -P in ipsec esp/transport//require;
+	add 192.0.2.1 192.0.2.2 esp 0x1000 -E aes-gcm-16 \"12345678901234567890\";
+	add 192.0.2.2 192.0.2.1 esp 0x1001 -E aes-gcm-16 \"12345678901234567890\";" \
+	    | jexec one setkey -c
+
+	echo "flush;
+	spdflush;
+	spdadd 192.0.2.2/32 192.0.2.1/32 any -P out ipsec esp/transport//require;
+	spdadd 192.0.2.1/32 192.0.2.2/32 any -P in ipsec esp/transport//require;
+	add 192.0.2.1 192.0.2.2 esp 0x1000 -E aes-gcm-16 \"12345678901234567891\";
+	add 192.0.2.2 192.0.2.1 esp 0x1001 -E aes-gcm-16 \"12345678901234567891\";" \
+	    | jexec two setkey -c
+
+	# We've set incompatible keys, so pfsync will be broken.
+	ping -c 1 -S 198.51.100.254 198.51.100.1
+
+	# Give pfsync time to do its thing
+	sleep 2
+
+	if jexec two pfctl -s states | grep icmp | grep 198.51.100.1 | \
+	    grep 198.51.100.2 ; then
+		atf_fail "state synced although IPSec should have prevented it"
+	fi
+
+	# Flush existing states
+	jexec one pfctl -Fs
+	jexec two pfctl -Fs
+
+	# Fix the IPSec key to match
+	echo "flush;
+	spdflush;
+	spdadd 192.0.2.2/32 192.0.2.1/32 any -P out ipsec esp/transport//require;
+	spdadd 192.0.2.1/32 192.0.2.2/32 any -P in ipsec esp/transport//require;
+	add 192.0.2.1 192.0.2.2 esp 0x1000 -E aes-gcm-16 \"12345678901234567890\";
+	add 192.0.2.2 192.0.2.1 esp 0x1001 -E aes-gcm-16 \"12345678901234567890\";" \
+	    | jexec two setkey -c
+
+	ping -c 1 -S 198.51.100.254 198.51.100.1
+
+	# Give pfsync time to do its thing
+	sleep 2
+
+	if ! jexec two pfctl -s states | grep icmp | grep 198.51.100.1 | \
+	    grep 198.51.100.2 ; then
+		atf_fail "state not found on synced host"
+	fi
+}
+
+ipsec_cleanup()
+{
+	pft_cleanup
 }
 
 atf_init_test_cases()
@@ -631,4 +677,5 @@ atf_init_test_cases()
 	atf_add_test_case "bulk"
 	atf_add_test_case "pbr"
 	atf_add_test_case "pfsync_pbr"
+	atf_add_test_case "ipsec"
 }

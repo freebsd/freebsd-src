@@ -125,6 +125,7 @@ snp_dtor(void *data)
 		tty_lock(tp);
 		ttyoutq_free(&ss->snp_outq);
 		ttyhook_unregister(tp);
+		ss->snp_tty = NULL;
 	}
 
 	cv_destroy(&ss->snp_outwait);
@@ -252,9 +253,19 @@ snp_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 	case SNPSTTY:
 		/* Bind TTY to snoop instance. */
 		SNP_LOCK();
-		if (ss->snp_tty != NULL) {
+		tp = ss->snp_tty;
+		if (tp != NULL) {
+			if (*(int *)data == -1) {
+				tty_lock(tp);
+				ss->snp_tty = NULL;
+				ttyoutq_free(&ss->snp_outq);
+				ttyhook_unregister(tp);
+				error = 0;
+			} else {
+				error = EBUSY;
+			}
 			SNP_UNLOCK();
-			return (EBUSY);
+			return (error);
 		}
 		/*
 		 * XXXRW / XXXJA: no capability check here.
@@ -289,10 +300,13 @@ snp_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 		tp = ss->snp_tty;
 		if (tp != NULL) {
 			tty_lock(tp);
-			*(int *)data = ttyoutq_bytesused(&ss->snp_outq);
+			if (tty_gone(tp))
+				*(int *)data = SNP_TTYCLOSE;
+			else
+				*(int *)data = ttyoutq_bytesused(&ss->snp_outq);
 			tty_unlock(tp);
 		} else {
-			*(int *)data = 0;
+			*(int *)data = SNP_DETACH;
 		}
 		return (0);
 	default:

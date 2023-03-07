@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #ifdef VFP
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/limits.h>
 #include <sys/proc.h>
 #include <sys/imgact_elf.h>
 #include <sys/kernel.h>
@@ -54,6 +55,14 @@ extern int vfp_exists;
 static struct undefined_handler vfp10_uh, vfp11_uh;
 /* If true the VFP unit has 32 double registers, otherwise it has 16 */
 static int is_d32;
+
+struct fpu_kern_ctx {
+	struct vfp_state	*prev;
+#define	FPU_KERN_CTX_DUMMY	0x01	/* avoided save for the kern thread */
+#define	FPU_KERN_CTX_INUSE	0x02
+	uint32_t	 flags;
+	struct vfp_state	 state;
+};
 
 /*
  * About .fpu directives in this file...
@@ -97,6 +106,26 @@ set_coprocessorACR(u_int val)
 {
 	__asm __volatile("mcr p15, 0, %0, c1, c0, 2\n\t"
 	 : : "r" (val) : "cc");
+	isb();
+}
+
+static void
+vfp_enable(void)
+{
+	uint32_t fpexc;
+
+	fpexc = fmrx(fpexc);
+	fmxr(fpexc, fpexc | VFPEXC_EN);
+	isb();
+}
+
+static void
+vfp_disable(void)
+{
+	uint32_t fpexc;
+
+	fpexc = fmrx(fpexc);
+	fmxr(fpexc, fpexc & ~VFPEXC_EN);
 	isb();
 }
 
@@ -223,15 +252,45 @@ vfp_bounce(u_int addr, u_int insn, struct trapframe *frame, int code)
 	curpcb = curthread->td_pcb;
 	cpu = PCPU_GET(cpuid);
 	if (curpcb->pcb_vfpcpu != cpu || curthread != PCPU_GET(fpcurthread)) {
-		vfp_restore(&curpcb->pcb_vfpstate);
+		vfp_restore(curpcb->pcb_vfpsaved);
 		curpcb->pcb_vfpcpu = cpu;
 		PCPU_SET(fpcurthread, curthread);
 	}
 
 	critical_exit();
+
+	KASSERT(curpcb->pcb_vfpsaved == &curpcb->pcb_vfpstate,
+	    ("Kernel VFP state in use when entering userspace"));
+
 	return (0);
 }
 
+/*
+ * Update the VFP state for a forked process or new thread. The PCB will
+ * have been copied from the old thread.
+ * The code is heavily based on arm64 logic.
+ */
+void
+vfp_new_thread(struct thread *newtd, struct thread *oldtd, bool fork)
+{
+	struct pcb *newpcb;
+
+	newpcb = newtd->td_pcb;
+
+	/* Kernel threads start with clean VFP */
+	if ((oldtd->td_pflags & TDP_KTHREAD) != 0) {
+		newpcb->pcb_fpflags &=
+		    ~(PCB_FP_STARTED | PCB_FP_KERN | PCB_FP_NOSAVE);
+	} else {
+		MPASS((newpcb->pcb_fpflags & (PCB_FP_KERN|PCB_FP_NOSAVE)) == 0);
+		if (!fork) {
+			newpcb->pcb_fpflags &= ~PCB_FP_STARTED;
+		}
+	}
+
+	newpcb->pcb_vfpsaved = &newpcb->pcb_vfpstate;
+	newpcb->pcb_vfpcpu = UINT_MAX;
+}
 /*
  * Restore the given state to the VFP hardware.
  */
@@ -304,8 +363,6 @@ vfp_store(struct vfp_state *vfpsave, boolean_t disable_vfp)
  * The current thread is dying.  If the state currently in the hardware belongs
  * to the current thread, set fpcurthread to NULL to indicate that the VFP
  * hardware state does not belong to any thread.  If the VFP is on, turn it off.
- * Called only from cpu_throw(), so we don't have to worry about a context
- * switch here.
  */
 void
 vfp_discard(struct thread *td)
@@ -318,6 +375,156 @@ vfp_discard(struct thread *td)
 	tmp = fmrx(fpexc);
 	if (tmp & VFPEXC_EN)
 		fmxr(fpexc, tmp & ~VFPEXC_EN);
+}
+
+void
+vfp_save_state(struct thread *td, struct pcb *pcb)
+{
+	int32_t fpexc;
+
+	KASSERT(pcb != NULL, ("NULL vfp pcb"));
+	KASSERT(td == NULL || td->td_pcb == pcb, ("Invalid vfp pcb"));
+
+	/*
+	 * savectx() will be called on panic with dumppcb as an argument,
+	 * dumppcb doesn't have pcb_vfpsaved set, so set it to save
+	 * the VFP registers.
+	 */
+	if (pcb->pcb_vfpsaved == NULL)
+		pcb->pcb_vfpsaved = &pcb->pcb_vfpstate;
+
+	if (td == NULL)
+		td = curthread;
+
+	critical_enter();
+	/*
+	 * Only store the registers if the VFP is enabled,
+	 * i.e. return if we are trapping on FP access.
+	 */
+	fpexc = fmrx(fpexc);
+	if (fpexc & VFPEXC_EN) {
+		KASSERT(PCPU_GET(fpcurthread) == td,
+		    ("Storing an invalid VFP state"));
+
+		vfp_store(pcb->pcb_vfpsaved, true);
+	}
+	critical_exit();
+}
+
+void
+fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx, u_int flags)
+{
+	struct pcb *pcb;
+
+	pcb = td->td_pcb;
+	KASSERT((flags & FPU_KERN_NOCTX) != 0 || ctx != NULL,
+	    ("ctx is required when !FPU_KERN_NOCTX"));
+	KASSERT(ctx == NULL || (ctx->flags & FPU_KERN_CTX_INUSE) == 0,
+	    ("using inuse ctx"));
+	KASSERT((pcb->pcb_fpflags & PCB_FP_NOSAVE) == 0,
+	    ("recursive fpu_kern_enter while in PCB_FP_NOSAVE state"));
+
+	if ((flags & FPU_KERN_NOCTX) != 0) {
+		critical_enter();
+		if (curthread == PCPU_GET(fpcurthread)) {
+			vfp_save_state(curthread, pcb);
+		}
+		PCPU_SET(fpcurthread, NULL);
+
+		vfp_enable();
+		pcb->pcb_fpflags |= PCB_FP_KERN | PCB_FP_NOSAVE |
+		    PCB_FP_STARTED;
+		return;
+	}
+
+	if ((flags & FPU_KERN_KTHR) != 0 && is_fpu_kern_thread(0)) {
+		ctx->flags = FPU_KERN_CTX_DUMMY | FPU_KERN_CTX_INUSE;
+		return;
+	}
+	/*
+	 * Check either we are already using the VFP in the kernel, or
+	 * the the saved state points to the default user space.
+	 */
+	KASSERT((pcb->pcb_fpflags & PCB_FP_KERN) != 0 ||
+	    pcb->pcb_vfpsaved == &pcb->pcb_vfpstate,
+	    ("Mangled pcb_vfpsaved %x %p %p", pcb->pcb_fpflags, pcb->pcb_vfpsaved,
+	     &pcb->pcb_vfpstate));
+	ctx->flags = FPU_KERN_CTX_INUSE;
+	vfp_save_state(curthread, pcb);
+	ctx->prev = pcb->pcb_vfpsaved;
+	pcb->pcb_vfpsaved = &ctx->state;
+	pcb->pcb_fpflags |= PCB_FP_KERN;
+	pcb->pcb_fpflags &= ~PCB_FP_STARTED;
+
+	return;
+}
+
+int
+fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx)
+{
+	struct pcb *pcb;
+
+	pcb = td->td_pcb;
+
+	if ((pcb->pcb_fpflags & PCB_FP_NOSAVE) != 0) {
+		KASSERT(ctx == NULL, ("non-null ctx after FPU_KERN_NOCTX"));
+		KASSERT(PCPU_GET(fpcurthread) == NULL,
+		    ("non-NULL fpcurthread for PCB_FP_NOSAVE"));
+		CRITICAL_ASSERT(td);
+
+		vfp_disable();
+		pcb->pcb_fpflags &= ~(PCB_FP_NOSAVE | PCB_FP_STARTED);
+		critical_exit();
+	} else {
+		KASSERT((ctx->flags & FPU_KERN_CTX_INUSE) != 0,
+		    ("FPU context not inuse"));
+		ctx->flags &= ~FPU_KERN_CTX_INUSE;
+
+		if (is_fpu_kern_thread(0) &&
+		    (ctx->flags & FPU_KERN_CTX_DUMMY) != 0)
+			return (0);
+		KASSERT((ctx->flags & FPU_KERN_CTX_DUMMY) == 0, ("dummy ctx"));
+		critical_enter();
+		vfp_discard(td);
+		critical_exit();
+		pcb->pcb_fpflags &= ~PCB_FP_STARTED;
+		pcb->pcb_vfpsaved = ctx->prev;
+	}
+
+	if (pcb->pcb_vfpsaved == &pcb->pcb_vfpstate) {
+		pcb->pcb_fpflags &= ~PCB_FP_KERN;
+	} else {
+		KASSERT((pcb->pcb_fpflags & PCB_FP_KERN) != 0,
+		    ("unpaired fpu_kern_leave"));
+	}
+
+	return (0);
+}
+
+int
+fpu_kern_thread(u_int flags __unused)
+{
+	struct pcb *pcb = curthread->td_pcb;
+
+	KASSERT((curthread->td_pflags & TDP_KTHREAD) != 0,
+	    ("Only kthread may use fpu_kern_thread"));
+	KASSERT(pcb->pcb_vfpsaved == &pcb->pcb_vfpstate,
+	    ("Mangled pcb_vfpsaved"));
+	KASSERT((pcb->pcb_fpflags & PCB_FP_KERN) == 0,
+	    ("Thread already setup for the VFP"));
+	pcb->pcb_fpflags |= PCB_FP_KERN;
+	return (0);
+}
+
+int
+is_fpu_kern_thread(u_int flags __unused)
+{
+	struct pcb *curpcb;
+
+	if ((curthread->td_pflags & TDP_KTHREAD) == 0)
+		return (0);
+	curpcb = curthread->td_pcb;
+	return ((curpcb->pcb_fpflags & PCB_FP_KERN) != 0);
 }
 
 #endif

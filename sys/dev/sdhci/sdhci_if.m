@@ -69,6 +69,14 @@
 #include <dev/sdhci/sdhci.h>
 
 CODE {
+	static int
+	null_set_clock(device_t brdev __unused,
+	    struct sdhci_slot *slot __unused,
+	    int clock)
+	{
+		return (clock);
+	}
+
 	static void
 	null_set_uhs_timing(device_t brdev __unused,
 	    struct sdhci_slot *slot __unused)
@@ -164,6 +172,12 @@ METHOD void set_uhs_timing {
 	device_t		brdev;
 	struct sdhci_slot	*slot;
 } DEFAULT null_set_uhs_timing;
+
+METHOD int set_clock {
+	device_t		brdev;
+	struct sdhci_slot	*slot;
+	int			clock;
+} DEFAULT null_set_clock;
 
 METHOD void reset {
 	device_t		brdev;

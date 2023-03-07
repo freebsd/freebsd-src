@@ -57,7 +57,8 @@ zpl_root_iterate(struct file *filp, zpl_dir_context_t *ctx)
 	zfsvfs_t *zfsvfs = ITOZSB(file_inode(filp));
 	int error = 0;
 
-	ZPL_ENTER(zfsvfs);
+	if ((error = zpl_enter(zfsvfs, FTAG)) != 0)
+		return (error);
 
 	if (!zpl_dir_emit_dots(filp, ctx))
 		goto out;
@@ -78,7 +79,7 @@ zpl_root_iterate(struct file *filp, zpl_dir_context_t *ctx)
 		ctx->pos++;
 	}
 out:
-	ZPL_EXIT(zfsvfs);
+	zpl_exit(zfsvfs, FTAG);
 
 	return (error);
 }
@@ -207,7 +208,7 @@ zpl_snapdir_revalidate(struct dentry *dentry, unsigned int flags)
 	return (!!dentry->d_inode);
 }
 
-static const dentry_operations_t zpl_dops_snapdirs = {
+static dentry_operations_t zpl_dops_snapdirs = {
 /*
  * Auto mounting of snapshots is only supported for 2.6.37 and
  * newer kernels.  Prior to this kernel the ops->follow_link()
@@ -258,7 +259,8 @@ zpl_snapdir_iterate(struct file *filp, zpl_dir_context_t *ctx)
 	uint64_t id, pos;
 	int error = 0;
 
-	ZPL_ENTER(zfsvfs);
+	if ((error = zpl_enter(zfsvfs, FTAG)) != 0)
+		return (error);
 	cookie = spl_fstrans_mark();
 
 	if (!zpl_dir_emit_dots(filp, ctx))
@@ -282,7 +284,7 @@ zpl_snapdir_iterate(struct file *filp, zpl_dir_context_t *ctx)
 	}
 out:
 	spl_fstrans_unmark(cookie);
-	ZPL_EXIT(zfsvfs);
+	zpl_exit(zfsvfs, FTAG);
 
 	if (error == -ENOENT)
 		return (0);
@@ -369,7 +371,11 @@ zpl_snapdir_mkdir(struct inode *dip, struct dentry *dentry, umode_t mode)
 
 	crhold(cr);
 	vap = kmem_zalloc(sizeof (vattr_t), KM_SLEEP);
-	zpl_vap_init(vap, dip, mode | S_IFDIR, cr);
+#ifdef HAVE_IOPS_MKDIR_USERNS
+	zpl_vap_init(vap, dip, mode | S_IFDIR, cr, user_ns);
+#else
+	zpl_vap_init(vap, dip, mode | S_IFDIR, cr, kcred->user_ns);
+#endif
 
 	error = -zfsctl_snapdir_mkdir(dip, dname(dentry), vap, &ip, cr, 0);
 	if (error == 0) {
@@ -401,8 +407,10 @@ zpl_snapdir_getattr_impl(const struct path *path, struct kstat *stat,
 	(void) request_mask, (void) query_flags;
 	struct inode *ip = path->dentry->d_inode;
 	zfsvfs_t *zfsvfs = ITOZSB(ip);
+	int error;
 
-	ZPL_ENTER(zfsvfs);
+	if ((error = zpl_enter(zfsvfs, FTAG)) != 0)
+		return (error);
 #ifdef HAVE_USERNS_IOPS_GETATTR
 #ifdef HAVE_GENERIC_FILLATTR_USERNS
 	generic_fillattr(user_ns, ip, stat);
@@ -422,7 +430,7 @@ zpl_snapdir_getattr_impl(const struct path *path, struct kstat *stat,
 		    dmu_objset_pool(ds->ds_objset)->dp_meta_objset,
 		    dsl_dataset_phys(ds)->ds_snapnames_zapobj, &snap_count);
 		if (err != 0) {
-			ZPL_EXIT(zfsvfs);
+			zpl_exit(zfsvfs, FTAG);
 			return (-err);
 		}
 		stat->nlink += snap_count;
@@ -430,7 +438,7 @@ zpl_snapdir_getattr_impl(const struct path *path, struct kstat *stat,
 
 	stat->ctime = stat->mtime = dmu_objset_snap_cmtime(zfsvfs->z_os);
 	stat->atime = current_time(ip);
-	ZPL_EXIT(zfsvfs);
+	zpl_exit(zfsvfs, FTAG);
 
 	return (0);
 }
@@ -508,7 +516,8 @@ zpl_shares_iterate(struct file *filp, zpl_dir_context_t *ctx)
 	znode_t *dzp;
 	int error = 0;
 
-	ZPL_ENTER(zfsvfs);
+	if ((error = zpl_enter(zfsvfs, FTAG)) != 0)
+		return (error);
 	cookie = spl_fstrans_mark();
 
 	if (zfsvfs->z_shares_dir == 0) {
@@ -527,7 +536,7 @@ zpl_shares_iterate(struct file *filp, zpl_dir_context_t *ctx)
 	iput(ZTOI(dzp));
 out:
 	spl_fstrans_unmark(cookie);
-	ZPL_EXIT(zfsvfs);
+	zpl_exit(zfsvfs, FTAG);
 	ASSERT3S(error, <=, 0);
 
 	return (error);
@@ -564,7 +573,8 @@ zpl_shares_getattr_impl(const struct path *path, struct kstat *stat,
 	znode_t *dzp;
 	int error;
 
-	ZPL_ENTER(zfsvfs);
+	if ((error = zpl_enter(zfsvfs, FTAG)) != 0)
+		return (error);
 
 	if (zfsvfs->z_shares_dir == 0) {
 #ifdef HAVE_USERNS_IOPS_GETATTR
@@ -578,7 +588,7 @@ zpl_shares_getattr_impl(const struct path *path, struct kstat *stat,
 #endif
 		stat->nlink = stat->size = 2;
 		stat->atime = current_time(ip);
-		ZPL_EXIT(zfsvfs);
+		zpl_exit(zfsvfs, FTAG);
 		return (0);
 	}
 
@@ -596,7 +606,7 @@ zpl_shares_getattr_impl(const struct path *path, struct kstat *stat,
 		iput(ZTOI(dzp));
 	}
 
-	ZPL_EXIT(zfsvfs);
+	zpl_exit(zfsvfs, FTAG);
 	ASSERT3S(error, <=, 0);
 
 	return (error);

@@ -10,18 +10,15 @@
 #define LLD_ELF_INPUT_FILES_H
 
 #include "Config.h"
+#include "Symbols.h"
 #include "lld/Common/ErrorHandler.h"
 #include "lld/Common/LLVM.h"
 #include "lld/Common/Reproduce.h"
-#include "llvm/ADT/CachedHashString.h"
 #include "llvm/ADT/DenseSet.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/IR/Comdat.h"
-#include "llvm/Object/Archive.h"
+#include "llvm/BinaryFormat/Magic.h"
 #include "llvm/Object/ELF.h"
-#include "llvm/Object/IRObjectFile.h"
+#include "llvm/Support/MemoryBufferRef.h"
 #include "llvm/Support/Threading.h"
-#include <map>
 
 namespace llvm {
 struct DILineInfo;
@@ -38,8 +35,6 @@ class DWARFCache;
 std::string toString(const elf::InputFile *f);
 
 namespace elf {
-
-using llvm::object::Archive;
 
 class InputSection;
 class Symbol;
@@ -279,6 +274,9 @@ public:
   // Get cached DWARF information.
   DWARFCache *getDwarf();
 
+  void initializeLocalSymbols();
+  void postParse();
+
 private:
   void initializeSections(bool ignoreComdats,
                           const llvm::object::ELFFile<ELFT> &obj);
@@ -306,39 +304,15 @@ private:
   // If the section does not exist (which is common), the array is empty.
   ArrayRef<Elf_Word> shndxTable;
 
+  // Storage for local symbols.
+  std::unique_ptr<SymbolUnion[]> localSymStorage;
+
   // Debugging information to retrieve source file and line for error
   // reporting. Linker may find reasonable number of errors in a
   // single object file, so we cache debugging information in order to
   // parse it only once for each object file we link.
   std::unique_ptr<DWARFCache> dwarf;
   llvm::once_flag initDwarf;
-};
-
-// An ArchiveFile object represents a .a file.
-class ArchiveFile : public InputFile {
-public:
-  explicit ArchiveFile(std::unique_ptr<Archive> &&file);
-  static bool classof(const InputFile *f) { return f->kind() == ArchiveKind; }
-  void parse();
-
-  // Pulls out an object file that contains a definition for Sym and
-  // returns it. If the same file was instantiated before, this
-  // function does nothing (so we don't instantiate the same file
-  // more than once.)
-  void extract(const Archive::Symbol &sym);
-
-  // Check if a non-common symbol should be extracted to override a common
-  // definition.
-  bool shouldExtractForCommon(const Archive::Symbol &sym);
-
-  size_t getMemberCount() const;
-  size_t getExtractedMemberCount() const { return seen.size(); }
-
-  bool parsed = false;
-
-private:
-  std::unique_ptr<Archive> file;
-  llvm::DenseSet<uint64_t> seen;
 };
 
 class BitcodeFile : public InputFile {
@@ -348,7 +322,9 @@ public:
   static bool classof(const InputFile *f) { return f->kind() == BitcodeKind; }
   template <class ELFT> void parse();
   void parseLazy();
+  void postParse();
   std::unique_ptr<llvm::lto::InputFile> obj;
+  std::vector<bool> keptComdats;
 };
 
 // .so file.
@@ -395,24 +371,10 @@ public:
   void parse();
 };
 
-InputFile *createObjectFile(MemoryBufferRef mb, StringRef archiveName = "",
-                            uint64_t offsetInArchive = 0);
-InputFile *createLazyFile(MemoryBufferRef mb, StringRef archiveName,
-                          uint64_t offsetInArchive);
-
-inline bool isBitcode(MemoryBufferRef mb) {
-  return identify_magic(mb.getBuffer()) == llvm::file_magic::bitcode;
-}
+ELFFileBase *createObjFile(MemoryBufferRef mb, StringRef archiveName = "",
+                           bool lazy = false);
 
 std::string replaceThinLTOSuffix(StringRef path);
-
-extern SmallVector<std::unique_ptr<MemoryBuffer>> memoryBuffers;
-extern SmallVector<ArchiveFile *, 0> archiveFiles;
-extern SmallVector<BinaryFile *, 0> binaryFiles;
-extern SmallVector<BitcodeFile *, 0> bitcodeFiles;
-extern SmallVector<BitcodeFile *, 0> lazyBitcodeFiles;
-extern SmallVector<ELFFileBase *, 0> objectFiles;
-extern SmallVector<SharedFile *, 0> sharedFiles;
 
 } // namespace elf
 } // namespace lld

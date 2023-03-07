@@ -1,4 +1,4 @@
-/* $NetBSD: t_strchr.c,v 1.2 2017/01/10 15:34:49 christos Exp $ */
+/* $NetBSD: t_strchr.c,v 1.3 2023/01/30 19:49:49 christos Exp $ */
 
 /*
  * Written by J.T. Conklin <jtc@acorntoolworks.com>
@@ -247,7 +247,7 @@ ATF_TC_BODY(strchr_basic, tc)
 	};
 
 	dl_handle = dlopen(NULL, RTLD_LAZY);
-	strchr_fn = dlsym(dl_handle, "test_strlen");
+	strchr_fn = dlsym(dl_handle, "test_strchr");
 	if (!strchr_fn)
 		strchr_fn = strchr;
 
@@ -269,11 +269,11 @@ ATF_TC_BODY(strchr_basic, tc)
 			/* Then for the '/' in the strings */
 			verify_strchr(buf + a, '/', t, a);
 
-		   	/* check zero extension of char arg */
-		   	verify_strchr(buf + a, 0xffffff00 | '/', t, a);
+			/* check zero extension of char arg */
+			verify_strchr(buf + a, 0xffffff00 | '/', t, a);
 
-		   	/* Replace all the '/' with 0xff */
-		   	while ((off = slow_strchr(buf + a, '/')) != NULL)
+			/* Replace all the '/' with 0xff */
+			while ((off = slow_strchr(buf + a, '/')) != NULL)
 				*off = 0xff;
 
 			buf[a + len] = 0xff;

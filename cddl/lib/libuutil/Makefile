@@ -2,7 +2,7 @@
 
 .PATH: ${SRCTOP}/sys/contrib/openzfs/lib/libuutil
 
-PACKAGE=	runtime
+PACKAGE=	zfs
 LIB=	uutil
 SRCS=\
 	uu_alloc.c \
@@ -10,7 +10,6 @@ SRCS=\
 	uu_ident.c \
 	uu_list.c \
 	uu_misc.c \
-	uu_pname.c \
 	uu_string.c
 
 WARNS?=	2

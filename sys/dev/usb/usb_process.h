@@ -57,11 +57,7 @@ struct usb_process {
 	struct cv up_cv;
 	struct cv up_drain;
 
-#if (__FreeBSD_version >= 800000)
 	struct thread *up_ptr;
-#else
-	struct proc *up_ptr;
-#endif
 	struct thread *up_curtd;
 	struct mtx *up_mtx;
 

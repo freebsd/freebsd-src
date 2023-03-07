@@ -43,7 +43,7 @@
  * API version for out-of-tree consumers like grub-bhyve for making compile
  * time decisions.
  */
-#define	VMMAPI_VERSION	0103	/* 2 digit major followed by 2 digit minor */
+#define	VMMAPI_VERSION	0104	/* 2 digit major followed by 2 digit minor */
 
 struct iovec;
 struct vmctx;
@@ -118,10 +118,10 @@ int	vm_mmap_memseg(struct vmctx *ctx, vm_paddr_t gpa, int segid,
 int	vm_munmap_memseg(struct vmctx *ctx, vm_paddr_t gpa, size_t len);
 
 int	vm_create(const char *name);
-int	vm_get_device_fd(struct vmctx *ctx);
 struct vmctx *vm_open(const char *name);
 void	vm_close(struct vmctx *ctx);
 void	vm_destroy(struct vmctx *ctx);
+int	vm_limit_rights(struct vmctx *ctx);
 int	vm_parse_memsize(const char *optarg, size_t *memsize);
 int	vm_setup_memory(struct vmctx *ctx, size_t len, enum vm_mmap_style s);
 void	*vm_map_gpa(struct vmctx *ctx, vm_paddr_t gaddr, size_t len);
@@ -195,8 +195,6 @@ int	vm_disable_pptdev_msix(struct vmctx *ctx, int bus, int slot, int func);
 int	vm_get_intinfo(struct vmctx *ctx, int vcpu, uint64_t *i1, uint64_t *i2);
 int	vm_set_intinfo(struct vmctx *ctx, int vcpu, uint64_t exit_intinfo);
 
-const cap_ioctl_t *vm_get_ioctls(size_t *len);
-
 /*
  * Return a pointer to the statistics buffer. Note that this is not MT-safe.
  */
@@ -221,12 +219,9 @@ int	vm_get_hpet_capabilities(struct vmctx *ctx, uint32_t *capabilities);
 int	vm_copy_setup(struct vmctx *ctx, int vcpu, struct vm_guest_paging *pg,
 	    uint64_t gla, size_t len, int prot, struct iovec *iov, int iovcnt,
 	    int *fault);
-void	vm_copyin(struct vmctx *ctx, int vcpu, struct iovec *guest_iov,
-	    void *host_dst, size_t len);
-void	vm_copyout(struct vmctx *ctx, int vcpu, const void *host_src,
-	    struct iovec *guest_iov, size_t len);
-void	vm_copy_teardown(struct vmctx *ctx, int vcpu, struct iovec *iov,
-	    int iovcnt);
+void	vm_copyin(struct iovec *guest_iov, void *host_dst, size_t len);
+void	vm_copyout(const void *host_src, struct iovec *guest_iov, size_t len);
+void	vm_copy_teardown(struct iovec *iov, int iovcnt);
 
 /* RTC */
 int	vm_rtc_write(struct vmctx *ctx, int offset, uint8_t value);
@@ -243,6 +238,7 @@ int	vm_debug_cpus(struct vmctx *ctx, cpuset_t *cpus);
 int	vm_activate_cpu(struct vmctx *ctx, int vcpu);
 int	vm_suspend_cpu(struct vmctx *ctx, int vcpu);
 int	vm_resume_cpu(struct vmctx *ctx, int vcpu);
+int	vm_restart_instruction(struct vmctx *vmctx, int vcpu);
 
 /* CPU topology */
 int	vm_set_topology(struct vmctx *ctx, uint16_t sockets, uint16_t cores,
@@ -266,6 +262,13 @@ void	vm_setup_freebsd_gdt(uint64_t *gdtr);
  */
 int	vm_snapshot_req(struct vm_snapshot_meta *meta);
 int	vm_restore_time(struct vmctx *ctx);
+
+/*
+ * Deprecated interfaces, do not use them in new code.
+ */
+int	vm_get_device_fd(struct vmctx *ctx);
+const cap_ioctl_t *vm_get_ioctls(size_t *len);
+
 __END_DECLS
 
 #endif	/* _VMMAPI_H_ */

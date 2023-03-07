@@ -41,35 +41,34 @@ __FBSDID("$FreeBSD$");
 .macro	save_registers_head el
 .if \el == 1
 	mov	x18, sp
-	sub	sp, sp, #128
+	stp	x0,  x1,  [sp, #(TF_X - TF_SIZE - 128)]!
+.else
+	stp	x0,  x1,  [sp, #(TF_X - TF_SIZE)]!
 .endif
-	sub	sp, sp, #(TF_SIZE)
-	stp	x28, x29, [sp, #(TF_X + 28 * 8)]
-	stp	x26, x27, [sp, #(TF_X + 26 * 8)]
-	stp	x24, x25, [sp, #(TF_X + 24 * 8)]
-	stp	x22, x23, [sp, #(TF_X + 22 * 8)]
-	stp	x20, x21, [sp, #(TF_X + 20 * 8)]
-	stp	x18, x19, [sp, #(TF_X + 18 * 8)]
-	stp	x16, x17, [sp, #(TF_X + 16 * 8)]
-	stp	x14, x15, [sp, #(TF_X + 14 * 8)]
-	stp	x12, x13, [sp, #(TF_X + 12 * 8)]
-	stp	x10, x11, [sp, #(TF_X + 10 * 8)]
-	stp	x8,  x9,  [sp, #(TF_X + 8  * 8)]
-	stp	x6,  x7,  [sp, #(TF_X + 6  * 8)]
-	stp	x4,  x5,  [sp, #(TF_X + 4  * 8)]
-	stp	x2,  x3,  [sp, #(TF_X + 2  * 8)]
-	stp	x0,  x1,  [sp, #(TF_X + 0  * 8)]
-	mrs	x10, elr_el1
-	mrs	x11, spsr_el1
-	mrs	x12, esr_el1
+	stp	x2,  x3,  [sp, #(2  * 8)]
+	stp	x4,  x5,  [sp, #(4  * 8)]
+	stp	x6,  x7,  [sp, #(6  * 8)]
+	stp	x8,  x9,  [sp, #(8  * 8)]
+	stp	x10, x11, [sp, #(10 * 8)]
+	stp	x12, x13, [sp, #(12 * 8)]
+	stp	x14, x15, [sp, #(14 * 8)]
+	stp	x16, x17, [sp, #(16 * 8)]
+	stp	x18, x19, [sp, #(18 * 8)]
+	stp	x20, x21, [sp, #(20 * 8)]
+	stp	x22, x23, [sp, #(22 * 8)]
+	stp	x24, x25, [sp, #(24 * 8)]
+	stp	x26, x27, [sp, #(26 * 8)]
+	stp	x28, x29, [sp, #(28 * 8)]
 .if \el == 0
 	mrs	x18, sp_el0
 .endif
+	mrs	x10, elr_el1
+	mrs	x11, spsr_el1
+	mrs	x12, esr_el1
+	stp	x18,  lr, [sp, #(TF_SP - TF_X)]!
 	str	x10, [sp, #(TF_ELR)]
 	stp	w11, w12, [sp, #(TF_SPSR)]
-	stp	x18,  lr, [sp, #(TF_SP)]
 	mrs	x18, tpidr_el1
-	add	x29, sp, #(TF_SIZE)
 .endm
 
 .macro	save_registers el
@@ -177,11 +176,10 @@ __FBSDID("$FreeBSD$");
 
 	/* Read the current thread AST mask */
 	ldr	x1, [x18, #PC_CURTHREAD]	/* Load curthread */
-	add	x1, x1, #(TD_AST)
-	ldr	x1, [x1]
+	ldr	w1, [x1, #(TD_AST)]
 
 	/* Check if we have a non-zero AST mask */
-	cbz	x1, 2f
+	cbz	w1, 2f
 
 	/* Restore interrupts */
 	msr	daif, x19
@@ -213,10 +211,25 @@ ENTRY(handle_el1h_irq)
 END(handle_el1h_irq)
 
 ENTRY(handle_el0_sync)
+	/*
+	 * Read the fault address early. The current thread structure may
+	 * be transiently unmapped if it is part of a memory range being
+	 * promoted or demoted to/from a superpage. As this involves a
+	 * break-before-make sequence there is a short period of time where
+	 * an access will raise an exception. If this happens the fault
+	 * address will be changed to the kernel address so a later read of
+	 * far_el1 will give the wrong value.
+	 *
+	 * The earliest memory access that could trigger a fault is in a
+	 * function called by the save_registers macro so this is the latest
+	 * we can read the userspace value.
+	 */
+	mrs	x19, far_el1
 	save_registers 0
 	ldr	x0, [x18, #PC_CURTHREAD]
 	mov	x1, sp
 	str	x1, [x0, #TD_FRAME]
+	mov	x2, x19
 	bl	do_el0_sync
 	do_ast
 	restore_registers 0

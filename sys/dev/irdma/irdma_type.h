@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2021 Intel Corporation
+ * Copyright (c) 2015 - 2022 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -35,7 +35,9 @@
 
 #ifndef IRDMA_TYPE_H
 #define IRDMA_TYPE_H
+
 #include "osdep.h"
+
 #include "irdma.h"
 #include "irdma_user.h"
 #include "irdma_hmc.h"
@@ -132,11 +134,6 @@ enum irdma_term_mpa_errors {
 	MPA_REQ_RSP = 0x04,
 };
 
-enum irdma_qp_event_type {
-	IRDMA_QP_EVENT_CATASTROPHIC,
-	IRDMA_QP_EVENT_ACCESS_ERR,
-};
-
 enum irdma_hw_stats_index {
 	/* gen1 - 32-bit */
 	IRDMA_HW_STAT_INDEX_IP4RXDISCARD	= 0,
@@ -176,22 +173,21 @@ enum irdma_hw_stats_index {
 	IRDMA_HW_STAT_INDEX_RDMATXWRS		= 33,
 	IRDMA_HW_STAT_INDEX_RDMAVBND		= 34,
 	IRDMA_HW_STAT_INDEX_RDMAVINV		= 35,
+	IRDMA_HW_STAT_INDEX_IP4RXMCOCTS		= 36,
+	IRDMA_HW_STAT_INDEX_IP4TXMCOCTS		= 37,
+	IRDMA_HW_STAT_INDEX_IP6RXMCOCTS		= 38,
+	IRDMA_HW_STAT_INDEX_IP6TXMCOCTS		= 39,
+	IRDMA_HW_STAT_INDEX_UDPRXPKTS		= 40,
+	IRDMA_HW_STAT_INDEX_UDPTXPKTS		= 41,
+	IRDMA_HW_STAT_INDEX_MAX_GEN_1		= 42, /* Must be same value as next entry */
 
-	IRDMA_HW_STAT_INDEX_MAX_GEN_1		= 36, /* Must be same value as next entry */
+	/* gen2 - 64-bit */
+	IRDMA_HW_STAT_INDEX_RXNPECNMARKEDPKTS	= 42,
 
 	/* gen2 - 32-bit */
-	IRDMA_HW_STAT_INDEX_RXRPCNPHANDLED	= 36,
-	IRDMA_HW_STAT_INDEX_RXRPCNPIGNORED	= 37,
-	IRDMA_HW_STAT_INDEX_TXNPCNPSENT		= 38,
-	/* gen2 - 64-bit */
-	IRDMA_HW_STAT_INDEX_IP4RXMCOCTS		= 39,
-	IRDMA_HW_STAT_INDEX_IP4TXMCOCTS		= 40,
-	IRDMA_HW_STAT_INDEX_IP6RXMCOCTS		= 41,
-	IRDMA_HW_STAT_INDEX_IP6TXMCOCTS		= 42,
-	IRDMA_HW_STAT_INDEX_UDPRXPKTS		= 43,
-	IRDMA_HW_STAT_INDEX_UDPTXPKTS		= 44,
-	IRDMA_HW_STAT_INDEX_RXNPECNMARKEDPKTS	= 45,
-
+	IRDMA_HW_STAT_INDEX_RXRPCNPHANDLED	= 43,
+	IRDMA_HW_STAT_INDEX_RXRPCNPIGNORED	= 44,
+	IRDMA_HW_STAT_INDEX_TXNPCNPSENT		= 45,
 	IRDMA_HW_STAT_INDEX_MAX_GEN_2		= 46,
 };
 
@@ -331,8 +327,8 @@ struct irdma_hw_stat_map {
 struct irdma_stats_gather_info {
 	bool use_hmc_fcn_index:1;
 	bool use_stats_inst:1;
-	u8 hmc_fcn_index;
-	u8 stats_inst_index;
+	u16 hmc_fcn_index;
+	u16 stats_inst_index;
 	struct irdma_dma_mem stats_buff_mem;
 	void *gather_stats_va;
 	void *last_gather_stats_va;
@@ -524,14 +520,14 @@ struct irdma_sc_qp {
 
 struct irdma_stats_inst_info {
 	bool use_hmc_fcn_index;
-	u8 hmc_fn_id;
-	u8 stats_idx;
+	u16 hmc_fn_id;
+	u16 stats_idx;
 };
 
 struct irdma_up_info {
 	u8 map[8];
 	u8 cnp_up_override;
-	u8 hmc_fcn_idx;
+	u16 hmc_fcn_idx;
 	bool use_vlan:1;
 	bool use_cnp_up_override:1;
 };
@@ -585,7 +581,7 @@ struct irdma_config_check {
 	u16 qs_handle;
 };
 
-#define IRDMA_INVALID_FCN_ID 0xff
+#define IRDMA_INVALID_STATS_IDX 0xff
 struct irdma_sc_vsi {
 	u16 vsi_idx;
 	struct irdma_sc_dev *dev;
@@ -598,11 +594,10 @@ struct irdma_sc_vsi {
 	struct irdma_puda_rsrc *ieq;
 	u32 exception_lan_q;
 	u16 mtu;
-	u16 vm_id;
-	u8 fcn_id;
 	enum irdma_vm_vf_type vm_vf_type;
-	bool stats_fcn_id_alloc:1;
+	bool stats_inst_alloc:1;
 	bool tc_change_pending:1;
+	bool mtu_change_pending:1;
 	struct irdma_vsi_pestat *pestat;
 	ATOMIC qp_suspend_reqs;
 	int (*register_qset)(struct irdma_sc_vsi *vsi,
@@ -611,18 +606,17 @@ struct irdma_sc_vsi {
 				struct irdma_ws_node *tc_node);
 	struct irdma_config_check cfg_check[IRDMA_MAX_USER_PRIORITY];
 	bool tc_print_warning[IRDMA_MAX_TRAFFIC_CLASS];
-	struct irdma_qos qos[IRDMA_MAX_USER_PRIORITY];
 	u8 qos_rel_bw;
 	u8 qos_prio_type;
+	u16 stats_idx;
 	u8 dscp_map[IRDMA_DSCP_NUM_VAL];
+	struct irdma_qos qos[IRDMA_MAX_USER_PRIORITY];
 	bool dscp_mode:1;
 };
 
 struct irdma_sc_dev {
 	struct list_head cqp_cmd_head; /* head of the CQP command list */
-	bool volatile no_cqp;
 	spinlock_t cqp_lock; /* protect CQP list access */
-	bool fcn_id_array[IRDMA_MAX_STATS_COUNT];
 	struct irdma_dma_mem vf_fpm_query_buf[IRDMA_MAX_PE_ENA_VF_COUNT];
 	u64 fpm_query_buf_pa;
 	u64 fpm_commit_buf_pa;
@@ -640,7 +634,7 @@ struct irdma_sc_dev {
 	u32 IOMEM *hw_regs[IRDMA_MAX_REGS];
 	u32 ceq_itr;   /* Interrupt throttle, usecs between interrupts: 0 disabled. 2 - 8160 */
 	u64 hw_masks[IRDMA_MAX_MASKS];
-	u64 hw_shifts[IRDMA_MAX_SHIFTS];
+	u8 hw_shifts[IRDMA_MAX_SHIFTS];
 	const struct irdma_hw_stat_map *hw_stats_map;
 	u64 feature_info[IRDMA_MAX_FEATURES];
 	u64 cqp_cmd_stats[IRDMA_MAX_CQP_OPS];
@@ -656,7 +650,7 @@ struct irdma_sc_dev {
 	struct mutex ws_mutex; /* ws tree mutex */
 	u32 debug_mask;
 	u16 num_vfs;
-	u8 hmc_fn_id;
+	u16 hmc_fn_id;
 	u8 vf_id;
 	bool vchnl_up:1;
 	bool ceq_valid:1;
@@ -750,7 +744,6 @@ struct irdma_vsi_init_info {
 	u16 exception_lan_q;
 	u16 pf_data_vsi_num;
 	enum irdma_vm_vf_type vm_vf_type;
-	u16 vm_id;
 	int (*register_qset)(struct irdma_sc_vsi *vsi,
 			     struct irdma_ws_node *tc_node);
 	void (*unregister_qset)(struct irdma_sc_vsi *vsi,
@@ -760,7 +753,7 @@ struct irdma_vsi_init_info {
 struct irdma_vsi_stats_info {
 	struct irdma_vsi_pestat *pestat;
 	u8 fcn_id;
-	bool alloc_fcn_id;
+	bool alloc_stats_inst;
 };
 
 struct irdma_device_init_info {
@@ -771,7 +764,7 @@ struct irdma_device_init_info {
 	struct irdma_hw *hw;
 	void IOMEM *bar0;
 	u16 max_vfs;
-	u8 hmc_fn_id;
+	u16 hmc_fn_id;
 	u32 debug_mask;
 };
 
@@ -852,10 +845,9 @@ struct irdma_udp_offload_info {
 
 struct irdma_roce_offload_info {
 	u16 p_key;
-	u16 err_rq_idx;
+	u32 err_rq_idx;
 	u32 qkey;
 	u32 dest_qp;
-	u32 local_qp;
 	u8 roce_tver;
 	u8 ack_credits;
 	u8 err_rq_idx_valid;
@@ -888,7 +880,7 @@ struct irdma_iwarp_offload_info {
 	u8 ddp_ver;
 	u8 rdmap_ver;
 	u8 iwarp_mode;
-	u16 err_rq_idx;
+	u32 err_rq_idx;
 	u32 pd_id;
 	u16 ord_size;
 	u16 ird_size;
@@ -976,7 +968,7 @@ struct irdma_qp_host_ctx_info {
 	u32 send_cq_num;
 	u32 rcv_cq_num;
 	u32 rem_endpoint_idx;
-	u8 stats_idx;
+	u16 stats_idx;
 	bool srq_valid:1;
 	bool tcp_info_valid:1;
 	bool iwarp_info_valid:1;
@@ -987,8 +979,8 @@ struct irdma_qp_host_ctx_info {
 struct irdma_aeqe_info {
 	u64 compl_ctx;
 	u32 qp_cq_id;
+	u32 wqe_idx;
 	u16 ae_id;
-	u16 wqe_idx;
 	u8 tcp_state;
 	u8 iwarp_state;
 	bool qp:1;
@@ -1013,7 +1005,8 @@ struct irdma_allocate_stag_info {
 	bool remote_access:1;
 	bool use_hmc_fcn_index:1;
 	bool use_pf_rid:1;
-	u8 hmc_fcn_index;
+	bool all_memory:1;
+	u16 hmc_fcn_index;
 };
 
 struct irdma_mw_alloc_info {
@@ -1038,8 +1031,9 @@ struct irdma_reg_ns_stag_info {
 	u32 pd_id;
 	irdma_stag_key stag_key;
 	bool use_hmc_fcn_index:1;
-	u8 hmc_fcn_index;
+	u16 hmc_fcn_index;
 	bool use_pf_rid:1;
+	bool all_memory:1;
 };
 
 struct irdma_fast_reg_stag_info {
@@ -1061,7 +1055,7 @@ struct irdma_fast_reg_stag_info {
 	bool signaled:1;
 	bool push_wqe:1;
 	bool use_hmc_fcn_index:1;
-	u8 hmc_fcn_index;
+	u16 hmc_fcn_index;
 	bool use_pf_rid:1;
 	bool defer_flag:1;
 };
@@ -1231,7 +1225,7 @@ void irdma_cfg_aeq(struct irdma_sc_dev *dev, u32 idx, bool enable);
 void irdma_check_cqp_progress(struct irdma_cqp_timeout *cqp_timeout,
 			      struct irdma_sc_dev *dev);
 int irdma_sc_cqp_create(struct irdma_sc_cqp *cqp, u16 *maj_err, u16 *min_err);
-int irdma_sc_cqp_destroy(struct irdma_sc_cqp *cqp);
+int irdma_sc_cqp_destroy(struct irdma_sc_cqp *cqp, bool free_hwcqp);
 int irdma_sc_cqp_init(struct irdma_sc_cqp *cqp,
 		      struct irdma_cqp_init_info *info);
 void irdma_sc_cqp_post_sq(struct irdma_sc_cqp *cqp);
@@ -1249,10 +1243,10 @@ int irdma_sc_qp_init(struct irdma_sc_qp *qp, struct irdma_qp_init_info *info);
 int irdma_sc_qp_modify(struct irdma_sc_qp *qp,
 		       struct irdma_modify_qp_info *info, u64 scratch,
 		       bool post_sq);
-int irdma_sc_send_lsmm(struct irdma_sc_qp *qp, void *lsmm_buf, u32 size,
-		       irdma_stag);
-int irdma_sc_send_lsmm_nostag(struct irdma_sc_qp *qp, void *lsmm_buf, u32 size);
-int irdma_sc_send_rtt(struct irdma_sc_qp *qp, bool read);
+void irdma_sc_send_lsmm(struct irdma_sc_qp *qp, void *lsmm_buf, u32 size,
+			irdma_stag stag);
+void irdma_sc_send_lsmm_nostag(struct irdma_sc_qp *qp, void *lsmm_buf, u32 size);
+void irdma_sc_send_rtt(struct irdma_sc_qp *qp, bool read);
 void irdma_sc_qp_setctx(struct irdma_sc_qp *qp, __le64 *qp_ctx,
 			struct irdma_qp_host_ctx_info *info);
 void irdma_sc_qp_setctx_roce(struct irdma_sc_qp *qp, __le64 *qp_ctx,
@@ -1260,8 +1254,9 @@ void irdma_sc_qp_setctx_roce(struct irdma_sc_qp *qp, __le64 *qp_ctx,
 int irdma_sc_cq_destroy(struct irdma_sc_cq *cq, u64 scratch, bool post_sq);
 int irdma_sc_cq_init(struct irdma_sc_cq *cq, struct irdma_cq_init_info *info);
 void irdma_sc_cq_resize(struct irdma_sc_cq *cq, struct irdma_modify_cq_info *info);
+int irdma_sc_aeq_destroy(struct irdma_sc_aeq *aeq, u64 scratch, bool post_sq);
 int irdma_sc_static_hmc_pages_allocated(struct irdma_sc_cqp *cqp, u64 scratch,
-					u8 hmc_fn_id, bool post_sq,
+					u16 hmc_fn_id, bool post_sq,
 					bool poll_registers);
 
 void sc_vsi_update_stats(struct irdma_sc_vsi *vsi);
@@ -1411,7 +1406,7 @@ struct cqp_info {
 			struct irdma_sc_cqp *cqp;
 			void *fpm_val_va;
 			u64 fpm_val_pa;
-			u8 hmc_fn_id;
+			u16 hmc_fn_id;
 			u64 scratch;
 		} query_fpm_val;
 
@@ -1419,7 +1414,7 @@ struct cqp_info {
 			struct irdma_sc_cqp *cqp;
 			void *fpm_val_va;
 			u64 fpm_val_pa;
-			u8 hmc_fn_id;
+			u16 hmc_fn_id;
 			u64 scratch;
 		} commit_fpm_val;
 

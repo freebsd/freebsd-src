@@ -42,6 +42,8 @@ int	 modcmp(const FTSENT *, const FTSENT *);
 int	 revmodcmp(const FTSENT *, const FTSENT *);
 int	 namecmp(const FTSENT *, const FTSENT *);
 int	 revnamecmp(const FTSENT *, const FTSENT *);
+int	 verscmp(const FTSENT *, const FTSENT *);
+int	 revverscmp(const FTSENT *, const FTSENT *);
 int	 statcmp(const FTSENT *, const FTSENT *);
 int	 revstatcmp(const FTSENT *, const FTSENT *);
 int	 sizecmp(const FTSENT *, const FTSENT *);

@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
+#include <sys/bitstring.h>
 
 #include <machine/bus.h>
 
@@ -80,6 +81,9 @@ __FBSDID("$FreeBSD$");
 #define BCM57417_SFP	0x16e2
 #define BCM57454	0x1614
 #define BCM58700	0x16cd
+#define BCM57508  	0x1750
+#define BCM57504  	0x1751
+#define BCM57502  	0x1752
 #define NETXTREME_C_VF1	0x16cb
 #define NETXTREME_C_VF2	0x16e1
 #define NETXTREME_C_VF3	0x16e5
@@ -110,9 +114,51 @@ __FBSDID("$FreeBSD$");
 #define bnxt_wol_supported(softc)	(!((softc)->flags & BNXT_FLAG_VF) && \
 					  ((softc)->flags & BNXT_FLAG_WOL_CAP ))
 
+/* 64-bit doorbell */
+#define DBR_INDEX_MASK                                  0x0000000000ffffffULL
+#define DBR_PI_LO_MASK                                  0xff000000UL
+#define DBR_PI_LO_SFT                                   24
+#define DBR_XID_MASK                                    0x000fffff00000000ULL
+#define DBR_XID_SFT                                     32
+#define DBR_PI_HI_MASK                                  0xf0000000000000ULL
+#define DBR_PI_HI_SFT                                   52
+#define DBR_PATH_L2                                     (0x1ULL << 56)
+#define DBR_VALID                                       (0x1ULL << 58)
+#define DBR_TYPE_SQ                                     (0x0ULL << 60)
+#define DBR_TYPE_RQ                                     (0x1ULL << 60)
+#define DBR_TYPE_SRQ                                    (0x2ULL << 60)
+#define DBR_TYPE_SRQ_ARM                                (0x3ULL << 60)
+#define DBR_TYPE_CQ                                     (0x4ULL << 60)
+#define DBR_TYPE_CQ_ARMSE                               (0x5ULL << 60)
+#define DBR_TYPE_CQ_ARMALL                              (0x6ULL << 60)
+#define DBR_TYPE_CQ_ARMENA                              (0x7ULL << 60)
+#define DBR_TYPE_SRQ_ARMENA                             (0x8ULL << 60)
+#define DBR_TYPE_CQ_CUTOFF_ACK                          (0x9ULL << 60)
+#define DBR_TYPE_NQ                                     (0xaULL << 60)
+#define DBR_TYPE_NQ_ARM                                 (0xbULL << 60)
+#define DBR_TYPE_PUSH_START                             (0xcULL << 60)
+#define DBR_TYPE_PUSH_END                               (0xdULL << 60)
+#define DBR_TYPE_NULL                                   (0xfULL << 60)
+
+#define BNXT_MAX_NUM_QUEUES 32
+
 /* Completion related defines */
 #define CMP_VALID(cmp, v_bit) \
 	((!!(((struct cmpl_base *)(cmp))->info3_v & htole32(CMPL_BASE_V))) == !!(v_bit) )
+
+/* Chip class phase 5 */
+#define BNXT_CHIP_P5(sc) ((softc->flags & BNXT_FLAG_CHIP_P5))
+
+#define DB_PF_OFFSET_P5                                 0x10000
+#define NQ_VALID(cmp, v_bit) \
+	((!!(((nq_cn_t *)(cmp))->v & htole32(NQ_CN_V))) == !!(v_bit) )
+
+#ifndef DIV_ROUND_UP
+#define DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
+#endif
+#ifndef roundup
+#define roundup(x, y) ((((x) + ((y) - 1)) / (y)) * (y))
+#endif
 
 #define NEXT_CP_CONS_V(ring, cons, v_bit) do {				    \
 	if (__predict_false(++(cons) == (ring)->ring_size))		    \
@@ -126,87 +172,6 @@ __FBSDID("$FreeBSD$");
 	__builtin_prefetch(&((struct cmpl_base *)(cpr)->ring.vaddr)[((idx) +\
 	    (CACHE_LINE_SIZE / sizeof(struct cmpl_base))) &		    \
 	    ((cpr)->ring.ring_size - 1)])
-
-/*
- * If we update the index, a write barrier is needed after the write to ensure
- * the completion ring has space before the RX/TX ring does.  Since we can't
- * make the RX and AG doorbells covered by the same barrier without remapping
- * MSI-X vectors, we create the barrier over the enture doorbell bar.
- * TODO: Remap the MSI-X vectors to allow a barrier to only cover the doorbells
- *       for a single ring group.
- *
- * A barrier of just the size of the write is used to ensure the ordering
- * remains correct and no writes are lost.
- */
-#define BNXT_CP_DISABLE_DB(ring) do {					    \
-	bus_space_barrier((ring)->softc->doorbell_bar.tag,		    \
-	    (ring)->softc->doorbell_bar.handle, (ring)->doorbell, 4,	    \
-	    BUS_SPACE_BARRIER_WRITE);					    \
-	bus_space_barrier((ring)->softc->doorbell_bar.tag,		    \
-	    (ring)->softc->doorbell_bar.handle, 0,			    \
-	    (ring)->softc->doorbell_bar.size, BUS_SPACE_BARRIER_WRITE);	    \
-	bus_space_write_4((ring)->softc->doorbell_bar.tag,		    \
-	    (ring)->softc->doorbell_bar.handle, (ring)->doorbell,	    \
-	    htole32(CMPL_DOORBELL_KEY_CMPL | CMPL_DOORBELL_MASK));	    \
-} while (0)
-
-#define BNXT_CP_ENABLE_DB(ring) do {					    \
-	bus_space_barrier((ring)->softc->doorbell_bar.tag,		    \
-	    (ring)->softc->doorbell_bar.handle, (ring)->doorbell, 4,	    \
-	    BUS_SPACE_BARRIER_WRITE);					    \
-	bus_space_barrier((ring)->softc->doorbell_bar.tag,		    \
-	    (ring)->softc->doorbell_bar.handle, 0,			    \
-	    (ring)->softc->doorbell_bar.size, BUS_SPACE_BARRIER_WRITE);	    \
-	bus_space_write_4((ring)->softc->doorbell_bar.tag,		    \
-	    (ring)->softc->doorbell_bar.handle, (ring)->doorbell,	    \
-	    htole32(CMPL_DOORBELL_KEY_CMPL));				    \
-} while (0)
-
-#define BNXT_CP_IDX_ENABLE_DB(ring, cons) do {				    \
-	bus_space_barrier((ring)->softc->doorbell_bar.tag,		    \
-	    (ring)->softc->doorbell_bar.handle, (ring)->doorbell, 4,	    \
-	    BUS_SPACE_BARRIER_WRITE);					    \
-	bus_space_write_4((ring)->softc->doorbell_bar.tag,		    \
-	    (ring)->softc->doorbell_bar.handle, (ring)->doorbell,	    \
-	    htole32(CMPL_DOORBELL_KEY_CMPL | CMPL_DOORBELL_IDX_VALID |	    \
-	    (cons)));							    \
-	bus_space_barrier((ring)->softc->doorbell_bar.tag,		    \
-	    (ring)->softc->doorbell_bar.handle, 0,			    \
-	    (ring)->softc->doorbell_bar.size, BUS_SPACE_BARRIER_WRITE);	    \
-} while (0)
-
-#define BNXT_CP_IDX_DISABLE_DB(ring, cons) do {				    \
-	bus_space_barrier((ring)->softc->doorbell_bar.tag,		    \
-	    (ring)->softc->doorbell_bar.handle, (ring)->doorbell, 4,	    \
-	    BUS_SPACE_BARRIER_WRITE);					    \
-	bus_space_write_4((ring)->softc->doorbell_bar.tag,		    \
-	    (ring)->softc->doorbell_bar.handle, (ring)->doorbell,	    \
-	    htole32(CMPL_DOORBELL_KEY_CMPL | CMPL_DOORBELL_IDX_VALID |	    \
-	    CMPL_DOORBELL_MASK | (cons)));				    \
-	bus_space_barrier((ring)->softc->doorbell_bar.tag,		    \
-	    (ring)->softc->doorbell_bar.handle, 0,			    \
-	    (ring)->softc->doorbell_bar.size, BUS_SPACE_BARRIER_WRITE);	    \
-} while (0)
-
-#define BNXT_TX_DB(ring, idx) do {					    \
-	bus_space_barrier((ring)->softc->doorbell_bar.tag,		    \
-	    (ring)->softc->doorbell_bar.handle, (ring)->doorbell, 4,	    \
-	    BUS_SPACE_BARRIER_WRITE);					    \
-	bus_space_write_4(						    \
-	    (ring)->softc->doorbell_bar.tag,				    \
-	    (ring)->softc->doorbell_bar.handle,				    \
-	    (ring)->doorbell, htole32(TX_DOORBELL_KEY_TX | (idx)));	    \
-} while (0)
-
-#define BNXT_RX_DB(ring, idx) do {					    \
-	bus_space_barrier((ring)->softc->doorbell_bar.tag,		    \
-	    (ring)->softc->doorbell_bar.handle, (ring)->doorbell, 4,	    \
-	    BUS_SPACE_BARRIER_WRITE);					    \
-	bus_space_write_4(						    \
-	    (ring)->softc->doorbell_bar.tag,				    \
-	    (ring)->softc->doorbell_bar.handle,				    \
-	    (ring)->doorbell, htole32(RX_DOORBELL_KEY_RX | (idx)));	    \
-} while (0)
 
 /* Lock macros */
 #define BNXT_HWRM_LOCK_INIT(_softc, _name) \
@@ -243,6 +208,20 @@ __FBSDID("$FreeBSD$");
 
 #define BNXT_MIN_FRAME_SIZE	52	/* Frames must be padded to this size for some A0 chips */
 
+extern char bnxt_driver_version[];
+typedef void (*bnxt_doorbell_tx)(void *, uint16_t idx);
+typedef void (*bnxt_doorbell_rx)(void *, uint16_t idx);
+typedef void (*bnxt_doorbell_rx_cq)(void *, bool);
+typedef void (*bnxt_doorbell_tx_cq)(void *, bool);
+typedef void (*bnxt_doorbell_nq)(void *, bool);
+
+typedef struct bnxt_doorbell_ops {
+        bnxt_doorbell_tx bnxt_db_tx;
+        bnxt_doorbell_rx bnxt_db_rx;
+        bnxt_doorbell_rx_cq bnxt_db_rx_cq;
+        bnxt_doorbell_tx_cq bnxt_db_tx_cq;
+        bnxt_doorbell_nq bnxt_db_nq;
+} bnxt_dooorbell_ops_t;
 /* NVRAM access */
 enum bnxt_nvm_directory_type {
 	BNX_DIR_TYPE_UNUSED = 0,
@@ -418,7 +397,7 @@ struct bnxt_vf_info {
 
 struct bnxt_vlan_tag {
 	SLIST_ENTRY(bnxt_vlan_tag) next;
-	uint16_t	tpid;
+	uint64_t	filter_id;
 	uint16_t	tag;
 };
 
@@ -430,7 +409,6 @@ struct bnxt_vnic_info {
 	uint16_t	mru;
 
 	uint32_t	rx_mask;
-	bool		vlan_only;
 	struct iflib_dma_info mc_list;
 	int		mc_list_count;
 #define BNXT_MAX_MC_ADDRS		16
@@ -441,7 +419,6 @@ struct bnxt_vnic_info {
 #define BNXT_VNIC_FLAG_VLAN_STRIP	0x04
 
 	uint64_t	filter_id;
-	uint32_t	flow_id;
 
 	uint16_t	rss_id;
 	uint32_t	rss_hash_type;
@@ -468,6 +445,7 @@ struct bnxt_ring {
 	uint32_t		ring_size;	/* Must be a power of two */
 	uint16_t		id;		/* Logical ID */
 	uint16_t		phys_id;
+	uint16_t		idx;
 	struct bnxt_full_tpa_start *tpa_start;
 };
 
@@ -481,6 +459,7 @@ struct bnxt_cp_ring {
 	uint32_t		last_idx;	/* Used by RX rings only
 						 * set to the last read pidx
 						 */
+	uint64_t 		int_count;
 };
 
 struct bnxt_full_tpa_start {
@@ -491,6 +470,8 @@ struct bnxt_full_tpa_start {
 /* All the version information for the part */
 #define BNXT_VERSTR_SIZE	(3*3+2+1)	/* ie: "255.255.255\0" */
 #define BNXT_NAME_SIZE		17
+#define FW_VER_STR_LEN          32
+#define BC_HWRM_STR_LEN         21
 struct bnxt_ver_info {
 	uint8_t		hwrm_if_major;
 	uint8_t		hwrm_if_minor;
@@ -501,6 +482,7 @@ struct bnxt_ver_info {
 	char		mgmt_fw_ver[BNXT_VERSTR_SIZE];
 	char		netctrl_fw_ver[BNXT_VERSTR_SIZE];
 	char		roce_fw_ver[BNXT_VERSTR_SIZE];
+	char		fw_ver_str[FW_VER_STR_LEN];
 	char		phy_ver[BNXT_VERSTR_SIZE];
 	char		pkg_ver[64];
 
@@ -552,12 +534,140 @@ struct bnxt_hw_lro {
 	uint32_t min_agg_len;
 };
 
+/* The hardware supports certain page sizes.  Use the supported page sizes
+ * to allocate the rings.
+ */
+#if (PAGE_SHIFT < 12)
+#define BNXT_PAGE_SHIFT 12
+#elif (PAGE_SHIFT <= 13)
+#define BNXT_PAGE_SHIFT PAGE_SHIFT
+#elif (PAGE_SHIFT < 16)
+#define BNXT_PAGE_SHIFT 13
+#else
+#define BNXT_PAGE_SHIFT 16
+#endif
+
+#define BNXT_PAGE_SIZE  (1 << BNXT_PAGE_SHIFT)
+
+#define MAX_CTX_PAGES	(BNXT_PAGE_SIZE / 8)
+#define MAX_CTX_TOTAL_PAGES	(MAX_CTX_PAGES * MAX_CTX_PAGES)
+struct bnxt_ring_mem_info {
+        int                     nr_pages;
+        int                     page_size;
+        uint16_t                     flags;
+#define BNXT_RMEM_VALID_PTE_FLAG        1
+#define BNXT_RMEM_RING_PTE_FLAG         2
+#define BNXT_RMEM_USE_FULL_PAGE_FLAG    4
+        uint16_t		depth;
+	uint8_t			init_val;
+        struct iflib_dma_info	*pg_arr;
+        struct iflib_dma_info	pg_tbl;
+        int                     vmem_size;
+        void                    **vmem;
+};
+
+struct bnxt_ctx_pg_info {
+	uint32_t		entries;
+	uint32_t		nr_pages;
+	struct iflib_dma_info   ctx_arr[MAX_CTX_PAGES];
+	struct bnxt_ring_mem_info ring_mem;
+	struct bnxt_ctx_pg_info **ctx_pg_tbl;
+};
+
+struct bnxt_ctx_mem_info {
+	uint32_t	qp_max_entries;
+	uint16_t	qp_min_qp1_entries;
+	uint16_t	qp_max_l2_entries;
+	uint16_t	qp_entry_size;
+	uint16_t	srq_max_l2_entries;
+	uint32_t	srq_max_entries;
+	uint16_t	srq_entry_size;
+	uint16_t	cq_max_l2_entries;
+	uint32_t	cq_max_entries;
+	uint16_t	cq_entry_size;
+	uint16_t	vnic_max_vnic_entries;
+	uint16_t	vnic_max_ring_table_entries;
+	uint16_t	vnic_entry_size;
+	uint32_t	stat_max_entries;
+	uint16_t	stat_entry_size;
+	uint16_t	tqm_entry_size;
+	uint32_t	tqm_min_entries_per_ring;
+	uint32_t	tqm_max_entries_per_ring;
+	uint32_t	mrav_max_entries;
+	uint16_t	mrav_entry_size;
+	uint16_t	tim_entry_size;
+	uint32_t	tim_max_entries;
+	uint8_t		tqm_entries_multiple;
+	uint8_t		ctx_kind_initializer;
+
+	uint32_t	flags;
+	#define BNXT_CTX_FLAG_INITED	0x01
+
+	struct bnxt_ctx_pg_info qp_mem;
+	struct bnxt_ctx_pg_info srq_mem;
+	struct bnxt_ctx_pg_info cq_mem;
+	struct bnxt_ctx_pg_info vnic_mem;
+	struct bnxt_ctx_pg_info stat_mem;
+	struct bnxt_ctx_pg_info mrav_mem;
+	struct bnxt_ctx_pg_info tim_mem;
+	struct bnxt_ctx_pg_info *tqm_mem[9];
+};
+
+struct bnxt_hw_resc {
+        uint16_t     min_rsscos_ctxs;
+        uint16_t     max_rsscos_ctxs;
+        uint16_t     min_cp_rings;
+        uint16_t     max_cp_rings;
+        uint16_t     resv_cp_rings;
+        uint16_t     min_tx_rings;
+        uint16_t     max_tx_rings;
+        uint16_t     resv_tx_rings;
+        uint16_t     max_tx_sch_inputs;
+        uint16_t     min_rx_rings;
+        uint16_t     max_rx_rings;
+        uint16_t     resv_rx_rings;
+        uint16_t     min_hw_ring_grps;
+        uint16_t     max_hw_ring_grps;
+        uint16_t     resv_hw_ring_grps;
+        uint16_t     min_l2_ctxs;
+        uint16_t     max_l2_ctxs;
+        uint16_t     min_vnics;
+        uint16_t     max_vnics;
+        uint16_t     resv_vnics;
+        uint16_t     min_stat_ctxs;
+        uint16_t     max_stat_ctxs;
+        uint16_t     resv_stat_ctxs;
+        uint16_t     max_nqs;
+        uint16_t     max_irqs;
+        uint16_t     resv_irqs;
+};
+
+#define BNXT_LLQ(q_profile)     \
+        ((q_profile) == HWRM_QUEUE_QPORTCFG_OUTPUT_QUEUE_ID0_SERVICE_PROFILE_LOSSLESS_ROCE)
+#define BNXT_CNPQ(q_profile)    \
+        ((q_profile) == HWRM_QUEUE_QPORTCFG_OUTPUT_QUEUE_ID0_SERVICE_PROFILE_LOSSY_ROCE_CNP)
+
+#define BNXT_HWRM_MAX_REQ_LEN		(softc->hwrm_max_req_len)
+
+struct bnxt_softc_list {
+	SLIST_ENTRY(bnxt_softc_list) next;
+	struct bnxt_softc *softc;
+};
+
 struct bnxt_softc {
 	device_t	dev;
 	if_ctx_t	ctx;
 	if_softc_ctx_t	scctx;
 	if_shared_ctx_t	sctx;
+	uint32_t	domain;
+	uint32_t	bus;
+	uint32_t	slot;
+	uint32_t	function;
+	uint32_t	dev_fn;
 	struct ifmedia	*media;
+	struct bnxt_ctx_mem_info *ctx_mem;
+	struct bnxt_hw_resc hw_resc;
+	struct bnxt_softc_list list;
 
 	struct bnxt_bar_info	hwrm_bar;
 	struct bnxt_bar_info	doorbell_bar;
@@ -565,8 +675,14 @@ struct bnxt_softc {
 #define BNXT_FLAG_VF		0x0001
 #define BNXT_FLAG_NPAR		0x0002
 #define BNXT_FLAG_WOL_CAP	0x0004
-#define BNXT_FLAG_SHORT_CMD	0x0008 
+#define BNXT_FLAG_SHORT_CMD	0x0008
+#define BNXT_FLAG_FW_CAP_NEW_RM 0x0010
+#define BNXT_FLAG_CHIP_P5 	0x0020
+#define BNXT_FLAG_TPA	 	0x0040
 	uint32_t		flags;
+#define BNXT_STATE_LINK_CHANGE  (0)
+#define BNXT_STATE_MAX		(BNXT_STATE_LINK_CHANGE + 1)
+	bitstr_t 		*state_bv;
 	uint32_t		total_msix;
 
 	struct bnxt_func_info	func;
@@ -582,10 +698,16 @@ struct bnxt_softc {
 	struct if_irq		irq;
 	struct mtx		hwrm_lock;
 	uint16_t		hwrm_max_req_len;
+	uint16_t		hwrm_max_ext_req_len;
+	uint32_t		hwrm_spec_code;
 
-#define BNXT_MAX_QUEUE		8
+#define BNXT_MAX_COS_QUEUE	8
 	uint8_t			max_tc;
-	struct bnxt_cos_queue	q_info[BNXT_MAX_QUEUE];
+        uint8_t			max_lltc;       /* lossless TCs */
+	struct bnxt_cos_queue	q_info[BNXT_MAX_COS_QUEUE];
+        uint8_t			tc_to_qidx[BNXT_MAX_COS_QUEUE];
+        uint8_t			q_ids[BNXT_MAX_COS_QUEUE];
+        uint8_t			max_q;
 
 	uint64_t		admin_ticks;
 	struct iflib_dma_info	hw_rx_port_stats;
@@ -595,9 +717,11 @@ struct bnxt_softc {
 
 	int			num_cp_rings;
 
+	struct bnxt_cp_ring	*nq_rings;
+
 	struct bnxt_ring	*tx_rings;
 	struct bnxt_cp_ring	*tx_cp_rings;
-	struct iflib_dma_info	tx_stats;
+	struct iflib_dma_info	tx_stats[BNXT_MAX_NUM_QUEUES];
 	int			ntxqsets;
 
 	struct bnxt_vnic_info	vnic_info;
@@ -605,12 +729,16 @@ struct bnxt_softc {
 	struct bnxt_ring	*rx_rings;
 	struct bnxt_cp_ring	*rx_cp_rings;
 	struct bnxt_grp_info	*grp_info;
-	struct iflib_dma_info	rx_stats;
+	struct iflib_dma_info	rx_stats[BNXT_MAX_NUM_QUEUES];
 	int			nrxqsets;
+	uint16_t		rx_buf_size;
 
 	struct bnxt_cp_ring	def_cp_ring;
+	struct bnxt_cp_ring	def_nq_ring;
 	struct iflib_dma_info	def_cp_ring_mem;
+	struct iflib_dma_info	def_nq_ring_mem;
 	struct grouptask	def_cp_task;
+	struct bnxt_doorbell_ops db_ops;
 
 	struct sysctl_ctx_list	hw_stats;
 	struct sysctl_oid	*hw_stats_oid;
@@ -622,6 +750,7 @@ struct bnxt_softc {
 	struct bnxt_ver_info	*ver_info;
 	struct bnxt_nvram_info	*nvm_info;
 	bool wol;
+	bool is_dev_init;
 	struct bnxt_hw_lro	hw_lro;
 	uint8_t wol_filter_id;
 	uint16_t		rx_coal_usecs;
@@ -671,5 +800,6 @@ struct bnxt_filter_info {
 /* Function declarations */
 void bnxt_report_link(struct bnxt_softc *softc);
 bool bnxt_check_hwrm_version(struct bnxt_softc *softc);
+struct bnxt_softc *bnxt_find_dev(uint32_t domain, uint32_t bus, uint32_t dev_fn, char *name);
 
 #endif /* _BNXT_H */

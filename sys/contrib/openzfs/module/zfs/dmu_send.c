@@ -75,7 +75,7 @@ static int zfs_send_corrupt_data = B_FALSE;
  * thread is issuing new reads because the prefetches have fallen out of the
  * cache, this may need to be decreased.
  */
-static int zfs_send_queue_length = SPA_MAXBLOCKSIZE;
+static uint_t zfs_send_queue_length = SPA_MAXBLOCKSIZE;
 /*
  * This tunable controls the length of the queues that zfs send worker threads
  * use to communicate.  If the send_main_thread is blocking on these queues,
@@ -83,7 +83,7 @@ static int zfs_send_queue_length = SPA_MAXBLOCKSIZE;
  * at the start of a send as these threads consume all the available IO
  * resources, this variable may need to be decreased.
  */
-static int zfs_send_no_prefetch_queue_length = 1024 * 1024;
+static uint_t zfs_send_no_prefetch_queue_length = 1024 * 1024;
 /*
  * These tunables control the fill fraction of the queues by zfs send.  The fill
  * fraction controls the frequency with which threads have to be cv_signaled.
@@ -91,13 +91,13 @@ static int zfs_send_no_prefetch_queue_length = 1024 * 1024;
  * down.  If the queues empty before the signalled thread can catch up, then
  * these should be tuned up.
  */
-static int zfs_send_queue_ff = 20;
-static int zfs_send_no_prefetch_queue_ff = 20;
+static uint_t zfs_send_queue_ff = 20;
+static uint_t zfs_send_no_prefetch_queue_ff = 20;
 
 /*
  * Use this to override the recordsize calculation for fast zfs send estimates.
  */
-static int zfs_override_estimate_recordsize = 0;
+static uint_t zfs_override_estimate_recordsize = 0;
 
 /* Set this tunable to FALSE to disable setting of DRR_FLAG_FREERECORDS */
 static const boolean_t zfs_send_set_freerecords_bit = B_TRUE;
@@ -585,7 +585,13 @@ dump_write_embedded(dmu_send_cookie_t *dscp, uint64_t object, uint64_t offset,
 
 	decode_embedded_bp_compressed(bp, buf);
 
-	if (dump_record(dscp, buf, P2ROUNDUP(drrw->drr_psize, 8)) != 0)
+	uint32_t psize = drrw->drr_psize;
+	uint32_t rsize = P2ROUNDUP(psize, 8);
+
+	if (psize != rsize)
+		memset(buf + psize, 0, rsize - psize);
+
+	if (dump_record(dscp, buf, rsize) != 0)
 		return (SET_ERROR(EINTR));
 	return (0);
 }
@@ -935,7 +941,7 @@ do_dump(dmu_send_cookie_t *dscp, struct send_range *range)
 		ASSERT3U(range->start_blkid + 1, ==, range->end_blkid);
 		if (BP_GET_TYPE(bp) == DMU_OT_SA) {
 			arc_flags_t aflags = ARC_FLAG_WAIT;
-			enum zio_flag zioflags = ZIO_FLAG_CANFAIL;
+			zio_flag_t zioflags = ZIO_FLAG_CANFAIL;
 
 			if (dscp->dsc_featureflags & DMU_BACKUP_FEATURE_RAW) {
 				ASSERT(BP_IS_PROTECTED(bp));
@@ -1018,9 +1024,6 @@ do_dump(dmu_send_cookie_t *dscp, struct send_range *range)
 		if (srdp->datablksz > SPA_OLD_MAXBLOCKSIZE &&
 		    !(dscp->dsc_featureflags &
 		    DMU_BACKUP_FEATURE_LARGE_BLOCKS)) {
-			if (dscp->dsc_featureflags & DMU_BACKUP_FEATURE_RAW)
-				return (SET_ERROR(ENOTSUP));
-
 			while (srdp->datablksz > 0 && err == 0) {
 				int n = MIN(srdp->datablksz,
 				    SPA_OLD_MAXBLOCKSIZE);
@@ -1590,8 +1593,6 @@ send_merge_thread(void *arg)
 		}
 		range_free(front_ranges[i]);
 	}
-	if (range == NULL)
-		range = kmem_zalloc(sizeof (*range), KM_SLEEP);
 	range->eos_marker = B_TRUE;
 	bqueue_enqueue_flush(&smt_arg->q, range, 1);
 	spl_fstrans_unmark(cookie);
@@ -1658,7 +1659,7 @@ issue_data_read(struct send_reader_thread_arg *srta, struct send_range *range)
 	    !split_large_blocks && !BP_SHOULD_BYTESWAP(bp) &&
 	    !BP_IS_EMBEDDED(bp) && !DMU_OT_IS_METADATA(BP_GET_TYPE(bp));
 
-	enum zio_flag zioflags = ZIO_FLAG_CANFAIL;
+	zio_flag_t zioflags = ZIO_FLAG_CANFAIL;
 
 	if (srta->featureflags & DMU_BACKUP_FEATURE_RAW) {
 		zioflags |= ZIO_FLAG_RAW;
@@ -1718,8 +1719,10 @@ enqueue_range(struct send_reader_thread_arg *srta, bqueue_t *q, dnode_t *dn,
 	struct send_range *range = range_alloc(range_type, dn->dn_object,
 	    blkid, blkid + count, B_FALSE);
 
-	if (blkid == DMU_SPILL_BLKID)
+	if (blkid == DMU_SPILL_BLKID) {
+		ASSERT3P(bp, !=, NULL);
 		ASSERT3U(BP_GET_TYPE(bp), ==, DMU_OT_SA);
+	}
 
 	switch (range_type) {
 	case HOLE:
@@ -1840,8 +1843,7 @@ send_reader_thread(void *arg)
 				continue;
 			}
 			uint64_t file_max =
-			    (dn->dn_maxblkid < range->end_blkid ?
-			    dn->dn_maxblkid : range->end_blkid);
+			    MIN(dn->dn_maxblkid, range->end_blkid);
 			/*
 			 * The object exists, so we need to try to find the
 			 * blkptr for each block in the range we're processing.
@@ -2515,8 +2517,7 @@ dmu_send_impl(struct dmu_send_params *dspp)
 	}
 
 	if (featureflags & DMU_BACKUP_FEATURE_RAW) {
-		uint64_t ivset_guid = (ancestor_zb != NULL) ?
-		    ancestor_zb->zbm_ivset_guid : 0;
+		uint64_t ivset_guid = ancestor_zb->zbm_ivset_guid;
 		nvlist_t *keynvl = NULL;
 		ASSERT(os->os_encrypted);
 
@@ -2720,6 +2721,10 @@ dmu_send_obj(const char *pool, uint64_t tosnap, uint64_t fromsnap,
 		dspp.numfromredactsnaps = NUM_SNAPS_NOT_REDACTED;
 		err = dmu_send_impl(&dspp);
 	}
+	if (dspp.fromredactsnaps)
+		kmem_free(dspp.fromredactsnaps,
+		    dspp.numfromredactsnaps * sizeof (uint64_t));
+
 	dsl_dataset_rele(dspp.to_ds, FTAG);
 	return (err);
 }
@@ -2928,6 +2933,10 @@ dmu_send(const char *tosnap, const char *fromsnap, boolean_t embedok,
 			/* dmu_send_impl will call dsl_pool_rele for us. */
 			err = dmu_send_impl(&dspp);
 		} else {
+			if (dspp.fromredactsnaps)
+				kmem_free(dspp.fromredactsnaps,
+				    dspp.numfromredactsnaps *
+				    sizeof (uint64_t));
 			dsl_pool_rele(dspp.dp, FTAG);
 		}
 	} else {
@@ -3020,7 +3029,7 @@ dmu_send_estimate_fast(dsl_dataset_t *origds, dsl_dataset_t *fromds,
 
 		dsl_dataset_name(origds, dsname);
 		(void) strcat(dsname, "/");
-		(void) strcat(dsname, recv_clone_name);
+		(void) strlcat(dsname, recv_clone_name, sizeof (dsname));
 
 		err = dsl_dataset_hold(origds->ds_dir->dd_pool,
 		    dsname, FTAG, &ds);
@@ -3093,20 +3102,20 @@ out:
 ZFS_MODULE_PARAM(zfs_send, zfs_send_, corrupt_data, INT, ZMOD_RW,
 	"Allow sending corrupt data");
 
-ZFS_MODULE_PARAM(zfs_send, zfs_send_, queue_length, INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_send, zfs_send_, queue_length, UINT, ZMOD_RW,
 	"Maximum send queue length");
 
 ZFS_MODULE_PARAM(zfs_send, zfs_send_, unmodified_spill_blocks, INT, ZMOD_RW,
 	"Send unmodified spill blocks");
 
-ZFS_MODULE_PARAM(zfs_send, zfs_send_, no_prefetch_queue_length, INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_send, zfs_send_, no_prefetch_queue_length, UINT, ZMOD_RW,
 	"Maximum send queue length for non-prefetch queues");
 
-ZFS_MODULE_PARAM(zfs_send, zfs_send_, queue_ff, INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_send, zfs_send_, queue_ff, UINT, ZMOD_RW,
 	"Send queue fill fraction");
 
-ZFS_MODULE_PARAM(zfs_send, zfs_send_, no_prefetch_queue_ff, INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_send, zfs_send_, no_prefetch_queue_ff, UINT, ZMOD_RW,
 	"Send queue fill fraction for non-prefetch queues");
 
-ZFS_MODULE_PARAM(zfs_send, zfs_, override_estimate_recordsize, INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_send, zfs_, override_estimate_recordsize, UINT, ZMOD_RW,
 	"Override block size estimate with fixed size");

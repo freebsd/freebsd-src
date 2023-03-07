@@ -29,24 +29,17 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
-
 #include <sys/param.h>
 #include <sys/capsicum.h>
 #include <sys/dirent.h>
-#include <sys/file.h>
-#include <sys/filedesc.h>
-#include <sys/proc.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/mount.h>
-#include <sys/namei.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/stat.h>
 #include <sys/syscallsubr.h>
-#include <sys/systm.h>
 #include <sys/tty.h>
 #include <sys/vnode.h>
-#include <sys/conf.h>
-#include <sys/fcntl.h>
 
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
@@ -411,33 +404,50 @@ bsd_to_linux_ftype(const char *fstypename)
 }
 
 static int
+bsd_to_linux_mnt_flags(int f_flags)
+{
+	int flags = LINUX_ST_VALID;
+
+	if (f_flags & MNT_RDONLY)
+		flags |= LINUX_ST_RDONLY;
+	if (f_flags & MNT_NOEXEC)
+		flags |= LINUX_ST_NOEXEC;
+	if (f_flags & MNT_NOSUID)
+		flags |= LINUX_ST_NOSUID;
+	if (f_flags & MNT_NOATIME)
+		flags |= LINUX_ST_NOATIME;
+	if (f_flags & MNT_NOSYMFOLLOW)
+		flags |= LINUX_ST_NOSYMFOLLOW;
+	if (f_flags & MNT_SYNCHRONOUS)
+		flags |= LINUX_ST_SYNCHRONOUS;
+
+	return (flags);
+}
+
+static int
 bsd_to_linux_statfs(struct statfs *bsd_statfs, struct l_statfs *linux_statfs)
 {
+
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
-	uint64_t tmp;
-
-#define	LINUX_HIBITS	0xffffffff00000000ULL
-
-	tmp = bsd_statfs->f_blocks | bsd_statfs->f_bfree | bsd_statfs->f_files |
-	    bsd_statfs->f_bsize;
-	if ((bsd_statfs->f_bavail != -1 && (bsd_statfs->f_bavail & LINUX_HIBITS)) ||
-	    (bsd_statfs->f_ffree != -1 && (bsd_statfs->f_ffree & LINUX_HIBITS)) ||
-	    (tmp & LINUX_HIBITS))
-		return (EOVERFLOW);
-#undef	LINUX_HIBITS
+	statfs_scale_blocks(bsd_statfs, INT32_MAX);
 #endif
 	linux_statfs->f_type = bsd_to_linux_ftype(bsd_statfs->f_fstypename);
 	linux_statfs->f_bsize = bsd_statfs->f_bsize;
 	linux_statfs->f_blocks = bsd_statfs->f_blocks;
 	linux_statfs->f_bfree = bsd_statfs->f_bfree;
 	linux_statfs->f_bavail = bsd_statfs->f_bavail;
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
+	linux_statfs->f_ffree = MIN(bsd_statfs->f_ffree, INT32_MAX);
+	linux_statfs->f_files = MIN(bsd_statfs->f_files, INT32_MAX);
+#else
 	linux_statfs->f_ffree = bsd_statfs->f_ffree;
 	linux_statfs->f_files = bsd_statfs->f_files;
+#endif
 	linux_statfs->f_fsid.val[0] = bsd_statfs->f_fsid.val[0];
 	linux_statfs->f_fsid.val[1] = bsd_statfs->f_fsid.val[1];
 	linux_statfs->f_namelen = MAXNAMLEN;
 	linux_statfs->f_frsize = bsd_statfs->f_bsize;
-	linux_statfs->f_flags = 0;
+	linux_statfs->f_flags = bsd_to_linux_mnt_flags(bsd_statfs->f_flags);
 	memset(linux_statfs->f_spare, 0, sizeof(linux_statfs->f_spare));
 
 	return (0);
@@ -484,7 +494,7 @@ bsd_to_linux_statfs64(struct statfs *bsd_statfs, struct l_statfs64 *linux_statfs
 	linux_statfs->f_fsid.val[1] = bsd_statfs->f_fsid.val[1];
 	linux_statfs->f_namelen = MAXNAMLEN;
 	linux_statfs->f_frsize = bsd_statfs->f_bsize;
-	linux_statfs->f_flags = 0;
+	linux_statfs->f_flags = bsd_to_linux_mnt_flags(bsd_statfs->f_flags);
 	memset(linux_statfs->f_spare, 0, sizeof(linux_statfs->f_spare));
 }
 

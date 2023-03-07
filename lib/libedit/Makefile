@@ -97,3 +97,5 @@ test: tc1.o libedit.a ${DPADD} ${LIBTERMCAP}
 	${CC} ${CFLAGS} ${.ALLSRC} -o ${.TARGET} libedit.a ${LDADD}
 
 .include <bsd.lib.mk>
+
+CWARNFLAGS.chartype.c=	${NO_WUSE_AFTER_FREE}

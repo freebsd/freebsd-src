@@ -994,6 +994,13 @@ vm_page_all_valid(vm_page_t m)
 }
 
 static inline bool
+vm_page_any_valid(vm_page_t m)
+{
+
+	return (m->valid != 0);
+}
+
+static inline bool
 vm_page_none_valid(vm_page_t m)
 {
 

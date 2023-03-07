@@ -67,7 +67,6 @@ ccm_mode_encrypt_contiguous_blocks(ccm_ctx_t *ctx, char *data, size_t length,
 		return (CRYPTO_SUCCESS);
 	}
 
-	lastp = (uint8_t *)ctx->ccm_cb;
 	crypto_init_ptrs(out, &iov_or_mp, &offset);
 
 	mac_buf = (uint8_t *)ctx->ccm_mac_buf;
@@ -658,7 +657,7 @@ ccm_format_initial_blocks(uchar_t *nonce, ulong_t nonceSize,
 	memset(&(b0[1+nonceSize]), 0, q);
 
 	payloadSize = aes_ctx->ccm_data_len;
-	limit = 8 < q ? 8 : q;
+	limit = MIN(8, q);
 
 	for (i = 0, j = 0, k = 15; i < limit; i++, j += 8, k--) {
 		b0[k] = (uint8_t)((payloadSize >> j) & 0xFF);

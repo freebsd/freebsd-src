@@ -767,7 +767,7 @@ SCI_STATUS scic_controller_set_mode(
  *                results in no interrupt coalescing timeout.
  *
  * @return Indicate if the user successfully set the interrupt coalesce parameters.
- * @retval SCI_SUCCESS The user successfully updated the interrutp coalescence.
+ * @retval SCI_SUCCESS The user successfully updated the interrupt coalescence.
  * @retval SCI_FAILURE_INVALID_PARAMETER_VALUE The user input value is out of range.
  */
 SCI_STATUS scic_controller_set_interrupt_coalescence(

@@ -10,6 +10,49 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+2fb4f839f3fc,d89513ed2050,3413ee88c39d,f97a19ecb985,021562c5020d,431d2a81d421:
+	sendmail has been updated to the latest upstream version (8.17.1).
+
+4a30d7bb373c,d670a8f7c596,af01b4722577,4e240e55d818:
+	The growfs(7) script can now add a swap partition at the end of
+	the expansion area, and does so by default if there is no existing
+	swap.  See growfs(7).
+
+86edb11e7491:
+	llvm-objump is now always installed as objdump.
+
+616f32ea6da7:
+	mta_start_script along with othermta rc.d script has been retired.
+
+a67b925ff3e5:
+	The default mail transport agent is now dma(8) replacing sendmail.
+
+22893e584032:
+	L3 filtering on if_bridge will do surprising things which aren't
+	fail-safe, so net.link.bridge.pfil_member and
+	net.link.bridge.pfil_bridge now default to zero.
+
+f0bc4ed144fc:
+	A new DTrace provider, kinst, is introduced and documented in
+	dtrace_kinst(4).  The provider allows kernel instructions to be traced,
+	similar to the FBT (function boundary tracing) provider except that all
+	instructions may be probed instead of logical entry and return
+	instructions.  The provider is currently amd64-only.
+
+0eea46fb1f83:
+	Removed telnetd.
+
+981ef32230b2,33721eb991d8:
+	These commits make the use of NFSv4.1/4.2 mounts with the "intr"
+	mount option fairly usable, although not 100% correct, so long as
+	the "nolockd" mount option is used as well.  See the mount_nfs(8)
+	manual page for more information.
+
+b875d4f5ddcb,0685c73cfe88:
+	The NFSv4.1/4.2 client and server will now generate console messages
+	if sessions are broken, suggesting that users check to ensure
+	that the /etc/hostid strings are unique for all NFSv4.1/4.2 clients.
+
 240afd8c1fcc:
 	makefs(8) has ZFS support; it can create a ZFS pool, backed by a
 	single disk vdev, containing one or more datasets populated from

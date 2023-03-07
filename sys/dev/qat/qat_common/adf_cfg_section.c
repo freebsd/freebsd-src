@@ -286,10 +286,16 @@ adf_cfg_add_asym_inst_info(struct adf_accel_dev *accel_dev,
 
 	key = malloc(ADF_CFG_MAX_KEY_LEN_IN_BYTES, M_QAT, M_WAITOK | M_ZERO);
 
-	snprintf(key,
-		 ADF_CFG_MAX_KEY_LEN_IN_BYTES,
-		 ADF_CY_BANK_NUM_FORMAT,
-		 inst_index);
+	if (adf_cy_inst_cross_banks(accel_dev))
+		snprintf(key,
+			 ADF_CFG_MAX_KEY_LEN_IN_BYTES,
+			 ADF_CY_ASYM_BANK_NUM_FORMAT,
+			 inst_index);
+	else
+		snprintf(key,
+			 ADF_CFG_MAX_KEY_LEN_IN_BYTES,
+			 ADF_CY_BANK_NUM_FORMAT,
+			 inst_index);
 	bank_number = asym_inst->bundle;
 	adf_cfg_add_key_value_param(
 	    accel_dev, derived_sec, key, (void *)&bank_number, ADF_DEC);
@@ -337,10 +343,17 @@ adf_cfg_add_sym_inst_info(struct adf_accel_dev *accel_dev,
 
 	key = malloc(ADF_CFG_MAX_KEY_LEN_IN_BYTES, M_QAT, M_WAITOK | M_ZERO);
 
-	snprintf(key,
-		 ADF_CFG_MAX_KEY_LEN_IN_BYTES,
-		 ADF_CY_BANK_NUM_FORMAT,
-		 inst_index);
+	if (adf_cy_inst_cross_banks(accel_dev))
+		snprintf(key,
+			 ADF_CFG_MAX_KEY_LEN_IN_BYTES,
+			 ADF_CY_SYM_BANK_NUM_FORMAT,
+			 inst_index);
+	else
+		snprintf(key,
+			 ADF_CFG_MAX_KEY_LEN_IN_BYTES,
+			 ADF_CY_BANK_NUM_FORMAT,
+			 inst_index);
+
 	bank_number = sym_inst->bundle;
 	adf_cfg_add_key_value_param(
 	    accel_dev, derived_sec, key, (void *)&bank_number, ADF_DEC);

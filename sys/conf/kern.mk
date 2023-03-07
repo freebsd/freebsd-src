@@ -36,6 +36,7 @@ NO_WBITWISE_INSTEAD_OF_LOGICAL=	-Wno-bitwise-instead-of-logical
 .endif
 .if ${COMPILER_VERSION} >= 150000
 NO_WSTRICT_PROTOTYPES=		-Wno-strict-prototypes
+NO_WDEPRECATED_NON_PROTOTYPE=	-Wno-deprecated-non-prototype
 .endif
 # Several other warnings which might be useful in some cases, but not severe
 # enough to error out the whole kernel build.  Display them anyway, so there is
@@ -45,6 +46,15 @@ CWARNEXTRA?=	-Wno-error=tautological-compare -Wno-error=empty-body \
 		-Wno-error=pointer-sign
 CWARNEXTRA+=	-Wno-error=shift-negative-value
 CWARNEXTRA+=	-Wno-address-of-packed-member
+.if ${COMPILER_VERSION} >= 150000
+# Clang 15 has much more aggressive diagnostics about inconsistently declared
+# array parameters, K&R prototypes, mismatched prototypes, and unused-but-set
+# variables. Make these non-fatal for the time being.
+CWARNEXTRA+=	-Wno-error=array-parameter
+CWARNEXTRA+=	-Wno-error=deprecated-non-prototype
+CWARNEXTRA+=	-Wno-error=strict-prototypes
+CWARNEXTRA+=	-Wno-error=unused-but-set-variable
+.endif
 .endif	# clang
 
 .if ${COMPILER_TYPE} == "gcc"
@@ -77,6 +87,13 @@ CWARNEXTRA+=	-Wno-error=packed-not-aligned
 .if ${COMPILER_VERSION} >= 90100
 CWARNEXTRA+=	-Wno-address-of-packed-member			\
 		-Wno-error=alloca-larger-than=
+.if ${COMPILER_VERSION} >= 120100
+CWARNEXTRA+=	-Wno-error=nonnull				\
+		-Wno-dangling-pointer				\
+		-Wno-zero-length-bounds
+NO_WINFINITE_RECURSION=	-Wno-infinite-recursion
+NO_WSTRINGOP_OVERREAD=	-Wno-stringop-overread
+.endif
 .endif
 
 # GCC produces false positives for functions that switch on an
@@ -91,7 +108,8 @@ CWARNFLAGS+=	-Wno-format-zero-length
 # to be disabled.  WARNING: format checking is disabled in this case.
 .if ${MK_FORMAT_EXTENSIONS} == "no"
 FORMAT_EXTENSIONS=	-Wno-format
-.elif ${COMPILER_TYPE} == "clang"
+.elif ${COMPILER_TYPE} == "clang" || \
+    (${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 120100)
 FORMAT_EXTENSIONS=	-D__printf__=__freebsd_kprintf__
 .else
 FORMAT_EXTENSIONS=	-fformat-extensions

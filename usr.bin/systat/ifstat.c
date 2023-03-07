@@ -290,7 +290,7 @@ fetchifstat(void)
 			SLIST_REMOVE(&curlist, ifp, if_stat, link);
 			free(ifp);
 			needsort = 1;
-			clearifstat();
+			continue;
 		} else if (strcmp(ifp->dev_name, ifp->if_mib.ifmd_name) != 0 ) {
 			/* a device was removed and another one was added */
 			format_device_name(ifp);

@@ -9,7 +9,7 @@
 #include "netinet/ipl.h"
 
 
-ip_pool_t *
+void
 printpool_live(ip_pool_t *pool, int fd, char *name, int opts,
 	wordtab_t *fields)
 {
@@ -19,14 +19,16 @@ printpool_live(ip_pool_t *pool, int fd, char *name, int opts,
 	ipfobj_t obj;
 
 	if ((name != NULL) && strncmp(name, pool->ipo_name, FR_GROUPLEN))
-		return (pool->ipo_next);
+		return;
 
 	if (fields == NULL)
 		printpooldata(pool, opts);
 
 	if ((pool->ipo_flags & IPOOL_DELETE) != 0)
 		PRINTF("# ");
-	if ((opts & OPT_DEBUG) == 0)
+	if (opts & OPT_SAVEOUT)
+		PRINTF("{\n");
+	else if ((opts & OPT_DEBUG) == 0)
 		PRINTF("\t{");
 
 	obj.ipfo_rev = IPFILTER_VERSION;
@@ -48,9 +50,13 @@ printpool_live(ip_pool_t *pool, int fd, char *name, int opts,
 		while (!last && (ioctl(fd, SIOCLOOKUPITER, &obj) == 0)) {
 			if (entry.ipn_next == NULL)
 				last = 1;
+			if (opts & OPT_SAVEOUT)
+				PRINTF("\t");
 			(void) printpoolnode(&entry, opts, fields);
 			if ((opts & OPT_DEBUG) == 0)
 				putchar(';');
+			if (opts & OPT_SAVEOUT)
+				PRINTF("\n");
 			printed++;
 		}
 	}
@@ -58,10 +64,12 @@ printpool_live(ip_pool_t *pool, int fd, char *name, int opts,
 	if (printed == 0)
 		putchar(';');
 
-	if ((opts & OPT_DEBUG) == 0)
+	if (opts & OPT_SAVEOUT)
+		PRINTF("};\n");
+	else if ((opts & OPT_DEBUG) == 0)
 		PRINTF(" };\n");
 
 	(void) ioctl(fd,SIOCIPFDELTOK, &iter.ili_key);
 
-	return (pool->ipo_next);
+	return;
 }

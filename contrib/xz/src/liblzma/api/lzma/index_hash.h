@@ -52,7 +52,7 @@ extern LZMA_API(void) lzma_index_hash_end(
 /**
  * \brief       Add a new Record to an Index hash
  *
- * \param       index             Pointer to a lzma_index_hash structure
+ * \param       index_hash        Pointer to a lzma_index_hash structure
  * \param       unpadded_size     Unpadded Size of a Block
  * \param       uncompressed_size Uncompressed Size of a Block
  *

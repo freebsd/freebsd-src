@@ -66,9 +66,7 @@ __FBSDID("$FreeBSD$");
 void
 r12a_ratectl_tx_complete(struct rtwn_softc *sc, uint8_t *buf, int len)
 {
-#if __FreeBSD_version >= 1200012
 	struct ieee80211_ratectl_tx_status txs;
-#endif
 	struct r12a_c2h_tx_rpt *rpt;
 	struct ieee80211_node *ni;
 	int ntries;
@@ -108,7 +106,6 @@ r12a_ratectl_tx_complete(struct rtwn_softc *sc, uint8_t *buf, int len)
 		    (rpt->txrptb0 & (R12A_TXRPTB0_RETRY_OVER |
 		    R12A_TXRPTB0_LIFE_EXPIRE)) ? " not" : "", ntries);
 
-#if __FreeBSD_version >= 1200012
 		txs.flags = IEEE80211_RATECTL_STATUS_LONG_RETRY |
 			    IEEE80211_RATECTL_STATUS_FINAL_RATE;
 		txs.long_retries = ntries;
@@ -125,16 +122,6 @@ r12a_ratectl_tx_complete(struct rtwn_softc *sc, uint8_t *buf, int len)
 		else
 			txs.status = IEEE80211_RATECTL_TX_SUCCESS;
 		ieee80211_ratectl_tx_complete(ni, &txs);
-#else
-		struct ieee80211vap *vap = ni->ni_vap;
-		if (rpt->txrptb0 & R12A_TXRPTB0_RETRY_OVER) {
-			ieee80211_ratectl_tx_complete(vap, ni,
-			    IEEE80211_RATECTL_TX_FAILURE, &ntries, NULL);
-		} else {
-			ieee80211_ratectl_tx_complete(vap, ni,
-			    IEEE80211_RATECTL_TX_SUCCESS, &ntries, NULL);
-		}
-#endif
 	} else {
 		RTWN_DPRINTF(sc, RTWN_DEBUG_INTR,
 		    "%s: macid %u, ni is NULL\n", __func__, rpt->macid);

@@ -684,6 +684,10 @@ source_hwaddr(const char *ifname, char *buf)
 		return (-1);
 	}
 
+	/* remove 'netmap:' prefix before comparing interfaces */
+	if (!strncmp(ifname, "netmap:", 7))
+		ifname = &ifname[7];
+
 	for (ifap = ifaphead; ifap; ifap = ifap->ifa_next) {
 		struct sockaddr_dl *sdl =
 			(struct sockaddr_dl *)ifap->ifa_addr;
@@ -1302,7 +1306,7 @@ ping_body(void *data)
 	struct targ *targ = (struct targ *) data;
 	struct pollfd pfd = { .fd = targ->fd, .events = POLLIN };
 	struct netmap_if *nifp = targ->nmd->nifp;
-	int i, m, rx = 0;
+	int i, m;
 	void *frame;
 	int size;
 	struct timespec ts, now, last_print;
@@ -1395,7 +1399,9 @@ ping_body(void *data)
 		}
 #endif /* BUSYWAIT */
 		/* see what we got back */
-		rx = 0;
+#ifdef BUSYWAIT
+		int rx = 0;
+#endif
 		for (i = targ->nmd->first_rx_ring;
 			i <= targ->nmd->last_rx_ring; i++) {
 			ring = NETMAP_RXRING(nifp, i);
@@ -1430,7 +1436,9 @@ ping_body(void *data)
 				buckets[pos]++;
 				/* now store it in a bucket */
 				ring->head = ring->cur = nm_ring_next(ring, ring->head);
+#ifdef BUSYWAIT
 				rx++;
+#endif
 			}
 		}
 		//D("tx %d rx %d", sent, rx);
@@ -1498,7 +1506,7 @@ pong_body(void *data)
 	struct pollfd pfd = { .fd = targ->fd, .events = POLLIN };
 	struct netmap_if *nifp = targ->nmd->nifp;
 	struct netmap_ring *txring, *rxring;
-	int i, rx = 0;
+	int i;
 	uint64_t sent = 0, n = targ->g->npackets;
 
 	if (targ->g->nthreads > 1) {
@@ -1540,7 +1548,6 @@ pong_body(void *data)
 				src = NETMAP_BUF(rxring, slot->buf_idx);
 				//D("got pkt %p of size %d", src, slot->len);
 				rxring->head = rxring->cur = nm_ring_next(rxring, head);
-				rx++;
 				if (txavail == 0)
 					continue;
 				dst = NETMAP_BUF(txring,
@@ -1575,7 +1582,6 @@ pong_body(void *data)
 #ifdef BUSYWAIT
 		ioctl(pfd.fd, NIOCTXSYNC, NULL);
 #endif
-		//D("tx %d rx %d", sent, rx);
 	}
 
 	targ->completed = 1;
@@ -1598,7 +1604,7 @@ sender_body(void *data)
 	uint64_t n = targ->g->npackets / targ->g->nthreads;
 	uint64_t sent = 0;
 	uint64_t event = 0;
-	int options = targ->g->options | OPT_COPY;
+	int options = targ->g->options;
 	struct timespec nexttime = { 0, 0}; // XXX silence compiler
 	int rate_limit = targ->g->tx_rate;
 	struct pkt *pkt = &targ->pkt;
@@ -1672,6 +1678,19 @@ sender_body(void *data)
 			targ->frags++;
 	}
 	D("frags %u frag_size %u", targ->frags, targ->frag_size);
+
+	/* mark all slots of all rings as changed so initial copy will be done */
+	for (i = targ->nmd->first_tx_ring; i <= targ->nmd->last_tx_ring; i++) {
+		uint32_t j;
+		struct netmap_slot *slot;
+
+		txring = NETMAP_TXRING(nifp, i);
+		for (j = 0; j < txring->num_slots; j++) {
+			slot = &txring->slot[j];
+			slot->flags = NS_BUF_CHANGED;
+		}
+	}
+
 	while (!targ->cancel && (n == 0 || sent < n)) {
 		int rv;
 
@@ -1708,10 +1727,6 @@ sender_body(void *data)
 		/*
 		 * scan our queues and send on those with room
 		 */
-		if (options & OPT_COPY && sent > 100000 && !(targ->g->options & OPT_COPY) ) {
-			D("drop copy");
-			options &= ~OPT_COPY;
-		}
 		for (i = targ->nmd->first_tx_ring; i <= targ->nmd->last_tx_ring; i++) {
 			int m;
 			uint64_t limit = rate_limit ?  tosend : targ->g->burst;
@@ -2809,7 +2824,7 @@ tap_alloc(char *dev)
 
 	/* try to create the device */
 	if( (err = ioctl(fd, TUNSETIFF, (void *) &ifr)) < 0 ) {
-		D("failed to to a TUNSETIFF: %s", strerror(errno));
+		D("failed to do a TUNSETIFF: %s", strerror(errno));
 		close(fd);
 		return err;
 	}

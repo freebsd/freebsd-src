@@ -1,4 +1,4 @@
-`metalog.lua` is a script that reads METALOG file created by pkgbase
+`metalog_reader.lua` is a script that reads METALOG file created by pkgbase
 (make packages) and generates reports about the installed system
 and issues
 

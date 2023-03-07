@@ -45,14 +45,32 @@ extern struct bits rt_bits[];
 const char *fmt_flags(const struct bits *p, int f);
 void print_flags_generic(int flags, const struct bits *pbits,
     const char *format, const char *tag_name);
-int print_sockaddr(const char *name, struct sockaddr *sa,
-    struct sockaddr *mask, int flags, int width);
+int p_sockaddr(const char *name, struct sockaddr *sa, struct sockaddr *mask,
+    int flags, int width);
+
+struct _wid {
+	int dst;
+	int gw;
+	int flags;
+	int pksent;
+	int mtu;
+	int iface;
+	int expire;
+};
+void set_wid(int fam);
+void pr_rthdr(int af1 __unused);
+extern struct _wid wid;
+void p_flags(int f, const char *format);
+
+bool p_rtable_netlink(int fibnum, int af);
 
 struct ifmap_entry {
 	char ifname[IFNAMSIZ];
+	uint32_t mtu;
 };
 
 struct ifmap_entry *prepare_ifmap(size_t *ifmap_size);
+extern const uint32_t rt_default_weight;
 
 struct rt_msghdr;
 struct nhops_map {

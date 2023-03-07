@@ -456,10 +456,8 @@ static bool violatesPrivateInclude(Module *RequestingModule,
         &Header.getModule()->Headers[Module::HK_Private],
         &Header.getModule()->Headers[Module::HK_PrivateTextual]};
     for (auto *Hs : HeaderList)
-      IsPrivate |=
-          std::find_if(Hs->begin(), Hs->end(), [&](const Module::Header &H) {
-            return H.Entry == IncFileEnt;
-          }) != Hs->end();
+      IsPrivate |= llvm::any_of(
+          *Hs, [&](const Module::Header &H) { return H.Entry == IncFileEnt; });
     assert(IsPrivate && "inconsistent headers and roles");
   }
 #endif
@@ -473,8 +471,7 @@ static Module *getTopLevelOrNull(Module *M) {
 void ModuleMap::diagnoseHeaderInclusion(Module *RequestingModule,
                                         bool RequestingModuleIsModuleInterface,
                                         SourceLocation FilenameLoc,
-                                        StringRef Filename,
-                                        const FileEntry *File) {
+                                        StringRef Filename, FileEntryRef File) {
   // No errors for indirect modules. This may be a bit of a problem for modules
   // with no source files.
   if (getTopLevelOrNull(RequestingModule) != getTopLevelOrNull(SourceModule))
@@ -482,7 +479,7 @@ void ModuleMap::diagnoseHeaderInclusion(Module *RequestingModule,
 
   if (RequestingModule) {
     resolveUses(RequestingModule, /*Complain=*/false);
-    resolveHeaderDirectives(RequestingModule);
+    resolveHeaderDirectives(RequestingModule, /*File=*/llvm::None);
   }
 
   bool Excluded = false;
@@ -542,7 +539,7 @@ void ModuleMap::diagnoseHeaderInclusion(Module *RequestingModule,
         diag::warn_non_modular_include_in_framework_module :
         diag::warn_non_modular_include_in_module;
     Diags.Report(FilenameLoc, DiagID) << RequestingModule->getFullModuleName()
-        << File->getName();
+        << File.getName();
   }
 }
 
@@ -905,6 +902,19 @@ Module *ModuleMap::createHeaderModule(StringRef Name,
   return Result;
 }
 
+Module *ModuleMap::createHeaderUnit(SourceLocation Loc, StringRef Name,
+                                    Module::Header H) {
+  assert(LangOpts.CurrentModule == Name && "module name mismatch");
+  assert(!Modules[Name] && "redefining existing module");
+
+  auto *Result = new Module(Name, Loc, nullptr, /*IsFramework*/ false,
+                            /*IsExplicit*/ false, NumCreatedModules++);
+  Result->Kind = Module::ModuleHeaderUnit;
+  Modules[Name] = SourceModule = Result;
+  addHeader(Result, H, NormalHeader);
+  return Result;
+}
+
 /// For a framework module, infer the framework against which we
 /// should link.
 static void inferFrameworkLink(Module *Mod, const DirectoryEntry *FrameworkDir,
@@ -1191,25 +1201,35 @@ void ModuleMap::resolveHeaderDirectives(const FileEntry *File) const {
   auto BySize = LazyHeadersBySize.find(File->getSize());
   if (BySize != LazyHeadersBySize.end()) {
     for (auto *M : BySize->second)
-      resolveHeaderDirectives(M);
+      resolveHeaderDirectives(M, File);
     LazyHeadersBySize.erase(BySize);
   }
 
   auto ByModTime = LazyHeadersByModTime.find(File->getModificationTime());
   if (ByModTime != LazyHeadersByModTime.end()) {
     for (auto *M : ByModTime->second)
-      resolveHeaderDirectives(M);
+      resolveHeaderDirectives(M, File);
     LazyHeadersByModTime.erase(ByModTime);
   }
 }
 
-void ModuleMap::resolveHeaderDirectives(Module *Mod) const {
+void ModuleMap::resolveHeaderDirectives(
+    Module *Mod, llvm::Optional<const FileEntry *> File) const {
   bool NeedsFramework = false;
-  for (auto &Header : Mod->UnresolvedHeaders)
-    // This operation is logically const; we're just changing how we represent
-    // the header information for this file.
-    const_cast<ModuleMap*>(this)->resolveHeader(Mod, Header, NeedsFramework);
-  Mod->UnresolvedHeaders.clear();
+  SmallVector<Module::UnresolvedHeaderDirective, 1> NewHeaders;
+  const auto Size = File ? File.value()->getSize() : 0;
+  const auto ModTime = File ? File.value()->getModificationTime() : 0;
+
+  for (auto &Header : Mod->UnresolvedHeaders) {
+    if (File && ((Header.ModTime && Header.ModTime != ModTime) ||
+                 (Header.Size && Header.Size != Size)))
+      NewHeaders.push_back(Header);
+    else
+      // This operation is logically const; we're just changing how we represent
+      // the header information for this file.
+      const_cast<ModuleMap *>(this)->resolveHeader(Mod, Header, NeedsFramework);
+  }
+  Mod->UnresolvedHeaders.swap(NewHeaders);
 }
 
 void ModuleMap::addHeader(Module *Mod, Module::Header Header,
@@ -1615,7 +1635,7 @@ retry:
     SpellingBuffer.resize(LToken.getLength() + 1);
     const char *Start = SpellingBuffer.data();
     unsigned Length =
-        Lexer::getSpelling(LToken, Start, SourceMgr, L.getLangOpts());
+        Lexer::getSpelling(LToken, Start, SourceMgr, Map.LangOpts);
     uint64_t Value;
     if (StringRef(Start, Length).getAsInteger(0, Value)) {
       Diags.Report(Tok.getLocation(), diag::err_mmap_unknown_token);

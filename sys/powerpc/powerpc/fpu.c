@@ -213,7 +213,7 @@ save_fpu_nodrop(struct thread *td)
  * Clear Floating-Point Status and Control Register
  */
 void
-cleanup_fpscr()
+cleanup_fpscr(void)
 {
 	register_t msr;
 

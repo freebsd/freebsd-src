@@ -20,7 +20,6 @@
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/ADT/TinyPtrVector.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/InstructionSimplify.h"
@@ -32,7 +31,6 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DIBuilder.h"
 #include "llvm/IR/DebugInfo.h"
-#include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/InstrTypes.h"
@@ -68,7 +66,7 @@ bool llvm::isAllocaPromotable(const AllocaInst *AI) {
     if (const LoadInst *LI = dyn_cast<LoadInst>(U)) {
       // Note that atomic loads can be transformed; atomic semantics do
       // not have any meaning for a local alloca.
-      if (LI->isVolatile())
+      if (LI->isVolatile() || LI->getType() != AI->getAllocatedType())
         return false;
     } else if (const StoreInst *SI = dyn_cast<StoreInst>(U)) {
       if (SI->getValueOperand() == AI ||
@@ -490,31 +488,33 @@ static bool promoteSingleBlockAlloca(AllocaInst *AI, const AllocaInfo &Info,
         StoresByIndex,
         std::make_pair(LoadIdx, static_cast<StoreInst *>(nullptr)),
         less_first());
+    Value *ReplVal;
     if (I == StoresByIndex.begin()) {
       if (StoresByIndex.empty())
         // If there are no stores, the load takes the undef value.
-        LI->replaceAllUsesWith(UndefValue::get(LI->getType()));
+        ReplVal = UndefValue::get(LI->getType());
       else
         // There is no store before this load, bail out (load may be affected
         // by the following stores - see main comment).
         return false;
     } else {
-      // Otherwise, there was a store before this load, the load takes its value.
-      // Note, if the load was marked as nonnull we don't want to lose that
-      // information when we erase it. So we preserve it with an assume.
-      Value *ReplVal = std::prev(I)->second->getOperand(0);
-      if (AC && LI->getMetadata(LLVMContext::MD_nonnull) &&
-          !isKnownNonZero(ReplVal, DL, 0, AC, LI, &DT))
-        addAssumeNonNull(AC, LI);
-
-      // If the replacement value is the load, this must occur in unreachable
-      // code.
-      if (ReplVal == LI)
-        ReplVal = PoisonValue::get(LI->getType());
-
-      LI->replaceAllUsesWith(ReplVal);
+      // Otherwise, there was a store before this load, the load takes its
+      // value.
+      ReplVal = std::prev(I)->second->getOperand(0);
     }
 
+    // Note, if the load was marked as nonnull we don't want to lose that
+    // information when we erase it. So we preserve it with an assume.
+    if (AC && LI->getMetadata(LLVMContext::MD_nonnull) &&
+        !isKnownNonZero(ReplVal, DL, 0, AC, LI, &DT))
+      addAssumeNonNull(AC, LI);
+
+    // If the replacement value is the load, this must occur in unreachable
+    // code.
+    if (ReplVal == LI)
+      ReplVal = PoisonValue::get(LI->getType());
+
+    LI->replaceAllUsesWith(ReplVal);
     LI->eraseFromParent();
     LBI.deleteValue(LI);
   }
@@ -678,7 +678,7 @@ void PromoteMem2Reg::run() {
     A->eraseFromParent();
   }
 
-  // Remove alloca's dbg.declare instrinsics from the function.
+  // Remove alloca's dbg.declare intrinsics from the function.
   for (auto &DbgUsers : AllocaDbgUsers) {
     for (auto *DII : DbgUsers)
       if (DII->isAddressOfVariable() || DII->getExpression()->startsWithDeref())
@@ -704,7 +704,7 @@ void PromoteMem2Reg::run() {
       PHINode *PN = I->second;
 
       // If this PHI node merges one value and/or undefs, get the value.
-      if (Value *V = SimplifyInstruction(PN, SQ)) {
+      if (Value *V = simplifyInstruction(PN, SQ)) {
         PN->replaceAllUsesWith(V);
         PN->eraseFromParent();
         NewPhiNodes.erase(I++);

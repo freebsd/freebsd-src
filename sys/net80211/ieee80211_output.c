@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/if_llc.h>
 #include <net/if_media.h>
+#include <net/if_private.h>
 #include <net/if_vlan_var.h>
 
 #include <net80211/ieee80211_var.h>
@@ -2896,7 +2897,7 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 		}
 
 		frm = ieee80211_add_wpa(frm, vap);
-		if ((ic->ic_flags & IEEE80211_F_WME) &&
+		if ((vap->iv_flags & IEEE80211_F_WME) &&
 		    ni->ni_ies.wme_ie != NULL)
 			frm = ieee80211_add_wme_info(frm, &ic->ic_wme, ni);
 

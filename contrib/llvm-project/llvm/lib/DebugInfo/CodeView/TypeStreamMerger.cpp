@@ -7,8 +7,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/DebugInfo/CodeView/TypeStreamMerger.h"
-#include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/Optional.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/DebugInfo/CodeView/GlobalTypeTableBuilder.h"
 #include "llvm/DebugInfo/CodeView/MergingTypeTableBuilder.h"
 #include "llvm/DebugInfo/CodeView/TypeDeserializer.h"
@@ -487,7 +487,7 @@ Expected<bool> TypeStreamMerger::shouldRemapType(const CVType &Type) {
     if (auto EC = TypeDeserializer::deserializeAs(const_cast<CVType &>(Type),
                                                   EP))
       return joinErrors(std::move(EC), errorCorruptRecord());
-    if (PCHSignature.hasValue())
+    if (PCHSignature)
       return errorCorruptRecord();
     PCHSignature.emplace(EP.getSignature());
     return false;

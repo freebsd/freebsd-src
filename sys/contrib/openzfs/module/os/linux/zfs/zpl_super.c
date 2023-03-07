@@ -185,7 +185,9 @@ zpl_remount_fs(struct super_block *sb, int *flags, char *data)
 static int
 __zpl_show_devname(struct seq_file *seq, zfsvfs_t *zfsvfs)
 {
-	ZPL_ENTER(zfsvfs);
+	int error;
+	if ((error = zpl_enter(zfsvfs, FTAG)) != 0)
+		return (error);
 
 	char *fsname = kmem_alloc(ZFS_MAX_DATASET_NAME_LEN, KM_SLEEP);
 	dmu_objset_name(zfsvfs->z_os, fsname);
@@ -205,7 +207,7 @@ __zpl_show_devname(struct seq_file *seq, zfsvfs_t *zfsvfs)
 
 	kmem_free(fsname, ZFS_MAX_DATASET_NAME_LEN);
 
-	ZPL_EXIT(zfsvfs);
+	zpl_exit(zfsvfs, FTAG);
 
 	return (0);
 }
@@ -372,7 +374,11 @@ const struct super_operations zpl_super_operations = {
 struct file_system_type zpl_fs_type = {
 	.owner			= THIS_MODULE,
 	.name			= ZFS_DRIVER,
+#if defined(HAVE_IDMAP_MNT_API)
+	.fs_flags		= FS_USERNS_MOUNT | FS_ALLOW_IDMAP,
+#else
 	.fs_flags		= FS_USERNS_MOUNT,
+#endif
 	.mount			= zpl_mount,
 	.kill_sb		= zpl_kill_sb,
 };

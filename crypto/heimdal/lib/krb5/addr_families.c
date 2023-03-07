@@ -525,7 +525,7 @@ arange_parse_addr (krb5_context context,
 	    return ret;
 	}
 
-	if(high.len != 1 && high.val[0].addr_type != low.val[0].addr_type) {
+	if(high.len != 1 || high.val[0].addr_type != low.val[0].addr_type) {
 	    krb5_free_addresses(context, &low);
 	    krb5_free_addresses(context, &high);
 	    return -1;

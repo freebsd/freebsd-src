@@ -165,7 +165,7 @@ main()
 		close(hellofd[1]);
 
 		if (read(hellofd[0], buf, HELLOLEN) == -1)
-			err(EX_IOERR, "faild to receive 'hello'");
+			err(EX_IOERR, "failed to receive 'hello'");
 		printf("parent: received '%s'\\n", buf);
 		break;
 	}

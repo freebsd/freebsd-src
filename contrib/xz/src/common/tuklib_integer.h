@@ -17,8 +17,8 @@
 ///   - Byte swapping: bswapXX(num)
 ///   - Byte order conversions to/from native (byteswaps if Y isn't
 ///     the native endianness): convXXYe(num)
-///   - Unaligned reads (16/32-bit only): readXXYe(ptr)
-///   - Unaligned writes (16/32-bit only): writeXXYe(ptr, num)
+///   - Unaligned reads: readXXYe(ptr)
+///   - Unaligned writes: writeXXYe(ptr, num)
 ///   - Aligned reads: aligned_readXXYe(ptr)
 ///   - Aligned writes: aligned_writeXXYe(ptr, num)
 ///
@@ -343,6 +343,46 @@ read32le(const uint8_t *buf)
 }
 
 
+static inline uint64_t
+read64be(const uint8_t *buf)
+{
+#if defined(WORDS_BIGENDIAN) || defined(TUKLIB_FAST_UNALIGNED_ACCESS)
+	uint64_t num = read64ne(buf);
+	return conv64be(num);
+#else
+	uint64_t num = (uint64_t)buf[0] << 56;
+	num |= (uint64_t)buf[1] << 48;
+	num |= (uint64_t)buf[2] << 40;
+	num |= (uint64_t)buf[3] << 32;
+	num |= (uint64_t)buf[4] << 24;
+	num |= (uint64_t)buf[5] << 16;
+	num |= (uint64_t)buf[6] << 8;
+	num |= (uint64_t)buf[7];
+	return num;
+#endif
+}
+
+
+static inline uint64_t
+read64le(const uint8_t *buf)
+{
+#if !defined(WORDS_BIGENDIAN) || defined(TUKLIB_FAST_UNALIGNED_ACCESS)
+	uint64_t num = read64ne(buf);
+	return conv64le(num);
+#else
+	uint64_t num = (uint64_t)buf[0];
+	num |= (uint64_t)buf[1] << 8;
+	num |= (uint64_t)buf[2] << 16;
+	num |= (uint64_t)buf[3] << 24;
+	num |= (uint64_t)buf[4] << 32;
+	num |= (uint64_t)buf[5] << 40;
+	num |= (uint64_t)buf[6] << 48;
+	num |= (uint64_t)buf[7] << 56;
+	return num;
+#endif
+}
+
+
 // NOTE: Possible byte swapping must be done in a macro to allow the compiler
 // to optimize byte swapping of constants when using glibc's or *BSD's
 // byte swapping macros. The actual write is done in an inline function
@@ -350,11 +390,13 @@ read32le(const uint8_t *buf)
 #if defined(WORDS_BIGENDIAN) || defined(TUKLIB_FAST_UNALIGNED_ACCESS)
 #	define write16be(buf, num) write16ne(buf, conv16be(num))
 #	define write32be(buf, num) write32ne(buf, conv32be(num))
+#	define write64be(buf, num) write64ne(buf, conv64be(num))
 #endif
 
 #if !defined(WORDS_BIGENDIAN) || defined(TUKLIB_FAST_UNALIGNED_ACCESS)
 #	define write16le(buf, num) write16ne(buf, conv16le(num))
 #	define write32le(buf, num) write32ne(buf, conv32le(num))
+#	define write64le(buf, num) write64ne(buf, conv64le(num))
 #endif
 
 

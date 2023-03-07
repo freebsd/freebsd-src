@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/kernel.h>
 #include <linux/idr.h>
 #include <linux/io.h>
+#include <linux/io-mapping.h>
 
 #ifdef __i386__
 DEFINE_IDR(mtrr_idr);
@@ -78,7 +79,9 @@ void
 si_meminfo(struct sysinfo *si)
 {
 	si->totalram = physmem;
+	si->freeram = vm_free_count();
 	si->totalhigh = 0;
+	si->freehigh = 0;
 	si->mem_unit = PAGE_SIZE;
 }
 
@@ -170,7 +173,7 @@ vm_offset_t
 linux_alloc_kmem(gfp_t flags, unsigned int order)
 {
 	size_t size = ((size_t)PAGE_SIZE) << order;
-	vm_offset_t addr;
+	void *addr;
 
 	if ((flags & GFP_DMA32) == 0) {
 		addr = kmem_malloc(size, flags & GFP_NATIVE_MASK);
@@ -178,7 +181,7 @@ linux_alloc_kmem(gfp_t flags, unsigned int order)
 		addr = kmem_alloc_contig(size, flags & GFP_NATIVE_MASK, 0,
 		    BUS_SPACE_MAXADDR_32BIT, PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
 	}
-	return (addr);
+	return ((vm_offset_t)addr);
 }
 
 void
@@ -186,7 +189,7 @@ linux_free_kmem(vm_offset_t addr, unsigned int order)
 {
 	size_t size = ((size_t)PAGE_SIZE) << order;
 
-	kmem_free(addr, size);
+	kmem_free((void *)addr, size);
 }
 
 static int
@@ -248,7 +251,7 @@ __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 
 long
 get_user_pages_remote(struct task_struct *task, struct mm_struct *mm,
-    unsigned long start, unsigned long nr_pages, int gup_flags,
+    unsigned long start, unsigned long nr_pages, unsigned int gup_flags,
     struct page **pages, struct vm_area_struct **vmas)
 {
 	vm_map_t map;
@@ -259,8 +262,8 @@ get_user_pages_remote(struct task_struct *task, struct mm_struct *mm,
 }
 
 long
-get_user_pages(unsigned long start, unsigned long nr_pages, int gup_flags,
-    struct page **pages, struct vm_area_struct **vmas)
+get_user_pages(unsigned long start, unsigned long nr_pages,
+    unsigned int gup_flags, struct page **pages, struct vm_area_struct **vmas)
 {
 	vm_map_t map;
 
@@ -332,6 +335,63 @@ retry:
 	vma->vm_pfn_count++;
 
 	return (VM_FAULT_NOPAGE);
+}
+
+int
+lkpi_remap_pfn_range(struct vm_area_struct *vma, unsigned long start_addr,
+    unsigned long start_pfn, unsigned long size, pgprot_t prot)
+{
+	vm_object_t vm_obj;
+	unsigned long addr, pfn;
+	int err = 0;
+
+	vm_obj = vma->vm_obj;
+
+	VM_OBJECT_WLOCK(vm_obj);
+	for (addr = start_addr, pfn = start_pfn;
+	    addr < start_addr + size;
+	    addr += PAGE_SIZE) {
+		vm_fault_t ret;
+retry:
+		ret = lkpi_vmf_insert_pfn_prot_locked(vma, addr, pfn, prot);
+
+		if ((ret & VM_FAULT_OOM) != 0) {
+			VM_OBJECT_WUNLOCK(vm_obj);
+			vm_wait(NULL);
+			VM_OBJECT_WLOCK(vm_obj);
+			goto retry;
+		}
+
+		if ((ret & VM_FAULT_ERROR) != 0) {
+			err = -EFAULT;
+			break;
+		}
+
+		pfn++;
+	}
+	VM_OBJECT_WUNLOCK(vm_obj);
+
+	if (unlikely(err)) {
+		zap_vma_ptes(vma, start_addr,
+		    (pfn - start_pfn) << PAGE_SHIFT);
+		return (err);
+	}
+
+	return (0);
+}
+
+int
+lkpi_io_mapping_map_user(struct io_mapping *iomap,
+    struct vm_area_struct *vma, unsigned long addr,
+    unsigned long pfn, unsigned long size)
+{
+	pgprot_t prot;
+	int ret;
+
+	prot = cachemode2protval(iomap->attr);
+	ret = lkpi_remap_pfn_range(vma, addr, pfn, size, prot);
+
+	return (ret);
 }
 
 /*
@@ -428,4 +488,51 @@ lkpi_arch_phys_wc_del(int reg)
 	mem_range_attr_set(mrdesc, &act);
 	free(mrdesc, M_LKMTRR);
 #endif
+}
+
+/*
+ * This is a highly simplified version of the Linux page_frag_cache.
+ * We only support up-to 1 single page as fragment size and we will
+ * always return a full page.  This may be wasteful on small objects
+ * but the only known consumer (mt76) is either asking for a half-page
+ * or a full page.  If this was to become a problem we can implement
+ * a more elaborate version.
+ */
+void *
+linuxkpi_page_frag_alloc(struct page_frag_cache *pfc,
+    size_t fragsz, gfp_t gfp)
+{
+	vm_page_t pages;
+
+	if (fragsz == 0)
+		return (NULL);
+
+	KASSERT(fragsz <= PAGE_SIZE, ("%s: fragsz %zu > PAGE_SIZE not yet "
+	    "supported", __func__, fragsz));
+
+	pages = alloc_pages(gfp, flsl(howmany(fragsz, PAGE_SIZE) - 1));
+	if (pages == NULL)
+		return (NULL);
+	pfc->va = linux_page_address(pages);
+
+	/* Passed in as "count" to __page_frag_cache_drain(). Unused by us. */
+	pfc->pagecnt_bias = 0;
+
+	return (pfc->va);
+}
+
+void
+linuxkpi_page_frag_free(void *addr)
+{
+	vm_page_t page;
+
+	page = PHYS_TO_VM_PAGE(vtophys(addr));
+	linux_free_pages(page, 0);
+}
+
+void
+linuxkpi__page_frag_cache_drain(struct page *page, size_t count __unused)
+{
+
+	linux_free_pages(page, 0);
 }

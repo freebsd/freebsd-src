@@ -62,6 +62,7 @@ struct uio;
 
 /* USE THESE FOR YOUR PROTOTYPES ! */
 typedef int	pr_ctloutput_t(struct socket *, struct sockopt *);
+typedef int	pr_setsbopt_t(struct socket *, struct sockopt *);
 typedef void	pr_abort_t(struct socket *);
 typedef int	pr_accept_t(struct socket *, struct sockaddr **);
 typedef int	pr_attach_t(struct socket *, int, struct thread *);
@@ -143,6 +144,7 @@ struct protosw {
 	pr_sense_t	*pr_sense;	/* stat(2) */
 	pr_flush_t	*pr_flush;	/* XXXGL: merge with pr_shutdown_t! */
 	pr_sosetlabel_t	*pr_sosetlabel;	/* MAC, XXXGL: remove */
+	pr_setsbopt_t	*pr_setsbopt;	/* Socket buffer ioctls */
 };
 /*#endif*/
 
@@ -166,49 +168,6 @@ struct protosw {
 /* was	PR_LASTHDR	0x40		   enforce ipsec policy; last header */
 #define	PR_CAPATTACH	0x80		/* socket can attach in cap mode */
 #define	PR_SOCKBUF	0x100		/* private implementation of buffers */
-
-/*
- * The arguments to the ctlinput routine are
- *	(*protosw[].pr_ctlinput)(cmd, sa, arg);
- * where cmd is one of the commands below, sa is a pointer to a sockaddr,
- * and arg is a `void *' argument used within a protocol family.
- */
-#define	PRC_ROUTEDEAD		1	/* select new route if possible ??? */
-/* was	PRC_QUENCH2		3	DEC congestion bit says slow down */
-/* was	PRC_QUENCH		4	Deprecated by RFC 6633 */
-#define	PRC_MSGSIZE		5	/* message size forced drop */
-#define	PRC_HOSTDEAD		6	/* host appears to be down */
-#define	PRC_HOSTUNREACH		7	/* deprecated (use PRC_UNREACH_HOST) */
-#define	PRC_UNREACH_NET		8	/* no route to network */
-#define	PRC_UNREACH_HOST	9	/* no route to host */
-#define	PRC_UNREACH_PROTOCOL	10	/* dst says bad protocol */
-#define	PRC_UNREACH_PORT	11	/* bad port # */
-/* was	PRC_UNREACH_NEEDFRAG	12	   (use PRC_MSGSIZE) */
-#define	PRC_UNREACH_SRCFAIL	13	/* source route failed */
-#define	PRC_REDIRECT_NET	14	/* net routing redirect */
-#define	PRC_REDIRECT_HOST	15	/* host routing redirect */
-#define	PRC_REDIRECT_TOSNET	16	/* redirect for type of service & net */
-#define	PRC_REDIRECT_TOSHOST	17	/* redirect for tos & host */
-#define	PRC_TIMXCEED_INTRANS	18	/* packet lifetime expired in transit */
-#define	PRC_TIMXCEED_REASS	19	/* lifetime expired on reass q */
-#define	PRC_PARAMPROB		20	/* header incorrect */
-#define	PRC_UNREACH_ADMIN_PROHIB	21	/* packet administrativly prohibited */
-
-#define	PRC_NCMDS		22
-
-#define	PRC_IS_REDIRECT(cmd)	\
-	((cmd) >= PRC_REDIRECT_NET && (cmd) <= PRC_REDIRECT_TOSHOST)
-
-#ifdef PRCREQUESTS
-char	*prcrequests[] = {
-	"IFDOWN", "ROUTEDEAD", "IFUP", "DEC-BIT-QUENCH2",
-	"QUENCH", "MSGSIZE", "HOSTDEAD", "#7",
-	"NET-UNREACH", "HOST-UNREACH", "PROTO-UNREACH", "PORT-UNREACH",
-	"#12", "SRCFAIL-UNREACH", "NET-REDIRECT", "HOST-REDIRECT",
-	"TOSNET-REDIRECT", "TOSHOST-REDIRECT", "TX-INTRANS", "TX-REASS",
-	"PARAMPROB", "ADMIN-UNREACH"
-};
-#endif
 
 /*
  * The arguments to ctloutput are:

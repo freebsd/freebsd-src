@@ -168,7 +168,7 @@ main(void)
 {
 	unsigned i;
 	int auto_boot, fd, nextboot = 0;
-	struct disk_devdesc devdesc;
+	struct disk_devdesc *devdesc;
 
 	bios_getmem();
 
@@ -208,18 +208,18 @@ main(void)
 	    bd_bios2unit(bootinfo.bi_bios_dev));
 
 	/* Set up currdev variable to have hooks in place. */
-	env_setenv("currdev", EV_VOLATILE, "", i386_setcurrdev,
+	env_setenv("currdev", EV_VOLATILE, "", gen_setcurrdev,
 	    env_nounset);
 
-	for (i = 0; devsw[i] != NULL; i++)
-		if (devsw[i]->dv_init != NULL)
-			(devsw[i]->dv_init)();
+	devinit();
 
-	disk_parsedev(&devdesc, boot_devname + 4, NULL);
+	/* XXX assumes this will be a disk, but it looks likely give above */
+	disk_parsedev((struct devdesc **)&devdesc, boot_devname, NULL);
 
-	bootdev = MAKEBOOTDEV(dev_maj[DEVT_DISK], devdesc.d_slice + 1,
-	    devdesc.dd.d_unit,
-	    devdesc.d_partition >= 0 ? devdesc.d_partition : 0xff);
+	bootdev = MAKEBOOTDEV(dev_maj[DEVT_DISK], devdesc->d_slice + 1,
+	    devdesc->dd.d_unit,
+	    devdesc->d_partition >= 0 ? devdesc->d_partition : 0xff);
+	free(devdesc);
 
 	/*
 	 * devformat() can be called only after dv_init
@@ -256,7 +256,7 @@ main(void)
 	free(bdev);
 	i386_getdev((void **)&bdev, boot_devname, NULL);
 
-	env_setenv("currdev", EV_VOLATILE, boot_devname, i386_setcurrdev,
+	env_setenv("currdev", EV_VOLATILE, boot_devname, gen_setcurrdev,
 	    env_nounset);
 
 	/* Process configuration file */
@@ -706,9 +706,9 @@ i386_zfs_probe(void)
 		    dev.dd.d_unit);
 		/* If this is not boot disk, use generic probe. */
 		if (dev.dd.d_unit != boot_unit)
-			zfs_probe_dev(devname, NULL);
+			zfs_probe_dev(devname, NULL, true);
 		else
-			zfs_probe_dev(devname, &pool_guid);
+			zfs_probe_dev(devname, &pool_guid, true);
 
 		if (pool_guid != 0 && bdev == NULL) {
 			bdev = malloc(sizeof (struct i386_devdesc));

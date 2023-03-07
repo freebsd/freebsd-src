@@ -20,8 +20,8 @@
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
-#include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/IntrinsicsARM.h"
 #include "llvm/IR/PatternMatch.h"
 #include "llvm/IR/Type.h"
@@ -33,6 +33,7 @@
 #include "llvm/Transforms/InstCombine/InstCombiner.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
+#include "llvm/Transforms/Vectorize/LoopVectorizationLegality.h"
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
@@ -1035,7 +1036,7 @@ InstructionCost ARMTTIImpl::getCmpSelInstrCost(unsigned Opcode, Type *ValTy,
     // split, we may need an expensive shuffle to get two in sync. This has the
     // effect of making larger than legal compares (v8i32 for example)
     // expensive.
-    if (LT.second.getVectorNumElements() > 2) {
+    if (LT.second.isVector() && LT.second.getVectorNumElements() > 2) {
       if (LT.first > 1)
         return LT.first * BaseCost +
                BaseT::getScalarizationOverhead(VecCondTy, true, false);
@@ -1202,7 +1203,8 @@ InstructionCost ARMTTIImpl::getMemcpyCost(const Instruction *I) {
 
 InstructionCost ARMTTIImpl::getShuffleCost(TTI::ShuffleKind Kind,
                                            VectorType *Tp, ArrayRef<int> Mask,
-                                           int Index, VectorType *SubTp) {
+                                           int Index, VectorType *SubTp,
+                                           ArrayRef<const Value *> Args) {
   Kind = improveShuffleKindFromMask(Kind, Mask);
   if (ST->hasNEON()) {
     if (Kind == TTI::SK_Broadcast) {
@@ -1765,6 +1767,48 @@ ARMTTIImpl::getIntrinsicInstrCost(const IntrinsicCostAttributes &ICA,
       return LT.first * ST->getMVEVectorCostFactor(CostKind);
     break;
   }
+  case Intrinsic::fptosi_sat:
+  case Intrinsic::fptoui_sat: {
+    if (ICA.getArgTypes().empty())
+      break;
+    bool IsSigned = ICA.getID() == Intrinsic::fptosi_sat;
+    auto LT = TLI->getTypeLegalizationCost(DL, ICA.getArgTypes()[0]);
+    EVT MTy = TLI->getValueType(DL, ICA.getReturnType());
+    // Check for the legal types, with the corect subtarget features.
+    if ((ST->hasVFP2Base() && LT.second == MVT::f32 && MTy == MVT::i32) ||
+        (ST->hasFP64() && LT.second == MVT::f64 && MTy == MVT::i32) ||
+        (ST->hasFullFP16() && LT.second == MVT::f16 && MTy == MVT::i32))
+      return LT.first;
+
+    // Equally for MVE vector types
+    if (ST->hasMVEFloatOps() &&
+        (LT.second == MVT::v4f32 || LT.second == MVT::v8f16) &&
+        LT.second.getScalarSizeInBits() == MTy.getScalarSizeInBits())
+      return LT.first * ST->getMVEVectorCostFactor(CostKind);
+
+    // Otherwise we use a legal convert followed by a min+max
+    if (((ST->hasVFP2Base() && LT.second == MVT::f32) ||
+         (ST->hasFP64() && LT.second == MVT::f64) ||
+         (ST->hasFullFP16() && LT.second == MVT::f16) ||
+         (ST->hasMVEFloatOps() &&
+          (LT.second == MVT::v4f32 || LT.second == MVT::v8f16))) &&
+        LT.second.getScalarSizeInBits() >= MTy.getScalarSizeInBits()) {
+      Type *LegalTy = Type::getIntNTy(ICA.getReturnType()->getContext(),
+                                      LT.second.getScalarSizeInBits());
+      InstructionCost Cost =
+          LT.second.isVector() ? ST->getMVEVectorCostFactor(CostKind) : 1;
+      IntrinsicCostAttributes Attrs1(IsSigned ? Intrinsic::smin
+                                              : Intrinsic::umin,
+                                     LegalTy, {LegalTy, LegalTy});
+      Cost += getIntrinsicInstrCost(Attrs1, CostKind);
+      IntrinsicCostAttributes Attrs2(IsSigned ? Intrinsic::smax
+                                              : Intrinsic::umax,
+                                     LegalTy, {LegalTy, LegalTy});
+      Cost += getIntrinsicInstrCost(Attrs2, CostKind);
+      return LT.first * Cost;
+    }
+    break;
+  }
   }
 
   return BaseT::getIntrinsicInstrCost(ICA, CostKind);
@@ -1772,7 +1816,7 @@ ARMTTIImpl::getIntrinsicInstrCost(const IntrinsicCostAttributes &ICA,
 
 bool ARMTTIImpl::isLoweredToCall(const Function *F) {
   if (!F->isIntrinsic())
-    BaseT::isLoweredToCall(F);
+    return BaseT::isLoweredToCall(F);
 
   // Assume all Arm-specific intrinsics map to an instruction.
   if (F->getName().startswith("llvm.arm"))
@@ -2154,12 +2198,9 @@ static bool canTailPredicateLoop(Loop *L, LoopInfo *LI, ScalarEvolution &SE,
   return true;
 }
 
-bool ARMTTIImpl::preferPredicateOverEpilogue(Loop *L, LoopInfo *LI,
-                                             ScalarEvolution &SE,
-                                             AssumptionCache &AC,
-                                             TargetLibraryInfo *TLI,
-                                             DominatorTree *DT,
-                                             const LoopAccessInfo *LAI) {
+bool ARMTTIImpl::preferPredicateOverEpilogue(
+    Loop *L, LoopInfo *LI, ScalarEvolution &SE, AssumptionCache &AC,
+    TargetLibraryInfo *TLI, DominatorTree *DT, LoopVectorizationLegality *LVL) {
   if (!EnableTailPredication) {
     LLVM_DEBUG(dbgs() << "Tail-predication not enabled.\n");
     return false;
@@ -2201,18 +2242,18 @@ bool ARMTTIImpl::preferPredicateOverEpilogue(Loop *L, LoopInfo *LI,
     return false;
   }
 
-  return canTailPredicateLoop(L, LI, SE, DL, LAI);
+  return canTailPredicateLoop(L, LI, SE, DL, LVL->getLAI());
 }
 
-bool ARMTTIImpl::emitGetActiveLaneMask() const {
+PredicationStyle ARMTTIImpl::emitGetActiveLaneMask() const {
   if (!ST->hasMVEIntegerOps() || !EnableTailPredication)
-    return false;
+    return PredicationStyle::None;
 
   // Intrinsic @llvm.get.active.lane.mask is supported.
   // It is used in the MVETailPredication pass, which requires the number of
   // elements processed by this vector loop to setup the tail-predicated
   // loop.
-  return true;
+  return PredicationStyle::Data;
 }
 void ARMTTIImpl::getUnrollingPreferences(Loop *L, ScalarEvolution &SE,
                                          TTI::UnrollingPreferences &UP,

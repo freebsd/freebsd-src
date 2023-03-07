@@ -21,6 +21,8 @@
 #ifndef RTL8188E_H
 #define RTL8188E_H
 
+#include <dev/rtwn/if_rtwn_ridx.h>
+
 /*
  * Global definitions.
  */
@@ -46,7 +48,7 @@ uint8_t	r88e_temp_read(struct rtwn_softc *);
 
 /* r88e_chan.c */
 void	r88e_get_txpower(struct rtwn_softc *, int,
-	    struct ieee80211_channel *, uint8_t[]);
+	    struct ieee80211_channel *, uint8_t[RTWN_RIDX_COUNT]);
 void	r88e_set_bw20(struct rtwn_softc *, uint8_t);
 void	r88e_set_gain(struct rtwn_softc *, uint8_t);
 

@@ -64,7 +64,7 @@ struct tegra_crtc {
 	device_t		dev;
 	int			nvidia_head;
 	vm_paddr_t		cursor_pbase;	/* Cursor buffer */
-	vm_offset_t		cursor_vbase;
+	void			*cursor_vbase;
 };
 
 struct tegra_drm_encoder {

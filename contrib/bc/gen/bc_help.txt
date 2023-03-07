@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -37,7 +37,7 @@ usage: %s [options] [file...]
 
 bc is a command-line, arbitrary-precision calculator with a Turing-complete
 language. For details, use `man %s` or see the online documentation at
-https://git.yzena.com/gavin/bc/src/tag/%s/manuals/bc/%s.1.md.
+https://git.gavinhoward.com/gavin/bc/src/tag/%s/manuals/bc/%s.1.md.
 
 This bc is compatible with both the GNU bc and the POSIX bc spec. See the GNU bc
 manual (https://www.gnu.org/software/bc/manual/bc.html) and bc spec
@@ -62,6 +62,29 @@ This bc has three differences to the GNU bc:
 This bc also implements the dot (.) extension of the BSD bc.
 
 Options:
+
+  -C  --no-digit-clamp
+
+      Disables clamping of digits that are larger than or equal to the current
+      ibase when parsing numbers.
+
+      This means that the value added to a number from a digit is always that
+      digit's value multiplied by the value of ibase raised to the power of the
+      digit's position, which starts from 0 at the least significant digit.
+
+      If multiple of this option and the -c option are given, the last is used.
+
+  -c  --digit-clamp
+
+      Enables clamping of digits that are larger than or equal to the current
+      ibase when parsing numbers.
+
+      This means that digits that the value added to a number from a digit that
+      is greater than or equal to the ibase is the value of ibase minus 1 all
+      multiplied by the value of ibase raised to the power of the digit's
+      position, which starts from 0 at the least significant digit.
+
+      If multiple of this option and the -C option are given, the last is used.
 {{ A H N HN }}
 
   -E  seed  --seed=seed
@@ -189,6 +212,8 @@ Environment variables:
       If an integer and non-zero, display the copyright banner in interactive
       mode.
 
+      If zero, disable the banner.
+
       Overrides the default, which is %s print the banner.
 
   BC_SIGINT_RESET
@@ -196,11 +221,15 @@ Environment variables:
       If an integer and non-zero, reset on SIGINT, rather than exit, when in
       interactive mode.
 
+      If zero, do not reset on SIGINT in all cases, but exit instead.
+
       Overrides the default, which is %s.
 
   BC_TTY_MODE
 
       If an integer and non-zero, enable TTY mode when it is available.
+
+      If zero, disable TTY mode in all cases.
 
       Overrides the default, which is TTY mode %s.
 
@@ -208,11 +237,20 @@ Environment variables:
 
       If an integer and non-zero, enable prompt when TTY mode is possible.
 
+      If zero, disable prompt in all cases.
+
       Overrides the default, which is prompt %s.
 
   BC_EXPR_EXIT
 
       If an integer and non-zero, exit when expressions or expression files are
       given on the command-line, and does not exit when an integer and zero.
+
+      Overrides the default, which is %s.
+
+  BC_DIGIT_CLAMP
+
+      If an integer and non-zero, clamp digits larger than or equal to the
+      current ibase when parsing numbers.
 
       Overrides the default, which is %s.

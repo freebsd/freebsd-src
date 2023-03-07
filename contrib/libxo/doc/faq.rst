@@ -205,4 +205,7 @@ a difference, change the names to make that difference more obvious.
 What does this message mean?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. include:: xolint.rst
+.. toctree::
+    :maxdepth: 2
+
+    xolint-errors.rst

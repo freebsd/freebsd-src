@@ -95,7 +95,7 @@ static size_t k_num_register_infos =
 
 RegisterContextDarwin_arm64::RegisterContextDarwin_arm64(
     Thread &thread, uint32_t concrete_frame_idx)
-    : RegisterContext(thread, concrete_frame_idx), gpr(), fpu(), exc() {
+    : RegisterContext(thread, concrete_frame_idx), gpr(), fpu(), exc(), dbg() {
   uint32_t i;
   for (i = 0; i < kNumErrors; i++) {
     gpr_errs[i] = -1;
@@ -643,7 +643,7 @@ bool RegisterContextDarwin_arm64::WriteRegister(const RegisterInfo *reg_info,
 }
 
 bool RegisterContextDarwin_arm64::ReadAllRegisterValues(
-    lldb::DataBufferSP &data_sp) {
+    lldb::WritableDataBufferSP &data_sp) {
   data_sp = std::make_shared<DataBufferHeap>(REG_CONTEXT_SIZE, 0);
   if (ReadGPR(false) == KERN_SUCCESS && ReadFPU(false) == KERN_SUCCESS &&
       ReadEXC(false) == KERN_SUCCESS) {

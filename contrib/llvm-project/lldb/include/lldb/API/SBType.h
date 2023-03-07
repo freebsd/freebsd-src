@@ -133,6 +133,8 @@ public:
 
   bool IsScopedEnumerationType();
 
+  bool IsAggregateType();
+
   lldb::SBType GetPointerType();
 
   lldb::SBType GetPointeeType();
@@ -180,6 +182,8 @@ public:
 
   lldb::SBType GetTemplateArgumentType(uint32_t idx);
 
+  /// Return the TemplateArgumentKind of the template argument at index idx.
+  /// Variadic argument packs are automatically expanded.
   lldb::TemplateArgumentKind GetTemplateArgumentKind(uint32_t idx);
 
   lldb::SBType GetFunctionReturnType();

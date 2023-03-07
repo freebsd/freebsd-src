@@ -384,7 +384,7 @@ AcpiDmDumpRsdp (
 
     /* Validate the first checksum */
 
-    Checksum = AcpiDmGenerateChecksum (Rsdp, sizeof (ACPI_RSDP_COMMON),
+    Checksum = AcpiUtGenerateChecksum (Rsdp, sizeof (ACPI_RSDP_COMMON),
         Rsdp->Checksum);
     if (Checksum != Rsdp->Checksum)
     {
@@ -405,7 +405,7 @@ AcpiDmDumpRsdp (
 
         /* Validate the extended checksum over entire RSDP */
 
-        Checksum = AcpiDmGenerateChecksum (Rsdp, sizeof (ACPI_TABLE_RSDP),
+        Checksum = AcpiUtGenerateChecksum (Rsdp, sizeof (ACPI_TABLE_RSDP),
             Rsdp->ExtendedChecksum);
         if (Checksum != Rsdp->ExtendedChecksum)
         {

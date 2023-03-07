@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <net/if_dl.h>
 #include <net/route.h>
 #include <net/route/route_ctl.h>
@@ -638,8 +639,7 @@ nhop_free(struct nhop_object *nh)
 	}
 	NET_EPOCH_EXIT(et);
 
-	epoch_call(net_epoch_preempt, destroy_nhop_epoch,
-	    &nh_priv->nh_epoch_ctx);
+	NET_EPOCH_CALL(destroy_nhop_epoch, &nh_priv->nh_epoch_ctx);
 }
 
 void
@@ -715,6 +715,7 @@ nhop_copy(struct nhop_object *nh, const struct nhop_object *nh_orig)
 	nh_priv->nh_type = nh_orig->nh_priv->nh_type;
 	nh_priv->rt_flags = nh_orig->nh_priv->rt_flags;
 	nh_priv->nh_fibnum = nh_orig->nh_priv->nh_fibnum;
+	nh_priv->nh_origin = nh_orig->nh_priv->nh_origin;
 }
 
 void
@@ -822,6 +823,33 @@ nhop_set_blackhole(struct nhop_object *nh, int blackhole_rt_flag)
 		nh->nh_flags |= NHF_REJECT;
 		nh->nh_priv->rt_flags |= RTF_REJECT;
 		break;
+	default:
+		/* Not a blackhole nexthop */
+		return;
+	}
+
+	nh->nh_ifp = V_loif;
+	nh->nh_flags &= ~NHF_GATEWAY;
+	nh->nh_priv->rt_flags &= ~RTF_GATEWAY;
+	nh->nh_priv->nh_neigh_family = nh->nh_priv->nh_upper_family;
+
+	bzero(&nh->gw_sa, sizeof(nh->gw_sa));
+
+	switch (nh->nh_priv->nh_upper_family) {
+#ifdef INET
+	case AF_INET:
+		nh->gw4_sa.sin_family = AF_INET;
+		nh->gw4_sa.sin_len = sizeof(struct sockaddr_in);
+		nh->gw4_sa.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		nh->gw6_sa.sin6_family = AF_INET6;
+		nh->gw6_sa.sin6_len = sizeof(struct sockaddr_in6);
+		nh->gw6_sa.sin6_addr = in6addr_loopback;
+		break;
+#endif
 	}
 }
 
@@ -1010,6 +1038,18 @@ nhop_get_rh(const struct nhop_object *nh)
 	int family = nhop_get_neigh_family(nh);
 
 	return (rt_tables_get_rnh(fibnum, family));
+}
+
+uint8_t
+nhop_get_origin(const struct nhop_object *nh)
+{
+	return (nh->nh_priv->nh_origin);
+}
+
+void
+nhop_set_origin(struct nhop_object *nh, uint8_t origin)
+{
+	nh->nh_priv->nh_origin = origin;
 }
 
 void

@@ -16,12 +16,13 @@
 
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/SelectionDAG.h"
-#include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/BasicBlock.h"
 #include <memory>
 
 namespace llvm {
 class AAResults;
+class TargetInstrInfo;
+class TargetMachine;
 class SelectionDAGBuilder;
 class SDValue;
 class MachineRegisterInfo;
@@ -320,6 +321,11 @@ private:
 
   void Select_FREEZE(SDNode *N);
   void Select_ARITH_FENCE(SDNode *N);
+
+  void pushStackMapLiveVariable(SmallVectorImpl<SDValue> &Ops, SDValue Operand,
+                                SDLoc DL);
+  void Select_STACKMAP(SDNode *N);
+  void Select_PATCHPOINT(SDNode *N);
 
 private:
   void DoInstructionSelection();

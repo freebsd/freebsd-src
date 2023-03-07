@@ -41,6 +41,9 @@ MODULE_LICENSE("BSD");
 MODULE_VERSION(if_iwlwifi, 1);
 MODULE_DEPEND(if_iwlwifi, linuxkpi, 1, 1, 1);
 MODULE_DEPEND(if_iwlwifi, linuxkpi_wlan, 1, 1, 1);
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+MODULE_DEPEND(if_iwlwifi, lindebugfs, 1, 1, 1);
+#endif
 #endif
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
 
@@ -74,6 +77,9 @@ struct iwl_drv {
 	char firmware_name[64];         /* name of firmware file to load */
 
 	struct completion request_firmware_complete;
+#if defined(__FreeBSD__)
+	struct completion drv_start_complete;
+#endif
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	struct dentry *dbgfs_drv;
@@ -1733,6 +1739,9 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans)
 	drv->dev = trans->dev;
 
 	init_completion(&drv->request_firmware_complete);
+#if defined(__FreeBSD__)
+	init_completion(&drv->drv_start_complete);
+#endif
 	INIT_LIST_HEAD(&drv->list);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
@@ -1752,6 +1761,17 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans)
 		goto err_fw;
 	}
 
+#if defined(__FreeBSD__)
+	/*
+	 * Wait until initilization is done before returning in order to
+	 * replicate FreeBSD's synchronous behaviour -- we cannot create
+	 * a vap before the com is fully created but if LinuxKPI "probe"
+	 * returned before it was all done that is what could happen.
+	 */
+	wait_for_completion(&drv->request_firmware_complete);
+	complete(&drv->drv_start_complete);
+#endif
+
 	return drv;
 
 err_fw:
@@ -1766,7 +1786,11 @@ err:
 
 void iwl_drv_stop(struct iwl_drv *drv)
 {
+#if defined(__linux__)
 	wait_for_completion(&drv->request_firmware_complete);
+#elif defined(__FreeBSD__)
+	wait_for_completion(&drv->drv_start_complete);
+#endif
 
 	_iwl_op_mode_stop(drv);
 

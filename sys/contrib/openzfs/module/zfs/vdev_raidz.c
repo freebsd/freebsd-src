@@ -1527,8 +1527,14 @@ vdev_raidz_open(vdev_t *vd, uint64_t *asize, uint64_t *max_asize,
 		*asize = MIN(*asize - 1, cvd->vdev_asize - 1) + 1;
 		*max_asize = MIN(*max_asize - 1, cvd->vdev_max_asize - 1) + 1;
 		*logical_ashift = MAX(*logical_ashift, cvd->vdev_ashift);
-		*physical_ashift = MAX(*physical_ashift,
-		    cvd->vdev_physical_ashift);
+	}
+	for (c = 0; c < vd->vdev_children; c++) {
+		vdev_t *cvd = vd->vdev_child[c];
+
+		if (cvd->vdev_open_error != 0)
+			continue;
+		*physical_ashift = vdev_best_ashift(*logical_ashift,
+		    *physical_ashift, cvd->vdev_physical_ashift);
 	}
 
 	*asize *= vd->vdev_children;
@@ -1763,12 +1769,12 @@ vdev_raidz_checksum_error(zio_t *zio, raidz_col_t *rc, abd_t *bad_data)
 		zbc.zbc_has_cksum = 0;
 		zbc.zbc_injected = rm->rm_ecksuminjected;
 
-		(void) zfs_ereport_post_checksum(zio->io_spa, vd,
-		    &zio->io_bookmark, zio, rc->rc_offset, rc->rc_size,
-		    rc->rc_abd, bad_data, &zbc);
 		mutex_enter(&vd->vdev_stat_lock);
 		vd->vdev_stat.vs_checksum_errors++;
 		mutex_exit(&vd->vdev_stat_lock);
+		(void) zfs_ereport_post_checksum(zio->io_spa, vd,
+		    &zio->io_bookmark, zio, rc->rc_offset, rc->rc_size,
+		    rc->rc_abd, bad_data, &zbc);
 	}
 }
 
@@ -2374,12 +2380,12 @@ vdev_raidz_io_done_unrecoverable(zio_t *zio)
 			zbc.zbc_has_cksum = 0;
 			zbc.zbc_injected = rm->rm_ecksuminjected;
 
-			(void) zfs_ereport_start_checksum(zio->io_spa,
-			    cvd, &zio->io_bookmark, zio, rc->rc_offset,
-			    rc->rc_size, &zbc);
 			mutex_enter(&cvd->vdev_stat_lock);
 			cvd->vdev_stat.vs_checksum_errors++;
 			mutex_exit(&cvd->vdev_stat_lock);
+			(void) zfs_ereport_start_checksum(zio->io_spa,
+			    cvd, &zio->io_bookmark, zio, rc->rc_offset,
+			    rc->rc_size, &zbc);
 		}
 	}
 }

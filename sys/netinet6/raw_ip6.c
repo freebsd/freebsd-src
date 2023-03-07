@@ -86,6 +86,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <net/if_types.h>
 #include <net/route.h>
 #include <net/vnet.h>
@@ -98,7 +99,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/icmp6.h>
 #include <netinet/ip6.h>
 #include <netinet/ip_var.h>
-#include <netinet6/ip6protosw.h>
 #include <netinet6/ip6_mroute.h>
 #include <netinet6/in6_pcb.h>
 #include <netinet6/ip6_var.h>
@@ -324,40 +324,14 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 }
 
 void
-rip6_ctlinput(int cmd, struct sockaddr *sa, void *d)
+rip6_ctlinput(struct ip6ctlparam *ip6cp)
 {
-	struct ip6ctlparam *ip6cp = NULL;
-	const struct sockaddr_in6 *sa6_src = NULL;
-	void *cmdarg;
-	struct inpcb *(*notify)(struct inpcb *, int) = in6_rtchange;
+	int errno;
 
-	if (sa->sa_family != AF_INET6 ||
-	    sa->sa_len != sizeof(struct sockaddr_in6))
-		return;
-
-	if ((unsigned)cmd >= PRC_NCMDS)
-		return;
-	if (PRC_IS_REDIRECT(cmd))
-		notify = in6_rtchange, d = NULL;
-	else if (cmd == PRC_HOSTDEAD)
-		d = NULL;
-	else if (inet6ctlerrmap[cmd] == 0)
-		return;
-
-	/*
-	 * If the parameter is from icmp6, decode it.
-	 */
-	if (d != NULL) {
-		ip6cp = (struct ip6ctlparam *)d;
-		cmdarg = ip6cp->ip6c_cmdarg;
-		sa6_src = ip6cp->ip6c_src;
-	} else {
-		cmdarg = NULL;
-		sa6_src = &sa6_any;
-	}
-
-	(void) in6_pcbnotify(&V_ripcbinfo, sa, 0,
-	    (const struct sockaddr *)sa6_src, 0, cmd, cmdarg, notify);
+	if ((errno = icmp6_errmap(ip6cp->ip6c_icmp6)) != 0)
+		in6_pcbnotify(&V_ripcbinfo, ip6cp->ip6c_finaldst, 0,
+		    ip6cp->ip6c_src, 0, errno, ip6cp->ip6c_cmdarg,
+		    in6_rtchange);
 }
 
 /*

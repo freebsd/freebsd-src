@@ -18,4 +18,4 @@ if [ "x$LDFLAGS" != "x" ]; then
 fi
 
 echo ./configure ${CONFIGFLAGS}
-./configure ${CONFIGFLAGS}
+./configure ${CONFIGFLAGS} 2>&1

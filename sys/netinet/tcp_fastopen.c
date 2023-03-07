@@ -867,7 +867,7 @@ sysctl_net_inet_tcp_fastopen_client_enable(SYSCTL_HANDLER_ARGS)
 void
 tcp_fastopen_connect(struct tcpcb *tp)
 {
-	struct inpcb *inp;
+	struct inpcb *inp = tptoinpcb(tp);
 	struct tcp_fastopen_ccache_bucket *ccb;
 	struct tcp_fastopen_ccache_entry *cce;
 	sbintime_t now;
@@ -875,7 +875,6 @@ tcp_fastopen_connect(struct tcpcb *tp)
 	uint64_t psk_cookie;
 
 	psk_cookie = 0;
-	inp = tp->t_inpcb;
 	cce = tcp_fastopen_ccache_lookup(&inp->inp_inc, &ccb);
 	if (cce) {
 		if (cce->disable_time == 0) {
@@ -955,7 +954,7 @@ tcp_fastopen_connect(struct tcpcb *tp)
 void
 tcp_fastopen_disable_path(struct tcpcb *tp)
 {
-	struct in_conninfo *inc = &tp->t_inpcb->inp_inc;
+	struct in_conninfo *inc = &tptoinpcb(tp)->inp_inc;
 	struct tcp_fastopen_ccache_bucket *ccb;
 	struct tcp_fastopen_ccache_entry *cce;
 
@@ -981,7 +980,7 @@ void
 tcp_fastopen_update_cache(struct tcpcb *tp, uint16_t mss,
     uint8_t cookie_len, uint8_t *cookie)
 {
-	struct in_conninfo *inc = &tp->t_inpcb->inp_inc;
+	struct in_conninfo *inc = &tptoinpcb(tp)->inp_inc;
 	struct tcp_fastopen_ccache_bucket *ccb;
 	struct tcp_fastopen_ccache_entry *cce;
 

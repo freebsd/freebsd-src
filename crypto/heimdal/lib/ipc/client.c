@@ -332,10 +332,8 @@ connect_unix(struct path_ctx *s)
 	return errno;
     rk_cloexec(s->fd);
 
-    if (connect(s->fd, (struct sockaddr *)&addr, sizeof(addr)) != 0) {
-	close(s->fd);
+    if (connect(s->fd, (struct sockaddr *)&addr, sizeof(addr)) != 0)
 	return errno;
-    }
 
     return 0;
 }

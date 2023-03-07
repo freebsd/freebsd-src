@@ -646,6 +646,11 @@ setdirmodes(int flags)
 		}
 		cp = myname(ep);
 		if (!Nflag) {
+			if (myuid != 0)
+				(void) chown(cp, myuid, node.gid);
+			else
+				(void) chown(cp, node.uid, node.gid);
+			(void) chmod(cp, node.mode);
 			if (node.extsize > 0) {
 				if (bufsize >= node.extsize) {
 					set_extattr(-1, cp, buf, node.extsize, SXA_FILE);
@@ -654,11 +659,6 @@ setdirmodes(int flags)
 					    "extended attributes for ", cp);
 				}
 			}
-			if (myuid != 0)
-				(void) chown(cp, myuid, node.gid);
-			else
-				(void) chown(cp, node.uid, node.gid);
-			(void) chmod(cp, node.mode);
 			utimensat(AT_FDCWD, cp, node.ctimep, 0);
 			utimensat(AT_FDCWD, cp, node.mtimep, 0);
 			(void) chflags(cp, node.flags);

@@ -211,7 +211,6 @@ lzma_code(lzma_stream *strm, lzma_action action)
 			|| strm->reserved_ptr2 != NULL
 			|| strm->reserved_ptr3 != NULL
 			|| strm->reserved_ptr4 != NULL
-			|| strm->reserved_int1 != 0
 			|| strm->reserved_int2 != 0
 			|| strm->reserved_int3 != 0
 			|| strm->reserved_int4 != 0
@@ -299,9 +298,7 @@ lzma_code(lzma_stream *strm, lzma_action action)
 
 	strm->internal->avail_in = strm->avail_in;
 
-	// Cast is needed to silence a warning about LZMA_TIMED_OUT, which
-	// isn't part of lzma_ret enumeration.
-	switch ((unsigned int)(ret)) {
+	switch (ret) {
 	case LZMA_OK:
 		// Don't return LZMA_BUF_ERROR when it happens the first time.
 		// This is to avoid returning LZMA_BUF_ERROR when avail_out
@@ -320,6 +317,17 @@ lzma_code(lzma_stream *strm, lzma_action action)
 	case LZMA_TIMED_OUT:
 		strm->internal->allow_buf_error = false;
 		ret = LZMA_OK;
+		break;
+
+	case LZMA_SEEK_NEEDED:
+		strm->internal->allow_buf_error = false;
+
+		// If LZMA_FINISH was used, reset it back to the
+		// LZMA_RUN-based state so that new input can be supplied
+		// by the application.
+		if (strm->internal->sequence == ISEQ_FINISH)
+			strm->internal->sequence = ISEQ_RUN;
+
 		break;
 
 	case LZMA_STREAM_END:
@@ -366,6 +374,20 @@ lzma_end(lzma_stream *strm)
 }
 
 
+#ifdef HAVE_SYMBOL_VERSIONS_LINUX
+// This is for compatibility with binaries linked against liblzma that
+// has been patched with xz-5.2.2-compat-libs.patch from RHEL/CentOS 7.
+LZMA_SYMVER_API("lzma_get_progress@XZ_5.2.2",
+	void, lzma_get_progress_522)(lzma_stream *strm,
+		uint64_t *progress_in, uint64_t *progress_out) lzma_nothrow
+		__attribute__((__alias__("lzma_get_progress_52")));
+
+LZMA_SYMVER_API("lzma_get_progress@@XZ_5.2",
+	void, lzma_get_progress_52)(lzma_stream *strm,
+		uint64_t *progress_in, uint64_t *progress_out) lzma_nothrow;
+
+#define lzma_get_progress lzma_get_progress_52
+#endif
 extern LZMA_API(void)
 lzma_get_progress(lzma_stream *strm,
 		uint64_t *progress_in, uint64_t *progress_out)

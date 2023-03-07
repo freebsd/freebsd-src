@@ -1282,9 +1282,10 @@ kick_other_cpu(int pri, int cpuid)
 	}
 #endif /* defined(IPI_PREEMPTION) && defined(PREEMPTION) */
 
-	ast_sched_locked(pcpu->pc_curthread, TDA_SCHED);
-	ipi_cpu(cpuid, IPI_AST);
-	return;
+	if (pcpu->pc_curthread->td_lock == &sched_lock) {
+		ast_sched_locked(pcpu->pc_curthread, TDA_SCHED);
+		ipi_cpu(cpuid, IPI_AST);
+	}
 }
 #endif /* SMP */
 
@@ -1541,13 +1542,17 @@ sched_choose(void)
 void
 sched_preempt(struct thread *td)
 {
+	int flags;
 
 	SDT_PROBE2(sched, , , surrender, td, td->td_proc);
 	if (td->td_critnest > 1) {
 		td->td_owepreempt = 1;
 	} else {
 		thread_lock(td);
-		mi_switch(SW_INVOL | SW_PREEMPT | SWT_PREEMPT);
+		flags = SW_INVOL | SW_PREEMPT;
+		flags |= TD_IS_IDLETHREAD(td) ? SWT_REMOTEWAKEIDLE :
+		    SWT_REMOTEPREEMPT;
+		mi_switch(flags);
 	}
 }
 
@@ -1577,7 +1582,7 @@ sched_bind(struct thread *td, int cpu)
 	if (PCPU_GET(cpuid) == cpu)
 		return;
 
-	mi_switch(SW_VOL);
+	mi_switch(SW_VOL | SWT_BIND);
 	thread_lock(td);
 #endif
 }

@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_rss.h"
-#include "opt_tcpdebug.h"
 
 /**
  * Some notes about usage.
@@ -157,9 +156,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_hpts.h>
 #include <netinet/tcp_log_buf.h>
 
-#ifdef tcpdebug
-#include <netinet/tcp_debug.h>
-#endif				/* tcpdebug */
 #ifdef tcp_offload
 #include <netinet/tcp_offload.h>
 #endif
@@ -463,8 +459,8 @@ tcp_hpts_log(struct tcp_hpts_entry *hpts, struct tcpcb *tp, struct timeval *tv,
 	log.u_bbr.pkt_epoch = hpts->p_runningslot;
 	log.u_bbr.use_lt_bw = 1;
 	TCP_LOG_EVENTP(tp, NULL,
-		       &tp->t_inpcb->inp_socket->so_rcv,
-		       &tp->t_inpcb->inp_socket->so_snd,
+		       &tptosocket(tp)->so_rcv,
+		       &tptosocket(tp)->so_snd,
 		       BBR_LOG_HPTSDIAG, 0,
 		       0, &log, false, tv);
 }
@@ -501,7 +497,7 @@ inp_hpts_insert(struct inpcb *inp, struct tcp_hpts_entry *hpts)
 	INP_WLOCK_ASSERT(inp);
 	HPTS_MTX_ASSERT(hpts);
 	MPASS(hpts->p_cpu == inp->inp_hpts_cpu);
-	MPASS(!(inp->inp_flags & (INP_DROPPED|INP_TIMEWAIT)));
+	MPASS(!(inp->inp_flags & INP_DROPPED));
 
 	hptsh = &hpts->p_hptss[inp->inp_hptsslot];
 
@@ -731,7 +727,7 @@ max_slots_available(struct tcp_hpts_entry *hpts, uint32_t wheel_slot, uint32_t *
 	}
 	/*
 	 * To get the number left we can insert into we simply
-	 * subract the distance the pacer has to run from how
+	 * subtract the distance the pacer has to run from how
 	 * many slots there are.
 	 */
 	avail_on_wheel = NUM_OF_HPTSI_SLOTS - dis_to_travel;
@@ -811,7 +807,7 @@ tcp_hpts_insert_diag(struct inpcb *inp, uint32_t slot, int32_t line, struct hpts
 
 	INP_WLOCK_ASSERT(inp);
 	MPASS(!tcp_in_hpts(inp));
-	MPASS(!(inp->inp_flags & (INP_DROPPED|INP_TIMEWAIT)));
+	MPASS(!(inp->inp_flags & INP_DROPPED));
 
 	/*
 	 * We now return the next-slot the hpts will be on, beyond its
@@ -1279,7 +1275,7 @@ again:
 			}
 
 			MPASS(inp->inp_in_hpts == IHPTS_ONQUEUE);
-			MPASS(!(inp->inp_flags & (INP_DROPPED|INP_TIMEWAIT)));
+			MPASS(!(inp->inp_flags & INP_DROPPED));
 			KASSERT(runningslot == inp->inp_hptsslot,
 				("Hpts:%p inp:%p slot mis-aligned %u vs %u",
 				 hpts, inp, runningslot, inp->inp_hptsslot));
@@ -1368,10 +1364,10 @@ again:
 			if (error < 0)
 				goto skip_pacing;
 			inp->inp_hpts_calls = 0;
-			if (ninp && ninp->inp_ppcb) {
+			if (ninp) {
 				/*
 				 * If we have a nxt inp, see if we can
-				 * prefetch its ppcb. Note this may seem
+				 * prefetch it. Note this may seem
 				 * "risky" since we have no locks (other
 				 * than the previous inp) and there no
 				 * assurance that ninp was not pulled while
@@ -1399,8 +1395,11 @@ again:
 				 * TLB hit, and instead if <c> occurs just
 				 * cause us to load cache with a useless
 				 * address (to us).
+				 *
+				 * XXXGL: with tcpcb == inpcb, I'm unsure this
+				 * prefetch is still correct and useful.
 				 */
-				kern_prefetch(ninp->inp_ppcb, &prefetch_tp);
+				kern_prefetch(ninp, &prefetch_tp);
 				prefetch_tp = 1;
 			}
 			INP_WUNLOCK(inp);

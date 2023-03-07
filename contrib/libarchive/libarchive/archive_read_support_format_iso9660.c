@@ -1757,7 +1757,7 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	size_t name_len;
 	const unsigned char *rr_start, *rr_end;
 	const unsigned char *p;
-	size_t dr_len;
+	size_t dr_len = 0;
 	uint64_t fsize, offset;
 	int32_t location;
 	int flags;

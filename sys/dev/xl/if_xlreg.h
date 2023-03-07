@@ -588,7 +588,7 @@ struct xl_type {
 #define XL_NO_XCVR_PWR_MAGICBITS	0x0900
 
 struct xl_softc {
-	struct ifnet		*xl_ifp;	/* interface info */
+	if_t			xl_ifp;		/* interface info */
 	device_t		xl_dev;		/* device info */
 	struct ifmedia		ifmedia;	/* media info */
 	bus_space_handle_t	xl_bhandle;

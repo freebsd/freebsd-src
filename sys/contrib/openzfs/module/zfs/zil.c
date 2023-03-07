@@ -90,7 +90,15 @@
  * committed to stable storage. Please refer to the zil_commit_waiter()
  * function (and the comments within it) for more details.
  */
-static int zfs_commit_timeout_pct = 5;
+static uint_t zfs_commit_timeout_pct = 5;
+
+/*
+ * Minimal time we care to delay commit waiting for more ZIL records.
+ * At least FreeBSD kernel can't sleep for less than 2us at its best.
+ * So requests to sleep for less then 5us is a waste of CPU time with
+ * a risk of significant log latency increase due to oversleep.
+ */
+static uint64_t zil_min_commit_timeout = 5000;
 
 /*
  * See zil.h for more information about these fields.
@@ -132,7 +140,7 @@ static int zil_nocacheflush = 0;
  * Any writes above that will be executed with lower (asynchronous) priority
  * to limit potential SLOG device abuse by single active ZIL writer.
  */
-static unsigned long zil_slog_bulk = 768 * 1024;
+static uint64_t zil_slog_bulk = 768 * 1024;
 
 static kmem_cache_t *zil_lwb_cache;
 static kmem_cache_t *zil_zcw_cache;
@@ -237,7 +245,7 @@ static int
 zil_read_log_block(zilog_t *zilog, boolean_t decrypt, const blkptr_t *bp,
     blkptr_t *nbp, void *dst, char **end)
 {
-	enum zio_flag zio_flags = ZIO_FLAG_CANFAIL;
+	zio_flag_t zio_flags = ZIO_FLAG_CANFAIL;
 	arc_flags_t aflags = ARC_FLAG_WAIT;
 	arc_buf_t *abuf = NULL;
 	zbookmark_phys_t zb;
@@ -315,7 +323,7 @@ zil_read_log_block(zilog_t *zilog, boolean_t decrypt, const blkptr_t *bp,
 static int
 zil_read_log_data(zilog_t *zilog, const lr_write_t *lr, void *wbuf)
 {
-	enum zio_flag zio_flags = ZIO_FLAG_CANFAIL;
+	zio_flag_t zio_flags = ZIO_FLAG_CANFAIL;
 	const blkptr_t *bp = &lr->lr_blkptr;
 	arc_flags_t aflags = ARC_FLAG_WAIT;
 	arc_buf_t *abuf = NULL;
@@ -339,6 +347,7 @@ zil_read_log_data(zilog_t *zilog, const lr_write_t *lr, void *wbuf)
 	if (wbuf == NULL)
 		zio_flags |= ZIO_FLAG_RAW;
 
+	ASSERT3U(BP_GET_LSIZE(bp), !=, 0);
 	SET_BOOKMARK(&zb, dmu_objset_id(zilog->zl_os), lr->lr_foid,
 	    ZB_ZIL_LEVEL, lr->lr_offset / BP_GET_LSIZE(bp));
 
@@ -479,8 +488,18 @@ zil_parse(zilog_t *zilog, zil_parse_blk_func_t *parse_blk_func,
 
 		error = zil_read_log_block(zilog, decrypt, &blk, &next_blk,
 		    lrbuf, &end);
-		if (error != 0)
+		if (error != 0) {
+			if (claimed) {
+				char name[ZFS_MAX_DATASET_NAME_LEN];
+
+				dmu_objset_name(zilog->zl_os, name);
+
+				cmn_err(CE_WARN, "ZFS read log block error %d, "
+				    "dataset %s, seq 0x%llx\n", error, name,
+				    (u_longlong_t)blk_seq);
+			}
 			break;
+		}
 
 		for (lrp = lrbuf; lrp < end; lrp += reclen) {
 			lr_t *lr = (lr_t *)lrp;
@@ -503,10 +522,6 @@ done:
 	zilog->zl_parse_lr_seq = max_lr_seq;
 	zilog->zl_parse_blk_count = blk_count;
 	zilog->zl_parse_lr_count = lr_count;
-
-	ASSERT(!claimed || !(zh->zh_flags & ZIL_CLAIM_LR_SEQ_VALID) ||
-	    (max_blk_seq == claim_blk_seq && max_lr_seq == claim_lr_seq) ||
-	    (decrypt && error == EIO));
 
 	zil_bp_tree_fini(zilog);
 	zio_buf_free(lrbuf, SPA_OLD_MAXBLOCKSIZE);
@@ -758,11 +773,9 @@ zil_commit_activate_saxattr_feature(zilog_t *zilog)
 	uint64_t txg = 0;
 	dmu_tx_t *tx = NULL;
 
-	if (spa_feature_is_enabled(zilog->zl_spa,
-	    SPA_FEATURE_ZILSAXATTR) &&
+	if (spa_feature_is_enabled(zilog->zl_spa, SPA_FEATURE_ZILSAXATTR) &&
 	    dmu_objset_type(zilog->zl_os) != DMU_OST_ZVOL &&
-	    !dsl_dataset_feature_is_active(ds,
-	    SPA_FEATURE_ZILSAXATTR)) {
+	    !dsl_dataset_feature_is_active(ds, SPA_FEATURE_ZILSAXATTR)) {
 		tx = dmu_tx_create(zilog->zl_os);
 		VERIFY0(dmu_tx_assign(tx, TXG_WAIT));
 		dsl_dataset_dirty(ds, tx);
@@ -882,8 +895,9 @@ zil_create(zilog_t *zilog)
  * txg_wait_synced() here either when keep_first is set, because both
  * zil_create() and zil_destroy() will wait for any in-progress destroys
  * to complete.
+ * Return B_TRUE if there were any entries to replay.
  */
-void
+boolean_t
 zil_destroy(zilog_t *zilog, boolean_t keep_first)
 {
 	const zil_header_t *zh = zilog->zl_header;
@@ -899,7 +913,7 @@ zil_destroy(zilog_t *zilog, boolean_t keep_first)
 	zilog->zl_old_header = *zh;		/* debugging aid */
 
 	if (BP_IS_HOLE(&zh->zh_log))
-		return;
+		return (B_FALSE);
 
 	tx = dmu_tx_create(zilog->zl_os);
 	VERIFY0(dmu_tx_assign(tx, TXG_WAIT));
@@ -932,6 +946,8 @@ zil_destroy(zilog_t *zilog, boolean_t keep_first)
 	mutex_exit(&zilog->zl_lock);
 
 	dmu_tx_commit(tx);
+
+	return (B_TRUE);
 }
 
 void
@@ -1287,7 +1303,8 @@ zil_lwb_flush_vdevs_done(zio_t *zio)
 	lwb->lwb_buf = NULL;
 
 	ASSERT3U(lwb->lwb_issued_timestamp, >, 0);
-	zilog->zl_last_lwb_latency = gethrtime() - lwb->lwb_issued_timestamp;
+	zilog->zl_last_lwb_latency = (zilog->zl_last_lwb_latency * 3 +
+	    gethrtime() - lwb->lwb_issued_timestamp) / 4;
 
 	lwb->lwb_root_zio = NULL;
 
@@ -1642,7 +1659,7 @@ static const struct {
  * initialized.  Otherwise this should not be used directly; see
  * zl_max_block_size instead.
  */
-static int zil_maxblocksize = SPA_OLD_MAXBLOCKSIZE;
+static uint_t zil_maxblocksize = SPA_OLD_MAXBLOCKSIZE;
 
 /*
  * Start a log block write and advance to the next log block.
@@ -2455,8 +2472,9 @@ zil_process_commit_list(zilog_t *zilog)
 	spa_t *spa = zilog->zl_spa;
 	list_t nolwb_itxs;
 	list_t nolwb_waiters;
-	lwb_t *lwb;
+	lwb_t *lwb, *plwb;
 	itx_t *itx;
+	boolean_t first = B_TRUE;
 
 	ASSERT(MUTEX_HELD(&zilog->zl_issuer_lock));
 
@@ -2483,6 +2501,9 @@ zil_process_commit_list(zilog_t *zilog)
 		ASSERT3S(lwb->lwb_state, !=, LWB_STATE_ISSUED);
 		ASSERT3S(lwb->lwb_state, !=, LWB_STATE_WRITE_DONE);
 		ASSERT3S(lwb->lwb_state, !=, LWB_STATE_FLUSH_DONE);
+		first = (lwb->lwb_state != LWB_STATE_OPENED) &&
+		    ((plwb = list_prev(&zilog->zl_lwb_list, lwb)) == NULL ||
+		    plwb->lwb_state == LWB_STATE_FLUSH_DONE);
 	}
 
 	while ((itx = list_head(&zilog->zl_itx_commit_list)) != NULL) {
@@ -2653,7 +2674,23 @@ zil_process_commit_list(zilog_t *zilog)
 		 * try and pack as many itxs into as few lwbs as
 		 * possible, without significantly impacting the latency
 		 * of each individual itx.
+		 *
+		 * If we had no already running or open LWBs, it can be
+		 * the workload is single-threaded.  And if the ZIL write
+		 * latency is very small or if the LWB is almost full, it
+		 * may be cheaper to bypass the delay.
 		 */
+		if (lwb->lwb_state == LWB_STATE_OPENED && first) {
+			hrtime_t sleep = zilog->zl_last_lwb_latency *
+			    zfs_commit_timeout_pct / 100;
+			if (sleep < zil_min_commit_timeout ||
+			    lwb->lwb_sz - lwb->lwb_nused < lwb->lwb_sz / 8) {
+				lwb = zil_lwb_write_issue(zilog, lwb);
+				zilog->zl_cur_used = 0;
+				if (lwb == NULL)
+					zil_commit_writer_stall(zilog);
+			}
+		}
 	}
 }
 
@@ -3844,8 +3881,9 @@ zil_incr_blks(zilog_t *zilog, const blkptr_t *bp, void *arg, uint64_t claim_txg)
 
 /*
  * If this dataset has a non-empty intent log, replay it and destroy it.
+ * Return B_TRUE if there were any entries to replay.
  */
-void
+boolean_t
 zil_replay(objset_t *os, void *arg,
     zil_replay_func_t *const replay_func[TX_MAX_TYPE])
 {
@@ -3854,8 +3892,7 @@ zil_replay(objset_t *os, void *arg,
 	zil_replay_arg_t zr;
 
 	if ((zh->zh_flags & ZIL_REPLAY_NEEDED) == 0) {
-		zil_destroy(zilog, B_TRUE);
-		return;
+		return (zil_destroy(zilog, B_TRUE));
 	}
 
 	zr.zr_replay = replay_func;
@@ -3878,6 +3915,8 @@ zil_replay(objset_t *os, void *arg,
 	zil_destroy(zilog, B_FALSE);
 	txg_wait_synced(zilog->zl_dmu_pool, zilog->zl_destroy_txg);
 	zilog->zl_replay = B_FALSE;
+
+	return (B_TRUE);
 }
 
 boolean_t
@@ -3936,8 +3975,11 @@ EXPORT_SYMBOL(zil_sums_init);
 EXPORT_SYMBOL(zil_sums_fini);
 EXPORT_SYMBOL(zil_kstat_values_update);
 
-ZFS_MODULE_PARAM(zfs, zfs_, commit_timeout_pct, INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs, zfs_, commit_timeout_pct, UINT, ZMOD_RW,
 	"ZIL block open timeout percentage");
+
+ZFS_MODULE_PARAM(zfs_zil, zil_, min_commit_timeout, U64, ZMOD_RW,
+	"Minimum delay we care for ZIL block commit");
 
 ZFS_MODULE_PARAM(zfs_zil, zil_, replay_disable, INT, ZMOD_RW,
 	"Disable intent logging replay");
@@ -3945,8 +3987,8 @@ ZFS_MODULE_PARAM(zfs_zil, zil_, replay_disable, INT, ZMOD_RW,
 ZFS_MODULE_PARAM(zfs_zil, zil_, nocacheflush, INT, ZMOD_RW,
 	"Disable ZIL cache flushes");
 
-ZFS_MODULE_PARAM(zfs_zil, zil_, slog_bulk, ULONG, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_zil, zil_, slog_bulk, U64, ZMOD_RW,
 	"Limit in bytes slog sync writes per commit");
 
-ZFS_MODULE_PARAM(zfs_zil, zil_, maxblocksize, INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_zil, zil_, maxblocksize, UINT, ZMOD_RW,
 	"Limit in bytes of ZIL log block size");

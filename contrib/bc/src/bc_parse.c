@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -71,11 +71,12 @@ bc_parse_expr_status(BcParse* p, uint8_t flags, BcParseNext next);
  * Returns true if an instruction could only have come from a "leaf" expression.
  * For more on what leaf expressions are, read the comment for BC_PARSE_LEAF().
  * @param t  The instruction to test.
+ * @return   True if the instruction is a from a leaf expression.
  */
 static bool
 bc_parse_inst_isLeaf(BcInst t)
 {
-	return (t >= BC_INST_NUM && t <= BC_INST_MAXSCALE) ||
+	return (t >= BC_INST_NUM && t <= BC_INST_LEADING_ZERO) ||
 #if BC_ENABLE_EXTRA_MATH
 	       t == BC_INST_TRUNC ||
 #endif // BC_ENABLE_EXTRA_MATH
@@ -206,7 +207,7 @@ bc_parse_createCondLabel(BcParse* p, size_t idx)
 	bc_vec_push(&p->conds, &idx);
 }
 
-/*
+/**
  * Creates an exit label to be filled in later by bc_parse_setLabel(). Also, why
  * create a label to be filled in later? Because exit labels are meant to be
  * targeted by code that comes *before* the label. Since we have to parse that
@@ -254,25 +255,30 @@ bc_parse_operator(BcParse* p, BcLexType type, size_t start, size_t* nexprs)
 	uchar l, r = BC_PARSE_OP_PREC(type);
 	uchar left = BC_PARSE_OP_LEFT(type);
 
-	// While we haven't hit the stop point yet.
+	// While we haven't hit the stop point yet...
 	while (p->ops.len > start)
 	{
 		// Get the top operator.
 		t = BC_PARSE_TOP_OP(p);
 
-		// If it's a right paren, we have reached the end of whatever expression
-		// this is no matter what.
+		// If it's a left paren, we have reached the end of whatever expression
+		// this is no matter what. We also don't pop the left paren because it
+		// will need to stay for the rest of the subexpression.
 		if (t == BC_LEX_LPAREN) break;
 
 		// Break for precedence. Precedence operates differently on left and
 		// right associativity, by the way. A left associative operator that
 		// matches the current precedence should take priority, but a right
 		// associative operator should not.
+		//
+		// Also, a lower precedence value means a higher precedence.
 		l = BC_PARSE_OP_PREC(t);
 		if (l >= r && (l != r || !left)) break;
 
 		// Do the housekeeping. In particular, make sure to note that one
-		// expression was consumed. (Two were, but another was added.)
+		// expression was consumed (well, two were, but another was added) if
+		// the operator was not a prefix operator. (Postfix operators are not
+		// handled by this function at all.)
 		bc_parse_push(p, BC_PARSE_TOKEN_INST(t));
 		bc_vec_pop(&p->ops);
 		*nexprs -= !BC_PARSE_OP_PREFIX(t);
@@ -389,7 +395,11 @@ bc_parse_call(BcParse* p, const char* name, uint8_t flags)
 /**
  * Parses a name/identifier-based expression. It could be a variable, an array
  * element, an array itself (for function arguments), a function call, etc.
- *
+ * @param p           The parser.
+ * @param type        A pointer to return the resulting instruction.
+ * @param can_assign  A pointer to return true if the name can be assigned to,
+ *                    false otherwise.
+ * @param flags       Flags restricting what kind of expression the name can be.
  */
 static void
 bc_parse_name(BcParse* p, BcInst* type, bool* can_assign, uint8_t flags)
@@ -401,7 +411,7 @@ bc_parse_name(BcParse* p, BcInst* type, bool* can_assign, uint8_t flags)
 	// We want a copy of the name since the lexer might overwrite its copy.
 	name = bc_vm_strdup(p->l.str.v);
 
-	BC_SETJMP_LOCKED(err);
+	BC_SETJMP_LOCKED(vm, err);
 
 	// We need the next token to see if it's just a variable or something more.
 	bc_lex_next(&p->l);
@@ -474,7 +484,7 @@ bc_parse_name(BcParse* p, BcInst* type, bool* can_assign, uint8_t flags)
 err:
 	// Need to make sure to unallocate the name.
 	free(name);
-	BC_LONGJMP_CONT;
+	BC_LONGJMP_CONT(vm);
 	BC_SIG_MAYLOCK;
 }
 
@@ -522,7 +532,13 @@ bc_parse_builtin(BcParse* p, BcLexType type, uint8_t flags, BcInst* prev)
 	flags |= BC_PARSE_NEEDVAL;
 
 	// Since length can take arrays, we need to specially add that flag.
-	if (type == BC_LEX_KW_LENGTH) flags |= BC_PARSE_ARRAY;
+	if (type == BC_LEX_KW_LENGTH || type == BC_LEX_KW_ASCIIFY)
+	{
+		flags |= BC_PARSE_ARRAY;
+	}
+
+	// Otherwise, we need to clear it because it could be set.
+	else flags &= ~(BC_PARSE_ARRAY);
 
 	bc_parse_expr_status(p, flags, bc_parse_next_rel);
 
@@ -539,6 +555,10 @@ bc_parse_builtin(BcParse* p, BcLexType type, uint8_t flags, BcInst* prev)
 /**
  * Parses a builtin function that takes 3 arguments. This includes modexp() and
  * divmod().
+ * @param p      The parser.
+ * @param type   The lex token.
+ * @param flags  The expression parsing flags for parsing the argument.
+ * @param prev   An out parameter; the previous instruction pointer.
  */
 static void
 bc_parse_builtin3(BcParse* p, BcLexType type, uint8_t flags, BcInst* prev)
@@ -727,7 +747,7 @@ bc_parse_incdec(BcParse* p, BcInst* prev, bool* can_assign, size_t* nexs,
 		if (type == BC_LEX_NAME)
 		{
 			// Parse the name.
-			uint8_t flags2 = flags & ~BC_PARSE_ARRAY;
+			uint8_t flags2 = flags & ~(BC_PARSE_ARRAY);
 			bc_parse_name(p, prev, can_assign, flags2 | BC_PARSE_NOCALL);
 		}
 		// Is the next token a global?
@@ -1090,9 +1110,9 @@ bc_parse_endif(BcParse* p)
 	{
 		// We set this to restore it later. We don't want the parser thinking
 		// that we are on stdin for this one because it will want more.
-		bool is_stdin = vm.is_stdin;
+		BcMode mode = vm->mode;
 
-		vm.is_stdin = false;
+		vm->mode = BC_MODE_FILE;
 
 		// End all of the if statements and loops.
 		while (p->flags.len > 1 || BC_PARSE_IF_END(p))
@@ -1101,10 +1121,10 @@ bc_parse_endif(BcParse* p)
 			if (p->flags.len > 1) bc_parse_endBody(p, false);
 		}
 
-		vm.is_stdin = is_stdin;
+		vm->mode = (uchar) mode;
 	}
 	// If we reach here, a block was not properly closed, and we should error.
-	else bc_parse_err(&vm.prs, BC_ERR_PARSE_BLOCK);
+	else bc_parse_err(&vm->prs, BC_ERR_PARSE_BLOCK);
 }
 
 /**
@@ -1692,6 +1712,8 @@ bc_parse_stmt(BcParse* p)
 #endif // BC_ENABLE_EXTRA_MATH
 		case BC_LEX_KW_SQRT:
 		case BC_LEX_KW_ABS:
+		case BC_LEX_KW_IS_NUMBER:
+		case BC_LEX_KW_IS_STRING:
 #if BC_ENABLE_EXTRA_MATH
 		case BC_LEX_KW_IRAND:
 #endif // BC_ENABLE_EXTRA_MATH
@@ -1803,7 +1825,7 @@ bc_parse_stmt(BcParse* p)
 		{
 			// Quit is a compile-time command. We don't exit directly, so the vm
 			// can clean up.
-			vm.status = BC_STATUS_QUIT;
+			vm->status = BC_STATUS_QUIT;
 			BC_JMP;
 			break;
 		}
@@ -1820,7 +1842,78 @@ bc_parse_stmt(BcParse* p)
 			break;
 		}
 
-		default:
+		case BC_LEX_EOF:
+		case BC_LEX_INVALID:
+		case BC_LEX_NEG:
+#if BC_ENABLE_EXTRA_MATH
+		case BC_LEX_OP_TRUNC:
+#endif // BC_ENABLE_EXTRA_MATH
+		case BC_LEX_OP_POWER:
+		case BC_LEX_OP_MULTIPLY:
+		case BC_LEX_OP_DIVIDE:
+		case BC_LEX_OP_MODULUS:
+		case BC_LEX_OP_PLUS:
+#if BC_ENABLE_EXTRA_MATH
+		case BC_LEX_OP_PLACES:
+		case BC_LEX_OP_LSHIFT:
+		case BC_LEX_OP_RSHIFT:
+#endif // BC_ENABLE_EXTRA_MATH
+		case BC_LEX_OP_REL_EQ:
+		case BC_LEX_OP_REL_LE:
+		case BC_LEX_OP_REL_GE:
+		case BC_LEX_OP_REL_NE:
+		case BC_LEX_OP_REL_LT:
+		case BC_LEX_OP_REL_GT:
+		case BC_LEX_OP_BOOL_OR:
+		case BC_LEX_OP_BOOL_AND:
+		case BC_LEX_OP_ASSIGN_POWER:
+		case BC_LEX_OP_ASSIGN_MULTIPLY:
+		case BC_LEX_OP_ASSIGN_DIVIDE:
+		case BC_LEX_OP_ASSIGN_MODULUS:
+		case BC_LEX_OP_ASSIGN_PLUS:
+		case BC_LEX_OP_ASSIGN_MINUS:
+#if BC_ENABLE_EXTRA_MATH
+		case BC_LEX_OP_ASSIGN_PLACES:
+		case BC_LEX_OP_ASSIGN_LSHIFT:
+		case BC_LEX_OP_ASSIGN_RSHIFT:
+#endif // BC_ENABLE_EXTRA_MATH
+		case BC_LEX_OP_ASSIGN:
+		case BC_LEX_NLINE:
+		case BC_LEX_WHITESPACE:
+		case BC_LEX_RPAREN:
+		case BC_LEX_LBRACKET:
+		case BC_LEX_COMMA:
+		case BC_LEX_RBRACKET:
+		case BC_LEX_LBRACE:
+		case BC_LEX_KW_AUTO:
+		case BC_LEX_KW_DEFINE:
+#if DC_ENABLED
+		case BC_LEX_EXTENDED_REGISTERS:
+		case BC_LEX_EQ_NO_REG:
+		case BC_LEX_COLON:
+		case BC_LEX_EXECUTE:
+		case BC_LEX_PRINT_STACK:
+		case BC_LEX_CLEAR_STACK:
+		case BC_LEX_REG_STACK_LEVEL:
+		case BC_LEX_STACK_LEVEL:
+		case BC_LEX_DUPLICATE:
+		case BC_LEX_SWAP:
+		case BC_LEX_POP:
+		case BC_LEX_STORE_IBASE:
+		case BC_LEX_STORE_OBASE:
+		case BC_LEX_STORE_SCALE:
+#if BC_ENABLE_EXTRA_MATH
+		case BC_LEX_STORE_SEED:
+#endif // BC_ENABLE_EXTRA_MATH
+		case BC_LEX_LOAD:
+		case BC_LEX_LOAD_POP:
+		case BC_LEX_STORE_PUSH:
+		case BC_LEX_PRINT_POP:
+		case BC_LEX_NQUIT:
+		case BC_LEX_EXEC_STACK_LENGTH:
+		case BC_LEX_SCALE_FACTOR:
+		case BC_LEX_ARRAY_LENGTH:
+#endif // DC_ENABLED
 		{
 			bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 		}
@@ -1836,7 +1929,7 @@ bc_parse_stmt(BcParse* p)
 	}
 
 	// Make sure semicolons are eaten.
-	while (p->l.t == BC_LEX_SCOLON)
+	while (p->l.t == BC_LEX_SCOLON || p->l.t == BC_LEX_NLINE)
 	{
 		bc_lex_next(&p->l);
 	}
@@ -1855,7 +1948,7 @@ bc_parse_parse(BcParse* p)
 {
 	assert(p);
 
-	BC_SETJMP_LOCKED(exit);
+	BC_SETJMP_LOCKED(vm, exit);
 
 	// We should not let an EOF get here unless some partial parse was not
 	// completed, in which case, it's the user's fault.
@@ -1881,12 +1974,12 @@ bc_parse_parse(BcParse* p)
 exit:
 
 	// We need to reset on error.
-	if (BC_ERR(((vm.status && vm.status != BC_STATUS_QUIT) || vm.sig)))
+	if (BC_ERR(((vm->status && vm->status != BC_STATUS_QUIT) || vm->sig != 0)))
 	{
 		bc_parse_reset(p);
 	}
 
-	BC_LONGJMP_CONT;
+	BC_LONGJMP_CONT(vm);
 	BC_SIG_MAYLOCK;
 }
 
@@ -2223,6 +2316,8 @@ bc_parse_expr_err(BcParse* p, uint8_t flags, BcParseNext next)
 			case BC_LEX_KW_LENGTH:
 			case BC_LEX_KW_SQRT:
 			case BC_LEX_KW_ABS:
+			case BC_LEX_KW_IS_NUMBER:
+			case BC_LEX_KW_IS_STRING:
 #if BC_ENABLE_EXTRA_MATH
 			case BC_LEX_KW_IRAND:
 #endif // BC_ENABLE_EXTRA_MATH
@@ -2316,13 +2411,64 @@ bc_parse_expr_err(BcParse* p, uint8_t flags, BcParseNext next)
 				break;
 			}
 
-			default:
+			case BC_LEX_EOF:
+			case BC_LEX_INVALID:
+			case BC_LEX_NEG:
+			case BC_LEX_NLINE:
+			case BC_LEX_WHITESPACE:
+			case BC_LEX_LBRACKET:
+			case BC_LEX_COMMA:
+			case BC_LEX_RBRACKET:
+			case BC_LEX_LBRACE:
+			case BC_LEX_SCOLON:
+			case BC_LEX_RBRACE:
+			case BC_LEX_KW_AUTO:
+			case BC_LEX_KW_BREAK:
+			case BC_LEX_KW_CONTINUE:
+			case BC_LEX_KW_DEFINE:
+			case BC_LEX_KW_FOR:
+			case BC_LEX_KW_IF:
+			case BC_LEX_KW_LIMITS:
+			case BC_LEX_KW_RETURN:
+			case BC_LEX_KW_WHILE:
+			case BC_LEX_KW_HALT:
+			case BC_LEX_KW_PRINT:
+			case BC_LEX_KW_QUIT:
+			case BC_LEX_KW_STREAM:
+			case BC_LEX_KW_ELSE:
+#if DC_ENABLED
+			case BC_LEX_EXTENDED_REGISTERS:
+			case BC_LEX_EQ_NO_REG:
+			case BC_LEX_COLON:
+			case BC_LEX_EXECUTE:
+			case BC_LEX_PRINT_STACK:
+			case BC_LEX_CLEAR_STACK:
+			case BC_LEX_REG_STACK_LEVEL:
+			case BC_LEX_STACK_LEVEL:
+			case BC_LEX_DUPLICATE:
+			case BC_LEX_SWAP:
+			case BC_LEX_POP:
+			case BC_LEX_STORE_IBASE:
+			case BC_LEX_STORE_OBASE:
+			case BC_LEX_STORE_SCALE:
+#if BC_ENABLE_EXTRA_MATH
+			case BC_LEX_STORE_SEED:
+#endif // BC_ENABLE_EXTRA_MATH
+			case BC_LEX_LOAD:
+			case BC_LEX_LOAD_POP:
+			case BC_LEX_STORE_PUSH:
+			case BC_LEX_PRINT_POP:
+			case BC_LEX_NQUIT:
+			case BC_LEX_EXEC_STACK_LENGTH:
+			case BC_LEX_SCALE_FACTOR:
+			case BC_LEX_ARRAY_LENGTH:
+#endif // DC_ENABLED
 			{
-#ifndef NDEBUG
+#if BC_DEBUG
 				// We should never get here, even in debug builds.
 				bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 				break;
-#endif // NDEBUG
+#endif // BC_DEBUG
 			}
 		}
 

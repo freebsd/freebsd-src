@@ -35,12 +35,16 @@
 #if defined(__i386__) || defined(__amd64__)
 struct cpuinfo_x86 {
 	uint8_t		x86;
+	uint8_t		x86_model;
 	uint16_t	x86_clflush_size;
+	uint16_t	x86_max_cores;
 };
 
-#define	cpu_relax()	cpu_spinwait()
-
 extern struct cpuinfo_x86	boot_cpu_data;
+extern struct cpuinfo_x86	__cpu_data[];
+#define	cpu_data(cpu)	__cpu_data[cpu]
 #endif
+
+#define	cpu_relax()	cpu_spinwait()
 
 #endif	/* _LINUXKPI_ASM_PROCESSOR_H_ */

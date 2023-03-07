@@ -1555,13 +1555,12 @@ zio_crypt_init_uios_normal(boolean_t encrypt, uint8_t *plainbuf,
 	iovec_t *plain_iovecs = NULL, *cipher_iovecs = NULL;
 	void *src, *dst;
 
-	cipher_iovecs = kmem_alloc(nr_cipher * sizeof (iovec_t),
+	cipher_iovecs = kmem_zalloc(nr_cipher * sizeof (iovec_t),
 	    KM_SLEEP);
 	if (!cipher_iovecs) {
 		ret = SET_ERROR(ENOMEM);
 		goto error;
 	}
-	memset(cipher_iovecs, 0, nr_cipher * sizeof (iovec_t));
 
 	if (encrypt) {
 		src = plainbuf;
@@ -1735,7 +1734,6 @@ zio_do_crypt_data(boolean_t encrypt, zio_crypt_key_t *key,
 		goto error;
 	if (locked) {
 		rw_exit(&key->zk_salt_lock);
-		locked = B_FALSE;
 	}
 
 	if (authbuf != NULL)

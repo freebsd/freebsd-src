@@ -327,18 +327,40 @@ sg_alloc_table(struct sg_table *table, unsigned int nents, gfp_t gfp_mask)
 	return (ret);
 }
 
+#if defined(LINUXKPI_VERSION) && LINUXKPI_VERSION >= 51300
+static inline struct scatterlist *
+__sg_alloc_table_from_pages(struct sg_table *sgt,
+    struct page **pages, unsigned int count,
+    unsigned long off, unsigned long size,
+    unsigned int max_segment,
+    struct scatterlist *prv, unsigned int left_pages,
+    gfp_t gfp_mask)
+#else
 static inline int
 __sg_alloc_table_from_pages(struct sg_table *sgt,
     struct page **pages, unsigned int count,
     unsigned long off, unsigned long size,
     unsigned int max_segment, gfp_t gfp_mask)
+#endif
 {
 	unsigned int i, segs, cur, len;
 	int rc;
 	struct scatterlist *s;
 
+#if defined(LINUXKPI_VERSION) && LINUXKPI_VERSION >= 51300
+	if (prv != NULL) {
+		panic(
+		    "Support for prv != NULL not implemented in "
+		    "__sg_alloc_table_from_pages()");
+	}
+#endif
+
 	if (__predict_false(!max_segment || offset_in_page(max_segment)))
+#if defined(LINUXKPI_VERSION) && LINUXKPI_VERSION >= 51300
+		return (ERR_PTR(-EINVAL));
+#else
 		return (-EINVAL);
+#endif
 
 	len = 0;
 	for (segs = i = 1; i < count; ++i) {
@@ -350,12 +372,18 @@ __sg_alloc_table_from_pages(struct sg_table *sgt,
 		}
 	}
 	if (__predict_false((rc = sg_alloc_table(sgt, segs, gfp_mask))))
+#if defined(LINUXKPI_VERSION) && LINUXKPI_VERSION >= 51300
+		return (ERR_PTR(rc));
+#else
 		return (rc);
+#endif
 
 	cur = 0;
-	for_each_sg(sgt->sgl, s, sgt->orig_nents, i) {
+	for (i = 0, s = sgt->sgl; i < sgt->orig_nents; i++) {
 		unsigned long seg_size;
 		unsigned int j;
+
+		s = sg_next(s);
 
 		len = 0;
 		for (j = cur + 1; j < count; ++j) {
@@ -371,7 +399,16 @@ __sg_alloc_table_from_pages(struct sg_table *sgt,
 		off = 0;
 		cur = j;
 	}
+	KASSERT(s != NULL, ("s is NULL after loop in __sg_alloc_table_from_pages()"));
+
+#if defined(LINUXKPI_VERSION) && LINUXKPI_VERSION >= 51300
+	if (left_pages == 0)
+		sg_mark_end(s);
+
+	return (s);
+#else
 	return (0);
+#endif
 }
 
 static inline int
@@ -381,8 +418,27 @@ sg_alloc_table_from_pages(struct sg_table *sgt,
     gfp_t gfp_mask)
 {
 
+#if defined(LINUXKPI_VERSION) && LINUXKPI_VERSION >= 51300
+	return (PTR_ERR_OR_ZERO(__sg_alloc_table_from_pages(sgt, pages, count, off, size,
+	    SCATTERLIST_MAX_SEGMENT, NULL, 0, gfp_mask)));
+#else
 	return (__sg_alloc_table_from_pages(sgt, pages, count, off, size,
 	    SCATTERLIST_MAX_SEGMENT, gfp_mask));
+#endif
+}
+
+static inline int
+sg_alloc_table_from_pages_segment(struct sg_table *sgt,
+    struct page **pages, unsigned int count, unsigned int off,
+    unsigned long size, unsigned int max_segment, gfp_t gfp_mask)
+{
+#if defined(LINUXKPI_VERSION) && LINUXKPI_VERSION >= 51300
+	return (PTR_ERR_OR_ZERO(__sg_alloc_table_from_pages(sgt, pages, count, off, size,
+	    max_segment, NULL, 0, gfp_mask)));
+#else
+	return (__sg_alloc_table_from_pages(sgt, pages, count, off, size,
+	    max_segment, gfp_mask));
+#endif
 }
 
 static inline int

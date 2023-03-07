@@ -229,6 +229,18 @@ void MockFS::debug_request(const mockfs_buf_in &in, ssize_t buflen)
 		case FUSE_FSYNCDIR:
 			printf(" flags=%#x", in.body.fsyncdir.fsync_flags);
 			break;
+		case FUSE_GETLK:
+			printf(" fh=%#" PRIx64
+				" type=%u pid=%u",
+				in.body.getlk.fh,
+				in.body.getlk.lk.type,
+				in.body.getlk.lk.pid);
+			if (verbosity >= 2) {
+				printf(" range=[%" PRIi64 ":%" PRIi64 "]",
+					in.body.getlk.lk.start,
+					in.body.getlk.lk.end);
+			}
+			break;
 		case FUSE_INTERRUPT:
 			printf(" unique=%" PRIu64, in.body.interrupt.unique);
 			break;
@@ -338,7 +350,7 @@ void MockFS::debug_request(const mockfs_buf_in &in, ssize_t buflen)
 				in.body.setlk.lk.type,
 				in.body.setlk.lk.pid);
 			if (verbosity >= 2) {
-				printf(" range=[%" PRIu64 "-%" PRIu64 "]",
+				printf(" range=[%" PRIi64 ":%" PRIi64 "]",
 					in.body.setlk.lk.start,
 					in.body.setlk.lk.end);
 			}
@@ -419,7 +431,6 @@ MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
 	const bool trueval = true;
 
 	m_daemon_id = NULL;
-	m_expected_write_errno = 0;
 	m_kernel_minor_version = kernel_minor_version;
 	m_maxreadahead = max_readahead;
 	m_maxwrite = MIN(max_write, max_max_write);
@@ -789,7 +800,6 @@ void MockFS::loop() {
 
 		bzero(in.get(), sizeof(*in));
 		read_request(*in, buflen);
-		m_expected_write_errno = 0;
 		if (m_quit)
 			break;
 		if (verbosity > 0)
@@ -1022,9 +1032,9 @@ void MockFS::write_response(const mockfs_buf_out &out) {
 		FAIL() << "not yet implemented";
 	}
 	r = write(m_fuse_fd, &out, out.header.len);
-	if (m_expected_write_errno) {
+	if (out.expected_errno) {
 		ASSERT_EQ(-1, r);
-		ASSERT_EQ(m_expected_write_errno, errno) << strerror(errno);
+		ASSERT_EQ(out.expected_errno, errno) << strerror(errno);
 	} else {
 		ASSERT_TRUE(r > 0 || errno == EAGAIN) << strerror(errno);
 	}

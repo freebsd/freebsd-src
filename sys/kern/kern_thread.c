@@ -503,7 +503,6 @@ threadinit(void)
 {
 	u_long i;
 	lwpid_t tid0;
-	uint32_t flags;
 
 	/*
 	 * Place an upper limit on threads which can be allocated.
@@ -531,20 +530,9 @@ threadinit(void)
 	if (tid0 != THREAD0_TID)
 		panic("tid0 %d != %d\n", tid0, THREAD0_TID);
 
-	flags = UMA_ZONE_NOFREE;
-#ifdef __aarch64__
-	/*
-	 * Force thread structures to be allocated from the direct map.
-	 * Otherwise, superpage promotions and demotions may temporarily
-	 * invalidate thread structure mappings.  For most dynamically allocated
-	 * structures this is not a problem, but translation faults cannot be
-	 * handled without accessing curthread.
-	 */
-	flags |= UMA_ZONE_CONTIG;
-#endif
 	thread_zone = uma_zcreate("THREAD", sched_sizeof_thread(),
 	    thread_ctor, thread_dtor, thread_init, thread_fini,
-	    32 - 1, flags);
+	    32 - 1, UMA_ZONE_NOFREE);
 	tidhashtbl = hashinit(maxproc / 2, M_TIDHASH, &tidhash);
 	tidhashlock = (tidhash + 1) / 64;
 	if (tidhashlock > 0)
@@ -1163,8 +1151,8 @@ restart:
 		 * boundary, TDF_ALLPROCSUSP is used to avoid immediate
 		 * un-suspend.
 		 */
-		if (TD_IS_SUSPENDED(td2) && (td2->td_flags &
-		    TDF_ALLPROCSUSP) == 0) {
+		if (TD_IS_SUSPENDED(td2) &&
+		    (td2->td_flags & TDF_ALLPROCSUSP) == 0) {
 			wakeup_swapper |= thread_unsuspend_one(td2, p, false);
 			thread_lock(td2);
 			goto restart;

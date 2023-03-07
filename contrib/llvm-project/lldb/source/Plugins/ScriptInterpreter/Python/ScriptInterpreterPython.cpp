@@ -38,6 +38,7 @@
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/ThreadPlan.h"
 #include "lldb/Utility/Instrumentation.h"
+#include "lldb/Utility/LLDBLog.h"
 #include "lldb/Utility/Timer.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
@@ -59,16 +60,9 @@ using llvm::Expected;
 LLDB_PLUGIN_DEFINE(ScriptInterpreterPython)
 
 // Defined in the SWIG source file
-#if PY_MAJOR_VERSION >= 3
 extern "C" PyObject *PyInit__lldb(void);
 
 #define LLDBSwigPyInit PyInit__lldb
-
-#else
-extern "C" void init_lldb(void);
-
-#define LLDBSwigPyInit init_lldb
-#endif
 
 #if defined(_WIN32)
 // Don't mess with the signal handlers on Windows.
@@ -131,7 +125,7 @@ public:
 
   ~InitializePythonRAII() {
     if (m_was_already_initialized) {
-      Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_SCRIPT));
+      Log *log = GetLog(LLDBLog::Script);
       LLDB_LOGV(log, "Releasing PyGILState. Returning to state = {0}locked",
                 m_gil_state == PyGILState_UNLOCKED ? "un" : "");
       PyGILState_Release(m_gil_state);
@@ -144,11 +138,7 @@ public:
 private:
   void InitializePythonHome() {
 #if LLDB_EMBED_PYTHON_HOME
-#if PY_MAJOR_VERSION >= 3
-    typedef wchar_t* str_type;
-#else
-    typedef char* str_type;
-#endif
+    typedef wchar_t *str_type;
     static str_type g_python_home = []() -> str_type {
       const char *lldb_python_home = LLDB_PYTHON_HOME;
       const char *absolute_python_home = nullptr;
@@ -163,27 +153,12 @@ private:
         llvm::sys::path::append(path, lldb_python_home);
         absolute_python_home = path.c_str();
       }
-#if PY_MAJOR_VERSION >= 3
       size_t size = 0;
       return Py_DecodeLocale(absolute_python_home, &size);
-#else
-      return strdup(absolute_python_home);
-#endif
     }();
     if (g_python_home != nullptr) {
       Py_SetPythonHome(g_python_home);
     }
-#else
-#if defined(__APPLE__) && PY_MAJOR_VERSION == 2 && PY_MINOR_VERSION == 7
-    // For Darwin, the only Python version supported is the one shipped in the
-    // OS OS and linked with lldb. Other installation of Python may have higher
-    // priorities in the path, overriding PYTHONHOME and causing
-    // problems/incompatibilities. In order to avoid confusion, always hardcode
-    // the PythonHome to be right, as it's not going to change.
-    static char path[] =
-        "/System/Library/Frameworks/Python.framework/Versions/2.7";
-    Py_SetPythonHome(path);
-#endif
 #endif
   }
 
@@ -201,7 +176,7 @@ private:
 #endif
 
     if (PyEval_ThreadsInitialized()) {
-      Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_SCRIPT));
+      Log *log = GetLog(LLDBLog::Script);
 
       m_was_already_initialized = true;
       m_gil_state = PyGILState_Ensure();
@@ -380,7 +355,7 @@ ScriptInterpreterPythonImpl::Locker::Locker(
 }
 
 bool ScriptInterpreterPythonImpl::Locker::DoAcquireLock() {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_SCRIPT));
+  Log *log = GetLog(LLDBLog::Script);
   m_GILState = PyGILState_Ensure();
   LLDB_LOGV(log, "Ensured PyGILState. Previous state = {0}locked",
             m_GILState == PyGILState_UNLOCKED ? "un" : "");
@@ -404,7 +379,7 @@ bool ScriptInterpreterPythonImpl::Locker::DoInitSession(uint16_t on_entry_flags,
 }
 
 bool ScriptInterpreterPythonImpl::Locker::DoFreeLock() {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_SCRIPT));
+  Log *log = GetLog(LLDBLog::Script);
   LLDB_LOGV(log, "Releasing PyGILState. Returning to state = {0}locked",
             m_GILState == PyGILState_UNLOCKED ? "un" : "");
   PyGILState_Release(m_GILState);
@@ -590,7 +565,7 @@ ScriptInterpreterPythonImpl::CreateInstance(Debugger &debugger) {
 }
 
 void ScriptInterpreterPythonImpl::LeaveSession() {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_SCRIPT));
+  Log *log = GetLog(LLDBLog::Script);
   if (log)
     log->PutCString("ScriptInterpreterPythonImpl::LeaveSession()");
 
@@ -660,7 +635,7 @@ bool ScriptInterpreterPythonImpl::EnterSession(uint16_t on_entry_flags,
                                                FileSP err_sp) {
   // If we have already entered the session, without having officially 'left'
   // it, then there is no need to 'enter' it again.
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_SCRIPT));
+  Log *log = GetLog(LLDBLog::Script);
   if (m_session_is_active) {
     LLDB_LOGF(
         log,
@@ -962,7 +937,7 @@ bool ScriptInterpreterPythonImpl::Interrupt() {
   // just our (hardcoded) input signal code SIGINT, so that's not useful at all.
   return true;
 #else
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_SCRIPT));
+  Log *log = GetLog(LLDBLog::Script);
 
   if (IsExecutingPython()) {
     PyThreadState *state = PyThreadState_GET();
@@ -2662,7 +2637,7 @@ bool ScriptInterpreterPythonImpl::LoadScriptingModule(
                                          .SetSetLLDBGlobals(false);
 
   if (!pathname || !pathname[0]) {
-    error.SetErrorString("invalid pathname");
+    error.SetErrorString("empty path");
     return false;
   }
 
@@ -2722,7 +2697,6 @@ bool ScriptInterpreterPythonImpl::LoadScriptingModule(
   } else {
     FileSpec module_file(pathname);
     FileSystem::Instance().Resolve(module_file);
-    FileSystem::Instance().Collect(module_file);
 
     fs::file_status st;
     std::error_code ec = status(module_file.GetPath(), st);
@@ -2733,14 +2707,14 @@ bool ScriptInterpreterPythonImpl::LoadScriptingModule(
       // if not a valid file of any sort, check if it might be a filename still
       // dot can't be used but / and \ can, and if either is found, reject
       if (strchr(pathname, '\\') || strchr(pathname, '/')) {
-        error.SetErrorString("invalid pathname");
+        error.SetErrorStringWithFormatv("invalid pathname '{0}'", pathname);
         return false;
       }
       // Not a filename, probably a package of some sort, let it go through.
       possible_package = true;
     } else if (is_directory(st) || is_regular_file(st)) {
       if (module_file.GetDirectory().IsEmpty()) {
-        error.SetErrorString("invalid directory name");
+        error.SetErrorStringWithFormatv("invalid directory name '{0}'", pathname);
         return false;
       }
       if (llvm::Error e =

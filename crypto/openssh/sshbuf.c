@@ -1,4 +1,4 @@
-/*	$OpenBSD: sshbuf.c,v 1.15 2020/02/26 13:40:09 jsg Exp $	*/
+/*	$OpenBSD: sshbuf.c,v 1.19 2022/12/02 04:40:27 djm Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -15,7 +15,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#define SSHBUF_INTERNAL
 #include "includes.h"
 
 #include <sys/types.h>
@@ -25,8 +24,32 @@
 #include <string.h>
 
 #include "ssherr.h"
+#define SSHBUF_INTERNAL
 #include "sshbuf.h"
 #include "misc.h"
+
+#ifdef SSHBUF_DEBUG
+# define SSHBUF_TELL(what) do { \
+		printf("%s:%d %s: %s size %zu alloc %zu off %zu max %zu\n", \
+		    __FILE__, __LINE__, __func__, what, \
+		    buf->size, buf->alloc, buf->off, buf->max_size); \
+		fflush(stdout); \
+	} while (0)
+#else
+# define SSHBUF_TELL(what)
+#endif
+
+struct sshbuf {
+	u_char *d;		/* Data */
+	const u_char *cd;	/* Const data */
+	size_t off;		/* First available byte is buf->d + buf->off */
+	size_t size;		/* Last byte is buf->d + buf->size - 1 */
+	size_t max_size;	/* Maximum size of buffer */
+	size_t alloc;		/* Total bytes allocated to buf->d */
+	int readonly;		/* Refers to external, const data */
+	u_int refcount;		/* Tracks self and number of child buffers */
+	struct sshbuf *parent;	/* If child, pointer to parent */
+};
 
 static inline int
 sshbuf_check_sanity(const struct sshbuf *buf)
@@ -109,6 +132,8 @@ sshbuf_set_parent(struct sshbuf *child, struct sshbuf *parent)
 	if ((r = sshbuf_check_sanity(child)) != 0 ||
 	    (r = sshbuf_check_sanity(parent)) != 0)
 		return r;
+	if (child->parent != NULL && child->parent != parent)
+		return SSH_ERR_INTERNAL_ERROR;
 	child->parent = parent;
 	child->parent->refcount++;
 	return 0;
@@ -177,7 +202,8 @@ sshbuf_reset(struct sshbuf *buf)
 		buf->off = buf->size;
 		return;
 	}
-	(void) sshbuf_check_sanity(buf);
+	if (sshbuf_check_sanity(buf) != 0)
+		return;
 	buf->off = buf->size = 0;
 	if (buf->alloc != SSHBUF_SIZE_INIT) {
 		if ((d = recallocarray(buf->d, buf->alloc, SSHBUF_SIZE_INIT,
@@ -186,7 +212,7 @@ sshbuf_reset(struct sshbuf *buf)
 			buf->alloc = SSHBUF_SIZE_INIT;
 		}
 	}
-	explicit_bzero(buf->d, SSHBUF_SIZE_INIT);
+	explicit_bzero(buf->d, buf->alloc);
 }
 
 size_t

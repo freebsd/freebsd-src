@@ -1,4 +1,4 @@
-/*	$NetBSD: sys.h,v 1.27 2016/05/09 21:46:56 christos Exp $	*/
+/*	$NetBSD: sys.h,v 1.28 2023/02/04 14:34:28 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -65,49 +65,11 @@
 # define __arraycount(a) (sizeof(a) / sizeof(*(a)))
 #endif
 
-#include <stdio.h>
-
-#ifndef HAVE_STRLCAT
-#define	strlcat libedit_strlcat
-size_t	strlcat(char *dst, const char *src, size_t size);
-#endif
-
-#ifndef HAVE_STRLCPY
-#define	strlcpy libedit_strlcpy
-size_t	strlcpy(char *dst, const char *src, size_t size);
-#endif
-
-#ifndef HAVE_GETLINE
-#define	getline libedit_getline
-ssize_t	getline(char **line, size_t *len, FILE *fp);
-#endif
-
-#ifndef _DIAGASSERT
-#define _DIAGASSERT(x)
-#endif
-
 #ifndef __RCSID
 #define __RCSID(x)
 #endif
 
-#ifndef HAVE_U_INT32_T
-typedef unsigned int	u_int32_t;
-#endif
-
-#ifndef HAVE_SIZE_MAX
-#define SIZE_MAX	((size_t)-1)
-#endif
-
 #define	REGEX		/* Use POSIX.2 regular expression functions */
 #undef	REGEXP		/* Use UNIX V8 regular expression functions */
-
-#if defined(__sun)
-extern int tgetent(char *, const char *);
-extern int tgetflag(char *);
-extern int tgetnum(char *);
-extern int tputs(const char *, int, int (*)(int));
-extern char* tgoto(const char*, int, int);
-extern char* tgetstr(char*, char**);
-#endif
 
 #endif /* _h_sys */

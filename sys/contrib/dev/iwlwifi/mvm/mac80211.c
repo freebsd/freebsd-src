@@ -2432,7 +2432,8 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 }
 
 static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
-				 struct ieee80211_vif *vif)
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_bss_conf *link_conf)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
@@ -2558,8 +2559,22 @@ out_unlock:
 	return ret;
 }
 
+static int iwl_mvm_start_ap(struct ieee80211_hw *hw,
+			    struct ieee80211_vif *vif,
+			    struct ieee80211_bss_conf *link_conf)
+{
+	return iwl_mvm_start_ap_ibss(hw, vif, link_conf);
+}
+
+static int iwl_mvm_start_ibss(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif)
+{
+	return iwl_mvm_start_ap_ibss(hw, vif, &vif->bss_conf);
+}
+
 static void iwl_mvm_stop_ap_ibss(struct ieee80211_hw *hw,
-				 struct ieee80211_vif *vif)
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_bss_conf *link_conf)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
@@ -2620,6 +2635,19 @@ static void iwl_mvm_stop_ap_ibss(struct ieee80211_hw *hw,
 	iwl_mvm_mac_ctxt_remove(mvm, vif);
 
 	mutex_unlock(&mvm->mutex);
+}
+
+static void iwl_mvm_stop_ap(struct ieee80211_hw *hw,
+			    struct ieee80211_vif *vif,
+			    struct ieee80211_bss_conf *link_conf)
+{
+	iwl_mvm_stop_ap_ibss(hw, vif, link_conf);
+}
+
+static void iwl_mvm_stop_ibss(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif)
+{
+	iwl_mvm_stop_ap_ibss(hw, vif, &vif->bss_conf);
 }
 
 static void
@@ -3357,7 +3385,8 @@ static void iwl_mvm_sta_rc_update(struct ieee80211_hw *hw,
 }
 
 static int iwl_mvm_mac_conf_tx(struct ieee80211_hw *hw,
-			       struct ieee80211_vif *vif, u16 ac,
+			       struct ieee80211_vif *vif,
+			       unsigned int link_id, u16 ac,
 			       const struct ieee80211_tx_queue_params *params)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
@@ -4271,6 +4300,7 @@ out:
 }
 static int iwl_mvm_assign_vif_chanctx(struct ieee80211_hw *hw,
 				      struct ieee80211_vif *vif,
+				      struct ieee80211_bss_conf *link_conf,
 				      struct ieee80211_chanctx_conf *ctx)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
@@ -4344,6 +4374,7 @@ out:
 
 static void iwl_mvm_unassign_vif_chanctx(struct ieee80211_hw *hw,
 					 struct ieee80211_vif *vif,
+					 struct ieee80211_bss_conf *link_conf,
 					 struct ieee80211_chanctx_conf *ctx)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
@@ -5442,10 +5473,10 @@ const struct ieee80211_ops iwl_mvm_hw_ops = {
 	.unassign_vif_chanctx = iwl_mvm_unassign_vif_chanctx,
 	.switch_vif_chanctx = iwl_mvm_switch_vif_chanctx,
 
-	.start_ap = iwl_mvm_start_ap_ibss,
-	.stop_ap = iwl_mvm_stop_ap_ibss,
-	.join_ibss = iwl_mvm_start_ap_ibss,
-	.leave_ibss = iwl_mvm_stop_ap_ibss,
+	.start_ap = iwl_mvm_start_ap,
+	.stop_ap = iwl_mvm_stop_ap,
+	.join_ibss = iwl_mvm_start_ibss,
+	.leave_ibss = iwl_mvm_stop_ibss,
 
 	.tx_last_beacon = iwl_mvm_tx_last_beacon,
 

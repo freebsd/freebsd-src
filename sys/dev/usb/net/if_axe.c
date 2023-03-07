@@ -205,8 +205,8 @@ static uether_fn_t axe_setmulti;
 static uether_fn_t axe_setpromisc;
 
 static int	axe_attach_post_sub(struct usb_ether *);
-static int	axe_ifmedia_upd(struct ifnet *);
-static void	axe_ifmedia_sts(struct ifnet *, struct ifmediareq *);
+static int	axe_ifmedia_upd(if_t);
+static void	axe_ifmedia_sts(if_t, struct ifmediareq *);
 static int	axe_cmd(struct axe_softc *, int, int, int, void *);
 static void	axe_ax88178_init(struct axe_softc *);
 static void	axe_ax88772_init(struct axe_softc *);
@@ -214,10 +214,10 @@ static void	axe_ax88772_phywake(struct axe_softc *);
 static void	axe_ax88772a_init(struct axe_softc *);
 static void	axe_ax88772b_init(struct axe_softc *);
 static int	axe_get_phyno(struct axe_softc *, int);
-static int	axe_ioctl(struct ifnet *, u_long, caddr_t);
+static int	axe_ioctl(if_t, u_long, caddr_t);
 static int	axe_rx_frame(struct usb_ether *, struct usb_page_cache *, int);
 static int	axe_rxeof(struct usb_ether *, struct usb_page_cache *,
-		    unsigned int offset, unsigned int, struct axe_csum_hdr *);
+		    unsigned offset, unsigned, struct axe_csum_hdr *);
 static void	axe_csum_cfg(struct usb_ether *);
 
 static const struct usb_config axe_config[AXE_N_TRANSFER] = {
@@ -373,7 +373,7 @@ axe_miibus_statchg(device_t dev)
 {
 	struct axe_softc *sc = device_get_softc(dev);
 	struct mii_data *mii = GET_MII(sc);
-	struct ifnet *ifp;
+	if_t ifp;
 	uint16_t val;
 	int err, locked;
 
@@ -383,7 +383,7 @@ axe_miibus_statchg(device_t dev)
 
 	ifp = uether_getifp(&sc->sc_ue);
 	if (mii == NULL || ifp == NULL ||
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	    (if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
 		goto done;
 
 	sc->sc_flags &= ~AXE_FLAG_LINK;
@@ -448,9 +448,9 @@ done:
  * Set media options.
  */
 static int
-axe_ifmedia_upd(struct ifnet *ifp)
+axe_ifmedia_upd(if_t ifp)
 {
-	struct axe_softc *sc = ifp->if_softc;
+	struct axe_softc *sc = if_getsoftc(ifp);
 	struct mii_data *mii = GET_MII(sc);
 	struct mii_softc *miisc;
 	int error;
@@ -467,9 +467,9 @@ axe_ifmedia_upd(struct ifnet *ifp)
  * Report current media status.
  */
 static void
-axe_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+axe_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
-	struct axe_softc *sc = ifp->if_softc;
+	struct axe_softc *sc = if_getsoftc(ifp);
 	struct mii_data *mii = GET_MII(sc);
 
 	AXE_LOCK(sc);
@@ -495,7 +495,7 @@ static void
 axe_setmulti(struct usb_ether *ue)
 {
 	struct axe_softc *sc = uether_getsc(ue);
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 	uint16_t rxmode;
 	uint8_t hashtbl[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
@@ -504,7 +504,7 @@ axe_setmulti(struct usb_ether *ue)
 	axe_cmd(sc, AXE_CMD_RXCTL_READ, 0, 0, &rxmode);
 	rxmode = le16toh(rxmode);
 
-	if (ifp->if_flags & (IFF_ALLMULTI | IFF_PROMISC)) {
+	if (if_getflags(ifp) & (IFF_ALLMULTI | IFF_PROMISC)) {
 		rxmode |= AXE_RXCMD_ALLMULTI;
 		axe_cmd(sc, AXE_CMD_RXCTL_WRITE, 0, rxmode, NULL);
 		return;
@@ -865,25 +865,24 @@ static int
 axe_attach_post_sub(struct usb_ether *ue)
 {
 	struct axe_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	u_int adv_pause;
 	int error;
 
 	sc = uether_getsc(ue);
 	ifp = ue->ue_ifp;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_start = uether_start;
-	ifp->if_ioctl = axe_ioctl;
-	ifp->if_init = uether_init;
-	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
-	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
-	IFQ_SET_READY(&ifp->if_snd);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setstartfn(ifp, uether_start);
+	if_setioctlfn(ifp, axe_ioctl);
+	if_setinitfn(ifp, uether_init);
+	if_setsendqlen(ifp, ifqmaxlen);
+	if_setsendqready(ifp);
 
 	if (AXE_IS_178_FAMILY(sc))
-		ifp->if_capabilities |= IFCAP_VLAN_MTU;
+		if_setcapabilitiesbit(ifp, IFCAP_VLAN_MTU, 0);
 	if (sc->sc_flags & AXE_FLAG_772B) {
-		ifp->if_capabilities |= IFCAP_TXCSUM | IFCAP_RXCSUM;
-		ifp->if_hwassist = AXE_CSUM_FEATURES;
+		if_setcapabilitiesbit(ifp, IFCAP_TXCSUM | IFCAP_RXCSUM, 0);
+		if_sethwassist(ifp, AXE_CSUM_FEATURES);
 		/*
 		 * Checksum offloading of AX88772B also works with VLAN
 		 * tagged frames but there is no way to take advantage
@@ -894,7 +893,7 @@ axe_attach_post_sub(struct usb_ether *ue)
 		 * not possible to announce IFCAP_VLAN_HWTAGGING.
 		 */
 	}
-	ifp->if_capenable = ifp->if_capabilities;
+	if_setcapenable(ifp, if_getcapabilities(ifp));
 	if (sc->sc_flags & (AXE_FLAG_772A | AXE_FLAG_772B | AXE_FLAG_178))
 		adv_pause = MIIF_DOPAUSE;
 	else
@@ -1103,10 +1102,10 @@ axe_rx_frame(struct usb_ether *ue, struct usb_page_cache *pc, int actlen)
 }
 
 static int
-axe_rxeof(struct usb_ether *ue, struct usb_page_cache *pc, unsigned int offset,
-    unsigned int len, struct axe_csum_hdr *csum_hdr)
+axe_rxeof(struct usb_ether *ue, struct usb_page_cache *pc, unsigned offset,
+    unsigned len, struct axe_csum_hdr *csum_hdr)
 {
-	struct ifnet *ifp = ue->ue_ifp;
+	if_t ifp = ue->ue_ifp;
 	struct mbuf *m;
 
 	if (len < ETHER_HDR_LEN || len > MCLBYTES - ETHER_ALIGN) {
@@ -1157,7 +1156,7 @@ axe_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct axe_softc *sc = usbd_xfer_softc(xfer);
 	struct axe_sframe_hdr hdr;
-	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
+	if_t ifp = uether_getifp(&sc->sc_ue);
 	struct usb_page_cache *pc;
 	struct mbuf *m;
 	int nframes, pos;
@@ -1165,12 +1164,12 @@ axe_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		DPRINTFN(11, "transfer complete\n");
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
 		if ((sc->sc_flags & AXE_FLAG_LINK) == 0 ||
-		    (ifp->if_drv_flags & IFF_DRV_OACTIVE) != 0) {
+		    (if_getdrvflags(ifp) & IFF_DRV_OACTIVE) != 0) {
 			/*
 			 * Don't send anything if there is no link or
 			 * controller is busy.
@@ -1179,8 +1178,8 @@ tr_setup:
 		}
 
 		for (nframes = 0; nframes < 16 &&
-		    !IFQ_DRV_IS_EMPTY(&ifp->if_snd); nframes++) {
-			IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+		    !if_sendq_empty(ifp); nframes++) {
+			m = if_dequeue(ifp);
 			if (m == NULL)
 				break;
 			usbd_xfer_set_frame_offset(xfer, nframes * MCLBYTES,
@@ -1196,7 +1195,7 @@ tr_setup:
 				 * computed checksum for checksum offloading
 				 * enabled controller.
 				 */
-				if (ifp->if_capabilities & IFCAP_TXCSUM) {
+				if (if_getcapabilities(ifp) & IFCAP_TXCSUM) {
 					if ((m->m_pkthdr.csum_flags &
 					    AXE_CSUM_FEATURES) != 0)
 						hdr.len |= htole16(
@@ -1246,7 +1245,7 @@ tr_setup:
 		if (nframes != 0) {
 			usbd_xfer_set_frames(xfer, nframes);
 			usbd_transfer_submit(xfer);
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 		}
 		return;
 		/* NOTREACHED */
@@ -1255,7 +1254,7 @@ tr_setup:
 		    usbd_errstr(error));
 
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 
 		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
@@ -1298,7 +1297,7 @@ static void
 axe_csum_cfg(struct usb_ether *ue)
 {
 	struct axe_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint16_t csum1, csum2;
 
 	sc = uether_getsc(ue);
@@ -1308,13 +1307,13 @@ axe_csum_cfg(struct usb_ether *ue)
 		ifp = uether_getifp(ue);
 		csum1 = 0;
 		csum2 = 0;
-		if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
+		if ((if_getcapenable(ifp) & IFCAP_TXCSUM) != 0)
 			csum1 |= AXE_TXCSUM_IP | AXE_TXCSUM_TCP |
 			    AXE_TXCSUM_UDP;
 		axe_cmd(sc, AXE_772B_CMD_WRITE_TXCSUM, csum2, csum1, NULL);
 		csum1 = 0;
 		csum2 = 0;
-		if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
+		if ((if_getcapenable(ifp) & IFCAP_RXCSUM) != 0)
 			csum1 |= AXE_RXCSUM_IP | AXE_RXCSUM_IPVE |
 			    AXE_RXCSUM_TCP | AXE_RXCSUM_UDP | AXE_RXCSUM_ICMP |
 			    AXE_RXCSUM_IGMP;
@@ -1326,12 +1325,12 @@ static void
 axe_init(struct usb_ether *ue)
 {
 	struct axe_softc *sc = uether_getsc(ue);
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 	uint16_t rxmode;
 
 	AXE_LOCK_ASSERT(sc, MA_OWNED);
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0)
 		return;
 
 	/* Cancel pending I/O */
@@ -1341,11 +1340,11 @@ axe_init(struct usb_ether *ue)
 
 	/* Set MAC address and transmitter IPG values. */
 	if (AXE_IS_178_FAMILY(sc)) {
-		axe_cmd(sc, AXE_178_CMD_WRITE_NODEID, 0, 0, IF_LLADDR(ifp));
+		axe_cmd(sc, AXE_178_CMD_WRITE_NODEID, 0, 0, if_getlladdr(ifp));
 		axe_cmd(sc, AXE_178_CMD_WRITE_IPG012, sc->sc_ipgs[2],
 		    (sc->sc_ipgs[1] << 8) | (sc->sc_ipgs[0]), NULL);
 	} else {
-		axe_cmd(sc, AXE_172_CMD_WRITE_NODEID, 0, 0, IF_LLADDR(ifp));
+		axe_cmd(sc, AXE_172_CMD_WRITE_NODEID, 0, 0, if_getlladdr(ifp));
 		axe_cmd(sc, AXE_172_CMD_WRITE_IPG0, 0, sc->sc_ipgs[0], NULL);
 		axe_cmd(sc, AXE_172_CMD_WRITE_IPG1, 0, sc->sc_ipgs[1], NULL);
 		axe_cmd(sc, AXE_172_CMD_WRITE_IPG2, 0, sc->sc_ipgs[2], NULL);
@@ -1354,7 +1353,7 @@ axe_init(struct usb_ether *ue)
 	if (AXE_IS_178_FAMILY(sc)) {
 		sc->sc_flags &= ~(AXE_FLAG_STD_FRAME | AXE_FLAG_CSUM_FRAME);
 		if ((sc->sc_flags & AXE_FLAG_772B) != 0 &&
-		    (ifp->if_capenable & IFCAP_RXCSUM) != 0) {
+		    (if_getcapenable(ifp) & IFCAP_RXCSUM) != 0) {
 			sc->sc_lenmask = AXE_CSUM_HDR_LEN_MASK;
 			sc->sc_flags |= AXE_FLAG_CSUM_FRAME;
 		} else {
@@ -1388,7 +1387,7 @@ axe_init(struct usb_ether *ue)
 			 * header size.
 			 */
 			rxmode |= AXE_772B_RXCMD_HDR_TYPE_1;
-			if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
+			if ((if_getcapenable(ifp) & IFCAP_RXCSUM) != 0)
 				rxmode |= AXE_772B_RXCMD_IPHDR_ALIGN;
 		} else {
 			/*
@@ -1402,10 +1401,10 @@ axe_init(struct usb_ether *ue)
 	}
 
 	/* If we want promiscuous mode, set the allframes bit. */
-	if (ifp->if_flags & IFF_PROMISC)
+	if (if_getflags(ifp) & IFF_PROMISC)
 		rxmode |= AXE_RXCMD_PROMISC;
 
-	if (ifp->if_flags & IFF_BROADCAST)
+	if (if_getflags(ifp) & IFF_BROADCAST)
 		rxmode |= AXE_RXCMD_BROADCAST;
 
 	axe_cmd(sc, AXE_CMD_RXCTL_WRITE, 0, rxmode, NULL);
@@ -1415,7 +1414,7 @@ axe_init(struct usb_ether *ue)
 
 	usbd_xfer_set_stall(sc->sc_xfer[AXE_BULK_DT_WR]);
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
 	/* Switch to selected media. */
 	axe_ifmedia_upd(ifp);
 }
@@ -1424,14 +1423,14 @@ static void
 axe_setpromisc(struct usb_ether *ue)
 {
 	struct axe_softc *sc = uether_getsc(ue);
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 	uint16_t rxmode;
 
 	axe_cmd(sc, AXE_CMD_RXCTL_READ, 0, 0, &rxmode);
 
 	rxmode = le16toh(rxmode);
 
-	if (ifp->if_flags & IFF_PROMISC) {
+	if (if_getflags(ifp) & IFF_PROMISC) {
 		rxmode |= AXE_RXCMD_PROMISC;
 	} else {
 		rxmode &= ~AXE_RXCMD_PROMISC;
@@ -1446,11 +1445,11 @@ static void
 axe_stop(struct usb_ether *ue)
 {
 	struct axe_softc *sc = uether_getsc(ue);
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 
 	AXE_LOCK_ASSERT(sc, MA_OWNED);
 
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	if_setdrvflagbits(ifp, 0, (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
 	sc->sc_flags &= ~AXE_FLAG_LINK;
 
 	/*
@@ -1461,9 +1460,9 @@ axe_stop(struct usb_ether *ue)
 }
 
 static int
-axe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+axe_ioctl(if_t ifp, u_long cmd, caddr_t data)
 {
-	struct usb_ether *ue = ifp->if_softc;
+	struct usb_ether *ue = if_getsoftc(ifp);
 	struct axe_softc *sc;
 	struct ifreq *ifr;
 	int error, mask, reinit;
@@ -1474,23 +1473,23 @@ axe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	reinit = 0;
 	if (cmd == SIOCSIFCAP) {
 		AXE_LOCK(sc);
-		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+		mask = ifr->ifr_reqcap ^ if_getcapenable(ifp);
 		if ((mask & IFCAP_TXCSUM) != 0 &&
-		    (ifp->if_capabilities & IFCAP_TXCSUM) != 0) {
-			ifp->if_capenable ^= IFCAP_TXCSUM;
-			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
-				ifp->if_hwassist |= AXE_CSUM_FEATURES;
+		    (if_getcapabilities(ifp) & IFCAP_TXCSUM) != 0) {
+			if_togglecapenable(ifp, IFCAP_TXCSUM);
+			if ((if_getcapenable(ifp) & IFCAP_TXCSUM) != 0)
+				if_sethwassistbits(ifp, AXE_CSUM_FEATURES, 0);
 			else
-				ifp->if_hwassist &= ~AXE_CSUM_FEATURES;
+				if_sethwassistbits(ifp, 0, AXE_CSUM_FEATURES);
 			reinit++;
 		}
 		if ((mask & IFCAP_RXCSUM) != 0 &&
-		    (ifp->if_capabilities & IFCAP_RXCSUM) != 0) {
-			ifp->if_capenable ^= IFCAP_RXCSUM;
+		    (if_getcapabilities(ifp) & IFCAP_RXCSUM) != 0) {
+			if_togglecapenable(ifp, IFCAP_RXCSUM);
 			reinit++;
 		}
-		if (reinit > 0 && ifp->if_drv_flags & IFF_DRV_RUNNING)
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		if (reinit > 0 && if_getdrvflags(ifp) & IFF_DRV_RUNNING)
+			if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 		else
 			reinit = 0;
 		AXE_UNLOCK(sc);

@@ -56,6 +56,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/uma.h>
 
+#include <machine/stack.h>
+
 #include <ck_epoch.h>
 
 #ifdef __amd64__
@@ -468,9 +470,7 @@ _epoch_enter_preempt(epoch_t epoch, epoch_tracker_t et EPOCH_FILE_LINE)
 
 	MPASS(cold || epoch != NULL);
 	td = curthread;
-	MPASS((vm_offset_t)et >= td->td_kstack &&
-	    (vm_offset_t)et + sizeof(struct epoch_tracker) <=
-	    td->td_kstack + td->td_kstack_pages * PAGE_SIZE);
+	MPASS(kstack_contains(td, (vm_offset_t)et, sizeof(*et)));
 
 	INIT_CHECK(epoch);
 	MPASS(epoch->e_flags & EPOCH_PREEMPT);

@@ -35,6 +35,7 @@
 
 #define	cache_line_size()	CACHE_LINE_SIZE
 #define	L1_CACHE_BYTES		CACHE_LINE_SIZE
+#define	L1_CACHE_ALIGN(x)	ALIGN(x, CACHE_LINE_SIZE)
 
 #define	SMP_CACHE_BYTES		L1_CACHE_BYTES
 

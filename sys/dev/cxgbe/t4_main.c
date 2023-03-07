@@ -112,8 +112,8 @@ static device_method_t t4_methods[] = {
 	DEVMETHOD(device_resume,	t4_resume),
 
 	DEVMETHOD(bus_child_location,	t4_child_location),
-	DEVMETHOD(bus_reset_prepare, 	t4_reset_prepare),
-	DEVMETHOD(bus_reset_post, 	t4_reset_post),
+	DEVMETHOD(bus_reset_prepare,	t4_reset_prepare),
+	DEVMETHOD(bus_reset_post,	t4_reset_post),
 
 	DEVMETHOD(t4_is_main_ready,	t4_ready),
 	DEVMETHOD(t4_read_port_device,	t4_read_port_device),
@@ -177,8 +177,8 @@ static device_method_t t5_methods[] = {
 	DEVMETHOD(device_resume,	t4_resume),
 
 	DEVMETHOD(bus_child_location,	t4_child_location),
-	DEVMETHOD(bus_reset_prepare, 	t4_reset_prepare),
-	DEVMETHOD(bus_reset_post, 	t4_reset_post),
+	DEVMETHOD(bus_reset_prepare,	t4_reset_prepare),
+	DEVMETHOD(bus_reset_post,	t4_reset_post),
 
 	DEVMETHOD(t4_is_main_ready,	t4_ready),
 	DEVMETHOD(t4_read_port_device,	t4_read_port_device),
@@ -216,8 +216,8 @@ static device_method_t t6_methods[] = {
 	DEVMETHOD(device_resume,	t4_resume),
 
 	DEVMETHOD(bus_child_location,	t4_child_location),
-	DEVMETHOD(bus_reset_prepare, 	t4_reset_prepare),
-	DEVMETHOD(bus_reset_post, 	t4_reset_post),
+	DEVMETHOD(bus_reset_prepare,	t4_reset_prepare),
+	DEVMETHOD(bus_reset_post,	t4_reset_post),
 
 	DEVMETHOD(t4_is_main_ready,	t4_ready),
 	DEVMETHOD(t4_read_port_device,	t4_read_port_device),
@@ -414,11 +414,6 @@ SYSCTL_INT(_hw_cxgbe_toe_rexmt_backoff, OID_AUTO, 14, CTLFLAG_RDTUN,
     &t4_toe_rexmt_backoff[14], 0, "");
 SYSCTL_INT(_hw_cxgbe_toe_rexmt_backoff, OID_AUTO, 15, CTLFLAG_RDTUN,
     &t4_toe_rexmt_backoff[15], 0, "");
-
-static int t4_toe_tls_rx_timeout = 5;
-SYSCTL_INT(_hw_cxgbe_toe, OID_AUTO, tls_rx_timeout, CTLFLAG_RDTUN,
-    &t4_toe_tls_rx_timeout, 0,
-    "Timeout in seconds to downgrade TLS sockets to plain TOE");
 #endif
 
 #ifdef DEV_NETMAP
@@ -833,8 +828,6 @@ static int sysctl_cpus(SYSCTL_HANDLER_ARGS);
 static int sysctl_reset(SYSCTL_HANDLER_ARGS);
 #ifdef TCP_OFFLOAD
 static int sysctl_tls(SYSCTL_HANDLER_ARGS);
-static int sysctl_tls_rx_ports(SYSCTL_HANDLER_ARGS);
-static int sysctl_tls_rx_timeout(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_tick(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_dack_timer(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_timer(SYSCTL_HANDLER_ARGS);
@@ -1109,6 +1102,70 @@ t4_ifnet_unit(struct adapter *sc, struct port_info *pi)
 	return (-1);
 }
 
+static void
+t4_calibration(void *arg)
+{
+	struct adapter *sc;
+	struct clock_sync *cur, *nex;
+	uint64_t hw;
+	sbintime_t sbt;
+	int next_up;
+
+	sc = (struct adapter *)arg;
+
+	KASSERT((hw_off_limits(sc) == 0), ("hw_off_limits at t4_calibration"));
+	hw = t4_read_reg64(sc, A_SGE_TIMESTAMP_LO);
+	sbt = sbinuptime();
+
+	cur = &sc->cal_info[sc->cal_current];
+	next_up = (sc->cal_current + 1) % CNT_CAL_INFO;
+	nex = &sc->cal_info[next_up];
+	if (__predict_false(sc->cal_count == 0)) {
+		/* First time in, just get the values in */
+		cur->hw_cur = hw;
+		cur->sbt_cur = sbt;
+		sc->cal_count++;
+		goto done;
+	}
+
+	if (cur->hw_cur == hw) {
+		/* The clock is not advancing? */
+		sc->cal_count = 0;
+		atomic_store_rel_int(&cur->gen, 0);
+		goto done;
+	}
+
+	seqc_write_begin(&nex->gen);
+	nex->hw_prev = cur->hw_cur;
+	nex->sbt_prev = cur->sbt_cur;
+	nex->hw_cur = hw;
+	nex->sbt_cur = sbt;
+	seqc_write_end(&nex->gen);
+	sc->cal_current = next_up;
+done:
+	callout_reset_sbt_curcpu(&sc->cal_callout, SBT_1S, 0, t4_calibration,
+	    sc, C_DIRECT_EXEC);
+}
+
+static void
+t4_calibration_start(struct adapter *sc)
+{
+	/*
+	 * Here if we have not done a calibration
+	 * then do so otherwise start the appropriate
+	 * timer.
+	 */
+	int i;
+
+	for (i = 0; i < CNT_CAL_INFO; i++) {
+		sc->cal_info[i].gen = 0;
+	}
+	sc->cal_current = 0;
+	sc->cal_count = 0;
+	sc->cal_gen = 0;
+	t4_calibration(sc);
+}
+
 static int
 t4_attach(device_t dev)
 {
@@ -1176,6 +1233,8 @@ t4_attach(device_t dev)
 	rw_init(&sc->policy_lock, "connection offload policy");
 
 	callout_init(&sc->ktls_tick, 1);
+
+	callout_init(&sc->cal_callout, 1);
 
 	refcount_init(&sc->vxlan_refcount, 0);
 
@@ -1567,6 +1626,7 @@ t4_attach(device_t dev)
 		    "failed to attach all child ports: %d\n", rc);
 		goto done;
 	}
+	t4_calibration_start(sc);
 
 	device_printf(dev,
 	    "PCIe gen%d x%d, %d ports, %d %s interrupt%s, %d eq, %d iq\n",
@@ -1742,7 +1802,8 @@ t4_detach_common(device_t dev)
 			free(pi, M_CXGBE);
 		}
 	}
-
+	callout_stop(&sc->cal_callout);
+	callout_drain(&sc->cal_callout);
 	device_delete_children(dev);
 	sysctl_ctx_free(&sc->ctx);
 	adapter_full_uninit(sc);
@@ -1799,7 +1860,6 @@ t4_detach_common(device_t dev)
 	free(sc->tids.hpftid_tab, M_CXGBE);
 	free_hftid_hash(&sc->tids);
 	free(sc->tids.tid_tab, M_CXGBE);
-	free(sc->tt.tls_rx_ports, M_CXGBE);
 	t4_destroy_dma_tag(sc);
 
 	callout_drain(&sc->ktls_tick);
@@ -1992,6 +2052,10 @@ t4_suspend(device_t dev)
 		sc->sge.fwq.flags &= ~IQ_HW_ALLOCATED;
 		quiesce_iq_fl(sc, &sc->sge.fwq, NULL);
 	}
+
+	/* Stop calibration */
+	callout_stop(&sc->cal_callout);
+	callout_drain(&sc->cal_callout);
 
 	/* Mark the adapter totally off limits. */
 	mtx_lock(&sc->reg_lock);
@@ -2359,6 +2423,10 @@ t4_resume(device_t dev)
 			}
 		}
 	}
+
+	/* Reset all calibration */
+	t4_calibration_start(sc);
+
 done:
 	if (rc == 0) {
 		sc->incarnation++;
@@ -2994,16 +3062,16 @@ cxgbe_transmit(struct ifnet *ifp, struct mbuf *m)
 
 	rc = parse_pkt(&m, vi->flags & TX_USES_VM_WR);
 	if (__predict_false(rc != 0)) {
+		if (__predict_true(rc == EINPROGRESS)) {
+			/* queued by parse_pkt */
+			MPASS(m != NULL);
+			return (0);
+		}
+
 		MPASS(m == NULL);			/* was freed already */
 		atomic_add_int(&pi->tx_parse_error, 1);	/* rare, atomic is ok */
 		return (rc);
 	}
-#ifdef RATELIMIT
-	if (m->m_pkthdr.csum_flags & CSUM_SND_TAG) {
-		if (m->m_pkthdr.snd_tag->sw->type == IF_SND_TAG_TYPE_RATE_LIMIT)
-			return (ethofld_transmit(ifp, m));
-	}
-#endif
 
 	/* Select a txq. */
 	sc = vi->adapter;
@@ -5667,10 +5735,9 @@ set_params__post_init(struct adapter *sc)
 	if (sc->cryptocaps & FW_CAPS_CONFIG_TLSKEYS &&
 	    sc->toecaps & FW_CAPS_CONFIG_TOE) {
 		/*
-		 * Limit TOE connections to 2 reassembly "islands".  This is
-		 * required for TOE TLS connections to downgrade to plain TOE
-		 * connections if an unsupported TLS version or ciphersuite is
-		 * used.
+		 * Limit TOE connections to 2 reassembly "islands".
+		 * This is required to permit migrating TOE
+		 * connections to UPL_MODE_TLS.
 		 */
 		t4_tp_wr_bits_indirect(sc, A_TP_FRAG_CONFIG,
 		    V_PASSMODE(M_PASSMODE), V_PASSMODE(2));
@@ -7607,17 +7674,6 @@ t4_sysctls(struct adapter *sc)
 		    CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0, sysctl_tls, "I",
 		    "Inline TLS allowed");
 
-		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tls_rx_ports",
-		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
-		    sysctl_tls_rx_ports, "I",
-		    "TCP ports that use inline TLS+TOE RX");
-
-		sc->tt.tls_rx_timeout = t4_toe_tls_rx_timeout;
-		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tls_rx_timeout",
-		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
-		    sysctl_tls_rx_timeout, "I",
-		    "Timeout in seconds to downgrade TLS sockets to plain TOE");
-
 		sc->tt.tx_align = -1;
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "tx_align",
 		    CTLFLAG_RW, &sc->tt.tx_align, 0, "chop and align payload");
@@ -9059,7 +9115,7 @@ dump_cimla(struct adapter *sc)
 		rc = sbuf_finish(&sb);
 		if (rc == 0) {
 			log(LOG_DEBUG, "%s: CIM LA dump follows.\n%s\n",
-		    		device_get_nameunit(sc->dev), sbuf_data(&sb));
+			    device_get_nameunit(sc->dev), sbuf_data(&sb));
 		}
 	}
 	sbuf_delete(&sb);
@@ -9500,7 +9556,7 @@ dump_devlog(struct adapter *sc)
 		rc = sbuf_finish(&sb);
 		if (rc == 0) {
 			log(LOG_DEBUG, "%s: device log follows.\n%s",
-		    		device_get_nameunit(sc->dev), sbuf_data(&sb));
+			    device_get_nameunit(sc->dev), sbuf_data(&sb));
 		}
 	}
 	sbuf_delete(&sb);
@@ -11211,97 +11267,6 @@ sysctl_tls(SYSCTL_HANDLER_ARGS)
 
 }
 
-static int
-sysctl_tls_rx_ports(SYSCTL_HANDLER_ARGS)
-{
-	struct adapter *sc = arg1;
-	int *old_ports, *new_ports;
-	int i, new_count, rc;
-
-	if (req->newptr == NULL && req->oldptr == NULL)
-		return (SYSCTL_OUT(req, NULL, imax(sc->tt.num_tls_rx_ports, 1) *
-		    sizeof(sc->tt.tls_rx_ports[0])));
-
-	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4tlsrx");
-	if (rc)
-		return (rc);
-
-	if (hw_off_limits(sc)) {
-		rc = ENXIO;
-		goto done;
-	}
-
-	if (sc->tt.num_tls_rx_ports == 0) {
-		i = -1;
-		rc = SYSCTL_OUT(req, &i, sizeof(i));
-	} else
-		rc = SYSCTL_OUT(req, sc->tt.tls_rx_ports,
-		    sc->tt.num_tls_rx_ports * sizeof(sc->tt.tls_rx_ports[0]));
-	if (rc == 0 && req->newptr != NULL) {
-		new_count = req->newlen / sizeof(new_ports[0]);
-		new_ports = malloc(new_count * sizeof(new_ports[0]), M_CXGBE,
-		    M_WAITOK);
-		rc = SYSCTL_IN(req, new_ports, new_count *
-		    sizeof(new_ports[0]));
-		if (rc)
-			goto err;
-
-		/* Allow setting to a single '-1' to clear the list. */
-		if (new_count == 1 && new_ports[0] == -1) {
-			ADAPTER_LOCK(sc);
-			old_ports = sc->tt.tls_rx_ports;
-			sc->tt.tls_rx_ports = NULL;
-			sc->tt.num_tls_rx_ports = 0;
-			ADAPTER_UNLOCK(sc);
-			free(old_ports, M_CXGBE);
-		} else {
-			for (i = 0; i < new_count; i++) {
-				if (new_ports[i] < 1 ||
-				    new_ports[i] > IPPORT_MAX) {
-					rc = EINVAL;
-					goto err;
-				}
-			}
-
-			ADAPTER_LOCK(sc);
-			old_ports = sc->tt.tls_rx_ports;
-			sc->tt.tls_rx_ports = new_ports;
-			sc->tt.num_tls_rx_ports = new_count;
-			ADAPTER_UNLOCK(sc);
-			free(old_ports, M_CXGBE);
-			new_ports = NULL;
-		}
-	err:
-		free(new_ports, M_CXGBE);
-	}
-done:
-	end_synchronized_op(sc, 0);
-	return (rc);
-}
-
-static int
-sysctl_tls_rx_timeout(SYSCTL_HANDLER_ARGS)
-{
-	struct adapter *sc = arg1;
-	int v, rc;
-
-	v = sc->tt.tls_rx_timeout;
-	rc = sysctl_handle_int(oidp, &v, 0, req);
-	if (rc != 0 || req->newptr == NULL)
-		return (rc);
-
-	if (v < 0)
-		return (EINVAL);
-
-	if (v != 0 && !(sc->cryptocaps & FW_CAPS_CONFIG_TLSKEYS))
-		return (ENOTSUP);
-
-	sc->tt.tls_rx_timeout = v;
-
-	return (0);
-
-}
-
 static void
 unit_conv(char *buf, size_t len, u_int val, u_int factor)
 {
@@ -12793,9 +12758,6 @@ tweak_tunables(void)
 
 	if (t4_pktc_idx_ofld < -1 || t4_pktc_idx_ofld >= SGE_NCOUNTERS)
 		t4_pktc_idx_ofld = PKTC_IDX_OFLD;
-
-	if (t4_toe_tls_rx_timeout < 0)
-		t4_toe_tls_rx_timeout = 0;
 #else
 	if (t4_rdmacaps_allowed == -1)
 		t4_rdmacaps_allowed = 0;
@@ -13004,7 +12966,7 @@ DB_FUNC(tcb, db_show_t4tcb, db_t4_table, CS_OWN, NULL)
 			tid = db_tok_number;
 			valid = true;
 		}
-	}	
+	}
 	db_radix = radix;
 	db_skip_to_eol();
 	if (!valid) {
@@ -13278,6 +13240,7 @@ MODULE_DEPEND(t5nex, netmap, 1, 1, 1);
 
 DRIVER_MODULE(t6nex, pci, t6_driver, mod_event, 0);
 MODULE_VERSION(t6nex, 1);
+MODULE_DEPEND(t6nex, crypto, 1, 1, 1);
 MODULE_DEPEND(t6nex, firmware, 1, 1, 1);
 #ifdef DEV_NETMAP
 MODULE_DEPEND(t6nex, netmap, 1, 1, 1);

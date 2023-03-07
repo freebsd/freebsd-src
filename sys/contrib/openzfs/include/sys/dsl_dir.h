@@ -52,6 +52,7 @@ struct zthr;
 #define	DD_FIELD_SNAPSHOT_COUNT		"com.joyent:snapshot_count"
 #define	DD_FIELD_CRYPTO_KEY_OBJ		"com.datto:crypto_key_obj"
 #define	DD_FIELD_LIVELIST		"com.delphix:livelist"
+#define	DD_FIELD_SNAPSHOTS_CHANGED	"com.ixsystems:snapshots_changed"
 
 typedef enum dd_used {
 	DD_USED_HEAD,
@@ -115,7 +116,7 @@ struct dsl_dir {
 	/* gross estimate of space used by in-flight tx's */
 	uint64_t dd_tempreserved[TXG_SIZE];
 	/* amount of space we expect to write; == amount of dirty data */
-	int64_t dd_space_towrite[TXG_SIZE];
+	uint64_t dd_space_towrite[TXG_SIZE];
 
 	dsl_deadlist_t dd_livelist;
 	bplist_t dd_pending_frees;

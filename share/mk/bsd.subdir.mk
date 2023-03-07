@@ -64,6 +64,11 @@ STANDALONE_SUBDIR_TARGETS+= realinstall
 
 .include <bsd.init.mk>
 
+.if ${MK_META_MODE} == "yes"
+.MAKE.JOB.PREFIX=
+ECHODIR=	:
+.endif
+
 .if make(print-dir)
 NEED_SUBDIR=	1
 ECHODIR=	:

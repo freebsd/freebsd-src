@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 23, 2012
+.Dd March 1, 2023
 .Dt UUIDGEN 1
 .Os
 .Sh NAME
@@ -33,6 +33,8 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl 1
+.Op Fl r
+.Op Fl c
 .Op Fl n Ar count
 .Op Fl o Ar filename
 .Sh DESCRIPTION
@@ -50,6 +52,10 @@ This option only has effect if multiple identifiers are to be generated and
 instructs
 .Nm
 to not generate them in batch, but one at a time.
+.It Fl r
+This option controls creation of random UUID (version 4).
+.It Fl c
+This option controls creation of compact UUID (without hyphen).
 .It Fl n
 This option controls the number of identifiers generated.
 By default, multiple identifiers are generated in batch.

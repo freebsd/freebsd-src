@@ -683,12 +683,7 @@ autofs_node_vn(struct autofs_node *anp, struct mount *mp, int flags,
 		return (error);
 	}
 
-	error = vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-	if (error != 0) {
-		sx_xunlock(&anp->an_vnode_lock);
-		vdrop(vp);
-		return (error);
-	}
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 
 	vp->v_type = VDIR;
 	if (anp->an_parent == NULL)
@@ -709,6 +704,7 @@ autofs_node_vn(struct autofs_node *anp, struct mount *mp, int flags,
 
 	sx_xunlock(&anp->an_vnode_lock);
 
+	vn_set_state(vp, VSTATE_CONSTRUCTED);
 	*vpp = vp;
 	return (0);
 }

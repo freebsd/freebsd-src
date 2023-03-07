@@ -1,311 +1,161 @@
 /*
  * strcpy/stpcpy - copy a string returning pointer to start/end.
  *
- * Copyright (c) 2013-2020, Arm Limited.
+ * Copyright (c) 2020-2022, Arm Limited.
  * SPDX-License-Identifier: MIT
  */
 
 /* Assumptions:
  *
- * ARMv8-a, AArch64, unaligned accesses, min page size 4k.
+ * ARMv8-a, AArch64, Advanced SIMD.
+ * MTE compatible.
  */
 
 #include "../asmdefs.h"
 
-/* To build as stpcpy, define BUILD_STPCPY before compiling this file.
-
-   To test the page crossing code path more thoroughly, compile with
-   -DSTRCPY_TEST_PAGE_CROSS - this will force all copies through the slower
-   entry path.  This option is not intended for production use.  */
-
-/* Arguments and results.  */
 #define dstin		x0
 #define srcin		x1
+#define result		x0
 
-/* Locals and temporaries.  */
 #define src		x2
 #define dst		x3
-#define data1		x4
-#define data1w		w4
-#define data2		x5
-#define data2w		w5
-#define has_nul1	x6
-#define has_nul2	x7
-#define tmp1		x8
-#define tmp2		x9
-#define tmp3		x10
-#define tmp4		x11
-#define zeroones	x12
-#define data1a		x13
-#define data2a		x14
-#define pos		x15
-#define len		x16
-#define to_align	x17
+#define len		x4
+#define synd		x4
+#define	tmp		x5
+#define wtmp		w5
+#define shift		x5
+#define data1		x6
+#define dataw1		w6
+#define data2		x7
+#define dataw2		w7
+
+#define dataq		q0
+#define vdata		v0
+#define vhas_nul	v1
+#define vrepmask	v2
+#define vend		v3
+#define dend		d3
+#define dataq2		q1
 
 #ifdef BUILD_STPCPY
-#define STRCPY __stpcpy_aarch64
+# define STRCPY __stpcpy_aarch64
+# define IFSTPCPY(X,...) X,__VA_ARGS__
 #else
-#define STRCPY __strcpy_aarch64
+# define STRCPY __strcpy_aarch64
+# define IFSTPCPY(X,...)
 #endif
 
-	/* NUL detection works on the principle that (X - 1) & (~X) & 0x80
-	   (=> (X - 1) & ~(X | 0x7f)) is non-zero iff a byte is zero, and
-	   can be done in parallel across the entire word.  */
+/* Core algorithm:
 
-#define REP8_01 0x0101010101010101
-#define REP8_7f 0x7f7f7f7f7f7f7f7f
-#define REP8_80 0x8080808080808080
-
-	/* AArch64 systems have a minimum page size of 4k.  We can do a quick
-	   page size check for crossing this boundary on entry and if we
-	   do not, then we can short-circuit much of the entry code.  We
-	   expect early page-crossing strings to be rare (probability of
-	   16/MIN_PAGE_SIZE ~= 0.4%), so the branch should be quite
-	   predictable, even with random strings.
-
-	   We don't bother checking for larger page sizes, the cost of setting
-	   up the correct page size is just not worth the extra gain from
-	   a small reduction in the cases taking the slow path.  Note that
-	   we only care about whether the first fetch, which may be
-	   misaligned, crosses a page boundary - after that we move to aligned
-	   fetches for the remainder of the string.  */
-
-#ifdef STRCPY_TEST_PAGE_CROSS
-	/* Make everything that isn't Qword aligned look like a page cross.  */
-#define MIN_PAGE_P2 4
-#else
-#define MIN_PAGE_P2 12
-#endif
-
-#define MIN_PAGE_SIZE (1 << MIN_PAGE_P2)
+   For each 16-byte chunk we calculate a 64-bit syndrome value with four bits
+   per byte. For even bytes, bits 0-3 are set if the relevant byte matched the
+   requested character or the byte is NUL. Bits 4-7 must be zero. Bits 4-7 are
+   set likewise for odd bytes so that adjacent bytes can be merged. Since the
+   bits in the syndrome reflect the order in which things occur in the original
+   string, counting trailing zeros identifies exactly which byte matched.  */
 
 ENTRY (STRCPY)
 	PTR_ARG (0)
 	PTR_ARG (1)
-	/* For moderately short strings, the fastest way to do the copy is to
-	   calculate the length of the string in the same way as strlen, then
-	   essentially do a memcpy of the result.  This avoids the need for
-	   multiple byte copies and further means that by the time we
-	   reach the bulk copy loop we know we can always use DWord
-	   accesses.  We expect __strcpy_aarch64 to rarely be called repeatedly
-	   with the same source string, so branch prediction is likely to
-	   always be difficult - we mitigate against this by preferring
-	   conditional select operations over branches whenever this is
-	   feasible.  */
-	and	tmp2, srcin, #(MIN_PAGE_SIZE - 1)
-	mov	zeroones, #REP8_01
-	and	to_align, srcin, #15
-	cmp	tmp2, #(MIN_PAGE_SIZE - 16)
-	neg	tmp1, to_align
-	/* The first fetch will straddle a (possible) page boundary iff
-	   srcin + 15 causes bit[MIN_PAGE_P2] to change value.  A 16-byte
-	   aligned string will never fail the page align check, so will
-	   always take the fast path.  */
-	b.gt	L(page_cross)
+	bic	src, srcin, 15
+	mov	wtmp, 0xf00f
+	ld1	{vdata.16b}, [src]
+	dup	vrepmask.8h, wtmp
+	cmeq	vhas_nul.16b, vdata.16b, 0
+	lsl	shift, srcin, 2
+	and	vhas_nul.16b, vhas_nul.16b, vrepmask.16b
+	addp	vend.16b, vhas_nul.16b, vhas_nul.16b
+	fmov	synd, dend
+	lsr	synd, synd, shift
+	cbnz	synd, L(tail)
 
-L(page_cross_ok):
-	ldp	data1, data2, [srcin]
-#ifdef __AARCH64EB__
-	/* Because we expect the end to be found within 16 characters
-	   (profiling shows this is the most common case), it's worth
-	   swapping the bytes now to save having to recalculate the
-	   termination syndrome later.  We preserve data1 and data2
-	   so that we can re-use the values later on.  */
-	rev	tmp2, data1
-	sub	tmp1, tmp2, zeroones
-	orr	tmp2, tmp2, #REP8_7f
-	bics	has_nul1, tmp1, tmp2
-	b.ne	L(fp_le8)
-	rev	tmp4, data2
-	sub	tmp3, tmp4, zeroones
-	orr	tmp4, tmp4, #REP8_7f
-#else
-	sub	tmp1, data1, zeroones
-	orr	tmp2, data1, #REP8_7f
-	bics	has_nul1, tmp1, tmp2
-	b.ne	L(fp_le8)
-	sub	tmp3, data2, zeroones
-	orr	tmp4, data2, #REP8_7f
-#endif
-	bics	has_nul2, tmp3, tmp4
-	b.eq	L(bulk_entry)
+	ldr	dataq, [src, 16]!
+	cmeq	vhas_nul.16b, vdata.16b, 0
+	and	vhas_nul.16b, vhas_nul.16b, vrepmask.16b
+	addp	vend.16b, vhas_nul.16b, vhas_nul.16b
+	fmov	synd, dend
+	cbz	synd, L(start_loop)
 
-	/* The string is short (<=16 bytes).  We don't know exactly how
-	   short though, yet.  Work out the exact length so that we can
-	   quickly select the optimal copy strategy.  */
-L(fp_gt8):
-	rev	has_nul2, has_nul2
-	clz	pos, has_nul2
-	mov	tmp2, #56
-	add	dst, dstin, pos, lsr #3		/* Bits to bytes.  */
-	sub	pos, tmp2, pos
-#ifdef __AARCH64EB__
-	lsr	data2, data2, pos
-#else
-	lsl	data2, data2, pos
+#ifndef __AARCH64EB__
+	rbit	synd, synd
 #endif
-	str	data2, [dst, #1]
+	sub	tmp, src, srcin
+	clz	len, synd
+	add	len, tmp, len, lsr 2
+	tbz	len, 4, L(less16)
+	sub	tmp, len, 15
+	ldr	dataq, [srcin]
+	ldr	dataq2, [srcin, tmp]
+	str	dataq, [dstin]
+	str	dataq2, [dstin, tmp]
+	IFSTPCPY (add result, dstin, len)
+	ret
+
+	.p2align 4,,8
+L(tail):
+	rbit	synd, synd
+	clz	len, synd
+	lsr	len, len, 2
+
+	.p2align 4
+L(less16):
+	tbz	len, 3, L(less8)
+	sub	tmp, len, 7
+	ldr	data1, [srcin]
+	ldr	data2, [srcin, tmp]
 	str	data1, [dstin]
-#ifdef BUILD_STPCPY
-	add	dstin, dst, #8
-#endif
+	str	data2, [dstin, tmp]
+	IFSTPCPY (add result, dstin, len)
 	ret
 
-L(fp_le8):
-	rev	has_nul1, has_nul1
-	clz	pos, has_nul1
-	add	dst, dstin, pos, lsr #3		/* Bits to bytes.  */
-	subs	tmp2, pos, #24			/* Pos in bits. */
-	b.lt	L(fp_lt4)
-#ifdef __AARCH64EB__
-	mov	tmp2, #56
-	sub	pos, tmp2, pos
-	lsr	data2, data1, pos
-	lsr	data1, data1, #32
-#else
-	lsr	data2, data1, tmp2
-#endif
-	/* 4->7 bytes to copy.  */
-	str	data2w, [dst, #-3]
-	str	data1w, [dstin]
-#ifdef BUILD_STPCPY
-	mov	dstin, dst
-#endif
-	ret
-L(fp_lt4):
-	cbz	pos, L(fp_lt2)
-	/* 2->3 bytes to copy.  */
-#ifdef __AARCH64EB__
-	lsr	data1, data1, #48
-#endif
-	strh	data1w, [dstin]
-	/* Fall-through, one byte (max) to go.  */
-L(fp_lt2):
-	/* Null-terminated string.  Last character must be zero!  */
-	strb	wzr, [dst]
-#ifdef BUILD_STPCPY
-	mov	dstin, dst
-#endif
+	.p2align 4
+L(less8):
+	subs	tmp, len, 3
+	b.lo	L(less4)
+	ldr	dataw1, [srcin]
+	ldr	dataw2, [srcin, tmp]
+	str	dataw1, [dstin]
+	str	dataw2, [dstin, tmp]
+	IFSTPCPY (add result, dstin, len)
 	ret
 
-	.p2align 6
-	/* Aligning here ensures that the entry code and main loop all lies
-	   within one 64-byte cache line.  */
-L(bulk_entry):
-	sub	to_align, to_align, #16
-	stp	data1, data2, [dstin]
-	sub	src, srcin, to_align
-	sub	dst, dstin, to_align
-	b	L(entry_no_page_cross)
-
-	/* The inner loop deals with two Dwords at a time.  This has a
-	   slightly higher start-up cost, but we should win quite quickly,
-	   especially on cores with a high number of issue slots per
-	   cycle, as we get much better parallelism out of the operations.  */
-L(main_loop):
-	stp	data1, data2, [dst], #16
-L(entry_no_page_cross):
-	ldp	data1, data2, [src], #16
-	sub	tmp1, data1, zeroones
-	orr	tmp2, data1, #REP8_7f
-	sub	tmp3, data2, zeroones
-	orr	tmp4, data2, #REP8_7f
-	bic	has_nul1, tmp1, tmp2
-	bics	has_nul2, tmp3, tmp4
-	ccmp	has_nul1, #0, #0, eq	/* NZCV = 0000  */
-	b.eq	L(main_loop)
-
-	/* Since we know we are copying at least 16 bytes, the fastest way
-	   to deal with the tail is to determine the location of the
-	   trailing NUL, then (re)copy the 16 bytes leading up to that.  */
-	cmp	has_nul1, #0
-#ifdef __AARCH64EB__
-	/* For big-endian, carry propagation (if the final byte in the
-	   string is 0x01) means we cannot use has_nul directly.  The
-	   easiest way to get the correct byte is to byte-swap the data
-	   and calculate the syndrome a second time.  */
-	csel	data1, data1, data2, ne
-	rev	data1, data1
-	sub	tmp1, data1, zeroones
-	orr	tmp2, data1, #REP8_7f
-	bic	has_nul1, tmp1, tmp2
-#else
-	csel	has_nul1, has_nul1, has_nul2, ne
-#endif
-	rev	has_nul1, has_nul1
-	clz	pos, has_nul1
-	add	tmp1, pos, #72
-	add	pos, pos, #8
-	csel	pos, pos, tmp1, ne
-	add	src, src, pos, lsr #3
-	add	dst, dst, pos, lsr #3
-	ldp	data1, data2, [src, #-32]
-	stp	data1, data2, [dst, #-16]
-#ifdef BUILD_STPCPY
-	sub	dstin, dst, #1
-#endif
+L(less4):
+	cbz	len, L(zerobyte)
+	ldrh	dataw1, [srcin]
+	strh	dataw1, [dstin]
+L(zerobyte):
+	strb	wzr, [dstin, len]
+	IFSTPCPY (add result, dstin, len)
 	ret
 
-L(page_cross):
-	bic	src, srcin, #15
-	/* Start by loading two words at [srcin & ~15], then forcing the
-	   bytes that precede srcin to 0xff.  This means they never look
-	   like termination bytes.  */
-	ldp	data1, data2, [src]
-	lsl	tmp1, tmp1, #3	/* Bytes beyond alignment -> bits.  */
-	tst	to_align, #7
-	csetm	tmp2, ne
-#ifdef __AARCH64EB__
-	lsl	tmp2, tmp2, tmp1	/* Shift (tmp1 & 63).  */
-#else
-	lsr	tmp2, tmp2, tmp1	/* Shift (tmp1 & 63).  */
+	.p2align 4
+L(start_loop):
+	sub	len, src, srcin
+	ldr	dataq2, [srcin]
+	add	dst, dstin, len
+	str	dataq2, [dstin]
+
+	.p2align 5
+L(loop):
+	str	dataq, [dst], 16
+	ldr	dataq, [src, 16]!
+	cmeq	vhas_nul.16b, vdata.16b, 0
+	umaxp	vend.16b, vhas_nul.16b, vhas_nul.16b
+	fmov	synd, dend
+	cbz	synd, L(loop)
+
+	and	vhas_nul.16b, vhas_nul.16b, vrepmask.16b
+	addp	vend.16b, vhas_nul.16b, vhas_nul.16b		/* 128->64 */
+	fmov	synd, dend
+#ifndef __AARCH64EB__
+	rbit	synd, synd
 #endif
-	orr	data1, data1, tmp2
-	orr	data2a, data2, tmp2
-	cmp	to_align, #8
-	csinv	data1, data1, xzr, lt
-	csel	data2, data2, data2a, lt
-	sub	tmp1, data1, zeroones
-	orr	tmp2, data1, #REP8_7f
-	sub	tmp3, data2, zeroones
-	orr	tmp4, data2, #REP8_7f
-	bic	has_nul1, tmp1, tmp2
-	bics	has_nul2, tmp3, tmp4
-	ccmp	has_nul1, #0, #0, eq	/* NZCV = 0000  */
-	b.eq	L(page_cross_ok)
-	/* We now need to make data1 and data2 look like they've been
-	   loaded directly from srcin.  Do a rotate on the 128-bit value.  */
-	lsl	tmp1, to_align, #3	/* Bytes->bits.  */
-	neg	tmp2, to_align, lsl #3
-#ifdef __AARCH64EB__
-	lsl	data1a, data1, tmp1
-	lsr	tmp4, data2, tmp2
-	lsl	data2, data2, tmp1
-	orr	tmp4, tmp4, data1a
-	cmp	to_align, #8
-	csel	data1, tmp4, data2, lt
-	rev	tmp2, data1
-	rev	tmp4, data2
-	sub	tmp1, tmp2, zeroones
-	orr	tmp2, tmp2, #REP8_7f
-	sub	tmp3, tmp4, zeroones
-	orr	tmp4, tmp4, #REP8_7f
-#else
-	lsr	data1a, data1, tmp1
-	lsl	tmp4, data2, tmp2
-	lsr	data2, data2, tmp1
-	orr	tmp4, tmp4, data1a
-	cmp	to_align, #8
-	csel	data1, tmp4, data2, lt
-	sub	tmp1, data1, zeroones
-	orr	tmp2, data1, #REP8_7f
-	sub	tmp3, data2, zeroones
-	orr	tmp4, data2, #REP8_7f
-#endif
-	bic	has_nul1, tmp1, tmp2
-	cbnz	has_nul1, L(fp_le8)
-	bic	has_nul2, tmp3, tmp4
-	b	L(fp_gt8)
+	clz	len, synd
+	lsr	len, len, 2
+	sub	tmp, len, 15
+	ldr	dataq, [src, tmp]
+	str	dataq, [dst, tmp]
+	IFSTPCPY (add result, dst, len)
+	ret
 
 END (STRCPY)
-

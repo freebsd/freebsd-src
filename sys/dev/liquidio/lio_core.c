@@ -44,7 +44,7 @@
 #include "lio_network.h"
 
 int
-lio_set_feature(struct ifnet *ifp, int cmd, uint16_t param1)
+lio_set_feature(if_t ifp, int cmd, uint16_t param1)
 {
 	struct lio_ctrl_pkt	nctrl;
 	struct lio		*lio = if_getsoftc(ifp);
@@ -263,7 +263,7 @@ lio_push_packet(void *m_buff, uint32_t len, union octeon_rh *rh, void *rxq,
 		void *arg)
 {
 	struct mbuf	*mbuf = m_buff;
-	struct ifnet	*ifp = arg;
+	if_t		ifp = arg;
 	struct lio_droq	*droq = rxq;
 
 	if (ifp != NULL) {
@@ -407,7 +407,7 @@ lio_setup_io_queues(struct octeon_device *octeon_dev, int ifidx,
 		    uint32_t num_iqs, uint32_t num_oqs)
 {
 	struct lio_droq_ops	droq_ops;
-	struct ifnet		*ifp;
+	if_t			ifp;
 	struct lio_droq		*droq;
 	struct lio		*lio;
 	static int		cpu_id, cpu_id_modulus;

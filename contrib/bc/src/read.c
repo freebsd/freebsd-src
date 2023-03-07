@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -143,12 +143,12 @@ bc_read_chars(BcVec* vec, const char* prompt)
 	// Handle the prompt, if desired.
 	if (BC_PROMPT)
 	{
-		bc_file_puts(&vm.fout, bc_flush_none, prompt);
-		bc_file_flush(&vm.fout, bc_flush_none);
+		bc_file_puts(&vm->fout, bc_flush_none, prompt);
+		bc_file_flush(&vm->fout, bc_flush_none);
 	}
 
 	// Try reading from the buffer, and if successful, just return.
-	if (bc_read_buf(vec, vm.buf, &vm.buf_len))
+	if (bc_read_buf(vec, vm->buf, &vm->buf_len))
 	{
 		bc_vec_pushByte(vec, '\0');
 		return BC_STATUS_SUCCESS;
@@ -162,8 +162,8 @@ bc_read_chars(BcVec* vec, const char* prompt)
 		BC_SIG_LOCK;
 
 		// Read data from stdin.
-		r = read(STDIN_FILENO, vm.buf + vm.buf_len,
-		         BC_VM_STDIN_BUF_SIZE - vm.buf_len);
+		r = read(STDIN_FILENO, vm->buf + vm->buf_len,
+		         BC_VM_STDIN_BUF_SIZE - vm->buf_len);
 
 		// If there was an error...
 		if (BC_UNLIKELY(r < 0))
@@ -171,20 +171,34 @@ bc_read_chars(BcVec* vec, const char* prompt)
 			// If interupted...
 			if (errno == EINTR)
 			{
+				int sig;
+
 				// Jump out if we are supposed to quit, which certain signals
 				// will require.
-				if (vm.status == (sig_atomic_t) BC_STATUS_QUIT) BC_JMP;
+				if (vm->status == (sig_atomic_t) BC_STATUS_QUIT) BC_JMP;
 
-				assert(vm.sig);
+				assert(vm->sig != 0);
+
+				sig = (int) vm->sig;
 
 				// Clear the signal and status.
-				vm.sig = 0;
-				vm.status = (sig_atomic_t) BC_STATUS_SUCCESS;
+				vm->sig = 0;
+				vm->status = (sig_atomic_t) BC_STATUS_SUCCESS;
 
-				// Print the ready message and prompt again.
-				bc_file_puts(&vm.fout, bc_flush_none, bc_program_ready_msg);
-				if (BC_PROMPT) bc_file_puts(&vm.fout, bc_flush_none, prompt);
-				bc_file_flush(&vm.fout, bc_flush_none);
+#ifndef _WIN32
+				// We don't want to print anything on a SIGWINCH.
+				if (sig != SIGWINCH)
+#endif // _WIN32
+				{
+					// Print the ready message and prompt again.
+					bc_file_puts(&vm->fout, bc_flush_none,
+					             bc_program_ready_msg);
+					if (BC_PROMPT)
+					{
+						bc_file_puts(&vm->fout, bc_flush_none, prompt);
+					}
+					bc_file_flush(&vm->fout, bc_flush_none);
+				}
 
 				BC_SIG_UNLOCK;
 
@@ -209,11 +223,11 @@ bc_read_chars(BcVec* vec, const char* prompt)
 		BC_SIG_LOCK;
 
 		// Add to the buffer.
-		vm.buf_len += (size_t) r;
-		vm.buf[vm.buf_len] = '\0';
+		vm->buf_len += (size_t) r;
+		vm->buf[vm->buf_len] = '\0';
 
 		// Read from the buffer.
-		done = bc_read_buf(vec, vm.buf, &vm.buf_len);
+		done = bc_read_buf(vec, vm->buf, &vm->buf_len);
 
 		BC_SIG_UNLOCK;
 	}
@@ -231,9 +245,9 @@ bc_read_line(BcVec* vec, const char* prompt)
 
 #if BC_ENABLE_HISTORY
 	// Get a line from either history or manual reading.
-	if (BC_TTY && !vm.history.badTerm)
+	if (BC_TTY && !vm->history.badTerm)
 	{
-		s = bc_history_line(&vm.history, vec, prompt);
+		s = bc_history_line(&vm->history, vec, prompt);
 	}
 	else s = bc_read_chars(vec, prompt);
 #else // BC_ENABLE_HISTORY
@@ -265,11 +279,11 @@ bc_read_file(const char* path)
 
 	assert(path != NULL);
 
-#ifndef NDEBUG
+#if BC_DEBUG
 	// Need this to quiet MSan.
 	// NOLINTNEXTLINE
 	memset(&pstat, 0, sizeof(struct stat));
-#endif // NDEBUG
+#endif // BC_DEBUG
 
 	fd = bc_read_open(path, O_RDONLY);
 

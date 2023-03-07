@@ -11,7 +11,6 @@ PACKAGE=	runtime
 FILES=		termcap termcap.db
 FILESDIR=	${BINDIR}/misc
 CLEANFILES+=	termcap.db
-CONFS=		termcap.small
 
 .include <bsd.endian.mk>
 .include <src.tools.mk>

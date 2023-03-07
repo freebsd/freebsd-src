@@ -48,7 +48,7 @@ const char *autobaud(void);
 int	 delaybits(void);
 void	 edithost(const char *);
 void	 gendefaults(void);
-void	 gettable(const char *, char *);
+void	 gettable(const char *);
 void	 makeenv(char *[]);
 const char *portselector(void);
 void	 set_ttydefaults(int);

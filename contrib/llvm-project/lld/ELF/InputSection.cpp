@@ -8,25 +8,20 @@
 
 #include "InputSection.h"
 #include "Config.h"
-#include "EhFrame.h"
 #include "InputFiles.h"
-#include "LinkerScript.h"
 #include "OutputSections.h"
 #include "Relocations.h"
 #include "SymbolTable.h"
 #include "Symbols.h"
 #include "SyntheticSections.h"
 #include "Target.h"
-#include "Thunks.h"
 #include "lld/Common/CommonLinkerContext.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Compression.h"
 #include "llvm/Support/Endian.h"
-#include "llvm/Support/Threading.h"
 #include "llvm/Support/xxhash.h"
 #include <algorithm>
 #include <mutex>
-#include <set>
 #include <vector>
 
 using namespace llvm;
@@ -75,16 +70,10 @@ InputSectionBase::InputSectionBase(InputFile *file, uint64_t flags,
     fatal(toString(this) + ": sh_addralign is not a power of 2");
   this->alignment = v;
 
-  // In ELF, each section can be compressed by zlib, and if compressed,
-  // section name may be mangled by appending "z" (e.g. ".zdebug_info").
-  // If that's the case, demangle section name so that we can handle a
-  // section as if it weren't compressed.
-  if ((flags & SHF_COMPRESSED) || name.startswith(".zdebug")) {
-    if (!zlib::isAvailable())
-      error(toString(file) + ": contains a compressed section, " +
-            "but zlib is not available");
+  // If SHF_COMPRESSED is set, parse the header. The legacy .zdebug format is no
+  // longer supported.
+  if (flags & SHF_COMPRESSED)
     invokeELFT(parseCompressedHeader);
-  }
 }
 
 // Drop SHF_GROUP bit unless we are producing a re-linkable object file.
@@ -122,17 +111,17 @@ size_t InputSectionBase::getSize() const {
 
 void InputSectionBase::uncompress() const {
   size_t size = uncompressedSize;
-  char *uncompressedBuf;
+  uint8_t *uncompressedBuf;
   {
     static std::mutex mu;
     std::lock_guard<std::mutex> lock(mu);
-    uncompressedBuf = bAlloc().Allocate<char>(size);
+    uncompressedBuf = bAlloc().Allocate<uint8_t>(size);
   }
 
-  if (Error e = zlib::uncompress(toStringRef(rawData), uncompressedBuf, size))
+  if (Error e = compression::zlib::uncompress(rawData, uncompressedBuf, size))
     fatal(toString(this) +
           ": uncompress failed: " + llvm::toString(std::move(e)));
-  rawData = makeArrayRef((uint8_t *)uncompressedBuf, size);
+  rawData = makeArrayRef(uncompressedBuf, size);
   uncompressedSize = -1;
 }
 
@@ -165,11 +154,19 @@ uint64_t SectionBase::getOffset(uint64_t offset) const {
   case Regular:
   case Synthetic:
     return cast<InputSection>(this)->outSecOff + offset;
-  case EHFrame:
-    // The file crtbeginT.o has relocations pointing to the start of an empty
-    // .eh_frame that is known to be the first in the link. It does that to
-    // identify the start of the output .eh_frame.
+  case EHFrame: {
+    // Two code paths may reach here. First, clang_rt.crtbegin.o and GCC
+    // crtbeginT.o may reference the start of an empty .eh_frame to identify the
+    // start of the output .eh_frame. Just return offset.
+    //
+    // Second, InputSection::copyRelocations on .eh_frame. Some pieces may be
+    // discarded due to GC/ICF. We should compute the output section offset.
+    const EhInputSection *es = cast<EhInputSection>(this);
+    if (!es->rawData.empty())
+      if (InputSection *isec = es->getParent())
+        return isec->outSecOff + es->getParentOffset(offset);
     return offset;
+  }
   case Merge:
     const MergeInputSection *ms = cast<MergeInputSection>(this);
     if (InputSection *isec = ms->getParent())
@@ -201,29 +198,6 @@ OutputSection *SectionBase::getOutputSection() {
 // by zlib-compressed data. This function parses a header to initialize
 // `uncompressedSize` member and remove the header from `rawData`.
 template <typename ELFT> void InputSectionBase::parseCompressedHeader() {
-  // Old-style header
-  if (!(flags & SHF_COMPRESSED)) {
-    assert(name.startswith(".zdebug"));
-    if (!toStringRef(rawData).startswith("ZLIB")) {
-      error(toString(this) + ": corrupted compressed section header");
-      return;
-    }
-    rawData = rawData.slice(4);
-
-    if (rawData.size() < 8) {
-      error(toString(this) + ": corrupted compressed section header");
-      return;
-    }
-
-    uncompressedSize = read64be(rawData.data());
-    rawData = rawData.slice(8);
-
-    // Restore the original section name.
-    // (e.g. ".zdebug_info" -> ".debug_info")
-    name = saver().save("." + name.substr(2));
-    return;
-  }
-
   flags &= ~(uint64_t)SHF_COMPRESSED;
 
   // New-style header
@@ -233,8 +207,13 @@ template <typename ELFT> void InputSectionBase::parseCompressedHeader() {
   }
 
   auto *hdr = reinterpret_cast<const typename ELFT::Chdr *>(rawData.data());
-  if (hdr->ch_type != ELFCOMPRESS_ZLIB) {
-    error(toString(this) + ": unsupported compression type");
+  if (hdr->ch_type == ELFCOMPRESS_ZLIB) {
+    if (!compression::zlib::isAvailable())
+      error(toString(this) + " is compressed with ELFCOMPRESS_ZLIB, but lld is "
+                             "not built with zlib support");
+  } else {
+    error(toString(this) + ": unsupported compression type (" +
+          Twine(hdr->ch_type) + ")");
     return;
   }
 
@@ -302,9 +281,10 @@ std::string InputSectionBase::getObjMsg(uint64_t off) {
   if (!file->archiveName.empty())
     archive = (" in archive " + file->archiveName).str();
 
-  // Find a symbol that encloses a given location.
+  // Find a symbol that encloses a given location. getObjMsg may be called
+  // before ObjFile::initializeLocalSymbols where local symbols are initialized.
   for (Symbol *b : file->getSymbols())
-    if (auto *d = dyn_cast<Defined>(b))
+    if (auto *d = dyn_cast_or_null<Defined>(b))
       if (d->section == this && d->value <= off && off < d->value + d->size)
         return filename + ":(" + toString(*d) + ")" + archive;
 
@@ -326,15 +306,6 @@ template <class ELFT>
 InputSection::InputSection(ObjFile<ELFT> &f, const typename ELFT::Shdr &header,
                            StringRef name)
     : InputSectionBase(f, header, name, InputSectionBase::Regular) {}
-
-bool InputSection::classof(const SectionBase *s) {
-  return s->kind() == SectionBase::Regular ||
-         s->kind() == SectionBase::Synthetic;
-}
-
-OutputSection *InputSection::getParent() const {
-  return cast_or_null<OutputSection>(parent);
-}
 
 // Copy SHT_GROUP section contents. Used only for the -r option.
 template <class ELFT> void InputSection::copyShtGroup(uint8_t *buf) {
@@ -372,6 +343,7 @@ template <class ELFT, class RelTy>
 void InputSection::copyRelocations(uint8_t *buf, ArrayRef<RelTy> rels) {
   const TargetInfo &target = *elf::target;
   InputSectionBase *sec = getRelocatedSection();
+  (void)sec->data(); // uncompress if needed
 
   for (const RelTy &rel : rels) {
     RelType type = rel.getType(config->isMips64EL);
@@ -424,7 +396,7 @@ void InputSection::copyRelocations(uint8_t *buf, ArrayRef<RelTy> rels) {
       }
 
       int64_t addend = getAddend<ELFT>(rel);
-      const uint8_t *bufLoc = sec->data().begin() + rel.r_offset;
+      const uint8_t *bufLoc = sec->rawData.begin() + rel.r_offset;
       if (!RelTy::IsRela)
         addend = target.getImplicitAddend(bufLoc, type);
 
@@ -561,8 +533,8 @@ static uint64_t getARMStaticBase(const Symbol &sym) {
 static Relocation *getRISCVPCRelHi20(const Symbol *sym, uint64_t addend) {
   const Defined *d = cast<Defined>(sym);
   if (!d->section) {
-    error("R_RISCV_PCREL_LO12 relocation points to an absolute symbol: " +
-          sym->getName());
+    errorOrWarn("R_RISCV_PCREL_LO12 relocation points to an absolute symbol: " +
+                sym->getName());
     return nullptr;
   }
   InputSection *isec = cast<InputSection>(d->section);
@@ -586,8 +558,9 @@ static Relocation *getRISCVPCRelHi20(const Symbol *sym, uint64_t addend) {
         it->type == R_RISCV_TLS_GD_HI20 || it->type == R_RISCV_TLS_GOT_HI20)
       return &*it;
 
-  error("R_RISCV_PCREL_LO12 relocation points to " + isec->getObjMsg(d->value) +
-        " without an associated R_RISCV_PCREL_HI20 relocation");
+  errorOrWarn("R_RISCV_PCREL_LO12 relocation points to " +
+              isec->getObjMsg(d->value) +
+              " without an associated R_RISCV_PCREL_HI20 relocation");
   return nullptr;
 }
 
@@ -650,6 +623,8 @@ uint64_t InputSectionBase::getRelocTargetVA(const InputFile *file, RelType type,
     return sym.getVA(a);
   case R_ADDEND:
     return a;
+  case R_RELAX_HINT:
+    return 0;
   case R_ARM_SBREL:
     return sym.getVA(a) - getARMStaticBase(sym);
   case R_GOT:
@@ -1015,6 +990,8 @@ void InputSectionBase::relocateAlloc(uint8_t *buf, uint8_t *bufEnd) {
                                       *rel.sym, rel.expr),
                      bits);
     switch (rel.expr) {
+    case R_RELAX_HINT:
+      continue;
     case R_RELAX_GOT_PC:
     case R_RELAX_GOT_PC_NOPIC:
       target.relaxGot(bufLoc, rel, targetVA);
@@ -1218,11 +1195,6 @@ void InputSectionBase::adjustSplitStackFunctionPrologues(uint8_t *buf,
 }
 
 template <class ELFT> void InputSection::writeTo(uint8_t *buf) {
-  if (auto *s = dyn_cast<SyntheticSection>(this)) {
-    s->writeTo(buf);
-    return;
-  }
-
   if (LLVM_UNLIKELY(type == SHT_NOBITS))
     return;
   // If -r or --emit-relocs is given, then an InputSection
@@ -1246,7 +1218,7 @@ template <class ELFT> void InputSection::writeTo(uint8_t *buf) {
   // to the buffer.
   if (uncompressedSize >= 0) {
     size_t size = uncompressedSize;
-    if (Error e = zlib::uncompress(toStringRef(rawData), (char *)buf, size))
+    if (Error e = compression::zlib::uncompress(rawData, buf, size))
       fatal(toString(this) +
             ": uncompress failed: " + llvm::toString(std::move(e)));
     uint8_t *bufEnd = buf + size;
@@ -1353,6 +1325,15 @@ void EhInputSection::split(ArrayRef<RelTy> rels) {
                 getObjMsg(d.data() - rawData.data()));
 }
 
+// Return the offset in an output section for a given input offset.
+uint64_t EhInputSection::getParentOffset(uint64_t offset) const {
+  const EhSectionPiece &piece = partition_point(
+      pieces, [=](EhSectionPiece p) { return p.inputOff <= offset; })[-1];
+  if (piece.outputOff == -1) // invalid piece
+    return offset - piece.inputOff;
+  return piece.outputOff + (offset - piece.inputOff);
+}
+
 static size_t findNull(StringRef s, size_t entSize) {
   for (unsigned i = 0, n = s.size(); i != n; i += entSize) {
     const char *b = s.begin() + i;
@@ -1376,15 +1357,15 @@ void MergeInputSection::splitStrings(StringRef s, size_t entSize) {
   if (entSize == 1) {
     // Optimize the common case.
     do {
-      size_t size = strlen(p) + 1;
+      size_t size = strlen(p);
       pieces.emplace_back(p - s.begin(), xxHash64(StringRef(p, size)), live);
-      p += size;
+      p += size + 1;
     } while (p != end);
   } else {
     do {
-      size_t size = findNull(StringRef(p, end - p), entSize) + entSize;
+      size_t size = findNull(StringRef(p, end - p), entSize);
       pieces.emplace_back(p - s.begin(), xxHash64(StringRef(p, size)), live);
-      p += size;
+      p += size + entSize;
     } while (p != end);
   }
 }
@@ -1429,26 +1410,17 @@ void MergeInputSection::splitIntoPieces() {
     splitNonStrings(data(), entsize);
 }
 
-SectionPiece *MergeInputSection::getSectionPiece(uint64_t offset) {
-  if (this->data().size() <= offset)
+SectionPiece &MergeInputSection::getSectionPiece(uint64_t offset) {
+  if (rawData.size() <= offset)
     fatal(toString(this) + ": offset is outside the section");
-
-  // If Offset is not at beginning of a section piece, it is not in the map.
-  // In that case we need to  do a binary search of the original section piece vector.
-  auto it = partition_point(
-      pieces, [=](SectionPiece p) { return p.inputOff <= offset; });
-  return &it[-1];
+  return partition_point(
+      pieces, [=](SectionPiece p) { return p.inputOff <= offset; })[-1];
 }
 
-// Returns the offset in an output section for a given input offset.
-// Because contents of a mergeable section is not contiguous in output,
-// it is not just an addition to a base output offset.
+// Return the offset in an output section for a given input offset.
 uint64_t MergeInputSection::getParentOffset(uint64_t offset) const {
-  // If Offset is not at beginning of a section piece, it is not in the map.
-  // In that case we need to search from the original section piece vector.
-  const SectionPiece &piece = *getSectionPiece(offset);
-  uint64_t addend = offset - piece.inputOff;
-  return piece.outputOff + addend;
+  const SectionPiece &piece = getSectionPiece(offset);
+  return piece.outputOff + (offset - piece.inputOff);
 }
 
 template InputSection::InputSection(ObjFile<ELF32LE> &, const ELF32LE::Shdr &,

@@ -262,7 +262,7 @@ vatpic_notify_intr(struct vatpic *vatpic)
 		 * interrupt.
 		 */
 		atpic->intr_raised = true;
-		lapic_set_local_intr(vatpic->vm, -1, APIC_LVT_LINT0);
+		lapic_set_local_intr(vatpic->vm, NULL, APIC_LVT_LINT0);
 		vioapic_pulse_irq(vatpic->vm, 0);
 	} else {
 		VATPIC_CTR3(vatpic, "atpic master no eligible interrupts "
@@ -712,7 +712,7 @@ vatpic_write(struct vatpic *vatpic, struct atpic *atpic, bool in, int port,
 }
 
 int
-vatpic_master_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
+vatpic_master_handler(struct vm *vm, bool in, int port, int bytes,
     uint32_t *eax)
 {
 	struct vatpic *vatpic;
@@ -732,7 +732,7 @@ vatpic_master_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
 }
 
 int
-vatpic_slave_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
+vatpic_slave_handler(struct vm *vm, bool in, int port, int bytes,
     uint32_t *eax)
 {
 	struct vatpic *vatpic;
@@ -752,7 +752,7 @@ vatpic_slave_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
 }
 
 int
-vatpic_elc_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
+vatpic_elc_handler(struct vm *vm, bool in, int port, int bytes,
     uint32_t *eax)
 {
 	struct vatpic *vatpic;
@@ -809,6 +809,7 @@ vatpic_init(struct vm *vm)
 void
 vatpic_cleanup(struct vatpic *vatpic)
 {
+	mtx_destroy(&vatpic->mtx);
 	free(vatpic, M_VATPIC);
 }
 

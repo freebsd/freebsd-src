@@ -23,31 +23,25 @@
 #include "llvm/Analysis/DomTreeUpdater.h"
 #include "llvm/Analysis/GlobalsModRef.h"
 #include "llvm/Analysis/InstSimplifyFolder.h"
-#include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/LoopAccessAnalysis.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/MemorySSA.h"
 #include "llvm/Analysis/MemorySSAUpdater.h"
-#include "llvm/Analysis/MustExecute.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionAliasAnalysis.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
-#include "llvm/Analysis/TargetTransformInfo.h"
-#include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/DIBuilder.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/MDBuilder.h"
 #include "llvm/IR/Module.h"
-#include "llvm/IR/Operator.h"
 #include "llvm/IR/PatternMatch.h"
 #include "llvm/IR/ValueHandle.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/KnownBits.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/ScalarEvolutionExpander.h"
@@ -80,9 +74,6 @@ bool llvm::formDedicatedExitBlocks(Loop *L, DominatorTree *DT, LoopInfo *LI,
       if (L->contains(PredBB)) {
         if (isa<IndirectBrInst>(PredBB->getTerminator()))
           // We cannot rewrite exiting edges from an indirectbr.
-          return false;
-        if (isa<CallBrInst>(PredBB->getTerminator()))
-          // We cannot rewrite exiting edges from a callbr.
           return false;
 
         InLoopPredecessors.push_back(PredBB);
@@ -260,10 +251,10 @@ llvm::getOptionalElementCountLoopAttribute(const Loop *TheLoop) {
   Optional<int> Width =
       getOptionalIntLoopAttribute(TheLoop, "llvm.loop.vectorize.width");
 
-  if (Width.hasValue()) {
+  if (Width) {
     Optional<int> IsScalable = getOptionalIntLoopAttribute(
         TheLoop, "llvm.loop.vectorize.scalable.enable");
-    return ElementCount::get(*Width, IsScalable.getValueOr(false));
+    return ElementCount::get(*Width, IsScalable.value_or(false));
   }
 
   return None;
@@ -364,8 +355,8 @@ TransformationMode llvm::hasUnrollTransformation(const Loop *L) {
 
   Optional<int> Count =
       getOptionalIntLoopAttribute(L, "llvm.loop.unroll.count");
-  if (Count.hasValue())
-    return Count.getValue() == 1 ? TM_SuppressedByUser : TM_ForcedByUser;
+  if (Count)
+    return Count.value() == 1 ? TM_SuppressedByUser : TM_ForcedByUser;
 
   if (getBooleanLoopAttribute(L, "llvm.loop.unroll.enable"))
     return TM_ForcedByUser;
@@ -385,8 +376,8 @@ TransformationMode llvm::hasUnrollAndJamTransformation(const Loop *L) {
 
   Optional<int> Count =
       getOptionalIntLoopAttribute(L, "llvm.loop.unroll_and_jam.count");
-  if (Count.hasValue())
-    return Count.getValue() == 1 ? TM_SuppressedByUser : TM_ForcedByUser;
+  if (Count)
+    return Count.value() == 1 ? TM_SuppressedByUser : TM_ForcedByUser;
 
   if (getBooleanLoopAttribute(L, "llvm.loop.unroll_and_jam.enable"))
     return TM_ForcedByUser;
@@ -497,9 +488,11 @@ void llvm::deleteDeadLoop(Loop *L, DominatorTree *DT, ScalarEvolution *SE,
   if (SE)
     SE->forgetLoop(L);
 
-  auto *OldBr = dyn_cast<BranchInst>(Preheader->getTerminator());
-  assert(OldBr && "Preheader must end with a branch");
-  assert(OldBr->isUnconditional() && "Preheader must have a single successor");
+  Instruction *OldTerm = Preheader->getTerminator();
+  assert(!OldTerm->mayHaveSideEffects() &&
+         "Preheader must end with a side-effect-free terminator");
+  assert(OldTerm->getNumSuccessors() == 1 &&
+         "Preheader must have a single successor");
   // Connect the preheader to the exit block. Keep the old edge to the header
   // around to perform the dominator tree update in two separate steps
   // -- #1 insertion of the edge preheader -> exit and #2 deletion of the edge
@@ -525,7 +518,7 @@ void llvm::deleteDeadLoop(Loop *L, DominatorTree *DT, ScalarEvolution *SE,
   // coming to this inner loop, this will break the outer loop structure (by
   // deleting the backedge of the outer loop). If the outer loop is indeed a
   // non-loop, it will be deleted in a future iteration of loop deletion pass.
-  IRBuilder<> Builder(OldBr);
+  IRBuilder<> Builder(OldTerm);
 
   auto *ExitBlock = L->getUniqueExitBlock();
   DomTreeUpdater DTU(DT, DomTreeUpdater::UpdateStrategy::Eager);
@@ -535,7 +528,7 @@ void llvm::deleteDeadLoop(Loop *L, DominatorTree *DT, ScalarEvolution *SE,
 
     Builder.CreateCondBr(Builder.getFalse(), L->getHeader(), ExitBlock);
     // Remove the old branch. The conditional branch becomes a new terminator.
-    OldBr->eraseFromParent();
+    OldTerm->eraseFromParent();
 
     // Rewrite phis in the exit block to get their inputs from the Preheader
     // instead of the exiting block.
@@ -579,7 +572,7 @@ void llvm::deleteDeadLoop(Loop *L, DominatorTree *DT, ScalarEvolution *SE,
     assert(L->hasNoExitBlocks() &&
            "Loop should have either zero or one exit blocks.");
 
-    Builder.SetInsertPoint(OldBr);
+    Builder.SetInsertPoint(OldTerm);
     Builder.CreateUnreachable();
     Preheader->getTerminator()->eraseFromParent();
   }
@@ -609,10 +602,10 @@ void llvm::deleteDeadLoop(Loop *L, DominatorTree *DT, ScalarEvolution *SE,
     // loop will be already eliminated and we have less work to do but according
     // to API doc of User::dropAllReferences only valid operation after dropping
     // references, is deletion. So let's substitute all usages of
-    // instruction from the loop with undef value of corresponding type first.
+    // instruction from the loop with poison value of corresponding type first.
     for (auto *Block : L->blocks())
       for (Instruction &I : *Block) {
-        auto *Undef = UndefValue::get(I.getType());
+        auto *Poison = PoisonValue::get(I.getType());
         for (Use &U : llvm::make_early_inc_range(I.uses())) {
           if (auto *Usr = dyn_cast<Instruction>(U.getUser()))
             if (L->contains(Usr->getParent()))
@@ -622,7 +615,7 @@ void llvm::deleteDeadLoop(Loop *L, DominatorTree *DT, ScalarEvolution *SE,
           if (DT)
             assert(!DT->isReachableFromEntry(U) &&
                    "Unexpected user in reachable block");
-          U.set(Undef);
+          U.set(Poison);
         }
         auto *DVI = dyn_cast<DbgVariableIntrinsic>(&I);
         if (!DVI)
@@ -692,18 +685,12 @@ void llvm::deleteDeadLoop(Loop *L, DominatorTree *DT, ScalarEvolution *SE,
   }
 }
 
-static Loop *getOutermostLoop(Loop *L) {
-  while (Loop *Parent = L->getParentLoop())
-    L = Parent;
-  return L;
-}
-
 void llvm::breakLoopBackedge(Loop *L, DominatorTree &DT, ScalarEvolution &SE,
                              LoopInfo &LI, MemorySSA *MSSA) {
   auto *Latch = L->getLoopLatch();
   assert(Latch && "multiple latches not yet supported");
   auto *Header = L->getHeader();
-  Loop *OutermostLoop = getOutermostLoop(L);
+  Loop *OutermostLoop = L->getOutermostLoop();
 
   SE.forgetLoop(L);
 
@@ -1103,7 +1090,8 @@ Value *llvm::createOrderedReduction(IRBuilderBase &B,
   return B.CreateFAddReduce(Start, Src);
 }
 
-void llvm::propagateIRFlags(Value *I, ArrayRef<Value *> VL, Value *OpValue) {
+void llvm::propagateIRFlags(Value *I, ArrayRef<Value *> VL, Value *OpValue,
+                            bool IncludeWrapFlags) {
   auto *VecOp = dyn_cast<Instruction>(I);
   if (!VecOp)
     return;
@@ -1112,7 +1100,7 @@ void llvm::propagateIRFlags(Value *I, ArrayRef<Value *> VL, Value *OpValue) {
   if (!Intersection)
     return;
   const unsigned Opcode = Intersection->getOpcode();
-  VecOp->copyIRFlags(Intersection);
+  VecOp->copyIRFlags(Intersection, IncludeWrapFlags);
   for (auto *V : VL) {
     auto *Instr = dyn_cast<Instruction>(V);
     if (!Instr)
@@ -1255,6 +1243,20 @@ static bool canLoopBeDeleted(Loop *L, SmallVector<RewritePhi, 8> &RewritePhiSet)
   return true;
 }
 
+/// Checks if it is safe to call InductionDescriptor::isInductionPHI for \p Phi,
+/// and returns true if this Phi is an induction phi in the loop. When
+/// isInductionPHI returns true, \p ID will be also be set by isInductionPHI.
+static bool checkIsIndPhi(PHINode *Phi, Loop *L, ScalarEvolution *SE,
+                          InductionDescriptor &ID) {
+  if (!Phi)
+    return false;
+  if (!L->getLoopPreheader())
+    return false;
+  if (Phi->getParent() != L->getHeader())
+    return false;
+  return InductionDescriptor::isInductionPHI(Phi, L, SE, ID);
+}
+
 int llvm::rewriteLoopExitValues(Loop *L, LoopInfo *LI, TargetLibraryInfo *TLI,
                                 ScalarEvolution *SE,
                                 const TargetTransformInfo *TTI,
@@ -1306,6 +1308,46 @@ int llvm::rewriteLoopExitValues(Loop *L, LoopInfo *LI, TargetLibraryInfo *TLI,
         if (!L->contains(Inst))
           continue;
 
+        // Find exit values which are induction variables in the loop, and are
+        // unused in the loop, with the only use being the exit block PhiNode,
+        // and the induction variable update binary operator.
+        // The exit value can be replaced with the final value when it is cheap
+        // to do so.
+        if (ReplaceExitValue == UnusedIndVarInLoop) {
+          InductionDescriptor ID;
+          PHINode *IndPhi = dyn_cast<PHINode>(Inst);
+          if (IndPhi) {
+            if (!checkIsIndPhi(IndPhi, L, SE, ID))
+              continue;
+            // This is an induction PHI. Check that the only users are PHI
+            // nodes, and induction variable update binary operators.
+            if (llvm::any_of(Inst->users(), [&](User *U) {
+                  if (!isa<PHINode>(U) && !isa<BinaryOperator>(U))
+                    return true;
+                  BinaryOperator *B = dyn_cast<BinaryOperator>(U);
+                  if (B && B != ID.getInductionBinOp())
+                    return true;
+                  return false;
+                }))
+              continue;
+          } else {
+            // If it is not an induction phi, it must be an induction update
+            // binary operator with an induction phi user.
+            BinaryOperator *B = dyn_cast<BinaryOperator>(Inst);
+            if (!B)
+              continue;
+            if (llvm::any_of(Inst->users(), [&](User *U) {
+                  PHINode *Phi = dyn_cast<PHINode>(U);
+                  if (Phi != PN && !checkIsIndPhi(Phi, L, SE, ID))
+                    return true;
+                  return false;
+                }))
+              continue;
+            if (B != ID.getInductionBinOp())
+              continue;
+          }
+        }
+
         // Okay, this instruction has a user outside of the current loop
         // and varies predictably *inside* the loop.  Evaluate the value it
         // contains when the loop exits, if possible.  We prefer to start with
@@ -1315,7 +1357,7 @@ int llvm::rewriteLoopExitValues(Loop *L, LoopInfo *LI, TargetLibraryInfo *TLI,
         const SCEV *ExitValue = SE->getSCEVAtScope(Inst, L->getParentLoop());
         if (isa<SCEVCouldNotCompute>(ExitValue) ||
             !SE->isLoopInvariant(ExitValue, L) ||
-            !isSafeToExpand(ExitValue, *SE)) {
+            !Rewriter.isSafeToExpand(ExitValue)) {
           // TODO: This should probably be sunk into SCEV in some way; maybe a
           // getSCEVForExit(SCEV*, L, ExitingBB)?  It can be generalized for
           // most SCEV expressions and other recurrence types (e.g. shift
@@ -1328,7 +1370,7 @@ int llvm::rewriteLoopExitValues(Loop *L, LoopInfo *LI, TargetLibraryInfo *TLI,
               ExitValue = AddRec->evaluateAtIteration(ExitCount, *SE);
           if (isa<SCEVCouldNotCompute>(ExitValue) ||
               !SE->isLoopInvariant(ExitValue, L) ||
-              !isSafeToExpand(ExitValue, *SE))
+              !Rewriter.isSafeToExpand(ExitValue))
             continue;
         }
 
@@ -1352,7 +1394,10 @@ int llvm::rewriteLoopExitValues(Loop *L, LoopInfo *LI, TargetLibraryInfo *TLI,
         // and next SCEV may errneously get smaller cost.
 
         // Collect all the candidate PHINodes to be rewritten.
-        RewritePhiSet.emplace_back(PN, i, ExitValue, Inst, HighCost);
+        Instruction *InsertPt =
+          (isa<PHINode>(Inst) || isa<LandingPadInst>(Inst)) ?
+          &*Inst->getParent()->getFirstInsertionPt() : Inst;
+        RewritePhiSet.emplace_back(PN, i, ExitValue, InsertPt, HighCost);
       }
     }
   }
@@ -1371,7 +1416,9 @@ int llvm::rewriteLoopExitValues(Loop *L, LoopInfo *LI, TargetLibraryInfo *TLI,
 
     // Only do the rewrite when the ExitValue can be expanded cheaply.
     // If LoopCanBeDel is true, rewrite exit value aggressively.
-    if (ReplaceExitValue == OnlyCheapRepl && !LoopCanBeDel && Phi.HighCost)
+    if ((ReplaceExitValue == OnlyCheapRepl ||
+         ReplaceExitValue == UnusedIndVarInLoop) &&
+        !LoopCanBeDel && Phi.HighCost)
       continue;
 
     Value *ExitVal = Rewriter.expandCodeFor(
@@ -1536,6 +1583,11 @@ static PointerBounds expandBounds(const RuntimeCheckingPtrGroup *CG,
   LLVM_DEBUG(dbgs() << "LAA: Adding RT check for range:\n");
   Start = Exp.expandCodeFor(CG->Low, PtrArithTy, Loc);
   End = Exp.expandCodeFor(CG->High, PtrArithTy, Loc);
+  if (CG->NeedsFreeze) {
+    IRBuilder<> Builder(Loc);
+    Start = Builder.CreateFreeze(Start, Start->getName() + ".fr");
+    End = Builder.CreateFreeze(End, End->getName() + ".fr");
+  }
   LLVM_DEBUG(dbgs() << "Start: " << *CG->Low << " End: " << *CG->High << "\n");
   return {Start, End};
 }
@@ -1604,6 +1656,45 @@ Value *llvm::addRuntimeChecks(
     Value *Cmp0 = ChkBuilder.CreateICmpULT(Start0, End1, "bound0");
     Value *Cmp1 = ChkBuilder.CreateICmpULT(Start1, End0, "bound1");
     Value *IsConflict = ChkBuilder.CreateAnd(Cmp0, Cmp1, "found.conflict");
+    if (MemoryRuntimeCheck) {
+      IsConflict =
+          ChkBuilder.CreateOr(MemoryRuntimeCheck, IsConflict, "conflict.rdx");
+    }
+    MemoryRuntimeCheck = IsConflict;
+  }
+
+  return MemoryRuntimeCheck;
+}
+
+Value *llvm::addDiffRuntimeChecks(
+    Instruction *Loc, Loop *TheLoop, ArrayRef<PointerDiffInfo> Checks,
+    SCEVExpander &Expander,
+    function_ref<Value *(IRBuilderBase &, unsigned)> GetVF, unsigned IC) {
+
+  LLVMContext &Ctx = Loc->getContext();
+  IRBuilder<InstSimplifyFolder> ChkBuilder(Ctx,
+                                           Loc->getModule()->getDataLayout());
+  ChkBuilder.SetInsertPoint(Loc);
+  // Our instructions might fold to a constant.
+  Value *MemoryRuntimeCheck = nullptr;
+
+  for (auto &C : Checks) {
+    Type *Ty = C.SinkStart->getType();
+    // Compute VF * IC * AccessSize.
+    auto *VFTimesUFTimesSize =
+        ChkBuilder.CreateMul(GetVF(ChkBuilder, Ty->getScalarSizeInBits()),
+                             ConstantInt::get(Ty, IC * C.AccessSize));
+    Value *Sink = Expander.expandCodeFor(C.SinkStart, Ty, Loc);
+    Value *Src = Expander.expandCodeFor(C.SrcStart, Ty, Loc);
+    if (C.NeedsFreeze) {
+      IRBuilder<> Builder(Loc);
+      Sink = Builder.CreateFreeze(Sink, Sink->getName() + ".fr");
+      Src = Builder.CreateFreeze(Src, Src->getName() + ".fr");
+    }
+    Value *Diff = ChkBuilder.CreateSub(Sink, Src);
+    Value *IsConflict =
+        ChkBuilder.CreateICmpULT(Diff, VFTimesUFTimesSize, "diff.check");
+
     if (MemoryRuntimeCheck) {
       IsConflict =
           ChkBuilder.CreateOr(MemoryRuntimeCheck, IsConflict, "conflict.rdx");

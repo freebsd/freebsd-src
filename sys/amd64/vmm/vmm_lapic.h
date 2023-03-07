@@ -31,46 +31,45 @@
 #ifndef _VMM_LAPIC_H_
 #define	_VMM_LAPIC_H_
 
+struct vcpu;
 struct vm;
 
 bool	lapic_msr(u_int num);
-int	lapic_rdmsr(struct vm *vm, int cpu, u_int msr, uint64_t *rval,
-	    bool *retu);
-int	lapic_wrmsr(struct vm *vm, int cpu, u_int msr, uint64_t wval,
-	    bool *retu);
+int	lapic_rdmsr(struct vcpu *vcpu, u_int msr, uint64_t *rval, bool *retu);
+int	lapic_wrmsr(struct vcpu *vcpu, u_int msr, uint64_t wval, bool *retu);
 
-int	lapic_mmio_read(void *vm, int cpu, uint64_t gpa,
+int	lapic_mmio_read(struct vcpu *vcpu, uint64_t gpa,
 			uint64_t *rval, int size, void *arg);
-int	lapic_mmio_write(void *vm, int cpu, uint64_t gpa,
+int	lapic_mmio_write(struct vcpu *vcpu, uint64_t gpa,
 			 uint64_t wval, int size, void *arg);
 
 /*
  * Signals to the LAPIC that an interrupt at 'vector' needs to be generated
  * to the 'cpu', the state is recorded in IRR.
  */
-int	lapic_set_intr(struct vm *vm, int cpu, int vector, bool trig);
+int	lapic_set_intr(struct vcpu *vcpu, int vector, bool trig);
 
 #define	LAPIC_TRIG_LEVEL	true
 #define	LAPIC_TRIG_EDGE		false
 static __inline int
-lapic_intr_level(struct vm *vm, int cpu, int vector)
+lapic_intr_level(struct vcpu *vcpu, int vector)
 {
 
-	return (lapic_set_intr(vm, cpu, vector, LAPIC_TRIG_LEVEL));
+	return (lapic_set_intr(vcpu, vector, LAPIC_TRIG_LEVEL));
 }
 
 static __inline int
-lapic_intr_edge(struct vm *vm, int cpu, int vector)
+lapic_intr_edge(struct vcpu *vcpu, int vector)
 {
 
-	return (lapic_set_intr(vm, cpu, vector, LAPIC_TRIG_EDGE));
+	return (lapic_set_intr(vcpu, vector, LAPIC_TRIG_EDGE));
 }
 
 /*
  * Triggers the LAPIC local interrupt (LVT) 'vector' on 'cpu'.  'cpu' can
  * be set to -1 to trigger the interrupt on all CPUs.
  */
-int	lapic_set_local_intr(struct vm *vm, int cpu, int vector);
+int	lapic_set_local_intr(struct vm *vm, struct vcpu *vcpu, int vector);
 
 int	lapic_intr_msi(struct vm *vm, uint64_t addr, uint64_t msg);
 

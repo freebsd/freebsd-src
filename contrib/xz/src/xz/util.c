@@ -261,18 +261,6 @@ my_snprintf(char **pos, size_t *left, const char *fmt, ...)
 
 
 extern bool
-is_empty_filename(const char *filename)
-{
-	if (filename[0] == '\0') {
-		message_error(_("Empty filename, skipping"));
-		return true;
-	}
-
-	return false;
-}
-
-
-extern bool
 is_tty_stdin(void)
 {
 	const bool ret = isatty(STDIN_FILENO);

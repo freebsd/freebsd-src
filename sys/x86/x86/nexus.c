@@ -542,7 +542,7 @@ nexus_unmap_resource(device_t bus, device_t child, int type, struct resource *r,
 	 */
 	switch (type) {
 	case SYS_RES_MEMORY:
-		pmap_unmapdev((vm_offset_t)map->r_vaddr, map->r_size);
+		pmap_unmapdev(map->r_vaddr, map->r_size);
 		/* FALLTHROUGH */
 	case SYS_RES_IOPORT:
 		break;

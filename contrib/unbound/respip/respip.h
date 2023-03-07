@@ -251,11 +251,13 @@ int respip_set_is_empty(const struct respip_set* set);
  * @param local_alias: set to a local alias if the query matches an alias in
  *  a local zone.  In this case its owner name will be considered the actual
  *  query name.
- * @param repinfo: reply info containing the client's source address and port.
+ * @param addr: the client's source address and port.
+ * @param addrlen: the client's source address length.
  */
 void respip_inform_print(struct respip_action_info* respip_actinfo,
 	uint8_t* qname, uint16_t qtype, uint16_t qclass,
-	struct local_rrset* local_alias, struct comm_reply* repinfo);
+	struct local_rrset* local_alias, struct sockaddr_storage* addr,
+	socklen_t addrlen);
 
 /**
  * Find resp_addr in tree, create and add to tree if it does not exist.

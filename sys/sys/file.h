@@ -132,6 +132,7 @@ typedef int fo_fallocate_t(struct file *fp, off_t offset, off_t len,
 typedef int fo_fspacectl_t(struct file *fp, int cmd,
 		    off_t *offset, off_t *length, int flags,
 		    struct ucred *active_cred, struct thread *td);
+typedef int fo_spare_t(struct file *fp);
 typedef	int fo_flags_t;
 
 struct fileops {
@@ -154,6 +155,7 @@ struct fileops {
 	fo_get_seals_t	*fo_get_seals;
 	fo_fallocate_t	*fo_fallocate;
 	fo_fspacectl_t	*fo_fspacectl;
+	fo_spare_t	*fo_spares[8];	/* Spare slots */
 	fo_flags_t	fo_flags;	/* DFLAG_* below */
 };
 

@@ -35,7 +35,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: compress.c,v 1.135 2022/04/11 18:14:41 christos Exp $")
+FILE_RCSID("@(#)$File: compress.c,v 1.136 2022/09/13 16:08:34 christos Exp $")
 #endif
 
 #include "magic.h"
@@ -989,7 +989,10 @@ uncompressbuf(int fd, size_t bytes_max, size_t method, const unsigned char *old,
 		goto err;
 	}
 	rv = OKDATA;
+	errno = 0;
 	r = sread(fdp[STDOUT_FILENO][0], *newch, bytes_max, 0);
+	if (r == 0 && errno == 0)
+		goto ok;
 	if (r <= 0) {
 		DPRINTF("Read stdout failed %d (%s)\n", fdp[STDOUT_FILENO][0],
 		    r != -1 ? strerror(errno) : "no data");

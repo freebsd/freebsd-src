@@ -36,6 +36,7 @@
 #include "clang/AST/Type.h"
 #include "clang/AST/UnresolvedSet.h"
 #include "clang/Basic/AttrKinds.h"
+#include "clang/Basic/DiagnosticSema.h"
 #include "clang/Basic/ExceptionSpecificationType.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/LLVM.h"
@@ -370,6 +371,7 @@ namespace clang {
     void VisitFieldDecl(FieldDecl *FD);
     void VisitMSPropertyDecl(MSPropertyDecl *FD);
     void VisitMSGuidDecl(MSGuidDecl *D);
+    void VisitUnnamedGlobalConstantDecl(UnnamedGlobalConstantDecl *D);
     void VisitTemplateParamObjectDecl(TemplateParamObjectDecl *D);
     void VisitIndirectFieldDecl(IndirectFieldDecl *FD);
     RedeclarableResult VisitVarDeclImpl(VarDecl *D);
@@ -603,15 +605,27 @@ void ASTDeclReader::VisitDecl(Decl *D) {
   D->setTopLevelDeclInObjCContainer(Record.readInt());
   D->setAccess((AccessSpecifier)Record.readInt());
   D->FromASTFile = true;
-  bool ModulePrivate = Record.readInt();
+  auto ModuleOwnership = (Decl::ModuleOwnershipKind)Record.readInt();
+  bool ModulePrivate =
+      (ModuleOwnership == Decl::ModuleOwnershipKind::ModulePrivate);
 
   // Determine whether this declaration is part of a (sub)module. If so, it
   // may not yet be visible.
   if (unsigned SubmoduleID = readSubmoduleID()) {
+
+    switch (ModuleOwnership) {
+    case Decl::ModuleOwnershipKind::Visible:
+      ModuleOwnership = Decl::ModuleOwnershipKind::VisibleWhenImported;
+      break;
+    case Decl::ModuleOwnershipKind::Unowned:
+    case Decl::ModuleOwnershipKind::VisibleWhenImported:
+    case Decl::ModuleOwnershipKind::ReachableWhenImported:
+    case Decl::ModuleOwnershipKind::ModulePrivate:
+      break;
+    }
+
+    D->setModuleOwnershipKind(ModuleOwnership);
     // Store the owning submodule ID in the declaration.
-    D->setModuleOwnershipKind(
-        ModulePrivate ? Decl::ModuleOwnershipKind::ModulePrivate
-                      : Decl::ModuleOwnershipKind::VisibleWhenImported);
     D->setOwningModuleID(SubmoduleID);
 
     if (ModulePrivate) {
@@ -773,7 +787,7 @@ void ASTDeclReader::VisitEnumDecl(EnumDecl *ED) {
     }
     if (OldDef) {
       Reader.MergedDeclContexts.insert(std::make_pair(ED, OldDef));
-      ED->setCompleteDefinition(false);
+      ED->demoteThisDefinitionToDeclaration();
       Reader.mergeDefinitionVisibility(OldDef, ED);
       if (OldDef->getODRHash() != ED->getODRHash())
         Reader.PendingEnumOdrMergeFailures[OldDef].push_back(ED);
@@ -828,7 +842,7 @@ void ASTDeclReader::VisitRecordDecl(RecordDecl *RD) {
     }
     if (OldDef) {
       Reader.MergedDeclContexts.insert(std::make_pair(RD, OldDef));
-      RD->setCompleteDefinition(false);
+      RD->demoteThisDefinitionToDeclaration();
       Reader.mergeDefinitionVisibility(OldDef, RD);
     } else {
       OldDef = RD;
@@ -938,6 +952,10 @@ void ASTDeclReader::VisitFunctionDecl(FunctionDecl *FD) {
   switch ((FunctionDecl::TemplatedKind)Record.readInt()) {
   case FunctionDecl::TK_NonTemplate:
     mergeRedeclarable(FD, Redecl);
+    break;
+  case FunctionDecl::TK_DependentNonTemplate:
+    mergeRedeclarable(FD, Redecl);
+    FD->setInstantiatedFromDecl(readDeclAs<FunctionDecl>());
     break;
   case FunctionDecl::TK_FunctionTemplate:
     // Merged when we merge the template.
@@ -1231,6 +1249,39 @@ void ASTDeclReader::VisitObjCIvarDecl(ObjCIvarDecl *IVD) {
   IVD->setNextIvar(nullptr);
   bool synth = Record.readInt();
   IVD->setSynthesize(synth);
+
+  // Check ivar redeclaration.
+  if (IVD->isInvalidDecl())
+    return;
+  // Don't check ObjCInterfaceDecl as interfaces are named and mismatches can be
+  // detected in VisitObjCInterfaceDecl. Here we are looking for redeclarations
+  // in extensions.
+  if (isa<ObjCInterfaceDecl>(IVD->getDeclContext()))
+    return;
+  ObjCInterfaceDecl *CanonIntf =
+      IVD->getContainingInterface()->getCanonicalDecl();
+  IdentifierInfo *II = IVD->getIdentifier();
+  ObjCIvarDecl *PrevIvar = CanonIntf->lookupInstanceVariable(II);
+  if (PrevIvar && PrevIvar != IVD) {
+    auto *ParentExt = dyn_cast<ObjCCategoryDecl>(IVD->getDeclContext());
+    auto *PrevParentExt =
+        dyn_cast<ObjCCategoryDecl>(PrevIvar->getDeclContext());
+    if (ParentExt && PrevParentExt) {
+      // Postpone diagnostic as we should merge identical extensions from
+      // different modules.
+      Reader
+          .PendingObjCExtensionIvarRedeclarations[std::make_pair(ParentExt,
+                                                                 PrevParentExt)]
+          .push_back(std::make_pair(IVD, PrevIvar));
+    } else if (ParentExt || PrevParentExt) {
+      // Duplicate ivars in extension + implementation are never compatible.
+      // Compatibility of implementation + implementation should be handled in
+      // VisitObjCImplementationDecl.
+      Reader.Diag(IVD->getLocation(), diag::err_duplicate_ivar_declaration)
+          << II;
+      Reader.Diag(PrevIvar->getLocation(), diag::note_previous_definition);
+    }
+  }
 }
 
 void ASTDeclReader::ReadObjCDefinitionData(
@@ -1425,6 +1476,17 @@ void ASTDeclReader::VisitMSGuidDecl(MSGuidDecl *D) {
 
   // Add this GUID to the AST context's lookup structure, and merge if needed.
   if (MSGuidDecl *Existing = Reader.getContext().MSGuidDecls.GetOrInsertNode(D))
+    Reader.getContext().setPrimaryMergedDecl(D, Existing->getCanonicalDecl());
+}
+
+void ASTDeclReader::VisitUnnamedGlobalConstantDecl(
+    UnnamedGlobalConstantDecl *D) {
+  VisitValueDecl(D);
+  D->Value = Record.readAPValue();
+
+  // Add this to the AST context's lookup structure, and merge if needed.
+  if (UnnamedGlobalConstantDecl *Existing =
+          Reader.getContext().UnnamedGlobalConstantDecls.GetOrInsertNode(D))
     Reader.getContext().setPrimaryMergedDecl(D, Existing->getCanonicalDecl());
 }
 
@@ -1801,7 +1863,7 @@ void ASTDeclReader::ReadCXXDefinitionData(
     using Capture = LambdaCapture;
 
     auto &Lambda = static_cast<CXXRecordDecl::LambdaDefinitionData &>(Data);
-    Lambda.Dependent = Record.readInt();
+    Lambda.DependencyKind = Record.readInt();
     Lambda.IsGenericLambda = Record.readInt();
     Lambda.CaptureDefault = Record.readInt();
     Lambda.NumCaptures = Record.readInt();
@@ -1917,8 +1979,8 @@ void ASTDeclReader::ReadCXXRecordDefinition(CXXRecordDecl *D, bool Update) {
   // allocate the appropriate DefinitionData structure.
   bool IsLambda = Record.readInt();
   if (IsLambda)
-    DD = new (C) CXXRecordDecl::LambdaDefinitionData(D, nullptr, false, false,
-                                                     LCD_None);
+    DD = new (C) CXXRecordDecl::LambdaDefinitionData(
+        D, nullptr, CXXRecordDecl::LDK_Unknown, false, LCD_None);
   else
     DD = new (C) struct CXXRecordDecl::DefinitionData(D);
 
@@ -2370,13 +2432,17 @@ ASTDeclReader::VisitVarTemplateSpecializationDeclImpl(
   if (writtenAsCanonicalDecl) {
     auto *CanonPattern = readDeclAs<VarTemplateDecl>();
     if (D->isCanonicalDecl()) { // It's kept in the folding set.
-      // FIXME: If it's already present, merge it.
+      VarTemplateSpecializationDecl *CanonSpec;
       if (auto *Partial = dyn_cast<VarTemplatePartialSpecializationDecl>(D)) {
-        CanonPattern->getCommonPtr()->PartialSpecializations
-            .GetOrInsertNode(Partial);
+        CanonSpec = CanonPattern->getCommonPtr()
+                        ->PartialSpecializations.GetOrInsertNode(Partial);
       } else {
-        CanonPattern->getCommonPtr()->Specializations.GetOrInsertNode(D);
+        CanonSpec =
+            CanonPattern->getCommonPtr()->Specializations.GetOrInsertNode(D);
       }
+      // If we already have a matching specialization, merge it.
+      if (CanonSpec != D)
+        mergeRedeclarable<VarDecl>(D, CanonSpec, Redecl);
     }
   }
 
@@ -2860,7 +2926,8 @@ Attr *ASTRecordReader::readAttr() {
 /// Reads attributes from the current stream position.
 void ASTRecordReader::readAttributes(AttrVec &Attrs) {
   for (unsigned I = 0, E = readInt(); I != E; ++I)
-    Attrs.push_back(readAttr());
+    if (auto *A = readAttr())
+      Attrs.push_back(A);
 }
 
 //===----------------------------------------------------------------------===//
@@ -3053,6 +3120,8 @@ ASTDeclReader::getPrimaryDCForAnonymousDecl(DeclContext *LexicalDC) {
   if (auto *RD = dyn_cast<CXXRecordDecl>(LexicalDC)) {
     auto *DD = RD->getCanonicalDecl()->DefinitionData;
     return DD ? DD->Definition : nullptr;
+  } else if (auto *OID = dyn_cast<ObjCInterfaceDecl>(LexicalDC)) {
+    return OID->getCanonicalDecl()->getDefinition();
   }
 
   // For anything else, walk its merged redeclarations looking for a definition.
@@ -3241,6 +3310,13 @@ void ASTDeclReader::mergeInheritableAttributes(ASTReader &Reader, Decl *D,
 
   if (IA && !D->hasAttr<MSInheritanceAttr>()) {
     NewAttr = cast<InheritableAttr>(IA->clone(Context));
+    NewAttr->setInherited(true);
+    D->addAttr(NewAttr);
+  }
+
+  const auto *AA = Previous->getAttr<AvailabilityAttr>();
+  if (AA && !D->hasAttr<AvailabilityAttr>()) {
+    NewAttr = AA->clone(Context);
     NewAttr->setInherited(true);
     D->addAttr(NewAttr);
   }
@@ -3708,6 +3784,9 @@ Decl *ASTReader::ReadDeclRecord(DeclID ID) {
     break;
   case DECL_MS_GUID:
     D = MSGuidDecl::CreateDeserialized(Context, ID);
+    break;
+  case DECL_UNNAMED_GLOBAL_CONSTANT:
+    D = UnnamedGlobalConstantDecl::CreateDeserialized(Context, ID);
     break;
   case DECL_TEMPLATE_PARAM_OBJECT:
     D = TemplateParamObjectDecl::CreateDeserialized(Context, ID);

@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -59,6 +59,12 @@ fi
 # Install or symlink, depending on the type of file. If it's a file, install it.
 # If it's a symlink, create an equivalent in the install directory.
 for exe in $bindir/*; do
+
+	# Skip any directories in case the bin/ directory is also used as the
+	# prefix.
+	if [ -d "$exe" ]; then
+		continue
+	fi
 
 	base=$(basename "$exe")
 

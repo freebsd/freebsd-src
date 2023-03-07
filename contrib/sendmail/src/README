@@ -8,9 +8,6 @@
 # forth in the LICENSE file which can be found at the top level of
 # the sendmail distribution.
 #
-#
-#	$Id: README,v 8.393 2013-11-22 20:51:54 ca Exp $
-#
 
 This directory contains the source files for sendmail(TM).
 
@@ -133,8 +130,7 @@ MAP_REGEX	Regular Expression support.  You will need to use an
 		routines or install a regexp library such as libregex from
 		the Free Software Foundation.
 DNSMAP		DNS map support.  Requires NAMED_BIND.
-PH_MAP		PH map support.  You will need the libphclient library from
-		the nph package (http://www-dev.cites.uiuc.edu/ph/nph/).
+PH_MAP		PH map support.
 MAP_NSD		nsd map support (IRIX 6.5 and later).
 SOCKETMAP	Support for a trivial query protocol over UNIX domain or TCP
 		sockets.
@@ -337,6 +333,8 @@ NEEDPUTENV	Define this if your system needs am emulation of the
 NOFTRUNCATE	Define this if you don't have the ftruncate(2) syscall.
 		If you don't have this system call, there is an unavoidable
 		race condition that occurs when creating alias databases.
+NO_EOH_FIELDS	Define this to disable the special handling of the headers
+		Message: and Text: to denote the end of the message header.
 GIDSET_T	The type of entries in a gidset passed as the second
 		argument to getgroups(2).  Historically this has been an
 		int, so this is the default, but some systems (such as
@@ -767,25 +765,23 @@ From: Garrett Wollman <wollman@lcs.mit.edu>
     certificate authentication -- even some of those which already support
     SSL/TLS for confidentiality.
 
-Further information can be found via:
-http://www.sendmail.org/tips/
-
 
 +------------------------------------+
 | SASL COMPILATION AND CONFIGURATION |
 +------------------------------------+
 
 Please read the documentation accompanying the Cyrus SASL library
-(INSTALL and README).  If you use Berkeley DB for Cyrus SASL then
-you must compile sendmail with the same version of Berkeley DB.
-See devtools/README for how to set the correct compile time parameters;
-you should at least set the following variables:
+(INSTALL and README, especially about Sendmail.conf).  If you use
+Berkeley DB for Cyrus SASL then you must compile sendmail with the
+same version of Berkeley DB.  See devtools/README for how to set
+the correct compile time parameters; you should at least set the
+following variables:
 
-APPENDDEF(`conf_sendmail_ENVDEF', `-DSASL')
-APPENDDEF(`conf_sendmail_LIBS', `-lsasl')
+APPENDDEF(`conf_sendmail_ENVDEF', `-DSASL=2')
+APPENDDEF(`conf_sendmail_LIBS', `-lsasl2')
 
 If you have installed the Cyrus SASL library and include files in
-a location that your C compiler doesn't use by default you should
+a location which your C compiler doesn't use by default you should
 set confINCDIRS and confLIBDIRS as explained in the first section:
 BUILDING SENDMAIL.
 
@@ -794,7 +790,8 @@ sendmail where to find the sasl library and the include files (see
 devtools/README for the parameters to set).  Set up the required
 users and passwords as explained in the SASL documentation.  See
 also cf/README for authentication related options (especially
-DefaultAuthInfo if you want authentication between MTAs).
+"Providing SMTP AUTH Data when sendmail acts as Client"
+if you want authentication between MTAs).
 
 To perform an initial test, connect to your sendmail daemon
 (telnet localhost 25) and issue a EHLO localhost and see whether
@@ -803,9 +800,6 @@ is in the response.  If it isn't, run the daemon with
 -O LogLevel=14
 and try again.  Then take a look at the logfile and see whether
 there are any security related problems listed (unsafe files).
-
-Further information can be found via:
-http://www.sendmail.org/tips/
 
 
 +-------------------------------------+
@@ -1179,10 +1173,6 @@ IRIX
 		preempts that definition in /usr/lib32/mips3/libc.so.
 
 	These are unavoidable and innocuous -- just ignore them.
-
-	According to Dave Sill <de5@ornl.gov>, there is a version of the
-	Berkeley DB library patched to run on Irix 6.2 available from
-	http://reality.sgi.com/ariel/freeware/#db .
 
 IRIX 6.x
 	If you are using XFS filesystem, avoid using the -32 ABI switch to
@@ -1580,7 +1570,6 @@ Darwin/Mac OS X (10.X.X)
 
 	From scratch here is what Darwin users need to do to the standard
 	10.0.0, 10.0.1 install to get sendmail working.
-	From http://www.macosx.com/forums/showthread.php?s=6dac0e9e1f3fd118a4870a8a9b559491&threadid=2242:
 	1. chmod g-w / /private /private/etc
 	2. Properly set HOSTNAME in /etc/hostconfig to your FQDN:
 	   HOSTNAME=-my.domain.com-
@@ -1695,8 +1684,7 @@ Listproc 6.0c
 	as well. :)
 
 PH
-	PH support is provided by Mark Roth <roth@uiuc.edu>.  The map is
-	described at http://www-dev.cites.uiuc.edu/sendmail/ .
+	PH support is provided by Mark Roth <roth@uiuc.edu>.
 
 	NOTE: The "spacedname" pseudo-field which was used by earlier
 	versions of the PH map code is no longer supported!  See the URL
@@ -1866,4 +1854,30 @@ util.c		Some general purpose routines used by sendmail.
 version.c	The version number and information about this
 		version of sendmail.
 
-(Version $Revision: 8.393 $, last update $Date: 2013-11-22 20:51:54 $ )
+
++---------------------------+
+| SOME NOTES ABOUT THE CODE |
++---------------------------+
+
+Some things are not easy to understand by just reading the source
+code, so this section has some notes which might be interesting for
+those who want to enhance sendmail.  These notes are not exhaustive
+but just cover some things which might be interesting.
+
+Address format: sendmail uses a range of 8 bit characters for its
+internal purposes as noted in sendmail.h:
+
+**  Special characters in rewriting rules.
+**	These are used internally only.
+
+To handle all 8 bit characters, sendmail uses two address formats:
+internal and external -- for details see the comments in cataddr()
+as well as the functions quote_internal_chars() and
+dequote_internal_chars() in libsm/util.c.
+
+These formats are marked in many places with [i] and [x] respectively.
+Some functions only work on one kind of those formats, so it is
+important to mark the strings accordingly. In some cases the marker
+[A] is used to denote that the string format does not matter (which
+is the default) -- this is only used in cases where there might be
+some confusion about any format requirements.

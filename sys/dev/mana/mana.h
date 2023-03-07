@@ -155,7 +155,7 @@ struct mana_txq {
 
 	uint16_t		vp_offset;
 
-	struct ifnet		*ndev;
+	if_t			ndev;
 	/* Store index to the array of tx_qp in port structure */
 	int			idx;
 	/* The alternative txq idx when this txq is under heavy load */
@@ -416,7 +416,7 @@ struct mana_rxq {
 
 	struct mana_cq			rx_cq;
 
-	struct ifnet			*ndev;
+	if_t				ndev;
 	struct lro_ctrl			lro;
 
 	/* Total number of receive buffers to be allocated */
@@ -461,12 +461,12 @@ struct mana_context {
 
 	struct mana_eq		*eqs;
 
-	struct ifnet		*ports[MAX_PORTS_IN_MANA_DEV];
+	if_t			ports[MAX_PORTS_IN_MANA_DEV];
 };
 
 struct mana_port_context {
 	struct mana_context	*ac;
-	struct ifnet		*ndev;
+	if_t			ndev;
 	struct ifmedia		media;
 
 	struct sx		apc_lock;
@@ -533,9 +533,9 @@ struct mana_port_context {
 int mana_config_rss(struct mana_port_context *ac, enum TRI_STATE rx,
     bool update_hash, bool update_tab);
 
-int mana_alloc_queues(struct ifnet *ndev);
-int mana_attach(struct ifnet *ndev);
-int mana_detach(struct ifnet *ndev);
+int mana_alloc_queues(if_t ndev);
+int mana_attach(if_t ndev);
+int mana_detach(if_t ndev);
 
 int mana_probe(struct gdma_dev *gd);
 void mana_remove(struct gdma_dev *gd);

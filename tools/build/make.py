@@ -71,12 +71,6 @@ def bootstrap_bmake(source_root, objdir_prefix):
     global new_env_vars
     env.update(new_env_vars)
 
-    if sys.platform.startswith("linux"):
-        # Work around the deleted file bmake/missing/sys/cdefs.h
-        # TODO: bmake should keep the compat sys/cdefs.h
-        env["CFLAGS"] = "-I{src}/tools/build/cross-build/include/common " \
-                        "-I{src}/tools/build/cross-build/include/linux " \
-                        "-D_GNU_SOURCE=1".format(src=source_root)
     configure_args = [
         "--with-default-sys-path=" + str(bmake_install_dir / "share/mk"),
         "--with-machine=amd64",  # TODO? "--with-machine-arch=amd64",
@@ -267,5 +261,13 @@ if __name__ == "__main__":
         shlex.quote(s) for s in [str(bmake_binary)] + bmake_args)
     debug("Running `env ", env_cmd_str, " ", make_cmd_str, "`", sep="")
     os.environ.update(new_env_vars)
+
+    # Fedora defines bash function wrapper for some shell commands and this
+    # makes 'which <command>' return the function's source code instead of
+    # the binary path. Undefine it to restore the original behavior.
+    os.unsetenv("BASH_FUNC_which%%")
+    os.unsetenv("BASH_FUNC_ml%%")
+    os.unsetenv("BASH_FUNC_module%%")
+
     os.chdir(str(source_root))
     os.execv(str(bmake_binary), [str(bmake_binary)] + bmake_args)

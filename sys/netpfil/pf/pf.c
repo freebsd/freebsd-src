@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
 #include <net/route.h>
@@ -249,12 +250,7 @@ uma_zone_t		pf_mtag_z;
 VNET_DEFINE(uma_zone_t,	 pf_state_z);
 VNET_DEFINE(uma_zone_t,	 pf_state_key_z);
 
-VNET_DEFINE(uint64_t, pf_stateid[MAXCPU]);
-#define	PFID_CPUBITS	8
-#define	PFID_CPUSHIFT	(sizeof(uint64_t) * NBBY - PFID_CPUBITS)
-#define	PFID_CPUMASK	((uint64_t)((1 << PFID_CPUBITS) - 1) <<	PFID_CPUSHIFT)
-#define	PFID_MAXID	(~PFID_CPUMASK)
-CTASSERT((1 << PFID_CPUBITS) >= MAXCPU);
+VNET_DEFINE(struct unrhdr64, pf_stateid);
 
 static void		 pf_src_tree_remove_state(struct pf_kstate *);
 static void		 pf_init_threshold(struct pf_threshold *, u_int32_t,
@@ -437,40 +433,6 @@ VNET_DEFINE(struct intr_event *, pf_swi_ie);
 
 VNET_DEFINE(uint32_t, pf_hashseed);
 #define	V_pf_hashseed	VNET(pf_hashseed)
-
-#ifdef __LP64__
-static int
-pf_bcmp_state_key(struct pf_state_key *k1_orig, struct pf_state_key_cmp *k2_orig)
-{
-	unsigned long *k1 = (unsigned long *)k1_orig;
-	unsigned long *k2 = (unsigned long *)k2_orig;
-
-	if (k1[0] != k2[0])
-		return (1);
-
-	if (k1[1] != k2[1])
-		return (1);
-
-	if (k1[2] != k2[2])
-		return (1);
-
-	if (k1[3] != k2[3])
-		return (1);
-
-	if (k1[4] != k2[4])
-		return (1);
-
-	return (0);
-}
-_Static_assert(sizeof(struct pf_state_key_cmp) == 40, "bad size of pf_state_key_cmp");
-#else
-static inline int
-pf_bcmp_state_key(struct pf_state_key *k1_orig, struct pf_state_key_cmp *k2_orig)
-{
-
-	return (bcmp(k1_orig, k2_orig, sizeof(struct pf_state_key_cmp)));
-}
-#endif
 
 int
 pf_addr_cmp(struct pf_addr *a, struct pf_addr *b, sa_family_t af)
@@ -1227,7 +1189,7 @@ pf_state_key_attach(struct pf_state_key *skw, struct pf_state_key *sks,
 
 keyattach:
 	LIST_FOREACH(cur, &kh->keys, entry)
-		if (pf_bcmp_state_key(cur, (struct pf_state_key_cmp *)sk) == 0)
+		if (bcmp(cur, sk, sizeof(struct pf_state_key_cmp)) == 0)
 			break;
 
 	if (cur != NULL) {
@@ -1450,10 +1412,7 @@ pf_state_insert(struct pfi_kkif *kif, struct pfi_kkif *orig_kif,
 	s->orig_kif = orig_kif;
 
 	if (s->id == 0 && s->creatorid == 0) {
-		/* XXX: should be atomic, but probability of collision low */
-		if ((s->id = V_pf_stateid[curcpu]++) == PFID_MAXID)
-			V_pf_stateid[curcpu] = 1;
-		s->id |= (uint64_t )curcpu << PFID_CPUSHIFT;
+		s->id = alloc_unr64(&V_pf_stateid);
 		s->id = htobe64(s->id);
 		s->creatorid = V_pf_status.hostid;
 	}
@@ -1533,7 +1492,7 @@ pf_find_state(struct pfi_kkif *kif, struct pf_state_key_cmp *key, u_int dir)
 
 	PF_HASHROW_LOCK(kh);
 	LIST_FOREACH(sk, &kh->keys, entry)
-		if (pf_bcmp_state_key(sk, key) == 0)
+		if (bcmp(sk, key, sizeof(struct pf_state_key_cmp)) == 0)
 			break;
 	if (sk == NULL) {
 		PF_HASHROW_UNLOCK(kh);
@@ -1580,7 +1539,7 @@ pf_find_state_all(struct pf_state_key_cmp *key, u_int dir, int *more)
 
 	PF_HASHROW_LOCK(kh);
 	LIST_FOREACH(sk, &kh->keys, entry)
-		if (pf_bcmp_state_key(sk, key) == 0)
+		if (bcmp(sk, key, sizeof(struct pf_state_key_cmp)) == 0)
 			break;
 	if (sk == NULL) {
 		PF_HASHROW_UNLOCK(kh);
@@ -3090,6 +3049,22 @@ pf_match_ieee8021q_pcp(u_int8_t prio, struct mbuf *m)
 	return (mpcp == prio);
 }
 
+static int
+pf_icmp_to_bandlim(uint8_t type)
+{
+	switch (type) {
+		case ICMP_ECHO:
+		case ICMP_ECHOREPLY:
+			return (BANDLIM_ICMP_ECHO);
+		case ICMP_TSTAMP:
+		case ICMP_TSTAMPREPLY:
+			return (BANDLIM_ICMP_TSTAMP);
+		case ICMP_UNREACH:
+		default:
+			return (BANDLIM_ICMP_UNREACH);
+	}
+}
+
 static void
 pf_send_icmp(struct mbuf *m, u_int8_t type, u_int8_t code, sa_family_t af,
     struct pf_krule *r)
@@ -3097,6 +3072,20 @@ pf_send_icmp(struct mbuf *m, u_int8_t type, u_int8_t code, sa_family_t af,
 	struct pf_send_entry *pfse;
 	struct mbuf *m0;
 	struct pf_mtag *pf_mtag;
+
+	/* ICMP packet rate limitation. */
+#ifdef INET6
+	if (af == AF_INET6) {
+		if (icmp6_ratelimit(NULL, type, code))
+			return;
+	}
+#endif
+#ifdef INET
+	if (af == AF_INET) {
+		if (badport_bandlim(pf_icmp_to_bandlim(type)) != 0)
+			return;
+	}
+#endif
 
 	/* Allocate outgoing queue entry, mbuf and mbuf tag. */
 	pfse = malloc(sizeof(*pfse), M_PFTEMP, M_NOWAIT);
@@ -3845,6 +3834,32 @@ pf_match_eth_tag(struct mbuf *m, struct pf_keth_rule *r, int *tag, int mtag)
 	    (r->match_tag_not && r->match_tag != *tag));
 }
 
+static void
+pf_bridge_to(struct pfi_kkif *kif, struct mbuf *m)
+{
+	struct ifnet *ifp = kif->pfik_ifp;
+
+	/* If we don't have the interface drop the packet. */
+	if (ifp == NULL) {
+		m_freem(m);
+		return;
+	}
+
+	switch (ifp->if_type) {
+	case IFT_ETHER:
+	case IFT_XETHER:
+	case IFT_L2VLAN:
+	case IFT_BRIDGE:
+	case IFT_IEEE8023ADLAG:
+		break;
+	default:
+		m_freem(m);
+		return;
+	}
+
+	kif->pfik_ifp->if_transmit(kif->pfik_ifp, m);
+}
+
 static int
 pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf **m0)
 {
@@ -4103,6 +4118,11 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf **m0)
 	}
 
 	action = r->action;
+
+	if (action == PF_PASS && r->bridge_to) {
+		pf_bridge_to(r->bridge_to, *m0);
+		*m0 = NULL; /* We've eaten the packet. */
+	}
 
 	PF_RULES_RUNLOCK();
 
@@ -5427,9 +5447,11 @@ pf_test_state_tcp(struct pf_kstate **state, int direction, struct pfi_kkif *kif,
 	if ((action = pf_synproxy(pd, state, reason)) != PF_PASS)
 		return (action);
 
-	if (((th->th_flags & (TH_SYN|TH_ACK)) == TH_SYN) &&
-	    dst->state >= TCPS_FIN_WAIT_2 &&
-	    src->state >= TCPS_FIN_WAIT_2) {
+	if (dst->state >= TCPS_FIN_WAIT_2 &&
+	    src->state >= TCPS_FIN_WAIT_2 &&
+	    (((th->th_flags & (TH_SYN|TH_ACK)) == TH_SYN) ||
+	    ((th->th_flags & (TH_SYN|TH_ACK|TH_RST)) == TH_ACK &&
+	    pf_syncookie_check(pd) && pd->dir == PF_IN))) {
 		if (V_pf_status.debug >= PF_DEBUG_MISC) {
 			printf("pf: state reuse ");
 			pf_print_state(*state);

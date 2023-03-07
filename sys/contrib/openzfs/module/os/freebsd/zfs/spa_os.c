@@ -58,7 +58,6 @@
 #include <sys/fs/zfs.h>
 #include <sys/arc.h>
 #include <sys/callb.h>
-#include <sys/spa_boot.h>
 #include <sys/zfs_ioctl.h>
 #include <sys/dsl_scan.h>
 #include <sys/dmu_send.h>
@@ -95,6 +94,8 @@ spa_generate_rootconf(const char *name)
 	for (i = 0; i < count; i++) {
 		uint64_t txg;
 
+		if (configs[i] == NULL)
+			continue;
 		txg = fnvlist_lookup_uint64(configs[i], ZPOOL_CONFIG_POOL_TXG);
 		if (txg > best_txg) {
 			best_txg = txg;
@@ -250,7 +251,7 @@ spa_import_rootpool(const char *name, bool checkpointrewind)
 		mutex_exit(&spa_namespace_lock);
 		fnvlist_free(config);
 		cmn_err(CE_NOTE, "Can not parse the config for pool '%s'",
-		    pname);
+		    name);
 		return (error);
 	}
 

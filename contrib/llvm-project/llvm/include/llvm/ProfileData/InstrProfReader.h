@@ -19,6 +19,7 @@
 #include "llvm/IR/ProfileSummary.h"
 #include "llvm/ProfileData/InstrProf.h"
 #include "llvm/ProfileData/InstrProfCorrelator.h"
+#include "llvm/ProfileData/MemProf.h"
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/LineIterator.h"
@@ -39,25 +40,36 @@ namespace llvm {
 class InstrProfReader;
 
 /// A file format agnostic iterator over profiling data.
+template <class record_type = NamedInstrProfRecord,
+          class reader_type = InstrProfReader>
 class InstrProfIterator {
 public:
   using iterator_category = std::input_iterator_tag;
-  using value_type = NamedInstrProfRecord;
+  using value_type = record_type;
   using difference_type = std::ptrdiff_t;
   using pointer = value_type *;
   using reference = value_type &;
 
 private:
-  InstrProfReader *Reader = nullptr;
+  reader_type *Reader = nullptr;
   value_type Record;
 
-  void Increment();
+  void increment() {
+    if (Error E = Reader->readNextRecord(Record)) {
+      // Handle errors in the reader.
+      InstrProfError::take(std::move(E));
+      *this = InstrProfIterator();
+    }
+  }
 
 public:
   InstrProfIterator() = default;
-  InstrProfIterator(InstrProfReader *Reader) : Reader(Reader) { Increment(); }
+  InstrProfIterator(reader_type *Reader) : Reader(Reader) { increment(); }
 
-  InstrProfIterator &operator++() { Increment(); return *this; }
+  InstrProfIterator &operator++() {
+    increment();
+    return *this;
+  }
   bool operator==(const InstrProfIterator &RHS) const {
     return Reader == RHS.Reader;
   }
@@ -88,8 +100,8 @@ public:
   virtual Error printBinaryIds(raw_ostream &OS) { return success(); };
 
   /// Iterator over profile data.
-  InstrProfIterator begin() { return InstrProfIterator(this); }
-  InstrProfIterator end() { return InstrProfIterator(); }
+  InstrProfIterator<> begin() { return InstrProfIterator<>(this); }
+  InstrProfIterator<> end() { return InstrProfIterator<>(); }
 
   virtual bool isIRLevelProfile() const = 0;
 
@@ -201,15 +213,16 @@ public:
   static bool hasFormat(const MemoryBuffer &Buffer);
 
   bool isIRLevelProfile() const override {
-    return static_cast<bool>(ProfileKind & InstrProfKind::IR);
+    return static_cast<bool>(ProfileKind & InstrProfKind::IRInstrumentation);
   }
 
   bool hasCSIRLevelProfile() const override {
-    return static_cast<bool>(ProfileKind & InstrProfKind::CS);
+    return static_cast<bool>(ProfileKind & InstrProfKind::ContextSensitive);
   }
 
   bool instrEntryBBEnabled() const override {
-    return static_cast<bool>(ProfileKind & InstrProfKind::BB);
+    return static_cast<bool>(ProfileKind &
+                             InstrProfKind::FunctionEntryInstrumentation);
   }
 
   bool hasSingleByteCoverage() const override {
@@ -460,6 +473,11 @@ struct InstrProfReaderIndexBase {
 using OnDiskHashTableImplV3 =
     OnDiskIterableChainedHashTable<InstrProfLookupTrait>;
 
+using MemProfRecordHashTable =
+    OnDiskIterableChainedHashTable<memprof::RecordLookupTrait>;
+using MemProfFrameHashTable =
+    OnDiskIterableChainedHashTable<memprof::FrameLookupTrait>;
+
 template <typename HashTableImpl>
 class InstrProfReaderItaniumRemapper;
 
@@ -545,6 +563,13 @@ private:
   std::unique_ptr<ProfileSummary> Summary;
   /// Context sensitive profile summary data.
   std::unique_ptr<ProfileSummary> CS_Summary;
+  /// MemProf profile schema (if available).
+  memprof::MemProfSchema Schema;
+  /// MemProf record profile data on-disk indexed via llvm::md5(FunctionName).
+  std::unique_ptr<MemProfRecordHashTable> MemProfRecordTable;
+  /// MemProf frame profile data on-disk indexed via frame id.
+  std::unique_ptr<MemProfFrameHashTable> MemProfFrameTable;
+
   // Index to the current record in the record array.
   unsigned RecordIndex;
 
@@ -594,9 +619,18 @@ public:
   /// Read a single record.
   Error readNextRecord(NamedInstrProfRecord &Record) override;
 
-  /// Return the NamedInstrProfRecord associated with FuncName and FuncHash
-  Expected<InstrProfRecord> getInstrProfRecord(StringRef FuncName,
-                                               uint64_t FuncHash);
+  /// Return the NamedInstrProfRecord associated with FuncName and FuncHash.
+  /// When return a hash_mismatch error and MismatchedFuncSum is not nullptr,
+  /// the sum of all counters in the mismatched function will be set to
+  /// MismatchedFuncSum. If there are multiple instances of mismatched
+  /// functions, MismatchedFuncSum returns the maximum.
+  Expected<InstrProfRecord>
+  getInstrProfRecord(StringRef FuncName, uint64_t FuncHash,
+                     uint64_t *MismatchedFuncSum = nullptr);
+
+  /// Return the memprof record for the function identified by
+  /// llvm::md5(Name).
+  Expected<memprof::MemProfRecord> getMemProfRecord(uint64_t FuncNameHash);
 
   /// Fill Counts with the profile data for the given function name.
   Error getFunctionCounts(StringRef FuncName, uint64_t FuncHash,

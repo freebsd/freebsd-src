@@ -30,7 +30,7 @@
 .\"
 .\"	@(#)grep.1	8.3 (Berkeley) 4/18/94
 .\"
-.Dd November 10, 2021
+.Dd December 18, 2022
 .Dt GREP 1
 .Os
 .Sh NAME
@@ -265,7 +265,7 @@ Print a brief help message.
 .It Fl I
 Ignore binary files.
 This option is equivalent to the
-.Dq Fl Fl binary-file= Ns Cm without-match
+.Dq Fl Fl binary-files= Ns Cm without-match
 option.
 .It Fl i , Fl Fl ignore-case
 Perform case insensitive matching.
@@ -440,6 +440,22 @@ read from standard input.
 This includes both
 .Fl f
 and file arguments.
+.Sh ENVIRONMENT
+The following environment variables affect the execution of
+.Nm :
+.Bl -tag -width "GREP_OPTIONS"
+.It Ev GREP_COLOR
+This variable specifies the color used to highlight matched (non-empty) text.
+.It Ev GREP_OPTIONS
+This variable specifies default options
+to be placed in front of any explicit options.
+It may cause problems with portable scripts.
+.It Ev TERM
+This variable specifies the type name of the terminal, console or display-device
+type to be used.
+See
+.Xr term 7 .
+.El
 .Sh EXIT STATUS
 The
 .Nm grep
@@ -515,11 +531,11 @@ Do the search recursively from the
 .Pa /usr/src/sys/arm
 directory
 .Pp
-.Dl $ grep -H -R FIXME --include=*.h /usr/src/sys/arm/
+.Dl $ grep -H -R FIXME --include="*.h" /usr/src/sys/arm/
 .It
 Same as above but show only the name of the matching file:
 .Pp
-.Dl $ grep -l -R FIXME --include=*.h /usr/src/sys/arm/
+.Dl $ grep -l -R FIXME --include="*.h" /usr/src/sys/arm/
 .It
 Show lines containing the text
 .Sq foo .

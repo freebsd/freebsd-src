@@ -45,6 +45,7 @@
 #define	_BASENAME_RTLD		_COMPAT32_BASENAME_RTLD
 #define	STANDARD_LIBRARY_PATH	"/lib32:/usr/lib32"
 #define	LD_			"LD_32_"
+#define	TOKEN_LIB		"lib32"
 #endif
 
 #ifndef _PATH_ELF_HINTS
@@ -73,6 +74,10 @@
 
 #ifndef LD_
 #define	LD_			"LD_"
+#endif
+
+#ifndef TOKEN_LIB
+#define	TOKEN_LIB		"lib"
 #endif
 
 #ifdef IN_RTLD

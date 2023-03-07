@@ -72,6 +72,7 @@
 
 #include "e1000_api.h"
 
+static s32  e1000_oem_bits_config_ich8lan(struct e1000_hw *hw, bool d0_state);
 static s32  e1000_acquire_swflag_ich8lan(struct e1000_hw *hw);
 static void e1000_release_swflag_ich8lan(struct e1000_hw *hw);
 static s32  e1000_acquire_nvm_ich8lan(struct e1000_hw *hw);
@@ -330,7 +331,9 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 	 * so forcibly disable it.
 	 */
 	hw->dev_spec.ich8lan.ulp_state = e1000_ulp_state_unknown;
-	e1000_disable_ulp_lpt_lp(hw, TRUE);
+	ret_val = e1000_disable_ulp_lpt_lp(hw, true);
+	if (ret_val)
+		ERROR_REPORT("Failed to disable ULP\n");
 
 	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val) {
@@ -349,6 +352,7 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 	case e1000_pch_tgp:
 	case e1000_pch_adp:
 	case e1000_pch_mtp:
+	case e1000_pch_ptp:
 		if (e1000_phy_is_accessible_pchlan(hw))
 			break;
 
@@ -501,6 +505,7 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 		case e1000_pch_tgp:
 		case e1000_pch_adp:
 		case e1000_pch_mtp:
+		case e1000_pch_ptp:
 			/* In case the PHY needs to be in mdio slow mode,
 			 * set slow mode and try to get the PHY id again.
 			 */
@@ -803,6 +808,7 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_hw *hw)
 	case e1000_pch_tgp:
 	case e1000_pch_adp:
 	case e1000_pch_mtp:
+	case e1000_pch_ptp:
 		/* multicast address update for pch2 */
 		mac->ops.update_mc_addr_list =
 			e1000_update_mc_addr_list_pch2lan;
@@ -1290,14 +1296,12 @@ s32 e1000_enable_ulp_lpt_lp(struct e1000_hw *hw, bool to_sx)
 
 	if (!to_sx) {
 		int i = 0;
-
 		/* Poll up to 5 seconds for Cable Disconnected indication */
 		while (!(E1000_READ_REG(hw, E1000_FEXT) &
 			 E1000_FEXT_PHY_CABLE_DISCONNECTED)) {
 			/* Bail if link is re-acquired */
 			if (E1000_READ_REG(hw, E1000_STATUS) & E1000_STATUS_LU)
 				return -E1000_ERR_PHY;
-
 			if (i++ == 100)
 				break;
 
@@ -1310,7 +1314,6 @@ s32 e1000_enable_ulp_lpt_lp(struct e1000_hw *hw, bool to_sx)
 		if (!(E1000_READ_REG(hw, E1000_FEXT) &
 		    E1000_FEXT_PHY_CABLE_DISCONNECTED))
 			return 0;
-
 	}
 
 	ret_val = hw->phy.ops.acquire(hw);
@@ -1851,6 +1854,7 @@ void e1000_init_function_pointers_ich8lan(struct e1000_hw *hw)
 	case e1000_pch_tgp:
 	case e1000_pch_adp:
 	case e1000_pch_mtp:
+	case e1000_pch_ptp:
 		hw->phy.ops.init_params = e1000_init_phy_params_pchlan;
 		break;
 	default:
@@ -2310,6 +2314,7 @@ static s32 e1000_sw_lcd_config_ich8lan(struct e1000_hw *hw)
 	case e1000_pch_tgp:
 	case e1000_pch_adp:
 	case e1000_pch_mtp:
+	case e1000_pch_ptp:
 		sw_cfg_mask = E1000_FEXTNVM_SW_CONFIG_ICH8M;
 		break;
 	default:
@@ -3435,6 +3440,7 @@ static s32 e1000_valid_nvm_bank_detect_ich8lan(struct e1000_hw *hw, u32 *bank)
 	case e1000_pch_tgp:
 	case e1000_pch_adp:
 	case e1000_pch_mtp:
+	case e1000_pch_ptp:
 		bank1_offset = nvm->flash_bank_size;
 		act_offset = E1000_ICH_NVM_SIG_WORD;
 
@@ -4318,7 +4324,7 @@ static s32 e1000_update_nvm_checksum_ich8lan(struct e1000_hw *hw)
 							  (u8)(data >> 8));
 		if (ret_val)
 			break;
-	 }
+	}
 
 	/* Don't bother writing the segment valid bits if sector
 	 * programming failed.
@@ -4409,6 +4415,7 @@ static s32 e1000_validate_nvm_checksum_ich8lan(struct e1000_hw *hw)
 	case e1000_pch_tgp:
 	case e1000_pch_adp:
 	case e1000_pch_mtp:
+	case e1000_pch_ptp:
 		word = NVM_COMPAT;
 		valid_csum_mask = NVM_COMPAT_VALID_CSUM;
 		break;
@@ -5166,6 +5173,13 @@ static s32 e1000_init_hw_ich8lan(struct e1000_hw *hw)
 	else
 		snoop = (u32) ~(PCIE_NO_SNOOP_ALL);
 	e1000_set_pcie_no_snoop_generic(hw, snoop);
+
+	/* ungate DMA clock to avoid packet loss */
+	if (mac->type >= e1000_pch_tgp) {
+		uint32_t fflt_dbg = E1000_READ_REG(hw, E1000_FFLT_DBG);
+		fflt_dbg |= (1 << 12);
+		E1000_WRITE_REG(hw, E1000_FFLT_DBG, fflt_dbg);
+	}
 
 	ctrl_ext = E1000_READ_REG(hw, E1000_CTRL_EXT);
 	ctrl_ext |= E1000_CTRL_EXT_RO_DIS;

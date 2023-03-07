@@ -1,6 +1,6 @@
-# $Id: sys.vars.mk,v 1.9 2022/02/05 19:04:53 sjg Exp $
+# $Id: sys.vars.mk,v 1.12 2023/01/20 17:34:06 sjg Exp $
 #
-#	@(#) Copyright (c) 2003-2009, Simon J. Gerraty
+#	@(#) Copyright (c) 2003-2023, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
@@ -17,15 +17,10 @@
 # It relies on the fact that conditionals and dependencies are resolved
 # at the time they are read.
 #
-# _this ?= ${.PARSEFILE}
+# _this ?= ${.PARSEDIR:tA}/${.PARSEFILE}
 # .if !target(__${_this}__)
 # __${_this}__: .NOTMAIN
 #
-.if ${MAKE_VERSION:U0} > 20100408
-_this = ${.PARSEDIR:tA}/${.PARSEFILE}
-.else
-_this = ${.PARSEDIR}/${.PARSEFILE}
-.endif
 
 # if this is an ancient version of bmake
 MAKE_VERSION ?= 0
@@ -34,12 +29,18 @@ MAKE_VERSION ?= 0
 MAKE_VERSION := ${MAKE_VERSION:[1]:C,.*-,,}
 .endif
 
+.if ${MAKE_VERSION} < 20100414
+_this = ${.PARSEDIR}/${.PARSEFILE}
+.else
+_this = ${.PARSEDIR:tA}/${.PARSEFILE}
+.endif
+
 # some useful modifiers
 
 # A useful trick for testing multiple :M's against something
 # :L says to use the variable's name as its value - ie. literal
 # got = ${clean* destroy:${M_ListToMatch:S,V,.TARGETS,}}
-M_ListToMatch = L:@m@$${V:M$$m}@
+M_ListToMatch = L:@m@$${V:U:M$$m}@
 # match against our initial targets (see above)
 M_L_TARGETS = ${M_ListToMatch:S,V,_TARGETS,}
 
@@ -79,35 +80,44 @@ M_JOT = [1]:@x@i=1;while [ $$$$i -le $$x ]; do echo $$$$i; i=$$$$((i + 1)); done
 .endif
 
 # ${LIST:${M_RANGE}} is 1 2 3 4 5 if LIST has 5 words
-.if ${MAKE_VERSION} >= 20170130
-M_RANGE = range
-.else
+.if ${MAKE_VERSION} < 20170130
 M_RANGE = [#]:${M_JOT}
+.else
+M_RANGE = range
 .endif
 
 # convert a path to a valid shell variable
 M_P2V = tu:C,[./-],_,g
 
 # convert path to absolute
-.if ${MAKE_VERSION:U0} > 20100408
-M_tA = tA
-.else
+.if ${MAKE_VERSION} < 20100414
 M_tA = C,.*,('cd' & \&\& 'pwd') 2> /dev/null || echo &,:sh
-.endif
-
-.if ${MAKE_VERSION:U0} >= 20170130
-# M_cmpv allows comparing dotted versions like 3.1.2
-# ${3.1.2:L:${M_cmpv}} -> 3001002
-# we use big jumps to handle 3 digits per dot:
-# ${123.456.789:L:${M_cmpv}} -> 123456789
-M_cmpv.units = 1 1000 1000000
-M_cmpv = S,., ,g:_:range:@i@+ $${_:[-$$i]} \* $${M_cmpv.units:[$$i]}@:S,^,expr 0 ,1:sh
+.else
+M_tA = tA
 .endif
 
 # absoulte path to what we are reading.
 _PARSEDIR = ${.PARSEDIR:${M_tA}}
 
+.if ${MAKE_VERSION} >= 20170130
+# M_cmpv allows comparing dotted versions like 3.1.2
+# ${3.1.2:L:${M_cmpv}} -> 3001002
+# we use big jumps to handle 3 digits per dot:
+# ${123.456.789:L:${M_cmpv}} -> 123456789
+M_cmpv.units = 1 1000 1000000 1000000000 1000000000000
+M_cmpv = S,., ,g:C,^0*([0-9]),\1,:_:range:@i@+ $${_:[-$$i]} \* $${M_cmpv.units:[$$i]}@:S,^,expr 0 ,1:sh
+.endif
+
 # many projects use MAJOR MINOR PATCH versioning
 # ${OPENSSL:${M_M.M.P_VERSION}} is equivalent to
 # ${OPENSSL_MAJOR_VERSION}.${OPENSSL_MINOR_VERSION}.${OPENSSL_PATCH_VERSION}
 M_M.M.P_VERSION = L:@v@$${MAJOR MINOR PATCH:L:@t@$${$$v_$$t_VERSION:U0}@}@:ts.
+
+# numeric sort
+.if ${MAKE_VERSION} < 20210803
+M_On = O
+M_Onr = O
+.else
+M_On = On
+M_Onr = Onr
+.endif

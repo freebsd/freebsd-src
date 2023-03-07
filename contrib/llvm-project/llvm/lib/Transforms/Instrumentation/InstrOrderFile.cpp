@@ -9,29 +9,22 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Instrumentation/InstrOrderFile.h"
-#include "llvm/ADT/Statistic.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
-#include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/PassRegistry.h"
 #include "llvm/ProfileData/InstrProf.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Debug.h"
 #include "llvm/Support/FileSystem.h"
-#include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Instrumentation.h"
 #include <fstream>
-#include <map>
 #include <mutex>
-#include <set>
 #include <sstream>
 
 using namespace llvm;
@@ -61,7 +54,7 @@ private:
   ArrayType *MapTy;
 
 public:
-  InstrOrderFile() {}
+  InstrOrderFile() = default;
 
   void createOrderFileData(Module &M) {
     LLVMContext &Ctx = M.getContext();
@@ -170,42 +163,11 @@ public:
   }
 
 }; // End of InstrOrderFile struct
-
-class InstrOrderFileLegacyPass : public ModulePass {
-public:
-  static char ID;
-
-  InstrOrderFileLegacyPass() : ModulePass(ID) {
-    initializeInstrOrderFileLegacyPassPass(
-        *PassRegistry::getPassRegistry());
-  }
-
-  bool runOnModule(Module &M) override;
-};
-
 } // End anonymous namespace
-
-bool InstrOrderFileLegacyPass::runOnModule(Module &M) {
-  if (skipModule(M))
-    return false;
-
-  return InstrOrderFile().run(M);
-}
 
 PreservedAnalyses
 InstrOrderFilePass::run(Module &M, ModuleAnalysisManager &AM) {
   if (InstrOrderFile().run(M))
     return PreservedAnalyses::none();
   return PreservedAnalyses::all();
-}
-
-INITIALIZE_PASS_BEGIN(InstrOrderFileLegacyPass, "instrorderfile",
-                      "Instrumentation for Order File", false, false)
-INITIALIZE_PASS_END(InstrOrderFileLegacyPass, "instrorderfile",
-                    "Instrumentation for Order File", false, false)
-
-char InstrOrderFileLegacyPass::ID = 0;
-
-ModulePass *llvm::createInstrOrderFilePass() {
-  return new InstrOrderFileLegacyPass();
 }

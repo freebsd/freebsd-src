@@ -1,4 +1,4 @@
-/*	$NetBSD: read.c,v 1.107 2021/08/15 10:08:41 christos Exp $	*/
+/*	$NetBSD: read.c,v 1.108 2022/10/30 19:11:31 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)read.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: read.c,v 1.107 2021/08/15 10:08:41 christos Exp $");
+__RCSID("$NetBSD: read.c,v 1.108 2022/10/30 19:11:31 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -89,28 +89,31 @@ read_init(EditLine *el)
 		return -1;
 
 	ma = &el->el_read->macros;
-	if ((ma->macro = el_calloc(EL_MAXMACRO, sizeof(*ma->macro))) == NULL) {
-		free(el->el_read);
-		return -1;
-	}
+	if ((ma->macro = el_calloc(EL_MAXMACRO, sizeof(*ma->macro))) == NULL)
+		goto out;
 	ma->level = -1;
 	ma->offset = 0;
 
 	/* builtin read_char */
 	el->el_read->read_char = read_char;
 	return 0;
+out:
+	read_end(el);
+	return -1;
 }
 
 /* el_read_end():
  *	Free the data structures used by the read stuff.
  */
 libedit_private void
-read_end(struct el_read_t *el_read)
+read_end(EditLine *el)
 {
-	read_clearmacros(&el_read->macros);
-	el_free(el_read->macros.macro);
-	el_read->macros.macro = NULL;
-	el_free(el_read);
+
+	read_clearmacros(&el->el_read->macros);
+	el_free(el->el_read->macros.macro);
+	el->el_read->macros.macro = NULL;
+	el_free(el->el_read);
+	el->el_read = NULL;
 }
 
 /* el_read_setfn():

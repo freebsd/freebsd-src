@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -32,59 +32,92 @@ testdir=$(dirname "$script")
 
 . "$testdir/../scripts/functions.sh"
 
+# Just print the usage and exit with an error. This can receive a message to
+# print.
+# @param 1  A message to print.
+usage() {
+	if [ $# -eq 1 ]; then
+		printf '%s\n\n' "$1"
+	fi
+	print 'usage: %s [-n] dir [run_extra_tests] [run_stack_tests] [gen_tests] [run_problematic_tests] [time_tests] [exec args...]\n' \
+		"$script"
+	exit 1
+}
+
 # We need to figure out if we should run stuff in parallel.
 pll=1
 
 while getopts "n" opt; do
 
 	case "$opt" in
-		n) pll=0 ; shift ; set -e ;;
+		n) pll=0 ; set -e ;;
 		?) usage "Invalid option: $opt" ;;
 	esac
 
 done
+shift $(($OPTIND - 1))
 
 # Command-line processing.
 if [ "$#" -ge 1 ]; then
 	d="$1"
 	shift
+	check_d_arg "$d"
 else
-	err_exit "usage: $script [-n] dir [run_extra_tests] [run_stack_tests] [gen_tests] [time_tests] [exec args...]" 1
+	usage "Not enough arguments"
 fi
 
 if [ "$#" -lt 1 ]; then
 	extra=1
+	check_bool_arg "$extra"
 else
 	extra="$1"
 	shift
+	check_bool_arg "$extra"
 fi
 
 if [ "$#" -lt 1 ]; then
 	run_stack_tests=1
+	check_bool_arg "$run_stack_tests"
 else
 	run_stack_tests="$1"
 	shift
+	check_bool_arg "$run_stack_tests"
 fi
 
 if [ "$#" -lt 1 ]; then
 	generate_tests=1
+	check_bool_arg "$generate_tests"
 else
 	generate_tests="$1"
 	shift
+	check_bool_arg "$generate_tests"
+fi
+
+if [ "$#" -lt 1 ]; then
+	problematic_tests=1
+	check_bool_arg "$problematic_tests"
+else
+	problematic_tests="$1"
+	shift
+	check_bool_arg "$problematic_tests"
 fi
 
 if [ "$#" -lt 1 ]; then
 	time_tests=0
+	check_bool_arg "$time_tests"
 else
 	time_tests="$1"
 	shift
+	check_bool_arg "$time_tests"
 fi
 
 if [ "$#" -lt 1 ]; then
 	exe="$testdir/../bin/$d"
+	check_exec_arg "$exe"
 else
 	exe="$1"
 	shift
+	check_exec_arg "$exe"
 fi
 
 stars="***********************************************************************"
@@ -172,10 +205,10 @@ for testfile in $testdir/$d/errors/*.txt; do
 	b=$(basename "$testfile")
 
 	if [ "$pll" -ne 0 ]; then
-		sh "$testdir/error.sh" "$d" "$b" "$@" &
+		sh "$testdir/error.sh" "$d" "$b" "$problematic_tests" "$@" &
 		pids="$pids $!"
 	else
-		sh "$testdir/error.sh" "$d" "$b" "$@"
+		sh "$testdir/error.sh" "$d" "$b" "$problematic_tests" "$@"
 	fi
 
 done

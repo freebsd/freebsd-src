@@ -84,10 +84,21 @@ public:
     return FunctionType::get(IFuncValTy->getPointerTo(), false);
   }
 
+  static bool isValidLinkage(LinkageTypes L) {
+    return isExternalLinkage(L) || isLocalLinkage(L) || isWeakLinkage(L) ||
+           isLinkOnceLinkage(L);
+  }
+
   // Methods for support type inquiry through isa, cast, and dyn_cast:
   static bool classof(const Value *V) {
     return V->getValueID() == Value::GlobalIFuncVal;
   }
+
+  // Apply specific operation to all resolver-related values. If resolver target
+  // is already a global object, then apply the operation to it directly. If
+  // target is a GlobalExpr or a GlobalAlias, evaluate it to its base object and
+  // apply the operation for the base object and all aliases along the path.
+  void applyAlongResolverPath(function_ref<void(const GlobalValue &)> Op) const;
 };
 
 template <>

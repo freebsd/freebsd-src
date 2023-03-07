@@ -24,13 +24,29 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 21, 2022
+.Dd October 5, 2022
 .Dt GMIRROR 8
 .Os
 .Sh NAME
 .Nm gmirror
 .Nd "control utility for mirrored devices"
 .Sh SYNOPSIS
+To compile GEOM_MIRROR into your kernel, add the following lines to your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options GEOM_MIRROR"
+.Ed
+.Pp
+Alternatively, to load the GEOM_MIRROR module at boot time, add the following
+line to your
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+geom_mirror_load="YES"
+.Ed
+.Pp
+.No Usage of the Nm
+utility:
+.Pp
 .Nm
 .Cm label
 .Op Fl Fhnv

@@ -82,7 +82,7 @@ struct urtw_tx_radiotap_header {
 	 (1 << IEEE80211_RADIOTAP_CHANNEL))
 
 struct urtw_stats {
-	unsigned int			txrates[12];
+	unsigned			txrates[12];
 };
 
 struct urtw_vap {

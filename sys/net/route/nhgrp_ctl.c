@@ -44,6 +44,7 @@
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <net/route.h>
 #include <net/route/route_ctl.h>
 #include <net/route/route_var.h>
@@ -385,8 +386,7 @@ nhgrp_free(struct nhgrp_object *nhg)
 	NET_EPOCH_EXIT(et);
 
 	KASSERT((nhg_priv->nhg_idx == 0), ("gr_idx != 0"));
-	epoch_call(net_epoch_preempt, destroy_nhgrp_epoch,
-	    &nhg_priv->nhg_epoch_ctx);
+	NET_EPOCH_CALL(destroy_nhgrp_epoch, &nhg_priv->nhg_epoch_ctx);
 }
 
 /*
@@ -459,15 +459,24 @@ free_nhgrp_nhops(struct nhgrp_priv *nhg_priv)
 }
 
 /*
- * Creates or looks up an existing nexthop group based on @wn and @num_nhops.
- *
- * Returns referenced nhop group or NULL, passing error code in @perror.
+ * Allocate nexthop group of size @num_nhops with nexthops specified by
+ * @wn. Nexthops have to be unique and match the fibnum/family of the group.
+ * Returns unlinked nhgrp object on success or NULL and non-zero perror.
  */
-struct nhgrp_priv *
-get_nhgrp(struct nh_control *ctl, struct weightened_nhop *wn, int num_nhops,
-    uint32_t uidx, int *perror)
+struct nhgrp_object *
+nhgrp_alloc(uint32_t fibnum, int family, struct weightened_nhop *wn, int num_nhops,
+    int *perror)
 {
-	struct nhgrp_priv *key, *nhg_priv;
+	struct rib_head *rh = rt_tables_get_rnh(fibnum, family);
+	struct nhgrp_priv *nhg_priv;
+	struct nh_control *ctl;
+
+	if (rh == NULL) {
+		*perror = E2BIG;
+		return (NULL);
+	}
+
+	ctl = rh->nh_control;
 
 	if (num_nhops > RIB_MAX_MPATH_WIDTH) {
 		*perror = E2BIG;
@@ -486,6 +495,10 @@ get_nhgrp(struct nh_control *ctl, struct weightened_nhop *wn, int num_nhops,
 	sort_weightened_nhops(wn, num_nhops);
 	uint32_t last_id = 0;
 	for (int i = 0; i < num_nhops; i++) {
+		if (wn[i].nh->nh_priv->nh_control != ctl) {
+			*perror = EINVAL;
+			return (NULL);
+		}
 		if (wn[i].nh->nh_priv->nh_idx == last_id) {
 			*perror = EEXIST;
 			return (NULL);
@@ -493,11 +506,25 @@ get_nhgrp(struct nh_control *ctl, struct weightened_nhop *wn, int num_nhops,
 		last_id = wn[i].nh->nh_priv->nh_idx;
 	}
 
-	if ((key = alloc_nhgrp(wn, num_nhops)) == NULL) {
+	if ((nhg_priv = alloc_nhgrp(wn, num_nhops)) == NULL) {
 		*perror = ENOMEM;
 		return (NULL);
 	}
-	key->nhg_uidx = uidx;
+	nhg_priv->nh_control = ctl;
+
+	*perror = 0;
+	return (nhg_priv->nhg);
+}
+
+/*
+ * Finds an existing group matching @nhg or links @nhg to the tree.
+ * Returns the referenced group or NULL and non-zero @perror.
+ */
+struct nhgrp_object *
+nhgrp_get_nhgrp(struct nhgrp_object *nhg, int *perror)
+{
+	struct nhgrp_priv *nhg_priv, *key = NHGRP_PRIV(nhg);
+	struct nh_control *ctl = key->nh_control;
 
 	nhg_priv = find_nhgrp(ctl, key);
 	if (nhg_priv != NULL) {
@@ -508,7 +535,7 @@ get_nhgrp(struct nh_control *ctl, struct weightened_nhop *wn, int num_nhops,
 		 */
 		destroy_nhgrp_int(key);
 		*perror = 0;
-		return (nhg_priv);
+		return (nhg_priv->nhg);
 	} else {
 		/* No existing group, try to link the new one */
 		if (!ref_nhgrp_nhops(key)) {
@@ -529,11 +556,34 @@ get_nhgrp(struct nh_control *ctl, struct weightened_nhop *wn, int num_nhops,
 			return (NULL);
 		}
 		*perror = 0;
-		return (key);
+		return (nhg);
 	}
 
 	/* NOTREACHED */
 }
+
+/*
+ * Creates or looks up an existing nexthop group based on @wn and @num_nhops.
+ *
+ * Returns referenced nhop group or NULL, passing error code in @perror.
+ */
+struct nhgrp_priv *
+get_nhgrp(struct nh_control *ctl, struct weightened_nhop *wn, int num_nhops,
+    uint32_t uidx, int *perror)
+{
+	struct nhgrp_object *nhg;
+
+	nhg = nhgrp_alloc(ctl->ctl_rh->rib_fibnum, ctl->ctl_rh->rib_family,
+	    wn, num_nhops, perror);
+	if (nhg == NULL)
+		return (NULL);
+	nhgrp_set_uidx(nhg, uidx);
+	nhg = nhgrp_get_nhgrp(nhg, perror);
+	if (nhg != NULL)
+		return (NHGRP_PRIV(nhg));
+	return (NULL);
+}
+
 
 /*
  * Appends one or more nexthops denoted by @wm to the nexthop group @gr_orig.
@@ -732,6 +782,18 @@ nhgrp_get_nhops(const struct nhgrp_object *nhg, uint32_t *pnum_nhops)
 	return (nhg_priv->nhg_nh_weights);
 }
 
+void
+nhgrp_set_uidx(struct nhgrp_object *nhg, uint32_t uidx)
+{
+	struct nhgrp_priv *nhg_priv;
+
+	KASSERT(((nhg->nhg_flags & MPF_MULTIPATH) != 0), ("nhop is not mpath"));
+
+	nhg_priv = NHGRP_PRIV(nhg);
+
+	nhg_priv->nhg_uidx = uidx;
+}
+
 uint32_t
 nhgrp_get_uidx(const struct nhgrp_object *nhg)
 {
@@ -850,6 +912,18 @@ nhgrp_get_idx(const struct nhgrp_object *nhg)
 
 	nhg_priv = NHGRP_PRIV_CONST(nhg);
 	return (nhg_priv->nhg_idx);
+}
+
+uint8_t
+nhgrp_get_origin(const struct nhgrp_object *nhg)
+{
+	return (NHGRP_PRIV_CONST(nhg)->nhg_origin);
+}
+
+void
+nhgrp_set_origin(struct nhgrp_object *nhg, uint8_t origin)
+{
+	NHGRP_PRIV(nhg)->nhg_origin = origin;
 }
 
 uint32_t

@@ -16,14 +16,11 @@
 #include "llvm/Analysis/PostDominators.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/AssemblyAnnotationWriter.h"
-#include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/InstIterator.h"
-#include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/InitializePasses.h"
-#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -84,7 +81,7 @@ void ICFLoopSafetyInfo::computeLoopSafetyInfo(const Loop *CurLoop) {
   MW.clear();
   MayThrow = false;
   // Figure out the fact that at least one block may throw.
-  for (auto &BB : CurLoop->blocks())
+  for (const auto &BB : CurLoop->blocks())
     if (ICF.hasICF(&*BB)) {
       MayThrow = true;
       break;
@@ -143,7 +140,7 @@ static bool CanProveNotTakenFirstIteration(const BasicBlock *ExitBlock,
     return false;
   auto DL = ExitBlock->getModule()->getDataLayout();
   auto *IVStart = LHS->getIncomingValueForBlock(CurLoop->getLoopPreheader());
-  auto *SimpleValOrNull = SimplifyCmpInst(Cond->getPredicate(),
+  auto *SimpleValOrNull = simplifyCmpInst(Cond->getPredicate(),
                                           IVStart, RHS,
                                           {DL, /*TLI*/ nullptr,
                                               DT, /*AC*/ nullptr, BI});
@@ -167,7 +164,7 @@ static void collectTransitivePredecessors(
   if (BB == CurLoop->getHeader())
     return;
   SmallVector<const BasicBlock *, 4> WorkList;
-  for (auto *Pred : predecessors(BB)) {
+  for (const auto *Pred : predecessors(BB)) {
     Predecessors.insert(Pred);
     WorkList.push_back(Pred);
   }
@@ -183,7 +180,7 @@ static void collectTransitivePredecessors(
     // @nested and @nested_no_throw in test/Analysis/MustExecute/loop-header.ll.
     // We can ignore backedge of all loops containing BB to get a sligtly more
     // optimistic result.
-    for (auto *PredPred : predecessors(Pred))
+    for (const auto *PredPred : predecessors(Pred))
       if (Predecessors.insert(PredPred).second)
         WorkList.push_back(PredPred);
   }
@@ -210,7 +207,7 @@ bool LoopSafetyInfo::allLoopPathsLeadToBlock(const Loop *CurLoop,
   // 3) Exit blocks which are not taken on 1st iteration.
   // Memoize blocks we've already checked.
   SmallPtrSet<const BasicBlock *, 4> CheckedSuccessors;
-  for (auto *Pred : Predecessors) {
+  for (const auto *Pred : Predecessors) {
     // Predecessor block may throw, so it has a side exit.
     if (blockMayThrow(Pred))
       return false;
@@ -220,7 +217,7 @@ bool LoopSafetyInfo::allLoopPathsLeadToBlock(const Loop *CurLoop,
     if (DT->dominates(BB, Pred))
       continue;
 
-    for (auto *Succ : successors(Pred))
+    for (const auto *Succ : successors(Pred))
       if (CheckedSuccessors.insert(Succ).second &&
           Succ != BB && !Predecessors.count(Succ))
         // By discharging conditions that are not executed on the 1st iteration,
@@ -288,7 +285,7 @@ bool ICFLoopSafetyInfo::doesNotWriteMemoryBefore(const BasicBlock *BB,
   collectTransitivePredecessors(CurLoop, BB, Predecessors);
   // Find if there any instruction in either predecessor that could write
   // to memory.
-  for (auto *Pred : Predecessors)
+  for (const auto *Pred : Predecessors)
     if (MW.mayWriteToMemory(Pred))
       return false;
   return true;
@@ -416,7 +413,7 @@ class MustExecuteAnnotatedWriter : public AssemblyAnnotationWriter {
 public:
   MustExecuteAnnotatedWriter(const Function &F,
                              DominatorTree &DT, LoopInfo &LI) {
-    for (auto &I: instructions(F)) {
+    for (const auto &I: instructions(F)) {
       Loop *L = LI.getLoopFor(I.getParent());
       while (L) {
         if (isMustExecuteIn(I, L, &DT)) {
@@ -428,8 +425,8 @@ public:
   }
   MustExecuteAnnotatedWriter(const Module &M,
                              DominatorTree &DT, LoopInfo &LI) {
-    for (auto &F : M)
-    for (auto &I: instructions(F)) {
+    for (const auto &F : M)
+    for (const auto &I: instructions(F)) {
       Loop *L = LI.getLoopFor(I.getParent());
       while (L) {
         if (isMustExecuteIn(I, L, &DT)) {
@@ -494,9 +491,9 @@ template <typename K, typename V, typename FnTy, typename... ArgsTy>
 static V getOrCreateCachedOptional(K Key, DenseMap<K, Optional<V>> &Map,
                                    FnTy &&Fn, ArgsTy&&... args) {
   Optional<V> &OptVal = Map[Key];
-  if (!OptVal.hasValue())
+  if (!OptVal)
     OptVal = Fn(std::forward<ArgsTy>(args)...);
-  return OptVal.getValue();
+  return OptVal.value();
 }
 
 const BasicBlock *

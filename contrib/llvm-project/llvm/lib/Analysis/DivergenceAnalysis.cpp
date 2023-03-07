@@ -73,15 +73,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/DivergenceAnalysis.h"
+#include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/Analysis/CFG.h"
 #include "llvm/Analysis/LoopInfo.h"
-#include "llvm/Analysis/Passes.h"
 #include "llvm/Analysis/PostDominators.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
-#include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Value.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -221,19 +220,19 @@ void DivergenceAnalysisImpl::analyzeLoopExitDivergence(
     // phi nodes at the fringes of the dominance region
     if (!DT.dominates(&LoopHeader, UserBlock)) {
       // all PHI nodes of UserBlock become divergent
-      for (auto &Phi : UserBlock->phis()) {
+      for (const auto &Phi : UserBlock->phis()) {
         analyzeTemporalDivergence(Phi, OuterDivLoop);
       }
       continue;
     }
 
     // Taint outside users of values carried by OuterDivLoop.
-    for (auto &I : *UserBlock) {
+    for (const auto &I : *UserBlock) {
       analyzeTemporalDivergence(I, OuterDivLoop);
     }
 
     // visit all blocks in the dominance region
-    for (auto *SuccBlock : successors(UserBlock)) {
+    for (const auto *SuccBlock : successors(UserBlock)) {
       if (!Visited.insert(SuccBlock).second) {
         continue;
       }
@@ -400,7 +399,7 @@ DivergenceAnalysisPrinterPass::run(Function &F, FunctionAnalysisManager &FAM) {
     }
     for (const BasicBlock &BB : F) {
       OS << "\n           " << BB.getName() << ":\n";
-      for (auto &I : BB.instructionsWithoutDebug()) {
+      for (const auto &I : BB.instructionsWithoutDebug()) {
         OS << (DI.isDivergent(I) ? "DIVERGENT:     " : "               ");
         OS << I << "\n";
       }

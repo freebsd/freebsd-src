@@ -97,9 +97,12 @@
 .Nm RB_FOREACH_REVERSE_SAFE ,
 .Nm RB_INIT ,
 .Nm RB_INSERT ,
+.Nm RB_INSERT_NEXT ,
+.Nm RB_INSERT_PREV ,
 .Nm RB_REMOVE ,
 .Nm RB_REINSERT ,
 .Nm RB_AUGMENT
+.Nm RB_AUGMENT_CHECK,
 .Nm RB_UPDATE_AUGMENT
 .Nd "implementations of splay and rank-balanced (wavl) trees"
 .Sh SYNOPSIS
@@ -192,11 +195,17 @@
 .Ft "struct TYPE *"
 .Fn RB_INSERT NAME "RB_HEAD *head" "struct TYPE *elm"
 .Ft "struct TYPE *"
+.Fn RB_INSERT_NEXT NAME "RB_HEAD *head" "struct TYPE *elm" "struct TYPE *next"
+.Ft "struct TYPE *"
+.Fn RB_INSERT_PREV NAME "RB_HEAD *head" "struct TYPE *elm" "struct TYPE *prev"
+.Ft "struct TYPE *"
 .Fn RB_REMOVE NAME "RB_HEAD *head" "struct TYPE *elm"
 .Ft "struct TYPE *"
 .Fn RB_REINSERT NAME "RB_HEAD *head" "struct TYPE *elm"
 .Ft "void"
 .Fn RB_AUGMENT NAME "struct TYPE *elm"
+.Ft "bool"
+.Fn RB_AUGMENT_CHECK NAME "struct TYPE *elm"
 .Ft "void"
 .Fn RB_UPDATE_AUGMENT NAME "struct TYPE *elm"
 .Sh DESCRIPTION
@@ -512,6 +521,18 @@ macro inserts the new element
 into the tree.
 .Pp
 The
+.Fn RB_INSERT_NEXT
+macro inserts the new element
+.Fa elm
+into the tree immediately after a given element.
+.Pp
+The
+.Fn RB_INSERT_PREV
+macro inserts the new element
+.Fa elm
+into the tree immediately before a given element.
+.Pp
+The
 .Fn RB_REMOVE
 macro removes the element
 .Fa elm
@@ -616,6 +637,22 @@ is defined by the RB user, then when an element is inserted or removed
 from the tree, it is invoked for every element in the tree that is the
 root of an altered subtree, working from the bottom of the tree up to
 the top.
+It is typically used to maintain some associative accumulation of tree
+elements, such as sums, minima, maxima, and the like.
+.Pp
+The
+.Fn RB_AUGMENT_CHECK
+macro updates augmentation data of the element
+.Fa elm
+in the tree.
+By default, it does nothing and returns false.
+If
+.Fn RB_AUGMENT_CHECK
+is defined, then when an element is inserted or removed from the tree,
+it is invoked for every element in the tree that is the root of an
+altered subtree, working from the bottom of the tree up toward the
+top, until it returns false to indicate that it did not change the
+element and so working further up the tree would change nothing.
 It is typically used to maintain some associative accumulation of tree
 elements, such as sums, minima, maxima, and the like.
 .Pp

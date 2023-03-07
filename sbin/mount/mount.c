@@ -85,10 +85,10 @@ struct cpa {
 };
 
 char   *catopt(char *, const char *);
-struct statfs *getmntpt(const char *);
 int	hasopt(const char *, const char *);
 int	ismounted(struct fstab *, struct statfs *, int);
 int	isremountable(const char *);
+int	allow_file_mount(const char *);
 void	mangle(char *, struct cpa *);
 char   *update_options(char *, char *, int);
 int	mountfs(const char *, const char *, const char *,
@@ -368,7 +368,7 @@ main(int argc, char *argv[])
 		if (init_flags & MNT_UPDATE) {
 			mntfromname = NULL;
 			have_fstab = 0;
-			if ((mntbuf = getmntpt(*argv)) == NULL)
+			if ((mntbuf = getmntpoint(*argv)) == NULL)
 				xo_errx(1, "not currently mounted %s", *argv);
 			/*
 			 * Only get the mntflags from fstab if both mntpoint
@@ -503,6 +503,15 @@ isremountable(const char *vfsname)
 }
 
 int
+allow_file_mount(const char *vfsname)
+{
+
+	if (strcmp(vfsname, "nullfs") == 0)
+		return (1);
+	return (0);
+}
+
+int
 hasopt(const char *mntopts, const char *option)
 {
 	int negative, found;
@@ -548,9 +557,16 @@ mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 	static struct cpa mnt_argv;
 
 	/* resolve the mountpoint with realpath(3) */
-	if (checkpath(name, mntpath) != 0) {
-		xo_warn("%s", mntpath);
-		return (1);
+	if (allow_file_mount(vfstype)) {
+		if (checkpath_allow_file(name, mntpath) != 0) {
+			xo_warn("%s", mntpath);
+			return (1);
+		}
+	} else {
+		if (checkpath(name, mntpath) != 0) {
+			xo_warn("%s", mntpath);
+			return (1);
+		}
 	}
 	name = mntpath;
 
@@ -700,21 +716,6 @@ prmount(struct statfs *sfp)
 		}
 	}
 	xo_emit("{D:)}\n");
-}
-
-struct statfs *
-getmntpt(const char *name)
-{
-	struct statfs *mntbuf;
-	int i, mntsize;
-
-	mntsize = getmntinfo(&mntbuf, MNT_NOWAIT);
-	for (i = mntsize - 1; i >= 0; i--) {
-		if (strcmp(mntbuf[i].f_mntfromname, name) == 0 ||
-		    strcmp(mntbuf[i].f_mntonname, name) == 0)
-			return (&mntbuf[i]);
-	}
-	return (NULL);
 }
 
 char *

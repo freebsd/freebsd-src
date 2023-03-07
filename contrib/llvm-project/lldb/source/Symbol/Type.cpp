@@ -11,6 +11,7 @@
 #include "lldb/Core/Module.h"
 #include "lldb/Utility/DataBufferHeap.h"
 #include "lldb/Utility/DataExtractor.h"
+#include "lldb/Utility/LLDBLog.h"
 #include "lldb/Utility/Log.h"
 #include "lldb/Utility/Scalar.h"
 #include "lldb/Utility/StreamString.h"
@@ -145,7 +146,7 @@ Type::Type(lldb::user_id_t uid, SymbolFile *symbol_file, ConstString name,
            const Declaration &decl, const CompilerType &compiler_type,
            ResolveState compiler_type_resolve_state, uint32_t opaque_payload)
     : std::enable_shared_from_this<Type>(), UserID(uid), m_name(name),
-      m_symbol_file(symbol_file), m_context(context), m_encoding_type(nullptr),
+      m_symbol_file(symbol_file), m_context(context),
       m_encoding_uid(encoding_uid), m_encoding_uid_type(encoding_uid_type),
       m_decl(decl), m_compiler_type(compiler_type),
       m_compiler_type_resolve_state(compiler_type ? compiler_type_resolve_state
@@ -161,8 +162,8 @@ Type::Type(lldb::user_id_t uid, SymbolFile *symbol_file, ConstString name,
 }
 
 Type::Type()
-    : std::enable_shared_from_this<Type>(), UserID(0),
-      m_name("<INVALID TYPE>") {
+    : std::enable_shared_from_this<Type>(), UserID(0), m_name("<INVALID TYPE>"),
+      m_payload(0) {
   m_byte_size = 0;
   m_byte_size_has_value = false;
 }
@@ -323,7 +324,7 @@ void Type::DumpValue(ExecutionContext *exe_ctx, Stream *s,
         exe_ctx, s, format == lldb::eFormatDefault ? GetFormat() : format, data,
         data_byte_offset,
         GetByteSize(exe_ctx ? exe_ctx->GetBestExecutionContextScope() : nullptr)
-            .getValueOr(0),
+            .value_or(0),
         0, // Bitfield bit size
         0, // Bitfield bit offset
         show_types, show_summary, verbose, 0);
@@ -433,7 +434,7 @@ bool Type::ReadFromMemory(ExecutionContext *exe_ctx, lldb::addr_t addr,
 
   const uint64_t byte_size =
       GetByteSize(exe_ctx ? exe_ctx->GetBestExecutionContextScope() : nullptr)
-          .getValueOr(0);
+          .value_or(0);
   if (data.GetByteSize() < byte_size) {
     lldb::DataBufferSP data_sp(new DataBufferHeap(byte_size, '\0'));
     data.SetData(data_sp);
@@ -535,10 +536,8 @@ bool Type::ResolveCompilerType(ResolveState compiler_type_resolve_state) {
       auto type_system_or_err =
           m_symbol_file->GetTypeSystemForLanguage(eLanguageTypeC);
       if (auto err = type_system_or_err.takeError()) {
-        LLDB_LOG_ERROR(
-            lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_SYMBOLS),
-            std::move(err),
-            "Unable to construct void type from TypeSystemClang");
+        LLDB_LOG_ERROR(GetLog(LLDBLog::Symbols), std::move(err),
+                       "Unable to construct void type from TypeSystemClang");
       } else {
         CompilerType void_compiler_type =
             type_system_or_err->GetBasicTypeFromAST(eBasicTypeVoid);

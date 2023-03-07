@@ -271,7 +271,7 @@ restart:
 				NDFREE_PNBUF(ndp);
 				vput(ndp->ni_dvp);
 				if ((error = vn_start_write(NULL, &mp,
-				    V_XSLEEP | PCATCH)) != 0)
+				    V_XSLEEP | V_PCATCH)) != 0)
 					return (error);
 				NDREINIT(ndp);
 				goto restart;
@@ -654,7 +654,7 @@ vn_rdwr(enum uio_rw rw, struct vnode *vp, void *base, int len, off_t offset,
 		mp = NULL;
 		if (rw == UIO_WRITE) { 
 			if (vp->v_type != VCHR &&
-			    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH))
+			    (error = vn_start_write(vp, &mp, V_WAIT | V_PCATCH))
 			    != 0)
 				goto out;
 			lock_flags = vn_lktype_write(mp, vp);
@@ -1155,7 +1155,7 @@ vn_write(struct file *fp, struct uio *uio, struct ucred *active_cred, int flags,
 	mp = NULL;
 	need_finished_write = false;
 	if (vp->v_type != VCHR) {
-		error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
+		error = vn_start_write(vp, &mp, V_WAIT | V_PCATCH);
 		if (error != 0)
 			goto unlock;
 		need_finished_write = true;
@@ -1619,7 +1619,7 @@ retry:
 	 * might happen partly before and partly after the truncation.
 	 */
 	rl_cookie = vn_rangelock_wlock(vp, 0, OFF_MAX);
-	error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
+	error = vn_start_write(vp, &mp, V_WAIT | V_PCATCH);
 	if (error)
 		goto out1;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
@@ -1690,9 +1690,9 @@ static int
 vn_ioctl(struct file *fp, u_long com, void *data, struct ucred *active_cred,
     struct thread *td)
 {
-	struct vattr vattr;
 	struct vnode *vp;
 	struct fiobmap2_arg *bmarg;
+	off_t size;
 	int error;
 
 	vp = fp->f_vnode;
@@ -1701,11 +1701,9 @@ vn_ioctl(struct file *fp, u_long com, void *data, struct ucred *active_cred,
 	case VREG:
 		switch (com) {
 		case FIONREAD:
-			vn_lock(vp, LK_SHARED | LK_RETRY);
-			error = VOP_GETATTR(vp, &vattr, active_cred);
-			VOP_UNLOCK(vp);
+			error = vn_getsize(vp, &size, active_cred);
 			if (error == 0)
-				*(int *)data = vattr.va_size - fp->f_offset;
+				*(int *)data = size - fp->f_offset;
 			return (error);
 		case FIOBMAP2:
 			bmarg = (struct fiobmap2_arg *)data;
@@ -1875,8 +1873,12 @@ vn_start_write_refed(struct mount *mp, int flags, bool mplocked)
 	 */
 	if ((curthread->td_pflags & TDP_IGNSUSP) == 0 ||
 	    mp->mnt_susp_owner != curthread) {
-		mflags = ((mp->mnt_vfc->vfc_flags & VFCF_SBDRY) != 0 ?
-		    (flags & PCATCH) : 0) | (PUSER - 1);
+		mflags = 0;
+		if ((mp->mnt_vfc->vfc_flags & VFCF_SBDRY) != 0) {
+			if (flags & V_PCATCH)
+				mflags |= PCATCH;
+		}
+		mflags |= (PUSER - 1);
 		while ((mp->mnt_kern_flag & MNTK_SUSPEND) != 0) {
 			if (flags & V_NOWAIT) {
 				error = EWOULDBLOCK;
@@ -1904,8 +1906,8 @@ vn_start_write(struct vnode *vp, struct mount **mpp, int flags)
 	struct mount *mp;
 	int error;
 
-	KASSERT((flags & V_MNTREF) == 0 || (*mpp != NULL && vp == NULL),
-	    ("V_MNTREF requires mp"));
+	KASSERT((flags & ~V_VALID_FLAGS) == 0,
+	    ("%s: invalid flags passed %d\n", __func__, flags));
 
 	error = 0;
 	/*
@@ -1930,7 +1932,7 @@ vn_start_write(struct vnode *vp, struct mount **mpp, int flags)
 	 * refcount for the provided mountpoint too, in order to
 	 * emulate a vfs_ref().
 	 */
-	if (vp == NULL && (flags & V_MNTREF) == 0)
+	if (vp == NULL)
 		vfs_ref(mp);
 
 	return (vn_start_write_refed(mp, flags, false));
@@ -1947,10 +1949,10 @@ int
 vn_start_secondary_write(struct vnode *vp, struct mount **mpp, int flags)
 {
 	struct mount *mp;
-	int error;
+	int error, mflags;
 
-	KASSERT((flags & V_MNTREF) == 0 || (*mpp != NULL && vp == NULL),
-	    ("V_MNTREF requires mp"));
+	KASSERT((flags & ~V_VALID_FLAGS) == 0,
+	    ("%s: invalid flags passed %d\n", __func__, flags));
 
  retry:
 	if (vp != NULL) {
@@ -1976,7 +1978,7 @@ vn_start_secondary_write(struct vnode *vp, struct mount **mpp, int flags)
 	 * emulate a vfs_ref().
 	 */
 	MNT_ILOCK(mp);
-	if (vp == NULL && (flags & V_MNTREF) == 0)
+	if (vp == NULL)
 		MNT_REF(mp);
 	if ((mp->mnt_kern_flag & (MNTK_SUSPENDED | MNTK_SUSPEND2)) == 0) {
 		mp->mnt_secondary_writes++;
@@ -1992,9 +1994,13 @@ vn_start_secondary_write(struct vnode *vp, struct mount **mpp, int flags)
 	/*
 	 * Wait for the suspension to finish.
 	 */
-	error = msleep(&mp->mnt_flag, MNT_MTX(mp), (PUSER - 1) | PDROP |
-	    ((mp->mnt_vfc->vfc_flags & VFCF_SBDRY) != 0 ? (flags & PCATCH) : 0),
-	    "suspfs", 0);
+	mflags = 0;
+	if ((mp->mnt_vfc->vfc_flags & VFCF_SBDRY) != 0) {
+		if (flags & V_PCATCH)
+			mflags |= PCATCH;
+	}
+	mflags |= (PUSER - 1) | PDROP;
+	error = msleep(&mp->mnt_flag, MNT_MTX(mp), mflags, "suspfs", 0);
 	vfs_rel(mp);
 	if (error == 0)
 		goto retry;
@@ -2364,40 +2370,122 @@ vn_vget_ino_gen(struct vnode *vp, vn_get_ino_t alloc, void *alloc_arg,
 	return (error);
 }
 
+static void
+vn_send_sigxfsz(struct proc *p)
+{
+	PROC_LOCK(p);
+	kern_psignal(p, SIGXFSZ);
+	PROC_UNLOCK(p);
+}
+
 int
-vn_rlimit_fsize(const struct vnode *vp, const struct uio *uio,
-    struct thread *td)
+vn_rlimit_trunc(u_quad_t size, struct thread *td)
+{
+	if (size <= lim_cur(td, RLIMIT_FSIZE))
+		return (0);
+	vn_send_sigxfsz(td->td_proc);
+	return (EFBIG);
+}
+
+static int
+vn_rlimit_fsizex1(const struct vnode *vp, struct uio *uio, off_t maxfsz,
+    bool adj, struct thread *td)
 {
 	off_t lim;
 	bool ktr_write;
 
-	if (td == NULL)
+	if (vp->v_type != VREG)
 		return (0);
 
 	/*
-	 * There are conditions where the limit is to be ignored.
-	 * However, since it is almost never reached, check it first.
+	 * Handle file system maximum file size.
+	 */
+	if (maxfsz != 0 && uio->uio_offset + uio->uio_resid > maxfsz) {
+		if (!adj || uio->uio_offset >= maxfsz)
+			return (EFBIG);
+		uio->uio_resid = maxfsz - uio->uio_offset;
+	}
+
+	/*
+	 * This is kernel write (e.g. vnode_pager) or accounting
+	 * write, ignore limit.
+	 */
+	if (td == NULL || (td->td_pflags2 & TDP2_ACCT) != 0)
+		return (0);
+
+	/*
+	 * Calculate file size limit.
 	 */
 	ktr_write = (td->td_pflags & TDP_INKTRACE) != 0;
-	lim = lim_cur(td, RLIMIT_FSIZE);
-	if (__predict_false(ktr_write))
-		lim = td->td_ktr_io_lim;
+	lim = __predict_false(ktr_write) ? td->td_ktr_io_lim :
+	    lim_cur(td, RLIMIT_FSIZE);
+
+	/*
+	 * Is the limit reached?
+	 */
 	if (__predict_true((uoff_t)uio->uio_offset + uio->uio_resid <= lim))
 		return (0);
 
 	/*
-	 * The limit is reached.
+	 * Prepared filesystems can handle writes truncated to the
+	 * file size limit.
 	 */
-	if (vp->v_type != VREG ||
-	    (td->td_pflags2 & TDP2_ACCT) != 0)
+	if (adj && (uoff_t)uio->uio_offset < lim) {
+		uio->uio_resid = lim - (uoff_t)uio->uio_offset;
 		return (0);
-
-	if (!ktr_write || ktr_filesize_limit_signal) {
-		PROC_LOCK(td->td_proc);
-		kern_psignal(td->td_proc, SIGXFSZ);
-		PROC_UNLOCK(td->td_proc);
 	}
+
+	if (!ktr_write || ktr_filesize_limit_signal)
+		vn_send_sigxfsz(td->td_proc);
 	return (EFBIG);
+}
+
+/*
+ * Helper for VOP_WRITE() implementations, the common code to
+ * handle maximum supported file size on the filesystem, and
+ * RLIMIT_FSIZE, except for special writes from accounting subsystem
+ * and ktrace.
+ *
+ * For maximum file size (maxfsz argument):
+ * - return EFBIG if uio_offset is beyond it
+ * - otherwise, clamp uio_resid if write would extend file beyond maxfsz.
+ *
+ * For RLIMIT_FSIZE:
+ * - return EFBIG and send SIGXFSZ if uio_offset is beyond the limit
+ * - otherwise, clamp uio_resid if write would extend file beyond limit.
+ *
+ * If clamping occured, the adjustment for uio_resid is stored in
+ * *resid_adj, to be re-applied by vn_rlimit_fsizex_res() on return
+ * from the VOP.
+ */
+int
+vn_rlimit_fsizex(const struct vnode *vp, struct uio *uio, off_t maxfsz,
+    ssize_t *resid_adj, struct thread *td)
+{
+	ssize_t resid_orig;
+	int error;
+	bool adj;
+
+	resid_orig = uio->uio_resid;
+	adj = resid_adj != NULL;
+	error = vn_rlimit_fsizex1(vp, uio, maxfsz, adj, td);
+	if (adj)
+		*resid_adj = resid_orig - uio->uio_resid;
+	return (error);
+}
+
+void
+vn_rlimit_fsizex_res(struct uio *uio, ssize_t resid_adj)
+{
+	uio->uio_resid += resid_adj;
+}
+
+int
+vn_rlimit_fsize(const struct vnode *vp, const struct uio *uio,
+    struct thread *td)
+{
+	return (vn_rlimit_fsizex(vp, __DECONST(struct uio *, uio), 0, NULL,
+	    td));
 }
 
 int
@@ -2468,7 +2556,8 @@ int
 vn_bmap_seekhole_locked(struct vnode *vp, u_long cmd, off_t *off,
     struct ucred *cred)
 {
-	struct vattr va;
+	vm_object_t obj;
+	off_t size;
 	daddr_t bn, bnp;
 	uint64_t bsize;
 	off_t noff;
@@ -2476,22 +2565,31 @@ vn_bmap_seekhole_locked(struct vnode *vp, u_long cmd, off_t *off,
 
 	KASSERT(cmd == FIOSEEKHOLE || cmd == FIOSEEKDATA,
 	    ("%s: Wrong command %lu", __func__, cmd));
-	ASSERT_VOP_LOCKED(vp, "vn_bmap_seekhole_locked");
+	ASSERT_VOP_ELOCKED(vp, "vn_bmap_seekhole_locked");
 
 	if (vp->v_type != VREG) {
 		error = ENOTTY;
 		goto out;
 	}
-	error = VOP_GETATTR(vp, &va, cred);
+	error = vn_getsize_locked(vp, &size, cred);
 	if (error != 0)
 		goto out;
 	noff = *off;
-	if (noff >= va.va_size) {
+	if (noff < 0 || noff >= size) {
 		error = ENXIO;
 		goto out;
 	}
+
+	/* See the comment in ufs_bmap_seekdata(). */
+	obj = vp->v_object;
+	if (obj != NULL) {
+		VM_OBJECT_WLOCK(obj);
+		vm_object_page_clean(obj, 0, 0, OBJPC_SYNC);
+		VM_OBJECT_WUNLOCK(obj);
+	}
+
 	bsize = vp->v_mount->mnt_stat.f_iosize;
-	for (bn = noff / bsize; noff < va.va_size; bn++, noff += bsize -
+	for (bn = noff / bsize; noff < size; bn++, noff += bsize -
 	    noff % bsize) {
 		error = VOP_BMAP(vp, bn, NULL, &bnp, NULL, NULL);
 		if (error == EOPNOTSUPP) {
@@ -2506,9 +2604,9 @@ vn_bmap_seekhole_locked(struct vnode *vp, u_long cmd, off_t *off,
 			goto out;
 		}
 	}
-	if (noff > va.va_size)
-		noff = va.va_size;
-	/* noff == va.va_size. There is an implicit hole at the end of file. */
+	if (noff > size)
+		noff = size;
+	/* noff == size. There is an implicit hole at the end of file. */
 	if (cmd == FIOSEEKDATA)
 		error = ENXIO;
 out:
@@ -2525,7 +2623,7 @@ vn_bmap_seekhole(struct vnode *vp, u_long cmd, off_t *off, struct ucred *cred)
 	KASSERT(cmd == FIOSEEKHOLE || cmd == FIOSEEKDATA,
 	    ("%s: Wrong command %lu", __func__, cmd));
 
-	if (vn_lock(vp, LK_SHARED) != 0)
+	if (vn_lock(vp, LK_EXCLUSIVE) != 0)
 		return (EBADF);
 	error = vn_bmap_seekhole_locked(vp, cmd, off, cred);
 	VOP_UNLOCK(vp);
@@ -2537,8 +2635,7 @@ vn_seek(struct file *fp, off_t offset, int whence, struct thread *td)
 {
 	struct ucred *cred;
 	struct vnode *vp;
-	struct vattr vattr;
-	off_t foffset, size;
+	off_t foffset, fsize, size;
 	int error, noneg;
 
 	cred = td->td_ucred;
@@ -2557,10 +2654,8 @@ vn_seek(struct file *fp, off_t offset, int whence, struct thread *td)
 		offset += foffset;
 		break;
 	case L_XTND:
-		vn_lock(vp, LK_SHARED | LK_RETRY);
-		error = VOP_GETATTR(vp, &vattr, cred);
-		VOP_UNLOCK(vp);
-		if (error)
+		error = vn_getsize(vp, &fsize, cred);
+		if (error != 0)
 			break;
 
 		/*
@@ -2568,16 +2663,14 @@ vn_seek(struct file *fp, off_t offset, int whence, struct thread *td)
 		 * the media size and use that to determine the ending
 		 * offset.
 		 */
-		if (vattr.va_size == 0 && vp->v_type == VCHR &&
+		if (fsize == 0 && vp->v_type == VCHR &&
 		    fo_ioctl(fp, DIOCGMEDIASIZE, &size, cred, td) == 0)
-			vattr.va_size = size;
-		if (noneg &&
-		    (vattr.va_size > OFF_MAX ||
-		    (offset > 0 && vattr.va_size > OFF_MAX - offset))) {
+			fsize = size;
+		if (noneg && offset > 0 && fsize > OFF_MAX - offset) {
 			error = EOVERFLOW;
 			break;
 		}
-		offset += vattr.va_size;
+		offset += fsize;
 		break;
 	case L_SET:
 		break;
@@ -2709,6 +2802,7 @@ vn_fill_kinfo_vnode(struct vnode *vp, struct kinfo_file *kif)
 	kif->kf_un.kf_file.kf_file_rdev = va.va_rdev;
 	kif->kf_un.kf_file.kf_file_rdev_freebsd11 =
 	    kif->kf_un.kf_file.kf_file_rdev; /* truncate */
+	kif->kf_un.kf_file.kf_file_nlink = va.va_nlink;
 	return (0);
 }
 
@@ -3169,15 +3263,14 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
     struct vnode *outvp, off_t *outoffp, size_t *lenp, unsigned int flags,
     struct ucred *incred, struct ucred *outcred, struct thread *fsize_td)
 {
-	struct vattr va, inva;
 	struct mount *mp;
-	struct uio io;
 	off_t startoff, endoff, xfer, xfer2;
 	u_long blksize;
 	int error, interrupted;
 	bool cantseek, readzeros, eof, lastblock, holetoeof;
-	ssize_t aresid;
-	size_t copylen, len, rem, savlen;
+	ssize_t aresid, r = 0;
+	size_t copylen, len, savlen;
+	off_t insize, outsize;
 	char *dat;
 	long holein, holeout;
 	struct timespec curts, endts;
@@ -3194,7 +3287,7 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 	if (VOP_PATHCONF(invp, _PC_MIN_HOLE_SIZE, &holein) != 0)
 		holein = 0;
 	if (holein > 0)
-		error = VOP_GETATTR(invp, &inva, incred);
+		error = vn_getsize_locked(invp, &insize, incred);
 	VOP_UNLOCK(invp);
 	if (error != 0)
 		goto out;
@@ -3205,28 +3298,32 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 		error = vn_lock(outvp, LK_EXCLUSIVE);
 	if (error == 0) {
 		/*
-		 * If fsize_td != NULL, do a vn_rlimit_fsize() call,
+		 * If fsize_td != NULL, do a vn_rlimit_fsizex() call,
 		 * now that outvp is locked.
 		 */
 		if (fsize_td != NULL) {
+			struct uio io;
+
 			io.uio_offset = *outoffp;
 			io.uio_resid = len;
-			error = vn_rlimit_fsize(outvp, &io, fsize_td);
-			if (error != 0)
-				error = EFBIG;
+			error = vn_rlimit_fsizex(outvp, &io, 0, &r, fsize_td);
+			len = savlen = io.uio_resid;
+			/*
+			 * No need to call vn_rlimit_fsizex_res before return,
+			 * since the uio is local.
+			 */
 		}
 		if (VOP_PATHCONF(outvp, _PC_MIN_HOLE_SIZE, &holeout) != 0)
 			holeout = 0;
 		/*
 		 * Holes that are past EOF do not need to be written as a block
 		 * of zero bytes.  So, truncate the output file as far as
-		 * possible and then use va.va_size to decide if writing 0
+		 * possible and then use size to decide if writing 0
 		 * bytes is necessary in the loop below.
 		 */
 		if (error == 0)
-			error = VOP_GETATTR(outvp, &va, outcred);
-		if (error == 0 && va.va_size > *outoffp && va.va_size <=
-		    *outoffp + len) {
+			error = vn_getsize_locked(outvp, &outsize, outcred);
+		if (error == 0 && outsize > *outoffp && outsize <= *outoffp + len) {
 #ifdef MAC
 			error = mac_vnode_check_write(curthread->td_ucred,
 			    outcred, outvp);
@@ -3235,7 +3332,7 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 				error = vn_truncate_locked(outvp, *outoffp,
 				    false, outcred);
 			if (error == 0)
-				va.va_size = *outoffp;
+				outsize = *outoffp;
 		}
 		VOP_UNLOCK(outvp);
 	}
@@ -3244,31 +3341,38 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 	if (error != 0)
 		goto out;
 
-	/*
-	 * Set the blksize to the larger of the hole sizes for invp and outvp.
-	 * If hole sizes aren't available, set the blksize to the larger 
-	 * f_iosize of invp and outvp.
-	 * This code expects the hole sizes and f_iosizes to be powers of 2.
-	 * This value is clipped at 4Kbytes and 1Mbyte.
-	 */
-	blksize = MAX(holein, holeout);
-
-	/* Clip len to end at an exact multiple of hole size. */
-	if (blksize > 1) {
-		rem = *inoffp % blksize;
-		if (rem > 0)
-			rem = blksize - rem;
-		if (len > rem && len - rem > blksize)
-			len = savlen = rounddown(len - rem, blksize) + rem;
-	}
-
-	if (blksize <= 1)
+	if (holein == 0 && holeout > 0) {
+		/*
+		 * For this special case, the input data will be scanned
+		 * for blocks of all 0 bytes.  For these blocks, the
+		 * write can be skipped for the output file to create
+		 * an unallocated region.
+		 * Therefore, use the appropriate size for the output file.
+		 */
+		blksize = holeout;
+		if (blksize <= 512) {
+			/*
+			 * Use f_iosize, since ZFS reports a _PC_MIN_HOLE_SIZE
+			 * of 512, although it actually only creates
+			 * unallocated regions for blocks >= f_iosize.
+			 */
+			blksize = outvp->v_mount->mnt_stat.f_iosize;
+		}
+	} else {
+		/*
+		 * Use the larger of the two f_iosize values.  If they are
+		 * not the same size, one will normally be an exact multiple of
+		 * the other, since they are both likely to be a power of 2.
+		 */
 		blksize = MAX(invp->v_mount->mnt_stat.f_iosize,
 		    outvp->v_mount->mnt_stat.f_iosize);
+	}
+
+	/* Clip to sane limits. */
 	if (blksize < 4096)
 		blksize = 4096;
-	else if (blksize > 1024 * 1024)
-		blksize = 1024 * 1024;
+	else if (blksize > maxphys)
+		blksize = maxphys;
 	dat = malloc(blksize, M_TEMP, M_WAITOK);
 
 	/*
@@ -3308,7 +3412,7 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 			error = VOP_IOCTL(invp, FIOSEEKDATA, &startoff, 0,
 			    incred, curthread);
 			if (error == ENXIO) {
-				startoff = endoff = inva.va_size;
+				startoff = endoff = insize;
 				eof = holetoeof = true;
 				error = 0;
 			}
@@ -3333,9 +3437,9 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 			if (startoff > *inoffp) {
 				/* Found hole before data block. */
 				xfer = MIN(startoff - *inoffp, len);
-				if (*outoffp < va.va_size) {
+				if (*outoffp < outsize) {
 					/* Must write 0s to punch hole. */
-					xfer2 = MIN(va.va_size - *outoffp,
+					xfer2 = MIN(outsize - *outoffp,
 					    xfer);
 					memset(dat, 0, MIN(xfer2, blksize));
 					error = vn_write_outvp(outvp, dat,
@@ -3344,7 +3448,7 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 				}
 
 				if (error == 0 && *outoffp + xfer >
-				    va.va_size && (xfer == len || holetoeof)) {
+				    outsize && (xfer == len || holetoeof)) {
 					/* Grow output file (hole at end). */
 					error = vn_write_outvp(outvp, dat,
 					    *outoffp, xfer, blksize, true,
@@ -3414,12 +3518,12 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 				    false;
 				if (xfer == len)
 					lastblock = true;
-				if (!cantseek || *outoffp < va.va_size ||
+				if (!cantseek || *outoffp < outsize ||
 				    lastblock || !readzeros)
 					error = vn_write_outvp(outvp, dat,
 					    *outoffp, xfer, blksize,
 					    readzeros && lastblock &&
-					    *outoffp >= va.va_size, false,
+					    *outoffp >= outsize, false,
 					    outcred);
 				if (error == 0) {
 					*inoffp += xfer;
@@ -3471,7 +3575,7 @@ vn_fallocate(struct file *fp, off_t offset, off_t len, struct thread *td)
 
 		bwillwrite();
 		mp = NULL;
-		error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
+		error = vn_start_write(vp, &mp, V_WAIT | V_PCATCH);
 		if (error != 0)
 			break;
 		error = vn_lock(vp, LK_EXCLUSIVE);
@@ -3539,7 +3643,7 @@ vn_deallocate_impl(struct vnode *vp, off_t *offset, off_t *length, int flags,
 		if ((ioflag & IO_NODELOCKED) == 0) {
 			bwillwrite();
 			if ((error = vn_start_write(vp, &mp,
-			    V_WAIT | PCATCH)) != 0)
+			    V_WAIT | V_PCATCH)) != 0)
 				goto out;
 			vn_lock(vp, vn_lktype_write(mp, vp) | LK_RETRY);
 		}

@@ -88,7 +88,7 @@ typedef enum {
 	CTL_FLAG_DATA_OUT	= 0x00000002,	/* DATA OUT */
 	CTL_FLAG_DATA_NONE	= 0x00000003,	/* no data */
 	CTL_FLAG_DATA_MASK	= 0x00000003,
-	CTL_FLAG_DO_AUTOSENSE	= 0x00000020,	/* grab sense info */
+	CTL_FLAG_USER_TAG	= 0x00000020,	/* userland provides tag */
 	CTL_FLAG_USER_REQ	= 0x00000040,	/* request came from userland */
 	CTL_FLAG_ALLOCATED	= 0x00000100,	/* data space allocated */
 	CTL_FLAG_ABORT_STATUS	= 0x00000400,	/* return TASK ABORTED status */
@@ -328,8 +328,7 @@ struct ctl_scsiio {
 	uint8_t	   scsi_status;		/* SCSI status byte */
 	uint8_t	   seridx;		/* Serialization index. */
 	uint8_t	   priority;		/* Command priority */
-	uint32_t   residual;		/* Unused */
-	uint32_t   tag_num;		/* tag number */
+	uint64_t   tag_num;		/* tag number */
 	ctl_tag_type tag_type;		/* simple, ordered, head of queue,etc.*/
 	uint8_t    cdb_len;		/* CDB length */
 	uint8_t	   cdb[CTL_MAX_CDBLEN];	/* CDB */
@@ -373,7 +372,7 @@ typedef enum {
 struct ctl_taskio {
 	struct ctl_io_hdr	io_hdr;      /* common to all I/O types */
 	ctl_task_type		task_action; /* Target Reset, Abort, etc.  */
-	uint32_t		tag_num;     /* tag number */
+	uint64_t		tag_num;     /* tag number */
 	ctl_tag_type		tag_type;    /* simple, ordered, etc. */
 	uint8_t			task_status; /* Complete, Succeeded, etc. */
 	uint8_t			task_resp[3];/* Response information */
@@ -382,7 +381,7 @@ struct ctl_taskio {
 /*
  * HA link messages.
  */
-#define	CTL_HA_VERSION		3
+#define	CTL_HA_VERSION		4
 
 /*
  * Used for CTL_MSG_LOGIN.
@@ -483,7 +482,7 @@ struct ctl_ha_msg_dt {
  */
 struct ctl_ha_msg_scsi {
 	struct ctl_ha_msg_hdr	hdr;
-	uint32_t		tag_num;     /* tag number */
+	uint64_t		tag_num;     /* tag number */
 	ctl_tag_type		tag_type;    /* simple, ordered, etc. */
 	uint8_t			cdb[CTL_MAX_CDBLEN];	/* CDB */
 	uint8_t			cdb_len;	/* CDB length */
@@ -502,7 +501,7 @@ struct ctl_ha_msg_scsi {
 struct ctl_ha_msg_task {
 	struct ctl_ha_msg_hdr	hdr;
 	ctl_task_type		task_action; /* Target Reset, Abort, etc.  */
-	uint32_t		tag_num;     /* tag number */
+	uint64_t		tag_num;     /* tag number */
 	ctl_tag_type		tag_type;    /* simple, ordered, etc. */
 };
 

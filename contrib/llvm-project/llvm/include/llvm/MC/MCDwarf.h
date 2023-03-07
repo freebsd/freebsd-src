@@ -19,14 +19,13 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/MC/MCSection.h"
 #include "llvm/MC/StringTableBuilder.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/MD5.h"
+#include "llvm/Support/StringSaver.h"
 #include <cassert>
 #include <cstdint>
 #include <string>
-#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -36,6 +35,7 @@ template <typename T> class ArrayRef;
 class MCAsmBackend;
 class MCContext;
 class MCObjectStreamer;
+class MCSection;
 class MCStreamer;
 class MCSymbol;
 class raw_ostream;
@@ -49,6 +49,8 @@ MCSymbol *emitListsTableHeaderStart(MCStreamer &S);
 
 /// Manage the .debug_line_str section contents, if we use it.
 class MCDwarfLineStr {
+  BumpPtrAllocator Alloc;
+  StringSaver Saver{Alloc};
   MCSymbol *LineStrLabel = nullptr;
   StringTableBuilder LineStrings{StringTableBuilder::DWARF};
   bool UseRelocs = false;
@@ -58,11 +60,16 @@ public:
   /// v5 line table).
   explicit MCDwarfLineStr(MCContext &Ctx);
 
+  StringSaver &getSaver() { return Saver; }
+
   /// Emit a reference to the string.
   void emitRef(MCStreamer *MCOS, StringRef Path);
 
   /// Emit the .debug_line_str section if appropriate.
   void emitSection(MCStreamer *MCOS);
+
+  /// Returns finalized section.
+  SmallString<0> getFinalizedData();
 };
 
 /// Instances of this class represent the name of the dwarf .file directive and
@@ -294,8 +301,8 @@ public:
     RootFile.DirIndex = 0;
     RootFile.Checksum = Checksum;
     RootFile.Source = Source;
-    trackMD5Usage(Checksum.hasValue());
-    HasSource = Source.hasValue();
+    trackMD5Usage(Checksum.has_value());
+    HasSource = Source.has_value();
   }
 
   void resetFileTable() {
@@ -372,14 +379,15 @@ public:
     Header.RootFile.DirIndex = 0;
     Header.RootFile.Checksum = Checksum;
     Header.RootFile.Source = Source;
-    Header.trackMD5Usage(Checksum.hasValue());
-    Header.HasSource = Source.hasValue();
+    Header.trackMD5Usage(Checksum.has_value());
+    Header.HasSource = Source.has_value();
   }
 
   void resetFileTable() { Header.resetFileTable(); }
 
   bool hasRootFile() const { return !Header.RootFile.Name.empty(); }
 
+  MCDwarfFile &getRootFile() { return Header.RootFile; }
   const MCDwarfFile &getRootFile() const { return Header.RootFile; }
 
   // Report whether MD5 usage has been consistent (all-or-none).
@@ -686,6 +694,7 @@ struct MCDwarfFrameInfo {
   bool IsSimple = false;
   unsigned RAReg = static_cast<unsigned>(INT_MAX);
   bool IsBKeyFrame = false;
+  bool IsMTETaggedFrame = false;
 };
 
 class MCDwarfFrameEmitter {

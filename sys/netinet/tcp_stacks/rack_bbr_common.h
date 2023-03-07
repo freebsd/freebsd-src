@@ -125,7 +125,7 @@ __ctf_process_rst(struct mbuf *m, struct tcphdr *th,
 
 void
 ctf_challenge_ack(struct mbuf *m, struct tcphdr *th,
-    struct tcpcb *tp, int32_t * ret_val);
+    struct tcpcb *tp, uint8_t iptos, int32_t * ret_val);
 
 int
 ctf_ts_check(struct mbuf *m, struct tcphdr *th,

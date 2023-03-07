@@ -12,4 +12,4 @@ struct yyyStackItem *yyyOxStackItem;
 } yyyOxAttrbs;
 } YYSTYPE;
 #endif /* !YYSTYPE_IS_DECLARED */
-extern YYSTYPE expr.oxout_lval;
+extern YYSTYPE expr_oxout_lval;

@@ -44,6 +44,7 @@
 .Sh SYNOPSIS
 .Nm
 .Ic devlist
+.Op Fl h
 .Nm
 .Ic identify
 .Op Fl v
@@ -209,6 +210,13 @@
 .Sh DESCRIPTION
 NVM Express (NVMe) is a storage protocol standard, for SSDs and other
 high-speed storage devices over PCI Express.
+.Ss devlist
+List all NVMe controllers and namespaces along with their device nodes.
+With the
+.Fl h
+argument, use unit suffixes: Byte, Kibibyte, Mebibyte, Gibibyte, Tebibyte
+and Pebibyte (based on powers of 1024) when showing the disk space.
+By default, uses Mebibyte.
 .Ss identify
 The identify commands reports information from the drive's
 .Dv IDENTIFY_CONTROLLER
@@ -244,7 +252,7 @@ data associated with that drive.
 .El
 .Ss logpage
 The logpage command knows how to print log pages of various types.
-It also knows about vendor specific log pages from hgst/wdc and intel.
+It also knows about vendor specific log pages from hgst/wdc, samsung and intel.
 Note that some vendors use the same log page numbers for different data.
 .Pp
 .Bl -tag -compact -width "Page 0x00"
@@ -274,6 +282,8 @@ Wite latency stats (Intel)
 Temperature stats (Intel)
 .It Dv Page 0xca
 Advanced SMART information (Intel)
+.It Dv Page 0xca
+Extended SMART information (Samsung)
 .El
 .Pp
 Specifying

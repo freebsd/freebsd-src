@@ -1930,7 +1930,7 @@ upgt_detach(device_t dev)
 {
 	struct upgt_softc *sc = device_get_softc(dev);
 	struct ieee80211com *ic = &sc->sc_ic;
-	unsigned int x;
+	unsigned x;
 
 	/*
 	 * Prevent further allocations from RX/TX/CMD
@@ -2192,7 +2192,7 @@ done:
 	 * will stall.  It's strange, but it works, so we keep reading
 	 * the statistics here.  *shrug*
 	 */
-	if (!(vap->iv_ifp->if_get_counter(vap->iv_ifp, IFCOUNTER_OPACKETS) %
+	if (!(if_getcounter(vap->iv_ifp, IFCOUNTER_OPACKETS) %
 	    UPGT_TX_STAT_INTERVAL))
 		upgt_get_stats(sc);
 

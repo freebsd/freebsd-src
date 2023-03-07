@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <net/vnet.h>
 #include <net/route.h>
 #include <net/route/nhop.h>
@@ -855,6 +856,9 @@ debugnet_any_ifnet_update(struct ifnet *ifp)
 	 * dn_init method is available.
 	 */
 	if (nmbuf == 0 || ncl == 0 || clsize == 0) {
+#ifndef INVARIANTS
+		if (bootverbose)
+#endif
 		printf("%s: Bad dn_init result from %s (ifp %p), ignoring.\n",
 		    __func__, if_name(ifp), ifp);
 		return;

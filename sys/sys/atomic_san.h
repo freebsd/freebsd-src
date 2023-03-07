@@ -43,6 +43,8 @@
 #error do not include this header, use machine/atomic.h
 #endif
 
+#include <sys/types.h>
+
 #define	ATOMIC_SAN_FUNC_1(sp, op, name, type)				\
 	void sp##_atomic_##op##_##name(volatile type *, type);		\
 	void sp##_atomic_##op##_acq_##name(volatile type *, type);	\
@@ -65,11 +67,15 @@
 	type sp##_atomic_readandclear_##name(volatile type *)
 
 #define	ATOMIC_SAN_LOAD(sp, name, type)					\
-	type sp##_atomic_load_##name(volatile type *);			\
+	type sp##_atomic_load_##name(volatile type *)
+
+#define	ATOMIC_SAN_LOAD_ACQ(sp, name, type)				\
 	type sp##_atomic_load_acq_##name(volatile type *)
 
 #define	ATOMIC_SAN_STORE(sp, name, type)				\
-	void sp##_atomic_store_##name(volatile type *, type);		\
+	void sp##_atomic_store_##name(volatile type *, type)
+
+#define	ATOMIC_SAN_STORE_REL(sp, name, type)				\
 	void sp##_atomic_store_rel_##name(volatile type *, type)
 
 #define	ATOMIC_SAN_TEST(sp, op, name, type)				\
@@ -86,6 +92,10 @@
 #define	ATOMIC_SAN_THREAD_FENCE(sp)					\
 	_ATOMIC_SAN_THREAD_FENCE(sp)
 
+#define	ATOMIC_SAN_LOAD_STORE(sp, name, type)				\
+	ATOMIC_SAN_LOAD(sp, name, type);				\
+	ATOMIC_SAN_STORE(sp, name, type)
+
 #define	_ATOMIC_SAN_FUNCS(sp, name, type)				\
 	ATOMIC_SAN_FUNC_1(sp, add, name, type);				\
 	ATOMIC_SAN_FUNC_1(sp, clear, name, type);			\
@@ -93,10 +103,12 @@
 	ATOMIC_SAN_FCMPSET(sp, name, type);				\
 	ATOMIC_SAN_READ(sp, fetchadd, name, type);			\
 	ATOMIC_SAN_LOAD(sp, name, type);				\
+	ATOMIC_SAN_LOAD_ACQ(sp, name, type);				\
 	ATOMIC_SAN_READANDCLEAR(sp, name, type);			\
 	ATOMIC_SAN_FUNC_1(sp, set, name, type);				\
 	ATOMIC_SAN_FUNC_1(sp, subtract, name, type);			\
 	ATOMIC_SAN_STORE(sp, name, type);				\
+	ATOMIC_SAN_STORE_REL(sp, name, type);				\
 	ATOMIC_SAN_READ(sp, swap, name, type);				\
 	ATOMIC_SAN_TEST(sp, testandclear, name, type);			\
 	ATOMIC_SAN_TEST(sp, testandset, name, type)
@@ -113,6 +125,7 @@ ATOMIC_SAN_FUNCS(8, uint8_t);
 ATOMIC_SAN_FUNCS(16, uint16_t);
 ATOMIC_SAN_FUNCS(32, uint32_t);
 ATOMIC_SAN_FUNCS(64, uint64_t);
+ATOMIC_SAN_LOAD_STORE(SAN_INTERCEPTOR_PREFIX, bool, bool);
 ATOMIC_SAN_THREAD_FENCE(SAN_INTERCEPTOR_PREFIX);
 
 #ifndef SAN_RUNTIME
@@ -124,6 +137,9 @@ ATOMIC_SAN_THREAD_FENCE(SAN_INTERCEPTOR_PREFIX);
  */
 #define	ATOMIC_SAN(func)						\
 	__CONCAT(SAN_INTERCEPTOR_PREFIX, __CONCAT(_atomic_, func))
+
+#define	atomic_load_bool		ATOMIC_SAN(load_bool)
+#define	atomic_store_bool		ATOMIC_SAN(store_bool)
 
 #define	atomic_add_char			ATOMIC_SAN(add_char)
 #define	atomic_add_acq_char		ATOMIC_SAN(add_acq_char)
@@ -251,17 +267,11 @@ ATOMIC_SAN_THREAD_FENCE(SAN_INTERCEPTOR_PREFIX);
 #define	atomic_fcmpset_acq_ptr		ATOMIC_SAN(fcmpset_acq_ptr)
 #define	atomic_fcmpset_rel_ptr		ATOMIC_SAN(fcmpset_rel_ptr)
 #define	atomic_fetchadd_ptr		ATOMIC_SAN(fetchadd_ptr)
-#define	atomic_load_ptr(x)		({					\
-	__typeof(*x) __retptr;							\
-	__retptr = (void *)ATOMIC_SAN(load_ptr)((volatile uintptr_t *)(x));	\
-	__retptr;								\
-})
+#define	atomic_load_ptr(x)						\
+	((void *)ATOMIC_SAN(load_ptr)(__DECONST(volatile uintptr_t *, (x))))
 #define	atomic_load_acq_ptr		ATOMIC_SAN(load_acq_ptr)
-#define	atomic_load_consume_ptr(x)	({					\
-	__typeof(*x) __retptr;							\
-	__retptr = (void *)atomic_load_acq_ptr((volatile uintptr_t *)(x));\
-	__retptr;								\
-})
+#define	atomic_load_consume_ptr(x)					\
+	((void *)atomic_load_acq_ptr((volatile uintptr_t *)(x)))
 #define	atomic_readandclear_ptr		ATOMIC_SAN(readandclear_ptr)
 #define	atomic_set_ptr			ATOMIC_SAN(set_ptr)
 #define	atomic_set_acq_ptr		ATOMIC_SAN(set_acq_ptr)

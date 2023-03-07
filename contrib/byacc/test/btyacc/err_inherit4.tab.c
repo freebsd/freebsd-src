@@ -3,8 +3,8 @@
 /* (use YYMAJOR/YYMINOR for ifdefs dependent on parser version) */
 
 #define YYBYACC 1
-#define YYMAJOR 1
-#define YYMINOR 9
+#define YYMAJOR 2
+#define YYMINOR 0
 #define YYCHECK "yyyymmdd"
 
 #define YYEMPTY        (-1)
@@ -452,18 +452,18 @@ YYDESTRUCT_DECL()
 	case 263:
 #line 28 "err_inherit4.y"
 	{ }
+#line 456 "err_inherit4.tab.c"
 	break;
-#line 457 "err_inherit4.tab.c"
 	case 264:
 #line 28 "err_inherit4.y"
 	{ }
+#line 461 "err_inherit4.tab.c"
 	break;
-#line 462 "err_inherit4.tab.c"
 	case 265:
 #line 28 "err_inherit4.y"
 	{ }
+#line 466 "err_inherit4.tab.c"
 	break;
-#line 467 "err_inherit4.tab.c"
     }
 }
 #define YYDESTRUCT_IS_DECLARED 1
@@ -629,7 +629,7 @@ YYPARSE_DECL()
     yyps->save = 0;
 #endif /* YYBTYACC */
     yym = 0;
-    yyn = 0;
+    /* yyn is set below */
     yynerrs = 0;
     yyerrflag = 0;
     yychar = YYEMPTY;
@@ -1140,52 +1140,63 @@ yyreduce:
 case 1:
 #line 52 "err_inherit4.y"
 yyval.cval = yystack.l_mark[-1].cval;
+#line 1144 "err_inherit4.tab.c"
 break;
 case 2:
 #line 52 "err_inherit4.y"
 yyval.tval =  yystack.l_mark[-1].tval;
+#line 1149 "err_inherit4.tab.c"
 break;
 case 3:
 #line 53 "err_inherit4.y"
 	{ yyval.nlist = yystack.l_mark[0].nlist; yyloc = yystack.p_mark[0]; }
+#line 1154 "err_inherit4.tab.c"
 break;
 case 4:
 #line 55 "err_inherit4.y"
 	{ yyval.nlist = yystack.l_mark[0].nlist; yyloc = yystack.p_mark[-3]; }
+#line 1159 "err_inherit4.tab.c"
 break;
 case 5:
 #line 58 "err_inherit4.y"
 	{ yyval.cval = cGLOBAL; }
+#line 1164 "err_inherit4.tab.c"
 break;
 case 6:
 #line 59 "err_inherit4.y"
 	{ yyval.cval = cLOCAL; }
+#line 1169 "err_inherit4.tab.c"
 break;
 case 7:
 #line 62 "err_inherit4.y"
 	{ yyval.tval = tREAL; }
+#line 1174 "err_inherit4.tab.c"
 break;
 case 8:
 #line 63 "err_inherit4.y"
 	{ yyval.tval = tINTEGER; }
+#line 1179 "err_inherit4.tab.c"
 break;
 case 9:
 #line 67 "err_inherit4.y"
 	{ yyval.nlist->s = mksymbol(yystack.l_mark[-2].tval, yystack.l_mark[-3].cval, yystack.l_mark[0].id);
 	      yyval.nlist->next = yystack.l_mark[-1].nlist;
 	    }
+#line 1186 "err_inherit4.tab.c"
 break;
 case 10:
 #line 71 "err_inherit4.y"
 	{ yyval.nlist->s = mksymbol(yystack.l_mark[-1].tval, yystack.l_mark[-2].cval, yystack.l_mark[0].id);
 	      yyval.nlist->next = NULL;
 	    }
+#line 1193 "err_inherit4.tab.c"
 break;
 case 11:
 #line 77 "err_inherit4.y"
 	{ yyval.nlist = yystack.l_mark[0].nlist; yyloc = yystack.p_mark[1]; }
+#line 1198 "err_inherit4.tab.c"
 break;
-#line 1189 "err_inherit4.tab.c"
+#line 1200 "err_inherit4.tab.c"
     default:
         break;
     }

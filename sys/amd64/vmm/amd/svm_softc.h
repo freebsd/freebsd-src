@@ -36,17 +36,17 @@
 #define SVM_IO_BITMAP_SIZE	(3 * PAGE_SIZE)
 #define SVM_MSR_BITMAP_SIZE	(2 * PAGE_SIZE)
 
+struct svm_softc;
+
 struct asid {
 	uint64_t	gen;	/* range is [1, ~0UL] */
 	uint32_t	num;	/* range is [1, nasid - 1] */
 };
 
-/*
- * XXX separate out 'struct vmcb' from 'svm_vcpu' to avoid wasting space
- * due to VMCB alignment requirements.
- */
 struct svm_vcpu {
-	struct vmcb	vmcb;	 /* hardware saved vcpu context */
+	struct svm_softc *sc;
+	struct vcpu	*vcpu;
+	struct vmcb	*vmcb;	 /* hardware saved vcpu context */
 	struct svm_regctx swctx; /* software saved vcpu context */
 	uint64_t	vmcb_pa; /* VMCB physical address */
 	uint64_t	nextrip; /* next instruction to be executed by guest */
@@ -54,66 +54,68 @@ struct svm_vcpu {
 	uint32_t	dirty;	 /* state cache bits that must be cleared */
 	long		eptgen;	 /* pmap->pm_eptgen when the vcpu last ran */
 	struct asid	asid;
-} __aligned(PAGE_SIZE);
+	struct vm_mtrr  mtrr;
+	int		vcpuid;
+};
 
 /*
  * SVM softc, one per virtual machine.
  */
 struct svm_softc {
-	uint8_t apic_page[VM_MAXCPU][PAGE_SIZE];
-	struct svm_vcpu vcpu[VM_MAXCPU];
-	vm_offset_t 	nptp;			    /* nested page table */
+	vm_paddr_t 	nptp;			    /* nested page table */
 	uint8_t		*iopm_bitmap;    /* shared by all vcpus */
 	uint8_t		*msr_bitmap;    /* shared by all vcpus */
 	struct vm	*vm;
-	struct vm_mtrr  mtrr[VM_MAXCPU];
 };
 
-CTASSERT((offsetof(struct svm_softc, nptp) & PAGE_MASK) == 0);
+#define	SVM_CTR0(vcpu, format)						\
+	VCPU_CTR0((vcpu)->sc->vm, (vcpu)->vcpuid, format)
 
-static __inline struct svm_vcpu *
-svm_get_vcpu(struct svm_softc *sc, int vcpu)
-{
+#define	SVM_CTR1(vcpu, format, p1)					\
+	VCPU_CTR1((vcpu)->sc->vm, (vcpu)->vcpuid, format, p1)
 
-	return (&(sc->vcpu[vcpu]));
-}
+#define	SVM_CTR2(vcpu, format, p1, p2)					\
+	VCPU_CTR2((vcpu)->sc->vm, (vcpu)->vcpuid, format, p1, p2)
+
+#define	SVM_CTR3(vcpu, format, p1, p2, p3)				\
+	VCPU_CTR3((vcpu)->sc->vm, (vcpu)->vcpuid, format, p1, p2, p3)
+
+#define	SVM_CTR4(vcpu, format, p1, p2, p3, p4)				\
+	VCPU_CTR4((vcpu)->sc->vm, (vcpu)->vcpuid, format, p1, p2, p3, p4)
 
 static __inline struct vmcb *
-svm_get_vmcb(struct svm_softc *sc, int vcpu)
+svm_get_vmcb(struct svm_vcpu *vcpu)
 {
 
-	return (&(sc->vcpu[vcpu].vmcb));
+	return (vcpu->vmcb);
 }
 
 static __inline struct vmcb_state *
-svm_get_vmcb_state(struct svm_softc *sc, int vcpu)
+svm_get_vmcb_state(struct svm_vcpu *vcpu)
 {
 
-	return (&(sc->vcpu[vcpu].vmcb.state));
+	return (&vcpu->vmcb->state);
 }
 
 static __inline struct vmcb_ctrl *
-svm_get_vmcb_ctrl(struct svm_softc *sc, int vcpu)
+svm_get_vmcb_ctrl(struct svm_vcpu *vcpu)
 {
 
-	return (&(sc->vcpu[vcpu].vmcb.ctrl));
+	return (&vcpu->vmcb->ctrl);
 }
 
 static __inline struct svm_regctx *
-svm_get_guest_regctx(struct svm_softc *sc, int vcpu)
+svm_get_guest_regctx(struct svm_vcpu *vcpu)
 {
 
-	return (&(sc->vcpu[vcpu].swctx));
+	return (&vcpu->swctx);
 }
 
 static __inline void
-svm_set_dirty(struct svm_softc *sc, int vcpu, uint32_t dirtybits)
+svm_set_dirty(struct svm_vcpu *vcpu, uint32_t dirtybits)
 {
-        struct svm_vcpu *vcpustate;
 
-        vcpustate = svm_get_vcpu(sc, vcpu);
-
-        vcpustate->dirty |= dirtybits;
+        vcpu->dirty |= dirtybits;
 }
 
 #endif /* _SVM_SOFTC_H_ */

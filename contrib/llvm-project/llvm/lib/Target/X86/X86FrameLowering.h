@@ -176,7 +176,8 @@ public:
 
   /// Wraps up getting a CFI index and building a MachineInstr for it.
   void BuildCFI(MachineBasicBlock &MBB, MachineBasicBlock::iterator MBBI,
-                const DebugLoc &DL, const MCCFIInstruction &CFIInst) const;
+                const DebugLoc &DL, const MCCFIInstruction &CFIInst,
+                MachineInstr::MIFlag Flag = MachineInstr::NoFlags) const;
 
   /// Sets up EBP and optionally ESI based on the incoming EBP value.  Only
   /// needed for 32-bit. Used in funclet prologues and at catchret destinations.
@@ -232,6 +233,10 @@ private:
                                        MachineBasicBlock::iterator MBBI,
                                        const DebugLoc &DL, uint64_t Offset,
                                        uint64_t Align) const;
+
+  /// Emit target zero call-used regs.
+  void emitZeroCallUsedRegs(BitVector RegsToZero,
+                            MachineBasicBlock &MBB) const override;
 
   void adjustFrameForMsvcCxxEh(MachineFunction &MF) const;
 

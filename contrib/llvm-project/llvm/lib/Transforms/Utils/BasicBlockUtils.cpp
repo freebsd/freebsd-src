@@ -21,7 +21,6 @@
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
 #include "llvm/Analysis/MemorySSAUpdater.h"
-#include "llvm/Analysis/PostDominators.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CFG.h"
 #include "llvm/IR/Constants.h"
@@ -33,7 +32,6 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/PseudoProbe.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/User.h"
 #include "llvm/IR/Value.h"
@@ -82,7 +80,7 @@ void llvm::detachDeadBlocks(
       // contained within it must dominate their uses, that all uses will
       // eventually be removed (they are themselves dead).
       if (!I.use_empty())
-        I.replaceAllUsesWith(UndefValue::get(I.getType()));
+        I.replaceAllUsesWith(PoisonValue::get(I.getType()));
       BB->getInstList().pop_back();
     }
     new UnreachableInst(BB->getContext(), BB);
@@ -190,8 +188,10 @@ bool llvm::MergeBlockIntoPredecessor(BasicBlock *BB, DomTreeUpdater *DTU,
 
   // Don't break self-loops.
   if (PredBB == BB) return false;
-  // Don't break unwinding instructions.
-  if (PredBB->getTerminator()->isExceptionalTerminator())
+
+  // Don't break unwinding instructions or terminators with other side-effects.
+  Instruction *PTI = PredBB->getTerminator();
+  if (PTI->isExceptionalTerminator() || PTI->mayHaveSideEffects())
     return false;
 
   // Can't merge if there are multiple distinct successors.
@@ -204,7 +204,7 @@ bool llvm::MergeBlockIntoPredecessor(BasicBlock *BB, DomTreeUpdater *DTU,
   BasicBlock *NewSucc = nullptr;
   unsigned FallThruPath;
   if (PredecessorWithTwoSuccessors) {
-    if (!(PredBB_BI = dyn_cast<BranchInst>(PredBB->getTerminator())))
+    if (!(PredBB_BI = dyn_cast<BranchInst>(PTI)))
       return false;
     BranchInst *BB_JmpI = dyn_cast<BranchInst>(BB->getTerminator());
     if (!BB_JmpI || !BB_JmpI->isUnconditional())
@@ -258,7 +258,6 @@ bool llvm::MergeBlockIntoPredecessor(BasicBlock *BB, DomTreeUpdater *DTU,
     Updates.push_back({DominatorTree::Delete, PredBB, BB});
   }
 
-  Instruction *PTI = PredBB->getTerminator();
   Instruction *STI = BB->getTerminator();
   Instruction *Start = &*BB->begin();
   // If there's nothing to move, mark the starting instruction as the last
@@ -771,8 +770,7 @@ llvm::SplitAllCriticalEdges(Function &F,
   unsigned NumBroken = 0;
   for (BasicBlock &BB : F) {
     Instruction *TI = BB.getTerminator();
-    if (TI->getNumSuccessors() > 1 && !isa<IndirectBrInst>(TI) &&
-        !isa<CallBrInst>(TI))
+    if (TI->getNumSuccessors() > 1 && !isa<IndirectBrInst>(TI))
       for (unsigned i = 0, e = TI->getNumSuccessors(); i != e; ++i)
         if (SplitCriticalEdge(TI, i, Options))
           ++NumBroken;
@@ -1134,9 +1132,7 @@ SplitBlockPredecessorsImpl(BasicBlock *BB, ArrayRef<BasicBlock *> Preds,
     // all BlockAddress uses would need to be updated.
     assert(!isa<IndirectBrInst>(Preds[i]->getTerminator()) &&
            "Cannot split an edge from an IndirectBrInst");
-    assert(!isa<CallBrInst>(Preds[i]->getTerminator()) &&
-           "Cannot split an edge from a CallBrInst");
-    Preds[i]->getTerminator()->replaceUsesOfWith(BB, NewBB);
+    Preds[i]->getTerminator()->replaceSuccessorWith(BB, NewBB);
   }
 
   // Insert a new PHI node into NewBB for every PHI node in BB and that new PHI
@@ -1146,7 +1142,7 @@ SplitBlockPredecessorsImpl(BasicBlock *BB, ArrayRef<BasicBlock *> Preds,
   if (Preds.empty()) {
     // Insert dummy values as the incoming value.
     for (BasicBlock::iterator I = BB->begin(); isa<PHINode>(I); ++I)
-      cast<PHINode>(I)->addIncoming(UndefValue::get(I->getType()), NewBB);
+      cast<PHINode>(I)->addIncoming(PoisonValue::get(I->getType()), NewBB);
   }
 
   // Update DominatorTree, LoopInfo, and LCCSA analysis information.
@@ -1164,7 +1160,11 @@ SplitBlockPredecessorsImpl(BasicBlock *BB, ArrayRef<BasicBlock *> Preds,
     if (NewLatch != OldLatch) {
       MDNode *MD = OldLatch->getTerminator()->getMetadata("llvm.loop");
       NewLatch->getTerminator()->setMetadata("llvm.loop", MD);
-      OldLatch->getTerminator()->setMetadata("llvm.loop", nullptr);
+      // It's still possible that OldLatch is the latch of another inner loop,
+      // in which case we do not remove the metadata.
+      Loop *IL = LI->getLoopFor(OldLatch);
+      if (IL && IL->getLoopLatch() != OldLatch)
+        OldLatch->getTerminator()->setMetadata("llvm.loop", nullptr);
     }
   }
 

@@ -66,8 +66,9 @@ views_create(void)
 	return v;
 }
 
-/** This prototype is defined in in respip.h, but we want to avoid
-  * unnecessary dependencies */
+/* \noop (ignore this comment for doxygen)
+ * This prototype is defined in in respip.h, but we want to avoid
+ * unnecessary dependencies */
 void respip_set_delete(struct respip_set *set);
 
 void 

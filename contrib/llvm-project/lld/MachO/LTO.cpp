@@ -34,11 +34,11 @@ using namespace llvm::sys;
 static lto::Config createConfig() {
   lto::Config c;
   c.Options = initTargetOptionsFromCodeGenFlags();
+  c.Options.EmitAddrsig = config->icfLevel == ICFLevel::safe;
   c.CodeModel = getCodeModelFromCMModel();
   c.CPU = getCPUStr();
   c.MAttrs = getMAttrs();
   c.DiagHandler = diagnosticHandler;
-  c.UseNewPM = config->ltoNewPassManager;
   c.PreCodeGenPassesHook = [](legacy::PassManager &pm) {
     pm.add(createObjCARCContractPass());
   };
@@ -64,6 +64,8 @@ void BitcodeCompiler::add(BitcodeFile &f) {
   resols.reserve(objSyms.size());
 
   // Provide a resolution to the LTO API for each symbol.
+  bool exportDynamic =
+      config->outputType != MH_EXECUTE || config->exportDynamic;
   auto symIt = f.symbols.begin();
   for (const lto::InputFile::Symbol &objSym : objSyms) {
     resols.emplace_back();
@@ -77,12 +79,18 @@ void BitcodeCompiler::add(BitcodeFile &f) {
     // be removed.
     r.Prevailing = !objSym.isUndefined() && sym->getFile() == &f;
 
-    // FIXME: What about other output types? And we can probably be less
-    // restrictive with -flat_namespace, but it's an infrequent use case.
-    // FIXME: Honor config->exportDynamic.
-    r.VisibleToRegularObj = config->outputType != MH_EXECUTE ||
-                            config->namespaceKind == NamespaceKind::flat ||
-                            sym->isUsedInRegularObj;
+    if (const auto *defined = dyn_cast<Defined>(sym)) {
+      r.ExportDynamic =
+          defined->isExternal() && !defined->privateExtern && exportDynamic;
+      r.FinalDefinitionInLinkageUnit =
+          !defined->isExternalWeakDef() && !defined->interposable;
+    } else if (const auto *common = dyn_cast<CommonSymbol>(sym)) {
+      r.ExportDynamic = !common->privateExtern && exportDynamic;
+      r.FinalDefinitionInLinkageUnit = true;
+    }
+
+    r.VisibleToRegularObj =
+        sym->isUsedInRegularObj || (r.Prevailing && r.ExportDynamic);
 
     // Un-define the symbol so that we don't get duplicate symbol errors when we
     // load the ObjFile emitted by LTO compilation.
@@ -130,8 +138,22 @@ std::vector<ObjFile *> BitcodeCompiler::compile() {
       saveBuffer(buf[i], config->outputFile + Twine(i) + ".lto.o");
   }
 
-  if (!config->ltoObjPath.empty())
-    fs::create_directories(config->ltoObjPath);
+  // In ThinLTO mode, Clang passes a temporary directory in -object_path_lto,
+  // while the argument is a single file in FullLTO mode.
+  bool objPathIsDir = true;
+  if (!config->ltoObjPath.empty()) {
+    if (std::error_code ec = fs::create_directories(config->ltoObjPath))
+      fatal("cannot create LTO object path " + config->ltoObjPath + ": " +
+            ec.message());
+
+    if (!fs::is_directory(config->ltoObjPath)) {
+      objPathIsDir = false;
+      unsigned objCount =
+          count_if(buf, [](const SmallString<0> &b) { return !b.empty(); });
+      if (objCount > 1)
+        fatal("-object_path_lto must specify a directory when using ThinLTO");
+    }
+  }
 
   std::vector<ObjFile *> ret;
   for (unsigned i = 0; i != maxTasks; ++i) {
@@ -141,9 +163,10 @@ std::vector<ObjFile *> BitcodeCompiler::compile() {
     uint32_t modTime = 0;
     if (!config->ltoObjPath.empty()) {
       filePath = config->ltoObjPath;
-      path::append(filePath, Twine(i) + "." +
-                                 getArchitectureName(config->arch()) +
-                                 ".lto.o");
+      if (objPathIsDir)
+        path::append(filePath, Twine(i) + "." +
+                                   getArchitectureName(config->arch()) +
+                                   ".lto.o");
       saveBuffer(buf[i], filePath);
       modTime = getModTime(filePath);
     }

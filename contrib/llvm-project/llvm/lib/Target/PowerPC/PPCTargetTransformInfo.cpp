@@ -28,11 +28,6 @@ using namespace llvm;
 static cl::opt<bool> DisablePPCConstHoist("disable-ppc-constant-hoisting",
 cl::desc("disable constant hoisting on PPC"), cl::init(false), cl::Hidden);
 
-// This is currently only used for the data prefetch pass
-static cl::opt<unsigned>
-CacheLineSize("ppc-loop-prefetch-cache-line", cl::Hidden, cl::init(64),
-              cl::desc("The loop prefetch cache line size"));
-
 static cl::opt<bool>
 EnablePPCColdCC("ppc-enable-coldcc", cl::Hidden, cl::init(false),
                 cl::desc("Enable using coldcc calling conv for cold "
@@ -901,10 +896,6 @@ PPCTTIImpl::getRegisterBitWidth(TargetTransformInfo::RegisterKind K) const {
 }
 
 unsigned PPCTTIImpl::getCacheLineSize() const {
-  // Check first if the user specified a custom line size.
-  if (CacheLineSize.getNumOccurrences() > 0)
-    return CacheLineSize;
-
   // Starting with P7 we have a cache line size of 128.
   unsigned Directive = ST->getCPUDirective();
   // Assume that Future CPU has the same cache line size as the others.
@@ -1013,7 +1004,8 @@ InstructionCost PPCTTIImpl::getArithmeticInstrCost(
 
 InstructionCost PPCTTIImpl::getShuffleCost(TTI::ShuffleKind Kind, Type *Tp,
                                            ArrayRef<int> Mask, int Index,
-                                           Type *SubTp) {
+                                           Type *SubTp,
+                                           ArrayRef<const Value *> Args) {
 
   InstructionCost CostFactor =
       vectorCostAdjustmentFactor(Instruction::ShuffleVector, Tp, nullptr);
@@ -1317,8 +1309,8 @@ bool PPCTTIImpl::canSaveCmp(Loop *L, BranchInst **BI, ScalarEvolution *SE,
   return true;
 }
 
-bool PPCTTIImpl::isLSRCostLess(TargetTransformInfo::LSRCost &C1,
-                               TargetTransformInfo::LSRCost &C2) {
+bool PPCTTIImpl::isLSRCostLess(const TargetTransformInfo::LSRCost &C1,
+                               const TargetTransformInfo::LSRCost &C2) {
   // PowerPC default behaviour here is "instruction number 1st priority".
   // If LsrNoInsnsCost is set, call default implementation.
   if (!LsrNoInsnsCost)

@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -69,6 +69,88 @@ err_exit() {
 
 	printf '%s\n' "$1"
 	exit "$2"
+}
+
+# Function for checking the "d"/"dir" argument of scripts. This function expects
+# a usage() function to exist in the caller.
+# @param 1  The argument to check.
+check_d_arg() {
+
+	if [ "$#" -ne 1 ]; then
+		printf 'Invalid number of args to check_d_arg\n'
+		exit 1
+	fi
+
+	_check_d_arg_arg="$1"
+	shift
+
+	if [ "$_check_d_arg_arg" != "bc" ] && [ "$_check_d_arg_arg" != "dc" ]; then
+		_check_d_arg_msg=$(printf 'Invalid d arg: %s\nMust be either "bc" or "dc".\n\n' \
+			"$_check_d_arg_arg")
+		usage "$_check_d_arg_msg"
+	fi
+}
+
+# Function for checking the boolean arguments of scripts. This function expects
+# a usage() function to exist in the caller.
+# @param 1  The argument to check.
+check_bool_arg() {
+
+	if [ "$#" -ne 1 ]; then
+		printf 'Invalid number of args to check_bool_arg\n'
+		exit 1
+	fi
+
+	_check_bool_arg_arg="$1"
+	shift
+
+	if [ "$_check_bool_arg_arg" != "0" ] && [ "$_check_bool_arg_arg" != "1" ]; then
+		_check_bool_arg_msg=$(printf 'Invalid bool arg: %s\nMust be either "0" or "1".\n\n' \
+			"$_check_bool_arg_arg")
+		usage "$_check_bool_arg_msg"
+	fi
+}
+
+# Function for checking the executable arguments of scripts. This function
+# expects a usage() function to exist in the caller.
+# @param 1  The argument to check.
+check_exec_arg() {
+
+	if [ "$#" -ne 1 ]; then
+		printf 'Invalid number of args to check_exec_arg\n'
+		exit 1
+	fi
+
+	_check_exec_arg_arg="$1"
+	shift
+
+	if [ ! -x "$_check_exec_arg_arg" ]; then
+		if ! command -v "$_check_exec_arg_arg" >/dev/null 2>&1; then
+			_check_exec_arg_msg=$(printf 'Invalid exec arg: %s\nMust be an executable file.\n\n' \
+				"$_check_exec_arg_arg")
+			usage "$_check_exec_arg_msg"
+		fi
+	fi
+}
+
+# Function for checking the file arguments of scripts. This function expects a
+# usage() function to exist in the caller.
+# @param 1  The argument to check.
+check_file_arg() {
+
+	if [ "$#" -ne 1 ]; then
+		printf 'Invalid number of args to check_file_arg\n'
+		exit 1
+	fi
+
+	_check_file_arg_arg="$1"
+	shift
+
+	if [ ! -f "$_check_file_arg_arg" ]; then
+		_check_file_arg_msg=$(printf 'Invalid file arg: %s\nMust be a file.\n\n' \
+			"$_check_file_arg_arg")
+		usage "$_check_file_arg_msg"
+	fi
 }
 
 # Check the return code on a test and exit with a fail if it's non-zero.

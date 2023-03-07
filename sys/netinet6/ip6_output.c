@@ -92,6 +92,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <net/if_vlan_var.h>
 #include <net/if_llatbl.h>
 #include <net/ethernet.h>
@@ -121,7 +122,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_crc32.h>
 #endif
 
-#include <netinet6/ip6protosw.h>
 #include <netinet6/scope6_var.h>
 
 extern int in6_mcast_loop;
@@ -770,7 +770,7 @@ again:
 		if (nh == NULL) {
 			IP6STAT_INC(ip6s_noroute);
 			/* No ifp in6_ifstat_inc(ifp, ifs6_out_discard); */
-			error = EHOSTUNREACH;;
+			error = EHOSTUNREACH;
 			goto bad;
 		}
 
@@ -1014,7 +1014,7 @@ nonh6lookup:
 
 	odst = ip6->ip6_dst;
 	/* Run through list of hooks for output packets. */
-	switch (pfil_run_hooks(V_inet6_pfil_head, &m, ifp, PFIL_OUT, inp)) {
+	switch (pfil_mbuf_out(V_inet6_pfil_head, &m, ifp, inp)) {
 	case PFIL_PASS:
 		ip6 = mtod(m, struct ip6_hdr *);
 		break;
@@ -1752,10 +1752,6 @@ ip6_ctloutput(struct socket *so, struct sockopt *sopt)
 			case IPV6_AUTOFLOWLABEL:
 			case IPV6_ORIGDSTADDR:
 			case IPV6_BINDANY:
-			case IPV6_BINDMULTI:
-#ifdef	RSS
-			case IPV6_RSS_LISTEN_BUCKET:
-#endif
 			case IPV6_VLAN_PCP:
 				if (optname == IPV6_BINDANY && td != NULL) {
 					error = priv_check(td,
@@ -1845,7 +1841,7 @@ do {									\
 						break;
 					}
 					INP_WLOCK(inp);
-					if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+					if (inp->inp_flags & INP_DROPPED) {
 						INP_WUNLOCK(inp);
 						return (ECONNRESET);
 					}
@@ -1933,23 +1929,6 @@ do {									\
 				case IPV6_BINDANY:
 					OPTSET(INP_BINDANY);
 					break;
-
-				case IPV6_BINDMULTI:
-					OPTSET2(INP_BINDMULTI, optval);
-					break;
-#ifdef	RSS
-				case IPV6_RSS_LISTEN_BUCKET:
-					if ((optval >= 0) &&
-					    (optval < rss_getnumbuckets())) {
-						INP_WLOCK(inp);
-						inp->inp_rss_listen_bucket = optval;
-						OPTSET2_N(INP_RSS_BUCKET_SET, 1);
-						INP_WUNLOCK(inp);
-					} else {
-						error = EINVAL;
-					}
-					break;
-#endif
 				case IPV6_VLAN_PCP:
 					if ((optval >= -1) && (optval <=
 					    (INP_2PCP_MASK >> INP_2PCP_SHIFT))) {
@@ -1991,7 +1970,7 @@ do {									\
 				{
 					struct ip6_pktopts **optp;
 					INP_WLOCK(inp);
-					if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+					if (inp->inp_flags & INP_DROPPED) {
 						INP_WUNLOCK(inp);
 						return (ECONNRESET);
 					}
@@ -2083,7 +2062,7 @@ do {									\
 				optlen = sopt->sopt_valsize;
 				optbuf = optbuf_storage;
 				INP_WLOCK(inp);
-				if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+				if (inp->inp_flags & INP_DROPPED) {
 					INP_WUNLOCK(inp);
 					return (ECONNRESET);
 				}
@@ -2195,7 +2174,6 @@ do {									\
 			case IPV6_RSSBUCKETID:
 			case IPV6_RECVRSSBUCKETID:
 #endif
-			case IPV6_BINDMULTI:
 			case IPV6_VLAN_PCP:
 				switch (optname) {
 				case IPV6_RECVHOPOPTS:
@@ -2290,9 +2268,6 @@ do {									\
 					break;
 #endif
 
-				case IPV6_BINDMULTI:
-					optval = OPTBIT2(INP_BINDMULTI);
-					break;
 
 				case IPV6_VLAN_PCP:
 					if (OPTBIT2(INP_2PCP_SET)) {
@@ -2572,33 +2547,33 @@ ip6_pcbopt(int optname, u_char *buf, int len, struct ip6_pktopts **pktopt,
 	return (ret);
 }
 
-#define GET_PKTOPT_VAR(field, lenexpr) do {					\
-	if (pktopt && pktopt->field) {						\
-		INP_RUNLOCK(inp);						\
-		optdata = malloc(sopt->sopt_valsize, M_TEMP, M_WAITOK);		\
-		malloc_optdata = true;						\
-		INP_RLOCK(inp);							\
-		if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {		\
-			INP_RUNLOCK(inp);					\
-			free(optdata, M_TEMP);					\
-			return (ECONNRESET);					\
-		}								\
-		pktopt = inp->in6p_outputopts;					\
-		if (pktopt && pktopt->field) {					\
-			optdatalen = min(lenexpr, sopt->sopt_valsize);		\
-			bcopy(pktopt->field, optdata, optdatalen);		\
-		} else {							\
-			free(optdata, M_TEMP);					\
-			optdata = NULL;						\
-			malloc_optdata = false;					\
-		}								\
-	}									\
+#define GET_PKTOPT_VAR(field, lenexpr) do {				\
+	if (pktopt && pktopt->field) {					\
+		INP_RUNLOCK(inp);					\
+		optdata = malloc(sopt->sopt_valsize, M_TEMP, M_WAITOK);	\
+		malloc_optdata = true;					\
+		INP_RLOCK(inp);						\
+		if (inp->inp_flags & INP_DROPPED) {			\
+			INP_RUNLOCK(inp);				\
+			free(optdata, M_TEMP);				\
+			return (ECONNRESET);				\
+		}							\
+		pktopt = inp->in6p_outputopts;				\
+		if (pktopt && pktopt->field) {				\
+			optdatalen = min(lenexpr, sopt->sopt_valsize);	\
+			bcopy(pktopt->field, optdata, optdatalen);	\
+		} else {						\
+			free(optdata, M_TEMP);				\
+			optdata = NULL;					\
+			malloc_optdata = false;				\
+		}							\
+	}								\
 } while(0)
 
-#define GET_PKTOPT_EXT_HDR(field) GET_PKTOPT_VAR(field,				\
+#define GET_PKTOPT_EXT_HDR(field) GET_PKTOPT_VAR(field,			\
 	(((struct ip6_ext *)pktopt->field)->ip6e_len + 1) << 3)
 
-#define GET_PKTOPT_SOCKADDR(field) GET_PKTOPT_VAR(field,			\
+#define GET_PKTOPT_SOCKADDR(field) GET_PKTOPT_VAR(field,		\
 	pktopt->field->sa_len)
 
 static int

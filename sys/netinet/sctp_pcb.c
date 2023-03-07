@@ -6946,6 +6946,7 @@ static void
 sctp_drain(void)
 {
 	struct epoch_tracker et;
+
 	VNET_ITERATOR_DECL(vnet_iter);
 
 	NET_EPOCH_ENTER(et);
@@ -6987,6 +6988,7 @@ sctp_drain(void)
 	VNET_LIST_RUNLOCK_NOSLEEP();
 	NET_EPOCH_EXIT(et);
 }
+
 EVENTHANDLER_DEFINE(vm_lowmem, sctp_drain, NULL, LOWMEM_PRI_DEFAULT);
 EVENTHANDLER_DEFINE(mbuf_lowmem, sctp_drain, NULL, LOWMEM_PRI_DEFAULT);
 

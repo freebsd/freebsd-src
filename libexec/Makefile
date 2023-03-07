@@ -10,6 +10,7 @@ SUBDIR=	${_atf} \
 	${_dma} \
 	flua \
 	getty \
+	${_hyperv} \
 	${_mail.local} \
 	${_makewhatis.local} \
 	${_mknetid} \
@@ -27,7 +28,6 @@ SUBDIR=	${_atf} \
 	${_rtld-elf} \
 	save-entropy \
 	${_smrsh} \
-	${_telnetd} \
 	${_tests} \
 	${_tftp-proxy} \
 	ulog-helper \
@@ -63,6 +63,10 @@ _comsat=	comsat
 
 .if ${MK_DMAGENT} != "no"
 _dma=		dma
+.endif
+
+.if ${MK_HYPERV} != "no"
+_hyperv+=	hyperv
 .endif
 
 .if ${MK_NIS} != "no"
@@ -102,10 +106,6 @@ SUBDIR+=	talkd
 
 .if ${MK_TCP_WRAPPERS} != "no"
 SUBDIR+=	tcpd
-.endif
-
-.if ${MK_TELNET} != "no"
-_telnetd=	telnetd
 .endif
 
 .if ${MK_TFTP} != "no"

@@ -99,11 +99,9 @@ ENTRY(savectx)
 	add	r3, r0, #(PCB_R4)
 	stmia	r3, {r4-r12, sp, lr, pc}
 #ifdef VFP
-	fmrx	r2, fpexc		/* If the VFP is enabled */
-	tst	r2, #(VFPEXC_EN)	/* the current thread has */
-	movne	r1, #1			/* used it, so go save */
-	addne	r0, r0, #(PCB_VFPSTATE)	/* the state into the PCB */
-	blne	_C_LABEL(vfp_store)	/* and disable the VFP. */
+	mov	r1, r0
+	mov	r0, #0
+	bl	_C_LABEL(vfp_save_state)
 #endif
 	add	sp, sp, #4;
 	ldmfd	sp!, {pc}

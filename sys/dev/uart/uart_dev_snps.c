@@ -216,7 +216,7 @@ snps_probe(device_t dev)
 		device_printf(dev, "could not determine frequency\n");
 
 	error = uart_bus_probe(dev, (int)shift, (int)iowidth, (int)clock, 0, 0, UART_F_BUSY_DETECT);
-	if (error != 0)
+	if (error > 0)
 		return (error);
 
 	/* XXX uart_bus_probe has changed the softc, so refresh it */
@@ -227,7 +227,7 @@ snps_probe(device_t dev)
 	sc->apb_pclk = apb_pclk;
 	sc->reset = reset;
 
-	return (0);
+	return (BUS_PROBE_VENDOR);
 }
 
 static int

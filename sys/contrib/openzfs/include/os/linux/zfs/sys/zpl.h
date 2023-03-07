@@ -39,13 +39,18 @@
 
 /* zpl_inode.c */
 extern void zpl_vap_init(vattr_t *vap, struct inode *dir,
-    umode_t mode, cred_t *cr);
+    umode_t mode, cred_t *cr, zuserns_t *mnt_ns);
 
 extern const struct inode_operations zpl_inode_operations;
+#ifdef HAVE_RENAME2_OPERATIONS_WRAPPER
+extern const struct inode_operations_wrapper zpl_dir_inode_operations;
+#else
 extern const struct inode_operations zpl_dir_inode_operations;
+#endif
 extern const struct inode_operations zpl_symlink_inode_operations;
 extern const struct inode_operations zpl_special_inode_operations;
-extern dentry_operations_t zpl_dentry_operations;
+
+/* zpl_file.c */
 extern const struct address_space_operations zpl_address_space_operations;
 extern const struct file_operations zpl_file_operations;
 extern const struct file_operations zpl_dir_file_operations;
@@ -66,11 +71,14 @@ extern int zpl_xattr_security_init(struct inode *ip, struct inode *dip,
 #if defined(HAVE_SET_ACL_USERNS)
 extern int zpl_set_acl(struct user_namespace *userns, struct inode *ip,
     struct posix_acl *acl, int type);
+#elif defined(HAVE_SET_ACL_USERNS_DENTRY_ARG2)
+extern int zpl_set_acl(struct user_namespace *userns, struct dentry *dentry,
+    struct posix_acl *acl, int type);
 #else
 extern int zpl_set_acl(struct inode *ip, struct posix_acl *acl, int type);
 #endif /* HAVE_SET_ACL_USERNS */
 #endif /* HAVE_SET_ACL */
-#if defined(HAVE_GET_ACL_RCU)
+#if defined(HAVE_GET_ACL_RCU) || defined(HAVE_GET_INODE_ACL)
 extern struct posix_acl *zpl_get_acl(struct inode *ip, int type, bool rcu);
 #elif defined(HAVE_GET_ACL)
 extern struct posix_acl *zpl_get_acl(struct inode *ip, int type);

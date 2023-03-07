@@ -18,9 +18,6 @@
 #include <queue>
 #include <set>
 
-using namespace llvm;
-using namespace sampleprof;
-
 namespace llvm {
 namespace sampleprof {
 
@@ -51,10 +48,10 @@ struct ProfiledCallGraphNode {
     }
   };
 
-  using iterator = std::set<ProfiledCallGraphEdge>::iterator;
-  using const_iterator = std::set<ProfiledCallGraphEdge>::const_iterator;
   using edge = ProfiledCallGraphEdge;
-  using edges = std::set<ProfiledCallGraphEdge, ProfiledCallGraphEdgeComparer>;
+  using edges = std::set<edge, ProfiledCallGraphEdgeComparer>;
+  using iterator = edges::iterator;
+  using const_iterator = edges::const_iterator;
 
   ProfiledCallGraphNode(StringRef FName = StringRef()) : Name(FName) {}
 
@@ -64,11 +61,11 @@ struct ProfiledCallGraphNode {
 
 class ProfiledCallGraph {
 public:
-  using iterator = std::set<ProfiledCallGraphEdge>::iterator;
+  using iterator = ProfiledCallGraphNode::iterator;
 
   // Constructor for non-CS profile.
   ProfiledCallGraph(SampleProfileMap &ProfileMap) {
-    assert(!FunctionSamples::ProfileIsCSFlat &&
+    assert(!FunctionSamples::ProfileIsCS &&
            "CS flat profile is not handled here");
     for (const auto &Samples : ProfileMap) {
       addProfiledCalls(Samples.second);
@@ -108,7 +105,7 @@ public:
         if (!CalleeSamples || !CallerSamples) {
           Weight = 0;
         } else {
-          uint64_t CalleeEntryCount = CalleeSamples->getEntrySamples();
+          uint64_t CalleeEntryCount = CalleeSamples->getHeadSamplesEstimate();
           uint64_t CallsiteCount = 0;
           LineLocation Callsite = Callee->getCallSiteLoc();
           if (auto CallTargets = CallerSamples->findCallTargetMapAt(Callsite)) {
@@ -172,7 +169,7 @@ private:
       for (const auto &InlinedSamples : CallsiteSamples.second) {
         addProfiledFunction(InlinedSamples.first);
         addProfiledCall(Samples.getFuncName(), InlinedSamples.first,
-                        InlinedSamples.second.getEntrySamples());
+                        InlinedSamples.second.getHeadSamplesEstimate());
         addProfiledCalls(InlinedSamples.second);
       }
     }

@@ -38,6 +38,7 @@ from fcntl import ioctl
 import os
 import platform
 import random
+import re
 import signal
 from struct import pack as _pack
 import sys
@@ -258,7 +259,7 @@ class Crypto:
         caead.op = op
         caead.flags = CRD_F_IV_EXPLICIT
         caead.flags = 0
-        if src is not None and len(src) != 0:
+        if src:
             src = str_to_ascii(src)
             caead.len = len(src)
             s = array.array('B', src)
@@ -287,7 +288,7 @@ class Crypto:
 
         ioctl(_cryptodev, CIOCCRYPTAEAD, bytes(caead))
 
-        if src is not None:
+        if src:
             s = array_tobytes(s)
         else:
             s = empty_bytes()
@@ -358,6 +359,7 @@ class KATParser:
         self._pending = None
         self.fname = fname
         self.fp = None
+        self.field_re = re.compile(r"\[(?P<field>[^]]+)\]")
 
     def __enter__(self):
         self.fp = open(self.fname)
@@ -372,24 +374,22 @@ class KATParser:
 
     def __next__(self):
         while True:
-            didread = False
-            if self._pending is not None:
-                i = self._pending
-                self._pending = None
-            else:
-                i = self.fp.readline()
-                didread = True
+            while True:
+                if self._pending is not None:
+                    i = self._pending
+                    self._pending = None
+                else:
+                    i = self.fp.readline()
+                    if not i:
+                        return
 
-            if didread and not i:
-                return
+                if not i.startswith('#') and i.strip():
+                    break
 
-            if not i.startswith('#') and i.strip():
-                break
-
-        if i[0] == '[':
-            yield i[1:].split(']', 1)[0], self.fielditer()
-        else:
-            raise ValueError('unknown line: %r' % repr(i))
+            matches = self.field_re.match(i)
+            if matches is None:
+                raise ValueError("Unknown line: %r" % (i))
+            yield matches.group("field"), self.fielditer()
 
     def eatblanks(self):
         while True:

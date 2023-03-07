@@ -1682,7 +1682,7 @@ SYSCTL_PROC(_security_bsd, OID_AUTO, unprivileged_proc_debug,
 int
 p_candebug(struct thread *td, struct proc *p)
 {
-	int credentialchanged, error, grpsubset, i, uidsubset;
+	int error, grpsubset, i, uidsubset;
 
 	KASSERT(td == curthread, ("%s: td not curthread", __func__));
 	PROC_LOCK_ASSERT(p, MA_OWNED);
@@ -1725,11 +1725,6 @@ p_candebug(struct thread *td, struct proc *p)
 	    td->td_ucred->cr_uid == p->p_ucred->cr_ruid);
 
 	/*
-	 * Has the credential of the process changed since the last exec()?
-	 */
-	credentialchanged = (p->p_flag & P_SUGID);
-
-	/*
 	 * If p's gids aren't a subset, or the uids aren't a subset,
 	 * or the credential has changed, require appropriate privilege
 	 * for td to debug p.
@@ -1740,7 +1735,10 @@ p_candebug(struct thread *td, struct proc *p)
 			return (error);
 	}
 
-	if (credentialchanged) {
+	/*
+	 * Has the credential of the process changed since the last exec()?
+	 */
+	if ((p->p_flag & P_SUGID) != 0) {
 		error = priv_check(td, PRIV_DEBUG_SUGID);
 		if (error)
 			return (error);

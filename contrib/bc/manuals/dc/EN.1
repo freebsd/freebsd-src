@@ -1,7 +1,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.\" Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+.\" Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions are met:
@@ -25,7 +25,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.TH "DC" "1" "June 2022" "Gavin D. Howard" "General Commands Manual"
+.TH "DC" "1" "February 2023" "Gavin D. Howard" "General Commands Manual"
 .nh
 .ad l
 .SH Name
@@ -33,12 +33,14 @@
 dc - arbitrary-precision decimal reverse-Polish notation calculator
 .SH SYNOPSIS
 .PP
-\f[B]dc\f[R] [\f[B]-hiPRvVx\f[R]] [\f[B]--version\f[R]]
-[\f[B]--help\f[R]] [\f[B]--interactive\f[R]] [\f[B]--no-prompt\f[R]]
-[\f[B]--no-read-prompt\f[R]] [\f[B]--extended-register\f[R]]
-[\f[B]-e\f[R] \f[I]expr\f[R]]
-[\f[B]--expression\f[R]=\f[I]expr\f[R]\&...] [\f[B]-f\f[R]
-\f[I]file\f[R]\&...] [\f[B]--file\f[R]=\f[I]file\f[R]\&...]
+\f[B]dc\f[R] [\f[B]-cChiPRvVx\f[R]] [\f[B]--version\f[R]]
+[\f[B]--help\f[R]] [\f[B]--digit-clamp\f[R]]
+[\f[B]--no-digit-clamp\f[R]] [\f[B]--interactive\f[R]]
+[\f[B]--no-prompt\f[R]] [\f[B]--no-read-prompt\f[R]]
+[\f[B]--extended-register\f[R]] [\f[B]-e\f[R] \f[I]expr\f[R]]
+[\f[B]--expression\f[R]=\f[I]expr\f[R]\&...]
+[\f[B]-f\f[R] \f[I]file\f[R]\&...]
+[\f[B]--file\f[R]=\f[I]file\f[R]\&...]
 [\f[I]file\f[R]\&...]
 .SH DESCRIPTION
 .PP
@@ -61,83 +63,43 @@ and this dc(1) will always start with a \f[B]scale\f[R] of \f[B]10\f[R].
 .PP
 The following are the options that dc(1) accepts.
 .TP
-\f[B]-h\f[R], \f[B]--help\f[R]
-Prints a usage message and quits.
-.TP
-\f[B]-v\f[R], \f[B]-V\f[R], \f[B]--version\f[R]
-Print the version information (copyright header) and exit.
-.TP
-\f[B]-i\f[R], \f[B]--interactive\f[R]
-Forces interactive mode.
-(See the \f[B]INTERACTIVE MODE\f[R] section.)
+\f[B]-C\f[R], \f[B]--no-digit-clamp\f[R]
+Disables clamping of digits greater than or equal to the current
+\f[B]ibase\f[R] when parsing numbers.
 .RS
+.PP
+This means that the value added to a number from a digit is always that
+digit\[cq]s value multiplied by the value of ibase raised to the power
+of the digit\[cq]s position, which starts from 0 at the least
+significant digit.
+.PP
+If this and/or the \f[B]-c\f[R] or \f[B]--digit-clamp\f[R] options are
+given multiple times, the last one given is used.
+.PP
+This option overrides the \f[B]DC_DIGIT_CLAMP\f[R] environment variable
+(see the \f[B]ENVIRONMENT VARIABLES\f[R] section) and the default, which
+can be queried with the \f[B]-h\f[R] or \f[B]--help\f[R] options.
 .PP
 This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-\f[B]-L\f[R], \f[B]--no-line-length\f[R]
-Disables line length checking and prints numbers without backslashes and
-newlines.
-In other words, this option sets \f[B]BC_LINE_LENGTH\f[R] to \f[B]0\f[R]
-(see the \f[B]ENVIRONMENT VARIABLES\f[R] section).
+\f[B]-c\f[R], \f[B]--digit-clamp\f[R]
+Enables clamping of digits greater than or equal to the current
+\f[B]ibase\f[R] when parsing numbers.
 .RS
 .PP
-This is a \f[B]non-portable extension\f[R].
-.RE
-.TP
-\f[B]-P\f[R], \f[B]--no-prompt\f[R]
-Disables the prompt in TTY mode.
-(The prompt is only enabled in TTY mode.
-See the \f[B]TTY MODE\f[R] section.) This is mostly for those users that
-do not want a prompt or are not used to having them in dc(1).
-Most of those users would want to put this option in
-\f[B]DC_ENV_ARGS\f[R].
-.RS
+This means that digits that the value added to a number from a digit
+that is greater than or equal to the ibase is the value of ibase minus 1
+all multiplied by the value of ibase raised to the power of the
+digit\[cq]s position, which starts from 0 at the least significant
+digit.
 .PP
-These options override the \f[B]DC_PROMPT\f[R] and \f[B]DC_TTY_MODE\f[R]
-environment variables (see the \f[B]ENVIRONMENT VARIABLES\f[R] section).
+If this and/or the \f[B]-C\f[R] or \f[B]--no-digit-clamp\f[R] options
+are given multiple times, the last one given is used.
 .PP
-This is a \f[B]non-portable extension\f[R].
-.RE
-.TP
-\f[B]-R\f[R], \f[B]--no-read-prompt\f[R]
-Disables the read prompt in TTY mode.
-(The read prompt is only enabled in TTY mode.
-See the \f[B]TTY MODE\f[R] section.) This is mostly for those users that
-do not want a read prompt or are not used to having them in dc(1).
-Most of those users would want to put this option in
-\f[B]BC_ENV_ARGS\f[R] (see the \f[B]ENVIRONMENT VARIABLES\f[R] section).
-This option is also useful in hash bang lines of dc(1) scripts that
-prompt for user input.
-.RS
-.PP
-This option does not disable the regular prompt because the read prompt
-is only used when the \f[B]?\f[R] command is used.
-.PP
-These options \f[I]do\f[R] override the \f[B]DC_PROMPT\f[R] and
-\f[B]DC_TTY_MODE\f[R] environment variables (see the \f[B]ENVIRONMENT
-VARIABLES\f[R] section), but only for the read prompt.
-.PP
-This is a \f[B]non-portable extension\f[R].
-.RE
-.TP
-\f[B]-x\f[R] \f[B]--extended-register\f[R]
-Enables extended register mode.
-See the \f[I]Extended Register Mode\f[R] subsection of the
-\f[B]REGISTERS\f[R] section for more information.
-.RS
-.PP
-This is a \f[B]non-portable extension\f[R].
-.RE
-.TP
-\f[B]-z\f[R], \f[B]--leading-zeroes\f[R]
-Makes dc(1) print all numbers greater than \f[B]-1\f[R] and less than
-\f[B]1\f[R], and not equal to \f[B]0\f[R], with a leading zero.
-.RS
-.PP
-This can be set for individual numbers with the \f[B]plz(x)\f[R],
-plznl(x)**, \f[B]pnlz(x)\f[R], and \f[B]pnlznl(x)\f[R] functions in the
-extended math library (see the \f[B]LIBRARY\f[R] section).
+This option overrides the \f[B]DC_DIGIT_CLAMP\f[R] environment variable
+(see the \f[B]ENVIRONMENT VARIABLES\f[R] section) and the default, which
+can be queried with the \f[B]-h\f[R] or \f[B]--help\f[R] options.
 .PP
 This is a \f[B]non-portable extension\f[R].
 .RE
@@ -185,6 +147,9 @@ exit.
 This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
+\f[B]-h\f[R], \f[B]--help\f[R]
+Prints a usage message and exits.
+.TP
 \f[B]-I\f[R] \f[I]ibase\f[R], \f[B]--ibase\f[R]=\f[I]ibase\f[R]
 Sets the builtin variable \f[B]ibase\f[R] to the value \f[I]ibase\f[R]
 assuming that \f[I]ibase\f[R] is in base 10.
@@ -192,6 +157,24 @@ It is a fatal error if \f[I]ibase\f[R] is not a valid number.
 .RS
 .PP
 If multiple instances of this option are given, the last is used.
+.PP
+This is a \f[B]non-portable extension\f[R].
+.RE
+.TP
+\f[B]-i\f[R], \f[B]--interactive\f[R]
+Forces interactive mode.
+(See the \f[B]INTERACTIVE MODE\f[R] section.)
+.RS
+.PP
+This is a \f[B]non-portable extension\f[R].
+.RE
+.TP
+\f[B]-L\f[R], \f[B]--no-line-length\f[R]
+Disables line length checking and prints numbers without backslashes and
+newlines.
+In other words, this option sets \f[B]BC_LINE_LENGTH\f[R] to \f[B]0\f[R]
+(see the \f[B]ENVIRONMENT VARIABLES\f[R] section).
+.RS
 .PP
 This is a \f[B]non-portable extension\f[R].
 .RE
@@ -207,6 +190,44 @@ If multiple instances of this option are given, the last is used.
 This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
+\f[B]-P\f[R], \f[B]--no-prompt\f[R]
+Disables the prompt in TTY mode.
+(The prompt is only enabled in TTY mode.
+See the \f[B]TTY MODE\f[R] section.)
+This is mostly for those users that do not want a prompt or are not used
+to having them in dc(1).
+Most of those users would want to put this option in
+\f[B]DC_ENV_ARGS\f[R].
+.RS
+.PP
+These options override the \f[B]DC_PROMPT\f[R] and \f[B]DC_TTY_MODE\f[R]
+environment variables (see the \f[B]ENVIRONMENT VARIABLES\f[R] section).
+.PP
+This is a \f[B]non-portable extension\f[R].
+.RE
+.TP
+\f[B]-R\f[R], \f[B]--no-read-prompt\f[R]
+Disables the read prompt in TTY mode.
+(The read prompt is only enabled in TTY mode.
+See the \f[B]TTY MODE\f[R] section.)
+This is mostly for those users that do not want a read prompt or are not
+used to having them in dc(1).
+Most of those users would want to put this option in
+\f[B]BC_ENV_ARGS\f[R] (see the \f[B]ENVIRONMENT VARIABLES\f[R] section).
+This option is also useful in hash bang lines of dc(1) scripts that
+prompt for user input.
+.RS
+.PP
+This option does not disable the regular prompt because the read prompt
+is only used when the \f[B]?\f[R] command is used.
+.PP
+These options \f[I]do\f[R] override the \f[B]DC_PROMPT\f[R] and
+\f[B]DC_TTY_MODE\f[R] environment variables (see the \f[B]ENVIRONMENT
+VARIABLES\f[R] section), but only for the read prompt.
+.PP
+This is a \f[B]non-portable extension\f[R].
+.RE
+.TP
 \f[B]-S\f[R] \f[I]scale\f[R], \f[B]--scale\f[R]=\f[I]scale\f[R]
 Sets the builtin variable \f[B]scale\f[R] to the value \f[I]scale\f[R]
 assuming that \f[I]scale\f[R] is in base 10.
@@ -214,6 +235,26 @@ It is a fatal error if \f[I]scale\f[R] is not a valid number.
 .RS
 .PP
 If multiple instances of this option are given, the last is used.
+.PP
+This is a \f[B]non-portable extension\f[R].
+.RE
+.TP
+\f[B]-v\f[R], \f[B]-V\f[R], \f[B]--version\f[R]
+Print the version information (copyright header) and exits.
+.TP
+\f[B]-x\f[R] \f[B]--extended-register\f[R]
+Enables extended register mode.
+See the \f[I]Extended Register Mode\f[R] subsection of the
+\f[B]REGISTERS\f[R] section for more information.
+.RS
+.PP
+This is a \f[B]non-portable extension\f[R].
+.RE
+.TP
+\f[B]-z\f[R], \f[B]--leading-zeroes\f[R]
+Makes dc(1) print all numbers greater than \f[B]-1\f[R] and less than
+\f[B]1\f[R], and not equal to \f[B]0\f[R], with a leading zero.
+.RS
 .PP
 This is a \f[B]non-portable extension\f[R].
 .RE
@@ -307,17 +348,48 @@ This is a \f[B]non-portable extension\f[R].
 Numbers are strings made up of digits, uppercase letters up to
 \f[B]F\f[R], and at most \f[B]1\f[R] period for a radix.
 Numbers can have up to \f[B]DC_NUM_MAX\f[R] digits.
-Uppercase letters are equal to \f[B]9\f[R] + their position in the
+Uppercase letters are equal to \f[B]9\f[R] plus their position in the
 alphabet (i.e., \f[B]A\f[R] equals \f[B]10\f[R], or \f[B]9+1\f[R]).
-If a digit or letter makes no sense with the current value of
-\f[B]ibase\f[R], they are set to the value of the highest valid digit in
-\f[B]ibase\f[R].
 .PP
-Single-character numbers (i.e., \f[B]A\f[R] alone) take the value that
-they would have if they were valid digits, regardless of the value of
-\f[B]ibase\f[R].
+If a digit or letter makes no sense with the current value of
+\f[B]ibase\f[R] (i.e., they are greater than or equal to the current
+value of \f[B]ibase\f[R]), then the behavior depends on the existence of
+the \f[B]-c\f[R]/\f[B]--digit-clamp\f[R] or
+\f[B]-C\f[R]/\f[B]--no-digit-clamp\f[R] options (see the
+\f[B]OPTIONS\f[R] section), the existence and setting of the
+\f[B]DC_DIGIT_CLAMP\f[R] environment variable (see the \f[B]ENVIRONMENT
+VARIABLES\f[R] section), or the default, which can be queried with the
+\f[B]-h\f[R]/\f[B]--help\f[R] option.
+.PP
+If clamping is off, then digits or letters that are greater than or
+equal to the current value of \f[B]ibase\f[R] are not changed.
+Instead, their given value is multiplied by the appropriate power of
+\f[B]ibase\f[R] and added into the number.
+This means that, with an \f[B]ibase\f[R] of \f[B]3\f[R], the number
+\f[B]AB\f[R] is equal to \f[B]3\[ha]1*A+3\[ha]0*B\f[R], which is
+\f[B]3\f[R] times \f[B]10\f[R] plus \f[B]11\f[R], or \f[B]41\f[R].
+.PP
+If clamping is on, then digits or letters that are greater than or equal
+to the current value of \f[B]ibase\f[R] are set to the value of the
+highest valid digit in \f[B]ibase\f[R] before being multiplied by the
+appropriate power of \f[B]ibase\f[R] and added into the number.
+This means that, with an \f[B]ibase\f[R] of \f[B]3\f[R], the number
+\f[B]AB\f[R] is equal to \f[B]3\[ha]1*2+3\[ha]0*2\f[R], which is
+\f[B]3\f[R] times \f[B]2\f[R] plus \f[B]2\f[R], or \f[B]8\f[R].
+.PP
+There is one exception to clamping: single-character numbers (i.e.,
+\f[B]A\f[R] alone).
+Such numbers are never clamped and always take the value they would have
+in the highest possible \f[B]ibase\f[R].
 This means that \f[B]A\f[R] alone always equals decimal \f[B]10\f[R] and
-\f[B]F\f[R] alone always equals decimal \f[B]15\f[R].
+\f[B]Z\f[R] alone always equals decimal \f[B]35\f[R].
+This behavior is mandated by the standard for bc(1) (see the STANDARDS
+section) and is meant to provide an easy way to set the current
+\f[B]ibase\f[R] (with the \f[B]i\f[R] command) regardless of the current
+value of \f[B]ibase\f[R].
+.PP
+If clamping is on, and the clamped value of a character is needed, use a
+leading zero, i.e., for \f[B]A\f[R], use \f[B]0A\f[R].
 .SH COMMANDS
 .PP
 The valid commands are listed below.
@@ -866,6 +938,10 @@ The execution stack is the stack of string executions.
 The number that is pushed onto the stack is exactly as many as is needed
 to make dc(1) exit with the \f[B]Q\f[R] command, so the sequence
 \f[B],Q\f[R] will make dc(1) exit.
+.RS
+.PP
+This is a \f[B]non-portable extension\f[R].
+.RE
 .SS Status
 .PP
 These commands query status of the stack or its top value.
@@ -890,6 +966,24 @@ If it is a number, pushes the \f[I]scale\f[R] of the value onto the
 stack.
 .PP
 If it is a string, pushes \f[B]0\f[R].
+.RE
+.TP
+\f[B]u\f[R]
+Pops one value off of the stack.
+If the value is a number, this pushes \f[B]1\f[R] onto the stack.
+Otherwise (if it is a string), it pushes \f[B]0\f[R].
+.RS
+.PP
+This is a \f[B]non-portable extension\f[R].
+.RE
+.TP
+\f[B]t\f[R]
+Pops one value off of the stack.
+If the value is a string, this pushes \f[B]1\f[R] onto the stack.
+Otherwise (if it is a number), it pushes \f[B]0\f[R].
+.RS
+.PP
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
 \f[B]z\f[R]
@@ -941,6 +1035,12 @@ section).
 \f[B]gl\f[R]
 Pushes the line length set by \f[B]DC_LINE_LENGTH\f[R] (see the
 \f[B]ENVIRONMENT VARIABLES\f[R] section) onto the stack.
+.TP
+\f[B]gx\f[R]
+Pushes \f[B]1\f[R] onto the stack if extended register mode is on,
+\f[B]0\f[R] otherwise.
+See the \f[I]Extended Register Mode\f[R] subsection of the
+\f[B]REGISTERS\f[R] section for more information.
 .TP
 \f[B]gz\f[R]
 Pushes \f[B]0\f[R] onto the stack if the leading zero setting has not
@@ -1078,7 +1178,8 @@ at which they become a problem.
 In fact, memory should be exhausted before these limits should be hit.
 .SH ENVIRONMENT VARIABLES
 .PP
-dc(1) recognizes the following environment variables:
+As \f[B]non-portable extensions\f[R], dc(1) recognizes the following
+environment variables:
 .TP
 \f[B]DC_ENV_ARGS\f[R]
 This is another way to give command-line arguments to dc(1).
@@ -1178,6 +1279,22 @@ with \f[B]-e\f[R], \f[B]--expression\f[R], \f[B]-f\f[R], or
 an integer, a non-zero value makes dc(1) exit after executing the
 expressions and expression files, and a zero value makes dc(1) not exit.
 .RS
+.PP
+This environment variable overrides the default, which can be queried
+with the \f[B]-h\f[R] or \f[B]--help\f[R] options.
+.RE
+.TP
+\f[B]DC_DIGIT_CLAMP\f[R]
+When parsing numbers and if this environment variable exists and
+contains an integer, a non-zero value makes dc(1) clamp digits that are
+greater than or equal to the current \f[B]ibase\f[R] so that all such
+digits are considered equal to the \f[B]ibase\f[R] minus 1, and a zero
+value disables such clamping so that those digits are always equal to
+their value, which is multiplied by the power of the \f[B]ibase\f[R].
+.RS
+.PP
+This never applies to single-digit numbers, as per the bc(1) standard
+(see the \f[B]STANDARDS\f[R] section).
 .PP
 This environment variable overrides the default, which can be queried
 with the \f[B]-h\f[R] or \f[B]--help\f[R] options.
@@ -1283,10 +1400,9 @@ The default setting can be queried with the \f[B]-h\f[R] or
 \f[B]--help\f[R] options.
 .PP
 TTY mode is different from interactive mode because interactive mode is
-required in the bc(1) specification at
-https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html , and
-interactive mode requires only \f[B]stdin\f[R] and \f[B]stdout\f[R] to
-be connected to a terminal.
+required in the bc(1) specification (see the \f[B]STANDARDS\f[R]
+section), and interactive mode requires only \f[B]stdin\f[R] and
+\f[B]stdout\f[R] to be connected to a terminal.
 .SS Command-Line History
 .PP
 Command-line history is only enabled if TTY mode is, i.e., that
@@ -1371,15 +1487,15 @@ section).
 bc(1)
 .SH STANDARDS
 .PP
-The dc(1) utility operators are compliant with the operators in the IEEE
-Std 1003.1-2017 (\[lq]POSIX.1-2017\[rq]) specification at
-https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html for
-bc(1).
+The dc(1) utility operators and some behavior are compliant with the
+operators in the IEEE Std 1003.1-2017 (\[lq]POSIX.1-2017\[rq]) bc(1)
+specification at
+https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html .
 .SH BUGS
 .PP
 None are known.
-Report bugs at https://git.yzena.com/gavin/bc.
+Report bugs at https://git.gavinhoward.com/gavin/bc .
 .SH AUTHOR
 .PP
 Gavin D.
-Howard <gavin@yzena.com> and contributors.
+Howard <gavin@gavinhoward.com> and contributors.

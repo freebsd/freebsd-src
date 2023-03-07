@@ -36,7 +36,6 @@
 #error do not include this header, use machine/atomic.h
 #endif
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 
 #define	__atomic_load_bool_relaxed(p)	(*(volatile _Bool *)(p))
@@ -81,15 +80,21 @@
 
 #define	__atomic_load_generic(p, t, ut, n)	\
 	_Generic(*(p),				\
-	    t: __atomic_load_ ## n ## _relaxed(p), ut: __atomic_load_ ## n ## _relaxed(p))
+	    t: __atomic_load_ ## n ## _relaxed(p), \
+	    ut: __atomic_load_ ## n ## _relaxed(p))
 #define	__atomic_store_generic(p, v, t, ut, n)	\
 	_Generic(*(p),				\
-	    t: __atomic_store_ ## n ## _relaxed(p, v), ut: __atomic_store_ ## n ## _relaxed(p, v))
+	    t: __atomic_store_ ## n ## _relaxed(p, v), \
+	    ut: __atomic_store_ ## n ## _relaxed(p, v))
 #else
-#define	atomic_load_bool(p)			__atomic_load_bool_relaxed(p)
-#define	atomic_store_bool(p, v)			__atomic_store_bool_relaxed(p, v)
-#define	__atomic_load_generic(p, t, ut, n)	__atomic_load_ ## n ## _relaxed(p)
-#define	__atomic_store_generic(p, v, t, ut, n)	__atomic_store_ ## n ## _relaxed(p, v)
+#define	atomic_load_bool(p)			\
+	__atomic_load_bool_relaxed(p)
+#define	atomic_store_bool(p, v)			\
+	__atomic_store_bool_relaxed(p, v)
+#define	__atomic_load_generic(p, t, ut, n)	\
+	__atomic_load_ ## n ## _relaxed(p)
+#define	__atomic_store_generic(p, v, t, ut, n)	\
+	__atomic_store_ ## n ## _relaxed(p, v)
 #endif
 
 #define	atomic_load_char(p)	__atomic_load_generic(p, char, u_char, char)
@@ -134,4 +139,4 @@
 
 #define	atomic_interrupt_fence()	__compiler_membar()
 
-#endif
+#endif /* !_SYS_ATOMIC_COMMON_H_ */

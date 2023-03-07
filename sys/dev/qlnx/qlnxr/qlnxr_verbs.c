@@ -469,13 +469,8 @@ qlnxr_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 }
 
 int
-#if __FreeBSD_version < 1102000
-qlnxr_query_device(struct ib_device *ibdev, struct ib_device_attr *attr)
-#else
 qlnxr_query_device(struct ib_device *ibdev, struct ib_device_attr *attr,
 	struct ib_udata *udata)
-#endif /* #if __FreeBSD_version < 1102000 */
-
 {
 	struct qlnxr_dev		*dev;
 	struct ecore_rdma_device	*qattr;
@@ -486,10 +481,8 @@ qlnxr_query_device(struct ib_device *ibdev, struct ib_device_attr *attr,
 
 	QL_DPRINT12(ha, "enter\n");
 
-#if __FreeBSD_version > 1102000
 	if (udata->inlen || udata->outlen)
 		return -EINVAL;
-#endif /* #if __FreeBSD_version > 1102000 */
 
 	if (dev->rdma_ctx == NULL) {
 		return -EINVAL;
@@ -820,15 +813,13 @@ qlnxr_get_vlan_id_qp(qlnx_host_t *ha, struct ib_qp_attr *attr, int attr_mask,
 {
 	bool ret = false;
 
+	u16 tmp_vlan_id;
+
+	union ib_gid *dgid;
+
 	QL_DPRINT12(ha, "enter \n");
 
 	*vlan_id = 0;
-
-#if __FreeBSD_version >= 1100000
-	u16 tmp_vlan_id;
-
-#if __FreeBSD_version >= 1102000
-	union ib_gid *dgid;
 
 	dgid = &attr->ah_attr.grh.dgid;
 	tmp_vlan_id = (dgid->raw[11] << 8) | dgid->raw[12];
@@ -837,20 +828,6 @@ qlnxr_get_vlan_id_qp(qlnx_host_t *ha, struct ib_qp_attr *attr, int attr_mask,
 		*vlan_id = tmp_vlan_id;
 		ret = true;
 	}
-#else
-	tmp_vlan_id = attr->vlan_id;
-
-	if ((attr_mask & IB_QP_VID) && (!(tmp_vlan_id & ~EVL_VLID_MASK))) {
-		*vlan_id = tmp_vlan_id;
-		ret = true;
-	}
-
-#endif /* #if __FreeBSD_version > 1102000 */
-
-#else
-	ret = true;
-
-#endif /* #if __FreeBSD_version >= 1100000 */
 
 	QL_DPRINT12(ha, "exit vlan_id = 0x%x ret = %d \n", *vlan_id, ret);
 
@@ -1060,11 +1037,7 @@ qlnxr_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 
 	ha = dev->ha;
 
-#if __FreeBSD_version > 1102000
 	unmapped_db = dev->db_phys_addr + (ucontext->dpi * ucontext->dpi_size);
-#else
-	unmapped_db = dev->db_phys_addr;
-#endif /* #if __FreeBSD_version > 1102000 */
 
 	QL_DPRINT12(ha, "qedr_mmap enter vm_page=0x%lx"
 		" vm_pgoff=0x%lx unmapped_db=0x%llx db_size=%x, len=%lx\n",
@@ -1087,8 +1060,6 @@ qlnxr_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 
 	QL_DPRINT12(ha, "Mapping doorbell bar\n");
 
-#if __FreeBSD_version > 1102000
-
 	if ((vm_page < unmapped_db) ||
 		((vm_page + len) > (unmapped_db + ucontext->dpi_size))) {
 		QL_DPRINT11(ha, "failed pages are outside of dpi;"
@@ -1105,24 +1076,6 @@ qlnxr_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 	rc = io_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff, len,
 			vma->vm_page_prot);
-
-#else
-
-	if ((vm_page >= unmapped_db) && (vm_page <= (unmapped_db +
-		dev->db_size))) {
-		QL_DPRINT12(ha, "Mapping doorbell bar\n");
-
-		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
-
-		rc = io_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
-					    PAGE_SIZE, vma->vm_page_prot);
-	} else {
-		QL_DPRINT12(ha, "Mapping chains\n");
-		rc = io_remap_pfn_range(vma, vma->vm_start,
-					 vma->vm_pgoff, len, vma->vm_page_prot);
-	}
-
-#endif /* #if __FreeBSD_version > 1102000 */
 
 	QL_DPRINT12(ha, "exit [%d]\n", rc);
 	return rc;
@@ -1340,13 +1293,7 @@ qlnxr_populate_pbls(struct qlnxr_dev *dev, struct ib_umem *umem,
 	struct scatterlist	*sg;
 	int			shift, pg_cnt, pages, pbe_cnt, total_num_pbes = 0;
 	qlnx_host_t		*ha;
-
-#ifdef DEFINE_IB_UMEM_WITH_CHUNK
-        int                     i;
-        struct                  ib_umem_chunk *chunk = NULL;
-#else
         int                     entry;
-#endif
 
 	ha = dev->ha;
 
@@ -1380,53 +1327,42 @@ qlnxr_populate_pbls(struct qlnxr_dev *dev, struct ib_umem *umem,
 
 	shift = ilog2(umem->page_size);
 
-#ifndef DEFINE_IB_UMEM_WITH_CHUNK
-
 	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-#else
-	list_for_each_entry(chunk, &umem->chunk_list, list) {
-		/* get all the dma regions from the chunk. */
-		for (i = 0; i < chunk->nmap; i++) {
-			sg = &chunk->page_list[i];
-#endif
-			pages = sg_dma_len(sg) >> shift;
-			for (pg_cnt = 0; pg_cnt < pages; pg_cnt++) {
-				/* store the page address in pbe */
-				pbe->lo =
-				    cpu_to_le32(sg_dma_address(sg) +
-						(umem->page_size * pg_cnt));
-				pbe->hi =
-				    cpu_to_le32(upper_32_bits
-						((sg_dma_address(sg) +
-						  umem->page_size * pg_cnt)));
+		pages = sg_dma_len(sg) >> shift;
+		for (pg_cnt = 0; pg_cnt < pages; pg_cnt++) {
+			/* store the page address in pbe */
+			pbe->lo =
+			    cpu_to_le32(sg_dma_address(sg) +
+					(umem->page_size * pg_cnt));
+			pbe->hi =
+			    cpu_to_le32(upper_32_bits
+					((sg_dma_address(sg) +
+					  umem->page_size * pg_cnt)));
 
-				QL_DPRINT12(ha,
-					"Populate pbl table:"
-					" pbe->addr=0x%x:0x%x "
-					" pbe_cnt = %d total_num_pbes=%d"
-					" pbe=%p\n", pbe->lo, pbe->hi, pbe_cnt,
-					total_num_pbes, pbe);
+			QL_DPRINT12(ha,
+				"Populate pbl table:"
+				" pbe->addr=0x%x:0x%x "
+				" pbe_cnt = %d total_num_pbes=%d"
+				" pbe=%p\n", pbe->lo, pbe->hi, pbe_cnt,
+				total_num_pbes, pbe);
 
-				pbe_cnt ++;
-				total_num_pbes ++;
-				pbe++;
+			pbe_cnt ++;
+			total_num_pbes ++;
+			pbe++;
 
-				if (total_num_pbes == pbl_info->num_pbes)
-					return;
+			if (total_num_pbes == pbl_info->num_pbes)
+				return;
 
-				/* if the given pbl is full storing the pbes,
-				 * move to next pbl.
-				 */
-				if (pbe_cnt ==
-					(pbl_info->pbl_size / sizeof(u64))) {
-					pbl_tbl++;
-					pbe = (struct regpair *)pbl_tbl->va;
-					pbe_cnt = 0;
-				}
+			/* if the given pbl is full storing the pbes,
+			 * move to next pbl.
+			 */
+			if (pbe_cnt ==
+				(pbl_info->pbl_size / sizeof(u64))) {
+				pbl_tbl++;
+				pbe = (struct regpair *)pbl_tbl->va;
+				pbe_cnt = 0;
 			}
-#ifdef DEFINE_IB_UMEM_WITH_CHUNK
 		}
-#endif
 	}
 	QL_DPRINT12(ha, "exit\n");
 	return;
@@ -1514,13 +1450,8 @@ done:
 }
 
 struct ib_mr *
-#if __FreeBSD_version >= 1102000
 qlnxr_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 	u64 usr_addr, int acc, struct ib_udata *udata)
-#else
-qlnxr_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
-	u64 usr_addr, int acc, struct ib_udata *udata, int mr_id)
-#endif /* #if __FreeBSD_version >= 1102000 */
 {
 	int		rc = -ENOMEM;
 	struct qlnxr_dev *dev = get_qlnxr_dev((ibpd->device));
@@ -1592,11 +1523,7 @@ qlnxr_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 	mr->hw_mr.pbl_page_size_log = ilog2(mr->info.pbl_info.pbl_size);
 	mr->hw_mr.page_size_log = ilog2(mr->umem->page_size); /* for the MR pages */
 
-#if __FreeBSD_version >= 1102000
 	mr->hw_mr.fbo = ib_umem_offset(mr->umem);
-#else
-	mr->hw_mr.fbo = mr->umem->offset;
-#endif
 	mr->hw_mr.length = len;
 	mr->hw_mr.vaddr = usr_addr;
 	mr->hw_mr.zbva = false; /* TBD figure when this should be true */
@@ -1802,10 +1729,8 @@ qlnxr_create_cq(struct ib_cq *ibcq,
 	struct ecore_rdma_create_cq_in_params	params;
 	struct qlnxr_create_cq_ureq		ureq;
 
-#if __FreeBSD_version >= 1100000
 	int					vector = attr->comp_vector;
 	int					entries = attr->cqe;
-#endif
 	struct qlnxr_cq				*cq = get_qlnxr_cq(ibcq);
 	int					chain_entries, rc, page_cnt;
 	u64					pbl_ptr;
@@ -2030,10 +1955,6 @@ qlnxr_check_qp_attrs(struct ib_pd *ibpd,
 	QL_DPRINT12(ha, "attrs->qp_type = %d\n", attrs->qp_type);
 	QL_DPRINT12(ha, "attrs->create_flags = %d\n", attrs->create_flags);
 
-#if __FreeBSD_version < 1102000
-	QL_DPRINT12(ha, "attrs->qpg_type = %d\n", attrs->qpg_type);
-#endif
-
 	QL_DPRINT12(ha, "attrs->port_num = %d\n", attrs->port_num);
 	QL_DPRINT12(ha, "attrs->cap.max_send_wr = 0x%x\n", attrs->cap.max_send_wr);
 	QL_DPRINT12(ha, "attrs->cap.max_recv_wr = 0x%x\n", attrs->cap.max_recv_wr);
@@ -2041,11 +1962,6 @@ qlnxr_check_qp_attrs(struct ib_pd *ibpd,
 	QL_DPRINT12(ha, "attrs->cap.max_recv_sge = 0x%x\n", attrs->cap.max_recv_sge);
 	QL_DPRINT12(ha, "attrs->cap.max_inline_data = 0x%x\n",
 		attrs->cap.max_inline_data);
-
-#if __FreeBSD_version < 1102000
-	QL_DPRINT12(ha, "attrs->cap.qpg_tss_mask_sz = 0x%x\n",
-		attrs->cap.qpg_tss_mask_sz);
-#endif
 
 	QL_DPRINT12(ha, "\n\nqattr->vendor_id = 0x%x\n", qattr->vendor_id);
 	QL_DPRINT12(ha, "qattr->vendor_part_id = 0x%x\n", qattr->vendor_part_id);
@@ -2413,9 +2329,6 @@ qlnxr_init_srq_user_params(struct ib_ucontext *ib_ctx,
 	struct qlnxr_create_srq_ureq *ureq,
 	int access, int dmasync)
 {
-#ifdef DEFINE_IB_UMEM_WITH_CHUNK
-	struct ib_umem_chunk	*chunk;
-#endif
 	struct scatterlist	*sg;
 	int			rc;
 	struct qlnxr_dev	*dev = srq->dev;
@@ -2443,13 +2356,7 @@ qlnxr_init_srq_user_params(struct ib_ucontext *ib_ctx,
 		return PTR_ERR(srq->prod_umem);
 	}
 
-#ifdef DEFINE_IB_UMEM_WITH_CHUNK
-	chunk = container_of((&srq->prod_umem->chunk_list)->next,
-			     typeof(*chunk), list);
-	sg = &chunk->page_list[0];
-#else
 	sg = srq->prod_umem->sg_head.sgl;
-#endif
 	srq->hw_srq.phy_prod_pair_addr = sg_dma_address(sg);
 
 	QL_DPRINT12(ha, "exit\n");
@@ -4225,8 +4132,6 @@ qlnx_handle_completed_mrs(struct qlnxr_dev *dev, struct mr_info *info)
 	return;
 }
 
-#if __FreeBSD_version >= 1102000
-
 static int qlnxr_prepare_reg(struct qlnxr_qp *qp,
 		struct rdma_sq_fmr_wqe_1st *fwqe1,
 		const struct ib_reg_wr *wr)
@@ -4265,163 +4170,6 @@ static int qlnxr_prepare_reg(struct qlnxr_qp *qp,
 	return 0;
 }
 
-#else
-
-static void
-build_frmr_pbes(struct qlnxr_dev *dev, const struct ib_send_wr *wr,
-	struct mr_info *info)
-{
-	int i;
-	u64 buf_addr = 0;
-	int num_pbes, total_num_pbes = 0;
-	struct regpair *pbe;
-	struct qlnxr_pbl *pbl_tbl = info->pbl_table;
-	struct qlnxr_pbl_info *pbl_info = &info->pbl_info;
-	qlnx_host_t	*ha;
-
-	ha = dev->ha;
-
-	QL_DPRINT12(ha, "enter\n");
-
-	pbe = (struct regpair *)pbl_tbl->va;
-	num_pbes = 0;
-
-	for (i = 0; i < wr->wr.fast_reg.page_list_len; i++) {
-		buf_addr = wr->wr.fast_reg.page_list->page_list[i];
-		pbe->lo = cpu_to_le32((u32)buf_addr);
-		pbe->hi = cpu_to_le32((u32)upper_32_bits(buf_addr));
-
-		num_pbes += 1;
-		pbe++;
-		total_num_pbes++;
-
-		if (total_num_pbes == pbl_info->num_pbes)
-			return;
-
-		/* if the given pbl is full storing the pbes,
-		 * move to next pbl.
-		 */
-		if (num_pbes ==
-		    (pbl_info->pbl_size / sizeof(u64))) {
-			pbl_tbl++;
-			pbe = (struct regpair *)pbl_tbl->va;
-			num_pbes = 0;
-		}
-	}
-	QL_DPRINT12(ha, "exit\n");
-
-	return;
-}
-
-static int
-qlnxr_prepare_safe_pbl(struct qlnxr_dev *dev, struct mr_info *info)
-{
-	int rc = 0;
-	qlnx_host_t	*ha;
-
-	ha = dev->ha;
-
-	QL_DPRINT12(ha, "enter\n");
-
-	if (info->completed == 0) {
-		//DP_VERBOSE(dev, QLNXR_MSG_MR, "First FMR\n");
-		/* first fmr */
-		return 0;
-	}
-
-	qlnx_handle_completed_mrs(dev, info);
-
-	list_add_tail(&info->pbl_table->list_entry, &info->inuse_pbl_list);
-
-	if (list_empty(&info->free_pbl_list)) {
-		info->pbl_table = qlnxr_alloc_pbl_tbl(dev, &info->pbl_info,
-							  GFP_ATOMIC);
-	} else {
-		info->pbl_table = list_first_entry(&info->free_pbl_list,
-					struct qlnxr_pbl,
-					list_entry);
-		list_del(&info->pbl_table->list_entry);
-	}
-
-	if (!info->pbl_table)
-		rc = -ENOMEM;
-
-	QL_DPRINT12(ha, "exit\n");
-	return rc;
-}
-
-static inline int
-qlnxr_prepare_fmr(struct qlnxr_qp *qp,
-	struct rdma_sq_fmr_wqe_1st *fwqe1,
-	const struct ib_send_wr *wr)
-{
-	struct qlnxr_dev *dev = qp->dev;
-	u64 fbo;
-	struct qlnxr_fast_reg_page_list *frmr_list =
-		get_qlnxr_frmr_list(wr->wr.fast_reg.page_list);
-	struct rdma_sq_fmr_wqe *fwqe2 =
-		(struct rdma_sq_fmr_wqe *)ecore_chain_produce(&qp->sq.pbl);
-	int rc = 0;
-	qlnx_host_t	*ha;
-
-	ha = dev->ha;
-
-	QL_DPRINT12(ha, "enter\n");
-
-	if (wr->wr.fast_reg.page_list_len == 0)
-		BUG();
-
-	rc = qlnxr_prepare_safe_pbl(dev, &frmr_list->info);
-	if (rc)
-		return rc;
-
-	fwqe1->addr.hi = upper_32_bits(wr->wr.fast_reg.iova_start);
-	fwqe1->addr.lo = lower_32_bits(wr->wr.fast_reg.iova_start);
-	fwqe1->l_key = wr->wr.fast_reg.rkey;
-
-	SET_FIELD2(fwqe2->access_ctrl, RDMA_SQ_FMR_WQE_REMOTE_READ,
-		   !!(wr->wr.fast_reg.access_flags & IB_ACCESS_REMOTE_READ));
-	SET_FIELD2(fwqe2->access_ctrl, RDMA_SQ_FMR_WQE_REMOTE_WRITE,
-		   !!(wr->wr.fast_reg.access_flags & IB_ACCESS_REMOTE_WRITE));
-	SET_FIELD2(fwqe2->access_ctrl, RDMA_SQ_FMR_WQE_ENABLE_ATOMIC,
-		   !!(wr->wr.fast_reg.access_flags & IB_ACCESS_REMOTE_ATOMIC));
-	SET_FIELD2(fwqe2->access_ctrl, RDMA_SQ_FMR_WQE_LOCAL_READ, 1);
-	SET_FIELD2(fwqe2->access_ctrl, RDMA_SQ_FMR_WQE_LOCAL_WRITE,
-		   !!(wr->wr.fast_reg.access_flags & IB_ACCESS_LOCAL_WRITE));
-
-	fwqe2->fmr_ctrl = 0;
-
-	SET_FIELD2(fwqe2->fmr_ctrl, RDMA_SQ_FMR_WQE_2ND_PAGE_SIZE_LOG,
-		   ilog2(1 << wr->wr.fast_reg.page_shift) - 12);
-	SET_FIELD2(fwqe2->fmr_ctrl, RDMA_SQ_FMR_WQE_2ND_ZERO_BASED, 0);
-
-	fwqe2->length_hi = 0; /* Todo - figure this out... why length is only 32bit.. */
-	fwqe2->length_lo = wr->wr.fast_reg.length;
-	fwqe2->pbl_addr.hi = upper_32_bits(frmr_list->info.pbl_table->pa);
-	fwqe2->pbl_addr.lo = lower_32_bits(frmr_list->info.pbl_table->pa);
-
-	/* produce another wqe for fwqe3 */
-	ecore_chain_produce(&qp->sq.pbl);
-
-	fbo = wr->wr.fast_reg.iova_start -
-	    (wr->wr.fast_reg.page_list->page_list[0] & PAGE_MASK);
-
-	QL_DPRINT12(ha, "wr.fast_reg.iova_start = %p rkey=%x addr=%x:%x"
-		" length = %x pbl_addr %x:%x\n",
-		wr->wr.fast_reg.iova_start, wr->wr.fast_reg.rkey,
-		fwqe1->addr.hi, fwqe1->addr.lo, fwqe2->length_lo,
-		fwqe2->pbl_addr.hi, fwqe2->pbl_addr.lo);
-
-	build_frmr_pbes(dev, wr, &frmr_list->info);
-
-	qp->wqe_wr_id[qp->sq.prod].frmr = frmr_list;
-
-	QL_DPRINT12(ha, "exit\n");
-	return 0;
-}
-
-#endif /* #if __FreeBSD_version >= 1102000 */
-
 static enum ib_wc_opcode
 qlnxr_ib_to_wc_opcode(enum ib_wr_opcode opcode)
 {
@@ -4439,15 +4187,8 @@ qlnxr_ib_to_wc_opcode(enum ib_wr_opcode opcode)
 		return IB_WC_COMP_SWAP;
 	case IB_WR_ATOMIC_FETCH_AND_ADD:
 		return IB_WC_FETCH_ADD;
-
-#if __FreeBSD_version >= 1102000
 	case IB_WR_REG_MR:
 		return IB_WC_REG_MR;
-#else
-	case IB_WR_FAST_REG_MR:
-		return IB_WC_FAST_REG_MR;
-#endif /* #if __FreeBSD_version >= 1102000 */
-
 	case IB_WR_LOCAL_INV:
 		return IB_WC_LOCAL_INV;
 	default:
@@ -4784,8 +4525,6 @@ qlnxr_post_send(struct ib_qp *ibqp,
 
 			break;
 
-#if __FreeBSD_version >= 1102000
-
 		case IB_WR_REG_MR:
 
 			QL_DPRINT12(ha, "IB_WR_REG_MR\n");
@@ -4805,30 +4544,6 @@ qlnxr_post_send(struct ib_qp *ibqp,
 			qp->prev_wqe_size = fwqe1->wqe_size;
 
 			break;
-#else
-		case IB_WR_FAST_REG_MR:
-
-			QL_DPRINT12(ha, "FAST_MR (IB_WR_FAST_REG_MR)\n");
-
-			wqe->req_type = RDMA_SQ_REQ_TYPE_FAST_MR;
-			fwqe1 = (struct rdma_sq_fmr_wqe_1st *)wqe;
-			fwqe1->prev_wqe_size = 3;
-
-			rc = qlnxr_prepare_fmr(qp, fwqe1, wr);
-
-			if (rc) {
-				QL_DPRINT12(ha,
-					"FAST_MR (IB_WR_FAST_REG_MR) failed"
-					" rc = %d\n", rc);
-				*bad_wr = wr;
-				break;
-			}
-
-			qp->wqe_wr_id[qp->sq.prod].wqe_size = fwqe1->prev_wqe_size;
-			qp->prev_wqe_size = fwqe1->prev_wqe_size;
-
-			break;
-#endif /* #if __FreeBSD_version >= 1102000 */
 
 		default:
 
@@ -5037,15 +4752,9 @@ qlnxr_post_recv(struct ib_qp *ibqp,
 static inline void
 qlnxr_chk_if_fmr(struct qlnxr_qp *qp)
 {
-#if __FreeBSD_version >= 1102000
 
 	if (qp->wqe_wr_id[qp->sq.cons].opcode == IB_WC_REG_MR)
 		qp->wqe_wr_id[qp->sq.cons].mr->info.completed++;
-#else
-	if (qp->wqe_wr_id[qp->sq.cons].opcode == IB_WC_FAST_REG_MR)
-		qp->wqe_wr_id[qp->sq.cons].frmr->info.completed++;
-
-#endif /* #if __FreeBSD_version >= 1102000 */
 }
 
 static int
@@ -5096,15 +4805,9 @@ process_req(struct qlnxr_dev *dev,
 			wc->byte_len = 8;
 			break;
 
-#if __FreeBSD_version >= 1102000
 		case IB_WC_REG_MR:
 			qp->wqe_wr_id[qp->sq.cons].mr->info.completed++;
 			break;
-#else
-		case IB_WC_FAST_REG_MR:
-			qp->wqe_wr_id[qp->sq.cons].frmr->info.completed++;
-			break;
-#endif /* #if __FreeBSD_version >= 1102000 */
 
 		case IB_WC_RDMA_READ:
 		case IB_WC_SEND:
@@ -5220,9 +4923,6 @@ __process_resp_one(struct qlnxr_dev *dev,
 	u64 wr_id)
 {
 	enum ib_wc_status	wc_status = IB_WC_SUCCESS;
-#if __FreeBSD_version < 1102000
-	u8			flags;
-#endif
 	qlnx_host_t		*ha = dev->ha;
 
 	QL_DPRINT12(ha, "enter qp = %p resp->status = 0x%x\n",
@@ -5257,8 +4957,6 @@ __process_resp_one(struct qlnxr_dev *dev,
 		break;
 
 	case RDMA_CQE_RESP_STS_OK:
-
-#if __FreeBSD_version >= 1102000
 		if (resp->flags & QLNXR_RESP_IMM) {
 			wc->ex.imm_data =
 				le32_to_cpu(resp->imm_data_or_inv_r_Key);
@@ -5291,34 +4989,8 @@ __process_resp_one(struct qlnxr_dev *dev,
 				"qp = %p qp->id = 0x%x cq = %p cq->icid = 0x%x\n",
 				resp->flags, qp, qp->id, cq, cq->icid );
 		}
-#else
-		wc_status = IB_WC_SUCCESS;
-		wc->byte_len = le32_to_cpu(resp->length);
-
-		flags = resp->flags & QLNXR_RESP_RDMA_IMM;
-
-		switch (flags) {
-		case QLNXR_RESP_RDMA_IMM:
-			/* update opcode */
-			wc->opcode = IB_WC_RECV_RDMA_WITH_IMM;
-			/* fall to set imm data */
-		case QLNXR_RESP_IMM:
-			wc->ex.imm_data =
-				le32_to_cpu(resp->imm_data_or_inv_r_Key);
-			wc->wc_flags |= IB_WC_WITH_IMM;
-			break;
-		case QLNXR_RESP_RDMA:
-			QL_DPRINT11(ha, "Invalid flags QLNXR_RESP_RDMA [0x%x]"
-				"qp = %p qp->id = 0x%x cq = %p cq->icid = 0x%x\n",
-				resp->flags, qp, qp->id, cq, cq->icid );
-			break;
-		default:
-			/* valid configuration, but nothing todo here */
-			;
-		}
-#endif /* #if __FreeBSD_version >= 1102000 */
-
 		break;
+
 	default:
 		wc_status = IB_WC_GENERAL_ERR;
 	}
@@ -5764,8 +5436,6 @@ err0:
 	return ERR_PTR(rc);
 }
 
-#if __FreeBSD_version >= 1102000
-
 struct ib_mr *
 qlnxr_alloc_mr(struct ib_pd *ibpd, enum ib_mr_type mr_type,
     u32 max_num_sg, struct ib_udata *udata)
@@ -5855,348 +5525,6 @@ qlnxr_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg,
 	return (ret);
 }
 
-#else
-
-struct ib_mr *
-qlnxr_alloc_frmr(struct ib_pd *ibpd, int max_page_list_len)
-{
-	struct qlnxr_dev *dev;
-	struct qlnxr_mr *mr;
-	qlnx_host_t	*ha;
-	struct ib_mr *ibmr = NULL;
-
-	dev = get_qlnxr_dev((ibpd->device));
-	ha = dev->ha;
-
-	QL_DPRINT12(ha, "enter\n");
-
-	mr = __qlnxr_alloc_mr(ibpd, max_page_list_len);
-
-	if (IS_ERR(mr)) {
-		ibmr = ERR_PTR(-EINVAL);
-	} else {
-		ibmr = &mr->ibmr;
-	}
-
-	QL_DPRINT12(ha, "exit %p\n", ibmr);
-	return (ibmr);
-}
-
-void
-qlnxr_free_frmr_page_list(struct ib_fast_reg_page_list *page_list)
-{
-	struct qlnxr_fast_reg_page_list *frmr_list;
-
-	frmr_list = get_qlnxr_frmr_list(page_list);
-
-	free_mr_info(frmr_list->dev, &frmr_list->info);
-
-	kfree(frmr_list->ibfrpl.page_list);
-	kfree(frmr_list);
-
-	return;
-}
-
-struct ib_fast_reg_page_list *
-qlnxr_alloc_frmr_page_list(struct ib_device *ibdev, int page_list_len)
-{
-	struct qlnxr_fast_reg_page_list *frmr_list = NULL;
-	struct qlnxr_dev		*dev;
-	int				size = page_list_len * sizeof(u64);
-	int				rc = -ENOMEM;
-	qlnx_host_t			*ha;
-
-	dev = get_qlnxr_dev(ibdev);
-	ha = dev->ha;
-
-	QL_DPRINT12(ha, "enter\n");
-
-	frmr_list = kzalloc(sizeof(*frmr_list), GFP_KERNEL);
-	if (!frmr_list) {
-		QL_DPRINT11(ha, "kzalloc(frmr_list) failed\n");
-		goto err;
-	}
-
-	frmr_list->dev = dev;
-	frmr_list->ibfrpl.page_list = kzalloc(size, GFP_KERNEL);
-	if (!frmr_list->ibfrpl.page_list) {
-		QL_DPRINT11(ha, "frmr_list->ibfrpl.page_list = NULL failed\n");
-		goto err0;
-	}
-
-	rc = qlnxr_init_mr_info(dev, &frmr_list->info, page_list_len,
-			  1 /* allow dual layer pbl */);
-	if (rc)
-		goto err1;
-
-	QL_DPRINT12(ha, "exit %p\n", &frmr_list->ibfrpl);
-
-	return &frmr_list->ibfrpl;
-
-err1:
-	kfree(frmr_list->ibfrpl.page_list);
-err0:
-	kfree(frmr_list);
-err:
-	QL_DPRINT12(ha, "exit with error\n");
-
-	return ERR_PTR(rc);
-}
-
-static int
-qlnxr_validate_phys_buf_list(qlnx_host_t *ha, struct ib_phys_buf *buf_list,
-	int buf_cnt, uint64_t *total_size)
-{
-	u64 size = 0;
-
-	*total_size = 0;
-
-	if (!buf_cnt || buf_list == NULL) {
-		QL_DPRINT11(ha,
-			"failed buf_list = %p buf_cnt = %d\n", buf_list, buf_cnt);
-		return (-1);
-	}
-
-	size = buf_list->size;
-
-	if (!size) {
-		QL_DPRINT11(ha,
-			"failed buf_list = %p buf_cnt = %d"
-			" buf_list->size = 0\n", buf_list, buf_cnt);
-		return (-1);
-	}
-
-	while (buf_cnt) {
-		*total_size += buf_list->size;
-
-		if (buf_list->size != size) {
-			QL_DPRINT11(ha,
-				"failed buf_list = %p buf_cnt = %d"
-				" all buffers should have same size\n",
-				buf_list, buf_cnt);
-			return (-1);
-		}
-
-		buf_list++;
-		buf_cnt--;
-	}
-	return (0);
-}
-
-static size_t
-qlnxr_get_num_pages(qlnx_host_t *ha, struct ib_phys_buf *buf_list,
-	int buf_cnt)
-{
-	int	i;
-	size_t	num_pages = 0;
-	u64	size;
-
-	for (i = 0; i < buf_cnt; i++) {
-		size = 0;
-		while (size < buf_list->size) {
-			size += PAGE_SIZE;
-			num_pages++;
-		}
-		buf_list++;
-	}
-	return (num_pages);
-}
-
-static void
-qlnxr_populate_phys_mem_pbls(struct qlnxr_dev *dev,
-	struct ib_phys_buf *buf_list, int buf_cnt,
-	struct qlnxr_pbl *pbl, struct qlnxr_pbl_info *pbl_info)
-{
-	struct regpair		*pbe;
-	struct qlnxr_pbl	*pbl_tbl;
-	int			pg_cnt, pages, pbe_cnt, total_num_pbes = 0;
-	qlnx_host_t		*ha;
-        int                     i;
-	u64			pbe_addr;
-
-	ha = dev->ha;
-
-	QL_DPRINT12(ha, "enter\n");
-
-	if (!pbl_info) {
-		QL_DPRINT11(ha, "PBL_INFO not initialized\n");
-		return;
-	}
-
-	if (!pbl_info->num_pbes) {
-		QL_DPRINT11(ha, "pbl_info->num_pbes == 0\n");
-		return;
-	}
-
-	/* If we have a two layered pbl, the first pbl points to the rest
-	 * of the pbls and the first entry lays on the second pbl in the table
-	 */
-	if (pbl_info->two_layered)
-		pbl_tbl = &pbl[1];
-	else
-		pbl_tbl = pbl;
-
-	pbe = (struct regpair *)pbl_tbl->va;
-	if (!pbe) {
-		QL_DPRINT12(ha, "pbe is NULL\n");
-		return;
-	}
-
-	pbe_cnt = 0;
-
-	for (i = 0; i < buf_cnt; i++) {
-		pages = buf_list->size >> PAGE_SHIFT;
-
-		for (pg_cnt = 0; pg_cnt < pages; pg_cnt++) {
-			/* store the page address in pbe */
-
-			pbe_addr = buf_list->addr + (PAGE_SIZE * pg_cnt);
-
-			pbe->lo = cpu_to_le32((u32)pbe_addr);
-			pbe->hi = cpu_to_le32(((u32)(pbe_addr >> 32)));
-
-			QL_DPRINT12(ha, "Populate pbl table:"
-				" pbe->addr=0x%x:0x%x "
-				" pbe_cnt = %d total_num_pbes=%d"
-				" pbe=%p\n", pbe->lo, pbe->hi, pbe_cnt,
-				total_num_pbes, pbe);
-
-			pbe_cnt ++;
-			total_num_pbes ++;
-			pbe++;
-
-			if (total_num_pbes == pbl_info->num_pbes)
-				return;
-
-			/* if the given pbl is full storing the pbes,
-			 * move to next pbl.  */
-
-			if (pbe_cnt == (pbl_info->pbl_size / sizeof(u64))) {
-				pbl_tbl++;
-				pbe = (struct regpair *)pbl_tbl->va;
-				pbe_cnt = 0;
-			}
-		}
-		buf_list++;
-	}
-	QL_DPRINT12(ha, "exit\n");
-	return;
-}
-
-struct ib_mr *
-qlnxr_reg_kernel_mr(struct ib_pd *ibpd,
-	struct ib_phys_buf *buf_list,
-	int buf_cnt, int acc, u64 *iova_start)
-{
-	int		rc = -ENOMEM;
-	struct qlnxr_dev *dev = get_qlnxr_dev((ibpd->device));
-	struct qlnxr_mr *mr;
-	struct qlnxr_pd *pd;
-	qlnx_host_t	*ha;
-	size_t		num_pages = 0;
-	uint64_t	length;
-
-	ha = dev->ha;
-
-	QL_DPRINT12(ha, "enter\n");
-
-	pd = get_qlnxr_pd(ibpd);
-
-	QL_DPRINT12(ha, "pd = %d buf_list = %p, buf_cnt = %d,"
-		" iova_start = %p, acc = %d\n",
-		pd->pd_id, buf_list, buf_cnt, iova_start, acc);
-
-	//if (acc & IB_ACCESS_REMOTE_WRITE && !(acc & IB_ACCESS_LOCAL_WRITE)) {
-	//	QL_DPRINT11(ha, "(acc & IB_ACCESS_REMOTE_WRITE &&"
-	//		" !(acc & IB_ACCESS_LOCAL_WRITE))\n");
-	//	return ERR_PTR(-EINVAL);
-	//}
-
-	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
-	if (!mr) {
-		QL_DPRINT11(ha, "kzalloc(mr) failed\n");
-		return ERR_PTR(rc);
-	}
-
-	mr->type = QLNXR_MR_KERNEL;
-	mr->iova_start = iova_start;
-
-	rc = qlnxr_validate_phys_buf_list(ha, buf_list, buf_cnt, &length);
-	if (rc)
-		goto err0;
-
-	num_pages = qlnxr_get_num_pages(ha, buf_list, buf_cnt);
-	if (!num_pages)
-		goto err0;
-
-	rc = qlnxr_init_mr_info(dev, &mr->info, num_pages, 1);
-	if (rc) {
-		QL_DPRINT11(ha,
-			"qlnxr_init_mr_info failed [%d]\n", rc);
-		goto err1;
-	}
-
-	qlnxr_populate_phys_mem_pbls(dev, buf_list, buf_cnt, mr->info.pbl_table,
-		   &mr->info.pbl_info);
-
-	rc = ecore_rdma_alloc_tid(dev->rdma_ctx, &mr->hw_mr.itid);
-
-	if (rc) {
-		QL_DPRINT11(ha, "roce alloc tid returned an error %d\n", rc);
-		goto err1;
-	}
-
-	/* index only, 18 bit long, lkey = itid << 8 | key */
-	mr->hw_mr.tid_type = ECORE_RDMA_TID_REGISTERED_MR;
-	mr->hw_mr.key = 0;
-	mr->hw_mr.pd = pd->pd_id;
-	mr->hw_mr.local_read = 1;
-	mr->hw_mr.local_write = (acc & IB_ACCESS_LOCAL_WRITE) ? 1 : 0;
-	mr->hw_mr.remote_read = (acc & IB_ACCESS_REMOTE_READ) ? 1 : 0;
-	mr->hw_mr.remote_write = (acc & IB_ACCESS_REMOTE_WRITE) ? 1 : 0;
-	mr->hw_mr.remote_atomic = (acc & IB_ACCESS_REMOTE_ATOMIC) ? 1 : 0;
-	mr->hw_mr.mw_bind = false; /* TBD MW BIND */
-	mr->hw_mr.pbl_ptr = mr->info.pbl_table[0].pa;
-	mr->hw_mr.pbl_two_level = mr->info.pbl_info.two_layered;
-	mr->hw_mr.pbl_page_size_log = ilog2(mr->info.pbl_info.pbl_size);
-	mr->hw_mr.page_size_log = ilog2(PAGE_SIZE); /* for the MR pages */
-
-	mr->hw_mr.fbo = 0;
-
-	mr->hw_mr.length = length;
-	mr->hw_mr.vaddr = (uint64_t)iova_start;
-	mr->hw_mr.zbva = false; /* TBD figure when this should be true */
-	mr->hw_mr.phy_mr = false; /* Fast MR - True, Regular Register False */
-	mr->hw_mr.dma_mr = false;
-
-	rc = ecore_rdma_register_tid(dev->rdma_ctx, &mr->hw_mr);
-	if (rc) {
-		QL_DPRINT11(ha, "roce register tid returned an error %d\n", rc);
-		goto err2;
-	}
-
-	mr->ibmr.lkey = mr->hw_mr.itid << 8 | mr->hw_mr.key;
-	if (mr->hw_mr.remote_write || mr->hw_mr.remote_read ||
-		mr->hw_mr.remote_atomic)
-		mr->ibmr.rkey = mr->hw_mr.itid << 8 | mr->hw_mr.key;
-
-	QL_DPRINT12(ha, "lkey: %x\n", mr->ibmr.lkey);
-
-	return (&mr->ibmr);
-
-err2:
-	ecore_rdma_free_tid(dev->rdma_ctx, mr->hw_mr.itid);
-err1:
-	qlnxr_free_pbl(dev, &mr->info.pbl_info, mr->info.pbl_table);
-err0:
-	kfree(mr);
-
-	QL_DPRINT12(ha, "exit [%d]\n", rc);
-	return (ERR_PTR(rc));
-}
-
-#endif /* #if __FreeBSD_version >= 1102000 */
-
 int
 qlnxr_create_ah(struct ib_ah *ibah,
 	struct ib_ah_attr *attr, u32 flags,
@@ -6245,7 +5573,6 @@ qlnxr_modify_ah(struct ib_ah *ibah, struct ib_ah_attr *attr)
 	return -ENOSYS;
 }
 
-#if __FreeBSD_version >= 1102000
 int
 qlnxr_process_mad(struct ib_device *ibdev,
 		int process_mad_flags,
@@ -6257,19 +5584,6 @@ qlnxr_process_mad(struct ib_device *ibdev,
 		struct ib_mad_hdr *out_mad,
 		size_t *out_mad_size,
 		u16 *out_mad_pkey_index)
-
-#else
-
-int
-qlnxr_process_mad(struct ib_device *ibdev,
-                        int process_mad_flags,
-                        u8 port_num,
-                        struct ib_wc *in_wc,
-                        struct ib_grh *in_grh,
-                        struct ib_mad *in_mad,
-                        struct ib_mad *out_mad)
-
-#endif /* #if __FreeBSD_version >= 1102000 */
 {
 	struct qlnxr_dev *dev;
 	qlnx_host_t	*ha;
@@ -6288,7 +5602,6 @@ qlnxr_process_mad(struct ib_device *ibdev,
 //	return IB_MAD_RESULT_SUCCESS;	
 }
 
-#if __FreeBSD_version >= 1102000
 int
 qlnxr_get_port_immutable(struct ib_device *ibdev, u8 port_num,
 	struct ib_port_immutable *immutable)
@@ -6322,7 +5635,6 @@ qlnxr_get_port_immutable(struct ib_device *ibdev, u8 port_num,
 	QL_DPRINT12(ha, "exit\n");
 	return 0;
 }
-#endif /* #if __FreeBSD_version > 1102000 */
 
 /***** iWARP related functions *************/
 
@@ -6379,10 +5691,8 @@ qlnxr_iw_mpa_request(void *context,
 	event.private_data = (void *)params->cm_info->private_data;
 	event.private_data_len = (u8)params->cm_info->private_data_len;
 
-#if __FreeBSD_version >= 1100000
 	event.ord = params->cm_info->ord;
 	event.ird = params->cm_info->ird;
-#endif /* #if __FreeBSD_version >= 1100000 */
 
 	listener->cm_id->event_handler(listener->cm_id, &event);
 
@@ -6411,12 +5721,10 @@ qlnxr_iw_issue_event(void *context,
 	event.event = event_type;
 
 	if (params->cm_info != NULL) {
-#if __FreeBSD_version >= 1100000
 		event.ird = params->cm_info->ird;
 		event.ord = params->cm_info->ord;
 		QL_DPRINT12(ha, "ord=[%d] \n", event.ord);
 		QL_DPRINT12(ha, "ird=[%d] \n", event.ird);
-#endif /* #if __FreeBSD_version >= 1100000 */
 
 		event.private_data_len = params->cm_info->private_data_len;
 		event.private_data = (void *)params->cm_info->private_data;
@@ -6466,8 +5774,6 @@ qlnxr_iw_close_event(void *context,
 
 	return;
 }
-
-#if __FreeBSD_version >= 1102000
 
 static void
 qlnxr_iw_passive_complete(void *context,
@@ -6579,8 +5885,6 @@ qlnxr_iw_disconnect_event(void *context,
         return;
 }
 
-#endif /* #if __FreeBSD_version >= 1102000 */
-
 static int
 qlnxr_iw_mpa_reply(void *context,
 	struct ecore_iwarp_cm_event_params *params)
@@ -6660,18 +5964,8 @@ qlnxr_iw_event_handler(void *context,
 
 	/* Passive side established ( ack on mpa response ) */
 	case ECORE_IWARP_EVENT_PASSIVE_COMPLETE:
-
-#if __FreeBSD_version >= 1102000
-
 		ep->during_connect = 0;
 		qlnxr_iw_passive_complete(context, params);
-
-#else
-		qlnxr_iw_issue_event(context,
-				    params,
-				    IW_CM_EVENT_ESTABLISHED,
-				    "IW_CM_EVENT_ESTABLISHED");
-#endif /* #if __FreeBSD_version >= 1102000 */
 		break;
 
 	/* Active side reply received */
@@ -6690,16 +5984,7 @@ qlnxr_iw_event_handler(void *context,
 		break;
 
 	case ECORE_IWARP_EVENT_DISCONNECT:
-
-#if __FreeBSD_version >= 1102000
 		qlnxr_iw_disconnect_event(context, params);
-#else
-		qlnxr_iw_issue_event(context,
-				    params,
-				    IW_CM_EVENT_DISCONNECT,
-				    "IW_CM_EVENT_DISCONNECT");
-		qlnxr_iw_close_event(context, params);
-#endif /* #if __FreeBSD_version >= 1102000 */
 		break;
 
 	case ECORE_IWARP_EVENT_CLOSE:
@@ -6771,15 +6056,8 @@ qlnxr_addr4_resolve(struct qlnxr_dev *dev,
 {
 	int rc;
 
-#if __FreeBSD_version >= 1100000
 	rc = arpresolve(dev->ha->ifp, 0, NULL, (struct sockaddr *)dst_in,
 			dst_mac, NULL, NULL);
-#else
-	struct llentry *lle;
-
-	rc = arpresolve(dev->ha->ifp, NULL, NULL, (struct sockaddr *)dst_in,
-			dst_mac, &lle);
-#endif
 
 	QL_DPRINT12(dev->ha, "rc = %d "
 		"sa_len = 0x%x sa_family = 0x%x IP Address = %d.%d.%d.%d "
@@ -7045,8 +6323,6 @@ err:
 int
 qlnxr_iw_reject(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len)
 {
-#if __FreeBSD_version >= 1102000
-
         struct qlnxr_iw_ep *ep = (struct qlnxr_iw_ep *)cm_id->provider_data;
         struct qlnxr_dev *dev = ep->dev;
         struct ecore_iwarp_reject_in params;
@@ -7061,13 +6337,6 @@ qlnxr_iw_reject(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len)
         rc = ecore_iwarp_reject(dev->rdma_ctx, &params);
 
         return rc;
-
-#else
-
-	printf("iWARP reject_cr not implemented\n");
-	return -EINVAL;
-
-#endif /* #if __FreeBSD_version >= 1102000 */
 }
 
 void

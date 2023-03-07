@@ -51,6 +51,9 @@
 /* Define if you have the <stdlib.h> header file. */
 #undef HAVE_STDLIB_H
 
+/* Define if <stdnoreturn.h> header is available and working */
+#undef HAVE_STDNORETURN_H
+
 /* Define if you have the <strings.h> header file. */
 #undef HAVE_STRINGS_H
 
@@ -83,6 +86,9 @@
 
 /* Define if you have the ANSI C header files. */
 #undef STDC_HEADERS
+
+/* Define if C11 _Noreturn keyword is supported */
+#undef STDC_NORETURN
 
 /* Define to the system name. */
 #undef SYSTEM_NAME

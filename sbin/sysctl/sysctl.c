@@ -66,6 +66,7 @@ static const char *conffile;
 
 static int	aflag, bflag, Bflag, dflag, eflag, hflag, iflag;
 static int	Nflag, nflag, oflag, qflag, tflag, Tflag, Wflag, xflag;
+static bool	Fflag, lflag;
 
 static int	oidfmt(int *, int, char *, u_int *);
 static int	parsefile(const char *);
@@ -123,8 +124,8 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: sysctl [-bdehiNnoqTtWx] [ -B <bufsize> ] [-f filename] name[=value] ...",
-	    "       sysctl [-bdehNnoqTtWx] [ -B <bufsize> ] -a");
+	    "usage: sysctl [-bdeFhilNnoqTtWx] [ -B <bufsize> ] [-f filename] name[=value] ...",
+	    "       sysctl [-bdeFhlNnoqTtWx] [ -B <bufsize> ] -a");
 	exit(1);
 }
 
@@ -138,7 +139,7 @@ main(int argc, char **argv)
 	setbuf(stdout,0);
 	setbuf(stderr,0);
 
-	while ((ch = getopt(argc, argv, "AabB:def:hiNnoqtTwWxX")) != -1) {
+	while ((ch = getopt(argc, argv, "AabB:def:FhilNnoqtTwWxX")) != -1) {
 		switch (ch) {
 		case 'A':
 			/* compatibility */
@@ -162,11 +163,17 @@ main(int argc, char **argv)
 		case 'f':
 			conffile = optarg;
 			break;
+		case 'F':
+			Fflag = true;
+			break;
 		case 'h':
 			hflag = 1;
 			break;
 		case 'i':
 			iflag = 1;
+			break;
+		case 'l':
+			lflag = true;
 			break;
 		case 'N':
 			Nflag = 1;
@@ -207,14 +214,15 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
-	if (Nflag && nflag)
+	/* Nflag is name only and doesn't make sense to combind with these */
+	/* TODO: few other combinations do not make sense but come back later */
+	if (Nflag && (lflag || nflag))
 		usage();
 	if (aflag && argc == 0)
 		exit(sysctl_all(NULL, 0));
 	if (argc == 0 && conffile == NULL)
 		usage();
 
-	warncount = 0;
 	if (conffile != NULL)
 		warncount += parsefile(conffile);
 
@@ -950,6 +958,55 @@ oidfmt(int *oid, int len, char *fmt, u_int *kind)
 }
 
 /*
+ * This displays a combination of name, type, format, and/or description.
+ *
+ * Returns zero if anything was actually output.
+ * Returns one if there is an error.
+ */
+static int
+show_info(char *name, const char *sep, int ctltype, char *fmt, int *qoid, int nlen)
+{
+	u_char buf[BUFSIZ];
+	const char *prntype;
+	int error = 0, i;
+	size_t j;
+
+	if (!nflag)
+		printf("%s%s", name, sep);
+	if (tflag) {
+		if (ctl_typename[ctltype] != NULL)
+			prntype = ctl_typename[ctltype];
+		else {
+			prntype = "unknown";
+			error++;
+		}
+		if (Fflag || dflag)
+			printf("%s%s", prntype, sep);
+		else
+			fputs(prntype, stdout);
+	}
+	if (Fflag) {
+		if (!isprint(fmt[0])) /* Few codes doesn't have formats */
+			fmt = "";
+		if (dflag)
+			printf("%s%s", fmt, sep);
+		else
+			fputs(fmt, stdout);
+	}
+	if (!dflag)
+		return (error);
+
+	qoid[1] = CTL_SYSCTL_OIDDESCR;
+	bzero(buf, BUFSIZ);
+	j = sizeof(buf);
+	i = sysctl(qoid, nlen + 2, buf, &j, 0, 0);
+	if (i < 0)
+		return (1);
+	fputs(buf, stdout);
+	return (error);
+}
+
+/*
  * This formats and outputs the value of one variable
  *
  * Returns zero if anything was actually output.
@@ -960,9 +1017,9 @@ static int
 show_var(int *oid, int nlen, bool honor_skip)
 {
 	static int skip_len = 0, skip_oid[CTL_MAXNAME];
-	u_char buf[BUFSIZ], *val, *oval, *p;
+	u_char *val, *oval, *p;
 	char name[BUFSIZ], fmt[BUFSIZ];
-	const char *sep, *sep1, *prntype;
+	const char *sep, *sep1;
 	int qoid[CTL_MAXNAME+2];
 	uintmax_t umv;
 	intmax_t mv;
@@ -977,7 +1034,6 @@ show_var(int *oid, int nlen, bool honor_skip)
 	/* Silence GCC. */
 	umv = mv = intlen = 0;
 
-	bzero(buf, BUFSIZ);
 	bzero(fmt, BUFSIZ);
 	bzero(name, BUFSIZ);
 	qoid[0] = CTL_SYSCTL;
@@ -1008,25 +1064,8 @@ show_var(int *oid, int nlen, bool honor_skip)
 		sep = ": ";
 
 	ctltype = (kind & CTLTYPE);
-	if (tflag || dflag) {
-		if (!nflag)
-			printf("%s%s", name, sep);
-        	if (ctl_typename[ctltype] != NULL)
-            		prntype = ctl_typename[ctltype];
-        	else
-            		prntype = "unknown";
-		if (tflag && dflag)
-			printf("%s%s", prntype, sep);
-		else if (tflag) {
-			printf("%s", prntype);
-			return (0);
-		}
-		qoid[1] = CTL_SYSCTL_OIDDESCR;
-		j = sizeof(buf);
-		i = sysctl(qoid, nlen + 2, buf, &j, 0, 0);
-		printf("%s", buf);
-		return (0);
-	}
+	if (tflag || Fflag || dflag)
+		return show_info(name, sep, ctltype, fmt, qoid, nlen);
 
 	/* keep track of encountered skip nodes, ignoring descendants */
 	if ((skip_len == 0 || skip_len >= nlen * (int)sizeof(int)) &&
@@ -1109,6 +1148,8 @@ show_var(int *oid, int nlen, bool honor_skip)
 	case CTLTYPE_STRING:
 		if (!nflag)
 			printf("%s%s", name, sep);
+		if (lflag)
+			printf("%zd%s", len, sep);
 		printf("%.*s", (int)len, p);
 		free(oval);
 		return (0);
@@ -1127,6 +1168,8 @@ show_var(int *oid, int nlen, bool honor_skip)
 	case CTLTYPE_U64:
 		if (!nflag)
 			printf("%s%s", name, sep);
+		if (lflag)
+			printf("%zd%s", len, sep);
 		hexlen = 2 + (intlen * CHAR_BIT + 3) / 4;
 		sep1 = "";
 		while (len >= intlen) {
@@ -1197,6 +1240,8 @@ show_var(int *oid, int nlen, bool honor_skip)
 		if (func) {
 			if (!nflag)
 				printf("%s%s", name, sep);
+			if (lflag)
+				printf("%zd%s", len, sep);
 			i = (*func)(len, p);
 			free(oval);
 			return (i);
@@ -1209,6 +1254,8 @@ show_var(int *oid, int nlen, bool honor_skip)
 		}
 		if (!nflag)
 			printf("%s%s", name, sep);
+		if (lflag)
+			printf("%zd%s", len, sep);
 		printf("Format:%s Length:%zu Dump:0x", fmt, len);
 		while (len-- && (xflag || p < val + 16))
 			printf("%02x", *p++);

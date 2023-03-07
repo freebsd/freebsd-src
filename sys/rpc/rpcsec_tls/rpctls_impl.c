@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/capsicum.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -50,6 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
+
+#include <net/vnet.h>
 
 #include <rpc/rpc.h>
 #include <rpc/rpc_com.h>
@@ -74,14 +77,15 @@ static CLIENT		*rpctls_connect_handle;
 static struct mtx	rpctls_connect_lock;
 static struct socket	*rpctls_connect_so = NULL;
 static CLIENT		*rpctls_connect_cl = NULL;
-static CLIENT		*rpctls_server_handle[RPCTLS_SRV_MAXNPROCS];
 static struct mtx	rpctls_server_lock;
-static struct socket	*rpctls_server_so = NULL;
-static SVCXPRT		*rpctls_server_xprt = NULL;
-static bool		rpctls_srv_newdaemon = false;
-static int		rpctls_srv_prevproc = 0;
-static bool		rpctls_server_busy[RPCTLS_SRV_MAXNPROCS];
 static struct opaque_auth rpctls_null_verf;
+
+KRPC_VNET_DEFINE_STATIC(CLIENT **, rpctls_server_handle);
+KRPC_VNET_DEFINE_STATIC(struct socket *, rpctls_server_so) = NULL;
+KRPC_VNET_DEFINE_STATIC(SVCXPRT *, rpctls_server_xprt) = NULL;
+KRPC_VNET_DEFINE_STATIC(bool, rpctls_srv_newdaemon) = false;
+KRPC_VNET_DEFINE_STATIC(int, rpctls_srv_prevproc) = 0;
+KRPC_VNET_DEFINE_STATIC(bool *, rpctls_server_busy);
 
 static CLIENT		*rpctls_connect_client(void);
 static CLIENT		*rpctls_server_client(int procpos);
@@ -90,10 +94,35 @@ static enum clnt_stat	rpctls_server(SVCXPRT *xprt, struct socket *so,
 			    uid_t *uid, int *ngrps, gid_t **gids,
 			    int *procposp);
 
+static void
+rpctls_vnetinit(const void *unused __unused)
+{
+	int i;
+
+	KRPC_VNET(rpctls_server_handle) = malloc(sizeof(CLIENT *) *
+	    RPCTLS_SRV_MAXNPROCS, M_RPC, M_WAITOK | M_ZERO);
+	KRPC_VNET(rpctls_server_busy) = malloc(sizeof(bool) *
+	    RPCTLS_SRV_MAXNPROCS, M_RPC, M_WAITOK | M_ZERO);
+	for (i = 0; i < RPCTLS_SRV_MAXNPROCS; i++)
+		KRPC_VNET(rpctls_server_busy)[i] = false;
+}
+VNET_SYSINIT(rpctls_vnetinit, SI_SUB_VNET_DONE, SI_ORDER_ANY,
+    rpctls_vnetinit, NULL);
+
+static void
+rpctls_cleanup(void *unused __unused)
+{
+
+	free(KRPC_VNET(rpctls_server_handle), M_RPC);
+	free(KRPC_VNET(rpctls_server_busy), M_RPC);
+}
+VNET_SYSUNINIT(rpctls_cleanup, SI_SUB_VNET_DONE, SI_ORDER_ANY,
+    rpctls_cleanup, NULL);
+
 int
 rpctls_init(void)
 {
-	int error, i;
+	int error;
 
 	error = syscall_helper_register(rpctls_syscalls, SY_THR_STATIC_KLD);
 	if (error != 0) {
@@ -107,8 +136,6 @@ rpctls_init(void)
 	rpctls_null_verf.oa_flavor = AUTH_NULL;
 	rpctls_null_verf.oa_base = RPCTLS_START_STRING;
 	rpctls_null_verf.oa_length = strlen(RPCTLS_START_STRING);
-	for (i = 0; i < RPCTLS_SRV_MAXNPROCS; i++)
-		rpctls_server_busy[i] = false;
 	return (0);
 }
 
@@ -133,27 +160,36 @@ sys_rpctls_syscall(struct thread *td, struct rpctls_syscall_args *uap)
 	if (error != 0)
 		return (error);
 
+	KRPC_CURVNET_SET(KRPC_TD_TO_VNET(td));
 	switch (uap->op) {
 	case RPCTLS_SYSC_SRVSTARTUP:
-		/* Get rid of all old CLIENTs. */
-		mtx_lock(&rpctls_server_lock);
-		for (i = 0; i < RPCTLS_SRV_MAXNPROCS; i++) {
-			oldcl[i] = rpctls_server_handle[i];
-			rpctls_server_handle[i] = NULL;
-			rpctls_server_busy[i] = false;
-		}
-		rpctls_srv_newdaemon = true;
-		rpctls_srv_prevproc = 0;
-		mtx_unlock(&rpctls_server_lock);
-		for (i = 0; i < RPCTLS_SRV_MAXNPROCS; i++) {
-			if (oldcl[i] != NULL) {
-				CLNT_CLOSE(oldcl[i]);
-				CLNT_RELEASE(oldcl[i]);
+		if (jailed(curthread->td_ucred) &&
+		    !prison_check_nfsd(curthread->td_ucred))
+			error = EPERM;
+		if (error == 0) {
+			/* Get rid of all old CLIENTs. */
+			mtx_lock(&rpctls_server_lock);
+			for (i = 0; i < RPCTLS_SRV_MAXNPROCS; i++) {
+				oldcl[i] = KRPC_VNET(rpctls_server_handle)[i];
+				KRPC_VNET(rpctls_server_handle)[i] = NULL;
+				KRPC_VNET(rpctls_server_busy)[i] = false;
+			}
+			KRPC_VNET(rpctls_srv_newdaemon) = true;
+			KRPC_VNET(rpctls_srv_prevproc) = 0;
+			mtx_unlock(&rpctls_server_lock);
+			for (i = 0; i < RPCTLS_SRV_MAXNPROCS; i++) {
+				if (oldcl[i] != NULL) {
+					CLNT_CLOSE(oldcl[i]);
+					CLNT_RELEASE(oldcl[i]);
+				}
 			}
 		}
 		break;
 	case RPCTLS_SYSC_CLSETPATH:
-		error = copyinstr(uap->path, path, sizeof(path), NULL);
+		if (jailed(curthread->td_ucred))
+			error = EPERM;
+		if (error == 0)
+			error = copyinstr(uap->path, path, sizeof(path), NULL);
 		if (error == 0) {
 			error = ENXIO;
 #ifdef KERN_TLS
@@ -209,7 +245,11 @@ sys_rpctls_syscall(struct thread *td, struct rpctls_syscall_args *uap)
 		}
 		break;
 	case RPCTLS_SYSC_SRVSETPATH:
-		error = copyinstr(uap->path, path, sizeof(path), NULL);
+		if (jailed(curthread->td_ucred) &&
+		    !prison_check_nfsd(curthread->td_ucred))
+			error = EPERM;
+		if (error == 0)
+			error = copyinstr(uap->path, path, sizeof(path), NULL);
 		if (error == 0) {
 			error = ENXIO;
 #ifdef KERN_TLS
@@ -254,14 +294,14 @@ sys_rpctls_syscall(struct thread *td, struct rpctls_syscall_args *uap)
 		for (i = 0; i < RPCTLS_SRV_MAXNPROCS; i++)
 			oldcl[i] = NULL;
 		mtx_lock(&rpctls_server_lock);
-		if (rpctls_srv_newdaemon) {
+		if (KRPC_VNET(rpctls_srv_newdaemon)) {
 			/*
 			 * For a new daemon, the rpctls_srv_handles have
 			 * already been cleaned up by RPCTLS_SYSC_SRVSTARTUP.
 			 * Scan for an available array entry to use.
 			 */
 			for (i = 0; i < RPCTLS_SRV_MAXNPROCS; i++) {
-				if (rpctls_server_handle[i] == NULL)
+				if (KRPC_VNET(rpctls_server_handle)[i] == NULL)
 					break;
 			}
 			if (i == RPCTLS_SRV_MAXNPROCS && error == 0)
@@ -269,14 +309,14 @@ sys_rpctls_syscall(struct thread *td, struct rpctls_syscall_args *uap)
 		} else {
 			/* For an old daemon, clear out old CLIENTs. */
 			for (i = 0; i < RPCTLS_SRV_MAXNPROCS; i++) {
-				oldcl[i] = rpctls_server_handle[i];
-				rpctls_server_handle[i] = NULL;
-				rpctls_server_busy[i] = false;
+				oldcl[i] = KRPC_VNET(rpctls_server_handle)[i];
+				KRPC_VNET(rpctls_server_handle)[i] = NULL;
+				KRPC_VNET(rpctls_server_busy)[i] = false;
 			}
 			i = 0;	/* Set to use rpctls_server_handle[0]. */
 		}
 		if (error == 0)
-			rpctls_server_handle[i] = cl;
+			KRPC_VNET(rpctls_server_handle)[i] = cl;
 		mtx_unlock(&rpctls_server_lock);
 
 		for (i = 0; i < RPCTLS_SRV_MAXNPROCS; i++) {
@@ -300,10 +340,10 @@ sys_rpctls_syscall(struct thread *td, struct rpctls_syscall_args *uap)
 	case RPCTLS_SYSC_SRVSHUTDOWN:
 		mtx_lock(&rpctls_server_lock);
 		for (i = 0; i < RPCTLS_SRV_MAXNPROCS; i++) {
-			oldcl[i] = rpctls_server_handle[i];
-			rpctls_server_handle[i] = NULL;
+			oldcl[i] = KRPC_VNET(rpctls_server_handle)[i];
+			KRPC_VNET(rpctls_server_handle)[i] = NULL;
 		}
-		rpctls_srv_newdaemon = false;
+		KRPC_VNET(rpctls_srv_newdaemon) = false;
 		mtx_unlock(&rpctls_server_lock);
 	
 		for (i = 0; i < RPCTLS_SRV_MAXNPROCS; i++) {
@@ -342,10 +382,10 @@ sys_rpctls_syscall(struct thread *td, struct rpctls_syscall_args *uap)
 		break;
 	case RPCTLS_SYSC_SRVSOCKET:
 		mtx_lock(&rpctls_server_lock);
-		so = rpctls_server_so;
-		rpctls_server_so = NULL;
-		xprt = rpctls_server_xprt;
-		rpctls_server_xprt = NULL;
+		so = KRPC_VNET(rpctls_server_so);
+		KRPC_VNET(rpctls_server_so) = NULL;
+		xprt = KRPC_VNET(rpctls_server_xprt);
+		KRPC_VNET(rpctls_server_xprt) = NULL;
 		mtx_unlock(&rpctls_server_lock);
 		if (so != NULL) {
 			error = falloc(td, &fp, &fd, 0);
@@ -370,6 +410,7 @@ sys_rpctls_syscall(struct thread *td, struct rpctls_syscall_args *uap)
 	default:
 		error = EINVAL;
 	}
+	KRPC_CURVNET_RESTORE();
 
 	return (error);
 }
@@ -400,11 +441,13 @@ rpctls_server_client(int procpos)
 {
 	CLIENT *cl;
 
+	KRPC_CURVNET_SET_QUIET(KRPC_TD_TO_VNET(curthread));
 	mtx_lock(&rpctls_server_lock);
-	cl = rpctls_server_handle[procpos];
+	cl = KRPC_VNET(rpctls_server_handle)[procpos];
 	if (cl != NULL)
 		CLNT_ACQUIRE(cl);
 	mtx_unlock(&rpctls_server_lock);
+	KRPC_CURVNET_RESTORE();
 	return (cl);
 }
 
@@ -611,33 +654,37 @@ rpctls_server(SVCXPRT *xprt, struct socket *so, uint32_t *flags, uint64_t *sslp,
 	uint32_t *gidv;
 	int i, procpos;
 
+	KRPC_CURVNET_SET_QUIET(KRPC_TD_TO_VNET(curthread));
 	cl = NULL;
 	procpos = -1;
 	mtx_lock(&rpctls_server_lock);
-	for (i = (rpctls_srv_prevproc + 1) % RPCTLS_SRV_MAXNPROCS;
-	    i != rpctls_srv_prevproc; i = (i + 1) % RPCTLS_SRV_MAXNPROCS) {
-		if (rpctls_server_handle[i] != NULL)
+	for (i = (KRPC_VNET(rpctls_srv_prevproc) + 1) % RPCTLS_SRV_MAXNPROCS;
+	    i != KRPC_VNET(rpctls_srv_prevproc);
+	    i = (i + 1) % RPCTLS_SRV_MAXNPROCS) {
+		if (KRPC_VNET(rpctls_server_handle)[i] != NULL)
 			break;
 	}
-	if (i == rpctls_srv_prevproc) {
-		if (rpctls_server_handle[i] != NULL)
+	if (i == KRPC_VNET(rpctls_srv_prevproc)) {
+		if (KRPC_VNET(rpctls_server_handle)[i] != NULL)
 			procpos = i;
 	} else
-		rpctls_srv_prevproc = procpos = i;
+		KRPC_VNET(rpctls_srv_prevproc) = procpos = i;
 	mtx_unlock(&rpctls_server_lock);
 	if (procpos >= 0)
 		cl = rpctls_server_client(procpos);
-	if (cl == NULL)
+	if (cl == NULL) {
+		KRPC_CURVNET_RESTORE();
 		return (RPC_SYSTEMERROR);
+	}
 
 	/* Serialize the server upcalls. */
 	mtx_lock(&rpctls_server_lock);
-	while (rpctls_server_busy[procpos])
-		msleep(&rpctls_server_busy[procpos], &rpctls_server_lock, PVFS,
-		    "rtlssn", 0);
-	rpctls_server_busy[procpos] = true;
-	rpctls_server_so = so;
-	rpctls_server_xprt = xprt;
+	while (KRPC_VNET(rpctls_server_busy)[procpos])
+		msleep(&KRPC_VNET(rpctls_server_busy)[procpos],
+		    &rpctls_server_lock, PVFS, "rtlssn", 0);
+	KRPC_VNET(rpctls_server_busy)[procpos] = true;
+	KRPC_VNET(rpctls_server_so) = so;
+	KRPC_VNET(rpctls_server_xprt) = xprt;
 	mtx_unlock(&rpctls_server_lock);
 
 	/* Do the server upcall. */
@@ -672,11 +719,12 @@ rpctls_server(SVCXPRT *xprt, struct socket *so, uint32_t *flags, uint64_t *sslp,
 
 	/* Once the upcall is done, the daemon is done with the fp and so. */
 	mtx_lock(&rpctls_server_lock);
-	rpctls_server_so = NULL;
-	rpctls_server_xprt = NULL;
-	rpctls_server_busy[procpos] = false;
-	wakeup(&rpctls_server_busy[procpos]);
+	KRPC_VNET(rpctls_server_so) = NULL;
+	KRPC_VNET(rpctls_server_xprt) = NULL;
+	KRPC_VNET(rpctls_server_busy)[procpos] = false;
+	wakeup(&KRPC_VNET(rpctls_server_busy)[procpos]);
 	mtx_unlock(&rpctls_server_lock);
+	KRPC_CURVNET_RESTORE();
 
 	return (stat);
 }
@@ -795,8 +843,12 @@ rpctls_getinfo(u_int *maxlenp, bool rpctlscd_run, bool rpctlssd_run)
 		return (false);
 	if (rpctlscd_run && rpctls_connect_handle == NULL)
 		return (false);
-	if (rpctlssd_run && rpctls_server_handle[0] == NULL)
+	KRPC_CURVNET_SET_QUIET(KRPC_TD_TO_VNET(curthread));
+	if (rpctlssd_run && KRPC_VNET(rpctls_server_handle)[0] == NULL) {
+		KRPC_CURVNET_RESTORE();
 		return (false);
+	}
+	KRPC_CURVNET_RESTORE();
 	*maxlenp = maxlen;
 	return (enable);
 }

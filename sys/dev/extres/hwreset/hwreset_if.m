@@ -26,6 +26,8 @@
 # $FreeBSD$
 #
 
+#include "opt_platform.h"
+
 #ifdef FDT
 #include <sys/types.h>
 #include <dev/ofw/ofw_bus.h>

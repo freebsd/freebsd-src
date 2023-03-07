@@ -110,23 +110,12 @@
 #define NM_ATOMIC_TEST_AND_SET(p)       (!atomic_cmpset_acq_int((p), 0, 1))
 #define NM_ATOMIC_CLEAR(p)              atomic_store_rel_int((p), 0)
 
-#if __FreeBSD_version >= 1100030
-#define	WNA(_ifp)	(_ifp)->if_netmap
-#else /* older FreeBSD */
-#define	WNA(_ifp)	(_ifp)->if_pspare[0]
-#endif /* older FreeBSD */
+#define	WNA(_ifp)	if_getnetmapadapter(_ifp)
 
-#if __FreeBSD_version >= 1100005
 struct netmap_adapter *netmap_getna(if_t ifp);
-#endif
 
-#if __FreeBSD_version >= 1100027
 #define MBUF_REFCNT(m)		((m)->m_ext.ext_count)
 #define SET_MBUF_REFCNT(m, x)   (m)->m_ext.ext_count = x
-#else
-#define MBUF_REFCNT(m)		((m)->m_ext.ref_cnt ? *((m)->m_ext.ref_cnt) : -1)
-#define SET_MBUF_REFCNT(m, x)   *((m)->m_ext.ref_cnt) = x
-#endif
 
 #define MBUF_QUEUED(m)		1
 
@@ -163,7 +152,7 @@ struct hrtimer {
 	})
 
 /* See explanation in nm_os_generic_xmit_frame. */
-#define	GEN_TX_MBUF_IFP(m)	((struct ifnet *)skb_shinfo(m)->destructor_arg)
+#define	GEN_TX_MBUF_IFP(m)	((if_t)skb_shinfo(m)->destructor_arg)
 
 #define NM_ATOMIC_T	volatile long unsigned int
 
@@ -308,13 +297,13 @@ void nm_os_ifnet_fini(void);
 void nm_os_ifnet_lock(void);
 void nm_os_ifnet_unlock(void);
 
-unsigned nm_os_ifnet_mtu(struct ifnet *ifp);
+unsigned nm_os_ifnet_mtu(if_t ifp);
 
 void nm_os_get_module(void);
 void nm_os_put_module(void);
 
-void netmap_make_zombie(struct ifnet *);
-void netmap_undo_zombie(struct ifnet *);
+void netmap_make_zombie(if_t);
+void netmap_undo_zombie(if_t);
 
 /* os independent alloc/realloc/free */
 void *nm_os_malloc(size_t);
@@ -324,10 +313,10 @@ void nm_os_free(void *);
 void nm_os_vfree(void *);
 
 /* os specific attach/detach enter/exit-netmap-mode routines */
-void nm_os_onattach(struct ifnet *);
-void nm_os_ondetach(struct ifnet *);
-void nm_os_onenter(struct ifnet *);
-void nm_os_onexit(struct ifnet *);
+void nm_os_onattach(if_t);
+void nm_os_ondetach(if_t);
+void nm_os_onenter(if_t);
+void nm_os_onexit(if_t);
 
 /* passes a packet up to the host stack.
  * If the packet is sent (or dropped) immediately it returns NULL,
@@ -335,7 +324,7 @@ void nm_os_onexit(struct ifnet *);
  * In this case, a final call with m=NULL and prev != NULL will send up
  * the entire chain to the host stack.
  */
-void *nm_os_send_up(struct ifnet *, struct mbuf *m, struct mbuf *prev);
+void *nm_os_send_up(if_t, struct mbuf *m, struct mbuf *prev);
 
 int nm_os_mbuf_has_seg_offld(struct mbuf *m);
 int nm_os_mbuf_has_csum_offld(struct mbuf *m);
@@ -796,14 +785,14 @@ struct netmap_adapter {
 	/* copy of if_qflush and if_transmit pointers, to intercept
 	 * packets from the network stack when netmap is active.
 	 */
-	int     (*if_transmit)(struct ifnet *, struct mbuf *);
+	int     (*if_transmit)(if_t, struct mbuf *);
 
 	/* copy of if_input for netmap_send_up() */
-	void     (*if_input)(struct ifnet *, struct mbuf *);
+	void     (*if_input)(if_t, struct mbuf *);
 
 	/* Back reference to the parent ifnet struct. Used for
 	 * hardware ports (emulated netmap included). */
-	struct ifnet *ifp; /* adapter is ifp->if_softc */
+	if_t ifp; /* adapter is if_getsoftc(ifp) */
 
 	/*---- callbacks for this netmap adapter -----*/
 	/*
@@ -1058,11 +1047,11 @@ struct netmap_generic_adapter {	/* emulated device */
 	 *  - save_if_input saves the if_input hook (FreeBSD);
 	 *  - mit implements rx interrupt mitigation;
 	 */
-	void (*save_if_input)(struct ifnet *, struct mbuf *);
+	void (*save_if_input)(if_t, struct mbuf *);
 
 	struct nm_generic_mit *mit;
 #ifdef linux
-        netdev_tx_t (*save_start_xmit)(struct mbuf *, struct ifnet *);
+        netdev_tx_t (*save_start_xmit)(struct mbuf *, if_t);
 #endif
 	/* Is the adapter able to use multiple RX slots to scatter
 	 * each packet pushed up by the driver? */
@@ -1155,6 +1144,7 @@ struct netmap_bwrap_adapter {
 	struct netmap_vp_adapter *saved_na_vp;
 	int (*nm_intr_notify)(struct netmap_kring *kring, int flags);
 };
+int nm_is_bwrap(struct netmap_adapter *na);
 int nm_bdg_polling(struct nmreq_header *hdr);
 
 int netmap_bdg_attach(struct nmreq_header *hdr, void *auth_token);
@@ -1183,7 +1173,7 @@ struct netmap_pipe_adapter {
 	struct netmap_adapter *parent; /* adapter that owns the memory */
 	struct netmap_pipe_adapter *peer; /* the other end of the pipe */
 	int peer_ref;		/* 1 iff we are holding a ref to the peer */
-	struct ifnet *parent_ifp;	/* maybe null */
+	if_t parent_ifp;	/* maybe null */
 
 	u_int parent_slot; /* index in the parent pipe array */
 };
@@ -1356,8 +1346,8 @@ static __inline void nm_kr_start(struct netmap_kring *kr)
  */
 int netmap_attach(struct netmap_adapter *);
 int netmap_attach_ext(struct netmap_adapter *, size_t size, int override_reg);
-void netmap_detach(struct ifnet *);
-int netmap_transmit(struct ifnet *, struct mbuf *);
+void netmap_detach(if_t);
+int netmap_transmit(if_t, struct mbuf *);
 struct netmap_slot *netmap_reset(struct netmap_adapter *na,
 	enum txrx tx, u_int n, u_int new_cur);
 int netmap_ring_reinit(struct netmap_kring *);
@@ -1380,7 +1370,7 @@ enum {
 };
 
 /* default functions to handle rx/tx interrupts */
-int netmap_rx_irq(struct ifnet *, u_int, u_int *);
+int netmap_rx_irq(if_t, u_int, u_int *);
 #define netmap_tx_irq(_n, _q) netmap_rx_irq(_n, _q, NULL)
 int netmap_common_irq(struct netmap_adapter *, u_int, u_int *work_done);
 
@@ -1533,8 +1523,8 @@ void netmap_set_ring(struct netmap_adapter *, u_int ring_id, enum txrx, int stop
 /* set the stopped/enabled status of all rings of the adapter. */
 void netmap_set_all_rings(struct netmap_adapter *, int stopped);
 /* convenience wrappers for netmap_set_all_rings */
-void netmap_disable_all_rings(struct ifnet *);
-void netmap_enable_all_rings(struct ifnet *);
+void netmap_disable_all_rings(if_t);
+void netmap_enable_all_rings(if_t);
 
 int netmap_buf_size_validate(const struct netmap_adapter *na, unsigned mtu);
 int netmap_do_regif(struct netmap_priv_d *priv, struct netmap_adapter *na,
@@ -1543,9 +1533,9 @@ void netmap_do_unregif(struct netmap_priv_d *priv);
 
 u_int nm_bound_var(u_int *v, u_int dflt, u_int lo, u_int hi, const char *msg);
 int netmap_get_na(struct nmreq_header *hdr, struct netmap_adapter **na,
-		struct ifnet **ifp, struct netmap_mem_d *nmd, int create);
-void netmap_unget_na(struct netmap_adapter *na, struct ifnet *ifp);
-int netmap_get_hw_na(struct ifnet *ifp,
+		if_t *ifp, struct netmap_mem_d *nmd, int create);
+void netmap_unget_na(struct netmap_adapter *na, if_t ifp);
+int netmap_get_hw_na(if_t ifp,
 		struct netmap_mem_d *nmd, struct netmap_adapter **na);
 void netmap_mem_restore(struct netmap_adapter *na);
 
@@ -1566,6 +1556,7 @@ extern unsigned int vale_max_bridges;
 #define	netmap_get_vale_na(_1, _2, _3, _4)	0
 #define netmap_bdg_create(_1, _2)	NULL
 #define netmap_bdg_destroy(_1, _2)	0
+#define vale_max_bridges		1
 #endif /* !WITH_VALE */
 
 #ifdef WITH_PIPES
@@ -1637,8 +1628,8 @@ void __netmap_adapter_get(struct netmap_adapter *na);
 #define netmap_adapter_get(na) 				\
 	do {						\
 		struct netmap_adapter *__na = na;	\
-		nm_prinf("getting %p:%s (%d)", __na, (__na)->name, (__na)->na_refcount);	\
 		__netmap_adapter_get(__na);		\
+		nm_prinf("getting %p:%s -> %d", __na, (__na)->name, (__na)->na_refcount);	\
 	} while (0)
 
 int __netmap_adapter_put(struct netmap_adapter *na);
@@ -1646,8 +1637,11 @@ int __netmap_adapter_put(struct netmap_adapter *na);
 #define netmap_adapter_put(na)				\
 	({						\
 		struct netmap_adapter *__na = na;	\
-		nm_prinf("putting %p:%s (%d)", __na, (__na)->name, (__na)->na_refcount);	\
-		__netmap_adapter_put(__na);		\
+		if (__na == NULL)			\
+			nm_prinf("putting NULL");	\
+		else					\
+			nm_prinf("putting %p:%s -> %d", __na, (__na)->name, (__na)->na_refcount - 1);	\
+		__netmap_adapter_put(__na);	\
 	})
 
 #else /* !NM_DEBUG_PUTGET */
@@ -1719,14 +1713,14 @@ extern int netmap_generic_txqdisc;
 	((uint32_t)(uintptr_t)NA(ifp) ^ NA(ifp)->magic) == NETMAP_MAGIC )
 
 #define	NM_ATTACH_NA(ifp, na) do {					\
-	WNA(ifp) = na;							\
+	if_setnetmapadapter(ifp, na);					\
 	if (NA(ifp))							\
 		NA(ifp)->magic = 					\
 			((uint32_t)(uintptr_t)NA(ifp)) ^ NETMAP_MAGIC;	\
 } while(0)
-#define NM_RESTORE_NA(ifp, na) 	WNA(ifp) = na;
+#define NM_RESTORE_NA(ifp, na) 	if_setnetmapadapter(ifp, na);
 
-#define NM_DETACH_NA(ifp)	do { WNA(ifp) = NULL; } while (0)
+#define NM_DETACH_NA(ifp)	do { if_setnetmapadapter(ifp, NULL); } while (0)
 #define NM_NA_CLASH(ifp)	(NA(ifp) && !NM_NA_VALID(ifp))
 #endif /* !NM_ATTACH_NA */
 
@@ -2033,7 +2027,7 @@ struct netmap_priv_d {
 	struct netmap_if * volatile np_nifp;	/* netmap if descriptor. */
 
 	struct netmap_adapter	*np_na;
-	struct ifnet	*np_ifp;
+	if_t		np_ifp;
 	uint32_t	np_flags;	/* from the ioctl */
 	u_int		np_qfirst[NR_TXRX],
 			np_qlast[NR_TXRX]; /* range of tx/rx rings to scan */
@@ -2127,8 +2121,8 @@ struct netmap_monitor_adapter {
  * generic netmap emulation for devices that do not have
  * native netmap support.
  */
-int generic_netmap_attach(struct ifnet *ifp);
-int generic_rx_handler(struct ifnet *ifp, struct mbuf *m);;
+int generic_netmap_attach(if_t ifp);
+int generic_rx_handler(if_t ifp, struct mbuf *m);
 
 int nm_os_catch_rx(struct netmap_generic_adapter *gna, int intercept);
 int nm_os_catch_tx(struct netmap_generic_adapter *gna, int intercept);
@@ -2146,21 +2140,21 @@ int na_is_generic(struct netmap_adapter *na);
  * routine to send the queue and free any resources. Failure is ignored.
  */
 struct nm_os_gen_arg {
-	struct ifnet *ifp;
+	if_t ifp;
 	void *m;	/* os-specific mbuf-like object */
 	void *head, *tail; /* tailq, if the OS-specific routine needs to build one */
 	void *addr;	/* payload of current packet */
 	u_int len;	/* packet length */
-	u_int ring_nr;	/* packet length */
+	u_int ring_nr;	/* transmit ring index */
 	u_int qevent;   /* in txqdisc mode, place an event on this mbuf */
 };
 
 int nm_os_generic_xmit_frame(struct nm_os_gen_arg *);
-int nm_os_generic_find_num_desc(struct ifnet *ifp, u_int *tx, u_int *rx);
-void nm_os_generic_find_num_queues(struct ifnet *ifp, u_int *txq, u_int *rxq);
+int nm_os_generic_find_num_desc(if_t ifp, u_int *tx, u_int *rx);
+void nm_os_generic_find_num_queues(if_t ifp, u_int *txq, u_int *rxq);
 void nm_os_generic_set_features(struct netmap_generic_adapter *gna);
 
-static inline struct ifnet*
+static inline if_t
 netmap_generic_getifp(struct netmap_generic_adapter *gna)
 {
         if (gna->prev)
@@ -2297,8 +2291,8 @@ void bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 			   u_int *j, u_int lim, u_int *howmany);
 
 /* persistent virtual port routines */
-int nm_os_vi_persist(const char *, struct ifnet **);
-void nm_os_vi_detach(struct ifnet *);
+int nm_os_vi_persist(const char *, if_t *);
+void nm_os_vi_detach(if_t);
 void nm_os_vi_init_index(void);
 
 /*
@@ -2388,69 +2382,6 @@ ptnet_sync_tail(struct nm_csb_ktoa *ktoa, struct netmap_kring *kring)
 #ifdef __FreeBSD__
 /*
  * FreeBSD mbuf allocator/deallocator in emulation mode:
- */
-#if __FreeBSD_version < 1100000
-
-/*
- * For older versions of FreeBSD:
- *
- * We allocate EXT_PACKET mbuf+clusters, but need to set M_NOFREE
- * so that the destructor, if invoked, will not free the packet.
- * In principle we should set the destructor only on demand,
- * but since there might be a race we better do it on allocation.
- * As a consequence, we also need to set the destructor or we
- * would leak buffers.
- */
-
-/* mbuf destructor, also need to change the type to EXT_EXTREF,
- * add an M_NOFREE flag, and then clear the flag and
- * chain into uma_zfree(zone_pack, mf)
- * (or reinstall the buffer ?)
- */
-#define SET_MBUF_DESTRUCTOR(m, fn)	do {		\
-	(m)->m_ext.ext_free = (void *)fn;	\
-	(m)->m_ext.ext_type = EXT_EXTREF;	\
-} while (0)
-
-static int
-void_mbuf_dtor(struct mbuf *m, void *arg1, void *arg2)
-{
-	/* restore original mbuf */
-	m->m_ext.ext_buf = m->m_data = m->m_ext.ext_arg1;
-	m->m_ext.ext_arg1 = NULL;
-	m->m_ext.ext_type = EXT_PACKET;
-	m->m_ext.ext_free = NULL;
-	if (MBUF_REFCNT(m) == 0)
-		SET_MBUF_REFCNT(m, 1);
-	uma_zfree(zone_pack, m);
-
-	return 0;
-}
-
-static inline struct mbuf *
-nm_os_get_mbuf(struct ifnet *ifp, int len)
-{
-	struct mbuf *m;
-
-	(void)ifp;
-	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
-	if (m) {
-		/* m_getcl() (mb_ctor_mbuf) has an assert that checks that
-		 * M_NOFREE flag is not specified as third argument,
-		 * so we have to set M_NOFREE after m_getcl(). */
-		m->m_flags |= M_NOFREE;
-		m->m_ext.ext_arg1 = m->m_ext.ext_buf; // XXX save
-		m->m_ext.ext_free = (void *)void_mbuf_dtor;
-		m->m_ext.ext_type = EXT_EXTREF;
-		nm_prdis(5, "create m %p refcnt %d", m, MBUF_REFCNT(m));
-	}
-	return m;
-}
-
-#else /* __FreeBSD_version >= 1100000 */
-
-/*
- * Newer versions of FreeBSD, using a straightforward scheme.
  *
  * We allocate mbufs with m_gethdr(), since the mbuf header is needed
  * by the driver. We also attach a customly-provided external storage,
@@ -2463,13 +2394,7 @@ nm_os_get_mbuf(struct ifnet *ifp, int len)
  * has a KASSERT(), checking that the mbuf dtor function is not NULL.
  */
 
-#if __FreeBSD_version <= 1200050
-static void void_mbuf_dtor(struct mbuf *m, void *arg1, void *arg2) { }
-#else  /* __FreeBSD_version >= 1200051 */
-/* The arg1 and arg2 pointers argument were removed by r324446, which
- * in included since version 1200051. */
 static void void_mbuf_dtor(struct mbuf *m) { }
-#endif /* __FreeBSD_version >= 1200051 */
 
 #define SET_MBUF_DESTRUCTOR(m, fn)	do {		\
 	(m)->m_ext.ext_free = (fn != NULL) ?		\
@@ -2477,7 +2402,7 @@ static void void_mbuf_dtor(struct mbuf *m) { }
 } while (0)
 
 static inline struct mbuf *
-nm_os_get_mbuf(struct ifnet *ifp, int len)
+nm_os_get_mbuf(if_t ifp, int len)
 {
 	struct mbuf *m;
 
@@ -2495,7 +2420,6 @@ nm_os_get_mbuf(struct ifnet *ifp, int len)
 	return m;
 }
 
-#endif /* __FreeBSD_version >= 1100000 */
 #endif /* __FreeBSD__ */
 
 struct nmreq_option * nmreq_getoption(struct nmreq_header *, uint16_t);

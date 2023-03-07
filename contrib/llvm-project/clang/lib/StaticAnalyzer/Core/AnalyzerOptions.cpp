@@ -77,8 +77,19 @@ AnalyzerOptions::getExplorationStrategy() const {
           .Case("bfs_block_dfs_contents",
                 ExplorationStrategyKind::BFSBlockDFSContents)
           .Default(None);
-  assert(K.hasValue() && "User mode is invalid.");
-  return K.getValue();
+  assert(K && "User mode is invalid.");
+  return K.value();
+}
+
+CTUPhase1InliningKind AnalyzerOptions::getCTUPhase1Inlining() const {
+  auto K = llvm::StringSwitch<llvm::Optional<CTUPhase1InliningKind>>(
+               CTUPhase1InliningMode)
+               .Case("none", CTUPhase1InliningKind::None)
+               .Case("small", CTUPhase1InliningKind::Small)
+               .Case("all", CTUPhase1InliningKind::All)
+               .Default(None);
+  assert(K && "CTU inlining mode is invalid.");
+  return K.value();
 }
 
 IPAKind AnalyzerOptions::getIPAMode() const {
@@ -89,9 +100,9 @@ IPAKind AnalyzerOptions::getIPAMode() const {
           .Case("dynamic", IPAK_DynamicDispatch)
           .Case("dynamic-bifurcate", IPAK_DynamicDispatchBifurcate)
           .Default(None);
-  assert(K.hasValue() && "IPA Mode is invalid.");
+  assert(K && "IPA Mode is invalid.");
 
-  return K.getValue();
+  return K.value();
 }
 
 bool
@@ -109,7 +120,7 @@ AnalyzerOptions::mayInlineCXXMemberFunction(
     .Case("none", CIMK_None)
     .Default(None);
 
-  assert(K.hasValue() && "Invalid c++ member function inlining mode.");
+  assert(K && "Invalid c++ member function inlining mode.");
 
   return *K >= Param;
 }

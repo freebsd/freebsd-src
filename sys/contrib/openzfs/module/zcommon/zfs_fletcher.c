@@ -628,7 +628,7 @@ fletcher_4_kstat_data(char *buf, size_t size, void *data)
 		off += snprintf(buf + off, size - off, "%-17s", "fastest");
 		off += snprintf(buf + off, size - off, "%-15s",
 		    fletcher_4_supp_impls[fastest_stat->native]->name);
-		off += snprintf(buf + off, size - off, "%-15s\n",
+		(void) snprintf(buf + off, size - off, "%-15s\n",
 		    fletcher_4_supp_impls[fastest_stat->byteswap]->name);
 	} else {
 		ptrdiff_t id = curr_stat - fletcher_4_stat_data;
@@ -637,7 +637,7 @@ fletcher_4_kstat_data(char *buf, size_t size, void *data)
 		    fletcher_4_supp_impls[id]->name);
 		off += snprintf(buf + off, size - off, "%-15llu",
 		    (u_longlong_t)curr_stat->native);
-		off += snprintf(buf + off, size - off, "%-15llu\n",
+		(void) snprintf(buf + off, size - off, "%-15llu\n",
 		    (u_longlong_t)curr_stat->byteswap);
 	}
 
@@ -903,12 +903,12 @@ fletcher_4_param_get(char *buffer, zfs_kernel_param_t *unused)
 
 	/* list fastest */
 	fmt = IMPL_FMT(impl, IMPL_FASTEST);
-	cnt += sprintf(buffer + cnt, fmt, "fastest");
+	cnt += kmem_scnprintf(buffer + cnt, PAGE_SIZE - cnt, fmt, "fastest");
 
 	/* list all supported implementations */
 	for (uint32_t i = 0; i < fletcher_4_supp_impls_cnt; ++i) {
 		fmt = IMPL_FMT(impl, i);
-		cnt += sprintf(buffer + cnt, fmt,
+		cnt += kmem_scnprintf(buffer + cnt, PAGE_SIZE - cnt, fmt,
 		    fletcher_4_supp_impls[i]->name);
 	}
 

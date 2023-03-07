@@ -41,6 +41,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/exec.h>
 #include <sys/imgact.h>
 #include <sys/imgact_elf.h>
 #include <sys/lock.h>
@@ -50,10 +51,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/procfs.h>
 #include <sys/reg.h>
 #include <sys/sbuf.h>
+#include <sys/sysent.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 
 #include <machine/elf.h>
 
-#if __ELF_WORD_SIZE == 32
+#ifdef COMPAT_LINUX32
 #define linux_pt_regset linux_pt_regset32
 #define bsd_to_linux_regset bsd_to_linux_regset32
 #include <machine/../linux32/linux.h>
@@ -61,11 +67,33 @@ __FBSDID("$FreeBSD$");
 #include <machine/../linux/linux.h>
 #endif
 #include <compat/linux/linux_elf.h>
-#include <compat/linux/linux_emul.h>
+#include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_misc.h>
 
-/* This adds "linux32_" and "linux64_" prefixes. */
-#define	__linuxN(x)	__CONCAT(__CONCAT(__CONCAT(linux,__ELF_WORD_SIZE),_),x)
+struct l_elf_siginfo {
+	l_int		si_signo;
+	l_int		si_code;
+	l_int		si_errno;
+};
+
+typedef struct linux_pt_regset l_elf_gregset_t;
+
+struct linux_elf_prstatus {
+	struct l_elf_siginfo pr_info;
+	l_short		pr_cursig;
+	l_ulong		pr_sigpend;
+	l_ulong		pr_sighold;
+	l_pid_t		pr_pid;
+	l_pid_t		pr_ppid;
+	l_pid_t		pr_pgrp;
+	l_pid_t		pr_sid;
+	l_timeval	pr_utime;
+	l_timeval	pr_stime;
+	l_timeval	pr_cutime;
+	l_timeval	pr_cstime;
+	l_elf_gregset_t	pr_reg;
+	l_int		pr_fpvalid;
+};
 
 #define	LINUX_NT_AUXV	6
 
@@ -115,7 +143,7 @@ __linuxN(prepare_notes)(struct thread *td, struct note_info_list *list,
 }
 
 typedef struct linux_elf_prstatus linux_elf_prstatus_t;
-#if __ELF_WORD_SIZE == 32
+#ifdef COMPAT_LINUX32
 typedef struct prpsinfo32 linux_elf_prpsinfo_t;
 typedef struct fpreg32 linux_elf_prfpregset_t;
 #else
@@ -192,7 +220,7 @@ __linuxN(note_prstatus)(void *arg, struct sbuf *sb, size_t *sizep)
 {
 	struct thread *td;
 	linux_elf_prstatus_t *status;
-#if __ELF_WORD_SIZE == 32
+#ifdef COMPAT_LINUX32
 	struct reg32 pr_reg;
 #else
 	struct reg pr_reg;
@@ -209,7 +237,7 @@ __linuxN(note_prstatus)(void *arg, struct sbuf *sb, size_t *sizep)
 		status->pr_cursig = td->td_proc->p_sig;
 		status->pr_pid = td->td_tid;
 
-#if __ELF_WORD_SIZE == 32
+#ifdef COMPAT_LINUX32
 		fill_regs32(td, &pr_reg);
 #else
 		fill_regs(td, &pr_reg);
@@ -231,7 +259,7 @@ __linuxN(note_fpregset)(void *arg, struct sbuf *sb, size_t *sizep)
 	if (sb != NULL) {
 		KASSERT(*sizep == sizeof(*fpregset), ("invalid size"));
 		fpregset = malloc(sizeof(*fpregset), M_TEMP, M_ZERO | M_WAITOK);
-#if __ELF_WORD_SIZE == 32
+#ifdef COMPAT_LINUX32
 		fill_fpregs32(td, fpregset);
 #else
 		fill_fpregs(td, fpregset);
@@ -291,4 +319,172 @@ __linuxN(note_nt_auxv)(void *arg, struct sbuf *sb, size_t *sizep)
 		proc_getauxv(curthread, p, sb);
 		PRELE(p);
 	}
+}
+
+/*
+ * Copy strings out to the new process address space, constructing new arg
+ * and env vector tables. Return a pointer to the base so that it can be used
+ * as the initial stack pointer.
+ */
+int
+__linuxN(copyout_strings)(struct image_params *imgp, uintptr_t *stack_base)
+{
+	char canary[LINUX_AT_RANDOM_LEN];
+	char **vectp;
+	char *stringp;
+	uintptr_t destp, ustringp;
+	struct ps_strings *arginfo;
+	struct proc *p;
+	size_t execpath_len;
+	int argc, envc;
+	int error;
+
+	p = imgp->proc;
+	destp =	PROC_PS_STRINGS(p);
+	arginfo = imgp->ps_strings = (void *)destp;
+
+	/*
+	 * Copy the image path for the rtld.
+	 */
+	if (imgp->execpath != NULL && imgp->auxargs != NULL) {
+		execpath_len = strlen(imgp->execpath) + 1;
+		destp -= execpath_len;
+		destp = rounddown2(destp, sizeof(void *));
+		imgp->execpathp = (void *)destp;
+		error = copyout(imgp->execpath, imgp->execpathp, execpath_len);
+		if (error != 0)
+			return (error);
+	}
+
+	/*
+	 * Prepare the canary for SSP.
+	 */
+	arc4rand(canary, sizeof(canary), 0);
+	destp -= sizeof(canary);
+	imgp->canary = (void *)destp;
+	error = copyout(canary, imgp->canary, sizeof(canary));
+	if (error != 0)
+		return (error);
+	imgp->canarylen = sizeof(canary);
+
+	/*
+	 * Allocate room for the argument and environment strings.
+	 */
+	destp -= ARG_MAX - imgp->args->stringspace;
+	destp = rounddown2(destp, sizeof(void *));
+	ustringp = destp;
+
+	if (imgp->auxargs) {
+		/*
+		 * Allocate room on the stack for the ELF auxargs
+		 * array.  It has up to LINUX_AT_COUNT entries.
+		 */
+		destp -= LINUX_AT_COUNT * sizeof(Elf_Auxinfo);
+		destp = rounddown2(destp, sizeof(void *));
+	}
+
+	vectp = (char **)destp;
+
+	/*
+	 * Allocate room for the argv[] and env vectors including the
+	 * terminating NULL pointers.
+	 */
+	vectp -= imgp->args->argc + 1 + imgp->args->envc + 1;
+
+	/*
+	 * Starting with 2.24, glibc depends on a 16-byte stack alignment.
+	 */
+	vectp = (char **)((((uintptr_t)vectp + 8) & ~0xF) - 8);
+
+	/*
+	 * vectp also becomes our initial stack base
+	 */
+	*stack_base = (uintptr_t)vectp;
+
+	stringp = imgp->args->begin_argv;
+	argc = imgp->args->argc;
+	envc = imgp->args->envc;
+
+	/*
+	 * Copy out strings - arguments and environment.
+	 */
+	error = copyout(stringp, (void *)ustringp,
+	    ARG_MAX - imgp->args->stringspace);
+	if (error != 0)
+		return (error);
+
+	/*
+	 * Fill in "ps_strings" struct for ps, w, etc.
+	 */
+	imgp->argv = vectp;
+	if (suword(&arginfo->ps_argvstr, (long)(intptr_t)vectp) != 0 ||
+	    suword32(&arginfo->ps_nargvstr, argc) != 0)
+		return (EFAULT);
+
+	/*
+	 * Fill in argument portion of vector table.
+	 */
+	for (; argc > 0; --argc) {
+		if (suword(vectp++, ustringp) != 0)
+			return (EFAULT);
+		while (*stringp++ != 0)
+			ustringp++;
+		ustringp++;
+	}
+
+	/* a null vector table pointer separates the argp's from the envp's */
+	if (suword(vectp++, 0) != 0)
+		return (EFAULT);
+
+	imgp->envv = vectp;
+	if (suword(&arginfo->ps_envstr, (long)(intptr_t)vectp) != 0 ||
+	    suword32(&arginfo->ps_nenvstr, envc) != 0)
+		return (EFAULT);
+
+	/*
+	 * Fill in environment portion of vector table.
+	 */
+	for (; envc > 0; --envc) {
+		if (suword(vectp++, ustringp) != 0)
+			return (EFAULT);
+		while (*stringp++ != 0)
+			ustringp++;
+		ustringp++;
+	}
+
+	/* end of vector table is a null pointer */
+	if (suword(vectp, 0) != 0)
+		return (EFAULT);
+
+	if (imgp->auxargs) {
+		vectp++;
+		error = imgp->sysent->sv_copyout_auxargs(imgp,
+		    (uintptr_t)vectp);
+		if (error != 0)
+			return (error);
+	}
+
+	return (0);
+}
+
+bool
+linux_trans_osrel(const Elf_Note *note, int32_t *osrel)
+{
+	const Elf32_Word *desc;
+	uintptr_t p;
+
+	p = (uintptr_t)(note + 1);
+	p += roundup2(note->n_namesz, sizeof(Elf32_Addr));
+
+	desc = (const Elf32_Word *)p;
+	if (desc[0] != GNU_ABI_LINUX)
+		return (false);
+	/*
+	 * For Linux we encode osrel using the Linux convention of
+	 * 	(version << 16) | (major << 8) | (minor)
+	 * See macro in linux_mib.h
+	 */
+	*osrel = LINUX_KERNVER(desc[1], desc[2], desc[3]);
+
+	return (true);
 }

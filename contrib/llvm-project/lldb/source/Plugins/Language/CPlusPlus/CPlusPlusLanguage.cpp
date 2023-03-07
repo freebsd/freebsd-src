@@ -29,6 +29,7 @@
 #include "lldb/DataFormatters/VectorType.h"
 #include "lldb/Symbol/SymbolFile.h"
 #include "lldb/Utility/ConstString.h"
+#include "lldb/Utility/LLDBLog.h"
 #include "lldb/Utility/Log.h"
 #include "lldb/Utility/RegularExpression.h"
 
@@ -217,10 +218,10 @@ void CPlusPlusLanguage::MethodName::Parse() {
     } else {
       CPlusPlusNameParser parser(m_full.GetStringRef());
       if (auto function = parser.ParseAsFunctionDefinition()) {
-        m_basename = function.getValue().name.basename;
-        m_context = function.getValue().name.context;
-        m_arguments = function.getValue().arguments;
-        m_qualifiers = function.getValue().qualifiers;
+        m_basename = function.value().name.basename;
+        m_context = function.value().name.context;
+        m_arguments = function.value().arguments;
+        m_qualifiers = function.value().qualifiers;
         m_parse_error = false;
       } else {
         m_parse_error = true;
@@ -267,6 +268,41 @@ std::string CPlusPlusLanguage::MethodName::GetScopeQualifiedName() {
   return res;
 }
 
+bool CPlusPlusLanguage::MethodName::ContainsPath(llvm::StringRef path) {
+  if (!m_parsed)
+    Parse();
+  // If we can't parse the incoming name, then just check that it contains path.
+  if (m_parse_error)
+    return m_full.GetStringRef().contains(path);
+    
+  llvm::StringRef identifier;
+  llvm::StringRef context;
+  std::string path_str = path.str();
+  bool success 
+      = CPlusPlusLanguage::ExtractContextAndIdentifier(path_str.c_str(),
+                                                       context,
+                                                       identifier);
+  if (!success)
+    return m_full.GetStringRef().contains(path);
+
+  if (identifier != GetBasename())
+    return false;
+  // Incoming path only had an identifier, so we match.
+  if (context.empty())
+    return true;
+  // Incoming path has context but this method does not, no match.
+  if (m_context.empty())
+    return false;
+
+  llvm::StringRef haystack = m_context;
+  if (!haystack.consume_back(context))
+    return false;
+  if (haystack.empty() || !isalnum(haystack.back()))
+    return true;
+    
+  return false;
+}
+
 bool CPlusPlusLanguage::IsCPPMangledName(llvm::StringRef name) {
   // FIXME!! we should really run through all the known C++ Language plugins
   // and ask each one if this is a C++ mangled name
@@ -279,6 +315,12 @@ bool CPlusPlusLanguage::IsCPPMangledName(llvm::StringRef name) {
   return true;
 }
 
+bool CPlusPlusLanguage::DemangledNameContainsPath(llvm::StringRef path, 
+                                                  ConstString demangled) const {
+  MethodName demangled_name(demangled);
+  return demangled_name.ContainsPath(path);
+}
+
 bool CPlusPlusLanguage::ExtractContextAndIdentifier(
     const char *name, llvm::StringRef &context, llvm::StringRef &identifier) {
   if (MSVCUndecoratedNameParser::IsMSVCUndecoratedName(name))
@@ -287,8 +329,8 @@ bool CPlusPlusLanguage::ExtractContextAndIdentifier(
 
   CPlusPlusNameParser parser(name);
   if (auto full_name = parser.ParseAsFullName()) {
-    identifier = full_name.getValue().basename;
-    context = full_name.getValue().context;
+    identifier = full_name.value().basename;
+    context = full_name.value().context;
     return true;
   }
   return false;
@@ -337,7 +379,7 @@ protected:
   }
 
   ConstString substituteImpl(llvm::StringRef Mangled) {
-    Log *log = GetLogIfAllCategoriesSet(LIBLLDB_LOG_LANGUAGE);
+    Log *log = GetLog(LLDBLog::Language);
     if (this->parse() == nullptr) {
       LLDB_LOG(log, "Failed to substitute mangling in {0}", Mangled);
       return ConstString();
@@ -367,12 +409,12 @@ protected:
 private:
   /// Input character until which we have constructed the respective output
   /// already.
-  const char *Written;
+  const char *Written = "";
 
   llvm::SmallString<128> Result;
 
   /// Whether we have performed any substitutions.
-  bool Substituted;
+  bool Substituted = false;
 
   const char *currentParserPos() const { return this->First; }
 
@@ -714,6 +756,12 @@ static void LoadLibCxxFormatters(lldb::TypeCategoryImplSP cpp_category_sp) {
       lldb_private::formatters::LibcxxAtomicSyntheticFrontEndCreator,
       "libc++ std::atomic synthetic children",
       ConstString("^std::__[[:alnum:]]+::atomic<.+>$"), stl_synth_flags, true);
+  AddCXXSynthetic(
+      cpp_category_sp,
+      lldb_private::formatters::LibcxxStdSpanSyntheticFrontEndCreator,
+      "libc++ std::span synthetic children",
+      ConstString("^std::__[[:alnum:]]+::span<.+>(( )?&)?$"), stl_deref_flags,
+      true);
 
   cpp_category_sp->GetRegexTypeSyntheticsContainer()->Add(
       RegularExpression("^(std::__[[:alnum:]]+::)deque<.+>(( )?&)?$"),
@@ -827,6 +875,11 @@ static void LoadLibCxxFormatters(lldb::TypeCategoryImplSP cpp_category_sp) {
                 "libc++ std::variant summary provider",
                 ConstString("^std::__[[:alnum:]]+::variant<.+>(( )?&)?$"),
                 stl_summary_flags, true);
+  AddCXXSummary(cpp_category_sp,
+                lldb_private::formatters::LibcxxContainerSummaryProvider,
+                "libc++ std::span summary provider",
+                ConstString("^std::__[[:alnum:]]+::span<.+>(( )?&)?$"),
+                stl_summary_flags, true);
 
   stl_summary_flags.SetSkipPointers(true);
 
@@ -856,8 +909,16 @@ static void LoadLibCxxFormatters(lldb::TypeCategoryImplSP cpp_category_sp) {
       cpp_category_sp,
       lldb_private::formatters::LibCxxMapIteratorSyntheticFrontEndCreator,
       "std::map iterator synthetic children",
-      ConstString("^std::__[[:alnum:]]+::__map_iterator<.+>$"), stl_synth_flags,
+      ConstString("^std::__[[:alnum:]]+::__map_(const_)?iterator<.+>$"), stl_synth_flags,
       true);
+
+  AddCXXSynthetic(
+      cpp_category_sp,
+      lldb_private::formatters::
+          LibCxxUnorderedMapIteratorSyntheticFrontEndCreator,
+      "std::unordered_map iterator synthetic children",
+      ConstString("^std::__[[:alnum:]]+::__hash_map_(const_)?iterator<.+>$"),
+      stl_synth_flags, true);
 }
 
 static void LoadLibStdcppFormatters(lldb::TypeCategoryImplSP cpp_category_sp) {

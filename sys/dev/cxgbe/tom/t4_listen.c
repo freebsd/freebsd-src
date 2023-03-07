@@ -519,7 +519,7 @@ t4_listen_start(struct toedev *tod, struct tcpcb *tp)
 	struct adapter *sc = tod->tod_softc;
 	struct vi_info *vi;
 	struct port_info *pi;
-	struct inpcb *inp = tp->t_inpcb;
+	struct inpcb *inp = tptoinpcb(tp);
 	struct listen_ctx *lctx;
 	int i, rc, v;
 	struct offload_settings settings;
@@ -615,7 +615,7 @@ t4_listen_stop(struct toedev *tod, struct tcpcb *tp)
 {
 	struct listen_ctx *lctx;
 	struct adapter *sc = tod->tod_softc;
-	struct inpcb *inp = tp->t_inpcb;
+	struct inpcb *inp = tptoinpcb(tp);
 
 	INP_WLOCK_ASSERT(inp);
 

@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -38,19 +38,19 @@
 
 #include <stdbool.h>
 
-#if BC_C11
-#include <assert.h>
-#endif // BC_C11
-
+// These have to come first to silence a warning on BC_C11 below.
 #include <status.h>
 #include <vector.h>
 #include <num.h>
+
+#if BC_C11
+#include <assert.h>
+#endif // BC_C11
 
 /// The instructions for bytecode.
 typedef enum BcInst
 {
 #if BC_ENABLED
-
 	/// Postfix increment and decrement. Prefix are translated into
 	/// BC_INST_ONE with either BC_INST_ASSIGN_PLUS or BC_INST_ASSIGN_MINUS.
 	BC_INST_INC = 0,
@@ -62,6 +62,7 @@ typedef enum BcInst
 
 	/// Boolean not.
 	BC_INST_BOOL_NOT,
+
 #if BC_ENABLE_EXTRA_MATH
 	/// Truncation operator.
 	BC_INST_TRUNC,
@@ -76,7 +77,6 @@ typedef enum BcInst
 	BC_INST_MINUS,
 
 #if BC_ENABLE_EXTRA_MATH
-
 	/// Places operator.
 	BC_INST_PLACES,
 
@@ -178,6 +178,8 @@ typedef enum BcInst
 	BC_INST_SCALE_FUNC,
 	BC_INST_SQRT,
 	BC_INST_ABS,
+	BC_INST_IS_NUMBER,
+	BC_INST_IS_STRING,
 
 #if BC_ENABLE_EXTRA_MATH
 	/// Another builtin function.
@@ -275,6 +277,9 @@ typedef enum BcInst
 
 #if DC_ENABLED
 
+	/// dc extended registers command.
+	BC_INST_EXTENDED_REGISTERS,
+
 	/// dc's return; it pops an executing string off of the stack.
 	BC_INST_POP_EXEC,
 
@@ -350,6 +355,12 @@ typedef struct BcLoc
 	/// The index of the var or array.
 	size_t loc;
 
+	/// The index of the array or variable in the array stack. This is to
+	/// prevent a bug with getting the wrong array element or variable after a
+	/// function call. See the tests/bc/scripts/array.bc test for the array
+	/// case; the variable case is in various variable tests.
+	size_t stack_idx;
+
 	/// The index of the array element. Only used for array elements.
 	size_t idx;
 
@@ -391,12 +402,6 @@ typedef struct BcFunc
 	size_t nparams;
 
 #endif // BC_ENABLED
-
-	/// The strings encountered in the function.
-	BcVec strs;
-
-	/// The constants encountered in the function.
-	BcVec consts;
 
 	/// The function's name.
 	const char* name;
@@ -573,7 +578,7 @@ bc_func_insert(BcFunc* f, struct BcProgram* p, char* name, BcType type,
 void
 bc_func_reset(BcFunc* f);
 
-#ifndef NDEBUG
+#if BC_DEBUG
 /**
  * Frees a function. This is a destructor. This is only used in debug builds
  * because all functions are freed at exit. We free them in debug builds to
@@ -582,7 +587,7 @@ bc_func_reset(BcFunc* f);
  */
 void
 bc_func_free(void* func);
-#endif // NDEBUG
+#endif // BC_DEBUG
 
 /**
  * Initializes an array, which is the array type in bc and dc source code. Since
@@ -659,17 +664,6 @@ bc_result_free(void* result);
  */
 void
 bc_array_expand(BcVec* a, size_t len);
-
-/**
- * Compare two BcId's and return the result. Since they are just comparing the
- * names in the BcId, I return the result from strcmp() exactly. This is used by
- * maps in their binary search.
- * @param e1  The first id.
- * @param e2  The second id.
- * @return    The result of strcmp() on the BcId's names.
- */
-int
-bc_id_cmp(const BcId* e1, const BcId* e2);
 
 #if BC_ENABLED
 

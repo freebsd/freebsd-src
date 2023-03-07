@@ -1,5 +1,5 @@
-#ifndef _expr.oxout__defines_h_
-#define _expr.oxout__defines_h_
+#ifndef _expr_oxout__defines_h_
+#define _expr_oxout__defines_h_
 
 #define ID 257
 #define CONST 258
@@ -15,6 +15,6 @@ struct yyyStackItem *yyyOxStackItem;
 } yyyOxAttrbs;
 } YYSTYPE;
 #endif /* !YYSTYPE_IS_DECLARED */
-extern YYSTYPE expr.oxout_lval;
+extern YYSTYPE expr_oxout_lval;
 
-#endif /* _expr.oxout__defines_h_ */
+#endif /* _expr_oxout__defines_h_ */

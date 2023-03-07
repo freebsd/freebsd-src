@@ -167,8 +167,10 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 				*dst++ = *data++;
 			dsb(ish);
 
-			/* Clean D-cache and invalidate I-cache */
-			cpu_dcache_wb_range(addr, (vm_size_t)size);
+			/*
+			 * Ensure the I & D cache are in sync if we wrote
+			 * to executable memory.
+			 */
 			cpu_icache_sync_range(addr, (vm_size_t)size);
 		}
 	}

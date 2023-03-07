@@ -24,7 +24,7 @@
 .\"
 .\" $Id: dwarf_get_AT_name.3 3644 2018-10-15 19:55:01Z jkoshy $
 .\"
-.Dd April 22, 2011
+.Dd January 30, 2023
 .Dt DWARF_GET_AT_NAME 3
 .Os
 .Sh NAME
@@ -48,6 +48,7 @@
 .Nm dwarf_get_OP_name ,
 .Nm dwarf_get_ORD_name ,
 .Nm dwarf_get_TAG_name ,
+.Nm dwarf_get_UT_name ,
 .Nm dwarf_get_VIRTUALITY_name ,
 .Nm dwarf_get_VIS_name
 .Nd retrieve the symbolic names of DWARF constants
@@ -156,6 +157,11 @@
 .Fa "char **str"
 .Fc
 .Ft int
+.Fo dwarf_get_UT_name
+.Fa "unsigned unit_type"
+.Fa "const char **str"
+.Fc
+.Ft int
 .Fo dwarf_get_VIRTUALITY_name
 .Fa "unsigned val"
 .Fa "char **str"
@@ -240,6 +246,9 @@ constants.
 constants.
 .It Fn dwarf_get_TAG_name
 .Dv DW_TAG_*
+constants.
+.It Fn dwarf_get_UT_name
+.Dv DW_UT_*
 constants.
 .It Fn dwarf_get_VIRTUALITY_name
 .Dv DW_VIRTUALITY_*

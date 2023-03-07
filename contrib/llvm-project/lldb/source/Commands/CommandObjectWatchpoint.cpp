@@ -18,6 +18,7 @@
 #include "lldb/Core/ValueObject.h"
 #include "lldb/Host/OptionParser.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
+#include "lldb/Interpreter/CommandOptionArgumentTable.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
 #include "lldb/Symbol/Variable.h"
 #include "lldb/Symbol/VariableList.h"
@@ -164,7 +165,7 @@ public:
 
   class CommandOptions : public Options {
   public:
-    CommandOptions() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
@@ -454,7 +455,7 @@ public:
 
   class CommandOptions : public Options {
   public:
-    CommandOptions() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
@@ -577,7 +578,7 @@ public:
 
   class CommandOptions : public Options {
   public:
-    CommandOptions() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
@@ -702,7 +703,7 @@ public:
 
   class CommandOptions : public Options {
   public:
-    CommandOptions() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
@@ -929,7 +930,7 @@ protected:
         // We're in business.
         // Find out the size of this variable.
         size = m_option_watchpoint.watch_size == 0
-                   ? valobj_sp->GetByteSize().getValueOr(0)
+                   ? valobj_sp->GetByteSize().value_or(0)
                    : m_option_watchpoint.watch_size;
       }
       compiler_type = valobj_sp->GetCompilerType();

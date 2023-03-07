@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.-include <local.sysdir.mk>
+
 # Search for kernel source tree in standard places.
 .if !defined(SYSDIR)
 .for _dir in ${SRCTOP:D${SRCTOP}/sys} \

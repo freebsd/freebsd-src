@@ -174,6 +174,9 @@ def err_stmtexpr_file_scope : Error<
   "statement expression not allowed at file scope">;
 def ext_gnu_statement_expr : Extension<
   "use of GNU statement expression extension">, InGroup<GNUStatementExpression>;
+def ext_gnu_statement_expr_macro : Extension<
+  "use of GNU statement expression extension from macro expansion">,
+  InGroup<GNUStatementExpressionFromMacroExpansion>;
 def ext_gnu_conditional_expr : Extension<
   "use of GNU ?: conditional expression extension, omitting middle operand">, InGroup<GNUConditionalOmittedOperand>;
 def ext_gnu_empty_initializer : Extension<
@@ -279,7 +282,7 @@ def err_inline_nested_namespace_definition : Error<
 def err_expected_semi_after_attribute_list : Error<
   "expected ';' after attribute list">;
 def err_expected_semi_after_static_assert : Error<
-  "expected ';' after static_assert">;
+  "expected ';' after '%0'">;
 def err_expected_semi_for : Error<"expected ';' in 'for' statement specifier">;
 def err_single_decl_assign_in_for_range : Error<
   "range-based 'for' statement uses ':', not '='">;
@@ -422,7 +425,7 @@ def err_unexpected_token_in_nested_name_spec : Error<
 def err_bool_redeclaration : Error<
   "redeclaration of C++ built-in type 'bool'">;
 def warn_cxx98_compat_static_assert : Warning<
-  "static_assert declarations are incompatible with C++98">,
+  "'static_assert' declarations are incompatible with C++98">,
   InGroup<CXX98Compat>, DefaultIgnore;
 def ext_ms_static_assert : ExtWarn<
   "use of 'static_assert' without inclusion of <assert.h> is a Microsoft "
@@ -535,6 +538,8 @@ def err_invalid_operator_on_type : Error<
   "cannot use %select{dot|arrow}0 operator on a type">;
 def err_expected_unqualified_id : Error<
   "expected %select{identifier|unqualified-id}0">;
+def err_while_loop_outside_of_a_function : Error<
+  "while loop outside of a function">; 
 def err_brackets_go_after_unqualified_id : Error<
   "brackets are not allowed here; to declare an array, "
   "place the brackets after the %select{identifier|name}0">;
@@ -719,6 +724,8 @@ def err_attributes_misplaced : Error<"misplaced attributes; expected attributes 
 def err_l_square_l_square_not_attribute : Error<
   "C++11 only allows consecutive left square brackets when "
   "introducing an attribute">;
+def err_attribute_argument_parm_pack_not_supported : Error<
+  "attribute %0 does not support argument pack expansion">;
 def err_ms_declspec_type : Error<
   "__declspec attributes must be an identifier or string literal">;
 def err_ms_property_no_getter_or_putter : Error<
@@ -1164,10 +1171,6 @@ def warn_pragma_pack_malformed : Warning<
 def warn_pragma_intrinsic_builtin : Warning<
   "%0 is not a recognized builtin%select{|; consider including <intrin.h> to access non-builtin intrinsics}1">,
   InGroup<IgnoredPragmaIntrinsic>;
-// - #pragma optimize
-def warn_pragma_optimize : Warning<
-  "'#pragma optimize' is not supported">,
-  InGroup<IgnoredPragmaOptimize>;
 // - #pragma unused
 def warn_pragma_unused_expected_var : Warning<
   "expected '#pragma unused' argument to be a variable name">,
@@ -1235,8 +1238,6 @@ def err_pragma_attribute_extra_tokens_after_attribute : Error<
   "extra tokens after attribute in a '#pragma clang attribute push'">;
 def err_pragma_attribute_unsupported_attribute : Error<
   "attribute %0 is not supported by '#pragma clang attribute'">;
-def err_pragma_attribute_multiple_attributes : Error<
-  "more than one attribute specified in '#pragma clang attribute push'">;
 def err_pragma_attribute_expected_attribute_syntax : Error<
   "expected an attribute that is specified using the GNU, C++11 or '__declspec'"
   " syntax">;
@@ -1265,6 +1266,9 @@ def err_pragma_attribute_namespace_on_attribute : Error<
 def note_pragma_attribute_namespace_on_attribute : Note<
   "omit the namespace to add attributes to the most-recently"
   " pushed attribute group">;
+def warn_no_support_for_eval_method_source_on_m32 : Warning<
+  "Setting the floating point evaluation method to `source` on a target"
+  " without SSE is not supported.">, InGroup<Pragmas>;
 
 // OpenCL EXTENSION pragma (OpenCL 1.1 [9.1])
 def warn_pragma_expected_colon : Warning<
@@ -1272,7 +1276,7 @@ def warn_pragma_expected_colon : Warning<
 def warn_pragma_expected_predicate : Warning<
   "expected %select{'enable', 'disable', 'begin' or 'end'|'disable'}0 - ignoring">, InGroup<IgnoredPragmas>;
 def warn_pragma_unknown_extension : Warning<
-  "unknown OpenCL extension %0 - ignoring">, InGroup<IgnoredPragmas>;
+  "OpenCL extension %0 unknown or does not require pragma - ignoring">, InGroup<IgnoredPragmas>;
 def warn_pragma_unsupported_extension : Warning<
   "unsupported OpenCL extension %0 - ignoring">, InGroup<IgnoredPragmas>;
 def warn_pragma_extension_is_core : Warning<
@@ -1461,6 +1465,12 @@ def warn_omp51_compat_attributes : Warning<
 def err_omp_expected_colon : Error<"missing ':' in %0">;
 def err_omp_expected_context_selector
     : Error<"expected valid context selector in %0">;
+def err_omp_requires_out_inout_depend_type : Error<
+  "reserved locator 'omp_all_memory' requires 'out' or 'inout' "
+  "dependency types">;
+def warn_omp_more_one_omp_all_memory : Warning<
+  "reserved locator 'omp_all_memory' cannot be specified more than once">,
+  InGroup<OpenMPClauses>;
 
 // Pragma loop support.
 def err_pragma_loop_missing_argument : Error<
@@ -1484,7 +1494,8 @@ def err_pragma_fp_invalid_argument : Error<
   "%select{"
   "'fast' or 'on' or 'off'|"
   "'on' or 'off'|"
-  "'ignore', 'maytrap' or 'strict'}2">;
+  "'ignore', 'maytrap' or 'strict'|"
+  "'source', 'double' or 'extended'}2">;
 
 def err_pragma_invalid_keyword : Error<
   "invalid argument; expected 'enable'%select{|, 'full'}0%select{|, 'assume_safety'}1 or 'disable'">;
@@ -1536,7 +1547,13 @@ def err_private_module_fragment_expected_semi : Error<
   "expected ';' after private module fragment declaration">;
 def err_missing_before_module_end : Error<"expected %0 at end of module">;
 def err_unsupported_module_partition : Error<
-  "sorry, module partitions are not yet supported">;
+  "module partitions are only supported for C++20 onwards">;
+def err_import_not_allowed_here : Error<
+  "imports must immediately follow the module declaration">;
+def err_partition_import_outside_module : Error<
+  "module partition imports must be within a module purview">;
+def err_import_in_wrong_fragment : Error<
+  "module%select{| partition}0 imports cannot be in the %select{global|private}1 module fragment">;
 
 def err_export_empty : Error<"export declaration cannot be empty">;
 }
@@ -1583,5 +1600,14 @@ def warn_max_tokens_total : Warning<
   InGroup<MaxTokens>, DefaultIgnore;
 
 def note_max_tokens_total_override : Note<"total token limit set here">;
+
+// HLSL Parser Diagnostics
+
+def err_expected_semantic_identifier : Error<
+  "expected HLSL Semantic identifier">;
+def err_unknown_hlsl_semantic : Error<"unknown HLSL semantic %0">;
+def ext_hlsl_access_specifiers : ExtWarn<
+  "access specifiers are a clang HLSL extension">,
+  InGroup<HLSLExtension>;
 
 } // end of Parser diagnostics

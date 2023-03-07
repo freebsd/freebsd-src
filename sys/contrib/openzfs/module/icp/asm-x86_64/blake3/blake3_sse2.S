@@ -30,29 +30,12 @@
 #define _ASM
 #include <sys/asm_linkage.h>
 
-#if defined(__ELF__) && defined(__CET__) && defined(__has_include)
-#if __has_include(<cet.h>)
-#include <cet.h>
-#endif
-#endif
-
-#if !defined(_CET_ENDBR)
-#define _CET_ENDBR
-#endif
-
 .intel_syntax noprefix
-.global zfs_blake3_hash_many_sse2
-.global zfs_blake3_compress_in_place_sse2
-.global zfs_blake3_compress_xof_sse2
 
-.text
-.type zfs_blake3_hash_many_sse2,@function
-.type zfs_blake3_compress_in_place_sse2,@function
-.type zfs_blake3_compress_xof_sse2,@function
+SECTION_TEXT
 
-        .p2align  6
-zfs_blake3_hash_many_sse2:
-        _CET_ENDBR
+ENTRY_ALIGN(zfs_blake3_hash_many_sse2, 64)
+        ENDBR
         push    r15
         push    r14
         push    r13
@@ -2047,10 +2030,10 @@ zfs_blake3_hash_many_sse2:
         movups  xmmword ptr [rbx], xmm0
         movups  xmmword ptr [rbx+0x10], xmm1
         jmp     4b
+SET_SIZE(zfs_blake3_hash_many_sse2)
 
-.p2align 6
-zfs_blake3_compress_in_place_sse2:
-        _CET_ENDBR
+ENTRY_ALIGN(zfs_blake3_compress_in_place_sse2, 64)
+        ENDBR
         movups  xmm0, xmmword ptr [rdi]
         movups  xmm1, xmmword ptr [rdi+0x10]
         movaps  xmm2, xmmword ptr [BLAKE3_IV+rip]
@@ -2158,10 +2141,10 @@ zfs_blake3_compress_in_place_sse2:
         movups  xmmword ptr [rdi], xmm0
         movups  xmmword ptr [rdi+0x10], xmm1
         RET
+SET_SIZE(zfs_blake3_compress_in_place_sse2)
 
-.p2align 6
-zfs_blake3_compress_xof_sse2:
-        _CET_ENDBR
+ENTRY_ALIGN(zfs_blake3_compress_xof_sse2, 64)
+        ENDBR
         movups  xmm0, xmmword ptr [rdi]
         movups  xmm1, xmmword ptr [rdi+0x10]
         movaps  xmm2, xmmword ptr [BLAKE3_IV+rip]
@@ -2277,21 +2260,14 @@ zfs_blake3_compress_xof_sse2:
         movups  xmmword ptr [r9+0x20], xmm2
         movups  xmmword ptr [r9+0x30], xmm3
         RET
+SET_SIZE(zfs_blake3_compress_xof_sse2)
 
-.size zfs_blake3_hash_many_sse2, . - zfs_blake3_hash_many_sse2
-.size zfs_blake3_compress_in_place_sse2, . - zfs_blake3_compress_in_place_sse2
-.size zfs_blake3_compress_xof_sse2, . - zfs_blake3_compress_xof_sse2
-
-#ifdef __APPLE__
-.static_data
-#else
-.section .rodata
-#endif
+SECTION_STATIC
 .p2align  6
 BLAKE3_IV:
         .long  0x6A09E667, 0xBB67AE85
         .long  0x3C6EF372, 0xA54FF53A
-ADD0:	
+ADD0:
         .long  0, 1, 2, 3
 ADD1:
 	.long  4, 4, 4, 4

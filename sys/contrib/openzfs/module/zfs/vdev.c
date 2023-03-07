@@ -81,22 +81,22 @@
  * 1 << (spa_slop_shift + 1), on small pools the usable space may be reduced
  * (by more than 1<<spa_slop_shift) due to the embedded slog metaslab.
  */
-static int zfs_embedded_slog_min_ms = 64;
+static uint_t zfs_embedded_slog_min_ms = 64;
 
 /* default target for number of metaslabs per top-level vdev */
-static int zfs_vdev_default_ms_count = 200;
+static uint_t zfs_vdev_default_ms_count = 200;
 
 /* minimum number of metaslabs per top-level vdev */
-static int zfs_vdev_min_ms_count = 16;
+static uint_t zfs_vdev_min_ms_count = 16;
 
 /* practical upper limit of total metaslabs per top-level vdev */
-static int zfs_vdev_ms_count_limit = 1ULL << 17;
+static uint_t zfs_vdev_ms_count_limit = 1ULL << 17;
 
 /* lower limit for metaslab size (512M) */
-static int zfs_vdev_default_ms_shift = 29;
+static uint_t zfs_vdev_default_ms_shift = 29;
 
 /* upper limit for metaslab size (16G) */
-static const int zfs_vdev_max_ms_shift = 34;
+static const uint_t zfs_vdev_max_ms_shift = 34;
 
 int vdev_validate_skip = B_FALSE;
 
@@ -136,8 +136,16 @@ int zfs_vdev_standard_sm_blksz = (1 << 17);
  */
 int zfs_nocacheflush = 0;
 
-uint64_t zfs_vdev_max_auto_ashift = ASHIFT_MAX;
-uint64_t zfs_vdev_min_auto_ashift = ASHIFT_MIN;
+/*
+ * Maximum and minimum ashift values that can be automatically set based on
+ * vdev's physical ashift (disk's physical sector size).  While ASHIFT_MAX
+ * is higher than the maximum value, it is intentionally limited here to not
+ * excessively impact pool space efficiency.  Higher ashift values may still
+ * be forced by vdev logical ashift or by user via ashift property, but won't
+ * be set automatically as a performance optimization.
+ */
+uint_t zfs_vdev_max_auto_ashift = 14;
+uint_t zfs_vdev_min_auto_ashift = ASHIFT_MIN;
 
 void
 vdev_dbgmsg(vdev_t *vd, const char *fmt, ...)
@@ -216,7 +224,7 @@ vdev_dbgmsg_print_tree(vdev_t *vd, int indent)
  * Virtual device management.
  */
 
-static const vdev_ops_t *const vdev_ops_table[] = {
+static vdev_ops_t *const vdev_ops_table[] = {
 	&vdev_root_ops,
 	&vdev_raidz_ops,
 	&vdev_draid_ops,
@@ -238,7 +246,7 @@ static const vdev_ops_t *const vdev_ops_table[] = {
 static vdev_ops_t *
 vdev_getops(const char *type)
 {
-	const vdev_ops_t *ops, *const *opspp;
+	vdev_ops_t *ops, *const *opspp;
 
 	for (opspp = vdev_ops_table; (ops = *opspp) != NULL; opspp++)
 		if (strcmp(ops->vdev_op_type, type) == 0)
@@ -379,6 +387,31 @@ vdev_get_nparity(vdev_t *vd)
 		nparity = vd->vdev_ops->vdev_op_nparity(vd);
 
 	return (nparity);
+}
+
+static int
+vdev_prop_get_int(vdev_t *vd, vdev_prop_t prop, uint64_t *value)
+{
+	spa_t *spa = vd->vdev_spa;
+	objset_t *mos = spa->spa_meta_objset;
+	uint64_t objid;
+	int err;
+
+	if (vd->vdev_top_zap != 0) {
+		objid = vd->vdev_top_zap;
+	} else if (vd->vdev_leaf_zap != 0) {
+		objid = vd->vdev_leaf_zap;
+	} else {
+		return (EINVAL);
+	}
+
+	err = zap_lookup(mos, objid, vdev_prop_to_name(prop),
+	    sizeof (uint64_t), 1, value);
+
+	if (err == ENOENT)
+		*value = vdev_prop_default_numeric(prop);
+
+	return (err);
 }
 
 /*
@@ -633,6 +666,14 @@ vdev_alloc_common(spa_t *spa, uint_t id, uint64_t guid, vdev_ops_t *ops)
 	    1);
 	zfs_ratelimit_init(&vd->vdev_checksum_rl,
 	    &zfs_checksum_events_per_second, 1);
+
+	/*
+	 * Default Thresholds for tuning ZED
+	 */
+	vd->vdev_checksum_n = vdev_prop_default_numeric(VDEV_PROP_CHECKSUM_N);
+	vd->vdev_checksum_t = vdev_prop_default_numeric(VDEV_PROP_CHECKSUM_T);
+	vd->vdev_io_n = vdev_prop_default_numeric(VDEV_PROP_IO_N);
+	vd->vdev_io_t = vdev_prop_default_numeric(VDEV_PROP_IO_T);
 
 	list_link_init(&vd->vdev_config_dirty_node);
 	list_link_init(&vd->vdev_state_dirty_node);
@@ -1846,6 +1887,24 @@ vdev_set_deflate_ratio(vdev_t *vd)
 }
 
 /*
+ * Choose the best of two ashifts, preferring one between logical ashift
+ * (absolute minimum) and administrator defined maximum, otherwise take
+ * the biggest of the two.
+ */
+uint64_t
+vdev_best_ashift(uint64_t logical, uint64_t a, uint64_t b)
+{
+	if (a > logical && a <= zfs_vdev_max_auto_ashift) {
+		if (b <= logical || b > zfs_vdev_max_auto_ashift)
+			return (a);
+		else
+			return (MAX(a, b));
+	} else if (b <= logical || b > zfs_vdev_max_auto_ashift)
+		return (MAX(a, b));
+	return (b);
+}
+
+/*
  * Maximize performance by inflating the configured ashift for top level
  * vdevs to be as close to the physical ashift as possible while maintaining
  * administrator defined limits and ensuring it doesn't go below the
@@ -1856,7 +1915,8 @@ vdev_ashift_optimize(vdev_t *vd)
 {
 	ASSERT(vd == vd->vdev_top);
 
-	if (vd->vdev_ashift < vd->vdev_physical_ashift) {
+	if (vd->vdev_ashift < vd->vdev_physical_ashift &&
+	    vd->vdev_physical_ashift <= zfs_vdev_max_auto_ashift) {
 		vd->vdev_ashift = MIN(
 		    MAX(zfs_vdev_max_auto_ashift, vd->vdev_ashift),
 		    MAX(zfs_vdev_min_auto_ashift,
@@ -1921,6 +1981,14 @@ vdev_open(vdev_t *vd)
 
 	error = vd->vdev_ops->vdev_op_open(vd, &osize, &max_osize,
 	    &logical_ashift, &physical_ashift);
+
+	/* Keep the device in removed state if unplugged */
+	if (error == ENOENT && vd->vdev_removed) {
+		vdev_set_state(vd, B_TRUE, VDEV_STATE_REMOVED,
+		    VDEV_AUX_NONE);
+		return (error);
+	}
+
 	/*
 	 * Physical volume size should never be larger than its max size, unless
 	 * the disk has shrunk while we were reading it or the device is buggy
@@ -3139,6 +3207,34 @@ vdev_dtl_reassess(vdev_t *vd, uint64_t txg, uint64_t scrub_txg,
 	mutex_exit(&vd->vdev_dtl_lock);
 }
 
+/*
+ * Iterate over all the vdevs except spare, and post kobj events
+ */
+void
+vdev_post_kobj_evt(vdev_t *vd)
+{
+	if (vd->vdev_ops->vdev_op_kobj_evt_post &&
+	    vd->vdev_kobj_flag == B_FALSE) {
+		vd->vdev_kobj_flag = B_TRUE;
+		vd->vdev_ops->vdev_op_kobj_evt_post(vd);
+	}
+
+	for (int c = 0; c < vd->vdev_children; c++)
+		vdev_post_kobj_evt(vd->vdev_child[c]);
+}
+
+/*
+ * Iterate over all the vdevs except spare, and clear kobj events
+ */
+void
+vdev_clear_kobj_evt(vdev_t *vd)
+{
+	vd->vdev_kobj_flag = B_FALSE;
+
+	for (int c = 0; c < vd->vdev_children; c++)
+		vdev_clear_kobj_evt(vd->vdev_child[c]);
+}
+
 int
 vdev_dtl_load(vdev_t *vd)
 {
@@ -3500,6 +3596,26 @@ vdev_load(vdev_t *vd)
 		}
 	}
 
+	if (vd == vd->vdev_top && vd->vdev_top_zap != 0) {
+		spa_t *spa = vd->vdev_spa;
+		uint64_t failfast;
+
+		error = zap_lookup(spa->spa_meta_objset, vd->vdev_top_zap,
+		    vdev_prop_to_name(VDEV_PROP_FAILFAST), sizeof (failfast),
+		    1, &failfast);
+		if (error == 0) {
+			vd->vdev_failfast = failfast & 1;
+		} else if (error == ENOENT) {
+			vd->vdev_failfast = vdev_prop_default_numeric(
+			    VDEV_PROP_FAILFAST);
+		} else {
+			vdev_dbgmsg(vd,
+			    "vdev_load: zap_lookup(top_zap=%llu) "
+			    "failed [error=%d]",
+			    (u_longlong_t)vd->vdev_top_zap, error);
+		}
+	}
+
 	/*
 	 * Load any rebuild state from the top-level vdev zap.
 	 */
@@ -3512,6 +3628,39 @@ vdev_load(vdev_t *vd)
 			    "failed [error=%d]", error);
 			return (error);
 		}
+	}
+
+	if (vd->vdev_top_zap != 0 || vd->vdev_leaf_zap != 0) {
+		uint64_t zapobj;
+
+		if (vd->vdev_top_zap != 0)
+			zapobj = vd->vdev_top_zap;
+		else
+			zapobj = vd->vdev_leaf_zap;
+
+		error = vdev_prop_get_int(vd, VDEV_PROP_CHECKSUM_N,
+		    &vd->vdev_checksum_n);
+		if (error && error != ENOENT)
+			vdev_dbgmsg(vd, "vdev_load: zap_lookup(zap=%llu) "
+			    "failed [error=%d]", (u_longlong_t)zapobj, error);
+
+		error = vdev_prop_get_int(vd, VDEV_PROP_CHECKSUM_T,
+		    &vd->vdev_checksum_t);
+		if (error && error != ENOENT)
+			vdev_dbgmsg(vd, "vdev_load: zap_lookup(zap=%llu) "
+			    "failed [error=%d]", (u_longlong_t)zapobj, error);
+
+		error = vdev_prop_get_int(vd, VDEV_PROP_IO_N,
+		    &vd->vdev_io_n);
+		if (error && error != ENOENT)
+			vdev_dbgmsg(vd, "vdev_load: zap_lookup(zap=%llu) "
+			    "failed [error=%d]", (u_longlong_t)zapobj, error);
+
+		error = vdev_prop_get_int(vd, VDEV_PROP_IO_T,
+		    &vd->vdev_io_t);
+		if (error && error != ENOENT)
+			vdev_dbgmsg(vd, "vdev_load: zap_lookup(zap=%llu) "
+			    "failed [error=%d]", (u_longlong_t)zapobj, error);
 	}
 
 	/*
@@ -3920,6 +4069,29 @@ vdev_degrade(spa_t *spa, uint64_t guid, vdev_aux_t aux)
 	return (spa_vdev_state_exit(spa, vd, 0));
 }
 
+int
+vdev_remove_wanted(spa_t *spa, uint64_t guid)
+{
+	vdev_t *vd;
+
+	spa_vdev_state_enter(spa, SCL_NONE);
+
+	if ((vd = spa_lookup_by_guid(spa, guid, B_TRUE)) == NULL)
+		return (spa_vdev_state_exit(spa, NULL, SET_ERROR(ENODEV)));
+
+	/*
+	 * If the vdev is already removed, then don't do anything.
+	 */
+	if (vd->vdev_removed)
+		return (spa_vdev_state_exit(spa, NULL, 0));
+
+	vd->vdev_remove_wanted = B_TRUE;
+	spa_async_request(spa, SPA_ASYNC_REMOVE);
+
+	return (spa_vdev_state_exit(spa, vd, 0));
+}
+
+
 /*
  * Online the given vdev.
  *
@@ -4163,9 +4335,9 @@ vdev_clear(spa_t *spa, vdev_t *vd)
 		vdev_clear(spa, vd->vdev_child[c]);
 
 	/*
-	 * It makes no sense to "clear" an indirect vdev.
+	 * It makes no sense to "clear" an indirect  or removed vdev.
 	 */
-	if (!vdev_is_concrete(vd))
+	if (!vdev_is_concrete(vd) || vd->vdev_removed)
 		return;
 
 	/*
@@ -4463,7 +4635,10 @@ vdev_get_stats_ex(vdev_t *vd, vdev_stat_t *vs, vdev_stat_ex_t *vsx)
 		vs->vs_configured_ashift = vd->vdev_top != NULL
 		    ? vd->vdev_top->vdev_ashift : vd->vdev_ashift;
 		vs->vs_logical_ashift = vd->vdev_logical_ashift;
-		vs->vs_physical_ashift = vd->vdev_physical_ashift;
+		if (vd->vdev_physical_ashift <= ASHIFT_MAX)
+			vs->vs_physical_ashift = vd->vdev_physical_ashift;
+		else
+			vs->vs_physical_ashift = 0;
 
 		/*
 		 * Report fragmentation and rebuild progress for top-level,
@@ -5559,7 +5734,7 @@ vdev_prop_set(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 	nvpair_t *elem = NULL;
 	uint64_t vdev_guid;
 	nvlist_t *nvprops;
-	int error;
+	int error = 0;
 
 	ASSERT(vd != NULL);
 
@@ -5619,6 +5794,41 @@ vdev_prop_set(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 				error = spa_vdev_noalloc(spa, vdev_guid);
 			else
 				error = spa_vdev_alloc(spa, vdev_guid);
+			break;
+		case VDEV_PROP_FAILFAST:
+			if (nvpair_value_uint64(elem, &intval) != 0) {
+				error = EINVAL;
+				break;
+			}
+			vd->vdev_failfast = intval & 1;
+			break;
+		case VDEV_PROP_CHECKSUM_N:
+			if (nvpair_value_uint64(elem, &intval) != 0) {
+				error = EINVAL;
+				break;
+			}
+			vd->vdev_checksum_n = intval;
+			break;
+		case VDEV_PROP_CHECKSUM_T:
+			if (nvpair_value_uint64(elem, &intval) != 0) {
+				error = EINVAL;
+				break;
+			}
+			vd->vdev_checksum_t = intval;
+			break;
+		case VDEV_PROP_IO_N:
+			if (nvpair_value_uint64(elem, &intval) != 0) {
+				error = EINVAL;
+				break;
+			}
+			vd->vdev_io_n = intval;
+			break;
+		case VDEV_PROP_IO_T:
+			if (nvpair_value_uint64(elem, &intval) != 0) {
+				error = EINVAL;
+				break;
+			}
+			vd->vdev_io_t = intval;
 			break;
 		default:
 			/* Most processing is done in vdev_props_set_sync */
@@ -5909,28 +6119,60 @@ vdev_prop_get(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 				continue;
 			/* Numeric Properites */
 			case VDEV_PROP_ALLOCATING:
+				/* Leaf vdevs cannot have this property */
+				if (vd->vdev_mg == NULL &&
+				    vd->vdev_top != NULL) {
+					src = ZPROP_SRC_NONE;
+					intval = ZPROP_BOOLEAN_NA;
+				} else {
+					err = vdev_prop_get_int(vd, prop,
+					    &intval);
+					if (err && err != ENOENT)
+						break;
+
+					if (intval ==
+					    vdev_prop_default_numeric(prop))
+						src = ZPROP_SRC_DEFAULT;
+					else
+						src = ZPROP_SRC_LOCAL;
+				}
+
+				vdev_prop_add_list(outnvl, propname, NULL,
+				    intval, src);
+				break;
+			case VDEV_PROP_FAILFAST:
 				src = ZPROP_SRC_LOCAL;
 				strval = NULL;
 
 				err = zap_lookup(mos, objid, nvpair_name(elem),
 				    sizeof (uint64_t), 1, &intval);
 				if (err == ENOENT) {
-					intval =
-					    vdev_prop_default_numeric(prop);
+					intval = vdev_prop_default_numeric(
+					    prop);
 					err = 0;
-				} else if (err)
+				} else if (err) {
 					break;
+				}
 				if (intval == vdev_prop_default_numeric(prop))
 					src = ZPROP_SRC_DEFAULT;
 
-				/* Leaf vdevs cannot have this property */
-				if (vd->vdev_mg == NULL &&
-				    vd->vdev_top != NULL) {
-					src = ZPROP_SRC_NONE;
-					intval = ZPROP_BOOLEAN_NA;
-				}
-
 				vdev_prop_add_list(outnvl, propname, strval,
+				    intval, src);
+				break;
+			case VDEV_PROP_CHECKSUM_N:
+			case VDEV_PROP_CHECKSUM_T:
+			case VDEV_PROP_IO_N:
+			case VDEV_PROP_IO_T:
+				err = vdev_prop_get_int(vd, prop, &intval);
+				if (err && err != ENOENT)
+					break;
+
+				if (intval == vdev_prop_default_numeric(prop))
+					src = ZPROP_SRC_DEFAULT;
+				else
+					src = ZPROP_SRC_LOCAL;
+
+				vdev_prop_add_list(outnvl, propname, NULL,
 				    intval, src);
 				break;
 			/* Text Properties */
@@ -5989,7 +6231,6 @@ vdev_prop_get(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl)
 			strval = NULL;
 			zprop_source_t src = ZPROP_SRC_DEFAULT;
 			propname = za.za_name;
-			prop = vdev_name_to_prop(propname);
 
 			switch (za.za_integer_length) {
 			case 8:
@@ -6032,16 +6273,16 @@ EXPORT_SYMBOL(vdev_online);
 EXPORT_SYMBOL(vdev_offline);
 EXPORT_SYMBOL(vdev_clear);
 
-ZFS_MODULE_PARAM(zfs_vdev, zfs_vdev_, default_ms_count, INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_vdev, zfs_vdev_, default_ms_count, UINT, ZMOD_RW,
 	"Target number of metaslabs per top-level vdev");
 
-ZFS_MODULE_PARAM(zfs_vdev, zfs_vdev_, default_ms_shift, INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_vdev, zfs_vdev_, default_ms_shift, UINT, ZMOD_RW,
 	"Default limit for metaslab size");
 
-ZFS_MODULE_PARAM(zfs_vdev, zfs_vdev_, min_ms_count, INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_vdev, zfs_vdev_, min_ms_count, UINT, ZMOD_RW,
 	"Minimum number of metaslabs per top-level vdev");
 
-ZFS_MODULE_PARAM(zfs_vdev, zfs_vdev_, ms_count_limit, INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_vdev, zfs_vdev_, ms_count_limit, UINT, ZMOD_RW,
 	"Practical upper limit of total metaslabs per top-level vdev");
 
 ZFS_MODULE_PARAM(zfs, zfs_, slow_io_events_per_second, UINT, ZMOD_RW,
@@ -6062,16 +6303,16 @@ ZFS_MODULE_PARAM(zfs_vdev, vdev_, validate_skip, INT, ZMOD_RW,
 ZFS_MODULE_PARAM(zfs, zfs_, nocacheflush, INT, ZMOD_RW,
 	"Disable cache flushes");
 
-ZFS_MODULE_PARAM(zfs, zfs_, embedded_slog_min_ms, INT, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs, zfs_, embedded_slog_min_ms, UINT, ZMOD_RW,
 	"Minimum number of metaslabs required to dedicate one for log blocks");
 
 /* BEGIN CSTYLED */
 ZFS_MODULE_PARAM_CALL(zfs_vdev, zfs_vdev_, min_auto_ashift,
-	param_set_min_auto_ashift, param_get_ulong, ZMOD_RW,
+	param_set_min_auto_ashift, param_get_uint, ZMOD_RW,
 	"Minimum ashift used when creating new top-level vdevs");
 
 ZFS_MODULE_PARAM_CALL(zfs_vdev, zfs_vdev_, max_auto_ashift,
-	param_set_max_auto_ashift, param_get_ulong, ZMOD_RW,
+	param_set_max_auto_ashift, param_get_uint, ZMOD_RW,
 	"Maximum ashift used when optimizing for logical -> physical sector "
 	"size on new top-level vdevs");
 /* END CSTYLED */

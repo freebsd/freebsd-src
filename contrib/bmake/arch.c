@@ -1,4 +1,4 @@
-/*	$NetBSD: arch.c,v 1.210 2022/01/15 18:34:41 rillig Exp $	*/
+/*	$NetBSD: arch.c,v 1.212 2022/12/07 10:28:48 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -147,7 +147,7 @@ struct ar_hdr {
 #include "dir.h"
 
 /*	"@(#)arch.c	8.2 (Berkeley) 1/2/94"	*/
-MAKE_RCSID("$NetBSD: arch.c,v 1.210 2022/01/15 18:34:41 rillig Exp $");
+MAKE_RCSID("$NetBSD: arch.c,v 1.212 2022/12/07 10:28:48 rillig Exp $");
 
 typedef struct List ArchList;
 typedef struct ListNode ArchListNode;
@@ -353,11 +353,10 @@ Arch_ParseArchive(char **pp, GNodeList *gns, GNode *scope)
 		 */
 		/*
 		 * If member contains variables, try and substitute for them.
-		 * This will slow down archive specs with dynamic sources, of
-		 * course, since we'll be (non-)substituting them three
-		 * times, but them's the breaks -- we need to do this since
-		 * SuffExpandChildren calls us, otherwise we could assume the
-		 * thing would be taken care of later.
+		 * This slows down archive specs with dynamic sources, since
+		 * they are (non-)substituted three times, but we need to do
+		 * this since SuffExpandChildren calls us, otherwise we could
+		 * assume the substitutions would be taken care of later.
 		 */
 		if (doSubst) {
 			char *fullName;
@@ -594,7 +593,8 @@ ArchStatMember(const char *archive, const char *member, bool addToCache)
 		if (strncmp(memName, AR_EFMT1, sizeof AR_EFMT1 - 1) == 0 &&
 		    ch_isdigit(memName[sizeof AR_EFMT1 - 1])) {
 
-			size_t elen = atoi(memName + sizeof AR_EFMT1 - 1);
+			size_t elen = (size_t)atoi(
+			    memName + sizeof AR_EFMT1 - 1);
 
 			if (elen > MAXPATHLEN)
 				goto badarch;
@@ -836,7 +836,7 @@ ArchFindMember(const char *archive, const char *member, struct ar_hdr *out_arh,
 		if (strncmp(out_arh->AR_NAME, AR_EFMT1, sizeof AR_EFMT1 - 1) ==
 		    0 &&
 		    (ch_isdigit(out_arh->AR_NAME[sizeof AR_EFMT1 - 1]))) {
-			size_t elen = atoi(
+			size_t elen = (size_t)atoi(
 			    &out_arh->AR_NAME[sizeof AR_EFMT1 - 1]);
 			char ename[MAXPATHLEN + 1];
 

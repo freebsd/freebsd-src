@@ -31,10 +31,14 @@
 #ifndef _VMX_H_
 #define	_VMX_H_
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 #include "vmcs.h"
 #include "x86.h"
 
 struct pmap;
+struct vmx;
 
 struct vmxctx {
 	register_t	guest_rdi;		/* Guest state */
@@ -122,24 +126,45 @@ enum {
 	GUEST_MSR_NUM		/* must be the last enumeration */
 };
 
+struct vmx_vcpu {
+	struct vmx	*vmx;
+	struct vcpu	*vcpu;
+	struct vmcs	*vmcs;
+	struct apic_page *apic_page;
+	struct pir_desc	*pir_desc;
+	uint64_t	guest_msrs[GUEST_MSR_NUM];
+	struct vmxctx	ctx;
+	struct vmxcap	cap;
+	struct vmxstate	state;
+	struct vm_mtrr  mtrr;
+	int		vcpuid;
+};
+
 /* virtual machine softc */
 struct vmx {
-	struct vmcs	vmcs[VM_MAXCPU];	/* one vmcs per virtual cpu */
-	struct apic_page apic_page[VM_MAXCPU];	/* one apic page per vcpu */
-	char		msr_bitmap[PAGE_SIZE];
-	struct pir_desc	pir_desc[VM_MAXCPU];
-	uint64_t	guest_msrs[VM_MAXCPU][GUEST_MSR_NUM];
-	struct vmxctx	ctx[VM_MAXCPU];
-	struct vmxcap	cap[VM_MAXCPU];
-	struct vmxstate	state[VM_MAXCPU];
-	uint64_t	eptp;
 	struct vm	*vm;
+	char		*msr_bitmap;
+	uint64_t	eptp;
 	long		eptgen[MAXCPU];		/* cached pmap->pm_eptgen */
-	struct vm_mtrr  mtrr[VM_MAXCPU];
+	pmap_t		pmap;
 };
-CTASSERT((offsetof(struct vmx, vmcs) & PAGE_MASK) == 0);
-CTASSERT((offsetof(struct vmx, msr_bitmap) & PAGE_MASK) == 0);
-CTASSERT((offsetof(struct vmx, pir_desc[0]) & 63) == 0);
+
+extern bool vmx_have_msr_tsc_aux;
+
+#define	VMX_CTR0(vcpu, format)						\
+	VCPU_CTR0((vcpu)->vmx->vm, (vcpu)->vcpuid, format)
+
+#define	VMX_CTR1(vcpu, format, p1)					\
+	VCPU_CTR1((vcpu)->vmx->vm, (vcpu)->vcpuid, format, p1)
+
+#define	VMX_CTR2(vcpu, format, p1, p2)					\
+	VCPU_CTR2((vcpu)->vmx->vm, (vcpu)->vcpuid, format, p1, p2)
+
+#define	VMX_CTR3(vcpu, format, p1, p2, p3)				\
+	VCPU_CTR3((vcpu)->vmx->vm, (vcpu)->vcpuid, format, p1, p2, p3)
+
+#define	VMX_CTR4(vcpu, format, p1, p2, p3, p4)				\
+	VCPU_CTR4((vcpu)->vmx->vm, (vcpu)->vcpuid, format, p1, p2, p3, p4)
 
 #define	VMX_GUEST_VMEXIT	0
 #define	VMX_VMRESUME_ERROR	1
@@ -150,23 +175,9 @@ void	vmx_call_isr(uintptr_t entry);
 u_long	vmx_fix_cr0(u_long cr0);
 u_long	vmx_fix_cr4(u_long cr4);
 
-int	vmx_set_tsc_offset(struct vmx *vmx, int vcpu, uint64_t offset);
+int	vmx_set_tsc_offset(struct vmx_vcpu *vcpu, uint64_t offset);
 
 extern char	vmx_exit_guest[];
 extern char	vmx_exit_guest_flush_rsb[];
-
-static inline bool
-vmx_have_msr_tsc_aux(struct vmx *vmx)
-{
-	int rdpid_rdtscp_bits = ((1 << VM_CAP_RDPID) | (1 << VM_CAP_RDTSCP));
-
-	/*
-	 * Since the values of these bits are uniform across all vCPUs
-	 * (see discussion in vmx_modinit() and initialization of these bits
-	 * in vmx_init()), just always use vCPU-zero's capability set and
-	 * remove the need to require a vcpuid argument.
-	 */
-	return ((vmx->cap[0].set & rdpid_rdtscp_bits) != 0);
-}
 
 #endif

@@ -80,7 +80,6 @@ extern uint16_t relocator_a20_enabled;
 
 int	i386_getdev(void **vdev, const char *devspec, const char **path);
 char	*i386_fmtdev(void *vdev);
-int	i386_setcurrdev(struct env_var *ev, int flags, const void *value);
 
 extern struct devdesc	currdev;	/* our current device */
 
@@ -146,7 +145,6 @@ int	i386_autoload(void);
 void	bi_load_vbe_data(struct preloaded_file *kfp);
 int	bi_getboothowto(char *kargs);
 void	bi_setboothowto(int howto);
-vm_offset_t	bi_copyenv(vm_offset_t addr);
 int	bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip,
 	    vm_offset_t *modulep, vm_offset_t *kernend);
 int	bi_load64(char *args, vm_offset_t *modulep,

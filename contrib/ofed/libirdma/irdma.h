@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2017 - 2021 Intel Corporation
+ * Copyright (c) 2017 - 2022 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -39,13 +39,15 @@
 #define RDMA_BIT2(type, a) ((u##type) 1UL << a)
 #define RDMA_MASK3(type, mask, shift)	((u##type) mask << shift)
 #define MAKEMASK(m, s) ((m) << (s))
-#define IRDMA_WQEALLOC_WQE_DESC_INDEX_S		20
-#define IRDMA_WQEALLOC_WQE_DESC_INDEX_M		(0xfff << IRDMA_WQEALLOC_WQE_DESC_INDEX_S)
+
+#define IRDMA_WQEALLOC_WQE_DESC_INDEX_S 20
+#define IRDMA_WQEALLOC_WQE_DESC_INDEX GENMASK(31, 20)
 
 enum irdma_vers {
-	IRDMA_GEN_RSVD,
-	IRDMA_GEN_1,
-	IRDMA_GEN_2,
+	IRDMA_GEN_RSVD = 0,
+	IRDMA_GEN_1 = 1,
+	IRDMA_GEN_2 = 2,
+	IRDMA_GEN_MAX = 2,
 };
 
 struct irdma_uk_attrs {
@@ -58,8 +60,7 @@ struct irdma_uk_attrs {
 	u32 min_hw_cq_size;
 	u32 max_hw_cq_size;
 	u16 max_hw_sq_chunk;
-	u16 max_hw_wq_size;
-	u16 min_sw_wq_size;
+	u16 min_hw_wq_size;
 	u8 hw_rev;
 };
 
@@ -68,6 +69,7 @@ struct irdma_hw_attrs {
 	u64 max_hw_outbound_msg_size;
 	u64 max_hw_inbound_msg_size;
 	u64 max_mr_size;
+	u64 page_size_cap;
 	u32 min_hw_qp_id;
 	u32 min_hw_aeq_size;
 	u32 max_hw_aeq_size;

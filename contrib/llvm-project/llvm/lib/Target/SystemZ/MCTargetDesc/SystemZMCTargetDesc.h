@@ -78,7 +78,6 @@ inline unsigned getRegAsVR128(unsigned Reg) {
 } // end namespace SystemZMC
 
 MCCodeEmitter *createSystemZMCCodeEmitter(const MCInstrInfo &MCII,
-                                          const MCRegisterInfo &MRI,
                                           MCContext &Ctx);
 
 MCAsmBackend *createSystemZMCAsmBackend(const Target &T,
@@ -96,6 +95,7 @@ std::unique_ptr<MCObjectTargetWriter> createSystemZObjectWriter(uint8_t OSABI);
 
 // Defines symbolic names for the SystemZ instructions.
 #define GET_INSTRINFO_ENUM
+#define GET_INSTRINFO_MC_HELPER_DECLS
 #include "SystemZGenInstrInfo.inc"
 
 #define GET_SUBTARGETINFO_ENUM

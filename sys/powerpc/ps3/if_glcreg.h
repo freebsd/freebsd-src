@@ -65,7 +65,7 @@ struct glc_rxsoft {
 };
 
 struct glc_softc {
-	struct ifnet	*sc_ifp;
+	if_t		sc_ifp;
 	device_t	sc_self;
 	struct mtx	sc_mtx;
 	u_char		sc_enaddr[ETHER_ADDR_LEN];

@@ -81,6 +81,8 @@ __FBSDID("$FreeBSD$");
 #define	PCI_UHCI_VENDORID_INTEL		0x8086
 #define	PCI_UHCI_VENDORID_HP		0x103c
 #define	PCI_UHCI_VENDORID_VIA		0x1106
+#define	PCI_UHCI_VENDORID_VMWARE	0x15ad
+#define        PCI_UHCI_VENDORID_ZHAOXIN       0x1d17
 
 /* PIIX4E has no separate stepping */
 
@@ -237,6 +239,12 @@ uhci_pci_match(device_t self)
 	case 0x30381106:
 		return ("VIA 83C572 USB controller");
 
+	case 0x077415ad:
+		return ("VMware USB controller");
+
+       case 0x1d173038:
+               return ("Zhaoxin ZX-100/ZX-200/ZX-E USB controller");
+
 	default:
 		break;
 	}
@@ -327,6 +335,12 @@ uhci_pci_attach(device_t self)
 	case PCI_UHCI_VENDORID_VIA:
 		sprintf(sc->sc_vendor, "VIA");
 		break;
+	case PCI_UHCI_VENDORID_VMWARE:
+		sprintf(sc->sc_vendor, "VMware");
+		break;
+       case PCI_UHCI_VENDORID_ZHAOXIN:
+               sprintf(sc->sc_vendor, "Zhaoxin");
+               break;
 	default:
 		if (bootverbose) {
 			device_printf(self, "(New UHCI DeviceId=0x%08x)\n",
@@ -349,13 +363,8 @@ uhci_pci_attach(device_t self)
 		break;
 	}
 
-#if (__FreeBSD_version >= 700031)
 	err = bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
 	    NULL, (driver_intr_t *)uhci_interrupt, sc, &sc->sc_intr_hdl);
-#else
-	err = bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    (driver_intr_t *)uhci_interrupt, sc, &sc->sc_intr_hdl);
-#endif
 
 	if (err) {
 		device_printf(self, "Could not setup irq, %d\n", err);

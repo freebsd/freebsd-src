@@ -128,6 +128,14 @@ zil_prt_rec_rename(zilog_t *zilog, int txtype, const void *arg)
 	(void) printf("%ssdoid %llu, tdoid %llu\n", tab_prefix,
 	    (u_longlong_t)lr->lr_sdoid, (u_longlong_t)lr->lr_tdoid);
 	(void) printf("%ssrc %s tgt %s\n", tab_prefix, snm, tnm);
+	switch (txtype) {
+	case TX_RENAME_EXCHANGE:
+		(void) printf("%sflags RENAME_EXCHANGE\n", tab_prefix);
+		break;
+	case TX_RENAME_WHITEOUT:
+		(void) printf("%sflags RENAME_WHITEOUT\n", tab_prefix);
+		break;
+	}
 }
 
 static int
@@ -182,6 +190,7 @@ zil_prt_rec_write(zilog_t *zilog, int txtype, const void *arg)
 			return;
 		}
 
+		ASSERT3U(BP_GET_LSIZE(bp), !=, 0);
 		SET_BOOKMARK(&zb, dmu_objset_id(zilog->zl_os),
 		    lr->lr_foid, ZB_ZIL_LEVEL,
 		    lr->lr_offset / BP_GET_LSIZE(bp));
@@ -329,6 +338,8 @@ static zil_rec_info_t zil_rec_info[TX_MAX_TYPE] = {
 	{.zri_print = zil_prt_rec_write,    .zri_name = "TX_WRITE2          "},
 	{.zri_print = zil_prt_rec_setsaxattr,
 	    .zri_name = "TX_SETSAXATTR      "},
+	{.zri_print = zil_prt_rec_rename,   .zri_name = "TX_RENAME_EXCHANGE "},
+	{.zri_print = zil_prt_rec_rename,   .zri_name = "TX_RENAME_WHITEOUT "},
 };
 
 static int

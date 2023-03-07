@@ -5,6 +5,7 @@
  *	The Regents of the University of California. All Rights Reserved.
  * Copyright (c) 2004-2009 Robert N. M. Watson All Rights Reserved.
  * Copyright (c) 2018 Matthew Macy
+ * Copyright (c) 2022 Gleb Smirnoff <glebius@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -593,7 +594,7 @@ uipc_bindat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
 	buf[namelen] = 0;
 
 restart:
-	NDINIT_ATRIGHTS(&nd, CREATE, NOFOLLOW | LOCKPARENT | SAVENAME | NOCACHE,
+	NDINIT_ATRIGHTS(&nd, CREATE, NOFOLLOW | LOCKPARENT | NOCACHE,
 	    UIO_SYSSPACE, buf, fd, cap_rights_init_one(&rights, CAP_BINDAT));
 /* SHOULD BE ABLE TO ADOPT EXISTING AND wakeup() ALA FIFO's */
 	error = namei(&nd);
@@ -611,7 +612,7 @@ restart:
 			error = EADDRINUSE;
 			goto error;
 		}
-		error = vn_start_write(NULL, &mp, V_XSLEEP | PCATCH);
+		error = vn_start_write(NULL, &mp, V_XSLEEP | V_PCATCH);
 		if (error)
 			goto error;
 		goto restart;
@@ -1337,7 +1338,9 @@ uipc_sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 		f = NULL;
 	} else {
 		soroverflow_locked(so2);
-		error = (so->so_state & SS_NBIO) ? EAGAIN : ENOBUFS;
+		error = ENOBUFS;
+		if (f->m_next->m_type == MT_CONTROL)
+			unp_scan(f->m_next, unp_freerights);
 	}
 
 	if (addr != NULL)
@@ -1919,9 +1922,9 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	else
 		vp = nd.ni_vp;
 	ASSERT_VOP_LOCKED(vp, "unp_connect");
-	NDFREE_NOTHING(&nd);
 	if (error)
 		goto bad;
+	NDFREE_PNBUF(&nd);
 
 	if (vp->v_type != VSOCK) {
 		error = ENOTSOCK;

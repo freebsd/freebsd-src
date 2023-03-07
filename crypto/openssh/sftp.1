@@ -1,4 +1,4 @@
-.\" $OpenBSD: sftp.1,v 1.140 2022/03/31 17:27:27 naddy Exp $
+.\" $OpenBSD: sftp.1,v 1.143 2022/12/16 03:40:03 djm Exp $
 .\"
 .\" Copyright (c) 2001 Damien Miller.  All rights reserved.
 .\"
@@ -22,7 +22,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: March 31 2022 $
+.Dd $Mdocdate: December 16 2022 $
 .Dt SFTP 1
 .Os
 .Sh NAME
@@ -34,7 +34,7 @@
 .Op Fl B Ar buffer_size
 .Op Fl b Ar batchfile
 .Op Fl c Ar cipher
-.Op Fl D Ar sftp_server_path
+.Op Fl D Ar sftp_server_command
 .Op Fl F Ar ssh_config
 .Op Fl i Ar identity_file
 .Op Fl J Ar destination
@@ -44,6 +44,7 @@
 .Op Fl R Ar num_requests
 .Op Fl S Ar program
 .Op Fl s Ar subsystem | sftp_server
+.Op Fl X Ar sftp_option
 .Ar destination
 .Sh DESCRIPTION
 .Nm
@@ -167,10 +168,12 @@ flag).
 Selects the cipher to use for encrypting the data transfers.
 This option is directly passed to
 .Xr ssh 1 .
-.It Fl D Ar sftp_server_path
+.It Fl D Ar sftp_server_command
 Connect directly to a local sftp server
 (rather than via
 .Xr ssh 1 ) .
+A command and arguments may be specified, for example
+.Qq /path/sftp-server -el debug3 .
 This option may be useful in debugging the client and server.
 .It Fl F Ar ssh_config
 Specifies an alternative
@@ -271,6 +274,7 @@ For full details of the options listed below, and their possible values, see
 .It PubkeyAcceptedAlgorithms
 .It PubkeyAuthentication
 .It RekeyLimit
+.It RequiredRSASize
 .It SendEnv
 .It ServerAliveInterval
 .It ServerAliveCountMax
@@ -317,6 +321,19 @@ does not have an sftp subsystem configured.
 .It Fl v
 Raise logging level.
 This option is also passed to ssh.
+.It Fl X Ar sftp_option
+Specify an option that controls aspects of SFTP protocol behaviour.
+The valid options are:
+.Bl -tag -width Ds
+.It Cm nrequests Ns = Ns Ar value
+Controls how many concurrent SFTP read or write requests may be in progress
+at any point in time during a download or upload.
+By default 64 requests may be active concurrently.
+.It Cm buffer Ns = Ns Ar value
+Controls the maximum buffer size for a single SFTP read/write operation used
+during download or upload.
+By default a 32KB buffer is used.
+.El
 .El
 .Sh INTERACTIVE COMMANDS
 Once in interactive mode,

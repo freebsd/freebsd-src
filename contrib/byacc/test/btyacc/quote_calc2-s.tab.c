@@ -3,8 +3,8 @@
 /* (use YYMAJOR/YYMINOR for ifdefs dependent on parser version) */
 
 #define YYBYACC 1
-#define YYMAJOR 1
-#define YYMINOR 9
+#define YYMAJOR 2
+#define YYMINOR 0
 #define YYCHECK "yyyymmdd"
 
 #define YYEMPTY        (-1)
@@ -687,7 +687,7 @@ YYPARSE_DECL()
     yyps->save = 0;
 #endif /* YYBTYACC */
     yym = 0;
-    yyn = 0;
+    /* yyn is set below */
     yynerrs = 0;
     yyerrflag = 0;
     yychar = YYEMPTY;
@@ -1198,64 +1198,79 @@ yyreduce:
 case 3:
 #line 35 "quote_calc2.y"
 	{  yyerrok ; }
+#line 1202 "quote_calc2-s.tab.c"
 break;
 case 4:
 #line 39 "quote_calc2.y"
 	{  printf("%d\n",yystack.l_mark[0]);}
+#line 1207 "quote_calc2-s.tab.c"
 break;
 case 5:
 #line 41 "quote_calc2.y"
 	{  regs[yystack.l_mark[-2]] = yystack.l_mark[0]; }
+#line 1212 "quote_calc2-s.tab.c"
 break;
 case 6:
 #line 45 "quote_calc2.y"
 	{  yyval = yystack.l_mark[-1]; }
+#line 1217 "quote_calc2-s.tab.c"
 break;
 case 7:
 #line 47 "quote_calc2.y"
 	{  yyval = yystack.l_mark[-2] + yystack.l_mark[0]; }
+#line 1222 "quote_calc2-s.tab.c"
 break;
 case 8:
 #line 49 "quote_calc2.y"
 	{  yyval = yystack.l_mark[-2] - yystack.l_mark[0]; }
+#line 1227 "quote_calc2-s.tab.c"
 break;
 case 9:
 #line 51 "quote_calc2.y"
 	{  yyval = yystack.l_mark[-2] * yystack.l_mark[0]; }
+#line 1232 "quote_calc2-s.tab.c"
 break;
 case 10:
 #line 53 "quote_calc2.y"
 	{  yyval = yystack.l_mark[-2] / yystack.l_mark[0]; }
+#line 1237 "quote_calc2-s.tab.c"
 break;
 case 11:
 #line 55 "quote_calc2.y"
 	{  yyval = yystack.l_mark[-2] % yystack.l_mark[0]; }
+#line 1242 "quote_calc2-s.tab.c"
 break;
 case 12:
 #line 57 "quote_calc2.y"
 	{  yyval = yystack.l_mark[-2] & yystack.l_mark[0]; }
+#line 1247 "quote_calc2-s.tab.c"
 break;
 case 13:
 #line 59 "quote_calc2.y"
 	{  yyval = yystack.l_mark[-2] | yystack.l_mark[0]; }
+#line 1252 "quote_calc2-s.tab.c"
 break;
 case 14:
 #line 61 "quote_calc2.y"
 	{  yyval = - yystack.l_mark[0]; }
+#line 1257 "quote_calc2-s.tab.c"
 break;
 case 15:
 #line 63 "quote_calc2.y"
 	{  yyval = regs[yystack.l_mark[0]]; }
+#line 1262 "quote_calc2-s.tab.c"
 break;
 case 17:
 #line 68 "quote_calc2.y"
 	{  yyval = yystack.l_mark[0]; base = (yystack.l_mark[0]==0) ? 8 : 10; }
+#line 1267 "quote_calc2-s.tab.c"
 break;
 case 18:
 #line 70 "quote_calc2.y"
 	{  yyval = base * yystack.l_mark[-1] + yystack.l_mark[0]; }
+#line 1272 "quote_calc2-s.tab.c"
 break;
-#line 1259 "quote_calc2-s.tab.c"
+#line 1274 "quote_calc2-s.tab.c"
     default:
         break;
     }

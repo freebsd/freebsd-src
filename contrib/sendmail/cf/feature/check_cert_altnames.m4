@@ -10,7 +10,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`$Id: block_bad_helo.m4,v 1.2 2013-11-22 20:51:11 ca Exp $')
+VERSIONID(`$Id: check_cert_altnames.m4 1.0 2019-01-01 01:01:01 ca Exp $')
 divert(-1)
 define(`_FFR_TLS_ALTNAMES', `1')
 divert(6)dnl

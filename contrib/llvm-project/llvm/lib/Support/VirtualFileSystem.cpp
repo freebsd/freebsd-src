@@ -151,6 +151,10 @@ bool FileSystem::exists(const Twine &Path) {
   return Status && Status->exists();
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+void FileSystem::dump() const { print(dbgs(), PrintType::RecursiveContents); }
+#endif
+
 #ifndef NDEBUG
 static bool isTraversalComponent(StringRef Component) {
   return Component.equals("..") || Component.equals(".");
@@ -273,6 +277,10 @@ public:
   std::error_code getRealPath(const Twine &Path,
                               SmallVectorImpl<char> &Output) const override;
 
+protected:
+  void printImpl(raw_ostream &OS, PrintType Type,
+                 unsigned IndentLevel) const override;
+
 private:
   // If this FS has its own working dir, use it to make Path absolute.
   // The returned twine is safe to use as long as both Storage and Path live.
@@ -352,6 +360,17 @@ RealFileSystem::getRealPath(const Twine &Path,
                             SmallVectorImpl<char> &Output) const {
   SmallString<256> Storage;
   return llvm::sys::fs::real_path(adjustPath(Path, Storage), Output);
+}
+
+void RealFileSystem::printImpl(raw_ostream &OS, PrintType Type,
+                               unsigned IndentLevel) const {
+  printIndent(OS, IndentLevel);
+  OS << "RealFileSystem using ";
+  if (WD)
+    OS << "own";
+  else
+    OS << "process";
+  OS << " CWD\n";
 }
 
 IntrusiveRefCntPtr<FileSystem> vfs::getRealFileSystem() {
@@ -459,6 +478,19 @@ OverlayFileSystem::getRealPath(const Twine &Path,
   return errc::no_such_file_or_directory;
 }
 
+void OverlayFileSystem::printImpl(raw_ostream &OS, PrintType Type,
+                                  unsigned IndentLevel) const {
+  printIndent(OS, IndentLevel);
+  OS << "OverlayFileSystem\n";
+  if (Type == PrintType::Summary)
+    return;
+
+  if (Type == PrintType::Contents)
+    Type = PrintType::Summary;
+  for (auto FS : overlays_range())
+    FS->print(OS, Type, IndentLevel + 1);
+}
+
 llvm::vfs::detail::DirIterImpl::~DirIterImpl() = default;
 
 namespace {
@@ -467,28 +499,25 @@ namespace {
 class CombiningDirIterImpl : public llvm::vfs::detail::DirIterImpl {
   using FileSystemPtr = llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem>;
 
-  /// File systems to check for entries in. Processed in reverse order.
-  SmallVector<FileSystemPtr, 8> FSList;
-  /// The directory iterator for the current filesystem.
+  /// Iterators to combine, processed in reverse order.
+  SmallVector<directory_iterator, 8> IterList;
+  /// The iterator currently being traversed.
   directory_iterator CurrentDirIter;
-  /// The path of the directory to iterate the entries of.
-  std::string DirPath;
   /// The set of names already returned as entries.
   llvm::StringSet<> SeenNames;
 
-  /// Sets \c CurrentDirIter to an iterator of \c DirPath in the next file
-  /// system in the list, or leaves it as is (at its end position) if we've
-  /// already gone through them all.
-  std::error_code incrementFS() {
-    while (!FSList.empty()) {
-      std::error_code EC;
-      CurrentDirIter = FSList.back()->dir_begin(DirPath, EC);
-      FSList.pop_back();
-      if (EC && EC != errc::no_such_file_or_directory)
-        return EC;
+  /// Sets \c CurrentDirIter to the next iterator in the list, or leaves it as
+  /// is (at its end position) if we've already gone through them all.
+  std::error_code incrementIter(bool IsFirstTime) {
+    while (!IterList.empty()) {
+      CurrentDirIter = IterList.back();
+      IterList.pop_back();
       if (CurrentDirIter != directory_iterator())
         break; // found
     }
+
+    if (IsFirstTime && CurrentDirIter == directory_iterator())
+      return errc::no_such_file_or_directory;
     return {};
   }
 
@@ -499,7 +528,7 @@ class CombiningDirIterImpl : public llvm::vfs::detail::DirIterImpl {
     if (!IsFirstTime)
       CurrentDirIter.increment(EC);
     if (!EC && CurrentDirIter == directory_iterator())
-      EC = incrementFS();
+      EC = incrementIter(IsFirstTime);
     return EC;
   }
 
@@ -520,23 +549,24 @@ class CombiningDirIterImpl : public llvm::vfs::detail::DirIterImpl {
 
 public:
   CombiningDirIterImpl(ArrayRef<FileSystemPtr> FileSystems, std::string Dir,
-                       std::error_code &EC)
-      : FSList(FileSystems.begin(), FileSystems.end()),
-        DirPath(std::move(Dir)) {
-    if (!FSList.empty()) {
-      CurrentDirIter = FSList.back()->dir_begin(DirPath, EC);
-      FSList.pop_back();
-      if (!EC || EC == errc::no_such_file_or_directory)
-        EC = incrementImpl(true);
+                       std::error_code &EC) {
+    for (auto FS : FileSystems) {
+      std::error_code FEC;
+      directory_iterator Iter = FS->dir_begin(Dir, FEC);
+      if (FEC && FEC != errc::no_such_file_or_directory) {
+        EC = FEC;
+        return;
+      }
+      if (!FEC)
+        IterList.push_back(Iter);
     }
+    EC = incrementImpl(true);
   }
 
-  CombiningDirIterImpl(directory_iterator FirstIter, FileSystemPtr Fallback,
-                       std::string FallbackDir, std::error_code &EC)
-      : FSList({Fallback}), CurrentDirIter(FirstIter),
-        DirPath(std::move(FallbackDir)) {
-    if (!EC || EC == errc::no_such_file_or_directory)
-      EC = incrementImpl(true);
+  CombiningDirIterImpl(ArrayRef<directory_iterator> DirIters,
+                       std::error_code &EC)
+      : IterList(DirIters.begin(), DirIters.end()) {
+    EC = incrementImpl(true);
   }
 
   std::error_code increment() override { return incrementImpl(false); }
@@ -546,8 +576,11 @@ public:
 
 directory_iterator OverlayFileSystem::dir_begin(const Twine &Dir,
                                                 std::error_code &EC) {
-  return directory_iterator(
+  directory_iterator Combined = directory_iterator(
       std::make_shared<CombiningDirIterImpl>(FSList, Dir.str(), EC));
+  if (EC)
+    return {};
+  return Combined;
 }
 
 void ProxyFileSystem::anchor() {}
@@ -557,10 +590,15 @@ namespace vfs {
 
 namespace detail {
 
-enum InMemoryNodeKind { IME_File, IME_Directory, IME_HardLink };
+enum InMemoryNodeKind {
+  IME_File,
+  IME_Directory,
+  IME_HardLink,
+  IME_SymbolicLink,
+};
 
 /// The in memory file system is a tree of Nodes. Every node can either be a
-/// file , hardlink or a directory.
+/// file, symlink, hardlink or a directory.
 class InMemoryNode {
   InMemoryNodeKind Kind;
   std::string FileName;
@@ -629,6 +667,30 @@ public:
   }
 };
 
+class InMemorySymbolicLink : public InMemoryNode {
+  std::string TargetPath;
+  Status Stat;
+
+public:
+  InMemorySymbolicLink(StringRef Path, StringRef TargetPath, Status Stat)
+      : InMemoryNode(Path, IME_SymbolicLink), TargetPath(std::move(TargetPath)),
+        Stat(Stat) {}
+
+  std::string toString(unsigned Indent) const override {
+    return std::string(Indent, ' ') + "SymbolicLink to -> " + TargetPath;
+  }
+
+  Status getStatus(const Twine &RequestedName) const override {
+    return Status::copyWithNewName(Stat, RequestedName);
+  }
+
+  StringRef getTargetPath() const { return TargetPath; }
+
+  static bool classof(const InMemoryNode *N) {
+    return N->getKind() == IME_SymbolicLink;
+  }
+};
+
 /// Adapt a InMemoryFile for VFS' File interface.  The goal is to make
 /// \p InMemoryFileAdaptor mimic as much as possible the behavior of
 /// \p RealFile.
@@ -677,7 +739,7 @@ public:
 
   UniqueID getUniqueID() const { return Stat.getUniqueID(); }
 
-  InMemoryNode *getChild(StringRef Name) {
+  InMemoryNode *getChild(StringRef Name) const {
     auto I = Entries.find(Name);
     if (I != Entries.end())
       return I->second.get();
@@ -773,10 +835,10 @@ bool InMemoryFileSystem::addFile(const Twine &P, time_t ModificationTime,
 
   detail::InMemoryDirectory *Dir = Root.get();
   auto I = llvm::sys::path::begin(Path), E = sys::path::end(Path);
-  const auto ResolvedUser = User.getValueOr(0);
-  const auto ResolvedGroup = Group.getValueOr(0);
-  const auto ResolvedType = Type.getValueOr(sys::fs::file_type::regular_file);
-  const auto ResolvedPerms = Perms.getValueOr(sys::fs::all_all);
+  const auto ResolvedUser = User.value_or(0);
+  const auto ResolvedGroup = Group.value_or(0);
+  const auto ResolvedType = Type.value_or(sys::fs::file_type::regular_file);
+  const auto ResolvedPerms = Perms.value_or(sys::fs::all_all);
   // Any intermediate directories we create should be accessible by
   // the owner, even if Perms says otherwise for the final path.
   const auto NewDirectoryPerms = ResolvedPerms | sys::fs::owner_all;
@@ -864,22 +926,23 @@ bool InMemoryFileSystem::addFileNoOwn(const Twine &P, time_t ModificationTime,
                  });
 }
 
-static ErrorOr<const detail::InMemoryNode *>
-lookupInMemoryNode(const InMemoryFileSystem &FS, detail::InMemoryDirectory *Dir,
-                   const Twine &P) {
+detail::NamedNodeOrError
+InMemoryFileSystem::lookupNode(const Twine &P, bool FollowFinalSymlink,
+                               size_t SymlinkDepth) const {
   SmallString<128> Path;
   P.toVector(Path);
 
   // Fix up relative paths. This just prepends the current working directory.
-  std::error_code EC = FS.makeAbsolute(Path);
+  std::error_code EC = makeAbsolute(Path);
   assert(!EC);
   (void)EC;
 
-  if (FS.useNormalizedPaths())
+  if (useNormalizedPaths())
     llvm::sys::path::remove_dots(Path, /*remove_dot_dot=*/true);
 
+  const detail::InMemoryDirectory *Dir = Root.get();
   if (Path.empty())
-    return Dir;
+    return detail::NamedNodeOrError(Path, Dir);
 
   auto I = llvm::sys::path::begin(Path), E = llvm::sys::path::end(Path);
   while (true) {
@@ -888,43 +951,99 @@ lookupInMemoryNode(const InMemoryFileSystem &FS, detail::InMemoryDirectory *Dir,
     if (!Node)
       return errc::no_such_file_or_directory;
 
+    if (auto Symlink = dyn_cast<detail::InMemorySymbolicLink>(Node)) {
+      // If we're at the end of the path, and we're not following through
+      // terminal symlinks, then we're done.
+      if (I == E && !FollowFinalSymlink)
+        return detail::NamedNodeOrError(Path, Symlink);
+
+      if (SymlinkDepth > InMemoryFileSystem::MaxSymlinkDepth)
+        return errc::no_such_file_or_directory;
+
+      SmallString<128> TargetPath = Symlink->getTargetPath();
+      if (std::error_code EC = makeAbsolute(TargetPath))
+        return EC;
+
+      // Keep going with the target. We always want to follow symlinks here
+      // because we're either at the end of a path that we want to follow, or
+      // not at the end of a path, in which case we need to follow the symlink
+      // regardless.
+      auto Target =
+          lookupNode(TargetPath, /*FollowFinalSymlink=*/true, SymlinkDepth + 1);
+      if (!Target || I == E)
+        return Target;
+
+      if (!isa<detail::InMemoryDirectory>(*Target))
+        return errc::no_such_file_or_directory;
+
+      // Otherwise, continue on the search in the symlinked directory.
+      Dir = cast<detail::InMemoryDirectory>(*Target);
+      continue;
+    }
+
     // Return the file if it's at the end of the path.
     if (auto File = dyn_cast<detail::InMemoryFile>(Node)) {
       if (I == E)
-        return File;
+        return detail::NamedNodeOrError(Path, File);
       return errc::no_such_file_or_directory;
     }
 
     // If Node is HardLink then return the resolved file.
     if (auto File = dyn_cast<detail::InMemoryHardLink>(Node)) {
       if (I == E)
-        return &File->getResolvedFile();
+        return detail::NamedNodeOrError(Path, &File->getResolvedFile());
       return errc::no_such_file_or_directory;
     }
     // Traverse directories.
     Dir = cast<detail::InMemoryDirectory>(Node);
     if (I == E)
-      return Dir;
+      return detail::NamedNodeOrError(Path, Dir);
   }
 }
 
-bool InMemoryFileSystem::addHardLink(const Twine &FromPath,
-                                     const Twine &ToPath) {
-  auto FromNode = lookupInMemoryNode(*this, Root.get(), FromPath);
-  auto ToNode = lookupInMemoryNode(*this, Root.get(), ToPath);
+bool InMemoryFileSystem::addHardLink(const Twine &NewLink,
+                                     const Twine &Target) {
+  auto NewLinkNode = lookupNode(NewLink, /*FollowFinalSymlink=*/false);
+  // Whether symlinks in the hardlink target are followed is
+  // implementation-defined in POSIX.
+  // We're following symlinks here to be consistent with macOS.
+  auto TargetNode = lookupNode(Target, /*FollowFinalSymlink=*/true);
   // FromPath must not have been added before. ToPath must have been added
   // before. Resolved ToPath must be a File.
-  if (!ToNode || FromNode || !isa<detail::InMemoryFile>(*ToNode))
+  if (!TargetNode || NewLinkNode || !isa<detail::InMemoryFile>(*TargetNode))
     return false;
-  return addFile(FromPath, 0, nullptr, None, None, None, None,
+  return addFile(NewLink, 0, nullptr, None, None, None, None,
                  [&](detail::NewInMemoryNodeInfo NNI) {
                    return std::make_unique<detail::InMemoryHardLink>(
-                       NNI.Path.str(), *cast<detail::InMemoryFile>(*ToNode));
+                       NNI.Path.str(),
+                       *cast<detail::InMemoryFile>(*TargetNode));
+                 });
+}
+
+bool InMemoryFileSystem::addSymbolicLink(const Twine &NewLink,
+                                         const Twine &Target,
+                                         time_t ModificationTime,
+                                         Optional<uint32_t> User,
+                                         Optional<uint32_t> Group,
+                                         Optional<llvm::sys::fs::perms> Perms) {
+  auto NewLinkNode = lookupNode(NewLink, /*FollowFinalSymlink=*/false);
+  if (NewLinkNode)
+    return false;
+
+  SmallString<128> NewLinkStr, TargetStr;
+  NewLink.toVector(NewLinkStr);
+  Target.toVector(TargetStr);
+
+  return addFile(NewLinkStr, ModificationTime, nullptr, User, Group,
+                 sys::fs::file_type::symlink_file, Perms,
+                 [&](detail::NewInMemoryNodeInfo NNI) {
+                   return std::make_unique<detail::InMemorySymbolicLink>(
+                       NewLinkStr, TargetStr, NNI.makeStatus());
                  });
 }
 
 llvm::ErrorOr<Status> InMemoryFileSystem::status(const Twine &Path) {
-  auto Node = lookupInMemoryNode(*this, Root.get(), Path);
+  auto Node = lookupNode(Path, /*FollowFinalSymlink=*/true);
   if (Node)
     return (*Node)->getStatus(Path);
   return Node.getError();
@@ -932,7 +1051,7 @@ llvm::ErrorOr<Status> InMemoryFileSystem::status(const Twine &Path) {
 
 llvm::ErrorOr<std::unique_ptr<File>>
 InMemoryFileSystem::openFileForRead(const Twine &Path) {
-  auto Node = lookupInMemoryNode(*this, Root.get(), Path);
+  auto Node = lookupNode(Path,/*FollowFinalSymlink=*/true);
   if (!Node)
     return Node.getError();
 
@@ -946,10 +1065,9 @@ InMemoryFileSystem::openFileForRead(const Twine &Path) {
   return make_error_code(llvm::errc::invalid_argument);
 }
 
-namespace {
-
 /// Adaptor from InMemoryDir::iterator to directory_iterator.
-class InMemoryDirIterator : public llvm::vfs::detail::DirIterImpl {
+class InMemoryFileSystem::DirIterator : public llvm::vfs::detail::DirIterImpl {
+  const InMemoryFileSystem *FS;
   detail::InMemoryDirectory::const_iterator I;
   detail::InMemoryDirectory::const_iterator E;
   std::string RequestedDirName;
@@ -967,6 +1085,13 @@ class InMemoryDirIterator : public llvm::vfs::detail::DirIterImpl {
       case detail::IME_Directory:
         Type = sys::fs::file_type::directory_file;
         break;
+      case detail::IME_SymbolicLink:
+        if (auto SymlinkTarget =
+                FS->lookupNode(Path, /*FollowFinalSymlink=*/true)) {
+          Path = SymlinkTarget.getName();
+          Type = (*SymlinkTarget)->getStatus(Path).getType();
+        }
+        break;
       }
       CurrentEntry = directory_entry(std::string(Path.str()), Type);
     } else {
@@ -977,11 +1102,12 @@ class InMemoryDirIterator : public llvm::vfs::detail::DirIterImpl {
   }
 
 public:
-  InMemoryDirIterator() = default;
+  DirIterator() = default;
 
-  explicit InMemoryDirIterator(const detail::InMemoryDirectory &Dir,
-                               std::string RequestedDirName)
-      : I(Dir.begin()), E(Dir.end()),
+  DirIterator(const InMemoryFileSystem *FS,
+              const detail::InMemoryDirectory &Dir,
+              std::string RequestedDirName)
+      : FS(FS), I(Dir.begin()), E(Dir.end()),
         RequestedDirName(std::move(RequestedDirName)) {
     setCurrentEntry();
   }
@@ -993,22 +1119,20 @@ public:
   }
 };
 
-} // namespace
-
 directory_iterator InMemoryFileSystem::dir_begin(const Twine &Dir,
                                                  std::error_code &EC) {
-  auto Node = lookupInMemoryNode(*this, Root.get(), Dir);
+  auto Node = lookupNode(Dir, /*FollowFinalSymlink=*/true);
   if (!Node) {
     EC = Node.getError();
-    return directory_iterator(std::make_shared<InMemoryDirIterator>());
+    return directory_iterator(std::make_shared<DirIterator>());
   }
 
   if (auto *DirNode = dyn_cast<detail::InMemoryDirectory>(*Node))
     return directory_iterator(
-        std::make_shared<InMemoryDirIterator>(*DirNode, Dir.str()));
+        std::make_shared<DirIterator>(this, *DirNode, Dir.str()));
 
   EC = make_error_code(llvm::errc::not_a_directory);
-  return directory_iterator(std::make_shared<InMemoryDirIterator>());
+  return directory_iterator(std::make_shared<DirIterator>());
 }
 
 std::error_code InMemoryFileSystem::setCurrentWorkingDirectory(const Twine &P) {
@@ -1046,6 +1170,12 @@ std::error_code InMemoryFileSystem::isLocal(const Twine &Path, bool &Result) {
   return {};
 }
 
+void InMemoryFileSystem::printImpl(raw_ostream &OS, PrintType PrintContents,
+                                   unsigned IndentLevel) const {
+  printIndent(OS, IndentLevel);
+  OS << "InMemoryFileSystem\n";
+}
+
 } // namespace vfs
 } // namespace llvm
 
@@ -1077,6 +1207,14 @@ static llvm::SmallString<256> canonicalize(llvm::StringRef Path) {
       llvm::sys::path::remove_leading_dotslash(Path, style);
   llvm::sys::path::remove_dots(result, /*remove_dot_dot=*/true, style);
   return result;
+}
+
+/// Whether the error and entry specify a file/directory that was not found.
+static bool isFileNotFound(std::error_code EC,
+                           RedirectingFileSystem::Entry *E = nullptr) {
+  if (E && !isa<RedirectingFileSystem::DirectoryRemapEntry>(E))
+    return false;
+  return EC == llvm::errc::no_such_file_or_directory;
 }
 
 } // anonymous namespace
@@ -1255,49 +1393,93 @@ directory_iterator RedirectingFileSystem::dir_begin(const Twine &Dir,
 
   ErrorOr<RedirectingFileSystem::LookupResult> Result = lookupPath(Path);
   if (!Result) {
-    EC = Result.getError();
-    if (shouldFallBackToExternalFS(EC))
+    if (Redirection != RedirectKind::RedirectOnly &&
+        isFileNotFound(Result.getError()))
       return ExternalFS->dir_begin(Path, EC);
+
+    EC = Result.getError();
     return {};
   }
 
   // Use status to make sure the path exists and refers to a directory.
   ErrorOr<Status> S = status(Path, Dir, *Result);
   if (!S) {
-    if (shouldFallBackToExternalFS(S.getError(), Result->E))
+    if (Redirection != RedirectKind::RedirectOnly &&
+        isFileNotFound(S.getError(), Result->E))
       return ExternalFS->dir_begin(Dir, EC);
+
     EC = S.getError();
     return {};
   }
+
   if (!S->isDirectory()) {
-    EC = std::error_code(static_cast<int>(errc::not_a_directory),
-                         std::system_category());
+    EC = errc::not_a_directory;
     return {};
   }
 
   // Create the appropriate directory iterator based on whether we found a
   // DirectoryRemapEntry or DirectoryEntry.
-  directory_iterator DirIter;
+  directory_iterator RedirectIter;
+  std::error_code RedirectEC;
   if (auto ExtRedirect = Result->getExternalRedirect()) {
     auto RE = cast<RedirectingFileSystem::RemapEntry>(Result->E);
-    DirIter = ExternalFS->dir_begin(*ExtRedirect, EC);
+    RedirectIter = ExternalFS->dir_begin(*ExtRedirect, RedirectEC);
 
     if (!RE->useExternalName(UseExternalNames)) {
       // Update the paths in the results to use the virtual directory's path.
-      DirIter =
+      RedirectIter =
           directory_iterator(std::make_shared<RedirectingFSDirRemapIterImpl>(
-              std::string(Path), DirIter));
+              std::string(Path), RedirectIter));
     }
   } else {
     auto DE = cast<DirectoryEntry>(Result->E);
-    DirIter = directory_iterator(std::make_shared<RedirectingFSDirIterImpl>(
-        Path, DE->contents_begin(), DE->contents_end(), EC));
+    RedirectIter =
+        directory_iterator(std::make_shared<RedirectingFSDirIterImpl>(
+            Path, DE->contents_begin(), DE->contents_end(), RedirectEC));
   }
 
-  if (!shouldUseExternalFS())
-    return DirIter;
-  return directory_iterator(std::make_shared<CombiningDirIterImpl>(
-      DirIter, ExternalFS, std::string(Path), EC));
+  if (RedirectEC) {
+    if (RedirectEC != errc::no_such_file_or_directory) {
+      EC = RedirectEC;
+      return {};
+    }
+    RedirectIter = {};
+  }
+
+  if (Redirection == RedirectKind::RedirectOnly) {
+    EC = RedirectEC;
+    return RedirectIter;
+  }
+
+  std::error_code ExternalEC;
+  directory_iterator ExternalIter = ExternalFS->dir_begin(Path, ExternalEC);
+  if (ExternalEC) {
+    if (ExternalEC != errc::no_such_file_or_directory) {
+      EC = ExternalEC;
+      return {};
+    }
+    ExternalIter = {};
+  }
+
+  SmallVector<directory_iterator, 2> Iters;
+  switch (Redirection) {
+  case RedirectKind::Fallthrough:
+    Iters.push_back(ExternalIter);
+    Iters.push_back(RedirectIter);
+    break;
+  case RedirectKind::Fallback:
+    Iters.push_back(RedirectIter);
+    Iters.push_back(ExternalIter);
+    break;
+  default:
+    llvm_unreachable("unhandled RedirectKind");
+  }
+
+  directory_iterator Combined{
+      std::make_shared<CombiningDirIterImpl>(Iters, EC)};
+  if (EC)
+    return {};
+  return Combined;
 }
 
 void RedirectingFileSystem::setExternalContentsPrefixDir(StringRef PrefixDir) {
@@ -1309,7 +1491,16 @@ StringRef RedirectingFileSystem::getExternalContentsPrefixDir() const {
 }
 
 void RedirectingFileSystem::setFallthrough(bool Fallthrough) {
-  IsFallthrough = Fallthrough;
+  if (Fallthrough) {
+    Redirection = RedirectingFileSystem::RedirectKind::Fallthrough;
+  } else {
+    Redirection = RedirectingFileSystem::RedirectKind::RedirectOnly;
+  }
+}
+
+void RedirectingFileSystem::setRedirection(
+    RedirectingFileSystem::RedirectKind Kind) {
+  Redirection = Kind;
 }
 
 std::vector<StringRef> RedirectingFileSystem::getRoots() const {
@@ -1319,33 +1510,58 @@ std::vector<StringRef> RedirectingFileSystem::getRoots() const {
   return R;
 }
 
-void RedirectingFileSystem::dump(raw_ostream &OS) const {
+void RedirectingFileSystem::printImpl(raw_ostream &OS, PrintType Type,
+                                      unsigned IndentLevel) const {
+  printIndent(OS, IndentLevel);
+  OS << "RedirectingFileSystem (UseExternalNames: "
+     << (UseExternalNames ? "true" : "false") << ")\n";
+  if (Type == PrintType::Summary)
+    return;
+
   for (const auto &Root : Roots)
-    dumpEntry(OS, Root.get());
+    printEntry(OS, Root.get(), IndentLevel);
+
+  printIndent(OS, IndentLevel);
+  OS << "ExternalFS:\n";
+  ExternalFS->print(OS, Type == PrintType::Contents ? PrintType::Summary : Type,
+                    IndentLevel + 1);
 }
 
-void RedirectingFileSystem::dumpEntry(raw_ostream &OS,
-                                      RedirectingFileSystem::Entry *E,
-                                      int NumSpaces) const {
-  StringRef Name = E->getName();
-  for (int i = 0, e = NumSpaces; i < e; ++i)
-    OS << " ";
-  OS << "'" << Name.str().c_str() << "'"
-     << "\n";
+void RedirectingFileSystem::printEntry(raw_ostream &OS,
+                                       RedirectingFileSystem::Entry *E,
+                                       unsigned IndentLevel) const {
+  printIndent(OS, IndentLevel);
+  OS << "'" << E->getName() << "'";
 
-  if (E->getKind() == RedirectingFileSystem::EK_Directory) {
-    auto *DE = dyn_cast<RedirectingFileSystem::DirectoryEntry>(E);
-    assert(DE && "Should be a directory");
+  switch (E->getKind()) {
+  case EK_Directory: {
+    auto *DE = cast<RedirectingFileSystem::DirectoryEntry>(E);
 
+    OS << "\n";
     for (std::unique_ptr<Entry> &SubEntry :
          llvm::make_range(DE->contents_begin(), DE->contents_end()))
-      dumpEntry(OS, SubEntry.get(), NumSpaces + 2);
+      printEntry(OS, SubEntry.get(), IndentLevel + 1);
+    break;
+  }
+  case EK_DirectoryRemap:
+  case EK_File: {
+    auto *RE = cast<RedirectingFileSystem::RemapEntry>(E);
+    OS << " -> '" << RE->getExternalContentsPath() << "'";
+    switch (RE->getUseName()) {
+    case NK_NotSet:
+      break;
+    case NK_External:
+      OS << " (UseExternalName: true)";
+      break;
+    case NK_Virtual:
+      OS << " (UseExternalName: false)";
+      break;
+    }
+    OS << "\n";
+    break;
+  }
   }
 }
-
-#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
-LLVM_DUMP_METHOD void RedirectingFileSystem::dump() const { dump(dbgs()); }
-#endif
 
 /// A helper class to hold the common YAML parsing state.
 class llvm::vfs::RedirectingFileSystemParser {
@@ -1386,6 +1602,23 @@ class llvm::vfs::RedirectingFileSystemParser {
 
     error(N, "expected boolean value");
     return false;
+  }
+
+  Optional<RedirectingFileSystem::RedirectKind>
+  parseRedirectKind(yaml::Node *N) {
+    SmallString<12> Storage;
+    StringRef Value;
+    if (!parseScalarString(N, Value, Storage))
+      return None;
+
+    if (Value.equals_insensitive("fallthrough")) {
+      return RedirectingFileSystem::RedirectKind::Fallthrough;
+    } else if (Value.equals_insensitive("fallback")) {
+      return RedirectingFileSystem::RedirectKind::Fallback;
+    } else if (Value.equals_insensitive("redirect-only")) {
+      return RedirectingFileSystem::RedirectKind::RedirectOnly;
+    }
+    return None;
   }
 
   struct KeyStatus {
@@ -1731,6 +1964,7 @@ public:
         KeyStatusPair("use-external-names", false),
         KeyStatusPair("overlay-relative", false),
         KeyStatusPair("fallthrough", false),
+        KeyStatusPair("redirecting-with", false),
         KeyStatusPair("roots", true),
     };
 
@@ -1789,8 +2023,34 @@ public:
         if (!parseScalarBool(I.getValue(), FS->UseExternalNames))
           return false;
       } else if (Key == "fallthrough") {
-        if (!parseScalarBool(I.getValue(), FS->IsFallthrough))
+        if (Keys["redirecting-with"].Seen) {
+          error(I.getValue(),
+                "'fallthrough' and 'redirecting-with' are mutually exclusive");
           return false;
+        }
+
+        bool ShouldFallthrough = false;
+        if (!parseScalarBool(I.getValue(), ShouldFallthrough))
+          return false;
+
+        if (ShouldFallthrough) {
+          FS->Redirection = RedirectingFileSystem::RedirectKind::Fallthrough;
+        } else {
+          FS->Redirection = RedirectingFileSystem::RedirectKind::RedirectOnly;
+        }
+      } else if (Key == "redirecting-with") {
+        if (Keys["fallthrough"].Seen) {
+          error(I.getValue(),
+                "'fallthrough' and 'redirecting-with' are mutually exclusive");
+          return false;
+        }
+
+        if (auto Kind = parseRedirectKind(I.getValue())) {
+          FS->Redirection = *Kind;
+        } else {
+          error(I.getValue(), "expected valid redirect kind");
+          return false;
+        }
       } else {
         llvm_unreachable("key missing from Keys");
       }
@@ -1923,13 +2183,6 @@ RedirectingFileSystem::LookupResult::LookupResult(
   }
 }
 
-bool RedirectingFileSystem::shouldFallBackToExternalFS(
-    std::error_code EC, RedirectingFileSystem::Entry *E) const {
-  if (E && !isa<RedirectingFileSystem::DirectoryRemapEntry>(E))
-    return false;
-  return shouldUseExternalFS() && EC == llvm::errc::no_such_file_or_directory;
-}
-
 std::error_code
 RedirectingFileSystem::makeCanonical(SmallVectorImpl<char> &Path) const {
   if (std::error_code EC = makeAbsolute(Path))
@@ -2001,9 +2254,16 @@ RedirectingFileSystem::lookupPathImpl(
 static Status getRedirectedFileStatus(const Twine &OriginalPath,
                                       bool UseExternalNames,
                                       Status ExternalStatus) {
+  // The path has been mapped by some nested VFS and exposes an external path,
+  // don't override it with the original path.
+  if (ExternalStatus.ExposesExternalVFSPath)
+    return ExternalStatus;
+
   Status S = ExternalStatus;
   if (!UseExternalNames)
     S = Status::copyWithNewName(S, OriginalPath);
+  else
+    S.ExposesExternalVFSPath = true;
   S.IsVFSMapped = true;
   return S;
 }
@@ -2032,11 +2292,13 @@ ErrorOr<Status> RedirectingFileSystem::status(
 ErrorOr<Status>
 RedirectingFileSystem::getExternalStatus(const Twine &CanonicalPath,
                                          const Twine &OriginalPath) const {
-  if (auto Result = ExternalFS->status(CanonicalPath)) {
-    return Result.get().copyWithNewName(Result.get(), OriginalPath);
-  } else {
-    return Result.getError();
-  }
+  auto Result = ExternalFS->status(CanonicalPath);
+
+  // The path has been mapped by some nested VFS, don't override it with the
+  // original path.
+  if (!Result || Result->ExposesExternalVFSPath)
+    return Result;
+  return Status::copyWithNewName(Result.get(), OriginalPath);
 }
 
 ErrorOr<Status> RedirectingFileSystem::status(const Twine &OriginalPath) {
@@ -2046,17 +2308,31 @@ ErrorOr<Status> RedirectingFileSystem::status(const Twine &OriginalPath) {
   if (std::error_code EC = makeCanonical(CanonicalPath))
     return EC;
 
+  if (Redirection == RedirectKind::Fallback) {
+    // Attempt to find the original file first, only falling back to the
+    // mapped file if that fails.
+    ErrorOr<Status> S = getExternalStatus(CanonicalPath, OriginalPath);
+    if (S)
+      return S;
+  }
+
   ErrorOr<RedirectingFileSystem::LookupResult> Result =
       lookupPath(CanonicalPath);
   if (!Result) {
-    if (shouldFallBackToExternalFS(Result.getError())) {
+    // Was not able to map file, fallthrough to using the original path if
+    // that was the specified redirection type.
+    if (Redirection == RedirectKind::Fallthrough &&
+        isFileNotFound(Result.getError()))
       return getExternalStatus(CanonicalPath, OriginalPath);
-    }
     return Result.getError();
   }
 
   ErrorOr<Status> S = status(CanonicalPath, OriginalPath, *Result);
-  if (!S && shouldFallBackToExternalFS(S.getError(), Result->E)) {
+  if (!S && Redirection == RedirectKind::Fallthrough &&
+      isFileNotFound(S.getError(), Result->E)) {
+    // Mapped the file but it wasn't found in the underlying filesystem,
+    // fallthrough to using the original path if that was the specified
+    // redirection type.
     return getExternalStatus(CanonicalPath, OriginalPath);
   }
 
@@ -2092,7 +2368,9 @@ public:
 
 ErrorOr<std::unique_ptr<File>>
 File::getWithPath(ErrorOr<std::unique_ptr<File>> Result, const Twine &P) {
-  if (!Result)
+  // See \c getRedirectedFileStatus - don't update path if it's exposing an
+  // external path.
+  if (!Result || (*Result)->status()->ExposesExternalVFSPath)
     return Result;
 
   ErrorOr<std::unique_ptr<File>> F = std::move(*Result);
@@ -2110,13 +2388,24 @@ RedirectingFileSystem::openFileForRead(const Twine &OriginalPath) {
   if (std::error_code EC = makeCanonical(CanonicalPath))
     return EC;
 
+  if (Redirection == RedirectKind::Fallback) {
+    // Attempt to find the original file first, only falling back to the
+    // mapped file if that fails.
+    auto F = File::getWithPath(ExternalFS->openFileForRead(CanonicalPath),
+                               OriginalPath);
+    if (F)
+      return F;
+  }
+
   ErrorOr<RedirectingFileSystem::LookupResult> Result =
       lookupPath(CanonicalPath);
   if (!Result) {
-    if (shouldFallBackToExternalFS(Result.getError()))
+    // Was not able to map file, fallthrough to using the original path if
+    // that was the specified redirection type.
+    if (Redirection == RedirectKind::Fallthrough &&
+        isFileNotFound(Result.getError()))
       return File::getWithPath(ExternalFS->openFileForRead(CanonicalPath),
                                OriginalPath);
-
     return Result.getError();
   }
 
@@ -2133,9 +2422,14 @@ RedirectingFileSystem::openFileForRead(const Twine &OriginalPath) {
   auto ExternalFile = File::getWithPath(
       ExternalFS->openFileForRead(CanonicalRemappedPath), ExtRedirect);
   if (!ExternalFile) {
-    if (shouldFallBackToExternalFS(ExternalFile.getError(), Result->E))
+    if (Redirection == RedirectKind::Fallthrough &&
+        isFileNotFound(ExternalFile.getError(), Result->E)) {
+      // Mapped the file but it wasn't found in the underlying filesystem,
+      // fallthrough to using the original path if that was the specified
+      // redirection type.
       return File::getWithPath(ExternalFS->openFileForRead(CanonicalPath),
                                OriginalPath);
+    }
     return ExternalFile;
   }
 
@@ -2143,7 +2437,8 @@ RedirectingFileSystem::openFileForRead(const Twine &OriginalPath) {
   if (!ExternalStatus)
     return ExternalStatus.getError();
 
-  // FIXME: Update the status with the name and VFSMapped.
+  // Otherwise, the file was successfully remapped. Mark it as such. Also
+  // replace the underlying path if the external name is being used.
   Status S = getRedirectedFileStatus(
       OriginalPath, RE->useExternalName(UseExternalNames), *ExternalStatus);
   return std::unique_ptr<File>(
@@ -2151,18 +2446,30 @@ RedirectingFileSystem::openFileForRead(const Twine &OriginalPath) {
 }
 
 std::error_code
-RedirectingFileSystem::getRealPath(const Twine &Path_,
+RedirectingFileSystem::getRealPath(const Twine &OriginalPath,
                                    SmallVectorImpl<char> &Output) const {
-  SmallString<256> Path;
-  Path_.toVector(Path);
+  SmallString<256> CanonicalPath;
+  OriginalPath.toVector(CanonicalPath);
 
-  if (std::error_code EC = makeCanonical(Path))
+  if (std::error_code EC = makeCanonical(CanonicalPath))
     return EC;
 
-  ErrorOr<RedirectingFileSystem::LookupResult> Result = lookupPath(Path);
+  if (Redirection == RedirectKind::Fallback) {
+    // Attempt to find the original file first, only falling back to the
+    // mapped file if that fails.
+    std::error_code EC = ExternalFS->getRealPath(CanonicalPath, Output);
+    if (!EC)
+      return EC;
+  }
+
+  ErrorOr<RedirectingFileSystem::LookupResult> Result =
+      lookupPath(CanonicalPath);
   if (!Result) {
-    if (shouldFallBackToExternalFS(Result.getError()))
-      return ExternalFS->getRealPath(Path, Output);
+    // Was not able to map file, fallthrough to using the original path if
+    // that was the specified redirection type.
+    if (Redirection == RedirectKind::Fallthrough &&
+        isFileNotFound(Result.getError()))
+      return ExternalFS->getRealPath(CanonicalPath, Output);
     return Result.getError();
   }
 
@@ -2170,16 +2477,21 @@ RedirectingFileSystem::getRealPath(const Twine &Path_,
   // path in the external file system.
   if (auto ExtRedirect = Result->getExternalRedirect()) {
     auto P = ExternalFS->getRealPath(*ExtRedirect, Output);
-    if (!P && shouldFallBackToExternalFS(P, Result->E)) {
-      return ExternalFS->getRealPath(Path, Output);
+    if (P && Redirection == RedirectKind::Fallthrough &&
+        isFileNotFound(P, Result->E)) {
+      // Mapped the file but it wasn't found in the underlying filesystem,
+      // fallthrough to using the original path if that was the specified
+      // redirection type.
+      return ExternalFS->getRealPath(CanonicalPath, Output);
     }
     return P;
   }
 
-  // If we found a DirectoryEntry, still fall back to ExternalFS if allowed,
-  // because directories don't have a single external contents path.
-  return shouldUseExternalFS() ? ExternalFS->getRealPath(Path, Output)
-                               : llvm::errc::invalid_argument;
+  // If we found a DirectoryEntry, still fallthrough to the original path if
+  // allowed, because directories don't have a single external contents path.
+  if (Redirection == RedirectKind::Fallthrough)
+    return ExternalFS->getRealPath(CanonicalPath, Output);
+  return llvm::errc::invalid_argument;
 }
 
 std::unique_ptr<FileSystem>
@@ -2355,15 +2667,15 @@ void JSONWriter::write(ArrayRef<YAMLVFSEntry> Entries,
 
   OS << "{\n"
         "  'version': 0,\n";
-  if (IsCaseSensitive.hasValue())
+  if (IsCaseSensitive)
     OS << "  'case-sensitive': '"
-       << (IsCaseSensitive.getValue() ? "true" : "false") << "',\n";
-  if (UseExternalNames.hasValue())
+       << (IsCaseSensitive.value() ? "true" : "false") << "',\n";
+  if (UseExternalNames)
     OS << "  'use-external-names': '"
-       << (UseExternalNames.getValue() ? "true" : "false") << "',\n";
+       << (UseExternalNames.value() ? "true" : "false") << "',\n";
   bool UseOverlayRelative = false;
-  if (IsOverlayRelative.hasValue()) {
-    UseOverlayRelative = IsOverlayRelative.getValue();
+  if (IsOverlayRelative) {
+    UseOverlayRelative = IsOverlayRelative.value();
     OS << "  'overlay-relative': '" << (UseOverlayRelative ? "true" : "false")
        << "',\n";
   }

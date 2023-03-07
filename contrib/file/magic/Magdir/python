@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: python,v 1.44 2021/10/20 11:15:35 christos Exp $
+# $File: python,v 1.45 2022/07/24 23:59:37 christos Exp $
 # python:  file(1) magic for python
 #
 # Outlook puts """ too for urgent messages
@@ -85,6 +85,8 @@
 0	belong		0x03f30d0a	python 2.7 byte-compiled
 !:mime application/x-bytecode.python
 0	belong		0x04f30d0a	python 2.7 byte-compiled
+!:mime application/x-bytecode.python
+0	belong		0x0af30d0a	PyPy2.7 byte-compiled
 !:mime application/x-bytecode.python
 0	belong		0xb80b0d0a	python 3.0 byte-compiled
 !:mime application/x-bytecode.python
@@ -186,80 +188,46 @@
 !:mime application/x-bytecode.python
 0	belong		0x3f0d0d0a	python 3.7 byte-compiled
 !:mime application/x-bytecode.python
-0	belong		0x400d0d0a	python 3.7 byte-compiled
+
+# magic 3392+ implements PEP 552: Deterministic pycs
+0	name		pyc-pep552
+# the flag field determines how .pyc validity is checked
+>4	ulelong&1	0		timestamp-based,
+>>8	uledate		x		.py timestamp: %s UTC,
+>>12	ulelong		x		.py size: %d bytes
+>4	ulelong&1	!0		hash-based, check-source flag
+>>4	ulelong&2	0		unset,
+>>4	ulelong&2	!0		set,
+>>8	ulequad		x		hash: 0x%llx
+
+# uleshort magic followed by \x0d\0xa
+2		string		\x0d\x0a
+# extra check: only two bits of flag field are currently used
+>4		ulelong		<0x4
+# \x0d as part of magic should suffice till Python 3.14 (magic 3600)
+>>1		ubyte		0x0d		Byte-compiled Python module for
 !:mime application/x-bytecode.python
-0	belong		0x410d0d0a	python 3.7 byte-compiled
+# now look at the magic number to determine the version
+>>>0		uleshort	<3400		CPython 3.7,
+>>>0		default		x
+>>>>0		uleshort	<3420		CPython 3.8,
+>>>>0		default		x
+>>>>>0		uleshort	<3430		CPython 3.9,
+>>>>>0		default		x
+>>>>>>0		uleshort	<3450		CPython 3.10,
+>>>>>>0		default		x
+>>>>>>>0	uleshort	<3500		CPython 3.11,
+>>>>>>>0	default		x		CPython 3.12 or newer,
+>>>0		use		pyc-pep552
+>>0		uleshort	240		Byte-compiled Python module for PyPy3.7,
 !:mime application/x-bytecode.python
-0	belong		0x420d0d0a	python 3.7 byte-compiled
+>>>0		use		pyc-pep552
+>>0		uleshort	256		Byte-compiled Python module for PyPy3.8,
 !:mime application/x-bytecode.python
-0	belong		0x480d0d0a	python 3.8 byte-compiled
+>>>0		use		pyc-pep552
+>>0		uleshort	336		Byte-compiled Python module for PyPy3.9,
 !:mime application/x-bytecode.python
-0	belong		0x490d0d0a	python 3.8 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x520d0d0a	python 3.8 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x530d0d0a	python 3.8 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x540d0d0a	python 3.8 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x550d0d0a	python 3.8 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x5c0d0d0a	python 3.9 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x5d0d0d0a	python 3.9 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x5e0d0d0a	python 3.9 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x5f0d0d0a	python 3.9 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x600d0d0a	python 3.9 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x610d0d0a	python 3.9 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x660d0d0a	python 3.10 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x670d0d0a	python 3.10 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x680d0d0a	python 3.10 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x690d0d0a	python 3.10 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x6a0d0d0a	python 3.10 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x6b0d0d0a	python 3.10 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x6c0d0d0a	python 3.10 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x6d0d0d0a	python 3.10 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x6e0d0d0a	python 3.10 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x6f0d0d0a	python 3.10 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x7a0d0d0a	python 3.11 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x7b0d0d0a	python 3.11 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x7c0d0d0a	python 3.11 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x7d0d0d0a	python 3.11 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x7e0d0d0a	python 3.11 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x7f0d0d0a	python 3.11 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x800d0d0a	python 3.11 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x810d0d0a	python 3.11 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x820d0d0a	python 3.11 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x830d0d0a	python 3.11 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x840d0d0a	python 3.11 byte-compiled
-!:mime application/x-bytecode.python
-0	belong		0x850d0d0a	python 3.11 byte-compiled
-!:mime application/x-bytecode.python
+>>>0		use		pyc-pep552
 
 0	search/1/w	#!\040/usr/bin/python	Python script text executable
 !:strength + 15

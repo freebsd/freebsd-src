@@ -106,6 +106,7 @@ static const STRUCT_USB_HOST_ID ure_devs[] = {
 	URE_DEV(LENOVO, RTL8153_04, URE_FLAG_8153),
 	URE_DEV(LENOVO, USBCLAN, 0),
 	URE_DEV(LENOVO, USBCLANGEN2, 0),
+	URE_DEV(MICROSOFT, WINDEVETH, 0),
 	URE_DEV(NVIDIA, RTL8153, URE_FLAG_8153),
 	URE_DEV(REALTEK, RTL8152, URE_FLAG_8152),
 	URE_DEV(REALTEK, RTL8153, URE_FLAG_8153),
@@ -153,12 +154,12 @@ static int	ure_sysctl_chipver(SYSCTL_HANDLER_ARGS);
 static void	ure_read_chipver(struct ure_softc *);
 static int	ure_attach_post_sub(struct usb_ether *);
 static void	ure_reset(struct ure_softc *);
-static int	ure_ifmedia_upd(struct ifnet *);
-static void	ure_ifmedia_sts(struct ifnet *, struct ifmediareq *);
+static int	ure_ifmedia_upd(if_t);
+static void	ure_ifmedia_sts(if_t, struct ifmediareq *);
 static void	ure_add_media_types(struct ure_softc *);
 static void	ure_link_state(struct ure_softc *sc);
 static int		ure_get_link_status(struct ure_softc *);
-static int		ure_ioctl(struct ifnet *, u_long, caddr_t);
+static int		ure_ioctl(if_t, u_long, caddr_t);
 static void	ure_rtl8152_init(struct ure_softc *);
 static void	ure_rtl8152_nic_reset(struct ure_softc *);
 static void	ure_rtl8153_init(struct ure_softc *);
@@ -437,7 +438,7 @@ ure_miibus_statchg(device_t dev)
 {
 	struct ure_softc *sc;
 	struct mii_data *mii;
-	struct ifnet *ifp;
+	if_t ifp;
 	int locked;
 
 	sc = device_get_softc(dev);
@@ -448,7 +449,7 @@ ure_miibus_statchg(device_t dev)
 
 	ifp = uether_getifp(&sc->sc_ue);
 	if (mii == NULL || ifp == NULL ||
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	    (if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
 		goto done;
 
 	sc->sc_flags &= ~URE_FLAG_LINK;
@@ -635,7 +636,7 @@ ure_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct ure_softc *sc = usbd_xfer_softc(xfer);
 	struct usb_ether *ue = &sc->sc_ue;
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 	struct usb_page_cache *pc;
 	struct mbuf *m;
 	struct ure_rxpkt pkt;
@@ -740,7 +741,7 @@ static void
 ure_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct ure_softc *sc = usbd_xfer_softc(xfer);
-	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
+	if_t ifp = uether_getifp(&sc->sc_ue);
 	struct usb_page_cache *pc;
 	struct mbuf *m;
 	struct ure_txpkt txpkt;
@@ -752,7 +753,7 @@ ure_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		DPRINTFN(11, "transfer complete\n");
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
@@ -768,7 +769,7 @@ tr_setup:
 		pos = 0;
 		rem = URE_TX_BUFSZ;
 		while (rem > sizeof(txpkt)) {
-			IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+			m = if_dequeue(ifp);
 			if (m == NULL)
 				break;
 
@@ -789,7 +790,7 @@ pkterror:
 			if (sizeof(txpkt) +
 			    roundup(len, URE_TXPKT_ALIGN) > rem) {
 				/* out of space */
-				IFQ_DRV_PREPEND(&ifp->if_snd, m);
+				if_sendq_prepend(ifp, m);
 				m = NULL;
 				break;
 			}
@@ -851,7 +852,7 @@ pkterror:
 		    usbd_errstr(error));
 
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 
 		if (error == USB_ERR_TIMEOUT) {
 			DEVPRINTFN(12, sc->sc_ue.ue_dev,
@@ -987,22 +988,21 @@ ure_attach_post_sub(struct usb_ether *ue)
 	struct sysctl_ctx_list *sctx;
 	struct sysctl_oid *soid;
 	struct ure_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	int error;
 
 	sc = uether_getsc(ue);
 	ifp = ue->ue_ifp;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_start = uether_start;
-	ifp->if_ioctl = ure_ioctl;
-	ifp->if_init = uether_init;
-	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setstartfn(ifp, uether_start);
+	if_setioctlfn(ifp, ure_ioctl);
+	if_setinitfn(ifp, uether_init);
 	/*
 	 * Try to keep two transfers full at a time.
 	 * ~(TRANSFER_SIZE / 80 bytes/pkt * 2 buffers in flight)
 	 */
-	ifp->if_snd.ifq_drv_maxlen = 512;
-	IFQ_SET_READY(&ifp->if_snd);
+	if_setsendqlen(ifp, 512);
+	if_setsendqready(ifp);
 
 	if_setcapabilitiesbit(ifp, IFCAP_VLAN_MTU, 0);
 	if_setcapabilitiesbit(ifp, IFCAP_VLAN_HWTAGGING, 0);
@@ -1043,13 +1043,13 @@ static void
 ure_init(struct usb_ether *ue)
 {
 	struct ure_softc *sc = uether_getsc(ue);
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 	uint16_t cpcr;
 	uint32_t reg;
 
 	URE_LOCK_ASSERT(sc, MA_OWNED);
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0)
 		return;
 
 	/* Cancel pending I/O. */
@@ -1063,7 +1063,7 @@ ure_init(struct usb_ether *ue)
 	/* Set MAC address. */
 	ure_write_1(sc, URE_PLA_CRWECR, URE_MCU_TYPE_PLA, URE_CRWECR_CONFIG);
 	ure_write_mem(sc, URE_PLA_IDR, URE_MCU_TYPE_PLA | URE_BYTE_EN_SIX_BYTES,
-	    IF_LLADDR(ifp), 8);
+	    if_getlladdr(ifp), 8);
 	ure_write_1(sc, URE_PLA_CRWECR, URE_MCU_TYPE_PLA, URE_CRWECR_NORAML);
 
 	/* Set RX EARLY timeout and size */
@@ -1133,7 +1133,7 @@ ure_init(struct usb_ether *ue)
 	usbd_xfer_set_stall(sc->sc_tx_xfer[0]);
 
 	/* Indicate we are up and running. */
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
 
 	/* Switch to selected media. */
 	ure_ifmedia_upd(ifp);
@@ -1143,7 +1143,7 @@ static void
 ure_tick(struct usb_ether *ue)
 {
 	struct ure_softc *sc = uether_getsc(ue);
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 	struct mii_data *mii;
 
 	URE_LOCK_ASSERT(sc, MA_OWNED);
@@ -1192,7 +1192,7 @@ static void
 ure_rxfilter(struct usb_ether *ue)
 {
 	struct ure_softc *sc = uether_getsc(ue);
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 	uint32_t rxmode;
 	uint32_t h, hashes[2] = { 0, 0 };
 
@@ -1202,8 +1202,8 @@ ure_rxfilter(struct usb_ether *ue)
 	rxmode &= ~(URE_RCR_AAP | URE_RCR_AM);
 	rxmode |= URE_RCR_APM;	/* accept physical match packets */
 	rxmode |= URE_RCR_AB;	/* always accept broadcasts */
-	if (ifp->if_flags & (IFF_ALLMULTI | IFF_PROMISC)) {
-		if (ifp->if_flags & IFF_PROMISC)
+	if (if_getflags(ifp) & (IFF_ALLMULTI | IFF_PROMISC)) {
+		if (if_getflags(ifp) & IFF_PROMISC)
 			rxmode |= URE_RCR_AAP;
 		rxmode |= URE_RCR_AM;
 		hashes[0] = hashes[1] = 0xffffffff;
@@ -1265,9 +1265,9 @@ ure_reset(struct ure_softc *sc)
  * Set media options.
  */
 static int
-ure_ifmedia_upd(struct ifnet *ifp)
+ure_ifmedia_upd(if_t ifp)
 {
-	struct ure_softc *sc = ifp->if_softc;
+	struct ure_softc *sc = if_getsoftc(ifp);
 	struct ifmedia *ifm;
 	struct mii_data *mii;
 	struct mii_softc *miisc;
@@ -1299,20 +1299,20 @@ ure_ifmedia_upd(struct ifnet *ifp)
 			anar |= ANAR_TX_FD | ANAR_TX | ANAR_10_FD | ANAR_10;
 			gig |= GTCR_ADV_1000TFDX | GTCR_ADV_1000THDX;
 			reg |= URE_ADV_2500TFDX;
-			ifp->if_baudrate = IF_Mbps(2500);
+			if_setbaudrate(ifp, IF_Mbps(2500));
 			break;
 		case IFM_1000_T:
 			anar |= ANAR_TX_FD | ANAR_TX | ANAR_10_FD | ANAR_10;
 			gig |= GTCR_ADV_1000TFDX | GTCR_ADV_1000THDX;
-			ifp->if_baudrate = IF_Gbps(1);
+			if_setbaudrate(ifp, IF_Gbps(1));
 			break;
 		case IFM_100_TX:
 			anar |= ANAR_TX | ANAR_TX_FD;
-			ifp->if_baudrate = IF_Mbps(100);
+			if_setbaudrate(ifp, IF_Mbps(100));
 			break;
 		case IFM_10_T:
 			anar |= ANAR_10 | ANAR_10_FD;
-			ifp->if_baudrate = IF_Mbps(10);
+			if_setbaudrate(ifp, IF_Mbps(10));
 			break;
 		default:
 			device_printf(sc->sc_ue.ue_dev, "unsupported media type\n");
@@ -1345,13 +1345,13 @@ ure_ifmedia_upd(struct ifnet *ifp)
  * Report current media status.
  */
 static void
-ure_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+ure_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
 	struct ure_softc *sc;
 	struct mii_data *mii;
 	uint16_t status;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	if (sc->sc_flags & (URE_FLAG_8156 | URE_FLAG_8156B)) {
 		URE_LOCK(sc);
 		ifmr->ifm_status = IFM_AVALID;
@@ -1400,10 +1400,10 @@ ure_add_media_types(struct ure_softc *sc)
 static void
 ure_link_state(struct ure_softc *sc)
 {
-	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
+	if_t ifp = uether_getifp(&sc->sc_ue);
 
 	if (ure_get_link_status(sc)) {
-		if (ifp->if_link_state != LINK_STATE_UP) {
+		if (if_getlinkstate(ifp) != LINK_STATE_UP) {
 			if_link_state_change(ifp, LINK_STATE_UP);
 			/* Enable transmit and receive. */
 			URE_SETBIT_1(sc, URE_PLA_CR, URE_MCU_TYPE_PLA, URE_CR_RE | URE_CR_TE);
@@ -1415,7 +1415,7 @@ ure_link_state(struct ure_softc *sc)
 				URE_SETBIT_2(sc, URE_PLA_MAC_PWR_CTRL4, URE_MCU_TYPE_PLA, 0x40);
 		}
 	} else {
-		if (ifp->if_link_state != LINK_STATE_DOWN) {
+		if (if_getlinkstate(ifp) != LINK_STATE_DOWN) {
 			if_link_state_change(ifp, LINK_STATE_DOWN);
 		}
 	}
@@ -1435,9 +1435,9 @@ ure_get_link_status(struct ure_softc *sc)
 }
 
 static int
-ure_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+ure_ioctl(if_t ifp, u_long cmd, caddr_t data)
 {
-	struct usb_ether *ue = ifp->if_softc;
+	struct usb_ether *ue = if_getsoftc(ifp);
 	struct ure_softc *sc;
 	struct ifreq *ifr;
 	int error, mask, reinit;
@@ -1449,30 +1449,30 @@ ure_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	switch (cmd) {
 	case SIOCSIFCAP:
 		URE_LOCK(sc);
-		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+		mask = ifr->ifr_reqcap ^ if_getcapenable(ifp);
 		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
-		    (ifp->if_capabilities & IFCAP_VLAN_HWTAGGING) != 0) {
-			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+		    (if_getcapabilities(ifp) & IFCAP_VLAN_HWTAGGING) != 0) {
+			if_togglecapenable(ifp, IFCAP_VLAN_HWTAGGING);
 			reinit++;
 		}
 		if ((mask & IFCAP_TXCSUM) != 0 &&
-		    (ifp->if_capabilities & IFCAP_TXCSUM) != 0) {
-			ifp->if_capenable ^= IFCAP_TXCSUM;
+		    (if_getcapabilities(ifp) & IFCAP_TXCSUM) != 0) {
+			if_togglecapenable(ifp, IFCAP_TXCSUM);
 		}
 		if ((mask & IFCAP_RXCSUM) != 0 &&
-		    (ifp->if_capabilities & IFCAP_RXCSUM) != 0) {
-			ifp->if_capenable ^= IFCAP_RXCSUM;
+		    (if_getcapabilities(ifp) & IFCAP_RXCSUM) != 0) {
+			if_togglecapenable(ifp, IFCAP_RXCSUM);
 		}
 		if ((mask & IFCAP_TXCSUM_IPV6) != 0 &&
-		    (ifp->if_capabilities & IFCAP_TXCSUM_IPV6) != 0) {
-			ifp->if_capenable ^= IFCAP_TXCSUM_IPV6;
+		    (if_getcapabilities(ifp) & IFCAP_TXCSUM_IPV6) != 0) {
+			if_togglecapenable(ifp, IFCAP_TXCSUM_IPV6);
 		}
 		if ((mask & IFCAP_RXCSUM_IPV6) != 0 &&
-		    (ifp->if_capabilities & IFCAP_RXCSUM_IPV6) != 0) {
-			ifp->if_capenable ^= IFCAP_RXCSUM_IPV6;
+		    (if_getcapabilities(ifp) & IFCAP_RXCSUM_IPV6) != 0) {
+			if_togglecapenable(ifp, IFCAP_RXCSUM_IPV6);
 		}
-		if (reinit > 0 && ifp->if_drv_flags & IFF_DRV_RUNNING)
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		if (reinit > 0 && if_getdrvflags(ifp) & IFF_DRV_RUNNING)
+			if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 		else
 			reinit = 0;
 		URE_UNLOCK(sc);
@@ -1851,7 +1851,7 @@ ure_rtl8153b_init(struct ure_softc *sc)
 static void
 ure_rtl8153b_nic_reset(struct ure_softc *sc)
 {
-	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
+	if_t ifp = uether_getifp(&sc->sc_ue);
 	uint16_t val;
 	int i;
 
@@ -1906,7 +1906,7 @@ ure_rtl8153b_nic_reset(struct ure_softc *sc)
 	/* Configure rxvlan */
 	val = ure_read_2(sc, 0xc012, URE_MCU_TYPE_PLA);
 	val &= ~0x00c0;
-	if (ifp->if_capabilities & IFCAP_VLAN_HWTAGGING)
+	if (if_getcapabilities(ifp) & IFCAP_VLAN_HWTAGGING)
 		val |= 0x00c0;
 	ure_write_2(sc, 0xc012, URE_MCU_TYPE_PLA, val);
 
@@ -1973,11 +1973,11 @@ static void
 ure_stop(struct usb_ether *ue)
 {
 	struct ure_softc *sc = uether_getsc(ue);
-	struct ifnet *ifp = uether_getifp(ue);
+	if_t ifp = uether_getifp(ue);
 
 	URE_LOCK_ASSERT(sc, MA_OWNED);
 
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	if_setdrvflagbits(ifp, 0, (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
 	sc->sc_flags &= ~URE_FLAG_LINK;
 	sc->sc_rxstarted = 0;
 

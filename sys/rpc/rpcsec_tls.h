@@ -86,6 +86,17 @@ bool		rpctls_getinfo(u_int *maxlen, bool rpctlscd_run,
 /* ssl refno value to indicate TLS handshake being done. */
 #define	RPCTLS_REFNO_HANDSHAKE	0xFFFFFFFFFFFFFFFFULL
 
+/* Macros for VIMAGE. */
+/* Just define the KRPC_VNETxxx() macros as VNETxxx() macros. */
+#define	KRPC_VNET_DEFINE(t, n)		VNET_DEFINE(t, n)
+#define	KRPC_VNET_DEFINE_STATIC(t, n)	VNET_DEFINE_STATIC(t, n)
+#define	KRPC_VNET(n)			VNET(n)
+
+#define	KRPC_CURVNET_SET(n)		CURVNET_SET(n)
+#define	KRPC_CURVNET_SET_QUIET(n)	CURVNET_SET_QUIET(n)
+#define	KRPC_CURVNET_RESTORE()		CURVNET_RESTORE()
+#define	KRPC_TD_TO_VNET(n)		TD_TO_VNET(n)
+
 #endif	/* _KERNEL */
 
 #endif	/* _RPC_RPCSEC_TLS_H_ */

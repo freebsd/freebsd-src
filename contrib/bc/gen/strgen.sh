@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -36,23 +36,37 @@ script="$0"
 scriptdir=$(dirname "$script")
 . "$scriptdir/../scripts/functions.sh"
 
+# Just print the usage and exit with an error. This can receive a message to
+# print.
+# @param 1  A message to print.
+usage() {
+	if [ $# -eq 1 ]; then
+		printf '%s\n\n' "$1"
+	fi
+	printf 'usage: %s input output exclude name [label [define [remove_tabs]]]\n' "$progname"
+	exit 1
+}
+
 # See strgen.c comment on main() for what these mean. Note, however, that this
 # script generates a string literal, not a char array. To understand the
 # consequences of that, see manuals/development.md#strgenc.
 if [ $# -lt 3 ]; then
-	echo "usage: $progname input output exclude name [label [define [remove_tabs]]]"
-	exit 1
+	usage "Not enough arguments"
 fi
 
 input="$1"
+check_file_arg "$input"
 output="$2"
 exclude="$3"
 name="$4"
 label="$5"
 define="$6"
 remove_tabs="$7"
+if [ "$remove_tabs" != "" ]; then
+	check_bool_arg "$remove_tabs"
+fi
 
-tmpinput=$(mktemp -t "${input##*/}")
+tmpinput=$(mktemp -t "${input##*/}_XXXXXX")
 
 if [ "$exclude" -ne 0 ]; then
 	filter_text "$input" "$tmpinput" "E"
@@ -82,7 +96,7 @@ if [ -n "$remove_tabs" ]; then
 fi
 
 cat<<EOF
-// Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+// Copyright (c) 2018-2023 Gavin D. Howard and contributors.
 // Licensed under the 2-clause BSD license.
 // *** AUTOMATICALLY GENERATED FROM ${input}. DO NOT MODIFY. ***
 

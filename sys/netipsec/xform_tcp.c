@@ -86,7 +86,7 @@ tcp_ipsec_pcbctl(struct inpcb *inp, struct sockopt *sopt)
 
 	if (sopt->sopt_dir == SOPT_GET) {
 		INP_RLOCK(inp);
-		if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+		if (inp->inp_flags & INP_DROPPED) {
 			INP_RUNLOCK(inp);
 			return (ECONNRESET);
 		}
@@ -104,7 +104,7 @@ tcp_ipsec_pcbctl(struct inpcb *inp, struct sockopt *sopt)
 
 	/* INP_WLOCK_RECHECK */
 	INP_WLOCK(inp);
-	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & INP_DROPPED) {
 		INP_WUNLOCK(inp);
 		return (ECONNRESET);
 	}

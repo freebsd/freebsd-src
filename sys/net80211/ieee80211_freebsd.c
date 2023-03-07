@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_clone.h>
 #include <net/if_media.h>
+#include <net/if_private.h>
 #include <net/if_types.h>
 #include <net/ethernet.h>
 #include <net/route.h>
@@ -112,7 +113,8 @@ ieee80211_priv_check_create_vap(u_long cmd __unused,
 }
 
 static int
-wlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
+wlan_clone_create(struct if_clone *ifc, char *name, size_t len,
+    struct ifc_data *ifd, struct ifnet **ifpp)
 {
 	struct ieee80211_clone_params cp;
 	struct ieee80211vap *vap;
@@ -123,7 +125,7 @@ wlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	if (error)
 		return error;
 
-	error = copyin(params, &cp, sizeof(cp));
+	error = ifc_copyin(ifd, &cp, sizeof(cp));
 	if (error)
 		return error;
 	ic = ieee80211_find_com(cp.icp_parent);
@@ -149,7 +151,7 @@ wlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 		ic_printf(ic, "TDMA not supported\n");
 		return EOPNOTSUPP;
 	}
-	vap = ic->ic_vap_create(ic, wlanname, unit,
+	vap = ic->ic_vap_create(ic, wlanname, ifd->unit,
 			cp.icp_opmode, cp.icp_flags, cp.icp_bssid,
 			cp.icp_flags & IEEE80211_CLONE_MACADDR ?
 			    cp.icp_macaddr : ic->ic_macaddr);
@@ -161,16 +163,20 @@ wlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	if (ic->ic_debugnet_meth != NULL)
 		DEBUGNET_SET(vap->iv_ifp, ieee80211);
 #endif
+	*ifpp = vap->iv_ifp;
+
 	return (0);
 }
 
-static void
-wlan_clone_destroy(struct ifnet *ifp)
+static int
+wlan_clone_destroy(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags)
 {
 	struct ieee80211vap *vap = ifp->if_softc;
 	struct ieee80211com *ic = vap->iv_ic;
 
 	ic->ic_vap_delete(vap);
+
+	return (0);
 }
 
 void
@@ -1015,7 +1021,7 @@ ieee80211_notify_radio(struct ieee80211com *ic, int state)
 }
 
 void
-ieee80211_notify_ifnet_change(struct ieee80211vap *vap)
+ieee80211_notify_ifnet_change(struct ieee80211vap *vap, int if_flags_mask)
 {
 	struct ifnet *ifp = vap->iv_ifp;
 
@@ -1023,7 +1029,7 @@ ieee80211_notify_ifnet_change(struct ieee80211vap *vap)
 	    "interface state change");
 
 	CURVNET_SET(ifp->if_vnet);
-	rt_ifmsg(ifp);
+	rt_ifmsg(ifp, if_flags_mask);
 	CURVNET_RESTORE();
 }
 
@@ -1160,11 +1166,15 @@ wlan_modevent(module_t mod, int type, void *unused)
 		    bpf_track, 0, EVENTHANDLER_PRI_ANY);
 		wlan_ifllevent = EVENTHANDLER_REGISTER(iflladdr_event,
 		    wlan_iflladdr, NULL, EVENTHANDLER_PRI_ANY);
-		wlan_cloner = if_clone_simple(wlanname, wlan_clone_create,
-		    wlan_clone_destroy, 0);
+		struct if_clone_addreq req = {
+			.create_f = wlan_clone_create,
+			.destroy_f = wlan_clone_destroy,
+			.flags = IFC_F_AUTOUNIT,
+		};
+		wlan_cloner = ifc_attach_cloner(wlanname, &req);
 		return 0;
 	case MOD_UNLOAD:
-		if_clone_detach(wlan_cloner);
+		ifc_detach_cloner(wlan_cloner);
 		EVENTHANDLER_DEREGISTER(bpf_track, wlan_bpfevent);
 		EVENTHANDLER_DEREGISTER(iflladdr_event, wlan_ifllevent);
 		return 0;

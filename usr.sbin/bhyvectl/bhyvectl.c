@@ -86,8 +86,7 @@ usage(bool cpu_intel)
 	"       [--create]\n"
 	"       [--destroy]\n"
 #ifdef BHYVE_SNAPSHOT
-	"       [--checkpoint=<filename>]\n"
-	"       [--suspend=<filename>]\n"
+	"       [--checkpoint=<filename> | --suspend=<filename>]\n"
 #endif
 	"       [--get-all]\n"
 	"       [--get-stats]\n"
@@ -294,12 +293,11 @@ static int set_desc_ldtr, get_desc_ldtr;
 static int set_cs, set_ds, set_es, set_fs, set_gs, set_ss, set_tr, set_ldtr;
 static int get_cs, get_ds, get_es, get_fs, get_gs, get_ss, get_tr, get_ldtr;
 static int set_x2apic_state, get_x2apic_state;
-enum x2apic_state x2apic_state;
+static enum x2apic_state x2apic_state;
 static int unassign_pptdev, bus, slot, func;
 static int run;
 static int get_cpu_topology;
 #ifdef BHYVE_SNAPSHOT
-static int vm_checkpoint_opt;
 static int vm_suspend_opt;
 #endif
 
@@ -316,7 +314,6 @@ static int get_pinbased_ctls, get_procbased_ctls, get_procbased_ctls2;
 static int get_eptp, get_io_bitmap, get_tsc_offset;
 static int get_vmcs_entry_interruption_info;
 static int get_vmcs_interruptibility;
-uint32_t vmcs_entry_interruption_info;
 static int get_vmcs_gpa, get_vmcs_gla;
 static int get_exception_bitmap;
 static int get_cr0_mask, get_cr0_shadow;
@@ -497,8 +494,8 @@ dump_intel_msr_pm(const char *bitmap, int vcpu)
 static int
 dump_msr_bitmap(int vcpu, uint64_t addr, bool cpu_intel)
 {
+	char *bitmap;
 	int error, fd, map_size;
-	const char *bitmap;
 
 	error = -1;
 	bitmap = MAP_FAILED;
@@ -648,25 +645,20 @@ print_intinfo(const char *banner, uint64_t info)
 static bool
 cpu_vendor_intel(void)
 {
-	u_int regs[4];
-	char cpu_vendor[13];
+	u_int regs[4], v[3];
 
 	do_cpuid(0, regs);
-	((u_int *)&cpu_vendor)[0] = regs[1];
-	((u_int *)&cpu_vendor)[1] = regs[3];
-	((u_int *)&cpu_vendor)[2] = regs[2];
-	cpu_vendor[12] = '\0';
+	v[0] = regs[1];
+	v[1] = regs[3];
+	v[2] = regs[2];
 
-	if (strcmp(cpu_vendor, "AuthenticAMD") == 0) {
-		return (false);
-	} else if (strcmp(cpu_vendor, "HygonGenuine") == 0) {
-		return (false);
-	} else if (strcmp(cpu_vendor, "GenuineIntel") == 0) {
+	if (memcmp(v, "GenuineIntel", sizeof(v)) == 0)
 		return (true);
-	} else {
-		fprintf(stderr, "Unknown cpu vendor \"%s\"\n", cpu_vendor);
-		exit(1);
-	}
+	if (memcmp(v, "AuthenticAMD", sizeof(v)) == 0 ||
+	    memcmp(v, "HygonGenuine", sizeof(v)) == 0)
+		return (false);
+	fprintf(stderr, "Unknown cpu vendor \"%s\"\n", (const char *)v);
+	exit(1);
 }
 
 static int
@@ -1685,12 +1677,12 @@ static int
 send_message(const char *vmname, nvlist_t *nvl)
 {
 	struct sockaddr_un addr;
-	int err, socket_fd;
+	int err = 0, socket_fd;
 
 	socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
 	if (socket_fd < 0) {
 		perror("Error creating bhyvectl socket");
-		err = -1;
+		err = errno;
 		goto done;
 	}
 
@@ -1706,12 +1698,14 @@ send_message(const char *vmname, nvlist_t *nvl)
 		goto done;
 	}
 
-	if (nvlist_send(socket_fd, nvl) < 0)
+	if (nvlist_send(socket_fd, nvl) < 0) {
 		perror("nvlist_send() failed");
+		err = errno;
+	}
+done:
 	nvlist_destroy(nvl);
 
-done:
-	if (socket_fd > 0)
+	if (socket_fd >= 0)
 		close(socket_fd);
 	return (err);
 }
@@ -1747,7 +1741,7 @@ main(int argc, char *argv[])
 	struct tm tm;
 	struct option *opts;
 #ifdef BHYVE_SNAPSHOT
-	char *checkpoint_file, *suspend_file;
+	char *checkpoint_file = NULL;
 #endif
 
 	cpu_intel = cpu_vendor_intel();
@@ -1909,12 +1903,12 @@ main(int argc, char *argv[])
 			break;
 #ifdef BHYVE_SNAPSHOT
 		case SET_CHECKPOINT_FILE:
-			vm_checkpoint_opt = 1;
-			checkpoint_file = optarg;
-			break;
 		case SET_SUSPEND_FILE:
-			vm_suspend_opt = 1;
-			suspend_file = optarg;
+			if (checkpoint_file != NULL)
+				usage(cpu_intel);
+
+			checkpoint_file = optarg;
+			vm_suspend_opt = (ch == SET_SUSPEND_FILE);
 			break;
 #endif
 		default:
@@ -2389,11 +2383,8 @@ main(int argc, char *argv[])
 		vm_destroy(ctx);
 
 #ifdef BHYVE_SNAPSHOT
-	if (!error && vm_checkpoint_opt)
-		error = snapshot_request(vmname, checkpoint_file, false);
-
-	if (!error && vm_suspend_opt)
-		error = snapshot_request(vmname, suspend_file, true);
+	if (!error && checkpoint_file)
+		error = snapshot_request(vmname, checkpoint_file, vm_suspend_opt);
 #endif
 
 	free (opts);

@@ -463,8 +463,8 @@ VNET_DECLARE(uint32_t, in_loopback_mask);
 				     /* unused; was IP_FAITH */
 #define	IP_ONESBCAST		23   /* bool: send all-ones broadcast */
 #define	IP_BINDANY		24   /* bool: allow bind to any address */
-#define	IP_BINDMULTI		25   /* bool: allow multiple listeners on a tuple */
-#define	IP_RSS_LISTEN_BUCKET	26   /* int; set RSS listen bucket */
+				     /* unused; was IP_BIND_MULTI */
+				     /* unused; was IP_RSS_LISTEN_BUCKET */
 #define	IP_ORIGDSTADDR		27   /* bool: receive IP dst addr/port w/dgram */
 #define	IP_RECVORIGDSTADDR      IP_ORIGDSTADDR
 
@@ -696,23 +696,6 @@ void	 in_ifdetach(struct ifnet *);
 #define	satosin(sa)	((struct sockaddr_in *)(sa))
 #define	sintosa(sin)	((struct sockaddr *)(sin))
 #define	ifatoia(ifa)	((struct in_ifaddr *)(ifa))
-
-typedef int	ipproto_input_t(struct mbuf **, int *, int);
-typedef void	ipproto_ctlinput_t(int, struct sockaddr *, void *);
-int	ipproto_register(uint8_t, ipproto_input_t, ipproto_ctlinput_t);
-int	ipproto_unregister(uint8_t);
-int	ip6proto_register(uint8_t, ipproto_input_t, ipproto_ctlinput_t);
-int	ip6proto_unregister(uint8_t);
-#define	IPPROTO_REGISTER(prot, input, ctl)	do {			\
-	int error __diagused;						\
-	error = ipproto_register(prot, input, ctl);			\
-	MPASS(error == 0);						\
-} while (0)
-#define	IP6PROTO_REGISTER(prot, input, ctl)	do {			\
-	int error __diagused;						\
-	error = ip6proto_register(prot, input, ctl);			\
-	MPASS(error == 0);						\
-} while (0)
 #endif /* _KERNEL */
 
 /* INET6 stuff */

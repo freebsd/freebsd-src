@@ -683,7 +683,7 @@ void scif_sas_remote_device_target_reset_complete(
          else
          {
             //Tell driver to kick off Discover process. If the domain is already
-            //in Discovery state, this discovery requst will not be carried on.
+            //in Discovery state, this discovery request will not be carried on.
             scif_cb_domain_change_notification(
             fw_device->domain->controller, fw_device->domain );
          }
@@ -692,7 +692,7 @@ void scif_sas_remote_device_target_reset_complete(
    else
    {
       //Tell driver to kick off Discover process. If the domain is already
-      //in Discovery state, this discovery requst will not be carried on.
+      //in Discovery state, this discovery request will not be carried on.
       scif_cb_domain_change_notification(
          fw_device->domain->controller, fw_device->domain );
    }

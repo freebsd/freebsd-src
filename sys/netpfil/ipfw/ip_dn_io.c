@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>	/* IFNAMSIZ, struct ifaddr, ifq head, lock.h mutex.h */
 #include <net/if_var.h>	/* NET_EPOCH_... */
+#include <net/if_private.h>
 #include <net/netisr.h>
 #include <net/vnet.h>
 

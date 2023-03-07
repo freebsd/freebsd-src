@@ -208,6 +208,15 @@ ipmi_dtor(void *arg)
 	IPMI_LOCK(sc);
 	if (dev->ipmi_requests) {
 		/* Throw away any pending requests for this device. */
+		TAILQ_FOREACH_SAFE(req, &sc->ipmi_pending_requests_highpri, ir_link,
+		    nreq) {
+			if (req->ir_owner == dev) {
+				TAILQ_REMOVE(&sc->ipmi_pending_requests_highpri, req,
+				    ir_link);
+				dev->ipmi_requests--;
+				ipmi_free_request(req);
+			}
+		}
 		TAILQ_FOREACH_SAFE(req, &sc->ipmi_pending_requests, ir_link,
 		    nreq) {
 			if (req->ir_owner == dev) {
@@ -579,13 +588,19 @@ ipmi_dequeue_request(struct ipmi_softc *sc)
 
 	IPMI_LOCK_ASSERT(sc);
 
-	while (!sc->ipmi_detaching && TAILQ_EMPTY(&sc->ipmi_pending_requests))
+	while (!sc->ipmi_detaching && TAILQ_EMPTY(&sc->ipmi_pending_requests) &&
+	    TAILQ_EMPTY(&sc->ipmi_pending_requests_highpri))
 		cv_wait(&sc->ipmi_request_added, &sc->ipmi_requests_lock);
 	if (sc->ipmi_detaching)
 		return (NULL);
 
-	req = TAILQ_FIRST(&sc->ipmi_pending_requests);
-	TAILQ_REMOVE(&sc->ipmi_pending_requests, req, ir_link);
+	req = TAILQ_FIRST(&sc->ipmi_pending_requests_highpri);
+	if (req != NULL)
+		TAILQ_REMOVE(&sc->ipmi_pending_requests_highpri, req, ir_link);
+	else {
+		req = TAILQ_FIRST(&sc->ipmi_pending_requests);
+		TAILQ_REMOVE(&sc->ipmi_pending_requests, req, ir_link);
+	}
 	return (req);
 }
 
@@ -597,6 +612,17 @@ ipmi_polled_enqueue_request(struct ipmi_softc *sc, struct ipmi_request *req)
 	IPMI_LOCK_ASSERT(sc);
 
 	TAILQ_INSERT_TAIL(&sc->ipmi_pending_requests, req, ir_link);
+	cv_signal(&sc->ipmi_request_added);
+	return (0);
+}
+
+int
+ipmi_polled_enqueue_request_highpri(struct ipmi_softc *sc, struct ipmi_request *req)
+{
+
+	IPMI_LOCK_ASSERT(sc);
+
+	TAILQ_INSERT_TAIL(&sc->ipmi_pending_requests_highpri, req, ir_link);
 	cv_signal(&sc->ipmi_request_added);
 	return (0);
 }
@@ -817,6 +843,7 @@ ipmi_startup(void *arg)
 	mtx_init(&sc->ipmi_requests_lock, "ipmi requests", NULL, MTX_DEF);
 	mtx_init(&sc->ipmi_io_lock, "ipmi io", NULL, MTX_DEF);
 	cv_init(&sc->ipmi_request_added, "ipmireq");
+	TAILQ_INIT(&sc->ipmi_pending_requests_highpri);
 	TAILQ_INIT(&sc->ipmi_pending_requests);
 
 	/* Initialize interface-dependent state. */

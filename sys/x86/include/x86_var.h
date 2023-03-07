@@ -53,7 +53,6 @@ extern	u_int	cpu_stdext_feature;
 extern	u_int	cpu_stdext_feature2;
 extern	u_int	cpu_stdext_feature3;
 extern	uint64_t cpu_ia32_arch_caps;
-extern	u_int	cpu_fxsr;
 extern	u_int	cpu_high;
 extern	u_int	cpu_id;
 extern	u_int	cpu_max_ext_state_size;
@@ -174,5 +173,11 @@ uint64_t rdtsc_ordered(void);
 #define	MSR_OP_CPUID(id)	((id) << 8)
 
 void x86_msr_op(u_int msr, u_int op, uint64_t arg1, uint64_t *res);
+
+#if defined(__i386__) && defined(INVARIANTS)
+void	trap_check_kstack(void);
+#else
+#define	trap_check_kstack()
+#endif
 
 #endif

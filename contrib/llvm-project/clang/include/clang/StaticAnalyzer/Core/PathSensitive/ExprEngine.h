@@ -135,6 +135,7 @@ public:
 
 private:
   cross_tu::CrossTranslationUnitContext &CTU;
+  bool IsCTUEnabled;
 
   AnalysisManager &AMgr;
 
@@ -226,6 +227,11 @@ public:
   }
 
   const Stmt *getStmt() const;
+
+  const LocationContext *getRootLocationContext() const {
+    assert(G.roots_begin() != G.roots_end());
+    return (*G.roots_begin())->getLocation().getLocationContext();
+  }
 
   void GenerateAutoTransition(ExplodedNode *N);
   void enqueueEndOfPath(ExplodedNodeSet &S);
@@ -438,6 +444,10 @@ public:
   ///  other functions that handle specific kinds of statements.
   void Visit(const Stmt *S, ExplodedNode *Pred, ExplodedNodeSet &Dst);
 
+  /// VisitArrayInitLoopExpr - Transfer function for array init loop.
+  void VisitArrayInitLoopExpr(const ArrayInitLoopExpr *Ex, ExplodedNode *Pred,
+                              ExplodedNodeSet &Dst);
+
   /// VisitArraySubscriptExpr - Transfer function for array accesses.
   void VisitArraySubscriptExpr(const ArraySubscriptExpr *Ex,
                                ExplodedNode *Pred,
@@ -585,14 +595,6 @@ public:
   static std::pair<const ProgramPointTag *, const ProgramPointTag *>
     geteagerlyAssumeBinOpBifurcationTags();
 
-  SVal evalMinus(SVal X) {
-    return X.isValid() ? svalBuilder.evalMinus(X.castAs<NonLoc>()) : X;
-  }
-
-  SVal evalComplement(SVal X) {
-    return X.isValid() ? svalBuilder.evalComplement(X.castAs<NonLoc>()) : X;
-  }
-
   ProgramStateRef handleLValueBitCast(ProgramStateRef state, const Expr *Ex,
                                       const LocationContext *LCtx, QualType T,
                                       QualType ExTy, const CastExpr *CastE,
@@ -610,21 +612,20 @@ public:
                          StmtNodeBuilder &Bldr);
 
 public:
-  SVal evalBinOp(ProgramStateRef state, BinaryOperator::Opcode op,
-                 NonLoc L, NonLoc R, QualType T) {
-    return svalBuilder.evalBinOpNN(state, op, L, R, T);
-  }
-
-  SVal evalBinOp(ProgramStateRef state, BinaryOperator::Opcode op,
-                 NonLoc L, SVal R, QualType T) {
-    return R.isValid() ? svalBuilder.evalBinOpNN(state, op, L,
-                                                 R.castAs<NonLoc>(), T) : R;
-  }
-
   SVal evalBinOp(ProgramStateRef ST, BinaryOperator::Opcode Op,
                  SVal LHS, SVal RHS, QualType T) {
     return svalBuilder.evalBinOp(ST, Op, LHS, RHS, T);
   }
+
+  /// Retreives which element is being constructed in a non POD type array.
+  static Optional<unsigned>
+  getIndexOfElementToConstruct(ProgramStateRef State, const CXXConstructExpr *E,
+                               const LocationContext *LCtx);
+
+  /// Retreives the size of the array in the pending ArrayInitLoopExpr.
+  static Optional<unsigned> getPendingInitLoop(ProgramStateRef State,
+                                               const CXXConstructExpr *E,
+                                               const LocationContext *LCtx);
 
   /// By looking at a certain item that may be potentially part of an object's
   /// ConstructionContext, retrieve such object's location. A particular
@@ -717,10 +718,19 @@ public:
   /// fully implemented it sometimes indicates that it failed via its
   /// out-parameter CallOpts; in such cases a fake temporary region is
   /// returned, which is better than nothing but does not represent
-  /// the actual behavior of the program.
-  SVal computeObjectUnderConstruction(
-      const Expr *E, ProgramStateRef State, const LocationContext *LCtx,
-      const ConstructionContext *CC, EvalCallOptions &CallOpts);
+  /// the actual behavior of the program. The Idx parameter is used if we
+  /// construct an array of objects. In that case it points to the index
+  /// of the continous memory region.
+  /// E.g.:
+  /// For `int arr[4]` this index can be 0,1,2,3.
+  /// For `int arr2[3][3]` this index can be 0,1,...,7,8.
+  /// A multi-dimensional array is also a continous memory location in a
+  /// row major order, so for arr[0][0] Idx is 0 and for arr[2][2] Idx is 8.
+  SVal computeObjectUnderConstruction(const Expr *E, ProgramStateRef State,
+                                      const LocationContext *LCtx,
+                                      const ConstructionContext *CC,
+                                      EvalCallOptions &CallOpts,
+                                      unsigned Idx = 0);
 
   /// Update the program state with all the path-sensitive information
   /// that's necessary to perform construction of an object with a given
@@ -733,12 +743,16 @@ public:
 
   /// A convenient wrapper around computeObjectUnderConstruction
   /// and updateObjectsUnderConstruction.
-  std::pair<ProgramStateRef, SVal> handleConstructionContext(
-      const Expr *E, ProgramStateRef State, const LocationContext *LCtx,
-      const ConstructionContext *CC, EvalCallOptions &CallOpts) {
-    SVal V = computeObjectUnderConstruction(E, State, LCtx, CC, CallOpts);
-    return std::make_pair(
-        updateObjectsUnderConstruction(V, E, State, LCtx, CC, CallOpts), V);
+  std::pair<ProgramStateRef, SVal>
+  handleConstructionContext(const Expr *E, ProgramStateRef State,
+                            const LocationContext *LCtx,
+                            const ConstructionContext *CC,
+                            EvalCallOptions &CallOpts, unsigned Idx = 0) {
+
+    SVal V = computeObjectUnderConstruction(E, State, LCtx, CC, CallOpts, Idx);
+    State = updateObjectsUnderConstruction(V, E, State, LCtx, CC, CallOpts);
+
+    return std::make_pair(State, V);
   }
 
 private:
@@ -805,8 +819,25 @@ private:
                         const ExplodedNode *Pred,
                         const EvalCallOptions &CallOpts = {});
 
-  bool inlineCall(const CallEvent &Call, const Decl *D, NodeBuilder &Bldr,
-                  ExplodedNode *Pred, ProgramStateRef State);
+  /// Checks whether our policies allow us to inline a non-POD type array
+  /// construction.
+  bool shouldInlineArrayConstruction(const ProgramStateRef State,
+                                     const CXXConstructExpr *CE,
+                                     const LocationContext *LCtx);
+
+  /// Checks whether we construct an array of non-POD type, and decides if the
+  /// constructor should be inkoved once again.
+  bool shouldRepeatCtorCall(ProgramStateRef State, const CXXConstructExpr *E,
+                            const LocationContext *LCtx);
+
+  void inlineCall(WorkList *WList, const CallEvent &Call, const Decl *D,
+                  NodeBuilder &Bldr, ExplodedNode *Pred, ProgramStateRef State);
+
+  void ctuBifurcate(const CallEvent &Call, const Decl *D, NodeBuilder &Bldr,
+                    ExplodedNode *Pred, ProgramStateRef State);
+
+  /// Returns true if the CTU analysis is running its second phase.
+  bool isSecondPhaseCTU() { return IsCTUEnabled && !Engine.getCTUWorkList(); }
 
   /// Conservatively evaluate call by invalidating regions and binding
   /// a conjured return value.
@@ -841,7 +872,7 @@ private:
       const Expr *InitWithAdjustments, const Expr *Result = nullptr,
       const SubRegion **OutRegionWithAdjustments = nullptr);
 
-  /// Returns a region representing the first element of a (possibly
+  /// Returns a region representing the `Idx`th element of a (possibly
   /// multi-dimensional) array, for the purposes of element construction or
   /// destruction.
   ///
@@ -849,8 +880,8 @@ private:
   ///
   /// If the type is not an array type at all, the original value is returned.
   /// Otherwise the "IsArray" flag is set.
-  static SVal makeZeroElementRegion(ProgramStateRef State, SVal LValue,
-                                    QualType &Ty, bool &IsArray);
+  static SVal makeElementRegion(ProgramStateRef State, SVal LValue,
+                                QualType &Ty, bool &IsArray, unsigned Idx = 0);
 
   /// For a DeclStmt or CXXInitCtorInitializer, walk backward in the current CFG
   /// block to find the constructor expression that directly constructed into
@@ -881,6 +912,27 @@ public:
                                               const ObjCForCollectionStmt *O,
                                               const LocationContext *LC);
 private:
+  /// Assuming we construct an array of non-POD types, this method allows us
+  /// to store which element is to be constructed next.
+  static ProgramStateRef
+  setIndexOfElementToConstruct(ProgramStateRef State, const CXXConstructExpr *E,
+                               const LocationContext *LCtx, unsigned Idx);
+
+  static ProgramStateRef
+  removeIndexOfElementToConstruct(ProgramStateRef State,
+                                  const CXXConstructExpr *E,
+                                  const LocationContext *LCtx);
+
+  /// Sets the size of the array in a pending ArrayInitLoopExpr.
+  static ProgramStateRef setPendingInitLoop(ProgramStateRef State,
+                                            const CXXConstructExpr *E,
+                                            const LocationContext *LCtx,
+                                            unsigned Idx);
+
+  static ProgramStateRef removePendingInitLoop(ProgramStateRef State,
+                                               const CXXConstructExpr *E,
+                                               const LocationContext *LCtx);
+
   /// Store the location of a C++ object corresponding to a statement
   /// until the statement is actually encountered. For example, if a DeclStmt
   /// has CXXConstructExpr as its initializer, the object would be considered

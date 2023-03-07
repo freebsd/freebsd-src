@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: wordprocessors,v 1.27 2021/12/06 15:05:16 christos Exp $
+# $File: wordprocessors,v 1.31 2022/08/31 08:00:53 christos Exp $
 # wordprocessors:  file(1) magic fo word processors.
 #
 ####### PWP file format used on Smith Corona Personal Word Processors:
@@ -28,35 +28,170 @@
 !:ext	wps
 
 # Corel/WordPerfect
+# URL:		https://en.wikipedia.org/wiki/WordPerfect
+# Reference:	https://github.com/OneWingedShark/WordPerfect/blob/master/doc/SDK_Help/FileFormats/WPFF_DocumentStructure.htm
+#		http://mark0.net/download/triddefs_xml.7z/defs/w/wp-generic.trid.xml
 0	string	\xffWPC
 # WordPerfect
 >8	byte	1
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/w/wpm-macro.trid.xml
+# Note:		there exist other macro variants
 >>9	byte	1	WordPerfect macro
+#!:mime		application/octet-stream
+!:mime		application/x-wordperfect-wpm
+# like: ALTD.WPM ENDFOOT.WPM FOOTEND.WPM LABELS.WPM REVEALTX.WPM
+!:ext		wpm
+# Note:		used in WordPerfect 5.1; there exist other FIL variants
 >>9	byte	2	WordPerfect help file
+#!:mime		application/octet-stream
+!:mime		application/x-wordperfect-help
+# like: WPHELP.FIL
+!:ext		fil
+# pointer to document area like: 10h
+>>>4		ulelong	!0x10	\b, at %#x document area
 >>9	byte	3	WordPerfect keyboard file
+#!:mime		application/octet-stream
+!:mime		application/x-wordperfect-keyboard
+!:ext		wpk
+# no document area, so point to end of file; so this is file size like: 23381 2978 32835 3355 3775 919
+>>>4		ulelong	x	\b, %u bytes
+>>9	byte	4	WordPerfect VAX keyboard definition
+#!:mime	application/octet-stream
+!:mime	application/x-wordperfect-keyboard
+#!:ext	foo
+# URL:		http://fileformats.archiveteam.org/wiki/WordPerfect
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/w/wpd-doc-gen.trid.xml
 >>9	byte	10	WordPerfect document
+# https://www.iana.org/assignments/media-types/application/vnd.wordperfect
+!:mime		application/vnd.wordperfect
+#!:apple		????WPC2
+# TODO: distinguish different suffix
+!:ext		wpd/wpt/wkb/icr/tut/sty/tst/crs
 >>9	byte	11	WordPerfect dictionary
 >>9	byte	12	WordPerfect thesaurus
 >>9	byte	13	WordPerfect block
 >>9	byte	14	WordPerfect rectangular block
 >>9	byte	15	WordPerfect column block
 >>9	byte	16	WordPerfect printer data
+#!:mime		application/octet-stream
+!:mime		application/x-wordperfect-prs
+# like: STANDARD.PRS WORKBOOK.PRS
+!:ext		prs
+# like: "Standard Printer" "Workbook Printer"
+>>>0x64		pstring/B	>A	"%s"
+#>>9	byte	18	WordPerfect Prefix information file
+# printer resource .ALL
 >>9	byte	19	WordPerfect printer data
+#!:mime		application/octet-stream
+!:mime		application/x-wordperfect-all
+!:ext		all
+# display Resource
 >>9	byte	20	WordPerfect driver resource data
+#!:mime		application/octet-stream
+!:mime		application/x-wordperfect-drs
+# like: WPSMALL.DRS
+!:ext		drs
+# pointer to index area with string "smalldrs" like: 46h
+>>>4		uleshort	!0x46	\b, at %#x index area
+>>9	byte	21	WordPerfect Overlay file
+#!:mime		application/octet-stream
+!:mime		application/x-wordperfect-fil
+# like: WP.FIL
+!:ext		fil
+# URL:		http://fileformats.archiveteam.org/wiki/WordPerfect_Graphics
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/b/bitmap-wpg.trid.xml
+# Note:		called "WordPerfect Graphics bitmap" by TrID and
+#		"WordPerfect Graphics Metafile" by DROID via x-fmt/395 fmt/1042
+#		"WPG (Word Perfect Graphics)" by ImageMagick `identify -verbose BUTTRFLY.WPG`
 >>9	byte	22	WordPerfect graphic image
+# TODO: skip DROID x-fmt-395-signature-id-132.wpg by check for existing document area
+#>>>4		ulelong	>15	WordPerfect_graphic_OK
+#!:mime		application/octet-stream
+# http://extension.nirsoft.net/wpg
+!:mime		image/x-wordperfect-graphics
+# https://reposcope.com/mimetype/application/x-wpg
+#!:mime		application/x-wpg
+# like: BUTTRFLY.WPG STAR-5.WPG input.wpg WORDPFCT.WPG
+!:ext		wpg
+# pointer to document area like: 10h 1Ah
+>>>4		ulelong		!0x1A	\b, at %#x document area
 >>9	byte	23	WordPerfect hyphenation code
 >>9	byte	24	WordPerfect hyphenation data
 >>9	byte	25	WordPerfect macro resource data
+#!:mime		application/octet-stream
+!:mime		application/x-wordperfect-mrs
+# like: WP.MRS
+!:ext		mrs
 >>9	byte	27	WordPerfect hyphenation lex
 >>9	byte	29	WordPerfect wordlist
 >>9	byte	30	WordPerfect equation resource data
+#!:mime		application/octet-stream
+!:mime		application/x-wordperfect-qrs
+# like: WQ.QRS wpDE.qrs wpen.qrs
+!:ext		qrs
+# jump to document area with some marker and equation
+>>>(4.l)	ubyte	x
+# equation like: "Fraction:  x OVER y"
+>>>>&1		string	>A	(...%-.19s...)
+# pointer to document area like: 17C4h
+>>>4		ulelong	x	\b, at %#x document area
+#>>9	byte	31	reserved
+#>>9	byte	32	WordPerfect VAX .SET
 >>9	byte	33	WordPerfect spell rules
 >>9	byte	34	WordPerfect dictionary rules
+#>>9	byte	35	reserved
+# video resource device driver
+# Note:		 filetype 26 for VRS and filetype 36 for WPD apparently is wrong
+>>9	byte	36	WordPerfect Video Resource
+#!:mime		application/octet-stream
+!:mime		application/x-wordperfect-vrs
+# like: STANDARD.VRS
+!:ext		vrs
+# like: "IBM CGA (& compatibles)"
+>>>0x20		string	>A	"%.23s"
 >>9	byte	39	WordPerfect spell rules (Microlytics)
+#>>9	byte	40	reserved
+>>9	byte	41	WordPerfect Install options
+#!:mime		application/octet-stream
+!:mime		application/x-wordperfect-ins
+# like: WP51.INS
+!:ext		ins
+# probably default directory name like: "C:\WP51\"
+>>>0x12		string	>A	"%.8s"
+# maybe mouse driver for WP5.1
+>>9	byte	42	WordPerfect Resource
+#!:mime		application/octet-stream
+!:mime		application/x-wordperfect-irs
+# like: STANDARD.IRS
+!:ext		irs
+# like: "Mouse Driver (MOUSE.COM)"
+>>>0x28		string	>A	"%.24s"
 >>9	byte	43	WordPerfect settings file
+# maybe Macintosh WP2.0 document
 >>9	byte	44	WordPerfect 3.5 document
+!:mime		application/vnd.wordperfect
+!:apple		????WPD3
+# like: WP3.wpd
+!:ext		wpd
 >>9	byte	45	WordPerfect 4.2 document
+# External spell code module (WP5.1)
+#>>9	byte	46	WordPerfect external spell 
+# external spell dictionary .LEX
+#>>9	byte	47	WordPerfect external spell dictionary
+# Macintosh SOFT graphics file (SOFT (Sequential Object Format)
+#>>9	byte	48	WordPerfect SOFT graphics
+#>>9	byte	49	reserved
+#>>9	byte	50	reserved
+# WPWin 5.1 Application Resource Library added for WPWin 5.1
+#>>9	byte	51	WordPerfect application resource library
 >>9	byte	69	WordPerfect dialog file
+# From:		Joerg Jenderek
+# Note:		found in sub directory WritingTools inside WordPerfect 2021 program directory
+>>9	byte	70	WordPerfect Writing Tools
+#!:mime	application/octet-stream
+!:mime	application/x-wordperfect-cbt
+# like: Wt13cbede.cbt Wt13cbeit.cbt Wt13cbefr.cbt WT21cbede.cbt Wt13cbeEN.CBD WT21cbeEN.CBD
+!:ext	cbd/cbt
 >>9	byte	76	WordPerfect button bar
 >>9	default x
 >>>9	byte	x	Corel WordPerfect: Unknown filetype %d
@@ -196,11 +331,48 @@
 >>9	byte	24	GroupWise admin ADS deferment data file
 >>9	default	x
 >>>9	byte	x	GroupWise: Unknown filetype %d
+# Corel Writing Tools WT*.*
+# From:		Joerg Jenderek
+# URL:		https://support.corel.com/hc/en-us/articles/215876258-Writing-Tools-Spell-Check-Dictionary-does-not-work-in-WordPerfect-X5
+#		http://wordperfect.helpmax.net/en/editing-and-formatting-documents/using-the-writing-tools/working-with-user-word-lists/
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/u/uwl-wp.trid.xml
+>8	byte	32
+>>9	byte	10	Corel Writing Tools User Word List
+#!:mime	application/octet-stream
+!:mime	application/x-wordperfect-wordlist
+# personal user word list UWL under user directory like: WTDE.UWL WTUS.UWL WT21DE.UWL WT21US.UWL WT13DE.UWL ...
+# and "template" SAV/HWL variant under program directory like: wt13en.hwl Wt13de.sav Wt13it.sav wt13ru.sav WT21us.sav Wtcz.sav ...
+!:ext	uwl/hwl/sav
+# jump to document area with some marker and word list
+>>>(4.l)	ubyte	x
+# look for beginning of word list starting mostly with letter a as UTF-16 like: Wt13es.sav
+# but not found in russian wt13ru.sav
+>>>>&0	search/91/sb	a\0
+# word list starting like: "acsesory\022accessory.\001\026acomodate\026accommodate4\001"
+>>>>>&0		lestring16	x	(...%-.33s...)
+# pointer to document area like: 200h
+>>>4	ulelong	!0x200	\b, at %#x document area
+# file size, not including pad characters at EOF
+>>>0x14	uleshort x	\b, %u bytes
 # IntelliTAG
 >8	byte	33
 >>9	byte	10	IntelliTAG (SGML) compiled DTD
 >>9	default	x
 >>>9	byte	x	IntelliTAG: Unknown filetype %d
+# Summary:	Corel WordPerfect WritingTools advise part
+# From:		Joerg Jenderek
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/a/adv-wp.trid.xml
+>8	byte	34
+>>9	byte	11	Corel WordPerfect dictionary advise
+#!:mime	application/octet-stream
+!:mime	application/x-wordperfect-adv
+#!:mime	application/vnd.wordperfect.adv
+# like: WT21de.adv Wt13de.adv Wt13es.adv Wt13fr.adv wt13us.adv
+!:ext	adv
+# advise text part often start with tag like: 580A
+#>>>(16.s)	ubequad	x	ADVISE PART %#llx
+# part of advise text like: "This is too informal for most writing."
+>>>(16.s+16)	string	x	(...%-.33s...)
 # everything else
 >8	default x
 >>8	byte	x	Unknown Corel/Wordperfect product %d,

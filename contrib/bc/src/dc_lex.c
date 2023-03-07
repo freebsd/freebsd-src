@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -114,7 +114,7 @@ dc_lex_string(BcLex* l)
 		nls = 0;
 		got_more = false;
 
-		assert(!l->is_stdin || l->buf == vm.buffer.v);
+		assert(l->mode != BC_MODE_STDIN || l->buf == vm->buffer.v);
 
 		// This is the meat. As long as we don't run into the NUL byte, and we
 		// have "depth", which means we haven't completely balanced brackets
@@ -141,11 +141,15 @@ dc_lex_string(BcLex* l)
 
 		if (BC_ERR(c == '\0' && depth))
 		{
-			if (!vm.eof && (l->is_stdin || l->is_exprs))
+			if (!vm->eof && l->mode != BC_MODE_FILE)
 			{
 				got_more = bc_lex_readLine(l);
 			}
-			if (got_more) bc_vec_popAll(&l->str);
+
+			if (got_more)
+			{
+				bc_vec_popAll(&l->str);
+			}
 		}
 	}
 	while (got_more && depth);
@@ -274,6 +278,7 @@ dc_lex_token(BcLex* l)
 			c2 = l->buf[l->i];
 
 			if (c2 == 'l') l->t = BC_LEX_KW_LINE_LENGTH;
+			else if (c2 == 'x') l->t = BC_LEX_EXTENDED_REGISTERS;
 			else if (c2 == 'z') l->t = BC_LEX_KW_LEADING_ZERO;
 			else bc_lex_invalidChar(l, c2);
 

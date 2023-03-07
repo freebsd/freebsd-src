@@ -41,9 +41,8 @@ LoopVersioning::LoopVersioning(const LoopAccessInfo &LAI,
                                ArrayRef<RuntimePointerCheck> Checks, Loop *L,
                                LoopInfo *LI, DominatorTree *DT,
                                ScalarEvolution *SE)
-    : VersionedLoop(L), NonVersionedLoop(nullptr),
-      AliasChecks(Checks.begin(), Checks.end()),
-      Preds(LAI.getPSE().getUnionPredicate()), LAI(LAI), LI(LI), DT(DT),
+    : VersionedLoop(L), AliasChecks(Checks.begin(), Checks.end()),
+      Preds(LAI.getPSE().getPredicate()), LAI(LAI), LI(LI), DT(DT),
       SE(SE) {
 }
 
@@ -138,8 +137,10 @@ void LoopVersioning::addPHINodes(
     // See if we have a single-operand PHI with the value defined by the
     // original loop.
     for (auto I = PHIBlock->begin(); (PN = dyn_cast<PHINode>(I)); ++I) {
-      if (PN->getIncomingValue(0) == Inst)
+      if (PN->getIncomingValue(0) == Inst) {
+        SE->forgetValue(PN);
         break;
+      }
     }
     // If not create it.
     if (!PN) {
@@ -277,7 +278,7 @@ bool runImpl(LoopInfo *LI, function_ref<const LoopAccessInfo &(Loop &)> GetLAA,
     const LoopAccessInfo &LAI = GetLAA(*L);
     if (!LAI.hasConvergentOp() &&
         (LAI.getNumRuntimePointerChecks() ||
-         !LAI.getPSE().getUnionPredicate().isAlwaysTrue())) {
+         !LAI.getPSE().getPredicate().isAlwaysTrue())) {
       LoopVersioning LVer(LAI, LAI.getRuntimePointerChecking()->getChecks(), L,
                           LI, DT, SE);
       LVer.versionLoop();

@@ -95,6 +95,10 @@ struct addrnode {
 	time_t ttl;
 	/** Number of significant bits in address. */
 	addrlen_t scope;
+	/** Only use the element for queries for subnet/0. Set if the query
+	 * for /0 was answered with scope 0. For query /x answer scope 0,
+	 * they can match anything and this is false. */
+	int only_match_scope_zero;
 	/** A node can have 0-2 edges, set to NULL for unused */
 	struct addredge *edge[2];
 	/** edge between this node and parent */
@@ -157,11 +161,12 @@ void addrtree_delete(struct addrtree *tree);
  * @param scope: Number of significant bits in addr.
  * @param elem: data to store in the tree.
  * @param ttl: elem is valid up to this time, seconds.
+ * @param only_match_scope_zero: set for when query /0 has scope /0 answer.
  * @param now: Current time in seconds.
  */
 void addrtree_insert(struct addrtree *tree, const addrkey_t *addr, 
 	addrlen_t sourcemask, addrlen_t scope, void *elem, time_t ttl, 
-	time_t now);
+	time_t now, int only_match_scope_zero);
 
 /**
  * Find a node containing an element in the tree.

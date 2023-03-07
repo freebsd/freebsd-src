@@ -248,7 +248,7 @@ krb5_acl_match_file(krb5_context context,
 		    ...)
 {
     krb5_error_code ret;
-    struct acl_field *acl;
+    struct acl_field *acl = NULL;
     char buf[256];
     va_list ap;
     FILE *f;

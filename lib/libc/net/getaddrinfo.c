@@ -1953,6 +1953,9 @@ explore_fqdn(const struct addrinfo *pai, const char *hostname,
 	case NS_NOTFOUND:
 		error = EAI_NONAME;
 		goto free;
+	case NS_ADDRFAMILY:
+		error = EAI_ADDRFAMILY;
+		goto free;
 	case NS_SUCCESS:
 		error = 0;
 		for (cur = result; cur; cur = cur->ai_next) {
@@ -2091,7 +2094,7 @@ getanswer(const querybuf *answer, int anslen, const char *qname, int qtype,
 		} else if (type != qtype) {
 #ifdef DEBUG
 			if (type != T_KEY && type != T_SIG &&
-			    type != ns_t_dname)
+			    type != T_DNAME && type != T_RRSIG)
 				syslog(LOG_NOTICE|LOG_AUTH,
 	       "gethostby*.getanswer: asked for \"%s %s %s\", got type \"%s\"",
 				       qname, p_class(C_IN), p_type(qtype),
@@ -2341,7 +2344,9 @@ _dns_getaddrinfo(void *rv, void *cb_data, va_list ap)
 	if (res_searchN(hostname, &q, res) < 0) {
 		free(buf);
 		free(buf2);
-		return NS_NOTFOUND;
+		if (res->res_h_errno == NO_DATA)
+			return (NS_ADDRFAMILY);
+		return (NS_NOTFOUND);
 	}
 	/* prefer IPv6 */
 	if (q.next) {
@@ -2363,15 +2368,16 @@ _dns_getaddrinfo(void *rv, void *cb_data, va_list ap)
 	if (sentinel.ai_next == NULL)
 		switch (res->res_h_errno) {
 		case HOST_NOT_FOUND:
+			return (NS_NOTFOUND);
 		case NO_DATA:
-			return NS_NOTFOUND;
+			return (NS_ADDRFAMILY);
 		case TRY_AGAIN:
-			return NS_TRYAGAIN;
+			return (NS_TRYAGAIN);
 		default:
-			return NS_UNAVAIL;
+			return (NS_UNAVAIL);
 		}
 	*((struct addrinfo **)rv) = sentinel.ai_next;
-	return NS_SUCCESS;
+	return (NS_SUCCESS);
 }
 
 static void

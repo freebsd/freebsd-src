@@ -36,7 +36,7 @@
 /**
  * \file
  *
- * This file keeps track of the list of clients that are allowed to 
+ * This file keeps track of the list of clients that are allowed to
  * access the server.
  */
 
@@ -74,7 +74,7 @@ enum acl_access {
 struct acl_list {
 	/** regional for allocation */
 	struct regional* region;
-	/** 
+	/**
 	 * Tree of the addresses that are allowed/blocked.
 	 * contents of type acl_addr.
 	 */
@@ -108,7 +108,7 @@ struct acl_addr {
 };
 
 /**
- * Create acl structure 
+ * Create acl structure
  * @return new structure or NULL on error.
  */
 struct acl_list* acl_list_create(void);
@@ -120,6 +120,20 @@ struct acl_list* acl_list_create(void);
 void acl_list_delete(struct acl_list* acl);
 
 /**
+ * Insert interface in the acl_list. This should happen when the listening
+ * interface is setup.
+ * @param acl_interface: acl_list to insert to.
+ * @param addr: interface IP.
+ * @param addrlen: length of the interface IP.
+ * @param control: acl_access.
+ * @return new structure or NULL on error.
+ */
+struct acl_addr*
+acl_interface_insert(struct acl_list* acl_interface,
+	struct sockaddr_storage* addr, socklen_t addrlen,
+	enum acl_access control);
+
+/**
  * Process access control config.
  * @param acl: where to store.
  * @param cfg: config options.
@@ -127,6 +141,25 @@ void acl_list_delete(struct acl_list* acl);
  * @return 0 on error.
  */
 int acl_list_apply_cfg(struct acl_list* acl, struct config_file* cfg,
+	struct views* v);
+
+/** compare ACL interface "addr_tree" nodes (+port) */
+int acl_interface_compare(const void* k1, const void* k2);
+
+/**
+ * Initialise (also clean) the acl_interface struct.
+ * @param acl_interface: where to store.
+ */
+void acl_interface_init(struct acl_list* acl_interface);
+
+/**
+ * Process interface control config.
+ * @param acl_interface: where to store.
+ * @param cfg: config options.
+ * @param v: views structure
+ * @return 0 on error.
+ */
+int acl_interface_apply_cfg(struct acl_list* acl_interface, struct config_file* cfg,
 	struct views* v);
 
 /**

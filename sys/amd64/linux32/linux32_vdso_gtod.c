@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <amd64/linux32/linux.h>
 #include <amd64/linux32/linux32_syscall.h>
 #include <compat/linux/linux_errno.h>
-#include <compat/linux/linux_timer.h>
+#include <compat/linux/linux_time.h>
 
 /* The kernel fixup this at vDSO install */
 uintptr_t *kern_timekeep_base = NULL;

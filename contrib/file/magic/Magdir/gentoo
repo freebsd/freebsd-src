@@ -1,0 +1,80 @@
+#------------------------------------------------------------------------------
+# $File: gentoo,v 1.2 2022/09/12 13:13:28 christos Exp $
+# gentoo:  file(1) magic for gentoo specific formats
+#
+# Summary: Gentoo ebuild Manifest files (GLEP 74)
+# Reference: https://www.gentoo.org/glep/glep-0074.html
+# Submitted by: Michal Gorny <mgorny@gentoo.org>
+# Start by doing a fast check for the most common tags.
+0	string	AUX
+>0	use	gentoo-manifest
+0	string	DATA
+>0	use	gentoo-manifest
+0	string	DIST
+>0	use	gentoo-manifest
+0	string	EBUILD
+>0	use	gentoo-manifest
+0	string	MANIFEST
+>0	use	gentoo-manifest
+
+# Manifest can be PGP-signed.
+0	string	-----BEGIN\040PGP\040SIGNED\040MESSAGE-----
+>34	search/32	\n\n
+>>&0	string	AUX
+>>>&0	use	gentoo-manifest
+>>&0	string	DATA
+>>>&0	use	gentoo-manifest
+>>&0	string	DIST
+>>>&0	use	gentoo-manifest
+>>&0	string	EBUILD
+>>>&0	use	gentoo-manifest
+>>&0	string	MANIFEST
+>>>&0	use	gentoo-manifest
+
+# Use a more detailed regex to verify that we were correct.
+# <tag> <filename> <size> <hash-name> <hash-value>...
+# (<tag>'s already been matched prior to calling)
+0	name	gentoo-manifest
+>&0	regex	[[:space:]]+[[:print:]]+[[:space:]]+[[:digit:]]+[[:space:]]+[[:alnum:]]+[[:space:]]+[[:xdigit:]]{32}	Gentoo Manifest (GLEP 74)
+
+# Summary: Gentoo ebuild and eclass files
+# Reference: https://projects.gentoo.org/pms/8/pms.html
+# Submitted by: Michal Gorny <mgorny@gentoo.org>
+0	search/512	EAPI=
+>0	regex		.*\n[\040\t]*EAPI=["']?	Gentoo ebuild
+>>&0	regex		[[:alnum:]+_.-]+	\b, EAPI %s
+
+0	search/512	@ECLASS:\040		Gentoo eclass
+>&0	string		x			%s
+
+# Summary: Gentoo supplementary package and category metadata files
+# Reference: https://www.gentoo.org/glep/glep-0068.html
+# Submitted by: Michal Gorny <mgorny@gentoo.org>
+0	string		\<?xml
+>0	search/512	\<catmetadata		Gentoo category metadata file
+>0	search/512	\<pkgmetadata		Gentoo package metadata file
+
+# Summary: Gentoo GLEP 78 binary package
+# Reference: https://www.gentoo.org/glep/glep-0078.html
+# Note: assumes the strict format
+# Submitted by: Michal Gorny <mgorny@gentoo.org>
+
+# GPKG uses ustar (or ustar-compatible GNU format) that starts with
+# a <directory>/gpkg-1 file
+257	string		ustar
+>0	search/100	/gpkg-1\0
+>>0	regex		[^/]+		Gentoo GLEP 78 (GPKG) binary package for "%s"
+!:mime	application/x-tar
+!:ext	tar
+# the logic below requires the gpkg-1 file to be empty
+>>>124	string	00000000000\0
+# determine the compression used by looking at the second member name
+>>>>512	search/100	.tar.
+>>>>>&0	string		gz\0		using gzip compression
+>>>>>&0	string		bz2\0		using bzip2 compression
+>>>>>&0	string		lz\0		using lzip compression
+>>>>>&0	string		lz4\0		using lz4 compression
+>>>>>&0	string		lzo\0		using lzo compression
+>>>>>&0	string		xz\0		using xz compression
+>>>>>&0	string		zst\0		using zstd compression
+>>>>(636.o+1024)	search/611	.sig\0	\b, signed

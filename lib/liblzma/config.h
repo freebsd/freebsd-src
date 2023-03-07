@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
@@ -25,18 +24,16 @@
 /* Define to 1 if you have the <byteswap.h> header file. */
 /* #undef HAVE_BYTESWAP_H */
 
+#ifndef WITHOUT_CAPSICUM
 /* Define to 1 if Capsicum is available. */
 #define HAVE_CAPSICUM 1
+#endif
 
 /* Define to 1 if the system has the type `CC_SHA256_CTX'. */
 /* #undef HAVE_CC_SHA256_CTX */
 
 /* Define to 1 if you have the `CC_SHA256_Init' function. */
 /* #undef HAVE_CC_SHA256_INIT */
-
-/* Define to 1 if you have the Mac OS X function CFLocaleCopyCurrent in the
-   CoreFoundation framework. */
-/* #undef HAVE_CFLOCALECOPYCURRENT */
 
 /* Define to 1 if you have the Mac OS X function
    CFLocaleCopyPreferredLanguages in the CoreFoundation framework. */
@@ -58,27 +55,28 @@
 /* Define to 1 if you have the `clock_gettime' function. */
 #define HAVE_CLOCK_GETTIME 1
 
+/* Define to 1 if `CLOCK_MONOTONIC' is declared in <time.h>. */
+#define HAVE_CLOCK_MONOTONIC 1
+
 /* Define to 1 if you have the <CommonCrypto/CommonDigest.h> header file. */
 /* #undef HAVE_COMMONCRYPTO_COMMONDIGEST_H */
+
+/* Define to 1 if you have the <cpuid.h> header file. */
+#define HAVE_CPUID_H 1
 
 /* Define if the GNU dcgettext() function is already present or preinstalled.
    */
 /* FreeBSD - disabled intentionally */
 /* #undef HAVE_DCGETTEXT */
 
-/* Define to 1 if you have the declaration of `CLOCK_MONOTONIC', and to 0 if
-   you don't. */
-#define HAVE_DECL_CLOCK_MONOTONIC 1
-
-/* Define to 1 if you have the declaration of `program_invocation_name', and
-   to 0 if you don't. */
-#define HAVE_DECL_PROGRAM_INVOCATION_NAME 0
-
 /* Define to 1 if any of HAVE_DECODER_foo have been defined. */
 #define HAVE_DECODERS 1
 
 /* Define to 1 if arm decoder is enabled. */
 #define HAVE_DECODER_ARM 1
+
+/* Define to 1 if arm64 decoder is enabled. */
+#define HAVE_DECODER_ARM64 1
 
 /* Define to 1 if armthumb decoder is enabled. */
 #define HAVE_DECODER_ARMTHUMB 1
@@ -113,6 +111,9 @@
 /* Define to 1 if arm encoder is enabled. */
 #define HAVE_ENCODER_ARM 1
 
+/* Define to 1 if arm64 encoder is enabled. */
+#define HAVE_ENCODER_ARM64 1
+
 /* Define to 1 if armthumb encoder is enabled. */
 #define HAVE_ENCODER_ARMTHUMB 1
 
@@ -139,6 +140,10 @@
 
 /* Define to 1 if you have the <fcntl.h> header file. */
 #define HAVE_FCNTL_H 1
+
+/* Define to 1 if __attribute__((__constructor__)) is supported for functions.
+   */
+#define HAVE_FUNC_ATTRIBUTE_CONSTRUCTOR 1
 
 /* Define to 1 if you have the `futimens' function. */
 #define HAVE_FUTIMENS 1
@@ -174,11 +179,11 @@
 /* Define to 1 if you have the <limits.h> header file. */
 #define HAVE_LIMITS_H 1
 
+/* Define to 1 if .lz (lzip) decompression support is enabled. */
+#define HAVE_LZIP_DECODER 1
+
 /* Define to 1 if mbrtowc and mbstate_t are properly declared. */
 #define HAVE_MBRTOWC 1
-
-/* Define to 1 if you have the <memory.h> header file. */
-#define HAVE_MEMORY_H 1
 
 /* Define to 1 to enable bt2 match finder. */
 #define HAVE_MF_BT2 1
@@ -195,11 +200,20 @@
 /* Define to 1 to enable hc4 match finder. */
 #define HAVE_MF_HC4 1
 
+/* Define to 1 if you have the <minix/config.h> header file. */
+/* #undef HAVE_MINIX_CONFIG_H */
+
 /* Define to 1 if getopt.h declares extern int optreset. */
 #define HAVE_OPTRESET 1
 
+/* Define to 1 if you have the `pledge' function. */
+/* #undef HAVE_PLEDGE */
+
 /* Define to 1 if you have the `posix_fadvise' function. */
 #define HAVE_POSIX_FADVISE 1
+
+/* Define to 1 if `program_invocation_name' is declared in <errno.h>. */
+/* #undef HAVE_PROGRAM_INVOCATION_NAME */
 
 /* Define to 1 if you have the `pthread_condattr_setclock' function. */
 #define HAVE_PTHREAD_CONDATTR_SETCLOCK 1
@@ -234,6 +248,9 @@
 /* Define to 1 if you have the <stdint.h> header file. */
 #define HAVE_STDINT_H 1
 
+/* Define to 1 if you have the <stdio.h> header file. */
+#define HAVE_STDIO_H 1
+
 /* Define to 1 if you have the <stdlib.h> header file. */
 #define HAVE_STDLIB_H 1
 
@@ -258,14 +275,23 @@
 /* Define to 1 if `st_uatime' is a member of `struct stat'. */
 /* #undef HAVE_STRUCT_STAT_ST_UATIME */
 
+/* Define to 1 to if GNU/Linux-specific details are unconditionally wanted for
+   symbol versioning. Define to 2 to if these are wanted only if also PIC is
+   defined (allows building both shared and static liblzma at the same time
+   with Libtool if neither --with-pic nor --without-pic is used). This define
+   must be used together with liblzma_linux.map. */
+/* #undef HAVE_SYMBOL_VERSIONS_LINUX */
+
 /* Define to 1 if you have the <sys/byteorder.h> header file. */
 /* #undef HAVE_SYS_BYTEORDER_H */
 
+#ifndef WITHOUT_CAPSICUM
 /* Define to 1 if you have the <sys/capsicum.h> header file. */
 #define HAVE_SYS_CAPSICUM_H 1
+#endif
 
 /* Define to 1 if you have the <sys/endian.h> header file. */
-#define HAVE_SYS_ENDIAN_H 1
+/* #undef HAVE_SYS_ENDIAN_H */
 
 /* Define to 1 if you have the <sys/param.h> header file. */
 #define HAVE_SYS_PARAM_H 1
@@ -285,6 +311,12 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
 
+/* Define to 1 if _mm_set_epi64x and _mm_clmulepi64_si128 are usable. See
+   configure.ac for details. */
+#if defined(__FreeBSD__) && defined(__amd64__)
+#define HAVE_USABLE_CLMUL 1
+#endif
+
 /* Define to 1 if you have the `utime' function. */
 /* #undef HAVE_UTIME */
 
@@ -294,6 +326,9 @@
 /* Define to 1 or 0, depending whether the compiler supports simple visibility
    declarations. */
 #define HAVE_VISIBILITY 1
+
+/* Define to 1 if you have the <wchar.h> header file. */
+#define HAVE_WCHAR_H 1
 
 /* Define to 1 if you have the `wcwidth' function. */
 #define HAVE_WCWIDTH 1
@@ -338,13 +373,13 @@
 #define PACKAGE "xz"
 
 /* Define to the address where bug reports for this package should be sent. */
-#define PACKAGE_BUGREPORT "lasse.collin@tukaani.org"
+#define PACKAGE_BUGREPORT "xz@tukaani.org"
 
 /* Define to the full name of this package. */
 #define PACKAGE_NAME "XZ Utils"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "XZ Utils 5.2.5"
+#define PACKAGE_STRING "XZ Utils 5.4.1"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "xz"
@@ -353,7 +388,7 @@
 #define PACKAGE_URL "https://tukaani.org/xz/"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "5.2.5"
+#define PACKAGE_VERSION "5.4.1"
 
 /* Define to necessary symbol if this constant uses a non-standard name on
    your system. */
@@ -362,7 +397,9 @@
 /* The size of `size_t', as computed by sizeof. */
 #define SIZEOF_SIZE_T 8
 
-/* Define to 1 if you have the ANSI C header files. */
+/* Define to 1 if all of the C90 standard headers exist (not just the ones
+   required in a freestanding environment). This macro is provided for
+   backward compatibility; new code need not use it. */
 #define STDC_HEADERS 1
 
 /* Define to 1 if the number of available CPU cores can be detected with
@@ -385,8 +422,8 @@
    sysctl(). */
 /* #undef TUKLIB_CPUCORES_SYSCTL */
 
-/* Define to 1 if the system supports fast unaligned access to 16-bit and
-   32-bit integers. */
+/* Define to 1 if the system supports fast unaligned access to 16-bit, 32-bit,
+   and 64-bit integers. */
 /* FreeBSD - derive from __NO_STRICT_ALIGNMENT */
 /* #undef TUKLIB_FAST_UNALIGNED_ACCESS */
 
@@ -427,26 +464,92 @@
 #ifndef _ALL_SOURCE
 # define _ALL_SOURCE 1
 #endif
-/* Enable GNU extensions on systems that have them.  */
-#ifndef _GNU_SOURCE
-# define _GNU_SOURCE 1
-#endif
-/* Enable threading extensions on Solaris.  */
-#ifndef _POSIX_PTHREAD_SEMANTICS
-# define _POSIX_PTHREAD_SEMANTICS 1
-#endif
-/* Enable extensions on HP NonStop.  */
-#ifndef _TANDEM_SOURCE
-# define _TANDEM_SOURCE 1
+/* Enable general extensions on macOS.  */
+#ifndef _DARWIN_C_SOURCE
+# define _DARWIN_C_SOURCE 1
 #endif
 /* Enable general extensions on Solaris.  */
 #ifndef __EXTENSIONS__
 # define __EXTENSIONS__ 1
 #endif
+/* Enable GNU extensions on systems that have them.  */
+#ifndef _GNU_SOURCE
+# define _GNU_SOURCE 1
+#endif
+/* Enable X/Open compliant socket functions that do not require linking
+   with -lxnet on HP-UX 11.11.  */
+#ifndef _HPUX_ALT_XOPEN_SOCKET_API
+# define _HPUX_ALT_XOPEN_SOCKET_API 1
+#endif
+/* Identify the host operating system as Minix.
+   This macro does not affect the system headers' behavior.
+   A future release of Autoconf may stop defining this macro.  */
+#ifndef _MINIX
+/* # undef _MINIX */
+#endif
+/* Enable general extensions on NetBSD.
+   Enable NetBSD compatibility extensions on Minix.  */
+#ifndef _NETBSD_SOURCE
+# define _NETBSD_SOURCE 1
+#endif
+/* Enable OpenBSD compatibility extensions on NetBSD.
+   Oddly enough, this does nothing on OpenBSD.  */
+#ifndef _OPENBSD_SOURCE
+# define _OPENBSD_SOURCE 1
+#endif
+/* Define to 1 if needed for POSIX-compatible behavior.  */
+#ifndef _POSIX_SOURCE
+/* # undef _POSIX_SOURCE */
+#endif
+/* Define to 2 if needed for POSIX-compatible behavior.  */
+#ifndef _POSIX_1_SOURCE
+/* # undef _POSIX_1_SOURCE */
+#endif
+/* Enable POSIX-compatible threading on Solaris.  */
+#ifndef _POSIX_PTHREAD_SEMANTICS
+# define _POSIX_PTHREAD_SEMANTICS 1
+#endif
+/* Enable extensions specified by ISO/IEC TS 18661-5:2014.  */
+#ifndef __STDC_WANT_IEC_60559_ATTRIBS_EXT__
+# define __STDC_WANT_IEC_60559_ATTRIBS_EXT__ 1
+#endif
+/* Enable extensions specified by ISO/IEC TS 18661-1:2014.  */
+#ifndef __STDC_WANT_IEC_60559_BFP_EXT__
+# define __STDC_WANT_IEC_60559_BFP_EXT__ 1
+#endif
+/* Enable extensions specified by ISO/IEC TS 18661-2:2015.  */
+#ifndef __STDC_WANT_IEC_60559_DFP_EXT__
+# define __STDC_WANT_IEC_60559_DFP_EXT__ 1
+#endif
+/* Enable extensions specified by ISO/IEC TS 18661-4:2015.  */
+#ifndef __STDC_WANT_IEC_60559_FUNCS_EXT__
+# define __STDC_WANT_IEC_60559_FUNCS_EXT__ 1
+#endif
+/* Enable extensions specified by ISO/IEC TS 18661-3:2015.  */
+#ifndef __STDC_WANT_IEC_60559_TYPES_EXT__
+# define __STDC_WANT_IEC_60559_TYPES_EXT__ 1
+#endif
+/* Enable extensions specified by ISO/IEC TR 24731-2:2010.  */
+#ifndef __STDC_WANT_LIB_EXT2__
+# define __STDC_WANT_LIB_EXT2__ 1
+#endif
+/* Enable extensions specified by ISO/IEC 24747:2009.  */
+#ifndef __STDC_WANT_MATH_SPEC_FUNCS__
+# define __STDC_WANT_MATH_SPEC_FUNCS__ 1
+#endif
+/* Enable extensions on HP NonStop.  */
+#ifndef _TANDEM_SOURCE
+# define _TANDEM_SOURCE 1
+#endif
+/* Enable X/Open extensions.  Define to 500 only if necessary
+   to make mbstate_t available.  */
+#ifndef _XOPEN_SOURCE
+/* # undef _XOPEN_SOURCE */
+#endif
 
 
 /* Version number of package */
-#define VERSION "5.2.5"
+#define VERSION "5.4.1"
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */
@@ -461,26 +564,11 @@
 #endif
 #endif
 
-/* Enable large inode numbers on Mac OS X 10.5.  */
-#ifndef _DARWIN_USE_64_BIT_INODE
-# define _DARWIN_USE_64_BIT_INODE 1
-#endif
-
 /* Number of bits in a file offset, on hosts where this is settable. */
 /* #undef _FILE_OFFSET_BITS */
 
 /* Define for large files, on AIX-style hosts. */
 /* #undef _LARGE_FILES */
-
-/* Define to 1 if on MINIX. */
-/* #undef _MINIX */
-
-/* Define to 2 if the system does not provide POSIX.1 features except with
-   this defined. */
-/* #undef _POSIX_1_SOURCE */
-
-/* Define to 1 if you need to in order for `stat' and other things to work. */
-/* #undef _POSIX_SOURCE */
 
 /* Define for Solaris 2.5.1 so the uint32_t typedef from <sys/synch.h>,
    <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the

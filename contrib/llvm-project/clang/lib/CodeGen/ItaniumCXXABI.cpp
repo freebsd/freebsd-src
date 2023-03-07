@@ -668,8 +668,8 @@ CGCallee ItaniumCXXABI::EmitLoadOfMemberFunctionPointer(
                            CGM.HasHiddenLTOVisibility(RD);
   bool ShouldEmitWPDInfo =
       CGM.getCodeGenOpts().WholeProgramVTables &&
-      // Don't insert type tests if we are forcing public std visibility.
-      !CGM.HasLTOVisibilityPublicStd(RD);
+      // Don't insert type tests if we are forcing public visibility.
+      !CGM.AlwaysHasLTOVisibilityPublic(RD);
   llvm::Value *VirtualFn = nullptr;
 
   {
@@ -707,8 +707,12 @@ CGCallee ItaniumCXXABI::EmitLoadOfMemberFunctionPointer(
       if (ShouldEmitCFICheck || ShouldEmitWPDInfo) {
         llvm::Value *VFPAddr =
             Builder.CreateGEP(CGF.Int8Ty, VTable, VTableOffset);
+        llvm::Intrinsic::ID IID = CGM.HasHiddenLTOVisibility(RD)
+                                      ? llvm::Intrinsic::type_test
+                                      : llvm::Intrinsic::public_type_test;
+
         CheckResult = Builder.CreateCall(
-            CGM.getIntrinsic(llvm::Intrinsic::type_test),
+            CGM.getIntrinsic(IID),
             {Builder.CreateBitCast(VFPAddr, CGF.Int8PtrTy), TypeId});
       }
 
@@ -955,14 +959,16 @@ ItaniumCXXABI::EmitMemberPointerConversion(const CastExpr *E,
     adj = llvm::ConstantInt::get(adj->getType(), offset);
   }
 
-  llvm::Constant *srcAdj = llvm::ConstantExpr::getExtractValue(src, 1);
+  llvm::Constant *srcAdj = src->getAggregateElement(1);
   llvm::Constant *dstAdj;
   if (isDerivedToBase)
     dstAdj = llvm::ConstantExpr::getNSWSub(srcAdj, adj);
   else
     dstAdj = llvm::ConstantExpr::getNSWAdd(srcAdj, adj);
 
-  return llvm::ConstantExpr::getInsertValue(src, dstAdj, 1);
+  llvm::Constant *res = ConstantFoldInsertValueInstruction(src, dstAdj, 1);
+  assert(res != nullptr && "Folding must succeed");
+  return res;
 }
 
 llvm::Constant *
@@ -1925,7 +1931,7 @@ CGCallee ItaniumCXXABI::getVirtualFunctionPointer(CodeGenFunction &CGF,
   llvm::Value *VFunc;
   if (CGF.ShouldEmitVTableTypeCheckedLoad(MethodDecl->getParent())) {
     VFunc = CGF.EmitVTableTypeCheckedLoad(
-        MethodDecl->getParent(), VTable,
+        MethodDecl->getParent(), VTable, TyPtr,
         VTableIndex * CGM.getContext().getTargetInfo().getPointerWidth(0) / 8);
   } else {
     CGF.EmitTypeMetadataCodeForVCall(MethodDecl->getParent(), VTable, Loc);
@@ -3680,12 +3686,14 @@ llvm::Constant *ItaniumRTTIBuilder::BuildTypeInfo(QualType Ty) {
 
   llvm::GlobalValue::DLLStorageClassTypes DLLStorageClass =
       llvm::GlobalValue::DefaultStorageClass;
-  if (CGM.getTriple().isWindowsItaniumEnvironment()) {
-    auto RD = Ty->getAsCXXRecordDecl();
-    if (RD && RD->hasAttr<DLLExportAttr>())
+  if (auto RD = Ty->getAsCXXRecordDecl()) {
+    if ((CGM.getTriple().isWindowsItaniumEnvironment() &&
+         RD->hasAttr<DLLExportAttr>()) ||
+        (CGM.shouldMapVisibilityToDLLExport(RD) &&
+         !llvm::GlobalValue::isLocalLinkage(Linkage) &&
+         llvmVisibility == llvm::GlobalValue::DefaultVisibility))
       DLLStorageClass = llvm::GlobalValue::DLLExportStorageClass;
   }
-
   return BuildTypeInfo(Ty, Linkage, llvmVisibility, DLLStorageClass);
 }
 
@@ -4168,9 +4176,9 @@ void ItaniumCXXABI::EmitFundamentalRTTIDescriptors(const CXXRecordDecl *RD) {
       getContext().Char32Ty
   };
   llvm::GlobalValue::DLLStorageClassTypes DLLStorageClass =
-      RD->hasAttr<DLLExportAttr>()
-      ? llvm::GlobalValue::DLLExportStorageClass
-      : llvm::GlobalValue::DefaultStorageClass;
+      RD->hasAttr<DLLExportAttr>() || CGM.shouldMapVisibilityToDLLExport(RD)
+          ? llvm::GlobalValue::DLLExportStorageClass
+          : llvm::GlobalValue::DefaultStorageClass;
   llvm::GlobalValue::VisibilityTypes Visibility =
       CodeGenModule::GetLLVMVisibility(RD->getVisibility());
   for (const QualType &FundamentalType : FundamentalTypes) {
@@ -4472,7 +4480,7 @@ static void InitCatchParam(CodeGenFunction &CGF,
       // pad.  The best solution is to fix the personality function.
       } else {
         // Pull the pointer for the reference type off.
-        llvm::Type *PtrTy = LLVMCatchTy->getPointerElementType();
+        llvm::Type *PtrTy = CGF.ConvertTypeForMem(CaughtType);
 
         // Create the temporary and write the adjusted pointer into it.
         Address ExnPtrTmp =
@@ -4555,7 +4563,7 @@ static void InitCatchParam(CodeGenFunction &CGF,
   if (!copyExpr) {
     llvm::Value *rawAdjustedExn = CallBeginCatch(CGF, Exn, true);
     Address adjustedExn(CGF.Builder.CreateBitCast(rawAdjustedExn, PtrTy),
-                        caughtExnAlignment);
+                        LLVMCatchTy, caughtExnAlignment);
     LValue Dest = CGF.MakeAddrLValue(ParamAddr, CatchType);
     LValue Src = CGF.MakeAddrLValue(adjustedExn, CatchType);
     CGF.EmitAggregateCopy(Dest, Src, CatchType, AggValueSlot::DoesNotOverlap);
@@ -4569,7 +4577,7 @@ static void InitCatchParam(CodeGenFunction &CGF,
 
   // Cast that to the appropriate type.
   Address adjustedExn(CGF.Builder.CreateBitCast(rawAdjustedExn, PtrTy),
-                      caughtExnAlignment);
+                      LLVMCatchTy, caughtExnAlignment);
 
   // The copy expression is defined in terms of an OpaqueValueExpr.
   // Find it and map it to the adjusted expression.

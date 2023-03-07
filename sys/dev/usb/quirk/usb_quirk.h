@@ -55,6 +55,7 @@ enum {
 	UQ_MS_BAD_CLASS,	/* doesn't identify properly */
 	UQ_MS_LEADING_BYTE,	/* mouse sends an unknown leading byte */
 	UQ_MS_REVZ,		/* mouse has Z-axis reversed */
+	UQ_MS_VENDOR_BTN,	/* mouse has buttons in vendor usage page */
 	UQ_NO_STRINGS,		/* string descriptors are broken */
 	UQ_POWER_CLAIM,		/* hub lies about power status */
 	UQ_SPUR_BUT_UP,		/* spurious mouse button up events */
@@ -65,6 +66,7 @@ enum {
 	UQ_CFG_INDEX_4,		/* select configuration index 4 by default */
 	UQ_CFG_INDEX_0,		/* select configuration index 0 by default */
 	UQ_ASSUME_CM_OVER_DATA,	/* assume cm over data feature */
+	UQ_IGNORE_CDC_CM,	/* ignore cm descriptor */
 
 	/*
 	 * USB Mass Storage Quirks. See "storage/umass.c" for a
@@ -106,6 +108,8 @@ enum {
 	UQ_MSC_EJECT_SAEL_M460,		/* ejects after Sael USB commands */ 
 	UQ_MSC_EJECT_HUAWEISCSI,	/* ejects after Huawei SCSI command */
 	UQ_MSC_EJECT_HUAWEISCSI2,	/* ejects after Huawei SCSI 2 command */
+	UQ_MSC_EJECT_HUAWEISCSI3,	/* ejects after Huawei SCSI 3 command */
+	UQ_MSC_EJECT_HUAWEISCSI4,	/* ejects after Huawei SCSI 4 command */
 	UQ_MSC_EJECT_TCT,		/* ejects after TCT SCSI command */
 
 	UQ_BAD_MIDI,		/* device claims MIDI class, but isn't */

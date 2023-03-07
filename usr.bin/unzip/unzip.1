@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 25, 2021
+.Dd January 2, 2023
 .Dt UNZIP 1
 .Os
 .Sh NAME
@@ -38,6 +38,7 @@
 .Op Fl x Ar pattern
 .Op Fl P Ar password
 .Ar zipfile
+.Op Ar member ...
 .Sh DESCRIPTION
 .\" ...
 The following options are available:
@@ -120,6 +121,11 @@ mode changes the way in which additional arguments are parsed.
 Currently only
 .Xr zipinfo 1L
 mode 1 is supported, which lists the file names one per line.
+.It Ar [member ...]
+Optional list of members to extract from the zipfile.
+Can include patterns, e.g.
+.Ar 'memberdir/*'
+will extract all files and dirs below memberdir.
 .El
 .Pp
 Note that only one of

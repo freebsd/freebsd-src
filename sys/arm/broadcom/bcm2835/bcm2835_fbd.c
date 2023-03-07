@@ -152,12 +152,12 @@ bcm_fb_setup_fbd(struct bcmsc_softc *sc)
 	fbd = device_add_child(sc->dev, "fbd", device_get_unit(sc->dev));
 	if (fbd == NULL) {
 		device_printf(sc->dev, "Failed to add fbd child\n");
-		pmap_unmapdev(sc->info.fb_vbase, sc->info.fb_size);
+		pmap_unmapdev((void *)sc->info.fb_vbase, sc->info.fb_size);
 		return (ENXIO);
 	} else if (device_probe_and_attach(fbd) != 0) {
 		device_printf(sc->dev, "Failed to attach fbd device\n");
 		device_delete_child(sc->dev, fbd);
-		pmap_unmapdev(sc->info.fb_vbase, sc->info.fb_size);
+		pmap_unmapdev((void *)sc->info.fb_vbase, sc->info.fb_size);
 		return (ENXIO);
 	}
 

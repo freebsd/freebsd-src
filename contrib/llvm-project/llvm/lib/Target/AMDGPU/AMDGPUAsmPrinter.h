@@ -69,6 +69,9 @@ private:
                                   uint64_t ScratchSize,
                                   uint64_t CodeSize,
                                   const AMDGPUMachineFunction* MFI);
+  void emitResourceUsageRemarks(const MachineFunction &MF,
+                                const SIProgramInfo &CurrentProgramInfo,
+                                bool isModuleEntryFunction, bool hasMAIInsts);
 
   uint16_t getAmdhsaKernelCodeProperties(
       const MachineFunction &MF) const;
@@ -76,6 +79,8 @@ private:
   amdhsa::kernel_descriptor_t getAmdhsaKernelDescriptor(
       const MachineFunction &MF,
       const SIProgramInfo &PI) const;
+
+  void initTargetStreamer(Module &M);
 
 public:
   explicit AMDGPUAsmPrinter(TargetMachine &TM,
@@ -132,6 +137,7 @@ protected:
 
   std::vector<std::string> DisasmLines, HexLines;
   size_t DisasmLineMaxLen;
+  bool IsTargetStreamerInitialized;
 };
 
 } // end namespace llvm

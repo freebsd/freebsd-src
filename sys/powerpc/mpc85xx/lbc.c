@@ -157,7 +157,8 @@ lbc_banks_unmap(struct lbc_softc *sc)
 		if (sc->sc_range[r].size == 0)
 			return;
 
-		pmap_unmapdev(sc->sc_range[r].kva, sc->sc_range[r].size);
+		pmap_unmapdev((void *)sc->sc_range[r].kva,
+		    sc->sc_range[r].size);
 		law_disable(OCP85XX_TGTIF_LBC, sc->sc_range[r].addr,
 		    sc->sc_range[r].size);
 		r++;

@@ -235,6 +235,10 @@ ${X_}COMPILER_FEATURES+=		c++11 c++14
 	(${${X_}COMPILER_TYPE} == "gcc" && ${${X_}COMPILER_VERSION} >= 70000)
 ${X_}COMPILER_FEATURES+=	c++17
 .endif
+.if (${${X_}COMPILER_TYPE} == "clang" && ${${X_}COMPILER_VERSION} >= 100000) || \
+	(${${X_}COMPILER_TYPE} == "gcc" && ${${X_}COMPILER_VERSION} >= 100100)
+${X_}COMPILER_FEATURES+=	c++20
+.endif
 .if ${${X_}COMPILER_TYPE} == "clang"
 ${X_}COMPILER_FEATURES+=	retpoline init-all
 # PR257638 lld fails with BE compressed debug.  Fixed in main but external tool

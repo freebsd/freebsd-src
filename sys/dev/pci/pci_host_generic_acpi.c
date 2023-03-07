@@ -142,24 +142,41 @@ pci_host_generic_acpi_parse_resource(ACPI_RESOURCE *res, void *arg)
 	device_t dev = (device_t)arg;
 	struct generic_pcie_acpi_softc *sc;
 	rman_res_t min, max, off;
-	int r;
+	int r, restype;
 
 	sc = device_get_softc(dev);
 	r = sc->base.nranges;
 	switch (res->Type) {
 	case ACPI_RESOURCE_TYPE_ADDRESS16:
+		restype = res->Data.Address16.ResourceType;
 		min = res->Data.Address16.Address.Minimum;
 		max = res->Data.Address16.Address.Maximum;
 		break;
 	case ACPI_RESOURCE_TYPE_ADDRESS32:
+		restype = res->Data.Address32.ResourceType;
 		min = res->Data.Address32.Address.Minimum;
 		max = res->Data.Address32.Address.Maximum;
 		off = res->Data.Address32.Address.TranslationOffset;
 		break;
 	case ACPI_RESOURCE_TYPE_ADDRESS64:
+		restype = res->Data.Address64.ResourceType;
 		min = res->Data.Address64.Address.Minimum;
 		max = res->Data.Address64.Address.Maximum;
 		off = res->Data.Address64.Address.TranslationOffset;
+		break;
+	case ACPI_RESOURCE_TYPE_FIXED_MEMORY32:
+		/*
+		 * The Microsoft Dev Kit 2023 uses a fixed memory region
+		 * for some PCI controllers. For this memory the
+		 * ResourceType is ACPI_IO_RANGE meaning we create an IO
+		 * resource. As drivers expect it to be a memory resource
+		 * force the type here.
+		 */
+		restype = ACPI_MEMORY_RANGE;
+		min = res->Data.FixedMemory32.Address;
+		max = res->Data.FixedMemory32.Address +
+		    res->Data.FixedMemory32.AddressLength - 1;
+		off = 0;
 		break;
 	default:
 		return (AE_OK);
@@ -171,9 +188,9 @@ pci_host_generic_acpi_parse_resource(ACPI_RESOURCE *res, void *arg)
 		sc->base.ranges[r].pci_base = min;
 		sc->base.ranges[r].phys_base = min + off;
 		sc->base.ranges[r].size = max - min + 1;
-		if (res->Data.Address.ResourceType == ACPI_MEMORY_RANGE)
+		if (restype == ACPI_MEMORY_RANGE)
 			sc->base.ranges[r].flags |= FLAG_TYPE_MEM;
-		else if (res->Data.Address.ResourceType == ACPI_IO_RANGE)
+		else if (restype == ACPI_IO_RANGE)
 			sc->base.ranges[r].flags |= FLAG_TYPE_IO;
 		sc->base.nranges++;
 	} else if (res->Data.Address.ResourceType == ACPI_BUS_NUMBER_RANGE) {

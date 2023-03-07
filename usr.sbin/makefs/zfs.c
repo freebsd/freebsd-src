@@ -33,6 +33,7 @@
 #include <sys/queue.h>
 
 #include <assert.h>
+#include <ctype.h>
 #include <fcntl.h>
 #include <stdalign.h>
 #include <stdbool.h>
@@ -215,6 +216,19 @@ zfs_check_opts(fsinfo_t *fsopts)
 
 	if (zfs->poolname == NULL)
 		errx(1, "a pool name must be specified");
+	if (!isalpha(zfs->poolname[0]))
+		errx(1, "the pool name must begin with a letter");
+	for (size_t i = 0, len = strlen(zfs->poolname); i < len; i++) {
+		if (!isalnum(zfs->poolname[i]) && zfs->poolname[i] != '_')
+			errx(1, "invalid character '%c' in pool name",
+			    zfs->poolname[i]);
+	}
+	if (strcmp(zfs->poolname, "mirror") == 0 ||
+	    strcmp(zfs->poolname, "raidz") == 0 ||
+	    strcmp(zfs->poolname, "draid") == 0) {
+		errx(1, "pool name '%s' is reserved and cannot be used",
+		    zfs->poolname);
+	}
 
 	if (zfs->rootpath == NULL)
 		easprintf(&zfs->rootpath, "/%s", zfs->poolname);
@@ -608,7 +622,7 @@ dnode_cursor_init(zfs_opt_t *zfs, zfs_objset_t *os, dnode_phys_t *dnode,
 	if (blksz == 0) {
 		/* Must be between 1<<ashift and 128KB. */
 		blksz = MIN(MAXBLOCKSIZE, MAX(1 << zfs->ashift,
-		    powerof2(size) ? size : (1ul << flsll(size))));
+		    powerof2(size) ? size : (1l << flsll(size))));
 	}
 	assert(powerof2(blksz));
 

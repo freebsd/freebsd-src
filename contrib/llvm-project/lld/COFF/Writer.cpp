@@ -332,7 +332,7 @@ void OutputSection::writeHeaderTo(uint8_t *buf) {
   *hdr = header;
   if (stringTableOff) {
     // If name is too long, write offset into the string table as a name.
-    sprintf(hdr->Name, "/%d", stringTableOff);
+    encodeSectionName(hdr->Name, stringTableOff);
   } else {
     assert(!config->debug || name.size() <= COFF::NameSize ||
            (hdr->Characteristics & IMAGE_SCN_MEM_DISCARDABLE) == 0);
@@ -395,7 +395,7 @@ getThunk(DenseMap<uint64_t, Defined *> &lastThunks, Defined *target, uint64_t p,
   default:
     llvm_unreachable("Unexpected architecture");
   }
-  Defined *d = make<DefinedSynthetic>("", c);
+  Defined *d = make<DefinedSynthetic>("range_extension_thunk", c);
   lastThunk = d;
   return {d, true};
 }
@@ -712,7 +712,7 @@ bool Writer::fixGnuImportChunks() {
 
   bool hasIdata = false;
   // Sort all .idata$* chunks, grouping chunks from the same library,
-  // with alphabetical ordering of the object fils within a library.
+  // with alphabetical ordering of the object files within a library.
   for (auto it : partialSections) {
     PartialSection *pSec = it.second;
     if (!pSec->name.startswith(".idata"))

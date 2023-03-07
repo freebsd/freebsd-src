@@ -3,6 +3,7 @@
 # PROVIDE: var_run
 # REQUIRE: mountcritlocal
 # BEFORE: cleanvar
+# KEYWORD: shutdown
 
 . /etc/rc.subr
 

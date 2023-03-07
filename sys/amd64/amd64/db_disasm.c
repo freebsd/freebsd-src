@@ -1045,12 +1045,8 @@ static db_addr_t
  * Read address at location and return updated location.
  */
 static db_addr_t
-db_read_address(loc, short_addr, rex, regmodrm, addrp)
-	db_addr_t	loc;
-	int		short_addr;
-	int		rex;
-	int		regmodrm;
-	struct i_addr *	addrp;		/* out */
+db_read_address(db_addr_t loc, int short_addr, int rex, int regmodrm,
+    struct i_addr *addrp)
 {
 	int		mod, rm, sib, index, disp, size, have_sib;
 
@@ -1113,11 +1109,7 @@ db_read_address(loc, short_addr, rex, regmodrm, addrp)
 }
 
 static void
-db_print_address(seg, size, rex, addrp)
-	const char *	seg;
-	int		size;
-	int		rex;
-	struct i_addr *	addrp;
+db_print_address(const char *seg, int size, int rex, struct i_addr *addrp)
 {
 	if (addrp->is_reg) {
 	    db_printf("%s", db_reg[rex != 0 ? 1 : 0][(size == LONG && (rex & REX_W)) ? QUAD : size][addrp->disp]);
@@ -1145,13 +1137,8 @@ db_print_address(seg, size, rex, addrp)
  * and return updated location.
  */
 static db_addr_t
-db_disasm_esc(loc, inst, rex, short_addr, size, seg)
-	db_addr_t	loc;
-	int		inst;
-	int		rex;
-	int		short_addr;
-	int		size;
-	const char *	seg;
+db_disasm_esc(db_addr_t loc, int inst, int rex, int short_addr, int size,
+    const char *seg)
 {
 	int		regmodrm;
 	const struct finst *	fp;

@@ -10,7 +10,7 @@
 
 libpath=../lib
 examples="menu checklist radiolist mixedlist theme infobox yesno msgbox \
-	datebox form timebox rangebox pause"
+	datebox form timebox rangebox pause calendar"
 
 rm -f $examples
 

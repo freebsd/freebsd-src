@@ -428,12 +428,18 @@ static const struct syscall_decode decoded_syscalls[] = {
 	{ .name = "pread", .ret_type = 1, .nargs = 4,
 	  .args = { { Int, 0 }, { BinString | OUT, 1 }, { Sizet, 2 },
 		    { QuadHex, 3 } } },
+	{ .name = "preadv", .ret_type = 1, .nargs = 4,
+	  .args = { { Int, 0 }, { Iovec | OUT, 1 }, { Int, 2 },
+		    { QuadHex, 3 } } },
 	{ .name = "procctl", .ret_type = 1, .nargs = 4,
 	  .args = { { Idtype, 0 }, { Quad, 1 }, { Procctl, 2 }, { Ptr, 3 } } },
 	{ .name = "ptrace", .ret_type = 1, .nargs = 4,
 	  .args = { { Ptraceop, 0 }, { Int, 1 }, { Ptr, 2 }, { Int, 3 } } },
 	{ .name = "pwrite", .ret_type = 1, .nargs = 4,
 	  .args = { { Int, 0 }, { BinString | IN, 1 }, { Sizet, 2 },
+		    { QuadHex, 3 } } },
+	{ .name = "pwritev", .ret_type = 1, .nargs = 4,
+	  .args = { { Int, 0 }, { Iovec | IN, 1 }, { Int, 2 },
 		    { QuadHex, 3 } } },
 	{ .name = "quotactl", .ret_type = 1, .nargs = 4,
 	  .args = { { Name, 0 }, { Quotactlcmd, 1 }, { Int, 2 }, { Ptr, 3 } } },
@@ -1557,17 +1563,12 @@ print_sysctl(FILE *fp, int *oid, size_t len)
 }
 
 /*
- * Convert a 32-bit user-space pointer to psaddr_t. Currently, this
- * sign-extends on MIPS and zero-extends on all other architectures.
+ * Convert a 32-bit user-space pointer to psaddr_t by zero-extending.
  */
 static psaddr_t
 user_ptr32_to_psaddr(int32_t user_pointer)
 {
-#if defined(__mips__)
-	return ((psaddr_t)(intptr_t)user_pointer);
-#else
 	return ((psaddr_t)(uintptr_t)user_pointer);
-#endif
 }
 
 /*

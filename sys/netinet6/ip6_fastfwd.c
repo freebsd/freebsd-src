@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <net/route.h>
 #include <net/route/nhop.h>
 #include <net/pfil.h>
@@ -164,7 +165,7 @@ ip6_tryforward(struct mbuf *m)
 	 */
 	if (!PFIL_HOOKED_IN(V_inet6_pfil_head))
 		goto passin;
-	if (pfil_run_hooks(V_inet6_pfil_head, &m, rcvif, PFIL_IN, NULL) !=
+	if (pfil_mbuf_in(V_inet6_pfil_head, &m, rcvif, NULL) !=
 	    PFIL_PASS)
 		goto dropin;
 	/*
@@ -214,8 +215,8 @@ passin:
 	/*
 	 * Outgoing packet firewall processing.
 	 */
-	if (pfil_run_hooks(V_inet6_pfil_head, &m, nh->nh_ifp, PFIL_OUT |
-	    PFIL_FWD, NULL) != PFIL_PASS)
+	if (pfil_mbuf_out(V_inet6_pfil_head, &m, nh->nh_ifp,
+	    NULL) != PFIL_PASS)
 		goto dropout;
 
 	/*

@@ -58,6 +58,7 @@ powerpc_coder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 }
 
 
+#ifdef HAVE_ENCODER_POWERPC
 extern lzma_ret
 lzma_simple_powerpc_encoder_init(lzma_next_coder *next,
 		const lzma_allocator *allocator,
@@ -65,8 +66,10 @@ lzma_simple_powerpc_encoder_init(lzma_next_coder *next,
 {
 	return powerpc_coder_init(next, allocator, filters, true);
 }
+#endif
 
 
+#ifdef HAVE_DECODER_POWERPC
 extern lzma_ret
 lzma_simple_powerpc_decoder_init(lzma_next_coder *next,
 		const lzma_allocator *allocator,
@@ -74,3 +77,4 @@ lzma_simple_powerpc_decoder_init(lzma_next_coder *next,
 {
 	return powerpc_coder_init(next, allocator, filters, false);
 }
+#endif

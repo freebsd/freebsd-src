@@ -38,11 +38,40 @@ struct sockopt;
 struct sockaddr;
 struct ipsec_support;
 struct tcpmd5_support;
+struct icmp;
+struct ip6ctlparam;
+
+typedef union {
+	struct icmp *icmp;
+	struct ip6ctlparam *ip6cp;
+} ipsec_ctlinput_param_t __attribute__((__transparent_union__));
 
 size_t ipsec_hdrsiz_inpcb(struct inpcb *);
 int ipsec_init_pcbpolicy(struct inpcb *);
 int ipsec_delete_pcbpolicy(struct inpcb *);
 int ipsec_copy_pcbpolicy(struct inpcb *, struct inpcb *);
+
+#ifdef INET
+int udp_ipsec_input(struct mbuf *, int, int);
+int udp_ipsec_pcbctl(struct inpcb *, struct sockopt *);
+int ipsec4_in_reject(const struct mbuf *, struct inpcb *);
+int ipsec4_input(struct mbuf *, int, int);
+int ipsec4_forward(struct mbuf *);
+int ipsec4_pcbctl(struct inpcb *, struct sockopt *);
+int ipsec4_output(struct mbuf *, struct inpcb *);
+int ipsec4_capability(struct mbuf *, u_int);
+int ipsec4_ctlinput(ipsec_ctlinput_param_t);
+#endif /* INET */
+
+#ifdef INET6
+int ipsec6_input(struct mbuf *, int, int);
+int ipsec6_in_reject(const struct mbuf *, struct inpcb *);
+int ipsec6_forward(struct mbuf *);
+int ipsec6_pcbctl(struct inpcb *, struct sockopt *);
+int ipsec6_output(struct mbuf *, struct inpcb *);
+int ipsec6_capability(struct mbuf *, u_int);
+int ipsec6_ctlinput(ipsec_ctlinput_param_t);
+#endif /* INET6 */
 
 struct ipsec_methods {
 	int	(*input)(struct mbuf *, int, int);
@@ -52,7 +81,7 @@ struct ipsec_methods {
 	int	(*pcbctl)(struct inpcb *, struct sockopt *);
 	size_t	(*hdrsize)(struct inpcb *);
 	int	(*capability)(struct mbuf *, u_int);
-	int	(*ctlinput)(int, struct sockaddr *, void *);
+	int	(*ctlinput)(ipsec_ctlinput_param_t);
 
 	int	(*udp_input)(struct mbuf *, int, int);
 	int	(*udp_pcbctl)(struct inpcb *, struct sockopt *);
@@ -134,8 +163,8 @@ extern const struct ipsec_support * const ipv6_ipsec_support;
     (*(proto ## _ipsec_support)->methods->capability)(m, __VA_ARGS__)
 #define	IPSEC_HDRSIZE(proto, inp)		\
     (*(proto ## _ipsec_support)->methods->hdrsize)(inp)
-#define	IPSEC_CTLINPUT(proto, code, sa, v)	\
-    (*(proto ## _ipsec_support)->methods->ctlinput)(code, sa, v)
+#define	IPSEC_CTLINPUT(proto, param)		\
+    (*(proto ## _ipsec_support)->methods->ctlinput)(param)
 
 #define	UDPENCAP_INPUT(m, ...)			\
     (*ipv4_ipsec_support->methods->udp_input)(m, __VA_ARGS__)
@@ -164,8 +193,7 @@ int ipsec_kmod_pcbctl(struct ipsec_support * const, struct inpcb *,
     struct sockopt *);
 int ipsec_kmod_capability(struct ipsec_support * const, struct mbuf *, u_int);
 size_t ipsec_kmod_hdrsize(struct ipsec_support * const, struct inpcb *);
-int ipsec_kmod_ctlinput(struct ipsec_support * const, int,
-    struct sockaddr *, void *);
+int ipsec_kmod_ctlinput(struct ipsec_support *, ipsec_ctlinput_param_t);
 int ipsec_kmod_udp_input(struct ipsec_support * const, struct mbuf *, int, int);
 int ipsec_kmod_udp_pcbctl(struct ipsec_support * const, struct inpcb *,
     struct sockopt *);

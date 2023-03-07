@@ -135,7 +135,7 @@ create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 
 	wr = alloc_wrqe(wr_len, &sc->sge.ctrlq[0]);
 	if (wr == NULL)
-        	return (0);
+		return (0);
         res_wr = wrtod(wr);
 
 	memset(res_wr, 0, wr_len);

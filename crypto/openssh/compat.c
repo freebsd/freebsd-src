@@ -1,4 +1,4 @@
-/* $OpenBSD: compat.c,v 1.119 2021/09/10 05:46:09 djm Exp $ */
+/* $OpenBSD: compat.c,v 1.121 2023/02/02 12:10:05 djm Exp $ */
 /*
  * Copyright (c) 1999, 2000, 2001, 2002 Markus Friedl.  All rights reserved.
  *
@@ -156,11 +156,12 @@ compat_banner(struct ssh *ssh, const char *version)
 	debug_f("no match: %s", version);
 }
 
+/* Always returns pointer to allocated memory, caller must free. */
 char *
 compat_cipher_proposal(struct ssh *ssh, char *cipher_prop)
 {
 	if (!(ssh->compat & SSH_BUG_BIGENDIANAES))
-		return cipher_prop;
+		return xstrdup(cipher_prop);
 	debug2_f("original cipher proposal: %s", cipher_prop);
 	if ((cipher_prop = match_filter_denylist(cipher_prop, "aes*")) == NULL)
 		fatal("match_filter_denylist failed");
@@ -170,11 +171,12 @@ compat_cipher_proposal(struct ssh *ssh, char *cipher_prop)
 	return cipher_prop;
 }
 
+/* Always returns pointer to allocated memory, caller must free. */
 char *
 compat_pkalg_proposal(struct ssh *ssh, char *pkalg_prop)
 {
 	if (!(ssh->compat & SSH_BUG_RSASIGMD5))
-		return pkalg_prop;
+		return xstrdup(pkalg_prop);
 	debug2_f("original public key proposal: %s", pkalg_prop);
 	if ((pkalg_prop = match_filter_denylist(pkalg_prop, "ssh-rsa")) == NULL)
 		fatal("match_filter_denylist failed");
@@ -184,25 +186,30 @@ compat_pkalg_proposal(struct ssh *ssh, char *pkalg_prop)
 	return pkalg_prop;
 }
 
+/* Always returns pointer to allocated memory, caller must free. */
 char *
 compat_kex_proposal(struct ssh *ssh, char *p)
 {
+	char *cp = NULL, *cp2 = NULL;
+
 	if ((ssh->compat & (SSH_BUG_CURVE25519PAD|SSH_OLD_DHGEX)) == 0)
-		return p;
+		return xstrdup(p);
 	debug2_f("original KEX proposal: %s", p);
 	if ((ssh->compat & SSH_BUG_CURVE25519PAD) != 0)
-		if ((p = match_filter_denylist(p,
+		if ((cp = match_filter_denylist(p,
 		    "curve25519-sha256@libssh.org")) == NULL)
 			fatal("match_filter_denylist failed");
 	if ((ssh->compat & SSH_OLD_DHGEX) != 0) {
-		if ((p = match_filter_denylist(p,
+		if ((cp2 = match_filter_denylist(cp ? cp : p,
 		    "diffie-hellman-group-exchange-sha256,"
 		    "diffie-hellman-group-exchange-sha1")) == NULL)
 			fatal("match_filter_denylist failed");
+		free(cp);
+		cp = cp2;
 	}
-	debug2_f("compat KEX proposal: %s", p);
-	if (*p == '\0')
+	if (cp == NULL || *cp == '\0')
 		fatal("No supported key exchange algorithms found");
-	return p;
+	debug2_f("compat KEX proposal: %s", cp);
+	return cp;
 }
 

@@ -169,7 +169,7 @@ main(int argc, char *argv[])
 
 	rval = 0;
 	for (; argc > 0; argc--, argv++) {
-		if ((fd = open(*argv, O_RDONLY, 0)) < 0) {
+		if ((fd = open(*argv, O_RDONLY | O_VERIFY, 0)) < 0) {
 			warn("%s", *argv);
 			rval |= 1;
 			continue;
@@ -233,18 +233,19 @@ main(int argc, char *argv[])
 			}
 			break;
 		case 0:
+			rtld = _PATH_RTLD;
+#if __ELF_WORD_SIZE > 32 && defined(ELF32_SUPPORTED)
+			if (type == TYPE_ELF32)
+				rtld = _COMPAT32_PATH_RTLD;
+#endif
 			if (is_shlib == 0) {
-				execl(*argv, *argv, (char *)NULL);
+				execl(rtld, rtld, "--",
+				    *argv, (char *)NULL);
 				warn("%s", *argv);
 			} else if (fmt1 == NULL && fmt2 == NULL && !aflag) {
 				dlopen(*argv, RTLD_TRACE);
 				warnx("%s: %s", *argv, dlerror());
 			} else {
-				rtld = _PATH_RTLD;
-#if __ELF_WORD_SIZE > 32 && defined(ELF32_SUPPORTED)
-				if (type == TYPE_ELF32)
-					rtld = _COMPAT32_PATH_RTLD;
-#endif
 				execl(rtld, rtld, "-d", "--",
 				    *argv, (char *)NULL);
 			}

@@ -307,7 +307,7 @@ linux_current_init(void *arg __unused)
 	    linuxkpi_thread_dtor, NULL, EVENTHANDLER_PRI_ANY);
 	lkpi_alloc_current = linux_alloc_current;
 }
-SYSINIT(linux_current, SI_SUB_EVENTHANDLER, SI_ORDER_SECOND,
+SYSINIT(linux_current, SI_SUB_EVENTHANDLER + 1, SI_ORDER_SECOND,
     linux_current_init, NULL);
 
 static void
@@ -341,5 +341,5 @@ linux_current_uninit(void *arg __unused)
 	uma_zdestroy(linux_current_zone);
 	uma_zdestroy(linux_mm_zone);
 }
-SYSUNINIT(linux_current, SI_SUB_EVENTHANDLER, SI_ORDER_SECOND,
+SYSUNINIT(linux_current, SI_SUB_EVENTHANDLER + 1, SI_ORDER_SECOND,
     linux_current_uninit, NULL);

@@ -11,7 +11,7 @@ SRCS=	ssh_api.c ssherr.c \
 	sshbuf-misc.c sshbuf-getput-crypto.c krl.c bitmap.c
 SRCS+=	authfd.c authfile.c \
 	canohost.c channels.c cipher.c cipher-aes.c cipher-aesctr.c \
-	cipher-ctr.c cleanup.c \
+	cleanup.c \
 	compat.c fatal.c hostfile.c \
 	log.c match.c moduli.c nchan.c packet.c \
 	readpass.c ttymodes.c xmalloc.c addr.c addrmatch.c \
@@ -22,7 +22,7 @@ SRCS+=	authfd.c authfile.c \
 	ssh-pkcs11.c smult_curve25519_ref.c \
 	poly1305.c chacha.c cipher-chachapoly.c cipher-chachapoly-libcrypto.c \
 	ssh-ed25519.c digest-openssl.c digest-libc.c \
-	hmac.c sc25519.c ge25519.c fe25519.c ed25519.c verify.c hash.c \
+	hmac.c ed25519.c hash.c \
 	kex.c kexdh.c kexgex.c kexecdh.c kexc25519.c \
 	kexgexc.c kexgexs.c \
 	kexsntrup761x25519.c sntrup761.c kexgen.c \

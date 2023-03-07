@@ -94,18 +94,18 @@ __FBSDID("$FreeBSD$");
 #include <dev/le/lancereg.h>
 #include <dev/le/lancevar.h>
 
-static void lance_start(struct ifnet *);
+static void lance_start(if_t);
 static void lance_stop(struct lance_softc *);
 static void lance_init(void *);
 static void lance_watchdog(void *s);
-static int lance_mediachange(struct ifnet *);
-static void lance_mediastatus(struct ifnet *, struct ifmediareq *);
-static int lance_ioctl(struct ifnet *, u_long, caddr_t);
+static int lance_mediachange(if_t);
+static void lance_mediastatus(if_t, struct ifmediareq *);
+static int lance_ioctl(if_t, u_long, caddr_t);
 
 int
 lance_config(struct lance_softc *sc, const char* name, int unit)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	int i, nbuf;
 
 	if (LE_LOCK_INITIALIZED(sc) == 0)
@@ -118,19 +118,18 @@ lance_config(struct lance_softc *sc, const char* name, int unit)
 	callout_init_mtx(&sc->sc_wdog_ch, &sc->sc_mtx, 0);
 
 	/* Initialize ifnet structure. */
-	ifp->if_softc = sc;
+	if_setsoftc(ifp, sc);
 	if_initname(ifp, name, unit);
-	ifp->if_start = lance_start;
-	ifp->if_ioctl = lance_ioctl;
-	ifp->if_init = lance_init;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	if_setstartfn(ifp, lance_start);
+	if_setioctlfn(ifp, lance_ioctl);
+	if_setinitfn(ifp, lance_init);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
 #ifdef LANCE_REVC_BUG
-	ifp->if_flags &= ~IFF_MULTICAST;
+	if_setflagsbit(ifp, 0, IFF_MULTICAST);
 #endif
-	ifp->if_baudrate = IF_Mbps(10);
-	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
-	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
-	IFQ_SET_READY(&ifp->if_snd);
+	if_setbaudrate(ifp, IF_Mbps(10));
+	if_setsendqlen(ifp, ifqmaxlen);
+	if_setsendqready(ifp);
 
 	/* Initialize ifmedia structures. */
 	ifmedia_init(&sc->sc_media, 0, lance_mediachange, lance_mediastatus);
@@ -191,21 +190,21 @@ lance_config(struct lance_softc *sc, const char* name, int unit)
 void
 lance_attach(struct lance_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 
 	/* Attach the interface. */
 	ether_ifattach(ifp, sc->sc_enaddr);
 
 	/* Claim 802.1q capability. */
-	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
-	ifp->if_capabilities |= IFCAP_VLAN_MTU;
-	ifp->if_capenable |= IFCAP_VLAN_MTU;
+	if_setifheaderlen(ifp, sizeof(struct ether_vlan_header));
+	if_setcapabilitiesbit(ifp, IFCAP_VLAN_MTU, 0);
+	if_setcapenablebit(ifp, IFCAP_VLAN_MTU, 0);
 }
 
 void
 lance_detach(struct lance_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 
 	LE_LOCK(sc);
 	lance_stop(sc);
@@ -229,15 +228,15 @@ lance_resume(struct lance_softc *sc)
 {
 
 	LE_LOCK(sc);
-	if (sc->sc_ifp->if_flags & IFF_UP)
+	if (if_getflags(sc->sc_ifp) & IFF_UP)
 		lance_init_locked(sc);
 	LE_UNLOCK(sc);
 }
 
 static void
-lance_start(struct ifnet *ifp)
+lance_start(if_t ifp)
 {
-	struct lance_softc *sc = ifp->if_softc;
+	struct lance_softc *sc = if_getsoftc(ifp);
 
 	LE_LOCK(sc);
 	(*sc->sc_start_locked)(sc);
@@ -247,14 +246,14 @@ lance_start(struct ifnet *ifp)
 static void
 lance_stop(struct lance_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 
 	LE_LOCK_ASSERT(sc, MA_OWNED);
 
 	/*
 	 * Mark the interface down and cancel the watchdog timer.
 	 */
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	if_setdrvflagbits(ifp, 0, (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
 	callout_stop(&sc->sc_wdog_ch);
 	sc->sc_wdog_timer = 0;
 
@@ -278,7 +277,7 @@ lance_init(void *xsc)
 void
 lance_init_locked(struct lance_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 	u_long a;
 	int timo;
 
@@ -302,7 +301,7 @@ lance_init_locked(struct lance_softc *sc)
 	 * Update our private copy of the Ethernet address.
 	 * We NEED the copy so we can ensure its alignment!
 	 */
-	memcpy(sc->sc_enaddr, IF_LLADDR(ifp), ETHER_ADDR_LEN);
+	memcpy(sc->sc_enaddr, if_getlladdr(ifp), ETHER_ADDR_LEN);
 
 	/* Set up LANCE init block. */
 	(*sc->sc_meminit)(sc);
@@ -324,8 +323,8 @@ lance_init_locked(struct lance_softc *sc)
 	if ((*sc->sc_rdcsr)(sc, LE_CSR0) & LE_C0_IDON) {
 		/* Start the LANCE. */
 		(*sc->sc_wrcsr)(sc, LE_CSR0, LE_C0_INEA | LE_C0_STRT);
-		ifp->if_drv_flags |= IFF_DRV_RUNNING;
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 		sc->sc_wdog_timer = 0;
 		callout_reset(&sc->sc_wdog_ch, hz, lance_watchdog, sc);
 		(*sc->sc_start_locked)(sc);
@@ -377,7 +376,7 @@ lance_put(struct lance_softc *sc, int boff, struct mbuf *m)
 struct mbuf *
 lance_get(struct lance_softc *sc, int boff, int totlen)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 	struct mbuf *m, *m0, *newm;
 	caddr_t newdata;
 	int len;
@@ -436,7 +435,7 @@ static void
 lance_watchdog(void *xsc)
 {
 	struct lance_softc *sc = (struct lance_softc *)xsc;
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 
 	LE_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -451,9 +450,9 @@ lance_watchdog(void *xsc)
 }
 
 static int
-lance_mediachange(struct ifnet *ifp)
+lance_mediachange(if_t ifp)
 {
-	struct lance_softc *sc = ifp->if_softc;
+	struct lance_softc *sc = if_getsoftc(ifp);
 
 	if (sc->sc_mediachange) {
 		/*
@@ -466,7 +465,7 @@ lance_mediachange(struct ifnet *ifp)
 		LE_LOCK(sc);
 		lance_stop(sc);
 		lance_init_locked(sc);
-		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		if (!if_sendq_empty(ifp))
 			(*sc->sc_start_locked)(sc);
 		LE_UNLOCK(sc);
 	}
@@ -474,12 +473,12 @@ lance_mediachange(struct ifnet *ifp)
 }
 
 static void
-lance_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
+lance_mediastatus(if_t ifp, struct ifmediareq *ifmr)
 {
-	struct lance_softc *sc = ifp->if_softc;
+	struct lance_softc *sc = if_getsoftc(ifp);
 
 	LE_LOCK(sc);
-	if (!(ifp->if_flags & IFF_UP)) {
+	if (!(if_getflags(ifp) & IFF_UP)) {
 		LE_UNLOCK(sc);
 		return;
 	}
@@ -497,16 +496,16 @@ lance_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
  * Process an ioctl request.
  */
 static int
-lance_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+lance_ioctl(if_t ifp, u_long cmd, caddr_t data)
 {
-	struct lance_softc *sc = ifp->if_softc;
+	struct lance_softc *sc = if_getsoftc(ifp);
 	struct ifreq *ifr = (struct ifreq *)data;
 	int error = 0;
 
 	switch (cmd) {
 	case SIOCSIFFLAGS:
 		LE_LOCK(sc);
-		if (ifp->if_flags & IFF_PROMISC) {
+		if (if_getflags(ifp) & IFF_PROMISC) {
 			if (!(sc->sc_flags & LE_PROMISC)) {
 				sc->sc_flags |= LE_PROMISC;
 				lance_init_locked(sc);
@@ -516,25 +515,25 @@ lance_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			lance_init_locked(sc);
 		}
 
-		if ((ifp->if_flags & IFF_ALLMULTI) &&
+		if ((if_getflags(ifp) & IFF_ALLMULTI) &&
 		    !(sc->sc_flags & LE_ALLMULTI)) {
 			sc->sc_flags |= LE_ALLMULTI;
 			lance_init_locked(sc);
-		} else if (!(ifp->if_flags & IFF_ALLMULTI) &&
+		} else if (!(if_getflags(ifp) & IFF_ALLMULTI) &&
 		    (sc->sc_flags & LE_ALLMULTI)) {
 			sc->sc_flags &= ~LE_ALLMULTI;
 			lance_init_locked(sc);
 		}
 
-		if (!(ifp->if_flags & IFF_UP) &&
-		    ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		if (!(if_getflags(ifp) & IFF_UP) &&
+		    if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 			/*
 			 * If interface is marked down and it is running, then
 			 * stop it.
 			 */
 			lance_stop(sc);
-		} else if (ifp->if_flags & IFF_UP &&
-		    !(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+		} else if (if_getflags(ifp) & IFF_UP &&
+		    !(if_getdrvflags(ifp) & IFF_DRV_RUNNING)) {
 			/*
 			 * If interface is marked up and it is stopped, then
 			 * start it.
@@ -542,7 +541,7 @@ lance_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			lance_init_locked(sc);
 		}
 #ifdef LEDEBUG
-		if (ifp->if_flags & IFF_DEBUG)
+		if (if_getflags(ifp) & IFF_DEBUG)
 			sc->sc_flags |= LE_DEBUG;
 		else
 			sc->sc_flags &= ~LE_DEBUG;
@@ -557,7 +556,7 @@ lance_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		 * accordingly.
 		 */
 		LE_LOCK(sc);
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 			lance_init_locked(sc);
 		LE_UNLOCK(sc);
 		break;
@@ -602,7 +601,7 @@ lance_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 void
 lance_setladrf(struct lance_softc *sc, uint16_t *af)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	if_t ifp = sc->sc_ifp;
 	struct lance_hash_maddr_ctx ctx = { sc, af };
 
 	/*
@@ -613,7 +612,7 @@ lance_setladrf(struct lance_softc *sc, uint16_t *af)
 	 * the word.
 	 */
 
-	if (ifp->if_flags & IFF_PROMISC || sc->sc_flags & LE_ALLMULTI) {
+	if (if_getflags(ifp) & IFF_PROMISC || sc->sc_flags & LE_ALLMULTI) {
 		af[0] = af[1] = af[2] = af[3] = 0xffff;
 		return;
 	}

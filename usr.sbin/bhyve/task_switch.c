@@ -225,9 +225,9 @@ desc_table_rw(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
 		return (error);
 
 	if (doread)
-		vm_copyin(ctx, vcpu, iov, desc, sizeof(*desc));
+		vm_copyin(iov, desc, sizeof(*desc));
 	else
-		vm_copyout(ctx, vcpu, desc, iov, sizeof(*desc));
+		vm_copyout(desc, iov, sizeof(*desc));
 	return (0);
 }
 
@@ -464,7 +464,7 @@ tss32_save(struct vmctx *ctx, int vcpu, struct vm_task_switch *task_switch,
 	tss->tss_eip = eip;
 
 	/* Copy updated old TSS into guest memory */
-	vm_copyout(ctx, vcpu, tss, iov, sizeof(struct tss32));
+	vm_copyout(tss, iov, sizeof(struct tss32));
 }
 
 static void
@@ -560,7 +560,7 @@ tss32_restore(struct vmctx *ctx, int vcpu, struct vm_task_switch *ts,
 	 * the previous link field.
 	 */
 	if (nested)
-		vm_copyout(ctx, vcpu, tss, iov, sizeof(*tss));
+		vm_copyout(tss, iov, sizeof(*tss));
 
 	/* Validate segment descriptors */
 	error = validate_seg_desc(ctx, vcpu, ts, VM_REG_GUEST_LDTR, &seg_desc,
@@ -685,7 +685,7 @@ push_errcode(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
 	if (error || *faultptr)
 		return (error);
 
-	vm_copyout(ctx, vcpu, &errcode, iov, bytes);
+	vm_copyout(&errcode, iov, bytes);
 	SETREG(ctx, vcpu, VM_REG_GUEST_RSP, esp);
 	return (0);
 }
@@ -774,7 +774,7 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 		minlimit = 0;
 
 	assert(minlimit > 0);
-	if (nt.limit < minlimit) {
+	if (nt.limit < (unsigned int)minlimit) {
 		sel_exception(ctx, vcpu, IDT_TS, nt_sel, ext);
 		goto done;
 	}
@@ -798,7 +798,7 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	error = vm_copy_setup(ctx, vcpu, &sup_paging, nt.base, minlimit + 1,
 	    PROT_READ | PROT_WRITE, nt_iov, nitems(nt_iov), &fault);
 	CHKERR(error, fault);
-	vm_copyin(ctx, vcpu, nt_iov, &newtss, minlimit + 1);
+	vm_copyin(nt_iov, &newtss, minlimit + 1);
 
 	/* Get the old TSS selector from the guest's task register */
 	ot_sel = GETREG(ctx, vcpu, VM_REG_GUEST_TR);
@@ -830,7 +830,7 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	error = vm_copy_setup(ctx, vcpu, &sup_paging, ot_base, minlimit + 1,
 	    PROT_READ | PROT_WRITE, ot_iov, nitems(ot_iov), &fault);
 	CHKERR(error, fault);
-	vm_copyin(ctx, vcpu, ot_iov, &oldtss, minlimit + 1);
+	vm_copyin(ot_iov, &oldtss, minlimit + 1);
 
 	/*
 	 * Clear the busy bit in the old TSS descriptor if the task switch

@@ -19,6 +19,7 @@
 /* #undef LLVM_ENABLE_DUMP */
 
 /* Target triple LLVM will generate code for by default */
+/* Doesn't use `cmakedefine` because it is allowed to be empty. */
 /* #undef LLVM_DEFAULT_TARGET_TRIPLE */
 
 /* Define if threads enabled */
@@ -67,16 +68,16 @@
 #define LLVM_USE_PERF 0
 
 /* Major version of the LLVM API */
-#define LLVM_VERSION_MAJOR 14
+#define LLVM_VERSION_MAJOR 15
 
 /* Minor version of the LLVM API */
 #define LLVM_VERSION_MINOR 0
 
 /* Patch version of the LLVM API */
-#define LLVM_VERSION_PATCH 5
+#define LLVM_VERSION_PATCH 7
 
 /* LLVM version string */
-#define LLVM_VERSION_STRING "14.0.5"
+#define LLVM_VERSION_STRING "15.0.7"
 
 /* Whether LLVM records statistics for use with GetStatistics(),
  * PrintStatistics() or PrintStatisticsJSON()
@@ -89,17 +90,20 @@
 /* Define if we have curl and want to use it */
 /* #undef LLVM_ENABLE_CURL */
 
+/* Define if we have cpp-httplib and want to use it */
+/* #undef LLVM_ENABLE_HTTPLIB */
+
 /* Define if zlib compression is available */
 #define LLVM_ENABLE_ZLIB 1
+
+/* Define if zstd compression is available */
+#define LLVM_ENABLE_ZSTD 0
 
 /* Define if LLVM was built with a dependency to the libtensorflow dynamic library */
 /* #undef LLVM_HAVE_TF_API */
 
 /* Define to 1 if you have the <sysexits.h> header file. */
 #define HAVE_SYSEXITS_H 1
-
-/* Define to 1 to enable the experimental new pass manager by default */
-#define LLVM_ENABLE_NEW_PASS_MANAGER 1
 
 /* Define if the xar_open() function is supported on this platform. */
 #if defined(__APPLE__)
@@ -114,5 +118,12 @@
 
 /* Define if building LLVM with LLVM_FORCE_USE_OLD_TOOLCHAIN_LIBS */
 /* #undef LLVM_FORCE_USE_OLD_TOOLCHAIN */
+
+/* Define if llvm_unreachable should be optimized with undefined behavior
+ * in non assert builds */
+#define LLVM_UNREACHABLE_OPTIMIZE 1
+
+/* Define to 1 if you have the DIA SDK installed, and to 0 if you don't. */
+#define LLVM_ENABLE_DIA_SDK 0
 
 #endif

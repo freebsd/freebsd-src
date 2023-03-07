@@ -1744,13 +1744,13 @@ local_zones_zone_answer(struct local_zone* z, struct module_env* env,
 /** print log information for an inform zone query */
 static void
 lz_inform_print(struct local_zone* z, struct query_info* qinfo,
-	struct comm_reply* repinfo)
+	struct sockaddr_storage* addr, socklen_t addrlen)
 {
 	char ip[128], txt[512];
 	char zname[LDNS_MAX_DOMAINLEN+1];
-	uint16_t port = ntohs(((struct sockaddr_in*)&repinfo->addr)->sin_port);
+	uint16_t port = ntohs(((struct sockaddr_in*)addr)->sin_port);
 	dname_str(z->name, zname);
-	addr_to_str(&repinfo->addr, repinfo->addrlen, ip, sizeof(ip));
+	addr_to_str(addr, addrlen, ip, sizeof(ip));
 	snprintf(txt, sizeof(txt), "%s %s %s@%u", zname, local_zone_type2str(z->type), ip,
 		(unsigned)port);
 	log_nametypeclass(NO_VERBOSE, txt, qinfo->qname, qinfo->qtype, qinfo->qclass);
@@ -1765,7 +1765,8 @@ lz_type(uint8_t *taglist, size_t taglen, uint8_t *taglist2, size_t taglen2,
 	struct local_zone_override* lzo;	
 	if(repinfo && override_tree) {
 		lzo = (struct local_zone_override*)addr_tree_lookup(
-			override_tree, &repinfo->addr, repinfo->addrlen);
+			override_tree, &repinfo->client_addr,
+			repinfo->client_addrlen);
 		if(lzo && lzo->type) {
 			verbose(VERB_ALGO, "local zone override to type %s",
 				local_zone_type2str(lzo->type));
@@ -1888,7 +1889,8 @@ local_zones_answer(struct local_zones* zones, struct module_env* env,
 			lzt == local_zone_inform_deny ||
 			lzt == local_zone_inform_redirect)
 			&& repinfo)
-		lz_inform_print(z, qinfo, repinfo);
+		lz_inform_print(z, qinfo, &repinfo->client_addr,
+			repinfo->client_addrlen);
 
 	if(lzt != local_zone_always_refuse
 		&& lzt != local_zone_always_transparent

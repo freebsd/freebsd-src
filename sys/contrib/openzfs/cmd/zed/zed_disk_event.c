@@ -49,7 +49,7 @@ struct udev_monitor *g_mon;
 #define	DEV_BYID_PATH	"/dev/disk/by-id/"
 
 /* 64MB is minimum usable disk for ZFS */
-#define	MINIMUM_SECTORS		131072
+#define	MINIMUM_SECTORS		131072ULL
 
 
 /*
@@ -78,6 +78,8 @@ zed_udev_event(const char *class, const char *subclass, nvlist_t *nvl)
 		zed_log_msg(LOG_INFO, "\t%s: %s", DEV_PHYS_PATH, strval);
 	if (nvlist_lookup_uint64(nvl, DEV_SIZE, &numval) == 0)
 		zed_log_msg(LOG_INFO, "\t%s: %llu", DEV_SIZE, numval);
+	if (nvlist_lookup_uint64(nvl, DEV_PARENT_SIZE, &numval) == 0)
+		zed_log_msg(LOG_INFO, "\t%s: %llu", DEV_PARENT_SIZE, numval);
 	if (nvlist_lookup_uint64(nvl, ZFS_EV_POOL_GUID, &numval) == 0)
 		zed_log_msg(LOG_INFO, "\t%s: %llu", ZFS_EV_POOL_GUID, numval);
 	if (nvlist_lookup_uint64(nvl, ZFS_EV_VDEV_GUID, &numval) == 0)
@@ -130,6 +132,20 @@ dev_event_nvlist(struct udev_device *dev)
 
 		numval *= strtoull(value, NULL, 10);
 		(void) nvlist_add_uint64(nvl, DEV_SIZE, numval);
+
+		/*
+		 * If the device has a parent, then get the parent block
+		 * device's size as well.  For example, /dev/sda1's parent
+		 * is /dev/sda.
+		 */
+		struct udev_device *parent_dev = udev_device_get_parent(dev);
+		if ((value = udev_device_get_sysattr_value(parent_dev, "size"))
+		    != NULL) {
+			uint64_t numval = DEV_BSIZE;
+
+			numval *= strtoull(value, NULL, 10);
+			(void) nvlist_add_uint64(nvl, DEV_PARENT_SIZE, numval);
+		}
 	}
 
 	/*

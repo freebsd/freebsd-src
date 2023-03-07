@@ -216,6 +216,7 @@ struct mount_upper_node {
  *	i - interlock
  *	v - vnode freelist mutex
  *	d - deferred unmount list mutex
+ *	e - mnt_explock
  *
  * Unmarked fields are considered stable as long as a ref is held.
  *
@@ -245,13 +246,14 @@ struct mount {
 	void *		mnt_data;		/* private data */
 	time_t		mnt_time;		/* last time written*/
 	int		mnt_iosize_max;		/* max size for clusters, etc */
-	struct netexport *mnt_export;		/* export list */
+	struct netexport *mnt_export;		/* (e) export list */
 	struct label	*mnt_label;		/* MAC label for the fs */
 	u_int		mnt_hashseed;		/* Random seed for vfs_hash */
 	int		mnt_lockref;		/* (i) Lock reference count */
 	int		mnt_secondary_writes;   /* (i) # of secondary writes */
 	int		mnt_secondary_accwrites;/* (i) secondary wr. starts */
 	struct thread	*mnt_susp_owner;	/* (i) thread owning suspension */
+	struct ucred	*mnt_exjail;		/* (i) jail which did exports */
 #define	mnt_endzero	mnt_gjprovider
 	char		*mnt_gjprovider;	/* gjournal provider name */
 	struct mtx	mnt_listmtx;
@@ -678,6 +680,7 @@ struct ovfsconf {
 #define	VFCF_DELEGADMIN	0x00800000	/* supports delegated administration */
 #define	VFCF_SBDRY	0x01000000	/* Stop at Boundary: defer stop requests
 					   to kernel->user (AST) transition */
+#define	VFCF_FILEMOUNT	0x02000000	/* allow mounting files */
 
 typedef uint32_t fsctlop_t;
 
@@ -1014,8 +1017,10 @@ int	vfs_setpublicfs			    /* set publicly exported fs */
 	    (struct mount *, struct netexport *, struct export_args *);
 void	vfs_periodic(struct mount *, int);
 int	vfs_busy(struct mount *, int);
+void	vfs_exjail_delete(struct prison *);
 int	vfs_export			 /* process mount export info */
-	    (struct mount *, struct export_args *);
+	    (struct mount *, struct export_args *, bool);
+void	vfs_free_addrlist(struct netexport *);
 void	vfs_allocate_syncvnode(struct mount *);
 void	vfs_deallocate_syncvnode(struct mount *);
 int	vfs_donmount(struct thread *td, uint64_t fsflags,

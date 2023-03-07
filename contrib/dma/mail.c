@@ -35,6 +35,7 @@
 
 #include <errno.h>
 #include <inttypes.h>
+#include <malloc_np.h>
 #include <signal.h>
 #include <strings.h>
 #include <string.h>
@@ -418,8 +419,14 @@ readmail(struct queue *queue, int nodot, int recp_from_header)
 			 * If we fix it, it better be the last line of
 			 * the file.
 			 */
-			line[linelen] = '\n';
-			line[linelen + 1] = 0;
+			if ((size_t)linelen + 1 > linecap) {
+				line = realloc(line, linelen + 2);
+				if (line == NULL)
+					errlogx(EX_SOFTWARE, "realloc");
+				linecap = malloc_usable_size(line);
+			}
+			line[linelen++] = '\n';
+			line[linelen] = 0;
 			had_last_line = 1;
 		}
 		if (!had_first_line) {

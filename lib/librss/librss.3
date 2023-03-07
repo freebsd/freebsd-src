@@ -23,10 +23,6 @@
 .Ft int
 .Fn rss_set_bucket_rebalance_cb "rss_bucket_rebalance_cb_t *cb" "void *cbdata"
 .Ft int
-.Fn rss_sock_set_bindmulti "int fd" "int af" "int val"
-.Ft int
-.Fn rss_sock_set_rss_bucket "int fd" "int af" "int rss_bucket"
-.Ft int
 .Fn rss_sock_set_recvrss "int fd" "int af" "int val"
 .Sh DESCRIPTION
 The
@@ -102,16 +98,6 @@ Once RSS setup is completed,
 .Fn rss_config_free
 is called to free the RSS configuration structure.
 .Pp
-To make a
-.Vt bind
-socket RSS aware, the
-.Fn rss_sock_set_bindmulti
-function is used to enable or disable per-RSS bucket
-behaviour.
-The socket filedescriptor, address family and enable flag
-.Vt val
-are passed in.
-.Pp
 If
 .Vt val
 is set to 1, the socket can be placed in an RSS bucket and will only accept
@@ -120,13 +106,6 @@ RSS bucket.
 If set to 0, the socket is placed in the default PCB and will see
 datagrams/connections that are not initially consumed by a PCB aware
 socket.
-.Pp
-The
-.Fn rss_sock_set_rss_bucket
-function configures the RSS bucket which a socket belongs in.
-Note that TCP sockets created by
-.Xr accept 2
-will automatically be assigned to the RSS bucket.
 .Pp
 The
 .Fn rss_sock_set_recvrss
@@ -143,8 +122,6 @@ and the
 option indicating the 32 bit RSS bucket id as a uint32_t.
 .Sh ERRORS
 The functions return either <0 or NULL as appropriate upon error.
-.Sh SEE ALSO
-.Xr PCBGROUP 9
 .Sh HISTORY
 The
 .Xr librss.3

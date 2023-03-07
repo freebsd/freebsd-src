@@ -87,6 +87,7 @@ InputArgList MachOOptTable::parse(ArrayRef<const char *> argv) {
   // Handle -fatal_warnings early since it converts missing argument warnings
   // to errors.
   errorHandler().fatalWarnings = args.hasArg(OPT_fatal_warnings);
+  errorHandler().suppressWarnings = args.hasArg(OPT_w);
 
   if (missingCount)
     error(Twine(args.getArgString(missingIndex)) + ": missing argument");
@@ -149,6 +150,7 @@ std::string macho::createResponseFile(const InputArgList &args) {
       break;
     case OPT_force_load:
     case OPT_weak_library:
+    case OPT_load_hidden:
       os << arg->getSpelling() << " "
          << quote(rewriteInputPath(arg->getValue())) << "\n";
       break;
@@ -204,11 +206,14 @@ Optional<StringRef> macho::resolveDylibPath(StringRef dylibPath) {
 static DenseMap<CachedHashStringRef, DylibFile *> loadedDylibs;
 
 DylibFile *macho::loadDylib(MemoryBufferRef mbref, DylibFile *umbrella,
-                            bool isBundleLoader) {
+                            bool isBundleLoader, bool explicitlyLinked) {
   CachedHashStringRef path(mbref.getBufferIdentifier());
   DylibFile *&file = loadedDylibs[path];
-  if (file)
+  if (file) {
+    if (explicitlyLinked)
+      file->setExplicitlyLinked();
     return file;
+  }
 
   DylibFile *newFile;
   file_magic magic = identify_magic(mbref.getBuffer());
@@ -219,7 +224,8 @@ DylibFile *macho::loadDylib(MemoryBufferRef mbref, DylibFile *umbrella,
             ": " + toString(result.takeError()));
       return nullptr;
     }
-    file = make<DylibFile>(**result, umbrella, isBundleLoader);
+    file =
+        make<DylibFile>(**result, umbrella, isBundleLoader, explicitlyLinked);
 
     // parseReexports() can recursively call loadDylib(). That's fine since
     // we wrote the DylibFile we just loaded to the loadDylib cache via the
@@ -234,7 +240,7 @@ DylibFile *macho::loadDylib(MemoryBufferRef mbref, DylibFile *umbrella,
            magic == file_magic::macho_dynamically_linked_shared_lib_stub ||
            magic == file_magic::macho_executable ||
            magic == file_magic::macho_bundle);
-    file = make<DylibFile>(mbref, umbrella, isBundleLoader);
+    file = make<DylibFile>(mbref, umbrella, isBundleLoader, explicitlyLinked);
 
     // parseLoadCommands() can also recursively call loadDylib(). See comment
     // in previous block for why this means we must copy `file` here.

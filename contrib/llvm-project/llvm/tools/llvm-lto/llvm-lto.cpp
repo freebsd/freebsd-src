@@ -71,7 +71,7 @@ static cl::opt<char>
     OptLevel("O",
              cl::desc("Optimization level. [-O0, -O1, -O2, or -O3] "
                       "(default = '-O2')"),
-             cl::Prefix, cl::ZeroOrMore, cl::init('2'), cl::cat(LTOCategory));
+             cl::Prefix, cl::init('2'), cl::cat(LTOCategory));
 
 static cl::opt<bool>
     IndexStats("thinlto-index-stats",
@@ -210,12 +210,12 @@ static cl::opt<std::string> OutputFilename("o", cl::init(""),
 static cl::list<std::string> ExportedSymbols(
     "exported-symbol",
     cl::desc("List of symbols to export from the resulting object file"),
-    cl::ZeroOrMore, cl::cat(LTOCategory));
+    cl::cat(LTOCategory));
 
 static cl::list<std::string>
     DSOSymbols("dso-symbol",
                cl::desc("Symbol to put in the symtab in the resulting dso"),
-               cl::ZeroOrMore, cl::cat(LTOCategory));
+               cl::cat(LTOCategory));
 
 static cl::opt<bool> ListSymbolsOnly(
     "list-symbols-only", cl::init(false),
@@ -256,14 +256,14 @@ static cl::opt<bool> PrintMachOCPUOnly(
     cl::desc("Instead of running LTO, print the mach-o cpu in each IR file"),
     cl::cat(LTOCategory));
 
-static cl::opt<bool> UseNewPM(
-    "use-new-pm", cl::desc("Run LTO passes using the new pass manager"),
-    cl::init(LLVM_ENABLE_NEW_PASS_MANAGER), cl::Hidden, cl::cat(LTOCategory));
-
 static cl::opt<bool>
     DebugPassManager("debug-pass-manager", cl::init(false), cl::Hidden,
                      cl::desc("Print pass management debugging information"),
                      cl::cat(LTOCategory));
+
+static cl::opt<bool>
+    LTOSaveBeforeOpt("lto-save-before-opt", cl::init(false),
+                     cl::desc("Save the IR before running optimizations"));
 
 namespace {
 
@@ -604,7 +604,6 @@ public:
     ThinGenerator.setCacheMaxSizeFiles(ThinLTOCacheMaxSizeFiles);
     ThinGenerator.setCacheMaxSizeBytes(ThinLTOCacheMaxSizeBytes);
     ThinGenerator.setFreestanding(EnableFreestanding);
-    ThinGenerator.setUseNewPM(UseNewPM);
     ThinGenerator.setDebugPassManager(DebugPassManager);
 
     // Add all the exported symbols to the table of symbols to preserve.
@@ -1015,6 +1014,7 @@ int main(int argc, char **argv) {
 
   CodeGen.setCodePICModel(codegen::getExplicitRelocModel());
   CodeGen.setFreestanding(EnableFreestanding);
+  CodeGen.setDebugPassManager(DebugPassManager);
 
   CodeGen.setDebugInfo(LTO_DEBUG_MODEL_DWARF);
   CodeGen.setTargetOptions(Options);
@@ -1069,12 +1069,13 @@ int main(int argc, char **argv) {
   CodeGen.setOptLevel(OptLevel - '0');
   CodeGen.setAttrs(codegen::getMAttrs());
 
-  CodeGen.setUseNewPM(UseNewPM);
-
   if (auto FT = codegen::getExplicitFileType())
-    CodeGen.setFileType(FT.getValue());
+    CodeGen.setFileType(*FT);
 
   if (!OutputFilename.empty()) {
+    if (LTOSaveBeforeOpt)
+      CodeGen.setSaveIRBeforeOptPath(OutputFilename + ".0.preopt.bc");
+
     if (SaveLinkedModuleFile) {
       std::string ModuleFilename = OutputFilename;
       ModuleFilename += ".linked.bc";

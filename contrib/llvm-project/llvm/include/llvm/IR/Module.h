@@ -58,9 +58,9 @@ class VersionTuple;
 /// other modules) this module depends on, a symbol table, and various data
 /// about the target's characteristics.
 ///
-/// A module maintains a GlobalValRefMap object that is used to hold all
+/// A module maintains a GlobalList object that is used to hold all
 /// constant references to global variables in the module.  When a global
-/// variable is destroyed, it should have no entries in the GlobalValueRefMap.
+/// variable is destroyed, it should have no entries in the GlobalList.
 /// The main container class for the LLVM Intermediate Representation.
 class LLVM_EXTERNAL_VISIBILITY Module {
   /// @name Types And Enumerations
@@ -146,9 +146,12 @@ public:
     /// Takes the max of the two values, which are required to be integers.
     Max = 7,
 
+    /// Takes the min of the two values, which are required to be integers.
+    Min = 8,
+
     // Markers:
     ModFlagBehaviorFirstVal = Error,
-    ModFlagBehaviorLastVal = Max
+    ModFlagBehaviorLastVal = Min
   };
 
   /// Checks if Metadata represents a valid ModFlagBehavior, and stores the
@@ -360,6 +363,8 @@ public:
   /// In all cases, the returned value is a FunctionCallee wrapper around the
   /// 'FunctionType *T' passed in, as well as a 'Value*' either of the Function or
   /// the bitcast to the function.
+  ///
+  /// Note: For library calls getOrInsertLibFunc() should be used instead.
   FunctionCallee getOrInsertFunction(StringRef Name, FunctionType *T,
                                      AttributeList AttributeList);
 
@@ -888,8 +893,8 @@ public:
   void setRtLibUseGOT();
 
   /// Get/set whether synthesized functions should get the uwtable attribute.
-  bool getUwtable() const;
-  void setUwtable();
+  UWTableKind getUwtable() const;
+  void setUwtable(UWTableKind Kind);
 
   /// Get/set whether synthesized functions should get the "frame-pointer"
   /// attribute.
@@ -905,6 +910,10 @@ public:
   /// "sysreg".
   StringRef getStackProtectorGuardReg() const;
   void setStackProtectorGuardReg(StringRef Reg);
+
+  /// Get/set a symbol to use as the stack protector guard.
+  StringRef getStackProtectorGuardSymbol() const;
+  void setStackProtectorGuardSymbol(StringRef Symbol);
 
   /// Get/set what offset from the stack protector to use.
   int getStackProtectorGuardOffset() const;
@@ -939,10 +948,17 @@ public:
   /// @returns a string containing the target variant triple.
   StringRef getDarwinTargetVariantTriple() const;
 
+  /// Set the target variant triple which is a string describing a variant of
+  /// the target host platform.
+  void setDarwinTargetVariantTriple(StringRef T);
+
   /// Get the target variant version build SDK version metadata.
   ///
   /// An empty version is returned if no such metadata is attached.
   VersionTuple getDarwinTargetVariantSDKVersion() const;
+
+  /// Set the target variant version build SDK version metadata.
+  void setDarwinTargetVariantSDKVersion(VersionTuple Version);
 };
 
 /// Given "llvm.used" or "llvm.compiler.used" as a global name, collect the

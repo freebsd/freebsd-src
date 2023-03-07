@@ -1,0 +1,45 @@
+#------------------------------------------------------------------------------
+# $File: ringdove,v 1.1 2022/08/16 12:04:30 christos Exp $
+# ringdove:  file(1) magic for RingdoveEDA data files
+
+# librnd and global
+0	regex/128l	ha:rnd-menu-v[0-9]+[\ \t\r\n]*[{]	librnd menu system (lihata)
+0	regex/128l	ha:rnd-menu-patch-v[0-9]+[\ \t\r\n]*[{]	librnd menu patch (lihata)
+0	regex/128l	ha:coraleda-project-v[0-9]+[\ \t\r\n]*[{]	CoralEDA/Ringdove project file (lihata)
+0	regex/128l	ha:ringdove-project-v[0-9]+[\ \t\r\n]*[{]	Ringdove project file (lihata)
+
+# pcb-rnd
+0	regex/128l	ha:pcb-rnd-board-v[0-9]+[\ \t\r\n]*[{]	pcb-rnd board file (lihata)
+0	regex/128l	li:pcb-rnd-subcircuit-v[0-9]+[\ \t\r\n]*[{]	pcb-rnd subcircuit/footprint file (lihata)
+0	regex/128l	ha:pcb-rnd-buffer-v[0-9]+[\ \t\r\n]*[{]	pcb-rnd paste buffer content (lihata)
+0	regex/128l	li:pcb-rnd-conf-v[0-9]+[\ \t\r\n]*[{]	pcb-rnd configuration (lihata)
+0	regex/128l	ha:pcb-rnd-drc-query-v[0-9]+[\ \t\r\n]*[{]	pcb-rnd drc query string (lihata)
+0	regex/128l	li:pcb-rnd-font-v[0-9]+[\ \t\r\n]*[{]	pcb-rnd vector font (lihata)
+0	regex/128l	ha:pcb-rnd-log-v[0-9]+[\ \t\r\n]*[{]	pcb-rnd message log dump (lihata)
+0	regex/128l	ha:pcb-rnd-padstack-v[0-9]+[\ \t\r\n]*[{]	pcb-rnd padstack (lihata)
+0	regex/128l	li:pcb-rnd-view-list-v[0-9]+[\ \t\r\n]*[{]	pcb-rnd view list (lihata)
+0	regex/128l	li:view-list-v[0-9]+[\ \t\r\n]*[{]	pcb-rnd view list (lihata)
+0	search	Netlist(Freeze)	pcb-rnd or gEDA/PCB netlist forward annotation action script
+
+# sch-rnd (cschem data model)
+0	regex/128l	li:cschem-buffer-v[0-9]+[\ \t\r\n]*[{]	sch-rnd/cschem buffer content (lihata)
+0	regex/128l	li:sch-rnd-conf-v[0-9]+[\ \t\r\n]*[{]	sch-rnd configuration (lihata)
+0	regex/128l	ha:std_devmap.v[0-9]+[\ \t\r\n]*[{]	sch-rnd devmap (device mapping; lihata)
+0	regex/128l	li:cschem-group-v[0-9]+[\ \t\r\n]*[{]	sch-rnd/cschem group or symbol (lihata)
+0	regex/128l	ha:cschem-sheet-v[0-9]+[\ \t\r\n]*[{]	sch-rnd/cschem schematic sheet (lihata)
+
+# tEDAx (modular format)
+0	regex/1l	tEDAx[\ \t\r\n]v	tEDAx (Trivial EDA eXchange)
+>0	regex	begin\ symbol\ v	with schematic symbol
+>0	regex	begin\ board\ v	with Printed Circuit Board
+>0	regex	begin\ route_req\ v	with PCB routing request
+>0	regex	begin\ route_res\ v	with PCB routing result
+>0	regex	begin\ camv_layer\ v	with camv-rnd exported layer
+>0	regex	begin\ netlist\ v	with netlist
+>0	regex	begin\ backann\ v	with Ringdove EDA back annotation
+>0	regex	begin\ footprint\ v	with PCB footprint
+>0	regex	begin\ drc\ v	with PCB DRC script
+>0	regex	begin\ drc_query_rule\ v	with pcb-rnd drc_query rules
+>0	regex	begin\ drc_query_def\ v	with pcb-rnd drc_query value/config definitions
+>0	regex	begin\ etest\ v	with PCB electric test
+

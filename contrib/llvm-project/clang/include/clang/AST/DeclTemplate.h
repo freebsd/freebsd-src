@@ -15,6 +15,7 @@
 #define LLVM_CLANG_AST_DECLTEMPLATE_H
 
 #include "clang/AST/ASTConcept.h"
+#include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclBase.h"
 #include "clang/AST/DeclCXX.h"
@@ -373,11 +374,19 @@ public:
 
   /// Set that the default argument was inherited from another parameter.
   void setInherited(const ASTContext &C, ParmDecl *InheritedFrom) {
-    assert(!isInherited() && "default argument already inherited");
     InheritedFrom = getParmOwningDefaultArg(InheritedFrom);
     if (!isSet())
       ValueOrInherited = InheritedFrom;
-    else
+    else if (auto *D = ValueOrInherited.template dyn_cast<ParmDecl *>()) {
+      assert(C.isSameDefaultTemplateArgument(D, InheritedFrom));
+      ValueOrInherited =
+          new (allocateDefaultArgStorageChain(C)) Chain{InheritedFrom, get()};
+    } else if (auto *Inherited =
+                   ValueOrInherited.template dyn_cast<Chain *>()) {
+      assert(C.isSameDefaultTemplateArgument(Inherited->PrevDeclWithDefaultArg,
+                                             InheritedFrom));
+      Inherited->PrevDeclWithDefaultArg = InheritedFrom;
+    } else
       ValueOrInherited = new (allocateDefaultArgStorageChain(C))
           Chain{InheritedFrom, ValueOrInherited.template get<ArgType>()};
   }
@@ -1109,7 +1118,7 @@ public:
   bool isAbbreviated() const {
     // Since the invented template parameters generated from 'auto' parameters
     // are either appended to the end of the explicit template parameter list or
-    // form a new template paramter list, we can simply observe the last
+    // form a new template parameter list, we can simply observe the last
     // parameter to determine if such a thing happened.
     const TemplateParameterList *TPL = getTemplateParameters();
     return TPL->getParam(TPL->size() - 1)->isImplicit();
@@ -1148,23 +1157,40 @@ public:
 /// parameters and is not part of the Decl hierarchy. Just a facility.
 class TemplateParmPosition {
 protected:
-  // FIXME: These probably don't need to be ints. int:5 for depth, int:8 for
-  // position? Maybe?
-  unsigned Depth;
-  unsigned Position;
+  enum { DepthWidth = 20, PositionWidth = 12 };
+  unsigned Depth : DepthWidth;
+  unsigned Position : PositionWidth;
 
-  TemplateParmPosition(unsigned D, unsigned P) : Depth(D), Position(P) {}
+  static constexpr unsigned MaxDepth = (1U << DepthWidth) - 1;
+  static constexpr unsigned MaxPosition = (1U << PositionWidth) - 1;
+
+  TemplateParmPosition(unsigned D, unsigned P) : Depth(D), Position(P) {
+    // The input may fill maximum values to show that it is invalid.
+    // Add one here to convert it to zero.
+    assert((D + 1) <= MaxDepth &&
+           "The depth of template parmeter position is more than 2^20!");
+    assert((P + 1) <= MaxPosition &&
+           "The position of template parmeter position is more than 2^12!");
+  }
 
 public:
   TemplateParmPosition() = delete;
 
   /// Get the nesting depth of the template parameter.
   unsigned getDepth() const { return Depth; }
-  void setDepth(unsigned D) { Depth = D; }
+  void setDepth(unsigned D) {
+    assert((D + 1) <= MaxDepth &&
+           "The depth of template parmeter position is more than 2^20!");
+    Depth = D;
+  }
 
   /// Get the position of the template parameter within its parameter list.
   unsigned getPosition() const { return Position; }
-  void setPosition(unsigned P) { Position = P; }
+  void setPosition(unsigned P) {
+    assert((P + 1) <= MaxPosition &&
+           "The position of template parmeter position is more than 2^12!");
+    Position = P;
+  }
 
   /// Get the index of the template parameter within its parameter list.
   unsigned getIndex() const { return Position; }
@@ -1216,7 +1242,7 @@ class TemplateTypeParmDecl final : public TypeDecl,
       : TypeDecl(TemplateTypeParm, DC, IdLoc, Id, KeyLoc), Typename(Typename),
         HasTypeConstraint(HasTypeConstraint), TypeConstraintInitialized(false),
         ExpandedParameterPack(NumExpanded),
-        NumExpanded(NumExpanded.getValueOr(0)) {}
+        NumExpanded(NumExpanded.value_or(0)) {}
 
 public:
   static TemplateTypeParmDecl *Create(const ASTContext &C, DeclContext *DC,
@@ -2701,7 +2727,7 @@ class VarTemplateSpecializationDecl : public VarDecl,
 
   /// The template arguments used to describe this specialization.
   const TemplateArgumentList *TemplateArgs;
-  TemplateArgumentListInfo TemplateArgsInfo;
+  const ASTTemplateArgumentListInfo *TemplateArgsInfo = nullptr;
 
   /// The point where this template was instantiated (if any).
   SourceLocation PointOfInstantiation;
@@ -2756,8 +2782,9 @@ public:
 
   // TODO: Always set this when creating the new specialization?
   void setTemplateArgsInfo(const TemplateArgumentListInfo &ArgsInfo);
+  void setTemplateArgsInfo(const ASTTemplateArgumentListInfo *ArgsInfo);
 
-  const TemplateArgumentListInfo &getTemplateArgsInfo() const {
+  const ASTTemplateArgumentListInfo *getTemplateArgsInfo() const {
     return TemplateArgsInfo;
   }
 
@@ -3260,8 +3287,12 @@ public:
     return isa<TemplateTypeParmDecl>(getTemplateParameters()->getParam(0));
   }
 
-  ConceptDecl *getCanonicalDecl() override { return getFirstDecl(); }
-  const ConceptDecl *getCanonicalDecl() const { return getFirstDecl(); }
+  ConceptDecl *getCanonicalDecl() override {
+    return cast<ConceptDecl>(getPrimaryMergedDecl(this));
+  }
+  const ConceptDecl *getCanonicalDecl() const {
+    return const_cast<ConceptDecl *>(this)->getCanonicalDecl();
+  }
 
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
@@ -3313,10 +3344,12 @@ public:
 
   /// Print this object as an equivalent expression.
   void printAsExpr(llvm::raw_ostream &OS) const;
+  void printAsExpr(llvm::raw_ostream &OS, const PrintingPolicy &Policy) const;
 
   /// Print this object as an initializer suitable for a variable of the
   /// object's type.
   void printAsInit(llvm::raw_ostream &OS) const;
+  void printAsInit(llvm::raw_ostream &OS, const PrintingPolicy &Policy) const;
 
   const APValue &getValue() const { return Value; }
 

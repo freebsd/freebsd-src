@@ -105,8 +105,9 @@ clang::ToConstrainedExceptMD(LangOptions::FPExceptionModeKind Kind) {
   case LangOptions::FPE_Ignore:  return llvm::fp::ebIgnore;
   case LangOptions::FPE_MayTrap: return llvm::fp::ebMayTrap;
   case LangOptions::FPE_Strict:  return llvm::fp::ebStrict;
+  default:
+    llvm_unreachable("Unsupported FP Exception Behavior");
   }
-  llvm_unreachable("Unsupported FP Exception Behavior");
 }
 
 void CodeGenFunction::SetFastMathFlags(FPOptions FPFeatures) {
@@ -145,12 +146,11 @@ void CodeGenFunction::CGFPOptionsRAII::ConstructorHelper(FPOptions FPFeatures) {
 
   FMFGuard.emplace(CGF.Builder);
 
-  llvm::RoundingMode NewRoundingBehavior =
-      static_cast<llvm::RoundingMode>(FPFeatures.getRoundingMode());
+  llvm::RoundingMode NewRoundingBehavior = FPFeatures.getRoundingMode();
   CGF.Builder.setDefaultConstrainedRounding(NewRoundingBehavior);
   auto NewExceptionBehavior =
       ToConstrainedExceptMD(static_cast<LangOptions::FPExceptionModeKind>(
-          FPFeatures.getFPExceptionMode()));
+          FPFeatures.getExceptionMode()));
   CGF.Builder.setDefaultConstrainedExcept(NewExceptionBehavior);
 
   CGF.SetFastMathFlags(FPFeatures);
@@ -383,9 +383,6 @@ void CodeGenFunction::FinishFunction(SourceLocation EndLoc) {
                        "__cyg_profile_func_exit");
   }
 
-  if (ShouldSkipSanitizerInstrumentation())
-    CurFn->addFnAttr(llvm::Attribute::DisableSanitizerInstrumentation);
-
   // Emit debug descriptor for function end.
   if (CGDebugInfo *DI = getDebugInfo())
     DI->EmitFunctionEnd(Builder, CurFn);
@@ -488,6 +485,9 @@ void CodeGenFunction::FinishFunction(SourceLocation EndLoc) {
         std::max((uint64_t)LargestVectorWidth,
                  VT->getPrimitiveSizeInBits().getKnownMinSize());
 
+  if (CurFnInfo->getMaxVectorWidth() > LargestVectorWidth)
+    LargestVectorWidth = CurFnInfo->getMaxVectorWidth();
+
   // Add the required-vector-width attribute. This contains the max width from:
   // 1. min-vector-width attribute used in the source program.
   // 2. Any builtins used that have a vector width specified.
@@ -502,8 +502,7 @@ void CodeGenFunction::FinishFunction(SourceLocation EndLoc) {
       getContext().getTargetInfo().getVScaleRange(getLangOpts());
   if (VScaleRange) {
     CurFn->addFnAttr(llvm::Attribute::getWithVScaleRangeArgs(
-        getLLVMContext(), VScaleRange.getValue().first,
-        VScaleRange.getValue().second));
+        getLLVMContext(), VScaleRange->first, VScaleRange->second));
   }
 
   // If we generated an unreachable return block, delete it now.
@@ -560,29 +559,6 @@ bool CodeGenFunction::AlwaysEmitXRayTypedEvents() const {
               XRayInstrKind::Typed);
 }
 
-llvm::Constant *
-CodeGenFunction::EncodeAddrForUseInPrologue(llvm::Function *F,
-                                            llvm::Constant *Addr) {
-  // Addresses stored in prologue data can't require run-time fixups and must
-  // be PC-relative. Run-time fixups are undesirable because they necessitate
-  // writable text segments, which are unsafe. And absolute addresses are
-  // undesirable because they break PIE mode.
-
-  // Add a layer of indirection through a private global. Taking its address
-  // won't result in a run-time fixup, even if Addr has linkonce_odr linkage.
-  auto *GV = new llvm::GlobalVariable(CGM.getModule(), Addr->getType(),
-                                      /*isConstant=*/true,
-                                      llvm::GlobalValue::PrivateLinkage, Addr);
-
-  // Create a PC-relative address.
-  auto *GOTAsInt = llvm::ConstantExpr::getPtrToInt(GV, IntPtrTy);
-  auto *FuncAsInt = llvm::ConstantExpr::getPtrToInt(F, IntPtrTy);
-  auto *PCRelAsInt = llvm::ConstantExpr::getSub(GOTAsInt, FuncAsInt);
-  return (IntPtrTy == Int32Ty)
-             ? PCRelAsInt
-             : llvm::ConstantExpr::getTrunc(PCRelAsInt, Int32Ty);
-}
-
 llvm::Value *
 CodeGenFunction::DecodeAddrUsedInPrologue(llvm::Value *F,
                                           llvm::Value *EncodedAddr) {
@@ -593,19 +569,21 @@ CodeGenFunction::DecodeAddrUsedInPrologue(llvm::Value *F,
   auto *GOTAddr = Builder.CreateIntToPtr(GOTAsInt, Int8PtrPtrTy, "global_addr");
 
   // Load the original pointer through the global.
-  return Builder.CreateLoad(Address(GOTAddr, getPointerAlign()),
+  return Builder.CreateLoad(Address(GOTAddr, Int8PtrTy, getPointerAlign()),
                             "decoded_addr");
 }
 
-void CodeGenFunction::EmitOpenCLKernelMetadata(const FunctionDecl *FD,
-                                               llvm::Function *Fn)
-{
-  if (!FD->hasAttr<OpenCLKernelAttr>())
+void CodeGenFunction::EmitKernelMetadata(const FunctionDecl *FD,
+                                         llvm::Function *Fn) {
+  if (!FD->hasAttr<OpenCLKernelAttr>() && !FD->hasAttr<CUDAGlobalAttr>())
     return;
 
   llvm::LLVMContext &Context = getLLVMContext();
 
-  CGM.GenOpenCLArgMetadata(Fn, FD, this);
+  CGM.GenKernelArgMetadata(Fn, FD, this);
+
+  if (!getLangOpts().OpenCL)
+    return;
 
   if (const VecTypeHintAttr *A = FD->getAttr<VecTypeHintAttr>()) {
     QualType HintQTy = A->getTypeHint();
@@ -743,6 +721,7 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   } while (false);
 
   if (D) {
+    const bool SanitizeBounds = SanOpts.hasOneOf(SanitizerKind::Bounds);
     bool NoSanitizeCoverage = false;
 
     for (auto Attr : D->specific_attrs<NoSanitizeAttr>()) {
@@ -763,21 +742,29 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
         NoSanitizeCoverage = true;
     }
 
+    if (SanitizeBounds && !SanOpts.hasOneOf(SanitizerKind::Bounds))
+      Fn->addFnAttr(llvm::Attribute::NoSanitizeBounds);
+
     if (NoSanitizeCoverage && CGM.getCodeGenOpts().hasSanitizeCoverage())
       Fn->addFnAttr(llvm::Attribute::NoSanitizeCoverage);
   }
 
-  // Apply sanitizer attributes to the function.
-  if (SanOpts.hasOneOf(SanitizerKind::Address | SanitizerKind::KernelAddress))
-    Fn->addFnAttr(llvm::Attribute::SanitizeAddress);
-  if (SanOpts.hasOneOf(SanitizerKind::HWAddress | SanitizerKind::KernelHWAddress))
-    Fn->addFnAttr(llvm::Attribute::SanitizeHWAddress);
-  if (SanOpts.has(SanitizerKind::MemTag))
-    Fn->addFnAttr(llvm::Attribute::SanitizeMemTag);
-  if (SanOpts.has(SanitizerKind::Thread))
-    Fn->addFnAttr(llvm::Attribute::SanitizeThread);
-  if (SanOpts.hasOneOf(SanitizerKind::Memory | SanitizerKind::KernelMemory))
-    Fn->addFnAttr(llvm::Attribute::SanitizeMemory);
+  if (ShouldSkipSanitizerInstrumentation()) {
+    CurFn->addFnAttr(llvm::Attribute::DisableSanitizerInstrumentation);
+  } else {
+    // Apply sanitizer attributes to the function.
+    if (SanOpts.hasOneOf(SanitizerKind::Address | SanitizerKind::KernelAddress))
+      Fn->addFnAttr(llvm::Attribute::SanitizeAddress);
+    if (SanOpts.hasOneOf(SanitizerKind::HWAddress |
+                         SanitizerKind::KernelHWAddress))
+      Fn->addFnAttr(llvm::Attribute::SanitizeHWAddress);
+    if (SanOpts.has(SanitizerKind::MemtagStack))
+      Fn->addFnAttr(llvm::Attribute::SanitizeMemTag);
+    if (SanOpts.has(SanitizerKind::Thread))
+      Fn->addFnAttr(llvm::Attribute::SanitizeThread);
+    if (SanOpts.hasOneOf(SanitizerKind::Memory | SanitizerKind::KernelMemory))
+      Fn->addFnAttr(llvm::Attribute::SanitizeMemory);
+  }
   if (SanOpts.has(SanitizerKind::SafeStack))
     Fn->addFnAttr(llvm::Attribute::SafeStack);
   if (SanOpts.has(SanitizerKind::ShadowCallStack))
@@ -865,7 +852,7 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   }
 
   if (CGM.getCodeGenOpts().getProfileInstr() != CodeGenOptions::ProfileNone)
-    if (CGM.isProfileInstrExcluded(Fn, Loc))
+    if (CGM.isFunctionBlockedFromProfileInstr(Fn, Loc))
       Fn->addFnAttr(llvm::Attribute::NoProfile);
 
   unsigned Count, Offset;
@@ -911,9 +898,24 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   if (D && D->hasAttr<NoProfileFunctionAttr>())
     Fn->addFnAttr(llvm::Attribute::NoProfile);
 
-  if (FD && getLangOpts().OpenCL) {
+  if (D) {
+    // Function attributes take precedence over command line flags.
+    if (auto *A = D->getAttr<FunctionReturnThunksAttr>()) {
+      switch (A->getThunkType()) {
+      case FunctionReturnThunksAttr::Kind::Keep:
+        break;
+      case FunctionReturnThunksAttr::Kind::Extern:
+        Fn->addFnAttr(llvm::Attribute::FnRetThunkExtern);
+        break;
+      }
+    } else if (CGM.getCodeGenOpts().FunctionReturnThunks)
+      Fn->addFnAttr(llvm::Attribute::FnRetThunkExtern);
+  }
+
+  if (FD && (getLangOpts().OpenCL ||
+             (getLangOpts().HIP && getLangOpts().CUDAIsDevice))) {
     // Add metadata for a kernel function.
-    EmitOpenCLKernelMetadata(FD, Fn);
+    EmitKernelMetadata(FD, Fn);
   }
 
   // If we are checking function types, emit a function type signature as
@@ -926,12 +928,13 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
           FD->getType(), EST_None);
       llvm::Constant *FTRTTIConst =
           CGM.GetAddrOfRTTIDescriptor(ProtoTy, /*ForEH=*/true);
-      llvm::Constant *FTRTTIConstEncoded =
-          EncodeAddrForUseInPrologue(Fn, FTRTTIConst);
-      llvm::Constant *PrologueStructElems[] = {PrologueSig, FTRTTIConstEncoded};
-      llvm::Constant *PrologueStructConst =
-          llvm::ConstantStruct::getAnon(PrologueStructElems, /*Packed=*/true);
-      Fn->setPrologueData(PrologueStructConst);
+      llvm::GlobalVariable *FTRTTIProxy =
+          CGM.GetOrCreateRTTIProxyGlobalVariable(FTRTTIConst);
+      llvm::LLVMContext &Ctx = Fn->getContext();
+      llvm::MDBuilder MDB(Ctx);
+      Fn->setMetadata(llvm::LLVMContext::MD_func_sanitize,
+                      MDB.createRTTIPointerPrologue(PrologueSig, FTRTTIProxy));
+      CGM.addCompilerUsedGlobal(FTRTTIProxy);
     }
   }
 
@@ -963,9 +966,9 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
              (getLangOpts().CUDA && FD->hasAttr<CUDAGlobalAttr>())))
     Fn->addFnAttr(llvm::Attribute::NoRecurse);
 
-  llvm::RoundingMode RM = getLangOpts().getFPRoundingMode();
+  llvm::RoundingMode RM = getLangOpts().getDefaultRoundingMode();
   llvm::fp::ExceptionBehavior FPExceptionBehavior =
-      ToConstrainedExceptMD(getLangOpts().getFPExceptionMode());
+      ToConstrainedExceptMD(getLangOpts().getDefaultExceptionMode());
   Builder.setDefaultConstrainedRounding(RM);
   Builder.setDefaultConstrainedExcept(FPExceptionBehavior);
   if ((FD && (FD->UsesFPIntrin() || FD->hasAttr<StrictFPAttr>())) ||
@@ -980,6 +983,10 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   if (FD && ((FD->isMain() || FD->isMSVCRTEntryPoint()) &&
              CGM.getCodeGenOpts().StackAlignment))
     Fn->addFnAttr("stackrealign");
+
+  // "main" doesn't need to zero out call-used registers.
+  if (FD && FD->isMain())
+    Fn->removeFnAttr("zero-call-used-regs");
 
   llvm::BasicBlock *EntryBB = createBasicBlock("entry", CurFn);
 
@@ -1094,12 +1101,13 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
     llvm::Function::arg_iterator EI = CurFn->arg_end();
     --EI;
     llvm::Value *Addr = Builder.CreateStructGEP(
-        EI->getType()->getPointerElementType(), &*EI, Idx);
+        CurFnInfo->getArgStruct(), &*EI, Idx);
     llvm::Type *Ty =
         cast<llvm::GetElementPtrInst>(Addr)->getResultElementType();
-    ReturnValuePointer = Address(Addr, getPointerAlign());
+    ReturnValuePointer = Address(Addr, Ty, getPointerAlign());
     Addr = Builder.CreateAlignedLoad(Ty, Addr, getPointerAlign(), "agg.result");
-    ReturnValue = Address(Addr, CGM.getNaturalTypeAlignment(RetTy));
+    ReturnValue =
+        Address(Addr, ConvertType(RetTy), CGM.getNaturalTypeAlignment(RetTy));
   } else {
     ReturnValue = CreateIRTemp(RetTy, "retval");
 
@@ -1122,7 +1130,8 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
 
   EmitFunctionProlog(*CurFnInfo, CurFn, Args);
 
-  if (D && isa<CXXMethodDecl>(D) && cast<CXXMethodDecl>(D)->isInstance()) {
+  if (isa_and_nonnull<CXXMethodDecl>(D) &&
+      cast<CXXMethodDecl>(D)->isInstance()) {
     CGM.getCXXABI().EmitInstanceFunctionProlog(*this);
     const CXXMethodDecl *MD = cast<CXXMethodDecl>(D);
     if (MD->getParent()->isLambda() &&
@@ -1183,27 +1192,26 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   }
 
   // If any of the arguments have a variably modified type, make sure to
-  // emit the type size.
-  for (FunctionArgList::const_iterator i = Args.begin(), e = Args.end();
-       i != e; ++i) {
-    const VarDecl *VD = *i;
+  // emit the type size, but only if the function is not naked. Naked functions
+  // have no prolog to run this evaluation.
+  if (!FD || !FD->hasAttr<NakedAttr>()) {
+    for (const VarDecl *VD : Args) {
+      // Dig out the type as written from ParmVarDecls; it's unclear whether
+      // the standard (C99 6.9.1p10) requires this, but we're following the
+      // precedent set by gcc.
+      QualType Ty;
+      if (const ParmVarDecl *PVD = dyn_cast<ParmVarDecl>(VD))
+        Ty = PVD->getOriginalType();
+      else
+        Ty = VD->getType();
 
-    // Dig out the type as written from ParmVarDecls; it's unclear whether
-    // the standard (C99 6.9.1p10) requires this, but we're following the
-    // precedent set by gcc.
-    QualType Ty;
-    if (const ParmVarDecl *PVD = dyn_cast<ParmVarDecl>(VD))
-      Ty = PVD->getOriginalType();
-    else
-      Ty = VD->getType();
-
-    if (Ty->isVariablyModifiedType())
-      EmitVariablyModifiedType(Ty);
+      if (Ty->isVariablyModifiedType())
+        EmitVariablyModifiedType(Ty);
+    }
   }
   // Emit a location at the end of the prologue.
   if (CGDebugInfo *DI = getDebugInfo())
     DI->EmitLocation(Builder, StartLoc);
-
   // TODO: Do we need to handle this in two places like we do with
   // target-features/target-cpu?
   if (CurFuncDecl)
@@ -1398,8 +1406,7 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn,
 
   // Save parameters for coroutine function.
   if (Body && isa_and_nonnull<CoroutineBodyStmt>(Body))
-    for (const auto *ParamDecl : FD->parameters())
-      FnArgs.push_back(ParamDecl);
+    llvm::append_range(FnArgs, FD->parameters());
 
   // Generate the body of the function.
   PGO.assignRegionCounters(GD, CurFn);
@@ -1924,7 +1931,7 @@ static void emitNonZeroVLAInit(CodeGenFunction &CGF, QualType baseType,
     dest.getAlignment().alignmentOfArrayElement(baseSize);
 
   // memcpy the individual element bit-pattern.
-  Builder.CreateMemCpy(Address(cur, curAlign), src, baseSizeInChars,
+  Builder.CreateMemCpy(Address(cur, CGF.Int8Ty, curAlign), src, baseSizeInChars,
                        /*volatile*/ false);
 
   // Go to the next element.
@@ -1997,7 +2004,7 @@ CodeGenFunction::EmitNullInitialization(Address DestPtr, QualType Ty) {
     CharUnits NullAlign = DestPtr.getAlignment();
     NullVariable->setAlignment(NullAlign.getAsAlign());
     Address SrcPtr(Builder.CreateBitCast(NullVariable, Builder.getInt8PtrTy()),
-                   NullAlign);
+                   Builder.getInt8Ty(), NullAlign);
 
     if (vla) return emitNonZeroVLAInit(*this, Ty, DestPtr, SrcPtr, SizeVal);
 
@@ -2299,6 +2306,7 @@ void CodeGenFunction::EmitVariablyModifiedType(QualType type) {
     case Type::TypeOf:
     case Type::UnaryTransform:
     case Type::Attributed:
+    case Type::BTFTagAttributed:
     case Type::SubstTemplateTypeParm:
     case Type::MacroQualified:
       // Keep walking after single level desugaring.
@@ -2475,7 +2483,7 @@ Address CodeGenFunction::EmitFieldAnnotations(const FieldDecl *D,
     V = Builder.CreateBitCast(V, VTy);
   }
 
-  return Address(V, Addr.getAlignment());
+  return Address(V, Addr.getElementType(), Addr.getAlignment());
 }
 
 CodeGenFunction::CGCapturedStmtInfo::~CGCapturedStmtInfo() { }
@@ -2536,16 +2544,13 @@ void CodeGenFunction::checkTargetFeatures(SourceLocation Loc,
   llvm::StringMap<bool> CallerFeatureMap;
   CGM.getContext().getFunctionFeatureMap(CallerFeatureMap, FD);
   if (BuiltinID) {
-    StringRef FeatureList(
-        CGM.getContext().BuiltinInfo.getRequiredFeatures(BuiltinID));
-    // Return if the builtin doesn't have any required features.
-    if (FeatureList.empty())
-      return;
-    assert(!FeatureList.contains(' ') && "Space in feature list");
-    TargetFeatures TF(CallerFeatureMap);
-    if (!TF.hasRequiredFeatures(FeatureList))
+    StringRef FeatureList(CGM.getContext().BuiltinInfo.getRequiredFeatures(BuiltinID));
+    if (!Builtin::evaluateRequiredTargetFeatures(
+        FeatureList, CallerFeatureMap)) {
       CGM.getDiags().Report(Loc, diag::err_builtin_needs_feature)
-          << TargetDecl->getDeclName() << FeatureList;
+          << TargetDecl->getDeclName()
+          << FeatureList;
+    }
   } else if (!TargetDecl->isMultiVersion() &&
              TargetDecl->hasAttr<TargetAttr>()) {
     // Get the required features for the callee.
@@ -2614,9 +2619,8 @@ static void CreateMultiVersionResolverReturn(CodeGenModule &CGM,
     return;
   }
 
-  llvm::SmallVector<llvm::Value *, 10> Args;
-  llvm::for_each(Resolver->args(),
-                 [&](llvm::Argument &Arg) { Args.push_back(&Arg); });
+  llvm::SmallVector<llvm::Value *, 10> Args(
+      llvm::make_pointer_range(Resolver->args()));
 
   llvm::CallInst *Result = Builder.CreateCall(FuncToReturn, Args);
   Result->setTailCallKind(llvm::CallInst::TCK_MustTail);
@@ -2753,4 +2757,20 @@ CodeGenFunction::emitCondLikelihoodViaExpectIntrinsic(llvm::Value *Cond,
                               Cond->getName() + ".expval");
   }
   llvm_unreachable("Unknown Likelihood");
+}
+
+llvm::Value *CodeGenFunction::emitBoolVecConversion(llvm::Value *SrcVec,
+                                                    unsigned NumElementsDst,
+                                                    const llvm::Twine &Name) {
+  auto *SrcTy = cast<llvm::FixedVectorType>(SrcVec->getType());
+  unsigned NumElementsSrc = SrcTy->getNumElements();
+  if (NumElementsSrc == NumElementsDst)
+    return SrcVec;
+
+  std::vector<int> ShuffleMask(NumElementsDst, -1);
+  for (unsigned MaskIdx = 0;
+       MaskIdx < std::min<>(NumElementsDst, NumElementsSrc); ++MaskIdx)
+    ShuffleMask[MaskIdx] = MaskIdx;
+
+  return Builder.CreateShuffleVector(SrcVec, ShuffleMask, Name);
 }

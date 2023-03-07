@@ -1,4 +1,4 @@
-# $Id: whats.mk,v 1.10 2020/08/19 17:51:53 sjg Exp $
+# $Id: whats.mk,v 1.11 2023/01/29 17:29:13 sjg Exp $
 #
 #	@(#) Copyright (c) 2014-2020, Simon J. Gerraty
 #
@@ -55,7 +55,7 @@ what_location := ${WHAT_LOCATION}
 # this script is done in multiple lines so we can
 # use the token ${.OODATE:MNO_META_CMP}
 # to prevent the variable parts making this constantly out-of-date
-${what_uuid}.c:
+${what_uuid}.c:	.NOTMAIN
 	echo 'extern const char ${WHAT_LINE_IDS:@i@${what_var}_$i[]@:ts,};' > $@
 .for i in ${WHAT_LINE_IDS}
 .if ${WHAT_NOCMP_LINE_IDS:M$i} != ""

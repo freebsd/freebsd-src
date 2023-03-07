@@ -1,13 +1,15 @@
-#	$OpenBSD: scp3.sh,v 1.3 2021/08/10 03:35:45 djm Exp $
+#	$OpenBSD: scp3.sh,v 1.4 2023/01/13 04:47:34 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="scp3"
 
-#set -x
+set -x
 
 COPY2=${OBJ}/copy2
 DIR=${COPY}.dd
 DIR2=${COPY}.dd2
+
+maybe_add_scp_path_to_sshd
 
 SRC=`dirname ${SCRIPT}`
 cp ${SRC}/scp-ssh-wrapper.sh ${OBJ}/scp-ssh-wrapper.scp

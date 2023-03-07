@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RISCV.h"
+#include "../Clang.h"
 #include "ToolChains/CommonArgs.h"
 #include "clang/Basic/CharInfo.h"
 #include "clang/Driver/Driver.h"
@@ -138,10 +139,17 @@ void riscv::getRISCVTargetFeatures(const Driver &D, const llvm::Triple &Triple,
 
   // FreeBSD local, because ld.lld doesn't support relaxations
   // -mno-relax is default, unless -mrelax is specified.
-  if (Args.hasFlag(options::OPT_mrelax, options::OPT_mno_relax, false))
+  if (Args.hasFlag(options::OPT_mrelax, options::OPT_mno_relax, false)) {
     Features.push_back("+relax");
-  else
+    // -gsplit-dwarf -mrelax requires DW_AT_high_pc/DW_AT_ranges/... indexing
+    // into .debug_addr, which is currently not implemented.
+    Arg *A;
+    if (getDebugFissionKind(D, Args, A) != DwarfFissionKind::None)
+      D.Diag(clang::diag::err_drv_riscv_unsupported_with_linker_relaxation)
+          << A->getAsString(Args);
+  } else {
     Features.push_back("-relax");
+  }
 
   // GCC Compatibility: -mno-save-restore is default, unless -msave-restore is
   // specified.
@@ -199,7 +207,7 @@ StringRef riscv::getRISCVABI(const ArgList &Args, const llvm::Triple &Triple) {
     // Ignore parsing error, just go 3rd step.
     consumeError(ParseResult.takeError());
   else
-    return llvm::RISCV::computeDefaultABIFromArch(**ParseResult);
+    return (*ParseResult)->computeDefaultABI();
 
   // 3. Choose a default based on the triple
   //

@@ -839,7 +839,7 @@ ffs_write(
 	struct buf *bp;
 	ufs_lbn_t lbn;
 	off_t osize;
-	ssize_t resid;
+	ssize_t resid, r;
 	int seqcount;
 	int blkoffset, error, flags, ioflag, size, xfersize;
 
@@ -888,14 +888,17 @@ ffs_write(
 	KASSERT(uio->uio_resid >= 0, ("ffs_write: uio->uio_resid < 0"));
 	KASSERT(uio->uio_offset >= 0, ("ffs_write: uio->uio_offset < 0"));
 	fs = ITOFS(ip);
-	if ((uoff_t)uio->uio_offset + uio->uio_resid > fs->fs_maxfilesize)
-		return (EFBIG);
+
 	/*
 	 * Maybe this should be above the vnode op call, but so long as
 	 * file servers have no limits, I don't think it matters.
 	 */
-	if (vn_rlimit_fsize(vp, uio, uio->uio_td))
-		return (EFBIG);
+	error = vn_rlimit_fsizex(vp, uio, fs->fs_maxfilesize, &r,
+	    uio->uio_td);
+	if (error != 0) {
+		vn_rlimit_fsizex_res(uio, r);
+		return (error);
+	}
 
 	resid = uio->uio_resid;
 	osize = ip->i_size;
@@ -1036,6 +1039,7 @@ ffs_write(
 		if (ffs_fsfail_cleanup(VFSTOUFS(vp->v_mount), error))
 			error = ENXIO;
 	}
+	vn_rlimit_fsizex_res(uio, r);
 	return (error);
 }
 

@@ -167,21 +167,6 @@ cxgbei_init(struct adapter *sc, struct cxgbei_data *ci)
 		return (rc);
 	}
 
-	r = t4_read_reg(sc, A_ULP_RX_ISCSI_TAGMASK);
-	r &= V_ISCSITAGMASK(M_ISCSITAGMASK);
-	if (r != pr->pr_tag_mask) {
-		/*
-		 * Recent firmwares are supposed to set up the iSCSI tagmask
-		 * but we'll do it ourselves it the computed value doesn't match
-		 * what's in the register.
-		 */
-		device_printf(sc->dev,
-		    "tagmask 0x%08x does not match computed mask 0x%08x.\n", r,
-		    pr->pr_tag_mask);
-		t4_set_reg_field(sc, A_ULP_RX_ISCSI_TAGMASK,
-		    V_ISCSITAGMASK(M_ISCSITAGMASK), pr->pr_tag_mask);
-	}
-
 	read_pdu_limits(sc, &ci->max_tx_data_len, &ci->max_rx_data_len, pr);
 
 	sysctl_ctx_init(&ci->ctx);
@@ -517,7 +502,7 @@ do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 
 	INP_WLOCK(inp);
-	if (__predict_false(inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT))) {
+	if (__predict_false(inp->inp_flags & INP_DROPPED)) {
 		CTR4(KTR_CXGBE, "%s: tid %u, rx (%d bytes), inp_flags 0x%x",
 		    __func__, tid, pdu_len, inp->inp_flags);
 		INP_WUNLOCK(inp);
@@ -670,7 +655,7 @@ do_rx_iscsi_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 
 	INP_WLOCK(inp);
-	if (__predict_false(inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT))) {
+	if (__predict_false(inp->inp_flags & INP_DROPPED)) {
 		CTR4(KTR_CXGBE, "%s: tid %u, rx (%d bytes), inp_flags 0x%x",
 		    __func__, tid, pdu_len, inp->inp_flags);
 		INP_WUNLOCK(inp);

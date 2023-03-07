@@ -14,16 +14,17 @@
 #ifndef LLVM_TRANSFORMS_IPO_WHOLEPROGRAMDEVIRT_H
 #define LLVM_TRANSFORMS_IPO_WHOLEPROGRAMDEVIRT_H
 
-#include "llvm/IR/Module.h"
+#include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/PassManager.h"
-#include "llvm/Transforms/IPO/FunctionImport.h"
 #include <cassert>
 #include <cstdint>
+#include <map>
 #include <set>
 #include <utility>
 #include <vector>
 
 namespace llvm {
+class Module;
 
 template <typename T> class ArrayRef;
 template <typename T> class MutableArrayRef;
@@ -238,7 +239,9 @@ struct VTableSlotSummary {
   StringRef TypeID;
   uint64_t ByteOffset;
 };
-
+bool hasWholeProgramVisibility(bool WholeProgramVisibilityEnabledInLTO);
+void updatePublicTypeTestCalls(Module &M,
+                               bool WholeProgramVisibilityEnabledInLTO);
 void updateVCallVisibilityInModule(
     Module &M, bool WholeProgramVisibilityEnabledInLTO,
     const DenseSet<GlobalValue::GUID> &DynamicExportSymbols);

@@ -51,9 +51,9 @@ struct powermac_nvram_softc {
 	device_t		sc_dev;
 	struct sx		sc_lock;
 	phandle_t		sc_node;
-	vm_offset_t		sc_bank;
-	vm_offset_t		sc_bank0;
-	vm_offset_t		sc_bank1;
+	void *			sc_bank;
+	void *			sc_bank0;
+	void *			sc_bank1;
 	uint8_t			sc_data[NVRAM_SIZE];
 
 	struct cdev *		sc_cdev;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2021  Mark Nudelman
+ * Copyright (C) 1984-2022  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -59,6 +59,9 @@ cmark(m, ifile, pos, ln)
 	m->m_ifile = ifile;
 	m->m_scrpos.pos = pos;
 	m->m_scrpos.ln = ln;
+	if (m->m_filename != NULL)
+		/* Normally should not happen but a corrupt lesshst file can do it. */
+		free(m->m_filename);
 	m->m_filename = NULL;
 }
 

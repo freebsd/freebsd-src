@@ -175,6 +175,8 @@ iter_apply_cfg(struct iter_env* iter_env, struct config_file* cfg)
 	iter_env->supports_ipv6 = cfg->do_ip6;
 	iter_env->supports_ipv4 = cfg->do_ip4;
 	iter_env->outbound_msg_retry = cfg->outbound_msg_retry;
+	iter_env->max_sent_count = cfg->max_sent_count;
+	iter_env->max_query_restarts = cfg->max_query_restarts;
 	return 1;
 }
 
@@ -1209,6 +1211,9 @@ int iter_lookup_parent_glue_from_cache(struct module_env* env,
 	struct delegpt_ns* ns;
 	size_t num = delegpt_count_targets(dp);
 	for(ns = dp->nslist; ns; ns = ns->next) {
+		if(ns->cache_lookup_count > ITERATOR_NAME_CACHELOOKUP_MAX_PSIDE)
+			continue;
+		ns->cache_lookup_count++;
 		/* get cached parentside A */
 		akey = rrset_cache_lookup(env->rrset_cache, ns->name,
 			ns->namelen, LDNS_RR_TYPE_A, qinfo->qclass,

@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include "bnxt_ioctl.h"
 #include "bnxt_sysctl.h"
 #include "hsi_struct_def.h"
+#include "bnxt_mgmt.h"
 
 /*
  * PCI Device ID Table
@@ -132,6 +133,12 @@ static pci_vendor_info_t bnxt_vendor_info_array[] =
 	"Broadcom BCM57454 NetXtreme-E 10Gb/25Gb/40Gb/50Gb/100Gb Ethernet"),
     PVID(BROADCOM_VENDOR_ID, BCM58700,
 	"Broadcom BCM58700 Nitro 1Gb/2.5Gb/10Gb Ethernet"),
+    PVID(BROADCOM_VENDOR_ID, BCM57508,
+	"Broadcom BCM57508 NetXtreme-E 10Gb/25Gb/50Gb/100Gb/200Gb Ethernet"),
+    PVID(BROADCOM_VENDOR_ID, BCM57504,
+	"Broadcom BCM57504 NetXtreme-E 10Gb/25Gb/50Gb/100Gb/200Gb Ethernet"),
+    PVID(BROADCOM_VENDOR_ID, BCM57502,
+	"Broadcom BCM57502 NetXtreme-E 10Gb/25Gb/50Gb/100Gb/200Gb Ethernet"),
     PVID(BROADCOM_VENDOR_ID, NETXTREME_C_VF1,
 	"Broadcom NetXtreme-C Ethernet Virtual Function"),
     PVID(BROADCOM_VENDOR_ID, NETXTREME_C_VF2,
@@ -152,6 +159,9 @@ static pci_vendor_info_t bnxt_vendor_info_array[] =
 /*
  * Function prototypes
  */
+
+SLIST_HEAD(softc_list, bnxt_softc_list) pf_list;
+int bnxt_num_pfs = 0;
 
 static void *bnxt_register(device_t dev);
 
@@ -204,7 +214,7 @@ static int bnxt_pci_mapping(struct bnxt_softc *softc);
 static void bnxt_pci_mapping_free(struct bnxt_softc *softc);
 static int bnxt_update_link(struct bnxt_softc *softc, bool chng_link_state);
 static int bnxt_handle_def_cp(void *arg);
-static int bnxt_handle_rx_cp(void *arg);
+static int bnxt_handle_isr(void *arg);
 static void bnxt_clear_ids(struct bnxt_softc *softc);
 static void inline bnxt_do_enable_intr(struct bnxt_cp_ring *cpr);
 static void inline bnxt_do_disable_intr(struct bnxt_cp_ring *cpr);
@@ -291,7 +301,7 @@ static driver_t bnxt_iflib_driver = {
  * iflib shared context
  */
 
-#define BNXT_DRIVER_VERSION	"1.0.0.2"
+#define BNXT_DRIVER_VERSION	"2.20.0.1"
 char bnxt_driver_version[] = BNXT_DRIVER_VERSION;
 extern struct if_txrx bnxt_txrx;
 static struct if_shared_ctx bnxt_sctx_init = {
@@ -309,7 +319,7 @@ static struct if_shared_ctx bnxt_sctx_init = {
 
 	// Only use a single segment to avoid page size constraints
 	.isc_rx_nsegments = 1,
-	.isc_ntxqs = 2,
+	.isc_ntxqs = 3,
 	.isc_nrxqs = 3,
 	.isc_nrxd_min = {16, 16, 16},
 	.isc_nrxd_default = {PAGE_SIZE / sizeof(struct cmpl_base) * 8,
@@ -318,7 +328,8 @@ static struct if_shared_ctx bnxt_sctx_init = {
 	.isc_nrxd_max = {BNXT_MAX_RXD, BNXT_MAX_RXD, BNXT_MAX_RXD},
 	.isc_ntxd_min = {16, 16, 16},
 	.isc_ntxd_default = {PAGE_SIZE / sizeof(struct cmpl_base) * 2,
-	    PAGE_SIZE / sizeof(struct tx_bd_short)},
+	    PAGE_SIZE / sizeof(struct tx_bd_short),
+	    PAGE_SIZE / sizeof(struct cmpl_base) * 2},
 	.isc_ntxd_max = {BNXT_MAX_TXD, BNXT_MAX_TXD, BNXT_MAX_TXD},
 
 	.isc_admin_intrcnt = 1,
@@ -336,6 +347,26 @@ bnxt_register(device_t dev)
 	return (&bnxt_sctx_init);
 }
 
+static void
+bnxt_nq_alloc(struct bnxt_softc *softc, int nqsets)
+{
+
+	if (softc->nq_rings)
+		return;
+
+	softc->nq_rings = malloc(sizeof(struct bnxt_cp_ring) * nqsets,
+	    M_DEVBUF, M_NOWAIT | M_ZERO);
+}
+
+static void
+bnxt_nq_free(struct bnxt_softc *softc)
+{
+
+	if (softc->nq_rings)
+		free(softc->nq_rings, M_DEVBUF);
+	softc->nq_rings = NULL;
+}
+
 /*
  * Device Dependent Configuration Functions
 */
@@ -350,6 +381,16 @@ bnxt_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 	int rc;
 
 	softc = iflib_get_softc(ctx);
+
+	if (BNXT_CHIP_P5(softc)) {
+		bnxt_nq_alloc(softc, ntxqsets);
+		if (!softc->nq_rings) {
+			device_printf(iflib_get_dev(ctx),
+					"unable to allocate NQ rings\n");
+			rc = ENOMEM;
+			goto nq_alloc_fail;
+		}
+	}
 
 	softc->tx_cp_rings = malloc(sizeof(struct bnxt_cp_ring) * ntxqsets,
 	    M_DEVBUF, M_NOWAIT | M_ZERO);
@@ -367,12 +408,15 @@ bnxt_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 		rc = ENOMEM;
 		goto ring_alloc_fail;
 	}
-	rc = iflib_dma_alloc(ctx, sizeof(struct ctx_hw_stats) * ntxqsets,
-	    &softc->tx_stats, 0);
-	if (rc)
-		goto dma_alloc_fail;
-	bus_dmamap_sync(softc->tx_stats.idi_tag, softc->tx_stats.idi_map,
-	    BUS_DMASYNC_PREREAD);
+
+	for (i=0; i < ntxqsets; i++) {
+		rc = iflib_dma_alloc(ctx, sizeof(struct ctx_hw_stats),
+				&softc->tx_stats[i], 0);
+		if (rc)
+			goto dma_alloc_fail;
+		bus_dmamap_sync(softc->tx_stats[i].idi_tag, softc->tx_stats[i].idi_map,
+				BUS_DMASYNC_PREREAD);
+	}
 
 	for (i = 0; i < ntxqsets; i++) {
 		/* Set up the completion ring */
@@ -380,10 +424,11 @@ bnxt_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 		softc->tx_cp_rings[i].ring.phys_id =
 		    (uint16_t)HWRM_NA_SIGNATURE;
 		softc->tx_cp_rings[i].ring.softc = softc;
+		softc->tx_cp_rings[i].ring.idx = i;
 		softc->tx_cp_rings[i].ring.id =
 		    (softc->scctx->isc_nrxqsets * 2) + 1 + i;
-		softc->tx_cp_rings[i].ring.doorbell =
-		    softc->tx_cp_rings[i].ring.id * 0x80;
+		softc->tx_cp_rings[i].ring.doorbell = (BNXT_CHIP_P5(softc)) ?
+			DB_PF_OFFSET_P5: softc->tx_cp_rings[i].ring.id * 0x80;
 		softc->tx_cp_rings[i].ring.ring_size =
 		    softc->scctx->isc_ntxd[0];
 		softc->tx_cp_rings[i].ring.vaddr = vaddrs[i * ntxqs];
@@ -392,24 +437,45 @@ bnxt_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 		/* Set up the TX ring */
 		softc->tx_rings[i].phys_id = (uint16_t)HWRM_NA_SIGNATURE;
 		softc->tx_rings[i].softc = softc;
+		softc->tx_rings[i].idx = i;
 		softc->tx_rings[i].id =
 		    (softc->scctx->isc_nrxqsets * 2) + 1 + i;
-		softc->tx_rings[i].doorbell = softc->tx_rings[i].id * 0x80;
+		softc->tx_rings[i].doorbell = (BNXT_CHIP_P5(softc)) ?
+			DB_PF_OFFSET_P5 : softc->tx_rings[i].id * 0x80;
 		softc->tx_rings[i].ring_size = softc->scctx->isc_ntxd[1];
 		softc->tx_rings[i].vaddr = vaddrs[i * ntxqs + 1];
 		softc->tx_rings[i].paddr = paddrs[i * ntxqs + 1];
 
 		bnxt_create_tx_sysctls(softc, i);
+
+		if (BNXT_CHIP_P5(softc)) {
+			/* Set up the Notification ring (NQ) */
+			softc->nq_rings[i].stats_ctx_id = HWRM_NA_SIGNATURE;
+			softc->nq_rings[i].ring.phys_id =
+				(uint16_t)HWRM_NA_SIGNATURE;
+			softc->nq_rings[i].ring.softc = softc;
+			softc->nq_rings[i].ring.idx = i;
+			softc->nq_rings[i].ring.id = i;
+			softc->nq_rings[i].ring.doorbell = (BNXT_CHIP_P5(softc)) ?
+				DB_PF_OFFSET_P5 : softc->nq_rings[i].ring.id * 0x80;
+			softc->nq_rings[i].ring.ring_size = softc->scctx->isc_ntxd[2];
+			softc->nq_rings[i].ring.vaddr = vaddrs[i * ntxqs + 2];
+			softc->nq_rings[i].ring.paddr = paddrs[i * ntxqs + 2];
+		}
 	}
 
 	softc->ntxqsets = ntxqsets;
 	return rc;
 
 dma_alloc_fail:
+	for (i = i - 1; i >= 0; i--)
+		iflib_dma_free(&softc->tx_stats[i]);
 	free(softc->tx_rings, M_DEVBUF);
 ring_alloc_fail:
 	free(softc->tx_cp_rings, M_DEVBUF);
 cp_alloc_fail:
+	bnxt_nq_free(softc);
+nq_alloc_fail:
 	return rc;
 }
 
@@ -417,9 +483,11 @@ static void
 bnxt_queues_free(if_ctx_t ctx)
 {
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
+	int i;
 
 	// Free TX queues
-	iflib_dma_free(&softc->tx_stats);
+	for (i=0; i<softc->ntxqsets; i++)
+		iflib_dma_free(&softc->tx_stats[i]);
 	free(softc->tx_rings, M_DEVBUF);
 	softc->tx_rings = NULL;
 	free(softc->tx_cp_rings, M_DEVBUF);
@@ -427,13 +495,15 @@ bnxt_queues_free(if_ctx_t ctx)
 	softc->ntxqsets = 0;
 
 	// Free RX queues
-	iflib_dma_free(&softc->rx_stats);
+	for (i=0; i<softc->nrxqsets; i++)
+		iflib_dma_free(&softc->rx_stats[i]);
 	iflib_dma_free(&softc->hw_tx_port_stats);
 	iflib_dma_free(&softc->hw_rx_port_stats);
 	free(softc->grp_info, M_DEVBUF);
 	free(softc->ag_rings, M_DEVBUF);
 	free(softc->rx_rings, M_DEVBUF);
 	free(softc->rx_cp_rings, M_DEVBUF);
+	bnxt_nq_free(softc);
 }
 
 static int
@@ -479,14 +549,16 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 		goto grp_alloc_fail;
 	}
 
-	rc = iflib_dma_alloc(ctx, sizeof(struct ctx_hw_stats) * nrxqsets,
-	    &softc->rx_stats, 0);
-	if (rc)
-		goto hw_stats_alloc_fail;
-	bus_dmamap_sync(softc->rx_stats.idi_tag, softc->rx_stats.idi_map,
-	    BUS_DMASYNC_PREREAD);
+	for (i=0; i < nrxqsets; i++) {
+		rc = iflib_dma_alloc(ctx, sizeof(struct ctx_hw_stats),
+				&softc->rx_stats[i], 0);
+		if (rc)
+			goto hw_stats_alloc_fail;
+		bus_dmamap_sync(softc->rx_stats[i].idi_tag, softc->rx_stats[i].idi_map,
+				BUS_DMASYNC_PREREAD);
+	}
 
-/* 
+/*
  * Additional 512 bytes for future expansion.
  * To prevent corruption when loaded with newer firmwares with added counters.
  * This can be deleted when there will be no further additions of counters.
@@ -498,7 +570,7 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 	if (rc)
 		goto hw_port_rx_stats_alloc_fail;
 
-	bus_dmamap_sync(softc->hw_rx_port_stats.idi_tag, 
+	bus_dmamap_sync(softc->hw_rx_port_stats.idi_tag,
             softc->hw_rx_port_stats.idi_map, BUS_DMASYNC_PREREAD);
 
 	rc = iflib_dma_alloc(ctx, sizeof(struct tx_port_stats) + BNXT_PORT_STAT_PADDING,
@@ -507,7 +579,7 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 	if (rc)
 		goto hw_port_tx_stats_alloc_fail;
 
-	bus_dmamap_sync(softc->hw_tx_port_stats.idi_tag, 
+	bus_dmamap_sync(softc->hw_tx_port_stats.idi_tag,
             softc->hw_tx_port_stats.idi_map, BUS_DMASYNC_PREREAD);
 
 	softc->rx_port_stats = (void *) softc->hw_rx_port_stats.idi_vaddr;
@@ -519,9 +591,10 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 		softc->rx_cp_rings[i].ring.phys_id =
 		    (uint16_t)HWRM_NA_SIGNATURE;
 		softc->rx_cp_rings[i].ring.softc = softc;
+		softc->rx_cp_rings[i].ring.idx = i;
 		softc->rx_cp_rings[i].ring.id = i + 1;
-		softc->rx_cp_rings[i].ring.doorbell =
-		    softc->rx_cp_rings[i].ring.id * 0x80;
+		softc->rx_cp_rings[i].ring.doorbell = (BNXT_CHIP_P5(softc)) ?
+			DB_PF_OFFSET_P5 : softc->rx_cp_rings[i].ring.id * 0x80;
 		/*
 		 * If this ring overflows, RX stops working.
 		 */
@@ -533,8 +606,10 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 		/* Allocate the RX ring */
 		softc->rx_rings[i].phys_id = (uint16_t)HWRM_NA_SIGNATURE;
 		softc->rx_rings[i].softc = softc;
+		softc->rx_rings[i].idx = i;
 		softc->rx_rings[i].id = i + 1;
-		softc->rx_rings[i].doorbell = softc->rx_rings[i].id * 0x80;
+		softc->rx_rings[i].doorbell = (BNXT_CHIP_P5(softc)) ?
+			DB_PF_OFFSET_P5 : softc->rx_rings[i].id * 0x80;
 		softc->rx_rings[i].ring_size = softc->scctx->isc_nrxd[1];
 		softc->rx_rings[i].vaddr = vaddrs[i * nrxqs + 1];
 		softc->rx_rings[i].paddr = paddrs[i * nrxqs + 1];
@@ -553,8 +628,10 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 		/* Allocate the AG ring */
 		softc->ag_rings[i].phys_id = (uint16_t)HWRM_NA_SIGNATURE;
 		softc->ag_rings[i].softc = softc;
+		softc->ag_rings[i].idx = i;
 		softc->ag_rings[i].id = nrxqsets + i + 1;
-		softc->ag_rings[i].doorbell = softc->ag_rings[i].id * 0x80;
+		softc->ag_rings[i].doorbell = (BNXT_CHIP_P5(softc)) ?
+			DB_PF_OFFSET_P5 : softc->ag_rings[i].id * 0x80;
 		softc->ag_rings[i].ring_size = softc->scctx->isc_nrxd[2];
 		softc->ag_rings[i].vaddr = vaddrs[i * nrxqs + 2];
 		softc->ag_rings[i].paddr = paddrs[i * nrxqs + 2];
@@ -580,7 +657,6 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 
 	/* And finally, the VNIC */
 	softc->vnic_info.id = (uint16_t)HWRM_NA_SIGNATURE;
-	softc->vnic_info.flow_id = (uint16_t)HWRM_NA_SIGNATURE;
 	softc->vnic_info.filter_id = -1;
 	softc->vnic_info.def_ring_grp = (uint16_t)HWRM_NA_SIGNATURE;
 	softc->vnic_info.cos_rule = (uint16_t)HWRM_NA_SIGNATURE;
@@ -631,7 +707,8 @@ mc_list_alloc_fail:
 hw_port_tx_stats_alloc_fail:
 	iflib_dma_free(&softc->hw_rx_port_stats);
 hw_port_rx_stats_alloc_fail:
-	iflib_dma_free(&softc->rx_stats);
+	for (i = i - 1; i >= 0; i--)
+		iflib_dma_free(&softc->rx_stats[i]);
 hw_stats_alloc_fail:
 	free(softc->grp_info, M_DEVBUF);
 grp_alloc_fail:
@@ -659,6 +736,497 @@ static int bnxt_alloc_hwrm_short_cmd_req(struct bnxt_softc *softc)
 	    &softc->hwrm_short_cmd_req_addr, BUS_DMA_NOWAIT);
 
 	return rc;
+}
+
+static void bnxt_free_ring(struct bnxt_softc *bp, struct bnxt_ring_mem_info *rmem)
+{
+        int i;
+
+        for (i = 0; i < rmem->nr_pages; i++) {
+                if (!rmem->pg_arr[i].idi_vaddr)
+                        continue;
+
+		iflib_dma_free(&rmem->pg_arr[i]);
+                rmem->pg_arr[i].idi_vaddr = NULL;
+        }
+        if (rmem->pg_tbl.idi_vaddr) {
+		iflib_dma_free(&rmem->pg_tbl);
+                rmem->pg_tbl.idi_vaddr = NULL;
+
+        }
+        if (rmem->vmem_size && *rmem->vmem) {
+                free(*rmem->vmem, M_DEVBUF);
+                *rmem->vmem = NULL;
+        }
+}
+
+static int bnxt_alloc_ring(struct bnxt_softc *softc, struct bnxt_ring_mem_info *rmem)
+{
+	uint64_t valid_bit = 0;
+	int i;
+	int rc;
+
+	if (rmem->flags & (BNXT_RMEM_VALID_PTE_FLAG | BNXT_RMEM_RING_PTE_FLAG))
+		valid_bit = PTU_PTE_VALID;
+
+	if ((rmem->nr_pages > 1 || rmem->depth > 0) && !rmem->pg_tbl.idi_vaddr) {
+		size_t pg_tbl_size = rmem->nr_pages * 8;
+
+		if (rmem->flags & BNXT_RMEM_USE_FULL_PAGE_FLAG)
+			pg_tbl_size = rmem->page_size;
+
+		rc = iflib_dma_alloc(softc->ctx, pg_tbl_size, &rmem->pg_tbl, 0);
+		if (rc)
+			return -ENOMEM;
+	}
+
+	for (i = 0; i < rmem->nr_pages; i++) {
+		uint64_t extra_bits = valid_bit;
+		uint64_t *ptr;
+
+		rc = iflib_dma_alloc(softc->ctx, rmem->page_size, &rmem->pg_arr[i], 0);
+		if (rc)
+			return -ENOMEM;
+
+		if (rmem->init_val)
+                        memset(rmem->pg_arr[i].idi_vaddr, rmem->init_val, rmem->page_size);
+
+		if (rmem->nr_pages > 1 || rmem->depth > 0) {
+			if (i == rmem->nr_pages - 2 &&
+					(rmem->flags & BNXT_RMEM_RING_PTE_FLAG))
+				extra_bits |= PTU_PTE_NEXT_TO_LAST;
+			else if (i == rmem->nr_pages - 1 &&
+					(rmem->flags & BNXT_RMEM_RING_PTE_FLAG))
+				extra_bits |= PTU_PTE_LAST;
+
+			ptr = (void *) rmem->pg_tbl.idi_vaddr;
+			ptr[i]  = htole64(rmem->pg_arr[i].idi_paddr | extra_bits);
+		}
+	}
+
+	if (rmem->vmem_size) {
+		*rmem->vmem = malloc(rmem->vmem_size, M_DEVBUF, M_NOWAIT | M_ZERO);
+		if (!(*rmem->vmem))
+			return -ENOMEM;
+	}
+	return 0;
+}
+
+#define HWRM_FUNC_BACKING_STORE_CFG_INPUT_DFLT_ENABLES			\
+	(HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_QP |		\
+	 HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_SRQ |		\
+	 HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_CQ |		\
+	 HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_VNIC |		\
+	 HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_STAT)
+
+static int bnxt_alloc_ctx_mem_blk(struct bnxt_softc *softc,
+				  struct bnxt_ctx_pg_info *ctx_pg)
+{
+	struct bnxt_ring_mem_info *rmem = &ctx_pg->ring_mem;
+
+	rmem->page_size = BNXT_PAGE_SIZE;
+	rmem->pg_arr = ctx_pg->ctx_arr;
+	rmem->flags = BNXT_RMEM_VALID_PTE_FLAG;
+	if (rmem->depth >= 1)
+		rmem->flags |= BNXT_RMEM_USE_FULL_PAGE_FLAG;
+
+	return bnxt_alloc_ring(softc, rmem);
+}
+
+static int bnxt_alloc_ctx_pg_tbls(struct bnxt_softc *softc,
+				  struct bnxt_ctx_pg_info *ctx_pg, uint32_t mem_size,
+				  uint8_t depth, bool use_init_val)
+{
+	struct bnxt_ring_mem_info *rmem = &ctx_pg->ring_mem;
+	int rc;
+
+	if (!mem_size)
+		return 0;
+
+	ctx_pg->nr_pages = DIV_ROUND_UP(mem_size, BNXT_PAGE_SIZE);
+	if (ctx_pg->nr_pages > MAX_CTX_TOTAL_PAGES) {
+		ctx_pg->nr_pages = 0;
+		return -EINVAL;
+	}
+	if (ctx_pg->nr_pages > MAX_CTX_PAGES || depth > 1) {
+		int nr_tbls, i;
+
+		rmem->depth = 2;
+		ctx_pg->ctx_pg_tbl = malloc(MAX_CTX_PAGES * sizeof(ctx_pg),
+				M_DEVBUF, M_NOWAIT | M_ZERO);
+		if (!ctx_pg->ctx_pg_tbl)
+			return -ENOMEM;
+		nr_tbls = DIV_ROUND_UP(ctx_pg->nr_pages, MAX_CTX_PAGES);
+		rmem->nr_pages = nr_tbls;
+		rc = bnxt_alloc_ctx_mem_blk(softc, ctx_pg);
+		if (rc)
+			return rc;
+		for (i = 0; i < nr_tbls; i++) {
+			struct bnxt_ctx_pg_info *pg_tbl;
+
+			pg_tbl = malloc(sizeof(*pg_tbl), M_DEVBUF, M_NOWAIT | M_ZERO);
+			if (!pg_tbl)
+				return -ENOMEM;
+			ctx_pg->ctx_pg_tbl[i] = pg_tbl;
+			rmem = &pg_tbl->ring_mem;
+			memcpy(&rmem->pg_tbl, &ctx_pg->ctx_arr[i], sizeof(struct iflib_dma_info));
+			rmem->depth = 1;
+			rmem->nr_pages = MAX_CTX_PAGES;
+			if (use_init_val)
+                                rmem->init_val = softc->ctx_mem->ctx_kind_initializer;
+			if (i == (nr_tbls - 1)) {
+				int rem = ctx_pg->nr_pages % MAX_CTX_PAGES;
+
+				if (rem)
+					rmem->nr_pages = rem;
+			}
+			rc = bnxt_alloc_ctx_mem_blk(softc, pg_tbl);
+			if (rc)
+				break;
+		}
+	} else {
+		rmem->nr_pages = DIV_ROUND_UP(mem_size, BNXT_PAGE_SIZE);
+		if (rmem->nr_pages > 1 || depth)
+			rmem->depth = 1;
+		if (use_init_val)
+			rmem->init_val = softc->ctx_mem->ctx_kind_initializer;
+		rc = bnxt_alloc_ctx_mem_blk(softc, ctx_pg);
+	}
+	return rc;
+}
+
+static void bnxt_free_ctx_pg_tbls(struct bnxt_softc *softc,
+				  struct bnxt_ctx_pg_info *ctx_pg)
+{
+	struct bnxt_ring_mem_info *rmem = &ctx_pg->ring_mem;
+
+	if (rmem->depth > 1 || ctx_pg->nr_pages > MAX_CTX_PAGES ||
+	    ctx_pg->ctx_pg_tbl) {
+		int i, nr_tbls = rmem->nr_pages;
+
+		for (i = 0; i < nr_tbls; i++) {
+			struct bnxt_ctx_pg_info *pg_tbl;
+			struct bnxt_ring_mem_info *rmem2;
+
+			pg_tbl = ctx_pg->ctx_pg_tbl[i];
+			if (!pg_tbl)
+				continue;
+			rmem2 = &pg_tbl->ring_mem;
+			bnxt_free_ring(softc, rmem2);
+			ctx_pg->ctx_arr[i].idi_vaddr = NULL;
+			free(pg_tbl , M_DEVBUF);
+			ctx_pg->ctx_pg_tbl[i] = NULL;
+		}
+		free(ctx_pg->ctx_pg_tbl , M_DEVBUF);
+		ctx_pg->ctx_pg_tbl = NULL;
+	}
+	bnxt_free_ring(softc, rmem);
+	ctx_pg->nr_pages = 0;
+}
+
+static void bnxt_free_ctx_mem(struct bnxt_softc *softc)
+{
+	struct bnxt_ctx_mem_info *ctx = softc->ctx_mem;
+	int i;
+
+	if (!ctx)
+		return;
+
+	if (ctx->tqm_mem[0]) {
+		for (i = 0; i < softc->max_q + 1; i++) {
+			if (!ctx->tqm_mem[i])
+				continue;
+			bnxt_free_ctx_pg_tbls(softc, ctx->tqm_mem[i]);
+		}
+		free(ctx->tqm_mem[0] , M_DEVBUF);
+		ctx->tqm_mem[0] = NULL;
+	}
+
+	bnxt_free_ctx_pg_tbls(softc, &ctx->tim_mem);
+	bnxt_free_ctx_pg_tbls(softc, &ctx->mrav_mem);
+	bnxt_free_ctx_pg_tbls(softc, &ctx->stat_mem);
+	bnxt_free_ctx_pg_tbls(softc, &ctx->vnic_mem);
+	bnxt_free_ctx_pg_tbls(softc, &ctx->cq_mem);
+	bnxt_free_ctx_pg_tbls(softc, &ctx->srq_mem);
+	bnxt_free_ctx_pg_tbls(softc, &ctx->qp_mem);
+	ctx->flags &= ~BNXT_CTX_FLAG_INITED;
+	free(softc->ctx_mem, M_DEVBUF);
+	softc->ctx_mem = NULL;
+}
+
+static int bnxt_alloc_ctx_mem(struct bnxt_softc *softc)
+{
+	struct bnxt_ctx_pg_info *ctx_pg;
+	struct bnxt_ctx_mem_info *ctx;
+	uint32_t mem_size, ena, entries;
+	int i, rc;
+
+	if (!BNXT_CHIP_P5(softc))
+		return 0;
+
+	rc = bnxt_hwrm_func_backing_store_qcaps(softc);
+	if (rc) {
+		device_printf(softc->dev, "Failed querying context mem capability, rc = %d.\n",
+			   rc);
+		return rc;
+	}
+	ctx = softc->ctx_mem;
+	if (!ctx || (ctx->flags & BNXT_CTX_FLAG_INITED))
+		return 0;
+
+	ctx_pg = &ctx->qp_mem;
+	ctx_pg->entries = ctx->qp_min_qp1_entries + ctx->qp_max_l2_entries +
+			  (1024 * 64); /* FIXME: Enable 64K QPs */
+	mem_size = ctx->qp_entry_size * ctx_pg->entries;
+	rc = bnxt_alloc_ctx_pg_tbls(softc, ctx_pg, mem_size, 2, true);
+	if (rc)
+		return rc;
+
+	ctx_pg = &ctx->srq_mem;
+	/* FIXME: Temporarily enable 8K RoCE SRQs */
+	ctx_pg->entries = ctx->srq_max_l2_entries + (1024 * 8);
+	mem_size = ctx->srq_entry_size * ctx_pg->entries;
+	rc = bnxt_alloc_ctx_pg_tbls(softc, ctx_pg, mem_size, 2, true);
+	if (rc)
+		return rc;
+
+	ctx_pg = &ctx->cq_mem;
+	/* FIXME: Temporarily enable 64K RoCE CQ */
+	ctx_pg->entries = ctx->cq_max_l2_entries + (1024 * 64 * 2);
+	mem_size = ctx->cq_entry_size * ctx_pg->entries;
+	rc = bnxt_alloc_ctx_pg_tbls(softc, ctx_pg, mem_size, 2, true);
+	if (rc)
+		return rc;
+
+	ctx_pg = &ctx->vnic_mem;
+	ctx_pg->entries = ctx->vnic_max_vnic_entries +
+			  ctx->vnic_max_ring_table_entries;
+	mem_size = ctx->vnic_entry_size * ctx_pg->entries;
+	rc = bnxt_alloc_ctx_pg_tbls(softc, ctx_pg, mem_size, 1, true);
+	if (rc)
+		return rc;
+
+	ctx_pg = &ctx->stat_mem;
+	ctx_pg->entries = ctx->stat_max_entries;
+	mem_size = ctx->stat_entry_size * ctx_pg->entries;
+	rc = bnxt_alloc_ctx_pg_tbls(softc, ctx_pg, mem_size, 1, true);
+	if (rc)
+		return rc;
+
+	ctx_pg = &ctx->mrav_mem;
+	/* FIXME: Temporarily enable 256K RoCE MRs */
+	ctx_pg->entries = 1024 * 256;
+	mem_size = ctx->mrav_entry_size * ctx_pg->entries;
+	rc = bnxt_alloc_ctx_pg_tbls(softc, ctx_pg, mem_size, 2, true);
+	if (rc)
+		return rc;
+	ena = HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_MRAV;
+
+	ctx_pg = &ctx->tim_mem;
+	/* Firmware needs number of TIM entries equal to
+	 * number of Total QP contexts enabled, including
+	 * L2 QPs.
+	 */
+	ctx_pg->entries = ctx->qp_min_qp1_entries +
+			  ctx->qp_max_l2_entries + 1024 * 64;
+	/* FIXME: L2 driver is not able to create queue depth
+	 *  worth of 1M 32bit timers. Need a fix when l2-roce
+	 *  interface is well designed.
+	 */
+	mem_size = ctx->tim_entry_size * ctx_pg->entries;
+	rc = bnxt_alloc_ctx_pg_tbls(softc, ctx_pg, mem_size, 2, false);
+	if (rc)
+		return rc;
+	ena |= HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_TIM;
+
+	/* FIXME: Temporarily increase the TQM queue depth
+	 * by 1K for 1K RoCE QPs.
+	 */
+	entries = ctx->qp_max_l2_entries + 1024 * 64;
+	entries = roundup(entries, ctx->tqm_entries_multiple);
+	entries = clamp_t(uint32_t, entries, ctx->tqm_min_entries_per_ring,
+			  ctx->tqm_max_entries_per_ring);
+	for (i = 0; i < softc->max_q + 1; i++) {
+		ctx_pg = ctx->tqm_mem[i];
+		ctx_pg->entries = entries;
+		mem_size = ctx->tqm_entry_size * entries;
+		rc = bnxt_alloc_ctx_pg_tbls(softc, ctx_pg, mem_size, 2, false);
+		if (rc)
+			return rc;
+		ena |= HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_TQM_SP << i;
+	}
+	ena |= HWRM_FUNC_BACKING_STORE_CFG_INPUT_DFLT_ENABLES;
+	rc = bnxt_hwrm_func_backing_store_cfg(softc, ena);
+	if (rc)
+		device_printf(softc->dev, "Failed configuring context mem, rc = %d.\n",
+			   rc);
+	else
+		ctx->flags |= BNXT_CTX_FLAG_INITED;
+
+	return 0;
+}
+/*
+ * If we update the index, a write barrier is needed after the write to ensure
+ * the completion ring has space before the RX/TX ring does.  Since we can't
+ * make the RX and AG doorbells covered by the same barrier without remapping
+ * MSI-X vectors, we create the barrier over the enture doorbell bar.
+ * TODO: Remap the MSI-X vectors to allow a barrier to only cover the doorbells
+ *       for a single ring group.
+ *
+ * A barrier of just the size of the write is used to ensure the ordering
+ * remains correct and no writes are lost.
+ */
+
+static void bnxt_cuw_db_rx(void *db_ptr, uint16_t idx)
+{
+	struct bnxt_ring *ring = (struct bnxt_ring *) db_ptr;
+	struct bnxt_bar_info *db_bar = &ring->softc->doorbell_bar;
+
+	bus_space_barrier(db_bar->tag, db_bar->handle, ring->doorbell, 4,
+			BUS_SPACE_BARRIER_WRITE);
+	bus_space_write_4(db_bar->tag, db_bar->handle, ring->doorbell,
+			htole32(RX_DOORBELL_KEY_RX | idx));
+}
+
+static void bnxt_cuw_db_tx(void *db_ptr, uint16_t idx)
+{
+	struct bnxt_ring *ring = (struct bnxt_ring *) db_ptr;
+	struct bnxt_bar_info *db_bar = &ring->softc->doorbell_bar;
+
+	bus_space_barrier(db_bar->tag, db_bar->handle, ring->doorbell, 4,
+			BUS_SPACE_BARRIER_WRITE);
+	bus_space_write_4(db_bar->tag, db_bar->handle, ring->doorbell,
+			htole32(TX_DOORBELL_KEY_TX | idx));
+}
+
+static void bnxt_cuw_db_cq(void *db_ptr, bool enable_irq)
+{
+	struct bnxt_cp_ring *cpr = (struct bnxt_cp_ring *) db_ptr;
+	struct bnxt_bar_info *db_bar = &cpr->ring.softc->doorbell_bar;
+
+	bus_space_barrier(db_bar->tag, db_bar->handle, cpr->ring.doorbell, 4,
+			BUS_SPACE_BARRIER_WRITE);
+	bus_space_write_4(db_bar->tag, db_bar->handle, cpr->ring.doorbell,
+			htole32(CMPL_DOORBELL_KEY_CMPL |
+				((cpr->cons == UINT32_MAX) ? 0 :
+				 (cpr->cons | CMPL_DOORBELL_IDX_VALID)) |
+				((enable_irq) ? 0 : CMPL_DOORBELL_MASK)));
+	bus_space_barrier(db_bar->tag, db_bar->handle, 0, db_bar->size,
+			BUS_SPACE_BARRIER_WRITE);
+}
+
+static void bnxt_thor_db_rx(void *db_ptr, uint16_t idx)
+{
+	struct bnxt_ring *ring = (struct bnxt_ring *) db_ptr;
+	struct bnxt_bar_info *db_bar = &ring->softc->doorbell_bar;
+
+	bus_space_barrier(db_bar->tag, db_bar->handle, ring->doorbell, 8,
+			BUS_SPACE_BARRIER_WRITE);
+	bus_space_write_8(db_bar->tag, db_bar->handle, ring->doorbell,
+			htole64((DBR_PATH_L2 | DBR_TYPE_SRQ | idx) |
+				((uint64_t)ring->phys_id << DBR_XID_SFT)));
+}
+
+static void bnxt_thor_db_tx(void *db_ptr, uint16_t idx)
+{
+	struct bnxt_ring *ring = (struct bnxt_ring *) db_ptr;
+	struct bnxt_bar_info *db_bar = &ring->softc->doorbell_bar;
+
+	bus_space_barrier(db_bar->tag, db_bar->handle, ring->doorbell, 8,
+			BUS_SPACE_BARRIER_WRITE);
+	bus_space_write_8(db_bar->tag, db_bar->handle, ring->doorbell,
+			htole64((DBR_PATH_L2 | DBR_TYPE_SQ | idx) |
+				((uint64_t)ring->phys_id << DBR_XID_SFT)));
+}
+
+static void bnxt_thor_db_rx_cq(void *db_ptr, bool enable_irq)
+{
+	struct bnxt_cp_ring *cpr = (struct bnxt_cp_ring *) db_ptr;
+	struct bnxt_bar_info *db_bar = &cpr->ring.softc->doorbell_bar;
+	dbc_dbc_t db_msg = { 0 };
+	uint32_t cons = cpr->cons;
+
+	if (cons == UINT32_MAX)
+		cons = 0;
+	else
+		cons = RING_NEXT(&cpr->ring, cons);
+
+	db_msg.index = ((cons << DBC_DBC_INDEX_SFT) & DBC_DBC_INDEX_MASK);
+
+	db_msg.type_path_xid = ((cpr->ring.phys_id << DBC_DBC_XID_SFT) &
+			DBC_DBC_XID_MASK) | DBC_DBC_PATH_L2 |
+		((enable_irq) ? DBC_DBC_TYPE_CQ_ARMALL: DBC_DBC_TYPE_CQ);
+
+	bus_space_barrier(db_bar->tag, db_bar->handle, cpr->ring.doorbell, 8,
+			BUS_SPACE_BARRIER_WRITE);
+	bus_space_write_8(db_bar->tag, db_bar->handle, cpr->ring.doorbell,
+			htole64(*(uint64_t *)&db_msg));
+	bus_space_barrier(db_bar->tag, db_bar->handle, 0, db_bar->size,
+			BUS_SPACE_BARRIER_WRITE);
+}
+
+static void bnxt_thor_db_tx_cq(void *db_ptr, bool enable_irq)
+{
+	struct bnxt_cp_ring *cpr = (struct bnxt_cp_ring *) db_ptr;
+	struct bnxt_bar_info *db_bar = &cpr->ring.softc->doorbell_bar;
+	dbc_dbc_t db_msg = { 0 };
+	uint32_t cons = cpr->cons;
+
+	db_msg.index = ((cons << DBC_DBC_INDEX_SFT) & DBC_DBC_INDEX_MASK);
+
+	db_msg.type_path_xid = ((cpr->ring.phys_id << DBC_DBC_XID_SFT) &
+			DBC_DBC_XID_MASK) | DBC_DBC_PATH_L2 |
+		((enable_irq) ? DBC_DBC_TYPE_CQ_ARMALL: DBC_DBC_TYPE_CQ);
+
+	bus_space_barrier(db_bar->tag, db_bar->handle, cpr->ring.doorbell, 8,
+			BUS_SPACE_BARRIER_WRITE);
+	bus_space_write_8(db_bar->tag, db_bar->handle, cpr->ring.doorbell,
+			htole64(*(uint64_t *)&db_msg));
+	bus_space_barrier(db_bar->tag, db_bar->handle, 0, db_bar->size,
+			BUS_SPACE_BARRIER_WRITE);
+}
+
+static void bnxt_thor_db_nq(void *db_ptr, bool enable_irq)
+{
+	struct bnxt_cp_ring *cpr = (struct bnxt_cp_ring *) db_ptr;
+	struct bnxt_bar_info *db_bar = &cpr->ring.softc->doorbell_bar;
+	dbc_dbc_t db_msg = { 0 };
+	uint32_t cons = cpr->cons;
+
+	db_msg.index = ((cons << DBC_DBC_INDEX_SFT) & DBC_DBC_INDEX_MASK);
+
+	db_msg.type_path_xid = ((cpr->ring.phys_id << DBC_DBC_XID_SFT) &
+			DBC_DBC_XID_MASK) | DBC_DBC_PATH_L2 |
+		((enable_irq) ? DBC_DBC_TYPE_NQ_ARM: DBC_DBC_TYPE_NQ);
+
+	bus_space_barrier(db_bar->tag, db_bar->handle, cpr->ring.doorbell, 8,
+			BUS_SPACE_BARRIER_WRITE);
+	bus_space_write_8(db_bar->tag, db_bar->handle, cpr->ring.doorbell,
+			htole64(*(uint64_t *)&db_msg));
+	bus_space_barrier(db_bar->tag, db_bar->handle, 0, db_bar->size,
+			BUS_SPACE_BARRIER_WRITE);
+}
+
+struct bnxt_softc *bnxt_find_dev(uint32_t domain, uint32_t bus, uint32_t dev_fn, char *dev_name)
+{
+	struct bnxt_softc_list *sc = NULL;
+
+	SLIST_FOREACH(sc, &pf_list, next) {
+		/* get the softc reference based on device name */
+		if (dev_name && !strncmp(dev_name, if_name(iflib_get_ifp(sc->softc->ctx)), BNXT_MAX_STR)) {
+			return sc->softc;
+		}
+		/* get the softc reference based on domain,bus,device,function */
+		if (!dev_name &&
+		    (domain == sc->softc->domain) &&
+		    (bus == sc->softc->bus) &&
+		    (dev_fn == sc->softc->dev_fn)) {
+			return sc->softc;
+
+		}
+	}
+
+	return NULL;
 }
 
 /* Device setup and teardown */
@@ -700,6 +1268,19 @@ bnxt_attach_pre(if_ctx_t ctx)
 		break;
 	}
 
+#define PCI_DEVFN(device, func) ((((device) & 0x1f) << 3) | ((func) & 0x07))
+	softc->domain = pci_get_domain(softc->dev);
+	softc->bus = pci_get_bus(softc->dev);
+	softc->slot = pci_get_slot(softc->dev);
+	softc->function = pci_get_function(softc->dev);
+	softc->dev_fn = PCI_DEVFN(softc->slot, softc->function);
+
+	if (bnxt_num_pfs == 0)
+		  SLIST_INIT(&pf_list);
+	bnxt_num_pfs++;
+	softc->list.softc = softc;
+	SLIST_INSERT_HEAD(&pf_list, &softc->list, next);
+
 	pci_enable_busmaster(softc->dev);
 
 	if (bnxt_pci_mapping(softc))
@@ -721,9 +1302,9 @@ bnxt_attach_pre(if_ctx_t ctx)
 		goto ver_alloc_fail;
 	}
 	/* Default minimum required HWRM version */
-	softc->ver_info->hwrm_min_major = 1;
-	softc->ver_info->hwrm_min_minor = 2;
-	softc->ver_info->hwrm_min_update = 2;
+	softc->ver_info->hwrm_min_major = HWRM_VERSION_MAJOR;
+	softc->ver_info->hwrm_min_minor = HWRM_VERSION_MINOR;
+	softc->ver_info->hwrm_min_update = HWRM_VERSION_UPDATE;
 
 	rc = bnxt_hwrm_ver_get(softc);
 	if (rc) {
@@ -731,11 +1312,31 @@ bnxt_attach_pre(if_ctx_t ctx)
 		goto ver_fail;
 	}
 
-	if (softc->flags & BNXT_FLAG_SHORT_CMD) {
+	/* Now perform a function reset */
+	rc = bnxt_hwrm_func_reset(softc);
+
+	if ((softc->flags & BNXT_FLAG_SHORT_CMD) ||
+	    softc->hwrm_max_ext_req_len > BNXT_HWRM_MAX_REQ_LEN) {
 		rc = bnxt_alloc_hwrm_short_cmd_req(softc);
 		if (rc)
 			goto hwrm_short_cmd_alloc_fail;
 	}
+
+	if ((softc->ver_info->chip_num == BCM57508) ||
+	    (softc->ver_info->chip_num == BCM57504) ||
+	    (softc->ver_info->chip_num == BCM57502))
+		softc->flags |= BNXT_FLAG_CHIP_P5;
+
+	softc->flags |= BNXT_FLAG_TPA;
+
+	/* No TPA for Thor A0 */
+	if (BNXT_CHIP_P5(softc) && (!softc->ver_info->chip_rev) &&
+			(!softc->ver_info->chip_metal))
+		softc->flags &= ~BNXT_FLAG_TPA;
+
+	/* TBD ++ Add TPA support from Thor B1 */
+	if (BNXT_CHIP_P5(softc))
+		softc->flags &= ~BNXT_FLAG_TPA;
 
 	/* Get NVRAM info */
 	if (BNXT_PF(softc)) {
@@ -754,6 +1355,19 @@ bnxt_attach_pre(if_ctx_t ctx)
 		    &softc->nvm_info->available_size);
 	}
 
+	if (BNXT_CHIP_P5(softc)) {
+		softc->db_ops.bnxt_db_tx = bnxt_thor_db_tx;
+		softc->db_ops.bnxt_db_rx = bnxt_thor_db_rx;
+		softc->db_ops.bnxt_db_rx_cq = bnxt_thor_db_rx_cq;
+		softc->db_ops.bnxt_db_tx_cq = bnxt_thor_db_tx_cq;
+		softc->db_ops.bnxt_db_nq = bnxt_thor_db_nq;
+	} else {
+		softc->db_ops.bnxt_db_tx = bnxt_cuw_db_tx;
+		softc->db_ops.bnxt_db_rx = bnxt_cuw_db_rx;
+		softc->db_ops.bnxt_db_rx_cq = bnxt_cuw_db_cq;
+		softc->db_ops.bnxt_db_tx_cq = bnxt_cuw_db_cq;
+	}
+
 	/* Register the driver with the FW */
 	rc = bnxt_hwrm_func_drv_rgtr(softc);
 	if (rc) {
@@ -765,6 +1379,24 @@ bnxt_attach_pre(if_ctx_t ctx)
 	if (rc) {
 		device_printf(softc->dev, "attach: hwrm rgtr async evts failed\n");
 		goto drv_rgtr_fail;
+	}
+
+	/* Get the queue config */
+	rc = bnxt_hwrm_queue_qportcfg(softc);
+	if (rc) {
+		device_printf(softc->dev, "attach: hwrm qportcfg failed\n");
+		goto failed;
+	}
+
+	if (softc->hwrm_spec_code >= 0x10803) {
+		rc = bnxt_alloc_ctx_mem(softc);
+		if (rc) {
+			device_printf(softc->dev, "attach: alloc_ctx_mem failed\n");
+			return rc;
+		}
+		rc = bnxt_hwrm_func_resc_qcaps(softc, true);
+		if (!rc)
+			softc->flags |= BNXT_FLAG_FW_CAP_NEW_RM;
 	}
 
 	/* Get the HW capabilities */
@@ -802,14 +1434,15 @@ bnxt_attach_pre(if_ctx_t ctx)
 		scctx->isc_capenable |= IFCAP_WOL_MAGIC;
 
 	/* Get the queue config */
-	rc = bnxt_hwrm_queue_qportcfg(softc);
+	bnxt_get_wol_settings(softc);
+	if (BNXT_CHIP_P5(softc))
+		bnxt_hwrm_reserve_pf_rings(softc);
+	rc = bnxt_hwrm_func_qcfg(softc);
 	if (rc) {
-		device_printf(softc->dev, "attach: hwrm qportcfg failed\n");
+		device_printf(softc->dev, "attach: hwrm func qcfg failed\n");
 		goto failed;
 	}
 
-	/* Now perform a function reset */
-	rc = bnxt_hwrm_func_reset(softc);
 	bnxt_clear_ids(softc);
 	if (rc)
 		goto failed;
@@ -835,6 +1468,7 @@ bnxt_attach_pre(if_ctx_t ctx)
 	scctx->isc_txqsizes[0] = sizeof(struct cmpl_base) * scctx->isc_ntxd[0];
 	scctx->isc_txqsizes[1] = sizeof(struct tx_bd_short) *
 	    scctx->isc_ntxd[1];
+	scctx->isc_txqsizes[2] = sizeof(struct cmpl_base) * scctx->isc_ntxd[2];
 	scctx->isc_rxqsizes[0] = sizeof(struct cmpl_base) * scctx->isc_nrxd[0];
 	scctx->isc_rxqsizes[1] = sizeof(struct rx_prod_pkt_bd) *
 	    scctx->isc_nrxd[1];
@@ -856,23 +1490,26 @@ bnxt_attach_pre(if_ctx_t ctx)
 	/* iflib will map and release this bar */
 	scctx->isc_msix_bar = pci_msix_table_bar(softc->dev);
 
-        /* 
+        /*
          * Default settings for HW LRO (TPA):
          *  Disable HW LRO by default
          *  Can be enabled after taking care of 'packet forwarding'
          */
-	softc->hw_lro.enable = 0;
-	softc->hw_lro.is_mode_gro = 0;
-	softc->hw_lro.max_agg_segs = 5; /* 2^5 = 32 segs */
-	softc->hw_lro.max_aggs = HWRM_VNIC_TPA_CFG_INPUT_MAX_AGGS_MAX;
-	softc->hw_lro.min_agg_len = 512;
+	if (softc->flags & BNXT_FLAG_TPA) {
+		softc->hw_lro.enable = 0;
+		softc->hw_lro.is_mode_gro = 0;
+		softc->hw_lro.max_agg_segs = 5; /* 2^5 = 32 segs */
+		softc->hw_lro.max_aggs = HWRM_VNIC_TPA_CFG_INPUT_MAX_AGGS_MAX;
+		softc->hw_lro.min_agg_len = 512;
+	}
 
 	/* Allocate the default completion ring */
 	softc->def_cp_ring.stats_ctx_id = HWRM_NA_SIGNATURE;
 	softc->def_cp_ring.ring.phys_id = (uint16_t)HWRM_NA_SIGNATURE;
 	softc->def_cp_ring.ring.softc = softc;
 	softc->def_cp_ring.ring.id = 0;
-	softc->def_cp_ring.ring.doorbell = softc->def_cp_ring.ring.id * 0x80;
+	softc->def_cp_ring.ring.doorbell = (BNXT_CHIP_P5(softc)) ?
+		DB_PF_OFFSET_P5 : softc->def_cp_ring.ring.id * 0x80;
 	softc->def_cp_ring.ring.ring_size = PAGE_SIZE /
 	    sizeof(struct cmpl_base);
 	rc = iflib_dma_alloc(ctx,
@@ -915,6 +1552,8 @@ bnxt_attach_pre(if_ctx_t ctx)
 	/* Initialize the vlan list */
 	SLIST_INIT(&softc->vnic_info.vlan_tags);
 	softc->vnic_info.vlan_tag_list.idi_vaddr = NULL;
+	softc->state_bv = bit_alloc(BNXT_STATE_MAX, M_DEVBUF,
+			M_WAITOK|M_ZERO);
 
 	return (rc);
 
@@ -958,8 +1597,10 @@ bnxt_attach_post(if_ctx_t ctx)
 	bnxt_add_media_types(softc);
 	ifmedia_set(softc->media, IFM_ETHER | IFM_AUTO);
 
-	softc->scctx->isc_max_frame_size = ifp->if_mtu + ETHER_HDR_LEN +
+	softc->scctx->isc_max_frame_size = if_getmtu(ifp) + ETHER_HDR_LEN +
 	    ETHER_CRC_LEN;
+
+	softc->rx_buf_size = min(softc->scctx->isc_max_frame_size, BNXT_PAGE_SIZE);
 
 failed:
 	return rc;
@@ -973,16 +1614,23 @@ bnxt_detach(if_ctx_t ctx)
 	struct bnxt_vlan_tag *tmp;
 	int i;
 
+	SLIST_REMOVE(&pf_list, &softc->list, bnxt_softc_list, next);
+	bnxt_num_pfs--;
 	bnxt_wol_config(ctx);
 	bnxt_do_disable_intr(&softc->def_cp_ring);
 	bnxt_free_sysctl_ctx(softc);
 	bnxt_hwrm_func_reset(softc);
+	bnxt_free_ctx_mem(softc);
 	bnxt_clear_ids(softc);
 	iflib_irq_free(ctx, &softc->def_cp_ring.irq);
 	iflib_config_gtask_deinit(&softc->def_cp_task);
 	/* We need to free() these here... */
 	for (i = softc->nrxqsets-1; i>=0; i--) {
-		iflib_irq_free(ctx, &softc->rx_cp_rings[i].irq);
+		if (BNXT_CHIP_P5(softc))
+			iflib_irq_free(ctx, &softc->nq_rings[i].irq);
+		else
+			iflib_irq_free(ctx, &softc->rx_cp_rings[i].irq);
+
 	}
 	iflib_dma_free(&softc->vnic_info.mc_list);
 	iflib_dma_free(&softc->vnic_info.rss_hash_key_tbl);
@@ -1003,10 +1651,130 @@ bnxt_detach(if_ctx_t ctx)
 	bnxt_free_hwrm_short_cmd_req(softc);
 	BNXT_HWRM_LOCK_DESTROY(softc);
 
+	free(softc->state_bv, M_DEVBUF);
 	pci_disable_busmaster(softc->dev);
 	bnxt_pci_mapping_free(softc);
 
 	return 0;
+}
+
+static void
+bnxt_hwrm_resource_free(struct bnxt_softc *softc)
+{
+	int i, rc = 0;
+
+	rc = bnxt_hwrm_ring_free(softc,
+			HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL,
+			&softc->def_cp_ring.ring,
+			(uint16_t)HWRM_NA_SIGNATURE);
+	if (rc)
+		goto fail;
+
+	for (i = 0; i < softc->ntxqsets; i++) {
+		rc = bnxt_hwrm_ring_free(softc,
+				HWRM_RING_ALLOC_INPUT_RING_TYPE_TX,
+				&softc->tx_rings[i],
+				softc->tx_cp_rings[i].ring.phys_id);
+		if (rc)
+			goto fail;
+
+		rc = bnxt_hwrm_ring_free(softc,
+				HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL,
+				&softc->tx_cp_rings[i].ring,
+				(uint16_t)HWRM_NA_SIGNATURE);
+		if (rc)
+			goto fail;
+
+		rc = bnxt_hwrm_stat_ctx_free(softc, &softc->tx_cp_rings[i]);
+		if (rc)
+			goto fail;
+	}
+	rc = bnxt_hwrm_free_filter(softc);
+	if (rc)
+		goto fail;
+
+	rc = bnxt_hwrm_vnic_free(softc, &softc->vnic_info);
+	if (rc)
+		goto fail;
+
+	rc = bnxt_hwrm_vnic_ctx_free(softc, softc->vnic_info.rss_id);
+	if (rc)
+		goto fail;
+
+	for (i = 0; i < softc->nrxqsets; i++) {
+		rc = bnxt_hwrm_ring_grp_free(softc, &softc->grp_info[i]);
+		if (rc)
+			goto fail;
+
+		rc = bnxt_hwrm_ring_free(softc,
+				HWRM_RING_ALLOC_INPUT_RING_TYPE_RX_AGG,
+				&softc->ag_rings[i],
+				(uint16_t)HWRM_NA_SIGNATURE);
+		if (rc)
+			goto fail;
+
+		rc = bnxt_hwrm_ring_free(softc,
+				HWRM_RING_ALLOC_INPUT_RING_TYPE_RX,
+				&softc->rx_rings[i],
+				softc->rx_cp_rings[i].ring.phys_id);
+		if (rc)
+			goto fail;
+
+		rc = bnxt_hwrm_ring_free(softc,
+				HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL,
+				&softc->rx_cp_rings[i].ring,
+				(uint16_t)HWRM_NA_SIGNATURE);
+		if (rc)
+			goto fail;
+
+		if (BNXT_CHIP_P5(softc)) {
+			rc = bnxt_hwrm_ring_free(softc,
+					HWRM_RING_ALLOC_INPUT_RING_TYPE_NQ,
+					&softc->nq_rings[i].ring,
+					(uint16_t)HWRM_NA_SIGNATURE);
+			if (rc)
+				goto fail;
+		}
+
+		rc = bnxt_hwrm_stat_ctx_free(softc, &softc->rx_cp_rings[i]);
+		if (rc)
+			goto fail;
+	}
+
+fail:
+	return;
+}
+
+
+static void
+bnxt_func_reset(struct bnxt_softc *softc)
+{
+
+	if (!BNXT_CHIP_P5(softc)) {
+		bnxt_hwrm_func_reset(softc);
+		return;
+	}
+
+	bnxt_hwrm_resource_free(softc);
+	return;
+}
+
+static void
+bnxt_rss_grp_tbl_init(struct bnxt_softc *softc)
+{
+	uint16_t *rgt = (uint16_t *) softc->vnic_info.rss_grp_tbl.idi_vaddr;
+	int i, j;
+
+	for (i = 0, j = 0; i < HW_HASH_INDEX_SIZE; i++) {
+		if (BNXT_CHIP_P5(softc)) {
+			rgt[i++] = htole16(softc->rx_rings[j].phys_id);
+			rgt[i] = htole16(softc->rx_cp_rings[j].ring.phys_id);
+		} else {
+			rgt[i] = htole16(softc->grp_info[j].grp_id);
+		}
+		if (++j == softc->nrxqsets)
+			j = 0;
+	}
 }
 
 /* Device configuration */
@@ -1015,72 +1783,82 @@ bnxt_init(if_ctx_t ctx)
 {
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
 	struct ifmediareq ifmr;
-	int i, j;
+	int i;
 	int rc;
 
-	rc = bnxt_hwrm_func_reset(softc);
-	if (rc)
-		return;
+	if (!BNXT_CHIP_P5(softc)) {
+		rc = bnxt_hwrm_func_reset(softc);
+		if (rc)
+			return;
+	} else if (softc->is_dev_init) {
+		bnxt_stop(ctx);
+	}
+
+	softc->is_dev_init = true;
 	bnxt_clear_ids(softc);
 
+	// TBD -- Check if it is needed for Thor as well
+	if (BNXT_CHIP_P5(softc))
+		goto skip_def_cp_ring;
 	/* Allocate the default completion ring */
 	softc->def_cp_ring.cons = UINT32_MAX;
 	softc->def_cp_ring.v_bit = 1;
 	bnxt_mark_cpr_invalid(&softc->def_cp_ring);
 	rc = bnxt_hwrm_ring_alloc(softc,
-	    HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL,
-	    &softc->def_cp_ring.ring,
-	    (uint16_t)HWRM_NA_SIGNATURE,
-	    HWRM_NA_SIGNATURE, true);
+			HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL,
+			&softc->def_cp_ring.ring);
 	if (rc)
 		goto fail;
-
-	/* And now set the default CP ring as the async CP ring */
-	rc = bnxt_cfg_async_cr(softc);
-	if (rc)
-		goto fail;
-
+skip_def_cp_ring:
 	for (i = 0; i < softc->nrxqsets; i++) {
 		/* Allocate the statistics context */
 		rc = bnxt_hwrm_stat_ctx_alloc(softc, &softc->rx_cp_rings[i],
-		    softc->rx_stats.idi_paddr +
-		    (sizeof(struct ctx_hw_stats) * i));
+		    softc->rx_stats[i].idi_paddr);
 		if (rc)
 			goto fail;
 
+		if (BNXT_CHIP_P5(softc)) {
+			/* Allocate the NQ */
+			softc->nq_rings[i].cons = 0;
+			softc->nq_rings[i].v_bit = 1;
+			softc->nq_rings[i].last_idx = UINT32_MAX;
+			bnxt_mark_cpr_invalid(&softc->nq_rings[i]);
+			rc = bnxt_hwrm_ring_alloc(softc,
+					HWRM_RING_ALLOC_INPUT_RING_TYPE_NQ,
+					&softc->nq_rings[i].ring);
+			if (rc)
+				goto fail;
+
+			softc->db_ops.bnxt_db_nq(&softc->nq_rings[i], 1);
+		}
 		/* Allocate the completion ring */
 		softc->rx_cp_rings[i].cons = UINT32_MAX;
 		softc->rx_cp_rings[i].v_bit = 1;
 		softc->rx_cp_rings[i].last_idx = UINT32_MAX;
 		bnxt_mark_cpr_invalid(&softc->rx_cp_rings[i]);
 		rc = bnxt_hwrm_ring_alloc(softc,
-		    HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL,
-		    &softc->rx_cp_rings[i].ring, (uint16_t)HWRM_NA_SIGNATURE,
-		    HWRM_NA_SIGNATURE, true);
+				HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL,
+				&softc->rx_cp_rings[i].ring);
 		if (rc)
 			goto fail;
+
+		if (BNXT_CHIP_P5(softc))
+			softc->db_ops.bnxt_db_rx_cq(&softc->rx_cp_rings[i], 1);
 
 		/* Allocate the RX ring */
 		rc = bnxt_hwrm_ring_alloc(softc,
-		    HWRM_RING_ALLOC_INPUT_RING_TYPE_RX,
-		    &softc->rx_rings[i], (uint16_t)HWRM_NA_SIGNATURE,
-		    HWRM_NA_SIGNATURE, false);
+		    HWRM_RING_ALLOC_INPUT_RING_TYPE_RX, &softc->rx_rings[i]);
 		if (rc)
 			goto fail;
-		BNXT_RX_DB(&softc->rx_rings[i], 0);
-		/* TODO: Cumulus+ doesn't need the double doorbell */
-		BNXT_RX_DB(&softc->rx_rings[i], 0);
+		softc->db_ops.bnxt_db_rx(&softc->rx_rings[i], 0);
 
 		/* Allocate the AG ring */
 		rc = bnxt_hwrm_ring_alloc(softc,
-		    HWRM_RING_ALLOC_INPUT_RING_TYPE_RX,
-		    &softc->ag_rings[i], (uint16_t)HWRM_NA_SIGNATURE,
-		    HWRM_NA_SIGNATURE, false);
+				HWRM_RING_ALLOC_INPUT_RING_TYPE_RX_AGG,
+				&softc->ag_rings[i]);
 		if (rc)
 			goto fail;
-		BNXT_RX_DB(&softc->rx_rings[i], 0);
-		/* TODO: Cumulus+ doesn't need the double doorbell */
-		BNXT_RX_DB(&softc->ag_rings[i], 0);
+		softc->db_ops.bnxt_db_rx(&softc->ag_rings[i], 0);
 
 		/* Allocate the ring group */
 		softc->grp_info[i].stats_ctx =
@@ -1093,6 +1871,11 @@ bnxt_init(if_ctx_t ctx)
 		if (rc)
 			goto fail;
 	}
+
+	/* And now set the default CP / NQ ring for the async */
+	rc = bnxt_cfg_async_cr(softc);
+	if (rc)
+		goto fail;
 
 	/* Allocate the VNIC RSS context */
 	rc = bnxt_hwrm_vnic_ctx_alloc(softc, &softc->vnic_info.rss_id);
@@ -1108,18 +1891,14 @@ bnxt_init(if_ctx_t ctx)
 	rc = bnxt_hwrm_vnic_cfg(softc, &softc->vnic_info);
 	if (rc)
 		goto fail;
-	rc = bnxt_hwrm_set_filter(softc, &softc->vnic_info);
+	rc = bnxt_hwrm_vnic_set_hds(softc, &softc->vnic_info);
+	if (rc)
+		goto fail;
+	rc = bnxt_hwrm_set_filter(softc);
 	if (rc)
 		goto fail;
 
-	/* Enable RSS on the VNICs */
-	for (i = 0, j = 0; i < HW_HASH_INDEX_SIZE; i++) {
-		((uint16_t *)
-		    softc->vnic_info.rss_grp_tbl.idi_vaddr)[i] =
-		    htole16(softc->grp_info[j].grp_id);
-		if (++j == softc->nrxqsets)
-			j = 0;
-	}
+	bnxt_rss_grp_tbl_init(softc);
 
 	rc = bnxt_hwrm_rss_cfg(softc, &softc->vnic_info,
 	    softc->vnic_info.rss_hash_type);
@@ -1133,8 +1912,7 @@ bnxt_init(if_ctx_t ctx)
 	for (i = 0; i < softc->ntxqsets; i++) {
 		/* Allocate the statistics context */
 		rc = bnxt_hwrm_stat_ctx_alloc(softc, &softc->tx_cp_rings[i],
-		    softc->tx_stats.idi_paddr +
-		    (sizeof(struct ctx_hw_stats) * i));
+		    softc->tx_stats[i].idi_paddr);
 		if (rc)
 			goto fail;
 
@@ -1143,22 +1921,21 @@ bnxt_init(if_ctx_t ctx)
 		softc->tx_cp_rings[i].v_bit = 1;
 		bnxt_mark_cpr_invalid(&softc->tx_cp_rings[i]);
 		rc = bnxt_hwrm_ring_alloc(softc,
-		    HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL,
-		    &softc->tx_cp_rings[i].ring, (uint16_t)HWRM_NA_SIGNATURE,
-		    HWRM_NA_SIGNATURE, false);
+				HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL,
+				&softc->tx_cp_rings[i].ring);
 		if (rc)
 			goto fail;
 
+		if (BNXT_CHIP_P5(softc))
+			softc->db_ops.bnxt_db_tx_cq(&softc->tx_cp_rings[i], 1);
+
 		/* Allocate the TX ring */
 		rc = bnxt_hwrm_ring_alloc(softc,
-		    HWRM_RING_ALLOC_INPUT_RING_TYPE_TX,
-		    &softc->tx_rings[i], softc->tx_cp_rings[i].ring.phys_id,
-		    softc->tx_cp_rings[i].stats_ctx_id, false);
+				HWRM_RING_ALLOC_INPUT_RING_TYPE_TX,
+				&softc->tx_rings[i]);
 		if (rc)
 			goto fail;
-		BNXT_TX_DB(&softc->tx_rings[i], 0);
-		/* TODO: Cumulus+ doesn't need the double doorbell */
-		BNXT_TX_DB(&softc->tx_rings[i], 0);
+		softc->db_ops.bnxt_db_tx(&softc->tx_rings[i], 0);
 	}
 
 	bnxt_do_enable_intr(&softc->def_cp_ring);
@@ -1167,7 +1944,7 @@ bnxt_init(if_ctx_t ctx)
 	return;
 
 fail:
-	bnxt_hwrm_func_reset(softc);
+	bnxt_func_reset(softc);
 	bnxt_clear_ids(softc);
 	return;
 }
@@ -1177,8 +1954,9 @@ bnxt_stop(if_ctx_t ctx)
 {
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
 
+	softc->is_dev_init = false;
 	bnxt_do_disable_intr(&softc->def_cp_ring);
-	bnxt_hwrm_func_reset(softc);
+	bnxt_func_reset(softc);
 	bnxt_clear_ids(softc);
 	return;
 }
@@ -1235,6 +2013,7 @@ bnxt_mtu_set(if_ctx_t ctx, uint32_t mtu)
 		return EINVAL;
 
 	softc->scctx->isc_max_frame_size = mtu + ETHER_HDR_LEN + ETHER_CRC_LEN;
+	softc->rx_buf_size = min(softc->scctx->isc_max_frame_size, BNXT_PAGE_SIZE);
 	return 0;
 }
 
@@ -1263,8 +2042,8 @@ bnxt_media_status(if_ctx_t ctx, struct ifmediareq * ifmr)
 		ifmr->ifm_active |= IFM_HDX;
 
         /*
-         * Go through the list of supported media which got prepared 
-         * as part of bnxt_add_media_types() using api ifmedia_add(). 
+         * Go through the list of supported media which got prepared
+         * as part of bnxt_add_media_types() using api ifmedia_add().
          */
 	LIST_FOREACH(next, &(iflib_get_media(ctx)->ifm_list), ifm_list) {
 		if (ifmedia_baudrate(next->ifm_media) == target_baudrate) {
@@ -1274,9 +2053,9 @@ bnxt_media_status(if_ctx_t ctx, struct ifmediareq * ifmr)
 	}
 	ifmr->ifm_active |= active_media;
 
-	if (link_info->flow_ctrl.rx) 
+	if (link_info->flow_ctrl.rx)
 		ifmr->ifm_active |= IFM_ETH_RXPAUSE;
-	if (link_info->flow_ctrl.tx) 
+	if (link_info->flow_ctrl.tx)
 		ifmr->ifm_active |= IFM_ETH_TXPAUSE;
 
 	bnxt_report_link(softc);
@@ -1377,7 +2156,7 @@ bnxt_promisc_set(if_ctx_t ctx, int flags)
 	if_t ifp = iflib_get_ifp(ctx);
 	int rc;
 
-	if (ifp->if_flags & IFF_ALLMULTI ||
+	if (if_getflags(ifp) & IFF_ALLMULTI ||
 	    if_llmaddr_count(ifp) > BNXT_MAX_MC_ADDRS)
 		softc->vnic_info.rx_mask |=
 		    HWRM_CFA_L2_SET_RX_MASK_INPUT_MASK_ALL_MCAST;
@@ -1385,7 +2164,7 @@ bnxt_promisc_set(if_ctx_t ctx, int flags)
 		softc->vnic_info.rx_mask &=
 		    ~HWRM_CFA_L2_SET_RX_MASK_INPUT_MASK_ALL_MCAST;
 
-	if (ifp->if_flags & IFF_PROMISC)
+	if (if_getflags(ifp) & IFF_PROMISC)
 		softc->vnic_info.rx_mask |=
 		    HWRM_CFA_L2_SET_RX_MASK_INPUT_MASK_PROMISCUOUS |
 		    HWRM_CFA_L2_SET_RX_MASK_INPUT_MASK_ANYVLAN_NONVLAN;
@@ -1415,12 +2194,22 @@ bnxt_update_admin_status(if_ctx_t ctx)
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
 
 	/*
-	 * When SR-IOV is enabled, avoid each VF sending this HWRM 
-         * request every sec with which firmware timeouts can happen
-         */
-	if (BNXT_PF(softc)) {
-		bnxt_hwrm_port_qstats(softc);
-	}	
+	 * When SR-IOV is enabled, avoid each VF sending this HWRM
+	 * request every sec with which firmware timeouts can happen
+	 */
+	if (!BNXT_PF(softc))
+		return;
+
+	bnxt_hwrm_port_qstats(softc);
+
+	if (BNXT_CHIP_P5(softc)) {
+		struct ifmediareq ifmr;
+
+		if (bit_test(softc->state_bv, BNXT_STATE_LINK_CHANGE)) {
+			bit_clear(softc->state_bv, BNXT_STATE_LINK_CHANGE);
+			bnxt_media_status(softc->ctx, &ifmr);
+		}
+	}
 
 	return;
 }
@@ -1430,10 +2219,10 @@ bnxt_if_timer(if_ctx_t ctx, uint16_t qid)
 {
 
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
-	uint64_t ticks_now = ticks; 
+	uint64_t ticks_now = ticks;
 
         /* Schedule bnxt_update_admin_status() once per sec */
-        if (ticks_now - softc->admin_ticks >= hz) {
+	if (ticks_now - softc->admin_ticks >= hz) {
 		softc->admin_ticks = ticks_now;
 		iflib_admin_intr_deferred(ctx);
 	}
@@ -1444,20 +2233,29 @@ bnxt_if_timer(if_ctx_t ctx, uint16_t qid)
 static void inline
 bnxt_do_enable_intr(struct bnxt_cp_ring *cpr)
 {
-	if (cpr->ring.phys_id != (uint16_t)HWRM_NA_SIGNATURE) {
-		/* First time enabling, do not set index */
-		if (cpr->cons == UINT32_MAX)
-			BNXT_CP_ENABLE_DB(&cpr->ring);
-		else
-			BNXT_CP_IDX_ENABLE_DB(&cpr->ring, cpr->cons);
-	}
+	struct bnxt_softc *softc = cpr->ring.softc;
+
+	if (cpr->ring.phys_id == (uint16_t)HWRM_NA_SIGNATURE)
+		return;
+
+	if (BNXT_CHIP_P5(softc))
+		softc->db_ops.bnxt_db_nq(cpr, 1);
+	else
+		softc->db_ops.bnxt_db_rx_cq(cpr, 1);
 }
 
 static void inline
 bnxt_do_disable_intr(struct bnxt_cp_ring *cpr)
 {
-	if (cpr->ring.phys_id != (uint16_t)HWRM_NA_SIGNATURE)
-		BNXT_CP_DISABLE_DB(&cpr->ring);
+	struct bnxt_softc *softc = cpr->ring.softc;
+
+	if (cpr->ring.phys_id == (uint16_t)HWRM_NA_SIGNATURE)
+		return;
+
+	if (BNXT_CHIP_P5(softc))
+		softc->db_ops.bnxt_db_nq(cpr, 0);
+	else
+		softc->db_ops.bnxt_db_rx_cq(cpr, 0);
 }
 
 /* Enable all interrupts */
@@ -1469,7 +2267,10 @@ bnxt_intr_enable(if_ctx_t ctx)
 
 	bnxt_do_enable_intr(&softc->def_cp_ring);
 	for (i = 0; i < softc->nrxqsets; i++)
-		bnxt_do_enable_intr(&softc->rx_cp_rings[i]);
+		if (BNXT_CHIP_P5(softc))
+			softc->db_ops.bnxt_db_nq(&softc->nq_rings[i], 1);
+		else
+			softc->db_ops.bnxt_db_rx_cq(&softc->rx_cp_rings[i], 1);
 
 	return;
 }
@@ -1480,8 +2281,68 @@ bnxt_tx_queue_intr_enable(if_ctx_t ctx, uint16_t qid)
 {
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
 
-	bnxt_do_enable_intr(&softc->tx_cp_rings[qid]);
+	if (BNXT_CHIP_P5(softc))
+		softc->db_ops.bnxt_db_nq(&softc->nq_rings[qid], 1);
+	else
+		softc->db_ops.bnxt_db_rx_cq(&softc->tx_cp_rings[qid], 1);
+
 	return 0;
+}
+
+static void
+bnxt_process_cmd_cmpl(struct bnxt_softc *softc, hwrm_cmpl_t *cmd_cmpl)
+{
+	device_printf(softc->dev, "cmd sequence number %d\n",
+			cmd_cmpl->sequence_id);
+	return;
+}
+
+static void
+bnxt_process_async_msg(struct bnxt_cp_ring *cpr, tx_cmpl_t *cmpl)
+{
+	struct bnxt_softc *softc = cpr->ring.softc;
+	uint16_t type = cmpl->flags_type & TX_CMPL_TYPE_MASK;
+
+	switch (type) {
+	case HWRM_CMPL_TYPE_HWRM_DONE:
+		bnxt_process_cmd_cmpl(softc, (hwrm_cmpl_t *)cmpl);
+		break;
+	case HWRM_ASYNC_EVENT_CMPL_TYPE_HWRM_ASYNC_EVENT:
+		bnxt_handle_async_event(softc, (cmpl_base_t *) cmpl);
+		break;
+	default:
+		device_printf(softc->dev, "%s:%d Unhandled async message %x\n",
+				__FUNCTION__, __LINE__, type);
+		break;
+	}
+}
+
+static void
+process_nq(struct bnxt_softc *softc, uint16_t nqid)
+{
+	struct bnxt_cp_ring *cpr = &softc->nq_rings[nqid];
+	nq_cn_t *cmp = (nq_cn_t *) cpr->ring.vaddr;
+	bool v_bit = cpr->v_bit;
+	uint32_t cons = cpr->cons;
+	uint16_t nq_type, nqe_cnt = 0;
+
+	while (1) {
+		if (!NQ_VALID(&cmp[cons], v_bit))
+			goto done;
+
+		nq_type = NQ_CN_TYPE_MASK & cmp[cons].type;
+
+		if (nq_type != NQ_CN_TYPE_CQ_NOTIFICATION)
+			 bnxt_process_async_msg(cpr, (tx_cmpl_t *)&cmp[cons]);
+
+		NEXT_CP_CONS_V(&cpr->ring, cons, v_bit);
+		nqe_cnt++;
+	}
+done:
+	if (nqe_cnt) {
+		cpr->cons = cons;
+		cpr->v_bit = v_bit;
+	}
 }
 
 static int
@@ -1489,8 +2350,12 @@ bnxt_rx_queue_intr_enable(if_ctx_t ctx, uint16_t qid)
 {
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
 
-	bnxt_do_enable_intr(&softc->rx_cp_rings[qid]);
-	return 0;
+	if (BNXT_CHIP_P5(softc)) {
+		process_nq(softc, qid);
+		softc->db_ops.bnxt_db_nq(&softc->nq_rings[qid], 1);
+	}
+	softc->db_ops.bnxt_db_rx_cq(&softc->rx_cp_rings[qid], 1);
+        return 0;
 }
 
 /* Disable all interrupts */
@@ -1504,10 +2369,12 @@ bnxt_disable_intr(if_ctx_t ctx)
 	 * NOTE: These TX interrupts should never get enabled, so don't
 	 * update the index
 	 */
-	for (i = 0; i < softc->ntxqsets; i++)
-		bnxt_do_disable_intr(&softc->tx_cp_rings[i]);
 	for (i = 0; i < softc->nrxqsets; i++)
-		bnxt_do_disable_intr(&softc->rx_cp_rings[i]);
+		if (BNXT_CHIP_P5(softc))
+			softc->db_ops.bnxt_db_nq(&softc->nq_rings[i], 0);
+		else
+			softc->db_ops.bnxt_db_rx_cq(&softc->rx_cp_rings[i], 0);
+
 
 	return;
 }
@@ -1516,9 +2383,15 @@ static int
 bnxt_msix_intr_assign(if_ctx_t ctx, int msix)
 {
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
+	struct bnxt_cp_ring *ring;
+	struct if_irq *irq;
+	uint16_t id;
 	int rc;
 	int i;
 	char irq_name[16];
+
+	if (BNXT_CHIP_P5(softc))
+		goto skip_default_cp;
 
 	rc = iflib_irq_alloc_generic(ctx, &softc->def_cp_ring.irq,
 	    softc->def_cp_ring.ring.id + 1, IFLIB_INTR_ADMIN,
@@ -1529,11 +2402,20 @@ bnxt_msix_intr_assign(if_ctx_t ctx, int msix)
 		return rc;
 	}
 
+skip_default_cp:
 	for (i=0; i<softc->scctx->isc_nrxqsets; i++) {
+		if (BNXT_CHIP_P5(softc)) {
+			irq = &softc->nq_rings[i].irq;
+			id = softc->nq_rings[i].ring.id;
+			ring = &softc->nq_rings[i];
+		} else {
+			irq = &softc->rx_cp_rings[i].irq;
+			id = softc->rx_cp_rings[i].ring.id ;
+			ring = &softc->rx_cp_rings[i];
+		}
 		snprintf(irq_name, sizeof(irq_name), "rxq%d", i);
-		rc = iflib_irq_alloc_generic(ctx, &softc->rx_cp_rings[i].irq,
-		    softc->rx_cp_rings[i].ring.id + 1, IFLIB_INTR_RXTX,
-		    bnxt_handle_rx_cp, &softc->rx_cp_rings[i], i, irq_name);
+		rc = iflib_irq_alloc_generic(ctx, irq, id + 1, IFLIB_INTR_RX,
+				bnxt_handle_isr, ring, i, irq_name);
 		if (rc) {
 			device_printf(iflib_get_dev(ctx),
 			    "Failed to register RX completion ring handler\n");
@@ -1568,7 +2450,7 @@ bnxt_vlan_register(if_ctx_t ctx, uint16_t vtag)
 	if (new_tag == NULL)
 		return;
 	new_tag->tag = vtag;
-	new_tag->tpid = 8100;
+	new_tag->filter_id = -1;
 	SLIST_INSERT_HEAD(&softc->vnic_info.vlan_tags, new_tag, next);
 };
 
@@ -2243,12 +3125,16 @@ bnxt_report_link(struct bnxt_softc *softc)
 }
 
 static int
-bnxt_handle_rx_cp(void *arg)
+bnxt_handle_isr(void *arg)
 {
 	struct bnxt_cp_ring *cpr = arg;
+	struct bnxt_softc *softc = cpr->ring.softc;
 
+	cpr->int_count++;
 	/* Disable further interrupts for this queue */
-	BNXT_CP_DISABLE_DB(&cpr->ring);
+	if (!BNXT_CHIP_P5(softc))
+		softc->db_ops.bnxt_db_rx_cq(cpr, 0);
+
 	return FILTER_SCHEDULE_THREAD;
 }
 
@@ -2257,7 +3143,7 @@ bnxt_handle_def_cp(void *arg)
 {
 	struct bnxt_softc *softc = arg;
 
-	BNXT_CP_DISABLE_DB(&softc->def_cp_ring.ring);
+	softc->db_ops.bnxt_db_rx_cq(&softc->def_cp_ring, 0);
 	GROUPTASK_ENQUEUE(&softc->def_cp_task);
 	return FILTER_HANDLED;
 }
@@ -2269,11 +3155,18 @@ bnxt_clear_ids(struct bnxt_softc *softc)
 
 	softc->def_cp_ring.stats_ctx_id = HWRM_NA_SIGNATURE;
 	softc->def_cp_ring.ring.phys_id = (uint16_t)HWRM_NA_SIGNATURE;
+	softc->def_nq_ring.stats_ctx_id = HWRM_NA_SIGNATURE;
+	softc->def_nq_ring.ring.phys_id = (uint16_t)HWRM_NA_SIGNATURE;
 	for (i = 0; i < softc->ntxqsets; i++) {
 		softc->tx_cp_rings[i].stats_ctx_id = HWRM_NA_SIGNATURE;
 		softc->tx_cp_rings[i].ring.phys_id =
 		    (uint16_t)HWRM_NA_SIGNATURE;
 		softc->tx_rings[i].phys_id = (uint16_t)HWRM_NA_SIGNATURE;
+
+		if (!softc->nq_rings)
+			continue;
+		softc->nq_rings[i].stats_ctx_id = HWRM_NA_SIGNATURE;
+		softc->nq_rings[i].ring.phys_id = (uint16_t)HWRM_NA_SIGNATURE;
 	}
 	for (i = 0; i < softc->nrxqsets; i++) {
 		softc->rx_cp_rings[i].stats_ctx_id = HWRM_NA_SIGNATURE;
@@ -2311,7 +3204,10 @@ bnxt_handle_async_event(struct bnxt_softc *softc, struct cmpl_base *cmpl)
 	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_STATUS_CHANGE:
 	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CHANGE:
 	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CFG_CHANGE:
-		bnxt_media_status(softc->ctx, &ifmr);
+		if (BNXT_CHIP_P5(softc))
+			bit_set(softc->state_bv, BNXT_STATE_LINK_CHANGE);
+		else
+			bnxt_media_status(softc->ctx, &ifmr);
 		break;
 	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_MTU_CHANGE:
 	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_DCB_CONFIG_CHANGE:
@@ -2391,7 +3287,7 @@ bnxt_def_cp_task(void *context)
 
 	cpr->cons = last_cons;
 	cpr->v_bit = last_v_bit;
-	BNXT_CP_IDX_ENABLE_DB(&cpr->ring, cpr->cons);
+	softc->db_ops.bnxt_db_rx_cq(cpr, 1);
 }
 
 static uint8_t

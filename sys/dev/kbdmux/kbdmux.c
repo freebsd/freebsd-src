@@ -715,6 +715,9 @@ next_code:
 			evdev_sync(state->ks_evdev);
 		}
 	}
+
+	if (state->ks_evdev != NULL && evdev_is_grabbed(state->ks_evdev))
+		return (NOKEY);
 #endif
 
 	/* return the byte as is for the K_RAW mode */
@@ -1237,11 +1240,14 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		break;
 
 	case PIO_KEYMAP:	/* set keyboard translation table */
-	case OPIO_KEYMAP:	/* set keyboard translation table (compat) */
 	case PIO_KEYMAPENT:	/* set keyboard translation table entry */
 	case PIO_DEADKEYMAP:	/* set accent key translation table */
+#ifdef COMPAT_FREEBSD13
+	case OPIO_KEYMAP:	/* set keyboard translation table (compat) */
+	case OPIO_DEADKEYMAP:	/* set accent key translation table (compat) */
 		KBDMUX_LOCK(state);
-                state->ks_accents = 0;
+		state->ks_accents = 0;
+#endif /* COMPAT_FREEBSD13 */
 
 		/* perform command on all slave keyboards */
 		SLIST_FOREACH(k, &state->ks_kbds, next)

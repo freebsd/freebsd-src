@@ -28,7 +28,8 @@
  * $FreeBSD$
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/auxv.h>
 #include <sys/mman.h>
 #include <sys/resource.h>
 #include <sys/sysctl.h>
@@ -77,19 +78,23 @@ __libc_map_stacks_exec(void)
 {
 	int mib[2];
 	struct rlimit rlim;
-	u_long usrstack;
+	u_long usrstack, stacksz;
 	size_t len;
 	
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_USRSTACK;
-	len = sizeof(usrstack);
-	if (sysctl(mib, sizeof(mib) / sizeof(mib[0]), &usrstack, &len, NULL, 0)
-	    == -1)
-		return;
-	if (getrlimit(RLIMIT_STACK, &rlim) == -1)
-		return;
-	mprotect((void *)(uintptr_t)(usrstack - rlim.rlim_cur),
-	    rlim.rlim_cur, _rtld_get_stack_prot());
+	if (_elf_aux_info(AT_USRSTACKBASE, &usrstack, sizeof(usrstack)) != 0) {
+		mib[0] = CTL_KERN;
+		mib[1] = KERN_USRSTACK;
+		len = sizeof(usrstack);
+		if (sysctl(mib, nitems(mib), &usrstack, &len, NULL, 0) == -1)
+			return;
+	}
+	if (_elf_aux_info(AT_USRSTACKLIM, &stacksz, sizeof(stacksz)) != 0) {
+		if (getrlimit(RLIMIT_STACK, &rlim) == -1)
+			return;
+		stacksz = rlim.rlim_cur;
+	}
+	mprotect((void *)(uintptr_t)(usrstack - stacksz), stacksz,
+	    _rtld_get_stack_prot());
 }
 
 #pragma weak __pthread_map_stacks_exec

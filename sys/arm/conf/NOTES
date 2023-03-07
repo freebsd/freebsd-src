@@ -11,7 +11,6 @@ makeoptions	CONF_CFLAGS+="-march=armv7a"
 
 options 	FDT			# Flattened device tree support
 options 	FREEBSD_BOOT_LOADER	# Process metadata passed from loader(8)
-options 	INTRNG			# Include INTRNG framework
 options 	LINUX_BOOT_ABI		# Process metadata passed from U-Boot
 options 	PLATFORM		# Include platform_if support
 options 	SMP			# Nearly all v7 SoCs are multicore
@@ -33,6 +32,18 @@ device		pl330		# ARM PL330 dma controller
 device		pmu		# PMU support (for CCNT).
 device		twsi		# i2c controller on Marvel and Allwinner
 device		xdma		# xDMA framework for SoC on-chip dma controllers
+
+# PCI/PCIE
+device		pci
+device		pci_host_generic
+
+# Annapurna Alpine drivers
+device		al_ccu			# Alpine Cache Coherency Unit
+device		al_nb_service		# Alpine North Bridge Service
+device		al_iofic		# I/O Fabric Interrupt Controller
+device		al_serdes		# Serializer/Deserializer
+device		al_udma			# Universal DMA
+device		al_pci			# Annapurna Alpine PCI-E
 
 # Add pseudo devices...
 

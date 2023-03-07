@@ -326,4 +326,42 @@ int linux_accept(struct thread *td, struct linux_accept_args *args);
 #define	LINUX_TCP_INFO		11
 #define	LINUX_TCP_MD5SIG	14
 
+struct l_ifmap {
+	l_ulong		mem_start;
+	l_ulong		mem_end;
+	l_ushort	base_addr;
+	u_char		irq;
+	u_char		dma;
+	u_char		port;
+	/* 3 bytes spare */
+};
+
+/*
+ * Careful changing the declaration of this structure.
+ * To use FreeBSD names to access the struct l_ifreq members the
+ * member names of struct l_ifreq should be equal to the FreeBSD.
+ */
+struct l_ifreq {
+	char	ifr_name[LINUX_IFNAMSIZ];
+	union {
+		struct l_sockaddr	ifru_addr;
+		struct l_sockaddr	ifru_dstaddr;
+		struct l_sockaddr	ifru_broadaddr;
+		struct l_sockaddr	ifru_netmask;
+		struct l_sockaddr	ifru_hwaddr;
+		l_short		ifru_flags[1];
+		l_int		ifru_index;
+		l_int		ifru_mtu;
+		struct l_ifmap	ifru_map;
+		char		ifru_slave[LINUX_IFNAMSIZ];
+		char		ifru_newname[LINUX_IFNAMSIZ];
+		l_uintptr_t	ifru_data;
+	} ifr_ifru;
+};
+
+/*
+ * Define here members which are not exists in the FreeBSD struct ifreq.
+ */
+#define	ifr_hwaddr	ifr_ifru.ifru_hwaddr	/* MAC address */
+
 #endif /* _LINUX_SOCKET_H_ */

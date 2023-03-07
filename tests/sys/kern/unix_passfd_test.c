@@ -268,6 +268,66 @@ recvfd(int sockfd, int *recv_fd, int flags)
 	    CMSG_SPACE(sizeof(int)), flags);
 }
 
+#if TEST_PROTO == SOCK_STREAM
+#define	LOCAL_SENDSPACE_SYSCTL	"net.local.stream.sendspace"
+#define	LOCAL_RECVSPACE_SYSCTL	"net.local.stream.recvspace"
+#elif TEST_PROTO == SOCK_DGRAM
+#define	LOCAL_SENDSPACE_SYSCTL	"net.local.dgram.maxdgram"
+#define	LOCAL_RECVSPACE_SYSCTL	"net.local.dgram.recvspace"
+#endif
+
+static u_long
+getsendspace(void)
+{
+	u_long sendspace;
+
+	ATF_REQUIRE_MSG(sysctlbyname(LOCAL_SENDSPACE_SYSCTL, &sendspace,
+            &(size_t){sizeof(u_long)}, NULL, 0) != -1,
+	    "sysctl %s failed: %s", LOCAL_SENDSPACE_SYSCTL, strerror(errno));
+
+	return (sendspace);
+}
+
+static u_long
+getrecvspace(void)
+{
+	u_long recvspace;
+
+	ATF_REQUIRE_MSG(sysctlbyname(LOCAL_RECVSPACE_SYSCTL, &recvspace,
+            &(size_t){sizeof(u_long)}, NULL, 0) != -1,
+	    "sysctl %s failed: %s", LOCAL_RECVSPACE_SYSCTL, strerror(errno));
+
+	return (recvspace);
+}
+
+/*
+ * Fill socket to a state when next max sized send would fail with EAGAIN.
+ */
+static void
+fill(int fd)
+{
+	u_long sendspace;
+	void *buf;
+
+	sendspace = getsendspace();
+	ATF_REQUIRE((buf = malloc(sendspace)) != NULL);
+
+	ATF_REQUIRE_MSG(fcntl(fd, F_SETFL, O_NONBLOCK) != -1,
+	    "fcntl(O_NONBLOCK) failed: %s", strerror(errno));
+
+#if TEST_PROTO == SOCK_STREAM
+	do {} while (send(fd, buf, sendspace, 0) == (ssize_t)sendspace);
+#elif TEST_PROTO == SOCK_DGRAM
+	u_long recvspace = getrecvspace();
+
+	for (ssize_t sent = 0;
+	    sent + sendspace + sizeof(struct sockaddr) < recvspace;
+	    sent += sendspace + sizeof(struct sockaddr))
+		ATF_REQUIRE(send(fd, buf, sendspace, 0) == (ssize_t)sendspace);
+#endif
+	free(buf);
+}
+
 /*
  * Put a temporary file into a UNIX domain socket, then take it out and make
  * sure it's the same file.  First time around, don't close the reference
@@ -452,6 +512,40 @@ ATF_TC_BODY(send_a_lot, tc)
 }
 
 /*
+ * Exersize condition when SCM_RIGHTS is successfully internalized, but
+ * message delivery fails due to receive buffer overflow.  Check that no
+ * file descriptors are leaked.
+ */
+ATF_TC_WITHOUT_HEAD(send_overflow);
+ATF_TC_BODY(send_overflow, tc)
+{
+	void *buf;
+	ssize_t len;
+	int fd[2], putfd, nfiles;
+	int sendspace;
+
+	sendspace = (int)getsendspace();
+	ATF_REQUIRE((buf = malloc(sendspace)) != NULL);
+
+	domainsocketpair(fd);
+	fill(fd[0]);
+	nfiles = openfiles();
+	tempfile(&putfd);
+	len = sendfd_payload(fd[0], putfd, buf, sendspace);
+#if TEST_PROTO == SOCK_STREAM
+	ATF_REQUIRE_MSG(len == -1 && errno == EAGAIN,
+	    "sendmsg: %zu bytes sent, errno %d", len, errno);
+#elif TEST_PROTO == SOCK_DGRAM
+	ATF_REQUIRE_MSG(len == -1 && errno == ENOBUFS,
+	    "sendmsg: %zu bytes sent, errno %d", len, errno);
+#endif
+	close(putfd);
+	ATF_REQUIRE(nfiles == openfiles());
+	closesocketpair(fd);
+}
+
+
+/*
  * Send two files.  Then receive them.  Make sure they are returned in the
  * right order, and both get there.
  */
@@ -530,12 +624,6 @@ ATF_TC_BODY(devfs_orphan, tc)
 	closesocketpair(fd);
 }
 
-#if TEST_PROTO == SOCK_STREAM
-#define	LOCAL_SENDSPACE_SYSCTL	"net.local.stream.sendspace"
-#elif TEST_PROTO == SOCK_DGRAM
-#define	LOCAL_SENDSPACE_SYSCTL	"net.local.dgram.maxdgram"
-#endif
-
 /*
  * Test for PR 181741. Receiver sets LOCAL_CREDS, and kernel prepends a
  * control message to the data. Sender sends large payload using a non-blocking
@@ -551,12 +639,7 @@ ATF_TC_BODY(rights_creds_payload, tc)
 	void *buf;
 	int fd[2], getfd, putfd, rc;
 
-	len = sizeof(sendspace);
-	rc = sysctlbyname(LOCAL_SENDSPACE_SYSCTL, &sendspace,
-	    &len, NULL, 0);
-	ATF_REQUIRE_MSG(rc != -1,
-	    "sysctl %s failed: %s", LOCAL_SENDSPACE_SYSCTL, strerror(errno));
-
+	sendspace = getsendspace();
 	buf = calloc(1, sendspace);
 	ATF_REQUIRE(buf != NULL);
 
@@ -874,6 +957,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, send_and_cancel);
 	ATF_TP_ADD_TC(tp, send_and_shutdown);
 	ATF_TP_ADD_TC(tp, send_a_lot);
+	ATF_TP_ADD_TC(tp, send_overflow);
 	ATF_TP_ADD_TC(tp, two_files);
 	ATF_TP_ADD_TC(tp, bundle);
 	ATF_TP_ADD_TC(tp, bundle_cancel);

@@ -10,22 +10,15 @@
 //
 //===----------------------------------------------------------------===//
 #include "llvm/Analysis/MemorySSAUpdater.h"
-#include "llvm/Analysis/LoopIterator.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Analysis/IteratedDominanceFrontier.h"
+#include "llvm/Analysis/LoopIterator.h"
 #include "llvm/Analysis/MemorySSA.h"
 #include "llvm/IR/BasicBlock.h"
-#include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Dominators.h"
-#include "llvm/IR/GlobalVariable.h"
-#include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Metadata.h"
-#include "llvm/IR/Module.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/FormattedStream.h"
 #include <algorithm>
 
 #define DEBUG_TYPE "memoryssa"
@@ -243,6 +236,7 @@ MemoryAccess *MemorySSAUpdater::tryRemoveTrivialPhi(MemoryPhi *Phi,
 }
 
 void MemorySSAUpdater::insertUse(MemoryUse *MU, bool RenameUses) {
+  VisitedBlocks.clear();
   InsertedPHIs.clear();
   MU->setDefiningAccess(getPreviousDef(MU));
 
@@ -311,6 +305,13 @@ static void setMemoryPhiValueForBlock(MemoryPhi *MP, const BasicBlock *BB,
 // point to the correct new defs, to ensure we only have one variable, and no
 // disconnected stores.
 void MemorySSAUpdater::insertDef(MemoryDef *MD, bool RenameUses) {
+  // Don't bother updating dead code.
+  if (!MSSA->DT->isReachableFromEntry(MD->getBlock())) {
+    MD->setDefiningAccess(MSSA->getLiveOnEntryDef());
+    return;
+  }
+
+  VisitedBlocks.clear();
   InsertedPHIs.clear();
 
   // See if we had a local def, and if not, go hunting.
@@ -427,10 +428,10 @@ void MemorySSAUpdater::insertDef(MemoryDef *MD, bool RenameUses) {
   if (NewPhiSize)
     tryRemoveTrivialPhis(ArrayRef<WeakVH>(&InsertedPHIs[NewPhiIndex], NewPhiSize));
 
-  // Now that all fixups are done, rename all uses if we are asked. Skip
-  // renaming for defs in unreachable blocks.
+  // Now that all fixups are done, rename all uses if we are asked. The defs are
+  // guaranteed to be in reachable code due to the check at the method entry.
   BasicBlock *StartBlock = MD->getBlock();
-  if (RenameUses && MSSA->getDomTree().getNode(StartBlock)) {
+  if (RenameUses) {
     SmallPtrSet<BasicBlock *, 16> Visited;
     // We are guaranteed there is a def in the block, because we just got it
     // handed to us in this function.
@@ -450,7 +451,7 @@ void MemorySSAUpdater::insertDef(MemoryDef *MD, bool RenameUses) {
     }
     // Existing Phi blocks may need renaming too, if an access was previously
     // optimized and the inserted Defs "covers" the Optimized value.
-    for (auto &MP : ExistingPhis) {
+    for (const auto &MP : ExistingPhis) {
       MemoryPhi *Phi = dyn_cast_or_null<MemoryPhi>(MP);
       if (Phi)
         MSSA->renamePass(Phi->getBlock(), nullptr, Visited);
@@ -461,7 +462,7 @@ void MemorySSAUpdater::insertDef(MemoryDef *MD, bool RenameUses) {
 void MemorySSAUpdater::fixupDefs(const SmallVectorImpl<WeakVH> &Vars) {
   SmallPtrSet<const BasicBlock *, 8> Seen;
   SmallVector<const BasicBlock *, 16> Worklist;
-  for (auto &Var : Vars) {
+  for (const auto &Var : Vars) {
     MemoryAccess *NewDef = dyn_cast_or_null<MemoryAccess>(Var);
     if (!NewDef)
       continue;
@@ -743,10 +744,10 @@ void MemorySSAUpdater::updateForClonedLoop(const LoopBlocksRPO &LoopBlocks,
     cloneUsesAndDefs(BB, NewBlock, VMap, MPhiMap);
   };
 
-  for (auto BB : llvm::concat<BasicBlock *const>(LoopBlocks, ExitBlocks))
+  for (auto *BB : llvm::concat<BasicBlock *const>(LoopBlocks, ExitBlocks))
     ProcessBlock(BB);
 
-  for (auto BB : llvm::concat<BasicBlock *const>(LoopBlocks, ExitBlocks))
+  for (auto *BB : llvm::concat<BasicBlock *const>(LoopBlocks, ExitBlocks))
     if (MemoryPhi *MPhi = MSSA->getMemoryAccess(BB))
       if (MemoryAccess *NewPhi = MPhiMap.lookup(MPhi))
         FixPhiIncomingValues(MPhi, cast<MemoryPhi>(NewPhi));
@@ -810,7 +811,7 @@ void MemorySSAUpdater::applyUpdates(ArrayRef<CFGUpdate> Updates,
   SmallVector<CFGUpdate, 4> DeleteUpdates;
   SmallVector<CFGUpdate, 4> RevDeleteUpdates;
   SmallVector<CFGUpdate, 4> InsertUpdates;
-  for (auto &Update : Updates) {
+  for (const auto &Update : Updates) {
     if (Update.getKind() == DT.Insert)
       InsertUpdates.push_back({DT.Insert, Update.getFrom(), Update.getTo()});
     else {
@@ -957,7 +958,7 @@ void MemorySSAUpdater::applyInsertUpdates(ArrayRef<CFGUpdate> Updates,
   };
   SmallDenseMap<BasicBlock *, PredInfo> PredMap;
 
-  for (auto &Edge : Updates) {
+  for (const auto &Edge : Updates) {
     BasicBlock *BB = Edge.getTo();
     auto &AddedBlockSet = PredMap[BB].Added;
     AddedBlockSet.insert(Edge.getFrom());
@@ -1002,7 +1003,7 @@ void MemorySSAUpdater::applyInsertUpdates(ArrayRef<CFGUpdate> Updates,
 
   // First create MemoryPhis in all blocks that don't have one. Create in the
   // order found in Updates, not in PredMap, to get deterministic numbering.
-  for (auto &Edge : Updates) {
+  for (const auto &Edge : Updates) {
     BasicBlock *BB = Edge.getTo();
     if (PredMap.count(BB) && !MSSA->getMemoryAccess(BB))
       InsertedPhis.push_back(MSSA->createMemoryPhi(BB));
@@ -1399,7 +1400,7 @@ void MemorySSAUpdater::removeBlocks(
 }
 
 void MemorySSAUpdater::tryRemoveTrivialPhis(ArrayRef<WeakVH> UpdatedPHIs) {
-  for (auto &VH : UpdatedPHIs)
+  for (const auto &VH : UpdatedPHIs)
     if (auto *MPhi = cast_or_null<MemoryPhi>(VH))
       tryRemoveTrivialPhi(MPhi);
 }

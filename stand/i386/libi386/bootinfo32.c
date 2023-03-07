@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bootinfo.h>
 #include <machine/metadata.h>
 #include "bootstrap.h"
+#include "modinfo.h"
 #include "libi386.h"
 #include "btxv86.h"
 
@@ -41,91 +42,7 @@ __FBSDID("$FreeBSD$");
 #include "geliboot.h"
 #endif
 
-static struct bootinfo  bi;
-
-/*
- * Copy module-related data into the load area, where it can be
- * used as a directory for loaded modules.
- *
- * Module data is presented in a self-describing format.  Each datum
- * is preceded by a 32-bit identifier and a 32-bit size field.
- *
- * Currently, the following data are saved:
- *
- * MOD_NAME	(variable)		module name (string)
- * MOD_TYPE	(variable)		module type (string)
- * MOD_ARGS	(variable)		module parameters (string)
- * MOD_ADDR	sizeof(vm_offset_t)	module load address
- * MOD_SIZE	sizeof(size_t)		module size
- * MOD_METADATA	(variable)		type-specific metadata
- */
-#define COPY32(v, a, c) {			\
-    uint32_t	x = (v);			\
-    if (c)					\
-	i386_copyin(&x, a, sizeof(x));		\
-    a += sizeof(x);				\
-}
-
-#define MOD_STR(t, a, s, c) {			\
-    COPY32(t, a, c);				\
-    COPY32(strlen(s) + 1, a, c);		\
-    if (c)					\
-	i386_copyin(s, a, strlen(s) + 1);	\
-    a += roundup(strlen(s) + 1, sizeof(u_long));\
-}
-
-#define MOD_NAME(a, s, c)	MOD_STR(MODINFO_NAME, a, s, c)
-#define MOD_TYPE(a, s, c)	MOD_STR(MODINFO_TYPE, a, s, c)
-#define MOD_ARGS(a, s, c)	MOD_STR(MODINFO_ARGS, a, s, c)
-
-#define MOD_VAR(t, a, s, c) {			\
-    COPY32(t, a, c);				\
-    COPY32(sizeof(s), a, c);			\
-    if (c)					\
-	i386_copyin(&s, a, sizeof(s));		\
-    a += roundup(sizeof(s), sizeof(u_long));	\
-}
-
-#define MOD_ADDR(a, s, c)	MOD_VAR(MODINFO_ADDR, a, s, c)
-#define MOD_SIZE(a, s, c)	MOD_VAR(MODINFO_SIZE, a, s, c)
-
-#define MOD_METADATA(a, mm, c) {		\
-    COPY32(MODINFO_METADATA | mm->md_type, a, c); \
-    COPY32(mm->md_size, a, c);			\
-    if (c)					\
-	i386_copyin(mm->md_data, a, mm->md_size); \
-    a += roundup(mm->md_size, sizeof(u_long));\
-}
-
-#define MOD_END(a, c) {				\
-    COPY32(MODINFO_END, a, c);			\
-    COPY32(0, a, c);				\
-}
-
-static vm_offset_t
-bi_copymodules32(vm_offset_t addr)
-{
-    struct preloaded_file	*fp;
-    struct file_metadata	*md;
-    int				c;
-
-    c = addr != 0;
-    /* start with the first module on the list, should be the kernel */
-    for (fp = file_findfile(NULL, NULL); fp != NULL; fp = fp->f_next) {
-
-	MOD_NAME(addr, fp->f_name, c);	/* this field must come first */
-	MOD_TYPE(addr, fp->f_type, c);
-	if (fp->f_args)
-	    MOD_ARGS(addr, fp->f_args, c);
-	MOD_ADDR(addr, fp->f_addr, c);
-	MOD_SIZE(addr, fp->f_size, c);
-	for (md = fp->f_metadata; md != NULL; md = md->md_next)
-	    if (!(md->md_type & MODINFOMD_NOCOPY))
-		MOD_METADATA(addr, md, c);
-    }
-    MOD_END(addr, c);
-    return(addr);
-}
+static struct bootinfo  *bi;
 
 /*
  * Load the information expected by an i386 kernel.
@@ -174,11 +91,12 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
     /* XXX - use a default bootdev of 0.  Is this ok??? */
     bootdevnr = 0;
 
+    bi = calloc(sizeof(*bi), 1);
     switch(rootdev->dd.d_dev->dv_type) {
     case DEVT_CD:
     case DEVT_DISK:
 	/* pass in the BIOS device number of the current disk */
-	bi.bi_bios_dev = bd_unit2bios(rootdev);
+	bi->bi_bios_dev = bd_unit2bios(rootdev);
 	bootdevnr = bd_getdev(rootdev);
 	break;
 
@@ -209,7 +127,7 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
 
     /* copy our environment */
     envp = addr;
-    addr = bi_copyenv(addr);
+    addr = md_copyenv(addr);
 
     /* pad to a page boundary */
     addr = roundup(addr, PAGE_SIZE);
@@ -231,7 +149,7 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
 
     /* Figure out the size and location of the metadata */
     *modulep = addr;
-    size = bi_copymodules32(0);
+    size = md_copymodules(0, false);
     kernend = roundup(addr + size, PAGE_SIZE);
     *kernendp = kernend;
 
@@ -240,7 +158,7 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
     bcopy(&kernend, md->md_data, sizeof kernend);
 
     /* copy module list and metadata */
-    (void)bi_copymodules32(addr);
+    (void)md_copymodules(addr, false);
 
     ssym = esym = 0;
     md = file_findmetadata(kfp, MODINFOMD_SSYM);
@@ -255,27 +173,22 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
     /* legacy bootinfo structure */
     kernelname = getenv("kernelname");
     i386_getdev(NULL, kernelname, &kernelpath);
-    bi.bi_version = BOOTINFO_VERSION;
-    bi.bi_kernelname = 0;		/* XXX char * -> kernel name */
-    bi.bi_nfs_diskless = 0;		/* struct nfs_diskless * */
-    bi.bi_n_bios_used = 0;		/* XXX would have to hook biosdisk driver for these */
-    for (i = 0; i < N_BIOS_GEOM; i++)
-        bi.bi_bios_geom[i] = bd_getbigeom(i);
-    bi.bi_size = sizeof(bi);
-    bi.bi_memsizes_valid = 1;
-    bi.bi_basemem = bios_basemem / 1024;
-    bi.bi_extmem = bios_extmem / 1024;
-    bi.bi_envp = envp;
-    bi.bi_modulep = *modulep;
-    bi.bi_kernend = kernend;
-    bi.bi_kernelname = VTOP(kernelpath);
-    bi.bi_symtab = ssym;       /* XXX this is only the primary kernel symtab */
-    bi.bi_esymtab = esym;
+    bi->bi_version = BOOTINFO_VERSION;
+    bi->bi_size = sizeof(*bi);
+    bi->bi_memsizes_valid = 1;
+    bi->bi_basemem = bios_basemem / 1024;
+    bi->bi_extmem = bios_extmem / 1024;
+    bi->bi_envp = envp;
+    bi->bi_modulep = *modulep;
+    bi->bi_kernend = kernend;
+    bi->bi_kernelname = VTOP(kernelpath);
+    bi->bi_symtab = ssym;       /* XXX this is only the primary kernel symtab */
+    bi->bi_esymtab = esym;
 
     /* legacy boot arguments */
     *howtop = howto | RB_BOOTINFO;
     *bootdevp = bootdevnr;
-    *bip = VTOP(&bi);
+    *bip = VTOP(bi);
 
     return(0);
 }

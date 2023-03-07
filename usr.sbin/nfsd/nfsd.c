@@ -170,8 +170,8 @@ main(int argc, char **argv)
 	int udpflag, ecode, error, s;
 	int bindhostc, bindanyflag, rpcbreg, rpcbregcnt;
 	int nfssvc_addsock;
-	int longindex = 0;
-	size_t nfs_minvers_size;
+	int jailed, longindex = 0;
+	size_t jailed_size, nfs_minvers_size;
 	const char *lopt;
 	char **bindhost = NULL;
 	pid_t pid;
@@ -465,7 +465,21 @@ main(int argc, char **argv)
 	/* This system call will fail for old kernels, but that's ok. */
 	nfssvc(NFSSVC_BACKUPSTABLE, NULL);
 	if (nfssvc(NFSSVC_STABLERESTART, (caddr_t)&stablefd) < 0) {
-		syslog(LOG_ERR, "Can't read stable storage file: %m\n");
+		if (errno == EPERM) {
+			jailed = 0;
+			jailed_size = sizeof(jailed);
+			sysctlbyname("security.jail.jailed", &jailed,
+			    &jailed_size, NULL, 0);
+			if (jailed != 0)
+				syslog(LOG_ERR, "nfssvc stablerestart failed: "
+				    "allow.nfsd might not be configured");
+			else
+				syslog(LOG_ERR, "nfssvc stablerestart failed");
+		} else if (errno == ENXIO)
+			syslog(LOG_ERR, "nfssvc stablerestart failed: is nfsd "
+			    "already running?");
+		else
+			syslog(LOG_ERR, "Can't read stable storage file: %m\n");
 		exit(1);
 	}
 	nfssvc_addsock = NFSSVC_NFSDADDSOCK;

@@ -11,20 +11,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/Host.h"
-#include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Config/llvm-config.h"
-#include "llvm/Support/BCD.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/X86TargetParser.h"
 #include "llvm/Support/raw_ostream.h"
-#include <assert.h>
 #include <string.h>
 
 // Include the platform-specific parts of this class.
@@ -38,14 +33,22 @@
 #ifdef _MSC_VER
 #include <intrin.h>
 #endif
-#if defined(__APPLE__) && (!defined(__x86_64__))
+#ifdef __MVS__
+#include "llvm/Support/BCD.h"
+#endif
+#if defined(__APPLE__)
 #include <mach/host_info.h>
 #include <mach/mach.h>
 #include <mach/mach_host.h>
 #include <mach/machine.h>
+#include <sys/param.h>
+#include <sys/sysctl.h>
 #endif
 #ifdef _AIX
 #include <sys/systemcfg.h>
+#endif
+#if defined(__sun__) && defined(__svr4__)
+#include <kstat.h>
 #endif
 
 #define DEBUG_TYPE "host-detection"
@@ -336,7 +339,7 @@ StringRef getCPUNameFromS390Model(unsigned int Id, bool HaveVectorSupport) {
     case 3931:
     case 3932:
     default:
-      return HaveVectorSupport? "arch14" : "zEC12";
+      return HaveVectorSupport? "z16" : "zEC12";
   }
 }
 } // end anonymous namespace
@@ -384,6 +387,26 @@ StringRef sys::detail::getHostCPUNameForS390x(StringRef ProcCpuinfoContent) {
   }
 
   return "generic";
+}
+
+StringRef sys::detail::getHostCPUNameForRISCV(StringRef ProcCpuinfoContent) {
+  // There are 24 lines in /proc/cpuinfo
+  SmallVector<StringRef> Lines;
+  ProcCpuinfoContent.split(Lines, "\n");
+
+  // Look for uarch line to determine cpu name
+  StringRef UArch;
+  for (unsigned I = 0, E = Lines.size(); I != E; ++I) {
+    if (Lines[I].startswith("uarch")) {
+      UArch = Lines[I].substr(5).ltrim("\t :");
+      break;
+    }
+  }
+
+  return StringSwitch<const char *>(UArch)
+      .Case("sifive,u74-mc", "sifive-u74")
+      .Case("sifive,bullet0", "sifive-u74")
+      .Default("generic");
 }
 
 StringRef sys::detail::getHostCPUNameForBPF() {
@@ -1040,9 +1063,9 @@ getAMDProcessorTypeAndSubtype(unsigned Family, unsigned Model,
   case 25:
     CPU = "znver3";
     *Type = X86::AMDFAM19H;
-    if (Model <= 0x0f) {
+    if (Model <= 0x0f || Model == 0x21) {
       *Subtype = X86::AMDFAM19H_ZNVER3;
-      break; // 00h-0Fh: Zen3
+      break; // 00h-0Fh, 21h: Zen3
     }
     break;
   default:
@@ -1305,32 +1328,45 @@ StringRef sys::getHostCPUName() {
   bool HaveVectorSupport = CVT[244] & 0x80;
   return getCPUNameFromS390Model(Id, HaveVectorSupport);
 }
-#elif defined(__APPLE__) && defined(__aarch64__)
-StringRef sys::getHostCPUName() {
-  return "cyclone";
-}
-#elif defined(__APPLE__) && defined(__arm__)
-StringRef sys::getHostCPUName() {
-  host_basic_info_data_t hostInfo;
-  mach_msg_type_number_t infoCount;
+#elif defined(__APPLE__) && (defined(__arm__) || defined(__aarch64__))
+#define CPUFAMILY_ARM_SWIFT 0x1e2d6381
+#define CPUFAMILY_ARM_CYCLONE 0x37a09642
+#define CPUFAMILY_ARM_TYPHOON 0x2c91a47e
+#define CPUFAMILY_ARM_TWISTER 0x92fb37c8
+#define CPUFAMILY_ARM_HURRICANE 0x67ceee93
+#define CPUFAMILY_ARM_MONSOON_MISTRAL 0xe81e7ef6
+#define CPUFAMILY_ARM_VORTEX_TEMPEST 0x07d34b9f
+#define CPUFAMILY_ARM_LIGHTNING_THUNDER 0x462504d2
+#define CPUFAMILY_ARM_FIRESTORM_ICESTORM 0x1b588bb3
 
-  infoCount = HOST_BASIC_INFO_COUNT;
-  mach_port_t hostPort = mach_host_self();
-  host_info(hostPort, HOST_BASIC_INFO, (host_info_t)&hostInfo,
-            &infoCount);
-  mach_port_deallocate(mach_task_self(), hostPort);
+StringRef sys::getHostCPUName() {
+  uint32_t Family;
+  size_t Length = sizeof(Family);
+  sysctlbyname("hw.cpufamily", &Family, &Length, NULL, 0);
 
-  if (hostInfo.cpu_type != CPU_TYPE_ARM) {
-    assert(false && "CPUType not equal to ARM should not be possible on ARM");
-    return "generic";
+  switch (Family) {
+  case CPUFAMILY_ARM_SWIFT:
+    return "swift";
+  case CPUFAMILY_ARM_CYCLONE:
+    return "apple-a7";
+  case CPUFAMILY_ARM_TYPHOON:
+    return "apple-a8";
+  case CPUFAMILY_ARM_TWISTER:
+    return "apple-a9";
+  case CPUFAMILY_ARM_HURRICANE:
+    return "apple-a10";
+  case CPUFAMILY_ARM_MONSOON_MISTRAL:
+    return "apple-a11";
+  case CPUFAMILY_ARM_VORTEX_TEMPEST:
+    return "apple-a12";
+  case CPUFAMILY_ARM_LIGHTNING_THUNDER:
+    return "apple-a13";
+  case CPUFAMILY_ARM_FIRESTORM_ICESTORM:
+    return "apple-m1";
+  default:
+    // Default to the newest CPU we know about.
+    return "apple-m1";
   }
-  switch (hostInfo.cpu_subtype) {
-    case CPU_SUBTYPE_ARM_V7S:
-      return "swift";
-    default:;
-    }
-
-  return "generic";
 }
 #elif defined(_AIX)
 StringRef sys::getHostCPUName() {
@@ -1366,12 +1402,123 @@ StringRef sys::getHostCPUName() {
 }
 #elif defined(__riscv)
 StringRef sys::getHostCPUName() {
+#if defined(__linux__)
+  std::unique_ptr<llvm::MemoryBuffer> P = getProcCpuinfoContent();
+  StringRef Content = P ? P->getBuffer() : "";
+  return detail::getHostCPUNameForRISCV(Content);
+#else
 #if __riscv_xlen == 64
   return "generic-rv64";
 #elif __riscv_xlen == 32
   return "generic-rv32";
 #else
 #error "Unhandled value of __riscv_xlen"
+#endif
+#endif
+}
+#elif defined(__sparc__)
+#if defined(__linux__)
+StringRef sys::detail::getHostCPUNameForSPARC(StringRef ProcCpuinfoContent) {
+  SmallVector<StringRef> Lines;
+  ProcCpuinfoContent.split(Lines, "\n");
+
+  // Look for cpu line to determine cpu name
+  StringRef Cpu;
+  for (unsigned I = 0, E = Lines.size(); I != E; ++I) {
+    if (Lines[I].startswith("cpu")) {
+      Cpu = Lines[I].substr(5).ltrim("\t :");
+      break;
+    }
+  }
+
+  return StringSwitch<const char *>(Cpu)
+      .StartsWith("SuperSparc", "supersparc")
+      .StartsWith("HyperSparc", "hypersparc")
+      .StartsWith("SpitFire", "ultrasparc")
+      .StartsWith("BlackBird", "ultrasparc")
+      .StartsWith("Sabre", " ultrasparc")
+      .StartsWith("Hummingbird", "ultrasparc")
+      .StartsWith("Cheetah", "ultrasparc3")
+      .StartsWith("Jalapeno", "ultrasparc3")
+      .StartsWith("Jaguar", "ultrasparc3")
+      .StartsWith("Panther", "ultrasparc3")
+      .StartsWith("Serrano", "ultrasparc3")
+      .StartsWith("UltraSparc T1", "niagara")
+      .StartsWith("UltraSparc T2", "niagara2")
+      .StartsWith("UltraSparc T3", "niagara3")
+      .StartsWith("UltraSparc T4", "niagara4")
+      .StartsWith("UltraSparc T5", "niagara4")
+      .StartsWith("LEON", "leon3")
+      // niagara7/m8 not supported by LLVM yet.
+      .StartsWith("SPARC-M7", "niagara4" /* "niagara7" */)
+      .StartsWith("SPARC-S7", "niagara4" /* "niagara7" */)
+      .StartsWith("SPARC-M8", "niagara4" /* "m8" */)
+      .Default("generic");
+}
+#endif
+
+StringRef sys::getHostCPUName() {
+#if defined(__linux__)
+  std::unique_ptr<llvm::MemoryBuffer> P = getProcCpuinfoContent();
+  StringRef Content = P ? P->getBuffer() : "";
+  return detail::getHostCPUNameForSPARC(Content);
+#elif defined(__sun__) && defined(__svr4__)
+  char *buf = NULL;
+  kstat_ctl_t *kc;
+  kstat_t *ksp;
+  kstat_named_t *brand = NULL;
+
+  kc = kstat_open();
+  if (kc != NULL) {
+    ksp = kstat_lookup(kc, const_cast<char *>("cpu_info"), -1, NULL);
+    if (ksp != NULL && kstat_read(kc, ksp, NULL) != -1 &&
+        ksp->ks_type == KSTAT_TYPE_NAMED)
+      brand =
+          (kstat_named_t *)kstat_data_lookup(ksp, const_cast<char *>("brand"));
+    if (brand != NULL && brand->data_type == KSTAT_DATA_STRING)
+      buf = KSTAT_NAMED_STR_PTR(brand);
+  }
+  kstat_close(kc);
+
+  return StringSwitch<const char *>(buf)
+      .Case("TMS390S10", "supersparc") // Texas Instruments microSPARC I
+      .Case("TMS390Z50", "supersparc") // Texas Instruments SuperSPARC I
+      .Case("TMS390Z55",
+            "supersparc") // Texas Instruments SuperSPARC I with SuperCache
+      .Case("MB86904", "supersparc") // Fujitsu microSPARC II
+      .Case("MB86907", "supersparc") // Fujitsu TurboSPARC
+      .Case("RT623", "hypersparc")   // Ross hyperSPARC
+      .Case("RT625", "hypersparc")
+      .Case("RT626", "hypersparc")
+      .Case("UltraSPARC-I", "ultrasparc")
+      .Case("UltraSPARC-II", "ultrasparc")
+      .Case("UltraSPARC-IIe", "ultrasparc")
+      .Case("UltraSPARC-IIi", "ultrasparc")
+      .Case("SPARC64-III", "ultrasparc")
+      .Case("SPARC64-IV", "ultrasparc")
+      .Case("UltraSPARC-III", "ultrasparc3")
+      .Case("UltraSPARC-III+", "ultrasparc3")
+      .Case("UltraSPARC-IIIi", "ultrasparc3")
+      .Case("UltraSPARC-IIIi+", "ultrasparc3")
+      .Case("UltraSPARC-IV", "ultrasparc3")
+      .Case("UltraSPARC-IV+", "ultrasparc3")
+      .Case("SPARC64-V", "ultrasparc3")
+      .Case("SPARC64-VI", "ultrasparc3")
+      .Case("SPARC64-VII", "ultrasparc3")
+      .Case("UltraSPARC-T1", "niagara")
+      .Case("UltraSPARC-T2", "niagara2")
+      .Case("UltraSPARC-T2", "niagara2")
+      .Case("UltraSPARC-T2+", "niagara2")
+      .Case("SPARC-T3", "niagara3")
+      .Case("SPARC-T4", "niagara4")
+      .Case("SPARC-T5", "niagara4")
+      // niagara7/m8 not supported by LLVM yet.
+      .Case("SPARC-M7", "niagara4" /* "niagara7" */)
+      .Case("SPARC-S7", "niagara4" /* "niagara7" */)
+      .Case("SPARC-M8", "niagara4" /* "m8" */)
+      .Default("generic");
+#else
+  return "generic";
 #endif
 }
 #else
@@ -1461,9 +1608,6 @@ int computeHostNumPhysicalCores() {
 #elif defined(__linux__) && defined(__s390x__)
 int computeHostNumPhysicalCores() { return sysconf(_SC_NPROCESSORS_ONLN); }
 #elif defined(__APPLE__)
-#include <sys/param.h>
-#include <sys/sysctl.h>
-
 // Gets the number of *physical cores* on the machine.
 int computeHostNumPhysicalCores() {
   uint32_t count;
@@ -1590,6 +1734,7 @@ bool sys::getHostCPUFeatures(StringMap<bool> &Features) {
   bool HasExtLeaf8 = MaxExtLevel >= 0x80000008 &&
                      !getX86CpuIDAndInfo(0x80000008, &EAX, &EBX, &ECX, &EDX);
   Features["clzero"]   = HasExtLeaf8 && ((EBX >> 0) & 1);
+  Features["rdpru"]    = HasExtLeaf8 && ((EBX >> 4) & 1);
   Features["wbnoinvd"] = HasExtLeaf8 && ((EBX >> 9) & 1);
 
   bool HasLeaf7 =
@@ -1712,6 +1857,9 @@ bool sys::getHostCPUFeatures(StringMap<bool> &Features) {
                                    .Case("asimd", "neon")
                                    .Case("fp", "fp-armv8")
                                    .Case("crc32", "crc")
+                                   .Case("atomics", "lse")
+                                   .Case("sve", "sve")
+                                   .Case("sve2", "sve2")
 #else
                                    .Case("half", "fp16")
                                    .Case("neon", "neon")

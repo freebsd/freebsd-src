@@ -89,7 +89,7 @@ __FBSDID("$FreeBSD$");
 #include "a10_sramc.h"
 
 struct emac_softc {
-	struct ifnet		*emac_ifp;
+	if_t			emac_ifp;
 	device_t		emac_dev;
 	device_t		emac_miibus;
 	bus_space_handle_t	emac_handle;
@@ -118,11 +118,11 @@ static int	emac_sys_setup(struct emac_softc *);
 static void	emac_reset(struct emac_softc *);
 
 static void	emac_init_locked(struct emac_softc *);
-static void	emac_start_locked(struct ifnet *);
+static void	emac_start_locked(if_t);
 static void	emac_init(void *);
 static void	emac_stop_locked(struct emac_softc *);
 static void	emac_intr(void *);
-static int	emac_ioctl(struct ifnet *, u_long, caddr_t);
+static int	emac_ioctl(if_t, u_long, caddr_t);
 
 static void	emac_rxeof(struct emac_softc *, int);
 static void	emac_txeof(struct emac_softc *, uint32_t);
@@ -131,8 +131,8 @@ static int	emac_miibus_readreg(device_t, int, int);
 static int	emac_miibus_writereg(device_t, int, int, int);
 static void	emac_miibus_statchg(device_t);
 
-static int	emac_ifmedia_upd(struct ifnet *);
-static void	emac_ifmedia_sts(struct ifnet *, struct ifmediareq *);
+static int	emac_ifmedia_upd(if_t);
+static void	emac_ifmedia_sts(if_t, struct ifmediareq *);
 
 static int	sysctl_int_range(SYSCTL_HANDLER_ARGS, int, int);
 static int	sysctl_hw_emac_proc_limit(SYSCTL_HANDLER_ARGS);
@@ -232,7 +232,7 @@ emac_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 static void
 emac_set_rx_mode(struct emac_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t hashes[2];
 	uint32_t rcr = 0;
 
@@ -248,7 +248,7 @@ emac_set_rx_mode(struct emac_softc *sc)
 
 	hashes[0] = 0;
 	hashes[1] = 0;
-	if (ifp->if_flags & IFF_ALLMULTI) {
+	if (if_getflags(ifp) & IFF_ALLMULTI) {
 		hashes[0] = 0xffffffff;
 		hashes[1] = 0xffffffff;
 	} else
@@ -258,12 +258,12 @@ emac_set_rx_mode(struct emac_softc *sc)
 	EMAC_WRITE_REG(sc, EMAC_RX_HASH0, hashes[0]);
 	EMAC_WRITE_REG(sc, EMAC_RX_HASH1, hashes[1]);
 
-	if (ifp->if_flags & IFF_BROADCAST) {
+	if (if_getflags(ifp) & IFF_BROADCAST) {
 		rcr |= EMAC_RX_BCO;
 		rcr |= EMAC_RX_MCO;
 	}
 
-	if (ifp->if_flags & IFF_PROMISC)
+	if (if_getflags(ifp) & IFF_PROMISC)
 		rcr |= EMAC_RX_PA;
 	else
 		rcr |= EMAC_RX_UCAD;
@@ -292,7 +292,7 @@ emac_drain_rxfifo(struct emac_softc *sc)
 static void
 emac_txeof(struct emac_softc *sc, uint32_t status)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 
 	EMAC_ASSERT_LOCKED(sc);
 
@@ -303,7 +303,7 @@ emac_txeof(struct emac_softc *sc, uint32_t status)
 		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 2);
 	else
 		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 
 	/* Unarm watchdog timer if no TX */
 	sc->emac_watchdog_timer = 0;
@@ -312,7 +312,7 @@ emac_txeof(struct emac_softc *sc, uint32_t status)
 static void
 emac_rxeof(struct emac_softc *sc, int count)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	struct mbuf *m, *m0;
 	uint32_t reg_val, rxcount;
 	int16_t len;
@@ -321,7 +321,7 @@ emac_rxeof(struct emac_softc *sc, int count)
 
 	ifp = sc->emac_ifp;
 	for (; count > 0 &&
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0; count--) {
+	    (if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0; count--) {
 		/*
 		 * Race warning: The first packet might arrive with
 		 * the interrupts disabled, but the second will fix
@@ -443,7 +443,7 @@ emac_rxeof(struct emac_softc *sc, int count)
 		}
 		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		EMAC_UNLOCK(sc);
-		(*ifp->if_input)(ifp, m);
+		if_input(ifp, m);
 		EMAC_LOCK(sc);
 	}
 }
@@ -451,7 +451,7 @@ emac_rxeof(struct emac_softc *sc, int count)
 static void
 emac_watchdog(struct emac_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 
 	EMAC_ASSERT_LOCKED(sc);
 
@@ -468,9 +468,9 @@ emac_watchdog(struct emac_softc *sc)
 		if_printf(sc->emac_ifp, "watchdog timeout -- resetting\n");
 
 	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 	emac_init_locked(sc);
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+	if (!if_sendq_empty(ifp))
 		emac_start_locked(ifp);
 }
 
@@ -502,7 +502,7 @@ emac_init(void *xcs)
 static void
 emac_init_locked(struct emac_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	struct mii_data *mii;
 	uint32_t reg_val;
 	uint8_t *eaddr;
@@ -510,7 +510,7 @@ emac_init_locked(struct emac_softc *sc)
 	EMAC_ASSERT_LOCKED(sc);
 
 	ifp = sc->emac_ifp;
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0)
 		return;
 
 	/* Flush RX FIFO */
@@ -575,7 +575,7 @@ emac_init_locked(struct emac_softc *sc)
 	EMAC_WRITE_REG(sc, EMAC_MAC_MAXF, EMAC_MAC_MFL);
 
 	/* Setup ethernet address */
-	eaddr = IF_LLADDR(ifp);
+	eaddr = if_getlladdr(ifp);
 	EMAC_WRITE_REG(sc, EMAC_MAC_A1, eaddr[0] << 16 |
 	    eaddr[1] << 8 | eaddr[2]);
 	EMAC_WRITE_REG(sc, EMAC_MAC_A0, eaddr[3] << 16 |
@@ -589,8 +589,8 @@ emac_init_locked(struct emac_softc *sc)
 	reg_val |= EMAC_INT_EN;
 	EMAC_WRITE_REG(sc, EMAC_INT_CTL, reg_val);
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
+	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 
 	sc->emac_link = 0;
 
@@ -602,31 +602,31 @@ emac_init_locked(struct emac_softc *sc)
 }
 
 static void
-emac_start(struct ifnet *ifp)
+emac_start(if_t ifp)
 {
 	struct emac_softc *sc;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	EMAC_LOCK(sc);
 	emac_start_locked(ifp);
 	EMAC_UNLOCK(sc);
 }
 
 static void
-emac_start_locked(struct ifnet *ifp)
+emac_start_locked(if_t ifp)
 {
 	struct emac_softc *sc;
 	struct mbuf *m, *m0;
 	uint32_t fifo, reg;
 
-	sc = ifp->if_softc;
-	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
+	sc = if_getsoftc(ifp);
+	if (if_getdrvflags(ifp) & IFF_DRV_OACTIVE)
 		return;
 	if (sc->emac_fifo_mask == (EMAC_TX_FIFO0 | EMAC_TX_FIFO1))
 		return;
 	if (sc->emac_link == 0)
 		return;
-	IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+	m = if_dequeue(ifp);
 	if (m == NULL)
 		return;
 
@@ -637,7 +637,7 @@ emac_start_locked(struct ifnet *ifp)
 		fifo = 0;
 	sc->emac_fifo_mask |= (1 << fifo);
 	if (sc->emac_fifo_mask == (EMAC_TX_FIFO0 | EMAC_TX_FIFO1))
-		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 	EMAC_WRITE_REG(sc, EMAC_TX_INS, fifo);
 
 	/*
@@ -677,13 +677,13 @@ emac_start_locked(struct ifnet *ifp)
 static void
 emac_stop_locked(struct emac_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t reg_val;
 
 	EMAC_ASSERT_LOCKED(sc);
 
 	ifp = sc->emac_ifp;
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	if_setdrvflagbits(ifp, 0, (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
 	sc->emac_link = 0;
 
 	/* Disable all interrupt and clear interrupt status */
@@ -703,7 +703,7 @@ static void
 emac_intr(void *arg)
 {
 	struct emac_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t reg_val;
 
 	sc = (struct emac_softc *)arg;
@@ -724,7 +724,7 @@ emac_intr(void *arg)
 	if (reg_val & EMAC_INT_STA_TX) {
 		emac_txeof(sc, reg_val);
 		ifp = sc->emac_ifp;
-		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		if (!if_sendq_empty(ifp))
 			emac_start_locked(ifp);
 	}
 
@@ -736,37 +736,37 @@ emac_intr(void *arg)
 }
 
 static int
-emac_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
+emac_ioctl(if_t ifp, u_long command, caddr_t data)
 {
 	struct emac_softc *sc;
 	struct mii_data *mii;
 	struct ifreq *ifr;
 	int error = 0;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	ifr = (struct ifreq *)data;
 
 	switch (command) {
 	case SIOCSIFFLAGS:
 		EMAC_LOCK(sc);
-		if (ifp->if_flags & IFF_UP) {
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
-				if ((ifp->if_flags ^ sc->emac_if_flags) &
+		if (if_getflags(ifp) & IFF_UP) {
+			if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
+				if ((if_getflags(ifp) ^ sc->emac_if_flags) &
 				    (IFF_PROMISC | IFF_ALLMULTI))
 					emac_set_rx_mode(sc);
 			} else
 				emac_init_locked(sc);
 		} else {
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0)
 				emac_stop_locked(sc);
 		}
-		sc->emac_if_flags = ifp->if_flags;
+		sc->emac_if_flags = if_getflags(ifp);
 		EMAC_UNLOCK(sc);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		EMAC_LOCK(sc);
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 			emac_set_rx_mode(sc);
 		}
 		EMAC_UNLOCK(sc);
@@ -803,7 +803,7 @@ emac_detach(device_t dev)
 	struct emac_softc *sc;
 
 	sc = device_get_softc(dev);
-	sc->emac_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_setdrvflagbits(sc->emac_ifp, 0, IFF_DRV_RUNNING);
 	if (device_is_attached(dev)) {
 		ether_ifdetach(sc->emac_ifp);
 		EMAC_LOCK(sc);
@@ -850,13 +850,13 @@ static int
 emac_suspend(device_t dev)
 {
 	struct emac_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	sc = device_get_softc(dev);
 
 	EMAC_LOCK(sc);
 	ifp = sc->emac_ifp;
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0)
 		emac_stop_locked(sc);
 	EMAC_UNLOCK(sc);
 
@@ -867,14 +867,14 @@ static int
 emac_resume(device_t dev)
 {
 	struct emac_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	sc = device_get_softc(dev);
 
 	EMAC_LOCK(sc);
 	ifp = sc->emac_ifp;
-	if ((ifp->if_flags & IFF_UP) != 0) {
-		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if ((if_getflags(ifp) & IFF_UP) != 0) {
+		if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 		emac_init_locked(sc);
 	}
 	EMAC_UNLOCK(sc);
@@ -886,7 +886,7 @@ static int
 emac_attach(device_t dev)
 {
 	struct emac_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	int error, rid;
 	uint8_t eaddr[ETHER_ADDR_LEN];
 
@@ -950,7 +950,7 @@ emac_attach(device_t dev)
 		error = ENOSPC;
 		goto fail;
 	}
-	ifp->if_softc = sc;
+	if_setsoftc(ifp, sc);
 
 	/* Setup MII */
 	error = mii_attach(dev, &sc->emac_miibus, ifp, emac_ifmedia_upd,
@@ -961,21 +961,21 @@ emac_attach(device_t dev)
 	}
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_start = emac_start;
-	ifp->if_ioctl = emac_ioctl;
-	ifp->if_init = emac_init;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setstartfn(ifp, emac_start);
+	if_setioctlfn(ifp, emac_ioctl);
+	if_setinitfn(ifp, emac_init);
+	if_setsendqlen(ifp, IFQ_MAXLEN);
 
 	/* Get MAC address */
 	emac_get_hwaddr(sc, eaddr);
 	ether_ifattach(ifp, eaddr);
 
 	/* VLAN capability setup. */
-	ifp->if_capabilities |= IFCAP_VLAN_MTU;
-	ifp->if_capenable = ifp->if_capabilities;
+	if_setcapabilitiesbit(ifp, IFCAP_VLAN_MTU, 0);
+	if_setcapenable(ifp, if_getcapabilities(ifp));
 	/* Tell the upper layer we support VLAN over-sized frames. */
-	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
+	if_setifheaderlen(ifp, sizeof(struct ether_vlan_header));
 
 	error = bus_setup_intr(dev, sc->emac_irq, INTR_TYPE_NET | INTR_MPSAFE,
 	    NULL, emac_intr, sc, &sc->emac_intrhand);
@@ -1060,7 +1060,7 @@ emac_miibus_statchg(device_t dev)
 {
 	struct emac_softc *sc;
 	struct mii_data *mii;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t reg_val;
 
 	sc = device_get_softc(dev);
@@ -1068,7 +1068,7 @@ emac_miibus_statchg(device_t dev)
 	mii = device_get_softc(sc->emac_miibus);
 	ifp = sc->emac_ifp;
 	if (mii == NULL || ifp == NULL ||
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	    (if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
 		return;
 
 	sc->emac_link = 0;
@@ -1107,14 +1107,14 @@ emac_miibus_statchg(device_t dev)
 }
 
 static int
-emac_ifmedia_upd(struct ifnet *ifp)
+emac_ifmedia_upd(if_t ifp)
 {
 	struct emac_softc *sc;
 	struct mii_data *mii;
 	struct mii_softc *miisc;
 	int error;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	mii = device_get_softc(sc->emac_miibus);
 	EMAC_LOCK(sc);
 	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
@@ -1126,12 +1126,12 @@ emac_ifmedia_upd(struct ifnet *ifp)
 }
 
 static void
-emac_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+emac_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
 	struct emac_softc *sc;
 	struct mii_data *mii;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	mii = device_get_softc(sc->emac_miibus);
 
 	EMAC_LOCK(sc);

@@ -98,6 +98,12 @@ void RISCVToolChain::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
   if (DriverArgs.hasArg(options::OPT_nostdinc))
     return;
 
+  if (!DriverArgs.hasArg(options::OPT_nobuiltininc)) {
+    SmallString<128> Dir(getDriver().ResourceDir);
+    llvm::sys::path::append(Dir, "include");
+    addSystemInclude(DriverArgs, CC1Args, Dir.str());
+  }
+
   if (!DriverArgs.hasArg(options::OPT_nostdlibinc)) {
     SmallString<128> Dir(computeSysRoot());
     llvm::sys::path::append(Dir, "include");
@@ -157,6 +163,7 @@ void RISCV::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   } else {
     CmdArgs.push_back("elf32lriscv");
   }
+  CmdArgs.push_back("-X");
 
   std::string Linker = getToolChain().GetLinkerPath();
 
@@ -194,8 +201,11 @@ void RISCV::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   if (!Args.hasArg(options::OPT_nostdlib) &&
       !Args.hasArg(options::OPT_nodefaultlibs)) {
-    if (ToolChain.ShouldLinkCXXStdlib(Args))
-      ToolChain.AddCXXStdlibLibArgs(Args, CmdArgs);
+    if (D.CCCIsCXX()) {
+      if (ToolChain.ShouldLinkCXXStdlib(Args))
+        ToolChain.AddCXXStdlibLibArgs(Args, CmdArgs);
+      CmdArgs.push_back("-lm");
+    }
     CmdArgs.push_back("--start-group");
     CmdArgs.push_back("-lc");
     CmdArgs.push_back("-lgloss");

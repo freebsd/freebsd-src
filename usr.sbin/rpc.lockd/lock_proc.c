@@ -999,7 +999,7 @@ nlm4_lock_4_svc(nlm4_lockargs *arg, struct svc_req *rqstp)
 	/* copy cookie from arg to result.  See comment in nlm_test_4() */
 	res.cookie = arg->cookie;
 
-	res.stat.stat = getlock(arg, rqstp, LOCK_MON | LOCK_V4);
+	res.stat.stat = (enum nlm4_stats)getlock(arg, rqstp, LOCK_MON | LOCK_V4);
 	return (&res);
 }
 
@@ -1012,7 +1012,7 @@ nlm4_lock_msg_4_svc(nlm4_lockargs *arg, struct svc_req *rqstp)
 		log_from_addr("nlm4_lock_msg", rqstp);
 
 	res.cookie = arg->cookie;
-	res.stat.stat = getlock(arg, rqstp, LOCK_MON | LOCK_ASYNC | LOCK_V4);
+	res.stat.stat = (enum nlm4_stats)getlock(arg, rqstp, LOCK_MON | LOCK_ASYNC | LOCK_V4);
 	transmit4_result(NLM4_LOCK_RES, &res, getrpcaddr(rqstp));
 
 	return (NULL);
@@ -1039,7 +1039,7 @@ nlm4_cancel_4_svc(nlm4_cancargs *arg, struct svc_req *rqstp)
 	 * Since at present we never return 'nlm_blocked', there can never be
 	 * a lock to cancel, so this call always fails.
 	 */
-	res.stat.stat = unlock(&arg->alock, LOCK_CANCEL);
+	res.stat.stat = (enum nlm4_stats)unlock(&arg->alock, LOCK_CANCEL);
 	return (&res);
 }
 
@@ -1056,7 +1056,7 @@ nlm4_cancel_msg_4_svc(nlm4_cancargs *arg, struct svc_req *rqstp)
 	 * Since at present we never return 'nlm_blocked', there can never be
 	 * a lock to cancel, so this call always fails.
 	 */
-	res.stat.stat = unlock(&arg->alock, LOCK_CANCEL | LOCK_V4);
+	res.stat.stat = (enum nlm4_stats)unlock(&arg->alock, LOCK_CANCEL | LOCK_V4);
 	transmit4_result(NLM4_CANCEL_RES, &res, getrpcaddr(rqstp));
 	return (NULL);
 }
@@ -1077,7 +1077,7 @@ nlm4_unlock_4_svc(nlm4_unlockargs *arg, struct svc_req *rqstp)
 	if (debug_level)
 		log_from_addr("nlm4_unlock", rqstp);
 
-	res.stat.stat = unlock(&arg->alock, LOCK_V4);
+	res.stat.stat = (enum nlm4_stats)unlock(&arg->alock, LOCK_V4);
 	res.cookie = arg->cookie;
 
 	return (&res);
@@ -1091,7 +1091,7 @@ nlm4_unlock_msg_4_svc(nlm4_unlockargs *arg, struct svc_req *rqstp)
 	if (debug_level)
 		log_from_addr("nlm4_unlock_msg", rqstp);
 
-	res.stat.stat = unlock(&arg->alock, LOCK_V4);
+	res.stat.stat = (enum nlm4_stats)unlock(&arg->alock, LOCK_V4);
 	res.cookie = arg->cookie;
 
 	transmit4_result(NLM4_UNLOCK_RES, &res, getrpcaddr(rqstp));

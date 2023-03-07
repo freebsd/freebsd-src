@@ -26,7 +26,7 @@
 
 # Fixed by r368116
 
-# May change policy for random threads to to domainset_fixed
+# May change policy for random threads to domainset_fixed
 exit 0
 
 . ../default.cfg

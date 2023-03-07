@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/callout.h>
 #include <sys/filio.h>
 #include <sys/hash.h>
+#include <sys/osd.h>
 #include <sys/sysctl.h>
 #include <nlm/nlm_prot.h>
 #include <nlm/nlm.h>
@@ -59,55 +60,63 @@ FEATURE(nfsd, "NFSv4 server");
 extern u_int32_t newnfs_true, newnfs_false, newnfs_xdrneg1;
 extern int nfsrv_useacl;
 extern int newnfs_numnfsd;
-extern struct mount nfsv4root_mnt;
-extern struct nfsrv_stablefirst nfsrv_stablefirst;
-extern SVCPOOL	*nfsrvd_pool;
-extern struct nfsv4lock nfsd_suspend_lock;
-extern struct nfsclienthashhead *nfsclienthash;
-extern struct nfslockhashhead *nfslockhash;
-extern struct nfssessionhash *nfssessionhash;
 extern int nfsrv_sessionhashsize;
-extern struct nfsstatsv1 nfsstatsv1;
 extern struct nfslayouthash *nfslayouthash;
 extern int nfsrv_layouthashsize;
 extern struct mtx nfsrv_dslock_mtx;
 extern int nfs_pnfsiothreads;
-extern struct nfsdontlisthead nfsrv_dontlisthead;
-extern volatile int nfsrv_dontlistlen;
 extern volatile int nfsrv_devidcnt;
 extern int nfsrv_maxpnfsmirror;
 extern uint32_t nfs_srvmaxio;
 extern int nfs_bufpackets;
 extern u_long sb_max_adj;
-struct vfsoptlist nfsv4root_opt, nfsv4root_newopt;
+
+NFSD_VNET_DECLARE(int, nfsrv_numnfsd);
+NFSD_VNET_DECLARE(struct nfsrv_stablefirst, nfsrv_stablefirst);
+NFSD_VNET_DECLARE(SVCPOOL *, nfsrvd_pool);
+NFSD_VNET_DECLARE(struct nfsclienthashhead *, nfsclienthash);
+NFSD_VNET_DECLARE(struct nfslockhashhead *, nfslockhash);
+NFSD_VNET_DECLARE(struct nfssessionhash *, nfssessionhash);
+NFSD_VNET_DECLARE(struct nfsv4lock, nfsd_suspend_lock);
+NFSD_VNET_DECLARE(struct nfsstatsv1 *, nfsstatsv1_p);
+
 NFSDLOCKMUTEX;
 NFSSTATESPINLOCK;
-struct nfsrchash_bucket nfsrchash_table[NFSRVCACHE_HASHSIZE];
-struct nfsrchash_bucket nfsrcahash_table[NFSRVCACHE_HASHSIZE];
 struct mtx nfsrc_udpmtx;
 struct mtx nfs_v4root_mutex;
 struct mtx nfsrv_dontlistlock_mtx;
 struct mtx nfsrv_recalllock_mtx;
-struct nfsrvfh nfs_rootfh, nfs_pubfh;
-int nfs_pubfhset = 0, nfs_rootfhset = 0;
-struct proc *nfsd_master_proc = NULL;
+struct nfsrvfh nfs_pubfh;
+int nfs_pubfhset = 0;
 int nfsd_debuglevel = 0;
 static pid_t nfsd_master_pid = (pid_t)-1;
 static char nfsd_master_comm[MAXCOMLEN + 1];
 static struct timeval nfsd_master_start;
 static uint32_t nfsv4_sysid = 0;
 static fhandle_t zerofh;
-struct callout nfsd_callout;
+
+NFSD_VNET_DEFINE(struct proc *, nfsd_master_proc) = NULL;
+NFSD_VNET_DEFINE(struct nfsrvhashhead *, nfsrvudphashtbl);
+NFSD_VNET_DEFINE(struct nfsrchash_bucket *, nfsrchash_table);
+NFSD_VNET_DEFINE(struct nfsrchash_bucket *, nfsrcahash_table);
+NFSD_VNET_DEFINE(struct nfsrvfh, nfs_rootfh);
+NFSD_VNET_DEFINE(int, nfs_rootfhset) = 0;
+NFSD_VNET_DEFINE(struct callout, nfsd_callout);
+NFSD_VNET_DEFINE_STATIC(struct mount *, nfsv4root_mnt);
+NFSD_VNET_DEFINE_STATIC(struct vfsoptlist, nfsv4root_opt);
+NFSD_VNET_DEFINE_STATIC(struct vfsoptlist, nfsv4root_newopt);
+NFSD_VNET_DEFINE_STATIC(bool, nfsrv_suspend_nfsd) = false;
+NFSD_VNET_DEFINE_STATIC(bool, nfsrv_mntinited) = false;
 
 static int nfssvc_srvcall(struct thread *, struct nfssvc_args *,
     struct ucred *);
+static void nfsvno_updateds(struct vnode *, struct ucred *, struct thread *);
 
 int nfsrv_enable_crossmntpt = 1;
 static int nfs_commit_blks;
 static int nfs_commit_miss;
 extern int nfsrv_issuedelegs;
 extern int nfsrv_dolocallocks;
-extern int nfsd_enable_stringtouid;
 extern struct nfsdevicehead nfsrv_devidhead;
 
 static int nfsrv_createiovec(int, struct mbuf **, struct mbuf **,
@@ -169,8 +178,10 @@ SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_locallocks, CTLFLAG_RW,
     &nfsrv_dolocallocks, 0, "Enable nfsd to acquire local locks on files");
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, debuglevel, CTLFLAG_RW, &nfsd_debuglevel,
     0, "Debug level for NFS server");
-SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_stringtouid, CTLFLAG_RW,
-    &nfsd_enable_stringtouid, 0, "Enable nfsd to accept numeric owner_names");
+NFSD_VNET_DECLARE(int, nfsd_enable_stringtouid);
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_stringtouid,
+    CTLFLAG_NFSD_VNET | CTLFLAG_RW, &NFSD_VNET_NAME(nfsd_enable_stringtouid),
+    0, "Enable nfsd to accept numeric owner_names");
 static int nfsrv_pnfsgetdsattr = 1;
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, pnfsgetdsattr, CTLFLAG_RW,
     &nfsrv_pnfsgetdsattr, 0, "When set getattr gets DS attributes via RPC");
@@ -686,8 +697,6 @@ nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
 		 * termination occurs if no symlink encountered.
 		 */
 		if ((cnp->cn_flags & ISSYMLINK) == 0) {
-			if ((cnp->cn_flags & (SAVENAME | SAVESTART)) == 0)
-				nfsvno_relpathbuf(ndp);
 			if (ndp->ni_vp && !lockleaf)
 				NFSVOPUNLOCK(ndp->ni_vp);
 			break;
@@ -796,7 +805,7 @@ nfsvno_setpathbuf(struct nameidata *ndp, char **bufpp, u_long **hashpp)
 {
 	struct componentname *cnp = &ndp->ni_cnd;
 
-	cnp->cn_flags |= (NOMACCHECK | HASBUF);
+	cnp->cn_flags |= (NOMACCHECK);
 	cnp->cn_pnbuf = uma_zalloc(namei_zone, M_WAITOK);
 	if (hashpp != NULL)
 		*hashpp = NULL;
@@ -810,10 +819,8 @@ void
 nfsvno_relpathbuf(struct nameidata *ndp)
 {
 
-	if ((ndp->ni_cnd.cn_flags & HASBUF) == 0)
-		panic("nfsrelpath");
 	uma_zfree(namei_zone, ndp->ni_cnd.cn_pnbuf);
-	ndp->ni_cnd.cn_flags &= ~HASBUF;
+	ndp->ni_cnd.cn_pnbuf = NULL;
 }
 
 /*
@@ -1025,7 +1032,7 @@ nfsvno_read(struct vnode *vp, off_t off, int cnt, struct ucred *cred,
 	nh = nfsrv_sequential_heuristic(uiop, vp);
 	ioflag |= nh->nh_seqcount << IO_SEQSHIFT;
 	/* XXX KDM make this more systematic? */
-	nfsstatsv1.srvbytes[NFSV4OP_READ] += uiop->uio_resid;
+	NFSD_VNET(nfsstatsv1_p)->srvbytes[NFSV4OP_READ] += uiop->uio_resid;
 	error = VOP_READ(vp, uiop, IO_NODELOCKED | ioflag, cred);
 	free(iv, M_TEMP);
 	if (error) {
@@ -1150,7 +1157,7 @@ nfsvno_write(struct vnode *vp, off_t off, int retlen, int *stable,
 	nh = nfsrv_sequential_heuristic(uiop, vp);
 	ioflags |= nh->nh_seqcount << IO_SEQSHIFT;
 	/* XXX KDM make this more systematic? */
-	nfsstatsv1.srvbytes[NFSV4OP_WRITE] += uiop->uio_resid;
+	NFSD_VNET(nfsstatsv1_p)->srvbytes[NFSV4OP_WRITE] += uiop->uio_resid;
 	error = VOP_WRITE(vp, uiop, ioflags, cred);
 	if (error == 0)
 		nh->nh_nextoff = uiop->uio_offset;
@@ -1175,7 +1182,6 @@ nfsvno_createsub(struct nfsrv_descript *nd, struct nameidata *ndp,
 	error = nd->nd_repstat;
 	if (!error && ndp->ni_vp == NULL) {
 		if (nvap->na_type == VREG || nvap->na_type == VSOCK) {
-			vrele(ndp->ni_startdir);
 			error = VOP_CREATE(ndp->ni_dvp,
 			    &ndp->ni_vp, &ndp->ni_cnd, &nvap->na_vattr);
 			/* For a pNFS server, create the data file on a DS. */
@@ -1216,7 +1222,6 @@ nfsvno_createsub(struct nfsrv_descript *nd, struct nameidata *ndp,
 				nvap->na_type = VFIFO;
                         if (nvap->na_type != VFIFO &&
 			    (error = priv_check_cred(nd->nd_cred, PRIV_VFS_MKNOD_DEV))) {
-				vrele(ndp->ni_startdir);
 				nfsvno_relpathbuf(ndp);
 				vput(ndp->ni_dvp);
 				goto out;
@@ -1227,11 +1232,9 @@ nfsvno_createsub(struct nfsrv_descript *nd, struct nameidata *ndp,
 			VOP_VPUT_PAIR(ndp->ni_dvp, error == 0 ? &ndp->ni_vp :
 			    NULL, false);
 			nfsvno_relpathbuf(ndp);
-			vrele(ndp->ni_startdir);
 			if (error)
 				goto out;
 		} else {
-			vrele(ndp->ni_startdir);
 			nfsvno_relpathbuf(ndp);
 			vput(ndp->ni_dvp);
 			error = ENXIO;
@@ -1245,7 +1248,6 @@ nfsvno_createsub(struct nfsrv_descript *nd, struct nameidata *ndp,
 		 * 1 - clean up the lookup
 		 * 2 - iff !error and na_size set, truncate it
 		 */
-		vrele(ndp->ni_startdir);
 		nfsvno_relpathbuf(ndp);
 		*vpp = ndp->ni_vp;
 		if (ndp->ni_dvp == *vpp)
@@ -1288,7 +1290,6 @@ nfsvno_mknod(struct nameidata *ndp, struct nfsvattr *nvap, struct ucred *cred,
 	 * Iff doesn't exist, create it.
 	 */
 	if (ndp->ni_vp) {
-		vrele(ndp->ni_startdir);
 		nfsvno_relpathbuf(ndp);
 		vput(ndp->ni_dvp);
 		vrele(ndp->ni_vp);
@@ -1296,14 +1297,12 @@ nfsvno_mknod(struct nameidata *ndp, struct nfsvattr *nvap, struct ucred *cred,
 		goto out;
 	}
 	if (vtyp != VCHR && vtyp != VBLK && vtyp != VSOCK && vtyp != VFIFO) {
-		vrele(ndp->ni_startdir);
 		nfsvno_relpathbuf(ndp);
 		vput(ndp->ni_dvp);
 		error = NFSERR_BADTYPE;
 		goto out;
 	}
 	if (vtyp == VSOCK) {
-		vrele(ndp->ni_startdir);
 		error = VOP_CREATE(ndp->ni_dvp, &ndp->ni_vp,
 		    &ndp->ni_cnd, &nvap->na_vattr);
 		VOP_VPUT_PAIR(ndp->ni_dvp, error == 0 ? &ndp->ni_vp : NULL,
@@ -1312,7 +1311,6 @@ nfsvno_mknod(struct nameidata *ndp, struct nfsvattr *nvap, struct ucred *cred,
 	} else {
 		if (nvap->na_type != VFIFO &&
 		    (error = priv_check_cred(cred, PRIV_VFS_MKNOD_DEV))) {
-			vrele(ndp->ni_startdir);
 			nfsvno_relpathbuf(ndp);
 			vput(ndp->ni_dvp);
 			goto out;
@@ -1322,7 +1320,6 @@ nfsvno_mknod(struct nameidata *ndp, struct nfsvattr *nvap, struct ucred *cred,
 		VOP_VPUT_PAIR(ndp->ni_dvp, error == 0 ? &ndp->ni_vp : NULL,
 		    false);
 		nfsvno_relpathbuf(ndp);
-		vrele(ndp->ni_startdir);
 		/*
 		 * Since VOP_MKNOD returns the ni_vp, I can't
 		 * see any reason to do the lookup.
@@ -1374,7 +1371,6 @@ nfsvno_symlink(struct nameidata *ndp, struct nfsvattr *nvap, char *pathcp,
 	int error = 0;
 
 	if (ndp->ni_vp) {
-		vrele(ndp->ni_startdir);
 		nfsvno_relpathbuf(ndp);
 		if (ndp->ni_dvp == ndp->ni_vp)
 			vrele(ndp->ni_dvp);
@@ -1394,7 +1390,6 @@ nfsvno_symlink(struct nameidata *ndp, struct nfsvattr *nvap, char *pathcp,
 	 * Just vput it for v2.
 	 */
 	VOP_VPUT_PAIR(ndp->ni_dvp, &ndp->ni_vp, !not_v2 && error == 0);
-	vrele(ndp->ni_startdir);
 	nfsvno_relpathbuf(ndp);
 
 out:
@@ -1478,8 +1473,7 @@ nfsvno_removesub(struct nameidata *ndp, int is_v4, struct ucred *cred,
 	else
 		vput(ndp->ni_dvp);
 	vput(vp);
-	if ((ndp->ni_cnd.cn_flags & SAVENAME) != 0)
-		nfsvno_relpathbuf(ndp);
+	nfsvno_relpathbuf(ndp);
 	NFSEXITCODE(error);
 	return (error);
 }
@@ -1519,8 +1513,7 @@ out:
 	else
 		vput(ndp->ni_dvp);
 	vput(vp);
-	if ((ndp->ni_cnd.cn_flags & SAVENAME) != 0)
-		nfsvno_relpathbuf(ndp);
+	nfsvno_relpathbuf(ndp);
 	NFSEXITCODE(error);
 	return (error);
 }
@@ -1647,10 +1640,8 @@ out:
 		NFSD_DEBUG(4, "nfsvno_rename: pnfsremove\n");
 	}
 
-	vrele(tondp->ni_startdir);
 	nfsvno_relpathbuf(tondp);
 out1:
-	vrele(fromndp->ni_startdir);
 	nfsvno_relpathbuf(fromndp);
 	NFSEXITCODE(error);
 	return (error);
@@ -1854,20 +1845,28 @@ void
 nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
     nfsquad_t clientid, nfsv4stateid_t *stateidp, struct nfsstate *stp,
     int *exclusive_flagp, struct nfsvattr *nvap, int32_t *cverf, int create,
-    NFSACL_T *aclp, nfsattrbit_t *attrbitp, struct ucred *cred,
+    NFSACL_T *aclp, nfsattrbit_t *attrbitp, struct ucred *cred, bool done_namei,
     struct nfsexstuff *exp, struct vnode **vpp)
 {
 	struct vnode *vp = NULL;
 	u_quad_t tempsize;
 	struct nfsexstuff nes;
 	struct thread *p = curthread;
+	uint32_t oldrepstat;
 
-	if (ndp->ni_vp == NULL)
+	if (ndp->ni_vp == NULL) {
+		/*
+		 * If nfsrv_opencheck() sets nd_repstat, done_namei needs to be
+		 * set true, since cleanup after nfsvno_namei() is needed.
+		 */
+		oldrepstat = nd->nd_repstat;
 		nd->nd_repstat = nfsrv_opencheck(clientid,
 		    stateidp, stp, NULL, nd, p, nd->nd_repstat);
+		if (nd->nd_repstat != 0 && oldrepstat == 0)
+			done_namei = true;
+	}
 	if (!nd->nd_repstat) {
 		if (ndp->ni_vp == NULL) {
-			vrele(ndp->ni_startdir);
 			nd->nd_repstat = VOP_CREATE(ndp->ni_dvp,
 			    &ndp->ni_vp, &ndp->ni_cnd, &nvap->na_vattr);
 			/* For a pNFS server, create the data file on a DS. */
@@ -1905,8 +1904,6 @@ nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
 			}
 			vp = ndp->ni_vp;
 		} else {
-			if (ndp->ni_startdir)
-				vrele(ndp->ni_startdir);
 			nfsvno_relpathbuf(ndp);
 			vp = ndp->ni_vp;
 			if (create == NFSV4OPEN_CREATE) {
@@ -1938,18 +1935,22 @@ nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
 				    stateidp, stp, vp, nd, p, nd->nd_repstat);
 			}
 		}
-	} else {
-		if (ndp->ni_cnd.cn_flags & HASBUF)
-			nfsvno_relpathbuf(ndp);
-		if (ndp->ni_startdir && create == NFSV4OPEN_CREATE) {
-			vrele(ndp->ni_startdir);
-			if (ndp->ni_dvp == ndp->ni_vp)
-				vrele(ndp->ni_dvp);
-			else
-				vput(ndp->ni_dvp);
-			if (ndp->ni_vp)
-				vput(ndp->ni_vp);
-		}
+	} else if (done_namei) {
+		KASSERT(create == NFSV4OPEN_CREATE,
+		    ("nfsvno_open: not create"));
+		/*
+		 * done_namei is set when nfsvno_namei() has completed
+		 * successfully, but a subsequent error was set in
+		 * nd_repstat.  As such, cleanup of the nfsvno_namei()
+		 * results is required.
+		 */
+		nfsvno_relpathbuf(ndp);
+		if (ndp->ni_dvp == ndp->ni_vp)
+			vrele(ndp->ni_dvp);
+		else
+			vput(ndp->ni_dvp);
+		if (ndp->ni_vp)
+			vput(ndp->ni_vp);
 	}
 	*vpp = vp;
 
@@ -2723,15 +2724,22 @@ again:
 				 * For NFSv4 the behavior is controlled by
 				 * RDATTRERROR: we either ignore the error or
 				 * fail the request.
+				 * The exception is EOPNOTSUPP, which can be
+				 * returned by nfsvno_getfh() for certain
+				 * file systems, such as devfs.  This indicates
+				 * that the file system cannot be exported,
+				 * so just skip over the entry.
 				 * Note that RDATTRERROR is never set for NFSv3.
 				 */
 				if (r != 0) {
 					if (!NFSISSET_ATTRBIT(&attrbits,
-					    NFSATTRBIT_RDATTRERROR)) {
+					    NFSATTRBIT_RDATTRERROR) ||
+					    r == EOPNOTSUPP) {
 						vput(nvp);
 						if (needs_unbusy != 0)
 							vfs_unbusy(new_mp);
-						if ((nd->nd_flag & ND_NFSV3))
+						if ((nd->nd_flag & ND_NFSV3) ||
+						    r == EOPNOTSUPP)
 							goto invalid;
 						nd->nd_repstat = r;
 						break;
@@ -3251,10 +3259,18 @@ nfsvno_checkexp(struct mount *mp, struct sockaddr *nam, struct nfsexstuff *exp,
 {
 	int error;
 
-	error = VFS_CHECKEXP(mp, nam, &exp->nes_exflag, credp,
-	    &exp->nes_numsecflavor, exp->nes_secflavors);
+	error = 0;
+	*credp = NULL;
+	MNT_ILOCK(mp);
+	if (mp->mnt_exjail == NULL ||
+	    mp->mnt_exjail->cr_prison != curthread->td_ucred->cr_prison)
+		error = EACCES;
+	MNT_IUNLOCK(mp);
+	if (error == 0)
+		error = VFS_CHECKEXP(mp, nam, &exp->nes_exflag, credp,
+		    &exp->nes_numsecflavor, exp->nes_secflavors);
 	if (error) {
-		if (nfs_rootfhset) {
+		if (NFSD_VNET(nfs_rootfhset)) {
 			exp->nes_exflag = 0;
 			exp->nes_numsecflavor = 0;
 			error = 0;
@@ -3286,10 +3302,16 @@ nfsvno_fhtovp(struct mount *mp, fhandle_t *fhp, struct sockaddr *nam,
 		/* Make sure the server replies ESTALE to the client. */
 		error = ESTALE;
 	if (nam && !error) {
-		error = VFS_CHECKEXP(mp, nam, &exp->nes_exflag, credp,
-		    &exp->nes_numsecflavor, exp->nes_secflavors);
+		MNT_ILOCK(mp);
+		if (mp->mnt_exjail == NULL ||
+		    mp->mnt_exjail->cr_prison != curthread->td_ucred->cr_prison)
+			error = EACCES;
+		MNT_IUNLOCK(mp);
+		if (error == 0)
+			error = VFS_CHECKEXP(mp, nam, &exp->nes_exflag, credp,
+			    &exp->nes_numsecflavor, exp->nes_secflavors);
 		if (error) {
-			if (nfs_rootfhset) {
+			if (NFSD_VNET(nfs_rootfhset)) {
 				exp->nes_exflag = 0;
 				exp->nes_numsecflavor = 0;
 				error = 0;
@@ -3457,9 +3479,9 @@ nfsrv_v4rootexport(void *argp, struct ucred *cred, struct thread *p)
 	struct nameidata nd;
 	fhandle_t fh;
 
-	error = vfs_export(&nfsv4root_mnt, &nfsexargp->export);
+	error = vfs_export(NFSD_VNET(nfsv4root_mnt), &nfsexargp->export, false);
 	if ((nfsexargp->export.ex_flags & MNT_DELEXPORT) != 0)
-		nfs_rootfhset = 0;
+		NFSD_VNET(nfs_rootfhset) = 0;
 	else if (error == 0) {
 		if (nfsexargp->fspec == NULL) {
 			error = EPERM;
@@ -3474,11 +3496,11 @@ nfsrv_v4rootexport(void *argp, struct ucred *cred, struct thread *p)
 		error = nfsvno_getfh(nd.ni_vp, &fh, p);
 		vrele(nd.ni_vp);
 		if (!error) {
-			nfs_rootfh.nfsrvfh_len = NFSX_MYFH;
+			NFSD_VNET(nfs_rootfh).nfsrvfh_len = NFSX_MYFH;
 			NFSBCOPY((caddr_t)&fh,
-			    nfs_rootfh.nfsrvfh_data,
+			    NFSD_VNET(nfs_rootfh).nfsrvfh_data,
 			    sizeof (fhandle_t));
-			nfs_rootfhset = 1;
+			NFSD_VNET(nfs_rootfhset) = 1;
 		}
 	}
 
@@ -3514,29 +3536,47 @@ nfsrv_mallocmget_limit(void)
 void
 nfsd_mntinit(void)
 {
-	static int inited = 0;
 
-	if (inited)
+	NFSD_LOCK();
+	if (NFSD_VNET(nfsrv_mntinited)) {
+		NFSD_UNLOCK();
 		return;
-	inited = 1;
-	nfsv4root_mnt.mnt_flag = (MNT_RDONLY | MNT_EXPORTED);
-	TAILQ_INIT(&nfsv4root_mnt.mnt_nvnodelist);
-	TAILQ_INIT(&nfsv4root_mnt.mnt_lazyvnodelist);
-	nfsv4root_mnt.mnt_export = NULL;
-	TAILQ_INIT(&nfsv4root_opt);
-	TAILQ_INIT(&nfsv4root_newopt);
-	nfsv4root_mnt.mnt_opt = &nfsv4root_opt;
-	nfsv4root_mnt.mnt_optnew = &nfsv4root_newopt;
-	nfsv4root_mnt.mnt_nvnodelistsize = 0;
-	nfsv4root_mnt.mnt_lazyvnodelistsize = 0;
+	}
+	NFSD_VNET(nfsrv_mntinited) = true;
+	nfsrvd_init(0);
+	NFSD_UNLOCK();
+
+	NFSD_VNET(nfsv4root_mnt) = malloc(sizeof(struct mount), M_TEMP,
+	    M_WAITOK | M_ZERO);
+	NFSD_VNET(nfsv4root_mnt)->mnt_flag = (MNT_RDONLY | MNT_EXPORTED);
+	mtx_init(&NFSD_VNET(nfsv4root_mnt)->mnt_mtx, "nfs4mnt", NULL, MTX_DEF);
+	lockinit(&NFSD_VNET(nfsv4root_mnt)->mnt_explock, PVFS, "explock", 0, 0);
+	TAILQ_INIT(&NFSD_VNET(nfsv4root_mnt)->mnt_nvnodelist);
+	TAILQ_INIT(&NFSD_VNET(nfsv4root_mnt)->mnt_lazyvnodelist);
+	NFSD_VNET(nfsv4root_mnt)->mnt_export = NULL;
+	TAILQ_INIT(&NFSD_VNET(nfsv4root_opt));
+	TAILQ_INIT(&NFSD_VNET(nfsv4root_newopt));
+	NFSD_VNET(nfsv4root_mnt)->mnt_opt = &NFSD_VNET(nfsv4root_opt);
+	NFSD_VNET(nfsv4root_mnt)->mnt_optnew = &NFSD_VNET(nfsv4root_newopt);
+	NFSD_VNET(nfsv4root_mnt)->mnt_nvnodelistsize = 0;
+	NFSD_VNET(nfsv4root_mnt)->mnt_lazyvnodelistsize = 0;
+	callout_init(&NFSD_VNET(nfsd_callout), 1);
+
+	nfsrvd_initcache();
+	nfsd_init();
 }
 
 static void
 nfsd_timer(void *arg)
 {
+	struct vnet *vnetp;
 
-	nfsrv_servertimer();
-	callout_reset_sbt(&nfsd_callout, SBT_1S, SBT_1S, nfsd_timer, NULL, 0);
+	vnetp = (struct vnet *)arg;
+	NFSD_CURVNET_SET_QUIET(vnetp);
+	nfsrv_servertimer(vnetp);
+	callout_reset_sbt(&NFSD_VNET(nfsd_callout), SBT_1S, SBT_1S, nfsd_timer,
+	    arg, 0);
+	NFSD_CURVNET_RESTORE();
 }
 
 /*
@@ -3618,7 +3658,7 @@ nfsvno_v4rootexport(struct nfsrv_descript *nd)
 	int error = 0, numsecflavor, secflavors[MAXSECFLAVORS], i;
 	uint64_t exflags;
 
-	error = vfs_stdcheckexp(&nfsv4root_mnt, nd->nd_nam, &exflags,
+	error = vfs_stdcheckexp(NFSD_VNET(nfsv4root_mnt), nd->nd_nam, &exflags,
 	    &credanon, &numsecflavor, secflavors);
 	if (error) {
 		error = NFSERR_PROGUNAVAIL;
@@ -3673,6 +3713,7 @@ nfssvc_nfsd(struct thread *td, struct nfssvc_args *uap)
 	char *buf, *cp, *cp2, *cp3;
 	char fname[PNFS_FILENAME_LEN + 1];
 
+	NFSD_CURVNET_SET(NFSD_TD_TO_VNET(td));
 	if (uap->flag & NFSSVC_NFSDADDSOCK) {
 		error = copyin(uap->argp, (caddr_t)&sockarg, sizeof (sockarg));
 		if (error)
@@ -3780,8 +3821,9 @@ nfssvc_nfsd(struct thread *td, struct nfssvc_args *uap)
 			nfsdarg.mdspathlen = 0;
 			nfsdarg.mirrorcnt = 1;
 		}
-		nfsd_timer(NULL);
+		nfsd_timer(NFSD_TD_TO_VNET(td));
 		error = nfsrvd_nfsd(td, &nfsdarg);
+		callout_drain(&NFSD_VNET(nfsd_callout));
 		free(nfsdarg.addr, M_TEMP);
 		free(nfsdarg.dnshost, M_TEMP);
 		free(nfsdarg.dspath, M_TEMP);
@@ -3859,6 +3901,7 @@ nfssvc_nfsd(struct thread *td, struct nfssvc_args *uap)
 	}
 
 out:
+	NFSD_CURVNET_RESTORE();
 	NFSEXITCODE(error);
 	return (error);
 }
@@ -3880,7 +3923,6 @@ nfssvc_srvcall(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 	int error = EINVAL, igotlock;
 	struct proc *procp;
 	gid_t *grps;
-	static int suspend_nfsd = 0;
 
 	if (uap->flag & NFSSVC_PUBLICFH) {
 		NFSBZERO((caddr_t)&nfs_pubfh.nfsrvfh_data,
@@ -3964,10 +4006,10 @@ nfssvc_srvcall(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 			error = fp_getfvp(p, stablefd, &fp, &vp);
 		if (!error && (NFSFPFLAG(fp) & (FREAD | FWRITE)) != (FREAD | FWRITE))
 			error = EBADF;
-		if (!error && newnfs_numnfsd != 0)
-			error = EPERM;
+		if (!error && NFSD_VNET(nfsrv_numnfsd) != 0)
+			error = ENXIO;
 		if (!error) {
-			nfsrv_stablefirst.nsf_fp = fp;
+			NFSD_VNET(nfsrv_stablefirst).nsf_fp = fp;
 			nfsrv_setupstable(p);
 		}
 	} else if (uap->flag & NFSSVC_ADMINREVOKE) {
@@ -4014,25 +4056,27 @@ nfssvc_srvcall(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 		nfsd_master_pid = procp->p_pid;
 		bcopy(procp->p_comm, nfsd_master_comm, MAXCOMLEN + 1);
 		nfsd_master_start = procp->p_stats->p_start;
-		nfsd_master_proc = procp;
+		NFSD_VNET(nfsd_master_proc) = procp;
 		PROC_UNLOCK(procp);
 	} else if ((uap->flag & NFSSVC_SUSPENDNFSD) != 0) {
 		NFSLOCKV4ROOTMUTEX();
-		if (suspend_nfsd == 0) {
+		if (!NFSD_VNET(nfsrv_suspend_nfsd)) {
 			/* Lock out all nfsd threads */
 			do {
-				igotlock = nfsv4_lock(&nfsd_suspend_lock, 1,
-				    NULL, NFSV4ROOTLOCKMUTEXPTR, NULL);
-			} while (igotlock == 0 && suspend_nfsd == 0);
-			suspend_nfsd = 1;
+				igotlock = nfsv4_lock(
+				    &NFSD_VNET(nfsd_suspend_lock), 1, NULL,
+				    NFSV4ROOTLOCKMUTEXPTR, NULL);
+			} while (igotlock == 0 &&
+			    !NFSD_VNET(nfsrv_suspend_nfsd));
+			NFSD_VNET(nfsrv_suspend_nfsd) = true;
 		}
 		NFSUNLOCKV4ROOTMUTEX();
 		error = 0;
 	} else if ((uap->flag & NFSSVC_RESUMENFSD) != 0) {
 		NFSLOCKV4ROOTMUTEX();
-		if (suspend_nfsd != 0) {
-			nfsv4_unlock(&nfsd_suspend_lock, 0);
-			suspend_nfsd = 0;
+		if (NFSD_VNET(nfsrv_suspend_nfsd)) {
+			nfsv4_unlock(&NFSD_VNET(nfsd_suspend_lock), 0);
+			NFSD_VNET(nfsrv_suspend_nfsd) = false;
 		}
 		NFSUNLOCKV4ROOTMUTEX();
 		error = 0;
@@ -4140,10 +4184,10 @@ nfsrv_backupstable(void)
 {
 	struct proc *procp;
 
-	if (nfsd_master_proc != NULL) {
+	if (NFSD_VNET(nfsd_master_proc) != NULL) {
 		procp = pfind(nfsd_master_pid);
 		/* Try to make sure it is the correct process. */
-		if (procp == nfsd_master_proc &&
+		if (procp == NFSD_VNET(nfsd_master_proc) &&
 		    procp->p_stats->p_start.tv_sec ==
 		    nfsd_master_start.tv_sec &&
 		    procp->p_stats->p_start.tv_usec ==
@@ -4151,7 +4195,7 @@ nfsrv_backupstable(void)
 		    strcmp(procp->p_comm, nfsd_master_comm) == 0)
 			kern_psignal(procp, SIGUSR2);
 		else
-			nfsd_master_proc = NULL;
+			NFSD_VNET(nfsd_master_proc) = NULL;
 
 		if (procp != NULL)
 			PROC_UNLOCK(procp);
@@ -4192,7 +4236,7 @@ nfsrv_dscreate(struct vnode *dvp, struct vattr *vap, struct vattr *nvap,
 	int error;
 
 	NFSNAMEICNDSET(&named.ni_cnd, tcred, CREATE,
-	    LOCKPARENT | LOCKLEAF | SAVESTART | NOCACHE);
+	    LOCKPARENT | LOCKLEAF | NOCACHE);
 	nfsvno_setpathbuf(&named, &bufp, &hashp);
 	named.ni_cnd.cn_lkflags = LK_EXCLUSIVE;
 	named.ni_cnd.cn_nameptr = bufp;
@@ -4578,7 +4622,7 @@ nfsrv_dsremove(struct vnode *dvp, char *fname, struct ucred *tcred,
 	named.ni_cnd.cn_nameiop = DELETE;
 	named.ni_cnd.cn_lkflags = LK_EXCLUSIVE | LK_RETRY;
 	named.ni_cnd.cn_cred = tcred;
-	named.ni_cnd.cn_flags = ISLASTCN | LOCKPARENT | LOCKLEAF | SAVENAME;
+	named.ni_cnd.cn_flags = ISLASTCN | LOCKPARENT | LOCKLEAF;
 	nfsvno_setpathbuf(&named, &bufp, &hashp);
 	named.ni_cnd.cn_nameptr = bufp;
 	named.ni_cnd.cn_namelen = strlen(fname);
@@ -6351,7 +6395,7 @@ nfsrv_pnfslookupds(struct vnode *vp, struct vnode *dvp, struct pnfsdsfile *pf,
 	named.ni_cnd.cn_nameiop = LOOKUP;
 	named.ni_cnd.cn_lkflags = LK_SHARED | LK_RETRY;
 	named.ni_cnd.cn_cred = tcred;
-	named.ni_cnd.cn_flags = ISLASTCN | LOCKPARENT | LOCKLEAF | SAVENAME;
+	named.ni_cnd.cn_flags = ISLASTCN | LOCKPARENT | LOCKLEAF;
 	nfsvno_setpathbuf(&named, &bufp, &hashp);
 	named.ni_cnd.cn_nameptr = bufp;
 	named.ni_cnd.cn_namelen = strlen(pf->dsf_filename);
@@ -6783,12 +6827,55 @@ nfsvno_setxattr(struct vnode *vp, char *name, int len, struct mbuf *m,
 	if (error == 0) {
 		error = VOP_SETEXTATTR(vp, EXTATTR_NAMESPACE_USER, name, uiop,
 		    cred, p);
+		if (error == 0) {
+			if (vp->v_type == VREG && nfsrv_devidcnt != 0)
+				nfsvno_updateds(vp, cred, p);
+			error = VOP_FSYNC(vp, MNT_WAIT, p);
+		}
 		free(iv, M_TEMP);
 	}
 
 out:
 	NFSEXITCODE(error);
 	return (error);
+}
+
+/*
+ * For a pNFS server, the DS file's ctime and
+ * va_filerev (TimeMetadata and Change) needs to
+ * be updated.  This is a hack, but works by
+ * flipping the S_ISGID bit in va_mode and then
+ * flipping it back.
+ * It does result in two MDS->DS RPCs, but creating
+ * a custom RPC just to do this seems overkill, since
+ * Setxattr/Rmxattr will not be done that frequently.
+ * If it fails part way through, that is not too
+ * serious, since the DS file is never executed.
+ */
+static void
+nfsvno_updateds(struct vnode *vp, struct ucred *cred, NFSPROC_T *p)
+{
+	struct nfsvattr nva;
+	int ret;
+	u_short tmode;
+
+	ret = VOP_GETATTR(vp, &nva.na_vattr, cred);
+	if (ret == 0) {
+		tmode = nva.na_mode;
+		NFSVNO_ATTRINIT(&nva);
+		tmode ^= S_ISGID;
+		NFSVNO_SETATTRVAL(&nva, mode, tmode);
+		ret = nfsrv_proxyds(vp, 0, 0, cred, p,
+		    NFSPROC_SETATTR, NULL, NULL, NULL, &nva,
+		    NULL, NULL, 0, NULL);
+		if (ret == 0) {
+			tmode ^= S_ISGID;
+			NFSVNO_SETATTRVAL(&nva, mode, tmode);
+			ret = nfsrv_proxyds(vp, 0, 0, cred, p,
+			    NFSPROC_SETATTR, NULL, NULL, NULL,
+			    &nva, NULL, NULL, 0, NULL);
+		}
+	}
 }
 
 /*
@@ -6818,6 +6905,11 @@ nfsvno_rmxattr(struct nfsrv_descript *nd, struct vnode *vp, char *name,
 	if (error == EOPNOTSUPP)
 		error = VOP_SETEXTATTR(vp, EXTATTR_NAMESPACE_USER, name, NULL,
 		    cred, p);
+	if (error == 0) {
+		if (vp->v_type == VREG && nfsrv_devidcnt != 0)
+			nfsvno_updateds(vp, cred, p);
+		error = VOP_FSYNC(vp, MNT_WAIT, p);
+	}
 out:
 	NFSEXITCODE(error);
 	return (error);
@@ -7014,6 +7106,73 @@ nfsrv_checknospc(void)
 	free(devid, M_TEMP);
 }
 
+/*
+ * Initialize everything that needs to be initialized for a vnet.
+ */
+static void
+nfsrv_vnetinit(const void *unused __unused)
+{
+
+	nfsd_mntinit();
+}
+VNET_SYSINIT(nfsrv_vnetinit, SI_SUB_VNET_DONE, SI_ORDER_ANY,
+    nfsrv_vnetinit, NULL);
+
+/*
+ * Clean up everything that is in a vnet and needs to be
+ * done when the jail is destroyed or the module unloaded.
+ */
+static void
+nfsrv_cleanup(const void *unused __unused)
+{
+	int i;
+
+	NFSD_LOCK();
+	if (!NFSD_VNET(nfsrv_mntinited)) {
+		NFSD_UNLOCK();
+		return;
+	}
+	NFSD_VNET(nfsrv_mntinited) = false;
+	NFSD_UNLOCK();
+
+	/* Clean out all NFSv4 state. */
+	nfsrv_throwawayallstate(curthread);
+
+	/* Clean the NFS server reply cache */
+	nfsrvd_cleancache();
+
+	/* Clean out v4root exports. */
+	if (NFSD_VNET(nfsv4root_mnt)->mnt_export != NULL) {
+		vfs_free_addrlist(NFSD_VNET(nfsv4root_mnt)->mnt_export);
+		free(NFSD_VNET(nfsv4root_mnt)->mnt_export, M_MOUNT);
+		NFSD_VNET(nfsv4root_mnt)->mnt_export = NULL;
+	}
+
+	/* Free up the krpc server pool. */
+	if (NFSD_VNET(nfsrvd_pool) != NULL)
+		svcpool_destroy(NFSD_VNET(nfsrvd_pool));
+
+	/* and get rid of the locks */
+	for (i = 0; i < NFSRVCACHE_HASHSIZE; i++) {
+		mtx_destroy(&NFSD_VNET(nfsrchash_table)[i].mtx);
+		mtx_destroy(&NFSD_VNET(nfsrcahash_table)[i].mtx);
+	}
+	mtx_destroy(&NFSD_VNET(nfsv4root_mnt)->mnt_mtx);
+	for (i = 0; i < nfsrv_sessionhashsize; i++)
+		mtx_destroy(&NFSD_VNET(nfssessionhash)[i].mtx);
+	lockdestroy(&NFSD_VNET(nfsv4root_mnt)->mnt_explock);
+	free(NFSD_VNET(nfsrvudphashtbl), M_NFSRVCACHE);
+	free(NFSD_VNET(nfsrchash_table), M_NFSRVCACHE);
+	free(NFSD_VNET(nfsrcahash_table), M_NFSRVCACHE);
+	free(NFSD_VNET(nfsclienthash), M_NFSDCLIENT);
+	free(NFSD_VNET(nfslockhash), M_NFSDLOCKFILE);
+	free(NFSD_VNET(nfssessionhash), M_NFSDSESSION);
+	free(NFSD_VNET(nfsv4root_mnt), M_TEMP);
+	NFSD_VNET(nfsv4root_mnt) = NULL;
+}
+VNET_SYSUNINIT(nfsrv_cleanup, SI_SUB_VNET_DONE, SI_ORDER_ANY,
+    nfsrv_cleanup, NULL);
+
 extern int (*nfsd_call_nfsd)(struct thread *, struct nfssvc_args *);
 
 /*
@@ -7030,25 +7189,10 @@ nfsd_modevent(module_t mod, int type, void *data)
 		if (loaded)
 			goto out;
 		newnfs_portinit();
-		for (i = 0; i < NFSRVCACHE_HASHSIZE; i++) {
-			mtx_init(&nfsrchash_table[i].mtx, "nfsrtc", NULL,
-			    MTX_DEF);
-			mtx_init(&nfsrcahash_table[i].mtx, "nfsrtca", NULL,
-			    MTX_DEF);
-		}
 		mtx_init(&nfsrc_udpmtx, "nfsuc", NULL, MTX_DEF);
 		mtx_init(&nfs_v4root_mutex, "nfs4rt", NULL, MTX_DEF);
-		mtx_init(&nfsv4root_mnt.mnt_mtx, "nfs4mnt", NULL, MTX_DEF);
 		mtx_init(&nfsrv_dontlistlock_mtx, "nfs4dnl", NULL, MTX_DEF);
 		mtx_init(&nfsrv_recalllock_mtx, "nfs4rec", NULL, MTX_DEF);
-		lockinit(&nfsv4root_mnt.mnt_explock, PVFS, "explock", 0, 0);
-		callout_init(&nfsd_callout, 1);
-		nfsrvd_initcache();
-		nfsd_init();
-		NFSD_LOCK();
-		nfsrvd_init(0);
-		NFSD_UNLOCK();
-		nfsd_mntinit();
 #ifdef VV_DISABLEDELEG
 		vn_deleg_ops.vndeleg_recall = nfsd_recalldelegation;
 		vn_deleg_ops.vndeleg_disable = nfsd_disabledelegation;
@@ -7068,39 +7212,15 @@ nfsd_modevent(module_t mod, int type, void *data)
 		vn_deleg_ops.vndeleg_disable = NULL;
 #endif
 		nfsd_call_nfsd = NULL;
-		callout_drain(&nfsd_callout);
-
-		/* Clean out all NFSv4 state. */
-		nfsrv_throwawayallstate(curthread);
-
-		/* Clean the NFS server reply cache */
-		nfsrvd_cleancache();
-
-		/* Free up the krpc server pool. */
-		if (nfsrvd_pool != NULL)
-			svcpool_destroy(nfsrvd_pool);
-
-		/* and get rid of the locks */
-		for (i = 0; i < NFSRVCACHE_HASHSIZE; i++) {
-			mtx_destroy(&nfsrchash_table[i].mtx);
-			mtx_destroy(&nfsrcahash_table[i].mtx);
-		}
 		mtx_destroy(&nfsrc_udpmtx);
 		mtx_destroy(&nfs_v4root_mutex);
-		mtx_destroy(&nfsv4root_mnt.mnt_mtx);
 		mtx_destroy(&nfsrv_dontlistlock_mtx);
 		mtx_destroy(&nfsrv_recalllock_mtx);
-		for (i = 0; i < nfsrv_sessionhashsize; i++)
-			mtx_destroy(&nfssessionhash[i].mtx);
 		if (nfslayouthash != NULL) {
 			for (i = 0; i < nfsrv_layouthashsize; i++)
 				mtx_destroy(&nfslayouthash[i].mtx);
 			free(nfslayouthash, M_NFSDSESSION);
 		}
-		lockdestroy(&nfsv4root_mnt.mnt_explock);
-		free(nfsclienthash, M_NFSDCLIENT);
-		free(nfslockhash, M_NFSDLOCKFILE);
-		free(nfssessionhash, M_NFSDSESSION);
 		loaded = 0;
 		break;
 	default:

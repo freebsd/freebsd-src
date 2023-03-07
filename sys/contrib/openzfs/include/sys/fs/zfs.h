@@ -29,6 +29,7 @@
  * Copyright (c) 2019 Datto Inc.
  * Portions Copyright 2010 Robert Milkowski
  * Copyright (c) 2021, Colm Buckley <colm@tuatha.org>
+ * Copyright (c) 2022 Hewlett Packard Enterprise Development LP.
  */
 
 #ifndef	_SYS_FS_ZFS_H
@@ -354,6 +355,11 @@ typedef enum {
 	VDEV_PROP_BYTES_TRIM,
 	VDEV_PROP_REMOVING,
 	VDEV_PROP_ALLOCATING,
+	VDEV_PROP_FAILFAST,
+	VDEV_PROP_CHECKSUM_N,
+	VDEV_PROP_CHECKSUM_T,
+	VDEV_PROP_IO_N,
+	VDEV_PROP_IO_T,
 	VDEV_NUM_PROPS
 } vdev_prop_t;
 
@@ -501,7 +507,9 @@ typedef enum {
 
 typedef enum {
 	ZFS_REDUNDANT_METADATA_ALL,
-	ZFS_REDUNDANT_METADATA_MOST
+	ZFS_REDUNDANT_METADATA_MOST,
+	ZFS_REDUNDANT_METADATA_SOME,
+	ZFS_REDUNDANT_METADATA_NONE
 } zfs_redundant_metadata_type_t;
 
 typedef enum {
@@ -1536,6 +1544,7 @@ typedef enum {
 	ZFS_ERR_BADPROP,
 	ZFS_ERR_VDEV_NOTSUP,
 	ZFS_ERR_NOT_USER_NAMESPACE,
+	ZFS_ERR_RESUME_EXISTS,
 } zfs_errno_t;
 
 /*
@@ -1652,6 +1661,7 @@ typedef enum {
 #define	ZFS_ONLINE_UNSPARE	0x2
 #define	ZFS_ONLINE_FORCEFAULT	0x4
 #define	ZFS_ONLINE_EXPAND	0x8
+#define	ZFS_ONLINE_SPARE	0x10
 #define	ZFS_OFFLINE_TEMPORARY	0x1
 
 /*
@@ -1758,9 +1768,9 @@ typedef enum {
  * against the cost of COWing a giant block to modify one byte, and the
  * large latency of reading or writing a large block.
  *
- * Note that although blocks up to 16MB are supported, the recordsize
- * property can not be set larger than zfs_max_recordsize (default 1MB).
- * See the comment near zfs_max_recordsize in dsl_dataset.c for details.
+ * The recordsize property can not be set larger than zfs_max_recordsize
+ * (default 16MB on 64-bit and 1MB on 32-bit). See the comment near
+ * zfs_max_recordsize in dsl_dataset.c for details.
  *
  * Note that although the LSIZE field of the blkptr_t can store sizes up
  * to 32MB, the dnode's dn_datablkszsec can only store sizes up to

@@ -245,18 +245,17 @@ static void pci_vtscsi_eventq_notify(void *, struct vqueue_info *);
 static void pci_vtscsi_requestq_notify(void *, struct vqueue_info *);
 static int  pci_vtscsi_init_queue(struct pci_vtscsi_softc *,
     struct pci_vtscsi_queue *, int);
-static int pci_vtscsi_init(struct vmctx *, struct pci_devinst *, nvlist_t *);
+static int pci_vtscsi_init(struct pci_devinst *, nvlist_t *);
 
 static struct virtio_consts vtscsi_vi_consts = {
-	"vtscsi",				/* our name */
-	VTSCSI_MAXQ,				/* we support 2+n virtqueues */
-	sizeof(struct pci_vtscsi_config),	/* config reg size */
-	pci_vtscsi_reset,			/* reset */
-	NULL,					/* device-wide qnotify */
-	pci_vtscsi_cfgread,			/* read virtio config */
-	pci_vtscsi_cfgwrite,			/* write virtio config */
-	pci_vtscsi_neg_features,		/* apply negotiated features */
-	0,					/* our capabilities */
+	.vc_name =	"vtscsi",
+	.vc_nvq =	VTSCSI_MAXQ,
+	.vc_cfgsize =	sizeof(struct pci_vtscsi_config),
+	.vc_reset =	pci_vtscsi_reset,
+	.vc_cfgread =	pci_vtscsi_cfgread,
+	.vc_cfgwrite =	pci_vtscsi_cfgwrite,
+	.vc_apply_features = pci_vtscsi_neg_features,
+	.vc_hv_caps =	0,
 };
 
 static void *
@@ -343,9 +342,9 @@ pci_vtscsi_cfgread(void *vsc, int offset, int size, uint32_t *retval)
 }
 
 static int
-pci_vtscsi_cfgwrite(void *vsc, int offset, int size, uint32_t val)
+pci_vtscsi_cfgwrite(void *vsc __unused, int offset __unused, int size __unused,
+    uint32_t val __unused)
 {
-
 	return (0);
 }
 
@@ -406,7 +405,8 @@ pci_vtscsi_tmf_handle(struct pci_vtscsi_softc *sc,
 	io->io_hdr.nexus.initid = sc->vss_iid;
 	io->io_hdr.nexus.targ_lun = pci_vtscsi_get_lun(tmf->lun);
 	io->taskio.tag_type = CTL_TAG_SIMPLE;
-	io->taskio.tag_num = (uint32_t)tmf->id;
+	io->taskio.tag_num = tmf->id;
+	io->io_hdr.flags |= CTL_FLAG_USER_TAG;
 
 	switch (tmf->subtype) {
 	case VIRTIO_SCSI_T_TMF_ABORT_TASK:
@@ -460,10 +460,9 @@ pci_vtscsi_tmf_handle(struct pci_vtscsi_softc *sc,
 }
 
 static int
-pci_vtscsi_an_handle(struct pci_vtscsi_softc *sc,
-    struct pci_vtscsi_ctrl_an *an)
+pci_vtscsi_an_handle(struct pci_vtscsi_softc *sc __unused,
+    struct pci_vtscsi_ctrl_an *an __unused)
 {
-
 	return (0);
 }
 
@@ -521,7 +520,8 @@ pci_vtscsi_request_handle(struct pci_vtscsi_queue *q, struct iovec *iov_in,
 	}
 
 	io->scsiio.sense_len = sc->vss_config.sense_size;
-	io->scsiio.tag_num = (uint32_t)cmd_rd->id;
+	io->scsiio.tag_num = cmd_rd->id;
+	io->io_hdr.flags |= CTL_FLAG_USER_TAG;
 	switch (cmd_rd->task_attr) {
 	case VIRTIO_SCSI_S_ORDERED:
 		io->scsiio.tag_type = CTL_TAG_ORDERED;
@@ -559,7 +559,7 @@ pci_vtscsi_request_handle(struct pci_vtscsi_queue *q, struct iovec *iov_in,
 	} else {
 		cmd_wr->sense_len = MIN(io->scsiio.sense_len,
 		    sc->vss_config.sense_size);
-		cmd_wr->residual = io->scsiio.residual;
+		cmd_wr->residual = ext_data_len - io->scsiio.ext_data_filled;
 		cmd_wr->status = io->scsiio.scsi_status;
 		cmd_wr->response = VIRTIO_SCSI_S_OK;
 		memcpy(&cmd_wr->sense, &io->scsiio.sense_data,
@@ -592,7 +592,7 @@ pci_vtscsi_controlq_notify(void *vsc, struct vqueue_info *vq)
 
 		bufsize = iov_to_buf(iov, n, &buf);
 		iolen = pci_vtscsi_control_handle(sc, buf, bufsize);
-		buf_to_iov(buf + bufsize - iolen, iolen, iov, n,
+		buf_to_iov((uint8_t *)buf + bufsize - iolen, iolen, iov, n,
 		    bufsize - iolen);
 
 		/*
@@ -605,9 +605,8 @@ pci_vtscsi_controlq_notify(void *vsc, struct vqueue_info *vq)
 }
 
 static void
-pci_vtscsi_eventq_notify(void *vsc, struct vqueue_info *vq)
+pci_vtscsi_eventq_notify(void *vsc __unused, struct vqueue_info *vq)
 {
-
 	vq_kick_disable(vq);
 }
 
@@ -699,7 +698,7 @@ pci_vtscsi_legacy_config(nvlist_t *nvl, const char *opts)
 }
 
 static int
-pci_vtscsi_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
+pci_vtscsi_init(struct pci_devinst *pi, nvlist_t *nvl)
 {
 	struct pci_vtscsi_softc *sc;
 	const char *devname, *value;

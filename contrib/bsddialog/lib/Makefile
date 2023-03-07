@@ -3,13 +3,13 @@
 #
 # Written in 2021 by Alfonso Sabato Siciliano
 
-VERSION = 0.3
+VERSION = 0.4
 LIBRARY = bsddialog
 LIBRARY_SO = lib${LIBRARY:=.so}
 LIBRARY_A = lib${LIBRARY:=.a}
 HEADERS = bsddialog.h bsddialog_theme.h bsddialog_progressview.h
-SOURCES = barbox.c formbox.c infobox.c libbsddialog.c lib_util.c menubox.c \
-	messagebox.c textbox.c theme.c timebox.c
+SOURCES = barbox.c calendarbox.c formbox.c infobox.c libbsddialog.c \
+	lib_util.c menubox.c messagebox.c textbox.c theme.c timebox.c
 OBJECTS = ${SOURCES:.c=.o}
 CFLAGS += -D_XOPEN_SOURCE_EXTENDED -fPIC -Wall -Wextra
 LDFLAGS += -fstack-protector-strong -shared -Wl,-x -Wl,--fatal-warnings \

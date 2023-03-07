@@ -710,7 +710,7 @@ ipv4_down()
 	for _inet in $inetList ; do
 		# get rid of extraneous line
 		case $_inet in
-		inet\ *)	;;
+		inet[[:space:]]*)	;;
 		*)		continue ;;
 		esac
 
@@ -750,7 +750,7 @@ ipv6_down()
 	for _inet6 in $inetList ; do
 		# get rid of extraneous line
 		case $_inet6 in
-		inet6\ *)	;;
+		inet6[[:space:]]*)	;;
 		*)		continue ;;
 		esac
 
@@ -1017,7 +1017,7 @@ ifalias_af_common_handler()
 	_args=$*
 
 	case $_args in
-	${_af}\ *)	;;
+	${_af}[[:space:]]*)	;;
 	*)	return	;;
 	esac
 
@@ -1031,11 +1031,11 @@ ifalias_af_common_handler()
 		case $_c in
 		${_af})
 			case $_tmpargs in
-			${_af}\ *[0-9a-fA-F]-*)
+			${_af}[[:space:]]*[0-9a-fA-F]-*)
 				ifalias_af_common_handler $_if $_af $_action \
-				`ifalias_expand_addr $_af $_action ${_tmpargs#${_af}\ }`
+				`ifalias_expand_addr $_af $_action ${_tmpargs#${_af}[[:space:]]}`
 			;;
-			${_af}\ *)
+			${_af}[[:space:]]*)
 				${IFCONFIG_CMD} $_if $_tmpargs $_action && _ret=0
 			;;
 			esac
@@ -1047,13 +1047,16 @@ ifalias_af_common_handler()
 		esac
 	done
 	# Process the last component if any.
-	if [ -n "$_tmpargs}" ]; then
+	if [ -n "${_tmpargs}" ]; then
 		case $_tmpargs in
-		${_af}\ *[0-9a-fA-F]-*)
-			ifalias_af_common_handler $_if $_af $_action \
-			`ifalias_expand_addr $_af $_action ${_tmpargs#${_af}\ }`
+		${_af}[[:space:]]pass[[:space:]]*)
+			${IFCONFIG_CMD} $_if $_tmpargs $_action && _ret=0
 		;;
-		${_af}\ *)
+		${_af}[[:space:]]*[0-9a-fA-F]-*)
+			ifalias_af_common_handler $_if $_af $_action \
+			`ifalias_expand_addr $_af $_action ${_tmpargs#${_af}[[:space:]]}`
+		;;
+		${_af}[[:space:]]*)
 			${IFCONFIG_CMD} $_if $_tmpargs $_action && _ret=0
 		;;
 		esac
@@ -1086,10 +1089,10 @@ ifalias_af_common()
 		eval ifconfig_args=\"\$$alias\"
 		_iaf=
 		case $ifconfig_args in
-		inet\ *)	_iaf=inet ;;
-		inet6\ *)	_iaf=inet6 ;;
-		link\ *)	_iaf=link ;;
-		ether\ *)	_iaf=ether ;;
+		inet[[:space:]]*)	_iaf=inet ;;
+		inet6[[:space:]]*)	_iaf=inet6 ;;
+		link[[:space:]]*)	_iaf=link ;;
+		ether[[:space:]]*)	_iaf=ether ;;
 		esac
 
 		case ${_af}:${_action}:${_iaf}:"${ifconfig_args}" in
@@ -1137,7 +1140,7 @@ ifalias_af_common()
 		case $_c in
 		inet|inet6|link|ether)
 			case $_tmpargs in
-			${_af}\ *)
+			${_af}[[:space:]]*)
 				eval ifalias_af_common_handler $_if $_af $_action $_tmpargs && _ret=0
 			;;
 			esac
@@ -1149,7 +1152,7 @@ ifalias_af_common()
 	done
 	# Process the last component
 	case $_tmpargs in
-	${_af}\ *)
+	${_af}[[:space:]]*)
 		ifalias_af_common_handler $_if $_af $_action $_tmpargs && _ret=0
 	;;
 	esac
@@ -1262,7 +1265,7 @@ wlan_up()
 			create_args="wlandev $parent `get_if_var $child create_args_IF`"
 			debug_flags="`get_if_var $child wlandebug_IF`"
 			case $_iflist in
-			""|$child|$child\ *|*\ $child\ *|*\ $child)	;;
+			""|$child|$child[[:space:]]*|*[[:space:]]$child[[:space:]]*|*[[:space:]]$child)	;;
 			*)	continue ;;
 			esac
 			# Skip if ${child} already exists.
@@ -1302,7 +1305,7 @@ wlan_down()
 		child_wlans=`get_if_var $parent wlans_IF`
 		for child in ${child_wlans}; do
 			case $_iflist in
-			""|$child|$child\ *|*\ $child\ *|*\ $child)	;;
+			""|$child|$child[[:space:]]*|*[[:space:]]$child[[:space:]]*|*[[:space:]]$child)	;;
 			*)	continue ;;
 			esac
 			# Skip if ${child} doesn't exists.
@@ -1335,7 +1338,7 @@ clone_up()
 		# Parse ifn:ifopt.
 		OIFS=$IFS; IFS=:; set -- $ifn; ifn=$1; ifopt=$2; IFS=$OIFS
 		case $_iflist in
-		""|$ifn|$ifn\ *|*\ $ifn\ *|*\ $ifn)	;;
+		""|$ifn|$ifn[[:space:]]*|*[[:space:]]$ifn[[:space:]]*|*[[:space:]]$ifn)	;;
 		*)	continue ;;
 		esac
 		case $ifn in
@@ -1371,7 +1374,7 @@ clone_up()
 		# Parse ifn:ifopt.
 		OIFS=$IFS; IFS=:; set -- $ifn; ifn=$1; ifopt=$2; IFS=$OIFS
 		case $_iflist in
-		""|$ifn|$ifn\ *|*\ $ifn\ *|*\ $ifn)	;;
+		""|$ifn|$ifn[[:space:]]*|*[[:space:]]$ifn[[:space:]]*|*[[:space:]]$ifn)	;;
 		*)	continue ;;
 		esac
 		# Skip if ifn already exists.
@@ -1436,7 +1439,7 @@ clone_down()
 		*:1)		continue ;;	# global sticky knob == 1
 		esac
 		case $_iflist in
-		""|$ifn|$ifn\ *|*\ $ifn\ *|*\ $ifn)	;;
+		""|$ifn|$ifn[[:space:]]*|*[[:space:]]$ifn[[:space:]]*|*[[:space:]]$ifn)	;;
 		*)	continue ;;
 		esac
 		case $ifn in

@@ -3,8 +3,8 @@
 /* (use YYMAJOR/YYMINOR for ifdefs dependent on parser version) */
 
 #define YYBYACC 1
-#define YYMAJOR 1
-#define YYMINOR 9
+#define YYMAJOR 2
+#define YYMINOR 0
 #define YYCHECK "yyyymmdd"
 
 #define YYEMPTY        (-1)
@@ -472,8 +472,8 @@ YYPARSE_DECL()
     memset(&yyval,  0, sizeof(yyval));
     memset(&yylval, 0, sizeof(yylval));
 
-    yym = 0;
-    yyn = 0;
+    /* yym is set below */
+    /* yyn is set below */
     yynerrs = 0;
     yyerrflag = 0;
     yychar = YYEMPTY;
@@ -599,64 +599,79 @@ yyreduce:
 case 3:
 #line 66 "ok_syntax1.y"
 	{  yyerrok ; }
+#line 603 "ok_syntax1.tab.c"
 break;
 case 4:
 #line 70 "ok_syntax1.y"
 	{  printf("%d\n",yystack.l_mark[0].ival);}
+#line 608 "ok_syntax1.tab.c"
 break;
 case 5:
 #line 72 "ok_syntax1.y"
 	{  regs[yystack.l_mark[-2].ival] = yystack.l_mark[0].ival; }
+#line 613 "ok_syntax1.tab.c"
 break;
 case 6:
 #line 76 "ok_syntax1.y"
 	{  yyval.ival = yystack.l_mark[-1].ival; }
+#line 618 "ok_syntax1.tab.c"
 break;
 case 7:
 #line 78 "ok_syntax1.y"
 	{  yyval.ival = yystack.l_mark[-2].ival + yystack.l_mark[0].ival; }
+#line 623 "ok_syntax1.tab.c"
 break;
 case 8:
 #line 80 "ok_syntax1.y"
 	{  yyval.ival = yystack.l_mark[-2].ival - yystack.l_mark[0].ival; }
+#line 628 "ok_syntax1.tab.c"
 break;
 case 9:
 #line 82 "ok_syntax1.y"
 	{  yyval.ival = yystack.l_mark[-2].ival * yystack.l_mark[0].ival; }
+#line 633 "ok_syntax1.tab.c"
 break;
 case 10:
 #line 84 "ok_syntax1.y"
 	{  yyval.ival = yystack.l_mark[-2].ival / yystack.l_mark[0].ival; }
+#line 638 "ok_syntax1.tab.c"
 break;
 case 11:
 #line 86 "ok_syntax1.y"
 	{  yyval.ival = yystack.l_mark[-2].ival % yystack.l_mark[0].ival; }
+#line 643 "ok_syntax1.tab.c"
 break;
 case 12:
 #line 88 "ok_syntax1.y"
 	{  yyval.ival = yystack.l_mark[-2].ival & yystack.l_mark[0].ival; }
+#line 648 "ok_syntax1.tab.c"
 break;
 case 13:
 #line 90 "ok_syntax1.y"
 	{  yyval.ival = yystack.l_mark[-2].ival | yystack.l_mark[0].ival; }
+#line 653 "ok_syntax1.tab.c"
 break;
 case 14:
 #line 92 "ok_syntax1.y"
 	{  yyval.ival = - yystack.l_mark[0].ival; }
+#line 658 "ok_syntax1.tab.c"
 break;
 case 15:
 #line 94 "ok_syntax1.y"
 	{  yyval.ival = regs[yystack.l_mark[0].ival]; }
+#line 663 "ok_syntax1.tab.c"
 break;
 case 17:
 #line 99 "ok_syntax1.y"
 	{  yyval.ival = yystack.l_mark[0].ival; (*base) = (yystack.l_mark[0].ival==0) ? 8 : 10; }
+#line 668 "ok_syntax1.tab.c"
 break;
 case 18:
 #line 101 "ok_syntax1.y"
 	{  yyval.ival = (*base) * yystack.l_mark[-1].ival + yystack.l_mark[0].ival; }
+#line 673 "ok_syntax1.tab.c"
 break;
-#line 660 "ok_syntax1.tab.c"
+#line 675 "ok_syntax1.tab.c"
     }
     yystack.s_mark -= yym;
     yystate = *yystack.s_mark;

@@ -568,7 +568,7 @@ struct ste_chain_data {
 };
 
 struct ste_softc {
-	struct ifnet		*ste_ifp;
+	if_t			ste_ifp;
 	struct resource		*ste_res;
 	int			ste_res_id;
 	int			ste_res_type;

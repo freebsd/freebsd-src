@@ -75,7 +75,8 @@ static const struct {
 		"<name> --interpreter <path_and_arguments> \\\n"
 		"\t\t--magic <magic_bytes> [--mask <mask_bytes>] \\\n"
 		"\t\t--size <magic_size> [--offset <magic_offset>] \\\n"
-		"\t\t[--set-enabled]"
+		"\t\t[--set-enabled] \\\n"
+		"\t\t[--pre-open]"
 	},
 	{
 		CMD_REMOVE,
@@ -122,6 +123,7 @@ add_opts[] = {
 	{ "magic",		required_argument,	NULL,	'm' },
 	{ "offset",		required_argument,	NULL,	'o' },
 	{ "size",		required_argument,	NULL,	's' },
+	{ "pre-open",		no_argument,		NULL,	'p' },
 	{ NULL,			0,			NULL,	0   }
 };
 
@@ -192,8 +194,9 @@ printxbe(ximgact_binmisc_entry_t *xbe)
 
 	printf("name: %s\n", xbe->xbe_name);
 	printf("interpreter: %s\n", xbe->xbe_interpreter);
-	printf("flags: %s%s\n", (flags & IBF_ENABLED) ? "ENABLED " : "",
-	    (flags & IBF_USE_MASK) ? "USE_MASK " : "");
+	printf("flags: %s%s%s\n", (flags & IBF_ENABLED) ? "ENABLED " : "",
+	    (flags & IBF_USE_MASK) ? "USE_MASK " : "",
+	    (flags & IBF_PRE_OPEN) ? "PRE_OPEN " : "");
 	printf("magic size: %u\n", xbe->xbe_msize);
 	printf("magic offset: %u\n", xbe->xbe_moffset);
 
@@ -291,7 +294,7 @@ add_cmd(__unused int argc, char *argv[], ximgact_binmisc_entry_t *xbe)
 		    IBE_NAME_MAX);
 	strlcpy(&xbe->xbe_name[0], argv[0], IBE_NAME_MAX);
 
-	while ((ch = getopt_long(argc, argv, "ei:m:M:o:s:", add_opts, NULL))
+	while ((ch = getopt_long(argc, argv, "epi:m:M:o:s:", add_opts, NULL))
 	    != -1) {
 
 		switch(ch) {
@@ -326,6 +329,10 @@ add_cmd(__unused int argc, char *argv[], ximgact_binmisc_entry_t *xbe)
 				usage("Error: Not valid '--size' value. "
 				    "(Must be > 0 and < %u.)\n",
 				    xbe->xbe_msize);
+			break;
+
+		case 'p':
+			xbe->xbe_flags |= IBF_PRE_OPEN;
 			break;
 
 		default:

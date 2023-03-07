@@ -37,13 +37,15 @@ __FBSDID("$FreeBSD$");
 #define BNXT_AUTO_PAUSE_AUTONEG_PAUSE  				\
         (HWRM_PORT_PHY_QCFG_OUTPUT_AUTO_PAUSE_AUTONEG_PAUSE)
 #define BNXT_HWRM_SHORT_REQ_LEN	sizeof(struct hwrm_short_input)
+#define BNXT_BACKING_STORE_CFG_LEGACY_LEN       256
 
 /* HWRM Function Prototypes */
 int bnxt_alloc_hwrm_dma_mem(struct bnxt_softc *softc);
 void bnxt_free_hwrm_dma_mem(struct bnxt_softc *softc);
 int bnxt_hwrm_ring_alloc(struct bnxt_softc *softc, uint8_t type,
-    struct bnxt_ring *ring, uint16_t cmpl_ring_id, uint32_t stat_ctx_id,
-    bool irq);
+		struct bnxt_ring *ring);
+int bnxt_hwrm_ring_free(struct bnxt_softc *softc, uint32_t type,
+		struct bnxt_ring *ring, int cmpl_ring_id);
 int bnxt_hwrm_ver_get(struct bnxt_softc *softc);
 int bnxt_hwrm_queue_qportcfg(struct bnxt_softc *softc);
 int bnxt_hwrm_func_drv_rgtr(struct bnxt_softc *softc);
@@ -52,19 +54,28 @@ int bnxt_hwrm_func_qcaps(struct bnxt_softc *softc);
 int bnxt_hwrm_func_qcfg(struct bnxt_softc *softc);
 int bnxt_hwrm_func_reset(struct bnxt_softc *softc);
 int bnxt_hwrm_set_link_setting(struct bnxt_softc *softc, bool set_pause,
-    bool set_eee, bool set_link); 
+    bool set_eee, bool set_link);
 int bnxt_hwrm_set_pause(struct bnxt_softc *softc);
 int bnxt_hwrm_vnic_ctx_alloc(struct bnxt_softc *softc, uint16_t *ctx_id);
+int bnxt_hwrm_vnic_ctx_free(struct bnxt_softc *softc, uint16_t ctx_id);
+int bnxt_hwrm_vnic_set_hds(struct bnxt_softc *sc, struct bnxt_vnic_info *vnic);
 int bnxt_hwrm_vnic_cfg(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic);
+int bnxt_hwrm_vnic_alloc(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic);
+int bnxt_hwrm_vnic_free(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic);
 int bnxt_hwrm_stat_ctx_alloc(struct bnxt_softc *softc, struct bnxt_cp_ring *cpr,
     uint64_t paddr);
+int bnxt_hwrm_stat_ctx_free(struct bnxt_softc *softc, struct bnxt_cp_ring *cpr);
 int bnxt_hwrm_port_qstats(struct bnxt_softc *softc);
 int bnxt_hwrm_ring_grp_alloc(struct bnxt_softc *softc,
     struct bnxt_grp_info *grp);
-int bnxt_hwrm_vnic_alloc(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic);
+int bnxt_hwrm_ring_grp_free(struct bnxt_softc *softc, struct bnxt_grp_info *gr);
 int bnxt_hwrm_cfa_l2_set_rx_mask(struct bnxt_softc *softc,
     struct bnxt_vnic_info *vnic);
-int bnxt_hwrm_set_filter(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic);
+int bnxt_hwrm_set_filter(struct bnxt_softc *softc);
+int bnxt_hwrm_free_filter(struct bnxt_softc *softc);
+int bnxt_hwrm_l2_filter_alloc(struct bnxt_softc *softc, uint16_t vlan_tag,
+		uint64_t *filter_id);
+int bnxt_hwrm_l2_filter_free(struct bnxt_softc *softc, uint64_t filter_id);
 int bnxt_hwrm_rss_cfg(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic,
     uint32_t hash_type);
 int bnxt_cfg_async_cr(struct bnxt_softc *softc);
@@ -112,4 +123,12 @@ int bnxt_hwrm_free_wol_fltr(struct bnxt_softc *softc);
 int bnxt_hwrm_set_coal(struct bnxt_softc *softc);
 int bnxt_hwrm_func_rgtr_async_events(struct bnxt_softc *softc, unsigned long *bmap,
                                      int bmap_size);
+int bnxt_hwrm_func_backing_store_qcaps(struct bnxt_softc *softc);
+int bnxt_hwrm_func_backing_store_cfg(struct bnxt_softc *softc, uint32_t);
+int bnxt_hwrm_func_resc_qcaps(struct bnxt_softc *softc, bool all);
+int bnxt_hwrm_reserve_pf_rings (struct bnxt_softc *softc);
+void bnxt_hwrm_ring_info_get(struct bnxt_softc *softc, uint8_t ring_type,
+                             uint32_t ring_id,  uint32_t *prod, uint32_t *);
+int bnxt_hwrm_passthrough(struct bnxt_softc *softc, void *req, uint32_t req_len,
+			  void *resp, uint32_t resp_len, uint32_t timeout);
 #endif

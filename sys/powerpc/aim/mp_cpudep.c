@@ -306,7 +306,7 @@ cpudep_save_config(void *dummy)
 }
 
 void
-cpudep_ap_setup()
+cpudep_ap_setup(void)
 {
 #ifndef __powerpc64__
 	register_t	reg;

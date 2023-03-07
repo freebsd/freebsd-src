@@ -44,8 +44,9 @@ __FBSDID("$FreeBSD$");
 #include <pthread_np.h>
 
 #include "atkbdc.h"
-#include "debug.h"
 #include "console.h"
+#include "debug.h"
+#include "ps2mouse.h"
 
 /* mouse device commands */
 #define	PS2MC_RESET_DEV		0xff

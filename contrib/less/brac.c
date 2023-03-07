@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2021  Mark Nudelman
+ * Copyright (C) 1984-2022  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -84,7 +84,11 @@ match_brac(obrac, cbrac, forwdir, n)
 	while ((c = (*chget)()) != EOI)
 	{
 		if (c == obrac)
+		{
+			if (nest == INT_MAX)
+				break;
 			nest++;
+		}
 		else if (c == cbrac && --nest < 0)
 		{
 			/*

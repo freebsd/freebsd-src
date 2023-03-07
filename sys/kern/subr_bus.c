@@ -69,6 +69,10 @@ SYSCTL_NODE(_hw, OID_AUTO, bus, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
 SYSCTL_ROOT_NODE(OID_AUTO, dev, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
     NULL);
 
+static bool disable_failed_devs = false;
+SYSCTL_BOOL(_hw_bus, OID_AUTO, disable_failed_devices, CTLFLAG_RWTUN, &disable_failed_devs,
+    0, "Do not retry attaching devices that return an error from DEVICE_ATTACH the first time");
+
 /*
  * Used to attach drivers to devclasses.
  */
@@ -2226,6 +2230,7 @@ device_get_property(device_t dev, const char *prop, void *val, size_t sz,
 	switch (type) {
 	case DEVICE_PROP_ANY:
 	case DEVICE_PROP_BUFFER:
+	case DEVICE_PROP_HANDLE:	/* Size checks done in implementation. */
 		break;
 	case DEVICE_PROP_UINT32:
 		if (sz % 4 != 0)
@@ -2532,16 +2537,34 @@ device_attach(device_t dev)
 	if ((error = DEVICE_ATTACH(dev)) != 0) {
 		printf("device_attach: %s%d attach returned %d\n",
 		    dev->driver->name, dev->unit, error);
-		if (!(dev->flags & DF_FIXEDCLASS))
-			devclass_delete_device(dev->devclass, dev);
-		(void)device_set_driver(dev, NULL);
-		device_sysctl_fini(dev);
-		KASSERT(dev->busy == 0, ("attach failed but busy"));
-		dev->state = DS_NOTPRESENT;
+		if (disable_failed_devs) {
+			/*
+			 * When the user has asked to disable failed devices, we
+			 * directly disable the device, but leave it in the
+			 * attaching state. It will not try to probe/attach the
+			 * device further. This leaves the device numbering
+			 * intact for other similar devices in the system. It
+			 * can be removed from this state with devctl.
+			 */
+			device_disable(dev);
+		} else {
+			/*
+			 * Otherwise, when attach fails, tear down the state
+			 * around that so we can retry when, for example, new
+			 * drivers are loaded.
+			 */
+			if (!(dev->flags & DF_FIXEDCLASS))
+				devclass_delete_device(dev->devclass, dev);
+			(void)device_set_driver(dev, NULL);
+			device_sysctl_fini(dev);
+			KASSERT(dev->busy == 0, ("attach failed but busy"));
+			dev->state = DS_NOTPRESENT;
+		}
 		return (error);
 	}
 	dev->flags |= DF_ATTACHED_ONCE;
-	/* We only need the low bits of this time, but ranges from tens to thousands
+	/*
+	 * We only need the low bits of this time, but ranges from tens to thousands
 	 * have been seen, so keep 2 bytes' worth.
 	 */
 	attachentropy = (uint16_t)(get_cyclecount() - attachtime);
@@ -4702,7 +4725,6 @@ root_resume(device_t dev)
 
 	error = bus_generic_resume(dev);
 	if (error == 0) {
-		devctl_notify("kern", "power", "resume", NULL); /* Deprecated gone in 14 */
 		devctl_notify("kernel", "power", "resume", NULL);
 	}
 	return (error);
@@ -5303,27 +5325,26 @@ device_do_deferred_actions(void)
 	bus_data_generation_update();
 }
 
-static char *
-device_get_path(device_t dev, const char *locator)
+static int
+device_get_path(device_t dev, const char *locator, struct sbuf *sb)
 {
-	struct sbuf *sb;
-	ssize_t len;
-	char *rv = NULL;
+	device_t parent;
 	int error;
 
-	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND | SBUF_INCLUDENUL);
-	error = BUS_GET_DEVICE_PATH(device_get_parent(dev), dev, locator, sb);
-	sbuf_finish(sb);	/* Note: errors checked with sbuf_len() below */
-	if (error != 0)
-		goto out;
-	len = sbuf_len(sb);
-	if (len <= 1)
-		goto out;
-	rv = malloc(len, M_BUS, M_NOWAIT);
-	memcpy(rv, sbuf_data(sb), len);
-out:
-	sbuf_delete(sb);
-	return (rv);
+	KASSERT(sb != NULL, ("sb is NULL"));
+	parent = device_get_parent(dev);
+	if (parent == NULL) {
+		error = sbuf_printf(sb, "/");
+	} else {
+		error = BUS_GET_DEVICE_PATH(parent, dev, locator, sb);
+		if (error == 0) {
+			error = sbuf_error(sb);
+			if (error == 0 && sbuf_len(sb) <= 1)
+				error = EIO;
+		}
+	}
+	sbuf_finish(sb);
+	return (error);
 }
 
 static int
@@ -5586,26 +5607,28 @@ devctl2_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		    req->dr_flags);
 		break;
 	case DEV_GET_PATH: {
+		struct sbuf *sb;
 		char locator[64];
-		char *path;
 		ssize_t len;
 
-		error = copyinstr(req->dr_buffer.buffer, locator, sizeof(locator), NULL);
-		if (error)
+		error = copyinstr(req->dr_buffer.buffer, locator,
+		    sizeof(locator), NULL);
+		if (error != 0)
 			break;
-		path = device_get_path(dev, locator);
-		if (path == NULL) {
-			error = ENOMEM;
-			break;
+		sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND |
+		    SBUF_INCLUDENUL /* | SBUF_WAITOK */);
+		error = device_get_path(dev, locator, sb);
+		if (error == 0) {
+			len = sbuf_len(sb);
+			if (req->dr_buffer.length < len) {
+				error = ENAMETOOLONG;
+			} else {
+				error = copyout(sbuf_data(sb),
+				    req->dr_buffer.buffer, len);
+			}
+			req->dr_buffer.length = len;
 		}
-		len = strlen(path) + 1;
-		if (req->dr_buffer.length < len) {
-			error = ENAMETOOLONG;
-		} else {
-			error = copyout(path, req->dr_buffer.buffer, len);
-		}
-		req->dr_buffer.length = len;
-		free(path, M_BUS);
+		sbuf_delete(sb);
 		break;
 	}
 	}
@@ -5661,8 +5684,6 @@ dev_wired_cache_fini(device_location_cache_t *dcp)
 	struct device_location_node *dln, *tdln;
 
 	TAILQ_FOREACH_SAFE(dln, &dcp->dlc_list, dln_link, tdln) {
-		/* Note: one allocation for both node and locator, but not path */
-		free(__DECONST(void *, dln->dln_path), M_BUS);
 		free(dln, M_BUS);
 	}
 	free(dcp, M_BUS);
@@ -5685,23 +5706,28 @@ static struct device_location_node *
 dev_wired_cache_add(device_location_cache_t *dcp, const char *locator, const char *path)
 {
 	struct device_location_node *dln;
-	char *l;
+	size_t loclen, pathlen;
 
-	dln = malloc(sizeof(*dln) + strlen(locator) + 1, M_BUS, M_WAITOK | M_ZERO);
-	dln->dln_locator = l = (char *)(dln + 1);
-	memcpy(l, locator, strlen(locator) + 1);
-	dln->dln_path = path;
+	loclen = strlen(locator) + 1;
+	pathlen = strlen(path) + 1;
+	dln = malloc(sizeof(*dln) + loclen + pathlen, M_BUS, M_WAITOK | M_ZERO);
+	dln->dln_locator = (char *)(dln + 1);
+	memcpy(__DECONST(char *, dln->dln_locator), locator, loclen);
+	dln->dln_path = dln->dln_locator + loclen;
+	memcpy(__DECONST(char *, dln->dln_path), path, pathlen);
 	TAILQ_INSERT_HEAD(&dcp->dlc_list, dln, dln_link);
 
 	return (dln);
 }
 
 bool
-dev_wired_cache_match(device_location_cache_t *dcp, device_t dev, const char *at)
+dev_wired_cache_match(device_location_cache_t *dcp, device_t dev,
+    const char *at)
 {
-	const char *cp, *path;
+	struct sbuf *sb;
+	const char *cp;
 	char locator[32];
-	int len;
+	int error, len;
 	struct device_location_node *res;
 
 	cp = strchr(at, ':');
@@ -5714,13 +5740,22 @@ dev_wired_cache_match(device_location_cache_t *dcp, device_t dev, const char *at
 	locator[len] = '\0';
 	cp++;
 
+	error = 0;
 	/* maybe cache this inside device_t and look that up, but not yet */
 	res = dev_wired_cache_lookup(dcp, locator);
 	if (res == NULL) {
-		path = device_get_path(dev, locator);
-		res = dev_wired_cache_add(dcp, locator, path);
+		sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND |
+		    SBUF_INCLUDENUL | SBUF_NOWAIT);
+		if (sb != NULL) {
+			error = device_get_path(dev, locator, sb);
+			if (error == 0) {
+				res = dev_wired_cache_add(dcp, locator,
+				    sbuf_data(sb));
+			}
+			sbuf_delete(sb);
+		}
 	}
-	if (res == NULL || res->dln_path == NULL)
+	if (error != 0 || res == NULL || res->dln_path == NULL)
 		return (false);
 
 	return (strcmp(res->dln_path, cp) == 0);

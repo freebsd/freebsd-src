@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "MCTargetDesc/HexagonMCTargetDesc.h"
-#include "HexagonArch.h"
+#include "HexagonDepArch.h"
 #include "HexagonTargetStreamer.h"
 #include "MCTargetDesc/HexagonInstPrinter.h"
 #include "MCTargetDesc/HexagonMCAsmInfo.h"
@@ -22,6 +22,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/BinaryFormat/ELF.h"
 #include "llvm/MC/MCAsmBackend.h"
+#include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCCodeEmitter.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCDwarf.h"
@@ -45,6 +46,7 @@
 using namespace llvm;
 
 #define GET_INSTRINFO_MC_DESC
+#define ENABLE_INSTR_PREDICATE_VERIFIER
 #include "HexagonGenInstrInfo.inc"
 
 #define GET_SUBTARGETINFO_MC_DESC
@@ -409,8 +411,8 @@ std::string selectHexagonFS(StringRef CPU, StringRef FS) {
 }
 }
 
-static bool isCPUValid(const std::string &CPU) {
-  return Hexagon::CpuTable.find(CPU) != Hexagon::CpuTable.cend();
+static bool isCPUValid(StringRef CPU) {
+  return Hexagon::getCpu(CPU).has_value();
 }
 
 namespace {
@@ -559,12 +561,18 @@ void Hexagon_MC::addArchSubtarget(MCSubtargetInfo const *STI,
 }
 
 unsigned Hexagon_MC::GetELFFlags(const MCSubtargetInfo &STI) {
-  using llvm::Hexagon::ElfFlagsByCpuStr;
-
-  const std::string CPU(STI.getCPU().str());
-  auto F = ElfFlagsByCpuStr.find(CPU);
-  assert(F != ElfFlagsByCpuStr.end() && "Unrecognized Architecture");
-  return F->second;
+  return StringSwitch<unsigned>(STI.getCPU())
+      .Case("generic", llvm::ELF::EF_HEXAGON_MACH_V5)
+      .Case("hexagonv5", llvm::ELF::EF_HEXAGON_MACH_V5)
+      .Case("hexagonv55", llvm::ELF::EF_HEXAGON_MACH_V55)
+      .Case("hexagonv60", llvm::ELF::EF_HEXAGON_MACH_V60)
+      .Case("hexagonv62", llvm::ELF::EF_HEXAGON_MACH_V62)
+      .Case("hexagonv65", llvm::ELF::EF_HEXAGON_MACH_V65)
+      .Case("hexagonv66", llvm::ELF::EF_HEXAGON_MACH_V66)
+      .Case("hexagonv67", llvm::ELF::EF_HEXAGON_MACH_V67)
+      .Case("hexagonv67t", llvm::ELF::EF_HEXAGON_MACH_V67T)
+      .Case("hexagonv68", llvm::ELF::EF_HEXAGON_MACH_V68)
+      .Case("hexagonv69", llvm::ELF::EF_HEXAGON_MACH_V69);
 }
 
 llvm::ArrayRef<MCPhysReg> Hexagon_MC::GetVectRegRev() {

@@ -9,19 +9,24 @@
 #include "llvm/Linker/IRMover.h"
 #include "LinkDiagnosticInfo.h"
 #include "llvm/ADT/SetVector.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/Triple.h"
+#include "llvm/IR/AutoUpgrade.h"
 #include "llvm/IR/Constants.h"
-#include "llvm/IR/DebugInfo.h"
+#include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/DiagnosticPrinter.h"
+#include "llvm/IR/Function.h"
 #include "llvm/IR/GVMaterializer.h"
+#include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/Module.h"
 #include "llvm/IR/PseudoProbe.h"
 #include "llvm/IR/TypeFinder.h"
 #include "llvm/Object/ModuleSymbolTable.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/Path.h"
-#include "llvm/Transforms/Utils/Cloning.h"
+#include "llvm/Transforms/Utils/ValueMapper.h"
 #include <utility>
 using namespace llvm;
 
@@ -381,7 +386,7 @@ class IRLinker {
   std::unique_ptr<Module> SrcM;
 
   /// See IRMover::move().
-  std::function<void(GlobalValue &, IRMover::ValueAdder)> AddLazyFor;
+  IRMover::LazyCallback AddLazyFor;
 
   TypeMapTy TypeMap;
   GlobalValueMaterializer GValMaterializer;
@@ -524,8 +529,7 @@ public:
   IRLinker(Module &DstM, MDMapT &SharedMDs,
            IRMover::IdentifiedStructTypeSet &Set, std::unique_ptr<Module> SrcM,
            ArrayRef<GlobalValue *> ValuesToLink,
-           std::function<void(GlobalValue &, IRMover::ValueAdder)> AddLazyFor,
-           bool IsPerformingImport)
+           IRMover::LazyCallback AddLazyFor, bool IsPerformingImport)
       : DstM(DstM), SrcM(std::move(SrcM)), AddLazyFor(std::move(AddLazyFor)),
         TypeMap(Set), GValMaterializer(*this), LValMaterializer(*this),
         SharedMDs(SharedMDs), IsPerformingImport(IsPerformingImport),
@@ -987,10 +991,11 @@ bool IRLinker::shouldLink(GlobalValue *DGV, GlobalValue &SGV) {
   // Callback to the client to give a chance to lazily add the Global to the
   // list of value to link.
   bool LazilyAdded = false;
-  AddLazyFor(SGV, [this, &LazilyAdded](GlobalValue &GV) {
-    maybeAdd(&GV);
-    LazilyAdded = true;
-  });
+  if (AddLazyFor)
+    AddLazyFor(SGV, [this, &LazilyAdded](GlobalValue &GV) {
+      maybeAdd(&GV);
+      LazilyAdded = true;
+    });
   return LazilyAdded;
 }
 
@@ -1041,7 +1046,7 @@ Expected<Constant *> IRLinker::linkGlobalValueProto(GlobalValue *SGV,
   if (Function *F = dyn_cast<Function>(NewGV))
     if (auto Remangled = Intrinsic::remangleIntrinsicFunction(F)) {
       NewGV->eraseFromParent();
-      NewGV = Remangled.getValue();
+      NewGV = *Remangled;
       NeedsRenaming = false;
     }
 
@@ -1229,8 +1234,15 @@ void IRLinker::linkNamedMDNodes() {
       continue;
     // Don't import pseudo probe descriptors here for thinLTO. They will be
     // emitted by the originating module.
-    if (IsPerformingImport && NMD.getName() == PseudoProbeDescMetadataName)
+    if (IsPerformingImport && NMD.getName() == PseudoProbeDescMetadataName) {
+      if (!DstM.getNamedMetadata(NMD.getName()))
+        emitWarning("Pseudo-probe ignored: source module '" +
+                    SrcM->getModuleIdentifier() +
+                    "' is compiled with -fpseudo-probe-for-profiling while "
+                    "destination module '" +
+                    DstM.getModuleIdentifier() + "' is not\n");
       continue;
+    }
     NamedMDNode *DestNMD = DstM.getOrInsertNamedMetadata(NMD.getName());
     // Add Src elements into Dest node.
     for (const MDNode *Op : NMD.operands())
@@ -1245,6 +1257,9 @@ Error IRLinker::linkModuleFlagsMetadata() {
   if (!SrcModFlags)
     return Error::success();
 
+  // Check for module flag for updates before do anything.
+  UpgradeModuleFlags(*SrcM);
+
   // If the destination module doesn't have module flags yet, then just copy
   // over the source module's flags.
   NamedMDNode *DstModFlags = DstM.getOrInsertModuleFlagsMetadata();
@@ -1258,14 +1273,19 @@ Error IRLinker::linkModuleFlagsMetadata() {
   // First build a map of the existing module flags and requirements.
   DenseMap<MDString *, std::pair<MDNode *, unsigned>> Flags;
   SmallSetVector<MDNode *, 16> Requirements;
+  SmallVector<unsigned, 0> Mins;
+  DenseSet<MDString *> SeenMin;
   for (unsigned I = 0, E = DstModFlags->getNumOperands(); I != E; ++I) {
     MDNode *Op = DstModFlags->getOperand(I);
-    ConstantInt *Behavior = mdconst::extract<ConstantInt>(Op->getOperand(0));
+    uint64_t Behavior =
+        mdconst::extract<ConstantInt>(Op->getOperand(0))->getZExtValue();
     MDString *ID = cast<MDString>(Op->getOperand(1));
 
-    if (Behavior->getZExtValue() == Module::Require) {
+    if (Behavior == Module::Require) {
       Requirements.insert(cast<MDNode>(Op->getOperand(2)));
     } else {
+      if (Behavior == Module::Min)
+        Mins.push_back(I);
       Flags[ID] = std::make_pair(Op, I);
     }
   }
@@ -1281,6 +1301,7 @@ Error IRLinker::linkModuleFlagsMetadata() {
     unsigned DstIndex;
     std::tie(DstOp, DstIndex) = Flags.lookup(ID);
     unsigned SrcBehaviorValue = SrcBehavior->getZExtValue();
+    SeenMin.insert(ID);
 
     // If this is a requirement, add it and continue.
     if (SrcBehaviorValue == Module::Require) {
@@ -1294,6 +1315,10 @@ Error IRLinker::linkModuleFlagsMetadata() {
 
     // If there is no existing flag with this ID, just add it.
     if (!DstOp) {
+      if (SrcBehaviorValue == Module::Min) {
+        Mins.push_back(DstModFlags->getNumOperands());
+        SeenMin.erase(ID);
+      }
       Flags[ID] = std::make_pair(SrcOp, DstModFlags->getNumOperands());
       DstModFlags->addOperand(SrcOp);
       continue;
@@ -1327,22 +1352,35 @@ Error IRLinker::linkModuleFlagsMetadata() {
 
     // Diagnose inconsistent merge behavior types.
     if (SrcBehaviorValue != DstBehaviorValue) {
+      bool MinAndWarn = (SrcBehaviorValue == Module::Min &&
+                         DstBehaviorValue == Module::Warning) ||
+                        (DstBehaviorValue == Module::Min &&
+                         SrcBehaviorValue == Module::Warning);
       bool MaxAndWarn = (SrcBehaviorValue == Module::Max &&
                          DstBehaviorValue == Module::Warning) ||
                         (DstBehaviorValue == Module::Max &&
                          SrcBehaviorValue == Module::Warning);
-      if (!MaxAndWarn)
+      if (!(MaxAndWarn || MinAndWarn))
         return stringErr("linking module flags '" + ID->getString() +
                          "': IDs have conflicting behaviors in '" +
                          SrcM->getModuleIdentifier() + "' and '" +
                          DstM.getModuleIdentifier() + "'");
     }
 
-    auto replaceDstValue = [&](MDNode *New) {
+    auto ensureDistinctOp = [&](MDNode *DstValue) {
+      assert(isa<MDTuple>(DstValue) &&
+             "Expected MDTuple when appending module flags");
+      if (DstValue->isDistinct())
+        return dyn_cast<MDTuple>(DstValue);
+      ArrayRef<MDOperand> DstOperands = DstValue->operands();
+      MDTuple *New = MDTuple::getDistinct(
+          DstM.getContext(),
+          SmallVector<Metadata *, 4>(DstOperands.begin(), DstOperands.end()));
       Metadata *FlagOps[] = {DstOp->getOperand(0), ID, New};
-      MDNode *Flag = MDNode::get(DstM.getContext(), FlagOps);
+      MDNode *Flag = MDTuple::getDistinct(DstM.getContext(), FlagOps);
       DstModFlags->setOperand(DstIndex, Flag);
       Flags[ID].first = Flag;
+      return New;
     };
 
     // Emit a warning if the values differ and either source or destination
@@ -1358,6 +1396,25 @@ Error IRLinker::linkModuleFlagsMetadata() {
           << *DstOp->getOperand(2) << "' from " << DstM.getModuleIdentifier()
           << ')';
       emitWarning(Str);
+    }
+
+    // Choose the minimum if either source or destination request Min behavior.
+    if (DstBehaviorValue == Module::Min || SrcBehaviorValue == Module::Min) {
+      ConstantInt *DstValue =
+          mdconst::extract<ConstantInt>(DstOp->getOperand(2));
+      ConstantInt *SrcValue =
+          mdconst::extract<ConstantInt>(SrcOp->getOperand(2));
+
+      // The resulting flag should have a Min behavior, and contain the minimum
+      // value from between the source and destination values.
+      Metadata *FlagOps[] = {
+          (DstBehaviorValue != Module::Min ? SrcOp : DstOp)->getOperand(0), ID,
+          (SrcValue->getZExtValue() < DstValue->getZExtValue() ? SrcOp : DstOp)
+              ->getOperand(2)};
+      MDNode *Flag = MDNode::get(DstM.getContext(), FlagOps);
+      DstModFlags->setOperand(DstIndex, Flag);
+      Flags[ID].first = Flag;
+      continue;
     }
 
     // Choose the maximum if either source or destination request Max behavior.
@@ -1400,29 +1457,38 @@ Error IRLinker::linkModuleFlagsMetadata() {
       break;
     }
     case Module::Append: {
-      MDNode *DstValue = cast<MDNode>(DstOp->getOperand(2));
+      MDTuple *DstValue = ensureDistinctOp(cast<MDNode>(DstOp->getOperand(2)));
       MDNode *SrcValue = cast<MDNode>(SrcOp->getOperand(2));
-      SmallVector<Metadata *, 8> MDs;
-      MDs.reserve(DstValue->getNumOperands() + SrcValue->getNumOperands());
-      MDs.append(DstValue->op_begin(), DstValue->op_end());
-      MDs.append(SrcValue->op_begin(), SrcValue->op_end());
-
-      replaceDstValue(MDNode::get(DstM.getContext(), MDs));
+      for (const auto &O : SrcValue->operands())
+        DstValue->push_back(O);
       break;
     }
     case Module::AppendUnique: {
       SmallSetVector<Metadata *, 16> Elts;
-      MDNode *DstValue = cast<MDNode>(DstOp->getOperand(2));
+      MDTuple *DstValue = ensureDistinctOp(cast<MDNode>(DstOp->getOperand(2)));
       MDNode *SrcValue = cast<MDNode>(SrcOp->getOperand(2));
       Elts.insert(DstValue->op_begin(), DstValue->op_end());
       Elts.insert(SrcValue->op_begin(), SrcValue->op_end());
-
-      replaceDstValue(MDNode::get(DstM.getContext(),
-                                  makeArrayRef(Elts.begin(), Elts.end())));
+      for (auto I = DstValue->getNumOperands(); I < Elts.size(); I++)
+        DstValue->push_back(Elts[I]);
       break;
     }
     }
 
+  }
+
+  // For the Min behavior, set the value to 0 if either module does not have the
+  // flag.
+  for (auto Idx : Mins) {
+    MDNode *Op = DstModFlags->getOperand(Idx);
+    MDString *ID = cast<MDString>(Op->getOperand(1));
+    if (!SeenMin.count(ID)) {
+      ConstantInt *V = mdconst::extract<ConstantInt>(Op->getOperand(2));
+      Metadata *FlagOps[] = {
+          Op->getOperand(0), ID,
+          ConstantAsMetadata::get(ConstantInt::get(V->getType(), 0))};
+      DstModFlags->setOperand(Idx, MDNode::get(DstM.getContext(), FlagOps));
+    }
   }
 
   // Check all of the requirements.
@@ -1673,10 +1739,9 @@ IRMover::IRMover(Module &M) : Composite(M) {
   }
 }
 
-Error IRMover::move(
-    std::unique_ptr<Module> Src, ArrayRef<GlobalValue *> ValuesToLink,
-    std::function<void(GlobalValue &, ValueAdder Add)> AddLazyFor,
-    bool IsPerformingImport) {
+Error IRMover::move(std::unique_ptr<Module> Src,
+                    ArrayRef<GlobalValue *> ValuesToLink,
+                    LazyCallback AddLazyFor, bool IsPerformingImport) {
   IRLinker TheIRLinker(Composite, SharedMDs, IdentifiedStructTypes,
                        std::move(Src), ValuesToLink, std::move(AddLazyFor),
                        IsPerformingImport);

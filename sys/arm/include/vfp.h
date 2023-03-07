@@ -139,6 +139,11 @@
 #define COPROC10		(0x3 << 20)
 #define COPROC11		(0x3 << 22)
 
+#define	FPU_KERN_NORMAL	0x0000
+#define	FPU_KERN_NOWAIT	0x0001
+#define	FPU_KERN_KTHR	0x0002
+#define	FPU_KERN_NOCTX	0x0004
+
 #ifndef LOCORE
 struct vfp_state {
 	uint64_t reg[32];
@@ -152,8 +157,21 @@ struct vfp_state {
 void	get_vfpcontext(struct thread *, mcontext_vfp_t *);
 void	set_vfpcontext(struct thread *, mcontext_vfp_t *);
 void    vfp_init(void);
+void	vfp_new_thread(struct thread*, struct thread*, bool);
 void    vfp_store(struct vfp_state *, boolean_t);
 void    vfp_discard(struct thread *);
+void	vfp_restore_state(void);
+void	vfp_save_state(struct thread *, struct pcb *);
+
+struct fpu_kern_ctx;
+
+struct fpu_kern_ctx *fpu_kern_alloc_ctx(u_int);
+void fpu_kern_free_ctx(struct fpu_kern_ctx *);
+void fpu_kern_enter(struct thread *, struct fpu_kern_ctx *, u_int);
+int fpu_kern_leave(struct thread *, struct fpu_kern_ctx *);
+int fpu_kern_thread(u_int);
+int is_fpu_kern_thread(u_int);
+
 #endif	/* _KERNEL */
 #endif	/* LOCORE */
 

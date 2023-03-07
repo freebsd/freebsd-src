@@ -59,7 +59,7 @@ typedef int (*bdg_config_fn_t)(struct nm_ifreq *);
 typedef void (*bdg_dtor_fn_t)(const struct netmap_vp_adapter *);
 typedef void *(*bdg_update_private_data_fn_t)(void *private_data, void *callback_data, int *error);
 typedef int (*bdg_vp_create_fn_t)(struct nmreq_header *hdr,
-		struct ifnet *ifp, struct netmap_mem_d *nmd,
+		if_t ifp, struct netmap_mem_d *nmd,
 		struct netmap_vp_adapter **ret);
 typedef int (*bdg_bwrap_attach_fn_t)(const char *nr_name, struct netmap_adapter *hwna);
 struct netmap_bdg_ops {
@@ -192,7 +192,6 @@ void netmap_uninit_bridges2(struct nm_bridge *, u_int);
 int netmap_bdg_update_private_data(const char *name, bdg_update_private_data_fn_t callback,
 	void *callback_data, void *auth_token);
 int netmap_bdg_config(struct nm_ifreq *nifr);
-int nm_is_bwrap(struct netmap_adapter *);
 
 #define NM_NEED_BWRAP (-2)
 #endif /* _NET_NETMAP_BDG_H_ */

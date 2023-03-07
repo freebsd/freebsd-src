@@ -219,7 +219,7 @@ ertt_packet_measurement_hook(int hhook_type, int hhook_id, void *udata,
 	measurenext = measurenext_len = multiack = rts = rtt_bytes_adjust = 0;
 	acked = th->th_ack - tp->snd_una;
 
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
 	/* Packet has provided new acknowledgements. */
 	if (acked > 0 || new_sacked_bytes) {
@@ -452,7 +452,7 @@ ertt_add_tx_segment_info_hook(int hhook_type, int hhook_id, void *udata,
 	len = thdp->len;
 	tso = thdp->tso;
 
-	INP_WLOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
 	if (len > 0) {
 		txsi = uma_zalloc(txseginfo_zone, M_NOWAIT);

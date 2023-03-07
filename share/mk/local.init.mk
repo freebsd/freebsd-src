@@ -36,5 +36,6 @@ CFLAGS+= ${HOST_CFLAGS}
 .endif
 
 .-include "src.init.mk"
+.-include <site.init.mk>
 .-include "${.CURDIR}/local.init.mk"
 .endif

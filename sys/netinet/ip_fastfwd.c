@@ -86,6 +86,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_var.h>
 #include <net/if_dl.h>
+#include <net/if_private.h>
 #include <net/pfil.h>
 #include <net/route.h>
 #include <net/route/nhop.h>
@@ -251,14 +252,6 @@ ip_tryforward(struct mbuf *m)
 	M_ASSERTVALID(m);
 	M_ASSERTPKTHDR(m);
 
-#ifdef ALTQ
-	/*
-	 * Is packet dropped by traffic conditioner?
-	 */
-	if (altq_input != NULL && (*altq_input)(m, AF_INET) == 0)
-		goto drop;
-#endif
-
 	/*
 	 * Only IP packets without options
 	 */
@@ -318,7 +311,7 @@ ip_tryforward(struct mbuf *m)
 	if (!PFIL_HOOKED_IN(V_inet_pfil_head))
 		goto passin;
 
-	if (pfil_run_hooks(V_inet_pfil_head, &m, m->m_pkthdr.rcvif, PFIL_IN,
+	if (pfil_mbuf_in(V_inet_pfil_head, &m, m->m_pkthdr.rcvif,
 	    NULL) != PFIL_PASS)
 		goto drop;
 
@@ -410,8 +403,8 @@ passin:
 	if (!PFIL_HOOKED_OUT(V_inet_pfil_head))
 		goto passout;
 
-	if (pfil_run_hooks(V_inet_pfil_head, &m, nh->nh_ifp,
-	    PFIL_OUT | PFIL_FWD, NULL) != PFIL_PASS)
+	if (pfil_mbuf_out(V_inet_pfil_head, &m, nh->nh_ifp,
+	    NULL) != PFIL_PASS)
 		goto drop;
 
 	M_ASSERTVALID(m);

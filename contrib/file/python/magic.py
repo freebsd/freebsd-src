@@ -272,20 +272,42 @@ def open(flags):
     Returns a magic object on success and None on failure.
     Flags argument as for setflags.
     """
-    return Magic(_open(flags))
+    magic_t = _open(flags)
+    if magic_t is None:
+        return None
+    return Magic(magic_t)
 
 
 # Objects used by `detect_from_` functions
+class error(Exception):
+    pass
+
 class MagicDetect(object):
     def __init__(self):
-        self.mime_magic = Magic(_open(MAGIC_MIME))
-        self.mime_magic.load()
-        self.none_magic = Magic(_open(MAGIC_NONE))
-        self.none_magic.load()
+        self.mime_magic = open(MAGIC_MIME)
+        if self.mime_magic is None:
+            raise error
+        if self.mime_magic.load() == -1:
+            self.mime_magic.close()
+            self.mime_magic = None
+            raise error
+        self.none_magic = open(MAGIC_NONE)
+        if self.none_magic is None:
+            self.mime_magic.close()
+            self.mime_magic = None
+            raise error
+        if self.none_magic.load() == -1:
+            self.none_magic.close()
+            self.none_magic = None
+            self.mime_magic.close()
+            self.mime_magic = None
+            raise error
 
     def __del__(self):
-        self.mime_magic.close()
-        self.none_magic.close()
+        if self.mime_magic is not None:
+            self.mime_magic.close()
+        if self.none_magic is not None:
+            self.none_magic.close()
 
 threadlocal = threading.local()
 

@@ -6,6 +6,8 @@ noinst_HEADERS = \
 	\
 	%D%/spl/rpc/xdr.h \
 	\
+	%D%/spl/sys/ia32/asm_linkage.h \
+	\
 	%D%/spl/sys/acl.h \
 	%D%/spl/sys/acl_impl.h \
 	%D%/spl/sys/atomic.h \
@@ -21,7 +23,6 @@ noinst_HEADERS = \
 	%D%/spl/sys/dirent.h \
 	%D%/spl/sys/disp.h \
 	%D%/spl/sys/dkio.h \
-	%D%/spl/sys/extdirent.h \
 	%D%/spl/sys/fcntl.h \
 	%D%/spl/sys/file.h \
 	%D%/spl/sys/freebsd_rwlock.h \
@@ -50,6 +51,7 @@ noinst_HEADERS = \
 	%D%/spl/sys/sid.h \
 	%D%/spl/sys/sig.h \
 	%D%/spl/sys/simd.h \
+	%D%/spl/sys/simd_powerpc.h \
 	%D%/spl/sys/simd_x86.h \
 	%D%/spl/sys/spl_condvar.h \
 	%D%/spl/sys/string.h \
@@ -88,3 +90,4 @@ noinst_HEADERS = \
 	%D%/zfs/sys/zfs_vnops_os.h \
 	%D%/zfs/sys/zfs_znode_impl.h \
 	%D%/zfs/sys/zpl.h
+

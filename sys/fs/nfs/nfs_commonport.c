@@ -56,12 +56,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 extern int nfscl_ticks;
-extern nfsuserd_state nfsrv_nfsuserd;
-extern struct nfssockreq nfsrv_nfsuserdsock;
 extern void (*nfsd_call_recall)(struct vnode *, int, struct ucred *,
     struct thread *);
 extern int nfsrv_useacl;
-struct mount nfsv4root_mnt;
 int newnfs_numnfsd = 0;
 struct nfsstatsv1 nfsstatsv1;
 int nfs_numnfscbd = 0;
@@ -75,6 +72,11 @@ void (*ncl_call_invalcaches)(struct vnode *) = NULL;
 vop_advlock_t *nfs_advlock_p = NULL;
 vop_reclaim_t *nfs_reclaim_p = NULL;
 uint32_t nfs_srvmaxio = NFS_SRVMAXIO;
+
+NFSD_VNET_DEFINE(struct nfsstatsv1 *, nfsstatsv1_p);
+
+NFSD_VNET_DECLARE(struct nfssockreq, nfsrv_nfsuserdsock);
+NFSD_VNET_DECLARE(nfsuserd_state, nfsrv_nfsuserd);
 
 int nfs_pnfsio(task_fn_t *, void *);
 
@@ -433,7 +435,9 @@ nfssvc_nfscommon(struct thread *td, struct nfssvc_args *uap)
 {
 	int error;
 
+	NFSD_CURVNET_SET(NFSD_TD_TO_VNET(td));
 	error = nfssvc_call(td, uap, td->td_ucred);
+	NFSD_CURVNET_RESTORE();
 	NFSEXITCODE(error);
 	return (error);
 }
@@ -473,87 +477,105 @@ nfssvc_call(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 		if ((uap->flag & NFSSVC_NEWSTRUCT) == 0) {
 			/* Copy fields to the old ext_nfsstat structure. */
 			oldnfsstats.attrcache_hits =
-			    nfsstatsv1.attrcache_hits;
+			    NFSD_VNET(nfsstatsv1_p)->attrcache_hits;
 			oldnfsstats.attrcache_misses =
-			    nfsstatsv1.attrcache_misses;
+			    NFSD_VNET(nfsstatsv1_p)->attrcache_misses;
 			oldnfsstats.lookupcache_hits =
-			    nfsstatsv1.lookupcache_hits;
+			    NFSD_VNET(nfsstatsv1_p)->lookupcache_hits;
 			oldnfsstats.lookupcache_misses =
-			    nfsstatsv1.lookupcache_misses;
+			    NFSD_VNET(nfsstatsv1_p)->lookupcache_misses;
 			oldnfsstats.direofcache_hits =
-			    nfsstatsv1.direofcache_hits;
+			    NFSD_VNET(nfsstatsv1_p)->direofcache_hits;
 			oldnfsstats.direofcache_misses =
-			    nfsstatsv1.direofcache_misses;
+			    NFSD_VNET(nfsstatsv1_p)->direofcache_misses;
 			oldnfsstats.accesscache_hits =
-			    nfsstatsv1.accesscache_hits;
+			    NFSD_VNET(nfsstatsv1_p)->accesscache_hits;
 			oldnfsstats.accesscache_misses =
-			    nfsstatsv1.accesscache_misses;
+			    NFSD_VNET(nfsstatsv1_p)->accesscache_misses;
 			oldnfsstats.biocache_reads =
-			    nfsstatsv1.biocache_reads;
+			    NFSD_VNET(nfsstatsv1_p)->biocache_reads;
 			oldnfsstats.read_bios =
-			    nfsstatsv1.read_bios;
+			    NFSD_VNET(nfsstatsv1_p)->read_bios;
 			oldnfsstats.read_physios =
-			    nfsstatsv1.read_physios;
+			    NFSD_VNET(nfsstatsv1_p)->read_physios;
 			oldnfsstats.biocache_writes =
-			    nfsstatsv1.biocache_writes;
+			    NFSD_VNET(nfsstatsv1_p)->biocache_writes;
 			oldnfsstats.write_bios =
-			    nfsstatsv1.write_bios;
+			    NFSD_VNET(nfsstatsv1_p)->write_bios;
 			oldnfsstats.write_physios =
-			    nfsstatsv1.write_physios;
+			    NFSD_VNET(nfsstatsv1_p)->write_physios;
 			oldnfsstats.biocache_readlinks =
-			    nfsstatsv1.biocache_readlinks;
+			    NFSD_VNET(nfsstatsv1_p)->biocache_readlinks;
 			oldnfsstats.readlink_bios =
-			    nfsstatsv1.readlink_bios;
+			    NFSD_VNET(nfsstatsv1_p)->readlink_bios;
 			oldnfsstats.biocache_readdirs =
-			    nfsstatsv1.biocache_readdirs;
+			    NFSD_VNET(nfsstatsv1_p)->biocache_readdirs;
 			oldnfsstats.readdir_bios =
-			    nfsstatsv1.readdir_bios;
+			    NFSD_VNET(nfsstatsv1_p)->readdir_bios;
 			for (i = 0; i < NFSV4_NPROCS; i++)
-				oldnfsstats.rpccnt[i] = nfsstatsv1.rpccnt[i];
-			oldnfsstats.rpcretries = nfsstatsv1.rpcretries;
+				oldnfsstats.rpccnt[i] =
+				    NFSD_VNET(nfsstatsv1_p)->rpccnt[i];
+			oldnfsstats.rpcretries =
+			    NFSD_VNET(nfsstatsv1_p)->rpcretries;
 			for (i = 0; i < NFSV4OP_NOPS; i++)
 				oldnfsstats.srvrpccnt[i] =
-				    nfsstatsv1.srvrpccnt[i];
+				    NFSD_VNET(nfsstatsv1_p)->srvrpccnt[i];
 			for (i = NFSV42_NOPS, j = NFSV4OP_NOPS;
 			    i < NFSV42_NOPS + NFSV4OP_FAKENOPS; i++, j++)
 				oldnfsstats.srvrpccnt[j] =
-				    nfsstatsv1.srvrpccnt[i];
+				    NFSD_VNET(nfsstatsv1_p)->srvrpccnt[i];
 			oldnfsstats.reserved_0 = 0;
 			oldnfsstats.reserved_1 = 0;
-			oldnfsstats.rpcrequests = nfsstatsv1.rpcrequests;
-			oldnfsstats.rpctimeouts = nfsstatsv1.rpctimeouts;
-			oldnfsstats.rpcunexpected = nfsstatsv1.rpcunexpected;
-			oldnfsstats.rpcinvalid = nfsstatsv1.rpcinvalid;
+			oldnfsstats.rpcrequests =
+			    NFSD_VNET(nfsstatsv1_p)->rpcrequests;
+			oldnfsstats.rpctimeouts =
+			    NFSD_VNET(nfsstatsv1_p)->rpctimeouts;
+			oldnfsstats.rpcunexpected =
+			    NFSD_VNET(nfsstatsv1_p)->rpcunexpected;
+			oldnfsstats.rpcinvalid =
+			    NFSD_VNET(nfsstatsv1_p)->rpcinvalid;
 			oldnfsstats.srvcache_inproghits =
-			    nfsstatsv1.srvcache_inproghits;
+			    NFSD_VNET(nfsstatsv1_p)->srvcache_inproghits;
 			oldnfsstats.reserved_2 = 0;
 			oldnfsstats.srvcache_nonidemdonehits =
-			    nfsstatsv1.srvcache_nonidemdonehits;
+			    NFSD_VNET(nfsstatsv1_p)->srvcache_nonidemdonehits;
 			oldnfsstats.srvcache_misses =
-			    nfsstatsv1.srvcache_misses;
+			    NFSD_VNET(nfsstatsv1_p)->srvcache_misses;
 			oldnfsstats.srvcache_tcppeak =
-			    nfsstatsv1.srvcache_tcppeak;
-			oldnfsstats.srvcache_size = nfsstatsv1.srvcache_size;
-			oldnfsstats.srvclients = nfsstatsv1.srvclients;
-			oldnfsstats.srvopenowners = nfsstatsv1.srvopenowners;
-			oldnfsstats.srvopens = nfsstatsv1.srvopens;
-			oldnfsstats.srvlockowners = nfsstatsv1.srvlockowners;
-			oldnfsstats.srvlocks = nfsstatsv1.srvlocks;
-			oldnfsstats.srvdelegates = nfsstatsv1.srvdelegates;
+			    NFSD_VNET(nfsstatsv1_p)->srvcache_tcppeak;
+			oldnfsstats.srvcache_size =
+			    NFSD_VNET(nfsstatsv1_p)->srvcache_size;
+			oldnfsstats.srvclients =
+			    NFSD_VNET(nfsstatsv1_p)->srvclients;
+			oldnfsstats.srvopenowners =
+			    NFSD_VNET(nfsstatsv1_p)->srvopenowners;
+			oldnfsstats.srvopens =
+			    NFSD_VNET(nfsstatsv1_p)->srvopens;
+			oldnfsstats.srvlockowners =
+			    NFSD_VNET(nfsstatsv1_p)->srvlockowners;
+			oldnfsstats.srvlocks =
+			    NFSD_VNET(nfsstatsv1_p)->srvlocks;
+			oldnfsstats.srvdelegates =
+			    NFSD_VNET(nfsstatsv1_p)->srvdelegates;
 			for (i = 0; i < NFSV4OP_CBNOPS; i++)
 				oldnfsstats.cbrpccnt[i] =
-				    nfsstatsv1.cbrpccnt[i];
-			oldnfsstats.clopenowners = nfsstatsv1.clopenowners;
-			oldnfsstats.clopens = nfsstatsv1.clopens;
-			oldnfsstats.cllockowners = nfsstatsv1.cllockowners;
-			oldnfsstats.cllocks = nfsstatsv1.cllocks;
-			oldnfsstats.cldelegates = nfsstatsv1.cldelegates;
+				    NFSD_VNET(nfsstatsv1_p)->cbrpccnt[i];
+			oldnfsstats.clopenowners =
+			    NFSD_VNET(nfsstatsv1_p)->clopenowners;
+			oldnfsstats.clopens = NFSD_VNET(nfsstatsv1_p)->clopens;
+			oldnfsstats.cllockowners =
+			    NFSD_VNET(nfsstatsv1_p)->cllockowners;
+			oldnfsstats.cllocks = NFSD_VNET(nfsstatsv1_p)->cllocks;
+			oldnfsstats.cldelegates =
+			    NFSD_VNET(nfsstatsv1_p)->cldelegates;
 			oldnfsstats.cllocalopenowners =
-			    nfsstatsv1.cllocalopenowners;
-			oldnfsstats.cllocalopens = nfsstatsv1.cllocalopens;
+			    NFSD_VNET(nfsstatsv1_p)->cllocalopenowners;
+			oldnfsstats.cllocalopens =
+			    NFSD_VNET(nfsstatsv1_p)->cllocalopens;
 			oldnfsstats.cllocallockowners =
-			    nfsstatsv1.cllocallockowners;
-			oldnfsstats.cllocallocks = nfsstatsv1.cllocallocks;
+			    NFSD_VNET(nfsstatsv1_p)->cllocallockowners;
+			oldnfsstats.cllocallocks =
+			    NFSD_VNET(nfsstatsv1_p)->cllocallocks;
 			error = copyout(&oldnfsstats, uap->argp,
 			    sizeof (oldnfsstats));
 		} else {
@@ -563,174 +585,174 @@ nfssvc_call(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 				if (nfsstatver.vers == NFSSTATS_OV1) {
 					/* Copy nfsstatsv1 to nfsstatsov1. */
 					nfsstatsov1.attrcache_hits =
-					    nfsstatsv1.attrcache_hits;
+					    NFSD_VNET(nfsstatsv1_p)->attrcache_hits;
 					nfsstatsov1.attrcache_misses =
-					    nfsstatsv1.attrcache_misses;
+					    NFSD_VNET(nfsstatsv1_p)->attrcache_misses;
 					nfsstatsov1.lookupcache_hits =
-					    nfsstatsv1.lookupcache_hits;
+					    NFSD_VNET(nfsstatsv1_p)->lookupcache_hits;
 					nfsstatsov1.lookupcache_misses =
-					    nfsstatsv1.lookupcache_misses;
+					    NFSD_VNET(nfsstatsv1_p)->lookupcache_misses;
 					nfsstatsov1.direofcache_hits =
-					    nfsstatsv1.direofcache_hits;
+					    NFSD_VNET(nfsstatsv1_p)->direofcache_hits;
 					nfsstatsov1.direofcache_misses =
-					    nfsstatsv1.direofcache_misses;
+					    NFSD_VNET(nfsstatsv1_p)->direofcache_misses;
 					nfsstatsov1.accesscache_hits =
-					    nfsstatsv1.accesscache_hits;
+					    NFSD_VNET(nfsstatsv1_p)->accesscache_hits;
 					nfsstatsov1.accesscache_misses =
-					    nfsstatsv1.accesscache_misses;
+					    NFSD_VNET(nfsstatsv1_p)->accesscache_misses;
 					nfsstatsov1.biocache_reads =
-					    nfsstatsv1.biocache_reads;
+					    NFSD_VNET(nfsstatsv1_p)->biocache_reads;
 					nfsstatsov1.read_bios =
-					    nfsstatsv1.read_bios;
+					    NFSD_VNET(nfsstatsv1_p)->read_bios;
 					nfsstatsov1.read_physios =
-					    nfsstatsv1.read_physios;
+					    NFSD_VNET(nfsstatsv1_p)->read_physios;
 					nfsstatsov1.biocache_writes =
-					    nfsstatsv1.biocache_writes;
+					    NFSD_VNET(nfsstatsv1_p)->biocache_writes;
 					nfsstatsov1.write_bios =
-					    nfsstatsv1.write_bios;
+					    NFSD_VNET(nfsstatsv1_p)->write_bios;
 					nfsstatsov1.write_physios =
-					    nfsstatsv1.write_physios;
+					    NFSD_VNET(nfsstatsv1_p)->write_physios;
 					nfsstatsov1.biocache_readlinks =
-					    nfsstatsv1.biocache_readlinks;
+					    NFSD_VNET(nfsstatsv1_p)->biocache_readlinks;
 					nfsstatsov1.readlink_bios =
-					    nfsstatsv1.readlink_bios;
+					    NFSD_VNET(nfsstatsv1_p)->readlink_bios;
 					nfsstatsov1.biocache_readdirs =
-					    nfsstatsv1.biocache_readdirs;
+					    NFSD_VNET(nfsstatsv1_p)->biocache_readdirs;
 					nfsstatsov1.readdir_bios =
-					    nfsstatsv1.readdir_bios;
+					    NFSD_VNET(nfsstatsv1_p)->readdir_bios;
 					for (i = 0; i < NFSV42_OLDNPROCS; i++)
 						nfsstatsov1.rpccnt[i] =
-						    nfsstatsv1.rpccnt[i];
+						    NFSD_VNET(nfsstatsv1_p)->rpccnt[i];
 					nfsstatsov1.rpcretries =
-					    nfsstatsv1.rpcretries;
+					    NFSD_VNET(nfsstatsv1_p)->rpcretries;
 					for (i = 0; i < NFSV42_PURENOPS; i++)
 						nfsstatsov1.srvrpccnt[i] =
-						    nfsstatsv1.srvrpccnt[i];
+						    NFSD_VNET(nfsstatsv1_p)->srvrpccnt[i];
 					for (i = NFSV42_NOPS,
 					     j = NFSV42_PURENOPS;
 					     i < NFSV42_NOPS + NFSV4OP_FAKENOPS;
 					     i++, j++)
 						nfsstatsov1.srvrpccnt[j] =
-						    nfsstatsv1.srvrpccnt[i];
+						    NFSD_VNET(nfsstatsv1_p)->srvrpccnt[i];
 					nfsstatsov1.reserved_0 = 0;
 					nfsstatsov1.reserved_1 = 0;
 					nfsstatsov1.rpcrequests =
-					    nfsstatsv1.rpcrequests;
+					    NFSD_VNET(nfsstatsv1_p)->rpcrequests;
 					nfsstatsov1.rpctimeouts =
-					    nfsstatsv1.rpctimeouts;
+					    NFSD_VNET(nfsstatsv1_p)->rpctimeouts;
 					nfsstatsov1.rpcunexpected =
-					    nfsstatsv1.rpcunexpected;
+					    NFSD_VNET(nfsstatsv1_p)->rpcunexpected;
 					nfsstatsov1.rpcinvalid =
-					    nfsstatsv1.rpcinvalid;
+					    NFSD_VNET(nfsstatsv1_p)->rpcinvalid;
 					nfsstatsov1.srvcache_inproghits =
-					    nfsstatsv1.srvcache_inproghits;
+					    NFSD_VNET(nfsstatsv1_p)->srvcache_inproghits;
 					nfsstatsov1.reserved_2 = 0;
 					nfsstatsov1.srvcache_nonidemdonehits =
-					    nfsstatsv1.srvcache_nonidemdonehits;
+					    NFSD_VNET(nfsstatsv1_p)->srvcache_nonidemdonehits;
 					nfsstatsov1.srvcache_misses =
-					    nfsstatsv1.srvcache_misses;
+					    NFSD_VNET(nfsstatsv1_p)->srvcache_misses;
 					nfsstatsov1.srvcache_tcppeak =
-					    nfsstatsv1.srvcache_tcppeak;
+					    NFSD_VNET(nfsstatsv1_p)->srvcache_tcppeak;
 					nfsstatsov1.srvcache_size =
-					    nfsstatsv1.srvcache_size;
+					    NFSD_VNET(nfsstatsv1_p)->srvcache_size;
 					nfsstatsov1.srvclients =
-					    nfsstatsv1.srvclients;
+					    NFSD_VNET(nfsstatsv1_p)->srvclients;
 					nfsstatsov1.srvopenowners =
-					    nfsstatsv1.srvopenowners;
+					    NFSD_VNET(nfsstatsv1_p)->srvopenowners;
 					nfsstatsov1.srvopens =
-					    nfsstatsv1.srvopens;
+					    NFSD_VNET(nfsstatsv1_p)->srvopens;
 					nfsstatsov1.srvlockowners =
-					    nfsstatsv1.srvlockowners;
+					    NFSD_VNET(nfsstatsv1_p)->srvlockowners;
 					nfsstatsov1.srvlocks =
-					    nfsstatsv1.srvlocks;
+					    NFSD_VNET(nfsstatsv1_p)->srvlocks;
 					nfsstatsov1.srvdelegates =
-					    nfsstatsv1.srvdelegates;
+					    NFSD_VNET(nfsstatsv1_p)->srvdelegates;
 					for (i = 0; i < NFSV42_CBNOPS; i++)
 						nfsstatsov1.cbrpccnt[i] =
-						    nfsstatsv1.cbrpccnt[i];
+						    NFSD_VNET(nfsstatsv1_p)->cbrpccnt[i];
 					nfsstatsov1.clopenowners =
-					    nfsstatsv1.clopenowners;
+					    NFSD_VNET(nfsstatsv1_p)->clopenowners;
 					nfsstatsov1.clopens =
-					    nfsstatsv1.clopens;
+					    NFSD_VNET(nfsstatsv1_p)->clopens;
 					nfsstatsov1.cllockowners =
-					    nfsstatsv1.cllockowners;
+					    NFSD_VNET(nfsstatsv1_p)->cllockowners;
 					nfsstatsov1.cllocks =
-					    nfsstatsv1.cllocks;
+					    NFSD_VNET(nfsstatsv1_p)->cllocks;
 					nfsstatsov1.cldelegates =
-					    nfsstatsv1.cldelegates;
+					    NFSD_VNET(nfsstatsv1_p)->cldelegates;
 					nfsstatsov1.cllocalopenowners =
-					    nfsstatsv1.cllocalopenowners;
+					    NFSD_VNET(nfsstatsv1_p)->cllocalopenowners;
 					nfsstatsov1.cllocalopens =
-					    nfsstatsv1.cllocalopens;
+					    NFSD_VNET(nfsstatsv1_p)->cllocalopens;
 					nfsstatsov1.cllocallockowners =
-					    nfsstatsv1.cllocallockowners;
+					    NFSD_VNET(nfsstatsv1_p)->cllocallockowners;
 					nfsstatsov1.cllocallocks =
-					    nfsstatsv1.cllocallocks;
+					    NFSD_VNET(nfsstatsv1_p)->cllocallocks;
 					nfsstatsov1.srvstartcnt =
-					    nfsstatsv1.srvstartcnt;
+					    NFSD_VNET(nfsstatsv1_p)->srvstartcnt;
 					nfsstatsov1.srvdonecnt =
-					    nfsstatsv1.srvdonecnt;
+					    NFSD_VNET(nfsstatsv1_p)->srvdonecnt;
 					for (i = NFSV42_NOPS,
 					     j = NFSV42_PURENOPS;
 					     i < NFSV42_NOPS + NFSV4OP_FAKENOPS;
 					     i++, j++) {
 						nfsstatsov1.srvbytes[j] =
-						    nfsstatsv1.srvbytes[i];
+						    NFSD_VNET(nfsstatsv1_p)->srvbytes[i];
 						nfsstatsov1.srvops[j] =
-						    nfsstatsv1.srvops[i];
+						    NFSD_VNET(nfsstatsv1_p)->srvops[i];
 						nfsstatsov1.srvduration[j] =
-						    nfsstatsv1.srvduration[i];
+						    NFSD_VNET(nfsstatsv1_p)->srvduration[i];
 					}
 					nfsstatsov1.busyfrom =
-					    nfsstatsv1.busyfrom;
+					    NFSD_VNET(nfsstatsv1_p)->busyfrom;
 					nfsstatsov1.busyfrom =
-					    nfsstatsv1.busyfrom;
+					    NFSD_VNET(nfsstatsv1_p)->busyfrom;
 					error = copyout(&nfsstatsov1, uap->argp,
 					    sizeof(nfsstatsov1));
 				} else if (nfsstatver.vers != NFSSTATS_V1)
 					error = EPERM;
 				else
-					error = copyout(&nfsstatsv1, uap->argp,
-					    sizeof(nfsstatsv1));
+					error = copyout(NFSD_VNET(nfsstatsv1_p),
+					    uap->argp, sizeof(nfsstatsv1));
 			}
 		}
 		if (error == 0) {
 			if ((uap->flag & NFSSVC_ZEROCLTSTATS) != 0) {
-				nfsstatsv1.attrcache_hits = 0;
-				nfsstatsv1.attrcache_misses = 0;
-				nfsstatsv1.lookupcache_hits = 0;
-				nfsstatsv1.lookupcache_misses = 0;
-				nfsstatsv1.direofcache_hits = 0;
-				nfsstatsv1.direofcache_misses = 0;
-				nfsstatsv1.accesscache_hits = 0;
-				nfsstatsv1.accesscache_misses = 0;
-				nfsstatsv1.biocache_reads = 0;
-				nfsstatsv1.read_bios = 0;
-				nfsstatsv1.read_physios = 0;
-				nfsstatsv1.biocache_writes = 0;
-				nfsstatsv1.write_bios = 0;
-				nfsstatsv1.write_physios = 0;
-				nfsstatsv1.biocache_readlinks = 0;
-				nfsstatsv1.readlink_bios = 0;
-				nfsstatsv1.biocache_readdirs = 0;
-				nfsstatsv1.readdir_bios = 0;
-				nfsstatsv1.rpcretries = 0;
-				nfsstatsv1.rpcrequests = 0;
-				nfsstatsv1.rpctimeouts = 0;
-				nfsstatsv1.rpcunexpected = 0;
-				nfsstatsv1.rpcinvalid = 0;
-				bzero(nfsstatsv1.rpccnt,
-				    sizeof(nfsstatsv1.rpccnt));
+				NFSD_VNET(nfsstatsv1_p)->attrcache_hits = 0;
+				NFSD_VNET(nfsstatsv1_p)->attrcache_misses = 0;
+				NFSD_VNET(nfsstatsv1_p)->lookupcache_hits = 0;
+				NFSD_VNET(nfsstatsv1_p)->lookupcache_misses = 0;
+				NFSD_VNET(nfsstatsv1_p)->direofcache_hits = 0;
+				NFSD_VNET(nfsstatsv1_p)->direofcache_misses = 0;
+				NFSD_VNET(nfsstatsv1_p)->accesscache_hits = 0;
+				NFSD_VNET(nfsstatsv1_p)->accesscache_misses = 0;
+				NFSD_VNET(nfsstatsv1_p)->biocache_reads = 0;
+				NFSD_VNET(nfsstatsv1_p)->read_bios = 0;
+				NFSD_VNET(nfsstatsv1_p)->read_physios = 0;
+				NFSD_VNET(nfsstatsv1_p)->biocache_writes = 0;
+				NFSD_VNET(nfsstatsv1_p)->write_bios = 0;
+				NFSD_VNET(nfsstatsv1_p)->write_physios = 0;
+				NFSD_VNET(nfsstatsv1_p)->biocache_readlinks = 0;
+				NFSD_VNET(nfsstatsv1_p)->readlink_bios = 0;
+				NFSD_VNET(nfsstatsv1_p)->biocache_readdirs = 0;
+				NFSD_VNET(nfsstatsv1_p)->readdir_bios = 0;
+				NFSD_VNET(nfsstatsv1_p)->rpcretries = 0;
+				NFSD_VNET(nfsstatsv1_p)->rpcrequests = 0;
+				NFSD_VNET(nfsstatsv1_p)->rpctimeouts = 0;
+				NFSD_VNET(nfsstatsv1_p)->rpcunexpected = 0;
+				NFSD_VNET(nfsstatsv1_p)->rpcinvalid = 0;
+				bzero(NFSD_VNET(nfsstatsv1_p)->rpccnt,
+				    sizeof(NFSD_VNET(nfsstatsv1_p)->rpccnt));
 			}
 			if ((uap->flag & NFSSVC_ZEROSRVSTATS) != 0) {
-				nfsstatsv1.srvcache_inproghits = 0;
-				nfsstatsv1.srvcache_nonidemdonehits = 0;
-				nfsstatsv1.srvcache_misses = 0;
-				nfsstatsv1.srvcache_tcppeak = 0;
-				bzero(nfsstatsv1.srvrpccnt,
-				    sizeof(nfsstatsv1.srvrpccnt));
-				bzero(nfsstatsv1.cbrpccnt,
-				    sizeof(nfsstatsv1.cbrpccnt));
+				NFSD_VNET(nfsstatsv1_p)->srvcache_inproghits = 0;
+				NFSD_VNET(nfsstatsv1_p)->srvcache_nonidemdonehits = 0;
+				NFSD_VNET(nfsstatsv1_p)->srvcache_misses = 0;
+				NFSD_VNET(nfsstatsv1_p)->srvcache_tcppeak = 0;
+				bzero(NFSD_VNET(nfsstatsv1_p)->srvrpccnt,
+				    sizeof(NFSD_VNET(nfsstatsv1_p)->srvrpccnt));
+				bzero(NFSD_VNET(nfsstatsv1_p)->cbrpccnt,
+				    sizeof(NFSD_VNET(nfsstatsv1_p)->cbrpccnt));
 			}
 		}
 		goto out;
@@ -848,6 +870,39 @@ nfs_pnfsio(task_fn_t *func, void *context)
 	return (ret);
 }
 
+/*
+ * Initialize everything that needs to be initialized for a vnet.
+ */
+static void
+nfs_vnetinit(const void *unused __unused)
+{
+
+	if (IS_DEFAULT_VNET(curvnet))
+		NFSD_VNET(nfsstatsv1_p) = &nfsstatsv1;
+	else
+		NFSD_VNET(nfsstatsv1_p) = malloc(sizeof(struct nfsstatsv1),
+		    M_TEMP, M_WAITOK | M_ZERO);
+	mtx_init(&NFSD_VNET(nfsrv_nfsuserdsock).nr_mtx, "nfsuserd",
+	    NULL, MTX_DEF);
+}
+VNET_SYSINIT(nfs_vnetinit, SI_SUB_VNET_DONE, SI_ORDER_FIRST,
+    nfs_vnetinit, NULL);
+
+static void
+nfs_cleanup(void *unused __unused)
+{
+
+	mtx_destroy(&NFSD_VNET(nfsrv_nfsuserdsock).nr_mtx);
+	if (!IS_DEFAULT_VNET(curvnet)) {
+		free(NFSD_VNET(nfsstatsv1_p), M_TEMP);
+		NFSD_VNET(nfsstatsv1_p) = NULL;
+	}
+	/* Clean out the name<-->id cache. */
+	nfsrv_cleanusergroup();
+}
+VNET_SYSUNINIT(nfs_cleanup, SI_SUB_VNET_DONE, SI_ORDER_FIRST,
+    nfs_cleanup, NULL);
+
 extern int (*nfsd_call_nfscommon)(struct thread *, struct nfssvc_args *);
 
 /*
@@ -868,8 +923,6 @@ nfscommon_modevent(module_t mod, int type, void *data)
 		mtx_init(&nfs_sockl_mutex, "nfs_sockl_mutex", NULL, MTX_DEF);
 		mtx_init(&nfs_slock_mutex, "nfs_slock_mutex", NULL, MTX_DEF);
 		mtx_init(&nfs_req_mutex, "nfs_req_mutex", NULL, MTX_DEF);
-		mtx_init(&nfsrv_nfsuserdsock.nr_mtx, "nfsuserd", NULL,
-		    MTX_DEF);
 		mtx_init(&nfsrv_dslock_mtx, "nfs4ds", NULL, MTX_DEF);
 		TAILQ_INIT(&nfsrv_devidhead);
 		newnfs_init();
@@ -878,15 +931,14 @@ nfscommon_modevent(module_t mod, int type, void *data)
 		break;
 
 	case MOD_UNLOAD:
-		if (newnfs_numnfsd != 0 || nfsrv_nfsuserd != NOTRUNNING ||
+		if (newnfs_numnfsd != 0 ||
+		    NFSD_VNET(nfsrv_nfsuserd) != NOTRUNNING ||
 		    nfs_numnfscbd != 0) {
 			error = EBUSY;
 			break;
 		}
 
 		nfsd_call_nfscommon = NULL;
-		/* Clean out the name<-->id cache. */
-		nfsrv_cleanusergroup();
 		/* and get rid of the mutexes */
 		mtx_destroy(&nfs_nameid_mutex);
 		mtx_destroy(&newnfsd_mtx);
@@ -895,7 +947,6 @@ nfscommon_modevent(module_t mod, int type, void *data)
 		mtx_destroy(&nfs_sockl_mutex);
 		mtx_destroy(&nfs_slock_mutex);
 		mtx_destroy(&nfs_req_mutex);
-		mtx_destroy(&nfsrv_nfsuserdsock.nr_mtx);
 		mtx_destroy(&nfsrv_dslock_mtx);
 		loaded = 0;
 		break;

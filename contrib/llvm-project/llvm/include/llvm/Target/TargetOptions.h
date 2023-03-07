@@ -130,19 +130,21 @@ namespace llvm {
           HonorSignDependentRoundingFPMathOption(false), NoZerosInBSS(false),
           GuaranteedTailCallOpt(false), StackSymbolOrdering(true),
           EnableFastISel(false), EnableGlobalISel(false), UseInitArray(false),
-          DisableIntegratedAS(false), RelaxELFRelocations(false),
-          FunctionSections(false), DataSections(false),
-          IgnoreXCOFFVisibility(false), XCOFFTracebackTable(true),
-          UniqueSectionNames(true), UniqueBasicBlockSectionNames(false),
-          TrapUnreachable(false), NoTrapAfterNoreturn(false), TLSSize(0),
-          EmulatedTLS(false), ExplicitEmulatedTLS(false), EnableIPRA(false),
+          LowerGlobalDtorsViaCxaAtExit(false), DisableIntegratedAS(false),
+          RelaxELFRelocations(false), FunctionSections(false),
+          DataSections(false), IgnoreXCOFFVisibility(false),
+          XCOFFTracebackTable(true), UniqueSectionNames(true),
+          UniqueBasicBlockSectionNames(false), TrapUnreachable(false),
+          NoTrapAfterNoreturn(false), TLSSize(0), EmulatedTLS(false),
+          ExplicitEmulatedTLS(false), EnableIPRA(false),
           EmitStackSizeSection(false), EnableMachineOutliner(false),
           EnableMachineFunctionSplitter(false), SupportsDefaultOutlining(false),
           EmitAddrsig(false), EmitCallSiteInfo(false),
           SupportsDebugEntryValues(false), EnableDebugEntryValues(false),
           ValueTrackingVariableLocations(false), ForceDwarfFrameSection(false),
           XRayOmitFunctionIndex(false), DebugStrictDwarf(false),
-          Hotpatch(false),
+          Hotpatch(false), PPCGenScalarMASSEntries(false), JMCInstrument(false),
+          EnableCFIFixup(false), MisExpect(false),
           FPDenormalMode(DenormalMode::IEEE, DenormalMode::IEEE) {}
 
     /// DisableFramePointerElim - This returns true if frame pointer elimination
@@ -245,6 +247,10 @@ namespace llvm {
     /// constructors.
     unsigned UseInitArray : 1;
 
+    /// Use __cxa_atexit to register global destructors; determines how
+    /// llvm.global_dtors is lowered.
+    unsigned LowerGlobalDtorsViaCxaAtExit : 1;
+
     /// Disable the integrated assembler.
     unsigned DisableIntegratedAS : 1;
 
@@ -344,6 +350,19 @@ namespace llvm {
 
     /// Emit the hotpatch flag in CodeView debug.
     unsigned Hotpatch : 1;
+
+    /// Enables scalar MASS conversions
+    unsigned PPCGenScalarMASSEntries : 1;
+
+    /// Enable JustMyCode instrumentation.
+    unsigned JMCInstrument : 1;
+
+    /// Enable the CFIFixup pass.
+    unsigned EnableCFIFixup : 1;
+
+    /// When set to true, enable MisExpect Diagnostics
+    /// By default, it is set to false
+    unsigned MisExpect : 1;
 
     /// Name of the stack usage file (i.e., .su file) if user passes
     /// -fstack-usage. If empty, it can be implied that -fstack-usage is not

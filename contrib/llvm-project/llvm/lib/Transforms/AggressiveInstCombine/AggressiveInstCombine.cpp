@@ -22,8 +22,8 @@
 #include "llvm/Analysis/BasicAliasAnalysis.h"
 #include "llvm/Analysis/GlobalsModRef.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
+#include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
-#include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
@@ -31,10 +31,15 @@
 #include "llvm/IR/PatternMatch.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
+#include "llvm/Transforms/Utils/BuildLibCalls.h"
 #include "llvm/Transforms/Utils/Local.h"
 
 using namespace llvm;
 using namespace PatternMatch;
+
+namespace llvm {
+class DataLayout;
+}
 
 #define DEBUG_TYPE "aggressive-instcombine"
 
@@ -200,14 +205,13 @@ static bool foldGuardedFunnelShift(Instruction &I, const DominatorTree &DT) {
 /// of 'and' ops, then we also need to capture the fact that we saw an
 /// "and X, 1", so that's an extra return value for that case.
 struct MaskOps {
-  Value *Root;
+  Value *Root = nullptr;
   APInt Mask;
   bool MatchAndChain;
-  bool FoundAnd1;
+  bool FoundAnd1 = false;
 
   MaskOps(unsigned BitWidth, bool MatchAnds)
-      : Root(nullptr), Mask(APInt::getZero(BitWidth)), MatchAndChain(MatchAnds),
-        FoundAnd1(false) {}
+      : Mask(APInt::getZero(BitWidth)), MatchAndChain(MatchAnds) {}
 };
 
 /// This is a recursive helper for foldAnyOrAllBitsSet() that walks through a
@@ -363,25 +367,134 @@ static bool tryToRecognizePopCount(Instruction &I) {
   return false;
 }
 
+/// Fold smin(smax(fptosi(x), C1), C2) to llvm.fptosi.sat(x), providing C1 and
+/// C2 saturate the value of the fp conversion. The transform is not reversable
+/// as the fptosi.sat is more defined than the input - all values produce a
+/// valid value for the fptosi.sat, where as some produce poison for original
+/// that were out of range of the integer conversion. The reversed pattern may
+/// use fmax and fmin instead. As we cannot directly reverse the transform, and
+/// it is not always profitable, we make it conditional on the cost being
+/// reported as lower by TTI.
+static bool tryToFPToSat(Instruction &I, TargetTransformInfo &TTI) {
+  // Look for min(max(fptosi, converting to fptosi_sat.
+  Value *In;
+  const APInt *MinC, *MaxC;
+  if (!match(&I, m_SMax(m_OneUse(m_SMin(m_OneUse(m_FPToSI(m_Value(In))),
+                                        m_APInt(MinC))),
+                        m_APInt(MaxC))) &&
+      !match(&I, m_SMin(m_OneUse(m_SMax(m_OneUse(m_FPToSI(m_Value(In))),
+                                        m_APInt(MaxC))),
+                        m_APInt(MinC))))
+    return false;
+
+  // Check that the constants clamp a saturate.
+  if (!(*MinC + 1).isPowerOf2() || -*MaxC != *MinC + 1)
+    return false;
+
+  Type *IntTy = I.getType();
+  Type *FpTy = In->getType();
+  Type *SatTy =
+      IntegerType::get(IntTy->getContext(), (*MinC + 1).exactLogBase2() + 1);
+  if (auto *VecTy = dyn_cast<VectorType>(IntTy))
+    SatTy = VectorType::get(SatTy, VecTy->getElementCount());
+
+  // Get the cost of the intrinsic, and check that against the cost of
+  // fptosi+smin+smax
+  InstructionCost SatCost = TTI.getIntrinsicInstrCost(
+      IntrinsicCostAttributes(Intrinsic::fptosi_sat, SatTy, {In}, {FpTy}),
+      TTI::TCK_RecipThroughput);
+  SatCost += TTI.getCastInstrCost(Instruction::SExt, SatTy, IntTy,
+                                  TTI::CastContextHint::None,
+                                  TTI::TCK_RecipThroughput);
+
+  InstructionCost MinMaxCost = TTI.getCastInstrCost(
+      Instruction::FPToSI, IntTy, FpTy, TTI::CastContextHint::None,
+      TTI::TCK_RecipThroughput);
+  MinMaxCost += TTI.getIntrinsicInstrCost(
+      IntrinsicCostAttributes(Intrinsic::smin, IntTy, {IntTy}),
+      TTI::TCK_RecipThroughput);
+  MinMaxCost += TTI.getIntrinsicInstrCost(
+      IntrinsicCostAttributes(Intrinsic::smax, IntTy, {IntTy}),
+      TTI::TCK_RecipThroughput);
+
+  if (SatCost >= MinMaxCost)
+    return false;
+
+  IRBuilder<> Builder(&I);
+  Function *Fn = Intrinsic::getDeclaration(I.getModule(), Intrinsic::fptosi_sat,
+                                           {SatTy, FpTy});
+  Value *Sat = Builder.CreateCall(Fn, In);
+  I.replaceAllUsesWith(Builder.CreateSExt(Sat, IntTy));
+  return true;
+}
+
+/// Try to replace a mathlib call to sqrt with the LLVM intrinsic. This avoids
+/// pessimistic codegen that has to account for setting errno and can enable
+/// vectorization.
+static bool
+foldSqrt(Instruction &I, TargetTransformInfo &TTI, TargetLibraryInfo &TLI) {
+  // Match a call to sqrt mathlib function.
+  auto *Call = dyn_cast<CallInst>(&I);
+  if (!Call)
+    return false;
+
+  Module *M = Call->getModule();
+  LibFunc Func;
+  if (!TLI.getLibFunc(*Call, Func) || !isLibFuncEmittable(M, &TLI, Func))
+    return false;
+
+  if (Func != LibFunc_sqrt && Func != LibFunc_sqrtf && Func != LibFunc_sqrtl)
+    return false;
+
+  // If (1) this is a sqrt libcall, (2) we can assume that NAN is not created,
+  // and (3) we would not end up lowering to a libcall anyway (which could
+  // change the value of errno), then:
+  // (1) the operand arg must not be less than -0.0.
+  // (2) errno won't be set.
+  // (3) it is safe to convert this to an intrinsic call.
+  // TODO: Check if the arg is known non-negative.
+  Type *Ty = Call->getType();
+  if (TTI.haveFastSqrt(Ty) && Call->hasNoNaNs()) {
+    IRBuilder<> Builder(&I);
+    IRBuilderBase::FastMathFlagGuard Guard(Builder);
+    Builder.setFastMathFlags(Call->getFastMathFlags());
+
+    Function *Sqrt = Intrinsic::getDeclaration(M, Intrinsic::sqrt, Ty);
+    Value *NewSqrt = Builder.CreateCall(Sqrt, Call->getArgOperand(0), "sqrt");
+    I.replaceAllUsesWith(NewSqrt);
+
+    // Explicitly erase the old call because a call with side effects is not
+    // trivially dead.
+    I.eraseFromParent();
+    return true;
+  }
+
+  return false;
+}
+
 /// This is the entry point for folds that could be implemented in regular
 /// InstCombine, but they are separated because they are not expected to
 /// occur frequently and/or have more than a constant-length pattern match.
-static bool foldUnusualPatterns(Function &F, DominatorTree &DT) {
+static bool foldUnusualPatterns(Function &F, DominatorTree &DT,
+                                TargetTransformInfo &TTI,
+                                TargetLibraryInfo &TLI) {
   bool MadeChange = false;
   for (BasicBlock &BB : F) {
     // Ignore unreachable basic blocks.
     if (!DT.isReachableFromEntry(&BB))
       continue;
-    // Do not delete instructions under here and invalidate the iterator.
+
     // Walk the block backwards for efficiency. We're matching a chain of
     // use->defs, so we're more likely to succeed by starting from the bottom.
     // Also, we want to avoid matching partial patterns.
     // TODO: It would be more efficient if we removed dead instructions
     // iteratively in this loop rather than waiting until the end.
-    for (Instruction &I : llvm::reverse(BB)) {
+    for (Instruction &I : make_early_inc_range(llvm::reverse(BB))) {
       MadeChange |= foldAnyOrAllBitsSet(I);
       MadeChange |= foldGuardedFunnelShift(I, DT);
       MadeChange |= tryToRecognizePopCount(I);
+      MadeChange |= tryToFPToSat(I, TTI);
+      MadeChange |= foldSqrt(I, TTI, TLI);
     }
   }
 
@@ -395,13 +508,13 @@ static bool foldUnusualPatterns(Function &F, DominatorTree &DT) {
 
 /// This is the entry point for all transforms. Pass manager differences are
 /// handled in the callers of this function.
-static bool runImpl(Function &F, AssumptionCache &AC, TargetLibraryInfo &TLI,
-                    DominatorTree &DT) {
+static bool runImpl(Function &F, AssumptionCache &AC, TargetTransformInfo &TTI,
+                    TargetLibraryInfo &TLI, DominatorTree &DT) {
   bool MadeChange = false;
   const DataLayout &DL = F.getParent()->getDataLayout();
   TruncInstCombine TIC(AC, TLI, DL, DT);
   MadeChange |= TIC.run(F);
-  MadeChange |= foldUnusualPatterns(F, DT);
+  MadeChange |= foldUnusualPatterns(F, DT, TTI, TLI);
   return MadeChange;
 }
 
@@ -411,6 +524,7 @@ void AggressiveInstCombinerLegacyPass::getAnalysisUsage(
   AU.addRequired<AssumptionCacheTracker>();
   AU.addRequired<DominatorTreeWrapperPass>();
   AU.addRequired<TargetLibraryInfoWrapperPass>();
+  AU.addRequired<TargetTransformInfoWrapperPass>();
   AU.addPreserved<AAResultsWrapperPass>();
   AU.addPreserved<BasicAAWrapperPass>();
   AU.addPreserved<DominatorTreeWrapperPass>();
@@ -421,7 +535,8 @@ bool AggressiveInstCombinerLegacyPass::runOnFunction(Function &F) {
   auto &AC = getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);
   auto &TLI = getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(F);
   auto &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
-  return runImpl(F, AC, TLI, DT);
+  auto &TTI = getAnalysis<TargetTransformInfoWrapperPass>().getTTI(F);
+  return runImpl(F, AC, TTI, TLI, DT);
 }
 
 PreservedAnalyses AggressiveInstCombinePass::run(Function &F,
@@ -429,7 +544,8 @@ PreservedAnalyses AggressiveInstCombinePass::run(Function &F,
   auto &AC = AM.getResult<AssumptionAnalysis>(F);
   auto &TLI = AM.getResult<TargetLibraryAnalysis>(F);
   auto &DT = AM.getResult<DominatorTreeAnalysis>(F);
-  if (!runImpl(F, AC, TLI, DT)) {
+  auto &TTI = AM.getResult<TargetIRAnalysis>(F);
+  if (!runImpl(F, AC, TTI, TLI, DT)) {
     // No changes, all analyses are preserved.
     return PreservedAnalyses::all();
   }
@@ -446,6 +562,7 @@ INITIALIZE_PASS_BEGIN(AggressiveInstCombinerLegacyPass,
 INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker)
 INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfoWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(TargetTransformInfoWrapperPass)
 INITIALIZE_PASS_END(AggressiveInstCombinerLegacyPass, "aggressive-instcombine",
                     "Combine pattern based expressions", false, false)
 

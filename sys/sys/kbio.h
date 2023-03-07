@@ -120,7 +120,7 @@ struct keymap {
 };
 typedef struct keymap keymap_t;
 
-#ifdef _KERNEL
+#ifdef COMPAT_FREEBSD13
 struct okeyent_t {
 	u_char		map[NUM_STATES];
 	u_char		spcl;
@@ -132,7 +132,7 @@ struct okeymap {
 	struct okeyent_t key[NUM_KEYS];
 };
 typedef struct okeymap okeymap_t;
-#endif /* _KERNEL */
+#endif /* COMPAT_FREEBSD13 */
 
 #endif /* !_KEYMAP_DECLARED */
 
@@ -199,8 +199,8 @@ typedef struct okeymap okeymap_t;
 #define ACC(x)		((x)+F_ACC)
 
 struct acc_t {
-	u_char		accchar;
-	u_char		map[NUM_ACCENTCHARS][2];
+	u_int		accchar;
+	u_int		map[NUM_ACCENTCHARS][2];
 };
 
 struct accentmap {
@@ -208,6 +208,19 @@ struct accentmap {
 	struct acc_t	acc[NUM_DEADKEYS];
 };
 typedef struct accentmap accentmap_t;
+
+#ifdef COMPAT_FREEBSD13
+struct oacc_t {
+	u_char		accchar;
+	u_char		map[NUM_ACCENTCHARS][2];
+};
+
+struct oaccentmap {
+	u_short		n_accs;
+	struct oacc_t	acc[NUM_DEADKEYS];
+};
+typedef struct oaccentmap oaccentmap_t;
+#endif /* COMPAT_FREEBSD13 */
 
 struct keyarg {
 	u_short		keynum;
@@ -237,12 +250,17 @@ typedef struct fkeyarg	fkeyarg_t;
 /* XXX: Should have keymap_t as an argument, but that's too big for ioctl()! */
 #define GIO_KEYMAP 	 _IO('k', 6)
 #define PIO_KEYMAP 	 _IO('k', 7)
-#ifdef _KERNEL
+#ifdef COMPAT_FREEBSD13
 #define OGIO_KEYMAP 	_IOR('k', 6, okeymap_t)
 #define OPIO_KEYMAP 	_IOW('k', 7, okeymap_t)
-#endif /* _KERNEL */
-#define GIO_DEADKEYMAP 	_IOR('k', 8, accentmap_t)
-#define PIO_DEADKEYMAP 	_IOW('k', 9, accentmap_t)
+#endif /* COMPAT_FREEBSD13 */
+/* XXX: Should have accentmap_t as an argument, but that's too big for ioctl()! */
+#define GIO_DEADKEYMAP 	 _IO('k', 8)
+#define PIO_DEADKEYMAP 	 _IO('k', 9)
+#ifdef COMPAT_FREEBSD13
+#define OGIO_DEADKEYMAP	_IOR('k', 8, oaccentmap_t)
+#define OPIO_DEADKEYMAP	_IOW('k', 9, oaccentmap_t)
+#endif /* COMPAT_FREEBSD13 */
 #define GIO_KEYMAPENT 	_IOWR('k', 10, keyarg_t)
 #define PIO_KEYMAPENT 	_IOW('k', 11, keyarg_t)
 

@@ -58,7 +58,7 @@ struct ktr_header_v0 {
 	pid_t	ktr_pid;		/* process id */
 	char	ktr_comm[MAXCOMLEN + 1];/* command name */
 	struct	timeval ktr_time;	/* timestamp */
-	intptr_t	ktr_tid;	/* was ktr_buffer */
+	long	ktr_tid;		/* thread id */
 };
 
 struct ktr_header {
@@ -68,7 +68,8 @@ struct ktr_header {
 	pid_t	ktr_pid;		/* process id */
 	char	ktr_comm[MAXCOMLEN + 1];/* command name */
 	struct	timespec ktr_time;	/* timestamp */
-	intptr_t	ktr_tid;	/* thread id */
+	/* XXX: make ktr_tid an lwpid_t on next ABI break */
+	long	ktr_tid;		/* thread id */
 	int	ktr_cpu;		/* cpu id */
 };
 

@@ -66,9 +66,10 @@ void	(*aio_swake)(struct socket *, struct sockbuf *);
  * Primitive routines for operating on socket buffers
  */
 
+#define	BUF_MAX_ADJ(_sz)	(((u_quad_t)(_sz)) * MCLBYTES / (MSIZE + MCLBYTES))
+
 u_long	sb_max = SB_MAX;
-u_long sb_max_adj =
-       (quad_t)SB_MAX * MCLBYTES / (MSIZE + MCLBYTES); /* adjusted sb_max */
+u_long sb_max_adj = BUF_MAX_ADJ(SB_MAX);
 
 static	u_long sb_efficiency = 8;	/* parameter for sbreserve() */
 
@@ -611,7 +612,7 @@ sysctl_handle_sb_max(SYSCTL_HANDLER_ARGS)
 	if (tmp_sb_max < MSIZE + MCLBYTES)
 		return (EINVAL);
 	sb_max = tmp_sb_max;
-	sb_max_adj = (u_quad_t)sb_max * MCLBYTES / (MSIZE + MCLBYTES);
+	sb_max_adj = BUF_MAX_ADJ(sb_max);
 	return (0);
 }
 
@@ -620,8 +621,8 @@ sysctl_handle_sb_max(SYSCTL_HANDLER_ARGS)
  * become limiting if buffering efficiency is near the normal case.
  */
 bool
-sbreserve_locked(struct socket *so, sb_which which, u_long cc,
-    struct thread *td)
+sbreserve_locked_limit(struct socket *so, sb_which which, u_long cc,
+    u_long buf_max, struct thread *td)
 {
 	struct sockbuf *sb = sobuf(so, which);
 	rlim_t sbsize_limit;
@@ -635,7 +636,7 @@ sbreserve_locked(struct socket *so, sb_which which, u_long cc,
 	 * appropriate thread resource limits are available.  In that case,
 	 * we don't apply a process limit.
 	 */
-	if (cc > sb_max_adj)
+	if (cc > BUF_MAX_ADJ(buf_max))
 		return (false);
 	if (td != NULL) {
 		sbsize_limit = lim_cur(td, RLIMIT_SBSIZE);
@@ -644,25 +645,44 @@ sbreserve_locked(struct socket *so, sb_which which, u_long cc,
 	if (!chgsbsize(so->so_cred->cr_uidinfo, &sb->sb_hiwat, cc,
 	    sbsize_limit))
 		return (false);
-	sb->sb_mbmax = min(cc * sb_efficiency, sb_max);
+	sb->sb_mbmax = min(cc * sb_efficiency, buf_max);
 	if (sb->sb_lowat > sb->sb_hiwat)
 		sb->sb_lowat = sb->sb_hiwat;
 	return (true);
 }
 
+bool
+sbreserve_locked(struct socket *so, sb_which which, u_long cc,
+    struct thread *td)
+{
+	return (sbreserve_locked_limit(so, which, cc, sb_max, td));
+}
+
 int
-sbsetopt(struct socket *so, int cmd, u_long cc)
+sbsetopt(struct socket *so, struct sockopt *sopt)
 {
 	struct sockbuf *sb;
 	sb_which wh;
 	short *flags;
-	u_int *hiwat, *lowat;
-	int error;
+	u_int cc, *hiwat, *lowat;
+	int error, optval;
+
+	error = sooptcopyin(sopt, &optval, sizeof optval, sizeof optval);
+	if (error != 0)
+		return (error);
+
+	/*
+	 * Values < 1 make no sense for any of these options,
+	 * so disallow them.
+	 */
+	if (optval < 1)
+		return (EINVAL);
+	cc = optval;
 
 	sb = NULL;
 	SOCK_LOCK(so);
 	if (SOLISTENING(so)) {
-		switch (cmd) {
+		switch (sopt->sopt_name) {
 			case SO_SNDLOWAT:
 			case SO_SNDBUF:
 				lowat = &so->sol_sbsnd_lowat;
@@ -677,7 +697,7 @@ sbsetopt(struct socket *so, int cmd, u_long cc)
 				break;
 		}
 	} else {
-		switch (cmd) {
+		switch (sopt->sopt_name) {
 			case SO_SNDLOWAT:
 			case SO_SNDBUF:
 				sb = &so->so_snd;
@@ -696,7 +716,7 @@ sbsetopt(struct socket *so, int cmd, u_long cc)
 	}
 
 	error = 0;
-	switch (cmd) {
+	switch (sopt->sopt_name) {
 	case SO_SNDBUF:
 	case SO_RCVBUF:
 		if (SOLISTENING(so)) {

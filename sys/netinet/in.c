@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_llatbl.h>
+#include <net/if_private.h>
 #include <net/if_types.h>
 #include <net/route.h>
 #include <net/route/nhop.h>
@@ -76,9 +77,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 
-static int in_aifaddr_ioctl(u_long, caddr_t, struct ifnet *, struct thread *);
-static int in_difaddr_ioctl(u_long, caddr_t, struct ifnet *, struct thread *);
-static int in_gifaddr_ioctl(u_long, caddr_t, struct ifnet *, struct thread *);
+static int in_aifaddr_ioctl(u_long, caddr_t, struct ifnet *, struct ucred *);
+static int in_difaddr_ioctl(u_long, caddr_t, struct ifnet *, struct ucred *);
+static int in_gifaddr_ioctl(u_long, caddr_t, struct ifnet *, struct ucred *);
 
 static void	in_socktrim(struct sockaddr_in *);
 static void	in_purgemaddrs(struct ifnet *);
@@ -337,6 +338,8 @@ in_control(struct socket *so, u_long cmd, void *data, struct ifnet *ifp,
 	if (ifp == NULL)
 		return (EADDRNOTAVAIL);
 
+	struct ucred *cred = (td != NULL) ? td->td_ucred : NULL;
+
 	/*
 	 * Filter out 4 ioctls we implement directly.  Forward the rest
 	 * to specific functions and ifp->if_ioctl().
@@ -349,18 +352,18 @@ in_control(struct socket *so, u_long cmd, void *data, struct ifnet *ifp,
 		break;
 	case SIOCGIFALIAS:
 		sx_xlock(&in_control_sx);
-		error = in_gifaddr_ioctl(cmd, data, ifp, td);
+		error = in_gifaddr_ioctl(cmd, data, ifp, cred);
 		sx_xunlock(&in_control_sx);
 		return (error);
 	case SIOCDIFADDR:
 		sx_xlock(&in_control_sx);
-		error = in_difaddr_ioctl(cmd, data, ifp, td);
+		error = in_difaddr_ioctl(cmd, data, ifp, cred);
 		sx_xunlock(&in_control_sx);
 		return (error);
 	case OSIOCAIFADDR:	/* 9.x compat */
 	case SIOCAIFADDR:
 		sx_xlock(&in_control_sx);
-		error = in_aifaddr_ioctl(cmd, data, ifp, td);
+		error = in_aifaddr_ioctl(cmd, data, ifp, cred);
 		sx_xunlock(&in_control_sx);
 		return (error);
 	case SIOCSIFADDR:
@@ -376,7 +379,7 @@ in_control(struct socket *so, u_long cmd, void *data, struct ifnet *ifp,
 	}
 
 	if (addr->sin_addr.s_addr != INADDR_ANY &&
-	    prison_check_ip4(td->td_ucred, &addr->sin_addr) != 0)
+	    prison_check_ip4(cred, &addr->sin_addr) != 0)
 		return (EADDRNOTAVAIL);
 
 	/*
@@ -396,7 +399,7 @@ in_control(struct socket *so, u_long cmd, void *data, struct ifnet *ifp,
 		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 			if (ifa->ifa_addr->sa_family == AF_INET) {
 				ia = (struct in_ifaddr *)ifa;
-				if (prison_check_ip4(td->td_ucred,
+				if (prison_check_ip4(cred,
 				    &ia->ia_addr.sin_addr) == 0)
 					break;
 			}
@@ -439,7 +442,7 @@ in_control(struct socket *so, u_long cmd, void *data, struct ifnet *ifp,
 }
 
 static int
-in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
+in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct ucred *cred)
 {
 	const struct in_aliasreq *ifra = (struct in_aliasreq *)data;
 	const struct sockaddr_in *addr = &ifra->ifra_addr;
@@ -453,7 +456,7 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	bool iaIsFirst;
 	int error = 0;
 
-	error = priv_check(td, PRIV_NET_ADDIFADDR);
+	error = priv_check_cred(cred, PRIV_NET_ADDIFADDR);
 	if (error)
 		return (error);
 
@@ -493,7 +496,7 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 
 		it = (struct in_ifaddr *)ifa;
 		if (it->ia_addr.sin_addr.s_addr == addr->sin_addr.s_addr &&
-		    prison_check_ip4(td->td_ucred, &addr->sin_addr) == 0)
+		    prison_check_ip4(cred, &addr->sin_addr) == 0)
 			ia = it;
 		else
 			iaIsFirst = false;
@@ -501,7 +504,7 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	NET_EPOCH_EXIT(et);
 
 	if (ia != NULL)
-		(void )in_difaddr_ioctl(cmd, data, ifp, td);
+		(void )in_difaddr_ioctl(cmd, data, ifp, cred);
 
 	ifa = ifa_alloc(sizeof(struct in_ifaddr), M_WAITOK);
 	ia = (struct in_ifaddr *)ifa;
@@ -654,7 +657,7 @@ fail1:
 }
 
 static int
-in_difaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
+in_difaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct ucred *cred)
 {
 	const struct ifreq *ifr = (struct ifreq *)data;
 	const struct sockaddr_in *addr = (const struct sockaddr_in *)
@@ -664,8 +667,8 @@ in_difaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	bool deleteAny, iaIsLast;
 	int error;
 
-	if (td != NULL) {
-		error = priv_check(td, PRIV_NET_DELIFADDR);
+	if (cred != NULL) {
+		error = priv_check_cred(cred, PRIV_NET_DELIFADDR);
 		if (error)
 			return (error);
 	}
@@ -686,12 +689,12 @@ in_difaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 			continue;
 
 		it = (struct in_ifaddr *)ifa;
-		if (deleteAny && ia == NULL && (td == NULL ||
-		    prison_check_ip4(td->td_ucred, &it->ia_addr.sin_addr) == 0))
+		if (deleteAny && ia == NULL && (cred == NULL ||
+		    prison_check_ip4(cred, &it->ia_addr.sin_addr) == 0))
 			ia = it;
 
 		if (it->ia_addr.sin_addr.s_addr == addr->sin_addr.s_addr &&
-		    (td == NULL || prison_check_ip4(td->td_ucred,
+		    (cred == NULL || prison_check_ip4(cred,
 		    &addr->sin_addr) == 0))
 			ia = it;
 
@@ -757,7 +760,7 @@ in_difaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 }
 
 static int
-in_gifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
+in_gifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct ucred *cred)
 {
 	struct in_aliasreq *ifra = (struct in_aliasreq *)data;
 	const struct sockaddr_in *addr = &ifra->ifra_addr;
@@ -785,7 +788,7 @@ in_gifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 
 		it = (struct in_ifaddr *)ifa;
 		if (it->ia_addr.sin_addr.s_addr == addr->sin_addr.s_addr &&
-		    prison_check_ip4(td->td_ucred, &addr->sin_addr) == 0) {
+		    prison_check_ip4(cred, &addr->sin_addr) == 0) {
 			ia = it;
 			break;
 		}
@@ -1368,9 +1371,10 @@ EVENTHANDLER_DEFINE(ifnet_event, in_ifnet_event, NULL, EVENTHANDLER_PRI_ANY);
 static void
 in_purgemaddrs(struct ifnet *ifp)
 {
+	struct epoch_tracker	 et;
 	struct in_multi_head purgeinms;
 	struct in_multi		*inm;
-	struct ifmultiaddr	*ifma, *next;
+	struct ifmultiaddr	*ifma;
 
 	SLIST_INIT(&purgeinms);
 	IN_MULTI_LIST_LOCK();
@@ -1382,18 +1386,14 @@ in_purgemaddrs(struct ifnet *ifp)
 	 * by code further down.
 	 */
 	IF_ADDR_WLOCK(ifp);
- restart:
-	CK_STAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link, next) {
-		if (ifma->ifma_addr->sa_family != AF_INET ||
-		    ifma->ifma_protospec == NULL)
+	NET_EPOCH_ENTER(et);
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		inm = inm_ifmultiaddr_get_inm(ifma);
+		if (inm == NULL)
 			continue;
-		inm = (struct in_multi *)ifma->ifma_protospec;
 		inm_rele_locked(&purgeinms, inm);
-		if (__predict_false(ifma_restart)) {
-			ifma_restart = true;
-			goto restart;
-		}
 	}
+	NET_EPOCH_EXIT(et);
 	IF_ADDR_WUNLOCK(ifp);
 
 	inm_release_list_deferred(&purgeinms);

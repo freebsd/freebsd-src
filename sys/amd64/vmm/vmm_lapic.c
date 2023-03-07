@@ -52,12 +52,9 @@ __FBSDID("$FreeBSD$");
 #define	MSI_X86_ADDR_LOG	0x00000004	/* Destination Mode */
 
 int
-lapic_set_intr(struct vm *vm, int cpu, int vector, bool level)
+lapic_set_intr(struct vcpu *vcpu, int vector, bool level)
 {
 	struct vlapic *vlapic;
-
-	if (cpu < 0 || cpu >= vm_get_maxcpus(vm))
-		return (EINVAL);
 
 	/*
 	 * According to section "Maskable Hardware Interrupts" in Intel SDM
@@ -66,32 +63,31 @@ lapic_set_intr(struct vm *vm, int cpu, int vector, bool level)
 	if (vector < 16 || vector > 255)
 		return (EINVAL);
 
-	vlapic = vm_lapic(vm, cpu);
+	vlapic = vm_lapic(vcpu);
 	if (vlapic_set_intr_ready(vlapic, vector, level))
-		vcpu_notify_event(vm, cpu, true);
+		vcpu_notify_event(vcpu, true);
 	return (0);
 }
 
 int
-lapic_set_local_intr(struct vm *vm, int cpu, int vector)
+lapic_set_local_intr(struct vm *vm, struct vcpu *vcpu, int vector)
 {
 	struct vlapic *vlapic;
 	cpuset_t dmask;
-	int error;
+	int cpu, error;
 
-	if (cpu < -1 || cpu >= vm_get_maxcpus(vm))
-		return (EINVAL);
-
-	if (cpu == -1)
+	if (vcpu == NULL) {
+		error = 0;
 		dmask = vm_active_cpus(vm);
-	else
-		CPU_SETOF(cpu, &dmask);
-	error = 0;
-	CPU_FOREACH_ISSET(cpu, &dmask) {
-		vlapic = vm_lapic(vm, cpu);
+		CPU_FOREACH_ISSET(cpu, &dmask) {
+			vlapic = vm_lapic(vm_vcpu(vm, cpu));
+			error = vlapic_trigger_lvt(vlapic, vector);
+			if (error)
+				break;
+		}
+	} else {
+		vlapic = vm_lapic(vcpu);
 		error = vlapic_trigger_lvt(vlapic, vector);
-		if (error)
-			break;
 	}
 
 	return (error);
@@ -156,13 +152,13 @@ lapic_msr(u_int msr)
 }
 
 int
-lapic_rdmsr(struct vm *vm, int cpu, u_int msr, uint64_t *rval, bool *retu)
+lapic_rdmsr(struct vcpu *vcpu, u_int msr, uint64_t *rval, bool *retu)
 {
 	int error;
 	u_int offset;
 	struct vlapic *vlapic;
 
-	vlapic = vm_lapic(vm, cpu);
+	vlapic = vm_lapic(vcpu);
 
 	if (msr == MSR_APICBASE) {
 		*rval = vlapic_get_apicbase(vlapic);
@@ -176,13 +172,13 @@ lapic_rdmsr(struct vm *vm, int cpu, u_int msr, uint64_t *rval, bool *retu)
 }
 
 int
-lapic_wrmsr(struct vm *vm, int cpu, u_int msr, uint64_t val, bool *retu)
+lapic_wrmsr(struct vcpu *vcpu, u_int msr, uint64_t val, bool *retu)
 {
 	int error;
 	u_int offset;
 	struct vlapic *vlapic;
 
-	vlapic = vm_lapic(vm, cpu);
+	vlapic = vm_lapic(vcpu);
 
 	if (msr == MSR_APICBASE) {
 		error = vlapic_set_apicbase(vlapic, val);
@@ -195,7 +191,7 @@ lapic_wrmsr(struct vm *vm, int cpu, u_int msr, uint64_t val, bool *retu)
 }
 
 int
-lapic_mmio_write(void *vm, int cpu, uint64_t gpa, uint64_t wval, int size,
+lapic_mmio_write(struct vcpu *vcpu, uint64_t gpa, uint64_t wval, int size,
 		 void *arg)
 {
 	int error;
@@ -211,13 +207,13 @@ lapic_mmio_write(void *vm, int cpu, uint64_t gpa, uint64_t wval, int size,
 	if (size != 4 || off & 0xf)
 		return (EINVAL);
 
-	vlapic = vm_lapic(vm, cpu);
+	vlapic = vm_lapic(vcpu);
 	error = vlapic_write(vlapic, 1, off, wval, arg);
 	return (error);
 }
 
 int
-lapic_mmio_read(void *vm, int cpu, uint64_t gpa, uint64_t *rval, int size,
+lapic_mmio_read(struct vcpu *vcpu, uint64_t gpa, uint64_t *rval, int size,
 		void *arg)
 {
 	int error;
@@ -235,7 +231,7 @@ lapic_mmio_read(void *vm, int cpu, uint64_t gpa, uint64_t *rval, int size,
 	if (off & 0xf)
 		return (EINVAL);
 
-	vlapic = vm_lapic(vm, cpu);
+	vlapic = vm_lapic(vcpu);
 	error = vlapic_read(vlapic, 1, off, rval, arg);
 	return (error);
 }

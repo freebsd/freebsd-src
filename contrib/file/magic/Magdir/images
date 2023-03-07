@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: images,v 1.223 2022/05/14 20:05:09 christos Exp $
+# $File: images,v 1.227 2022/09/11 20:58:52 christos Exp $
 # images:  file(1) magic for image formats (see also "iff", and "c-lang" for
 # XPM bitmaps)
 #
@@ -365,7 +365,7 @@
 >>>8	default		x
 >>>>8	uleshort	x		\b(unknown %#x)
 >>>12	use		tiff_entry
->0	uleshort	0x106		\b, PhotometricIntepretation=
+>0	uleshort	0x106		\b, PhotometricInterpretation=
 >>8	clear		x
 >>8	uleshort	0		\bWhiteIsZero
 >>8	uleshort	1		\bBlackIsZero
@@ -1458,7 +1458,25 @@
 >2		quad		!0
 # skip g3test.g3 by test for unused bits of 2nd color entry
 >>4		ubeshort&0xF000	0
->>>0		use		degas-bitmap
+#>>>0		beshort	x	1ST_VALUE=%x
+>>>-0		offset	x	FILE_SIZE=%lld
+# standard DEGAS low-res uncompressed bitmap *.pi1 with file size 32034
+>>>-0		offset	=32034	VARIANT_STANDARD
+#>>>>0		beshort	x	1st_VALUE=%x
+# like: 8ball.pi1 teddy.pi1 sonic01.pi1 
+>>>>0		use		degas-bitmap
+# about 61 DEGAS Elite low-res uncompressed bitmap *.pi1 with file size 32066
+>>>-0		offset	=32066	VARIANT_ELITE
+# like: spider.pi1 pinkgirl.pi1 frog3.pi1
+>>>>0		use		degas-bitmap
+# about 55 DEGAS Elite low-res uncompressed bitmap *.pi1 with file size 32128
+>>>-0		offset	=32128	VARIANT_3
+# like: mountain.pi1 bigspid.pi1 alf33.pi1
+>>>>0		use		degas-bitmap
+# 1 DEGAS Elite low-res uncompressed bitmap *.pi1 with file size 44834
+>>>-0		offset	=44834	VARIANT_4
+# like: kenshin.pi1
+>>>>0		use		degas-bitmap
 # DEGAS mid-res uncompressed bitmap *.pi2 (strength=50) after GEM Images like:
 # BEETHVEN.IMG CHURCH.IMG GAMEOVR4.IMG TURKEY.IMG clinton.img
 0		beshort		0x0001
@@ -2210,10 +2228,104 @@
 # height (80,90)
 >>0x53	uleshort	x		\b%d
 
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/Imageiio/imaginfo_(Ulead)
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/p/pe3.trid.xml
+# Note:		called "Ulead Imageiio/Imaginfo thumbnail" by TrID
+0	string	IIO1$			Ulead Photo Explorer 3
+#!:mime	application/octet-stream
+!:mime	image/x-ulead-pe3
+# IMAGEIIO.PE3
+!:ext	pe3
+# look for DOS/Windows drive letter
+>5	search/192/s	:\\
+# directory or full name of corresponding imaginfo.pe3 like: "T:\SAMPLES\TEXTURES\SKY_SNOW\IIOE371.TMP "S:\PI3\PIMPACT3\PROGRAMS\PATTERNS\imaginfo.pe3"
+>>&-1	string	x			"%s"
+# look for DOS/Windows network path if no drive letter part
+>5	default		x
+>>5	search/192/s	\x5c\x5c
+# full name of corresponding imaginfo.pe3 like: "\\Lionking\upi\SAMPLES\IMAGES\ANIMALS\imaginfo.pe3"
+>>>&0	string	x			"%s"
 # Type:	Ulead Photo Explorer5 (.pe5)
-# URL:	http://www.jisyo.com/cgibin/view.cgi?EXT=pe5 (Japanese)
+# URL:		http://fileformats.archiveteam.org/wiki/Imageiio/imaginfo_(Ulead)
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/p/pe4.trid.xml
 # From:	Simon Horman <horms@debian.org>
-0	string	IIO2H			Ulead Photo Explorer5
+# Update:	Joerg Jenderek
+# Note:		some called "Ulead Imageiio/Imaginfo thumbnail" by TrID
+#		and used in various Ulead applications
+0	string	IIO2H			Ulead Photo Explorer 4 or 5
+#!:mime	application/octet-stream
+!:mime	image/x-ulead-pe4
+# IMAGEIIO.PE4 
+!:ext	pe4/pe5
+# look in most samples for JPEG signature like: SAMPLES/IMAGES/SCENES/IMAGINFO.PE4
+>0x4c2	search/0xE02/s	JFIF		with JPEG image data
+>>&-6	use			jpeg
+# near the end list of image names like: Img0001.pcd 1116012L.JPG NCARD4.TPL
+#
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/p/pe3-imaginfo.trid.xml
+11	string	\001\0\0\0\0
+# check for version 3 part
+>19	string	\0\001\0\003\0
+>>0	use	ulead-imaginfo
+# From:		Joerg Jenderek
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/p/pe4-imaginfo.trid.xml
+11	string	\001\0\0\0\0
+# check for version 4 part
+>19	string	\0\0\0\004\0
+>>0	use	ulead-imaginfo
+# display information about Ulead Imaginfo thumbnail (version, directory, image extension)
+0	name	ulead-imaginfo
+>22	ubyte	x			Ulead Imaginfo thumbnail
+#!:mime	application/octet-stream
+!:mime	image/x-ulead-imaginfo
+>22	ubyte	=3			\b, version 3
+# IMAGINFO.PE3
+!:ext	pe3
+>22	ubyte	=4			\b, version 4
+# IMAGINFO.PE4 
+!:ext	pe4
+# MAYBE ALSO VERSION 5 ?
+#>22	ubyte	=5			\b, version 5
+#!:ext	pe5
+>22	ubyte	x
+# look for DOS/Windows driver letter
+>>4	search/192/s	:\x5c
+# skip f:\Programme\iPhoto Plus 4\Template\Business Cards\IMAGINFO.PE4
+# by looking for driver letter in range A-Z
+>>>&-1	ubyte	>0x40
+# directory path like: "E:\iPE\CDSample\Images\Scenes" "D:\XmasCard\Samples" "C:\TEMP\PLANTS"
+>>>>&-5	pstring/l	>0		\b, "%s"
+# look for DOS/Windows network path if no valid drive letter part
+>>>&-1	default		x
+>>>>4	search/192/s	\x5c\x5c
+# directory path like: "\\FSX\SYS\OPPS\IPE.ENG\TEMPLATE\BUSINESS" "\\Lionking\upi\SAMPLES\IMAGES\ANIMALS"
+>>>>>&-4 pstring/l	>0		\b, "%s"
+# look for DOS/Windows network path if no drive letter part
+>>4	default		x
+>>>4	search/192/s	\x5c\x5c
+# directory path like: "\\FSX\SYS\opps\ipe.eng\samples" "\\DANIEL\IPE_CD\IPE.ITA"
+>>>>&-4 pstring/l	>0		\b, "%s"
+# look for point character inside image names
+>56	search/38/s	.
+# image name extension like: bmp jpg pcd tpl
+>>&1	string	x			with %-.3s images
+# Summary:	Ulead Pattern image (Corel Corporation)
+# URL:		https://en.wikipedia.org/wiki/Ulead_Systems
+#		https://www.file-extensions.org/pst-file-extension-ulead-pattern-image-format
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/p/pst-ulead.trid.xml
+# From:		Joerg Jenderek
+# Note:		used also by CorelDraw Essentials 3 version 13.0.0.800
+#		there seems to exist other versions
+0	ubelong		0xFFFF0100
+>8	search/21	PresetInfo	Ulead pattern image
+#!:mime	application/octet-stream
+!:mime	image/x-ulead-pst
+!:ext	pst
+# string length like: 16 18 19 21 24
+#>>4	uleshort	x		n=%u
+# like: BlendPresetInfo DropShadowPresetInfo FileNewPresetInfo VectorExtrudePresetInfo EnvelopePresetInfo ContourPresetInfo DistortionPresetInfo
+>>4	pstring/h	x		"%s"
 
 # Type:	X11 cursor
 # URL:	http://webcvs.freedesktop.org/mime/shared-mime-info/freedesktop.org.xml.in?view=markup
@@ -3814,3 +3926,14 @@
 >0x24	ulelong		1	\b, embedded PNG image
 >0x24	ulelong		2	\b, embedded WebP image
 >0x24	ulelong		3	\b, Basis Universal
+
+# Summary:	iCEDraw graphic *.IDF
+# URL:		http://fileformats.archiveteam.org/wiki/ICEDraw
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/i/idf-icedraw.trid.xml
+# From:		Joerg Jenderek
+# Note:		called "iCEDraw graphic" by TrID, "iCEDraw text" by FFmpeg and "iCE Draw" by Ansilove
+#		verified by FFmpeg command `ffprobe ICE-9605.IDF` and `ansilove -s SQ-FORCE.IDF`
+0	string		\0041.4\0\0\0\0O\0	iCEDraw graphic
+#!:mime	application/octet-stream
+!:mime	image/x-idf
+!:ext	idf

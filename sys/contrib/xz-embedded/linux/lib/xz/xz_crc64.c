@@ -4,7 +4,7 @@
  * This file is similar to xz_crc32.c. See the comments there.
  *
  * Authors: Lasse Collin <lasse.collin@tukaani.org>
- *          Igor Pavlov <http://7-zip.org/>
+ *          Igor Pavlov <https://7-zip.org/>
  *
  * This file has been put into the public domain.
  * You can do whatever you want with this file.
@@ -20,7 +20,11 @@ STATIC_RW_DATA uint64_t xz_crc64_table[256];
 
 XZ_EXTERN void xz_crc64_init(void)
 {
-	const uint64_t poly = 0xC96C5795D7870F42;
+	/*
+	 * The ULL suffix is needed for -std=gnu89 compatibility
+	 * on 32-bit platforms.
+	 */
+	const uint64_t poly = 0xC96C5795D7870F42ULL;
 
 	uint32_t i;
 	uint32_t j;

@@ -321,6 +321,12 @@ bool clang::analyze_format_string::ParseUTF8InvalidSpecifier(
 
 clang::analyze_format_string::ArgType::MatchKind
 ArgType::matchesType(ASTContext &C, QualType argTy) const {
+  // When using the format attribute in C++, you can receive a function or an
+  // array that will necessarily decay to a pointer when passed to the final
+  // format consumer. Apply decay before type comparison.
+  if (argTy->canDecayToPointerType())
+    argTy = C.getDecayedType(argTy);
+
   if (Ptr) {
     // It has to be a pointer.
     const PointerType *PT = argTy->getAs<PointerType>();
@@ -760,7 +766,7 @@ bool FormatSpecifier::hasValidLengthModifier(const TargetInfo &Target,
           return true;
         case ConversionSpecifier::FreeBSDrArg:
         case ConversionSpecifier::FreeBSDyArg:
-          return Target.getTriple().isOSFreeBSD() || Target.getTriple().isPS4();
+          return Target.getTriple().isOSFreeBSD() || Target.getTriple().isPS();
         default:
           return false;
       }
@@ -795,7 +801,7 @@ bool FormatSpecifier::hasValidLengthModifier(const TargetInfo &Target,
           return true;
         case ConversionSpecifier::FreeBSDrArg:
         case ConversionSpecifier::FreeBSDyArg:
-          return Target.getTriple().isOSFreeBSD() || Target.getTriple().isPS4();
+          return Target.getTriple().isOSFreeBSD() || Target.getTriple().isPS();
         default:
           return false;
       }

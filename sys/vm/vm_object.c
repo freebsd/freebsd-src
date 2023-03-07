@@ -216,7 +216,7 @@ vm_object_zinit(void *mem, int size, int flags)
 	vm_object_t object;
 
 	object = (vm_object_t)mem;
-	rw_init_flags(&object->lock, "vm object", RW_DUPOK | RW_NEW);
+	rw_init_flags(&object->lock, "vmobject", RW_DUPOK | RW_NEW);
 
 	/* These are true for any object that has been freed */
 	object->type = OBJT_DEAD;
@@ -1212,7 +1212,7 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
 	    vm_object_mightbedirty(object) != 0 &&
 	    ((vp = object->handle)->v_vflag & VV_NOSYNC) == 0) {
 		VM_OBJECT_WUNLOCK(object);
-		(void) vn_start_write(vp, &mp, V_WAIT);
+		(void)vn_start_write(vp, &mp, V_WAIT);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		if (syncio && !invalidate && offset == 0 &&
 		    atop(size) == object->size) {
@@ -1233,8 +1233,23 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
 		res = vm_object_page_clean(object, offset, offset + size,
 		    flags);
 		VM_OBJECT_WUNLOCK(object);
-		if (fsync_after)
-			error = VOP_FSYNC(vp, MNT_WAIT, curthread);
+		if (fsync_after) {
+			for (;;) {
+				error = VOP_FSYNC(vp, MNT_WAIT, curthread);
+				if (error != ERELOOKUP)
+					break;
+
+				/*
+				 * Allow SU/bufdaemon to handle more
+				 * dependencies in the meantime.
+				 */
+				VOP_UNLOCK(vp);
+				vn_finished_write(mp);
+
+				(void)vn_start_write(vp, &mp, V_WAIT);
+				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+			}
+		}
 		VOP_UNLOCK(vp);
 		vn_finished_write(mp);
 		if (error != 0)
@@ -2523,7 +2538,7 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 		    count * 11 / 10));
 	}
 
-	kvo = malloc(sizeof(*kvo), M_TEMP, M_WAITOK);
+	kvo = malloc(sizeof(*kvo), M_TEMP, M_WAITOK | M_ZERO);
 	error = 0;
 
 	/*
@@ -2821,8 +2836,6 @@ DB_SHOW_COMMAND_FLAGS(vmopag, vm_object_print_pages, DB_CMD_MEMSAFE)
 		fidx = 0;
 		pa = -1;
 		TAILQ_FOREACH(m, &object->memq, listq) {
-			if (m->pindex > 128)
-				break;
 			if ((prev_m = TAILQ_PREV(m, pglist, listq)) != NULL &&
 			    prev_m->pindex + 1 != m->pindex) {
 				if (rcount) {

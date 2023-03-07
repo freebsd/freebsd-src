@@ -48,6 +48,7 @@
 #include <sys/terminal.h>
 #include <sys/sysctl.h>
 #include <sys/font.h>
+#include <sys/taskqueue.h>
 
 #include "opt_syscons.h"
 #include "opt_splash.h"
@@ -90,8 +91,8 @@ SYSCTL_INT(_kern_vt, OID_AUTO, _name, CTLFLAG_RWTUN, &vt_##_name, 0, _descr)
 
 struct vt_driver;
 
-void vt_allocate(const struct vt_driver *, void *);
-void vt_deallocate(const struct vt_driver *, void *);
+int vt_allocate(const struct vt_driver *, void *);
+int vt_deallocate(const struct vt_driver *, void *);
 
 typedef unsigned int	vt_axis_t;
 
@@ -238,7 +239,7 @@ void vtbuf_cursor_visibility(struct vt_buf *, int);
 #ifndef SC_NO_CUTPASTE
 int vtbuf_set_mark(struct vt_buf *vb, int type, int col, int row);
 int vtbuf_get_marked_len(struct vt_buf *vb);
-void vtbuf_extract_marked(struct vt_buf *vb, term_char_t *buf, int sz);
+void vtbuf_extract_marked(struct vt_buf *vb, term_char_t *buf, int sz, int mark);
 #endif
 
 #define	VTB_MARK_NONE		0
@@ -306,7 +307,7 @@ struct vt_window {
 	pid_t			 vw_pid;	/* Terminal holding process */
 	struct proc		*vw_proc;
 	struct vt_mode		 vw_smode;	/* switch mode */
-	struct callout		 vw_proc_dead_timer;
+	struct timeout_task	 vw_timeout_task_dead;
 	struct vt_window	*vw_switch_to;
 	int			 vw_bell_pitch;	/* (?) Bell pitch */
 	sbintime_t		 vw_bell_duration; /* (?) Bell duration */

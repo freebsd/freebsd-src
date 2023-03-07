@@ -136,7 +136,7 @@ acpi_uhub_upc_type(uint8_t type)
 }
 
 static int
-acpi_uhub_parse_upc(device_t dev, unsigned int p, ACPI_HANDLE ah, struct sysctl_oid_list *poid)
+acpi_uhub_parse_upc(device_t dev, unsigned p, ACPI_HANDLE ah, struct sysctl_oid_list *poid)
 {
 	ACPI_BUFFER buf;
 	struct acpi_uhub_softc *sc = device_get_softc(dev);
@@ -262,7 +262,7 @@ end:
 }
 
 static int
-acpi_uhub_parse_pld(device_t dev, unsigned int p, ACPI_HANDLE ah, struct sysctl_oid_list *tree)
+acpi_uhub_parse_pld(device_t dev, unsigned p, ACPI_HANDLE ah, struct sysctl_oid_list *tree)
 {
 	ACPI_BUFFER buf;
 	struct acpi_uhub_softc *sc = device_get_softc(dev);

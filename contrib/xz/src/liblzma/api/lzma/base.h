@@ -145,6 +145,12 @@ typedef enum {
 		 * specified memory usage limit. To continue decoding,
 		 * the memory usage limit has to be increased with
 		 * lzma_memlimit_set().
+		 *
+		 * liblzma 5.2.6 and earlier had a bug in single-threaded .xz
+		 * decoder (lzma_stream_decoder()) which made it impossible
+		 * to continue decoding after LZMA_MEMLIMIT_ERROR even if
+		 * the limit was increased using lzma_memlimit_set().
+		 * Other decoders worked correctly.
 		 */
 
 	LZMA_FORMAT_ERROR       = 7,
@@ -234,6 +240,36 @@ typedef enum {
 		 * can be a sign of a bug in liblzma. See the documentation
 		 * how to report bugs.
 		 */
+
+	LZMA_SEEK_NEEDED        = 12,
+		/**<
+		 * \brief       Request to change the input file position
+		 *
+		 * Some coders can do random access in the input file. The
+		 * initialization functions of these coders take the file size
+		 * as an argument. No other coders can return LZMA_SEEK_NEEDED.
+		 *
+		 * When this value is returned, the application must seek to
+		 * the file position given in lzma_stream.seek_pos. This value
+		 * is guaranteed to never exceed the file size that was
+		 * specified at the coder initialization.
+		 *
+		 * After seeking the application should read new input and
+		 * pass it normally via lzma_stream.next_in and .avail_in.
+		 */
+
+	/*
+	 * These eumerations may be used internally by liblzma
+	 * but they will never be returned to applications.
+	 */
+	LZMA_RET_INTERNAL1      = 101,
+	LZMA_RET_INTERNAL2      = 102,
+	LZMA_RET_INTERNAL3      = 103,
+	LZMA_RET_INTERNAL4      = 104,
+	LZMA_RET_INTERNAL5      = 105,
+	LZMA_RET_INTERNAL6      = 106,
+	LZMA_RET_INTERNAL7      = 107,
+	LZMA_RET_INTERNAL8      = 108
 } lzma_ret;
 
 
@@ -447,7 +483,7 @@ typedef struct lzma_internal_s lzma_internal;
  *
  * The lzma_stream structure is used for
  *  - passing pointers to input and output buffers to liblzma;
- *  - defining custom memory hander functions; and
+ *  - defining custom memory handler functions; and
  *  - holding a pointer to coder-specific internal data structures.
  *
  * Typical usage:
@@ -514,7 +550,19 @@ typedef struct {
 	void *reserved_ptr2;
 	void *reserved_ptr3;
 	void *reserved_ptr4;
-	uint64_t reserved_int1;
+
+	/**
+	 * \brief       New seek input position for LZMA_SEEK_NEEDED
+	 *
+	 * When lzma_code() returns LZMA_SEEK_NEEDED, the new input position
+	 * needed by liblzma will be available seek_pos. The value is
+	 * guaranteed to not exceed the file size that was specified when
+	 * this lzma_stream was initialized.
+	 *
+	 * In all other situations the value of this variable is undefined.
+	 */
+	uint64_t seek_pos;
+
 	uint64_t reserved_int2;
 	size_t reserved_int3;
 	size_t reserved_int4;
@@ -648,6 +696,11 @@ extern LZMA_API(uint64_t) lzma_memlimit_get(const lzma_stream *strm)
  * this function to do nothing (leaving the limit unchanged) and still
  * return LZMA_OK. Later versions treat 0 as if 1 had been specified (so
  * lzma_memlimit_get() will return 1 even if you specify 0 here).
+ *
+ * liblzma 5.2.6 and earlier had a bug in single-threaded .xz decoder
+ * (lzma_stream_decoder()) which made it impossible to continue decoding
+ * after LZMA_MEMLIMIT_ERROR even if the limit was increased using
+ * lzma_memlimit_set(). Other decoders worked correctly.
  *
  * \return      - LZMA_OK: New memory usage limit successfully set.
  *              - LZMA_MEMLIMIT_ERROR: The new limit is too small.

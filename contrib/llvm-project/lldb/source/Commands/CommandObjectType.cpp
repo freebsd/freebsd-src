@@ -15,6 +15,7 @@
 #include "lldb/Host/OptionParser.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandObject.h"
+#include "lldb/Interpreter/CommandOptionArgumentTable.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
 #include "lldb/Interpreter/OptionArgParser.h"
 #include "lldb/Interpreter/OptionGroupFormat.h"
@@ -119,12 +120,12 @@ private:
     // Instance variables to hold the values for command options.
 
     TypeSummaryImpl::Flags m_flags;
-    bool m_regex;
+    bool m_regex = false;
     std::string m_format_string;
     ConstString m_name;
     std::string m_python_script;
     std::string m_python_function;
-    bool m_is_add_script;
+    bool m_is_add_script = false;
     std::string m_category;
   };
 
@@ -286,7 +287,7 @@ class CommandObjectTypeSynthAdd : public CommandObjectParsed,
 private:
   class CommandOptions : public Options {
   public:
-    CommandOptions() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
@@ -498,7 +499,7 @@ class CommandObjectTypeFormatAdd : public CommandObjectParsed {
 private:
   class CommandOptions : public OptionGroup {
   public:
-    CommandOptions() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
@@ -707,7 +708,7 @@ class CommandObjectTypeFormatterDelete : public CommandObjectParsed {
 protected:
   class CommandOptions : public Options {
   public:
-    CommandOptions() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
@@ -872,7 +873,7 @@ class CommandObjectTypeFormatterClear : public CommandObjectParsed {
 private:
   class CommandOptions : public Options {
   public:
-    CommandOptions() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
@@ -914,7 +915,10 @@ public:
                                   uint32_t formatter_kind_mask,
                                   const char *name, const char *help)
       : CommandObjectParsed(interpreter, name, help, nullptr),
-        m_formatter_kind_mask(formatter_kind_mask) {}
+        m_formatter_kind_mask(formatter_kind_mask) {
+    CommandArgumentData category_arg{eArgTypeName, eArgRepeatOptional};
+    m_arguments.push_back({category_arg});
+  }
 
   ~CommandObjectTypeFormatterClear() override = default;
 
@@ -1051,6 +1055,15 @@ protected:
     return false;
   }
 
+  static bool ShouldListItem(llvm::StringRef s, RegularExpression *regex) {
+    // If we have a regex, it can match two kinds of results:
+    //   - An item created with that same regex string (exact string match), so
+    //     the user can list it using the same string it used at creation time.
+    //   - Items that match the regex.
+    // No regex means list everything.
+    return regex == nullptr || s == regex->GetText() || regex->Execute(s);
+  }
+
   bool DoExecute(Args &command, CommandReturnObject &result) override {
     const size_t argc = command.GetArgumentCount();
 
@@ -1092,24 +1105,13 @@ protected:
         .SetExact([&result, &formatter_regex, &any_printed](
                       const TypeMatcher &type_matcher,
                       const FormatterSharedPointer &format_sp) -> bool {
-          if (formatter_regex) {
-            bool escape = true;
-            if (type_matcher.CreatedBySameMatchString(
-                    ConstString(formatter_regex->GetText()))) {
-              escape = false;
-            } else if (formatter_regex->Execute(
-                           type_matcher.GetMatchString().GetStringRef())) {
-              escape = false;
-            }
-
-            if (escape)
-              return true;
+          if (ShouldListItem(type_matcher.GetMatchString().GetStringRef(),
+                             formatter_regex.get())) {
+            any_printed = true;
+            result.GetOutputStream().Printf(
+                "%s: %s\n", type_matcher.GetMatchString().GetCString(),
+                format_sp->GetDescription().c_str());
           }
-
-          any_printed = true;
-          result.GetOutputStream().Printf(
-              "%s: %s\n", type_matcher.GetMatchString().GetCString(),
-              format_sp->GetDescription().c_str());
           return true;
         });
 
@@ -1117,24 +1119,13 @@ protected:
         .SetWithRegex([&result, &formatter_regex, &any_printed](
                           const TypeMatcher &type_matcher,
                           const FormatterSharedPointer &format_sp) -> bool {
-          if (formatter_regex) {
-            bool escape = true;
-            if (type_matcher.CreatedBySameMatchString(
-                    ConstString(formatter_regex->GetText()))) {
-              escape = false;
-            } else if (formatter_regex->Execute(
-                           type_matcher.GetMatchString().GetStringRef())) {
-              escape = false;
-            }
-
-            if (escape)
-              return true;
+          if (ShouldListItem(type_matcher.GetMatchString().GetStringRef(),
+                             formatter_regex.get())) {
+            any_printed = true;
+            result.GetOutputStream().Printf(
+                "%s: %s\n", type_matcher.GetMatchString().GetCString(),
+                format_sp->GetDescription().c_str());
           }
-
-          any_printed = true;
-          result.GetOutputStream().Printf(
-              "%s: %s\n", type_matcher.GetMatchString().GetCString(),
-              format_sp->GetDescription().c_str());
           return true;
         });
 
@@ -1151,20 +1142,9 @@ protected:
       DataVisualization::Categories::ForEach(
           [&category_regex, &category_closure](
               const lldb::TypeCategoryImplSP &category) -> bool {
-            if (category_regex) {
-              bool escape = true;
-              if (category->GetName() == category_regex->GetText()) {
-                escape = false;
-              } else if (category_regex->Execute(category->GetName())) {
-                escape = false;
-              }
-
-              if (escape)
-                return true;
+            if (ShouldListItem(category->GetName(), category_regex.get())) {
+              category_closure(category);
             }
-
-            category_closure(category);
-
             return true;
           });
 
@@ -1337,9 +1317,9 @@ bool CommandObjectTypeSummaryAdd::Execute_ScriptSummary(
         m_options.m_flags, funct_name_str.c_str(), code.c_str());
   } else {
     // Use an IOHandler to grab Python code from the user
-    ScriptAddOptions *options =
-        new ScriptAddOptions(m_options.m_flags, m_options.m_regex,
-                             m_options.m_name, m_options.m_category);
+    auto options = std::make_unique<ScriptAddOptions>(
+        m_options.m_flags, m_options.m_regex, m_options.m_name,
+        m_options.m_category);
 
     for (auto &entry : command.entries()) {
       if (entry.ref().empty()) {
@@ -1351,10 +1331,10 @@ bool CommandObjectTypeSummaryAdd::Execute_ScriptSummary(
     }
 
     m_interpreter.GetPythonCommandsFromIOHandler(
-        "    ",   // Prompt
-        *this,    // IOHandlerDelegate
-        options); // Baton for the "io_handler" that will be passed back into
-                  // our IOHandlerDelegate functions
+        "    ",             // Prompt
+        *this,              // IOHandlerDelegate
+        options.release()); // Baton for the "io_handler" that will be passed
+                            // back into our IOHandlerDelegate functions
     result.SetStatus(eReturnStatusSuccessFinishNoResult);
 
     return result.Succeeded();
@@ -1815,7 +1795,7 @@ protected:
 class CommandObjectTypeCategoryEnable : public CommandObjectParsed {
   class CommandOptions : public Options {
   public:
-    CommandOptions() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
@@ -1992,7 +1972,7 @@ protected:
 class CommandObjectTypeCategoryDisable : public CommandObjectParsed {
   class CommandOptions : public Options {
   public:
-    CommandOptions() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
@@ -2252,7 +2232,7 @@ public:
 
 bool CommandObjectTypeSynthAdd::Execute_HandwritePython(
     Args &command, CommandReturnObject &result) {
-  SynthAddOptions *options = new SynthAddOptions(
+  auto options = std::make_unique<SynthAddOptions>(
       m_options.m_skip_pointers, m_options.m_skip_references,
       m_options.m_cascade, m_options.m_regex, m_options.m_category);
 
@@ -2266,10 +2246,10 @@ bool CommandObjectTypeSynthAdd::Execute_HandwritePython(
   }
 
   m_interpreter.GetPythonCommandsFromIOHandler(
-      "    ",   // Prompt
-      *this,    // IOHandlerDelegate
-      options); // Baton for the "io_handler" that will be passed back into our
-                // IOHandlerDelegate functions
+      "    ",             // Prompt
+      *this,              // IOHandlerDelegate
+      options.release()); // Baton for the "io_handler" that will be passed back
+                          // into our IOHandlerDelegate functions
   result.SetStatus(eReturnStatusSuccessFinishNoResult);
   return result.Succeeded();
 }
@@ -2405,7 +2385,7 @@ private:
     typedef std::vector<std::string> option_vector;
 
   public:
-    CommandOptions() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
@@ -2661,7 +2641,7 @@ protected:
 
   class CommandOptions : public OptionGroup {
   public:
-    CommandOptions() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 

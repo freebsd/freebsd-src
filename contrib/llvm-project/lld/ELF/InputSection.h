@@ -9,10 +9,10 @@
 #ifndef LLD_ELF_INPUT_SECTION_H
 #define LLD_ELF_INPUT_SECTION_H
 
-#include "Config.h"
 #include "Relocations.h"
-#include "Thunks.h"
+#include "lld/Common/CommonLinkerContext.h"
 #include "lld/Common/LLVM.h"
+#include "lld/Common/Memory.h"
 #include "llvm/ADT/CachedHashString.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/TinyPtrVector.h"
@@ -21,13 +21,12 @@
 namespace lld {
 namespace elf {
 
+class InputFile;
 class Symbol;
-struct SectionPiece;
 
 class Defined;
 struct Partition;
 class SyntheticSection;
-class MergeSyntheticSection;
 template <class ELFT> class ObjFile;
 class OutputSection;
 
@@ -46,7 +45,7 @@ template <class ELFT> struct RelsOrRelas {
 // sections.
 class SectionBase {
 public:
-  enum Kind { Regular, EHFrame, Merge, Synthetic, Output };
+  enum Kind { Regular, Synthetic, EHFrame, Merge, Output };
 
   Kind kind() const { return (Kind)sectionKind; }
 
@@ -100,6 +99,8 @@ protected:
         link(link), info(info) {}
 };
 
+struct RISCVRelaxAux;
+
 // This corresponds to a section of an input file.
 class InputSectionBase : public SectionBase {
 public:
@@ -132,11 +133,10 @@ public:
     return cast_or_null<ObjFile<ELFT>>(file);
   }
 
-  // If basic block sections are enabled, many code sections could end up with
-  // one or two jump instructions at the end that could be relaxed to a smaller
-  // instruction. The members below help trimming the trailing jump instruction
-  // and shrinking a section.
-  uint8_t bytesDropped = 0;
+  // Used by --optimize-bb-jumps and RISC-V linker relaxation temporarily to
+  // indicate the number of bytes which is not counted in the size. This should
+  // be reset to zero after uses.
+  uint16_t bytesDropped = 0;
 
   // Whether the section needs to be padded with a NOP filler due to
   // deleteFallThruJmpInsn.
@@ -151,6 +151,8 @@ public:
     assert(bytesDropped >= num);
     bytesDropped -= num;
   }
+
+  mutable ArrayRef<uint8_t> rawData;
 
   void trim() {
     if (bytesDropped) {
@@ -202,11 +204,17 @@ public:
   // This vector contains such "cooked" relocations.
   SmallVector<Relocation, 0> relocations;
 
-  // These are modifiers to jump instructions that are necessary when basic
-  // block sections are enabled.  Basic block sections creates opportunities to
-  // relax jump instructions at basic block boundaries after reordering the
-  // basic blocks.
-  JumpInstrMod *jumpInstrMod = nullptr;
+  union {
+    // These are modifiers to jump instructions that are necessary when basic
+    // block sections are enabled.  Basic block sections creates opportunities
+    // to relax jump instructions at basic block boundaries after reordering the
+    // basic blocks.
+    JumpInstrMod *jumpInstrMod = nullptr;
+
+    // Auxiliary information for RISC-V linker relaxation. RISC-V does not use
+    // jumpInstrMod.
+    RISCVRelaxAux *relaxAux;
+  };
 
   // A function compiled with -fsplit-stack calling a function
   // compiled without -fsplit-stack needs its prologue adjusted. Find
@@ -218,17 +226,15 @@ public:
 
 
   template <typename T> llvm::ArrayRef<T> getDataAs() const {
-    size_t s = data().size();
+    size_t s = rawData.size();
     assert(s % sizeof(T) == 0);
-    return llvm::makeArrayRef<T>((const T *)data().data(), s / sizeof(T));
+    return llvm::makeArrayRef<T>((const T *)rawData.data(), s / sizeof(T));
   }
 
 protected:
   template <typename ELFT>
   void parseCompressedHeader();
   void uncompress() const;
-
-  mutable ArrayRef<uint8_t> rawData;
 
   // This field stores the uncompressed size of the compressed data in rawData,
   // or -1 if rawData is not compressed (either because the section wasn't
@@ -280,13 +286,13 @@ public:
   llvm::CachedHashStringRef getData(size_t i) const {
     size_t begin = pieces[i].inputOff;
     size_t end =
-        (pieces.size() - 1 == i) ? data().size() : pieces[i + 1].inputOff;
-    return {toStringRef(data().slice(begin, end - begin)), pieces[i].hash};
+        (pieces.size() - 1 == i) ? rawData.size() : pieces[i + 1].inputOff;
+    return {toStringRef(rawData.slice(begin, end - begin)), pieces[i].hash};
   }
 
   // Returns the SectionPiece at a given input section offset.
-  SectionPiece *getSectionPiece(uint64_t offset);
-  const SectionPiece *getSectionPiece(uint64_t offset) const {
+  SectionPiece &getSectionPiece(uint64_t offset);
+  const SectionPiece &getSectionPiece(uint64_t offset) const {
     return const_cast<MergeInputSection *>(this)->getSectionPiece(offset);
   }
 
@@ -303,7 +309,7 @@ struct EhSectionPiece {
       : inputOff(off), sec(sec), size(size), firstRelocation(firstRelocation) {}
 
   ArrayRef<uint8_t> data() const {
-    return {sec->data().data() + this->inputOff, size};
+    return {sec->rawData.data() + this->inputOff, size};
   }
 
   size_t inputOff;
@@ -328,6 +334,7 @@ public:
   SmallVector<EhSectionPiece, 0> pieces;
 
   SyntheticSection *getParent() const;
+  uint64_t getParentOffset(uint64_t offset) const;
 };
 
 // This is a section that is added directly to an output section
@@ -342,19 +349,24 @@ public:
   InputSection(ObjFile<ELFT> &f, const typename ELFT::Shdr &header,
                StringRef name);
 
+  static bool classof(const SectionBase *s) {
+    return s->kind() == SectionBase::Regular ||
+           s->kind() == SectionBase::Synthetic;
+  }
+
   // Write this section to a mmap'ed file, assuming Buf is pointing to
   // beginning of the output section.
   template <class ELFT> void writeTo(uint8_t *buf);
 
-  OutputSection *getParent() const;
+  OutputSection *getParent() const {
+    return reinterpret_cast<OutputSection *>(parent);
+  }
 
   // This variable has two usages. Initially, it represents an index in the
   // OutputSection's InputSection list, and is used when ordering SHF_LINK_ORDER
   // sections. After assignAddresses is called, it represents the offset from
   // the beginning of the output section this section was assigned to.
   uint64_t outSecOff = 0;
-
-  static bool classof(const SectionBase *s);
 
   InputSectionBase *getRelocatedSection() const;
 
@@ -384,7 +396,7 @@ static_assert(sizeof(InputSection) <= 160, "InputSection is too big");
 
 inline bool isDebugSection(const InputSectionBase &sec) {
   return (sec.flags & llvm::ELF::SHF_ALLOC) == 0 &&
-         (sec.name.startswith(".debug") || sec.name.startswith(".zdebug"));
+         sec.name.startswith(".debug");
 }
 
 // The list of all input sections.

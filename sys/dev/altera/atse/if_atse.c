@@ -221,7 +221,7 @@ atse_xdma_tx_intr(void *arg, xdma_transfer_status_t *status)
 {
 	xdma_transfer_status_t st;
 	struct atse_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	struct mbuf *m;
 	int err;
 
@@ -245,7 +245,7 @@ atse_xdma_tx_intr(void *arg, xdma_transfer_status_t *status)
 		sc->txcount--;
 	}
 
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 
 	ATSE_UNLOCK(sc);
 
@@ -257,7 +257,7 @@ atse_xdma_rx_intr(void *arg, xdma_transfer_status_t *status)
 {
 	xdma_transfer_status_t st;
 	struct atse_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	struct mbuf *m;
 	int err;
 	uint32_t cnt_processed;
@@ -286,7 +286,7 @@ atse_xdma_rx_intr(void *arg, xdma_transfer_status_t *status)
 		m->m_pkthdr.rcvif = ifp;
 		m_adj(m, ETHER_ALIGN);
 		ATSE_UNLOCK(sc);
-		(*ifp->if_input)(ifp, m);
+		if_input(ifp, m);
 		ATSE_LOCK(sc);
 	}
 
@@ -298,7 +298,7 @@ atse_xdma_rx_intr(void *arg, xdma_transfer_status_t *status)
 }
 
 static int
-atse_transmit_locked(struct ifnet *ifp)
+atse_transmit_locked(if_t ifp)
 {
 	struct atse_softc *sc;
 	struct mbuf *m;
@@ -306,7 +306,7 @@ atse_transmit_locked(struct ifnet *ifp)
 	int error;
 	int enq;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	br = sc->br;
 
 	enq = 0;
@@ -335,20 +335,20 @@ atse_transmit_locked(struct ifnet *ifp)
 }
 
 static int
-atse_transmit(struct ifnet *ifp, struct mbuf *m)
+atse_transmit(if_t ifp, struct mbuf *m)
 {
 	struct atse_softc *sc;
 	struct buf_ring *br;
 	int error;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	br = sc->br;
 
 	ATSE_LOCK(sc);
 
 	mtx_lock(&sc->br_mtx);
 
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) != IFF_DRV_RUNNING) {
+	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) != IFF_DRV_RUNNING) {
 		error = drbr_enqueue(ifp, sc->br, m);
 		mtx_unlock(&sc->br_mtx);
 		ATSE_UNLOCK(sc);
@@ -377,11 +377,11 @@ atse_transmit(struct ifnet *ifp, struct mbuf *m)
 }
 
 static void
-atse_qflush(struct ifnet *ifp)
+atse_qflush(if_t ifp)
 {
 	struct atse_softc *sc;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 
 	printf("%s\n", __func__);
 }
@@ -390,7 +390,7 @@ static int
 atse_stop_locked(struct atse_softc *sc)
 {
 	uint32_t mask, val4;
-	struct ifnet *ifp;
+	if_t ifp;
 	int i;
 
 	ATSE_LOCK_ASSERT(sc);
@@ -398,7 +398,7 @@ atse_stop_locked(struct atse_softc *sc)
 	callout_stop(&sc->atse_tick);
 
 	ifp = sc->atse_ifp;
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	if_setdrvflagbits(ifp, 0, (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
 
 	/* Disable MAC transmit and receive datapath. */
 	mask = BASE_CFG_COMMAND_CONFIG_TX_ENA|BASE_CFG_COMMAND_CONFIG_RX_ENA;
@@ -448,7 +448,7 @@ atse_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 static int
 atse_rxfilter_locked(struct atse_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t val4;
 	int i;
 
@@ -459,7 +459,7 @@ atse_rxfilter_locked(struct atse_softc *sc)
 		val4 &= ~BASE_CFG_COMMAND_CONFIG_MHASH_SEL;
 
 	ifp = sc->atse_ifp;
-	if (ifp->if_flags & IFF_PROMISC) {
+	if (if_getflags(ifp) & IFF_PROMISC) {
 		val4 |= BASE_CFG_COMMAND_CONFIG_PROMIS_EN;
 	} else {
 		val4 &= ~BASE_CFG_COMMAND_CONFIG_PROMIS_EN;
@@ -467,7 +467,7 @@ atse_rxfilter_locked(struct atse_softc *sc)
 
 	CSR_WRITE_4(sc, BASE_CFG_COMMAND_CONFIG, val4);
 
-	if (ifp->if_flags & IFF_ALLMULTI) {
+	if (if_getflags(ifp) & IFF_ALLMULTI) {
 		/* Accept all multicast addresses. */
 		for (i = 0; i <= MHASH_LEN; i++)
 			CSR_WRITE_4(sc, MHASH_START + i, 0x1);
@@ -873,14 +873,14 @@ atse_reset(struct atse_softc *sc)
 static void
 atse_init_locked(struct atse_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	struct mii_data *mii;
 	uint8_t *eaddr;
 
 	ATSE_LOCK_ASSERT(sc);
 	ifp = sc->atse_ifp;
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
 		return;
 	}
 
@@ -889,7 +889,7 @@ atse_init_locked(struct atse_softc *sc)
 	 * in atse_ioctl() but it's in the general framework, just always
 	 * do it here before atse_reset().
 	 */
-	eaddr = IF_LLADDR(sc->atse_ifp);
+	eaddr = if_getlladdr(sc->atse_ifp);
 	bcopy(eaddr, &sc->atse_eth_addr, ETHER_ADDR_LEN);
 
 	/* Make things frind to halt, cleanup, ... */
@@ -907,8 +907,8 @@ atse_init_locked(struct atse_softc *sc)
 	sc->atse_flags &= ~ATSE_FLAGS_LINK;
 	mii_mediachg(mii);
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
+	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 
 	callout_reset(&sc->atse_tick, hz, atse_tick, sc);
 }
@@ -930,34 +930,34 @@ atse_init(void *xsc)
 }
 
 static int
-atse_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
+atse_ioctl(if_t ifp, u_long command, caddr_t data)
 {
 	struct atse_softc *sc;
 	struct ifreq *ifr;
 	int error, mask;
 
 	error = 0;
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	ifr = (struct ifreq *)data;
 
 	switch (command) {
 	case SIOCSIFFLAGS:
 		ATSE_LOCK(sc);
-		if (ifp->if_flags & IFF_UP) {
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
-			    ((ifp->if_flags ^ sc->atse_if_flags) &
+		if (if_getflags(ifp) & IFF_UP) {
+			if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0 &&
+			    ((if_getflags(ifp) ^ sc->atse_if_flags) &
 			    (IFF_PROMISC | IFF_ALLMULTI)) != 0)
 				atse_rxfilter_locked(sc);
 			else
 				atse_init_locked(sc);
-		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		} else if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 			atse_stop_locked(sc);
-		sc->atse_if_flags = ifp->if_flags;
+		sc->atse_if_flags = if_getflags(ifp);
 		ATSE_UNLOCK(sc);
 		break;
 	case SIOCSIFCAP:
 		ATSE_LOCK(sc);
-		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+		mask = ifr->ifr_reqcap ^ if_getcapenable(ifp);
 		ATSE_UNLOCK(sc);
 		break;
 	case SIOCADDMULTI:
@@ -990,7 +990,7 @@ atse_tick(void *xsc)
 {
 	struct atse_softc *sc;
 	struct mii_data *mii;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	sc = (struct atse_softc *)xsc;
 	ATSE_LOCK_ASSERT(sc);
@@ -1009,14 +1009,14 @@ atse_tick(void *xsc)
  * Set media options.
  */
 static int
-atse_ifmedia_upd(struct ifnet *ifp)
+atse_ifmedia_upd(if_t ifp)
 {
 	struct atse_softc *sc;
 	struct mii_data *mii;
 	struct mii_softc *miisc;
 	int error;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 
 	ATSE_LOCK(sc);
 	mii = device_get_softc(sc->atse_miibus);
@@ -1033,12 +1033,12 @@ atse_ifmedia_upd(struct ifnet *ifp)
  * Report current media status.
  */
 static void
-atse_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+atse_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
 	struct atse_softc *sc;
 	struct mii_data *mii;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 
 	ATSE_LOCK(sc);
 	mii = device_get_softc(sc->atse_miibus);
@@ -1261,7 +1261,7 @@ int
 atse_attach(device_t dev)
 {
 	struct atse_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t caps;
 	int error;
 
@@ -1379,16 +1379,15 @@ atse_attach(device_t dev)
 		error = ENOSPC;
 		goto err;
 	}
-	ifp->if_softc = sc;
+	if_setsoftc(ifp, sc);
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_ioctl = atse_ioctl;
-	ifp->if_transmit = atse_transmit;
-	ifp->if_qflush = atse_qflush;
-	ifp->if_init = atse_init;
-	IFQ_SET_MAXLEN(&ifp->if_snd, ATSE_TX_LIST_CNT - 1);
-	ifp->if_snd.ifq_drv_maxlen = ATSE_TX_LIST_CNT - 1;
-	IFQ_SET_READY(&ifp->if_snd);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setioctlfn(ifp, atse_ioctl);
+	if_settransmitfn(ifp, atse_transmit);
+	if_setqflushfn(ifp, atse_qflush);
+	if_setinitfn(ifp, atse_init);
+	if_setsendqlen(ifp, ATSE_TX_LIST_CNT - 1);
+	if_setsendqready(ifp);
 
 	/* MII setup. */
 	error = mii_attach(dev, &sc->atse_miibus, ifp, atse_ifmedia_upd,
@@ -1402,9 +1401,9 @@ atse_attach(device_t dev)
 	ether_ifattach(ifp, sc->atse_eth_addr);
 
 	/* Tell the upper layer(s) about vlan mtu support. */
-	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
-	ifp->if_capabilities |= IFCAP_VLAN_MTU;
-	ifp->if_capenable = ifp->if_capabilities;
+	if_setifheaderlen(ifp, sizeof(struct ether_vlan_header));
+	if_setcapabilitiesbit(ifp, IFCAP_VLAN_MTU, 0);
+	if_setcapenable(ifp, if_getcapabilities(ifp));
 
 err:
 	if (error != 0) {
@@ -1425,7 +1424,7 @@ static int
 atse_detach(device_t dev)
 {
 	struct atse_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	sc = device_get_softc(dev);
 	KASSERT(mtx_initialized(&sc->atse_mtx), ("%s: mutex not initialized",
@@ -1535,7 +1534,7 @@ atse_miibus_statchg(device_t dev)
 {
 	struct atse_softc *sc;
 	struct mii_data *mii;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t val4;
 
 	sc = device_get_softc(dev);
@@ -1544,7 +1543,7 @@ atse_miibus_statchg(device_t dev)
 	mii = device_get_softc(sc->atse_miibus);
 	ifp = sc->atse_ifp;
 	if (mii == NULL || ifp == NULL ||
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+	    (if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0) {
 		return;
 	}
 

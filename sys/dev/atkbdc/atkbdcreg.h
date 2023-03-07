@@ -36,8 +36,6 @@
 #ifndef _DEV_ATKBDC_ATKBDCREG_H_
 #define	_DEV_ATKBDC_ATKBDCREG_H_
 
-#include "opt_kbd.h"	/* Structures depend on the value if KBDIO_DEBUG */
-
 /* constants */
 
 /* I/O ports */
@@ -144,6 +142,8 @@
 #define PSM_4DPLUS_RFSW35_ID	24
 
 #ifdef _KERNEL
+
+#include "opt_kbd.h"	/* Structures depend on the value if KBDIO_DEBUG */
 
 #define ATKBDC_DRIVER_NAME	"atkbdc"
 

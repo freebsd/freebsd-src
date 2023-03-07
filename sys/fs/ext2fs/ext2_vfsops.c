@@ -812,8 +812,7 @@ loop:
 		error = bread(devvp, fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
 		    (int)fs->e2fs_bsize, NOCRED, &bp);
 		if (error) {
-			VOP_UNLOCK(vp);
-			vrele(vp);
+			vput(vp);
 			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			return (error);
 		}
@@ -822,8 +821,7 @@ loop:
 		    EXT2_INODE_SIZE(fs) * ino_to_fsbo(fs, ip->i_number)), ip);
 
 		brelse(bp);
-		VOP_UNLOCK(vp);
-		vrele(vp);
+		vput(vp);
 
 		if (error) {
 			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
@@ -1049,9 +1047,6 @@ ext2_unmount(struct mount *mp, int mntflags)
 	free(fs, M_EXT2MNT);
 	free(ump, M_EXT2MNT);
 	mp->mnt_data = NULL;
-	MNT_ILOCK(mp);
-	mp->mnt_flag &= ~MNT_LOCAL;
-	MNT_IUNLOCK(mp);
 	return (error);
 }
 
@@ -1167,8 +1162,7 @@ loop:
 		}
 		if ((error = VOP_FSYNC(vp, waitfor, td)) != 0)
 			allerror = error;
-		VOP_UNLOCK(vp);
-		vrele(vp);
+		vput(vp);
 	}
 
 	/*
@@ -1311,6 +1305,7 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	 * Finish inode initialization.
 	 */
 
+	vn_set_state(vp, VSTATE_CONSTRUCTED);
 	*vpp = vp;
 	return (0);
 }

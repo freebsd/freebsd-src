@@ -50,8 +50,11 @@ _sc_config=
 _sc_console=
 _sc_initdone=
 _sc_keymap_msg=
+_sc_bootmethod=
 sc_init()
 {
+	local bootmethod
+
 	if [ -z "${_sc_initdone}" ]; then
 		if [ -z "${_sc_console}" ]; then
 			if [ x`sysctl -n kern.vty` = x"vt" ]; then
@@ -60,6 +63,23 @@ sc_init()
 				_sc_console="syscons"
 			fi
 			_sc_config="${_sc_console}"
+		fi
+		if [ -z "${_sc_bootmethod}" ]; then
+			bootmethod=$(sysctl -qn machdep.bootmethod)
+			case ${bootmethod} in
+				UEFI)
+					_sc_bootmethod="uefi"
+					;;
+				BIOS)
+					_sc_bootmethod="bios"
+					;;
+				PVH)
+					_sc_bootmethod="pvh"
+					;;
+				*)
+					_sc_bootmethod="uefi" # Default to UEFI
+					;;
+			esac
 		fi
 		echo -n "Configuring ${_sc_config}:"
 		_sc_initdone=yes
@@ -259,16 +279,8 @@ syscons_precmd()
 	return 0
 }
 
-syscons_start()
+syscons_bios_start()
 {
-	# keyboard
-	#
-	if [ -n "${keyboard}" ]; then
-		syscons_setkeyboard ${keyboard}
-	fi
-
-	syscons_configure_keyboard
-
 	# cursor type
 	#
 	case ${cursor} in
@@ -290,6 +302,47 @@ syscons_start()
 		echo -n ' scrnmap';	vidcontrol < ${viddev} -l ${scrnmap}
 		;;
 	esac
+
+	# blank time
+	#
+	case ${blanktime} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		sc_init
+		echo -n ' blanktime';	vidcontrol < ${viddev} -t ${blanktime}
+		;;
+	esac
+
+	# screen saver
+	#
+	case ${saver} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		sc_init
+		echo -n ' screensaver'
+		for i in `kldstat | awk '$5 ~ "_saver\.ko$" { print $5 }'`; do
+			kldunload ${i}
+		done
+		load_kld -e _saver ${saver}_saver
+		;;
+	esac
+}
+
+syscons_start()
+{
+	# keyboard
+	#
+	if [ -n "${keyboard}" ]; then
+		syscons_setkeyboard ${keyboard}
+	fi
+
+	syscons_configure_keyboard
+
+	if [ "${_sc_bootmethod}" = "bios" ]; then
+		syscons_bios_start
+	fi
 
 	# font 8x16
 	#
@@ -321,32 +374,6 @@ syscons_start()
 	*)
 		sc_init
 		echo -n ' font8x8';	vidcontrol < ${viddev} -f 8x8 ${font8x8}
-		;;
-	esac
-
-	# blank time
-	#
-	case ${blanktime} in
-	[Nn][Oo] | '')
-		;;
-	*)
-		sc_init
-		echo -n ' blanktime';	vidcontrol < ${viddev} -t ${blanktime}
-		;;
-	esac
-
-	# screen saver
-	#
-	case ${saver} in
-	[Nn][Oo] | '')
-		;;
-	*)
-		sc_init
-		echo -n ' screensaver'
-		for i in `kldstat | awk '$5 ~ "_saver\.ko$" { print $5 }'`; do
-			kldunload ${i}
-		done
-		load_kld -e _saver ${saver}_saver
 		;;
 	esac
 

@@ -46,6 +46,11 @@ wait_for_carp()
 	    [ -z "$(is_master ${jail2} ${itf2})" ]; do
 		sleep 1
 	done
+
+	if [ -n "$(is_master ${jail1} ${itf1})" ] &&
+	    [ -n "$(is_master ${jail2} ${itf2})" ]; then
+		atf_fail "Both jails are master"
+	fi
 }
 
 carp_init()

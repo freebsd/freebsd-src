@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2023 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -255,7 +255,113 @@ dc_parse_token(BcParse* p, BcLexType t, uint8_t flags)
 			break;
 		}
 
-		default:
+		case BC_LEX_EOF:
+		case BC_LEX_INVALID:
+#if BC_ENABLED
+		case BC_LEX_OP_INC:
+		case BC_LEX_OP_DEC:
+#endif // BC_ENABLED
+		case BC_LEX_OP_BOOL_NOT:
+#if BC_ENABLE_EXTRA_MATH
+		case BC_LEX_OP_TRUNC:
+#endif // BC_ENABLE_EXTRA_MATH
+		case BC_LEX_OP_POWER:
+		case BC_LEX_OP_MULTIPLY:
+		case BC_LEX_OP_DIVIDE:
+		case BC_LEX_OP_MODULUS:
+		case BC_LEX_OP_PLUS:
+		case BC_LEX_OP_MINUS:
+#if BC_ENABLE_EXTRA_MATH
+		case BC_LEX_OP_PLACES:
+		case BC_LEX_OP_LSHIFT:
+		case BC_LEX_OP_RSHIFT:
+#endif // BC_ENABLE_EXTRA_MATH
+		case BC_LEX_OP_BOOL_OR:
+		case BC_LEX_OP_BOOL_AND:
+#if BC_ENABLED
+		case BC_LEX_OP_ASSIGN_POWER:
+		case BC_LEX_OP_ASSIGN_MULTIPLY:
+		case BC_LEX_OP_ASSIGN_DIVIDE:
+		case BC_LEX_OP_ASSIGN_MODULUS:
+		case BC_LEX_OP_ASSIGN_PLUS:
+		case BC_LEX_OP_ASSIGN_MINUS:
+#if BC_ENABLE_EXTRA_MATH
+		case BC_LEX_OP_ASSIGN_PLACES:
+		case BC_LEX_OP_ASSIGN_LSHIFT:
+		case BC_LEX_OP_ASSIGN_RSHIFT:
+#endif // BC_ENABLE_EXTRA_MATH
+#endif // BC_ENABLED
+		case BC_LEX_NLINE:
+		case BC_LEX_WHITESPACE:
+		case BC_LEX_LPAREN:
+		case BC_LEX_RPAREN:
+		case BC_LEX_LBRACKET:
+		case BC_LEX_COMMA:
+		case BC_LEX_RBRACKET:
+		case BC_LEX_LBRACE:
+		case BC_LEX_NAME:
+		case BC_LEX_RBRACE:
+#if BC_ENABLED
+		case BC_LEX_KW_AUTO:
+		case BC_LEX_KW_BREAK:
+		case BC_LEX_KW_CONTINUE:
+		case BC_LEX_KW_DEFINE:
+		case BC_LEX_KW_FOR:
+		case BC_LEX_KW_IF:
+		case BC_LEX_KW_LIMITS:
+		case BC_LEX_KW_RETURN:
+		case BC_LEX_KW_WHILE:
+		case BC_LEX_KW_HALT:
+		case BC_LEX_KW_LAST:
+#endif // BC_ENABLED
+		case BC_LEX_KW_IBASE:
+		case BC_LEX_KW_OBASE:
+		case BC_LEX_KW_SCALE:
+#if BC_ENABLE_EXTRA_MATH
+		case BC_LEX_KW_SEED:
+#endif // BC_ENABLE_EXTRA_MATH
+		case BC_LEX_KW_LENGTH:
+		case BC_LEX_KW_PRINT:
+		case BC_LEX_KW_SQRT:
+		case BC_LEX_KW_ABS:
+		case BC_LEX_KW_IS_NUMBER:
+		case BC_LEX_KW_IS_STRING:
+#if BC_ENABLE_EXTRA_MATH
+		case BC_LEX_KW_IRAND:
+#endif // BC_ENABLE_EXTRA_MATH
+		case BC_LEX_KW_ASCIIFY:
+		case BC_LEX_KW_MODEXP:
+		case BC_LEX_KW_DIVMOD:
+		case BC_LEX_KW_QUIT:
+#if BC_ENABLE_EXTRA_MATH
+		case BC_LEX_KW_RAND:
+#endif // BC_ENABLE_EXTRA_MATH
+		case BC_LEX_KW_MAXIBASE:
+		case BC_LEX_KW_MAXOBASE:
+		case BC_LEX_KW_MAXSCALE:
+#if BC_ENABLE_EXTRA_MATH
+		case BC_LEX_KW_MAXRAND:
+#endif // BC_ENABLE_EXTRA_MATH
+		case BC_LEX_KW_LINE_LENGTH:
+#if BC_ENABLED
+		case BC_LEX_KW_GLOBAL_STACKS:
+#endif // BC_ENABLED
+		case BC_LEX_KW_LEADING_ZERO:
+		case BC_LEX_KW_STREAM:
+		case BC_LEX_KW_ELSE:
+		case BC_LEX_EXTENDED_REGISTERS:
+		case BC_LEX_EQ_NO_REG:
+		case BC_LEX_EXECUTE:
+		case BC_LEX_PRINT_STACK:
+		case BC_LEX_CLEAR_STACK:
+		case BC_LEX_STACK_LEVEL:
+		case BC_LEX_DUPLICATE:
+		case BC_LEX_SWAP:
+		case BC_LEX_POP:
+		case BC_LEX_PRINT_POP:
+		case BC_LEX_NQUIT:
+		case BC_LEX_EXEC_STACK_LENGTH:
+		case BC_LEX_SCALE_FACTOR:
 		{
 			// All other tokens should be taken care of by the caller, or they
 			// actually *are* invalid.
@@ -320,7 +426,7 @@ dc_parse_parse(BcParse* p)
 {
 	assert(p != NULL);
 
-	BC_SETJMP_LOCKED(exit);
+	BC_SETJMP_LOCKED(vm, exit);
 
 	// If we have EOF, someone called this function one too many times.
 	// Otherwise, parse.
@@ -330,9 +436,9 @@ dc_parse_parse(BcParse* p)
 exit:
 
 	// Need to reset if there was an error.
-	if (BC_SIG_EXC) bc_parse_reset(p);
+	if (BC_SIG_EXC(vm)) bc_parse_reset(p);
 
-	BC_LONGJMP_CONT;
+	BC_LONGJMP_CONT(vm);
 	BC_SIG_MAYLOCK;
 }
 #endif // DC_ENABLED

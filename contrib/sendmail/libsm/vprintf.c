@@ -33,7 +33,7 @@ int
 sm_vprintf(timeout, fmt, ap)
 	int timeout;
 	char const *fmt;
-	SM_VA_LOCAL_DECL
+	va_list ap;
 {
 	return sm_io_vfprintf(smiostdout, timeout, fmt, ap);
 }

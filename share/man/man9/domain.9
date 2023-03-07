@@ -1,5 +1,6 @@
 .\"
 .\" Copyright (C) 2001 Chad David <davidc@acns.ab.ca>. All rights reserved.
+.\" Copyright (C) 2022 Gleb Smirnoff <glebius@FreeBSD.org>
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -26,221 +27,204 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 3, 2022
+.Dd September 14, 2022
 .Dt DOMAIN 9
 .Os
 .Sh NAME
-.Nm domain_add ,
-.Nm domain_init ,
-.Nm pfctlinput ,
-.Nm pffinddomain ,
-.Nm pffindproto ,
-.Nm pffindtype ,
-.Nm DOMAIN_SET
-.Nd "network domain management"
+.Nm domain ,
+.Nm protosw
+.Nd "programming interface for kernel socket implementation"
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/kernel.h
 .In sys/protosw.h
 .In sys/domain.h
 .Ft void
-.Fn domain_add "void *data"
+.Fn domain_add "struct domain *dom"
 .Ft void
-.Fn domain_init "void *data"
+.Fn domain_remove "struct domain *dom"
 .Ft void
-.Fn pfctlinput "int cmd" "struct sockaddr *sa"
-.Ft struct domain *
-.Fn pffinddomain "int family"
-.Ft struct protosw *
-.Fn pffindproto "int family" "int protocol" "int type"
-.Ft struct protosw *
-.Fn pffindtype "int family" "int type"
-.Ft void
-.Fn DOMAIN_SET "name"
+.Fn DOMAIN_SET "domain"
+.Ft int
+.Fn protosw_register "struct domain *dom" "struct protosw *pr"
+.Ft int
+.Fn protosw_unregister "struct protosw *pr"
 .Sh DESCRIPTION
-Network protocols installed in the system are maintained within what
-are called domains
-(for example the
-.Va inetdomain
-and
-.Va localdomain ) .
+The
+.Nm
+subsystem allows implementation of communication protocols that are exposed to
+the userland via the
+.Xr socket 2
+API.
+When an application performs a
+.Fn socket "domain" "type" "protocol"
+syscall, the kernel searches for a
+.Nm
+matching the
+.Ar domain
+argument, then within this domain, searches for a protocol
+matching
+.Ar type .
+If the third argument,
+.Ar protocol ,
+is not
+.Dv 0 ,
+that value must also match.
+The structure found must implement certain methods, so that
+.Xr socket 2
+API works for this particular kind of a socket.
+.Pp
+A minimal
+.Nm
+structure implementing a domain shall be initialized with sparse C99
+initializer and has public fields as follows:
 .Bd -literal
 struct domain {
-	int	dom_family;		/* AF_xxx */
-	char	*dom_name;
-	int	dom_flags;
-	int	(*dom_probe)(void);	/* check for support (optional) */
-	int	(*dom_externalize)	/* externalize access rights */
-		(struct mbuf *, struct mbuf **);
-	void	(*dom_dispose)		/* dispose of internalized rights */
-		(struct mbuf *);
-	struct	protosw *dom_protosw, *dom_protoswNPROTOSW;
-	struct	domain *dom_next;
-	int	(*dom_rtattach)		/* initialize routing table */
-		(void **, int);
-	int	(*dom_rtdetach)		/* clean up routing table */
-		(void **, int);
-	void	*(*dom_ifattach)(struct ifnet *);
-	void	(*dom_ifdetach)(struct ifnet *, void *);
-	int	(*dom_ifmtu)(struct ifnet *);
-					/* af-dependent data on ifnet */
+    /*
+     * Mandatory fields.
+     */
+    int	dom_family;	/* PF_xxx, first argument of socket(2) */
+    char	*dom_name;	/* text name of the domain */
+    u_int	dom_nprotosw;	/* length of dom_protosw[] */
+    /*
+     * Following methods are optional.
+     */
+    int	(*dom_probe)(void);			/* check for support */
+    struct rib_head *(*dom_rtattach)(uint32_t);	/* init route table */
+    void (*dom_rtdetach)(struct rib_head *);	/* clean up table */
+    void *(*dom_ifattach)(struct ifnet *);	/* interface attach */
+    void (*dom_ifdetach)(struct ifnet *, void *);/* & detach callbacks */
+    int	(*dom_ifmtu)(struct ifnet *);		/* mtu change */
+    /*
+     * Mandatory variable size array of pointers to protosw structs.
+     */
+    struct  protosw *dom_protosw[];
 };
 .Ed
 .Pp
-Each domain contains an array of protocol switch structures
+Each domain contains the
+.Va dom_protosw
+array of protocol switch structures
 .Pq Vt "struct protosw *" ,
 one for each socket type supported.
+The array may have
+.Dv NULL
+spacers for loadable protocols.
+Sparse C99 initializers shall be used to initialize
+.Nm protosw
+structures.
+The structure has mandatory field
+.Va pr_type
+and mandatory
+.Va pr_attach
+method.
+The rest of the methods are optional, but a meaningful protocol should
+implement some.
 .Bd -literal
 struct protosw {
-	short	pr_type;		/* socket type used for */
-	struct	domain *pr_domain;	/* domain protocol a member of */
-	short	pr_protocol;		/* protocol number */
-	short	pr_flags;		/* see below */
-/* protocol-protocol hooks */
-	pr_input_t *pr_input;		/* input to protocol (from below) */
-	pr_output_t *pr_output;		/* output to protocol (from above) */
-	pr_ctlinput_t *pr_ctlinput;	/* control input (from below) */
-	pr_ctloutput_t *pr_ctloutput;	/* control output (from above) */
-/* utility hooks */
-	pr_fasttimo_t *pr_fasttimo;	/* fast timeout (200ms) */
-	pr_slowtimo_t *pr_slowtimo;	/* slow timeout (500ms) */
-	pr_drain_t *pr_drain;		/* flush any excess space possible */
-
-	struct	pr_usrreqs *pr_usrreqs;	/* user-protocol hook */
+    short	pr_type;	/* second argument of socket(2) */
+    short	pr_protocol;	/* third argument of socket(2) or 0 */
+    short	pr_flags;	/* see protosw.h */
+    pr_soreceive_t  *pr_soreceive;  /* recv(2) */
+    pr_rcvd_t       *pr_rcvd;       /* soreceive_generic() if PR_WANTRCV */
+    pr_sosend_t     *pr_sosend;     /* send(2) */
+    pr_send_t       *pr_send;       /* send(2) via sosend_generic() */
+    pr_ready_t      *pr_ready;      /* sendfile/ktls readyness */
+    pr_sopoll_t     *pr_sopoll;     /* poll(2) */
+    pr_attach_t     *pr_attach;     /* creation: socreate(), sonewconn() */
+    pr_detach_t     *pr_detach;     /* destruction: sofree() */
+    pr_connect_t    *pr_connect;    /* connect(2) */
+    pr_disconnect_t *pr_disconnect; /* sodisconnect() */
+    pr_close_t      *pr_close;      /* close(2) */
+    pr_shutdown_t   *pr_shutdown;   /* shutdown(2) */
+    pr_abort_t      *pr_abort;      /* abrupt tear down: soabort() */
+    pr_aio_queue_t  *pr_aio_queue;  /* aio(9) */
+    pr_bind_t       *pr_bind;       /* bind(2) */
+    pr_bindat_t     *pr_bindat;     /* bindat(2) */
+    pr_listen_t     *pr_listen;     /* listen(2) */
+    pr_accept_t     *pr_accept;     /* accept(2) */
+    pr_connectat_t  *pr_connectat;  /* connectat(2) */
+    pr_connect2_t   *pr_connect2;   /* socketpair(2) */
+    pr_control_t    *pr_control;    /* ioctl(2) */
+    pr_rcvoob_t     *pr_rcvoob;     /* soreceive_rcvoob() */
+    pr_ctloutput_t  *pr_ctloutput;  /* control output (from above) */
+    pr_peeraddr_t   *pr_peeraddr;   /* getpeername(2) */
+    pr_sockaddr_t   *pr_sockaddr;   /* getsockname(2) */
+    pr_sense_t      *pr_sense;      /* stat(2) */
 };
 .Ed
 .Pp
-The following functions handle the registration of a new domain,
-lookups of specific protocols and protocol types within those domains,
-and handle control messages from the system.
-.Pp
-.Fn pfctlinput
-is called by the system whenever an event occurs that could affect every
-domain.
-Examples of those types of events are routing table changes, interface
-shutdowns or certain
-.Tn ICMP
-message types.
-When called,
-.Fn pfctlinput
-calls the protocol specific
-.Fn pr_ctlinput
-function for each protocol in that has defined one, in every domain.
+The following functions handle the registration of new domains and protocols.
 .Pp
 .Fn domain_add
 adds a new protocol domain to the system.
-The argument
-.Fa data
-is cast directly to
-.Vt "struct domain *"
-within the function, but is declared
-.Vt "void *"
-in order to prevent compiler warnings when new domains are registered with
-.Fn SYSINIT .
 In most cases
 .Fn domain_add
 is not called directly, instead
 .Fn DOMAIN_SET
-is used.
-.Pp
-If the new domain has defined a probe routine, it is called first in
+is used, which is a wrapper around
+.Fn SYSINIT
+macro.
+If the new domain has defined a
+.Va dom_probe
+routine, it is called first in
 .Fn domain_add
 to determine if the domain should be supported on the current system.
-If the probe routine returns a non-0 value, then the domain will not be
-marked as supported.
-Unsupported domains do not proceed with the initialization process and are not
-discoverable by
-.Fn pffinddomain ,
-.Fn pffindtype ,
-or
-.Fn pffindproto .
-.Pp
-.Fn domain_init
-is called after
-.Fn domain_add
-during boot and for each
-.Xr vnet 9 .
-If the new domain has defined an initialization routine, it is called during
-.Fn domain_init ;
-as well, each of the protocols within the domain that have defined an
-initialization routine will have theirs called.
-Note that domain initialization cannot fail at this time.
-.Pp
+If the probe routine returns a non-0 value, then the domain will not be added.
 Once a domain is added it cannot be completely unloaded.
 This is because there is
 no reference counting system in place to determine if there are any
 active references from sockets within that domain.
+However, the exprimental
+.Fn domain_remove
+exists, and unloadable domains may be supported in the future.
 .Pp
-.Fn pffinddomain
-finds a domain by family.
-If the domain cannot be found,
-.Dv NULL
-is returned.
-.Pp
-.Fn pffindtype
-and
-.Fn pffindproto
-look up a protocol by its number or by its type.
-In most cases, if the protocol or type cannot be found,
-.Dv NULL
-is returned, but
-.Fn pffindproto
-may return the default if the requested type is
-.Dv SOCK_RAW ,
-a protocol switch type of
-.Dv SOCK_RAW
-is found, and the domain has a default raw protocol.
-.Pp
-Both functions are called by
-.Fn socreate
-in order to resolve the protocol for the socket currently being created.
-.Pp
-.Fn DOMAIN_SET
-is a macro that simplifies the registration of a domain via
-.Fn SYSINIT .
-The code resulting from the macro expects there to be a domain structure
-named
-.Dq Fa name Ns Li domain
-where
-.Fa name
-is the argument to
-.Fn DOMAIN_SET :
-.Bd -literal
-struct domain localdomain =
-{ AF_LOCAL, "local", unp_init, unp_externalize, unp_dispose,
-  localsw, &localsw[sizeof(localsw)/sizeof(localsw[0])] };
-
-DOMAIN_SET(local);
+.Fn protosw_register
+dynamically adds a protocol to a domain, if the latter
+has an empty slot in its
+.Va dom_protosw .
+Dynamically added protocol can later be unloaded with
+.Fn protosw_unregister .
 .Ed
 .Sh RETURN VALUES
-Both
-.Fn pffindtype
+The
+.Fn domain_add
+never fails, but it may not add a domain if its
+.Va dom_probe
+fails.
+.Pp
+The
+.Fn protosw_register
+function may fail if:
+.Bl -tag -width Er
+.It Bq Er EEXIST
+A protocol with the same value of
+.Va pr_type
 and
-.Fn pffindproto
-return a
-.Vt "struct protosw *"
-for the protocol requested.
-If the protocol or socket type is not found,
-.Dv NULL
-is returned.
-In the case of
-.Fn pffindproto ,
-the default protocol may be returned for
-.Dv SOCK_RAW
-types if the domain has a default raw protocol.
+.Va pr_protocol
+already exists in the domain.
+.It Bq Er ENOMEM
+The domain doesn't have any NULL slots in its
+.Va dom_protosw .
+.El
 .Sh SEE ALSO
-.Xr socket 2
+.Xr socket 2 ,
+.Xr SYSINIT 9
 .Sh HISTORY
-The functions
-.Fn domain_add ,
-.Fn pfctlinput ,
-.Fn pffinddomain ,
-.Fn pffindproto ,
-.Fn pffindtype
-and
-.Fn DOMAIN_SET
-first appeared in
-.Fx 4.4 .
+The
+.Nm
+subsystem first appeared in
+.Bx 4.3
+as the part of the very first
+.Xr socket 2
+API implementation.
+.Pp
+The
+.Nm
+subsystem and this manual page were significantly rewritten in
+.Fx 14 .
 .Sh AUTHORS
 This manual page was written by
-.An Chad David Aq Mt davidc@acns.ab.ca .
+.An Chad David Aq Mt davidc@acns.ab.ca
+and
+.An Gleb Smirnoff Aq Mt glebius@FreeBSD.org .

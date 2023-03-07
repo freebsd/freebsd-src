@@ -1223,7 +1223,7 @@ ItaniumRecordLayoutBuilder::LayoutBase(const BaseSubobjectInfo *Base) {
     // Per GCC's documentation, it only applies to non-static data members.
     return (Packed && ((Context.getLangOpts().getClangABICompat() <=
                         LangOptions::ClangABI::Ver6) ||
-                       Context.getTargetInfo().getTriple().isPS4() ||
+                       Context.getTargetInfo().getTriple().isPS() ||
                        Context.getTargetInfo().getTriple().isOSAIX()))
                ? CharUnits::One()
                : UnpackedAlign;
@@ -1261,7 +1261,9 @@ ItaniumRecordLayoutBuilder::LayoutBase(const BaseSubobjectInfo *Base) {
       (!HasExternalLayout || Offset == CharUnits::Zero()) &&
       EmptySubobjects->CanPlaceBaseAtOffset(Base, CharUnits::Zero())) {
     setSize(std::max(getSize(), Layout.getSize()));
-    UpdateAlignment(BaseAlign, UnpackedAlignTo, PreferredBaseAlign);
+    // On PS4/PS5, don't update the alignment, to preserve compatibility.
+    if (!Context.getTargetInfo().getTriple().isPS())
+      UpdateAlignment(BaseAlign, UnpackedAlignTo, PreferredBaseAlign);
 
     return CharUnits::Zero();
   }
@@ -3540,7 +3542,7 @@ static void DumpRecordLayout(raw_ostream &OS, const RecordDecl *RD,
   auto CXXRD = dyn_cast<CXXRecordDecl>(RD);
 
   PrintOffset(OS, Offset, IndentLevel);
-  OS << C.getTypeDeclType(const_cast<RecordDecl*>(RD)).getAsString();
+  OS << C.getTypeDeclType(const_cast<RecordDecl *>(RD));
   if (Description)
     OS << ' ' << Description;
   if (CXXRD && CXXRD->isEmpty())
@@ -3625,7 +3627,7 @@ static void DumpRecordLayout(raw_ostream &OS, const RecordDecl *RD,
     const QualType &FieldType = C.getLangOpts().DumpRecordLayoutsCanonical
                                     ? Field.getType().getCanonicalType()
                                     : Field.getType();
-    OS << FieldType.getAsString() << ' ' << Field << '\n';
+    OS << FieldType << ' ' << Field << '\n';
   }
 
   // Dump virtual bases.
@@ -3691,7 +3693,7 @@ void ASTContext::DumpRecordLayout(const RecordDecl *RD, raw_ostream &OS,
   // in libFrontend.
 
   const ASTRecordLayout &Info = getASTRecordLayout(RD);
-  OS << "Type: " << getTypeDeclType(RD).getAsString() << "\n";
+  OS << "Type: " << getTypeDeclType(RD) << "\n";
   OS << "\nLayout: ";
   OS << "<ASTRecordLayout\n";
   OS << "  Size:" << toBits(Info.getSize()) << "\n";

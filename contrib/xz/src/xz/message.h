@@ -90,22 +90,6 @@ extern const char *message_strm(lzma_ret code);
 extern void message_mem_needed(enum message_verbosity v, uint64_t memusage);
 
 
-/// Buffer size for message_filters_to_str()
-#define FILTERS_STR_SIZE 512
-
-
-/// \brief      Get the filter chain as a string
-///
-/// \param      buf         Pointer to caller allocated buffer to hold
-///                         the filter chain string
-/// \param      filters     Pointer to the filter chain
-/// \param      all_known   If true, all filter options are printed.
-///                         If false, only the options that get stored
-///                         into .xz headers are printed.
-extern void message_filters_to_str(char buf[FILTERS_STR_SIZE],
-		const lzma_filter *filters, bool all_known);
-
-
 /// Print the filter chain.
 extern void message_filters_show(
 		enum message_verbosity v, const lzma_filter *filters);

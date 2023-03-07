@@ -980,7 +980,6 @@ ignoreline_pattern(char *line)
 	int ret;
 
 	ret = regexec(&ignore_re, line, 0, NULL, 0);
-	free(line);
 	return (ret == 0);	/* if it matched, it should be ignored. */
 }
 
@@ -988,13 +987,10 @@ static bool
 ignoreline(char *line, bool skip_blanks)
 {
 
-	if (ignore_pats != NULL && skip_blanks)
-		return (ignoreline_pattern(line) || *line == '\0');
-	if (ignore_pats != NULL)
-		return (ignoreline_pattern(line));
-	if (skip_blanks)
-		return (*line == '\0');
-	/* No ignore criteria specified */
+	if (skip_blanks && *line == '\0')
+		return (true);
+	if (ignore_pats != NULL && ignoreline_pattern(line))
+		return (true);
 	return (false);
 }
 
@@ -1013,7 +1009,7 @@ change(char *file1, FILE *f1, char *file2, FILE *f2, int a, int b, int c, int d,
 	long curpos;
 	int i, nc;
 	const char *walk;
-	bool skip_blanks;
+	bool skip_blanks, ignore;
 
 	skip_blanks = (*pflags & D_SKIPBLANKLINES);
 restart:
@@ -1030,7 +1026,9 @@ restart:
 			for (i = a; i <= b; i++) {
 				line = preadline(fileno(f1),
 				    ixold[i] - ixold[i - 1], ixold[i - 1]);
-				if (!ignoreline(line, skip_blanks))
+				ignore = ignoreline(line, skip_blanks);
+				free(line);
+				if (!ignore)
 					goto proceed;
 			}
 		}
@@ -1038,7 +1036,9 @@ restart:
 			for (i = c; i <= d; i++) {
 				line = preadline(fileno(f2),
 				    ixnew[i] - ixnew[i - 1], ixnew[i - 1]);
-				if (!ignoreline(line, skip_blanks))
+				ignore = ignoreline(line, skip_blanks);
+				free(line);
+				if (!ignore)
 					goto proceed;
 			}
 		}
@@ -1246,8 +1246,9 @@ fetch(long *f, int a, int b, FILE *lb, int ch, int oldfile, int flags)
 			else if (diff_format != D_UNIFIED)
 				printf(" ");
 		}
-		col = 0;
-		for (j = 0, lastc = '\0'; j < nc; j++, lastc = c) {
+		col = j = 0;
+		lastc = '\0';
+		while (j < nc && (hw == 0 || col < hw)) {
 			c = getc(lb);
 			if (flags & D_STRIPCR && c == '\r') {
 				if ((c = getc(lb)) == '\n')
@@ -1274,19 +1275,16 @@ fetch(long *f, int a, int b, FILE *lb, int ch, int oldfile, int flags)
 				if (flags & D_EXPANDTABS) {
 					newcol = ((col / tabsize) + 1) * tabsize;
 					do {
-						if (diff_format == D_SIDEBYSIDE)
-							j++;
 						printf(" ");
-					} while (++col < newcol && j < nc);
+					} while (++col < newcol && col < hw);
 				} else {
 					if (diff_format == D_SIDEBYSIDE) {
-						if ((j + tabsize) > nc) {
-							printf("%*s", nc - j, "");
-							j = col = nc;
+						if ((col + tabsize) > hw) {
+							printf("%*s", hw - col, "");
+							col = hw;
 						} else {
 							printf("\t");
 							col += tabsize - 1;
-							j += tabsize - 1;
 						}
 					} else {
 						printf("\t");
@@ -1315,6 +1313,9 @@ fetch(long *f, int a, int b, FILE *lb, int ch, int oldfile, int flags)
 					col++;
 				}
 			}
+
+			j++;
+			lastc = c;
 		}
 	}
 	if (color && diff_format == D_SIDEBYSIDE)
@@ -1338,6 +1339,7 @@ readhash(FILE *f, int flags, unsigned *hash)
 		case '\0':
 			if ((flags & D_FORCEASCII) == 0)
 				return (RH_BINARY);
+			goto hashchar;
 		case '\r':
 			if (flags & D_STRIPCR) {
 				t = getc(f);
@@ -1356,6 +1358,7 @@ readhash(FILE *f, int flags, unsigned *hash)
 			}
 			/* FALLTHROUGH */
 		default:
+		hashchar:
 			if (space && (flags & D_IGNOREBLANKS) == 0) {
 				i++;
 				space = 0;
@@ -1622,10 +1625,7 @@ static void
 print_header(const char *file1, const char *file2)
 {
 	const char *time_format;
-	char buf1[256];
-	char buf2[256];
-	char end1[10];
-	char end2[10];
+	char buf[256];
 	struct tm tm1, tm2, *tm_ptr1, *tm_ptr2;
 	int nsec1 = stb1.st_mtim.tv_nsec;
 	int nsec2 = stb2.st_mtim.tv_nsec;
@@ -1636,26 +1636,32 @@ print_header(const char *file1, const char *file2)
 		time_format = "%c";
 	tm_ptr1 = localtime_r(&stb1.st_mtime, &tm1);
 	tm_ptr2 = localtime_r(&stb2.st_mtime, &tm2);
-	strftime(buf1, 256, time_format, tm_ptr1);
-	strftime(buf2, 256, time_format, tm_ptr2);
-	if (!cflag) {
-		strftime(end1, 10, "%z", tm_ptr1);
-		strftime(end2, 10, "%z", tm_ptr2);
-		sprintf(buf1, "%s.%.9d %s", buf1, nsec1, end1);
-		sprintf(buf2, "%s.%.9d %s", buf2, nsec2, end2);
-	}
 	if (label[0] != NULL)
 		printf("%s %s\n", diff_format == D_CONTEXT ? "***" : "---",
 		    label[0]);
-	else
-		printf("%s %s\t%s\n", diff_format == D_CONTEXT ? "***" : "---",
-		    file1, buf1);
+	else {
+		strftime(buf, sizeof(buf), time_format, tm_ptr1);
+		printf("%s %s\t%s", diff_format == D_CONTEXT ? "***" : "---",
+		    file1, buf);
+		if (!cflag) {
+			strftime(buf, sizeof(buf), "%z", tm_ptr1);
+			printf(".%.9d %s", nsec1, buf);
+		}
+		printf("\n");
+	}
 	if (label[1] != NULL)
 		printf("%s %s\n", diff_format == D_CONTEXT ? "---" : "+++",
 		    label[1]);
-	else
-		printf("%s %s\t%s\n", diff_format == D_CONTEXT ? "---" : "+++",
-		    file2, buf2);
+	else {
+		strftime(buf, sizeof(buf), time_format, tm_ptr2);
+		printf("%s %s\t%s", diff_format == D_CONTEXT ? "---" : "+++",
+		    file2, buf);
+		if (!cflag) {
+			strftime(buf, sizeof(buf), "%z", tm_ptr2);
+			printf(".%.9d %s", nsec2, buf);
+		}
+		printf("\n");
+	}
 }
 
 /*

@@ -7,7 +7,7 @@ ZFSTOP=	${SRCTOP}/sys/contrib/openzfs
 .PATH: ${ZFSTOP}/man/man8
 .PATH: ${ZFSTOP}/module/os/freebsd/spl
 
-PACKAGE=	runtime
+PACKAGE=	zfs
 PROG=	zfs
 MAN= \
 	zfs.8 \
@@ -77,3 +77,5 @@ CFLAGS+= \
 LIBADD=	jail avl nvpair geom  uutil zfs_core spl tpool zutil zfs m crypto
 LDADD+=	-pthread
 .include <bsd.prog.mk>
+
+CWARNFLAGS.zfs_main.c+=	-Wno-unused-variable

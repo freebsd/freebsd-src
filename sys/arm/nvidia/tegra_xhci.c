@@ -289,7 +289,7 @@ struct tegra_xhci_softc {
 
 	struct intr_config_hook	irq_hook;
 	bool			xhci_inited;
-	vm_offset_t		fw_vaddr;
+	void			*fw_vaddr;
 	vm_size_t		fw_size;
 };
 
@@ -744,7 +744,7 @@ load_fw(struct tegra_xhci_softc *sc)
 	const struct firmware *fw;
 	const struct tegra_xusb_fw_hdr *fw_hdr;
 	vm_paddr_t fw_paddr, fw_base;
-	vm_offset_t fw_vaddr;
+	void *fw_vaddr;
 	vm_size_t fw_size;
 	uint32_t code_tags, code_size;
 	struct clocktime fw_clock;
@@ -775,9 +775,9 @@ load_fw(struct tegra_xhci_softc *sc)
 
 	fw_vaddr = kmem_alloc_contig(fw_size, M_WAITOK, 0, -1UL, PAGE_SIZE, 0,
 	    VM_MEMATTR_UNCACHEABLE);
-	fw_paddr = vtophys(fw_vaddr);
+	fw_paddr = vtophys((uintptr_t)fw_vaddr);
 	fw_hdr = (const struct tegra_xusb_fw_hdr *)fw_vaddr;
-	memcpy((void *)fw_vaddr, fw->data, fw_size);
+	memcpy(fw_vaddr, fw->data, fw_size);
 
 	firmware_put(fw, FIRMWARE_UNLOAD);
 	sc->fw_vaddr = fw_vaddr;
@@ -947,7 +947,7 @@ tegra_xhci_detach(device_t dev)
 		xhci_uninit(xsc);
 	if (sc->irq_hdl_mbox != NULL)
 		bus_teardown_intr(dev, sc->irq_res_mbox, sc->irq_hdl_mbox);
-	if (sc->fw_vaddr != 0)
+	if (sc->fw_vaddr != NULL)
 		kmem_free(sc->fw_vaddr, sc->fw_size);
 	LOCK_DESTROY(sc);
 	return (0);

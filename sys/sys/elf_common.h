@@ -332,6 +332,7 @@ typedef struct {
 #define	EF_ARM_EABI_VER3	0x03000000
 #define	EF_ARM_EABI_VER4	0x04000000
 #define	EF_ARM_EABI_VER5	0x05000000
+#define	EF_ARM_EABI_VERSION(x)	((x) & EF_ARM_EABIMASK)
 #define	EF_ARM_INTERWORK	0x00000004
 #define	EF_ARM_APCS_26		0x00000008
 #define	EF_ARM_APCS_FLOAT	0x00000010
@@ -986,8 +987,10 @@ typedef struct {
 #define	AT_PS_STRINGS	32	/* struct ps_strings */
 #define	AT_FXRNG	33	/* Pointer to root RNG seed version. */
 #define	AT_KPRELOAD	34	/* Base of vdso, preloaded by rtld */
+#define	AT_USRSTACKBASE	35	/* Top of user stack */
+#define	AT_USRSTACKLIM	36	/* Grow limit of user stack */
 
-#define	AT_COUNT	35	/* Count of defined aux entry types. */
+#define	AT_COUNT	37	/* Count of defined aux entry types. */
 
 /*
  * Relocation types.
@@ -1361,8 +1364,6 @@ typedef struct {
 #define	R_RISCV_SUB16		38
 #define	R_RISCV_SUB32		39
 #define	R_RISCV_SUB64		40
-#define	R_RISCV_GNU_VTINHERIT	41
-#define	R_RISCV_GNU_VTENTRY	42
 #define	R_RISCV_ALIGN		43
 #define	R_RISCV_RVC_BRANCH	44
 #define	R_RISCV_RVC_JUMP	45
@@ -1501,5 +1502,6 @@ typedef struct {
 #define	R_X86_64_REX_GOTPCRELX	42
 
 #define	ELF_BSDF_SIGFASTBLK	0x0001	/* Kernel supports fast sigblock */
+#define	ELF_BSDF_VMNOOVERCOMMIT	0x0002
 
 #endif /* !_SYS_ELF_COMMON_H_ */

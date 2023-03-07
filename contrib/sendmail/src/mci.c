@@ -249,9 +249,7 @@ mci_uncache(mcislot, doquit)
 
 		mci->mci_retryrcpt = false;
 		mci->mci_tolist = NULL;
-#if PIPELINING
 		mci->mci_okrcpts = 0;
-#endif
 	}
 
 	SM_FREE(mci->mci_status);
@@ -389,9 +387,7 @@ mci_get(host, m)
 	/* initialize per-message data */
 	mci->mci_retryrcpt = false;
 	mci->mci_tolist = NULL;
-#if PIPELINING
 	mci->mci_okrcpts = 0;
-#endif
 	mci->mci_flags &= ~MCIF_NOTSTICKY;
 
 	if (mci->mci_rpool == NULL)
@@ -1204,7 +1200,7 @@ mci_traverse_persistent(action, pathname)
 		struct dirent *e;
 		char newpath[MAXPATHLEN];
 #if MAXPATHLEN <= MAXNAMLEN - 3
- ERROR "MAXPATHLEN <= MAXNAMLEN - 3"
+# ERROR "MAXPATHLEN <= MAXNAMLEN - 3"
 #endif
 
 		if ((d = opendir(pathname)) == NULL)
@@ -1590,14 +1586,14 @@ mci_generate_persistent_path(host, path, pathlen, createflag)
 	if (host[0] == '[')
 	{
 		bool good = false;
-# if NETINET6
+#if NETINET6
 		if (anynet_pton(AF_INET6, t_host, &in6_addr) == 1)
 			good = true;
-# endif
-# if NETINET
+#endif
+#if NETINET
 		if (inet_addr(t_host) != INADDR_NONE)
 			good = true;
-# endif
+#endif
 		if (!good)
 			return -1;
 	}

@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: archive,v 1.162 2022/05/27 21:27:59 christos Exp $
+# $File: archive,v 1.169 2022/09/12 13:13:28 christos Exp $
 # archive:  file(1) magic for archive formats (see also "msdos" for self-
 #           extracting compressed archives)
 #
@@ -25,7 +25,16 @@
 >>>>>>155 ubyte&0xDF	=0	
 # space or ascii digit 0 at start of check sum
 >>>>>>>148	ubyte&0xEF	=0x20	
->>>>>>>>0	use	tar-file
+# FOR DEBUGGING: 
+#>>>>>>>>0	regex		\^[0-9]{2,4}[.](png|jpg|jpeg|tif|tiff|gif|bmp)	NAME "%s"
+# check for 1st image main name with digits used for sorting
+# and for name extension case insensitive like: PNG JPG JPEG TIF TIFF GIF BMP
+>>>>>>>>0	regex		\^[0-9]{2,4}[.](png|jpg|jpeg|tif|tiff|gif|bmp)
+#foo
+>>>>>>>>>0	use	tar-cbt
+# if 1st member name without digits and without used image suffix then it is a TAR archive
+>>>>>>>>0	default		x
+>>>>>>>>>0	use	tar-file
 #	minimal check and then display tar archive information which can also be
 #	embedded inside others like Android Backup, Clam AntiVirus database
 0	name		tar-file
@@ -146,6 +155,19 @@
 >>508	default		x		
 # padding[255] in old tar sometimes comment field
 >>>257	string		>\0		\b, comment: %-.40s
+# Summary:	Comic Book Archive *.CBT with TAR format
+# URL:		https://en.wikipedia.org/wiki/Comic_book_archive
+#		http://fileformats.archiveteam.org/wiki/Comic_Book_Archive
+# Note:		there exist also RAR, ZIP, ACE and 7Z packed variants
+0	name		tar-cbt
+>0	string		x		Comic Book archive, tar archive
+#!:mime	application/x-tar
+!:mime	application/vnd.comicbook
+#!:mime	application/vnd.comicbook+tar
+!:ext	cbt
+# name[100] probably like: 19.jpg 0001.png 0002.png
+# or maybe like ComicInfo.xml
+>0	string		>\0		\b, 1st image %-.60s
 
 # Incremental snapshot gnu-tar format from:
 # https://www.gnu.org/software/tar/manual/html_node/Snapshot-Files.html
@@ -1724,13 +1746,17 @@
 # Felix von Leitner <felix-file@fefe.de>
 0	string	d8:announce	BitTorrent file
 !:mime	application/x-bittorrent
+!:ext	torrent
 # Durval Menezes, <jmgthbfile at durval dot com>
 0	string	d13:announce-list	BitTorrent file
 !:mime	application/x-bittorrent
+!:ext	torrent
 0	string	d7:comment	BitTorrent file
 !:mime	application/x-bittorrent
+!:ext	torrent
 0	string	d4:info		BitTorrent file
 !:mime	application/x-bittorrent
+!:ext	torrent
 
 # Atari MSA archive - Teemu Hukkanen <tjhukkan@iki.fi>
 # URL:		http://fileformats.archiveteam.org/wiki/MSA_(Magic_Shadow_Archiver)
@@ -2081,3 +2107,6 @@
 # URL: http://mattmahoney.net/dc/#paq9a
 # Note: Line 1186 of paq9a.cpp gives the magic bytes
 0	string	pQ9\001		PAQ9A archive
+
+# From wof (wof@stachelkaktus.net)
+0	string	Unison\ archive\ format	Unison archive format

@@ -18,6 +18,8 @@
 #include "Writer.h"
 #include "lld/Common/Timer.h"
 #include "llvm/DebugInfo/CodeView/DebugFrameDataSubsection.h"
+#include "llvm/DebugInfo/CodeView/DebugInlineeLinesSubsection.h"
+#include "llvm/DebugInfo/CodeView/DebugLinesSubsection.h"
 #include "llvm/DebugInfo/CodeView/DebugSubsectionRecord.h"
 #include "llvm/DebugInfo/CodeView/GlobalTypeTableBuilder.h"
 #include "llvm/DebugInfo/CodeView/LazyRandomTypeCollection.h"
@@ -294,14 +296,14 @@ static void addGHashTypeInfo(COFFLinkerContext &ctx,
   // Start the TPI or IPI stream header.
   builder.getTpiBuilder().setVersionHeader(pdb::PdbTpiV80);
   builder.getIpiBuilder().setVersionHeader(pdb::PdbTpiV80);
-  for_each(ctx.tpiSourceList, [&](TpiSource *source) {
+  for (TpiSource *source : ctx.tpiSourceList) {
     builder.getTpiBuilder().addTypeRecords(source->mergedTpi.recs,
                                            source->mergedTpi.recSizes,
                                            source->mergedTpi.recHashes);
     builder.getIpiBuilder().addTypeRecords(source->mergedIpi.recs,
                                            source->mergedIpi.recSizes,
                                            source->mergedIpi.recHashes);
-  });
+  }
 }
 
 static void
@@ -809,6 +811,10 @@ void DebugSHandler::handleDebugS(SectionChunk *debugChunk) {
       // Unclear what this is for.
       break;
 
+    case DebugSubsectionKind::XfgHashType:
+    case DebugSubsectionKind::XfgHashVirtual:
+      break;
+
     default:
       warn("ignoring unknown debug$S subsection kind 0x" +
            utohexstr(uint32_t(ss.kind())) + " in file " + toString(&file));
@@ -1132,7 +1138,8 @@ void PDBLinker::addObjectsToPDB() {
   ScopedTimer t1(ctx.addObjectsTimer);
 
   // Create module descriptors
-  for_each(ctx.objFileInstances, [&](ObjFile *obj) { createModuleDBI(obj); });
+  for (ObjFile *obj : ctx.objFileInstances)
+    createModuleDBI(obj);
 
   // Reorder dependency type sources to come first.
   tMerger.sortDependencies();
@@ -1142,9 +1149,10 @@ void PDBLinker::addObjectsToPDB() {
     tMerger.mergeTypesWithGHash();
 
   // Merge dependencies and then regular objects.
-  for_each(tMerger.dependencySources,
-           [&](TpiSource *source) { addDebug(source); });
-  for_each(tMerger.objectSources, [&](TpiSource *source) { addDebug(source); });
+  for (TpiSource *source : tMerger.dependencySources)
+    addDebug(source);
+  for (TpiSource *source : tMerger.objectSources)
+    addDebug(source);
 
   builder.getStringTableBuilder().setStrings(pdbStrTab);
   t1.stop();
@@ -1161,10 +1169,10 @@ void PDBLinker::addObjectsToPDB() {
   t2.stop();
 
   if (config->showSummary) {
-    for_each(ctx.tpiSourceList, [&](TpiSource *source) {
+    for (TpiSource *source : ctx.tpiSourceList) {
       nbTypeRecords += source->nbTypeRecords;
       nbTypeRecordsBytes += source->nbTypeRecordsBytes;
-    });
+    }
   }
 }
 

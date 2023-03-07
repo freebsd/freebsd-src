@@ -1,0 +1,541 @@
+.\"
+.\" Copyright (C) 2022 Alexander Chernikov <melifaro@FreeBSD.org>.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 1, 2022
+.Dt RTNETLINK 4
+.Os
+.Sh NAME
+.Nm RTNetlink
+.Nd Network configuration-specific Netlink family
+.Sh SYNOPSIS
+.In netlink/netlink.h
+.In netlink/netlink_route.h
+.Ft int
+.Fn socket AF_NETLINK SOCK_RAW NETLINK_ROUTE
+.Sh DESCRIPTION
+The
+.Dv NETLINK_ROUTE
+family aims to be the primary configuration mechanism for all
+network-related tasks.
+Currently it supports configuring interfaces, interface addresses, routes,
+nexthops and arp/ndp neighbors.
+.Sh ROUTES
+All route configuration messages share the common header:
+.Bd -literal
+struct rtmsg {
+	unsigned char	rtm_family;	/* address family */
+	unsigned char	rtm_dst_len;	/* Prefix length */
+	unsigned char	rtm_src_len;	/* Deprecated, set to 0 */
+	unsigned char	rtm_tos;	/* Type of service (not used) */
+	unsigned char	rtm_table;	/* deprecated, set to 0 */
+	unsigned char	rtm_protocol;	/* Routing protocol id (RTPROT_) */
+	unsigned char	rtm_scope;	/* Route distance (RT_SCOPE_) */
+	unsigned char	rtm_type;	/* Route type (RTN_) */
+	unsigned 	rtm_flags;	/* Route flags (not supported) */
+};
+.Ed
+.Pp
+The
+.Va rtm_family
+specifies the route family to be operated on.
+Currently,
+.Dv AF_INET6
+and
+.Dv AF_INET
+are the only supported families.
+The route prefix length is stored in
+.Va rtm_dst_len
+.
+The caller should set the originator identity (one of the
+.Dv RTPROT_
+values) in
+.Va rtm_protocol
+.
+It is useful for users and for the application itself, allowing for easy
+identification of self-originated routes.
+The route scope has to be set via
+.Va rtm_scope
+field.
+The supported values are:
+.Bd -literal -offset indent -compact
+RT_SCOPE_UNIVERSE	Global scope
+RT_SCOPE_LINK		Link scope
+.Ed
+.Pp
+Route type needs to be set.
+The defined values are:
+.Bd -literal -offset indent -compact
+RTN_UNICAST	Unicast route
+RTN_MULTICAST	Multicast route
+RTN_BLACKHOLE	Drops traffic towards destination
+RTN_PROHIBIT	Drops traffic and sends reject
+.Ed
+.Pp
+The following messages are supported:
+.Ss RTM_NEWROUTE
+Adds a new route.
+All NL flags are supported.
+Extending a multipath route requires NLM_F_APPEND flag.
+.Ss RTM_DELROUTE
+Tries to delete a route.
+The route is specified using a combination of
+.Dv RTA_DST
+TLV and
+.Va rtm_dst_len .
+.Ss RTM_GETROUTE
+Fetches a single route or all routes in the current VNET, depending on the
+.Dv NLM_F_DUMP
+flag.
+Each route is reported as
+.Dv RTM_NEWROUTE
+message.
+The following filters are recognised by the kernel:
+.Pp
+.Bd -literal -offset indent -compact
+rtm_family	required family or AF_UNSPEC
+RTA_TABLE	fib number or RT_TABLE_UNSPEC to return all fibs
+.Ed
+.Ss TLVs
+.Bl -tag -width indent
+.It Dv RTA_DST
+(binary) IPv4/IPv6 address, depending on the
+.Va rtm_family .
+.It Dv RTA_OIF
+(uint32_t) transmit interface index.
+.It Dv RTA_GATEWAY
+(binary) IPv4/IPv6 gateway address, depending on the
+.Va rtm_family .
+.It Dv RTA_METRICS
+(nested) Container attribute, listing route properties.
+The only supported sub-attribute is
+.Dv RTAX_MTU , which stores path MTU as  uint32_t.
+.It Dv RTA_MULTIPATH
+This attribute contains multipath route nexthops with their weights.
+These nexthops are represented as a sequence of
+.Va rtnexthop
+structures, each followed by
+.Dv RTA_GATEWAY
+or
+.Dv RTA_VIA
+attributes.
+.Bd -literal
+struct rtnexthop {
+	unsigned short		rtnh_len;
+	unsigned char		rtnh_flags;
+	unsigned char		rtnh_hops;	/* nexthop weight */
+	int			rtnh_ifindex;
+};
+.Ed
+.Pp
+The
+.Va rtnh_len
+field specifies the total nexthop info length, including both
+.Va struct rtnexthop
+and the following TLVs.
+The
+.Va rtnh_hops
+field stores relative nexthop weight, used for load balancing between group
+members.
+The
+.Va rtnh_ifindex
+field contains the index of the transmit interface.
+.Pp
+The following TLVs can follow the structure:
+.Bd -literal -offset indent -compact
+RTA_GATEWAY	IPv4/IPv6 nexthop address of the gateway
+RTA_VIA		IPv6 nexthop address for IPv4 route
+RTA_KNH_ID	Kernel-specific index of the nexthop
+.Ed
+.It Dv RTA_KNH_ID
+(uint32_t) (FreeBSD-specific) Auto-allocated kernel index of the nexthop.
+.It Dv RTA_RTFLAGS
+(uint32_t) (FreeBSD-specific) rtsock route flags.
+.It Dv RTA_TABLE
+(uint32_t) Fib number of the route.
+Default route table is
+.Dv RT_TABLE_MAIN .
+To explicitely specify "all tables" one needs to set the value to
+.Dv RT_TABLE_UNSPEC .
+.It Dv RTA_EXPIRES
+(uint32_t) seconds till path expiration.
+.It Dv RTA_NH_ID
+(uint32_t) useland nexthop or nexthop group index.
+.El
+.Ss Groups
+The following groups are defined:
+.Bd -literal -offset indent -compact
+RTNLGRP_IPV4_ROUTE	Notifies on IPv4 route arrival/removal/change
+RTNLGRP_IPV6_ROUTE	Notifies on IPv6 route arrival/removal/change
+.Ed
+.Sh NEXTHOPS
+All nexthop/nexthop group configuration messages share the common header:
+.Bd -literal
+struct nhmsg {
+        unsigned char	nh_family;	/* transport family */
+	unsigned char	nh_scope;	/* ignored on RX, filled by kernel */
+	unsigned char	nh_protocol;	/* Routing protocol that installed nh */
+	unsigned char	resvd;
+	unsigned int	nh_flags;	/* RTNH_F_* flags from route.h */
+};
+.Ed
+The
+.Va nh_family
+specificies the gateway address family.
+It can be different from route address family for IPv4 routes with IPv6
+nexthops.
+The
+.Va nh_protocol
+is similar to
+.Va rtm_protocol
+field, which designates originator application identity.
+.Pp
+The following messages are supported:
+.Ss RTM_NEWNEXTHOP
+Creates a new nexthop or nexthop group.
+.Ss RTM_DELNEXTHOP
+Deletes nexthop or nexthhop group.
+The required object is specified by the
+.Dv RTA_NH_ID
+attribute.
+.Ss RTM_GETNEXTHOP
+Fetches a single nexthop or all nexthops/nexthop groups, depending on the
+.Dv NLM_F_DUMP
+flag.
+The following filters are recognised by the kernel:
+.Pp
+.Bd -literal -offset indent -compact
+RTA_NH_ID	nexthop or nexthtop group id
+NHA_GROUPS	match only nexthtop groups
+.Ed
+.Ss TLVs
+.Bl -tag -width indent
+.It Dv RTA_NH_ID
+(uint32_t) Nexthhop index used to identify particular nexthop or nexthop group.
+Should be provided by userland at the nexthtop creation time.
+.It Dv NHA_GROUP
+This attribute designates the nexthtop group and contains all of its nexthtops
+and their relative weights.
+The attribute constists of a list of
+.Va nexthop_grp
+structures:
+.Bd -literal
+struct nexthop_grp {
+	uint32_t	id;		/* nexhop userland index */
+	uint8_t		weight;         /* weight of this nexthop */
+	uint8_t		resvd1;
+	uint16_t	resvd2;
+};
+.Ed
+.It Dv NHA_GROUP_TYPE
+(uint16_t) Nexthtop group type, set to one of the following types:
+.Bd -literal -offset indent -compact
+NEXTHOP_GRP_TYPE_MPATH	default multipath group
+.Ed
+.It Dv NHA_BLACKHOLE
+(flag) Marks the nexthtop as blackhole.
+.It Dv NHA_OIF
+(uint32_t) Transmit interface index of the nexthtop.
+.It Dv NHA_GATEWAY
+(binary) IPv4/IPv6 gateway address
+.It Dv NHA_GROUPS
+(flag) Matches nexthtop groups during dump.
+.El
+.Ss Groups
+The following groups are defined:
+.Bd -literal -offset indent -compact
+RTNLGRP_NEXTHOP		Notifies on nexthop/groups arrival/removal/change
+.Ed
+.Sh INTERFACES
+All interface configuration messages share the common header:
+.Bd -literal
+struct ifinfomsg {
+	unsigned char	ifi_family;	/* not used, set to 0 */
+	unsigned char	__ifi_pad;
+	unsigned short	ifi_type;	/* ARPHRD_* */
+	int		ifi_index;	/* Inteface index */
+	unsigned	ifi_flags;	/* IFF_* flags */
+	unsigned	ifi_change;	/* IFF_* change mask */
+};
+.Ed
+.Ss RTM_NEWLINK
+Creates a new interface.
+The only mandatory TLV is
+.Dv IFLA_IFNAME .
+The following attributes are returned inside the nested
+.Dv NLMSGERR_ATTR_COOKIE :
+.Pp
+.Bd -literal -offset indent -compact
+IFLA_NEW_IFINDEX	(uint32) created interface index
+IFLA_IFNAME		(string) created interface name
+.Ed
+.Ss RTM_DELLINK
+Deletes the interface specified by
+.Dv IFLA_IFNAME .
+.Ss RTM_GETLINK
+Fetches a single interface or all interfaces in the current VNET, depending on the
+.Dv NLM_F_DUMP
+flag.
+Each interface is reported as a
+.Dv RTM_NEWLINK
+message.
+The following filters are recognised by the kernel:
+.Pp
+.Bd -literal -offset indent -compact
+ifi_index	interface index
+IFLA_IFNAME	interface name
+IFLA_ALT_IFNAME	interface name
+.Ed
+.Ss TLVs
+.Bl -tag -width indent
+.It Dv IFLA_ADDRESS
+(binary) Llink-level interface address (MAC).
+.It Dv IFLA_BROADCAST
+(binary) (readonly) Link-level broadcast address.
+.It Dv IFLA_IFNAME
+(string) New interface name.
+.It Dv IFLA_IFALIAS
+(string) Interface description.
+.It Dv IFLA_LINK
+(uint32_t) (readonly) Interface index.
+.It Dv IFLA_MASTER
+(uint32_t) Parent interface index.
+.It Dv IFLA_LINKINFO
+(nested) Interface type-specific attributes:
+.Bd -literal -offset indent -compact
+IFLA_INFO_KIND		(string) interface type ("vlan")
+IFLA_INFO_DATA		(nested) custom attributes
+.Ed
+The following types and attributes are supported:
+.Bl -tag -width indent
+.It Dv vlan
+.Bd -literal -offset indent -compact
+IFLA_VLAN_ID		(uint16_t) 802.1Q vlan id
+IFLA_VLAN_PROTOCOL	(uint16_t) Protocol: ETHERTYPE_VLAN or ETHERTYPE_QINQ
+.Ed
+.El
+.It Dv IFLA_OPERSTATE
+(uint8_t) Interface operational state per RFC 2863.
+Can be one of the following:
+.Bd -literal -offset indent -compact
+IF_OPER_UNKNOWN		status can not be determined
+IF_OPER_NOTPRESENT	some (hardware) component not present
+IF_OPER_DOWN		down
+IF_OPER_LOWERLAYERDOWN	some lower-level interface is down
+IF_OPER_TESTING		in some test mode
+IF_OPER_DORMANT		"up" but waiting for some condition (802.1X)
+IF_OPER_UP		ready to pass packets
+.Ed
+.It Dv IFLA_STATS64
+(readonly) Consists of the following 64-bit counters structure:
+.Bd -literal
+struct rtnl_link_stats64 {
+	uint64_t rx_packets;	/* total RX packets (IFCOUNTER_IPACKETS) */
+	uint64_t tx_packets;	/* total TX packets (IFCOUNTER_OPACKETS) */
+	uint64_t rx_bytes;	/* total RX bytes (IFCOUNTER_IBYTES) */
+	uint64_t tx_bytes;	/* total TX bytes (IFCOUNTER_OBYTES) */
+	uint64_t rx_errors;	/* RX errors (IFCOUNTER_IERRORS) */
+	uint64_t tx_errors;	/* RX errors (IFCOUNTER_OERRORS) */
+	uint64_t rx_dropped;	/* RX drop (no space in ring/no bufs) (IFCOUNTER_IQDROPS) */
+	uint64_t tx_dropped;	/* TX drop (IFCOUNTER_OQDROPS) */
+	uint64_t multicast;	/* RX multicast packets (IFCOUNTER_IMCASTS) */
+	uint64_t collisions;	/* not supported */
+	uint64_t rx_length_errors;	/* not supported */
+	uint64_t rx_over_errors;	/* not supported */
+	uint64_t rx_crc_errors;		/* not supported */
+	uint64_t rx_frame_errors;	/* not supported */
+	uint64_t rx_fifo_errors;	/* not supported */
+	uint64_t rx_missed_errors;	/* not supported */
+	uint64_t tx_aborted_errors;	/* not supported */
+	uint64_t tx_carrier_errors;	/* not supported */
+	uint64_t tx_fifo_errors;	/* not supported */
+	uint64_t tx_heartbeat_errors;	/* not supported */
+	uint64_t tx_window_errors;	/* not supported */
+	uint64_t rx_compressed;		/* not supported */
+	uint64_t tx_compressed;		/* not supported */
+	uint64_t rx_nohandler;	/* dropped due to no proto handler (IFCOUNTER_NOPROTO) */
+};
+.Ed
+.El
+.Ss Groups
+The following groups are defined:
+.Bd -literal -offset indent -compact
+RTNLGRP_LINK		Notifies on interface arrival/removal/change
+.Ed
+.Sh INTERFACE ADDRESSES
+All interface address configuration messages share the common header:
+.Bd -literal
+struct ifaddrmsg {
+	uint8_t		ifa_family;	/* Address family */
+	uint8_t		ifa_prefixlen;	/* Prefix length */
+	uint8_t		ifa_flags;	/* Address-specific flags */
+	uint8_t		ifa_scope;	/* Address scope */
+	uint32_t	ifa_index;	/* Link ifindex */
+};
+.Ed
+.Pp
+The
+.Va ifa_family
+specifies the address family of the interface address.
+The
+.Va ifa_prefixlen
+specifies the prefix length if applicable for the address family.
+The
+.Va ifa_index
+specifies the interface index of the target interface.
+.Ss RTM_NEWADDR
+Not supported
+.Ss RTM_DELADDR
+Not supported
+.Ss RTM_GETADDR
+Fetches interface addresses in the current VNET matching conditions.
+Each address is reported as a
+.Dv RTM_NEWADDR
+message.
+The following filters are recognised by the kernel:
+.Pp
+.Bd -literal -offset indent -compact
+ifa_family	required family or AF_UNSPEC
+ifa_index	matching interface index or 0
+.Ed
+.Ss TLVs
+.Bl -tag -width indent
+.It Dv IFA_ADDRESS
+(binary) masked interface address or destination address for p2p interfaces.
+.It Dv IFA_LOCAL
+(binary) local interface address.
+Set for IPv4 and p2p addresses.
+.It Dv IFA_LABEL
+(string) interface name.
+.It Dv IFA_BROADCAST
+(binary) broacast interface address.
+.El
+.Ss Groups
+The following groups are defined:
+.Bd -literal -offset indent -compact
+RTNLGRP_IPV4_IFADDR	Notifies on IPv4 ifaddr arrival/removal/change
+RTNLGRP_IPV6_IFADDR	Notifies on IPv6 ifaddr arrival/removal/change
+.Ed
+.Sh NEIGHBORS
+All neighbor configuration messages share the common header:
+.Bd -literal
+struct ndmsg {
+	uint8_t		ndm_family;
+	uint8_t		ndm_pad1;
+	uint16_t	ndm_pad2;
+	int32_t		ndm_ifindex;
+	uint16_t	ndm_state;
+	uint8_t		ndm_flags;
+	uint8_t		ndm_type;
+};
+.Ed
+.Pp
+The
+.Va ndm_family
+field specifies the address family (IPv4 or IPv6) of the neighbor.
+The
+.Va ndm_ifindex
+specifies the interface to operate on.
+The
+.Va ndm_state
+represents the entry state according to the neighbor model.
+The state can be one of the following:
+.Bd -literal -offset indent -compact
+NUD_INCOMPLETE		No lladdr, address resolution in progress
+NUD_REACHABLE		reachable & recently resolved
+NUD_STALE		has lladdr but it's stale
+NUD_DELAY		has lladdr, is stale, probes delayed
+NUD_PROBE		has lladdr, is stale, probes sent
+NUD_FAILED		unused
+.Ed
+.Pp
+The
+.Va ndm_flags
+field stores the options specific to this entry.
+Available flags:
+.Bd -literal -offset indent -compact
+NTF_SELF		local station (LLE_IFADDR)
+NTF_PROXY		proxy entry (LLE_PUB)
+NTF_STICKY		permament entry (LLE_STATIC)
+NTF_ROUTER		dst indicated itself as a router
+.Ed
+.Ss RTM_NEWNEIGH
+Creates new neighbor entry.
+The mandatory options are
+.Dv NDA_DST ,
+.Dv NDA_LLADDR
+and
+.Dv NDA_IFINDEX .
+.Ss RTM_DELNEIGH
+Deletes the neighbor entry.
+The entry is specified by the combination of
+.Dv NDA_DST
+and
+.Dv NDA_IFINDEX .
+.Ss RTM_GETNEIGH
+Fetches a single neighbor or all neighbors in the current VNET, depending on the
+.Dv NLM_F_DUMP
+flag.
+Each entry is reported as
+.Dv RTM_NEWNEIGH
+message.
+The following filters are recognised by the kernel:
+.Pp
+.Bd -literal -offset indent -compact
+ndm_family	required family or AF_UNSPEC
+ndm_ifindex	target ifindex
+NDA_IFINDEX	target ifindex
+.Ed
+.Ss TLVs
+.Bl -tag -width indent
+.It Dv NDA_DST
+(binary) neighbor IPv4/IPv6 address.
+.It Dv NDA_LLADDR
+(binary) neighbor link-level address.
+.It Dv NDA_IFINDEX
+(uint32_t) interface index.
+.It Dv NDA_FLAGS_EXT
+(uint32_t) extended version of
+.Va ndm_flags .
+.El
+.Ss Groups
+The following groups are defined:
+.Bd -literal -offset indent -compact
+RTNLGRP_NEIGH	Notifies on ARP/NDP neighbor  arrival/removal/change
+.Ed
+.Sh SEE ALSO
+.Xr netlink 4 ,
+.Xr route 4
+.Sh HISTORY
+The
+.Dv NETLINK_ROUTE
+protocol family appeared in
+.Fx 13.2 .
+.Sh AUTHORS
+The netlink was implementated by
+.An -nosplit
+.An Alexander Chernikov Aq Mt melifaro@FreeBSD.org .
+It was derived from the Google Summer of Code 2021 project by
+.An Ng Peng Nam Sean .

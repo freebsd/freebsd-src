@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: compress,v 1.82 2021/06/30 08:11:29 christos Exp $
+# $File: compress,v 1.83 2022/08/16 11:16:39 christos Exp $
 # compress:  file(1) magic for pure-compression formats (no archives)
 #
 # compress, gzip, pack, compact, huf, squeeze, crunch, freeze, yabba, etc.
@@ -147,6 +147,7 @@
 # bzip2
 0	string		BZh		bzip2 compressed data
 !:mime	application/x-bzip2
+!:ext	bz2
 >3	byte		>47		\b, block size = %c00k
 
 # bzip	a block-sorting file compressor

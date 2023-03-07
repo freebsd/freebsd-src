@@ -1,6 +1,6 @@
 $FreeBSD$
 
-sendmail 8.16.1
+sendmail 8.17.1
 	originals can be found at: ftp://ftp.sendmail.org/pub/sendmail/
 
 For the import of sendmail, the following directories were renamed:
@@ -46,7 +46,6 @@ infrastructure in FreeBSD:
 	etc/periodic/daily/440.status-mailq
 	etc/periodic/daily/500.queuerun
 	etc/rc
-	etc/rc.sendmail
 	etc/sendmail/Makefile
 	etc/sendmail/freebsd.mc
 	etc/sendmail/freebsd.submit.mc
@@ -68,7 +67,6 @@ infrastructure in FreeBSD:
 	share/man/man5/rc.conf.5
 	share/man/man7/hier.7
 	share/man/man8/Makefile
-	share/man/man8/rc.sendmail.8
 	share/mk/bsd.libnames.mk
 	share/sendmail/Makefile
 	tools/build/mk/OptionalObsoleteFiles.inc
@@ -83,4 +81,4 @@ infrastructure in FreeBSD:
 	usr.sbin/mailwrapper/Makefile
 
 gshapiro@FreeBSD.org
-15-July-2020
+31-January-2022

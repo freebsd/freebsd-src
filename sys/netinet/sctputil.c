@@ -3815,10 +3815,17 @@ sctp_notify_stream_reset_add(struct sctp_tcb *stcb, uint16_t numberin, uint16_t 
 	struct sctp_stream_change_event *stradd;
 
 	if ((stcb == NULL) ||
-	    (sctp_stcb_is_feature_off(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_STREAM_CHANGEEVNT))) {
+	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) ||
+	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) ||
+	    (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET)) {
+		/* If the socket is gone we are out of here. */
+		return;
+	}
+	if (sctp_stcb_is_feature_off(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_STREAM_CHANGEEVNT)) {
 		/* event not enabled */
 		return;
 	}
+
 	if ((stcb->asoc.peer_req_out) && flag) {
 		/* Peer made the request, don't tell the local user */
 		stcb->asoc.peer_req_out = 0;
@@ -3871,10 +3878,17 @@ sctp_notify_stream_reset_tsn(struct sctp_tcb *stcb, uint32_t sending_tsn, uint32
 	struct sctp_assoc_reset_event *strasoc;
 
 	if ((stcb == NULL) ||
-	    (sctp_stcb_is_feature_off(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_ASSOC_RESETEVNT))) {
+	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) ||
+	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) ||
+	    (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET)) {
+		/* If the socket is gone we are out of here. */
+		return;
+	}
+	if (sctp_stcb_is_feature_off(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_ASSOC_RESETEVNT)) {
 		/* event not enabled */
 		return;
 	}
+
 	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_assoc_reset_event), 0, M_NOWAIT, 1, MT_DATA);
 	if (m_notify == NULL)
 		/* no space left */
@@ -7190,11 +7204,11 @@ out:
 
 #ifdef INET
 static void
-sctp_recv_icmp_tunneled_packet(int cmd, struct sockaddr *sa, void *vip, void *ctx SCTP_UNUSED)
+sctp_recv_icmp_tunneled_packet(udp_tun_icmp_param_t param)
 {
+	struct icmp *icmp = param.icmp;
 	struct ip *outer_ip, *inner_ip;
 	struct sctphdr *sh;
-	struct icmp *icmp;
 	struct udphdr *udp;
 	struct sctp_inpcb *inp;
 	struct sctp_tcb *stcb;
@@ -7203,9 +7217,7 @@ sctp_recv_icmp_tunneled_packet(int cmd, struct sockaddr *sa, void *vip, void *ct
 	struct sockaddr_in src, dst;
 	uint8_t type, code;
 
-	inner_ip = (struct ip *)vip;
-	icmp = (struct icmp *)((caddr_t)inner_ip -
-	    (sizeof(struct icmp) - sizeof(struct ip)));
+	inner_ip = &icmp->icmp_ip;
 	outer_ip = (struct ip *)((caddr_t)icmp - sizeof(struct ip));
 	if (ntohs(outer_ip->ip_len) <
 	    sizeof(struct ip) + 8 + (inner_ip->ip_hl << 2) + sizeof(struct udphdr) + 8) {
@@ -7300,9 +7312,9 @@ sctp_recv_icmp_tunneled_packet(int cmd, struct sockaddr *sa, void *vip, void *ct
 
 #ifdef INET6
 static void
-sctp_recv_icmp6_tunneled_packet(int cmd, struct sockaddr *sa, void *d, void *ctx SCTP_UNUSED)
+sctp_recv_icmp6_tunneled_packet(udp_tun_icmp_param_t param)
 {
-	struct ip6ctlparam *ip6cp;
+	struct ip6ctlparam *ip6cp = param.ip6cp;
 	struct sctp_inpcb *inp;
 	struct sctp_tcb *stcb;
 	struct sctp_nets *net;
@@ -7311,7 +7323,6 @@ sctp_recv_icmp6_tunneled_packet(int cmd, struct sockaddr *sa, void *d, void *ctx
 	struct sockaddr_in6 src, dst;
 	uint8_t type, code;
 
-	ip6cp = (struct ip6ctlparam *)d;
 	/*
 	 * XXX: We assume that when IPV6 is non NULL, M and OFF are valid.
 	 */

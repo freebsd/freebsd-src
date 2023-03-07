@@ -95,7 +95,7 @@ struct lio {
 	/* Pointer to the octeon device structure. */
 	struct octeon_device	*oct_dev;
 
-	struct ifnet	*ifp;
+	if_t		ifp;
 	struct ifmedia	ifmedia;
 	int		if_flags;
 
@@ -139,7 +139,7 @@ struct lio {
  * @param cmd       Command that just requires acknowledgment
  * @param param1    Parameter to command
  */
-int	lio_set_feature(struct ifnet *ifp, int cmd, uint16_t param1);
+int	lio_set_feature(if_t ifp, int cmd, uint16_t param1);
 
 /*
  * \brief Link control command completion callback
@@ -198,7 +198,7 @@ lio_dma_alloc(size_t size, vm_paddr_t *dma_handle)
 	void	*mem;
 
 	align = PAGE_SIZE << lio_get_order(size);
-	mem = (void *)kmem_alloc_contig(size, M_WAITOK, 0, ~0ul, align, 0,
+	mem = kmem_alloc_contig(size, M_WAITOK, 0, ~0ul, align, 0,
 	    VM_MEMATTR_DEFAULT);
 	if (mem != NULL)
 		*dma_handle = vtophys(mem);
@@ -212,7 +212,7 @@ static inline void
 lio_dma_free(size_t size, void *cpu_addr)
 {
 
-	kmem_free((vm_offset_t)cpu_addr, size);
+	kmem_free(cpu_addr, size);
 }
 
 static inline uint64_t

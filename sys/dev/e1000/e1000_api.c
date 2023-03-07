@@ -333,19 +333,37 @@ s32 e1000_set_mac_type(struct e1000_hw *hw)
 	case E1000_DEV_ID_PCH_TGP_I219_V14:
 	case E1000_DEV_ID_PCH_TGP_I219_LM15:
 	case E1000_DEV_ID_PCH_TGP_I219_V15:
-		mac->type = e1000_pch_tgp;
-		break;
 	case E1000_DEV_ID_PCH_ADL_I219_LM16:
 	case E1000_DEV_ID_PCH_ADL_I219_V16:
+	case E1000_DEV_ID_PCH_RPL_I219_LM23:
+	case E1000_DEV_ID_PCH_RPL_I219_V23:
+		mac->type = e1000_pch_tgp;
+		break;
 	case E1000_DEV_ID_PCH_ADL_I219_LM17:
 	case E1000_DEV_ID_PCH_ADL_I219_V17:
+	case E1000_DEV_ID_PCH_RPL_I219_LM22:
+	case E1000_DEV_ID_PCH_RPL_I219_V22:
 		mac->type = e1000_pch_adp;
 		break;
 	case E1000_DEV_ID_PCH_MTP_I219_LM18:
 	case E1000_DEV_ID_PCH_MTP_I219_V18:
 	case E1000_DEV_ID_PCH_MTP_I219_LM19:
 	case E1000_DEV_ID_PCH_MTP_I219_V19:
+	case E1000_DEV_ID_PCH_LNL_I219_LM20:
+	case E1000_DEV_ID_PCH_LNL_I219_V20:
+	case E1000_DEV_ID_PCH_LNL_I219_LM21:
+	case E1000_DEV_ID_PCH_LNL_I219_V21:
 		mac->type = e1000_pch_mtp;
+		break;
+	case E1000_DEV_ID_PCH_ARL_I219_LM24:
+	case E1000_DEV_ID_PCH_ARL_I219_V24:
+	case E1000_DEV_ID_PCH_PTP_I219_LM25:
+	case E1000_DEV_ID_PCH_PTP_I219_V25:
+	case E1000_DEV_ID_PCH_PTP_I219_LM26:
+	case E1000_DEV_ID_PCH_PTP_I219_V26:
+	case E1000_DEV_ID_PCH_PTP_I219_LM27:
+	case E1000_DEV_ID_PCH_PTP_I219_V27:
+		mac->type = e1000_pch_ptp;
 		break;
 	case E1000_DEV_ID_82575EB_COPPER:
 	case E1000_DEV_ID_82575EB_FIBER_SERDES:
@@ -503,6 +521,7 @@ s32 e1000_setup_init_funcs(struct e1000_hw *hw, bool init_device)
 	case e1000_pch_tgp:
 	case e1000_pch_adp:
 	case e1000_pch_mtp:
+	case e1000_pch_ptp:
 		e1000_init_function_pointers_ich8lan(hw);
 		break;
 	case e1000_82575:

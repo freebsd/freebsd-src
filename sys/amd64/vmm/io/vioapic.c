@@ -237,7 +237,7 @@ vioapic_pulse_irq(struct vm *vm, int irq)
  * configuration.
  */
 static void
-vioapic_update_tmr(struct vm *vm, int vcpuid, void *arg)
+vioapic_update_tmr(struct vcpu *vcpu, void *arg)
 {
 	struct vioapic *vioapic;
 	struct vlapic *vlapic;
@@ -245,8 +245,8 @@ vioapic_update_tmr(struct vm *vm, int vcpuid, void *arg)
 	int delmode, pin, vector;
 	bool level, phys;
 
-	vlapic = vm_lapic(vm, vcpuid);
-	vioapic = vm_ioapic(vm);
+	vlapic = vm_lapic(vcpu);
+	vioapic = vm_ioapic(vcpu_vm(vcpu));
 
 	VIOAPIC_LOCK(vioapic);
 	/*
@@ -277,7 +277,7 @@ vioapic_update_tmr(struct vm *vm, int vcpuid, void *arg)
 }
 
 static uint32_t
-vioapic_read(struct vioapic *vioapic, int vcpuid, uint32_t addr)
+vioapic_read(struct vioapic *vioapic, struct vcpu *vcpu, uint32_t addr)
 {
 	int regnum, pin, rshift;
 
@@ -312,7 +312,8 @@ vioapic_read(struct vioapic *vioapic, int vcpuid, uint32_t addr)
 }
 
 static void
-vioapic_write(struct vioapic *vioapic, int vcpuid, uint32_t addr, uint32_t data)
+vioapic_write(struct vioapic *vioapic, struct vcpu *vcpu, uint32_t addr,
+    uint32_t data)
 {
 	uint64_t data64, mask64;
 	uint64_t last, changed;
@@ -372,7 +373,7 @@ vioapic_write(struct vioapic *vioapic, int vcpuid, uint32_t addr, uint32_t data)
 			    "vlapic trigger-mode register", pin);
 			VIOAPIC_UNLOCK(vioapic);
 			allvcpus = vm_active_cpus(vioapic->vm);
-			(void)vm_smp_rendezvous(vioapic->vm, vcpuid, allvcpus,
+			(void)vm_smp_rendezvous(vcpu, allvcpus,
 			    vioapic_update_tmr, NULL);
 			VIOAPIC_LOCK(vioapic);
 		}
@@ -392,7 +393,7 @@ vioapic_write(struct vioapic *vioapic, int vcpuid, uint32_t addr, uint32_t data)
 }
 
 static int
-vioapic_mmio_rw(struct vioapic *vioapic, int vcpuid, uint64_t gpa,
+vioapic_mmio_rw(struct vioapic *vioapic, struct vcpu *vcpu, uint64_t gpa,
     uint64_t *data, int size, bool doread)
 {
 	uint64_t offset;
@@ -417,10 +418,10 @@ vioapic_mmio_rw(struct vioapic *vioapic, int vcpuid, uint64_t gpa,
 			vioapic->ioregsel = *data;
 	} else {
 		if (doread) {
-			*data = vioapic_read(vioapic, vcpuid,
+			*data = vioapic_read(vioapic, vcpu,
 			    vioapic->ioregsel);
 		} else {
-			vioapic_write(vioapic, vcpuid, vioapic->ioregsel,
+			vioapic_write(vioapic, vcpu, vioapic->ioregsel,
 			    *data);
 		}
 	}
@@ -430,31 +431,31 @@ vioapic_mmio_rw(struct vioapic *vioapic, int vcpuid, uint64_t gpa,
 }
 
 int
-vioapic_mmio_read(void *vm, int vcpuid, uint64_t gpa, uint64_t *rval,
+vioapic_mmio_read(struct vcpu *vcpu, uint64_t gpa, uint64_t *rval,
     int size, void *arg)
 {
 	int error;
 	struct vioapic *vioapic;
 
-	vioapic = vm_ioapic(vm);
-	error = vioapic_mmio_rw(vioapic, vcpuid, gpa, rval, size, true);
+	vioapic = vm_ioapic(vcpu_vm(vcpu));
+	error = vioapic_mmio_rw(vioapic, vcpu, gpa, rval, size, true);
 	return (error);
 }
 
 int
-vioapic_mmio_write(void *vm, int vcpuid, uint64_t gpa, uint64_t wval,
+vioapic_mmio_write(struct vcpu *vcpu, uint64_t gpa, uint64_t wval,
     int size, void *arg)
 {
 	int error;
 	struct vioapic *vioapic;
 
-	vioapic = vm_ioapic(vm);
-	error = vioapic_mmio_rw(vioapic, vcpuid, gpa, &wval, size, false);
+	vioapic = vm_ioapic(vcpu_vm(vcpu));
+	error = vioapic_mmio_rw(vioapic, vcpu, gpa, &wval, size, false);
 	return (error);
 }
 
 void
-vioapic_process_eoi(struct vm *vm, int vcpuid, int vector)
+vioapic_process_eoi(struct vm *vm, int vector)
 {
 	struct vioapic *vioapic;
 	int pin;
@@ -507,6 +508,7 @@ void
 vioapic_cleanup(struct vioapic *vioapic)
 {
 
+	mtx_destroy(&vioapic->mtx);
 	free(vioapic, M_VIOAPIC);
 }
 

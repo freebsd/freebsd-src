@@ -3,8 +3,8 @@
 /* (use YYMAJOR/YYMINOR for ifdefs dependent on parser version) */
 
 #define YYBYACC 1
-#define YYMAJOR 1
-#define YYMINOR 9
+#define YYMAJOR 2
+#define YYMINOR 0
 #define YYCHECK "yyyymmdd"
 
 #define YYEMPTY        (-1)
@@ -697,7 +697,7 @@ YYPARSE_DECL()
     yyps->save = 0;
 #endif /* YYBTYACC */
     yym = 0;
-    yyn = 0;
+    /* yyn is set below */
     yynerrs = 0;
     yyerrflag = 0;
     yychar = YYEMPTY;
@@ -1208,64 +1208,79 @@ yyreduce:
 case 3:
 #line 35 "calc_code_all.y"
 	{  yyerrok ; }
+#line 1212 "calc_code_all.tab.c"
 break;
 case 4:
 #line 39 "calc_code_all.y"
 	{  printf("%d\n",yystack.l_mark[0]);}
+#line 1217 "calc_code_all.tab.c"
 break;
 case 5:
 #line 41 "calc_code_all.y"
 	{  regs[yystack.l_mark[-2]] = yystack.l_mark[0]; }
+#line 1222 "calc_code_all.tab.c"
 break;
 case 6:
 #line 45 "calc_code_all.y"
 	{  yyval = yystack.l_mark[-1]; }
+#line 1227 "calc_code_all.tab.c"
 break;
 case 7:
 #line 47 "calc_code_all.y"
 	{  yyval = yystack.l_mark[-2] + yystack.l_mark[0]; }
+#line 1232 "calc_code_all.tab.c"
 break;
 case 8:
 #line 49 "calc_code_all.y"
 	{  yyval = yystack.l_mark[-2] - yystack.l_mark[0]; }
+#line 1237 "calc_code_all.tab.c"
 break;
 case 9:
 #line 51 "calc_code_all.y"
 	{  yyval = yystack.l_mark[-2] * yystack.l_mark[0]; }
+#line 1242 "calc_code_all.tab.c"
 break;
 case 10:
 #line 53 "calc_code_all.y"
 	{  yyval = yystack.l_mark[-2] / yystack.l_mark[0]; }
+#line 1247 "calc_code_all.tab.c"
 break;
 case 11:
 #line 55 "calc_code_all.y"
 	{  yyval = yystack.l_mark[-2] % yystack.l_mark[0]; }
+#line 1252 "calc_code_all.tab.c"
 break;
 case 12:
 #line 57 "calc_code_all.y"
 	{  yyval = yystack.l_mark[-2] & yystack.l_mark[0]; }
+#line 1257 "calc_code_all.tab.c"
 break;
 case 13:
 #line 59 "calc_code_all.y"
 	{  yyval = yystack.l_mark[-2] | yystack.l_mark[0]; }
+#line 1262 "calc_code_all.tab.c"
 break;
 case 14:
 #line 61 "calc_code_all.y"
 	{  yyval = - yystack.l_mark[0]; }
+#line 1267 "calc_code_all.tab.c"
 break;
 case 15:
 #line 63 "calc_code_all.y"
 	{  yyval = regs[yystack.l_mark[0]]; }
+#line 1272 "calc_code_all.tab.c"
 break;
 case 17:
 #line 68 "calc_code_all.y"
 	{  yyval = yystack.l_mark[0]; base = (yystack.l_mark[0]==0) ? 8 : 10; }
+#line 1277 "calc_code_all.tab.c"
 break;
 case 18:
 #line 70 "calc_code_all.y"
 	{  yyval = base * yystack.l_mark[-1] + yystack.l_mark[0]; }
+#line 1282 "calc_code_all.tab.c"
 break;
-#line 1269 "calc_code_all.tab.c"
+#line 1284 "calc_code_all.tab.c"
     default:
         break;
     }

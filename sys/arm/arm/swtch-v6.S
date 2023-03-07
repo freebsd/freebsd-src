@@ -323,11 +323,9 @@ ENTRY(cpu_switch)
 
 #ifdef VFP
 	ldr	r3, [r10, #(TD_PCB)]
-	fmrx	r0, fpexc		/* If the VFP is enabled */
-	tst	r0, #(VFPEXC_EN)	/* the current thread has */
-	movne	r1, #1			/* used it, so go save */
-	addne	r0, r3, #(PCB_VFPSTATE)	/* the state into the PCB */
-	blne	_C_LABEL(vfp_store)	/* and disable the VFP. */
+	mov	r1, r3
+	mov	r0, r10
+	bl	_C_LABEL(vfp_save_state)
 #endif
 
 	/*

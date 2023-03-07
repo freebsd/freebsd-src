@@ -42,6 +42,31 @@
 #ifndef _LKPI_SRC_LINUX_80211_H
 #define _LKPI_SRC_LINUX_80211_H
 
+/* #define	LINUXKPI_DEBUG_80211 */
+
+#ifndef	D80211_TODO
+#define	D80211_TODO		0x1
+#endif
+#ifndef D80211_IMPROVE
+#define	D80211_IMPROVE		0x2
+#endif
+#define	D80211_IMPROVE_TXQ	0x4
+#define	D80211_TRACE		0x10
+#define	D80211_TRACEOK		0x20
+#define	D80211_TRACE_TX		0x100
+#define	D80211_TRACE_TX_DUMP	0x200
+#define	D80211_TRACE_RX		0x1000
+#define	D80211_TRACE_RX_DUMP	0x2000
+#define	D80211_TRACE_RX_BEACONS	0x4000
+#define	D80211_TRACEX		(D80211_TRACE_TX|D80211_TRACE_RX)
+#define	D80211_TRACEX_DUMP	(D80211_TRACE_TX_DUMP|D80211_TRACE_RX_DUMP)
+#define	D80211_TRACE_STA	0x10000
+#define	D80211_TRACE_MO		0x100000
+
+#define	IMPROVE_TXQ(...)						\
+    if (linuxkpi_debug_80211 & D80211_IMPROVE_TXQ)			\
+	printf("%s:%d: XXX LKPI80211 IMPROVE_TXQ\n", __func__, __LINE__)
+
 struct lkpi_radiotap_tx_hdr {
 	struct ieee80211_radiotap_header wt_ihdr;
 	uint8_t		wt_flags;
@@ -73,7 +98,11 @@ struct lkpi_radiotap_rx_hdr {
 	 (1 << IEEE80211_RADIOTAP_DBM_ANTNOISE))
 
 struct lkpi_txq {
+	TAILQ_ENTRY(lkpi_txq)	txq_entry;
+
 	bool			seen_dequeue;
+	bool			stopped;
+	uint32_t		txq_generation;
 	struct sk_buff_head	skbq;
 
 	/* Must be last! */
@@ -119,6 +148,8 @@ struct lkpi_vif {
 	TAILQ_HEAD(, lkpi_sta)	lsta_head;
 	bool			added_to_drv;			/* Driver knows; i.e. we called add_interface(). */
 
+	bool			hw_queue_stopped[IEEE80211_NUM_ACS];
+
 	/* Must be last! */
 	struct ieee80211_vif	vif __aligned(CACHE_LINE_SIZE);
 };
@@ -144,6 +175,9 @@ struct lkpi_hw {	/* name it mac80211_sc? */
 
 	struct mtx			mtx;
 
+	uint32_t			txq_generation[IEEE80211_NUM_ACS];
+	TAILQ_HEAD(, lkpi_txq)		scheduled_txqs[IEEE80211_NUM_ACS];
+
 	/* Scan functions we overload to handle depending on scan mode. */
 	void                    (*ic_scan_curchan)(struct ieee80211_scan_state *,
 				    unsigned long);
@@ -167,6 +201,7 @@ struct lkpi_hw {	/* name it mac80211_sc? */
 	int				scan_ie_len;	/* Length of common per-band scan IEs. */
 
 	bool				update_mc;
+	bool				update_wme;
 
 	/* Must be last! */
 	struct ieee80211_hw		hw __aligned(CACHE_LINE_SIZE);
@@ -219,7 +254,7 @@ u64 lkpi_80211_mo_prepare_multicast(struct ieee80211_hw *,
 void lkpi_80211_mo_configure_filter(struct ieee80211_hw *, unsigned int,
     unsigned int *, u64);
 int lkpi_80211_mo_sta_state(struct ieee80211_hw *, struct ieee80211_vif *,
-    struct ieee80211_sta *, enum ieee80211_sta_state);
+    struct lkpi_sta *, enum ieee80211_sta_state);
 int lkpi_80211_mo_config(struct ieee80211_hw *, uint32_t);
 int lkpi_80211_mo_assign_vif_chanctx(struct ieee80211_hw *, struct ieee80211_vif *,
     struct ieee80211_chanctx_conf *);

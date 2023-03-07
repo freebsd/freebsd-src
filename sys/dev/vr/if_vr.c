@@ -170,10 +170,10 @@ static int vr_error(struct vr_softc *, uint16_t);
 static void vr_tx_underrun(struct vr_softc *);
 static int vr_intr(void *);
 static void vr_int_task(void *, int);
-static void vr_start(struct ifnet *);
-static void vr_start_locked(struct ifnet *);
+static void vr_start(if_t);
+static void vr_start_locked(if_t);
 static int vr_encap(struct vr_softc *, struct mbuf **);
-static int vr_ioctl(struct ifnet *, u_long, caddr_t);
+static int vr_ioctl(if_t, u_long, caddr_t);
 static void vr_init(void *);
 static void vr_init_locked(struct vr_softc *);
 static void vr_tx_start(struct vr_softc *);
@@ -182,8 +182,8 @@ static int vr_tx_stop(struct vr_softc *);
 static int vr_rx_stop(struct vr_softc *);
 static void vr_stop(struct vr_softc *);
 static void vr_watchdog(struct vr_softc *);
-static int vr_ifmedia_upd(struct ifnet *);
-static void vr_ifmedia_sts(struct ifnet *, struct ifmediareq *);
+static int vr_ifmedia_upd(if_t);
+static void vr_ifmedia_sts(if_t, struct ifmediareq *);
 
 static int vr_miibus_readreg(device_t, int, int);
 static int vr_miibus_writereg(device_t, int, int, int);
@@ -296,7 +296,7 @@ vr_miibus_statchg(device_t dev)
 {
 	struct vr_softc		*sc;
 	struct mii_data		*mii;
-	struct ifnet		*ifp;
+	if_t			ifp;
 	int			lfdx, mfdx;
 	uint8_t			cr0, cr1, fc;
 
@@ -304,7 +304,7 @@ vr_miibus_statchg(device_t dev)
 	mii = device_get_softc(sc->vr_miibus);
 	ifp = sc->vr_ifp;
 	if (mii == NULL || ifp == NULL ||
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	    (if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
 		return;
 
 	sc->vr_flags &= ~(VR_F_LINK | VR_F_TXPAUSE);
@@ -473,7 +473,7 @@ vr_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 static void
 vr_set_filter(struct vr_softc *sc)
 {
-	struct ifnet		*ifp;
+	if_t			ifp;
 	uint32_t		hashes[2] = { 0, 0 };
 	uint8_t			rxfilt;
 	int			error, mcnt;
@@ -484,11 +484,11 @@ vr_set_filter(struct vr_softc *sc)
 	rxfilt = CSR_READ_1(sc, VR_RXCFG);
 	rxfilt &= ~(VR_RXCFG_RX_PROMISC | VR_RXCFG_RX_BROAD |
 	    VR_RXCFG_RX_MULTI);
-	if (ifp->if_flags & IFF_BROADCAST)
+	if (if_getflags(ifp) & IFF_BROADCAST)
 		rxfilt |= VR_RXCFG_RX_BROAD;
-	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
+	if (if_getflags(ifp) & IFF_ALLMULTI || if_getflags(ifp) & IFF_PROMISC) {
 		rxfilt |= VR_RXCFG_RX_MULTI;
-		if (ifp->if_flags & IFF_PROMISC)
+		if (if_getflags(ifp) & IFF_PROMISC)
 			rxfilt |= VR_RXCFG_RX_PROMISC;
 		CSR_WRITE_1(sc, VR_RXCFG, rxfilt);
 		CSR_WRITE_4(sc, VR_MAR0, 0xFFFFFFFF);
@@ -605,7 +605,7 @@ static int
 vr_attach(device_t dev)
 {
 	struct vr_softc		*sc;
-	struct ifnet		*ifp;
+	if_t			ifp;
 	const struct vr_type	*t;
 	uint8_t			eaddr[ETHER_ADDR_LEN];
 	int			error, rid;
@@ -663,15 +663,14 @@ vr_attach(device_t dev)
 		error = ENOSPC;
 		goto fail;
 	}
-	ifp->if_softc = sc;
+	if_setsoftc(ifp, sc);
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_ioctl = vr_ioctl;
-	ifp->if_start = vr_start;
-	ifp->if_init = vr_init;
-	IFQ_SET_MAXLEN(&ifp->if_snd, VR_TX_RING_CNT - 1);
-	ifp->if_snd.ifq_maxlen = VR_TX_RING_CNT - 1;
-	IFQ_SET_READY(&ifp->if_snd);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setioctlfn(ifp, vr_ioctl);
+	if_setstartfn(ifp, vr_start);
+	if_setinitfn(ifp, vr_init);
+	if_setsendqlen(ifp, VR_TX_RING_CNT - 1);
+	if_setsendqready(ifp);
 
 	NET_TASK_INIT(&sc->vr_inttask, 0, vr_int_task, sc);
 
@@ -687,8 +686,8 @@ vr_attach(device_t dev)
 		sc->vr_txthresh = VR_TXTHRESH_MAX;
 	}
 	if ((sc->vr_quirks & VR_Q_CSUM) != 0) {
-		ifp->if_hwassist = VR_CSUM_FEATURES;
-		ifp->if_capabilities |= IFCAP_HWCSUM;
+		if_sethwassist(ifp, VR_CSUM_FEATURES);
+		if_setcapabilitiesbit(ifp, IFCAP_HWCSUM, 0);
 		/*
 		 * To update checksum field the hardware may need to
 		 * store entire frames into FIFO before transmitting.
@@ -698,13 +697,13 @@ vr_attach(device_t dev)
 
 	if (sc->vr_revid >= REV_ID_VT6102_A &&
 	    pci_find_cap(dev, PCIY_PMG, &pmc) == 0)
-		ifp->if_capabilities |= IFCAP_WOL_UCAST | IFCAP_WOL_MAGIC;
+		if_setcapabilitiesbit(ifp, IFCAP_WOL_UCAST | IFCAP_WOL_MAGIC, 0);
 
 	/* Rhine supports oversized VLAN frame. */
-	ifp->if_capabilities |= IFCAP_VLAN_MTU;
-	ifp->if_capenable = ifp->if_capabilities;
+	if_setcapabilitiesbit(ifp, IFCAP_VLAN_MTU, 0);
+	if_setcapenable(ifp, if_getcapabilities(ifp));
 #ifdef DEVICE_POLLING
-	ifp->if_capabilities |= IFCAP_POLLING;
+	if_setcapabilitiesbit(ifp, IFCAP_POLLING, 0);
 #endif
 
 	/*
@@ -797,7 +796,7 @@ vr_attach(device_t dev)
 	 * Must appear after the call to ether_ifattach() because
 	 * ether_ifattach() sets ifi_hdrlen to the default value.
 	 */
-	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
+	if_setifheaderlen(ifp, sizeof(struct ether_vlan_header));
 
 	/* Hook interrupt last to avoid having to lock softc. */
 	error = bus_setup_intr(dev, sc->vr_irq, INTR_TYPE_NET | INTR_MPSAFE,
@@ -827,12 +826,12 @@ static int
 vr_detach(device_t dev)
 {
 	struct vr_softc		*sc = device_get_softc(dev);
-	struct ifnet		*ifp = sc->vr_ifp;
+	if_t			ifp = sc->vr_ifp;
 
 	KASSERT(mtx_initialized(&sc->vr_mtx), ("vr mutex not initialized"));
 
 #ifdef DEVICE_POLLING
-	if (ifp != NULL && ifp->if_capenable & IFCAP_POLLING)
+	if (ifp != NULL && if_getcapenable(ifp) & IFCAP_POLLING)
 		ether_poll_deregister(ifp);
 #endif
 
@@ -1295,7 +1294,7 @@ vr_rxeof(struct vr_softc *sc)
 {
 	struct vr_rxdesc	*rxd;
 	struct mbuf		*m;
-	struct ifnet		*ifp;
+	if_t			ifp;
 	struct vr_desc		*cur_rx;
 	int			cons, prog, total_len, rx_npkts;
 	uint32_t		rxstat, rxctl;
@@ -1311,7 +1310,7 @@ vr_rxeof(struct vr_softc *sc)
 
 	for (prog = 0; prog < VR_RX_RING_CNT; VR_INC(cons, VR_RX_RING_CNT)) {
 #ifdef DEVICE_POLLING
-		if (ifp->if_capenable & IFCAP_POLLING) {
+		if (if_getcapenable(ifp) & IFCAP_POLLING) {
 			if (sc->rxcycles <= 0)
 				break;
 			sc->rxcycles--;
@@ -1391,7 +1390,7 @@ vr_rxeof(struct vr_softc *sc)
 		m->m_pkthdr.rcvif = ifp;
 		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		sc->vr_stat.rx_ok++;
-		if ((ifp->if_capenable & IFCAP_RXCSUM) != 0 &&
+		if ((if_getcapenable(ifp) & IFCAP_RXCSUM) != 0 &&
 		    (rxstat & VR_RXSTAT_FRAG) == 0 &&
 		    (rxctl & VR_RXCTL_IP) != 0) {
 			/* Checksum is valid for non-fragmented IP packets. */
@@ -1407,7 +1406,7 @@ vr_rxeof(struct vr_softc *sc)
 			}
 		}
 		VR_UNLOCK(sc);
-		(*ifp->if_input)(ifp, m);
+		if_input(ifp, m);
 		VR_LOCK(sc);
 		rx_npkts++;
 	}
@@ -1441,7 +1440,7 @@ vr_txeof(struct vr_softc *sc)
 {
 	struct vr_txdesc	*txd;
 	struct vr_desc		*cur_tx;
-	struct ifnet		*ifp;
+	if_t			ifp;
 	uint32_t		txctl, txstat;
 	int			cons, prod;
 
@@ -1469,7 +1468,7 @@ vr_txeof(struct vr_softc *sc)
 			break;
 
 		sc->vr_cdata.vr_tx_cnt--;
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 		/* Only the first descriptor in the chain is valid. */
 		if ((txctl & VR_TXCTL_FIRSTFRAG) == 0)
 			continue;
@@ -1563,7 +1562,7 @@ vr_tick(void *xsc)
 	if ((sc->vr_flags & VR_F_RESTART) != 0) {
 		device_printf(sc->vr_dev, "restarting\n");
 		sc->vr_stat.num_restart++;
-		sc->vr_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		if_setdrvflagbits(sc->vr_ifp, 0, IFF_DRV_RUNNING);
 		vr_init_locked(sc);
 		sc->vr_flags &= ~VR_F_RESTART;
 	}
@@ -1581,35 +1580,35 @@ static poll_handler_t vr_poll;
 static poll_handler_t vr_poll_locked;
 
 static int
-vr_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
+vr_poll(if_t ifp, enum poll_cmd cmd, int count)
 {
 	struct vr_softc *sc;
 	int rx_npkts;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	rx_npkts = 0;
 
 	VR_LOCK(sc);
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0)
 		rx_npkts = vr_poll_locked(ifp, cmd, count);
 	VR_UNLOCK(sc);
 	return (rx_npkts);
 }
 
 static int
-vr_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
+vr_poll_locked(if_t ifp, enum poll_cmd cmd, int count)
 {
 	struct vr_softc *sc;
 	int rx_npkts;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 
 	VR_LOCK_ASSERT(sc);
 
 	sc->rxcycles = count;
 	rx_npkts = vr_rxeof(sc);
 	vr_txeof(sc);
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+	if (!if_sendq_empty(ifp))
 		vr_start_locked(ifp);
 
 	if (cmd == POLL_AND_CHECK_STATUS) {
@@ -1693,7 +1692,7 @@ static void
 vr_int_task(void *arg, int npending)
 {
 	struct vr_softc		*sc;
-	struct ifnet		*ifp;
+	if_t			ifp;
 	uint16_t		status;
 
 	sc = (struct vr_softc *)arg;
@@ -1706,12 +1705,12 @@ vr_int_task(void *arg, int npending)
 	status = CSR_READ_2(sc, VR_ISR);
 	ifp = sc->vr_ifp;
 #ifdef DEVICE_POLLING
-	if ((ifp->if_capenable & IFCAP_POLLING) != 0)
+	if ((if_getcapenable(ifp) & IFCAP_POLLING) != 0)
 		goto done_locked;
 #endif
 
 	/* Suppress unwanted interrupts. */
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0 ||
 	    (sc->vr_flags & VR_F_RESTART) != 0) {
 		CSR_WRITE_2(sc, VR_IMR, 0);
 		CSR_WRITE_2(sc, VR_ISR, status);
@@ -1738,7 +1737,7 @@ vr_int_task(void *arg, int npending)
 		}
 		vr_txeof(sc);
 
-		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		if (!if_sendq_empty(ifp))
 			vr_start_locked(ifp);
 
 		status = CSR_READ_2(sc, VR_ISR);
@@ -1932,7 +1931,7 @@ vr_encap(struct vr_softc *sc, struct mbuf **m_head)
 	desc = &sc->vr_rdata.vr_tx_ring[prod];
 
 	/*
-	 * Set EOP on the last descriptor and reuqest Tx completion
+	 * Set EOP on the last descriptor and request Tx completion
 	 * interrupt for every VR_TX_INTR_THRESH-th frames.
 	 */
 	VR_INC(sc->vr_cdata.vr_tx_pkts, VR_TX_INTR_THRESH);
@@ -1954,34 +1953,34 @@ vr_encap(struct vr_softc *sc, struct mbuf **m_head)
 }
 
 static void
-vr_start(struct ifnet *ifp)
+vr_start(if_t ifp)
 {
 	struct vr_softc		*sc;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	VR_LOCK(sc);
 	vr_start_locked(ifp);
 	VR_UNLOCK(sc);
 }
 
 static void
-vr_start_locked(struct ifnet *ifp)
+vr_start_locked(if_t ifp)
 {
 	struct vr_softc		*sc;
 	struct mbuf		*m_head;
 	int			enq;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 
 	VR_LOCK_ASSERT(sc);
 
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING || (sc->vr_flags & VR_F_LINK) == 0)
 		return;
 
-	for (enq = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd) &&
+	for (enq = 0; !if_sendq_empty(ifp) &&
 	    sc->vr_cdata.vr_tx_cnt < VR_TX_RING_CNT - 2; ) {
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
+		m_head = if_dequeue(ifp);
 		if (m_head == NULL)
 			break;
 		/*
@@ -1992,8 +1991,8 @@ vr_start_locked(struct ifnet *ifp)
 		if (vr_encap(sc, &m_head)) {
 			if (m_head == NULL)
 				break;
-			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			if_sendq_prepend(ifp, m_head);
+			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 			break;
 		}
 
@@ -2027,7 +2026,7 @@ vr_init(void *xsc)
 static void
 vr_init_locked(struct vr_softc *sc)
 {
-	struct ifnet		*ifp;
+	if_t			ifp;
 	struct mii_data		*mii;
 	bus_addr_t		addr;
 	int			i;
@@ -2037,7 +2036,7 @@ vr_init_locked(struct vr_softc *sc)
 	ifp = sc->vr_ifp;
 	mii = device_get_softc(sc->vr_miibus);
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0)
 		return;
 
 	/* Cancel pending I/O and free all RX/TX buffers. */
@@ -2046,7 +2045,7 @@ vr_init_locked(struct vr_softc *sc)
 
 	/* Set our station address. */
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		CSR_WRITE_1(sc, VR_PAR0 + i, IF_LLADDR(sc->vr_ifp)[i]);
+		CSR_WRITE_1(sc, VR_PAR0 + i, if_getlladdr(sc->vr_ifp)[i]);
 
 	/* Set DMA size. */
 	VR_CLRBIT(sc, VR_BCR0, VR_BCR0_DMA_LENGTH);
@@ -2153,7 +2152,7 @@ vr_init_locked(struct vr_softc *sc)
 	/*
 	 * Disable interrupts if we are polling.
 	 */
-	if (ifp->if_capenable & IFCAP_POLLING)
+	if (if_getcapenable(ifp) & IFCAP_POLLING)
 		CSR_WRITE_2(sc, VR_IMR, 0);
 	else
 #endif
@@ -2164,8 +2163,8 @@ vr_init_locked(struct vr_softc *sc)
 	if (sc->vr_revid > REV_ID_VT6102_A)
 		CSR_WRITE_2(sc, VR_MII_IMR, 0);
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
+	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 
 	sc->vr_flags &= ~(VR_F_LINK | VR_F_TXPAUSE);
 	mii_mediachg(mii);
@@ -2177,14 +2176,14 @@ vr_init_locked(struct vr_softc *sc)
  * Set media options.
  */
 static int
-vr_ifmedia_upd(struct ifnet *ifp)
+vr_ifmedia_upd(if_t ifp)
 {
 	struct vr_softc		*sc;
 	struct mii_data		*mii;
 	struct mii_softc	*miisc;
 	int			error;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	VR_LOCK(sc);
 	mii = device_get_softc(sc->vr_miibus);
 	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
@@ -2200,15 +2199,15 @@ vr_ifmedia_upd(struct ifnet *ifp)
  * Report current media status.
  */
 static void
-vr_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+vr_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
 	struct vr_softc		*sc;
 	struct mii_data		*mii;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	mii = device_get_softc(sc->vr_miibus);
 	VR_LOCK(sc);
-	if ((ifp->if_flags & IFF_UP) == 0) {
+	if ((if_getflags(ifp) & IFF_UP) == 0) {
 		VR_UNLOCK(sc);
 		return;
 	}
@@ -2219,23 +2218,23 @@ vr_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 }
 
 static int
-vr_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
+vr_ioctl(if_t ifp, u_long command, caddr_t data)
 {
 	struct vr_softc		*sc;
 	struct ifreq		*ifr;
 	struct mii_data		*mii;
 	int			error, mask;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp);
 	ifr = (struct ifreq *)data;
 	error = 0;
 
 	switch (command) {
 	case SIOCSIFFLAGS:
 		VR_LOCK(sc);
-		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				if ((ifp->if_flags ^ sc->vr_if_flags) &
+		if (if_getflags(ifp) & IFF_UP) {
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
+				if ((if_getflags(ifp) ^ sc->vr_if_flags) &
 				    (IFF_PROMISC | IFF_ALLMULTI))
 					vr_set_filter(sc);
 			} else {
@@ -2243,10 +2242,10 @@ vr_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 					vr_init_locked(sc);
 			}
 		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 				vr_stop(sc);
 		}
-		sc->vr_if_flags = ifp->if_flags;
+		sc->vr_if_flags = if_getflags(ifp);
 		VR_UNLOCK(sc);
 		break;
 	case SIOCADDMULTI:
@@ -2261,7 +2260,7 @@ vr_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	case SIOCSIFCAP:
-		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+		mask = ifr->ifr_reqcap ^ if_getcapenable(ifp);
 #ifdef DEVICE_POLLING
 		if (mask & IFCAP_POLLING) {
 			if (ifr->ifr_reqcap & IFCAP_POLLING) {
@@ -2271,35 +2270,35 @@ vr_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				VR_LOCK(sc);
 				/* Disable interrupts. */
 				CSR_WRITE_2(sc, VR_IMR, 0x0000);
-				ifp->if_capenable |= IFCAP_POLLING;
+				if_setcapenablebit(ifp, IFCAP_POLLING, 0);
 				VR_UNLOCK(sc);
 			} else {
 				error = ether_poll_deregister(ifp);
 				/* Enable interrupts. */
 				VR_LOCK(sc);
 				CSR_WRITE_2(sc, VR_IMR, VR_INTRS);
-				ifp->if_capenable &= ~IFCAP_POLLING;
+				if_setcapenablebit(ifp, 0, IFCAP_POLLING);
 				VR_UNLOCK(sc);
 			}
 		}
 #endif /* DEVICE_POLLING */
 		if ((mask & IFCAP_TXCSUM) != 0 &&
-		    (IFCAP_TXCSUM & ifp->if_capabilities) != 0) {
-			ifp->if_capenable ^= IFCAP_TXCSUM;
-			if ((IFCAP_TXCSUM & ifp->if_capenable) != 0)
-				ifp->if_hwassist |= VR_CSUM_FEATURES;
+		    (IFCAP_TXCSUM & if_getcapabilities(ifp)) != 0) {
+			if_togglecapenable(ifp, IFCAP_TXCSUM);
+			if ((IFCAP_TXCSUM & if_getcapenable(ifp)) != 0)
+				if_sethwassistbits(ifp, VR_CSUM_FEATURES, 0);
 			else
-				ifp->if_hwassist &= ~VR_CSUM_FEATURES;
+				if_sethwassistbits(ifp, 0, VR_CSUM_FEATURES);
 		}
 		if ((mask & IFCAP_RXCSUM) != 0 &&
-		    (IFCAP_RXCSUM & ifp->if_capabilities) != 0)
-			ifp->if_capenable ^= IFCAP_RXCSUM;
+		    (IFCAP_RXCSUM & if_getcapabilities(ifp)) != 0)
+			if_togglecapenable(ifp, IFCAP_RXCSUM);
 		if ((mask & IFCAP_WOL_UCAST) != 0 &&
-		    (ifp->if_capabilities & IFCAP_WOL_UCAST) != 0)
-			ifp->if_capenable ^= IFCAP_WOL_UCAST;
+		    (if_getcapabilities(ifp) & IFCAP_WOL_UCAST) != 0)
+			if_togglecapenable(ifp, IFCAP_WOL_UCAST);
 		if ((mask & IFCAP_WOL_MAGIC) != 0 &&
-		    (ifp->if_capabilities & IFCAP_WOL_MAGIC) != 0)
-			ifp->if_capenable ^= IFCAP_WOL_MAGIC;
+		    (if_getcapabilities(ifp) & IFCAP_WOL_MAGIC) != 0)
+			if_togglecapenable(ifp, IFCAP_WOL_MAGIC);
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
@@ -2312,7 +2311,7 @@ vr_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 static void
 vr_watchdog(struct vr_softc *sc)
 {
-	struct ifnet		*ifp;
+	if_t			ifp;
 
 	VR_LOCK_ASSERT(sc);
 
@@ -2332,7 +2331,7 @@ vr_watchdog(struct vr_softc *sc)
 			if_printf(sc->vr_ifp, "watchdog timeout "
 			   "(missed link)\n");
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 		vr_init_locked(sc);
 		return;
 	}
@@ -2340,10 +2339,10 @@ vr_watchdog(struct vr_softc *sc)
 	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	if_printf(ifp, "watchdog timeout\n");
 
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 	vr_init_locked(sc);
 
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+	if (!if_sendq_empty(ifp))
 		vr_start_locked(ifp);
 }
 
@@ -2435,7 +2434,7 @@ vr_stop(struct vr_softc *sc)
 {
 	struct vr_txdesc	*txd;
 	struct vr_rxdesc	*rxd;
-	struct ifnet		*ifp;
+	if_t			ifp;
 	int			i;
 
 	VR_LOCK_ASSERT(sc);
@@ -2444,7 +2443,7 @@ vr_stop(struct vr_softc *sc)
 	sc->vr_watchdog_timer = 0;
 
 	callout_stop(&sc->vr_stat_callout);
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	if_setdrvflagbits(ifp, 0, (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
 
 	CSR_WRITE_1(sc, VR_CR0, VR_CR0_STOP);
 	if (vr_rx_stop(sc) != 0)
@@ -2515,7 +2514,7 @@ static int
 vr_resume(device_t dev)
 {
 	struct vr_softc		*sc;
-	struct ifnet		*ifp;
+	if_t			ifp;
 
 	sc = device_get_softc(dev);
 
@@ -2523,7 +2522,7 @@ vr_resume(device_t dev)
 	ifp = sc->vr_ifp;
 	vr_clrwol(sc);
 	vr_reset(sc);
-	if (ifp->if_flags & IFF_UP)
+	if (if_getflags(ifp) & IFF_UP)
 		vr_init_locked(sc);
 
 	sc->vr_flags &= ~VR_F_SUSPENDED;
@@ -2535,7 +2534,7 @@ vr_resume(device_t dev)
 static void
 vr_setwol(struct vr_softc *sc)
 {
-	struct ifnet		*ifp;
+	if_t			ifp;
 	int			pmc;
 	uint16_t		pmstat;
 	uint8_t			v;
@@ -2559,9 +2558,9 @@ vr_setwol(struct vr_softc *sc)
 		CSR_WRITE_1(sc, VR_TESTREG_CLR, 3);
 		CSR_WRITE_1(sc, VR_PWRCSR1_CLR, 3);
 	}
-	if ((ifp->if_capenable & IFCAP_WOL_UCAST) != 0)
+	if ((if_getcapenable(ifp) & IFCAP_WOL_UCAST) != 0)
 		CSR_WRITE_1(sc, VR_WOLCR_SET, VR_WOLCR_UCAST);
-	if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0)
+	if ((if_getcapenable(ifp) & IFCAP_WOL_MAGIC) != 0)
 		CSR_WRITE_1(sc, VR_WOLCR_SET, VR_WOLCR_MAGIC);
 	/*
 	 * It seems that multicast wakeup frames require programming pattern
@@ -2569,7 +2568,7 @@ vr_setwol(struct vr_softc *sc)
 	 * While it's possible to setup such a pattern it would complicate
 	 * WOL configuration so ignore multicast wakeup frames.
 	 */
-	if ((ifp->if_capenable & IFCAP_WOL) != 0) {
+	if ((if_getcapenable(ifp) & IFCAP_WOL) != 0) {
 		CSR_WRITE_1(sc, VR_WOLCFG_SET, VR_WOLCFG_SAB | VR_WOLCFG_SAM);
 		v = CSR_READ_1(sc, VR_STICKHW);
 		CSR_WRITE_1(sc, VR_STICKHW, v | VR_STICKHW_WOL_ENB);
@@ -2584,7 +2583,7 @@ vr_setwol(struct vr_softc *sc)
 	/* Request PME if WOL is requested. */
 	pmstat = pci_read_config(sc->vr_dev, pmc + PCIR_POWER_STATUS, 2);
 	pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
-	if ((ifp->if_capenable & IFCAP_WOL) != 0)
+	if ((if_getcapenable(ifp) & IFCAP_WOL) != 0)
 		pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
 	pci_write_config(sc->vr_dev, pmc + PCIR_POWER_STATUS, pmstat, 2);
 }

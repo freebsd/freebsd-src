@@ -36,7 +36,6 @@
 #include "bsddialog_theme.h"
 #include "lib_util.h"
 
-#define DEPTH       2
 #define MIN_HEIGHT  VBORDERS + 6 /* 2 buttons 1 text 3 menu */
 
 enum menumode {
@@ -277,7 +276,7 @@ drawitem(struct bsddialog_conf *conf, WINDOW *pad, int y,
 	colorname = focus ? t.menu.f_namecolor : t.menu.namecolor;
 	if (conf->menu.no_name == false) {
 		wattron(pad, colorname);
-		mvwaddstr(pad, y, pos.xname + item->depth * DEPTH, item->name);
+		mvwaddstr(pad, y, pos.xname + item->depth, item->name);
 		wattroff(pad, colorname);
 	}
 
@@ -290,8 +289,7 @@ drawitem(struct bsddialog_conf *conf, WINDOW *pad, int y,
 	if (conf->menu.no_desc == false) {
 		wattron(pad, colordesc);
 		if (conf->menu.no_name)
-			mvwaddstr(pad, y, pos.xname + item->depth * DEPTH,
-			    item->desc);
+			mvwaddstr(pad, y, pos.xname + item->depth, item->desc);
 		else
 			mvwaddstr(pad, y, pos.xdesc, item->desc);
 		wattroff(pad, colordesc);
@@ -307,7 +305,7 @@ drawitem(struct bsddialog_conf *conf, WINDOW *pad, int y,
 			mbtowc(&shortcut, item->desc, MB_CUR_MAX);
 		else
 			mbtowc(&shortcut, item->name, MB_CUR_MAX);
-		mvwaddwch(pad, y, pos.xname + item->depth * DEPTH, shortcut);
+		mvwaddwch(pad, y, pos.xname + item->depth, shortcut);
 		wattroff(pad, colorshortcut);
 	}
 
@@ -362,40 +360,37 @@ menu_autosize(struct bsddialog_conf *conf, int rows, int cols, int *h, int *w,
 	} else
 		notext += *menurows;
 
-	/* cols autosize, rows autosize, rows fullscreen, menu particularity */
-	if (cols == BSDDIALOG_AUTOSIZE || rows <= BSDDIALOG_AUTOSIZE) {
-		if (text_size(conf, rows, cols, text, &bs, notext, linelen + 4,
-		    &htext, &wtext) != 0)
-			return (BSDDIALOG_ERROR);
-	}
+	if (text_size(conf, rows, cols, text, &bs, notext, linelen + 4, &htext,
+	    &wtext) != 0)
+		return (BSDDIALOG_ERROR);
 
 	if (cols == BSDDIALOG_AUTOSIZE)
 		*w = widget_min_width(conf, wtext, linelen + 4, &bs);
 
 	if (rows == BSDDIALOG_AUTOSIZE) {
-		if (*menurows == 0) {
+		if (*menurows == BSDDIALOG_AUTOSIZE) {
 			menusize = widget_max_height(conf) - HBORDERS -
 			     2 /*buttons*/ - htext;
 			menusize = MIN(menusize, nitems + 2);
 			*menurows = menusize - 2 < 0 ? 0 : menusize - 2;
-		}
-		else /* h autosize with fixed menurows */
+		} else /* h autosize with fixed menurows */
 			menusize = *menurows + 2;
 
 		*h = widget_min_height(conf, htext, menusize, true);
-		/*
-		 * avoid menurows overflow and
-		 * with rows=AUTOSIZE menurows!=0 becomes max-menurows
-		 */
-		*menurows = MIN(*h - 6 - htext, (int)*menurows);
-	} else {
-		if (*menurows == 0) {
+	} else { /* fixed rows */
+		if (*menurows == BSDDIALOG_AUTOSIZE) {
 			if (*h - 6 - htext <= 0)
 				*menurows = 0; /* menu_checksize() will check */
 			else
 				*menurows = MIN(*h-6-htext, nitems);
 		}
 	}
+
+	/* avoid menurows overflow and menurows becomes at most menurows */
+	if (*h - 6 - htext <= 0)
+		*menurows = 0; /* menu_checksize() will check */
+	else
+		*menurows = MIN(*h - 6 - htext, (int)*menurows);
 
 	return (0);
 }
@@ -475,7 +470,6 @@ do_mixedlist(struct bsddialog_conf *conf, const char *text, int rows, int cols,
 	}
 	pos.maxname = conf->menu.no_name ? 0 : pos.maxname;
 	pos.maxdesc = conf->menu.no_desc ? 0 : pos.maxdesc;
-	pos.maxdepth = DEPTH * pos.maxdepth;
 
 	pos.xselector = pos.maxprefix + (pos.maxprefix != 0 ? 1 : 0);
 	pos.xname = pos.xselector + pos.selectorlen +
@@ -696,11 +690,15 @@ do_mixedlist(struct bsddialog_conf *conf, const char *text, int rows, int cols,
 			movefocus = next != abs;
 			break;
 		case ' ': /* Space */
-			if (pritems[abs].type == MENUMODE)
-				break;
-			else if (pritems[abs].type == CHECKLISTMODE)
+			if (pritems[abs].type == MENUMODE) {
+				retval = bs.value[bs.curr];
+				pritems[abs].on = true;
+				set_on_output(conf, retval, ngroups, groups,
+				    pritems);
+				loop = false;
+			} else if (pritems[abs].type == CHECKLISTMODE) {
 				pritems[abs].on = !pritems[abs].on;
-			else { /* RADIOLISTMODE */
+			} else { /* RADIOLISTMODE */
 				for (i = abs - pritems[abs].index;
 				    i < totnitems &&
 				    pritems[i].group == pritems[abs].group;

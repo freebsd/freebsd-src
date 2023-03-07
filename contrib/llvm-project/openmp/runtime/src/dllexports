@@ -397,6 +397,13 @@ kmpc_set_disp_num_buffers                   267
         __kmpc_end_scope                    287
 %endif
 
+%ifndef stub
+        __kmpc_copyprivate_light            288
+        __kmpc_sections_init                289
+        __kmpc_next_section                 290
+        __kmpc_end_sections                 291
+%endif
+
 # User API entry points that have both lower- and upper- case versions for Fortran.
 # Number for lowercase version is indicated.  Number for uppercase is obtained by adding 1000.
 # User API entry points are entry points that start with 'kmp_' or 'omp_'.
@@ -556,6 +563,7 @@ kmp_set_disp_num_buffers                    890
     omp_get_interop_int                     807
     omp_get_interop_ptr                     808
     omp_get_interop_str                     809
+    omp_in_explicit_task                    769
 
     omp_null_allocator                     DATA
     omp_default_mem_alloc                  DATA
@@ -566,7 +574,7 @@ kmp_set_disp_num_buffers                    890
     omp_cgroup_mem_alloc                   DATA
     omp_pteam_mem_alloc                    DATA
     omp_thread_mem_alloc                   DATA
-    # Preview of target memory support
+
     llvm_omp_target_host_mem_alloc         DATA
     llvm_omp_target_shared_mem_alloc       DATA
     llvm_omp_target_device_mem_alloc       DATA
@@ -576,7 +584,7 @@ kmp_set_disp_num_buffers                    890
     omp_const_mem_space                    DATA
     omp_high_bw_mem_space                  DATA
     omp_low_lat_mem_space                  DATA
-    # Preview of target memory support
+
     llvm_omp_target_host_mem_space         DATA
     llvm_omp_target_shared_mem_space       DATA
     llvm_omp_target_device_mem_space       DATA

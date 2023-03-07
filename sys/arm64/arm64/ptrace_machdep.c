@@ -48,6 +48,37 @@ __FBSDID("$FreeBSD$");
 #include <sys/ucontext.h>
 
 #include <machine/armreg.h>
+#include <machine/pcb.h>
+
+/* Only used to get/set 32bits VFP regs */
+int
+cpu_ptrace(struct thread *td, int req, void *arg, int data)
+{
+#if defined(VFP) && defined(COMPAT_FREEBSD32)
+	mcontext32_vfp_t vfp;
+	int error;
+
+	if (!SV_CURPROC_FLAG(SV_ILP32))
+		return (EINVAL);
+	switch (req) {
+		case PT_GETVFPREGS32:
+			get_fpcontext32(td, &vfp);
+			error = copyout(&vfp, arg, sizeof(vfp));
+			break;
+		case PT_SETVFPREGS32:
+			error = copyin(arg, &vfp, sizeof(vfp));
+			if (error == 0)
+				set_fpcontext32(td, &vfp);
+			break;
+		default:
+			error = EINVAL;
+	}
+
+	return (error);
+#else
+	return (EINVAL);
+#endif
+}
 
 #if defined(VFP) && defined(COMPAT_FREEBSD32)
 static bool

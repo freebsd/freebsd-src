@@ -66,8 +66,8 @@ static struct {
 } inout_handlers[MAX_IOPORTS];
 
 static int
-default_inout(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
-              uint32_t *eax, void *arg)
+default_inout(struct vmctx *ctx __unused, int in,
+    int port __unused, int bytes, uint32_t *eax, void *arg __unused)
 {
 	if (in) {
 		switch (bytes) {
@@ -184,14 +184,14 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit)
 
 			val = 0;
 			if (!in)
-				vm_copyin(ctx, vcpu, iov, &val, bytes);
+				vm_copyin(iov, &val, bytes);
 
-			retval = handler(ctx, vcpu, in, port, bytes, &val, arg);
+			retval = handler(ctx, in, port, bytes, &val, arg);
 			if (retval != 0)
 				break;
 
 			if (in)
-				vm_copyout(ctx, vcpu, &val, iov, bytes);
+				vm_copyout(&val, iov, bytes);
 
 			/* Update index */
 			if (vis->rflags & PSL_D)
@@ -225,7 +225,7 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit)
 	} else {
 		eax = vmexit->u.inout.eax;
 		val = eax & vie_size2mask(bytes);
-		retval = handler(ctx, vcpu, in, port, bytes, &val, arg);
+		retval = handler(ctx, in, port, bytes, &val, arg);
 		if (retval == 0 && in) {
 			eax &= ~vie_size2mask(bytes);
 			eax |= val & vie_size2mask(bytes);

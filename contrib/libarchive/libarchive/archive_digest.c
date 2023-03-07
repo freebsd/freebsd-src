@@ -49,16 +49,16 @@
  * Initialize a Message digest.
  */
 static int
-win_crypto_init(Digest_CTX *ctx, ALG_ID algId)
+win_crypto_init(Digest_CTX *ctx, DWORD prov, ALG_ID algId)
 {
 
 	ctx->valid = 0;
 	if (!CryptAcquireContext(&ctx->cryptProv, NULL, NULL,
-	    PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
+	    prov, CRYPT_VERIFYCONTEXT)) {
 		if (GetLastError() != (DWORD)NTE_BAD_KEYSET)
 			return (ARCHIVE_FAILED);
 		if (!CryptAcquireContext(&ctx->cryptProv, NULL, NULL,
-		    PROV_RSA_FULL, CRYPT_NEWKEYSET))
+		    prov, CRYPT_NEWKEYSET))
 			return (ARCHIVE_FAILED);
 	}
 
@@ -276,7 +276,7 @@ __archive_md5final(archive_md5_ctx *ctx, void *md)
 static int
 __archive_md5init(archive_md5_ctx *ctx)
 {
-  return (win_crypto_init(ctx, CALG_MD5));
+  return (win_crypto_init(ctx, PROV_RSA_FULL, CALG_MD5));
 }
 
 static int
@@ -659,7 +659,7 @@ __archive_sha1final(archive_sha1_ctx *ctx, void *md)
 static int
 __archive_sha1init(archive_sha1_ctx *ctx)
 {
-  return (win_crypto_init(ctx, CALG_SHA1));
+  return (win_crypto_init(ctx, PROV_RSA_FULL, CALG_SHA1));
 }
 
 static int
@@ -919,7 +919,7 @@ __archive_sha256final(archive_sha256_ctx *ctx, void *md)
 static int
 __archive_sha256init(archive_sha256_ctx *ctx)
 {
-  return (win_crypto_init(ctx, CALG_SHA_256));
+  return (win_crypto_init(ctx, PROV_RSA_AES, CALG_SHA_256));
 }
 
 static int
@@ -1155,7 +1155,7 @@ __archive_sha384final(archive_sha384_ctx *ctx, void *md)
 static int
 __archive_sha384init(archive_sha384_ctx *ctx)
 {
-  return (win_crypto_init(ctx, CALG_SHA_384));
+  return (win_crypto_init(ctx, PROV_RSA_AES, CALG_SHA_384));
 }
 
 static int
@@ -1415,7 +1415,7 @@ __archive_sha512final(archive_sha512_ctx *ctx, void *md)
 static int
 __archive_sha512init(archive_sha512_ctx *ctx)
 {
-  return (win_crypto_init(ctx, CALG_SHA_512));
+  return (win_crypto_init(ctx, PROV_RSA_AES, CALG_SHA_512));
 }
 
 static int

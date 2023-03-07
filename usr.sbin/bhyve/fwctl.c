@@ -88,20 +88,17 @@ static struct op_info *ops[OP_MAX+1];
 
 /* Return 0-padded uint32_t */
 static uint32_t
-fwctl_send_rest(uint32_t *data, size_t len)
+fwctl_send_rest(uint8_t *data, size_t len)
 {
 	union {
 		uint8_t c[4];
 		uint32_t w;
 	} u;
-	uint8_t *cdata;
-	int i;
+	size_t i;
 
-	cdata = (uint8_t *) data;
 	u.w = 0;
-
-	for (i = 0, u.w = 0; i < len; i++)
-		u.c[i] = *cdata++;
+	for (i = 0; i < len; i++)
+		u.c[i] = *data++;
 
 	return (u.w);
 }
@@ -119,7 +116,7 @@ errop_set(int err)
 }
 
 static int
-errop_start(uint32_t len)
+errop_start(uint32_t len __unused)
 {
 	errop_code = ENOENT;
 
@@ -128,7 +125,7 @@ errop_start(uint32_t len)
 }
 
 static void
-errop_data(uint32_t data, uint32_t len)
+errop_data(uint32_t data __unused, uint32_t len __unused)
 {
 
 	/* ignore */
@@ -144,7 +141,7 @@ errop_result(struct iovec **data)
 }
 
 static void
-errop_done(struct iovec *data)
+errop_done(struct iovec *data __unused)
 {
 
 	/* assert data is NULL */
@@ -200,10 +197,10 @@ fget_start(uint32_t len)
 }
 
 static void
-fget_data(uint32_t data, uint32_t len)
+fget_data(uint32_t data, uint32_t len __unused)
 {
 
-	*((uint32_t *) &fget_str[fget_cnt]) = data;
+	memcpy(&fget_str[fget_cnt], &data, sizeof(data));
 	fget_cnt += sizeof(uint32_t);
 }
 
@@ -244,7 +241,7 @@ fget_result(struct iovec **data, int val)
 }
 
 static void
-fget_done(struct iovec *data)
+fget_done(struct iovec *data __unused)
 {
 
 	/* nothing needs to be freed */
@@ -401,7 +398,7 @@ fwctl_request(uint32_t value)
 static int
 fwctl_response(uint32_t *retval)
 {
-	uint32_t *dp;
+	uint8_t *dp;
 	ssize_t remlen;
 
 	switch(rinfo.resp_count) {
@@ -425,10 +422,9 @@ fwctl_response(uint32_t *retval)
 		break;
 	default:
 		remlen = rinfo.resp_size - rinfo.resp_off;
-		dp = (uint32_t *)
-		    ((uint8_t *)rinfo.resp_biov->iov_base + rinfo.resp_off);
-		if (remlen >= sizeof(uint32_t)) {
-			*retval = *dp;
+		dp = (uint8_t *)rinfo.resp_biov->iov_base + rinfo.resp_off;
+		if (remlen >= (ssize_t)sizeof(uint32_t)) {
+			memcpy(retval, dp, sizeof(uint32_t));
 		} else if (remlen > 0) {
 			*retval = fwctl_send_rest(dp, remlen);
 		}
@@ -520,8 +516,8 @@ fwctl_outl(uint32_t val)
 }
 
 static int
-fwctl_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
-    uint32_t *eax, void *arg)
+fwctl_handler(struct vmctx *ctx __unused, int in,
+    int port __unused, int bytes, uint32_t *eax, void *arg __unused)
 {
 
 	if (in) {

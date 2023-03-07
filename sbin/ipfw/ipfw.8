@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 17, 2022
+.Dd January 25, 2023
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -1186,6 +1186,8 @@ Supported values are:
 .Pq Dv 100100 ,
 .Cm af43
 .Pq Dv 100110 ,
+.Cm va
+.Pq Dv 101100 ,
 .Cm ef
 .Pq Dv 101110 ,
 .Cm be
@@ -4629,7 +4631,7 @@ Bear in mind that this is example only and it is not very useful by itself.
 .Pp
 On way out, after all checks place this rules:
 .Pp
-.Dl "ipfw add allow record-state skip-action"
+.Dl "ipfw add allow record-state defer-action"
 .Dl "ipfw add nat 1"
 .Pp
 And on way in there should be something like this:

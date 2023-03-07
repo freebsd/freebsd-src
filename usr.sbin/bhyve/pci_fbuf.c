@@ -117,8 +117,8 @@ static struct pci_fbuf_softc *fbuf_sc;
 #define	PCI_FBUF_MSI_MSGS	 4
 
 static void
-pci_fbuf_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
-	       int baridx, uint64_t offset, int size, uint64_t value)
+pci_fbuf_write(struct pci_devinst *pi, int baridx, uint64_t offset, int size,
+    uint64_t value)
 {
 	struct pci_fbuf_softc *sc;
 	uint8_t *p;
@@ -171,8 +171,7 @@ pci_fbuf_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 }
 
 static uint64_t
-pci_fbuf_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
-	      int baridx, uint64_t offset, int size)
+pci_fbuf_read(struct pci_devinst *pi, int baridx, uint64_t offset, int size)
 {
 	struct pci_fbuf_softc *sc;
 	uint8_t *p;
@@ -217,8 +216,8 @@ pci_fbuf_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 }
 
 static void
-pci_fbuf_baraddr(struct vmctx *ctx, struct pci_devinst *pi, int baridx,
-		 int enabled, uint64_t address)
+pci_fbuf_baraddr(struct pci_devinst *pi, int baridx, int enabled,
+    uint64_t address)
 {
 	struct pci_fbuf_softc *sc;
 	int prot;
@@ -228,12 +227,13 @@ pci_fbuf_baraddr(struct vmctx *ctx, struct pci_devinst *pi, int baridx,
 
 	sc = pi->pi_arg;
 	if (!enabled) {
-		if (vm_munmap_memseg(ctx, sc->fbaddr, FB_SIZE) != 0)
+		if (vm_munmap_memseg(pi->pi_vmctx, sc->fbaddr, FB_SIZE) != 0)
 			EPRINTLN("pci_fbuf: munmap_memseg failed");
 		sc->fbaddr = 0;
 	} else {
 		prot = PROT_READ | PROT_WRITE;
-		if (vm_mmap_memseg(ctx, address, VM_FRAMEBUFFER, 0, FB_SIZE, prot) != 0)
+		if (vm_mmap_memseg(pi->pi_vmctx, address, VM_FRAMEBUFFER, 0,
+		    FB_SIZE, prot) != 0)
 			EPRINTLN("pci_fbuf: mmap_memseg failed");
 		sc->fbaddr = address;
 	}
@@ -345,9 +345,6 @@ pci_fbuf_parse_config(struct pci_fbuf_softc *sc, nvlist_t *nvl)
 	return (0);
 }
 
-
-extern void vga_render(struct bhyvegc *gc, void *arg);
-
 static void
 pci_fbuf_render(struct bhyvegc *gc, void *arg)
 {
@@ -368,12 +365,10 @@ pci_fbuf_render(struct bhyvegc *gc, void *arg)
 		sc->gc_width = sc->memregs.width;
 		sc->gc_height = sc->memregs.height;
 	}
-
-	return;
 }
 
 static int
-pci_fbuf_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
+pci_fbuf_init(struct pci_devinst *pi, nvlist_t *nvl)
 {
 	int error;
 	struct pci_fbuf_softc *sc;
@@ -393,8 +388,8 @@ pci_fbuf_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 	pci_set_cfgdata8(pi, PCIR_CLASS, PCIC_DISPLAY);
 	pci_set_cfgdata8(pi, PCIR_SUBCLASS, PCIS_DISPLAY_VGA);
 
-	sc->fb_base = vm_create_devmem(
-	    ctx, VM_FRAMEBUFFER, "framebuffer", FB_SIZE);
+	sc->fb_base = vm_create_devmem(pi->pi_vmctx, VM_FRAMEBUFFER,
+	    "framebuffer", FB_SIZE);
 	if (sc->fb_base == MAP_FAILED) {
 		error = -1;
 		goto done;

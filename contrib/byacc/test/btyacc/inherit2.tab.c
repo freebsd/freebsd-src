@@ -3,8 +3,8 @@
 /* (use YYMAJOR/YYMINOR for ifdefs dependent on parser version) */
 
 #define YYBYACC 1
-#define YYMAJOR 1
-#define YYMINOR 9
+#define YYMAJOR 2
+#define YYMINOR 0
 #define YYCHECK "yyyymmdd"
 
 #define YYEMPTY        (-1)
@@ -439,8 +439,8 @@ YYDESTRUCT_DECL()
 		    free(pp->s); free(pp);
 		  }
 		}
+#line 443 "inherit2.tab.c"
 	break;
-#line 444 "inherit2.tab.c"
 	case 264:
 #line 30 "inherit2.y"
 	{
@@ -451,8 +451,8 @@ YYDESTRUCT_DECL()
 		    free(pp->s); free(pp);
 		  }
 		}
+#line 455 "inherit2.tab.c"
 	break;
-#line 456 "inherit2.tab.c"
 	case 265:
 #line 30 "inherit2.y"
 	{
@@ -463,8 +463,8 @@ YYDESTRUCT_DECL()
 		    free(pp->s); free(pp);
 		  }
 		}
+#line 467 "inherit2.tab.c"
 	break;
-#line 468 "inherit2.tab.c"
     }
 }
 #define YYDESTRUCT_IS_DECLARED 1
@@ -630,7 +630,7 @@ YYPARSE_DECL()
     yyps->save = 0;
 #endif /* YYBTYACC */
     yym = 0;
-    yyn = 0;
+    /* yyn is set below */
     yynerrs = 0;
     yyerrflag = 0;
     yychar = YYEMPTY;
@@ -1141,56 +1141,68 @@ yyreduce:
 case 1:
 #line 50 "inherit2.y"
 yyval.cval = yystack.l_mark[-1].cval;
+#line 1145 "inherit2.tab.c"
 break;
 case 2:
 #line 50 "inherit2.y"
 yyval.tval =  yystack.l_mark[-1].tval;
+#line 1150 "inherit2.tab.c"
 break;
 case 3:
 #line 51 "inherit2.y"
 	{ yyval.nlist = yystack.l_mark[0].nlist; }
+#line 1155 "inherit2.tab.c"
 break;
 case 4:
 #line 53 "inherit2.y"
 	{ yyval.nlist = yystack.l_mark[0].nlist; }
+#line 1160 "inherit2.tab.c"
 break;
 case 5:
 #line 56 "inherit2.y"
 	{ yyval.cval = cGLOBAL; }
+#line 1165 "inherit2.tab.c"
 break;
 case 6:
 #line 57 "inherit2.y"
 	{ yyval.cval = cLOCAL; }
+#line 1170 "inherit2.tab.c"
 break;
 case 7:
 #line 60 "inherit2.y"
 	{ yyval.tval = tREAL; }
+#line 1175 "inherit2.tab.c"
 break;
 case 8:
 #line 61 "inherit2.y"
 	{ yyval.tval = tINTEGER; }
+#line 1180 "inherit2.tab.c"
 break;
 case 9:
 #line 65 "inherit2.y"
 	{ yyval.nlist->s = mksymbol(yystack.l_mark[-2].tval, yystack.l_mark[-3].cval, yystack.l_mark[0].id);
 	      yyval.nlist->next = yystack.l_mark[-1].nlist;
 	    }
+#line 1187 "inherit2.tab.c"
 break;
 case 10:
 #line 69 "inherit2.y"
 	{ yyval.nlist->s = mksymbol(yystack.l_mark[-1].tval, yystack.l_mark[-2].cval, yystack.l_mark[0].id);
 	      yyval.nlist->next = NULL;
 	    }
+#line 1194 "inherit2.tab.c"
 break;
 case 11:
 #line 74 "inherit2.y"
 yyval.cval = cLOCAL;
+#line 1199 "inherit2.tab.c"
 break;
 case 12:
 #line 75 "inherit2.y"
 	{ yyval.nlist = yystack.l_mark[0].nlist; }
+#line 1204 "inherit2.tab.c"
 break;
-#line 1194 "inherit2.tab.c"
+#line 1206 "inherit2.tab.c"
     default:
         break;
     }

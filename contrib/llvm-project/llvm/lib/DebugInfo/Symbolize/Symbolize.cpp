@@ -12,22 +12,19 @@
 
 #include "llvm/DebugInfo/Symbolize/Symbolize.h"
 
-#include "SymbolizableObjectFile.h"
-
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/BinaryFormat/COFF.h"
-#include "llvm/Config/config.h"
 #include "llvm/DebugInfo/DWARF/DWARFContext.h"
 #include "llvm/DebugInfo/PDB/PDB.h"
 #include "llvm/DebugInfo/PDB/PDBContext.h"
 #include "llvm/DebugInfo/Symbolize/DIFetcher.h"
+#include "llvm/DebugInfo/Symbolize/SymbolizableObjectFile.h"
 #include "llvm/Demangle/Demangle.h"
 #include "llvm/Object/COFF.h"
+#include "llvm/Object/ELFObjectFile.h"
 #include "llvm/Object/MachO.h"
 #include "llvm/Object/MachOUniversal.h"
 #include "llvm/Support/CRC.h"
 #include "llvm/Support/Casting.h"
-#include "llvm/Support/Compression.h"
 #include "llvm/Support/DataExtractor.h"
 #include "llvm/Support/Errc.h"
 #include "llvm/Support/FileSystem.h"
@@ -38,7 +35,19 @@
 #include <cstring>
 
 namespace llvm {
+namespace codeview {
+union DebugInfo;
+}
+namespace object {
+template <class ELFT> class ELFFile;
+}
 namespace symbolize {
+
+LLVMSymbolizer::LLVMSymbolizer() = default;
+
+LLVMSymbolizer::LLVMSymbolizer(const Options &Opts) : Opts(Opts) {}
+
+LLVMSymbolizer::~LLVMSymbolizer() = default;
 
 template <typename T>
 Expected<DILineInfo>
@@ -79,6 +88,12 @@ Expected<DILineInfo>
 LLVMSymbolizer::symbolizeCode(const std::string &ModuleName,
                               object::SectionedAddress ModuleOffset) {
   return symbolizeCodeCommon(ModuleName, ModuleOffset);
+}
+
+Expected<DILineInfo>
+LLVMSymbolizer::symbolizeCode(ArrayRef<uint8_t> BuildID,
+                              object::SectionedAddress ModuleOffset) {
+  return symbolizeCodeCommon(BuildID, ModuleOffset);
 }
 
 template <typename T>
@@ -124,6 +139,12 @@ LLVMSymbolizer::symbolizeInlinedCode(const std::string &ModuleName,
   return symbolizeInlinedCodeCommon(ModuleName, ModuleOffset);
 }
 
+Expected<DIInliningInfo>
+LLVMSymbolizer::symbolizeInlinedCode(ArrayRef<uint8_t> BuildID,
+                                     object::SectionedAddress ModuleOffset) {
+  return symbolizeInlinedCodeCommon(BuildID, ModuleOffset);
+}
+
 template <typename T>
 Expected<DIGlobal>
 LLVMSymbolizer::symbolizeDataCommon(const T &ModuleSpecifier,
@@ -163,6 +184,12 @@ LLVMSymbolizer::symbolizeData(const std::string &ModuleName,
   return symbolizeDataCommon(ModuleName, ModuleOffset);
 }
 
+Expected<DIGlobal>
+LLVMSymbolizer::symbolizeData(ArrayRef<uint8_t> BuildID,
+                              object::SectionedAddress ModuleOffset) {
+  return symbolizeDataCommon(BuildID, ModuleOffset);
+}
+
 template <typename T>
 Expected<std::vector<DILocal>>
 LLVMSymbolizer::symbolizeFrameCommon(const T &ModuleSpecifier,
@@ -198,11 +225,20 @@ LLVMSymbolizer::symbolizeFrame(const std::string &ModuleName,
   return symbolizeFrameCommon(ModuleName, ModuleOffset);
 }
 
+Expected<std::vector<DILocal>>
+LLVMSymbolizer::symbolizeFrame(ArrayRef<uint8_t> BuildID,
+                               object::SectionedAddress ModuleOffset) {
+  return symbolizeFrameCommon(BuildID, ModuleOffset);
+}
+
 void LLVMSymbolizer::flush() {
   ObjectForUBPathAndArch.clear();
+  LRUBinaries.clear();
+  CacheSize = 0;
   BinaryForPath.clear();
   ObjectPairForPathArch.clear();
   Modules.clear();
+  BuildIDPaths.clear();
 }
 
 namespace {
@@ -291,6 +327,8 @@ Optional<ArrayRef<uint8_t>> getBuildID(const ELFFile<ELFT> &Obj) {
   return {};
 }
 
+} // end anonymous namespace
+
 Optional<ArrayRef<uint8_t>> getBuildID(const ELFObjectFileBase *Obj) {
   Optional<ArrayRef<uint8_t>> BuildID;
   if (auto *O = dyn_cast<ELFObjectFile<ELF32LE>>(Obj))
@@ -305,8 +343,6 @@ Optional<ArrayRef<uint8_t>> getBuildID(const ELFObjectFileBase *Obj) {
     llvm_unreachable("unsupported file format");
   return BuildID;
 }
-
-} // end anonymous namespace
 
 ObjectFile *LLVMSymbolizer::lookUpDsymFile(const std::string &ExePath,
                                            const MachOObjectFile *MachExeObj,
@@ -368,7 +404,7 @@ ObjectFile *LLVMSymbolizer::lookUpBuildIDObject(const std::string &Path,
   if (BuildID->size() < 2)
     return nullptr;
   std::string DebugBinaryPath;
-  if (!findDebugBinary(*BuildID, DebugBinaryPath))
+  if (!getOrFindDebugBinary(*BuildID, DebugBinaryPath))
     return nullptr;
   auto DbgObjOrErr = getOrCreateObject(DebugBinaryPath, ArchName);
   if (!DbgObjOrErr) {
@@ -422,12 +458,30 @@ bool LLVMSymbolizer::findDebugBinary(const std::string &OrigPath,
   return false;
 }
 
-bool LLVMSymbolizer::findDebugBinary(const ArrayRef<uint8_t> BuildID,
-                                     std::string &Result) {
+static StringRef getBuildIDStr(ArrayRef<uint8_t> BuildID) {
+  return StringRef(reinterpret_cast<const char *>(BuildID.data()),
+                   BuildID.size());
+}
+
+bool LLVMSymbolizer::getOrFindDebugBinary(const ArrayRef<uint8_t> BuildID,
+                                          std::string &Result) {
+  StringRef BuildIDStr = getBuildIDStr(BuildID);
+  auto I = BuildIDPaths.find(BuildIDStr);
+  if (I != BuildIDPaths.end()) {
+    Result = I->second;
+    return true;
+  }
+  auto recordPath = [&](StringRef Path) {
+    Result = Path.str();
+    auto InsertResult = BuildIDPaths.insert({BuildIDStr, Result});
+    assert(InsertResult.second);
+    (void)InsertResult;
+  };
+
   Optional<std::string> Path;
   Path = LocalDIFetcher(Opts.DebugFileDirectory).fetchBuildID(BuildID);
   if (Path) {
-    Result = std::move(*Path);
+    recordPath(*Path);
     return true;
   }
 
@@ -435,7 +489,7 @@ bool LLVMSymbolizer::findDebugBinary(const ArrayRef<uint8_t> BuildID,
   for (const std::unique_ptr<DIFetcher> &Fetcher : DIFetchers) {
     Path = Fetcher->fetchBuildID(BuildID);
     if (Path) {
-      Result = std::move(*Path);
+      recordPath(*Path);
       return true;
     }
   }
@@ -447,8 +501,10 @@ Expected<LLVMSymbolizer::ObjectPair>
 LLVMSymbolizer::getOrCreateObjectPair(const std::string &Path,
                                       const std::string &ArchName) {
   auto I = ObjectPairForPathArch.find(std::make_pair(Path, ArchName));
-  if (I != ObjectPairForPathArch.end())
+  if (I != ObjectPairForPathArch.end()) {
+    recordAccess(BinaryForPath.find(Path)->second);
     return I->second;
+  }
 
   auto ObjOrErr = getOrCreateObject(Path, ArchName);
   if (!ObjOrErr) {
@@ -470,7 +526,12 @@ LLVMSymbolizer::getOrCreateObjectPair(const std::string &Path,
   if (!DbgObj)
     DbgObj = Obj;
   ObjectPair Res = std::make_pair(Obj, DbgObj);
-  ObjectPairForPathArch.emplace(std::make_pair(Path, ArchName), Res);
+  std::string DbgObjPath = DbgObj->getFileName().str();
+  auto Pair =
+      ObjectPairForPathArch.emplace(std::make_pair(Path, ArchName), Res);
+  BinaryForPath.find(DbgObjPath)->second.pushEvictor([this, I = Pair.first]() {
+    ObjectPairForPathArch.erase(I);
+  });
   return Res;
 }
 
@@ -480,13 +541,19 @@ LLVMSymbolizer::getOrCreateObject(const std::string &Path,
   Binary *Bin;
   auto Pair = BinaryForPath.emplace(Path, OwningBinary<Binary>());
   if (!Pair.second) {
-    Bin = Pair.first->second.getBinary();
+    Bin = Pair.first->second->getBinary();
+    recordAccess(Pair.first->second);
   } else {
     Expected<OwningBinary<Binary>> BinOrErr = createBinary(Path);
     if (!BinOrErr)
       return BinOrErr.takeError();
-    Pair.first->second = std::move(BinOrErr.get());
-    Bin = Pair.first->second.getBinary();
+
+    CachedBinary &CachedBin = Pair.first->second;
+    CachedBin = std::move(BinOrErr.get());
+    CachedBin.pushEvictor([this, I = Pair.first]() { BinaryForPath.erase(I); });
+    LRUBinaries.push_back(CachedBin);
+    CacheSize += CachedBin.size();
+    Bin = CachedBin->getBinary();
   }
 
   if (!Bin)
@@ -505,8 +572,10 @@ LLVMSymbolizer::getOrCreateObject(const std::string &Path,
       return ObjOrErr.takeError();
     }
     ObjectFile *Res = ObjOrErr->get();
-    ObjectForUBPathAndArch.emplace(std::make_pair(Path, ArchName),
-                                   std::move(ObjOrErr.get()));
+    auto Pair = ObjectForUBPathAndArch.emplace(std::make_pair(Path, ArchName),
+                                               std::move(ObjOrErr.get()));
+    BinaryForPath.find(Path)->second.pushEvictor(
+        [this, Iter = Pair.first]() { ObjectForUBPathAndArch.erase(Iter); });
     return Res;
   }
   if (Bin->isObject()) {
@@ -534,10 +603,6 @@ LLVMSymbolizer::createModuleInfo(const ObjectFile *Obj,
 
 Expected<SymbolizableModule *>
 LLVMSymbolizer::getOrCreateModuleInfo(const std::string &ModuleName) {
-  auto I = Modules.find(ModuleName);
-  if (I != Modules.end())
-    return I->second.get();
-
   std::string BinaryName = ModuleName;
   std::string ArchName = Opts.DefaultArch;
   size_t ColonPos = ModuleName.find_last_of(':');
@@ -549,6 +614,13 @@ LLVMSymbolizer::getOrCreateModuleInfo(const std::string &ModuleName) {
       ArchName = ArchStr;
     }
   }
+
+  auto I = Modules.find(ModuleName);
+  if (I != Modules.end()) {
+    recordAccess(BinaryForPath.find(BinaryName)->second);
+    return I->second.get();
+  }
+
   auto ObjectsOrErr = getOrCreateObjectPair(BinaryName, ArchName);
   if (!ObjectsOrErr) {
     // Failed to find valid object file.
@@ -589,7 +661,15 @@ LLVMSymbolizer::getOrCreateModuleInfo(const std::string &ModuleName) {
     Context = DWARFContext::create(
         *Objects.second, DWARFContext::ProcessDebugRelocations::Process,
         nullptr, Opts.DWPName);
-  return createModuleInfo(Objects.first, std::move(Context), ModuleName);
+  auto ModuleOrErr =
+      createModuleInfo(Objects.first, std::move(Context), ModuleName);
+  if (ModuleOrErr) {
+    auto I = Modules.find(ModuleName);
+    BinaryForPath.find(BinaryName)->second.pushEvictor([this, I]() {
+      Modules.erase(I);
+    });
+  }
+  return ModuleOrErr;
 }
 
 Expected<SymbolizableModule *>
@@ -602,6 +682,17 @@ LLVMSymbolizer::getOrCreateModuleInfo(const ObjectFile &Obj) {
   std::unique_ptr<DIContext> Context = DWARFContext::create(Obj);
   // FIXME: handle COFF object with PDB info to use PDBContext
   return createModuleInfo(&Obj, std::move(Context), ObjName);
+}
+
+Expected<SymbolizableModule *>
+LLVMSymbolizer::getOrCreateModuleInfo(ArrayRef<uint8_t> BuildID) {
+  std::string Path;
+  if (!getOrFindDebugBinary(BuildID, Path)) {
+    return createStringError(errc::no_such_file_or_directory,
+                             Twine("could not find build ID '") +
+                                 toHex(BuildID) + "'");
+  }
+  return getOrCreateModuleInfo(Path);
 }
 
 namespace {
@@ -659,6 +750,36 @@ LLVMSymbolizer::DemangleName(const std::string &Name,
   if (DbiModuleDescriptor && DbiModuleDescriptor->isWin32Module())
     return std::string(demanglePE32ExternCFunc(Name));
   return Name;
+}
+
+void LLVMSymbolizer::recordAccess(CachedBinary &Bin) {
+  if (Bin->getBinary())
+    LRUBinaries.splice(LRUBinaries.end(), LRUBinaries, Bin.getIterator());
+}
+
+void LLVMSymbolizer::pruneCache() {
+  // Evict the LRU binary until the max cache size is reached or there's <= 1
+  // item in the cache. The MRU binary is always kept to avoid thrashing if it's
+  // larger than the cache size.
+  while (CacheSize > Opts.MaxCacheSize && !LRUBinaries.empty() &&
+         std::next(LRUBinaries.begin()) != LRUBinaries.end()) {
+    CachedBinary &Bin = LRUBinaries.front();
+    CacheSize -= Bin.size();
+    LRUBinaries.pop_front();
+    Bin.evict();
+  }
+}
+
+void CachedBinary::pushEvictor(std::function<void()> NewEvictor) {
+  if (Evictor) {
+    this->Evictor = [OldEvictor = std::move(this->Evictor),
+                     NewEvictor = std::move(NewEvictor)]() {
+      NewEvictor();
+      OldEvictor();
+    };
+  } else {
+    this->Evictor = std::move(NewEvictor);
+  }
 }
 
 } // namespace symbolize

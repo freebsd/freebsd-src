@@ -53,6 +53,7 @@
 #include <net/vnet.h>
 
 #include <netinet/in.h>
+#include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
@@ -84,6 +85,7 @@
 #ifdef INET6
 #include <netipsec/ipsec6.h>
 #endif
+#include <netipsec/ipsec_support.h>
 #include <netipsec/ah_var.h>
 #include <netipsec/esp_var.h>
 #include <netipsec/ipcomp_var.h>

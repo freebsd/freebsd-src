@@ -37,11 +37,13 @@
     ..
     lib
         clang
-            14.0.5
+            15.0.7
                 include
                     cuda_wrappers
                     ..
                     fuzzer
+                    ..
+                    hlsl
                     ..
                     openmp_wrappers
                     ..
@@ -898,8 +900,6 @@
             Mexico
             ..
             Pacific
-            ..
-            SystemV
             ..
             US
             ..

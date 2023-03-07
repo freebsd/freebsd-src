@@ -77,6 +77,7 @@ struct nexus_device {
 #define DEVTONX(dev)	((struct nexus_device *)device_get_ivars(dev))
 
 static struct rman mem_rman;
+static struct rman irq_rman;
 
 static	int nexus_probe(device_t);
 static	int nexus_attach(device_t);
@@ -86,6 +87,8 @@ static	struct resource *nexus_alloc_resource(device_t, device_t, int, int *,
     rman_res_t, rman_res_t, rman_res_t, u_int);
 static	int nexus_activate_resource(device_t, device_t, int, int,
     struct resource *);
+static	int nexus_adjust_resource(device_t, device_t, int, struct resource *,
+    rman_res_t, rman_res_t);
 static bus_space_tag_t nexus_get_bus_tag(device_t, device_t);
 static bus_dma_tag_t nexus_get_dma_tag(device_t dev, device_t child);
 #ifdef SMP
@@ -125,6 +128,7 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_add_child,	nexus_add_child),
 	DEVMETHOD(bus_alloc_resource,	nexus_alloc_resource),
 	DEVMETHOD(bus_activate_resource,	nexus_activate_resource),
+	DEVMETHOD(bus_adjust_resource,	nexus_adjust_resource),
 	DEVMETHOD(bus_config_intr,	nexus_config_intr),
 	DEVMETHOD(bus_deactivate_resource,	nexus_deactivate_resource),
 	DEVMETHOD(bus_release_resource,	nexus_release_resource),
@@ -171,9 +175,18 @@ nexus_attach(device_t dev)
 	if (rman_init(&mem_rman) ||
 	    rman_manage_region(&mem_rman, 0, BUS_SPACE_MAXADDR))
 		panic("nexus_probe mem_rman");
+	irq_rman.rm_start = 0;
+	irq_rman.rm_end = ~0;
+	irq_rman.rm_type = RMAN_ARRAY;
+	irq_rman.rm_descr = "Interrupts";
+	if (rman_init(&irq_rman) || rman_manage_region(&irq_rman, 0, ~0))
+		panic("nexus_attach irq_rman");
+
+	/* First, add ofwbus0. */
+	device_add_child(dev, "ofwbus", 0);
 
 	/*
-	 * First, deal with the children we know about already
+	 * Next, deal with the children we know about already.
 	 */
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
@@ -227,6 +240,10 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	flags &= ~RF_ACTIVE;
 
 	switch (type) {
+	case SYS_RES_IRQ:
+		rm = &irq_rman;
+		break;
+
 	case SYS_RES_MEMORY:
 	case SYS_RES_IOPORT:
 		rm = &mem_rman;
@@ -250,6 +267,27 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	}
 
 	return (rv);
+}
+
+static int
+nexus_adjust_resource(device_t bus __unused, device_t child __unused, int type,
+    struct resource *r, rman_res_t start, rman_res_t end)
+{
+	struct rman *rm;
+
+	switch (type) {
+	case SYS_RES_IRQ:
+		rm = &irq_rman;
+		break;
+	case SYS_RES_MEMORY:
+		rm = &mem_rman;
+		break;
+	default:
+		return (EINVAL);
+	}
+	if (rman_is_region_manager(r, rm) == 0)
+		return (EINVAL);
+	return (rman_adjust_resource(r, start, end));
 }
 
 static int
@@ -399,7 +437,7 @@ nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 #ifdef FDT
 			bus_space_unmap(fdtbus_bs_tag, vaddr, psize);
 #else
-			pmap_unmapdev((vm_offset_t)vaddr, (vm_size_t)psize);
+			pmap_unmapdev((void *)vaddr, (vm_size_t)psize);
 #endif
 			rman_set_virtual(r, NULL);
 			rman_set_bushandle(r, 0);

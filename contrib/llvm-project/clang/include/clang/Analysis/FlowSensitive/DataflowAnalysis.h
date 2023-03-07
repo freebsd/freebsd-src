@@ -63,8 +63,14 @@ public:
   using Lattice = LatticeT;
 
   explicit DataflowAnalysis(ASTContext &Context) : Context(Context) {}
+
+  /// Deprecated. Use the `DataflowAnalysisOptions` constructor instead.
   explicit DataflowAnalysis(ASTContext &Context, bool ApplyBuiltinTransfer)
       : TypeErasedDataflowAnalysis(ApplyBuiltinTransfer), Context(Context) {}
+
+  explicit DataflowAnalysis(ASTContext &Context,
+                            DataflowAnalysisOptions Options)
+      : TypeErasedDataflowAnalysis(Options), Context(Context) {}
 
   ASTContext &getASTContext() final { return Context; }
 
@@ -106,16 +112,36 @@ template <typename LatticeT> struct DataflowAnalysisState {
 };
 
 /// Performs dataflow analysis and returns a mapping from basic block IDs to
-/// dataflow analysis states that model the respective basic blocks. Indices
-/// of the returned vector correspond to basic block IDs. Returns an error if
-/// the dataflow analysis cannot be performed successfully.
+/// dataflow analysis states that model the respective basic blocks. The
+/// returned vector, if any, will have the same size as the number of CFG
+/// blocks, with indices corresponding to basic block IDs. Returns an error if
+/// the dataflow analysis cannot be performed successfully. Otherwise, calls
+/// `PostVisitStmt` on each statement with the final analysis results at that
+/// program point.
 template <typename AnalysisT>
 llvm::Expected<std::vector<
     llvm::Optional<DataflowAnalysisState<typename AnalysisT::Lattice>>>>
-runDataflowAnalysis(const ControlFlowContext &CFCtx, AnalysisT &Analysis,
-                    const Environment &InitEnv) {
-  auto TypeErasedBlockStates =
-      runTypeErasedDataflowAnalysis(CFCtx, Analysis, InitEnv);
+runDataflowAnalysis(
+    const ControlFlowContext &CFCtx, AnalysisT &Analysis,
+    const Environment &InitEnv,
+    std::function<void(const Stmt *, const DataflowAnalysisState<
+                                         typename AnalysisT::Lattice> &)>
+        PostVisitStmt = nullptr) {
+  std::function<void(const Stmt *, const TypeErasedDataflowAnalysisState &)>
+      PostVisitStmtClosure = nullptr;
+  if (PostVisitStmt != nullptr) {
+    PostVisitStmtClosure = [&PostVisitStmt](
+                               const Stmt *Stmt,
+                               const TypeErasedDataflowAnalysisState &State) {
+      auto *Lattice =
+          llvm::any_cast<typename AnalysisT::Lattice>(&State.Lattice.Value);
+      PostVisitStmt(Stmt, DataflowAnalysisState<typename AnalysisT::Lattice>{
+                              *Lattice, State.Env});
+    };
+  }
+
+  auto TypeErasedBlockStates = runTypeErasedDataflowAnalysis(
+      CFCtx, Analysis, InitEnv, PostVisitStmtClosure);
   if (!TypeErasedBlockStates)
     return TypeErasedBlockStates.takeError();
 
@@ -135,6 +161,15 @@ runDataflowAnalysis(const ControlFlowContext &CFCtx, AnalysisT &Analysis,
                   });
   return BlockStates;
 }
+
+/// Abstract base class for dataflow "models": reusable analysis components that
+/// model a particular aspect of program semantics in the `Environment`. For
+/// example, a model may capture a type and its related functions.
+class DataflowModel : public Environment::ValueModel {
+public:
+  /// Return value indicates whether the model processed the `Stmt`.
+  virtual bool transfer(const Stmt *Stmt, Environment &Env) = 0;
+};
 
 } // namespace dataflow
 } // namespace clang

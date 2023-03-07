@@ -83,8 +83,7 @@ vpmtmr_cleanup(struct vpmtmr *vpmtmr)
 }
 
 int
-vpmtmr_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
-    uint32_t *val)
+vpmtmr_handler(struct vm *vm, bool in, int port, int bytes, uint32_t *val)
 {
 	struct vpmtmr *vpmtmr;
 	sbintime_t now, delta;

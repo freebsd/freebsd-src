@@ -168,7 +168,7 @@ kadm5_s_chpass_principal_with_key(void *server_handle,
 	return ret;
     ret = context->db->hdb_fetch_kvno(context->context, context->db, princ, 0,
 				      HDB_F_GET_ANY|HDB_F_ADMIN_DATA, &ent);
-    if(ret == HDB_ERR_NOENTRY)
+    if(ret)
 	goto out;
     ret = _kadm5_set_keys2(context, &ent.entry, n_key_data, key_data);
     if(ret)

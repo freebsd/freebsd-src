@@ -32,7 +32,7 @@
  * analysis and other such goodies.
  * But we would still default to the current default of not to do that.
  */
-unsigned int spl_panic_halt;
+static unsigned int spl_panic_halt;
 /* CSTYLED */
 module_param(spl_panic_halt, uint, 0644);
 MODULE_PARM_DESC(spl_panic_halt, "Cause kernel panic on assertion failures");
@@ -45,7 +45,7 @@ spl_dumpstack(void)
 }
 EXPORT_SYMBOL(spl_dumpstack);
 
-int
+void
 spl_panic(const char *file, const char *func, int line, const char *fmt, ...)
 {
 	const char *newfile;
@@ -75,7 +75,6 @@ spl_panic(const char *file, const char *func, int line, const char *fmt, ...)
 		schedule();
 
 	/* Unreachable */
-	return (1);
 }
 EXPORT_SYMBOL(spl_panic);
 

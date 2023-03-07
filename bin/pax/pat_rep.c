@@ -46,11 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#ifdef NET2_REGEX
-#include <regexp.h>
-#else
 #include <regex.h>
-#endif
 #include "pax.h"
 #include "pat_rep.h"
 #include "extern.h"
@@ -73,11 +69,7 @@ static int tty_rename(ARCHD *);
 static int fix_path(char *, int *, char *, int);
 static int fn_match(char *, char *, char **);
 static char * range_match(char *, int);
-#ifdef NET2_REGEX
-static int resub(regexp *, char *, char *, char *);
-#else
 static int resub(regex_t *, regmatch_t *, char *, char *, char *, char *);
-#endif
 
 /*
  * rep_add()
@@ -101,10 +93,8 @@ rep_add(char *str)
 	char *pt1;
 	char *pt2;
 	REPLACE *rep;
-#	ifndef NET2_REGEX
 	int res;
 	char rebuf[BUFSIZ];
-#	endif
 
 	/*
 	 * throw out the bad parameters
@@ -133,13 +123,9 @@ rep_add(char *str)
 	}
 
 	*pt1 = '\0';
-#	ifdef NET2_REGEX
-	if ((rep->rcmp = regcomp(str+1)) == NULL) {
-#	else
 	if ((res = regcomp(&(rep->rcmp), str+1, 0)) != 0) {
 		regerror(res, &(rep->rcmp), rebuf, sizeof(rebuf));
 		paxwarn(1, "%s while compiling regular expression %s", rebuf, str);
-#	endif
 		free(rep);
 		return(-1);
 	}
@@ -151,11 +137,7 @@ rep_add(char *str)
 	 */
 	*pt1++ = *str;
 	if ((pt2 = strchr(pt1, *str)) == NULL) {
-#		ifdef NET2_REGEX
-		free(rep->rcmp);
-#		else
 		regfree(&rep->rcmp);
-#		endif
 		free(rep);
 		paxwarn(1, "Invalid replacement string %s", str);
 		return(-1);
@@ -180,11 +162,7 @@ rep_add(char *str)
 			rep->flgs  |= PRNT;
 			break;
 		default:
-#			ifdef NET2_REGEX
-			free(rep->rcmp);
-#			else
 			regfree(&rep->rcmp);
-#			endif
 			free(rep);
 			*pt1 = *str;
 			paxwarn(1, "Invalid replacement string option %s", str);
@@ -865,9 +843,7 @@ rep_name(char *name, int *nlen, int prnt)
 	char *rpt;
 	int found = 0;
 	int res;
-#	ifndef NET2_REGEX
 	regmatch_t pm[MAXSUBEXP];
-#	endif
 	char nname[PAXPATHLEN+1];	/* final result of all replacements */
 	char buf1[PAXPATHLEN+1];	/* where we work on the name */
 
@@ -894,11 +870,7 @@ rep_name(char *name, int *nlen, int prnt)
 			 * check for a successful substitution, if not go to
 			 * the next pattern, or cleanup if we were global
 			 */
-#			ifdef NET2_REGEX
-			if (regexec(pt->rcmp, inpt) == 0)
-#			else
 			if (regexec(&(pt->rcmp), inpt, MAXSUBEXP, pm, 0) != 0)
-#			endif
 				break;
 
 			/*
@@ -909,11 +881,7 @@ rep_name(char *name, int *nlen, int prnt)
 			 * do not create a string too long).
 			 */
 			found = 1;
-#			ifdef NET2_REGEX
-			rpt = pt->rcmp->startp[0];
-#			else
 			rpt = inpt + pm[0].rm_so;
-#			endif
 
 			while ((inpt < rpt) && (outpt < endpt))
 				*outpt++ = *inpt++;
@@ -926,12 +894,8 @@ rep_name(char *name, int *nlen, int prnt)
 			 * replacement string and place it the prefix in the
 			 * final output. If we have problems, skip it.
 			 */
-#			ifdef NET2_REGEX
-			if ((res = resub(pt->rcmp,pt->nstr,outpt,endpt)) < 0) {
-#			else
 			if ((res = resub(&(pt->rcmp),pm,inpt,pt->nstr,outpt,endpt))
 			    < 0) {
-#			endif
 				if (prnt)
 					paxwarn(1, "Replacement name error %s",
 					    name);
@@ -949,11 +913,7 @@ rep_name(char *name, int *nlen, int prnt)
 			 * the final result. Make sure we do not overrun the
 			 * output buffer
 			 */
-#			ifdef NET2_REGEX
-			inpt = pt->rcmp->endp[0];
-#			else
 			inpt += pm[0].rm_eo - pm[0].rm_so;
-#			endif
 
 			if ((outpt == endpt) || (*inpt == '\0'))
 				break;
@@ -1012,55 +972,6 @@ rep_name(char *name, int *nlen, int prnt)
 	return(0);
 }
 
-#ifdef NET2_REGEX
-/*
- * resub()
- *	apply the replacement to the matched expression. expand out the old
- * 	style ed(1) subexpression expansion.
- * Return:
- *	-1 if error, or the number of characters added to the destination.
- */
-
-static int
-resub(regexp *prog, char *src, char *dest, char *destend)
-{
-	char *spt;
-	char *dpt;
-	char c;
-	int no;
-	int len;
-
-	spt = src;
-	dpt = dest;
-	while ((dpt < destend) && ((c = *spt++) != '\0')) {
-		if (c == '&')
-			no = 0;
-		else if ((c == '\\') && (*spt >= '0') && (*spt <= '9'))
-			no = *spt++ - '0';
-		else {
- 			if ((c == '\\') && ((*spt == '\\') || (*spt == '&')))
- 				c = *spt++;
- 			*dpt++ = c;
-			continue;
-		}
- 		if ((prog->startp[no] == NULL) || (prog->endp[no] == NULL) ||
-		    ((len = prog->endp[no] - prog->startp[no]) <= 0))
-			continue;
-
-		/*
-		 * copy the subexpression to the destination.
-		 * fail if we run out of space or the match string is damaged
-		 */
-		if (len > (destend - dpt))
-			len = destend - dpt;
-		if (l_strncpy(dpt, prog->startp[no], len) != len)
-			return(-1);
-		dpt += len;
-	}
-	return(dpt - dest);
-}
-
-#else
 
 /*
  * resub()
@@ -1127,4 +1038,3 @@ resub(regex_t *rp, regmatch_t *pm, char *orig, char *src, char *dest,
 	}
 	return(dpt - dest);
 }
-#endif

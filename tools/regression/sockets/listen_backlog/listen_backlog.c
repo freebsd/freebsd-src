@@ -44,7 +44,7 @@
  *
  * Future things to test:
  *
- * - That if we change the value of kern.ipc.somaxconn, the limits really
+ * - That if we change the value of kern.ipc.soacceptqueue, the limits really
  *   do change.
  *
  * - That limits are, approximately, enforced and implemented.
@@ -55,7 +55,7 @@
  */
 
 /*
- * We retrieve kern.ipc.somaxconn before running the tests in order to use a
+ * We retrieve kern.ipc.soacceptqueue before running the tests in order to use a
  * run-time set value of SOMAXCONN, rather than compile-time set.  We assume
  * that no other process will be simultaneously frobbing it, and these tests
  * may fail if that assumption is not held.
@@ -371,9 +371,9 @@ main(void)
 	size_t len;
 
 	len = sizeof(somaxconn);
-	if (sysctlbyname("kern.ipc.somaxconn", &somaxconn, &len, NULL, 0)
+	if (sysctlbyname("kern.ipc.soacceptqueue", &somaxconn, &len, NULL, 0)
 	    < 0)
-		err(-1, "sysctlbyname(kern.ipc.somaxconn)");
+		err(-1, "sysctlbyname(kern.ipc.soacceptqueue)");
 
 	test_defaults();
 	test_listen_update();

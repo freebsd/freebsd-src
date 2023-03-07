@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 15, 2022
+.Dd January 16, 2023
 .Dt UMA 9
 .Os
 .Sh NAME
@@ -50,7 +50,7 @@ typedef void (*uma_free)(void *item, vm_size_t size, uint8_t pflag);
 .Ed
 .Ft uma_zone_t
 .Fo uma_zcreate
-.Fa "char *name" "int size"
+.Fa "char *name" "size_t size"
 .Fa "uma_ctor ctor" "uma_dtor dtor" "uma_init zinit" "uma_fini zfini"
 .Fa "int align" "uint16_t flags"
 .Fc
@@ -79,6 +79,8 @@ typedef void (*uma_free)(void *item, vm_size_t size, uint8_t pflag);
 .Fn uma_zalloc_pcpu "uma_zone_t zone" "int flags"
 .Ft "void *"
 .Fn uma_zalloc_pcpu_arg "uma_zone_t zone" "void *arg" "int flags"
+.Ft "void *"
+.Fn uma_zalloc_smr "uma_zone_t zone" "int flags"
 .Ft void
 .Fn uma_zfree "uma_zone_t zone" "void *item"
 .Ft void
@@ -87,6 +89,8 @@ typedef void (*uma_free)(void *item, vm_size_t size, uint8_t pflag);
 .Fn uma_zfree_pcpu "uma_zone_t zone" "void *item"
 .Ft void
 .Fn uma_zfree_pcpu_arg "uma_zone_t zone" "void *item" "void *arg"
+.Ft void
+.Fn uma_zfree_smr "uma_zone_t zone" "void *item"
 .Ft void
 .Fn uma_prealloc "uma_zone_t zone" "int nitems"
 .Ft void
@@ -117,6 +121,10 @@ typedef void (*uma_free)(void *item, vm_size_t size, uint8_t pflag);
 .Fn uma_zone_set_warning "uma_zone_t zone" "const char *warning"
 .Ft void
 .Fn uma_zone_set_maxaction "uma_zone_t zone" "void (*maxaction)(uma_zone_t)"
+.Ft smr_t
+.Fn uma_zone_get_smr "uma_zone_t zone"
+.Ft void
+.Fn uma_zone_set_smr "uma_zone_t zone" "smr_t smr"
 .In sys/sysctl.h
 .Fn SYSCTL_UMA_MAX parent nbr name access zone descr
 .Fn SYSCTL_ADD_UMA_MAX ctx parent nbr name access zone descr
@@ -330,6 +338,14 @@ Cached items that have not been used for a long period may also be freed from
 zone.
 When this flag is set, the system will not reclaim memory from the zone's
 caches.
+.It Dv UMA_ZONE_SMR
+Create a zone whose items will be synchronized using the
+.Xr smr 9
+mechanism.
+Upon creation the zone will have an associated
+.Dt smr_t
+structure which can be fetched using
+.Fn uma_zone_get_smr .
 .El
 .Pp
 Zones can be destroyed using
@@ -388,6 +404,17 @@ is
 then
 .Fn uma_zfree_pcpu
 does nothing.
+.Pp
+The
+.Fn uma_zalloc_smr
+and
+.Fn uma_zfree_smr
+functions allocate and free items from an SMR-enabled zone, that is,
+a zone created with
+.Dv UMA_ZONE_SMR
+or a zone that has had
+.Fn uma_zone_set_smr
+called.
 .Pp
 The
 .Fn uma_zalloc_domain
@@ -535,6 +562,16 @@ Therefore,
 this function should do very little work (similar to a signal handler).
 .Pp
 The
+.Fn uma_zone_set_smr
+function associates an existing
+.Xr smr 9
+structure with a UMA zone.
+The effect is similar to creating a zone with the
+.Dv UMA_ZONE_SMR
+flag, except that a new SMR structure is not created.
+This function must be called before any allocations from the zone are performed.
+.Pp
+The
 .Fn SYSCTL_UMA_MAX parent nbr name access zone descr
 macro declares a static
 .Xr sysctl 9
@@ -577,7 +614,8 @@ non-executable memory.
 .Sh SEE ALSO
 .Xr numa 4 ,
 .Xr vmstat 8 ,
-.Xr malloc 9
+.Xr malloc 9 ,
+.Xr smr 9
 .Rs
 .%A Jeff Bonwick
 .%T "The Slab Allocator: An Object-Caching Kernel Memory Allocator"

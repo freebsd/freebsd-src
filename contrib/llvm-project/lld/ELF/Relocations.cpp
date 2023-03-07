@@ -42,6 +42,7 @@
 
 #include "Relocations.h"
 #include "Config.h"
+#include "InputFiles.h"
 #include "LinkerScript.h"
 #include "OutputSections.h"
 #include "SymbolTable.h"
@@ -51,11 +52,9 @@
 #include "Thunks.h"
 #include "lld/Common/ErrorHandler.h"
 #include "lld/Common/Memory.h"
-#include "lld/Common/Strings.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/Demangle/Demangle.h"
 #include "llvm/Support/Endian.h"
-#include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 
 using namespace llvm;
@@ -249,7 +248,7 @@ template <class ELFT> static bool isReadOnly(SharedSymbol &ss) {
   using Elf_Phdr = typename ELFT::Phdr;
 
   // Determine if the symbol is read-only by scanning the DSO's program headers.
-  const SharedFile &file = ss.getFile();
+  const auto &file = cast<SharedFile>(*ss.file);
   for (const Elf_Phdr &phdr :
        check(file.template getObj<ELFT>().program_headers()))
     if ((phdr.p_type == ELF::PT_LOAD || phdr.p_type == ELF::PT_GNU_RELRO) &&
@@ -268,7 +267,7 @@ template <class ELFT>
 static SmallSet<SharedSymbol *, 4> getSymbolsAt(SharedSymbol &ss) {
   using Elf_Sym = typename ELFT::Sym;
 
-  SharedFile &file = ss.getFile();
+  const auto &file = cast<SharedFile>(*ss.file);
 
   SmallSet<SharedSymbol *, 4> ret;
   for (const Elf_Sym &s : file.template getGlobalELFSyms<ELFT>()) {
@@ -299,7 +298,7 @@ static void replaceWithDefined(Symbol &sym, SectionBase &sec, uint64_t value,
                                uint64_t size) {
   Symbol old = sym;
 
-  sym.replace(Defined{sym.file, sym.getName(), sym.binding, sym.stOther,
+  sym.replace(Defined{sym.file, StringRef(), sym.binding, sym.stOther,
                       sym.type, value, size, &sec});
 
   sym.auxIdx = old.auxIdx;
@@ -352,7 +351,7 @@ static void replaceWithDefined(Symbol &sym, SectionBase &sec, uint64_t value,
 // to the variable in .bss. This kind of issue is sometimes very hard to
 // debug. What's a solution? Instead of exporting a variable V from a DSO,
 // define an accessor getV().
-template <class ELFT> static void addCopyRelSymbolImpl(SharedSymbol &ss) {
+template <class ELFT> static void addCopyRelSymbol(SharedSymbol &ss) {
   // Copy relocation against zero-sized symbol doesn't make sense.
   uint64_t symSize = ss.getSize();
   if (symSize == 0 || ss.alignment == 0)
@@ -381,26 +380,6 @@ template <class ELFT> static void addCopyRelSymbolImpl(SharedSymbol &ss) {
     replaceWithDefined(*sym, *sec, 0, sym->size);
 
   mainPart->relaDyn->addSymbolReloc(target->copyRel, *sec, 0, ss);
-}
-
-static void addCopyRelSymbol(SharedSymbol &ss) {
-  const SharedFile &file = ss.getFile();
-  switch (file.ekind) {
-  case ELF32LEKind:
-    addCopyRelSymbolImpl<ELF32LE>(ss);
-    break;
-  case ELF32BEKind:
-    addCopyRelSymbolImpl<ELF32BE>(ss);
-    break;
-  case ELF64LEKind:
-    addCopyRelSymbolImpl<ELF64LE>(ss);
-    break;
-  case ELF64BEKind:
-    addCopyRelSymbolImpl<ELF64BE>(ss);
-    break;
-  default:
-    llvm_unreachable("");
-  }
 }
 
 // .eh_frame sections are mergeable input sections, so their input
@@ -499,7 +478,7 @@ int64_t RelocationScanner::computeMipsAddend(const RelTy &rel, RelExpr expr,
   if (pairTy == R_MIPS_NONE)
     return 0;
 
-  const uint8_t *buf = sec.data().data();
+  const uint8_t *buf = sec.rawData.data();
   uint32_t symIndex = rel.getSymbol(config->isMips64EL);
 
   // To make things worse, paired relocations might not be contiguous in
@@ -526,7 +505,7 @@ int64_t RelocationScanner::computeAddend(const RelTy &rel, RelExpr expr,
   if (RelTy::IsRela) {
     addend = getAddend<ELFT>(rel);
   } else {
-    const uint8_t *buf = sec.data().data();
+    const uint8_t *buf = sec.rawData.data();
     addend = target.getImplicitAddend(buf + rel.r_offset, type);
   }
 
@@ -566,12 +545,20 @@ static std::string maybeReportDiscarded(Undefined &sym) {
   // If the discarded section is a COMDAT.
   StringRef signature = file->getShtGroupSignature(objSections, elfSec);
   if (const InputFile *prevailing =
-          symtab->comdatGroups.lookup(CachedHashStringRef(signature)))
+          symtab->comdatGroups.lookup(CachedHashStringRef(signature))) {
     msg += "\n>>> section group signature: " + signature.str() +
            "\n>>> prevailing definition is in " + toString(prevailing);
+    if (sym.nonPrevailing) {
+      msg += "\n>>> or the symbol in the prevailing group had STB_WEAK "
+             "binding and the symbol in a non-prevailing group had STB_GLOBAL "
+             "binding. Mixing groups with STB_WEAK and STB_GLOBAL binding "
+             "signature is not supported";
+    }
+  }
   return msg;
 }
 
+namespace {
 // Undefined diagnostics are collected in a vector and emitted once all of
 // them are known, so that some postprocessing on the list of undefined symbols
 // can happen before lld emits diagnostics.
@@ -585,7 +572,8 @@ struct UndefinedDiag {
   bool isWarning;
 };
 
-static std::vector<UndefinedDiag> undefs;
+std::vector<UndefinedDiag> undefs;
+}
 
 // Check whether the definition name def is a mangled function name that matches
 // the reference name ref.
@@ -719,7 +707,6 @@ static const Symbol *getAlternativeSpelling(const Undefined &sym,
   return nullptr;
 }
 
-template <class ELFT>
 static void reportUndefinedSymbol(const UndefinedDiag &undef,
                                   bool correctSpelling) {
   Undefined &sym = *undef.sym;
@@ -737,7 +724,23 @@ static void reportUndefinedSymbol(const UndefinedDiag &undef,
     }
   };
 
-  std::string msg = maybeReportDiscarded<ELFT>(sym);
+  std::string msg;
+  switch (config->ekind) {
+  case ELF32LEKind:
+    msg = maybeReportDiscarded<ELF32LE>(sym);
+    break;
+  case ELF32BEKind:
+    msg = maybeReportDiscarded<ELF32BE>(sym);
+    break;
+  case ELF64LEKind:
+    msg = maybeReportDiscarded<ELF64LE>(sym);
+    break;
+  case ELF64BEKind:
+    msg = maybeReportDiscarded<ELF64BE>(sym);
+    break;
+  default:
+    llvm_unreachable("");
+  }
   if (msg.empty())
     msg = "undefined " + visibility() + "symbol: " + toString(sym);
 
@@ -788,7 +791,7 @@ static void reportUndefinedSymbol(const UndefinedDiag &undef,
     error(msg, ErrorTag::SymbolNotFound, {sym.getName()});
 }
 
-template <class ELFT> void elf::reportUndefinedSymbols() {
+void elf::reportUndefinedSymbols() {
   // Find the first "undefined symbol" diagnostic for each diagnostic, and
   // collect all "referenced from" lines at the first diagnostic.
   DenseMap<Symbol *, UndefinedDiag *> firstRef;
@@ -804,7 +807,7 @@ template <class ELFT> void elf::reportUndefinedSymbols() {
   // Enable spell corrector for the first 2 diagnostics.
   for (auto it : enumerate(undefs))
     if (!it.value().locs.empty())
-      reportUndefinedSymbol<ELFT>(it.value(), it.index() < 2);
+      reportUndefinedSymbol(it.value(), it.index() < 2);
   undefs.clear();
 }
 
@@ -942,7 +945,7 @@ static bool canDefineSymbolInExecutable(Symbol &sym) {
 }
 
 // Returns true if a given relocation can be computed at link-time.
-// This only handles relocation types expected in processRelocAux.
+// This only handles relocation types expected in processAux.
 //
 // For instance, we know the offset from a relocation to its target at
 // link-time if the relocation is PC-relative and refers a
@@ -955,8 +958,8 @@ bool RelocationScanner::isStaticLinkTimeConstant(RelExpr e, RelType type,
                                                  const Symbol &sym,
                                                  uint64_t relOff) const {
   // These expressions always compute a constant
-  if (oneof<R_GOTPLT, R_GOT_OFF, R_MIPS_GOT_LOCAL_PAGE, R_MIPS_GOTREL,
-            R_MIPS_GOT_OFF, R_MIPS_GOT_OFF32, R_MIPS_GOT_GP_PC,
+  if (oneof<R_GOTPLT, R_GOT_OFF, R_RELAX_HINT, R_MIPS_GOT_LOCAL_PAGE,
+            R_MIPS_GOTREL, R_MIPS_GOT_OFF, R_MIPS_GOT_OFF32, R_MIPS_GOT_GP_PC,
             R_AARCH64_GOT_PAGE_PC, R_GOT_PC, R_GOTONLY_PC, R_GOTPLTONLY_PC,
             R_PLT_PC, R_PLT_GOTPLT, R_PPC32_PLTREL, R_PPC64_CALL_PLT,
             R_PPC64_RELAX_TOC, R_RISCV_ADD, R_AARCH64_GOT_PAGE>(e))
@@ -1223,7 +1226,7 @@ static unsigned handleTlsRelocation(RelType type, Symbol &sym,
     }
     if (expr == R_TLSLD_HINT)
       return 1;
-    sym.needsTlsLd = true;
+    config->needsTlsLd = true;
     c.relocations.push_back({expr, type, offset, addend, &sym});
     return 1;
   }
@@ -1313,7 +1316,7 @@ template <class ELFT, class RelTy> void RelocationScanner::scanOne(RelTy *&i) {
       maybeReportUndefined(cast<Undefined>(sym), sec, offset))
     return;
 
-  const uint8_t *relocatedAddr = sec.data().begin() + offset;
+  const uint8_t *relocatedAddr = sec.rawData.begin() + offset;
   RelExpr expr = target.getRelExpr(type, sym, relocatedAddr);
 
   // Ignore R_*_NONE and other marker relocations.
@@ -1608,7 +1611,7 @@ void elf::postScanRelocations() {
       addPltEntry(*in.plt, *in.gotPlt, *in.relaPlt, target->pltRel, sym);
     if (sym.needsCopy) {
       if (sym.isObject()) {
-        addCopyRelSymbol(cast<SharedSymbol>(sym));
+        invokeELFT(addCopyRelSymbol, cast<SharedSymbol>(sym));
         // needsCopy is cleared for sym and its aliases so that in later
         // iterations aliases won't cause redundant copies.
         assert(!sym.needsCopy);
@@ -1666,15 +1669,6 @@ void elf::postScanRelocations() {
       mainPart->relaDyn->addSymbolReloc(target->tlsGotRel, *in.got,
                                         sym.getGotOffset(), sym);
     }
-
-    if (sym.needsTlsLd && in.got->addTlsIndex()) {
-      if (isLocalInExecutable)
-        in.got->relocations.push_back(
-            {R_ADDEND, target->symbolicRel, in.got->getTlsIndexOff(), 1, &sym});
-      else
-        mainPart->relaDyn->addReloc({target->tlsModuleIndexRel, in.got.get(),
-                                     in.got->getTlsIndexOff()});
-    }
     if (sym.needsGotDtprel) {
       in.got->addEntry(sym);
       in.got->relocations.push_back(
@@ -1685,13 +1679,23 @@ void elf::postScanRelocations() {
       addTpOffsetGotEntry(sym);
   };
 
+  if (config->needsTlsLd && in.got->addTlsIndex()) {
+    static Undefined dummy(nullptr, "", STB_LOCAL, 0, 0);
+    if (config->shared)
+      mainPart->relaDyn->addReloc(
+          {target->tlsModuleIndexRel, in.got.get(), in.got->getTlsIndexOff()});
+    else
+      in.got->relocations.push_back(
+          {R_ADDEND, target->symbolicRel, in.got->getTlsIndexOff(), 1, &dummy});
+  }
+
   assert(symAux.empty());
   for (Symbol *sym : symtab->symbols())
     fn(*sym);
 
   // Local symbols may need the aforementioned non-preemptible ifunc and GOT
   // handling. They don't need regular PLT.
-  for (ELFFileBase *file : objectFiles)
+  for (ELFFileBase *file : ctx->objectFiles)
     for (Symbol *sym : file->getLocalSymbols())
       fn(*sym);
 }
@@ -1701,7 +1705,8 @@ static bool mergeCmp(const InputSection *a, const InputSection *b) {
   if (a->outSecOff < b->outSecOff)
     return true;
 
-  if (a->outSecOff == b->outSecOff) {
+  // FIXME dyn_cast<ThunkSection> is non-null for any SyntheticSection.
+  if (a->outSecOff == b->outSecOff && a != b) {
     auto *ta = dyn_cast<ThunkSection>(a);
     auto *tb = dyn_cast<ThunkSection>(b);
 
@@ -1860,6 +1865,19 @@ void ThunkCreator::mergeThunks(ArrayRef<OutputSection *> outputSections) {
       });
 }
 
+static int64_t getPCBias(RelType type) {
+  if (config->emachine != EM_ARM)
+    return 0;
+  switch (type) {
+  case R_ARM_THM_JUMP19:
+  case R_ARM_THM_JUMP24:
+  case R_ARM_THM_CALL:
+    return 4;
+  default:
+    return 8;
+  }
+}
+
 // Find or create a ThunkSection within the InputSectionDescription (ISD) that
 // is in range of Src. An ISD maps to a range of InputSections described by a
 // linker script section pattern such as { .text .text.* }.
@@ -1868,10 +1886,12 @@ ThunkSection *ThunkCreator::getISDThunkSec(OutputSection *os,
                                            InputSectionDescription *isd,
                                            const Relocation &rel,
                                            uint64_t src) {
+  // See the comment in getThunk for -pcBias below.
+  const int64_t pcBias = getPCBias(rel.type);
   for (std::pair<ThunkSection *, uint32_t> tp : isd->thunkSections) {
     ThunkSection *ts = tp.first;
-    uint64_t tsBase = os->addr + ts->outSecOff + rel.addend;
-    uint64_t tsLimit = tsBase + ts->getSize() + rel.addend;
+    uint64_t tsBase = os->addr + ts->outSecOff - pcBias;
+    uint64_t tsLimit = tsBase + ts->getSize();
     if (target->inBranchRange(rel.type, src,
                               (src > tsLimit) ? tsBase : tsLimit))
       return ts;
@@ -2022,19 +2042,6 @@ static bool isThunkSectionCompatible(InputSection *source,
   return true;
 }
 
-static int64_t getPCBias(RelType type) {
-  if (config->emachine != EM_ARM)
-    return 0;
-  switch (type) {
-  case R_ARM_THM_JUMP19:
-  case R_ARM_THM_JUMP24:
-  case R_ARM_THM_CALL:
-    return 4;
-  default:
-    return 8;
-  }
-}
-
 std::pair<Thunk *, bool> ThunkCreator::getThunk(InputSection *isec,
                                                 Relocation &rel, uint64_t src) {
   std::vector<Thunk *> *thunkVec = nullptr;
@@ -2112,7 +2119,9 @@ bool ThunkCreator::normalizeExistingThunk(Relocation &rel, uint64_t src) {
 // made no changes. If the target requires range extension thunks, currently
 // ARM, then any future change in offset between caller and callee risks a
 // relocation out of range error.
-bool ThunkCreator::createThunks(ArrayRef<OutputSection *> outputSections) {
+bool ThunkCreator::createThunks(uint32_t pass,
+                                ArrayRef<OutputSection *> outputSections) {
+  this->pass = pass;
   bool addressesChanged = false;
 
   if (pass == 0 && target->getThunkSectionSpacing())
@@ -2174,7 +2183,6 @@ bool ThunkCreator::createThunks(ArrayRef<OutputSection *> outputSections) {
 
   // Merge all created synthetic ThunkSections back into OutputSection
   mergeThunks(outputSections);
-  ++pass;
   return addressesChanged;
 }
 
@@ -2221,7 +2229,3 @@ template void elf::scanRelocations<ELF32LE>(InputSectionBase &);
 template void elf::scanRelocations<ELF32BE>(InputSectionBase &);
 template void elf::scanRelocations<ELF64LE>(InputSectionBase &);
 template void elf::scanRelocations<ELF64BE>(InputSectionBase &);
-template void elf::reportUndefinedSymbols<ELF32LE>();
-template void elf::reportUndefinedSymbols<ELF32BE>();
-template void elf::reportUndefinedSymbols<ELF64LE>();
-template void elf::reportUndefinedSymbols<ELF64BE>();

@@ -283,6 +283,10 @@
 /* POSIX regcomp() and regex.h */
 #define HAVE_POSIX_REGCOMP 1
 
+/* Define HAVE_PROCFS if have have fstatfs with f_type and PROC_SUPER_MAGIC.
+   */
+/* #undef HAVE_PROCFS */
+
 /* Define to 1 if you have the `realpath' function. */
 #define HAVE_REALPATH 1
 

@@ -783,7 +783,7 @@ void RegAllocPBQP::finalizeAlloc(MachineFunction &MF,
 void RegAllocPBQP::postOptimization(Spiller &VRegSpiller, LiveIntervals &LIS) {
   VRegSpiller.postOptimization();
   /// Remove dead defs because of rematerialization.
-  for (auto DeadInst : DeadRemats) {
+  for (auto *DeadInst : DeadRemats) {
     LIS.RemoveMachineInstrFromMaps(*DeadInst);
     DeadInst->eraseFromParent();
   }
@@ -847,6 +847,7 @@ bool RegAllocPBQP::runOnMachineFunction(MachineFunction &MF) {
 
     while (!PBQPAllocComplete) {
       LLVM_DEBUG(dbgs() << "  PBQP Regalloc round " << Round << ":\n");
+      (void) Round;
 
       PBQPRAGraph G(PBQPRAGraph::GraphMetadata(MF, LIS, MBFI));
       initializeGraph(G, VRM, *VRegSpiller);

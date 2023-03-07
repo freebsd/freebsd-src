@@ -59,11 +59,6 @@ struct trapframe {
 	uint64_t tf_scause;
 };
 
-struct riscv_frame {
-	struct riscv_frame	*f_frame;
-	u_long			f_retaddr;
-};
-
 /*
  * Signal frame. Pushed onto user stack before calling sigcode.
  */

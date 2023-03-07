@@ -136,7 +136,7 @@ enum SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATES
 
    /**
     * This is the NCQ state for the STP remote device.  This state is entered
-    * when the device is processing an NCQ reuqest.  It will remain in this state
+    * when the device is processing an NCQ request.  It will remain in this state
     * so long as there is one or more NCQ requests being processed.
     */
    SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ,
@@ -232,14 +232,14 @@ typedef struct SCIC_SDS_REMOTE_DEVICE
    SCI_SAS_ADDRESS_T device_address;
 
    /**
-    * This filed is assinged the value of TRUE if the device is directly attached
+    * This filed is assigned the value of TRUE if the device is directly attached
     * to the port.
     */
    BOOL is_direct_attached;
 
 #if !defined(DISABLE_ATAPI)
    /**
-    * This filed is assinged the value of TRUE if the device is an ATAPI device.
+    * This filed is assigned the value of TRUE if the device is an ATAPI device.
     */
    BOOL is_atapi;
 #endif

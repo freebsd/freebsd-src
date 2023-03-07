@@ -115,7 +115,7 @@ static struct ieee80211vap *ipw_vap_create(struct ieee80211com *,
 static void	ipw_vap_delete(struct ieee80211vap *);
 static int	ipw_dma_alloc(struct ipw_softc *);
 static void	ipw_release(struct ipw_softc *);
-static void	ipw_media_status(struct ifnet *, struct ifmediareq *);
+static void	ipw_media_status(if_t, struct ifmediareq *);
 static int	ipw_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static uint16_t	ipw_read_prom_word(struct ipw_softc *, uint8_t);
 static uint16_t	ipw_read_chanmask(struct ipw_softc *);
@@ -833,9 +833,9 @@ ipw_cvtrate(int ipwrate)
  * value here.
  */
 static void
-ipw_media_status(struct ifnet *ifp, struct ifmediareq *imr)
+ipw_media_status(if_t ifp, struct ifmediareq *imr)
 {
-	struct ieee80211vap *vap = ifp->if_softc;
+	struct ieee80211vap *vap = if_getsoftc(ifp);
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ipw_softc *sc = ic->ic_softc;
 

@@ -95,8 +95,6 @@
 /set gname=daemon
         lpd
         ..
-        opielocks       mode=0700
-        ..
         output
             lpd
             ..

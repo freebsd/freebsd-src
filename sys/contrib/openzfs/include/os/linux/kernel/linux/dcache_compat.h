@@ -35,6 +35,10 @@
 #define	d_make_root(inode)	d_alloc_root(inode)
 #endif /* HAVE_D_MAKE_ROOT */
 
+#ifdef HAVE_DENTRY_D_U_ALIASES
+#define	d_alias			d_u.d_alias
+#endif
+
 /*
  * 2.6.30 API change,
  * The const keyword was added to the 'struct dentry_operations' in
@@ -61,4 +65,21 @@ d_clear_d_op(struct dentry *dentry)
 	    DCACHE_OP_REVALIDATE | DCACHE_OP_DELETE);
 }
 
+/*
+ * Walk and invalidate all dentry aliases of an inode
+ * unless it's a mountpoint
+ */
+static inline void
+zpl_d_drop_aliases(struct inode *inode)
+{
+	struct dentry *dentry;
+	spin_lock(&inode->i_lock);
+	hlist_for_each_entry(dentry, &inode->i_dentry, d_alias) {
+		if (!IS_ROOT(dentry) && !d_mountpoint(dentry) &&
+		    (dentry->d_inode == inode)) {
+			d_drop(dentry);
+		}
+	}
+	spin_unlock(&inode->i_lock);
+}
 #endif /* _ZFS_DCACHE_H */

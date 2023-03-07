@@ -126,6 +126,8 @@ main(int argc, char **argv)
 	    krb5_string_to_key_salt(context, enctype, buf, salt, &key);
 	}
 	ret = hdb_add_master_key(context, &key, &mkey);
+        if (ret)
+            krb5_err(context, 1, ret, "hdb_add_master_key");
 
 	krb5_free_keyblock_contents(context, &key);
 

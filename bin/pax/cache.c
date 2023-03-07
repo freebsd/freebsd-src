@@ -211,12 +211,8 @@ name_uid(uid_t uid, int frc)
 			return("");
 		ptr->uid = uid;
 		ptr->valid = INVALID;
-#		ifdef NET2_STAT
-		(void)snprintf(ptr->name, sizeof(ptr->name), "%u", uid);
-#		else
 		(void)snprintf(ptr->name, sizeof(ptr->name), "%lu",
 			       (unsigned long)uid);
-#		endif
 		if (frc == 0)
 			return("");
 	} else {
@@ -282,12 +278,8 @@ name_gid(gid_t gid, int frc)
 			return("");
 		ptr->gid = gid;
 		ptr->valid = INVALID;
-#		ifdef NET2_STAT
-		(void)snprintf(ptr->name, sizeof(ptr->name), "%u", gid);
-#		else
 		(void)snprintf(ptr->name, sizeof(ptr->name), "%lu",
 			       (unsigned long)gid);
-#		endif
 		if (frc == 0)
 			return("");
 	} else {

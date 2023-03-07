@@ -54,11 +54,6 @@ HAVE_BCACHE=	yes
 HAVE_PNP=	yes
 HAVE_ISABUS=	yes
 
-.if ${MK_LOADER_FIREWIRE} == "yes"
-CFLAGS+=	-DLOADER_FIREWIRE_SUPPORT
-LIBFIREWIRE=	${BOOTOBJ}/i386/libfirewire/libfirewire.a
-.endif
-
 .if ${MK_LOADER_ZFS} == "yes"
 CFLAGS.main.c+=	-I${SYSDIR}/contrib/openzfs/include
 CFLAGS.main.c+=	-I${SYSDIR}/contrib/openzfs/include/os/freebsd/zfs
@@ -67,6 +62,7 @@ CFLAGS.main.c+=	-I${SYSDIR}/contrib/openzfs/include/os/freebsd/zfs
 .if exists(${.CURDIR}/help.i386)
 HELP_FILES=	${.CURDIR}/help.i386
 .endif
+HELP_FILENAME=	loader.help.bios
 
 # Always add MI sources
 .include	"${BOOTSRC}/loader.mk"
@@ -127,8 +123,8 @@ FILESMODE_${LOADER}= ${BINMODE} -b
 # files.
 LDFLAGS+=	${BTXCRT}
 
-DPADD=	${LDR_INTERP32} ${LIBFIREWIRE} ${LIBI386} ${LIBSA32}
-LDADD=	${LDR_INTERP32} ${LIBFIREWIRE} ${LIBI386} ${LIBSA32}
+DPADD=	${LDR_INTERP32} ${LIBI386} ${LIBSA32}
+LDADD=	${LDR_INTERP32} ${LIBI386} ${LIBSA32}
 
 .if ${MACHINE_CPUARCH} == "amd64"
 CFLAGS+=	-DLOADER_PREFER_AMD64

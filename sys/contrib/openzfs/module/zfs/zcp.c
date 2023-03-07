@@ -109,8 +109,8 @@
 #define	ZCP_NVLIST_MAX_DEPTH 20
 
 static const uint64_t zfs_lua_check_instrlimit_interval = 100;
-unsigned long zfs_lua_max_instrlimit = ZCP_MAX_INSTRLIMIT;
-unsigned long zfs_lua_max_memlimit = ZCP_MAX_MEMLIMIT;
+uint64_t zfs_lua_max_instrlimit = ZCP_MAX_INSTRLIMIT;
+uint64_t zfs_lua_max_memlimit = ZCP_MAX_MEMLIMIT;
 
 /*
  * Forward declarations for mutually recursive functions
@@ -277,9 +277,9 @@ zcp_table_to_nvlist(lua_State *state, int index, int depth)
 			}
 			break;
 		case LUA_TNUMBER:
-			VERIFY3U(sizeof (buf), >,
-			    snprintf(buf, sizeof (buf), "%lld",
-			    (longlong_t)lua_tonumber(state, -2)));
+			(void) snprintf(buf, sizeof (buf), "%lld",
+			    (longlong_t)lua_tonumber(state, -2));
+
 			key = buf;
 			if (saw_str_could_collide) {
 				key_could_collide = B_TRUE;
@@ -958,12 +958,12 @@ zcp_eval_impl(dmu_tx_t *tx, zcp_run_info_t *ri)
 }
 
 static void
-zcp_pool_error(zcp_run_info_t *ri, const char *poolname)
+zcp_pool_error(zcp_run_info_t *ri, const char *poolname, int error)
 {
 	ri->zri_result = SET_ERROR(ECHRNG);
 	lua_settop(ri->zri_state, 0);
-	(void) lua_pushfstring(ri->zri_state, "Could not open pool: %s",
-	    poolname);
+	(void) lua_pushfstring(ri->zri_state, "Could not open pool: %s "
+	    "errno: %d", poolname, error);
 	zcp_convert_return_values(ri->zri_state, ri->zri_outnvl,
 	    ZCP_RET_ERROR, &ri->zri_result);
 
@@ -1013,7 +1013,7 @@ zcp_eval_open(zcp_run_info_t *ri, const char *poolname)
 
 	error = dsl_pool_hold(poolname, FTAG, &dp);
 	if (error != 0) {
-		zcp_pool_error(ri, poolname);
+		zcp_pool_error(ri, poolname, error);
 		return;
 	}
 
@@ -1159,7 +1159,7 @@ zcp_eval(const char *poolname, const char *program, boolean_t sync,
 		err = dsl_sync_task_sig(poolname, NULL, zcp_eval_sync,
 		    zcp_eval_sig, &runinfo, 0, ZFS_SPACE_CHECK_ZCP_EVAL);
 		if (err != 0)
-			zcp_pool_error(&runinfo, poolname);
+			zcp_pool_error(&runinfo, poolname, err);
 	} else {
 		zcp_eval_open(&runinfo, poolname);
 	}
@@ -1443,8 +1443,8 @@ zcp_parse_args(lua_State *state, const char *fname, const zcp_arg_t *pargs,
 	}
 }
 
-ZFS_MODULE_PARAM(zfs_lua, zfs_lua_, max_instrlimit, ULONG, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_lua, zfs_lua_, max_instrlimit, U64, ZMOD_RW,
 	"Max instruction limit that can be specified for a channel program");
 
-ZFS_MODULE_PARAM(zfs_lua, zfs_lua_, max_memlimit, ULONG, ZMOD_RW,
+ZFS_MODULE_PARAM(zfs_lua, zfs_lua_, max_memlimit, U64, ZMOD_RW,
 	"Max memory limit that can be specified for a channel program");

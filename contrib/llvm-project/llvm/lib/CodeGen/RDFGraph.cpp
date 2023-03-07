@@ -8,6 +8,7 @@
 //
 // Target-independent, SSA-based data flow graph for register data flow (RDF).
 //
+#include "llvm/CodeGen/RDFGraph.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SetVector.h"
@@ -18,7 +19,6 @@
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/CodeGen/RDFGraph.h"
 #include "llvm/CodeGen/RDFRegisters.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetLowering.h"
@@ -27,8 +27,6 @@
 #include "llvm/IR/Function.h"
 #include "llvm/MC/LaneBitmask.h"
 #include "llvm/MC/MCInstrDesc.h"
-#include "llvm/MC/MCRegisterInfo.h"
-#include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
@@ -979,18 +977,6 @@ RegisterRef DataFlowGraph::makeRegRef(const MachineOperand &Op) const {
   return RegisterRef(PRI.getRegMaskId(Op.getRegMask()), LaneBitmask::getAll());
 }
 
-RegisterRef DataFlowGraph::restrictRef(RegisterRef AR, RegisterRef BR) const {
-  if (AR.Reg == BR.Reg) {
-    LaneBitmask M = AR.Mask & BR.Mask;
-    return M.any() ? RegisterRef(AR.Reg, M) : RegisterRef();
-  }
-  // This isn't strictly correct, because the overlap may happen in the
-  // part masked out.
-  if (PRI.alias(AR, BR))
-    return AR;
-  return RegisterRef();
-}
-
 // For each stack in the map DefM, push the delimiter for block B on it.
 void DataFlowGraph::markBlock(NodeId B, DefStackMap &DefM) {
   // Push block delimiters.
@@ -1409,7 +1395,7 @@ void DataFlowGraph::recordDefsForDF(BlockRefsMap &PhiM,
 
   // Finally, add the set of defs to each block in the iterated dominance
   // frontier.
-  for (auto DB : IDF) {
+  for (auto *DB : IDF) {
     NodeAddr<BlockNode*> DBA = findBlock(DB);
     PhiM[DBA.Id].insert(Defs.begin(), Defs.end());
   }
@@ -1671,7 +1657,7 @@ void DataFlowGraph::linkBlockRefs(DefStackMap &DefM, NodeAddr<BlockNode*> BA) {
 
   // Recursively process all children in the dominator tree.
   MachineDomTreeNode *N = MDT.getNode(BA.Addr->getCode());
-  for (auto I : *N) {
+  for (auto *I : *N) {
     MachineBasicBlock *SB = I->getBlock();
     NodeAddr<BlockNode*> SBA = findBlock(SB);
     linkBlockRefs(DefM, SBA);

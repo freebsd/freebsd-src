@@ -126,7 +126,8 @@ typedef int bvec_iterator_t;
 #endif
 
 static inline void
-bio_set_flags_failfast(struct block_device *bdev, int *flags)
+bio_set_flags_failfast(struct block_device *bdev, int *flags, bool dev,
+    bool transport, bool driver)
 {
 #ifdef CONFIG_BUG
 	/*
@@ -148,7 +149,12 @@ bio_set_flags_failfast(struct block_device *bdev, int *flags)
 #endif /* BLOCK_EXT_MAJOR */
 #endif /* CONFIG_BUG */
 
-	*flags |= REQ_FAILFAST_MASK;
+	if (dev)
+		*flags |= REQ_FAILFAST_DEV;
+	if (transport)
+		*flags |= REQ_FAILFAST_TRANSPORT;
+	if (driver)
+		*flags |= REQ_FAILFAST_DRIVER;
 }
 
 /*
@@ -262,6 +268,32 @@ bio_set_bi_error(struct bio *bio, int error)
 #endif /* HAVE_1ARG_BIO_END_IO_T */
 
 /*
+ * 5.15 MACRO,
+ *   GD_DEAD
+ *
+ * 2.6.36 - 5.14 MACRO,
+ *   GENHD_FL_UP
+ *
+ * Check the disk status and return B_TRUE if alive
+ * otherwise B_FALSE
+ */
+static inline boolean_t
+zfs_check_disk_status(struct block_device *bdev)
+{
+#if defined(GENHD_FL_UP)
+	return (!!(bdev->bd_disk->flags & GENHD_FL_UP));
+#elif defined(GD_DEAD)
+	return (!test_bit(GD_DEAD, &bdev->bd_disk->state));
+#else
+/*
+ * This is encountered if neither GENHD_FL_UP nor GD_DEAD is available in
+ * the kernel - likely due to an MACRO change that needs to be chased down.
+ */
+#error "Unsupported kernel: no usable disk status check"
+#endif
+}
+
+/*
  * 4.1 API,
  * 3.10.0 CentOS 7.x API,
  *   blkdev_reread_part()
@@ -362,7 +394,11 @@ vdev_lookup_bdev(const char *path, dev_t *dev)
 static inline void
 bio_set_op_attrs(struct bio *bio, unsigned rw, unsigned flags)
 {
+#if defined(HAVE_BIO_BI_OPF)
+	bio->bi_opf = rw | flags;
+#else
 	bio->bi_rw |= rw | flags;
+#endif /* HAVE_BIO_BI_OPF */
 }
 #endif
 

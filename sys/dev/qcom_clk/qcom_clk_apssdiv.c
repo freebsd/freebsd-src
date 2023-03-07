@@ -131,9 +131,6 @@ qcom_clk_apssdiv_get_gate_locked(struct qcom_clk_apssdiv_sc *sc)
 static int
 qcom_clk_apssdiv_init(struct clknode *clk, device_t dev)
 {
-	struct qcom_clk_apssdiv_sc *sc;
-
-	sc = clknode_get_softc(clk);
 
 	/*
 	 * There's only a single parent here for an fixed divisor,
