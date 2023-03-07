@@ -410,8 +410,9 @@ acpi_pcib_acpi_attach(device_t dev)
      */
     status = acpi_GetInteger(sc->ap_handle, "_ADR", &sc->ap_addr);
     if (ACPI_FAILURE(status)) {
-	device_printf(dev, "could not evaluate _ADR - %s\n",
-	    AcpiFormatException(status));
+	if (status != AE_NOT_FOUND)
+	    device_printf(dev, "could not evaluate _ADR - %s\n",
+		AcpiFormatException(status));
 	sc->ap_addr = -1;
     }
 
