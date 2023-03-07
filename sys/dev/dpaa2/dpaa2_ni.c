@@ -458,10 +458,10 @@ static int dpaa2_ni_chan_storage_next(struct dpaa2_ni_channel *,
 
 /* Network interface routines */
 static void dpaa2_ni_init(void *);
-static int  dpaa2_ni_transmit(struct ifnet *, struct mbuf *);
-static void dpaa2_ni_qflush(struct ifnet *);
-static int  dpaa2_ni_ioctl(struct ifnet *, u_long, caddr_t);
-static int  dpaa2_ni_update_mac_filters(struct ifnet *);
+static int  dpaa2_ni_transmit(if_t , struct mbuf *);
+static void dpaa2_ni_qflush(if_t );
+static int  dpaa2_ni_ioctl(if_t , u_long, caddr_t);
+static int  dpaa2_ni_update_mac_filters(if_t );
 static u_int dpaa2_ni_add_maddr(void *, struct sockaddr_dl *, u_int);
 
 /* Interrupt handlers */
@@ -469,8 +469,8 @@ static void dpaa2_ni_intr(void *);
 
 /* MII handlers */
 static void dpaa2_ni_miibus_statchg(device_t);
-static int  dpaa2_ni_media_change(struct ifnet *);
-static void dpaa2_ni_media_status(struct ifnet *, struct ifmediareq *);
+static int  dpaa2_ni_media_change(if_t );
+static void dpaa2_ni_media_status(if_t , struct ifmediareq *);
 static void dpaa2_ni_media_tick(void *);
 
 /* DMA mapping callback */
@@ -515,7 +515,7 @@ dpaa2_ni_attach(device_t dev)
 	struct dpaa2_devinfo *rcinfo = device_get_ivars(pdev);
 	struct dpaa2_devinfo *dinfo = device_get_ivars(dev);
 	struct dpaa2_devinfo *mcp_dinfo;
-	struct ifnet *ifp;
+	if_t ifp;
 	char tq_name[32];
 	int error;
 
@@ -583,15 +583,15 @@ dpaa2_ni_attach(device_t dev)
 	sc->ifp = ifp;
 	if_initname(ifp, DPAA2_NI_IFNAME, device_get_unit(sc->dev));
 
-	ifp->if_softc = sc;
-	ifp->if_flags = IFF_SIMPLEX | IFF_MULTICAST | IFF_BROADCAST;
-	ifp->if_init = dpaa2_ni_init;
-	ifp->if_ioctl = dpaa2_ni_ioctl;
-	ifp->if_transmit = dpaa2_ni_transmit;
-	ifp->if_qflush = dpaa2_ni_qflush;
+	if_setsoftc(ifp, sc);
+	if_setflags(ifp, IFF_SIMPLEX | IFF_MULTICAST | IFF_BROADCAST);
+	if_setinitfn(ifp, dpaa2_ni_init);
+	if_setioctlfn(ifp, dpaa2_ni_ioctl);
+	if_settransmitfn(ifp, dpaa2_ni_transmit);
+	if_setqflushfn(ifp, dpaa2_ni_qflush);
 
-	ifp->if_capabilities = IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_JUMBO_MTU;
-	ifp->if_capenable = ifp->if_capabilities;
+	if_setcapabilities(ifp, IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_JUMBO_MTU);
+	if_setcapenable(ifp, if_getcapabilities(ifp));
 
 	/* Allocate a command to send to MC hardware. */
 	error = dpaa2_mcp_init_command(&sc->cmd, DPAA2_CMD_DEF);
@@ -681,7 +681,7 @@ err_exit:
 static void
 dpaa2_ni_fixed_media_status(if_t ifp, struct ifmediareq* ifmr)
 {
-	struct dpaa2_ni_softc *sc = ifp->if_softc;
+	struct dpaa2_ni_softc *sc = if_getsoftc(ifp);
 
 	DPNI_LOCK(sc);
 	ifmr->ifm_count = 0;
@@ -695,7 +695,7 @@ dpaa2_ni_fixed_media_status(if_t ifp, struct ifmediareq* ifmr)
 	 * certain things requiring a link event (e.g async DHCP client) from
 	 * devd do not happen.
 	 */
-	if (ifp->if_link_state == LINK_STATE_UNKNOWN) {
+	if (if_getlinkstate(ifp) == LINK_STATE_UNKNOWN) {
 		if_link_state_change(ifp, LINK_STATE_UP);
 	}
 
@@ -1620,8 +1620,8 @@ dpaa2_ni_setup_msi(struct dpaa2_ni_softc *sc)
 static int
 dpaa2_ni_setup_if_caps(struct dpaa2_ni_softc *sc)
 {
-	const bool en_rxcsum = sc->ifp->if_capenable & IFCAP_RXCSUM;
-	const bool en_txcsum = sc->ifp->if_capenable & IFCAP_TXCSUM;
+	const bool en_rxcsum = if_getcapenable(sc->ifp) & IFCAP_RXCSUM;
+	const bool en_txcsum = if_getcapenable(sc->ifp) & IFCAP_TXCSUM;
 	device_t dev = sc->dev;
 	device_t child = dev;
 	int error;
@@ -1667,8 +1667,8 @@ dpaa2_ni_setup_if_caps(struct dpaa2_ni_softc *sc)
 static int
 dpaa2_ni_setup_if_flags(struct dpaa2_ni_softc *sc)
 {
-	const bool en_promisc = sc->ifp->if_flags & IFF_PROMISC;
-	const bool en_allmulti = sc->ifp->if_flags & IFF_ALLMULTI;
+	const bool en_promisc = if_getflags(sc->ifp) & IFF_PROMISC;
+	const bool en_allmulti = if_getflags(sc->ifp) & IFF_ALLMULTI;
 	device_t dev = sc->dev;
 	device_t child = dev;
 	int error;
@@ -2134,7 +2134,7 @@ dpaa2_ni_set_mac_addr(device_t dev, struct dpaa2_cmd *cmd, uint16_t rc_token,
 {
 	device_t child = dev;
 	struct dpaa2_ni_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp = sc->ifp;
+	if_t ifp = sc->ifp;
 	struct ether_addr rnd_mac_addr;
 	uint8_t mac_addr[ETHER_ADDR_LEN];
 	uint8_t dpni_mac_addr[ETHER_ADDR_LEN];
@@ -2263,9 +2263,9 @@ dpaa2_ni_miibus_statchg(device_t dev)
  * @brief Callback function to process media change request.
  */
 static int
-dpaa2_ni_media_change(struct ifnet *ifp)
+dpaa2_ni_media_change(if_t ifp)
 {
-	struct dpaa2_ni_softc *sc = ifp->if_softc;
+	struct dpaa2_ni_softc *sc = if_getsoftc(ifp);
 
 	DPNI_LOCK(sc);
 	if (sc->mii) {
@@ -2284,9 +2284,9 @@ dpaa2_ni_media_change(struct ifnet *ifp)
  * @brief Callback function to process media status request.
  */
 static void
-dpaa2_ni_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
+dpaa2_ni_media_status(if_t ifp, struct ifmediareq *ifmr)
 {
-	struct dpaa2_ni_softc *sc = ifp->if_softc;
+	struct dpaa2_ni_softc *sc = if_getsoftc(ifp);
 
 	DPNI_LOCK(sc);
 	if (sc->mii) {
@@ -2323,13 +2323,13 @@ static void
 dpaa2_ni_init(void *arg)
 {
 	struct dpaa2_ni_softc *sc = (struct dpaa2_ni_softc *) arg;
-	struct ifnet *ifp = sc->ifp;
+	if_t ifp = sc->ifp;
 	device_t dev = sc->dev;
 	device_t child = dev;
 	int error;
 
 	DPNI_LOCK(sc);
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
 		DPNI_UNLOCK(sc);
 		return;
 	}
@@ -2346,8 +2346,7 @@ dpaa2_ni_init(void *arg)
 		mii_mediachg(sc->mii);
 	callout_reset(&sc->mii_callout, hz, dpaa2_ni_media_tick, sc);
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, IFF_DRV_OACTIVE);
 	DPNI_UNLOCK(sc);
 
 	/* Force link-state update to initilize things. */
@@ -2357,16 +2356,16 @@ dpaa2_ni_init(void *arg)
 }
 
 static int
-dpaa2_ni_transmit(struct ifnet *ifp, struct mbuf *m)
+dpaa2_ni_transmit(if_t ifp, struct mbuf *m)
 {
-	struct dpaa2_ni_softc *sc = ifp->if_softc;
+	struct dpaa2_ni_softc *sc = if_getsoftc(ifp);
 	struct dpaa2_ni_channel	*chan;
 	struct dpaa2_ni_tx_ring *tx;
 	uint32_t fqid;
 	boolean_t found = false;
 	int chan_n = 0;
 
-	if (__predict_false(!(ifp->if_drv_flags & IFF_DRV_RUNNING)))
+	if (__predict_false(!(if_getdrvflags(ifp) & IFF_DRV_RUNNING)))
 		return (0);
 
 	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
@@ -2395,16 +2394,16 @@ dpaa2_ni_transmit(struct ifnet *ifp, struct mbuf *m)
 }
 
 static void
-dpaa2_ni_qflush(struct ifnet *ifp)
+dpaa2_ni_qflush(if_t ifp)
 {
 	/* TODO: Find a way to drain Tx queues in QBMan. */
 	if_qflush(ifp);
 }
 
 static int
-dpaa2_ni_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+dpaa2_ni_ioctl(if_t ifp, u_long cmd, caddr_t data)
 {
-	struct dpaa2_ni_softc *sc = ifp->if_softc;
+	struct dpaa2_ni_softc *sc = if_getsoftc(ifp);
 	struct ifreq *ifr = (struct ifreq *) data;
 	device_t dev, child;
 	uint32_t changed = 0;
@@ -2420,7 +2419,7 @@ dpaa2_ni_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			DPNI_UNLOCK(sc);
 			return (EINVAL);
 		}
-		ifp->if_mtu = mtu;
+		if_setmtu(ifp, mtu);
 		DPNI_UNLOCK(sc);
 
 		/* Update maximum frame length. */
@@ -2433,12 +2432,12 @@ dpaa2_ni_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		break;
 	case SIOCSIFCAP:
-		changed = ifp->if_capenable ^ ifr->ifr_reqcap;
+		changed = if_getcapenable(ifp) ^ ifr->ifr_reqcap;
 		if (changed & IFCAP_HWCSUM) {
 			if ((ifr->ifr_reqcap & changed) & IFCAP_HWCSUM)
-				ifp->if_capenable |= IFCAP_HWCSUM;
+				if_setcapenablebit(ifp, IFCAP_HWCSUM, 0);
 			else
-				ifp->if_capenable &= ~IFCAP_HWCSUM;
+				if_setcapenablebit(ifp, 0, IFCAP_HWCSUM);
 		}
 		rc = dpaa2_ni_setup_if_caps(sc);
 		if (rc) {
@@ -2449,9 +2448,9 @@ dpaa2_ni_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCSIFFLAGS:
 		DPNI_LOCK(sc);
-		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				changed = ifp->if_flags ^ sc->if_flags;
+		if (if_getflags(ifp) & IFF_UP) {
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
+				changed = if_getflags(ifp) ^ sc->if_flags;
 				if (changed & IFF_PROMISC ||
 				    changed & IFF_ALLMULTI) {
 					rc = dpaa2_ni_setup_if_flags(sc);
@@ -2461,17 +2460,17 @@ dpaa2_ni_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				dpaa2_ni_init(sc);
 				DPNI_LOCK(sc);
 			}
-		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		} else if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 			/* dpni_if_stop(sc); */
 		}
 
-		sc->if_flags = ifp->if_flags;
+		sc->if_flags = if_getflags(ifp);
 		DPNI_UNLOCK(sc);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		DPNI_LOCK(sc);
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 			DPNI_UNLOCK(sc);
 			rc = dpaa2_ni_update_mac_filters(ifp);
 			if (rc)
@@ -2497,9 +2496,9 @@ dpaa2_ni_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 }
 
 static int
-dpaa2_ni_update_mac_filters(struct ifnet *ifp)
+dpaa2_ni_update_mac_filters(if_t ifp)
 {
-	struct dpaa2_ni_softc *sc = ifp->if_softc;
+	struct dpaa2_ni_softc *sc = if_getsoftc(ifp);
 	struct dpaa2_ni_mcaddr_ctx ctx;
 	device_t dev, child;
 	int error;
@@ -2528,7 +2527,7 @@ static u_int
 dpaa2_ni_add_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 {
 	struct dpaa2_ni_mcaddr_ctx *ctx = arg;
-	struct dpaa2_ni_softc *sc = ctx->ifp->if_softc;
+	struct dpaa2_ni_softc *sc = if_getsoftc(ctx->ifp);
 	device_t dev, child;
 
 	dev = child = sc->dev;
@@ -2546,7 +2545,7 @@ dpaa2_ni_add_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 
 			/* Enable multicast promiscuous mode. */
 			DPNI_LOCK(sc);
-			ctx->ifp->if_flags |= IFF_ALLMULTI;
+			if_setflagbits(ctx->ifp, IFF_ALLMULTI, 0);
 			sc->if_flags |= IFF_ALLMULTI;
 			ctx->error = dpaa2_ni_setup_if_flags(sc);
 			DPNI_UNLOCK(sc);
@@ -2823,7 +2822,7 @@ dpaa2_ni_rx(struct dpaa2_ni_channel *chan, struct dpaa2_ni_fq *fq,
 	struct dpaa2_ni_softc *sc = device_get_softc(chan->ni_dev);
 	struct dpaa2_bp_softc *bpsc;
 	struct dpaa2_buf *buf;
-	struct ifnet *ifp = sc->ifp;
+	if_t ifp = sc->ifp;
 	struct mbuf *m;
 	device_t bp_dev;
 	bus_addr_t paddr = (bus_addr_t) fd->addr;
@@ -2888,7 +2887,7 @@ dpaa2_ni_rx(struct dpaa2_ni_channel *chan, struct dpaa2_ni_fq *fq,
 	m->m_pkthdr.flowid = fq->fqid;
 	M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 
-	(*ifp->if_input)(ifp, m);
+	if_input(ifp, m);
 
 	/* Keep the buffer to be recycled. */
 	chan->recycled[chan->recycled_n++] = paddr;
