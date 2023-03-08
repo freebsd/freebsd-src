@@ -69,13 +69,7 @@ MODULE_DEPEND(krping, linuxkpi, 1, 1, 1);
 static __inline uint64_t
 get_cycles(void)
 {
-#if defined(__amd64__) || defined(__i386__)
-	uint32_t low, high;
-	__asm __volatile("rdtsc" : "=a" (low), "=d" (high));
-	return (low | ((u_int64_t)high << 32));
-#elif defined(__powerpc64__)
-	return __builtin_readcyclecounter();
-#endif
+	return (get_cyclecount());
 }
 
 typedef uint64_t cycles_t;
