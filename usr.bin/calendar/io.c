@@ -151,9 +151,12 @@ cal_fopen(const char *file)
 	}
 
 	warnx("can't open calendar file \"%s\"", file);
-	if (!warned && stat(_PATH_INCLUDE_LOCAL, &sb) != 0) {
-		warnx("calendar data files now provided by calendar-data pkg.");
-		warned = true;
+	if (!warned) {
+		snprintf(path, sizeof(path), _PATH_INCLUDE_LOCAL, getlocalbase());
+		if (stat(path, &sb) != 0) {
+			warnx("calendar data files now provided by calendar-data pkg.");
+			warned = true;
+		}
 	}
 
 	return (NULL);
