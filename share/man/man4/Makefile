@@ -415,7 +415,6 @@ MAN=	aac.4 \
 	${_nvdimm.4} \
 	${_nvme.4} \
 	${_nvram.4} \
-	${_nvram2env.4} \
 	oce.4 \
 	ocs_fc.4\
 	ohci.4 \
@@ -885,10 +884,6 @@ MLINKS+=sume.4 if_sume.4
 _bhyve.4=	bhyve.4
 _vmm.4=		vmm.4
 .endif
-.endif
-
-.if ${MACHINE_CPUARCH} == "mips"
-_nvram2env.4=	nvram2env.4
 .endif
 
 .if ${MACHINE_CPUARCH} == "powerpc"
