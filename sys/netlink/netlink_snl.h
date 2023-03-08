@@ -70,10 +70,30 @@
 #define	NL_ARRAY_LEN(_a)	(sizeof(_a) / sizeof((_a)[0]))
 
 struct linear_buffer {
-	char		*base;	/* Base allocated memory pointer */
-	uint32_t	offset;	/* Currently used offset */
-	uint32_t	size;	/* Total buffer size */
+	char			*base;	/* Base allocated memory pointer */
+	uint32_t		offset;	/* Currently used offset */
+	uint32_t		size;	/* Total buffer size */
+	struct linear_buffer	*next;	/* Buffer chaining */
 };
+
+static inline struct linear_buffer *
+lb_init(uint32_t size)
+{
+	struct linear_buffer *lb = calloc(1, size);
+
+	if (lb != NULL) {
+		lb->base = (char *)(lb + 1);
+		lb->size = size - sizeof(*lb);
+	}
+
+	return (lb);
+}
+
+static inline void
+lb_free(struct linear_buffer *lb)
+{
+	free(lb);
+}
 
 static inline char *
 lb_allocz(struct linear_buffer *lb, int len)
@@ -101,7 +121,7 @@ struct snl_state {
 	size_t datalen;
 	uint32_t seq;
 	bool init_done;
-	struct linear_buffer lb;
+	struct linear_buffer *lb;
 };
 #define	SCRATCH_BUFFER_SIZE	1024
 
@@ -145,6 +165,45 @@ static const struct snl_hdr_parser _name = {		\
 }
 
 
+static inline void *
+snl_allocz(struct snl_state *ss, int len)
+{
+	void *data = lb_allocz(ss->lb, len);
+
+	if (data == NULL) {
+		uint32_t size = ss->lb->size * 2;
+
+		while (size < len + sizeof(struct linear_buffer))
+			size *= 2;
+
+		struct linear_buffer *lb = lb_init(size);
+
+		if (lb != NULL) {
+			lb->next = ss->lb;
+			ss->lb = lb;
+			data = lb_allocz(ss->lb, len);
+		}
+	}
+
+	return (data);
+}
+
+static inline void
+snl_clear_lb(struct snl_state *ss)
+{
+	struct linear_buffer *lb = ss->lb;
+
+	lb_clear(lb);
+	lb = lb->next;
+	ss->lb->next = NULL;
+	/* Remove all linear bufs except the largest one */
+	while (lb != NULL) {
+		struct linear_buffer *lb_next = lb->next;
+		lb_free(lb);
+		lb = lb_next;
+	}
+}
+
 static void
 snl_free(struct snl_state *ss)
 {
@@ -152,8 +211,10 @@ snl_free(struct snl_state *ss)
 		close(ss->fd);
 		if (ss->buf != NULL)
 			free(ss->buf);
-		if (ss->lb.base != NULL)
-			free(ss->lb.base);
+		if (ss->lb != NULL) {
+			snl_clear_lb(ss);
+			lb_free(ss->lb);
+		}
 	}
 }
 
@@ -181,26 +242,13 @@ snl_init(struct snl_state *ss, int netlink_family)
 		return (false);
 	}
 
-	ss->lb.size = SCRATCH_BUFFER_SIZE;
-	ss->lb.base = calloc(1, ss->lb.size);
-	if (ss->lb.base == NULL) {
+	ss->lb = lb_init(SCRATCH_BUFFER_SIZE);
+	if (ss->lb == NULL) {
 		snl_free(ss);
 		return (false);
 	}
 
 	return (true);
-}
-
-static inline void *
-snl_allocz(struct snl_state *ss, int len)
-{
-	return (lb_allocz(&ss->lb, len));
-}
-
-static inline void
-snl_clear_lb(struct snl_state *ss)
-{
-	lb_clear(&ss->lb);
 }
 
 static inline bool
