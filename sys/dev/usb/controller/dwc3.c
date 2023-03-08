@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/condvar.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #ifdef FDT
 #include <sys/gpio.h>
 #endif
