@@ -335,7 +335,7 @@ msdosfs_lookup_ino(struct vnode *vdp, struct vnode **vpp, struct componentname
 					continue;
 				}
 #ifdef MSDOSFS_DEBUG
-				printf("msdosfs_lookup(): match blkoff %d, diroff %d\n",
+				printf("msdosfs_lookup(): match blkoff %lu, diroff %d\n",
 				    blkoff, diroff);
 #endif
 				/*
