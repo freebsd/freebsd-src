@@ -110,7 +110,7 @@ deget(struct msdosfsmount *pmp, u_long dirclust, u_long diroffset,
 #ifdef MSDOSFS_DEBUG
 	printf("deget(pmp %p, dirclust %lu, diroffset %lx, flags %#x, "
 	    "depp %p)\n",
-	    pmp, dirclust, diroffset, flags, depp);
+	    pmp, dirclust, diroffset, lkflags, depp);
 #endif
 	MPASS((lkflags & LK_TYPE_MASK) == LK_EXCLUSIVE);
 

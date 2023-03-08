@@ -318,8 +318,11 @@ msdosfs_getattr(struct vop_getattr_args *ap)
 		vap->va_flags |= UF_SYSTEM;
 	vap->va_gen = 0;
 	vap->va_blocksize = pmp->pm_bpcluster;
-	vap->va_bytes =
-	    (dep->de_FileSize + pmp->pm_crbomask) & ~pmp->pm_crbomask;
+	if (dep->de_StartCluster != MSDOSFSROOT)
+		vap->va_bytes =
+		    (dep->de_FileSize + pmp->pm_crbomask) & ~pmp->pm_crbomask;
+	else
+		vap->va_bytes = 0; /* FAT12/FAT16 root dir in reserved area */
 	vap->va_type = ap->a_vp->v_type;
 	vap->va_filerev = dep->de_modrev;
 	return (0);
