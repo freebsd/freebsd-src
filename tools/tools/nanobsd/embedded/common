@@ -131,7 +131,6 @@ customize_cmd cust_install_machine_files
 CONF_BUILD="
 LOCAL_XTOOL_DIRS=usr.bin/mkimg
 WITHOUT_ACPI=true
-WITHOUT_ATM=true
 WITHOUT_AUDIT=true
 WITHOUT_BLUETOOTH=true
 WITHOUT_CALENDAR=true
