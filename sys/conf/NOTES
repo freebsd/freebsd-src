@@ -841,13 +841,6 @@ options 	NETGRAPH_UI
 options 	NETGRAPH_VJC
 options 	NETGRAPH_VLAN
 
-# NgATM - Netgraph ATM
-options 	NGATM_ATMBASE
-options 	NGATM_SSCOP
-options 	NGATM_SSCFU
-options 	NGATM_UNI
-options 	NGATM_CCATM
-
 # Network stack virtualization.
 options 	VIMAGE
 options 	VNET_DEBUG	# debug for VIMAGE
