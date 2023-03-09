@@ -5,7 +5,6 @@ SYSDIR?=${SRCTOP}/sys
 .include "${SYSDIR}/conf/kern.opts.mk"
 
 SUBDIR=	async \
-	atmllc \
 	${_bluetooth} \
 	bpf \
 	bridge \

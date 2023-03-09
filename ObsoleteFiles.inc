@@ -89,6 +89,7 @@ OLD_FILES+=usr/share/man/man3/unifunc.3.gz
 OLD_FILES+=usr/share/man/man3/unimsg.3.gz
 OLD_FILES+=usr/share/man/man3/unisap.3.gz
 OLD_FILES+=usr/share/man/man3/unistruct.3.gz
+OLD_FILES+=usr/share/man/man4/ng_atmllc.4.gz
 OLD_FILES+=usr/share/man/man4/ng_ccatm.4.gz
 OLD_FILES+=usr/share/man/man4/ng_sscfu.4.gz
 OLD_FILES+=usr/share/man/man4/ng_sscop.4.gz

@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 
 #include <netgraph/ng_UI.h>
 #include <netgraph/ng_async.h>
-#include <netgraph/ng_atmllc.h>
 #include <netgraph/ng_bpf.h>
 #include <netgraph/ng_bridge.h>
 #include <netgraph/ng_car.h>
@@ -133,7 +132,6 @@ struct ng_cookie {
 static const struct ng_cookie cookies[] = {
 	COOKIE(UI),
 	COOKIE(ASYNC),
-	COOKIE(ATMLLC),
 	COOKIE(BPF),
 	COOKIE(BRIDGE),
 	COOKIE(CAR),
