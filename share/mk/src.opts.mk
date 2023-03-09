@@ -192,7 +192,6 @@ __DEFAULT_YES_OPTIONS = \
     ZONEINFO
 
 __DEFAULT_NO_OPTIONS = \
-    ATM \
     BEARSSL \
     BHYVE_SNAPSHOT \
     CLANG_EXTRAS \
@@ -405,7 +404,6 @@ MK_DMAGENT:=	no
 .endif
 
 .if ${MK_NETGRAPH} == "no"
-MK_ATM:=	no
 MK_BLUETOOTH:=	no
 .endif
 
