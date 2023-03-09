@@ -1431,10 +1431,9 @@ vm_fault_object(struct faultstate *fs, int *behindp, int *aheadp)
 	}
 
 	/*
-	 * Default objects have no pager so no exclusive busy exists
-	 * to protect this page in the chain.  Skip to the next
-	 * object without dropping the lock to preserve atomicity of
-	 * shadow faults.
+	 * Check to see if the pager can possibly satisfy this fault.
+	 * If not, skip to the next object without dropping the lock to
+	 * preserve atomicity of shadow faults.
 	 */
 	if (fault_object_needs_getpages(fs->object)) {
 		/*
