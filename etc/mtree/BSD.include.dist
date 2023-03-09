@@ -287,16 +287,6 @@
     ..
     netipsec
     ..
-    netnatm
-        api
-        ..
-        msg
-        ..
-        saal
-        ..
-        sig
-        ..
-    ..
     netpfil
         pf
         ..

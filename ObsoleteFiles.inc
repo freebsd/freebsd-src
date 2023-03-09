@@ -52,6 +52,49 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20230309: remove remaining ATM support
+OLD_FILES+=usr/bin/sscop
+OLD_FILES+=usr/include/netnatm/addr.h
+OLD_FILES+=usr/include/netnatm/api/atmapi.h
+OLD_FILES+=usr/include/netnatm/api/ccatm.h
+OLD_FILES+=usr/include/netnatm/api/unisap.h
+OLD_DIRS+=usr/include/netnatm/api
+OLD_FILES+=usr/include/netnatm/msg/uni_config.h
+OLD_FILES+=usr/include/netnatm/msg/uni_hdr.h
+OLD_FILES+=usr/include/netnatm/msg/uni_ie.h
+OLD_FILES+=usr/include/netnatm/msg/uni_msg.h
+OLD_FILES+=usr/include/netnatm/msg/unimsglib.h
+OLD_FILES+=usr/include/netnatm/msg/uniprint.h
+OLD_FILES+=usr/include/netnatm/msg/unistruct.h
+OLD_DIRS+=usr/include/netnatm/msg
+OLD_FILES+=usr/include/netnatm/saal/sscfu.h
+OLD_FILES+=usr/include/netnatm/saal/sscfudef.h
+OLD_FILES+=usr/include/netnatm/saal/sscop.h
+OLD_FILES+=usr/include/netnatm/saal/sscopdef.h
+OLD_DIRS+=usr/include/netnatm/saal
+OLD_FILES+=usr/include/netnatm/sig/uni.h
+OLD_FILES+=usr/include/netnatm/sig/unidef.h
+OLD_FILES+=usr/include/netnatm/sig/unisig.h
+OLD_DIRS+=usr/include/netnatm/sig
+OLD_FILES+=usr/include/netnatm/unimsg.h
+OLD_DIRS+=usr/include/netnatm
+OLD_FILES+=usr/lib/libngatm.a
+OLD_FILES+=usr/lib/libngatm.so
+OLD_LIBS+=usr/lib/libngatm.so.4
+OLD_FILES+=usr/lib/libngatm_p.a
+OLD_FILES+=usr/share/man/man1/sscop.1.gz
+OLD_FILES+=usr/share/man/man3/libngatm.3.gz
+OLD_FILES+=usr/share/man/man3/uniaddr.3.gz
+OLD_FILES+=usr/share/man/man3/unifunc.3.gz
+OLD_FILES+=usr/share/man/man3/unimsg.3.gz
+OLD_FILES+=usr/share/man/man3/unisap.3.gz
+OLD_FILES+=usr/share/man/man3/unistruct.3.gz
+OLD_FILES+=usr/share/man/man4/ng_ccatm.4.gz
+OLD_FILES+=usr/share/man/man4/ng_sscfu.4.gz
+OLD_FILES+=usr/share/man/man4/ng_sscop.4.gz
+OLD_FILES+=usr/share/man/man4/ng_uni.4.gz
+OLD_FILES+=usr/share/man/man4/ngatmbase.4.gz
+
 # 20230308: machine-id merged into hostid_save
 OLD_FILES+=etc/rc.d/machine-id
 

@@ -344,13 +344,11 @@ MAN=	aac.4 \
 	${_nfe.4} \
 	${_nfsmb.4} \
 	ng_async.4 \
-	ngatmbase.4 \
 	ng_atmllc.4 \
 	ng_bpf.4 \
 	ng_bridge.4 \
 	ng_btsocket.4 \
 	ng_car.4 \
-	ng_ccatm.4 \
 	ng_checksum.4 \
 	ng_cisco.4 \
 	ng_deflate.4 \
@@ -389,15 +387,12 @@ MAN=	aac.4 \
 	ng_socket.4 \
 	ng_source.4 \
 	ng_split.4 \
-	ng_sscfu.4 \
-	ng_sscop.4 \
 	ng_tag.4 \
 	ng_tcpmss.4 \
 	ng_tee.4 \
 	ng_tty.4 \
 	ng_ubt.4 \
 	ng_UI.4 \
-	ng_uni.4 \
 	ng_vjc.4 \
 	ng_vlan.4 \
 	ng_vlan_rotate.4 \

@@ -153,7 +153,6 @@ SUBDIR_DEPEND_flua=	libjail
 
 # NB: keep these sorted by MK_* knobs
 
-SUBDIR.${MK_ATM}+=	libngatm
 SUBDIR.${MK_BEARSSL}+=	libbearssl libsecureboot
 SUBDIR.${MK_BLACKLIST}+=libblacklist
 SUBDIR.${MK_BLUETOOTH}+=libbluetooth libsdp

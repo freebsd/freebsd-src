@@ -80,45 +80,6 @@ OLD_FILES+=usr/share/man/man1/batch.1.gz
 OLD_FILES+=usr/share/man/man8/atrun.8.gz
 .endif
 
-.if ${MK_ATM} == no
-OLD_FILES+=usr/bin/sscop
-OLD_FILES+=usr/include/netnatm/addr.h
-OLD_FILES+=usr/include/netnatm/api/atmapi.h
-OLD_FILES+=usr/include/netnatm/api/ccatm.h
-OLD_FILES+=usr/include/netnatm/api/unisap.h
-OLD_DIRS+=usr/include/netnatm/api
-OLD_FILES+=usr/include/netnatm/msg/uni_config.h
-OLD_FILES+=usr/include/netnatm/msg/uni_hdr.h
-OLD_FILES+=usr/include/netnatm/msg/uni_ie.h
-OLD_FILES+=usr/include/netnatm/msg/uni_msg.h
-OLD_FILES+=usr/include/netnatm/msg/unimsglib.h
-OLD_FILES+=usr/include/netnatm/msg/uniprint.h
-OLD_FILES+=usr/include/netnatm/msg/unistruct.h
-OLD_DIRS+=usr/include/netnatm/msg
-OLD_FILES+=usr/include/netnatm/saal/sscfu.h
-OLD_FILES+=usr/include/netnatm/saal/sscfudef.h
-OLD_FILES+=usr/include/netnatm/saal/sscop.h
-OLD_FILES+=usr/include/netnatm/saal/sscopdef.h
-OLD_DIRS+=usr/include/netnatm/saal
-OLD_FILES+=usr/include/netnatm/sig/uni.h
-OLD_FILES+=usr/include/netnatm/sig/unidef.h
-OLD_FILES+=usr/include/netnatm/sig/unisig.h
-OLD_DIRS+=usr/include/netnatm/sig
-OLD_FILES+=usr/include/netnatm/unimsg.h
-OLD_DIRS+=usr/include/netnatm
-OLD_FILES+=usr/lib/libngatm.a
-OLD_FILES+=usr/lib/libngatm.so
-OLD_LIBS+=usr/lib/libngatm.so.4
-OLD_FILES+=usr/lib/libngatm_p.a
-OLD_FILES+=usr/share/man/man1/sscop.1.gz
-OLD_FILES+=usr/share/man/man3/libngatm.3.gz
-OLD_FILES+=usr/share/man/man3/uniaddr.3.gz
-OLD_FILES+=usr/share/man/man3/unifunc.3.gz
-OLD_FILES+=usr/share/man/man3/unimsg.3.gz
-OLD_FILES+=usr/share/man/man3/unisap.3.gz
-OLD_FILES+=usr/share/man/man3/unistruct.3.gz
-.endif
-
 .if ${MK_AUDIT} == no
 OLD_FILES+=etc/rc.d/auditd
 OLD_FILES+=etc/rc.d/auditdistd
@@ -6998,7 +6959,6 @@ OLD_FILES+=usr/lib/libncurses_p.a
 OLD_FILES+=usr/lib/libncursesw_p.a
 OLD_FILES+=usr/lib/libnetgraph_p.a
 OLD_FILES+=usr/lib/libnetmap_p.a
-OLD_FILES+=usr/lib/libngatm_p.a
 OLD_FILES+=usr/lib/libnv_p.a
 OLD_FILES+=usr/lib/libnvpair_p.a
 OLD_FILES+=usr/lib/libopencsd_p.a
