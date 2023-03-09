@@ -1047,6 +1047,14 @@ The kernel has to be built with a module to parse the manifest.
 .Pp
 Depends on
 .Va WITH_LOADER_VERIEXEC .
+.It Va WITH_LOADER_VERIEXEC_VECTX
+Enable building
+.Xr loader 8
+with support for hashing and verifying kernel and modules as a side effect
+of loading.
+.Pp
+Depends on
+.Va WITH_LOADER_VERIEXEC .
 .It Va WITHOUT_LOADER_ZFS
 Do not build ZFS file system boot loader support.
 .It Va WITHOUT_LOCALES

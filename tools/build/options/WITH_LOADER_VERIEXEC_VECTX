@@ -1,0 +1,7 @@
+Enable building
+.Xr loader 8
+with support for hashing and verifying kernel and modules as a side effect
+of loading.
+.Pp
+Depends on
+.Va WITH_LOADER_VERIEXEC .
