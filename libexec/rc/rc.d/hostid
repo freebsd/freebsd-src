@@ -126,7 +126,7 @@ hostid_generate()
 	# Generate a random UUID if invalid or not found
 	if [ -z "${uuid}" ]; then
 		# If not found, fall back to software-generated UUID.
-		uuid=`uuidgen`
+		uuid=`uuidgen ${hostid_uuidgen_flags}`
 	fi
 	hostid_set $uuid
 }
