@@ -62,7 +62,6 @@ typedef enum {
 
 int config_init(const char *);
 void config_finish(void);
-int config_show(int, char *[]);
 int config_string(pkg_config_key, const char **);
 int config_bool(pkg_config_key, bool *);
 
