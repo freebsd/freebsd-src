@@ -1195,6 +1195,11 @@ main(int argc, char *argv[])
 				else if (strcmp(command, "bootstrap") == 0) {
 					bootstrap_only = true;
 				}
+				else if (strcmp(command, "config") == 0 &&
+				    activation_test) {
+					exit(config_show(argc - optind,
+					    argv + optind));
+				}
 			}
 			// bootstrap doesn't accept other arguments
 			else if (bootstrap_only) {
