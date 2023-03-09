@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 
 #include "dns_utils.h"
 #include "config.h"
+#include "hash.h"
 
 struct sig_cert {
 	char *name;
@@ -398,83 +399,6 @@ load_fingerprints(const char *path, int *count)
 	closedir(d);
 
 	return (fingerprints);
-}
-
-static void
-sha256_hash(unsigned char hash[SHA256_DIGEST_LENGTH],
-    char out[SHA256_DIGEST_LENGTH * 2 + 1])
-{
-	int i;
-
-	for (i = 0; i < SHA256_DIGEST_LENGTH; i++)
-		sprintf(out + (i * 2), "%02x", hash[i]);
-
-	out[SHA256_DIGEST_LENGTH * 2] = '\0';
-}
-
-static void
-sha256_buf(char *buf, size_t len, char out[SHA256_DIGEST_LENGTH * 2 + 1])
-{
-	unsigned char hash[SHA256_DIGEST_LENGTH];
-	SHA256_CTX sha256;
-
-	out[0] = '\0';
-
-	SHA256_Init(&sha256);
-	SHA256_Update(&sha256, buf, len);
-	SHA256_Final(hash, &sha256);
-	sha256_hash(hash, out);
-}
-
-static int
-sha256_fd(int fd, char out[SHA256_DIGEST_LENGTH * 2 + 1])
-{
-	int my_fd;
-	FILE *fp;
-	char buffer[BUFSIZ];
-	unsigned char hash[SHA256_DIGEST_LENGTH];
-	size_t r;
-	int ret;
-	SHA256_CTX sha256;
-
-	fp = NULL;
-	ret = 1;
-
-	out[0] = '\0';
-
-	/* Duplicate the fd so that fclose(3) does not close it. */
-	if ((my_fd = dup(fd)) == -1) {
-		warnx("dup");
-		goto cleanup;
-	}
-
-	if ((fp = fdopen(my_fd, "rb")) == NULL) {
-		warnx("fdopen");
-		goto cleanup;
-	}
-
-	SHA256_Init(&sha256);
-
-	while ((r = fread(buffer, 1, BUFSIZ, fp)) > 0)
-		SHA256_Update(&sha256, buffer, r);
-
-	if (ferror(fp) != 0) {
-		warnx("fread");
-		goto cleanup;
-	}
-
-	SHA256_Final(hash, &sha256);
-	sha256_hash(hash, out);
-	ret = 0;
-
-cleanup:
-	if (fp != NULL)
-		fclose(fp);
-	else if (my_fd != -1)
-		close(my_fd);
-	(void)lseek(fd, 0, SEEK_SET);
-
-	return (ret);
 }
 
 static EVP_PKEY *
