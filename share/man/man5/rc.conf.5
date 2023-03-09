@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 28, 2023
+.Dd March 9, 2023
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -535,6 +535,36 @@ your console login will display the default hostname of
 The NIS domain name of this host, or
 .Dq Li NO
 if NIS is not used.
+.It Va hostid_enable
+.Pq Vt bool
+If set to
+.Dq Li NO ,
+disable the generation or saving of the
+.Pa hostid
+and
+.Pa machine-id
+files at system boot and shutdown.
+.It Va hostid_file
+.Pq Vt str
+Path to the
+.Pa hostid
+file, default
+.Pa /etc/hostid .
+.It Va hostid_uuidgen_flags
+.Pq Vt str
+Flags passed to
+.Xr uuidgen 1
+when generating a software host UUID.
+This is used only if the system cannot determine a hardware UUID.
+Set to
+.Dq Li -r
+by default.
+.It Va machine_id_file
+.Pq Vt str
+Path to the
+.Pa machine-id
+file, default
+.Pa /etc/machine-id .
 .It Va dhclient_program
 .Pq Vt str
 Path to the DHCP client program
@@ -4906,6 +4936,7 @@ these are the flags to pass to the
 .Xr protect 1 ,
 .Xr sh 1 ,
 .Xr umask 1 ,
+.Xr uuidgen 1 ,
 .Xr vi 1 ,
 .Xr vidcontrol 1 ,
 .Xr bridge 4 ,
