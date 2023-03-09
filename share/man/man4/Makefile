@@ -344,7 +344,6 @@ MAN=	aac.4 \
 	${_nfe.4} \
 	${_nfsmb.4} \
 	ng_async.4 \
-	ng_atmllc.4 \
 	ng_bpf.4 \
 	ng_bridge.4 \
 	ng_btsocket.4 \

@@ -4233,7 +4233,6 @@ netgraph/netflow/netflow_v9.c	optional netgraph_netflow
 netgraph/netflow/ng_netflow.c	optional netgraph_netflow
 netgraph/ng_UI.c		optional netgraph_UI
 netgraph/ng_async.c		optional netgraph_async
-netgraph/ng_atmllc.c		optional netgraph_atmllc
 netgraph/ng_base.c		optional netgraph
 netgraph/ng_bpf.c		optional netgraph_bpf
 netgraph/ng_bridge.c		optional netgraph_bridge
