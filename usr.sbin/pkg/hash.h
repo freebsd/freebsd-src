@@ -28,5 +28,5 @@
 
 #pragma once
 
-void sha256_buf(char *buf, size_t len, char out[]);
-int sha256_fd(int fd, char out[]);
+char *sha256_buf(char *buf, size_t len);
+char *sha256_fd(int fd);

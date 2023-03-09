@@ -443,10 +443,11 @@ rsa_verify_cert(int fd, const char *sigfile, const unsigned char *key,
 {
 	EVP_MD_CTX *mdctx;
 	EVP_PKEY *pkey;
-	char sha256[(SHA256_DIGEST_LENGTH * 2) + 2];
+	char *sha256;
 	char errbuf[1024];
 	bool ret;
 
+	sha256 = NULL;
 	pkey = NULL;
 	mdctx = NULL;
 	ret = false;
@@ -458,7 +459,7 @@ rsa_verify_cert(int fd, const char *sigfile, const unsigned char *key,
 		warn("lseek");
 		goto cleanup;
 	}
-	if ((sha256_fd(fd, sha256)) == -1) {
+	if ((sha256 = sha256_fd(fd)) == NULL) {
 		warnx("Error creating SHA256 hash for package");
 		goto cleanup;
 	}
@@ -503,6 +504,7 @@ error:
 	printf("failed\n");
 
 cleanup:
+	free(sha256);
 	if (pkey)
 		EVP_PKEY_free(pkey);
 	if (mdctx)
@@ -665,8 +667,9 @@ verify_signature(int fd_pkg, int fd_sig)
 	int trusted_count, revoked_count;
 	const char *fingerprints;
 	char path[MAXPATHLEN];
-	char hash[SHA256_DIGEST_LENGTH * 2 + 1];
+	char *hash;
 
+	hash = NULL;
 	sc = NULL;
 	trusted = revoked = NULL;
 	ret = false;
@@ -703,7 +706,7 @@ verify_signature(int fd_pkg, int fd_sig)
 	sc->trusted = false;
 
 	/* Parse signature and pubkey out of the certificate */
-	sha256_buf(sc->cert, sc->certlen, hash);
+	hash = sha256_buf(sc->cert, sc->certlen);
 
 	/* Check if this hash is revoked */
 	if (revoked != NULL) {
@@ -742,6 +745,7 @@ verify_signature(int fd_pkg, int fd_sig)
 	ret = true;
 
 cleanup:
+	free(hash);
 	if (trusted)
 		free_fingerprint_list(trusted);
 	if (revoked)
