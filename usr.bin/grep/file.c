@@ -186,8 +186,7 @@ grep_open(const char *path)
 	if (filebehave == FILE_MMAP) {
 		struct stat st;
 
-		if ((fstat(f->fd, &st) == -1) || (st.st_size > OFF_MAX) ||
-		    (!S_ISREG(st.st_mode)))
+		if (fstat(f->fd, &st) == -1 || !S_ISREG(st.st_mode))
 			filebehave = FILE_STDIO;
 		else {
 			int flags = MAP_PRIVATE | MAP_NOCORE | MAP_NOSYNC;
