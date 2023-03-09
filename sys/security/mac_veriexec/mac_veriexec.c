@@ -94,6 +94,11 @@ SYSCTL_PROC(_security_mac_veriexec, OID_AUTO, db,
     0, 0, sysctl_mac_veriexec_db,
     "A", "Verified execution fingerprint database");
 
+static int	mac_veriexec_unlink = 0;
+SYSCTL_INT(_security_mac_veriexec, OID_AUTO, unlink, CTLFLAG_RW,
+    &mac_veriexec_unlink, 0, "Veriexec unlink protection");
+
+
 static int mac_veriexec_slot;
 
 MALLOC_DEFINE(M_VERIEXEC, "veriexec", "Verified execution data");
@@ -598,6 +603,12 @@ mac_veriexec_vnode_check_unlink(struct ucred *cred, struct vnode *dvp __unused, 
 		return (0);
 
 	/*
+	 * Check if unlink control is activated via sysctl node
+	 */
+	if (!mac_veriexec_unlink)
+		return (0);
+	/*
+	
 	 * Check if it's a verified file
 	 */
 	error = mac_veriexec_check_vp(cred, vp, VVERIFY);
