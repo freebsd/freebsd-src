@@ -117,7 +117,7 @@ hostid_generate()
 		warn "hostid: unable to figure out a UUID from DMI data, generating a new one"
 		sleep 2
 		# If not found, fall back to software-generated UUID.
-		uuid=`uuidgen`
+		uuid=`uuidgen ${hostid_uuidgen_flags}`
 	fi
 	hostid_set $uuid
 }
