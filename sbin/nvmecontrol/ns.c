@@ -577,30 +577,48 @@ nscreate(const struct cmd *f, int argc, char *argv[])
 	    NVME_CTRLR_DATA_OACS_NSMGMT_MASK) == 0)
 		errx(EX_UNAVAILABLE, "controller does not support namespace management");
 
-	/* Allow namespaces sharing if Multi-Path I/O is supported. */
-	if (create_opt.nmic == NONE) {
-		create_opt.nmic = cd.mic ? (NVME_NS_DATA_NMIC_MAY_BE_SHARED_MASK <<
-		     NVME_NS_DATA_NMIC_MAY_BE_SHARED_SHIFT) : 0;
-	}
-
 	memset(&nsdata, 0, sizeof(nsdata));
 	nsdata.nsze = create_opt.nsze;
 	nsdata.ncap = create_opt.cap;
-	if (create_opt.flbas == NONE)
-		nsdata.flbas = ((create_opt.lbaf & NVME_NS_DATA_FLBAS_FORMAT_MASK)
-		    << NVME_NS_DATA_FLBAS_FORMAT_SHIFT) |
-		    ((create_opt.mset & NVME_NS_DATA_FLBAS_EXTENDED_MASK)
-			<< NVME_NS_DATA_FLBAS_EXTENDED_SHIFT);
-	else
+	if (create_opt.flbas != NONE) {
 		nsdata.flbas = create_opt.flbas;
-	if (create_opt.dps == NONE)
-		nsdata.dps = ((create_opt.pi & NVME_NS_DATA_DPS_MD_START_MASK)
-		    << NVME_NS_DATA_DPS_MD_START_SHIFT) |
-		    ((create_opt.pil & NVME_NS_DATA_DPS_PIT_MASK)
-			<< NVME_NS_DATA_DPS_PIT_SHIFT);
-	else
+	} else {
+		/* Default to the first format, whatever it is. */
+		nsdata.flbas = 0;
+		if (create_opt.lbaf != NONE) {
+			nsdata.flbas |= (create_opt.lbaf &
+			    NVME_NS_DATA_FLBAS_FORMAT_MASK)
+			    << NVME_NS_DATA_FLBAS_FORMAT_SHIFT;
+		}
+		if (create_opt.mset != NONE) {
+			nsdata.flbas |= (create_opt.mset &
+			    NVME_NS_DATA_FLBAS_EXTENDED_MASK)
+			    << NVME_NS_DATA_FLBAS_EXTENDED_SHIFT;
+		}
+	}
+	if (create_opt.dps != NONE) {
 		nsdata.dps = create_opt.dps;
-	nsdata.nmic = create_opt.nmic;
+	} else {
+		/* Default to protection disabled. */
+		nsdata.dps = 0;
+		if (create_opt.pi != NONE) {
+			nsdata.dps |= (create_opt.pi &
+			    NVME_NS_DATA_DPS_MD_START_MASK)
+			    << NVME_NS_DATA_DPS_MD_START_SHIFT;
+		}
+		if (create_opt.pil != NONE) {
+			nsdata.dps |= (create_opt.pil &
+			    NVME_NS_DATA_DPS_PIT_MASK)
+			    << NVME_NS_DATA_DPS_PIT_SHIFT;
+		}
+	}
+	if (create_opt.nmic != NONE) {
+		nsdata.nmic = create_opt.nmic;
+	} else {
+		/* Allow namespaces sharing if Multi-Path I/O is supported. */
+		nsdata.nmic = cd.mic ? (NVME_NS_DATA_NMIC_MAY_BE_SHARED_MASK <<
+		     NVME_NS_DATA_NMIC_MAY_BE_SHARED_SHIFT) : 0;
+	}
 	nvme_namespace_data_swapbytes(&nsdata);
 
 	memset(&pt, 0, sizeof(pt));
