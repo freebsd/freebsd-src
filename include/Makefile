@@ -58,7 +58,7 @@ LSUBDIRS=	dev/acpica dev/agp dev/ciss dev/filemon dev/firewire \
 	geom/raid geom/raid3 geom/shsec geom/stripe geom/union geom/virstor \
 	net/altq \
 	net/route \
-	netgraph/atm netgraph/netflow \
+	netgraph/netflow \
 	netinet/cc \
 	netinet/netdump \
 	netinet/tcp_stacks \
