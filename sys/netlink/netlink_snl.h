@@ -677,7 +677,7 @@ snl_add_msg_attr(struct snl_writer *nw, int attr_type, int attr_len, const void 
 			return (false);
 	}
 
-        struct nlattr *nla = (struct nlattr *)(&nw->base[nw->offset]);
+        struct nlattr *nla = (struct nlattr *)(void *)(&nw->base[nw->offset]);
 
         nla->nla_len = attr_len + sizeof(struct nlattr);
         nla->nla_type = attr_type;
@@ -838,7 +838,7 @@ snl_finalize_msg(struct snl_writer *nw)
 	return (NULL);
 }
 
-static bool
+static inline bool
 snl_send_msgs(struct snl_writer *nw)
 {
 	int offset = nw->offset;

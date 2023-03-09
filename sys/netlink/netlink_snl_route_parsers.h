@@ -28,7 +28,7 @@
 #define	_NETLINK_NETLINK_SNL_ROUTE_PARSERS_H_
 
 #include <netlink/netlink_snl.h>
-#include <netlink/netlink_route.h>
+#include <netlink/netlink_snl_route.h>
 
 /* TODO: this file should be generated automatically */
 
@@ -72,7 +72,8 @@ struct rta_mpath {
 };
 
 static bool
-nlattr_get_multipath(struct snl_state *ss, struct nlattr *nla, const void *arg, void *target)
+nlattr_get_multipath(struct snl_state *ss, struct nlattr *nla, const void *arg __unused,
+    void *target)
 {
 	int data_len = nla->nla_len - sizeof(struct nlattr);
 	struct rtnexthop *rtnh;
@@ -83,7 +84,7 @@ nlattr_get_multipath(struct snl_state *ss, struct nlattr *nla, const void *arg, 
 	struct rta_mpath *mp = snl_allocz(ss, sz);
 	mp->num_nhops = 0;
 
-	for (rtnh = (struct rtnexthop *)(nla + 1); data_len > 0; ) {
+	for (rtnh = (struct rtnexthop *)(void *)(nla + 1); data_len > 0; ) {
 		struct rta_mpath_nh *mpnh = &mp->nhops[mp->num_nhops++];
 
 		if (!snl_parse_header(ss, rtnh, rtnh->rtnh_len, &_mpath_nh_parser, mpnh))
@@ -91,7 +92,7 @@ nlattr_get_multipath(struct snl_state *ss, struct nlattr *nla, const void *arg, 
 
 		int len = NL_ITEM_ALIGN(rtnh->rtnh_len);
 		data_len -= len;
-		rtnh = (struct rtnexthop *)((char *)rtnh + len);
+		rtnh = (struct rtnexthop *)(void *)((char *)rtnh + len);
 	}
 	if (data_len != 0 || mp->num_nhops == 0) {
 		return (false);

@@ -27,6 +27,9 @@
 #ifndef	_NETLINK_NETLINK_SNL_ROUTE_COMPAT_H_
 #define	_NETLINK_NETLINK_SNL_ROUTE_COMPAT_H_
 
+#include <sys/socket.h>
+#include <sys/types.h>
+
 /*
  * This file contains netlink-compatible definitions from the
  * net/route.h header.

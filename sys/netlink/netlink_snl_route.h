@@ -134,10 +134,10 @@ snl_add_msg_attr_ip(struct snl_writer *nw, int attrtype, const struct sockaddr *
 
 	switch (sa->sa_family) {
 	case AF_INET:
-		addr = &((const struct sockaddr_in *)sa)->sin_addr;
+		addr = &((const struct sockaddr_in *)(const void *)sa)->sin_addr;
 		return (snl_add_msg_attr(nw, attrtype, 4, addr));
 	case AF_INET6:
-		addr = &((const struct sockaddr_in6 *)sa)->sin6_addr;
+		addr = &((const struct sockaddr_in6 *)(const void *)sa)->sin6_addr;
 		return (snl_add_msg_attr(nw, attrtype, 16, addr));
 	}
 
@@ -153,10 +153,10 @@ snl_add_msg_attr_ipvia(struct snl_writer *nw, int attrtype, const struct sockadd
 
 	switch (sa->sa_family) {
 	case AF_INET:
-		memcpy(&buf[1], &((const struct sockaddr_in *)sa)->sin_addr, 4);
+		memcpy(&buf[1], &((const struct sockaddr_in *)(const void *)sa)->sin_addr, 4);
 		return (snl_add_msg_attr(nw, attrtype, 5, buf));
 	case AF_INET6:
-		memcpy(&buf[1], &((const struct sockaddr_in6 *)sa)->sin6_addr, 16);
+		memcpy(&buf[1], &((const struct sockaddr_in6 *)(const void *)sa)->sin6_addr, 16);
 		return (snl_add_msg_attr(nw, attrtype, 17, buf));
 	}
 
