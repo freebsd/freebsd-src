@@ -9,6 +9,7 @@
 #include <netlink/netlink_route.h>
 #include "netlink/netlink_snl.h"
 #include "netlink/netlink_snl_route.h"
+#include "netlink/netlink_snl_route_parsers.h"
 
 #include <atf-c.h>
 
@@ -19,6 +20,17 @@ require_netlink(void)
 		atf_tc_skip("netlink module not loaded");
 }
 
+ATF_TC(snl_verify_parsers);
+ATF_TC_HEAD(snl_verify_parsers, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests snl(3) parsers are correct");
+}
+
+ATF_TC_BODY(snl_verify_parsers, tc)
+{
+	SNL_VERIFY_PARSERS(snl_all_route_parsers);
+
+}
 
 ATF_TC(snl_list_ifaces);
 ATF_TC_HEAD(snl_list_ifaces, tc)
@@ -87,6 +99,7 @@ ATF_TC_BODY(snl_list_ifaces, tc)
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, snl_list_ifaces);
+	ATF_TP_ADD_TC(tp, snl_verify_parsers);
 
 	return (atf_no_error());
 }

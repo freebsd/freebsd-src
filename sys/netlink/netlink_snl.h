@@ -518,6 +518,20 @@ snl_attr_get_nla(struct snl_state *ss __unused, struct nlattr *nla,
 	return (true);
 }
 
+static inline bool
+snl_attr_copy_struct(struct snl_state *ss, struct nlattr *nla,
+    const void *arg __unused, void *target)
+{
+	void *ptr = snl_allocz(ss, NLA_DATA_LEN(nla));
+
+	if (ptr != NULL) {
+		memcpy(ptr, NLA_DATA(nla), NLA_DATA_LEN(nla));
+		*((void **)target) = ptr;
+		return (true);
+	}
+	return (false);
+}
+
 static inline void
 snl_field_get_uint8(struct snl_state *ss __unused, void *src, void *target)
 {
