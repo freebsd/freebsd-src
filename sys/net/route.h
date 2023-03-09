@@ -265,6 +265,7 @@ struct rt_msghdr {
 
 #define RTM_VERSION	5	/* Up the ante and ignore older versions */
 
+#ifndef NETLINK_COMPAT
 /*
  * Message types.
  *
@@ -297,6 +298,8 @@ struct rt_msghdr {
 #define	RTM_IFANNOUNCE	0x11	/* (5) iface arrival/departure */
 #define	RTM_IEEE80211	0x12	/* (5) IEEE80211 wireless event */
 
+#endif /* NETLINK_COMPAT*/
+
 /*
  * Bitmask values for rtm_inits and rmx_locks.
  */
@@ -310,6 +313,8 @@ struct rt_msghdr {
 #define RTV_RTTVAR	0x80	/* init or lock _rttvar */
 #define RTV_WEIGHT	0x100	/* init or lock _weight */
 
+#ifndef NETLINK_COMPAT
+
 /*
  * Bitmask values for rtm_addrs.
  */
@@ -321,6 +326,8 @@ struct rt_msghdr {
 #define RTA_IFA		0x20	/* interface addr sockaddr present */
 #define RTA_AUTHOR	0x40	/* sockaddr for author of redirect */
 #define RTA_BRD		0x80	/* for NEWADDR, broadcast or p-p dest addr */
+
+#endif /* NETLINK_COMPAT*/
 
 /*
  * Index offsets for sockaddr array for alternate internal encoding.
