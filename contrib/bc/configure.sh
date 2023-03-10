@@ -1801,7 +1801,7 @@ if [ "$library" -ne 0 ]; then
 		contents=$(replace "$contents" "LIBDIR" "$LIBDIR")
 		contents=$(replace "$contents" "VERSION" "$version")
 
-		printf '%s\n' "$contents" > "./bcl.pc"
+		printf '%s\n' "$contents" > "$scriptdir/bcl.pc"
 
 		pkg_config_install="\$(SAFE_INSTALL) \$(PC_INSTALL_ARGS) \"\$(BCL_PC)\" \"\$(DESTDIR)\$(PC_PATH)/\$(BCL_PC)\""
 		pkg_config_uninstall="\$(RM) -f \"\$(DESTDIR)\$(PC_PATH)/\$(BCL_PC)\""

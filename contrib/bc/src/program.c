@@ -757,9 +757,16 @@ bc_program_read(BcProgram* p)
 		// struct.
 		bc_vec_init(&vm->read_buf, sizeof(char), BC_DTOR_NONE);
 	}
-	// This needs to be updated because the parser could have been used
-	// somewhere else
-	else bc_parse_updateFunc(&vm->read_prs, BC_PROG_READ);
+	else
+	{
+		// This needs to be updated because the parser could have been used
+		// somewhere else.
+		bc_parse_updateFunc(&vm->read_prs, BC_PROG_READ);
+
+		// The read buffer also needs to be emptied or else it will still
+		// contain previous read expressions.
+		bc_vec_empty(&vm->read_buf);
+	}
 
 	BC_SETJMP_LOCKED(vm, exec_err);
 

@@ -560,8 +560,12 @@ typedef struct BcVm
 	/// The vector for creating strings to pass to the client.
 	BcVec out;
 
+#if BC_ENABLE_EXTRA_MATH
+
 	/// The PRNG.
 	BcRNG rng;
+
+#endif // BC_ENABLE_EXTRA_MATH
 
 	/// The current error.
 	BclError err;

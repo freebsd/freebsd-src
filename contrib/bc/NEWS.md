@@ -1,5 +1,24 @@
 # News
 
+## 6.4.0
+
+This is a production release that fixes a `read()`/`?` bug and adds features to
+`bcl`.
+
+The bug was that multiple read calls could repeat old data.
+
+The new features in `bcl` are functions to preserve `BclNumber` arguments and
+not free them.
+
+***WARNING for `bcl` Users***: The `bcl_rand_seedWithNum()` function used to not
+consume its arguments. Now it does. This change could have made this version
+`7.0.0`, but I'm 99.9% confident that there are no `bcl` users, or if there are,
+they probably don't use the PRNG. So I took a risk and didn't update the major
+version.
+
+`bcl` now includes more capacity to check for invalid numbers when built to run
+under Valgrind.
+
 ## 6.3.1
 
 This is a production release that fixes a `bc` dependency loop for minimal
