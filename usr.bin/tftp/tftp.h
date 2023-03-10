@@ -32,9 +32,8 @@
  * $FreeBSD$
  */
 
-void	recvfile(int peer, char *port, int fd, char *name, char *mode);
-void	xmitfile(int peer, char *port, int fd, char *name, char *mode);
+int	recvfile(int peer, char *port, int fd, char *name, char *mode);
+int	xmitfile(int peer, char *port, int fd, char *name, char *mode);
 
 extern int	verbose;
 extern int	maxtimeout;
-extern volatile int txrx_error;

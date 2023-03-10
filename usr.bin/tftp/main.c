@@ -84,7 +84,7 @@ typedef struct	sockaddr_storage peeraddr;
 static int	connected;
 static char	mode[32];
 static jmp_buf	toplevel;
-volatile int	txrx_error;
+static int	txrx_error;
 static int	peer;
 
 #define	MAX_MARGV	20
@@ -501,7 +501,8 @@ put(int argc, char *argv[])
 		if (verbose)
 			printf("putting %s to %s:%s [%s]\n",
 			    cp, hostname, targ, mode);
-		xmitfile(peer, port, fd, targ, mode);
+		if (xmitfile(peer, port, fd, targ, mode))
+			txrx_error = 1;
 		close(fd);
 		return;
 	}
@@ -529,7 +530,8 @@ put(int argc, char *argv[])
 		if (verbose)
 			printf("putting %s to %s:%s [%s]\n",
 			    argv[n], hostname, path, mode);
-		xmitfile(peer, port, fd, path, mode);
+		if (xmitfile(peer, port, fd, path, mode) != 0)
+			txrx_error = 1;
 		close(fd);
 
 		free(path);
@@ -605,7 +607,8 @@ get(int argc, char *argv[])
 			if (verbose)
 				printf("getting from %s:%s to %s [%s]\n",
 				    hostname, src, cp, mode);
-			recvfile(peer, port, fd, src, mode);
+			if (recvfile(peer, port, fd, src, mode) != 0)
+				txrx_error = 1;
 			break;
 		}
 		cp = tail(src);         /* new .. jdg */
@@ -617,7 +620,8 @@ get(int argc, char *argv[])
 		if (verbose)
 			printf("getting from %s:%s to %s [%s]\n",
 			    hostname, src, cp, mode);
-		recvfile(peer, port, fd, src, mode);
+		if (recvfile(peer, port, fd, src, mode) != 0)
+			txrx_error = 1;
 	}
 }
 
