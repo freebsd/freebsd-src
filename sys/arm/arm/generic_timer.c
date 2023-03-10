@@ -266,13 +266,12 @@ setup_user_access(void *arg __unused)
 
 	cntkctl = get_el1(cntkctl);
 	cntkctl &= ~(GT_CNTKCTL_PL0PTEN | GT_CNTKCTL_PL0VTEN |
-	    GT_CNTKCTL_EVNTEN);
+	    GT_CNTKCTL_EVNTEN | GT_CNTKCTL_PL0PCTEN);
+	/* Always enable the virtual timer */
+	cntkctl |= GT_CNTKCTL_PL0VCTEN;
+	/* Enable the physical timer if supported */
 	if (arm_tmr_sc->physical) {
 		cntkctl |= GT_CNTKCTL_PL0PCTEN;
-		cntkctl &= ~GT_CNTKCTL_PL0VCTEN;
-	} else {
-		cntkctl |= GT_CNTKCTL_PL0VCTEN;
-		cntkctl &= ~GT_CNTKCTL_PL0PCTEN;
 	}
 	set_el1(cntkctl, cntkctl);
 	isb();
