@@ -55,7 +55,7 @@ main(void)
 	BclError e;
 	BclContext ctxt;
 	size_t scale;
-	BclNumber n, n2, n3, n4, n5, n6;
+	BclNumber n, n2, n3, n4, n5, n6, n7;
 	char* res;
 	BclBigDig b = 0;
 
@@ -124,9 +124,21 @@ main(void)
 	if (!bcl_num_neg(n4)) err(BCL_ERROR_FATAL_UNKNOWN_ERR);
 
 	// Add them and check the result.
+	n5 = bcl_add_keep(n3, n4);
+	err(bcl_err(n5));
+	res = bcl_string(n5);
+	if (res == NULL) err(BCL_ERROR_FATAL_ALLOC_ERR);
+	if (strcmp(res, "-25452.9108273")) err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+
+	// We want to ensure all memory gets freed because we run this under
+	// Valgrind.
+	free(res);
+
+	// Add them and check the result.
 	n3 = bcl_add(n3, n4);
 	err(bcl_err(n3));
-	res = bcl_string(bcl_dup(n3));
+	res = bcl_string_keep(n3);
+	if (res == NULL) err(BCL_ERROR_FATAL_ALLOC_ERR);
 	if (strcmp(res, "-25452.9108273")) err(BCL_ERROR_FATAL_UNKNOWN_ERR);
 
 	// We want to ensure all memory gets freed because we run this under
@@ -136,19 +148,29 @@ main(void)
 	// Ensure that divmod, a special case, works.
 	n4 = bcl_parse("8937458902.2890347");
 	err(bcl_err(n4));
+	e = bcl_divmod_keep(n4, n3, &n5, &n6);
+	err(e);
+
+	res = bcl_string(n5);
+	if (strcmp(res, "-351137.0060159482")) err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+	free(res);
+
+	res = bcl_string(n6);
+	if (strcmp(res, ".00000152374405414")) err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+	free(res);
+
+	// Ensure that divmod, a special case, works.
+	n4 = bcl_parse("8937458902.2890347");
+	err(bcl_err(n4));
 	e = bcl_divmod(bcl_dup(n4), n3, &n5, &n6);
 	err(e);
 
 	res = bcl_string(n5);
-
 	if (strcmp(res, "-351137.0060159482")) err(BCL_ERROR_FATAL_UNKNOWN_ERR);
-
 	free(res);
 
 	res = bcl_string(n6);
-
 	if (strcmp(res, ".00000152374405414")) err(BCL_ERROR_FATAL_UNKNOWN_ERR);
-
 	free(res);
 
 	// Ensure that sqrt works. This is also a special case. The reason is
@@ -214,8 +236,16 @@ main(void)
 	err(bcl_err(n3));
 
 	// Repeat.
+	n2 = bcl_ifrand_keep(n3, 10);
+	err(bcl_err(n2));
+
+	// Repeat.
 	n2 = bcl_ifrand(bcl_dup(n3), 10);
 	err(bcl_err(n2));
+
+	// Still checking asserts.
+	e = bcl_rand_seedWithNum_keep(n3);
+	err(e);
 
 	// Still checking asserts.
 	e = bcl_rand_seedWithNum(n3);
@@ -229,8 +259,11 @@ main(void)
 	n5 = bcl_parse("10");
 	err(bcl_err(n5));
 
-	n6 = bcl_modexp(bcl_dup(n5), bcl_dup(n5), bcl_dup(n5));
+	n6 = bcl_modexp_keep(n5, n5, n5);
 	err(bcl_err(n6));
+
+	n7 = bcl_modexp(bcl_dup(n5), bcl_dup(n5), bcl_dup(n5));
+	err(bcl_err(n7));
 
 	// Clean up.
 	bcl_num_free(n);
@@ -249,6 +282,11 @@ main(void)
 
 	n4 = bcl_parse("-1.01");
 	err(bcl_err(n4));
+
+	res = bcl_string_keep(n);
+	if (strcmp(res, ".01")) err(BCL_ERROR_FATAL_UNKNOWN_ERR);
+
+	free(res);
 
 	res = bcl_string(bcl_dup(n));
 	if (strcmp(res, ".01")) err(BCL_ERROR_FATAL_UNKNOWN_ERR);

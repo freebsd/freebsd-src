@@ -74,6 +74,7 @@ results="$testdir/$d/read_results.txt"
 errors="$testdir/$d/read_errors.txt"
 
 out="$outputdir/${d}_outputs/read_results.txt"
+multiple_res="$outputdir/${d}_outputs/read_multiple_results.txt"
 outdir=$(dirname "$out")
 
 # Make sure the directory exists.
@@ -89,11 +90,13 @@ if [ "$d" = "bc" ]; then
 	halt="halt"
 	read_call="read()"
 	read_expr="${read_call}\n5+5;"
+	read_multiple=$(printf '%s\n%s\n%s\n' "3" "2" "1")
 else
 	options="-x"
 	halt="q"
 	read_call="?"
 	read_expr="${read_call}"
+	read_multiple=$(printf '%spR\n%spR\n%spR\n' "3" "2" "1")
 fi
 
 # I use these, so unset them to make the tests work.
@@ -113,6 +116,16 @@ while read line; do
 	checktest "$d" "$?" 'read' "$results" "$out"
 
 done < "$name"
+
+printf 'pass\n'
+
+printf 'Running %s read multiple...' "$d"
+
+printf '3\n2\n1\n' > "$multiple_res"
+
+# Run multiple read() calls.
+printf '%s\n' "$read_multiple" | "$exe" "$@" "$options" -e "$read_call" -e "$read_call" -e "$read_call" > "$out"
+checktest "$d" "$?" 'read multiple' "$multiple_res" "$out"
 
 printf 'pass\n'
 

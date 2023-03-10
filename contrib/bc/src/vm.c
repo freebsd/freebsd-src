@@ -643,12 +643,14 @@ bc_vm_shutdown(void)
 	if (vm->catalog != BC_VM_INVALID_CATALOG) catclose(vm->catalog);
 #endif // BC_ENABLE_NLS
 
+#if !BC_ENABLE_LIBRARY
 #if BC_ENABLE_HISTORY
 	// This must always run to ensure that the terminal is back to normal, i.e.,
 	// has raw mode disabled. But we should only do it if we did not have a bad
 	// terminal because history was not initialized if it is a bad terminal.
 	if (BC_TTY && !vm->history.badTerm) bc_history_free(&vm->history);
 #endif // BC_ENABLE_HISTORY
+#endif // !BC_ENABLE_LIBRARY
 
 #if BC_DEBUG
 #if !BC_ENABLE_LIBRARY
