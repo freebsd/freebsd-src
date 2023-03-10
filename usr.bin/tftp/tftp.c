@@ -68,11 +68,11 @@ __FBSDID("$FreeBSD$");
 /*
  * Send the requested file.
  */
-void
+int
 xmitfile(int peer, char *port, int fd, char *name, char *mode)
 {
 	struct tftphdr *rp;
-	int n, i;
+	int n, i, ret = 0;
 	uint16_t block;
 	struct sockaddr_storage serv;	/* valid server port number */
 	char recvbuffer[MAXPKTSIZE];
@@ -102,7 +102,7 @@ xmitfile(int peer, char *port, int fd, char *name, char *mode)
 		n = send_wrq(peer, name, mode);
 		if (n > 0) {
 			printf("Cannot send WRQ packet\n");
-			return;
+			return -1;
 		}
 
 		/*
@@ -131,11 +131,11 @@ xmitfile(int peer, char *port, int fd, char *name, char *mode)
 	}
 	if (i == 12) {
 		printf("Transfer timed out.\n");
-		return;
+		return -1;
 	}
 	if (rp->th_opcode == ERROR) {
 		printf("Got ERROR, aborted\n");
-		return;
+		return -1;
 	}
 
 	/*
@@ -146,7 +146,7 @@ xmitfile(int peer, char *port, int fd, char *name, char *mode)
 		if (!options_rfc_enabled) {
 			printf("Got OACK while options are not enabled!\n");
 			send_error(peer, EBADOP);
-			return;
+			return -1;
 		}
 
 		parse_options(peer, rp->th_stuff, n + 2);
@@ -154,29 +154,29 @@ xmitfile(int peer, char *port, int fd, char *name, char *mode)
 
 	if (read_init(fd, NULL, mode) < 0) {
 		warn("read_init()");
-		return;
+		return -1;
 	}
 
 	block = 1;
-	tftp_send(peer, &block, &tftp_stats);
+	if (tftp_send(peer, &block, &tftp_stats) != 0)
+		ret = -1;
 
 	read_close();
 	if (tftp_stats.amount > 0)
 		printstats("Sent", verbose, &tftp_stats);
-
-	txrx_error = 1;
+	return ret;
 }
 
 /*
  * Receive a file.
  */
-void
+int
 recvfile(int peer, char *port, int fd, char *name, char *mode)
 {
 	struct tftphdr *rp;
 	uint16_t block;
 	char recvbuffer[MAXPKTSIZE];
-	int n, i;
+	int n, i, ret = 0;
 	struct tftp_stats tftp_stats;
 
 	stats_init(&tftp_stats);
@@ -202,7 +202,7 @@ recvfile(int peer, char *port, int fd, char *name, char *mode)
 		n = send_rrq(peer, name, mode);
 		if (n > 0) {
 			printf("Cannot send RRQ packet\n");
-			return;
+			return -1;
 		}
 
 		/*
@@ -231,16 +231,16 @@ recvfile(int peer, char *port, int fd, char *name, char *mode)
 	}
 	if (i == 12) {
 		printf("Transfer timed out.\n");
-		return;
+		return -1;
 	}
 	if (rp->th_opcode == ERROR) {
 		tftp_log(LOG_ERR, "Error code %d: %s", rp->th_code, rp->th_msg);
-		return;
+		return -1;
 	}
 
 	if (write_init(fd, NULL, mode) < 0) {
 		warn("write_init");
-		return;
+		return -1;
 	}
 
 	/*
@@ -251,7 +251,7 @@ recvfile(int peer, char *port, int fd, char *name, char *mode)
 		if (!options_rfc_enabled) {
 			printf("Got OACK while options are not enabled!\n");
 			send_error(peer, EBADOP);
-			return;
+			return -1;
 		}
 
 		parse_options(peer, rp->th_stuff, n + 2);
@@ -259,16 +259,18 @@ recvfile(int peer, char *port, int fd, char *name, char *mode)
 		n = send_ack(peer, 0);
 		if (n > 0) {
 			printf("Cannot send ACK on OACK.\n");
-			return;
+			return -1;
 		}
 		block = 0;
-		tftp_receive(peer, &block, &tftp_stats, NULL, 0);
+		if (tftp_receive(peer, &block, &tftp_stats, NULL, 0) != 0)
+			ret = -1;
 	} else {
 		block = 1;
-		tftp_receive(peer, &block, &tftp_stats, rp, n);
+		if (tftp_receive(peer, &block, &tftp_stats, rp, n) != 0)
+			ret = -1;
 	}
 
 	if (tftp_stats.amount > 0)
 		printstats("Received", verbose, &tftp_stats);
-	return;
+	return ret;
 }
