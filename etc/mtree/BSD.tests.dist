@@ -1110,6 +1110,8 @@
         ..
         tar
         ..
+        tftp
+        ..
         tr
         ..
         truncate
