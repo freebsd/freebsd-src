@@ -5263,73 +5263,138 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
     uint8_t mflowtype, uint32_t mflowid, uint16_t fibnum,
     uint32_t vrf_id, uint16_t port)
 {
-	uint32_t high_tsn;
-	int fwd_tsn_seen = 0, data_processed = 0;
-	struct mbuf *m = *mm, *op_err;
 	char msg[SCTP_DIAG_INFO_LEN];
-	int un_sent;
-	int cnt_ctrl_ready = 0;
+	struct mbuf *m = *mm, *op_err;
 	struct sctp_inpcb *inp = NULL, *inp_decr = NULL;
 	struct sctp_tcb *stcb = NULL;
 	struct sctp_nets *net = NULL;
+	uint32_t high_tsn;
+	uint32_t cksum_in_hdr;
+	int un_sent;
+	int cnt_ctrl_ready = 0;
+	int fwd_tsn_seen = 0, data_processed = 0;
+	bool cksum_validated, stcb_looked_up;
 
 	SCTP_STAT_INCR(sctps_recvdatagrams);
 #ifdef SCTP_AUDITING_ENABLED
 	sctp_audit_log(0xE0, 1);
 	sctp_auditing(0, inp, stcb, net);
 #endif
-	if (compute_crc != 0) {
-		uint32_t check, calc_check;
 
-		check = sh->checksum;
-		sh->checksum = 0;
-		calc_check = sctp_calculate_cksum(m, iphlen);
-		sh->checksum = check;
-		if (calc_check != check) {
-			SCTPDBG(SCTP_DEBUG_INPUT1, "Bad CSUM on SCTP packet calc_check:%x check:%x  m:%p mlen:%d iphlen:%d\n",
-			    calc_check, check, (void *)m, length, iphlen);
+	stcb_looked_up = false;
+	if (compute_crc != 0) {
+		cksum_validated = false;
+		cksum_in_hdr = sh->checksum;
+		if (cksum_in_hdr != htonl(0)) {
+			uint32_t cksum_calculated;
+
+	validate_cksum:
+			sh->checksum = 0;
+			cksum_calculated = sctp_calculate_cksum(m, iphlen);
+			sh->checksum = cksum_in_hdr;
+			if (cksum_calculated != cksum_in_hdr) {
+				if (stcb_looked_up) {
+					/*
+					 * The packet has a zero checksum,
+					 * which is not the correct CRC, no
+					 * stcb has been found or an stcb
+					 * has been found but an incorrect
+					 * zero checksum is not acceptable.
+					 */
+					KASSERT(cksum_in_hdr == htonl(0),
+					    ("cksum in header not zero: %x",
+					    ntohl(cksum_in_hdr)));
+					if ((inp == NULL) &&
+					    (SCTP_BASE_SYSCTL(sctp_ootb_with_zero_cksum) == 1)) {
+						/*
+						 * This is an OOTB packet,
+						 * depending on the sysctl
+						 * variable, pretend that
+						 * the checksum is
+						 * acceptable, to allow an
+						 * appropriate response
+						 * (ABORT, for examlpe) to
+						 * be sent.
+						 */
+						KASSERT(stcb == NULL,
+						    ("stcb is %p", stcb));
+						SCTP_STAT_INCR(sctps_recvzerocrc);
+						goto cksum_validated;
+					}
+				} else {
+					stcb = sctp_findassociation_addr(m, offset, src, dst,
+					    sh, ch, &inp, &net, vrf_id);
+				}
+				SCTPDBG(SCTP_DEBUG_INPUT1, "Bad cksum in SCTP packet:%x calculated:%x m:%p mlen:%d iphlen:%d\n",
+				    ntohl(cksum_in_hdr), ntohl(cksum_calculated), (void *)m, length, iphlen);
+#if defined(INET) || defined(INET6)
+				if ((ch->chunk_type != SCTP_INITIATION) &&
+				    (net != NULL) && (net->port != port)) {
+					if (net->port == 0) {
+						/*
+						 * UDP encapsulation turned
+						 * on.
+						 */
+						net->mtu -= sizeof(struct udphdr);
+						if (stcb->asoc.smallest_mtu > net->mtu) {
+							sctp_pathmtu_adjustment(stcb, net->mtu, true);
+						}
+					} else if (port == 0) {
+						/*
+						 * UDP encapsulation turned
+						 * off.
+						 */
+						net->mtu += sizeof(struct udphdr);
+						/* XXX Update smallest_mtu */
+					}
+					net->port = port;
+				}
+#endif
+				if (net != NULL) {
+					net->flowtype = mflowtype;
+					net->flowid = mflowid;
+				}
+				SCTP_PROBE5(receive, NULL, stcb, m, stcb, sh);
+				if ((inp != NULL) && (stcb != NULL)) {
+					if (stcb->asoc.pktdrop_supported) {
+						sctp_send_packet_dropped(stcb, net, m, length, iphlen, 1);
+						sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_INPUT_ERROR, SCTP_SO_NOT_LOCKED);
+					}
+				} else if ((inp != NULL) && (stcb == NULL)) {
+					inp_decr = inp;
+				}
+				SCTP_STAT_INCR(sctps_badsum);
+				SCTP_STAT_INCR_COUNTER32(sctps_checksumerrors);
+				goto out;
+			} else {
+				cksum_validated = true;
+			}
+		}
+		KASSERT(cksum_validated || cksum_in_hdr == htonl(0),
+		    ("cksum 0x%08x not zero and not validated", ntohl(cksum_in_hdr)));
+		if (!cksum_validated) {
 			stcb = sctp_findassociation_addr(m, offset, src, dst,
 			    sh, ch, &inp, &net, vrf_id);
-#if defined(INET) || defined(INET6)
-			if ((ch->chunk_type != SCTP_INITIATION) &&
-			    (net != NULL) && (net->port != port)) {
-				if (net->port == 0) {
-					/* UDP encapsulation turned on. */
-					net->mtu -= sizeof(struct udphdr);
-					if (stcb->asoc.smallest_mtu > net->mtu) {
-						sctp_pathmtu_adjustment(stcb, net->mtu, true);
-					}
-				} else if (port == 0) {
-					/* UDP encapsulation turned off. */
-					net->mtu += sizeof(struct udphdr);
-					/* XXX Update smallest_mtu */
-				}
-				net->port = port;
+			stcb_looked_up = true;
+			if ((stcb == NULL) || (stcb->asoc.zero_checksum == 0)) {
+				goto validate_cksum;
 			}
-#endif
-			if (net != NULL) {
-				net->flowtype = mflowtype;
-				net->flowid = mflowid;
-			}
-			SCTP_PROBE5(receive, NULL, stcb, m, stcb, sh);
-			if ((inp != NULL) && (stcb != NULL)) {
-				sctp_send_packet_dropped(stcb, net, m, length, iphlen, 1);
-				sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_INPUT_ERROR, SCTP_SO_NOT_LOCKED);
-			} else if ((inp != NULL) && (stcb == NULL)) {
-				inp_decr = inp;
-			}
-			SCTP_STAT_INCR(sctps_badsum);
-			SCTP_STAT_INCR_COUNTER32(sctps_checksumerrors);
-			goto out;
+			SCTP_STAT_INCR(sctps_recvzerocrc);
 		}
 	}
+cksum_validated:
 	/* Destination port of 0 is illegal, based on RFC4960. */
-	if (sh->dest_port == 0) {
+	if (sh->dest_port == htons(0)) {
 		SCTP_STAT_INCR(sctps_hdrops);
+		if ((stcb == NULL) && (inp != NULL)) {
+			inp_decr = inp;
+		}
 		goto out;
 	}
-	stcb = sctp_findassociation_addr(m, offset, src, dst,
-	    sh, ch, &inp, &net, vrf_id);
+	if (!stcb_looked_up) {
+		stcb = sctp_findassociation_addr(m, offset, src, dst,
+		    sh, ch, &inp, &net, vrf_id);
+	}
 #if defined(INET) || defined(INET6)
 	if ((ch->chunk_type != SCTP_INITIATION) &&
 	    (net != NULL) && (net->port != port)) {
@@ -5352,8 +5417,8 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 		net->flowid = mflowid;
 	}
 	if (inp == NULL) {
-		SCTP_PROBE5(receive, NULL, stcb, m, stcb, sh);
 		SCTP_STAT_INCR(sctps_noport);
+		SCTP_PROBE5(receive, NULL, stcb, m, stcb, sh);
 		if (badport_bandlim(BANDLIM_SCTP_OOTB) < 0) {
 			goto out;
 		}

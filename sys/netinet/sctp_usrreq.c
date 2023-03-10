@@ -6834,6 +6834,29 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			}
 			break;
 		}
+	case SCTP_ACCEPT_ZERO_CHECKSUM:
+		{
+			uint32_t *value;
+
+			SCTP_CHECK_AND_CAST(value, optval, uint32_t, optsize);
+			SCTP_INP_WLOCK(inp);
+			if (*value == 0) {
+				/*
+				 * Do not allow turning zero checksum
+				 * acceptance off again, since this could
+				 * result in inconsistent behaviour for
+				 * listeners.
+				 */
+				if (inp->zero_checksum > 0) {
+					error = EINVAL;
+				}
+			} else {
+				inp->zero_checksum = 1;
+			}
+			SCTP_INP_WUNLOCK(inp);
+			break;
+		}
+
 	default:
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, ENOPROTOOPT);
 		error = ENOPROTOOPT;
