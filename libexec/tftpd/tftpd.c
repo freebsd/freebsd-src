@@ -134,7 +134,8 @@ main(int argc, char *argv[])
 	struct passwd	*nobody;
 	const char	*chuser = "nobody";
 	char		recvbuffer[MAXPKTSIZE];
-	int		allow_ro = 1, allow_wo = 1;
+	int		allow_ro = 1, allow_wo = 1, on = 1;
+	pid_t		pid;
 
 	tzset();			/* syslog in localtime */
 	acting_as_client = 0;
@@ -222,12 +223,9 @@ main(int argc, char *argv[])
 
 	umask(mask);
 
-	{
-		int on = 1;
-		if (ioctl(0, FIONBIO, &on) < 0) {
-			tftp_log(LOG_ERR, "ioctl(FIONBIO): %s", strerror(errno));
-			exit(1);
-		}
+	if (ioctl(0, FIONBIO, &on) < 0) {
+		tftp_log(LOG_ERR, "ioctl(FIONBIO): %s", strerror(errno));
+		exit(1);
 	}
 
 	/* Find out who we are talking to and what we are going to do */
@@ -255,40 +253,14 @@ main(int argc, char *argv[])
 	 * break before doing the above "recvfrom", inetd would
 	 * spawn endless instances, clogging the system.
 	 */
-	{
-		int i, pid;
-
-		for (i = 1; i < 20; i++) {
-		    pid = fork();
-		    if (pid < 0) {
-				sleep(i);
-				/*
-				 * flush out to most recently sent request.
-				 *
-				 * This may drop some request, but those
-				 * will be resent by the clients when
-				 * they timeout.  The positive effect of
-				 * this flush is to (try to) prevent more
-				 * than one tftpd being started up to service
-				 * a single request from a single client.
-				 */
-				peerlen = sizeof peer_sock;
-				i = recvfrom(0, recvbuffer, MAXPKTSIZE, 0,
-				    (struct sockaddr *)&peer_sock, &peerlen);
-				if (i > 0) {
-					n = i;
-				}
-		    } else {
-				break;
-		    }
-		}
-		if (pid < 0) {
-			tftp_log(LOG_ERR, "fork: %s", strerror(errno));
-			exit(1);
-		} else if (pid != 0) {
-			exit(0);
-		}
+	pid = fork();
+	if (pid < 0) {
+		tftp_log(LOG_ERR, "fork: %s", strerror(errno));
+		exit(1);
+	} else if (pid != 0) {
+		exit(0);
 	}
+	/* child */
 
 #ifdef	LIBWRAP
 	/*
