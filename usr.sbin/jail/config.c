@@ -137,7 +137,7 @@ check_glob(int rc) {
  * Parse the jail configuration file.
  */
 void
-load_config(void)
+load_config(int op)
 {
 	struct cfjails wild;
 	struct cfparams opp;
@@ -147,6 +147,8 @@ load_config(void)
 	struct cfvar *v, *vv;
 	char *ep;
 	int did_self, jseq, pgen, rc;
+	char *epair;
+	FILE *fp;
 
 	glob_t g;
 	memset(&g, 0, sizeof(g));
@@ -186,6 +188,7 @@ load_config(void)
 
 	/* Separate the wildcard jails out from the actual jails. */
 	jseq = 0;
+	epair = NULL;
 	TAILQ_INIT(&wild);
 	TAILQ_FOREACH_SAFE(j, &cfjails, tq, tj) {
 		j->seq = ++jseq;
@@ -225,6 +228,30 @@ load_config(void)
 
 		/* Resolve any variable substitutions. */
 		pgen = 0;
+		TAILQ_FOREACH(p, &j->params, tq) {
+			if (strcmp(p->name, "vnet.interface") == 0) {
+				TAILQ_FOREACH(s, &p->val, tq) {
+					if (strcmp(s->s, "auto") == 0) {
+						if (op & JF_START) {
+							fp = popen("/sbin/ifconfig epair create up", "r");
+							if (!fp)
+								err(1, "Failed to run ifconfig command!");
+							epair = malloc(128);
+							fgets(epair, 128, fp);
+							s->len = strlen(epair) - 1;
+							s->s = malloc(s->len + 1);
+							memcpy(s->s, epair, s->len);
+							s->s[s->len] = '\0';
+							s->s[s->len - 1] = 'b';
+							free(epair);
+							pclose(fp);
+						} else if (op & JF_STOP) {
+							// TODO: Get vnet.interface from running jail
+						}
+					}
+				}
+			}
+		}
 		TAILQ_FOREACH(p, &j->params, tq) {
 		    p->gen = ++pgen;
 		find_vars:

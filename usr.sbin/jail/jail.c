@@ -131,6 +131,15 @@ static const enum intparam stopcommands[] = {
     IP__NULL
 };
 
+static void
+check_running(const char *name)
+{
+	int rc = jail_getid(name);
+	if (rc > 0)
+		err(1, "%s already exists", name);
+}
+
+
 int
 main(int argc, char **argv)
 {
@@ -242,6 +251,7 @@ main(int argc, char **argv)
 		op = JF_START;
 		docf = 0;
 		oldcl = 1;
+		check_running(argv[0]);
 		add_param(NULL, NULL, KP_PATH, argv[0]);
 		add_param(NULL, NULL, KP_HOST_HOSTNAME, argv[1]);
 #if defined(INET) || defined(INET6)
@@ -286,7 +296,7 @@ main(int argc, char **argv)
 	} else if (op == JF_STOP || op == JF_SHOW) {
 		/* Just print list of all configured non-wildcard jails */
 		if (op == JF_SHOW) {
-			load_config();
+			load_config(0);
 			show_jails();
 			exit(0);
 		}
@@ -298,7 +308,7 @@ main(int argc, char **argv)
 			for (i = 0; i < argc; i++)
 				if (strchr(argv[i], '='))
 					usage();
-			load_config();
+			load_config(JF_STOP);
 		}
 		note_remove = docf || argc > 1 || wild_jail_name(argv[0]);
 	} else if (argc > 1 || (argc == 1 && strchr(argv[0], '='))) {
@@ -347,7 +357,9 @@ main(int argc, char **argv)
 		/* From the config file, perhaps with a specified jail */
 		if (Rflag || !docf)
 			usage();
-		load_config();
+		if (op & JF_START)
+			check_running(argv[0]);
+		load_config(op);
 	}
 
 	/* Find out which jails will be run. */

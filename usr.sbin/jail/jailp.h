@@ -206,7 +206,7 @@ extern int next_command(struct cfjail *j);
 extern int finish_command(struct cfjail *j);
 extern struct cfjail *next_proc(int nonblock);
 
-extern void load_config(void);
+extern void load_config(int start);
 extern struct cfjail *add_jail(void);
 extern void add_param(struct cfjail *j, const struct cfparam *p,
     enum intparam ipnum, const char *value);
