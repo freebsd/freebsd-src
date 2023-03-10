@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 5, 2020
+.Dd March 9, 2023
 .Dt CAP_ENTER 2
 .Os
 .Sh NAME
@@ -113,9 +113,8 @@ system calls
 will fail if:
 .Bl -tag -width Er
 .It Bq Er ENOSYS
-The kernel is compiled without:
-.Pp
-.Cd "options CAPABILITY_MODE"
+The running kernel was compiled without
+.Cd "options CAPABILITY_MODE" .
 .El
 .Pp
 The
