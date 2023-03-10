@@ -58,7 +58,7 @@ struct block_data {
 /*
  * Send a file via the TFTP data session.
  */
-void
+int
 tftp_send(int peer, uint16_t *block, struct tftp_stats *ts)
 {
 	struct tftphdr *rp;
@@ -86,7 +86,7 @@ read_block:
 		if (size < 0) {
 			tftp_log(LOG_ERR, "read_file returned %d", size);
 			send_error(peer, errno + 100);
-			goto abort;
+			return -1;
 		}
 		window[windowblock].size = size;
 		windowblock++;
@@ -100,7 +100,7 @@ read_block:
 				tftp_log(LOG_ERR,
 				    "Cannot send DATA packet #%d, "
 				    "giving up", *block);
-				return;
+				return -1;
 			}
 			tftp_log(LOG_ERR,
 			    "Cannot send DATA packet #%d, trying again",
@@ -117,7 +117,7 @@ read_block:
 						tftp_log(LOG_ERR,
 						    "Timeout #%d send ACK %d "
 						    "giving up", acktry, *block);
-						return;
+						return -1;
 					}
 					tftp_log(LOG_WARNING,
 					    "Timeout #%d on ACK %d",
@@ -130,7 +130,7 @@ read_block:
 						    "seek_file failed: %s",
 						    strerror(errno));
 						send_error(peer, errno + 100);
-						goto abort;
+						return -1;
 					}
 					*block = window[0].block;
 					windowblock = 0;
@@ -141,7 +141,7 @@ read_block:
 				if (debug & DEBUG_SIMPLE)
 					tftp_log(LOG_ERR, "Aborting: %s",
 					    rp_strerror(n_ack));
-				goto abort;
+				return -1;
 			}
 			if (rp->th_opcode == ACK) {
 				/*
@@ -170,7 +170,7 @@ read_block:
 						    "seek_file failed: %s",
 						    strerror(errno));
 						send_error(peer, errno + 100);
-						goto abort;
+						return -1;
 					}
 					*block = window[0].block;
 					windowblock = 0;
@@ -202,7 +202,7 @@ read_block:
 						    "seek_file failed: %s",
 						    strerror(errno));
 						send_error(peer, errno + 100);
-						goto abort;
+						return -1;
 					}
 					*block = window[i + 1].block;
 					windowblock = 0;
@@ -232,8 +232,7 @@ read_block:
 		}
 		gettimeofday(&(ts->tstop), NULL);
 	} while (size == segsize);
-abort:
-	return;
+	return 0;
 }
 
 /*
@@ -243,7 +242,7 @@ abort:
  *   trying to figure out if we were receiving options or not. In
  *   that case it is passed to this function.
  */
-void
+int
 tftp_receive(int peer, uint16_t *block, struct tftp_stats *ts,
     struct tftphdr *firstblock, size_t fb_size)
 {
@@ -268,7 +267,7 @@ tftp_receive(int peer, uint16_t *block, struct tftp_stats *ts,
 						tftp_log(LOG_ERR,
 						    "Cannot send ACK packet #%d, "
 						    "giving up", *block);
-						return;
+						return -1;
 					}
 					tftp_log(LOG_ERR,
 					    "Cannot send ACK packet #%d, trying again",
@@ -283,7 +282,7 @@ tftp_receive(int peer, uint16_t *block, struct tftp_stats *ts,
 		if (fb_size != segsize) {
 			write_close();
 			gettimeofday(&(ts->tstop), NULL);
-			return;
+			return 0;
 		}
 	}
 
@@ -319,7 +318,7 @@ tftp_receive(int peer, uint16_t *block, struct tftp_stats *ts,
 					tftp_log(LOG_ERR,
 					    "Timeout #%d on DATA block %d, "
 					    "giving up", retry, *block);
-					return;
+					return -1;
 				}
 				if (n_data == RP_TIMEOUT) {
 					tftp_log(LOG_WARNING,
@@ -334,7 +333,7 @@ tftp_receive(int peer, uint16_t *block, struct tftp_stats *ts,
 				if (debug & DEBUG_SIMPLE)
 					tftp_log(LOG_DEBUG, "Aborting: %s",
 					    rp_strerror(n_data));
-				goto abort;
+				return -1;
 			}
 			if (rp->th_opcode == DATA) {
 				ts->blocks++;
@@ -395,7 +394,7 @@ tftp_receive(int peer, uint16_t *block, struct tftp_stats *ts,
 					send_error(peer, errno + 100);
 				else
 					send_error(peer, ENOSPACE);
-				goto abort;
+				return -1;
 			}
 		}
 		if (n_data != segsize)
@@ -414,7 +413,7 @@ send_ack:
 					tftp_log(LOG_ERR,
 					    "Cannot send ACK packet #%d, "
 					    "giving up", *block);
-					return;
+					return -1;
 				}
 
 				tftp_log(LOG_ERR,
@@ -433,7 +432,7 @@ send_ack:
 
 	/* Don't do late packet management for the client implementation */
 	if (acting_as_client)
-		return;
+		return 0;
 
 	for (i = 0; ; i++) {
 		n_data = receive_packet(peer, (char *)rp, pktsize,
@@ -446,6 +445,5 @@ send_ack:
 			send_ack(peer, *block);	/* resend final ack */
 	}
 
-abort:
-	return;
+	return 0;
 }
