@@ -140,7 +140,7 @@ main(int argc, char *argv[])
 	acting_as_client = 0;
 
 	tftp_openlog("tftpd", LOG_PID | LOG_NDELAY, LOG_FTP);
-	while ((ch = getopt(argc, argv, "cCd:F:lnoOp:s:u:U:wW")) != -1) {
+	while ((ch = getopt(argc, argv, "cCd::F:lnoOp:s:u:U:wW")) != -1) {
 		switch (ch) {
 		case 'c':
 			ipchroot = 1;
@@ -149,7 +149,9 @@ main(int argc, char *argv[])
 			ipchroot = 2;
 			break;
 		case 'd':
-			if (atoi(optarg) != 0)
+			if (optarg == NULL)
+				debug++;
+			else if (atoi(optarg) != 0)
 				debug += atoi(optarg);
 			else
 				debug |= debug_finds(optarg);
