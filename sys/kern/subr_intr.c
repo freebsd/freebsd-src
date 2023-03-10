@@ -471,18 +471,22 @@ isrc_set_irq(struct intr_irqsrc *isrc, u_int irq)
 /*
  *  Free unique interrupt number (resource handle) from interrupt source.
  */
-static inline int
+static inline void
 isrc_free_irq(struct intr_irqsrc *isrc)
 {
 
 	mtx_assert(&isrc_table_lock, MA_OWNED);
 
-	if (isrc->isrc_irq >= intr_nirq)
-		return (EINVAL);
-	if (irq_sources[isrc->isrc_irq] != isrc)
-		return (EINVAL);
+	if (isrc->isrc_irq >= intr_nirq) {
+		printf("ERROR: reached %s() with no isrc_irq?\n", __func__);
+		return;
+	}
 
-	irq_sources[isrc->isrc_irq] = NULL;
+	if (irq_sources[isrc->isrc_irq] == isrc)
+		irq_sources[isrc->isrc_irq] = NULL;
+	else
+		printf("ERROR: INTRNG: %s(): corrupt table entry?\n",
+		    __func__);
 	isrc->isrc_irq = INTR_IRQ_INVALID;	/* just to be safe */
 
 	/*
@@ -493,8 +497,6 @@ isrc_free_irq(struct intr_irqsrc *isrc)
 	 */
 	if (irq_next_free >= intr_nirq)
 		irq_next_free = 0;
-
-	return (0);
 }
 
 device_t
@@ -558,7 +560,8 @@ intr_isrc_deregister(struct intr_irqsrc *isrc)
 	mtx_lock(&isrc_table_lock);
 	if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
 		isrc_release_counters(isrc);
-	error = isrc_free_irq(isrc);
+	error = 0;
+	isrc_free_irq(isrc);
 	mtx_unlock(&isrc_table_lock);
 	return (error);
 }
