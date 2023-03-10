@@ -376,8 +376,8 @@ insert_region(struct region *regions, size_t rcnt, vm_paddr_t addr,
 	nend = addr + size;
 	ep = regions + rcnt;
 	for (i = 0, rp = regions; i < rcnt; ++i, ++rp) {
+		rend = rp->addr + rp->size;
 		if (flags == rp->flags) {
-			rend = rp->addr + rp->size;
 			if (addr <= rp->addr && nend >= rp->addr) {
 				/*
 				 * New mapping overlaps at the beginning, shift
@@ -404,7 +404,20 @@ insert_region(struct region *regions, size_t rcnt, vm_paddr_t addr,
 				}
 				return (rcnt);
 			}
+		} else if ((flags != 0) && (rp->flags != 0)) {
+			/*
+			 * If we're duplicating an entry that already exists
+			 * exactly, just upgrade its flags as needed.  We could
+			 * do more if we find that we have differently specified
+			 * flags clipping existing excluding regions, but that's
+			 * probably rare.
+			 */
+			if (addr == rp->addr && nend == rend) {
+				rp->flags |= flags;
+				return (rcnt);
+			}
 		}
+
 		if (addr < rp->addr) {
 			bcopy(rp, rp + 1, (ep - rp) * sizeof(*rp));
 			break;
