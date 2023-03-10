@@ -121,6 +121,7 @@ sctp_init_sysctls(void)
 	SCTP_BASE_SYSCTL(sctp_blackhole) = SCTPCTL_BLACKHOLE_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_sendall_limit) = SCTPCTL_SENDALL_LIMIT_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_diag_info_code) = SCTPCTL_DIAG_INFO_CODE_DEFAULT;
+	SCTP_BASE_SYSCTL(sctp_ootb_with_zero_cksum) = SCTPCTL_OOTB_WITH_ZERO_CKSUM_DEFAULT;
 #if defined(SCTP_LOCAL_TRACE_BUF)
 	memset(&SCTP_BASE_SYSCTL(sctp_log), 0, sizeof(struct sctp_log));
 #endif
@@ -828,6 +829,9 @@ sctp_sysctl_handle_stats(SYSCTL_HANDLER_ARGS)
 		sb.sctps_send_burst_avoid += sarry->sctps_send_burst_avoid;
 		sb.sctps_send_cwnd_avoid += sarry->sctps_send_cwnd_avoid;
 		sb.sctps_fwdtsn_map_over += sarry->sctps_fwdtsn_map_over;
+		sb.sctps_queue_upd_ecne += sarry->sctps_queue_upd_ecne;
+		sb.sctps_recvzerocrc += sarry->sctps_recvzerocrc;
+		sb.sctps_sendzerocrc += sarry->sctps_sendzerocrc;
 		if (req->newptr != NULL) {
 			memcpy(sarry, &sb_temp, sizeof(struct sctpstat));
 		}
@@ -970,6 +974,7 @@ SCTP_UINT_SYSCTL(use_dcccecn, sctp_use_dccc_ecn, SCTPCTL_RTTVAR_DCCCECN)
 SCTP_UINT_SYSCTL(blackhole, sctp_blackhole, SCTPCTL_BLACKHOLE)
 SCTP_UINT_SYSCTL(sendall_limit, sctp_sendall_limit, SCTPCTL_SENDALL_LIMIT)
 SCTP_UINT_SYSCTL(diag_info_code, sctp_diag_info_code, SCTPCTL_DIAG_INFO_CODE)
+SCTP_UINT_SYSCTL(ootb_with_zero_cksum, sctp_ootb_with_zero_cksum, SCTPCTL_OOTB_WITH_ZERO_CKSUM)
 #ifdef SCTP_DEBUG
 SCTP_UINT_SYSCTL(debug, sctp_debug_on, SCTPCTL_DEBUG)
 #endif

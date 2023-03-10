@@ -1185,6 +1185,12 @@ struct sctp_association {
 	uint8_t pktdrop_supported;
 	uint8_t idata_supported;
 
+	/*
+	 * Zero checksum supported information: 0: disabled 1: enabled for
+	 * rcv 2: enabled for snd/rcv
+	 */
+	uint8_t zero_checksum;
+
 	/* Did the peer make the stream config (add out) request */
 	uint8_t peer_req_out;
 

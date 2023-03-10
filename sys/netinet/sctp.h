@@ -129,6 +129,7 @@ struct sctp_paramhdr {
 #define SCTP_NRSACK_SUPPORTED           0x00000030
 #define SCTP_PKTDROP_SUPPORTED          0x00000031
 #define SCTP_MAX_CWND                   0x00000032
+#define SCTP_ACCEPT_ZERO_CHECKSUM       0x00000033
 
 /*
  * read-only options

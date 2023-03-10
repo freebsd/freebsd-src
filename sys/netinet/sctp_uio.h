@@ -1120,7 +1120,11 @@ struct sctpstat {
 					 * fwd-tsn's */
 	uint32_t sctps_queue_upd_ecne;	/* Number of times we queued or
 					 * updated an ECN chunk on send queue */
-	uint32_t sctps_reserved[31];	/* Future ABI compat - remove int's
+	uint32_t sctps_recvzerocrc;	/* Number of accepted packets with
+					 * zero CRC */
+	uint32_t sctps_sendzerocrc;	/* Number of packets sent with zero
+					 * CRC */
+	uint32_t sctps_reserved[29];	/* Future ABI compat - remove int's
 					 * from here when adding new */
 };
 
