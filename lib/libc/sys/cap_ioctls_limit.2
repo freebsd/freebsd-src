@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 5, 2020
+.Dd March 9, 2023
 .Dt CAP_IOCTLS_LIMIT 2
 .Os
 .Sh NAME
@@ -109,8 +109,11 @@ On failure the value
 .Va -1
 is returned and the global variable errno is set to indicate the error.
 .Sh ERRORS
+The
 .Fn cap_ioctls_limit
-succeeds unless:
+and
+.Fn cap_ioctls_get
+system calls will fail if:
 .Bl -tag -width Er
 .It Bq Er EBADF
 The
@@ -120,6 +123,15 @@ argument is not a valid descriptor.
 The
 .Fa cmds
 argument points at an invalid address.
+.It Bq Er ENOSYS
+The running kernel was compiled without
+.Cd "options CAPABILITY_MODE" .
+.El
+.Pp
+The
+.Fn cap_ioctls_limit
+system call may also return the following errors:
+.Bl -tag -width Er
 .It Bq Er EINVAL
 The
 .Fa ncmds
@@ -130,19 +142,6 @@ argument is greater than
 would expand the list of allowed
 .Xr ioctl 2
 commands.
-.El
-.Pp
-.Fn cap_ioctls_get
-succeeds unless:
-.Bl -tag -width Er
-.It Bq Er EBADF
-The
-.Fa fd
-argument is not a valid descriptor.
-.It Bq Er EFAULT
-The
-.Fa cmds
-argument points at invalid address.
 .El
 .Sh SEE ALSO
 .Xr cap_fcntls_limit 2 ,
