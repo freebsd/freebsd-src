@@ -381,8 +381,9 @@ main(int argc, char *argv[])
 		me_sock.ss_family = peer_sock.ss_family;
 		me_sock.ss_len = peer_sock.ss_len;
 	}
-	close(0);
-	close(1);
+	close(STDIN_FILENO);
+	close(STDOUT_FILENO);
+	close(STDERR_FILENO);
 	peer = socket(peer_sock.ss_family, SOCK_DGRAM, 0);
 	if (peer < 0) {
 		tftp_log(LOG_ERR, "socket: %s", strerror(errno));
