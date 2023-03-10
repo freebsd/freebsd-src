@@ -281,6 +281,16 @@ sesled(int argc, char **argv, bool setfault)
 			char devnames[devnames_size];
 
 			if (all) {
+				encioc_elm_status_t es;
+				memset(&es, 0, sizeof(es));
+				es.elm_idx = objp[j].elm_idx;
+				if (ioctl(fd, ENCIOC_GETELMSTAT, &es) < 0) {
+					close(fd);
+					xo_err(EXIT_FAILURE,
+						"ENCIOC_GETELMSTAT");
+				}
+				if ((es.cstat[0] & 0xf) == SES_OBJSTAT_NOACCESS)
+					continue;
 				do_led(fd, objp[j].elm_idx, objp[j].elm_type,
 				    onoff, setfault);
 				continue;
