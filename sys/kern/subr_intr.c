@@ -565,11 +565,10 @@ isrc_free_irq(struct intr_irqsrc *isrc)
 	MPASS(isrc->isrc_event != NULL);
 
 	if (isrc->isrc_event->ie_irq >= intr_nirq)
-		return (EINVAL);
-	if (irq_sources[isrc->isrc_event->ie_irq] != isrc)
-		return (EINVAL);
+		return (0);
 
-	irq_sources[isrc->isrc_event->ie_irq] = NULL;
+	if (irq_sources[isrc->isrc_event->ie_irq] == isrc)
+		irq_sources[isrc->isrc_event->ie_irq] = NULL;
 	isrc->isrc_event->ie_irq = INTR_IRQ_INVALID;	/* just to be safe */
 
 	/*
