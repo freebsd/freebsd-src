@@ -1,54 +1,25 @@
 # $FreeBSD$
 
-compute_engine_instance:
-  # Image list available via
-  # gcloud compute images list --project freebsd-org-cloud-dev --no-standard-images
-  platform: freebsd
-  image_project: freebsd-org-cloud-dev
-  image: freebsd-13-1-release-amd64
-  cpu: 8
-  memory: 8G
-  disk: 40
+freebsd_instance:
+   image_family: freebsd-14-0-snap
 
 task:
-  matrix:
-  - name: World and kernel amd64 build and boot smoke test
-    env:
-      TARGET: amd64
-      TARGET_ARCH: amd64
-      TOOLCHAIN_PKG: llvm15
-  - name: World and kernel arm64 build and boot smoke test
-    trigger_type: manual
-    env:
-      TARGET: arm64
-      TARGET_ARCH: aarch64
-      TOOLCHAIN_PKG: llvm15
-  - name: World and kernel gcc12 amd64 build and boot smoke test
-    trigger_type: manual
-    env:
-      TARGET: amd64
-      TARGET_ARCH: amd64
-      TOOLCHAIN_PKG: amd64-gcc12
-  timeout_in: 120m
   install_script:
-  - sh .cirrus-ci/pkg-install.sh ${TOOLCHAIN_PKG}
+    - pkg delete -y python2
+    - pkg autoremove -y
+    - pkg update
+    - pkg upgrade -y
+    - pkg install -y devel/py-pytest net/scapy
+    - make -C libexec/atf/atf-pytest-wrapper -j$(sysctl -n hw.ncpu) all install
+    - make -C tests/sys/common -j$(sysctl -n hw.ncpu) all install
+    - make -C tests/atf_python -j$(sysctl -n hw.ncpu) all install
+    - cp $CIRRUS_WORKING_DIR/tests/conftest.py /usr/tests
   setup_script:
-  - uname -a
-  - gpart show
-  - df -m
-  - pkg --version
-  - pw useradd user
-  - mkdir -p /usr/obj/$(pwd -P)
-  - chown user:user /usr/obj/$(pwd -P)
-  script:
-  - su user -c "make -j$(sysctl -n hw.ncpu) CROSS_TOOLCHAIN=${TOOLCHAIN_PKG} WITHOUT_TOOLCHAIN=yes buildworld buildkernel"
-  package_script:
-  - su user -c "make CROSS_TOOLCHAIN=${TOOLCHAIN_PKG} WITHOUT_TOOLCHAIN=yes PKG_FORMAT=tar packages"
-  package_check_script:
-  - su user -c "/usr/libexec/flua tools/pkgbase/metalog_reader.lua -c /usr/obj/$(pwd -P)/${TARGET}.${TARGET_ARCH}/worldstage/METALOG"
-  test_script:
-  - sh .cirrus-ci/pkg-install.sh qemu-nox11
-  - sh tools/boot/ci-qemu-test.sh
-  post_script:
-  - df -m
-  - du -m -s /usr/obj
+    - make -C lib/libifconfig -j$(sysctl -n hw.ncpu) all install
+    - make -C sbin/ifconfig -j$(sysctl -n hw.ncpu) all install
+  test_ifconfig_script:
+    - kyua test -k /usr/tests/Kyuafile sbin/ifconfig/test_ifconfig.py
+  always:
+    test_ifconfig_report_script:
+      - cd /usr/tests
+      - kyua report --results-file=LATEST --results-filter=failed --verbose
