@@ -265,8 +265,6 @@ ATF_TC_BODY(msgsnd_nonblock, tc)
 		}
 	}
 
-	(void)sleep(2);
-	(void)kill(pid, SIGKILL);
 	(void)wait(&sta);
 
 	if (WIFEXITED(sta) == 0 || WIFSIGNALED(sta) != 0)
