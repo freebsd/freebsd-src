@@ -568,7 +568,7 @@ found:
 /*
  *  Free unique interrupt number (resource handle) from interrupt source.
  */
-static inline int
+static inline void
 isrc_free_irq(struct intr_irqsrc *isrc)
 {
 
@@ -576,11 +576,22 @@ isrc_free_irq(struct intr_irqsrc *isrc)
 	MPASS(isrc->isrc_event != NULL);
 
 	if (isrc->isrc_irq >= intr_nirq)
-		return (EINVAL);
-	if (irq_sources[isrc->isrc_irq] != isrc)
-		return (EINVAL);
+		return;
+	if (irq_sources[isrc->isrc_irq] == isrc)
+		irq_sources[isrc->isrc_irq] = NULL;
+	else {
+		unsigned int i;
+		unsigned int matches = 0;
 
-	irq_sources[isrc->isrc_irq] = NULL;
+		for (i = 0; i < intr_nirq; ++i)
+			if (irq_sources[i] == isrc) {
+				irq_sources[i] = NULL;
+				++matches;
+			}
+		device_printf(isrc->isrc_dev,
+		    "ERROR: INTRNG: %s(): interrupt %u bad table entry, found "
+		    "%u matches\n", __func__, isrc->isrc_irq, matches);
+	}
 	isrc->isrc_irq = INTR_IRQ_INVALID;	/* just to be safe */
 
 	/*
@@ -591,8 +602,6 @@ isrc_free_irq(struct intr_irqsrc *isrc)
 	 */
 	if (irq_next_free >= intr_nirq)
 		irq_next_free = 0;
-
-	return (0);
 }
 
 device_t
@@ -658,7 +667,7 @@ intr_isrc_deregister(struct intr_irqsrc *isrc)
 	mtx_lock(&isrc_table_lock);
 	if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
 		isrc_release_counters(isrc);
-	error = isrc_free_irq(isrc);
+	isrc_free_irq(isrc);
 	mtx_unlock(&isrc_table_lock);
 	return (error);
 }
