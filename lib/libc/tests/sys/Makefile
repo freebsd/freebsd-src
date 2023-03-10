@@ -74,6 +74,13 @@ NETBSD_ATF_TESTS_C+=		write_test
 LIBADD.getpid_test+=		pthread
 LIBADD.timer_create_test+=	rt
 
+# Message queue IPC tests need to be executed serially since they variously
+# use global keys and exhaust global IPC limits.
+TEST_METADATA.msgctl_test+=	is_exclusive="true"
+TEST_METADATA.msgget_test+=	is_exclusive="true"
+TEST_METADATA.msgsnd_test+=	is_exclusive="true"
+TEST_METADATA.msgrcv_test+=	is_exclusive="true"
+
 .include "../Makefile.netbsd-tests"
 
 SRCS.mlock_test+=		mlock_helper.c
