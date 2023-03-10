@@ -230,6 +230,7 @@ option_blksize(int peer)
 		tftp_log(LOG_ERR, "sysctl: net.inet.udp.maxdgram");
 		return (acting_as_client ? 1 : 0);
 	}
+	maxdgram -= 4; /* leave room for header */
 
 	int size = atoi(options[OPT_BLKSIZE].o_request);
 	if (size < BLKSIZE_MIN || size > BLKSIZE_MAX) {
