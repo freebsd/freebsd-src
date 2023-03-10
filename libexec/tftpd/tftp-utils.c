@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <arpa/tftp.h>
 
+#include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -148,8 +149,10 @@ void
 tftp_log(int priority, const char *message, ...)
 {
 	va_list ap;
+	int serrno;
 	char *s;
 
+	serrno = errno;
 	va_start(ap, message);
 	if (_tftp_logtostdout == 0) {
 		vasprintf(&s, message, ap);
@@ -159,6 +162,7 @@ tftp_log(int priority, const char *message, ...)
 		printf("\n");
 	}
 	va_end(ap);
+	errno = serrno;
 }
 
 /*
