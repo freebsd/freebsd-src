@@ -479,18 +479,33 @@ isrc_set_irq(struct intr_irqsrc *isrc, unsigned int irq)
 /*
  *  Free unique interrupt number (resource handle) from interrupt source.
  */
-static inline int
+static inline void
 isrc_free_irq(struct intr_irqsrc *isrc)
 {
 
 	mtx_assert(&isrc_table_lock, MA_OWNED);
 
-	if (isrc->isrc_event.ie_irq >= intr_nirq)
-		return (EINVAL);
-	if (irq_sources[isrc->isrc_event.ie_irq] != isrc)
-		return (EINVAL);
+	if (isrc->isrc_event.ie_irq >= intr_nirq) {
+		device_printf(isrc->isrc_event.ie_pic,
+		    "ERROR: reached %s() with no irq?\n", __func__);
+		return;
+	}
 
-	irq_sources[isrc->isrc_event.ie_irq] = NULL;
+	if (irq_sources[isrc->isrc_event.ie_irq] == isrc)
+		irq_sources[isrc->isrc_event.ie_irq] = NULL;
+	else {
+		unsigned int i;
+		unsigned int matches = 0;
+
+		for (i = 0; i < intr_nirq; ++i)
+			if (irq_sources[i] == isrc) {
+				irq_sources[i] = NULL;
+				++matches;
+			}
+		device_printf(isrc->isrc_event.ie_pic,
+		    "ERROR: INTRNG: %s(): interrupt %u bad table entry, found "
+		    "%u matches\n", __func__, isrc->isrc_event.ie_irq, matches);
+	}
 	isrc->isrc_event.ie_irq = INTR_IRQ_INVALID;	/* just to be safe */
 
 	/*
@@ -501,8 +516,6 @@ isrc_free_irq(struct intr_irqsrc *isrc)
 	 */
 	if (irq_next_free >= intr_nirq)
 		irq_next_free = 0;
-
-	return (0);
 }
 
 device_t
@@ -567,7 +580,7 @@ intr_isrc_deregister(struct intr_irqsrc *isrc)
 	if (error == 0) {
 		if ((isrc->isrc_flags & INTR_ISRCF_IPI) == 0)
 			isrc_release_counters(isrc);
-		error = isrc_free_irq(isrc);
+		isrc_free_irq(isrc);
 	}
 	mtx_unlock(&isrc_table_lock);
 	return (error);
