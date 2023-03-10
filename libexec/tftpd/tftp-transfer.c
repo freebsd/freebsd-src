@@ -436,7 +436,7 @@ send_ack:
 
 	for (i = 0; ; i++) {
 		n_data = receive_packet(peer, (char *)rp, pktsize,
-		    NULL, timeoutpacket);
+		    NULL, -timeoutpacket);
 		if (n_data <= 0)
 			break;
 		if (n_data > 0 &&

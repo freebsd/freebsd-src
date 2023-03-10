@@ -38,8 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #include <assert.h>
 #include <errno.h>
-#include <setjmp.h>
-#include <signal.h>
+#include <poll.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -377,27 +376,19 @@ send_data(int peer, uint16_t block, char *data, int size)
 
 /*
  * Receive a packet
+ *
+ * If timeout is negative, no error will be logged on timeout.
  */
-static jmp_buf timeoutbuf;
-
-static void
-timeout(int sig __unused)
-{
-
-	/* tftp_log(LOG_DEBUG, "Timeout\n");	Inside a signal handler... */
-	longjmp(timeoutbuf, 1);
-}
-
 int
 receive_packet(int peer, char *data, int size, struct sockaddr_storage *from,
-    int thistimeout)
+    int timeout)
 {
+	struct pollfd pfd;
 	struct tftphdr *pkt;
 	struct sockaddr_storage from_local;
 	struct sockaddr_storage *pfrom;
 	socklen_t fromlen;
 	int n;
-	static int timed_out;
 
 	if (debug & DEBUG_PACKETS)
 		tftp_log(LOG_DEBUG,
@@ -405,13 +396,11 @@ receive_packet(int peer, char *data, int size, struct sockaddr_storage *from,
 
 	pkt = (struct tftphdr *)data;
 
-	signal(SIGALRM, timeout);
-	timed_out = setjmp(timeoutbuf);
-	alarm(thistimeout);
-
-	if (timed_out != 0) {
-		tftp_log(LOG_ERR, "receive_packet: timeout");
-		alarm(0);
+	pfd.fd = peer;
+	pfd.events = POLLIN;
+	if (poll(&pfd, 1, 1000 * (timeout < 0 ? -timeout : timeout)) < 1) {
+		if (timeout > 0)
+			tftp_log(LOG_ERR, "receive_packet: timeout");
 		return (RP_TIMEOUT);
 	}
 
@@ -419,14 +408,7 @@ receive_packet(int peer, char *data, int size, struct sockaddr_storage *from,
 	fromlen = sizeof(*pfrom);
 	n = recvfrom(peer, data, size, 0, (struct sockaddr *)pfrom, &fromlen);
 
-	alarm(0);
-
 	DROPPACKETn("receive_packet", RP_TIMEOUT);
-
-	if (n < 0) {
-		tftp_log(LOG_ERR, "receive_packet: timeout");
-		return (RP_TIMEOUT);
-	}
 
 	if (n < 0) {
 		/* No idea what could have happened if it isn't a timeout */
