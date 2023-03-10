@@ -307,7 +307,7 @@ _gssapi_verify_mic_arcfour(OM_uint32 * minor_status,
 	return GSS_S_FAILURE;
     }
 
-    cmp = (ct_memcmp(cksum_data, p + 8, 8) == 0);
+    cmp = (ct_memcmp(cksum_data, p + 8, 8) != 0);
     if (cmp) {
 	*minor_status = 0;
 	return GSS_S_BAD_MIC;
@@ -695,7 +695,7 @@ OM_uint32 _gssapi_unwrap_arcfour(OM_uint32 *minor_status,
 	return GSS_S_FAILURE;
     }
 
-    cmp = (ct_memcmp(cksum_data, p0 + 16, 8) == 0); /* SGN_CKSUM */
+    cmp = (ct_memcmp(cksum_data, p0 + 16, 8) != 0); /* SGN_CKSUM */
     if (cmp) {
 	_gsskrb5_release_buffer(minor_status, output_message_buffer);
 	*minor_status = 0;
