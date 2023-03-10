@@ -275,8 +275,6 @@ ATF_TC_BODY(msgrcv_nonblock, tc)
 		_exit(EXIT_SUCCESS);
 	}
 
-	(void)sleep(2);
-	(void)kill(pid, SIGKILL);
 	(void)wait(&sta);
 
 	if (WIFSIGNALED(sta) != 0 || WTERMSIG(sta) == SIGKILL)
