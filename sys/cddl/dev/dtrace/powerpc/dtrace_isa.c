@@ -97,15 +97,18 @@ dtrace_sp_inkernel(uintptr_t sp)
 }
 
 static __inline void
-dtrace_next_sp_pc(uintptr_t sp, uintptr_t *nsp, uintptr_t *pc)
+dtrace_next_sp_pc(uintptr_t sp, uintptr_t *nsp, uintptr_t *pc, uintptr_t *lr)
 {
 	vm_offset_t callpc;
 	struct trapframe *frame;
 
+	if (lr != 0 && *lr != 0)
+		callpc = *lr;
+	else
 #ifdef __powerpc64__
-	callpc = *(vm_offset_t *)(sp + RETURN_OFFSET64);
+		callpc = *(vm_offset_t *)(sp + RETURN_OFFSET64);
 #else
-	callpc = *(vm_offset_t *)(sp + RETURN_OFFSET);
+		callpc = *(vm_offset_t *)(sp + RETURN_OFFSET);
 #endif
 
 	/*
@@ -121,6 +124,8 @@ dtrace_next_sp_pc(uintptr_t sp, uintptr_t *nsp, uintptr_t *pc)
 			*nsp = frame->fixreg[1];
 		if (pc != NULL)
 			*pc = frame->srr0;
+		if (lr != NULL)
+			*lr = frame->lr;
 		return;
 	}
 
@@ -128,6 +133,9 @@ dtrace_next_sp_pc(uintptr_t sp, uintptr_t *nsp, uintptr_t *pc)
 		*nsp = *(uintptr_t *)sp;
 	if (pc != NULL)
 		*pc = callpc;
+	/* lr is only valid for trap frames */
+	if (lr != NULL)
+		*lr = 0;
 }
 
 void
@@ -135,7 +143,7 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
     uint32_t *intrpc)
 {
 	int depth = 0;
-	uintptr_t osp, sp;
+	uintptr_t osp, sp, lr = 0;
 	vm_offset_t callpc;
 	pc_t caller = (pc_t) solaris_cpu[curcpu].cpu_dtrace_caller;
 
@@ -154,7 +162,7 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
 		if (!dtrace_sp_inkernel(sp))
 			break;
 		osp = sp;
-		dtrace_next_sp_pc(osp, &sp, &callpc);
+		dtrace_next_sp_pc(osp, &sp, &callpc, &lr);
 
 		if (aframes > 0) {
 			aframes--;
@@ -513,7 +521,7 @@ dtrace_getstackdepth(int aframes)
 
 		depth++;
 		osp = sp;
-		dtrace_next_sp_pc(sp, &sp, NULL);
+		dtrace_next_sp_pc(sp, &sp, NULL, NULL);
 	}
 	if (depth < aframes)
 		return (0);
