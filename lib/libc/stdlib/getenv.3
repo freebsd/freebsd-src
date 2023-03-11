@@ -32,7 +32,7 @@
 .\"     @(#)getenv.3	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd November 7, 2021
+.Dd March 11, 2023
 .Dt GETENV 3
 .Os
 .Sh NAME
@@ -80,16 +80,19 @@ to by the
 .Fn getenv
 function.
 .Pp
-The
+The GNU-specific function,
 .Fn secure_getenv
-function wraps the
+wraps the
 .Fn getenv
-function. As such, it will return
-.Fa NULL
-if the current process is tainted by uid or gid changes. Otherwise, it
-will call the
-.Fn getenv
-function.
+function to prevent it from being run in "secure execution".
+Unlike in glibc,
+.Fn secure_getenv
+only checks if the
+.Fa setuid
+and
+.Fa setgid
+bits have been set or changed.
+These checks are subject to extension and change.
 .Pp
 The
 .Fn setenv
@@ -151,6 +154,13 @@ If the variable
 is not in the current environment,
 .Dv NULL
 is returned.
+.Pp
+The
+.Fn secure_getenv
+function returns
+.Dv NULL
+if the process is in "secure execution," otherwise it will call
+.Fn getenv .
 .Pp
 .Rv -std clearenv setenv putenv unsetenv
 .Sh ERRORS
