@@ -456,7 +456,7 @@ secure_getenv(const char *name)
 {
     if (issetugid())
         return NULL;
-    getenv(name);
+    return getenv(name);
 }
 
 /*
