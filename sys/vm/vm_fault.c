@@ -1092,7 +1092,7 @@ vm_fault_next(struct faultstate *fs)
 	if (fs->object == fs->first_object) {
 		fs->first_m = fs->m;
 		fs->m = NULL;
-	} else {
+	} else if (fs->m != NULL) {
 		if (!vm_fault_object_ensure_wlocked(fs)) {
 			fs->can_read_lock = false;
 			unlock_and_deallocate(fs);
