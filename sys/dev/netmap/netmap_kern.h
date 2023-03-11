@@ -110,8 +110,6 @@
 #define NM_ATOMIC_TEST_AND_SET(p)       (!atomic_cmpset_acq_int((p), 0, 1))
 #define NM_ATOMIC_CLEAR(p)              atomic_store_rel_int((p), 0)
 
-#define	WNA(_ifp)	if_getnetmapadapter(_ifp)
-
 struct netmap_adapter *netmap_getna(if_t ifp);
 
 #define MBUF_REFCNT(m)		((m)->m_ext.ext_count)
@@ -1690,13 +1688,14 @@ extern int netmap_generic_txqdisc;
 
 /*
  * NA returns a pointer to the struct netmap adapter from the ifp.
- * WNA is os-specific and must be defined in glue code.
+ * The if_getnetmapadapter() and if_setnetmapadapter() helpers are
+ * os-specific and must be defined in glue code.
  */
-#define	NA(_ifp)	((struct netmap_adapter *)WNA(_ifp))
+#define	NA(_ifp)	(if_getnetmapadapter(_ifp))
 
 /*
  * we provide a default implementation of NM_ATTACH_NA/NM_DETACH_NA
- * based on the WNA field.
+ * based on the if_setnetmapadapter() setter function.
  * Glue code may override this by defining its own NM_ATTACH_NA
  */
 #ifndef NM_ATTACH_NA
