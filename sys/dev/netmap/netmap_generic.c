@@ -1034,10 +1034,6 @@ generic_netmap_dtor(struct netmap_adapter *na)
 		nm_prinf("Native netmap adapter for %s restored", prev_na->name);
 	}
 	NM_RESTORE_NA(ifp, prev_na);
-	/*
-	 * netmap_detach_common(), that it's called after this function,
-	 * overrides WNA(ifp) if na->ifp is not NULL.
-	 */
 	na->ifp = NULL;
 	nm_prinf("Emulated netmap adapter for %s destroyed", na->name);
 }
