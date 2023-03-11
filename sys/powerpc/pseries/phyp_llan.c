@@ -224,26 +224,25 @@ llan_attach(device_t dev)
 
 	/* Attach to network stack */
 	sc->ifp = if_alloc(IFT_ETHER);
-	sc->ifp->if_softc = sc;
+	if_setsoftc(sc->ifp, sc);
 
 	if_initname(sc->ifp, device_get_name(dev), device_get_unit(dev));
-	sc->ifp->if_mtu = ETHERMTU; /* XXX max-frame-size from OF? */
-	sc->ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	sc->ifp->if_hwassist = 0; /* XXX: ibm,illan-options */
-	sc->ifp->if_capabilities = 0;
-	sc->ifp->if_capenable = 0;
-	sc->ifp->if_start = llan_start;
-	sc->ifp->if_ioctl = llan_ioctl;
-	sc->ifp->if_init = llan_init;
+	if_setmtu(sc->ifp, ETHERMTU); /* XXX max-frame-size from OF? */
+	if_setflags(sc->ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_sethwassist(sc->ifp, 0); /* XXX: ibm,illan-options */
+	if_setcapabilities(sc->ifp, 0);
+	if_setcapenable(sc->ifp, 0);
+	if_setstartfn(sc->ifp, llan_start);
+	if_setioctlfn(sc->ifp, llan_ioctl);
+	if_setinitfn(sc->ifp, llan_init);
 
 	ifmedia_init(&sc->media, IFM_IMASK, llan_media_change,
 	    llan_media_status);
 	ifmedia_add(&sc->media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_set(&sc->media, IFM_ETHER | IFM_AUTO);
 
-	IFQ_SET_MAXLEN(&sc->ifp->if_snd, LLAN_MAX_TX_PACKETS);
-	sc->ifp->if_snd.ifq_drv_maxlen = LLAN_MAX_TX_PACKETS;
-	IFQ_SET_READY(&sc->ifp->if_snd);
+	if_setsendqlen(sc->ifp, LLAN_MAX_RX_PACKETS);
+	if_setsendqready(sc->ifp);
 
 	ether_ifattach(sc->ifp, &sc->mac_address[2]);
 
@@ -256,7 +255,7 @@ llan_attach(device_t dev)
 static int
 llan_media_change(struct ifnet *ifp)
 {
-	struct llan_softc *sc = ifp->if_softc;
+	struct llan_softc *sc = if_getsoftc(ifp);
 
 	if (IFM_TYPE(sc->media.ifm_media) != IFM_ETHER)
 		return (EINVAL);
@@ -315,8 +314,7 @@ llan_init(void *xsc)
 	phyp_hcall(H_VIO_SIGNAL, sc->unit, 1); /* Enable interrupts */
 
 	/* Tell stack we're up */
-	sc->ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(sc->ifp, IFF_DRV_RUNNING, IFF_DRV_OACTIVE);
 
 	mtx_unlock(&sc->io_lock);
 
@@ -412,7 +410,7 @@ restart:
 		}
 
 		mtx_unlock(&sc->io_lock);
-		(*sc->ifp->if_input)(sc->ifp, m);
+		if_input(sc->ifp, m);
 		mtx_lock(&sc->io_lock);
 	}
 
@@ -462,18 +460,18 @@ llan_send_packet(void *xsc, bus_dma_segment_t *segs, int nsegs,
 static void
 llan_start_locked(struct ifnet *ifp)
 {
-	struct llan_softc *sc = ifp->if_softc;
+	struct llan_softc *sc = if_getsoftc(ifp);
 	int nsegs;
 	struct mbuf *mb_head, *m;
 
 	mtx_assert(&sc->io_lock, MA_OWNED);
 
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING)
 		return;
 
-	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, mb_head);
+	while (!if_sendq_empty(ifp)) {
+		mb_head = if_dequeue(ifp);
 
 		if (mb_head == NULL)
 			break;
@@ -500,7 +498,7 @@ llan_start_locked(struct ifnet *ifp)
 static void
 llan_start(struct ifnet *ifp)
 {
-	struct llan_softc *sc = ifp->if_softc;
+	struct llan_softc *sc = if_getsoftc(ifp);
 
 	mtx_lock(&sc->io_lock);
 	llan_start_locked(ifp);
@@ -537,13 +535,13 @@ static int
 llan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	int err = 0;
-	struct llan_softc *sc = ifp->if_softc;
+	struct llan_softc *sc = if_getsoftc(ifp);
 
 	switch (cmd) {
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		mtx_lock(&sc->io_lock);
-		if ((sc->ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		if ((if_getdrvflags(sc->ifp) & IFF_DRV_RUNNING) != 0)
 			llan_set_multicast(sc);
 		mtx_unlock(&sc->io_lock);
 		break;
