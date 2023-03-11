@@ -50,6 +50,8 @@
 .Fn clearenv "void"
 .Ft char *
 .Fn getenv "const char *name"
+.Ft char *
+.Fn secure_getenv "const char *name"
 .Ft int
 .Fn setenv "const char *name" "const char *value" "int overwrite"
 .Ft int
@@ -75,6 +77,17 @@ function obtains the current value of the environment variable,
 .Fa name .
 The application should not modify the string pointed
 to by the
+.Fn getenv
+function.
+.Pp
+The
+.Fn secure_getenv
+function wraps the
+.Fn getenv
+function. As such, it will return
+.Fa NULL
+if the current process is tainted by uid or gid changes. Otherwise, it
+will call
 .Fn getenv
 function.
 .Pp
