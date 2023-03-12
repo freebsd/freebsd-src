@@ -93,8 +93,8 @@ static MALLOC_DEFINE(M_IPMSOURCE, "ip_msource",
 /*
  * Locking:
  *
- * - Lock order is: Giant, IN_MULTI_LOCK, INP_WLOCK,
- *   IN_MULTI_LIST_LOCK, IGMP_LOCK, IF_ADDR_LOCK.
+ * - Lock order is: IN_MULTI_LOCK, INP_WLOCK, IN_MULTI_LIST_LOCK, IGMP_LOCK,
+ *                  IF_ADDR_LOCK.
  * - The IF_ADDR_LOCK is implicitly taken by inm_lookup() earlier, however
  *   it can be taken by code in net/if.c also.
  * - ip_moptions and in_mfilter are covered by the INP_WLOCK.
@@ -1188,9 +1188,9 @@ inm_purge(struct in_multi *inm)
 /*
  * Join a multicast group; unlocked entry point.
  *
- * SMPng: XXX: in_joingroup() is called from in_control() when Giant
- * is not held. Fortunately, ifp is unlikely to have been detached
- * at this point, so we assume it's OK to recurse.
+ * SMPng: XXX: in_joingroup() is called from in_control().  Fortunately,
+ * ifp is unlikely to have been detached at this point, so we assume
+ * it's OK to recurse.
  */
 int
 in_joingroup(struct ifnet *ifp, const struct in_addr *gina,
@@ -1363,8 +1363,6 @@ in_leavegroup_locked(struct in_multi *inm, /*const*/ struct in_mfilter *imf)
  *
  * The delta-based API applies only to exclusive-mode memberships.
  * An IGMP downcall will be performed.
- *
- * SMPng: NOTE: Must take Giant as a join may create a new ifma.
  *
  * Return 0 if successful, otherwise return an appropriate error code.
  */
@@ -1552,7 +1550,6 @@ out_inp_locked:
  * Given an inpcb, return its multicast options structure pointer.  Accepts
  * an unlocked inpcb pointer, but will return it locked.  May sleep.
  *
- * SMPng: NOTE: Potentially calls malloc(M_WAITOK) with Giant held.
  * SMPng: NOTE: Returns with the INP write lock held.
  */
 static struct ip_moptions *
@@ -2522,8 +2519,6 @@ inp_set_multicast_if(struct inpcb *inp, struct sockopt *sopt)
 
 /*
  * Atomically set source filters on a socket for an IPv4 multicast group.
- *
- * SMPng: NOTE: Potentially calls malloc(M_WAITOK) with Giant held.
  */
 static int
 inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)

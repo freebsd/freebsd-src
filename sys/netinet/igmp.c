@@ -168,7 +168,6 @@ static const struct netisr_handler igmp_nh = {
  *    Any may be taken independently; if any are held at the same
  *    time, the above lock order must be followed.
  *  * All output is delegated to the netisr.
- *    Now that Giant has been eliminated, the netisr may be inlined.
  *  * IN_MULTI_LIST_LOCK covers in_multi.
  *  * IGMP_LOCK covers igmp_ifsoftc and any global variables in this file,
  *    including the output queue.
@@ -1674,7 +1673,6 @@ igmp_fasttimo(void *arg __unused)
 
 /*
  * Fast timeout handler (per-vnet).
- * Sends are shuffled off to a netisr to deal with Giant.
  *
  * VIMAGE: Assume caller has set up our curvnet.
  */
