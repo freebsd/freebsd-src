@@ -2135,7 +2135,7 @@ int	pf_normalize_ip6(struct mbuf **, int, struct pfi_kkif *, u_short *,
 void	pf_poolmask(struct pf_addr *, struct pf_addr*,
 	    struct pf_addr *, struct pf_addr *, u_int8_t);
 void	pf_addr_inc(struct pf_addr *, sa_family_t);
-int	pf_refragment6(struct ifnet *, struct mbuf **, struct m_tag *);
+int	pf_refragment6(struct ifnet *, struct mbuf **, struct m_tag *, bool);
 #endif /* INET6 */
 
 u_int32_t	pf_new_isn(struct pf_kstate *);

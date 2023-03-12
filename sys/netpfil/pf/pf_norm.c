@@ -942,7 +942,8 @@ fail:
 
 #ifdef INET6
 int
-pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag)
+pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag,
+    bool forward)
 {
 	struct mbuf		*m = *m0, *t;
 	struct pf_fragment_tag	*ftag = (struct pf_fragment_tag *)(mtag + 1);
@@ -1009,7 +1010,12 @@ pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag)
 		memset(&pd, 0, sizeof(pd));
 		pd.pf_mtag = pf_find_mtag(m);
 		if (error == 0)
-			ip6_forward(m, 0);
+			if (forward) {
+				MPASS(m->m_pkthdr.rcvif != NULL);
+				ip6_forward(m, 0);
+			} else {
+				ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
+			}
 		else
 			m_freem(m);
 	}
