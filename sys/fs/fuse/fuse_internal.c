@@ -793,7 +793,7 @@ int
 fuse_internal_newentry_core(struct vnode *dvp,
     struct vnode **vpp,
     struct componentname *cnp,
-    enum vtype vtyp,
+    __enum_uint8(vtype) vtyp,
     struct fuse_dispatcher *fdip)
 {
 	int err = 0;
@@ -834,7 +834,7 @@ fuse_internal_newentry(struct vnode *dvp,
     enum fuse_opcode op,
     void *buf,
     size_t bufsize,
-    enum vtype vtype)
+    __enum_uint8(vtype) vtype)
 {
 	int err;
 	struct fuse_dispatcher fdi;
@@ -899,7 +899,7 @@ fuse_internal_do_getattr(struct vnode *vp, struct vattr *vap,
 	struct timespec old_atime = fvdat->cached_attrs.va_atime;
 	struct timespec old_ctime = fvdat->cached_attrs.va_ctime;
 	struct timespec old_mtime = fvdat->cached_attrs.va_mtime;
-	enum vtype vtyp;
+	__enum_uint8(vtype) vtyp;
 	int err;
 
 	ASSERT_VOP_LOCKED(vp, __func__);
@@ -1141,7 +1141,7 @@ int fuse_internal_setattr(struct vnode *vp, struct vattr *vap,
 	pid_t pid = td->td_proc->p_pid;
 	struct fuse_data *data;
 	int err = 0;
-	enum vtype vtyp;
+	__enum_uint8(vtype) vtyp;
 
 	ASSERT_VOP_ELOCKED(vp, __func__);
 

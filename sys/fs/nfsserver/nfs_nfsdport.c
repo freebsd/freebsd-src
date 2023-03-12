@@ -1283,7 +1283,7 @@ nfsvno_mknod(struct nameidata *ndp, struct nfsvattr *nvap, struct ucred *cred,
     struct thread *p)
 {
 	int error = 0;
-	enum vtype vtyp;
+	__enum_uint8(vtype) vtyp;
 
 	vtyp = nvap->na_type;
 	/*
@@ -7034,7 +7034,7 @@ nfsm_trimtrailing(struct nfsrv_descript *nd, struct mbuf *mb, char *bpos,
  * be identified by the fact that the file handle's type is VDIR.
  */
 bool
-nfsrv_checkwrongsec(struct nfsrv_descript *nd, int nextop, enum vtype vtyp)
+nfsrv_checkwrongsec(struct nfsrv_descript *nd, int nextop, __enum_uint8(vtype) vtyp)
 {
 
 	if ((nd->nd_flag & ND_NFSV4) == 0)

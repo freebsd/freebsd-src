@@ -36,7 +36,7 @@ struct xucred;
 typedef struct flock	flock64_t;
 typedef	struct vnode	vnode_t;
 typedef	struct vattr	vattr_t;
-typedef enum vtype vtype_t;
+#define vtype_t __enum_uint8(vtype)
 
 #include <sys/types.h>
 #include <sys/queue.h>
