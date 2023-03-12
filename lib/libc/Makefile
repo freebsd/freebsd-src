@@ -93,6 +93,7 @@ MIASM=
 NOASM=
 
 .include "${LIBC_SRCTOP}/${LIBC_ARCH}/Makefile.inc"
+.include "${LIBC_SRCTOP}/csu/Makefile.inc"
 .include "${LIBC_SRCTOP}/db/Makefile.inc"
 .include "${LIBC_SRCTOP}/compat-43/Makefile.inc"
 .include "${LIBC_SRCTOP}/gdtoa/Makefile.inc"
