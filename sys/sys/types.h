@@ -347,6 +347,18 @@ __makedev(int _Major, int _Minor)
 	    ((dev_t)(_Minor & 0xff00) << 24) | (_Minor & 0xffff00ff));
 }
 
+#if (defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 13))
+#define __enum_uint8_decl(name)	enum enum_ ## name ## _uint8 : uint8_t
+#define __enum_uint8(name)	enum enum_ ## name ## _uint8
+#else
+/*
+ * Note: there is no real size checking here, but the code below can be
+ * removed once we require GCC 13.
+ */
+#define __enum_uint8_decl(name)	enum __attribute__((packed)) enum_ ## name ## _uint8
+#define __enum_uint8(name)	enum __attribute__((packed)) enum_ ## name ## _uint8
+#endif
+
 /*
  * These declarations belong elsewhere, but are repeated here and in
  * <stdio.h> to give broken programs a better chance of working with
