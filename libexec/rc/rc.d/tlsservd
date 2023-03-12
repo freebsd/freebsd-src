@@ -6,7 +6,7 @@
 # PROVIDE: tlsservd
 # REQUIRE: NETWORKING root mountcritlocal sysctl
 # BEFORE: nfsd
-# KEYWORD: nojail shutdown
+# KEYWORD: nojailvnet shutdown
 
 . /etc/rc.subr
 
