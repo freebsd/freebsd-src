@@ -91,7 +91,7 @@ ffs_snapblkfree(struct fs *fs,
 	ufs2_daddr_t bno,
 	long size,
 	ino_t inum,
-	enum vtype vtype,
+	__enum_uint8(vtype) vtype,
 	struct workhead *wkhd)
 {
 	return (EINVAL);
@@ -1755,7 +1755,7 @@ ffs_snapblkfree(struct fs *fs,
 	ufs2_daddr_t bno,
 	long size,
 	ino_t inum,
-	enum vtype vtype,
+	__enum_uint8(vtype) vtype,
 	struct workhead *wkhd)
 {
 	struct buf *ibp, *cbp, *savedcbp = NULL;

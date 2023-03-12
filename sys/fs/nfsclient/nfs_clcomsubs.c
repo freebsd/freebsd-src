@@ -45,8 +45,8 @@ __FBSDID("$FreeBSD$");
 
 extern struct nfsstatsv1 nfsstatsv1;
 extern int ncl_mbuf_mlen;
-extern enum vtype newnv2tov_type[8];
-extern enum vtype nv34tov_type[8];
+extern __enum_uint8(vtype) newnv2tov_type[8];
+extern __enum_uint8(vtype) nv34tov_type[8];
 NFSCLSTATEMUTEX;
 
 /*

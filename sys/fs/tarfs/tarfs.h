@@ -56,7 +56,7 @@ struct tarfs_node {
 
 	struct vnode		*vnode;
 	struct tarfs_mount	*tmp;
-	enum vtype		 type;
+	__enum_uint8(vtype)	 type;
 	ino_t			 ino;
 	off_t			 offset;
 	size_t			 size;
@@ -227,7 +227,7 @@ VP_TO_TARFS_NODE(struct vnode *vp)
 }
 
 int	tarfs_alloc_node(struct tarfs_mount *tmp, const char *name,
-	    size_t namelen, enum vtype type, off_t off, size_t sz,
+	    size_t namelen, __enum_uint8(vtype) type, off_t off, size_t sz,
 	    time_t mtime, uid_t uid, gid_t gid, mode_t mode,
 	    unsigned int flags, const char *linkname, dev_t rdev,
 	    struct tarfs_node *parent, struct tarfs_node **node);

@@ -154,7 +154,7 @@ sysctl_fuse_cache_mode(SYSCTL_HANDLER_ARGS)
 
 static void
 fuse_vnode_init(struct vnode *vp, struct fuse_vnode_data *fvdat,
-    uint64_t nodeid, enum vtype vtyp)
+    uint64_t nodeid, __enum_uint8(vtype) vtyp)
 {
 	fvdat->nid = nodeid;
 	LIST_INIT(&fvdat->handles);
@@ -189,13 +189,13 @@ fuse_vnode_cmp(struct vnode *vp, void *nidp)
 	return (VTOI(vp) != *((uint64_t *)nidp));
 }
 
-SDT_PROBE_DEFINE3(fusefs, , node, stale_vnode, "struct vnode*", "enum vtype",
+SDT_PROBE_DEFINE3(fusefs, , node, stale_vnode, "struct vnode*", "uint8_t",
 		"uint64_t");
 static int
 fuse_vnode_alloc(struct mount *mp,
     struct thread *td,
     uint64_t nodeid,
-    enum vtype vtyp,
+    __enum_uint8(vtype) vtyp,
     struct vnode **vpp)
 {
 	struct fuse_data *data;
@@ -289,7 +289,7 @@ fuse_vnode_get(struct mount *mp,
     struct vnode *dvp,
     struct vnode **vpp,
     struct componentname *cnp,
-    enum vtype vtyp)
+    __enum_uint8(vtype) vtyp)
 {
 	struct thread *td = curthread;
 	/* 

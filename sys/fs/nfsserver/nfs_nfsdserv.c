@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 
 /* Global vars */
 extern u_int32_t newnfs_false, newnfs_true;
-extern enum vtype nv34tov_type[8];
+extern __enum_uint8(vtype) nv34tov_type[8];
 extern struct timeval nfsboottime;
 extern int nfsrv_enable_crossmntpt;
 extern int nfsrv_statehashsize;
@@ -1156,7 +1156,7 @@ nfsrvd_create(struct nfsrv_descript *nd, __unused int isdgram,
 	fhandle_t fh;
 	char *bufp;
 	u_long *hashp;
-	enum vtype vtyp;
+	__enum_uint8(vtype) vtyp;
 	int32_t cverf[2], tverf[2] = { 0, 0 };
 	struct thread *p = curthread;
 
@@ -1320,7 +1320,7 @@ nfsrvd_mknod(struct nfsrv_descript *nd, __unused int isdgram,
 	struct nameidata named;
 	int error = 0, dirfor_ret = 1, diraft_ret = 1, pathlen;
 	u_int32_t major, minor;
-	enum vtype vtyp = VNON;
+	__enum_uint8(vtype) vtyp = VNON;
 	nfstype nfs4type = NFNON;
 	vnode_t vp, dirp = NULL;
 	nfsattrbit_t attrbits;

@@ -3654,7 +3654,7 @@ vn_fullpath_hardlink(struct vnode *vp, struct vnode *dvp,
 	struct pwd *pwd;
 	size_t addend;
 	int error;
-	enum vtype type;
+	__enum_uint8(vtype) type;
 
 	if (*buflen < 2)
 		return (EINVAL);
@@ -3676,15 +3676,8 @@ vn_fullpath_hardlink(struct vnode *vp, struct vnode *dvp,
 	 * before we get to evaluate the condition. If this happens, we will
 	 * populate part of the buffer and descend to vn_fullpath_dir with
 	 * vp == vp_crossmp. Prevent the problem by checking for VBAD.
-	 *
-	 * This should be atomic_load(&vp->v_type) but it is illegal to take
-	 * an address of a bit field, even if said field is sized to char.
-	 * Work around the problem by reading the value into a full-sized enum
-	 * and then re-reading it with atomic_load which will still prevent
-	 * the compiler from re-reading down the road.
 	 */
-	type = vp->v_type;
-	type = atomic_load_int(&type);
+	type = atomic_load_8(&vp->v_type);
 	if (type == VBAD) {
 		error = ENOENT;
 		goto out_bad;

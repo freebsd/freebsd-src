@@ -1858,7 +1858,7 @@ linker_lookup_file(const char *path, int pathlen, const char *name,
 	const char * const *cpp, *sep;
 	char *result;
 	int error, len, extlen, reclen, flags;
-	enum vtype type;
+	__enum_uint8(vtype) type;
 
 	extlen = 0;
 	for (cpp = linker_ext_list; *cpp; cpp++) {
