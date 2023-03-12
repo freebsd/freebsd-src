@@ -10,6 +10,16 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+7344856e3a6d and many others:
+	Add support so that nfsd(8), nfsuserd(8), mountd(8), gssd(8)
+	and rpc.tlsservd(8) can be run in an appropriately configured
+	vnet prison.  The vnet prison must be on its own file system,
+	have the "allow.nfsd" jail parameter set on it and enforce_statfs
+	cannot be set to "0".  Use of UDP and pNFS server configurations
+	are not permitted.  (ie. The nfsd command line options "-u", "-p"
+	and "-m" are not supported.)
+	See jail(8), nfsd(8) and mountd(8).
+
 2fb4f839f3fc,d89513ed2050,3413ee88c39d,f97a19ecb985,021562c5020d,431d2a81d421:
 	sendmail has been updated to the latest upstream version (8.17.1).
 
