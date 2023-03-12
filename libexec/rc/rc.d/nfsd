@@ -5,7 +5,7 @@
 
 # PROVIDE: nfsd
 # REQUIRE: mountcritremote mountd hostname gssd nfsuserd
-# KEYWORD: nojail shutdown
+# KEYWORD: nojailvnet shutdown
 
 . /etc/rc.subr
 
@@ -28,7 +28,7 @@ nfsd_precmd()
 	# oids are available.
 	load_kld nfsd || return 1
 
-	if [ -n "${nfs_server_maxio}" ]; then
+	if [ -n "${nfs_server_maxio}" ] && ! check_jail jailed; then
 		if ! sysctl vfs.nfsd.srvmaxio=${nfs_server_maxio} >/dev/null; then
 			warn "Failed to set server max I/O"
 		fi

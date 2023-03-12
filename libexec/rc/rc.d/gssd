@@ -6,7 +6,7 @@
 # PROVIDE: gssd
 # REQUIRE: root mountcritlocal NETWORKING kdc
 # BEFORE: mountcritremote
-# KEYWORD: nojail shutdown
+# KEYWORD: nojailvnet shutdown
 
 . /etc/rc.subr
 
