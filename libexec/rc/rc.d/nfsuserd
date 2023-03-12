@@ -5,7 +5,7 @@
 
 # PROVIDE: nfsuserd
 # REQUIRE: NETWORKING
-# KEYWORD: nojail shutdown
+# KEYWORD: nojailvnet shutdown
 
 . /etc/rc.subr
 
