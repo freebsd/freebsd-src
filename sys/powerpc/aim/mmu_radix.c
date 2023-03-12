@@ -464,6 +464,7 @@ void mmu_radix_remove(pmap_t, vm_offset_t, vm_offset_t);
 void mmu_radix_remove_all(vm_page_t);
 void mmu_radix_remove_pages(pmap_t);
 void mmu_radix_remove_write(vm_page_t);
+void mmu_radix_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz);
 void mmu_radix_unwire(pmap_t, vm_offset_t, vm_offset_t);
 void mmu_radix_zero_page(vm_page_t);
 void mmu_radix_zero_page_area(vm_page_t, int, int);
@@ -542,6 +543,7 @@ static struct pmap_funcs mmu_radix_methods = {
 	.remove = mmu_radix_remove,
 	.remove_all = mmu_radix_remove_all,
 	.remove_write = mmu_radix_remove_write,
+	.sync_icache = mmu_radix_sync_icache,
 	.unwire = mmu_radix_unwire,
 	.zero_page = mmu_radix_zero_page,
 	.zero_page_area = mmu_radix_zero_page_area,
@@ -5918,6 +5920,25 @@ mmu_radix_unmapdev(void *p, vm_size_t size)
 	if (pmap_initialized) {
 		mmu_radix_qremove(va, atop(size));
 		kva_free(va, size);
+	}
+}
+
+void
+mmu_radix_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
+{
+	vm_paddr_t pa = 0;
+	int sync_sz;
+
+	while (sz > 0) {
+		pa = pmap_extract(pm, va);
+		sync_sz = PAGE_SIZE - (va & PAGE_MASK);
+		sync_sz = min(sync_sz, sz);
+		if (pa != 0) {
+			pa += (va & PAGE_MASK);
+			__syncicache((void *)PHYS_TO_DMAP(pa), sync_sz);
+		}
+		va += sync_sz;
+		sz -= sync_sz;
 	}
 }
 
