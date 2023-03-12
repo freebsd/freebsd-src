@@ -202,8 +202,11 @@ pfil_mbuf_common(pfil_chain_t *pch, struct mbuf **m, struct ifnet *ifp,
 	pfil_return_t rv;
 
 	NET_EPOCH_ASSERT();
-	KASSERT(flags == PFIL_IN || flags == PFIL_OUT,
-	    ("%s: unsupported flags %d", __func__, flags));
+	KASSERT((flags & ~(PFIL_IN|PFIL_OUT|PFIL_FWD)) == 0,
+	    ("%s: unsupported flags %#x", __func__, flags));
+	KASSERT((flags & ~PFIL_FWD) == PFIL_IN ||
+	    (flags & ~PFIL_FWD) == PFIL_OUT,
+	    ("%s: conflicting directions %#x", __func__, flags));
 
 	rv = PFIL_PASS;
 	CK_STAILQ_FOREACH(link, pch, link_chain) {
@@ -229,6 +232,14 @@ pfil_mbuf_out(struct pfil_head *head, struct mbuf **m, struct ifnet *ifp,
 {
 
 	return (pfil_mbuf_common(&head->head_out, m, ifp, PFIL_OUT, inp));
+}
+
+int
+pfil_mbuf_fwd(struct pfil_head *head, struct mbuf **m, struct ifnet *ifp,
+    struct inpcb *inp)
+{
+
+	return (pfil_mbuf_common(&head->head_out, m, ifp, PFIL_OUT | PFIL_FWD, inp));
 }
 
 /*

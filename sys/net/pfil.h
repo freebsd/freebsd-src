@@ -80,7 +80,7 @@ struct pfilioc_link {
 
 #define	PFIL_IN		0x00010000
 #define	PFIL_OUT	0x00020000
-/* UNUSED		0x00040000 */
+#define	PFIL_FWD	0x00040000
 #define	PFIL_DIR(f)	((f) & (PFIL_IN|PFIL_OUT))
 #define	PFIL_HEADPTR	0x00100000
 #define	PFIL_HOOKPTR	0x00200000
@@ -179,6 +179,8 @@ int	pfil_mbuf_in(struct pfil_head *, struct mbuf **, struct ifnet *,
     struct inpcb *inp);
 int	pfil_mbuf_out(struct pfil_head *, struct mbuf **, struct ifnet *,
     struct inpcb *inp);
+int	pfil_mbuf_fwd(struct pfil_head *, struct mbuf **, struct ifnet *,
+    struct inpcb *);
 
 /*
  * Minimally exposed structure to avoid function call in case of absence
