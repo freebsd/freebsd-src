@@ -78,11 +78,6 @@ __DEFAULT_NO_OPTIONS = \
 BROKEN_OPTIONS+= INIT_ALL_ZERO
 .endif
 
-# ZFS is broken on 32-bit powerpc, missing atomics
-.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpcspe"
-BROKEN_OPTIONS+= ZFS
-.endif
-
 # Broken on 32-bit arm, kernel module compile errors
 .if ${MACHINE_CPUARCH} == "arm"
 BROKEN_OPTIONS+= OFED
