@@ -293,8 +293,6 @@ VNET_DECLARE(int, ip6_norbit_raif);	/* Disable R-bit in NA on RA
 					 * receiving IF. */
 VNET_DECLARE(int, ip6_rfc6204w3);	/* Accept defroute from RA even when
 					   forwarding enabled */
-VNET_DECLARE(int, ip6_log_interval);
-VNET_DECLARE(time_t, ip6_log_time);
 VNET_DECLARE(int, ip6_hdrnestlimit);	/* upper limit of # of extension
 					 * headers */
 VNET_DECLARE(int, ip6_dad_count);	/* DupAddrDetectionTransmits */
@@ -304,8 +302,6 @@ VNET_DECLARE(int, ip6_dad_count);	/* DupAddrDetectionTransmits */
 #define	V_ip6_no_radr			VNET(ip6_no_radr)
 #define	V_ip6_norbit_raif		VNET(ip6_norbit_raif)
 #define	V_ip6_rfc6204w3			VNET(ip6_rfc6204w3)
-#define	V_ip6_log_interval		VNET(ip6_log_interval)
-#define	V_ip6_log_time			VNET(ip6_log_time)
 #define	V_ip6_hdrnestlimit		VNET(ip6_hdrnestlimit)
 #define	V_ip6_dad_count			VNET(ip6_dad_count)
 
@@ -414,6 +410,8 @@ int in6_selectroute(struct sockaddr_in6 *, struct ip6_pktopts *,
 u_int32_t ip6_randomid(void);
 u_int32_t ip6_randomflowlabel(void);
 void in6_delayed_cksum(struct mbuf *m, uint32_t plen, u_short offset);
+
+int	ip6_log_ratelimit(void);
 
 /*
  * Argument type for the last arg of ip6proto_ctlinput_t().
