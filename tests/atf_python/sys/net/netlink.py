@@ -1082,6 +1082,7 @@ rtnl_ifla_attrs = prepare_attrs_map(
         AttrDescr(IflattrType.IFLA_BROADCAST, NlAttrMac),
         AttrDescr(IflattrType.IFLA_IFNAME, NlAttrStr),
         AttrDescr(IflattrType.IFLA_MTU, NlAttrU32),
+        AttrDescr(IflattrType.IFLA_LINK, NlAttrU32),
         AttrDescr(IflattrType.IFLA_PROMISCUITY, NlAttrU32),
         AttrDescr(IflattrType.IFLA_OPERSTATE, NlAttrU8),
         AttrDescr(IflattrType.IFLA_CARRIER, NlAttrU8),
@@ -1279,8 +1280,8 @@ class StdNetlinkMessage(BaseNetlinkMessage):
                 val = v["ad"].cls.from_bytes(data[off : off + nla_len], v["ad"].val)
                 if "child" in v:
                     # nested
-                    attrs, _ = self.parse_attrs(data[off : off + nla_len], v["child"])
-                    val = NlAttrNested(raw_nla_type, attrs)
+                    attrs, _ = self.parse_attrs(data[off + 4 : off + nla_len], v["child"])
+                    val = NlAttrNested(v["ad"].val, attrs)
             else:
                 # unknown attribute
                 val = NlAttr(raw_nla_type, data[off + 4 : off + nla_len])
