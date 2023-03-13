@@ -386,6 +386,62 @@ tftp_put_multi_host_cleanup() {
 	stop_tftpd
 }
 
+atf_test_case tftp_url_host cleanup
+tftp_url_host_head() {
+	atf_set "descr" "URL with hostname"
+	atf_set "require.user" "root"
+}
+tftp_url_host_body() {
+	start_tftpd
+	local remote_file="${tftp_dir}/hello.txt"
+	echo "Hello, $$!" >"${remote_file}"
+	local local_file="${remote_file##*/}"
+	atf_check -o match:"Received [0-9]+ bytes" \
+	    tftp tftp://localhost/"${remote_file##*/}"
+	atf_check cmp -s "${local_file}" "${remote_file}"
+}
+tftp_url_host_cleanup() {
+	stop_tftpd
+}
+
+atf_test_case tftp_url_ipv4 cleanup
+tftp_url_ipv4_head() {
+	atf_set "descr" "URL with IPv4 address"
+	atf_set "require.user" "root"
+}
+tftp_url_ipv4_body() {
+	start_tftpd
+	local remote_file="${tftp_dir}/hello.txt"
+	echo "Hello, $$!" >"${remote_file}"
+	local local_file="${remote_file##*/}"
+	atf_check -o match:"Received [0-9]+ bytes" \
+	    tftp tftp://127.0.0.1/"${remote_file##*/}"
+	atf_check cmp -s "${local_file}" "${remote_file}"
+}
+tftp_url_ipv4_cleanup() {
+	stop_tftpd
+}
+
+atf_test_case tftp_url_ipv6 cleanup
+tftp_url_ipv6_head() {
+	atf_set "descr" "URL with IPv6 address"
+	atf_set "require.user" "root"
+}
+tftp_url_ipv6_body() {
+	sysctl -q kern.features.inet6 || atf_skip "This test requires IPv6 support"
+	atf_expect_fail "tftp does not support bracketed IPv6 literals in URLs"
+	start_tftpd
+	local remote_file="${tftp_dir}/hello.txt"
+	echo "Hello, $$!" >"${remote_file}"
+	local local_file="${remote_file##*/}"
+	atf_check -o match:"Received [0-9]+ bytes" \
+	    tftp tftp://"[::1]"/"${remote_file##*/}"
+	atf_check cmp -s "${local_file}" "${remote_file}"
+}
+tftp_url_ipv6_cleanup() {
+	stop_tftpd
+}
+
 atf_init_test_cases() {
 	atf_add_test_case tftp_get_big
 	atf_add_test_case tftp_get_host
@@ -403,4 +459,7 @@ atf_init_test_cases() {
 	atf_add_test_case tftp_put_two
 	atf_add_test_case tftp_put_more
 	atf_add_test_case tftp_put_multi_host
+	atf_add_test_case tftp_url_host
+	atf_add_test_case tftp_url_ipv4
+	atf_add_test_case tftp_url_ipv6
 }
