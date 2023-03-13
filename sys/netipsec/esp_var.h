@@ -74,6 +74,8 @@ struct espstat {
 #include <sys/counter.h>
 
 VNET_DECLARE(int, esp_enable);
+VNET_DECLARE(int, esp_ctr_compatibility);
+#define V_esp_ctr_compatibility VNET(esp_ctr_compatibility)
 VNET_PCPUSTAT_DECLARE(struct espstat, espstat);
 
 #define	ESPSTAT_ADD(name, val)	\
