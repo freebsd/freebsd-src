@@ -109,6 +109,8 @@ static int	if_clone_createif(struct if_clone *ifc, char *name, size_t len,
 
 static int ifc_simple_match(struct if_clone *ifc, const char *name);
 static int ifc_handle_unit(struct if_clone *ifc, char *name, size_t len, int *punit);
+static struct if_clone *ifc_find_cloner(const char *name);
+static struct if_clone *ifc_find_cloner_match(const char *name);
 
 #ifdef CLONE_COMPAT_13
 static int ifc_simple_create_wrapper(struct if_clone *ifc, char *name, size_t maxlen,
@@ -195,13 +197,7 @@ ifc_create_ifp(const char *name, struct ifc_data *ifd,
 	int error;
 
 	/* Try to find an applicable cloner for this request */
-	IF_CLONERS_LOCK();
-	LIST_FOREACH(ifc, &V_if_cloners, ifc_list) {
-		if (ifc->ifc_match(ifc, name))
-			break;
-	}
-	IF_CLONERS_UNLOCK();
-
+	ifc = ifc_find_cloner_match(name);
 	if (ifc == NULL)
 		return (EINVAL);
 
@@ -266,11 +262,25 @@ ifc_unlink_ifp(struct if_clone *ifc, struct ifnet *ifp)
 }
 
 static struct if_clone *
-ifc_find_cloner(const char *name, struct vnet *vnet)
+ifc_find_cloner_match(const char *name)
 {
 	struct if_clone *ifc;
 
-	CURVNET_SET_QUIET(vnet);
+	IF_CLONERS_LOCK();
+	LIST_FOREACH(ifc, &V_if_cloners, ifc_list) {
+		if (ifc->ifc_match(ifc, name))
+			break;
+	}
+	IF_CLONERS_UNLOCK();
+
+	return (ifc);
+}
+
+static struct if_clone *
+ifc_find_cloner(const char *name)
+{
+	struct if_clone *ifc;
+
 	IF_CLONERS_LOCK();
 	LIST_FOREACH(ifc, &V_if_cloners, ifc_list) {
 		if (strcmp(ifc->ifc_name, name) == 0) {
@@ -278,6 +288,15 @@ ifc_find_cloner(const char *name, struct vnet *vnet)
 		}
 	}
 	IF_CLONERS_UNLOCK();
+
+	return (ifc);
+}
+
+static struct if_clone *
+ifc_find_cloner_in_vnet(const char *name, struct vnet *vnet)
+{
+	CURVNET_SET_QUIET(vnet);
+	struct if_clone *ifc = ifc_find_cloner(name);
 	CURVNET_RESTORE();
 
 	return (ifc);
@@ -326,7 +345,7 @@ if_clone_destroy(const char *name)
 	if (ifp == NULL)
 		return (ENXIO);
 
-	ifc = ifc_find_cloner(ifp->if_dname, ifp->if_home_vnet);
+	ifc = ifc_find_cloner_in_vnet(ifp->if_dname, ifp->if_home_vnet);
 	if (ifc == NULL) {
 		if_rele(ifp);
 		return (EINVAL);
