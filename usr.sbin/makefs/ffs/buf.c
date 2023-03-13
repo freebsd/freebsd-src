@@ -127,26 +127,31 @@ bwrite(struct m_buf *bp)
 {
 	off_t	offset;
 	ssize_t	rv;
+	size_t	bytes;
+	int	e;
 	fsinfo_t *fs = bp->b_fs;
 
 	assert (bp != NULL);
 	offset = (off_t)bp->b_blkno * fs->sectorsize + fs->offset;
+	bytes = (size_t)bp->b_bcount;
 	if (debug & DEBUG_BUF_BWRITE)
-		printf("%s: blkno %lld offset %lld bcount %ld\n", __func__,
-		    (long long)bp->b_blkno, (long long) offset,
-		    bp->b_bcount);
-	if (lseek(bp->b_fs->fd, offset, SEEK_SET) == -1)
+		printf("%s: blkno %lld offset %lld bcount %zu\n", __func__,
+		    (long long)bp->b_blkno, (long long) offset, bytes);
+	if (lseek(bp->b_fs->fd, offset, SEEK_SET) == -1) {
+		brelse(bp);
 		return (errno);
-	rv = write(bp->b_fs->fd, bp->b_data, bp->b_bcount);
+	}
+	rv = write(bp->b_fs->fd, bp->b_data, bytes);
+	e = errno;
 	if (debug & DEBUG_BUF_BWRITE)
 		printf("%s: write %ld (offset %lld) returned %lld\n", __func__,
 		    bp->b_bcount, (long long)offset, (long long)rv);
-	if (rv == bp->b_bcount)
+	brelse(bp);
+	if (rv == (ssize_t)bytes)
 		return (0);
-	else if (rv == -1)		/* write error */
-		return (errno);
-	else				/* short write ? */
-		return (EAGAIN);
+	if (rv == -1)		/* write error */
+		return (e);
+	return (EAGAIN);
 }
 
 void
