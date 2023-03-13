@@ -347,11 +347,11 @@ fixup_console(caddr_t kmdp)
 		struct efi_fb efi;
 		struct vbe_fb vbe;
 	} *fb = NULL;
-	int ret;
+	int size;
 
-	ret = HYPERVISOR_platform_op(&op);
-	if (ret != 0) {
-		xc_printf("Failed to get dom0 video console info\n");
+	size = HYPERVISOR_platform_op(&op);
+	if (size < 0) {
+		xc_printf("Failed to get dom0 video console info: %d\n", size);
 		return;
 	}
 
@@ -381,8 +381,11 @@ fixup_console(caddr_t kmdp)
 			}
 		}
 
-		fb->efi.fb_addr = console->u.vesa_lfb.lfb_base |
-		    ((uint64_t)console->u.vesa_lfb.ext_lfb_base << 32);
+		fb->efi.fb_addr = console->u.vesa_lfb.lfb_base;
+		if (size >
+		    offsetof(xenpf_dom0_console_t, u.vesa_lfb.ext_lfb_base))
+			fb->efi.fb_addr |=
+			    (uint64_t)console->u.vesa_lfb.ext_lfb_base << 32;
 		fb->efi.fb_size = console->u.vesa_lfb.lfb_size << 16;
 		fb->efi.fb_height = console->u.vesa_lfb.height;
 		fb->efi.fb_width = console->u.vesa_lfb.width;
