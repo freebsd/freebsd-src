@@ -72,6 +72,19 @@ intel_stolen_base_gen3(int bus, int slot, int func)
 }
 
 static vm_paddr_t
+intel_stolen_base_gen11(int bus, int slot, int func)
+{
+	uint32_t ctrl;
+	vm_paddr_t val;
+
+	ctrl = pci_cfgregread(bus, slot, func, INTEL_GEN11_BSM_DW0, 4);
+	val = ctrl & INTEL_BSM_MASK;
+	val |= (uint64_t)pci_cfgregread(
+	    bus, slot, func, INTEL_GEN11_BSM_DW1, 4) << 32;
+	return (val);
+}
+
+static vm_paddr_t
 intel_stolen_size_gen3(int bus, int slot, int func)
 {
 	uint32_t ctrl;
@@ -201,6 +214,11 @@ static const struct intel_stolen_ops intel_stolen_ops_chv = {
 	.size = intel_stolen_size_chv,
 };
 
+static const struct intel_stolen_ops intel_stolen_ops_gen11 = {
+	.base = intel_stolen_base_gen11,
+	.size = intel_stolen_size_gen9,
+};
+
 static const struct pci_device_id intel_ids[] = {
 	INTEL_I915G_IDS(&intel_stolen_ops_gen3),
 	INTEL_I915GM_IDS(&intel_stolen_ops_gen3),
@@ -228,6 +246,14 @@ static const struct pci_device_id intel_ids[] = {
 	INTEL_CFL_IDS(&intel_stolen_ops_gen9),
 	INTEL_GLK_IDS(&intel_stolen_ops_gen9),
 	INTEL_CNL_IDS(&intel_stolen_ops_gen9),
+	INTEL_ICL_11_IDS(&intel_stolen_ops_gen11),
+	INTEL_EHL_IDS(&intel_stolen_ops_gen11),
+	INTEL_JSL_IDS(&intel_stolen_ops_gen11),
+	INTEL_TGL_12_IDS(&intel_stolen_ops_gen11),
+	INTEL_RKL_IDS(&intel_stolen_ops_gen11),
+	INTEL_ADLS_IDS(&intel_stolen_ops_gen11),
+	INTEL_ADLP_IDS(&intel_stolen_ops_gen11),
+	INTEL_RPLS_IDS(&intel_stolen_ops_gen11),
 };
 
 /*
