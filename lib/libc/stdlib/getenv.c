@@ -448,6 +448,18 @@ getenv(const char *name)
 
 
 /*
+ * Runs getenv() unless the current process is tainted by uid or gid changes, in
+ * which case it will return NULL.
+ */
+char *
+secure_getenv(const char *name)
+{
+	if (issetugid())
+		return NULL;
+	return getenv(name);
+}
+
+/*
  * Set the value of a variable.  Older settings are labeled as inactive.  If an
  * older setting has enough room to store the new value, it will be reused.  No
  * previous variables are ever freed here to avoid causing a segmentation fault
