@@ -83,8 +83,7 @@
 #define SPI_SIZE	4
 
 VNET_DEFINE(int, esp_enable) = 1;
-VNET_DEFINE_STATIC(int, esp_ctr_compatibility) = 1;
-#define V_esp_ctr_compatibility VNET(esp_ctr_compatibility)
+VNET_DEFINE(int, esp_ctr_compatibility) = 1;
 VNET_PCPUSTAT_DEFINE(struct espstat, espstat);
 VNET_PCPUSTAT_SYSINIT(espstat);
 
