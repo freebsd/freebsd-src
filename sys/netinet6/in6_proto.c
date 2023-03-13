@@ -161,7 +161,6 @@ VNET_DEFINE(int, ip6_accept_rtadv) = 0;
 VNET_DEFINE(int, ip6_no_radr) = 0;
 VNET_DEFINE(int, ip6_norbit_raif) = 0;
 VNET_DEFINE(int, ip6_rfc6204w3) = 0;
-VNET_DEFINE(int, ip6_log_interval) = 5;
 VNET_DEFINE(int, ip6_hdrnestlimit) = 15;/* How many header options will we
 					 * process? */
 VNET_DEFINE(int, ip6_dad_count) = 1;	/* DupAddrDetectionTransmits */
@@ -173,7 +172,6 @@ VNET_DEFINE(int, ip6_rr_prune) = 5;	/* router renumbering prefix
 VNET_DEFINE(int, ip6_mcast_pmtu) = 0;	/* enable pMTU discovery for multicast? */
 VNET_DEFINE(int, ip6_v6only) = 1;
 
-VNET_DEFINE(time_t, ip6_log_time) = (time_t)0L;
 #ifdef IPSTEALTH
 VNET_DEFINE(int, ip6stealth) = 0;
 #endif
@@ -198,6 +196,14 @@ VNET_DEFINE(int, icmp6errppslim) = 100;		/* 100pps */
 VNET_DEFINE(int, icmp6_nodeinfo) =
     (ICMP6_NODEINFO_FQDNOK|ICMP6_NODEINFO_NODEADDROK);
 VNET_DEFINE(int, icmp6_nodeinfo_oldmcprefix) = 1;
+
+VNET_DEFINE_STATIC(int, ip6_log_interval) = 5;
+VNET_DEFINE_STATIC(int, ip6_log_count) = 0;
+VNET_DEFINE_STATIC(struct timeval, ip6_log_last) = { 0 };
+
+#define	V_ip6_log_interval	VNET(ip6_log_interval)
+#define	V_ip6_log_count		VNET(ip6_log_count)
+#define	V_ip6_log_last		VNET(ip6_log_last)
 
 /*
  * sysctl related items.
@@ -252,6 +258,14 @@ sysctl_ip6_tempvltime(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	V_ip6_temp_valid_lifetime = val;
 	return (0);
+}
+
+int
+ip6_log_ratelimit(void)
+{
+
+	return (ppsratecheck(&V_ip6_log_last, &V_ip6_log_count,
+	    V_ip6_log_interval));
 }
 
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_FORWARDING, forwarding,
