@@ -500,6 +500,7 @@ msdosfs_wfile(const char *path, struct denode *dep, fsnode *node)
 		cpsize = MIN((nsize - offs), blsize - on);
 		memcpy(bp->b_data + on, dat + offs, cpsize);
 		bwrite(bp);
+		brelse(bp);
 		offs += cpsize;
 	}
 
