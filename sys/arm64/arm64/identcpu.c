@@ -365,6 +365,28 @@ static const struct mrs_field id_aa64afr1_fields[] = {
 
 
 /* ID_AA64DFR0_EL1 */
+static const struct mrs_field_value id_aa64dfr0_hpmn0[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64DFR0, HPMN0, CONSTR, DEFINED),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64dfr0_brbe[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64DFR0, BRBE, NONE, IMPL),
+	MRS_FIELD_VALUE(ID_AA64DFR0_BRBE_EL3, "BRBE EL3"),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64dfr0_mtpmu[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64DFR0, MTPMU, NONE, IMPL),
+	MRS_FIELD_VALUE(ID_AA64DFR0_MTPMU_NONE_MT_RES0, "MTPMU res0"),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64dfr0_tracebuffer[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64DFR0, TraceBuffer, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
 static const struct mrs_field_value id_aa64dfr0_tracefilt[] = {
 	MRS_FIELD_VALUE(ID_AA64DFR0_TraceFilt_NONE, ""),
 	MRS_FIELD_VALUE(ID_AA64DFR0_TraceFilt_8_4, "Trace v8.4"),
@@ -380,7 +402,9 @@ static const struct mrs_field_value id_aa64dfr0_doublelock[] = {
 static const struct mrs_field_value id_aa64dfr0_pmsver[] = {
 	MRS_FIELD_VALUE(ID_AA64DFR0_PMSVer_NONE, ""),
 	MRS_FIELD_VALUE(ID_AA64DFR0_PMSVer_SPE, "SPE"),
-	MRS_FIELD_VALUE(ID_AA64DFR0_PMSVer_SPE_8_3, "SPE v8.3"),
+	MRS_FIELD_VALUE(ID_AA64DFR0_PMSVer_SPE_1_1, "SPEv1p1"),
+	MRS_FIELD_VALUE(ID_AA64DFR0_PMSVer_SPE_1_2, "SPEv1p2"),
+	MRS_FIELD_VALUE(ID_AA64DFR0_PMSVer_SPE_1_3, "SPEv1p3"),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -402,9 +426,11 @@ static const struct mrs_field_value id_aa64dfr0_brps[] = {
 static const struct mrs_field_value id_aa64dfr0_pmuver[] = {
 	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_NONE, ""),
 	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_3, "PMUv3"),
-	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_3_1, "PMUv3 v8.1"),
-	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_3_4, "PMUv3 v8.4"),
-	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_3_5, "PMUv3 v8.5"),
+	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_3_1, "PMUv3p1"),
+	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_3_4, "PMUv3p4"),
+	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_3_5, "PMUv3p5"),
+	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_3_7, "PMUv3p7"),
+	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_3_8, "PMUv3p8"),
 	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_IMPL, "IMPL PMU"),
 	MRS_FIELD_VALUE_END,
 };
@@ -418,12 +444,18 @@ static const struct mrs_field_value id_aa64dfr0_tracever[] = {
 static const struct mrs_field_value id_aa64dfr0_debugver[] = {
 	MRS_FIELD_VALUE(ID_AA64DFR0_DebugVer_8, "Debugv8"),
 	MRS_FIELD_VALUE(ID_AA64DFR0_DebugVer_8_VHE, "Debugv8_VHE"),
-	MRS_FIELD_VALUE(ID_AA64DFR0_DebugVer_8_2, "Debugv8.2"),
-	MRS_FIELD_VALUE(ID_AA64DFR0_DebugVer_8_4, "Debugv8.4"),
+	MRS_FIELD_VALUE(ID_AA64DFR0_DebugVer_8_2, "Debugv8p2"),
+	MRS_FIELD_VALUE(ID_AA64DFR0_DebugVer_8_4, "Debugv8p4"),
+	MRS_FIELD_VALUE(ID_AA64DFR0_DebugVer_8_8, "Debugv8p8"),
 	MRS_FIELD_VALUE_END,
 };
 
 static const struct mrs_field id_aa64dfr0_fields[] = {
+	MRS_FIELD(ID_AA64DFR0, HPMN0, false, MRS_EXACT, id_aa64dfr0_hpmn0),
+	MRS_FIELD(ID_AA64DFR0, BRBE, false, MRS_EXACT, id_aa64dfr0_brbe),
+	MRS_FIELD(ID_AA64DFR0, MTPMU, true, MRS_EXACT, id_aa64dfr0_mtpmu),
+	MRS_FIELD(ID_AA64DFR0, TraceBuffer, false, MRS_EXACT,
+	    id_aa64dfr0_tracebuffer),
 	MRS_FIELD(ID_AA64DFR0, TraceFilt, false, MRS_EXACT,
 	    id_aa64dfr0_tracefilt),
 	MRS_FIELD(ID_AA64DFR0, DoubleLock, false, MRS_EXACT,
