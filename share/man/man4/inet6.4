@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 12, 2021
+.Dd February 22, 2023
 .Dt INET6 4
 .Os
 .Sh NAME
@@ -185,7 +185,9 @@ The
 .Tn ICMPv6
 message protocol is accessible from a raw socket.
 .Ss MIB Variables
-A number of variables are implemented in the net.inet6 branch of the
+A number of variables are implemented in the
+.Va net.inet6
+branch of the
 .Xr sysctl 3
 MIB.
 In addition to the variables supported by the transport protocols
@@ -341,6 +343,11 @@ mapped address on
 .Dv AF_INET6
 sockets.
 Defaults to on.
+.It Va ip6.log_cannot_forward
+Boolean: log packets that can't be forwarded because of unspecified source
+address or destination address beyond the scope of the source address as
+described in RFC4443.
+Enabled by default.
 .It Va ip6.source_address_validation
 Boolean: perform source address validation for packets destined for the local
 host.
@@ -440,6 +447,15 @@ sockets.
 .Xr ip6 4 ,
 .Xr tcp 4 ,
 .Xr udp 4
+.Rs
+.%A A. Conta
+.%A S. Deering
+.%A M. Gupta
+.%T "Internet Control Message Protocol (ICMPv6) for the Internet" \
+    "Protocol Version 6 (IPv6) Specification"
+.%R RFC 4443
+.%D March 2006
+.Re
 .Sh STANDARDS
 .Rs
 .%A Tatsuya Jinmei

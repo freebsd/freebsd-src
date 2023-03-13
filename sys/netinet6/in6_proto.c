@@ -179,6 +179,7 @@ VNET_DEFINE(int, ip6stealth) = 0;
 #endif
 VNET_DEFINE(int, nd6_onlink_ns_rfc4861) = 0;/* allow 'on-link' nd6 NS
 					     * (RFC 4861) */
+VNET_DEFINE(bool, ip6_log_cannot_forward) = 1;
 
 /* icmp6 */
 /*
@@ -342,6 +343,10 @@ SYSCTL_INT(_net_inet6_ip6, IPV6CTL_STEALTH, stealth, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(ip6stealth), 0,
 	"Forward IPv6 packets without decrementing their TTL");
 #endif
+SYSCTL_BOOL(_net_inet6_ip6, OID_AUTO,
+	log_cannot_forward, CTLFLAG_VNET | CTLFLAG_RW,
+	&VNET_NAME(ip6_log_cannot_forward), 1,
+	"Log packets that cannot be forwarded");
 
 /* net.inet6.icmp6 */
 SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_REDIRACCEPT, rediraccept,
