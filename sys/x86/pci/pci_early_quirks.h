@@ -39,6 +39,8 @@
 #define	PCI_CLASS_VGA		0x0300
 
 #define	INTEL_BSM		0x5c
+#define	INTEL_GEN11_BSM_DW0	0xc0
+#define	INTEL_GEN11_BSM_DW1	0xc4
 #define	INTEL_BSM_MASK		(-(1u << 20))
 
 #define	INTEL_GMCH_CTRL		0x52
@@ -476,5 +478,98 @@
 	INTEL_VGA_DEVICE(0x8A5B, info), \
 	INTEL_VGA_DEVICE(0x8A71, info), \
 	INTEL_VGA_DEVICE(0x8A70, info)
+
+/* EHL */
+#define INTEL_EHL_IDS(info) \
+	INTEL_VGA_DEVICE(0x4541, info), \
+	INTEL_VGA_DEVICE(0x4551, info), \
+	INTEL_VGA_DEVICE(0x4555, info), \
+	INTEL_VGA_DEVICE(0x4557, info), \
+	INTEL_VGA_DEVICE(0x4571, info)
+
+/* JSL */
+#define INTEL_JSL_IDS(info) \
+	INTEL_VGA_DEVICE(0x4E51, info), \
+	INTEL_VGA_DEVICE(0x4E55, info), \
+	INTEL_VGA_DEVICE(0x4E57, info), \
+	INTEL_VGA_DEVICE(0x4E61, info), \
+	INTEL_VGA_DEVICE(0x4E71, info)
+
+/* TGL */
+#define INTEL_TGL_12_GT1_IDS(info) \
+	INTEL_VGA_DEVICE(0x9A60, info), \
+	INTEL_VGA_DEVICE(0x9A68, info), \
+	INTEL_VGA_DEVICE(0x9A70, info)
+
+#define INTEL_TGL_12_GT2_IDS(info) \
+	INTEL_VGA_DEVICE(0x9A40, info), \
+	INTEL_VGA_DEVICE(0x9A49, info), \
+	INTEL_VGA_DEVICE(0x9A59, info), \
+	INTEL_VGA_DEVICE(0x9A78, info), \
+	INTEL_VGA_DEVICE(0x9AC0, info), \
+	INTEL_VGA_DEVICE(0x9AC9, info), \
+	INTEL_VGA_DEVICE(0x9AD9, info), \
+	INTEL_VGA_DEVICE(0x9AF8, info)
+
+#define INTEL_TGL_12_IDS(info) \
+	INTEL_TGL_12_GT1_IDS(info), \
+	INTEL_TGL_12_GT2_IDS(info)
+
+/* RKL */
+#define INTEL_RKL_IDS(info) \
+	INTEL_VGA_DEVICE(0x4C80, info), \
+	INTEL_VGA_DEVICE(0x4C8A, info), \
+	INTEL_VGA_DEVICE(0x4C8B, info), \
+	INTEL_VGA_DEVICE(0x4C8C, info), \
+	INTEL_VGA_DEVICE(0x4C90, info), \
+	INTEL_VGA_DEVICE(0x4C9A, info)
+
+/* DG1 */
+#define INTEL_DG1_IDS(info) \
+	INTEL_VGA_DEVICE(0x4905, info), \
+	INTEL_VGA_DEVICE(0x4906, info), \
+	INTEL_VGA_DEVICE(0x4907, info), \
+	INTEL_VGA_DEVICE(0x4908, info), \
+	INTEL_VGA_DEVICE(0x4909, info)
+
+/* ADL-S */
+#define INTEL_ADLS_IDS(info) \
+	INTEL_VGA_DEVICE(0x4680, info), \
+	INTEL_VGA_DEVICE(0x4682, info), \
+	INTEL_VGA_DEVICE(0x4688, info), \
+	INTEL_VGA_DEVICE(0x468A, info), \
+	INTEL_VGA_DEVICE(0x4690, info), \
+	INTEL_VGA_DEVICE(0x4692, info), \
+	INTEL_VGA_DEVICE(0x4693, info)
+
+/* ADL-P */
+#define INTEL_ADLP_IDS(info) \
+	INTEL_VGA_DEVICE(0x46A0, info), \
+	INTEL_VGA_DEVICE(0x46A1, info), \
+	INTEL_VGA_DEVICE(0x46A2, info), \
+	INTEL_VGA_DEVICE(0x46A3, info), \
+	INTEL_VGA_DEVICE(0x46A6, info), \
+	INTEL_VGA_DEVICE(0x46A8, info), \
+	INTEL_VGA_DEVICE(0x46AA, info), \
+	INTEL_VGA_DEVICE(0x462A, info), \
+	INTEL_VGA_DEVICE(0x4626, info), \
+	INTEL_VGA_DEVICE(0x4628, info), \
+	INTEL_VGA_DEVICE(0x46B0, info), \
+	INTEL_VGA_DEVICE(0x46B1, info), \
+	INTEL_VGA_DEVICE(0x46B2, info), \
+	INTEL_VGA_DEVICE(0x46B3, info), \
+	INTEL_VGA_DEVICE(0x46C0, info), \
+	INTEL_VGA_DEVICE(0x46C1, info), \
+	INTEL_VGA_DEVICE(0x46C2, info), \
+	INTEL_VGA_DEVICE(0x46C3, info)
+
+/* RPL-S */
+#define INTEL_RPLS_IDS(info) \
+	INTEL_VGA_DEVICE(0xA780, info), \
+	INTEL_VGA_DEVICE(0xA781, info), \
+	INTEL_VGA_DEVICE(0xA782, info), \
+	INTEL_VGA_DEVICE(0xA783, info), \
+	INTEL_VGA_DEVICE(0xA788, info), \
+	INTEL_VGA_DEVICE(0xA789, info)
 
 #endif /* _PCI_EARLY_QUIRKS_H_ */
