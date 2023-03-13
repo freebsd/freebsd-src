@@ -163,7 +163,6 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
 			break;
 		osp = sp;
 		dtrace_next_sp_pc(osp, &sp, &callpc, &lr);
-		//printf("sp: %#lx, pc: %#lx, lr: %#lx\n", sp, callpc, lr);
 
 		if (aframes > 0) {
 			aframes--;
