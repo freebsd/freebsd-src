@@ -253,6 +253,7 @@ dev/hyperv/utilities/hv_kvp.c			optional hyperv acpi
 dev/hyperv/netvsc/hn_nvs.c			optional hyperv acpi
 dev/hyperv/netvsc/hn_rndis.c			optional hyperv acpi
 dev/hyperv/netvsc/if_hn.c			optional hyperv acpi
+dev/hyperv/pcib/vmbus_pcib.c			optional hyperv pci acpi
 
 dev/ice/if_ice_iflib.c				optional ice pci \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
