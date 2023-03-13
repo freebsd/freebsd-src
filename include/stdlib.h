@@ -111,6 +111,7 @@ void	 qsort(void *, size_t, size_t,
 	    int (* _Nonnull)(const void *, const void *));
 int	 rand(void);
 void	*realloc(void *, size_t) __result_use_check __alloc_size(2);
+char	*secure_getenv(const char *);
 void	 srand(unsigned);
 double	 strtod(const char * __restrict, char ** __restrict);
 float	 strtof(const char * __restrict, char ** __restrict);

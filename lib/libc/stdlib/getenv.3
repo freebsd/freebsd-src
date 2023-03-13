@@ -32,13 +32,14 @@
 .\"     @(#)getenv.3	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd November 7, 2021
+.Dd March 13, 2023
 .Dt GETENV 3
 .Os
 .Sh NAME
 .Nm clearenv ,
 .Nm getenv ,
 .Nm putenv ,
+.Nm secure_getenv ,
 .Nm setenv ,
 .Nm unsetenv
 .Nd environment variable functions
@@ -50,6 +51,8 @@
 .Fn clearenv "void"
 .Ft char *
 .Fn getenv "const char *name"
+.Ft char *
+.Fn secure_getenv "const char *name"
 .Ft int
 .Fn setenv "const char *name" "const char *value" "int overwrite"
 .Ft int
@@ -77,6 +80,20 @@ The application should not modify the string pointed
 to by the
 .Fn getenv
 function.
+.Pp
+The GNU-specific function,
+.Fn secure_getenv
+wraps the
+.Fn getenv
+function to prevent it from being run in "secure execution".
+Unlike in glibc,
+.Fn secure_getenv
+only checks if the
+.Fa setuid
+and
+.Fa setgid
+bits have been set or changed.
+These checks are subject to extension and change.
 .Pp
 The
 .Fn setenv
@@ -138,6 +155,13 @@ If the variable
 is not in the current environment,
 .Dv NULL
 is returned.
+.Pp
+The
+.Fn secure_getenv
+function returns
+.Dv NULL
+if the process is in "secure execution," otherwise it will call
+.Fn getenv .
 .Pp
 .Rv -std clearenv setenv putenv unsetenv
 .Sh ERRORS
