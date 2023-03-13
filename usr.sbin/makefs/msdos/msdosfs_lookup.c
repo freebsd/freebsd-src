@@ -126,7 +126,6 @@ createde(struct denode *dep, struct denode *ddep, struct denode **depp,
 	if (dirclust != MSDOSFSROOT)
 		diroffset &= pmp->pm_crbomask;
 	if ((error = bread(pmp->pm_devvp, bn, blsize, NOCRED, &bp)) != 0) {
-		brelse(bp);
 		return error;
 	}
 	ndep = bptoep(pmp, bp, ddep->de_fndoffset);
@@ -158,7 +157,6 @@ createde(struct denode *dep, struct denode *ddep, struct denode **depp,
 				error = bread(pmp->pm_devvp, bn, blsize,
 					      NOCRED, &bp);
 				if (error) {
-					brelse(bp);
 					return error;
 				}
 				ndep = bptoep(pmp, bp, ddep->de_fndoffset);
@@ -213,7 +211,6 @@ readep(struct msdosfsmount *pmp, u_long dirclust, u_long diroffset,
 		blsize = de_bn2off(pmp, pmp->pm_rootdirsize) & pmp->pm_crbomask;
 	bn = detobn(pmp, dirclust, diroffset);
 	if ((error = bread(pmp->pm_devvp, bn, blsize, NOCRED, bpp)) != 0) {
-		brelse(*bpp);
 		*bpp = NULL;
 		return (error);
 	}
@@ -273,7 +270,6 @@ uniqdosname(struct denode *dep, struct componentname *cnp, u_char *cp)
 			}
 			error = bread(pmp->pm_devvp, bn, blsize, NOCRED, &bp);
 			if (error) {
-				brelse(bp);
 				return error;
 			}
 			for (dentp = (struct direntry *)bp->b_data;
