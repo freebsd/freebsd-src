@@ -987,11 +987,8 @@ struct netmap_generic_adapter {	/* emulated device */
 	struct netmap_adapter *prev;
 
 	/* Emulated netmap adapters support:
-	 *  - save_if_input saves the if_input hook (FreeBSD);
 	 *  - mit implements rx interrupt mitigation;
 	 */
-	void (*save_if_input)(struct ifnet *, struct mbuf *);
-
 	struct nm_generic_mit *mit;
 #ifdef linux
         netdev_tx_t (*save_start_xmit)(struct mbuf *, struct ifnet *);

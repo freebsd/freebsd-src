@@ -327,9 +327,7 @@ freebsd_generic_rx_handler(struct ifnet *ifp, struct mbuf *m)
 
 	stolen = generic_rx_handler(ifp, m);
 	if (!stolen) {
-		struct netmap_generic_adapter *gna =
-				(struct netmap_generic_adapter *)NA(ifp);
-		gna->save_if_input(ifp, m);
+		NA(ifp)->if_input(ifp, m);
 	}
 }
 
@@ -346,24 +344,10 @@ nm_os_catch_rx(struct netmap_generic_adapter *gna, int intercept)
 
 	nm_os_ifnet_lock();
 	if (intercept) {
-		if (gna->save_if_input) {
-			nm_prerr("RX on %s already intercepted", na->name);
-			ret = EBUSY; /* already set */
-			goto out;
-		}
-		gna->save_if_input = ifp->if_input;
 		ifp->if_input = freebsd_generic_rx_handler;
 	} else {
-		if (!gna->save_if_input) {
-			nm_prerr("Failed to undo RX intercept on %s",
-				na->name);
-			ret = EINVAL;  /* not saved */
-			goto out;
-		}
-		ifp->if_input = gna->save_if_input;
-		gna->save_if_input = NULL;
+		ifp->if_input = na->if_input;
 	}
-out:
 	nm_os_ifnet_unlock();
 
 	return ret;
