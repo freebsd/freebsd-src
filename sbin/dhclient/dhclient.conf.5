@@ -38,7 +38,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 21, 2021
+.Dd March 17, 2023
 .Dt DHCLIENT.CONF 5
 .Os
 .Sh NAME
@@ -200,6 +200,11 @@ option other than the default requested lease time, which is two hours.
 The other obvious use for this statement is to send information to the server
 that will allow it to differentiate between this client and other
 clients or kinds of clients.
+.It Ic ignore Oo Ar option Oc Oo , Ar ... option Oc ;
+The
+.Ic ignore
+statement causes the client to disregard the specified options in any offer
+received, as though the server had never sent them at all.
 .El
 .Sh OPTION MODIFIERS
 In some cases, a client may receive option data from the server which
