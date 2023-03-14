@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 11, 2022
+.Dd March 12, 2023
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -586,17 +586,49 @@ memory subject to
 and resource limits.
 .It Va allow.nfsd
 The
+.Xr mountd 8 ,
+.Xr nfsd 8 ,
+.Xr nfsuserd 8 ,
+.Xr gssd 8
+and
+.Xr rpc.tlsservd 8
+daemons are permitted to run inside a properly configured vnet-enabled jail.
+The jail's root must be a file system mount point and
+.Va enforce_statfs
+must not be set to 0, so that
 .Xr mountd 8
+can export file systems visible within the jail.
+.Va enforce_statfs
+must be set to 1 if file systems mounted under the
+jail's file system need to be exported by
+.Xr mount 8 .
+For exporting only the jail's file system, a setting of 2
+is sufficient.
+If the kernel configuration does not include the
+.Sy NFSD
+option,
+.Pa nfsd.ko
+must be loaded outside of the jails.
+This is normally done by adding
+.Dq nfsd
+to
+.Va kld_list
+in the
+.Xr rc.conf 5
+file outside of the jails.
+Similarily, if the
+.Xr gssd 8
+is to be run in a jail, either the kernel
+.Sy KGSSAPI
+option needs to be specified or
+.Dq kgssapi
 and
-.Xr nfsd 8
-daemons are permitted to run inside a vnet-enabled jail.
-The kernel must have been compiled with the
-.Sy VNET_NFSD option
-and
-.Sy NFSD option
-as well as the
-.Sy VIMAGE option
-for this to be available.
+.Dq kgssapi_krb5
+need to be in
+.Va kld_list
+in the
+.Xr rc.conf 5
+file outside of the jails.
 .It Va allow.reserved_ports
 The jail root may bind to ports lower than 1024.
 .It Va allow.unprivileged_proc_debug
@@ -1372,6 +1404,8 @@ environment of the first jail.
 .Xr jexec 8 ,
 .Xr jls 8 ,
 .Xr mount 8 ,
+.Xr mountd 8 ,
+.Xr nfsd 8 ,
 .Xr reboot 8 ,
 .Xr rpcbind 8 ,
 .Xr sendmail 8 ,
