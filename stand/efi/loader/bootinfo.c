@@ -119,10 +119,17 @@ bi_getboothowto(char *kargs)
 			if (tmp != NULL)
 				speed = strtol(tmp, NULL, 0);
 			tmp = getenv("efi_com_port");
-			if (tmp == NULL)
-				tmp = getenv("comconsole_port");
 			if (tmp != NULL)
 				port = strtol(tmp, NULL, 0);
+			if (port <= 0) {
+				tmp = getenv("comconsole_port");
+				if (tmp != NULL)
+					port = strtol(tmp, NULL, 0);
+				else {
+					if (port == 0)
+						port = 0x3f8;
+				}
+			}
 			if (speed != -1 && port != -1) {
 				snprintf(buf, sizeof(buf), "io:%d,br:%d", port,
 				    speed);

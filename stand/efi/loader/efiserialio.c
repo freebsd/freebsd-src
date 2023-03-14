@@ -69,6 +69,11 @@ static int	comc_speed_set(struct env_var *, int, const void *);
 
 static struct serial	*comc_port;
 extern struct console efi_console;
+bool efi_comconsole_avail = false;
+
+#if defined(__amd64__)
+#define comconsole eficomconsole
+#endif
 
 struct console comconsole = {
 	.c_name = "comconsole",
@@ -254,11 +259,22 @@ comc_probe(struct console *sc)
 	char *env, *buf, *ep;
 	size_t sz;
 
+#if defined(__amd64__)
+	/*
+	 * For x86-64, don't use this driver if not running in Hyper-V.
+	 */
+	env = getenv("smbios.bios.version");
+	if (env == NULL || strncmp(env, "Hyper-V", 7) != 0) {
+		return;
+	}
+#endif
+
 	if (comc_port == NULL) {
 		comc_port = calloc(1, sizeof (struct serial));
 		if (comc_port == NULL)
 			return;
 	}
+
 	/* Use defaults from firmware */
 	comc_port->databits = 8;
 	comc_port->parity = DefaultParity;
@@ -308,6 +324,10 @@ comc_probe(struct console *sc)
 	    comc_port_set, env_nounset);
 
 	env = getenv("efi_com_speed");
+	if (env == NULL)
+		/* fallback to comconsole setting */
+		env = getenv("comconsole_speed");
+
 	if (comc_parse_intval(env, &val) == CMD_OK)
 		comc_port->baudrate = val;
 
@@ -318,8 +338,13 @@ comc_probe(struct console *sc)
 	    comc_speed_set, env_nounset);
 
 	comconsole.c_flags = 0;
-	if (comc_setup())
+	if (comc_setup()) {
 		sc->c_flags = C_PRESENTIN | C_PRESENTOUT;
+		efi_comconsole_avail = true;
+	} else {
+		/* disable being seen as "comconsole" */
+		comconsole.c_name = "efiserialio";
+	}
 }
 
 static int
@@ -489,6 +514,7 @@ comc_setup(void)
 {
 	EFI_STATUS status;
 	UINT32 control;
+	char *ev;
 
 	/* port is not usable */
 	if (comc_port->sio == NULL)
@@ -498,10 +524,17 @@ comc_setup(void)
 	if (EFI_ERROR(status))
 		return (false);
 
-	status = comc_port->sio->SetAttributes(comc_port->sio,
-	    comc_port->baudrate, comc_port->receivefifodepth,
-	    comc_port->timeout, comc_port->parity,
-	    comc_port->databits, comc_port->stopbits);
+	ev = getenv("smbios.bios.version");
+	if (ev != NULL && strncmp(ev, "Hyper-V", 7) == 0) {
+		status = comc_port->sio->SetAttributes(comc_port->sio,
+	            0, 0, 0, DefaultParity, 0, DefaultStopBits);
+	} else {
+		status = comc_port->sio->SetAttributes(comc_port->sio,
+		    comc_port->baudrate, comc_port->receivefifodepth,
+		    comc_port->timeout, comc_port->parity,
+		    comc_port->databits, comc_port->stopbits);
+	}
+
 	if (EFI_ERROR(status))
 		return (false);
 
