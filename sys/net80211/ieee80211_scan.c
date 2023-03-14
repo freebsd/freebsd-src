@@ -278,7 +278,8 @@ ieee80211_scan_update_locked(struct ieee80211vap *vap,
 	}
 }
 
-void
+#ifdef IEEE80211_DEBUG
+static void
 ieee80211_scan_dump_channels(const struct ieee80211_scan_state *ss)
 {
 	struct ieee80211com *ic = ss->ss_ic;
@@ -295,7 +296,6 @@ ieee80211_scan_dump_channels(const struct ieee80211_scan_state *ss)
 	}
 }
 
-#ifdef IEEE80211_DEBUG
 void
 ieee80211_scan_dump(struct ieee80211_scan_state *ss)
 {
