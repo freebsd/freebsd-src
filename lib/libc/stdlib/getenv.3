@@ -32,7 +32,7 @@
 .\"     @(#)getenv.3	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd March 13, 2023
+.Dd March 14, 2023
 .Dt GETENV 3
 .Os
 .Sh NAME
@@ -81,19 +81,16 @@ to by the
 .Fn getenv
 function.
 .Pp
-The GNU-specific function,
+The
 .Fn secure_getenv
-wraps the
-.Fn getenv
-function to prevent it from being run in "secure execution".
-Unlike in glibc,
-.Fn secure_getenv
-only checks if the
-.Fa setuid
-and
-.Fa setgid
-bits have been set or changed.
-These checks are subject to extension and change.
+returns
+.Va NULL
+when the environment cannot be trusted, otherwise it acts like
+.Fn getenv .
+The environment currently is not trusted when
+.Xr issetugid 3
+returns a non-zero value, but other conditions may be added
+in the future.
 .Pp
 The
 .Fn setenv
@@ -222,6 +219,9 @@ and
 .Fn unsetenv
 functions conforms to
 .St -p1003.1-2001 .
+The
+.Fn secure_getenv
+function is expected to be glibc-compatible.
 .Sh HISTORY
 The functions
 .Fn setenv
@@ -249,7 +249,9 @@ specification.
 .Pp
 The
 .Fn clearenv
-was added in
+and
+.Fn secure_getenv
+functions were added in
 .Fx 14 .
 .Sh BUGS
 Successive calls to
