@@ -40,7 +40,6 @@ SRCF+=		divtc3
 SRCF+=		divti3
 SRCF+=		divxc3
 SRCF+=		enable_execute_stack
-SRCF+=		eprintf
 SRCF+=		extendhfsf2
 SRCF+=		ffsdi2
 SRCF+=		ffssi2
