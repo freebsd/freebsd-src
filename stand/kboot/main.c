@@ -195,6 +195,31 @@ has_acpi(void)
 	return rsdp != 0;
 }
 
+static void
+parse_file(const char *fn)
+{
+	struct stat st;
+	int fd = -1;
+	char *env = NULL;
+
+	if (stat(fn, &st) != 0)
+		return;
+	fd = open(fn, O_RDONLY);
+	if (fd == -1)
+		return;
+	env = malloc(st.st_size + 1);
+	if (env == NULL)
+		goto out;
+	if (read(fd, env, st.st_size) != st.st_size)
+		goto out;
+	env[st.st_size] = '\0';
+	boot_parse_cmdline(env);
+out:
+	free(env);
+	close(fd);
+}
+
+
 int
 main(int argc, const char **argv)
 {
@@ -220,6 +245,8 @@ main(int argc, const char **argv)
 
 	/* Parse the command line args -- ignoring for now the console selection */
 	parse_args(argc, argv);
+
+	parse_file("host:/kboot.conf");
 
 	/*
 	 * Set up console.
