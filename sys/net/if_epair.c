@@ -223,7 +223,7 @@ epair_select_queue(struct epair_softc *sc, struct mbuf *m)
 			break;
 		}
 	}
-	bucket %= osc->num_queues;
+	bucket %= sc->num_queues;
 #else
 	bucket = 0;
 #endif
