@@ -28,7 +28,7 @@
 .\"     @(#)route.8	8.3 (Berkeley) 3/19/94
 .\" $FreeBSD$
 .\"
-.Dd February 26, 2023
+.Dd March 14, 2023
 .Dt ROUTE 8
 .Os
 .Sh NAME
@@ -488,9 +488,8 @@ Remove all routes from the routing table:
 .Pp
 .Dl route flush
 .Pp
-List all routing tables:
-.Pp
-.Dl netstat -r
+The routing table can be listed with
+.Xr netstat 1 .
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "add [host \&| network ] %s: gateway %s flags %x"
