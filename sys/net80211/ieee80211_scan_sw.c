@@ -195,8 +195,7 @@ ieee80211_swscan_start_scan_locked(const struct ieee80211_scanner *scan,
 			if ((flags & IEEE80211_SCAN_NOSSID) == 0)
 				ieee80211_scan_copy_ssid(vap, ss, nssid, ssids);
 
-			/* NB: top 4 bits for internal use */
-			ss->ss_flags = flags & 0xfff;
+			ss->ss_flags = flags & IEEE80211_SCAN_PUBLIC_MASK;
 			if (ss->ss_flags & IEEE80211_SCAN_ACTIVE)
 				vap->iv_stats.is_scan_active++;
 			else
@@ -306,7 +305,7 @@ ieee80211_swscan_check_scan(const struct ieee80211_scanner *scan,
 			ic->ic_flags |= IEEE80211_F_SCAN;
 
 			/* NB: need to use supplied flags in check */
-			ss->ss_flags = flags & 0xff;
+			ss->ss_flags = flags & IEEE80211_SCAN_PUBLIC_MASK;
 			result = ss->ss_ops->scan_end(ss, vap);
 
 			ic->ic_flags &= ~IEEE80211_F_SCAN;

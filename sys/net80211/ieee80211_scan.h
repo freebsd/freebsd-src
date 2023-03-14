@@ -136,6 +136,7 @@ struct ieee80211_scan_state {
 #define	IEEE80211_SCAN_ONCE	0x0010		/* do one complete pass */
 #define	IEEE80211_SCAN_NOBCAST	0x0020		/* no broadcast probe req */
 #define	IEEE80211_SCAN_NOJOIN	0x0040		/* no auto-sequencing */
+#define	IEEE80211_SCAN_PUBLIC_MASK	0x0fff	/* top 4 bits for internal use */
 #define	IEEE80211_SCAN_GOTPICK	0x1000		/* got candidate, can stop */
 	uint8_t		ss_nssid;		/* # ssid's to probe/match */
 	struct ieee80211_scan_ssid ss_ssid[IEEE80211_SCAN_MAX_SSID];
