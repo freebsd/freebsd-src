@@ -919,7 +919,6 @@ Vr HL TOS  Len   ID Flg  off TTL Pro  cks      Src      Dst
                 "stderr": "",
                 "redacted": False,
             },
-            marks=pytest.mark.skip("XXX currently failing"),
             id="_3_1_flags_DF",
         ),
     ]
