@@ -2,5 +2,4 @@
 # Hyper-V support (Hyper-v Gen 2)
 #
 
-#hyper-v support
 device		hyperv
