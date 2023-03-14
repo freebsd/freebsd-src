@@ -580,7 +580,7 @@ ping6(int argc, char *argv[])
 		case 'W':
 			t = strtod(optarg, &e);
 			if (*e || e == optarg || t > (double)INT_MAX)
-				err(EX_USAGE, "invalid timing interval: `%s'",
+				errx(EX_USAGE, "invalid timing interval: `%s'",
 				    optarg);
 			options |= F_WAITTIME;
 			waittime = (int)t;
