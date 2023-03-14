@@ -1189,12 +1189,8 @@ pr_pack(char *buf, ssize_t cc, struct sockaddr_in *from, struct timespec *tv)
 		return;
 	}
 
-#ifndef icmp_data
-	icmp_data_raw = buf + hlen + offsetof(struct icmp, icmp_ip);
-#else
 	icmp_data_raw_len = cc - (hlen + offsetof(struct icmp, icmp_data));
 	icmp_data_raw = buf + hlen + offsetof(struct icmp, icmp_data);
-#endif
 
 	/* Now the ICMP part */
 	cc -= hlen;
