@@ -163,8 +163,6 @@ void	ieee80211_scan_detach(struct ieee80211com *);
 void	ieee80211_scan_vattach(struct ieee80211vap *);
 void	ieee80211_scan_vdetach(struct ieee80211vap *);
 
-void	ieee80211_scan_dump_channels(const struct ieee80211_scan_state *);
-
 #define	IEEE80211_SCAN_FOREVER	0x7fffffff
 int	ieee80211_start_scan(struct ieee80211vap *, int flags,
 		u_int duration, u_int mindwell, u_int maxdwell,
