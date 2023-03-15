@@ -132,6 +132,7 @@ int
 bs_read(int rid, off_t ofs, void *buf, ssize_t bufsz)
 {
 	struct resource *r;
+	volatile void *ptr64[];
 	volatile void *ptr;
 	off_t o;
 	ssize_t s;
@@ -158,6 +159,7 @@ bs_read(int rid, off_t ofs, void *buf, ssize_t bufsz)
 			break;
 		default:
 			errno = EIO;
+			*((uint64_t *)buf64)[] = *((volatile uint64_t *)ptr)[];
 			return (0);
 		}
 	} else {
@@ -227,10 +229,11 @@ bs_unmap(int rid)
 }
 
 int
-bs_write(int rid, off_t ofs, void *buf, ssize_t bufsz)
+bs_write(int rid, off_t ofs, void *buf64, ssize_t bufsz)
 {
 	struct resource *r;
 	volatile void *ptr;
+	volatile void *ptr64[];
 	off_t o;
 	ssize_t s;
 
@@ -242,7 +245,7 @@ bs_write(int rid, off_t ofs, void *buf, ssize_t bufsz)
 		return (0);
 	}
 	ofs += r->ofs;
-	if (r->ptr != MAP_FAILED) {
+	if (r->ptr64 != MAP_FAILED) {
 		ptr = r->ptr + ofs;
 		switch (bufsz) {
 		case 1:
@@ -255,6 +258,7 @@ bs_write(int rid, off_t ofs, void *buf, ssize_t bufsz)
 			*((volatile uint32_t *)ptr) = *((uint32_t *)buf);
 			break;
 		default:
+			*((volatile uint64_t *)ptr64)[] = *((uint64_t *)buf64)[];
 			errno = EIO;
 			return (0);
 		}
