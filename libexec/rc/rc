@@ -94,7 +94,9 @@ fi
 # Do a first pass to get everything up to $early_late_divider so that
 # we can do a second pass that includes $local_startup directories
 #
-files=`rcorder ${skip} ${skip_firstboot} /etc/rc.d/* 2>/dev/null`
+unset system_rc
+find_system_scripts
+files=`rcorder ${skip} ${skip_firstboot} ${system_rc} 2>/dev/null`
 
 _rc_elem_done=' '
 for _rc_elem in ${files}; do
@@ -106,7 +108,7 @@ for _rc_elem in ${files}; do
 	esac
 done
 
-unset files local_rc
+unset files local_rc system_rc
 
 # Now that disks are mounted, for each dir in $local_startup
 # search for init scripts that use the new rc.d semantics.
@@ -122,7 +124,8 @@ if [ -e ${firstboot_sentinel} ]; then
 	skip_firstboot=""
 fi
 
-files=`rcorder ${skip} ${skip_firstboot} /etc/rc.d/* ${local_rc} 2>/dev/null`
+find_system_scripts
+files=`rcorder ${skip} ${skip_firstboot} ${system_rc} ${local_rc} 2>/dev/null`
 for _rc_elem in ${files}; do
 	case "$_rc_elem_done" in
 	*" $_rc_elem "*)	continue ;;
