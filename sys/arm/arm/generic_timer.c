@@ -99,12 +99,14 @@ struct arm_tmr_irq {
 	struct resource	*res;
 	void		*ihl;
 	int		 rid;
+	int		 idx;
 };
 
 struct arm_tmr_softc {
 	struct arm_tmr_irq	irqs[GT_IRQ_COUNT];
 	uint64_t		(*get_cntxct)(bool);
 	uint32_t		clkfreq;
+	int			irq_count;
 	struct eventtimer	et;
 	bool			physical;
 };
@@ -357,9 +359,12 @@ static int
 arm_tmr_attach_irq(device_t dev, struct arm_tmr_softc *sc,
     const struct arm_tmr_irq_defs *irq_def, int rid, int flags)
 {
-	sc->irqs[irq_def->idx].res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+	struct arm_tmr_irq *irq;
+
+	irq = &sc->irqs[sc->irq_count];
+	irq->res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
 	    &rid, flags);
-	if (sc->irqs[irq_def->idx].res == NULL) {
+	if (irq->res == NULL) {
 		if (bootverbose || (flags & RF_OPTIONAL) == 0) {
 			device_printf(dev,
 			    "could not allocate irq for %s interrupt '%s'\n",
@@ -369,8 +374,13 @@ arm_tmr_attach_irq(device_t dev, struct arm_tmr_softc *sc,
 
 		if ((flags & RF_OPTIONAL) == 0)
 			return (ENXIO);
-	} else if (bootverbose) {
-		device_printf(dev, "allocated irq for '%s'\n", irq_def->name);
+	} else {
+		if (bootverbose)
+			device_printf(dev, "allocated irq for '%s'\n",
+			    irq_def->name);
+		irq->rid = rid;
+		irq->idx = irq_def->idx;
+		sc->irq_count++;
 	}
 
 	return (0);
@@ -461,11 +471,9 @@ arm_tmr_fdt_attach(device_t dev)
 	error = arm_tmr_attach(dev);
 out:
 	if (error != 0) {
-		for (i = 0; i < GT_IRQ_COUNT; i++) {
-			if (sc->irqs[i].res != NULL) {
-				bus_release_resource(dev, SYS_RES_IRQ,
-				    sc->irqs[i].rid, sc->irqs[i].res);
-			}
+		for (i = 0; i < sc->irq_count; i++) {
+			bus_release_resource(dev, SYS_RES_IRQ, sc->irqs[i].rid,
+			    sc->irqs[i].res);
 		}
 	}
 
@@ -544,11 +552,9 @@ arm_tmr_acpi_attach(device_t dev)
 	error = arm_tmr_attach(dev);
 out:
 	if (error != 0) {
-		for (int i = 0; i < GT_IRQ_COUNT; i++) {
-			if (sc->irqs[i].res != NULL) {
-				bus_release_resource(dev, SYS_RES_IRQ,
-				    sc->irqs[i].rid, sc->irqs[i].res);
-			}
+		for (int i = 0; i < sc->irq_count; i++) {
+			bus_release_resource(dev, SYS_RES_IRQ,
+			    sc->irqs[i].rid, sc->irqs[i].res);
 		}
 	}
 	return (error);
@@ -559,7 +565,9 @@ static int
 arm_tmr_attach(device_t dev)
 {
 	struct arm_tmr_softc *sc;
+#ifdef INVARIANTS
 	const struct arm_tmr_irq_defs *irq_def;
+#endif
 #ifdef FDT
 	phandle_t node;
 	pcell_t clock;
@@ -600,13 +608,25 @@ arm_tmr_attach(device_t dev)
 		return (ENXIO);
 	}
 
+#ifdef INVARIANTS
 	/* Confirm that non-optional irqs were allocated before coming in. */
 	for (i = 0; i < nitems(arm_tmr_irq_defs); i++) {
+		int j;
+
 		irq_def = &arm_tmr_irq_defs[i];
 
-		MPASS(sc->irqs[irq_def->idx].res != NULL ||
-		    (irq_def->flags & RF_OPTIONAL) != 0);
+		/* Skip optional interrupts */
+		if ((irq_def->flags & RF_OPTIONAL) != 0)
+			continue;
+
+		for (j = 0; j < sc->irq_count; j++) {
+			if (sc->irqs[j].idx == irq_def->idx)
+				break;
+		}
+		KASSERT(j < sc->irq_count, ("%s: Missing required interrupt %s",
+		    __func__, irq_def->name));
 	}
+#endif
 
 #ifdef __aarch64__
 	/* Use the virtual timer if we have one. */
@@ -626,15 +646,16 @@ arm_tmr_attach(device_t dev)
 	arm_tmr_sc = sc;
 
 	/* Setup secure, non-secure and virtual IRQs handler */
-	for (i = first_timer; i <= last_timer; i++) {
-		/* If we do not have the interrupt, skip it. */
-		if (sc->irqs[i].res == NULL)
+	for (i = 0; i < sc->irq_count; i++) {
+		/* Only enable IRQs on timers we expect to use */
+		if (sc->irqs[i].idx < first_timer ||
+		    sc->irqs[i].idx > last_timer)
 			continue;
 		error = bus_setup_intr(dev, sc->irqs[i].res, INTR_TYPE_CLK,
 		    arm_tmr_intr, NULL, sc, &sc->irqs[i].ihl);
 		if (error) {
 			device_printf(dev, "Unable to alloc int resource.\n");
-			for (int j = first_timer; j < i; j++)
+			for (int j = 0; j < i; j++)
 				bus_teardown_intr(dev, sc->irqs[j].res,
 				    &sc->irqs[j].ihl);
 			return (ENXIO);
