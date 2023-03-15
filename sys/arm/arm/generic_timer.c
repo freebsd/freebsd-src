@@ -655,8 +655,13 @@ arm_tmr_attach(device_t dev)
 	}
 
 #ifdef __aarch64__
-	/* Use the virtual timer if we have one. */
-	if (sc->irqs[GT_VIRT].res != NULL) {
+	/*
+	 * Use the virtual timer when we can't use the hypervisor.
+	 * A hypervisor guest may change the virtual timer registers while
+	 * executing so any use of the virtual timer interrupt needs to be
+	 * coordinated with the virtual machine manager.
+	 */
+	if (!HAS_PHYS) {
 		sc->physical = false;
 		first_timer = GT_VIRT;
 		last_timer = GT_VIRT;
@@ -687,12 +692,9 @@ arm_tmr_attach(device_t dev)
 		}
 	}
 
-	/* Disable the virtual timer until we are ready */
-	if (sc->irqs[GT_VIRT].res != NULL)
-		arm_tmr_disable(false);
-	/* And the physical */
-	if ((sc->irqs[GT_PHYS_SECURE].res != NULL ||
-	    sc->irqs[GT_PHYS_NONSECURE].res != NULL) && HAS_PHYS)
+	/* Disable the timers until we are ready */
+	arm_tmr_disable(false);
+	if (HAS_PHYS)
 		arm_tmr_disable(true);
 
 	arm_tmr_timecount.tc_frequency = sc->clkfreq;
