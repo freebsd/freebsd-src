@@ -66,7 +66,7 @@ static char sccsid[] = "@(#)recvjob.c	8.2 (Berkeley) 4/27/95";
 #include "extern.h"
 #include "pathnames.h"
 
-#define ack()	(void) write(STDOUT_FILENO, sp, (size_t)1);
+#define ack()	(void) write(STDOUT_FILENO, sp, (size_t)1)
 
 /*
  * The buffer size to use when reading/writing spool files.
