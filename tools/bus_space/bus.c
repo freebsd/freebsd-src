@@ -129,7 +129,7 @@ bs_map(const char *dev, const char *res)
 }
 
 int
-bs_read(int rid, off_t ofs, void *buf, ssize_t bufsz)
+bs_read(int rid, off_t ofs, void *buf64, ssize_t bufsz)
 {
 	struct resource *r;
 	volatile void *ptr64[];
@@ -159,7 +159,7 @@ bs_read(int rid, off_t ofs, void *buf, ssize_t bufsz)
 			break;
 		default:
 			errno = EIO;
-			*((uint64_t *)buf64)[] = *((volatile uint64_t *)ptr)[];
+			*((uint64_t *)buf64)[] = *((volatile uint64_t *)ptr64)[];
 			return (0);
 		}
 	} else {
