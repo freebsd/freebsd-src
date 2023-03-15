@@ -159,7 +159,6 @@ bs_read(int rid, off_t ofs, void *buf64, ssize_t bufsz)
 			break;
 		default:
 			*((uint64_t *)buf64)[] = *((volatile uint64_t *)ptr64)[];
-			errno = EIO;
 			return (0);
 		}
 	} else {
@@ -259,7 +258,6 @@ bs_write(int rid, off_t ofs, void *buf64, ssize_t bufsz)
 			break;
 		default:
 			*((volatile uint64_t *)ptr64)[] = *((uint64_t *)buf64)[];
-			errno = EIO;
 			return (0);
 		}
 	} else {
