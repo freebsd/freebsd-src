@@ -101,7 +101,7 @@ static FILE *debug_stream = NULL;
 
 #if DEBUG
 #define DEBUG_MSG(...)					                \
-	(void) fprintf(debug_stream, "[pmccontrol] " __VA_ARGS__);
+	(void) fprintf(debug_stream, "[pmccontrol] " __VA_ARGS__)
 #else
 #define DEBUG_MSG(m)		/*  */
 #endif /* !DEBUG */
