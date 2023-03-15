@@ -754,11 +754,11 @@ be_clone_cb(zfs_handle_t *ds, void *data)
 
 	/* construct the boot environment path from the dataset we're cloning */
 	if (be_get_path(ldc, dspath, be_path, sizeof(be_path)) != BE_ERR_SUCCESS)
-		return (set_error(ldc->lbh, BE_ERR_UNKNOWN));
+		return (BE_ERR_UNKNOWN);
 
 	/* the dataset to be created (i.e. the boot environment) already exists */
 	if (zfs_dataset_exists(ldc->lbh->lzh, be_path, ZFS_TYPE_DATASET))
-		return (set_error(ldc->lbh, BE_ERR_EXISTS));
+		return (BE_ERR_EXISTS);
 
 	/* no snapshot found for this dataset, silently skip it */
 	if (!zfs_dataset_exists(ldc->lbh->lzh, snap_path, ZFS_TYPE_SNAPSHOT))
@@ -766,7 +766,7 @@ be_clone_cb(zfs_handle_t *ds, void *data)
 
 	if ((snap_hdl =
 	    zfs_open(ldc->lbh->lzh, snap_path, ZFS_TYPE_SNAPSHOT)) == NULL)
-		return (set_error(ldc->lbh, BE_ERR_ZFSOPEN));
+		return (BE_ERR_ZFSOPEN);
 
 	nvlist_alloc(&props, NV_UNIQUE_NAME, KM_SLEEP);
 	nvlist_add_string(props, "canmount", "noauto");
@@ -779,7 +779,7 @@ be_clone_cb(zfs_handle_t *ds, void *data)
 		return (-1);
 
 	if ((err = zfs_clone(snap_hdl, be_path, props)) != 0)
-		return (set_error(ldc->lbh, BE_ERR_ZFSCLONE));
+		return (BE_ERR_ZFSCLONE);
 
 	nvlist_free(props);
 	zfs_close(snap_hdl);
@@ -790,7 +790,7 @@ be_clone_cb(zfs_handle_t *ds, void *data)
 		ldc->depth--;
 	}
 
-	return (set_error(ldc->lbh, err));
+	return (err);
 }
 
 /*
