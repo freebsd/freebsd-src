@@ -65,7 +65,7 @@ struct usb_devemu {
 	int	(*ue_stop)(void *sc);
 	int	(*ue_snapshot)(void *scarg, struct vm_snapshot_meta *meta);
 };
-#define	USB_EMUL_SET(x)		DATA_SET(usb_emu_set, x);
+#define	USB_EMUL_SET(x)		DATA_SET(usb_emu_set, x)
 
 /*
  * USB device events to notify HCI when state changes

@@ -129,7 +129,7 @@ static int nvme_debug = 0;
 /* Encode number of SQ's and CQ's for Set/Get Features */
 #define NVME_FEATURE_NUM_QUEUES(sc) \
 	(ZERO_BASED((sc)->num_squeues) & 0xffff) | \
-	(ZERO_BASED((sc)->num_cqueues) & 0xffff) << 16;
+	(ZERO_BASED((sc)->num_cqueues) & 0xffff) << 16
 
 #define	NVME_DOORBELL_OFFSET	offsetof(struct nvme_registers, doorbell)
 

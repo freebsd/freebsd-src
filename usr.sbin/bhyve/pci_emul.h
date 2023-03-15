@@ -82,7 +82,7 @@ struct pci_devemu {
 	int	(*pe_resume)(struct pci_devinst *pi);
 
 };
-#define PCI_EMUL_SET(x)   DATA_SET(pci_devemu_set, x);
+#define PCI_EMUL_SET(x)   DATA_SET(pci_devemu_set, x)
 
 enum pcibar_type {
 	PCIBAR_NONE,

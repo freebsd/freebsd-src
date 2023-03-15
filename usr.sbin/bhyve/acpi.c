@@ -101,10 +101,10 @@ struct basl_fio {
 };
 
 #define EFPRINTF(...) \
-	if (fprintf(__VA_ARGS__) < 0) goto err_exit;
+	if (fprintf(__VA_ARGS__) < 0) goto err_exit
 
 #define EFFLUSH(x) \
-	if (fflush(x) != 0) goto err_exit;
+	if (fflush(x) != 0) goto err_exit
 
 /*
  * A list for additional ACPI devices like a TPM.
