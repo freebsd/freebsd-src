@@ -2301,8 +2301,8 @@ _flua= lib/liblua lib/libucl libexec/flua
 # r245440 mtree -N support added
 # r313404 requires sha384.h for libnetbsd, added to libmd in r292782
 .if ${BOOTSTRAPPING} < 1100093
+_libnetbsd=	lib/libnetbsd
 _nmtree=	lib/libmd \
-		lib/libnetbsd \
 		usr.sbin/nmtree
 
 ${_bt}-lib/libnetbsd: ${_bt}-lib/libmd
@@ -2335,9 +2335,23 @@ _crunchgen=	usr.sbin/crunch/crunchgen
 _bootstrap_tools_links+=crunchgen
 .endif
 
+.if ${MK_DISK_IMAGE_TOOLS_BOOTSTRAP} != "no"
+_etdump=	usr.bin/etdump
+_makefs=	usr.sbin/makefs
+
+_libnetbsd=	lib/libnetbsd
+${_bt}-usr.sbin/makefs: ${_bt}-lib/libnetbsd
+
+.if defined(BOOTSTRAP_ALL_TOOLS)
+_libsbuf=	lib/libsbuf
+${_bt}-usr.sbin/makefs: ${_bt}-lib/libsbuf
+.endif
+.endif
+
 # 1300102: VHDX support
 .if ${BOOTSTRAPPING} < 1201520 || \
-	(${BOOTSTRAPPING} > 1300000 && ${BOOTSTRAPPING} < 1300102)
+	(${BOOTSTRAPPING} > 1300000 && ${BOOTSTRAPPING} < 1300102) || \
+	${MK_DISK_IMAGE_TOOLS_BOOTSTRAP} != "no"
 _mkimg=	usr.bin/mkimg
 .else
 _bootstrap_tools_links+=mkimg
@@ -2538,6 +2552,10 @@ bootstrap-tools: ${_bt}-links .PHONY
     ${_flua} \
     ${_crunchide} \
     ${_crunchgen} \
+    ${_etdump} \
+    ${_libnetbsd} \
+    ${_libsbuf} \
+    ${_makefs} \
     ${_mkimg} \
     ${_nmtree} \
     ${_vtfontcvt} \
