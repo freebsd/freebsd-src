@@ -20,13 +20,25 @@ require_netlink(void)
 		atf_tc_skip("netlink module not loaded");
 }
 
-ATF_TC(snl_verify_parsers);
-ATF_TC_HEAD(snl_verify_parsers, tc)
+ATF_TC(snl_verify_core_parsers);
+ATF_TC_HEAD(snl_verify_core_parsers, tc)
 {
-	atf_tc_set_md_var(tc, "descr", "Tests snl(3) parsers are correct");
+	atf_tc_set_md_var(tc, "descr", "Tests snl(3) core nlmsg parsers are correct");
 }
 
-ATF_TC_BODY(snl_verify_parsers, tc)
+ATF_TC_BODY(snl_verify_core_parsers, tc)
+{
+	SNL_VERIFY_PARSERS(snl_all_core_parsers);
+
+}
+
+ATF_TC(snl_verify_route_parsers);
+ATF_TC_HEAD(snl_verify_route_parsers, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Tests snl(3) route parsers are correct");
+}
+
+ATF_TC_BODY(snl_verify_route_parsers, tc)
 {
 	SNL_VERIFY_PARSERS(snl_all_route_parsers);
 
@@ -61,45 +73,39 @@ SNL_DECLARE_PARSER(link_parser, struct ifinfomsg, fp_link, ap_link);
 ATF_TC_BODY(snl_list_ifaces, tc)
 {
 	struct snl_state ss;
+	struct snl_writer nw;
 
 	require_netlink();
 
 	if (!snl_init(&ss, NETLINK_ROUTE))
 		atf_tc_fail("snl_init() failed");
 
-	struct {
-		struct nlmsghdr hdr;
-		struct ifinfomsg ifmsg;
-	} msg = {
-		.hdr.nlmsg_type = RTM_GETLINK,
-		.hdr.nlmsg_flags = NLM_F_DUMP | NLM_F_REQUEST,
-		.hdr.nlmsg_seq = snl_get_seq(&ss),
-	};
-	msg.hdr.nlmsg_len = sizeof(msg);
+	snl_init_writer(&ss, &nw);
 
-	if (!snl_send(&ss, &msg, sizeof(msg))) {
-		snl_free(&ss);
-		atf_tc_fail("snl_send() failed");
-	}
+	struct nlmsghdr *hdr = snl_create_msg_request(&nw, RTM_GETLINK);
+	ATF_CHECK(hdr != NULL);
+	ATF_CHECK(snl_reserve_msg_object(&nw, struct ifinfomsg) != NULL);
+	ATF_CHECK(snl_finalize_msg(&nw) != NULL);
+	uint32_t seq_id = hdr->nlmsg_seq;
 
-	struct nlmsghdr *hdr;
+	ATF_CHECK(snl_send_message(&ss, hdr));
+
+	struct snl_errmsg_data e = {};
 	int count = 0;
-	while ((hdr = snl_read_message(&ss)) != NULL && hdr->nlmsg_type != NLMSG_DONE) {
-		if (hdr->nlmsg_seq != msg.hdr.nlmsg_seq)
-			continue;
 
-		struct nl_parsed_link link = {};
-		if (!snl_parse_nlmsg(&ss, hdr, &link_parser, &link))
-			continue;
+	while ((hdr = snl_read_reply_multi(&ss, seq_id, &e)) != NULL) {
 		count++;
 	}
+	ATF_REQUIRE(e.error == 0);
+
 	ATF_REQUIRE_MSG(count > 0, "Empty interface list");
 }
 
 ATF_TP_ADD_TCS(tp)
 {
+	ATF_TP_ADD_TC(tp, snl_verify_core_parsers);
+	ATF_TP_ADD_TC(tp, snl_verify_route_parsers);
 	ATF_TP_ADD_TC(tp, snl_list_ifaces);
-	ATF_TP_ADD_TC(tp, snl_verify_parsers);
 
 	return (atf_no_error());
 }
