@@ -2794,14 +2794,19 @@ prison_find_name(struct prison *mypr, const char *name)
  * PR_IP4 and PR_IP6), or only the single bit is examined, without regard
  * to any other prison data.
  */
-int
+bool
 prison_flag(struct ucred *cred, unsigned flag)
 {
 
-	return (cred->cr_prison->pr_flags & flag);
+	return ((cred->cr_prison->pr_flags & flag) != 0);
 }
 
-int
+/*
+ * See if a prison has the specific allow flag set.
+ * The prison *should* be locked, or only a single bit is examined, without
+ * regard to any other prison data.
+ */
+bool
 prison_allow(struct ucred *cred, unsigned flag)
 {
 
@@ -3529,16 +3534,16 @@ prison_check_nfsd(struct ucred *cred)
 }
 
 /*
- * Return 1 if p2 is a child of p1, otherwise 0.
+ * Return true if p2 is a child of p1, otherwise false.
  */
-int
+bool
 prison_ischild(struct prison *pr1, struct prison *pr2)
 {
 
 	for (pr2 = pr2->pr_parent; pr2 != NULL; pr2 = pr2->pr_parent)
 		if (pr1 == pr2)
-			return (1);
-	return (0);
+			return (true);
+	return (false);
 }
 
 /*
@@ -3573,21 +3578,21 @@ prison_isvalid(struct prison *pr)
 }
 
 /*
- * Return 1 if the passed credential is in a jail and that jail does not
- * have its own virtual network stack, otherwise 0.
+ * Return true if the passed credential is in a jail and that jail does not
+ * have its own virtual network stack, otherwise false.
  */
-int
+bool
 jailed_without_vnet(struct ucred *cred)
 {
 
 	if (!jailed(cred))
-		return (0);
+		return (false);
 #ifdef VIMAGE
 	if (prison_owns_vnet(cred))
-		return (0);
+		return (false);
 #endif
 
-	return (1);
+	return (true);
 }
 
 /*
@@ -3649,9 +3654,9 @@ getjailname(struct ucred *cred, char *name, size_t len)
  * Determine whether the prison represented by cred owns
  * its vnet rather than having it inherited.
  *
- * Returns 1 in case the prison owns the vnet, 0 otherwise.
+ * Returns true in case the prison owns the vnet, false otherwise.
  */
-int
+bool
 prison_owns_vnet(struct ucred *cred)
 {
 
@@ -3659,7 +3664,7 @@ prison_owns_vnet(struct ucred *cred)
 	 * vnets cannot be added/removed after jail creation,
 	 * so no need to lock here.
 	 */
-	return (cred->cr_prison->pr_flags & PR_VNET ? 1 : 0);
+	return ((cred->cr_prison->pr_flags & PR_VNET) != 0);
 }
 #endif
 
