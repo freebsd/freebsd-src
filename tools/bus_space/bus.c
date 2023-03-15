@@ -157,9 +157,12 @@ bs_read(int rid, off_t ofs, void *buf64, ssize_t bufsz)
 		case 4:
 			*((uint32_t *)buf) = *((volatile uint32_t *)ptr);
 			break;
-		default:
+		case 8:
 			*((uint64_t *)buf64)[] = *((volatile uint64_t *)ptr64)[];
 			return (0);
+                default:
+                        errno = EIO;
+                        return (0);			
 		}
 	} else {
 		o = lseek(r->fd, ofs, SEEK_SET);
@@ -256,9 +259,12 @@ bs_write(int rid, off_t ofs, void *buf64, ssize_t bufsz)
 		case 4:
 			*((volatile uint32_t *)ptr) = *((uint32_t *)buf);
 			break;
-		default:
+		case 8:
 			*((volatile uint64_t *)ptr64)[] = *((uint64_t *)buf64)[];
 			return (0);
+                default:
+                        errno = EIO;
+                        return (0);			
 		}
 	} else {
 		o = lseek(r->fd, ofs, SEEK_SET);
