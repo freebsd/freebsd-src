@@ -3622,7 +3622,6 @@ retry:
 	}
 	while ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
 		pmap = PV_PMAP(pv);
-		PMAP_ASSERT_STAGE1(pmap);
 		if (!PMAP_TRYLOCK(pmap)) {
 			pvh_gen = pvh->pv_gen;
 			md_gen = m->md.pv_gen;
@@ -3648,7 +3647,7 @@ retry:
 		if (tpte & ATTR_SW_WIRED)
 			pmap->pm_stats.wired_count--;
 		if ((tpte & ATTR_AF) != 0) {
-			pmap_s1_invalidate_page(pmap, pv->pv_va, true);
+			pmap_invalidate_page(pmap, pv->pv_va, true);
 			vm_page_aflag_set(m, PGA_REFERENCED);
 		}
 
