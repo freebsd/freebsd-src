@@ -5,7 +5,7 @@ WARNS?=		1
 
 TESTSDIR=       ${TESTSBASE}/sys/netlink
 
-ATF_TESTS_C +=	test_snl
+ATF_TESTS_C +=	test_snl test_snl_generic
 ATF_TESTS_PYTEST +=	test_nl_core.py
 ATF_TESTS_PYTEST +=	test_rtnl_iface.py
 ATF_TESTS_PYTEST +=	test_rtnl_ifaddr.py
