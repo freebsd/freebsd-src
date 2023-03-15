@@ -44,7 +44,6 @@
 #include <sys/socket.h>
 #include <netlink/netlink.h>
 
-
 #define _roundup2(x, y)         (((x)+((y)-1))&(~((y)-1)))
 
 #define NETLINK_ALIGN_SIZE      sizeof(uint32_t)

@@ -42,13 +42,17 @@
 #include <netinet/in_var.h>
 #include <netinet/ip_carp.h>
 
+#include <arpa/inet.h>
+
 #include <ctype.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <err.h>
 #include <errno.h>
+#include <netdb.h>
 
 #include <libifconfig.h>
 
@@ -67,12 +71,15 @@ static int carpr_vhid = -1;
 static int carpr_advskew = -1;
 static int carpr_advbase = -1;
 static int carpr_state = -1;
+static struct in_addr carp_addr;
+static struct in6_addr carp_addr6;
 static unsigned char const *carpr_key;
 
 static void
 carp_status(int s)
 {
 	struct ifconfig_carp carpr[CARP_MAXVHID];
+	char addr_buf[NI_MAXHOST];
 
 	if (ifconfig_carp_get_info(lifh, name, carpr, CARP_MAXVHID) == -1)
 		return;
@@ -85,6 +92,12 @@ carp_status(int s)
 			printf(" key \"%s\"\n", carpr[i].carpr_key);
 		else
 			printf("\n");
+
+		inet_ntop(AF_INET6, &carpr[i].carpr_addr6, addr_buf,
+		    sizeof(addr_buf));
+
+		printf("\t      peer %s peer6 %s\n",
+		    inet_ntoa(carpr[i].carpr_addr), addr_buf);
 	}
 }
 
@@ -146,6 +159,11 @@ setcarp_callback(int s, void *arg __unused)
 		carpr.carpr_advbase = carpr_advbase;
 	if (carpr_state > -1)
 		carpr.carpr_state = carpr_state;
+	if (carp_addr.s_addr != INADDR_ANY)
+		carpr.carpr_addr = carp_addr;
+	if (! IN6_IS_ADDR_UNSPECIFIED(&carp_addr6))
+		memcpy(&carpr.carpr_addr6, &carp_addr6,
+		    sizeof(carp_addr6));
 
 	if (ifconfig_carp_set_info(lifh, name, &carpr))
 		err(1, "SIOCSVH");
@@ -198,12 +216,53 @@ setcarp_state(const char *val, int d, int s, const struct afswtch *afp)
 	errx(1, "unknown state");
 }
 
+static void
+setcarp_peer(const char *val, int d, int s, const struct afswtch *afp)
+{
+	carp_addr.s_addr = inet_addr(val);
+}
+
+static void
+setcarp_mcast(const char *val, int d, int s, const struct afswtch *afp)
+{
+	carp_addr.s_addr = htonl(INADDR_CARP_GROUP);
+}
+
+static void
+setcarp_peer6(const char *val, int d, int s, const struct afswtch *afp)
+{
+	struct addrinfo hints, *res;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_INET6;
+	hints.ai_flags = AI_NUMERICHOST;
+
+	if (getaddrinfo(val, NULL, &hints, &res) == 1)
+		errx(1, "Invalid IPv6 address %s", val);
+
+	memcpy(&carp_addr6, &((struct sockaddr_in6 *)res->ai_addr)->sin6_addr,
+	    sizeof(carp_addr6));
+}
+
+static void
+setcarp_mcast6(const char *val, int d, int s, const struct afswtch *afp)
+{
+	bzero(&carp_addr6, sizeof(carp_addr6));
+	carp_addr6.s6_addr[0] = 0xff;
+	carp_addr6.s6_addr[1] = 0x02;
+	carp_addr6.s6_addr[15] = 0x12;
+}
+
 static struct cmd carp_cmds[] = {
 	DEF_CMD_ARG("advbase",	setcarp_advbase),
 	DEF_CMD_ARG("advskew",	setcarp_advskew),
 	DEF_CMD_ARG("pass",	setcarp_passwd),
 	DEF_CMD_ARG("vhid",	setcarp_vhid),
 	DEF_CMD_ARG("state",	setcarp_state),
+	DEF_CMD_ARG("peer",	setcarp_peer),
+	DEF_CMD_ARG("mcast",	setcarp_mcast),
+	DEF_CMD_ARG("peer6",	setcarp_peer6),
+	DEF_CMD_ARG("mcast6",	setcarp_mcast6),
 };
 static struct afswtch af_carp = {
 	.af_name	= "af_carp",
@@ -215,6 +274,10 @@ static __constructor void
 carp_ctor(void)
 {
 	int i;
+
+	/* Default to multicast. */
+	setcarp_mcast(NULL, 0, 0, NULL);
+	setcarp_mcast6(NULL, 0, 0, NULL);
 
 	for (i = 0; i < nitems(carp_cmds);  i++)
 		cmd_register(&carp_cmds[i]);

@@ -39,6 +39,7 @@
 #include <netlink/netlink_generic.h>
 #include <netlink/netlink_snl.h>
 #include <netlink/netlink_snl_generic.h>
+#include <netlink/netlink_snl_route.h>
 
 #include <string.h>
 #include <strings.h>
@@ -55,6 +56,8 @@ static struct snl_attr_parser ap_carp_get[] = {
 	{ .type = CARP_NL_ADVBASE, .off = _OUT(carpr_advbase), .cb = snl_attr_get_int32 },
 	{ .type = CARP_NL_ADVSKEW, .off = _OUT(carpr_advskew), .cb = snl_attr_get_int32 },
 	{ .type = CARP_NL_KEY, .off = _OUT(carpr_key), .cb = snl_attr_get_string },
+	{ .type = CARP_NL_ADDR, .off = _OUT(carpr_addr), .cb = snl_attr_get_in_addr },
+	{ .type = CARP_NL_ADDR6, .off = _OUT(carpr_addr6), .cb = snl_attr_get_in6_addr },
 };
 #undef _OUT
 
@@ -181,6 +184,10 @@ ifconfig_carp_set_info(ifconfig_handle_t *h, const char *name,
 	snl_add_msg_attr_s32(&nw, CARP_NL_ADVBASE, carpr->carpr_advbase);
 	snl_add_msg_attr_s32(&nw, CARP_NL_ADVSKEW, carpr->carpr_advskew);
 	snl_add_msg_attr_u32(&nw, CARP_NL_IFINDEX, ifindex);
+	snl_add_msg_attr(&nw, CARP_NL_ADDR, sizeof(carpr->carpr_addr),
+	    &carpr->carpr_addr);
+	snl_add_msg_attr(&nw, CARP_NL_ADDR6, sizeof(carpr->carpr_addr6),
+	    &carpr->carpr_addr6);
 
 	hdr = snl_finalize_msg(&nw);
 	if (hdr == NULL) {

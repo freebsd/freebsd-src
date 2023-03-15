@@ -30,6 +30,7 @@
 #define _NETLINK_NETLINK_MESSAGE_WRITER_H_
 
 #ifdef _KERNEL
+
 /*
  * It is not meant to be included directly
  */
@@ -247,6 +248,12 @@ nlattr_add_s64(struct nl_writer *nw, int attrtype, int64_t value)
 {
 	return (nlattr_add(nw, attrtype, sizeof(int64_t), &value));
 }
+
+struct in_addr;
+bool nlattr_add_in_addr(struct nl_writer *nw, int attrtype, const struct in_addr *in);
+
+struct in6_addr;
+bool nlattr_add_in6_addr(struct nl_writer *nw, int attrtype, const struct in6_addr *in6);
 
 static inline bool
 nlattr_add_flag(struct nl_writer *nw, int attrtype)

@@ -163,4 +163,27 @@ snl_add_msg_attr_ipvia(struct snl_writer *nw, int attrtype, const struct sockadd
 	return (false);
 }
 
+static inline bool
+snl_attr_get_in_addr(struct snl_state *ss __unused, struct nlattr *nla,
+    const void *arg __unused, void *target)
+{
+	if (NLA_DATA_LEN(nla) != sizeof(struct in_addr))
+		return (false);
+
+	memcpy(target, NLA_DATA_CONST(nla), sizeof(struct in_addr));
+	return (true);
+}
+
+static inline bool
+snl_attr_get_in6_addr(struct snl_state *ss __unused, struct nlattr *nla,
+    const void *arg __unused, void *target)
+{
+	if (NLA_DATA_LEN(nla) != sizeof(struct in6_addr))
+		return (false);
+
+	memcpy(target, NLA_DATA_CONST(nla), sizeof(struct in6_addr));
+	return (true);
+}
+
+
 #endif

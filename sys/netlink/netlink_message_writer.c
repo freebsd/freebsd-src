@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/syslog.h>
 
+#include <netinet/in.h>
+
 #include <netlink/netlink.h>
 #include <netlink/netlink_ctl.h>
 #include <netlink/netlink_linux.h>
@@ -685,4 +687,16 @@ nlmsg_end_dump(struct nl_writer *nw, int error, struct nlmsghdr *hdr)
 	nw->suppress_ack = true;
 
 	return (true);
+}
+
+bool
+nlattr_add_in_addr(struct nl_writer *nw, int attrtype, const struct in_addr *in)
+{
+	return (nlattr_add(nw, attrtype, sizeof(*in), in));
+}
+
+bool
+nlattr_add_in6_addr(struct nl_writer *nw, int attrtype, const struct in6_addr *in6)
+{
+	return (nlattr_add(nw, attrtype, sizeof(*in6), in6));
 }
