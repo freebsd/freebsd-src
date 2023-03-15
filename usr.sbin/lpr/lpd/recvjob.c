@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 #include "pathnames.h"
 
-#define ack()	(void) write(STDOUT_FILENO, sp, (size_t)1);
+#define ack()	(void) write(STDOUT_FILENO, sp, (size_t)1)
 
 /*
  * The buffer size to use when reading/writing spool files.
