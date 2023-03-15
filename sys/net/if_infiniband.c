@@ -131,6 +131,7 @@ infiniband_bpf_mtap(struct ifnet *ifp, struct mbuf *mb)
 	if (!bpf_peers_present(ifp->if_bpf))
 		return;
 
+	M_ASSERTVALID(mb);
 	if (mb->m_len < sizeof(*ibh))
 		return;
 
