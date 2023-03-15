@@ -602,11 +602,11 @@ mac_veriexec_vnode_check_unlink(struct ucred *cred, struct vnode *dvp __unused,
 	if ((mac_veriexec_state & VERIEXEC_STATE_ENFORCE) == 0)
 		return (0);
 
-	/*
-	 * Check if it's a verified file
-	 */
 	error = mac_veriexec_check_vp(cred, vp, VVERIFY);
-	if (error == 0) {             /* file is verified */
+	if (error == 0) {
+		/*
+		 * The target is verified, so disallow replacement.
+		 */
 		MAC_VERIEXEC_DBG(2,
     "(UNLINK) attempted to unlink a protected file (euid: %u)", cred->cr_uid);
 
@@ -643,11 +643,11 @@ mac_veriexec_vnode_check_rename_from(struct ucred *cred,
 	if ((mac_veriexec_state & VERIEXEC_STATE_ENFORCE) == 0)
 		return (0);
 
-	/*
-	 * Check if it's a verified file
-	 */
 	error = mac_veriexec_check_vp(cred, vp, VVERIFY);
-	if (error == 0) {            /* file is verified */
+	if (error == 0) {
+		/*
+		 * The target is verified, so disallow replacement.
+		 */
 		MAC_VERIEXEC_DBG(2,
     "(RENAME_FROM) attempted to rename a protected file (euid: %u)", cred->cr_uid);
 		return (EAUTH);
@@ -692,11 +692,11 @@ mac_veriexec_vnode_check_rename_to(struct ucred *cred, struct vnode *dvp __unuse
 	if ((mac_veriexec_state & VERIEXEC_STATE_ENFORCE) == 0)
 		return (0);
 
-	/*
-	 * Check if it's a verified file
-	 */
 	error = mac_veriexec_check_vp(cred, vp, VVERIFY);
-	if (error == 0) {             /* file is verified */
+	if (error == 0) {
+		/*
+		 * The target is verified, so disallow replacement.
+		 */
 		MAC_VERIEXEC_DBG(2,
     "(RENAME_TO) attempted to overwrite a protected file (euid: %u)", cred->cr_uid);
 		return (EAUTH);
@@ -727,13 +727,14 @@ mac_veriexec_vnode_check_setmode(struct ucred *cred, struct vnode *vp,
 		return (0);
 
 	/*
-	 * Do not allow chmod (set-[gu]id) of verified file
+	 * Prohibit chmod of verified set-[gu]id file.
 	 */
 	error = mac_veriexec_check_vp(cred, vp, VVERIFY);
-	if (error == EAUTH)             /* it isn't verified */
+	if (error == EAUTH)		/* target not verified */
 		return (0);
 	if (error == 0 && (mode & (S_ISUID|S_ISGID)) != 0)
 		return (EAUTH);
+
 	return (0);
 }
 
