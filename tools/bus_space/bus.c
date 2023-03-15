@@ -145,7 +145,7 @@ bs_read(int rid, off_t ofs, void *buf64, ssize_t bufsz)
 		return (0);
 	}
 	ofs += r->ofs;
-	if (r->ptr != MAP_FAILED) {
+	if (r->ptr64 != MAP_FAILED) {
 		ptr = r->ptr + ofs;
 		switch (bufsz) {
 		case 1:
