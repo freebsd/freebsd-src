@@ -6840,18 +6840,10 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 
 			SCTP_CHECK_AND_CAST(value, optval, uint32_t, optsize);
 			SCTP_INP_WLOCK(inp);
-			if (*value == 0) {
-				/*
-				 * Do not allow turning zero checksum
-				 * acceptance off again, since this could
-				 * result in inconsistent behaviour for
-				 * listeners.
-				 */
-				if (inp->zero_checksum > 0) {
-					error = EINVAL;
-				}
-			} else {
+			if (*value != 0) {
 				inp->zero_checksum = 1;
+			} else {
+				inp->zero_checksum = 0;
 			}
 			SCTP_INP_WUNLOCK(inp);
 			break;
