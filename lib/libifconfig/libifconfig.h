@@ -287,6 +287,8 @@ struct ifconfig_carp {
 	int32_t		carpr_advbase;
 	int32_t		carpr_advskew;
 	uint8_t		carpr_key[CARP_KEY_LEN];
+	struct in_addr	carpr_addr;
+	struct in6_addr	carpr_addr6;
 };
 
 int ifconfig_carp_get_vhid(ifconfig_handle_t *h, const char *name,

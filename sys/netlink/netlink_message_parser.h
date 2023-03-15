@@ -175,6 +175,10 @@ int nlattr_get_uint32(struct nlattr *nla, struct nl_pstate *npt,
     const void *arg, void *target);
 int nlattr_get_uint64(struct nlattr *nla, struct nl_pstate *npt,
     const void *arg, void *target);
+int nlattr_get_in_addr(struct nlattr *nla, struct nl_pstate *npt,
+    const void *arg, void *target);
+int nlattr_get_in6_addr(struct nlattr *nla, struct nl_pstate *npt,
+    const void *arg, void *target);
 int nlattr_get_ifp(struct nlattr *nla, struct nl_pstate *npt,
     const void *arg, void *target);
 int nlattr_get_ifpz(struct nlattr *nla, struct nl_pstate *npt,
