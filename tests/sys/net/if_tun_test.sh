@@ -2,13 +2,12 @@
 
 . $(atf_get_srcdir)/../common/vnet.subr
 
-atf_test_case "235704" "basic" "cleanup"
+atf_test_case "235704" "cleanup"
 235704_head()
 {
 	atf_set descr "Test PR #235704"
 	atf_set require.user root
 }
-
 235704_body()
 {
 	vnet_init
@@ -18,18 +17,17 @@ atf_test_case "235704" "basic" "cleanup"
 	jexec one ifconfig ${tun} name foo
 	atf_check -s exit:0 jexec one ifconfig foo destroy
 }
-
 235704_cleanup()
 {
 	vnet_cleanup
 }
 
+atf_test_case "basic" "cleanup"
 basic_head()
 {
 	atf_set descr "Test if_tun using nc"
 	atf_set require.user root
 }
-
 basic_body()
 {
 	vnet_init
@@ -54,8 +52,7 @@ basic_body()
 	atf_check -s exit:0 -o ignore \
 		jexec bass ping -c 1 10.100.0.1
 }
-
-basic_clean()
+basic_cleanup()
 {
 	vnet_cleanup
 }
