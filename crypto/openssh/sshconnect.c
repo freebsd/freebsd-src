@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect.c,v 1.361 2023/01/13 02:44:02 djm Exp $ */
+/* $OpenBSD: sshconnect.c,v 1.363 2023/03/10 07:17:08 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -54,7 +54,6 @@
 #include "ssh.h"
 #include "sshbuf.h"
 #include "packet.h"
-#include "compat.h"
 #include "sshkey.h"
 #include "sshconnect.h"
 #include "log.h"
@@ -364,7 +363,7 @@ ssh_create_socket(struct addrinfo *ai)
 		error("socket: %s", strerror(errno));
 		return -1;
 	}
-	fcntl(sock, F_SETFD, FD_CLOEXEC);
+	(void)fcntl(sock, F_SETFD, FD_CLOEXEC);
 
 	/* Use interactive QOS (if specified) until authentication completed */
 	if (options.ip_qos_interactive != INT_MAX)

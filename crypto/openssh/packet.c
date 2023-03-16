@@ -1,4 +1,4 @@
-/* $OpenBSD: packet.c,v 1.308 2022/08/31 02:56:40 djm Exp $ */
+/* $OpenBSD: packet.c,v 1.309 2023/03/03 10:23:42 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -1325,7 +1325,7 @@ int
 ssh_packet_read_seqnr(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 {
 	struct session_state *state = ssh->state;
-	int len, r, ms_remain;
+	int len, r, ms_remain = 0;
 	struct pollfd pfd;
 	char buf[8192];
 	struct timeval start;

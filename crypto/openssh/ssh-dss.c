@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-dss.c,v 1.48 2022/10/28 00:44:44 djm Exp $ */
+/* $OpenBSD: ssh-dss.c,v 1.49 2023/03/05 05:34:09 dtucker Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -37,7 +37,6 @@
 #include <string.h>
 
 #include "sshbuf.h"
-#include "compat.h"
 #include "ssherr.h"
 #include "digest.h"
 #define SSHKEY_INTERNAL

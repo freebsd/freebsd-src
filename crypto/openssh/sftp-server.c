@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-server.c,v 1.145 2022/11/09 09:04:12 dtucker Exp $ */
+/* $OpenBSD: sftp-server.c,v 1.146 2023/03/07 05:37:26 djm Exp $ */
 /*
  * Copyright (c) 2000-2004 Markus Friedl.  All rights reserved.
  *
@@ -819,7 +819,7 @@ process_read(u_int32_t id)
 	}
 	if (len > buflen) {
 		debug3_f("allocate %zu => %u", buflen, len);
-		if ((buf = realloc(NULL, len)) == NULL)
+		if ((buf = realloc(buf, len)) == NULL)
 			fatal_f("realloc failed");
 		buflen = len;
 	}

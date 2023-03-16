@@ -1,4 +1,4 @@
-/* $OpenBSD: dns.h,v 1.19 2021/07/19 03:13:28 dtucker Exp $ */
+/* $OpenBSD: dns.h,v 1.20 2023/02/10 04:56:30 djm Exp $ */
 
 /*
  * Copyright (c) 2003 Wesley Griffin. All rights reserved.
@@ -54,6 +54,6 @@ enum sshfp_hashes {
 
 int	verify_host_key_dns(const char *, struct sockaddr *,
     struct sshkey *, int *);
-int	export_dns_rr(const char *, struct sshkey *, FILE *, int);
+int	export_dns_rr(const char *, struct sshkey *, FILE *, int, int);
 
 #endif /* DNS_H */

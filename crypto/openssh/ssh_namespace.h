@@ -220,9 +220,7 @@
 #define compare					Fssh_compare
 #define compare_gps				Fssh_compare_gps
 #define compat_banner				Fssh_compat_banner
-#define compat_cipher_proposal			Fssh_compat_cipher_proposal
 #define compat_kex_proposal			Fssh_compat_kex_proposal
-#define compat_pkalg_proposal			Fssh_compat_pkalg_proposal
 #define compression_alg_list			Fssh_compression_alg_list
 #define connect_next				Fssh_connect_next
 #define connect_to				Fssh_connect_to
@@ -361,6 +359,8 @@
 #define kex_new					Fssh_kex_new
 #define kex_prop2buf				Fssh_kex_prop2buf
 #define kex_prop_free				Fssh_kex_prop_free
+#define kex_proposal_free_entries		Fssh_kex_proposal_free_entries
+#define kex_proposal_populate_entries		Fssh_kex_proposal_populate_entries
 #define kex_protocol_error			Fssh_kex_protocol_error
 #define kex_ready				Fssh_kex_ready
 #define kex_send_kexinit			Fssh_kex_send_kexinit

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012 Will Drewry <wad@dataspill.org>
+ * Copyright (c) 2015,2017,2019,2020,2023 Damien Miller <djm@mindrot.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -48,6 +49,7 @@
 #include <sys/mman.h>
 #include <sys/syscall.h>
 
+#include <linux/futex.h>
 #include <linux/net.h>
 #include <linux/audit.h>
 #include <linux/filter.h>
@@ -132,6 +134,71 @@
 	/* reload syscall number; all rules expect it in accumulator */ \
 	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
 		offsetof(struct seccomp_data, nr))
+/* Deny unless syscall argument contains only values in mask */
+#define SC_DENY_UNLESS_ARG_MASK(_nr, _arg_nr, _arg_mask, _errno) \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (_nr), 0, 8), \
+	/* load, mask and test syscall argument, low word */ \
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
+	    offsetof(struct seccomp_data, args[(_arg_nr)]) + ARG_LO_OFFSET), \
+	BPF_STMT(BPF_ALU+BPF_AND+BPF_K, ~((_arg_mask) & 0xFFFFFFFF)), \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 0, 3), \
+	/* load, mask and test syscall argument, high word */ \
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
+	    offsetof(struct seccomp_data, args[(_arg_nr)]) + ARG_HI_OFFSET), \
+	BPF_STMT(BPF_ALU+BPF_AND+BPF_K, \
+	    ~(((uint32_t)((uint64_t)(_arg_mask) >> 32)) & 0xFFFFFFFF)), \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 1, 0), \
+	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ERRNO|(_errno)), \
+	/* reload syscall number; all rules expect it in accumulator */ \
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
+		offsetof(struct seccomp_data, nr))
+#define SC_DENY_UNLESS_MASK(_nr, _arg_nr, _arg_val, _errno) \
+/* Special handling for futex(2) that combines a bitmap and operation number */
+#if defined(__NR_futex) || defined(__NR_futex_time64)
+#define SC_FUTEX_MASK (FUTEX_PRIVATE_FLAG|FUTEX_CLOCK_REALTIME)
+#define SC_ALLOW_FUTEX_OP(_nr, _op) \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (_nr), 0, 8), \
+	/* load syscall argument, low word */ \
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
+	    offsetof(struct seccomp_data, args[1]) + ARG_LO_OFFSET), \
+	/* mask off allowed bitmap values, low word */ \
+	BPF_STMT(BPF_ALU+BPF_AND+BPF_K, ~(SC_FUTEX_MASK & 0xFFFFFFFF)), \
+	/* test operation number, low word */ \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, ((_op) & 0xFFFFFFFF), 0, 4), \
+	/* load syscall argument, high word */ \
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
+	    offsetof(struct seccomp_data, args[1]) + ARG_HI_OFFSET), \
+	/* mask off allowed bitmap values, high word */ \
+	BPF_STMT(BPF_ALU+BPF_AND+BPF_K, \
+	    ~(((uint32_t)((uint64_t)SC_FUTEX_MASK >> 32)) & 0xFFFFFFFF)), \
+	/* test operation number, high word */ \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, \
+	    (((uint32_t)((uint64_t)(_op) >> 32)) & 0xFFFFFFFF), 0, 1), \
+	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW), \
+	/* reload syscall number; all rules expect it in accumulator */ \
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, nr))
+
+/* Use this for both __NR_futex and __NR_futex_time64 */
+# define SC_FUTEX(_nr) \
+	SC_ALLOW_FUTEX_OP(__NR_futex, FUTEX_WAIT), \
+	SC_ALLOW_FUTEX_OP(__NR_futex, FUTEX_WAIT_BITSET), \
+	SC_ALLOW_FUTEX_OP(__NR_futex, FUTEX_WAKE), \
+	SC_ALLOW_FUTEX_OP(__NR_futex, FUTEX_WAKE_BITSET), \
+	SC_ALLOW_FUTEX_OP(__NR_futex, FUTEX_REQUEUE), \
+	SC_ALLOW_FUTEX_OP(__NR_futex, FUTEX_CMP_REQUEUE)
+#endif /* __NR_futex || __NR_futex_time64 */
+
+#if defined(__NR_mmap) || defined(__NR_mmap2)
+# ifdef MAP_FIXED_NOREPLACE
+#  define SC_MMAP_FLAGS MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED|MAP_FIXED_NOREPLACE
+# else
+#  define SC_MMAP_FLAGS MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED
+# endif /* MAP_FIXED_NOREPLACE */
+/* Use this for both __NR_mmap and __NR_mmap2 variants */
+# define SC_MMAP(_nr) \
+	SC_DENY_UNLESS_ARG_MASK(_nr, 3, SC_MMAP_FLAGS, EINVAL), \
+	SC_ALLOW_ARG_MASK(_nr, 2, PROT_READ|PROT_WRITE|PROT_NONE)
+#endif /* __NR_mmap || __NR_mmap2 */
 
 /* Syscall filtering set for preauth. */
 static const struct sock_filter preauth_insns[] = {
@@ -211,10 +278,10 @@ static const struct sock_filter preauth_insns[] = {
 	SC_ALLOW(__NR_exit_group),
 #endif
 #ifdef __NR_futex
-	SC_ALLOW(__NR_futex),
+	SC_FUTEX(__NR_futex),
 #endif
 #ifdef __NR_futex_time64
-	SC_ALLOW(__NR_futex_time64),
+	SC_FUTEX(__NR_futex_time64),
 #endif
 #ifdef __NR_geteuid
 	SC_ALLOW(__NR_geteuid),
@@ -244,13 +311,29 @@ static const struct sock_filter preauth_insns[] = {
 	SC_ALLOW(__NR_getuid32),
 #endif
 #ifdef __NR_madvise
-	SC_ALLOW(__NR_madvise),
+	SC_ALLOW_ARG(__NR_madvise, 2, MADV_NORMAL),
+# ifdef MADV_FREE
+	SC_ALLOW_ARG(__NR_madvise, 2, MADV_FREE),
+# endif
+# ifdef MADV_DONTNEED
+	SC_ALLOW_ARG(__NR_madvise, 2, MADV_DONTNEED),
+# endif
+# ifdef MADV_DONTFORK
+	SC_ALLOW_ARG(__NR_madvise, 2, MADV_DONTFORK),
+# endif
+# ifdef MADV_DONTDUMP
+	SC_ALLOW_ARG(__NR_madvise, 2, MADV_DONTDUMP),
+# endif
+# ifdef MADV_WIPEONFORK
+	SC_ALLOW_ARG(__NR_madvise, 2, MADV_WIPEONFORK),
+# endif
+	SC_DENY(__NR_madvise, EINVAL),
 #endif
 #ifdef __NR_mmap
-	SC_ALLOW_ARG_MASK(__NR_mmap, 2, PROT_READ|PROT_WRITE|PROT_NONE),
+	SC_MMAP(__NR_mmap),
 #endif
 #ifdef __NR_mmap2
-	SC_ALLOW_ARG_MASK(__NR_mmap2, 2, PROT_READ|PROT_WRITE|PROT_NONE),
+	SC_MMAP(__NR_mmap2),
 #endif
 #ifdef __NR_mprotect
 	SC_ALLOW_ARG_MASK(__NR_mprotect, 2, PROT_READ|PROT_WRITE|PROT_NONE),

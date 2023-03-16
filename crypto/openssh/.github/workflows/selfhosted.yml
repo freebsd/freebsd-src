@@ -21,6 +21,7 @@ jobs:
       matrix:
         target:
           - alpine
+          - centos7
           - debian-i386
           - dfly30
           - dfly48
@@ -51,6 +52,7 @@ jobs:
         include:
           # Then we include extra libvirt test configs.
           - { target: aix51, config: default, host: libvirt }
+          - { target: centos7, config: pam, host: libvirt }
           - { target: debian-i386, config: pam, host: libvirt }
           - { target: dfly30, config: without-openssl, host: libvirt}
           - { target: dfly48, config: pam ,host: libvirt }
@@ -109,6 +111,7 @@ jobs:
           config.h
           config.log
           regress/*.log
+          regress/log/*
           regress/valgrind-out/
     - name: shutdown VM
       if: always()

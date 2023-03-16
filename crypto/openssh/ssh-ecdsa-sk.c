@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-ecdsa-sk.c,v 1.17 2022/10/28 00:44:44 djm Exp $ */
+/* $OpenBSD: ssh-ecdsa-sk.c,v 1.18 2023/03/08 04:43:12 guenther Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2010 Damien Miller.  All rights reserved.
@@ -230,7 +230,6 @@ webauthn_check_prepare_hash(const u_char *data, size_t datalen,
 	return r;
 }
 
-/* ARGSUSED */
 static int
 ssh_ecdsa_sk_verify(const struct sshkey *key,
     const u_char *sig, size_t siglen,

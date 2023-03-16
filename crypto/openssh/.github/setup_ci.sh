@@ -7,10 +7,10 @@ PACKAGES=""
 case "`./config.guess`" in
 *cygwin)
 	PACKAGER=setup
-	echo Setting CYGWIN sustem environment variable.
+	echo Setting CYGWIN system environment variable.
 	setx CYGWIN "binmode"
-	chmod -R go-rw /cygdrive/d/a
-	umask 077
+	echo Removing extended ACLs so umask works as expected.
+	setfacl -b . regress
 	PACKAGES="$PACKAGES,autoconf,automake,cygwin-devel,gcc-core"
 	PACKAGES="$PACKAGES,make,openssl-devel,zlib-devel"
 	;;

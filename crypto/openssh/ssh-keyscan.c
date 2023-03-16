@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keyscan.c,v 1.149 2022/12/26 19:16:03 jmc Exp $ */
+/* $OpenBSD: ssh-keyscan.c,v 1.151 2023/02/10 06:41:53 jmc Exp $ */
 /*
  * Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.
  *
@@ -40,6 +40,7 @@
 #include "sshbuf.h"
 #include "sshkey.h"
 #include "cipher.h"
+#include "digest.h"
 #include "kex.h"
 #include "compat.h"
 #include "myproposal.h"
@@ -79,6 +80,8 @@ int hash_hosts = 0;		/* Hash hostname on output */
 int print_sshfp = 0;		/* Print SSHFP records instead of known_hosts */
 
 int found_one = 0;		/* Successfully found a key */
+
+int hashalg = -1;		/* Hash for SSHFP records or -1 for all */
 
 #define MAXMAXFD 256
 
@@ -314,7 +317,7 @@ keyprint_one(const char *host, struct sshkey *key)
 	found_one = 1;
 
 	if (print_sshfp) {
-		export_dns_rr(host, key, stdout, 0);
+		export_dns_rr(host, key, stdout, 0, hashalg);
 		return;
 	}
 
@@ -698,9 +701,8 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: %s [-46cDHv] [-f file] [-p port] [-T timeout] [-t type]\n"
-	    "\t\t   [host | addrlist namelist]\n",
-	    __progname);
+	    "usage: ssh-keyscan [-46cDHv] [-f file] [-O option] [-p port] [-T timeout]\n"
+	    "                   [-t type] [host | addrlist namelist]\n");
 	exit(1);
 }
 
@@ -726,7 +728,7 @@ main(int argc, char **argv)
 	if (argc <= 1)
 		usage();
 
-	while ((opt = getopt(argc, argv, "cDHv46p:T:t:f:")) != -1) {
+	while ((opt = getopt(argc, argv, "cDHv46O:p:T:t:f:")) != -1) {
 		switch (opt) {
 		case 'H':
 			hash_hosts = 1;
@@ -765,6 +767,14 @@ main(int argc, char **argv)
 			if (strcmp(optarg, "-") == 0)
 				optarg = NULL;
 			argv[fopt_count++] = optarg;
+			break;
+		case 'O':
+			/* Maybe other misc options in the future too */
+			if (strncmp(optarg, "hashalg=", 8) != 0)
+				fatal("Unsupported -O option");
+			if ((hashalg = ssh_digest_alg_by_name(
+			    optarg + 8)) == -1)
+				fatal("Unsupported hash algorithm");
 			break;
 		case 't':
 			get_keytypes = 0;

@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-rsa.c,v 1.78 2022/10/28 02:47:04 djm Exp $ */
+/* $OpenBSD: ssh-rsa.c,v 1.79 2023/03/05 05:34:09 dtucker Exp $ */
 /*
  * Copyright (c) 2000, 2003 Markus Friedl <markus@openbsd.org>
  *
@@ -28,7 +28,6 @@
 #include <string.h>
 
 #include "sshbuf.h"
-#include "compat.h"
 #include "ssherr.h"
 #define SSHKEY_INTERNAL
 #include "sshkey.h"

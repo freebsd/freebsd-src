@@ -1,4 +1,4 @@
-#	$OpenBSD: agent-restrict.sh,v 1.5 2022/01/13 04:53:16 dtucker Exp $
+#	$OpenBSD: agent-restrict.sh,v 1.6 2023/03/01 09:29:32 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="agent restrictions"
@@ -39,14 +39,14 @@ Host host_$h
 	Hostname host_$h
 	HostkeyAlias host_$h
 	IdentityFile $OBJ/user_$h
-	ProxyCommand ${SUDO} env SSH_SK_HELPER=\"$SSH_SK_HELPER\" sh ${SRC}/sshd-log-wrapper.sh ${TEST_SSHD_LOGFILE} ${SSHD} -i -f $OBJ/sshd_proxy_host_$h
+	ProxyCommand ${SUDO} env SSH_SK_HELPER=\"$SSH_SK_HELPER\" ${OBJ}/sshd-log-wrapper.sh -i -f $OBJ/sshd_proxy_host_$h
 _EOF
 	# Variant with no specified keys.
 	cat << _EOF >> $OBJ/ssh_proxy_noid
 Host host_$h
 	Hostname host_$h
 	HostkeyAlias host_$h
-	ProxyCommand ${SUDO} env SSH_SK_HELPER=\"$SSH_SK_HELPER\" sh ${SRC}/sshd-log-wrapper.sh ${TEST_SSHD_LOGFILE} ${SSHD} -i -f $OBJ/sshd_proxy_host_$h
+	ProxyCommand ${SUDO} env SSH_SK_HELPER=\"$SSH_SK_HELPER\" ${OBJ}/sshd-log-wrapper.sh -i -f $OBJ/sshd_proxy_host_$h
 _EOF
 done
 cat $OBJ/ssh_proxy.bak >> $OBJ/ssh_proxy

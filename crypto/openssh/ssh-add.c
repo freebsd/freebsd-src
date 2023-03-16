@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-add.c,v 1.166 2022/06/18 02:17:16 dtucker Exp $ */
+/* $OpenBSD: ssh-add.c,v 1.167 2023/03/08 00:05:58 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -477,6 +477,7 @@ test_key(int agent_fd, const char *filename)
 {
 	struct sshkey *key = NULL;
 	u_char *sig = NULL;
+	const char *alg = NULL;
 	size_t slen = 0;
 	int r, ret = -1;
 	char data[1024];
@@ -485,14 +486,16 @@ test_key(int agent_fd, const char *filename)
 		error_r(r, "Couldn't read public key %s", filename);
 		return -1;
 	}
+	if (sshkey_type_plain(key->type) == KEY_RSA)
+		alg = "rsa-sha2-256";
 	arc4random_buf(data, sizeof(data));
 	if ((r = ssh_agent_sign(agent_fd, key, &sig, &slen, data, sizeof(data),
-	    NULL, 0)) != 0) {
+	    alg, 0)) != 0) {
 		error_r(r, "Agent signature failed for %s", filename);
 		goto done;
 	}
 	if ((r = sshkey_verify(key, sig, slen, data, sizeof(data),
-	    NULL, 0, NULL)) != 0) {
+	    alg, 0, NULL)) != 0) {
 		error_r(r, "Signature verification failed for %s", filename);
 		goto done;
 	}

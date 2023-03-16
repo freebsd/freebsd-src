@@ -1,4 +1,4 @@
-/* $OpenBSD: kexgexs.c,v 1.44 2021/12/19 22:08:06 djm Exp $ */
+/* $OpenBSD: kexgexs.c,v 1.45 2023/03/05 05:34:09 dtucker Exp $ */
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
@@ -46,7 +46,6 @@
 #include "packet.h"
 #include "dh.h"
 #include "ssh2.h"
-#include "compat.h"
 #ifdef GSSAPI
 #include "ssh-gss.h"
 #endif

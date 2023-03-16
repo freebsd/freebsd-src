@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-pubkeyfile.c,v 1.3 2022/07/01 03:52:57 djm Exp $ */
+/* $OpenBSD: auth2-pubkeyfile.c,v 1.4 2023/03/05 05:34:09 dtucker Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2010 Damien Miller.  All rights reserved.
@@ -42,7 +42,6 @@
 #include "ssh.h"
 #include "log.h"
 #include "misc.h"
-#include "compat.h"
 #include "sshkey.h"
 #include "digest.h"
 #include "hostfile.h"

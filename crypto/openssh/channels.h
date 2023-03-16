@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.h,v 1.148 2023/01/18 02:00:10 djm Exp $ */
+/* $OpenBSD: channels.h,v 1.149 2023/03/04 03:22:59 dtucker Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -375,7 +375,7 @@ int	 permitopen_port(const char *);
 
 /* x11 forwarding */
 
-void	 channel_set_x11_refuse_time(struct ssh *, u_int);
+void	 channel_set_x11_refuse_time(struct ssh *, time_t);
 int	 x11_connect_display(struct ssh *);
 int	 x11_create_display_inet(struct ssh *, int, int, int, u_int *, int **);
 void	 x11_request_forwarding_with_spoofing(struct ssh *, int,

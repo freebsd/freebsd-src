@@ -123,3 +123,4 @@ jobs:
           regress/valgrind-out/
           regress/asan.log.*
           regress/msan.log.*
+          regress/log/*

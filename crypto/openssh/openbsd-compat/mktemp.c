@@ -34,6 +34,29 @@
 #include <ctype.h>
 #include <unistd.h>
 
+#ifdef mkstemp
+#undef mkstemp
+#endif
+int mkstemp(char *);
+
+/*
+ * From glibc man page: 'In glibc versions 2.06 and earlier, the file is
+ * created with permissions 0666, that is, read and write for all users.'
+ * Provide a wrapper to make sure the mask is reasonable (POSIX requires
+ * mode 0600, so mask off any other bits).
+ */
+int
+_ssh_mkstemp(char *template)
+{
+	mode_t mask;
+	int ret;
+
+	mask = umask(0177);
+	ret = mkstemp(template);
+	(void)umask(mask);
+	return ret;
+}
+
 #if !defined(HAVE_MKDTEMP)
 
 #define MKTEMP_NAME	0

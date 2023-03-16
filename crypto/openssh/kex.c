@@ -1,4 +1,4 @@
-/* $OpenBSD: kex.c,v 1.173 2022/11/07 10:05:38 dtucker Exp $ */
+/* $OpenBSD: kex.c,v 1.178 2023/03/12 10:40:39 dtucker Exp $ */
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
  *
@@ -57,10 +57,12 @@
 #include "misc.h"
 #include "dispatch.h"
 #include "monitor.h"
+#include "myproposal.h"
 
 #include "ssherr.h"
 #include "sshbuf.h"
 #include "digest.h"
+#include "xmalloc.h"
 
 /* prototype */
 static int kex_choose_conf(struct ssh *);
@@ -317,6 +319,61 @@ kex_assemble_names(char **listp, const char *def, const char *all)
 	return r;
 }
 
+/*
+ * Fill out a proposal array with dynamically allocated values, which may
+ * be modified as required for compatibility reasons.
+ * Any of the options may be NULL, in which case the default is used.
+ * Array contents must be freed by calling kex_proposal_free_entries.
+ */
+void
+kex_proposal_populate_entries(struct ssh *ssh, char *prop[PROPOSAL_MAX],
+    const char *kexalgos, const char *ciphers, const char *macs,
+    const char *comp, const char *hkalgs)
+{
+	const char *defpropserver[PROPOSAL_MAX] = { KEX_SERVER };
+	const char *defpropclient[PROPOSAL_MAX] = { KEX_CLIENT };
+	const char **defprop = ssh->kex->server ? defpropserver : defpropclient;
+	u_int i;
+
+	if (prop == NULL)
+		fatal_f("proposal missing");
+
+	for (i = 0; i < PROPOSAL_MAX; i++) {
+		switch(i) {
+		case PROPOSAL_KEX_ALGS:
+			prop[i] = compat_kex_proposal(ssh,
+			    kexalgos ? kexalgos : defprop[i]);
+			break;
+		case PROPOSAL_ENC_ALGS_CTOS:
+		case PROPOSAL_ENC_ALGS_STOC:
+			prop[i] = xstrdup(ciphers ? ciphers : defprop[i]);
+			break;
+		case PROPOSAL_MAC_ALGS_CTOS:
+		case PROPOSAL_MAC_ALGS_STOC:
+			prop[i]  = xstrdup(macs ? macs : defprop[i]);
+			break;
+		case PROPOSAL_COMP_ALGS_CTOS:
+		case PROPOSAL_COMP_ALGS_STOC:
+			prop[i] = xstrdup(comp ? comp : defprop[i]);
+			break;
+		case PROPOSAL_SERVER_HOST_KEY_ALGS:
+			prop[i] = xstrdup(hkalgs ? hkalgs : defprop[i]);
+			break;
+		default:
+			prop[i] = xstrdup(defprop[i]);
+		}
+	}
+}
+
+void
+kex_proposal_free_entries(char *prop[PROPOSAL_MAX])
+{
+	u_int i;
+
+	for (i = 0; i < PROPOSAL_MAX; i++)
+		free(prop[i]);
+}
+
 /* put algorithm proposal into buffer */
 int
 kex_prop2buf(struct sshbuf *b, char *proposal[PROPOSAL_MAX])
@@ -404,7 +461,6 @@ kex_prop_free(char **proposal)
 	free(proposal);
 }
 
-/* ARGSUSED */
 int
 kex_protocol_error(int type, u_int32_t seq, struct ssh *ssh)
 {
@@ -485,6 +541,11 @@ kex_input_ext_info(int type, u_int32_t seq, struct ssh *ssh)
 	ssh_dispatch_set(ssh, SSH2_MSG_EXT_INFO, &kex_protocol_error);
 	if ((r = sshpkt_get_u32(ssh, &ninfo)) != 0)
 		return r;
+	if (ninfo >= 1024) {
+		error("SSH2_MSG_EXT_INFO with too many entries, expected "
+		    "<=1024, received %u", ninfo);
+		return SSH_ERR_INVALID_FORMAT;
+	}
 	for (i = 0; i < ninfo; i++) {
 		if ((r = sshpkt_get_cstring(ssh, &name, NULL)) != 0)
 			return r;
@@ -585,7 +646,6 @@ kex_send_kexinit(struct ssh *ssh)
 	return 0;
 }
 
-/* ARGSUSED */
 int
 kex_input_kexinit(int type, u_int32_t seq, struct ssh *ssh)
 {
@@ -1345,7 +1405,7 @@ kex_exchange_identification(struct ssh *ssh, int timeout_ms,
 	}
 	peer_version_string = sshbuf_dup_string(peer_version);
 	if (peer_version_string == NULL)
-		error_f("sshbuf_dup_string failed");
+		fatal_f("sshbuf_dup_string failed");
 	/* XXX must be same size for sscanf */
 	if ((remote_version = calloc(1, sshbuf_len(peer_version))) == NULL) {
 		error_f("calloc failed");
@@ -1403,10 +1463,6 @@ kex_exchange_identification(struct ssh *ssh, int timeout_ms,
 		    peer_version_string);
 		r = SSH_ERR_CONN_CLOSED; /* XXX */
 		goto out;
-	}
-	if ((ssh->compat & SSH_BUG_RSASIGMD5) != 0) {
-		logit("Remote version \"%.100s\" uses unsafe RSA signature "
-		    "scheme; disabling use of RSA keys", remote_version);
 	}
 	/* success */
 	r = 0;

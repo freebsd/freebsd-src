@@ -1,4 +1,4 @@
-#	$OpenBSD: agent.sh,v 1.20 2021/02/25 03:27:34 djm Exp $
+#	$OpenBSD: agent.sh,v 1.21 2023/03/01 09:29:32 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="simple agent test"
@@ -9,7 +9,7 @@ if [ $? -ne 2 ]; then
 fi
 
 trace "start agent, args ${EXTRA_AGENT_ARGS} -s"
-eval `${SSHAGENT} ${EXTRA_AGENT_ARGS} -s` > /dev/null
+eval `${SSHAGENT} ${EXTRA_AGENT_ARGS} -s` >`ssh_logfile ssh-agent`
 r=$?
 if [ $r -ne 0 ]; then
 	fatal "could not start ssh-agent: exit code $r"

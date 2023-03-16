@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.c,v 1.427 2023/01/18 02:00:10 djm Exp $ */
+/* $OpenBSD: channels.c,v 1.430 2023/03/10 03:01:51 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -198,7 +198,7 @@ struct ssh_channels {
 	u_int x11_saved_data_len;
 
 	/* Deadline after which all X11 connections are refused */
-	u_int x11_refuse_time;
+	time_t x11_refuse_time;
 
 	/*
 	 * Fake X11 authentication data.  This is what the server will be
@@ -387,11 +387,11 @@ channel_register_fds(struct ssh *ssh, Channel *c, int rfd, int wfd, int efd,
 	int val;
 
 	if (rfd != -1)
-		fcntl(rfd, F_SETFD, FD_CLOEXEC);
+		(void)fcntl(rfd, F_SETFD, FD_CLOEXEC);
 	if (wfd != -1 && wfd != rfd)
-		fcntl(wfd, F_SETFD, FD_CLOEXEC);
+		(void)fcntl(wfd, F_SETFD, FD_CLOEXEC);
 	if (efd != -1 && efd != rfd && efd != wfd)
-		fcntl(efd, F_SETFD, FD_CLOEXEC);
+		(void)fcntl(efd, F_SETFD, FD_CLOEXEC);
 
 	c->rfd = rfd;
 	c->wfd = wfd;
@@ -1258,7 +1258,7 @@ x11_open_helper(struct ssh *ssh, struct sshbuf *b)
 
 	/* Is this being called after the refusal deadline? */
 	if (sc->x11_refuse_time != 0 &&
-	    (u_int)monotime() >= sc->x11_refuse_time) {
+	    monotime() >= sc->x11_refuse_time) {
 		verbose("Rejected X11 connection after ForwardX11Timeout "
 		    "expired");
 		return -1;
@@ -1879,7 +1879,7 @@ port_open_helper(struct ssh *ssh, Channel *c, char *rtype)
 }
 
 void
-channel_set_x11_refuse_time(struct ssh *ssh, u_int refuse_time)
+channel_set_x11_refuse_time(struct ssh *ssh, time_t refuse_time)
 {
 	ssh->chanctxt->x11_refuse_time = refuse_time;
 }
@@ -1986,11 +1986,14 @@ channel_post_connecting(struct ssh *ssh, Channel *c)
 		fatal_f("channel %d: no remote id", c->self);
 	/* for rdynamic the OPEN_CONFIRMATION has been sent already */
 	isopen = (c->type == SSH_CHANNEL_RDYNAMIC_FINISH);
+
 	if (getsockopt(c->sock, SOL_SOCKET, SO_ERROR, &err, &sz) == -1) {
 		err = errno;
 		error("getsockopt SO_ERROR failed");
 	}
+
 	if (err == 0) {
+		/* Non-blocking connection completed */
 		debug("channel %d: connected to %s port %d",
 		    c->self, c->connect_ctx.host, c->connect_ctx.port);
 		channel_connect_ctx_free(&c->connect_ctx);
@@ -2008,16 +2011,17 @@ channel_post_connecting(struct ssh *ssh, Channel *c)
 			    (r = sshpkt_send(ssh)) != 0)
 				fatal_fr(r, "channel %i open confirm", c->self);
 		}
-	} else {
-		debug("channel %d: connection failed: %s",
-		    c->self, strerror(err));
-		/* Try next address, if any */
-		if ((sock = connect_next(&c->connect_ctx)) > 0) {
-			close(c->sock);
-			c->sock = c->rfd = c->wfd = sock;
-			return;
-		}
-		/* Exhausted all addresses */
+		return;
+	}
+	if (err == EINTR || err == EAGAIN || err == EINPROGRESS)
+		return;
+
+	/* Non-blocking connection failed */
+	debug("channel %d: connection failed: %s", c->self, strerror(err));
+
+	/* Try next address, if any */
+	if ((sock = connect_next(&c->connect_ctx)) == -1) {
+		/* Exhausted all addresses for this destination */
 		error("connect_to %.100s port %d: failed.",
 		    c->connect_ctx.host, c->connect_ctx.port);
 		channel_connect_ctx_free(&c->connect_ctx);
@@ -2036,6 +2040,10 @@ channel_post_connecting(struct ssh *ssh, Channel *c)
 			chan_mark_dead(ssh, c);
 		}
 	}
+
+	/* New non-blocking connection in progress */
+	close(c->sock);
+	c->sock = c->rfd = c->wfd = sock;
 }
 
 static int
