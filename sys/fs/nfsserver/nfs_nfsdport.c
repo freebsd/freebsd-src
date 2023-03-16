@@ -2759,7 +2759,8 @@ again:
 				NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 				txdr_hyper(*cookiep, tl);
 				nfsrv_postopattr(nd, 0, nvap);
-				dirlen += nfsm_fhtom(nd,(u_int8_t *)&nfh,0,1);
+				dirlen += nfsm_fhtom(NULL, nd, (u_int8_t *)&nfh,
+				    0, 1);
 				dirlen += (5*NFSX_UNSIGNED+NFSX_V3POSTOPATTR);
 				if (nvp != NULL)
 					vput(nvp);

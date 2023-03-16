@@ -327,7 +327,8 @@ int nfsaddr_match(int, union nethostaddr *, NFSSOCKADDR_T);
 int nfsaddr2_match(NFSSOCKADDR_T, NFSSOCKADDR_T);
 int nfsm_strtom(struct nfsrv_descript *, const char *, int);
 int nfsm_mbufuio(struct nfsrv_descript *, struct uio *, int);
-int nfsm_fhtom(struct nfsrv_descript *, u_int8_t *, int, int);
+int nfsm_fhtom(struct nfsmount *, struct nfsrv_descript *, u_int8_t *, int,
+    int);
 int nfsm_advance(struct nfsrv_descript *, int, int);
 void *nfsm_dissct(struct nfsrv_descript *, int, int);
 void newnfs_copycred(struct nfscred *, struct ucred *);
@@ -510,7 +511,7 @@ int nfsrpc_lockt(struct nfsrv_descript *, vnode_t,
 int nfsrpc_lock(struct nfsrv_descript *, struct nfsmount *, vnode_t,
     u_int8_t *, int, struct nfscllockowner *, int, int, u_int64_t,
     u_int64_t, short, struct ucred *, NFSPROC_T *, int);
-int nfsrpc_statfs(vnode_t, struct nfsstatfs *, struct nfsfsinfo *,
+int nfsrpc_statfs(vnode_t, struct nfsstatfs *, struct nfsfsinfo *, uint32_t *,
     struct ucred *, NFSPROC_T *, struct nfsvattr *, int *);
 int nfsrpc_fsinfo(vnode_t, struct nfsfsinfo *, struct ucred *,
     NFSPROC_T *, struct nfsvattr *, int *);
