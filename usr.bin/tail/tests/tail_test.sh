@@ -392,6 +392,19 @@ si_number_body() {
 	atf_check cmp outfile expectfile
 }
 
+atf_test_case no_lf_at_eof
+no_lf_at_eof_head()
+{
+	atf_set "descr" "File does not end in newline"
+}
+no_lf_at_eof_body()
+{
+	printf "a\nb\nc" >infile
+	atf_check -o inline:"c" tail -1 infile
+	atf_check -o inline:"b\nc" tail -2 infile
+	atf_check -o inline:"a\nb\nc" tail -3 infile
+	atf_check -o inline:"a\nb\nc" tail -4 infile
+}
 
 atf_init_test_cases()
 {
@@ -416,4 +429,5 @@ atf_init_test_cases()
 	atf_add_test_case silent_header
 	atf_add_test_case verbose_header
 	atf_add_test_case si_number
+	atf_add_test_case no_lf_at_eof
 }
