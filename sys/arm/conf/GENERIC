@@ -247,6 +247,11 @@ device		videomode
 device		hdmi
 device		vchiq
 
+# IMX6 HDMI Controller
+device		dwc_hdmi
+device		imx6_hdmi
+device		imx6_ipu
+
 # Pinmux
 device		fdt_pinctrl
 
