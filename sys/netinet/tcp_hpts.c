@@ -1344,7 +1344,7 @@ again:
 			}
 			CURVNET_SET(inp->inp_vnet);
 			/* Lets do any logging that we might want to */
-			if (hpts_does_tp_logging && (tp->t_logstate != TCP_LOG_STATE_OFF)) {
+			if (hpts_does_tp_logging && tcp_bblogging_on(tp)) {
 				tcp_hpts_log(hpts, tp, &tv, slots_to_run, i, from_callout);
 			}
 

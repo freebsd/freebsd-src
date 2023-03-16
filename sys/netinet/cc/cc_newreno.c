@@ -139,7 +139,7 @@ newreno_log_hystart_event(struct cc_var *ccv, struct newreno *nreno, uint8_t mod
 	if (hystart_bblogs == 0)
 		return;
 	tp = ccv->ccvc.tcp;
-	if (tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(tp)) {
 		union tcp_log_stackspecific log;
 		struct timeval tv;
 

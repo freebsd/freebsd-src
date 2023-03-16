@@ -81,9 +81,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp.h>
 #define	TCPOUTFLAGS
 #include <netinet/tcp_fsm.h>
-#include <netinet/tcp_log_buf.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_var.h>
+#include <netinet/tcp_log_buf.h>
 #include <netinet/tcp_syncache.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcpip.h>
@@ -1411,8 +1411,9 @@ send:
 
 	/* We're getting ready to send; log now. */
 	/* XXXMT: We are not honoring verbose logging. */
-	if (tp->t_logstate != TCP_LOG_STATE_OFF)
-		lgb = tcp_log_event_(tp, th, &so->so_rcv, &so->so_snd,
+
+	if (tcp_bblogging_on(tp))
+		lgb = tcp_log_event(tp, th, &so->so_rcv, &so->so_snd,
 		    TCP_LOG_OUT, ERRNO_UNK, len, NULL, false, NULL, NULL, 0,
 		    NULL);
 	else

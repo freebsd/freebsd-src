@@ -67,9 +67,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
-#include <netinet/tcp_log_buf.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
+#include <netinet/tcp_log_buf.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/cc/cc.h>
 #ifdef INET6
@@ -796,8 +796,8 @@ tcp_bblog_timer(struct tcpcb *tp, tt_which which, tt_what what, uint32_t ticks)
 	uint64_t ms;
 
 	INP_WLOCK_ASSERT(tptoinpcb(tp));
-	if (tp->t_logstate != TCP_LOG_STATE_OFF)
-		lgb = tcp_log_event_(tp, NULL, NULL, NULL, TCP_LOG_RTO, 0, 0,
+	if (tcp_bblogging_on(tp))
+		lgb = tcp_log_event(tp, NULL, NULL, NULL, TCP_LOG_RTO, 0, 0,
 		    NULL, false, NULL, NULL, 0, NULL);
 	else
 		lgb = NULL;

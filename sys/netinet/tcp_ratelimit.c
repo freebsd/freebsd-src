@@ -1572,7 +1572,7 @@ tcp_log_pacing_size(struct tcpcb *tp, uint64_t bw, uint32_t segsiz, uint32_t new
 		    uint64_t hw_rate, uint32_t time_between, uint32_t calc_time_between,
 		    uint32_t segs, uint32_t res_div, uint16_t mult, uint8_t mod)
 {
-	if (tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(tp)) {
 		union tcp_log_stackspecific log;
 		struct timeval tv;
 

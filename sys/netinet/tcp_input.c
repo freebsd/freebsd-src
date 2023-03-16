@@ -104,10 +104,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/nd6.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
-#include <netinet/tcp_log_buf.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
+#include <netinet/tcp_log_buf.h>
 #include <netinet6/tcp6_var.h>
 #include <netinet/tcpip.h>
 #include <netinet/cc/cc.h>

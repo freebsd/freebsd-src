@@ -25,15 +25,7 @@
 #define CYC_HANDLE_MAP 11
 #define CYC_HANDLE_ACK 12
 
-/* Should the tp->xxx array's be alloc'ed? */
 /* #define TCP_NUM_PROC_COUNTERS 11 defined in tcp_var.h */
 /* #define TCP_NUM_CNT_COUNTERS 13 defined in tcp_var.h */
-
-#ifdef _KERNEL
-#ifdef TCP_ACCOUNTING
-extern counter_u64_t tcp_cnt_counters[TCP_NUM_CNT_COUNTERS];
-extern counter_u64_t tcp_proc_time[TCP_NUM_PROC_COUNTERS];
-#endif
-#endif
 
 #endif
