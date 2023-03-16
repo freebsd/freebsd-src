@@ -28,7 +28,7 @@
 .\"	@(#)sysctl.3	8.4 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd October 18, 2021
+.Dd March 16, 2023
 .Dt SYSCTL 3
 .Os
 .Sh NAME
@@ -354,7 +354,6 @@ information.
 .It Dv KERN_SECURELVL Ta integer Ta raise only
 .It Dv KERN_UPDATEINTERVAL Ta integer Ta no
 .It Dv KERN_VERSION Ta string Ta no
-.It Dv KERN_VNODE Ta struct xvnode Ta no
 .El
 .Bl -tag -width 6n
 .It Li KERN_ARGMAX
@@ -487,14 +486,6 @@ This level may be raised by processes with appropriate privilege.
 It may not be lowered.
 .It Li KERN_VERSION
 The system version string.
-.It Li KERN_VNODE
-Return the entire vnode table.
-Note, the vnode table is not necessarily a consistent snapshot of
-the system.
-The returned data consists of an array whose size depends on the
-current number of such objects in the system.
-Each element of the array consists of a
-.Va struct xvnode .
 .El
 .Ss CTL_NET
 The string and integer information available for the CTL_NET level
