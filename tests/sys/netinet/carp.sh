@@ -263,10 +263,35 @@ nd6_ns_source_mac_cleanup()
 }
 
 
+atf_test_case "switch" "cleanup"
+switch_head()
+{
+	atf_set descr 'Switch between master and backup'
+	atf_set require.user root
+}
+
+switch_body()
+{
+	carp_init
+
+	epair=$(vnet_mkepair)
+
+	ifconfig ${epair}a up
+	ifconfig ${epair}a vhid 1 advskew 100 192.0.2.1/24
+	ifconfig ${epair}a vhid 1 state backup
+	ifconfig ${epair}a vhid 1 state master
+}
+
+switch_cleanup()
+{
+	vnet_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic_v4"
 	atf_add_test_case "basic_v6"
 	atf_add_test_case "negative_demotion"
 	atf_add_test_case "nd6_ns_source_mac"
+	atf_add_test_case "switch"
 }
