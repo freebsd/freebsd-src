@@ -101,6 +101,7 @@ psci_call(register_t a, register_t b, register_t c, register_t d)
 
 #define	PSCI_VER_MAJOR(v)		(((v) >> 16) & 0xFF)
 #define	PSCI_VER_MINOR(v)		((v) & 0xFF)
+#define	PSCI_VER(maj, min)		(((maj) << 16) | (min))
 
 #ifdef _KERNEL
 enum psci_fn {
