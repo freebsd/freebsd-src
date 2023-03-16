@@ -46,6 +46,7 @@ jobs:
         name: ${{ matrix.target }}-${{ matrix.config }}-logs
         path: |
           /usr/obj/regress/usr.bin/ssh/obj/*.log
+          /usr/obj/regress/usr.bin/ssh/obj/log/*
     - name: shutdown VM
       if: always()
       run: vmshutdown

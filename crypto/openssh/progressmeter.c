@@ -1,4 +1,4 @@
-/* $OpenBSD: progressmeter.c,v 1.50 2020/01/23 07:10:22 dtucker Exp $ */
+/* $OpenBSD: progressmeter.c,v 1.52 2023/03/08 04:43:12 guenther Exp $ */
 /*
  * Copyright (c) 2003 Nils Nordman.  All rights reserved.
  *
@@ -30,8 +30,11 @@
 #include <sys/uio.h>
 
 #include <errno.h>
+#include <limits.h>
+#include <signal.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -50,10 +53,6 @@
 
 /* determines whether we can output to the terminal */
 static int can_output(void);
-
-/* formats and inserts the specified size into the given buffer */
-static void format_size(char *, int, off_t);
-static void format_rate(char *, int, off_t);
 
 /* window resizing */
 static void sig_winch(int);
@@ -84,10 +83,14 @@ can_output(void)
 	return (getpgrp() == tcgetpgrp(STDOUT_FILENO));
 }
 
-static void
-format_rate(char *buf, int size, off_t bytes)
+/* size needed to format integer type v, using (nbits(v) * log2(10) / 10) */
+#define STRING_SIZE(v) (((sizeof(v) * 8 * 4) / 10) + 1)
+
+static const char *
+format_rate(off_t bytes)
 {
 	int i;
+	static char buf[STRING_SIZE(bytes) * 2 + 16];
 
 	bytes *= 100;
 	for (i = 0; bytes >= 100*1000 && unit[i] != 'T'; i++)
@@ -96,37 +99,40 @@ format_rate(char *buf, int size, off_t bytes)
 		i++;
 		bytes = (bytes + 512) / 1024;
 	}
-	snprintf(buf, size, "%3lld.%1lld%c%s",
+	snprintf(buf, sizeof(buf), "%3lld.%1lld%c%s",
 	    (long long) (bytes + 5) / 100,
 	    (long long) (bytes + 5) / 10 % 10,
 	    unit[i],
 	    i ? "B" : " ");
+	return buf;
 }
 
-static void
-format_size(char *buf, int size, off_t bytes)
+static const char *
+format_size(off_t bytes)
 {
 	int i;
+	static char buf[STRING_SIZE(bytes) + 16];
 
 	for (i = 0; bytes >= 10000 && unit[i] != 'T'; i++)
 		bytes = (bytes + 512) / 1024;
-	snprintf(buf, size, "%4lld%c%s",
+	snprintf(buf, sizeof(buf), "%4lld%c%s",
 	    (long long) bytes,
 	    unit[i],
 	    i ? "B" : " ");
+	return buf;
 }
 
 void
 refresh_progress_meter(int force_update)
 {
-	char buf[MAX_WINSIZE + 1];
+	char *buf = NULL, *obuf = NULL;
 	off_t transferred;
 	double elapsed, now;
 	int percent;
 	off_t bytes_left;
 	int cur_speed;
 	int hours, minutes, seconds;
-	int file_len;
+	int file_len, cols;
 
 	if ((!force_update && !alarm_fired && !win_resized) || !can_output())
 		return;
@@ -164,32 +170,29 @@ refresh_progress_meter(int force_update)
 	} else
 		bytes_per_second = cur_speed;
 
-	/* filename */
-	buf[0] = '\0';
-	file_len = win_size - 36;
-	if (file_len > 0) {
-		buf[0] = '\r';
-		snmprintf(buf+1, sizeof(buf)-1, &file_len, "%-*s",
-		    file_len, file);
-	}
+	last_update = now;
 
+	/* Don't bother if we can't even display the completion percentage */
+	if (win_size < 4)
+		return;
+
+	/* filename */
+	file_len = cols = win_size - 36;
+	if (file_len > 0) {
+		asmprintf(&buf, INT_MAX, &cols, "%-*s", file_len, file);
+		/* If we used fewer columns than expected then pad */
+		if (cols < file_len)
+			xextendf(&buf, NULL, "%*s", file_len - cols, "");
+	}
 	/* percent of transfer done */
 	if (end_pos == 0 || cur_pos == end_pos)
 		percent = 100;
 	else
 		percent = ((float)cur_pos / end_pos) * 100;
-	snprintf(buf + strlen(buf), win_size - strlen(buf),
-	    " %3d%% ", percent);
 
-	/* amount transferred */
-	format_size(buf + strlen(buf), win_size - strlen(buf),
-	    cur_pos);
-	strlcat(buf, " ", win_size);
-
-	/* bandwidth usage */
-	format_rate(buf + strlen(buf), win_size - strlen(buf),
-	    (off_t)bytes_per_second);
-	strlcat(buf, "/s ", win_size);
+	/* percent / amount transferred / bandwidth usage */
+	xextendf(&buf, NULL, " %3d%% %s %s/s ", percent, format_size(cur_pos),
+	    format_rate((off_t)bytes_per_second));
 
 	/* ETA */
 	if (!transferred)
@@ -198,9 +201,9 @@ refresh_progress_meter(int force_update)
 		stalled = 0;
 
 	if (stalled >= STALL_TIME)
-		strlcat(buf, "- stalled -", win_size);
+		xextendf(&buf, NULL, "- stalled -");
 	else if (bytes_per_second == 0 && bytes_left)
-		strlcat(buf, "  --:-- ETA", win_size);
+		xextendf(&buf, NULL, "  --:-- ETA");
 	else {
 		if (bytes_left > 0)
 			seconds = bytes_left / bytes_per_second;
@@ -212,24 +215,29 @@ refresh_progress_meter(int force_update)
 		minutes = seconds / 60;
 		seconds -= minutes * 60;
 
-		if (hours != 0)
-			snprintf(buf + strlen(buf), win_size - strlen(buf),
-			    "%d:%02d:%02d", hours, minutes, seconds);
-		else
-			snprintf(buf + strlen(buf), win_size - strlen(buf),
-			    "  %02d:%02d", minutes, seconds);
+		if (hours != 0) {
+			xextendf(&buf, NULL, "%d:%02d:%02d",
+			    hours, minutes, seconds);
+		} else
+			xextendf(&buf, NULL, "  %02d:%02d", minutes, seconds);
 
 		if (bytes_left > 0)
-			strlcat(buf, " ETA", win_size);
+			xextendf(&buf, NULL, " ETA");
 		else
-			strlcat(buf, "    ", win_size);
+			xextendf(&buf, NULL, "    ");
 	}
 
-	atomicio(vwrite, STDOUT_FILENO, buf, win_size - 1);
-	last_update = now;
+	/* Finally, truncate string at window width */
+	cols = win_size - 1;
+	asmprintf(&obuf, INT_MAX, &cols, " %s", buf);
+	if (obuf != NULL) {
+		*obuf = '\r'; /* must insert as asmprintf() would escape it */
+		atomicio(vwrite, STDOUT_FILENO, obuf, strlen(obuf));
+	}
+	free(buf);
+	free(obuf);
 }
 
-/*ARGSUSED*/
 static void
 sig_alarm(int ignore)
 {
@@ -272,7 +280,6 @@ stop_progress_meter(void)
 	atomicio(vwrite, STDOUT_FILENO, "\n", 1);
 }
 
-/*ARGSUSED*/
 static void
 sig_winch(int sig)
 {
