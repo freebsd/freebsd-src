@@ -111,7 +111,7 @@ oquota(struct thread *td, struct oquota_args *uap)
 
 #define	KINFO_PROC		(0<<8)
 #define	KINFO_RT		(1<<8)
-#define	KINFO_VNODE		(2<<8)
+/* UNUSED, was KINFO_VNODE (2<<8) */
 #define	KINFO_FILE		(3<<8)
 #define	KINFO_METER		(4<<8)
 #define	KINFO_LOADAVG		(5<<8)
@@ -181,13 +181,6 @@ ogetkerninfo(struct thread *td, struct ogetkerninfo_args *uap)
 		name[4] = uap->op & 0xff;
 		name[5] = uap->arg;
 		error = userland_sysctl(td, name, 6, uap->where, uap->size,
-			0, 0, 0, &size, 0);
-		break;
-
-	case KINFO_VNODE:
-		name[0] = CTL_KERN;
-		name[1] = KERN_VNODE;
-		error = userland_sysctl(td, name, 2, uap->where, uap->size,
 			0, 0, 0, &size, 0);
 		break;
 

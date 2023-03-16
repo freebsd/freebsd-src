@@ -199,36 +199,6 @@ _Static_assert(sizeof(struct vnode) <= 448, "vnode size crosses 448 bytes");
 /* XXX: These are temporary to avoid a source sweep at this time */
 #define v_object	v_bufobj.bo_object
 
-/*
- * Userland version of struct vnode, for sysctl.
- */
-struct xvnode {
-	size_t	xv_size;			/* sizeof(struct xvnode) */
-	void	*xv_vnode;			/* address of real vnode */
-	u_long	xv_flag;			/* vnode vflags */
-	int	xv_usecount;			/* reference count of users */
-	int	xv_writecount;			/* reference count of writers */
-	int	xv_holdcnt;			/* page & buffer references */
-	u_long	xv_id;				/* capability identifier */
-	void	*xv_mount;			/* address of parent mount */
-	long	xv_numoutput;			/* num of writes in progress */
-	enum	vtype xv_type;			/* vnode type */
-	union {
-		void	*xvu_socket;		/* unpcb, if VSOCK */
-		void	*xvu_fifo;		/* fifo, if VFIFO */
-		dev_t	xvu_rdev;		/* maj/min, if VBLK/VCHR */
-		struct {
-			dev_t	xvu_dev;	/* device, if VDIR/VREG/VLNK */
-			ino_t	xvu_ino;	/* id, if VDIR/VREG/VLNK */
-		} xv_uns;
-	} xv_un;
-};
-#define xv_socket	xv_un.xvu_socket
-#define xv_fifo		xv_un.xvu_fifo
-#define xv_rdev		xv_un.xvu_rdev
-#define xv_dev		xv_un.xv_uns.xvu_dev
-#define xv_ino		xv_un.xv_uns.xvu_ino
-
 /* We don't need to lock the knlist */
 #define	VN_KNLIST_EMPTY(vp) ((vp)->v_pollinfo == NULL ||	\
 	    KNLIST_EMPTY(&(vp)->v_pollinfo->vpi_selinfo.si_note))
