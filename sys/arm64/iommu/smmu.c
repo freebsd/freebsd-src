@@ -1655,7 +1655,7 @@ smmu_unmap(device_t dev, struct iommu_domain *iodom,
 	dprintf("%s: %lx, %ld, domain %d\n", __func__, va, size, domain->asid);
 
 	for (i = 0; i < size; i += PAGE_SIZE) {
-		if (pmap_smmu_remove(&domain->p, va) == 0) {
+		if (smmu_pmap_remove(&domain->p, va) == 0) {
 			/* pmap entry removed, invalidate TLB. */
 			smmu_tlbi_va(sc, va, domain->asid);
 		} else {
@@ -1690,7 +1690,7 @@ smmu_map(device_t dev, struct iommu_domain *iodom,
 
 	for (i = 0; size > 0; size -= PAGE_SIZE) {
 		pa = VM_PAGE_TO_PHYS(ma[i++]);
-		error = pmap_smmu_enter(&domain->p, va, pa, prot, 0);
+		error = smmu_pmap_enter(&domain->p, va, pa, prot, 0);
 		if (error)
 			return (error);
 		smmu_tlbi_va(sc, va, domain->asid);
@@ -1728,7 +1728,7 @@ smmu_domain_alloc(device_t dev, struct iommu_unit *iommu)
 
 	domain->asid = (uint16_t)new_asid;
 
-	iommu_pmap_pinit(&domain->p);
+	smmu_pmap_pinit(&domain->p);
 	PMAP_LOCK_INIT(&domain->p);
 
 	error = smmu_init_cd(sc, domain);
@@ -1772,8 +1772,8 @@ smmu_domain_free(device_t dev, struct iommu_domain *iodom)
 
 	cd = domain->cd;
 
-	iommu_pmap_remove_pages(&domain->p);
-	iommu_pmap_release(&domain->p);
+	smmu_pmap_remove_pages(&domain->p);
+	smmu_pmap_release(&domain->p);
 
 	smmu_tlbi_asid(sc, domain->asid);
 	smmu_asid_free(sc, domain->asid);
