@@ -83,6 +83,10 @@ struct nexus_device {
 	struct resource_list	nx_resources;
 };
 
+static int force_np;
+SYSCTL_INT(_kern, OID_AUTO, force_nonposted, CTLFLAG_RDTUN, &force_np, 0,
+    "Force all devices to use non-posted device memory");
+
 #define DEVTONX(dev)	((struct nexus_device *)device_get_ivars(dev))
 
 static struct rman mem_rman;
@@ -373,7 +377,7 @@ nexus_activate_resource_flags(device_t bus, device_t child, int type, int rid,
 {
 	struct resource_map_request args;
 	struct resource_map map;
-	int err;
+	int err, use_np;
 
 	if ((err = rman_activate_resource(r)) != 0)
 		return (err);
@@ -386,7 +390,13 @@ nexus_activate_resource_flags(device_t bus, device_t child, int type, int rid,
 	case SYS_RES_MEMORY:
 		if ((rman_get_flags(r) & RF_UNMAPPED) == 0) {
 			resource_init_map_request(&args);
-			if ((flags & BUS_SPACE_MAP_NONPOSTED) != 0)
+			use_np = (flags & BUS_SPACE_MAP_NONPOSTED) != 0 ||
+			    force_np;
+			if (!use_np)
+				resource_int_value(device_get_name(child),
+				    device_get_unit(child), "force_nonposted",
+				    &use_np);
+			if (use_np)
 				args.memattr = VM_MEMATTR_DEVICE_NP;
 			err = nexus_map_resource(bus, child, type, r, &args,
 			    &map);
