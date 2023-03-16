@@ -80,10 +80,6 @@ __FBSDID("$FreeBSD$");
 #define	smmu_l2_index(va)	(((va) >> IOMMU_L2_SHIFT) & IOMMU_Ln_ADDR_MASK)
 #define	smmu_l3_index(va)	(((va) >> IOMMU_L3_SHIFT) & IOMMU_Ln_ADDR_MASK)
 
-/* This code assumes all L1 DMAP entries will be used */
-CTASSERT((DMAP_MIN_ADDRESS  & ~IOMMU_L0_OFFSET) == DMAP_MIN_ADDRESS);
-CTASSERT((DMAP_MAX_ADDRESS  & ~IOMMU_L0_OFFSET) == DMAP_MAX_ADDRESS);
-
 static vm_page_t _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex);
 static void _smmu_pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m,
     struct spglist *free);
