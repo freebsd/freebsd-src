@@ -996,7 +996,9 @@ nfs_getattr(struct vop_getattr_args *ap)
 	struct nfsvattr nfsva;
 	struct vattr *vap = ap->a_vap;
 	struct vattr vattr;
+	struct nfsmount *nmp;
 
+	nmp = VFSTONFS(vp->v_mount);
 	/*
 	 * Update local times for special files.
 	 */
@@ -1006,8 +1008,10 @@ nfs_getattr(struct vop_getattr_args *ap)
 	NFSUNLOCKNODE(np);
 	/*
 	 * First look in the cache.
+	 * For "syskrb5" mounts, nm_fhsize might still be zero and
+	 * cached attributes should be ignored.
 	 */
-	if (ncl_getattrcache(vp, &vattr) == 0) {
+	if (nmp->nm_fhsize > 0 && ncl_getattrcache(vp, &vattr) == 0) {
 		ncl_copy_vattr(vap, &vattr);
 
 		/*

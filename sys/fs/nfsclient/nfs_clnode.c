@@ -156,8 +156,8 @@ ncl_nget(struct mount *mntp, u_int8_t *fhp, int fhsize, struct nfsnode **npp,
 	 * Are we getting the root? If so, make sure the vnode flags
 	 * are correct 
 	 */
-	if ((fhsize == nmp->nm_fhsize) &&
-	    !bcmp(fhp, nmp->nm_fh, fhsize)) {
+	if (fhsize == NFSX_FHMAX + 1 || (fhsize == nmp->nm_fhsize &&
+	    !bcmp(fhp, nmp->nm_fh, fhsize))) {
 		if (vp->v_type == VNON)
 			vp->v_type = VDIR;
 		vp->v_vflag |= VV_ROOT;

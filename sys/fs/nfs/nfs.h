@@ -522,6 +522,13 @@ typedef struct {
 	(b)->bits[2] = NFSGETATTRBIT_STATFS2;				\
 } while (0)
 
+#define	NFSROOTFS_GETATTRBIT(b)	do { 					\
+	(b)->bits[0] = NFSGETATTRBIT_STATFS0 | NFSATTRBIT_GETATTR0 |	\
+	    NFSATTRBM_LEASETIME;					\
+	(b)->bits[1] = NFSGETATTRBIT_STATFS1 | NFSATTRBIT_GETATTR1;	\
+	(b)->bits[2] = NFSGETATTRBIT_STATFS2 | NFSATTRBIT_GETATTR2;	\
+} while (0)
+
 #define	NFSISSETSTATFS_ATTRBIT(b) 					\
 		(((b)->bits[0] & NFSATTRBIT_STATFS0) || 		\
 		 ((b)->bits[1] & NFSATTRBIT_STATFS1) ||			\
