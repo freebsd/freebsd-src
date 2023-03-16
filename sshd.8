@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.322 2023/01/18 01:50:21 millert Exp $
-.Dd $Mdocdate: January 18 2023 $
+.\" $OpenBSD: sshd.8,v 1.324 2023/02/10 06:39:27 jmc Exp $
+.Dd $Mdocdate: February 10 2023 $
 .Dt SSHD 8
 .Os
 .Sh NAME
@@ -43,7 +43,7 @@
 .Sh SYNOPSIS
 .Nm sshd
 .Bk -words
-.Op Fl 46DdeiqTtV
+.Op Fl 46DdeGiqTtV
 .Op Fl C Ar connection_spec
 .Op Fl c Ar host_certificate_file
 .Op Fl E Ar log_file
@@ -154,6 +154,15 @@ The default is
 .Pa /etc/ssh/sshd_config .
 .Nm
 refuses to start if there is no configuration file.
+.It Fl G
+Parse and print configuration file.
+Check the validity of the configuration file, output the effective configuration
+to stdout and then exit.
+Optionally,
+.Cm Match
+rules may be applied by specifying the connection parameters using one or more
+.Fl C
+options.
 .It Fl g Ar login_grace_time
 Gives the grace time for clients to authenticate themselves (default
 120 seconds).
@@ -208,6 +217,11 @@ Optionally,
 rules may be applied by specifying the connection parameters using one or more
 .Fl C
 options.
+This is similar to the
+.Fl G
+flag, but it includes the additional testing performed by the
+.Fl t
+flag.
 .It Fl t
 Test mode.
 Only check the validity of the configuration file and sanity of the keys.

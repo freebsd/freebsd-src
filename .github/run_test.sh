@@ -21,7 +21,7 @@ if [ ! -z "$SUDO" ] && [ ! -z "$TEST_SSH_HOSTBASED_AUTH" ]; then
 fi
 
 output_failed_logs() {
-    for i in regress/failed*; do
+    for i in regress/failed*.log; do
         if [ -f "$i" ]; then
             echo -------------------------------------------------------------------------
             echo LOGFILE $i

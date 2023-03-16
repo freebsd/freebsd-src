@@ -1,5 +1,5 @@
 
-/* $OpenBSD: servconf.c,v 1.390 2023/01/17 09:44:48 djm Exp $ */
+/* $OpenBSD: servconf.c,v 1.392 2023/03/05 05:34:09 dtucker Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -54,7 +54,6 @@
 #include "sshbuf.h"
 #include "misc.h"
 #include "servconf.h"
-#include "compat.h"
 #include "pathnames.h"
 #include "cipher.h"
 #include "sshkey.h"
@@ -2917,8 +2916,16 @@ dump_cfg_strarray_oneline(ServerOpCodes code, u_int count, char **vals)
 {
 	u_int i;
 
-	if (count <= 0 && code != sAuthenticationMethods)
-		return;
+	switch (code) {
+	case sAuthenticationMethods:
+	case sChannelTimeout:
+		break;
+	default:
+		if (count <= 0)
+			return;
+		break;
+	}
+
 	printf("%s", lookup_opcode_name(code));
 	for (i = 0; i < count; i++)
 		printf(" %s",  vals[i]);

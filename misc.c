@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.c,v 1.180 2023/01/06 02:37:04 djm Exp $ */
+/* $OpenBSD: misc.c,v 1.181 2023/03/03 02:37:58 dtucker Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2005-2020 Damien Miller.  All rights reserved.
@@ -2451,9 +2451,6 @@ parse_absolute_time(const char *s, uint64_t *tp)
 	*tp = (uint64_t)tt;
 	return 0;
 }
-
-/* On OpenBSD time_t is int64_t which is long long. */
-/* #define SSH_TIME_T_MAX LLONG_MAX */
 
 void
 format_absolute_time(uint64_t t, char *buf, size_t len)

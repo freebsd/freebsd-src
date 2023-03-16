@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2.c,v 1.164 2022/02/23 11:18:13 djm Exp $ */
+/* $OpenBSD: auth2.c,v 1.166 2023/03/08 04:43:12 guenther Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -46,7 +46,6 @@
 #include "sshbuf.h"
 #include "misc.h"
 #include "servconf.h"
-#include "compat.h"
 #include "sshkey.h"
 #include "hostfile.h"
 #include "auth.h"
@@ -178,7 +177,6 @@ do_authentication2(struct ssh *ssh)
 	ssh->authctxt = NULL;
 }
 
-/*ARGSUSED*/
 static int
 input_service_request(int type, u_int32_t seq, struct ssh *ssh)
 {
@@ -256,7 +254,6 @@ ensure_minimum_time_since(double start, double seconds)
 	nanosleep(&ts, NULL);
 }
 
-/*ARGSUSED*/
 static int
 input_userauth_request(int type, u_int32_t seq, struct ssh *ssh)
 {

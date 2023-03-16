@@ -4,7 +4,7 @@ NAME
      sshd M-bM-^@M-^S OpenSSH daemon
 
 SYNOPSIS
-     sshd [-46DdeiqTtV] [-C connection_spec] [-c host_certificate_file]
+     sshd [-46DdeGiqTtV] [-C connection_spec] [-c host_certificate_file]
           [-E log_file] [-f config_file] [-g login_grace_time]
           [-h host_key_file] [-o option] [-p port] [-u len]
 
@@ -67,6 +67,12 @@ DESCRIPTION
              /etc/ssh/sshd_config.  sshd refuses to start if there is no
              configuration file.
 
+     -G      Parse and print configuration file.  Check the validity of the
+             configuration file, output the effective configuration to stdout
+             and then exit.  Optionally, Match rules may be applied by
+             specifying the connection parameters using one or more -C
+             options.
+
      -g login_grace_time
              Gives the grace time for clients to authenticate themselves
              (default 120 seconds).  If the client fails to authenticate the
@@ -103,7 +109,9 @@ DESCRIPTION
      -T      Extended test mode.  Check the validity of the configuration
              file, output the effective configuration to stdout and then exit.
              Optionally, Match rules may be applied by specifying the
-             connection parameters using one or more -C options.
+             connection parameters using one or more -C options.  This is
+             similar to the -G flag, but it includes the additional testing
+             performed by the -t flag.
 
      -t      Test mode.  Only check the validity of the configuration file and
              sanity of the keys.  This is useful for updating sshd reliably as
@@ -675,4 +683,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 7.2                    January 18, 2023                    OpenBSD 7.2
+OpenBSD 7.2                    February 10, 2023                   OpenBSD 7.2

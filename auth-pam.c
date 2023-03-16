@@ -351,11 +351,12 @@ import_environments(struct sshbuf *b)
 	/* Import environment from subprocess */
 	if ((r = sshbuf_get_u32(b, &num_env)) != 0)
 		fatal("%s: buffer error: %s", __func__, ssh_err(r));
-	if (num_env > 1024)
-		fatal("%s: received %u environment variables, expected <= 1024",
-		    __func__, num_env);
+	if (num_env > 1024) {
+		fatal_f("received %u environment variables, expected <= 1024",
+		    num_env);
+	}
 	sshpam_env = xcalloc(num_env + 1, sizeof(*sshpam_env));
-	debug3("PAM: num env strings %d", num_env);
+	debug3("PAM: num env strings %u", num_env);
 	for(i = 0; i < num_env; i++) {
 		if ((r = sshbuf_get_cstring(b, &(sshpam_env[i]), NULL)) != 0)
 			fatal("%s: buffer error: %s", __func__, ssh_err(r));
@@ -365,7 +366,11 @@ import_environments(struct sshbuf *b)
 	/* Import PAM environment from subprocess */
 	if ((r = sshbuf_get_u32(b, &num_env)) != 0)
 		fatal("%s: buffer error: %s", __func__, ssh_err(r));
-	debug("PAM: num PAM env strings %d", num_env);
+	if (num_env > 1024) {
+		fatal_f("received %u PAM env variables, expected <= 1024",
+		    num_env);
+	}
+	debug("PAM: num PAM env strings %u", num_env);
 	for (i = 0; i < num_env; i++) {
 		if ((r = sshbuf_get_cstring(b, &env, NULL)) != 0)
 			fatal("%s: buffer error: %s", __func__, ssh_err(r));

@@ -4,8 +4,8 @@ NAME
      ssh-keyscan M-bM-^@M-^S gather SSH public keys from servers
 
 SYNOPSIS
-     ssh-keyscan [-46cDHv] [-f file] [-p port] [-T timeout] [-t type]
-                 [host | addrlist namelist]
+     ssh-keyscan [-46cDHv] [-f file] [-O option] [-p port] [-T timeout]
+                 [-t type] [host | addrlist namelist]
 
 DESCRIPTION
      ssh-keyscan is a utility for gathering the public SSH host keys of a
@@ -53,6 +53,15 @@ DESCRIPTION
      -H      Hash all hostnames and addresses in the output.  Hashed names may
              be used normally by ssh(1) and sshd(8), but they do not reveal
              identifying information should the file's contents be disclosed.
+
+     -O option
+             Specify a key/value option.  At present, only a single option is
+             supported:
+
+             hashalg=algorithm
+                     Selects a hash algorithm to use when printing SSHFP
+                     records using the -D flag.  Valid algorithms are M-bM-^@M-^\sha1M-bM-^@M-^]
+                     and M-bM-^@M-^\sha256M-bM-^@M-^].  The default is to print both.
 
      -p port
              Connect to port on the remote host.
@@ -109,4 +118,4 @@ AUTHORS
      Davison <wayned@users.sourceforge.net> added support for protocol version
      2.
 
-OpenBSD 7.2                    October 28, 2022                    OpenBSD 7.2
+OpenBSD 7.2                    February 10, 2023                   OpenBSD 7.2

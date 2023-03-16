@@ -1,4 +1,4 @@
-#	$OpenBSD: multiplex.sh,v 1.35 2023/01/13 04:47:34 dtucker Exp $
+#	$OpenBSD: multiplex.sh,v 1.36 2023/03/01 09:29:32 dtucker Exp $
 #	Placed in the Public Domain.
 
 make_tmpdir
@@ -87,7 +87,7 @@ cmp ${DATA} ${COPY}		|| fail "scp: corrupted copy of ${DATA}"
 rm -f ${COPY}
 verbose "test $tid: forward"
 trace "forward over TCP/IP and check result"
-$NC -N -l 127.0.0.1 $((${PORT} + 1)) < ${DATA} > /dev/null &
+$NC -N -l 127.0.0.1 $((${PORT} + 1)) < ${DATA} >`ssh_logfile nc` &
 netcat_pid=$!
 ${SSH} -F $OBJ/ssh_config -S $CTL -Oforward -L127.0.0.1:$((${PORT} + 2)):127.0.0.1:$((${PORT} + 1)) otherhost >>$TEST_SSH_LOGFILE 2>&1
 sleep 1  # XXX remove once race fixed

@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.c,v 1.372 2023/01/13 02:58:20 dtucker Exp $ */
+/* $OpenBSD: readconf.c,v 1.375 2023/03/10 02:24:56 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -54,7 +54,6 @@
 #include "xmalloc.h"
 #include "ssh.h"
 #include "ssherr.h"
-#include "compat.h"
 #include "cipher.h"
 #include "pathnames.h"
 #include "log.h"
@@ -617,7 +616,7 @@ match_cfg_line(Options *options, char **condition, struct passwd *pw,
 		}
 		arg = criteria = NULL;
 		this_result = 1;
-		if ((negate = attrib[0] == '!'))
+		if ((negate = (attrib[0] == '!')))
 			attrib++;
 		/* Criterion "all" has no argument and must appear alone */
 		if (strcasecmp(attrib, "all") == 0) {
@@ -2131,15 +2130,13 @@ parse_pubkey_algos:
 		value2 = 0; /* unlimited lifespan by default */
 		if (value == 3 && arg2 != NULL) {
 			/* allow "AddKeysToAgent confirm 5m" */
-			if ((value2 = convtime(arg2)) == -1 ||
-			    value2 > INT_MAX) {
+			if ((value2 = convtime(arg2)) == -1) {
 				error("%s line %d: invalid time value.",
 				    filename, linenum);
 				goto out;
 			}
 		} else if (value == -1 && arg2 == NULL) {
-			if ((value2 = convtime(arg)) == -1 ||
-			    value2 > INT_MAX) {
+			if ((value2 = convtime(arg)) == -1) {
 				error("%s line %d: unsupported option",
 				    filename, linenum);
 				goto out;

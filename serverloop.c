@@ -1,4 +1,4 @@
-/* $OpenBSD: serverloop.c,v 1.234 2023/01/17 09:44:48 djm Exp $ */
+/* $OpenBSD: serverloop.c,v 1.236 2023/03/08 04:43:12 guenther Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -69,7 +69,6 @@
 #include "canohost.h"
 #include "sshpty.h"
 #include "channels.h"
-#include "compat.h"
 #include "ssh2.h"
 #include "sshkey.h"
 #include "cipher.h"
@@ -113,14 +112,12 @@ bind_permitted(int port, uid_t uid)
 	return 1;
 }
 
-/*ARGSUSED*/
 static void
 sigchld_handler(int sig)
 {
 	child_terminated = 1;
 }
 
-/*ARGSUSED*/
 static void
 sigterm_handler(int sig)
 {
