@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/hdmi/dwc_hdmi.h>
 
-#include "hdmi_if.h"
+#include "crtc_if.h"
 
 struct imx_hdmi_softc {
 	struct dwc_hdmi_softc	base;
@@ -200,9 +200,9 @@ static device_method_t imx_hdmi_methods[] = {
 	DEVMETHOD(device_attach, imx_hdmi_attach),
 	DEVMETHOD(device_detach, imx_hdmi_detach),
 
-	/* HDMI methods */
-	DEVMETHOD(hdmi_get_edid,	dwc_hdmi_get_edid),
-	DEVMETHOD(hdmi_set_videomode,	dwc_hdmi_set_videomode),
+	/* CRTC methods */
+	DEVMETHOD(crtc_get_edid,	dwc_hdmi_get_edid),
+	DEVMETHOD(crtc_set_videomode,	dwc_hdmi_set_videomode),
 
 	DEVMETHOD_END
 };

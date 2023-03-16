@@ -86,7 +86,7 @@ dev/dwc/if_dwc.c		optional	dwc
 dev/dwc/if_dwc_if.m		optional	dwc
 dev/fb/fb.c			optional	sc
 dev/fdt/fdt_arm_platform.c	optional	platform fdt
-dev/hdmi/hdmi_if.m		optional	hdmi
+dev/video/crtc_if.m		optional	vt
 dev/hwpmc/hwpmc_arm.c		optional	hwpmc
 dev/hwpmc/hwpmc_armv7.c		optional	hwpmc
 dev/iicbus/twsi/twsi.c		optional	twsi

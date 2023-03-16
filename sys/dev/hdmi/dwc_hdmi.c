@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/hdmi/dwc_hdmi.h>
 #include <dev/hdmi/dwc_hdmireg.h>
 
-#include "hdmi_if.h"
+#include "crtc_if.h"
 
 #define	I2C_DDC_ADDR	(0x50 << 1)
 #define	I2C_DDC_SEGADDR	(0x30 << 1)

@@ -30,7 +30,7 @@
 #include <dev/videomode/videomode.h>
 #include <dev/videomode/edidvar.h>
 
-INTERFACE hdmi;
+INTERFACE crtc;
 
 HEADER {
 	#include <sys/eventhandler.h>
