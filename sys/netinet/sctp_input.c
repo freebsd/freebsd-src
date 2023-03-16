@@ -508,8 +508,6 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 		    SCTP_FROM_SCTP_INPUT,
 		    __LINE__);
 	}
-	stcb->asoc.overall_error_count = 0;
-	net->error_count = 0;
 
 	/*
 	 * Cancel the INIT timer, We do this first before queueing the
@@ -521,8 +519,12 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 	    asoc->primary_destination, SCTP_FROM_SCTP_INPUT + SCTP_LOC_3);
 
 	/* calculate the RTO */
-	sctp_calculate_rto(stcb, asoc, net, &asoc->time_entered,
-	    SCTP_RTT_FROM_NON_DATA);
+	if (asoc->overall_error_count == 0) {
+		sctp_calculate_rto(stcb, asoc, net, &asoc->time_entered,
+		    SCTP_RTT_FROM_NON_DATA);
+	}
+	stcb->asoc.overall_error_count = 0;
+	net->error_count = 0;
 	retval = sctp_send_cookie_echo(m, offset, initack_limit, stcb, net);
 	return (retval);
 }
@@ -2758,7 +2760,6 @@ sctp_handle_cookie_ack(struct sctp_cookie_ack_chunk *cp SCTP_UNUSED,
 		    SCTP_FROM_SCTP_INPUT,
 		    __LINE__);
 	}
-	asoc->overall_error_count = 0;
 	sctp_stop_all_cookie_timers(stcb);
 	/* process according to association state */
 	if (SCTP_GET_STATE(stcb) == SCTP_STATE_COOKIE_ECHOED) {
@@ -2777,6 +2778,12 @@ sctp_handle_cookie_ack(struct sctp_cookie_ack_chunk *cp SCTP_UNUSED,
 			sctp_calculate_rto(stcb, asoc, net, &asoc->time_entered,
 			    SCTP_RTT_FROM_NON_DATA);
 		}
+		/*
+		 * Since we did not send a HB make sure we don't double
+		 * things.
+		 */
+		asoc->overall_error_count = 0;
+		net->hb_responded = 1;
 		(void)SCTP_GETTIME_TIMEVAL(&asoc->time_entered);
 		sctp_ulp_notify(SCTP_NOTIFY_ASSOC_UP, stcb, 0, NULL, SCTP_SO_NOT_LOCKED);
 		if ((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
@@ -2786,11 +2793,6 @@ sctp_handle_cookie_ack(struct sctp_cookie_ack_chunk *cp SCTP_UNUSED,
 				soisconnected(stcb->sctp_socket);
 			}
 		}
-		/*
-		 * since we did not send a HB make sure we don't double
-		 * things
-		 */
-		net->hb_responded = 1;
 
 		if (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET) {
 			/*
