@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/hdmi/dwc_hdmi.h>
 
-#include "hdmi_if.h"
+#include "crtc_if.h"
 
 struct dwc_hdmi_fdt_softc {
 	struct dwc_hdmi_softc	base;
