@@ -27,6 +27,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20230316:
+	Video related devices for some arm devices have been renamed.
+	If you have a custom kernel config and want to use hdmi output on
+	IMX6 board you need to add "device dwc_hdmi" "device imx6_hdmi" and
+	"device imx6_ipu" to it.
+	If you have a custom kernel config and want to use hdmi output on
+	TI AM335X board you need to add "device tda19988" to it.
+	If you add "device hdmi" in it you need to remove it as it doesn't
+	exist anymore.
+
 20230221:
 	Introduce new kernel options KBD_DELAY1 and KBD_DELAY2. See atkbdc(4)
 	for details.
