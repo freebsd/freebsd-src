@@ -684,6 +684,15 @@ typedef bool (*if_foreach_match_t)(if_t, void *);
 int	if_foreach(if_foreach_cb_t, void *);
 int	if_foreach_sleep(if_foreach_match_t, void *, if_foreach_cb_t, void *);
 
+/* Opaque iterator structure for iterating over interfaces. */
+struct if_iter {
+	void *context[4];
+};
+
+if_t	if_iter_start(struct if_iter *);
+if_t	if_iter_next(struct if_iter *);
+void	if_iter_finish(struct if_iter *);
+
 /* Functions */
 void if_setinitfn(if_t ifp, if_init_fn_t);
 void if_setinputfn(if_t ifp, if_input_fn_t);
