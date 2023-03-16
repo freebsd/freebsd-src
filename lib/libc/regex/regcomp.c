@@ -1138,7 +1138,7 @@ p_b_term(struct parse *p, cset *cs)
 #else
 			if (MB_CUR_MAX > 1) {
 #endif
-				(void)REQUIRE(start <= finish, REG_ERANGE);
+				(void)REQUIRE(p_range_cmp(start, finish) <= 0, REG_ERANGE);
 				CHaddrange(p, cs, start, finish);
 			} else {
 				(void)REQUIRE(p_range_cmp(start, finish) <= 0, REG_ERANGE);
