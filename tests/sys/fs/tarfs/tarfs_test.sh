@@ -59,6 +59,8 @@ tarfs_basic_body() {
 	atf_check_equal "$(stat -f%d,%i "${mnt}"/sparse_file)" "$(stat -L -f%d,%i "${mnt}"/short_link)"
 	atf_check_equal "$(stat -f%d,%i "${mnt}"/sparse_file)" "$(stat -L -f%d,%i "${mnt}"/long_link)"
 	atf_check_equal "$(sha256 -q "${mnt}"/sparse_file)" ${sum}
+	atf_check_equal "$(stat -f%l "${mnt}"/sparse_file)" 2
+	atf_check_equal "$(stat -f%l "${mnt}"/hard_link)" 2
 }
 tarfs_basic_cleanup() {
 	umount "${mnt}" || true

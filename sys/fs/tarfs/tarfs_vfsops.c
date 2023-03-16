@@ -406,16 +406,14 @@ static void
 tarfs_free_mount(struct tarfs_mount *tmp)
 {
 	struct mount *mp;
-	struct tarfs_node *tnp;
+	struct tarfs_node *tnp, *tnp_next;
 
 	MPASS(tmp != NULL);
 
 	TARFS_DPF(ALLOC, "%s: Freeing mount structure %p\n", __func__, tmp);
 
 	TARFS_DPF(ALLOC, "%s: freeing tarfs_node structures\n", __func__);
-	while (!TAILQ_EMPTY(&tmp->allnodes)) {
-		tnp = TAILQ_FIRST(&tmp->allnodes);
-		TAILQ_REMOVE(&tmp->allnodes, tnp, entries);
+	TAILQ_FOREACH_SAFE(tnp, &tmp->allnodes, entries, tnp_next) {
 		tarfs_free_node(tnp);
 	}
 
@@ -744,6 +742,7 @@ again:
 			error = EINVAL;
 			goto bad;
 		}
+		tnp->other->nlink++;
 		break;
 	case TAR_TYPE_SYMLINK:
 		if (link == NULL) {

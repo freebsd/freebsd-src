@@ -384,6 +384,18 @@ tarfs_free_node(struct tarfs_node *tnp)
 	tmp = tnp->tmp;
 
 	switch (tnp->type) {
+	case VREG:
+		if (tnp->nlink-- > 1)
+			return;
+		if (tnp->other != NULL)
+			tarfs_free_node(tnp->other);
+		break;
+	case VDIR:
+		if (tnp->nlink-- > 2)
+			return;
+		if (tnp->parent != NULL && tnp->parent != tnp)
+			tarfs_free_node(tnp->parent);
+		break;
 	case VLNK:
 		if (tnp->link.name)
 			free(tnp->link.name, M_TARFSNAME);
@@ -397,6 +409,7 @@ tarfs_free_node(struct tarfs_node *tnp)
 		free(tnp->blk, M_TARFSBLK);
 	if (tnp->ino >= TARFS_MININO)
 		free_unr(tmp->ino_unr, tnp->ino);
+	TAILQ_REMOVE(&tmp->allnodes, tnp, entries);
 	free(tnp, M_TARFSNODE);
 	tmp->nfiles--;
 }
