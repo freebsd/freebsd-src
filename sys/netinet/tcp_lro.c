@@ -681,7 +681,7 @@ tcp_lro_log(struct tcpcb *tp, const struct lro_ctrl *lc,
     int frm, int32_t tcp_data_len, uint32_t th_seq,
     uint32_t th_ack, uint16_t th_win)
 {
-	if (tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(tp)) {
 		union tcp_log_stackspecific log;
 		struct timeval tv, btv;
 		uint32_t cts;

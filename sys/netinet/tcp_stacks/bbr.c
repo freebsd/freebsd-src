@@ -1885,7 +1885,7 @@ bbr_fill_in_logging_data(struct tcp_bbr *bbr, struct tcp_log_bbr *l, uint32_t ct
 static void
 bbr_log_type_bw_reduce(struct tcp_bbr *bbr, int reason)
 {
-	if (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, bbr->r_ctl.rc_rcvtime);
@@ -1908,7 +1908,7 @@ bbr_log_type_bw_reduce(struct tcp_bbr *bbr, int reason)
 static void
 bbr_log_type_rwnd_collapse(struct tcp_bbr *bbr, int seq, int mode, uint32_t count)
 {
-	if (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, bbr->r_ctl.rc_rcvtime);
@@ -1927,7 +1927,7 @@ static void
 bbr_log_type_just_return(struct tcp_bbr *bbr, uint32_t cts, uint32_t tlen, uint8_t hpts_calling,
     uint8_t reason, uint32_t p_maxseg, int len)
 {
-	if (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
@@ -1952,7 +1952,7 @@ bbr_log_type_just_return(struct tcp_bbr *bbr, uint32_t cts, uint32_t tlen, uint8
 static void
 bbr_log_type_enter_rec(struct tcp_bbr *bbr, uint32_t seq)
 {
-	if (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, bbr->r_ctl.rc_rcvtime);
@@ -1970,7 +1970,7 @@ bbr_log_type_enter_rec(struct tcp_bbr *bbr, uint32_t seq)
 static void
 bbr_log_msgsize_fail(struct tcp_bbr *bbr, struct tcpcb *tp, uint32_t len, uint32_t maxseg, uint32_t mtu, int32_t csum_flags, int32_t tso, uint32_t cts)
 {
-	if (tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
@@ -1989,7 +1989,7 @@ bbr_log_msgsize_fail(struct tcp_bbr *bbr, struct tcpcb *tp, uint32_t len, uint32
 static void
 bbr_log_flowend(struct tcp_bbr *bbr)
 {
-	if (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 		struct sockbuf *r, *s;
 		struct timeval tv;
@@ -2012,7 +2012,7 @@ static void
 bbr_log_pkt_epoch(struct tcp_bbr *bbr, uint32_t cts, uint32_t line,
     uint32_t lost, uint32_t del)
 {
-	if (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
@@ -2036,7 +2036,7 @@ bbr_log_pkt_epoch(struct tcp_bbr *bbr, uint32_t cts, uint32_t line,
 static void
 bbr_log_time_epoch(struct tcp_bbr *bbr, uint32_t cts, uint32_t line, uint32_t epoch_time)
 {
-	if (bbr_verbose_logging && (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF)) {
+	if (bbr_verbose_logging && tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
@@ -2055,7 +2055,7 @@ bbr_log_time_epoch(struct tcp_bbr *bbr, uint32_t cts, uint32_t line, uint32_t ep
 static void
 bbr_log_set_of_state_target(struct tcp_bbr *bbr, uint32_t new_tar, int line, int meth)
 {
-	if (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, bbr->r_ctl.rc_rcvtime);
@@ -2079,7 +2079,7 @@ bbr_log_set_of_state_target(struct tcp_bbr *bbr, uint32_t new_tar, int line, int
 static void
 bbr_log_type_statechange(struct tcp_bbr *bbr, uint32_t cts, int32_t line)
 {
-	if (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
@@ -2107,7 +2107,7 @@ static void
 bbr_log_rtt_shrinks(struct tcp_bbr *bbr, uint32_t cts, uint32_t applied,
 		    uint32_t rtt, uint32_t line, uint8_t reas, uint16_t cond)
 {
-	if (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
@@ -2130,7 +2130,7 @@ bbr_log_rtt_shrinks(struct tcp_bbr *bbr, uint32_t cts, uint32_t applied,
 static void
 bbr_log_type_exit_rec(struct tcp_bbr *bbr)
 {
-	if (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, bbr->r_ctl.rc_rcvtime);
@@ -2149,7 +2149,7 @@ static void
 bbr_log_type_cwndupd(struct tcp_bbr *bbr, uint32_t bytes_this_ack, uint32_t chg,
     uint32_t prev_acked, int32_t meth, uint32_t target, uint32_t th_ack, int32_t line)
 {
-	if (bbr_verbose_logging && (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF)) {
+	if (bbr_verbose_logging && tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, bbr->r_ctl.rc_rcvtime);
@@ -2175,7 +2175,7 @@ bbr_log_rtt_sample(struct tcp_bbr *bbr, uint32_t rtt, uint32_t tsin)
 	 * Log the rtt sample we are applying to the srtt algorithm in
 	 * useconds.
 	 */
-	if (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, bbr->r_ctl.rc_rcvtime);
@@ -2199,7 +2199,7 @@ bbr_log_rtt_sample(struct tcp_bbr *bbr, uint32_t rtt, uint32_t tsin)
 static void
 bbr_log_type_pesist(struct tcp_bbr *bbr, uint32_t cts, uint32_t time_in, int32_t line, uint8_t enter_exit)
 {
-	if (bbr_verbose_logging && (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF)) {
+	if (bbr_verbose_logging && tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
@@ -2216,7 +2216,7 @@ bbr_log_type_pesist(struct tcp_bbr *bbr, uint32_t cts, uint32_t time_in, int32_t
 static void
 bbr_log_ack_clear(struct tcp_bbr *bbr, uint32_t cts)
 {
-	if (bbr_verbose_logging && (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF)) {
+	if (bbr_verbose_logging && tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
@@ -2237,7 +2237,7 @@ static void
 bbr_log_ack_event(struct tcp_bbr *bbr, struct tcphdr *th, struct tcpopt *to, uint32_t tlen,
 		  uint16_t nsegs, uint32_t cts, int32_t nxt_pkt, struct mbuf *m)
 {
-	if (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 		struct timeval tv;
 
@@ -2285,7 +2285,7 @@ bbr_log_ack_event(struct tcp_bbr *bbr, struct tcphdr *th, struct tcpopt *to, uin
 static void
 bbr_log_doseg_done(struct tcp_bbr *bbr, uint32_t cts, int32_t nxt_pkt, int32_t did_out)
 {
-	if (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
@@ -2310,7 +2310,7 @@ static void
 bbr_log_enobuf_jmp(struct tcp_bbr *bbr, uint32_t len, uint32_t cts,
     int32_t line, uint32_t o_len, uint32_t segcnt, uint32_t segsiz)
 {
-	if (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
@@ -2329,7 +2329,7 @@ bbr_log_enobuf_jmp(struct tcp_bbr *bbr, uint32_t len, uint32_t cts,
 static void
 bbr_log_to_processing(struct tcp_bbr *bbr, uint32_t cts, int32_t ret, int32_t timers, uint8_t hpts_calling)
 {
-	if (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
@@ -2351,7 +2351,7 @@ bbr_log_to_processing(struct tcp_bbr *bbr, uint32_t cts, int32_t ret, int32_t ti
 static void
 bbr_log_to_event(struct tcp_bbr *bbr, uint32_t cts, int32_t to_num)
 {
-	if (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 		uint64_t ar;
 
@@ -2379,7 +2379,7 @@ bbr_log_to_event(struct tcp_bbr *bbr, uint32_t cts, int32_t to_num)
 static void
 bbr_log_startup_event(struct tcp_bbr *bbr, uint32_t cts, uint32_t flex1, uint32_t flex2, uint32_t flex3, uint8_t reason)
 {
-	if (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
@@ -2402,7 +2402,7 @@ bbr_log_startup_event(struct tcp_bbr *bbr, uint32_t cts, uint32_t flex1, uint32_
 static void
 bbr_log_hpts_diag(struct tcp_bbr *bbr, uint32_t cts, struct hpts_diag *diag)
 {
-	if (bbr_verbose_logging && (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF)) {
+	if (bbr_verbose_logging && tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
@@ -2439,7 +2439,7 @@ static void
 bbr_log_timer_var(struct tcp_bbr *bbr, int mode, uint32_t cts, uint32_t time_since_sent, uint32_t srtt,
     uint32_t thresh, uint32_t to)
 {
-	if (bbr_verbose_logging && (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF)) {
+	if (bbr_verbose_logging && tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
@@ -2462,7 +2462,7 @@ static void
 bbr_log_pacing_delay_calc(struct tcp_bbr *bbr, uint16_t gain, uint32_t len,
     uint32_t cts, uint32_t usecs, uint64_t bw, uint32_t override, int mod)
 {
-	if (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
@@ -2488,7 +2488,7 @@ bbr_log_pacing_delay_calc(struct tcp_bbr *bbr, uint16_t gain, uint32_t len,
 static void
 bbr_log_to_start(struct tcp_bbr *bbr, uint32_t cts, uint32_t to, int32_t slot, uint8_t which)
 {
-	if (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
@@ -2512,7 +2512,7 @@ bbr_log_to_start(struct tcp_bbr *bbr, uint32_t cts, uint32_t to, int32_t slot, u
 static void
 bbr_log_thresh_choice(struct tcp_bbr *bbr, uint32_t cts, uint32_t thresh, uint32_t lro, uint32_t srtt, struct bbr_sendmap *rsm, uint8_t frm)
 {
-	if (bbr_verbose_logging && (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF)) {
+	if (bbr_verbose_logging && tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
@@ -2535,7 +2535,7 @@ bbr_log_thresh_choice(struct tcp_bbr *bbr, uint32_t cts, uint32_t thresh, uint32
 static void
 bbr_log_to_cancel(struct tcp_bbr *bbr, int32_t line, uint32_t cts, uint8_t hpts_removed)
 {
-	if (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
@@ -2558,7 +2558,7 @@ bbr_log_to_cancel(struct tcp_bbr *bbr, int32_t line, uint32_t cts, uint8_t hpts_
 static void
 bbr_log_tstmp_validation(struct tcp_bbr *bbr, uint64_t peer_delta, uint64_t delta)
 {
-	if (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, bbr->r_ctl.rc_rcvtime);
@@ -2580,7 +2580,7 @@ bbr_log_tstmp_validation(struct tcp_bbr *bbr, uint64_t peer_delta, uint64_t delt
 static void
 bbr_log_type_tsosize(struct tcp_bbr *bbr, uint32_t cts, uint32_t tsosz, uint32_t tls, uint32_t old_val, uint32_t maxseg, int hdwr)
 {
-	if (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
@@ -2609,7 +2609,7 @@ static void
 bbr_log_type_rsmclear(struct tcp_bbr *bbr, uint32_t cts, struct bbr_sendmap *rsm,
 		      uint32_t flags, uint32_t line)
 {
-	if (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
@@ -2638,7 +2638,7 @@ bbr_log_type_bbrupd(struct tcp_bbr *bbr, uint8_t flex8, uint32_t cts,
     uint32_t flex4, uint32_t flex1)
 {
 
-	if (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
@@ -2669,7 +2669,7 @@ bbr_log_type_ltbw(struct tcp_bbr *bbr, uint32_t cts, int32_t reason,
 	uint32_t newbw, uint32_t obw, uint32_t diff,
 	uint32_t tim)
 {
-	if (/*bbr_verbose_logging && */(bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF)) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
@@ -2697,7 +2697,7 @@ bbr_log_type_ltbw(struct tcp_bbr *bbr, uint32_t cts, int32_t reason,
 static inline void
 bbr_log_progress_event(struct tcp_bbr *bbr, struct tcpcb *tp, uint32_t tick, int event, int line)
 {
-	if (bbr_verbose_logging && (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF)) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, bbr->r_ctl.rc_rcvtime);
@@ -2719,7 +2719,7 @@ bbr_type_log_hdwr_pacing(struct tcp_bbr *bbr, const struct ifnet *ifp,
 			 uint64_t rate, uint64_t hw_rate, int line, uint32_t cts,
 			 int error)
 {
-	if (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
@@ -2747,7 +2747,7 @@ bbr_type_log_hdwr_pacing(struct tcp_bbr *bbr, const struct ifnet *ifp,
 static void
 bbr_log_type_bbrsnd(struct tcp_bbr *bbr, uint32_t len, uint32_t slot, uint32_t del_by, uint32_t cts, uint32_t line, uint32_t prev_delay)
 {
-	if (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
@@ -2770,7 +2770,7 @@ bbr_log_type_bbrsnd(struct tcp_bbr *bbr, uint32_t len, uint32_t slot, uint32_t d
 static void
 bbr_log_type_bbrrttprop(struct tcp_bbr *bbr, uint32_t t, uint32_t end, uint32_t tsconv, uint32_t cts, int32_t match, uint32_t seq, uint8_t flags)
 {
-	if (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
@@ -2793,7 +2793,7 @@ bbr_log_type_bbrrttprop(struct tcp_bbr *bbr, uint32_t t, uint32_t end, uint32_t 
 static void
 bbr_log_exit_gain(struct tcp_bbr *bbr, uint32_t cts, int32_t entry_method)
 {
-	if (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
@@ -2816,7 +2816,7 @@ bbr_log_exit_gain(struct tcp_bbr *bbr, uint32_t cts, int32_t entry_method)
 static void
 bbr_log_settings_change(struct tcp_bbr *bbr, int settings_desired)
 {
-	if (bbr_verbose_logging && (bbr->rc_tp->t_logstate != TCP_LOG_STATE_OFF)) {
+	if (bbr_verbose_logging && tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, bbr->r_ctl.rc_rcvtime);
@@ -13474,7 +13474,7 @@ send:
 #endif
 
 	/* Log to the black box */
-	if (tp->t_logstate != TCP_LOG_STATE_OFF) {
+	if (tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
@@ -13503,7 +13503,7 @@ send:
 		} else {
 			log.u_bbr.flex8 = 0;
 		}
-		lgb = tcp_log_event_(tp, th, &so->so_rcv, &so->so_snd, TCP_LOG_OUT, ERRNO_UNK,
+		lgb = tcp_log_event(tp, th, &so->so_rcv, &so->so_snd, TCP_LOG_OUT, ERRNO_UNK,
 		    len, &log, false, NULL, NULL, 0, tv);
 	} else {
 		lgb = NULL;

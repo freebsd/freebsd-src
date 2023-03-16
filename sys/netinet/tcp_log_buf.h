@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2016-2018 Netflix, Inc.
+ * Copyright (c) 2016-2020 Netflix, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -101,12 +101,41 @@ struct tcp_log_bbr {
 	uint32_t pkt_epoch;
 };
 
-/* Per-stack stack-specific info. */
+/* shadows tcp_log_bbr struct element sizes */
+struct tcp_log_raw {
+	uint64_t u64_flex[4];
+	uint32_t u32_flex[14];
+	uint16_t u16_flex[3];
+	uint8_t u8_flex[6];
+	uint32_t u32_flex2[1];
+};
+
+struct tcp_log_uint64 {
+	uint64_t u64_flex[13];
+};
+
+struct tcp_log_sendfile {
+	uint64_t offset;
+	uint64_t length;
+	uint32_t flags;
+};
+
+/*
+ * tcp_log_stackspecific is currently being used as "event specific" log
+ * info by all stacks (i.e. struct tcp_log_bbr is used for generic event
+ * logging). Until this is cleaned up more generically and throughout,
+ * allow events to use the same space in the union.
+ */
 union tcp_log_stackspecific
 {
 	struct tcp_log_rack u_rack;
 	struct tcp_log_bbr u_bbr;
+	struct tcp_log_sendfile u_sf;
+	struct tcp_log_raw u_raw;	/* "raw" log access */
+	struct tcp_log_uint64 u64_raw;	/* just u64's - used by process info */
 };
+
+typedef union tcp_log_stackspecific tcp_log_eventspecific_t;
 
 struct tcp_log_buffer
 {
@@ -156,7 +185,6 @@ struct tcp_log_buffer
 	uint8_t		tlb_snd_scale:4, /* TCPCB snd_scale */
 			tlb_rcv_scale:4; /* TCPCB rcv_scale */
 	uint8_t		_pad[3];	/* Padding */
-
 	/* Per-stack info */
 	union tcp_log_stackspecific tlb_stackinfo;
 #define	tlb_rack	tlb_stackinfo.u_rack
@@ -245,8 +273,14 @@ enum tcp_log_events {
 };
 
 enum tcp_log_states {
-	TCP_LOG_STATE_CLEAR = -1,	/* Deactivate and clear tracing */
+	TCP_LOG_STATE_RATIO_OFF = -2,	/* Log ratio evaluation yielded an OFF
+					   result. Only used for tlb_logstate */
+	TCP_LOG_STATE_CLEAR = -1,	/* Deactivate and clear tracing. Passed
+					   to tcp_log_state_change() but never
+					   stored in any logstate variable */
 	TCP_LOG_STATE_OFF = 0,		/* Pause */
+
+	/* Positively numbered states represent active logging modes */
 	TCP_LOG_STATE_TAIL=1,		/* Keep the trailing events */
 	TCP_LOG_STATE_HEAD=2,		/* Keep the leading events */
 	TCP_LOG_STATE_HEAD_AUTO=3,	/* Keep the leading events, and
@@ -256,6 +290,7 @@ enum tcp_log_states {
 	TCP_LOG_STATE_TAIL_AUTO=5,	/* Keep the trailing events, and
 					   automatically dump them when the
 					   session ends */
+	TCP_LOG_VIA_BBPOINTS=6		/* Log only if the BB point has been configured */
 };
 
 /* Use this if we don't know whether the operation succeeded. */
@@ -298,7 +333,135 @@ struct tcp_log_dev_log_queue {
 #endif /* _KERNEL */
 #endif /* __tcp_log_dev_h__ */
 
+/*
+ * Defined BBPOINTS that can be used
+ * with TCP_LOG_VIA_BBPOINTS.
+ */
+#define TCP_BBPOINT_NONE		0
+#define TCP_BBPOINT_REQ_LEVEL_LOGGING	1
+
+/*********************/
+/* TCP Trace points */
+/*********************/
+/*
+ * TCP trace points are interesting points within
+ * the TCP code that the author/debugger may want
+ * to have BB logging enabled if we hit that point.
+ * In order to enable a trace point you set the
+ * sysctl var net.inet.tcp.bb.tp.number to
+ * one of the numbers listed below. You also
+ * must make sure net.inet.tcp.bb.tp.bbmode is
+ * non-zero, the default is 4 for continuous tracing.
+ * You also set in the number of connections you want
+ * have get BB logs in net.inet.tcp.bb.tp.count.
+ *
+ * Count will decrement every time BB logging is assigned
+ * to a connection that hit your tracepoint.
+ *
+ * You can enable all trace points by setting the number
+ * to 0xffffffff. You can disable all trace points by
+ * setting number to zero (or count to 0).
+ *
+ * Below are the enumerated list of tracepoints that
+ * have currently been defined in the code. Add more
+ * as you add a call to rack_trace_point(rack, <name>);
+ * where <name> is defined below.
+ */
+#define TCP_TP_HWENOBUF		0x00000001	/* When we are doing hardware pacing and hit enobufs */
+#define TCP_TP_ENOBUF		0x00000002	/* When we hit enobufs with software pacing */
+#define TCP_TP_COLLAPSED_WND	0x00000003	/* When a peer to collapses its rwnd on us */
+#define TCP_TP_COLLAPSED_RXT	0x00000004	/* When we actually retransmit a collapsed window rsm */
+#define TCP_TP_HTTP_LOG_FAIL	0x00000005	/* We tried to allocate a HTTP log but had no space */
+#define TCP_TP_RESET_RCV	0x00000006	/* Triggers when we receive a RST */
+#define TCP_TP_EXCESS_RXT	0x00000007	/* When we get excess RXT's clamping the cwnd */
+#define TCP_TP_SAD_TRIGGERED	0x00000008	/* Sack Attack Detection triggers */
+
+#define TCP_TP_SAD_SUSPECT	0x0000000a	/* A sack has supicious information in it */
+
 #ifdef _KERNEL
+
+extern uint32_t tcp_trace_point_config;
+extern uint32_t tcp_trace_point_bb_mode;
+extern int32_t tcp_trace_point_count;
+
+/*
+ * Returns true if any sort of BB logging is enabled,
+ * commonly used throughout the codebase. 
+ */
+static inline int
+tcp_bblogging_on(struct tcpcb *tp)
+{
+	if (tp->_t_logstate <= TCP_LOG_STATE_OFF) 
+		return (0);
+	if (tp->_t_logstate == TCP_LOG_VIA_BBPOINTS)
+		return (0);
+	return (1);
+}
+
+/*
+ * Returns true if we match a specific bbpoint when
+ * in TCP_LOG_VIA_BBPOINTS, but also returns true
+ * for all the other logging states.
+ */
+static inline int
+tcp_bblogging_point_on(struct tcpcb *tp, uint8_t bbpoint)
+{
+	if (tp->_t_logstate <= TCP_LOG_STATE_OFF)
+		return (0);
+	if ((tp->_t_logstate == TCP_LOG_VIA_BBPOINTS) &&
+	    (tp->_t_logpoint == bbpoint))
+		return (1);
+	else if (tp->_t_logstate == TCP_LOG_VIA_BBPOINTS)
+		return (0);
+	return (1);
+}
+
+static inline void
+tcp_set_bblog_state(struct tcpcb *tp, uint8_t ls, uint8_t bbpoint)
+{
+	if ((ls == TCP_LOG_VIA_BBPOINTS) &&
+	    (tp->_t_logstate <= TCP_LOG_STATE_OFF)){
+		/*
+		 * We don't allow a BBPOINTS set to override
+		 * other types of BB logging set by other means such
+		 * as the bb_ratio/bb_state URL parameters. In other
+		 * words BBlogging must be *off* in order to turn on
+		 * a BBpoint.
+		 */
+		tp->_t_logpoint = bbpoint;
+		tp->_t_logstate = ls;
+	} else if (ls != TCP_LOG_VIA_BBPOINTS) {
+		tp->_t_logpoint = 0;
+		if ((ls >= TCP_LOG_STATE_OFF) &&
+		    (ls < TCP_LOG_VIA_BBPOINTS))
+			tp->_t_logstate = ls;
+	}
+}
+
+static inline uint32_t 
+tcp_get_bblog_state(struct tcpcb *tp)
+{
+	return (tp->_t_logstate);
+}
+
+static inline void
+tcp_trace_point(struct tcpcb *tp, int num)
+{
+	if (((tcp_trace_point_config == num)  ||
+	     (tcp_trace_point_config == 0xffffffff)) &&
+	    (tcp_trace_point_bb_mode != 0) &&
+	    (tcp_trace_point_count > 0) &&
+	    (tcp_bblogging_on(tp) == 0)) {
+		int res;
+		res = atomic_fetchadd_int(&tcp_trace_point_count, -1);
+		if (res > 0) {
+			tcp_set_bblog_state(tp, tcp_trace_point_bb_mode, TCP_BBPOINT_NONE);
+		} else {
+			/* Loss a race assure its zero now */
+			tcp_trace_point_count = 0;
+		}
+	}
+}
 
 #define	TCP_LOG_BUF_DEFAULT_SESSION_LIMIT	5000
 #define	TCP_LOG_BUF_DEFAULT_GLOBAL_LIMIT	5000000
@@ -309,15 +472,51 @@ struct tcp_log_dev_log_queue {
  */
 #define	TCP_LOG_EVENT_VERBOSE(tp, th, rxbuf, txbuf, eventid, errornum, len, stackinfo, th_hostorder, tv) \
 	do {								\
-		if (tp->t_logstate != TCP_LOG_STATE_OFF)		\
-			tcp_log_event_(tp, th, rxbuf, txbuf, eventid,	\
+		if (tcp_bblogging_on(tp)) \
+			tcp_log_event(tp, th, rxbuf, txbuf, eventid,	\
 			    errornum, len, stackinfo, th_hostorder,	\
 			    tp->t_output_caller, __func__, __LINE__, tv);\
 	} while (0)
 
 /*
  * TCP_LOG_EVENT: This is a macro so we can capture function/line
- * information when needed.
+ * information when needed. You can use the macro when you are not
+ * doing a lot of prep in the stack specific information i.e. you
+ * don't add extras (stackinfo). If you are adding extras which
+ * means filling out a stack variable instead use the tcp_log_event()
+ * function but enclose the call to the log (and all the setup) in a
+ * if (tcp_bblogging_on(tp)) {
+ *   ... setup and logging call ...
+ * }
+ *
+ * Always use the macro tcp_bblogging_on() since sometimes the defintions
+ * do change.
+ *
+ * BBlogging also supports the concept of a BBpoint. The idea behind this
+ * is that when you set a specific BBpoint on and turn the logging into
+ * the BBpoint mode (TCP_LOG_VIA_BBPOINTS) you will be defining very very
+ * few of these points to come out. The point is specific to a code you
+ * want tied to that one BB logging. This allows you to turn on a much broader
+ * scale set of limited logging on more connections without overwhelming the
+ * I/O system with too much BBlogs. This of course means you need to be quite
+ * careful on how many BBlogs go with each point, but you can have multiple points
+ * only one of which is active at a time.
+ *
+ * To define a point you add it above under the define for TCP_BBPOINT_NONE (which
+ * is the default i.e. no point is defined. You then, for your point use the
+ * tcp_bblogging_point_on(struct tcpcb *tp, uint8_t bbpoint) inline to enclose
+ * your call to tcp_log_event.  Do not use one of the TCP_LOGGING macros else
+ * your point will never come out. You specify your defined point in the bbpoint
+ * side of the inline. An example of this you can find in rack where the
+ * TCP_BBPOINT_REQ_LEVEL_LOGGING is used. There a specific set of logs are generated
+ * for each http request that rack is tracking.
+ *
+ * When turning on BB logging use the inline:
+ * tcp_set_bblog_state(struct tcpcb *tp, uint8_t ls, uint8_t bbpoint)
+ * the ls field is the logging state TCP_LOG_STATE_CONTINUAL etc. The
+ * bbpoint field is ignored unless the ls field is set to TCP_LOG_VIA_BBPOINTS.
+ * Currently there is only a socket option that turns on the non-BBPOINT
+ * logging.
  *
  * Prototype:
  * TCP_LOG_EVENT(struct tcpcb *tp, struct tcphdr *th, struct sockbuf *rxbuf,
@@ -343,16 +542,16 @@ struct tcpcb;
 			TCP_LOG_EVENT_VERBOSE(tp, th, rxbuf, txbuf,	\
 			    eventid, errornum, len, stackinfo,		\
 			    th_hostorder, NULL);			\
-		else if (tp->t_logstate != TCP_LOG_STATE_OFF)		\
-			tcp_log_event_(tp, th, rxbuf, txbuf, eventid,	\
+		else if (tcp_bblogging_on(tp))				\
+			tcp_log_event(tp, th, rxbuf, txbuf, eventid,	\
 			    errornum, len, stackinfo, th_hostorder,	\
 			    NULL, NULL, 0, NULL);			\
 	} while (0)
 #endif /* TCP_LOG_FORCEVERBOSE */
 #define	TCP_LOG_EVENTP(tp, th, rxbuf, txbuf, eventid, errornum, len, stackinfo, th_hostorder, tv) \
 	do {								\
-		if (tp->t_logstate != TCP_LOG_STATE_OFF)		\
-			tcp_log_event_(tp, th, rxbuf, txbuf, eventid,	\
+		if (tcp_bblogging_on(tp))				\
+			tcp_log_event(tp, th, rxbuf, txbuf, eventid,	\
 			    errornum, len, stackinfo, th_hostorder,	\
 			    NULL, NULL, 0, tv);				\
 	} while (0)
@@ -362,7 +561,7 @@ extern bool tcp_log_verbose;
 void tcp_log_drain(struct tcpcb *tp);
 int tcp_log_dump_tp_logbuf(struct tcpcb *tp, char *reason, int how, bool force);
 void tcp_log_dump_tp_bucket_logbufs(struct tcpcb *tp, char *reason);
-struct tcp_log_buffer *tcp_log_event_(struct tcpcb *tp, struct tcphdr *th, struct sockbuf *rxbuf,
+struct tcp_log_buffer *tcp_log_event(struct tcpcb *tp, struct tcphdr *th, struct sockbuf *rxbuf,
     struct sockbuf *txbuf, uint8_t eventid, int errornum, uint32_t len,
     union tcp_log_stackspecific *stackinfo, int th_hostorder,
     const char *output_caller, const char *func, int line, const struct timeval *tv);
@@ -377,11 +576,14 @@ int tcp_log_state_change(struct tcpcb *tp, int state);
 void tcp_log_tcpcbinit(struct tcpcb *tp);
 void tcp_log_tcpcbfini(struct tcpcb *tp);
 void tcp_log_flowend(struct tcpcb *tp);
+void tcp_log_sendfile(struct socket *so, off_t offset, size_t nbytes,
+    int flags);
+int tcp_log_apply_ratio(struct tcpcb *tp, int ratio);
 #else /* !TCP_BLACKBOX */
 #define tcp_log_verbose	(false)
 
 static inline struct tcp_log_buffer *
-tcp_log_event_(struct tcpcb *tp, struct tcphdr *th, struct sockbuf *rxbuf,
+tcp_log_event(struct tcpcb *tp, struct tcphdr *th, struct sockbuf *rxbuf,
     struct sockbuf *txbuf, uint8_t eventid, int errornum, uint32_t len,
     union tcp_log_stackspecific *stackinfo, int th_hostorder,
     const char *output_caller, const char *func, int line,

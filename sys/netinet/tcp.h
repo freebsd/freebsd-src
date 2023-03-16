@@ -330,6 +330,18 @@ struct tcphdr {
 /* Maximum length of log ID. */
 #define TCP_LOG_ID_LEN	64
 
+/* TCP accounting counters */
+#define TCP_NUM_PROC_COUNTERS 11
+#define TCP_NUM_CNT_COUNTERS 13
+
+/* Must match counter array sizes in tcpcb */
+struct tcp_perf_info {
+	uint64_t	tcp_cnt_counters[TCP_NUM_CNT_COUNTERS];
+	uint64_t	tcp_proc_time[TCP_NUM_CNT_COUNTERS];
+	uint64_t	timebase;	/* timebase for tcp_proc_time */
+	uint8_t		tb_is_stable;	/* timebase is stable/invariant */
+};
+
 /*
  * The TCP_INFO socket option comes from the Linux 2.6 TCP API, and permits
  * the caller to query certain information about the state of a TCP
