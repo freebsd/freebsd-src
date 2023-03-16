@@ -347,6 +347,11 @@ tarfs_lookup_path(struct tarfs_mount *tmp, char *name, size_t namelen,
 			}
 			tnp = parent;
 			parent = tnp->parent;
+			cn.cn_nameptr = tnp->name;
+			cn.cn_namelen = tnp->namelen;
+			do_lookup = true;
+			TARFS_DPF(LOOKUP, "%s: back to %.*s/\n", __func__,
+			    (int)tnp->namelen, tnp->name);
 			name += len;
 			namelen -= len;
 			continue;
