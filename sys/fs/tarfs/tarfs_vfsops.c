@@ -515,12 +515,12 @@ again:
 
 	/* get standard attributes */
 	num = tarfs_str2int64(hdrp->mode, sizeof(hdrp->mode));
-	if (num < 0 || num > ALLPERMS) {
+	if (num < 0 || num > (S_IFMT|ALLPERMS)) {
 		TARFS_DPF(ALLOC, "%s: invalid file mode at %zu\n",
 		    __func__, TARFS_BLOCKSIZE * (blknum - 1));
 		mode = S_IRUSR;
 	} else {
-		mode = num;
+		mode = num & ALLPERMS;
 	}
 	num = tarfs_str2int64(hdrp->uid, sizeof(hdrp->uid));
 	if (num < 0 || num > UID_MAX) {
