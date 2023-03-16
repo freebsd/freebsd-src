@@ -1053,9 +1053,9 @@ set_keyrates(char *opt)
 	int r, d;
 
 	if (!strcmp(opt, "slow")) {
-		delay = 1000, repeat = 504 , d = 3, r = 31;
+		delay = 1000; repeat = 504; d = 3; r = 31;
 	} else if (!strcmp(opt, "normal")) {
-		delay = 500, repeat = 126, d = 1, r = 15;
+		delay = 500; repeat = 126; d = 1; r = 15;
 	} else if (!strcmp(opt, "fast")) {
 		delay = repeat = d = r = 0;
 	} else {
