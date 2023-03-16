@@ -1728,6 +1728,7 @@ carp_carprcp(struct carpreq *carpr, struct carp_softc *sc, int priv)
 int
 carp_ioctl(struct ifreq *ifr, u_long cmd, struct thread *td)
 {
+	struct epoch_tracker et;
 	struct carpreq carpr;
 	struct ifnet *ifp;
 	struct carp_softc *sc = NULL;
@@ -1812,8 +1813,10 @@ carp_ioctl(struct ifreq *ifr, u_long cmd, struct thread *td)
 				carp_delroute(sc);
 				break;
 			case MASTER:
+				NET_EPOCH_ENTER(et);
 				carp_master_down_locked(sc,
 				    "user requested via ifconfig");
+				NET_EPOCH_EXIT(et);
 				break;
 			default:
 				break;
