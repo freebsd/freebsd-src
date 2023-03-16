@@ -58,10 +58,14 @@ tarfs_basic_body() {
 	atf_check_equal "$(stat -f%d,%i "${mnt}"/sparse_file)" "$(stat -f%d,%i "${mnt}"/hard_link)"
 	atf_check_equal "$(stat -f%d,%i "${mnt}"/sparse_file)" "$(stat -L -f%d,%i "${mnt}"/short_link)"
 	atf_check_equal "$(stat -f%d,%i "${mnt}"/sparse_file)" "$(stat -L -f%d,%i "${mnt}"/long_link)"
-	atf_check_equal "$(sha256 -q "${mnt}"/sparse_file)" ${sum}
-	atf_check_equal "$(stat -f%p "${mnt}"/sparse_file)" 100644
-	atf_check_equal "$(stat -f%l "${mnt}"/sparse_file)" 2
-	atf_check_equal "$(stat -f%l "${mnt}"/hard_link)" 2
+	atf_check -o inline:"${sum}\n" sha256 -q "${mnt}"/sparse_file
+	atf_check -o inline:"2,40755\n" stat -f%l,%p "${mnt}"/directory
+	atf_check -o inline:"1,100644\n" stat -f%l,%p "${mnt}"/file
+	atf_check -o inline:"2,100644\n" stat -f%l,%p "${mnt}"/hard_link
+	atf_check -o inline:"1,120755\n" stat -f%l,%p "${mnt}"/long_link
+	atf_check -o inline:"1,120755\n" stat -f%l,%p "${mnt}"/short_link
+	atf_check -o inline:"2,100644\n" stat -f%l,%p "${mnt}"/sparse_file
+	atf_check -o inline:"3,40755\n" stat -f%l,%p "${mnt}"
 }
 tarfs_basic_cleanup() {
 	umount "${mnt}" || true

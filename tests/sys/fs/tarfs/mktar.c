@@ -41,7 +41,6 @@
 #define PROGNAME	"mktar"
 
 #define SUBDIRNAME	"directory"
-#define EMPTYDIRNAME	"empty"
 #define NORMALFILENAME	"file"
 #define SPARSEFILENAME	"sparse_file"
 #define HARDLINKNAME	"hard_link"
@@ -127,11 +126,6 @@ mktar(void)
 	verbose("mkdir %s", SUBDIRNAME);
 	if (mkdir(SUBDIRNAME, 0755) != 0)
 		err(1, "%s", SUBDIRNAME);
-
-	/* create a second subdirectory which will remain empty */
-	verbose("mkdir %s", EMPTYDIRNAME);
-	if (mkdir(EMPTYDIRNAME, 0755) != 0)
-		err(1, "%s", EMPTYDIRNAME);
 
 	/* create a normal file */
 	verbose("creating %s", NORMALFILENAME);
@@ -233,7 +227,7 @@ main(int argc, char *argv[])
 #if 0
 		    "--options", "zstd:frame-per-file",
 #endif
-		    "./" EMPTYDIRNAME "/../" NORMALFILENAME,
+		    "./" SUBDIRNAME "/../" NORMALFILENAME,
 		    "./" SPARSEFILENAME,
 		    "./" HARDLINKNAME,
 		    "./" SHORTLINKNAME,
@@ -262,8 +256,6 @@ main(int argc, char *argv[])
 		(void)unlink(HARDLINKNAME);
 		verbose("rm %s", SPARSEFILENAME);
 		(void)unlink(SPARSEFILENAME);
-		verbose("rmdir %s", EMPTYDIRNAME);
-		(void)rmdir(EMPTYDIRNAME);
 		verbose("rmdir %s", SUBDIRNAME);
 		(void)rmdir(SUBDIRNAME);
 		verbose("cd -");
