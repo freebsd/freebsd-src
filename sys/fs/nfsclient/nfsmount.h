@@ -125,9 +125,11 @@ struct	nfsmount {
 #define	NFSMNTP_NOALLOCATE	0x00000200
 #define	NFSMNTP_DELEGISSUED	0x00000400
 #define	NFSMNTP_NODEALLOCATE	0x00000800
+#define	NFSMNTP_FAKEROOTFH	0x00001000
 
 /* New mount flags only used by the kernel via nmount(2). */
 #define	NFSMNT_TLS		0x00000001
+#define	NFSMNT_SYSKRB5		0x00000002
 
 #define	NFSMNT_DIRPATH(m)	(&((m)->nm_name[(m)->nm_krbnamelen + 1]))
 #define	NFSMNT_SRVKRBNAME(m)						\

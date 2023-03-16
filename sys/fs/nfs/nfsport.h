@@ -1085,6 +1085,7 @@ void ncl_copy_vattr(struct vattr *dst, struct vattr *src);
 #define	NFSHASONEOPENOWN(n)	(((n)->nm_flag & NFSMNT_ONEOPENOWN) != 0 &&	\
 				    (n)->nm_minorvers > 0)
 #define	NFSHASTLS(n)		(((n)->nm_newflag & NFSMNT_TLS) != 0)
+#define	NFSHASSYSKRB5(n)	(((n)->nm_newflag & NFSMNT_SYSKRB5) != 0)
 
 /*
  * Set boottime.
