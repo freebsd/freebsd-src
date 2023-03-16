@@ -32,6 +32,9 @@
 
 # OOM seen: https://people.freebsd.org/~pho/stress/log/suj12.txt
 
+# watchdogd fired:
+# https://people.freebsd.org/~pho/stress/log/log0428.txt
+
 . ../default.cfg
 
 gnop load || exit 0
