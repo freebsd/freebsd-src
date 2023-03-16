@@ -48,6 +48,7 @@
 #define SHORTLINKNAME	"short_link"
 #define LONGLINKNAME	"long_link"
 
+static bool opt_g;
 static bool opt_v;
 
 static void verbose(const char *fmt, ...)
@@ -163,7 +164,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: %s [-v] tarfile\n", PROGNAME);
+	fprintf(stderr, "usage: %s [-gv] tarfile\n", PROGNAME);
 	exit(EXIT_FAILURE);
 }
 
@@ -175,8 +176,10 @@ main(int argc, char *argv[])
 	int opt, wstatus;
 	pid_t pid;
 
-	while ((opt = getopt(argc, argv, "v")) != -1)
+	while ((opt = getopt(argc, argv, "gv")) != -1)
 		switch (opt) {
+		case 'g':
+			opt_g = true;
 		case 'v':
 			opt_v = true;
 			break;
@@ -220,10 +223,12 @@ main(int argc, char *argv[])
 		err(1, "fork()");
 	if (pid == 0) {
 		verbose("creating tarball");
-		execlp("tar", "tar",
+		execlp(opt_g ? "gtar" : "tar",
+		    "tar",
 		    "-c",
 		    "-f", tarfilename,
 		    "-C", dirname,
+		    "--posix",
 		    "--zstd",
 #if 0
 		    "--options", "zstd:frame-per-file",
