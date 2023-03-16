@@ -103,6 +103,10 @@ psci_call(register_t a, register_t b, register_t c, register_t d)
 #define	PSCI_VER_MINOR(v)		((v) & 0xFF)
 #define	PSCI_VER(maj, min)		(((maj) << 16) | (min))
 
+#define	PSCI_AFFINITY_INFO_ON		0
+#define	PSCI_AFFINITY_INFO_OFF		1
+#define	PSCI_AFFINITY_INFO_ON_PENDING	2
+
 #ifdef _KERNEL
 enum psci_fn {
 	PSCI_FN_VERSION,
