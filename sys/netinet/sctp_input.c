@@ -1351,7 +1351,6 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 	struct sctp_queued_to_read *sq, *nsq;
 	struct sctp_nets *net;
 	struct mbuf *op_err;
-	struct timeval old;
 	int init_offset, initack_offset, i;
 	int retval;
 	int spec_flag = 0;
@@ -1499,16 +1498,7 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			}
 			/* notify upper layer */
 			*notification = SCTP_NOTIFY_ASSOC_UP;
-			/*
-			 * since we did not send a HB make sure we don't
-			 * double things
-			 */
-			old.tv_sec = cookie->time_entered.tv_sec;
-			old.tv_usec = cookie->time_entered.tv_usec;
 			net->hb_responded = 1;
-			sctp_calculate_rto(stcb, asoc, net, &old,
-			    SCTP_RTT_FROM_NON_DATA);
-
 			if (stcb->asoc.sctp_autoclose_ticks &&
 			    (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_AUTOCLOSE))) {
 				sctp_timer_start(SCTP_TIMER_TYPE_AUTOCLOSE,
@@ -2202,17 +2192,11 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	(void)SCTP_GETTIME_TIMEVAL(&stcb->asoc.time_entered);
 	*netp = sctp_findnet(stcb, init_src);
 	if (*netp != NULL) {
-		struct timeval old;
-
 		/*
 		 * Since we did not send a HB, make sure we don't double
 		 * things.
 		 */
 		(*netp)->hb_responded = 1;
-		/* Calculate the RTT. */
-		old.tv_sec = cookie->time_entered.tv_sec;
-		old.tv_usec = cookie->time_entered.tv_usec;
-		sctp_calculate_rto(stcb, asoc, *netp, &old, SCTP_RTT_FROM_NON_DATA);
 	}
 	/* respond with a COOKIE-ACK */
 	sctp_send_cookie_ack(stcb);
