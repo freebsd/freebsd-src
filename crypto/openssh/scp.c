@@ -1,4 +1,4 @@
-/* $OpenBSD: scp.c,v 1.252 2023/01/10 23:22:15 millert Exp $ */
+/* $OpenBSD: scp.c,v 1.253 2023/03/03 03:12:24 dtucker Exp $ */
 /*
  * scp - secure remote copy.  This is basically patched BSD rcp which
  * uses ssh to do the data transfer (instead of using rcmd).
@@ -394,8 +394,10 @@ do_cmd2(char *host, char *remuser, int port, char *cmd,
 	/* Fork a child to execute the command on the remote host using ssh. */
 	pid = fork();
 	if (pid == 0) {
-		dup2(fdin, 0);
-		dup2(fdout, 1);
+		if (dup2(fdin, 0) == -1)
+			perror("dup2");
+		if (dup2(fdout, 1) == -1)
+			perror("dup2");
 
 		replacearg(&args, 0, "%s", ssh_program);
 		if (port != -1) {

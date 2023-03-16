@@ -221,7 +221,7 @@ case "${TARGET_HOST}" in
 	# test run does not time out.
 	# The agent-restrict test fails due to some quoting issue when run
 	# with sh or ksh so specify bash for now.
-	TEST_TARGET="t-exec TEST_SHELL=bash"
+	TEST_TARGET="t-exec unit TEST_SHELL=bash"
 	SKIP_LTESTS="rekey sftp"
 	;;
     debian-riscv64)

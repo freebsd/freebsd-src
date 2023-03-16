@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-client.c,v 1.168 2023/01/11 05:39:38 djm Exp $ */
+/* $OpenBSD: sftp-client.c,v 1.169 2023/03/08 04:43:12 guenther Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -149,7 +149,6 @@ request_find(struct requests *requests, u_int id)
 	return req;
 }
 
-/* ARGSUSED */
 static int
 sftpio(void *_bwlimit, size_t amount)
 {

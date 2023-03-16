@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-none.c,v 1.24 2021/12/19 22:12:07 djm Exp $ */
+/* $OpenBSD: auth2-none.c,v 1.25 2023/03/05 05:34:09 dtucker Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -44,7 +44,6 @@
 #include "log.h"
 #include "misc.h"
 #include "servconf.h"
-#include "compat.h"
 #include "ssh2.h"
 #include "ssherr.h"
 #ifdef GSSAPI

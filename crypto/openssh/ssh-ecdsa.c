@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-ecdsa.c,v 1.25 2022/10/28 00:44:44 djm Exp $ */
+/* $OpenBSD: ssh-ecdsa.c,v 1.26 2023/03/08 04:43:12 guenther Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2010 Damien Miller.  All rights reserved.
@@ -222,7 +222,6 @@ ssh_ecdsa_deserialize_private(const char *ktype, struct sshbuf *b,
 	return r;
 }
 
-/* ARGSUSED */
 static int
 ssh_ecdsa_sign(struct sshkey *key,
     u_char **sigp, size_t *lenp,
@@ -288,7 +287,6 @@ ssh_ecdsa_sign(struct sshkey *key,
 	return ret;
 }
 
-/* ARGSUSED */
 static int
 ssh_ecdsa_verify(const struct sshkey *key,
     const u_char *sig, size_t siglen,

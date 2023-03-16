@@ -1,3 +1,4 @@
+#	$OpenBSD: agent-getpeereid.sh,v 1.15 2023/02/08 08:06:03 dtucker Exp $
 #	$OpenBSD: agent-getpeereid.sh,v 1.13 2021/09/01 00:50:27 dtucker Exp $
 #	Placed in the Public Domain.
 
@@ -53,7 +54,7 @@ else
 	fi
 
 	trace "kill agent"
-	${SSHAGENT} -vvv -k >>$OBJ/ssh-agent.log 2>&1
+	${SSHAGENT} -k >>$OBJ/ssh-agent.log 2>&1
 fi
 
 rm -f ${OBJ}/agent

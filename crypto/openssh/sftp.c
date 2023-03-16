@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp.c,v 1.225 2023/01/05 05:49:13 djm Exp $ */
+/* $OpenBSD: sftp.c,v 1.229 2023/03/12 09:41:18 dtucker Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -217,7 +217,6 @@ static const struct CMD cmds[] = {
 	{ NULL,		-1,		-1,		-1	}
 };
 
-/* ARGSUSED */
 static void
 killchild(int signo)
 {
@@ -232,7 +231,6 @@ killchild(int signo)
 	_exit(1);
 }
 
-/* ARGSUSED */
 static void
 suspchild(int signo)
 {
@@ -244,7 +242,6 @@ suspchild(int signo)
 	kill(getpid(), SIGSTOP);
 }
 
-/* ARGSUSED */
 static void
 cmd_interrupt(int signo)
 {
@@ -256,14 +253,12 @@ cmd_interrupt(int signo)
 	errno = olderrno;
 }
 
-/* ARGSUSED */
 static void
 read_interrupt(int signo)
 {
 	interrupted = 1;
 }
 
-/*ARGSUSED*/
 static void
 sigchld_handler(int sig)
 {
@@ -1012,7 +1007,7 @@ do_globbed_ls(struct sftp_conn *conn, const char *path,
 	 */
 	for (nentries = 0; g.gl_pathv[nentries] != NULL; nentries++)
 		;	/* count entries */
-	indices = calloc(nentries, sizeof(*indices));
+	indices = xcalloc(nentries, sizeof(*indices));
 	for (i = 0; i < nentries; i++)
 		indices[i] = i;
 
@@ -1030,6 +1025,7 @@ do_globbed_ls(struct sftp_conn *conn, const char *path,
 		if (lflag & LS_LONG_VIEW) {
 			if (g.gl_statv[i] == NULL) {
 				error("no stat information for %s", fname);
+				free(fname);
 				continue;
 			}
 			lname = ls_file(fname, g.gl_statv[i], 1,
@@ -2001,7 +1997,9 @@ complete_match(EditLine *el, struct sftp_conn *conn, char *remote_path,
 
 	memset(&g, 0, sizeof(g));
 	if (remote != LOCAL) {
-		tmp = make_absolute_pwd_glob(tmp, remote_path);
+		tmp2 = make_absolute_pwd_glob(tmp, remote_path);
+		free(tmp);
+		tmp = tmp2;
 		remote_glob(conn, tmp, GLOB_DOOFFS|GLOB_MARK, NULL, &g);
 	} else
 		glob(tmp, GLOB_DOOFFS|GLOB_MARK, NULL, &g);
