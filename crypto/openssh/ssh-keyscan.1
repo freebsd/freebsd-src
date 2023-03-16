@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keyscan.1,v 1.47 2022/10/28 02:29:34 djm Exp $
+.\"	$OpenBSD: ssh-keyscan.1,v 1.49 2023/02/10 06:41:53 jmc Exp $
 .\"
 .\" Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.
 .\"
@@ -6,7 +6,7 @@
 .\" permitted provided that due credit is given to the author and the
 .\" OpenBSD project by leaving this copyright notice intact.
 .\"
-.Dd $Mdocdate: October 28 2022 $
+.Dd $Mdocdate: February 10 2023 $
 .Dt SSH-KEYSCAN 1
 .Os
 .Sh NAME
@@ -16,6 +16,7 @@
 .Nm ssh-keyscan
 .Op Fl 46cDHv
 .Op Fl f Ar file
+.Op Fl O Ar option
 .Op Fl p Ar port
 .Op Fl T Ar timeout
 .Op Fl t Ar type
@@ -97,6 +98,20 @@ and
 .Xr sshd 8 ,
 but they do not reveal identifying information should the file's contents
 be disclosed.
+.It Fl O Ar option
+Specify a key/value option.
+At present, only a single option is supported:
+.Bl -tag -width Ds
+.It Cm hashalg Ns = Ns Ar algorithm
+Selects a hash algorithm to use when printing SSHFP records using the
+.Fl D
+flag.
+Valid algorithms are
+.Dq sha1
+and
+.Dq sha256 .
+The default is to print both.
+.El
 .It Fl p Ar port
 Connect to
 .Ar port

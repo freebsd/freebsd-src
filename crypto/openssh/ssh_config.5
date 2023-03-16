@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.378 2023/01/13 07:13:40 jmc Exp $
-.Dd $Mdocdate: January 13 2023 $
+.\" $OpenBSD: ssh_config.5,v 1.379 2023/03/10 02:32:04 djm Exp $
+.Dd $Mdocdate: March 10 2023 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -56,7 +56,7 @@ system-wide configuration file
 .Pq Pa /etc/ssh/ssh_config
 .El
 .Pp
-For each parameter, the first obtained value
+Unless noted otherwise, for each parameter, the first obtained value
 will be used.
 The configuration files contain sections separated by
 .Cm Host

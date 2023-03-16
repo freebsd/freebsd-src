@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.c,v 1.584 2023/01/17 18:52:44 millert Exp $ */
+/* $OpenBSD: ssh.c,v 1.585 2023/02/10 04:40:28 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -794,6 +794,7 @@ main(int ac, char **av)
 			else if (strcmp(optarg, "key-plain") == 0)
 				cp = sshkey_alg_list(0, 1, 0, '\n');
 			else if (strcmp(optarg, "key-sig") == 0 ||
+			    strcasecmp(optarg, "CASignatureAlgorithms") == 0 ||
 			    strcasecmp(optarg, "PubkeyAcceptedKeyTypes") == 0 || /* deprecated name */
 			    strcasecmp(optarg, "PubkeyAcceptedAlgorithms") == 0 ||
 			    strcasecmp(optarg, "HostKeyAlgorithms") == 0 ||

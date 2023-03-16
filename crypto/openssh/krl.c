@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $OpenBSD: krl.c,v 1.54 2022/04/28 02:53:31 djm Exp $ */
+/* $OpenBSD: krl.c,v 1.55 2023/03/14 07:28:47 dtucker Exp $ */
 
 #include "includes.h"
 
@@ -191,6 +191,7 @@ ssh_krl_free(struct ssh_krl *krl)
 		TAILQ_REMOVE(&krl->revoked_certs, rc, entry);
 		revoked_certs_free(rc);
 	}
+	free(krl);
 }
 
 void
