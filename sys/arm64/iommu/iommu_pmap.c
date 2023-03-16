@@ -388,8 +388,8 @@ _smmu_pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	smmu_pmap_add_delayed_free_list(m, free, TRUE);
 }
 
-static int
-smmu_pmap_pinit_levels(pmap_t pmap, int levels)
+int
+smmu_pmap_pinit(pmap_t pmap)
 {
 	vm_page_t m;
 
@@ -404,29 +404,10 @@ smmu_pmap_pinit_levels(pmap_t pmap, int levels)
 	vm_radix_init(&pmap->pm_root);
 	bzero(&pmap->pm_stats, sizeof(pmap->pm_stats));
 
-	MPASS(levels == 3 || levels == 4);
-	pmap->pm_levels = levels;
-
-	/*
-	 * Allocate the level 1 entry to use as the root. This will increase
-	 * the refcount on the level 1 page so it won't be removed until
-	 * pmap_release() is called.
-	 */
-	if (pmap->pm_levels == 3) {
-		PMAP_LOCK(pmap);
-		m = _pmap_alloc_l3(pmap, NUL2E + NUL1E);
-		PMAP_UNLOCK(pmap);
-	}
+	pmap->pm_levels = 4;
 	pmap->pm_ttbr = VM_PAGE_TO_PHYS(m);
 
 	return (1);
-}
-
-int
-smmu_pmap_pinit(pmap_t pmap)
-{
-
-	return (smmu_pmap_pinit_levels(pmap, 4));
 }
 
 /*
@@ -567,25 +548,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex)
 void
 smmu_pmap_release(pmap_t pmap)
 {
-	boolean_t rv __diagused;
-	struct spglist free;
 	vm_page_t m;
-
-	if (pmap->pm_levels != 4) {
-		KASSERT(pmap->pm_stats.resident_count == 1,
-		    ("pmap_release: pmap resident count %ld != 0",
-		    pmap->pm_stats.resident_count));
-		KASSERT((pmap->pm_l0[0] & ATTR_DESCR_VALID) == ATTR_DESCR_VALID,
-		    ("pmap_release: Invalid l0 entry: %lx", pmap->pm_l0[0]));
-
-		SLIST_INIT(&free);
-		m = PHYS_TO_VM_PAGE(pmap->pm_ttbr);
-		PMAP_LOCK(pmap);
-		rv = smmu_pmap_unwire_l3(pmap, 0, m, &free);
-		PMAP_UNLOCK(pmap);
-		MPASS(rv == TRUE);
-		vm_page_free_pages_toq(&free, true);
-	}
 
 	KASSERT(pmap->pm_stats.resident_count == 0,
 	    ("pmap_release: pmap resident count %ld != 0",
