@@ -34,9 +34,9 @@
 #define	_ARM64_IOMMU_IOMMU_PMAP_H_
 
 /* System MMU (SMMU). */
-int pmap_smmu_enter(pmap_t pmap, vm_offset_t va, vm_paddr_t pa, vm_prot_t prot,
+int smmu_pmap_enter(pmap_t pmap, vm_offset_t va, vm_paddr_t pa, vm_prot_t prot,
     u_int flags);
-int pmap_smmu_remove(pmap_t pmap, vm_offset_t va);
+int smmu_pmap_remove(pmap_t pmap, vm_offset_t va);
 
 /* Mali GPU */
 int pmap_gpu_enter(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
@@ -44,8 +44,8 @@ int pmap_gpu_enter(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 int pmap_gpu_remove(pmap_t pmap, vm_offset_t va);
 
 /* Common */
-void iommu_pmap_remove_pages(pmap_t pmap);
-void iommu_pmap_release(pmap_t pmap);
-int iommu_pmap_pinit(pmap_t);
+void smmu_pmap_remove_pages(pmap_t pmap);
+void smmu_pmap_release(pmap_t pmap);
+int smmu_pmap_pinit(pmap_t);
 
 #endif /* !_ARM64_IOMMU_IOMMU_PMAP_H_ */

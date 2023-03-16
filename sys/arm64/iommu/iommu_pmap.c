@@ -71,16 +71,21 @@ __FBSDID("$FreeBSD$");
 #define	NUL1E		(NUL0E * NL1PG)
 #define	NUL2E		(NUL1E * NL2PG)
 
-#define	iommu_l0_pindex(v)	(NUL2E + NUL1E + ((v) >> IOMMU_L0_SHIFT))
-#define	iommu_l1_pindex(v)	(NUL2E + ((v) >> IOMMU_L1_SHIFT))
-#define	iommu_l2_pindex(v)	((v) >> IOMMU_L2_SHIFT)
+#define	smmu_l0_pindex(v)	(NUL2E + NUL1E + ((v) >> IOMMU_L0_SHIFT))
+#define	smmu_l1_pindex(v)	(NUL2E + ((v) >> IOMMU_L1_SHIFT))
+#define	smmu_l2_pindex(v)	((v) >> IOMMU_L2_SHIFT)
+
+#define	smmu_l0_index(va)	(((va) >> IOMMU_L0_SHIFT) & IOMMU_L0_ADDR_MASK)
+#define	smmu_l1_index(va)	(((va) >> IOMMU_L1_SHIFT) & IOMMU_Ln_ADDR_MASK)
+#define	smmu_l2_index(va)	(((va) >> IOMMU_L2_SHIFT) & IOMMU_Ln_ADDR_MASK)
+#define	smmu_l3_index(va)	(((va) >> IOMMU_L3_SHIFT) & IOMMU_Ln_ADDR_MASK)
 
 /* This code assumes all L1 DMAP entries will be used */
 CTASSERT((DMAP_MIN_ADDRESS  & ~IOMMU_L0_OFFSET) == DMAP_MIN_ADDRESS);
 CTASSERT((DMAP_MAX_ADDRESS  & ~IOMMU_L0_OFFSET) == DMAP_MAX_ADDRESS);
 
 static vm_page_t _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex);
-static void _pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m,
+static void _smmu_pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m,
     struct spglist *free);
 
 /*
@@ -88,48 +93,48 @@ static void _pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m,
  * They need to be atomic as the System MMU may write to the table at
  * the same time as the CPU.
  */
-#define	pmap_load(table)		(*table)
-#define	pmap_clear(table)		atomic_store_64(table, 0)
-#define	pmap_store(table, entry)	atomic_store_64(table, entry)
+#define	smmu_pmap_load(table)		(*table)
+#define	smmu_pmap_clear(table)		atomic_store_64(table, 0)
+#define	smmu_pmap_store(table, entry)	atomic_store_64(table, entry)
 
 /********************/
 /* Inline functions */
 /********************/
 
 static __inline pd_entry_t *
-pmap_l0(pmap_t pmap, vm_offset_t va)
+smmu_pmap_l0(pmap_t pmap, vm_offset_t va)
 {
 
-	return (&pmap->pm_l0[iommu_l0_index(va)]);
+	return (&pmap->pm_l0[smmu_l0_index(va)]);
 }
 
 static __inline pd_entry_t *
-pmap_l0_to_l1(pd_entry_t *l0, vm_offset_t va)
+smmu_pmap_l0_to_l1(pd_entry_t *l0, vm_offset_t va)
 {
 	pd_entry_t *l1;
 
-	l1 = (pd_entry_t *)PHYS_TO_DMAP(pmap_load(l0) & ~ATTR_MASK);
-	return (&l1[iommu_l1_index(va)]);
+	l1 = (pd_entry_t *)PHYS_TO_DMAP(smmu_pmap_load(l0) & ~ATTR_MASK);
+	return (&l1[smmu_l1_index(va)]);
 }
 
 static __inline pd_entry_t *
-pmap_l1(pmap_t pmap, vm_offset_t va)
+smmu_pmap_l1(pmap_t pmap, vm_offset_t va)
 {
 	pd_entry_t *l0;
 
-	l0 = pmap_l0(pmap, va);
-	if ((pmap_load(l0) & ATTR_DESCR_MASK) != IOMMU_L0_TABLE)
+	l0 = smmu_pmap_l0(pmap, va);
+	if ((smmu_pmap_load(l0) & ATTR_DESCR_MASK) != IOMMU_L0_TABLE)
 		return (NULL);
 
-	return (pmap_l0_to_l1(l0, va));
+	return (smmu_pmap_l0_to_l1(l0, va));
 }
 
 static __inline pd_entry_t *
-pmap_l1_to_l2(pd_entry_t *l1p, vm_offset_t va)
+smmu_pmap_l1_to_l2(pd_entry_t *l1p, vm_offset_t va)
 {
 	pd_entry_t l1, *l2p;
 
-	l1 = pmap_load(l1p);
+	l1 = smmu_pmap_load(l1p);
 
 	/*
 	 * The valid bit may be clear if pmap_update_entry() is concurrently
@@ -140,28 +145,28 @@ pmap_l1_to_l2(pd_entry_t *l1p, vm_offset_t va)
 	KASSERT((l1 & ATTR_DESCR_TYPE_MASK) == ATTR_DESCR_TYPE_TABLE,
 	    ("%s: L1 entry %#lx for %#lx is a leaf", __func__, l1, va));
 	l2p = (pd_entry_t *)PHYS_TO_DMAP(l1 & ~ATTR_MASK);
-	return (&l2p[iommu_l2_index(va)]);
+	return (&l2p[smmu_l2_index(va)]);
 }
 
 static __inline pd_entry_t *
-pmap_l2(pmap_t pmap, vm_offset_t va)
+smmu_pmap_l2(pmap_t pmap, vm_offset_t va)
 {
 	pd_entry_t *l1;
 
-	l1 = pmap_l1(pmap, va);
-	if ((pmap_load(l1) & ATTR_DESCR_MASK) != IOMMU_L1_TABLE)
+	l1 = smmu_pmap_l1(pmap, va);
+	if ((smmu_pmap_load(l1) & ATTR_DESCR_MASK) != IOMMU_L1_TABLE)
 		return (NULL);
 
-	return (pmap_l1_to_l2(l1, va));
+	return (smmu_pmap_l1_to_l2(l1, va));
 }
 
 static __inline pt_entry_t *
-pmap_l2_to_l3(pd_entry_t *l2p, vm_offset_t va)
+smmu_pmap_l2_to_l3(pd_entry_t *l2p, vm_offset_t va)
 {
 	pd_entry_t l2;
 	pt_entry_t *l3p;
 
-	l2 = pmap_load(l2p);
+	l2 = smmu_pmap_load(l2p);
 
 	/*
 	 * The valid bit may be clear if pmap_update_entry() is concurrently
@@ -172,7 +177,7 @@ pmap_l2_to_l3(pd_entry_t *l2p, vm_offset_t va)
 	KASSERT((l2 & ATTR_DESCR_TYPE_MASK) == ATTR_DESCR_TYPE_TABLE,
 	    ("%s: L2 entry %#lx for %#lx is a leaf", __func__, l2, va));
 	l3p = (pt_entry_t *)PHYS_TO_DMAP(l2 & ~ATTR_MASK);
-	return (&l3p[iommu_l3_index(va)]);
+	return (&l3p[smmu_l3_index(va)]);
 }
 
 /*
@@ -180,26 +185,26 @@ pmap_l2_to_l3(pd_entry_t *l2p, vm_offset_t va)
  * The next level may or may not point to a valid page or block.
  */
 static __inline pd_entry_t *
-pmap_pde(pmap_t pmap, vm_offset_t va, int *level)
+smmu_pmap_pde(pmap_t pmap, vm_offset_t va, int *level)
 {
 	pd_entry_t *l0, *l1, *l2, desc;
 
-	l0 = pmap_l0(pmap, va);
-	desc = pmap_load(l0) & ATTR_DESCR_MASK;
+	l0 = smmu_pmap_l0(pmap, va);
+	desc = smmu_pmap_load(l0) & ATTR_DESCR_MASK;
 	if (desc != IOMMU_L0_TABLE) {
 		*level = -1;
 		return (NULL);
 	}
 
-	l1 = pmap_l0_to_l1(l0, va);
-	desc = pmap_load(l1) & ATTR_DESCR_MASK;
+	l1 = smmu_pmap_l0_to_l1(l0, va);
+	desc = smmu_pmap_load(l1) & ATTR_DESCR_MASK;
 	if (desc != IOMMU_L1_TABLE) {
 		*level = 0;
 		return (l0);
 	}
 
-	l2 = pmap_l1_to_l2(l1, va);
-	desc = pmap_load(l2) & ATTR_DESCR_MASK;
+	l2 = smmu_pmap_l1_to_l2(l1, va);
+	desc = smmu_pmap_load(l2) & ATTR_DESCR_MASK;
 	if (desc != IOMMU_L2_TABLE) {
 		*level = 1;
 		return (l1);
@@ -215,17 +220,17 @@ pmap_pde(pmap_t pmap, vm_offset_t va, int *level)
  * the first invalid level.
  */
 static __inline pt_entry_t *
-pmap_pte(pmap_t pmap, vm_offset_t va, int *level)
+smmu_pmap_pte(pmap_t pmap, vm_offset_t va, int *level)
 {
 	pd_entry_t *l1, *l2, desc;
 	pt_entry_t *l3;
 
-	l1 = pmap_l1(pmap, va);
+	l1 = smmu_pmap_l1(pmap, va);
 	if (l1 == NULL) {
 		*level = 0;
 		return (NULL);
 	}
-	desc = pmap_load(l1) & ATTR_DESCR_MASK;
+	desc = smmu_pmap_load(l1) & ATTR_DESCR_MASK;
 	if (desc == IOMMU_L1_BLOCK) {
 		*level = 1;
 		return (l1);
@@ -236,8 +241,8 @@ pmap_pte(pmap_t pmap, vm_offset_t va, int *level)
 		return (NULL);
 	}
 
-	l2 = pmap_l1_to_l2(l1, va);
-	desc = pmap_load(l2) & ATTR_DESCR_MASK;
+	l2 = smmu_pmap_l1_to_l2(l1, va);
+	desc = smmu_pmap_load(l2) & ATTR_DESCR_MASK;
 	if (desc == IOMMU_L2_BLOCK) {
 		*level = 2;
 		return (l2);
@@ -249,15 +254,15 @@ pmap_pte(pmap_t pmap, vm_offset_t va, int *level)
 	}
 
 	*level = 3;
-	l3 = pmap_l2_to_l3(l2, va);
-	if ((pmap_load(l3) & ATTR_DESCR_MASK) != IOMMU_L3_PAGE)
+	l3 = smmu_pmap_l2_to_l3(l2, va);
+	if ((smmu_pmap_load(l3) & ATTR_DESCR_MASK) != IOMMU_L3_PAGE)
 		return (NULL);
 
 	return (l3);
 }
 
 static __inline int
-pmap_l3_valid(pt_entry_t l3)
+smmu_pmap_l3_valid(pt_entry_t l3)
 {
 
 	return ((l3 & ATTR_DESCR_MASK) == IOMMU_L3_PAGE);
@@ -266,7 +271,7 @@ pmap_l3_valid(pt_entry_t l3)
 CTASSERT(IOMMU_L1_BLOCK == IOMMU_L2_BLOCK);
 
 static __inline void
-pmap_resident_count_inc(pmap_t pmap, int count)
+smmu_pmap_resident_count_inc(pmap_t pmap, int count)
 {
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
@@ -274,7 +279,7 @@ pmap_resident_count_inc(pmap_t pmap, int count)
 }
 
 static __inline void
-pmap_resident_count_dec(pmap_t pmap, int count)
+smmu_pmap_resident_count_dec(pmap_t pmap, int count)
 {
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
@@ -293,7 +298,7 @@ pmap_resident_count_dec(pmap_t pmap, int count)
  * physical memory manager after the TLB has been updated.
  */
 static __inline void
-pmap_add_delayed_free_list(vm_page_t m, struct spglist *free,
+smmu_pmap_add_delayed_free_list(vm_page_t m, struct spglist *free,
     boolean_t set_PG_ZERO)
 {
 
@@ -315,19 +320,21 @@ pmap_add_delayed_free_list(vm_page_t m, struct spglist *free,
  * page table page was unmapped and FALSE otherwise.
  */
 static inline boolean_t
-pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
+smmu_pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m,
+    struct spglist *free)
 {
 
 	--m->ref_count;
 	if (m->ref_count == 0) {
-		_pmap_unwire_l3(pmap, va, m, free);
+		_smmu_pmap_unwire_l3(pmap, va, m, free);
 		return (TRUE);
 	} else
 		return (FALSE);
 }
 
 static void
-_pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
+_smmu_pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m,
+    struct spglist *free)
 {
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
@@ -338,51 +345,51 @@ _pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 		/* l1 page */
 		pd_entry_t *l0;
 
-		l0 = pmap_l0(pmap, va);
-		pmap_clear(l0);
+		l0 = smmu_pmap_l0(pmap, va);
+		smmu_pmap_clear(l0);
 	} else if (m->pindex >= NUL2E) {
 		/* l2 page */
 		pd_entry_t *l1;
 
-		l1 = pmap_l1(pmap, va);
-		pmap_clear(l1);
+		l1 = smmu_pmap_l1(pmap, va);
+		smmu_pmap_clear(l1);
 	} else {
 		/* l3 page */
 		pd_entry_t *l2;
 
-		l2 = pmap_l2(pmap, va);
-		pmap_clear(l2);
+		l2 = smmu_pmap_l2(pmap, va);
+		smmu_pmap_clear(l2);
 	}
-	pmap_resident_count_dec(pmap, 1);
+	smmu_pmap_resident_count_dec(pmap, 1);
 	if (m->pindex < NUL2E) {
 		/* We just released an l3, unhold the matching l2 */
 		pd_entry_t *l1, tl1;
 		vm_page_t l2pg;
 
-		l1 = pmap_l1(pmap, va);
-		tl1 = pmap_load(l1);
+		l1 = smmu_pmap_l1(pmap, va);
+		tl1 = smmu_pmap_load(l1);
 		l2pg = PHYS_TO_VM_PAGE(tl1 & ~ATTR_MASK);
-		pmap_unwire_l3(pmap, va, l2pg, free);
+		smmu_pmap_unwire_l3(pmap, va, l2pg, free);
 	} else if (m->pindex < (NUL2E + NUL1E)) {
 		/* We just released an l2, unhold the matching l1 */
 		pd_entry_t *l0, tl0;
 		vm_page_t l1pg;
 
-		l0 = pmap_l0(pmap, va);
-		tl0 = pmap_load(l0);
+		l0 = smmu_pmap_l0(pmap, va);
+		tl0 = smmu_pmap_load(l0);
 		l1pg = PHYS_TO_VM_PAGE(tl0 & ~ATTR_MASK);
-		pmap_unwire_l3(pmap, va, l1pg, free);
+		smmu_pmap_unwire_l3(pmap, va, l1pg, free);
 	}
 
 	/*
 	 * Put page on a list so that it is released after
 	 * *ALL* TLB shootdown is done
 	 */
-	pmap_add_delayed_free_list(m, free, TRUE);
+	smmu_pmap_add_delayed_free_list(m, free, TRUE);
 }
 
 static int
-iommu_pmap_pinit_levels(pmap_t pmap, int levels)
+smmu_pmap_pinit_levels(pmap_t pmap, int levels)
 {
 	vm_page_t m;
 
@@ -416,10 +423,10 @@ iommu_pmap_pinit_levels(pmap_t pmap, int levels)
 }
 
 int
-iommu_pmap_pinit(pmap_t pmap)
+smmu_pmap_pinit(pmap_t pmap)
 {
 
-	return (iommu_pmap_pinit_levels(pmap, 4));
+	return (smmu_pmap_pinit_levels(pmap, 4));
 }
 
 /*
@@ -473,7 +480,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex)
 
 		l0index = ptepindex - (NUL2E + NUL1E);
 		l0 = &pmap->pm_l0[l0index];
-		pmap_store(l0, VM_PAGE_TO_PHYS(m) | IOMMU_L0_TABLE);
+		smmu_pmap_store(l0, VM_PAGE_TO_PHYS(m) | IOMMU_L0_TABLE);
 	} else if (ptepindex >= NUL2E) {
 		vm_pindex_t l0index, l1index;
 		pd_entry_t *l0, *l1;
@@ -483,7 +490,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex)
 		l0index = l1index >> IOMMU_L0_ENTRIES_SHIFT;
 
 		l0 = &pmap->pm_l0[l0index];
-		tl0 = pmap_load(l0);
+		tl0 = smmu_pmap_load(l0);
 		if (tl0 == 0) {
 			/* recurse for allocating page dir */
 			if (_pmap_alloc_l3(pmap, NUL2E + NUL1E + l0index)
@@ -497,9 +504,9 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex)
 			l1pg->ref_count++;
 		}
 
-		l1 = (pd_entry_t *)PHYS_TO_DMAP(pmap_load(l0) & ~ATTR_MASK);
+		l1 = (pd_entry_t *)PHYS_TO_DMAP(smmu_pmap_load(l0) &~ATTR_MASK);
 		l1 = &l1[ptepindex & Ln_ADDR_MASK];
-		pmap_store(l1, VM_PAGE_TO_PHYS(m) | IOMMU_L1_TABLE);
+		smmu_pmap_store(l1, VM_PAGE_TO_PHYS(m) | IOMMU_L1_TABLE);
 	} else {
 		vm_pindex_t l0index, l1index;
 		pd_entry_t *l0, *l1, *l2;
@@ -509,7 +516,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex)
 		l0index = l1index >> IOMMU_L0_ENTRIES_SHIFT;
 
 		l0 = &pmap->pm_l0[l0index];
-		tl0 = pmap_load(l0);
+		tl0 = smmu_pmap_load(l0);
 		if (tl0 == 0) {
 			/* recurse for allocating page dir */
 			if (_pmap_alloc_l3(pmap, NUL2E + l1index) == NULL) {
@@ -517,13 +524,13 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex)
 				vm_page_free_zero(m);
 				return (NULL);
 			}
-			tl0 = pmap_load(l0);
+			tl0 = smmu_pmap_load(l0);
 			l1 = (pd_entry_t *)PHYS_TO_DMAP(tl0 & ~ATTR_MASK);
 			l1 = &l1[l1index & Ln_ADDR_MASK];
 		} else {
 			l1 = (pd_entry_t *)PHYS_TO_DMAP(tl0 & ~ATTR_MASK);
 			l1 = &l1[l1index & Ln_ADDR_MASK];
-			tl1 = pmap_load(l1);
+			tl1 = smmu_pmap_load(l1);
 			if (tl1 == 0) {
 				/* recurse for allocating page dir */
 				if (_pmap_alloc_l3(pmap, NUL2E + l1index)
@@ -538,12 +545,12 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex)
 			}
 		}
 
-		l2 = (pd_entry_t *)PHYS_TO_DMAP(pmap_load(l1) & ~ATTR_MASK);
+		l2 = (pd_entry_t *)PHYS_TO_DMAP(smmu_pmap_load(l1) &~ATTR_MASK);
 		l2 = &l2[ptepindex & Ln_ADDR_MASK];
-		pmap_store(l2, VM_PAGE_TO_PHYS(m) | IOMMU_L2_TABLE);
+		smmu_pmap_store(l2, VM_PAGE_TO_PHYS(m) | IOMMU_L2_TABLE);
 	}
 
-	pmap_resident_count_inc(pmap, 1);
+	smmu_pmap_resident_count_inc(pmap, 1);
 
 	return (m);
 }
@@ -558,7 +565,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex)
  * Should only be called if the map contains no valid mappings.
  */
 void
-iommu_pmap_release(pmap_t pmap)
+smmu_pmap_release(pmap_t pmap)
 {
 	boolean_t rv __diagused;
 	struct spglist free;
@@ -574,7 +581,7 @@ iommu_pmap_release(pmap_t pmap)
 		SLIST_INIT(&free);
 		m = PHYS_TO_VM_PAGE(pmap->pm_ttbr);
 		PMAP_LOCK(pmap);
-		rv = pmap_unwire_l3(pmap, 0, m, &free);
+		rv = smmu_pmap_unwire_l3(pmap, 0, m, &free);
 		PMAP_UNLOCK(pmap);
 		MPASS(rv == TRUE);
 		vm_page_free_pages_toq(&free, true);
@@ -635,11 +642,11 @@ pmap_gpu_enter(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 	 * resident, we are creating it here.
 	 */
 retry:
-	pde = pmap_pde(pmap, va, &lvl);
+	pde = smmu_pmap_pde(pmap, va, &lvl);
 	if (pde != NULL && lvl == 2) {
-		l3 = pmap_l2_to_l3(pde, va);
+		l3 = smmu_pmap_l2_to_l3(pde, va);
 	} else {
-		mpte = _pmap_alloc_l3(pmap, iommu_l2_pindex(va));
+		mpte = _pmap_alloc_l3(pmap, smmu_l2_pindex(va));
 		if (mpte == NULL) {
 			CTR0(KTR_PMAP, "pmap_enter: mpte == NULL");
 			rv = KERN_RESOURCE_SHORTAGE;
@@ -652,23 +659,23 @@ retry:
 		 * The cache entry for l3 handled below.
 		 */
 
-		l1p = pmap_l1(pmap, va);
-		l2p = pmap_l2(pmap, va);
+		l1p = smmu_pmap_l1(pmap, va);
+		l2p = smmu_pmap_l2(pmap, va);
 		cpu_dcache_wb_range((vm_offset_t)l1p, sizeof(pd_entry_t));
 		cpu_dcache_wb_range((vm_offset_t)l2p, sizeof(pd_entry_t));
 
 		goto retry;
 	}
 
-	orig_l3 = pmap_load(l3);
-	KASSERT(!pmap_l3_valid(orig_l3), ("l3 is valid"));
+	orig_l3 = smmu_pmap_load(l3);
+	KASSERT(!smmu_pmap_l3_valid(orig_l3), ("l3 is valid"));
 
 	/* New mapping */
-	pmap_store(l3, new_l3);
+	smmu_pmap_store(l3, new_l3);
 
 	cpu_dcache_wb_range((vm_offset_t)l3, sizeof(pt_entry_t));
 
-	pmap_resident_count_inc(pmap, 1);
+	smmu_pmap_resident_count_inc(pmap, 1);
 	dsb(ishst);
 
 	rv = KERN_SUCCESS;
@@ -694,16 +701,16 @@ pmap_gpu_remove(pmap_t pmap, vm_offset_t va)
 
 	PMAP_LOCK(pmap);
 
-	pde = pmap_pde(pmap, va, &lvl);
+	pde = smmu_pmap_pde(pmap, va, &lvl);
 	if (pde == NULL || lvl != 2) {
 		rc = KERN_FAILURE;
 		goto out;
 	}
 
-	pte = pmap_l2_to_l3(pde, va);
+	pte = smmu_pmap_l2_to_l3(pde, va);
 
-	pmap_resident_count_dec(pmap, 1);
-	pmap_clear(pte);
+	smmu_pmap_resident_count_dec(pmap, 1);
+	smmu_pmap_clear(pte);
 	cpu_dcache_wb_range((vm_offset_t)pte, sizeof(pt_entry_t));
 	rc = KERN_SUCCESS;
 
@@ -717,7 +724,7 @@ out:
  * Add a single SMMU entry. This function does not sleep.
  */
 int
-pmap_smmu_enter(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
+smmu_pmap_enter(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
     vm_prot_t prot, u_int flags)
 {
 	pd_entry_t *pde;
@@ -748,11 +755,11 @@ pmap_smmu_enter(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 	 * resident, we are creating it here.
 	 */
 retry:
-	pde = pmap_pde(pmap, va, &lvl);
+	pde = smmu_pmap_pde(pmap, va, &lvl);
 	if (pde != NULL && lvl == 2) {
-		l3 = pmap_l2_to_l3(pde, va);
+		l3 = smmu_pmap_l2_to_l3(pde, va);
 	} else {
-		mpte = _pmap_alloc_l3(pmap, iommu_l2_pindex(va));
+		mpte = _pmap_alloc_l3(pmap, smmu_l2_pindex(va));
 		if (mpte == NULL) {
 			CTR0(KTR_PMAP, "pmap_enter: mpte == NULL");
 			rv = KERN_RESOURCE_SHORTAGE;
@@ -761,12 +768,12 @@ retry:
 		goto retry;
 	}
 
-	orig_l3 = pmap_load(l3);
-	KASSERT(!pmap_l3_valid(orig_l3), ("l3 is valid"));
+	orig_l3 = smmu_pmap_load(l3);
+	KASSERT(!smmu_pmap_l3_valid(orig_l3), ("l3 is valid"));
 
 	/* New mapping */
-	pmap_store(l3, new_l3);
-	pmap_resident_count_inc(pmap, 1);
+	smmu_pmap_store(l3, new_l3);
+	smmu_pmap_resident_count_inc(pmap, 1);
 	dsb(ishst);
 
 	rv = KERN_SUCCESS;
@@ -780,7 +787,7 @@ out:
  * Remove a single SMMU entry.
  */
 int
-pmap_smmu_remove(pmap_t pmap, vm_offset_t va)
+smmu_pmap_remove(pmap_t pmap, vm_offset_t va)
 {
 	pt_entry_t *pte;
 	int lvl;
@@ -788,13 +795,13 @@ pmap_smmu_remove(pmap_t pmap, vm_offset_t va)
 
 	PMAP_LOCK(pmap);
 
-	pte = pmap_pte(pmap, va, &lvl);
+	pte = smmu_pmap_pte(pmap, va, &lvl);
 	KASSERT(lvl == 3,
 	    ("Invalid SMMU pagetable level: %d != 3", lvl));
 
 	if (pte != NULL) {
-		pmap_resident_count_dec(pmap, 1);
-		pmap_clear(pte);
+		smmu_pmap_resident_count_dec(pmap, 1);
+		smmu_pmap_clear(pte);
 		rc = KERN_SUCCESS;
 	} else
 		rc = KERN_FAILURE;
@@ -810,7 +817,7 @@ pmap_smmu_remove(pmap_t pmap, vm_offset_t va)
  * this function panics.
  */
 void
-iommu_pmap_remove_pages(pmap_t pmap)
+smmu_pmap_remove_pages(pmap_t pmap)
 {
 	pd_entry_t l0e, *l1, l1e, *l2, l2e;
 	pt_entry_t *l3, l3e;
@@ -823,7 +830,7 @@ iommu_pmap_remove_pages(pmap_t pmap)
 
 	PMAP_LOCK(pmap);
 
-	for (sva = VM_MINUSER_ADDRESS, i = iommu_l0_index(sva);
+	for (sva = VM_MINUSER_ADDRESS, i = smmu_l0_index(sva);
 	    (i < Ln_ENTRIES && sva < VM_MAXUSER_ADDRESS); i++) {
 		l0e = pmap->pm_l0[i];
 		if ((l0e & ATTR_DESCR_VALID) == 0) {
@@ -834,7 +841,7 @@ iommu_pmap_remove_pages(pmap_t pmap)
 		m0 = PHYS_TO_VM_PAGE(pa0);
 		l1 = (pd_entry_t *)PHYS_TO_DMAP(pa0);
 
-		for (j = iommu_l1_index(sva); j < Ln_ENTRIES; j++) {
+		for (j = smmu_l1_index(sva); j < Ln_ENTRIES; j++) {
 			l1e = l1[j];
 			if ((l1e & ATTR_DESCR_VALID) == 0) {
 				sva += IOMMU_L1_SIZE;
@@ -848,7 +855,7 @@ iommu_pmap_remove_pages(pmap_t pmap)
 			m1 = PHYS_TO_VM_PAGE(pa1);
 			l2 = (pd_entry_t *)PHYS_TO_DMAP(pa1);
 
-			for (k = iommu_l2_index(sva); k < Ln_ENTRIES; k++) {
+			for (k = smmu_l2_index(sva); k < Ln_ENTRIES; k++) {
 				l2e = l2[k];
 				if ((l2e & ATTR_DESCR_VALID) == 0) {
 					sva += IOMMU_L2_SIZE;
@@ -858,7 +865,7 @@ iommu_pmap_remove_pages(pmap_t pmap)
 				m = PHYS_TO_VM_PAGE(pa);
 				l3 = (pt_entry_t *)PHYS_TO_DMAP(pa);
 
-				for (l = iommu_l3_index(sva); l < Ln_ENTRIES;
+				for (l = smmu_l3_index(sva); l < Ln_ENTRIES;
 				    l++, sva += IOMMU_L3_SIZE) {
 					l3e = l3[l];
 					if ((l3e & ATTR_DESCR_VALID) == 0)
@@ -869,20 +876,20 @@ iommu_pmap_remove_pages(pmap_t pmap)
 
 				vm_page_unwire_noq(m1);
 				vm_page_unwire_noq(m);
-				pmap_resident_count_dec(pmap, 1);
+				smmu_pmap_resident_count_dec(pmap, 1);
 				vm_page_free(m);
-				pmap_clear(&l2[k]);
+				smmu_pmap_clear(&l2[k]);
 			}
 
 			vm_page_unwire_noq(m0);
-			pmap_resident_count_dec(pmap, 1);
+			smmu_pmap_resident_count_dec(pmap, 1);
 			vm_page_free(m1);
-			pmap_clear(&l1[j]);
+			smmu_pmap_clear(&l1[j]);
 		}
 
-		pmap_resident_count_dec(pmap, 1);
+		smmu_pmap_resident_count_dec(pmap, 1);
 		vm_page_free(m0);
-		pmap_clear(&pmap->pm_l0[i]);
+		smmu_pmap_clear(&pmap->pm_l0[i]);
 	}
 
 	KASSERT(pmap->pm_stats.resident_count == 0,
