@@ -252,6 +252,9 @@ device		dwc_hdmi
 device		imx6_hdmi
 device		imx6_ipu
 
+# TDA19988 HDMI Encoder
+device		tda19988
+
 # Pinmux
 device		fdt_pinctrl
 
