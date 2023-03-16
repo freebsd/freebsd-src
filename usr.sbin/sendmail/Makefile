@@ -62,6 +62,8 @@ CFLAGS+=	-DTCPWRAPPERS
 LIBADD+=	wrap
 .endif
 
+CFLAGS+=	${NO_WDEPRECATED_NON_PROTOTYPE}
+
 # User customizations to the sendmail build environment
 CFLAGS+=${SENDMAIL_CFLAGS}
 DPADD+=${SENDMAIL_DPADD}
