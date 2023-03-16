@@ -26,11 +26,22 @@
 # SUCH DAMAGE.
 #
 
-mktar="$(dirname $(realpath "$0"))"/mktar
 mnt="$(realpath ${TMPDIR:-/tmp})/mnt"
 
 # expected SHA256 checksum of file contained in test tarball
 sum=4da2143234486307bb44eaa610375301781a577d1172f362b88bb4b1643dee62
+
+tar() {
+	if [ -n "${TARFS_USE_GNU_TAR}" ] ; then
+		gtar --posix --absolute-names "$@"
+	else
+		bsdtar "$@"
+	fi
+}
+
+mktar() {
+	"$(atf_get_srcdir)"/mktar ${TARFS_USE_GNU_TAR+-g} "$@"
+}
 
 atf_test_case tarfs_basic cleanup
 tarfs_basic_head() {
@@ -41,7 +52,7 @@ tarfs_basic_body() {
 	local tarball="${PWD}/tarfs_test.tar.zst"
 	kldload -n tarfs || atf_skip "This test requires tarfs and could not load it"
 	mkdir "${mnt}"
-	"${mktar}" "${tarball}"
+	mktar "${tarball}"
 	atf_check mount -rt tarfs "${tarball}" "${mnt}"
 	atf_check -o match:"^${tarball} on ${mnt} \(tarfs," mount
 	atf_check_equal "$(stat -f%d,%i "${mnt}"/sparse_file)" "$(stat -f%d,%i "${mnt}"/hard_link)"
@@ -53,6 +64,20 @@ tarfs_basic_cleanup() {
 	umount "${mnt}" || true
 }
 
+atf_test_case tarfs_basic_gnu cleanup
+tarfs_basic_gnu_head() {
+	atf_set "descr" "Basic function test using GNU tar"
+	atf_set "require.user" "root"
+	atf_set "require.progs" "gtar"
+}
+tarfs_basic_gnu_body() {
+	TARFS_USE_GNU_TAR=true
+	tarfs_basic_body
+}
+tarfs_basic_gnu_cleanup() {
+	tarfs_basic_cleanup
+}
+
 atf_test_case tarfs_notdir_device cleanup
 tarfs_notdir_device_head() {
 	atf_set "descr" "Regression test for PR 269519 and 269561"
@@ -62,16 +87,30 @@ tarfs_notdir_device_body() {
 	kldload -n tarfs || atf_skip "This test requires tarfs and could not load it"
 	mkdir "${mnt}"
 	atf_check mknod d b 0xdead 0xbeef
-	tar cf tarfs_notdir.tar d
+	tar -cf tarfs_notdir.tar d
 	rm d
 	mkdir d
 	echo "boom" >d/f
-	tar rf tarfs_notdir.tar d/f
+	tar -rf tarfs_notdir.tar d/f
 	atf_check -s not-exit:0 -e match:"Invalid" \
 	    mount -rt tarfs tarfs_notdir.tar "${mnt}"
 }
 tarfs_notdir_device_cleanup() {
 	umount "${mnt}" || true
+}
+
+atf_test_case tarfs_notdir_device_gnu cleanup
+tarfs_notdir_device_gnu_head() {
+	atf_set "descr" "Regression test for PR 269519 and 269561 using GNU tar"
+	atf_set "require.user" "root"
+	atf_set "require.progs" "gtar"
+}
+tarfs_notdir_device_gnu_body() {
+	TARFS_USE_GNU_TAR=true
+	tarfs_notdir_device_body
+}
+tarfs_notdir_device_gnu_cleanup() {
+	tarfs_notdir_device_cleanup
 }
 
 atf_test_case tarfs_notdir_dot cleanup
@@ -83,16 +122,30 @@ tarfs_notdir_dot_body() {
 	kldload -n tarfs || atf_skip "This test requires tarfs and could not load it"
 	mkdir "${mnt}"
 	echo "hello" >d
-	tar cf tarfs_notdir.tar d
+	tar -cf tarfs_notdir.tar d
 	rm d
 	mkdir d
 	echo "world" >d/f
-	tar rf tarfs_notdir.tar d/./f
+	tar -rf tarfs_notdir.tar d/./f
 	atf_check -s not-exit:0 -e match:"Invalid" \
 	    mount -rt tarfs tarfs_notdir.tar "${mnt}"
 }
 tarfs_notdir_dot_cleanup() {
 	umount "${mnt}" || true
+}
+
+atf_test_case tarfs_notdir_dot_gnu cleanup
+tarfs_notdir_dot_gnu_head() {
+	atf_set "descr" "Regression test for PR 269519 and 269561 using GNU tar"
+	atf_set "require.user" "root"
+	atf_set "require.progs" "gtar"
+}
+tarfs_notdir_dot_gnu_body() {
+	TARFS_USE_GNU_TAR=true
+	tarfs_notdir_dot_body
+}
+tarfs_notdir_dot_gnu_cleanup() {
+	tarfs_notdir_dot_cleanup
 }
 
 atf_test_case tarfs_notdir_dotdot cleanup
@@ -104,16 +157,30 @@ tarfs_notdir_dotdot_body() {
 	kldload -n tarfs || atf_skip "This test requires tarfs and could not load it"
 	mkdir "${mnt}"
 	echo "hello" >d
-	tar cf tarfs_notdir.tar d
+	tar -cf tarfs_notdir.tar d
 	rm d
 	mkdir d
 	echo "world" >f
-	tar rf tarfs_notdir.tar d/../f
+	tar -rf tarfs_notdir.tar d/../f
 	atf_check -s not-exit:0 -e match:"Invalid" \
 	    mount -rt tarfs tarfs_notdir.tar "${mnt}"
 }
 tarfs_notdir_dotdot_cleanup() {
 	umount "${mnt}" || true
+}
+
+atf_test_case tarfs_notdir_dotdot_gnu cleanup
+tarfs_notdir_dotdot_gnu_head() {
+	atf_set "descr" "Regression test for PR 269519 and 269561 using GNU tar"
+	atf_set "require.user" "root"
+	atf_set "require.progs" "gtar"
+}
+tarfs_notdir_dotdot_gnu_body() {
+	TARFS_USE_GNU_TAR=true
+	tarfs_notdir_dotdot_body
+}
+tarfs_notdir_dotdot_gnu_cleanup() {
+	tarfs_notdir_dotdot_cleanup
 }
 
 atf_test_case tarfs_notdir_file cleanup
@@ -125,11 +192,11 @@ tarfs_notdir_file_body() {
 	kldload -n tarfs || atf_skip "This test requires tarfs and could not load it"
 	mkdir "${mnt}"
 	echo "hello" >d
-	tar cf tarfs_notdir.tar d
+	tar -cf tarfs_notdir.tar d
 	rm d
 	mkdir d
 	echo "world" >d/f
-	tar rf tarfs_notdir.tar d/f
+	tar -rf tarfs_notdir.tar d/f
 	atf_check -s not-exit:0 -e match:"Invalid" \
 	    mount -rt tarfs tarfs_notdir.tar "${mnt}"
 }
@@ -137,10 +204,29 @@ tarfs_notdir_file_cleanup() {
 	umount "${mnt}" || true
 }
 
+atf_test_case tarfs_notdir_file_gnu cleanup
+tarfs_notdir_file_gnu_head() {
+	atf_set "descr" "Regression test for PR 269519 and 269561 using GNU tar"
+	atf_set "require.user" "root"
+	atf_set "require.progs" "gtar"
+}
+tarfs_notdir_file_gnu_body() {
+	TARFS_USE_GNU_TAR=true
+	tarfs_notdir_file_body
+}
+tarfs_notdir_file_gnu_cleanup() {
+	tarfs_notdir_file_cleanup
+}
+
 atf_init_test_cases() {
 	atf_add_test_case tarfs_basic
+	atf_add_test_case tarfs_basic_gnu
 	atf_add_test_case tarfs_notdir_device
+	atf_add_test_case tarfs_notdir_device_gnu
 	atf_add_test_case tarfs_notdir_dot
+	atf_add_test_case tarfs_notdir_dot_gnu
 	atf_add_test_case tarfs_notdir_dotdot
+	atf_add_test_case tarfs_notdir_dotdot_gnu
 	atf_add_test_case tarfs_notdir_file
+	atf_add_test_case tarfs_notdir_file_gnu
 }
