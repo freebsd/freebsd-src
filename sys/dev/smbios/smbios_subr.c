@@ -70,6 +70,14 @@ identify_hypervisor_smbios(void)
 	int i;
 
 	/*
+	 * Some platforms, e.g., amd64, have other ways of detecting what kind
+	 * of hypervisor we may be running under.  Make sure we don't clobber a
+	 * more specific vm_guest that's been previously detected.
+	 */
+	if (vm_guest != VM_GUEST_NO && vm_guest != VM_GUEST_VM)
+		return;
+
+	/*
 	 * XXX: Some of these entries may not be needed since they were
 	 * added to FreeBSD before the checks above.
 	 */
