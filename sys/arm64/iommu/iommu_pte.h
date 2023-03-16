@@ -45,7 +45,6 @@
 /* Level 1 table, 1GiB per entry */
 #define	IOMMU_L1_SHIFT		30
 #define	IOMMU_L1_SIZE 		(1 << IOMMU_L1_SHIFT)
-#define	IOMMU_L1_OFFSET 	(IOMMU_L1_SIZE - 1)
 #define	IOMMU_L1_INVAL		IOMMU_L0_INVAL
 #define	IOMMU_L1_BLOCK		0x1
 #define	IOMMU_L1_TABLE		IOMMU_L0_TABLE
@@ -53,17 +52,13 @@
 /* Level 2 table, 2MiB per entry */
 #define	IOMMU_L2_SHIFT		21
 #define	IOMMU_L2_SIZE 		(1 << IOMMU_L2_SHIFT)
-#define	IOMMU_L2_OFFSET 	(IOMMU_L2_SIZE - 1)
 #define	IOMMU_L2_INVAL		IOMMU_L1_INVAL
 #define	IOMMU_L2_BLOCK		IOMMU_L1_BLOCK
 #define	IOMMU_L2_TABLE		IOMMU_L1_TABLE
 
-#define	IOMMU_L2_BLOCK_MASK	UINT64_C(0xffffffe00000)
-
 /* Level 3 table, 4KiB per entry */
 #define	IOMMU_L3_SHIFT		12
 #define	IOMMU_L3_SIZE 		(1 << IOMMU_L3_SHIFT)
-#define	IOMMU_L3_OFFSET 	(IOMMU_L3_SIZE - 1)
 #define	IOMMU_L3_SHIFT		12
 #define	IOMMU_L3_INVAL		0x0
 	/* 0x1 is reserved */
