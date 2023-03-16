@@ -92,11 +92,7 @@ struct dom_binding {
 #endif
 #define MAX_RETRIES 20
 
-extern bool_t xdr_domainname(), xdr_ypbind_resp();
-extern bool_t xdr_ypreq_key(), xdr_ypresp_val();
-extern bool_t xdr_ypreq_nokey(), xdr_ypresp_key_val();
-extern bool_t xdr_ypresp_all(), xdr_ypresp_all_seq();
-extern bool_t xdr_ypresp_master();
+bool_t xdr_ypresp_all_seq(XDR *xdrs, u_long *objp);
 
 int (*ypresp_allfn)();
 void *ypresp_data;
