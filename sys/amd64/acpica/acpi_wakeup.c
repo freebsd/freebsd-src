@@ -250,7 +250,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 			ia32_pause();
 	} else {
 		/*
-		 * Re-initialize console hardware as soon as possibe.
+		 * Re-initialize console hardware as soon as possible.
 		 * No console output (e.g. printf) is allowed before
 		 * this point.
 		 */
