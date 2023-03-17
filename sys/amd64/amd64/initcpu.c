@@ -313,7 +313,7 @@ initializecpu(void)
 	}
 	load_cr4(cr4);
 	/* Reload cpu ext features to reflect cr4 changes */
-	if (IS_BSP())
+	if (IS_BSP() && cold)
 		identify_cpu_ext_features();
 	if (IS_BSP() && (amd_feature & AMDID_NX) != 0) {
 		msr = rdmsr(MSR_EFER) | EFER_NXE;
