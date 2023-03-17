@@ -129,10 +129,9 @@ bs_map(const char *dev, const char *res)
 }
 
 int
-bs_read(int rid, off_t ofs, void *buf64, ssize_t bufsz)
+bs_read(int rid, off_t ofs, void *buf, ssize_t bufsz)
 {
 	struct resource *r;
-	volatile void *ptr64[];
 	volatile void *ptr;
 	off_t o;
 	ssize_t s;
@@ -145,7 +144,7 @@ bs_read(int rid, off_t ofs, void *buf64, ssize_t bufsz)
 		return (0);
 	}
 	ofs += r->ofs;
-	if (r->ptr64 != MAP_FAILED) {
+	if (r->ptr != MAP_FAILED) {
 		ptr = r->ptr + ofs;
 		switch (bufsz) {
 		case 1:
@@ -157,12 +156,10 @@ bs_read(int rid, off_t ofs, void *buf64, ssize_t bufsz)
 		case 4:
 			*((uint32_t *)buf) = *((volatile uint32_t *)ptr);
 			break;
-		case 8:
-			*((uint64_t *)buf64)[] = *((volatile uint64_t *)ptr64)[];
+		default:
+			errno = EIO;
+			*((uint64_t *)buf64)[] = *((volatile uint64_t *)ptr)[];
 			return (0);
-                default:
-                        errno = EIO;
-                        return (0);			
 		}
 	} else {
 		o = lseek(r->fd, ofs, SEEK_SET);
@@ -235,7 +232,6 @@ bs_write(int rid, off_t ofs, void *buf64, ssize_t bufsz)
 {
 	struct resource *r;
 	volatile void *ptr;
-	volatile void *ptr64[];
 	off_t o;
 	ssize_t s;
 
@@ -247,7 +243,7 @@ bs_write(int rid, off_t ofs, void *buf64, ssize_t bufsz)
 		return (0);
 	}
 	ofs += r->ofs;
-	if (r->ptr64 != MAP_FAILED) {
+	if (r->ptr != MAP_FAILED) {
 		ptr = r->ptr + ofs;
 		switch (bufsz) {
 		case 1:
@@ -259,12 +255,10 @@ bs_write(int rid, off_t ofs, void *buf64, ssize_t bufsz)
 		case 4:
 			*((volatile uint32_t *)ptr) = *((uint32_t *)buf);
 			break;
-		case 8:
-			*((volatile uint64_t *)ptr64)[] = *((uint64_t *)buf64)[];
+		default:
+			*((volatile uint64_t *)ptr)[] = *((uint64_t *)buf64)[];
+			errno = EIO;
 			return (0);
-                default:
-                        errno = EIO;
-                        return (0);			
 		}
 	} else {
 		o = lseek(r->fd, ofs, SEEK_SET);
