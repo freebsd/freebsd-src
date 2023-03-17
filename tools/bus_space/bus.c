@@ -228,7 +228,7 @@ bs_unmap(int rid)
 }
 
 int
-bs_write(int rid, off_t ofs, void *buf64, ssize_t bufsz)
+bs_write(int rid, off_t ofs, void *buf, ssize_t bufsz)
 {
 	struct resource *r;
 	volatile void *ptr;
@@ -256,7 +256,7 @@ bs_write(int rid, off_t ofs, void *buf64, ssize_t bufsz)
 			*((volatile uint32_t *)ptr) = *((uint32_t *)buf);
 			break;
 		default:
-			*((volatile uint64_t *)ptr)[] = *((uint64_t *)buf64)[];
+			*((volatile uint64_t *)ptr)[] = *((uint64_t *)buf)[];
 			errno = EIO;
 			return (0);
 		}
