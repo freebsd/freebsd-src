@@ -288,6 +288,20 @@ acpi_wakeup_machdep(struct acpi_softc *sc, int state, int sleep_result,
 		if (!CPU_EMPTY(&suspcpus))
 			resume_cpus(suspcpus);
 #endif
+
+		/*
+		 * Re-read cpu_stdext_feature3, which was zeroed-out
+		 * in acpi_sleep_machdep, after the microcode was
+		 * reloaded.  Then recalculate the active mitigations
+		 * knobs that depend on the microcode and
+		 * cpu_stdext_feature3.
+		 */
+		identify_cpu_ext_features();
+		hw_ibrs_recalculate(true);
+		hw_ssb_recalculate(true);
+		amd64_syscall_ret_flush_l1d_recalc();
+		x86_rngds_mitg_recalculate(true);
+
 		mca_resume();
 		if (vmm_resume_p != NULL)
 			vmm_resume_p();
