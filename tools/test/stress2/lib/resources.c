@@ -149,7 +149,7 @@ usermem(void)
 }
 
 static void
-cleanupdf()
+cleanupdf(void)
 {
 	unlink(dfpath);
 }
