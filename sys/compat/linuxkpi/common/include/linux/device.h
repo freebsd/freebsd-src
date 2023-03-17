@@ -680,4 +680,11 @@ devm_kmemdup(struct device *dev, const void *src, size_t len, gfp_t gfp)
 #define	devm_kcalloc(_dev, _sizen, _size, _gfp)			\
     devm_kmalloc((_dev), ((_sizen) * (_size)), (_gfp) | __GFP_ZERO)
 
+int lkpi_devm_add_action(struct device *dev, void (*action)(void *), void *data);
+#define	devm_add_action(dev, action, data)	\
+	lkpi_devm_add_action(dev, action, data);
+int lkpi_devm_add_action_or_reset(struct device *dev, void (*action)(void *), void *data);
+#define	devm_add_action_or_reset(dev, action, data)	\
+	lkpi_devm_add_action_or_reset(dev, action, data)
+
 #endif	/* _LINUXKPI_LINUX_DEVICE_H_ */
