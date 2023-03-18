@@ -212,6 +212,12 @@ nlp_has_priv(struct nlpcb *nlp, int priv)
 	return (priv_check_cred(nlp->nl_cred, priv) == 0);
 }
 
+struct ucred *
+nlp_get_cred(struct nlpcb *nlp)
+{
+	return (nlp->nl_cred);
+}
+
 static uint32_t
 nl_find_port(void)
 {
