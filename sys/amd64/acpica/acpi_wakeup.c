@@ -291,8 +291,8 @@ acpi_wakeup_machdep(struct acpi_softc *sc, int state, int sleep_result,
 
 		/*
 		 * Re-read cpu_stdext_feature3, which was zeroed-out
-		 * in acpi_sleep_machdep, after the microcode was
-		 * reloaded.  Then recalculate the active mitigations
+		 * in acpi_sleep_machdep(), after the microcode was
+		 * reloaded.  Then recalculate the active mitigation
 		 * knobs that depend on the microcode and
 		 * cpu_stdext_feature3.
 		 */
