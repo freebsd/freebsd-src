@@ -8428,7 +8428,7 @@ again_one_more_time:
 					 * flight size since this little guy
 					 * is a control only packet.
 					 */
-					use_zero_crc = asoc->zero_checksum = 2;
+					use_zero_crc = asoc->zero_checksum == 2;
 					if (asconf) {
 						sctp_timer_start(SCTP_TIMER_TYPE_ASCONF, inp, stcb, net);
 						use_zero_crc = false;
