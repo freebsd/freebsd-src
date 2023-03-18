@@ -1088,6 +1088,15 @@ abortit:
 				if (namlen != 2 ||
 				    dirbuf->dotdot_name[0] != '.' ||
 				    dirbuf->dotdot_name[1] != '.') {
+					/*
+					 * The filesystem is in corrupted state,
+					 * need to run fsck to fix mangled dir
+					 * entry. From other side this error
+					 * need to be ignored because it is
+					 * too difficult to revert directories
+					 * to state before rename from this
+					 * point.
+					 */
 					ext2_dirbad(xp, (doff_t)12,
 					    "rename: mangled dir");
 				} else {
