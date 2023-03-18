@@ -95,6 +95,8 @@ static void open_pid_files(struct daemon_state *);
 static void do_output(const unsigned char *, size_t, struct daemon_state *);
 static void daemon_sleep(time_t, long);
 static void daemon_state_init(struct daemon_state *);
+static void daemon_terminate(struct daemon_state *);
+
 
 static volatile sig_atomic_t terminate = 0;
 static volatile sig_atomic_t child_gone = 0;
@@ -305,7 +307,7 @@ main(int argc, char *argv[])
 	open_pid_files(&state);
 	if (daemon(state.keep_cur_workdir, state.keep_fds_open) == -1) {
 		warn("daemon");
-		goto exit;
+		daemon_terminate(&state);
 	}
 	/* Write out parent pidfile if needed. */
 	pidfile_write(state.parent_pidfh);
@@ -341,15 +343,15 @@ main(int argc, char *argv[])
 		/* Block SIGTERM to avoid racing until we have forked. */
 		if (sigprocmask(SIG_BLOCK, &mask_term, &mask_orig)) {
 			warn("sigprocmask");
-			goto exit;
+			daemon_terminate(&state);
 		}
 		if (sigaction(SIGTERM, &act_term, NULL) == -1) {
 			warn("sigaction");
-			goto exit;
+			daemon_terminate(&state);
 		}
 		if (sigaction(SIGCHLD, &act_chld, NULL) == -1) {
 			warn("sigaction");
-			goto exit;
+			daemon_terminate(&state);
 		}
 		/*
 		 * Try to protect against pageout kill. Ignore the
@@ -360,7 +362,7 @@ main(int argc, char *argv[])
 		if (state.log_reopen && state.output_fd >= 0 &&
 		    sigaction(SIGHUP, &act_hup, NULL) == -1) {
 			warn("sigaction");
-			goto exit;
+			daemon_terminate(&state);
 		}
 restart:
 		if (pipe(state.pipe_fd)) {
@@ -376,7 +378,7 @@ restart:
 	/* fork failed, this can only happen when supervision is enabled */
 	if (pid == -1) {
 		warn("fork");
-		goto exit;
+		daemon_terminate(&state);
 	}
 
 
@@ -425,7 +427,7 @@ restart:
 	 */
 	if (sigprocmask(SIG_UNBLOCK, &mask_term, NULL)) {
 		warn("sigprocmask");
-		goto exit;
+		daemon_terminate(&state);
 	}
 	close(state.pipe_fd[1]);
 	state.pipe_fd[1] = -1;
@@ -458,34 +460,34 @@ restart:
 		}
 
 		if (terminate) {
-			goto exit;
+			daemon_terminate(&state);
 		}
 
 		if (state.child_eof) {
 			if (sigprocmask(SIG_BLOCK, &mask_susp, NULL)) {
 				warn("sigprocmask");
-				goto exit;
+				daemon_terminate(&state);
 			}
 			while (!terminate && !child_gone) {
 				sigsuspend(&mask_orig);
 			}
 			if (sigprocmask(SIG_UNBLOCK, &mask_susp, NULL)) {
 				warn("sigprocmask");
-				goto exit;
+				daemon_terminate(&state);
 			}
 			continue;
 		}
 
 		if (sigprocmask(SIG_BLOCK, &mask_read, NULL)) {
 			warn("sigprocmask");
-			goto exit;
+			daemon_terminate(&state);
 		}
 
 		state.child_eof = !listen_child(state.pipe_fd[0], &state);
 
 		if (sigprocmask(SIG_UNBLOCK, &mask_read, NULL)) {
 			warn("sigprocmask");
-			goto exit;
+			daemon_terminate(&state);
 		}
 
 	}
@@ -494,23 +496,14 @@ restart:
 	}
 	if (sigprocmask(SIG_BLOCK, &mask_term, NULL)) {
 		warn("sigprocmask");
-		goto exit;
+		daemon_terminate(&state);
 	}
 	if (state.restart_enabled && !terminate) {
 		close(state.pipe_fd[0]);
 		state.pipe_fd[0] = -1;
 		goto restart;
 	}
-exit:
-	close(state.output_fd);
-	close(state.pipe_fd[0]);
-	close(state.pipe_fd[1]);
-	if (state.syslog_enabled) {
-		closelog();
-	}
-	pidfile_remove(state.child_pidfh);
-	pidfile_remove(state.parent_pidfh);
-	exit(1); /* If daemon(3) succeeded exit status does not matter. */
+	daemon_terminate(&state);
 }
 
 static void
@@ -601,7 +594,7 @@ listen_child(int fd, struct daemon_state *state)
 	static size_t bytes_read = 0;
 	int rv;
 
-	assert(state);
+	assert(state != NULL);
 	assert(bytes_read < LBUF_SIZE - 1);
 
 	if (do_log_reopen) {
@@ -659,7 +652,7 @@ static void
 do_output(const unsigned char *buf, size_t len, struct daemon_state *state)
 {
 	assert(len <= LBUF_SIZE);
-	assert(state);
+	assert(state != NULL);
 
 	if (len < 1) {
 		return;
@@ -761,4 +754,20 @@ daemon_state_init(struct daemon_state *state)
 		.output_fd = -1,
 		.output_filename = NULL,
 	};
+}
+
+
+static _Noreturn void
+daemon_terminate(struct daemon_state *state)
+{
+	assert(state != NULL);
+	close(state->output_fd);
+	close(state->pipe_fd[0]);
+	close(state->pipe_fd[1]);
+	if (state->syslog_enabled) {
+		closelog();
+	}
+	pidfile_remove(state->child_pidfh);
+	pidfile_remove(state->parent_pidfh);
+	exit(1);
 }
