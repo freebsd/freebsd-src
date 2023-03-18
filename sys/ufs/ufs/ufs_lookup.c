@@ -548,9 +548,8 @@ found:
 	 */
 	if (i_offset + DIRSIZ(OFSFMT(vdp), ep) > dp->i_size) {
 		ufs_dirbad(dp, i_offset, "i_size too small");
-		dp->i_size = i_offset + DIRSIZ(OFSFMT(vdp), ep);
-		DIP_SET(dp, i_size, dp->i_size);
-		UFS_INODE_SET_FLAG(dp, IN_SIZEMOD | IN_CHANGE | IN_UPDATE);
+		brelse(bp);
+		return (EIO);
 	}
 	brelse(bp);
 
@@ -758,17 +757,10 @@ found:
 void
 ufs_dirbad(struct inode *ip, doff_t offset, char *how)
 {
-	struct mount *mp;
 
-	mp = ITOV(ip)->v_mount;
-	if ((mp->mnt_flag & MNT_RDONLY) == 0)
-		panic("ufs_dirbad: %s: bad dir ino %ju at offset %ld: %s",
-		    mp->mnt_stat.f_mntonname, (uintmax_t)ip->i_number,
-		    (long)offset, how);
-	else
-		(void)printf("%s: bad dir ino %ju at offset %ld: %s\n",
-		    mp->mnt_stat.f_mntonname, (uintmax_t)ip->i_number,
-		    (long)offset, how);
+	(void)printf("%s: bad dir ino %ju at offset %ld: %s\n",
+	    ITOV(ip)->v_mount->mnt_stat.f_mntonname, (uintmax_t)ip->i_number,
+	    (long)offset, how);
 }
 
 /*
