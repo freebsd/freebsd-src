@@ -91,10 +91,8 @@ prepare_ifmap_netlink(struct snl_state *ss, size_t *pifmap_size)
 	};
 	msg.hdr.nlmsg_len = sizeof(msg);
 
-	if (!snl_send_message(ss, &msg.hdr)) {
-		snl_free(ss);
+	if (!snl_send_message(ss, &msg.hdr))
 		return (NULL);
-	}
 
 	struct ifmap_entry *ifmap = NULL;
 	uint32_t ifmap_size = 0;
@@ -286,6 +284,10 @@ p_rtable_netlink(int fibnum, int af)
 		return (false);
 
 	ifmap = prepare_ifmap_netlink(&ss, &ifmap_size);
+	if (ifmap == NULL) {
+		snl_free(&ss);
+		return (false);
+	}
 
 	struct {
 		struct nlmsghdr hdr;
