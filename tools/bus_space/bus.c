@@ -160,8 +160,8 @@ bs_read(int rid, off_t ofs, void *buf, ssize_t bufsz)
 			*((uint64_t *)buf)[] = *((volatile uint64_t *)ptr)[];
 			break;
 		default:
-			return (0);
 			errno = EIO;
+			return (0);
 		}
 	} else {
 		o = lseek(r->fd, ofs, SEEK_SET);
