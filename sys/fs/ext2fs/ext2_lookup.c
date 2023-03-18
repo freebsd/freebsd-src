@@ -539,8 +539,8 @@ found:
 	if (entryoffsetinblock + EXT2_DIR_REC_LEN(ep->e2d_namlen) >
 	    dp->i_size) {
 		ext2_dirbad(dp, i_offset, "i_size too small");
-		dp->i_size = entryoffsetinblock + EXT2_DIR_REC_LEN(ep->e2d_namlen);
-		dp->i_flag |= IN_CHANGE | IN_UPDATE;
+		brelse(bp);
+		return (EIO);
 	}
 	brelse(bp);
 
@@ -802,13 +802,9 @@ ext2_dirbad(struct inode *ip, doff_t offset, char *how)
 	struct mount *mp;
 
 	mp = ITOV(ip)->v_mount;
-	if ((mp->mnt_flag & MNT_RDONLY) == 0)
-		panic("ext2_dirbad: %s: bad dir ino %ju at offset %ld: %s\n",
-		    mp->mnt_stat.f_mntonname, (uintmax_t)ip->i_number,
-		    (long)offset, how);
-	else
-		SDT_PROBE4(ext2fs, , trace, ext2_dirbad_error,
-		    mp->mnt_stat.f_mntonname, ip->i_number, offset, how);
+
+	SDT_PROBE4(ext2fs, , trace, ext2_dirbad_error,
+	    mp->mnt_stat.f_mntonname, ip->i_number, offset, how);
 }
 
 /*
