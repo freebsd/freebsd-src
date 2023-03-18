@@ -730,7 +730,6 @@ reopen_log(struct daemon_state *state)
 static void
 daemon_state_init(struct daemon_state *state)
 {
-	memset(state, 0, sizeof(struct daemon_state));
 	*state = (struct daemon_state) {
 		.pipe_fd = { -1, -1 },
 		.parent_pidfh = NULL,
