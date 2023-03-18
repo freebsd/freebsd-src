@@ -97,7 +97,6 @@ static void daemon_sleep(time_t, long);
 static void daemon_state_init(struct daemon_state *);
 static void daemon_terminate(struct daemon_state *);
 
-
 static volatile sig_atomic_t terminate = 0;
 static volatile sig_atomic_t child_gone = 0;
 static volatile sig_atomic_t pid = 0;
@@ -380,7 +379,6 @@ restart:
 		warn("fork");
 		daemon_terminate(&state);
 	}
-
 
 	/* fork succeeded, this is child's branch or supervision is disabled */
 	if (pid == 0) {
@@ -754,7 +752,6 @@ daemon_state_init(struct daemon_state *state)
 		.output_filename = NULL,
 	};
 }
-
 
 static _Noreturn void
 daemon_terminate(struct daemon_state *state)
