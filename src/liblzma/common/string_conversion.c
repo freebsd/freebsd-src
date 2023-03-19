@@ -316,7 +316,7 @@ parse_lzma12_preset(const char **const str, const char *str_end,
 	assert(*str < str_end);
 	*preset = (uint32_t)(**str - '0');
 
-	// NOTE: Remember to update LZMA_PRESET_STR if this is modified!
+	// NOTE: Remember to update LZMA12_PRESET_STR if this is modified!
 	while (++*str < str_end) {
 		switch (**str) {
 		case 'e':
@@ -667,7 +667,7 @@ parse_options(const char **const str, const char *str_end,
 					&& *p >= '0' && *p <= '9');
 
 			if (p < name_eq_value_end) {
-				// Remember this position so that it an be
+				// Remember this position so that it can be
 				// used for error messages that are
 				// specifically about the suffix. (Out of
 				// range values are about the whole value
@@ -1131,6 +1131,13 @@ lzma_str_from_filters(char **output_str, const lzma_filter *filters,
 	const char *opt_delim = (flags & LZMA_STR_GETOPT_LONG) ? "=" : ":";
 
 	for (size_t i = 0; filters[i].id != LZMA_VLI_UNKNOWN; ++i) {
+		// If we reach LZMA_FILTERS_MAX, then the filters array
+		// is too large since the ID cannot be LZMA_VLI_UNKNOWN here.
+		if (i == LZMA_FILTERS_MAX) {
+			str_free(&dest, allocator);
+			return LZMA_OPTIONS_ERROR;
+		}
+
 		// Don't add a space between filters if the caller
 		// doesn't want them.
 		if (i > 0 && !(flags & LZMA_STR_NO_SPACES))

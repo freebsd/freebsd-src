@@ -8,7 +8,7 @@
 ///             conditionally to keep the code working on older boxes.
 //
 //  This code is based on the code found from 7-Zip, which has a modified
-//  version of the SHA-256 found from Crypto++ <http://www.cryptopp.com/>.
+//  version of the SHA-256 found from Crypto++ <https://www.cryptopp.com/>.
 //  The code was modified a little to fit into liblzma.
 //
 //  Authors:    Kevin Springle

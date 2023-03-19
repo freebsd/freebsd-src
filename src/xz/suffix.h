@@ -26,3 +26,11 @@ extern char *suffix_get_dest_name(const char *src_name);
 /// suffix, thus if this is called multiple times, the old suffixes are freed
 /// and forgotten.
 extern void suffix_set(const char *suffix);
+
+
+/// \brief      Check if a custom suffix has been set
+///
+/// Returns true if the internal tracking of the suffix string has been set
+/// and false if the string has not been set. This will keep the suffix
+/// string encapsulated instead of extern-ing the variable.
+extern bool suffix_is_set(void);

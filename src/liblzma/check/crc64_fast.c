@@ -256,7 +256,7 @@ crc64_clmul(const uint8_t *buf, size_t size, uint64_t crc)
 	// C = buf + size == aligned_buf + size2
 	// D = buf + size + skip_end == aligned_buf + size2 + skip_end
 	const size_t skip_start = (size_t)((uintptr_t)buf & 15);
-	const size_t skip_end = (size_t)(-(uintptr_t)(buf + size) & 15);
+	const size_t skip_end = (size_t)((0U - (uintptr_t)(buf + size)) & 15);
 	const __m128i *aligned_buf = (const __m128i *)(
 			(uintptr_t)buf & ~(uintptr_t)15);
 

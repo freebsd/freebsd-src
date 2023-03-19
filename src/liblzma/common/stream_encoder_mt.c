@@ -645,7 +645,7 @@ stream_encode_in(lzma_stream_coder *coder, const lzma_allocator *allocator,
 		}
 
 		if (block_error) {
-			lzma_ret ret;
+			lzma_ret ret = LZMA_OK; // Init to silence a warning.
 
 			mythread_sync(coder->mutex) {
 				ret = coder->thread_error;
