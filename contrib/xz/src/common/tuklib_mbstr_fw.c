@@ -27,5 +27,5 @@ tuklib_mbstr_fw(const char *str, int columns_min)
 	if (width < (size_t)columns_min)
 		len += (size_t)columns_min - width;
 
-	return len;
+	return (int)len;
 }

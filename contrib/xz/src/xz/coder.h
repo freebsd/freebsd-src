@@ -66,7 +66,8 @@ extern void coder_set_extreme(void);
 /// Add a filter to the custom filter chain
 extern void coder_add_filter(lzma_vli id, void *options);
 
-///
+/// Set and partially validate compression settings. This can also be used
+/// in decompression or test mode with the raw format.
 extern void coder_set_compression_settings(void);
 
 /// Compress or decompress the given file

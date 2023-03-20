@@ -108,10 +108,6 @@ extern const uint64_t lzma_crc64_table[4][256];
 
 
 /// \brief      Initialize *check depending on type
-///
-/// \return     LZMA_OK on success. LZMA_UNSUPPORTED_CHECK if the type is not
-///             supported by the current version or build of liblzma.
-///             LZMA_PROG_ERROR if type > LZMA_CHECK_ID_MAX.
 extern void lzma_check_init(lzma_check_state *check, lzma_check type);
 
 /// Update the check state

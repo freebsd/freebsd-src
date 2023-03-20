@@ -262,7 +262,11 @@ lzip_decode(void *coder_ptr, const lzma_allocator *allocator,
 		coder->member_size += *in_pos - in_start;
 		coder->uncompressed_size += out_used;
 
-		if (!coder->ignore_check)
+		// Don't update the CRC32 if the integrity check will be
+		// ignored or if there was no new output. The latter is
+		// important in case out == NULL to avoid null pointer + 0
+		// which is undefined behavior.
+		if (!coder->ignore_check && out_used > 0)
 			coder->crc32 = lzma_crc32(out + out_start, out_used,
 					coder->crc32);
 
