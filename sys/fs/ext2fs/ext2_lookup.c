@@ -799,12 +799,9 @@ ext2_search_dirblock(struct inode *ip, void *data, int *foundp,
 void
 ext2_dirbad(struct inode *ip, doff_t offset, char *how)
 {
-	struct mount *mp __sdt_used;
-
-	mp = ITOV(ip)->v_mount;
 
 	SDT_PROBE4(ext2fs, , trace, ext2_dirbad_error,
-	    mp->mnt_stat.f_mntonname, ip->i_number, offset, how);
+	    ITOV(ip)->v_mount->mnt_stat.f_mntonname, ip->i_number, offset, how);
 }
 
 /*
