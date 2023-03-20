@@ -669,6 +669,39 @@ ipsec_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "timeout" "cleanup"
+timeout_head()
+{
+	atf_set descr 'Trigger pfsync_timeout()'
+	atf_set require.user root
+}
+
+timeout_body()
+{
+	pft_init
+
+	vnet_mkjail one
+
+	jexec one ifconfig lo0 127.0.0.1/8 up
+	jexec one ifconfig lo0 inet6 ::1/128 up
+
+	pft_set_rules one \
+		"pass all"
+	jexec one pfctl -e
+	jexec one ifconfig pfsync0 defer up
+
+	jexec one ping -c 1 ::1
+	jexec one ping -c 1 127.0.0.1
+
+	# Give pfsync_timeout() time to fire (a callout on a 1 second delay)
+	sleep 2
+}
+
+timeout_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic"
@@ -678,4 +711,5 @@ atf_init_test_cases()
 	atf_add_test_case "pbr"
 	atf_add_test_case "pfsync_pbr"
 	atf_add_test_case "ipsec"
+	atf_add_test_case "timeout"
 }
