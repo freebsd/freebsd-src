@@ -220,10 +220,11 @@ move_pending(lzma_mf *mf)
 /// of matches found.
 #define call_find(func, len_best) \
 do { \
-	matches_count = func(len_limit, pos, cur, cur_match, mf->depth, \
-				mf->son, mf->cyclic_pos, mf->cyclic_size, \
+	matches_count = (uint32_t)(func(len_limit, pos, cur, cur_match, \
+				mf->depth, mf->son, \
+				mf->cyclic_pos, mf->cyclic_size, \
 				matches + matches_count, len_best) \
-			- matches; \
+			- matches); \
 	move_pos(mf); \
 	return matches_count; \
 } while (0)
@@ -242,8 +243,8 @@ do { \
 /// \param      cur_match       Start position of the current match candidate
 /// \param      depth           Maximum length of the hash chain
 /// \param      son             lzma_mf.son (contains the hash chain)
-/// \param      cyclic_pos
-/// \param      cyclic_size
+/// \param      cyclic_pos      lzma_mf.cyclic_pos
+/// \param      cyclic_size     lzma_mf_cyclic_size
 /// \param      matches         Array to hold the matches.
 /// \param      len_best        The length of the longest match found so far.
 static lzma_match *

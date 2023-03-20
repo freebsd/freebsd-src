@@ -1,6 +1,7 @@
 /**
  * \file        lzma/version.h
  * \brief       Version number
+ * \note        Never include this file directly. Use <lzma.h> instead.
  */
 
 /*
@@ -8,8 +9,6 @@
  *
  * This file has been put into the public domain.
  * You can do whatever you want with this file.
- *
- * See ../lzma.h for information about liblzma as a whole.
  */
 
 #ifndef LZMA_H_INTERNAL
@@ -17,14 +16,26 @@
 #endif
 
 
-/*
- * Version number split into components
- */
+/** \brief Major version number of the liblzma release. */
 #define LZMA_VERSION_MAJOR 5
+
+/** \brief Minor version number of the liblzma release. */
 #define LZMA_VERSION_MINOR 4
-#define LZMA_VERSION_PATCH 1
+
+/** \brief Patch version number of the liblzma release. */
+#define LZMA_VERSION_PATCH 2
+
+/**
+ * \brief Version stability marker
+ *
+ * This will always be one of three values:
+ *   - LZMA_VERSION_STABILITY_ALPHA
+ *   - LZMA_VERSION_STABILITY_BETA
+ *   - LZMA_VERSION_STABILITY_STABLE
+ */
 #define LZMA_VERSION_STABILITY LZMA_VERSION_STABILITY_STABLE
 
+/** \brief Commit version number of the liblzma release */
 #ifndef LZMA_VERSION_COMMIT
 #	define LZMA_VERSION_COMMIT ""
 #endif
@@ -101,9 +112,10 @@
 /**
  * \brief       Run-time version number as an integer
  *
- * Return the value of LZMA_VERSION macro at the compile time of liblzma.
- * This allows the application to compare if it was built against the same,
+ * This allows an application to compare if it was built against the same,
  * older, or newer version of liblzma that is currently running.
+ *
+ * \return The value of LZMA_VERSION macro at the compile time of liblzma
  */
 extern LZMA_API(uint32_t) lzma_version_number(void)
 		lzma_nothrow lzma_attr_const;
@@ -112,8 +124,10 @@ extern LZMA_API(uint32_t) lzma_version_number(void)
 /**
  * \brief       Run-time version as a string
  *
- * This function may be useful if you want to display which version of
- * liblzma your application is currently using.
+ * This function may be useful to display which version of liblzma an
+ * application is currently using.
+ *
+ * \return      Run-time version of liblzma
  */
 extern LZMA_API(const char *) lzma_version_string(void)
 		lzma_nothrow lzma_attr_const;

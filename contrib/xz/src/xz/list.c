@@ -276,7 +276,7 @@ init_headings(void)
 		// If the translated string is wider than the minimum width
 		// set at compile time, increase the width.
 		if ((size_t)(headings[HEADING_CHECK].columns) < w)
-			headings[HEADING_CHECK].columns = w;
+			headings[HEADING_CHECK].columns = (int)w;
 	}
 
 	for (unsigned i = 0; i < ARRAY_SIZE(headings); ++i) {
@@ -291,7 +291,7 @@ init_headings(void)
 		// If the translated string is wider than the minimum width
 		// set at compile time, increase the width.
 		if ((size_t)(headings[i].columns) < w)
-			headings[i].columns = w;
+			headings[i].columns = (int)w;
 
 		// Calculate the field width for printf("%*s") so that
 		// the string uses .columns number of columns on a terminal.

@@ -140,7 +140,7 @@ io_write_to_user_abort_pipe(void)
 	// handler. So ignore the errors and try to avoid warnings with
 	// GCC and glibc when _FORTIFY_SOURCE=2 is used.
 	uint8_t b = '\0';
-	const int ret = write(user_abort_pipe[1], &b, 1);
+	const ssize_t ret = write(user_abort_pipe[1], &b, 1);
 	(void)ret;
 	return;
 }
@@ -192,25 +192,32 @@ io_sandbox_enter(int src_fd)
 	// Capsicum needs FreeBSD 10.0 or later.
 	cap_rights_t rights;
 
+	if (cap_enter())
+		goto error;
+
 	if (cap_rights_limit(src_fd, cap_rights_init(&rights,
-			CAP_EVENT, CAP_FCNTL, CAP_LOOKUP, CAP_READ, CAP_SEEK)) < 0 &&
-	    errno != ENOSYS)
+			CAP_EVENT, CAP_FCNTL, CAP_LOOKUP, CAP_READ, CAP_SEEK)))
+		goto error;
+
+	if (src_fd != STDIN_FILENO && cap_rights_limit(
+			STDIN_FILENO, cap_rights_clear(&rights)))
 		goto error;
 
 	if (cap_rights_limit(STDOUT_FILENO, cap_rights_init(&rights,
 			CAP_EVENT, CAP_FCNTL, CAP_FSTAT, CAP_LOOKUP,
-			CAP_WRITE, CAP_SEEK)) < 0 && errno != ENOSYS)
+			CAP_WRITE, CAP_SEEK)))
+		goto error;
+
+	if (cap_rights_limit(STDERR_FILENO, cap_rights_init(&rights,
+			CAP_WRITE)))
 		goto error;
 
 	if (cap_rights_limit(user_abort_pipe[0], cap_rights_init(&rights,
-			CAP_EVENT)) < 0 && errno != ENOSYS)
+			CAP_EVENT)))
 		goto error;
 
 	if (cap_rights_limit(user_abort_pipe[1], cap_rights_init(&rights,
-			CAP_WRITE)) < 0 && errno != ENOSYS)
-		goto error;
-
-	if (cap_enter() < 0 && errno != ENOSYS)
+			CAP_WRITE)))
 		goto error;
 
 #elif defined(HAVE_PLEDGE)
@@ -233,6 +240,15 @@ io_sandbox_enter(int src_fd)
 	return;
 
 error:
+#ifdef HAVE_CAPSICUM
+	// If a kernel is configured without capability mode support or
+	// used in an emulator that does not implement the capability
+	// system calls, then the Capsicum system calls will fail and set
+	// errno to ENOSYS. In that case xz will silently run without
+	// the sandbox.
+	if (errno == ENOSYS)
+		return;
+#endif
 	message_fatal(_("Failed to enable the sandbox"));
 }
 #endif // ENABLE_SANDBOX

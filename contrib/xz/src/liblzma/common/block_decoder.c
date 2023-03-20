@@ -123,7 +123,10 @@ block_decode(void *coder_ptr, const lzma_allocator *allocator,
 				return LZMA_DATA_ERROR;
 		}
 
-		if (!coder->ignore_check)
+		// Don't waste time updating the integrity check if it will be
+		// ignored. Also skip it if no new output was produced. This
+		// avoids null pointer + 0 (undefined behavior) when out == 0.
+		if (!coder->ignore_check && out_used > 0)
 			lzma_check_update(&coder->check, coder->block->check,
 					out + out_start, out_used);
 

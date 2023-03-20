@@ -49,12 +49,12 @@ typedef struct {
 /// is called, which should update the given value to filter-specific
 /// options structure.
 ///
+/// This returns only if no errors occur.
+///
 /// \param      str     String containing the options from the command line
 /// \param      opts    Filter-specific option map
 /// \param      set     Filter-specific function to update filter_options
 /// \param      filter_options  Pointer to filter-specific options structure
-///
-/// \return     Returns only if no errors occur.
 ///
 static void
 parse_options(const char *str, const option_map *opts,

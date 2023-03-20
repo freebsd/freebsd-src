@@ -153,8 +153,15 @@ index_encode(void *coder_ptr,
 
 out:
 	// Update the CRC32.
-	coder->crc32 = lzma_crc32(out + out_start,
-			*out_pos - out_start, coder->crc32);
+	//
+	// Avoid null pointer + 0 (undefined behavior) in "out + out_start".
+	// In such a case we had no input and thus out_used == 0.
+	{
+		const size_t out_used = *out_pos - out_start;
+		if (out_used > 0)
+			coder->crc32 = lzma_crc32(out + out_start,
+					out_used, coder->crc32);
+	}
 
 	return ret;
 }

@@ -328,9 +328,16 @@ lzma_index_hash_decode(lzma_index_hash *index_hash, const uint8_t *in,
 	}
 
 out:
-	// Update the CRC32,
-	index_hash->crc32 = lzma_crc32(in + in_start,
-			*in_pos - in_start, index_hash->crc32);
+	// Update the CRC32.
+	//
+	// Avoid null pointer + 0 (undefined behavior) in "in + in_start".
+	// In such a case we had no input and thus in_used == 0.
+	{
+		const size_t in_used = *in_pos - in_start;
+		if (in_used > 0)
+			index_hash->crc32 = lzma_crc32(in + in_start,
+					in_used, index_hash->crc32);
+	}
 
 	return ret;
 }

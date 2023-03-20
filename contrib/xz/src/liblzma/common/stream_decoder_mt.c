@@ -1358,9 +1358,11 @@ stream_decode_mt(void *coder_ptr, const lzma_allocator *allocator,
 		// values after we read these as those changes can only be
 		// towards more favorable conditions (less memory in use,
 		// more in cache).
-		uint64_t mem_in_use;
-		uint64_t mem_cached;
-		struct worker_thread *thr = NULL; // Init to silence warning.
+		//
+		// These are initalized to silence warnings.
+		uint64_t mem_in_use = 0;
+		uint64_t mem_cached = 0;
+		struct worker_thread *thr = NULL;
 
 		mythread_sync(coder->mutex) {
 			mem_in_use = coder->mem_in_use;

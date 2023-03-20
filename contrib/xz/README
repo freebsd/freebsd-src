@@ -113,8 +113,8 @@ XZ Utils
     Since the liblzma API has similarities to the zlib API, some people
     may find it useful to read the zlib docs and tutorial too:
 
-        http://zlib.net/manual.html
-        http://zlib.net/zlib_how.html
+        https://zlib.net/manual.html
+        https://zlib.net/zlib_how.html
 
 
 2. Version numbering
@@ -281,8 +281,8 @@ XZ Utils
     7-Zip and the p7zip port of 7-Zip support the .xz format starting
     from the version 9.00alpha.
 
-        http://7-zip.org/
-        http://p7zip.sourceforge.net/
+        https://7-zip.org/
+        https://p7zip.sourceforge.net/
 
     XZ Embedded is a limited implementation written for use in the Linux
     kernel, but it is also suitable for other embedded use.

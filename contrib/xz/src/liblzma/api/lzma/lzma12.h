@@ -1,6 +1,7 @@
 /**
  * \file        lzma/lzma12.h
  * \brief       LZMA1 and LZMA2 filters
+ * \note        Never include this file directly. Use <lzma.h> instead.
  */
 
 /*
@@ -8,8 +9,6 @@
  *
  * This file has been put into the public domain.
  * You can do whatever you want with this file.
- *
- * See ../lzma.h for information about liblzma as a whole.
  */
 
 #ifndef LZMA_H_INTERNAL
@@ -137,16 +136,20 @@ typedef enum {
 /**
  * \brief       Test if given match finder is supported
  *
- * Return true if the given match finder is supported by this liblzma build.
- * Otherwise false is returned. It is safe to call this with a value that
- * isn't listed in lzma_match_finder enumeration; the return value will be
- * false.
+ * It is safe to call this with a value that isn't listed in
+ * lzma_match_finder enumeration; the return value will be false.
  *
  * There is no way to list which match finders are available in this
  * particular liblzma version and build. It would be useless, because
  * a new match finder, which the application developer wasn't aware,
  * could require giving additional options to the encoder that the older
  * match finders don't need.
+ *
+ * \param       match_finder    Match finder ID
+ *
+ * \return      lzma_bool:
+ *              - true if the match finder is supported by this liblzma build.
+ *              - false otherwise.
  */
 extern LZMA_API(lzma_bool) lzma_mf_is_supported(lzma_match_finder match_finder)
 		lzma_nothrow lzma_attr_const;
@@ -181,14 +184,20 @@ typedef enum {
 /**
  * \brief       Test if given compression mode is supported
  *
- * Return true if the given compression mode is supported by this liblzma
- * build. Otherwise false is returned. It is safe to call this with a value
- * that isn't listed in lzma_mode enumeration; the return value will be false.
+ * It is safe to call this with a value that isn't listed in lzma_mode
+ * enumeration; the return value will be false.
  *
  * There is no way to list which modes are available in this particular
  * liblzma version and build. It would be useless, because a new compression
  * mode, which the application developer wasn't aware, could require giving
  * additional options to the encoder that the older modes don't need.
+ *
+ * \param       mode    Mode ID.
+ *
+ * \return      lzma_bool:
+ *              - true if the compression mode is supported by this liblzma
+ *                build.
+ *              - false otherwise.
  */
 extern LZMA_API(lzma_bool) lzma_mode_is_supported(lzma_mode mode)
 		lzma_nothrow lzma_attr_const;
@@ -480,16 +489,38 @@ typedef struct {
 	 * with the currently supported options, so it is safe to leave these
 	 * uninitialized.
 	 */
+
+	/** \private     Reserved member. */
 	uint32_t reserved_int4;
+
+	/** \private     Reserved member. */
 	uint32_t reserved_int5;
+
+	/** \private     Reserved member. */
 	uint32_t reserved_int6;
+
+	/** \private     Reserved member. */
 	uint32_t reserved_int7;
+
+	/** \private     Reserved member. */
 	uint32_t reserved_int8;
+
+	/** \private     Reserved member. */
 	lzma_reserved_enum reserved_enum1;
+
+	/** \private     Reserved member. */
 	lzma_reserved_enum reserved_enum2;
+
+	/** \private     Reserved member. */
 	lzma_reserved_enum reserved_enum3;
+
+	/** \private     Reserved member. */
 	lzma_reserved_enum reserved_enum4;
+
+	/** \private     Reserved member. */
 	void *reserved_ptr1;
+
+	/** \private     Reserved member. */
 	void *reserved_ptr2;
 
 } lzma_options_lzma;
@@ -517,13 +548,22 @@ do { \
  * The flags are defined in container.h, because the flags are used also
  * with lzma_easy_encoder().
  *
- * The preset values are subject to changes between liblzma versions.
+ * The preset levels are subject to changes between liblzma versions.
  *
  * This function is available only if LZMA1 or LZMA2 encoder has been enabled
  * when building liblzma.
  *
- * \return      On success, false is returned. If the preset is not
- *              supported, true is returned.
+ * If features (like certain match finders) have been disabled at build time,
+ * then the function may return success (false) even though the resulting
+ * LZMA1/LZMA2 options may not be usable for encoder initialization
+ * (LZMA_OPTIONS_ERROR).
+ *
+ * \param[out]  options Pointer to LZMA1 or LZMA2 options to be filled
+ * \param       preset  Preset level bitwse-ORed with preset flags
+ *
+ * \return      lzma_bool:
+ *              - true if the preset is not supported (failure).
+ *              - false otherwise (success).
  */
 extern LZMA_API(lzma_bool) lzma_lzma_preset(
 		lzma_options_lzma *options, uint32_t preset) lzma_nothrow;
