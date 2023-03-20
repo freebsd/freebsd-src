@@ -15,6 +15,9 @@ ATF_TESTS_SH+=	empty \
 		aesni_aes_gcm_256 \
 		chacha20_poly1305
 
+# Each test uses the same names for its jails, so they must be run serially.
+TEST_METADATA+=	is_exclusive=true
+
 ${PACKAGE}FILES+=	utils.subr
 
 .include <bsd.test.mk>
