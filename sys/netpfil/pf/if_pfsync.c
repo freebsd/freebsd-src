@@ -296,6 +296,7 @@ static int	pfsyncioctl(struct ifnet *, u_long, caddr_t);
 
 static int	pfsync_defer(struct pf_kstate *, struct mbuf *);
 static void	pfsync_undefer(struct pfsync_deferral *, int);
+static void	pfsync_undefer_state_locked(struct pf_kstate *, int);
 static void	pfsync_undefer_state(struct pf_kstate *, int);
 static void	pfsync_defer_tmo(void *);
 
@@ -1851,26 +1852,35 @@ pfsync_defer_tmo(void *arg)
 }
 
 static void
-pfsync_undefer_state(struct pf_kstate *st, int drop)
+pfsync_undefer_state_locked(struct pf_kstate *st, int drop)
 {
 	struct pfsync_softc *sc = V_pfsyncif;
 	struct pfsync_deferral *pd;
 	struct pfsync_bucket *b = pfsync_get_bucket(sc, st);
 
-	PFSYNC_BUCKET_LOCK(b);
+	PFSYNC_BUCKET_LOCK_ASSERT(b);
 
 	TAILQ_FOREACH(pd, &b->b_deferrals, pd_entry) {
 		 if (pd->pd_st == st) {
 			if (callout_stop(&pd->pd_tmo) > 0)
 				pfsync_undefer(pd, drop);
 
-			PFSYNC_BUCKET_UNLOCK(b);
 			return;
 		}
 	}
-	PFSYNC_BUCKET_UNLOCK(b);
 
 	panic("%s: unable to find deferred state", __func__);
+}
+
+static void
+pfsync_undefer_state(struct pf_kstate *st, int drop)
+{
+	struct pfsync_softc *sc = V_pfsyncif;
+	struct pfsync_bucket *b = pfsync_get_bucket(sc, st);
+
+	PFSYNC_BUCKET_LOCK(b);
+	pfsync_undefer_state_locked(st, drop);
+	PFSYNC_BUCKET_UNLOCK(b);
 }
 
 static struct pfsync_bucket*
@@ -1891,7 +1901,7 @@ pfsync_update_state(struct pf_kstate *st)
 	PFSYNC_BUCKET_LOCK(b);
 
 	if (st->state_flags & PFSTATE_ACK)
-		pfsync_undefer_state(st, 0);
+		pfsync_undefer_state_locked(st, 0);
 	if (st->state_flags & PFSTATE_NOSYNC) {
 		if (st->sync_state != PFSYNC_S_NONE)
 			pfsync_q_del(st, true, b);
@@ -2034,7 +2044,7 @@ pfsync_delete_state(struct pf_kstate *st)
 
 	PFSYNC_BUCKET_LOCK(b);
 	if (st->state_flags & PFSTATE_ACK)
-		pfsync_undefer_state(st, 1);
+		pfsync_undefer_state_locked(st, 1);
 	if (st->state_flags & PFSTATE_NOSYNC) {
 		if (st->sync_state != PFSYNC_S_NONE)
 			pfsync_q_del(st, true, b);
