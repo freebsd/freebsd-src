@@ -28,7 +28,7 @@
 .\"     @(#)mountd.8	8.4 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd October 11, 2020
+.Dd March 18, 2023
 .Dt MOUNTD 8
 .Os
 .Sh NAME
@@ -158,7 +158,7 @@ When
 is started,
 it loads the export host addresses and options into the kernel
 using the
-.Xr mount 2
+.Xr nmount 2
 system call.
 After changing the exports file,
 a hangup signal should be sent to the
@@ -171,6 +171,20 @@ check the syslog output to see if
 .Nm
 logged any parsing
 errors in the exports file.
+.Pp
+If multiple instances of
+.Nm
+are being run, either in multiple jails or both within
+and outside of a jail, care must be taken to export
+any given file system in only one of the instances.
+Note that the
+.Va allow.nfsd
+jail parameter is required to allow
+.Nm
+to run in a jail.
+See
+.Xr jail 8
+for more information.
 .Pp
 If
 .Nm
@@ -185,6 +199,15 @@ If this fails, or no
 KLD was available,
 .Nm
 exits with an error.
+When run in a jail, the
+.Xr kldload 2
+must be done outside the jail, typically by adding
+.Dq nfsd
+to
+.Va kld_list
+in the
+.Xr rc.conf 5
+file on the jail host.
 .Sh FILES
 .Bl -tag -width /var/run/mountd.pid -compact
 .It Pa /etc/exports
@@ -199,6 +222,8 @@ the current list of remote mounted file systems
 .Xr kldload 2 ,
 .Xr nfsv4 4 ,
 .Xr exports 5 ,
+.Xr rc.conf 5 ,
+.Xr jail 8 ,
 .Xr nfsd 8 ,
 .Xr rpcbind 8 ,
 .Xr showmount 8
