@@ -510,7 +510,7 @@ carp_input(struct mbuf **mp, int *offp, int proto)
 		CARPSTATS_INC(carps_badlen);
 		CARP_DEBUG("%s: received len %zd < sizeof(struct carp_header) "
 		    "on %s\n", __func__, m->m_len - sizeof(struct ip),
-		    m->m_pkthdr.rcvif->if_xname);
+		    if_name(m->m_pkthdr.rcvif));
 		m_freem(m);
 		return (IPPROTO_DONE);
 	}
@@ -534,7 +534,7 @@ carp_input(struct mbuf **mp, int *offp, int proto)
 		CARPSTATS_INC(carps_badlen);
 		CARP_DEBUG("%s: packet too short %d on %s\n", __func__,
 		    m->m_pkthdr.len,
-		    m->m_pkthdr.rcvif->if_xname);
+		    if_name(m->m_pkthdr.rcvif));
 		m_freem(m);
 		return (IPPROTO_DONE);
 	}
@@ -551,7 +551,7 @@ carp_input(struct mbuf **mp, int *offp, int proto)
 	if (in_cksum(m, len - iplen)) {
 		CARPSTATS_INC(carps_badsum);
 		CARP_DEBUG("%s: checksum failed on %s\n", __func__,
-		    m->m_pkthdr.rcvif->if_xname);
+		    if_name(m->m_pkthdr.rcvif));
 		m_freem(m);
 		return (IPPROTO_DONE);
 	}
@@ -582,7 +582,7 @@ carp6_input(struct mbuf **mp, int *offp, int proto)
 	if (m->m_pkthdr.rcvif->if_carp == NULL) {
 		CARPSTATS_INC(carps_badif);
 		CARP_DEBUG("%s: packet received on non-carp interface: %s\n",
-		    __func__, m->m_pkthdr.rcvif->if_xname);
+		    __func__, if_name(m->m_pkthdr.rcvif));
 		m_freem(m);
 		return (IPPROTO_DONE);
 	}
@@ -605,7 +605,7 @@ carp6_input(struct mbuf **mp, int *offp, int proto)
 	if (in_cksum(m, sizeof(*ch))) {
 		CARPSTATS_INC(carps_badsum);
 		CARP_DEBUG("%s: checksum failed, on %s\n", __func__,
-		    m->m_pkthdr.rcvif->if_xname);
+		    if_name(m->m_pkthdr.rcvif));
 		m_freem(m);
 		return (IPPROTO_DONE);
 	}
@@ -702,7 +702,7 @@ carp_input_c(struct mbuf *m, struct carp_header *ch, sa_family_t af, int ttl)
 	if (ifa == NULL) {
 		if (error == ELOOP) {
 			CARP_DEBUG("dropping looped packet on interface %s\n",
-			    ifp->if_xname);
+			    if_name(ifp));
 			CARPSTATS_INC(carps_badif);	/* ??? */
 		} else {
 			CARPSTATS_INC(carps_badvhid);
@@ -714,7 +714,7 @@ carp_input_c(struct mbuf *m, struct carp_header *ch, sa_family_t af, int ttl)
 	/* verify the CARP version. */
 	if (ch->carp_version != CARP_VERSION) {
 		CARPSTATS_INC(carps_badver);
-		CARP_DEBUG("%s: invalid version %d\n", ifp->if_xname,
+		CARP_DEBUG("%s: invalid version %d\n", if_name(ifp),
 		    ch->carp_version);
 		ifa_free(ifa);
 		m_freem(m);
@@ -734,14 +734,14 @@ carp_input_c(struct mbuf *m, struct carp_header *ch, sa_family_t af, int ttl)
 	if (multicast && ttl != CARP_DFLTTL) {
 		CARPSTATS_INC(carps_badttl);
 		CARP_DEBUG("%s: received ttl %d != 255 on %s\n", __func__,
-		    ttl, m->m_pkthdr.rcvif->if_xname);
+		    ttl, if_name(m->m_pkthdr.rcvif));
 		goto out;
 	}
 
 	if (carp_hmac_verify(sc, ch->carp_counter, ch->carp_md)) {
 		CARPSTATS_INC(carps_badauth);
 		CARP_DEBUG("%s: incorrect hash for VHID %u@%s\n", __func__,
-		    sc->sc_vhid, ifp->if_xname);
+		    sc->sc_vhid, if_name(ifp));
 		goto out;
 	}
 
@@ -900,7 +900,7 @@ carp_send_ad_error(struct carp_softc *sc, int error)
 			static const char fmt[] = "send error %d on %s";
 			char msg[sizeof(fmt) + IFNAMSIZ];
 
-			sprintf(msg, fmt, error, sc->sc_carpdev->if_xname);
+			sprintf(msg, fmt, error, if_name(sc->sc_carpdev));
 			carp_demote_adj(V_carp_senderr_adj, msg);
 		}
 		sc->sc_sendad_success = 0;
@@ -910,7 +910,7 @@ carp_send_ad_error(struct carp_softc *sc, int error)
 				static const char fmt[] = "send ok on %s";
 				char msg[sizeof(fmt) + IFNAMSIZ];
 
-				sprintf(msg, fmt, sc->sc_carpdev->if_xname);
+				sprintf(msg, fmt, if_name(sc->sc_carpdev));
 				carp_demote_adj(-V_carp_senderr_adj, msg);
 			}
 			sc->sc_sendad_errors = 0;
@@ -1343,7 +1343,7 @@ carp_master_down_locked(struct carp_softc *sc, const char *reason)
 #ifdef INVARIANTS
 		panic("carp: VHID %u@%s: master_down event in %s state\n",
 		    sc->sc_vhid,
-		    sc->sc_carpdev->if_xname,
+		    if_name(sc->sc_carpdev),
 		    sc->sc_state ? "MASTER" : "INIT");
 #endif
 		break;
@@ -1615,7 +1615,7 @@ carp_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *sa)
 		break;
 	default:
 		printf("%s: carp is not supported for the %d interface type\n",
-		    ifp->if_xname, ifp->if_type);
+		    if_name(ifp), ifp->if_type);
 		return (EOPNOTSUPP);
 	}
 
@@ -1725,7 +1725,7 @@ carp_alloc_if(struct ifnet *ifp)
 
 	if ((error = ifpromisc(ifp, 1)) != 0)
 		printf("%s: ifpromisc(%s) failed: %d\n",
-		    __func__, ifp->if_xname, error);
+		    __func__, if_name(ifp), error);
 	else
 		cif->cif_flags |= CIF_PROMISC;
 
@@ -2113,7 +2113,7 @@ carp_set_state(struct carp_softc *sc, int state, const char *reason)
 		char subsys[IFNAMSIZ+5];
 
 		snprintf(subsys, IFNAMSIZ+5, "%u@%s", sc->sc_vhid,
-		    sc->sc_carpdev->if_xname);
+		    if_name(sc->sc_carpdev));
 
 		CARP_LOG("%s: %s -> %s (%s)\n", subsys,
 		    carp_states[sc->sc_state], carp_states[state], reason);
