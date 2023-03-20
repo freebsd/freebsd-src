@@ -1335,6 +1335,7 @@ MLINKS+=intr_event.9 intr_event_add_handler.9 \
 	intr_event.9 intr_event_remove_handler.9 \
 	intr_event.9 intr_priority.9
 MLINKS+=KASSERT.9 MPASS.9
+MLINKS+=kern_reboot.9 reboot.9
 MLINKS+=kern_yield.9 maybe_yield.9 \
 	kern_yield.9 should_yield.9
 MLINKS+=kernacc.9 useracc.9

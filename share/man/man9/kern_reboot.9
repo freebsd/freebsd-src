@@ -1,10 +1,17 @@
 .\"	$NetBSD: boot.9,v 1.2 1996/09/24 07:01:26 ghudson Exp $
 .\"
+.\" SPDX-License-Identifier: BSD-4-Clause
+.\"
 .\" Copyright (c) 1997
 .\" 	Mike Pritchard.  All rights reserved.
 .\"
 .\" Copyright (c) 1994 Christopher G. Demetriou
 .\" All rights reserved.
+.\"
+.\" Copyright (c) 2021,2023 The FreeBSD Foundation
+.\"
+.\" Portions of this documentation were written by Mitchell Horne
+.\" under sponsorship from the FreeBSD Foundation.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -18,7 +25,7 @@
 .\"    must display the following acknowledgement:
 .\"      This product includes software developed by Christopher G. Demetriou
 .\"      for the NetBSD Project.
-.\" 3. The name of the author may not be used to endorse or promote products
+.\" 4. The name of the author may not be used to endorse or promote products
 .\"    derived from this software without specific prior written permission
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
@@ -34,16 +41,17 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 23, 2021
-.Dt KERN_REBOOT 9
+.Dd March 20, 2023
+.Dt REBOOT 9
 .Os
 .Sh NAME
 .Nm kern_reboot
-.Nd halt or reboot the system
+.Nd reboot, halt, or power off the system
 .Sh SYNOPSIS
 .In sys/types.h
 .In sys/systm.h
 .In sys/reboot.h
+.Vt extern int rebooting;
 .Ft void
 .Fn kern_reboot "int howto"
 .In sys/eventhandler.h
@@ -53,53 +61,92 @@
 .Sh DESCRIPTION
 The
 .Fn kern_reboot
-function handles final system shutdown, and either halts or reboots
-the system.
+function handles final system shutdown, and either halts, reboots,
+or powers down the system.
 The exact action to be taken is determined by the flags passed in
-.Fa howto
-and by whether or not the system has finished autoconfiguration.
+.Fa howto .
 .Pp
-If the system has finished autoconfiguration,
+The relevant flags are:
+.Bl -tag -compact -offset indent -width "RB_POWERCYCLE"
+.It Dv RB_HALT
+Halt the system in-place rather than restarting.
+.It Dv RB_POWEROFF
+Power down the system rather than restarting.
+.It Dv RB_POWERCYCLE
+Request a power-cycle in addition to restarting.
+.It Dv RB_NOSYNC
+Do not sync filesystems during shutdown.
+.It Dv RB_DUMP
+Dump kernel memory during shutdown.
+.El
+.Pp
+The
+.Fa howto
+field, and its full list of flags are described in additional detail by
+.Xr reboot 2 .
+.Pp
 .Fn kern_reboot
-does the following:
+performs the following actions:
 .Bl -enum -offset indent
 .It
-If this is the first invocation of
-.Fn kern_reboot
-and the
+Set the
+.Va rebooting
+variable to
+.Dv 1 ,
+indicating that the reboot process has begun and cannot be stopped.
+.It
+Set the
+.Va kdb_active
+variable to
+.Dv 0 ,
+indicating that execution has left the kernel debugger, if it was previously
+active.
+.It
+Unless the
 .Dv RB_NOSYNC
-flag is not set in
+flag is set in
 .Fa howto ,
-syncs and unmounts the system disks by calling
+sync and unmount the system's disks by calling
 .Xr vfs_unmountall 9 .
 .It
-Disables interrupts.
-.It
-If rebooting after a crash (i.e., if
+If rebooting after a panic
+.Po
 .Dv RB_DUMP
 is set in
 .Fa howto ,
 but
 .Dv RB_HALT
-is not), saves a system crash dump.
+is not set
+.Pc ,
+initiate a system crash dump via
+.Fn doadump .
 .It
-Runs any shutdown hooks previously registered.
+Print a message indicating that the system is about to be halted
+or rebooted, and a report of the total system uptime.
 .It
-Prints a message indicating that the system is about to be halted
-or rebooted.
+Execute all registered shutdown hooks.
 .It
-If
-.Dv RB_HALT
-is set in
-.Fa howto ,
-halts the system.
-Otherwise, reboots the system.
+As a last resort, if none of the shutdown hooks handled the reboot, call the
+machine-dependent
+.Fn cpu_reset
+function.
+In the unlikely case that this is not supported,
+.Fn kern_reboot
+will loop forever at the end of the function.
+This requires a manual reset of the system.
 .El
 .Pp
-If the system has not finished autoconfiguration,
 .Fn kern_reboot
-runs any shutdown hooks previously registered,
-prints a message, and halts the system.
+may be called from a typical kernel execution context, when the system is
+running normally.
+It may also be called as the final step of a kernel panic, or from the kernel
+debugger.
+Therefore, the code in this function is subject to restrictions described by
+the
+.Sx EXECUTION CONTEXT
+section of the
+.Xr panic 9
+man page.
 .Sh RETURN VALUES
 The
 .Fn kern_reboot
@@ -107,4 +154,5 @@ function does not return.
 .Sh SEE ALSO
 .Xr reboot 2 ,
 .Xr EVENTHANDLER 9 ,
+.Xr panic 9 ,
 .Xr vfs_unmountall 9
