@@ -27,7 +27,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd July 1, 2021
+.Dd February 27, 2023
 .Dt HARDCLOCK 9
 .Os
 .Sh NAME
@@ -44,19 +44,18 @@ The rate ranges from
 .Va hz
 times per second on a very busy system, to twice a second on an idle system.
 The
-.Va cnt
+.Fa cnt
 argument reports an estimate of the number of ticks since the last call.
-The sum of
-.Va cnt
-over a second averages
-.Va hz
-over the long haul.
+Over long timescales, the average sum of
+.Fa cnt
+over one second is
+.Va hz .
 See
 .Xr hz 9
 for important details over shorter time scales.
-The argument
-.Va usermode
-is none-zero when
+The
+.Fa usermode
+argument is non-zero when
 .Fn hardclock
 is called from an context that interrupted usermode execution.
 .Pp
@@ -77,18 +76,23 @@ or
 .Xr adjtime 2
 induced changes and leap seconds, as well as any necessary
 compensations to keep in sync with PPS signals or external clocks, if
-support for this is in the kernel (see
-.Xr options 4 ) .
+supported by the kernel.
 .It
-Schedule softclock interrupts (
-.Xr swi 9 )
+Schedule softclock interrupts
+.Po
+.Xr swi 9
+.Pc
 processing.
 .It
 Collect
 .Xr hwpmc 4
 statistics.
 .It
-Do device polling, when enabled.
+Do device polling, when enabled
+.Po
+see
+.Xr polling 4
+.Pc .
 .It
 Implement software
 .Xr watchdog 9
@@ -102,5 +106,11 @@ processing.
 .Xr adjtime 2 ,
 .Xr ntp_adjtime 2 ,
 .Xr signal 3 ,
+.Xr hwpmc 4 ,
+.Xr polling 4 ,
 .Xr ntpd 8 ,
-.Xr hz 9
+.Xr epoch 9 ,
+.Xr eventtimers 9 ,
+.Xr hz 9 ,
+.Xr swi 9 ,
+.Xr watchdog 9
