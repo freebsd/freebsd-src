@@ -52,6 +52,16 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20230420: case-sensitive conflicts removed
+OLD_FILES+=usr/tests/bin/pkill/pgrep-F_test
+OLD_FILES+=usr/tests/bin/pkill/pgrep-LF_test
+OLD_FILES+=usr/tests/bin/pkill/pgrep-P_test
+OLD_FILES+=usr/tests/bin/pkill/pgrep-U_test
+OLD_FILES+=usr/tests/bin/pkill/pkill-F_test
+OLD_FILES+=usr/tests/bin/pkill/pkill-LF_test
+OLD_FILES+=usr/tests/bin/pkill/pkill-P_test
+OLD_FILES+=usr/tests/bin/pkill/pkill-U_test
+
 # 20230410: new clang import which bumps version from 14.0.5 to 15.0.7
 OLD_FILES+=usr/lib/clang/14.0.5/include/cuda_wrappers/algorithm
 OLD_FILES+=usr/lib/clang/14.0.5/include/cuda_wrappers/complex
