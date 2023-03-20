@@ -133,8 +133,9 @@ static int	takepid(const char *, int);
 int
 main(int argc, char **argv)
 {
-	char buf[_POSIX2_LINE_MAX], *mstr, **pargv, *p, *q, *pidfile;
+	char *buf, *mstr, **pargv, *p, *q, *pidfile;
 	const char *execf, *coref;
+	size_t bufsz;
 	int ancestors, debug_opt, did_action;
 	int i, ch, bestidx, rv, criteria, pidfromfile, pidfilelock;
 	size_t jsz;
@@ -177,6 +178,7 @@ main(int argc, char **argv)
 		}
 	}
 
+	buf = NULL;
 	ancestors = 0;
 	criteria = 0;
 	debug_opt = 0;
@@ -312,6 +314,31 @@ main(int argc, char **argv)
 	mypid = getpid();
 
 	/*
+	 * If we're not matching args, we only need a buffer large enough to
+	 * hold some relatively short error strings.  Otherwise, we have to
+	 * assume we'll need up to ARG_MAX bytes for arguments.
+	 */
+	bufsz = _POSIX2_LINE_MAX;
+	if (matchargs) {
+		long arg_max;
+
+		arg_max = sysconf(_SC_ARG_MAX);
+		if (arg_max == -1)
+			arg_max = ARG_MAX;
+
+		/*
+		 * The absolute worst case scenario is ARG_MAX single-byte
+		 * arguments which we'll then separate with spaces and NUL
+		 * terminate.
+		 */
+		bufsz = (arg_max * 2) + 1;
+	}
+
+	buf = malloc(bufsz);
+	if (buf == NULL)
+		err(STATUS_ERROR, "malloc");
+
+	/*
 	 * Retrieve the list of running processes from the kernel.
 	 */
 	kd = kvm_openfiles(execf, coref, NULL, O_RDONLY, buf);
@@ -346,7 +373,7 @@ main(int argc, char **argv)
 	 */
 	for (; *argv != NULL; argv++) {
 		if ((rv = regcomp(&reg, *argv, cflags)) != 0) {
-			regerror(rv, &reg, buf, sizeof(buf));
+			regerror(rv, &reg, buf, bufsz);
 			errx(STATUS_BADUSAGE,
 			    "Cannot compile regular expression `%s' (%s)",
 			    *argv, buf);
@@ -363,9 +390,9 @@ main(int argc, char **argv)
 			if (matchargs &&
 			    (pargv = kvm_getargv(kd, kp, 0)) != NULL) {
 				jsz = 0;
-				while (jsz < sizeof(buf) && *pargv != NULL) {
+				while (jsz < bufsz && *pargv != NULL) {
 					jsz += snprintf(buf + jsz,
-					    sizeof(buf) - jsz,
+					    bufsz - jsz,
 					    pargv[1] != NULL ? "%s " : "%s",
 					    pargv[0]);
 					pargv++;
@@ -384,7 +411,7 @@ main(int argc, char **argv)
 				} else
 					selected[i] = 1;
 			} else if (rv != REG_NOMATCH) {
-				regerror(rv, &reg, buf, sizeof(buf));
+				regerror(rv, &reg, buf, bufsz);
 				errx(STATUS_ERROR,
 				    "Regular expression evaluation error (%s)",
 				    buf);
@@ -576,6 +603,7 @@ main(int argc, char **argv)
 		fprintf(stderr,
 		    "No matching processes belonging to you were found\n");
 
+	free(buf);
 	exit(rv ? STATUS_MATCH : STATUS_NOMATCH);
 }
 

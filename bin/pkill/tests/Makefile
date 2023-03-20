@@ -2,6 +2,11 @@
 
 .include <bsd.own.mk>
 
+PACKAGE=	tests
+
+PROGS+=		spin_helper
+BINDIR=		${TESTSDIR}
+
 TAP_TESTS_SH=			pgrep-F_test
 TAP_TESTS_SH+=			pgrep-LF_test
 TAP_TESTS_SH+=			pgrep-P_test
@@ -10,6 +15,7 @@ TAP_TESTS_SH+=			pgrep-_g_test
 TAP_TESTS_SH+=			pgrep-_s_test
 TAP_TESTS_SH+=			pgrep-g_test
 TAP_TESTS_SH+=			pgrep-i_test
+TAP_TESTS_SH+=			pgrep-f_test
 TAP_TESTS_SH+=			pgrep-j_test
 TEST_METADATA.pgrep-j_test+=	required_user="root"
 TEST_METADATA.pgrep-j_test+=	required_programs="jail jls"
