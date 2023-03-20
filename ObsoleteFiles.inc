@@ -52,6 +52,16 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20230320: case-sensitive conflicts removed
+OLD_FILES+=usr/tests/bin/pkill/pgrep-F_test
+OLD_FILES+=usr/tests/bin/pkill/pgrep-LF_test
+OLD_FILES+=usr/tests/bin/pkill/pgrep-P_test
+OLD_FILES+=usr/tests/bin/pkill/pgrep-U_test
+OLD_FILES+=usr/tests/bin/pkill/pkill-F_test
+OLD_FILES+=usr/tests/bin/pkill/pkill-LF_test
+OLD_FILES+=usr/tests/bin/pkill/pkill-P_test
+OLD_FILES+=usr/tests/bin/pkill/pkill-U_test
+
 # 20230309: remove remaining ATM support
 OLD_FILES+=usr/bin/sscop
 OLD_FILES+=usr/include/netnatm/addr.h
