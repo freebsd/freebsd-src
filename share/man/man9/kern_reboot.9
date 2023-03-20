@@ -45,7 +45,8 @@
 .Dt REBOOT 9
 .Os
 .Sh NAME
-.Nm kern_reboot
+.Nm kern_reboot ,
+.Nm shutdown_nice
 .Nd reboot, halt, or power off the system
 .Sh SYNOPSIS
 .In sys/types.h
@@ -54,6 +55,8 @@
 .Vt extern int rebooting;
 .Ft void
 .Fn kern_reboot "int howto"
+.Ft void
+.Fn shutdown_nice "int howto"
 .In sys/eventhandler.h
 .Fn EVENTHANDLER_REGISTER "shutdown_pre_sync" "shutdown_fn" "private" "priority"
 .Fn EVENTHANDLER_REGISTER "shutdown_post_sync" "shutdown_fn" "private" "priority"
@@ -147,12 +150,42 @@ the
 section of the
 .Xr panic 9
 man page.
+.Pp
+The
+.Fn shutdown_nice
+function is the intended path for performing a clean reboot or shutdown when
+the system is operating under normal conditions.
+Calling this function will send a signal to the
+.Xr init 8
+process, instructing it to perform a shutdown.
+When
+.Xr init 8
+has cleanly terminated its children, it will perform the
+.Xr reboot 2
+system call, which in turn calls
+.Fn kern_reboot .
+.Pp
+If
+.Fn shutdown_nice
+is called before the
+.Xr init 8
+process has been spawned, or if the system has panicked or otherwise halted,
+.Fn kern_reboot
+will be called directly.
 .Sh RETURN VALUES
 The
 .Fn kern_reboot
 function does not return.
+.Pp
+The
+.Fn shutdown_nice
+function will usually return to its caller, having initiated the asynchronous
+system shutdown.
+It will not return when called from a panic or debugger context, or during
+early boot.
 .Sh SEE ALSO
 .Xr reboot 2 ,
+.Xr init 8 ,
 .Xr EVENTHANDLER 9 ,
 .Xr panic 9 ,
 .Xr vfs_unmountall 9
