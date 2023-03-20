@@ -728,7 +728,7 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 		if (lastfunc != c_func || sbt2 > maxdt * 2) {
 			ts2 = sbttots(sbt2);
 			printf(
-		"Expensive timeout(9) function: %p(%p) %jd.%09ld s\n",
+		"Expensive callout(9) function: %p(%p) %jd.%09ld s\n",
 			    c_func, c_arg, (intmax_t)ts2.tv_sec, ts2.tv_nsec);
 		}
 		maxdt = sbt2;
