@@ -244,8 +244,8 @@ MTX_SYSINIT(dumper_configs, &dumpconf_list_lk, "dumper config list", MTX_DEF);
 static TAILQ_HEAD(dumpconflist, dumperinfo) dumper_configs =
     TAILQ_HEAD_INITIALIZER(dumper_configs);
 
-/* Context information for dump-debuggers. */
-static struct pcb dumppcb;		/* Registers. */
+/* Context information for dump-debuggers, saved by the dump_savectx() macro. */
+struct pcb dumppcb;			/* Registers. */
 lwpid_t dumptid;			/* Thread ID. */
 
 static struct cdevsw reroot_cdevsw = {
@@ -390,17 +390,6 @@ print_uptime(void)
 		f = 1;
 	}
 	printf("%lds\n", (long)ts.tv_sec);
-}
-
-/*
- * Set up a context that can be extracted from the dump.
- */
-void
-dump_savectx(void)
-{
-
-	savectx(&dumppcb);
-	dumptid = curthread->td_tid;
 }
 
 int

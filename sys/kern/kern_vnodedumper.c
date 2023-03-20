@@ -44,6 +44,7 @@
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 
+#include <machine/pcb.h>
 #include <machine/vmparam.h>
 
 static dumper_start_t vnode_dumper_start;

@@ -360,7 +360,21 @@ struct dumperinfo {
 
 extern int dumping;		/* system is dumping */
 
-void dump_savectx(void);
+/*
+ * Save registers for later extraction from a kernel dump.
+ *
+ * This must be inlined into the caller, which in turn must be the function that
+ * calls (mini)dumpsys().  Otherwise, the saved frame pointer will reference a
+ * stack frame that may be clobbered by subsequent function calls.
+ */
+#define	dump_savectx() do {		\
+	extern struct pcb dumppcb;	\
+	extern lwpid_t dumptid;		\
+					\
+	savectx(&dumppcb);		\
+	dumptid = curthread->td_tid;	\
+} while (0)
+
 int doadump(boolean_t);
 struct diocskerneldump_arg;
 int dumper_create(const struct dumperinfo *di_template, const char *devname,
