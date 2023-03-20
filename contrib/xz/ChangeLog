@@ -1,3 +1,1268 @@
+commit 6ca8046ecbc7a1c81ee08f544bfd1414819fb2e8
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-03-18 23:22:06 +0800
+
+    Bump version and soname for 5.4.2.
+
+ src/liblzma/Makefile.am        | 2 +-
+ src/liblzma/api/lzma/version.h | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+commit ce4f246600db10e77fc93d492ea045b4c9830bc6
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-03-18 22:10:57 +0800
+
+    Add NEWS for 5.4.2.
+
+ NEWS | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 48 insertions(+)
+
+commit 3634fe330788fc0df217acdb6581031a851600a3
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-03-18 16:00:54 +0200
+
+    Update the copy of GNU GPLv3 from gnu.org to COPYING.GPLv3.
+
+ COPYING.GPLv3 | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+commit 97679d25ce7cb014328f1455bb338903c003d54f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-03-18 15:51:57 +0200
+
+    Change a few HTTP URLs to HTTPS.
+    
+    The xz man page timestamp was intentionally left unchanged.
+
+ INSTALL                    |  2 +-
+ README                     |  8 ++++----
+ configure.ac               |  2 +-
+ dos/INSTALL.txt            |  4 ++--
+ src/liblzma/api/lzma.h     |  8 ++++----
+ src/liblzma/check/sha256.c |  2 +-
+ src/xz/xz.1                |  2 +-
+ windows/INSTALL-MinGW.txt  | 10 +++++-----
+ 8 files changed, 19 insertions(+), 19 deletions(-)
+
+commit 01a67e89a56c3ebf5f6681bd06f0edc22a1ae594
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-03-18 00:40:28 +0800
+
+    CMake: Fix typo in a comment.
+
+ CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 5dca3f5cbab31105196c89cd6df0a9bbc3307c05
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-03-17 18:36:22 +0200
+
+    Windows: build.bash: Copy liblzma API docs to the output package.
+
+ windows/build.bash | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+commit ae252862b30b509ab88b2bbcaa08e8d51b57e928
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-03-17 08:53:38 +0200
+
+    Windows: Add microlzma_*.c to the VS project files.
+    
+    These should have been included in 5.3.2alpha already.
+
+ windows/vs2013/liblzma.vcxproj     | 2 ++
+ windows/vs2013/liblzma_dll.vcxproj | 2 ++
+ windows/vs2017/liblzma.vcxproj     | 2 ++
+ windows/vs2017/liblzma_dll.vcxproj | 2 ++
+ windows/vs2019/liblzma.vcxproj     | 2 ++
+ windows/vs2019/liblzma_dll.vcxproj | 2 ++
+ 6 files changed, 12 insertions(+)
+
+commit 147d282cc3733e2723df82622b6540ddfb52635e
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-03-17 08:43:51 +0200
+
+    CMake: Add microlzma_*.c to the build.
+    
+    These should have been included in 5.3.2alpha already.
+
+ CMakeLists.txt | 2 ++
+ 1 file changed, 2 insertions(+)
+
+commit 4523a5ee29f45c0256af67a15771bc8bbd25ba53
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-03-17 08:41:36 +0200
+
+    Build: Update comments about unaligned access to mention 64-bit.
+
+ cmake/tuklib_integer.cmake | 7 +++----
+ m4/tuklib_integer.m4       | 4 ++--
+ 2 files changed, 5 insertions(+), 6 deletions(-)
+
+commit 82aacb40367dc580b09c5a7b270f6c98b63e49b9
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-03-17 00:02:30 +0200
+
+    Tests: Update .gitignore.
+
+ .gitignore | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+commit 5d022c24921eec938604a8cb10d70aa08dbd8575
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-03-14 20:04:03 +0200
+
+    po4a/update-po: Display the script name consistently in error messages.
+
+ po4a/update-po | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 896295117324f323c0b8db6a31ad6ebfaa88793d
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-03-17 01:30:36 +0800
+
+    Doc: Rename Doxygen HTML doc directory name liblzma => api.
+    
+    When the docs are installed, calling the directory "liblzma" is
+    confusing since multiple other files in the doc directory are for
+    liblzma. This should also make it more natural for distros when they
+    package the documentation.
+
+ .gitignore             |  2 +-
+ Makefile.am            | 18 +++++++++---------
+ PACKAGERS              |  4 ++--
+ doxygen/Doxyfile       |  2 +-
+ doxygen/update-doxygen | 18 +++++++++---------
+ 5 files changed, 22 insertions(+), 22 deletions(-)
+
+commit 94097157fae308b2c1a5edb4e8597c68b45eeaea
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-03-16 22:07:15 +0800
+
+    liblzma: Remove note from lzma_options_bcj about the ARM64 exception.
+    
+    This was left in by mistake since an early version of the ARM64 filter
+    used a different struct for its options.
+
+ src/liblzma/api/lzma/bcj.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit da16d0b73b79d7785ece6f78a577fadd1fb59d0e
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-03-15 19:19:13 +0200
+
+    COPYING: Add a note about the included Doxygen-generated HTML.
+
+ COPYING | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+commit e57c74f9ef19201f72c106f2c347596f40229936
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-03-16 21:41:09 +0800
+
+    Doc: Update PACKAGERS with details about liblzma API docs install.
+
+ PACKAGERS | 22 ++++++++++++++++------
+ 1 file changed, 16 insertions(+), 6 deletions(-)
+
+commit 7e2fa48bb73edb25457232e2e62a4f81c6b95281
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-03-16 21:38:32 +0800
+
+    liblzma: Add set lzma.h as the main page for Doxygen documentation.
+    
+    The \mainpage command is used in the first block of comments in lzma.h.
+    This changes the previously nearly empty index.html to use the first
+    comment block in lzma.h for its contents.
+    
+    lzma.h is no longer documented separately, but this is for the better
+    since lzma.h only defined a few macros that users do not need to use.
+    The individual API header files all have a disclaimer that they should
+    not be #included directly, so there should be no confusion on the fact
+    that lzma.h should be the only header used by applications.
+    
+    Additionally, the note "See ../lzma.h for information about liblzma as
+    a whole." was removed since lzma.h is now the main page of the
+    generated HTML and does not have its own page anymore. So it would be
+    confusing in the HTML version and was only a "nice to have" when
+    browsing the source files.
+
+ src/liblzma/api/lzma.h              | 1 +
+ src/liblzma/api/lzma/base.h         | 2 --
+ src/liblzma/api/lzma/bcj.h          | 2 --
+ src/liblzma/api/lzma/block.h        | 2 --
+ src/liblzma/api/lzma/check.h        | 2 --
+ src/liblzma/api/lzma/container.h    | 2 --
+ src/liblzma/api/lzma/delta.h        | 2 --
+ src/liblzma/api/lzma/filter.h       | 2 --
+ src/liblzma/api/lzma/hardware.h     | 2 --
+ src/liblzma/api/lzma/index.h        | 2 --
+ src/liblzma/api/lzma/index_hash.h   | 4 +---
+ src/liblzma/api/lzma/lzma12.h       | 2 --
+ src/liblzma/api/lzma/stream_flags.h | 2 --
+ src/liblzma/api/lzma/version.h      | 2 --
+ src/liblzma/api/lzma/vli.h          | 2 --
+ 15 files changed, 2 insertions(+), 29 deletions(-)
+
+commit d42977c7acfdf7fd9acc8803cf411eca7dc10478
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-03-16 21:37:32 +0800
+
+    Build: Generate doxygen documentation in autogen.sh.
+    
+    Another command line option (--no-doxygen) was added to disable
+    creating the doxygen documenation in cases where it not wanted or
+    if the doxygen tool is not installed.
+
+ autogen.sh | 35 +++++++++++++++++++++++++++++------
+ 1 file changed, 29 insertions(+), 6 deletions(-)
+
+commit 8fc712fcf41d821069c670f22b8bf628e7a4a877
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-03-16 21:35:55 +0800
+
+    Build: Create doxygen/update-doxygen script.
+    
+    This is a helper script to generate the Doxygen documentation. It can be
+    run in 'liblzma' or 'internal' mode by setting the first argument. It
+    will default to 'liblzma' mode and only generate documentation for the
+    liblzma API header files.
+    
+    The helper script will be run during the custom mydist hook when we
+    create releases. This hook already alters the source directory, so its
+    fine to do it here too. This way, we can include the Doxygen generated
+    files in the distrubtion and when installing.
+    
+    In 'liblzma' mode, the JavaScript is stripped from the .html files and
+    the .js files are removed. This avoids license hassle from jQuery and
+    other libraries that Doxygen 1.9.6 puts into jquery.js in minified form.
+
+ Makefile.am            |   1 +
+ doxygen/update-doxygen | 111 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 112 insertions(+)
+
+commit 77d2c025d19fbac7277c63239cfb1338f02c66c0
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-03-16 21:34:36 +0800
+
+    Build: Install Doxygen docs and include in distribution if generated.
+    
+    Added a install-data-local target to install the Doxygen documentation
+    only when it has been generated. In order to correctly remove the docs,
+    a corresponding uninstall-local target was added.
+    
+    If the doxygen docs exist in the source tree, they will also be included
+    in the distribution now too.
+
+ Makefile.am | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
+
+commit 9af8f6f947a43974a4ff025f4c896f2fb4c91b4f
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-01-03 20:37:30 +0800
+
+    Doxygen: Refactor Doxyfile.in to doxygen/Doxyfile.
+    
+    Instead of having Doxyfile.in configured by Autoconf, the Doxyfile
+    can have the tags that need to be configured piped into the doxygen
+    command through stdin with the overrides after Doxyfile's contents.
+    
+    Going forward, the documentation should be generated in two different
+    modes: liblzma or internal.
+    
+    liblzma is useful for most users. It is the documentation for just
+    the liblzma API header files. This is the default.
+    
+    internal is for people who want to understand how xz and liblzma work.
+    It might be useful for people who want to contribute to the project.
+
+ .gitignore       |    3 +-
+ Doxyfile.in      | 1234 -------------------------
+ Makefile.am      |    1 -
+ configure.ac     |    1 -
+ doxygen/Doxyfile | 2684 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 2686 insertions(+), 1237 deletions(-)
+
+commit 1c558a26928b753fcf1c0d4bce9c0643285edd86
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-28 23:22:36 +0800
+
+    Tests: Remove unused macros and functions.
+
+ tests/tests.h | 75 -----------------------------------------------------------
+ 1 file changed, 75 deletions(-)
+
+commit 7479a69a45a1b8fdb9a209e11f247dce11ac1ba0
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-01-12 22:29:07 +0800
+
+    Tests: Refactors existing lzma_index tests.
+    
+    Converts the existing lzma_index tests into tuktests and covers every
+    API function from index.h except for lzma_file_info_decoder, which can
+    be tested in the future.
+
+ tests/test_index.c | 2036 ++++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 1492 insertions(+), 544 deletions(-)
+
+commit fd56d5353360279c10e8e5e05f5bc6ea03f64584
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-03-07 19:59:23 +0200
+
+    xz: Make Capsicum sandbox more strict with stdin and stdout.
+
+ src/xz/file_io.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+commit d1bdaaebc68cae7f0ba457fa990b520df2186fd1
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-03-11 19:31:40 +0200
+
+    xz: Don't fail if Capsicum is enabled but kernel doesn't support it.
+    
+    (This commit combines related commits from the master branch.)
+    
+    If Capsicum support is missing from the kernel or xz is being run
+    in an emulator that lacks Capsicum suport, the syscalls will fail
+    and set errno to ENOSYS. Previously xz would display and error and
+    exit, making xz unusable. Now it will check for ENOSYS and run
+    without sandbox support. Other tools like ssh behave similarly.
+    
+    Displaying a warning for missing Capsicum support was considered
+    but such extra output would quickly become annoying. It would also
+    break test_scripts.sh in "make check".
+    
+    Also move cap_enter() to be the first step instead of the last one.
+    This matches the example in the cap_rights_limit(2) man page. With
+    the current code it shouldn't make any practical difference though.
+    
+    Thanks to Xin Li for the bug report, suggesting a fix, and testing:
+    https://github.com/tukaani-project/xz/pull/43
+    
+    Thanks to Jia Tan for most of the original commits.
+
+ src/xz/file_io.c | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)
+
+commit 5d351c69c19d212ddd2cf1f3bdb24900820c6776
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-04 21:06:35 +0800
+
+    Build: Adjust CMake version search regex.
+    
+    Now, the LZMA_VERSION_MAJOR, LZMA_VERSION_MINOR, and LZMA_VERSION_PATCH
+    macros do not need to be on consecutive lines in version.h. They can be
+    separated by more whitespace, comments, or even other content, as long
+    as they appear in the proper order (major, minor, patch).
+
+ CMakeLists.txt | 2 ++
+ 1 file changed, 2 insertions(+)
+
+commit b82d4831e3f2339c4cdbc47776c99462088c11b7
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-01-26 09:50:21 +0800
+
+    liblzma: Improve documentation for version.h.
+    
+    Specified parameter and return values for API functions and documented
+    a few more of the macros.
+
+ src/liblzma/api/lzma/version.h | 29 ++++++++++++++++++++++-------
+ 1 file changed, 22 insertions(+), 7 deletions(-)
+
+commit 2caba3efe3e0c2d7c6dca00e22c56812326a34e6
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-24 23:46:23 +0800
+
+    liblzma: Clarify lzma_lzma_preset() documentation in lzma12.h.
+    
+    lzma_lzma_preset() does not guarentee that the lzma_options_lzma are
+    usable in an encoder even if it returns false (success). If liblzma
+    is built with default configurations, then the options will always be
+    usable. However if the match finders hc3, hc4, or bt4 are disabled, then
+    the options may not be usable depending on the preset level requested.
+    
+    The documentation was updated to reflect this complexity, since this
+    behavior was unclear before.
+
+ src/liblzma/api/lzma/lzma12.h | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+commit 594f904673ba55a833adfa60bbab6b60d4902d08
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-02-27 18:38:35 +0200
+
+    CMake: Require that the C compiler supports C99 or a newer standard.
+    
+    Thanks to autoantwort for reporting the issue and suggesting
+    a different patch:
+    https://github.com/tukaani-project/xz/pull/42
+
+ CMakeLists.txt | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+commit 88101143cb774bca6b7006c8335b09dc3f334140
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-24 18:10:37 +0800
+
+    Tests: Small tweak to test-vli.c.
+    
+    The static global variables can be disabled if encoders and decoders
+    are not built. If they are not disabled and -Werror is used, it will
+    cause an usused warning as an error.
+
+ tests/test_vli.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+commit 4042dbf03a06e019ccdd1e9d1b94cf613d62d5a9
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-06 21:46:43 +0800
+
+    liblzma: Replace '\n' -> newline in filter.h documentation.
+    
+    The '\n' renders as a newline when the comments are converted to html
+    by Doxygen.
+
+ src/liblzma/api/lzma/filter.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 3971f5c5024750ce8286891c6f79ae1661047483
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-06 21:45:37 +0800
+
+    liblzma: Shorten return description for two functions in filter.h.
+    
+    Shorten the description for lzma_raw_encoder_memusage() and
+    lzma_raw_decoder_memusage().
+
+ src/liblzma/api/lzma/filter.h | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)
+
+commit 5e61b39432752b6cd1a7b518f0f9e4f0c3f0f242
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-06 21:44:45 +0800
+
+    liblzma: Reword a few lines in filter.h
+
+ src/liblzma/api/lzma/filter.h | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+commit 8a53533869defa1191b41f176a0312cb53a139e2
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-06 21:35:06 +0800
+
+    liblzma: Improve documentation in filter.h.
+    
+    All functions now explicitly specify parameter and return values.
+    The notes and code annotations were moved before the parameter and
+    return value descriptions for consistency.
+    
+    Also, the description above lzma_filter_encoder_is_supported() about
+    not being able to list available filters was removed since
+    lzma_str_list_filters() will do this.
+
+ src/liblzma/api/lzma/filter.h | 226 ++++++++++++++++++++++++++----------------
+ 1 file changed, 143 insertions(+), 83 deletions(-)
+
+commit 6d05b08b17ac8cb93165ee8f310fdd925b0b258f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-02-23 20:46:16 +0200
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit dfc9a54082e0fc7b3b796ea15336b5075acc79d5
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-02-21 22:57:10 +0200
+
+    liblzma: Avoid null pointer + 0 (undefined behavior in C).
+    
+    In the C99 and C17 standards, section 6.5.6 paragraph 8 means that
+    adding 0 to a null pointer is undefined behavior. As of writing,
+    "clang -fsanitize=undefined" (Clang 15) diagnoses this. However,
+    I'm not aware of any compiler that would take advantage of this
+    when optimizing (Clang 15 included). It's good to avoid this anyway
+    since compilers might some day infer that pointer arithmetic implies
+    that the pointer is not NULL. That is, the following foo() would then
+    unconditionally return 0, even for foo(NULL, 0):
+    
+        void bar(char *a, char *b);
+    
+        int foo(char *a, size_t n)
+        {
+            bar(a, a + n);
+            return a == NULL;
+        }
+    
+    In contrast to C, C++ explicitly allows null pointer + 0. So if
+    the above is compiled as C++ then there is no undefined behavior
+    in the foo(NULL, 0) call.
+    
+    To me it seems that changing the C standard would be the sane
+    thing to do (just add one sentence) as it would ensure that a huge
+    amount of old code won't break in the future. Based on web searches
+    it seems that a large number of codebases (where null pointer + 0
+    occurs) are being fixed instead to be future-proof in case compilers
+    will some day optimize based on it (like making the above foo(NULL, 0)
+    return 0) which in the worst case will cause security bugs.
+    
+    Some projects don't plan to change it. For example, gnulib and thus
+    many GNU tools currently require that null pointer + 0 is defined:
+    
+        https://lists.gnu.org/archive/html/bug-gnulib/2021-11/msg00000.html
+    
+        https://www.gnu.org/software/gnulib/manual/html_node/Other-portability-assumptions.html
+    
+    In XZ Utils null pointer + 0 issue should be fixed after this
+    commit. This adds a few if-statements and thus branches to avoid
+    null pointer + 0. These check for size > 0 instead of ptr != NULL
+    because this way bugs where size > 0 && ptr == NULL will likely
+    get caught quickly. None of them are in hot spots so it shouldn't
+    matter for performance.
+    
+    A little less readable version would be replacing
+    
+        ptr + offset
+    
+    with
+    
+        offset != 0 ? ptr + offset : ptr
+    
+    or creating a macro for it:
+    
+        #define my_ptr_add(ptr, offset) \
+                ((offset) != 0 ? ((ptr) + (offset)) : (ptr))
+    
+    Checking for offset != 0 instead of ptr != NULL allows GCC >= 8.1,
+    Clang >= 7, and Clang-based ICX to optimize it to the very same code
+    as ptr + offset. That is, it won't create a branch. So for hot code
+    this could be a good solution to avoid null pointer + 0. Unfortunately
+    other compilers like ICC 2021 or MSVC 19.33 (VS2022) will create a
+    branch from my_ptr_add().
+    
+    Thanks to Marcin Kowalczyk for reporting the problem:
+    https://github.com/tukaani-project/xz/issues/36
+
+ src/liblzma/common/block_decoder.c |  5 ++++-
+ src/liblzma/common/block_encoder.c |  7 +++++--
+ src/liblzma/common/common.c        | 20 ++++++++++++++------
+ src/liblzma/common/index_decoder.c | 13 ++++++++++---
+ src/liblzma/common/index_encoder.c | 11 +++++++++--
+ src/liblzma/common/index_hash.c    | 13 ++++++++++---
+ src/liblzma/common/lzip_decoder.c  |  6 +++++-
+ src/liblzma/delta/delta_decoder.c  |  7 ++++++-
+ src/liblzma/delta/delta_encoder.c  | 12 ++++++++++--
+ src/liblzma/simple/simple_coder.c  |  6 ++++--
+ 10 files changed, 77 insertions(+), 23 deletions(-)
+
+commit f6dce49cb656b358e2fb2a3032e35e20af34dc84
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-07 00:00:44 +0800
+
+    liblzma: Adjust container.h for consistency with filter.h.
+
+ src/liblzma/api/lzma/container.h | 20 +++++++++-----------
+ 1 file changed, 9 insertions(+), 11 deletions(-)
+
+commit 173d240bb4763aedc8c01df4d9c83e311d954c33
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-07 00:00:09 +0800
+
+    liblzma: Fix small typos and reword a few things in filter.h.
+
+ src/liblzma/api/lzma/container.h | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)
+
+commit 17797bacde3f7264048ef0976c137a600148d6cf
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-06 23:42:08 +0800
+
+    liblzma: Convert list of flags in lzma_mt to bulleted list.
+
+ src/liblzma/api/lzma/container.h | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+commit 37da0e727161b401b8bfd8dccf163a4b2fc0460b
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-01-26 23:17:41 +0800
+
+    liblzma: Fix typo in documentation in container.h
+    
+    lzma_microlzma_decoder -> lzma_microlzma_encoder
+
+ src/liblzma/api/lzma/container.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit b8331077c626e6bf14f4671d09b561146eaf816a
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-01-26 23:16:34 +0800
+
+    liblzma: Improve documentation for container.h
+    
+    Standardizing each function to always specify parameters and return
+    values. Also moved the parameters and return values to the end of each
+    function description.
+
+ src/liblzma/api/lzma/container.h | 146 +++++++++++++++++++++++++--------------
+ 1 file changed, 93 insertions(+), 53 deletions(-)
+
+commit b9a3511bb61d3b6ce49abd33dce6155a573f5272
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-22 20:59:41 +0800
+
+    CMake: Add LZIP decoder test to list of tests.
+
+ CMakeLists.txt | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit cd82ef2fb48b174c57cd03b84a9a0f978772cb89
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-02-17 20:56:49 +0200
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 076e911ba25cadf2cbdfbd0f65991a002e210c0b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-02-17 20:48:28 +0200
+
+    Build: Use only the generic symbol versioning on MicroBlaze.
+    
+    On MicroBlaze, GCC 12 is broken in sense that
+    __has_attribute(__symver__) returns true but it still doesn't
+    support the __symver__ attribute even though the platform is ELF
+    and symbol versioning is supported if using the traditional
+    __asm__(".symver ...") method. Avoiding the traditional method is
+    good because it breaks LTO (-flto) builds with GCC.
+    
+    See also: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=101766
+    
+    For now the only extra symbols in liblzma_linux.map are the
+    compatibility symbols with the patch that spread from RHEL/CentOS 7.
+    These require the use of __symver__ attribute or __asm__(".symver ...")
+    in the C code. Compatibility with the patch from CentOS 7 doesn't
+    seem valuable on MicroBlaze so use liblzma_generic.map on MicroBlaze
+    instead. It doesn't require anything special in the C code and thus
+    no LTO issues either.
+    
+    An alternative would be to detect support for __symver__
+    attribute in configure.ac and CMakeLists.txt and fall back
+    to __asm__(".symver ...") but then LTO would be silently broken
+    on MicroBlaze. It sounds likely that MicroBlaze is a special
+    case so let's treat it as a such because that is simpler. If
+    a similar issue exists on some other platform too then hopefully
+    someone will report it and this can be reconsidered.
+    
+    (This doesn't do the same fix in CMakeLists.txt. Perhaps it should
+    but perhaps CMake build of liblzma doesn't matter much on MicroBlaze.
+    The problem breaks the build so it's easy to notice and can be fixed
+    later.)
+    
+    Thanks to Vincent Fazio for reporting the problem and proposing
+    a patch (in the end that solution wasn't used):
+    https://github.com/tukaani-project/xz/pull/32
+
+ configure.ac | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+commit bc34e5ac9996667d2c1ec9a7895ec5931ac4caea
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-02-16 21:09:00 +0200
+
+    liblzma: Very minor API doc tweaks.
+    
+    Use "member" to refer to struct members as that's the term used
+    by the C standard.
+    
+    Use lzma_options_delta.dist and such in docs so that in Doxygen's
+    HTML output they will link to the doc of the struct member.
+    
+    Clean up a few trailing white spaces too.
+
+ src/liblzma/api/lzma/block.h        |  6 +++---
+ src/liblzma/api/lzma/delta.h        |  6 +++---
+ src/liblzma/api/lzma/index.h        | 10 +++++-----
+ src/liblzma/api/lzma/stream_flags.h |  6 +++---
+ 4 files changed, 14 insertions(+), 14 deletions(-)
+
+commit d31fbd28be5b79eb682db50004b0fb7aad5299ec
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-17 00:54:33 +0800
+
+    liblzma: Adjust spacing in doc headers in bcj.h.
+
+ src/liblzma/api/lzma/bcj.h | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+commit 701e9be6bede19771895f756082db0c017f86f07
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-17 00:44:44 +0800
+
+    liblzma: Adjust documentation in bcj.h for consistent style.
+
+ src/liblzma/api/lzma/bcj.h | 43 ++++++++++++++++++++++---------------------
+ 1 file changed, 22 insertions(+), 21 deletions(-)
+
+commit 762c4d0b62d2694cf3a01e030fdfe68e09e7b503
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-17 00:36:05 +0800
+
+    liblzma: Rename field => member in documentation.
+    
+    Also adjusted preset value => preset level.
+
+ src/liblzma/api/lzma/base.h         | 18 +++++++--------
+ src/liblzma/api/lzma/block.h        | 44 ++++++++++++++++++-------------------
+ src/liblzma/api/lzma/container.h    | 26 +++++++++++-----------
+ src/liblzma/api/lzma/delta.h        | 12 +++++-----
+ src/liblzma/api/lzma/index.h        | 30 ++++++++++++-------------
+ src/liblzma/api/lzma/lzma12.h       | 28 +++++++++++------------
+ src/liblzma/api/lzma/stream_flags.h | 32 +++++++++++++--------------
+ 7 files changed, 95 insertions(+), 95 deletions(-)
+
+commit 0ce1db0223854d94b4a0d17737ac0486a75d9e6a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-02-16 17:59:50 +0200
+
+    liblzma: Silence a warning from MSVC.
+    
+    It gives C4146 here since unary minus with unsigned integer
+    is still unsigned (which is the intention here). Doing it
+    with substraction makes it clearer and avoids the warning.
+    
+    Thanks to Nathan Moinvaziri for reporting this.
+
+ src/liblzma/check/crc64_fast.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit d83da006b3e8dbad9112e6cde6b27049d193c9ec
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-16 21:04:54 +0800
+
+    liblzma: Improve documentation for stream_flags.h
+    
+    Standardizing each function to always specify parameters and return
+    values. Also moved the parameters and return values to the end of each
+    function description.
+    
+    A few small things were reworded and long sentences broken up.
+
+ src/liblzma/api/lzma/stream_flags.h | 76 ++++++++++++++++++++++---------------
+ 1 file changed, 46 insertions(+), 30 deletions(-)
+
+commit 2796bb4736f645d34939b5d62d5958f534e41e69
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-14 21:50:16 +0800
+
+    liblzma: Improve documentation in lzma12.h.
+    
+    All functions now explicitly specify parameter and return values.
+
+ src/liblzma/api/lzma/lzma12.h | 32 +++++++++++++++++++++++---------
+ 1 file changed, 23 insertions(+), 9 deletions(-)
+
+commit ebebaa8d9381afea440eb1b01917117551adf68f
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-01-27 22:44:06 +0800
+
+    liblzma: Improve documentation in check.h.
+    
+    All functions now explicitly specify parameter and return values.
+    Also moved the note about SHA-256 functions not being exported to the
+    top of the file.
+
+ src/liblzma/api/lzma/check.h | 41 ++++++++++++++++++++++++++++-------------
+ 1 file changed, 28 insertions(+), 13 deletions(-)
+
+commit 765fa2865aab97ea713c1715922e322b3cf599a7
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-08 21:33:52 +0800
+
+    liblzma: Improve documentation in index.h
+    
+    All functions now explicitly specify parameter and return values.
+
+ src/liblzma/api/lzma/index.h | 177 ++++++++++++++++++++++++++++++-------------
+ 1 file changed, 126 insertions(+), 51 deletions(-)
+
+commit 918e208af5960728b6def01e692b395f7d8e3701
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-08 20:35:32 +0800
+
+    liblzma: Reword a comment in index.h.
+
+ src/liblzma/api/lzma/index.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit 1f157d214bc09338876d2467b549935679abc0bf
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-08 20:30:23 +0800
+
+    liblzma: Omit lzma_index_iter's internal field from Doxygen docs.
+    
+    Add \private above this field and its sub-fields since it is not meant
+    to be modified by users.
+
+ src/liblzma/api/lzma/index.h | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+commit 28757fa46d8e0f0a9c17628b2b6af9bcb3cd96fc
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-01-21 21:32:03 +0800
+
+    liblzma: Fix documentation for LZMA_MEMLIMIT_ERROR.
+    
+    LZMA_MEMLIMIT_ERROR was missing the "<" character needed to put
+    documentation after a member.
+
+ src/liblzma/api/lzma/base.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 135d5a1a65a9e199b9a5550c1f788cf43cd81018
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-01-21 00:29:38 +0800
+
+    liblzma: Improve documentation for base.h.
+    
+    Standardizing each function to always specify params and return values.
+    Also fixed a small grammar mistake.
+
+ src/liblzma/api/lzma/base.h | 30 +++++++++++++++++++++++++-----
+ 1 file changed, 25 insertions(+), 5 deletions(-)
+
+commit 2287d5668384e289d51e72724997dc920483768e
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-14 00:08:33 +0800
+
+    liblzma: Minor improvements to vli.h.
+    
+    Added [out] annotations to parameters that are pointers and can have
+    their value changed. Also added a clarification to lzma_vli_is_valid.
+
+ src/liblzma/api/lzma/vli.h | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)
+
+commit 7124b8a16ae60cb2e93218ff531868eebd673bde
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-10 21:38:02 +0800
+
+    liblzma: Add comments for macros in delta.h.
+    
+    Document LZMA_DELTA_DIST_MIN and LZMA_DELTA_DIST_MAX for completeness
+    and to avoid Doxygen warnings.
+
+ src/liblzma/api/lzma/delta.h | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+commit 59c7bb8931159fdb1a31bbbeaed0e6984e2d3c81
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-10 21:35:23 +0800
+
+    liblzma: Improve documentation in index_hash.h.
+    
+    All functions now explicitly specify parameter and return values.
+    Also reworded the description of lzma_index_hash_init() for readability.
+
+ src/liblzma/api/lzma/index_hash.h | 36 +++++++++++++++++++++++++++---------
+ 1 file changed, 27 insertions(+), 9 deletions(-)
+
+commit e970c28ac3cb2e8051925f81db2fe953664c2645
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-03 00:33:32 +0800
+
+    liblzma: Fix bug in lzma_str_from_filters() not checking filters[] length.
+    
+    The bug is only a problem in applications that do not properly terminate
+    the filters[] array with LZMA_VLI_UNKNOWN or have more than
+    LZMA_FILTERS_MAX filters. This bug does not affect xz.
+
+ src/liblzma/common/string_conversion.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+commit 85e01266a96689448abb249da6c6abc3afcd4a4e
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-03 00:32:47 +0800
+
+    Tests: Create test_filter_str.c.
+    
+    Tests lzma_str_to_filters(), lzma_str_from_filters(), and
+    lzma_str_list_filters() API functions.
+
+ CMakeLists.txt          |   1 +
+ tests/Makefile.am       |   2 +
+ tests/test_filter_str.c | 593 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 596 insertions(+)
+
+commit 3fa0f3ba12dd3383f62dbfa18a864f9b4217fa0a
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-01-22 08:49:00 +0800
+
+    liblzma: Fix typos in comments in string_conversion.c.
+
+ src/liblzma/common/string_conversion.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit 32dbe045d74e94f75c53236fa2a6c0454d7b6d9e
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-03 00:20:20 +0800
+
+    liblzma: Clarify block encoder and decoder documentation.
+    
+    Added a few sentences to the description for lzma_block_encoder() and
+    lzma_block_decoder() to highlight that the Block Header must be coded
+    before calling these functions.
+
+ src/liblzma/api/lzma/block.h | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)
+
+commit ccf12acbfa7331b1bbb99ec55879186eb35f879f
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-03 00:12:24 +0800
+
+    Update lzma_block documentation for lzma_block_uncomp_encode().
+
+ src/liblzma/api/lzma/block.h | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit 6a0b168dd9dc1ef437255c4bfdc6eff8b96fdb24
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-03 00:11:37 +0800
+
+    liblzma: Minor edits to lzma_block header_size documentation.
+
+ src/liblzma/api/lzma/block.h | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+commit 84ce36f90e68471fec1f0e61cd93ac7ed9ab4883
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-03 00:11:07 +0800
+
+    liblzma: Enumerate functions that read version in lzma_block.
+
+ src/liblzma/api/lzma/block.h | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)
+
+commit d6620774682830d606f57109861b6763805b3492
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-03 00:10:34 +0800
+
+    liblzma: Clarify comment in block.h.
+
+ src/liblzma/api/lzma/block.h | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+commit 880adb5aa25f66a53d81c2f3acc716f7a4d373d1
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-03 00:07:23 +0800
+
+    liblzma: Improve documentation for block.h.
+    
+    Standardizing each function to always specify params and return values.
+    Output pointer parameters are also marked with doxygen style [out] to
+    make it clear. Any note sections were also moved above the parameter and
+    return sections for consistency.
+
+ src/liblzma/api/lzma/block.h | 96 ++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 75 insertions(+), 21 deletions(-)
+
+commit b5b1b1f061c342271e4977ce5cba604a19c0ca52
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-01 23:38:30 +0800
+
+    liblzma: Clarify a comment about LZMA_STR_NO_VALIDATION.
+    
+    The flag description for LZMA_STR_NO_VALIDATION was previously confusing
+    about the treatment for filters than cannot be used with .xz format
+    (lzma1) without using LZMA_STR_ALL_FILTERS. Now, it is clear that
+    LZMA_STR_NO_VALIDATION is not a super set of LZMA_STR_ALL_FILTERS.
+
+ src/liblzma/api/lzma/filter.h | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+commit e904e778b82b14f2779aab80d6c8f3c01a3fc54b
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-01-27 20:14:51 +0800
+
+    Translations: Add Brazilian Portuguese translation of man pages.
+    
+    Thanks to Rafael Fontenelle.
+
+ po4a/po4a.conf |    2 +-
+ po4a/pt_BR.po  | 3677 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 3678 insertions(+), 1 deletion(-)
+
+commit e9c47e79c9584ba1126f5fa0dbe6c96e67411aa6
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-01-24 20:48:50 +0800
+
+    liblzma: Fix documentation in filter.h for lzma_str_to_filters()
+    
+    The previous documentation for lzma_str_to_filters() was technically
+    correct, but misleading. lzma_str_to_filters() returns NULL on success,
+    which is in practice always defined to 0. This is the same value as
+    LZMA_OK, but lzma_str_to_filters() does not return lzma_ret so we should
+    be more clear.
+
+ src/liblzma/api/lzma/filter.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 99575947a58a60416c570eb78038d18a1ea4cef4
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-01-07 21:55:06 +0800
+
+    xz: Refactor duplicated check for custom suffix when using --format=raw
+
+ src/xz/args.c   |  8 ++++++++
+ src/xz/suffix.c | 26 ++++++++------------------
+ src/xz/suffix.h |  8 ++++++++
+ 3 files changed, 24 insertions(+), 18 deletions(-)
+
+commit 76dec92fcca4a9ccd2063ed6d5d9e3474665baad
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-01-20 21:53:14 +0800
+
+    liblzma: Set documentation on all reserved fields to private.
+    
+    This prevents the reserved fields from being part of the generated
+    Doxygen documentation.
+
+ src/liblzma/api/lzma/base.h         | 17 +++++++++++++++
+ src/liblzma/api/lzma/block.h        | 43 +++++++++++++++++++++++++++++++++++++
+ src/liblzma/api/lzma/container.h    | 24 +++++++++++++++++++++
+ src/liblzma/api/lzma/delta.h        | 12 +++++++++++
+ src/liblzma/api/lzma/index.h        | 27 +++++++++++++++++++++++
+ src/liblzma/api/lzma/lzma12.h       | 22 +++++++++++++++++++
+ src/liblzma/api/lzma/stream_flags.h | 28 ++++++++++++++++++++++++
+ 7 files changed, 173 insertions(+)
+
+commit bd213d06ebf92cf42eeb97e7c578bddc857f8ea8
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2022-12-21 23:59:43 +0800
+
+    liblzma: Highlight liblzma API headers should not be included directly.
+    
+    This improves the generated Doxygen HTML files to better highlight
+    how to properly use the liblzma API header files.
+
+ src/liblzma/api/lzma/base.h         | 5 +++--
+ src/liblzma/api/lzma/bcj.h          | 5 +++--
+ src/liblzma/api/lzma/block.h        | 5 +++--
+ src/liblzma/api/lzma/check.h        | 5 +++--
+ src/liblzma/api/lzma/container.h    | 5 +++--
+ src/liblzma/api/lzma/delta.h        | 5 +++--
+ src/liblzma/api/lzma/filter.h       | 5 +++--
+ src/liblzma/api/lzma/hardware.h     | 5 +++--
+ src/liblzma/api/lzma/index.h        | 5 +++--
+ src/liblzma/api/lzma/index_hash.h   | 5 +++--
+ src/liblzma/api/lzma/lzma12.h       | 5 +++--
+ src/liblzma/api/lzma/stream_flags.h | 5 +++--
+ src/liblzma/api/lzma/version.h      | 5 +++--
+ src/liblzma/api/lzma/vli.h          | 5 +++--
+ 14 files changed, 42 insertions(+), 28 deletions(-)
+
+commit 257dbff0ba1a7bc45a74d203ece015c9f70c88cd
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-01-19 20:35:09 +0800
+
+    tuklib_physmem: Silence warning from -Wcast-function-type on MinGW-w64.
+    
+    tuklib_physmem depends on GetProcAddress() for both MSVC and MinGW-w64
+    to retrieve a function address. The proper way to do this is to cast the
+    return value to the type of function pointer retrieved. Unfortunately,
+    this causes a cast-function-type warning, so the best solution is to
+    simply ignore the warning.
+
+ src/common/tuklib_physmem.c | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
+
+commit 720ad4a44282a7ee59aa9920eaf495d85d245d97
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-01-16 21:35:45 +0800
+
+    xz: Add missing comment for coder_set_compression_settings()
+
+ src/xz/coder.h | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+commit 88dc19163421282369c0989e997c05f9a447edc6
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-01-16 20:55:10 +0800
+
+    xz: Do not set compression settings with raw format in list mode.
+    
+    Calling coder_set_compression_settings() in list mode with verbose mode
+    on caused the filter chain and memory requirements to print. This was
+    unnecessary since the command results in an error and not consistent
+    with other formats like lzma and alone.
+
+ src/xz/args.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+commit 039e0ab13efb144642f9d99eeeb9c668e76bb430
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-01-13 20:37:06 +0800
+
+    Translations: Update the Brazilian Portuguese translation.
+
+ po/pt_BR.po | 603 ++++++++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 344 insertions(+), 259 deletions(-)
+
+commit 718f7a60e740b26b8353965edaaddc7d4deb4d85
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-12 13:04:05 +0200
+
+    Build: Omit -Wmissing-noreturn from the default warnings.
+    
+    It's not that important. It can be annoying in builds that
+    disable many features since in those cases the tests programs
+    will correctly trigger this warning with Clang.
+
+ configure.ac | 1 -
+ 1 file changed, 1 deletion(-)
+
+commit 3ccedb09724c998c39d708c945f6da5852c39e13
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-12 06:05:58 +0200
+
+    xz: Use ssize_t for the to-be-ignored return value from write(fd, ptr, 1).
+    
+    It makes no difference here as the return value fits into an int
+    too and it then gets ignored but this looks better.
+
+ src/xz/file_io.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 09fbd2f0527def89e839c8907de4fe7ef6bc5019
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-12 06:01:12 +0200
+
+    xz: Silence warnings from -Wsign-conversion in a 32-bit build.
+
+ src/common/tuklib_mbstr_fw.c | 2 +-
+ src/xz/list.c                | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+commit 683d3f178ef1487b5418be49f331b0131a101b40
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-12 05:38:48 +0200
+
+    liblzma: Silence another warning from -Wsign-conversion in a 32-bit build.
+    
+    It doesn't warn on a 64-bit system because truncating
+    a ptrdiff_t (signed long) to uint32_t is diagnosed under
+    -Wconversion by GCC and -Wshorten-64-to-32 by Clang.
+
+ src/liblzma/lz/lz_encoder_mf.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+commit 2b8062ef94a38d0f9ad0d1b309e8748db52f5c15
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-12 04:46:45 +0200
+
+    liblzma: Silence a warning from -Wsign-conversion in a 32-bit build.
+
+ src/common/mythread.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit b16b9c0d22227012518595c2222facc73bd833a8
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-12 04:17:24 +0200
+
+    Build: Make configure add more warning flags for GCC and Clang.
+    
+    -Wstrict-aliasing was removed from the list since it is enabled
+    by -Wall already.
+    
+    A normal build is clean with these on GNU/Linux x86-64 with
+    GCC 12.2.0 and Clang 14.0.6.
+
+ configure.ac | 36 +++++++++++++++++++++++++++++++-----
+ 1 file changed, 31 insertions(+), 5 deletions(-)
+
+commit c47ecd6d3909d0d3ff48dfd6e2ee41e7c7130b94
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-12 04:14:18 +0200
+
+    Tests: Fix warnings from clang --Wassign-enum.
+    
+    Explicitly casting the integer to lzma_check silences the warning.
+    Since such an invalid value is needed in multiple tests, a constant
+    INVALID_LZMA_CHECK_ID was added to tests.h.
+    
+    The use of 0x1000 for lzma_block.check wasn't optimal as if
+    the underlying type is a char then 0x1000 will be truncated to 0.
+    However, in these test cases the value is ignored, thus even with
+    such truncation the test would have passed.
+
+ tests/test_block_header.c | 6 +++---
+ tests/test_check.c        | 2 +-
+ tests/test_stream_flags.c | 8 ++++----
+ tests/tests.h             | 9 +++++++++
+ 4 files changed, 17 insertions(+), 8 deletions(-)
+
+commit 34e13ce015232968731de2a9ec3440a08b0084b1
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-12 03:51:07 +0200
+
+    Tests: Silence warnings from -Wsign-conversion.
+    
+    Note that assigning an unsigned int to lzma_check doesn't warn
+    on GNU/Linux x86-64 since the enum type is unsigned on that
+    platform. The enum can be signed on some other platform though
+    so it's best to use enumeration type lzma_check in these situations.
+
+ tests/test_check.c        |  6 +++---
+ tests/test_stream_flags.c | 10 +++++-----
+ 2 files changed, 8 insertions(+), 8 deletions(-)
+
+commit 6671d0fe46b77f0fafce860836b7a12dc3cda14a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-12 03:19:59 +0200
+
+    liblzma: Silence warnings from clang -Wconditional-uninitialized.
+    
+    This is similar to 2ce4f36f179a81d0c6e182a409f363df759d1ad0.
+    The actual initialization of the variables is done inside
+    mythread_sync() macro. Clang doesn't seem to see that
+    the initialization code inside the macro is always executed.
+
+ src/liblzma/common/stream_decoder_mt.c | 8 +++++---
+ src/liblzma/common/stream_encoder_mt.c | 2 +-
+ 2 files changed, 6 insertions(+), 4 deletions(-)
+
+commit d3e833ca1d2abda54648494c33aca73a40a47efe
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-12 03:11:40 +0200
+
+    Fix warnings from clang -Wdocumentation.
+
+ src/liblzma/check/check.h      | 4 ----
+ src/liblzma/lz/lz_encoder_mf.c | 4 ++--
+ src/xz/options.c               | 4 ++--
+ 3 files changed, 4 insertions(+), 8 deletions(-)
+
+commit 977dd2e26bc50efec8d30fb90380394042d24558
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-12 03:04:28 +0200
+
+    Tests: test_lzip_decoder: Remove trailing white-space.
+
+ tests/test_lzip_decoder.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit c55157ed7437ab14f2afb7fecf331e321f2edf9a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-01-12 03:03:55 +0200
+
+    Tests: test_lzip_decoder: Silence warnings from -Wsign-conversion.
+
+ tests/test_lzip_decoder.c | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)
+
 commit 18b845e69752c975dfeda418ec00eda22605c2ee
 Author: Lasse Collin <lasse.collin@tukaani.org>
 Date:   2023-01-11 18:52:54 +0200
