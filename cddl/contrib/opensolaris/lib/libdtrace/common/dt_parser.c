@@ -4767,8 +4767,8 @@ dt_printd(dt_node_t *dnp, FILE *fp, int depth)
 			dt_printd(dnp->dn_pred, fp, 0);
 			(void) fprintf(fp, "/\n");
 		}
-			(void) fprintf(fp, "{\n");
 
+		(void) fprintf(fp, "{\n");
 		for (arg = dnp->dn_acts; arg != NULL; arg = arg->dn_list)
 			dt_printd(arg, fp, depth + 1);
 		(void) fprintf(fp, "}\n");
