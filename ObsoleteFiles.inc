@@ -52,6 +52,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20230320: vcount.9 removed
+OLD_FILES+=usr/share/man/man9/count_dev.9.gz
+OLD_FILES+=usr/share/man/man9/vcount.9.gz
+
 # 20230320: case-sensitive conflicts removed
 OLD_FILES+=usr/tests/bin/pkill/pgrep-F_test
 OLD_FILES+=usr/tests/bin/pkill/pgrep-LF_test

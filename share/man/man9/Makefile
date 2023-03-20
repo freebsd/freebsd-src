@@ -346,7 +346,6 @@ MAN=	accept_filter.9 \
 	vaccess.9 \
 	vaccess_acl_nfs4.9 \
 	vaccess_acl_posix1e.9 \
-	vcount.9 \
 	vflush.9 \
 	VFS.9 \
 	vfs_busy.9 \
@@ -2316,7 +2315,6 @@ MLINKS+=usbdi.9 usbd_do_request.9 \
 	usbdi.9 usb_fifo_softc.9 \
 	usbdi.9 usb_fifo_wakeup.9
 .endif
-MLINKS+=vcount.9 count_dev.9
 MLINKS+=vfsconf.9 vfs_modevent.9 \
 	vfsconf.9 vfs_register.9 \
 	vfsconf.9 vfs_unregister.9
