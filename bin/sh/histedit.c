@@ -90,7 +90,7 @@ get_histfile(void)
 	const char *histfile;
 
 	/* don't try to save if the history size is 0 */
-	if (hist == NULL || histsizeval() == 0)
+	if (hist == NULL || !strcmp(histsizeval(), "0"))
 		return (NULL);
 	histfile = expandstr("${HISTFILE-${HOME-}/.sh_history}");
 
