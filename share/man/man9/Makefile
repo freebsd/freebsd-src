@@ -1729,7 +1729,8 @@ MLINKS+=osd.9 osd_call.9 \
 	osd.9 osd_reserve.9 \
 	osd.9 osd_set.9 \
 	osd.9 osd_set_reserved.9
-MLINKS+=panic.9 vpanic.9
+MLINKS+=panic.9 vpanic.9 \
+	panic.9 KERNEL_PANICKED.9
 MLINKS+=PCBGROUP.9 in_pcbgroup_byhash.9 \
 	PCBGROUP.9 in_pcbgroup_byinpcb.9 \
 	PCBGROUP.9 in_pcbgroup_destroy.9 \
