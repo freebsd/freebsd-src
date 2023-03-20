@@ -128,6 +128,9 @@ Print a message indicating that the system is about to be halted
 or rebooted, and a report of the total system uptime.
 .It
 Execute all registered shutdown hooks.
+See
+.Sx SHUTDOWN HOOKS
+below.
 .It
 As a last resort, if none of the shutdown hooks handled the reboot, call the
 machine-dependent
@@ -172,6 +175,58 @@ is called before the
 process has been spawned, or if the system has panicked or otherwise halted,
 .Fn kern_reboot
 will be called directly.
+.Sh SHUTDOWN HOOKS
+The system defines three separate
+.Xr EVENTHANDLER 9
+events, which are invoked successively during the shutdown procedure.
+These are
+.Va shutdown_pre_sync ,
+.Va shutdown_post_sync ,
+and
+.Va shutdown_final .
+They will be executed unconditionally in the listed order.
+Handler functions registered to any of these events will receive the value of
+.Fa howto
+as their second argument, which may be used to decide what action to take.
+.Pp
+The
+.Va shutdown_pre_sync
+event is invoked before syncing filesystems to disk.
+It enables any action or state transition that must happen before this point to
+take place.
+.Pp
+The
+.Va shutdown_post_sync
+event is invoked at the point immediately after the filesystem sync has
+finished.
+It enables, for example, disk drivers to complete the sync by flushing their
+cache to disk.
+Note that this event still takes place before the optional kernel core dump.
+.Pp
+The
+.Va shutdown_final
+event is invoked as the very last step of
+.Fn kern_reboot .
+Drivers and subsystems such as
+.Xr acpi 4
+can register handlers to this event that will perform the actual reboot,
+power-off, or halt.
+.Pp
+Notably, the
+.Va shutdown_final
+event is also the point at which all kernel modules will have their shutdown
+.Po
+.Dv MOD_SHUTDOWN
+.Pc
+hooks executed, and when the
+.Xr DEVICE_SHUTDOWN 9
+method will be executed recursively on all devices.
+.Pp
+All event handlers, like
+.Fn kern_reboot
+itself, may be run in either normal shutdown context or a kernel panic or
+debugger context.
+Handler functions are expected to take care not to trigger recursive panics.
 .Sh RETURN VALUES
 The
 .Fn kern_reboot
@@ -183,9 +238,65 @@ function will usually return to its caller, having initiated the asynchronous
 system shutdown.
 It will not return when called from a panic or debugger context, or during
 early boot.
+.Sh EXAMPLES
+A hypothetical driver, foo(4), defines a
+.Va shutdown_final
+event handler that can handle system power-off by writing to a device register,
+but it does not handle halt or reset.
+.Bd -literal -offset indent
+void
+foo_poweroff_handler(struct void *arg, int howto)
+{
+        struct foo_softc *sc = arg;
+        uint32_t reg;
+
+        if ((howto & RB_POWEROFF) != 0) {
+                reg = FOO_POWEROFF;
+                WRITE4(sc, FOO_POWEROFF_REG, reg);
+        }
+}
+.Ed
+.Pp
+The handler is then registered in the device attach routine:
+.Bd -literal -offset indent
+int
+foo_attach(device_t dev)
+{
+        struct foo_softc *sc;
+
+        ...
+
+        /* Pass the device's software context as the private arg. */
+        EVENTHANDLER_REGISTER(shutdown_final, foo_poweroff_handler, sc,
+            SHUTDOWN_PRI_DEFAULT);
+
+        ...
+}
+.Ed
+.Pp
+This
+.Va shutdown_final
+handler uses the
+.Dv RB_NOSYNC
+flag to detect that a panic or other unusual condition has occurred, and
+returns early:
+.Bd -literal -offset indent
+void
+bar_shutdown_final(struct void *arg, int howto)
+{
+
+        if ((howto & RB_NOSYNC) != 0)
+                return;
+
+        /* Some code that is not panic-safe. */
+        ...
+}
+.Ed
 .Sh SEE ALSO
 .Xr reboot 2 ,
 .Xr init 8 ,
+.Xr DEVICE_SHUTDOWN 9 ,
 .Xr EVENTHANDLER 9 ,
+.Xr module 9 ,
 .Xr panic 9 ,
 .Xr vfs_unmountall 9
