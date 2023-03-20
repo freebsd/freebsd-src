@@ -1831,8 +1831,10 @@ pfsync_defer_tmo(void *arg)
 
 	PFSYNC_BUCKET_LOCK_ASSERT(b);
 
-	if (sc->sc_sync_if == NULL)
+	if (sc->sc_sync_if == NULL) {
+		PFSYNC_BUCKET_UNLOCK(b);
 		return;
+	}
 
 	CURVNET_SET(sc->sc_sync_if->if_vnet);
 
