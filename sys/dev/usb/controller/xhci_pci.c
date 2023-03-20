@@ -126,6 +126,8 @@ xhci_pci_match(device_t self)
 
 	case 0x10001b73:
 		return ("Fresco Logic FL1000G USB 3.0 controller");
+	case 0x10091b73:
+		return ("Fresco Logic FL1009 USB 3.0 controller");
 	case 0x11001b73:
 		return ("Fresco Logic FL1100 USB 3.0 controller");
 
