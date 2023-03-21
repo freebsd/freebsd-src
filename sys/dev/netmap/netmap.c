@@ -3369,7 +3369,7 @@ nmreq_copyin(struct nmreq_header *hdr, int nr_body_is_user)
 	size_t rqsz, optsz, bufsz;
 	int error = 0;
 	char *ker = NULL, *p;
-	struct nmreq_option **next, *src, **opt_tab;
+	struct nmreq_option **next, *src, **opt_tab, *opt;
 	uint64_t *ptrs;
 
 	if (hdr->nr_reserved) {
@@ -3420,24 +3420,36 @@ nmreq_copyin(struct nmreq_header *hdr, int nr_body_is_user)
 	*ptrs++ = hdr->nr_body;
 	*ptrs++ = hdr->nr_options;
 	p = (char *)ptrs;
-
-	/* copy the body */
-	error = copyin((void *)(uintptr_t)hdr->nr_body, p, rqsz);
-	if (error)
-		goto out_restore;
 	/* overwrite the user pointer with the in-kernel one */
 	hdr->nr_body = (uintptr_t)p;
+	/* prepare the options-list pointers and temporarily terminate
+	 * the in-kernel list, in case we have to jump to out_restore
+	 */
+	next = (struct nmreq_option **)&hdr->nr_options;
+	src = *next;
+	hdr->nr_options = 0;
+
+	/* copy the body */
+	error = copyin(*(void **)ker, p, rqsz);
+	if (error)
+		goto out_restore;
 	p += rqsz;
 	/* start of the options table */
 	opt_tab = (struct nmreq_option **)p;
 	p += sizeof(opt_tab) * NETMAP_REQ_OPT_MAX;
 
 	/* copy the options */
-	next = (struct nmreq_option **)&hdr->nr_options;
-	src = *next;
 	while (src) {
-		struct nmreq_option *opt;
+		struct nmreq_option *nsrc;
 
+		if (p - ker + sizeof(uint64_t*) + sizeof(*src) > bufsz) {
+			error = EMSGSIZE;
+			/* there might be a loop in the list: don't try to
+			 * copyout the options
+			 */
+			hdr->nr_options = 0;
+			goto out_restore;
+		}
 		/* copy the option header */
 		ptrs = (uint64_t *)p;
 		opt = (struct nmreq_option *)(ptrs + 1);
@@ -3445,15 +3457,19 @@ nmreq_copyin(struct nmreq_header *hdr, int nr_body_is_user)
 		if (error)
 			goto out_restore;
 		rqsz += sizeof(*src);
+		p = (char *)(opt + 1);
+
 		/* make a copy of the user next pointer */
 		*ptrs = opt->nro_next;
-		/* overwrite the user pointer with the in-kernel one */
+		/* append the option to the in-kernel list */
 		*next = opt;
-
-		/* initialize the option as not supported.
-		 * Recognized options will update this field.
+		/* temporarily teminate the in-kernel list, in case we have to
+		 * jump to out_restore
 		 */
-		opt->nro_status = EOPNOTSUPP;
+		nsrc = (struct nmreq_option *)opt->nro_next;
+		opt->nro_next = 0;
+
+		opt->nro_status = 0;
 
 		/* check for invalid types */
 		if (opt->nro_reqtype < 1) {
@@ -3461,12 +3477,11 @@ nmreq_copyin(struct nmreq_header *hdr, int nr_body_is_user)
 				nm_prinf("invalid option type: %u", opt->nro_reqtype);
 			opt->nro_status = EINVAL;
 			error = EINVAL;
-			goto next;
+			goto out_restore;
 		}
 
 		if (opt->nro_reqtype >= NETMAP_REQ_OPT_MAX) {
-			/* opt->nro_status is already EOPNOTSUPP */
-			error = EOPNOTSUPP;
+			/* opt->nro_status will be set to EOPNOTSUPP */
 			goto next;
 		}
 
@@ -3479,11 +3494,9 @@ nmreq_copyin(struct nmreq_header *hdr, int nr_body_is_user)
 			opt->nro_status = EINVAL;
 			opt_tab[opt->nro_reqtype]->nro_status = EINVAL;
 			error = EINVAL;
-			goto next;
+			goto out_restore;
 		}
 		opt_tab[opt->nro_reqtype] = opt;
-
-		p = (char *)(opt + 1);
 
 		/* copy the option body */
 		optsz = nmreq_opt_size_by_type(opt->nro_reqtype,
@@ -3507,18 +3520,20 @@ nmreq_copyin(struct nmreq_header *hdr, int nr_body_is_user)
 	next:
 		/* move to next option */
 		next = (struct nmreq_option **)&opt->nro_next;
-		src = *next;
+		src = nsrc;
 	}
-	if (error)
-		nmreq_copyout(hdr, error);
-	return error;
+
+	/* initialize all the options as not supported.  Recognized options
+	 * will update their field.
+	 */
+	for (src = (struct nmreq_option *)hdr->nr_options; src;
+			src = (struct nmreq_option *)src->nro_next) {
+		src->nro_status = EOPNOTSUPP;
+	}
+	return 0;
 
 out_restore:
-	ptrs = (uint64_t *)ker;
-	hdr->nr_body = *ptrs++;
-	hdr->nr_options = *ptrs++;
-	hdr->nr_reserved = 0;
-	nm_os_free(ker);
+	nmreq_copyout(hdr, error);
 out_err:
 	return error;
 }
