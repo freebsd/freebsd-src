@@ -1392,7 +1392,7 @@ bsaes_ctr32_encrypt_blocks:
 .align	2
 	add	r12, r3, #248
 	vld1.8	{q0}, [r8]		@ load counter
-	adrl	r8, .LREVM0SR			@ borrow r8
+	add	r8, r6, #.LREVM0SR-.LM0	@ borrow r8
 	vldmia	r12, {q4}			@ load round0 key
 	sub	sp, #0x10			@ place for adjusted round0 key
 #endif
