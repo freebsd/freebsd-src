@@ -35,8 +35,7 @@ static void ptx_sink();
 
 /* tli_host - determine TLI endpoint info, PTX version */
 
-void    tli_host(request)
-struct request_info *request;
+void    tli_host(struct request_info *request)
 {
     static struct sockaddr_in client;
     static struct sockaddr_in server;
@@ -81,8 +80,7 @@ struct request_info *request;
 
 /* ptx_sink - absorb unreceived IP datagram */
 
-static void ptx_sink(fd)
-int     fd;
+static void ptx_sink(int fd)
 {
     char    buf[BUFSIZ];
     struct sockaddr sa;

@@ -24,8 +24,7 @@ static char sccsid[] = "@(#) ncr.c 1.1 94/12/28 17:42:34";
 
 /* fromhost - tear down the streams stack then rebuild it */
 
-void    fromhost(request)
-struct request_info *request;
+void    fromhost(struct request_info *request)
 {
     int     i;
     int     num_mod;

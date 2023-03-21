@@ -89,9 +89,7 @@ static char *myname;
 static int allow_check;
 static char *inetcf;
 
-int     main(argc, argv)
-int     argc;
-char  **argv;
+int     main(int argc, char **argv)
 {
     struct request_info request;
     struct stat st;
@@ -192,9 +190,7 @@ static void usage(void)
 
 /* parse_table - like table_match(), but examines _all_ entries */
 
-static void parse_table(table, request)
-char   *table;
-struct request_info *request;
+static void parse_table(char *table, struct request_info *request)
 {
     FILE   *fp;
     int     real_verdict;
@@ -268,9 +264,7 @@ struct request_info *request;
 
 /* print_list - pretty-print a list */
 
-static void print_list(title, list)
-char   *title;
-char   *list;
+static void print_list(char *title, char *list)
 {
     char    buf[BUFLEN];
     char   *cp;
@@ -290,8 +284,7 @@ char   *list;
 
 /* check_daemon_list - criticize daemon list */
 
-static void check_daemon_list(list)
-char   *list;
+static void check_daemon_list(char *list)
 {
     char    buf[BUFLEN];
     char   *cp;
@@ -318,8 +311,7 @@ char   *list;
 
 /* check_client_list - criticize client list */
 
-static void check_client_list(list)
-char   *list;
+static void check_client_list(char *list)
 {
     char    buf[BUFLEN];
     char   *cp;
@@ -347,8 +339,7 @@ char   *list;
 
 /* check_daemon - criticize daemon pattern */
 
-static void check_daemon(pat)
-char   *pat;
+static void check_daemon(char *pat)
 {
     if (pat[0] == '@') {
 	tcpd_warn("%s: daemon name begins with \"@\"", pat);
@@ -381,8 +372,7 @@ char   *pat;
 
 /* check_user - criticize user pattern */
 
-static void check_user(pat)
-char   *pat;
+static void check_user(char *pat)
 {
     if (pat[0] == '@') {			/* @netgroup */
 	tcpd_warn("%s: user name begins with \"@\"", pat);
@@ -404,8 +394,7 @@ char   *pat;
 }
 
 #ifdef INET6
-static int is_inet6_addr(pat)
-    char *pat;
+static int is_inet6_addr(char *pat)
 {
     struct addrinfo hints, *res;
     int len, ret;
@@ -430,8 +419,7 @@ static int is_inet6_addr(pat)
 
 /* check_host - criticize host pattern */
 
-static int check_host(pat)
-char   *pat;
+static int check_host(char *pat)
 {
     char    buf[BUFSIZ];
     char   *mask;
@@ -515,8 +503,7 @@ char   *pat;
 
 /* reserved_name - determine if name is reserved */
 
-static int reserved_name(pat)
-char   *pat;
+static int reserved_name(char *pat)
 {
     return (STR_EQ(pat, unknown)
 	    || STR_EQ(pat, "KNOWN")

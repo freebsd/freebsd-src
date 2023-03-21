@@ -37,8 +37,7 @@ static int allocated = 0;		/* environ is, or is not, allocated */
 
 /* namelength - determine length of name in "name=whatever" */
 
-static int namelength(name)
-char   *name;
+static int namelength(char *name)
 {
     char   *equal;
 
@@ -48,9 +47,7 @@ char   *name;
 
 /* findenv - given name, locate name=value */
 
-static char **findenv(name, len)
-char   *name;
-int     len;
+static char **findenv(char *name, int len)
 {
     char  **envp;
 
@@ -62,8 +59,7 @@ int     len;
 
 /* getenv - given name, locate value */
 
-char   *getenv(name)
-char   *name;
+char   *getenv(char *name)
 {
     int     len = namelength(name);
     char  **envp = findenv(name, len);
@@ -73,8 +69,7 @@ char   *name;
 
 /* putenv - update or append environment (name,value) pair */
 
-int     putenv(nameval)
-char   *nameval;
+int     putenv(char *nameval)
 {
     char   *equal = strchr(nameval, '=');
     char   *value = (equal ? equal : "");
@@ -84,8 +79,7 @@ char   *nameval;
 
 /* unsetenv - remove variable from environment */
 
-void    unsetenv(name)
-char   *name;
+void    unsetenv(char *name)
 {
     char  **envp;
 
@@ -96,10 +90,7 @@ char   *name;
 
 /* setenv - update or append environment (name,value) pair */
 
-int     setenv(name, value, clobber)
-char   *name;
-char   *value;
-int     clobber;
+int     setenv(char *name, char *value, int clobber)
 {
     char   *destination;
     char  **envp;
@@ -133,9 +124,7 @@ int     clobber;
 
 /* cmalloc - malloc and copy block of memory */
 
-static char *cmalloc(new_len, old, old_len)
-char   *old;
-int     old_len;
+static char *cmalloc(int new_len, char *old, int old_len)
 {
     char   *new = malloc(new_len);
 
@@ -146,8 +135,7 @@ int     old_len;
 
 /* addenv - append environment entry */
 
-static int addenv(nameval)
-char   *nameval;
+static int addenv(char *nameval)
 {
     char  **envp;
     int     n_used;			/* number of environment entries */
@@ -190,9 +178,7 @@ static void printenv()
 	printf("%s\n", *envp);
 }
 
-int     main(argc, argv)
-int     argc;
-char  **argv;
+int     main(int argc, char **argv)
 {
     char   *cp;
     int     changed = 0;

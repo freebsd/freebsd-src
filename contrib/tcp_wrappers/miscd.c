@@ -43,9 +43,7 @@ static char sccsid[] = "@(#) miscd.c 1.10 96/02/11 17:01:30";
 int     allow_severity = SEVERITY;	/* run-time adjustable */
 int     deny_severity = LOG_WARNING;	/* ditto */
 
-main(argc, argv)
-int     argc;
-char  **argv;
+main(int argc, char **argv)
 {
     struct request_info request;
     char    path[MAXPATHNAMELEN];

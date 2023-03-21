@@ -63,8 +63,7 @@ static void tli_sink();
 
 /* tli_host - look up endpoint addresses and install conversion methods */
 
-void    tli_host(request)
-struct request_info *request;
+void    tli_host(struct request_info *request)
 {
 #ifdef INET6
     static struct sockaddr_storage client;
@@ -118,8 +117,7 @@ struct request_info *request;
 
 /* tli_cleanup - cleanup some dynamically-allocated data structures */
 
-static void tli_cleanup(request)
-struct request_info *request;
+static void tli_cleanup(struct request_info *request)
 {
     if (request->config != 0)
 	freenetconfigent(request->config);
@@ -131,8 +129,7 @@ struct request_info *request;
 
 /* tli_endpoints - determine TLI client and server endpoint information */
 
-static void tli_endpoints(request)
-struct request_info *request;
+static void tli_endpoints(struct request_info *request)
 {
     struct t_unitdata *server;
     struct t_unitdata *client;
@@ -240,8 +237,7 @@ int     fd;
 
 /* tli_hostaddr - map TLI transport address to printable address */
 
-static void tli_hostaddr(host)
-struct host_info *host;
+static void tli_hostaddr(struct host_info *host)
 {
     struct request_info *request = host->request;
     struct netconfig *config = request->config;
@@ -257,8 +253,7 @@ struct host_info *host;
 
 /* tli_hostname - map TLI transport address to hostname */
 
-static void tli_hostname(host)
-struct host_info *host;
+static void tli_hostname(struct host_info *host)
 {
     struct request_info *request = host->request;
     struct netconfig *config = request->config;
@@ -346,8 +341,7 @@ static char *tli_error()
 
 /* tli_sink - absorb unreceived datagram */
 
-static void tli_sink(fd)
-int     fd;
+static void tli_sink(int fd)
 {
     struct t_unitdata *unit;
     int     flags;
