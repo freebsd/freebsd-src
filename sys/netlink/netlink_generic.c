@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #define	DEBUG_MOD_NAME	nl_generic
 #define	DEBUG_MAX_LEVEL	LOG_DEBUG3
 #include <netlink/netlink_debug.h>
-_DECLARE_DEBUG(LOG_DEBUG3);
+_DECLARE_DEBUG(LOG_DEBUG);
 
 #define	MAX_FAMILIES	20
 #define	MAX_GROUPS	64
