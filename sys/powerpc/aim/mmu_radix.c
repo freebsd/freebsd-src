@@ -5929,6 +5929,9 @@ mmu_radix_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
 	vm_paddr_t pa = 0;
 	int sync_sz;
 
+	if (__predict_false(pm == NULL))
+		pm = &curthread->td_proc->p_vmspace->vm_pmap;
+
 	while (sz > 0) {
 		pa = pmap_extract(pm, va);
 		sync_sz = PAGE_SIZE - (va & PAGE_MASK);
