@@ -182,8 +182,7 @@ static void tli_endpoints(struct request_info *request)
 
 /* tli_transport - find out TLI transport type */
 
-static struct netconfig *tli_transport(fd)
-int     fd;
+static struct netconfig *tli_transport(int fd)
 {
     struct stat from_client;
     struct stat from_config;
