@@ -1223,8 +1223,6 @@ ktls_enable_rx(struct socket *so, struct tls_enable *en)
 
 	if (!ktls_offload_enable)
 		return (ENOTSUP);
-	if (SOLISTENING(so))
-		return (EINVAL);
 
 	counter_u64_add(ktls_offload_enable_calls, 1);
 
@@ -1256,7 +1254,12 @@ ktls_enable_rx(struct socket *so, struct tls_enable *en)
 	}
 
 	/* Mark the socket as using TLS offload. */
-	SOCKBUF_LOCK(&so->so_rcv);
+	SOCK_RECVBUF_LOCK(so);
+	if (SOLISTENING(so)) {
+		SOCK_RECVBUF_UNLOCK(so);
+		ktls_free(tls);
+		return (EINVAL);
+	}
 	so->so_rcv.sb_tls_seqno = be64dec(en->rec_seq);
 	so->so_rcv.sb_tls_info = tls;
 	so->so_rcv.sb_flags |= SB_TLS_RX;
@@ -1264,7 +1267,7 @@ ktls_enable_rx(struct socket *so, struct tls_enable *en)
 	/* Mark existing data as not ready until it can be decrypted. */
 	sb_mark_notready(&so->so_rcv);
 	ktls_check_rx(&so->so_rcv);
-	SOCKBUF_UNLOCK(&so->so_rcv);
+	SOCK_RECVBUF_UNLOCK(so);
 
 	/* Prefer TOE -> ifnet TLS -> software TLS. */
 #ifdef TCP_OFFLOAD
@@ -1290,8 +1293,6 @@ ktls_enable_tx(struct socket *so, struct tls_enable *en)
 
 	if (!ktls_offload_enable)
 		return (ENOTSUP);
-	if (SOLISTENING(so))
-		return (EINVAL);
 
 	counter_u64_add(ktls_offload_enable_calls, 1);
 
@@ -1334,6 +1335,10 @@ ktls_enable_tx(struct socket *so, struct tls_enable *en)
 		return (error);
 	}
 
+	/*
+	 * Serialize with sosend_generic() and make sure that we're not
+	 * operating on a listening socket.
+	 */
 	error = SOCK_IO_SEND_LOCK(so, SBL_WAIT);
 	if (error) {
 		ktls_free(tls);
@@ -1347,7 +1352,7 @@ ktls_enable_tx(struct socket *so, struct tls_enable *en)
 	 */
 	inp = so->so_pcb;
 	INP_WLOCK(inp);
-	SOCKBUF_LOCK(&so->so_snd);
+	SOCK_SENDBUF_LOCK(so);
 	so->so_snd.sb_tls_seqno = be64dec(en->rec_seq);
 	so->so_snd.sb_tls_info = tls;
 	if (tls->mode != TCP_TLS_MODE_SW) {
@@ -1357,7 +1362,7 @@ ktls_enable_tx(struct socket *so, struct tls_enable *en)
 		if (tp->t_fb->tfb_hwtls_change != NULL)
 			(*tp->t_fb->tfb_hwtls_change)(tp, 1);
 	}
-	SOCKBUF_UNLOCK(&so->so_snd);
+	SOCK_SENDBUF_UNLOCK(so);
 	INP_WUNLOCK(inp);
 	SOCK_IO_SEND_UNLOCK(so);
 
