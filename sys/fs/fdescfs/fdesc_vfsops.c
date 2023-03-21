@@ -90,8 +90,7 @@ fdesc_mount(struct mount *mp)
 	if (mp->mnt_flag & (MNT_UPDATE | MNT_ROOTFS))
 		return (EOPNOTSUPP);
 
-	fmp = malloc(sizeof(struct fdescmount),
-				M_FDESCMNT, M_WAITOK);	/* XXX */
+	fmp = malloc(sizeof(struct fdescmount), M_FDESCMNT, M_WAITOK);
 
 	/*
 	 * We need to initialize a few bits of our local mount point struct to
