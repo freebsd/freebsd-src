@@ -284,7 +284,6 @@ SYSCTL_INT(_debug, OID_AUTO, rush_requests, CTLFLAG_RW, &stat_rush_requests, 0,
 #define	VDBATCH_SIZE 8
 struct vdbatch {
 	u_int index;
-	long freevnodes;
 	struct mtx lock;
 	struct vnode *tab[VDBATCH_SIZE];
 };
@@ -1431,48 +1430,62 @@ static int vnlruproc_sig;
  * at any given moment can still exceed slop, but it should not be by significant
  * margin in practice.
  */
-#define VNLRU_FREEVNODES_SLOP 128
+#define VNLRU_FREEVNODES_SLOP 126
+
+static void __noinline
+vfs_freevnodes_rollup(int8_t *lfreevnodes)
+{
+
+	atomic_add_long(&freevnodes, *lfreevnodes);
+	*lfreevnodes = 0;
+	critical_exit();
+}
 
 static __inline void
 vfs_freevnodes_inc(void)
 {
-	struct vdbatch *vd;
+	int8_t *lfreevnodes;
 
 	critical_enter();
-	vd = DPCPU_PTR(vd);
-	vd->freevnodes++;
-	critical_exit();
+	lfreevnodes = PCPU_PTR(vfs_freevnodes);
+	(*lfreevnodes)++;
+	if (__predict_false(*lfreevnodes == VNLRU_FREEVNODES_SLOP))
+		vfs_freevnodes_rollup(lfreevnodes);
+	else
+		critical_exit();
 }
 
 static __inline void
 vfs_freevnodes_dec(void)
 {
-	struct vdbatch *vd;
+	int8_t *lfreevnodes;
 
 	critical_enter();
-	vd = DPCPU_PTR(vd);
-	vd->freevnodes--;
-	critical_exit();
+	lfreevnodes = PCPU_PTR(vfs_freevnodes);
+	(*lfreevnodes)--;
+	if (__predict_false(*lfreevnodes == -VNLRU_FREEVNODES_SLOP))
+		vfs_freevnodes_rollup(lfreevnodes);
+	else
+		critical_exit();
 }
 
 static u_long
 vnlru_read_freevnodes(void)
 {
-	struct vdbatch *vd;
-	long slop;
+	long slop, rfreevnodes;
 	int cpu;
 
-	mtx_assert(&vnode_list_mtx, MA_OWNED);
-	if (freevnodes > freevnodes_old)
-		slop = freevnodes - freevnodes_old;
+	rfreevnodes = atomic_load_long(&freevnodes);
+
+	if (rfreevnodes > freevnodes_old)
+		slop = rfreevnodes - freevnodes_old;
 	else
-		slop = freevnodes_old - freevnodes;
+		slop = freevnodes_old - rfreevnodes;
 	if (slop < VNLRU_FREEVNODES_SLOP)
-		return (freevnodes >= 0 ? freevnodes : 0);
-	freevnodes_old = freevnodes;
+		return (rfreevnodes >= 0 ? rfreevnodes : 0);
+	freevnodes_old = rfreevnodes;
 	CPU_FOREACH(cpu) {
-		vd = DPCPU_ID_PTR((cpu), vd);
-		freevnodes_old += vd->freevnodes;
+		freevnodes_old += cpuid_to_pcpu[cpu]->pc_vfs_freevnodes;
 	}
 	return (freevnodes_old >= 0 ? freevnodes_old : 0);
 }
@@ -3518,7 +3531,6 @@ vdbatch_process(struct vdbatch *vd)
 
 	mtx_lock(&vnode_list_mtx);
 	critical_enter();
-	freevnodes += vd->freevnodes;
 	for (i = 0; i < VDBATCH_SIZE; i++) {
 		vp = vd->tab[i];
 		TAILQ_REMOVE(&vnode_list, vp, v_vnodelist);
@@ -3527,7 +3539,6 @@ vdbatch_process(struct vdbatch *vd)
 		vp->v_dbatchcpu = NOCPU;
 	}
 	mtx_unlock(&vnode_list_mtx);
-	vd->freevnodes = 0;
 	bzero(vd->tab, sizeof(vd->tab));
 	vd->index = 0;
 	critical_exit();
