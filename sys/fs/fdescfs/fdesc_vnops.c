@@ -147,6 +147,7 @@ fdesc_allocvp(fdntype ftype, unsigned fd_fd, int ix, struct mount *mp,
 	struct fdhashhead *fc;
 	struct fdescnode *fd, *fd2;
 	struct vnode *vp, *vp2;
+	enum vgetstate vgs;
 	int error;
 
 	fc = FD_NHASH(ix);
@@ -166,9 +167,9 @@ loop:
 		if (fd->fd_ix == ix && fd->fd_vnode->v_mount == mp) {
 			/* Get reference to vnode in case it's being free'd */
 			vp = fd->fd_vnode;
-			VI_LOCK(vp);
+			vgs = vget_prep(vp);
 			mtx_unlock(&fdesc_hashmtx);
-			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK))
+			if (vget_finish(vp, LK_EXCLUSIVE, vgs) != 0)
 				goto loop;
 			*vpp = vp;
 			return (0);
@@ -218,9 +219,9 @@ loop:
 		if (fd2->fd_ix == ix && fd2->fd_vnode->v_mount == mp) {
 			/* Get reference to vnode in case it's being free'd */
 			vp2 = fd2->fd_vnode;
-			VI_LOCK(vp2);
+			vgs = vget_prep(vp2);
 			mtx_unlock(&fdesc_hashmtx);
-			error = vget(vp2, LK_EXCLUSIVE | LK_INTERLOCK);
+			error = vget_finish(vp2, LK_EXCLUSIVE, vgs);
 			/* Someone beat us, dec use count and wait for reclaim */
 			vgone(vp);
 			vput(vp);
