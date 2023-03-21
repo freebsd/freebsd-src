@@ -83,6 +83,7 @@ struct daemon_state {
 	bool log_reopen;
 };
 
+static void setup_signals(struct daemon_state *);
 static void restrict_process(const char *);
 static void handle_term(int);
 static void handle_chld(int);
@@ -168,10 +169,40 @@ main(int argc, char *argv[])
 	sigset_t mask_susp;
 
 	daemon_state_init(&state);
+
+	/*
+	 * Signal handling logic:
+	 *
+	 * - SIGTERM is masked while there is no child.
+	 *
+	 * - SIGCHLD is masked while reading from the pipe. SIGTERM has to be
+	 *   caught, to avoid indefinite blocking on read().
+	 *
+	 * - Both SIGCHLD and SIGTERM are masked before calling sigsuspend()
+	 *   to avoid racing.
+	 *
+	 * - After SIGTERM is recieved and propagated to the child there are
+	 *   several options on what to do next:
+	 *   - read until EOF
+	 *   - read until EOF but only for a while
+	 *   - bail immediately
+	 *   Currently the third option is used, because otherwise there is no
+	 *   guarantee that read() won't block indefinitely if the child refuses
+	 *   to depart. To handle the second option, a different approach
+	 *   would be needed (procctl()?).
+	 *
+	 * - Child's exit might be detected by receiveing EOF from the pipe.
+	 *   But the child might have closed its stdout and stderr, so deamon
+	 *   must wait for the SIGCHLD to ensure that the child is actually gone.
+	 */
 	sigemptyset(&mask_susp);
 	sigemptyset(&mask_read);
 	sigemptyset(&mask_term);
 	sigemptyset(&mask_orig);
+	sigaddset(&mask_susp, SIGTERM);
+	sigaddset(&mask_susp, SIGCHLD);
+	sigaddset(&mask_term, SIGTERM);
+	sigaddset(&mask_read, SIGCHLD);
 
 	/*
 	 * Supervision mode is enabled if one of the following options are used:
@@ -312,57 +343,20 @@ main(int argc, char *argv[])
 	pidfile_write(state.parent_pidfh);
 
 	if (state.supervision_enabled) {
-		struct sigaction act_term = { 0 };
-		struct sigaction act_chld = { 0 };
-		struct sigaction act_hup = { 0 };
-
-		/* Avoid PID racing with SIGCHLD and SIGTERM. */
-		act_term.sa_handler = handle_term;
-		sigemptyset(&act_term.sa_mask);
-		sigaddset(&act_term.sa_mask, SIGCHLD);
-
-		act_chld.sa_handler = handle_chld;
-		sigemptyset(&act_chld.sa_mask);
-		sigaddset(&act_chld.sa_mask, SIGTERM);
-
-		act_hup.sa_handler = handle_hup;
-		sigemptyset(&act_hup.sa_mask);
-
-		/* Block these when avoiding racing before sigsuspend(). */
-		sigaddset(&mask_susp, SIGTERM);
-		sigaddset(&mask_susp, SIGCHLD);
-		/* Block SIGTERM when we lack a valid child PID. */
-		sigaddset(&mask_term, SIGTERM);
-		/*
-		 * When reading, we wish to avoid SIGCHLD. SIGTERM
-		 * has to be caught, otherwise we'll be stuck until
-		 * the read() returns - if it returns.
-		 */
-		sigaddset(&mask_read, SIGCHLD);
 		/* Block SIGTERM to avoid racing until we have forked. */
 		if (sigprocmask(SIG_BLOCK, &mask_term, &mask_orig)) {
 			warn("sigprocmask");
 			daemon_terminate(&state);
 		}
-		if (sigaction(SIGTERM, &act_term, NULL) == -1) {
-			warn("sigaction");
-			daemon_terminate(&state);
-		}
-		if (sigaction(SIGCHLD, &act_chld, NULL) == -1) {
-			warn("sigaction");
-			daemon_terminate(&state);
-		}
+
+		setup_signals(&state);
+
 		/*
 		 * Try to protect against pageout kill. Ignore the
 		 * error, madvise(2) will fail only if a process does
 		 * not have superuser privileges.
 		 */
 		(void)madvise(NULL, 0, MADV_PROTECT);
-		if (state.log_reopen && state.output_fd >= 0 &&
-		    sigaction(SIGHUP, &act_hup, NULL) == -1) {
-			warn("sigaction");
-			daemon_terminate(&state);
-		}
 restart:
 		if (pipe(state.pipe_fd)) {
 			err(1, "pipe");
@@ -419,9 +413,9 @@ restart:
 	/*
 	 * else: pid > 0
 	 * fork succeeded, this is the parent branch, this can only happen when
-	 * supervision is enabled
+	 * supervision is enabled.
 	 *
-	 * Unblock SIGTERM after we know we have a valid child PID to signal.
+	 * Unblock SIGTERM - now there is a valid child PID to signal to.
 	 */
 	if (sigprocmask(SIG_UNBLOCK, &mask_term, NULL)) {
 		warn("sigprocmask");
@@ -431,28 +425,7 @@ restart:
 	state.pipe_fd[1] = -1;
 
 	setproctitle("%s[%d]", state.title, (int)pid);
-	/*
-	 * As we have closed the write end of pipe for parent process,
-	 * we might detect the child's exit by reading EOF. The child
-	 * might have closed its stdout and stderr, so we must wait for
-	 * the SIGCHLD to ensure that the process is actually gone.
-	 */
 	for (;;) {
-		/*
-		 * We block SIGCHLD when listening, but SIGTERM we accept
-		 * so the read() won't block if we wish to depart.
-		 *
-		 * Upon receiving SIGTERM, we have several options after
-		 * sending the SIGTERM to our child:
-		 * - read until EOF
-		 * - read until EOF but only for a while
-		 * - bail immediately
-		 *
-		 * We go for the third, as otherwise we have no guarantee
-		 * that we won't block indefinitely if the child refuses
-		 * to depart. To handle the second option, a different
-		 * approach would be needed (procctl()?)
-		 */
 		if (child_gone && state.child_eof) {
 			break;
 		}
@@ -513,6 +486,49 @@ daemon_sleep(time_t secs, long nsecs)
 		if (errno != EINTR) {
 			err(1, "nanosleep");
 		}
+	}
+}
+
+/*
+ * Setup SIGTERM, SIGCHLD and SIGHUP handlers.
+ * To avoid racing SIGCHLD with SIGTERM corresponding
+ * signal handlers mask the other signal.
+ */
+static void
+setup_signals(struct daemon_state *state)
+{
+	struct sigaction act_term = { 0 };
+	struct sigaction act_chld = { 0 };
+	struct sigaction act_hup = { 0 };
+
+	/* Setup SIGTERM */
+	act_term.sa_handler = handle_term;
+	sigemptyset(&act_term.sa_mask);
+	sigaddset(&act_term.sa_mask, SIGCHLD);
+	if (sigaction(SIGTERM, &act_term, NULL) == -1) {
+		warn("sigaction");
+		daemon_terminate(state);
+	}
+
+	/* Setup SIGCHLD */
+	act_chld.sa_handler = handle_chld;
+	sigemptyset(&act_chld.sa_mask);
+	sigaddset(&act_chld.sa_mask, SIGTERM);
+	if (sigaction(SIGCHLD, &act_chld, NULL) == -1) {
+		warn("sigaction");
+		daemon_terminate(state);
+	}
+
+	/* Setup SIGHUP if configured */
+	if (!state->log_reopen || state->output_fd < 0) {
+		return;
+	}
+
+	act_hup.sa_handler = handle_hup;
+	sigemptyset(&act_hup.sa_mask);
+	if (sigaction(SIGHUP, &act_hup, NULL) == -1) {
+		warn("sigaction");
+		daemon_terminate(state);
 	}
 }
 
