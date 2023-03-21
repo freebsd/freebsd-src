@@ -44,10 +44,7 @@ static jmp_buf timebuf;
 
 /* fsocket - open stdio stream on top of socket */
 
-static FILE *fsocket(domain, type, protocol)
-int     domain;
-int     type;
-int     protocol;
+static FILE *fsocket(int domain, int type, int protocol)
 {
     int     s;
     FILE   *fp;
@@ -73,15 +70,12 @@ static void timeout(int sig)
 
 /* rfc931 - return remote user name, given socket structures */
 
-void    rfc931(rmt_sin, our_sin, dest)
 #ifdef INET6
-struct sockaddr *rmt_sin;
-struct sockaddr *our_sin;
+void    rfc931(struct sockaddr *rmt_sin, struct sockaddr *our_sin, char *dest)
 #else
-struct sockaddr_in *rmt_sin;
-struct sockaddr_in *our_sin;
+void    rfc931(struct sockaddr_in *rmt_sin, struct sockaddr_in *our_sin,
+	char *dest)
 #endif
-char   *dest;
 {
     unsigned rmt_port;
     unsigned our_port;

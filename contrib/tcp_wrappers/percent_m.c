@@ -19,9 +19,7 @@ extern int sys_nerr;
 
 #include "mystdarg.h"
 
-char   *percent_m(obuf, ibuf)
-char   *obuf;
-char   *ibuf;
+char   *percent_m(char *obuf, char *ibuf)
 {
     char   *bp = obuf;
     char   *cp = ibuf;

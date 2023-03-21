@@ -18,10 +18,7 @@ static char sccsid[] = "@(#) myvsyslog.c 1.1 94/12/28 17:42:33";
 #include "tcpd.h"
 #include "mystdarg.h"
 
-myvsyslog(severity, format, ap)
-int     severity;
-char   *format;
-va_list ap;
+myvsyslog(int severity, char *format, va_list ap)
 {
     char    fbuf[BUFSIZ];
     char    obuf[3 * STRING_LENGTH];
