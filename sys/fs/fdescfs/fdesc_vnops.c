@@ -267,7 +267,7 @@ fdesc_get_ino_alloc(struct mount *mp, void *arg, int lkflags,
 	} else {
 		error = fdesc_allocvp(a->ftype, a->fd_fd, a->ix, mp, rvp);
 	}
-	fdrop(a->fp, a->td);
+
 	return (error);
 }
 
@@ -364,6 +364,8 @@ fdesc_lookup(struct vop_lookup_args *ap)
 		arg.td = td;
 		error = vn_vget_ino_gen(dvp, fdesc_get_ino_alloc, &arg,
 		    LK_EXCLUSIVE, &fvp);
+
+		fdrop(fp, td);
 	}
 
 	if (error)
