@@ -49,9 +49,7 @@ int     sig;
     exit(0);
 }
 
-main(argc, argv)
-int     argc;
-char  **argv;
+main(int argc, char **argv)
 {
     int     c;
     int     line_length = 0;
@@ -135,8 +133,7 @@ char  **argv;
 
 /* perror_exit - report system error text and terminate */
 
-void    perror_exit(text)
-char   *text;
+void    perror_exit(char *text)
 {
     perror(text);
     exit(1);
@@ -144,8 +141,7 @@ char   *text;
 
 /* pipe_stdin - pipe stdin through program (from my ANSI to OLD C converter) */
 
-int     pipe_stdin(argv)
-char  **argv;
+int     pipe_stdin(char **argv)
 {
     int     pipefds[2];
     int     pid;

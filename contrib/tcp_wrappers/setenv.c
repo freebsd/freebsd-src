@@ -16,10 +16,7 @@ static char sccsid[] = "@(#) setenv.c 1.1 93/03/07 22:47:58";
 
 /* setenv - update or insert environment (name,value) pair */
 
-int     setenv(name, value, clobber)
-char   *name;
-char   *value;
-int     clobber;
+int     setenv(char *name, char *value, int clobber)
 {
     char   *malloc();
     char   *getenv();

@@ -29,11 +29,8 @@ extern void exit();
 
 /* percent_x - do %<char> expansion, abort if result buffer is too small */
 
-char   *percent_x(result, result_len, string, request)
-char   *result;
-int     result_len;
-char   *string;
-struct request_info *request;
+char   *percent_x(char *result, int result_len, char *string,
+    struct request_info *request)
 {
     char   *bp = result;
     char   *end = result + result_len - 1;	/* end of result buffer */

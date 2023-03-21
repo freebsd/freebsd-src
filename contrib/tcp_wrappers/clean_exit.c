@@ -21,8 +21,7 @@ extern void exit();
 
 /* clean_exit - clean up and exit */
 
-void    clean_exit(request)
-struct request_info *request;
+void    clean_exit(struct request_info *request)
 {
 
     /*

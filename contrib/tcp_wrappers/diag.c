@@ -29,11 +29,7 @@ jmp_buf tcpd_buf;
 
 /* tcpd_diag - centralize error reporter */
 
-static void tcpd_diag(severity, tag, format, ap)
-int     severity;
-char   *tag;
-char   *format;
-va_list ap;
+static void tcpd_diag(int severity, char *tag, char *format, va_list ap)
 {
     char    fmt[BUFSIZ];
 

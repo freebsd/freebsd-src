@@ -20,10 +20,7 @@ static char sccsid[] = "@(#) vfprintf.c 1.2 94/03/23 17:44:46";
 
 /* vfprintf - print variable-length argument list to stream */
 
-int     vfprintf(fp, format, ap)
-FILE   *fp;
-char   *format;
-va_list ap;
+int     vfprintf(FILE *fp, char *format, va_list ap)
 {
     char    fmt[BUFSIZ];		/* format specifier */
     register char *fmtp;
@@ -117,9 +114,7 @@ va_list ap;
 
 /* vprintf - print variable-length argument list to stdout */
 
-vprintf(format, ap)
-char   *format;
-va_list ap;
+vprintf(char *format, va_list ap)
 {
     return (vfprintf(stdout, format, ap));
 }

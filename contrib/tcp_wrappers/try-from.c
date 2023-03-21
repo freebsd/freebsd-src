@@ -37,9 +37,7 @@ static char sccsid[] = "@(#) try-from.c 1.2 94/12/28 17:42:55";
 int     allow_severity = SEVERITY;	/* run-time adjustable */
 int     deny_severity = LOG_WARNING;	/* ditto */
 
-main(argc, argv)
-int     argc;
-char  **argv;
+main(int argc, char **argv)
 {
     struct request_info request;
     char    buf[BUFSIZ];

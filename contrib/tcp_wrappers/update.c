@@ -33,9 +33,8 @@ static char sccsid[] = "@(#) update.c 1.1 94/12/28 17:42:56";
 
 /* request_fill - request update engine */
 
-static struct request_info *request_fill(request, ap)
-struct request_info *request;
-va_list ap;
+static struct request_info *request_fill(struct request_info *request,
+    va_list ap)
 {
     int     key;
     char   *ptr;

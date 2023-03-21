@@ -28,8 +28,7 @@ static char sccsid[] = "@(#) fromhost.c 1.17 94/12/28 17:42:23";
 
 /* fromhost - find out what network API we should use */
 
-void    fromhost(request)
-struct request_info *request;
+void    fromhost(struct request_info *request)
 {
 
     /*

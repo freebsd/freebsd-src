@@ -36,8 +36,7 @@ static void do_child(char *command);
 
 /* shell_cmd - execute shell command */
 
-void    shell_cmd(command)
-char   *command;
+void    shell_cmd(char *command)
 {
     int     child_pid;
     int     wait_pid;
