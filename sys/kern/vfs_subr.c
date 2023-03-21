@@ -3533,17 +3533,25 @@ vdbatch_process(struct vdbatch *vd)
 	MPASS(curthread->td_pinned > 0);
 	MPASS(vd->index == VDBATCH_SIZE);
 
-	mtx_lock(&vnode_list_mtx);
 	critical_enter();
-	for (i = 0; i < VDBATCH_SIZE; i++) {
-		vp = vd->tab[i];
-		TAILQ_REMOVE(&vnode_list, vp, v_vnodelist);
-		TAILQ_INSERT_TAIL(&vnode_list, vp, v_vnodelist);
-		MPASS(vp->v_dbatchcpu != NOCPU);
-		vp->v_dbatchcpu = NOCPU;
+	if (mtx_trylock(&vnode_list_mtx)) {
+		for (i = 0; i < VDBATCH_SIZE; i++) {
+			vp = vd->tab[i];
+			vd->tab[i] = NULL;
+			TAILQ_REMOVE(&vnode_list, vp, v_vnodelist);
+			TAILQ_INSERT_TAIL(&vnode_list, vp, v_vnodelist);
+			MPASS(vp->v_dbatchcpu != NOCPU);
+			vp->v_dbatchcpu = NOCPU;
+		}
+		mtx_unlock(&vnode_list_mtx);
+	} else {
+		for (i = 0; i < VDBATCH_SIZE; i++) {
+			vp = vd->tab[i];
+			vd->tab[i] = NULL;
+			MPASS(vp->v_dbatchcpu != NOCPU);
+			vp->v_dbatchcpu = NOCPU;
+		}
 	}
-	mtx_unlock(&vnode_list_mtx);
-	bzero(vd->tab, sizeof(vd->tab));
 	vd->index = 0;
 	critical_exit();
 }
