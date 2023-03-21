@@ -171,7 +171,16 @@
    A number of paths are changed to match FreeBSD's configuration (e.g.,
    using /usr/local/ instead of /uxr/X11R6/).
 
-10) Retired patches
+10) Memory leaks
+
+   Coverity reported a memory leak for which we proposed a fix in
+   https://reviews.freebsd.org/D37253 and sent to the upstream mailing list at
+   https://lists.mindrot.org/pipermail/openssh-unix-dev/2022-November/040497.html
+
+   Upstream subsequently fixed only one of the related leaks, so we reverted
+   the partial fix and applied our change.
+
+11) Retired patches
 
    We no longer have HPN patches (adaptive buffer size for increased
    throughput on high-BxD links) or client-side VersionAddendum, but we
