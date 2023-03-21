@@ -50,7 +50,8 @@ void *pmap_mapdev(vm_paddr_t, vm_size_t);
 void pmap_unmapdev(void *, vm_size_t);
 
 static inline void *
-pmap_mapdev_attr(vm_paddr_t addr, vm_size_t size, int attr)
+pmap_mapdev_attr(vm_paddr_t addr __unused, vm_size_t size __unused,
+    int attr __unused)
 {
 	panic("%s is not implemented yet!\n", __func__);
 }
