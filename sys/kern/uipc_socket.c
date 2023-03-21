@@ -987,13 +987,24 @@ solisten_proto_check(struct socket *so)
 	mtx_lock(&so->so_snd_mtx);
 	mtx_lock(&so->so_rcv_mtx);
 
-	/* Interlock with soo_aio_queue(). */
-	if (!SOLISTENING(so) &&
-	   ((so->so_snd.sb_flags & (SB_AIO | SB_AIO_RUNNING)) != 0 ||
-	   (so->so_rcv.sb_flags & (SB_AIO | SB_AIO_RUNNING)) != 0)) {
-		solisten_proto_abort(so);
-		return (EINVAL);
+	/* Interlock with soo_aio_queue() and KTLS. */
+	if (!SOLISTENING(so)) {
+		bool ktls;
+
+#ifdef KERN_TLS
+		ktls = so->so_snd.sb_tls_info != NULL ||
+		    so->so_rcv.sb_tls_info != NULL;
+#else
+		ktls = false;
+#endif
+		if (ktls ||
+		    (so->so_snd.sb_flags & (SB_AIO | SB_AIO_RUNNING)) != 0 ||
+		    (so->so_rcv.sb_flags & (SB_AIO | SB_AIO_RUNNING)) != 0) {
+			solisten_proto_abort(so);
+			return (EINVAL);
+		}
 	}
+
 	return (0);
 }
 
