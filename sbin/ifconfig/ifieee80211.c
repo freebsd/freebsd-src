@@ -3717,6 +3717,17 @@ printmimo(const struct ieee80211_mimo_info *mi)
 }
 
 static void
+printbssidname(const struct ether_addr *n)
+{
+	char name[MAXHOSTNAMELEN + 1];
+
+	if (ether_ntohost(name, n) != 0)
+		return;
+
+	printf(" (%s)", name);
+}
+
+static void
 list_scan(int s)
 {
 	uint8_t buf[24*1024];
@@ -3767,6 +3778,7 @@ list_scan(int s)
 		);
 		printies(vp + sr->isr_ssid_len + sr->isr_meshid_len,
 		    sr->isr_ie_len, 24);
+		printbssidname((const struct ether_addr *)sr->isr_bssid);
 		printf("\n");
 		cp += sr->isr_len, len -= sr->isr_len;
 	} while (len >= sizeof(struct ieee80211req_scan_result));
@@ -4904,8 +4916,10 @@ ieee80211_status(int s)
 		printf(" channel UNDEF");
 
 	if (get80211(s, IEEE80211_IOC_BSSID, data, IEEE80211_ADDR_LEN) >= 0 &&
-	    (memcmp(data, zerobssid, sizeof(zerobssid)) != 0 || verbose))
+	    (memcmp(data, zerobssid, sizeof(zerobssid)) != 0 || verbose)) {
 		printf(" bssid %s", ether_ntoa((struct ether_addr *)data));
+		printbssidname((struct ether_addr *)data);
+	}
 
 	if (get80211len(s, IEEE80211_IOC_STATIONNAME, data, sizeof(data), &len) != -1) {
 		printf("\n\tstationname ");
