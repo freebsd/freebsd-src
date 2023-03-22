@@ -1877,7 +1877,7 @@ crunuse(struct thread *td)
 	    __func__, cr->cr_users, cr));
 	cr->cr_users--;
 	if (cr->cr_users == 0) {
-		KASSERT(cr->cr_ref > 0, ("%s: ref %d not > 0 on cred %p",
+		KASSERT(cr->cr_ref > 0, ("%s: ref %ld not > 0 on cred %p",
 		    __func__, cr->cr_ref, cr));
 		crold = cr;
 	} else {
@@ -1905,7 +1905,7 @@ crunusebatch(struct ucred *cr, int users, int ref)
 		mtx_unlock(&cr->cr_mtx);
 		return;
 	}
-	KASSERT(cr->cr_ref >= 0, ("%s: ref %d not >= 0 on cred %p",
+	KASSERT(cr->cr_ref >= 0, ("%s: ref %ld not >= 0 on cred %p",
 	    __func__, cr->cr_ref, cr));
 	if (cr->cr_ref > 0) {
 		mtx_unlock(&cr->cr_mtx);
@@ -2051,7 +2051,7 @@ crfree(struct ucred *cr)
 		mtx_unlock(&cr->cr_mtx);
 		return;
 	}
-	KASSERT(cr->cr_ref >= 0, ("%s: ref %d not >= 0 on cred %p",
+	KASSERT(cr->cr_ref >= 0, ("%s: ref %ld not >= 0 on cred %p",
 	    __func__, cr->cr_ref, cr));
 	if (cr->cr_ref > 0) {
 		mtx_unlock(&cr->cr_mtx);
@@ -2066,7 +2066,7 @@ crfree_final(struct ucred *cr)
 
 	KASSERT(cr->cr_users == 0, ("%s: users %d not == 0 on cred %p",
 	    __func__, cr->cr_users, cr));
-	KASSERT(cr->cr_ref == 0, ("%s: ref %d not == 0 on cred %p",
+	KASSERT(cr->cr_ref == 0, ("%s: ref %ld not == 0 on cred %p",
 	    __func__, cr->cr_ref, cr));
 
 	/*
@@ -2104,6 +2104,7 @@ crcopy(struct ucred *dest, struct ucred *src)
 	bcopy(&src->cr_startcopy, &dest->cr_startcopy,
 	    (unsigned)((caddr_t)&src->cr_endcopy -
 		(caddr_t)&src->cr_startcopy));
+	dest->cr_flags = src->cr_flags;
 	crsetgroups(dest, src->cr_ngroups, src->cr_groups);
 	uihold(dest->cr_uidinfo);
 	uihold(dest->cr_ruidinfo);
@@ -2210,7 +2211,7 @@ proc_unset_cred(struct proc *p)
 	mtx_lock(&cr->cr_mtx);
 	cr->cr_users--;
 	if (cr->cr_users == 0)
-		KASSERT(cr->cr_ref > 0, ("%s: ref %d not > 0 on cred %p",
+		KASSERT(cr->cr_ref > 0, ("%s: ref %ld not > 0 on cred %p",
 		    __func__, cr->cr_ref, cr));
 	mtx_unlock(&cr->cr_mtx);
 	crfree(cr);
