@@ -61,8 +61,9 @@ struct loginclass;
 #if defined(_KERNEL) || defined(_WANT_UCRED)
 struct ucred {
 	struct mtx cr_mtx;
-	int	cr_ref;			/* (c) reference count */
+	long	cr_ref;			/* (c) reference count */
 	u_int	cr_users;		/* (c) proc + thread using this cred */
+	u_int	cr_flags;		/* credential flags */
 	struct auditinfo_addr	cr_audit;	/* Audit properties. */
 #define	cr_startcopy cr_uid
 	uid_t	cr_uid;			/* effective user id */
@@ -75,7 +76,6 @@ struct ucred {
 	struct uidinfo	*cr_ruidinfo;	/* per ruid resource consumption */
 	struct prison	*cr_prison;	/* jail(2) */
 	struct loginclass	*cr_loginclass; /* login class */
-	u_int		cr_flags;	/* credential flags */
 	void 		*cr_pspare2[2];	/* general use 2 */
 #define	cr_endcopy	cr_label
 	struct label	*cr_label;	/* MAC label */
