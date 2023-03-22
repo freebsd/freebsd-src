@@ -342,8 +342,6 @@ CFLAGS+= -include ${SRCTOP}/sys/cddl/compat/opensolaris/sys/debug_compat.h
 CFLAGS+= -include ${INCDIR}/os/freebsd/spl/sys/ccompile.h
 CFLAGS+= -include ${SRCTOP}/sys/modules/zfs/static_ccompile.h
 
-CWARNFLAGS+=	${OPENZFS_CWARNFLAGS}
-
 CFLAGS.gcc+= -Wno-pointer-to-int-cast
 
 CFLAGS.lapi.c= -Wno-cast-qual
