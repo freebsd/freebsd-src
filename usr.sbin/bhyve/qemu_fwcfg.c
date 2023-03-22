@@ -300,7 +300,7 @@ qemu_fwcfg_add_file(const char *name, const uint32_t size, void *const data)
 			warnx(
 			    "%s: Unable to allocate a new qemu fwcfg files directory (count %d)",
 			    __func__, count);
-			return (-ENOMEM);
+			return (ENOMEM);
 		}
 
 		/* copy files below file_index to new directory */
