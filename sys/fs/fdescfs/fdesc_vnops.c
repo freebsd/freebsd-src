@@ -363,13 +363,11 @@ fdesc_lookup(struct vop_lookup_args *ap)
 		 * In case we're holding the last reference to the file, the dvp
 		 * will be re-acquired.
 		 */
-		vhold(dvp);
 		VOP_UNLOCK(dvp);
 		fdrop(fp, td);
 		fdropped = true;
 
 		vn_lock(dvp, LK_RETRY | LK_EXCLUSIVE);
-		vdrop(dvp);
 		fvp = dvp;
 		if (error == 0 && VN_IS_DOOMED(dvp))
 			error = ENOENT;
