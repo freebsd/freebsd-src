@@ -550,8 +550,7 @@ OPENZFS_CFLAGS=     \
 	-I${SYSDIR}/cddl/compat/opensolaris \
 	-I${SYSDIR}/cddl/contrib/opensolaris/uts/common \
 	-include ${ZINCDIR}/os/freebsd/spl/sys/ccompile.h
-OPENZFS_CWARNFLAGS= \
-	-Wno-nested-externs
+OPENZFS_CWARNFLAGS=
 
 .include <bsd.dep.mk>
 .include <bsd.clang-analyze.mk>
