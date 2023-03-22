@@ -1163,9 +1163,7 @@ allocblk(long startcg, long frags,
 }
 
 ufs2_daddr_t
-std_checkblkavail(blkno, frags)
-	ufs2_daddr_t blkno;
-	long frags;
+std_checkblkavail(ufs2_daddr_t blkno, long frags)
 {
 	struct bufarea *cgbp;
 	struct cg *cgp;
@@ -1279,9 +1277,11 @@ getpathname(char *namebuf, ino_t curdir, ino_t ino)
 		ginode(ino, &ip);
 		if ((ckinode(ip.i_dp, &idesc) & FOUND) == 0) {
 			irelse(&ip);
+			free(idesc.id_name);
 			break;
 		}
 		irelse(&ip);
+		free(idesc.id_name);
 	namelookup:
 		idesc.id_number = idesc.id_parent;
 		idesc.id_parent = ino;
