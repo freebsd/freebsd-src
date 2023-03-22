@@ -36,6 +36,10 @@
 
 struct trapframe;
 
+#define	PCB_X19		19
+#define	PCB_X20		20
+#define	PCB_FP		29
+
 struct pcb {
 	uint64_t	pcb_x[30];
 	uint64_t	pcb_lr;

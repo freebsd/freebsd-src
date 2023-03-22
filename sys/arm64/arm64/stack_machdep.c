@@ -68,7 +68,7 @@ stack_save_td(struct stack *st, struct thread *td)
 	if (TD_IS_RUNNING(td))
 		return (EOPNOTSUPP);
 
-	frame.fp = td->td_pcb->pcb_x[29];
+	frame.fp = td->td_pcb->pcb_x[PCB_FP];
 	frame.pc = ADDR_MAKE_CANONICAL(td->td_pcb->pcb_lr);
 
 	stack_capture(td, st, &frame);
