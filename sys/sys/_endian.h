@@ -36,6 +36,8 @@
 #error "sys/_endian.h should not be included directly"
 #endif
 
+#include <sys/cdefs.h>				/* visibility macros */
+
 /* BSD Compatiblity */
 #define	_BYTE_ORDER	__BYTE_ORDER__
 
@@ -66,10 +68,11 @@
 #endif
 
 /*
- * Deprecated variants that don't have enough underscores to be useful in more
- * strict namespaces.
+ * POSIX Issue 8 will require these for endian.h. Define them there and in the
+ * traditional BSD compilation environment. Since issue 8 doesn't yet have an
+ * assigned date, use strictly greater than issue 7's date.
  */
-#if __BSD_VISIBLE
+#if __BSD_VISIBLE || _POSIX_C_SOURCE > 200809
 #define	LITTLE_ENDIAN   _LITTLE_ENDIAN
 #define	BIG_ENDIAN      _BIG_ENDIAN
 #define	PDP_ENDIAN      _PDP_ENDIAN
