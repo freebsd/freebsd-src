@@ -208,6 +208,80 @@ ATF_TC_BODY(path_capsicum, tc)
 	waitchild(child, 4);
 }
 
+/*
+ * Check that a pathfd can be converted to a regular fd using openat() in
+ * capability mode, but that rights on the pathfd are respected.
+ */
+ATF_TC_WITHOUT_HEAD(path_capsicum_empty);
+ATF_TC_BODY(path_capsicum_empty, tc)
+{
+	char path[PATH_MAX];
+	cap_rights_t rights;
+	int dfd, fd, pathfd, pathdfd;
+
+	mktfile(path, "path_capsicum.XXXXXX");
+
+	pathdfd = open(".", O_PATH);
+	ATF_REQUIRE_MSG(pathdfd >= 0, FMT_ERR("open"));
+	pathfd = open(path, O_PATH);
+	ATF_REQUIRE_MSG(pathfd >= 0, FMT_ERR("open"));
+
+	ATF_REQUIRE(cap_enter() == 0);
+
+	dfd = openat(pathdfd, "", O_DIRECTORY | O_EMPTY_PATH);
+	ATF_REQUIRE(dfd >= 0);
+	CHECKED_CLOSE(dfd);
+
+	/*
+	 * CAP_READ and CAP_LOOKUP should be sufficient to open a directory.
+	 */
+	cap_rights_init(&rights, CAP_READ | CAP_LOOKUP);
+	ATF_REQUIRE(cap_rights_limit(pathdfd, &rights) == 0);
+	dfd = openat(pathdfd, "", O_DIRECTORY | O_EMPTY_PATH);
+	ATF_REQUIRE(dfd >= 0);
+	CHECKED_CLOSE(dfd);
+
+	/*
+	 * ... CAP_READ on its own is not.
+	 */
+	cap_rights_init(&rights, CAP_READ);
+	ATF_REQUIRE(cap_rights_limit(pathdfd, &rights) == 0);
+	dfd = openat(pathdfd, "", O_DIRECTORY | O_EMPTY_PATH);
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE, dfd == -1);
+
+	/*
+	 * Now try with a regular file.
+	 */
+	fd = openat(pathfd, "", O_RDWR | O_EMPTY_PATH);
+	ATF_REQUIRE(fd >= 0);
+	CHECKED_CLOSE(fd);
+
+	cap_rights_init(&rights, CAP_READ | CAP_LOOKUP | CAP_WRITE);
+	ATF_REQUIRE(cap_rights_limit(pathfd, &rights) == 0);
+	fd = openat(pathfd, "", O_RDWR | O_EMPTY_PATH | O_APPEND);
+	ATF_REQUIRE(fd >= 0);
+	CHECKED_CLOSE(fd);
+
+	/*
+	 * CAP_SEEK is needed to open a file for writing without O_APPEND.
+	 */
+	cap_rights_init(&rights, CAP_READ | CAP_LOOKUP | CAP_WRITE);
+	ATF_REQUIRE(cap_rights_limit(pathfd, &rights) == 0);
+	fd = openat(pathfd, "", O_RDWR | O_EMPTY_PATH);
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE, fd == -1);
+
+	/*
+	 * CAP_LOOKUP isn't sufficient to open a file for reading.
+	 */
+	cap_rights_init(&rights, CAP_LOOKUP);
+	ATF_REQUIRE(cap_rights_limit(pathfd, &rights) == 0);
+	fd = openat(pathfd, "", O_RDONLY | O_EMPTY_PATH);
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE, fd == -1);
+
+	CHECKED_CLOSE(pathfd);
+	CHECKED_CLOSE(pathdfd);
+}
+
 /* Make sure that ptrace(PT_COREDUMP) cannot be used to write to a path fd. */
 ATF_TC_WITHOUT_HEAD(path_coredump);
 ATF_TC_BODY(path_coredump, tc)
@@ -937,6 +1011,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, path_access);
 	ATF_TP_ADD_TC(tp, path_aio);
 	ATF_TP_ADD_TC(tp, path_capsicum);
+	ATF_TP_ADD_TC(tp, path_capsicum_empty);
 	ATF_TP_ADD_TC(tp, path_coredump);
 	ATF_TP_ADD_TC(tp, path_directory);
 	ATF_TP_ADD_TC(tp, path_directory_not_root);
