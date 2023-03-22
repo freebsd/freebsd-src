@@ -1778,32 +1778,32 @@
  *         0: always SP0
  *         1: current ELs SP
  */
-#define	PSR_M_EL0t	0x00000000
-#define	PSR_M_EL1t	0x00000004
-#define	PSR_M_EL1h	0x00000005
-#define	PSR_M_EL2t	0x00000008
-#define	PSR_M_EL2h	0x00000009
-#define	PSR_M_64	0x00000000
-#define	PSR_M_32	0x00000010
-#define	PSR_M_MASK	0x0000000f
+#define	PSR_M_EL0t	0x00000000UL
+#define	PSR_M_EL1t	0x00000004UL
+#define	PSR_M_EL1h	0x00000005UL
+#define	PSR_M_EL2t	0x00000008UL
+#define	PSR_M_EL2h	0x00000009UL
+#define	PSR_M_64	0x00000000UL
+#define	PSR_M_32	0x00000010UL
+#define	PSR_M_MASK	0x0000000fUL
 
-#define	PSR_T		0x00000020
+#define	PSR_T		0x00000020UL
 
-#define	PSR_AARCH32	0x00000010
-#define	PSR_F		0x00000040
-#define	PSR_I		0x00000080
-#define	PSR_A		0x00000100
-#define	PSR_D		0x00000200
+#define	PSR_AARCH32	0x00000010UL
+#define	PSR_F		0x00000040UL
+#define	PSR_I		0x00000080UL
+#define	PSR_A		0x00000100UL
+#define	PSR_D		0x00000200UL
 #define	PSR_DAIF	(PSR_D | PSR_A | PSR_I | PSR_F)
 /* The default DAIF mask. These bits are valid in spsr_el1 and daif */
 #define	PSR_DAIF_DEFAULT (PSR_F)
-#define	PSR_IL		0x00100000
-#define	PSR_SS		0x00200000
-#define	PSR_V		0x10000000
-#define	PSR_C		0x20000000
-#define	PSR_Z		0x40000000
-#define	PSR_N		0x80000000
-#define	PSR_FLAGS	0xf0000000
+#define	PSR_IL		0x00100000UL
+#define	PSR_SS		0x00200000UL
+#define	PSR_V		0x10000000UL
+#define	PSR_C		0x20000000UL
+#define	PSR_Z		0x40000000UL
+#define	PSR_N		0x80000000UL
+#define	PSR_FLAGS	0xf0000000UL
 /* PSR fields that can be set from 32-bit and 64-bit processes */
 #define	PSR_SETTABLE_32	PSR_FLAGS
 #define	PSR_SETTABLE_64	(PSR_FLAGS | PSR_SS)
