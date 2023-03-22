@@ -260,7 +260,7 @@ static void *
 calls(void *arg __unused)
 {
 	time_t start;
-	int i, j, num;
+	int i __unused, j, num;
 	unsigned long arg1, arg2, arg3, arg4, arg5, arg6, arg7;
 
 #ifdef __NP__
