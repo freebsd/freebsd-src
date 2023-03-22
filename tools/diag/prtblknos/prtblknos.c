@@ -53,9 +53,7 @@ static void  indirprt(struct fs *, int, ufs_lbn_t, ufs_lbn_t, ufs2_daddr_t,
 		ufs_lbn_t);
 
 void
-prtblknos(fs, dp)
-	struct fs *fs;
-	union dinode *dp;
+prtblknos(struct fs *fs, union dinode *dp)
 {
 	int i, mode, frags;
 	ufs_lbn_t lbn, lastlbn, len, blksperindir;
@@ -154,13 +152,8 @@ prtblknos(fs, dp)
 }
 
 static void
-indirprt(fs, level, blksperindir, lbn, blkno, lastlbn)
-	struct fs *fs;
-	int level;
-	ufs_lbn_t blksperindir;
-	ufs_lbn_t lbn;
-	ufs2_daddr_t blkno;
-	ufs_lbn_t lastlbn;
+indirprt(struct fs *fs, int level, ufs_lbn_t blksperindir, ufs_lbn_t lbn,
+	ufs2_daddr_t blkno, ufs_lbn_t lastlbn)
 {
 	char indir[MAXBSIZE];
 	ufs_lbn_t i, last;
@@ -209,10 +202,7 @@ indirprt(fs, level, blksperindir, lbn, blkno, lastlbn)
 }
 
 static const char *
-distance(fs, lastblk, firstblk)
-	struct fs *fs;
-	ufs2_daddr_t lastblk;
-	ufs2_daddr_t firstblk;
+distance(struct fs *fs, ufs2_daddr_t lastblk, ufs2_daddr_t firstblk)
 {
 	ufs2_daddr_t delta;
 	int firstcg, lastcg;
@@ -237,12 +227,8 @@ distance(fs, lastblk, firstblk)
 static const char *indirname[UFS_NIADDR] = { "First", "Second", "Third" };
 
 static void
-printblk(fs, lbn, blkno, numfrags, lastlbn)
-	struct fs *fs;
-	ufs_lbn_t lbn;
-	ufs2_daddr_t blkno;
-	int numfrags;
-	ufs_lbn_t lastlbn;
+printblk(struct fs *fs, ufs_lbn_t lbn, ufs2_daddr_t blkno, int numfrags,
+	ufs_lbn_t lastlbn)
 {
 	static int seq;
 	static ufs2_daddr_t totfrags, lastindirblk, lastblk, firstblk;

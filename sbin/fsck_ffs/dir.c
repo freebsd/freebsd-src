@@ -525,6 +525,7 @@ linkup(ino_t orphan, ino_t parentdir, char *name)
 			}
 		}
 		irelse(&ip);
+		free(idesc.id_name);
 		if (lfdir == 0) {
 			pfatal("SORRY. CANNOT CREATE lost+found DIRECTORY");
 			printf("\n\n");
@@ -621,6 +622,7 @@ changeino(ino_t dir, const char *name, ino_t newnum)
 	idesc.id_parent = newnum;	/* new value for name */
 	ginode(dir, &ip);
 	error = ckinode(ip.i_dp, &idesc);
+	free(idesc.id_name);
 	irelse(&ip);
 	return (error);
 }
@@ -655,15 +657,18 @@ makeentry(ino_t parent, ino_t ino, const char *name)
 	}
 	if ((ckinode(dp, &idesc) & ALTERED) != 0) {
 		irelse(&ip);
+		free(idesc.id_name);
 		return (1);
 	}
 	getpathname(pathbuf, parent, parent);
 	if (expanddir(&ip, pathbuf) == 0) {
 		irelse(&ip);
+		free(idesc.id_name);
 		return (0);
 	}
 	retval = ckinode(dp, &idesc) & ALTERED;
 	irelse(&ip);
+	free(idesc.id_name);
 	return (retval);
 }
 

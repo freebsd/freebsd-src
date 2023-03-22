@@ -602,6 +602,7 @@ fix_extraneous(struct inoinfo *inp, struct inodesc *idesc)
 		if ((ckinode(ip.i_dp, &dotdesc) & FOUND))
 			inp->i_dotdot = dotdesc.id_parent;
 		irelse(&ip);
+		free(dotdesc.id_name);
 	}
 	/*
 	 * We have the previously found old name (inp->i_parent) and the

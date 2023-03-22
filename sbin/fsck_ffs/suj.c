@@ -384,9 +384,7 @@ blk_isindir(ufs2_daddr_t blk, ino_t ino, ufs_lbn_t lbn)
  * they will only have usable blocks in them.
  */
 ufs2_daddr_t
-suj_checkblkavail(blkno, frags)
-	ufs2_daddr_t blkno;
-	long frags;
+suj_checkblkavail(ufs2_daddr_t blkno, long frags)
 {
 	struct bufarea *cgbp;
 	struct cg *cgp;
