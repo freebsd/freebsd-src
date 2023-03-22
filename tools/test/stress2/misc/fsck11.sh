@@ -56,7 +56,7 @@ reruns=0
 newfs_flags=$(echo "" "-U" "-O1" | awk -v N=`jot -r 1 1 3` '{print $N}')
 [ $# -eq 1 ] && newfs_flags="$1" # or use script argument
 max=$((2 * 1024 * 1024))
-[ "$newfs_flags" == "-j" ] && max=$((20 * 1024 * 1024)) # Make room for the journal file
+[ "$newfs_flags" = "-j" ] && max=$((20 * 1024 * 1024)) # Make room for the journal file
 
 mount | grep "on $mp1 " | grep -q /dev/md && umount -f $mp1
 [ -c /dev/md$u1 ] && mdconfig -d -u $u1
@@ -135,7 +135,7 @@ while [ $((`date +%s` - start)) -lt 300 ]; do
 	fsync $backup
 	sync; sleep 1
 
-	[ $newfs_flags == "-j" ] &&
+	[ "$newfs_flags" = "-j" ] &&
 		fsck -fy $diskimage > $log 2>&1	# process the journal file
 	for i in `jot 5`; do
 		[ $i -gt 2 ] && echo "fsck run #$i"
