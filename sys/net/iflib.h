@@ -489,5 +489,6 @@ void iflib_led_create(if_ctx_t ctx);
 
 void iflib_add_int_delay_sysctl(if_ctx_t, const char *, const char *,
 								if_int_delay_info_t, int, int);
+uint16_t iflib_get_extra_msix_vectors_sysctl(if_ctx_t ctx);
 
 #endif /*  __IFLIB_H_ */

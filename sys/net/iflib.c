@@ -194,6 +194,7 @@ struct iflib_ctx {
 #define	CORE_OFFSET_UNSPECIFIED	0xffff
 	uint8_t  ifc_sysctl_separate_txrx;
 	uint8_t  ifc_sysctl_use_logical_cores;
+	uint16_t ifc_sysctl_extra_msix_vectors;
 	bool	 ifc_cpus_are_physical_cores;
 
 	qidx_t ifc_sysctl_ntxds[8];
@@ -262,6 +263,13 @@ iflib_get_sctx(if_ctx_t ctx)
 {
 
 	return (ctx->ifc_sctx);
+}
+
+uint16_t
+iflib_get_extra_msix_vectors_sysctl(if_ctx_t ctx)
+{
+
+	return (ctx->ifc_sysctl_extra_msix_vectors);
 }
 
 #define IP_ALIGNED(m) ((((uintptr_t)(m)->m_data) & 0x3) == 0x2)
@@ -6802,6 +6810,12 @@ iflib_add_device_sysctl_pre(if_ctx_t ctx)
 	SYSCTL_ADD_U8(ctx_list, oid_list, OID_AUTO, "use_logical_cores",
 		      CTLFLAG_RDTUN, &ctx->ifc_sysctl_use_logical_cores, 0,
 		      "try to make use of logical cores for TX and RX");
+	SYSCTL_ADD_U16(ctx_list, oid_list, OID_AUTO, "use_extra_msix_vectors",
+	    CTLFLAG_RDTUN, &ctx->ifc_sysctl_extra_msix_vectors, 0,
+	    "attempt to reserve the given number of extra MSI-X vectors during driver load for the creation of additional interfaces later");
+	SYSCTL_ADD_INT(ctx_list, oid_list, OID_AUTO, "allocated_msix_vectors",
+       	    CTLFLAG_RDTUN, &ctx->ifc_softc_ctx.isc_vectors, 0,
+	    "total # of MSI-X vectors allocated by driver");
 
 	/* XXX change for per-queue sizes */
 	SYSCTL_ADD_PROC(ctx_list, oid_list, OID_AUTO, "override_ntxds",
