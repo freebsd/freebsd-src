@@ -225,7 +225,6 @@ CDDL_CFLAGS=	\
 	-Wno-duplicate-decl-specifier \
 	-Wno-missing-braces \
 	-Wno-missing-prototypes \
-	-Wno-nested-externs \
 	-Wno-parentheses \
 	-Wno-pointer-arith \
 	-Wno-strict-prototypes \
