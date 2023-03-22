@@ -911,6 +911,11 @@ vmexit_debug(struct vmctx *ctx __unused, struct vm_exit *vme __unused,
 #ifdef BHYVE_SNAPSHOT
 	checkpoint_cpu_resume(*pvcpu);
 #endif
+	/*
+	 * XXX-MJ sleep for a short period to avoid chewing up the CPU in the
+	 * window between activation of the vCPU thread and the STARTUP IPI.
+	 */
+	usleep(1000);
 	return (VMEXIT_CONTINUE);
 }
 
