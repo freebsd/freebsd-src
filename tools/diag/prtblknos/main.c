@@ -44,9 +44,7 @@ void prtblknos(struct fs *fs, union dinode *dp);
 struct uufsd disk;
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	union dinodep dp;
 	struct fs *fs;

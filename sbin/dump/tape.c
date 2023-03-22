@@ -74,7 +74,8 @@ static	long blocksthisvol;	/* number of blocks on current output file */
 static	char *nexttape;
 static	FILE *popenfp = NULL;
 
-static	int atomic(ssize_t (*)(), int, char *, int);
+static	int atomic_read(int, void *, int);
+static	int atomic_write(int, const void *, int);
 static	void worker(int, int);
 static	void create_workers(void);
 static	void flushtape(void);
@@ -236,7 +237,7 @@ flushtape(void)
 
 	wp->req[trecno].count = 0;			/* Sentinel */
 
-	if (atomic(write, wp->fd, (char *)wp->req, siz) != siz)
+	if (atomic_write(wp->fd, (const void *)wp->req, siz) != siz)
 		quit("error writing command pipe: %s\n", strerror(errno));
 	wp->sent = 1; /* we sent a request, read the response later */
 
@@ -247,7 +248,7 @@ flushtape(void)
 
 	/* Read results back from next worker */
 	if (wp->sent) {
-		if (atomic(read, wp->fd, (char *)&got, sizeof got)
+		if (atomic_read(wp->fd, (void *)&got, sizeof got)
 		    != sizeof got) {
 			perror("  DUMP: error reading command pipe in master");
 			dumpabort(0);
@@ -264,8 +265,8 @@ flushtape(void)
 			 */
 			for (i = 0; i < WORKERS; i++) {
 				if (workers[i].sent) {
-					if (atomic(read, workers[i].fd,
-					    (char *)&got, sizeof got)
+					if (atomic_read(workers[i].fd,
+					    (void *)&got, sizeof got)
 					    != sizeof got) {
 						perror("  DUMP: error reading command pipe in master");
 						dumpabort(0);
@@ -322,7 +323,7 @@ trewind(void)
 		 * fixme: punt for now.
 		 */
 		if (workers[f].sent) {
-			if (atomic(read, workers[f].fd, (char *)&got, sizeof got)
+			if (atomic_read(workers[f].fd, (void *)&got, sizeof got)
 			    != sizeof got) {
 				perror("  DUMP: error reading command pipe in master");
 				dumpabort(0);
@@ -446,7 +447,7 @@ rollforward(void)
 			lastspclrec = savedtapea - 1;
 		}
 		size = (char *)ntb - (char *)q;
-		if (atomic(write, wp->fd, (char *)q, size) != size) {
+		if (atomic_write(wp->fd, (const void *)q, size) != size) {
 			perror("  DUMP: error writing command pipe");
 			dumpabort(0);
 		}
@@ -486,7 +487,7 @@ rollforward(void)
 	 * worked ok, otherwise the tape is much too short!
 	 */
 	if (wp->sent) {
-		if (atomic(read, wp->fd, (char *)&got, sizeof got)
+		if (atomic_read(wp->fd, (void *)&got, sizeof got)
 		    != sizeof got) {
 			perror("  DUMP: error reading command pipe in master");
 			dumpabort(0);
@@ -676,8 +677,7 @@ dumpabort(int signo __unused)
 }
 
 void
-Exit(status)
-	int status;
+Exit(int status)
 {
 
 #ifdef TDEBUG
@@ -735,8 +735,8 @@ create_workers(void)
 	}
 
 	for (i = 0; i < WORKERS; i++)
-		(void) atomic(write, workers[i].fd,
-			      (char *) &workers[(i + 1) % WORKERS].pid,
+		(void) atomic_write(workers[i].fd,
+			      (const void *) &workers[(i + 1) % WORKERS].pid,
 		              sizeof workers[0].pid);
 
 	master = 0;
@@ -777,7 +777,7 @@ worker(int cmd, int worker_number)
 	/*
 	 * Need the pid of the next worker in the loop...
 	 */
-	if ((nread = atomic(read, cmd, (char *)&nextworker, sizeof nextworker))
+	if ((nread = atomic_read(cmd, (void *)&nextworker, sizeof nextworker))
 	    != sizeof nextworker) {
 		quit("master/worker protocol botched - didn't get pid of next worker.\n");
 	}
@@ -785,7 +785,7 @@ worker(int cmd, int worker_number)
 	/*
 	 * Get list of blocks to dump, read the blocks into tape buffer
 	 */
-	while ((nread = atomic(read, cmd, (char *)wp->req, reqsiz)) == reqsiz) {
+	while ((nread = atomic_read(cmd, (void *)wp->req, reqsiz)) == reqsiz) {
 		struct req *p = wp->req;
 
 		for (trecno = 0; trecno < ntrec;
@@ -794,8 +794,8 @@ worker(int cmd, int worker_number)
 				blkread(p->dblk, wp->tblock[trecno],
 					p->count * TP_BSIZE);
 			} else {
-				if (p->count != 1 || atomic(read, cmd,
-				    (char *)wp->tblock[trecno],
+				if (p->count != 1 || atomic_read(cmd,
+				    (void *)wp->tblock[trecno],
 				    TP_BSIZE) != TP_BSIZE)
 				       quit("master/worker protocol botched.\n");
 			}
@@ -858,7 +858,8 @@ worker(int cmd, int worker_number)
 			 * pass size of write back to master
 			 * (for EOT handling)
 			 */
-			(void) atomic(write, cmd, (char *)&size, sizeof size);
+			(void)atomic_write(cmd, (const void *)&size,
+			    sizeof size);
 		}
 
 		/*
@@ -873,15 +874,28 @@ worker(int cmd, int worker_number)
 
 /*
  * Since a read from a pipe may not return all we asked for,
- * or a write may not write all we ask if we get a signal,
  * loop until the count is satisfied (or error).
  */
 static int
-atomic(ssize_t (*func)(), int fd, char *buf, int count)
+atomic_read(int fd, void *buf, int count)
 {
 	int got, need = count;
 
-	while ((got = (*func)(fd, buf, need)) > 0 && (need -= got) > 0)
+	while ((got = read(fd, buf, need)) > 0 && (need -= got) > 0)
+		buf += got;
+	return (got < 0 ? got : count - need);
+}
+
+/*
+ * Since a write to a pipe may not write all we ask if we get a signal,
+ * loop until the count is satisfied (or error).
+ */
+static int
+atomic_write(int fd, const void *buf, int count)
+{
+	int got, need = count;
+
+	while ((got = write(fd, buf, need)) > 0 && (need -= got) > 0)
 		buf += got;
 	return (got < 0 ? got : count - need);
 }
