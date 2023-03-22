@@ -246,6 +246,7 @@ struct fdesc_get_ino_args {
 	int ix;
 	struct file *fp;
 	struct thread *td;
+	bool fdropped;
 };
 
 static int
@@ -268,6 +269,7 @@ fdesc_get_ino_alloc(struct mount *mp, void *arg, int lkflags,
 		error = fdesc_allocvp(a->ftype, a->fd_fd, a->ix, mp, rvp);
 	}
 	fdrop(a->fp, a->td);
+	a->fdropped = true;
 	return (error);
 }
 
@@ -288,6 +290,7 @@ fdesc_lookup(struct vop_lookup_args *ap)
 	int nlen = cnp->cn_namelen;
 	u_int fd, fd1;
 	int error;
+	bool fdropped;
 	struct vnode *fvp;
 
 	if ((cnp->cn_flags & ISLASTCN) &&
@@ -331,24 +334,10 @@ fdesc_lookup(struct vop_lookup_args *ap)
 	 */
 	if ((error = fget(td, fd, &cap_no_rights, &fp)) != 0)
 		goto bad;
+	fdropped = false;
 
-	/* Check if we're looking up ourselves. */
-	if (VTOFDESC(dvp)->fd_ix == FD_DESC + fd) {
-		/*
-		 * In case we're holding the last reference to the file, the dvp
-		 * will be re-acquired.
-		 */
-		vhold(dvp);
-		VOP_UNLOCK(dvp);
-		fdrop(fp, td);
-
-		/* Re-aquire the lock afterwards. */
-		vn_lock(dvp, LK_RETRY | LK_EXCLUSIVE);
-		vdrop(dvp);
-		fvp = dvp;
-		if (VN_IS_DOOMED(dvp))
-			error = ENOENT;
-	} else {
+	/* Make sure we're not looking up the dvp itself. */
+	if (VTOFDESC(dvp)->fd_ix != FD_DESC + fd) {
 		/*
 		 * Unlock our root node (dvp) when doing this, since we might
 		 * deadlock since the vnode might be locked by another thread
@@ -362,8 +351,27 @@ fdesc_lookup(struct vop_lookup_args *ap)
 		arg.ix = FD_DESC + fd;
 		arg.fp = fp;
 		arg.td = td;
+		arg.fdropped = fdropped;
 		error = vn_vget_ino_gen(dvp, fdesc_get_ino_alloc, &arg,
 		    LK_EXCLUSIVE, &fvp);
+		fdropped = arg.fdropped;
+	}
+
+	if (!fdropped) {
+		/*
+		 * In case we're holding the last reference to the file, the dvp
+		 * will be re-acquired.
+		 */
+		vhold(dvp);
+		VOP_UNLOCK(dvp);
+		fdrop(fp, td);
+		fdropped = true;
+
+		vn_lock(dvp, LK_RETRY | LK_EXCLUSIVE);
+		vdrop(dvp);
+		fvp = dvp;
+		if (error == 0 && VN_IS_DOOMED(dvp))
+			error = ENOENT;
 	}
 
 	if (error)
