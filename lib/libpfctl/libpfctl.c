@@ -1188,7 +1188,6 @@ static int
 _pfctl_clear_states(int dev, const struct pfctl_kill *kill,
     unsigned int *killed, uint64_t ioctlval)
 {
-	struct pfioc_nv	 nv;
 	nvlist_t	*nvl;
 	int		 ret;
 
@@ -1211,7 +1210,6 @@ _pfctl_clear_states(int dev, const struct pfctl_kill *kill,
 		*killed = nvlist_get_number(nvl, "killed");
 
 	nvlist_destroy(nvl);
-	free(nv.data);
 
 	return (ret);
 }
