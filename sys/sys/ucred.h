@@ -61,7 +61,7 @@ struct loginclass;
 #if defined(_KERNEL) || defined(_WANT_UCRED)
 struct ucred {
 	struct mtx cr_mtx;
-	u_int	cr_ref;			/* (c) reference count */
+	int	cr_ref;			/* (c) reference count */
 	u_int	cr_users;		/* (c) proc + thread using this cred */
 	struct auditinfo_addr	cr_audit;	/* Audit properties. */
 #define	cr_startcopy cr_uid
