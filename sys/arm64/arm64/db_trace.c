@@ -145,7 +145,7 @@ db_trace_thread(struct thread *thr, int count)
 		ctx = kdb_thr_ctx(thr);
 
 		frame.fp = (uintptr_t)ctx->pcb_x[PCB_FP];
-		frame.pc = (uintptr_t)ctx->pcb_lr;
+		frame.pc = (uintptr_t)ctx->pcb_x[PCB_LR];
 		db_stack_trace_cmd(thr, &frame);
 	} else
 		db_trace_self();
