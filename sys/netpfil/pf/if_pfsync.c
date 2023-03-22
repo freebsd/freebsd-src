@@ -395,7 +395,7 @@ pfsync_clone_destroy(struct ifnet *ifp)
 {
 	struct pfsync_softc *sc = ifp->if_softc;
 	struct pfsync_bucket *b;
-	int c;
+	int c, ret;
 
 	for (c = 0; c < pfsync_buckets; c++) {
 		b = &sc->sc_buckets[c];
@@ -404,22 +404,25 @@ pfsync_clone_destroy(struct ifnet *ifp)
 		 * cleared by pfsync_uninit(), and we have only to
 		 * drain callouts.
 		 */
+		PFSYNC_BUCKET_LOCK(b);
 		while (b->b_deferred > 0) {
 			struct pfsync_deferral *pd =
 			    TAILQ_FIRST(&b->b_deferrals);
 
-			TAILQ_REMOVE(&b->b_deferrals, pd, pd_entry);
-			b->b_deferred--;
-			if (callout_stop(&pd->pd_tmo) > 0) {
-				pf_release_state(pd->pd_st);
-				m_freem(pd->pd_m);
-				free(pd, M_PFSYNC);
+			ret = callout_stop(&pd->pd_tmo);
+			PFSYNC_BUCKET_UNLOCK(b);
+			if (ret > 0) {
+				pfsync_undefer(pd, 1);
 			} else {
 				pd->pd_refs++;
 				callout_drain(&pd->pd_tmo);
-				free(pd, M_PFSYNC);
 			}
+			free(pd, M_PFSYNC);
+			PFSYNC_BUCKET_LOCK(b);
 		}
+		MPASS(b->b_deferred == 0);
+		MPASS(TAILQ_EMPTY(&b->b_deferrals));
+		PFSYNC_BUCKET_UNLOCK(b);
 
 		callout_drain(&b->b_tmo);
 	}
