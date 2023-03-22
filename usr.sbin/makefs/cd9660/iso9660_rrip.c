@@ -699,11 +699,11 @@ cd9660node_rrip_tf(struct ISO_SUSP_ATTRIBUTES *p, fsnode *_node)
 	 */
 
 	cd9660_time_915(p->attr.rr_entry.TF.timestamp,
-		_node->inode->st.st_atime);
+		_node->inode->st.st_mtime);
 	p->attr.rr_entry.TF.h.length[0] += 7;
 
 	cd9660_time_915(p->attr.rr_entry.TF.timestamp + 7,
-		_node->inode->st.st_mtime);
+		_node->inode->st.st_atime);
 	p->attr.rr_entry.TF.h.length[0] += 7;
 
 	cd9660_time_915(p->attr.rr_entry.TF.timestamp + 14,
