@@ -195,6 +195,7 @@ do_not_edit() {
 gen_resolvconf_conf() {
 	local style="$1"
 	do_not_edit
+  echo "resolv_conf=\"${resolv_conf}\""
   echo "name_servers_append=\"127.0.0.1\""
   echo "resolv_conf_local_only=\"yes\""
   echo "resolv_conf_options=\"edns0\""
