@@ -60,10 +60,10 @@ gdb_cpu_getreg(int regnum, size_t *regsz)
 	switch (regnum) {
 	case GDB_REG_SP: return (&kdb_thrctx->pcb_sp);
 	case GDB_REG_PC: /* FALLTHROUGH */
-	case GDB_REG_LR: return (&kdb_thrctx->pcb_lr);
+	case GDB_REG_LR: return (&kdb_thrctx->pcb_x[PCB_LR]);
 	default:
-		if (regnum >= GDB_REG_X0 && regnum <= GDB_REG_X29)
-			return (&kdb_thrctx->pcb_x[regnum]);
+		if (regnum >= GDB_REG_X19 && regnum <= GDB_REG_X29)
+			return (&kdb_thrctx->pcb_x[regnum - GDB_REG_X19]);
 		break;
 	}
 
@@ -89,11 +89,11 @@ gdb_cpu_setreg(int regnum, void *val)
 	}
 	switch (regnum) {
 	case GDB_REG_PC: /* FALLTHROUGH */
-	case GDB_REG_LR: kdb_thrctx->pcb_lr = regval; break;
+	case GDB_REG_LR: kdb_thrctx->pcb_x[PCB_LR] = regval; break;
 	case GDB_REG_SP: kdb_thrctx->pcb_sp = regval; break;
 	default:
-		if (regnum >= GDB_REG_X0 && regnum <= GDB_REG_X29) {
-			kdb_thrctx->pcb_x[regnum] = regval;
+		if (regnum >= GDB_REG_X19 && regnum <= GDB_REG_X29) {
+			kdb_thrctx->pcb_x[regnum - GDB_REG_X19] = regval;
 		}
 		break;
 	}
