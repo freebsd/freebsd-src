@@ -60,7 +60,7 @@ mount /dev/md$u1 $mp1
 newfs_flags='-j'
 [ $# -eq 1 ] && newfs_flags="$1" # or use script argument
 max=$((2 * 1024 * 1024))
-[ "$newfs_flags" == "-j" ] && max=$((20 * 1024 * 1024)) # Make room for the journal file
+[ "$newfs_flags" = "-j" ] && max=$((20 * 1024 * 1024)) # Make room for the journal file
 
 [ -c /dev/md$u2 ] && mdconfig -d -u $u2
 dd if=/dev/zero of=$diskimage bs=$max count=1 status=none
@@ -141,7 +141,7 @@ while [ $((`date +%s` - start)) -lt 300 ]; do
 	fsync $backup
 	sync; sleep 1
 
-	[ $newfs_flags == "-j" ] &&
+	[ $newfs_flags = "-j" ] &&
 		fsck -fy $diskimage > $log 2>&1	# process the journal file
 	for i in `jot 5`; do
 		[ $i -gt 2 ] && echo "fsck run #$i"
@@ -150,9 +150,7 @@ while [ $((`date +%s` - start)) -lt 300 ]; do
 		grep -q "MODIFIED" $log && continue # For now, do not trust CLEAN
 		[ $clean -eq 1 ] && { cleans=$((cleans + 1)); break; }
 		if [ -f fsck_ffs.core ]; then
-			tstamp=`date +%Y%m%dT%H%M%S`
-			gzip < $backup > /tmp/fsck_ffs.core.diskimage.$tstamp.gz
-			gzip < fsck_ffs.core > /tmp/fsck_ffs.core.$tstamp.gz
+			s=1
 			break 2
 		fi
 	done
