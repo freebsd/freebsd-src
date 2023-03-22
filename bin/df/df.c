@@ -141,6 +141,7 @@ main(int argc, char *argv[])
 	int iovlen = 0;
 #endif
 
+	fstype = "ufs";
 	(void)setlocale(LC_ALL, "");
 	memset(&maxwidths, 0, sizeof(maxwidths));
 	memset(&totalbuf, 0, sizeof(totalbuf));
@@ -209,6 +210,7 @@ main(int argc, char *argv[])
 		case 't':
 			if (vfslist_t != NULL)
 				xo_errx(1, "only one -t option may be specified");
+			fstype = optarg;
 			vfslist_t = makevfslist(optarg, &skipvfs_t);
 			break;
 		case 'T':
