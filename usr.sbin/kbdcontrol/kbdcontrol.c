@@ -107,8 +107,8 @@ static const char fkey_table[96][MAXFK] = {
 /* 93-96 */	""      , ""      , ""      , ""      ,
 	};
 
-static const int ndelays = (sizeof(delays) / sizeof(int));
-static const int nrepeats = (sizeof(rates) / sizeof(int));
+static const int ndelays = (sizeof(kbdelays) / sizeof(int));
+static const int nrepeats = (sizeof(kbrates) / sizeof(int));
 static int	hex = 0;
 static int	paths_configured = 0;
 static int	token;
@@ -1082,11 +1082,11 @@ badopt:
 			return;
 		}
 		for (n = 0; n < ndelays - 1; n++)
-			if (delay <= delays[n])
+			if (delay <= kbdelays[n])
 				break;
 		d = n;
 		for (n = 0; n < nrepeats - 1; n++)
-			if (repeat <= rates[n])
+			if (repeat <= kbrates[n])
 				break;
 		r = n;
 	}
