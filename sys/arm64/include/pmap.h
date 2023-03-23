@@ -183,6 +183,14 @@ pmap_vmspace_copy(pmap_t dst_pmap __unused, pmap_t src_pmap __unused)
 	return (0);
 }
 
+#if defined(KASAN) || defined(KMSAN)
+struct arm64_bootparams;
+
+void	pmap_bootstrap_san(vm_paddr_t);
+void	pmap_san_enter(vm_offset_t);
+void	pmap_san_bootstrap(struct arm64_bootparams *);
+#endif
+
 #endif	/* _KERNEL */
 
 #endif	/* !LOCORE */

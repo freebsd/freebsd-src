@@ -53,6 +53,10 @@
 #define	wmb()	dmb(st)	/* Full system memory barrier store */
 #define	rmb()	dmb(ld)	/* Full system memory barrier load */
 
+#ifdef _KERNEL
+extern _Bool lse_supported;
+#endif
+
 #if defined(SAN_NEEDS_INTERCEPTORS) && !defined(SAN_RUNTIME)
 #include <sys/atomic_san.h>
 #else
@@ -60,7 +64,6 @@
 #include <sys/atomic_common.h>
 
 #ifdef _KERNEL
-extern bool lse_supported;
 
 #ifdef LSE_ATOMICS
 #define	_ATOMIC_LSE_SUPPORTED	1

@@ -125,7 +125,10 @@
  * Upper region:    0xffffffffffffffff  Top of virtual memory
  *
  *                  0xfffffeffffffffff  End of DMAP
- *                  0xfffffa0000000000  Start of DMAP
+ *                  0xffffa00000000000  Start of DMAP
+ *
+ *                  0xffff009fffffffff  End of KASAN shadow map
+ *                  0xffff008000000000  Start of KASAN shadow map
  *
  *                  0xffff007fffffffff  End of KVA
  *                  0xffff000000000000  Kernel base address & start of KVA
@@ -155,6 +158,10 @@
 /* 512 GiB of kernel addresses */
 #define	VM_MIN_KERNEL_ADDRESS	(0xffff000000000000UL)
 #define	VM_MAX_KERNEL_ADDRESS	(0xffff008000000000UL)
+
+/* 128 GiB KASAN shadow map */
+#define	KASAN_MIN_ADDRESS	(0xffff008000000000UL)
+#define	KASAN_MAX_ADDRESS	(0xffff00a000000000UL)
 
 /* The address bits that hold a pointer authentication code */
 #define	PAC_ADDR_MASK		(0xff7f000000000000UL)
@@ -239,7 +246,9 @@
 #define	VM_INITIAL_PAGEIN	16
 #endif
 
+#if !defined(KASAN) && !defined(KMSAN)
 #define	UMA_MD_SMALL_ALLOC
+#endif
 
 #ifndef LOCORE
 
