@@ -377,8 +377,8 @@ cd9660_setup_boot(iso9660_disk *diskStructure, int first_sector)
 	/* Point to catalog: For now assume it consumes one sector */
 	ELTORITO_DPRINTF(("Boot catalog will go in sector %d\n", first_sector));
 	diskStructure->boot_catalog_sector = first_sector;
-	cd9660_bothendian_dword(first_sector,
-		diskStructure->boot_descriptor->boot_catalog_pointer);
+	cd9660_731(first_sector,
+	    diskStructure->boot_descriptor->boot_catalog_pointer);
 
 	/* Step 1: Generate boot catalog */
 	/* Step 1a: Validation entry */
