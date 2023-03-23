@@ -691,8 +691,8 @@ set_typematic(keyboard_t *kbd, int code)
 	/* Delays and rates from kbdio.h are in microseconds, so convert to ticks */
 	if (code & ~0x7f)
 		return EINVAL;
-	kbd->kb_delay1 = delays[(code >> 5) & 3];
-	kbd->kb_delay2 = rates[code & 0x1f];
+	kbd->kb_delay1 = kbdelays[(code >> 5) & 3];
+	kbd->kb_delay2 = kbrates[code & 0x1f];
 	return 0;
 }
 
