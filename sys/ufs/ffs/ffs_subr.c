@@ -682,7 +682,7 @@ ffs_sbsearch(void *devfd, struct fs **fsp, int reqflags,
 	 */
 	if (msg)
 		printf("Attempted recovery for standard superblock: failed\n");
-	flags = UFS_FSRONLY | UFS_NOHASHFAIL | UFS_NOMSG;
+	flags = UFS_FSRONLY | UFS_NOHASHFAIL | UFS_NOCSUM | UFS_NOMSG;
 	if (ffs_sbget(devfd, &protofs, UFS_STDSB, flags, filltype,
 	    readfunc) == 0) {
 		if (msg)
