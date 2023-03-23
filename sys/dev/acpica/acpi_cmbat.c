@@ -533,7 +533,7 @@ acpi_cmbat_init_battery(void *arg)
 
     dev = (device_t)arg;
     ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
-	"battery enitialization start\n");
+	"battery initialization start\n");
 
     /*
      * Try repeatedly to get valid data from the battery.  Since the
