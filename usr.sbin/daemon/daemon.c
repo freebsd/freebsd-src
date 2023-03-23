@@ -112,23 +112,23 @@ static volatile sig_atomic_t do_log_reopen = 0;
 static const char shortopts[] = "+cfHSp:P:ru:o:s:l:t:m:R:T:h";
 
 static const struct option longopts[] = {
-        { "change-dir",         no_argument,            NULL,           'c' },
-        { "close-fds",          no_argument,            NULL,           'f' },
-        { "sighup",             no_argument,            NULL,           'H' },
-        { "syslog",             no_argument,            NULL,           'S' },
-        { "output-file",        required_argument,      NULL,           'o' },
-        { "output-mask",        required_argument,      NULL,           'm' },
-        { "child-pidfile",      required_argument,      NULL,           'p' },
-        { "supervisor-pidfile", required_argument,      NULL,           'P' },
-        { "restart",            no_argument,            NULL,           'r' },
-        { "restart-delay",      required_argument,      NULL,           'R' },
-        { "title",              required_argument,      NULL,           't' },
-        { "user",               required_argument,      NULL,           'u' },
-        { "syslog-priority",    required_argument,      NULL,           's' },
-        { "syslog-facility",    required_argument,      NULL,           'l' },
-        { "syslog-tag",         required_argument,      NULL,           'T' },
-        { "help",               no_argument,            NULL,           'h' },
-        { NULL,                 0,                      NULL,            0  }
+	{ "change-dir",         no_argument,            NULL,           'c' },
+	{ "close-fds",          no_argument,            NULL,           'f' },
+	{ "sighup",             no_argument,            NULL,           'H' },
+	{ "syslog",             no_argument,            NULL,           'S' },
+	{ "output-file",        required_argument,      NULL,           'o' },
+	{ "output-mask",        required_argument,      NULL,           'm' },
+	{ "child-pidfile",      required_argument,      NULL,           'p' },
+	{ "supervisor-pidfile", required_argument,      NULL,           'P' },
+	{ "restart",            no_argument,            NULL,           'r' },
+	{ "restart-delay",      required_argument,      NULL,           'R' },
+	{ "title",              required_argument,      NULL,           't' },
+	{ "user",               required_argument,      NULL,           'u' },
+	{ "syslog-priority",    required_argument,      NULL,           's' },
+	{ "syslog-facility",    required_argument,      NULL,           'l' },
+	{ "syslog-tag",         required_argument,      NULL,           'T' },
+	{ "help",               no_argument,            NULL,           'h' },
+	{ NULL,                 0,                      NULL,            0  }
 };
 
 static _Noreturn void
