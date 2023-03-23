@@ -337,26 +337,24 @@ fdesc_lookup(struct vop_lookup_args *ap)
 		goto bad;
 	fdropped = false;
 
-	/* Make sure we're not looking up the dvp itself. */
-	if (VTOFDESC(dvp)->fd_ix != FD_DESC + fd) {
-		/*
-		 * Unlock our root node (dvp) when doing this, since we might
-		 * deadlock since the vnode might be locked by another thread
-		 * and the root vnode lock will be obtained afterwards (in case
-		 * we're looking up the fd of the root vnode), which will be the
-		 * opposite lock order. Vhold the root vnode first so we don't
-		 * lose it.
-		 */
-		arg.ftype = Fdesc;
-		arg.fd_fd = fd;
-		arg.ix = FD_DESC + fd;
-		arg.fp = fp;
-		arg.td = td;
-		arg.fdropped = fdropped;
-		error = vn_vget_ino_gen(dvp, fdesc_get_ino_alloc, &arg,
-		    LK_EXCLUSIVE, &fvp);
-		fdropped = arg.fdropped;
-	}
+	/*
+	 * Make sure we do not deadlock looking up the dvp itself.
+	 *
+	 * Unlock our root node (dvp) when doing this, since we might
+	 * deadlock since the vnode might be locked by another thread
+	 * and the root vnode lock will be obtained afterwards (in case
+	 * we're looking up the fd of the root vnode), which will be the
+	 * opposite lock order.
+	 */
+	arg.ftype = Fdesc;
+	arg.fd_fd = fd;
+	arg.ix = FD_DESC + fd;
+	arg.fp = fp;
+	arg.td = td;
+	arg.fdropped = fdropped;
+	error = vn_vget_ino_gen(dvp, fdesc_get_ino_alloc, &arg,
+	    LK_EXCLUSIVE, &fvp);
+	fdropped = arg.fdropped;
 
 	if (!fdropped) {
 		/*
