@@ -1,12 +1,11 @@
 # $FreeBSD$
 
-LIB=	pmc
+LIB_CXX= pmc
 
 SRCS=	libpmc.c pmclog.c libpmc_pmu_util.c libpmc_json.cc
 INCS=	pmc.h pmclog.h pmcformat.h
 
 CFLAGS+= -I${SRCTOP}/${RELDIR:H}/libpmcstat
-LDADD+=	-lc++
 
 .if ${MACHINE_CPUARCH} == "aarch64"
 EVENT_ARCH="arm64"
