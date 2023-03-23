@@ -134,5 +134,5 @@ device		loop
 device		ether
 #device		md
 #device		bpf
-#device		random
+device		random
 #device		if_bridge

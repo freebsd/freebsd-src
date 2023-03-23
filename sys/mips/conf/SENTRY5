@@ -89,3 +89,4 @@ device		uart
 device		loop
 device		ether
 device		md
+device		random
