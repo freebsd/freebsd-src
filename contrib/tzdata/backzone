@@ -169,7 +169,7 @@ Zone	Africa/Accra	-0:00:52 -	LMT	1915 Nov  2
 # 12-hour clock starting at our 06:00, so their "8 o'clock" is our
 # 02:00 or 14:00.  Keep this in mind when you ask the time in Amharic.
 #
-# Shanks & Pottenger write that Ethiopia had six narrowly-spaced time
+# Shanks & Pottenger write that Ethiopia had six narrowly spaced time
 # zones between 1870 and 1890, that they merged to 38E50 (2:35:20) in
 # 1890, and that they switched to 3:00 on 1936-05-05.  Perhaps 38E50
 # was for Adis Dera.  Quite likely the Shanks data entries are wrong
@@ -499,7 +499,7 @@ Zone	America/Aruba	-4:40:24 -	LMT	1912 Feb 12 # Oranjestad
 # ever since standard time was introduced, but the information from
 # McKinnon sounds more authoritative.  For now, assume that Atikokan
 # switched to EST immediately after WWII era daylight saving time
-# ended.  This matches the old (less-populous) America/Coral_Harbour
+# ended.  This matches the old (less populous) America/Coral_Harbour
 # entry since our cutoff date of 1970, so we can move
 # America/Coral_Harbour to the 'backward' file.
 
@@ -927,6 +927,11 @@ Zone America/Thunder_Bay -5:57:00 -	LMT	1895
 # British Virgin Is
 Zone America/Tortola	-4:18:28 -	LMT	1911 Jul # Road Town
 			-4:00	-	AST
+
+# Yellowknife, Northwest Territories
+Zone America/Yellowknife 0	-	-00	1935 # Yellowknife founded?
+			-7:00	NT_YK	M%sT	1980
+			-7:00	Canada	M%sT
 
 # Dumont d'Urville, Île des Pétrels, -6640+14001, since 1956-11
 # <https://en.wikipedia.org/wiki/Dumont_d'Urville_Station> (2005-12-05)
@@ -1756,7 +1761,7 @@ Link Pacific/Chuuk Pacific/Yap
 # Enderbury was inhabited 1860/1880s to mine guano, and 1938-03-06/1942-02-09
 # for aviation (ostensibly commercial, but military uses foreseen).
 # The 19th-century dates are approximate.  See Pacific/Kanton for
-# the currently-inhabited representative for this timezone.
+# the currently inhabited representative for this timezone.
 Zone Pacific/Enderbury	0	-	-00	1860
 			-11:24:20 -	LMT	1885
 			0	-	-00	1938 Mar  6
