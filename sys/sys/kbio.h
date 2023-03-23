@@ -71,8 +71,8 @@ struct keyboard_info {
 typedef struct keyboard_info keyboard_info_t;
 
 /* keyboard repeat rate mapping table */
-static const int delays[]  = { 250, 500, 750, 1000 };
-static const int rates[] = { 34,  38,  42,  46,  50,
+static const int kbdelays[]  = { 250, 500, 750, 1000 };
+static const int kbrates[] = { 34,  38,  42,  46,  50,
 	55,  59,  63, 68,  76,  84,  92, 100, 110, 118, 126,
 	136, 152, 168, 184, 200, 220, 236, 252, 272, 304, 336,
 	368, 400, 440, 472, 504 };
