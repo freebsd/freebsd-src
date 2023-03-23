@@ -291,7 +291,6 @@ fdesc_lookup(struct vop_lookup_args *ap)
 	int nlen = cnp->cn_namelen;
 	u_int fd, fd1;
 	int error;
-	bool fdropped;
 	struct vnode *fvp;
 
 	if ((cnp->cn_flags & ISLASTCN) &&
@@ -335,7 +334,6 @@ fdesc_lookup(struct vop_lookup_args *ap)
 	 */
 	if ((error = fget(td, fd, &cap_no_rights, &fp)) != 0)
 		goto bad;
-	fdropped = false;
 
 	/*
 	 * Make sure we do not deadlock looking up the dvp itself.
@@ -351,19 +349,17 @@ fdesc_lookup(struct vop_lookup_args *ap)
 	arg.ix = FD_DESC + fd;
 	arg.fp = fp;
 	arg.td = td;
-	arg.fdropped = fdropped;
+	arg.fdropped = false;
 	error = vn_vget_ino_gen(dvp, fdesc_get_ino_alloc, &arg,
 	    LK_EXCLUSIVE, &fvp);
-	fdropped = arg.fdropped;
 
-	if (!fdropped) {
+	if (!arg.fdropped) {
 		/*
 		 * In case we're holding the last reference to the file, the dvp
 		 * will be re-acquired.
 		 */
 		VOP_UNLOCK(dvp);
 		fdrop(fp, td);
-		fdropped = true;
 
 		vn_lock(dvp, LK_RETRY | LK_EXCLUSIVE);
 		fvp = dvp;
