@@ -6148,6 +6148,7 @@ cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 	    ("%s: internal flags found in cn_flags %" PRIx64, __func__,
 	    cnp->cn_flags));
 	MPASS(cnp->cn_nameptr == cnp->cn_pnbuf);
+	MPASS(ndp->ni_resflags == 0);
 
 	if (__predict_false(!cache_can_fplookup(&fpl))) {
 		*status = fpl.status;
@@ -6172,7 +6173,6 @@ cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 
 	if (cnp->cn_pnbuf[0] == '/') {
 		dvp = cache_fpl_handle_root(&fpl);
-		MPASS(ndp->ni_resflags == 0);
 		ndp->ni_resflags = NIRES_ABS;
 	} else {
 		if (ndp->ni_dirfd == AT_FDCWD) {
