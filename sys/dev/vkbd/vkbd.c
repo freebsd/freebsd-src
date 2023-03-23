@@ -1308,13 +1308,13 @@ vkbd_poll(keyboard_t *kbd, int on)
 static int
 typematic_delay(int i)
 {
-	return (delays[(i >> 5) & 3]);
+	return (kbdelays[(i >> 5) & 3]);
 }
 
 static int
 typematic_rate(int i)
 {
-	return (rates[i & 0x1f]);
+	return (kbrates[i & 0x1f]);
 }
 
 static int
@@ -1323,13 +1323,13 @@ typematic(int delay, int rate)
 	int value;
 	int i;
 
-	for (i = nitems(delays) - 1; i > 0; i --) {
-		if (delay >= delays[i])
+	for (i = nitems(kbdelays) - 1; i > 0; i --) {
+		if (delay >= kbdelays[i])
 			break;
 	}
 	value = i << 5;
-	for (i = nitems(rates) - 1; i > 0; i --) {
-		if (rate >= rates[i])
+	for (i = nitems(kbrates) - 1; i > 0; i --) {
+		if (rate >= kbrates[i])
 			break;
 	}
 	value |= i;
