@@ -102,6 +102,17 @@ SAN_CFLAGS+=	-DSAN_NEEDS_INTERCEPTORS -DSAN_INTERCEPTOR_PREFIX=kasan \
 		-mllvm -asan-use-after-scope=true \
 		-mllvm -asan-instrumentation-with-call-threshold=0 \
 		-mllvm -asan-instrument-byval=false
+
+.if ${MACHINE_CPUARCH} == "aarch64"
+# KASAN/ARM64 TODO: -asan-mapping-offset is calculated from:
+#	   (VM_KERNEL_MIN_ADDRESS >> KASAN_SHADOW_SCALE_SHIFT) + $offset = KASAN_MIN_ADDRESS
+#
+#	This is different than amd64, where we have a different
+#	KASAN_MIN_ADDRESS, and this offset value should eventually be
+#	upstreamed similar to: https://reviews.llvm.org/D98285
+#
+SAN_CFLAGS+=	-mllvm -asan-mapping-offset=0xdfff208000000000
+.endif
 .endif
 
 KCSAN_ENABLED!=	grep KCSAN opt_global.h || true ; echo
