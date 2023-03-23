@@ -174,6 +174,7 @@ main(int argc, char *argv[])
 		switch (opt) {
 		case 'g':
 			opt_g = true;
+			break;
 		case 'v':
 			opt_v = true;
 			break;
