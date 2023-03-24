@@ -1712,10 +1712,10 @@ vm_restart_instruction(struct vcpu *vcpu)
 }
 
 int
-vm_snapshot_req(struct vm_snapshot_meta *meta)
+vm_snapshot_req(struct vmctx *ctx, struct vm_snapshot_meta *meta)
 {
 
-	if (ioctl(meta->ctx->fd, VM_SNAPSHOT_REQ, meta) == -1) {
+	if (ioctl(ctx->fd, VM_SNAPSHOT_REQ, meta) == -1) {
 #ifdef SNAPSHOT_DEBUG
 		fprintf(stderr, "%s: snapshot failed for %s: %d\r\n",
 		    __func__, meta->dev_name, errno);

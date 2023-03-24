@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #ifndef WITHOUT_CAPSICUM
 #include <capsicum_helpers.h>
 #endif
-#include <machine/vmm_snapshot.h>
 
 #include <err.h>
 #include <errno.h>
@@ -68,6 +67,9 @@ __FBSDID("$FreeBSD$");
 #include "config.h"
 #include "debug.h"
 #include "pci_emul.h"
+#ifdef BHYVE_SNAPSHOT
+#include "snapshot.h"
+#endif
 #include "mevent.h"
 #include "net_utils.h"
 #include "net_backends.h"
@@ -2436,8 +2438,8 @@ e82545_snapshot(struct vm_snapshot_meta *meta)
 	SNAPSHOT_VAR_OR_LEAVE(sc->esc_TADV, meta, ret, done);
 
 	/* Has dependency on esc_TDLEN; reoreder of fields from struct. */
-	SNAPSHOT_GUEST2HOST_ADDR_OR_LEAVE(sc->esc_txdesc, sc->esc_TDLEN,
-		true, meta, ret, done);
+	SNAPSHOT_GUEST2HOST_ADDR_OR_LEAVE(pi->pi_vmctx, sc->esc_txdesc,
+	    sc->esc_TDLEN, true, meta, ret, done);
 
 	/* L2 frame acceptance */
 	for (i = 0; i < (int)nitems(sc->esc_uni); i++) {
@@ -2471,8 +2473,8 @@ e82545_snapshot(struct vm_snapshot_meta *meta)
 	SNAPSHOT_VAR_OR_LEAVE(sc->esc_RXCSUM, meta, ret, done);
 
 	/* Has dependency on esc_RDLEN; reoreder of fields from struct. */
-	SNAPSHOT_GUEST2HOST_ADDR_OR_LEAVE(sc->esc_rxdesc, sc->esc_TDLEN,
-		true, meta, ret, done);
+	SNAPSHOT_GUEST2HOST_ADDR_OR_LEAVE(pi->pi_vmctx, sc->esc_rxdesc,
+	    sc->esc_TDLEN, true, meta, ret, done);
 
 	/* IO Port register access */
 	SNAPSHOT_VAR_OR_LEAVE(sc->io_addr, meta, ret, done);

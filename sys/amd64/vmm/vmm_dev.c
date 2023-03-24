@@ -79,6 +79,20 @@ struct vm_stats_old {
 
 #define	VM_STATS_OLD \
 	_IOWR('v', IOCNUM_VM_STATS, struct vm_stats_old)
+
+struct vm_snapshot_meta_old {
+	void *ctx;			/* unused */
+	void *dev_data;
+	const char *dev_name;      /* identify userspace devices */
+	enum snapshot_req dev_req; /* identify kernel structs */
+
+	struct vm_snapshot_buffer buffer;
+
+	enum vm_snapshot_op op;
+};
+
+#define VM_SNAPSHOT_REQ_OLD \
+	_IOWR('v', IOCNUM_SNAPSHOT_REQ, struct vm_snapshot_meta_old)
 #endif
 
 struct devmem_softc {
@@ -416,6 +430,9 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	bool memsegs_locked;
 #ifdef BHYVE_SNAPSHOT
 	struct vm_snapshot_meta *snapshot_meta;
+#ifdef COMPAT_FREEBSD13
+	struct vm_snapshot_meta_old *snapshot_old;
+#endif
 #endif
 
 	error = vmm_priv_check(curthread->td_ucred);
@@ -495,6 +512,9 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_UNMAP_PPTDEV_MMIO:
 #ifdef BHYVE_SNAPSHOT
 	case VM_SNAPSHOT_REQ:
+#ifdef COMPAT_FREEBSD13
+	case VM_SNAPSHOT_REQ_OLD:
+#endif
 	case VM_RESTORE_TIME:
 #endif
 		/*
@@ -951,6 +971,18 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		snapshot_meta = (struct vm_snapshot_meta *)data;
 		error = vm_snapshot_req(sc->vm, snapshot_meta);
 		break;
+#ifdef COMPAT_FREEBSD13
+	case VM_SNAPSHOT_REQ_OLD:
+		/*
+		 * The old structure just has an additional pointer at
+		 * the start that is ignored.
+		 */
+		snapshot_old = (struct vm_snapshot_meta_old *)data;
+		snapshot_meta =
+		    (struct vm_snapshot_meta *)&snapshot_old->dev_data;
+		error = vm_snapshot_req(sc->vm, snapshot_meta);
+		break;
+#endif
 	case VM_RESTORE_TIME:
 		error = vm_restore_time(sc->vm);
 		break;

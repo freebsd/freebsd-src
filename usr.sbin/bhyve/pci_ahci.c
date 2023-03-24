@@ -41,8 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/ata.h>
 #include <sys/endian.h>
 
-#include <machine/vmm_snapshot.h>
-
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -61,6 +59,9 @@ __FBSDID("$FreeBSD$");
 #include "config.h"
 #include "debug.h"
 #include "pci_emul.h"
+#ifdef BHYVE_SNAPSHOT
+#include "snapshot.h"
+#endif
 #include "ahci.h"
 #include "block_if.h"
 
@@ -2623,10 +2624,10 @@ pci_ahci_snapshot(struct vm_snapshot_meta *meta)
 			goto done;
 		}
 
-		SNAPSHOT_GUEST2HOST_ADDR_OR_LEAVE(port->cmd_lst,
+		SNAPSHOT_GUEST2HOST_ADDR_OR_LEAVE(pi->pi_vmctx, port->cmd_lst,
 			AHCI_CL_SIZE * AHCI_MAX_SLOTS, false, meta, ret, done);
-		SNAPSHOT_GUEST2HOST_ADDR_OR_LEAVE(port->rfis, 256, false, meta,
-			ret, done);
+		SNAPSHOT_GUEST2HOST_ADDR_OR_LEAVE(pi->pi_vmctx, port->rfis, 256,
+		    false, meta, ret, done);
 
 		SNAPSHOT_VAR_OR_LEAVE(port->ata_ident, meta, ret, done);
 		SNAPSHOT_VAR_OR_LEAVE(port->atapi, meta, ret, done);
