@@ -568,6 +568,13 @@ vnode_pager_addr(struct vnode *vp, vm_ooffset_t address, daddr_t *rtaddress,
 	return (err);
 }
 
+static void
+vnode_pager_input_bdone(struct buf *bp)
+{
+	runningbufwakeup(bp);
+	bdone(bp);
+}
+
 /*
  * small block filesystem vnode pager input
  */
@@ -614,7 +621,7 @@ vnode_pager_input_smlfs(vm_object_t object, vm_page_t m)
 
 			/* build a minimal buffer header */
 			bp->b_iocmd = BIO_READ;
-			bp->b_iodone = bdone;
+			bp->b_iodone = vnode_pager_input_bdone;
 			KASSERT(bp->b_rcred == NOCRED, ("leaking read ucred"));
 			KASSERT(bp->b_wcred == NOCRED, ("leaking write ucred"));
 			bp->b_rcred = crhold(curthread->td_ucred);
@@ -1131,6 +1138,8 @@ vnode_pager_generic_getpages_done(struct buf *bp)
 	    ("%s: buf error but b_error == 0\n", __func__));
 	error = (bp->b_ioflags & BIO_ERROR) != 0 ? bp->b_error : 0;
 	object = bp->b_vp->v_object;
+
+	runningbufwakeup(bp);
 
 	if (error == 0 && bp->b_bcount != bp->b_npages * PAGE_SIZE) {
 		if (!buf_mapped(bp)) {
