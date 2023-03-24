@@ -12,18 +12,12 @@
 
 name="wpa_supplicant"
 desc="WPA/802.11i Supplicant for wireless network devices"
-start_postcmd="wpa_poststart"
 rcvar=
 
 ifn="$2"
 if [ -z "$ifn" ]; then
 	return 1
 fi
-
-wpa_poststart() {
-	ifconfig ${ifn} down
-	ifconfig ${ifn} up
-}
 
 if is_wired_interface ${ifn} ; then
 	driver="wired"
