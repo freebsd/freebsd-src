@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 
 #include <machine/atomic.h>
-#include <machine/vmm_snapshot.h>
 
 #include <dev/virtio/pci/virtio_pci_legacy_var.h>
 
@@ -47,6 +46,9 @@ __FBSDID("$FreeBSD$");
 #include "bhyverun.h"
 #include "debug.h"
 #include "pci_emul.h"
+#ifdef BHYVE_SNAPSHOT
+#include "snapshot.h"
+#endif
 #include "virtio.h"
 
 /*
@@ -880,8 +882,10 @@ vi_pci_snapshot_queues(struct virtio_softc *vs, struct vm_snapshot_meta *meta)
 	int ret;
 	struct virtio_consts *vc;
 	struct vqueue_info *vq;
+	struct vmctx *ctx;
 	uint64_t addr_size;
 
+	ctx = vs->vs_pi->pi_vmctx;
 	vc = vs->vs_vc;
 
 	/* Save virtio queue info */
@@ -903,15 +907,15 @@ vi_pci_snapshot_queues(struct virtio_softc *vs, struct vm_snapshot_meta *meta)
 			continue;
 
 		addr_size = vq->vq_qsize * sizeof(struct vring_desc);
-		SNAPSHOT_GUEST2HOST_ADDR_OR_LEAVE(vq->vq_desc, addr_size,
+		SNAPSHOT_GUEST2HOST_ADDR_OR_LEAVE(ctx, vq->vq_desc, addr_size,
 			false, meta, ret, done);
 
 		addr_size = (2 + vq->vq_qsize + 1) * sizeof(uint16_t);
-		SNAPSHOT_GUEST2HOST_ADDR_OR_LEAVE(vq->vq_avail, addr_size,
+		SNAPSHOT_GUEST2HOST_ADDR_OR_LEAVE(ctx, vq->vq_avail, addr_size,
 			false, meta, ret, done);
 
 		addr_size  = (2 + 2 * vq->vq_qsize + 1) * sizeof(uint16_t);
-		SNAPSHOT_GUEST2HOST_ADDR_OR_LEAVE(vq->vq_used, addr_size,
+		SNAPSHOT_GUEST2HOST_ADDR_OR_LEAVE(ctx, vq->vq_used, addr_size,
 			false, meta, ret, done);
 
 		SNAPSHOT_BUF_OR_LEAVE(vq->vq_desc,

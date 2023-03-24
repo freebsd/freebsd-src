@@ -44,8 +44,6 @@
 #include <stdbool.h>
 #endif
 
-struct vmctx;
-
 enum snapshot_req {
 	STRUCT_VIOAPIC = 1,
 	STRUCT_VM,
@@ -89,7 +87,6 @@ enum vm_snapshot_op {
 };
 
 struct vm_snapshot_meta {
-	struct vmctx *ctx;
 	void *dev_data;
 	const char *dev_name;      /* identify userspace devices */
 	enum snapshot_req dev_req; /* identify kernel structs */
@@ -103,8 +100,6 @@ void vm_snapshot_buf_err(const char *bufname, const enum vm_snapshot_op op);
 int vm_snapshot_buf(void *data, size_t data_size,
     struct vm_snapshot_meta *meta);
 size_t vm_get_snapshot_size(struct vm_snapshot_meta *meta);
-int vm_snapshot_guest2host_addr(void **addrp, size_t len, bool restore_null,
-    struct vm_snapshot_meta *meta);
 int vm_snapshot_buf_cmp(void *data, size_t data_size,
     struct vm_snapshot_meta *meta);
 
@@ -119,24 +114,6 @@ do {										\
 
 #define	SNAPSHOT_VAR_OR_LEAVE(DATA, META, RES, LABEL)				\
 	SNAPSHOT_BUF_OR_LEAVE(&(DATA), sizeof(DATA), (META), (RES), LABEL)
-
-/*
- * Address variables are pointers to guest memory.
- *
- * When RNULL != 0, do not enforce invalid address checks; instead, make the
- * pointer NULL at restore time.
- */
-#define	SNAPSHOT_GUEST2HOST_ADDR_OR_LEAVE(ADDR, LEN, RNULL, META, RES, LABEL)	\
-do {										\
-	(RES) = vm_snapshot_guest2host_addr((void **)&(ADDR), (LEN), (RNULL),	\
-			(META));					\
-	if ((RES) != 0) {							\
-		if ((RES) == EFAULT)						\
-			fprintf(stderr, "%s: invalid address: %s\r\n",		\
-				__func__, #ADDR);				\
-		goto LABEL;							\
-	}									\
-} while (0)
 
 /* compare the value in the meta buffer with the data */
 #define	SNAPSHOT_BUF_CMP_OR_LEAVE(DATA, LEN, META, RES, LABEL)			\

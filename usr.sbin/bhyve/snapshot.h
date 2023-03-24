@@ -95,7 +95,7 @@ void checkpoint_cpu_suspend(int vcpu);
 int restore_vm_mem(struct vmctx *ctx, struct restore_state *rstate);
 int vm_restore_kern_structs(struct vmctx *ctx, struct restore_state *rstate);
 
-int vm_restore_user_devs(struct vmctx *ctx, struct restore_state *rstate);
+int vm_restore_user_devs(struct restore_state *rstate);
 int vm_pause_user_devs(void);
 int vm_resume_user_devs(void);
 
@@ -105,5 +105,26 @@ int init_checkpoint_thread(struct vmctx *ctx);
 void init_snapshot(void);
 
 int load_restore_file(const char *filename, struct restore_state *rstate);
+
+int vm_snapshot_guest2host_addr(struct vmctx *ctx, void **addrp, size_t len,
+    bool restore_null, struct vm_snapshot_meta *meta);
+
+/*
+ * Address variables are pointers to guest memory.
+ *
+ * When RNULL != 0, do not enforce invalid address checks; instead, make the
+ * pointer NULL at restore time.
+ */
+#define	SNAPSHOT_GUEST2HOST_ADDR_OR_LEAVE(CTX, ADDR, LEN, RNULL, META, RES, LABEL) \
+do {										\
+	(RES) = vm_snapshot_guest2host_addr((CTX), (void **)&(ADDR), (LEN),	\
+	    (RNULL), (META));							\
+	if ((RES) != 0) {							\
+		if ((RES) == EFAULT)						\
+			fprintf(stderr, "%s: invalid address: %s\r\n",		\
+				__func__, #ADDR);				\
+		goto LABEL;							\
+	}									\
+} while (0)
 
 #endif

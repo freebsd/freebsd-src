@@ -265,7 +265,7 @@ void	vm_setup_freebsd_gdt(uint64_t *gdtr);
 /*
  * Save and restore
  */
-int	vm_snapshot_req(struct vm_snapshot_meta *meta);
+int	vm_snapshot_req(struct vmctx *ctx, struct vm_snapshot_meta *meta);
 int	vm_restore_time(struct vmctx *ctx);
 
 /*
