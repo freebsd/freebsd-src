@@ -31,6 +31,6 @@
 #ifndef	_SPINUP_AP_H_
 #define	_SPINUP_AP_H_
 
-void spinup_ap(struct vmctx *ctx, int newcpu, uint64_t rip);
+void spinup_ap(struct vcpu *newcpu, uint64_t rip);
 
 #endif

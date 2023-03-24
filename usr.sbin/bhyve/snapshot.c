@@ -1296,7 +1296,7 @@ vm_vcpu_pause(struct vmctx *ctx)
 
 	pthread_mutex_lock(&vcpu_lock);
 	checkpoint_active = true;
-	vm_suspend_cpu(ctx, -1);
+	vm_suspend_all_cpus(ctx);
 	while (CPU_CMP(&vcpus_active, &vcpus_suspended) != 0)
 		pthread_cond_wait(&vcpus_idle, &vcpu_lock);
 	pthread_mutex_unlock(&vcpu_lock);
@@ -1309,7 +1309,7 @@ vm_vcpu_resume(struct vmctx *ctx)
 	pthread_mutex_lock(&vcpu_lock);
 	checkpoint_active = false;
 	pthread_mutex_unlock(&vcpu_lock);
-	vm_resume_cpu(ctx, -1);
+	vm_resume_all_cpus(ctx);
 	pthread_cond_broadcast(&vcpus_can_run);
 }
 

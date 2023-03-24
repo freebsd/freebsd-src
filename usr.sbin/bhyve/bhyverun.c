@@ -183,7 +183,7 @@ static const char * const vmx_exit_reason_desc[] = {
 	[EXIT_REASON_XRSTORS] = "XRSTORS"
 };
 
-typedef int (*vmexit_handler_t)(struct vmctx *, struct vm_exit *, int *vcpu);
+typedef int (*vmexit_handler_t)(struct vmctx *, struct vcpu *, struct vm_exit *);
 
 int guest_ncpus;
 uint16_t cpu_cores, cpu_sockets, cpu_threads;
@@ -195,7 +195,7 @@ static const int BSP = 0;
 
 static cpuset_t cpumask;
 
-static void vm_loop(struct vmctx *ctx, int vcpu);
+static void vm_loop(struct vmctx *ctx, struct vcpu *vcpu);
 
 static struct bhyvestats {
 	uint64_t	vmexit_bogus;
@@ -208,11 +208,11 @@ static struct bhyvestats {
 	uint64_t	cpu_switch_direct;
 } stats;
 
-static struct mt_vmm_info {
-	pthread_t	mt_thr;
-	struct vmctx	*mt_ctx;
-	int		mt_vcpu;
-} *mt_vmm_info;
+static struct vcpu_info {
+	struct vmctx	*ctx;
+	struct vcpu	*vcpu;
+	int		vcpuid;
+} *vcpu_info;
 
 static cpuset_t **vcpumap;
 
@@ -485,16 +485,14 @@ build_vcpumaps(void)
 }
 
 void
-vm_inject_fault(void *arg, int vcpu, int vector, int errcode_valid,
+vm_inject_fault(struct vcpu *vcpu, int vector, int errcode_valid,
     int errcode)
 {
-	struct vmctx *ctx;
 	int error, restart_instruction;
 
-	ctx = arg;
 	restart_instruction = 1;
 
-	error = vm_inject_exception(ctx, vcpu, vector, errcode_valid, errcode,
+	error = vm_inject_exception(vcpu, vector, errcode_valid, errcode,
 	    restart_instruction);
 	assert(error == 0);
 }
@@ -525,27 +523,24 @@ static void *
 fbsdrun_start_thread(void *param)
 {
 	char tname[MAXCOMLEN + 1];
-	struct mt_vmm_info *mtp;
-	int error, vcpu;
+	struct vcpu_info *vi = param;
+	int error;
 
-	mtp = param;
-	vcpu = mtp->mt_vcpu;
+	snprintf(tname, sizeof(tname), "vcpu %d", vi->vcpuid);
+	pthread_set_name_np(pthread_self(), tname);
 
-	snprintf(tname, sizeof(tname), "vcpu %d", vcpu);
-	pthread_set_name_np(mtp->mt_thr, tname);
-
-	if (vcpumap[vcpu] != NULL) {
-		error = pthread_setaffinity_np(mtp->mt_thr, sizeof(cpuset_t),
-		    vcpumap[vcpu]);
+	if (vcpumap[vi->vcpuid] != NULL) {
+		error = pthread_setaffinity_np(pthread_self(),
+		    sizeof(cpuset_t), vcpumap[vi->vcpuid]);
 		assert(error == 0);
 	}
 
 #ifdef BHYVE_SNAPSHOT
-	checkpoint_cpu_add(vcpu);
+	checkpoint_cpu_add(vi->vcpuid);
 #endif
-	gdb_cpu_add(vcpu);
+	gdb_cpu_add(vi->vcpu);
 
-	vm_loop(mtp->mt_ctx, vcpu);
+	vm_loop(vi->ctx, vi->vcpu);
 
 	/* not reached */
 	exit(1);
@@ -553,23 +548,20 @@ fbsdrun_start_thread(void *param)
 }
 
 static void
-fbsdrun_addcpu(struct vmctx *ctx, int newcpu)
+fbsdrun_addcpu(struct vcpu_info *vi)
 {
+	pthread_t thr;
 	int error;
 
-	error = vm_activate_cpu(ctx, newcpu);
+	error = vm_activate_cpu(vi->vcpu);
 	if (error != 0)
-		err(EX_OSERR, "could not activate CPU %d", newcpu);
+		err(EX_OSERR, "could not activate CPU %d", vi->vcpuid);
 
-	CPU_SET_ATOMIC(newcpu, &cpumask);
+	CPU_SET_ATOMIC(vi->vcpuid, &cpumask);
 
-	vm_suspend_cpu(ctx, newcpu);
+	vm_suspend_cpu(vi->vcpu);
 
-	mt_vmm_info[newcpu].mt_ctx = ctx;
-	mt_vmm_info[newcpu].mt_vcpu = newcpu;
-
-	error = pthread_create(&mt_vmm_info[newcpu].mt_thr, NULL,
-	    fbsdrun_start_thread, &mt_vmm_info[newcpu]);
+	error = pthread_create(&thr, NULL, fbsdrun_start_thread, vi);
 	assert(error == 0);
 }
 
@@ -587,8 +579,8 @@ fbsdrun_deletecpu(int vcpu)
 }
 
 static int
-vmexit_handle_notify(struct vmctx *ctx __unused, struct vm_exit *vme __unused,
-    int *pvcpu __unused, uint32_t eax __unused)
+vmexit_handle_notify(struct vmctx *ctx __unused, struct vcpu *vcpu __unused,
+    struct vm_exit *vme __unused, uint32_t eax __unused)
 {
 #if BHYVE_DEBUG
 	/*
@@ -599,13 +591,10 @@ vmexit_handle_notify(struct vmctx *ctx __unused, struct vm_exit *vme __unused,
 }
 
 static int
-vmexit_inout(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
+vmexit_inout(struct vmctx *ctx, struct vcpu *vcpu, struct vm_exit *vme)
 {
 	int error;
 	int bytes, port, in, out;
-	int vcpu;
-
-	vcpu = *pvcpu;
 
 	port = vme->u.inout.port;
 	bytes = vme->u.inout.bytes;
@@ -614,7 +603,7 @@ vmexit_inout(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 
         /* Extra-special case of host notifications */
         if (out && port == GUEST_NIO_PORT) {
-                error = vmexit_handle_notify(ctx, vme, pvcpu, vme->u.inout.eax);
+                error = vmexit_handle_notify(ctx, vcpu, vme, vme->u.inout.eax);
 		return (error);
 	}
 
@@ -631,45 +620,45 @@ vmexit_inout(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 }
 
 static int
-vmexit_rdmsr(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
+vmexit_rdmsr(struct vmctx *ctx __unused, struct vcpu *vcpu, struct vm_exit *vme)
 {
 	uint64_t val;
 	uint32_t eax, edx;
 	int error;
 
 	val = 0;
-	error = emulate_rdmsr(ctx, *pvcpu, vme->u.msr.code, &val);
+	error = emulate_rdmsr(vcpu, vme->u.msr.code, &val);
 	if (error != 0) {
 		fprintf(stderr, "rdmsr to register %#x on vcpu %d\n",
-		    vme->u.msr.code, *pvcpu);
+		    vme->u.msr.code, vcpu_id(vcpu));
 		if (get_config_bool("x86.strictmsr")) {
-			vm_inject_gp(ctx, *pvcpu);
+			vm_inject_gp(vcpu);
 			return (VMEXIT_CONTINUE);
 		}
 	}
 
 	eax = val;
-	error = vm_set_register(ctx, *pvcpu, VM_REG_GUEST_RAX, eax);
+	error = vm_set_register(vcpu, VM_REG_GUEST_RAX, eax);
 	assert(error == 0);
 
 	edx = val >> 32;
-	error = vm_set_register(ctx, *pvcpu, VM_REG_GUEST_RDX, edx);
+	error = vm_set_register(vcpu, VM_REG_GUEST_RDX, edx);
 	assert(error == 0);
 
 	return (VMEXIT_CONTINUE);
 }
 
 static int
-vmexit_wrmsr(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
+vmexit_wrmsr(struct vmctx *ctx __unused, struct vcpu *vcpu, struct vm_exit *vme)
 {
 	int error;
 
-	error = emulate_wrmsr(ctx, *pvcpu, vme->u.msr.code, vme->u.msr.wval);
+	error = emulate_wrmsr(vcpu, vme->u.msr.code, vme->u.msr.wval);
 	if (error != 0) {
 		fprintf(stderr, "wrmsr to register %#x(%#lx) on vcpu %d\n",
-		    vme->u.msr.code, vme->u.msr.wval, *pvcpu);
+		    vme->u.msr.code, vme->u.msr.wval, vcpu_id(vcpu));
 		if (get_config_bool("x86.strictmsr")) {
-			vm_inject_gp(ctx, *pvcpu);
+			vm_inject_gp(vcpu);
 			return (VMEXIT_CONTINUE);
 		}
 	}
@@ -695,10 +684,10 @@ vmexit_vmx_desc(uint32_t exit_reason)
 }
 
 static int
-vmexit_vmx(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
+vmexit_vmx(struct vmctx *ctx, struct vcpu *vcpu, struct vm_exit *vme)
 {
 
-	fprintf(stderr, "vm exit[%d]\n", *pvcpu);
+	fprintf(stderr, "vm exit[%d]\n", vcpu_id(vcpu));
 	fprintf(stderr, "\treason\t\tVMX\n");
 	fprintf(stderr, "\trip\t\t0x%016lx\n", vme->rip);
 	fprintf(stderr, "\tinst_length\t%d\n", vme->inst_length);
@@ -711,7 +700,7 @@ vmexit_vmx(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 	fprintf(stderr, "\tinst_error\t\t%d\n", vme->u.vmx.inst_error);
 #ifdef DEBUG_EPT_MISCONFIG
 	if (vme->u.vmx.exit_reason == EXIT_REASON_EPT_MISCONFIG) {
-		vm_get_register(ctx, *pvcpu,
+		vm_get_register(vcpu,
 		    VMCS_IDENT(VMCS_GUEST_PHYSICAL_ADDRESS),
 		    &ept_misconfig_gpa);
 		vm_get_gpa_pmap(ctx, ept_misconfig_gpa, ept_misconfig_pte,
@@ -728,10 +717,10 @@ vmexit_vmx(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 }
 
 static int
-vmexit_svm(struct vmctx *ctx __unused, struct vm_exit *vme, int *pvcpu)
+vmexit_svm(struct vmctx *ctx __unused, struct vcpu *vcpu, struct vm_exit *vme)
 {
 
-	fprintf(stderr, "vm exit[%d]\n", *pvcpu);
+	fprintf(stderr, "vm exit[%d]\n", vcpu_id(vcpu));
 	fprintf(stderr, "\treason\t\tSVM\n");
 	fprintf(stderr, "\trip\t\t0x%016lx\n", vme->rip);
 	fprintf(stderr, "\tinst_length\t%d\n", vme->inst_length);
@@ -742,8 +731,8 @@ vmexit_svm(struct vmctx *ctx __unused, struct vm_exit *vme, int *pvcpu)
 }
 
 static int
-vmexit_bogus(struct vmctx *ctx __unused, struct vm_exit *vme,
-    int *pvcpu __unused)
+vmexit_bogus(struct vmctx *ctx __unused, struct vcpu *vcpu __unused,
+    struct vm_exit *vme)
 {
 
 	assert(vme->inst_length == 0);
@@ -754,8 +743,8 @@ vmexit_bogus(struct vmctx *ctx __unused, struct vm_exit *vme,
 }
 
 static int
-vmexit_reqidle(struct vmctx *ctx __unused, struct vm_exit *vme,
-    int *pvcpu __unused)
+vmexit_reqidle(struct vmctx *ctx __unused, struct vcpu *vcpu __unused,
+    struct vm_exit *vme)
 {
 
 	assert(vme->inst_length == 0);
@@ -766,8 +755,8 @@ vmexit_reqidle(struct vmctx *ctx __unused, struct vm_exit *vme,
 }
 
 static int
-vmexit_hlt(struct vmctx *ctx __unused, struct vm_exit *vme __unused,
-    int *pvcpu __unused)
+vmexit_hlt(struct vmctx *ctx __unused, struct vcpu *vcpu __unused,
+    struct vm_exit *vme __unused)
 {
 
 	stats.vmexit_hlt++;
@@ -781,8 +770,8 @@ vmexit_hlt(struct vmctx *ctx __unused, struct vm_exit *vme __unused,
 }
 
 static int
-vmexit_pause(struct vmctx *ctx __unused, struct vm_exit *vme __unused,
-    int *pvcpu __unused)
+vmexit_pause(struct vmctx *ctx __unused, struct vcpu *vcpu __unused,
+    struct vm_exit *vme __unused)
 {
 
 	stats.vmexit_pause++;
@@ -791,7 +780,8 @@ vmexit_pause(struct vmctx *ctx __unused, struct vm_exit *vme __unused,
 }
 
 static int
-vmexit_mtrap(struct vmctx *ctx __unused, struct vm_exit *vme, int *pvcpu)
+vmexit_mtrap(struct vmctx *ctx __unused, struct vcpu *vcpu,
+    struct vm_exit *vme)
 {
 
 	assert(vme->inst_length == 0);
@@ -799,18 +789,19 @@ vmexit_mtrap(struct vmctx *ctx __unused, struct vm_exit *vme, int *pvcpu)
 	stats.vmexit_mtrap++;
 
 #ifdef BHYVE_SNAPSHOT
-	checkpoint_cpu_suspend(*pvcpu);
+	checkpoint_cpu_suspend(vcpu_id(vcpu));
 #endif
-	gdb_cpu_mtrap(*pvcpu);
+	gdb_cpu_mtrap(vcpu);
 #ifdef BHYVE_SNAPSHOT
-	checkpoint_cpu_resume(*pvcpu);
+	checkpoint_cpu_resume(vcpu_id(vcpu));
 #endif
 
 	return (VMEXIT_CONTINUE);
 }
 
 static int
-vmexit_inst_emul(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
+vmexit_inst_emul(struct vmctx *ctx __unused, struct vcpu *vcpu,
+    struct vm_exit *vme)
 {
 	int err, i, cs_d;
 	struct vie *vie;
@@ -831,13 +822,13 @@ vmexit_inst_emul(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 		cs_d = vme->u.inst_emul.cs_d;
 		if (vmm_decode_instruction(mode, cs_d, vie) != 0)
 			goto fail;
-		if (vm_set_register(ctx, *pvcpu, VM_REG_GUEST_RIP,
+		if (vm_set_register(vcpu, VM_REG_GUEST_RIP,
 		    vme->rip + vie->num_processed) != 0)
 			goto fail;
 	}
 
-	err = emulate_mem(ctx, *pvcpu, vme->u.inst_emul.gpa,
-	    vie, &vme->u.inst_emul.paging);
+	err = emulate_mem(vcpu, vme->u.inst_emul.gpa, vie,
+	    &vme->u.inst_emul.paging);
 	if (err) {
 		if (err == ESRCH) {
 			EPRINTLN("Unhandled memory access to 0x%lx\n",
@@ -860,15 +851,16 @@ static pthread_mutex_t resetcpu_mtx = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t resetcpu_cond = PTHREAD_COND_INITIALIZER;
 
 static int
-vmexit_suspend(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
+vmexit_suspend(struct vmctx *ctx, struct vcpu *vcpu, struct vm_exit *vme)
 {
 	enum vm_suspend_how how;
+	int vcpuid = vcpu_id(vcpu);
 
 	how = vme->u.suspended.how;
 
-	fbsdrun_deletecpu(*pvcpu);
+	fbsdrun_deletecpu(vcpuid);
 
-	if (*pvcpu != BSP) {
+	if (vcpuid != BSP) {
 		pthread_mutex_lock(&resetcpu_mtx);
 		pthread_cond_signal(&resetcpu_cond);
 		pthread_mutex_unlock(&resetcpu_mtx);
@@ -900,16 +892,16 @@ vmexit_suspend(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 }
 
 static int
-vmexit_debug(struct vmctx *ctx __unused, struct vm_exit *vme __unused,
-    int *pvcpu)
+vmexit_debug(struct vmctx *ctx __unused, struct vcpu *vcpu,
+    struct vm_exit *vme __unused)
 {
 
 #ifdef BHYVE_SNAPSHOT
-	checkpoint_cpu_suspend(*pvcpu);
+	checkpoint_cpu_suspend(vcpu_id(vcpu));
 #endif
-	gdb_cpu_suspend(*pvcpu);
+	gdb_cpu_suspend(vcpu);
 #ifdef BHYVE_SNAPSHOT
-	checkpoint_cpu_resume(*pvcpu);
+	checkpoint_cpu_resume(vcpu_id(vcpu));
 #endif
 	/*
 	 * XXX-MJ sleep for a short period to avoid chewing up the CPU in the
@@ -920,22 +912,24 @@ vmexit_debug(struct vmctx *ctx __unused, struct vm_exit *vme __unused,
 }
 
 static int
-vmexit_breakpoint(struct vmctx *ctx __unused, struct vm_exit *vme, int *pvcpu)
+vmexit_breakpoint(struct vmctx *ctx __unused, struct vcpu *vcpu,
+    struct vm_exit *vme)
 {
 
-	gdb_cpu_breakpoint(*pvcpu, vme);
+	gdb_cpu_breakpoint(vcpu, vme);
 	return (VMEXIT_CONTINUE);
 }
 
 static int
-vmexit_ipi(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu __unused)
+vmexit_ipi(struct vmctx *ctx __unused, struct vcpu *vcpu __unused,
+    struct vm_exit *vme)
 {
 	int error = -1;
 	int i;
 	switch (vme->u.ipi.mode) {
 	case APIC_DELMODE_INIT:
 		CPU_FOREACH_ISSET(i, &vme->u.ipi.dmask) {
-			error = vm_suspend_cpu(ctx, i);
+			error = vm_suspend_cpu(vcpu_info[i].vcpu);
 			if (error) {
 				warnx("%s: failed to suspend cpu %d\n",
 				    __func__, i);
@@ -945,7 +939,8 @@ vmexit_ipi(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu __unused)
 		break;
 	case APIC_DELMODE_STARTUP:
 		CPU_FOREACH_ISSET(i, &vme->u.ipi.dmask) {
-			spinup_ap(ctx, i, vme->u.ipi.vector << PAGE_SHIFT);
+			spinup_ap(vcpu_info[i].vcpu,
+			    vme->u.ipi.vector << PAGE_SHIFT);
 		}
 		error = 0;
 		break;
@@ -975,7 +970,7 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 };
 
 static void
-vm_loop(struct vmctx *ctx, int vcpu)
+vm_loop(struct vmctx *ctx, struct vcpu *vcpu)
 {
 	struct vm_exit vme;
 	int error, rc;
@@ -983,10 +978,10 @@ vm_loop(struct vmctx *ctx, int vcpu)
 	cpuset_t active_cpus;
 
 	error = vm_active_cpus(ctx, &active_cpus);
-	assert(CPU_ISSET(vcpu, &active_cpus));
+	assert(CPU_ISSET(vcpu_id(vcpu), &active_cpus));
 
 	while (1) {
-		error = vm_run(ctx, vcpu, &vme);
+		error = vm_run(vcpu, &vme);
 		if (error != 0)
 			break;
 
@@ -997,7 +992,7 @@ vm_loop(struct vmctx *ctx, int vcpu)
 			exit(4);
 		}
 
-		rc = (*handler[exitcode])(ctx, &vme, &vcpu);
+		rc = (*handler[exitcode])(ctx, vcpu, &vme);
 
 		switch (rc) {
 		case VMEXIT_CONTINUE:
@@ -1012,7 +1007,7 @@ vm_loop(struct vmctx *ctx, int vcpu)
 }
 
 static int
-num_vcpus_allowed(struct vmctx *ctx)
+num_vcpus_allowed(struct vmctx *ctx, struct vcpu *vcpu)
 {
 	uint16_t sockets, cores, threads, maxcpus;
 	int tmp, error;
@@ -1021,7 +1016,7 @@ num_vcpus_allowed(struct vmctx *ctx)
 	 * The guest is allowed to spinup more than one processor only if the
 	 * UNRESTRICTED_GUEST capability is available.
 	 */
-	error = vm_get_capability(ctx, BSP, VM_CAP_UNRESTRICTED_GUEST, &tmp);
+	error = vm_get_capability(vcpu, VM_CAP_UNRESTRICTED_GUEST, &tmp);
 	if (error != 0)
 		return (1);
 
@@ -1033,18 +1028,18 @@ num_vcpus_allowed(struct vmctx *ctx)
 }
 
 static void
-fbsdrun_set_capabilities(struct vmctx *ctx, int cpu)
+fbsdrun_set_capabilities(struct vcpu *vcpu, bool bsp)
 {
 	int err, tmp;
 
 	if (get_config_bool_default("x86.vmexit_on_hlt", false)) {
-		err = vm_get_capability(ctx, cpu, VM_CAP_HALT_EXIT, &tmp);
+		err = vm_get_capability(vcpu, VM_CAP_HALT_EXIT, &tmp);
 		if (err < 0) {
 			fprintf(stderr, "VM exit on HLT not supported\n");
 			exit(4);
 		}
-		vm_set_capability(ctx, cpu, VM_CAP_HALT_EXIT, 1);
-		if (cpu == BSP)
+		vm_set_capability(vcpu, VM_CAP_HALT_EXIT, 1);
+		if (bsp)
 			handler[VM_EXITCODE_HLT] = vmexit_hlt;
 	}
 
@@ -1052,30 +1047,30 @@ fbsdrun_set_capabilities(struct vmctx *ctx, int cpu)
 		/*
 		 * pause exit support required for this mode
 		 */
-		err = vm_get_capability(ctx, cpu, VM_CAP_PAUSE_EXIT, &tmp);
+		err = vm_get_capability(vcpu, VM_CAP_PAUSE_EXIT, &tmp);
 		if (err < 0) {
 			fprintf(stderr,
 			    "SMP mux requested, no pause support\n");
 			exit(4);
 		}
-		vm_set_capability(ctx, cpu, VM_CAP_PAUSE_EXIT, 1);
-		if (cpu == BSP)
+		vm_set_capability(vcpu, VM_CAP_PAUSE_EXIT, 1);
+		if (bsp)
 			handler[VM_EXITCODE_PAUSE] = vmexit_pause;
         }
 
 	if (get_config_bool_default("x86.x2apic", false))
-		err = vm_set_x2apic_state(ctx, cpu, X2APIC_ENABLED);
+		err = vm_set_x2apic_state(vcpu, X2APIC_ENABLED);
 	else
-		err = vm_set_x2apic_state(ctx, cpu, X2APIC_DISABLED);
+		err = vm_set_x2apic_state(vcpu, X2APIC_DISABLED);
 
 	if (err) {
 		fprintf(stderr, "Unable to set x2apic state (%d)\n", err);
 		exit(4);
 	}
 
-	vm_set_capability(ctx, cpu, VM_CAP_ENABLE_INVPCID, 1);
+	vm_set_capability(vcpu, VM_CAP_ENABLE_INVPCID, 1);
 
-	err = vm_set_capability(ctx, cpu, VM_CAP_IPI_EXIT, 1);
+	err = vm_set_capability(vcpu, VM_CAP_IPI_EXIT, 1);
 	assert(err == 0);
 }
 
@@ -1143,23 +1138,23 @@ do_open(const char *vmname)
 }
 
 static void
-spinup_vcpu(struct vmctx *ctx, int vcpu)
+spinup_vcpu(struct vcpu_info *vi, bool bsp)
 {
 	int error;
 
-	if (vcpu != BSP) {
-		fbsdrun_set_capabilities(ctx, vcpu);
+	if (!bsp) {
+		fbsdrun_set_capabilities(vi->vcpu, false);
 
 		/*
 		 * Enable the 'unrestricted guest' mode for APs.
 		 *
 		 * APs startup in power-on 16-bit mode.
 		 */
-		error = vm_set_capability(ctx, vcpu, VM_CAP_UNRESTRICTED_GUEST, 1);
+		error = vm_set_capability(vi->vcpu, VM_CAP_UNRESTRICTED_GUEST, 1);
 		assert(error == 0);
 	}
 
-	fbsdrun_addcpu(ctx, vcpu);
+	fbsdrun_addcpu(vi);
 }
 
 static bool
@@ -1245,6 +1240,7 @@ main(int argc, char *argv[])
 {
 	int c, error;
 	int max_vcpus, memflags;
+	struct vcpu *bsp;
 	struct vmctx *ctx;
 	uint64_t rip;
 	size_t memsize;
@@ -1429,14 +1425,26 @@ main(int argc, char *argv[])
 	}
 #endif
 
-	max_vcpus = num_vcpus_allowed(ctx);
+	bsp = vm_vcpu_open(ctx, BSP);
+	max_vcpus = num_vcpus_allowed(ctx, bsp);
 	if (guest_ncpus > max_vcpus) {
 		fprintf(stderr, "%d vCPUs requested but only %d available\n",
 			guest_ncpus, max_vcpus);
 		exit(4);
 	}
 
-	fbsdrun_set_capabilities(ctx, BSP);
+	fbsdrun_set_capabilities(bsp, true);
+
+	/* Allocate per-VCPU resources. */
+	vcpu_info = calloc(guest_ncpus, sizeof(*vcpu_info));
+	for (int vcpuid = 0; vcpuid < guest_ncpus; vcpuid++) {
+		vcpu_info[vcpuid].ctx = ctx;
+		vcpu_info[vcpuid].vcpuid = vcpuid;
+		if (vcpuid == BSP)
+			vcpu_info[vcpuid].vcpu = bsp;
+		else
+			vcpu_info[vcpuid].vcpu = vm_vcpu_open(ctx, vcpuid);
+	}
 
 	memflags = 0;
 	if (get_config_bool_default("memory.wired", false))
@@ -1496,24 +1504,20 @@ main(int argc, char *argv[])
 	init_gdb(ctx);
 
 	if (lpc_bootrom()) {
-		if (vm_set_capability(ctx, BSP, VM_CAP_UNRESTRICTED_GUEST, 1)) {
+		if (vm_set_capability(bsp, VM_CAP_UNRESTRICTED_GUEST, 1)) {
 			fprintf(stderr, "ROM boot failed: unrestricted guest "
 			    "capability not available\n");
 			exit(4);
 		}
-		error = vcpu_reset(ctx, BSP);
+		error = vcpu_reset(bsp);
 		assert(error == 0);
 	}
-
-	/* Allocate per-VCPU resources. */
-	mt_vmm_info = calloc(guest_ncpus, sizeof(*mt_vmm_info));
 
 	/*
 	 * Add all vCPUs.
 	 */
-	for (int vcpu = 0; vcpu < guest_ncpus; vcpu++) {
-		spinup_vcpu(ctx, vcpu);
-	}
+	for (int vcpuid = 0; vcpuid < guest_ncpus; vcpuid++)
+		spinup_vcpu(&vcpu_info[vcpuid], vcpuid == BSP);
 
 #ifdef BHYVE_SNAPSHOT
 	if (restore_file != NULL) {
@@ -1549,7 +1553,7 @@ main(int argc, char *argv[])
 	}
 #endif
 
-	error = vm_get_register(ctx, BSP, VM_REG_GUEST_RIP, &rip);
+	error = vm_get_register(bsp, VM_REG_GUEST_RIP, &rip);
 	assert(error == 0);
 
 	/*
@@ -1608,14 +1612,11 @@ main(int argc, char *argv[])
 		if (vm_restore_time(ctx) < 0)
 			err(EX_OSERR, "Unable to restore time");
 
-		for (int i = 0; i < guest_ncpus; i++) {
-			if (i == BSP)
-				continue;
-			vm_resume_cpu(ctx, i);
-		}
-	}
+		for (int vcpuid = 0; vcpuid < guest_ncpus; vcpuid++)
+			vm_resume_cpu(vcpu_info[vcpuid].vcpu);
+	} else
 #endif
-	vm_resume_cpu(ctx, BSP);
+		vm_resume_cpu(bsp);
 
 	/*
 	 * Head off to the main event dispatch loop
