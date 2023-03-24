@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 29, 2021
+.Dd March 23, 2023
 .Dt KASAN 9
 .Os
 .Sh NAME
@@ -52,7 +52,7 @@ kernel configuration file:
 .Nm
 is a subsystem which leverages compiler instrumentation to detect invalid
 memory accesses in the kernel.
-Currently it is implemented only on the amd64 platform.
+Currently it is implemented on the amd64 and arm64 platforms.
 .Pp
 When
 .Nm
@@ -168,7 +168,7 @@ When
 .Nm
 is configured, the kernel memory allocators are configured to use the kernel
 map, but some uses of the direct map remain.
-For example, on amd64, accesses to page table pages are not tracked.
+For example, on amd64 and arm64, accesses to page table pages are not tracked.
 .Pp
 Some kernel memory allocators explicitly permit accesses after an object has
 been freed.
