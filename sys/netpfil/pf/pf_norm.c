@@ -1020,7 +1020,8 @@ pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag,
 				MPASS(m->m_pkthdr.rcvif != NULL);
 				ip6_forward(m, 0);
 			} else {
-				ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
+				(void)ip6_output(m, NULL, NULL, 0, NULL, NULL,
+				    NULL);
 			}
 		else
 			m_freem(m);
