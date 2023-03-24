@@ -52,6 +52,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20230324: libvmmapi shlib version bumped to 6
+OLD_LIBS+=usr/lib/libvmmapi.so.5
+
 # 20230320: vcount.9 removed
 OLD_FILES+=usr/share/man/man9/count_dev.9.gz
 OLD_FILES+=usr/share/man/man9/vcount.9.gz
