@@ -242,6 +242,7 @@ setcarp_peer6(const char *val, int d, int s, const struct afswtch *afp)
 
 	memcpy(&carp_addr6, &((struct sockaddr_in6 *)res->ai_addr)->sin6_addr,
 	    sizeof(carp_addr6));
+	freeaddrinfo(res);
 }
 
 static void
