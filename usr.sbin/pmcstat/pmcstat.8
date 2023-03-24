@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 17, 2020
+.Dd March 24, 2023
 .Dt PMCSTAT 8
 .Os
 .Sh NAME
@@ -107,6 +107,10 @@ counting and sampling flavors.
 The values of all counting PMCs are printed in human readable form
 at regular intervals by
 .Nm .
+The format of
+.Nm Ns 's
+human-readable textual output is not stable, and could change
+in the future.
 The output of sampling PMCs may be configured to go to a log file for
 subsequent offline analysis, or, at the expense of greater
 overhead, may be configured to be printed in text form on the fly.
