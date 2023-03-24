@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/vmm.h>
 
+#include <assert.h>
 #include <dirent.h>
 #include <dlfcn.h>
 #include <errno.h>
@@ -108,6 +109,7 @@ static jmp_buf jb;
 
 static char *vmname, *progname;
 static struct vmctx *ctx;
+static struct vcpu *vcpu;
 
 static uint64_t gdtbase, cr3, rsp;
 
@@ -410,7 +412,7 @@ cb_setreg(void *arg __unused, int r, uint64_t v)
 		cb_exit(NULL, USERBOOT_EXIT_QUIT);
 	}
 
-	error = vm_set_register(ctx, BSP, vmreg, v);
+	error = vm_set_register(vcpu, vmreg, v);
 	if (error) {
 		perror("vm_set_register");
 		cb_exit(NULL, USERBOOT_EXIT_QUIT);
@@ -438,7 +440,7 @@ cb_setmsr(void *arg __unused, int r, uint64_t v)
 		cb_exit(NULL, USERBOOT_EXIT_QUIT);
 	}
 
-	error = vm_set_register(ctx, BSP, vmreg, v);
+	error = vm_set_register(vcpu, vmreg, v);
 	if (error) {
 		perror("vm_set_msr");
 		cb_exit(NULL, USERBOOT_EXIT_QUIT);
@@ -473,7 +475,7 @@ cb_setcr(void *arg __unused, int r, uint64_t v)
 		cb_exit(NULL, USERBOOT_EXIT_QUIT);
 	}
 
-	error = vm_set_register(ctx, BSP, vmreg, v);
+	error = vm_set_register(vcpu, vmreg, v);
 	if (error) {
 		perror("vm_set_cr");
 		cb_exit(NULL, USERBOOT_EXIT_QUIT);
@@ -485,7 +487,7 @@ cb_setgdt(void *arg __unused, uint64_t base, size_t size)
 {
 	int error;
 
-	error = vm_set_desc(ctx, BSP, VM_REG_GUEST_GDTR, base, size - 1, 0);
+	error = vm_set_desc(vcpu, VM_REG_GUEST_GDTR, base, size - 1, 0);
 	if (error != 0) {
 		perror("vm_set_desc(gdt)");
 		cb_exit(NULL, USERBOOT_EXIT_QUIT);
@@ -500,10 +502,10 @@ cb_exec(void *arg __unused, uint64_t rip)
 	int error;
 
 	if (cr3 == 0)
-		error = vm_setup_freebsd_registers_i386(ctx, BSP, rip, gdtbase,
+		error = vm_setup_freebsd_registers_i386(vcpu, rip, gdtbase,
 		    rsp);
 	else
-		error = vm_setup_freebsd_registers(ctx, BSP, rip, cr3, gdtbase,
+		error = vm_setup_freebsd_registers(vcpu, rip, cr3, gdtbase,
 		    rsp);
 	if (error) {
 		perror("vm_setup_freebsd_registers");
@@ -578,18 +580,20 @@ cb_getenv(void *arg __unused, int num)
 }
 
 static int
-cb_vm_set_register(void *arg __unused, int vcpu, int reg, uint64_t val)
+cb_vm_set_register(void *arg __unused, int vcpuid, int reg, uint64_t val)
 {
 
-	return (vm_set_register(ctx, vcpu, reg, val));
+	assert(vcpuid == BSP);
+	return (vm_set_register(vcpu, reg, val));
 }
 
 static int
-cb_vm_set_desc(void *arg __unused, int vcpu, int reg, uint64_t base,
+cb_vm_set_desc(void *arg __unused, int vcpuid, int reg, uint64_t base,
     u_int limit, u_int access)
 {
 
-	return (vm_set_desc(ctx, vcpu, reg, base, limit, access));
+	assert(vcpuid == BSP);
+	return (vm_set_desc(vcpu, reg, base, limit, access));
 }
 
 static void
@@ -801,6 +805,8 @@ main(int argc, char** argv)
 		perror("vm_open");
 		exit(1);
 	}
+
+	vcpu = vm_vcpu_open(ctx, BSP);
 
 	/*
 	 * setjmp in the case the guest wants to swap out interpreter,

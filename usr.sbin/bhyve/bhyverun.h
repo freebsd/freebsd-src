@@ -37,6 +37,7 @@
 extern int guest_ncpus;
 extern uint16_t cpu_cores, cpu_sockets, cpu_threads;
 
+struct vcpu;
 struct vmctx;
 struct vm_exit;
 
@@ -47,6 +48,6 @@ uintptr_t paddr_host2guest(struct vmctx *ctx, void *addr);
 
 int  fbsdrun_virtio_msix(void);
 
-int vmexit_task_switch(struct vmctx *, struct vm_exit *, int *vcpu);
+int vmexit_task_switch(struct vmctx *, struct vcpu *, struct vm_exit *);
 
 #endif

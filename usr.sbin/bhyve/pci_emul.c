@@ -476,7 +476,7 @@ pci_emul_io_handler(struct vmctx *ctx __unused, int in, int port,
 }
 
 static int
-pci_emul_mem_handler(struct vmctx *ctx __unused, int vcpu __unused, int dir,
+pci_emul_mem_handler(struct vcpu *vcpu __unused, int dir,
     uint64_t addr, int size, uint64_t *val, void *arg1, long arg2)
 {
 	struct pci_devinst *pdi = arg1;
@@ -1278,8 +1278,8 @@ pci_emul_iscap(struct pci_devinst *pi, int offset)
 }
 
 static int
-pci_emul_fallback_handler(struct vmctx *ctx __unused, int vcpu __unused,
-    int dir, uint64_t addr __unused, int size __unused, uint64_t *val,
+pci_emul_fallback_handler(struct vcpu *vcpu __unused, int dir,
+    uint64_t addr __unused, int size __unused, uint64_t *val,
     void *arg1 __unused, long arg2 __unused)
 {
 	/*
@@ -1294,9 +1294,8 @@ pci_emul_fallback_handler(struct vmctx *ctx __unused, int vcpu __unused,
 }
 
 static int
-pci_emul_ecfg_handler(struct vmctx *ctx __unused, int vcpu __unused, int dir,
-    uint64_t addr, int bytes, uint64_t *val, void *arg1 __unused,
-    long arg2 __unused)
+pci_emul_ecfg_handler(struct vcpu *vcpu __unused, int dir, uint64_t addr,
+    int bytes, uint64_t *val, void *arg1 __unused, long arg2 __unused)
 {
 	int bus, slot, func, coff, in;
 

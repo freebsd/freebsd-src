@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <vmmapi.h>
 
 #include "mem.h"
 
@@ -142,53 +143,53 @@ mmio_rb_dump(struct mmio_rb_tree *rbt)
 
 RB_GENERATE(mmio_rb_tree, mmio_rb_range, mr_link, mmio_rb_range_compare);
 
-typedef int (mem_cb_t)(struct vmctx *ctx, int vcpu, uint64_t gpa,
-    struct mem_range *mr, void *arg);
+typedef int (mem_cb_t)(struct vcpu *vcpu, uint64_t gpa, struct mem_range *mr,
+    void *arg);
 
 static int
-mem_read(void *ctx, int vcpu, uint64_t gpa, uint64_t *rval, int size, void *arg)
+mem_read(struct vcpu *vcpu, uint64_t gpa, uint64_t *rval, int size, void *arg)
 {
 	int error;
 	struct mem_range *mr = arg;
 
-	error = (*mr->handler)(ctx, vcpu, MEM_F_READ, gpa, size,
-			       rval, mr->arg1, mr->arg2);
+	error = (*mr->handler)(vcpu, MEM_F_READ, gpa, size, rval, mr->arg1,
+	    mr->arg2);
 	return (error);
 }
 
 static int
-mem_write(void *ctx, int vcpu, uint64_t gpa, uint64_t wval, int size, void *arg)
+mem_write(struct vcpu *vcpu, uint64_t gpa, uint64_t wval, int size, void *arg)
 {
 	int error;
 	struct mem_range *mr = arg;
 
-	error = (*mr->handler)(ctx, vcpu, MEM_F_WRITE, gpa, size,
-			       &wval, mr->arg1, mr->arg2);
+	error = (*mr->handler)(vcpu, MEM_F_WRITE, gpa, size, &wval, mr->arg1,
+	    mr->arg2);
 	return (error);
 }
 
 static int
-access_memory(struct vmctx *ctx, int vcpu, uint64_t paddr, mem_cb_t *cb,
-    void *arg)
+access_memory(struct vcpu *vcpu, uint64_t paddr, mem_cb_t *cb, void *arg)
 {
 	struct mmio_rb_range *entry;
-	int err, perror, immutable;
+	int err, perror, immutable, vcpuid;
 
+	vcpuid = vcpu_id(vcpu);
 	pthread_rwlock_rdlock(&mmio_rwlock);
 	/*
 	 * First check the per-vCPU cache
 	 */
-	if (mmio_hint[vcpu] &&
-	    paddr >= mmio_hint[vcpu]->mr_base &&
-	    paddr <= mmio_hint[vcpu]->mr_end) {
-		entry = mmio_hint[vcpu];
+	if (mmio_hint[vcpuid] &&
+	    paddr >= mmio_hint[vcpuid]->mr_base &&
+	    paddr <= mmio_hint[vcpuid]->mr_end) {
+		entry = mmio_hint[vcpuid];
 	} else
 		entry = NULL;
 
 	if (entry == NULL) {
 		if (mmio_rb_lookup(&mmio_rb_root, paddr, &entry) == 0) {
 			/* Update the per-vCPU cache */
-			mmio_hint[vcpu] = entry;
+			mmio_hint[vcpuid] = entry;
 		} else if (mmio_rb_lookup(&mmio_rb_fallback, paddr, &entry)) {
 			perror = pthread_rwlock_unlock(&mmio_rwlock);
 			assert(perror == 0);
@@ -215,13 +216,12 @@ access_memory(struct vmctx *ctx, int vcpu, uint64_t paddr, mem_cb_t *cb,
 		assert(perror == 0);
 	}
 
-	err = cb(ctx, vcpu, paddr, &entry->mr_param, arg);
+	err = cb(vcpu, paddr, &entry->mr_param, arg);
 
 	if (!immutable) {
 		perror = pthread_rwlock_unlock(&mmio_rwlock);
 		assert(perror == 0);
 	}
-
 
 	return (err);
 }
@@ -232,26 +232,25 @@ struct emulate_mem_args {
 };
 
 static int
-emulate_mem_cb(struct vmctx *ctx, int vcpu, uint64_t paddr, struct mem_range *mr,
+emulate_mem_cb(struct vcpu *vcpu, uint64_t paddr, struct mem_range *mr,
     void *arg)
 {
 	struct emulate_mem_args *ema;
 
 	ema = arg;
-	return (vmm_emulate_instruction(ctx, vcpu, paddr, ema->vie, ema->paging,
+	return (vmm_emulate_instruction(vcpu, paddr, ema->vie, ema->paging,
 	    mem_read, mem_write, mr));
 }
 
 int
-emulate_mem(struct vmctx *ctx, int vcpu, uint64_t paddr, struct vie *vie,
+emulate_mem(struct vcpu *vcpu, uint64_t paddr, struct vie *vie,
     struct vm_guest_paging *paging)
-
 {
 	struct emulate_mem_args ema;
 
 	ema.vie = vie;
 	ema.paging = paging;
-	return (access_memory(ctx, vcpu, paddr, emulate_mem_cb, &ema));
+	return (access_memory(vcpu, paddr, emulate_mem_cb, &ema));
 }
 
 struct rw_mem_args {
@@ -261,36 +260,35 @@ struct rw_mem_args {
 };
 
 static int
-rw_mem_cb(struct vmctx *ctx, int vcpu, uint64_t paddr, struct mem_range *mr,
-    void *arg)
+rw_mem_cb(struct vcpu *vcpu, uint64_t paddr, struct mem_range *mr, void *arg)
 {
 	struct rw_mem_args *rma;
 
 	rma = arg;
-	return (mr->handler(ctx, vcpu, rma->operation, paddr, rma->size,
+	return (mr->handler(vcpu, rma->operation, paddr, rma->size,
 	    rma->val, mr->arg1, mr->arg2));
 }
 
 int
-read_mem(struct vmctx *ctx, int vcpu, uint64_t gpa, uint64_t *rval, int size)
+read_mem(struct vcpu *vcpu, uint64_t gpa, uint64_t *rval, int size)
 {
 	struct rw_mem_args rma;
 
 	rma.val = rval;
 	rma.size = size;
 	rma.operation = MEM_F_READ;
-	return (access_memory(ctx, vcpu, gpa, rw_mem_cb, &rma));
+	return (access_memory(vcpu, gpa, rw_mem_cb, &rma));
 }
 
 int
-write_mem(struct vmctx *ctx, int vcpu, uint64_t gpa, uint64_t wval, int size)
+write_mem(struct vcpu *vcpu, uint64_t gpa, uint64_t wval, int size)
 {
 	struct rw_mem_args rma;
 
 	rma.val = &wval;
 	rma.size = size;
 	rma.operation = MEM_F_WRITE;
-	return (access_memory(ctx, vcpu, gpa, rw_mem_cb, &rma));
+	return (access_memory(vcpu, gpa, rw_mem_cb, &rma));
 }
 
 static int

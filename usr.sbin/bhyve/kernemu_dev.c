@@ -46,10 +46,10 @@ struct vm_hpet_cap;
 #include "mem.h"
 
 static int
-apic_handler(struct vmctx *ctx, int vcpu, int dir, uint64_t addr, int size,
+apic_handler(struct vcpu *vcpu, int dir, uint64_t addr, int size,
     uint64_t *val, void *arg1 __unused, long arg2 __unused)
 {
-	if (vm_readwrite_kernemu_device(ctx, vcpu, addr, (dir == MEM_F_WRITE),
+	if (vm_readwrite_kernemu_device(vcpu, addr, (dir == MEM_F_WRITE),
 	    size, val) != 0)
 		return (errno);
 	return (0);

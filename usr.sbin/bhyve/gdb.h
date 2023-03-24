@@ -30,10 +30,10 @@
 #ifndef __GDB_H__
 #define	__GDB_H__
 
-void	gdb_cpu_add(int vcpu);
-void	gdb_cpu_breakpoint(int vcpu, struct vm_exit *vmexit);
-void	gdb_cpu_mtrap(int vcpu);
-void	gdb_cpu_suspend(int vcpu);
+void	gdb_cpu_add(struct vcpu *vcpu);
+void	gdb_cpu_breakpoint(struct vcpu *vcpu, struct vm_exit *vmexit);
+void	gdb_cpu_mtrap(struct vcpu *vcpu);
+void	gdb_cpu_suspend(struct vcpu *vcpu);
 void	init_gdb(struct vmctx *ctx);
 
 #endif /* !__GDB_H__ */

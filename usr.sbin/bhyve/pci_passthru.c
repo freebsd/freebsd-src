@@ -445,7 +445,7 @@ msix_table_write(struct passthru_softc *sc, uint64_t offset, int size,
 		/* If the entry is masked, don't set it up */
 		if ((entry->vector_control & PCIM_MSIX_VCTRL_MASK) == 0 ||
 		    (vector_control & PCIM_MSIX_VCTRL_MASK) == 0) {
-			(void)vm_setup_pptdev_msix(sc->psc_pi->pi_vmctx, 0,
+			(void)vm_setup_pptdev_msix(sc->psc_pi->pi_vmctx,
 			    sc->psc_sel.pc_bus, sc->psc_sel.pc_dev,
 			    sc->psc_sel.pc_func, index, entry->addr,
 			    entry->msg_data, entry->vector_control);
@@ -966,7 +966,7 @@ passthru_cfgwrite(struct pci_devinst *pi, int coff, int bytes, uint32_t val)
 	if (msicap_access(sc, coff)) {
 		pci_emul_capwrite(pi, coff, bytes, val, sc->psc_msi.capoff,
 		    PCIY_MSI);
-		error = vm_setup_pptdev_msi(pi->pi_vmctx, 0, sc->psc_sel.pc_bus,
+		error = vm_setup_pptdev_msi(pi->pi_vmctx, sc->psc_sel.pc_bus,
 			sc->psc_sel.pc_dev, sc->psc_sel.pc_func,
 			pi->pi_msi.addr, pi->pi_msi.msg_data,
 			pi->pi_msi.maxmsgnum);
@@ -981,7 +981,7 @@ passthru_cfgwrite(struct pci_devinst *pi, int coff, int bytes, uint32_t val)
 		if (pi->pi_msix.enabled) {
 			msix_table_entries = pi->pi_msix.table_count;
 			for (i = 0; i < msix_table_entries; i++) {
-				error = vm_setup_pptdev_msix(pi->pi_vmctx, 0,
+				error = vm_setup_pptdev_msix(pi->pi_vmctx,
 				    sc->psc_sel.pc_bus, sc->psc_sel.pc_dev,
 				    sc->psc_sel.pc_func, i,
 				    pi->pi_msix.table[i].addr,

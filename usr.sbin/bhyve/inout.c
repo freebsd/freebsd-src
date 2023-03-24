@@ -104,7 +104,7 @@ register_default_iohandler(int start, int size)
 }
 
 int
-emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit)
+emulate_inout(struct vmctx *ctx, struct vcpu *vcpu, struct vm_exit *vmexit)
 {
 	int addrsize, bytes, flags, in, port, prot, rep;
 	uint32_t eax, val;
@@ -162,11 +162,11 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit)
 			if (vie_calculate_gla(vis->paging.cpu_mode,
 			    vis->seg_name, &vis->seg_desc, index, bytes,
 			    addrsize, prot, &gla)) {
-				vm_inject_gp(ctx, vcpu);
+				vm_inject_gp(vcpu);
 				break;
 			}
 
-			error = vm_copy_setup(ctx, vcpu, &vis->paging, gla,
+			error = vm_copy_setup(vcpu, &vis->paging, gla,
 			    bytes, prot, iov, nitems(iov), &fault);
 			if (error) {
 				retval = -1;  /* Unrecoverable error */
@@ -178,7 +178,7 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit)
 
 			if (vie_alignment_check(vis->paging.cpl, bytes,
 			    vis->cr0, vis->rflags, gla)) {
-				vm_inject_ac(ctx, vcpu, 0);
+				vm_inject_ac(vcpu, 0);
 				break;
 			}
 
@@ -204,7 +204,7 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit)
 		}
 
 		/* Update index register */
-		error = vie_update_register(ctx, vcpu, idxreg, index, addrsize);
+		error = vie_update_register(vcpu, idxreg, index, addrsize);
 		assert(error == 0);
 
 		/*
@@ -212,14 +212,14 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit)
 		 * prefix.
 		 */
 		if (rep) {
-			error = vie_update_register(ctx, vcpu, VM_REG_GUEST_RCX,
+			error = vie_update_register(vcpu, VM_REG_GUEST_RCX,
 			    count, addrsize);
 			assert(error == 0);
 		}
 
 		/* Restart the instruction if more iterations remain */
 		if (retval == 0 && count != 0) {
-			error = vm_restart_instruction(ctx, vcpu);
+			error = vm_restart_instruction(vcpu);
 			assert(error == 0);
 		}
 	} else {
@@ -229,7 +229,7 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit)
 		if (retval == 0 && in) {
 			eax &= ~vie_size2mask(bytes);
 			eax |= val & vie_size2mask(bytes);
-			error = vm_set_register(ctx, vcpu, VM_REG_GUEST_RAX,
+			error = vm_set_register(vcpu, VM_REG_GUEST_RAX,
 			    eax);
 			assert(error == 0);
 		}

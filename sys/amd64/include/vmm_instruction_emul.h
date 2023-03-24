@@ -34,25 +34,12 @@
 #include <sys/mman.h>
 
 /*
- * Allow for different arguments to identify vCPUs in userspace vs the
- * kernel.  Eventually we should add struct vcpu in userland and
- * always use the kernel arguments removing these macros.
- */
-#ifdef _KERNEL
-#define	VCPU_DECL	struct vcpu *vcpu
-#define	VCPU_ARGS	vcpu
-#else
-#define	VCPU_DECL	void *vm, int vcpuid
-#define	VCPU_ARGS	vm, vcpuid
-#endif
-
-/*
  * Callback functions to read and write memory regions.
  */
-typedef int (*mem_region_read_t)(VCPU_DECL, uint64_t gpa,
+typedef int (*mem_region_read_t)(struct vcpu *vcpu, uint64_t gpa,
 				 uint64_t *rval, int rsize, void *arg);
 
-typedef int (*mem_region_write_t)(VCPU_DECL, uint64_t gpa,
+typedef int (*mem_region_write_t)(struct vcpu *vcpu, uint64_t gpa,
 				  uint64_t wval, int wsize, void *arg);
 
 /*
@@ -66,11 +53,11 @@ typedef int (*mem_region_write_t)(VCPU_DECL, uint64_t gpa,
  * 'struct vmctx *' when called from user context.
  * s
  */
-int vmm_emulate_instruction(VCPU_DECL, uint64_t gpa, struct vie *vie,
+int vmm_emulate_instruction(struct vcpu *vcpu, uint64_t gpa, struct vie *vie,
     struct vm_guest_paging *paging, mem_region_read_t mrr,
     mem_region_write_t mrw, void *mrarg);
 
-int vie_update_register(VCPU_DECL, enum vm_reg_name reg,
+int vie_update_register(struct vcpu *vcpu, enum vm_reg_name reg,
     uint64_t val, int size);
 
 /*

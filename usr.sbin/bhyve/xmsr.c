@@ -49,8 +49,7 @@ __FBSDID("$FreeBSD$");
 static int cpu_vendor_intel, cpu_vendor_amd, cpu_vendor_hygon;
 
 int
-emulate_wrmsr(struct vmctx *ctx __unused, int vcpu __unused, uint32_t num,
-    uint64_t val __unused)
+emulate_wrmsr(struct vcpu *vcpu __unused, uint32_t num, uint64_t val __unused)
 {
 
 	if (cpu_vendor_intel) {
@@ -104,8 +103,7 @@ emulate_wrmsr(struct vmctx *ctx __unused, int vcpu __unused, uint32_t num,
 }
 
 int
-emulate_rdmsr(struct vmctx *ctx __unused, int vcpu __unused, uint32_t num,
-    uint64_t *val)
+emulate_rdmsr(struct vcpu *vcpu __unused, uint32_t num, uint64_t *val)
 {
 	int error = 0;
 
