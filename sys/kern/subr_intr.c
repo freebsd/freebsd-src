@@ -730,8 +730,8 @@ isrc_event_destroy(struct intr_irqsrc *isrc)
 /*
  *  Add handler to interrupt source.
  */
-static int
-isrc_add_handler(struct intr_irqsrc *isrc, const char *name,
+int
+intr_add_handler(struct intr_irqsrc *isrc, const char *name,
     driver_filter_t filter, driver_intr_t handler, void *arg,
     enum intr_type flags, void **cookiep)
 {
@@ -1120,7 +1120,7 @@ intr_setup_irq(device_t dev, struct resource *res, driver_filter_t filt,
 	} else
 #endif
 		{
-		error = isrc_add_handler(isrc, name, filt, hand, arg, flags,
+		error = intr_add_handler(isrc, name, filt, hand, arg, flags,
 		    cookiep);
 		debugf("irq %u add handler error %d on %s\n", isrc->isrc_irq, error, name);
 	}
@@ -1193,8 +1193,8 @@ intr_teardown_irq(device_t dev, struct resource *res, void *cookie)
 /*
  *  Describe an interrupt
  */
-static int
-isrc_describe(struct intr_irqsrc *isrc, void *cookie, const char *descr)
+int
+intr_describe(struct intr_irqsrc *isrc, void *cookie, const char *descr)
 {
 	int error;
 
@@ -1232,7 +1232,7 @@ intr_describe_irq(device_t dev, struct resource *res, void *cookie,
 	isrc = intr_map_get_isrc(res_id);
 	if (isrc == NULL || isrc->isrc_handlers == 0)
 		return (EINVAL);
-	return (isrc_describe(isrc, cookie, descr));
+	return (intr_describe(isrc, cookie, descr));
 }
 
 #ifdef SMP
