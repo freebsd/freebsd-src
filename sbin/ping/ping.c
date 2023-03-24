@@ -1156,6 +1156,7 @@ pr_pack(char *buf, ssize_t cc, struct sockaddr_in *from, struct timespec *tv)
 	struct ip oip;
 	u_char oip_header_len;
 	struct icmp oicmp;
+	const u_char *oicmp_raw;
 
 	/*
 	 * Get size of IP header of the received packet.
@@ -1359,6 +1360,8 @@ pr_pack(char *buf, ssize_t cc, struct sockaddr_in *from, struct timespec *tv)
 		}
 
 		memcpy(&oip, icmp_data_raw, sizeof(struct ip));
+		oicmp_raw = icmp_data_raw + oip_header_len;
+		memcpy(&oicmp, oicmp_raw, sizeof(struct icmp));
 
 		if (((options & F_VERBOSE) && uid == 0) ||
 		    (!(options & F_QUIET2) &&
