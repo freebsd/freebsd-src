@@ -1190,21 +1190,14 @@ intr_teardown_irq(device_t dev, struct resource *res, void *cookie)
 	return (error);
 }
 
-int
-intr_describe_irq(device_t dev, struct resource *res, void *cookie,
-    const char *descr)
+/*
+ *  Describe an interrupt
+ */
+static int
+isrc_describe(struct intr_irqsrc *isrc, void *cookie, const char *descr)
 {
 	int error;
-	struct intr_irqsrc *isrc;
-	u_int res_id;
 
-	KASSERT(rman_get_start(res) == rman_get_end(res),
-	    ("%s: more interrupts in resource", __func__));
-
-	res_id = (u_int)rman_get_start(res);
-	isrc = intr_map_get_isrc(res_id);
-	if (isrc == NULL || isrc->isrc_handlers == 0)
-		return (EINVAL);
 #ifdef INTR_SOLO
 	if (isrc->isrc_filter != NULL) {
 		if (isrc != cookie)
@@ -1223,6 +1216,23 @@ intr_describe_irq(device_t dev, struct resource *res, void *cookie,
 		mtx_unlock(&isrc_table_lock);
 	}
 	return (error);
+}
+
+int
+intr_describe_irq(device_t dev, struct resource *res, void *cookie,
+    const char *descr)
+{
+	struct intr_irqsrc *isrc;
+	u_int res_id;
+
+	KASSERT(rman_get_start(res) == rman_get_end(res),
+	    ("%s: more interrupts in resource", __func__));
+
+	res_id = (u_int)rman_get_start(res);
+	isrc = intr_map_get_isrc(res_id);
+	if (isrc == NULL || isrc->isrc_handlers == 0)
+		return (EINVAL);
+	return (isrc_describe(isrc, cookie, descr));
 }
 
 #ifdef SMP
