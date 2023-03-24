@@ -1,5 +1,16 @@
 News for the tz database
 
+Release 2023b - 2023-03-23 19:50:38 -0700
+
+  Briefly:
+    Lebanon delays the start of DST this year.
+
+  Changes to future timestamps
+
+    This year Lebanon springs forward April 20/21 not March 25/26.
+    (Thanks to Saadallah Itani.)
+
+
 Release 2023a - 2023-03-22 12:39:33 -0700
 
   Briefly:
