@@ -152,15 +152,15 @@ static int	lagg_snd_tag_query(struct m_snd_tag *,
 		    union if_snd_tag_query_params *);
 static void	lagg_snd_tag_free(struct m_snd_tag *);
 static struct m_snd_tag *lagg_next_snd_tag(struct m_snd_tag *);
-static void     lagg_ratelimit_query(struct ifnet *,
+static void	lagg_ratelimit_query(struct ifnet *,
 		    struct if_ratelimit_query_results *);
 #endif
 static int	lagg_setmulti(struct lagg_port *);
 static int	lagg_clrmulti(struct lagg_port *);
-static	int	lagg_setcaps(struct lagg_port *, int cap);
-static	int	lagg_setflag(struct lagg_port *, int, int,
+static int	lagg_setcaps(struct lagg_port *, int cap);
+static int	lagg_setflag(struct lagg_port *, int, int,
 		    int (*func)(struct ifnet *, int));
-static	int	lagg_setflags(struct lagg_port *, int status);
+static int	lagg_setflags(struct lagg_port *, int status);
 static uint64_t lagg_get_counter(struct ifnet *ifp, ift_counter cnt);
 static int	lagg_transmit_ethernet(struct ifnet *, struct mbuf *);
 static int	lagg_transmit_infiniband(struct ifnet *, struct mbuf *);
@@ -168,7 +168,7 @@ static void	lagg_qflush(struct ifnet *);
 static int	lagg_media_change(struct ifnet *);
 static void	lagg_media_status(struct ifnet *, struct ifmediareq *);
 static struct lagg_port *lagg_link_active(struct lagg_softc *,
-	    struct lagg_port *);
+		    struct lagg_port *);
 
 /* Simple round robin */
 static void	lagg_rr_attach(struct lagg_softc *);
@@ -192,7 +192,7 @@ static struct mbuf *lagg_lb_input(struct lagg_softc *, struct lagg_port *,
 static int	lagg_lb_porttable(struct lagg_softc *, struct lagg_port *);
 
 /* Broadcast */
-static int    lagg_bcast_start(struct lagg_softc *, struct mbuf *);
+static int	lagg_bcast_start(struct lagg_softc *, struct mbuf *);
 static struct mbuf *lagg_bcast_input(struct lagg_softc *, struct lagg_port *,
 		    struct mbuf *);
 
@@ -475,7 +475,7 @@ lagg_register_vlan(void *arg, struct ifnet *ifp, u_int16_t vtag)
 	struct lagg_softc *sc = ifp->if_softc;
 	struct lagg_port *lp;
 
-	if (ifp->if_softc !=  arg)   /* Not our event */
+	if (ifp->if_softc != arg) /* Not our event */
 		return;
 
 	LAGG_XLOCK(sc);
@@ -494,7 +494,7 @@ lagg_unregister_vlan(void *arg, struct ifnet *ifp, u_int16_t vtag)
 	struct lagg_softc *sc = ifp->if_softc;
 	struct lagg_port *lp;
 
-	if (ifp->if_softc !=  arg)   /* Not our event */
+	if (ifp->if_softc != arg) /* Not our event */
 		return;
 
 	LAGG_XLOCK(sc);
@@ -532,7 +532,7 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 		if_type = IFT_ETHER;
 	}
 
-	sc = malloc(sizeof(*sc), M_LAGG, M_WAITOK|M_ZERO);
+	sc = malloc(sizeof(*sc), M_LAGG, M_WAITOK | M_ZERO);
 	ifp = sc->sc_ifp = if_alloc(if_type);
 	if (ifp == NULL) {
 		free(sc, M_LAGG);
@@ -551,7 +551,7 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	sc->flowid_shift = V_def_flowid_shift;
 
 	/* Hash all layers by default */
-	sc->sc_flags = MBUF_HASHFLAG_L2|MBUF_HASHFLAG_L3|MBUF_HASHFLAG_L4;
+	sc->sc_flags = MBUF_HASHFLAG_L2 | MBUF_HASHFLAG_L3 | MBUF_HASHFLAG_L4;
 
 	lagg_proto_attach(sc, LAGG_PROTO_DEFAULT);
 
@@ -792,7 +792,7 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 		ifr.ifr_mtu = oldmtu;
 	}
 
-	lp = malloc(sizeof(struct lagg_port), M_LAGG, M_WAITOK|M_ZERO);
+	lp = malloc(sizeof(struct lagg_port), M_LAGG, M_WAITOK | M_ZERO);
 	lp->lp_softc = sc;
 
 	/* Check if port is a stacked lagg */
@@ -862,7 +862,7 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 	CK_SLIST_FOREACH(tlp, &sc->sc_ports, lp_entries) {
 		if (tlp->lp_ifp->if_index < ifp->if_index && (
 		    CK_SLIST_NEXT(tlp, lp_entries) == NULL ||
-		    ((struct  lagg_port*)CK_SLIST_NEXT(tlp, lp_entries))->lp_ifp->if_index >
+		    ((struct lagg_port*)CK_SLIST_NEXT(tlp, lp_entries))->lp_ifp->if_index >
 		    ifp->if_index))
 			break;
 	}
@@ -1076,15 +1076,15 @@ fallback:
 }
 
 /*
- * Requests counter @cnt data. 
+ * Requests counter @cnt data.
  *
  * Counter value is calculated the following way:
- * 1) for each port, sum  difference between current and "initial" measurements.
+ * 1) for each port, sum difference between current and "initial" measurements.
  * 2) add lagg logical interface counters.
  * 3) add data from detached_counters array.
  *
  * We also do the following things on ports attach/detach:
- * 1) On port attach we store all counters it has into port_counter array. 
+ * 1) On port attach we store all counters it has into port_counter array.
  * 2) On port detach we add the different between "initial" and
  *   current counters data to detached_counters array.
  */
@@ -1463,7 +1463,7 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			/* Invalid combination of options specified. */
 			error = EINVAL;
 			LAGG_XUNLOCK(sc);
-			break;	/* Return from SIOCSLAGGOPTS. */ 
+			break;	/* Return from SIOCSLAGGOPTS. */
 		}
 
 		/*
@@ -1512,15 +1512,15 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				break;
 			case LAGG_OPT_LACP_FAST_TIMO:
 				LACP_LOCK(lsc);
-        			LIST_FOREACH(lp, &lsc->lsc_ports, lp_next)
-                        		lp->lp_state |= LACP_STATE_TIMEOUT;
+				LIST_FOREACH(lp, &lsc->lsc_ports, lp_next)
+					lp->lp_state |= LACP_STATE_TIMEOUT;
 				LACP_UNLOCK(lsc);
 				lsc->lsc_fast_timeout = 1;
 				break;
 			case -LAGG_OPT_LACP_FAST_TIMO:
 				LACP_LOCK(lsc);
-        			LIST_FOREACH(lp, &lsc->lsc_ports, lp_next)
-                        		lp->lp_state &= ~LACP_STATE_TIMEOUT;
+				LIST_FOREACH(lp, &lsc->lsc_ports, lp_next)
+					lp->lp_state &= ~LACP_STATE_TIMEOUT;
 				LACP_UNLOCK(lsc);
 				lsc->lsc_fast_timeout = 0;
 				break;
@@ -1909,8 +1909,7 @@ lagg_setmulti(struct lagg_port *lp)
 			IF_ADDR_WUNLOCK(scifp);
 			return (ENOMEM);
 		}
-		bcopy(ifma->ifma_addr, &mc->mc_addr,
-		    ifma->ifma_addr->sa_len);
+		bcopy(ifma->ifma_addr, &mc->mc_addr, ifma->ifma_addr->sa_len);
 		mc->mc_addr.sdl_index = ifp->if_index;
 		mc->mc_ifma = NULL;
 		SLIST_INSERT_HEAD(&lp->lp_mc_head, mc, mc_entries);
@@ -2424,7 +2423,7 @@ lagg_fail_input(struct lagg_softc *sc, struct lagg_port *lp, struct mbuf *m)
 		 * If tmp_tp is null, we've received a packet when all
 		 * our links are down. Weird, but process it anyways.
 		 */
-		if ((tmp_tp == NULL || tmp_tp == lp)) {
+		if (tmp_tp == NULL || tmp_tp == lp) {
 			m->m_pkthdr.rcvif = ifp;
 			return (m);
 		}

@@ -223,7 +223,7 @@ struct lagg_lb {
 
 struct lagg_mc {
 	struct sockaddr_dl	mc_addr;
-	struct ifmultiaddr      *mc_ifma;
+	struct ifmultiaddr	*mc_ifma;
 	SLIST_ENTRY(lagg_mc)	mc_entries;
 };
 
