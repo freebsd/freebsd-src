@@ -3283,6 +3283,11 @@
 		    u_int flags,
 		);
 	}
+583	AUE_KQUEUE	STD|CAPENABLED {
+		int kqueue1(
+		    u_int flags
+		);
+	}
 
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
