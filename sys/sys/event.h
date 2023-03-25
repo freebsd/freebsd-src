@@ -360,6 +360,7 @@ struct timespec;
 
 __BEGIN_DECLS
 int     kqueue(void);
+int     kqueue1(unsigned flags);
 int     kevent(int kq, const struct kevent *changelist, int nchanges,
 	    struct kevent *eventlist, int nevents,
 	    const struct timespec *timeout);
