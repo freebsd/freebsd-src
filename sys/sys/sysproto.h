@@ -1855,6 +1855,9 @@ struct swapoff_args {
 	char name_l_[PADL_(const char *)]; const char * name; char name_r_[PADR_(const char *)];
 	char flags_l_[PADL_(u_int)]; u_int flags; char flags_r_[PADR_(u_int)];
 };
+struct kqueue1_args {
+	char flags_l_[PADL_(u_int)]; u_int flags; char flags_r_[PADR_(u_int)];
+};
 int	sys_exit(struct thread *, struct exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
 int	sys_read(struct thread *, struct read_args *);
@@ -2250,6 +2253,7 @@ int	sys_aio_readv(struct thread *, struct aio_readv_args *);
 int	sys_fspacectl(struct thread *, struct fspacectl_args *);
 int	sys_sched_getcpu(struct thread *, struct sched_getcpu_args *);
 int	sys_swapoff(struct thread *, struct swapoff_args *);
+int	sys_kqueue1(struct thread *, struct kqueue1_args *);
 
 #ifdef COMPAT_43
 
@@ -3219,6 +3223,7 @@ int	freebsd13_swapoff(struct thread *, struct freebsd13_swapoff_args *);
 #define	SYS_AUE_fspacectl	AUE_FSPACECTL
 #define	SYS_AUE_sched_getcpu	AUE_NULL
 #define	SYS_AUE_swapoff	AUE_SWAPOFF
+#define	SYS_AUE_kqueue1	AUE_KQUEUE
 
 #undef PAD_
 #undef PADL_
