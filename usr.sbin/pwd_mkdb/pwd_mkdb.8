@@ -28,7 +28,7 @@
 .\"	@(#)pwd_mkdb.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd October 20, 2018
+.Dd March 25, 2023
 .Dt PWD_MKDB 8
 .Os
 .Sh NAME
@@ -65,6 +65,19 @@ The options are as follows:
 Check if the password file is in the correct format.
 Do not
 change, add, or remove any files.
+.It Fl d Ar directory
+Store databases into specified destination directory instead of
+.Pa /etc .
+.It Fl i
+Ignore locking failure of the
+.Pa master.passwd
+file.
+This option is intended to be used to build password files in
+the release process over NFS where no contention can happen.
+A non-default directory must also be specified with the
+.Fl d
+option for locking to be ignored.
+Other use of this option is strongly discouraged.
 .It Fl N
 Tell
 .Nm
@@ -76,24 +89,6 @@ the rebuilding of the database.
 .It Fl p
 Create a Version 7 style password file and install it into
 .Pa /etc/passwd .
-.It Fl i
-Ignore locking failure of the
-.Pa master.passwd
-file.
-This option is intended to be used to build password files in
-the release process over NFS where no contention can happen.
-A non-default directory must also be specified with the
-.Fl d
-option for locking to be ignored.
-Other use of this option is strongly discouraged.
-.It Fl d Ar directory
-Store databases into specified destination directory instead of
-.Pa /etc .
-.It Fl u Ar username
-Only update the record for the specified user.
-Utilities that
-operate on a single user can use this option to avoid the
-overhead of rebuilding the entire database.
 .It Fl s Ar cachesize
 Specify in megabytes the size of the memory cache used by the
 hashing library.
@@ -104,6 +99,11 @@ As a rough guide, the memory usage of
 in megabytes will be a little bit more than twice the figure
 specified here.
 The default is 2 megabytes.
+.It Fl u Ar username
+Only update the record for the specified user.
+Utilities that
+operate on a single user can use this option to avoid the
+overhead of rebuilding the entire database.
 .El
 .Pp
 The two databases differ in that the secure version contains the user's
