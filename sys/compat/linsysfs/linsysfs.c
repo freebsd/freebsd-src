@@ -535,9 +535,6 @@ linsysfs_init(PFS_INIT_ARGS)
 	/* /sys/kernel/debug, mountpoint for lindebugfs. */
 	pfs_create_dir(kernel, "debug", NULL, NULL, NULL, 0);
 
-	/* /sys/subsystem/... */
-	dir = pfs_create_dir(root, "subsystem", NULL, NULL, NULL, 0);
-
 	linsysfs_net_init();
 
 	return (0);
