@@ -195,9 +195,9 @@ static counter_u64_t recycles_free_count;
 SYSCTL_COUNTER_U64(_vfs, OID_AUTO, recycles_free, CTLFLAG_RD, &recycles_free_count,
     "Number of free vnodes recycled to meet vnode cache targets");
 
-static counter_u64_t deferred_inact;
-SYSCTL_COUNTER_U64(_vfs, OID_AUTO, deferred_inact, CTLFLAG_RD, &deferred_inact,
-    "Number of times inactive processing was deferred");
+static u_long deferred_inact;
+SYSCTL_ULONG(_vfs, OID_AUTO, deferred_inact, CTLFLAG_RD,
+    &deferred_inact, 0, "Number of times inactive processing was deferred");
 
 /* To keep more than one thread at a time from running vfs_getnewfsid */
 static struct mtx mntid_mtx;
@@ -724,7 +724,6 @@ vntblinit(void *dummy __unused)
 	vnodes_created = counter_u64_alloc(M_WAITOK);
 	recycles_count = counter_u64_alloc(M_WAITOK);
 	recycles_free_count = counter_u64_alloc(M_WAITOK);
-	deferred_inact = counter_u64_alloc(M_WAITOK);
 
 	/*
 	 * Initialize the filesystem syncer.
@@ -3218,7 +3217,7 @@ vdefer_inactive(struct vnode *vp)
 	vlazy(vp);
 	vp->v_iflag |= VI_DEFINACT;
 	VI_UNLOCK(vp);
-	counter_u64_add(deferred_inact, 1);
+	atomic_add_long(&deferred_inact, 1);
 }
 
 static void
