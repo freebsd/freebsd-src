@@ -292,6 +292,10 @@ tcp_lro_low_level_parser(void *ptr, struct lro_parser *parser, bool update_data,
 		/* .. and the packet is not fragmented. */
 		if (parser->ip4->ip_off & htons(IP_MF|IP_OFFMASK))
 			break;
+		/* .. and the packet has valid src/dst addrs */
+		if (__predict_false(parser->ip4->ip_src.s_addr == INADDR_ANY ||
+			parser->ip4->ip_dst.s_addr == INADDR_ANY))
+			break;
 		ptr = (uint8_t *)ptr + (parser->ip4->ip_hl << 2);
 		mlen -= sizeof(struct ip);
 		if (update_data) {
@@ -338,6 +342,10 @@ tcp_lro_low_level_parser(void *ptr, struct lro_parser *parser, bool update_data,
 	case htons(ETHERTYPE_IPV6):
 		parser->ip6 = ptr;
 		if (__predict_false(mlen < sizeof(struct ip6_hdr)))
+			return (NULL);
+		/* Ensure the packet has valid src/dst addrs */
+		if (__predict_false(IN6_IS_ADDR_UNSPECIFIED(&parser->ip6->ip6_src) ||
+			IN6_IS_ADDR_UNSPECIFIED(&parser->ip6->ip6_dst)))
 			return (NULL);
 		ptr = (uint8_t *)ptr + sizeof(*parser->ip6);
 		if (update_data) {
