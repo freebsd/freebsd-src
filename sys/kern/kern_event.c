@@ -1057,6 +1057,19 @@ sys_kqueue(struct thread *td, struct kqueue_args *uap)
 	return (kern_kqueue(td, 0, NULL));
 }
 
+int
+sys_kqueue1(struct thread *td, struct kqueue1_args *uap)
+{
+	int flags;
+
+	if ((uap->flags & ~(KQUEUE_CLOEXEC)) != 0)
+		return (EINVAL);
+	flags = 0;
+	if ((uap->flags & KQUEUE_CLOEXEC) != 0)
+		flags |= O_CLOEXEC;
+	return (kern_kqueue(td, flags, NULL));
+}
+
 static void
 kqueue_init(struct kqueue *kq)
 {
