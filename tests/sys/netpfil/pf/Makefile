@@ -33,6 +33,9 @@ ATF_TESTS_SH+=	altq \
 		table \
 		tos
 
+# Tests reuse jail names and so cannot run in parallel.
+TEST_METADATA+=	is_exclusive=true
+
 ${PACKAGE}FILES+=	CVE-2019-5597.py \
 			CVE-2019-5598.py \
 			echo_inetd.conf \
