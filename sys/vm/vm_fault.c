@@ -348,13 +348,38 @@ vm_fault_soft_fast(struct faultstate *fs)
 
 	MPASS(fs->vp == NULL);
 
+	/*
+	 * If we fail, vast majority of the time it is because the page is not
+	 * there to begin with. Opportunistically perform the lookup and
+	 * subsequent checks without the object lock, revalidate later.
+	 *
+	 * Note: a busy page can be mapped for read|execute access.
+	 */
+	m = vm_page_lookup_unlocked(fs->first_object, fs->first_pindex);
+	if (m == NULL || !vm_page_all_valid(m) ||
+	    ((fs->prot & VM_PROT_WRITE) != 0 && vm_page_busied(m))) {
+		VM_OBJECT_WLOCK(fs->first_object);
+		return (FAULT_FAILURE);
+	}
+
 	vaddr = fs->vaddr;
-	vm_object_busy(fs->first_object);
-	m = vm_page_lookup(fs->first_object, fs->first_pindex);
-	/* A busy page can be mapped for read|execute access. */
-	if (m == NULL || ((fs->prot & VM_PROT_WRITE) != 0 &&
-	    vm_page_busied(m)) || !vm_page_all_valid(m))
+
+	VM_OBJECT_RLOCK(fs->first_object);
+
+	/*
+	 * Now that we stabilized the state, revalidate the page is in the shape
+	 * we encountered above.
+	 */
+
+	if (m->object != fs->first_object || m->pindex != fs->first_pindex)
 		goto fail;
+
+	vm_object_busy(fs->first_object);
+
+	if (!vm_page_all_valid(m) ||
+	    ((fs->prot & VM_PROT_WRITE) != 0 && vm_page_busied(m)))
+		goto fail_busy;
+
 	m_map = m;
 	psind = 0;
 #if VM_NRESERVLEVEL > 0
@@ -390,7 +415,7 @@ vm_fault_soft_fast(struct faultstate *fs)
 	if (pmap_enter(fs->map->pmap, vaddr, m_map, fs->prot, fs->fault_type |
 	    PMAP_ENTER_NOSLEEP | (fs->wired ? PMAP_ENTER_WIRED : 0), psind) !=
 	    KERN_SUCCESS)
-		goto fail;
+		goto fail_busy;
 	if (fs->m_hold != NULL) {
 		(*fs->m_hold) = m;
 		vm_page_wire(m);
@@ -403,8 +428,13 @@ vm_fault_soft_fast(struct faultstate *fs)
 	vm_map_lookup_done(fs->map, fs->entry);
 	curthread->td_ru.ru_minflt++;
 	return (FAULT_SUCCESS);
-fail:
+fail_busy:
 	vm_object_unbusy(fs->first_object);
+fail:
+	if (!VM_OBJECT_TRYUPGRADE(fs->first_object)) {
+		VM_OBJECT_RUNLOCK(fs->first_object);
+		VM_OBJECT_WLOCK(fs->first_object);
+	}
 	return (FAULT_FAILURE);
 }
 
@@ -1556,14 +1586,12 @@ RetryFault:
 	if (fs.vp == NULL /* avoid locked vnode leak */ &&
 	    (fs.entry->eflags & MAP_ENTRY_SPLIT_BOUNDARY_MASK) == 0 &&
 	    (fs.fault_flags & (VM_FAULT_WIRE | VM_FAULT_DIRTY)) == 0) {
-		VM_OBJECT_RLOCK(fs.first_object);
 		res = vm_fault_soft_fast(&fs);
-		if (res == FAULT_SUCCESS)
+		if (res == FAULT_SUCCESS) {
+			VM_OBJECT_ASSERT_UNLOCKED(fs.first_object);
 			return (KERN_SUCCESS);
-		if (!VM_OBJECT_TRYUPGRADE(fs.first_object)) {
-			VM_OBJECT_RUNLOCK(fs.first_object);
-			VM_OBJECT_WLOCK(fs.first_object);
 		}
+		VM_OBJECT_ASSERT_WLOCKED(fs.first_object);
 	} else {
 		VM_OBJECT_WLOCK(fs.first_object);
 	}
