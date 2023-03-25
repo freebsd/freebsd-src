@@ -974,11 +974,12 @@ ATF_TC_CLEANUP(md_waitcomplete, tc)
 #define ZVOL_NAME		"aio_testvol"
 
 static int
-aio_zvol_setup(void)
+aio_zvol_setup(const char *unique)
 {
 	FILE *pidfile;
 	int fd;
 	pid_t pid;
+	char vdev_name[160];
 	char pool_name[80];
 	char cmd[160];
 	char zvol_name[160];
@@ -987,40 +988,44 @@ aio_zvol_setup(void)
 	ATF_REQUIRE_KERNEL_MODULE("aio");
 	ATF_REQUIRE_KERNEL_MODULE("zfs");
 
-	fd = open(ZVOL_VDEV_PATHNAME, O_RDWR | O_CREAT, 0600);
+	pid = getpid();
+	snprintf(vdev_name, sizeof(vdev_name), "%s", ZVOL_VDEV_PATHNAME);
+	snprintf(pool_name, sizeof(pool_name), "%s_%s.%d", POOL_NAME, unique,
+	    pid);
+	snprintf(zvol_name, sizeof(zvol_name), "%s/%s_%s", pool_name, ZVOL_NAME,
+	    unique);
+
+	fd = open(vdev_name, O_RDWR | O_CREAT, 0600);
 	ATF_REQUIRE_MSG(fd != -1, "open failed: %s", strerror(errno));
 	ATF_REQUIRE_EQ_MSG(0,
 	    ftruncate(fd, POOL_SIZE), "ftruncate failed: %s", strerror(errno));
 	close(fd);
 
-	pid = getpid();
 	pidfile = fopen("pidfile", "w");
 	ATF_REQUIRE_MSG(NULL != pidfile, "fopen: %s", strerror(errno));
 	fprintf(pidfile, "%d", pid);
 	fclose(pidfile);
 
-	snprintf(pool_name, sizeof(pool_name), POOL_NAME ".%d", pid);
-	snprintf(zvol_name, sizeof(zvol_name), "%s/" ZVOL_NAME, pool_name);
-	snprintf(cmd, sizeof(cmd), "zpool create %s $PWD/" ZVOL_VDEV_PATHNAME,
-	    pool_name);
+	snprintf(cmd, sizeof(cmd), "zpool create %s $PWD/%s", pool_name,
+	    vdev_name);
 	ATF_REQUIRE_EQ_MSG(0, system(cmd),
 	    "zpool create failed: %s", strerror(errno));
 	snprintf(cmd, sizeof(cmd),
-	    "zfs create -o volblocksize=8192 -o volmode=dev -V "
-		ZVOL_SIZE " %s", zvol_name);
+	    "zfs create -o volblocksize=8192 -o volmode=dev -V %s %s",
+	    ZVOL_SIZE, zvol_name);
 	ATF_REQUIRE_EQ_MSG(0, system(cmd),
 	    "zfs create failed: %s", strerror(errno));
 
 	snprintf(devname, sizeof(devname), "/dev/zvol/%s", zvol_name);
 	do {
 		fd = open(devname, O_RDWR);
-	} while (fd == -1 && errno == EINTR) ;
+	} while (fd == -1 && errno == EINTR);
 	ATF_REQUIRE_MSG(fd != -1, "open failed: %s", strerror(errno));
 	return (fd);
 }
 
 static void
-aio_zvol_cleanup(void)
+aio_zvol_cleanup(const char *unique)
 {
 	FILE *pidfile;
 	pid_t testpid;
@@ -1035,7 +1040,8 @@ aio_zvol_cleanup(void)
 	ATF_REQUIRE_EQ(1, fscanf(pidfile, "%d", &testpid));
 	fclose(pidfile);
 
-	snprintf(cmd, sizeof(cmd), "zpool destroy " POOL_NAME ".%d", testpid);
+	snprintf(cmd, sizeof(cmd), "zpool destroy %s_%s.%d", POOL_NAME, unique,
+	    testpid);
 	system(cmd);
 }
 
@@ -1814,7 +1820,7 @@ ATF_TC_BODY(vectored_unaligned, tc)
 	 * Use a zvol with volmode=dev, so it will allow .d_write with
 	 * unaligned uio.  geom devices use physio, which doesn't allow that.
 	 */
-	fd = aio_zvol_setup();
+	fd = aio_zvol_setup(atf_tc_get_ident(tc));
 	aio_context_init(&ac, fd, fd, FILE_LEN);
 
 	/* Break the buffer into 3 parts:
@@ -1863,16 +1869,17 @@ ATF_TC_BODY(vectored_unaligned, tc)
 }
 ATF_TC_CLEANUP(vectored_unaligned, tc)
 {
-	aio_zvol_cleanup();
+	aio_zvol_cleanup(atf_tc_get_ident(tc));
 }
 
 static void
-aio_zvol_test(completion comp, struct sigevent *sev, bool vectored)
+aio_zvol_test(completion comp, struct sigevent *sev, bool vectored,
+    const char *unique)
 {
 	struct aio_context ac;
 	int fd;
 
-	fd = aio_zvol_setup();
+	fd = aio_zvol_setup(unique);
 	aio_context_init(&ac, fd, fd, MD_LEN);
 	if (vectored) {
 		aio_writev_test(&ac, comp, sev);
@@ -1898,11 +1905,11 @@ ATF_TC_BODY(vectored_zvol_poll, tc)
 {
 	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
 		atf_tc_skip("https://bugs.freebsd.org/258766");
-	aio_zvol_test(poll, NULL, true);
+	aio_zvol_test(poll, NULL, true, atf_tc_get_ident(tc));
 }
 ATF_TC_CLEANUP(vectored_zvol_poll, tc)
 {
-	aio_zvol_cleanup();
+	aio_zvol_cleanup(atf_tc_get_ident(tc));
 }
 
 ATF_TP_ADD_TCS(tp)
