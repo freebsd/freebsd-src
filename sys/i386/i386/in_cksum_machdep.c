@@ -69,10 +69,7 @@ __FBSDID("$FreeBSD$");
  * other calculations.
  */
 u_short
-in_cksum_skip(m, len, skip)
-	struct mbuf *m;
-	int len;
-	int skip;
+in_cksum_skip(struct mbuf *m, int len, int skip)
 {
 	u_short *w;
 	unsigned sum = 0;

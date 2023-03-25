@@ -334,9 +334,7 @@ i386_extend_pcb(struct thread *td)
 }
 
 int
-i386_set_ioperm(td, uap)
-	struct thread *td;
-	struct i386_ioperm_args *uap;
+i386_set_ioperm(struct thread *td, struct i386_ioperm_args *uap)
 {
 	char *iomap;
 	u_int i;
@@ -372,9 +370,7 @@ i386_set_ioperm(td, uap)
 }
 
 int
-i386_get_ioperm(td, uap)
-	struct thread *td;
-	struct i386_ioperm_args *uap;
+i386_get_ioperm(struct thread *td, struct i386_ioperm_args *uap)
 {
 	int i, state;
 	char *iomap;
