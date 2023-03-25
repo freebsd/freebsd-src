@@ -3306,5 +3306,10 @@
 		    u_int flags,
 		);
 	}
+583	AUE_KQUEUE	STD|CAPENABLED {
+		int kqueue1(
+		    u_int flags
+		);
+	}
 
 ; vim: syntax=off
