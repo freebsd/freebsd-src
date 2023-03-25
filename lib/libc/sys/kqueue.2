@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 14, 2022
+.Dd March 26, 2023
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -37,6 +37,8 @@
 .In sys/event.h
 .Ft int
 .Fn kqueue "void"
+.Ft int
+.Fn kqueue1 "u_int flags"
 .Ft int
 .Fo kevent
 .Fa "int kq"
@@ -88,6 +90,22 @@ is called without the
 .Dv RFFDG
 flag, then the descriptor table is shared,
 which will allow sharing of the kqueue between two processes.
+.Pp
+The
+.Fn kqueue1
+system call also creates a new kernel event queue, and additionally takes
+the
+.Fa flags
+argument, which is a bitwise-inclusive OR of the following flags:
+.Bl -tag -width "KQUEUE_CLOEXEC"
+.It Fa KQUEUE_CLOEXEC
+The returned file descriptor is automatically closed on
+.Xr execve 2
+.El
+The
+.Ql fd = kqueue()
+call is equivalent to
+.Ql fd = kqueue1(0) .
 .Pp
 The
 .Fn kevent

@@ -430,6 +430,7 @@ MLINKS+=jail.2 jail_attach.2 \
 	jail.2 jail_set.2
 MLINKS+=kldunload.2 kldunloadf.2
 MLINKS+=kqueue.2 kevent.2 \
+	kqueue.2 kqueue1.2 \
 	kqueue.2 EV_SET.3
 MLINKS+=link.2 linkat.2
 MLINKS+=madvise.2 posix_madvise.2
