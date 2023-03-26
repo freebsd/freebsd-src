@@ -96,16 +96,20 @@ struct bits rt_bits[] = {
 	{ 0 , 0, NULL }
 };
 
+#ifdef WITHOUT_NETLINK
 static struct ifmap_entry *ifmap;
 static size_t ifmap_size;
+#endif
 static struct timespec uptime;
 
 static const char *netname4(in_addr_t, in_addr_t);
 #ifdef INET6
 static const char *netname6(struct sockaddr_in6 *, struct sockaddr_in6 *);
 #endif
+#ifdef WITHOUT_NETLINK
 static void p_rtable_sysctl(int, int);
 static void p_rtentry_sysctl(const char *name, struct rt_msghdr *);
+#endif
 static void domask(char *, size_t, u_long);
 
 const uint32_t rt_default_weight = RT_DEFAULT_WEIGHT;
@@ -143,8 +147,11 @@ routepr(int fibnum, int af)
 	if (fibnum)
 		xo_emit(" ({L:fib}: {:fib/%d})", fibnum);
 	xo_emit("\n");
-	if (!p_rtable_netlink(fibnum, af))
-		p_rtable_sysctl(fibnum, af);
+#ifdef WITHOUT_NETLINK
+	p_rtable_sysctl(fibnum, af);
+#else
+	p_rtable_netlink(fibnum, af);
+#endif
 	xo_close_container("route-information");
 }
 
@@ -240,6 +247,7 @@ set_wid(int fam)
 	wid.expire = 6;
 }
 
+#ifdef WITHOUT_NETLINK
 static void
 p_rtable_sysctl(int fibnum, int af)
 {
@@ -365,6 +373,7 @@ p_rtentry_sysctl(const char *name, struct rt_msghdr *rtm)
 	xo_emit("\n");
 	xo_close_instance(name);
 }
+#endif
 
 int
 p_sockaddr(const char *name, struct sockaddr *sa, struct sockaddr *mask,
