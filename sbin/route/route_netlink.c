@@ -154,14 +154,20 @@ rtmsg_nl_int(struct nl_helper *h, int cmd, int rtm_flags, int fib,
 	    {
 		struct sockaddr_in *mask4 = (struct sockaddr_in *)mask;
 
-		plen = mask4 ? bitcount32(mask4->sin_addr.s_addr) : 32;
+		if ((rtm_flags & RTF_HOST) == 0 && mask4 != NULL)
+			plen = bitcount32(mask4->sin_addr.s_addr);
+		else
+			plen = 32;
 		break;
 	    }
 	case AF_INET6:
 	    {
 		struct sockaddr_in6 *mask6 = (struct sockaddr_in6 *)mask;
 
-		plen = mask6 ? inet6_get_plen(&mask6->sin6_addr) : 128;
+		if ((rtm_flags & RTF_HOST) == 0 && mask6 != NULL)
+			plen = inet6_get_plen(&mask6->sin6_addr);
+		else
+			plen = 128;
 		break;
 	    }
 	default:
