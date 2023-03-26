@@ -209,17 +209,6 @@ void	ptrauth_thread0(struct thread *);
 void	ptrauth_mp_start(uint64_t);
 #endif
 
-/* Pointer Authentication Code (PAC) support */
-void	ptrauth_init(void);
-void	ptrauth_fork(struct thread *, struct thread *);
-void	ptrauth_exec(struct thread *);
-void	ptrauth_copy_thread(struct thread *, struct thread *);
-void	ptrauth_thread_alloc(struct thread *);
-void	ptrauth_thread0(struct thread *);
-#ifdef SMP
-void	ptrauth_mp_start(uint64_t);
-#endif
-
 /* Functions to read the sanitised view of the special registers */
 void	update_special_regs(u_int);
 bool	extract_user_id_field(u_int, u_int, uint8_t *);
