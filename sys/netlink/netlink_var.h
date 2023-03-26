@@ -61,6 +61,7 @@ struct nlpcb {
         bool			nl_task_pending;
 	bool			nl_tx_blocked; /* No new requests accepted */
 	bool			nl_linux; /* true if running under compat */
+	bool			nl_unconstrained_vnet; /* true if running under VNET jail (or without jail) */
 	struct nl_io_queue	rx_queue;
 	struct nl_io_queue	tx_queue;
 	struct taskqueue	*nl_taskqueue;

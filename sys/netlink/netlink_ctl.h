@@ -81,6 +81,7 @@ bool netlink_unregister_proto(int proto);
 bool nl_has_listeners(int netlink_family, uint32_t groups_mask);
 bool nlp_has_priv(struct nlpcb *nlp, int priv);
 struct ucred *nlp_get_cred(struct nlpcb *nlp);
+bool nlp_unconstrained_vnet(const struct nlpcb *nlp);
 
 /* netlink_generic.c */
 struct genl_cmd {

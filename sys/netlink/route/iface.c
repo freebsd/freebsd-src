@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
+#include <sys/jail.h>
 #include <sys/malloc.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -61,6 +62,7 @@ struct netlink_walkargs {
 	struct nl_writer *nw;
 	struct nlmsghdr hdr;
 	struct nlpcb *so;
+	struct ucred *cred;
 	uint32_t fibnum;
 	int family;
 	int error;
@@ -833,6 +835,8 @@ dump_iface_addrs(struct netlink_walkargs *wa, struct ifnet *ifp)
 			continue;
 		if (ifa->ifa_addr->sa_family == AF_LINK)
 			continue;
+		if (prison_if(wa->cred, ifa->ifa_addr) != 0)
+			continue;
 		wa->count++;
 		if (!dump_iface_addr(wa->nw, ifp, ifa, &wa->hdr))
 			return (ENOMEM);
@@ -856,6 +860,7 @@ rtnl_handle_getaddr(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *n
 	struct netlink_walkargs wa = {
 		.so = nlp,
 		.nw = npt->nw,
+		.cred = nlp_get_cred(nlp),
 		.family = attrs.ifa_family,
 		.hdr.nlmsg_pid = hdr->nlmsg_pid,
 		.hdr.nlmsg_seq = hdr->nlmsg_seq,
@@ -977,7 +982,7 @@ static const struct rtnl_cmd_handler cmd_handlers[] = {
 		.cmd = NL_RTM_GETLINK,
 		.name = "RTM_GETLINK",
 		.cb = &rtnl_handle_getlink,
-		.flags = RTNL_F_NOEPOCH,
+		.flags = RTNL_F_NOEPOCH | RTNL_F_ALLOW_NONVNET_JAIL,
 	},
 	{
 		.cmd = NL_RTM_DELLINK,
@@ -997,6 +1002,7 @@ static const struct rtnl_cmd_handler cmd_handlers[] = {
 		.cmd = NL_RTM_GETADDR,
 		.name = "RTM_GETADDR",
 		.cb = &rtnl_handle_getaddr,
+		.flags = RTNL_F_ALLOW_NONVNET_JAIL,
 	},
 	{
 		.cmd = NL_RTM_NEWADDR,

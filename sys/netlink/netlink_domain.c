@@ -36,6 +36,7 @@
 #include <sys/lock.h>
 #include <sys/rmlock.h>
 #include <sys/domain.h>
+#include <sys/jail.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
 #include <sys/proc.h>
@@ -110,6 +111,10 @@ nl_add_group_locked(struct nlpcb *nlp, unsigned int group_id)
 {
 	MPASS(group_id <= NLP_MAX_GROUPS);
 	--group_id;
+
+	/* TODO: add family handler callback */
+	if (!nlp_unconstrained_vnet(nlp))
+		return;
 
 	nlp->nl_groups[group_id / 64] |= (uint64_t)1 << (group_id % 64);
 }
@@ -212,6 +217,12 @@ nlp_has_priv(struct nlpcb *nlp, int priv)
 	return (priv_check_cred(nlp->nl_cred, priv) == 0);
 }
 
+bool
+nlp_unconstrained_vnet(const struct nlpcb *nlp)
+{
+	return (nlp->nl_unconstrained_vnet);
+}
+
 struct ucred *
 nlp_get_cred(struct nlpcb *nlp)
 {
@@ -308,6 +319,7 @@ nl_pru_attach(struct socket *so, int proto, struct thread *td)
 	nlp->nl_process_id = curproc->p_pid;
 	nlp->nl_linux = is_linux;
 	nlp->nl_active = true;
+	nlp->nl_unconstrained_vnet = !jailed_without_vnet(so->so_cred);
 	NLP_LOCK_INIT(nlp);
 	refcount_init(&nlp->nl_refcount, 1);
 	nl_init_io(nlp);
