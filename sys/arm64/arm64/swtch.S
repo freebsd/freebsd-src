@@ -203,7 +203,6 @@ ENTRY(cpu_switch)
 	ldp	x27, x28, [x4, #PCB_REGS + (PCB_X19 + 8) * 8]
 	ldp	x29, lr, [x4, #PCB_REGS + (PCB_X19 + 10) * 8]
 
-	str	xzr, [x4, #PCB_REGS + 18 * 8]
 	ret
 END(cpu_switch)
 
