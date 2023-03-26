@@ -145,6 +145,7 @@ __DEFAULT_YES_OPTIONS = \
     MLX5TOOL \
     NETCAT \
     NETGRAPH \
+    NETLINK \
     NLS_CATALOGS \
     NS_CACHING \
     NTP \
@@ -233,6 +234,7 @@ __DEFAULT_DEPENDENT_OPTIONS= \
     KERBEROS \
     KVM \
     NETGRAPH \
+    NETLINK \
     PAM \
     TESTS \
     WIRELESS
