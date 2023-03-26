@@ -56,6 +56,9 @@ def build_response_packet(echo, ip, icmp, oip_ihl, special):
         # Build a package with a wrong last byte
         payload_no_last_byte = sc.bytes_hex(load)[:-2]
         load = (sc.hex_bytes(payload_no_last_byte)) + b"\x00"
+    if special == "not-mine":
+        # Modify the ICMP Identifier field
+        oicmp.id += 1
 
     if icmp.type in icmp_id_seq_types:
         pkt = ip / icmp / load
@@ -148,6 +151,7 @@ def pinger(
     # Miscellaneous arguments
     count: int = 1,
     dup: bool = False,
+    verbose: bool = True,
 ) -> subprocess.CompletedProcess:
     """P I N G E R
 
@@ -173,8 +177,8 @@ def pinger(
     :type opts: str, optional
     :keyword oip_ihl: Inner packet's Internet Header Length, defaults to None
     :type oip_ihl: class:`scapy.fields.BitField`, optional
-    :keyword special: Send a special packet - one of `no-payload`, `tcp`,
-        `udp`, `wrong` or `warp`, defaults to None
+    :keyword special: Send a special packet - one of `no-payload`, `not-mine`,
+        `tcp`, `udp`, `wrong` or `warp`, defaults to None
     :type special: str, optional
     :keyword icmp_pptr: ICMP pointer, defaults to 0
     :type icmp_pptr: class:`scapy.fields.ByteField`
@@ -197,6 +201,8 @@ def pinger(
     :type count: int
     :keyword dup: Duplicate packets, defaults to `False`
     :type dup: bool
+    :keyword verbose: Turn on/off verbosity, defaults to `True`
+    :type verbose: bool
 
     :return: A class:`subprocess.CompletedProcess` with the output from the
         ping utility
@@ -213,8 +219,9 @@ def pinger(
         str(count),
         "-t",
         str(count),
-        "-v",
     ]
+    if verbose:
+        command += ["-v"]
     if request == "mask":
         command += ["-Mm"]
     if request == "timestamp":
@@ -1209,6 +1216,54 @@ ping: quoted data too short (28 bytes) from 192.0.2.2
                 "redacted": False,
             },
             id="_3_1_special_udp",
+        ),
+        pytest.param(
+            {
+                "src": "192.0.2.1",
+                "dst": "192.0.2.2",
+                "icmp_type": 3,
+                "icmp_code": 1,
+                "verbose": False,
+            },
+            {
+                "returncode": 2,
+                "stdout": """\
+PING 192.0.2.2 (192.0.2.2): 56 data bytes
+92 bytes from 192.0.2.2: Destination Host Unreachable
+Vr HL TOS  Len   ID Flg  off TTL Pro  cks      Src      Dst
+ 4  5  00 0054 0001   0 0000  40  01 f6a4 192.0.2.1  192.0.2.2
+
+
+--- 192.0.2.2 ping statistics ---
+1 packets transmitted, 0 packets received, 100.0% packet loss
+""",
+                "stderr": "",
+                "redacted": False,
+            },
+            id="_3_1_verbose_false",
+        ),
+        pytest.param(
+            {
+                "src": "192.0.2.1",
+                "dst": "192.0.2.2",
+                "icmp_type": 3,
+                "icmp_code": 1,
+                "special": "not-mine",
+                "verbose": False,
+            },
+            {
+                "returncode": 2,
+                "stdout": """\
+PATTERN: 0x01
+PING 192.0.2.2 (192.0.2.2): 56 data bytes
+
+--- 192.0.2.2 ping statistics ---
+1 packets transmitted, 0 packets received, 100.0% packet loss
+""",
+                "stderr": "",
+                "redacted": False,
+            },
+            id="_3_1_special_not_mine_verbose_false",
         ),
         pytest.param(
             {
