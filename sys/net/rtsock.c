@@ -218,8 +218,6 @@ static int	update_rtm_from_rc(struct rt_addrinfo *info,
 static void	send_rtm_reply(struct socket *so, struct rt_msghdr *rtm,
 			struct mbuf *m, sa_family_t saf, u_int fibnum,
 			int rtm_errno);
-static bool	can_export_rte(struct ucred *td_ucred, bool rt_is_host,
-			const struct sockaddr *rt_dst);
 static void	rtsock_notify_event(uint32_t fibnum, const struct rib_cmd_info *rc);
 static void	rtsock_ifmsg(struct ifnet *ifp, int if_flags_mask);
 
@@ -1168,11 +1166,8 @@ rts_send(struct socket *so, int flags, struct mbuf *m,
 			senderr(error);
 		nh = rc.rc_nh_new;
 
-		if (!can_export_rte(curthread->td_ucred,
-		    info.rti_info[RTAX_NETMASK] == NULL,
-		    info.rti_info[RTAX_DST])) {
+		if (!rt_is_exportable(rc.rc_rt, curthread->td_ucred))
 			senderr(ESRCH);
-		}
 		break;
 
 	default:
@@ -2199,23 +2194,6 @@ rt_dispatch(struct mbuf *m, sa_family_t saf)
 }
 
 /*
- * Checks if rte can be exported w.r.t jails/vnets.
- *
- * Returns true if it can, false otherwise.
- */
-static bool
-can_export_rte(struct ucred *td_ucred, bool rt_is_host,
-    const struct sockaddr *rt_dst)
-{
-
-	if ((!rt_is_host) ? jailed_without_vnet(td_ucred)
-	    : prison_if(td_ucred, rt_dst) != 0)
-		return (false);
-	return (true);
-}
-
-
-/*
  * This is used in dumping the kernel table via sysctl().
  */
 static int
@@ -2226,9 +2204,10 @@ sysctl_dumpentry(struct rtentry *rt, void *vw)
 
 	NET_EPOCH_ASSERT();
 
-	export_rtaddrs(rt, w->dst, w->mask);
-	if (!can_export_rte(w->w_req->td->td_ucred, rt_is_host(rt), w->dst))
+	if (!rt_is_exportable(rt, w->w_req->td->td_ucred))
 		return (0);
+
+	export_rtaddrs(rt, w->dst, w->mask);
 	nh = rt_get_raw_nhop(rt);
 #ifdef ROUTE_MPATH
 	if (NH_IS_NHGRP(nh)) {
