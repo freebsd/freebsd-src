@@ -145,7 +145,6 @@ __DEFAULT_YES_OPTIONS = \
     MLX5TOOL \
     NETCAT \
     NETGRAPH \
-    NETLINK \
     NLS_CATALOGS \
     NS_CACHING \
     NTP \
@@ -234,7 +233,6 @@ __DEFAULT_DEPENDENT_OPTIONS= \
     KERBEROS \
     KVM \
     NETGRAPH \
-    NETLINK \
     PAM \
     TESTS \
     WIRELESS
@@ -357,6 +355,14 @@ __DEFAULT_NO_OPTIONS+=OPENMP
 # Broken on 32-bit arm, kernel module compile errors
 .if ${__T:Marm*} != ""
 BROKEN_OPTIONS+= OFED
+.endif
+
+.if ${__T} == "i386" || ${__T} == "amd64"
+__DEFAULT_YES_OPTIONS+=NETLINK
+__DEFAULT_YES_OPTIONS+=NETLINK_SUPPORT
+.else
+__DEFAULT_NO_OPTIONS+=NETLINK
+__DEFAULT_NO_OPTIONS+=NETLINK_SUPPORT
 .endif
 
 .include <bsd.mkopt.mk>
