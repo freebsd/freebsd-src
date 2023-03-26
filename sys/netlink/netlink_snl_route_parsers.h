@@ -198,6 +198,7 @@ struct snl_parsed_link_simple {
 	uint32_t		ifi_index;
 	uint32_t		ifla_mtu;
 	uint16_t		ifi_type;
+	uint32_t		ifi_flags;
 	char			*ifla_ifname;
 };
 
@@ -210,14 +211,68 @@ static struct snl_attr_parser _nla_p_link_s[] = {
 static struct snl_field_parser _fp_p_link_s[] = {
 	{.off_in = _IN(ifi_index), .off_out = _OUT(ifi_index), .cb = snl_field_get_uint32 },
 	{.off_in = _IN(ifi_type), .off_out = _OUT(ifi_type), .cb = snl_field_get_uint16 },
+	{.off_in = _IN(ifi_flags), .off_out = _OUT(ifi_flags), .cb = snl_field_get_uint32 },
 };
 #undef _IN
 #undef _OUT
 SNL_DECLARE_PARSER(snl_rtm_link_parser_simple, struct ifinfomsg, _fp_p_link_s, _nla_p_link_s);
 
+struct snl_parsed_neigh {
+	uint8_t		ndm_family;
+	uint8_t		ndm_flags;
+	uint16_t	ndm_state;
+	uint32_t	nda_ifindex;
+	struct sockaddr	*nda_dst;
+	struct nlattr	*nda_lladdr;
+};
+
+#define	_IN(_field)	offsetof(struct ndmsg, _field)
+#define	_OUT(_field)	offsetof(struct snl_parsed_neigh, _field)
+static struct snl_attr_parser _nla_p_neigh_s[] = {
+	{ .type = NDA_DST, .off = _OUT(nda_dst), .cb = snl_attr_get_ip },
+	{ .type = NDA_LLADDR , .off = _OUT(nda_lladdr), .cb = snl_attr_get_nla },
+	{ .type = NDA_IFINDEX, .off = _OUT(nda_ifindex), .cb = snl_attr_get_uint32 },
+};
+static struct snl_field_parser _fp_p_neigh_s[] = {
+	{.off_in = _IN(ndm_family), .off_out = _OUT(ndm_family), .cb = snl_field_get_uint8 },
+	{.off_in = _IN(ndm_flags), .off_out = _OUT(ndm_flags), .cb = snl_field_get_uint8 },
+	{.off_in = _IN(ndm_state), .off_out = _OUT(ndm_state), .cb = snl_field_get_uint16 },
+};
+#undef _IN
+#undef _OUT
+SNL_DECLARE_PARSER(snl_rtm_neigh_parser, struct ndmsg, _fp_p_neigh_s, _nla_p_neigh_s);
+
+struct snl_parsed_addr {
+	uint8_t		ifa_family;
+	uint8_t		ifa_prefixlen;
+	uint32_t	ifa_index;
+	struct sockaddr	*ifa_local;
+	struct sockaddr	*ifa_address;
+	struct sockaddr	*ifa_broadcast;
+	char		*ifa_label;
+};
+
+#define	_IN(_field)	offsetof(struct ifaddrmsg, _field)
+#define	_OUT(_field)	offsetof(struct snl_parsed_addr, _field)
+static struct snl_attr_parser _nla_p_addr_s[] = {
+	{ .type = IFA_ADDRESS, .off = _OUT(ifa_address), .cb = snl_attr_get_ip },
+	{ .type = IFA_LOCAL, .off = _OUT(ifa_local), .cb = snl_attr_get_ip },
+	{ .type = IFA_LABEL, .off = _OUT(ifa_label), .cb = snl_attr_get_string },
+	{ .type = IFA_BROADCAST, .off = _OUT(ifa_broadcast), .cb = snl_attr_get_ip },
+};
+static struct snl_field_parser _fp_p_addr_s[] = {
+	{.off_in = _IN(ifa_family), .off_out = _OUT(ifa_family), .cb = snl_field_get_uint8 },
+	{.off_in = _IN(ifa_prefixlen), .off_out = _OUT(ifa_prefixlen), .cb = snl_field_get_uint8 },
+	{.off_in = _IN(ifa_index), .off_out = _OUT(ifa_index), .cb = snl_field_get_uint32 },
+};
+#undef _IN
+#undef _OUT
+SNL_DECLARE_PARSER(snl_rtm_addr_parser, struct ifaddrmsg, _fp_p_addr_s, _nla_p_addr_s);
+
 static const struct snl_hdr_parser *snl_all_route_parsers[] = {
 	&_metrics_mp_nh_parser, &_mpath_nh_parser, &_metrics_parser, &snl_rtm_route_parser,
-	&snl_rtm_link_parser, &snl_rtm_link_parser_simple,
+	&snl_rtm_link_parser, &snl_rtm_link_parser_simple, &snl_rtm_neigh_parser,
+	&snl_rtm_addr_parser,
 };
 
 #endif
