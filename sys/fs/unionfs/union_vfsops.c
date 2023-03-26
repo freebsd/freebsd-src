@@ -318,6 +318,7 @@ unionfs_domount(struct mount *mp)
 			vfs_unregister_upper(lowermp, &ump->um_lower_link);
 		if (uppermp != NULL)
 			vfs_unregister_upper(uppermp, &ump->um_upper_link);
+		vflush(mp, 1, FORCECLOSE, curthread);
 		free(ump, M_UNIONFSMNT);
 		mp->mnt_data = NULL;
 		return (ENOENT);
