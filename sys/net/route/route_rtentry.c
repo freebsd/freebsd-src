@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/socket.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/rmlock.h>
@@ -195,6 +196,29 @@ rt_get_rnd(const struct rtentry *rt, struct route_nhop_data *rnd)
 {
 	rnd->rnd_nhop = rt->rt_nhop;
 	rnd->rnd_weight = rt->rt_weight;
+}
+
+/*
+ * If the process in in jail w/o VNET, export only host routes for the
+ *  addresses assigned to the jail.
+ * Otherwise, allow exporting the entire table.
+ */
+bool
+rt_is_exportable(const struct rtentry *rt, struct ucred *cred)
+{
+	if (!rt_is_host(rt)) {
+		/*
+		 * Performance optimisation: only host routes are allowed
+		 * in the jail w/o vnet.
+		 */
+		if (jailed_without_vnet(cred))
+			return (false);
+	} else {
+		if (prison_if(cred, rt_key_const(rt)) != 0)
+			return (false);
+	}
+
+	return (true);
 }
 
 #ifdef INET
