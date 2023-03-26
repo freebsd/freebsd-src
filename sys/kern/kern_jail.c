@@ -3440,6 +3440,7 @@ prison_check_af(struct ucred *cred, int af)
 #endif
 	case AF_LOCAL:
 	case AF_ROUTE:
+	case AF_NETLINK:
 		break;
 	default:
 		if (!(pr->pr_allow & PR_ALLOW_SOCKET_AF))

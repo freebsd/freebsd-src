@@ -93,6 +93,11 @@ rtnl_handle_message(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	} else if (cmd->priv != 0)
 		NLP_LOG(LOG_DEBUG3, nlp, "priv %d check passed for msg %s", cmd->priv, cmd->name);
 
+	if (!nlp_unconstrained_vnet(nlp) && (cmd->flags & RTNL_F_ALLOW_NONVNET_JAIL) == 0) {
+		NLP_LOG(LOG_DEBUG2, nlp, "jail check failed for msg %s", cmd->name);
+		return (EPERM);
+	}
+
 	bool need_epoch = !(cmd->flags & RTNL_F_NOEPOCH);
 
 	if (need_epoch)

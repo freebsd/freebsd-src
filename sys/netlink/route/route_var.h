@@ -48,7 +48,8 @@ struct rtnl_cmd_handler {
 	int		flags;
 };
 
-#define	RTNL_F_NOEPOCH	0x01
+#define	RTNL_F_NOEPOCH			0x01	/* Do not enter epoch when handling command */
+#define	RTNL_F_ALLOW_NONVNET_JAIL	0x02	/* Allow command execution inside non-VNET jail */
 
 bool rtnl_register_messages(const struct rtnl_cmd_handler *handlers, int count);
 
