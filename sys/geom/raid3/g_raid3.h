@@ -224,6 +224,7 @@ struct g_raid3_softc {
 
 	TAILQ_HEAD(, g_raid3_event) sc_events;
 	struct mtx	sc_events_mtx;
+	struct g_raid3_event *sc_timeout_event;
 
 	struct callout	sc_callout;
 
