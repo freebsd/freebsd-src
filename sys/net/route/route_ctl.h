@@ -121,6 +121,7 @@ void rib_foreach_table_walk_del(int family, rib_filter_f_t *filter_f, void *arg)
 
 struct nhop_object;
 struct nhgrp_object;
+struct ucred;
 
 const struct rtentry *rib_lookup_prefix(uint32_t fibnum, int family,
     const struct sockaddr *dst, const struct sockaddr *netmask,
@@ -133,6 +134,7 @@ bool rt_is_host(const struct rtentry *rt);
 sa_family_t rt_get_family(const struct rtentry *);
 struct nhop_object *rt_get_raw_nhop(const struct rtentry *rt);
 void rt_get_rnd(const struct rtentry *rt, struct route_nhop_data *rnd);
+bool rt_is_exportable(const struct rtentry *rt, struct ucred *cred);
 #ifdef INET
 struct in_addr;
 void rt_get_inet_prefix_plen(const struct rtentry *rt, struct in_addr *paddr,
