@@ -255,6 +255,7 @@ resvacquire(const struct cmd *f, int argc, char *argv[])
 
 	memset(&pt, 0, sizeof(pt));
 	pt.cmd.opc = NVME_OPC_RESERVATION_ACQUIRE;
+	pt.cmd.nsid = htole32(nsid);
 	pt.cmd.cdw10 = htole32((acquire_opt.racqa & 7) |
 	    (acquire_opt.rtype << 8));
 	pt.buf = &data;
@@ -293,6 +294,7 @@ resvregister(const struct cmd *f, int argc, char *argv[])
 
 	memset(&pt, 0, sizeof(pt));
 	pt.cmd.opc = NVME_OPC_RESERVATION_REGISTER;
+	pt.cmd.nsid = htole32(nsid);
 	pt.cmd.cdw10 = htole32((register_opt.rrega & 7) |
 	    (register_opt.iekey << 3) | (register_opt.cptpl << 30));
 	pt.buf = &data;
@@ -330,6 +332,7 @@ resvrelease(const struct cmd *f, int argc, char *argv[])
 
 	memset(&pt, 0, sizeof(pt));
 	pt.cmd.opc = NVME_OPC_RESERVATION_RELEASE;
+	pt.cmd.nsid = htole32(nsid);
 	pt.cmd.cdw10 = htole32((release_opt.rrela & 7) |
 	    (release_opt.rtype << 8));
 	pt.buf = &data;
@@ -369,6 +372,7 @@ resvreport(const struct cmd *f, int argc, char *argv[])
 	bzero(data, sizeof(data));
 	memset(&pt, 0, sizeof(pt));
 	pt.cmd.opc = NVME_OPC_RESERVATION_REPORT;
+	pt.cmd.nsid = htole32(nsid);
 	pt.cmd.cdw10 = htole32(sizeof(data) / 4 - 1);
 	pt.cmd.cdw11 = htole32(report_opt.eds);	/* EDS */
 	pt.buf = &data;
