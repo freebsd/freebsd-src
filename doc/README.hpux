@@ -8,7 +8,7 @@ Note that packet-capture programs such as tcpdump may, on HP-UX, not be
 able to see packets sent from the machine on which they're running.
 Some articles on groups.google.com discussing this are:
 
-	http://groups.google.com/groups?selm=82ld3v%2480i%241%40mamenchi.zrz.TU-Berlin.DE
+	https://groups.google.com/groups?selm=82ld3v%2480i%241%40mamenchi.zrz.TU-Berlin.DE
 
 which says:
 
@@ -69,7 +69,7 @@ which says:
 
 and
 
-	http://groups.google.com/groups?selm=38AA973E.96BE7DF7%40cc.uit.no
+	https://groups.google.com/groups?selm=38AA973E.96BE7DF7%40cc.uit.no
 
 which says:
 
@@ -118,7 +118,7 @@ And another message to tcpdump-workers@tcpdump.org, from Rick Jones:
 
 Another posting:
 
-	http://groups.google.com/groups?selm=7d6gvn%24b3%241%40ocean.cup.hp.com
+	https://groups.google.com/groups?selm=7d6gvn%24b3%241%40ocean.cup.hp.com
 
 indicates that you need to install the optional STREAMS product to do
 captures on HP-UX 9.x:
@@ -159,7 +159,7 @@ An additional note, from Jost Martin, for HP-UX 10.20:
 	   of an interface
 	A: You need to get PHNE_20892,PHNE_20725 and PHCO_10947 (or
 	   newer, this is as of 4.4.00) and its dependencies.  Then you can
-	   enable the feature as descibed below:
+	   enable the feature as described below:
 
 	Patch Name: PHNE_20892
 	Patch Description: s700 10.20 PCI 100Base-T cumulative patch
@@ -195,7 +195,7 @@ Here's the "hack_ip_stack" script:
 -----------------------------------Cut Here-------------------------------------
 #!/sbin/sh
 #
-# nettune:  hack kernel parms for safety
+# nettune:  hack kernel params for safety
 
 OKAY=0
 ERROR=-1

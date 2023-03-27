@@ -19,6 +19,7 @@
 
 #include <pcap.h>
 
+#include "varattrs.h"
 #include "pcap/funcattrs.h"
 
 static int ifprint(pcap_if_t *d);
@@ -94,7 +95,11 @@ getpass(const char *prompt)
 }
 #endif
 
+#ifdef ENABLE_REMOTE
 int main(int argc, char **argv)
+#else
+int main(int argc _U_, char **argv _U_)
+#endif
 {
   pcap_if_t *alldevs;
   pcap_if_t *d;
@@ -152,8 +157,24 @@ int main(int argc, char **argv)
   {
     if (pcap_lookupnet(alldevs->name, &net, &mask, errbuf) < 0)
     {
-      fprintf(stderr,"Error in pcap_lookupnet: %s\n",errbuf);
-      exit_status = 2;
+      /*
+       * XXX - this doesn't distinguish between "a real error
+       * occurred" and "this interface doesn't *have* an IPv4
+       * address".  The latter shouldn't be treated as an error.
+       *
+       * We look for the interface name, followed by a colon and
+       * a space, and, if we find it,w e see if what follows it
+       * is "no IPv4 address assigned".
+       */
+      size_t devnamelen = strlen(alldevs->name);
+      if (strncmp(errbuf, alldevs->name, devnamelen) == 0 &&
+          strncmp(errbuf + devnamelen, ": ", 2) == 0 &&
+          strcmp(errbuf + devnamelen + 2, "no IPv4 address assigned") == 0)
+        printf("Preferred device is not on an IPv4 network\n");
+      else {
+        fprintf(stderr,"Error in pcap_lookupnet: %s\n",errbuf);
+        exit_status = 2;
+      }
     }
     else
     {
@@ -300,12 +321,12 @@ static int ifprint(pcap_if_t *d)
 #define IPTOSBUFFERS	12
 static char *iptos(bpf_u_int32 in)
 {
-	static char output[IPTOSBUFFERS][3*4+3+1];
+	static char output[IPTOSBUFFERS][sizeof("255.255.255.255")];
 	static short which;
 	u_char *p;
 
 	p = (u_char *)&in;
 	which = (which + 1 == IPTOSBUFFERS ? 0 : which + 1);
-	sprintf(output[which], "%d.%d.%d.%d", p[0], p[1], p[2], p[3]);
+	snprintf(output[which], sizeof(output[which]), "%d.%d.%d.%d", p[0], p[1], p[2], p[3]);
 	return output[which];
 }
