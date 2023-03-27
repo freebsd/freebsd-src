@@ -92,10 +92,7 @@ hesiod_init(context)
 	ctx = malloc(sizeof(struct hesiod_p));
 	if (ctx) {
 		*context = ctx;
-		if (!issetugid())
-			configname = getenv("HESIOD_CONFIG");
-		else
-			configname = NULL;
+		configname = secure_getenv("HESIOD_CONFIG");
 		if (!configname)
 			configname = _PATH_HESIOD_CONF;
 		if (read_config_file(ctx, configname) >= 0) {
@@ -103,10 +100,7 @@ hesiod_init(context)
 			 * The default rhs can be overridden by an
 			 * environment variable.
 			 */
-			if (!issetugid())
-				p = getenv("HES_DOMAIN");
-			else
-				p = NULL;
+			p = secure_getenv("HES_DOMAIN");
 			if (p) {
 				if (ctx->rhs)
 					free(ctx->rhs);

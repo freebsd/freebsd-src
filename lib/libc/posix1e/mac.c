@@ -177,9 +177,8 @@ mac_init_internal(int ignore_errors)
 
 	LIST_INIT(&label_default_head);
 
-	if (!issetugid() && getenv("MAC_CONFFILE") != NULL)
-		filename = getenv("MAC_CONFFILE");
-	else
+	filename = secure_getenv("MAC_CONFFILE");
+	if (filename == NULL)
 		filename = MAC_CONFFILE;
 	file = fopen(filename, "re");
 	if (file == NULL)

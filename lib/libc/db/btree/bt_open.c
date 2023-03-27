@@ -391,11 +391,10 @@ tmp(void)
 {
 	sigset_t set, oset;
 	int fd, len;
-	char *envtmp = NULL;
+	char *envtmp;
 	char path[MAXPATHLEN];
 
-	if (issetugid() == 0)
-		envtmp = getenv("TMPDIR");
+	envtmp = secure_getenv("TMPDIR");
 	len = snprintf(path,
 	    sizeof(path), "%s/bt.XXXXXXXXXX", envtmp ? envtmp : "/tmp");
 	if (len < 0 || len >= (int)sizeof(path)) {

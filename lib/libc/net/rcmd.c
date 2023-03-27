@@ -97,7 +97,7 @@ rcmd_af(char **ahost, int rport, const char *locuser, const char *remuser,
 	static char canonnamebuf[MAXDNAME];	/* is it proper here? */
 
 	/* call rcmdsh() with specified remote shell if appropriate. */
-	if (!issetugid() && (p = getenv("RSH"))) {
+	if ((p = secure_getenv("RSH")) != NULL) {
 		struct servent *sp = getservbyname("shell", "tcp");
 
 		if (sp && sp->s_port == rport)
