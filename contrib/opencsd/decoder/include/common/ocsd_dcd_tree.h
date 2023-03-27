@@ -168,6 +168,30 @@ public:
      */
     ocsd_err_t removeDecoder(const uint8_t CSID);
 
+    /*!
+    * Get the stats block for the channel indicated.
+    * Caller must check p_stats_block->version to esure that the block
+    * is filled in a compatible manner.
+    *
+    * @param CSID : Configured CoreSight trace ID for the decoder.
+    * @param p_stats_block: block pointer to set to reference the stats block.
+    *
+    * @return ocsd_err_t  : Library error code -  OCSD_OK if valid block pointer returned,
+    *                      OCSD_ERR_NOTINIT if decoder does not support stats counting.
+    */
+    ocsd_err_t getDecoderStats(const uint8_t CSID, ocsd_decode_stats_t **p_stats_block);
+    
+    /*!
+    * Reset the stats block for the chosens decode channel.
+    * stats block is reset independently of the decoder reset to allow counts across
+    * multiple decode runs.
+    *
+    * @param handle : Handle to decode tree.
+    * @param CSID : Configured CoreSight trace ID for the decoder.
+    *
+    * @return ocsd_err_t  : Library error code -  OCSD_OK if successful.
+    */
+    ocsd_err_t resetDecoderStats(const uint8_t CSID);
 
 /* get decoder elements currently in use  */
 
@@ -387,7 +411,7 @@ private:
     void destroyMemAccMapper();
     ocsd_err_t initCallbackMemAcc(const ocsd_vaddr_t st_address, const ocsd_vaddr_t en_address, 
         const ocsd_mem_space_acc_t mem_space, void *p_cb_func, bool IDfn, const void *p_context);
-
+    TrcPktProcI *getPktProcI(const uint8_t CSID);
 
     ocsd_dcd_tree_src_t m_dcd_tree_type;
 
@@ -417,6 +441,9 @@ private:
 
     /**! default instruction decoder */
     static TrcIDecode s_instruction_decoder;
+
+    /**! demux stats block */
+    ocsd_demux_stats_t m_demux_stats;
 };
 
 /** @}*/

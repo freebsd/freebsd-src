@@ -75,6 +75,8 @@ private:
     ocsd_err_t DecodeConfigure(uint32_t flags);
     ocsd_err_t SetForcedSyncIndex(ocsd_trc_index_t index, bool bSet);
 
+    void SetDemuxStatsBlock(ocsd_demux_stats_t *pStatsBlock) { m_pStatsBlock = pStatsBlock; };
+
 private:
     ocsd_datapath_resp_t executeNoneDataOpAllIDs(ocsd_datapath_op_t op, const ocsd_trc_index_t index = 0);
     ocsd_datapath_resp_t processTraceData(const ocsd_trc_index_t index, 
@@ -113,12 +115,20 @@ private:
     void setRawChanFilterAll(bool bEnable);
     const bool rawChanEnabled(const uint8_t id) const;
 
-	int checkForResetFSyncPatterns();
+	ocsd_err_t checkForResetFSyncPatterns(uint32_t &f_sync_bytes);
 
     friend class TraceFormatterFrameDecoder;
 
-    // attachment points
+    // stats updates
+    void addToIDStats(uint64_t val);
+    void addToNoIDStats(uint64_t val);
+    void addToFrameStats(uint64_t val);
+    void addToUnknownIDStats(uint64_t val);
+    void addToReservedIDStats(uint64_t val);
+    
+    bool isReservedID(uint8_t ID) { return ((ID == 0) || (ID >= 0x70)); };
 
+    // attachment points
     componentAttachPt<ITrcDataIn> m_IDStreams[128];
     componentAttachPt<ITrcRawFrameIn> m_RawTraceFrame;
 
@@ -142,12 +152,18 @@ private:
     // incoming frame buffer 
     uint8_t m_ex_frm_data[OCSD_DFRMTR_FRAME_SIZE]; // buffer the current frame in case we have to stop part way through
     int m_ex_frm_n_bytes;   // number of valid bytes in the current frame (extraction)
+    bool m_b_fsync_start_eob;  // flag to indicate that the end of the last buffer was a pair of bytes
+                               // (0xffff) that could only validly be the start and FSYNC.
     ocsd_trc_index_t m_trc_curr_idx_sof; // trace source index at start of frame.
 
-    // channel output data - can never be more than a frame of data for a single ID.
-    out_chan_data m_out_data[7];  // can only be 8 ID changes in a frame, but last on has no associated data so 7 possible data blocks
+    /* channel output data - can never be more than a frame of data for a single ID.
+     * 8 possible ID changes per frame. Although the final one can have no associated data, a pathological
+     * case exists with 7 ID changes, all data associated with a previous frame, except for last 
+     * ID / data byte which is data. Not possible with normal hardware but guard against corrupt input.
+     */
+    out_chan_data m_out_data[8]; // output data for a given ID
     int m_out_data_idx;          // number of out_chan_data frames used.
-    int m_out_processed;          // number of complete out_chan_data frames output.
+    int m_out_processed;         // number of complete out_chan_data frames output.
     
     /* local copy of input buffer pointers*/
     const uint8_t *m_in_block_base;
@@ -159,6 +175,8 @@ private:
     bool m_b_output_unpacked_raw;
 
     bool m_raw_chan_enable[128];
+
+    ocsd_demux_stats_t *m_pStatsBlock;
 };
 
 

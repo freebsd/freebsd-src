@@ -108,6 +108,17 @@ inline ocsdError& ocsdError::operator=(const ocsdError &err)
     return (*this = &err);
 }
 
+/* class to get data path response values as strings */
+class ocsdDataRespStr
+{
+public:
+    ocsdDataRespStr(ocsd_datapath_resp_t type) { m_type = type; }
+    ~ocsdDataRespStr() {};
+
+    const char* getStr();
+private:
+    ocsd_datapath_resp_t m_type;
+};
 
 /** @}*/
 

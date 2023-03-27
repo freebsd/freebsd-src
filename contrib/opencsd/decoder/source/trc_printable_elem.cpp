@@ -52,8 +52,6 @@ void trcPrintableElem::getValStr(std::string &valStr, const int valTotalBitSize,
 
     assert((valTotalBitSize >= 4) && (valTotalBitSize <= 64));
 
-    uint64_t LimitMask = ~0ULL;
-    LimitMask >>= 64-valTotalBitSize;
     valStr = "0x";
 
     if(asHex)

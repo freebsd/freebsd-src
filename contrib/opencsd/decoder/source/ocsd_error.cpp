@@ -229,4 +229,25 @@ void ocsdError::appendErrorDetails(std::string &errStr, const ocsdError &error)
     errStr = oss.str();
 }
 
+
+const char* ocsdDataRespStr::getStr()
+{
+    static const char* szRespStr[] = {
+    "OCSD_RESP_CONT: Continue processing.",
+    "OCSD_RESP_WARN_CONT: Continue processing -> a component logged a warning.",
+    "OCSD_RESP_ERR_CONT: Continue processing -> a component logged an error.",
+    "OCSD_RESP_WAIT: Pause processing",
+    "OCSD_RESP_WARN_WAIT: Pause processing -> a component logged a warning.",
+    "OCSD_RESP_ERR_WAIT: Pause processing -> a component logged an error.",
+    "OCSD_RESP_FATAL_NOT_INIT: Processing Fatal Error :  component unintialised.",
+    "OCSD_RESP_FATAL_INVALID_OP: Processing Fatal Error :  invalid data path operation.",
+    "OCSD_RESP_FATAL_INVALID_PARAM: Processing Fatal Error :  invalid parameter in datapath call.",
+    "OCSD_RESP_FATAL_INVALID_DATA: Processing Fatal Error :  invalid trace data.",
+    "OCSD_RESP_FATAL_SYS_ERR: Processing Fatal Error :  internal system error."
+    };
+    if ((m_type < OCSD_RESP_CONT) || (m_type > OCSD_RESP_FATAL_SYS_ERR))
+        return "Unknown OCSD_RESP type.";
+    return szRespStr[m_type];
+}
+
 /* End of File ocsd_error.cpp */

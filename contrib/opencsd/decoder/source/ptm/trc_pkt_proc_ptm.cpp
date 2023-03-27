@@ -224,6 +224,7 @@ void TrcPktProcPtm::InitProcessorState()
     m_waitASyncSOPkt = false;
     m_bAsyncRawOp = false;
     m_bOPNotSyncPkt = false;
+    m_excepAltISA = 0;
 
     m_curr_packet.ResetState();
     InitPacketState();
@@ -559,7 +560,7 @@ void TrcPktProcPtm::pktWPointUpdate()
         m_gotExcepBytes = false;    // mark as not got all required exception bytes thus far
         m_numExcepBytes = 0;        // 0 read in
 
-         m_addrPktIsa = ocsd_isa_unknown; // not set by this packet as yet        
+        m_addrPktIsa = ocsd_isa_unknown; // not set by this packet as yet        
     }
 
     // collect all the bytes needed
@@ -567,10 +568,12 @@ void TrcPktProcPtm::pktWPointUpdate()
     {
         if(readByte(currByte))
         {
+            
             byteIdx = m_currPacketData.size() - 1;
             if(!m_gotAddrBytes)
             {
-                if(byteIdx < 4)
+                // byteIdx for address byte will run from 1 to 5 - first 4 my have continuation or not.
+                if(byteIdx <= 4)
                 {
                     // address bytes  1 - 4;
                     // ISA stays the same

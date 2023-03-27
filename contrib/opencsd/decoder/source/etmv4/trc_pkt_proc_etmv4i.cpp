@@ -45,6 +45,9 @@
 
 static const uint32_t ETMV4_SUPPORTED_OP_FLAGS = OCSD_OPFLG_PKTPROC_COMMON;
 
+// test defines - if testing with ETMv4 sources, disable error on ERET.
+// #define ETE_TRACE_ERET_AS_IGNORE
+
 /* trace etmv4 packet processing class */
 TrcPktProcEtmV4I::TrcPktProcEtmV4I() : TrcPktProcBase(ETMV4I_PKTS_NAME),
     m_isInit(false),
@@ -70,7 +73,9 @@ ocsd_err_t TrcPktProcEtmV4I::onProtocolConfig()
     InitProcessorState();
     m_config = *TrcPktProcBase::getProtocolConfig();
     BuildIPacketTable();    // packet table based on config
+    m_curr_packet.setProtocolVersion(m_config.FullVersion());
     m_isInit = true;
+    statsInit();
     return OCSD_OK;
 }
 
@@ -152,6 +157,10 @@ ocsd_datapath_resp_t TrcPktProcEtmV4I::processData(  const ocsd_trc_index_t inde
                 (err.getErrorCode() == OCSD_ERR_INVALID_PCKT_HDR))
             {
                 // send invalid packets up the pipe to let the next stage decide what to do.
+                if (err.getErrorCode() == OCSD_ERR_INVALID_PCKT_HDR)
+                    statsAddBadHdrCount(1);
+                else
+                    statsAddBadSeqCount(1);
                 m_process_state = SEND_PKT; 
                 done = false;
             }
@@ -171,6 +180,7 @@ ocsd_datapath_resp_t TrcPktProcEtmV4I::processData(  const ocsd_trc_index_t inde
         }
     } while (!done);
 
+    statsAddTotalCount(m_trcIn.processed());
     *numBytesProcessed = m_trcIn.processed();
     return resp;
 }
@@ -241,8 +251,8 @@ ocsd_datapath_resp_t TrcPktProcEtmV4I::outputUnsyncedRawPacket()
 {
     ocsd_datapath_resp_t resp = OCSD_RESP_CONT;
     
-
-   outputRawPacketToMonitor(m_packet_index,&m_curr_packet,m_dump_unsynced_bytes,&m_currPacketData[0]);
+    statsAddUnsyncCount(m_dump_unsynced_bytes);
+    outputRawPacketToMonitor(m_packet_index,&m_curr_packet,m_dump_unsynced_bytes,&m_currPacketData[0]);
         
     if(!m_sent_notsync_packet)
     {        
@@ -290,6 +300,7 @@ void TrcPktProcEtmV4I::iPktNoPayload(const uint8_t lastByte)
     switch(m_curr_packet.type)
     {
     case ETM4_PKT_I_ADDR_MATCH:
+    case ETE_PKT_I_SRC_ADDR_MATCH:
         m_curr_packet.setAddressExactMatch(lastByte & 0x3);
         break;
 
@@ -307,6 +318,8 @@ void TrcPktProcEtmV4I::iPktNoPayload(const uint8_t lastByte)
     case ETM4_PKT_I_EXCEPT_RTN:
     case ETM4_PKT_I_TRACE_ON:
     case ETM4_PKT_I_FUNC_RET:
+    case ETE_PKT_I_TRANS_ST:
+    case ETE_PKT_I_TRANS_COMMIT:
     case ETM4_PKT_I_IGNORE:
     default: break;
     }
@@ -437,6 +450,8 @@ void TrcPktProcEtmV4I::iPktTraceInfo(const uint8_t lastByte)
             m_tinfo_sections.sectFlags |= (lastByte & 0x80) ? 0 : TINFO_SPEC_SECT;
         else if(!(m_tinfo_sections.sectFlags & TINFO_CYCT_SECT))
             m_tinfo_sections.sectFlags |= (lastByte & 0x80) ? 0 : TINFO_CYCT_SECT;
+        else if (!(m_tinfo_sections.sectFlags & TINFO_WNDW_SECT))
+            m_tinfo_sections.sectFlags |= (lastByte & 0x80) ? 0 : TINFO_WNDW_SECT;
     }
 
     // all sections accounted for?
@@ -468,6 +483,11 @@ void TrcPktProcEtmV4I::iPktTraceInfo(const uint8_t lastByte)
         {
             idx += extractContField(m_currPacketData,idx,fieldVal);
             m_curr_packet.setTraceInfoCyct(fieldVal);
+        }
+        if ((presSect & TINFO_WNDW_SECT) && (idx < m_currPacketData.size()))
+        {
+            idx += extractContField(m_currPacketData, idx, fieldVal);
+            /* Trace commit window unsupported in current ETE versions */
         }
         m_process_state = SEND_PKT;
         m_first_trace_info = true;
@@ -502,8 +522,11 @@ void TrcPktProcEtmV4I::iPktTimestamp(const uint8_t lastByte)
     {        
         int idx = 1;
         uint64_t tsVal;
-        int ts_bytes = extractContField64(m_currPacketData, idx, tsVal);
-        int ts_bits = ts_bytes < 7 ? ts_bytes * 7 : 64;
+        int ts_bytes = extractTSField64(m_currPacketData, idx, tsVal);
+        int ts_bits;
+        
+        // if ts_bytes 8 or less, then cont bits on each byte, otherwise full 64 bit value for 9 bytes
+        ts_bits = ts_bytes < 9 ? ts_bytes * 7 : 64;
 
         if(!m_curr_packet.pkt_valid.bits.ts_valid && m_first_trace_info)
             ts_bits = 64;   // after trace info, missing bits are all 0.
@@ -534,6 +557,13 @@ void TrcPktProcEtmV4I::iPktException(const uint8_t lastByte)
     case 1: m_excep_size = 3; break;
     case 2: if((lastByte & 0x80) == 0x00)
                 m_excep_size = 2; 
+            // ETE exception reset or trans failed
+            if (m_config.MajVersion() >= 0x5)
+            {
+                excep_type = (m_currPacketData[1] >> 1) & 0x1F;
+                if ((excep_type == 0x0) || (excep_type == 0x18))
+                    m_excep_size = 3;
+            }
             break;
     }
 
@@ -553,6 +583,18 @@ void TrcPktProcEtmV4I::iPktException(const uint8_t lastByte)
         m_curr_packet.setExceptionInfo(excep_type,addr_interp,m_fault_pending, m_type);
         m_process_state = SEND_PKT;
 
+        // ETE exception reset or trans failed
+        if (m_config.MajVersion() >= 0x5)
+        {
+            if ((excep_type == 0x0) || (excep_type == 0x18))
+            {
+                m_curr_packet.set64BitAddress(0, 0);
+                if (excep_type == 0x18)
+                    m_curr_packet.setType(ETE_PKT_I_TRANS_FAIL);
+                else
+                    m_curr_packet.setType(ETE_PKT_I_PE_RESET);
+            }
+        }
         // allow the standard address packet handlers to process the address packet field for the exception.
     }
 }
@@ -833,7 +875,7 @@ void TrcPktProcEtmV4I::extractAndSetContextInfo(const std::vector<uint8_t> &buff
     // on input, buffer index points at the info byte - always present
     uint8_t infoByte = m_currPacketData[st_idx];
     
-    m_curr_packet.setContextInfo(true, (infoByte & 0x3), (infoByte >> 5) & 0x1, (infoByte >> 4) & 0x1);    
+    m_curr_packet.setContextInfo(true, (infoByte & 0x3), (infoByte >> 5) & 0x1, (infoByte >> 4) & 0x1, (infoByte >> 3) & 0x1);    
 
     // see if there are VMID and CID bytes, and how many.
     int nVMID_bytes = ((infoByte & 0x40) == 0x40) ? (m_config.vmidSize()/8) : 0;
@@ -937,7 +979,8 @@ void TrcPktProcEtmV4I::iPktShortAddr(const uint8_t lastByte)
     {
         m_addr_done = false;
         m_addrIS = 0;
-        if (lastByte == ETM4_PKT_I_ADDR_S_IS1)
+        if ((lastByte == ETM4_PKT_I_ADDR_S_IS1) ||
+            (lastByte == ETE_PKT_I_SRC_ADDR_S_IS1))
             m_addrIS = 1;
     }
     else if(!m_addr_done)
@@ -988,14 +1031,18 @@ void TrcPktProcEtmV4I::iPktLongAddr(const uint8_t lastByte)
         switch(m_curr_packet.type)
         {
         case ETM4_PKT_I_ADDR_L_32IS1:
+        case ETE_PKT_I_SRC_ADDR_L_32IS1:
             m_addrIS = 1;
         case ETM4_PKT_I_ADDR_L_32IS0:
+        case ETE_PKT_I_SRC_ADDR_L_32IS0:
             m_addrBytes = 4;
             break;
 
         case ETM4_PKT_I_ADDR_L_64IS1:
+        case ETE_PKT_I_SRC_ADDR_L_64IS1:
             m_addrIS = 1;
         case ETM4_PKT_I_ADDR_L_64IS0:
+        case ETE_PKT_I_SRC_ADDR_L_64IS0:
             m_addrBytes = 8;
             m_bAddr64bit = true;
             break;
@@ -1203,6 +1250,23 @@ void TrcPktProcEtmV4I::iAtom(const uint8_t lastByte)
     m_process_state = SEND_PKT;
 }
 
+void TrcPktProcEtmV4I::iPktITE(const uint8_t /* lastByte */)
+{
+    uint64_t value;
+    int shift = 0;
+
+    /* packet is always 10 bytes, Header, EL info byte, 8 bytes payload */
+    if (m_currPacketData.size() == 10) {
+        value = 0;
+        for (int i = 2; i < 10; i++) {
+            value |= ((uint64_t)m_currPacketData[i]) << shift;
+            shift += 8;
+        }
+        m_curr_packet.setITE(m_currPacketData[1], value);
+        m_process_state = SEND_PKT;
+    }
+}
+
 // header byte processing is table driven.
 void TrcPktProcEtmV4I::BuildIPacketTable()   
 {
@@ -1247,7 +1311,35 @@ void TrcPktProcEtmV4I::BuildIPacketTable()
 
     // b0000 0111 - exception return 
     m_i_table[0x07].pkt_type = ETM4_PKT_I_EXCEPT_RTN;
-    m_i_table[0x07].pptkFn = &TrcPktProcEtmV4I::iPktNoPayload;
+    if (m_config.MajVersion() >= 0x5)  // not valid for ETE
+    {
+#ifdef ETE_TRACE_ERET_AS_IGNORE
+        m_i_table[0x07].pkt_type = ETM4_PKT_I_IGNORE;
+        m_i_table[0x07].pptkFn = &EtmV4IPktProcImpl::iPktNoPayload;
+#else
+        m_i_table[0x07].pptkFn = &TrcPktProcEtmV4I::iPktInvalidCfg;
+#endif
+    }
+    else
+        m_i_table[0x07].pptkFn = &TrcPktProcEtmV4I::iPktNoPayload;
+
+    // b00001010, b00001011 ETE TRANS packets
+    // b00001001 - ETE sw instrumentation packet
+    if (m_config.MajVersion() >= 0x5)
+    {
+        m_i_table[0x0A].pkt_type = ETE_PKT_I_TRANS_ST;
+        m_i_table[0x0A].pptkFn = &TrcPktProcEtmV4I::iPktNoPayload;
+
+        m_i_table[0x0B].pkt_type = ETE_PKT_I_TRANS_COMMIT;
+        m_i_table[0x0B].pptkFn = &TrcPktProcEtmV4I::iPktNoPayload;
+
+        // FEAT_ITE - sw instrumentation packet
+        if (m_config.MinVersion() >= 0x3)
+        {
+            m_i_table[0x09].pkt_type = ETE_PKT_I_ITE;
+            m_i_table[0x09].pptkFn = &TrcPktProcEtmV4I::iPktITE;
+        }
+    }
 
     // b0000 110x - cycle count f2
     // b0000 111x - cycle count f1
@@ -1443,6 +1535,12 @@ void TrcPktProcEtmV4I::BuildIPacketTable()
         m_i_table[0x85+i].pptkFn   = &TrcPktProcEtmV4I::iPktAddrCtxt;
     }
 
+    // 0b1000 1000 - ETE 1.1 TS Marker. also ETMv4.6
+    if(m_config.FullVersion() >= 0x46)
+    {
+        m_i_table[0x88].pkt_type = ETE_PKT_I_TS_MARKER;
+        m_i_table[0x88].pptkFn = &TrcPktProcEtmV4I::iPktNoPayload;
+    }
     // 0b1001 0000 to b1001 0010 - exact match addr
     for(int i = 0; i < 3; i++)
     {
@@ -1490,6 +1588,30 @@ void TrcPktProcEtmV4I::BuildIPacketTable()
             if (m_config.hasQElem())
                 m_i_table[0xA0 + i].pptkFn = &TrcPktProcEtmV4I::iPktQ;
         }
+    }
+
+    // b10110000 - b10111001 - ETE src address packets
+    if (m_config.FullVersion() >= 0x50)
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            m_i_table[0xB0 + i].pkt_type = ETE_PKT_I_SRC_ADDR_MATCH;
+            m_i_table[0xB0 + i].pptkFn = &TrcPktProcEtmV4I::iPktNoPayload;
+        }
+
+        m_i_table[0xB4].pkt_type = ETE_PKT_I_SRC_ADDR_S_IS0;
+        m_i_table[0xB4].pptkFn = &TrcPktProcEtmV4I::iPktShortAddr;
+        m_i_table[0xB5].pkt_type = ETE_PKT_I_SRC_ADDR_S_IS1;
+        m_i_table[0xB5].pptkFn = &TrcPktProcEtmV4I::iPktShortAddr;
+
+        m_i_table[0xB6].pkt_type = ETE_PKT_I_SRC_ADDR_L_32IS0;
+        m_i_table[0xB6].pptkFn = &TrcPktProcEtmV4I::iPktLongAddr;
+        m_i_table[0xB7].pkt_type = ETE_PKT_I_SRC_ADDR_L_32IS1;
+        m_i_table[0xB7].pptkFn = &TrcPktProcEtmV4I::iPktLongAddr;
+        m_i_table[0xB8].pkt_type = ETE_PKT_I_SRC_ADDR_L_64IS0;
+        m_i_table[0xB8].pptkFn = &TrcPktProcEtmV4I::iPktLongAddr;
+        m_i_table[0xB9].pkt_type = ETE_PKT_I_SRC_ADDR_L_64IS1;
+        m_i_table[0xB9].pptkFn = &TrcPktProcEtmV4I::iPktLongAddr;
     }
 
     // Atom Packets - all no payload but have specific pattern generation fn
@@ -1559,20 +1681,33 @@ void TrcPktProcEtmV4I::BuildIPacketTable()
     return idx;
 }
 
-unsigned TrcPktProcEtmV4I::extractContField64(const std::vector<uint8_t> &buffer, const unsigned st_idx, uint64_t &value, const unsigned byte_limit /*= 9*/)
+unsigned TrcPktProcEtmV4I::extractTSField64(const std::vector<uint8_t> &buffer, const unsigned st_idx, uint64_t &value)
 {
+    const unsigned max_byte_idx = 8;    /* the 9th byte, index 8, will use full 8 bits for value */
     unsigned idx = 0;
     bool lastByte = false;
     uint8_t byteVal;
+    uint8_t byteValMask = 0x7f;
+    
+    /* init value */
     value = 0;
-    while(!lastByte && (idx < byte_limit))   // max 9 bytes for 64 bit value;
+    while(!lastByte)   // max 9 bytes for 64 bit value;
     {
         if(buffer.size() > (st_idx + idx))
         {
             // each byte has seven bits + cont bit
             byteVal = buffer[(st_idx + idx)];
-            lastByte = (byteVal & 0x80) != 0x80;
-            value |= ((uint64_t)(byteVal & 0x7F)) << (idx * 7);
+
+            /* detect the final byte - which uses full 8 bits as value */
+            if (idx == max_byte_idx)
+            {
+                byteValMask = 0xFF;  /* last byte of 9, no cont bit */
+                lastByte = true;
+            }
+            else 
+                lastByte = (byteVal & 0x80) != 0x80;
+
+            value |= ((uint64_t)(byteVal & byteValMask)) << (idx * 7);
             idx++;
         }
         else
@@ -1580,6 +1715,7 @@ unsigned TrcPktProcEtmV4I::extractContField64(const std::vector<uint8_t> &buffer
             throwBadSequenceError("Invalid 64 bit continuation fields in packet");
         }
     }
+    // index is the count of bytes used here.
     return idx;
 }
 

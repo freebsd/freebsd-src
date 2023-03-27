@@ -54,7 +54,10 @@ static const char *s_elem_descs[][2] =
     {"OCSD_GEN_TRC_ELEM_TIMESTAMP","Timestamp - preceding elements happeded before this time."},
     {"OCSD_GEN_TRC_ELEM_CYCLE_COUNT","Cycle count - cycles since last cycle count value - associated with a preceding instruction range."},
     {"OCSD_GEN_TRC_ELEM_EVENT","Event - numbered event or trigger"},
-    {"OCSD_GEN_TRC_ELEM_SWTRACE","Software trace packet - may contain data payload."},
+    {"OCSD_GEN_TRC_ELEM_SWTRACE","Software trace packet - may contain data payload. STM / ITM hardware trace with channel protocol."},
+    {"OCSD_GEN_TRC_ELEM_SYNC_MARKER","Synchronisation marker - marks position in stream of an element that is output later."},
+    {"OCSD_GEN_TRC_ELEM_MEMTRANS","Trace indication of transactional memory operations."},
+    {"OCSD_GEN_TRC_ELEM_INSTRUMENTATION", "PE instrumentation trace - PE generated SW trace, application dependent protocol."},
     {"OCSD_GEN_TRC_ELEM_CUSTOM","Fully custom packet type."}
 };
 
@@ -64,7 +67,8 @@ static const char *instr_type[] = {
     "iBR ",
     "ISB ",
     "DSB.DMB",
-    "WFI.WFE"
+    "WFI.WFE",
+    "TSTART"
 };
 
 #define T_SIZE (sizeof(instr_type) / sizeof(const char *))
@@ -104,6 +108,16 @@ static const char *s_unsync_reason[] = {
     "discard",              // UNSYNC_DISCARD - specl trace discard - need to re-sync
     "bad-packet",           // UNSYNC_BAD_PACKET - bad packet at input - resync to restart.
     "end-of-trace",         // UNSYNC_EOT - end of trace info.
+};
+static const char *s_transaction_type[] = {
+	"Init",
+    "Start",
+    "Commit",
+    "Fail"
+};
+
+static const char *s_marker_t[] = {
+  "Timestamp marker",  //  ELEM_MARKER_TS  
 };
 
 void OcsdTraceElement::toString(std::string &str) const
@@ -158,7 +172,14 @@ void OcsdTraceElement::toString(std::string &str) const
             {
                 oss << "EL" << std::dec << (int)(context.exception_level);
             }
-            oss << (context.security_level == ocsd_sec_secure ? "S; " : "N; ") << (context.bits64 ? "64-bit; " : "32-bit; ");
+            switch (context.security_level) 
+            {
+            case ocsd_sec_secure: oss << "S; "; break;
+            case ocsd_sec_nonsecure: oss << "N; "; break;
+            case ocsd_sec_root: oss << "Root; "; break;
+            case ocsd_sec_realm: oss << "Realm; "; break;
+            }
+            oss  << (context.bits64 ? "64-bit; " : "32-bit; ");
             if(context.vmid_valid)
                 oss << "VMID=0x" << std::hex << context.vmid << "; ";
             if(context.ctxt_id_valid)
@@ -188,6 +209,19 @@ void OcsdTraceElement::toString(std::string &str) const
         case OCSD_GEN_TRC_ELEM_NO_SYNC:
             if (unsync_eot_info <= UNSYNC_EOT)
                 oss << " [" << s_unsync_reason[unsync_eot_info] << "]";
+            break;
+
+        case OCSD_GEN_TRC_ELEM_SYNC_MARKER:
+            oss << " [" << s_marker_t[sync_marker.type] << "(0x" << std::setfill('0') << std::setw(8) << std::hex << sync_marker.value << ")]";
+            break;
+
+        case OCSD_GEN_TRC_ELEM_MEMTRANS:
+            if (mem_trans <= OCSD_MEM_TRANS_FAIL)
+                oss << s_transaction_type[mem_trans];
+            break;
+
+        case OCSD_GEN_TRC_ELEM_INSTRUMENTATION:
+            oss << "EL" << std::dec << (int)sw_ite.el << "; 0x" << std::setfill('0') << std::setw(16) << std::hex << sw_ite.value;
             break;
 
         default: break;

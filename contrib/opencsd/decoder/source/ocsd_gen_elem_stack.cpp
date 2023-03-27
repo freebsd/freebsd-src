@@ -42,6 +42,7 @@ OcsdGenElemStack::OcsdGenElemStack() :
     m_curr_elem_idx(0),
     m_send_elem_idx(0),
     m_CSID(0),
+    m_sendIf(NULL),
     m_is_init(false)
 {
 

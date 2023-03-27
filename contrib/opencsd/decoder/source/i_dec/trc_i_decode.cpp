@@ -42,7 +42,7 @@ ocsd_err_t TrcIDecode::DecodeInstruction(ocsd_instr_info *instr_info)
     struct decode_info info;
 
     info.instr_sub_type = OCSD_S_INSTR_NONE;
-    info.arch_version = (uint16_t)(instr_info->pe_type.arch);
+    info.arch_version = instr_info->pe_type.arch;
 
     switch(instr_info->isa)
     {
@@ -136,14 +136,12 @@ ocsd_err_t TrcIDecode::DecodeA64(ocsd_instr_info *instr_info, struct decode_info
     if(inst_A64_is_indirect_branch_link(instr_info->opcode, &instr_info->is_link, info))
     {
         instr_info->type = OCSD_INSTR_BR_INDIRECT;
-//        instr_info->is_link = inst_A64_is_branch_and_link(instr_info->opcode);
     }
     else if(inst_A64_is_direct_branch_link(instr_info->opcode, &instr_info->is_link, info))
     {
         inst_A64_branch_destination(instr_info->instr_addr,instr_info->opcode,&branchAddr);
         instr_info->type = OCSD_INSTR_BR;
         instr_info->branch_addr = (ocsd_vaddr_t)branchAddr;
-//        instr_info->is_link = inst_A64_is_branch_and_link(instr_info->opcode);
     }
     else if((barrier = inst_A64_barrier(instr_info->opcode)) != ARM_BARRIER_NONE)
     {
@@ -160,12 +158,15 @@ ocsd_err_t TrcIDecode::DecodeA64(ocsd_instr_info *instr_info, struct decode_info
             break;
         }
     }
-    else if (instr_info->wfi_wfe_branch)
+    else if (instr_info->wfi_wfe_branch && 
+             inst_A64_wfiwfe(instr_info->opcode, info))
     {
-        if (inst_A64_wfiwfe(instr_info->opcode))
-        {
-            instr_info->type = OCSD_INSTR_WFI_WFE;
-        }
+        instr_info->type = OCSD_INSTR_WFI_WFE;
+    }
+    else if (OCSD_IS_ARCH_MINVER(info->arch_version, ARCH_AA64))
+    {
+        if (inst_A64_Tstart(instr_info->opcode))
+            instr_info->type = OCSD_INSTR_TSTART;
     }
 
     instr_info->is_conditional = inst_A64_is_conditional(instr_info->opcode);

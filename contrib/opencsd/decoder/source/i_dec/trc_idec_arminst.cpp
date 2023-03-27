@@ -244,8 +244,9 @@ int inst_A64_is_direct_branch_link(uint32_t inst, uint8_t *is_link, struct decod
     int is_direct_branch = 1;
     if ((inst & 0x7c000000) == 0x34000000) {
         /* CB, TB */
-    } else if ((inst & 0xff000010) == 0x54000000) {
+    } else if ((inst & 0xff000000) == 0x54000000) {
         /* B<cond> */
+        /* BC<cond> 8.8 / 9.3 arch - bit 4 = 1'b1 */
     } else if ((inst & 0x7c000000) == 0x14000000) {
         /* B, BL imm */
         if (inst & 0x80000000) {
@@ -258,10 +259,25 @@ int inst_A64_is_direct_branch_link(uint32_t inst, uint8_t *is_link, struct decod
     return is_direct_branch;
 }
 
-int inst_A64_wfiwfe(uint32_t inst)
+int inst_A64_wfiwfe(uint32_t inst, struct decode_info *info)
 {
     /* WFI, WFE may be traced as branches in etm 4.3++ */
     if ((inst & 0xffffffdf) == 0xd503205f)
+        return 1;
+
+    /* new feature introduced post v8.3 */
+    if (OCSD_IS_ARCH_MINVER(info->arch_version, ARCH_AA64))
+    {
+        /* WFIT / WFET for later archs */
+        if ((inst & 0xffffffc0) == 0xd5031000)
+            return 1;
+    }
+    return 0;
+}
+
+int inst_A64_Tstart(uint32_t inst)
+{
+    if ((inst & 0xffffffe0) == 0xd5233060)
         return 1;
     return 0;
 }
@@ -288,7 +304,7 @@ int inst_A64_is_indirect_branch_link(uint32_t inst, uint8_t *is_link, struct dec
     } else if ((inst & 0xffffffff) == 0xd69f03e0) {
         /* ERET */
         info->instr_sub_type = OCSD_S_INSTR_V8_ERET;
-    } else if (info->arch_version >= 0x0803) {
+    } else if (OCSD_IS_ARCH_MINVER(info->arch_version, ARCH_V8r3)) {
         /* new pointer auth instr for v8.3 arch */   
         if ((inst & 0xffdff800) == 0xd71f0800) {
             /* BRAA, BRAB, BLRAA, BLRBB */
@@ -399,8 +415,9 @@ int inst_A64_branch_destination(uint64_t addr, uint32_t inst, uint64_t *pnpc)
 {
     uint64_t npc;
     int is_direct_branch = 1;
-    if ((inst & 0xff000010) == 0x54000000) {
+    if ((inst & 0xff000000) == 0x54000000) {
         /* B<cond> */
+        /* BC<cond> */
         npc = addr + ((int32_t)((inst & 0x00ffffe0) << 8) >> 11);
     } else if ((inst & 0x7c000000) == 0x14000000) {
         /* B, BL imm */
@@ -484,7 +501,7 @@ int inst_A64_is_branch_and_link(uint32_t inst, struct decode_info *info)
     } else if ((inst & 0xfc000000) == 0x94000000) {
         /* BL */
         info->instr_sub_type = OCSD_S_INSTR_BR_LINK;
-    }  else if (info->arch_version >= 0x0803) {
+    }  else if (OCSD_IS_ARCH_MINVER(info->arch_version, ARCH_V8r3)) {
         /* new pointer auth instr for v8.3 arch */
         if ((inst & 0xfffff800) == 0xd73f0800) {
             /* BLRAA, BLRBB */
@@ -553,8 +570,9 @@ int inst_A64_is_conditional(uint32_t inst)
     if ((inst & 0x7c000000) == 0x34000000) {
         /* CB, TB */
         return 1;
-    } else if ((inst & 0xff000010) == 0x54000000) {
+    } else if ((inst & 0xff000000) == 0x54000000) {
         /* B.cond */
+        /* BC.cond */
         return 1;
     }
     return 0;

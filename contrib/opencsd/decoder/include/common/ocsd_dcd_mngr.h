@@ -80,16 +80,16 @@ public:
 
     
 private:
-    ocsd_trace_protocol_t m_builtInProtocol;    //!< Protocol ID if built in type.
+    const ocsd_trace_protocol_t m_builtInProtocol;    //!< Protocol ID if built in type.
 };
 
 template <class P, class Pt, class Pc>
-DecoderMngrBase<P,Pt,Pc>::DecoderMngrBase(const std::string &decoderTypeName, ocsd_trace_protocol_t builtInProtocol)
+    DecoderMngrBase<P,Pt,Pc>::DecoderMngrBase(const std::string &decoderTypeName, ocsd_trace_protocol_t builtInProtocol) :
+        m_builtInProtocol(builtInProtocol)
 {
     OcsdLibDcdRegister *pDcdReg = OcsdLibDcdRegister::getDecoderRegister();
     if(pDcdReg)
         pDcdReg->registerDecoderTypeByName(decoderTypeName,this);
-    m_builtInProtocol = builtInProtocol;
 }
 
 template <class P, class Pt, class Pc>
@@ -361,6 +361,49 @@ public:
        return new (std::nothrow) Pc((PcSt *)pDataStruct);
     }
 };
+
+/* full decode - extended config object - base + derived. */
+template<   class P,            // Packet class.
+            class Pt,           // Packet enum type ID.
+            class Pc,           // Processor config base class.
+            class PcEx,         // Processor config derived class
+            class PcSt,         // Processor config struct type
+            class PktProc,      // Packet processor class.
+            class PktDcd>       // Packet decoder class.
+            class DecodeMngrFullDcdExCfg : public DecoderMngrBase<P, Pt, Pc>
+{
+public:
+    DecodeMngrFullDcdExCfg(const std::string &name, ocsd_trace_protocol_t builtInProtocol)
+        : DecoderMngrBase<P, Pt, Pc>(name, builtInProtocol) {};
+
+    virtual ~DecodeMngrFullDcdExCfg() {};
+
+    virtual TraceComponent *createPktProc(const bool useInstID, const int instID)
+    {
+        TraceComponent *pComp;
+        if (useInstID)
+            pComp = new (std::nothrow) PktProc(instID);
+        else
+            pComp = new (std::nothrow) PktProc();
+        return pComp;
+    }
+
+    virtual TraceComponent *createPktDecode(const bool useInstID, const int instID)
+    {
+        TraceComponent *pComp;
+        if (useInstID)
+            pComp = new (std::nothrow)PktDcd(instID);
+        else
+            pComp = new (std::nothrow)PktDcd();
+        return pComp;
+    }
+
+    virtual CSConfig *createConfig(const void *pDataStruct)
+    {
+        return new (std::nothrow) PcEx((PcSt *)pDataStruct);
+    }
+};
+
 
 /****************************************************************************************************/
 /* Packet processor only, templated base for creating decoder objects                               */

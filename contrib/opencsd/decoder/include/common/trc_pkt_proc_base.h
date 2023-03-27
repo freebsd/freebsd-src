@@ -43,6 +43,7 @@
 
 #include "trc_component.h"
 #include "comp_attach_pt_t.h"
+#include "opencsd/ocsd_if_version.h"
 
 /** @defgroup ocsd_pkt_proc  OpenCSD Library : Packet Processors.
     @brief Classes providing Protocol Packet Processing capability.
@@ -76,6 +77,8 @@ public:
                                                 const uint8_t *pDataBlock,
                                                 uint32_t *numBytesProcessed) = 0;
 
+    virtual ocsd_err_t getStatsBlock(ocsd_decode_stats_t **pp_stats) = 0;
+    virtual void resetStats() = 0;
 protected:
 
     /* implementation packet processing interface */
@@ -155,6 +158,10 @@ public:
     //!< Get the configuration for the decoder.
     virtual const Pc *getProtocolConfig() const { return m_config; };
 
+/*  stats block access - derived class must init stats for the block to be returned. */
+    virtual ocsd_err_t getStatsBlock(ocsd_decode_stats_t **pp_stats);
+    virtual void resetStats();  /* reset the counts - operates separately from decoder reset. */
+
 protected:
 
     /* data output functions */
@@ -183,6 +190,14 @@ protected:
 
     const bool checkInit(); // return true if init (configured and at least one output sink attached), false otherwise.
 
+    /* stats block updates - called by derived protocol specific decoder */
+    void statsAddTotalCount(const uint64_t count) { m_stats.channel_total += count; };
+    void statsAddUnsyncCount(const uint64_t count) { m_stats.channel_unsynced += count; };
+    void statsAddBadSeqCount(const uint32_t count) { m_stats.bad_sequence_errs += count; };
+    void statsAddBadHdrCount(const uint32_t count) { m_stats.bad_header_errs += count; };
+    void statsInit() { m_stats_init = true; };  /* mark stats as in use */
+
+ 
 private:
     /* decode control */
     ocsd_datapath_resp_t Reset(const ocsd_trc_index_t index);
@@ -195,20 +210,29 @@ private:
     componentAttachPt<ITrcPktIndexer<Pt>> m_pkt_indexer_i;
 
     bool m_b_is_init;
+    
+    /* decode statistics block */
+    ocsd_decode_stats_t m_stats;
+    bool m_stats_init; /*< true if the specific decoder is using the stats */
+
 };
 
 template<class P,class Pt, class Pc> TrcPktProcBase<P, Pt, Pc>::TrcPktProcBase(const char *component_name) : 
     TrcPktProcI(component_name),
     m_config(0),
-    m_b_is_init(false)
+    m_b_is_init(false),
+    m_stats_init(false)
 {
+    resetStats();
 }
 
 template<class P,class Pt, class Pc> TrcPktProcBase<P, Pt, Pc>::TrcPktProcBase(const char *component_name, int instIDNum) : 
     TrcPktProcI(component_name, instIDNum),
     m_config(0),
-    m_b_is_init(false)
+    m_b_is_init(false),
+    m_stats_init(false)
 {
+    resetStats();
 }
 
 template<class P,class Pt, class Pc> TrcPktProcBase<P, Pt, Pc>::~TrcPktProcBase()
@@ -404,6 +428,26 @@ template<class P,class Pt, class Pc> const bool TrcPktProcBase<P, Pt, Pc>::check
     }
     return m_b_is_init;
 }
+
+template<class P,class Pt, class Pc> ocsd_err_t TrcPktProcBase<P, Pt, Pc>::getStatsBlock(ocsd_decode_stats_t **pp_stats)
+{
+    
+    *pp_stats = &m_stats;
+    return m_stats_init ? OCSD_OK : OCSD_ERR_NOT_INIT;
+}
+
+template<class P,class Pt, class Pc> void TrcPktProcBase<P, Pt, Pc>::resetStats()
+{
+    m_stats.version = OCSD_VER_NUM;
+    m_stats.revision = OCSD_STATS_REVISION;
+    m_stats.channel_total = 0;
+    m_stats.channel_unsynced = 0;
+    m_stats.bad_header_errs = 0;
+    m_stats.bad_sequence_errs = 0;
+    m_stats.demux.frame_bytes = 0;
+    m_stats.demux.no_id_bytes = 0;
+    m_stats.demux.valid_id_bytes = 0;
+} 
 
 /** @}*/
 
