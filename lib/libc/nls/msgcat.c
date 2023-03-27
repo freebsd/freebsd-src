@@ -196,7 +196,7 @@ __catopen_l(const char *name, int type, locale_t locale)
 		pcode = cptr;
 	}
 
-	if ((nlspath = getenv("NLSPATH")) == NULL || issetugid())
+	if ((nlspath = secure_getenv("NLSPATH")) == NULL)
 		nlspath = _DEFAULT_NLS_PATH;
 
 	if ((base = cptr = strdup(nlspath)) == NULL) {

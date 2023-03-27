@@ -81,8 +81,9 @@ init_cache(void)
 		_CITRUS_HASH_INIT(&shared_pool, CI_HASH_SIZE);
 		TAILQ_INIT(&shared_unused);
 		shared_max_reuse = -1;
-		if (!issetugid() && getenv(CI_ENV_MAX_REUSE))
-			shared_max_reuse = atoi(getenv(CI_ENV_MAX_REUSE));
+		if (secure_getenv(CI_ENV_MAX_REUSE) != NULL)
+			shared_max_reuse =
+			    atoi(secure_getenv(CI_ENV_MAX_REUSE));
 		if (shared_max_reuse < 0)
 			shared_max_reuse = CI_INITIAL_MAX_REUSE;
 		isinit = true;

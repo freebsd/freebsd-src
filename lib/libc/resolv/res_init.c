@@ -277,7 +277,7 @@ __res_vinit(res_state statp, int preinit) {
 #endif	/* SOLARIS2 */
 
 	/* Allow user to override the local domain definition */
-	if (issetugid() == 0 && (cp = getenv("LOCALDOMAIN")) != NULL) {
+	if ((cp = secure_getenv("LOCALDOMAIN")) != NULL) {
 		(void)strncpy(statp->defdname, cp, sizeof(statp->defdname) - 1);
 		statp->defdname[sizeof(statp->defdname) - 1] = '\0';
 		haveenv++;

@@ -282,8 +282,8 @@ _citrus_load_module(_citrus_module_t *rhandle, const char *encname)
 	int maj, min;
 
 	if (_pathI18nModule == NULL) {
-		p = getenv("PATH_I18NMODULE");
-		if (p != NULL && !issetugid()) {
+		p = secure_getenv("PATH_I18NMODULE");
+		if (p != NULL) {
 			_pathI18nModule = strdup(p);
 			if (_pathI18nModule == NULL)
 				return (ENOMEM);

@@ -457,9 +457,7 @@ res_hostalias(const res_state statp, const char *name, char *dst, size_t siz) {
 
 	if (statp->options & RES_NOALIASES)
 		return (NULL);
-	if (issetugid())
-		return (NULL);
-	file = getenv("HOSTALIASES");
+	file = secure_getenv("HOSTALIASES");
 	if (file == NULL || (fp = fopen(file, "re")) == NULL)
 		return (NULL);
 	setbuf(fp, NULL);

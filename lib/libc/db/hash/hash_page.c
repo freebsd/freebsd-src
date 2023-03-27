@@ -855,11 +855,10 @@ open_temp(HTAB *hashp)
 {
 	sigset_t set, oset;
 	int len;
-	char *envtmp = NULL;
+	char *envtmp;
 	char path[MAXPATHLEN];
 
-	if (issetugid() == 0)
-		envtmp = getenv("TMPDIR");
+	envtmp = secure_getenv("TMPDIR");
 	len = snprintf(path,
 	    sizeof(path), "%s/_hash.XXXXXX", envtmp ? envtmp : "/tmp");
 	if (len < 0 || len >= (int)sizeof(path)) {
