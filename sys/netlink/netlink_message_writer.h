@@ -68,6 +68,7 @@ struct nl_writer {
 #define NS_WRITER_TYPE_BUF	1
 #define NS_WRITER_TYPE_LBUF	2
 #define NS_WRITER_TYPE_MBUFC	3
+#define NS_WRITER_TYPE_STUB	4
 
 
 #define	NLMSG_SMALL	128
@@ -76,6 +77,89 @@ struct nl_writer {
 /* Message and attribute writing */
 
 struct nlpcb;
+
+#if defined(NETLINK) || defined(NETLINK_MODULE)
+/* Provide optimized calls to the functions inside the same linking unit */
+
+bool _nlmsg_get_unicast_writer(struct nl_writer *nw, int expected_size, struct nlpcb *nlp);
+bool _nlmsg_get_group_writer(struct nl_writer *nw, int expected_size, int proto, int group_id);
+bool _nlmsg_get_chain_writer(struct nl_writer *nw, int expected_size, struct mbuf **pm);
+bool _nlmsg_flush(struct nl_writer *nw);
+void _nlmsg_ignore_limit(struct nl_writer *nw);
+
+bool _nlmsg_refill_buffer(struct nl_writer *nw, int required_size);
+bool _nlmsg_add(struct nl_writer *nw, uint32_t portid, uint32_t seq, uint16_t type,
+    uint16_t flags, uint32_t len);
+bool _nlmsg_end(struct nl_writer *nw);
+void _nlmsg_abort(struct nl_writer *nw);
+
+bool _nlmsg_end_dump(struct nl_writer *nw, int error, struct nlmsghdr *hdr);
+
+
+static inline bool
+nlmsg_get_unicast_writer(struct nl_writer *nw, int expected_size, struct nlpcb *nlp)
+{
+	return (_nlmsg_get_unicast_writer(nw, expected_size, nlp));
+}
+
+static inline bool
+nlmsg_get_group_writer(struct nl_writer *nw, int expected_size, int proto, int group_id)
+{
+	return (_nlmsg_get_group_writer(nw, expected_size, proto, group_id));
+}
+
+static inline bool
+nlmsg_get_chain_writer(struct nl_writer *nw, int expected_size, struct mbuf **pm)
+{
+	return (_nlmsg_get_chain_writer(nw, expected_size, pm));
+}
+
+static inline bool
+nlmsg_flush(struct nl_writer *nw)
+{
+	return (_nlmsg_flush(nw));
+}
+
+static inline void
+nlmsg_ignore_limit(struct nl_writer *nw)
+{
+	_nlmsg_ignore_limit(nw);
+}
+
+static inline bool
+nlmsg_refill_buffer(struct nl_writer *nw, int required_size)
+{
+	return (_nlmsg_refill_buffer(nw, required_size));
+}
+
+static inline bool
+nlmsg_add(struct nl_writer *nw, uint32_t portid, uint32_t seq, uint16_t type,
+    uint16_t flags, uint32_t len)
+{
+	return (_nlmsg_add(nw, portid, seq, type, flags, len));
+}
+
+static inline bool
+nlmsg_end(struct nl_writer *nw)
+{
+	return (_nlmsg_end(nw));
+}
+
+static inline void
+nlmsg_abort(struct nl_writer *nw)
+{
+	return (_nlmsg_abort(nw));
+}
+
+static inline bool
+nlmsg_end_dump(struct nl_writer *nw, int error, struct nlmsghdr *hdr)
+{
+	return (_nlmsg_end_dump(nw, error, hdr));
+}
+
+#else
+/* Provide access to the functions via netlink_glue.c */
+
 bool nlmsg_get_unicast_writer(struct nl_writer *nw, int expected_size, struct nlpcb *nlp);
 bool nlmsg_get_group_writer(struct nl_writer *nw, int expected_size, int proto, int group_id);
 bool nlmsg_get_chain_writer(struct nl_writer *nw, int expected_size, struct mbuf **pm);
@@ -89,6 +173,8 @@ bool nlmsg_end(struct nl_writer *nw);
 void nlmsg_abort(struct nl_writer *nw);
 
 bool nlmsg_end_dump(struct nl_writer *nw, int error, struct nlmsghdr *hdr);
+
+#endif /* defined(NETLINK) || defined(NETLINK_MODULE) */
 
 static inline bool
 nlmsg_reply(struct nl_writer *nw, const struct nlmsghdr *hdr, int payload_len)

@@ -25,11 +25,14 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_netlink.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/ck.h>
 #include <sys/epoch.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/jail.h>
 #include <sys/lock.h>
@@ -41,242 +44,15 @@ __FBSDID("$FreeBSD$");
 #include <netlink/netlink.h>
 #include <netlink/netlink_ctl.h>
 #include <netlink/netlink_generic.h>
+#include <netlink/netlink_var.h>
 
 #define	DEBUG_MOD_NAME	nl_generic
 #define	DEBUG_MAX_LEVEL	LOG_DEBUG3
 #include <netlink/netlink_debug.h>
 _DECLARE_DEBUG(LOG_DEBUG);
 
-#define	CTRL_FAMILY_NAME	"nlctrl"
-
-#define	MAX_FAMILIES	20
-#define	MAX_GROUPS	64
-
-#define	MIN_GROUP_NUM	48
-
-static struct sx sx_lock;
-
-#define	GENL_LOCK_INIT()	sx_init(&sx_lock, "genetlink lock")
-#define	GENL_LOCK_DESTROY()	sx_destroy(&sx_lock)
-#define	GENL_LOCK()		sx_xlock(&sx_lock)
-#define	GENL_UNLOCK()		sx_xunlock(&sx_lock)
-
-struct genl_family {
-	const char	*family_name;
-	uint16_t	family_hdrsize;
-	uint16_t	family_id;
-	uint16_t	family_version;
-	uint16_t	family_attr_max;
-	uint16_t	family_cmd_size;
-	uint16_t	family_num_groups;
-	struct genl_cmd	*family_cmds;
-};
-
-static struct genl_family	families[MAX_FAMILIES];
-
-
-struct genl_group {
-	struct genl_family	*group_family;
-	const char		*group_name;
-};
-static struct genl_group	groups[MAX_GROUPS];
-
-
 static int dump_family(struct nlmsghdr *hdr, struct genlmsghdr *ghdr,
     const struct genl_family *gf, struct nl_writer *nw);
-static void nlctrl_notify(const struct genl_family *gf, int action);
-
-static struct genl_family *
-find_family(const char *family_name)
-{
-	for (int i = 0; i < MAX_FAMILIES; i++) {
-		struct genl_family *gf = &families[i];
-		if (gf->family_name != NULL && !strcmp(gf->family_name, family_name))
-			return (gf);
-	}
-
-	return (NULL);
-}
-
-static struct genl_family *
-find_empty_family_id(const char *family_name)
-{
-	struct genl_family *gf = NULL;
-
-	if (!strcmp(family_name, CTRL_FAMILY_NAME)) {
-		gf = &families[0];
-		gf->family_id = GENL_MIN_ID;
-	} else {
-		/* Index 0 is reserved for the control family */
-		for (int i = 1; i < MAX_FAMILIES; i++) {
-			struct genl_family *gf = &families[i];
-			if (gf->family_name == NULL) {
-				gf->family_id = GENL_MIN_ID + i;
-				break;
-			}
-		}
-	}
-
-	return (gf);
-}
-
-uint32_t
-genl_register_family(const char *family_name, size_t hdrsize, int family_version,
-    int max_attr_idx)
-{
-	uint32_t family_id = 0;
-
-	MPASS(family_name != NULL);
-	if (find_family(family_name) != NULL)
-		return (0);
-
-	GENL_LOCK();
-
-	struct genl_family *gf = find_empty_family_id(family_name);
-	MPASS(gf != NULL);
-
-	gf->family_name = family_name;
-	gf->family_version = family_version;
-	gf->family_hdrsize = hdrsize;
-	gf->family_attr_max = max_attr_idx;
-	NL_LOG(LOG_DEBUG2, "Registered family %s id %d", gf->family_name, gf->family_id);
-	family_id = gf->family_id;
-	nlctrl_notify(gf, CTRL_CMD_NEWFAMILY);
-
-	GENL_UNLOCK();
-
-	return (family_id);
-}
-
-static void
-free_family(struct genl_family *gf)
-{
-	if (gf->family_cmds != NULL)
-		free(gf->family_cmds, M_NETLINK);
-}
-
-/*
- * unregister groups of a given family
- */
-static void
-unregister_groups(const struct genl_family *gf)
-{
-
-	for (int i = 0; i < MAX_GROUPS; i++) {
-		struct genl_group *gg = &groups[i];
-		if (gg->group_family == gf && gg->group_name != NULL) {
-			gg->group_family = NULL;
-			gg->group_name = NULL;
-		}
-	}
-}
-
-/*
- * Can sleep, I guess
- */
-bool
-genl_unregister_family(const char *family_name)
-{
-	bool found = false;
-
-	GENL_LOCK();
-	struct genl_family *gf = find_family(family_name);
-
-	if (gf != NULL) {
-		nlctrl_notify(gf, CTRL_CMD_DELFAMILY);
-		found = true;
-		unregister_groups(gf);
-		/* TODO: zero pointer first */
-		free_family(gf);
-		bzero(gf, sizeof(*gf));
-	}
-	GENL_UNLOCK();
-
-	return (found);
-}
-
-bool
-genl_register_cmds(const char *family_name, const struct genl_cmd *cmds, int count)
-{
-	GENL_LOCK();
-	struct genl_family *gf = find_family(family_name);
-	if (gf == NULL) {
-		GENL_UNLOCK();
-		return (false);
-	}
-
-	int cmd_size = gf->family_cmd_size;
-
-	for (int i = 0; i < count; i++) {
-		MPASS(cmds[i].cmd_cb != NULL);
-		if (cmds[i].cmd_num >= cmd_size)
-			cmd_size = cmds[i].cmd_num + 1;
-	}
-
-	if (cmd_size > gf->family_cmd_size) {
-		/* need to realloc */
-		size_t sz = cmd_size * sizeof(struct genl_cmd);
-		void *data = malloc(sz, M_NETLINK, M_WAITOK | M_ZERO);
-
-		memcpy(data, gf->family_cmds, gf->family_cmd_size * sizeof(struct genl_cmd));
-		void *old_data = gf->family_cmds;
-		gf->family_cmds = data;
-		gf->family_cmd_size = cmd_size;
-		free(old_data, M_NETLINK);
-	}
-
-	for (int i = 0; i < count; i++) {
-		const struct genl_cmd *cmd = &cmds[i];
-		MPASS(gf->family_cmds[cmd->cmd_num].cmd_cb == NULL);
-		gf->family_cmds[cmd->cmd_num] = cmds[i];
-		NL_LOG(LOG_DEBUG2, "Adding cmd %s(%d) to family %s",
-		    cmd->cmd_name, cmd->cmd_num, gf->family_name);
-	}
-	GENL_UNLOCK();
-	return (true);
-}
-
-static struct genl_group *
-find_group(const struct genl_family *gf, const char *group_name)
-{
-	for (int i = 0; i < MAX_GROUPS; i++) {
-		struct genl_group *gg = &groups[i];
-		if (gg->group_family == gf && !strcmp(gg->group_name, group_name))
-			return (gg);
-	}
-	return (NULL);
-}
-
-uint32_t
-genl_register_group(const char *family_name, const char *group_name)
-{
-	uint32_t group_id = 0;
-
-	MPASS(family_name != NULL);
-	MPASS(group_name != NULL);
-
-	GENL_LOCK();
-	struct genl_family *gf = find_family(family_name);
-
-	if (gf == NULL || find_group(gf, group_name) != NULL) {
-		GENL_UNLOCK();
-		return (0);
-	}
-
-	for (int i = 0; i < MAX_GROUPS; i++) {
-		struct genl_group *gg = &groups[i];
-		if (gg->group_family == NULL) {
-			gf->family_num_groups++;
-			gg->group_family = gf;
-			gg->group_name = group_name;
-			group_id = i + MIN_GROUP_NUM;
-			break;
-		}
-	}
-	GENL_UNLOCK();
-
-	return (group_id);
-}
 
 /*
  * Handler called by netlink subsystem when matching netlink message is received
@@ -285,11 +61,12 @@ static int
 genl_handle_message(struct nlmsghdr *hdr, struct nl_pstate *npt)
 {
 	struct nlpcb *nlp = npt->nlp;
+	struct genl_family *gf = NULL;
 	int error = 0;
 
 	int family_id = (int)hdr->nlmsg_type - GENL_MIN_ID;
 
-	if (__predict_false(family_id < 0 || family_id >= MAX_FAMILIES)) {
+	if (__predict_false(family_id < 0 || (gf = genl_get_family(family_id)) == NULL)) {
 		NLP_LOG(LOG_DEBUG, nlp, "invalid message type: %d", hdr->nlmsg_type);
 		return (ENOTSUP);
 	}
@@ -298,8 +75,6 @@ genl_handle_message(struct nlmsghdr *hdr, struct nl_pstate *npt)
 		NLP_LOG(LOG_DEBUG, nlp, "invalid message size: %d", hdr->nlmsg_len);
 		return (EINVAL);
 	}
-
-	struct genl_family *gf = &families[family_id];
 
 	struct genlmsghdr *ghdr = (struct genlmsghdr *)(hdr + 1);
 
@@ -375,8 +150,8 @@ dump_family(struct nlmsghdr *hdr, struct genlmsghdr *ghdr,
 		if (off == 0)
 			goto enomem;
 		for (int i = 0, cnt = 0; i < MAX_GROUPS; i++) {
-			struct genl_group *gg = &groups[i];
-			if (gg->group_family != gf)
+			struct genl_group *gg = genl_get_group(i);
+			if (gg == NULL || gg->group_family != gf)
 				continue;
 
 			int cmd_off = nlattr_add_nested(nw, ++cnt);
@@ -398,6 +173,8 @@ enomem:
 
 
 /* Declare ourself as a user */
+static void nlctrl_notify(void *arg, const struct genl_family *gf, int action);
+static eventhandler_tag family_event_tag;
 
 static uint32_t ctrl_family_id;
 static uint32_t ctrl_group_id;
@@ -451,8 +228,8 @@ nlctrl_handle_getfamily(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	if (attrs.family_id != 0 || attrs.family_name != NULL) {
 		/* Resolve request */
 		for (int i = 0; i < MAX_FAMILIES; i++) {
-			struct genl_family *gf = &families[i];
-			if (match_family(gf, &attrs)) {
+			struct genl_family *gf = genl_get_family(i);
+			if (gf != NULL && match_family(gf, &attrs)) {
 				error = dump_family(hdr, &ghdr, gf, npt->nw);
 				return (error);
 			}
@@ -462,8 +239,8 @@ nlctrl_handle_getfamily(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 	hdr->nlmsg_flags = hdr->nlmsg_flags | NLM_F_MULTI;
 	for (int i = 0; i < MAX_FAMILIES; i++) {
-		struct genl_family *gf = &families[i];
-		if (match_family(gf, &attrs)) {
+		struct genl_family *gf = genl_get_family(i);
+		if (gf != NULL && match_family(gf, &attrs)) {
 			error = dump_family(hdr, &ghdr, gf, npt->nw);
 			if (error != 0)
 				break;
@@ -479,7 +256,7 @@ nlctrl_handle_getfamily(struct nlmsghdr *hdr, struct nl_pstate *npt)
 }
 
 static void
-nlctrl_notify(const struct genl_family *gf, int cmd)
+nlctrl_notify(void *arg __unused, const struct genl_family *gf, int cmd)
 {
 	struct nlmsghdr hdr = {.nlmsg_type = NETLINK_GENERIC };
 	struct genlmsghdr ghdr = { .cmd = cmd };
@@ -502,37 +279,26 @@ static const struct genl_cmd nlctrl_cmds[] = {
 	},
 };
 
-static void
-genl_nlctrl_init(void)
-{
-	ctrl_family_id = genl_register_family(CTRL_FAMILY_NAME, 0, 2, CTRL_ATTR_MAX);
-	genl_register_cmds(CTRL_FAMILY_NAME, nlctrl_cmds, NL_ARRAY_LEN(nlctrl_cmds));
-	ctrl_group_id = genl_register_group(CTRL_FAMILY_NAME, "notify");
-}
-
-static void
-genl_nlctrl_destroy(void)
-{
-	genl_unregister_family(CTRL_FAMILY_NAME);
-}
-
 static const struct nlhdr_parser *all_parsers[] = { &genl_parser };
 
 static void
-genl_load(void *u __unused)
+genl_load_all(void *u __unused)
 {
-	GENL_LOCK_INIT();
 	NL_VERIFY_PARSERS(all_parsers);
+	ctrl_family_id = genl_register_family(CTRL_FAMILY_NAME, 0, 2, CTRL_ATTR_MAX);
+	genl_register_cmds(CTRL_FAMILY_NAME, nlctrl_cmds, NL_ARRAY_LEN(nlctrl_cmds));
+	ctrl_group_id = genl_register_group(CTRL_FAMILY_NAME, "notify");
+	family_event_tag = EVENTHANDLER_REGISTER(genl_family_event, nlctrl_notify, NULL,
+	    EVENTHANDLER_PRI_ANY);
 	netlink_register_proto(NETLINK_GENERIC, "NETLINK_GENERIC", genl_handle_message);
-	genl_nlctrl_init();
 }
-SYSINIT(genl_load, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, genl_load, NULL);
+SYSINIT(genl_load_all, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, genl_load_all, NULL);
 
 static void
 genl_unload(void *u __unused)
 {
-	genl_nlctrl_destroy();
-	GENL_LOCK_DESTROY();
+	EVENTHANDLER_DEREGISTER(genl_family_event, family_event_tag);
+	genl_unregister_family(CTRL_FAMILY_NAME);
 	NET_EPOCH_WAIT();
 }
 SYSUNINIT(genl_unload, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, genl_unload, NULL);

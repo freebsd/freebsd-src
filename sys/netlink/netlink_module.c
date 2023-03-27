@@ -26,6 +26,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_netlink.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
@@ -44,7 +46,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/atomic.h>
 
-MALLOC_DEFINE(M_NETLINK, "netlink", "Memory used for netlink packets");
 FEATURE(netlink, "Netlink support");
 
 #define	DEBUG_MOD_NAME	nl_mod
@@ -52,8 +53,6 @@ FEATURE(netlink, "Netlink support");
 #include <netlink/netlink_debug.h>
 _DECLARE_DEBUG(LOG_DEBUG);
 
-SYSCTL_NODE(_net, OID_AUTO, netlink, CTLFLAG_RD, 0, "");
-SYSCTL_NODE(_net_netlink, OID_AUTO, debug, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
 
 #define NL_MAX_HANDLERS	20
 struct nl_proto_handler _nl_handlers[NL_MAX_HANDLERS];
@@ -175,6 +174,21 @@ netlink_unregister_proto(int proto)
 	return (true);
 }
 
+#if !defined(NETLINK) && defined(NETLINK_MODULE)
+/* Non-stub function provider */
+const static struct nl_function_wrapper nl_module = {
+	.nlmsg_add = _nlmsg_add,
+	.nlmsg_refill_buffer = _nlmsg_refill_buffer,
+	.nlmsg_flush = _nlmsg_flush,
+	.nlmsg_end = _nlmsg_end,
+	.nlmsg_abort = _nlmsg_abort,
+	.nlmsg_get_unicast_writer = _nlmsg_get_unicast_writer,
+	.nlmsg_get_group_writer = _nlmsg_get_group_writer,
+	.nlmsg_get_chain_writer = _nlmsg_get_chain_writer,
+	.nlmsg_end_dump = _nlmsg_end_dump,
+};
+#endif
+
 static bool
 can_unload(void)
 {
@@ -205,6 +219,9 @@ netlink_modevent(module_t mod __unused, int what, void *priv __unused)
 	switch (what) {
 	case MOD_LOAD:
 		NL_LOG(LOG_DEBUG2, "Loading");
+#if !defined(NETLINK) && defined(NETLINK_MODULE)
+		nl_set_functions(&nl_module);
+#endif
 		break;
 
 	case MOD_UNLOAD:
@@ -212,6 +229,9 @@ netlink_modevent(module_t mod __unused, int what, void *priv __unused)
 		if (can_unload()) {
 			NL_LOG(LOG_WARNING, "unloading");
 			netlink_unloading = 1;
+#if !defined(NETLINK) && defined(NETLINK_MODULE)
+			nl_set_functions(NULL);
+#endif
 		} else
 			ret = EBUSY;
 		break;
