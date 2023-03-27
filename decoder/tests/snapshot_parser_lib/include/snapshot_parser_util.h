@@ -35,6 +35,7 @@
 #ifndef ARM_SNAPSHOT_PARSER_UTIL_H_INCLUDED
 #define ARM_SNAPSHOT_PARSER_UTIL_H_INCLUDED
 
+#include <algorithm>
 #include <string>
 #include <sstream>
 #include <iomanip>

@@ -138,9 +138,17 @@ The error logger can be attached to an output logger - ocsdMsgLogger - which can
 error, or other error messages, out to screen or logging file. Errors can be filtered according to a severity rating,
 defined by @ref ocsd_err_severity_t.
 
-The DecodeTree will use a default error logger from the library - with a message logger
-that will output to `stderr`. Client applications can adjust the configuration of this error logger and 
-message logger, or provide their own configured error logger / message logger pair. 
+The DecodeTree can use a default error logger from the library - with a message logger that will output to `stderr`. 
+
+Client applications can create and adjust the configuration of this error logger and message logger by getting and intialising
+ the logger. 
+
+~~~{.cpp}
+	// ** Initialise default error logger.
+	DecodeTree::getDefaultErrorLogger()->initErrorLogger(verbosity,true);
+~~~	
+
+Alternatively clients may provide their own configured error logger / message logger pair.
 
 The test program `trc_pkt_lister` provides a customised version of an `ocsdMsgLogger` / `ocsdDefaultErrorLogger` pair
 to ensure that messages and errors are logged to the screen and a file of its choice. This logger is eventually
@@ -272,6 +280,7 @@ The different trace source types have different configuration structures, classe
 
 | protocol  | config struct       |  class      |  name define                 | 
 |:----------|:--------------------|:------------|:-----------------------------|
+| __ETE__   | @ref ocsd_ete_cfg   | ETEConfig   | @ref OCSD_BUILTIN_DCD_ETE    |
 | __ETMv4__ | @ref ocsd_etmv4_cfg | EtmV4Config | @ref OCSD_BUILTIN_DCD_ETMV4I |
 | __ETMv3__ | @ref ocsd_etmv3_cfg | EtmV3Config | @ref OCSD_BUILTIN_DCD_ETMV3  |
 | __PTM__   | @ref ocsd_ptm_cfg   | PtmConfig   | @ref OCSD_BUILTIN_DCD_PTM    |
@@ -300,14 +309,18 @@ types to be managed by a memory access mapper:-
 
 ~~~{.cpp}
 	class DecodeTree {
-		///...
+		// ...
+		ocsd_err_t createMemAccMapper(memacc_mapper_t type = MEMACC_MAP_GLOBAL);
+		// ...
 		ocsd_err_t addBufferMemAcc(const ocsd_vaddr_t address, const ocsd_mem_space_acc_t mem_space, const uint8_t *p_mem_buffer, const uint32_t mem_length);
 		ocsd_err_t addBinFileMemAcc(const ocsd_vaddr_t address, const ocsd_mem_space_acc_t mem_space, const std::string &filepath);
 		ocsd_err_t addBinFileRegionMemAcc(const ocsd_file_mem_region_t *region_array, const int num_regions, const ocsd_mem_space_acc_t mem_space, const std::string &filepath);     */
 		ocsd_err_t addCallbackMemAcc(const ocsd_vaddr_t st_address, const ocsd_vaddr_t en_address, const ocsd_mem_space_acc_t mem_space, Fn_MemAcc_CB p_cb_func, const void *p_context); 
-		///...
+		// ...
 	}	
 ~~~
+
+The `createMemAccMapper()` function must be called to create the mapper, before the `add...MemAcc()` calls are used.
 
 It is further possible to differentiate between memory image access objects by the memory space for which they are valid. If it is known that a certain code image 
 is present in secure EL3, then an image can be associated with the @ref ocsd_mem_space_acc_t type value @ref OCSD_MEM_SPACE_EL3, which will allow another image to be 
@@ -323,6 +336,7 @@ The C-API contains a similar set of calls to set up memory access objects:-
 	OCSD_C_API ocsd_err_t ocsd_dt_add_callback_mem_acc(const dcd_tree_handle_t handle, const ocsd_vaddr_t st_address, const ocsd_vaddr_t en_address, const ocsd_mem_space_acc_t mem_space, Fn_MemAcc_CB p_cb_func, const void *p_context); 
 ~~~
 
+Note that the C-API will automatically create a default mapper when the first memory access object is added.
 
 ### Adding the output callbacks ###
 

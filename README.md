@@ -27,11 +27,12 @@ Releases will appear on the master branch in the git repository with an appropri
 CoreSight Trace Component Support.
 ----------------------------------
 
-_Current Version 0.14.2_
+_Current Version 1.4.0_
 
 ### Current support:
 
-- ETMv4 (v4.5 [A/R profile] v4.4 [M profile]) instruction trace - packet processing and packet decode.
+- ETE   (v1.3) instruction trace - packet processing and packet decode.
+- ETMv4 (v4.6 [A/R profile] v4.4 [M profile]) instruction trace - packet processing and packet decode.
 - PTM   (v1.1) instruction trace - packet processing and packet decode.
 - ETMv3 (v3.5) instruction trace - packet processing and packet decode.
 - ETMv3 (v3.5) data trace - packet processing.
@@ -210,6 +211,85 @@ Version and Modification Information
                   to make library more easily usable in multi-threaded programs.
     - __Bugfix__: I-decode: Some Thumb instructions not correctly reported as implied returns.
                   (github issue #24, submitted by kongy).
+
+- _Version 0.14.3_:
+    - __Update__: Fix makefile to be compliant with RPM base distros. (github issue #26, submitted by jlinton)
+    - __Update__: Add section to autofdo document.
+    - __Bugfix__: STM: fix bug that was missing ASYNC packets. (github issue #27, reported by subhasish Karmakar)
+
+- _Version 0.14.4_:
+    - __Update__: makefile: Add DESTDIR to install targets. (github issue #30)
+    - __Update__: tests: add script to run single test only.
+    - __Update__: docs: update to location of ARM coresight driver backports directory.
+    - __Bugfix__: ETMv3: Fix missing comma in string list. (github issue #31)
+    - __Bugfix__: makefile: tests: Fix build race problem (github issue #32)
+    - __Bugfix__: tests: fix ignore tpiu command line options (github issue #28)
+
+- _Version 1.0.0_:
+    - __New Decode Protocol__: Support added for the ETE protocol, used by ARM PEs that implement the FEAT_ETE 
+                               feature. Supports new architectural features in this trace, including FEAT_TME. 
+    - __Update__: Output Elememts: New protocol defines two new output elements. 
+    - __Update__: Add support for WFIT / WFET instructions traced as P0 elements.
+    - __Update__: Architecture versioning. Arch v8 + PEs may add features in a flexible manner, and ARM also
+                  declares future features ahead of architecture versions to allow support to be added. 
+                  APIs requiring an architecture version can now use ARCH_AA64 to declare a version of v8.3 +
+                  additional features. This relaxes the strict versionnig rules that the decoder uses when
+                  looking for Opcodes as trace waypoints.
+    - __Update__: docs: Add linux 'man' file and installation.				  
+    - __Bugfix__: build: Fix clean install, and remove static lib build test from main makefile to 
+                  dev makefile only. (github issue #33)
+
+- _Version 1.1.0_:
+    - __Update__: ETM v4.6 support.
+    - __Update__: C-API - add API functions to get last error and convert error code to string.
+    - __Bugfix__: ETMv4/ETE - fix loop problem in commit elements.
+    - __Bugfix__: ETMv4/ETE - make error handling consistent.
+    - __Bugfix__: Add Pull request #36 from github (Ross Burton)
+    - __Bugfix__: Add Pull request #37 from github (Ian Rogers)
+
+- _Version 1.1.1_:
+    - __Bugfix__: Fix include and install for ETE decoder headers.
+
+- _Version 1.2.0_:
+    - __Update__: Add API for counting packet decode statistics, and Frame debmux statistics.
+    - __Update__: Update test scripts to allow additional command line options to be passed.
+    - __Bugfix__: Fix various build warnings.
+    - __Bugfix__: Remove unused variable (github issue #38 from Yi Kong)
+    - __Bugfix__: Remove noisy printf (James Clark)
+    - __Bugfix__: Fix documentation issues (github issues #39 & #40 from rbresalier)
+
+- _Version 1.2.1_:
+   - __Bugfix__: ETM4x / ETE - output of context elements to client can in some circumstances
+                 be delayed until after subsequent atoms have been processed leading to incorrect
+                 memory decode access via the client callbacks.
+                 Fixed to flush context elements immediately they are committed.
+
+- _Version 1.3.0_:
+    - __Admin__: Dev versions now have patch versions at least +100 from root public version
+    - __Update__: Add support for conditional branch (BC.cond) introduced for v8.8 / v9.3 architecture.
+    - __Update__: ETE: Add support for NSE bit - security state bit defining Root / Realm states in FEAT_RME.
+
+- _Version 1.3.1_:
+    - __Bugfix__: Add header file in snapshot parser - fix build for certain libc++ libs (github issue #43 from manojgupta)
+    - __Bugfix__: Fix typo in comment (github issue #42 from nothatDinger)
+
+- _Version 1.3.2_:
+    - __Bugfix__: ETM4x / ETE - 64 bit timestamp value - MS bit incorrectly masked to 1b0 during extraction from packet.
+
+- _Version 1.3.3_:
+    - __Update__: Add build directory for VS2022 build.
+    - __Update__: Add test program for Coresight Frame Demux code
+    - __Bugfix__: PTM: Fix incorrect extraction of Waypoint Address packet (github issue #48)
+    - __Bugfix__: Frame Demux: Fix HSYNC, FSYNC and 4xFSYNC handling that was causing out-of-bounds reads
+                  on invalid data input. (issues #49, #50 and #51). Fixed error handling for incorrect 
+                  number of FSYNC packets in 4xFSYNC frame reset code that was not triggering an error
+                  and allowing fun with mis-aligned input data.
+    - __Bugfix__: Fix silent failure if incorrect config flags set when setting up frame demux modes.
+
+- _Version 1.4.0_:
+    - __Update__: ETE: Add support for Arch v9.4 FEAT_ITE. ETE v1p3, sw trace instrumentation.
+                  Adds in new generic output packet type: OCSD_GEN_TRC_ELEM_INSTRUMENTATION.
+    - __Bugfix__: Fix memory leak in mispredict handling (github issue #52 from yabinc)
 
 
 Licence Information

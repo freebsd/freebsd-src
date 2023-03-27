@@ -1,0 +1,127 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.TH TRC_PKT_LISTER 1 "2018-03-28" 
+
+.SH NAME
+trc_pkt_lister \- decodes captured CoreSight\*R trace
+.SH SYNOPSIS
+.RI trc_pkt_lister
+[ \-ss_dir \fI<dir>\fP ]
+[ -ss_verbose ]
+[ \-id \fI<n>\fP ]
+[ \-src_name \fI<name>\fP ]
+[ \-decode ]
+[ \-decode_only ]
+[ \-src_addr_n ]
+[ \-o_raw_packed ]
+[ \-o_raw_unpacked ]
+[ \-logstdout ]
+[ \-logstderr ]
+[ \-logfile ]
+[ \-logfilename \fI<name>\fP ]
+.br
+.SH DESCRIPTION
+.B trc_pkt_lister
+is a tool that takes a snapshot directory as an input, and lists and/or
+decodes all the trace packets for a single source, for any currently
+supported protocol.
+.PP
+The output will be a list of discrete packets, generic output packets
+and any error messages to file and/or screen as selected by the input
+command line options.
+.PP
+By default the program will list packets only (no decode), for the
+first discovered trace sink (ETB, ETF, ETR) in the snapshot directory,
+with all streams output.
+.SH OPTIONS
+.SS Snapshot selection
+The program defaults to \./ if no \-ss_dir option is given
+.TP
+.B \-ss\_dir <dir>
+Set the directory path to a trace snapshot.
+.TP
+\fB\fC\-ss\_verbose\fR
+Verbose output when reading the snapshot.
+.SS Decode options
+.TP
+.B \-id <n>
+Set an ID to list (may be used multiple times) \- default if no id set is for all IDs to be printed.
+.TP
+.B \-src\_name <name>
+List packets from a given snapshot source name (defaults to first source found).
+.TP
+.B \-decode
+Full decode of the packets from the trace snapshot (default is to list undecoded packets only.
+.TP
+.B \-decode_only
+Does not list the undecoded packets, just the trace decode.
+.TP
+.B \-src\_addr\_n
+In ETE protocol, indicate skipped N atoms in source address packet ranges by breaking the decode 
+range into multiple ranges on N atoms.
+.TP
+.B \-o\_raw\_packed
+Output raw packed trace frames.
+.TP
+.B \-o\_raw\_unpacked
+Output raw unpacked trace data per ID.
+.SS Output options
+Default is to output to file and stdout. Setting any option overrides and limits to only
+the options set.
+.TP
+.B \-logstdout
+output to stdout.
+.TP
+.B \-logstderr
+output to stderr.
+.TP
+.B \-logfile
+output to file using the default log file name.
+.TP
+.B \-logfilename <name>
+change the name of the output log file.
+.SH FILES
+.B Trace Snapshot directory.
+.PP
+The \fR./tests/snapshots\fP directory contains a number of trace
+snapshots used for testing the library.  Trace snapshots are dumps of
+captured binary trace data, CoreSight component configurations and
+memory dumps to allow trace decode.
+.PP
+Snapshots are generated on ARM targets and can then be analysed
+offline. The snapshot format is available in a separate document.
+.SH EXAMPLE
+Example command lines with short output excerpts.
+.PP
+.BI TC2 " ETMv3 packet processor output, raw packet output."
+.br
+Command line:
+.br
+.RI "trc\_pkt\_lister -ss\_dir ../../snapshots/TC2 -o_raw_unpacked"
+.PP
+Output:
+.br
+Frame Data; Index  17958; ID_DATA[0x11]; 16 04 c0 86 42 97 e1 c4 
+.br
+Idx:17945; ID:11;	I_SYNC : Instruction Packet synchronisation.; (Periodic); Addr=0xc00
+416e2; S;  ISA=Thumb2; 
+.br
+Idx:17961; ID:11;	P_HDR : Atom P-header.; WEN; Cycles=1
+.br
+Frame Data; Index  17968; ID_DATA[0x11]; ce af 90 80 80 00 a4 84 a0 84 a4 88 
+.br
+Idx:17962; ID:11;	TIMESTAMP : Timestamp Value.; TS=0x82f9d13097 (562536984727) 
+.br
+Idx:17974; ID:11;	P_HDR : Atom P-header.; WW; Cycles=2
+.PP
+.BI Juno " ETB\_1 selected for STM packet output, raw packet output"
+.br
+Command line:
+.br
+.RI "trc\_pkt\_lister -ss\_dir ../../snapshots/juno_r1_1 -o\_raw\_unpacked -src\_name ETB\_1"
+.PP
+.BI Juno " ETMv4 full trace decode + packet monitor, source trace ID 0x10 only."
+.br
+Command line:
+.br
+.RI "trc\_pkt\_lister -ss\_dir ../../snapshots/juno\_r1\_1 -decode -id 0x10"
+

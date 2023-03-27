@@ -61,6 +61,8 @@ __Command Line Options__
 - `-tpiu_hsync`      : Input data is from a TPIU source that has both TPIU FSYNC and HSYNC packets present.
 - `-decode`          : Full decode of the packets from the trace snapshot (default is to list undecoded packets only.
 - `-decode_only`     : Does not list the undecoded packets, just the trace decode.
+- `-src_addr_n`      : ETE protocol; Indicate skipped N atoms in source address packet ranges by breaking the decode 
+                       range into multiple ranges on N atoms.
 - `-o_raw_packed`    : Output raw packed trace frames.
 - `-o_raw_unpacked`  : Output raw unpacked trace data per ID.
 

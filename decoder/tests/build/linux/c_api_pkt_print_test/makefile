@@ -51,12 +51,12 @@ OBJECTS		=	$(BUILD_DIR)/c_api_pkt_print_test.o
 LIBS		=	-L$(LIB_TARGET_DIR) -l$(LIB_BASE_NAME) -l$(LIB_CAPI_NAME) \
 				-L$(LIB_TEST_TARGET_DIR) -l_echo_test_dcd
 
-all:  build_dir copy_libs
+all: copy_libs
 
 test_app: 	$(BIN_TEST_TARGET_DIR)/$(PROG)
 
 
- $(BIN_TEST_TARGET_DIR)/$(PROG): $(OBJECTS)
+ $(BIN_TEST_TARGET_DIR)/$(PROG): $(OBJECTS) | build_dir
 			mkdir -p  $(BIN_TEST_TARGET_DIR)
 			$(LINKER) $(LDFLAGS) $(OBJECTS) -Wl,--start-group $(LIBS) -Wl,--end-group -o $(BIN_TEST_TARGET_DIR)/$(PROG)
 			cp $(LIB_TARGET_DIR)/*.so .
@@ -77,7 +77,7 @@ DEPS := $(OBJECTS:%.o=%.d)
 -include $(DEPS)
 
 ## object compile
-$(BUILD_DIR)/%.o : %.c
+$(BUILD_DIR)/%.o : %.c | build_dir
 			$(CC) $(CFLAGS) $(CC_INCLUDES) -MMD $< -o $@ 
 
 #### clean

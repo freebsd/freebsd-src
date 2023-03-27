@@ -659,7 +659,7 @@ void EtmV3TrcPacket::getExcepStr(std::string &excepStr) const
         "IRQ4", "IRQ5", "IRQ6", "IRQ7",
         "IRQ0","usage Fault","NMI","SVC",
         "DebugMonitor", "Mem Manage","PendSV","SysTick",
-        "Reserved","PE Reset","Reserved","HardFault"
+        "Reserved","PE Reset","Reserved","HardFault",
         "Reserved","BusFault","Reserved","Reserved"
     };
 

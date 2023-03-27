@@ -45,6 +45,7 @@ CreateDcdTreeFromSnapShot::CreateDcdTreeFromSnapShot() :
     m_BufferFileName("")
 {
     m_errlog_handle = 0;
+    m_add_create_flags = 0;
 }
 
 CreateDcdTreeFromSnapShot::~CreateDcdTreeFromSnapShot()
@@ -63,8 +64,9 @@ void CreateDcdTreeFromSnapShot::initialise(SnapShotReader *pReader, ITraceErrorL
     }
 }
 
-bool CreateDcdTreeFromSnapShot::createDecodeTree(const std::string &SourceName, bool bPacketProcOnly)
+bool CreateDcdTreeFromSnapShot::createDecodeTree(const std::string &SourceName, bool bPacketProcOnly, uint32_t add_create_flags)
 {    
+    m_add_create_flags = add_create_flags;
     if(m_bInit)
     {
         if(!m_pReader->snapshotReadOK())
@@ -236,6 +238,10 @@ bool CreateDcdTreeFromSnapShot::createPEDecoder(const std::string &coreName, Par
     {
         bCreatedDecoder = createPTMDecoder(coreName,devSrc);
     }
+    else if (devTypeName == ETEProtocol)
+    {
+        bCreatedDecoder = createETEDecoder(coreName, devSrc);
+    }
 
     return bCreatedDecoder;
 }
@@ -277,7 +283,7 @@ bool CreateDcdTreeFromSnapShot::createETMv4Decoder(const std::string &coreName, 
         EtmV4Config configObj(&config);
         const char *decoderName = bDataChannel ? OCSD_BUILTIN_DCD_ETMV4D : OCSD_BUILTIN_DCD_ETMV4I;
 
-        err = m_pDecodeTree->createDecoder(decoderName, m_bPacketProcOnly ? OCSD_CREATE_FLG_PACKET_PROC : OCSD_CREATE_FLG_FULL_DECODER,&configObj);
+        err = m_pDecodeTree->createDecoder(decoderName, m_add_create_flags | (m_bPacketProcOnly ? OCSD_CREATE_FLG_PACKET_PROC : OCSD_CREATE_FLG_FULL_DECODER),&configObj);
         
         if(err ==  OCSD_OK)
             createdDecoder = true;
@@ -285,6 +291,53 @@ bool CreateDcdTreeFromSnapShot::createETMv4Decoder(const std::string &coreName, 
         {
             std::string msg = "Snapshot processor : failed to create " +  (std::string)decoderName + " decoder on decode tree.";
             LogError(ocsdError(OCSD_ERR_SEV_ERROR,err,msg));
+        }
+    }
+
+    return createdDecoder;
+}
+
+bool CreateDcdTreeFromSnapShot::createETEDecoder(const std::string &coreName, Parser::Parsed *devSrc)
+{
+    bool createdDecoder = false;
+    bool configOK = true;
+
+    // generate the config data from the device data.
+    ocsd_ete_cfg config;   
+
+    // ete regs are same names Etmv4 in places...
+    regs_to_access_t regs_to_access[] = {
+        { ETMv4RegCfg, true, &config.reg_configr, 0 },
+        { ETMv4RegIDR, true, &config.reg_traceidr, 0 },
+        { ETMv4RegIDR0, true, &config.reg_idr0, 0 },
+        { ETMv4RegIDR1, false, &config.reg_idr1, 0x4100F403 },
+        { ETMv4RegIDR2, true, &config.reg_idr2, 0 },
+        { ETMv4RegIDR8, false, &config.reg_idr8, 0 },
+        { ETERegDevArch, false, &config.reg_devarch, 0x47705A13 },
+    };
+
+    // extract registers
+    configOK = getRegisters(devSrc->regDefs, sizeof(regs_to_access) / sizeof(regs_to_access_t), regs_to_access);
+
+    // extract core profile
+    if (configOK)
+        configOK = getCoreProfile(coreName, config.arch_ver, config.core_prof);
+
+    // good config - generate the decoder on the tree.
+    if (configOK)
+    {
+        ocsd_err_t err = OCSD_OK;
+        ETEConfig configObj(&config);
+        const char *decoderName = OCSD_BUILTIN_DCD_ETE;
+
+        err = m_pDecodeTree->createDecoder(decoderName, m_add_create_flags | (m_bPacketProcOnly ? OCSD_CREATE_FLG_PACKET_PROC : OCSD_CREATE_FLG_FULL_DECODER), &configObj);
+
+        if (err == OCSD_OK)
+            createdDecoder = true;
+        else
+        {
+            std::string msg = "Snapshot processor : failed to create " + (std::string)decoderName + " decoder on decode tree.";
+            LogError(ocsdError(OCSD_ERR_SEV_ERROR, err, msg));
         }
     }
 

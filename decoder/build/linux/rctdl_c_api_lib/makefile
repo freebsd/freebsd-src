@@ -113,6 +113,8 @@ install_inc:
 	$(INSTALL) --mode=0644 $(INST_INC_SRC)/etmv3/trc_pkt_types_etmv3.h $(INST_INC_DST)/etmv3/
 	$(INSTALL) -d --mode=0755 $(INST_INC_DST)/etmv4
 	$(INSTALL) --mode=0644 $(INST_INC_SRC)/etmv4/trc_pkt_types_etmv4.h $(INST_INC_DST)/etmv4/
+	$(INSTALL) -d --mode=0755 $(INST_INC_DST)/ete
+	$(INSTALL) --mode=0644 $(INST_INC_SRC)/ete/trc_pkt_types_ete.h $(INST_INC_DST)/ete/
 	$(INSTALL) -d --mode=0755 $(INST_INC_DST)/c_api
 	$(INSTALL) --mode=0644 $(INST_INC_SRC)/c_api/ocsd_c_api_types.h $(INST_INC_DST)/c_api/
 	$(INSTALL) --mode=0644 $(INST_INC_SRC)/c_api/opencsd_c_api.h $(INST_INC_DST)/c_api/

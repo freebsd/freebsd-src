@@ -117,6 +117,7 @@ private:
     #define TINFO_KEY_SECT  0x02 
     #define TINFO_SPEC_SECT 0x04
     #define TINFO_CYCT_SECT 0x08
+    #define TINFO_WNDW_SECT 0x10
     #define TINFO_CTRL      0x20
     #define TINFO_ALL_SECT  0x1F
     #define TINFO_ALL       0x3F
@@ -178,9 +179,10 @@ private:
     void iPktQ(const uint8_t lastByte);
     void iAtom(const uint8_t lastByte);
     void iPktInvalidCfg(const uint8_t lastByte);  // packet invalid in current config.
+    void iPktITE(const uint8_t lastByte);
 
     unsigned extractContField(const std::vector<uint8_t> &buffer, const unsigned st_idx, uint32_t &value, const unsigned byte_limit = 5);
-    unsigned extractContField64(const std::vector<uint8_t> &buffer, const unsigned st_idx, uint64_t &value, const unsigned byte_limit = 9);
+    unsigned extractTSField64(const std::vector<uint8_t> &buffer, const unsigned st_idx, uint64_t &value);
     unsigned extractCondResult(const std::vector<uint8_t> &buffer, const unsigned st_idx, uint32_t& key, uint8_t &result);
     void extractAndSetContextInfo(const std::vector<uint8_t> &buffer, const int st_idx);
     int extract64BitLongAddr(const std::vector<uint8_t> &buffer, const int st_idx, const uint8_t IS, uint64_t &value);

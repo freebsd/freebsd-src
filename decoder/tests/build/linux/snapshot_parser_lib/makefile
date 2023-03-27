@@ -63,9 +63,9 @@ OBJECTS=$(BUILD_DIR)/device_info.o \
 		$(BUILD_DIR)/snapshot_reader.o \
 		$(BUILD_DIR)/ss_to_dcdtree.o
 
-all: build_dir $(LIB_TEST_TARGET_DIR)/$(LIB_NAME).a
+all: $(LIB_TEST_TARGET_DIR)/$(LIB_NAME).a
 
-$(LIB_TEST_TARGET_DIR)/$(LIB_NAME).a: $(OBJECTS)
+$(LIB_TEST_TARGET_DIR)/$(LIB_NAME).a: $(OBJECTS) | build_dir
 	mkdir -p $(LIB_TEST_TARGET_DIR)
 	$(LIB) $(ARFLAGS) $(LIB_TEST_TARGET_DIR)/$(LIB_NAME).a $(OBJECTS)
 
@@ -80,7 +80,7 @@ DEPS := $(OBJECTS:%.o=%.d)
 -include $(DEPS)
 
 ## object compile
-$(BUILD_DIR)/%.o : %.cpp
+$(BUILD_DIR)/%.o : %.cpp | build_dir
 	$(CXX) $(CXXFLAGS) $(CXX_INCLUDES) -MMD $< -o $@
 
 ### clean

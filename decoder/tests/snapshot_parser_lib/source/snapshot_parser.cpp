@@ -49,6 +49,10 @@ using namespace Parser;
 
 #include "opencsd.h"
 
+static ITraceErrorLog *s_pErrorLogger = 0;
+static ocsd_hndl_err_log_t s_errlog_handle = 0;
+static bool s_verbose_logging = true;
+
 /*************************************************************************
  * Note, this file handles the parsring of the general (device specific) 
  * ini file and the (much smaller) device_list file

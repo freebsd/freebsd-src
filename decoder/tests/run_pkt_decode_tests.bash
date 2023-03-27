@@ -40,10 +40,10 @@
 # run_pkt_decode_tests.bash
 #
 # * use installed opencsd libraries & program
-# run_pkt_decode_tests.bash use-installed
+# run_pkt_decode_tests.bash use-installed <options>
 #
 # * use supplied path for binary + libs (must have trailing /)
-# run_pkt_decode_tests.bash <custom>/<path>/
+# run_pkt_decode_tests.bash -bindir <custom>/<path>/ <options>
 #
 
 OUT_DIR=./results
@@ -62,6 +62,7 @@ declare -a test_dirs_decode=( "juno-ret-stck"
                               "stm_only"
                               "stm_only-2"
                               "stm_only-juno"
+                              "stm-issue-27"
                               "TC2"
                               "Snowball"
                               "test-file-mem-offsets"
@@ -74,8 +75,11 @@ mkdir -p ${OUT_DIR}
 
 if [ "$1" == "use-installed" ]; then
     BIN_DIR=""
-elif [ "$1" != "" ]; then
-    BIN_DIR=$1
+    shift
+elif [ "$1" == "-bindir" ]; then
+    BIN_DIR=$2
+    shift
+    shift
 fi
 
 echo "Tests using BIN_DIR = ${BIN_DIR}"
@@ -89,17 +93,17 @@ fi
 for test_dir in "${test_dirs_decode[@]}"
 do
     echo "Testing $test_dir..."
-    ${BIN_DIR}trc_pkt_lister -ss_dir "${SNAPSHOT_DIR}/$test_dir" -decode -logfilename "${OUT_DIR}/$test_dir.ppl"
+    ${BIN_DIR}trc_pkt_lister -ss_dir "${SNAPSHOT_DIR}/$test_dir" $@ -decode -logfilename "${OUT_DIR}/$test_dir.ppl"
     echo "Done : Return $?"
 done
 
 # === test a packet only example ===
 echo "Testing init-short-addr..."
-${BIN_DIR}trc_pkt_lister -ss_dir "${SNAPSHOT_DIR}/init-short-addr" -pkt_mon -logfilename "${OUT_DIR}/init-short-addr.ppl"
+${BIN_DIR}trc_pkt_lister -ss_dir "${SNAPSHOT_DIR}/init-short-addr" $@ -pkt_mon -logfilename "${OUT_DIR}/init-short-addr.ppl"
 
 # === test the TPIU deformatter ===
 echo "Testing a55-test-tpiu..."
-${BIN_DIR}trc_pkt_lister -ss_dir "${SNAPSHOT_DIR}/a55-test-tpiu" -dstream_format -o_raw_packed -o_raw_unpacked -logfilename "${OUT_DIR}/a55-test-tpiu.ppl"
+${BIN_DIR}trc_pkt_lister -ss_dir "${SNAPSHOT_DIR}/a55-test-tpiu" $@ -dstream_format -o_raw_packed -o_raw_unpacked -logfilename "${OUT_DIR}/a55-test-tpiu.ppl"
 echo "Done : Return $?"
 
 # === test the C-API lib - this test prog is not installed ===
@@ -109,4 +113,13 @@ if [ "$1" != "use-installed" ]; then
     echo "Done : Return $?"
     echo "moving result file."
     mv ./c_api_test.log ./${OUT_DIR}/c_api_test.ppl
+fi
+
+# === run the Frame decoder test - program not installed ===
+if [ "$1" != "use-installed" ]; then
+    echo "Running Frame demux test"
+    ${BIN_DIR}frame-demux-test > /dev/null
+    echo "Done : Return $?"
+    echo "moving result file."
+    mv ./frame_demux_test.ppl ./${OUT_DIR}/.
 fi

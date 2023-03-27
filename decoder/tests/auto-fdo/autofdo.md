@@ -87,12 +87,12 @@ kernel and many targets are using older kernels.  To enable CoreSight trace
 on these targets, Arm have provided backports of the latest CoreSight
 drivers and ETM strobing patch at:
 
-  <http://linux-arm.org/git?p=linux-coresight-backports.git>
+  <https://gitlab.arm.com/linux-arm/linux-coresight-backports>
 
 This repository can be cloned with:
 
 ```
-git clone git://linux-arm.org/linux-coresight-backports.git
+git clone https://git.gitlab.arm.com/linux-arm/linux-coresight-backports.git
 ```
 
 You can include these backports in your kernel by either merging the
@@ -433,10 +433,50 @@ sudo ./set_strobing.sh 5000 10000
 perf record -e cs_etm/@tmc_etr0/u --per-thread -- <your app>"
 perf inject -i perf.data -o inj.data --itrace=i100000il
 create_llvm_prof -binary=/path/to/binary -profile=inj.data -out=program.llvmprof
+clang -O2 -fprofile-sample-use=program.llvmprof -o program program.c
 ```
 
 Use `create_gcov` for gcc.
 
+## High Level Summary for recoding on Arm board and decoding on different host
+
+1. (on Arm board)
+
+        sudo ./set_strobing.sh 5000 10000
+        perf record -e cs_etm/@tmc_etr0/u --per-thread -- <your app>.
+	If you specify `-N, --no-buildid-cache`, perf will just take care of recording the target binary and nothing will be copied.<br>  If you don't specify it, any recorded dynamic library will be copied to ~/.debug in the board.
+
+2. (on Arm board) `perf archive` which saves all the found libraries in a tar (internally, it looks into perf.data file and performs a lookup using perf-buildid-list --with-hits)
+3. (on host) `scp` to copy perf.data and the .tar file generated from `perf archive`.
+4. (on host) Run `tar xvf perf_data.tar.bz2 -C ~/.debug` to populate the buildid-cache
+5. (on host) Double check the setup is correct:
+
+       a. `perf buildid-list -i perf.data` gives you the list of dynamic libraries buildids whose trace has been recorded and saved in perf.data.
+       b. `perf buildid-cache --list` lists the dynamic libraries in the buildid cache that will be used by `perf inject`.
+	Make sure the output of (a) and (b) overlaps as in buildid value for those binaries you are interested into optimizing with afdo.
+
+6. (on host) `perf inject -i perf.data -o inj.data --itrace=i100000il` will check for the dynamic libraries using the buildid inside the buildid-cache and post-process the trace.<br>  buildids have to be the same, otherwise it won't be possible to post-process the trace.
+
+7. (on host) `create_llvm_prof -binary=/path/to/binary -profile=inj.data -out=program.llvmprof` takes the output from perf-inject and tranforms it into a format that the compiler can read.
+8. (on host) `clang -O2 -fprofile-sample-use=program.llvmprof -o program program.c` to make clang use the produced profile.<br>
+	If you are confident enough that your profile is accurate, you can add the `-fprofile-sample-accurate` flag, which will penalize all the callsites without corresponding profile, marking them as cold.
+
+If you are using the same host for both building the binary to be traced and re-building it with afdo:
+
+1. You won't need to copy back any dynamic libraries from the board (since you already have them), and can use `--no-buildid-cache` when recording
+2. You have to make sure the relevant dynamic libraries to be optimized are present in the buildid-cache.
+
+You can easily add a dynamic library manually into the build-id cache by running:
+
+`perf buildid-cache --add <path/to/library/or/binary> -vvv`
+
+You can easily check what is currently contained in you buildid-cache by running:
+
+`perf buildid-cache --list`
+
+You can check the buildid of a given binary/dynamic library:
+
+`file <path/to/dynamic/library>`
 
 ## References
 

@@ -278,11 +278,13 @@ typedef enum _ocsd_arch_version {
     ARCH_V7 = 0x0700,        /**< V7 architecture */
     ARCH_V8 = 0x0800,        /**< V8 architecture */
     ARCH_V8r3 = 0x0803,      /**< V8.3 architecture */
+    ARCH_AA64 = 0x0864,      /**< Min v8r3 plus additional AA64 PE features */
+    ARCH_V8_max = ARCH_AA64,
 } ocsd_arch_version_t;
 
 // macros for arch version comparisons.
-#define OCSD_IS_V8_ARCH(arch) ((arch >= ARCH_V8) && (arch <= ARCH_V8r3))
-#define OCSD_MIN_V8_ARCH(arch) (arch >= ARCH_V8)
+#define OCSD_IS_V8_ARCH(arch) ((arch >= ARCH_V8) && (arch <= ARCH_V8_max))
+#define OCSD_IS_ARCH_MINVER(arch, min_arch) (arch >= min_arch)
 
 /** Core Profile  */
 typedef enum _ocsd_core_profile {
@@ -336,8 +338,10 @@ typedef enum _ocsd_isa
 */
 typedef enum _ocsd_sec_level
 {
-    ocsd_sec_secure,   /**< Core is in secure state */
-    ocsd_sec_nonsecure /**< Core is in non-secure state */
+    ocsd_sec_secure,    /**< Core is in secure state */
+    ocsd_sec_nonsecure, /**< Core is in non-secure state */
+    ocsd_sec_root,      /**< PE FEAT_RME: Core is in root state. */
+    ocsd_sec_realm,     /**< PE FEAT_RME: Core is in realm state. */
 } ocsd_sec_level ;
 
 /** Exception level type
@@ -352,7 +356,7 @@ typedef enum _ocsd_ex_level
 } ocsd_ex_level;
 
 
-/** instruction types - significant for waypoint calculaitons */
+/** instruction types - significant for waypoint calculations */
 typedef enum _ocsd_instr_type {
     OCSD_INSTR_OTHER,          /**< Other instruction - not significant for waypoints. */
     OCSD_INSTR_BR,             /**< Immediate Branch instruction */
@@ -360,6 +364,7 @@ typedef enum _ocsd_instr_type {
     OCSD_INSTR_ISB,            /**< Barrier : ISB instruction */
     OCSD_INSTR_DSB_DMB,        /**< Barrier : DSB or DMB instruction */
     OCSD_INSTR_WFI_WFE,        /**< WFI or WFE traced as direct branch */
+    OCSD_INSTR_TSTART,         /**< PE Arch feature FEAT_TME - TSTART instruction */
 } ocsd_instr_type;
 
 /** instruction sub types - addiitonal information passed to the output packets
@@ -521,10 +526,11 @@ typedef struct _ocsd_file_mem_region {
     (common flags share bitfield with pkt processor common flags and create flags)
     @{*/
 
-#define OCSD_OPFLG_PKTDEC_ERROR_BAD_PKTS  0x00000100  /**< throw error on bad packets input (default is to unsync and wait) */
+#define OCSD_OPFLG_PKTDEC_ERROR_BAD_PKTS  0x00000100  /**< throw error on bad packets input (default is to warn) */
+#define OCSD_OPFLG_PKTDEC_HALT_BAD_PKTS   0x00000200  /**< halt decoder on bad packets (default is to log error and continue by resetting decoder and wait for sync */
 
 /** mask to combine all common packet processor operational control flags */
-#define OCSD_OPFLG_PKTDEC_COMMON (OCSD_OPFLG_PKTDEC_ERROR_BAD_PKTS)
+#define OCSD_OPFLG_PKTDEC_COMMON (OCSD_OPFLG_PKTDEC_ERROR_BAD_PKTS | OCSD_OPFLG_PKTDEC_HALT_BAD_PKTS)
 
 /** @}*/
 
@@ -547,6 +553,7 @@ typedef struct _ocsd_file_mem_region {
 #define OCSD_BUILTIN_DCD_ETMV4I     "ETMV4I"    /**< ETMv4 instruction decoder */
 #define OCSD_BUILTIN_DCD_ETMV4D     "ETMV4D"    /**< ETMv4 data decoder */
 #define OCSD_BUILTIN_DCD_PTM        "PTM"       /**< PTM decoder */
+#define OCSD_BUILTIN_DCD_ETE        "ETE"       /**< ETE decoder */
 
 /*! Trace Protocol Builtin Types + extern
  */
@@ -559,6 +566,7 @@ typedef enum _ocsd_trace_protocol_t {
     OCSD_PROTOCOL_ETMV4D,  /**< ETMV4 data trace protocol decoder. */
     OCSD_PROTOCOL_PTM,     /**< PTM program flow instruction trace protocol decoder. */
     OCSD_PROTOCOL_STM,     /**< STM system trace protocol decoder. */
+    OCSD_PROTOCOL_ETE,     /**< ETE trace protocol decoder */
 
 /* others to be added here */
     OCSD_PROTOCOL_BUILTIN_END,  /**< Invalid protocol - built-in protocol types end marker */
@@ -626,6 +634,56 @@ typedef struct _ocsd_swt_info {
 #define SWT_ID_VALID_MASK (0x1 << 23)
 
 /** @}*/
+
+/** @name Demux Statistics 
+ 
+    Contains statistics for the CoreSight frame demultiplexor. 
+
+    Counts total bytes sent to decoders registered against a trace ID, bytes in the input stream that are
+    associated with a trace ID that has no registered decoder, and frame bytes that are not trace data, but
+    are used to decode the frames - ID bytes, sync bytes etc.
+@{*/
+
+typedef struct _ocsd_demux_stats {
+    uint64_t valid_id_bytes;  /**< number of bytes associated with an ID that has a registered decoder */
+    uint64_t no_id_bytes; /**< number of bytes associated with an ID that has no decoder */
+    uint64_t reserved_id_bytes; /**< number of bytes associated with reserved IDs */
+    uint64_t unknown_id_bytes; /**< bytes processed before ID seen in input frames */
+    uint64_t frame_bytes; /**< number of non-data bytes used for frame de-mux - ID bytes, sync etc */    
+} ocsd_demux_stats_t;
+
+/** @}*/
+
+/** @name Decode statistics
+
+    Contains statistics for bytes decoded by the packet decoder, if statistics are supported.
+
+    Stats block instantiated in the base class - derived protocol specific decoder must initialise and
+    use as required.
+
+    The single channel block contains the stats for the requested channel via the API call.
+
+    The global demux block contains the totals for all channels and non-data bytes used in CoreSight
+    frame demux. This block will show identical data for every requested channel via the API.
+
+@{*/
+
+typedef struct _ocsd_decode_stats {
+    uint32_t version;           /**< library version number */
+    uint16_t revision;          /**< revision number - defines the structure version for the stats. */
+   /* single channel block */
+    uint64_t channel_total;     /**< total bytes processed for this channel */
+    uint64_t channel_unsynced;  /**< number of unsynced bytes processed on this channel */
+    uint32_t bad_header_errs;   /**< number of bad packet header errors */
+    uint32_t bad_sequence_errs; /**< number of bad packet sequence errors */
+    
+    ocsd_demux_stats_t demux;   /**< global demux stats block */
+} ocsd_decode_stats_t;
+
+#define OCSD_STATS_REVISION 0x1
+
+/** @}*/
+
 
 /** @}*/
 #endif // ARM_OCSD_IF_TYPES_H_INCLUDED

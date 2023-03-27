@@ -98,7 +98,7 @@ void EtmV4Config::CalcVMIDSize()
     uint32_t vmidszF = (m_cfg.reg_idr2 >> 10) & 0x1F;
     if(vmidszF == 1)
         m_VMIDSize = 8;
-    else if(MinVersion() > 0)
+    else if(FullVersion() > 0x40)
     {
         if(vmidszF == 2)
             m_VMIDSize = 16;

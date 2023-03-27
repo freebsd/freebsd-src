@@ -44,7 +44,7 @@
 
 /* supplementary decode information */
 struct decode_info {
-    uint16_t arch_version;
+    ocsd_arch_version_t arch_version;
     ocsd_instr_subtype instr_sub_type;
 };
 
@@ -121,7 +121,8 @@ arm_barrier_t inst_A64_barrier(uint32_t inst);
 
 int inst_ARM_wfiwfe(uint32_t inst);
 int inst_Thumb_wfiwfe(uint32_t inst);
-int inst_A64_wfiwfe(uint32_t inst);
+int inst_A64_wfiwfe(uint32_t inst, struct decode_info *info);
+int inst_A64_Tstart(uint32_t inst);
 
 /*
 Test whether an instruction is definitely undefined, e.g. because

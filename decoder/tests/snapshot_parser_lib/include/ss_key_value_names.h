@@ -58,6 +58,10 @@ const char * const ETMv4RegIDR11("TRCIDR11");
 const char * const ETMv4RegIDR12("TRCIDR12");
 const char * const ETMv4RegIDR13("TRCIDR13");
 
+/*** ETE ***/
+const char *const ETEProtocol("ETE");
+const char *const ETERegDevArch("TRCDEVARCH");
+
 /*** ETMv3/PTM ***/
 const char * const ETMv3Protocol("ETM3");
 const char * const PTMProtocol("PTM1");

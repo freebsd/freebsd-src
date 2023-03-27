@@ -18,7 +18,7 @@ Building the Library
 --------------------
 
 The library and test programs are built from the library `./build/<platform>` directory, where
-<platform> is either 'linux' or 'win-vs2015'
+<platform> is either 'linux' or 'win-vs2015' / 'win-vs2022'
 
 See [`./docs/test_progs.md`](@ref test_progs) for further information on use of the test 
 programs.
@@ -85,6 +85,12 @@ The test programs are built to used the .so versions of the libraries.
 
 The test program build for `trc_pkt_lister` also builds an auxiliary library used by this program for test purposes only.
 This is the `libsnapshot_parser.a` library, delivered to the `./tests/lib/<tgt_dir>` directories.
+
+**Note on Linux Build Directory Names**
+
+Due to tool limitations, the makefiles will not operate correctly if the path to the opencsd directories contains spaces.
+
+e.g. checking out the project into a directory such as ` /home/name/my opencsd/` will result in build failures.
 
 __Installing on Linux__
 

@@ -310,6 +310,7 @@
     <None Include="..\..\..\..\TODO" />
     <None Include="..\..\..\docs\build_libs.md" />
     <None Include="..\..\..\docs\external_custom.md" />
+    <None Include="..\..\..\docs\man\trc_pkt_lister.1" />
     <None Include="..\..\..\docs\test_progs.md" />
   </ItemGroup>
   <ItemGroup>
@@ -339,6 +340,10 @@
     <ClInclude Include="..\..\..\include\common\trc_printable_elem.h" />
     <ClInclude Include="..\..\..\include\common\trc_ret_stack.h" />
     <ClInclude Include="..\..\..\include\mem_acc\trc_mem_acc_cache.h" />
+    <ClInclude Include="..\..\..\include\opencsd\ete\ete_decoder.h" />
+    <ClInclude Include="..\..\..\include\opencsd\ete\trc_cmp_cfg_ete.h" />
+    <ClInclude Include="..\..\..\include\opencsd\ete\trc_dcd_mngr_ete.h" />
+    <ClInclude Include="..\..\..\include\opencsd\ete\trc_pkt_types_ete.h" />
     <ClInclude Include="..\..\..\include\opencsd\etmv3\etmv3_decoder.h" />
     <ClInclude Include="..\..\..\include\opencsd\etmv3\trc_cmp_cfg_etmv3.h" />
     <ClInclude Include="..\..\..\include\opencsd\etmv3\trc_dcd_mngr_etmv3.h" />
@@ -354,6 +359,7 @@
     <ClInclude Include="..\..\..\include\opencsd\etmv4\trc_pkt_elem_etmv4d.h" />
     <ClInclude Include="..\..\..\include\opencsd\etmv4\trc_pkt_elem_etmv4i.h" />
     <ClInclude Include="..\..\..\include\opencsd\etmv4\trc_pkt_proc_etmv4.h" />
+    <ClInclude Include="..\..\..\include\opencsd\etmv4\trc_pkt_proc_etmv4i.h" />
     <ClInclude Include="..\..\..\include\opencsd\etmv4\trc_pkt_types_etmv4.h" />
     <ClInclude Include="..\..\..\include\interfaces\trc_abs_typed_base_i.h" />
     <ClInclude Include="..\..\..\include\interfaces\trc_data_rawframe_in_i.h" />
@@ -404,6 +410,7 @@
     <ClInclude Include="..\..\..\source\trc_frame_deformatter_impl.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\source\ete\trc_cmp_cfg_ete.cpp" />
     <ClCompile Include="..\..\..\source\etmv3\trc_cmp_cfg_etmv3.cpp" />
     <ClCompile Include="..\..\..\source\etmv3\trc_pkt_decode_etmv3.cpp" />
     <ClCompile Include="..\..\..\source\etmv3\trc_pkt_elem_etmv3.cpp" />

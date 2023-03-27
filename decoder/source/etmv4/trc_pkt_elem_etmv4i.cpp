@@ -38,6 +38,7 @@
 
 EtmV4ITrcPacket::EtmV4ITrcPacket()
 {
+    protocol_version = 0x42;    // min protocol version.
 }
 
 EtmV4ITrcPacket::~EtmV4ITrcPacket()
@@ -101,6 +102,8 @@ void EtmV4ITrcPacket::toString(std::string &str) const
         contextStr(ctxtStr);
     case ETM4_PKT_I_ADDR_L_32IS0:
     case ETM4_PKT_I_ADDR_L_32IS1:
+    case ETE_PKT_I_SRC_ADDR_L_32IS0:
+    case ETE_PKT_I_SRC_ADDR_L_32IS1:
         trcPrintableElem::getValStr(valStr, (v_addr.size == VA_64BIT) ? 64 : 32, v_addr.valid_bits, v_addr.val, true, (v_addr.pkt_bits < 32) ? v_addr.pkt_bits : 0);
         str += "; Addr=" + valStr + "; " + ctxtStr;
         break;
@@ -110,6 +113,8 @@ void EtmV4ITrcPacket::toString(std::string &str) const
         contextStr(ctxtStr);
     case ETM4_PKT_I_ADDR_L_64IS0:
     case ETM4_PKT_I_ADDR_L_64IS1:
+    case ETE_PKT_I_SRC_ADDR_L_64IS0:
+    case ETE_PKT_I_SRC_ADDR_L_64IS1:
         trcPrintableElem::getValStr(valStr, (v_addr.size == VA_64BIT) ? 64 : 32, v_addr.valid_bits, v_addr.val, true, (v_addr.pkt_bits < 64) ? v_addr.pkt_bits : 0);
         str += "; Addr=" + valStr + "; " + ctxtStr;
         break;
@@ -121,11 +126,14 @@ void EtmV4ITrcPacket::toString(std::string &str) const
 
     case ETM4_PKT_I_ADDR_S_IS0:
     case ETM4_PKT_I_ADDR_S_IS1:
+    case ETE_PKT_I_SRC_ADDR_S_IS0:
+    case ETE_PKT_I_SRC_ADDR_S_IS1:
         trcPrintableElem::getValStr(valStr, (v_addr.size == VA_64BIT) ? 64 : 32, v_addr.valid_bits, v_addr.val, true, v_addr.pkt_bits);
         str += "; Addr=" + valStr;
         break;
 
     case ETM4_PKT_I_ADDR_MATCH:
+    case ETE_PKT_I_SRC_ADDR_MATCH:
         addrMatchIdx(valStr);
         str += ", " + valStr;
         trcPrintableElem::getValStr(valStr, (v_addr.size == VA_64BIT) ? 64 : 32, v_addr.valid_bits, v_addr.val, true);
@@ -161,7 +169,10 @@ void EtmV4ITrcPacket::toString(std::string &str) const
         {
             std::ostringstream oss;
             oss << "; INFO=" << std::hex << "0x" << trace_info.val;
-            oss << " { CC." << std::dec << trace_info.bits.cc_enabled << " }";
+            oss << " { CC." << std::dec << trace_info.bits.cc_enabled;
+            if (isETE())
+                oss << ", TSTATE." << std::dec << trace_info.bits.in_trans_state;
+            oss << " }";
             if (trace_info.bits.cc_enabled)
                 oss << "; CC_THRESHOLD=" << std::hex << "0x" << cc_threshold;
             str += oss.str();
@@ -264,6 +275,14 @@ void EtmV4ITrcPacket::toString(std::string &str) const
             }
         }
         break;
+
+    case ETE_PKT_I_ITE:
+        {
+            std::ostringstream oss;
+            oss << "; EL" << std::dec << (int)ite_pkt.el << "; Payload=0x" << std::hex << ite_pkt.value;
+            str += oss.str();
+        }
+        break;
     }
 
 }   
@@ -348,6 +367,16 @@ const char *EtmV4ITrcPacket::packetTypeName(const ocsd_etmv4_i_pkt_type type, co
     case ETM4_PKT_I_EXCEPT_RTN:
         pName = "I_EXCEPT_RTN";
         pDesc = "Exception Return.";
+        break;
+    
+    case ETE_PKT_I_TRANS_ST:
+        pName = "I_TRANS_ST";
+        pDesc = "Transaction Start.";
+        break;
+
+    case ETE_PKT_I_TRANS_COMMIT:
+        pName = "I_TRANS_COMMIT";
+        pDesc = "Transaction Commit.";
         break;
 
     case ETM4_PKT_I_CCNT_F1:
@@ -481,6 +510,11 @@ const char *EtmV4ITrcPacket::packetTypeName(const ocsd_etmv4_i_pkt_type type, co
         pDesc = "Address & Context, Long, 64 bit, IS1.";
         break;
 
+    case ETE_PKT_I_TS_MARKER:
+        pName = "I_TS_MARKER";
+        pDesc = "Timestamp Marker";
+        break;
+
     case ETM4_PKT_I_ADDR_MATCH:
         pName = "I_ADDR_MATCH";
         pDesc = "Exact Address Match.";
@@ -519,6 +553,41 @@ const char *EtmV4ITrcPacket::packetTypeName(const ocsd_etmv4_i_pkt_type type, co
     case ETM4_PKT_I_Q:       
         pName = "I_Q";
         pDesc = "Q Packet.";
+        break;
+
+    case ETE_PKT_I_SRC_ADDR_MATCH:
+        pName = "I_SRC_ADDR_MATCH";
+        pDesc = "Exact Source Address Match.";
+        break;
+
+    case ETE_PKT_I_SRC_ADDR_S_IS0:
+        pName = "I_SRC_ADDR_S_IS0";
+        pDesc = "Source Address, Short, IS0.";
+        break;
+
+    case ETE_PKT_I_SRC_ADDR_S_IS1:
+        pName = "I_SRC_ADDR_S_IS1";
+        pDesc = "Source Address, Short, IS1.";
+        break;
+
+    case ETE_PKT_I_SRC_ADDR_L_32IS0:
+        pName = "I_SCR_ADDR_L_32IS0";
+        pDesc = "Source Address, Long, 32 bit, IS0.";
+        break;
+
+    case ETE_PKT_I_SRC_ADDR_L_32IS1:
+        pName = "I_SRC_ADDR_L_32IS1";
+        pDesc = "Source Address, Long, 32 bit, IS1.";
+        break;
+
+    case ETE_PKT_I_SRC_ADDR_L_64IS0:
+        pName = "I_SRC_ADDR_L_64IS0";
+        pDesc = "Source Address, Long, 64 bit, IS0.";
+        break;
+
+    case ETE_PKT_I_SRC_ADDR_L_64IS1:
+        pName = "I_SRC_ADDR_L_64IS1";
+        pDesc = "Source Address, Long, 64 bit, IS1.";
         break;
 
     case ETM4_PKT_I_ATOM_F6:
@@ -564,6 +633,21 @@ const char *EtmV4ITrcPacket::packetTypeName(const ocsd_etmv4_i_pkt_type type, co
     case ETM4_PKT_I_OVERFLOW:
         pName = "I_OVERFLOW";
         pDesc = "Overflow.";
+        break;
+
+    case ETE_PKT_I_PE_RESET:
+        pName = "I_PE_RESET";
+        pDesc = "PE Reset.";
+        break;
+
+    case ETE_PKT_I_TRANS_FAIL:
+        pName = "I_TRANS_FAIL";
+        pDesc = "Transaction Fail.";
+        break;
+
+    case ETE_PKT_I_ITE:
+        pName = "I_ITE";
+        pDesc = "Instrumentation";
         break;
 
     default:

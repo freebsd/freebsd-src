@@ -53,7 +53,8 @@
  *
  *  Valid architecture profile names are:-
  *   - ARMv7-A, ARMv7-R, ARMv7-M;
- *   - ARMv8-A, ARMv8.3A, ARMv8-R, ARMv8-M;
+ *   - ARMv8-A, ARMv8.x-A, ARMv8-R, ARMv8-M;
+ *   - ARM-AA64, ARM-aa64
  *  
  */
 class CoreArchProfileMap
@@ -65,35 +66,11 @@ public:
     ocsd_arch_profile_t getArchProfile(const std::string &coreName);
 
 private:
+    ocsd_arch_profile_t getPatternMatchCoreName(const std::string &coreName);
 
     std::map<std::string, ocsd_arch_profile_t> core_profiles;
     std::map<std::string, ocsd_arch_profile_t> arch_profiles;
 };
-
-inline ocsd_arch_profile_t CoreArchProfileMap::getArchProfile(const std::string &coreName)
-{
-    ocsd_arch_profile_t ap = { ARCH_UNKNOWN, profile_Unknown };
-    bool bFound = false;
-
-    std::map<std::string, ocsd_arch_profile_t>::const_iterator it;
-
-    /* match against the core name map. */
-    it = core_profiles.find(coreName);
-    if (it != core_profiles.end())
-    {
-        ap = it->second;
-        bFound = true;
-    }
-
-    /* scan architecture profiles on no core name match */
-    if (!bFound)
-    {
-        it = arch_profiles.find(coreName);
-        if (it != arch_profiles.end())
-            ap = it->second;
-    }
-    return ap;
-}
 
 #endif // ARM_TRC_CORE_ARCH_MAP_H_INCLUDED
 

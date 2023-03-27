@@ -63,5 +63,8 @@ else
 PLAT_DIR=linux$(BIT_VARIANT)/$(BUILD_VARIANT)
 endif
 
+# for dev env, enable static link build test
+export TEST_STATIC_LINKING=1
+
 # include the main makefile
 include makefile

@@ -210,10 +210,36 @@ OCSD_C_API ocsd_err_t ocsd_dt_attach_packet_callback(  const dcd_tree_handle_t h
                                                 const void *p_context);
 
 
-
-
+/*!
+ * Get the stats block for the channel indicated. 
+ * Caller must check p_stats_block->version to esure that the block
+ * is filled in a compatible manner.
+ * 
+ * @param handle : Handle to decode tree.
+ * @param CSID : Configured CoreSight trace ID for the decoder.
+ * @param p_stats_block: block pointer to set to reference the stats block.
+ * 
+ * @return ocsd_err_t  : Library error code -  OCSD_OK if valid block pointer returned, 
+ *                      OCSD_ERR_NOTINIT if decoder does not support stats counting.
+ */
+OCSD_C_API ocsd_err_t ocsd_dt_get_decode_stats( const dcd_tree_handle_t handle,
+                                                const unsigned char CSID,
+                                                ocsd_decode_stats_t **p_stats_block);
  
-    
+
+/*!
+ * Reset the stats block for the chosens decode channel. 
+ * stats block is reset independently of the decoder reset to allow counts across
+ * multiple decode runs.
+ *
+ * @param handle : Handle to decode tree.
+ * @param CSID : Configured CoreSight trace ID for the decoder.
+ *
+ * @return ocsd_err_t  : Library error code -  OCSD_OK if successful.
+ */
+OCSD_C_API ocsd_err_t ocsd_dt_reset_decode_stats( const dcd_tree_handle_t handle,
+                                                  const unsigned char CSID);
+
 /** @}*/
 /*---------------------- Memory Access for traced opcodes ----------------------------------------------------------------------------------*/
 /** @name Library Memory Accessor configuration on decode tree.
@@ -373,6 +399,28 @@ OCSD_C_API ocsd_err_t ocsd_def_errlog_set_strprint_cb(const dcd_tree_handle_t ha
  */
 OCSD_C_API void ocsd_def_errlog_msgout(const char *msg);
 
+/*!
+ * Convert an error code into a string.
+ *
+ * @param err         : error code.
+ * @param buffer      : buffer for return string
+ * @param buffer_size : length of buffer.
+ */
+OCSD_C_API void ocsd_err_str(const ocsd_err_t err, char *buffer, const int buffer_size);
+
+/*!
+ * returns the last error logged by the system, with the related trace byte index, trace channel id,
+ * and any error message related string.
+ * If index or channel ID are not valid these will return OCSD_BAD_TRC_INDEX and OCSD_BAD_CS_SRC_ID.
+ *
+ * return value is the error code of the last logged error, OCSD_OK for no error available.
+ *
+ * @param index      : returns trace byte index relating to error, or OCSD_BAD_TRC_INDEX
+ * @param chan_id    : returns trace channel ID relating to error, or OCSD_BAD_CS_SRC_ID
+ * @param message    : buffer to copy the last error message.
+ * @param message_len: length of message buffer.
+ */
+OCSD_C_API ocsd_err_t ocsd_get_last_err(ocsd_trc_index_t *index, uint8_t *chan_id, char *message, const int message_len);
 
 /** @}*/
 

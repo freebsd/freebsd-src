@@ -14,6 +14,9 @@
 *.la
 *.lo
 
+# gcc dependency files
+*.d
+
 # Shared objects (inc. Windows DLLs)
 *.dll
 *.so
@@ -43,6 +46,7 @@ ipch/
 *.pdb
 *.exp
 *.ilk
+.vs/
 
 # ignore emacs backup saves
 *~
@@ -74,3 +78,4 @@ decoder/docs/html/*
 *.VC.VC.opendb
 *.iobj
 *.ipdb
+decoder/tests/results*

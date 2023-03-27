@@ -135,9 +135,9 @@ namespace Parser
     std::vector<std::string> GetBufferNameList(ParsedTrace &metadata);
 
 
-    static ITraceErrorLog *s_pErrorLogger = 0;
-    static ocsd_hndl_err_log_t s_errlog_handle = 0;
-    static bool s_verbose_logging = true;
+    //static ITraceErrorLog *s_pErrorLogger = 0;
+    //static ocsd_hndl_err_log_t s_errlog_handle = 0;
+    //static bool s_verbose_logging = true;
 
     void SetIErrorLogger(ITraceErrorLog *i_err_log);
     void SetVerboseLogging(bool verbose);

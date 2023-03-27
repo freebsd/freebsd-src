@@ -47,7 +47,7 @@
  *
  * This interface provides a monitor point for the packet processor block.
  * The templated interface is called with a complete packet of the given
- * type, plus the raw packet bytes. Use for tools which need to display compplete
+ * type, plus the raw packet bytes. Use for tools which need to display complete
  * packets or require additional processing on raw packet data.
  *
  * This interface is not part of the data decode path and cannot provide feedback.

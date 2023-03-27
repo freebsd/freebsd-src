@@ -55,8 +55,9 @@ ItemPrinter *PktPrinterFact::createProtocolPrinter(std::vector<ItemPrinter *> &p
 {
     ItemPrinter *pPrinter = 0;
     switch (protocol)
-    {
+    {    
     case OCSD_PROTOCOL_ETMV4I:
+    case OCSD_PROTOCOL_ETE:
         pPrinter = new (std::nothrow) PacketPrinter<EtmV4ITrcPacket>(CSID);
         break;
     case OCSD_PROTOCOL_ETMV3:

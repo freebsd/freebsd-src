@@ -38,7 +38,7 @@ PROJECT_NAME           = "OpenCSD - CoreSight Trace Decode Library"
 # could be handy for archiving the generated documentation or if some version
 # control system is used.
 
-PROJECT_NUMBER         = 0.14.2
+PROJECT_NUMBER         = 1.4.0
 
 # Using the PROJECT_BRIEF tag one can provide an optional one line description
 # for a project that appears at the top of each page and should give viewer a
@@ -805,7 +805,8 @@ INPUT                  = ../include \
                          ./prog_guide \
                          ../include/opencsd \
                          ../include \
-                         ../tests/auto-fdo/autofdo.md
+                         ../tests/auto-fdo/autofdo.md \
+                         ../include/opencsd/ete
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding. Doxygen uses
