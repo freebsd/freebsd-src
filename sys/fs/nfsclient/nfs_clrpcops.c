@@ -9245,7 +9245,7 @@ nfscl_statfs(struct vnode *vp, struct ucred *cred, NFSPROC_T *td)
 	error = nfsrpc_statfs(vp, &sb, &fs, &lease, cred, td, &nfsva,
 	    &attrflag);
 	if (attrflag != 0)
-		nfscl_loadattrcache(&vp, &nfsva, NULL, 0, 1);
+		(void) nfscl_loadattrcache(&vp, &nfsva, NULL, 0, 1);
 	if (error == 0) {
 		NFSLOCKCLSTATE();
 		if (nmp->nm_clp != NULL)
