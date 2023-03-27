@@ -32,6 +32,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
+
 #include <vm/vm.h>
 /* XXX: enable this once the KPI is available */
 /* #include <x86/physmem.h> */
@@ -56,6 +58,12 @@ struct pci_device_id {
  */
 vm_paddr_t intel_graphics_stolen_base = 0;
 vm_paddr_t intel_graphics_stolen_size = 0;
+SYSCTL_U64(_hw, OID_AUTO, intel_graphics_stolen_base, CTLFLAG_RD,
+    &intel_graphics_stolen_base, 0,
+    "Base address of the intel graphics stolen memory.");
+SYSCTL_U64(_hw, OID_AUTO, intel_graphics_stolen_size, CTLFLAG_RD,
+    &intel_graphics_stolen_size, 0,
+    "Size of the intel graphics stolen memory.");
 
 /*
  * Intel early quirks functions
