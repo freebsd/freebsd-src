@@ -119,6 +119,14 @@ ocsd_err_t TrcMemAccMapper::ReadTargetMemory(const ocsd_vaddr_t address, const u
     return err;
 }
 
+void TrcMemAccMapper::InvalidateMemAccCache(const uint8_t /* cs_trace_id */)
+{
+    // default mapper does not use cs_trace_id for cache invalidation.
+    if (m_cache.enabled())
+        m_cache.invalidateAll();
+    m_acc_curr = 0;
+}
+
 void TrcMemAccMapper::RemoveAllAccessors()
 {
     TrcMemAccessorBase *pAcc = 0;

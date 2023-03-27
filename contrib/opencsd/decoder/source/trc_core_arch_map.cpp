@@ -72,17 +72,6 @@ static ap_map_elem_t ap_map_array[] =
     { "Cortex-M4", { ARCH_V7, profile_CortexM } }
 };   
 
-static ap_map_elem_t arch_map_array[] = 
-{
-    { "ARMv7-A", { ARCH_V7, profile_CortexA } },
-    { "ARMv7-R", { ARCH_V7, profile_CortexR } },
-    { "ARMv7-M", { ARCH_V7, profile_CortexM } },
-    { "ARMv8-A", { ARCH_V8, profile_CortexA } },
-    { "ARMv8.3-A", { ARCH_V8r3, profile_CortexA } },
-    { "ARMv8-R", { ARCH_V8, profile_CortexR } },
-    { "ARMv8-M", { ARCH_V8, profile_CortexM } },
-};
-
 CoreArchProfileMap::CoreArchProfileMap()
 {
     unsigned i;
@@ -90,10 +79,99 @@ CoreArchProfileMap::CoreArchProfileMap()
     {
         core_profiles[ap_map_array[i].name] = ap_map_array[i].ap;
     }
-    for (i = 0; i < sizeof(arch_map_array) / sizeof(_ap_map_elements); i++)
-    {
-        arch_profiles[arch_map_array[i].name] = arch_map_array[i].ap;
-    }
 }
 
+ocsd_arch_profile_t CoreArchProfileMap::getArchProfile(const std::string &coreName)
+{
+    ocsd_arch_profile_t ap = { ARCH_UNKNOWN, profile_Unknown };
+    bool bFound = false;
+
+    std::map<std::string, ocsd_arch_profile_t>::const_iterator it;
+
+    /* match against the core name map. */
+    it = core_profiles.find(coreName);
+    if (it != core_profiles.end())
+    {
+        ap = it->second;
+        bFound = true;
+    }
+
+    /* try a pattern match on core name - pick up ARMvM[.m]-P and ARM-{aa|AA}64[-P] */
+    if (!bFound)
+        ap = getPatternMatchCoreName(coreName);
+
+    return ap;
+}
+ocsd_arch_profile_t CoreArchProfileMap::getPatternMatchCoreName(const std::string &coreName)
+{
+    ocsd_arch_profile_t ap = { ARCH_UNKNOWN, profile_Unknown };
+    size_t pos;
+
+    /* look for ARMvM[.m]-P */
+    pos = coreName.find("ARMv");
+    if (pos == 0)
+    {
+        int majver = coreName[4] - '0';
+        int minver = 0;
+        int dotoffset = 0;
+
+        pos = coreName.find_first_of(".");
+        if (pos == 5) {
+            minver = coreName[6] - '0';
+            dotoffset = 2;
+        }
+        else if (pos != std::string::npos)
+            return ap;
+
+        if (majver == 7)
+            ap.arch = ARCH_V7;
+        else if (majver >= 8) {
+            ap.arch = ARCH_AA64; /* default to 8.3+*/
+            if (majver == 8) {
+                if (minver < 3)
+                    ap.arch = ARCH_V8;
+                else if (minver == 3)
+                    ap.arch = ARCH_V8r3;
+            }
+        }
+        else
+            return ap; /* no valid version  - return unknown */
+
+        if (coreName.find_first_of("-", 4) == (size_t)(5 + dotoffset)) {
+            int profile_idx = 6 + dotoffset;
+            if (coreName[profile_idx] == 'A')
+                ap.profile = profile_CortexA;
+            else if (coreName[profile_idx] == 'R')
+                ap.profile = profile_CortexR;
+            else if (coreName[profile_idx] == 'M')
+                ap.profile = profile_CortexM;
+            else
+                ap.arch = ARCH_UNKNOWN; /*reset arch, return unknown*/
+        }
+        else
+            ap.arch = ARCH_UNKNOWN; /*reset arch, return unknown*/
+        return ap;
+    }
+
+    /* look for ARM-{AA|aa}64[-P] */
+    pos = coreName.find("ARM-");
+    if (pos == 0)
+    {
+        pos = coreName.find("aa64");
+        if (pos != 4)
+            pos = coreName.find("AA64");
+        if (pos == 4)
+        {
+            ap.arch = ARCH_AA64;
+            ap.profile = profile_CortexA;
+            if (coreName.find_first_of("-", 7) == 8) {
+                if (coreName[9] == 'R')
+                    ap.profile = profile_CortexR;
+                else if (coreName[9] == 'M')
+                    ap.profile = profile_CortexM;
+            }
+        }
+    }
+    return ap;
+}
 /* End of File trc_core_arch_map.cpp */

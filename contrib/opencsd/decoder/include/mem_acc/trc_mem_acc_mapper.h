@@ -61,6 +61,8 @@ public:
                                             uint32_t *num_bytes, 
                                             uint8_t *p_buffer);
 
+    virtual void InvalidateMemAccCache(const uint8_t cs_trace_id);
+
 // mapper memory area configuration interface
 
     // add an accessor to this map

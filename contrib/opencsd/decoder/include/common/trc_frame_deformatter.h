@@ -73,6 +73,9 @@ public:
 
     componentAttachPt<ITraceErrorLog> *getErrLogAttachPt();
 
+    /* init decoder implementation object */
+    ocsd_err_t Init();
+
     /* configuration - set operational mode for incoming stream (has FSYNCS etc) */
     ocsd_err_t Configure(uint32_t cfg_flags);
     const uint32_t getConfigFlags() const;
@@ -85,9 +88,13 @@ public:
     ocsd_datapath_resp_t Reset();    /* reset the decode to the start state, drop partial data - propogate to attached components */
     ocsd_datapath_resp_t Flush();    /* flush existing data if possible, retain state - propogate to attached components */
 
+    /* demux stats */
+    void SetDemuxStatsBlock(ocsd_demux_stats_t *pStatsBlock);
+
 private:
     TraceFmtDcdImpl *m_pDecoder;
     int m_instNum;
+   
 };
 
 /** @}*/
