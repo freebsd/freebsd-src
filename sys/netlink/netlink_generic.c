@@ -47,6 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <netlink/netlink_debug.h>
 _DECLARE_DEBUG(LOG_DEBUG);
 
+#define	CTRL_FAMILY_NAME	"nlctrl"
+
 #define	MAX_FAMILIES	20
 #define	MAX_GROUPS	64
 
@@ -96,6 +98,28 @@ find_family(const char *family_name)
 	return (NULL);
 }
 
+static struct genl_family *
+find_empty_family_id(const char *family_name)
+{
+	struct genl_family *gf = NULL;
+
+	if (!strcmp(family_name, CTRL_FAMILY_NAME)) {
+		gf = &families[0];
+		gf->family_id = GENL_MIN_ID;
+	} else {
+		/* Index 0 is reserved for the control family */
+		for (int i = 1; i < MAX_FAMILIES; i++) {
+			struct genl_family *gf = &families[i];
+			if (gf->family_name == NULL) {
+				gf->family_id = GENL_MIN_ID + i;
+				break;
+			}
+		}
+	}
+
+	return (gf);
+}
+
 uint32_t
 genl_register_family(const char *family_name, size_t hdrsize, int family_version,
     int max_attr_idx)
@@ -107,21 +131,18 @@ genl_register_family(const char *family_name, size_t hdrsize, int family_version
 		return (0);
 
 	GENL_LOCK();
-	for (int i = 0; i < MAX_FAMILIES; i++) {
-		struct genl_family *gf = &families[i];
-		if (gf->family_name == NULL) {
-			gf->family_name = family_name;
-			gf->family_version = family_version;
-			gf->family_hdrsize = hdrsize;
-			gf->family_attr_max = max_attr_idx;
-			gf->family_id = i + GENL_MIN_ID;
-			NL_LOG(LOG_DEBUG2, "Registered family %s id %d",
-			    gf->family_name, gf->family_id);
-			family_id = gf->family_id;
-			nlctrl_notify(gf, CTRL_CMD_NEWFAMILY);
-			break;
-		}
-	}
+
+	struct genl_family *gf = find_empty_family_id(family_name);
+	MPASS(gf != NULL);
+
+	gf->family_name = family_name;
+	gf->family_version = family_version;
+	gf->family_hdrsize = hdrsize;
+	gf->family_attr_max = max_attr_idx;
+	NL_LOG(LOG_DEBUG2, "Registered family %s id %d", gf->family_name, gf->family_id);
+	family_id = gf->family_id;
+	nlctrl_notify(gf, CTRL_CMD_NEWFAMILY);
+
 	GENL_UNLOCK();
 
 	return (family_id);
@@ -377,7 +398,6 @@ enomem:
 
 
 /* Declare ourself as a user */
-#define	CTRL_FAMILY_NAME	"nlctrl"
 
 static uint32_t ctrl_family_id;
 static uint32_t ctrl_group_id;
