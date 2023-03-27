@@ -1,7 +1,7 @@
 ; cosf.tst - Directed test cases for SP cosine
 ;
 ; Copyright (c) 2007-2019, Arm Limited.
-; SPDX-License-Identifier: MIT
+; SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
 
 func=cosf op1=7fc00001 result=7fc00001 errno=0
 func=cosf op1=ffc00001 result=7fc00001 errno=0

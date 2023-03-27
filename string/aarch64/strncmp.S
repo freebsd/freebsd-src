@@ -2,7 +2,7 @@
  * strncmp - compare two strings
  *
  * Copyright (c) 2013-2022, Arm Limited.
- * SPDX-License-Identifier: MIT
+ * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 /* Assumptions:
@@ -11,7 +11,7 @@
  * MTE compatible.
  */
 
-#include "../asmdefs.h"
+#include "asmdefs.h"
 
 #define REP8_01 0x0101010101010101
 #define REP8_7f 0x7f7f7f7f7f7f7f7f

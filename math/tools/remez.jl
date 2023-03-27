@@ -4,7 +4,7 @@
 # remez.jl - implementation of the Remez algorithm for polynomial approximation
 #
 # Copyright (c) 2015-2019, Arm Limited.
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
 
 import Base.\
 

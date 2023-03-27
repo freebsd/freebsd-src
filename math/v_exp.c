@@ -1,8 +1,8 @@
 /*
  * Double-precision vector e^x function.
  *
- * Copyright (c) 2019, Arm Limited.
- * SPDX-License-Identifier: MIT
+ * Copyright (c) 2019-2022, Arm Limited.
+ * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 #include "mathlib.h"
@@ -36,6 +36,22 @@
 #define Tab __v_exp_data
 #define IndexMask v_u64 (N - 1)
 #define Shift v_f64 (0x1.8p+52)
+
+#if WANT_SIMD_EXCEPT
+
+#define TinyBound 0x200 /* top12 (asuint64 (0x1p-511)).  */
+#define BigBound 0x408	/* top12 (asuint64 (0x1p9)).  */
+
+VPCS_ATTR static NOINLINE v_f64_t
+specialcase (v_f64_t x, v_f64_t y, v_u64_t cmp)
+{
+  /* If fenv exceptions are to be triggered correctly, fall back to the scalar
+     routine to special lanes.  */
+  return v_call_f64 (exp, x, y, cmp);
+}
+
+#else
+
 #define Thres v_f64 (704.0)
 
 VPCS_ATTR
@@ -54,6 +70,8 @@ specialcase (v_f64_t s, v_f64_t y, v_f64_t n)
   return v_as_f64_u64 ((cmp & v_as_u64_f64 (r1)) | (~cmp & v_as_u64_f64 (r0)));
 }
 
+#endif
+
 VPCS_ATTR
 v_f64_t
 V_NAME(exp) (v_f64_t x)
@@ -61,7 +79,18 @@ V_NAME(exp) (v_f64_t x)
   v_f64_t n, r, r2, s, y, z;
   v_u64_t cmp, u, e, i;
 
+#if WANT_SIMD_EXCEPT
+  /* If any lanes are special, mask them with 1 and retain a copy of x to allow
+     specialcase to fix special lanes later. This is only necessary if fenv
+     exceptions are to be triggered correctly.  */
+  v_f64_t xm = x;
+  cmp = v_cond_u64 ((v_as_u64_f64 (v_abs_f64 (x)) >> 52) - TinyBound
+		    >= BigBound - TinyBound);
+  if (unlikely (v_any_u64 (cmp)))
+    x = v_sel_f64 (cmp, v_f64 (1), x);
+#else
   cmp = v_cond_u64 (v_abs_f64 (x) > Thres);
+#endif
 
   /* n = round(x/(ln2/N)).  */
   z = v_fma_f64 (x, InvLn2, Shift);
@@ -87,7 +116,12 @@ V_NAME(exp) (v_f64_t x)
   s = v_as_f64_u64 (u + e);
 
   if (unlikely (v_any_u64 (cmp)))
+#if WANT_SIMD_EXCEPT
+    return specialcase (xm, v_fma_f64 (y, s, s), cmp);
+#else
     return specialcase (s, y, n);
+#endif
+
   return v_fma_f64 (y, s, s);
 }
 VPCS_ALIAS

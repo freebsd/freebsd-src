@@ -1,8 +1,8 @@
 /*
  * ULP error checking tool for math functions.
  *
- * Copyright (c) 2019-2020, Arm Limited.
- * SPDX-License-Identifier: MIT
+ * Copyright (c) 2019-2022, Arm Limited.
+ * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 #include <ctype.h>
@@ -214,16 +214,6 @@ struct conf
   double errlim;
 };
 
-/* Wrappers for sincos.  */
-static float sincosf_sinf(float x) {(void)cosf(x); return sinf(x);}
-static float sincosf_cosf(float x) {(void)sinf(x); return cosf(x);}
-static double sincos_sin(double x) {(void)cos(x); return sin(x);}
-static double sincos_cos(double x) {(void)sin(x); return cos(x);}
-#if USE_MPFR
-static int sincos_mpfr_sin(mpfr_t y, const mpfr_t x, mpfr_rnd_t r) { mpfr_cos(y,x,r); return mpfr_sin(y,x,r); }
-static int sincos_mpfr_cos(mpfr_t y, const mpfr_t x, mpfr_rnd_t r) { mpfr_sin(y,x,r); return mpfr_cos(y,x,r); }
-#endif
-
 /* A bit of a hack: call vector functions twice with the same
    input in lane 0 but a different value in other lanes: once
    with an in-range value and then with a special case value.  */
@@ -233,50 +223,79 @@ static int secondcall;
 #if __aarch64__ && WANT_VMATH
 typedef __f32x4_t v_float;
 typedef __f64x2_t v_double;
-static const float fv[2] = {1.0f, -INFINITY};
-static const double dv[2] = {1.0, -INFINITY};
+/* First element of fv and dv may be changed by -c argument.  */
+static float fv[2] = {1.0f, -INFINITY};
+static double dv[2] = {1.0, -INFINITY};
 static inline v_float argf(float x) { return (v_float){x,x,x,fv[secondcall]}; }
 static inline v_double argd(double x) { return (v_double){x,dv[secondcall]}; }
+#if WANT_SVE_MATH
+#include <arm_sve.h>
+typedef __SVFloat32_t sv_float;
+typedef __SVFloat64_t sv_double;
 
-static float v_sinf(float x) { return __v_sinf(argf(x))[0]; }
-static float v_cosf(float x) { return __v_cosf(argf(x))[0]; }
-static float v_expf_1u(float x) { return __v_expf_1u(argf(x))[0]; }
-static float v_expf(float x) { return __v_expf(argf(x))[0]; }
-static float v_exp2f_1u(float x) { return __v_exp2f_1u(argf(x))[0]; }
-static float v_exp2f(float x) { return __v_exp2f(argf(x))[0]; }
-static float v_logf(float x) { return __v_logf(argf(x))[0]; }
-static float v_powf(float x, float y) { return __v_powf(argf(x),argf(y))[0]; }
-static double v_sin(double x) { return __v_sin(argd(x))[0]; }
-static double v_cos(double x) { return __v_cos(argd(x))[0]; }
-static double v_exp(double x) { return __v_exp(argd(x))[0]; }
-static double v_log(double x) { return __v_log(argd(x))[0]; }
-static double v_pow(double x, double y) { return __v_pow(argd(x),argd(y))[0]; }
-#ifdef __vpcs
-static float vn_sinf(float x) { return __vn_sinf(argf(x))[0]; }
-static float vn_cosf(float x) { return __vn_cosf(argf(x))[0]; }
-static float vn_expf_1u(float x) { return __vn_expf_1u(argf(x))[0]; }
-static float vn_expf(float x) { return __vn_expf(argf(x))[0]; }
-static float vn_exp2f_1u(float x) { return __vn_exp2f_1u(argf(x))[0]; }
-static float vn_exp2f(float x) { return __vn_exp2f(argf(x))[0]; }
-static float vn_logf(float x) { return __vn_logf(argf(x))[0]; }
-static float vn_powf(float x, float y) { return __vn_powf(argf(x),argf(y))[0]; }
-static double vn_sin(double x) { return __vn_sin(argd(x))[0]; }
-static double vn_cos(double x) { return __vn_cos(argd(x))[0]; }
-static double vn_exp(double x) { return __vn_exp(argd(x))[0]; }
-static double vn_log(double x) { return __vn_log(argd(x))[0]; }
-static double vn_pow(double x, double y) { return __vn_pow(argd(x),argd(y))[0]; }
-static float Z_sinf(float x) { return _ZGVnN4v_sinf(argf(x))[0]; }
-static float Z_cosf(float x) { return _ZGVnN4v_cosf(argf(x))[0]; }
-static float Z_expf(float x) { return _ZGVnN4v_expf(argf(x))[0]; }
-static float Z_exp2f(float x) { return _ZGVnN4v_exp2f(argf(x))[0]; }
-static float Z_logf(float x) { return _ZGVnN4v_logf(argf(x))[0]; }
-static float Z_powf(float x, float y) { return _ZGVnN4vv_powf(argf(x),argf(y))[0]; }
-static double Z_sin(double x) { return _ZGVnN2v_sin(argd(x))[0]; }
-static double Z_cos(double x) { return _ZGVnN2v_cos(argd(x))[0]; }
-static double Z_exp(double x) { return _ZGVnN2v_exp(argd(x))[0]; }
-static double Z_log(double x) { return _ZGVnN2v_log(argd(x))[0]; }
-static double Z_pow(double x, double y) { return _ZGVnN2vv_pow(argd(x),argd(y))[0]; }
+static inline sv_float svargf(float x)  {
+	int n = svcntw();
+	float base[n];
+	for (int i=0; i<n; i++)
+		base[i] = (float)x;
+	base[n-1] = (float) fv[secondcall];
+	return svld1(svptrue_b32(), base);
+}
+static inline sv_double svargd(double x) {
+	int n = svcntd();
+	double base[n];
+	for (int i=0; i<n; i++)
+		base[i] = x;
+	base[n-1] = dv[secondcall];
+	return svld1(svptrue_b64(), base);
+}
+static inline float svretf(sv_float vec)  {
+	int n = svcntw();
+	float res[n];
+	svst1(svptrue_b32(), res, vec);
+	return res[0];
+}
+static inline double svretd(sv_double vec) {
+	int n = svcntd();
+	double res[n];
+	svst1(svptrue_b64(), res, vec);
+	return res[0];
+}
 #endif
+#endif
+
+#if WANT_SVE_MATH
+long double
+dummyl (long double x)
+{
+  return x;
+}
+
+double
+dummy (double x)
+{
+  return x;
+}
+
+static sv_double
+__sv_dummy (sv_double x)
+{
+  return x;
+}
+
+static sv_float
+__sv_dummyf (sv_float x)
+{
+  return x;
+}
+#endif
+
+#include "test/ulp_wrappers.h"
+
+/* Wrappers for SVE functions.  */
+#if WANT_SVE_MATH
+static double sv_dummy (double x) { return svretd (__sv_dummy (svargd (x))); }
+static float sv_dummyf (float x) { return svretf (__sv_dummyf (svargf (x))); }
 #endif
 
 struct fun
@@ -322,83 +341,53 @@ static const struct fun fun[] = {
 #define F2(x) F (x##f, x##f, x, mpfr_##x, 2, 1, f2, 0)
 #define D1(x) F (x, x, x##l, mpfr_##x, 1, 0, d1, 0)
 #define D2(x) F (x, x, x##l, mpfr_##x, 2, 0, d2, 0)
- F1 (sin)
- F1 (cos)
- F (sincosf_sinf, sincosf_sinf, sincos_sin, sincos_mpfr_sin, 1, 1, f1, 0)
- F (sincosf_cosf, sincosf_cosf, sincos_cos, sincos_mpfr_cos, 1, 1, f1, 0)
- F1 (exp)
- F1 (exp2)
- F1 (log)
- F1 (log2)
- F2 (pow)
- F1 (erf)
- D1 (exp)
- D1 (exp2)
- D1 (log)
- D1 (log2)
- D2 (pow)
- D1 (erf)
-#if WANT_VMATH
- F (__s_sinf, __s_sinf, sin, mpfr_sin, 1, 1, f1, 0)
- F (__s_cosf, __s_cosf, cos, mpfr_cos, 1, 1, f1, 0)
- F (__s_expf_1u, __s_expf_1u, exp, mpfr_exp, 1, 1, f1, 0)
- F (__s_expf, __s_expf, exp, mpfr_exp, 1, 1, f1, 0)
- F (__s_exp2f_1u, __s_exp2f_1u, exp2, mpfr_exp2, 1, 1, f1, 0)
- F (__s_exp2f, __s_exp2f, exp2, mpfr_exp2, 1, 1, f1, 0)
- F (__s_powf, __s_powf, pow, mpfr_pow, 2, 1, f2, 0)
- F (__s_logf, __s_logf, log, mpfr_log, 1, 1, f1, 0)
- F (__s_sin, __s_sin, sinl, mpfr_sin, 1, 0, d1, 0)
- F (__s_cos, __s_cos, cosl, mpfr_cos, 1, 0, d1, 0)
- F (__s_exp, __s_exp, expl, mpfr_exp, 1, 0, d1, 0)
- F (__s_log, __s_log, logl, mpfr_log, 1, 0, d1, 0)
- F (__s_pow, __s_pow, powl, mpfr_pow, 2, 0, d2, 0)
-#if __aarch64__
- F (__v_sinf, v_sinf, sin, mpfr_sin, 1, 1, f1, 1)
- F (__v_cosf, v_cosf, cos, mpfr_cos, 1, 1, f1, 1)
- F (__v_expf_1u, v_expf_1u, exp, mpfr_exp, 1, 1, f1, 1)
- F (__v_expf, v_expf, exp, mpfr_exp, 1, 1, f1, 1)
- F (__v_exp2f_1u, v_exp2f_1u, exp2, mpfr_exp2, 1, 1, f1, 1)
- F (__v_exp2f, v_exp2f, exp2, mpfr_exp2, 1, 1, f1, 1)
- F (__v_logf, v_logf, log, mpfr_log, 1, 1, f1, 1)
- F (__v_powf, v_powf, pow, mpfr_pow, 2, 1, f2, 1)
- F (__v_sin, v_sin, sinl, mpfr_sin, 1, 0, d1, 1)
- F (__v_cos, v_cos, cosl, mpfr_cos, 1, 0, d1, 1)
- F (__v_exp, v_exp, expl, mpfr_exp, 1, 0, d1, 1)
- F (__v_log, v_log, logl, mpfr_log, 1, 0, d1, 1)
- F (__v_pow, v_pow, powl, mpfr_pow, 2, 0, d2, 1)
-#ifdef __vpcs
- F (__vn_sinf, vn_sinf, sin, mpfr_sin, 1, 1, f1, 1)
- F (__vn_cosf, vn_cosf, cos, mpfr_cos, 1, 1, f1, 1)
- F (__vn_expf_1u, vn_expf_1u, exp, mpfr_exp, 1, 1, f1, 1)
- F (__vn_expf, vn_expf, exp, mpfr_exp, 1, 1, f1, 1)
- F (__vn_exp2f_1u, vn_exp2f_1u, exp2, mpfr_exp2, 1, 1, f1, 1)
- F (__vn_exp2f, vn_exp2f, exp2, mpfr_exp2, 1, 1, f1, 1)
- F (__vn_logf, vn_logf, log, mpfr_log, 1, 1, f1, 1)
- F (__vn_powf, vn_powf, pow, mpfr_pow, 2, 1, f2, 1)
- F (__vn_sin, vn_sin, sinl, mpfr_sin, 1, 0, d1, 1)
- F (__vn_cos, vn_cos, cosl, mpfr_cos, 1, 0, d1, 1)
- F (__vn_exp, vn_exp, expl, mpfr_exp, 1, 0, d1, 1)
- F (__vn_log, vn_log, logl, mpfr_log, 1, 0, d1, 1)
- F (__vn_pow, vn_pow, powl, mpfr_pow, 2, 0, d2, 1)
- F (_ZGVnN4v_sinf, Z_sinf, sin, mpfr_sin, 1, 1, f1, 1)
- F (_ZGVnN4v_cosf, Z_cosf, cos, mpfr_cos, 1, 1, f1, 1)
- F (_ZGVnN4v_expf, Z_expf, exp, mpfr_exp, 1, 1, f1, 1)
- F (_ZGVnN4v_exp2f, Z_exp2f, exp2, mpfr_exp2, 1, 1, f1, 1)
- F (_ZGVnN4v_logf, Z_logf, log, mpfr_log, 1, 1, f1, 1)
- F (_ZGVnN4vv_powf, Z_powf, pow, mpfr_pow, 2, 1, f2, 1)
- F (_ZGVnN2v_sin, Z_sin, sinl, mpfr_sin, 1, 0, d1, 1)
- F (_ZGVnN2v_cos, Z_cos, cosl, mpfr_cos, 1, 0, d1, 1)
- F (_ZGVnN2v_exp, Z_exp, expl, mpfr_exp, 1, 0, d1, 1)
- F (_ZGVnN2v_log, Z_log, logl, mpfr_log, 1, 0, d1, 1)
- F (_ZGVnN2vv_pow, Z_pow, powl, mpfr_pow, 2, 0, d2, 1)
+/* Neon routines.  */
+#define VF1(x) F (__v_##x##f, v_##x##f, x, mpfr_##x, 1, 1, f1, 0)
+#define VF2(x) F (__v_##x##f, v_##x##f, x, mpfr_##x, 2, 1, f2, 0)
+#define VD1(x) F (__v_##x, v_##x, x##l, mpfr_##x, 1, 0, d1, 0)
+#define VD2(x) F (__v_##x, v_##x, x##l, mpfr_##x, 2, 0, d2, 0)
+#define VNF1(x) F (__vn_##x##f, vn_##x##f, x, mpfr_##x, 1, 1, f1, 0)
+#define VNF2(x) F (__vn_##x##f, vn_##x##f, x, mpfr_##x, 2, 1, f2, 0)
+#define VND1(x) F (__vn_##x, vn_##x, x##l, mpfr_##x, 1, 0, d1, 0)
+#define VND2(x) F (__vn_##x, vn_##x, x##l, mpfr_##x, 2, 0, d2, 0)
+#define ZVF1(x) F (_ZGVnN4v_##x##f, Z_##x##f, x, mpfr_##x, 1, 1, f1, 0)
+#define ZVF2(x) F (_ZGVnN4vv_##x##f, Z_##x##f, x, mpfr_##x, 2, 1, f2, 0)
+#define ZVD1(x) F (_ZGVnN2v_##x, Z_##x, x##l, mpfr_##x, 1, 0, d1, 0)
+#define ZVD2(x) F (_ZGVnN2vv_##x, Z_##x, x##l, mpfr_##x, 2, 0, d2, 0)
+#define ZVNF1(x) VNF1 (x) ZVF1 (x)
+#define ZVNF2(x) VNF2 (x) ZVF2 (x)
+#define ZVND1(x) VND1 (x) ZVD1 (x)
+#define ZVND2(x) VND2 (x) ZVD2 (x)
+#define SF1(x) F (__s_##x##f, __s_##x##f, x, mpfr_##x, 1, 1, f1, 0)
+#define SF2(x) F (__s_##x##f, __s_##x##f, x, mpfr_##x, 2, 1, f2, 0)
+#define SD1(x) F (__s_##x, __s_##x, x##l, mpfr_##x, 1, 0, d1, 0)
+#define SD2(x) F (__s_##x, __s_##x, x##l, mpfr_##x, 2, 0, d2, 0)
+/* SVE routines.  */
+#define SVF1(x) F (__sv_##x##f, sv_##x##f, x, mpfr_##x, 1, 1, f1, 0)
+#define SVF2(x) F (__sv_##x##f, sv_##x##f, x, mpfr_##x, 2, 1, f2, 0)
+#define SVD1(x) F (__sv_##x, sv_##x, x##l, mpfr_##x, 1, 0, d1, 0)
+#define SVD2(x) F (__sv_##x, sv_##x, x##l, mpfr_##x, 2, 0, d2, 0)
+#define ZSVF1(x) F (_ZGVsMxv_##x##f, Z_sv_##x##f, x, mpfr_##x, 1, 1, f1, 0)
+#define ZSVF2(x) F (_ZGVsMxvv_##x##f, Z_sv_##x##f, x, mpfr_##x, 2, 1, f2, 0)
+#define ZSVD1(x) F (_ZGVsMxv_##x, Z_sv_##x, x##l, mpfr_##x, 1, 0, d1, 0)
+#define ZSVD2(x) F (_ZGVsMxvv_##x, Z_sv_##x, x##l, mpfr_##x, 2, 0, d2, 0)
+
+#include "test/ulp_funcs.h"
+
+#if WANT_SVE_MATH
+ SVD1 (dummy)
+ SVF1 (dummy)
 #endif
-#endif
-#endif
+
 #undef F
 #undef F1
 #undef F2
 #undef D1
 #undef D2
+#undef SVF1
+#undef SVF2
+#undef SVD1
+#undef SVD2
  {0}};
 
 /* Boilerplate for generic calls.  */
@@ -645,6 +634,11 @@ usage (void)
   puts ("-q: quiet.");
   puts ("-m: use mpfr even if faster method is available.");
   puts ("-f: disable fenv testing (rounding modes and exceptions).");
+#if __aarch64__ && WANT_VMATH
+  puts ("-c: neutral 'control value' to test behaviour when one lane can affect another. \n"
+	"    This should be different from tested input in other lanes, and non-special \n"
+	"    (i.e. should not trigger fenv exceptions). Default is 1.");
+#endif
   puts ("Supported func:");
   for (const struct fun *f = fun; f->name; f++)
     printf ("\t%s\n", f->name);
@@ -812,6 +806,14 @@ main (int argc, char *argv[])
 	      conf.rc = argv[0][0];
 	    }
 	  break;
+#if __aarch64__ && WANT_VMATH
+	case 'c':
+	  argc--;
+	  argv++;
+	  fv[0] = strtof(argv[0], 0);
+	  dv[0] = strtod(argv[0], 0);
+	  break;
+#endif
 	default:
 	  usage ();
 	}

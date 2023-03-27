@@ -2,7 +2,7 @@
  * Double-precision 2^x function.
  *
  * Copyright (c) 2018-2019, Arm Limited.
- * SPDX-License-Identifier: MIT
+ * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 #include <float.h>

@@ -2,7 +2,7 @@
  * memset - fill memory with a constant
  *
  * Copyright (c) 2010-2021, Arm Limited.
- * SPDX-License-Identifier: MIT
+ * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 /*

@@ -1,7 +1,7 @@
 ; sinf.tst - Directed test cases for SP sine
 ;
 ; Copyright (c) 2007-2019, Arm Limited.
-; SPDX-License-Identifier: MIT
+; SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
 
 
 func=sinf op1=7fc00001 result=7fc00001 errno=0

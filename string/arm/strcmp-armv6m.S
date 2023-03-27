@@ -1,9 +1,11 @@
 /*
  * strcmp for ARMv6-M (optimized for performance, not size)
  *
- * Copyright (c) 2014-2020, Arm Limited.
- * SPDX-License-Identifier: MIT
+ * Copyright (c) 2014-2022, Arm Limited.
+ * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
+
+#include "asmdefs.h"
 
 #if __ARM_ARCH == 6 && __ARM_ARCH_6M__ >= 1
 

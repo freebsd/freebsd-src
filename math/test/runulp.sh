@@ -2,8 +2,8 @@
 
 # ULP error check script.
 #
-# Copyright (c) 2019-2020, Arm Limited.
-# SPDX-License-Identifier: MIT
+# Copyright (c) 2019-2022, Arm Limited.
+# SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
 
 #set -x
 set -eu
@@ -145,7 +145,7 @@ done
 # vector functions
 Ldir=0.5
 r='n'
-flags="${ULPFLAGS:--q} -f"
+flags="${ULPFLAGS:--q}"
 runs=
 check __s_exp 1 && runs=1
 runv=
@@ -229,7 +229,7 @@ L_sinf=1.4
 L_cosf=1.4
 L_powf=2.1
 
-while read G F R
+while read G F R D
 do
 	[ "$R" = 1 ] || continue
 	case "$G" in \#*) continue ;; esac
@@ -239,7 +239,16 @@ do
 	do
 		[ -n "$X" ] || continue
 		case "$X" in \#*) continue ;; esac
-		t $F $X
+		disable_fenv=""
+		if [ -z "$WANT_SIMD_EXCEPT" ] || [ $WANT_SIMD_EXCEPT -eq 0 ]; then
+			# If library was built with SIMD exceptions
+			# disabled, disable fenv checking in ulp
+			# tool. Otherwise, fenv checking may still be
+			# disabled by adding -f to the end of the run
+			# line.
+			disable_fenv="-f"
+		fi
+		t $D $disable_fenv $F $X
 	done << EOF
 $range
 EOF
@@ -255,10 +264,10 @@ log  __v_log       $runv
 log  __vn_log      $runvn
 log  _ZGVnN2v_log  $runvn
 
-pow __s_pow       $runs
-pow __v_pow       $runv
-pow __vn_pow      $runvn
-pow _ZGVnN2vv_pow $runvn
+pow __s_pow       $runs         -f
+pow __v_pow       $runv         -f
+pow __vn_pow      $runvn        -f
+pow _ZGVnN2vv_pow $runvn        -f
 
 sin __s_sin       $runs
 sin __v_sin       $runv
@@ -275,18 +284,18 @@ expf __v_expf      $runv
 expf __vn_expf     $runvn
 expf _ZGVnN4v_expf $runvn
 
-expf_1u __s_expf_1u   $runs
-expf_1u __v_expf_1u   $runv
-expf_1u __vn_expf_1u  $runvn
+expf_1u __s_expf_1u   $runs     -f
+expf_1u __v_expf_1u   $runv     -f
+expf_1u __vn_expf_1u  $runvn    -f
 
 exp2f __s_exp2f      $runs
 exp2f __v_exp2f      $runv
 exp2f __vn_exp2f     $runvn
 exp2f _ZGVnN4v_exp2f $runvn
 
-exp2f_1u __s_exp2f_1u  $runs
-exp2f_1u __v_exp2f_1u  $runv
-exp2f_1u __vn_exp2f_1u $runvn
+exp2f_1u __s_exp2f_1u  $runs    -f
+exp2f_1u __v_exp2f_1u  $runv    -f
+exp2f_1u __vn_exp2f_1u $runvn   -f
 
 logf __s_logf      $runs
 logf __v_logf      $runv
@@ -303,10 +312,10 @@ cosf __v_cosf      $runv
 cosf __vn_cosf     $runvn
 cosf _ZGVnN4v_cosf $runvn
 
-powf __s_powf       $runs
-powf __v_powf       $runv
-powf __vn_powf      $runvn
-powf _ZGVnN4vv_powf $runvn
+powf __s_powf       $runs       -f
+powf __v_powf       $runv       -f
+powf __vn_powf      $runvn      -f
+powf _ZGVnN4vv_powf $runvn      -f
 EOF
 
 [ 0 -eq $FAIL ] || {

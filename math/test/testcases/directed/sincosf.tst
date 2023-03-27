@@ -1,7 +1,7 @@
 ; Directed test cases for SP sincos
 ;
 ; Copyright (c) 2007-2019, Arm Limited.
-; SPDX-License-Identifier: MIT
+; SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
 
 
 func=sincosf_sinf op1=7fc00001 result=7fc00001 errno=0

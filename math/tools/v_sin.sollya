@@ -1,7 +1,7 @@
 // polynomial for approximating sin(x)
 //
 // Copyright (c) 2019, Arm Limited.
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
 
 deg = 15;  // polynomial degree
 a = -pi/2; // interval

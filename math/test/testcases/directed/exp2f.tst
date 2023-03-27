@@ -1,7 +1,7 @@
 ; exp2f.tst - Directed test cases for exp2f
 ;
 ; Copyright (c) 2017-2019, Arm Limited.
-; SPDX-License-Identifier: MIT
+; SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
 
 func=exp2f op1=7fc00001 result=7fc00001 errno=0
 func=exp2f op1=ffc00001 result=7fc00001 errno=0
