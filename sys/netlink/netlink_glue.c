@@ -1,0 +1,266 @@
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2023 Alexander V. Chernikov <melifaro@FreeBSD.org>
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+#include "opt_netlink.h"
+
+#include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/lock.h>
+#include <sys/rmlock.h>
+#include <sys/domain.h>
+#include <sys/mbuf.h>
+#include <sys/protosw.h>
+#include <sys/proc.h>
+#include <sys/ck.h>
+#include <sys/socket.h>
+#include <sys/socketvar.h>
+#include <sys/sysent.h>
+#include <sys/syslog.h>
+#include <sys/priv.h> /* priv_check */
+
+#include <net/route.h>
+#include <net/route/route_ctl.h>
+
+#include <netlink/netlink.h>
+#include <netlink/netlink_ctl.h>
+#include <netlink/netlink_var.h>
+
+/* Standard bits: built-in the kernel */
+SYSCTL_NODE(_net, OID_AUTO, netlink, CTLFLAG_RD, 0, "");
+SYSCTL_NODE(_net_netlink, OID_AUTO, debug, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
+
+MALLOC_DEFINE(M_NETLINK, "netlink", "Memory used for netlink packets");
+
+/* Netlink-related callbacks needed to glue rtsock, netlink and linuxolator */
+static void
+ignore_route_event(uint32_t fibnum, const struct rib_cmd_info *rc)
+{
+}
+
+static void
+ignore_ifmsg_event(struct ifnet *ifp, int if_flags_mask)
+{
+}
+
+static struct rtbridge ignore_cb = {
+	.route_f = ignore_route_event,
+	.ifmsg_f = ignore_ifmsg_event,
+};
+
+void *linux_netlink_p = NULL; /* Callback pointer for Linux translator functions */
+struct rtbridge *rtsock_callback_p = &ignore_cb;
+struct rtbridge *netlink_callback_p = &ignore_cb;
+
+
+/*
+ * nlp accessors.
+ * TODO: move to a separate file once the number grows.
+ */
+bool
+nlp_has_priv(struct nlpcb *nlp, int priv)
+{
+	return (priv_check_cred(nlp->nl_cred, priv) == 0);
+}
+
+struct ucred *
+nlp_get_cred(struct nlpcb *nlp)
+{
+	return (nlp->nl_cred);
+}
+
+uint32_t
+nlp_get_pid(const struct nlpcb *nlp)
+{
+	return (nlp->nl_process_id);
+}
+
+bool
+nlp_unconstrained_vnet(const struct nlpcb *nlp)
+{
+	return (nlp->nl_unconstrained_vnet);
+}
+
+#ifndef NETLINK
+/* Stub implementations for the loadable functions */
+
+static bool
+get_stub_writer(struct nl_writer *nw)
+{
+	bzero(nw, sizeof(*nw));
+	nw->writer_type = NS_WRITER_TYPE_STUB;
+	nw->enomem = true;
+
+	return (false);
+}
+
+static bool
+nlmsg_get_unicast_writer_stub(struct nl_writer *nw, int size, struct nlpcb *nlp)
+{
+	return (get_stub_writer(nw));
+}
+
+static bool
+nlmsg_get_group_writer_stub(struct nl_writer *nw, int size, int protocol, int group_id)
+{
+	return (get_stub_writer(nw));
+}
+
+static bool
+nlmsg_get_chain_writer_stub(struct nl_writer *nw, int size, struct mbuf **pm)
+{
+	return (get_stub_writer(nw));
+}
+
+static bool
+nlmsg_flush_stub(struct nl_writer *nw __unused)
+{
+	return (false);
+}
+
+static void
+nlmsg_ignore_limit_stub(struct nl_writer *nw __unused)
+{
+}
+
+static bool
+nlmsg_refill_buffer_stub(struct nl_writer *nw __unused, int required_len __unused)
+{
+	return (false);
+}
+
+static bool
+nlmsg_add_stub(struct nl_writer *nw, uint32_t portid, uint32_t seq, uint16_t type,
+    uint16_t flags, uint32_t len)
+{
+	return (false);
+}
+
+static bool
+nlmsg_end_stub(struct nl_writer *nw __unused)
+{
+	return (false);
+}
+
+static void
+nlmsg_abort_stub(struct nl_writer *nw __unused)
+{
+}
+
+static bool
+nlmsg_end_dump_stub(struct nl_writer *nw, int error, struct nlmsghdr *hdr)
+{
+	return (false);
+}
+
+const static struct nl_function_wrapper nl_stub = {
+	.nlmsg_add = nlmsg_add_stub,
+	.nlmsg_refill_buffer = nlmsg_refill_buffer_stub,
+	.nlmsg_flush = nlmsg_flush_stub,
+	.nlmsg_end = nlmsg_end_stub,
+	.nlmsg_abort = nlmsg_abort_stub,
+	.nlmsg_ignore_limit = nlmsg_ignore_limit_stub,
+	.nlmsg_get_unicast_writer = nlmsg_get_unicast_writer_stub,
+	.nlmsg_get_group_writer = nlmsg_get_group_writer_stub,
+	.nlmsg_get_chain_writer = nlmsg_get_chain_writer_stub,
+	.nlmsg_end_dump = nlmsg_end_dump_stub,
+};
+
+/*
+ * If the kernel is compiled with netlink as a module,
+ *  provide a way to introduce non-stub functioms
+ */
+static const struct nl_function_wrapper *_nl = &nl_stub;
+
+void
+nl_set_functions(const struct nl_function_wrapper *nl)
+{
+	_nl = (nl != NULL) ? nl : &nl_stub;
+}
+
+/* Function wrappers */
+bool
+nlmsg_get_unicast_writer(struct nl_writer *nw, int size, struct nlpcb *nlp)
+{
+	return (_nl->nlmsg_get_unicast_writer(nw, size, nlp));
+}
+
+bool
+nlmsg_get_group_writer(struct nl_writer *nw, int size, int protocol, int group_id)
+{
+	return (_nl->nlmsg_get_group_writer(nw, size, protocol, group_id));
+}
+
+bool
+nlmsg_get_chain_writer(struct nl_writer *nw, int size, struct mbuf **pm)
+{
+	return (_nl->nlmsg_get_chain_writer(nw, size, pm));
+}
+
+bool
+nlmsg_flush(struct nl_writer *nw)
+{
+	return (_nl->nlmsg_flush(nw));
+}
+
+void nlmsg_ignore_limit(struct nl_writer *nw)
+{
+	_nl->nlmsg_ignore_limit(nw);
+}
+
+bool
+nlmsg_refill_buffer(struct nl_writer *nw, int required_len)
+{
+	return (_nl->nlmsg_refill_buffer(nw, required_len));
+}
+
+bool
+nlmsg_add(struct nl_writer *nw, uint32_t portid, uint32_t seq, uint16_t type,
+    uint16_t flags, uint32_t len)
+{
+	return (_nl->nlmsg_add(nw, portid, seq, type, flags, len));
+}
+
+bool
+nlmsg_end(struct nl_writer *nw)
+{
+	return (_nl->nlmsg_end(nw));
+}
+
+void
+nlmsg_abort(struct nl_writer *nw)
+{
+	_nl->nlmsg_abort(nw);
+}
+
+bool
+nlmsg_end_dump(struct nl_writer *nw, int error, struct nlmsghdr *hdr)
+{
+	return (_nl->nlmsg_end_dump(nw, error, hdr));
+}
+#endif /* !NETLINK */
+
