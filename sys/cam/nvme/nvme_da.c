@@ -441,7 +441,8 @@ ndaioctl(struct disk *dp, u_long cmd, void *data, int fflag,
 		 */
 		cam_periph_unlock(periph);
 		cam_periph_unmapmem(ccb, &mapinfo);
-		error = (ccb->ccb_h.status == CAM_REQ_CMP) ? 0 : EIO;
+		error = (ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP ?
+		    0 : EIO;
 out:
 		cam_periph_lock(periph);
 		xpt_release_ccb(ccb);
