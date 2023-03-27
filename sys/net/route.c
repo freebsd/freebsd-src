@@ -703,22 +703,3 @@ rt_ifmsg(struct ifnet *ifp, int if_flags_mask)
 	netlink_callback_p->ifmsg_f(ifp, if_flags_mask);
 }
 
-/* Netlink-related callbacks needed to glue rtsock, netlink and linuxolator */
-static void
-ignore_route_event(uint32_t fibnum, const struct rib_cmd_info *rc)
-{
-}
-
-static void
-ignore_ifmsg_event(struct ifnet *ifp, int if_flags_mask)
-{
-}
-
-static struct rtbridge ignore_cb = {
-	.route_f = ignore_route_event,
-	.ifmsg_f = ignore_ifmsg_event,
-};
-
-void *linux_netlink_p = NULL; /* Callback pointer for Linux translator functions */
-struct rtbridge *rtsock_callback_p = &ignore_cb;
-struct rtbridge *netlink_callback_p = &ignore_cb;

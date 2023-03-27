@@ -28,6 +28,8 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "opt_netlink.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 

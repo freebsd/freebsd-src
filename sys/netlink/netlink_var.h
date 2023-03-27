@@ -90,6 +90,7 @@ struct nlpcb {
 #define	NLF_STRICT		0x04 /* Perform strict header checks */
 
 SYSCTL_DECL(_net_netlink);
+SYSCTL_DECL(_net_netlink_debug);
 
 struct nl_io {
 	struct callout				callout;
@@ -143,6 +144,49 @@ void nl_free_io(struct nlpcb *nlp);
 void nl_taskqueue_handler(void *_arg, int pending);
 int nl_receive_async(struct mbuf *m, struct socket *so);
 void nl_process_receive_locked(struct nlpcb *nlp);
+
+/* netlink_generic.c */
+struct genl_family {
+	const char	*family_name;
+	uint16_t	family_hdrsize;
+	uint16_t	family_id;
+	uint16_t	family_version;
+	uint16_t	family_attr_max;
+	uint16_t	family_cmd_size;
+	uint16_t	family_num_groups;
+	struct genl_cmd	*family_cmds;
+};
+
+struct genl_group {
+	struct genl_family	*group_family;
+	const char		*group_name;
+};
+
+struct genl_family *genl_get_family(uint32_t family_id);
+struct genl_group *genl_get_group(uint32_t group_id);
+
+#define	MAX_FAMILIES	20
+#define	MAX_GROUPS	64
+
+#define	MIN_GROUP_NUM	48
+
+#define	CTRL_FAMILY_NAME	"nlctrl"
+
+/* Function map */
+struct nl_function_wrapper {
+	bool (*nlmsg_add)(struct nl_writer *nw, uint32_t portid, uint32_t seq, uint16_t type,
+	    uint16_t flags, uint32_t len);
+	bool (*nlmsg_refill_buffer)(struct nl_writer *nw, int required_len);
+	bool (*nlmsg_flush)(struct nl_writer *nw);
+	bool (*nlmsg_end)(struct nl_writer *nw);
+	void (*nlmsg_abort)(struct nl_writer *nw);
+	void (*nlmsg_ignore_limit)(struct nl_writer *nw);
+	bool (*nlmsg_get_unicast_writer)(struct nl_writer *nw, int size, struct nlpcb *nlp);
+	bool (*nlmsg_get_group_writer)(struct nl_writer *nw, int size, int protocol, int group_id);
+	bool (*nlmsg_get_chain_writer)(struct nl_writer *nw, int size, struct mbuf **pm);
+	bool (*nlmsg_end_dump)(struct nl_writer *nw, int error, struct nlmsghdr *hdr);
+};
+void nl_set_functions(const struct nl_function_wrapper *nl);
 
 #endif
 #endif

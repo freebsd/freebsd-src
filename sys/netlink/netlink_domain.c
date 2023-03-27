@@ -84,12 +84,6 @@ SYSCTL_OID(_net_netlink, OID_AUTO, nl_maxsockbuf,
     sysctl_handle_nl_maxsockbuf, "LU",
     "Maximum Netlink socket buffer size");
 
-uint32_t
-nlp_get_pid(const struct nlpcb *nlp)
-{
-	return (nlp->nl_process_id);
-}
-
 /*
  * Looks up a nlpcb struct based on the @portid. Need to claim nlsock_mtx.
  * Returns nlpcb pointer if present else NULL
@@ -209,24 +203,6 @@ bool
 nl_has_listeners(int netlink_family, uint32_t groups_mask)
 {
 	return (V_nl_ctl != NULL);
-}
-
-bool
-nlp_has_priv(struct nlpcb *nlp, int priv)
-{
-	return (priv_check_cred(nlp->nl_cred, priv) == 0);
-}
-
-bool
-nlp_unconstrained_vnet(const struct nlpcb *nlp)
-{
-	return (nlp->nl_unconstrained_vnet);
-}
-
-struct ucred *
-nlp_get_cred(struct nlpcb *nlp)
-{
-	return (nlp->nl_cred);
 }
 
 static uint32_t
