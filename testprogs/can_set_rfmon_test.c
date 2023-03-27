@@ -70,7 +70,6 @@ main(int argc, char **argv)
 		else
 			error("%s: pcap_can_set_rfmon failed: %s", argv[1],
 			    pcap_statustostr(status));
-		return 1;
 	}
 	printf("%s: Monitor mode %s be set\n", argv[1], status ? "can" : "cannot");
 	return 0;

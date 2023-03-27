@@ -30,4 +30,4 @@
  *
  */
 
-int svc_start(void);
+BOOL svc_start(void);
