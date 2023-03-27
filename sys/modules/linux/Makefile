@@ -36,6 +36,7 @@ SRCS=	linux${SFX}_dummy_machdep.c \
 	linux_vdso.c \
 	opt_inet6.h \
 	opt_ktrace.h \
+	opt_netlink.h \
 	opt_posix.h \
 	bus_if.h \
 	device_if.h \
