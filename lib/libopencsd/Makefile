@@ -7,7 +7,8 @@ SHLIBDIR?=	/lib
 
 OPENCSDSRC=	${SRCTOP}/contrib/opencsd
 
-.PATH:	${OPENCSDSRC}/decoder/source/etmv4/		\
+.PATH:	${OPENCSDSRC}/decoder/source/ete/		\
+	${OPENCSDSRC}/decoder/source/etmv4/		\
 	${OPENCSDSRC}/decoder/source/etmv3/		\
 	${OPENCSDSRC}/decoder/source/pkt_printers/	\
 	${OPENCSDSRC}/decoder/source/mem_acc/		\
@@ -16,6 +17,7 @@ OPENCSDSRC=	${SRCTOP}/contrib/opencsd
 	${OPENCSDSRC}/decoder/source/ptm/		\
 	${OPENCSDSRC}/decoder/source/stm/		\
 	${OPENCSDSRC}/decoder/source/			\
+	${OPENCSDSRC}/decoder/include/opencsd/ete/	\
 	${OPENCSDSRC}/decoder/include/opencsd/etmv4/	\
 	${OPENCSDSRC}/decoder/include/opencsd/etmv3/	\
 	${OPENCSDSRC}/decoder/include/opencsd/stm/	\
@@ -27,8 +29,12 @@ OPENCSDSRC=	${SRCTOP}/contrib/opencsd
 LIB=	opencsd
 SHLIB_MAJOR=0
 
-# ETMv3
+# Embedded Trace Extensions (ETE)
 SRCS=	\
+	trc_cmp_cfg_ete.cpp
+
+# ETMv3
+SRCS+=	\
 	trc_cmp_cfg_etmv3.cpp		\
 	trc_pkt_decode_etmv3.cpp	\
 	trc_pkt_elem_etmv3.cpp		\
@@ -119,6 +125,14 @@ APIINCS=	\
 
 APIINCSDIR=${INCLUDEDIR}/opencsd/c_api/
 
+ETEINCS=	\
+	ete_decoder.h			\
+	trc_cmp_cfg_ete.h		\
+	trc_dcd_mngr_ete.h		\
+	trc_pkt_types_ete.h
+
+ETEINCSDIR=${INCLUDEDIR}/opencsd/ete/
+
 ETMV4INCS=	\
 	etmv4_decoder.h			\
 	trc_cmp_cfg_etmv4.h		\
@@ -165,7 +179,7 @@ STMINCS=	\
 
 STMINCSDIR=${INCLUDEDIR}/opencsd/stm/
 
-INCSGROUPS=INCS APIINCS ETMV3INCS ETMV4INCS PTMINCS STMINCS
+INCSGROUPS=INCS APIINCS ETEINCS ETMV3INCS ETMV4INCS PTMINCS STMINCS
 
 LIBADD= cxxrt
 

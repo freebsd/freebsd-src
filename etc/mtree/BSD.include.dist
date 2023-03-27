@@ -302,6 +302,8 @@
     opencsd
         c_api
         ..
+        ete
+        ..
         etmv3
         ..
         etmv4
