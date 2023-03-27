@@ -692,7 +692,7 @@ rarp_process(struct if_info *ii, u_char *pkt, u_int len)
 }
 
 /*
- * Poke the kernel arp tables with the ethernet/ip address combinataion
+ * Poke the kernel arp tables with the ethernet/ip address combination
  * given.  When processing a reply, we must do this so that the booting
  * host (i.e. the guy running rarpd), won't try to ARP for the hardware
  * address of the guy being booted (he cannot answer the ARP).
