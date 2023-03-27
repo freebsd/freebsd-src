@@ -29,7 +29,7 @@ A pull request will be considered if:
 * Fixup commits should be squashed with the commit they are fixing. Each commit in your branch should be suitable for FreeBSD's repository.
 * Commits should include one or more `Signed-off-by:` lines with full name and email address certifying [Developer Certificate of Origin](https://developercertificate.org/).
 * The commits follow FreeBSD's style guide. See [Style](#Style).
-* Run tools/build/checkstlye9.pl on your git branch and eliminate all errors
+* Run tools/build/checkstyle9.pl on your git branch and eliminate all errors
 * The commits should not introduce trailing white space.
 * If the commmit fixes a bug, please add 'PR: <bugnumber>' to the comment message.
 * If there's a code review in phabricator, please include a link as a 'Differential Revision: ' line.
