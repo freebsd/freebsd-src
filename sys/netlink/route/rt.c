@@ -588,8 +588,6 @@ handle_rtm_getroute(struct nlpcb *nlp, struct nl_parsed_route *attrs,
 			return (EINVAL);
 	}
 
-	FIB_LOG(LOG_DEBUG, fibnum, family, "getroute called");
-
 	rnh = rt_tables_get_rnh(fibnum, family);
 	if (rnh == NULL)
 		return (EAFNOSUPPORT);
