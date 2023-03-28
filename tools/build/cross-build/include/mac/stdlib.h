@@ -42,6 +42,7 @@ __BEGIN_DECLS
 
 int rpmatch(const char *response);
 
+char *secure_getenv(const char *name);
 long long strtonum(const char *numstr, long long minval, long long maxval,
     const char **errstrp);
 
