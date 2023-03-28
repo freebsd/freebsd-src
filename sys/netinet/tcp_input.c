@@ -675,7 +675,7 @@ tcp_input_with_port(struct mbuf **mp, int *offp, int proto, uint16_t port)
 		KASSERT(!IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_dst),
 		    ("%s: unspecified destination v6 address", __func__));
 		if (IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_src)) {
-			/* XXX stat */
+			IP6STAT_INC(ip6s_badscope); /* XXX */
 			goto drop;
 		}
 		iptos = IPV6_TRAFFIC_CLASS(ip6);
@@ -745,7 +745,7 @@ tcp_input_with_port(struct mbuf **mp, int *offp, int proto, uint16_t port)
 		KASSERT(ip->ip_dst.s_addr != INADDR_ANY,
 		    ("%s: unspecified destination v4 address", __func__));
 		if (__predict_false(ip->ip_src.s_addr == INADDR_ANY)) {
-			/* XXX stat */
+			IPSTAT_INC(ips_badaddr);
 			goto drop;
 		}
 	}
