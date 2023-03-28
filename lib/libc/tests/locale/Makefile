@@ -13,6 +13,7 @@ ATF_TESTS_C+=		mbsnrtowcs_2_test
 ATF_TESTS_C+=		mbsrtowcs_test
 ATF_TESTS_C+=		mbstowcs_2_test
 ATF_TESTS_C+=		mbtowc_2_test
+ATF_TESTS_C+=		newlocale_test
 ATF_TESTS_C+=		towctrans_test
 ATF_TESTS_C+=		wcrtomb_test
 ATF_TESTS_C+=		wcsnrtombs_test

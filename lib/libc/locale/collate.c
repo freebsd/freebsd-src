@@ -68,6 +68,14 @@ struct xlocale_collate __xlocale_C_collate = {
 	{{0}, "C"}, 1, 0, 0, 0
 };
 
+struct xlocale_collate __xlocale_POSIX_collate = {
+	{{0}, "POSIX"}, 1, 0, 0, 0
+};
+
+struct xlocale_collate __xlocale_CUTF8_collate = {
+	{{0}, "C.UTF-8"}, 1, 0, 0, 0
+};
+
 static int
 __collate_load_tables_l(const char *encoding, struct xlocale_collate *table);
 
@@ -84,10 +92,13 @@ destruct_collate(void *t)
 void *
 __collate_load(const char *encoding, __unused locale_t unused)
 {
-	if (strcmp(encoding, "C") == 0 || strcmp(encoding, "POSIX") == 0 ||
-	    strncmp(encoding, "C.", 2) == 0) {
+	if (strcmp(encoding, "C") == 0)
 		return (&__xlocale_C_collate);
-	}
+	else if (strcmp(encoding, "POSIX") == 0)
+		return (&__xlocale_POSIX_collate);
+	else if (strcmp(encoding, "C.UTF-8") == 0)
+		return (&__xlocale_CUTF8_collate);
+
 	struct xlocale_collate *table = calloc(sizeof(struct xlocale_collate),
 	    1);
 	if (table == NULL)
