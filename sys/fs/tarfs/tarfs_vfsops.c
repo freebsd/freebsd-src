@@ -108,7 +108,7 @@ static vfs_statfs_t	tarfs_statfs;
 static vfs_fhtovp_t	tarfs_fhtovp;
 
 static const char *tarfs_opts[] = {
-	"from", "gid", "mode", "uid", "verify",
+	"as", "from", "gid", "mode", "uid", "verify",
 	NULL
 };
 
@@ -905,11 +905,11 @@ tarfs_mount(struct mount *mp)
 	struct tarfs_mount *tmp = NULL;
 	struct thread *td = curthread;
 	struct vnode *vp;
-	char *from;
+	char *as, *from;
 	uid_t root_uid;
 	gid_t root_gid;
 	mode_t root_mode;
-	int error, flags, len;
+	int error, flags, aslen, len;
 
 	if (mp->mnt_flag & MNT_UPDATE)
 		return (EOPNOTSUPP);
@@ -936,10 +936,14 @@ tarfs_mount(struct mount *mp)
 	error = vfs_getopt(mp->mnt_optnew, "from", (void **)&from, &len);
 	if (error != 0 || from[len - 1] != '\0')
 		return (EINVAL);
+	error = vfs_getopt(mp->mnt_optnew, "as", (void **)&as, &aslen);
+	if (error != 0 || as[aslen - 1] != '\0')
+		as = from;
 
 	/* Find the source tarball */
-	TARFS_DPF(FS, "%s(%s, uid=%u, gid=%u, mode=%o)\n", __func__,
-	    from, root_uid, root_gid, root_mode);
+	TARFS_DPF(FS, "%s(%s%s%s, uid=%u, gid=%u, mode=%o)\n", __func__,
+	    from, (as != from) ? " as " : "", (as != from) ? as : "",
+	    root_uid, root_gid, root_mode);
 	flags = FREAD;
 	if (vfs_flagopt(mp->mnt_optnew, "verify", NULL, 0)) {
 	    flags |= O_VERIFY;
@@ -995,7 +999,7 @@ tarfs_mount(struct mount *mp)
 	MNT_IUNLOCK(mp);
 
 	vfs_getnewfsid(mp);
-	vfs_mountedfrom(mp, from);
+	vfs_mountedfrom(mp, as);
 	TARFS_DPF(FS, "%s: success\n", __func__);
 
 	return (0);
