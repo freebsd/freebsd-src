@@ -294,18 +294,20 @@ acpi_wakeup_machdep(struct acpi_softc *sc, int state, int sleep_result,
 		 * in acpi_sleep_machdep(), after the microcode was
 		 * reloaded.  Then recalculate the active mitigation
 		 * knobs that depend on the microcode and
-		 * cpu_stdext_feature3.
+		 * cpu_stdext_feature3.  Do it after LAPICs are woken,
+		 * so that IPIs work.
 		 */
 		identify_cpu_ext_features();
-		hw_ibrs_recalculate(true);
-		hw_ssb_recalculate(true);
-		amd64_syscall_ret_flush_l1d_recalc();
-		x86_rngds_mitg_recalculate(true);
 
 		mca_resume();
 		if (vmm_resume_p != NULL)
 			vmm_resume_p();
 		intr_resume(/*suspend_cancelled*/false);
+
+		hw_ibrs_recalculate(true);
+		amd64_syscall_ret_flush_l1d_recalc();
+		hw_ssb_recalculate(true);
+		x86_rngds_mitg_recalculate(true);
 
 		AcpiSetFirmwareWakingVector(0, 0);
 	} else {
