@@ -79,6 +79,8 @@ extern char pmc_cpuid[PMC_CPUID_LEN];
  * some way for PMC operations.  CPU names are grouped by manufacturer
  * and numbered sparsely in order to minimize changes to the ABI involved
  * when new CPUs are added.
+ *
+ * Please keep the pmc(3) manual page in sync with this list.
  */
 
 #define	__PMC_CPUS()						\
