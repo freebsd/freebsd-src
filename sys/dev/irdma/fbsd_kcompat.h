@@ -130,8 +130,7 @@ int irdma_destroy_ah(struct ib_ah *ibah);
 int irdma_destroy_ah_stub(struct ib_ah *ibah);
 int irdma_destroy_qp(struct ib_qp *ibqp);
 int irdma_dereg_mr(struct ib_mr *ib_mr);
-void irdma_get_eth_speed_and_width(u32 link_speed, u8 *active_speed,
-				   u8 *active_width);
+int ib_get_eth_speed(struct ib_device *dev, u32 port_num, u8 *speed, u8 *width);
 enum rdma_link_layer irdma_get_link_layer(struct ib_device *ibdev,
 					  u8 port_num);
 int irdma_roce_port_immutable(struct ib_device *ibdev, u8 port_num,
@@ -151,6 +150,7 @@ int irdma_get_hw_stats(struct ib_device *ibdev,
 		       struct rdma_hw_stats *stats, u8 port_num,
 		       int index);
 
+void irdma_request_reset(struct irdma_pci_f *rf);
 int irdma_register_qset(struct irdma_sc_vsi *vsi,
 			struct irdma_ws_node *tc_node);
 void irdma_unregister_qset(struct irdma_sc_vsi *vsi,
@@ -262,6 +262,15 @@ static inline size_t irdma_ib_umem_num_dma_blocks(struct ib_umem *umem, unsigned
 
 	return (size_t)((ALIGN(iova + umem->length, pgsz) -
 			 ALIGN_DOWN(iova, pgsz))) / pgsz;
+}
+
+static inline void addrconf_addr_eui48(u8 *deui, const char *const addr)
+{
+	memcpy(deui, addr, 3);
+	deui[3] = 0xFF;
+	deui[4] = 0xFE;
+	memcpy(deui + 5, addr + 3, 3);
+	deui[0] ^= 2;
 }
 
 #endif /* FBSD_KCOMPAT_H */
