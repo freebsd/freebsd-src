@@ -1566,11 +1566,10 @@ irdma_ucreate_qp(struct ibv_pd *pd,
 	info.sq_size = info.sq_depth >> info.sq_shift;
 	info.rq_size = info.rq_depth >> info.rq_shift;
 	/**
-	 * For older ABI version (less than 6) passes raw sq and rq
-	 * quanta in cap.max_send_wr and cap.max_recv_wr.
-	 * But then kernel had no way of calculating the actual qp size.
+	 * Maintain backward compatibility with older ABI which pass sq
+	 * and rq depth (in quanta) in cap.max_send_wr a cap.max_recv_wr
 	 */
-	if (iwvctx->abi_ver <= 5) {
+	if (!iwvctx->use_raw_attrs) {
 		attr->cap.max_send_wr = info.sq_size;
 		attr->cap.max_recv_wr = info.rq_size;
 	}

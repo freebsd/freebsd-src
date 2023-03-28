@@ -53,7 +53,7 @@
 /**
  *  Driver version
  */
-char irdma_driver_version[] = "1.1.5-k";
+char irdma_driver_version[] = "1.1.11-k";
 
 #define pf_if_d(peer) peer->ifp->if_dunit
 
@@ -223,9 +223,13 @@ static void
 irdma_log_invalid_mtu(u16 mtu, struct irdma_sc_dev *dev)
 {
 	if (mtu < IRDMA_MIN_MTU_IPV4)
-		irdma_dev_warn(dev, "MTU setting [%d] too low for RDMA traffic. Minimum MTU is 576 for IPv4\n", mtu);
+		irdma_dev_warn(to_ibdev(dev),
+			       "MTU setting [%d] too low for RDMA traffic. Minimum MTU is 576 for IPv4\n",
+			       mtu);
 	else if (mtu < IRDMA_MIN_MTU_IPV6)
-		irdma_dev_warn(dev, "MTU setting [%d] too low for RDMA traffic. Minimum MTU is 1280 for IPv6\\n", mtu);
+		irdma_dev_warn(to_ibdev(dev),
+			       "MTU setting [%d] too low for RDMA traffic. Minimum MTU is 1280 for IPv6\\n",
+			       mtu);
 }
 
 /**
@@ -336,22 +340,25 @@ irdma_finalize_task(void *context, int pending)
 	int status = 0;
 
 	if (iwdev->iw_status) {
-		irdma_debug(&rf->sc_dev, IRDMA_DEBUG_INIT, "Starting deferred closing %d (%d)\n",
+		irdma_debug(&rf->sc_dev, IRDMA_DEBUG_INIT,
+			    "Starting deferred closing %d (%d)\n",
 			    rf->peer_info->pf_id, pf_if_d(peer));
 		irdma_dereg_ipaddr_event_cb(rf);
 		irdma_ib_unregister_device(iwdev);
 		req.type = ICE_RDMA_EVENT_VSI_FILTER_UPDATE;
 		req.enable_filter = false;
 		IRDMA_DI_REQ_HANDLER(peer, &req);
+		irdma_cleanup_dead_qps(&iwdev->vsi);
 		irdma_rt_deinit_hw(iwdev);
 	} else {
-		irdma_debug(&rf->sc_dev, IRDMA_DEBUG_INIT, "Starting deferred opening %d (%d)\n",
+		irdma_debug(&rf->sc_dev, IRDMA_DEBUG_INIT,
+			    "Starting deferred opening %d (%d)\n",
 			    rf->peer_info->pf_id, pf_if_d(peer));
-		l2params.mtu = peer->mtu;
 		irdma_get_qos_info(&l2params, &peer->initial_qos_info);
 		if (iwdev->rf->protocol_used != IRDMA_IWARP_PROTOCOL_ONLY)
 			iwdev->dcb_vlan_mode = l2params.num_tc > 1 && !l2params.dscp_mode;
 
+		l2params.mtu = peer->mtu;
 		status = irdma_rt_init_hw(iwdev, &l2params);
 		if (status) {
 			irdma_pr_err("RT init failed %d\n", status);
@@ -368,7 +375,8 @@ irdma_finalize_task(void *context, int pending)
 		req.enable_filter = true;
 		IRDMA_DI_REQ_HANDLER(peer, &req);
 		irdma_reg_ipaddr_event_cb(rf);
-		irdma_debug(&rf->sc_dev, IRDMA_DEBUG_INIT, "Deferred opening finished %d (%d)\n",
+		irdma_debug(&rf->sc_dev, IRDMA_DEBUG_INIT,
+			    "Deferred opening finished %d (%d)\n",
 			    rf->peer_info->pf_id, pf_if_d(peer));
 	}
 }
@@ -459,6 +467,7 @@ irdma_fill_device_info(struct irdma_device *iwdev,
 	rf->rsrc_profile = IRDMA_HMC_PROFILE_DEFAULT;
 	rf->rst_to = IRDMA_RST_TIMEOUT_HZ;
 	rf->check_fc = irdma_check_fc_for_qp;
+	rf->gen_ops.request_reset = irdma_request_reset;
 	irdma_set_rf_user_cfg_params(rf);
 
 	rf->default_vsi.vsi_idx = peer->pf_vsi_num;
@@ -483,6 +492,7 @@ irdma_fill_device_info(struct irdma_device *iwdev,
 	iwdev->rcv_wscale = IRDMA_CM_DEFAULT_RCV_WND_SCALE;
 	iwdev->roce_cwnd = IRDMA_ROCE_CWND_DEFAULT;
 	iwdev->roce_ackcreds = IRDMA_ROCE_ACKCREDS_DEFAULT;
+	iwdev->roce_rtomin = 5;
 
 	if (rf->protocol_used == IRDMA_ROCE_PROTOCOL_ONLY) {
 		iwdev->roce_mode = true;
@@ -583,7 +593,8 @@ irdma_remove(struct ice_rdma_peer *peer)
 	struct irdma_handler *hdl;
 	struct irdma_device *iwdev;
 
-	irdma_debug((struct irdma_sc_dev *)NULL, IRDMA_DEBUG_INIT, "removing %s\n", __FUNCTION__);
+	irdma_debug((struct irdma_sc_dev *)NULL, IRDMA_DEBUG_INIT,
+		    "removing %s irdma%d\n", __func__, pf_if_d(peer));
 
 	hdl = irdma_find_handler(peer);
 	if (!hdl)
@@ -614,7 +625,8 @@ irdma_remove(struct ice_rdma_peer *peer)
 	kfree(iwdev->hdl);
 	kfree(iwdev->rf);
 	ib_dealloc_device(&iwdev->ibdev);
-	irdma_pr_info("IRDMA hardware deinitialization complete\n");
+	irdma_pr_info("IRDMA hardware deinitialization complete irdma%d\n",
+		      pf_if_d(peer));
 
 	return 0;
 }

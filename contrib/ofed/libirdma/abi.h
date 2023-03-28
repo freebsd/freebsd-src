@@ -115,6 +115,7 @@ struct irdma_get_context {
 	__u32 rsvd32;
 	__u8 userspace_ver;
 	__u8 rsvd8[3];
+	__aligned_u64 comp_mask;
 
 };
 struct irdma_get_context_resp {
@@ -136,6 +137,7 @@ struct irdma_get_context_resp {
 	__u16 max_hw_sq_chunk;
 	__u8 hw_rev;
 	__u8 rsvd2;
+	__aligned_u64 comp_mask;
 
 };
 struct irdma_ureg_mr {

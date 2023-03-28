@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2016 - 2021 Intel Corporation
+ * Copyright (c) 2016 - 2022 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -122,7 +122,7 @@ irdma_sc_access_ah(struct irdma_sc_cqp *cqp, struct irdma_ah_info *info,
  * irdma_create_mg_ctx() - create a mcg context
  * @info: multicast group context info
  */
-static int
+static void
 irdma_create_mg_ctx(struct irdma_mcast_grp_info *info)
 {
 	struct irdma_mcast_grp_ctx_entry_info *entry_info = NULL;
@@ -142,8 +142,6 @@ irdma_create_mg_ctx(struct irdma_mcast_grp_info *info)
 			ctx_idx++;
 		}
 	}
-
-	return 0;
 }
 
 /**
@@ -159,7 +157,6 @@ irdma_access_mcast_grp(struct irdma_sc_cqp *cqp,
 		       u64 scratch)
 {
 	__le64 *wqe;
-	int ret_code = 0;
 
 	if (info->mg_id >= IRDMA_UDA_MAX_FSI_MGS) {
 		irdma_debug(cqp->dev, IRDMA_DEBUG_WQE, "mg_id out of range\n");
@@ -172,9 +169,7 @@ irdma_access_mcast_grp(struct irdma_sc_cqp *cqp,
 		return -ENOSPC;
 	}
 
-	ret_code = irdma_create_mg_ctx(info);
-	if (ret_code)
-		return ret_code;
+	irdma_create_mg_ctx(info);
 
 	set_64bit_val(wqe, IRDMA_BYTE_32, info->dma_mem_mc.pa);
 	set_64bit_val(wqe, IRDMA_BYTE_16,

@@ -69,8 +69,6 @@ int irdma_cqp_aeq_cmd(struct irdma_sc_dev *dev, struct irdma_sc_aeq *sc_aeq,
 		      u8 op);
 int irdma_cqp_stats_inst_cmd(struct irdma_sc_vsi *vsi, u8 cmd,
 			     struct irdma_stats_inst_info *stats_info);
-u16 irdma_alloc_ws_node_id(struct irdma_sc_dev *dev);
-void irdma_free_ws_node_id(struct irdma_sc_dev *dev, u16 node_id);
 void irdma_update_stats(struct irdma_dev_hw_stats *hw_stats,
 			struct irdma_gather_stats *gather_stats,
 			struct irdma_gather_stats *last_gather_stats,

@@ -62,12 +62,15 @@ struct irdma_ucontext {
 	struct list_head vma_list;
 	struct mutex vma_list_mutex; /* protect the vma_list */
 	int abi_ver;
-	bool legacy_mode;
+	bool legacy_mode:1;
+	bool use_raw_attrs:1;
 };
 
 struct irdma_pd {
 	struct ib_pd ibpd;
 	struct irdma_sc_pd sc_pd;
+	struct list_head udqp_list;
+	spinlock_t udqp_list_lock;
 };
 
 struct irdma_av {
@@ -184,6 +187,15 @@ struct disconn_work {
 	struct irdma_qp *iwqp;
 };
 
+struct if_notify_work {
+	struct work_struct work;
+	struct irdma_device *iwdev;
+	u32 ipaddr[4];
+	u16 vlan_id;
+	bool ipv4:1;
+	bool ifup:1;
+};
+
 struct iw_cm_id;
 
 struct irdma_qp_kmode {
@@ -220,6 +232,7 @@ struct irdma_qp {
 
 	struct irdma_ah roce_ah;
 	struct list_head teardown_entry;
+	struct list_head ud_list_elem;
 	atomic_t refcnt;
 	struct iw_cm_id *cm_id;
 	struct irdma_cm_node *cm_node;
@@ -259,6 +272,13 @@ struct irdma_qp {
 	u8 flush_issued : 1;
 	u8 sig_all : 1;
 	u8 pau_mode : 1;
+};
+
+struct irdma_udqs_work {
+	struct work_struct work;
+	struct irdma_qp *iwqp;
+	u8 user_prio;
+	bool qs_change:1;
 };
 
 enum irdma_mmap_flag {

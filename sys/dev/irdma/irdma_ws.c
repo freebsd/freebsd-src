@@ -83,7 +83,6 @@ irdma_alloc_node(struct irdma_sc_vsi *vsi,
 		if (!node->rel_bw)
 			node->rel_bw = 1;
 
-		node->lan_qs_handle = vsi->qos[user_pri].lan_qos_handle;
 		node->prio_type = IRDMA_PRIO_WEIGHTED_RR;
 	} else {
 		node->rel_bw = 1;
@@ -383,7 +382,6 @@ irdma_ws_add(struct irdma_sc_vsi *vsi, u8 user_pri)
 	for (i = 0; i < IRDMA_MAX_USER_PRIORITY; i++) {
 		if (vsi->qos[i].traffic_class == traffic_class) {
 			vsi->qos[i].qs_handle = tc_node->qs_handle;
-			vsi->qos[i].lan_qos_handle = tc_node->lan_qs_handle;
 			vsi->qos[i].l2_sched_node_id = tc_node->l2_sched_node_id;
 			vsi->qos[i].valid = true;
 		}

@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2021 Intel Corporation
+ * Copyright (c) 2015 - 2022 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -126,7 +126,7 @@ struct irdma_puda_rsrc_info {
 	u32 tx_buf_cnt; /* total bufs allocated will be rq_size + tx_buf_cnt */
 	u16 buf_size;
 	u16 mss; /* FIXME: Windows driver still using this */
-	u8 stats_idx;
+	u16 stats_idx;
 	bool stats_idx_valid:1;
 	int abi_ver;
 };
@@ -177,7 +177,7 @@ struct irdma_puda_rsrc {
 	u64 pmode_count;
 	u64 partials_handled;
 	u16 mss; /* FIXME: Windows driver still using this */
-	u8 stats_idx;
+	u16 stats_idx;
 	bool check_crc:1;
 	bool stats_idx_valid:1;
 };

@@ -87,7 +87,8 @@ struct irdma_uvcontext {
 	struct irdma_uk_attrs uk_attrs;
 	void *db;
 	int abi_ver;
-	bool legacy_mode;
+	bool legacy_mode:1;
+	bool use_raw_attrs:1;
 };
 
 struct irdma_uqp;

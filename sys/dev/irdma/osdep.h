@@ -118,7 +118,7 @@ do {													\
 	irdma_debug(dev, mask, "%s\n", desc);								\
 	irdma_debug(dev, mask, "starting address virt=%p phy=%lxh\n", buf, irdma_get_virt_to_phy(buf));	\
 	for (i = 0; i < size ; i += 8)									\
-		irdma_debug(dev, mask, "index %03d val: %016lx\n", i, ((unsigned long *)buf)[i / 8]);	\
+		irdma_debug(dev, mask, "index %03d val: %016lx\n", i, ((unsigned long *)(buf))[i / 8]);	\
 } while(0)
 
 #define irdma_debug(h, m, s, ...)					\
@@ -130,11 +130,12 @@ do {									\
 		printf("irdma " s, ##__VA_ARGS__);			\
 	} 								\
 } while (0)
-#define irdma_dev_err(a, b, ...) printf(b, ##__VA_ARGS__)
-#define irdma_dev_warn(a, b, ...) printf(b, ##__VA_ARGS__) /*dev_warn(a, b)*/
+#define irdma_dev_err(ibdev, fmt, ...) \
+	pr_err("%s:%s:%d ERR "fmt, (ibdev)->name, __func__, __LINE__, ##__VA_ARGS__)
+#define irdma_dev_warn(ibdev, fmt, ...) \
+	pr_warn("%s:%s:%d WARN "fmt, (ibdev)->name, __func__, __LINE__, ##__VA_ARGS__)
 #define irdma_dev_info(a, b, ...) printf(b, ##__VA_ARGS__)
 #define irdma_pr_warn printf
-#define ibdev_err(ibdev, fmt, ...)  printf("%s:"fmt, (ibdev)->name, ##__VA_ARGS__)
 
 #define dump_struct(s, sz, name)	\
 do {				\
@@ -245,6 +246,6 @@ void irdma_unmap_vm_page_list(struct irdma_hw *hw, u64 *pg_arr, u32 pg_cnt);
 int irdma_map_vm_page_list(struct irdma_hw *hw, void *va,
 			   u64 *pg_arr, u32 pg_cnt);
 
-struct ib_device *irdma_get_ibdev(struct irdma_sc_dev *dev);
+struct ib_device *to_ibdev(struct irdma_sc_dev *dev);
 
 #endif /* _ICRDMA_OSDEP_H_ */
