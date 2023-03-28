@@ -77,7 +77,7 @@ nvme(4)		jimharris	Pre-commit review requested.
 nvmecontrol(8)	jimharris	Pre-commit review requested.
 opencrypto	jmg	Pre-commit review requested.  Documentation Required.
 openssh		des	Pre-commit review requested, email only.
-openssl		benl,jkim	Pre-commit review requested.
+openssl		benl	Pre-commit review requested.
 otus(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 pci bus		imp,jhb	Pre-commit review requested.
 pmcstudy(8)	rrs		Pre-commit review requested.
