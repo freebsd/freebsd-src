@@ -119,7 +119,7 @@ do {													\
 	irdma_debug(dev, mask, "%s\n", desc);								\
 	irdma_debug(dev, mask, "starting address virt=%p phy=%lxh\n", buf, irdma_get_virt_to_phy(buf));	\
 	for (i = 0; i < size ; i += 8)									\
-		irdma_debug(dev, mask, "index %03d val: %016lx\n", i, ((unsigned long *)buf)[i / 8]);	\
+		irdma_debug(dev, mask, "index %03d val: %016lx\n", i, ((unsigned long *)(buf))[i / 8]);	\
 } while(0)
 
 #define irdma_debug(h, m, s, ...)					\
@@ -137,11 +137,12 @@ do {                                                                    \
         if (irdma_dbg)                                                  \
                 printf("libirdma-%s: " fmt, __func__, ##args); \
 } while (0)
-#define irdma_dev_err(a, b, ...) printf(b, ##__VA_ARGS__)
-#define irdma_dev_warn(a, b, ...) printf(b, ##__VA_ARGS__) /*dev_warn(a, b)*/
+#define irdma_dev_err(ibdev, fmt, ...) \
+	pr_err("%s:%s:%d ERR "fmt, (ibdev)->name, __func__, __LINE__, ##__VA_ARGS__)
+#define irdma_dev_warn(ibdev, fmt, ...) \
+	pr_warn("%s:%s:%d WARN "fmt, (ibdev)->name, __func__, __LINE__, ##__VA_ARGS__)
 #define irdma_dev_info(a, b, ...) printf(b, ##__VA_ARGS__)
 #define irdma_pr_warn printf
-#define ibdev_err(ibdev, fmt, ...)  printf("%s:"fmt, (ibdev)->name, ##__VA_ARGS__)
 
 #define dump_struct(s, sz, name)	\
 do {				\

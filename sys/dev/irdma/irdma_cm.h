@@ -428,9 +428,6 @@ int irdma_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param);
 int irdma_create_listen(struct iw_cm_id *cm_id, int backlog);
 int irdma_destroy_listen(struct iw_cm_id *cm_id);
 int irdma_add_arp(struct irdma_pci_f *rf, u32 *ip, const u8 *mac);
-void irdma_cm_teardown_connections(struct irdma_device *iwdev, u32 *ipaddr,
-				   struct irdma_cm_info *nfo,
-				   bool disconnect_all);
 int irdma_cm_start(struct irdma_device *dev);
 int irdma_cm_stop(struct irdma_device *dev);
 bool irdma_ipv4_is_lpb(u32 loc_addr, u32 rem_addr);

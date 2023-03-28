@@ -174,7 +174,7 @@ irdma_register_notifiers(struct irdma_device *iwdev)
 	iwdev->nb_netdevice_event.notifier_call = irdma_netdevice_event;
 	ret = register_netdevice_notifier(&iwdev->nb_netdevice_event);
 	if (ret) {
-		ibdev_err(&iwdev->ibdev, "register_netdevice_notifier failed\n");
+		irdma_dev_err(&iwdev->ibdev, "register_netdevice_notifier failed\n");
 		return ret;
 	}
 	return ret;
@@ -207,8 +207,7 @@ irdma_alloc_and_get_cqp_request(struct irdma_cqp *cqp,
 		}
 	}
 	if (!cqp_request) {
-		irdma_debug(cqp->sc_cqp.dev, IRDMA_DEBUG_ERR,
-			    "CQP Request Fail: No Memory");
+		irdma_debug(cqp->sc_cqp.dev, IRDMA_DEBUG_ERR, "CQP Request Fail: No Memory");
 		return NULL;
 	}
 
@@ -413,6 +412,8 @@ static const char *const irdma_cqp_cmd_names[IRDMA_MAX_CQP_OPS] = {
 	[IRDMA_OP_WS_ADD_NODE] = "Add Work Scheduler Node Cmd",
 	[IRDMA_OP_WS_MODIFY_NODE] = "Modify Work Scheduler Node Cmd",
 	[IRDMA_OP_WS_DELETE_NODE] = "Delete Work Scheduler Node Cmd",
+	[IRDMA_OP_WS_FAILOVER_START] = "Failover Start Cmd",
+	[IRDMA_OP_WS_FAILOVER_COMPLETE] = "Failover Complete Cmd",
 	[IRDMA_OP_SET_UP_MAP] = "Set UP-UP Mapping Cmd",
 	[IRDMA_OP_GEN_AE] = "Generate AE Cmd",
 	[IRDMA_OP_QUERY_RDMA_FEATURES] = "RDMA Get Features Cmd",
@@ -450,8 +451,7 @@ irdma_cqp_crit_err(struct irdma_sc_dev *dev, u8 cqp_cmd,
 			irdma_debug(dev, IRDMA_DEBUG_CQP,
 				    "[%s Error][%s] maj=0x%x min=0x%x\n",
 				    irdma_noncrit_err_list[i].desc,
-				    irdma_cqp_cmd_names[cqp_cmd],
-				    maj_err_code,
+				    irdma_cqp_cmd_names[cqp_cmd], maj_err_code,
 				    min_err_code);
 			return false;
 		}
@@ -474,7 +474,7 @@ irdma_handle_cqp_op(struct irdma_pci_f *rf,
 	bool put_cqp_request = true;
 
 	if (rf->reset)
-		return -EBUSY;
+		return 0;
 
 	irdma_get_cqp_request(cqp_request);
 	status = irdma_process_cqp_cmd(dev, info);
@@ -494,10 +494,11 @@ err:
 	if (irdma_cqp_crit_err(dev, info->cqp_cmd,
 			       cqp_request->compl_info.maj_err_code,
 			       cqp_request->compl_info.min_err_code))
-		irdma_dev_err(dev,
+		irdma_dev_err(&rf->iwdev->ibdev,
 			      "[%s Error][op_code=%d] status=%d waiting=%d completion_err=%d maj=0x%x min=0x%x\n",
-			      irdma_cqp_cmd_names[info->cqp_cmd], info->cqp_cmd, status, cqp_request->waiting,
-			      cqp_request->compl_info.error, cqp_request->compl_info.maj_err_code,
+			      irdma_cqp_cmd_names[info->cqp_cmd], info->cqp_cmd, status,
+			      cqp_request->waiting, cqp_request->compl_info.error,
+			      cqp_request->compl_info.maj_err_code,
 			      cqp_request->compl_info.min_err_code);
 
 	if (put_cqp_request)
@@ -559,7 +560,7 @@ irdma_cq_rem_ref(struct ib_cq *ibcq)
 }
 
 struct ib_device *
-irdma_get_ibdev(struct irdma_sc_dev *dev)
+to_ibdev(struct irdma_sc_dev *dev)
 {
 	return &(container_of(dev, struct irdma_pci_f, sc_dev))->iwdev->ibdev;
 }
@@ -1102,7 +1103,7 @@ irdma_ieq_mpa_crc_ae(struct irdma_sc_dev *dev, struct irdma_sc_qp *qp)
 	struct irdma_gen_ae_info info = {0};
 	struct irdma_pci_f *rf = dev_to_rf(dev);
 
-	irdma_debug(dev, IRDMA_DEBUG_AEQ, "Generate MPA CRC AE\n");
+	irdma_debug(&rf->sc_dev, IRDMA_DEBUG_AEQ, "Generate MPA CRC AE\n");
 	info.ae_code = IRDMA_AE_LLP_RECEIVED_MPA_CRC_ERROR;
 	info.ae_src = IRDMA_AE_SOURCE_RQ;
 	irdma_gen_ae(rf, qp, &info, false);
@@ -1606,7 +1607,7 @@ irdma_cqp_ws_node_cmd(struct irdma_sc_dev *dev, u8 cmd,
 		status = irdma_sc_poll_for_cqp_op_done(cqp, IRDMA_CQP_OP_WORK_SCHED_NODE,
 						       &compl_info);
 		node_info->qs_handle = compl_info.op_ret_val;
-		irdma_debug(cqp->dev, IRDMA_DEBUG_DCB,
+		irdma_debug(&rf->sc_dev, IRDMA_DEBUG_DCB,
 			    "opcode=%d, compl_info.retval=%d\n",
 			    compl_info.op_code, compl_info.op_ret_val);
 	} else {
@@ -2190,7 +2191,6 @@ irdma_upload_qp_context(struct irdma_qp *iwqp, bool freeze, bool raw)
 	ret = irdma_handle_cqp_op(rf, cqp_request);
 	if (ret)
 		goto error;
-
 	irdma_debug(dev, IRDMA_DEBUG_QP, "PRINT CONTXT QP [%d]\n", info->qp_id);
 	{
 		u32 i, j;
@@ -2252,7 +2252,8 @@ irdma_generated_cmpls(struct irdma_cq *iwcq, struct irdma_cq_poll_info *cq_poll_
 
 	irdma_debug(iwcq->sc_cq.dev, IRDMA_DEBUG_VERBS,
 		    "%s: Poll artificially generated completion for QP 0x%X, op %u, wr_id=0x%lx\n",
-		    __func__, cq_poll_info->qp_id, cq_poll_info->op_type, cq_poll_info->wr_id);
+		    __func__, cq_poll_info->qp_id, cq_poll_info->op_type,
+		    cq_poll_info->wr_id);
 
 	return 0;
 }
@@ -2299,14 +2300,10 @@ irdma_generate_flush_completions(struct irdma_qp *iwqp)
 	__le64 *sw_wqe;
 	u64 wqe_qword;
 	u32 wqe_idx;
-	u8 compl_generated = 0;
-	unsigned long flags;
-	bool reschedule = false;
+	bool compl_generated = false;
+	unsigned long flags1;
 
-#define SQ_COMPL_GENERATED (0x01)
-#define RQ_COMPL_GENERATED (0x02)
-
-	spin_lock_irqsave(&iwqp->iwscq->lock, flags);
+	spin_lock_irqsave(&iwqp->iwscq->lock, flags1);
 	if (irdma_cq_empty(iwqp->iwscq)) {
 		unsigned long flags2;
 
@@ -2315,7 +2312,7 @@ irdma_generate_flush_completions(struct irdma_qp *iwqp)
 			cmpl = kzalloc(sizeof(*cmpl), GFP_ATOMIC);
 			if (!cmpl) {
 				spin_unlock_irqrestore(&iwqp->lock, flags2);
-				spin_unlock_irqrestore(&iwqp->iwscq->lock, flags);
+				spin_unlock_irqrestore(&iwqp->iwscq->lock, flags1);
 				return;
 			}
 
@@ -2329,21 +2326,31 @@ irdma_generate_flush_completions(struct irdma_qp *iwqp)
 			cmpl->cpi.op_type = (u8)FIELD_GET(IRDMAQPSQ_OPCODE, wqe_qword);
 			cmpl->cpi.q_type = IRDMA_CQE_QTYPE_SQ;
 			/* remove the SQ WR by moving SQ tail */
-			IRDMA_RING_SET_TAIL(*sq_ring, sq_ring->tail + qp->sq_wrtrk_array[sq_ring->tail].quanta);
+			IRDMA_RING_SET_TAIL(*sq_ring,
+					    sq_ring->tail + qp->sq_wrtrk_array[sq_ring->tail].quanta);
 
+			if (cmpl->cpi.op_type == IRDMAQP_OP_NOP) {
+				kfree(cmpl);
+				continue;
+			}
 			irdma_debug(iwqp->sc_qp.dev, IRDMA_DEBUG_DEV,
-				    "%s: adding wr_id = 0x%lx SQ Completion to list qp_id=%d\n", __func__, cmpl->cpi.wr_id, qp->qp_id);
+				    "%s: adding wr_id = 0x%lx SQ Completion to list qp_id=%d\n",
+				    __func__, cmpl->cpi.wr_id, qp->qp_id);
 			list_add_tail(&cmpl->list, &iwqp->iwscq->cmpl_generated);
-			compl_generated |= SQ_COMPL_GENERATED;
+			compl_generated = true;
 		}
 		spin_unlock_irqrestore(&iwqp->lock, flags2);
-		spin_unlock_irqrestore(&iwqp->iwscq->lock, flags);
+		spin_unlock_irqrestore(&iwqp->iwscq->lock, flags1);
+		if (compl_generated) {
+			irdma_comp_handler(iwqp->iwscq);
+			compl_generated = false;
+		}
 	} else {
-		spin_unlock_irqrestore(&iwqp->iwscq->lock, flags);
-		reschedule = true;
+		spin_unlock_irqrestore(&iwqp->iwscq->lock, flags1);
+		irdma_sched_qp_flush_work(iwqp);
 	}
 
-	spin_lock_irqsave(&iwqp->iwrcq->lock, flags);
+	spin_lock_irqsave(&iwqp->iwrcq->lock, flags1);
 	if (irdma_cq_empty(iwqp->iwrcq)) {
 		unsigned long flags2;
 
@@ -2352,7 +2359,7 @@ irdma_generate_flush_completions(struct irdma_qp *iwqp)
 			cmpl = kzalloc(sizeof(*cmpl), GFP_ATOMIC);
 			if (!cmpl) {
 				spin_unlock_irqrestore(&iwqp->lock, flags2);
-				spin_unlock_irqrestore(&iwqp->iwrcq->lock, flags);
+				spin_unlock_irqrestore(&iwqp->iwrcq->lock, flags1);
 				return;
 			}
 
@@ -2367,31 +2374,55 @@ irdma_generate_flush_completions(struct irdma_qp *iwqp)
 			IRDMA_RING_SET_TAIL(*rq_ring, rq_ring->tail + 1);
 			irdma_debug(iwqp->sc_qp.dev, IRDMA_DEBUG_DEV,
 				    "%s: adding wr_id = 0x%lx RQ Completion to list qp_id=%d, wqe_idx=%d\n",
-				    __func__, cmpl->cpi.wr_id, qp->qp_id, wqe_idx);
+				    __func__, cmpl->cpi.wr_id, qp->qp_id,
+				    wqe_idx);
+
 			list_add_tail(&cmpl->list, &iwqp->iwrcq->cmpl_generated);
 
-			compl_generated |= RQ_COMPL_GENERATED;
+			compl_generated = true;
 		}
 		spin_unlock_irqrestore(&iwqp->lock, flags2);
-		spin_unlock_irqrestore(&iwqp->iwrcq->lock, flags);
+		spin_unlock_irqrestore(&iwqp->iwrcq->lock, flags1);
+		if (compl_generated)
+			irdma_comp_handler(iwqp->iwrcq);
 	} else {
-		spin_unlock_irqrestore(&iwqp->iwrcq->lock, flags);
-		reschedule = true;
-	}
-
-	if (reschedule)
+		spin_unlock_irqrestore(&iwqp->iwrcq->lock, flags1);
 		irdma_sched_qp_flush_work(iwqp);
-	if (compl_generated) {
-		if (iwqp->iwscq == iwqp->iwrcq) {
-			irdma_comp_handler(iwqp->iwscq);
-		} else {
-			if (compl_generated & SQ_COMPL_GENERATED)
-				irdma_comp_handler(iwqp->iwscq);
-			if (compl_generated & RQ_COMPL_GENERATED)
-				irdma_comp_handler(iwqp->iwrcq);
-		}
-		irdma_debug(iwqp->sc_qp.dev, IRDMA_DEBUG_VERBS,
-			    "0x%X (SQ 0x1, RQ 0x2, both 0x3) completions generated for QP %d\n",
-			    compl_generated, iwqp->ibqp.qp_num);
 	}
+}
+
+/**
+ * irdma_udqp_qs_change - change qs for UD QP in a worker thread
+ * @iwqp: QP pointer
+ * @user_prio: new user priority value
+ * @qs_change: when false, only user priority changes, QS handle do not need to change
+ */
+static void
+irdma_udqp_qs_change(struct irdma_qp *iwqp, u8 user_prio, bool qs_change)
+{
+	irdma_qp_rem_qos(&iwqp->sc_qp);
+	if (qs_change)
+		iwqp->sc_qp.dev->ws_remove(iwqp->sc_qp.vsi, iwqp->ctx_info.user_pri);
+
+	iwqp->ctx_info.user_pri = user_prio;
+	iwqp->sc_qp.user_pri = user_prio;
+
+	if (qs_change)
+		if (iwqp->sc_qp.dev->ws_add(iwqp->sc_qp.vsi, user_prio))
+			irdma_dev_warn(&iwqp->iwdev->ibdev,
+				       "WS add failed during %s, qp_id: %x user_pri: %x",
+				       __func__, iwqp->ibqp.qp_num, user_prio);
+	irdma_qp_add_qos(&iwqp->sc_qp);
+}
+
+void
+irdma_udqp_qs_worker(struct work_struct *work)
+{
+	struct irdma_udqs_work *udqs_work = container_of(work, struct irdma_udqs_work, work);
+
+	irdma_udqp_qs_change(udqs_work->iwqp, udqs_work->user_prio, udqs_work->qs_change);
+	if (udqs_work->qs_change)
+		irdma_cqp_qp_suspend_resume(&udqs_work->iwqp->sc_qp, IRDMA_OP_RESUME);
+	irdma_qp_rem_ref(&udqs_work->iwqp->ibqp);
+	kfree(udqs_work);
 }

@@ -93,6 +93,18 @@ irdma_wr64(struct irdma_dev_ctx *dev_ctx, u32 reg, u64 value)
 
 }
 
+void
+irdma_request_reset(struct irdma_pci_f *rf)
+{
+	struct ice_rdma_peer *peer = rf->peer_info;
+	struct ice_rdma_request req = {0};
+
+	req.type = ICE_RDMA_EVENT_RESET;
+
+	printf("%s:%d requesting pf-reset\n", __func__, __LINE__);
+	IRDMA_DI_REQ_HANDLER(peer, &req);
+}
+
 int
 irdma_register_qset(struct irdma_sc_vsi *vsi, struct irdma_ws_node *tc_node)
 {
@@ -611,32 +623,38 @@ irdma_dcqcn_tunables_init(struct irdma_pci_f *rf)
 		      &rf->dcqcn_params.min_rate, 0,
 		      "set minimum rate limit value, in MBits per second, default=0");
 
+	rf->dcqcn_params.dcqcn_f = 5;
 	SYSCTL_ADD_U8(&rf->tun_info.irdma_sysctl_ctx, irdma_sysctl_oid_list,
 		      OID_AUTO, "dcqcn_F", CTLFLAG_RDTUN, &rf->dcqcn_params.dcqcn_f, 0,
-		      "set number of times to stay in each stage of bandwidth recovery, default=0");
+		      "set number of times to stay in each stage of bandwidth recovery, default=5");
 
+	rf->dcqcn_params.dcqcn_t = 0x37;
 	SYSCTL_ADD_U16(&rf->tun_info.irdma_sysctl_ctx, irdma_sysctl_oid_list,
 		       OID_AUTO, "dcqcn_T", CTLFLAG_RDTUN, &rf->dcqcn_params.dcqcn_t, 0,
-		       "set number of usecs that should elapse before increasing the CWND in DCQCN mode, default=0");
+		       "set number of usecs that should elapse before increasing the CWND in DCQCN mode, default=0x37");
 
+	rf->dcqcn_params.dcqcn_b = 0x249f0;
 	SYSCTL_ADD_U32(&rf->tun_info.irdma_sysctl_ctx, irdma_sysctl_oid_list,
 		       OID_AUTO, "dcqcn_B", CTLFLAG_RDTUN, &rf->dcqcn_params.dcqcn_b, 0,
-		       "set number of MSS to add to the congestion window in additive increase mode, default=0");
+		       "set number of MSS to add to the congestion window in additive increase mode, default=0x249f0");
 
+	rf->dcqcn_params.rai_factor = 1;
 	SYSCTL_ADD_U16(&rf->tun_info.irdma_sysctl_ctx, irdma_sysctl_oid_list,
 		       OID_AUTO, "dcqcn_rai_factor", CTLFLAG_RDTUN,
 		       &rf->dcqcn_params.rai_factor, 0,
-		       "set number of MSS to add to the congestion window in additive increase mode, default=0");
+		       "set number of MSS to add to the congestion window in additive increase mode, default=1");
 
+	rf->dcqcn_params.hai_factor = 5;
 	SYSCTL_ADD_U16(&rf->tun_info.irdma_sysctl_ctx, irdma_sysctl_oid_list,
 		       OID_AUTO, "dcqcn_hai_factor", CTLFLAG_RDTUN,
 		       &rf->dcqcn_params.hai_factor, 0,
-		       "set number of MSS to add to the congestion window in hyperactive increase mode, default=0");
+		       "set number of MSS to add to the congestion window in hyperactive increase mode, default=5");
 
+	rf->dcqcn_params.rreduce_mperiod = 50;
 	SYSCTL_ADD_U32(&rf->tun_info.irdma_sysctl_ctx, irdma_sysctl_oid_list,
 		       OID_AUTO, "dcqcn_rreduce_mperiod", CTLFLAG_RDTUN,
 		       &rf->dcqcn_params.rreduce_mperiod, 0,
-		       "set minimum time between 2 consecutive rate reductions for a single flow, default=0");
+		       "set minimum time between 2 consecutive rate reductions for a single flow, default=50");
 }
 
 /**
@@ -742,4 +760,32 @@ inline void
 irdma_prm_rem_bitmapmem(struct irdma_hw *hw, struct irdma_chunk *chunk)
 {
 	kfree(chunk->bitmapmem.va);
+}
+
+void
+irdma_cleanup_dead_qps(struct irdma_sc_vsi *vsi)
+{
+	struct irdma_sc_qp *qp = NULL;
+	struct irdma_qp *iwqp;
+	struct irdma_pci_f *rf;
+	u8 i;
+
+	for (i = 0; i < IRDMA_MAX_USER_PRIORITY; i++) {
+		qp = irdma_get_qp_from_list(&vsi->qos[i].qplist, qp);
+		while (qp) {
+			if (qp->qp_uk.qp_type == IRDMA_QP_TYPE_UDA) {
+				qp = irdma_get_qp_from_list(&vsi->qos[i].qplist, qp);
+				continue;
+			}
+			iwqp = qp->qp_uk.back_qp;
+			rf = iwqp->iwdev->rf;
+			irdma_free_dma_mem(rf->sc_dev.hw, &iwqp->q2_ctx_mem);
+			irdma_free_dma_mem(rf->sc_dev.hw, &iwqp->kqp.dma_mem);
+
+			kfree(iwqp->kqp.sq_wrid_mem);
+			kfree(iwqp->kqp.rq_wrid_mem);
+			qp = irdma_get_qp_from_list(&vsi->qos[i].qplist, qp);
+			kfree(iwqp);
+		}
+	}
 }

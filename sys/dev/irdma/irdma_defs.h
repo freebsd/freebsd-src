@@ -138,6 +138,9 @@
 #define IRDMA_AE_SOURCE_OUT_RR		0xd
 #define IRDMA_AE_SOURCE_OUT_RR_1111	0xf
 
+#define IRDMA_AE_SOURCE_RSRC_EXHT_Q1	0x1
+#define IRDMA_AE_SOURCE_RSRC_EXHT_XT_RR	0x5
+
 #define IRDMA_TCP_STATE_NON_EXISTENT	0
 #define IRDMA_TCP_STATE_CLOSED		1
 #define IRDMA_TCP_STATE_LISTEN		2
@@ -193,6 +196,7 @@
 #define IRDMA_CQE_QTYPE_RQ	0
 #define IRDMA_CQE_QTYPE_SQ	1
 
+#define IRDMA_QP_SW_MIN_WQSIZE	8 /* in WRs*/
 #define IRDMA_QP_WQE_MIN_SIZE	32
 #define IRDMA_QP_WQE_MAX_SIZE	256
 #define IRDMA_QP_WQE_MIN_QUANTA 1
@@ -1392,6 +1396,17 @@ enum irdma_cqp_op_type {
 		((_ring).tail + (_idx)) % (_ring).size \
 	)
 
+#define IRDMA_GET_RING_OFFSET(_ring, _i) \
+	( \
+		((_ring).head + (_i)) % (_ring).size \
+	)
+
+#define IRDMA_GET_CQ_ELEM_AT_OFFSET(_cq, _i, _cqe) \
+	{ \
+		register __u32 offset; \
+		offset = IRDMA_GET_RING_OFFSET((_cq)->cq_ring, _i); \
+		(_cqe) = (_cq)->cq_base[offset].buf; \
+	}
 #define IRDMA_GET_CURRENT_CQ_ELEM(_cq) \
 	( \
 		(_cq)->cq_base[IRDMA_RING_CURRENT_HEAD((_cq)->cq_ring)].buf  \

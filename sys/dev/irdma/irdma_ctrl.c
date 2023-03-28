@@ -2035,7 +2035,7 @@ irdma_sc_vsi_init(struct irdma_sc_vsi *vsi,
  * irdma_get_stats_idx - Return stats index
  * @vsi: pointer to the vsi
  */
-static u8 irdma_get_stats_idx(struct irdma_sc_vsi *vsi){
+static u16 irdma_get_stats_idx(struct irdma_sc_vsi *vsi){
 	struct irdma_stats_inst_info stats_info = {0};
 	struct irdma_sc_dev *dev = vsi->dev;
 
@@ -2081,7 +2081,7 @@ irdma_vsi_stats_init(struct irdma_sc_vsi *vsi,
 	/* when stat allocation is not required default to fcn_id. */
 	vsi->stats_idx = info->fcn_id;
 	if (info->alloc_stats_inst) {
-		u8 stats_idx = irdma_get_stats_idx(vsi);
+		u16 stats_idx = irdma_get_stats_idx(vsi);
 
 		if (stats_idx != IRDMA_INVALID_STATS_IDX) {
 			vsi->stats_inst_alloc = true;
@@ -2368,7 +2368,6 @@ irdma_sc_qp_flush_wqes(struct irdma_sc_qp *qp,
 	    info->ae_code | FIELD_PREP(IRDMA_CQPSQ_FWQE_AESOURCE,
 				       info->ae_src) : 0;
 	set_64bit_val(wqe, IRDMA_BYTE_8, temp);
-
 	hdr = qp->qp_uk.qp_id |
 	    FIELD_PREP(IRDMA_CQPSQ_OPCODE, IRDMA_CQP_OP_FLUSH_WQES) |
 	    FIELD_PREP(IRDMA_CQPSQ_FWQE_GENERATE_AE, info->generate_ae) |
@@ -2944,7 +2943,7 @@ static u64 irdma_sc_decode_fpm_commit(struct irdma_sc_dev *dev, __le64 * buf,
  * parses fpm commit info and copy base value
  * of hmc objects in hmc_info
  */
-static int
+static void
 irdma_sc_parse_fpm_commit_buf(struct irdma_sc_dev *dev, __le64 * buf,
 			      struct irdma_hmc_obj_info *info,
 			      u32 *sd)
@@ -3015,7 +3014,6 @@ irdma_sc_parse_fpm_commit_buf(struct irdma_sc_dev *dev, __le64 * buf,
 	else
 		*sd = (u32)(size >> 21);
 
-	return 0;
 }
 
 /**
@@ -3986,10 +3984,8 @@ irdma_sc_process_ceq(struct irdma_sc_dev *dev, struct irdma_sc_ceq *ceq)
 			ceq->polarity ^= 1;
 	} while (cq_idx == IRDMA_INVALID_CQ_IDX);
 
-	if (cq) {
-		cq->cq_uk.armed = false;
+	if (cq)
 		irdma_sc_cq_ack(cq);
-	}
 	return cq;
 }
 
@@ -4216,12 +4212,12 @@ irdma_sc_get_next_aeqe(struct irdma_sc_aeq *aeq,
 	case IRDMA_AE_LLP_RECEIVED_MPA_CRC_ERROR:
 	case IRDMA_AE_LLP_SEGMENT_TOO_SMALL:
 	case IRDMA_AE_LLP_TOO_MANY_RETRIES:
+	case IRDMA_AE_LCE_QP_CATASTROPHIC:
 	case IRDMA_AE_LLP_DOUBT_REACHABILITY:
 	case IRDMA_AE_LLP_CONNECTION_ESTABLISHED:
 	case IRDMA_AE_RESET_SENT:
 	case IRDMA_AE_TERMINATE_SENT:
 	case IRDMA_AE_RESET_NOT_SENT:
-	case IRDMA_AE_LCE_QP_CATASTROPHIC:
 	case IRDMA_AE_QP_SUSPEND_COMPLETE:
 	case IRDMA_AE_UDA_L4LEN_INVALID:
 		info->qp = true;
@@ -4247,6 +4243,13 @@ irdma_sc_get_next_aeqe(struct irdma_sc_aeq *aeq,
 		info->qp = true;
 		info->compl_ctx = compl_ctx;
 		break;
+	case IRDMA_AE_RESOURCE_EXHAUSTION:
+		/*
+		 * ae_src contains the exhausted resource with a unique decoding. Set RSVD here to prevent matching
+		 * with a CQ or QP.
+		 */
+		ae_src = IRDMA_AE_SOURCE_RSVD;
+		break;
 	default:
 		break;
 	}
@@ -4257,6 +4260,7 @@ irdma_sc_get_next_aeqe(struct irdma_sc_aeq *aeq,
 		info->qp = true;
 		info->rq = true;
 		info->compl_ctx = compl_ctx;
+		info->err_rq_idx_valid = true;
 		break;
 	case IRDMA_AE_SOURCE_CQ:
 	case IRDMA_AE_SOURCE_CQ_0110:
@@ -4272,6 +4276,10 @@ irdma_sc_get_next_aeqe(struct irdma_sc_aeq *aeq,
 		info->compl_ctx = compl_ctx;
 		break;
 	case IRDMA_AE_SOURCE_IN_WR:
+		info->qp = true;
+		info->compl_ctx = compl_ctx;
+		info->in_rdrsp_wr = true;
+		break;
 	case IRDMA_AE_SOURCE_IN_RR:
 		info->qp = true;
 		info->compl_ctx = compl_ctx;
@@ -4300,12 +4308,11 @@ irdma_sc_get_next_aeqe(struct irdma_sc_aeq *aeq,
  * @dev: sc device struct
  * @count: allocate count
  */
-int
+void
 irdma_sc_repost_aeq_entries(struct irdma_sc_dev *dev, u32 count)
 {
 	db_wr32(count, dev->aeq_alloc_db);
 
-	return 0;
 }
 
 /**
@@ -4547,9 +4554,9 @@ irdma_sc_cfg_iw_fpm(struct irdma_sc_dev *dev, u16 hmc_fn_id)
 	ret_code = irdma_sc_commit_fpm_val(dev->cqp, 0, hmc_info->hmc_fn_id,
 					   &commit_fpm_mem, true, wait_type);
 	if (!ret_code)
-		ret_code = irdma_sc_parse_fpm_commit_buf(dev, dev->fpm_commit_buf,
-							 hmc_info->hmc_obj,
-							 &hmc_info->sd_table.sd_cnt);
+		irdma_sc_parse_fpm_commit_buf(dev, dev->fpm_commit_buf,
+					      hmc_info->hmc_obj,
+					      &hmc_info->sd_table.sd_cnt);
 	irdma_debug_buf(dev, IRDMA_DEBUG_HMC, "COMMIT FPM BUFFER",
 			commit_fpm_mem.va, IRDMA_COMMIT_FPM_BUF_SIZE);
 
@@ -4915,12 +4922,14 @@ cfg_fpm_value_gen_2(struct irdma_sc_dev *dev,
 		hmc_info->hmc_obj[IRDMA_HMC_IW_RRFFL].cnt =
 		    hmc_info->hmc_obj[IRDMA_HMC_IW_RRF].cnt /
 		    hmc_fpm_misc->rrf_block_size;
-	if (hmc_info->hmc_obj[IRDMA_HMC_IW_OOISC].max_cnt)
-		hmc_info->hmc_obj[IRDMA_HMC_IW_OOISC].cnt = 32 * qpwanted;
-	if (hmc_info->hmc_obj[IRDMA_HMC_IW_OOISCFFL].max_cnt)
-		hmc_info->hmc_obj[IRDMA_HMC_IW_OOISCFFL].cnt =
-		    hmc_info->hmc_obj[IRDMA_HMC_IW_OOISC].cnt /
-		    hmc_fpm_misc->ooiscf_block_size;
+	if (dev->cqp->protocol_used == IRDMA_IWARP_PROTOCOL_ONLY) {
+		if (hmc_info->hmc_obj[IRDMA_HMC_IW_OOISC].max_cnt)
+			hmc_info->hmc_obj[IRDMA_HMC_IW_OOISC].cnt = 32 * qpwanted;
+		if (hmc_info->hmc_obj[IRDMA_HMC_IW_OOISCFFL].max_cnt)
+			hmc_info->hmc_obj[IRDMA_HMC_IW_OOISCFFL].cnt =
+			    hmc_info->hmc_obj[IRDMA_HMC_IW_OOISC].cnt /
+			    hmc_fpm_misc->ooiscf_block_size;
+	}
 }
 
 /**

@@ -211,7 +211,6 @@ enum irdma_device_caps_const {
 	IRDMA_Q2_BUF_SIZE =			256,
 	IRDMA_QP_CTX_SIZE =			256,
 	IRDMA_MAX_PDS =				262144,
-	IRDMA_MIN_WQ_SIZE_GEN2 =		8,
 };
 
 enum irdma_addressing_type {
@@ -521,7 +520,6 @@ struct irdma_cq_uk {
 	u32 cq_size;
 	struct irdma_ring cq_ring;
 	u8 polarity;
-	bool armed:1;
 	bool avoid_mem_cflct:1;
 };
 

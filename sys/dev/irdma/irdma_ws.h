@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2021 Intel Corporation
+ * Copyright (c) 2015 - 2022 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -52,7 +52,6 @@ struct irdma_ws_node {
 	struct list_head siblings;
 	struct list_head child_list_head;
 	struct irdma_ws_node *parent;
-	u64 lan_qs_handle; /* opaque handle used by LAN */
 	u32 l2_sched_node_id;
 	u16 index;
 	u16 qs_handle;

@@ -55,7 +55,8 @@ irdma_query_device(struct ib_device *ibdev,
 		return -EINVAL;
 
 	memset(props, 0, sizeof(*props));
-	ether_addr_copy((u8 *)&props->sys_image_guid, IF_LLADDR(iwdev->netdev));
+	addrconf_addr_eui48((u8 *)&props->sys_image_guid,
+			    IF_LLADDR(iwdev->netdev));
 	props->fw_ver = (u64)irdma_fw_major_ver(&rf->sc_dev) << 32 |
 	    irdma_fw_minor_ver(&rf->sc_dev);
 	props->device_cap_flags = IB_DEVICE_MEM_WINDOW |
@@ -193,7 +194,8 @@ irdma_user_mmap_entry_add_hash(struct irdma_ucontext *ucontext, u64 bar_offset,
 		spin_unlock_irqrestore(&ucontext->mmap_tbl_lock, flags);
 	} while (retry_cnt++ < 10);
 
-	irdma_debug(iwdev_to_idev(ucontext->iwdev), IRDMA_DEBUG_VERBS, "mmap table add failed: Cannot find a unique key\n");
+	irdma_debug(&ucontext->iwdev->rf->sc_dev, IRDMA_DEBUG_VERBS,
+		    "mmap table add failed: Cannot find a unique key\n");
 	kfree(entry);
 	return NULL;
 
@@ -271,7 +273,7 @@ irdma_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 #if __FreeBSD_version >= 1400026
 	rdma_entry = rdma_user_mmap_entry_get(&ucontext->ibucontext, vma);
 	if (!rdma_entry) {
-		irdma_debug(iwdev_to_idev(ucontext->iwdev), IRDMA_DEBUG_VERBS,
+		irdma_debug(&ucontext->iwdev->rf->sc_dev, IRDMA_DEBUG_VERBS,
 			    "pgoff[0x%lx] does not have valid entry\n",
 			    vma->vm_pgoff);
 		return -EINVAL;
@@ -281,15 +283,15 @@ irdma_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 #else
 	entry = irdma_find_user_mmap_entry(ucontext, vma);
 	if (!entry) {
-		irdma_debug(iwdev_to_idev(ucontext->iwdev), IRDMA_DEBUG_VERBS,
+		irdma_debug(&ucontext->iwdev->rf->sc_dev, IRDMA_DEBUG_VERBS,
 			    "pgoff[0x%lx] does not have valid entry\n",
 			    vma->vm_pgoff);
 		return -EINVAL;
 	}
 #endif
-	irdma_debug(iwdev_to_idev(ucontext->iwdev), IRDMA_DEBUG_VERBS,
-		    "bar_offset [0x%lx] mmap_flag [%d]\n", entry->bar_offset,
-		    entry->mmap_flag);
+	irdma_debug(&ucontext->iwdev->rf->sc_dev,
+		    IRDMA_DEBUG_VERBS, "bar_offset [0x%lx] mmap_flag [%d]\n",
+		    entry->bar_offset, entry->mmap_flag);
 
 	pfn = (entry->bar_offset +
 	       pci_resource_start(ucontext->iwdev->rf->pcidev, 0)) >> PAGE_SHIFT;
@@ -320,7 +322,7 @@ irdma_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	}
 
 	if (ret)
-		irdma_debug(iwdev_to_idev(ucontext->iwdev), IRDMA_DEBUG_VERBS,
+		irdma_debug(&ucontext->iwdev->rf->sc_dev, IRDMA_DEBUG_VERBS,
 			    "bar_offset [0x%lx] mmap_flag[%d] err[%d]\n",
 			    entry->bar_offset, entry->mmap_flag, ret);
 #if __FreeBSD_version >= 1400026
@@ -463,7 +465,8 @@ irdma_setup_push_mmap_entries(struct irdma_ucontext *ucontext,
 								 push_wqe_mmap_key);
 #else
 	iwqp->push_wqe_mmap_entry = irdma_user_mmap_entry_add_hash(ucontext, bar_off,
-								   IRDMA_MMAP_IO_WC, push_wqe_mmap_key);
+								   IRDMA_MMAP_IO_WC,
+								   push_wqe_mmap_key);
 #endif
 	if (!iwqp->push_wqe_mmap_entry)
 		return -ENOMEM;
@@ -477,7 +480,8 @@ irdma_setup_push_mmap_entries(struct irdma_ucontext *ucontext,
 #else
 
 	iwqp->push_db_mmap_entry = irdma_user_mmap_entry_add_hash(ucontext, bar_off,
-								  IRDMA_MMAP_IO_NC, push_db_mmap_key);
+								  IRDMA_MMAP_IO_NC,
+								  push_db_mmap_key);
 #endif
 	if (!iwqp->push_db_mmap_entry) {
 #if __FreeBSD_version >= 1400026
@@ -532,6 +536,11 @@ irdma_setup_umode_qp(struct ib_udata *udata,
 		     struct irdma_qp_init_info *info,
 		     struct ib_qp_init_attr *init_attr)
 {
+#if __FreeBSD_version >= 1400026
+	struct irdma_ucontext *ucontext = rdma_udata_to_drv_context(udata, struct irdma_ucontext, ibucontext);
+#else
+	struct irdma_ucontext *ucontext = to_ucontext(iwqp->iwpd->ibpd.uobject->context);
+#endif
 	struct irdma_qp_uk_init_info *ukinfo = &info->qp_uk_init_info;
 	struct irdma_create_qp_req req = {0};
 	unsigned long flags;
@@ -540,7 +549,7 @@ irdma_setup_umode_qp(struct ib_udata *udata,
 	ret = ib_copy_from_udata(&req, udata,
 				 min(sizeof(req), udata->inlen));
 	if (ret) {
-		irdma_debug(iwdev_to_idev(iwdev), IRDMA_DEBUG_VERBS,
+		irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_VERBS,
 			    "ib_copy_from_data fail\n");
 		return ret;
 	}
@@ -548,11 +557,6 @@ irdma_setup_umode_qp(struct ib_udata *udata,
 	iwqp->ctx_info.qp_compl_ctx = req.user_compl_ctx;
 	iwqp->user_mode = 1;
 	if (req.user_wqe_bufs) {
-#if __FreeBSD_version >= 1400026
-		struct irdma_ucontext *ucontext = rdma_udata_to_drv_context(udata, struct irdma_ucontext, ibucontext);
-#else
-		struct irdma_ucontext *ucontext = to_ucontext(iwqp->iwpd->ibpd.uobject->context);
-#endif
 		info->qp_uk_init_info.legacy_mode = ucontext->legacy_mode;
 		spin_lock_irqsave(&ucontext->qp_reg_mem_list_lock, flags);
 		iwqp->iwpbl = irdma_get_pbl((unsigned long)req.user_wqe_bufs,
@@ -561,16 +565,18 @@ irdma_setup_umode_qp(struct ib_udata *udata,
 
 		if (!iwqp->iwpbl) {
 			ret = -ENODATA;
-			irdma_debug(iwdev_to_idev(iwdev), IRDMA_DEBUG_VERBS,
+			irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_VERBS,
 				    "no pbl info\n");
 			return ret;
 		}
 	}
 
-	if (ukinfo->abi_ver <= 5) {
+	if (!ucontext->use_raw_attrs) {
 		/**
-		 * For ABI version less than 6 passes raw sq and rq
-		 * quanta in cap.max_send_wr and cap.max_recv_wr.
+		 * Maintain backward compat with older ABI which passes sq and
+		 * rq depth in quanta in cap.max_send_wr and cap.max_recv_wr.
+		 * There is no way to compute the correct value of
+		 * iwqp->max_send_wr/max_recv_wr in the kernel.
 		 */
 		iwqp->max_send_wr = init_attr->cap.max_send_wr;
 		iwqp->max_recv_wr = init_attr->cap.max_recv_wr;
@@ -737,7 +743,7 @@ irdma_roce_fill_and_set_qpctx_info(struct irdma_qp *iwqp,
 	roce_info->wr_rdresp_en = true;
 	roce_info->bind_en = true;
 	roce_info->dcqcn_en = false;
-	roce_info->rtomin = 5;
+	roce_info->rtomin = iwdev->roce_rtomin;
 
 	roce_info->ack_credits = iwdev->roce_ackcreds;
 	roce_info->ird_size = dev->hw_attrs.max_hw_ird;
@@ -817,6 +823,8 @@ irdma_validate_qp_attrs(struct ib_qp_init_attr *init_attr,
 void
 irdma_sched_qp_flush_work(struct irdma_qp *iwqp)
 {
+	if (iwqp->sc_qp.qp_uk.destroy_pending)
+		return;
 	irdma_qp_add_ref(&iwqp->ibqp);
 	if (mod_delayed_work(iwqp->iwdev->cleanup_wq, &iwqp->dwork_flush,
 			     msecs_to_jiffies(IRDMA_FLUSH_DELAY_MS)))
@@ -1026,7 +1034,7 @@ irdma_modify_qp_roce(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 		av->attrs = attr->ah_attr;
 		rdma_gid2ip((struct sockaddr *)&av->dgid_addr, &attr->ah_attr.grh.dgid);
-		if (av->sgid_addr.saddr.sa_family == AF_INET6) {
+		if (av->net_type == RDMA_NETWORK_IPV6) {
 			__be32 *daddr =
 			av->dgid_addr.saddr_in6.sin6_addr.__u6_addr.__u6_addr32;
 			__be32 *saddr =
@@ -1037,10 +1045,7 @@ irdma_modify_qp_roce(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 			udp_info->ipv4 = false;
 			irdma_copy_ip_ntohl(local_ip, daddr);
-
-			udp_info->arp_idx = irdma_arp_table(iwdev->rf, local_ip,
-							    NULL, IRDMA_ARP_RESOLVE);
-		} else {
+		} else if (av->net_type == RDMA_NETWORK_IPV4) {
 			__be32 saddr = av->sgid_addr.saddr_in.sin_addr.s_addr;
 			__be32 daddr = av->dgid_addr.saddr_in.sin_addr.s_addr;
 
@@ -1056,6 +1061,8 @@ irdma_modify_qp_roce(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 			udp_info->local_ipaddr[1] = 0;
 			udp_info->local_ipaddr[2] = 0;
 			udp_info->local_ipaddr[3] = ntohl(saddr);
+		} else {
+			return -EINVAL;
 		}
 		udp_info->arp_idx =
 		    irdma_add_arp(iwdev->rf, local_ip,
@@ -1064,10 +1071,10 @@ irdma_modify_qp_roce(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	if (attr_mask & IB_QP_MAX_QP_RD_ATOMIC) {
 		if (attr->max_rd_atomic > dev->hw_attrs.max_hw_ord) {
-			ibdev_err(&iwdev->ibdev,
-				  "rd_atomic = %d, above max_hw_ord=%d\n",
-				  attr->max_rd_atomic,
-				  dev->hw_attrs.max_hw_ord);
+			irdma_dev_err(&iwdev->ibdev,
+				      "rd_atomic = %d, above max_hw_ord=%d\n",
+				      attr->max_rd_atomic,
+				      dev->hw_attrs.max_hw_ord);
 			return -EINVAL;
 		}
 		if (attr->max_rd_atomic)
@@ -1077,10 +1084,10 @@ irdma_modify_qp_roce(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC) {
 		if (attr->max_dest_rd_atomic > dev->hw_attrs.max_hw_ird) {
-			ibdev_err(&iwdev->ibdev,
-				  "rd_atomic = %d, above max_hw_ird=%d\n",
-				  attr->max_rd_atomic,
-				  dev->hw_attrs.max_hw_ird);
+			irdma_dev_err(&iwdev->ibdev,
+				      "rd_atomic = %d, above max_hw_ird=%d\n",
+				      attr->max_rd_atomic,
+				      dev->hw_attrs.max_hw_ird);
 			return -EINVAL;
 		}
 		if (attr->max_dest_rd_atomic)
@@ -1098,19 +1105,20 @@ irdma_modify_qp_roce(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	wait_event(iwqp->mod_qp_waitq, !atomic_read(&iwqp->hw_mod_qp_pend));
 
-	irdma_debug(dev, IRDMA_DEBUG_VERBS,
+	irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_VERBS,
 		    "caller: %pS qp_id=%d to_ibqpstate=%d ibqpstate=%d irdma_qpstate=%d attr_mask=0x%x\n",
-		    __builtin_return_address(0), ibqp->qp_num, attr->qp_state, iwqp->ibqp_state,
-		    iwqp->iwarp_state, attr_mask);
+		    __builtin_return_address(0), ibqp->qp_num, attr->qp_state,
+		    iwqp->ibqp_state, iwqp->iwarp_state, attr_mask);
 
 	spin_lock_irqsave(&iwqp->lock, flags);
 	if (attr_mask & IB_QP_STATE) {
 		if (!kc_ib_modify_qp_is_ok(iwqp->ibqp_state, attr->qp_state,
 					   iwqp->ibqp.qp_type, attr_mask,
 					   IB_LINK_LAYER_ETHERNET)) {
-			irdma_print("modify_qp invalid for qp_id=%d, old_state=0x%x, new_state=0x%x\n",
-				    iwqp->ibqp.qp_num, iwqp->ibqp_state,
-				    attr->qp_state);
+			irdma_dev_warn(&iwdev->ibdev,
+				       "modify_qp invalid for qp_id=%d, old_state=0x%x, new_state=0x%x\n",
+				       iwqp->ibqp.qp_num, iwqp->ibqp_state,
+				       attr->qp_state);
 			ret = -EINVAL;
 			goto exit;
 		}
@@ -1178,6 +1186,8 @@ irdma_modify_qp_roce(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		case IB_QPS_ERR:
 		case IB_QPS_RESET:
 			if (iwqp->iwarp_state == IRDMA_QP_STATE_RTS) {
+				if (dev->hw_attrs.uk_attrs.hw_rev <= IRDMA_GEN_2)
+					irdma_cqp_qp_suspend_resume(&iwqp->sc_qp, IRDMA_OP_SUSPEND);
 				spin_unlock_irqrestore(&iwqp->lock, flags);
 				info.next_iwarp_state = IRDMA_QP_STATE_SQD;
 				irdma_hw_modify_qp(iwdev, iwqp, &info, true);
@@ -1259,8 +1269,7 @@ irdma_modify_qp_roce(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 								  udata->outlen));
 			if (ret) {
 				irdma_remove_push_mmap_entries(iwqp);
-				irdma_debug(iwdev_to_idev(iwdev),
-					    IRDMA_DEBUG_VERBS,
+				irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_VERBS,
 					    "copy_to_udata failed\n");
 				return ret;
 			}
@@ -1314,10 +1323,11 @@ irdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask,
 	offload_info = &iwqp->iwarp_info;
 	tcp_info = &iwqp->tcp_info;
 	wait_event(iwqp->mod_qp_waitq, !atomic_read(&iwqp->hw_mod_qp_pend));
-	irdma_debug(dev, IRDMA_DEBUG_VERBS,
+	irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_VERBS,
 		    "caller: %pS qp_id=%d to_ibqpstate=%d ibqpstate=%d irdma_qpstate=%d last_aeq=%d hw_tcp_state=%d hw_iwarp_state=%d attr_mask=0x%x\n",
-		    __builtin_return_address(0), ibqp->qp_num, attr->qp_state, iwqp->ibqp_state, iwqp->iwarp_state,
-		    iwqp->last_aeq, iwqp->hw_tcp_state, iwqp->hw_iwarp_state, attr_mask);
+		    __builtin_return_address(0), ibqp->qp_num, attr->qp_state,
+		    iwqp->ibqp_state, iwqp->iwarp_state, iwqp->last_aeq,
+		    iwqp->hw_tcp_state, iwqp->hw_iwarp_state, attr_mask);
 
 	spin_lock_irqsave(&iwqp->lock, flags);
 	if (attr_mask & IB_QP_STATE) {
@@ -1510,8 +1520,8 @@ irdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask,
 							  udata->outlen));
 		if (err) {
 			irdma_remove_push_mmap_entries(iwqp);
-			irdma_debug(iwdev_to_idev(iwdev), IRDMA_DEBUG_VERBS,
-				    "copy_to_udata failed\n");
+			irdma_debug(&iwdev->rf->sc_dev,
+				    IRDMA_DEBUG_VERBS, "copy_to_udata failed\n");
 			return err;
 		}
 	}
@@ -1861,12 +1871,11 @@ irdma_check_mr_contiguous(struct irdma_pble_alloc *palloc,
  * irdma_setup_pbles - copy user pg address to pble's
  * @rf: RDMA PCI function
  * @iwmr: mr pointer for this memory registration
- * @use_pbles: flag if to use pble's
- * @lvl_1_only: request only level 1 pble if true
+ * @lvl: requested pble levels
  */
 static int
 irdma_setup_pbles(struct irdma_pci_f *rf, struct irdma_mr *iwmr,
-		  bool use_pbles, bool lvl_1_only)
+		  u8 lvl)
 {
 	struct irdma_pbl *iwpbl = &iwmr->iwpbl;
 	struct irdma_pble_alloc *palloc = &iwpbl->pble_alloc;
@@ -1875,9 +1884,9 @@ irdma_setup_pbles(struct irdma_pci_f *rf, struct irdma_mr *iwmr,
 	int status;
 	enum irdma_pble_level level = PBLE_LEVEL_1;
 
-	if (use_pbles) {
+	if (lvl) {
 		status = irdma_get_pble(rf->pble_rsrc, palloc, iwmr->page_cnt,
-					lvl_1_only);
+					lvl);
 		if (status)
 			return status;
 
@@ -1892,7 +1901,7 @@ irdma_setup_pbles(struct irdma_pci_f *rf, struct irdma_mr *iwmr,
 
 	irdma_copy_user_pgaddrs(iwmr, pbl, level);
 
-	if (use_pbles)
+	if (lvl)
 		iwmr->pgaddrmem[0] = *pbl;
 
 	return 0;
@@ -1903,12 +1912,12 @@ irdma_setup_pbles(struct irdma_pci_f *rf, struct irdma_mr *iwmr,
  * @iwdev: irdma device
  * @req: information for q memory management
  * @iwpbl: pble struct
- * @use_pbles: flag to use pble
+ * @lvl: pble level mask
  */
 static int
 irdma_handle_q_mem(struct irdma_device *iwdev,
 		   struct irdma_mem_reg_req *req,
-		   struct irdma_pbl *iwpbl, bool use_pbles)
+		   struct irdma_pbl *iwpbl, u8 lvl)
 {
 	struct irdma_pble_alloc *palloc = &iwpbl->pble_alloc;
 	struct irdma_mr *iwmr = iwpbl->iwmr;
@@ -1921,11 +1930,11 @@ irdma_handle_q_mem(struct irdma_device *iwdev,
 	bool ret = true;
 
 	pg_size = iwmr->page_size;
-	err = irdma_setup_pbles(iwdev->rf, iwmr, use_pbles, true);
+	err = irdma_setup_pbles(iwdev->rf, iwmr, lvl);
 	if (err)
 		return err;
 
-	if (use_pbles)
+	if (lvl)
 		arr = palloc->level1.addr;
 
 	switch (iwmr->type) {
@@ -1933,7 +1942,7 @@ irdma_handle_q_mem(struct irdma_device *iwdev,
 		total = req->sq_pages + req->rq_pages;
 		hmc_p = &qpmr->sq_pbl;
 		qpmr->shadow = (dma_addr_t) arr[total];
-		if (use_pbles) {
+		if (lvl) {
 			ret = irdma_check_mem_contiguous(arr, req->sq_pages,
 							 pg_size);
 			if (ret)
@@ -1958,7 +1967,7 @@ irdma_handle_q_mem(struct irdma_device *iwdev,
 		if (!cqmr->split)
 			cqmr->shadow = (dma_addr_t) arr[req->cq_pages];
 
-		if (use_pbles)
+		if (lvl)
 			ret = irdma_check_mem_contiguous(arr, req->cq_pages,
 							 pg_size);
 
@@ -1968,12 +1977,11 @@ irdma_handle_q_mem(struct irdma_device *iwdev,
 			hmc_p->addr = arr[0];
 		break;
 	default:
-		irdma_debug(iwdev_to_idev(iwdev), IRDMA_DEBUG_VERBS,
-			    "MR type error\n");
+		irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_VERBS, "MR type error\n");
 		err = -EINVAL;
 	}
 
-	if (use_pbles && ret) {
+	if (lvl && ret) {
 		irdma_free_pble(iwdev->rf->pble_rsrc, palloc);
 		iwpbl->pbl_allocated = false;
 	}
@@ -2233,9 +2241,9 @@ irdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 len,
 	struct irdma_mem_reg_req req = {};
 	u32 total, stag = 0;
 	u8 shadow_pgcnt = 1;
-	bool use_pbles = false;
 	unsigned long flags;
 	int err = -EINVAL;
+	u8 lvl;
 	int ret;
 
 	if (len > iwdev->rf->sc_dev.hw_attrs.max_mr_size)
@@ -2247,7 +2255,7 @@ irdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 len,
 	region = ib_umem_get(pd->uobject->context, start, len, access, 0);
 
 	if (IS_ERR(region)) {
-		irdma_debug(iwdev_to_idev(iwdev), IRDMA_DEBUG_VERBS,
+		irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_VERBS,
 			    "Failed to create ib_umem region\n");
 		return (struct ib_mr *)region;
 	}
@@ -2286,8 +2294,8 @@ irdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 len,
 			goto error;
 		}
 		total = req.sq_pages + req.rq_pages;
-		use_pbles = (total > 2);
-		err = irdma_handle_q_mem(iwdev, &req, iwpbl, use_pbles);
+		lvl = total > 2 ? PBLE_LEVEL_1 : PBLE_LEVEL_0;
+		err = irdma_handle_q_mem(iwdev, &req, iwpbl, lvl);
 		if (err)
 			goto error;
 
@@ -2310,8 +2318,8 @@ irdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 len,
 			goto error;
 		}
 
-		use_pbles = (req.cq_pages > 1);
-		err = irdma_handle_q_mem(iwdev, &req, iwpbl, use_pbles);
+		lvl = req.cq_pages > 1 ? PBLE_LEVEL_1 : PBLE_LEVEL_0;
+		err = irdma_handle_q_mem(iwdev, &req, iwpbl, lvl);
 		if (err)
 			goto error;
 
@@ -2326,13 +2334,12 @@ irdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 len,
 		spin_unlock_irqrestore(&ucontext->cq_reg_mem_list_lock, flags);
 		break;
 	case IRDMA_MEMREG_TYPE_MEM:
-		use_pbles = (iwmr->page_cnt != 1);
-
-		err = irdma_setup_pbles(iwdev->rf, iwmr, use_pbles, false);
+		lvl = iwmr->page_cnt != 1 ? PBLE_LEVEL_1 | PBLE_LEVEL_2 : PBLE_LEVEL_0;
+		err = irdma_setup_pbles(iwdev->rf, iwmr, lvl);
 		if (err)
 			goto error;
 
-		if (use_pbles) {
+		if (lvl) {
 			ret = irdma_check_mr_contiguous(palloc,
 							iwmr->page_size);
 			if (ret) {
@@ -2436,13 +2443,13 @@ irdma_rereg_mr_trans(struct irdma_mr *iwmr, u64 start, u64 len,
 	struct irdma_pble_alloc *palloc = &iwpbl->pble_alloc;
 	struct ib_pd *pd = iwmr->ibmr.pd;
 	struct ib_umem *region;
-	bool use_pbles;
+	u8 lvl;
 	int err;
 
 	region = ib_umem_get(pd->uobject->context, start, len, iwmr->access, 0);
 
 	if (IS_ERR(region)) {
-		irdma_debug(iwdev_to_idev(iwdev), IRDMA_DEBUG_VERBS,
+		irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_VERBS,
 			    "Failed to create ib_umem region\n");
 		return (struct ib_mr *)region;
 	}
@@ -2457,13 +2464,13 @@ irdma_rereg_mr_trans(struct irdma_mr *iwmr, u64 start, u64 len,
 	iwmr->page_cnt = irdma_ib_umem_num_dma_blocks(region, iwmr->page_size,
 						      virt);
 
-	use_pbles = (iwmr->page_cnt != 1);
+	lvl = iwmr->page_cnt != 1 ? PBLE_LEVEL_1 | PBLE_LEVEL_2 : PBLE_LEVEL_0;
 
-	err = irdma_setup_pbles(iwdev->rf, iwmr, use_pbles, false);
+	err = irdma_setup_pbles(iwdev->rf, iwmr, lvl);
 	if (err)
 		goto error;
 
-	if (use_pbles) {
+	if (lvl) {
 		err = irdma_check_mr_contiguous(palloc,
 						iwmr->page_size);
 		if (err) {
@@ -2727,6 +2734,7 @@ irdma_post_send(struct ib_qp *ibqp,
 			break;
 		case IB_WR_LOCAL_INV:
 			info.op_type = IRDMA_OP_TYPE_INV_STAG;
+			info.local_fence = info.read_fence;
 			info.op.inv_local_stag.target_stag = ib_wr->ex.invalidate_rkey;
 			err = irdma_uk_stag_local_invalidate(ukqp, &info, true);
 			break;
@@ -2759,8 +2767,7 @@ irdma_post_send(struct ib_qp *ibqp,
 			}
 		default:
 			err = -EINVAL;
-			irdma_debug(iwdev_to_idev(iwqp->iwdev),
-				    IRDMA_DEBUG_VERBS,
+			irdma_debug(&iwqp->iwdev->rf->sc_dev, IRDMA_DEBUG_VERBS,
 				    "upost_send bad opcode = 0x%x\n",
 				    ib_wr->opcode);
 			break;
@@ -2779,6 +2786,7 @@ irdma_post_send(struct ib_qp *ibqp,
 		spin_unlock_irqrestore(&iwqp->lock, flags);
 		irdma_sched_qp_flush_work(iwqp);
 	}
+
 	if (err)
 		*bad_wr = ib_wr;
 
@@ -2816,8 +2824,8 @@ irdma_post_recv(struct ib_qp *ibqp,
 		post_recv.sg_list = sg_list;
 		err = irdma_uk_post_receive(ukqp, &post_recv);
 		if (err) {
-			irdma_debug(iwdev_to_idev(iwqp->iwdev),
-				    IRDMA_DEBUG_VERBS, "post_recv err %d\n",
+			irdma_debug(&iwqp->iwdev->rf->sc_dev, IRDMA_DEBUG_VERBS,
+				    "post_recv err %d\n",
 				    err);
 			goto out;
 		}
@@ -2829,6 +2837,7 @@ out:
 	spin_unlock_irqrestore(&iwqp->lock, flags);
 	if (iwqp->flush_issued)
 		irdma_sched_qp_flush_work(iwqp);
+
 	if (err)
 		*bad_wr = ib_wr;
 
@@ -2896,8 +2905,8 @@ set_ib_wc_op_sq(struct irdma_cq_poll_info *cq_poll_info,
 		break;
 	default:
 		qp = cq_poll_info->qp_handle;
-		ibdev_err(irdma_get_ibdev(qp->dev), "Invalid opcode = %d in CQE\n",
-			  cq_poll_info->op_type);
+		irdma_dev_err(to_ibdev(qp->dev), "Invalid opcode = %d in CQE\n",
+			      cq_poll_info->op_type);
 		entry->status = IB_WC_GENERAL_ERR;
 	}
 }
@@ -3109,8 +3118,9 @@ __irdma_poll_cq(struct irdma_cq *iwcq, int num_entries, struct ib_wc *entry)
 
 	return npolled;
 error:
-	irdma_debug(iwdev_to_idev(iwdev), IRDMA_DEBUG_VERBS,
-		    "%s: Error polling CQ, irdma_err: %d\n", __func__, ret);
+	irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_VERBS,
+		    "%s: Error polling CQ, irdma_err: %d\n",
+		    __func__, ret);
 
 	return ret;
 }
@@ -3292,8 +3302,9 @@ irdma_attach_mcast(struct ib_qp *ibqp, union ib_gid *ibgid, u16 lid)
 				    sgid_addr.saddr_in6.sin6_addr.__u6_addr.__u6_addr32);
 		irdma_netdev_vlan_ipv6(ip_addr, &vlan_id, NULL);
 		ipv4 = false;
-		irdma_debug(iwdev_to_idev(iwdev), IRDMA_DEBUG_VERBS,
-			    "qp_id=%d, IP6address=%pI6\n", ibqp->qp_num,
+		irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_VERBS,
+			    "qp_id=%d, IP6address=%pI6\n",
+			    ibqp->qp_num,
 			    ip_addr);
 		irdma_mcast_mac_v6(ip_addr, dmac);
 	} else {
@@ -3301,7 +3312,7 @@ irdma_attach_mcast(struct ib_qp *ibqp, union ib_gid *ibgid, u16 lid)
 		ipv4 = true;
 		vlan_id = irdma_get_vlan_ipv4(ip_addr);
 		irdma_mcast_mac_v4(ip_addr, dmac);
-		irdma_debug(iwdev_to_idev(iwdev), IRDMA_DEBUG_VERBS,
+		irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_VERBS,
 			    "qp_id=%d, IP4address=%pI4, MAC=%pM\n",
 			    ibqp->qp_num, ip_addr, dmac);
 	}
@@ -3431,8 +3442,8 @@ irdma_detach_mcast(struct ib_qp *ibqp, union ib_gid *ibgid, u16 lid)
 	mc_qht_elem = mcast_list_lookup_ip(rf, ip_addr);
 	if (!mc_qht_elem) {
 		spin_unlock_irqrestore(&rf->qh_list_lock, flags);
-		irdma_debug(iwdev_to_idev(iwdev), IRDMA_DEBUG_VERBS,
-			    "address not found MCG\n");
+		irdma_debug(&iwdev->rf->sc_dev,
+			    IRDMA_DEBUG_VERBS, "address not found MCG\n");
 		return 0;
 	}
 
@@ -3444,8 +3455,8 @@ irdma_detach_mcast(struct ib_qp *ibqp, union ib_gid *ibgid, u16 lid)
 		ret = irdma_mcast_cqp_op(iwdev, &mc_qht_elem->mc_grp_ctx,
 					 IRDMA_OP_MC_DESTROY);
 		if (ret) {
-			irdma_debug(iwdev_to_idev(iwdev), IRDMA_DEBUG_VERBS,
-				    "failed MC_DESTROY MCG\n");
+			irdma_debug(&iwdev->rf->sc_dev,
+				    IRDMA_DEBUG_VERBS, "failed MC_DESTROY MCG\n");
 			spin_lock_irqsave(&rf->qh_list_lock, flags);
 			mcast_list_add(rf, mc_qht_elem);
 			spin_unlock_irqrestore(&rf->qh_list_lock, flags);
@@ -3462,8 +3473,8 @@ irdma_detach_mcast(struct ib_qp *ibqp, union ib_gid *ibgid, u16 lid)
 		ret = irdma_mcast_cqp_op(iwdev, &mc_qht_elem->mc_grp_ctx,
 					 IRDMA_OP_MC_MODIFY);
 		if (ret) {
-			irdma_debug(iwdev_to_idev(iwdev), IRDMA_DEBUG_VERBS,
-				    "failed Modify MCG\n");
+			irdma_debug(&iwdev->rf->sc_dev,
+				    IRDMA_DEBUG_VERBS, "failed Modify MCG\n");
 			return ret;
 		}
 	}
@@ -3494,23 +3505,6 @@ irdma_query_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr)
 	}
 
 	return 0;
-}
-
-static __be64 irdma_mac_to_guid(struct ifnet *ndev){
-	const unsigned char *mac = IF_LLADDR(ndev);
-	__be64 guid;
-	unsigned char *dst = (unsigned char *)&guid;
-
-	dst[0] = mac[0] ^ 2;
-	dst[1] = mac[1];
-	dst[2] = mac[2];
-	dst[3] = 0xff;
-	dst[4] = 0xfe;
-	dst[5] = mac[3];
-	dst[6] = mac[4];
-	dst[7] = mac[5];
-
-	return guid;
 }
 
 static struct ifnet *
@@ -3632,7 +3626,8 @@ irdma_init_roce_device(struct irdma_device *iwdev)
 {
 	kc_set_roce_uverbs_cmd_mask(iwdev);
 	iwdev->ibdev.node_type = RDMA_NODE_IB_CA;
-	iwdev->ibdev.node_guid = irdma_mac_to_guid(iwdev->netdev);
+	addrconf_addr_eui48((u8 *)&iwdev->ibdev.node_guid,
+			    IF_LLADDR(iwdev->netdev));
 	irdma_set_device_roce_ops(&iwdev->ibdev);
 	if (iwdev->rf->rdma_ver == IRDMA_GEN_2)
 		irdma_set_device_mcast_ops(&iwdev->ibdev);
@@ -3648,7 +3643,8 @@ irdma_init_iw_device(struct irdma_device *iwdev)
 	struct ifnet *netdev = iwdev->netdev;
 
 	iwdev->ibdev.node_type = RDMA_NODE_RNIC;
-	ether_addr_copy((u8 *)&iwdev->ibdev.node_guid, IF_LLADDR(netdev));
+	addrconf_addr_eui48((u8 *)&iwdev->ibdev.node_guid,
+			    IF_LLADDR(netdev));
 	iwdev->ibdev.iwcm = kzalloc(sizeof(*iwdev->ibdev.iwcm), GFP_KERNEL);
 	if (!iwdev->ibdev.iwcm)
 		return -ENOMEM;
@@ -3675,7 +3671,6 @@ irdma_init_iw_device(struct irdma_device *iwdev)
 static int
 irdma_init_rdma_device(struct irdma_device *iwdev)
 {
-	struct pci_dev *pcidev = iwdev->rf->pcidev;
 	int ret;
 
 	iwdev->ibdev.owner = THIS_MODULE;
@@ -3693,7 +3688,7 @@ irdma_init_rdma_device(struct irdma_device *iwdev)
 	iwdev->ibdev.phys_port_cnt = 1;
 	iwdev->ibdev.num_comp_vectors = iwdev->rf->ceqs_count;
 	iwdev->ibdev.dev.parent = iwdev->rf->dev_ctx.dev;
-	set_ibdev_dma_device(iwdev->ibdev, &pcidev->dev);
+	set_ibdev_dma_device(iwdev->ibdev, &iwdev->rf->pcidev->dev);
 	irdma_set_device_ops(&iwdev->ibdev);
 	if (iwdev->rf->rdma_ver == IRDMA_GEN_1)
 		irdma_set_device_gen1_ops(&iwdev->ibdev);

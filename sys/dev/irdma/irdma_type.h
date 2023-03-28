@@ -564,7 +564,6 @@ struct irdma_hmc_fpm_misc {
 struct irdma_qos {
 	struct list_head qplist;
 	struct mutex qos_mutex; /* protect QoS attributes per QoS level */
-	u64 lan_qos_handle;
 	u32 l2_sched_node_id;
 	u16 qs_handle;
 	u8 traffic_class;
@@ -990,6 +989,11 @@ struct irdma_aeqe_info {
 	bool in_rdrsp_wr:1;
 	bool out_rdrsp:1;
 	bool aeqe_overflow:1;
+	/* This flag is used to determine if we should pass the rq tail
+	 * in the QP context for FW/HW. It is set when ae_src is rq for GEN1/GEN2
+	 * And additionally set for inbound atomic, read and write for GEN3
+	 */
+	bool err_rq_idx_valid:1;
 	u8 q2_data_written;
 	u8 ae_src;
 };
@@ -1217,7 +1221,7 @@ int irdma_sc_aeq_init(struct irdma_sc_aeq *aeq,
 		      struct irdma_aeq_init_info *info);
 int irdma_sc_get_next_aeqe(struct irdma_sc_aeq *aeq,
 			   struct irdma_aeqe_info *info);
-int irdma_sc_repost_aeq_entries(struct irdma_sc_dev *dev, u32 count);
+void irdma_sc_repost_aeq_entries(struct irdma_sc_dev *dev, u32 count);
 
 void irdma_sc_pd_init(struct irdma_sc_dev *dev, struct irdma_sc_pd *pd, u32 pd_id,
 		      int abi_ver);

@@ -133,6 +133,8 @@ extern bool irdma_upload_context;
 #define IRDMA_REFLUSH		BIT(2)
 #define IRDMA_FLUSH_WAIT	BIT(3)
 
+#define IRDMA_IRQ_NAME_STR_LEN 64
+
 enum init_completion_state {
 	INVALID_STATE = 0,
 	INITIAL_STATE,
@@ -230,6 +232,7 @@ struct irdma_msix_vector {
 	u32 irq;
 	u32 cpu_affinity;
 	u32 ceq_id;
+	char name[IRDMA_IRQ_NAME_STR_LEN];
 	struct resource *res;
 	void  *tag;
 };
@@ -376,6 +379,7 @@ struct irdma_device {
 	u16 vsi_num;
 	u8 rcv_wscale;
 	u8 iw_status;
+	u8 roce_rtomin;
 	u8 rd_fence_rate;
 	bool override_rcv_wnd:1;
 	bool override_cwnd:1;
@@ -529,7 +533,7 @@ void irdma_free_cqp_request(struct irdma_cqp *cqp,
 void irdma_put_cqp_request(struct irdma_cqp *cqp,
 			   struct irdma_cqp_request *cqp_request);
 int irdma_alloc_local_mac_entry(struct irdma_pci_f *rf, u16 *mac_tbl_idx);
-int irdma_add_local_mac_entry(struct irdma_pci_f *rf, u8 *mac_addr, u16 idx);
+int irdma_add_local_mac_entry(struct irdma_pci_f *rf, const u8 *mac_addr, u16 idx);
 void irdma_del_local_mac_entry(struct irdma_pci_f *rf, u16 idx);
 
 u32 irdma_initialize_hw_rsrc(struct irdma_pci_f *rf);
@@ -589,6 +593,7 @@ int irdma_ah_cqp_op(struct irdma_pci_f *rf, struct irdma_sc_ah *sc_ah, u8 cmd,
 		    void (*callback_fcn)(struct irdma_cqp_request *cqp_request),
 		    void *cb_param);
 void irdma_gsi_ud_qp_ah_cb(struct irdma_cqp_request *cqp_request);
+void irdma_udqp_qs_worker(struct work_struct *work);
 bool irdma_cq_empty(struct irdma_cq *iwcq);
 int irdma_netdevice_event(struct notifier_block *notifier, unsigned long event,
 			  void *ptr);
@@ -599,4 +604,5 @@ void irdma_add_ip(struct irdma_device *iwdev);
 void irdma_add_handler(struct irdma_handler *hdl);
 void irdma_del_handler(struct irdma_handler *hdl);
 void cqp_compl_worker(struct work_struct *work);
+void irdma_cleanup_dead_qps(struct irdma_sc_vsi *vsi);
 #endif /* IRDMA_MAIN_H */

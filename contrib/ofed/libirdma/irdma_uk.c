@@ -641,7 +641,7 @@ irdma_copy_inline_data_gen_1(u8 *wqe, struct irdma_sge *sge_list,
 			sge_len -= bytes_copied;
 
 			if (!quanta_bytes_remaining) {
-				/* Remaining inline bytes reside after the hdr */
+				/* Remaining inline bytes reside after hdr */
 				wqe += 16;
 				quanta_bytes_remaining = 32;
 			}
@@ -710,7 +710,7 @@ irdma_copy_inline_data(u8 *wqe, struct irdma_sge *sge_list, u32 num_sges,
 			if (!quanta_bytes_remaining) {
 				quanta_bytes_remaining = 31;
 
-				/* Remaining inline bytes reside after the hdr */
+				/* Remaining inline bytes reside after hdr */
 				if (first_quanta) {
 					first_quanta = false;
 					wqe += 16;
@@ -1111,7 +1111,6 @@ irdma_uk_cq_request_notification(struct irdma_cq_uk *cq,
 	u8 arm_next = 0;
 	u8 arm_seq_num;
 
-	cq->armed = true;
 	get_64bit_val(cq->shadow_area, IRDMA_BYTE_32, &temp_val);
 	arm_seq_num = (u8)FIELD_GET(IRDMA_CQ_DBSA_ARM_SEQ_NUM, temp_val);
 	arm_seq_num++;
@@ -1338,6 +1337,8 @@ irdma_uk_cq_poll_cmpl(struct irdma_cq_uk *cq,
 	info->error = (bool)FIELD_GET(IRDMA_CQ_ERROR, qword3);
 	info->push_dropped = (bool)FIELD_GET(IRDMACQ_PSHDROP, qword3);
 	info->ipv4 = (bool)FIELD_GET(IRDMACQ_IPV4, qword3);
+	get_64bit_val(cqe, IRDMA_BYTE_8, &comp_ctx);
+	qp = (struct irdma_qp_uk *)(irdma_uintptr) comp_ctx;
 	if (info->error) {
 		info->major_err = FIELD_GET(IRDMA_CQ_MAJERR, qword3);
 		info->minor_err = FIELD_GET(IRDMA_CQ_MINERR, qword3);
@@ -1366,10 +1367,7 @@ irdma_uk_cq_poll_cmpl(struct irdma_cq_uk *cq,
 	info->qp_id = (u32)FIELD_GET(IRDMACQ_QPID, qword2);
 	info->ud_src_qpn = (u32)FIELD_GET(IRDMACQ_UDSRCQPN, qword2);
 
-	get_64bit_val(cqe, IRDMA_BYTE_8, &comp_ctx);
-
 	info->solicited_event = (bool)FIELD_GET(IRDMACQ_SOEVENT, qword3);
-	qp = (struct irdma_qp_uk *)(irdma_uintptr) comp_ctx;
 	if (!qp || qp->destroy_pending) {
 		ret_code = EFAULT;
 		goto exit;
@@ -1493,7 +1491,8 @@ irdma_uk_cq_poll_cmpl(struct irdma_cq_uk *cq,
 				}
 			} while (1);
 
-			if (info->op_type == IRDMA_OP_TYPE_BIND_MW && info->minor_err == FLUSH_PROT_ERR)
+			if (info->op_type == IRDMA_OP_TYPE_BIND_MW &&
+			    info->minor_err == FLUSH_PROT_ERR)
 				info->minor_err = FLUSH_MW_BIND_ERR;
 			qp->sq_flush_seen = true;
 			if (!IRDMA_RING_MORE_WORK(qp->sq_ring))
