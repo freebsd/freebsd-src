@@ -879,7 +879,6 @@ tcp_sack_partialack(struct tcpcb *tp, struct tcphdr *th)
 	 */
 	if ((V_tcp_do_newsack) &&
 	    SEQ_LT(th->th_ack, tp->snd_recover) &&
-	    (tp->snd_recover == tp->snd_max) &&
 	    TAILQ_EMPTY(&tp->snd_holes) &&
 	    (tp->sackhint.delivered_data > 0)) {
 		/*
@@ -891,6 +890,7 @@ tcp_sack_partialack(struct tcpcb *tp, struct tcphdr *th)
 		tcp_seq highdata = tp->snd_max;
 		if (tp->t_flags & TF_SENTFIN)
 			highdata--;
+		highdata = SEQ_MIN(highdata, tp->snd_recover);
 		if (th->th_ack != highdata) {
 			tp->snd_fack = th->th_ack;
 			(void)tcp_sackhole_insert(tp, SEQ_MAX(th->th_ack,
