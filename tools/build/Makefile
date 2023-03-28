@@ -204,7 +204,13 @@ CFLAGS.closefrom.c+=	-DSTDC_HEADERS -DHAVE_SYS_DIR_H -DHAVE_DIRENT_H \
 SRCS+=	progname.c
 # Stub implementations of fflagstostr/strtofflags
 SRCS+=	fflags.c
-.endif
+.endif # ${MAKE.OS} == "Linux"
+
+.if ${.MAKE.OS} == "Darwin"
+# Standalone implementation of secure_getenv(), not available on MacOS.
+SRCS+=	secure_getenv.c
+.endif # ${MAKE.OS} == "Darwin"
+
 # Provide the same arc4random implementation on Linux/macOS
 CFLAGS.arc4random.c+=	-I${SRCTOP}/sys/crypto/chacha20 -D__isthreaded=1
 SRCS+=	arc4random.c arc4random_uniform.c
@@ -227,7 +233,7 @@ subr_capability.c: ${SRCTOP}/sys/kern/subr_capability.c
 	cp ${.ALLSRC} ${.TARGET}
 SRCS+=	subr_capability.c
 CLEANFILES+=	subr_capability.c
-.endif
+.endif # ${MAKE.OS} != "FreeBSD"
 
 CASPERINC+=	${SRCTOP}/lib/libcasper/services/cap_fileargs/cap_fileargs.h
 CASPERINC+=	${SRCTOP}/lib/libcasper/services/cap_net/cap_net.h
