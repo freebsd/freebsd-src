@@ -9312,12 +9312,11 @@ atapm(struct cam_device *device, int argc, char **argv,
 	    /*timeout*/timeout ? timeout : 30 * 1000,
 	    /*force48bit*/0);
 
+	if (retval == 0 && cmd == ATA_CHECK_POWER_MODE)
+		retval = atapm_proc_resp(device, ccb);
+
 	cam_freeccb(ccb);
-
-	if (retval || cmd != ATA_CHECK_POWER_MODE)
-		return (retval);
-
-	return (atapm_proc_resp(device, ccb));
+	return (retval);
 }
 
 static int
