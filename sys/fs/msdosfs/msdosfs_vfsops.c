@@ -409,6 +409,97 @@ msdosfs_mount(struct mount *mp)
 	return (0);
 }
 
+/*
+ * The FAT12 and FAT16 file systems use a limited size root directory that
+ * can be created with 1 to 65535 entries for files, directories, or a disk
+ * label (but DOS or Windows creates at most 512 root directory entries).
+ * This function calculates the number of free root directory entries by
+ * counting the non-deleted entries (not starting with 0xE5) and by adding
+ * the amount of never used entries (with the position indicated by an
+ * entry that starts with 0x00).
+ */
+static int
+rootdir_free(struct msdosfsmount* pmp)
+{
+	struct buf *bp;
+	struct direntry *dep;
+	u_long readsize;
+	int dirclu;
+	int diridx;
+	int dirmax;
+	int dirleft;
+	int ffree;
+
+	dirclu = pmp->pm_rootdirblk;
+
+	/*
+	 * The msdosfs code ignores pm_RootDirEnts and uses pm_rootdirsize
+	 * (measured in DEV_BSIZE) to prevent excess root dir allocations.
+	 */
+	dirleft = howmany(pmp->pm_rootdirsize * DEV_BSIZE,
+			  sizeof(struct direntry));
+
+	/* Read in chunks of default maximum root directory size */
+	readsize = 512 * sizeof(struct direntry);
+
+#ifdef MSDOSFS_DEBUG
+	printf("rootdir_free: blkpersec=%lu fatblksize=%lu dirsize=%lu "
+	    "firstclu=%lu dirclu=%d entries=%d rootdirsize=%lu "
+	    "bytespersector=%hu bytepercluster=%lu\n",
+	    pmp->pm_BlkPerSec, pmp->pm_fatblocksize, readsize,
+	    pmp->pm_firstcluster, dirclu, dirleft, pmp->pm_rootdirsize,
+	    pmp->pm_BytesPerSec, pmp->pm_bpcluster);
+#endif
+	ffree = dirleft;
+	while (dirleft > 0 && ffree > 0) {
+		if (readsize > dirleft * sizeof(struct direntry))
+			readsize = dirleft * sizeof(struct direntry);
+#ifdef MSDOSFS_DEBUG
+		printf("rootdir_free: dirclu=%d dirleft=%d readsize=%lu\n",
+		       dirclu, dirleft, readsize);
+#endif
+		if (bread(pmp->pm_devvp, dirclu, readsize, NOCRED, &bp) != 0) {
+			printf("rootdir_free: read error\n");
+			if (bp != NULL)
+				brelse(bp);
+			return (-1);
+		}
+		dirmax = readsize / sizeof(struct direntry);
+		for (diridx = 0; diridx < dirmax && dirleft > 0;
+		     diridx++, dirleft--) {
+			dep = (struct direntry*)bp->b_data + diridx;
+#ifdef MSDOSFS_DEBUG
+			if (dep->deName[0] == SLOT_DELETED)
+				printf("rootdir_free: idx=%d <deleted>\n",
+				    diridx);
+			else if (dep->deName[0] == SLOT_EMPTY)
+				printf("rootdir_free: idx=%d <end marker>\n",
+				    diridx);
+			else if (dep->deAttributes == ATTR_WIN95)
+				printf("rootdir_free: idx=%d <LFN part %d>\n",
+				    diridx, (dep->deName[0] & 0x1f) + 1);
+			else if (dep->deAttributes & ATTR_VOLUME)
+				printf("rootdir_free: idx=%d label='%11.11s'\n",
+				    diridx, dep->deName);
+			else if (dep->deAttributes & ATTR_DIRECTORY)
+				printf("rootdir_free: idx=%d dir='%11.11s'\n",
+				    diridx, dep->deName);
+			else
+				printf("rootdir_free: idx=%d file='%11.11s'\n",
+				    diridx, dep->deName);
+#endif
+			if (dep->deName[0] == SLOT_EMPTY)
+				dirleft = 0;
+			else if (dep->deName[0] != SLOT_DELETED)
+				ffree--;
+		}
+		brelse(bp);
+		bp = NULL;
+		dirclu += readsize / DEV_BSIZE;
+	}
+	return (ffree);
+}
+
 static int
 mountmsdosfs(struct vnode *odevvp, struct mount *mp)
 {
@@ -747,6 +838,15 @@ mountmsdosfs(struct vnode *odevvp, struct mount *mp)
 			goto error_exit;
 		pmp->pm_fmod = 1;
 	}
+
+	if (FAT32(pmp)) {
+		pmp->pm_rootdirfree = 0;
+	} else {
+		pmp->pm_rootdirfree = rootdir_free(pmp);
+		if (pmp->pm_rootdirfree < 0)
+			goto error_exit;
+	}
+
 	mp->mnt_data =  pmp;
 	mp->mnt_stat.f_fsid.val[0] = dev2udev(dev);
 	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
@@ -948,8 +1048,9 @@ msdosfs_statfs(struct mount *mp, struct statfs *sbp)
 	sbp->f_blocks = pmp->pm_maxcluster + 1;
 	sbp->f_bfree = pmp->pm_freeclustercount;
 	sbp->f_bavail = pmp->pm_freeclustercount;
-	sbp->f_files = pmp->pm_RootDirEnts;	/* XXX */
-	sbp->f_ffree = 0;	/* what to put in here? */
+	sbp->f_files =	howmany(pmp->pm_rootdirsize * DEV_BSIZE,
+				sizeof(struct direntry));
+	sbp->f_ffree = pmp->pm_rootdirfree;
 	return (0);
 }
 

@@ -28,7 +28,7 @@
 .\"	@(#)statfs.2	8.5 (Berkeley) 5/24/95
 .\" $FreeBSD$
 .\"
-.Dd March 30, 2020
+.Dd March 29, 2023
 .Dt STATFS 2
 .Os
 .Sh NAME
@@ -230,6 +230,22 @@ error occurred while reading from or writing to the file system.
 .It Bq Er EINTEGRITY
 Corrupted data was detected while reading from the file system.
 .El
+.Sh NOTES
+The fields in the
+.Vt statfs
+structure have been defined to provide the parameters relevant for
+traditional
+.Tm UNIX
+file systems.
+For some other file systems, values that have similar, but not
+identical, semantics to those described above may be returned.
+An example is msdosfs, which in case of FAT12 or FAT13 file systems
+reports the number of available and of free root directory entries
+instead of inodes
+.Po
+where 1 to 21 such directory entries are required to store
+each file or directory name or disk label
+.Pc .
 .Sh SEE ALSO
 .Xr fhstatfs 2 ,
 .Xr getfsstat 2

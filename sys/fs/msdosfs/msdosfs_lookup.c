@@ -684,6 +684,7 @@ createde(struct denode *dep, struct denode *ddep, struct denode **depp,
 		return error;
 	}
 	ndep = bptoep(pmp, bp, ddep->de_fndoffset);
+	rootde_alloced(ddep);
 
 	DE_EXTERNALIZE(ndep, dep);
 
@@ -721,6 +722,7 @@ createde(struct denode *dep, struct denode *ddep, struct denode **depp,
 				ndep--;
 				ddep->de_fndoffset -= sizeof(struct direntry);
 			}
+			rootde_alloced(ddep);
 			if (!unix2winfn(un, unlen, (struct winentry *)ndep,
 					cnt++, chksum, pmp))
 				break;
@@ -1015,6 +1017,7 @@ removede(struct denode *pdep, struct denode *dep)
 			 */
 			offset -= sizeof(struct direntry);
 			ep--->deName[0] = SLOT_DELETED;
+			rootde_freed(pdep);
 			if ((pmp->pm_flags & MSDOSFSMNT_NOWIN95)
 			    || !(offset & pmp->pm_crbomask)
 			    || ep->deAttributes != ATTR_WIN95)
