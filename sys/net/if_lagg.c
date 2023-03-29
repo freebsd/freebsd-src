@@ -164,8 +164,6 @@ static struct lagg_port *lagg_link_active(struct lagg_softc *,
 /* Simple round robin */
 static void	lagg_rr_attach(struct lagg_softc *);
 static int	lagg_rr_start(struct lagg_softc *, struct mbuf *);
-static struct mbuf *lagg_rr_input(struct lagg_softc *, struct lagg_port *,
-		    struct mbuf *);
 
 /* Active failover */
 static int	lagg_fail_start(struct lagg_softc *, struct mbuf *);
@@ -178,14 +176,10 @@ static void	lagg_lb_detach(struct lagg_softc *);
 static int	lagg_lb_port_create(struct lagg_port *);
 static void	lagg_lb_port_destroy(struct lagg_port *);
 static int	lagg_lb_start(struct lagg_softc *, struct mbuf *);
-static struct mbuf *lagg_lb_input(struct lagg_softc *, struct lagg_port *,
-		    struct mbuf *);
 static int	lagg_lb_porttable(struct lagg_softc *, struct lagg_port *);
 
 /* Broadcast */
 static int	lagg_bcast_start(struct lagg_softc *, struct mbuf *);
-static struct mbuf *lagg_bcast_input(struct lagg_softc *, struct lagg_port *,
-		    struct mbuf *);
 
 /* 802.3ad LACP */
 static void	lagg_lacp_attach(struct lagg_softc *);
@@ -194,6 +188,10 @@ static int	lagg_lacp_start(struct lagg_softc *, struct mbuf *);
 static struct mbuf *lagg_lacp_input(struct lagg_softc *, struct lagg_port *,
 		    struct mbuf *);
 static void	lagg_lacp_lladdr(struct lagg_softc *);
+
+/* Default input */
+static struct mbuf *lagg_default_input(struct lagg_softc *, struct lagg_port *,
+		    struct mbuf *);
 
 /* lagg protocol table */
 static const struct lagg_proto {
@@ -219,7 +217,7 @@ static const struct lagg_proto {
 	.pr_num = LAGG_PROTO_ROUNDROBIN,
 	.pr_attach = lagg_rr_attach,
 	.pr_start = lagg_rr_start,
-	.pr_input = lagg_rr_input,
+	.pr_input = lagg_default_input,
     },
     {
 	.pr_num = LAGG_PROTO_FAILOVER,
@@ -231,7 +229,7 @@ static const struct lagg_proto {
 	.pr_attach = lagg_lb_attach,
 	.pr_detach = lagg_lb_detach,
 	.pr_start = lagg_lb_start,
-	.pr_input = lagg_lb_input,
+	.pr_input = lagg_default_input,
 	.pr_addport = lagg_lb_port_create,
 	.pr_delport = lagg_lb_port_destroy,
     },
@@ -253,7 +251,7 @@ static const struct lagg_proto {
     {
 	.pr_num = LAGG_PROTO_BROADCAST,
 	.pr_start = lagg_bcast_start,
-	.pr_input = lagg_bcast_input,
+	.pr_input = lagg_default_input,
     },
 };
 
@@ -369,14 +367,14 @@ lagg_proto_detach(struct lagg_softc *sc)
 		lagg_protos[pr].pr_detach(sc);
 }
 
-static int
+static inline int
 lagg_proto_start(struct lagg_softc *sc, struct mbuf *m)
 {
 
 	return (lagg_protos[sc->sc_proto].pr_start(sc, m));
 }
 
-static struct mbuf *
+static inline struct mbuf *
 lagg_proto_input(struct lagg_softc *sc, struct lagg_port *lp, struct mbuf *m)
 {
 
@@ -2171,17 +2169,6 @@ lagg_rr_start(struct lagg_softc *sc, struct mbuf *m)
 	return (lagg_enqueue(lp->lp_ifp, m));
 }
 
-static struct mbuf *
-lagg_rr_input(struct lagg_softc *sc, struct lagg_port *lp, struct mbuf *m)
-{
-	struct ifnet *ifp = sc->sc_ifp;
-
-	/* Just pass in the packet to our lagg device */
-	m->m_pkthdr.rcvif = ifp;
-
-	return (m);
-}
-
 /*
  * Broadcast mode
  */
@@ -2230,16 +2217,6 @@ lagg_bcast_start(struct lagg_softc *sc, struct mbuf *m)
 		return (ret);
 
 	return (0);
-}
-
-static struct mbuf*
-lagg_bcast_input(struct lagg_softc *sc, struct lagg_port *lp, struct mbuf *m)
-{
-	struct ifnet *ifp = sc->sc_ifp;
-
-	/* Just pass in the packet to our lagg device */
-	m->m_pkthdr.rcvif = ifp;
-	return (m);
 }
 
 /*
@@ -2383,17 +2360,6 @@ lagg_lb_start(struct lagg_softc *sc, struct mbuf *m)
 	return (lagg_enqueue(lp->lp_ifp, m));
 }
 
-static struct mbuf *
-lagg_lb_input(struct lagg_softc *sc, struct lagg_port *lp, struct mbuf *m)
-{
-	struct ifnet *ifp = sc->sc_ifp;
-
-	/* Just pass in the packet to our lagg device */
-	m->m_pkthdr.rcvif = ifp;
-
-	return (m);
-}
-
 /*
  * 802.3ad LACP
  */
@@ -2484,3 +2450,14 @@ lagg_lacp_input(struct lagg_softc *sc, struct lagg_port *lp, struct mbuf *m)
 	return (m);
 }
 
+/* Default input */
+static struct mbuf *
+lagg_default_input(struct lagg_softc *sc, struct lagg_port *lp, struct mbuf *m)
+{
+	struct ifnet *ifp = sc->sc_ifp;
+
+	/* Just pass in the packet to our lagg device */
+	m->m_pkthdr.rcvif = ifp;
+
+	return (m);
+}
