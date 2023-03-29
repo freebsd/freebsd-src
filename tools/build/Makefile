@@ -354,7 +354,6 @@ host-symlinks:
 # yet (this happens if we are crossbuilding from Linux/Mac).
 INSTALLDIR_LIST= \
 	bin \
-	lib/casper \
 	lib/geom \
 	usr/include/casper \
 	usr/include/private/ucl \

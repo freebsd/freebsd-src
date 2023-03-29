@@ -104,8 +104,6 @@
         ..
     ..
     lib
-        casper
-        ..
         geom
         ..
         nvmecontrol
