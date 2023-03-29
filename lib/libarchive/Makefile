@@ -14,8 +14,7 @@ CFLAGS+=	-I${.OBJDIR}
 CFLAGS+=	-I${SRCTOP}/sys/contrib/zstd/lib
 .include "Makefile.inc"
 
-.if ${MACHINE_ARCH:Marm*} != "" || ${MACHINE_ARCH:Mmips*} != "" || \
-	${MACHINE_ARCH:Mpowerpc*} != ""
+.if ${MACHINE_ARCH:Marm*} != "" || ${MACHINE_ARCH:Mpowerpc*} != ""
 NO_WCAST_ALIGN=	yes
 .if ${MACHINE_ARCH:M*64*} == ""
 CFLAGS+=	-DPPMD_32BIT
