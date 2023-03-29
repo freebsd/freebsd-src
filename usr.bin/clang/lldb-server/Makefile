@@ -29,10 +29,13 @@ DPADD+=		${OBJTOP}/lib/clang/lib${lib}/lib${lib}.a
 LDADD+=		${OBJTOP}/lib/clang/lib${lib}/lib${lib}.a
 .endfor
 
-LLGSOptions.inc: ${LLDB_SRCS}/tools/lldb-server/LLGSOptions.td
-	${LLVM_TBLGEN} ${LLVM_TBLGEN_OPTS} --gen-opt-parser-defs \
-	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
-TGHDRS+=	LLGSOptions.inc
+INCFILE=	LLGSOptions.inc
+TDFILE=		${LLDB_SRCS}/tools/lldb-server/LLGSOptions.td
+GENOPT=		-gen-opt-parser-defs
+${INCFILE}: ${TDFILE}
+	${LLVM_TBLGEN} ${GENOPT} -I ${LLVM_SRCS}/include -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${TDFILE}
+TGHDRS+=	${INCFILE}
 
 ${TGHDRS}: ${LLVM_TBLGEN_BIN}
 

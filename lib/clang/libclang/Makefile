@@ -760,339 +760,358 @@ SRCS_ALL+=	${SRCS_LDB}
 SRCS+=		${SRCS_ALL:O}
 
 clang/AST/AbstractBasicReader.inc: \
-    ${CLANG_SRCS}/include/clang/AST/PropertiesBase.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-clang-basic-reader \
-	    -I ${CLANG_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_SRCS}/include/clang/AST/PropertiesBase.td
+	${CLANG_TBLGEN} -gen-clang-basic-reader \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/AST/PropertiesBase.td
 TGHDRS+=	clang/AST/AbstractBasicReader.inc
 
 clang/AST/AbstractBasicWriter.inc: \
-    ${CLANG_SRCS}/include/clang/AST/PropertiesBase.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-clang-basic-writer \
-	    -I ${CLANG_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_SRCS}/include/clang/AST/PropertiesBase.td
+	${CLANG_TBLGEN} -gen-clang-basic-writer \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/AST/PropertiesBase.td
 TGHDRS+=	clang/AST/AbstractBasicWriter.inc
 
 clang/AST/AbstractTypeReader.inc: \
-    ${CLANG_SRCS}/include/clang/AST/TypeProperties.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-clang-type-reader \
-	    -I ${CLANG_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_SRCS}/include/clang/AST/TypeProperties.td
+	${CLANG_TBLGEN} -gen-clang-type-reader \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/AST/TypeProperties.td
 TGHDRS+=	clang/AST/AbstractTypeReader.inc
 
 clang/AST/AbstractTypeWriter.inc: \
-    ${CLANG_SRCS}/include/clang/AST/TypeProperties.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-clang-type-writer \
-	    -I ${CLANG_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_SRCS}/include/clang/AST/TypeProperties.td
+	${CLANG_TBLGEN} -gen-clang-type-writer \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/AST/TypeProperties.td
 TGHDRS+=	clang/AST/AbstractTypeWriter.inc
 
 clang/AST/AttrImpl.inc: ${CLANG_SRCS}/include/clang/Basic/Attr.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-clang-attr-impl \
-	    -I ${CLANG_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_TBLGEN} -gen-clang-attr-impl \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
 TGHDRS+=	clang/AST/AttrImpl.inc
 
 clang/AST/AttrNodeTraverse.inc: ${CLANG_SRCS}/include/clang/Basic/Attr.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-clang-attr-node-traverse \
-	    -I ${CLANG_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_TBLGEN} -gen-clang-attr-node-traverse \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
 TGHDRS+=	clang/AST/AttrNodeTraverse.inc
 
 clang/AST/AttrTextNodeDump.inc: ${CLANG_SRCS}/include/clang/Basic/Attr.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-clang-attr-text-node-dump \
-	    -I ${CLANG_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_TBLGEN} -gen-clang-attr-text-node-dump \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
 TGHDRS+=	clang/AST/AttrTextNodeDump.inc
 
 clang/AST/AttrVisitor.inc: ${CLANG_SRCS}/include/clang/Basic/Attr.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-clang-attr-ast-visitor \
-	    -I ${CLANG_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_TBLGEN} -gen-clang-attr-ast-visitor \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
 TGHDRS+=	clang/AST/AttrVisitor.inc
 
 clang/AST/Attrs.inc: ${CLANG_SRCS}/include/clang/Basic/Attr.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-clang-attr-classes \
-	    -I ${CLANG_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_TBLGEN} -gen-clang-attr-classes \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
 TGHDRS+=	clang/AST/Attrs.inc
 
 clang/AST/CommentCommandInfo.inc: \
-    ${CLANG_SRCS}/include/clang/AST/CommentCommands.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-clang-comment-command-info \
-	    -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_SRCS}/include/clang/AST/CommentCommands.td
+	${CLANG_TBLGEN} -gen-clang-comment-command-info \
+	    -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/AST/CommentCommands.td
 TGHDRS+=	clang/AST/CommentCommandInfo.inc
 
 clang/AST/CommentCommandList.inc: \
-    ${CLANG_SRCS}/include/clang/AST/CommentCommands.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-clang-comment-command-list \
-	    -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_SRCS}/include/clang/AST/CommentCommands.td
+	${CLANG_TBLGEN} -gen-clang-comment-command-list \
+	    -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/AST/CommentCommands.td
 TGHDRS+=	clang/AST/CommentCommandList.inc
 
 clang/AST/CommentHTMLNamedCharacterReferences.inc: \
-    ${CLANG_SRCS}/include/clang/AST/CommentHTMLNamedCharacterReferences.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} \
-	    --gen-clang-comment-html-named-character-references \
-	    -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_SRCS}/include/clang/AST/CommentHTMLNamedCharacterReferences.td
+	${CLANG_TBLGEN} -gen-clang-comment-html-named-character-references \
+	    -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/AST/CommentHTMLNamedCharacterReferences.td
 TGHDRS+=	clang/AST/CommentHTMLNamedCharacterReferences.inc
 
 clang/AST/CommentHTMLTags.inc: \
-    ${CLANG_SRCS}/include/clang/AST/CommentHTMLTags.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-clang-comment-html-tags \
-	    -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_SRCS}/include/clang/AST/CommentHTMLTags.td
+	${CLANG_TBLGEN} -gen-clang-comment-html-tags \
+	    -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/AST/CommentHTMLTags.td
 TGHDRS+=	clang/AST/CommentHTMLTags.inc
 
 clang/AST/CommentHTMLTagsProperties.inc: \
-    ${CLANG_SRCS}/include/clang/AST/CommentHTMLTags.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} \
-	    --gen-clang-comment-html-tags-properties -d ${.TARGET}.d \
-	    -o ${.TARGET} ${.ALLSRC}
+	${CLANG_SRCS}/include/clang/AST/CommentHTMLTags.td
+	${CLANG_TBLGEN} -gen-clang-comment-html-tags-properties \
+	    -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/AST/CommentHTMLTags.td
 TGHDRS+=	clang/AST/CommentHTMLTagsProperties.inc
 
 clang/AST/CommentNodes.inc: ${CLANG_SRCS}/include/clang/Basic/CommentNodes.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-clang-comment-nodes \
-	    -I ${CLANG_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_TBLGEN} -gen-clang-comment-nodes \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/Basic/CommentNodes.td
 TGHDRS+=	clang/AST/CommentNodes.inc
 
 clang/AST/DeclNodes.inc: ${CLANG_SRCS}/include/clang/Basic/DeclNodes.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-clang-decl-nodes \
-	    -I ${CLANG_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_TBLGEN} -gen-clang-decl-nodes \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/Basic/DeclNodes.td
 TGHDRS+=	clang/AST/DeclNodes.inc
 
 clang/AST/StmtDataCollectors.inc: \
-    ${CLANG_SRCS}/include/clang/AST/StmtDataCollectors.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-clang-data-collectors \
-	    -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_SRCS}/include/clang/AST/StmtDataCollectors.td
+	${CLANG_TBLGEN} -gen-clang-data-collectors \
+	    -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/AST/StmtDataCollectors.td
 TGHDRS+=	clang/AST/StmtDataCollectors.inc
 
 clang/AST/StmtNodes.inc: ${CLANG_SRCS}/include/clang/Basic/StmtNodes.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-clang-stmt-nodes \
-	    -I ${CLANG_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_TBLGEN} -gen-clang-stmt-nodes \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/Basic/StmtNodes.td
 TGHDRS+=	clang/AST/StmtNodes.inc
 
 clang/AST/TypeNodes.inc: ${CLANG_SRCS}/include/clang/Basic/TypeNodes.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-clang-type-nodes \
-	    -I ${CLANG_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_TBLGEN} -gen-clang-type-nodes \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/Basic/TypeNodes.td
 TGHDRS+=	clang/AST/TypeNodes.inc
 
 clang/Basic/AttrHasAttributeImpl.inc: ${CLANG_SRCS}/include/clang/Basic/Attr.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} \
-	    --gen-clang-attr-has-attribute-impl -I ${CLANG_SRCS}/include \
-	    -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_TBLGEN} -gen-clang-attr-has-attribute-impl \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
 TGHDRS+=	clang/Basic/AttrHasAttributeImpl.inc
 
 clang/Basic/AttrList.inc: ${CLANG_SRCS}/include/clang/Basic/Attr.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-clang-attr-list \
-	    -I ${CLANG_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_TBLGEN} -gen-clang-attr-list \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
 TGHDRS+=	clang/Basic/AttrList.inc
 
-clang/Basic/AttrSubMatchRulesList.inc: \
-    ${CLANG_SRCS}/include/clang/Basic/Attr.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} \
-	    --gen-clang-attr-subject-match-rule-list -I ${CLANG_SRCS}/include \
-	    -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+clang/Basic/AttrSubMatchRulesList.inc: ${CLANG_SRCS}/include/clang/Basic/Attr.td
+	${CLANG_TBLGEN} -gen-clang-attr-subject-match-rule-list \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
 TGHDRS+=	clang/Basic/AttrSubMatchRulesList.inc
 
 .for hdr in \
 	AST Analysis Comment Common CrossTU Driver Frontend Lex Parse \
 	Refactoring Sema Serialization SemaSerialization
 clang/Basic/Diagnostic${hdr}Kinds.inc: \
-    ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-clang-diags-defs \
-	    -clang-component=${hdr} -I ${CLANG_SRCS}/include/clang/Basic \
-	    -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
+	${CLANG_TBLGEN} -gen-clang-diags-defs -clang-component=${hdr} \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
 TGHDRS+=	clang/Basic/Diagnostic${hdr}Kinds.inc
 .endfor
 
 clang/Basic/DiagnosticGroups.inc: \
-    ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-clang-diag-groups \
-	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET}.d \
-	    -o ${.TARGET} ${.ALLSRC}
+	${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
+	${CLANG_TBLGEN} -gen-clang-diag-groups \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
 TGHDRS+=	clang/Basic/DiagnosticGroups.inc
 
 clang/Basic/DiagnosticIndexName.inc: \
-    ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-clang-diags-index-name \
-	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET}.d \
-	    -o ${.TARGET} ${.ALLSRC}
+	${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
+	${CLANG_TBLGEN} -gen-clang-diags-index-name \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
 TGHDRS+=	clang/Basic/DiagnosticIndexName.inc
 
 clang/Basic/arm_fp16.inc: ${CLANG_SRCS}/include/clang/Basic/arm_fp16.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-arm-neon-sema \
-	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET}.d \
-	    -o ${.TARGET} ${.ALLSRC}
+	${CLANG_TBLGEN} -gen-arm-neon-sema \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_fp16.td
 TGHDRS+=	clang/Basic/arm_fp16.inc
 
 clang/Basic/arm_neon.inc: ${CLANG_SRCS}/include/clang/Basic/arm_neon.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-arm-neon-sema \
-	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET}.d \
-	    -o ${.TARGET} ${.ALLSRC}
+	${CLANG_TBLGEN} -gen-arm-neon-sema \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_neon.td
 TGHDRS+=	clang/Basic/arm_neon.inc
 
 clang/Basic/arm_cde_builtins.inc: ${CLANG_SRCS}/include/clang/Basic/arm_cde.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-arm-cde-builtin-def \
-	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET}.d \
-	    -o ${.TARGET} ${.ALLSRC}
+	${CLANG_TBLGEN} -gen-arm-cde-builtin-def \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_cde.td
 TGHDRS+=	clang/Basic/arm_cde_builtins.inc
 
 clang/Basic/arm_cde_builtin_aliases.inc: \
-    ${CLANG_SRCS}/include/clang/Basic/arm_cde.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-arm-cde-builtin-aliases \
-	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET}.d \
-	    -o ${.TARGET} ${.ALLSRC}
+	${CLANG_SRCS}/include/clang/Basic/arm_cde.td
+	${CLANG_TBLGEN} -gen-arm-cde-builtin-aliases \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_cde.td
 TGHDRS+=	clang/Basic/arm_cde_builtin_aliases.inc
 
-clang/Basic/arm_cde_builtin_cg.inc: \
-    ${CLANG_SRCS}/include/clang/Basic/arm_cde.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-arm-cde-builtin-codegen \
-	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET}.d \
-	    -o ${.TARGET} ${.ALLSRC}
+clang/Basic/arm_cde_builtin_cg.inc: ${CLANG_SRCS}/include/clang/Basic/arm_cde.td
+	${CLANG_TBLGEN} -gen-arm-cde-builtin-codegen \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_cde.td
 TGHDRS+=	clang/Basic/arm_cde_builtin_cg.inc
 
 clang/Basic/arm_cde_builtin_sema.inc: \
-    ${CLANG_SRCS}/include/clang/Basic/arm_cde.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-arm-cde-builtin-sema \
-	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET}.d \
-	    -o ${.TARGET} ${.ALLSRC}
+	${CLANG_SRCS}/include/clang/Basic/arm_cde.td
+	${CLANG_TBLGEN} -gen-arm-cde-builtin-sema \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_cde.td
 TGHDRS+=	clang/Basic/arm_cde_builtin_sema.inc
 
 clang/Basic/arm_mve_builtins.inc: ${CLANG_SRCS}/include/clang/Basic/arm_mve.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-arm-mve-builtin-def \
-	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET}.d \
-	    -o ${.TARGET} ${.ALLSRC}
+	${CLANG_TBLGEN} -gen-arm-mve-builtin-def \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_mve.td
 TGHDRS+=	clang/Basic/arm_mve_builtins.inc
 
 clang/Basic/arm_mve_builtin_aliases.inc: \
-    ${CLANG_SRCS}/include/clang/Basic/arm_mve.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-arm-mve-builtin-aliases \
-	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET}.d \
-	    -o ${.TARGET} ${.ALLSRC}
+	${CLANG_SRCS}/include/clang/Basic/arm_mve.td
+	${CLANG_TBLGEN} -gen-arm-mve-builtin-aliases \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_mve.td
 TGHDRS+=	clang/Basic/arm_mve_builtin_aliases.inc
 
-clang/Basic/arm_mve_builtin_cg.inc: \
-    ${CLANG_SRCS}/include/clang/Basic/arm_mve.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-arm-mve-builtin-codegen \
-	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET}.d \
-	    -o ${.TARGET} ${.ALLSRC}
+clang/Basic/arm_mve_builtin_cg.inc: ${CLANG_SRCS}/include/clang/Basic/arm_mve.td
+	${CLANG_TBLGEN} -gen-arm-mve-builtin-codegen \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_mve.td
 TGHDRS+=	clang/Basic/arm_mve_builtin_cg.inc
 
 clang/Basic/arm_mve_builtin_sema.inc: \
-    ${CLANG_SRCS}/include/clang/Basic/arm_mve.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-arm-mve-builtin-sema \
-	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET}.d \
-	    -o ${.TARGET} ${.ALLSRC}
+	${CLANG_SRCS}/include/clang/Basic/arm_mve.td
+	${CLANG_TBLGEN} -gen-arm-mve-builtin-sema \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_mve.td
 TGHDRS+=	clang/Basic/arm_mve_builtin_sema.inc
 
 clang/Basic/arm_sve_builtins.inc: ${CLANG_SRCS}/include/clang/Basic/arm_sve.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-arm-sve-builtins \
-	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET}.d \
-	    -o ${.TARGET} ${.ALLSRC}
+	${CLANG_TBLGEN} -gen-arm-sve-builtins \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_sve.td
 TGHDRS+=	clang/Basic/arm_sve_builtins.inc
 
-clang/Basic/arm_sve_builtin_cg.inc: \
-    ${CLANG_SRCS}/include/clang/Basic/arm_sve.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-arm-sve-builtin-codegen \
-	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET}.d \
-	    -o ${.TARGET} ${.ALLSRC}
+clang/Basic/arm_sve_builtin_cg.inc: ${CLANG_SRCS}/include/clang/Basic/arm_sve.td
+	${CLANG_TBLGEN} -gen-arm-sve-builtin-codegen \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_sve.td
 TGHDRS+=	clang/Basic/arm_sve_builtin_cg.inc
 
 clang/Basic/arm_sve_sema_rangechecks.inc: \
-    ${CLANG_SRCS}/include/clang/Basic/arm_sve.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-arm-sve-sema-rangechecks \
-	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET}.d \
-	    -o ${.TARGET} ${.ALLSRC}
+	${CLANG_SRCS}/include/clang/Basic/arm_sve.td
+	${CLANG_TBLGEN} -gen-arm-sve-sema-rangechecks \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_sve.td
 TGHDRS+=	clang/Basic/arm_sve_sema_rangechecks.inc
 
 clang/Basic/arm_sve_typeflags.inc: \
-    ${CLANG_SRCS}/include/clang/Basic/arm_sve.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-arm-sve-typeflags \
-	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET}.d \
-	    -o ${.TARGET} ${.ALLSRC}
+	${CLANG_SRCS}/include/clang/Basic/arm_sve.td
+	${CLANG_TBLGEN} -gen-arm-sve-typeflags \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_sve.td
 TGHDRS+=	clang/Basic/arm_sve_typeflags.inc
 
 clang/Basic/riscv_vector_builtins.inc: \
-    ${CLANG_SRCS}/include/clang/Basic/riscv_vector.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-riscv-vector-builtins \
-	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET}.d \
-	    -o ${.TARGET} ${.ALLSRC}
+	${CLANG_SRCS}/include/clang/Basic/riscv_vector.td
+	${CLANG_TBLGEN} -gen-riscv-vector-builtins \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/riscv_vector.td
 TGHDRS+=	clang/Basic/riscv_vector_builtins.inc
 
 clang/Basic/riscv_vector_builtin_cg.inc: \
-    ${CLANG_SRCS}/include/clang/Basic/riscv_vector.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} \
-	    --gen-riscv-vector-builtin-codegen \
-	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET}.d \
-	    -o ${.TARGET} ${.ALLSRC}
+	${CLANG_SRCS}/include/clang/Basic/riscv_vector.td
+	${CLANG_TBLGEN} -gen-riscv-vector-builtin-codegen \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/riscv_vector.td
 TGHDRS+=	clang/Basic/riscv_vector_builtin_cg.inc
 
 clang/Basic/riscv_vector_builtin_sema.inc: \
-    ${CLANG_SRCS}/include/clang/Basic/riscv_vector.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-riscv-vector-builtin-sema \
-	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET}.d \
-	    -o ${.TARGET} ${.ALLSRC}
+	${CLANG_SRCS}/include/clang/Basic/riscv_vector.td
+	${CLANG_TBLGEN} -gen-riscv-vector-builtin-sema \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/riscv_vector.td
 TGHDRS+=	clang/Basic/riscv_vector_builtin_sema.inc
 
 clang/Parse/AttrParserStringSwitches.inc: \
-    ${CLANG_SRCS}/include/clang/Basic/Attr.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} \
-	    --gen-clang-attr-parser-string-switches -I ${CLANG_SRCS}/include \
-	    -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_SRCS}/include/clang/Basic/Attr.td
+	${CLANG_TBLGEN} -gen-clang-attr-parser-string-switches \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
 TGHDRS+=	clang/Parse/AttrParserStringSwitches.inc
 
 clang/Parse/AttrSubMatchRulesParserStringSwitches.inc: \
-    ${CLANG_SRCS}/include/clang/Basic/Attr.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} \
-	    --gen-clang-attr-subject-match-rules-parser-string-switches \
-	    -I ${CLANG_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_SRCS}/include/clang/Basic/Attr.td
+	${CLANG_TBLGEN} -gen-clang-attr-subject-match-rules-parser-string-switches \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
 TGHDRS+=	clang/Parse/AttrSubMatchRulesParserStringSwitches.inc
 
 clang/Sema/AttrParsedAttrImpl.inc: ${CLANG_SRCS}/include/clang/Basic/Attr.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} \
-	    --gen-clang-attr-parsed-attr-impl -I ${CLANG_SRCS}/include \
-	    -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_TBLGEN} -gen-clang-attr-parsed-attr-impl \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
 TGHDRS+=	clang/Sema/AttrParsedAttrImpl.inc
 
 clang/Sema/AttrParsedAttrKinds.inc: ${CLANG_SRCS}/include/clang/Basic/Attr.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} \
-	    --gen-clang-attr-parsed-attr-kinds -I ${CLANG_SRCS}/include \
-	    -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_TBLGEN} -gen-clang-attr-parsed-attr-kinds \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
 TGHDRS+=	clang/Sema/AttrParsedAttrKinds.inc
 
 clang/Sema/AttrParsedAttrList.inc: ${CLANG_SRCS}/include/clang/Basic/Attr.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} \
-	    --gen-clang-attr-parsed-attr-list -I ${CLANG_SRCS}/include \
-	    -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_TBLGEN} -gen-clang-attr-parsed-attr-list \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
 TGHDRS+=	clang/Sema/AttrParsedAttrList.inc
 
 clang/Sema/AttrSpellingListIndex.inc: ${CLANG_SRCS}/include/clang/Basic/Attr.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-clang-attr-spelling-index \
-	    -I ${CLANG_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_TBLGEN} -gen-clang-attr-spelling-index \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
 TGHDRS+=	clang/Sema/AttrSpellingListIndex.inc
 
 clang/Sema/AttrTemplateInstantiate.inc: \
-    ${CLANG_SRCS}/include/clang/Basic/Attr.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} \
-	    --gen-clang-attr-template-instantiate -I ${CLANG_SRCS}/include \
-	    -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_SRCS}/include/clang/Basic/Attr.td
+	${CLANG_TBLGEN} -gen-clang-attr-template-instantiate \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
 TGHDRS+=	clang/Sema/AttrTemplateInstantiate.inc
 
 clang/Serialization/AttrPCHRead.inc: ${CLANG_SRCS}/include/clang/Basic/Attr.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-clang-attr-pch-read \
-	    -I ${CLANG_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_TBLGEN} -gen-clang-attr-pch-read \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
 TGHDRS+=	clang/Serialization/AttrPCHRead.inc
 
 clang/Serialization/AttrPCHWrite.inc: ${CLANG_SRCS}/include/clang/Basic/Attr.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-clang-attr-pch-write \
-	    -I ${CLANG_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_TBLGEN} -gen-clang-attr-pch-write \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
 TGHDRS+=	clang/Serialization/AttrPCHWrite.inc
 
 clang/StaticAnalyzer/Checkers/Checkers.inc: \
-    ${CLANG_SRCS}/include/clang/StaticAnalyzer/Checkers/Checkers.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-clang-sa-checkers \
+	${CLANG_SRCS}/include/clang/StaticAnalyzer/Checkers/Checkers.td
+	${CLANG_TBLGEN} -gen-clang-sa-checkers \
 	    -I ${CLANG_SRCS}/include/clang/StaticAnalyzer/Checkers \
-	    -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	    -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/StaticAnalyzer/Checkers/Checkers.td
 TGHDRS+=	clang/StaticAnalyzer/Checkers/Checkers.inc
 
 Opcodes.inc: ${CLANG_SRCS}/lib/AST/Interp/Opcodes.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-clang-opcodes \
-	    -I ${CLANG_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_TBLGEN} -gen-clang-opcodes \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/lib/AST/Interp/Opcodes.td
 TGHDRS+=	Opcodes.inc
 
 OpenCLBuiltins.inc: ${CLANG_SRCS}/lib/Sema/OpenCLBuiltins.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-clang-opencl-builtins \
-	    -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	${CLANG_TBLGEN} -gen-clang-opencl-builtins \
+	    -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/lib/Sema/OpenCLBuiltins.td
 TGHDRS+=	OpenCLBuiltins.inc
 
 ${TGHDRS}: ${CLANG_TBLGEN_BIN}
@@ -1102,9 +1121,10 @@ DPSRCS+=	${TGHDRS}
 CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}
 
 clang/Driver/Options.inc: ${CLANG_SRCS}/include/clang/Driver/Options.td
-	${LLVM_TBLGEN} ${LLVM_TBLGEN_OPTS} --gen-opt-parser-defs \
+	${LLVM_TBLGEN} -gen-opt-parser-defs \
 	    -I ${LLVM_SRCS}/include -I ${CLANG_SRCS}/include/clang/Driver \
-	    -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+	    -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/Driver/Options.td
 LTGHDRS+=	clang/Driver/Options.inc
 
 ${LTGHDRS}: ${LLVM_TBLGEN_BIN}

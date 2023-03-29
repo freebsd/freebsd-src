@@ -200,17 +200,17 @@ PPC+=		ppc_wrappers/xmmintrin.h
 .for hdr in bf16/bf16 cde/cde-header fp16/fp16 mve/mve-header neon/neon \
 	sve/sve-header
 arm_${hdr:H}.h: ${CLANG_SRCS}/include/clang/Basic/arm_${hdr:H}.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-arm-${hdr:T} \
-	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET}.d \
-	    -o ${.TARGET} ${.ALLSRC}
+	${CLANG_TBLGEN} -gen-arm-${hdr:T} \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/arm_${hdr:H}.td
 GENINCS+=	arm_${hdr:H}.h
 .endfor
 
 .for hdr in vector/vector-header
 riscv_${hdr:H}.h: ${CLANG_SRCS}/include/clang/Basic/riscv_${hdr:H}.td
-	${CLANG_TBLGEN} ${CLANG_TBLGEN_OPTS} --gen-riscv-${hdr:T} \
-	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET}.d \
-	    -o ${.TARGET} ${.ALLSRC}
+	${CLANG_TBLGEN} -gen-riscv-${hdr:T} \
+	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${CLANG_SRCS}/include/clang/Basic/riscv_${hdr:H}.td
 GENINCS+=	riscv_${hdr:H}.h
 .endfor
 
