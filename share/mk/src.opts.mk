@@ -263,7 +263,7 @@ __LLVM_TARGETS= \
 		powerpc \
 		riscv \
 		x86
-__LLVM_TARGET_FILT=	C/(amd64|i386)/x86/:C/powerpc.*/powerpc/:C/armv[67]/arm/:C/riscv.*/riscv/:C/mips.*/mips/
+__LLVM_TARGET_FILT=	C/(amd64|i386)/x86/:C/powerpc.*/powerpc/:C/armv[67]/arm/:C/riscv.*/riscv/
 .for __llt in ${__LLVM_TARGETS}
 # Default enable the given TARGET's LLVM_TARGET support
 .if ${__T:${__LLVM_TARGET_FILT}} == ${__llt}
