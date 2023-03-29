@@ -52,6 +52,17 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20230329: libcasper libraries moved to /lib
+MOVED_LIBS+=lib/casper/libcap_dns.so.2
+MOVED_LIBS+=lib/casper/libcap_fileargs.so.1
+MOVED_LIBS+=lib/casper/libcap_grp.so.1
+MOVED_LIBS+=lib/casper/libcap_net.so.1
+MOVED_LIBS+=lib/casper/libcap_pwd.so.1
+MOVED_LIBS+=lib/casper/libcap_sysctl.so.1
+MOVED_LIBS+=lib/casper/libcap_sysctl.so.2
+MOVED_LIBS+=lib/casper/libcap_syslog.so.1
+OLD_DIRS+=lib/casper
+
 # 20230324: libvmmapi shlib version bumped to 6
 OLD_LIBS+=usr/lib/libvmmapi.so.5
 

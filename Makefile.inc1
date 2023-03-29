@@ -1076,8 +1076,7 @@ _bootstrap-tools:
 	${_+_}cd ${.CURDIR}; ${BMAKE} _NO_INCLUDE_COMPILERMK=t _cleanobj_fast_depend_hack
 .endif
 	${_+_}cd ${.CURDIR}; ${BMAKE} bootstrap-tools
-	mkdir -p ${WORLDTMP}/usr ${WORLDTMP}/lib/casper ${WORLDTMP}/lib/geom \
-	    ${WORLDTMP}/bin
+	mkdir -p ${WORLDTMP}/usr ${WORLDTMP}/lib/geom ${WORLDTMP}/bin
 	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
 	    -p ${WORLDTMP}/usr >/dev/null
 	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.include.dist \

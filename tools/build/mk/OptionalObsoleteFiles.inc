@@ -855,14 +855,14 @@ OLD_DIRS+=usr/tests/usr.bin/calendar
 
 .if ${MK_CASPER} == no
 OLD_LIBS+=lib/libcasper.so.1
-OLD_LIBS+=lib/casper/libcap_dns.so.2
-OLD_LIBS+=lib/casper/libcap_fileargs.so.1
-OLD_LIBS+=lib/casper/libcap_grp.so.1
-OLD_LIBS+=lib/casper/libcap_net.so.1
-OLD_LIBS+=lib/casper/libcap_pwd.so.1
-OLD_LIBS+=lib/casper/libcap_sysctl.so.1
-OLD_LIBS+=lib/casper/libcap_sysctl.so.2
-OLD_LIBS+=lib/casper/libcap_syslog.so.1
+OLD_LIBS+=lib/libcap_dns.so.2
+OLD_LIBS+=lib/libcap_fileargs.so.1
+OLD_LIBS+=lib/libcap_grp.so.1
+OLD_LIBS+=lib/libcap_net.so.1
+OLD_LIBS+=lib/libcap_pwd.so.1
+OLD_LIBS+=lib/libcap_sysctl.so.1
+OLD_LIBS+=lib/libcap_sysctl.so.2
+OLD_LIBS+=lib/libcap_syslog.so.1
 .endif
 
 .if ${MK_CCD} == no
