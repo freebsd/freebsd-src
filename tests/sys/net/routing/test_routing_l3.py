@@ -1,7 +1,13 @@
 import ipaddress
+import socket
 
 import pytest
+from atf_python.sys.net.rtsock import RtConst
+from atf_python.sys.net.rtsock import Rtsock
+from atf_python.sys.net.rtsock import RtsockRtMessage
+from atf_python.sys.net.rtsock import SaHelper
 from atf_python.sys.net.tools import ToolsHelper
+from atf_python.sys.net.vnet import SingleVnetTestTemplate
 from atf_python.sys.net.vnet import VnetTestTemplate
 
 
@@ -79,3 +85,36 @@ class TestIfOps(VnetTestTemplate):
         nhops = ToolsHelper.get_nhops(family)
         nh = [nh for nh in nhops if nh["index"] == nhop_kidx][0]
         assert nh["ifa"] == str(second_addr.ip)
+
+
+class TestRouteCornerCase1(SingleVnetTestTemplate):
+    @pytest.mark.parametrize("family", ["inet", "inet6"])
+    @pytest.mark.require_user("root")
+    def test_add_direct_route_p2p_wo_ifa(self, family):
+
+        tun_ifname = ToolsHelper.get_output("/sbin/ifconfig tun create").rstrip()
+        tun_ifindex = socket.if_nametoindex(tun_ifname)
+        assert tun_ifindex > 0
+        rtsock = Rtsock()
+
+        if family == "inet":
+            prefix = "172.16.0.0/12"
+        else:
+            prefix = "2a02:6b8::/64"
+        IFT_ETHER = 0x06
+        gw_link = SaHelper.link_sa(ifindex=tun_ifindex, iftype=IFT_ETHER)
+
+        msg = rtsock.new_rtm_add(prefix, gw_link)
+        msg.add_link_attr(RtConst.RTA_IFP, tun_ifindex)
+        rtsock.write_message(msg)
+
+        data = rtsock.read_data(msg.rtm_seq)
+        msg_in = RtsockRtMessage.from_bytes(data)
+        msg_in.print_in_message()
+
+        desired_sa = {
+            RtConst.RTA_DST: msg.get_sa(RtConst.RTA_DST),
+            RtConst.RTA_NETMASK: msg.get_sa(RtConst.RTA_NETMASK),
+        }
+
+        msg_in.verify(msg.rtm_type, desired_sa)
