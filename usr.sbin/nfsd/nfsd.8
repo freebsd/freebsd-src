@@ -28,7 +28,7 @@
 .\"	@(#)nfsd.8	8.4 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd December 20, 2019
+.Dd March 22, 2023
 .Dt NFSD 8
 .Os
 .Sh NAME
@@ -55,6 +55,22 @@ must be running for a machine to operate as a server.
 .Pp
 Unless otherwise specified, eight servers per CPU for UDP transport are
 started.
+.Pp
+When
+.Nm
+is run in an appropriately configured vnet jail, the server is restricted
+to TCP transport and no pNFS service.
+Therefore, the
+.Fl t
+option must be specified and none of the
+.Fl u ,
+.Fl p
+and
+.Fl m
+options can be specified when run in a vnet jail.
+See
+.Xr jail 8
+for more information.
 .Pp
 The following options are available:
 .Bl -tag -width Ds
@@ -307,6 +323,7 @@ just do a
 .Xr stablerestart 5 ,
 .Xr gssd 8 ,
 .Xr ipfw 8 ,
+.Xr jail 8 ,
 .Xr mountd 8 ,
 .Xr nfsiod 8 ,
 .Xr nfsrevoke 8 ,
