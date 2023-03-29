@@ -163,6 +163,9 @@ static int in6_broadcast_ifa(struct ifnet *, struct in6_aliasreq *,
 #define ifa2ia6(ifa)	((struct in6_ifaddr *)(ifa))
 #define ia62ifa(ia6)	(&((ia6)->ia_ifa))
 
+static struct sx in6_control_sx;
+SX_SYSINIT(in6_control_sx, &in6_control_sx, "in6_control");
+
 void
 in6_newaddrmsg(struct in6_ifaddr *ia, int cmd)
 {
@@ -251,6 +254,7 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 	int carp_attached = 0;
 	int error;
 	u_long ocmd = cmd;
+	bool control_locked = false;
 
 	/*
 	 * Compat to make pre-10.x ifconfig(8) operable.
@@ -406,6 +410,8 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 		if (td != NULL && (error = prison_check_ip6(td->td_ucred,
 		    &sa6->sin6_addr)) != 0)
 			return (error);
+		sx_xlock(&in6_control_sx);
+		control_locked = true;
 		ia = in6ifa_ifpwithaddr(ifp, &sa6->sin6_addr);
 	} else
 		ia = NULL;
@@ -710,6 +716,9 @@ aifaddr_out:
 
 	error = 0;
 out:
+	if (control_locked)
+		sx_xunlock(&in6_control_sx);
+
 	if (ia != NULL)
 		ifa_free(&ia->ia_ifa);
 	return (error);
