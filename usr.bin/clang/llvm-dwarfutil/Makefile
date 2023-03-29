@@ -10,13 +10,10 @@ SRCS+=		llvm-dwarfutil.cpp
 
 CFLAGS+=	-I${.OBJDIR}
 
-INCFILE=	Options.inc
-TDFILE=		${LLVM_BASE}/${SRCDIR}/Options.td
-GENOPT=		-gen-opt-parser-defs
-${INCFILE}: ${TDFILE}
-	${LLVM_TBLGEN} ${GENOPT} -I ${LLVM_SRCS}/include -d ${.TARGET:C/$/.d/} \
-	    -o ${.TARGET} ${TDFILE}
-TGHDRS+=	${INCFILE}
+Options.inc: ${LLVM_BASE}/${SRCDIR}/Options.td
+	${LLVM_TBLGEN} ${LLVM_TBLGEN_OPTS} --gen-opt-parser-defs \
+	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+TGHDRS+=	Options.inc
 
 ${TGHDRS}: ${LLVM_TBLGEN_BIN}
 
