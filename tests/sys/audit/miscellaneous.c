@@ -92,9 +92,6 @@ ATF_TC_BODY(sysarch_success, tc)
 #elif defined(AMD64_GET_FSBASE)		/* amd64 */
 	register_t amd64arg;
 
-#elif defined(MIPS_GET_TLS)		/* MIPS */
-	char *mipsarg;
-
 #elif defined(ARM_SYNC_ICACHE)		/* ARM */
 	struct arm_sync_icache_args armsysarg;
 	bzero(&armsysarg, sizeof(armsysarg));
@@ -123,8 +120,6 @@ ATF_TC_BODY(sysarch_success, tc)
 	ATF_REQUIRE_EQ(0, sysarch(I386_GET_IOPERM, &i3sysarg));
 #elif defined(AMD64_GET_FSBASE)
 	ATF_REQUIRE_EQ(0, sysarch(AMD64_GET_FSBASE, &amd64arg));
-#elif defined(MIPS_GET_TLS)
-	ATF_REQUIRE_EQ(0, sysarch(MIPS_GET_TLS, &mipsarg));
 #elif defined(ARM_SYNC_ICACHE)
 	ATF_REQUIRE_EQ(0, sysarch(ARM_SYNC_ICACHE, &armsysarg));
 #elif defined(SPARC_UTRAP_INSTALL)
