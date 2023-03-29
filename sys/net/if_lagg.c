@@ -105,7 +105,7 @@ static struct {
 	{0, NULL}
 };
 
-VNET_DEFINE(SLIST_HEAD(__trhead, lagg_softc), lagg_list); /* list of laggs */
+VNET_DEFINE_STATIC(SLIST_HEAD(__trhead, lagg_softc), lagg_list); /* list of laggs */
 #define	V_lagg_list	VNET(lagg_list)
 VNET_DEFINE_STATIC(struct mtx, lagg_list_mtx);
 #define	V_lagg_list_mtx	VNET(lagg_list_mtx)
@@ -114,7 +114,7 @@ VNET_DEFINE_STATIC(struct mtx, lagg_list_mtx);
 #define	LAGG_LIST_LOCK_DESTROY(x)	mtx_destroy(&V_lagg_list_mtx)
 #define	LAGG_LIST_LOCK(x)		mtx_lock(&V_lagg_list_mtx)
 #define	LAGG_LIST_UNLOCK(x)		mtx_unlock(&V_lagg_list_mtx)
-eventhandler_tag	lagg_detach_cookie = NULL;
+static eventhandler_tag	lagg_detach_cookie = NULL;
 
 static int	lagg_clone_create(struct if_clone *, int, caddr_t);
 static void	lagg_clone_destroy(struct ifnet *);
