@@ -189,8 +189,7 @@ SRCF+=		trunctfsf2
 .endif
 
 # These are already shipped by libc.a on some architectures.
-.if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips" && \
-    ${MACHINE_CPUARCH} != "riscv"
+.if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "riscv"
 SRCF+=		adddf3
 SRCF+=		addsf3
 SRCF+=		divdf3
@@ -207,7 +206,7 @@ SRCF+=		subsf3
 SRCF+=		truncdfsf2
 .endif
 
-.if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
+.if ${MACHINE_CPUARCH} != "arm"
 SRCF+=		comparedf2
 SRCF+=		comparesf2
 .endif
@@ -218,10 +217,6 @@ SRCF+=		comparesf2
 
 SRCF+=		stdatomic
 CFLAGS+=	-DEMIT_SYNC_ATOMICS
-.elif ${MACHINE_CPUARCH} == "mips"
-.PATH:		${SRCTOP}/sys/mips/mips
-
-SRCF+=		stdatomic
 .endif
 
 .for file in ${SRCF}
