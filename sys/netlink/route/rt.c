@@ -661,7 +661,7 @@ handle_rtm_dump(struct nlpcb *nlp, uint32_t fibnum, int family,
 }
 
 static struct nhop_object *
-finalize_nhop(struct nhop_object *nh, int *perror)
+finalize_nhop(struct nhop_object *nh, const struct sockaddr *dst, int *perror)
 {
 	/*
 	 * The following MUST be filled:
@@ -682,7 +682,15 @@ finalize_nhop(struct nhop_object *nh, int *perror)
 	} else {
 		/* Gateway is set up, we can derive ifp if not set */
 		if (nh->nh_ifp == NULL) {
-			struct ifaddr *ifa = ifa_ifwithnet(&nh->gw_sa, 1, nhop_get_fibnum(nh));
+			uint32_t fibnum = nhop_get_fibnum(nh);
+			uint32_t flags = 0;
+
+			if (nh->nh_flags & NHF_GATEWAY)
+				flags = RTF_GATEWAY;
+			else if (nh->nh_flags & NHF_HOST)
+				flags = RTF_HOST;
+
+			struct ifaddr *ifa = ifa_ifwithroute(flags, dst, &nh->gw_sa, fibnum);
 			if (ifa == NULL) {
 				NL_LOG(LOG_DEBUG, "Unable to determine ifp, skipping");
 				*perror = EINVAL;
@@ -765,7 +773,7 @@ create_nexthop_one(struct nl_parsed_route *attrs, struct rta_mpath_nh *mpnh,
 	if (attrs->rtm_protocol > RTPROT_STATIC)
 		nhop_set_origin(nh, attrs->rtm_protocol);
 
-	*pnh = finalize_nhop(nh, &error);
+	*pnh = finalize_nhop(nh, attrs->rta_dst, &error);
 
 	return (error);
 }
@@ -852,7 +860,7 @@ create_nexthop_from_attrs(struct nl_parsed_route *attrs,
 		/* TODO: return ENOTSUP for other types if strict option is set */
 		}
 
-		nh = finalize_nhop(nh, perror);
+		nh = finalize_nhop(nh, attrs->rta_dst, perror);
 	}
 
 	return (nh);
