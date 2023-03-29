@@ -1907,64 +1907,57 @@ SRCS_ALL+=	${SRCS_XDW}
 SRCS+=		${GENSRCS}
 SRCS+=		${SRCS_ALL:O}
 
-llvm/Frontend/OpenMP/OMP.h.inc: ${LLVM_SRCS}/include/llvm/Frontend/OpenMP/OMP.td
-	${LLVM_TBLGEN} --gen-directive-decl \
-	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} \
-	    ${LLVM_SRCS}/include/llvm/Frontend/OpenMP/OMP.td
+llvm/Frontend/OpenMP/OMP.h.inc: \
+    ${LLVM_SRCS}/include/llvm/Frontend/OpenMP/OMP.td
+	${LLVM_TBLGEN} ${LLVM_TBLGEN_OPTS} --gen-directive-decl \
+	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
 TGHDRS+=	llvm/Frontend/OpenMP/OMP.h.inc
 
 llvm/Frontend/OpenMP/OMP.inc: ${LLVM_SRCS}/include/llvm/Frontend/OpenMP/OMP.td
-	${LLVM_TBLGEN} --gen-directive-impl \
-	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} \
-	    ${LLVM_SRCS}/include/llvm/Frontend/OpenMP/OMP.td
+	${LLVM_TBLGEN} ${LLVM_TBLGEN_OPTS} --gen-directive-impl \
+	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
 TGHDRS+=	llvm/Frontend/OpenMP/OMP.inc
 
 OMP.cpp: ${LLVM_SRCS}/include/llvm/Frontend/OpenMP/OMP.td
-	${LLVM_TBLGEN} --gen-directive-impl \
-	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} \
-	    ${LLVM_SRCS}/include/llvm/Frontend/OpenMP/OMP.td
+	${LLVM_TBLGEN} ${LLVM_TBLGEN_OPTS} --gen-directive-impl \
+	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
 GENSRCS+=	OMP.cpp
 
 llvm/IR/Attributes.inc: ${LLVM_SRCS}/include/llvm/IR/Attributes.td
-	${LLVM_TBLGEN} -gen-attrs \
-	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} \
-	    ${LLVM_SRCS}/include/llvm/IR/Attributes.td
+	${LLVM_TBLGEN} ${LLVM_TBLGEN_OPTS} --gen-attrs \
+	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
 TGHDRS+=	llvm/IR/Attributes.inc
 
 llvm/IR/IntrinsicEnums.inc: ${LLVM_SRCS}/include/llvm/IR/Intrinsics.td
-	${LLVM_TBLGEN} -gen-intrinsic-enums \
-	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} \
-	    ${LLVM_SRCS}/include/llvm/IR/Intrinsics.td
+	${LLVM_TBLGEN} ${LLVM_TBLGEN_OPTS} --gen-intrinsic-enums \
+	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
 TGHDRS+=	llvm/IR/IntrinsicEnums.inc
 
 llvm/IR/IntrinsicImpl.inc: ${LLVM_SRCS}/include/llvm/IR/Intrinsics.td
-	${LLVM_TBLGEN} -gen-intrinsic-impl \
-	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} \
-	    ${LLVM_SRCS}/include/llvm/IR/Intrinsics.td
+	${LLVM_TBLGEN} ${LLVM_TBLGEN_OPTS} --gen-intrinsic-impl \
+	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
 TGHDRS+=	llvm/IR/IntrinsicImpl.inc
 
 .for arch in \
 	AArch64/aarch64 AMDGPU/amdgcn ARM/arm BPF/bpf DirectX/dx \
-	Hexagon/hexagon Mips/mips NVPTX/nvvm PowerPC/ppc R600/r600 RISCV/riscv \
-	S390/s390 VE/ve WebAssembly/wasm X86/x86 XCore/xcore
+	Hexagon/hexagon Mips/mips NVPTX/nvvm PowerPC/ppc R600/r600 \
+	RISCV/riscv S390/s390 VE/ve WebAssembly/wasm X86/x86 XCore/xcore
 llvm/IR/Intrinsics${arch:H}.h: ${LLVM_SRCS}/include/llvm/IR/Intrinsics.td
-	${LLVM_TBLGEN} -gen-intrinsic-enums -intrinsic-prefix=${arch:T} \
-	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} \
-	    ${LLVM_SRCS}/include/llvm/IR/Intrinsics.td
+	${LLVM_TBLGEN} ${LLVM_TBLGEN_OPTS} \
+	    --gen-intrinsic-enums -intrinsic-prefix=${arch:T} \
+	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
 TGHDRS+=	llvm/IR/Intrinsics${arch:H}.h
 .endfor
 
 llvm-lib/Options.inc: ${LLVM_SRCS}/lib/ToolDrivers/llvm-lib/Options.td
-	${LLVM_TBLGEN} -gen-opt-parser-defs \
-	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} \
-	    ${LLVM_SRCS}/lib/ToolDrivers/llvm-lib/Options.td
+	${LLVM_TBLGEN} ${LLVM_TBLGEN_OPTS} --gen-opt-parser-defs \
+	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
 TGHDRS+=	llvm-lib/Options.inc
 CFLAGS.LibDriver.cpp+=	-I${.OBJDIR}/llvm-lib
 
 llvm-dlltool/Options.inc: ${LLVM_SRCS}/lib/ToolDrivers/llvm-dlltool/Options.td
-	${LLVM_TBLGEN} -gen-opt-parser-defs \
-	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} \
-	    ${LLVM_SRCS}/lib/ToolDrivers/llvm-dlltool/Options.td
+	${LLVM_TBLGEN} ${LLVM_TBLGEN_OPTS} --gen-opt-parser-defs \
+	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
 TGHDRS+=	llvm-dlltool/Options.inc
 CFLAGS.DlltoolDriver.cpp+=	-I${.OBJDIR}/llvm-dlltool
 
@@ -2009,10 +2002,9 @@ beforebuild:
 	SystemOperands/-gen-searchable-tables \
 	SystemRegister/-gen-searchable-tables
 ${arch:T}Gen${hdr:H}.inc: ${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}.td
-	${LLVM_TBLGEN} ${hdr:T:C/,/ /g} \
+	${LLVM_TBLGEN} ${LLVM_TBLGEN_OPTS} ${hdr:T:C/,/ /g} \
 	    -I ${LLVM_SRCS}/include -I ${LLVM_SRCS}/lib/Target/${arch:H} \
-	    -d ${.TARGET}.d -o ${.TARGET} \
-	    ${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}.td
+	    -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
 . endfor
 .endfor
 .if ${MK_LLVM_TARGET_AARCH64} != "no"

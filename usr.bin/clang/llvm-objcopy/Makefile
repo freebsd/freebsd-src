@@ -17,9 +17,9 @@ CFLAGS+=	-I${LLVM_BASE}/${SRCDIR}
 
 .for hdr in BitcodeStripOpts InstallNameToolOpts ObjcopyOpts StripOpts
 ${hdr}.inc: ${LLVM_BASE}/${SRCDIR}/${hdr}.td
-	${LLVM_TBLGEN} -gen-opt-parser-defs \
+	${LLVM_TBLGEN} ${LLVM_TBLGEN_OPTS} --gen-opt-parser-defs \
 	    -I ${LLVM_SRCS}/tools/llvm-objcopy -I ${LLVM_SRCS}/include \
-	    -d ${.TARGET}.d -o ${.TARGET} ${LLVM_BASE}/${SRCDIR}/${hdr}.td
+	    -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
 TGHDRS+=	${hdr}.inc
 .endfor
 

@@ -11,13 +11,10 @@ SRCS+=		llvm-size.cpp
 
 CFLAGS+=	-I${.OBJDIR}
 
-INCFILE=	Opts.inc
-TDFILE=		${LLVM_BASE}/${SRCDIR}/Opts.td
-GENOPT=		-gen-opt-parser-defs
-${INCFILE}: ${TDFILE}
-	${LLVM_TBLGEN} ${GENOPT} -I ${LLVM_SRCS}/include -d ${.TARGET:C/$/.d/} \
-	    -o ${.TARGET} ${TDFILE}
-TGHDRS+=	${INCFILE}
+Opts.inc: ${LLVM_BASE}/${SRCDIR}/Opts.td
+	${LLVM_TBLGEN} ${LLVM_TBLGEN_OPTS} --gen-opt-parser-defs \
+	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} ${.ALLSRC}
+TGHDRS+=	Opts.inc
 
 ${TGHDRS}: ${LLVM_TBLGEN_BIN}
 

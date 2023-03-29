@@ -700,13 +700,10 @@ SRCS+=		Utility/VMRange.cpp
 SRCS+=		Utility/XcodeSDK.cpp
 SRCS+=		Version/Version.cpp
 
-LLDB_TBLGEN?=	lldb-tblgen
-LLDB_TBLGEN_BIN!= which ${LLDB_TBLGEN}
-
 CommandOptions.inc: ${LLDB_SRCS}/source/Commands/Options.td
-	${LLDB_TBLGEN} -gen-lldb-option-defs \
-	    -I ${LLDB_SRCS}/source/Commands -d ${.TARGET:C/$/.d/} \
-	    -o ${.TARGET} ${LLDB_SRCS}/source/Commands/Options.td
+	${LLDB_TBLGEN} ${LLDB_TBLGEN_OPTS} --gen-lldb-option-defs \
+	    -I ${LLDB_SRCS}/source/Commands -d ${.TARGET}.d -o ${.TARGET} \
+	    ${.ALLSRC}
 TGHDRS+=	CommandOptions.inc
 
 .for path in \
@@ -717,15 +714,15 @@ TGHDRS+=	CommandOptions.inc
 	Plugins/SymbolFile/DWARF/SymbolFileDWARF \
 	Target/Target
 ${path:T}Properties.inc: ${LLDB_SRCS}/source/${path}Properties.td
-	${LLDB_TBLGEN} -gen-lldb-property-defs \
-	    -I ${LLDB_SRCS}/source/${path:H} -d ${.TARGET:C/$/.d/} \
-	    -o ${.TARGET} ${LLDB_SRCS}/source/${path}Properties.td
+	${LLDB_TBLGEN} ${LLDB_TBLGEN_OPTS} --gen-lldb-property-defs \
+	    -I ${LLDB_SRCS}/source/${path:H} -d ${.TARGET}.d -o ${.TARGET} \
+	    ${.ALLSRC}
 TGHDRS+=	${path:T}Properties.inc
 
 ${path:T}PropertiesEnum.inc: ${LLDB_SRCS}/source/${path}Properties.td
-	${LLDB_TBLGEN} -gen-lldb-property-enum-defs \
-	    -I ${LLDB_SRCS}/source/${path:H} -d ${.TARGET:C/$/.d/} \
-	    -o ${.TARGET} ${LLDB_SRCS}/source/${path}Properties.td
+	${LLDB_TBLGEN} ${LLDB_TBLGEN_OPTS} --gen-lldb-property-enum-defs \
+	    -I ${LLDB_SRCS}/source/${path:H} -d ${.TARGET}.d -o ${.TARGET} \
+	    ${.ALLSRC}
 TGHDRS+=	${path:T}PropertiesEnum.inc
 .endfor
 
