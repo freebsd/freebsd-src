@@ -121,9 +121,9 @@
 
 2) Modified client-side defaults
 
-   We've modified some configuration defaults in ssh:
-
-      - CheckHostIP defaults to "no".
+   We defaulted CheckHostIP to "no" in 2000 (a95c1225217b).  Upstream has
+   now made the same change, and we no longer have any modified client-side
+   defaults.
 
 3) Canonic host names
 
