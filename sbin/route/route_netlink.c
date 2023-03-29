@@ -6,6 +6,8 @@
 
 #include <sys/bitcount.h>
 #include <sys/param.h>
+#include <sys/linker.h>
+#include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
@@ -90,6 +92,23 @@ get_netmask(struct snl_state *ss, int family, int plen)
 	return (NULL);
 }
 
+static void
+nl_init_socket(struct snl_state *ss)
+{
+	if (snl_init(ss, NETLINK_ROUTE))
+		return;
+
+	if (modfind("netlink") == -1 && errno == ENOENT) {
+		/* Try to load */
+		if (kldload("netlink") == -1)
+			err(1, "netlink is not loaded and load attempt failed");
+		if (snl_init(ss, NETLINK_ROUTE))
+			return;
+	}
+
+	err(1, "unable to open netlink socket");
+}
+
 struct nl_helper {
 	struct snl_state ss_cmd;
 };
@@ -97,8 +116,7 @@ struct nl_helper {
 static void
 nl_helper_init(struct nl_helper *h)
 {
-	if (!snl_init(&h->ss_cmd, NETLINK_ROUTE))
-		err(1, "unable to open netlink socket");
+	nl_init_socket(&h->ss_cmd);
 }
 
 static void
@@ -680,8 +698,7 @@ monitor_nl(int fib)
 	struct snl_state ss_event = {};
 	struct nl_helper h;
 
-	if (!snl_init(&ss_event, NETLINK_ROUTE))
-		err(1, "unable to open netlink socket");
+	nl_init_socket(&ss_event);
 	nl_helper_init(&h);
 
 	int groups[] = {
@@ -789,8 +806,7 @@ flushroutes_fib_nl(int fib, int af)
 	struct snl_writer nw;
 	struct nl_helper h = {};
 
-	if (!snl_init(&ss, NETLINK_ROUTE))
-		err(1, "unable to open netlink socket");
+	nl_init_socket(&ss);
 	snl_init_writer(&ss, &nw);
 
 	struct nlmsghdr *hdr = snl_create_msg_request(&nw, NL_RTM_GETROUTE);
