@@ -2693,9 +2693,37 @@ Zone	Asia/Pyongyang	8:23:00 -	LMT	1908 Apr  1
 # Lebanon
 #
 # From Saadallah Itani (2023-03-23):
-# Lebanon too announced today delay of Spring forward from March 25 to April 20.
-# From Paul Eggert (2023-03-23):
+# Lebanon ... announced today delay of Spring forward from March 25 to April 20.
+#
+# From Paul Eggert (2023-03-27):
+# This announcement was by the Lebanese caretaker prime minister Najib Mikati.
 # https://www.mtv.com.lb/en/News/Local/1352516/lebanon-postpones-daylight-saving-time-adoption
+# A video was later leaked to the media of parliament speaker Nabih Berri
+# asking Mikati to postpone DST to aid observance of Ramadan, Mikati objecting
+# that this would cause problems such as scheduling airline flights, to which
+# Berri interjected, "What flights?"
+#
+# The change was controversial and led to a partly-sectarian divide.
+# Many Lebanese institutions, including the education ministry, the Maronite
+# church, and two news channels LCBI and MTV, ignored the announcement and
+# went ahead with the long-scheduled spring-forward on March 25/26, some
+# arguing that the prime minister had not followed the law because the change
+# had not been approved by the cabinet.  Google went with the announcement;
+# Apple ignored it.  At least one bank followed the announcement for its doors,
+# but ignored the announcement in internal computer systems.
+# Beirut international airport listed two times for each departure.
+# Dan Azzi wrote "My view is that this whole thing is a Dumb and Dumber movie."
+# Eventually the prime minister backed down, said the cabinet had decided to
+# stick with its 1998 decision, and that DST would begin midnight March 29/30.
+# https://www.nna-leb.gov.lb/en/miscellaneous/604093/lebanon-has-two-times-of-day-amid-daylight-savings
+# https://www.cnbc.com/2023/03/27/lebanon-in-two-different-time-zones-as-government-disagrees-on-daylight-savings.html
+#
+# Although we could model the chaos with two Zones, that would likely cause
+# more trouble than it would cure.  Since so many manual clocks and
+# computer-based timestamps ignored the announcement, stick with official
+# cabinet resolutions in the data while recording the prime minister's
+# announcement as a comment.  This is how we treated a similar situation in
+# Rio de Janeiro in spring 1993.
 #
 # Rule	NAME	FROM	TO	-	IN	ON	AT	SAVE	LETTER/S
 Rule	Lebanon	1920	only	-	Mar	28	0:00	1:00	S
@@ -2719,11 +2747,13 @@ Rule	Lebanon	1988	only	-	Jun	1	0:00	1:00	S
 Rule	Lebanon	1989	only	-	May	10	0:00	1:00	S
 Rule	Lebanon	1990	1992	-	May	1	0:00	1:00	S
 Rule	Lebanon	1992	only	-	Oct	4	0:00	0	-
-Rule	Lebanon	1993	2022	-	Mar	lastSun	0:00	1:00	S
+Rule	Lebanon	1993	max	-	Mar	lastSun	0:00	1:00	S
 Rule	Lebanon	1993	1998	-	Sep	lastSun	0:00	0	-
 Rule	Lebanon	1999	max	-	Oct	lastSun	0:00	0	-
-Rule	Lebanon	2023	only	-	Apr	21	0:00	1:00	S
-Rule	Lebanon	2024	max	-	Mar	lastSun	0:00	1:00	S
+# This one-time rule, announced by the prime minister first for April 21
+# then for March 30, is commented out for reasons described above.
+#Rule	Lebanon	2023	only	-	Mar	30	0:00	1:00	S
+
 # Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Beirut	2:22:00 -	LMT	1880
 			2:00	Lebanon	EE%sT
