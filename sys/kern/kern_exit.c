@@ -477,9 +477,11 @@ exit1(struct thread *td, int rval, int signo)
 	sx_xunlock(&allproc_lock);
 
 	sx_xlock(&proctree_lock);
-	PROC_LOCK(p);
-	p->p_flag &= ~(P_TRACED | P_PPWAIT | P_PPTRACE);
-	PROC_UNLOCK(p);
+	if ((p->p_flag & (P_TRACED | P_PPWAIT | P_PPTRACE)) != 0) {
+		PROC_LOCK(p);
+		p->p_flag &= ~(P_TRACED | P_PPWAIT | P_PPTRACE);
+		PROC_UNLOCK(p);
+	}
 
 	/*
 	 * killjobc() might drop and re-acquire proctree_lock to
