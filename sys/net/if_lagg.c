@@ -2006,18 +2006,15 @@ lagg_setflags(struct lagg_port *lp, int status)
 static int
 lagg_transmit_ethernet(struct ifnet *ifp, struct mbuf *m)
 {
-	struct epoch_tracker et;
 	struct lagg_softc *sc = (struct lagg_softc *)ifp->if_softc;
-	int error;
 
+	NET_EPOCH_ASSERT();
 #if defined(KERN_TLS) || defined(RATELIMIT)
 	if (m->m_pkthdr.csum_flags & CSUM_SND_TAG)
 		MPASS(m->m_pkthdr.snd_tag->ifp == ifp);
 #endif
-	NET_EPOCH_ENTER(et);
 	/* We need a Tx algorithm and at least one port */
 	if (sc->sc_proto == LAGG_PROTO_NONE || sc->sc_count == 0) {
-		NET_EPOCH_EXIT(et);
 		m_freem(m);
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return (ENXIO);
@@ -2025,26 +2022,21 @@ lagg_transmit_ethernet(struct ifnet *ifp, struct mbuf *m)
 
 	ETHER_BPF_MTAP(ifp, m);
 
-	error = lagg_proto_start(sc, m);
-	NET_EPOCH_EXIT(et);
-	return (error);
+	return (lagg_proto_start(sc, m));
 }
 
 static int
 lagg_transmit_infiniband(struct ifnet *ifp, struct mbuf *m)
 {
-	struct epoch_tracker et;
 	struct lagg_softc *sc = (struct lagg_softc *)ifp->if_softc;
-	int error;
 
+	NET_EPOCH_ASSERT();
 #if defined(KERN_TLS) || defined(RATELIMIT)
 	if (m->m_pkthdr.csum_flags & CSUM_SND_TAG)
 		MPASS(m->m_pkthdr.snd_tag->ifp == ifp);
 #endif
-	NET_EPOCH_ENTER(et);
 	/* We need a Tx algorithm and at least one port */
 	if (sc->sc_proto == LAGG_PROTO_NONE || sc->sc_count == 0) {
-		NET_EPOCH_EXIT(et);
 		m_freem(m);
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return (ENXIO);
@@ -2052,9 +2044,7 @@ lagg_transmit_infiniband(struct ifnet *ifp, struct mbuf *m)
 
 	INFINIBAND_BPF_MTAP(ifp, m);
 
-	error = lagg_proto_start(sc, m);
-	NET_EPOCH_EXIT(et);
-	return (error);
+	return (lagg_proto_start(sc, m));
 }
 
 /*
@@ -2068,16 +2058,14 @@ lagg_qflush(struct ifnet *ifp __unused)
 static struct mbuf *
 lagg_input_ethernet(struct ifnet *ifp, struct mbuf *m)
 {
-	struct epoch_tracker et;
 	struct lagg_port *lp = ifp->if_lagg;
 	struct lagg_softc *sc = lp->lp_softc;
 	struct ifnet *scifp = sc->sc_ifp;
 
-	NET_EPOCH_ENTER(et);
+	NET_EPOCH_ASSERT();
 	if ((scifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
 	    lp->lp_detaching != 0 ||
 	    sc->sc_proto == LAGG_PROTO_NONE) {
-		NET_EPOCH_EXIT(et);
 		m_freem(m);
 		return (NULL);
 	}
@@ -2090,7 +2078,6 @@ lagg_input_ethernet(struct ifnet *ifp, struct mbuf *m)
 		m = NULL;
 	}
 
-	NET_EPOCH_EXIT(et);
 	return (m);
 }
 
