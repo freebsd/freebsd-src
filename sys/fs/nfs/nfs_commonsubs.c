@@ -437,7 +437,7 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 		if (nfsv4_opflag[nfsv4_opmap[procnum].op].needscfh > 0) {
 			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
 			*tl = txdr_unsigned(NFSV4OP_PUTFH);
-			nfsm_fhtom(nmp, nd, nfhp, fhlen, 0);
+			(void)nfsm_fhtom(nmp, nd, nfhp, fhlen, 0);
 			if (nfsv4_opflag[nfsv4_opmap[procnum].op].needscfh
 			    == 2 && procnum != NFSPROC_WRITEDS &&
 			    procnum != NFSPROC_COMMITDS) {
@@ -468,7 +468,7 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 			*tl = txdr_unsigned(nfsv4_opmap[procnum].op);
 		}
 	} else {
-		nfsm_fhtom(NULL, nd, nfhp, fhlen, 0);
+		(void)nfsm_fhtom(NULL, nd, nfhp, fhlen, 0);
 	}
 	if (procnum < NFSV42_NPROCS)
 		NFSINCRGLOBAL(nfsstatsv1.rpccnt[procnum]);
