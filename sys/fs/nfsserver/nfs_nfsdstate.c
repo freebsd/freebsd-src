@@ -4529,7 +4529,7 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
 			m_freem(nd->nd_mreq);
 			goto errout;
 		}
-		nfsm_fhtom(NULL, nd, (u_int8_t *)fhp, NFSX_MYFH, 0);
+		(void)nfsm_fhtom(NULL, nd, (u_int8_t *)fhp, NFSX_MYFH, 0);
 		(void)nfsrv_putattrbit(nd, attrbitp);
 	} else if (procnum == NFSV4OP_CBRECALL) {
 		nd->nd_procnum = NFSV4PROC_CBCOMPOUND;
@@ -4548,7 +4548,7 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
 			*tl = newnfs_true;
 		else
 			*tl = newnfs_false;
-		nfsm_fhtom(NULL, nd, (u_int8_t *)fhp, NFSX_MYFH, 0);
+		(void)nfsm_fhtom(NULL, nd, (u_int8_t *)fhp, NFSX_MYFH, 0);
 	} else if (procnum == NFSV4OP_CBLAYOUTRECALL) {
 		NFSD_DEBUG(4, "docallback layout recall\n");
 		nd->nd_procnum = NFSV4PROC_CBCOMPOUND;
@@ -4567,7 +4567,7 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
 		else
 			*tl++ = newnfs_false;
 		*tl = txdr_unsigned(NFSV4LAYOUTRET_FILE);
-		nfsm_fhtom(NULL, nd, (uint8_t *)fhp, NFSX_MYFH, 0);
+		(void)nfsm_fhtom(NULL, nd, (uint8_t *)fhp, NFSX_MYFH, 0);
 		NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_HYPER + NFSX_STATEID);
 		tval = 0;
 		txdr_hyper(tval, tl); tl += 2;
