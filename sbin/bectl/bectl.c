@@ -584,9 +584,13 @@ main(int argc, char *argv[])
 	}
 
 	if ((be = libbe_init(root)) == NULL) {
-		if (!cmd->silent)
+		if (!cmd->silent) {
 			fprintf(stderr, "libbe_init(\"%s\") failed.\n",
 			    root != NULL ? root : "");
+			if (root == NULL)
+				fprintf(stderr,
+				    "Try specifying ZFS root using -r.\n");
+		}
 		return (-1);
 	}
 
