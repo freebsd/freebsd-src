@@ -334,7 +334,7 @@ cd9660_arguments_set_string(const char *val, const char *fieldtitle, int length,
 	int len, test;
 
 	if (val == NULL)
-		warnx("error: The %s requires a string argument", fieldtitle);
+		warnx("error: '%s' requires a string argument", fieldtitle);
 	else if ((len = strlen(val)) <= length) {
 		if (testmode == 'd')
 			test = cd9660_valid_d_chars(val);
@@ -346,10 +346,10 @@ cd9660_arguments_set_string(const char *val, const char *fieldtitle, int length,
 				cd9660_uppercase_characters(dest, len);
 			return 1;
 		} else
-			warnx("error: The %s must be composed of "
-			      "%c-characters", fieldtitle, testmode);
+			warnx("error: '%s' must be composed of %c-characters",
+			    fieldtitle, testmode);
 	} else
-		warnx("error: The %s must be at most 32 characters long",
+		warnx("error: '%s' must be at most 32 characters long",
 		    fieldtitle);
 	return 0;
 }
