@@ -81,11 +81,7 @@ __FBSDID("$FreeBSD$");
 #include "t4_l2t.h"
 #include "t4_mp_ring.h"
 
-#ifdef T4_PKT_TIMESTAMP
-#define RX_COPY_THRESHOLD (MINCLSIZE - 8)
-#else
 #define RX_COPY_THRESHOLD MINCLSIZE
-#endif
 
 /*
  * Ethernet frames are DMA'd at this byte offset into the freelist buffer.
