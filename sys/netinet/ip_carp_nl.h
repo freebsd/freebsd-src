@@ -31,6 +31,7 @@ enum carp_nl_type_t {
 	CARP_NL_IFINDEX		= 6,	/* u32 */
 	CARP_NL_ADDR		= 7,	/* in_addr_t */
 	CARP_NL_ADDR6		= 8,	/* in6_addr_t */
+	CARP_NL_IFNAME		= 9,	/* string */
 };
 
 #endif

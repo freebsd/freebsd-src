@@ -2301,6 +2301,7 @@ carp_nl_send(void *arg, struct carp_softc *sc, int priv)
 
 struct nl_carp_parsed {
 	unsigned int	ifindex;
+	char		*ifname;
 	uint32_t	state;
 	uint32_t	vhid;
 	int32_t		advbase;
@@ -2322,6 +2323,7 @@ static const struct nlattr_parser nla_p_set[] = {
 	{ .type = CARP_NL_IFINDEX, .off = _OUT(ifindex), .cb = nlattr_get_uint32 },
 	{ .type = CARP_NL_ADDR, .off = _OUT(addr), .cb = nlattr_get_in_addr },
 	{ .type = CARP_NL_ADDR6, .off = _OUT(addr6), .cb = nlattr_get_in6_addr },
+	{ .type = CARP_NL_IFNAME, .off = _OUT(ifname), .cb = nlattr_get_string },
 };
 static const struct nlfield_parser nlf_p_set[] = {
 };
@@ -2337,7 +2339,7 @@ carp_nl_get(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	struct carp_nl_send_args args;
 	struct carpreq carpr = { };
 	struct epoch_tracker et;
-	if_t ifp;
+	if_t ifp = NULL;
 	int error;
 
 	error = nl_parse_nlmsg(hdr, &carp_parser, npt, &attrs);
@@ -2345,7 +2347,10 @@ carp_nl_get(struct nlmsghdr *hdr, struct nl_pstate *npt)
 		return (error);
 
 	NET_EPOCH_ENTER(et);
-	ifp = ifnet_byindex_ref(attrs.ifindex);
+	if (attrs.ifname != NULL)
+		ifp = ifunit_ref(attrs.ifname);
+	else if (attrs.ifindex != 0)
+		ifp = ifnet_byindex_ref(attrs.ifindex);
 	NET_EPOCH_EXIT(et);
 
 	if ((error = carp_is_supported_if(ifp)) != 0)
@@ -2379,7 +2384,7 @@ carp_nl_set(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	struct nl_carp_parsed attrs = { };
 	struct carpkreq carpr;
 	struct epoch_tracker et;
-	if_t ifp;
+	if_t ifp = NULL;
 	int error;
 
 	error = nl_parse_nlmsg(hdr, &carp_parser, npt, &attrs);
@@ -2398,7 +2403,10 @@ carp_nl_set(struct nlmsghdr *hdr, struct nl_pstate *npt)
 		return (EINVAL);
 
 	NET_EPOCH_ENTER(et);
-	ifp = ifnet_byindex_ref(attrs.ifindex);
+	if (attrs.ifname != NULL)
+		ifp = ifunit_ref(attrs.ifname);
+	else if (attrs.ifindex != 0)
+		ifp = ifnet_byindex_ref(attrs.ifindex);
 	NET_EPOCH_EXIT(et);
 
 	if ((error = carp_is_supported_if(ifp)) != 0)
