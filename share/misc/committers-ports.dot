@@ -31,7 +31,7 @@ node [color=grey62, style=filled, bgcolor=black];
 
 ache [label="Andrey Chernov\nache@FreeBSD.org\n1994/11/15\n2017/08/17"]
 ahze [label="Michael Johnson\nahze@FreeBSD.org\n2004/10/29\n2013/12/02"]
-alexbl [label="Andrey Slusar\nanray@FreeBSD.org\n2005/12/11\n2011/01/14"]
+alexbl [label="Alexandr Botero\nalexbl@FreeBSD.org\n2006/09/11\n2011/01/14"]
 alonso [label="Alonso Schaich\nalonso@FreeBSD.org\n2014/08/14\n2017/08/07"]
 anray [label="Andrey Slusar\nanray@FreeBSD.org\n2005/12/11\n2011/01/14"]
 araujo [label="Marcelo Araujo\naraujo@FreeBSD.org\n2007/04/26\n2020/11/03"]
