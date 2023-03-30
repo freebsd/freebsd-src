@@ -1,5 +1,3 @@
-#
-
 MSDOS=		${SRCTOP}/sys/fs/msdosfs
 MSDOS_NEWFS=	${SRCTOP}/sbin/newfs_msdos
 
