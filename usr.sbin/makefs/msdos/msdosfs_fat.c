@@ -138,7 +138,7 @@ pcbmap(struct denode *dep, u_long findcn, daddr_t *bnp, u_long *cnp, int *sp)
 	int error;
 	u_long i;
 	u_long cn;
-	u_long prevcn = 0; /* XXX: prevcn could be used unititialized */
+	u_long prevcn = 0; /* XXX: prevcn could be used uninitialized */
 	u_long byteoffset;
 	u_long bn;
 	u_long bo;
@@ -670,7 +670,7 @@ chainlength(struct msdosfsmount *pmp, u_long start, u_long count)
 }
 
 /*
- * Allocate contigous free clusters.
+ * Allocate contiguous free clusters.
  *
  * pmp	      - mount point.
  * start      - start of cluster chain.
@@ -739,7 +739,7 @@ clusteralloc1(struct msdosfsmount *pmp, u_long start, u_long count,
 {
 	u_long idx;
 	u_long len, newst, foundl, cn, l;
-	u_long foundcn = 0; /* XXX: foundcn could be used unititialized */
+	u_long foundcn = 0; /* XXX: foundcn could be used uninitialized */
 	u_int map;
 
 	MSDOSFS_DPRINTF(("clusteralloc(): find %lu clusters\n", count));
