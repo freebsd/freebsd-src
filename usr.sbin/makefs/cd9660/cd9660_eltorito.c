@@ -374,6 +374,7 @@ cd9660_setup_boot(iso9660_disk *diskStructure, int first_sector)
 	struct boot_catalog_entry *x86_head, *mac_head, *ppc_head, *efi_head,
 		*valid_entry, *default_entry, *temp, *head, **headp, *next;
 	struct cd9660_boot_image *tmp_disk;
+	uint8_t system;
 
 	headp = NULL;
 	x86_head = mac_head = ppc_head = efi_head = NULL;
@@ -388,9 +389,16 @@ cd9660_setup_boot(iso9660_disk *diskStructure, int first_sector)
 	cd9660_731(first_sector,
 	    diskStructure->boot_descriptor->boot_catalog_pointer);
 
+	/*
+	 * Use system type of default image for validation entry. Fallback to
+	 * X86 system type if not found.
+	 */
+	system = default_boot_image != NULL ? default_boot_image->system :
+	    ET_SYS_X86;
+
 	/* Step 1: Generate boot catalog */
 	/* Step 1a: Validation entry */
-	valid_entry = cd9660_boot_setup_validation_entry(ET_SYS_X86);
+	valid_entry = cd9660_boot_setup_validation_entry(system);
 	if (valid_entry == NULL)
 		return -1;
 
