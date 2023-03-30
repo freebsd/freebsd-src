@@ -2425,7 +2425,7 @@ const struct ifcap_nv_bit_name ifcap_nv_bit_names[] = {
 	CAPNV(TXTLS_RTLMT),
 	{0, NULL}
 };
-#define CAP2NV(x) {.cap_bit = IFCAP2_##x, \
+#define CAP2NV(x) {.cap_bit = IFCAP2_BIT(IFCAP2_##x), \
     .cap_name = __CONCAT(IFCAP2_, __CONCAT(x, _NAME)) }
 const struct ifcap_nv_bit_name ifcap2_nv_bit_names[] = {
 	CAP2NV(RXTLS4),
