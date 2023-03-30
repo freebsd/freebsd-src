@@ -48,29 +48,9 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include <libcasper.h>
-
 #include <casper/cap_dns.h>
 
-static int ntest = 1;
-
-#define CHECK(expr)     do {						\
-	if ((expr))							\
-		printf("ok %d # %s:%u\n", ntest, __FILE__, __LINE__);	\
-	else								\
-		printf("not ok %d # %s:%u\n", ntest, __FILE__, __LINE__); \
-	fflush(stdout);							\
-	ntest++;							\
-} while (0)
-#define CHECKX(expr)     do {						\
-	if ((expr)) {							\
-		printf("ok %d # %s:%u\n", ntest, __FILE__, __LINE__);	\
-	} else {							\
-		printf("not ok %d # %s:%u\n", ntest, __FILE__, __LINE__); \
-		exit(1);						\
-	}								\
-	fflush(stdout);							\
-	ntest++;							\
-} while (0)
+#include <atf-c.h>
 
 #define	GETHOSTBYNAME			0x01
 #define	GETHOSTBYNAME2_AF_INET		0x02
@@ -219,37 +199,47 @@ hostent_compare(const struct hostent *hp0, const struct hostent *hp1)
 	return (true);
 }
 
-static unsigned int
-runtest(cap_channel_t *capdns)
+static void
+runtest(cap_channel_t *capdns, unsigned int expected)
 {
-	unsigned int result;
+	unsigned int result, failure;
 	struct addrinfo *ais, *aic, hints, *hintsp;
 	struct hostent *hps, *hpc;
 	struct in_addr ip4;
 	struct in6_addr ip6;
+	int caperr, syserr;
 
-	result = 0;
+	failure = result = 0;
 
 	hps = gethostbyname("example.com");
-	if (hps == NULL)
+	if (hps == NULL) {
+		failure |= GETHOSTBYNAME;
 		fprintf(stderr, "Unable to resolve %s IPv4.\n", "example.com");
-	hpc = cap_gethostbyname(capdns, "example.com");
-	if (hostent_compare(hps, hpc))
-		result |= GETHOSTBYNAME;
+	} else {
+		hpc = cap_gethostbyname(capdns, "example.com");
+		if (hostent_compare(hps, hpc))
+			result |= GETHOSTBYNAME;
+	}
 
 	hps = gethostbyname2("example.com", AF_INET);
-	if (hps == NULL)
+	if (hps == NULL) {
+		failure |= GETHOSTBYNAME2_AF_INET;
 		fprintf(stderr, "Unable to resolve %s IPv4.\n", "example.com");
-	hpc = cap_gethostbyname2(capdns, "example.com", AF_INET);
-	if (hostent_compare(hps, hpc))
-		result |= GETHOSTBYNAME2_AF_INET;
+	} else {
+		hpc = cap_gethostbyname2(capdns, "example.com", AF_INET);
+		if (hostent_compare(hps, hpc))
+			result |= GETHOSTBYNAME2_AF_INET;
+	}
 
 	hps = gethostbyname2("example.com", AF_INET6);
-	if (hps == NULL)
+	if (hps == NULL) {
+		failure |= GETHOSTBYNAME2_AF_INET6;
 		fprintf(stderr, "Unable to resolve %s IPv6.\n", "example.com");
-	hpc = cap_gethostbyname2(capdns, "example.com", AF_INET6);
-	if (hostent_compare(hps, hpc))
-		result |= GETHOSTBYNAME2_AF_INET6;
+	} else {
+		hpc = cap_gethostbyname2(capdns, "example.com", AF_INET6);
+		if (hostent_compare(hps, hpc))
+			result |= GETHOSTBYNAME2_AF_INET6;
+	}
 
 	hints.ai_flags = 0;
 	hints.ai_family = AF_UNSPEC;
@@ -262,42 +252,57 @@ runtest(cap_channel_t *capdns)
 
 	hintsp = &hints;
 
-	if (getaddrinfo("freebsd.org", "25", hintsp, &ais) != 0) {
+	syserr = getaddrinfo("freebsd.org", "25", hintsp, &ais);
+	if (syserr != 0) {
+		failure |= GETADDRINFO_AF_UNSPEC;
 		fprintf(stderr,
 		    "Unable to issue [system] getaddrinfo() for AF_UNSPEC: %s\n",
-		    gai_strerror(errno));
-	}
-	if (cap_getaddrinfo(capdns, "freebsd.org", "25", hintsp, &aic) == 0) {
-		if (addrinfo_compare(ais, aic))
-			result |= GETADDRINFO_AF_UNSPEC;
-		freeaddrinfo(ais);
-		freeaddrinfo(aic);
+		    gai_strerror(syserr));
+	} else {
+		caperr = cap_getaddrinfo(capdns, "freebsd.org", "25", hintsp,
+		    &aic);
+		if (caperr == 0) {
+			if (addrinfo_compare(ais, aic))
+				result |= GETADDRINFO_AF_UNSPEC;
+			freeaddrinfo(ais);
+			freeaddrinfo(aic);
+		}
 	}
 
 	hints.ai_family = AF_INET;
-	if (getaddrinfo("freebsd.org", "25", hintsp, &ais) != 0) {
+	syserr = getaddrinfo("freebsd.org", "25", hintsp, &ais);
+	if (syserr != 0) {
+		failure |= GETADDRINFO_AF_INET;
 		fprintf(stderr,
 		    "Unable to issue [system] getaddrinfo() for AF_UNSPEC: %s\n",
-		    gai_strerror(errno));
-	}
-	if (cap_getaddrinfo(capdns, "freebsd.org", "25", hintsp, &aic) == 0) {
-		if (addrinfo_compare(ais, aic))
-			result |= GETADDRINFO_AF_INET;
-		freeaddrinfo(ais);
-		freeaddrinfo(aic);
+		    gai_strerror(syserr));
+	} else {
+		caperr = cap_getaddrinfo(capdns, "freebsd.org", "25", hintsp,
+		    &aic);
+		if (caperr == 0) {
+			if (addrinfo_compare(ais, aic))
+				result |= GETADDRINFO_AF_INET;
+			freeaddrinfo(ais);
+			freeaddrinfo(aic);
+		}
 	}
 
 	hints.ai_family = AF_INET6;
-	if (getaddrinfo("freebsd.org", "25", hintsp, &ais) != 0) {
+	syserr = getaddrinfo("freebsd.org", "25", hintsp, &ais);
+	if (syserr != 0) {
+		failure |= GETADDRINFO_AF_INET6;
 		fprintf(stderr,
 		    "Unable to issue [system] getaddrinfo() for AF_UNSPEC: %s\n",
-		    gai_strerror(errno));
-	}
-	if (cap_getaddrinfo(capdns, "freebsd.org", "25", hintsp, &aic) == 0) {
-		if (addrinfo_compare(ais, aic))
-			result |= GETADDRINFO_AF_INET6;
-		freeaddrinfo(ais);
-		freeaddrinfo(aic);
+		    gai_strerror(syserr));
+	} else {
+		caperr = cap_getaddrinfo(capdns, "freebsd.org", "25", hintsp,
+		    &aic);
+		if (caperr == 0) {
+			if (addrinfo_compare(ais, aic))
+				result |= GETADDRINFO_AF_INET6;
+			freeaddrinfo(ais);
+			freeaddrinfo(aic);
+		}
 	}
 
 	/* XXX: hardcoded addresses for "google-public-dns-a.google.com". */
@@ -306,397 +311,410 @@ runtest(cap_channel_t *capdns)
 
 	inet_pton(AF_INET, GOOGLE_DNS_IPV4, &ip4);
 	hps = gethostbyaddr(&ip4, sizeof(ip4), AF_INET);
-	if (hps == NULL)
+	if (hps == NULL) {
+		failure |= GETHOSTBYADDR_AF_INET;
 		fprintf(stderr, "Unable to resolve %s.\n", GOOGLE_DNS_IPV4);
-	hpc = cap_gethostbyaddr(capdns, &ip4, sizeof(ip4), AF_INET);
-	if (hostent_compare(hps, hpc))
-		result |= GETHOSTBYADDR_AF_INET;
+	} else {
+		hpc = cap_gethostbyaddr(capdns, &ip4, sizeof(ip4), AF_INET);
+		if (hostent_compare(hps, hpc))
+			result |= GETHOSTBYADDR_AF_INET;
+	}
 
 	inet_pton(AF_INET6, GOOGLE_DNS_IPV6, &ip6);
 	hps = gethostbyaddr(&ip6, sizeof(ip6), AF_INET6);
 	if (hps == NULL) {
+		failure |= GETHOSTBYADDR_AF_INET6;
 		fprintf(stderr, "Unable to resolve %s.\n", GOOGLE_DNS_IPV6);
+	} else {
+		hpc = cap_gethostbyaddr(capdns, &ip6, sizeof(ip6), AF_INET6);
+		if (hostent_compare(hps, hpc)) {
+			caperr = h_errno;
+			result |= GETHOSTBYADDR_AF_INET6;
+		}
 	}
-	hpc = cap_gethostbyaddr(capdns, &ip6, sizeof(ip6), AF_INET6);
-	if (hostent_compare(hps, hpc))
-		result |= GETHOSTBYADDR_AF_INET6;
-	return (result);
+
+	/*
+	 * If we had any failures, make sure that all lookups failed.  If some
+	 * succeeded and some failed, there's a problem with the test or the DNS
+	 * and we should not fail silently.
+	 */
+	if (failure != 0) {
+		ATF_REQUIRE_MSG(failure == (GETHOSTBYNAME |
+		    GETHOSTBYNAME2_AF_INET | GETHOSTBYNAME2_AF_INET6 |
+		    GETADDRINFO_AF_UNSPEC | GETADDRINFO_AF_INET |
+		    GETADDRINFO_AF_INET6 |
+		    GETHOSTBYADDR_AF_INET | GETHOSTBYADDR_AF_INET6),
+		    "expected all tests to fail, got 0x%x", failure);
+		atf_tc_skip(
+		    "no name lookups succeeded, tests require Internet access");
+	}
+	ATF_REQUIRE_MSG(result == expected,
+	    "expected 0x%x, got 0x%x", expected, result);
 }
 
-int
-main(void)
+static cap_channel_t *
+cap_dns_init(void)
 {
-	cap_channel_t *capcas, *capdns, *origcapdns;
-	const char *types[2];
-	int families[2];
-
-	printf("1..91\n");
-	fflush(stdout);
+	cap_channel_t *capcas, *capdns;
 
 	capcas = cap_init();
-	CHECKX(capcas != NULL);
+	ATF_REQUIRE(capcas != NULL);
 
-	origcapdns = capdns = cap_service_open(capcas, "system.dns");
-	CHECKX(capdns != NULL);
+	capdns = cap_service_open(capcas, "system.dns");
+	ATF_REQUIRE(capdns != NULL);
 
 	cap_close(capcas);
 
-	/* No limits set. */
+	return (capdns);
+}
 
-	CHECK(runtest(capdns) ==
+ATF_TC(dns_no_limits);
+ATF_TC_HEAD(dns_no_limits, tc)
+{
+}
+ATF_TC_BODY(dns_no_limits, tc)
+{
+	cap_channel_t *capdns;
+
+	capdns = cap_dns_init();
+
+	runtest(capdns,
 	    (GETHOSTBYNAME | GETHOSTBYNAME2_AF_INET | GETHOSTBYNAME2_AF_INET6 |
 	     GETHOSTBYADDR_AF_INET | GETHOSTBYADDR_AF_INET6 |
-	     GETADDRINFO_AF_UNSPEC | GETADDRINFO_AF_INET | GETADDRINFO_AF_INET6));
+	     GETADDRINFO_AF_UNSPEC | GETADDRINFO_AF_INET |
+	     GETADDRINFO_AF_INET6));
 
-	/*
-	 * Allow:
-	 * type: NAME, ADDR
-	 * family: AF_INET, AF_INET6
-	 */
+	cap_close(capdns);
+}
 
-	capdns = cap_clone(origcapdns);
-	CHECK(capdns != NULL);
+ATF_TC(dns_all_limits);
+ATF_TC_HEAD(dns_all_limits, tc)
+{
+}
+ATF_TC_BODY(dns_all_limits, tc)
+{
+	cap_channel_t *capdns;
+	const char *types[2];
+	int families[2];
+
+	capdns = cap_dns_init();
 
 	types[0] = "NAME2ADDR";
 	types[1] = "ADDR2NAME";
-	CHECK(cap_dns_type_limit(capdns, types, 2) == 0);
+	ATF_REQUIRE(cap_dns_type_limit(capdns, types, 2) == 0);
 	families[0] = AF_INET;
 	families[1] = AF_INET6;
-	CHECK(cap_dns_family_limit(capdns, families, 2) == 0);
+	ATF_REQUIRE(cap_dns_family_limit(capdns, families, 2) == 0);
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE,
+	    cap_dns_family_limit(capdns, NULL, 0) == -1);
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE,
+	    cap_dns_type_limit(capdns, NULL, 0) == -1);
 
-	CHECK(runtest(capdns) ==
+	runtest(capdns,
 	    (GETHOSTBYNAME | GETHOSTBYNAME2_AF_INET | GETHOSTBYNAME2_AF_INET6 |
 	     GETHOSTBYADDR_AF_INET | GETHOSTBYADDR_AF_INET6 |
 	     GETADDRINFO_AF_INET | GETADDRINFO_AF_INET6));
 
 	cap_close(capdns);
+}
 
-	/*
-	 * Allow:
-	 * type: NAME
-	 * family: AF_INET, AF_INET6
-	 */
+ATF_TC(dns_name_limit);
+ATF_TC_HEAD(dns_name_limit, tc)
+{
+}
+ATF_TC_BODY(dns_name_limit, tc)
+{
+	cap_channel_t *capdns;
+	const char *types[2];
+	int families[2];
 
-	capdns = cap_clone(origcapdns);
-	CHECK(capdns != NULL);
+	capdns = cap_dns_init();
 
 	types[0] = "NAME2ADDR";
-	CHECK(cap_dns_type_limit(capdns, types, 1) == 0);
+	ATF_REQUIRE(cap_dns_type_limit(capdns, types, 1) == 0);
 	types[1] = "ADDR2NAME";
-	CHECK(cap_dns_type_limit(capdns, types, 2) == -1 &&
-	    errno == ENOTCAPABLE);
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE,
+	    cap_dns_type_limit(capdns, types, 2) == -1);
 	types[0] = "ADDR2NAME";
-	CHECK(cap_dns_type_limit(capdns, types, 1) == -1 &&
-	    errno == ENOTCAPABLE);
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE,
+	    cap_dns_type_limit(capdns, types, 1) == -1);
 	families[0] = AF_INET;
 	families[1] = AF_INET6;
-	CHECK(cap_dns_family_limit(capdns, families, 2) == 0);
+	ATF_REQUIRE(cap_dns_family_limit(capdns, families, 2) == 0);
 
-	CHECK(runtest(capdns) ==
+	runtest(capdns,
 	    (GETHOSTBYNAME | GETHOSTBYNAME2_AF_INET | GETHOSTBYNAME2_AF_INET6 |
 	    GETADDRINFO_AF_INET | GETADDRINFO_AF_INET6));
 
 	cap_close(capdns);
+}
 
-	/*
-	 * Allow:
-	 * type: ADDR
-	 * family: AF_INET, AF_INET6
-	 */
+ATF_TC(dns_addr_limit);
+ATF_TC_HEAD(dns_addr_limit, tc)
+{
+}
+ATF_TC_BODY(dns_addr_limit, tc)
+{
+	cap_channel_t *capdns;
+	const char *types[2];
+	int families[2];
 
-	capdns = cap_clone(origcapdns);
-	CHECK(capdns != NULL);
+	capdns = cap_dns_init();
 
 	types[0] = "ADDR2NAME";
-	CHECK(cap_dns_type_limit(capdns, types, 1) == 0);
+	ATF_REQUIRE(cap_dns_type_limit(capdns, types, 1) == 0);
 	types[1] = "NAME2ADDR";
-	CHECK(cap_dns_type_limit(capdns, types, 2) == -1 &&
-	    errno == ENOTCAPABLE);
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE,
+	    cap_dns_type_limit(capdns, types, 2) == -1);
 	types[0] = "NAME2ADDR";
-	CHECK(cap_dns_type_limit(capdns, types, 1) == -1 &&
-	    errno == ENOTCAPABLE);
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE,
+	    cap_dns_type_limit(capdns, types, 1) == -1);
 	families[0] = AF_INET;
 	families[1] = AF_INET6;
-	CHECK(cap_dns_family_limit(capdns, families, 2) == 0);
+	ATF_REQUIRE(cap_dns_family_limit(capdns, families, 2) == 0);
 
-	CHECK(runtest(capdns) ==
+	runtest(capdns,
 	    (GETHOSTBYADDR_AF_INET | GETHOSTBYADDR_AF_INET6));
+
 	cap_close(capdns);
+}
 
-	/*
-	 * Allow:
-	 * type: NAME, ADDR
-	 * family: AF_INET
-	 */
+ATF_TC(dns_inet_limit);
+ATF_TC_HEAD(dns_inet_limit, tc)
+{
+}
+ATF_TC_BODY(dns_inet_limit, tc)
+{
+	cap_channel_t *capdns;
+	const char *types[2];
+	int families[2];
 
-	capdns = cap_clone(origcapdns);
-	CHECK(capdns != NULL);
+	capdns = cap_dns_init();
 
 	types[0] = "NAME2ADDR";
 	types[1] = "ADDR2NAME";
-	CHECK(cap_dns_type_limit(capdns, types, 2) == 0);
+	ATF_REQUIRE(cap_dns_type_limit(capdns, types, 2) == 0);
 	families[0] = AF_INET;
-	CHECK(cap_dns_family_limit(capdns, families, 1) == 0);
+	ATF_REQUIRE(cap_dns_family_limit(capdns, families, 1) == 0);
 	families[1] = AF_INET6;
-	CHECK(cap_dns_family_limit(capdns, families, 2) == -1 &&
-	    errno == ENOTCAPABLE);
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE,
+	    cap_dns_family_limit(capdns, families, 2) == -1);
 	families[0] = AF_INET6;
-	CHECK(cap_dns_family_limit(capdns, families, 1) == -1 &&
-	    errno == ENOTCAPABLE);
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE,
+	    cap_dns_family_limit(capdns, families, 1) == -1);
 
-	CHECK(runtest(capdns) ==
+	runtest(capdns,
 	    (GETHOSTBYNAME | GETHOSTBYNAME2_AF_INET | GETHOSTBYADDR_AF_INET |
 	    GETADDRINFO_AF_INET));
 
 	cap_close(capdns);
+}
 
-	/*
-	 * Allow:
-	 * type: NAME, ADDR
-	 * family: AF_INET6
-	 */
+ATF_TC(dns_inet6_limit);
+ATF_TC_HEAD(dns_inet6_limit, tc)
+{
+}
+ATF_TC_BODY(dns_inet6_limit, tc)
+{
+	cap_channel_t *capdns;
+	const char *types[2];
+	int families[2];
 
-	capdns = cap_clone(origcapdns);
-	CHECK(capdns != NULL);
+	capdns = cap_dns_init();
 
 	types[0] = "NAME2ADDR";
 	types[1] = "ADDR2NAME";
-	CHECK(cap_dns_type_limit(capdns, types, 2) == 0);
+	ATF_REQUIRE(cap_dns_type_limit(capdns, types, 2) == 0);
 	families[0] = AF_INET6;
-	CHECK(cap_dns_family_limit(capdns, families, 1) == 0);
+	ATF_REQUIRE(cap_dns_family_limit(capdns, families, 1) == 0);
 	families[1] = AF_INET;
-	CHECK(cap_dns_family_limit(capdns, families, 2) == -1 &&
-	    errno == ENOTCAPABLE);
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE,
+	    cap_dns_family_limit(capdns, families, 2) == -1);
 	families[0] = AF_INET;
-	CHECK(cap_dns_family_limit(capdns, families, 1) == -1 &&
-	    errno == ENOTCAPABLE);
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE,
+	    cap_dns_family_limit(capdns, families, 1) == -1);
 
-	CHECK(runtest(capdns) ==
+	runtest(capdns,
 	    (GETHOSTBYNAME2_AF_INET6 | GETHOSTBYADDR_AF_INET6 |
 	    GETADDRINFO_AF_INET6));
 
 	cap_close(capdns);
+}
 
-	/* Below we also test further limiting capability. */
+ATF_TC(dns_name_inet_limit);
+ATF_TC_HEAD(dns_name_inet_limit, tc)
+{
+}
+ATF_TC_BODY(dns_name_inet_limit, tc)
+{
+	cap_channel_t *capdns;
+	const char *types[2];
+	int families[2];
 
-	/*
-	 * Allow:
-	 * type: NAME
-	 * family: AF_INET
-	 */
-
-	capdns = cap_clone(origcapdns);
-	CHECK(capdns != NULL);
+	capdns = cap_dns_init();
 
 	types[0] = "NAME2ADDR";
 	types[1] = "ADDR2NAME";
-	CHECK(cap_dns_type_limit(capdns, types, 2) == 0);
+	ATF_REQUIRE(cap_dns_type_limit(capdns, types, 2) == 0);
 	families[0] = AF_INET;
 	families[1] = AF_INET6;
-	CHECK(cap_dns_family_limit(capdns, families, 2) == 0);
+	ATF_REQUIRE(cap_dns_family_limit(capdns, families, 2) == 0);
 	types[0] = "NAME2ADDR";
-	CHECK(cap_dns_type_limit(capdns, types, 1) == 0);
+	ATF_REQUIRE(cap_dns_type_limit(capdns, types, 1) == 0);
 	types[1] = "ADDR2NAME";
-	CHECK(cap_dns_type_limit(capdns, types, 2) == -1 &&
-	    errno == ENOTCAPABLE);
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE,
+	    cap_dns_type_limit(capdns, types, 2) == -1);
 	types[0] = "ADDR2NAME";
-	CHECK(cap_dns_type_limit(capdns, types, 1) == -1 &&
-	    errno == ENOTCAPABLE);
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE,
+	    cap_dns_type_limit(capdns, types, 1) == -1);
 	families[0] = AF_INET;
-	CHECK(cap_dns_family_limit(capdns, families, 1) == 0);
+	ATF_REQUIRE(cap_dns_family_limit(capdns, families, 1) == 0);
 	families[1] = AF_INET6;
-	CHECK(cap_dns_family_limit(capdns, families, 2) == -1 &&
-	    errno == ENOTCAPABLE);
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE,
+	    cap_dns_family_limit(capdns, families, 2) == -1);
 	families[0] = AF_INET6;
-	CHECK(cap_dns_family_limit(capdns, families, 1) == -1 &&
-	    errno == ENOTCAPABLE);
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE,
+	    cap_dns_family_limit(capdns, families, 1) == -1);
 
-	CHECK(runtest(capdns) ==
+	runtest(capdns,
 	    (GETHOSTBYNAME | GETHOSTBYNAME2_AF_INET | GETADDRINFO_AF_INET));
 
 	cap_close(capdns);
+}
 
-	/*
-	 * Allow:
-	 * type: NAME
-	 * family: AF_INET6
-	 */
+ATF_TC(dns_name_inet6_limit);
+ATF_TC_HEAD(dns_name_inet6_limit, tc)
+{
+}
+ATF_TC_BODY(dns_name_inet6_limit, tc)
+{
+	cap_channel_t *capdns;
+	const char *types[2];
+	int families[2];
 
-	capdns = cap_clone(origcapdns);
-	CHECK(capdns != NULL);
+	capdns = cap_dns_init();
 
 	types[0] = "NAME2ADDR";
 	types[1] = "ADDR2NAME";
-	CHECK(cap_dns_type_limit(capdns, types, 2) == 0);
-	families[0] = AF_INET;
-	families[1] = AF_INET6;
-	CHECK(cap_dns_family_limit(capdns, families, 2) == 0);
-	types[0] = "NAME2ADDR";
-	CHECK(cap_dns_type_limit(capdns, types, 1) == 0);
-	types[1] = "ADDR2NAME";
-	CHECK(cap_dns_type_limit(capdns, types, 2) == -1 &&
-	    errno == ENOTCAPABLE);
-	types[0] = "ADDR2NAME";
-	CHECK(cap_dns_type_limit(capdns, types, 1) == -1 &&
-	    errno == ENOTCAPABLE);
+	ATF_REQUIRE(cap_dns_type_limit(capdns, types, 2) == 0);
 	families[0] = AF_INET6;
-	CHECK(cap_dns_family_limit(capdns, families, 1) == 0);
 	families[1] = AF_INET;
-	CHECK(cap_dns_family_limit(capdns, families, 2) == -1 &&
-	    errno == ENOTCAPABLE);
+	ATF_REQUIRE(cap_dns_family_limit(capdns, families, 2) == 0);
+	types[0] = "NAME2ADDR";
+	ATF_REQUIRE(cap_dns_type_limit(capdns, types, 1) == 0);
+	types[1] = "ADDR2NAME";
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE,
+	    cap_dns_type_limit(capdns, types, 2) == -1);
+	types[0] = "ADDR2NAME";
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE,
+	    cap_dns_type_limit(capdns, types, 1) == -1);
+	families[0] = AF_INET6;
+	ATF_REQUIRE(cap_dns_family_limit(capdns, families, 1) == 0);
+	families[1] = AF_INET;
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE,
+	    cap_dns_family_limit(capdns, families, 2) == -1);
 	families[0] = AF_INET;
-	CHECK(cap_dns_family_limit(capdns, families, 1) == -1 &&
-	    errno == ENOTCAPABLE);
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE,
+	    cap_dns_family_limit(capdns, families, 1) == -1);
 
-	CHECK(runtest(capdns) ==
+	runtest(capdns,
 	    (GETHOSTBYNAME2_AF_INET6 | GETADDRINFO_AF_INET6));
 
 	cap_close(capdns);
+}
 
-	/*
-	 * Allow:
-	 * type: ADDR
-	 * family: AF_INET
-	 */
+ATF_TC(dns_addr_inet_limit);
+ATF_TC_HEAD(dns_addr_inet_limit, tc)
+{
+}
+ATF_TC_BODY(dns_addr_inet_limit, tc)
+{
+	cap_channel_t *capdns;
+	const char *types[2];
+	int families[2];
 
-	capdns = cap_clone(origcapdns);
-	CHECK(capdns != NULL);
+	capdns = cap_dns_init();
 
 	types[0] = "NAME2ADDR";
 	types[1] = "ADDR2NAME";
-	CHECK(cap_dns_type_limit(capdns, types, 2) == 0);
+	ATF_REQUIRE(cap_dns_type_limit(capdns, types, 2) == 0);
 	families[0] = AF_INET;
 	families[1] = AF_INET6;
-	CHECK(cap_dns_family_limit(capdns, families, 2) == 0);
+	ATF_REQUIRE(cap_dns_family_limit(capdns, families, 2) == 0);
 	types[0] = "ADDR2NAME";
-	CHECK(cap_dns_type_limit(capdns, types, 1) == 0);
+	ATF_REQUIRE(cap_dns_type_limit(capdns, types, 1) == 0);
 	types[1] = "NAME2ADDR";
-	CHECK(cap_dns_type_limit(capdns, types, 2) == -1 &&
-	    errno == ENOTCAPABLE);
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE,
+	    cap_dns_type_limit(capdns, types, 2) == -1);
 	types[0] = "NAME2ADDR";
-	CHECK(cap_dns_type_limit(capdns, types, 1) == -1 &&
-	    errno == ENOTCAPABLE);
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE,
+	    cap_dns_type_limit(capdns, types, 1) == -1);
 	families[0] = AF_INET;
-	CHECK(cap_dns_family_limit(capdns, families, 1) == 0);
+	ATF_REQUIRE(cap_dns_family_limit(capdns, families, 1) == 0);
 	families[1] = AF_INET6;
-	CHECK(cap_dns_family_limit(capdns, families, 2) == -1 &&
-	    errno == ENOTCAPABLE);
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE,
+	    cap_dns_family_limit(capdns, families, 2) == -1);
 	families[0] = AF_INET6;
-	CHECK(cap_dns_family_limit(capdns, families, 1) == -1 &&
-	    errno == ENOTCAPABLE);
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE,
+	    cap_dns_family_limit(capdns, families, 1) == -1);
 
-	CHECK(runtest(capdns) == GETHOSTBYADDR_AF_INET);
+	runtest(capdns, GETHOSTBYADDR_AF_INET);
 
 	cap_close(capdns);
+}
 
-	/*
-	 * Allow:
-	 * type: ADDR
-	 * family: AF_INET6
-	 */
+ATF_TC(dns_addr_inet6_limit);
+ATF_TC_HEAD(dns_addr_inet6_limit, tc)
+{
+}
+ATF_TC_BODY(dns_addr_inet6_limit, tc)
+{
+	cap_channel_t *capdns;
+	const char *types[2];
+	int families[2];
 
-	capdns = cap_clone(origcapdns);
-	CHECK(capdns != NULL);
+	capdns = cap_dns_init();
 
 	types[0] = "NAME2ADDR";
 	types[1] = "ADDR2NAME";
-	CHECK(cap_dns_type_limit(capdns, types, 2) == 0);
-	families[0] = AF_INET;
-	families[1] = AF_INET6;
-	CHECK(cap_dns_family_limit(capdns, families, 2) == 0);
-	types[0] = "ADDR2NAME";
-	CHECK(cap_dns_type_limit(capdns, types, 1) == 0);
-	types[1] = "NAME2ADDR";
-	CHECK(cap_dns_type_limit(capdns, types, 2) == -1 &&
-	    errno == ENOTCAPABLE);
-	types[0] = "NAME2ADDR";
-	CHECK(cap_dns_type_limit(capdns, types, 1) == -1 &&
-	    errno == ENOTCAPABLE);
+	ATF_REQUIRE(cap_dns_type_limit(capdns, types, 2) == 0);
 	families[0] = AF_INET6;
-	CHECK(cap_dns_family_limit(capdns, families, 1) == 0);
 	families[1] = AF_INET;
-	CHECK(cap_dns_family_limit(capdns, families, 2) == -1 &&
-	    errno == ENOTCAPABLE);
-	families[0] = AF_INET;
-	CHECK(cap_dns_family_limit(capdns, families, 1) == -1 &&
-	    errno == ENOTCAPABLE);
-
-	CHECK(runtest(capdns) == GETHOSTBYADDR_AF_INET6);
-
-	cap_close(capdns);
-
-	/* Trying to rise the limits. */
-
-	capdns = cap_clone(origcapdns);
-	CHECK(capdns != NULL);
-
-	types[0] = "NAME2ADDR";
-	CHECK(cap_dns_type_limit(capdns, types, 1) == 0);
-	families[0] = AF_INET;
-	CHECK(cap_dns_family_limit(capdns, families, 1) == 0);
-
-	types[0] = "NAME2ADDR";
-	types[1] = "ADDR2NAME";
-	CHECK(cap_dns_type_limit(capdns, types, 2) == -1 &&
-	    errno == ENOTCAPABLE);
-	families[0] = AF_INET;
-	families[1] = AF_INET6;
-	CHECK(cap_dns_family_limit(capdns, families, 2) == -1 &&
-	    errno == ENOTCAPABLE);
-
+	ATF_REQUIRE(cap_dns_family_limit(capdns, families, 2) == 0);
 	types[0] = "ADDR2NAME";
-	CHECK(cap_dns_type_limit(capdns, types, 1) == -1 &&
-	    errno == ENOTCAPABLE);
+	ATF_REQUIRE(cap_dns_type_limit(capdns, types, 1) == 0);
+	types[1] = "NAME2ADDR";
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE,
+	    cap_dns_type_limit(capdns, types, 2) == -1);
+	types[0] = "NAME2ADDR";
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE,
+	    cap_dns_type_limit(capdns, types, 1) == -1);
 	families[0] = AF_INET6;
-	CHECK(cap_dns_family_limit(capdns, families, 1) == -1 &&
-	    errno == ENOTCAPABLE);
+	ATF_REQUIRE(cap_dns_family_limit(capdns, families, 1) == 0);
+	families[1] = AF_INET;
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE,
+	    cap_dns_family_limit(capdns, families, 2) == -1);
+	families[0] = AF_INET;
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE,
+	    cap_dns_family_limit(capdns, families, 1) == -1);
 
-	CHECK(cap_dns_type_limit(capdns, NULL, 0) == -1 &&
-	    errno == ENOTCAPABLE);
-	CHECK(cap_dns_family_limit(capdns, NULL, 0) == -1 &&
-	    errno == ENOTCAPABLE);
-
-	/* Do the limits still hold? */
-	CHECK(runtest(capdns) == (GETHOSTBYNAME | GETHOSTBYNAME2_AF_INET |
-	    GETADDRINFO_AF_INET));
+	runtest(capdns, GETHOSTBYADDR_AF_INET6);
 
 	cap_close(capdns);
+}
 
-	capdns = cap_clone(origcapdns);
-	CHECK(capdns != NULL);
+ATF_TP_ADD_TCS(tp)
+{
+	ATF_TP_ADD_TC(tp, dns_no_limits);
+	ATF_TP_ADD_TC(tp, dns_all_limits);
+	ATF_TP_ADD_TC(tp, dns_name_limit);
+	ATF_TP_ADD_TC(tp, dns_addr_limit);
+	ATF_TP_ADD_TC(tp, dns_inet_limit);
+	ATF_TP_ADD_TC(tp, dns_inet6_limit);
+	ATF_TP_ADD_TC(tp, dns_name_inet_limit);
+	ATF_TP_ADD_TC(tp, dns_name_inet6_limit);
+	ATF_TP_ADD_TC(tp, dns_addr_inet_limit);
+	ATF_TP_ADD_TC(tp, dns_addr_inet6_limit);
 
-	types[0] = "ADDR2NAME";
-	CHECK(cap_dns_type_limit(capdns, types, 1) == 0);
-	families[0] = AF_INET6;
-	CHECK(cap_dns_family_limit(capdns, families, 1) == 0);
-
-	types[0] = "NAME2ADDR";
-	types[1] = "ADDR2NAME";
-	CHECK(cap_dns_type_limit(capdns, types, 2) == -1 &&
-	    errno == ENOTCAPABLE);
-	families[0] = AF_INET;
-	families[1] = AF_INET6;
-	CHECK(cap_dns_family_limit(capdns, families, 2) == -1 &&
-	    errno == ENOTCAPABLE);
-
-	types[0] = "NAME2ADDR";
-	CHECK(cap_dns_type_limit(capdns, types, 1) == -1 &&
-	    errno == ENOTCAPABLE);
-	families[0] = AF_INET;
-	CHECK(cap_dns_family_limit(capdns, families, 1) == -1 &&
-	    errno == ENOTCAPABLE);
-
-	CHECK(cap_dns_type_limit(capdns, NULL, 0) == -1 &&
-	    errno == ENOTCAPABLE);
-	CHECK(cap_dns_family_limit(capdns, NULL, 0) == -1 &&
-	    errno == ENOTCAPABLE);
-
-	/* Do the limits still hold? */
-	CHECK(runtest(capdns) == GETHOSTBYADDR_AF_INET6);
-
-	cap_close(capdns);
-
-	cap_close(origcapdns);
-
-	exit(0);
+	return atf_no_error();
 }
