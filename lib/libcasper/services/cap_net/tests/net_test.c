@@ -44,6 +44,8 @@ __FBSDID("$FreeBSD$");
 #define	TEST_IPV4	"1.1.1.1"
 #define	TEST_IPV6	"2001:4860:4860::8888"
 #define	TEST_BIND_IPV4	"127.0.0.1"
+#define	TEST_PORT	80
+#define	TEST_PORT_STR	"80"
 
 static cap_channel_t *
 create_network_service(void)
@@ -374,6 +376,45 @@ ATF_TC_BODY(capnet__gethostbyaddr, tc)
 	ATF_REQUIRE(test_gethostbyaddr(capnet, AF_INET6, TEST_IPV6) == 0);
 
 	cap_close(capnet);
+}
+
+ATF_TC_WITHOUT_HEAD(capnet__getnameinfo_buffer);
+ATF_TC_BODY(capnet__getnameinfo_buffer, tc)
+{
+	cap_channel_t *chan;
+	struct sockaddr_in sin;
+	int ret;
+	struct {
+		char host[sizeof(TEST_IPV4)];
+		char host_canary;
+		char serv[sizeof(TEST_PORT_STR)];
+		char serv_canary;
+	} buffers;
+
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_port = htons(TEST_PORT);
+	ret = inet_pton(AF_INET, TEST_IPV4, &sin.sin_addr);
+	ATF_REQUIRE_EQ(1, ret);
+
+	memset(&buffers, '!', sizeof(buffers));
+
+	chan = create_network_service();
+	ret = cap_getnameinfo(chan, (struct sockaddr *)&sin, sizeof(sin),
+	    buffers.host, sizeof(buffers.host),
+	    buffers.serv, sizeof(buffers.serv),
+	    NI_NUMERICHOST | NI_NUMERICSERV);
+	ATF_REQUIRE_EQ_MSG(0, ret, "%d", ret);
+
+	// Verify that cap_getnameinfo worked with minimally sized buffers.
+	ATF_CHECK_EQ(0, strcmp(TEST_IPV4, buffers.host));
+	ATF_CHECK_EQ(0, strcmp(TEST_PORT_STR, buffers.serv));
+
+	// Verify that cap_getnameinfo did not overflow the buffers.
+	ATF_CHECK_EQ('!', buffers.host_canary);
+	ATF_CHECK_EQ('!', buffers.serv_canary);
+
+	cap_close(chan);
 }
 
 ATF_TC_WITHOUT_HEAD(capnet__limits_addr2name_mode);
@@ -1247,6 +1288,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, capnet__getaddrinfo);
 	ATF_TP_ADD_TC(tp, capnet__gethostbyname);
 	ATF_TP_ADD_TC(tp, capnet__gethostbyaddr);
+
+	ATF_TP_ADD_TC(tp, capnet__getnameinfo_buffer);
 
 	ATF_TP_ADD_TC(tp, capnet__limits_addr2name_mode);
 	ATF_TP_ADD_TC(tp, capnet__limits_addr2name_family);

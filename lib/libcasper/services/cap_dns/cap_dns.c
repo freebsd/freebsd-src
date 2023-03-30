@@ -302,9 +302,9 @@ cap_getnameinfo(cap_channel_t *chan, const struct sockaddr *sa, socklen_t salen,
 	}
 
 	if (host != NULL && nvlist_exists_string(nvl, "host"))
-		strlcpy(host, nvlist_get_string(nvl, "host"), hostlen + 1);
+		strlcpy(host, nvlist_get_string(nvl, "host"), hostlen);
 	if (serv != NULL && nvlist_exists_string(nvl, "serv"))
-		strlcpy(serv, nvlist_get_string(nvl, "serv"), servlen + 1);
+		strlcpy(serv, nvlist_get_string(nvl, "serv"), servlen);
 	nvlist_destroy(nvl);
 	return (0);
 }
@@ -538,14 +538,14 @@ dns_getnameinfo(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 	servlen = (size_t)nvlist_get_number(nvlin, "servlen");
 
 	if (hostlen > 0) {
-		host = calloc(1, hostlen + 1);
+		host = calloc(1, hostlen);
 		if (host == NULL) {
 			error = EAI_MEMORY;
 			goto out;
 		}
 	}
 	if (servlen > 0) {
-		serv = calloc(1, servlen + 1);
+		serv = calloc(1, servlen);
 		if (serv == NULL) {
 			error = EAI_MEMORY;
 			goto out;
