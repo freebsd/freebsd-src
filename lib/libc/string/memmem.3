@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 17, 2017
+.Dd March 30, 2023
 .Dt MEMMEM 3
 .Os
 .Sh NAME
@@ -71,7 +71,8 @@ is returned.
 .Xr strstr 3
 .Sh CONFORMING TO
 .Fn memmem
-is a GNU extension.
+started as a GNU extension but is now available in at least
+the GNU, musl, bionic, OpenBSD, NetBSD, macOS, and Illumos C runtime libraries.
 .Sh HISTORY
 The
 .Fn memmem
