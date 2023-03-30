@@ -41,6 +41,7 @@ bmah [label="Bruce A. Mah\nbmah@FreeBSD.org\n2002/01/29\n2009/09/13"]
 bmilekic [label="Bosko Milekic\nbmilekic@FreeBSD.org\n2000/09/21\n2008/11/10"]
 bushman [label="Michael Bushkov\nbushman@FreeBSD.org\n2007/03/10\n2010/04/29"]
 carl [label="Carl Delsey\ncarl@FreeBSD.org\n2013/01/14\n2014/03/06"]
+cc [label="Cheng Cui\ncc@FreeBSD.org\n2023/02/15"]
 ceri [label="Ceri Davies\nceri@FreeBSD.org\n2006/11/07\n2012/03/07"]
 cjc [label="Crist J. Clark\ncjc@FreeBSD.org\n2001/06/01\n2006/12/29"]
 davidxu [label="David Xu\ndavidxu@FreeBSD.org\n2002/09/02\n2014/04/14"]
@@ -845,6 +846,8 @@ rrs -> bcran
 rrs -> jchandra
 rrs -> tuexen
 
+rscheff -> cc
+
 rstone -> markj
 rstone -> mjoras
 
@@ -920,6 +923,7 @@ thompsa -> eri
 trasz -> jh
 trasz -> mjg
 
+tuexen -> cc
 tuexen -> rscheff
 
 ume -> jinmei
