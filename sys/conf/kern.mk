@@ -45,6 +45,11 @@ CWARNEXTRA+=	-Wno-address-of-packed-member
 .if ${COMPILER_VERSION} >= 130000
 CWARNFLAGS+=	-Wno-error=unused-but-set-variable
 .endif
+.if ${COMPILER_VERSION} >= 150000
+CWARNFLAGS+=	-Wno-error=deprecated-non-prototype
+CWARNFLAGS+=	-Wno-error=array-parameter
+CWARNFLAGS+=	-Wno-error=strict-prototypes
+.endif
 .endif	# clang
 
 .if ${COMPILER_TYPE} == "gcc"
