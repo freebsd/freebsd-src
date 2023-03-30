@@ -73,7 +73,13 @@ extern char *program_name;	/* used to generate self-identifying messages */
 
 #ifndef HAVE_BPF_DUMP
 struct bpf_program;
+#endif
 
+/*
+ * With Capsicum bpf_dump() may be not declared even if HAVE_BPF_DUMP is set.
+ */
+#if !defined(HAVE_BPF_DUMP) || \
+    (defined(HAVE_BPF_DUMP) && HAVE_CAPSICUM && !defined(bpf_dump))
 extern void bpf_dump(const struct bpf_program *, int);
 
 #endif
