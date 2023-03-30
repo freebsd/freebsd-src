@@ -388,14 +388,15 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
 	n_files++;
 	inoinfo(inumber)->ino_linkcnt = DIP(dp, di_nlink);
 	if (mode == IFDIR) {
-		if (DIP(dp, di_size) == 0)
+		if (DIP(dp, di_size) == 0) {
 			inoinfo(inumber)->ino_state = DCLEAR;
-		else if (DIP(dp, di_nlink) <= 0)
+		} else if (DIP(dp, di_nlink) <= 0) {
 			inoinfo(inumber)->ino_state = DZLINK;
-		else
+		} else {
 			inoinfo(inumber)->ino_state = DSTATE;
-		cacheino(dp, inumber);
-		countdirs++;
+			cacheino(dp, inumber);
+			countdirs++;
+		}
 	} else if (DIP(dp, di_nlink) <= 0)
 		inoinfo(inumber)->ino_state = FZLINK;
 	else

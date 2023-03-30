@@ -1135,6 +1135,7 @@ cacheino(union dinode *dp, ino_t inumber)
 	inp->i_dotdot = (ino_t)0;
 	inp->i_number = inumber;
 	inp->i_isize = DIP(dp, di_size);
+	inp->i_depth = DIP(dp, di_dirdepth);
 	inp->i_numblks = blks;
 	for (i = 0; i < MIN(blks, UFS_NDADDR); i++)
 		inp->i_blks[i] = DIP(dp, di_db[i]);

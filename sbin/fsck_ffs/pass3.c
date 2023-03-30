@@ -74,7 +74,7 @@ pass3(void)
 		if (inp->i_number == UFS_ROOTINO ||
 		    (inp->i_parent != 0 && !S_IS_DUNFOUND(state)))
 			continue;
-		if (state == DCLEAR)
+		if (state == DCLEAR || state == DZLINK)
 			continue;
 		/*
 		 * If we are running with soft updates and we come
@@ -102,6 +102,7 @@ pass3(void)
 				inoinfo(lfdir)->ino_linkcnt--;
 			}
 			inoinfo(orphan)->ino_state = DFOUND;
+			check_dirdepth(inp);
 			propagate();
 			continue;
 		}
@@ -127,6 +128,7 @@ pass3(void)
 		}
 		irelse(&ip);
 		inoinfo(orphan)->ino_state = DFOUND;
+		check_dirdepth(inp);
 		propagate();
 	}
 }

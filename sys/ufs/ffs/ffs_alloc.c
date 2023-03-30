@@ -1179,6 +1179,8 @@ retry:
 	}
 	ip->i_flags = 0;
 	DIP_SET(ip, i_flags, 0);
+	if ((mode & IFMT) == IFDIR)
+		DIP_SET(ip, i_dirdepth, DIP(pip, i_dirdepth) + 1);
 	/*
 	 * Set up a new generation number for this inode.
 	 */
@@ -1238,10 +1240,10 @@ static ino_t
 ffs_dirpref(struct inode *pip)
 {
 	struct fs *fs;
-	int cg, prefcg, dirsize, cgsize;
+	int cg, prefcg, curcg, dirsize, cgsize;
+	int depth, range, start, end, numdirs, power, numerator, denominator;
 	u_int avgifree, avgbfree, avgndir, curdirsize;
 	u_int minifree, minbfree, maxndir;
-	u_int mincg, minndir;
 	u_int maxcontigdirs;
 
 	mtx_assert(UFS_MTX(ITOUMP(pip)), MA_OWNED);
@@ -1252,35 +1254,53 @@ ffs_dirpref(struct inode *pip)
 	avgndir = fs->fs_cstotal.cs_ndir / fs->fs_ncg;
 
 	/*
-	 * Force allocation in another cg if creating a first level dir.
+	 * Select a preferred cylinder group to place a new directory.
+	 * If we are near the root of the filesystem we aim to spread
+	 * them out as much as possible. As we descend deeper from the
+	 * root we cluster them closer together around their parent as
+	 * we expect them to be more closely interactive. Higher-level
+	 * directories like usr/src/sys and usr/src/bin should be
+	 * separated while the directories in these areas are more
+	 * likely to be accessed together so should be closer.
+	 *
+	 * We pick a range of cylinder groups around the cylinder group
+	 * of the directory in which we are being created. The size of
+	 * the range for our search is based on our depth from the root
+	 * of our filesystem. We then probe that range based on how many
+	 * directories are already present. The first new directory is at
+	 * 1/2 (middle) of the range; the second is in the first 1/4 of the
+	 * range, then at 3/4, 1/8, 3/8, 5/8, 7/8, 1/16, 3/16, 5/16, etc.
 	 */
-	ASSERT_VOP_LOCKED(ITOV(pip), "ffs_dirpref");
-	if (ITOV(pip)->v_vflag & VV_ROOT) {
-		prefcg = arc4random() % fs->fs_ncg;
-		mincg = prefcg;
-		minndir = fs->fs_ipg;
-		for (cg = prefcg; cg < fs->fs_ncg; cg++)
-			if (fs->fs_cs(fs, cg).cs_ndir < minndir &&
-			    fs->fs_cs(fs, cg).cs_nifree >= avgifree &&
-			    fs->fs_cs(fs, cg).cs_nbfree >= avgbfree) {
-				mincg = cg;
-				minndir = fs->fs_cs(fs, cg).cs_ndir;
-			}
-		for (cg = 0; cg < prefcg; cg++)
-			if (fs->fs_cs(fs, cg).cs_ndir < minndir &&
-			    fs->fs_cs(fs, cg).cs_nifree >= avgifree &&
-			    fs->fs_cs(fs, cg).cs_nbfree >= avgbfree) {
-				mincg = cg;
-				minndir = fs->fs_cs(fs, cg).cs_ndir;
-			}
-		return ((ino_t)(fs->fs_ipg * mincg));
-	}
+	depth = DIP(pip, i_dirdepth);
+	range = fs->fs_ncg / (1 << depth);
+	curcg = ino_to_cg(fs, pip->i_number);
+	start = curcg - (range / 2);
+	if (start < 0)
+		start += fs->fs_ncg;
+	end = curcg + (range / 2);
+	if (end >= fs->fs_ncg)
+		end -= fs->fs_ncg;
+	numdirs = pip->i_effnlink - 1;
+	power = fls(numdirs);
+	numerator = (numdirs & ~(1 << (power - 1))) * 2 + 1;
+	denominator = 1 << power;
+	prefcg = (curcg - (range / 2) + (range * numerator / denominator));
+	if (prefcg < 0)
+		prefcg += fs->fs_ncg;
+	if (prefcg >= fs->fs_ncg)
+		prefcg -= fs->fs_ncg;
+	/*
+	 * If this filesystem is not tracking directory depths,
+	 * revert to the old algorithm.
+	 */
+	if (depth == 0 && pip->i_number != UFS_ROOTINO)
+		prefcg = curcg;
 
 	/*
 	 * Count various limits which used for
 	 * optimal allocation of a directory inode.
 	 */
-	maxndir = min(avgndir + fs->fs_ipg / 16, fs->fs_ipg);
+	maxndir = min(avgndir + (1 << depth), fs->fs_ipg);
 	minifree = avgifree - avgifree / 4;
 	if (minifree < 1)
 		minifree = 1;
@@ -1324,7 +1344,6 @@ ffs_dirpref(struct inode *pip)
 	 * in new cylinder groups so finds every possible block after
 	 * one pass over the filesystem.
 	 */
-	prefcg = ino_to_cg(fs, pip->i_number);
 	for (cg = prefcg; cg < fs->fs_ncg; cg++)
 		if (fs->fs_cs(fs, cg).cs_ndir < maxndir &&
 		    fs->fs_cs(fs, cg).cs_nifree >= minifree &&

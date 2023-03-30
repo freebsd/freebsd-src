@@ -156,7 +156,10 @@ struct ufs2_dinode {
 		    [(UFS_NDADDR + UFS_NIADDR) * sizeof(ufs2_daddr_t)];
 	};
 	u_int64_t	di_modrev;	/* 232: i_modrev for NFSv4 */
-	uint32_t	di_freelink;	/* 240: SUJ: Next unlinked inode. */
+	union {
+		uint32_t di_freelink;	/* 240: SUJ: Next unlinked inode. */
+		uint32_t di_dirdepth;	/* 240: IFDIR: depth from root dir */
+	};
 	uint32_t	di_ckhash;	/* 244: if CK_INODE, its check-hash */
 	uint32_t	di_spare[2];	/* 248: Reserved; currently unused */
 };
@@ -179,7 +182,10 @@ struct ufs2_dinode {
 struct ufs1_dinode {
 	u_int16_t	di_mode;	/*   0: IFMT, permissions; see below. */
 	int16_t		di_nlink;	/*   2: File link count. */
-	uint32_t	di_freelink;	/*   4: SUJ: Next unlinked inode. */
+	union {
+		uint32_t di_freelink;	/*   4: SUJ: Next unlinked inode. */
+		uint32_t di_dirdepth;	/*   4: IFDIR: depth from root dir */
+	};
 	u_int64_t	di_size;	/*   8: File byte count. */
 	int32_t		di_atime;	/*  16: Last access time. */
 	int32_t		di_atimensec;	/*  20: Last access time. */
