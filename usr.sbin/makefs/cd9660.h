@@ -250,7 +250,6 @@ typedef struct _iso9660_disk {
 	unsigned rock_ridge_move_count;
 	cd9660node *rr_moved_dir;
 
-	int archimedes_enabled;
 	int chrp_boot;
 
 	/* Spec breaking options */
