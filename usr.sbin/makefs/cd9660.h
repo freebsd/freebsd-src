@@ -1,4 +1,4 @@
-/*	$NetBSD: cd9660.h,v 1.17 2011/06/23 02:35:56 enami Exp $	*/
+/*	$NetBSD: cd9660.h,v 1.21 2015/12/24 15:52:37 christos Exp $	*/
 
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-NetBSD
@@ -284,7 +284,7 @@ typedef struct _iso9660_disk {
 /************ FUNCTIONS **************/
 int			cd9660_valid_a_chars(const char *);
 int			cd9660_valid_d_chars(const char *);
-void			cd9660_uppercase_characters(char *, int);
+void			cd9660_uppercase_characters(char *, size_t);
 
 /* ISO Data Types */
 void			cd9660_721(uint16_t, unsigned char *);

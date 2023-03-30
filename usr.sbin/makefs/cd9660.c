@@ -1,4 +1,4 @@
-/*	$NetBSD: cd9660.c,v 1.32 2011/08/23 17:09:11 christos Exp $	*/
+/*	$NetBSD: cd9660.c,v 1.56 2019/10/18 04:09:02 msaitoh Exp $	*/
 
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-NetBSD AND BSD-4-Clause
@@ -115,7 +115,7 @@ __FBSDID("$FreeBSD$");
 static void cd9660_finalize_PVD(iso9660_disk *);
 static cd9660node *cd9660_allocate_cd9660node(void);
 static void cd9660_set_defaults(iso9660_disk *);
-static int cd9660_arguments_set_string(const char *, const char *, int,
+static int cd9660_arguments_set_string(const char *, const char *, size_t,
     char, char *);
 static void cd9660_populate_iso_dir_record(
     struct _iso_directory_record_cd9660 *, u_char, u_char, u_char,
@@ -324,10 +324,11 @@ cd9660_cleanup_opts(fsinfo_t *fsopts)
 }
 
 static int
-cd9660_arguments_set_string(const char *val, const char *fieldtitle, int length,
-			    char testmode, char * dest)
+cd9660_arguments_set_string(const char *val, const char *fieldtitle,
+    size_t length, char testmode, char *dest)
 {
-	int len, test;
+	size_t len;
+	int test;
 
 	if (val == NULL)
 		warnx("error: '%s' requires a string argument", fieldtitle);
