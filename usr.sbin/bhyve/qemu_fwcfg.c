@@ -178,7 +178,7 @@ qemu_fwcfg_add_item(const uint16_t architecture, const uint16_t index,
 	if (fwcfg_item->data != NULL) {
 		warnx("%s: qemu fwcfg item exists (architecture %s index 0x%x)",
 		    __func__, arch ? "specific" : "generic", idx);
-		return (-1);
+		return (EEXIST);
 	}
 
 	/* save data of the item */
