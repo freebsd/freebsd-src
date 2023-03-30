@@ -309,6 +309,7 @@ struct inoinfo {
 	ino_t	i_parent;		/* inode number of parent */
 	ino_t	i_dotdot;		/* inode number of `..' */
 	size_t	i_isize;		/* size of inode */
+	u_int	i_depth;		/* depth of directory from root */
 	u_int	i_flags;		/* flags, see below */
 	u_int	i_numblks;		/* size of block array in bytes */
 	ufs2_daddr_t i_blks[1];		/* actually longer */
@@ -462,9 +463,10 @@ void		catch(int);
 void		catchquit(int);
 void		cgdirty(struct bufarea *);
 struct bufarea *cglookup(int cg);
-int		changeino(ino_t dir, const char *name, ino_t newnum);
+int		changeino(ino_t dir, const char *name, ino_t newnum, int depth);
 void		check_blkcnt(struct inode *ip);
 int		check_cgmagic(int cg, struct bufarea *cgbp, int requestrebuild);
+void		check_dirdepth(struct inoinfo *inp);
 int		chkrange(ufs2_daddr_t blk, int cnt);
 void		ckfini(int markclean);
 int		ckinode(union dinode *dp, struct inodesc *);

@@ -210,8 +210,10 @@ pass2(void)
 		if (inp->i_parent == 0 || inp->i_isize == 0)
 			continue;
 		if (inoinfo(inp->i_parent)->ino_state == DFOUND &&
-		    INO_IS_DUNFOUND(inp->i_number))
+		    INO_IS_DUNFOUND(inp->i_number)) {
 			inoinfo(inp->i_number)->ino_state = DFOUND;
+			check_dirdepth(inp);
+		}
 		if (inp->i_dotdot == inp->i_parent ||
 		    inp->i_dotdot == (ino_t)-1)
 			continue;
@@ -271,7 +273,8 @@ pass2(void)
 		inoinfo(inp->i_dotdot)->ino_linkcnt++;
 		inoinfo(inp->i_parent)->ino_linkcnt--;
 		inp->i_dotdot = inp->i_parent;
-		(void)changeino(inp->i_number, "..", inp->i_parent);
+		(void)changeino(inp->i_number, "..", inp->i_parent,
+		    getinoinfo(inp->i_parent)->i_depth  + 1);
 	}
 	/*
 	 * Mark all the directories that can be found from the root.
@@ -548,10 +551,12 @@ again:
 		case DFOUND:
 			inp = getinoinfo(dirp->d_ino);
 			if (idesc->id_entryno > 2) {
-				if (inp->i_parent == 0)
+				if (inp->i_parent == 0) {
 					inp->i_parent = idesc->id_number;
-				else if ((n = fix_extraneous(inp, idesc)) == 1)
+					check_dirdepth(inp);
+				} else if ((n = fix_extraneous(inp, idesc))) {
 					break;
+				}
 			}
 			/* FALLTHROUGH */
 
