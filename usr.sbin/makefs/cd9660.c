@@ -1001,7 +1001,7 @@ cd9660_sorted_child_insert(cd9660node *parent, cd9660node *cn_new)
 
 /*
  * Called After cd9660_sorted_child_insert
- * handles file collisions by suffixing each filname with ~n
+ * handles file collisions by suffixing each filename with ~n
  * where n represents the files respective place in the ordering
  */
 static int
