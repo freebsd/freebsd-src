@@ -33,9 +33,6 @@
 #endif
 
 #include <sys/cdefs.h>
-#if defined(__RCSID) && !defined(__lint)
-#endif	/* !__lint */
-
 #include <sys/param.h>
 
 #if !HAVE_NBTOOL_CONFIG_H
