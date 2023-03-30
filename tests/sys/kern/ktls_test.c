@@ -2801,6 +2801,8 @@ ATF_TC_BODY(ktls_listening_socket, tc)
 	s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	ATF_REQUIRE(s >= 0);
 	memset(&sin, 0, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	ATF_REQUIRE(bind(s, (struct sockaddr *)&sin, sizeof(sin)) == 0);
 	ATF_REQUIRE(listen(s, 1) == 0);
 	build_tls_enable(tc, CRYPTO_AES_NIST_GCM_16, 128 / 8, 0,
