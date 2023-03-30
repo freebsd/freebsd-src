@@ -78,11 +78,7 @@
 #include "t4_l2t.h"
 #include "t4_mp_ring.h"
 
-#ifdef T4_PKT_TIMESTAMP
-#define RX_COPY_THRESHOLD (MINCLSIZE - 8)
-#else
 #define RX_COPY_THRESHOLD MINCLSIZE
-#endif
 
 /* Internal mbuf flags stored in PH_loc.eight[1]. */
 #define	MC_NOMAP		0x01
