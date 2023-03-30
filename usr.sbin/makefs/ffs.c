@@ -954,7 +954,7 @@ ffs_write_file(union dinode *din, uint32_t ino, void *buf, fsinfo_t *fsopts)
 
 	if (isfile) {
 		fbuf = emalloc(ffs_opts->bsize);
-		if ((ffd = open((char *)buf, O_RDONLY, 0444)) == -1) {
+		if ((ffd = open((char *)buf, O_RDONLY)) == -1) {
 			err(EXIT_FAILURE, "Can't open `%s' for reading", (char *)buf);
 		}
 	} else {
