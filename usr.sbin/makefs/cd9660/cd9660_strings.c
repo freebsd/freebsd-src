@@ -46,9 +46,9 @@ __FBSDID("$FreeBSD$");
 
 
 void
-cd9660_uppercase_characters(char *str, int len)
+cd9660_uppercase_characters(char *str, size_t len)
 {
-	int p;
+	size_t p;
 
 	for (p = 0; p < len; p++) {
 		if (islower((unsigned char)str[p]) )

@@ -78,7 +78,7 @@ bread(struct m_vnode *vp, daddr_t blkno, int size, struct ucred *u1 __unused,
 	if (lseek((*bpp)->b_fs->fd, offset, SEEK_SET) == -1)
 		err(1, "%s: lseek %lld (%lld)", __func__,
 		    (long long)(*bpp)->b_blkno, (long long)offset);
-	rv = read((*bpp)->b_fs->fd, (*bpp)->b_data, (*bpp)->b_bcount);
+	rv = read((*bpp)->b_fs->fd, (*bpp)->b_data, (size_t)(*bpp)->b_bcount);
 	if (debug & DEBUG_BUF_BREAD)
 		printf("%s: read %ld (%lld) returned %d\n", __func__,
 		    (*bpp)->b_bcount, (long long)offset, (int)rv);
@@ -206,8 +206,8 @@ getblk(struct m_vnode *vp, daddr_t blkno, int size, int u1 __unused,
 	}
 	bp->b_bcount = size;
 	if (bp->b_data == NULL || bp->b_bcount > bp->b_bufsize) {
-		n = erealloc(bp->b_data, size);
-		memset(n, 0, size);
+		n = erealloc(bp->b_data, (size_t)size);
+		memset(n, 0, (size_t)size);
 		bp->b_data = n;
 		bp->b_bufsize = size;
 	}
