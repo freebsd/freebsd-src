@@ -13,6 +13,9 @@ ATF_TESTS_SH+=	\
 		fragments \
 		forward
 
+# Tests reuse jail names and so cannot run in parallel.
+TEST_METADATA+=	is_exclusive=true
+
 ${PACKAGE}FILES+=	\
 		utils.subr \
 		runner.subr \
