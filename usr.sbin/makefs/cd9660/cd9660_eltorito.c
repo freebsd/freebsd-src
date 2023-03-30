@@ -540,7 +540,7 @@ cd9660_write_mbr_partition_entry(FILE *fd, int idx, off_t sector_start,
 
 	if (fseeko(fd, (off_t)(idx) * 16 + 0x1be, SEEK_SET) == -1)
 		err(1, "fseeko");
-	
+
 	val = 0x80; /* Bootable */
 	fwrite(&val, sizeof(val), 1, fd);
 
@@ -610,7 +610,7 @@ cd9660_write_apm_partition_entry(FILE *fd, int idx, int total_partitions,
 	apm32 = 0;
 	/* pmLgDataStart */
 	fwrite(&apm32, sizeof(apm32), 1, fd);
-	/* pmDataCnt */ 
+	/* pmDataCnt */
 	apm32 = htobe32(nsectors);
 	fwrite(&apm32, sizeof(apm32), 1, fd);
 	/* pmPartStatus */
@@ -659,9 +659,9 @@ cd9660_write_boot(iso9660_disk *diskStructure, FILE *fd)
 		}
 		cd9660_copy_file(diskStructure, fd, t->sector, t->filename);
 
-		if (t->system == ET_SYS_MAC) 
+		if (t->system == ET_SYS_MAC)
 			apm_partitions++;
-		if (t->system == ET_SYS_PPC) 
+		if (t->system == ET_SYS_PPC)
 			mbr_partitions++;
 	}
 
