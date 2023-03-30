@@ -57,6 +57,7 @@ MOVED_LIBS+=lib/casper/libcap_dns.so.2
 MOVED_LIBS+=lib/casper/libcap_fileargs.so.1
 MOVED_LIBS+=lib/casper/libcap_grp.so.1
 MOVED_LIBS+=lib/casper/libcap_net.so.1
+MOVED_LIBS+=lib/casper/libcap_netdb.so.1
 MOVED_LIBS+=lib/casper/libcap_pwd.so.1
 MOVED_LIBS+=lib/casper/libcap_sysctl.so.1
 MOVED_LIBS+=lib/casper/libcap_sysctl.so.2
