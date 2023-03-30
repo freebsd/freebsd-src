@@ -88,10 +88,95 @@ propagate(void)
 			if (inoinfo(inp->i_parent)->ino_state == DFOUND &&
 			    INO_IS_DUNFOUND(inp->i_number)) {
 				inoinfo(inp->i_number)->ino_state = DFOUND;
+				check_dirdepth(inp);
 				change++;
 			}
 		}
 	} while (change > 0);
+}
+
+/*
+ * Check that the recorded depth of the directory is correct.
+ */
+void
+check_dirdepth(struct inoinfo *inp)
+{
+	struct inoinfo *parentinp;
+	struct inode ip;
+	union dinode *dp;
+	int saveresolved;
+	static int updateasked, dirdepthupdate;
+
+	if ((parentinp = getinoinfo(inp->i_parent)) == NULL) {
+		pfatal("check_dirdepth: UNKNOWN PARENT DIR");
+		return;
+	}
+	/*
+	 * If depth is correct, nothing to do.
+	 */
+	if (parentinp->i_depth + 1 == inp->i_depth)
+		return;
+	/*
+	 * Only the root inode should have depth of 0, so if any other
+	 * directory has a depth of 0 then this is an old filesystem
+	 * that has not been tracking directory depth. Ask just once
+	 * whether it should start tracking directory depth.
+	 */
+	if (inp->i_depth == 0 && updateasked == 0) {
+		updateasked = 1;
+		if (preen) {
+			pwarn("UPDATING FILESYSTEM TO TRACK DIRECTORY DEPTH");
+			dirdepthupdate = 1;
+		} else {
+			/*
+			 * The file system can be marked clean even if
+			 * a directory does not have the right depth.
+			 * Hence, resolved should not be cleared when
+			 * the filesystem does not update directory depths.
+			 */
+			saveresolved = resolved;
+			dirdepthupdate =
+			    reply("UPDATE FILESYSTEM TO TRACK DIRECTORY DEPTH");
+			resolved = saveresolved;
+		}
+	}
+	/*
+	 * If we are not converting, nothing more to do.
+	 */
+	if (inp->i_depth == 0 && dirdepthupdate == 0)
+		return;
+	/*
+	 * Individual directory at wrong depth. Report it and correct if
+	 * in preen mode or ask if in interactive mode. Note that if a
+	 * directory is renamed to a new location that is at a different
+	 * level in the tree, its depth will be recalculated, but none of
+	 * the directories that it contains will be updated. Thus it is
+	 * not unexpected to find directories with incorrect depths. No
+	 * operational harm will come from this though new directory
+	 * placement in the subtree may not be as optimal until the depths
+	 * of the affected directories are corrected.
+	 *
+	 * To avoid much spurious output on otherwise clean filesystems
+	 * we only generate detailed output when the debug flag is given.
+	 */
+	ginode(inp->i_number, &ip);
+	dp = ip.i_dp;
+	if (inp->i_depth != 0 && debug) {
+		pwarn("DIRECTORY");
+		prtinode(&ip);
+		printf(" DEPTH %d SHOULD BE %d", inp->i_depth,
+		    parentinp->i_depth + 1);
+		if (preen == 0 && reply("ADJUST") == 0) {
+			irelse(&ip);
+			return;
+		}
+		if (preen)
+			printf(" (ADJUSTED)\n");
+	}
+	inp->i_depth = parentinp->i_depth + 1;
+	DIP_SET(dp, di_dirdepth, inp->i_depth);
+	inodirty(&ip);
+	irelse(&ip);
 }
 
 /*
@@ -471,7 +556,7 @@ linkup(ino_t orphan, ino_t parentdir, char *name)
 {
 	struct inode ip;
 	union dinode *dp;
-	int lostdir;
+	int lostdir, depth;
 	ino_t oldlfdir;
 	struct inoinfo *inp;
 	struct inodesc idesc;
@@ -546,7 +631,7 @@ linkup(ino_t orphan, ino_t parentdir, char *name)
 			irelse(&ip);
 			return (0);
 		}
-		if ((changeino(UFS_ROOTINO, lfname, lfdir) & ALTERED) == 0) {
+		if ((changeino(UFS_ROOTINO, lfname, lfdir, 1) & ALTERED) == 0) {
 			pfatal("SORRY. CANNOT CREATE lost+found DIRECTORY\n\n");
 			irelse(&ip);
 			return (0);
@@ -575,7 +660,8 @@ linkup(ino_t orphan, ino_t parentdir, char *name)
 	}
 	inoinfo(orphan)->ino_linkcnt--;
 	if (lostdir) {
-		if ((changeino(orphan, "..", lfdir) & ALTERED) == 0 &&
+		depth = DIP(dp, di_dirdepth) + 1;
+		if ((changeino(orphan, "..", lfdir, depth) & ALTERED) == 0 &&
 		    parentdir != (ino_t)-1)
 			(void)makeentry(orphan, lfdir, "..");
 		DIP_SET(dp, di_nlink, DIP(dp, di_nlink) + 1);
@@ -607,7 +693,7 @@ linkup(ino_t orphan, ino_t parentdir, char *name)
  * fix an entry in a directory.
  */
 int
-changeino(ino_t dir, const char *name, ino_t newnum)
+changeino(ino_t dir, const char *name, ino_t newnum, int depth)
 {
 	struct inodesc idesc;
 	struct inode ip;
@@ -621,7 +707,10 @@ changeino(ino_t dir, const char *name, ino_t newnum)
 	idesc.id_name = strdup(name);
 	idesc.id_parent = newnum;	/* new value for name */
 	ginode(dir, &ip);
-	error = ckinode(ip.i_dp, &idesc);
+	if (((error = ckinode(ip.i_dp, &idesc)) & ALTERED) && newnum != 0) {
+		DIP_SET(ip.i_dp, di_dirdepth, depth);
+		getinoinfo(dir)->i_depth = depth;
+	}
 	free(idesc.id_name);
 	irelse(&ip);
 	return (error);
@@ -815,8 +904,8 @@ allocdir(ino_t parent, ino_t request, int mode)
 	struct inode ip;
 	union dinode *dp;
 	struct bufarea *bp;
-	struct inoinfo *inp;
 	struct dirtemplate *dirp;
+	struct inoinfo *inp, *parentinp;
 
 	ino = allocino(request, IFDIR|mode);
 	if (ino == 0)
@@ -859,6 +948,12 @@ allocdir(ino_t parent, ino_t request, int mode)
 	inp->i_parent = parent;
 	inp->i_dotdot = parent;
 	inp->i_flags |= INFO_NEW;
+	if ((parentinp = getinoinfo(inp->i_parent)) == NULL) {
+		pfatal("allocdir: UNKNOWN PARENT DIR");
+	} else {
+		inp->i_depth = parentinp->i_depth + 1; 
+		DIP_SET(dp, di_dirdepth, inp->i_depth);
+	}
 	inoinfo(ino)->ino_type = DT_DIR;
 	inoinfo(ino)->ino_state = inoinfo(parent)->ino_state;
 	if (inoinfo(ino)->ino_state == DSTATE) {

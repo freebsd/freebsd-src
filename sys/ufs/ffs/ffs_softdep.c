@@ -12486,17 +12486,6 @@ softdep_update_inodeblock(
 	    ("softdep_update_inodeblock called on non-softdep filesystem"));
 	fs = ump->um_fs;
 	/*
-	 * Preserve the freelink that is on disk.  clear_unlinked_inodedep()
-	 * does not have access to the in-core ip so must write directly into
-	 * the inode block buffer when setting freelink.
-	 */
-	if (fs->fs_magic == FS_UFS1_MAGIC)
-		DIP_SET(ip, i_freelink, ((struct ufs1_dinode *)bp->b_data +
-		    ino_to_fsbo(fs, ip->i_number))->di_freelink);
-	else
-		DIP_SET(ip, i_freelink, ((struct ufs2_dinode *)bp->b_data +
-		    ino_to_fsbo(fs, ip->i_number))->di_freelink);
-	/*
 	 * If the effective link count is not equal to the actual link
 	 * count, then we must track the difference in an inodedep while
 	 * the inode is (potentially) tossed out of the cache. Otherwise,
@@ -12510,6 +12499,21 @@ again:
 		if (ip->i_effnlink != ip->i_nlink)
 			panic("softdep_update_inodeblock: bad link count");
 		return;
+	}
+	/*
+	 * Preserve the freelink that is on disk.  clear_unlinked_inodedep()
+	 * does not have access to the in-core ip so must write directly into
+	 * the inode block buffer when setting freelink.
+	 */
+	if ((inodedep->id_state & UNLINKED) != 0) {
+		if (fs->fs_magic == FS_UFS1_MAGIC)
+			DIP_SET(ip, i_freelink,
+			    ((struct ufs1_dinode *)bp->b_data +
+			    ino_to_fsbo(fs, ip->i_number))->di_freelink);
+		else
+			DIP_SET(ip, i_freelink,
+			    ((struct ufs2_dinode *)bp->b_data +
+			    ino_to_fsbo(fs, ip->i_number))->di_freelink);
 	}
 	KASSERT(ip->i_nlink >= inodedep->id_nlinkdelta,
 	    ("softdep_update_inodeblock inconsistent ip %p i_nlink %d "

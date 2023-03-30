@@ -1724,6 +1724,10 @@ relock:
 	 */
 	if (doingdirectory && newparent) {
 		/*
+		 * Set the directory depth based on its new parent.
+		 */
+		DIP_SET(fip, i_dirdepth, DIP(tdp, i_dirdepth) + 1);
+		/*
 		 * If tip exists we simply use its link, otherwise we must
 		 * add a new one.
 		 */
@@ -2136,6 +2140,7 @@ ufs_mkdir(
 	ip->i_effnlink = 2;
 	ip->i_nlink = 2;
 	DIP_SET(ip, i_nlink, 2);
+	DIP_SET(ip, i_dirdepth, DIP(dp,i_dirdepth) + 1);
 
 	if (cnp->cn_flags & ISWHITEOUT) {
 		ip->i_flags |= UF_OPAQUE;

@@ -781,7 +781,7 @@ CMDFUNCSTART(rm)
 
     if (!checkactivedir())
 	return 1;
-    rval = changeino(curinum, argv[1], 0);
+    rval = changeino(curinum, argv[1], 0, 0);
     if (rval & ALTERED) {
 	printf("Name `%s' removed\n", argv[1]);
 	return 0;
