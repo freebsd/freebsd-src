@@ -904,7 +904,7 @@ _LIBCPP_BEGIN_NAMESPACE_STD _LIBCPP_END_NAMESPACE_STD
 
 // Try to find out if RTTI is disabled.
 #  if !defined(__cpp_rtti) || __cpp_rtti < 199711L
-#    define _LIBCPP_NO_RTTI
+#    define _LIBCPP_HAS_NO_RTTI
 #  endif
 
 #  ifndef _LIBCPP_WEAK
@@ -1258,6 +1258,12 @@ _LIBCPP_BEGIN_NAMESPACE_STD _LIBCPP_END_NAMESPACE_STD
 #else
 #  define _LIBCPP_CTAD_SUPPORTED_FOR_TYPE(_ClassName) static_assert(true, "")
 #endif
+
+// TODO(varconst): currently, there are bugs in Clang's intrinsics when handling Objective-C++ `id`, so don't use
+// compiler intrinsics in the Objective-C++ mode.
+#  ifdef __OBJC__
+#    define _LIBCPP_WORKAROUND_OBJCXX_COMPILER_INTRINSICS
+#  endif
 
 #endif // __cplusplus
 
