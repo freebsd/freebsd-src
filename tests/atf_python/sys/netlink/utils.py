@@ -12,6 +12,7 @@ class NlConst:
     AF_NETLINK = 38
     NETLINK_ROUTE = 0
     NETLINK_GENERIC = 16
+    GENL_ID_CTRL = 16
 
 
 def roundup2(val: int, num: int) -> int:
@@ -69,6 +70,11 @@ def get_bitmask_map(propmap, val):
 
 
 def get_bitmask_str(cls, val):
-    pmap = build_propmap(cls)
+    if isinstance(cls, type):
+        pmap = build_propmap(cls)
+    else:
+        pmap = {}
+        for _cls in cls:
+            pmap.update(build_propmap(_cls))
     bmap = get_bitmask_map(pmap, val)
     return ",".join([v for k, v in bmap.items()])

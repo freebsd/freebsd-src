@@ -16,6 +16,8 @@ from atf_python.sys.netlink.attrs import NlAttrStr
 from atf_python.sys.netlink.attrs import NlAttrU32
 from atf_python.sys.netlink.attrs import NlAttrU8
 from atf_python.sys.netlink.message import StdNetlinkMessage
+from atf_python.sys.netlink.message import NlMsgProps
+from atf_python.sys.netlink.message import NlMsgCategory
 from atf_python.sys.netlink.utils import AttrDescr
 from atf_python.sys.netlink.utils import get_bitmask_str
 from atf_python.sys.netlink.utils import prepare_attrs_map
@@ -594,9 +596,9 @@ class BaseNetlinkRtMessage(StdNetlinkMessage):
 
 class NetlinkRtMessage(BaseNetlinkRtMessage):
     messages = [
-        NlRtMsgType.RTM_NEWROUTE.value,
-        NlRtMsgType.RTM_DELROUTE.value,
-        NlRtMsgType.RTM_GETROUTE.value,
+        NlMsgProps(NlRtMsgType.RTM_NEWROUTE, NlMsgCategory.NEW),
+        NlMsgProps(NlRtMsgType.RTM_DELROUTE, NlMsgCategory.DELETE),
+        NlMsgProps(NlRtMsgType.RTM_GETROUTE, NlMsgCategory.GET),
     ]
     nl_attrs_map = rtnl_route_attrs
 
@@ -634,9 +636,9 @@ class NetlinkRtMessage(BaseNetlinkRtMessage):
 
 class NetlinkIflaMessage(BaseNetlinkRtMessage):
     messages = [
-        NlRtMsgType.RTM_NEWLINK.value,
-        NlRtMsgType.RTM_DELLINK.value,
-        NlRtMsgType.RTM_GETLINK.value,
+        NlMsgProps(NlRtMsgType.RTM_NEWLINK, NlMsgCategory.NEW),
+        NlMsgProps(NlRtMsgType.RTM_DELLINK, NlMsgCategory.DELETE),
+        NlMsgProps(NlRtMsgType.RTM_GETLINK, NlMsgCategory.GET),
     ]
     nl_attrs_map = rtnl_ifla_attrs
 
@@ -666,9 +668,9 @@ class NetlinkIflaMessage(BaseNetlinkRtMessage):
 
 class NetlinkIfaMessage(BaseNetlinkRtMessage):
     messages = [
-        NlRtMsgType.RTM_NEWADDR.value,
-        NlRtMsgType.RTM_DELADDR.value,
-        NlRtMsgType.RTM_GETADDR.value,
+        NlMsgProps(NlRtMsgType.RTM_NEWADDR, NlMsgCategory.NEW),
+        NlMsgProps(NlRtMsgType.RTM_DELADDR, NlMsgCategory.DELETE),
+        NlMsgProps(NlRtMsgType.RTM_GETADDR, NlMsgCategory.GET),
     ]
     nl_attrs_map = rtnl_ifa_attrs
 
@@ -698,9 +700,9 @@ class NetlinkIfaMessage(BaseNetlinkRtMessage):
 
 class NetlinkNdMessage(BaseNetlinkRtMessage):
     messages = [
-        NlRtMsgType.RTM_NEWNEIGH.value,
-        NlRtMsgType.RTM_DELNEIGH.value,
-        NlRtMsgType.RTM_GETNEIGH.value,
+        NlMsgProps(NlRtMsgType.RTM_NEWNEIGH, NlMsgCategory.NEW),
+        NlMsgProps(NlRtMsgType.RTM_DELNEIGH, NlMsgCategory.DELETE),
+        NlMsgProps(NlRtMsgType.RTM_GETNEIGH, NlMsgCategory.GET),
     ]
     nl_attrs_map = rtnl_nd_attrs
 
@@ -725,3 +727,13 @@ class NetlinkNdMessage(BaseNetlinkRtMessage):
                 hdr.ndm_flags,
             )
         )
+
+
+handler_classes = {
+    "netlink_route": [
+        NetlinkRtMessage,
+        NetlinkIflaMessage,
+        NetlinkIfaMessage,
+        NetlinkNdMessage,
+    ],
+}
