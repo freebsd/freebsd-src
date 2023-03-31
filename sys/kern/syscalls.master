@@ -3284,7 +3284,7 @@
 		);
 	}
 583	AUE_KQUEUE	STD|CAPENABLED {
-		int kqueue1(
+		int kqueuex(
 		    u_int flags
 		);
 	}
