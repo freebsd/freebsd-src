@@ -17,10 +17,10 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.TH PCAP_GET_REQUIRED_SELECT_TIMEOUT 3PCAP "25 July 2018"
+.TH PCAP_GET_REQUIRED_SELECT_TIMEOUT 3PCAP "29 January 2020"
 .SH NAME
-pcap_get_required_select_timeout \- get a file descriptor on which a
-select() can be done for a live capture
+pcap_get_required_select_timeout \- get a timeout to be used when doing
+select() for a live capture
 .SH SYNOPSIS
 .nf
 .ft B
@@ -28,53 +28,98 @@ select() can be done for a live capture
 .ft
 .LP
 .ft B
-struct timeval *pcap_get_required_select_timeout(pcap_t *p);
+const struct timeval *pcap_get_required_select_timeout(pcap_t *p);
 .ft
 .fi
 .SH DESCRIPTION
-.B pcap_get_required_select_timeout()
+.BR pcap_get_required_select_timeout ()
 returns, on UNIX, a pointer to a
 .B struct timeval
 containing a value that must be used as the minimum timeout in
-.BR select(2) ,
-.BR poll(2) ,
-.BR epoll_wait(2) ,
+.BR select (2),
+.BR poll (2),
+.BR epoll_wait (2),
 and
-.B kevent()
-calls if
-.B pcap_get_selectable_fd(3PCAP)
+.BR kevent (2)
+calls, or
+.B NULL
+if there is no such timeout.
+If a
+.RB non- NULL
+value is returned, it must be used regardless of whether
+.BR pcap_get_selectable_fd (3PCAP)
 returns
-.BR PCAP_ERROR .
-.PP
-The timeout that should be used in those calls must be no larger than
-the smallest of all timeouts returned by
-.B \%pcap_get_required_select_timeout()
-for devices from which packets will be captured.
-.PP
-The device for which
-.B pcap_get_selectable_fd()
-returned
-.B PCAP_ERROR
-must be put in non-blocking mode with
-.BR pcap_setnonblock(3PCAP) ,
-and an attempt must always be made to read packets from the device
-when the
-.BR select() ,
-.BR poll() ,
-.BR epoll_wait() ,
+.B \-1
+for any descriptor on which those calls are being done.
+.BR pcap_get_required_select_timeout ()
+should be called for all
+.BR pcap_t s
+before a call to
+.BR select (),
+.BR poll (),
+.BR epoll_wait (),
 or
-.B kevent()
-call returns.
+.BR kevent (),
+and any timeouts used for those calls should be updated as appropriate
+given the new value of the timeout.
+.PP
+For
+.BR kevent (),
+one
+.B EVFILT_TIMER
+filter per selectable descriptor can be used, rather than using the
+timeout argument to
+.BR kevent ();
+if the
+.B EVFILT_TIMER
+event for a particular selectable descriptor signals an event,
+.BR pcap_dispatch (3PCAP)
+should be called for the corresponding
+.BR pcap_t .
+.PP
+On Linux systems with
+.BR timerfd_create (2),
+one timer object created by
+.BR timerfd_create ()
+per selectable descriptor can be used, rather than using the timeout
+argument to
+.BR epoll_wait ();
+if the
+timer object for a particular selectable descriptor signals an event,
+.BR pcap_dispatch (3PCAP)
+should be called for the corresponding
+.BR pcap_t .
+.PP
+Otherwise, a timeout value no larger than
+the smallest of all timeouts returned by
+.BR \%pcap_get_required_select_timeout ()
+for devices from which packets will be captured and any other timeouts
+to be used in the call should be used as the timeout for the call, and,
+when the call returns,
+.BR pcap_dispatch (3PCAP)
+should be called for all
+.BR pcap_t s
+for which a
+.RB non- NULL
+timeout was returned, regardless of whether it's indicated as having
+anything to read from it or not.
+.PP
+All devices with a
+.RB non- NULL
+timeout must be put in non-blocking mode with
+.BR pcap_setnonblock (3PCAP).
 .PP
 Note that a device on which a read can be done without blocking may,
 on some platforms, not have any packets to read if the packet buffer
 timeout has expired.  A call to
-.B pcap_dispatch(3PCAP)
+.BR pcap_dispatch ()
 or
-.B pcap_next_ex(3PCAP)
-will return 0 in this case, but will not block.
+.BR pcap_next_ex (3PCAP)
+will return
+.B 0
+in this case, but will not block.
 .PP
-.B pcap_get_required_select_timeout()
+.BR pcap_get_required_select_timeout ()
 is not available on Windows.
 .SH RETURN VALUE
 A pointer to a
@@ -85,14 +130,41 @@ is returned.
 .SH BACKWARD COMPATIBILITY
 This function became available in libpcap release 1.9.0.  In previous
 releases,
-.BR select() ,
-.BR poll() ,
-.BR epoll_wait() ,
+.BR select (),
+.BR poll (),
+.BR epoll_wait (),
 and
-.B kevent()
-cannot be used on any capture source for which
-.B pcap_get_selectable_fd
-returns \-1.
+.BR kevent ()
+could not be used for devices that don't provide a selectable file
+descriptor (in other words, on any capture source for that
+.BR pcap_get_selectable_fd ()
+returns
+.BR \-1 ).
+.PP
+In libpcap release 1.10.0 and later, the timeout value can change from
+call to call, so
+.BR pcap_get_required_select_timeout ()
+must be called before each call to
+.BR select (),
+.BR poll (),
+.BR epoll_wait (),
+or
+.BR kevent (),
+and the new value must be used to calculate timeouts for the call.  Code
+that does that will also work with libpcap 1.9.x releases, so code
+using
+.BR pcap_get_required_select_timeout ()
+should be changed to call it for each call to
+.BR select (),
+.BR poll (),
+.BR epoll_wait (),
+or
+.BR kevent ()
+even if the code must also work with libpcap 1.9.x.
 .SH SEE ALSO
-pcap(3PCAP), pcap_get_selectable_fd(3PCAP), select(2), poll(2),
-epoll_wait(2), kqueue(2)
+.BR pcap (3PCAP),
+.BR pcap_get_selectable_fd (3PCAP),
+.BR select (2),
+.BR poll (2),
+.BR epoll_wait (2),
+.BR kqueue (2)

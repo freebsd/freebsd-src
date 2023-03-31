@@ -20,6 +20,8 @@ SRCS=	bpf_dump.c \
 	pcap-bpf.c \
 	pcap-common.c \
 	pcap-netmap.c \
+	pcap-usb-linux-common.c \
+	pcap-util.c \
 	pcap.c \
 	savefile.c \
 	scanner.l \
@@ -28,8 +30,7 @@ SRCS=	bpf_dump.c \
 	tokdefs.h
 
 # Old compatibility headers
-INCS=	fmtutils.h \
-	pcap-bpf.h \
+INCS=	pcap-bpf.h \
 	pcap-namedb.h \
 	pcap-netmap.h \
 	pcap.h
@@ -78,6 +79,7 @@ MAN=	pcap.3 \
 	pcap_get_selectable_fd.3 \
 	pcap_get_tstamp_precision.3 \
 	pcap_geterr.3 \
+	pcap_init.3 \
 	pcap_inject.3 \
 	pcap_is_swapped.3 \
 	pcap_lib_version.3 \
@@ -130,7 +132,7 @@ MLINKS= \
 
 # Our man pages are a special copy from the distdir. See below.
 CLEANFILES+=${MAN}
-CLEANFILES+=tokdefs.h scanner.h 
+CLEANFILES+=grammar.y scanner.h tokdefs.h
 
 YFLAGS+=-p pcap_
 LFLAGS+=-Ppcap_ --header-file=${.OBJDIR}/scanner.h --nounput
@@ -165,6 +167,9 @@ PCAP_DISTDIR?=${SRCTOP}/contrib/libpcap
 CFLAGS+=-I${PCAP_DISTDIR}
 .PATH:	${PCAP_DISTDIR}
 .PATH:	${PCAP_DISTDIR}/bpf/net
+
+grammar.y: grammar.y.in
+	sed  -e 's/@REENTRANT_PARSER@/%pure-parser/' < ${.ALLSRC} > ${.TARGET}
 
 tokdefs.h: grammar.h .NOMETA
 	ln -sf ${.ALLSRC} ${.TARGET}
