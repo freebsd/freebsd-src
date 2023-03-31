@@ -238,9 +238,7 @@ typedef struct _iso9660_disk {
 
 	int include_padding_areas;
 
-	int follow_sym_links;
 	int verbose_level;
-	int displayHelp;
 	int keep_bad_images;
 
 	/* SUSP options and variables */
