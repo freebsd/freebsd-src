@@ -215,7 +215,7 @@ gic_v3_acpi_identify(driver_t *driver, device_t parent)
 
 	/* Add the MADT data */
 	BUS_SET_RESOURCE(parent, dev, SYS_RES_MEMORY, 0,
-	    madt_data.dist->BaseAddress, 128 * 1024);
+	    madt_data.dist->BaseAddress, GICD_SIZE);
 
 	madt_data.dev = dev;
 	madt_data.rdist_use_gicc = false;
