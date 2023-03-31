@@ -47,9 +47,6 @@ VDSODEPS=linux_vdso_gettc_x86.inc
 .endif
 .if ${MACHINE_CPUARCH} == "amd64"
 SRCS+=	linux${SFX}_support.S
-.else
-SRCS+=	linux_copyout.c
-SRCS+=	linux_netlink.c
 .endif
 DPSRCS=	assym.inc linux${SFX}_genassym.c
 
@@ -72,7 +69,9 @@ SRCS+=	imgact_linux.c \
 	linux_ptrace_machdep.c \
 	linux_util.c \
 	linux_vdso_selector_x86.c \
-	linux_x86.c
+	linux_x86.c \
+	linux_copyout.c \
+	linux_netlink.c
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386"
