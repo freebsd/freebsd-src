@@ -380,6 +380,7 @@ init_proc0(vm_offset_t kstack)
 #endif
 	thread0.td_pcb = (struct pcb *)(thread0.td_kstack +
 	    thread0.td_kstack_pages * PAGE_SIZE) - 1;
+	thread0.td_pcb->pcb_flags = 0;
 	thread0.td_pcb->pcb_fpflags = 0;
 	thread0.td_pcb->pcb_fpusaved = &thread0.td_pcb->pcb_fpustate;
 	thread0.td_pcb->pcb_vfpcpu = UINT_MAX;
