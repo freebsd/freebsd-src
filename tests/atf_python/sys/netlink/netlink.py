@@ -14,23 +14,22 @@ from enum import Enum
 from atf_python.sys.netlink.attrs import NlAttr
 from atf_python.sys.netlink.attrs import NlAttrStr
 from atf_python.sys.netlink.attrs import NlAttrU32
-from atf_python.sys.netlink.base_headers import NlmAckFlags
+from atf_python.sys.netlink.base_headers import GenlMsgHdr
 from atf_python.sys.netlink.base_headers import NlmBaseFlags
-from atf_python.sys.netlink.base_headers import NlmDeleteFlags
-from atf_python.sys.netlink.base_headers import NlmGetFlags
-from atf_python.sys.netlink.base_headers import NlmNewFlags
 from atf_python.sys.netlink.base_headers import Nlmsghdr
 from atf_python.sys.netlink.base_headers import NlMsgType
 from atf_python.sys.netlink.message import BaseNetlinkMessage
+from atf_python.sys.netlink.message import NlMsgCategory
+from atf_python.sys.netlink.message import NlMsgProps
 from atf_python.sys.netlink.message import StdNetlinkMessage
-from atf_python.sys.netlink.netlink_route import NetlinkIfaMessage
-from atf_python.sys.netlink.netlink_route import NetlinkIflaMessage
-from atf_python.sys.netlink.netlink_route import NetlinkNdMessage
-from atf_python.sys.netlink.netlink_route import NetlinkRtMessage
-from atf_python.sys.netlink.netlink_route import NlRtMsgType
+from atf_python.sys.netlink.netlink_generic import GenlCtrlMsgType
+from atf_python.sys.netlink.netlink_generic import GenlCtrlAttrType
+from atf_python.sys.netlink.netlink_generic import handler_classes as genl_classes
+from atf_python.sys.netlink.netlink_route import handler_classes as rt_classes
 from atf_python.sys.netlink.utils import align4
 from atf_python.sys.netlink.utils import AttrDescr
 from atf_python.sys.netlink.utils import build_propmap
+from atf_python.sys.netlink.utils import enum_or_int
 from atf_python.sys.netlink.utils import get_bitmask_map
 from atf_python.sys.netlink.utils import NlConst
 from atf_python.sys.netlink.utils import prepare_attrs_map
@@ -114,13 +113,6 @@ class NlHelper:
         propmap = self.get_propmap(cls)
         return propmap.get(attr_val)
 
-    def get_nlmsg_name(self, val):
-        for cls in [NlRtMsgType, NlMsgType]:
-            v = self.get_attr_byval(cls, val)
-            if v is not None:
-                return v
-        return "msg#{}".format(val)
-
     def get_af_name(self, family):
         v = self.get_attr_byval(self._af_cls, family)
         if v is not None:
@@ -141,18 +133,6 @@ class NlHelper:
         bmap = NlHelper.get_bitmask_map(pmap, val)
         return ",".join([v for k, v in bmap.items()])
 
-    def get_nlm_flags_str(self, msg_str: str, reply: bool, val):
-        if reply:
-            return self.get_bitmask_str(NlmAckFlags, val)
-        if msg_str.startswith("RTM_GET"):
-            return self.get_bitmask_str(NlmGetFlags, val)
-        elif msg_str.startswith("RTM_DEL"):
-            return self.get_bitmask_str(NlmDeleteFlags, val)
-        elif msg_str.startswith("RTM_NEW"):
-            return self.get_bitmask_str(NlmNewFlags, val)
-        else:
-            return self.get_bitmask_str(NlmBaseFlags, val)
-
 
 nldone_attrs = prepare_attrs_map([])
 
@@ -166,7 +146,7 @@ nlerr_attrs = prepare_attrs_map(
 
 
 class NetlinkDoneMessage(StdNetlinkMessage):
-    messages = [NlMsgType.NLMSG_DONE.value]
+    messages = [NlMsgProps(NlMsgType.NLMSG_DONE, NlMsgCategory.ACK)]
     nl_attrs_map = nldone_attrs
 
     @property
@@ -185,7 +165,7 @@ class NetlinkDoneMessage(StdNetlinkMessage):
 
 
 class NetlinkErrorMessage(StdNetlinkMessage):
-    messages = [NlMsgType.NLMSG_ERROR.value]
+    messages = [NlMsgProps(NlMsgType.NLMSG_ERROR, NlMsgCategory.ACK)]
     nl_attrs_map = nlerr_attrs
 
     @property
@@ -221,30 +201,52 @@ class NetlinkErrorMessage(StdNetlinkMessage):
 
     def print_base_header(self, errhdr, prepend=""):
         print("{}error={}, ".format(prepend, errhdr.error), end="")
-        self.print_nl_header(errhdr.msg, prepend)
+        hdr = errhdr.msg
+        print(
+            "{}len={}, type={}, flags={}(0x{:X}), seq={}, pid={}".format(
+                prepend,
+                hdr.nlmsg_len,
+                "msg#{}".format(hdr.nlmsg_type),
+                self.helper.get_bitmask_str(NlmBaseFlags, hdr.nlmsg_flags),
+                hdr.nlmsg_flags,
+                hdr.nlmsg_seq,
+                hdr.nlmsg_pid,
+            )
+        )
+
+
+core_classes = {
+    "netlink_core": [
+        NetlinkDoneMessage,
+        NetlinkErrorMessage,
+    ],
+}
 
 
 class Nlsock:
+    HANDLER_CLASSES = [core_classes, rt_classes, genl_classes]
+
     def __init__(self, family, helper):
         self.helper = helper
         self.sock_fd = self._setup_netlink(family)
+        self._sock_family = family
         self._data = bytes()
         self.msgmap = self.build_msgmap()
-        # self.set_groups(NlRtGroup.RTNLGRP_IPV4_ROUTE.value | NlRtGroup.RTNLGRP_IPV6_ROUTE.value)  # noqa: E501
+        self._family_map = {
+            NlConst.GENL_ID_CTRL: "nlctrl",
+        }
 
     def build_msgmap(self):
-        classes = [
-            NetlinkRtMessage,
-            NetlinkIflaMessage,
-            NetlinkIfaMessage,
-            NetlinkNdMessage,
-            NetlinkDoneMessage,
-            NetlinkErrorMessage,
-        ]
+        handler_classes = {}
+        for d in self.HANDLER_CLASSES:
+            handler_classes.update(d)
         xmap = {}
-        for cls in classes:
-            for message in cls.messages:
-                xmap[message] = cls
+        # 'family_name': [class.messages[MsgProps.msg],  ]
+        for family_id, family_classes in handler_classes.items():
+            xmap[family_id] = {}
+            for cls in family_classes:
+                for msg_props in cls.messages:
+                    xmap[family_id][enum_or_int(msg_props.msg)] = cls
         return xmap
 
     def _setup_netlink(self, netlink_family) -> int:
@@ -263,9 +265,10 @@ class Nlsock:
         # k = struct.pack("@BBHII", 12, 38, 0, self.pid, mask)
         # self.sock_fd.bind(k)
 
-    def write_message(self, msg):
-        print("vvvvvvvv OUT vvvvvvvv")
-        msg.print_message()
+    def write_message(self, msg, verbose=True):
+        if verbose:
+            print("vvvvvvvv OUT vvvvvvvv")
+            msg.print_message()
         msg_bytes = bytes(msg)
         try:
             ret = os.write(self.sock_fd.fileno(), msg_bytes)
@@ -277,11 +280,47 @@ class Nlsock:
         if len(data) < sizeof(Nlmsghdr):
             raise Exception("Short read from nl: {} bytes".format(len(data)))
         hdr = Nlmsghdr.from_buffer_copy(data)
-        nlmsg_type = hdr.nlmsg_type
-        cls = self.msgmap.get(nlmsg_type)
+        if hdr.nlmsg_type < 16:
+            family_name = "netlink_core"
+            nlmsg_type = hdr.nlmsg_type
+        elif self._sock_family == NlConst.NETLINK_ROUTE:
+            family_name = "netlink_route"
+            nlmsg_type = hdr.nlmsg_type
+        else:
+            # Genetlink
+            if len(data) < sizeof(Nlmsghdr) + sizeof(GenlMsgHdr):
+                raise Exception("Short read from genl: {} bytes".format(len(data)))
+            family_name = self._family_map.get(hdr.nlmsg_type, "")
+            ghdr = GenlMsgHdr.from_buffer_copy(data[sizeof(Nlmsghdr):])
+            nlmsg_type = ghdr.cmd
+        cls = self.msgmap.get(family_name, {}).get(nlmsg_type)
         if not cls:
             cls = BaseNetlinkMessage
         return cls.from_bytes(self.helper, data)
+
+    def get_genl_family_id(self, family_name):
+        hdr = Nlmsghdr(
+            nlmsg_type=NlConst.GENL_ID_CTRL,
+            nlmsg_flags=NlmBaseFlags.NLM_F_REQUEST.value,
+            nlmsg_seq = self.helper.get_seq(),
+        )
+        ghdr = GenlMsgHdr(cmd=GenlCtrlMsgType.CTRL_CMD_GETFAMILY.value)
+        nla = NlAttrStr(GenlCtrlAttrType.CTRL_ATTR_FAMILY_NAME, family_name)
+        hdr.nlmsg_len = sizeof(Nlmsghdr) + sizeof(GenlMsgHdr) + len(bytes(nla))
+
+        msg_bytes = bytes(hdr) + bytes(ghdr) + bytes(nla)
+        self.write_data(msg_bytes)
+        while True:
+            rx_msg = self.read_message()
+            if hdr.nlmsg_seq == rx_msg.nl_hdr.nlmsg_seq:
+                if rx_msg.is_type(NlMsgType.NLMSG_ERROR):
+                    if rx_msg.error_code != 0:
+                        raise ValueError("unable to get family {}".format(family_name))
+                else:
+                    family_id = rx_msg.get_nla(GenlCtrlAttrType.CTRL_ATTR_FAMILY_ID).u16
+                    self._family_map[family_id] = family_name
+                    return family_id
+        raise ValueError("unable to get family {}".format(family_name))
 
     def write_data(self, data: bytes):
         self.sock_fd.send(data)
