@@ -877,6 +877,12 @@ ENTRY(abort)
 	b abort
 END(abort)
 
+.bss
+	.align	PAGE_SHIFT
+initstack:
+	.space	(PAGE_SIZE * KSTACK_PAGES)
+initstack_end:
+
 	.section .init_pagetable, "aw", %nobits
 	.align PAGE_SHIFT
 	/*
@@ -907,17 +913,10 @@ pagetable_l0_ttbr0_boostrap:
 	.space	PAGE_SIZE
 pagetable_l0_ttbr0:
 	.space	PAGE_SIZE
-
 pagetable_end:
 
 el2_pagetable:
 	.space	PAGE_SIZE
-
-	.align	4
-initstack:
-	.space	(PAGE_SIZE * KSTACK_PAGES)
-initstack_end:
-
 
 .text
 EENTRY(aarch32_sigcode)
