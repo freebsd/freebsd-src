@@ -273,7 +273,7 @@ cd9660_write_file(iso9660_disk *diskStructure, FILE *fd, cd9660node *writenode)
 
 	/* Todo : clean up variables */
 
-	temp_file_name = ecalloc(CD9660MAXPATH + 1, 1);
+	temp_file_name = ecalloc(PATH_MAX, 1);
 	buf = emalloc(diskStructure->sectorSize);
 	if ((writenode->level != 0) &&
 	    !(writenode->node->type & S_IFDIR)) {
