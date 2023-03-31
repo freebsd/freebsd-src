@@ -2,7 +2,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2008-2020 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2008-2023 Hans Petter Selasky
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -2829,7 +2829,7 @@ usb_fifo_free_wrap(struct usb_device *udev,
 				continue;
 			}
 			if ((f->dev_ep_index == 0) &&
-			    (f->fs_xfer == NULL)) {
+			    (f->fs_ep_max == 0)) {
 				/* no need to free this FIFO */
 				continue;
 			}
@@ -2837,7 +2837,7 @@ usb_fifo_free_wrap(struct usb_device *udev,
 			if ((f->methods == &usb_ugen_methods) &&
 			    (f->dev_ep_index == 0) &&
 			    (!(flag & USB_UNCFG_FLAG_FREE_EP0)) &&
-			    (f->fs_xfer == NULL)) {
+			    (f->fs_ep_max == 0)) {
 				/* no need to free this FIFO */
 				continue;
 			}
