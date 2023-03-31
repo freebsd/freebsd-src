@@ -116,9 +116,9 @@ static void	lacp_fill_aggregator_id(struct lacp_aggregator *,
 		    const struct lacp_port *);
 static void	lacp_fill_aggregator_id_peer(struct lacp_peerinfo *,
 		    const struct lacp_peerinfo *);
-static int	lacp_aggregator_is_compatible(const struct lacp_aggregator *,
+static bool	lacp_aggregator_is_compatible(const struct lacp_aggregator *,
 		    const struct lacp_port *);
-static int	lacp_peerinfo_is_compatible(const struct lacp_peerinfo *,
+static bool	lacp_peerinfo_is_compatible(const struct lacp_peerinfo *,
 		    const struct lacp_peerinfo *);
 
 static struct lacp_aggregator *lacp_aggregator_get(struct lacp_softc *,
@@ -1367,44 +1367,40 @@ lacp_fill_aggregator_id_peer(struct lacp_peerinfo *lpi_aggr,
  * lacp_aggregator_is_compatible: check if a port can join to an aggregator.
  */
 
-static int
+static bool
 lacp_aggregator_is_compatible(const struct lacp_aggregator *la,
     const struct lacp_port *lp)
 {
 	if (!(lp->lp_state & LACP_STATE_AGGREGATION) ||
 	    !(lp->lp_partner.lip_state & LACP_STATE_AGGREGATION)) {
-		return (0);
+		return (false);
 	}
 
-	if (!(la->la_actor.lip_state & LACP_STATE_AGGREGATION)) {
-		return (0);
-	}
+	if (!(la->la_actor.lip_state & LACP_STATE_AGGREGATION))
+		return (false);
 
-	if (!lacp_peerinfo_is_compatible(&la->la_partner, &lp->lp_partner)) {
-		return (0);
-	}
+	if (!lacp_peerinfo_is_compatible(&la->la_partner, &lp->lp_partner))
+		return (false);
 
-	if (!lacp_peerinfo_is_compatible(&la->la_actor, &lp->lp_actor)) {
-		return (0);
-	}
+	if (!lacp_peerinfo_is_compatible(&la->la_actor, &lp->lp_actor))
+		return (false);
 
-	return (1);
+	return (true);
 }
 
-static int
+static bool
 lacp_peerinfo_is_compatible(const struct lacp_peerinfo *a,
     const struct lacp_peerinfo *b)
 {
 	if (memcmp(&a->lip_systemid, &b->lip_systemid,
-	    sizeof(a->lip_systemid))) {
-		return (0);
+	    sizeof(a->lip_systemid)) != 0) {
+		return (false);
 	}
 
-	if (memcmp(&a->lip_key, &b->lip_key, sizeof(a->lip_key))) {
-		return (0);
-	}
+	if (memcmp(&a->lip_key, &b->lip_key, sizeof(a->lip_key)) != 0)
+		return (false);
 
-	return (1);
+	return (true);
 }
 
 static void

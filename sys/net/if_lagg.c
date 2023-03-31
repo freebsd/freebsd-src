@@ -2577,7 +2577,7 @@ lagg_lacp_input(struct lagg_softc *sc, struct lagg_port *lp, struct mbuf *m)
 	 * If the port is not collecting or not in the active aggregator then
 	 * free and return.
 	 */
-	if (lacp_iscollecting(lp) == 0 || lacp_isactive(lp) == 0) {
+	if (!lacp_iscollecting(lp) || !lacp_isactive(lp)) {
 		m_freem(m);
 		return (NULL);
 	}
