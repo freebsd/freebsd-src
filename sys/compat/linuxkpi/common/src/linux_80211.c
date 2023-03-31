@@ -2172,7 +2172,7 @@ lkpi_wme_update(struct lkpi_hw *lhw, struct ieee80211vap *vap, bool planned)
 		txqp.aifs = wmep->wmep_aifsn;
 		error = lkpi_80211_mo_conf_tx(hw, vif, ac, &txqp);
 		if (error != 0)
-			printf("%s: conf_tx ac %u failed %d\n",
+			ic_printf(ic, "%s: conf_tx ac %u failed %d\n",
 			    __func__, ac, error);
 	}
 	LKPI_80211_LHW_UNLOCK(lhw);
@@ -2291,7 +2291,7 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 
 	error = lkpi_80211_mo_start(hw);
 	if (error != 0) {
-		printf("%s: failed to start hw: %d\n", __func__, error);
+		ic_printf(ic, "%s: failed to start hw: %d\n", __func__, error);
 		mtx_destroy(&lvif->mtx);
 		free(lvif, M_80211_VAP);
 		return (NULL);
@@ -2300,7 +2300,7 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	error = lkpi_80211_mo_add_interface(hw, vif);
 	if (error != 0) {
 		IMPROVE();	/* XXX-BZ mo_stop()? */
-		printf("%s: failed to add interface: %d\n", __func__, error);
+		ic_printf(ic, "%s: failed to add interface: %d\n", __func__, error);
 		mtx_destroy(&lvif->mtx);
 		free(lvif, M_80211_VAP);
 		return (NULL);
@@ -3100,7 +3100,7 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 	 */
 	skb = dev_alloc_skb(hw->extra_tx_headroom + m->m_pkthdr.len);
 	if (skb == NULL) {
-		printf("XXX ERROR %s: skb alloc failed\n", __func__);
+		ic_printf(ic, "ERROR %s: skb alloc failed\n", __func__);
 		ieee80211_free_node(ni);
 		m_freem(m);
 		return;
@@ -3288,8 +3288,8 @@ lkpi_ic_getradiocaps(struct ieee80211com *ic, int maxchan,
 			int cflags = chan_flags;
 
 			if (channels[i].flags & IEEE80211_CHAN_DISABLED) {
-				printf("%s: %s: Skipping disabled chan "
-				    "[%u/%u/%#x]\n", ic->ic_name, __func__,
+				ic_printf(ic, "%s: Skipping disabled chan "
+				    "[%u/%u/%#x]\n", __func__,
 				    channels[i].hw_value,
 				    channels[i].center_freq, channels[i].flags);
 				continue;
@@ -3312,8 +3312,8 @@ lkpi_ic_getradiocaps(struct ieee80211com *ic, int maxchan,
 			    nflags, bands, chan_flags);
 			/* net80211::ENOBUFS: *n >= maxchans */
 			if (error != 0 && error != ENOBUFS)
-				printf("%s: %s: Adding chan %u/%u/%#x/%#x/%#x/%#x "
-				    "returned error %d\n", ic->ic_name,
+				ic_printf(ic, "%s: Adding chan %u/%u/%#x/%#x/%#x/%#x "
+				    "returned error %d\n",
 				    __func__, channels[i].hw_value,
 				    channels[i].center_freq, channels[i].flags,
 				    nflags, chan_flags, cflags, error);
@@ -3358,8 +3358,8 @@ lkpi_ic_getradiocaps(struct ieee80211com *ic, int maxchan,
 			int cflags = chan_flags;
 
 			if (channels[i].flags & IEEE80211_CHAN_DISABLED) {
-				printf("%s: %s: Skipping disabled chan "
-				    "[%u/%u/%#x]\n", ic->ic_name, __func__,
+				ic_printf(ic, "%s: Skipping disabled chan "
+				    "[%u/%u/%#x]\n", __func__,
 				    channels[i].hw_value,
 				    channels[i].center_freq, channels[i].flags);
 				continue;
@@ -3382,8 +3382,8 @@ lkpi_ic_getradiocaps(struct ieee80211com *ic, int maxchan,
 			    nflags, bands, chan_flags);
 			/* net80211::ENOBUFS: *n >= maxchans */
 			if (error != 0 && error != ENOBUFS)
-				printf("%s: %s: Adding chan %u/%u/%#x/%#x/%#x/%#x "
-				    "returned error %d\n", ic->ic_name,
+				ic_printf(ic, "%s: Adding chan %u/%u/%#x/%#x/%#x/%#x "
+				    "returned error %d\n",
 				    __func__, channels[i].hw_value,
 				    channels[i].center_freq, channels[i].flags,
 				    nflags, chan_flags, cflags, error);
