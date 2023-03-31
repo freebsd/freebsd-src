@@ -2,7 +2,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2008-2022 Hans Petter Selasky
+ * Copyright (c) 2008-2023 Hans Petter Selasky
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -968,10 +968,10 @@ ugen_fs_init(struct usb_fifo *f,
 	int error;
 
 	/* verify input parameters */
-	if (fs_ep_ptr == NULL || ep_index_max > 127)
+	if (fs_ep_ptr == NULL || ep_index_max > USB_FS_XFER_MAX)
 		return (EINVAL);
 
-	if (f->fs_xfer != NULL)
+	if (f->fs_ep_max != 0)
 		return (EBUSY);
 
 	if (f->dev_ep_index != 0 || ep_index_max == 0)
@@ -982,11 +982,11 @@ ugen_fs_init(struct usb_fifo *f,
 
 	error = usb_fifo_alloc_buffer(f, 1, ep_index_max);
 	if (error == 0) {
-		f->fs_xfer = malloc(sizeof(f->fs_xfer[0]) *
-			ep_index_max, M_USB, M_WAITOK | M_ZERO);
+		mtx_lock(f->priv_mtx);
 		f->fs_ep_max = ep_index_max;
 		f->fs_ep_ptr = fs_ep_ptr;
 		f->fs_ep_sz = fs_ep_sz;
+		mtx_unlock(f->priv_mtx);
 	}
 	return (error);
 }
@@ -994,15 +994,26 @@ ugen_fs_init(struct usb_fifo *f,
 int
 ugen_fs_uninit(struct usb_fifo *f)
 {
-	if (f->fs_xfer == NULL) {
+	if (f->fs_ep_max == 0)
 		return (EINVAL);
-	}
-	usbd_transfer_unsetup(f->fs_xfer, f->fs_ep_max);
-	free(f->fs_xfer, M_USB);
-	f->fs_xfer = NULL;
+
+	/*
+	 * Prevent calls into the fast-path code, by setting fs_ep_max
+	 * to zero:
+	 */
+	sx_xlock(&f->fs_fastpath_lock);
+	mtx_lock(f->priv_mtx);
 	f->fs_ep_max = 0;
+	mtx_unlock(f->priv_mtx);
+	sx_xunlock(&f->fs_fastpath_lock);
+
+	usbd_transfer_unsetup(f->fs_xfer, USB_FS_XFER_MAX);
+
+	mtx_lock(f->priv_mtx);
 	f->fs_ep_ptr = NULL;
 	f->flag_iscomplete = 0;
+	mtx_unlock(f->priv_mtx);
+
 	usb_fifo_free_buffer(f);
 	return (0);
 }
@@ -1109,10 +1120,26 @@ usb_fs_open(struct usb_fifo *f, struct usb_fs_open *popen,
 static int
 usb_fs_close(struct usb_fifo *f, struct usb_fs_close *pclose)
 {
+	struct usb_xfer *xfer;
+
 	if (pclose->ep_index >= f->fs_ep_max)
 		return (EINVAL);
 
-	usbd_transfer_unsetup(f->fs_xfer + pclose->ep_index, 1);
+	/*
+	 * Prevent calls into the fast-path code, by setting the
+	 * fs_xfer[] in question to NULL:
+	 */
+	sx_xlock(&f->fs_fastpath_lock);
+	mtx_lock(f->priv_mtx);
+	xfer = f->fs_xfer[pclose->ep_index];
+	f->fs_xfer[pclose->ep_index] = NULL;
+	mtx_unlock(f->priv_mtx);
+	sx_xunlock(&f->fs_fastpath_lock);
+
+	if (xfer == NULL)
+		return (EINVAL);
+
+	usbd_transfer_unsetup(&xfer, 1);
 	return (0);
 }
 
@@ -1249,14 +1276,16 @@ ugen_fs_copy_in(struct usb_fifo *f, uint8_t ep_index)
 	int error;
 	uint8_t isread;
 
+	mtx_lock(f->priv_mtx);
 	if (ep_index >= f->fs_ep_max) {
+		mtx_unlock(f->priv_mtx);
 		return (EINVAL);
 	}
 	xfer = f->fs_xfer[ep_index];
 	if (xfer == NULL) {
+		mtx_unlock(f->priv_mtx);
 		return (EINVAL);
 	}
-	mtx_lock(f->priv_mtx);
 	if (usbd_transfer_pending(xfer)) {
 		mtx_unlock(f->priv_mtx);
 		return (EBUSY);		/* should not happen */
@@ -1529,14 +1558,16 @@ ugen_fs_copy_out(struct usb_fifo *f, uint8_t ep_index)
 	int error;
 	uint8_t isread;
 
-	if (ep_index >= f->fs_ep_max)
-		return (EINVAL);
-
-	xfer = f->fs_xfer[ep_index];
-	if (xfer == NULL)
-		return (EINVAL);
-
 	mtx_lock(f->priv_mtx);
+	if (ep_index >= f->fs_ep_max) {
+		mtx_unlock(f->priv_mtx);
+		return (EINVAL);
+	}
+	xfer = f->fs_xfer[ep_index];
+	if (xfer == NULL) {
+		mtx_unlock(f->priv_mtx);
+		return (EINVAL);
+	}
 	if (!xfer->flags_int.transferring &&
 	    !xfer->flags_int.started) {
 		mtx_unlock(f->priv_mtx);
@@ -1675,10 +1706,6 @@ ugen_ioctl(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 		struct usb_fs_complete *pcomp;
 		struct usb_fs_start *pstart;
 		struct usb_fs_stop *pstop;
-		struct usb_fs_open *popen;
-		struct usb_fs_open_stream *popen_stream;
-		struct usb_fs_close *pclose;
-		struct usb_fs_clear_stall_sync *pstall;
 		void   *addr;
 	}     u;
 	struct usb_xfer *xfer;
@@ -1691,6 +1718,7 @@ ugen_ioctl(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 
 	switch (cmd) {
 	case USB_FS_COMPLETE:
+		sx_slock(&f->fs_fastpath_lock);
 		mtx_lock(f->priv_mtx);
 		error = ugen_fs_get_complete(f, &ep_index);
 		mtx_unlock(f->priv_mtx);
@@ -1701,9 +1729,11 @@ ugen_ioctl(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 			u.pcomp->ep_index = ep_index;
 			error = ugen_fs_copy_out(f, u.pcomp->ep_index);
 		}
+		sx_sunlock(&f->fs_fastpath_lock);
 		break;
 
 	case USB_FS_START:
+		sx_slock(&f->fs_fastpath_lock);
 		error = ugen_fs_copy_in(f, u.pstart->ep_index);
 		if (error == 0) {
 			mtx_lock(f->priv_mtx);
@@ -1711,6 +1741,7 @@ ugen_ioctl(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 			usbd_transfer_start(xfer);
 			mtx_unlock(f->priv_mtx);
 		}
+		sx_sunlock(&f->fs_fastpath_lock);
 		break;
 
 	case USB_FS_STOP:
@@ -1737,20 +1768,6 @@ ugen_ioctl(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 			}
 		}
 		mtx_unlock(f->priv_mtx);
-		break;
-
-	case USB_FS_OPEN:
-	case USB_FS_OPEN_STREAM:
-		error = usb_fs_open(f, u.popen, fflags,
-		    (cmd == USB_FS_OPEN_STREAM) ? u.popen_stream->stream_id : 0);
-		break;
-
-	case USB_FS_CLOSE:
-		error = usb_fs_close(f, u.pclose);
-		break;
-
-	case USB_FS_CLEAR_STALL_SYNC:
-		error = usb_fs_clear_stall_sync(f, u.pstall);
 		break;
 
 	default:
@@ -2212,6 +2229,10 @@ ugen_ioctl_post(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 		struct usb_fs_init32 *pinit32;
 #endif
 		struct usb_fs_uninit *puninit;
+		struct usb_fs_open *popen;
+		struct usb_fs_open_stream *popen_stream;
+		struct usb_fs_close *pclose;
+		struct usb_fs_clear_stall_sync *pstall;
 		struct usb_device_port_path *dpp;
 		uint32_t *ptime;
 		void   *addr;
@@ -2438,6 +2459,20 @@ ugen_ioctl_post(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 			break;
 		}
 		error = ugen_fs_uninit(f);
+		break;
+
+	case USB_FS_OPEN:
+	case USB_FS_OPEN_STREAM:
+		error = usb_fs_open(f, u.popen, fflags,
+		    (cmd == USB_FS_OPEN_STREAM) ? u.popen_stream->stream_id : 0);
+		break;
+
+	case USB_FS_CLOSE:
+		error = usb_fs_close(f, u.pclose);
+		break;
+
+	case USB_FS_CLEAR_STALL_SYNC:
+		error = usb_fs_clear_stall_sync(f, u.pstall);
 		break;
 
 	default:

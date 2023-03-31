@@ -2,7 +2,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2008-2023 Hans Petter Selasky
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -110,13 +110,15 @@ struct usb_fifo {
 	struct selinfo selinfo;
 	struct cv cv_io;
 	struct cv cv_drain;
+	struct sx fs_fastpath_lock;
 	struct usb_fifo_methods *methods;
 	struct usb_symlink *symlink[2];/* our symlinks */
 	struct proc *async_p;		/* process that wants SIGIO */
 	struct usb_fs_endpoint *fs_ep_ptr;
 	struct usb_device *udev;
+#define	USB_FS_XFER_MAX 126
 	struct usb_xfer *xfer[2];
-	struct usb_xfer **fs_xfer;
+	struct usb_xfer *fs_xfer[USB_FS_XFER_MAX];
 	struct mtx *priv_mtx;		/* client data */
 	/* set if FIFO is opened by a FILE: */
 	struct usb_cdev_privdata *curr_cpd;
