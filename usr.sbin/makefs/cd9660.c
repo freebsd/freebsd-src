@@ -1582,10 +1582,10 @@ cd9660_compute_full_filename(cd9660node *node, char *buf)
 {
 	int len;
 
-	len = CD9660MAXPATH + 1;
+	len = PATH_MAX;
 	len = snprintf(buf, len, "%s/%s/%s", node->node->root,
 	    node->node->path, node->node->name);
-	if (len > CD9660MAXPATH)
+	if (len >= PATH_MAX)
 		errx(EXIT_FAILURE, "Pathname too long.");
 }
 
