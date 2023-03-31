@@ -21,7 +21,7 @@
 .SH NAME
 rpcapd-config \- rpcapd configuration file format
 .SH DESCRIPTION
-An 
+An
 .B rpcapd
 configuration file allows parameters to be set for
 .BR rpcapd (@MAN_ADMIN_COMMANDS@).
@@ -42,7 +42,7 @@ are:
 .TP
 .B ActiveClient
 .I value
-is a host name or IP addresse, followed by a comma,
+is a host name or IP address, followed by a comma,
 semicolon, or space, followed by a port name and address or
 .BR DEFAULT .
 .B DEFAULT
@@ -54,7 +54,7 @@ should connect in active mode.
 .TP
 .B PassiveClient
 .I value
-is a host name or IP addresse, followed by a comma,
+is a host name or IP address, followed by a comma,
 semicolon, or space, followed by a port name and address or
 .BR DEFAULT .
 .B DEFAULT
@@ -75,4 +75,4 @@ means that null authentication is permitted;
 .B No
 means that it is not permitted.
 .SH SEE ALSO
-rpcapd(@MAN_ADMIN_COMMANDS@)
+.BR rpcapd (@MAN_ADMIN_COMMANDS@)

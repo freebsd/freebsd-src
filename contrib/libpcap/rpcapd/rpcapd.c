@@ -35,10 +35,12 @@
 #endif
 
 #include "ftmacros.h"
+#include "diag-control.h"
 
 #include <errno.h>		// for the errno variable
 #include <string.h>		// for strtok, etc
 #include <stdlib.h>		// for malloc(), free(), ...
+#include <stdio.h>		// for fprintf(), stderr, FILE etc
 #include <pcap.h>		// for PCAP_ERRBUF_SIZE
 #include <signal.h>		// for signal()
 
@@ -52,6 +54,10 @@
 #include "rpcap-protocol.h"
 #include "daemon.h"		// the true main() method of this daemon
 #include "log.h"
+
+#ifdef HAVE_OPENSSL
+#include "sslutils.h"
+#endif
 
 #ifdef _WIN32
   #include <process.h>		// for thread stuff
@@ -86,6 +92,7 @@ static HANDLE state_change_event;		//!< event to signal that a state change shou
 #endif
 static volatile sig_atomic_t shutdown_server;	//!< '1' if the server is to shut down
 static volatile sig_atomic_t reread_config;	//!< '1' if the server is to re-read its configuration
+static int uses_ssl; //!< '1' to use TLS over the data socket
 
 extern char *optarg;	// for getopt()
 
@@ -112,7 +119,7 @@ static unsigned __stdcall main_passive_serviceloop_thread(void *ptr);
 /*!
 	\brief Prints the usage screen if it is launched in console mode.
 */
-static void printusage(void)
+static void printusage(FILE * f)
 {
 	const char *usagetext =
 	"USAGE:"
@@ -145,14 +152,23 @@ static void printusage(void)
 	"  -i              run in inetd mode (UNIX only)\n\n"
 #endif
 	"  -D              log debugging messages\n\n"
+#ifdef HAVE_OPENSSL
+	"  -S              encrypt all communication with SSL (implements rpcaps://)\n"
+	"  -C              enable compression\n"
+	"  -K <pem_file>   uses the SSL private key in this file (default: key.pem)\n"
+	"  -X <pem_file>   uses the certificate from this file (default: cert.pem)\n"
+#endif
 	"  -s <config_file> save the current configuration to file\n\n"
 	"  -f <config_file> load the current configuration from file; all switches\n"
 	"                  specified from the command line are ignored\n\n"
 	"  -h              print this help screen\n\n";
 
-	(void)fprintf(stderr, "RPCAPD, a remote packet capture daemon.\n"
-	"Compiled with %s\n\n", pcap_lib_version());
-	printf("%s", usagetext);
+	(void)fprintf(f, "RPCAPD, a remote packet capture daemon.\n"
+	"Compiled with %s\n", pcap_lib_version());
+#if defined(HAVE_OPENSSL) && defined(SSLEAY_VERSION)
+	(void)fprintf(f, "Compiled with %s\n", SSLeay_version(SSLEAY_VERSION));
+#endif
+	(void)fprintf(f, "\n%s", usagetext);
 }
 
 
@@ -172,6 +188,9 @@ int main(int argc, char *argv[])
 #ifndef _WIN32
 	struct sigaction action;
 #endif
+#ifdef HAVE_OPENSSL
+	int enable_compression = 0;
+#endif
 
 	savefile[0] = 0;
 	loadfile[0] = 0;
@@ -180,8 +199,8 @@ int main(int argc, char *argv[])
 	// Initialize errbuf
 	memset(errbuf, 0, sizeof(errbuf));
 
-	strncpy(address, RPCAP_DEFAULT_NETADDR, MAX_LINE);
-	strncpy(port, RPCAP_DEFAULT_NETPORT, MAX_LINE);
+	pcap_strlcpy(address, RPCAP_DEFAULT_NETADDR, sizeof (address));
+	pcap_strlcpy(port, RPCAP_DEFAULT_NETPORT, sizeof (port));
 
 	// Prepare to open a new server socket
 	memset(&mainhints, 0, sizeof(struct addrinfo));
@@ -191,7 +210,15 @@ int main(int argc, char *argv[])
 	mainhints.ai_socktype = SOCK_STREAM;
 
 	// Getting the proper command line options
-	while ((retval = getopt(argc, argv, "b:dDhip:4l:na:s:f:v")) != -1)
+#	ifdef HAVE_OPENSSL
+#		define SSL_CLOPTS  "SK:X:C"
+#	else
+#		define SSL_CLOPTS ""
+#	endif
+
+#	define CLOPTS "b:dDhip:4l:na:s:f:v" SSL_CLOPTS
+
+	while ((retval = getopt(argc, argv, CLOPTS)) != -1)
 	{
 		switch (retval)
 		{
@@ -200,10 +227,10 @@ int main(int argc, char *argv[])
 				rpcapd_log_set(log_to_systemlog, log_debug_messages);
 				break;
 			case 'b':
-				strncpy(address, optarg, MAX_LINE);
+				pcap_strlcpy(address, optarg, sizeof (address));
 				break;
 			case 'p':
-				strncpy(port, optarg, MAX_LINE);
+				pcap_strlcpy(port, optarg, sizeof (port));
 				break;
 			case '4':
 				mainhints.ai_family = PF_INET;		// IPv4 server only
@@ -215,7 +242,7 @@ int main(int argc, char *argv[])
 				break;
 			case 'i':
 #ifdef _WIN32
-				printusage();
+				printusage(stderr);
 				exit(1);
 #else
 				isrunbyinetd = 1;
@@ -231,7 +258,7 @@ int main(int argc, char *argv[])
 				break;
 			case 'l':
 			{
-				strncpy(hostlist, optarg, sizeof(hostlist));
+				pcap_strlcpy(hostlist, optarg, sizeof(hostlist));
 				break;
 			}
 			case 'a':
@@ -246,12 +273,12 @@ int main(int argc, char *argv[])
 				{
 					tmpport = pcap_strtok_r(NULL, RPCAP_HOSTLIST_SEP, &lasts);
 
-					pcap_strlcpy(activelist[i].address, tmpaddress, MAX_LINE);
+					pcap_strlcpy(activelist[i].address, tmpaddress, sizeof (activelist[i].address));
 
 					if ((tmpport == NULL) || (strcmp(tmpport, "DEFAULT") == 0)) // the user choose a custom port
-						pcap_strlcpy(activelist[i].port, RPCAP_DEFAULT_NETPORT_ACTIVE, MAX_LINE);
+						pcap_strlcpy(activelist[i].port, RPCAP_DEFAULT_NETPORT_ACTIVE, sizeof (activelist[i].port));
 					else
-						pcap_strlcpy(activelist[i].port, tmpport, MAX_LINE);
+						pcap_strlcpy(activelist[i].port, tmpport, sizeof (activelist[i].port));
 
 					tmpaddress = pcap_strtok_r(NULL, RPCAP_HOSTLIST_SEP, &lasts);
 
@@ -266,13 +293,27 @@ int main(int argc, char *argv[])
 				break;
 			}
 			case 'f':
-				pcap_strlcpy(loadfile, optarg, MAX_LINE);
+				pcap_strlcpy(loadfile, optarg, sizeof (loadfile));
 				break;
 			case 's':
-				pcap_strlcpy(savefile, optarg, MAX_LINE);
+				pcap_strlcpy(savefile, optarg, sizeof (savefile));
 				break;
+#ifdef HAVE_OPENSSL
+			case 'S':
+				uses_ssl = 1;
+				break;
+			case 'C':
+				enable_compression = 1;
+				break;
+			case 'K':
+				ssl_set_keyfile(optarg);
+				break;
+			case 'X':
+				ssl_set_certfile(optarg);
+				break;
+#endif
 			case 'h':
-				printusage();
+				printusage(stdout);
 				exit(0);
 				/*NOTREACHED*/
 			default:
@@ -289,6 +330,16 @@ int main(int argc, char *argv[])
 	}
 #endif
 
+	//
+	// We want UTF-8 error messages.
+	//
+	if (pcap_init(PCAP_CHAR_ENC_UTF_8, errbuf) == -1)
+	{
+		rpcapd_log(LOGPRIO_ERROR, "%s", errbuf);
+		exit(-1);
+	}
+	pcap_fmt_set_encoding(PCAP_CHAR_ENC_UTF_8);
+
 	if (sock_init(errbuf, PCAP_ERRBUF_SIZE) == -1)
 	{
 		rpcapd_log(LOGPRIO_ERROR, "%s", errbuf);
@@ -302,7 +353,7 @@ int main(int argc, char *argv[])
 	if (loadfile[0])
 		fileconf_read();
 
-#ifdef WIN32
+#ifdef _WIN32
 	//
 	// Create a handle to signal the main loop to tell it to do
 	// something.
@@ -310,8 +361,8 @@ int main(int argc, char *argv[])
 	state_change_event = CreateEvent(NULL, FALSE, FALSE, NULL);
 	if (state_change_event == NULL)
 	{
-		sock_geterror("Can't create state change event", errbuf,
-		    PCAP_ERRBUF_SIZE);
+		sock_geterrmsg(errbuf, PCAP_ERRBUF_SIZE,
+		    "Can't create state change event");
 		rpcapd_log(LOGPRIO_ERROR, "%s", errbuf);
 		exit(2);
 	}
@@ -321,8 +372,8 @@ int main(int argc, char *argv[])
 	//
 	if (!SetConsoleCtrlHandler(main_ctrl_event, TRUE))
 	{
-		sock_geterror("Can't set control handler", errbuf,
-		    PCAP_ERRBUF_SIZE);
+		sock_geterrmsg(errbuf, PCAP_ERRBUF_SIZE,
+		    "Can't set control handler");
 		rpcapd_log(LOGPRIO_ERROR, "%s", errbuf);
 		exit(2);
 	}
@@ -341,6 +392,17 @@ int main(int argc, char *argv[])
 	// connection, we don't want to get killed by a signal in that case
 	signal(SIGPIPE, SIG_IGN);
 #endif
+
+# ifdef HAVE_OPENSSL
+	if (uses_ssl) {
+		if (ssl_init_once(1, enable_compression, errbuf, PCAP_ERRBUF_SIZE) < 0)
+		{
+			rpcapd_log(LOGPRIO_ERROR, "Can't initialize SSL: %s",
+			    errbuf);
+			exit(2);
+		}
+	}
+# endif
 
 #ifndef _WIN32
 	if (isrunbyinetd)
@@ -365,8 +427,8 @@ int main(int argc, char *argv[])
 		sockctrl = dup(0);
 		if (sockctrl == -1)
 		{
-			sock_geterror("Can't dup standard input", errbuf,
-			    PCAP_ERRBUF_SIZE);
+			sock_geterrmsg(errbuf, PCAP_ERRBUF_SIZE,
+			    "Can't dup standard input");
 			rpcapd_log(LOGPRIO_ERROR, "%s", errbuf);
 			exit(2);
 		}
@@ -399,7 +461,7 @@ int main(int argc, char *argv[])
 			exit(0);
 		}
 		(void)daemon_serviceloop(sockctrl, 0, hostlist_copy,
-		    nullAuthAllowed);
+		    nullAuthAllowed, uses_ssl);
 
 		//
 		// Nothing more to do.
@@ -442,7 +504,7 @@ int main(int argc, char *argv[])
 
 		// LINUX WARNING: the current linux implementation of pthreads requires a management thread
 		// to handle some hidden stuff. So, as soon as you create the first thread, two threads are
-		// created. Fom this point on, the number of threads active are always one more compared
+		// created. From this point on, the number of threads active are always one more compared
 		// to the number you're expecting
 
 		// Second child continues
@@ -454,7 +516,7 @@ int main(int argc, char *argv[])
 		//
 		// If this call succeeds, it is blocking on Win32
 		//
-		if (svc_start() != 1)
+		if (!svc_start())
 			rpcapd_log(LOGPRIO_DEBUG, "Unable to start the service");
 
 		// When the previous call returns, the entire application has to be stopped.
@@ -561,7 +623,7 @@ void main_startup(void)
 			SOCKET sock;
 			struct listen_sock *sock_info;
 
-			if ((sock = sock_open(tempaddrinfo, SOCKOPEN_SERVER, SOCKET_MAXCONN, errbuf, PCAP_ERRBUF_SIZE)) == INVALID_SOCKET)
+			if ((sock = sock_open(NULL, tempaddrinfo, SOCKOPEN_SERVER, SOCKET_MAXCONN, errbuf, PCAP_ERRBUF_SIZE)) == INVALID_SOCKET)
 			{
 				switch (tempaddrinfo->ai_family)
 				{
@@ -674,8 +736,8 @@ send_state_change_event(void)
 
 	if (!SetEvent(state_change_event))
 	{
-		sock_geterror("SetEvent on shutdown event failed", errbuf,
-		    PCAP_ERRBUF_SIZE);
+		sock_geterrmsg(errbuf, PCAP_ERRBUF_SIZE,
+		    "SetEvent on shutdown event failed");
 		rpcapd_log(LOGPRIO_ERROR, "%s", errbuf);
 	}
 }
@@ -842,15 +904,15 @@ accept_connections(void)
 		event = WSACreateEvent();
 		if (event == WSA_INVALID_EVENT)
 		{
-			sock_geterror("Can't create socket event", errbuf,
-			    PCAP_ERRBUF_SIZE);
+			sock_geterrmsg(errbuf, PCAP_ERRBUF_SIZE,
+			    "Can't create socket event");
 			rpcapd_log(LOGPRIO_ERROR, "%s", errbuf);
 			exit(2);
 		}
 		if (WSAEventSelect(sock_info->sock, event, FD_ACCEPT) == SOCKET_ERROR)
 		{
-			sock_geterror("Can't setup socket event", errbuf,
-			    PCAP_ERRBUF_SIZE);
+			sock_geterrmsg(errbuf, PCAP_ERRBUF_SIZE,
+			    "Can't setup socket event");
 			rpcapd_log(LOGPRIO_ERROR, "%s", errbuf);
 			exit(2);
 		}
@@ -868,8 +930,8 @@ accept_connections(void)
 		    WSA_INFINITE, FALSE);
 		if (ret == WSA_WAIT_FAILED)
 		{
-			sock_geterror("WSAWaitForMultipleEvents failed", errbuf,
-			    PCAP_ERRBUF_SIZE);
+			sock_geterrmsg(errbuf, PCAP_ERRBUF_SIZE,
+			    "WSAWaitForMultipleEvents failed");
 			rpcapd_log(LOGPRIO_ERROR, "%s", errbuf);
 			exit(2);
 		}
@@ -908,8 +970,8 @@ accept_connections(void)
 			if (WSAEnumNetworkEvents(sock_info->sock,
 			    events[i], &network_events) == SOCKET_ERROR)
 			{
-				sock_geterror("WSAEnumNetworkEvents failed",
-				    errbuf, PCAP_ERRBUF_SIZE);
+				sock_geterrmsg(errbuf, PCAP_ERRBUF_SIZE,
+				    "WSAEnumNetworkEvents failed");
 				rpcapd_log(LOGPRIO_ERROR, "%s", errbuf);
 				exit(2);
 			}
@@ -918,15 +980,15 @@ accept_connections(void)
 				//
 				// Did an error occur?
 				//
-			 	if (network_events.iErrorCode[FD_ACCEPT_BIT] != 0)
-			 	{
+				if (network_events.iErrorCode[FD_ACCEPT_BIT] != 0)
+				{
 					//
 					// Yes - report it and keep going.
 					//
-					sock_fmterror("Socket error",
+					sock_fmterrmsg(errbuf,
+					    PCAP_ERRBUF_SIZE,
 					    network_events.iErrorCode[FD_ACCEPT_BIT],
-					    errbuf,
-					    PCAP_ERRBUF_SIZE);
+					    "Socket error");
 					rpcapd_log(LOGPRIO_ERROR, "%s", errbuf);
 					continue;
 				}
@@ -1100,7 +1162,7 @@ accept_connection(SOCKET listen_sock)
 			break;
 		}
 
-		// The accept() call can return this error when a signal is catched
+		// The accept() call can return this error when a signal is caught
 		// In this case, we have simply to ignore this error code
 		// Stevens, pg 124
 #ifdef _WIN32
@@ -1112,7 +1174,7 @@ accept_connection(SOCKET listen_sock)
 
 		// Don't check for errors here, since the error can be due to the fact that the thread
 		// has been killed
-		sock_geterror("accept()", errbuf, PCAP_ERRBUF_SIZE);
+		sock_geterrmsg(errbuf, PCAP_ERRBUF_SIZE, "accept() failed");
 		rpcapd_log(LOGPRIO_ERROR, "Accept of control connection from client failed: %s",
 		    errbuf);
 		return;
@@ -1136,14 +1198,16 @@ accept_connection(SOCKET listen_sock)
 	//
 	if (WSAEventSelect(sockctrl, NULL, 0) == SOCKET_ERROR)
 	{
-		sock_geterror("WSAEventSelect()", errbuf, PCAP_ERRBUF_SIZE);
+		sock_geterrmsg(errbuf, PCAP_ERRBUF_SIZE,
+		    "WSAEventSelect() failed");
 		rpcapd_log(LOGPRIO_ERROR, "%s", errbuf);
 		sock_close(sockctrl, NULL, 0);
 		return;
 	}
 	if (ioctlsocket(sockctrl, FIONBIO, &off) == SOCKET_ERROR)
 	{
-		sock_geterror("ioctlsocket(FIONBIO)", errbuf, PCAP_ERRBUF_SIZE);
+		sock_geterrmsg(errbuf, PCAP_ERRBUF_SIZE,
+		    "ioctlsocket(FIONBIO) failed");
 		rpcapd_log(LOGPRIO_ERROR, "%s", errbuf);
 		sock_close(sockctrl, NULL, 0);
 		return;
@@ -1236,7 +1300,7 @@ accept_connection(SOCKET listen_sock)
 			exit(0);
 		}
 		(void)daemon_serviceloop(sockctrl, 0, hostlist_copy,
-		    nullAuthAllowed);
+		    nullAuthAllowed, uses_ssl);
 
 		exit(0);
 	}
@@ -1296,13 +1360,15 @@ main_active(void *ptr)
 	{
 		int activeclose;
 
-		if ((sockctrl = sock_open(addrinfo, SOCKOPEN_CLIENT, 0, errbuf, PCAP_ERRBUF_SIZE)) == INVALID_SOCKET)
+		if ((sockctrl = sock_open(activepars->address, addrinfo, SOCKOPEN_CLIENT, 0, errbuf, PCAP_ERRBUF_SIZE)) == INVALID_SOCKET)
 		{
 			rpcapd_log(LOGPRIO_DEBUG, "%s", errbuf);
 
-			pcap_snprintf(errbuf, PCAP_ERRBUF_SIZE, "Error connecting to host %s, port %s, using protocol %s",
+			DIAG_OFF_FORMAT_TRUNCATION
+			snprintf(errbuf, PCAP_ERRBUF_SIZE, "Error connecting to host %s, port %s, using protocol %s",
 					activepars->address, activepars->port, (hints.ai_family == AF_INET) ? "IPv4":
 					(hints.ai_family == AF_INET6) ? "IPv6" : "Unspecified");
+			DIAG_ON_FORMAT_TRUNCATION
 
 			rpcapd_log(LOGPRIO_DEBUG, "%s", errbuf);
 
@@ -1324,10 +1390,10 @@ main_active(void *ptr)
 			// daemon_serviceloop() will free the copy.
 			//
 			activeclose = daemon_serviceloop(sockctrl, 1,
-			    hostlist_copy, nullAuthAllowed);
+			    hostlist_copy, nullAuthAllowed, uses_ssl);
 		}
 
-		// If the connection is closed by the user explicitely, don't try to connect to it again
+		// If the connection is closed by the user explicitly, don't try to connect to it again
 		// just exit the program
 		if (activeclose == 1)
 			break;
@@ -1352,7 +1418,7 @@ unsigned __stdcall main_passive_serviceloop_thread(void *ptr)
 	// told by the client to close.
 	//
 	(void)daemon_serviceloop(params.sockctrl, 0, params.hostlist,
-	    nullAuthAllowed);
+	    nullAuthAllowed, uses_ssl);
 
 	return 0;
 }

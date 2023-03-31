@@ -1,3 +1,25 @@
+# Compiling libpcap on AIX
+
+* Autoconf is expected to work everywhere.
+* Neither AIX lex nor AIX yacc nor AIX m4 are suitable.
+
+## AIX 7.1
+
+* libpcap build fails with rpcapd enabled.
+* GNU M4 1.4.17 works.
+* flex 2.6.4 and GNU Bison 3.5.1 work.
+* CMake 3.16.0 works.
+* GCC 8.3.0 works, XL C 12.1.0 works.
+
+## AIX 7.2
+
+* libpcap build fails with rpcapd enabled.
+* GNU M4 1.4.17 works.
+* flex 2.5.35 and GNU Bison 3.0.4 work.
+* GCC 7.2.0 works, XL C 13.1.3 works.
+
+## Other AIX-related information
+
 Using BPF:
 
 (1) AIX 4.x's version of BPF is undocumented and somewhat unstandard; the
@@ -27,7 +49,7 @@ Using BPF:
     If you fix the problems yourself, please submit a patch by forking
     the branch at
 
-	https://github.com/the-tcpdump-group/libpcap/issues
+	https://github.com/the-tcpdump-group/libpcap/tree/master
 
     and issuing a pull request, so we can incorporate the fixes into the
     next release.

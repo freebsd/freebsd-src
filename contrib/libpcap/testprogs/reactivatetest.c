@@ -51,7 +51,6 @@ main(void)
 		if (pd == NULL) {
 			error("Neither lo0 nor lo could be opened: %s",
 			    ebuf);
-			return 2;
 		}
 	}
 	status = pcap_activate(pd);

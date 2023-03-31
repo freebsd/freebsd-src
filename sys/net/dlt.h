@@ -52,7 +52,7 @@
  *
  * See
  *
- *	http://www.tcpdump.org/linktypes.html
+ *	https://www.tcpdump.org/linktypes.html
  *
  * for detailed descriptions of some of these link-layer header types.
  */
@@ -107,6 +107,67 @@
 #endif
 
 /*
+ * NetBSD uses 15 for HIPPI.
+ *
+ * From a quick look at sys/net/if_hippi.h and sys/net/if_hippisubr.c
+ * in an older version of NetBSD , the header appears to be:
+ *
+ * 	a 1-byte ULP field (ULP-id)?
+ *
+ *	a 1-byte flags field;
+ *
+ *	a 2-byte "offsets" field;
+ *
+ *	a 4-byte "D2 length" field (D2_Size?);
+ *
+ *	a 4-byte "destination switch" field (or a 1-byte field
+ *	containing the Forwarding Class, Double_Wide, and Message_Type
+ *	sub fields, followed by a 3-byte Destination_Switch_Address
+ *	field?, HIPPI-LE 3.4-style?);
+ *
+ *	a 4-byte "source switch" field (or a 1-byte field containing the
+ *	Destination_Address_type and Source_Address_Type fields, followed
+ *	by a 3-byte Source_Switch_Address field, HIPPI-LE 3.4-style?);
+ *
+ *	a 2-byte reserved field;
+ *
+ *	a 6-byte destination address field;
+ *
+ *	a 2-byte "local admin" field;
+ *
+ *	a 6-byte source address field;
+ *
+ * followed by an 802.2 LLC header.
+ *
+ * This looks somewhat like something derived from the HIPPI-FP 4.4
+ * Header_Area, followed an HIPPI-FP 4.4 D1_Area containing a D1 data set
+ * with the header in HIPPI-LE 3.4 (ANSI X3.218-1993), followed by an
+ * HIPPI-FP 4.4 D2_Area (with no Offset) containing the 802.2 LLC header
+ * and payload?  Or does the "offsets" field contain the D2_Offset,
+ * with that many bytes of offset before the payload?
+ *
+ * See http://wotug.org/parallel/standards/hippi/ for an archive of
+ * HIPPI specifications.
+ *
+ * RFC 2067 imposes some additional restrictions.  It says that the
+ * Offset is always zero
+ *
+ * HIPPI is long-gone, and the source files found in an older version
+ * of NetBSD don't appear to be in the main CVS branch, so we may never
+ * see a capture with this link-layer type.
+ */
+#if defined(__NetBSD__)
+#define DLT_HIPPI	15	/* HIPPI */
+#endif
+
+/*
+ * NetBSD uses 16 for DLT_HDLC; see below.
+ * BSD/OS uses it for PPP; see above.
+ * As far as I know, no other OS uses it for anything; don't use it
+ * for anything else.
+ */
+
+/*
  * 17 was used for DLT_PFLOG in OpenBSD; it no longer is.
  *
  * It was DLT_LANE8023 in SuSE 6.3, so we defined LINKTYPE_PFLOG
@@ -138,7 +199,7 @@
 #define DLT_PFSYNC	18
 #endif
 
-#define DLT_ATM_CLIP	19	/* Linux Classical-IP over ATM */
+#define DLT_ATM_CLIP	19	/* Linux Classical IP over ATM */
 
 /*
  * Apparently Redback uses this for its SmartEdge 400/800.  I hope
@@ -221,7 +282,8 @@
  * that the AF_ type in the link-layer header is in network byte order.
  *
  * DLT_LOOP is 12 in OpenBSD, but that's DLT_RAW in other OSes, so
- * we don't use 12 for it in OSes other than OpenBSD.
+ * we don't use 12 for it in OSes other than OpenBSD; instead, we
+ * use the same value as LINKTYPE_LOOP.
  */
 #ifdef __OpenBSD__
 #define DLT_LOOP	12
@@ -232,7 +294,7 @@
 /*
  * Encapsulated packets for IPsec; DLT_ENC is 13 in OpenBSD, but that's
  * DLT_SLIP_BSDOS in NetBSD, so we don't use 13 for it in OSes other
- * than OpenBSD.
+ * than OpenBSD; instead, we use the same value as LINKTYPE_ENC.
  */
 #ifdef __OpenBSD__
 #define DLT_ENC		13
@@ -241,14 +303,24 @@
 #endif
 
 /*
- * Values between 110 and 112 are reserved for use in capture file headers
+ * Values 110 and 111 are reserved for use in capture file headers
  * as link-layer types corresponding to DLT_ types that might differ
  * between platforms; don't use those values for new DLT_ types
  * other than the corresponding DLT_ types.
  */
 
 /*
- * This is for Linux cooked sockets.
+ * NetBSD uses 16 for (Cisco) "HDLC framing".  For other platforms,
+ * we define it to have the same value as LINKTYPE_NETBSD_HDLC.
+ */
+#if defined(__NetBSD__)
+#define DLT_HDLC	16	/* Cisco HDLC */
+#else
+#define DLT_HDLC	112
+#endif
+
+/*
+ * Linux cooked sockets.
  */
 #define DLT_LINUX_SLL	113
 
@@ -467,7 +539,7 @@
 #define DLT_DOCSIS		143
 
 /*
- * Linux-IrDA packets. Protocol defined at http://www.irda.org.
+ * Linux-IrDA packets. Protocol defined at https://www.irda.org.
  * Those packets include IrLAP headers and above (IrLMP...), but
  * don't include Phy framing (SOF/EOF/CRC & byte stuffing), because Phy
  * framing can be handled by the hardware and depend on the bitrate.
@@ -475,7 +547,7 @@
  * interface (irdaX), but not on a raw serial port.
  * Note the capture is done in "Linux-cooked" mode, so each packet include
  * a fake packet header (struct sll_header). This is because IrDA packet
- * decoding is dependant on the direction of the packet (incomming or
+ * decoding is dependent on the direction of the packet (incoming or
  * outgoing).
  * When/if other platform implement IrDA capture, we may revisit the
  * issue and define a real DLT_IRDA...
@@ -609,7 +681,7 @@
 /*
  * Link types requested by Gregor Maier <gregor@endace.com> of Endace
  * Measurement Systems.  They add an ERF header (see
- * http://www.endace.com/support/EndaceRecordFormat.pdf) in front of
+ * https://www.endace.com/support/EndaceRecordFormat.pdf) in front of
  * the link-layer header.
  */
 #define DLT_ERF_ETH		175	/* Ethernet */
@@ -653,7 +725,7 @@
  * DLT_ requested by Gianluca Varenni <gianluca.varenni@cacetech.com>.
  * Every frame contains a 32bit A429 label.
  * More documentation on Arinc 429 can be found at
- * http://www.condoreng.com/support/downloads/tutorials/ARINCTutorial.pdf
+ * https://web.archive.org/web/20040616233302/https://www.condoreng.com/support/downloads/tutorials/ARINCTutorial.pdf
  */
 #define DLT_A429                184
 
@@ -742,12 +814,17 @@
  * nothing); requested by Mikko Saarnivala <mikko.saarnivala@sensinode.com>.
  * For this one, we expect the FCS to be present at the end of the frame;
  * if the frame has no FCS, DLT_IEEE802_15_4_NOFCS should be used.
+ *
+ * We keep the name DLT_IEEE802_15_4 as an alias for backwards
+ * compatibility, but, again, this should *only* be used for 802.15.4
+ * frames that include the FCS.
  */
-#define DLT_IEEE802_15_4	195
+#define DLT_IEEE802_15_4_WITHFCS	195
+#define DLT_IEEE802_15_4		DLT_IEEE802_15_4_WITHFCS
 
 /*
  * Various link-layer types, with a pseudo-header, for SITA
- * (http://www.sita.aero/); requested by Fulko Hew (fulko.hew@gmail.com).
+ * (https://www.sita.aero/); requested by Fulko Hew (fulko.hew@gmail.com).
  */
 #define DLT_SITA		196
 
@@ -766,10 +843,10 @@
 #define DLT_RAIF1		198
 
 /*
- * IPMB packet for IPMI, beginning with the I2C slave address, followed
- * by the netFn and LUN, etc..  Requested by Chanthy Toeung
- * <chanthy.toeung@ca.kontron.com>.
- * 
+ * IPMB packet for IPMI, beginning with a 2-byte header, followed by
+ * the I2C slave address, followed by the netFn and LUN, etc..
+ * Requested by Chanthy Toeung <chanthy.toeung@ca.kontron.com>.
+ *
  * XXX - this used to be called DLT_IPMB, back when we got the
  * impression from the email thread requesting it that the packet
  * had no extra 2-byte header.  We've renamed it; if anybody used
@@ -811,15 +888,37 @@
 #define DLT_LAPD		203
 
 /*
- * Variants of various link-layer headers, with a one-byte direction
- * pseudo-header prepended - zero means "received by this host",
- * non-zero (any non-zero value) means "sent by this host" - as per
- * Will Barker <w.barker@zen.co.uk>.
+ * PPP, with a one-byte direction pseudo-header prepended - zero means
+ * "received by this host", non-zero (any non-zero value) means "sent by
+ * this host" - as per Will Barker <w.barker@zen.co.uk>.
+ *
+ * Don't confuse this with DLT_PPP_WITH_DIRECTION, which is an old
+ * name for what is now called DLT_PPP_PPPD.
  */
-#define DLT_PPP_WITH_DIR	204	/* PPP - don't confuse with DLT_PPP_WITH_DIRECTION */
-#define DLT_C_HDLC_WITH_DIR	205	/* Cisco HDLC */
-#define DLT_FRELAY_WITH_DIR	206	/* Frame Relay */
-#define DLT_LAPB_WITH_DIR	207	/* LAPB */
+#define DLT_PPP_WITH_DIR	204
+
+/*
+ * Cisco HDLC, with a one-byte direction pseudo-header prepended - zero
+ * means "received by this host", non-zero (any non-zero value) means
+ * "sent by this host" - as per Will Barker <w.barker@zen.co.uk>.
+ */
+#define DLT_C_HDLC_WITH_DIR	205
+
+/*
+ * Frame Relay, with a one-byte direction pseudo-header prepended - zero
+ * means "received by this host" (DCE -> DTE), non-zero (any non-zero
+ * value) means "sent by this host" (DTE -> DCE) - as per Will Barker
+ * <w.barker@zen.co.uk>.
+ */
+#define DLT_FRELAY_WITH_DIR	206
+
+/*
+ * LAPB, with a one-byte direction pseudo-header prepended - zero means
+ * "received by this host" (DCE -> DTE), non-zero (any non-zero value)
+ * means "sent by this host" (DTE -> DCE)- as per Will Barker
+ * <w.barker@zen.co.uk>.
+ */
+#define DLT_LAPB_WITH_DIR	207
 
 /*
  * 208 is reserved for an as-yet-unspecified proprietary link-layer
@@ -840,7 +939,7 @@
 
 /*
  * Media Oriented Systems Transport (MOST) bus for multimedia
- * transport - http://www.mostcooperation.com/ - as requested
+ * transport - https://www.mostcooperation.com/ - as requested
  * by Hannes Kaelber <hannes.kaelber@x2e.de>.
  */
 #define DLT_MOST		211
@@ -1026,16 +1125,16 @@
 /*
  * Raw D-Bus:
  *
- *	http://www.freedesktop.org/wiki/Software/dbus
+ *	https://www.freedesktop.org/wiki/Software/dbus
  *
  * messages:
  *
- *	http://dbus.freedesktop.org/doc/dbus-specification.html#message-protocol-messages
+ *	https://dbus.freedesktop.org/doc/dbus-specification.html#message-protocol-messages
  *
  * starting with the endianness flag, followed by the message type, etc.,
  * but without the authentication handshake before the message sequence:
  *
- *	http://dbus.freedesktop.org/doc/dbus-specification.html#auth-protocol
+ *	https://dbus.freedesktop.org/doc/dbus-specification.html#auth-protocol
  *
  * Requested by Martin Vidner <martin@vidner.net>.
  */
@@ -1053,7 +1152,7 @@
  * DVB-CI (DVB Common Interface for communication between a PC Card
  * module and a DVB receiver).  See
  *
- *	http://www.kaiser.cx/pcap-dvbci.html
+ *	https://www.kaiser.cx/pcap-dvbci.html
  *
  * for the specification.
  *
@@ -1189,15 +1288,17 @@
 #define DLT_BLUETOOTH_LE_LL	251
 
 /*
- * DLT type for upper-protocol layer PDU saves from wireshark.
+ * DLT type for upper-protocol layer PDU saves from Wireshark.
  *
- * the actual contents are determined by two TAGs stored with each
- * packet:
- *   EXP_PDU_TAG_LINKTYPE          the link type (LINKTYPE_ value) of the
- *				   original packet.
+ * the actual contents are determined by two TAGs, one or more of
+ * which is stored with each packet:
  *
- *   EXP_PDU_TAG_PROTO_NAME        the name of the wireshark dissector
- * 				   that can make sense of the data stored.
+ *   EXP_PDU_TAG_DISSECTOR_NAME      the name of the Wireshark dissector
+ * 				     that can make sense of the data stored.
+ *
+ *   EXP_PDU_TAG_HEUR_DISSECTOR_NAME the name of the Wireshark heuristic
+ *				     dissector that can make sense of the
+ *				     data stored.
  */
 #define DLT_WIRESHARK_UPPER_PDU	252
 
@@ -1342,9 +1443,9 @@
 
 /*
  * per: Stefanha at gmail.com for
- *   http://lists.sandelman.ca/pipermail/tcpdump-workers/2017-May/000772.html
+ *   https://lists.sandelman.ca/pipermail/tcpdump-workers/2017-May/000772.html
  * and: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/include/uapi/linux/vsockmon.h
- * for: http://qemu-project.org/Features/VirtioVsock
+ * for: https://qemu-project.org/Features/VirtioVsock
  */
 #define DLT_VSOCK               271
 
@@ -1356,7 +1457,7 @@
 /*
  * Excentis DOCSIS 3.1 RF sniffer (XRA-31)
  *   per: bruno.verstuyft at excentis.com
- *        http://www.xra31.com/xra-header
+ *        https://www.xra31.com/xra-header
  */
 #define DLT_DOCSIS31_XRA31	273
 
@@ -1368,7 +1469,7 @@
 
 /*
  * DisplayPort AUX channel monitoring data as specified by VESA
- * DisplayPort(DP) Standard preceeded by a pseudo-header.
+ * DisplayPort(DP) Standard preceded by a pseudo-header.
  *    per dirk.eibach at gdsys.cc
  */
 #define DLT_DISPLAYPORT_AUX	275
@@ -1377,6 +1478,83 @@
  * Linux cooked sockets v2.
  */
 #define DLT_LINUX_SLL2	276
+
+/*
+ * Sercos Monitor, per Manuel Jacob <manuel.jacob at steinbeis-stg.de>
+ */
+#define DLT_SERCOS_MONITOR 277
+
+/*
+ * OpenVizsla http://openvizsla.org is open source USB analyzer hardware.
+ * It consists of FPGA with attached USB phy and FTDI chip for streaming
+ * the data to the host PC.
+ *
+ * Current OpenVizsla data encapsulation format is described here:
+ * https://github.com/matwey/libopenvizsla/wiki/OpenVizsla-protocol-description
+ *
+ */
+#define DLT_OPENVIZSLA	        278
+
+/*
+ * The Elektrobit High Speed Capture and Replay (EBHSCR) protocol is produced
+ * by a PCIe Card for interfacing high speed automotive interfaces.
+ *
+ * The specification for this frame format can be found at:
+ *   https://www.elektrobit.com/ebhscr
+ *
+ * for Guenter.Ebermann at elektrobit.com
+ *
+ */
+#define DLT_EBHSCR	        279
+
+/*
+ * The https://fd.io vpp graph dispatch tracer produces pcap trace files
+ * in the format documented here:
+ * https://fdio-vpp.readthedocs.io/en/latest/gettingstarted/developers/vnet.html#graph-dispatcher-pcap-tracing
+ */
+#define DLT_VPP_DISPATCH	280
+
+/*
+ * Broadcom Ethernet switches (ROBO switch) 4 bytes proprietary tagging format.
+ */
+#define DLT_DSA_TAG_BRCM	281
+#define DLT_DSA_TAG_BRCM_PREPEND	282
+
+/*
+ * IEEE 802.15.4 with pseudo-header and optional meta-data TLVs, PHY payload
+ * exactly as it appears in the spec (no padding, no nothing), and FCS if
+ * specified by FCS Type TLV;  requested by James Ko <jck@exegin.com>.
+ * Specification at https://github.com/jkcko/ieee802.15.4-tap
+ */
+#define DLT_IEEE802_15_4_TAP    283
+
+/*
+ * Marvell (Ethertype) Distributed Switch Architecture proprietary tagging format.
+ */
+#define DLT_DSA_TAG_DSA		284
+#define DLT_DSA_TAG_EDSA	285
+
+/*
+ * Payload of lawful intercept packets using the ELEE protocol;
+ * https://socket.hr/draft-dfranusic-opsawg-elee-00.xml
+ * https://xml2rfc.tools.ietf.org/cgi-bin/xml2rfc.cgi?url=https://socket.hr/draft-dfranusic-opsawg-elee-00.xml&modeAsFormat=html/ascii
+ */
+#define DLT_ELEE		286
+
+/*
+ * Serial frames transmitted between a host and a Z-Wave chip.
+ */
+#define DLT_Z_WAVE_SERIAL	287
+
+/*
+ * USB 2.0, 1.1, and 1.0 packets as transmitted over the cable.
+ */
+#define DLT_USB_2_0		288
+
+/*
+ * ATSC Link-Layer Protocol (A/330) packets.
+ */
+#define DLT_ATSC_ALP		289
 
 /*
  * In case the code that includes this file (directly or indirectly)
@@ -1388,7 +1566,7 @@
 #ifdef DLT_MATCHING_MAX
 #undef DLT_MATCHING_MAX
 #endif
-#define DLT_MATCHING_MAX	276	/* highest value in the "matching" range */
+#define DLT_MATCHING_MAX	289	/* highest value in the "matching" range */
 
 /*
  * DLT and savefile link type values are split into a class and

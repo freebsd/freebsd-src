@@ -59,6 +59,7 @@ The Regents of the University of California.  All rights reserved.\n";
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <limits.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -99,6 +100,23 @@ The Regents of the University of California.  All rights reserved.\n";
 
 #endif
 
+/*
+ * Squelch a warning.
+ *
+ * We include system headers to be able to directly set the filter to
+ * a program with uninitialized content, to make sure what we're testing
+ * is Valgrind's checking of the system call to set the filter, and we
+ * also include <pcap.h> to open the device in the first place, and that
+ * means that we may get collisions between their definitions of
+ * BPF_STMT and BPF_JUMP - and do, in fact, get them on Linux (the
+ * definitions may be semantically the same, but that's not sufficient to
+ * avoid the warnings, as the preprocessor doesn't know that u_short is
+ * just unsigned short).
+ *
+ * So we undefine BPF_STMT and BPF_JUMP to avoid the warning.
+ */
+#undef BPF_STMT
+#undef BPF_JUMP
 #include <pcap.h>
 
 static char *program_name;
@@ -132,11 +150,21 @@ read_infile(char *fname)
 	if (fstat(fd, &buf) < 0)
 		error("can't stat %s: %s", fname, pcap_strerror(errno));
 
+	/*
+	 * _read(), on Windows, has an unsigned int byte count and an
+	 * int return value, so we can't handle a file bigger than
+	 * INT_MAX - 1 bytes (and have no reason to do so; a filter *that*
+	 * big will take forever to compile).  (The -1 is for the '\0' at
+	 * the end of the string.)
+	 */
+	if (buf.st_size > INT_MAX - 1)
+		error("%s is larger than %d bytes; that's too large", fname,
+		    INT_MAX - 1);
 	cp = malloc((u_int)buf.st_size + 1);
 	if (cp == NULL)
 		error("malloc(%d) for %s: %s", (u_int)buf.st_size + 1,
 			fname, pcap_strerror(errno));
-	cc = read(fd, cp, (u_int)buf.st_size);
+	cc = (int)read(fd, cp, (u_int)buf.st_size);
 	if (cc < 0)
 		error("read %s: %s", fname, pcap_strerror(errno));
 	if (cc != buf.st_size)
@@ -196,7 +224,7 @@ static char *
 copy_argv(register char **argv)
 {
 	register char **p;
-	register u_int len = 0;
+	register size_t len = 0;
 	char *buf;
 	char *src, *dst;
 
@@ -421,7 +449,7 @@ usage(void)
 	(void)fprintf(stderr, "%s, with %s\n", program_name,
 	    pcap_lib_version());
 	(void)fprintf(stderr,
-	    "Usage: %s [-aI] [ -F file ] [ -I interface ] [ expression ]\n",
+	    "Usage: %s [-aI] [ -F file ] [ -i interface ] [ expression ]\n",
 	    program_name);
 	exit(1);
 }

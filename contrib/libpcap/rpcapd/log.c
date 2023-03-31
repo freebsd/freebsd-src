@@ -229,7 +229,7 @@ static void rpcapd_vlog_systemlog(log_priority priority, const char *message,
 	 */
 	char logbuf[1024+1];
 
-	pcap_vsnprintf(logbuf, sizeof logbuf, message, ap);
+	vsnprintf(logbuf, sizeof logbuf, message, ap);
 	syslog(syslog_priority, "%s", logbuf);
 #endif
 }
