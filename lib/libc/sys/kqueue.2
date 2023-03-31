@@ -773,6 +773,10 @@ main(int argc, char **argv)
 		printf("Something was written in '%s'\en", argv[1]);
 	}
     }
+
+    /* kqueues are destroyed upon close() */
+    (void)close(kq);
+    (void)close(fd);
 }
 .Ed
 .Sh ERRORS
