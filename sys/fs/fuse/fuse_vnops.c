@@ -2218,16 +2218,11 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 	accmode_t accmode = 0;
 	bool checkperm;
 	bool drop_suid = false;
-	gid_t cr_gid;
 
 	mp = vnode_mount(vp);
 	data = fuse_get_mpdata(mp);
 	dataflags = data->dataflags;
 	checkperm = dataflags & FSESS_DEFAULT_PERMISSIONS;
-	if (cred->cr_ngroups > 0)
-		cr_gid = cred->cr_groups[0];
-	else
-		cr_gid = 0;
 
 	if (fuse_isdeadfs(vp)) {
 		return ENXIO;
