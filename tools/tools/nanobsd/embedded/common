@@ -522,20 +522,6 @@ std_i386 ( ) {
 	: ${NANO_BOOT_BSD:=${NANO_WORLDDIR}/boot/boot}
 }
 
-std_mips ( ) {
-	NANO_ENDIAN=big
-}
-
-std_mipsel ( ) {
-}
-
-std_mips64 ( ) {
-	NANO_ENDIAN=big
-}
-
-std_mips64el ( ) {
-}
-
 std_powerpc ( ) {
 	NANO_ENDIAN=big
 }
