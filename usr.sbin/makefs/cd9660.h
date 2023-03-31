@@ -65,8 +65,6 @@
 #define	INODE_WARNX(__x)
 #endif /* DEBUG */
 
-#define CD9660MAXPATH 4096
-
 #define ISO_STRING_FILTER_NONE = 0x00
 #define ISO_STRING_FILTER_DCHARS = 0x01
 #define ISO_STRING_FILTER_ACHARS = 0x02
