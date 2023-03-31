@@ -97,6 +97,7 @@ SRCS+=	__getosreldate.c \
 	isinf.c \
 	isnan.c \
 	jrand48.c \
+	kqueue1.c \
 	lcong48.c \
 	libc_dlopen.c \
 	lockf.c \

@@ -107,6 +107,14 @@ The
 call is equivalent to
 .Ql fd = kqueuex(0) .
 .Pp
+For compatibility with
+.Nx ,
+the
+.Fn kqueue1
+function is provided, which accepts the
+.Dv O_CLOEXEC
+flag with the expected semantic.
+.Pp
 The
 .Fn kevent
 system call
