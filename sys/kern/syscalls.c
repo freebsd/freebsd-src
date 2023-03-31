@@ -589,5 +589,5 @@ const char *syscallnames[] = {
 	"fspacectl",			/* 580 = fspacectl */
 	"sched_getcpu",			/* 581 = sched_getcpu */
 	"swapoff",			/* 582 = swapoff */
-	"kqueue1",			/* 583 = kqueue1 */
+	"kqueuex",			/* 583 = kqueuex */
 };
