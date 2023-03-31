@@ -36,7 +36,6 @@ SRCS=	linux${SFX}_dummy_machdep.c \
 	linux_vdso.c \
 	opt_inet6.h \
 	opt_ktrace.h \
-	opt_netlink.h \
 	opt_posix.h \
 	bus_if.h \
 	device_if.h \
@@ -71,7 +70,8 @@ SRCS+=	imgact_linux.c \
 	linux_vdso_selector_x86.c \
 	linux_x86.c \
 	linux_copyout.c \
-	linux_netlink.c
+	linux_netlink.c \
+	opt_netlink.h
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386"
