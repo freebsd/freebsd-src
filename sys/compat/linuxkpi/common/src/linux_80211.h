@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2020-2022 The FreeBSD Foundation
+ * Copyright (c) 2020-2023 The FreeBSD Foundation
  * Copyright (c) 2020-2021 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
@@ -173,7 +173,7 @@ struct lkpi_hw {	/* name it mac80211_sc? */
 	TAILQ_HEAD(, lkpi_vif)		lvif_head;
 	struct sx			lvif_sx;
 
-	struct mtx			mtx;
+	struct sx			sx;
 
 	uint32_t			txq_generation[IEEE80211_NUM_ACS];
 	TAILQ_HEAD(, lkpi_txq)		scheduled_txqs[IEEE80211_NUM_ACS];
@@ -195,6 +195,7 @@ struct lkpi_hw {	/* name it mac80211_sc? */
 #define	LKPI_LHW_SCAN_RUNNING		0x00000001
 #define	LKPI_LHW_SCAN_HW		0x00000002
 	uint32_t			scan_flags;
+	struct mtx			scan_mtx;
 
 	int				supbands;	/* Number of supported bands. */
 	int				max_rates;	/* Maximum number of bitrates supported in any channel. */
@@ -218,13 +219,31 @@ struct lkpi_wiphy {
 #define	WIPHY_TO_LWIPHY(_wiphy)	container_of(_wiphy, struct lkpi_wiphy, wiphy)
 #define	LWIPHY_TO_WIPHY(_lwiphy)	(&(_lwiphy)->wiphy)
 
+#define	LKPI_80211_LHW_LOCK_INIT(_lhw)			\
+    sx_init_flags(&(_lhw)->sx, "lhw", SX_RECURSE);
+#define	LKPI_80211_LHW_LOCK_DESTROY(_lhw)		\
+    sx_destroy(&(_lhw)->sx);
+#define	LKPI_80211_LHW_LOCK(_lhw)			\
+    sx_xlock(&(_lhw)->sx)
+#define	LKPI_80211_LHW_UNLOCK(_lhw)			\
+    sx_xunlock(&(_lhw)->sx)
+#define	LKPI_80211_LHW_LOCK_ASSERT(_lhw)		\
+    sx_assert(&(_lhw)->sx, SA_LOCKED)
+#define	LKPI_80211_LHW_UNLOCK_ASSERT(_lhw)		\
+    sx_assert(&(_lhw)->sx, SA_UNLOCKED)
 
-#define	LKPI_80211_LHW_LOCK(_lhw)	mtx_lock(&(_lhw)->mtx)
-#define	LKPI_80211_LHW_UNLOCK(_lhw)	mtx_unlock(&(_lhw)->mtx)
-#define	LKPI_80211_LHW_LOCK_ASSERT(_lhw) \
-    mtx_assert(&(_lhw)->mtx, MA_OWNED)
-#define	LKPI_80211_LHW_UNLOCK_ASSERT(_lhw) \
-    mtx_assert(&(_lhw)->mtx, MA_NOTOWNED)
+#define	LKPI_80211_LHW_SCAN_LOCK_INIT(_lhw)		\
+    mtx_init(&(_lhw)->scan_mtx, "lhw-scan", NULL, MTX_DEF | MTX_RECURSE);
+#define	LKPI_80211_LHW_SCAN_LOCK_DESTROY(_lhw)		\
+    mtx_destroy(&(_lhw)->scan_mtx);
+#define	LKPI_80211_LHW_SCAN_LOCK(_lhw)			\
+    mtx_lock(&(_lhw)->scan_mtx)
+#define	LKPI_80211_LHW_SCAN_UNLOCK(_lhw)        	\
+    mtx_unlock(&(_lhw)->scan_mtx)
+#define	LKPI_80211_LHW_SCAN_LOCK_ASSERT(_lhw)		\
+    mtx_assert(&(_lhw)->scan_mtx, MA_OWNED)
+#define	LKPI_80211_LHW_SCAN_UNLOCK_ASSERT(_lhw)		\
+    mtx_assert(&(_lhw)->scan_mtx, MA_NOTOWNED)
 
 #define	LKPI_80211_LHW_LVIF_LOCK(_lhw)	sx_xlock(&(_lhw)->lvif_sx)
 #define	LKPI_80211_LHW_LVIF_UNLOCK(_lhw) sx_xunlock(&(_lhw)->lvif_sx)

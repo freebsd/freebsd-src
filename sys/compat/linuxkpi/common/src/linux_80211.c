@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2020-2022 The FreeBSD Foundation
+ * Copyright (c) 2020-2023 The FreeBSD Foundation
  * Copyright (c) 2020-2022 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
@@ -792,8 +792,12 @@ lkpi_stop_hw_scan(struct lkpi_hw *lhw, struct ieee80211_vif *vif)
 {
 	struct ieee80211_hw *hw;
 	int error;
+	bool cancel;
 
-	if ((lhw->scan_flags & LKPI_LHW_SCAN_RUNNING) == 0)
+	LKPI_80211_LHW_SCAN_LOCK(lhw);
+	cancel = (lhw->scan_flags & LKPI_LHW_SCAN_RUNNING) != 0;
+	LKPI_80211_LHW_SCAN_UNLOCK(lhw);
+	if (!cancel)
 		return;
 
 	hw = LHW_TO_HW(lhw);
@@ -802,13 +806,18 @@ lkpi_stop_hw_scan(struct lkpi_hw *lhw, struct ieee80211_vif *vif)
 	LKPI_80211_LHW_LOCK(lhw);
 	/* Need to cancel the scan. */
 	lkpi_80211_mo_cancel_hw_scan(hw, vif);
+	LKPI_80211_LHW_UNLOCK(lhw);
 
 	/* Need to make sure we see ieee80211_scan_completed. */
-	error = msleep(lhw, &lhw->mtx, 0, "lhwscanstop", hz/2);
-	LKPI_80211_LHW_UNLOCK(lhw);
+	LKPI_80211_LHW_SCAN_LOCK(lhw);
+	if ((lhw->scan_flags & LKPI_LHW_SCAN_RUNNING) != 0)
+		error = msleep(lhw, &lhw->scan_mtx, 0, "lhwscanstop", hz/2);
+	cancel = (lhw->scan_flags & LKPI_LHW_SCAN_RUNNING) != 0;
+	LKPI_80211_LHW_SCAN_UNLOCK(lhw);
+
 	IEEE80211_LOCK(lhw->ic);
 
-	if ((lhw->scan_flags & LKPI_LHW_SCAN_RUNNING) != 0)
+	if (cancel)
 		ic_printf(lhw->ic, "%s: failed to cancel scan: %d (%p, %p)\n",
 		    __func__, error, lhw, vif);
 }
@@ -935,6 +944,7 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	ni = ieee80211_ref_node(vap->iv_bss);
 
 	IEEE80211_UNLOCK(vap->iv_ic);
+	LKPI_80211_LHW_LOCK(lhw);
 
 	/* Add chanctx (or if exists, change it). */
 	if (vif->chanctx_conf != NULL) {
@@ -1078,6 +1088,7 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	 */
 
 out:
+	LKPI_80211_LHW_UNLOCK(lhw);
 	IEEE80211_LOCK(vap->iv_ic);
 	if (ni != NULL)
 		ieee80211_free_node(ni);
@@ -1110,6 +1121,7 @@ lkpi_sta_auth_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
 
 	IEEE80211_UNLOCK(vap->iv_ic);
+	LKPI_80211_LHW_LOCK(lhw);
 
 	/* flush, drop. */
 	lkpi_80211_mo_flush(hw, vif,  nitems(sta->txq), true);
@@ -1170,6 +1182,7 @@ lkpi_sta_auth_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	}
 
 out:
+	LKPI_80211_LHW_UNLOCK(lhw);
 	IEEE80211_LOCK(vap->iv_ic);
 	if (ni != NULL)
 		ieee80211_free_node(ni);
@@ -1205,6 +1218,7 @@ lkpi_sta_auth_to_assoc(struct ieee80211vap *vap, enum ieee80211_state nstate, in
 	vif = LVIF_TO_VIF(lvif);
 
 	IEEE80211_UNLOCK(vap->iv_ic);
+	LKPI_80211_LHW_LOCK(lhw);
 	ni = NULL;
 
 	/* Finish auth. */
@@ -1252,6 +1266,7 @@ lkpi_sta_auth_to_assoc(struct ieee80211vap *vap, enum ieee80211_state nstate, in
 	 */
 
 out:
+	LKPI_80211_LHW_UNLOCK(lhw);
 	IEEE80211_LOCK(vap->iv_ic);
 	if (ni != NULL)
 		ieee80211_free_node(ni);
@@ -1278,6 +1293,7 @@ lkpi_sta_a_to_a(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	ni = ieee80211_ref_node(vap->iv_bss);
 
 	IEEE80211_UNLOCK(vap->iv_ic);
+	LKPI_80211_LHW_LOCK(lhw);
 	lsta = ni->ni_drv_data;
 
 	IMPROVE("event callback?");
@@ -1300,6 +1316,7 @@ lkpi_sta_a_to_a(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		lsta->in_mgd = true;
 	}
 
+	LKPI_80211_LHW_UNLOCK(lhw);
 	IEEE80211_LOCK(vap->iv_ic);
 	if (ni != NULL)
 		ieee80211_free_node(ni);
@@ -1334,6 +1351,7 @@ _lkpi_sta_assoc_to_down(struct ieee80211vap *vap, enum ieee80211_state nstate, i
 	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
 
 	IEEE80211_UNLOCK(vap->iv_ic);
+	LKPI_80211_LHW_LOCK(lhw);
 
 	/* flush, drop. */
 	lkpi_80211_mo_flush(hw, vif,  nitems(sta->txq), true);
@@ -1347,6 +1365,7 @@ _lkpi_sta_assoc_to_down(struct ieee80211vap *vap, enum ieee80211_state nstate, i
 		lsta->in_mgd = true;
 	}
 
+	LKPI_80211_LHW_UNLOCK(lhw);
 	IEEE80211_LOCK(vap->iv_ic);
 
 	/* Call iv_newstate first so we get potential DISASSOC packet out. */
@@ -1355,6 +1374,7 @@ _lkpi_sta_assoc_to_down(struct ieee80211vap *vap, enum ieee80211_state nstate, i
 		goto outni;
 
 	IEEE80211_UNLOCK(vap->iv_ic);
+	LKPI_80211_LHW_LOCK(lhw);
 
 	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
 
@@ -1438,6 +1458,7 @@ _lkpi_sta_assoc_to_down(struct ieee80211vap *vap, enum ieee80211_state nstate, i
 
 	error = EALREADY;
 out:
+	LKPI_80211_LHW_UNLOCK(lhw);
 	IEEE80211_LOCK(vap->iv_ic);
 outni:
 	if (ni != NULL)
@@ -1498,6 +1519,7 @@ lkpi_sta_assoc_to_run(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	vif = LVIF_TO_VIF(lvif);
 
 	IEEE80211_UNLOCK(vap->iv_ic);
+	LKPI_80211_LHW_LOCK(lhw);
 	ni = NULL;
 
 	IMPROVE("ponder some of this moved to ic_newassoc, scan_assoc_success, "
@@ -1608,6 +1630,7 @@ lkpi_sta_assoc_to_run(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
 
 out:
+	LKPI_80211_LHW_UNLOCK(lhw);
 	IEEE80211_LOCK(vap->iv_ic);
 	if (ni != NULL)
 		ieee80211_free_node(ni);
@@ -1654,6 +1677,7 @@ lkpi_sta_run_to_assoc(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
 
 	IEEE80211_UNLOCK(vap->iv_ic);
+	LKPI_80211_LHW_LOCK(lhw);
 
 	/* flush, drop. */
 	lkpi_80211_mo_flush(hw, vif,  nitems(sta->txq), true);
@@ -1667,6 +1691,7 @@ lkpi_sta_run_to_assoc(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 		lsta->in_mgd = true;
 	}
 
+	LKPI_80211_LHW_UNLOCK(lhw);
 	IEEE80211_LOCK(vap->iv_ic);
 
 	/* Call iv_newstate first so we get potential DISASSOC packet out. */
@@ -1675,6 +1700,7 @@ lkpi_sta_run_to_assoc(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 		goto outni;
 
 	IEEE80211_UNLOCK(vap->iv_ic);
+	LKPI_80211_LHW_LOCK(lhw);
 
 	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
 
@@ -1729,6 +1755,7 @@ lkpi_sta_run_to_assoc(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 
 	error = EALREADY;
 out:
+	LKPI_80211_LHW_UNLOCK(lhw);
 	IEEE80211_LOCK(vap->iv_ic);
 outni:
 	if (ni != NULL)
@@ -1763,6 +1790,7 @@ lkpi_sta_run_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
 
 	IEEE80211_UNLOCK(vap->iv_ic);
+	LKPI_80211_LHW_LOCK(lhw);
 
 	/* flush, drop. */
 	lkpi_80211_mo_flush(hw, vif,  nitems(sta->txq), true);
@@ -1776,6 +1804,7 @@ lkpi_sta_run_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 		lsta->in_mgd = true;
 	}
 
+	LKPI_80211_LHW_UNLOCK(lhw);
 	IEEE80211_LOCK(vap->iv_ic);
 
 	/* Call iv_newstate first so we get potential DISASSOC packet out. */
@@ -1784,6 +1813,7 @@ lkpi_sta_run_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 		goto outni;
 
 	IEEE80211_UNLOCK(vap->iv_ic);
+	LKPI_80211_LHW_LOCK(lhw);
 
 	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
 
@@ -1890,6 +1920,7 @@ lkpi_sta_run_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 
 	error = EALREADY;
 out:
+	LKPI_80211_LHW_UNLOCK(lhw);
 	IEEE80211_LOCK(vap->iv_ic);
 outni:
 	if (ni != NULL)
@@ -2439,6 +2470,8 @@ lkpi_ic_parent(struct ieee80211com *ic)
 	hw = LHW_TO_HW(lhw);
 	start_all = false;
 
+	/* IEEE80211_UNLOCK(ic); */
+	LKPI_80211_LHW_LOCK(lhw);
 	if (ic->ic_nrunning > 0) {
 		error = lkpi_80211_mo_start(hw);
 		if (error == 0)
@@ -2446,6 +2479,8 @@ lkpi_ic_parent(struct ieee80211com *ic)
 	} else {
 		lkpi_80211_mo_stop(hw);
 	}
+	LKPI_80211_LHW_UNLOCK(lhw);
+	/* IEEE80211_LOCK(ic); */
 
 	if (start_all)
 		ieee80211_start_all(ic);
@@ -2587,12 +2622,17 @@ lkpi_ic_scan_start(struct ieee80211com *ic)
 	struct ieee80211_scan_state *ss;
 	struct ieee80211vap *vap;
 	int error;
+	bool is_hw_scan;
 
 	lhw = ic->ic_softc;
+	LKPI_80211_LHW_SCAN_LOCK(lhw);
 	if ((lhw->scan_flags & LKPI_LHW_SCAN_RUNNING) != 0) {
 		/* A scan is still running. */
+		LKPI_80211_LHW_SCAN_UNLOCK(lhw);
 		return;
 	}
+	is_hw_scan = (lhw->scan_flags & LKPI_LHW_SCAN_HW) != 0;
+	LKPI_80211_LHW_SCAN_UNLOCK(lhw);
 
 	ss = ic->ic_scan;
 	vap = ss->ss_vap;
@@ -2602,7 +2642,7 @@ lkpi_ic_scan_start(struct ieee80211com *ic)
 	}
 
 	hw = LHW_TO_HW(lhw);
-	if ((lhw->scan_flags & LKPI_LHW_SCAN_HW) == 0) {
+	if (!is_hw_scan) {
 		/* If hw_scan is cleared clear FEXT_SCAN_OFFLOAD too. */
 		vap->iv_flags_ext &= ~IEEE80211_FEXT_SCAN_OFFLOAD;
 sw_scan:
@@ -2747,7 +2787,9 @@ sw_scan:
 			 * not possible.  Fall back to sw scan in that case.
 			 */
 			if (error == 1) {
+				LKPI_80211_LHW_SCAN_LOCK(lhw);
 				lhw->scan_flags &= ~LKPI_LHW_SCAN_HW;
+				LKPI_80211_LHW_SCAN_UNLOCK(lhw);
 				ieee80211_start_scan(vap,
 				    IEEE80211_SCAN_ACTIVE |
 				    IEEE80211_SCAN_NOPICK |
@@ -2769,13 +2811,18 @@ static void
 lkpi_ic_scan_end(struct ieee80211com *ic)
 {
 	struct lkpi_hw *lhw;
+	bool is_hw_scan;
 
 	lhw = ic->ic_softc;
+	LKPI_80211_LHW_SCAN_LOCK(lhw);
 	if ((lhw->scan_flags & LKPI_LHW_SCAN_RUNNING) == 0) {
+		LKPI_80211_LHW_SCAN_UNLOCK(lhw);
 		return;
 	}
+	is_hw_scan = (lhw->scan_flags & LKPI_LHW_SCAN_HW) != 0;
+	LKPI_80211_LHW_SCAN_UNLOCK(lhw);
 
-	if ((lhw->scan_flags & LKPI_LHW_SCAN_HW) == 0) {
+	if (!is_hw_scan) {
 		struct ieee80211_scan_state *ss;
 		struct ieee80211vap *vap;
 		struct ieee80211_hw *hw;
@@ -2802,9 +2849,13 @@ lkpi_ic_scan_curchan(struct ieee80211_scan_state *ss,
     unsigned long maxdwell)
 {
 	struct lkpi_hw *lhw;
+	bool is_hw_scan;
 
 	lhw = ss->ss_ic->ic_softc;
-	if ((lhw->scan_flags & LKPI_LHW_SCAN_HW) == 0)
+	LKPI_80211_LHW_SCAN_LOCK(lhw);
+	is_hw_scan = (lhw->scan_flags & LKPI_LHW_SCAN_HW) != 0;
+	LKPI_80211_LHW_SCAN_UNLOCK(lhw);
+	if (!is_hw_scan)
 		lhw->ic_scan_curchan(ss, maxdwell);
 }
 
@@ -2812,9 +2863,13 @@ static void
 lkpi_ic_scan_mindwell(struct ieee80211_scan_state *ss)
 {
 	struct lkpi_hw *lhw;
+	bool is_hw_scan;
 
 	lhw = ss->ss_ic->ic_softc;
-	if ((lhw->scan_flags & LKPI_LHW_SCAN_HW) == 0)
+	LKPI_80211_LHW_SCAN_LOCK(lhw);
+	is_hw_scan = (lhw->scan_flags & LKPI_LHW_SCAN_HW) != 0;
+	LKPI_80211_LHW_SCAN_UNLOCK(lhw);
+	if (!is_hw_scan)
 		lhw->ic_scan_mindwell(ss);
 }
 
@@ -2826,6 +2881,7 @@ lkpi_ic_set_channel(struct ieee80211com *ic)
 	struct ieee80211_channel *c;
 	struct linuxkpi_ieee80211_channel *chan;
 	int error;
+	bool hw_scan_running;
 
 	lhw = ic->ic_softc;
 
@@ -2834,8 +2890,12 @@ lkpi_ic_set_channel(struct ieee80211com *ic)
 		return;
 
 	/* If we have a hw_scan running do not switch channels. */
-	if ((lhw->scan_flags & (LKPI_LHW_SCAN_RUNNING|LKPI_LHW_SCAN_HW)) ==
-	    (LKPI_LHW_SCAN_RUNNING|LKPI_LHW_SCAN_HW))
+	LKPI_80211_LHW_SCAN_LOCK(lhw);
+	hw_scan_running =
+	    (lhw->scan_flags & (LKPI_LHW_SCAN_RUNNING|LKPI_LHW_SCAN_HW)) ==
+		(LKPI_LHW_SCAN_RUNNING|LKPI_LHW_SCAN_HW);
+	LKPI_80211_LHW_SCAN_UNLOCK(lhw);
+	if (hw_scan_running)
 		return;
 
 	c = ic->ic_curchan;
@@ -3424,7 +3484,8 @@ linuxkpi_ieee80211_alloc_hw(size_t priv_len, const struct ieee80211_ops *ops)
 	lhw = wiphy_priv(wiphy);
 	lhw->ops = ops;
 
-	mtx_init(&lhw->mtx, "lhw", NULL, MTX_DEF | MTX_RECURSE);
+	LKPI_80211_LHW_LOCK_INIT(lhw);
+	LKPI_80211_LHW_SCAN_LOCK_INIT(lhw);
 	sx_init_flags(&lhw->lvif_sx, "lhw-lvif", SX_RECURSE | SX_DUPOK);
 	TAILQ_INIT(&lhw->lvif_head);
 
@@ -3460,7 +3521,8 @@ linuxkpi_ieee80211_iffree(struct ieee80211_hw *hw)
 
 	/* Cleanup more of lhw here or in wiphy_free()? */
 	sx_destroy(&lhw->lvif_sx);
-	mtx_destroy(&lhw->mtx);
+	LKPI_80211_LHW_LOCK_DESTROY(lhw);
+	LKPI_80211_LHW_SCAN_LOCK_DESTROY(lhw);
 	IMPROVE();
 }
 
@@ -3867,12 +3929,12 @@ linuxkpi_ieee80211_scan_completed(struct ieee80211_hw *hw,
 
 	ieee80211_scan_done(ss->ss_vap);
 
-	LKPI_80211_LHW_LOCK(lhw);
+	LKPI_80211_LHW_SCAN_LOCK(lhw);
 	free(lhw->hw_req, M_LKPI80211);
 	lhw->hw_req = NULL;
 	lhw->scan_flags &= ~LKPI_LHW_SCAN_RUNNING;
 	wakeup(lhw);
-	LKPI_80211_LHW_UNLOCK(lhw);
+	LKPI_80211_LHW_SCAN_UNLOCK(lhw);
 
 	return;
 }
