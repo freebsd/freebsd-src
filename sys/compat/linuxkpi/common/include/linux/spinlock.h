@@ -128,6 +128,7 @@ typedef struct {
 } while (0)
 
 #define	spin_unlock_irqrestore(_l, flags) do {		\
+	(void)(flags);					\
 	spin_unlock(_l);				\
 } while (0)
 
