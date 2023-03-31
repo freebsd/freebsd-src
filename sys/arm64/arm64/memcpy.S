@@ -55,8 +55,8 @@
    The loop tail is handled by always copying 64 bytes from the end.
 */
 
-ENTRY(memcpy)
 EENTRY(memmove)
+ENTRY(memcpy)
 	add	srcend, src, count
 	add	dstend, dstin, count
 	cmp	count, 128
@@ -237,6 +237,6 @@ L(copy64_from_start):
 	stp	B_l, B_h, [dstin, 16]
 	stp	C_l, C_h, [dstin]
 	ret
-EEND(memmove)
 END(memcpy)
+EEND(memmove)
 
