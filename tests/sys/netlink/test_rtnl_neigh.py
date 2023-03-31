@@ -1,12 +1,12 @@
 import socket
-import pytest
 
-from atf_python.sys.net.netlink import NdAttrType
-from atf_python.sys.net.netlink import NetlinkNdMessage
-from atf_python.sys.net.netlink import NetlinkTestTemplate
-from atf_python.sys.net.netlink import NlConst
-from atf_python.sys.net.netlink import NlRtMsgType
+import pytest
 from atf_python.sys.net.vnet import SingleVnetTestTemplate
+from atf_python.sys.netlink.netlink import NetlinkTestTemplate
+from atf_python.sys.netlink.netlink_route import NdAttrType
+from atf_python.sys.netlink.netlink_route import NetlinkNdMessage
+from atf_python.sys.netlink.netlink_route import NlRtMsgType
+from atf_python.sys.netlink.utils import NlConst
 
 
 class TestRtNlNeigh(NetlinkTestTemplate, SingleVnetTestTemplate):

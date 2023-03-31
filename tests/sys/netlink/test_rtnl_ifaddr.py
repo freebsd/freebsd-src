@@ -2,18 +2,15 @@ import ipaddress
 import socket
 import struct
 
-from atf_python.sys.net.netlink import IfattrType
-from atf_python.sys.net.netlink import NetlinkIfaMessage
-from atf_python.sys.net.netlink import NetlinkTestTemplate
-from atf_python.sys.net.netlink import NlConst
-from atf_python.sys.net.netlink import NlHelper
-from atf_python.sys.net.netlink import NlmBaseFlags
-from atf_python.sys.net.netlink import Nlmsghdr
-from atf_python.sys.net.netlink import NlMsgType
-from atf_python.sys.net.netlink import NlRtMsgType
-from atf_python.sys.net.netlink import Nlsock
-from atf_python.sys.net.netlink import RtScope
 from atf_python.sys.net.vnet import SingleVnetTestTemplate
+from atf_python.sys.netlink.base_headers import NlmBaseFlags
+from atf_python.sys.netlink.base_headers import Nlmsghdr
+from atf_python.sys.netlink.netlink import NetlinkTestTemplate
+from atf_python.sys.netlink.netlink_route import IfattrType
+from atf_python.sys.netlink.netlink_route import NetlinkIfaMessage
+from atf_python.sys.netlink.netlink_route import NlRtMsgType
+from atf_python.sys.netlink.netlink_route import RtScope
+from atf_python.sys.netlink.utils import NlConst
 
 
 class TestRtNlIfaddr(NetlinkTestTemplate, SingleVnetTestTemplate):

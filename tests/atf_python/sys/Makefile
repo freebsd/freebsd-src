@@ -3,7 +3,7 @@
 .PATH:	${.CURDIR}
 
 FILES=	__init__.py
-SUBDIR=	net
+SUBDIR=	net netlink
 
 .include <bsd.own.mk>
 FILESDIR=	${TESTSBASE}/atf_python/sys

@@ -2,22 +2,22 @@ import errno
 import socket
 
 import pytest
-from atf_python.sys.net.netlink import IflattrType
-from atf_python.sys.net.netlink import IflinkInfo
-from atf_python.sys.net.netlink import IfLinkInfoDataVlan
-from atf_python.sys.net.netlink import NetlinkIflaMessage
-from atf_python.sys.net.netlink import NetlinkTestTemplate
-from atf_python.sys.net.netlink import NlAttrNested
-from atf_python.sys.net.netlink import NlAttrStr
-from atf_python.sys.net.netlink import NlAttrStrn
-from atf_python.sys.net.netlink import NlAttrU16
-from atf_python.sys.net.netlink import NlAttrU32
-from atf_python.sys.net.netlink import NlConst
-from atf_python.sys.net.netlink import NlmBaseFlags
-from atf_python.sys.net.netlink import NlmNewFlags
-from atf_python.sys.net.netlink import NlMsgType
-from atf_python.sys.net.netlink import NlRtMsgType
-from atf_python.sys.net.netlink import rtnl_ifla_attrs
+from atf_python.sys.netlink.netlink_route import IflattrType
+from atf_python.sys.netlink.netlink_route import IflinkInfo
+from atf_python.sys.netlink.netlink_route import IfLinkInfoDataVlan
+from atf_python.sys.netlink.netlink_route import NetlinkIflaMessage
+from atf_python.sys.netlink.netlink import NetlinkTestTemplate
+from atf_python.sys.netlink.attrs import NlAttrNested
+from atf_python.sys.netlink.attrs import NlAttrStr
+from atf_python.sys.netlink.attrs import NlAttrStrn
+from atf_python.sys.netlink.attrs import NlAttrU16
+from atf_python.sys.netlink.attrs import NlAttrU32
+from atf_python.sys.netlink.utils import NlConst
+from atf_python.sys.netlink.base_headers import NlmBaseFlags
+from atf_python.sys.netlink.base_headers import NlmNewFlags
+from atf_python.sys.netlink.base_headers import NlMsgType
+from atf_python.sys.netlink.netlink_route import NlRtMsgType
+from atf_python.sys.netlink.netlink_route import rtnl_ifla_attrs
 from atf_python.sys.net.vnet import SingleVnetTestTemplate
 
 
