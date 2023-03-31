@@ -3,18 +3,18 @@ import socket
 
 import pytest
 from atf_python.sys.net.tools import ToolsHelper
-from atf_python.sys.net.netlink import NetlinkRtMessage
-from atf_python.sys.net.netlink import NetlinkTestTemplate
-from atf_python.sys.net.netlink import NlAttrIp
-from atf_python.sys.net.netlink import NlAttrU32
-from atf_python.sys.net.netlink import NlConst
-from atf_python.sys.net.netlink import NlmBaseFlags
-from atf_python.sys.net.netlink import NlmGetFlags
-from atf_python.sys.net.netlink import NlmNewFlags
-from atf_python.sys.net.netlink import NlMsgType
-from atf_python.sys.net.netlink import NlRtMsgType
-from atf_python.sys.net.netlink import RtattrType
 from atf_python.sys.net.vnet import SingleVnetTestTemplate
+from atf_python.sys.netlink.attrs import NlAttrIp
+from atf_python.sys.netlink.attrs import NlAttrU32
+from atf_python.sys.netlink.base_headers import NlmBaseFlags
+from atf_python.sys.netlink.base_headers import NlmGetFlags
+from atf_python.sys.netlink.base_headers import NlmNewFlags
+from atf_python.sys.netlink.base_headers import NlMsgType
+from atf_python.sys.netlink.netlink import NetlinkTestTemplate
+from atf_python.sys.netlink.netlink_route import NetlinkRtMessage
+from atf_python.sys.netlink.netlink_route import NlRtMsgType
+from atf_python.sys.netlink.netlink_route import RtattrType
+from atf_python.sys.netlink.utils import NlConst
 
 
 class TestRtNlRoute(NetlinkTestTemplate, SingleVnetTestTemplate):

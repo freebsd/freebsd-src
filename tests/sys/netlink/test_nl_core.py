@@ -2,9 +2,9 @@ import errno
 import socket
 
 import pytest
-from atf_python.sys.net.netlink import NetlinkTestTemplate
-from atf_python.sys.net.netlink import NlConst
 from atf_python.sys.net.vnet import SingleVnetTestTemplate
+from atf_python.sys.netlink.netlink import NetlinkTestTemplate
+from atf_python.sys.netlink.utils import NlConst
 
 
 class TestNlCore(NetlinkTestTemplate, SingleVnetTestTemplate):
