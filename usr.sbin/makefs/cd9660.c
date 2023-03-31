@@ -147,10 +147,6 @@ static int cd9660_level1_convert_filename(iso9660_disk *, const char *, char *,
     int);
 static int cd9660_level2_convert_filename(iso9660_disk *, const char *, char *,
     int);
-#if 0
-static int cd9660_joliet_convert_filename(iso9660_disk *, const char *, char *,
-    int);
-#endif
 static int cd9660_convert_filename(iso9660_disk *, const char *, char *, int);
 static void cd9660_populate_dot_records(iso9660_disk *, cd9660node *);
 static int64_t cd9660_compute_offsets(iso9660_disk *, cd9660node *, int64_t);
@@ -1585,11 +1581,6 @@ cd9660_compute_full_filename(cd9660node *node, char *buf)
 		errx(EXIT_FAILURE, "Pathname too long.");
 }
 
-/* NEW filename conversion method */
-typedef int(*cd9660_filename_conversion_functor)(iso9660_disk *, const char *,
-    char *, int);
-
-
 /*
  * TODO: These two functions are almost identical.
  * Some code cleanup is possible here
@@ -1722,16 +1713,6 @@ cd9660_level2_convert_filename(iso9660_disk *diskStructure, const char *oldname,
 	return namelen + extlen + found_ext;
 }
 
-#if 0
-static int
-cd9660_joliet_convert_filename(iso9660_disk *diskStructure, const char *oldname,
-    char *newname, int is_file)
-{
-	/* TODO: implement later, move to cd9660_joliet.c ?? */
-}
-#endif
-
-
 /*
  * Convert a file name to ISO compliant file name
  * @param char * oldname The original filename
@@ -1745,13 +1726,13 @@ cd9660_convert_filename(iso9660_disk *diskStructure, const char *oldname,
     char *newname, int is_file)
 {
 	assert(1 <= diskStructure->isoLevel && diskStructure->isoLevel <= 2);
-	/* NEW */
-	cd9660_filename_conversion_functor conversion_function = NULL;
 	if (diskStructure->isoLevel == 1)
-		conversion_function = &cd9660_level1_convert_filename;
+		return(cd9660_level1_convert_filename(diskStructure,
+		    oldname, newname, is_file));
 	else if (diskStructure->isoLevel == 2)
-		conversion_function = &cd9660_level2_convert_filename;
-	return (*conversion_function)(diskStructure, oldname, newname, is_file);
+		return (cd9660_level2_convert_filename(diskStructure,
+		    oldname, newname, is_file));
+	abort();
 }
 
 int
