@@ -265,6 +265,7 @@ rhurlin [label="Rainer Hurling\nrhurlin@FreeBSD.org\n2020/08/31"]
 riggs [label="Thomas Zander\nriggs@FreeBSD.org\n2014/01/09"]
 rigoletto [label="Alexandre C. Guimaraes\nrigoletto@FreeBSD.org\n2018/10/01"]
 rm [label="Ruslan Makhmatkhanov\nrm@FreeBSD.org\n2011/11/06"]
+rnagy [label="Robert Nagy\nrnagy@FreeBSD.org\n2023/02/08"]
 robak [label="Bartek Rutkowski\nrobak@FreeBSD.org\n2014/06/10"]
 rodrigo [label="Rodrigo Osorio\nrodrigo@FreeBSD.org\n2014/01/15"]
 romain [label="Romain Tartiere\nromain@FreeBSD.org\n2010/01/24"]
@@ -718,6 +719,7 @@ rene -> joneum
 rene -> ler
 rene -> olivierd
 rene -> ronald
+rene -> rnagy
 
 rm -> koobs
 rm -> vg
