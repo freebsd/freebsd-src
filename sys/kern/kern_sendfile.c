@@ -57,6 +57,9 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <netinet/in_pcb.h>
+#include <netinet/tcp_var.h>
+#include <netinet/tcp_log_buf.h>
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
@@ -1188,6 +1191,12 @@ prepend_header:
 			    NULL, NULL, td);
 			sendfile_iodone(sfio, NULL, 0, error);
 		}
+#ifdef TCP_REQUEST_TRK
+		if (so->so_proto->pr_protocol == IPPROTO_TCP) {
+			/* log the sendfile call to the TCP log, if enabled */
+			tcp_log_sendfile(so, offset, nbytes, flags);
+		}
+#endif
 		CURVNET_RESTORE();
 
 		m = NULL;

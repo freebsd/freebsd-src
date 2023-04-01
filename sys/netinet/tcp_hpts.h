@@ -187,6 +187,15 @@ tcp_tv_to_lusectick(const struct timeval *sv)
 }
 
 #ifdef _KERNEL
+
+extern int32_t tcp_min_hptsi_time;
+
+__inline int32_t
+get_hpts_min_sleep_time()
+{
+	return (tcp_min_hptsi_time + HPTS_TICKS_PER_SLOT);
+}
+
 static __inline uint32_t
 tcp_gethptstick(struct timeval *sv)
 {

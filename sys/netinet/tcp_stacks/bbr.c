@@ -500,7 +500,7 @@ static void
 bbr_enter_persist(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts,
 		  int32_t line);
 static void
-bbr_stop_all_timers(struct tcpcb *tp);
+bbr_stop_all_timers(struct tcpcb *tp, struct tcp_bbr *bbr);
 static void
 bbr_exit_probe_rtt(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts);
 static void
@@ -1970,7 +1970,7 @@ bbr_log_type_enter_rec(struct tcp_bbr *bbr, uint32_t seq)
 static void
 bbr_log_msgsize_fail(struct tcp_bbr *bbr, struct tcpcb *tp, uint32_t len, uint32_t maxseg, uint32_t mtu, int32_t csum_flags, int32_t tso, uint32_t cts)
 {
-	if (tcp_bblogging_on(bbr->rc_tp)) {
+	if (tcp_bblogging_on(tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
@@ -2669,7 +2669,7 @@ bbr_log_type_ltbw(struct tcp_bbr *bbr, uint32_t cts, int32_t reason,
 	uint32_t newbw, uint32_t obw, uint32_t diff,
 	uint32_t tim)
 {
-	if (tcp_bblogging_on(bbr->rc_tp)) {
+	if (/*bbr_verbose_logging && */tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
@@ -2697,7 +2697,7 @@ bbr_log_type_ltbw(struct tcp_bbr *bbr, uint32_t cts, int32_t reason,
 static inline void
 bbr_log_progress_event(struct tcp_bbr *bbr, struct tcpcb *tp, uint32_t tick, int event, int line)
 {
-	if (tcp_bblogging_on(bbr->rc_tp)) {
+	if (bbr_verbose_logging && tcp_bblogging_on(bbr->rc_tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, bbr->r_ctl.rc_rcvtime);
@@ -6281,6 +6281,9 @@ tcp_bbr_xmit_timer_commit(struct tcp_bbr *bbr, struct tcpcb *tp, uint32_t cts)
 		else
 			apply_filter_min_small(&bbr->r_ctl.rc_rttprop, rtt, cts);
 	}
+#ifdef STATS
+	stats_voi_update_abs_u32(tp->t_stats, VOI_TCP_PATHRTT, imax(0, rtt));
+#endif
 	if (bbr->rc_ack_was_delayed)
 		rtt += bbr->r_ctl.rc_ack_hdwr_delay;
 
@@ -9850,16 +9853,13 @@ bbr_do_fin_wait_2(struct mbuf *m, struct tcphdr *th, struct socket *so,
 }
 
 static void
-bbr_stop_all_timers(struct tcpcb *tp)
+bbr_stop_all_timers(struct tcpcb *tp, struct tcp_bbr *bbr)
 {
-	struct tcp_bbr *bbr;
-
 	/*
 	 * Assure no timers are running.
 	 */
 	if (tcp_timer_active(tp, TT_PERSIST)) {
 		/* We enter in persists, set the flag appropriately */
-		bbr = (struct tcp_bbr *)tp->t_fb_ptr;
 		bbr->rc_in_persist = 1;
 	}
 }
@@ -9927,14 +9927,14 @@ bbr_google_mode_off(struct tcp_bbr *bbr)
  * which indicates the error (usually no memory).
  */
 static int
-bbr_init(struct tcpcb *tp)
+bbr_init(struct tcpcb *tp, void **ptr)
 {
 	struct inpcb *inp = tptoinpcb(tp);
 	struct tcp_bbr *bbr = NULL;
 	uint32_t cts;
 
-	tp->t_fb_ptr = uma_zalloc(bbr_pcb_zone, (M_NOWAIT | M_ZERO));
-	if (tp->t_fb_ptr == NULL) {
+	*ptr = uma_zalloc(bbr_pcb_zone, (M_NOWAIT | M_ZERO));
+	if (*ptr == NULL) {
 		/*
 		 * We need to allocate memory but cant. The INP and INP_INFO
 		 * locks and they are recursive (happens during setup. So a
@@ -9943,10 +9943,16 @@ bbr_init(struct tcpcb *tp)
 		 */
 		return (ENOMEM);
 	}
-	bbr = (struct tcp_bbr *)tp->t_fb_ptr;
+	bbr = (struct tcp_bbr *)*ptr;
 	bbr->rtt_valid = 0;
 	inp->inp_flags2 |= INP_CANNOT_DO_ECN;
 	inp->inp_flags2 |= INP_SUPPORTS_MBUFQ;
+	/* Take off any undesired flags */
+	inp->inp_flags2 &= ~INP_MBUF_QUEUE_READY;
+	inp->inp_flags2 &= ~INP_DONT_SACK_QUEUE;
+	inp->inp_flags2 &= ~INP_MBUF_ACKCMP;
+	inp->inp_flags2 &= ~INP_MBUF_L_ACKS;
+
 	TAILQ_INIT(&bbr->r_ctl.rc_map);
 	TAILQ_INIT(&bbr->r_ctl.rc_free);
 	TAILQ_INIT(&bbr->r_ctl.rc_tmap);
@@ -10074,8 +10080,8 @@ bbr_init(struct tcpcb *tp)
 
 		rsm = bbr_alloc(bbr);
 		if (rsm == NULL) {
-			uma_zfree(bbr_pcb_zone, tp->t_fb_ptr);
-			tp->t_fb_ptr = NULL;
+			uma_zfree(bbr_pcb_zone, *ptr);
+			*ptr = NULL;
 			return (ENOMEM);
 		}
 		rsm->r_rtt_not_allowed = 1;
@@ -10128,7 +10134,17 @@ bbr_init(struct tcpcb *tp)
 	 * the TCB on the hptsi wheel if a timer is needed with appropriate
 	 * flags.
 	 */
-	bbr_stop_all_timers(tp);
+	bbr_stop_all_timers(tp, bbr);
+	/* 
+	 * Validate the timers are not in usec, if they are convert.
+	 * BBR should in theory move to USEC and get rid of a
+	 * lot of the TICKS_2 calls.. but for now we stay
+	 * with tick timers.
+	 */
+	tcp_change_time_units(tp, TCP_TMR_GRANULARITY_TICKS);
+	TCPT_RANGESET(tp->t_rxtcur,
+	    ((tp->t_srtt >> 2) + tp->t_rttvar) >> 1,
+	    tp->t_rttmin, TCPTV_REXMTMAX);
 	bbr_start_hpts_timer(bbr, tp, cts, 5, 0, 0);
 	return (0);
 }
@@ -10172,7 +10188,6 @@ static void
 bbr_fini(struct tcpcb *tp, int32_t tcb_is_purged)
 {
 	if (tp->t_fb_ptr) {
-		struct inpcb *inp = tptoinpcb(tp);
 		uint32_t calc;
 		struct tcp_bbr *bbr;
 		struct bbr_sendmap *rsm;
@@ -10182,10 +10197,6 @@ bbr_fini(struct tcpcb *tp, int32_t tcb_is_purged)
 			tcp_rel_pacing_rate(bbr->r_ctl.crte, bbr->rc_tp);
 		bbr_log_flowend(bbr);
 		bbr->rc_tp = NULL;
-		/* Backout any flags2 we applied */
-		inp->inp_flags2 &= ~INP_CANNOT_DO_ECN;
-		inp->inp_flags2 &= ~INP_SUPPORTS_MBUFQ;
-		inp->inp_flags2 &= ~INP_MBUF_QUEUE_READY;
 		if (bbr->bbr_hdrw_pacing)
 			counter_u64_add(bbr_flows_whdwr_pacing, -1);
 		else
@@ -11853,7 +11864,6 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 	int32_t isipv6;
 #endif
 	uint8_t app_limited = BBR_JR_SENT_DATA;
-	uint8_t filled_all = 0;
 	bbr = (struct tcp_bbr *)tp->t_fb_ptr;
 	/* We take a cache hit here */
 	memcpy(&bbr->rc_tv, tv, sizeof(struct timeval));
@@ -13162,7 +13172,7 @@ send:
 				if_hw_tsomaxsegsize, msb,
 				((rsm == NULL) ? hw_tls : 0)
 #ifdef NETFLIX_COPY_ARGS
-				, &filled_all
+				, NULL, NULL
 #endif
 				);
 			if (len <= maxseg) {
@@ -13474,7 +13484,7 @@ send:
 #endif
 
 	/* Log to the black box */
-	if (tcp_bblogging_on(bbr->rc_tp)) {
+	if (tcp_bblogging_on(tp)) {
 		union tcp_log_stackspecific log;
 
 		bbr_fill_in_logging_data(bbr, &log.u_bbr, cts);
@@ -13483,13 +13493,10 @@ send:
 		log.u_bbr.flex2 = (bbr->r_recovery_bw << 3);
 		log.u_bbr.flex3 = maxseg;
 		log.u_bbr.flex4 = delay_calc;
-		/* Encode filled_all into the upper flex5 bit */
 		log.u_bbr.flex5 = bbr->rc_past_init_win;
 		log.u_bbr.flex5 <<= 1;
 		log.u_bbr.flex5 |= bbr->rc_no_pacing;
 		log.u_bbr.flex5 <<= 29;
-		if (filled_all)
-			log.u_bbr.flex5 |= 0x80000000;
 		log.u_bbr.flex5 |= tp->t_maxseg;
 		log.u_bbr.flex6 = bbr->r_ctl.rc_pace_max_segs;
 		log.u_bbr.flex7 = (bbr->rc_bbr_state << 8) | bbr_state_val(bbr);
@@ -14073,6 +14080,56 @@ bbr_pru_options(struct tcpcb *tp, int flags)
 	return (0);
 }
 
+static void
+bbr_switch_failed(struct tcpcb *tp)
+{
+	/*
+	 * If a switch fails we only need to
+	 * make sure mbuf_queuing is still in place.
+	 * We also need to make sure we are still in
+	 * ticks granularity (though we should probably
+	 * change bbr to go to USECs).
+	 *
+	 * For timers we need to see if we are still in the
+	 * pacer (if our flags are up) if so we are good, if
+	 * not we need to get back into the pacer.
+	 */
+	struct inpcb *inp = tptoinpcb(tp);
+	struct timeval tv;
+	uint32_t cts;
+	uint32_t toval;
+	struct tcp_bbr *bbr;
+	struct hpts_diag diag;
+
+	inp->inp_flags2 |= INP_CANNOT_DO_ECN;
+	inp->inp_flags2 |= INP_SUPPORTS_MBUFQ;
+	tcp_change_time_units(tp, TCP_TMR_GRANULARITY_TICKS);
+	if (inp->inp_in_hpts) {
+		return;
+	}
+	bbr = (struct tcp_bbr *)tp->t_fb_ptr;
+	cts = tcp_get_usecs(&tv);
+	if (bbr->r_ctl.rc_hpts_flags & PACE_PKT_OUTPUT) {
+		if (TSTMP_GT(bbr->rc_pacer_started, cts)) {
+			toval = bbr->rc_pacer_started - cts;
+		} else {
+			/* one slot please */
+			toval = HPTS_TICKS_PER_SLOT;
+		}
+	} else if (bbr->r_ctl.rc_hpts_flags & PACE_TMR_MASK) {
+		if (TSTMP_GT(bbr->r_ctl.rc_timer_exp, cts)) {
+			toval = bbr->r_ctl.rc_timer_exp - cts;
+		} else {
+			/* one slot please */
+			toval = HPTS_TICKS_PER_SLOT;
+		}
+	} else
+		toval = HPTS_TICKS_PER_SLOT;
+	(void)tcp_hpts_insert_diag(inp, HPTS_USEC_TO_SLOTS(toval),
+				   __LINE__, &diag);
+	bbr_log_hpts_diag(bbr, cts, &diag);
+}
+
 struct tcp_function_block __tcp_bbr = {
 	.tfb_tcp_block_name = __XSTRING(STACKNAME),
 	.tfb_tcp_output = bbr_output,
@@ -14087,6 +14144,7 @@ struct tcp_function_block __tcp_bbr = {
 	.tfb_tcp_handoff_ok = bbr_handoff_ok,
 	.tfb_tcp_mtu_chg = bbr_mtu_chg,
 	.tfb_pru_options = bbr_pru_options,
+	.tfb_switch_failed = bbr_switch_failed,
 	.tfb_flags = TCP_FUNC_OUTPUT_CANDROP,
 };
 

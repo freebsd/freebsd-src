@@ -932,22 +932,27 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		 * pickup one on the new entry.
 		 */
 		struct tcp_function_block *rblk;
+		void *ptr = NULL;
 
 		rblk = find_and_ref_tcp_fb(blk);
 		KASSERT(rblk != NULL,
 		    ("cannot find blk %p out of syncache?", blk));
-		if (tp->t_fb->tfb_tcp_fb_fini)
-			(*tp->t_fb->tfb_tcp_fb_fini)(tp, 0);
-		refcount_release(&tp->t_fb->tfb_refcnt);
-		tp->t_fb = rblk;
-		/*
-		 * XXXrrs this is quite dangerous, it is possible
-		 * for the new function to fail to init. We also
-		 * are not asking if the handoff_is_ok though at
-		 * the very start thats probalbly ok.
-		 */
-		if (tp->t_fb->tfb_tcp_fb_init) {
-			(*tp->t_fb->tfb_tcp_fb_init)(tp);
+
+		if (rblk->tfb_tcp_fb_init == NULL ||
+		    (*rblk->tfb_tcp_fb_init)(tp, &ptr) == 0) {
+			/* Release the old stack */
+			if (tp->t_fb->tfb_tcp_fb_fini != NULL)
+				(*tp->t_fb->tfb_tcp_fb_fini)(tp, 0);
+			refcount_release(&tp->t_fb->tfb_refcnt);
+			/* Now set in all the pointers */
+			tp->t_fb = rblk;
+			tp->t_fb_ptr = ptr;
+		} else {
+			/*
+			 * Initialization failed. Release the reference count on
+			 * the looked up default stack.
+			 */
+			refcount_release(&rblk->tfb_refcnt);
 		}
 	}
 	tp->snd_wl1 = sc->sc_irs;
