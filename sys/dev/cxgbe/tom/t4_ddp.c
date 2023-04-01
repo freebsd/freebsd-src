@@ -546,37 +546,6 @@ insert_ddp_data(struct toepcb *toep, uint32_t n)
     sizeof(struct ulptx_idata) + sizeof(struct cpl_rx_data_ack_core))
 
 static inline void *
-mk_set_tcb_field_ulp(struct ulp_txpkt *ulpmc, struct toepcb *toep,
-    uint64_t word, uint64_t mask, uint64_t val)
-{
-	struct ulptx_idata *ulpsc;
-	struct cpl_set_tcb_field_core *req;
-
-	ulpmc->cmd_dest = htonl(V_ULPTX_CMD(ULP_TX_PKT) | V_ULP_TXPKT_DEST(0));
-	ulpmc->len = htobe32(howmany(LEN__SET_TCB_FIELD_ULP, 16));
-
-	ulpsc = (struct ulptx_idata *)(ulpmc + 1);
-	ulpsc->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_IMM));
-	ulpsc->len = htobe32(sizeof(*req));
-
-	req = (struct cpl_set_tcb_field_core *)(ulpsc + 1);
-	OPCODE_TID(req) = htobe32(MK_OPCODE_TID(CPL_SET_TCB_FIELD, toep->tid));
-	req->reply_ctrl = htobe16(V_NO_REPLY(1) |
-	    V_QUEUENO(toep->ofld_rxq->iq.abs_id));
-	req->word_cookie = htobe16(V_WORD(word) | V_COOKIE(0));
-        req->mask = htobe64(mask);
-        req->val = htobe64(val);
-
-	ulpsc = (struct ulptx_idata *)(req + 1);
-	if (LEN__SET_TCB_FIELD_ULP % 16) {
-		ulpsc->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_NOOP));
-		ulpsc->len = htobe32(0);
-		return (ulpsc + 1);
-	}
-	return (ulpsc);
-}
-
-static inline void *
 mk_rx_data_ack_ulp(struct ulp_txpkt *ulpmc, struct toepcb *toep)
 {
 	struct ulptx_idata *ulpsc;
@@ -634,21 +603,21 @@ mk_update_tcb_for_ddp(struct adapter *sc, struct toepcb *toep, int db_idx,
 	ulpmc = (struct ulp_txpkt *)(wrh + 1);
 
 	/* Write the buffer's tag */
-	ulpmc = mk_set_tcb_field_ulp(ulpmc, toep,
+	ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid,
 	    W_TCB_RX_DDP_BUF0_TAG + db_idx,
 	    V_TCB_RX_DDP_BUF0_TAG(M_TCB_RX_DDP_BUF0_TAG),
 	    V_TCB_RX_DDP_BUF0_TAG(prsv->prsv_tag));
 
 	/* Update the current offset in the DDP buffer and its total length */
 	if (db_idx == 0)
-		ulpmc = mk_set_tcb_field_ulp(ulpmc, toep,
+		ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid,
 		    W_TCB_RX_DDP_BUF0_OFFSET,
 		    V_TCB_RX_DDP_BUF0_OFFSET(M_TCB_RX_DDP_BUF0_OFFSET) |
 		    V_TCB_RX_DDP_BUF0_LEN(M_TCB_RX_DDP_BUF0_LEN),
 		    V_TCB_RX_DDP_BUF0_OFFSET(offset) |
 		    V_TCB_RX_DDP_BUF0_LEN(len));
 	else
-		ulpmc = mk_set_tcb_field_ulp(ulpmc, toep,
+		ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid,
 		    W_TCB_RX_DDP_BUF1_OFFSET,
 		    V_TCB_RX_DDP_BUF1_OFFSET(M_TCB_RX_DDP_BUF1_OFFSET) |
 		    V_TCB_RX_DDP_BUF1_LEN((u64)M_TCB_RX_DDP_BUF1_LEN << 32),
@@ -656,7 +625,7 @@ mk_update_tcb_for_ddp(struct adapter *sc, struct toepcb *toep, int db_idx,
 		    V_TCB_RX_DDP_BUF1_LEN((u64)len << 32));
 
 	/* Update DDP flags */
-	ulpmc = mk_set_tcb_field_ulp(ulpmc, toep, W_TCB_RX_DDP_FLAGS,
+	ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid, W_TCB_RX_DDP_FLAGS,
 	    ddp_flags_mask, ddp_flags);
 
 	/* Gratuitous RX_DATA_ACK with RX_MODULATE set to speed up delivery. */
@@ -1295,26 +1264,25 @@ set_ddp_ulp_mode(struct toepcb *toep)
 	 * Words 26/27 are zero except for the DDP_OFF flag in
 	 * W_TCB_RX_DDP_FLAGS (27).
 	 */
-	ulpmc = mk_set_tcb_field_ulp(ulpmc, toep, 26,
+	ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid, 26,
 	    0xffffffffffffffff, (uint64_t)V_TF_DDP_OFF(1) << 32);
 
 	/* Words 28/29 are zero. */
-	ulpmc = mk_set_tcb_field_ulp(ulpmc, toep, 28,
+	ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid, 28,
 	    0xffffffffffffffff, 0);
 
 	/* Words 30/31 are zero. */
-	ulpmc = mk_set_tcb_field_ulp(ulpmc, toep, 30,
+	ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid, 30,
 	    0xffffffffffffffff, 0);
 
 	/* Set the ULP mode to ULP_MODE_TCPDDP. */
 	toep->params.ulp_mode = ULP_MODE_TCPDDP;
-	ulpmc = mk_set_tcb_field_ulp(ulpmc, toep, W_TCB_ULP_TYPE,
-	    V_TCB_ULP_TYPE(M_TCB_ULP_TYPE),
-	    V_TCB_ULP_TYPE(ULP_MODE_TCPDDP));
+	ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid, W_TCB_ULP_TYPE,
+	    V_TCB_ULP_TYPE(M_TCB_ULP_TYPE), V_TCB_ULP_TYPE(ULP_MODE_TCPDDP));
 
 #ifdef USE_DDP_RX_FLOW_CONTROL
 	/* Set TF_RX_FLOW_CONTROL_DDP. */
-	ulpmc = mk_set_tcb_field_ulp(ulpmc, toep, W_TCB_T_FLAGS,
+	ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid, W_TCB_T_FLAGS,
 	    V_TF_RX_FLOW_CONTROL_DDP(1), V_TF_RX_FLOW_CONTROL_DDP(1));
 #endif
 
