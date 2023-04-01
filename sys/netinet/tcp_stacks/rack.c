@@ -458,7 +458,7 @@ rack_do_goodput_measurement(struct tcpcb *tp, struct tcp_rack *rack,
 static uint32_t
 rack_get_pacing_len(struct tcp_rack *rack, uint64_t bw, uint32_t mss);
 static int32_t rack_handoff_ok(struct tcpcb *tp);
-static int32_t rack_init(struct tcpcb *tp);
+static int32_t rack_init(struct tcpcb *tp, void **ptr);
 static void rack_init_sysctls(void);
 static void
 rack_log_ack(struct tcpcb *tp, struct tcpopt *to,
@@ -12344,7 +12344,7 @@ rack_init_fsb(struct tcpcb *tp, struct tcp_rack *rack)
 }
 
 static int
-rack_init(struct tcpcb *tp)
+rack_init(struct tcpcb *tp, void **ptr)
 {
 	struct inpcb *inp = tptoinpcb(tp);
 	struct tcp_rack *rack = NULL;
@@ -12354,8 +12354,8 @@ rack_init(struct tcpcb *tp)
 	uint32_t iwin, snt, us_cts;
 	int err;
 
-	tp->t_fb_ptr = uma_zalloc(rack_pcb_zone, M_NOWAIT);
-	if (tp->t_fb_ptr == NULL) {
+	*ptr = uma_zalloc(rack_pcb_zone, M_NOWAIT);
+	if (*ptr == NULL) {
 		/*
 		 * We need to allocate memory but cant. The INP and INP_INFO
 		 * locks and they are recursive (happens during setup. So a
@@ -12364,9 +12364,9 @@ rack_init(struct tcpcb *tp)
 		 */
 		return (ENOMEM);
 	}
-	memset(tp->t_fb_ptr, 0, sizeof(struct tcp_rack));
+	memset(ptr, 0, sizeof(struct tcp_rack));
 
-	rack = (struct tcp_rack *)tp->t_fb_ptr;
+	rack = (struct tcp_rack *)ptr;
 	RB_INIT(&rack->r_ctl.rc_mtree);
 	TAILQ_INIT(&rack->r_ctl.rc_free);
 	TAILQ_INIT(&rack->r_ctl.rc_tmap);

@@ -109,6 +109,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_log_buf.h>
 #include <netinet/tcp_syncache.h>
 #include <netinet/tcp_hpts.h>
+#include <netinet/tcp_lro.h>
 #include <netinet/cc/cc.h>
 #include <netinet/tcpip.h>
 #include <netinet/tcp_fastopen.h>
@@ -152,6 +153,11 @@ SYSCTL_INT(_net_inet_tcp_sack_attack, OID_AUTO, force_detection,
     CTLFLAG_RW,
     &tcp_force_detection, 0,
     "Do we force detection even if the INP has it off?");
+int32_t tcp_sad_limit = 10000;
+SYSCTL_INT(_net_inet_tcp_sack_attack, OID_AUTO, limit,
+    CTLFLAG_RW,
+    &tcp_sad_limit, 10000,
+    "If SaD is enabled, what is the limit to sendmap entries (0 = unlimited)?");
 int32_t tcp_sack_to_ack_thresh = 700;	/* 70 % */
 SYSCTL_INT(_net_inet_tcp_sack_attack, OID_AUTO, sack_to_ack_thresh,
     CTLFLAG_RW,
@@ -363,7 +369,7 @@ VNET_DEFINE(struct hhook_head *, tcp_hhh[HHOOK_TCP_LAST+1]);
 VNET_DEFINE_STATIC(u_char, ts_offset_secret[TS_OFFSET_SECRET_LENGTH]);
 #define	V_ts_offset_secret	VNET(ts_offset_secret)
 
-static int	tcp_default_fb_init(struct tcpcb *tp);
+static int	tcp_default_fb_init(struct tcpcb *tp, void **ptr);
 static void	tcp_default_fb_fini(struct tcpcb *tp, int tcb_is_purged);
 static int	tcp_default_handoff_ok(struct tcpcb *tp);
 static struct inpcb *tcp_notify(struct inpcb *, int);
@@ -519,17 +525,10 @@ void
 tcp_switch_back_to_default(struct tcpcb *tp)
 {
 	struct tcp_function_block *tfb;
+	void *ptr = NULL;
 
 	KASSERT(tp->t_fb != &tcp_def_funcblk,
 	    ("%s: called by the built-in default stack", __func__));
-
-	/*
-	 * Release the old stack. This function will either find a new one
-	 * or panic.
-	 */
-	if (tp->t_fb->tfb_tcp_fb_fini != NULL)
-		(*tp->t_fb->tfb_tcp_fb_fini)(tp, 0);
-	refcount_release(&tp->t_fb->tfb_refcnt);
 
 	/*
 	 * Now, we'll find a new function block to use.
@@ -551,14 +550,20 @@ tcp_switch_back_to_default(struct tcpcb *tp)
 	/* Try to use that stack. */
 	if (tfb != NULL) {
 		/* Initialize the new stack. If it succeeds, we are done. */
-		tp->t_fb = tfb;
-		if (tp->t_fb->tfb_tcp_fb_init == NULL ||
-		    (*tp->t_fb->tfb_tcp_fb_init)(tp) == 0)
+		if (tfb->tfb_tcp_fb_init == NULL ||
+		    (*tfb->tfb_tcp_fb_init)(tp, &ptr) == 0) {
+			/* Release the old stack */
+			if (tp->t_fb->tfb_tcp_fb_fini != NULL)
+				(*tp->t_fb->tfb_tcp_fb_fini)(tp, 0);
+			refcount_release(&tp->t_fb->tfb_refcnt);
+			/* Now set in all the pointers */
+			tp->t_fb = tfb;
+			tp->t_fb_ptr = ptr;
 			return;
-
+		}
 		/*
 		 * Initialization failed. Release the reference count on
-		 * the stack.
+		 * the looked up default stack.
 		 */
 		refcount_release(&tfb->tfb_refcnt);
 	}
@@ -578,12 +583,18 @@ tcp_switch_back_to_default(struct tcpcb *tp)
 			panic("Default stack rejects a new session?");
 		}
 	}
-	tp->t_fb = tfb;
-	if (tp->t_fb->tfb_tcp_fb_init != NULL &&
-	    (*tp->t_fb->tfb_tcp_fb_init)(tp)) {
+	if (tfb->tfb_tcp_fb_init != NULL &&
+	    (*tfb->tfb_tcp_fb_init)(tp, &ptr)) {
 		/* The default stack cannot fail */
 		panic("Default stack initialization failed");
 	}
+	/* Now release the old stack */
+	if (tp->t_fb->tfb_tcp_fb_fini != NULL)
+		(*tp->t_fb->tfb_tcp_fb_fini)(tp, 0);
+	refcount_release(&tp->t_fb->tfb_refcnt);
+	/* And set in the pointers to the new */
+	tp->t_fb = tfb;
+	tp->t_fb_ptr = ptr;
 }
 
 static bool
@@ -1040,15 +1051,36 @@ tcp_default_handoff_ok(struct tcpcb *tp)
  * it is required to always succeed since it is the stack of last resort!
  */
 static int
-tcp_default_fb_init(struct tcpcb *tp)
+tcp_default_fb_init(struct tcpcb *tp, void **ptr)
 {
 	struct socket *so = tptosocket(tp);
+	int rexmt;
 
 	INP_WLOCK_ASSERT(tptoinpcb(tp));
+	/* We don't use the pointer */
+	*ptr = NULL;
 
 	KASSERT(tp->t_state >= 0 && tp->t_state < TCPS_TIME_WAIT,
 	    ("%s: connection %p in unexpected state %d", __func__, tp,
 	    tp->t_state));
+
+	/* Make sure we get no interesting mbuf queuing behavior */
+	/* All mbuf queue/ack compress flags should be off */
+	tcp_lro_features_off(tptoinpcb(tp));
+
+	/* Cancel the GP measurement in progress */
+	tp->t_flags &= ~TF_GPUTINPROG;
+	/* Validate the timers are not in usec, if they are convert */
+	tcp_change_time_units(tp, TCP_TMR_GRANULARITY_TICKS);
+	if ((tp->t_state == TCPS_SYN_SENT) ||
+	    (tp->t_state == TCPS_SYN_RECEIVED))
+		rexmt = tcp_rexmit_initial * tcp_backoff[tp->t_rxtshift];
+	else
+		rexmt = TCP_REXMTVAL(tp) * tcp_backoff[tp->t_rxtshift];
+	if (tp->t_rxtshift == 0)
+		tp->t_rxtcur = rexmt;
+	else
+		TCPT_RANGESET(tp->t_rxtcur, rexmt, tp->t_rttmin, TCPTV_REXMTMAX);
 
 	/*
 	 * Nothing to do for ESTABLISHED or LISTEN states. And, we don't
@@ -2240,6 +2272,8 @@ tcp_newtcpcb(struct inpcb *inp)
 	tp->snd_cwnd = TCP_MAXWIN << TCP_MAX_WINSHIFT;
 	tp->snd_ssthresh = TCP_MAXWIN << TCP_MAX_WINSHIFT;
 	tp->t_rcvtime = ticks;
+	/* We always start with ticks granularity */
+	tp->t_tmr_granularity = TCP_TMR_GRANULARITY_TICKS;
 	/*
 	 * IPv4 TTL initialization is necessary for an IPv6 socket as well,
 	 * because the socket may be bound to an IPv6 wildcard address,
@@ -2265,7 +2299,7 @@ tcp_newtcpcb(struct inpcb *inp)
 #endif
 	tp->t_pacing_rate = -1;
 	if (tp->t_fb->tfb_tcp_fb_init) {
-		if ((*tp->t_fb->tfb_tcp_fb_init)(tp)) {
+		if ((*tp->t_fb->tfb_tcp_fb_init)(tp, &tp->t_fb_ptr)) {
 			refcount_release(&tp->t_fb->tfb_refcnt);
 			return (NULL);
 		}
@@ -4017,5 +4051,526 @@ tcp_do_ack_accounting(struct tcpcb *tp, struct tcphdr *th, struct tcpopt *to, ui
 			return (ACK_CUMACK);
 		}
 	}
+}
+#endif
+
+void
+tcp_change_time_units(struct tcpcb *tp, int granularity)
+{
+	if (tp->t_tmr_granularity == granularity) {
+		/* We are there */
+		return;
+	}
+	if (granularity == TCP_TMR_GRANULARITY_USEC) {
+		KASSERT((tp->t_tmr_granularity == TCP_TMR_GRANULARITY_TICKS),
+			("Granularity is not TICKS its %u in tp:%p",
+			 tp->t_tmr_granularity, tp));
+		tp->t_rttlow = TICKS_2_USEC(tp->t_rttlow);
+		if (tp->t_srtt > 1) {
+			uint32_t val, frac;
+
+			val = tp->t_srtt >> TCP_RTT_SHIFT;
+			frac = tp->t_srtt & 0x1f;
+			tp->t_srtt = TICKS_2_USEC(val);
+			/*
+			 * frac is the fractional part of the srtt (if any)
+			 * but its in ticks and every bit represents
+			 * 1/32nd of a hz.
+			 */
+			if (frac) {
+				if (hz == 1000) {
+					frac = (((uint64_t)frac * (uint64_t)HPTS_USEC_IN_MSEC) / (uint64_t)TCP_RTT_SCALE);
+				} else {
+					frac = (((uint64_t)frac * (uint64_t)HPTS_USEC_IN_SEC) / ((uint64_t)(hz) * (uint64_t)TCP_RTT_SCALE));
+				}
+				tp->t_srtt += frac;
+			}
+		}
+		if (tp->t_rttvar) {
+			uint32_t val, frac;
+
+			val = tp->t_rttvar >> TCP_RTTVAR_SHIFT;
+			frac = tp->t_rttvar & 0x1f;
+			tp->t_rttvar = TICKS_2_USEC(val);
+			/*
+			 * frac is the fractional part of the srtt (if any)
+			 * but its in ticks and every bit represents
+			 * 1/32nd of a hz.
+			 */
+			if (frac) {
+				if (hz == 1000) {
+					frac = (((uint64_t)frac * (uint64_t)HPTS_USEC_IN_MSEC) / (uint64_t)TCP_RTT_SCALE);
+				} else {
+					frac = (((uint64_t)frac * (uint64_t)HPTS_USEC_IN_SEC) / ((uint64_t)(hz) * (uint64_t)TCP_RTT_SCALE));
+				}
+				tp->t_rttvar += frac;
+			}
+		}
+		tp->t_tmr_granularity = TCP_TMR_GRANULARITY_USEC;
+	} else if (granularity == TCP_TMR_GRANULARITY_TICKS) {
+		/* Convert back to ticks, with  */
+		KASSERT((tp->t_tmr_granularity == TCP_TMR_GRANULARITY_USEC),
+			("Granularity is not USEC its %u in tp:%p",
+			 tp->t_tmr_granularity, tp));
+		if (tp->t_srtt > 1) {
+			uint32_t val, frac;
+
+			val = USEC_2_TICKS(tp->t_srtt);
+			frac = tp->t_srtt % (HPTS_USEC_IN_SEC / hz);
+			tp->t_srtt = val << TCP_RTT_SHIFT;
+			/*
+			 * frac is the fractional part here is left
+			 * over from converting to hz and shifting.
+			 * We need to convert this to the 5 bit
+			 * remainder.
+			 */
+			if (frac) {
+				if (hz == 1000) {
+					frac = (((uint64_t)frac *  (uint64_t)TCP_RTT_SCALE) / (uint64_t)HPTS_USEC_IN_MSEC);
+				} else {
+					frac = (((uint64_t)frac * (uint64_t)(hz) * (uint64_t)TCP_RTT_SCALE) /(uint64_t)HPTS_USEC_IN_SEC);
+				}
+				tp->t_srtt += frac;
+			}
+		}
+		if (tp->t_rttvar) {
+			uint32_t val, frac;
+
+			val = USEC_2_TICKS(tp->t_rttvar);
+			frac = tp->t_srtt % (HPTS_USEC_IN_SEC / hz);
+			tp->t_rttvar = val <<  TCP_RTTVAR_SHIFT;
+			/*
+			 * frac is the fractional part here is left
+			 * over from converting to hz and shifting.
+			 * We need to convert this to the 5 bit
+			 * remainder.
+			 */
+			if (frac) {
+				if (hz == 1000) {
+					frac = (((uint64_t)frac *  (uint64_t)TCP_RTT_SCALE) / (uint64_t)HPTS_USEC_IN_MSEC);
+				} else {
+					frac = (((uint64_t)frac * (uint64_t)(hz) * (uint64_t)TCP_RTT_SCALE) /(uint64_t)HPTS_USEC_IN_SEC);
+				}
+				tp->t_rttvar += frac;
+			}
+		}
+		tp->t_rttlow = USEC_2_TICKS(tp->t_rttlow);
+		tp->t_tmr_granularity = TCP_TMR_GRANULARITY_TICKS;
+	}
+#ifdef INVARIANTS
+	else {
+		panic("Unknown granularity:%d tp:%p",
+		      granularity, tp);
+	}
+#endif	
+}
+
+void
+tcp_handle_orphaned_packets(struct tcpcb *tp)
+{
+	struct mbuf *save, *m, *prev;
+	/*
+	 * Called when a stack switch is occuring from the fini()
+	 * of the old stack. We assue the init() as already been
+	 * run of the new stack and it has set the inp_flags2 to
+	 * what it supports. This function will then deal with any
+	 * differences i.e. cleanup packets that maybe queued that
+	 * the newstack does not support.
+	 */
+
+	if (tptoinpcb(tp)->inp_flags2 & INP_MBUF_L_ACKS)
+		return;
+	if ((tptoinpcb(tp)->inp_flags2 & INP_SUPPORTS_MBUFQ) == 0) {
+		/*
+		 * It is unsafe to process the packets since a
+		 * reset may be lurking in them (its rare but it
+		 * can occur). If we were to find a RST, then we
+		 * would end up dropping the connection and the
+		 * INP lock, so when we return the caller (tcp_usrreq)
+		 * will blow up when it trys to unlock the inp.
+		 * This new stack does not do any fancy LRO features
+		 * so all we can do is toss the packets.
+		 */
+		m = tp->t_in_pkt;
+		tp->t_in_pkt = NULL;
+		tp->t_tail_pkt = NULL;
+		while (m) {
+			save = m->m_nextpkt;
+			m->m_nextpkt = NULL;
+			m_freem(m);
+			m = save;
+		}
+	} else {
+		/*
+		 * Here we have a stack that does mbuf queuing but
+		 * does not support compressed ack's. We must
+		 * walk all the mbufs and discard any compressed acks.
+		 */
+		m = tp->t_in_pkt;
+		prev = NULL;
+		while (m) {
+			if (m->m_flags & M_ACKCMP) {
+				/* We must toss this packet */
+				if (tp->t_tail_pkt == m)
+					tp->t_tail_pkt = prev;
+				if (prev)
+					prev->m_nextpkt = m->m_nextpkt;
+				else
+					tp->t_in_pkt =  m->m_nextpkt;
+				m->m_nextpkt = NULL;
+				m_freem(m);
+				/* move forward */
+				if (prev)
+					m = prev->m_nextpkt;
+				else
+					m = tp->t_in_pkt;
+			} else {
+				/* this one is ok */
+				prev = m;
+				m = m->m_nextpkt;
+			}
+		}
+	}
+}
+
+#ifdef TCP_REQUEST_TRK
+uint32_t
+tcp_estimate_tls_overhead(struct socket *so, uint64_t tls_usr_bytes)
+{
+#ifdef KERN_TLS
+	struct ktls_session *tls;
+	uint32_t rec_oh, records;
+
+	tls = so->so_snd.sb_tls_info;
+	if (tls == NULL)
+	    return (0);
+
+	rec_oh = tls->params.tls_hlen + tls->params.tls_tlen;
+	records = ((tls_usr_bytes + tls->params.max_frame_len - 1)/tls->params.max_frame_len);
+	return (records * rec_oh);
+#else
+	return (0);
+#endif
+}
+
+extern uint32_t tcp_stale_entry_time;
+uint32_t tcp_stale_entry_time = 250000;
+SYSCTL_UINT(_net_inet_tcp, OID_AUTO, usrlog_stale, CTLFLAG_RW,
+    &tcp_stale_entry_time, 250000, "Time that a http entry without a sendfile ages out");
+
+void
+tcp_http_log_req_info(struct tcpcb *tp, struct http_sendfile_track *http,
+    uint16_t slot, uint8_t val, uint64_t offset, uint64_t nbytes)
+{
+	if (tcp_bblogging_on(tp)) {
+		union tcp_log_stackspecific log;
+		struct timeval tv;
+
+		memset(&log.u_bbr, 0, sizeof(log.u_bbr));
+#ifdef TCPHPTS
+		log.u_bbr.inhpts = tcp_in_hpts(tptoinpcb(tp));
+#endif
+		log.u_bbr.flex8 = val;
+		log.u_bbr.rttProp = http->timestamp;
+		log.u_bbr.delRate = http->start;
+		log.u_bbr.cur_del_rate = http->end;
+		log.u_bbr.flex1 = http->start_seq;
+		log.u_bbr.flex2 = http->end_seq;
+		log.u_bbr.flex3 = http->flags;
+		log.u_bbr.flex4 = ((http->localtime >> 32) & 0x00000000ffffffff);
+		log.u_bbr.flex5 = (http->localtime & 0x00000000ffffffff);
+		log.u_bbr.flex7 = slot;
+		log.u_bbr.bw_inuse = offset;
+		/* nbytes = flex6 | epoch */
+		log.u_bbr.flex6 = ((nbytes >> 32) & 0x00000000ffffffff);
+		log.u_bbr.epoch = (nbytes & 0x00000000ffffffff);
+		/* cspr =  lt_epoch | pkts_out */
+		log.u_bbr.lt_epoch = ((http->cspr >> 32) & 0x00000000ffffffff);
+		log.u_bbr.pkts_out |= (http->cspr & 0x00000000ffffffff);
+		log.u_bbr.applimited = tp->t_http_closed;
+		log.u_bbr.applimited <<= 8;
+		log.u_bbr.applimited |= tp->t_http_open;
+		log.u_bbr.applimited <<= 8;
+		log.u_bbr.applimited |= tp->t_http_req;
+		log.u_bbr.timeStamp = tcp_get_usecs(&tv);
+		TCP_LOG_EVENTP(tp, NULL,
+		    &tptosocket(tp)->so_rcv,
+		    &tptosocket(tp)->so_snd,
+		    TCP_LOG_HTTP_T, 0,
+		    0, &log, false, &tv);
+	}
+}
+
+void
+tcp_http_free_a_slot(struct tcpcb *tp, struct http_sendfile_track *ent)
+{
+	if (tp->t_http_req > 0)
+		tp->t_http_req--;
+	if (ent->flags & TCP_HTTP_TRACK_FLG_OPEN) {
+		if (tp->t_http_open > 0)
+			tp->t_http_open--;
+	} else {
+		if (tp->t_http_closed > 0)
+			tp->t_http_closed--;
+	}
+	ent->flags = TCP_HTTP_TRACK_FLG_EMPTY;
+}
+
+static void
+tcp_http_check_for_stale_entries(struct tcpcb *tp, uint64_t ts, int rm_oldest)
+{
+	struct http_sendfile_track *ent;
+	uint64_t time_delta, oldest_delta;
+	int i, oldest, oldest_set = 0, cnt_rm = 0;
+
+	for(i = 0; i < MAX_TCP_HTTP_REQ; i++) {
+		ent = &tp->t_http_info[i];
+		if (ent->flags != TCP_HTTP_TRACK_FLG_USED) {
+			/*
+			 * We only care about closed end ranges
+			 * that are allocated and have no sendfile
+			 * ever touching them. They would be in
+			 * state USED.
+			 */
+			continue;
+		}
+		if (ts >= ent->localtime)
+			time_delta = ts - ent->localtime;
+		else
+			time_delta = 0;
+		if (time_delta &&
+		    ((oldest_delta < time_delta) || (oldest_set == 0))) {
+			oldest_set = 1;
+			oldest = i;
+			oldest_delta = time_delta;
+		}
+		if (tcp_stale_entry_time && (time_delta >= tcp_stale_entry_time)) {
+			/*
+			 * No sendfile in a our time-limit
+			 * time to purge it.
+			 */
+			cnt_rm++;
+			tcp_http_log_req_info(tp, &tp->t_http_info[i], i, TCP_HTTP_REQ_LOG_STALE,
+					      time_delta, 0);
+			tcp_http_free_a_slot(tp, ent);
+		}
+	}
+	if ((cnt_rm == 0) && rm_oldest && oldest_set) {
+		ent = &tp->t_http_info[oldest];
+		tcp_http_log_req_info(tp, &tp->t_http_info[i], i, TCP_HTTP_REQ_LOG_STALE,
+				      oldest_delta, 1);
+		tcp_http_free_a_slot(tp, ent);
+	}
+}
+
+int
+tcp_http_check_for_comp(struct tcpcb *tp, tcp_seq ack_point)
+{
+	int i, ret=0;
+	struct http_sendfile_track *ent;
+
+	/* Clean up any old closed end requests that are now completed */
+	if (tp->t_http_req == 0)
+		return(0);
+	if (tp->t_http_closed == 0)
+		return(0);
+	for(i = 0; i < MAX_TCP_HTTP_REQ; i++) {
+		ent = &tp->t_http_info[i];
+		/* Skip empty ones */
+		if (ent->flags == TCP_HTTP_TRACK_FLG_EMPTY)
+			continue;
+		/* Skip open ones */
+		if (ent->flags & TCP_HTTP_TRACK_FLG_OPEN)
+			continue;
+		if (SEQ_GEQ(ack_point, ent->end_seq)) {
+			/* We are past it -- free it */
+			tcp_http_log_req_info(tp, ent,
+					      i, TCP_HTTP_REQ_LOG_FREED, 0, 0);
+			tcp_http_free_a_slot(tp, ent);
+			ret++;
+		}
+	}
+	return (ret);
+}
+
+int
+tcp_http_is_entry_comp(struct tcpcb *tp, struct http_sendfile_track *ent, tcp_seq ack_point)
+{
+	if (tp->t_http_req == 0)
+		return(-1);
+	if (tp->t_http_closed == 0)
+		return(-1);
+	if (ent->flags == TCP_HTTP_TRACK_FLG_EMPTY)
+		return(-1);
+	if (SEQ_GEQ(ack_point, ent->end_seq)) {
+		return (1);
+	}
+	return (0);
+}
+
+struct http_sendfile_track *
+tcp_http_find_a_req_that_is_completed_by(struct tcpcb *tp, tcp_seq th_ack, int *ip)
+{
+	/*
+	 * Given an ack point (th_ack) walk through our entries and
+	 * return the first one found that th_ack goes past the
+	 * end_seq.
+	 */
+	struct http_sendfile_track *ent;
+	int i;
+
+	if (tp->t_http_req == 0) {
+		/* none open */
+		return (NULL);
+	}
+	for(i = 0; i < MAX_TCP_HTTP_REQ; i++) {
+		ent = &tp->t_http_info[i];
+		if (ent->flags == TCP_HTTP_TRACK_FLG_EMPTY)
+			continue;
+		if ((ent->flags & TCP_HTTP_TRACK_FLG_OPEN) == 0) {
+			if (SEQ_GEQ(th_ack, ent->end_seq)) {
+				*ip = i;
+				return (ent);
+			}
+		}
+	}
+	return (NULL);
+}
+
+struct http_sendfile_track *
+tcp_http_find_req_for_seq(struct tcpcb *tp, tcp_seq seq)
+{
+	struct http_sendfile_track *ent;
+	int i;
+
+	if (tp->t_http_req == 0) {
+		/* none open */
+		return (NULL);
+	}
+	for(i = 0; i < MAX_TCP_HTTP_REQ; i++) {
+		ent = &tp->t_http_info[i];
+		tcp_http_log_req_info(tp, ent, i, TCP_HTTP_REQ_LOG_SEARCH,
+				      (uint64_t)seq, 0);
+		if (ent->flags == TCP_HTTP_TRACK_FLG_EMPTY) {
+			continue;
+		}
+		if (ent->flags & TCP_HTTP_TRACK_FLG_OPEN) {
+			/*
+			 * An open end request only needs to
+			 * match the beginning seq or be
+			 * all we have (once we keep going on
+			 * a open end request we may have a seq
+			 * wrap).
+			 */
+			if ((SEQ_GEQ(seq, ent->start_seq)) ||
+			    (tp->t_http_closed == 0))
+				return (ent);
+		} else {
+			/*
+			 * For this one we need to
+			 * be a bit more careful if its
+			 * completed at least.
+			 */
+			if ((SEQ_GEQ(seq, ent->start_seq)) &&
+			    (SEQ_LT(seq, ent->end_seq))) {
+				return (ent);
+			}
+		}
+	}
+	return (NULL);
+}
+
+/* Should this be in its own file tcp_http.c ? */
+struct http_sendfile_track *
+tcp_http_alloc_req_full(struct tcpcb *tp, struct http_req *req, uint64_t ts, int rec_dups)
+{
+	struct http_sendfile_track *fil;
+	int i, allocated;
+
+	/* In case the stack does not check for completions do so now */
+	tcp_http_check_for_comp(tp, tp->snd_una);
+	/* Check for stale entries */
+	if (tp->t_http_req)
+		tcp_http_check_for_stale_entries(tp, ts,
+		    (tp->t_http_req >= MAX_TCP_HTTP_REQ));
+	/* Check to see if this is a duplicate of one not started */
+	if (tp->t_http_req) {
+		for(i = 0, allocated = 0; i < MAX_TCP_HTTP_REQ; i++) {
+			fil = &tp->t_http_info[i];
+			if (fil->flags != TCP_HTTP_TRACK_FLG_USED)
+				continue;
+			if ((fil->timestamp == req->timestamp) &&
+			    (fil->start == req->start) &&
+			    ((fil->flags & TCP_HTTP_TRACK_FLG_OPEN) ||
+			     (fil->end == req->end))) {
+				/*
+				 * We already have this request
+				 * and it has not been started with sendfile.
+				 * This probably means the user was returned
+				 * a 4xx of some sort and its going to age
+				 * out, lets not duplicate it.
+				 */
+				return(fil);
+			}
+		}
+	}
+	/* Ok if there is no room at the inn we are in trouble */
+	if (tp->t_http_req >= MAX_TCP_HTTP_REQ) {
+		tcp_trace_point(tp, TCP_TP_HTTP_LOG_FAIL);
+		for(i = 0; i < MAX_TCP_HTTP_REQ; i++) {
+			tcp_http_log_req_info(tp, &tp->t_http_info[i],
+			    i, TCP_HTTP_REQ_LOG_ALLOCFAIL, 0, 0);
+		}
+		return (NULL);
+	}
+	for(i = 0, allocated = 0; i < MAX_TCP_HTTP_REQ; i++) {
+		fil = &tp->t_http_info[i];
+		if (fil->flags == TCP_HTTP_TRACK_FLG_EMPTY) {
+			allocated = 1;
+			fil->flags = TCP_HTTP_TRACK_FLG_USED;
+			fil->timestamp = req->timestamp;
+			fil->localtime = ts;
+			fil->start = req->start;
+			if (req->flags & TCP_LOG_HTTPD_RANGE_END) {
+				fil->end = req->end;
+			} else {
+				fil->end = 0;
+				fil->flags |= TCP_HTTP_TRACK_FLG_OPEN;
+			}
+			/*
+			 * We can set the min boundaries to the TCP Sequence space,
+			 * but it might be found to be further up when sendfile
+			 * actually runs on this range (if it ever does).
+			 */
+			fil->sbcc_at_s = tptosocket(tp)->so_snd.sb_ccc;
+			fil->start_seq = tp->snd_una +
+			    tptosocket(tp)->so_snd.sb_ccc;
+			fil->end_seq = (fil->start_seq + ((uint32_t)(fil->end - fil->start)));
+			if (tptosocket(tp)->so_snd.sb_tls_info) {
+				/*
+				 * This session is doing TLS. Take a swag guess
+				 * at the overhead.
+				 */
+				fil->end_seq += tcp_estimate_tls_overhead(
+				    tptosocket(tp), (fil->end - fil->start));
+			}
+			tp->t_http_req++;
+			if (fil->flags & TCP_HTTP_TRACK_FLG_OPEN)
+				tp->t_http_open++;
+			else
+				tp->t_http_closed++;
+			tcp_http_log_req_info(tp, fil, i,
+			    TCP_HTTP_REQ_LOG_NEW, 0, 0);
+			break;
+		} else
+			fil = NULL;
+	}
+	return (fil);
+}
+
+void
+tcp_http_alloc_req(struct tcpcb *tp, union tcp_log_userdata *user, uint64_t ts)
+{
+	(void)tcp_http_alloc_req_full(tp, &user->http_req, ts, 1);
 }
 #endif

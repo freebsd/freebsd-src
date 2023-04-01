@@ -1659,6 +1659,7 @@ tcp_ctloutput_set(struct inpcb *inp, struct sockopt *sopt)
 		 */
 		struct tcp_function_set fsn;
 		struct tcp_function_block *blk;
+		void *ptr = NULL;
 
 		INP_WUNLOCK(inp);
 		error = sooptcopyin(sopt, &fsn, sizeof fsn, sizeof fsn);
@@ -1666,10 +1667,6 @@ tcp_ctloutput_set(struct inpcb *inp, struct sockopt *sopt)
 			return (error);
 
 		INP_WLOCK(inp);
-		if (inp->inp_flags & INP_DROPPED) {
-			INP_WUNLOCK(inp);
-			return (ECONNRESET);
-		}
 		tp = intotcpcb(inp);
 
 		blk = find_and_ref_tcp_functions(&fsn);
@@ -1710,10 +1707,36 @@ tcp_ctloutput_set(struct inpcb *inp, struct sockopt *sopt)
 			return (ENOENT);
 		}
 		/*
-		 * Release the old refcnt, the
-		 * lookup acquired a ref on the
-		 * new one already.
+		 * Ensure the new stack takes ownership with a
+		 * clean slate on peak rate threshold.
 		 */
+		tp->t_peakrate_thr = 0;
+#ifdef TCPHPTS
+		/* Assure that we are not on any hpts */
+		tcp_hpts_remove(tptoinpcb(tp));
+#endif
+		if (blk->tfb_tcp_fb_init) {
+			error = (*blk->tfb_tcp_fb_init)(tp, &ptr);
+			if (error) {
+				/*
+				 * Release the ref count the lookup
+				 * acquired.
+				 */ 
+				refcount_release(&blk->tfb_refcnt);
+				/* 
+				 * Now there is a chance that the
+				 * init() function mucked with some
+				 * things before it failed, such as
+				 * hpts or inp_flags2 or timer granularity.
+				 * It should not of, but lets give the old
+				 * stack a chance to reset to a known good state.
+				 */
+				if (tp->t_fb->tfb_switch_failed) {
+					(*tp->t_fb->tfb_switch_failed)(tp);
+				}
+			 	goto err_out;
+			}
+		}
 		if (tp->t_fb->tfb_tcp_fb_fini) {
 			struct epoch_tracker et;
 			/*
@@ -1724,27 +1747,17 @@ tcp_ctloutput_set(struct inpcb *inp, struct sockopt *sopt)
 			(*tp->t_fb->tfb_tcp_fb_fini)(tp, 0);
 			NET_EPOCH_EXIT(et);
 		}
-#ifdef TCPHPTS
-		/* Assure that we are not on any hpts */
-		tcp_hpts_remove(tptoinpcb(tp));
-#endif
-		if (blk->tfb_tcp_fb_init) {
-			error = (*blk->tfb_tcp_fb_init)(tp);
-			if (error) {
-				refcount_release(&blk->tfb_refcnt);
-				if (tp->t_fb->tfb_tcp_fb_init) {
-					if((*tp->t_fb->tfb_tcp_fb_init)(tp) != 0)  {
-						/* Fall back failed, drop the connection */
-						INP_WUNLOCK(inp);
-						soabort(so);
-						return (error);
-					}
-				}
-				goto err_out;
-			}
-		}
+		/*
+		 * Release the old refcnt, the
+		 * lookup acquired a ref on the
+		 * new one already.
+		 */
 		refcount_release(&tp->t_fb->tfb_refcnt);
+		/* 
+		 * Set in the new stack.
+		 */
 		tp->t_fb = blk;
+		tp->t_fb_ptr = ptr;
 #ifdef TCP_OFFLOAD
 		if (tp->t_flags & TF_TOE) {
 			tcp_offload_ctloutput(tp, sopt->sopt_dir,
@@ -1754,6 +1767,7 @@ tcp_ctloutput_set(struct inpcb *inp, struct sockopt *sopt)
 err_out:
 		INP_WUNLOCK(inp);
 		return (error);
+
 	}
 
 	/* Pass in the INP locked, callee must unlock it. */
