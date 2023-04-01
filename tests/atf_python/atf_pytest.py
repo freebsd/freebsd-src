@@ -6,13 +6,10 @@ from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
 
+from atf_python.utils import nodeid_to_method_name
+
 import pytest
 import os
-
-
-def nodeid_to_method_name(nodeid: str) -> str:
-    """file_name.py::ClassName::method_name[parametrize] -> method_name"""
-    return nodeid.split("::")[-1].split("[")[0]
 
 
 class ATFCleanupItem(pytest.Item):
@@ -72,7 +69,6 @@ class ATFTestObj(object):
             ret["require.user"] = "root"
         else:
             ret["require.user"] = username
-
 
     def _convert_marks(self, obj) -> Dict[str, Any]:
         wj_func = lambda x: " ".join(x)  # noqa: E731
@@ -157,6 +153,19 @@ class ATFHandler(object):
             if hasattr(cls, "cleanup") or hasattr(cls, cleanup_name):
                 return True
         return False
+
+    def _generate_test_cleanups(self, items):
+        new_items = []
+        for obj in items:
+            if self.has_object_cleanup(obj):
+                self.override_runtest(obj)
+                new_items.append(obj)
+        items.clear()
+        items.extend(new_items)
+
+    def modify_tests(self, items, config):
+        if config.option.atf_cleanup:
+            self._generate_test_cleanups(items)
 
     def list_tests(self, tests: List[str]):
         print('Content-Type: application/X-atf-tp; version="1"')
