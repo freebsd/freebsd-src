@@ -1698,40 +1698,6 @@ done:
 	return (rc);
 }
 
-/* SET_TCB_FIELD sent as a ULP command looks like this */
-#define LEN__SET_TCB_FIELD_ULP (sizeof(struct ulp_txpkt) + \
-    sizeof(struct ulptx_idata) + sizeof(struct cpl_set_tcb_field_core))
-
-static void *
-mk_set_tcb_field_ulp(struct ulp_txpkt *ulpmc, uint64_t word, uint64_t mask,
-		uint64_t val, uint32_t tid, uint32_t qid)
-{
-	struct ulptx_idata *ulpsc;
-	struct cpl_set_tcb_field_core *req;
-
-	ulpmc->cmd_dest = htonl(V_ULPTX_CMD(ULP_TX_PKT) | V_ULP_TXPKT_DEST(0));
-	ulpmc->len = htobe32(howmany(LEN__SET_TCB_FIELD_ULP, 16));
-
-	ulpsc = (struct ulptx_idata *)(ulpmc + 1);
-	ulpsc->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_IMM));
-	ulpsc->len = htobe32(sizeof(*req));
-
-	req = (struct cpl_set_tcb_field_core *)(ulpsc + 1);
-	OPCODE_TID(req) = htobe32(MK_OPCODE_TID(CPL_SET_TCB_FIELD, tid));
-	req->reply_ctrl = htobe16(V_NO_REPLY(1) | V_QUEUENO(qid));
-	req->word_cookie = htobe16(V_WORD(word) | V_COOKIE(0));
-	req->mask = htobe64(mask);
-	req->val = htobe64(val);
-
-	ulpsc = (struct ulptx_idata *)(req + 1);
-	if (LEN__SET_TCB_FIELD_ULP % 16) {
-		ulpsc->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_NOOP));
-		ulpsc->len = htobe32(0);
-		return (ulpsc + 1);
-	}
-	return (ulpsc);
-}
-
 /* ABORT_REQ sent as a ULP command looks like this */
 #define LEN__ABORT_REQ_ULP (sizeof(struct ulp_txpkt) + \
 	sizeof(struct ulptx_idata) + sizeof(struct cpl_abort_req_core))
@@ -1807,14 +1773,15 @@ del_hashfilter_wrlen(void)
 }
 
 static void
-mk_del_hashfilter_wr(int tid, struct work_request_hdr *wrh, int wrlen, int qid)
+mk_del_hashfilter_wr(struct adapter *sc, int tid, struct work_request_hdr *wrh,
+    int wrlen, int qid)
 {
 	struct ulp_txpkt *ulpmc;
 
 	INIT_ULPTX_WRH(wrh, wrlen, 0, 0);
 	ulpmc = (struct ulp_txpkt *)(wrh + 1);
-	ulpmc = mk_set_tcb_field_ulp(ulpmc, W_TCB_RSS_INFO,
-	    V_TCB_RSS_INFO(M_TCB_RSS_INFO), V_TCB_RSS_INFO(qid), tid, 0);
+	ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, tid, W_TCB_RSS_INFO,
+	    V_TCB_RSS_INFO(M_TCB_RSS_INFO), V_TCB_RSS_INFO(qid));
 	ulpmc = mk_abort_req_ulp(ulpmc, tid);
 	ulpmc = mk_abort_rpl_ulp(ulpmc, tid);
 }
@@ -1857,7 +1824,7 @@ del_hashfilter(struct adapter *sc, struct t4_filter *t)
 		goto done;
 	}
 
-	mk_del_hashfilter_wr(t->idx, wr, wrlen, sc->sge.fwq.abs_id);
+	mk_del_hashfilter_wr(sc, t->idx, wr, wrlen, sc->sge.fwq.abs_id);
 	f->locked = 1;
 	f->pending = 1;
 	commit_wrq_wr(&sc->sge.ctrlq[0], wr, &cookie);

@@ -838,40 +838,6 @@ t4_alloc_tls_session(struct toedev *tod, struct tcpcb *tp,
 }
 #endif
 
-/* SET_TCB_FIELD sent as a ULP command looks like this */
-#define LEN__SET_TCB_FIELD_ULP (sizeof(struct ulp_txpkt) + \
-    sizeof(struct ulptx_idata) + sizeof(struct cpl_set_tcb_field_core))
-
-static void *
-mk_set_tcb_field_ulp(struct ulp_txpkt *ulpmc, uint64_t word, uint64_t mask,
-		uint64_t val, uint32_t tid)
-{
-	struct ulptx_idata *ulpsc;
-	struct cpl_set_tcb_field_core *req;
-
-	ulpmc->cmd_dest = htonl(V_ULPTX_CMD(ULP_TX_PKT) | V_ULP_TXPKT_DEST(0));
-	ulpmc->len = htobe32(howmany(LEN__SET_TCB_FIELD_ULP, 16));
-
-	ulpsc = (struct ulptx_idata *)(ulpmc + 1);
-	ulpsc->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_IMM));
-	ulpsc->len = htobe32(sizeof(*req));
-
-	req = (struct cpl_set_tcb_field_core *)(ulpsc + 1);
-	OPCODE_TID(req) = htobe32(MK_OPCODE_TID(CPL_SET_TCB_FIELD, tid));
-	req->reply_ctrl = htobe16(V_NO_REPLY(1));
-	req->word_cookie = htobe16(V_WORD(word) | V_COOKIE(0));
-	req->mask = htobe64(mask);
-	req->val = htobe64(val);
-
-	ulpsc = (struct ulptx_idata *)(req + 1);
-	if (LEN__SET_TCB_FIELD_ULP % 16) {
-		ulpsc->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_NOOP));
-		ulpsc->len = htobe32(0);
-		return (ulpsc + 1);
-	}
-	return (ulpsc);
-}
-
 static void
 send_mss_flowc_wr(struct adapter *sc, struct toepcb *toep)
 {
@@ -958,10 +924,10 @@ t4_pmtu_update(struct toedev *tod, struct tcpcb *tp, tcp_seq seq, int mtu)
 	}
 	INIT_ULPTX_WRH(wrh, len, 1, 0);	/* atomic */
 	ulpmc = (struct ulp_txpkt *)(wrh + 1);
-	ulpmc = mk_set_tcb_field_ulp(ulpmc, W_TCB_T_MAXSEG,
-	    V_TCB_T_MAXSEG(M_TCB_T_MAXSEG), V_TCB_T_MAXSEG(idx), toep->tid);
-	ulpmc = mk_set_tcb_field_ulp(ulpmc, W_TCB_TIMESTAMP,
-	    V_TCB_TIMESTAMP(0x7FFFFULL << 11), 0, toep->tid);
+	ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid, W_TCB_T_MAXSEG,
+	    V_TCB_T_MAXSEG(M_TCB_T_MAXSEG), V_TCB_T_MAXSEG(idx));
+	ulpmc = mk_set_tcb_field_ulp(sc, ulpmc, toep->tid, W_TCB_TIMESTAMP,
+	    V_TCB_TIMESTAMP(0x7FFFFULL << 11), 0);
 	commit_wrq_wr(toep->ctrlq, wrh, &cookie);
 
 	/* Update the software toepcb and tcpcb. */
