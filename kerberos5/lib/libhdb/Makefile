@@ -43,7 +43,6 @@ INCS=	hdb-protos.h \
 
 SRCS=	common.c \
 	db.c \
-	db3.c \
 	dbinfo.c \
 	ext.c \
 	hdb-ldap.c \
