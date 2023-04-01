@@ -3905,6 +3905,9 @@ rw_via_memwin(struct adapter *sc, int idx, uint32_t addr, uint32_t *val,
 	return (0);
 }
 
+CTASSERT(M_TID_COOKIE == M_COOKIE);
+CTASSERT(MAX_ATIDS <= (M_TID_TID + 1));
+
 static void
 t4_init_atid_table(struct adapter *sc)
 {

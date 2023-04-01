@@ -67,10 +67,10 @@ struct stid_region {
 };
 
 /*
- * Max # of ATIDs.  The absolute HW max is 14b (enough for 16K) but we reserve
- * the upper 3b for use as a cookie to demux the reply.
+ * Max # of ATIDs.  The absolute HW max is larger than this but we reserve a few
+ * of the upper bits for use as a cookie to demux the reply.
  */
-#define MAX_ATIDS 2048U
+#define MAX_ATIDS (M_TID_TID + 1)
 
 union aopen_entry {
 	void *data;
