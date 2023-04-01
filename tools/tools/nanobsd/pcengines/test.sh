@@ -29,10 +29,10 @@ _run () {
 }
 
 _init () {
-  kldstat -n kqemu || kldload kqemu
-  kldstat -n aio || kldload aio
-  kldstat -n if_tap || kldload if_tap
-  kldstat -n if_bridge || kldload if_bridge
+  kldstat -m kqemu || kldload kqemu
+  kldstat -m aio || kldload aio
+  kldstat -m if_tap || kldload if_tap
+  kldstat -m if_bridge || kldload if_bridge
   sysctl net.link.tap.up_on_open=1
   ifconfig bridge0 down destroy
   ifconfig tap0 down destroy
