@@ -11,6 +11,11 @@ from typing import Optional
 import pytest
 
 
+def nodeid_to_method_name(nodeid: str) -> str:
+    """file_name.py::ClassName::method_name[parametrize] -> method_name"""
+    return nodeid.split("::")[-1].split("[")[0]
+
+
 class LibCWrapper(object):
     def __init__(self):
         path: Optional[str] = find_library("c")
