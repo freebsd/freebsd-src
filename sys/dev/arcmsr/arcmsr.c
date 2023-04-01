@@ -87,6 +87,7 @@
 **                                          scatter-gather count large than some number
 ** 1.50.00.03   05/04/2021  Ching Huang     Fixed doorbell status arrived late on ARC-1886
 ** 1.50.00.04   12/08/2021  Ching Huang     Fixed boot up hung under ARC-1886 with no volume created
+** 1.50.00.05   03/23/2023  Ching Huang     Fixed reading buffer empty length error
 ******************************************************************************************
 */
 
@@ -144,7 +145,7 @@ __FBSDID("$FreeBSD$");
 
 #define arcmsr_callout_init(a)	callout_init(a, /*mpsafe*/1);
 
-#define ARCMSR_DRIVER_VERSION	"arcmsr version 1.50.00.04 2021-12-08"
+#define ARCMSR_DRIVER_VERSION	"arcmsr version 1.50.00.05 2023-03-23"
 #include <dev/arcmsr/arcmsr.h>
 /*
 **************************************************************************
@@ -1555,8 +1556,10 @@ static void arcmsr_iop2drv_data_wrote_handle(struct AdapterControlBlock *acb)
 	/*check this iop data if overflow my rqbuffer*/
 	ARCMSR_LOCK_ACQUIRE(&acb->qbuffer_lock);
 	prbuffer = arcmsr_get_iop_rqbuffer(acb);
-	my_empty_len = (acb->rqbuf_lastindex - acb->rqbuf_firstindex - 1) &
-		(ARCMSR_MAX_QBUFFER-1);
+	if (acb->rqbuf_lastindex >= acb->rqbuf_firstindex)
+		my_empty_len = (ARCMSR_MAX_QBUFFER - 1) - (acb->rqbuf_lastindex - acb->rqbuf_firstindex);
+	else
+		my_empty_len = acb->rqbuf_firstindex - acb->rqbuf_lastindex - 1;
 	if(my_empty_len >= prbuffer->data_len) {
 		if(arcmsr_Read_iop_rqbuffer_data(acb, prbuffer) == 0)
 			acb->acb_flags |= ACB_F_IOPDATA_OVERFLOW;
