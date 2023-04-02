@@ -1231,7 +1231,7 @@ ping: quoted data too short (28 bytes) from 192.0.2.2
 PING 192.0.2.2 (192.0.2.2): 56 data bytes
 92 bytes from 192.0.2.2: Destination Host Unreachable
 Vr HL TOS  Len   ID Flg  off TTL Pro  cks      Src      Dst
- 4  5  00 0054 0001   0 0000  40  01 f6a4 192.0.2.1  192.0.2.2
+ 4  5  00 0054 0001   0 0000  40  01 f6a4 192.0.2.1  192.0.2.2 
 
 
 --- 192.0.2.2 ping statistics ---
