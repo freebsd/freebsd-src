@@ -2,8 +2,8 @@ import socket
 import struct
 from enum import Enum
 
-from atf_python.sys.net.netlink.utils import align4
-from atf_python.sys.net.netlink.utils import enum_or_int
+from atf_python.sys.netlink.utils import align4
+from atf_python.sys.netlink.utils import enum_or_int
 
 
 class NlAttr(object):

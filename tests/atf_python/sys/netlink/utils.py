@@ -5,8 +5,6 @@ from typing import Dict
 from typing import List
 from typing import NamedTuple
 
-from atf_python.sys.netlink.attrs import NlAttr
-
 
 class NlConst:
     AF_NETLINK = 38
