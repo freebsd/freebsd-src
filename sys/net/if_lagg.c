@@ -2171,12 +2171,14 @@ lagg_input_ethernet(struct ifnet *ifp, struct mbuf *m)
 		return (NULL);
 	}
 
-	ETHER_BPF_MTAP(scifp, m);
-
 	m = lagg_proto_input(sc, lp, m);
-	if (m != NULL && (scifp->if_flags & IFF_MONITOR) != 0) {
-		m_freem(m);
-		m = NULL;
+	if (m != NULL) {
+		ETHER_BPF_MTAP(scifp, m);
+
+		if ((scifp->if_flags & IFF_MONITOR) != 0) {
+			m_freem(m);
+			m = NULL;
+		}
 	}
 
 #ifdef DEV_NETMAP
@@ -2204,12 +2206,14 @@ lagg_input_infiniband(struct ifnet *ifp, struct mbuf *m)
 		return (NULL);
 	}
 
-	infiniband_bpf_mtap(scifp, m);
-
 	m = lagg_proto_input(sc, lp, m);
-	if (m != NULL && (scifp->if_flags & IFF_MONITOR) != 0) {
-		m_freem(m);
-		m = NULL;
+	if (m != NULL) {
+		infiniband_bpf_mtap(scifp, m);
+
+		if ((scifp->if_flags & IFF_MONITOR) != 0) {
+			m_freem(m);
+			m = NULL;
+		}
 	}
 
 	return (m);
