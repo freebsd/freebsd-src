@@ -121,7 +121,7 @@ vlan_parse_ethervid(const char *name)
 {
 	char ifname[IFNAMSIZ];
 	char *cp;
-	int vid;
+	unsigned int vid;
 
 	strlcpy(ifname, name, IFNAMSIZ);
 	if ((cp = strrchr(ifname, '.')) == NULL)
@@ -134,9 +134,12 @@ vlan_parse_ethervid(const char *name)
 		errx(1, "invalid vlan tag");
 
 	vid = *cp++ - '0';
-	while ((*cp >= '0') && (*cp <= '9'))
+	while ((*cp >= '0') && (*cp <= '9')) {
 		vid = (vid * 10) + (*cp++ - '0');
-	if ((*cp != '\0') || (vid & ~0xFFF))
+		if (vid >= 0xFFF)
+			errx(1, "invalid vlan tag");
+	}
+	if (*cp != '\0')
 		errx(1, "invalid vlan tag");
 
 	/*
