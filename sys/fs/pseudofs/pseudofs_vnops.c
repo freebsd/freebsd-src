@@ -119,7 +119,7 @@ pfs_visible(struct thread *td, struct pfs_node *pn, pid_t pid,
 	if (p)
 		*p = NULL;
 	if (pid == NO_PID)
-		PFS_RETURN (1);
+		PFS_RETURN (pn_vis(td, NULL, pn));
 	proc = pfind(pid);
 	if (proc == NULL)
 		PFS_RETURN (0);
@@ -826,7 +826,7 @@ pfs_iterate(struct thread *td, struct proc *proc, struct pfs_node *pd,
 	} else if (proc != NULL) {
 		visible = pfs_visible_proc(td, *pn, proc);
 	} else {
-		visible = 1;
+		visible = pn_vis(td, NULL, *pn);
 	}
 	if (!visible)
 		goto again;
