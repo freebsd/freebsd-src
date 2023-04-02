@@ -36,6 +36,14 @@
 
 #include <security/mac_veriexec/mac_veriexec.h>
 
+/* for backwards compatability */
+struct verified_exec_params32  {
+	unsigned char flags;
+	char fp_type[VERIEXEC_FPTYPELEN];	/* type of fingerprint */
+	char file[MAXPATHLEN];
+	unsigned char fingerprint[32];
+};
+
 struct verified_exec_params  {
 	unsigned char flags;
 	char fp_type[VERIEXEC_FPTYPELEN];	/* type of fingerprint */
@@ -55,9 +63,11 @@ struct verified_exec_label_params  {
 #define VERIEXEC_DEBUG_ON	_IOWR('S', 0x5, int) /* set/get debug level */
 #define VERIEXEC_DEBUG_OFF 	_IO('S', 0x6)	/* reset debug */
 #define VERIEXEC_GETSTATE 	_IOR('S', 0x7, int) /* get state */
-#define VERIEXEC_SIGNED_LOAD	_IOW('S', 0x8, struct verified_exec_params)
-#define VERIEXEC_GETVERSION	_IOR('S', 0x9, int) /* get version */
-#define VERIEXEC_LABEL_LOAD	_IOW('S', 0xa, struct verified_exec_label_params)
+#define	VERIEXEC_SIGNED_LOAD32	_IOW('S', 0x8, struct verified_exec_params32)
+#define	VERIEXEC_VERIFIED_FILD	_IOW('S', 0x9, int) /* fd */
+#define VERIEXEC_GETVERSION	_IOR('S', 0xa, int) /* get version */
+#define VERIEXEC_LABEL_LOAD	_IOW('S', 0xb, struct verified_exec_label_params)
+#define	VERIEXEC_SIGNED_LOAD	_IOW('S', 0xc, struct verified_exec_params)
 
 #define	_PATH_DEV_VERIEXEC	_PATH_DEV "veriexec"
 

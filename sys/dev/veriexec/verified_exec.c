@@ -1,7 +1,7 @@
 /*
  * $FreeBSD$
  *
- * Copyright (c) 2011-2013, 2015, 2019 Juniper Networks, Inc.
+ * Copyright (c) 2011-2023, Juniper Networks, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,7 +69,7 @@ verifiedexecioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
 	struct nameidata nid;
 	struct vattr vattr;
 	struct verified_exec_label_params *lparams;
-	struct verified_exec_params *params;
+	struct verified_exec_params *params, params_;
 	int error = 0;
 
 	/*
@@ -104,10 +104,18 @@ verifiedexecioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
 		return (error);
 
 	lparams = (struct verified_exec_label_params *)data;
-	if (cmd == VERIEXEC_LABEL_LOAD)
+	switch (cmd) {
+	case VERIEXEC_LABEL_LOAD:
 		params = &lparams->params;
-	else
+		break;
+	case VERIEXEC_SIGNED_LOAD32:
+		params = &params_;
+		memcpy(params, data, sizeof(struct verified_exec_params32));
+		break;
+	default:
 		params = (struct verified_exec_params *)data;
+		break;
+	}
 
 	switch (cmd) {
 	case VERIEXEC_ACTIVE:
@@ -187,6 +195,13 @@ verifiedexecioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
 			int flags = FREAD;
 			int override = (cmd != VERIEXEC_LOAD);
 
+			if (params->flags & VERIEXEC_LABEL) {
+				labellen = strnlen(lparams->label,
+				    MAXLABELLEN) + 1;
+				if (labellen > MAXLABELLEN)
+					return (EINVAL);
+			}
+
 			/*
 			 * Get the attributes for the file name passed
 			 * stash the file's device id and inode number
@@ -228,9 +243,6 @@ verifiedexecioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
 			    FINGERPRINT_INVALID);
 			VOP_UNLOCK(nid.ni_vp);
 			(void) vn_close(nid.ni_vp, FREAD, td->td_ucred, td);
-			if (params->flags & VERIEXEC_LABEL)
-				labellen = strnlen(lparams->label,
-				    sizeof(lparams->label) - 1) + 1;
 
 			mtx_lock(&ve_mutex);
 			error = mac_veriexec_metadata_add_file(
