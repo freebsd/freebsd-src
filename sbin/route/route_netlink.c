@@ -203,6 +203,10 @@ rtmsg_nl_int(struct nl_helper *h, int cmd, int rtm_flags, int fib,
 	rtm->rtm_type = rtm_type;
 	rtm->rtm_dst_len = plen;
 
+	/* Request exact prefix match if mask is set */
+	if ((cmd == RTSOCK_RTM_GET) && (mask != NULL))
+		rtm->rtm_flags = RTM_F_PREFIX;
+
 	snl_add_msg_attr_ip(&nw, RTA_DST, dst);
 	snl_add_msg_attr_u32(&nw, RTA_TABLE, fib);
 
