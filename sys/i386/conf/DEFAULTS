@@ -29,3 +29,5 @@ options 	CC_CUBIC		# include CUBIC congestion control
 device		atpic
 
 options 	NEW_PCIB
+
+options 	NETLINK			# netlink(4) support
