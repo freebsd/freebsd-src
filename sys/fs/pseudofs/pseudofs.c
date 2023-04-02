@@ -72,18 +72,20 @@ pfs_alloc_node_flags(struct pfs_info *pi, const char *name, pfs_type_t type, int
 {
 	struct pfs_node *pn;
 	int malloc_flags;
+	size_t len;
 
-	KASSERT(strlen(name) < PFS_NAMELEN,
+	len = strlen(name);
+	KASSERT(len < PFS_NAMELEN,
 	    ("%s(): node name is too long", __func__));
 	if (flags & PFS_NOWAIT)
 		malloc_flags = M_NOWAIT | M_ZERO;
 	else
 		malloc_flags = M_WAITOK | M_ZERO;
-	pn = malloc(sizeof *pn, M_PFSNODES, malloc_flags);
+	pn = malloc(sizeof(*pn) + len + 1, M_PFSNODES, malloc_flags);
 	if (pn == NULL)
 		return (NULL);
 	mtx_init(&pn->pn_mutex, "pfs_node", NULL, MTX_DEF | MTX_DUPOK);
-	strlcpy(pn->pn_name, name, sizeof pn->pn_name);
+	memcpy(pn->pn_name, name, len);
 	pn->pn_type = type;
 	pn->pn_info = pi;
 	return (pn);
