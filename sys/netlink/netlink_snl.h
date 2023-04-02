@@ -667,7 +667,7 @@ snl_read_reply_multi(struct snl_state *ss, uint32_t nlmsg_seq, struct snl_errmsg
 	} else if (hdr->nlmsg_type == NLMSG_ERROR) {
 		if (!snl_parse_errmsg(ss, hdr, e))
 			e->error = EINVAL;
-	} if (hdr->nlmsg_type == NLMSG_DONE) {
+	} else if (hdr->nlmsg_type == NLMSG_DONE) {
 		snl_parse_nlmsg(ss, hdr, &snl_donemsg_parser, e);
 	} else
 		return (hdr);
