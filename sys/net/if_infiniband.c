@@ -417,6 +417,7 @@ infiniband_input(struct ifnet *ifp, struct mbuf *m)
 	int isr;
 
 	CURVNET_SET_QUIET(ifp->if_vnet);
+	NET_EPOCH_ENTER(et);
 
 	if ((ifp->if_flags & IFF_UP) == 0) {
 		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
@@ -504,10 +505,9 @@ infiniband_input(struct ifnet *ifp, struct mbuf *m)
 	mac_ifnet_create_mbuf(ifp, m);
 #endif
 	/* Allow monitor mode to claim this frame, after stats are updated. */
-	NET_EPOCH_ENTER(et);
 	netisr_dispatch(isr, m);
-	NET_EPOCH_EXIT(et);
 done:
+	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
 }
 
