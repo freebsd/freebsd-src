@@ -82,6 +82,8 @@ nlattr_get_multipath(struct snl_state *ss, struct nlattr *nla, const void *arg _
 	size_t sz = (max_nhops + 2) * sizeof(struct rta_mpath_nh);
 
 	struct rta_mpath *mp = snl_allocz(ss, sz);
+	if (mp == NULL)
+		return (false);
 	mp->num_nhops = 0;
 
 	for (rtnh = (struct rtnexthop *)(void *)(nla + 1); data_len > 0; ) {
