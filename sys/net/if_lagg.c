@@ -2086,16 +2086,14 @@ lagg_input_ethernet(struct ifnet *ifp, struct mbuf *m)
 static struct mbuf *
 lagg_input_infiniband(struct ifnet *ifp, struct mbuf *m)
 {
-	struct epoch_tracker et;
 	struct lagg_port *lp = ifp->if_lagg;
 	struct lagg_softc *sc = lp->lp_softc;
 	struct ifnet *scifp = sc->sc_ifp;
 
-	NET_EPOCH_ENTER(et);
+	NET_EPOCH_ASSERT();
 	if ((scifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
 	    lp->lp_detaching != 0 ||
 	    sc->sc_proto == LAGG_PROTO_NONE) {
-		NET_EPOCH_EXIT(et);
 		m_freem(m);
 		return (NULL);
 	}
@@ -2110,7 +2108,6 @@ lagg_input_infiniband(struct ifnet *ifp, struct mbuf *m)
 		}
 	}
 
-	NET_EPOCH_EXIT(et);
 	return (m);
 }
 
