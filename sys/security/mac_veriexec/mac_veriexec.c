@@ -67,7 +67,7 @@
 #define	SLOT_SET(l, v) \
 	mac_label_set((l), mac_veriexec_slot, (v))
 
-#ifdef MAC_DEBUG
+#ifdef MAC_VERIEXEC_DEBUG
 #define	MAC_VERIEXEC_DBG(_lvl, _fmt, ...)				\
 	do {								\
 		VERIEXEC_DEBUG((_lvl), (MAC_VERIEXEC_FULLNAME ": " _fmt	\
@@ -204,10 +204,8 @@ mac_veriexec_vfs_mounted(void *arg __unused, struct mount *mp,
 		return;
 
 	SLOT_SET(mp->mnt_label, va.va_fsid);
-#ifdef MAC_DEBUG
 	MAC_VERIEXEC_DBG(3, "set fsid to %ju for mount %p",
 	    (uintmax_t)va.va_fsid, mp);
-#endif
 }
 
 /**
