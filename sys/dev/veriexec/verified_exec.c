@@ -99,7 +99,7 @@ verifiedexecioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
 	 *
 	 * MAC/veriexec will grant kmem write privs to "trusted" processes.
 	 */
-	error = priv_check(td, PRIV_KMEM_WRITE);
+	error = priv_check(td, PRIV_VERIEXEC_CONTROL);
 	if (error)
 		return (error);
 

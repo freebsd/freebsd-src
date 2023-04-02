@@ -525,11 +525,12 @@
  */
 #define	PRIV_VERIEXEC_DIRECT	700	/* Can override 'indirect' */
 #define	PRIV_VERIEXEC_NOVERIFY	701	/* Can override O_VERIFY */
+#define	PRIV_VERIEXEC_CONTROL	702	/* Can configure veriexec */
 
 /*
  * Track end of privilege list.
  */
-#define	_PRIV_HIGHEST		702
+#define	_PRIV_HIGHEST		703
 
 /*
  * Validate that a named privilege is known by the privilege system.  Invalid
