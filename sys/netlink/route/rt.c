@@ -461,6 +461,7 @@ struct nl_parsed_route {
 	uint8_t			rtm_dst_len;
 	uint8_t			rtm_protocol;
 	uint8_t			rtm_type;
+	uint32_t		rtm_flags;
 };
 
 #define	_IN(_field)	offsetof(struct rtmsg, _field)
@@ -488,6 +489,7 @@ static const struct nlfield_parser nlf_p_rtmsg[] = {
 	{ .off_in = _IN(rtm_dst_len), .off_out = _OUT(rtm_dst_len), .cb = nlf_get_u8 },
 	{ .off_in = _IN(rtm_protocol), .off_out = _OUT(rtm_protocol), .cb = nlf_get_u8 },
 	{ .off_in = _IN(rtm_type), .off_out = _OUT(rtm_type), .cb = nlf_get_u8 },
+	{ .off_in = _IN(rtm_flags), .off_out = _OUT(rtm_flags), .cb = nlf_get_u32 },
 };
 #undef _IN
 #undef _OUT
@@ -581,7 +583,8 @@ handle_rtm_getroute(struct nlpcb *nlp, struct nl_parsed_route *attrs,
 {
 	RIB_RLOCK_TRACKER;
 	struct rib_head *rnh;
-	struct rtentry *rt;
+	const struct rtentry *rt;
+	struct route_nhop_data rnd;
 	uint32_t fibnum = attrs->rta_table;
 	sa_family_t family = attrs->rtm_family;
 
@@ -596,13 +599,17 @@ handle_rtm_getroute(struct nlpcb *nlp, struct nl_parsed_route *attrs,
 
 	RIB_RLOCK(rnh);
 
-	rt = (struct rtentry *)rnh->rnh_matchaddr(attrs->rta_dst, &rnh->head);
+	struct sockaddr *dst = attrs->rta_dst;
+
+	if (attrs->rtm_flags & RTM_F_PREFIX)
+		rt = rib_lookup_prefix_plen(rnh, dst, attrs->rtm_dst_len, &rnd);
+	else
+		rt = (const struct rtentry *)rnh->rnh_matchaddr(dst, &rnh->head);
 	if (rt == NULL) {
 		RIB_RUNLOCK(rnh);
 		return (ESRCH);
 	}
 
-	struct route_nhop_data rnd;
 	rt_get_rnd(rt, &rnd);
 	rnd.rnd_nhop = nhop_select_func(rnd.rnd_nhop, 0);
 
