@@ -25,3 +25,5 @@ options 	GEOM_PART_GPT
 options 	CC_CUBIC		# include CUBIC congestion control
 
 options 	NEW_PCIB
+
+options 	NETLINK			# netlink(4) support
