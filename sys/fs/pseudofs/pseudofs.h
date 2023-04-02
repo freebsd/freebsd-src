@@ -219,7 +219,6 @@ struct pfs_info {
  * is not enforcable by WITNESS.
  */
 struct pfs_node {
-	char			 pn_name[PFS_NAMELEN];
 	pfs_type_t		 pn_type;
 	int			 pn_flags;
 	struct mtx		 pn_mutex;
@@ -240,6 +239,7 @@ struct pfs_node {
 	struct pfs_node		*pn_nodes;		/* (o) */
 	struct pfs_node		*pn_last_node;		/* (o) */
 	struct pfs_node		*pn_next;		/* (p) */
+	char			 pn_name[];		/* Keep it last */
 };
 
 /*
