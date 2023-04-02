@@ -156,9 +156,10 @@ pn_vis(PFS_VIS_ARGS)
 {
 
 	PFS_TRACE(("%s", pn->pn_name));
-	KASSERT(pn->pn_vis != NULL, ("%s(): no callback", __func__));
-	KASSERT(p != NULL, ("%s(): no process", __func__));
-	PROC_LOCK_ASSERT(p, MA_OWNED);
+	if (pn->pn_vis == NULL)
+		return (1);
+	if (p != NULL)
+		PROC_LOCK_ASSERT(p, MA_OWNED);
 	pfs_assert_not_owned(pn);
 	return ((pn->pn_vis)(PFS_VIS_ARGNAMES));
 }
