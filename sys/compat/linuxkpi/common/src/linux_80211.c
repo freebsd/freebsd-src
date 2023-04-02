@@ -2349,9 +2349,9 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	ic->ic_set_channel(ic);
 
 	/* XXX-BZ do we need to be able to update these? */
-	hw->wiphy->frag_threshold =  vap->iv_fragthreshold;
+	hw->wiphy->frag_threshold = vap->iv_fragthreshold;
 	lkpi_80211_mo_set_frag_threshold(hw, vap->iv_fragthreshold);
-	hw->wiphy->rts_threshold =  vap->iv_rtsthreshold;
+	hw->wiphy->rts_threshold = vap->iv_rtsthreshold;
 	lkpi_80211_mo_set_rts_threshold(hw, vap->iv_rtsthreshold);
 	/* any others? */
 	IMPROVE();
