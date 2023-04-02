@@ -29,9 +29,17 @@
 #ifndef __LIBVERIEXEC_H__
 #define __LIBVERIEXEC_H__
 
+struct mac_veriexec_syscall_params;
+
 int	veriexec_check_fd_mode(int, unsigned int);
 int	veriexec_check_path_mode(const char *, unsigned int);
 int	veriexec_check_fd(int);
 int	veriexec_check_path(const char *);
+int	veriexec_get_pid_params(pid_t, struct mac_veriexec_syscall_params *);
+int	veriexec_get_path_params(const char *,
+	    struct mac_veriexec_syscall_params *);
+int	veriexec_check_pid_label(pid_t, const char *);
+
+#define	HAVE_VERIEXEC_CHECK_PID_LABEL	1
 
 #endif  /* __LIBVERIEXEC_H__ */

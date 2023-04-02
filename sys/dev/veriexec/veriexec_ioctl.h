@@ -1,7 +1,7 @@
 /*
  * $FreeBSD$
  *
- * Copyright (c) 2011-2013, 2015, 2019, Juniper Networks, Inc.
+ * Copyright (c) 2011-2023, Juniper Networks, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,10 +34,7 @@
 #ifndef _DEV_VERIEXEC_VERIEXEC_IOCTL_H
 #define _DEV_VERIEXEC_VERIEXEC_IOCTL_H
 
-#include <sys/param.h>
 #include <security/mac_veriexec/mac_veriexec.h>
-
-#define	VERIEXEC_FPTYPELEN	16
 
 struct verified_exec_params  {
 	unsigned char flags;

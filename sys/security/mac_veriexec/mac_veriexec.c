@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2011, 2012, 2013, 2015, 2016, 2019 Juniper Networks, Inc.
+ * Copyright (c) 2011-2023 Juniper Networks, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -330,7 +330,10 @@ mac_veriexec_proc_check_debug(struct ucred *cred, struct proc *p)
 	if (error != 0)
 		return (0);
 
-	return ((flags & VERIEXEC_NOTRACE) ? EACCES : 0);
+	error = (flags & (VERIEXEC_NOTRACE|VERIEXEC_TRUSTED)) ? EACCES : 0;
+	MAC_VERIEXEC_DBG(4, "%s flags=%#x error=%d", __func__, flags, error);
+
+	return (error);
 }
 
 /**
@@ -406,6 +409,9 @@ mac_veriexec_kld_check_load(struct ucred *cred, struct vnode *vp,
  *  - PRIV_KMEM_WRITE\n
  *    Check if writes to /dev/mem and /dev/kmem are allowed\n
  *    (Only trusted processes are allowed)
+ *  - PRIV_VERIEXEC_CONTROL\n
+ *    Check if manipulating veriexec is allowed\n
+ *    (only trusted processes are allowed)
  *
  * @param cred		credentials to use
  * @param priv		privilege to check
@@ -415,20 +421,30 @@ mac_veriexec_kld_check_load(struct ucred *cred, struct vnode *vp,
 static int
 mac_veriexec_priv_check(struct ucred *cred, int priv)
 {
+	int error;
 
 	/* If we are not enforcing veriexec, nothing for us to check */
 	if ((mac_veriexec_state & VERIEXEC_STATE_ENFORCE) == 0)
 		return (0);
 
+	error = 0;
 	switch (priv) {
 	case PRIV_KMEM_WRITE:
-		if (!mac_veriexec_proc_is_trusted(cred, curproc))
-			return (EPERM);
+	case PRIV_VERIEXEC_CONTROL:
+		/*
+		 * Do not allow writing to memory or manipulating veriexec,
+		 * unless trusted
+		 */
+		if (mac_veriexec_proc_is_trusted(cred, curproc) == 0 &&
+		    mac_priv_grant(cred, priv) != 0)
+			error = EPERM;
+		MAC_VERIEXEC_DBG(4, "%s priv=%d error=%d", __func__, priv,
+		    error);
 		break;
 	default:
 		break;
 	}
-	return (0);
+	return (error);
 }
 
 /**
@@ -812,7 +828,24 @@ mac_veriexec_syscall(struct thread *td, int call, void *arg)
 	cap_rights_t rights;
 	struct vattr va;
 	struct file *fp;
-	int error;
+	struct mac_veriexec_syscall_params_args pargs;
+	struct mac_veriexec_syscall_params result;
+	struct mac_veriexec_file_info *ip;
+	struct proc *proc;
+	struct vnode *textvp;
+	int error, flags, proc_locked;
+
+	nd.ni_vp = NULL;
+	proc_locked = 0;
+	textvp = NULL;
+	switch (call) {
+	case MAC_VERIEXEC_GET_PARAMS_PID_SYSCALL:
+	case MAC_VERIEXEC_GET_PARAMS_PATH_SYSCALL:
+		error = copyin(arg, &pargs, sizeof(pargs));
+		if (error)
+			return error;
+		break;
+	}
 
 	switch (call) {
 	case MAC_VERIEXEC_CHECK_FD_SYSCALL:
@@ -863,17 +896,68 @@ cleanup_file:
 		NDINIT(&nd, LOOKUP,
 		    FOLLOW | LOCKLEAF | LOCKSHARED | AUDITVNODE1,
 		    UIO_USERSPACE, arg);
-		error = namei(&nd);
+		flags = FREAD;
+		error = vn_open(&nd, &flags, 0, NULL);
 		if (error != 0)
 			break;
 		NDFREE_PNBUF(&nd);
 
 		/* Check the fingerprint status of the vnode */
 		error = mac_veriexec_check_vp(td->td_ucred, nd.ni_vp, VVERIFY);
-		vput(nd.ni_vp);
+		/* nd.ni_vp cleaned up below */
+		break;
+	case MAC_VERIEXEC_GET_PARAMS_PID_SYSCALL:
+		if (pargs.u.pid == 0 || pargs.u.pid == curproc->p_pid) {
+			proc = curproc;
+		} else {
+			proc = pfind(pargs.u.pid);
+			if (proc == NULL)
+				return (EINVAL);
+			proc_locked = 1;
+		}
+		textvp = proc->p_textvp;
+		/* FALLTHROUGH */
+	case MAC_VERIEXEC_GET_PARAMS_PATH_SYSCALL:
+		if (textvp == NULL) {
+			/* Look up the path to get the vnode */
+			NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1,
+			    UIO_USERSPACE, pargs.u.filename);
+			flags = FREAD;
+			error = vn_open(&nd, &flags, 0, NULL);
+			if (error != 0)
+				break;
+
+			NDFREE_PNBUF(&nd);
+			textvp = nd.ni_vp;
+		}
+		error = VOP_GETATTR(textvp, &va, curproc->p_ucred);
+		if (proc_locked)
+			PROC_UNLOCK(proc);
+		if (error != 0)
+			break;
+
+		error = mac_veriexec_metadata_get_file_info(va.va_fsid,
+		    va.va_fileid, va.va_gen, NULL, &ip, FALSE);
+		if (error != 0)
+			break;
+
+		result.flags = ip->flags;
+		strlcpy(result.fp_type, ip->ops->type, sizeof(result.fp_type));
+		result.labellen = ip->labellen;
+		if (ip->labellen > 0)
+			strlcpy(result.label, ip->label, sizeof(result.label));
+		result.label[result.labellen] = '\0';
+		memcpy(result.fingerprint, ip->fingerprint,
+		    ip->ops->digest_len);
+
+		error = copyout(&result, pargs.params, sizeof(result));
 		break;
 	default:
 		error = EOPNOTSUPP;
+	}
+	if (nd.ni_vp != NULL) {
+		VOP_UNLOCK(nd.ni_vp);
+		vn_close(nd.ni_vp, FREAD, td->td_ucred, td);
 	}
 	return (error);
 }

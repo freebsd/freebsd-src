@@ -29,6 +29,8 @@
 #ifndef	_SECURITY_MAC_VERIEXEC_H
 #define	_SECURITY_MAC_VERIEXEC_H
 
+#include <sys/param.h>
+
 #ifdef _KERNEL
 #include <sys/types.h>
 #include <sys/kernel.h>
@@ -42,8 +44,12 @@
 #define	MAC_VERIEXEC_NAME	"mac_veriexec"
 
 /* MAC/veriexec syscalls */
-#define	MAC_VERIEXEC_CHECK_FD_SYSCALL	1
-#define	MAC_VERIEXEC_CHECK_PATH_SYSCALL	2
+#define	MAC_VERIEXEC_CHECK_FD_SYSCALL		1
+#define	MAC_VERIEXEC_CHECK_PATH_SYSCALL		2
+#define	MAC_VERIEXEC_GET_PARAMS_PID_SYSCALL	3
+#define	MAC_VERIEXEC_GET_PARAMS_PATH_SYSCALL	4
+
+#define	VERIEXEC_FPTYPELEN	16	/* hash name */
 
 /**
  * Enough room for the largest signature...
@@ -67,6 +73,23 @@
 #define VERIEXEC_STATE_ENFORCE	(1<<2)	/**< Fail execs for files that do not
 					     match signature */
 #define VERIEXEC_STATE_LOCKED	(1<<3)	/**< Do not allow further changes */
+
+/* for MAC_VERIEXEC_GET_PARAMS_*_SYSCALL */
+struct mac_veriexec_syscall_params  {
+	char fp_type[VERIEXEC_FPTYPELEN];
+	unsigned char fingerprint[MAXFINGERPRINTLEN];
+	char label[MAXLABELLEN];
+	size_t labellen;
+	unsigned char flags;
+};
+
+struct mac_veriexec_syscall_params_args {
+	union {
+		pid_t pid;
+		const char *filename;
+	} u;				/* input only */
+	struct mac_veriexec_syscall_params *params; /* result */
+};
 
 #ifdef _KERNEL
 /**

@@ -78,9 +78,9 @@ int	mac_veriexec_metadata_get_executable_flags(struct ucred *cred,
 	    struct proc *p, int *flags, int check_files);
 int	mac_veriexec_metadata_get_file_flags(dev_t fsid, long fileid,
 	    unsigned long gen, int *flags, int check_files);
-struct mac_veriexec_file_info *
-	mac_veriexec_metadata_get_file_info(dev_t fsid, long fileid,
-	    unsigned long gen, int *found_dev, int check_files);
+int	mac_veriexec_metadata_get_file_info(dev_t fsid, long fileid,
+	    unsigned long gen, int *found_dev,
+	    struct mac_veriexec_file_info **ipp, int check_files);
 void	mac_veriexec_metadata_init(void);
 void	mac_veriexec_metadata_print_db(struct sbuf *sbp);
 int	mac_veriexec_metadata_unmounted(dev_t fsid, struct thread *td);
