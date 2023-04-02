@@ -90,21 +90,17 @@ pn_fileno(struct pfs_node *pn, pid_t pid)
 static int
 pfs_visible_proc(struct thread *td, struct pfs_node *pn, struct proc *proc)
 {
-	int visible;
 
 	if (proc == NULL)
 		return (0);
 
 	PROC_LOCK_ASSERT(proc, MA_OWNED);
 
-	visible = ((proc->p_flag & P_WEXIT) == 0);
-	if (visible)
-		visible = (p_cansee(td, proc) == 0);
-	if (visible && pn->pn_vis != NULL)
-		visible = pn_vis(td, proc, pn);
-	if (!visible)
+	if ((proc->p_flag & P_WEXIT) != 0)
 		return (0);
-	return (1);
+	if (p_cansee(td, proc) != 0)
+		return (0);
+	return (pn_vis(td, proc, pn));
 }
 
 static int
