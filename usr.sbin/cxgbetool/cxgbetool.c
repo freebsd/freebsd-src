@@ -124,7 +124,7 @@ usage(FILE *fp)
 	    "\tsched-queue <port> <queue> <class>  bind NIC queues to TX Scheduling class\n"
 	    "\tstdio                               interactive mode\n"
 	    "\ttcb <tid>                           read TCB\n"
-	    "\ttracer <idx> tx<n>|rx<n>            set and enable a tracer\n"
+	    "\ttracer <idx> tx<n>|rx<n>|lo<n>      set and enable a tracer\n"
 	    "\ttracer <idx> disable|enable         disable or enable a tracer\n"
 	    "\ttracer list                         list all tracers\n"
 	    );
@@ -2478,17 +2478,24 @@ set_tracer(uint8_t idx, int argc, const char *argv[])
 	t.valid = 1;
 
 	if (argc != 1) {
-		warnx("must specify tx<n> or rx<n>.");
+		warnx("must specify one of tx/rx/lo<n>");
 		return (EINVAL);
 	}
 
 	len = strlen(argv[0]);
 	if (len != 3) {
-		warnx("argument must be 3 characters (tx<n> or rx<n>)");
+		warnx("argument must be 3 characters (tx/rx/lo<n>). eg. tx0");
 		return (EINVAL);
 	}
 
-	if (strncmp(argv[0], "tx", 2) == 0) {
+	if (strncmp(argv[0], "lo", 2) == 0) {
+		port = argv[0][2] - '0';
+		if (port < 0 || port > 3) {
+			warnx("'%c' in %s is invalid", argv[0][2], argv[0]);
+			return (EINVAL);
+		}
+		port += 8;
+	} else if (strncmp(argv[0], "tx", 2) == 0) {
 		port = argv[0][2] - '0';
 		if (port < 0 || port > 3) {
 			warnx("'%c' in %s is invalid", argv[0][2], argv[0]);
