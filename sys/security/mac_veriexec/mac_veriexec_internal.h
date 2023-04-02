@@ -41,7 +41,7 @@
 
 #define VERIEXEC_FILES_FIRST	1
 
-#if defined(VERIFIED_EXEC_DEBUG) || defined(VERIFIED_EXEC_DEBUG_VERBOSE)
+#ifdef MAC_VERIEXEC_DEBUG
 # define VERIEXEC_DEBUG(n, x) if (mac_veriexec_debug > (n)) printf x
 #else
 # define VERIEXEC_DEBUG(n, x)

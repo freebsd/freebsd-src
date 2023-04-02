@@ -41,6 +41,9 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
+#ifdef MAC_VERIEXEC_DEBUG
+#include <sys/syslog.h>
+#endif
 #include <sys/vnode.h>
 
 #include "mac_veriexec.h"
@@ -548,7 +551,7 @@ mac_veriexec_metadata_fetch_fingerprint_status(struct vnode *vp,
 				break;
 
 			case EAUTH:
-#ifdef VERIFIED_EXEC_DEBUG_VERBOSE
+#ifdef MAC_VERIEXEC_DEBUG
 				{
 					char have[MAXFINGERPRINTLEN * 2 + 1];
 					char want[MAXFINGERPRINTLEN * 2 + 1];
