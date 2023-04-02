@@ -123,11 +123,9 @@ struct nhop_object;
 struct nhgrp_object;
 struct ucred;
 
-const struct rtentry *rib_lookup_prefix(uint32_t fibnum, int family,
-    const struct sockaddr *dst, const struct sockaddr *netmask,
+const struct rtentry *
+rib_lookup_prefix_plen(struct rib_head *rnh, struct sockaddr *dst, int plen,
     struct route_nhop_data *rnd);
-const struct rtentry *rib_lookup_lpm(uint32_t fibnum, int family,
-    const struct sockaddr *dst, struct route_nhop_data *rnd);
 
 /* rtentry accessors */
 bool rt_is_host(const struct rtentry *rt);
