@@ -1919,4 +1919,3 @@ EXPORT_SYMBOL(hdmi_infoframe_unpack);
 
 MODULE_VERSION(linuxkpi_hdmi, 1);
 MODULE_DEPEND(linuxkpi_hdmi, linuxkpi, 1, 1, 1);
-MODULE_DEPEND(linuxkpi_hdmi, wlan, 1, 1, 1);
