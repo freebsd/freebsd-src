@@ -62,8 +62,19 @@ unsigned llvm::ThreadPoolStrategy::compute_thread_count() const {
                                        : sys::getHostNumPhysicalCores();
   if (MaxThreadCount <= 0)
     MaxThreadCount = 1;
-  if (ThreadsRequested == 0)
-    return MaxThreadCount;
+  // Damage control threading.
+  //
+  // There are no heuristics to figure out how many threads makes sense to spawn,
+  // all while rolling with all available hw threads starts being detrimental to
+  // performance really early.
+  //
+  // Work around by putting a hard cap unless the user explicitly requested a certain amount.
+  //
+  // See https://discourse.llvm.org/t/avoidable-overhead-from-threading-by-default/69160
+  // for more details.
+  if (ThreadsRequested == 0) {
+    return std::min(MaxThreadCount, 4);
+  }
   if (!Limit)
     return ThreadsRequested;
   return std::min((unsigned)MaxThreadCount, ThreadsRequested);
