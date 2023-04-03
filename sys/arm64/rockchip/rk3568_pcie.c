@@ -394,4 +394,4 @@ static device_method_t rk3568_pcie_methods[] = {
 
 DEFINE_CLASS_1(pcib, rk3568_pcie_driver, rk3568_pcie_methods,
     sizeof(struct rk3568_pcie_softc), pci_dw_driver);
-DRIVER_MODULE(mv_pcie, simplebus, rk3568_pcie_driver, NULL, NULL);
+DRIVER_MODULE(rk3568_pcie, simplebus, rk3568_pcie_driver, NULL, NULL);
