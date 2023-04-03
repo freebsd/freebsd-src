@@ -248,7 +248,7 @@ ZfsDaemon::BuildCaseFiles()
 
 		
 		snprintf(evString, 160, "!system=ZFS subsystem=ZFS "
-		    "type=misc.fs.zfs.config_sync sub_type=synthesized "
+		    "type=sysevent.fs.zfs.config_sync sub_type=synthesized "
 		    "pool_name=%s pool_guid=%" PRIu64 "\n", poolname, poolGUID);
 		event = Event::CreateEvent(GetFactory(), string(evString));
 		if (event != NULL) {

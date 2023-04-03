@@ -388,7 +388,7 @@ CaseFile::ReEvaluate(const ZfsEvent &event)
 {
 	bool consumed(false);
 
-	if (event.Value("type") == "misc.fs.zfs.vdev_remove") {
+	if (event.Value("type") == "sysevent.fs.zfs.vdev_remove") {
 		/*
 		 * The Vdev we represent has been removed from the
 		 * configuration.  This case is no longer of value.
@@ -396,12 +396,12 @@ CaseFile::ReEvaluate(const ZfsEvent &event)
 		Close();
 
 		return (/*consumed*/true);
-	} else if (event.Value("type") == "misc.fs.zfs.pool_destroy") {
+	} else if (event.Value("type") == "sysevent.fs.zfs.pool_destroy") {
 		/* This Pool has been destroyed.  Discard the case */
 		Close();
 
 		return (/*consumed*/true);
-	} else if (event.Value("type") == "misc.fs.zfs.config_sync") {
+	} else if (event.Value("type") == "sysevent.fs.zfs.config_sync") {
 		RefreshVdevState();
 		if (VdevState() < VDEV_STATE_HEALTHY)
 			consumed = ActivateSpare();
