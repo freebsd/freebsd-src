@@ -5,7 +5,7 @@
 KMOD=	linsysfs
 SRCS=	vnode_if.h \
 	device_if.h bus_if.h  pci_if.h \
-	linsysfs.c
+	linsysfs.c linsysfs_net.c
 
 .if !defined(KERNBUILDDIR)
 .warning Building Linuxulator outside of a kernel does not make sense
