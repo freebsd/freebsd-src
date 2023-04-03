@@ -46,7 +46,6 @@
 /*
  * HDA Debug Log
  */
-#define DEBUG_HDA			1
 #if DEBUG_HDA == 1
 extern FILE *dbg;
 #define DPRINTF(fmt, arg...)						\
