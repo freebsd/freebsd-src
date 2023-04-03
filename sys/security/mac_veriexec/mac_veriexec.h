@@ -178,6 +178,8 @@ int	mac_veriexec_metadata_add_file(int file_dev, dev_t fsid, long fileid,
 	    unsigned long gen, unsigned char fingerprint[MAXFINGERPRINTLEN], 
 	    char *label, size_t labellen, int flags, const char *fp_type,
 	    int override);
+const char *mac_veriexec_metadata_get_file_label(dev_t fsid, long fileid,
+	    unsigned long gen, int check_files);
 int	mac_veriexec_metadata_has_file(dev_t fsid, long fileid, 
 	    unsigned long gen);
 int	mac_veriexec_proc_is_trusted(struct ucred *cred, struct proc *p);
