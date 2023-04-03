@@ -30,6 +30,9 @@
 # "panic: Lock (rw) vm object not locked @ vm/vm_page.c:1013" seen:
 # https://people.freebsd.org/~pho/stress/log/mlockall6-2.txt
 
+# "panic: vm_page_unwire: wire count underflow for page..." seen:
+# https://people.freebsd.org/~pho/stress/log/log0430.txt
+
 . ../default.cfg
 
 [ `id -u ` -ne 0 ] && echo "Must be root!" && exit 1
