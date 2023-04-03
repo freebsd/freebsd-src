@@ -135,6 +135,7 @@
 #include <libnvpair.h>
 #include <libzutil.h>
 #include <sys/crypto/icp.h>
+#include <sys/zfs_impl.h>
 #if (__GLIBC__ && !__UCLIBC__)
 #include <execinfo.h> /* for backtrace() */
 #endif
@@ -1901,7 +1902,7 @@ ztest_log_write(ztest_ds_t *zd, dmu_tx_t *tx, lr_write_t *lr)
 	if (zil_replaying(zd->zd_zilog, tx))
 		return;
 
-	if (lr->lr_length > zil_max_log_data(zd->zd_zilog))
+	if (lr->lr_length > zil_max_log_data(zd->zd_zilog, sizeof (lr_write_t)))
 		write_state = WR_INDIRECT;
 
 	itx = zil_itx_create(TX_WRITE,
@@ -4638,8 +4639,11 @@ ztest_dmu_object_alloc_free(ztest_ds_t *zd, uint64_t id)
 	 * Destroy the previous batch of objects, create a new batch,
 	 * and do some I/O on the new objects.
 	 */
-	if (ztest_object_init(zd, od, size, B_TRUE) != 0)
+	if (ztest_object_init(zd, od, size, B_TRUE) != 0) {
+		zd->zd_od = NULL;
+		umem_free(od, size);
 		return;
+	}
 
 	while (ztest_random(4 * batchsize) != 0)
 		ztest_io(zd, od[ztest_random(batchsize)].od_object,
@@ -6410,6 +6414,7 @@ ztest_blake3(ztest_ds_t *zd, uint64_t id)
 	int i, *ptr;
 	uint32_t size;
 	BLAKE3_CTX ctx;
+	const zfs_impl_t *blake3 = zfs_impl_get_ops("blake3");
 
 	size = ztest_random_blocksize();
 	buf = umem_alloc(size, UMEM_NOFAIL);
@@ -6434,7 +6439,7 @@ ztest_blake3(ztest_ds_t *zd, uint64_t id)
 		void *res2 = &zc_res2;
 
 		/* BLAKE3_KEY_LEN = 32 */
-		VERIFY0(blake3_impl_setname("generic"));
+		VERIFY0(blake3->setname("generic"));
 		templ = abd_checksum_blake3_tmpl_init(&salt);
 		Blake3_InitKeyed(&ctx, salt_ptr);
 		Blake3_Update(&ctx, buf, size);
@@ -6443,7 +6448,7 @@ ztest_blake3(ztest_ds_t *zd, uint64_t id)
 		ZIO_CHECKSUM_BSWAP(&zc_ref2);
 		abd_checksum_blake3_tmpl_free(templ);
 
-		VERIFY0(blake3_impl_setname("cycle"));
+		VERIFY0(blake3->setname("cycle"));
 		while (run_count-- > 0) {
 
 			/* Test current implementation */

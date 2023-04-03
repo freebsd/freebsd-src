@@ -6,7 +6,6 @@ PACKAGE=	zfs
 LIB=	icp
 LIBADD=
 
-
 .if ${MACHINE_ARCH} == "amd64"
 ASM_SOURCES_C = asm-x86_64/aes/aeskey.c
 ASM_SOURCES_AS = \
@@ -15,29 +14,46 @@ ASM_SOURCES_AS = \
         asm-x86_64/modes/gcm_pclmulqdq.S \
         asm-x86_64/modes/aesni-gcm-x86_64.S \
         asm-x86_64/modes/ghash-x86_64.S \
-        asm-x86_64/sha2/sha256_impl.S \
-        asm-x86_64/sha2/sha512_impl.S \
+        asm-x86_64/sha2/sha256-x86_64.S \
+        asm-x86_64/sha2/sha512-x86_64.S \
         asm-x86_64/blake3/blake3_avx2.S \
         asm-x86_64/blake3/blake3_avx512.S \
         asm-x86_64/blake3/blake3_sse2.S \
         asm-x86_64/blake3/blake3_sse41.S
 
 CFLAGS+= -D__amd64 -D_SYS_STACK_H -UHAVE_AES
+.elif ${MACHINE_ARCH} == "armv7"
+ASM_SOURCES_C =
+ASM_SOURCES_AS = \
+        asm-arm/sha2/sha256-armv7.S \
+        asm-arm/sha2/sha512-armv7.S
 .elif ${MACHINE_ARCH} == "aarch64"
 ASM_SOURCES_C =
 ASM_SOURCES_AS = \
         asm-aarch64/blake3/b3_aarch64_sse2.S \
-        asm-aarch64/blake3/b3_aarch64_sse41.S
+        asm-aarch64/blake3/b3_aarch64_sse41.S \
+        asm-aarch64/sha2/sha256-armv8.S \
+        asm-aarch64/sha2/sha512-armv8.S
+.elif ${MACHINE_ARCH} == "powerpc64"
+ASM_SOURCES_C =
+ASM_SOURCES_AS = \
+        asm-ppc64/sha2/sha256-ppc.S \
+        asm-ppc64/sha2/sha512-ppc.S \
+        asm-ppc64/sha2/sha256-p8.S \
+        asm-ppc64/sha2/sha512-p8.S
 .elif ${MACHINE_ARCH} == "powerpc64le"
 ASM_SOURCES_C =
 ASM_SOURCES_AS = \
         asm-ppc64/blake3/b3_ppc64le_sse2.S \
-        asm-ppc64/blake3/b3_ppc64le_sse41.S
+        asm-ppc64/blake3/b3_ppc64le_sse41.S \
+        asm-ppc64/sha2/sha256-ppc.S \
+        asm-ppc64/sha2/sha512-ppc.S \
+        asm-ppc64/sha2/sha256-p8.S \
+        asm-ppc64/sha2/sha512-p8.S
 .else
 ASM_SOURCES_C =
 ASM_SOURCES_AS =
 .endif
-
 
 KERNEL_C = \
         spi/kcf_spi.c \
@@ -52,7 +68,6 @@ KERNEL_C = \
         algs/blake3/blake3.c \
         algs/blake3/blake3_generic.c \
         algs/blake3/blake3_impl.c \
-        algs/blake3/blake3_x86-64.c \
         algs/edonr/edonr.c \
         algs/modes/modes.c \
         algs/modes/cbc.c \
@@ -62,7 +77,9 @@ KERNEL_C = \
         algs/modes/ctr.c \
         algs/modes/ccm.c \
         algs/modes/ecb.c \
-        algs/sha2/sha2.c \
+        algs/sha2/sha2_generic.c \
+        algs/sha2/sha256_impl.c \
+        algs/sha2/sha512_impl.c \
         algs/skein/skein.c \
         algs/skein/skein_block.c \
         algs/skein/skein_iv.c \
@@ -77,10 +94,8 @@ KERNEL_C = \
         core/kcf_prov_tabs.c \
         $(ASM_SOURCES_C)
 
-
-
-
-
+.PATH: ${SRCTOP}/sys/contrib/openzfs/module/zfs
+KERNEL_C+=	zfs_impl.c
 
 SRCS= $(ASM_SOURCES_AS) $(KERNEL_C)
 
@@ -98,22 +113,29 @@ CFLAGS+= -include ${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/spl/sys/ccomp
 CFLAGS+= -DHAVE_ISSETUGID
 CFLAGS+= -include ${SRCTOP}/sys/modules/zfs/zfs_config.h
 
-
 CFLAGS.aes_amd64.S+= -DLOCORE
 CFLAGS.aes_aesni.S+= -DLOCORE
 CFLAGS.gcm_pclmulqdq.S+= -DLOCORE
 CFLAGS.aesni-gcm-x86_64.S+= -DLOCORE
 CFLAGS.ghash-x86_64.S+= -DLOCORE
-CFLAGS.sha256_impl.S+= -DLOCORE
-CFLAGS.sha512_impl.S+= -DLOCORE
+CFLAGS.sha256-x86_64.S+= -DLOCORE
+CFLAGS.sha512-x86_64.S+= -DLOCORE
 CFLAGS.blake3_avx2.S = -DLOCORE
 CFLAGS.blake3_avx512.S = -DLOCORE
 CFLAGS.blake3_sse2.S = -DLOCORE
 CFLAGS.blake3_sse41.S = -DLOCORE
 CFLAGS.b3_aarch64_sse2.S = -DLOCORE
 CFLAGS.b3_aarch64_sse41.S = -DLOCORE
+CFLAGS.sha256-armv7.S = -DLOCORE
+CFLAGS.sha256-armv8.S = -DLOCORE
+CFLAGS.sha512-armv7.S = -DLOCORE
+CFLAGS.sha512-armv8.S = -DLOCORE
 CFLAGS.b3_ppc64le_sse2.S = -DLOCORE
 CFLAGS.b3_ppc64le_sse41.S = -DLOCORE
+CFLAGS.sha256-p8.S = -DLOCORE
+CFLAGS.sha256-ppc.S = -DLOCORE
+CFLAGS.sha512-p8.S = -DLOCORE
+CFLAGS.sha512-ppc.S = -DLOCORE
 
 
 LDFLAGS.bfd+= -Wl,-znoexecstack

@@ -52,6 +52,7 @@
 #include <sys/dmu_tx.h>
 #include <sys/zap.h>
 #include <sys/zil.h>
+#include <sys/brt.h>
 #include <sys/ddt.h>
 #include <sys/vdev_impl.h>
 #include <sys/vdev_removal.h>
@@ -341,6 +342,12 @@ spa_prop_get_config(spa_t *spa, nvlist_t **nvp)
 
 		spa_prop_add_list(*nvp, ZPOOL_PROP_DEDUPRATIO, NULL,
 		    ddt_get_pool_dedup_ratio(spa), src);
+		spa_prop_add_list(*nvp, ZPOOL_PROP_BCLONEUSED, NULL,
+		    brt_get_used(spa), src);
+		spa_prop_add_list(*nvp, ZPOOL_PROP_BCLONESAVED, NULL,
+		    brt_get_saved(spa), src);
+		spa_prop_add_list(*nvp, ZPOOL_PROP_BCLONERATIO, NULL,
+		    brt_get_ratio(spa), src);
 
 		spa_prop_add_list(*nvp, ZPOOL_PROP_HEALTH, NULL,
 		    rvd->vdev_state, src);
@@ -543,7 +550,7 @@ spa_prop_validate(spa_t *spa, nvlist_t *props)
 	elem = NULL;
 	while ((elem = nvlist_next_nvpair(props, elem)) != NULL) {
 		uint64_t intval;
-		char *strval, *slash, *check, *fname;
+		const char *strval, *slash, *check, *fname;
 		const char *propname = nvpair_name(elem);
 		zpool_prop_t prop = zpool_name_to_prop(propname);
 
@@ -745,7 +752,7 @@ spa_prop_validate(spa_t *spa, nvlist_t *props)
 void
 spa_configfile_set(spa_t *spa, nvlist_t *nvp, boolean_t need_sync)
 {
-	char *cachefile;
+	const char *cachefile;
 	spa_config_dirent_t *dp;
 
 	if (nvlist_lookup_string(nvp, zpool_prop_to_name(ZPOOL_PROP_CACHEFILE),
@@ -1707,6 +1714,7 @@ spa_unload(spa_t *spa)
 	}
 
 	ddt_unload(spa);
+	brt_unload(spa);
 	spa_unload_log_sm_metadata(spa);
 
 	/*
@@ -3343,7 +3351,7 @@ static int
 spa_verify_host(spa_t *spa, nvlist_t *mos_config)
 {
 	uint64_t hostid;
-	char *hostname;
+	const char *hostname;
 	uint64_t myhostid = 0;
 
 	if (!spa_is_root(spa) && nvlist_lookup_uint64(mos_config,
@@ -3378,8 +3386,8 @@ spa_ld_parse_config(spa_t *spa, spa_import_type_t type)
 	int parse;
 	vdev_t *rvd;
 	uint64_t pool_guid;
-	char *comment;
-	char *compatibility;
+	const char *comment;
+	const char *compatibility;
 
 	/*
 	 * Versioning wasn't explicitly added to the label until later, so if
@@ -4415,6 +4423,21 @@ spa_ld_load_dedup_tables(spa_t *spa)
 }
 
 static int
+spa_ld_load_brt(spa_t *spa)
+{
+	int error = 0;
+	vdev_t *rvd = spa->spa_root_vdev;
+
+	error = brt_load(spa);
+	if (error != 0) {
+		spa_load_failed(spa, "brt_load failed [error=%d]", error);
+		return (spa_vdev_err(rvd, VDEV_AUX_CORRUPT_DATA, EIO));
+	}
+
+	return (0);
+}
+
+static int
 spa_ld_verify_logs(spa_t *spa, spa_import_type_t type, const char **ereport)
 {
 	vdev_t *rvd = spa->spa_root_vdev;
@@ -4895,6 +4918,10 @@ spa_load_impl(spa_t *spa, spa_import_type_t type, const char **ereport)
 	if (error != 0)
 		return (error);
 
+	error = spa_ld_load_brt(spa);
+	if (error != 0)
+		return (error);
+
 	/*
 	 * Verify the logs now to make sure we don't have any unexpected errors
 	 * when we claim log blocks later.
@@ -5366,13 +5393,15 @@ spa_add_spares(spa_t *spa, nvlist_t *config)
 		for (i = 0; i < nspares; i++) {
 			guid = fnvlist_lookup_uint64(spares[i],
 			    ZPOOL_CONFIG_GUID);
+			VERIFY0(nvlist_lookup_uint64_array(spares[i],
+			    ZPOOL_CONFIG_VDEV_STATS, (uint64_t **)&vs, &vsc));
 			if (spa_spare_exists(guid, &pool, NULL) &&
 			    pool != 0ULL) {
-				VERIFY0(nvlist_lookup_uint64_array(spares[i],
-				    ZPOOL_CONFIG_VDEV_STATS, (uint64_t **)&vs,
-				    &vsc));
 				vs->vs_state = VDEV_STATE_CANT_OPEN;
 				vs->vs_aux = VDEV_AUX_SPARED;
+			} else {
+				vs->vs_state =
+				    spa->spa_spares.sav_vdevs[i]->vdev_state;
 			}
 		}
 	}
@@ -5770,7 +5799,7 @@ spa_create(const char *pool, nvlist_t *nvroot, nvlist_t *props,
     nvlist_t *zplprops, dsl_crypto_params_t *dcp)
 {
 	spa_t *spa;
-	char *altroot = NULL;
+	const char *altroot = NULL;
 	vdev_t *rvd;
 	dsl_pool_t *dp;
 	dmu_tx_t *tx;
@@ -5783,8 +5812,8 @@ spa_create(const char *pool, nvlist_t *nvroot, nvlist_t *props,
 	boolean_t has_encryption;
 	boolean_t has_allocclass;
 	spa_feature_t feat;
-	char *feat_name;
-	char *poolname;
+	const char *feat_name;
+	const char *poolname;
 	nvlist_t *nvl;
 
 	if (props == NULL ||
@@ -5963,6 +5992,10 @@ spa_create(const char *pool, nvlist_t *nvroot, nvlist_t *props,
 	 * Create DDTs (dedup tables).
 	 */
 	ddt_create(spa);
+	/*
+	 * Create BRT table and BRT table object.
+	 */
+	brt_create(spa);
 
 	spa_update_dspace(spa);
 
@@ -6079,7 +6112,7 @@ int
 spa_import(char *pool, nvlist_t *config, nvlist_t *props, uint64_t flags)
 {
 	spa_t *spa;
-	char *altroot = NULL;
+	const char *altroot = NULL;
 	spa_load_state_t state = SPA_LOAD_IMPORT;
 	zpool_load_policy_t policy;
 	spa_mode_t mode = spa_mode_global;
@@ -6259,7 +6292,7 @@ nvlist_t *
 spa_tryimport(nvlist_t *tryconfig)
 {
 	nvlist_t *config = NULL;
-	char *poolname, *cachefile;
+	const char *poolname, *cachefile;
 	spa_t *spa;
 	uint64_t state;
 	int error;
@@ -7532,7 +7565,7 @@ spa_vdev_split_mirror(spa_t *spa, const char *newname, nvlist_t *config,
 	uint_t c, children, lastlog;
 	nvlist_t **child, *nvl, *tmp;
 	dmu_tx_t *tx;
-	char *altroot = NULL;
+	const char *altroot = NULL;
 	vdev_t *rvd, **vml = NULL;			/* vdev modify list */
 	boolean_t activate_slog;
 
@@ -8752,7 +8785,7 @@ spa_sync_props(void *arg, dmu_tx_t *tx)
 
 	while ((elem = nvlist_next_nvpair(nvp, elem))) {
 		uint64_t intval;
-		char *strval, *fname;
+		const char *strval, *fname;
 		zpool_prop_t prop;
 		const char *propname;
 		zprop_type_t proptype;
@@ -9138,6 +9171,7 @@ spa_sync_iterate_to_convergence(spa_t *spa, dmu_tx_t *tx)
 			    &spa->spa_deferred_bpobj, tx);
 		}
 
+		brt_sync(spa, txg);
 		ddt_sync(spa, txg);
 		dsl_scan_sync(dp, tx);
 		svr_sync(spa, tx);
@@ -9263,6 +9297,13 @@ spa_sync(spa_t *spa, uint64_t txg)
 	    ZIO_FLAG_CANFAIL);
 
 	/*
+	 * Now that there can be no more cloning in this transaction group,
+	 * but we are still before issuing frees, we can process pending BRT
+	 * updates.
+	 */
+	brt_pending_apply(spa, txg);
+
+	/*
 	 * Lock out configuration changes.
 	 */
 	spa_config_enter(spa, SCL_CONFIG, FTAG, RW_READER);
@@ -9281,7 +9322,13 @@ spa_sync(spa_t *spa, uint64_t txg)
 	 * into config changes that go out with this transaction group.
 	 */
 	spa_config_enter(spa, SCL_STATE, FTAG, RW_READER);
-	while (list_head(&spa->spa_state_dirty_list) != NULL) {
+	while ((vd = list_head(&spa->spa_state_dirty_list)) != NULL) {
+		/* Avoid holding the write lock unless actually necessary */
+		if (vd->vdev_aux == NULL) {
+			vdev_state_clean(vd);
+			vdev_config_dirty(vd);
+			continue;
+		}
 		/*
 		 * We need the write lock here because, for aux vdevs,
 		 * calling vdev_config_dirty() modifies sav_config.
@@ -9401,6 +9448,9 @@ spa_sync(spa_t *spa, uint64_t txg)
 	spa_sync_close_syncing_log_sm(spa);
 
 	spa_update_dspace(spa);
+
+	if (spa_get_autotrim(spa) == SPA_AUTOTRIM_ON)
+		vdev_autotrim_kick(spa);
 
 	/*
 	 * It had better be the case that we didn't dirty anything

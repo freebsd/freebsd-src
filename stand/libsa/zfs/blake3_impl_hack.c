@@ -17,6 +17,7 @@ static __inline int isspace(int c)
 
 #include "blake3_impl.c"
 
+/*
 static inline boolean_t blake3_is_not_supported(void)
 {
 	return (B_FALSE);
@@ -33,3 +34,4 @@ const blake3_ops_t blake3_sse41_impl = {
 	.degree = 4,
 	.name = "fakesse41"
 };
+*/

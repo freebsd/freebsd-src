@@ -51,6 +51,8 @@ noinst_HEADERS = \
 	%D%/spl/sys/sid.h \
 	%D%/spl/sys/sig.h \
 	%D%/spl/sys/simd.h \
+	%D%/spl/sys/simd_aarch64.h \
+	%D%/spl/sys/simd_arm.h \
 	%D%/spl/sys/simd_powerpc.h \
 	%D%/spl/sys/simd_x86.h \
 	%D%/spl/sys/spl_condvar.h \
@@ -79,7 +81,6 @@ noinst_HEADERS = \
 	%D%/spl/sys/zone.h \
 	\
 	%D%/zfs/sys/freebsd_crypto.h \
-	%D%/zfs/sys/sha2.h \
 	%D%/zfs/sys/vdev_os.h \
 	%D%/zfs/sys/zfs_bootenv_os.h \
 	%D%/zfs/sys/zfs_context_os.h \

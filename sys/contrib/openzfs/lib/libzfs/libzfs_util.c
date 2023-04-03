@@ -1595,13 +1595,13 @@ zfs_nicestrtonum(libzfs_handle_t *hdl, const char *value, uint64_t *num)
  */
 int
 zprop_parse_value(libzfs_handle_t *hdl, nvpair_t *elem, int prop,
-    zfs_type_t type, nvlist_t *ret, char **svalp, uint64_t *ivalp,
+    zfs_type_t type, nvlist_t *ret, const char **svalp, uint64_t *ivalp,
     const char *errbuf)
 {
 	data_type_t datatype = nvpair_type(elem);
 	zprop_type_t proptype;
 	const char *propname;
-	char *value;
+	const char *value;
 	boolean_t isnone = B_FALSE;
 	boolean_t isauto = B_FALSE;
 	int err = 0;
@@ -2011,10 +2011,11 @@ use_color(void)
 }
 
 /*
- * color_start() and color_end() are used for when you want to colorize a block
- * of text.  For example:
+ * The functions color_start() and color_end() are used for when you want
+ * to colorize a block of text.
  *
- * color_start(ANSI_RED_FG)
+ * For example:
+ * color_start(ANSI_RED)
  * printf("hello");
  * printf("world");
  * color_end();
@@ -2022,7 +2023,7 @@ use_color(void)
 void
 color_start(const char *color)
 {
-	if (use_color()) {
+	if (color && use_color()) {
 		fputs(color, stdout);
 		fflush(stdout);
 	}
@@ -2038,7 +2039,9 @@ color_end(void)
 
 }
 
-/* printf() with a color.  If color is NULL, then do a normal printf. */
+/*
+ * printf() with a color. If color is NULL, then do a normal printf.
+ */
 int
 printf_color(const char *color, const char *format, ...)
 {

@@ -490,8 +490,7 @@ bool
 CaseFile::ActivateSpare() {
 	nvlist_t	*config, *nvroot, *parent_config;
 	nvlist_t       **spares;
-	char		*devPath, *vdev_type;
-	const char	*poolname;
+	const char	*devPath, *poolname, *vdev_type;
 	u_int		 nspares, i;
 	int		 error;
 
@@ -518,7 +517,7 @@ CaseFile::ActivateSpare() {
 
 	parent_config = find_parent(config, nvroot, m_vdevGUID);
 	if (parent_config != NULL) {
-		char *parent_type;
+		const char *parent_type;
 
 		/* 
 		 * Don't activate spares for members of a "replacing" vdev.

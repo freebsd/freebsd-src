@@ -237,7 +237,7 @@ be_dependent_clone_cb(zfs_handle_t *zfs_hdl, void *data)
 {
 	int err;
 	bool found;
-	char *name;
+	const char *name;
 	struct nvlist *nvl;
 	struct nvpair *nvp;
 	struct be_destroy_data *bdd;
@@ -1260,7 +1260,7 @@ be_activate(libbe_handle_t *lbh, const char *bootenv, bool temporary)
 {
 	char be_path[BE_MAXPATHLEN];
 	nvlist_t *dsprops;
-	char *origin;
+	const char *origin;
 	zfs_handle_t *zhp;
 	int err;
 
