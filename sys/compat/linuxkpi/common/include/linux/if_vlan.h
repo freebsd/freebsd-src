@@ -44,7 +44,7 @@
 static inline int
 is_vlan_dev(struct ifnet *ifp)
 {
-	return (ifp->if_type == IFT_L2VLAN);
+	return (if_gettype(ifp) == IFT_L2VLAN);
 }
 
 static inline uint16_t
