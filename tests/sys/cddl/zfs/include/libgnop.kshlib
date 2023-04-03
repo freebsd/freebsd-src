@@ -85,6 +85,12 @@ function destroy_gnop
 
 	# Use "-f" so we can destroy a gnop with a consumer (like ZFS)
 	gnop destroy -f ${disk}.nop
+
+	# Wait for it to disappear
+	for i in `seq 5`; do
+		gnop status ${disk}.nop >/dev/null 2>/dev/null || break
+		sleep $i
+	done
 }
 
 # Destroy multiple gnop devices.  Attempt to destroy them all, ignoring errors
