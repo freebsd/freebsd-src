@@ -81,7 +81,7 @@ veriexec_get_path_params(const char *file,
 }
 
 /**
- * @brief check if label contains what we want
+ * @brief check if a process has label that contains what we want
  *
  * @return
  * @li 0 if no
@@ -96,6 +96,35 @@ veriexec_check_pid_label(pid_t pid, const char *want)
 
 	if (want != NULL &&
 	    veriexec_get_pid_params(pid, &params) == 0) {
+		/* Does label contain [,]<want>[,] ? */
+		if (params.labellen > 0 &&
+		    (cp = strstr(params.label, want)) != NULL) {
+			if (cp == params.label || cp[-1] == ',') {
+				n = strlen(want);
+				if (cp[n] == '\0' || cp[n] == ',')
+					return 1; /* yes */
+			}
+		}
+	}
+	return 0;			/* no */
+}
+
+/**
+ * @brief check if a path has label that contains what we want
+ *
+ * @return
+ * @li 0 if no
+ * @li 1 if yes
+ */
+int
+veriexec_check_path_label(const char *file, const char *want)
+{
+	struct mac_veriexec_syscall_params params;
+	char *cp;
+	size_t n;
+
+	if (want != NULL && file != NULL &&
+	    veriexec_get_path_params(file, &params) == 0) {
 		/* Does label contain [,]<want>[,] ? */
 		if (params.labellen > 0 &&
 		    (cp = strstr(params.label, want)) != NULL) {
