@@ -38,6 +38,7 @@ int	veriexec_check_path(const char *);
 int	veriexec_get_pid_params(pid_t, struct mac_veriexec_syscall_params *);
 int	veriexec_get_path_params(const char *,
 	    struct mac_veriexec_syscall_params *);
+int	veriexec_check_path_label(const char *, const char *);
 int	veriexec_check_pid_label(pid_t, const char *);
 
 #define	HAVE_VERIEXEC_CHECK_PID_LABEL	1
