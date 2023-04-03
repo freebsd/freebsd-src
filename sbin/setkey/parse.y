@@ -1306,14 +1306,10 @@ parse_init()
 
 	p_aiflags = 0;
 	p_aifamily = PF_UNSPEC;
-
-	return;
 }
 
 void
 free_buffer()
 {
 	/* we got tons of memory leaks in the parser anyways, leave them */
-
-	return;
 }
