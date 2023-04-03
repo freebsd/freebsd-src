@@ -47,6 +47,7 @@
 #include <sys/vdev_impl.h>
 #include <sys/zil_impl.h>
 #include <sys/zio_checksum.h>
+#include <sys/brt.h>
 #include <sys/ddt.h>
 #include <sys/sa.h>
 #include <sys/sa_impl.h>
@@ -1880,7 +1881,7 @@ dsl_scan_recurse(dsl_scan_t *scn, dsl_dataset_t *ds, dmu_objset_type_t ostype,
 	if (dnp != NULL &&
 	    dnp->dn_bonuslen > DN_MAX_BONUS_LEN(dnp)) {
 		scn->scn_phys.scn_errors++;
-		spa_log_error(spa, zb);
+		spa_log_error(spa, zb, &bp->blk_birth);
 		return (SET_ERROR(EINVAL));
 	}
 
@@ -1975,7 +1976,7 @@ dsl_scan_recurse(dsl_scan_t *scn, dsl_dataset_t *ds, dmu_objset_type_t ostype,
 		 * by arc_read() for the cases above.
 		 */
 		scn->scn_phys.scn_errors++;
-		spa_log_error(spa, zb);
+		spa_log_error(spa, zb, &bp->blk_birth);
 		return (SET_ERROR(EINVAL));
 	}
 
@@ -2052,11 +2053,6 @@ dsl_scan_visitbp(blkptr_t *bp, const zbookmark_phys_t *zb,
 	f = zio_compress_to_feature(BP_GET_COMPRESS(bp));
 	if (f != SPA_FEATURE_NONE)
 		ASSERT(dsl_dataset_feature_is_active(ds, f));
-
-	if (bp->blk_birth <= scn->scn_phys.scn_cur_min_txg) {
-		scn->scn_lt_min_this_txg++;
-		return;
-	}
 
 	if (bp->blk_birth <= scn->scn_phys.scn_cur_min_txg) {
 		scn->scn_lt_min_this_txg++;
@@ -3504,11 +3500,12 @@ dsl_process_async_destroys(dsl_pool_t *dp, dmu_tx_t *tx)
 		scn->scn_dedup_frees_this_txg = 0;
 
 		/*
-		 * Write out changes to the DDT that may be required as a
-		 * result of the blocks freed.  This ensures that the DDT
-		 * is clean when a scrub/resilver runs.
+		 * Write out changes to the DDT and the BRT that may be required
+		 * as a result of the blocks freed.  This ensures that the DDT
+		 * and the BRT are clean when a scrub/resilver runs.
 		 */
 		ddt_sync(spa, tx->tx_txg);
+		brt_sync(spa, tx->tx_txg);
 	}
 	if (err != 0)
 		return (err);

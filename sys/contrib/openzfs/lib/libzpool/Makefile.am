@@ -74,6 +74,7 @@ nodist_libzpool_la_SOURCES = \
 	module/zfs/bptree.c \
 	module/zfs/bqueue.c \
 	module/zfs/btree.c \
+	module/zfs/brt.c \
 	module/zfs/dbuf.c \
 	module/zfs/dbuf_stats.c \
 	module/zfs/ddt.c \
@@ -118,7 +119,7 @@ nodist_libzpool_la_SOURCES = \
 	module/zfs/refcount.c \
 	module/zfs/rrwlock.c \
 	module/zfs/sa.c \
-	module/zfs/sha256.c \
+	module/zfs/sha2_zfs.c \
 	module/zfs/skein_zfs.c \
 	module/zfs/spa.c \
 	module/zfs/spa_checkpoint.c \

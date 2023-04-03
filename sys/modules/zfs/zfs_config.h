@@ -241,6 +241,9 @@
 /* copy_to_iter() is available */
 /* #undef HAVE_COPY_TO_ITER */
 
+/* cpu_has_feature() is GPL-only */
+/* #undef HAVE_CPU_HAS_FEATURE_GPL_ONLY */
+
 /* yes */
 /* #undef HAVE_CPU_HOTPLUG */
 
@@ -310,6 +313,9 @@
 
 /* file_inode() is available */
 /* #undef HAVE_FILE_INODE */
+
+/* flush_dcache_page() is GPL-only */
+/* #undef HAVE_FLUSH_DCACHE_PAGE_GPL_ONLY */
 
 /* iops->follow_link() cookie */
 /* #undef HAVE_FOLLOW_LINK_COOKIE */
@@ -988,7 +994,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_g57cfae4a2"
+#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_g431083f75"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -1018,7 +1024,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_g57cfae4a2"
+#define ZFS_META_RELEASE "FreeBSD_g431083f75"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.1.99"

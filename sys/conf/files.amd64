@@ -418,11 +418,26 @@ x86/x86/mptable_pci.c		optional	mptable pci
 x86/x86/msi.c			optional	pci
 x86/xen/pv.c			optional	xenhvm
 
+# zfs blake3 hash support
 contrib/openzfs/module/icp/asm-x86_64/blake3/blake3_avx2.S      optional zfs compile-with "${ZFS_S}"
 contrib/openzfs/module/icp/asm-x86_64/blake3/blake3_avx512.S    optional zfs compile-with "${ZFS_S}"
 contrib/openzfs/module/icp/asm-x86_64/blake3/blake3_sse2.S      optional zfs compile-with "${ZFS_S}"
 contrib/openzfs/module/icp/asm-x86_64/blake3/blake3_sse41.S     optional zfs compile-with "${ZFS_S}"
 
+# zfs sha2 hash support
+zfs-sha256-x86_64.o		optional	zfs			\
+	dependency "$S/contrib/openzfs/module/icp/asm-x86_64/sha2/sha256-x86_64.S" \
+	compile-with	"${CC} -c ${ZFS_ASM_CFLAGS} -o ${.TARGET} ${WERROR} $S/contrib/openzfs/module/icp/asm-x86_64/sha2/sha256-x86_64.S" \
+	no-implicit-rule \
+	clean "zfs-sha256-x86_64.o"
+
+zfs-sha512-x86_64.o		optional	zfs			\
+	dependency "$S/contrib/openzfs/module/icp/asm-x86_64/sha2/sha512-x86_64.S" \
+	compile-with	"${CC} -c ${ZFS_ASM_CFLAGS} -o ${.TARGET} ${WERROR} $S/contrib/openzfs/module/icp/asm-x86_64/sha2/sha512-x86_64.S" \
+	no-implicit-rule \
+	clean "zfs-sha512-x86_64.o"
+
+# zfs checksums / zcommon
 contrib/openzfs/module/zcommon/zfs_fletcher_avx512.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zcommon/zfs_fletcher_intel.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zcommon/zfs_fletcher_sse.c		optional zfs compile-with "${ZFS_C}"

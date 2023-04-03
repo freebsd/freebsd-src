@@ -45,7 +45,7 @@ fstyp_zfs(FILE *fp, char *label, size_t labelsize)
 {
 	vdev_label_t *vdev_label = NULL;
 	vdev_phys_t *vdev_phys;
-	char *zpool_name = NULL;
+	const char *zpool_name = NULL;
 	nvlist_t *config = NULL;
 	int err = 0;
 

@@ -40,10 +40,15 @@
 #define	kfpu_allowed()		1
 #define	kfpu_initialize(tsk)	do {} while (0)
 
+
 #define	kfpu_begin() {					\
 	if (__predict_false(!is_fpu_kern_thread(0)))		\
 		fpu_kern_enter(curthread, NULL, FPU_KERN_NOCTX);\
 }
+
+#ifndef PCB_FPUNOSAVE
+#define	PCB_FPUNOSAVE	PCB_NPXNOSAVE
+#endif
 
 #define	kfpu_end()	{			\
 	if (__predict_false(curpcb->pcb_flags & PCB_FPUNOSAVE))	\
@@ -171,6 +176,19 @@ zfs_avx2_available(void)
 	has_avx2 = (cpu_stdext_feature & CPUID_STDEXT_AVX2) != 0;
 
 	return (has_avx2 && __ymm_enabled());
+}
+
+/*
+ * Check if SHA_NI instruction set is available
+ */
+static inline boolean_t
+zfs_shani_available(void)
+{
+	boolean_t has_shani;
+
+	has_shani = (cpu_stdext_feature & CPUID_STDEXT_SHA) != 0;
+
+	return (has_shani && __ymm_enabled());
 }
 
 /*

@@ -362,7 +362,8 @@ static int
 bectl_cmd_destroy(int argc, char *argv[])
 {
 	nvlist_t *props;
-	char *origin, *target, targetds[BE_MAXPATHLEN];
+	char *target, targetds[BE_MAXPATHLEN];
+	const char *origin;
 	int err, flags, opt;
 
 	flags = 0;
@@ -584,13 +585,9 @@ main(int argc, char *argv[])
 	}
 
 	if ((be = libbe_init(root)) == NULL) {
-		if (!cmd->silent) {
+		if (!cmd->silent)
 			fprintf(stderr, "libbe_init(\"%s\") failed.\n",
 			    root != NULL ? root : "");
-			if (root == NULL)
-				fprintf(stderr,
-				    "Try specifying ZFS root using -r.\n");
-		}
 		return (-1);
 	}
 
