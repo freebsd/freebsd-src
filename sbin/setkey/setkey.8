@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 13, 2022
+.Dd April 3, 2023
 .Dt SETKEY 8
 .Os
 .\"
@@ -44,6 +44,9 @@
 .Nm
 .Op Fl v
 .Fl f Ar filename
+.Nm
+.Op Fl v
+.Fl e Ar script
 .Nm
 .Op Fl Pgltv
 .Fl D
@@ -65,11 +68,14 @@ The
 .Nm
 utility takes a series of operations from the standard input
 (if invoked with
-.Fl c )
-or the file named
+.Fl c ) ,
+from the file named
 .Ar filename
 (if invoked with
-.Fl f Ar filename ) .
+.Fl f Ar filename ) ,
+or from the command line argument following the option
+(if invoked with
+.Fl e Ar script ) .
 .Bl -tag -width indent
 .It Fl D
 Dump the SAD entries.

@@ -99,6 +99,7 @@ usage()
 
 	printf("usage: setkey [-v] -c\n");
 	printf("       setkey [-v] -f filename\n");
+	printf("       setkey [-v] -e \"<script>\"\n");
 	printf("       setkey [-Pagltv] -D\n");
 	printf("       setkey [-Pv] -F\n");
 	printf("       setkey [-h] -x\n");
@@ -131,13 +132,27 @@ main(ac, av)
 
 	thiszone = gmt2local(0);
 
-	while ((c = getopt(ac, av, "acdf:ghltvxDFP")) != -1) {
+	while ((c = getopt(ac, av, "acde:f:ghltvxDFP")) != -1) {
 		switch (c) {
 		case 'c':
 			f_mode = MODE_SCRIPT;
 			fp = stdin;
 			break;
+		case 'e':
+			if (fp != stdin) {
+				err(-1, "only one -f/-e option is accepted");
+			}
+			f_mode = MODE_SCRIPT;
+			fp = fmemopen(optarg, strlen(optarg), "r");
+			if (fp == NULL) {
+				err(-1, "fmemopen");
+				/*NOTREACHED*/
+			}
+			break;
 		case 'f':
+			if (fp != stdin) {
+				err(-1, "only one -f/-e option is accepted");
+			}
 			f_mode = MODE_SCRIPT;
 			if ((fp = fopen(optarg, "r")) == NULL) {
 				err(-1, "fopen");
