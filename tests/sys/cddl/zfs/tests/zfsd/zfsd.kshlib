@@ -72,19 +72,32 @@ function corrupt_pool_vdev
 	typeset pool=$1
 	typeset vdev=$2
 	typeset file=$3
+	typeset -li start=0
+	typeset -li now=0
+	typeset -li timeout=60
 
 	# do some IO on the pool
 	log_must $DD if=/dev/zero of=$file bs=1024k count=64
 	$FSYNC $file
 
-	# scribble on the underlying file to corrupt the vdev
-	log_must $DD if=/dev/urandom of=$vdev bs=1024k count=64 conv=notrunc
+	# ZFS rate limits checksum errors to about 20 per second.  So in order
+	# to ensure that we reach zfsd's threshold, we must alternately
+	# scribble and scrub.
+	while (( "$now" - "$start" < "$timeout" )); do
+		# scribble on the underlying file to corrupt the vdev
+		log_must $DD if=/dev/urandom of=$vdev bs=1024k count=64 conv=notrunc
 
-	# Scrub the pool to detect the corruption
-	log_must $ZPOOL scrub $pool
-	wait_until_scrubbed $pool
+		# Scrub the pool to detect and repair the corruption
+		log_must $ZPOOL scrub $pool
+		wait_until_scrubbed $pool
+		now=`date +%s`
+		if [ "$start" -eq 0 ]; then
+			start=`date +%s`
+		fi
+		check_state "$pool" "$vdev" DEGRADED && return
+		$SLEEP 1
+	done
 
-	# ZFSD can take up to 60 seconds to degrade an array in response to
-	# errors (though it's usually faster).  
-	wait_for_pool_dev_state_change 60 $vdev DEGRADED
+	log_must $ZPOOL status "$pool"
+	log_fail "ERROR: Disk $vdev not marked as DEGRADED in $pool"
 }

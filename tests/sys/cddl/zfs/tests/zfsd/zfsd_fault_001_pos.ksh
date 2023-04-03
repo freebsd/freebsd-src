@@ -27,6 +27,7 @@
 # $FreeBSD$
 
 . $STF_SUITE/include/libtest.kshlib
+. $STF_SUITE/include/libgnop.kshlib
 
 ################################################################################
 #
@@ -39,8 +40,7 @@
 #       
 #
 # STRATEGY:
-#   1. Create a storage pool.  Only use the da driver (FreeBSD's SCSI disk
-#      driver) because it has a special interface for simulating IO errors.
+#   1. Create a storage pool.  Use gnop vdevs so we can inject I/O errors.
 #   2. Inject IO errors while doing IO to the pool.
 #   3. Verify that the vdev becomes FAULTED.
 #   4. ONLINE it and verify that it resilvers and joins the pool.
@@ -57,65 +57,28 @@
 
 verify_runnable "global"
 
-function cleanup
-{
-	# Disable error injection, if still active
-	sysctl kern.cam.da.$TMPDISKNUM.error_inject=0 > /dev/null
-
-	if poolexists $TESTPOOL; then
-		# We should not get here if the test passed.  Print the output
-		# of zpool status to assist in debugging.
-		$ZPOOL status
-		# Clear out artificially generated errors and destroy the pool
-		$ZPOOL clear $TESTPOOL
-		destroy_pool $TESTPOOL
-	fi
-}
-
 log_assert "ZFS will fault a vdev that produces IO errors"
 
-log_onexit cleanup
 ensure_zfsd_running
 
-# Make sure that at least one of the disks is using the da driver, and use
-# that disk for inject errors
-typeset TMPDISK=""
-for d in $DISKS
-do
-	b=`basename $d`
-	if test ${b%%[0-9]*} == da
-	then
-		TMPDISK=$b
-		TMPDISKNUM=${b##da}
-		break
-	fi
-done
-if test -z $TMPDISK
-then
-	log_unsupported "This test requires at least one disk to use the da driver"
-fi
+DISK0_NOP=${DISK0}.nop
+DISK1_NOP=${DISK1}.nop
 
+log_must create_gnops $DISK0 $DISK1
 
 for type in "raidz" "mirror"; do
 	log_note "Testing raid type $type"
 
 	# Create a pool on the supplied disks
-	create_pool $TESTPOOL $type $DISKS
+	create_pool $TESTPOOL $type "$DISK0_NOP" "$DISK1_NOP"
 	log_must $ZFS create $TESTPOOL/$TESTFS
 
 	# Cause some IO errors writing to the pool
 	while true; do
-		# Running zpool status after every dd operation is too slow.
-		# So we will run several dd's in a row before checking zpool
-		# status.  sync between dd operations to ensure that the disk
-		# gets IO
-		for ((i=0; $i<64; i=$i+1)); do
-			sysctl kern.cam.da.$TMPDISKNUM.error_inject=1 > \
-				/dev/null
-			$DD if=/dev/zero bs=128k count=1 >> \
-				/$TESTPOOL/$TESTFS/$TESTFILE 2> /dev/null
-			$FSYNC /$TESTPOOL/$TESTFS/$TESTFILE
-		done
+		log_must gnop configure -e 5 -w 100 "$DISK1_NOP"
+		$DD if=/dev/zero bs=128k count=1 >> \
+			/$TESTPOOL/$TESTFS/$TESTFILE 2> /dev/null
+		$FSYNC /$TESTPOOL/$TESTFS/$TESTFILE
 		# Check to see if the pool is faulted yet
 		$ZPOOL status $TESTPOOL | grep -q 'state: DEGRADED'
 		if [ $? == 0 ]
@@ -127,15 +90,9 @@ for type in "raidz" "mirror"; do
 
 	log_must check_state $TESTPOOL $TMPDISK "FAULTED"
 
-	#find the failed disk guid
-	typeset FAILED_VDEV=`$ZPOOL status $TESTPOOL | 
-		awk "/^[[:space:]]*$TMPDISK[[:space:]]*FAULTED/ {print \\$1}"`
-
-	# Reattach the failed disk
-	$ZPOOL online $TESTPOOL $FAILED_VDEV > /dev/null
-	if [ $? != 0 ]; then
-		log_fail "Could not reattach $FAILED_VDEV"
-	fi
+	# Heal and reattach the failed disk
+	log_must gnop configure -w 0 "$DISK1_NOP"
+	log_must $ZPOOL online $TESTPOOL "$DISK1_NOP"
 
 	# Verify that the pool resilvers and goes to the ONLINE state
 	for (( retries=60; $retries>0; retries=$retries+1 ))

@@ -58,6 +58,7 @@ for type in "raidz" "mirror"; do
 
 	# Disable the first disk.
 	log_must destroy_gnop $REMOVAL_DISK
+	log_must wait_for_pool_removal 20
 
 	# Write out data to make sure we can do I/O after the disk failure
 	log_must $DD if=/dev/zero of=$TESTDIR/$TESTFILE bs=1m count=1

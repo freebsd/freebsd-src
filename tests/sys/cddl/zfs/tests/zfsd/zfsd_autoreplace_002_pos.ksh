@@ -83,6 +83,7 @@ for keyword in "${MY_KEYWORDS[@]}" ; do
 	log_must $ZPOOL set autoreplace=on $TESTPOOL
 
 	log_must destroy_gnop $REMOVAL_DISK
+	log_must wait_for_pool_removal 20
 	log_must create_gnop $NEW_DISK $PHYSPATH
 	verify_assertion
 	destroy_pool "$TESTPOOL"
