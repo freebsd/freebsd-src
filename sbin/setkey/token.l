@@ -253,23 +253,20 @@ any		{ return(ANY); }
 %%
 
 void
-yyfatal(s)
-	const char *s;
+yyfatal(const char *s)
 {
 	yyerror(s);
 	exit(1);
 }
 
 void
-yyerror(s)
-	const char *s;
+yyerror(const char *s)
 {
 	printf("line %d: %s at [%s]\n", lineno, s, yytext);
 }
 
 int
-parse(fp)
-	FILE **fp;
+parse(FILE **fp)
 {
 	yyin = *fp;
 
