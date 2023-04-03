@@ -279,7 +279,7 @@ ZfsEvent::Process() const
 	}
 
 	/* On config syncs, replay any queued events first. */
-	if (Value("type").find("misc.fs.zfs.config_sync") == 0) {
+	if (Value("type").find("sysevent.fs.zfs.config_sync") == 0) {
 		/*
 		 * Even if saved events are unconsumed the second time
 		 * around, drop them.  Any events that still can't be
@@ -290,7 +290,7 @@ ZfsEvent::Process() const
 		CaseFile::ReEvaluateByGuid(PoolGUID(), *this);
 	}
 
-	if (Value("type").find("misc.fs.zfs.") == 0) {
+	if (Value("type").find("sysevent.fs.zfs.") == 0) {
 		/* Configuration changes, resilver events, etc. */
 		ProcessPoolEvent();
 		return (false);
@@ -403,7 +403,7 @@ ZfsEvent::ProcessPoolEvent() const
 	bool degradedDevice(false);
 
 	/* The pool is destroyed.  Discard any open cases */
-	if (Value("type") == "misc.fs.zfs.pool_destroy") {
+	if (Value("type") == "sysevent.fs.zfs.pool_destroy") {
 		Log(LOG_INFO);
 		CaseFile::ReEvaluateByGuid(PoolGUID(), *this);
 		return;
@@ -418,7 +418,7 @@ ZfsEvent::ProcessPoolEvent() const
 		Log(LOG_INFO);
 		caseFile->ReEvaluate(*this);
 	}
-	else if (Value("type") == "misc.fs.zfs.resilver_finish")
+	else if (Value("type") == "sysevent.fs.zfs.resilver_finish")
 	{
 		/*
 		 * It's possible to get a resilver_finish event with no
@@ -429,7 +429,7 @@ ZfsEvent::ProcessPoolEvent() const
 		CleanupSpares();
 	}
 
-	if (Value("type") == "misc.fs.zfs.vdev_remove"
+	if (Value("type") == "sysevent.fs.zfs.vdev_remove"
 	 && degradedDevice == false) {
 
 		/* See if any other cases can make use of this device. */
