@@ -38,6 +38,7 @@ memguard.sh		https://people.freebsd.org/~pho/stress/log/log0088.txt		20210402
 memguard2.sh		Waiting for fix commit
 memguard3.sh		Waiting for fix commit
 mlockall2.sh		Unrecoverable OOM killing seen					20190203
+mlockall6.sh		https://people.freebsd.org/~pho/stress/log/log0430.txt		20230403
 mlockall7.sh		Needs further investigation					20210123
 msetdomain.sh		May change policy for random threads to domainset_fixed		20210104
 newfs4.sh		watchdog fired. newbuf						20190225
