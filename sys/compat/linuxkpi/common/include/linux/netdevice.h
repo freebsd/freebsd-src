@@ -106,9 +106,6 @@ struct net_device_ops {
 };
 
 struct net_device {
-	/* BSD specific for compat. */
-	struct ifnet			bsdifp;
-
 	/* net_device fields seen publicly. */
 	/* XXX can we later make some aliases to ifnet? */
 	char				name[IFNAMSIZ];
