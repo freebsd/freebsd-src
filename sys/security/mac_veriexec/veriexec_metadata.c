@@ -587,6 +587,31 @@ mac_veriexec_metadata_fetch_fingerprint_status(struct vnode *vp,
 }
 
 /**
+ * Return label if we have one
+ *
+ * @param fsid         file system identifier to look for
+ * @param fileid       file to look for
+ * @param gen          generation of file
+ * @param check_files  look at non-executable files?
+ *
+ * @return A pointer to the label or @c NULL
+ */
+const char *
+mac_veriexec_metadata_get_file_label(dev_t fsid, long fileid,
+    unsigned long gen, int check_files)
+{
+	struct mac_veriexec_file_info *ip;
+	int error;
+
+	error = mac_veriexec_metadata_get_file_info(fsid, fileid, gen, NULL,
+	    &ip, check_files);
+	if (error)
+		return (NULL);
+
+	return ((ip->flags & VERIEXEC_LABEL) != 0 ? ip->label : NULL);
+}
+
+/**
  * Add a file and its fingerprint to the list of files attached
  * to the device @p fsid.
  *
