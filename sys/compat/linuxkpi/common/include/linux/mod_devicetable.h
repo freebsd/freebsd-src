@@ -31,6 +31,8 @@
 #ifndef __LINUXKPI_LINUX_MOD_DEVICETABLE_H__
 #define	__LINUXKPI_LINUX_MOD_DEVICETABLE_H__
 
+#include <linux/types.h>
+
 enum dmi_field {
 	DMI_NONE,
 	DMI_BIOS_VENDOR,
