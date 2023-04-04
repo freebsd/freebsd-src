@@ -2083,3 +2083,29 @@ linux_splice(struct thread *td, struct linux_splice_args *args)
 	 */
 	return (EINVAL);
 }
+
+int
+linux_close_range(struct thread *td, struct linux_close_range_args *args)
+{
+	u_int flags = 0;
+
+	/*
+	 * Implementing close_range(CLOSE_RANGE_UNSHARE) allows Linux to
+	 * unshare filedesc table of the calling thread from others threads
+	 * in a thread group (i.e., process in the FreeBSD) or others processes,
+	 * which shares the same table, before closing the files. FreeBSD does
+	 * not have compatible unsharing mechanism due to the fact that sharing
+	 * process resources, including filedesc table, is at thread level in the
+	 * Linux, while in the FreeBSD it is at the process level.
+	 * Return EINVAL for now if the CLOSE_RANGE_UNSHARE flag is specified
+	 * until this new Linux API stabilizes.
+	 */
+
+	if ((args->flags & ~(LINUX_CLOSE_RANGE_CLOEXEC)) != 0)
+		return (EINVAL);
+	if (args->first > args->last)
+		return (EINVAL);
+	if ((args->flags & LINUX_CLOSE_RANGE_CLOEXEC) != 0)
+		flags |= CLOSE_RANGE_CLOEXEC;
+	return (kern_close_range(td, flags, args->first, args->last));
+}
