@@ -6243,13 +6243,6 @@ zfs_freebsd_copy_file_range(struct vop_copy_file_range_args *ap)
 	int error;
 	uint64_t len = *ap->a_lenp;
 
-	/*
-	 * TODO: If offset/length is not aligned to recordsize, use
-	 * vn_generic_copy_file_range() on this fragment.
-	 * It would be better to do this after we lock the vnodes, but then we
-	 * need something else than vn_generic_copy_file_range().
-	 */
-
 	/* Lock both vnodes, avoiding risk of deadlock. */
 	do {
 		mp = NULL;
@@ -6299,6 +6292,16 @@ unlock:
 	VOP_UNLOCK(outvp);
 	if (mp != NULL)
 		vn_finished_write(mp);
+
+	/*
+	 * Fall back if block_cloning feature is disabled
+	 * or other EXDEV failures from zfs_vnops.c
+	 */
+	if (error == EXDEV) {
+		error = vn_generic_copy_file_range(ap->a_invp, ap->a_inoffp,
+			    ap->a_outvp, ap->a_outoffp, ap->a_lenp, ap->a_flags,
+			    ap->a_incred, ap->a_outcred, ap->a_fsizetd);
+	}
 
 	return (error);
 }
