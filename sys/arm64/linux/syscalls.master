@@ -1771,8 +1771,12 @@
 		    l_size_t usize
 		);
 	}
-436    AUE_NULL		STD {
-		int linux_close_range(void);
+436	AUE_CLOSERANGE	STD {
+		int linux_close_range(
+		    l_uint first,
+		    l_uint last,
+		    l_uint flags
+		);
 	}
 437    AUE_NULL		STD {
 		int linux_openat2(void);
