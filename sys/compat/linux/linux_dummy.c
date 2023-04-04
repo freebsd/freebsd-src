@@ -135,7 +135,6 @@ DUMMY(fsconfig);
 DUMMY(fsmount);
 DUMMY(fspick);
 DUMMY(pidfd_open);
-DUMMY(close_range);
 DUMMY(openat2);
 DUMMY(pidfd_getfd);
 DUMMY(process_madvise);
