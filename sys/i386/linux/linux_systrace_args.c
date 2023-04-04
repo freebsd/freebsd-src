@@ -3249,7 +3249,11 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_close_range */
 	case 436: {
-		*n_args = 0;
+		struct linux_close_range_args *p = params;
+		iarg[a++] = p->first; /* l_uint */
+		iarg[a++] = p->last; /* l_uint */
+		iarg[a++] = p->flags; /* l_uint */
+		*n_args = 3;
 		break;
 	}
 	/* linux_openat2 */
@@ -8534,6 +8538,19 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_close_range */
 	case 436:
+		switch (ndx) {
+		case 0:
+			p = "l_uint";
+			break;
+		case 1:
+			p = "l_uint";
+			break;
+		case 2:
+			p = "l_uint";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_openat2 */
 	case 437:
@@ -10380,6 +10397,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_close_range */
 	case 436:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_openat2 */
 	case 437:
 	/* linux_pidfd_getfd */
