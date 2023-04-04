@@ -118,7 +118,7 @@ static int	rtmsg_rtsock(int, int, int);
 static int	flushroutes_fib_rtsock(int);
 static void	monitor_rtsock(void);
 #else
-int		rtmsg_nl(int, int, int, struct sockaddr_storage *, struct rt_metrics *);
+int		rtmsg_nl(int, int, int, int, struct sockaddr_storage *, struct rt_metrics *);
 int		flushroutes_fib_nl(int, int);
 void		monitor_nl(int);
 #endif
@@ -1524,7 +1524,7 @@ rtmsg(int cmd, int flags, int fib)
 #ifdef WITHOUT_NETLINK
 	return (rtmsg_rtsock(cmd, flags, fib));
 #else
-	errno = rtmsg_nl(cmd, flags, fib, so, &rt_metrics);
+	errno = rtmsg_nl(cmd, flags, fib, rtm_addrs, so, &rt_metrics);
 	return (errno == 0 ? 0 : -1);
 #endif
 }
