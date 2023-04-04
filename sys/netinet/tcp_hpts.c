@@ -1054,27 +1054,6 @@ hpts_cpuid(struct inpcb *inp, int *failed)
 	return (cpuid);
 }
 
-#ifdef not_longer_used_gleb
-static void
-tcp_drop_in_pkts(struct tcpcb *tp)
-{
-	struct mbuf *m, *n;
-
-	m = tp->t_in_pkt;
-	if (m)
-		n = m->m_nextpkt;
-	else
-		n = NULL;
-	tp->t_in_pkt = NULL;
-	while (m) {
-		m_freem(m);
-		m = n;
-		if (m)
-			n = m->m_nextpkt;
-	}
-}
-#endif
-
 static void
 tcp_hpts_set_max_sleep(struct tcp_hpts_entry *hpts, int wrap_loop_cnt)
 {
