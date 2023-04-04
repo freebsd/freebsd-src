@@ -5505,7 +5505,8 @@ do_rack_check_for_unclamp(struct tcpcb *tp, struct tcp_rack *rack)
 	if ((rack_unclamp_round_thresh > 0) &&
 	    (rnds >= rack_unclamp_round_thresh)) {
 		snds = tp->t_sndbytes - rack->r_ctl.last_sndbytes;
-		KASSERT ((snds > 0), ("rack:%p tp:%p snds:%lu is 0", rack, tp, snds));
+		KASSERT ((snds > 0), ("rack:%p tp:%p snds:%ju is 0", rack, tp,
+		    (uintmax_t)snds));
 		rxts = tp->t_snd_rxt_bytes - rack->r_ctl.last_snd_rxt_bytes;
 		rxt_per = rxts * 1000;
 		rxt_per /= snds;
@@ -7033,10 +7034,10 @@ rack_adjust_orig_mlen(struct rack_sendmap *rsm)
 		 * compensate for this change.
 		 */
 		KASSERT((rsm->orig_t_space > M_TRAILINGROOM(rsm->m)),
-			("mbuf:%p rsm:%p trailing_space:%lu ots:%u oml:%u mlen:%u\n",
+			("mbuf:%p rsm:%p trailing_space:%jd ots:%u oml:%u mlen:%u\n",
 			 rsm->m,
 			 rsm,
-			 M_TRAILINGROOM(rsm->m),
+			 (intmax_t)M_TRAILINGROOM(rsm->m),
 			 rsm->orig_t_space,
 			 rsm->orig_m_len,
 			 rsm->m->m_len));
@@ -18248,10 +18249,10 @@ rack_fo_m_copym(struct tcp_rack *rack, int32_t *plen,
 		 * compensate for this change.
 		 */
 		KASSERT((rack->r_ctl.fsb.o_t_len > M_TRAILINGROOM(m)),
-			("mbuf:%p rack:%p trailing_space:%lu ots:%u oml:%u mlen:%u\n",
+			("mbuf:%p rack:%p trailing_space:%jd ots:%u oml:%u mlen:%u\n",
 			 m,
 			 rack,
-			 M_TRAILINGROOM(m),
+			 (intmax_t)M_TRAILINGROOM(m),
 			 rack->r_ctl.fsb.o_t_len,
 			 rack->r_ctl.fsb.o_m_len,
 			 m->m_len));
