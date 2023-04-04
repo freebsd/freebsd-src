@@ -303,6 +303,11 @@ enum {
 };
 
 enum {
+	MLX5_FT_NIC_RX_2_NIC_RX_RDMA = BIT(0),
+	MLX5_FT_NIC_TX_RDMA_2_NIC_TX = BIT(1),
+};
+
+enum {
 	MLX5_ICMD_CMDS_OPCODE_ICMD_OPCODE_QUERY_FW_INFO     = 0x8007,
 	MLX5_ICMD_CMDS_OPCODE_ICMD_QUERY_CAPABILITY         = 0x8400,
 	MLX5_ICMD_CMDS_OPCODE_ICMD_ACCESS_REGISTER          = 0x9001,
@@ -524,7 +529,9 @@ struct mlx5_ifc_dest_format_struct_bits {
 	u8         destination_type[0x8];
 	u8         destination_id[0x18];
 
-	u8         reserved_0[0x20];
+	u8         reserved_0[0x8];
+	u8         destination_table_type[0x8];
+	u8         reserved_at_1[0x10];
 };
 
 struct mlx5_ifc_ipv4_layout_bits {
@@ -1144,7 +1151,12 @@ enum {
 };
 
 struct mlx5_ifc_cmd_hca_cap_bits {
-	u8         reserved_0[0x80];
+	u8         reserved_0[0x20];
+
+	u8         hca_cap_2[0x1];
+	u8         reserved_at_21[0x1f];
+
+	u8         reserved_at_40[0x40];
 
 	u8         log_max_srq_sz[0x8];
 	u8         log_max_qp_sz[0x8];
@@ -1439,10 +1451,48 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8	   reserved_at_7c0[0x40];
 };
 
+struct mlx5_ifc_cmd_hca_cap_2_bits {
+	u8	   reserved_at_0[0x80];
+
+	u8         migratable[0x1];
+	u8         reserved_at_81[0x1f];
+
+	u8	   max_reformat_insert_size[0x8];
+	u8	   max_reformat_insert_offset[0x8];
+	u8	   max_reformat_remove_size[0x8];
+	u8	   max_reformat_remove_offset[0x8];
+
+	u8	   reserved_at_c0[0x8];
+	u8	   migration_multi_load[0x1];
+	u8	   migration_tracking_state[0x1];
+	u8	   reserved_at_ca[0x16];
+
+	u8	   reserved_at_e0[0xc0];
+
+	u8	   flow_table_type_2_type[0x8];
+	u8	   reserved_at_1a8[0x3];
+	u8	   log_min_mkey_entity_size[0x5];
+	u8	   reserved_at_1b0[0x10];
+
+	u8	   reserved_at_1c0[0x60];
+
+	u8	   reserved_at_220[0x1];
+	u8	   sw_vhca_id_valid[0x1];
+	u8	   sw_vhca_id[0xe];
+	u8	   reserved_at_230[0x10];
+
+	u8	   reserved_at_240[0xb];
+	u8	   ts_cqe_metadata_size2wqe_counter[0x5];
+	u8	   reserved_at_250[0x10];
+
+	u8	   reserved_at_260[0x5a0];
+};
+
 enum mlx5_flow_destination_type {
 	MLX5_FLOW_DESTINATION_TYPE_VPORT	= 0x0,
 	MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE	= 0x1,
 	MLX5_FLOW_DESTINATION_TYPE_TIR		= 0x2,
+	MLX5_FLOW_DESTINATION_TYPE_TABLE_TYPE   = 0xA,
 };
 
 union mlx5_ifc_dest_format_struct_flow_counter_list_auto_bits {
@@ -2937,6 +2987,7 @@ struct mlx5_ifc_hca_vport_context_bits {
 
 union mlx5_ifc_hca_cap_union_bits {
 	struct mlx5_ifc_cmd_hca_cap_bits cmd_hca_cap;
+	struct mlx5_ifc_cmd_hca_cap_2_bits cmd_hca_cap_2;
 	struct mlx5_ifc_odp_cap_bits odp_cap;
 	struct mlx5_ifc_atomic_caps_bits atomic_caps;
 	struct mlx5_ifc_roce_cap_bits roce_cap;
