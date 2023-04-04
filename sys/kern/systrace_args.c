@@ -3412,6 +3412,13 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
+	/* kqueuex */
+	case 583: {
+		struct kqueuex_args *p = params;
+		uarg[0] = p->flags; /* u_int */
+		*n_args = 1;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -9117,6 +9124,16 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* kqueuex */
+	case 583:
+		switch (ndx) {
+		case 0:
+			p = "u_int";
+			break;
+		default:
+			break;
+		};
+		break;
 	default:
 		break;
 	};
@@ -11067,6 +11084,11 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 581:
 	/* swapoff */
 	case 582:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* kqueuex */
+	case 583:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
