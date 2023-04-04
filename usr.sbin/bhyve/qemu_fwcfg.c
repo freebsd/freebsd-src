@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "acpi_device.h"
+#include "bhyverun.h"
 #include "inout.h"
 #include "pci_lpc.h"
 #include "qemu_fwcfg.h"
