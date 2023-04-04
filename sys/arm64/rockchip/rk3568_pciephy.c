@@ -54,9 +54,8 @@
 
 #define	GRF_PCIE30PHY_CON1		0x04
 #define	GRF_PCIE30PHY_CON4		0x10
+#define	GRF_PCIE30PHY_CON5		0x14
 #define	GRF_PCIE30PHY_CON6		0x18
-#define	 GRF_BIFURCATION_LANE_0_1	(1 << 0)
-#define	 GRF_BIFURCATION_LANE_2_3	(1 << 1)
 #define	 GRF_PCIE30PHY_WR_EN		(0xf << 16)
 #define	GRF_PCIE30PHY_CON9		0x24
 #define	 GRF_PCIE30PHY_DA_OCM		((1 << 15) | (1 << (15 + 16)))
@@ -87,6 +86,7 @@ rk3568_pciephy_enable(struct phynode *phynode, bool enable)
 {
 	device_t dev = phynode_get_device(phynode);
 	struct rk3568_pciephy_softc *sc = device_get_softc(dev);
+	uint32_t data_lanes[2] = { 0, 0 };
 	int count;
 
 	if (enable) {
@@ -95,15 +95,30 @@ rk3568_pciephy_enable(struct phynode *phynode, bool enable)
 		    GRF_PCIE30PHY_DA_OCM);
 
 		/* Set bifurcation according to DT entry */
-		if (OF_hasprop(sc->node, "rockchip,bifurcation")) {
+		if (OF_hasprop(sc->node, "data-lanes")) {
+			OF_getencprop(sc->node, "data-lanes", data_lanes,
+			    sizeof(data_lanes));
+			if (data_lanes[0] > 0) {
+				SYSCON_WRITE_4(sc->phy_grf, GRF_PCIE30PHY_CON5,
+				    GRF_PCIE30PHY_WR_EN | (data_lanes[0] - 1));
+				device_printf(dev, "pcie3x1 1 lane\n");
+			}
+			if (data_lanes[1] > 0) {
+				SYSCON_WRITE_4(sc->phy_grf, GRF_PCIE30PHY_CON6,
+				    GRF_PCIE30PHY_WR_EN | (data_lanes[1] - 1));
+				device_printf(dev, "pcie3x2 1 lane\n");
+			}
+			if (data_lanes[0] > 1 || data_lanes[1] > 1)
+				SYSCON_WRITE_4(sc->phy_grf, GRF_PCIE30PHY_CON1,
+				    GRF_PCIE30PHY_DA_OCM);
+
+		} else {
+			SYSCON_WRITE_4(sc->phy_grf, GRF_PCIE30PHY_CON5,
+			    GRF_PCIE30PHY_WR_EN);
 			SYSCON_WRITE_4(sc->phy_grf, GRF_PCIE30PHY_CON6,
-			    GRF_PCIE30PHY_WR_EN | GRF_BIFURCATION_LANE_0_1);
-			SYSCON_WRITE_4(sc->phy_grf, GRF_PCIE30PHY_CON1,
-			    GRF_PCIE30PHY_DA_OCM);
-			device_printf(dev, "setup 2 x PCIeX1\n");
+			    GRF_PCIE30PHY_WR_EN);
+			device_printf(dev, "pcie3 2 lanes\n");
 		}
-		else
-			device_printf(dev, "setup 1 x PCIeX2\n");
 
 		hwreset_deassert(sc->phy_reset);
 
