@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
 #include "opt_ratelimit.h"
-#include "opt_kern_tls.h"
 #include <sys/param.h>
 #include <sys/arb.h>
 #include <sys/module.h>
@@ -51,9 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/qmath.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#ifdef KERN_TLS
-#include <sys/ktls.h>
-#endif
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/tree.h>
@@ -130,36 +126,6 @@ __FBSDID("$FreeBSD$");
  * Common TCP Functions - These are shared by borth
  * rack and BBR.
  */
-#ifdef KERN_TLS
-uint32_t
-ctf_get_opt_tls_size(struct socket *so, uint32_t rwnd)
-{
-	struct ktls_session *tls;
-	uint32_t len;
-
-again:
-	tls = so->so_snd.sb_tls_info;
-	len = tls->params.max_frame_len;         /* max tls payload */
-	len += tls->params.tls_hlen;      /* tls header len  */
-	len += tls->params.tls_tlen;      /* tls trailer len */
-	if ((len * 4) > rwnd) {
-		/*
-		 * Stroke this will suck counter and what
-		 * else should we do Drew? From the
-		 * TCP perspective I am not sure
-		 * what should be done...
-		 */
-		if (tls->params.max_frame_len > 4096) {
-			tls->params.max_frame_len -= 4096;
-			if (tls->params.max_frame_len < 4096)
-				tls->params.max_frame_len = 4096;
-			goto again;
-		}
-	}
-	return (len);
-}
-#endif
-
 static int
 ctf_get_enet_type(struct ifnet *ifp, struct mbuf *m)
 {

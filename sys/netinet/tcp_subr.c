@@ -158,6 +158,11 @@ SYSCTL_INT(_net_inet_tcp_sack_attack, OID_AUTO, limit,
     CTLFLAG_RW,
     &tcp_sad_limit, 10000,
     "If SaD is enabled, what is the limit to sendmap entries (0 = unlimited)?");
+int32_t tcp_sad_limit = 10000;
+SYSCTL_INT(_net_inet_tcp_sack_attack, OID_AUTO, limit,
+    CTLFLAG_RW,
+    &tcp_sad_limit, 10000,
+    "If SaD is enabled, what is the limit to sendmap entries (0 = unlimited)?");
 int32_t tcp_sack_to_ack_thresh = 700;	/* 70 % */
 SYSCTL_INT(_net_inet_tcp_sack_attack, OID_AUTO, sack_to_ack_thresh,
     CTLFLAG_RW,

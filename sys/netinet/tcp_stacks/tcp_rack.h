@@ -45,6 +45,11 @@
 #define RACK_SENT_FP        0x004000/* sent in fast path */
 #define RACK_HAD_PUSH	    0x008000/* Push was sent on original send */
 #define RACK_MUST_RXT	    0x010000/* We must retransmit this rsm (non-sack/mtu chg)*/
+#define RACK_IN_GP_WIN	    0x020000/* Send was in GP window when sent */
+#define RACK_SHUFFLED	    0x040000/* The RSM was shuffled some data from one to another */
+#define RACK_MERGED	    0x080000/* The RSM was merged */
+#define RACK_PMTU_CHG	    0x100000/* The path mtu changed on this guy */
+#define RACK_STRADDLE	    0x200000/* The seq straddles the bucket line */
 #define RACK_NUM_OF_RETRANS 3
 
 #define RACK_INITIAL_RTO 1000000 /* 1 second in microseconds */
@@ -52,7 +57,9 @@
 #define RACK_REQ_AVG 3 	/* Must be less than 256 */
 
 struct rack_sendmap {
+	TAILQ_ENTRY(rack_sendmap) next;
 	TAILQ_ENTRY(rack_sendmap) r_tnext;	/* Time of transmit based next */
+	uint32_t bindex;
 	uint32_t r_start;	/* Sequence number of the segment */
 	uint32_t r_end;		/* End seq, this is 1 beyond actually */
 	uint32_t r_rtr_bytes;	/* How many bytes have been retransmitted */
@@ -60,7 +67,8 @@ struct rack_sendmap {
 		 r_rtr_cnt : 8;	/* Retran count, index this -1 to get time */
 	struct mbuf *m;
 	uint32_t soff;
-	uint32_t orig_m_len;
+	uint32_t orig_m_len;	/* The original mbuf len when we sent (can update) */
+	uint32_t orig_t_space;	/* The original trailing space when we sent (can update) */
 	uint32_t r_nseq_appl;	/* If this one is app limited, this is the nxt seq limited */
 	uint8_t r_dupack;	/* Dup ack count */
 	uint8_t r_in_tmap;	/* Flag to see if its in the r_tnext array */
@@ -72,8 +80,8 @@ struct rack_sendmap {
 		r_avail : 4;
 	uint64_t r_tim_lastsent[RACK_NUM_OF_RETRANS];
 	uint64_t r_ack_arrival;	/* This is the time of ack-arrival (if SACK'd) */
-	RB_ENTRY(rack_sendmap) r_next;		/* RB Tree next */
 	uint32_t r_fas;		/* Flight at send */
+	uint8_t r_bas;		/* The burst size (burst at send = bas)  */
 };
 
 struct deferred_opt_list {
@@ -201,11 +209,11 @@ struct rack_opts_stats {
 	uint64_t tcp_rack_pace_rate_ss;
 	uint64_t tcp_rack_pace_rate_rec;
 	/* Temp counters for dsack */
-	uint64_t tcp_sack_path_1;
-	uint64_t tcp_sack_path_2a;
-	uint64_t tcp_sack_path_2b;
-	uint64_t tcp_sack_path_3;
-	uint64_t tcp_sack_path_4;
+	uint64_t tcp_sack_path_1; /* not used */
+	uint64_t tcp_sack_path_2a; /* not used */
+	uint64_t tcp_sack_path_2b; /* not used */
+	uint64_t tcp_sack_path_3; /* not used */
+	uint64_t tcp_sack_path_4; /* not used */
 	/* non temp counters */
 	uint64_t tcp_rack_scwnd;
 	uint64_t tcp_rack_noprr;
@@ -227,11 +235,16 @@ struct rack_opts_stats {
 	uint64_t tcp_rack_rtt_use;
 	uint64_t tcp_data_after_close;
 	uint64_t tcp_defer_opt;
-	uint64_t tcp_rack_fastrsm_hack;
+	uint64_t tcp_rxt_clamp;
 	uint64_t tcp_rack_beta;
 	uint64_t tcp_rack_beta_ecn;
 	uint64_t tcp_rack_timer_slop;
 	uint64_t tcp_rack_dsack_opt;
+	uint64_t tcp_rack_hi_beta;
+	uint64_t tcp_split_limit;
+	uint64_t tcp_rack_pacing_divisor;
+	uint64_t tcp_rack_min_seg;
+	uint64_t tcp_dgp_in_rec;
 };
 
 /* RTT shrink reasons */
@@ -260,38 +273,6 @@ struct rack_opts_stats {
 #define RACK_QUALITY_PERSIST	3	/* A measurement where we went into persists */
 #define RACK_QUALITY_PROBERTT	4	/* A measurement where we went into or exited probe RTT */
 #define RACK_QUALITY_ALLACKED	5	/* All data is now acknowledged */
-
-/*********************/
-/* Rack Trace points */
-/*********************/
-/*
- * Rack trace points are interesting points within
- * the rack code that the author/debugger may want
- * to have BB logging enabled if we hit that point.
- * In order to enable a trace point you set the
- * sysctl var net.inet.tcp.<stack>.tp.number to
- * one of the numbers listed below. You also
- * must make sure net.inet.tcp.<stack>.tp.bbmode is
- * non-zero, the default is 4 for continuous tracing.
- * You also set in the number of connections you want
- * have get BB logs in net.inet.tcp.<stack>.tp.count.
- *
- * Count will decrement every time BB logging is assigned
- * to a connection that hit your tracepoint.
- *
- * You can enable all trace points by setting the number
- * to 0xffffffff. You can disable all trace points by
- * setting number to zero (or count to 0).
- *
- * Below are the enumerated list of tracepoints that
- * have currently been defined in the code. Add more
- * as you add a call to rack_trace_point(rack, <name>);
- * where <name> is defined below.
- */
-#define RACK_TP_HWENOBUF	0x00000001	/* When we are doing hardware pacing and hit enobufs */
-#define RACK_TP_ENOBUF		0x00000002	/* When we hit enobufs with software pacing */
-#define RACK_TP_COLLAPSED_WND	0x00000003	/* When a peer to collapses its rwnd on us */
-#define RACK_TP_COLLAPSED_RXT	0x00000004	/* When we actually retransmit a collapsed window rsm */
 
 #define MIN_GP_WIN 6	/* We need at least 6 MSS in a GP measurement */
 #ifdef _KERNEL
@@ -356,14 +337,17 @@ struct rack_fast_send_blk {
 	struct udphdr *udp;
 	struct mbuf *m;
 	uint32_t o_m_len;
+	uint32_t o_t_len;
 	uint32_t rfo_apply_push : 1,
 		hw_tls : 1,
 		unused : 30;
 };
 
+struct tailq_hash;
+
 struct rack_control {
 	/* Second cache line 0x40 from tcp_rack */
-	struct rack_rb_tree_head rc_mtree; /* Tree of all segments Lock(a) */
+	struct tailq_hash *tqh; /* Tree of all segments Lock(a) */
 	struct rack_head rc_tmap;	/* List in transmit order Lock(a) */
 	struct rack_sendmap *rc_tlpsend;	/* Remembered place for
 						 * tlp_sending Lock(a) */
@@ -371,8 +355,8 @@ struct rack_control {
 					 * resend */
 	struct rack_fast_send_blk fsb;	/* The fast-send block */
 	uint32_t timer_slop;
-	uint32_t input_pkt;
-	uint32_t saved_input_pkt;
+	uint16_t pace_len_divisor;
+	uint16_t rc_user_set_min_segs;
 	uint32_t rc_hpts_flags;
 	uint32_t rc_fixed_pacing_rate_ca;
 	uint32_t rc_fixed_pacing_rate_rec;
@@ -387,6 +371,7 @@ struct rack_control {
 	uint64_t last_hw_bw_req;
 	uint64_t crte_prev_rate;
 	uint64_t bw_rate_cap;
+	uint64_t last_cumack_advance; /* Last time cumack moved forward */
 	uint32_t rc_reorder_ts;	/* Last time we saw reordering Lock(a) */
 
 	uint32_t rc_tlp_new_data;	/* we need to send new-data on a TLP
@@ -401,6 +386,7 @@ struct rack_control {
 	uint32_t last_sent_tlp_seq;	/* Last tlp sequence that was retransmitted Lock(a) */
 
 	uint32_t rc_prr_delivered;	/* during recovery prr var Lock(a) */
+
 	uint16_t rc_tlp_cnt_out;	/* count of times we have sent a TLP without new data */
 	uint16_t last_sent_tlp_len;	/* Number of bytes in the last sent tlp */
 
@@ -418,6 +404,7 @@ struct rack_control {
 					 * have allocated */
 	uint32_t rc_rcvtime;	/* When we last received data */
 	uint32_t rc_num_split_allocs;	/* num split map entries allocated */
+	uint32_t rc_split_limit;	/* Limit from control var can be set by socket opt */
 
 	uint32_t rc_last_output_to;
 	uint32_t rc_went_idle_time;
@@ -462,7 +449,20 @@ struct rack_control {
 	uint64_t last_max_bw;	/* Our calculated max b/w last */
 	struct time_filter_small rc_gp_min_rtt;
 	struct def_opt_head opt_list;
+	uint64_t lt_bw_time;	/* Total time with data outstanding (lt_bw = long term bandwidth)  */
+	uint64_t lt_bw_bytes;	/* Total bytes acked */
+	uint64_t lt_timemark;	/* 64 bit timestamp when we started sending */
+	struct http_sendfile_track *rc_last_sft;
+	uint32_t lt_seq;	/* Seq at start of lt_bw gauge */
 	int32_t rc_rtt_diff;		/* Timely style rtt diff of our gp_srtt */
+	uint64_t last_sndbytes;
+	uint64_t last_snd_rxt_bytes;
+	uint64_t rxt_threshold;
+	uint32_t last_rnd_rxt_clamped;
+	uint32_t num_of_clamps_applied;
+	uint32_t clamp_options;
+	uint32_t max_clamps;
+
 	uint32_t rc_gp_srtt;		/* Current GP srtt */
 	uint32_t rc_prev_gp_srtt;	/* Previous RTT */
 	uint32_t rc_entry_gp_rtt;	/* Entry to PRTT gp-rtt */
@@ -502,6 +502,10 @@ struct rack_control {
 	uint32_t rc_min_to;	/* Socket option value Lock(a) */
 	uint32_t rc_pkt_delay;	/* Socket option value Lock(a) */
 	uint32_t persist_lost_ends;
+	uint32_t ack_during_sd;
+	uint32_t input_pkt;
+	uint32_t saved_input_pkt;
+	uint32_t saved_rxt_clamp_val; 	/* The encoded value we used to setup clamping */
 	struct newreno rc_saved_beta;	/*
 					 * For newreno cc:
 					 * rc_saved_cc are the values we have had
@@ -516,6 +520,8 @@ struct rack_control {
 					 */
 	uint16_t rc_early_recovery_segs;	/* Socket option value Lock(a) */
 	uint16_t rc_reorder_shift;	/* Socket option value Lock(a) */
+	uint8_t rack_per_upper_bound_ss;
+	uint8_t rack_per_upper_bound_ca;
 	uint8_t dsack_persist;
 	uint8_t rc_no_push_at_mrtt;	/* No push when we exceed max rtt */
 	uint8_t num_measurements;	/* Number of measurements (up to 0xff, we freeze at 0xff)  */
@@ -523,8 +529,54 @@ struct rack_control {
 	uint8_t rc_tlp_cwnd_reduce;	/* Socket option value Lock(a) */
 	uint8_t rc_prr_sendalot;/* Socket option value Lock(a) */
 	uint8_t rc_rate_sample_method;
+	uint8_t rc_dgp_bl_agg;		/* Buffer Level aggression during DGP */
+	uint8_t full_dgp_in_rec;	/* Flag to say if we do full DGP in recovery */
+	uint8_t client_suggested_maxseg;	/* Not sure what to do with this yet */
+	uint8_t pacing_discount_amm;	/*
+					 * This is a multipler to the base discount that
+					 * can be used to increase the discount.
+					 */
+	uint8_t already_had_a_excess;
 };
 #endif
+
+/* DGP with no buffer level mitigations */
+#define DGP_LEVEL0	0
+
+/*
+ * DGP with buffer level mitigation where BL:4 caps fillcw and BL:5
+ * turns off fillcw.
+ */
+#define DGP_LEVEL1	1
+
+/*
+ * DGP with buffer level mitigation where BL:3 caps fillcw and BL:4 turns off fillcw
+ * and BL:5 reduces by 10%
+ */
+#define DGP_LEVEL2	2
+
+/*
+ * DGP with buffer level mitigation where BL:2 caps fillcw and BL:3 turns off
+ * fillcw  BL:4 reduces by 10% and BL:5 reduces by 20%
+ */
+#define DGP_LEVEL3	3
+
+/* Hybrid pacing log defines */
+#define HYBRID_LOG_NO_ROOM	0	/* No room for the clients request */
+#define HYBRID_LOG_TURNED_OFF	1	/* Turned off hybrid pacing */
+#define HYBRID_LOG_NO_PACING	2	/* Failed to set pacing on */
+#define HYBRID_LOG_RULES_SET	3	/* Hybrid pacing for this chunk is set */
+#define HYBRID_LOG_NO_RANGE	4	/* In DGP mode, no range found */
+#define HYBRID_LOG_RULES_APP	5	/* The specified rules were applied */
+#define HYBRID_LOG_REQ_COMP	6	/* The request completed */
+#define HYBRID_LOG_BW_MEASURE	7	/* Follow up b/w measurements to the previous completed log */
+#define HYBRID_LOG_RATE_CAP	8	/* We had a rate cap apply */
+#define HYBRID_LOG_CAP_CALC	9	/* How we calculate the cap */
+#define HYBRID_LOG_ISSAME	10	/* Same as before  -- temp */
+#define HYBRID_LOG_ALLSENT	11	/* We sent it all no more rate-cap */
+#define HYBRID_LOG_OUTOFTIME	12	/* We are past the deadline DGP */
+#define HYBRID_LOG_CAPERROR	13	/* Hit one of the TSNH cases */
+#define HYBRID_LOG_EXTEND	14	/* We extended the end */
 
 #define RACK_TIMELY_CNT_BOOST 5	/* At 5th increase boost */
 #define RACK_MINRTT_FILTER_TIM 10 /* Seconds */
@@ -558,11 +610,11 @@ struct tcp_rack {
 		shape_rxt_to_pacing_min : 1,
 	        /* ******************************************************************** */
 		rc_ack_required: 1,
-		spare : 1;
+		r_pacing_discount : 1;
 	uint8_t no_prr_addback : 1,
 		gp_ready : 1,
 		defer_options: 1,
-		fast_rsm_hack: 1,
+		excess_rxt_on: 1,	/* Are actions on for excess retransmissions? */
 		rc_ack_can_sendout_data: 1, /*
 					     * If set it will override pacing restrictions on not sending
 					     * data when the pacing timer is running. I.e. you set this
@@ -590,7 +642,8 @@ struct tcp_rack {
 		rc_last_sent_tlp_seq_valid: 1,
 		rc_last_sent_tlp_past_cumack: 1,
 		probe_not_answered: 1,
-		avail_bytes : 2;
+		rack_hibeta : 1,
+		lt_bw_up : 1;
 	uint32_t rc_rack_rtt;	/* RACK-RTT Lock(a) */
 	uint16_t r_mbuf_queue : 1,	/* Do we do mbuf queue for non-paced */
 		 rtt_limit_mul : 4,	/* muliply this by low rtt */
@@ -616,11 +669,15 @@ struct tcp_rack {
 		r_use_labc_for_rec: 1,
 		rc_highly_buffered: 1,		/* The path is highly buffered */
 		rc_dragged_bottom: 1,
-		rc_dack_mode : 1,		/* Mac O/S emulation of d-ack */
-		rc_dack_toggle : 1,		/* For Mac O/S emulation of d-ack */
+		rc_pace_dnd : 1,		/* The pace do not disturb bit */
+		rc_avali2 : 1,
 		rc_gp_filled : 1,
-		rc_is_spare : 1;
-	uint8_t r_state;	/* Current rack state Lock(a) */
+		rc_hw_nobuf : 1;
+	uint8_t r_state : 4, 	/* Current rack state Lock(a) */
+		rc_catch_up : 1,	/* catch up mode in dgp */
+		rc_hybrid_mode : 1,	/* We are in hybrid mode */
+		rc_suspicious : 1,	/* Suspect sacks have been given */
+		rc_new_rnd_needed: 1;
 	uint8_t rc_tmr_stopped : 7,
 		t_timers_stopped : 1;
 	uint8_t rc_enobuf : 7,	/* count of enobufs on connection provides */
@@ -636,8 +693,8 @@ struct tcp_rack {
 	uint8_t app_limited_needs_set : 1,
 		use_fixed_rate : 1,
 		rc_has_collapsed : 1,
-		r_rep_attack : 1,
-		r_rep_reverse : 1,
+		r_cwnd_was_clamped : 1,
+		r_clamped_gets_lower : 1,
 		rack_hdrw_pacing : 1,  /* We are doing Hardware pacing */
 		rack_hdw_pace_ena : 1, /* Is hardware pacing enabled? */
 		rack_attempt_hdwr_pace : 1; /* Did we attempt hdwr pacing (if allowed) */
@@ -660,8 +717,8 @@ struct tcp_rack {
 		r_wanted_output: 1,
 		r_rr_config : 2,
 		r_persist_lt_bw_off : 1,
- 		r_collapse_point_valid : 1,
-		rc_avail_bit : 2;
+		r_collapse_point_valid : 1,
+		dgp_on : 1;
 	uint16_t rc_init_win : 8,
 		rc_gp_rtt_set : 1,
 		rc_gp_dyn_mul : 1,
