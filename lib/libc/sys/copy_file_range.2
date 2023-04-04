@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 2, 2021
+.Dd April 4, 2023
 .Dt COPY_FILE_RANGE 2
 .Os
 .Sh NAME
@@ -196,6 +196,12 @@ refers to a directory.
 File system that stores
 .Fa outfd
 is full.
+.It Bq Er EXDEV
+The files referred to by
+.Fa infd
+and
+.Fa outfd
+are on different file systems.
 .El
 .Sh SEE ALSO
 .Xr lseek 2
