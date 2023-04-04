@@ -33,7 +33,7 @@ void printb(int, const char *);
 extern const char routeflags[];
 extern int verbose, debugonly;
 
-int rtmsg_nl(int cmd, int rtm_flags, int fib, struct sockaddr_storage *so,
+int rtmsg_nl(int cmd, int rtm_flags, int fib, int rtm_addrs, struct sockaddr_storage *so,
     struct rt_metrics *rt_metrics);
 int flushroutes_fib_nl(int fib, int af);
 void monitor_nl(int fib);
@@ -125,8 +125,18 @@ nl_helper_free(struct nl_helper *h)
 	snl_free(&h->ss_cmd);
 }
 
+static struct sockaddr *
+get_addr(struct sockaddr_storage *so, int rtm_addrs, int addr_type)
+{
+	struct sockaddr *sa = NULL;
+
+	if (rtm_addrs & (1 << addr_type))
+		sa = (struct sockaddr *)&so[addr_type];
+	return (sa);
+}
+
 static int
-rtmsg_nl_int(struct nl_helper *h, int cmd, int rtm_flags, int fib,
+rtmsg_nl_int(struct nl_helper *h, int cmd, int rtm_flags, int fib, int rtm_addrs,
     struct sockaddr_storage *so, struct rt_metrics *rt_metrics)
 {
 	struct snl_state *ss = &h->ss_cmd;
@@ -154,9 +164,9 @@ rtmsg_nl_int(struct nl_helper *h, int cmd, int rtm_flags, int fib,
 		exit(1);
 	}
 
-	struct sockaddr *dst = (struct sockaddr *)&so[RTAX_DST];
-	struct sockaddr *mask = (struct sockaddr *)&so[RTAX_NETMASK];
-	struct sockaddr *gw = (struct sockaddr *)&so[RTAX_GATEWAY];
+	struct sockaddr *dst = get_addr(so, rtm_addrs, RTAX_DST);
+	struct sockaddr *mask = get_addr(so, rtm_addrs, RTAX_NETMASK);
+	struct sockaddr *gw = get_addr(so, rtm_addrs, RTAX_GATEWAY);
 
 	if (dst == NULL)
 		return (EINVAL);
@@ -210,16 +220,18 @@ rtmsg_nl_int(struct nl_helper *h, int cmd, int rtm_flags, int fib,
 	snl_add_msg_attr_ip(&nw, RTA_DST, dst);
 	snl_add_msg_attr_u32(&nw, RTA_TABLE, fib);
 
-	if (rtm_flags & RTF_GATEWAY) {
-		if (gw->sa_family == dst->sa_family)
-			snl_add_msg_attr_ip(&nw, RTA_GATEWAY, gw);
-		else
-			snl_add_msg_attr_ipvia(&nw, RTA_VIA, gw);
-	} else if (gw != NULL) {
-		/* Should be AF_LINK */
-		struct sockaddr_dl *sdl = (struct sockaddr_dl *)gw;
-		if (sdl->sdl_index != 0)
-			snl_add_msg_attr_u32(&nw, RTA_OIF, sdl->sdl_index);
+	if (gw != NULL) {
+		if (rtm_flags & RTF_GATEWAY) {
+			if (gw->sa_family == dst->sa_family)
+				snl_add_msg_attr_ip(&nw, RTA_GATEWAY, gw);
+			else
+				snl_add_msg_attr_ipvia(&nw, RTA_VIA, gw);
+		} else {
+			/* Should be AF_LINK */
+			struct sockaddr_dl *sdl = (struct sockaddr_dl *)gw;
+			if (sdl->sdl_index != 0)
+				snl_add_msg_attr_u32(&nw, RTA_OIF, sdl->sdl_index);
+		}
 	}
 
 	if (rtm_flags != 0)
@@ -259,13 +271,13 @@ rtmsg_nl_int(struct nl_helper *h, int cmd, int rtm_flags, int fib,
 }
 
 int
-rtmsg_nl(int cmd, int rtm_flags, int fib, struct sockaddr_storage *so,
-    struct rt_metrics *rt_metrics)
+rtmsg_nl(int cmd, int rtm_flags, int fib, int rtm_addrs,
+    struct sockaddr_storage *so, struct rt_metrics *rt_metrics)
 {
 	struct nl_helper h = {};
 
 	nl_helper_init(&h);
-	int error = rtmsg_nl_int(&h, cmd, rtm_flags, fib, so, rt_metrics);
+	int error = rtmsg_nl_int(&h, cmd, rtm_flags, fib, rtm_addrs, so, rt_metrics);
 	nl_helper_free(&h);
 
 	return (error);
