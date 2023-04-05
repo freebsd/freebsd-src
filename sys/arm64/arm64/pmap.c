@@ -119,6 +119,7 @@
 #include <sys/mutex.h>
 #include <sys/physmem.h>
 #include <sys/proc.h>
+#include <sys/rangeset.h>
 #include <sys/rwlock.h>
 #include <sys/sbuf.h>
 #include <sys/sx.h>
@@ -433,6 +434,12 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, superpages_enabled,
     "Are large page mappings enabled?");
 
 /*
+ * True when Branch Target Identification should be used by userspace. This
+ * allows pmap to mark pages as guarded with ATTR_S1_GP.
+ */
+__read_mostly static bool pmap_bti_support = false;
+
+/*
  * Internal flags for pmap_enter()'s helper functions.
  */
 #define	PMAP_ENTER_NORECLAIM	0x1000000	/* Don't reclaim PV entries. */
@@ -478,7 +485,14 @@ static void _pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m,
 static int pmap_unuse_pt(pmap_t, vm_offset_t, pd_entry_t, struct spglist *);
 static __inline vm_page_t pmap_remove_pt_page(pmap_t pmap, vm_offset_t va);
 
+static uma_zone_t pmap_bti_ranges_zone;
+static bool pmap_bti_same(pmap_t pmap, vm_offset_t sva, vm_offset_t eva);
 static pt_entry_t pmap_pte_bti(pmap_t pmap, vm_offset_t va);
+static void pmap_bti_on_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva);
+static void *bti_dup_range(void *ctx, void *data);
+static void bti_free_range(void *ctx, void *node);
+static int pmap_bti_copy(pmap_t dst_pmap, pmap_t src_pmap);
+static void pmap_bti_deassign_all(pmap_t pmap);
 
 /*
  * These load the old table data and store the new value.
@@ -2320,6 +2334,7 @@ pmap_pinit0(pmap_t pmap)
 	pmap->pm_levels = 4;
 	pmap->pm_ttbr = pmap->pm_l0_paddr;
 	pmap->pm_asid_set = &asids;
+	pmap->pm_bti = NULL;
 
 	PCPU_SET(curpmap, pmap);
 }
@@ -2345,9 +2360,16 @@ pmap_pinit_stage(pmap_t pmap, enum pmap_stage stage, int levels)
 	MPASS(levels == 3 || levels == 4);
 	pmap->pm_levels = levels;
 	pmap->pm_stage = stage;
+	pmap->pm_bti = NULL;
 	switch (stage) {
 	case PM_STAGE1:
 		pmap->pm_asid_set = &asids;
+		if (pmap_bti_support) {
+			pmap->pm_bti = malloc(sizeof(struct rangeset), M_DEVBUF,
+			    M_ZERO | M_WAITOK);
+			rangeset_init(pmap->pm_bti, bti_dup_range,
+			    bti_free_range, pmap, M_NOWAIT);
+		}
 		break;
 	case PM_STAGE2:
 		pmap->pm_asid_set = &vmids;
@@ -2652,7 +2674,7 @@ void
 pmap_release(pmap_t pmap)
 {
 	bool rv __diagused;
-	struct spglist free;
+	struct spglist freelist;
 	struct asid_set *set;
 	vm_page_t m;
 	int asid;
@@ -2665,13 +2687,13 @@ pmap_release(pmap_t pmap)
 		KASSERT((pmap->pm_l0[0] & ATTR_DESCR_VALID) == ATTR_DESCR_VALID,
 		    ("pmap_release: Invalid l0 entry: %lx", pmap->pm_l0[0]));
 
-		SLIST_INIT(&free);
+		SLIST_INIT(&freelist);
 		m = PHYS_TO_VM_PAGE(pmap->pm_ttbr);
 		PMAP_LOCK(pmap);
-		rv = pmap_unwire_l3(pmap, 0, m, &free);
+		rv = pmap_unwire_l3(pmap, 0, m, &freelist);
 		PMAP_UNLOCK(pmap);
 		MPASS(rv == true);
-		vm_page_free_pages_toq(&free, true);
+		vm_page_free_pages_toq(&freelist, true);
 	}
 
 	KASSERT(pmap->pm_stats.resident_count == 0,
@@ -2699,6 +2721,11 @@ pmap_release(pmap_t pmap)
 			bit_clear(set->asid_set, asid);
 		}
 		mtx_unlock_spin(&set->asid_set_mutex);
+
+		if (pmap->pm_bti != NULL) {
+			rangeset_fini(pmap->pm_bti);
+			free(pmap->pm_bti, M_DEVBUF);
+		}
 	}
 
 	m = PHYS_TO_VM_PAGE(pmap->pm_l0_paddr);
@@ -3631,14 +3658,8 @@ pmap_remove_l3_range(pmap_t pmap, pd_entry_t l2e, vm_offset_t sva,
 		pmap_invalidate_range(pmap, va, sva, true);
 }
 
-/*
- *	Remove the given range of addresses from the specified map.
- *
- *	It is assumed that the start and end are properly
- *	rounded to the page size.
- */
-void
-pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+static void
+pmap_remove1(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, bool map_delete)
 {
 	struct rwlock *lock;
 	vm_offset_t va_next;
@@ -3655,6 +3676,8 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	SLIST_INIT(&free);
 
 	PMAP_LOCK(pmap);
+	if (map_delete)
+		pmap_bti_on_remove(pmap, sva, eva);
 
 	lock = NULL;
 	for (; sva < eva; sva = va_next) {
@@ -3738,6 +3761,18 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 }
 
 /*
+ *	Remove the given range of addresses from the specified map.
+ *
+ *	It is assumed that the start and end are properly
+ *	rounded to the page size.
+ */
+void
+pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+{
+	pmap_remove1(pmap, sva, eva, false);
+}
+
+/*
  *	Remove the given range of addresses as part of a logical unmap
  *	operation. This has the effect of calling pmap_remove(), but
  *	also clears any metadata that should persist for the lifetime
@@ -3746,7 +3781,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 void
 pmap_map_delete(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
-	pmap_remove(pmap, sva, eva);
+	pmap_remove1(pmap, sva, eva, true);
 }
 
 /*
@@ -4355,6 +4390,8 @@ pmap_enter_largepage(pmap_t pmap, vm_offset_t va, pt_entry_t newpte, int flags,
 	    PTE_TO_PHYS(newpte), newpte, psind));
 
 restart:
+	if (!pmap_bti_same(pmap, va, va + pagesizes[psind]))
+		return (KERN_PROTECTION_FAILURE);
 	if (psind == 2) {
 		PMAP_ASSERT_L1_BLOCKS_SUPPORTED;
 
@@ -4847,6 +4884,14 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 		    va, pmap);
 		return (KERN_RESOURCE_SHORTAGE);
 	}
+
+	/*
+	 * If bti is not the same for the whole l2 range, return failure
+	 * and let vm_fault() cope.  Check after l2 allocation, since
+	 * it could sleep.
+	 */
+	if (!pmap_bti_same(pmap, va, va + L2_SIZE))
+		return (KERN_PROTECTION_FAILURE);
 
 	/*
 	 * If there are existing mappings, either abort or remove them.
@@ -5496,6 +5541,38 @@ out:
 	PMAP_UNLOCK(dst_pmap);
 }
 
+int
+pmap_vmspace_copy(pmap_t dst_pmap, pmap_t src_pmap)
+{
+	int error;
+
+	if (dst_pmap->pm_stage != src_pmap->pm_stage)
+		return (EINVAL);
+
+	if (dst_pmap->pm_stage != PM_STAGE1 || src_pmap->pm_bti == NULL)
+		return (0);
+
+	for (;;) {
+		if (dst_pmap < src_pmap) {
+			PMAP_LOCK(dst_pmap);
+			PMAP_LOCK(src_pmap);
+		} else {
+			PMAP_LOCK(src_pmap);
+			PMAP_LOCK(dst_pmap);
+		}
+		error = pmap_bti_copy(dst_pmap, src_pmap);
+		/* Clean up partial copy on failure due to no memory. */
+		if (error == ENOMEM)
+			pmap_bti_deassign_all(dst_pmap);
+		PMAP_UNLOCK(src_pmap);
+		PMAP_UNLOCK(dst_pmap);
+		if (error != ENOMEM)
+			break;
+		vm_wait(NULL);
+	}
+	return (error);
+}
+
 /*
  *	pmap_zero_page zeros the specified hardware page by mapping
  *	the page into KVM and using bzero to clear its contents.
@@ -5907,6 +5984,7 @@ pmap_remove_pages(pmap_t pmap)
 	if (lock != NULL)
 		rw_wunlock(lock);
 	pmap_invalidate_all(pmap);
+	pmap_bti_deassign_all(pmap);
 	free_pv_chunk_batch(free_chunks);
 	PMAP_UNLOCK(pmap);
 	vm_page_free_pages_toq(&free, true);
@@ -7437,6 +7515,29 @@ pmap_set_cnp(void *arg)
 }
 
 /*
+ * Defer enabling some features until we have read the ID registers to know
+ * if they are supported on all CPUs.
+ */
+static void
+pmap_init_mp(void *dummy __unused)
+{
+	uint64_t reg;
+
+	if (get_kernel_reg(ID_AA64PFR1_EL1, &reg)) {
+		if (ID_AA64PFR1_BT_VAL(reg) != ID_AA64PFR1_BT_NONE) {
+			if (bootverbose)
+				printf("Enabling BTI\n");
+			pmap_bti_support = true;
+
+			pmap_bti_ranges_zone = uma_zcreate("BTI ranges",
+			    sizeof(struct rs_el), NULL, NULL, NULL, NULL,
+			    UMA_ALIGN_PTR, 0);
+		}
+	}
+}
+SYSINIT(pmap_init_mp, SI_SUB_CPU, SI_ORDER_ANY, pmap_init_mp, NULL);
+
+/*
  * Defer enabling CnP until we have read the ID registers to know if it's
  * supported on all CPUs.
  */
@@ -7871,8 +7972,85 @@ pmap_is_valid_memattr(pmap_t pmap __unused, vm_memattr_t mode)
 	return (mode >= VM_MEMATTR_DEVICE && mode <= VM_MEMATTR_WRITE_THROUGH);
 }
 
+static void *
+bti_dup_range(void *ctx __unused, void *data)
+{
+	struct rs_el *node, *new_node;
+
+	new_node = uma_zalloc(pmap_bti_ranges_zone, M_NOWAIT);
+	if (new_node == NULL)
+		return (NULL);
+	node = data;
+	memcpy(new_node, node, sizeof(*node));
+	return (new_node);
+}
+
+static void
+bti_free_range(void *ctx __unused, void *node)
+{
+
+	uma_zfree(pmap_bti_ranges_zone, node);
+}
+
+static int
+pmap_bti_assign(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+{
+	struct rs_el *rs;
+	int error;
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	PMAP_ASSERT_STAGE1(pmap);
+	MPASS(pmap->pm_bti != NULL);
+	rs = uma_zalloc(pmap_bti_ranges_zone, M_NOWAIT);
+	if (rs == NULL)
+		return (ENOMEM);
+	error = rangeset_insert(pmap->pm_bti, sva, eva, rs);
+	if (error != 0)
+		uma_zfree(pmap_bti_ranges_zone, rs);
+	return (error);
+}
+
+static void
+pmap_bti_deassign_all(pmap_t pmap)
+{
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	if (pmap->pm_bti != NULL)
+		rangeset_remove_all(pmap->pm_bti);
+}
+
+static bool
+pmap_bti_same(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+{
+	struct rs_el *prev_rs, *rs;
+	vm_offset_t va;
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	KASSERT(ADDR_IS_CANONICAL(sva),
+	    ("%s: Start address not in canonical form: %lx", __func__, sva));
+	KASSERT(ADDR_IS_CANONICAL(eva),
+	    ("%s: End address not in canonical form: %lx", __func__, eva));
+
+	if (pmap->pm_bti == NULL || ADDR_IS_KERNEL(sva))
+		return (true);
+	MPASS(!ADDR_IS_KERNEL(eva));
+	for (va = sva; va < eva; prev_rs = rs) {
+		rs = rangeset_lookup(pmap->pm_bti, va);
+		if (va == sva)
+			prev_rs = rs;
+		else if ((rs == NULL) ^ (prev_rs == NULL))
+			return (false);
+		if (rs == NULL) {
+			va += PAGE_SIZE;
+			continue;
+		}
+		va = rs->re_end;
+	}
+	return (true);
+}
+
 static pt_entry_t
-pmap_pte_bti(pmap_t pmap, vm_offset_t va __diagused)
+pmap_pte_bti(pmap_t pmap, vm_offset_t va)
 {
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	MPASS(ADDR_IS_CANONICAL(va));
@@ -7881,7 +8059,71 @@ pmap_pte_bti(pmap_t pmap, vm_offset_t va __diagused)
 		return (0);
 	if (pmap == kernel_pmap)
 		return (ATTR_KERN_GP);
+	if (pmap->pm_bti != NULL && rangeset_lookup(pmap->pm_bti, va) != NULL)
+		return (ATTR_S1_GP);
 	return (0);
+}
+
+static void
+pmap_bti_on_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+{
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	if (pmap->pm_bti != NULL)
+		rangeset_remove(pmap->pm_bti, sva, eva);
+}
+
+static int
+pmap_bti_copy(pmap_t dst_pmap, pmap_t src_pmap)
+{
+
+	PMAP_LOCK_ASSERT(dst_pmap, MA_OWNED);
+	PMAP_LOCK_ASSERT(src_pmap, MA_OWNED);
+	MPASS(src_pmap->pm_stage == dst_pmap->pm_stage);
+	MPASS(src_pmap->pm_bti != NULL);
+	MPASS(dst_pmap->pm_bti != NULL);
+	if (src_pmap->pm_bti->rs_data_ctx == NULL)
+		return (0);
+	return (rangeset_copy(dst_pmap->pm_bti, src_pmap->pm_bti));
+}
+
+static void
+pmap_bti_update_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, bool set)
+{
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	PMAP_ASSERT_STAGE1(pmap);
+
+	pmap_mask_set_locked(pmap, sva, eva, ATTR_S1_GP, set ? ATTR_S1_GP : 0,
+	    true);
+}
+
+int
+pmap_bti_set(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+{
+	int error;
+
+	if (pmap->pm_bti == NULL)
+		return (0);
+	if (!ADDR_IS_CANONICAL(sva) || !ADDR_IS_CANONICAL(eva))
+		return (EINVAL);
+	if (pmap->pm_stage != PM_STAGE1)
+		return (EINVAL);
+	if (eva <= sva || ADDR_IS_KERNEL(eva))
+		return (EFAULT);
+
+	sva = trunc_page(sva);
+	eva = round_page(eva);
+	for (;;) {
+		PMAP_LOCK(pmap);
+		error = pmap_bti_assign(pmap, sva, eva);
+		if (error == 0)
+			pmap_bti_update_range(pmap, sva, eva, true);
+		PMAP_UNLOCK(pmap);
+		if (error != ENOMEM)
+			break;
+		vm_wait(NULL);
+	}
+	return (error);
 }
 
 #if defined(KASAN) || defined(KMSAN)
