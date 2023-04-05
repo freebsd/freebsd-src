@@ -2539,32 +2539,28 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		return (m);
 	}
 
-#if (defined(INET) || defined(INET6))
-#   define OR_CARP_CHECK_WE_ARE_DST(iface) \
-	|| ((iface)->if_carp \
-	    && (*carp_forus_p)((iface), eh->ether_dhost))
-#   define OR_CARP_CHECK_WE_ARE_SRC(iface) \
-	|| ((iface)->if_carp \
-	    && (*carp_forus_p)((iface), eh->ether_shost))
+#if defined(INET) || defined(INET6)
+#define	CARP_CHECK_WE_ARE_DST(iface) \
+	((iface)->if_carp && (*carp_forus_p)((iface), eh->ether_dhost))
+#define	CARP_CHECK_WE_ARE_SRC(iface) \
+	((iface)->if_carp && (*carp_forus_p)((iface), eh->ether_shost))
 #else
-#   define OR_CARP_CHECK_WE_ARE_DST(iface)
-#   define OR_CARP_CHECK_WE_ARE_SRC(iface)
+#define	CARP_CHECK_WE_ARE_DST(iface)	false
+#define	CARP_CHECK_WE_ARE_SRC(iface)	false
 #endif
 
 #ifdef INET6
-#   define OR_PFIL_HOOKED_INET6 \
-	|| PFIL_HOOKED_IN(V_inet6_pfil_head)
+#define	PFIL_HOOKED_INET6	PFIL_HOOKED_IN(V_inet6_pfil_head)
 #else
-#   define OR_PFIL_HOOKED_INET6
+#define	PFIL_HOOKED_INET6	false
 #endif
 
-#define GRAB_OUR_PACKETS(iface) \
-	if ((iface)->if_type == IFT_GIF) \
-		continue; \
-	/* It is destined for us. */ \
-	if (memcmp(IF_LLADDR((iface)), eh->ether_dhost,  ETHER_ADDR_LEN) == 0 \
-	    OR_CARP_CHECK_WE_ARE_DST((iface))				\
-	    ) {								\
+#define GRAB_OUR_PACKETS(iface)						\
+	if ((iface)->if_type == IFT_GIF)				\
+		continue;						\
+	/* It is destined for us. */					\
+	if (memcmp(IF_LLADDR(iface), eh->ether_dhost, ETHER_ADDR_LEN) == 0 || \
+	    CARP_CHECK_WE_ARE_DST(iface)) {				\
 		if (bif->bif_flags & IFBIF_LEARNING) {			\
 			error = bridge_rtupdate(sc, eh->ether_shost,	\
 			    vlan, bif, 0, IFBAF_DYNAMIC);		\
@@ -2583,8 +2579,8 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		if_inc_counter(bifp, IFCOUNTER_IPACKETS, 1);		\
 		if_inc_counter(bifp, IFCOUNTER_IBYTES, m->m_pkthdr.len); \
 		/* Filter on the physical interface. */			\
-		if (V_pfil_local_phys && (PFIL_HOOKED_IN(V_inet_pfil_head) \
-		     OR_PFIL_HOOKED_INET6)) {				\
+		if (V_pfil_local_phys && (PFIL_HOOKED_IN(V_inet_pfil_head) || \
+		    PFIL_HOOKED_INET6)) {				\
 			if (bridge_pfil(&m, NULL, ifp,			\
 			    PFIL_IN) != 0 || m == NULL) {		\
 				return (NULL);				\
@@ -2596,9 +2592,8 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 	}								\
 									\
 	/* We just received a packet that we sent out. */		\
-	if (memcmp(IF_LLADDR((iface)), eh->ether_shost, ETHER_ADDR_LEN) == 0 \
-	    OR_CARP_CHECK_WE_ARE_SRC((iface))			\
-	    ) {								\
+	if (memcmp(IF_LLADDR(iface), eh->ether_shost, ETHER_ADDR_LEN) == 0 || \
+	    CARP_CHECK_WE_ARE_SRC(iface)) {				\
 		m_freem(m);						\
 		return (NULL);						\
 	}
@@ -2622,9 +2617,9 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		GRAB_OUR_PACKETS(bif2->bif_ifp)
 	}
 
-#undef OR_CARP_CHECK_WE_ARE_DST
-#undef OR_CARP_CHECK_WE_ARE_SRC
-#undef OR_PFIL_HOOKED_INET6
+#undef CARP_CHECK_WE_ARE_DST
+#undef CARP_CHECK_WE_ARE_SRC
+#undef PFIL_HOOKED_INET6
 #undef GRAB_OUR_PACKETS
 
 	/* Perform the bridge forwarding function. */
