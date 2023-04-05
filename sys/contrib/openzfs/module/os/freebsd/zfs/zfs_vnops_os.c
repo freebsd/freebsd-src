@@ -6290,7 +6290,7 @@ zfs_freebsd_copy_file_range(struct vop_copy_file_range_args *ap)
 		goto unlock;
 
 	error = zfs_clone_range(VTOZ(invp), ap->a_inoffp, VTOZ(outvp),
-	    ap->a_outoffp, &len, ap->a_fsizetd->td_ucred);
+	    ap->a_outoffp, &len, ap->a_outcred);
 	*ap->a_lenp = (size_t)len;
 
 unlock:
