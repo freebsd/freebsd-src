@@ -50,4 +50,4 @@ int acpi_device_add_res_fixed_memory32(struct acpi_device *dev,
     UINT8 write_protected, UINT32 address, UINT32 length);
 
 int acpi_device_build_table(const struct acpi_device *dev);
-void acpi_device_write_dsdt(const struct acpi_device *dev);
+int acpi_device_write_dsdt(const struct acpi_device *dev);
