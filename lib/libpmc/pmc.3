@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 3, 2022
+.Dd April 5, 2023
 .Dt PMC 3
 .Os
 .Sh NAME
@@ -138,46 +138,6 @@ CPUs.
 .It Li PMC_CPU_AMD_K8
 .Tn "AMD Athlon64"
 CPUs.
-.It Li PMC_CPU_INTEL_ATOM
-.Tn Intel
-.Tn Atom
-CPUs and other CPUs conforming to version 3 of the
-.Tn Intel
-performance measurement architecture.
-.It Li PMC_CPU_INTEL_CORE
-.Tn Intel
-.Tn Core Solo
-and
-.Tn Core Duo
-CPUs, and other CPUs conforming to version 1 of the
-.Tn Intel
-performance measurement architecture.
-.It Li PMC_CPU_INTEL_CORE2
-.Tn Intel
-.Tn "Core2 Solo" ,
-.Tn "Core2 Duo"
-and
-.Tn "Core2 Extreme"
-CPUs, and other CPUs conforming to version 2 of the
-.Tn Intel
-performance measurement architecture.
-.It Li PMC_CPU_PPC_7450
-.Tn PowerPC
-MPC7450 CPUs.
-.It Li PMC_CPU_PPC_E500
-.Tn PowerPC
-e500 Core CPUs.
-.It Li PMC_CPU_PPC_970
-.Tn IBM
-.Tn PowerPC
-970 CPUs.
-.It Li PMC_CPU_PPC_POWER8
-.Tn IBM
-.Tn POWER8 and
-.Tn POWER9
-CPUs.
-.It Li GENERIC
-Generic
 .It Li PMC_CPU_ARMV7_CORTEX_A5
 .Tn ARMv7
 .Tn Cortex A5
@@ -212,6 +172,46 @@ CPUs.
 .It Li PMC_CPU_ARMV8_CORTEX_A76
 ARMv8
 .Tn Cortex A76
+CPUs.
+.It Li GENERIC
+Generic
+.It Li PMC_CPU_INTEL_ATOM
+.Tn Intel
+.Tn Atom
+CPUs and other CPUs conforming to version 3 of the
+.Tn Intel
+performance measurement architecture.
+.It Li PMC_CPU_INTEL_CORE
+.Tn Intel
+.Tn Core Solo
+and
+.Tn Core Duo
+CPUs, and other CPUs conforming to version 1 of the
+.Tn Intel
+performance measurement architecture.
+.It Li PMC_CPU_INTEL_CORE2
+.Tn Intel
+.Tn "Core2 Solo" ,
+.Tn "Core2 Duo"
+and
+.Tn "Core2 Extreme"
+CPUs, and other CPUs conforming to version 2 of the
+.Tn Intel
+performance measurement architecture.
+.It Li PMC_CPU_PPC_7450
+.Tn PowerPC
+MPC7450 CPUs.
+.It Li PMC_CPU_PPC_970
+.Tn IBM
+.Tn PowerPC
+970 CPUs.
+.It Li PMC_CPU_PPC_E500
+.Tn PowerPC
+e500 Core CPUs.
+.It Li PMC_CPU_PPC_POWER8
+.Tn IBM
+.Tn POWER8 and
+.Tn POWER9
 CPUs.
 .El
 .Ss Supported PMCs
