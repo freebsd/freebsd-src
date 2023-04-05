@@ -229,6 +229,7 @@ enum ib_device_cap_flags {
 	IB_DEVICE_SG_GAPS_REG			= (1ULL << 32),
 	IB_DEVICE_VIRTUAL_FUNCTION		= (1ULL << 33),
 	IB_DEVICE_RAW_SCATTER_FCS		= (1ULL << 34),
+	IB_DEVICE_KNOWSEPOCH			= (1ULL << 35),
 };
 
 enum ib_signature_prot_cap {

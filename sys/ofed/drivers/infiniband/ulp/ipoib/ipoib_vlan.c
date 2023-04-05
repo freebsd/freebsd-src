@@ -89,7 +89,7 @@ int ipoib_vlan_add(struct ifnet *pdev, unsigned short pkey)
 
 	snprintf(intf_name, sizeof intf_name, "%s.%04x",
 		 ppriv->dev->name, pkey);
-	priv = ipoib_intf_alloc(intf_name);
+	priv = ipoib_intf_alloc(intf_name, ppriv->ca);
 	if (!priv) {
 		result = -ENOMEM;
 		goto err;

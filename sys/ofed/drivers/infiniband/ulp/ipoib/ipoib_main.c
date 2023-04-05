@@ -902,7 +902,7 @@ ipoib_priv_alloc(void)
 }
 
 struct ipoib_dev_priv *
-ipoib_intf_alloc(const char *name)
+ipoib_intf_alloc(const char *name, struct ib_device *hca)
 {
 	struct ipoib_dev_priv *priv;
 	struct ifnet *dev;
@@ -923,6 +923,8 @@ ipoib_intf_alloc(const char *name)
 	}
 	if_initname(dev, name, priv->unit);
 	dev->if_flags = IFF_BROADCAST | IFF_MULTICAST;
+	if (hca->attrs.device_cap_flags & IB_DEVICE_KNOWSEPOCH)
+		dev->if_flags |= IFF_KNOWSEPOCH;
 
 	infiniband_ifattach(priv->dev, NULL, priv->broadcastaddr);
 
@@ -977,7 +979,7 @@ ipoib_add_port(const char *format, struct ib_device *hca, u8 port)
 	struct ib_port_attr attr;
 	int result = -ENOMEM;
 
-	priv = ipoib_intf_alloc(format);
+	priv = ipoib_intf_alloc(format, hca);
 	if (!priv)
 		goto alloc_mem_failed;
 
