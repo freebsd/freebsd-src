@@ -39,6 +39,13 @@
 #ifndef _MACHINE_SYSARCH_H_
 #define	_MACHINE_SYSARCH_H_
 
+#define	ARM64_GUARD_PAGE	0x100
+
+struct arm64_guard_page_args {
+	__uintptr_t	addr;
+	__size_t	len;
+};
+
 #ifndef _KERNEL
 
 __BEGIN_DECLS
