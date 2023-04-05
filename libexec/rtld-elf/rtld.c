@@ -1729,6 +1729,9 @@ digest_notes(Obj_Entry *obj, Elf_Addr note_start, Elf_Addr note_end)
 	    note = (const Elf_Note *)((const char *)(note + 1) +
 	      roundup2(note->n_namesz, sizeof(Elf32_Addr)) +
 	      roundup2(note->n_descsz, sizeof(Elf32_Addr)))) {
+		if (arch_digest_note(obj, note))
+			continue;
+
 		if (note->n_namesz != sizeof(NOTE_FREEBSD_VENDOR) ||
 		    note->n_descsz != sizeof(int32_t))
 			continue;
