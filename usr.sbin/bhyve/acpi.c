@@ -245,7 +245,7 @@ basl_fwrite_dsdt(FILE *fp)
 
 	const struct acpi_device_list_entry *entry;
 	SLIST_FOREACH(entry, &acpi_devices, chain) {
-		acpi_device_write_dsdt(entry->dev);
+		BASL_EXEC(acpi_device_write_dsdt(entry->dev));
 	}
 
 	dsdt_line("}");
