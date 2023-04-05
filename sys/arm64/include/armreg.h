@@ -411,6 +411,7 @@
 #define	 EXCP_UNKNOWN		0x00	/* Unkwn exception */
 #define	 EXCP_TRAP_WFI_WFE	0x01	/* Trapped WFI or WFE */
 #define	 EXCP_FP_SIMD		0x07	/* VFP/SIMD trap */
+#define	 EXCP_BTI		0x0d	/* Branch Target Exception */
 #define	 EXCP_ILL_STATE		0x0e	/* Illegal execution state */
 #define	 EXCP_SVC32		0x11	/* SVC trap for AArch32 */
 #define	 EXCP_SVC64		0x15	/* SVC trap for AArch64 */
