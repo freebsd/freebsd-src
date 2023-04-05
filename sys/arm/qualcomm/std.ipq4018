@@ -55,3 +55,10 @@ dev/qcom_tlmm/qcom_tlmm_pinmux.c	optional qcom_tlmm_ipq4018
 dev/qcom_tcsr/qcom_tcsr.c		optional qcom_tcsr
 
 dev/qcom_mdio/qcom_mdio_ipq4018.c	optional qcom_mdio_ipq4018
+
+dev/qcom_ess_edma/qcom_ess_edma.c	optional qcom_ess_edma
+dev/qcom_ess_edma/qcom_ess_edma_desc.c	optional qcom_ess_edma
+dev/qcom_ess_edma/qcom_ess_edma_gmac.c	optional qcom_ess_edma
+dev/qcom_ess_edma/qcom_ess_edma_hw.c	optional qcom_ess_edma
+dev/qcom_ess_edma/qcom_ess_edma_rx.c	optional qcom_ess_edma
+dev/qcom_ess_edma/qcom_ess_edma_tx.c	optional qcom_ess_edma
