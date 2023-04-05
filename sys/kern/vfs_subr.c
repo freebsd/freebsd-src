@@ -1800,6 +1800,10 @@ getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
 
 	KASSERT(vops->registered,
 	    ("%s: not registered vector op %p\n", __func__, vops));
+	if (mp != NULL && (mp->mnt_kern_flag & MNTK_FPLOOKUP) != 0) {
+		MPASS(vops->vop_fplookup_vexec != VOP_PANIC);
+		MPASS(vops->vop_fplookup_symlink != VOP_PANIC);
+	}
 
 	td = curthread;
 	if (td->td_vp_reserved != NULL) {
