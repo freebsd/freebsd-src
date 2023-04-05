@@ -110,14 +110,12 @@ cd9660_add_boot_disk(iso9660_disk *diskStructure, const char *boot_info)
 		new_image->system = ET_SYS_X86;
 	else if (strcmp(sysname, "powerpc") == 0)
 		new_image->system = ET_SYS_PPC;
-	else if (strcmp(sysname, "macppc") == 0 ||
-	         strcmp(sysname, "mac68k") == 0)
+	else if (strcmp(sysname, "macppc") == 0)
 		new_image->system = ET_SYS_MAC;
 	else if (strcmp(sysname, "efi") == 0)
 		new_image->system = ET_SYS_EFI;
 	else {
-		warnx("boot disk system must be "
-		      "i386, powerpc, macppc, mac68k, or efi");
+		warnx("boot disk system must be i386, powerpc, macppc, or efi");
 		free(temp);
 		free(new_image);
 		return 0;
