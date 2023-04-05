@@ -29,6 +29,8 @@
 
 #include <sys/types.h>
 
+#include <machine/sysarch.h>
+
 #include <stdlib.h>
 
 #include "debug.h"
@@ -51,6 +53,51 @@ void *_rtld_tlsdesc_undef(void *);
 void *_rtld_tlsdesc_dynamic(void *);
 
 void _exit(int);
+
+bool
+arch_digest_note(struct Struct_Obj_Entry *obj __unused, const Elf_Note *note)
+{
+	const char *note_name;
+	const uint32_t *note_data;
+
+	note_name = (const char *)(note + 1);
+	/* Only handle GNU notes */
+	if (note->n_namesz != sizeof(ELF_NOTE_GNU) ||
+	    strncmp(note_name, ELF_NOTE_GNU, sizeof(ELF_NOTE_GNU)) != 0)
+		return (false);
+
+	/* Only handle GNU property notes */
+	if (note->n_type != NT_GNU_PROPERTY_TYPE_0)
+		return (false);
+
+	/*
+	 * note_data[0] - Type
+	 * note_data[1] - Length
+	 * note_data[2] - Data
+	 * note_data[3] - Padding?
+	 */
+	note_data = (const uint32_t *)(note_name + note->n_namesz);
+
+	/* Only handle AArch64 feature notes */
+	if (note_data[0] != GNU_PROPERTY_AARCH64_FEATURE_1_AND)
+		return (false);
+
+	/* We expect at least 4 bytes of data */
+	if (note_data[1] < 4)
+		return (false);
+
+	/* TODO: Only guard if HWCAP2_BTI is set */
+	if ((note_data[2] & GNU_PROPERTY_AARCH64_FEATURE_1_BTI) != 0) {
+		struct arm64_guard_page_args guard;
+
+		guard.addr = (uintptr_t)obj->mapbase;
+		guard.len = obj->mapsize;
+
+		sysarch(ARM64_GUARD_PAGE, &guard);
+	}
+
+	return (true);
+}
 
 void
 init_pltgot(Obj_Entry *obj)
