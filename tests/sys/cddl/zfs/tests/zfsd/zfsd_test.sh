@@ -538,6 +538,62 @@ zfsd_replace_003_pos_cleanup()
 	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
 }
 
+atf_test_case zfsd_replace_004_pos cleanup
+zfsd_replace_004_pos_head()
+{
+	atf_set "descr" "ZFSD will automatically replace a spare that disappears and reappears in the same location, with the same devname"
+	atf_set "require.progs" "ksh93 zpool zfs gnop"
+}
+zfsd_replace_004_pos_body()
+{
+	. $(atf_get_srcdir)/../../include/default.cfg
+	. $(atf_get_srcdir)/zfsd.cfg
+
+	verify_disk_count "$DISKS" 2
+	verify_zfsd_running
+	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
+	ksh93 $(atf_get_srcdir)/zfsd_replace_004_pos.ksh
+	if [[ $? != 0 ]]; then
+		save_artifacts
+		atf_fail "Testcase failed"
+	fi
+}
+zfsd_replace_004_pos_cleanup()
+{
+	. $(atf_get_srcdir)/../../include/default.cfg
+	. $(atf_get_srcdir)/zfsd.cfg
+
+	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
+}
+
+atf_test_case zfsd_replace_005_pos cleanup
+zfsd_replace_005_pos_head()
+{
+	atf_set "descr" "ZFSD will automatically replace a multi-pool spare that disappears and reappears"
+	atf_set "require.progs" "ksh93 zpool zfs gnop"
+}
+zfsd_replace_005_pos_body()
+{
+	. $(atf_get_srcdir)/../../include/default.cfg
+	. $(atf_get_srcdir)/zfsd.cfg
+
+	verify_disk_count "$DISKS" 3
+	verify_zfsd_running
+	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
+	ksh93 $(atf_get_srcdir)/zfsd_replace_005_pos.ksh
+	if [[ $? != 0 ]]; then
+		save_artifacts
+		atf_fail "Testcase failed"
+	fi
+}
+zfsd_replace_005_pos_cleanup()
+{
+	. $(atf_get_srcdir)/../../include/default.cfg
+	. $(atf_get_srcdir)/zfsd.cfg
+
+	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
+}
+
 atf_test_case zfsd_import_001_pos cleanup
 zfsd_import_001_pos_head()
 {
@@ -591,6 +647,8 @@ atf_init_test_cases()
 	atf_add_test_case zfsd_replace_001_pos
 	atf_add_test_case zfsd_replace_002_pos
 	atf_add_test_case zfsd_replace_003_pos
+	atf_add_test_case zfsd_replace_004_pos
+	atf_add_test_case zfsd_replace_005_pos
 	atf_add_test_case zfsd_import_001_pos
 }
 
