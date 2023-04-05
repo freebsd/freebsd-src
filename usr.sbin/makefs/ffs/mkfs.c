@@ -529,8 +529,9 @@ ffs_mkfs(const char *fsys, const fsinfo_t *fsopts, time_t tstamp)
 		initcg(cylno, tstamp, fsopts);
 		if (cylno % nprintcols == 0)
 			printf("\n");
-		printf(" %*lld,", printcolwidth,
-			(long long)fsbtodb(&sblock, cgsblock(&sblock, cylno)));
+		printf(" %*lld%s", printcolwidth,
+		    (long long)fsbtodb(&sblock, cgsblock(&sblock, cylno)),
+		    cylno == sblock.fs_ncg - 1 ? "" : ",");
 		fflush(stdout);
 	}
 	printf("\n");
