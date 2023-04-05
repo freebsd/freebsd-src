@@ -1004,7 +1004,7 @@ infinite_options2(struct TestContext *ctx)
 	printf("Testing infinite list of options on %s (valid options)\n", ctx->ifname_ext);
 
 	memset(&opt, 0, sizeof(opt));
-	opt.nro_reqtype = NETMAP_REQ_OPT_OFFSETS;
+	opt.nro_reqtype = NETMAP_REQ_OPT_CSB;
 	push_option(&opt, ctx);
 	opt.nro_next = (uintptr_t)&opt;
 	if (port_register_hwall(ctx) >= 0)
