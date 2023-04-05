@@ -35,15 +35,20 @@ function wait_for_pool_dev_state_change
 	typeset -i timeout=$1
 	typeset disk=$2
 	typeset state=$3
+	typeset pool=$4
+
+	if [ -z "$pool" ]; then
+		pool=$TESTPOOL
+	fi
 
 	log_note "Waiting up to $timeout seconds for $disk to become $state ..."
 	for ((; $timeout > 0; timeout=$timeout-1)); do
-		check_state $TESTPOOL "$disk" "$state"
+		check_state $pool "$disk" "$state"
 		[ $? -eq 0 ] && return
 		$SLEEP 1
 	done
-	log_must $ZPOOL status $TESTPOOL
-	log_fail "ERROR: Disk $disk not marked as $state in $TESTPOOL"
+	log_must $ZPOOL status $pool
+	log_fail "ERROR: Disk $disk not marked as $state in $pool"
 }
 
 function wait_for_pool_removal
