@@ -459,7 +459,7 @@ void ipoib_reap_ah(struct work_struct *work);
 
 void ipoib_mark_paths_invalid(struct ipoib_dev_priv *priv);
 void ipoib_flush_paths(struct ipoib_dev_priv *priv);
-struct ipoib_dev_priv *ipoib_intf_alloc(const char *format);
+struct ipoib_dev_priv *ipoib_intf_alloc(const char *format, struct ib_device *ca);
 
 int ipoib_ib_dev_init(struct ipoib_dev_priv *priv, struct ib_device *ca,
     int port);
