@@ -325,10 +325,17 @@ freebsd_generic_rx_handler(struct ifnet *ifp, struct mbuf *m)
 		return;
 	}
 
-	stolen = generic_rx_handler(ifp, m);
-	if (!stolen) {
-		NA(ifp)->if_input(ifp, m);
-	}
+	do {
+		struct mbuf *n;
+
+		n = m->m_nextpkt;
+		m->m_nextpkt = NULL;
+		stolen = generic_rx_handler(ifp, m);
+		if (!stolen) {
+			NA(ifp)->if_input(ifp, m);
+		}
+		m = n;
+	} while (m != NULL);
 }
 
 /*
