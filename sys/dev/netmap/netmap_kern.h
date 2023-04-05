@@ -501,6 +501,9 @@ struct netmap_kring {
 	struct mbuf	**tx_pool;
 	struct mbuf	*tx_event;	/* TX event used as a notification */
 	NM_LOCK_T	tx_event_lock;	/* protects the tx_event mbuf */
+#ifdef __FreeBSD__
+	struct callout	tx_event_callout;
+#endif
 	struct mbq	rx_queue;       /* intercepted rx mbufs. */
 
 	uint32_t	users;		/* existing bindings for this ring */
@@ -2381,39 +2384,59 @@ ptnet_sync_tail(struct nm_csb_ktoa *ktoa, struct netmap_kring *kring)
  *
  * We allocate mbufs with m_gethdr(), since the mbuf header is needed
  * by the driver. We also attach a customly-provided external storage,
- * which in this case is a netmap buffer. When calling m_extadd(), however
- * we pass a NULL address, since the real address (and length) will be
- * filled in by nm_os_generic_xmit_frame() right before calling
- * if_transmit().
+ * which in this case is a netmap buffer.
  *
  * The dtor function does nothing, however we need it since mb_free_ext()
  * has a KASSERT(), checking that the mbuf dtor function is not NULL.
  */
 
-static void void_mbuf_dtor(struct mbuf *m) { }
+static inline void
+nm_generic_mbuf_dtor(struct mbuf *m)
+{
+	uma_zfree(zone_clust, m->m_ext.ext_buf);
+}
 
 #define SET_MBUF_DESTRUCTOR(m, fn)	do {		\
 	(m)->m_ext.ext_free = (fn != NULL) ?		\
-	    (void *)fn : (void *)void_mbuf_dtor;	\
+	    (void *)fn : (void *)nm_generic_mbuf_dtor;	\
 } while (0)
 
 static inline struct mbuf *
-nm_os_get_mbuf(if_t ifp, int len)
+nm_os_get_mbuf(if_t ifp __unused, int len)
 {
 	struct mbuf *m;
+	void *buf;
 
-	(void)ifp;
-	(void)len;
+	KASSERT(len <= MCLBYTES, ("%s: len %d", __func__, len));
 
 	m = m_gethdr(M_NOWAIT, MT_DATA);
-	if (m == NULL) {
-		return m;
+	if (__predict_false(m == NULL))
+		return (NULL);
+	buf = uma_zalloc(zone_clust, M_NOWAIT);
+	if (__predict_false(buf == NULL)) {
+		m_free(m);
+		return (NULL);
 	}
+	m_extadd(m, buf, MCLBYTES, nm_generic_mbuf_dtor, NULL, NULL, 0,
+	    EXT_NET_DRV);
+	return (m);
+}
 
-	m_extadd(m, NULL /* buf */, 0 /* size */, void_mbuf_dtor,
-		 NULL, NULL, 0, EXT_NET_DRV);
+static inline void
+nm_os_mbuf_reinit(struct mbuf *m)
+{
+	void *buf;
 
-	return m;
+	KASSERT((m->m_flags & M_EXT) != 0,
+	    ("%s: mbuf %p has no external storage", __func__, m));
+	KASSERT(m->m_ext.ext_size == MCLBYTES,
+	    ("%s: mbuf %p has wrong external storage size %u", __func__, m,
+	    m->m_ext.ext_size));
+
+	buf = m->m_ext.ext_buf;
+	m_init(m, M_NOWAIT, MT_DATA, M_PKTHDR);
+	m_extadd(m, buf, MCLBYTES, nm_generic_mbuf_dtor, NULL, NULL, 0,
+	    EXT_NET_DRV);
 }
 
 #endif /* __FreeBSD__ */

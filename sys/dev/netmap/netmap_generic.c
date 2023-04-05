@@ -272,6 +272,7 @@ generic_netmap_unregister(struct netmap_adapter *na)
 		}
 
 		for_each_tx_kring(r, kring, na) {
+			callout_drain(&kring->tx_event_callout);
 			mtx_destroy(&kring->tx_event_lock);
 			if (kring->tx_pool == NULL) {
 				continue;
@@ -357,6 +358,9 @@ generic_netmap_register(struct netmap_adapter *na, int enable)
 			}
 			mtx_init(&kring->tx_event_lock, "tx_event_lock",
 				 NULL, MTX_SPIN);
+			callout_init_mtx(&kring->tx_event_callout,
+					 &kring->tx_event_lock,
+					 CALLOUT_RETURNUNLOCKED);
 		}
 	}
 
@@ -430,7 +434,7 @@ out:
  * the NIC notifies the driver that transmission is completed.
  */
 static void
-generic_mbuf_destructor(struct mbuf *m)
+generic_mbuf_dtor(struct mbuf *m)
 {
 	struct netmap_adapter *na = NA(GEN_TX_MBUF_IFP(m));
 	struct netmap_kring *kring;
@@ -473,7 +477,14 @@ generic_mbuf_destructor(struct mbuf *m)
 		if (++r == na->num_tx_rings) r = 0;
 
 		if (r == r_orig) {
+#ifndef __FreeBSD__
+			/*
+			 * On FreeBSD this situation can arise if the tx_event
+			 * callout handler cleared a stuck packet.
+			 */
 			nm_prlim(1, "Cannot match event %p", m);
+#endif
+			nm_generic_mbuf_dtor(m);
 			return;
 		}
 	}
@@ -481,9 +492,7 @@ generic_mbuf_destructor(struct mbuf *m)
 	/* Second, wake up clients. They will reclaim the event through
 	 * txsync. */
 	netmap_generic_irq(na, r, NULL);
-#ifdef __FreeBSD__
-	void_mbuf_dtor(m);
-#endif
+	nm_generic_mbuf_dtor(m);
 }
 
 /* Record completed transmissions and update hwtail.
@@ -537,7 +546,6 @@ generic_netmap_tx_clean(struct netmap_kring *kring, int txqdisc)
 				}
 				/* The event has been consumed, we can go
 				 * ahead. */
-
 			} else if (MBUF_REFCNT(m) != 1) {
 				/* This mbuf is still busy: its refcnt is 2. */
 				break;
@@ -576,6 +584,18 @@ ring_middle(u_int inf, u_int sup, u_int lim)
 
 	return e;
 }
+
+#ifdef __FreeBSD__
+static void
+generic_tx_callout(void *arg)
+{
+	struct netmap_kring *kring = arg;
+
+	kring->tx_event = NULL;
+	mtx_unlock_spin(&kring->tx_event_lock);
+	netmap_generic_irq(kring->na, kring->ring_id, NULL);
+}
+#endif
 
 static void
 generic_set_tx_event(struct netmap_kring *kring, u_int hwcur)
@@ -620,8 +640,24 @@ generic_set_tx_event(struct netmap_kring *kring, u_int hwcur)
 		return;
 	}
 
-	SET_MBUF_DESTRUCTOR(m, generic_mbuf_destructor);
+	SET_MBUF_DESTRUCTOR(m, generic_mbuf_dtor);
 	kring->tx_event = m;
+#ifdef __FreeBSD__
+	/*
+	 * Handle the possibility that the transmitted buffer isn't reclaimed
+	 * within a bounded period of time.  This can arise when transmitting
+	 * out of multiple ports via a lagg or bridge interface, since the
+	 * member ports may legitimately only free transmitted buffers in
+	 * batches.
+	 *
+	 * The callout handler clears the stuck packet from the ring, allowing
+	 * transmission to proceed.  In the common case we let
+	 * generic_mbuf_dtor() unstick the ring, allowing mbufs to be
+	 * reused most of the time.
+	 */
+	callout_reset_sbt_curcpu(&kring->tx_event_callout, SBT_1MS, 0,
+	    generic_tx_callout, kring, 0);
+#endif
 	mtx_unlock_spin(&kring->tx_event_lock);
 
 	kring->tx_pool[e] = NULL;
@@ -631,9 +667,7 @@ generic_set_tx_event(struct netmap_kring *kring, u_int hwcur)
 	/* Decrement the refcount. This will free it if we lose the race
 	 * with the driver. */
 	m_freem(m);
-	smp_mb();
 }
-
 
 /*
  * generic_netmap_txsync() transforms netmap buffers into mbufs
@@ -712,6 +746,8 @@ generic_netmap_txsync(struct netmap_kring *kring, int flags)
 					break;
 				}
 				IFRATE(rate_ctx.new.txrepl++);
+			} else {
+				nm_os_mbuf_reinit(m);
 			}
 
 			a.m = m;
@@ -783,9 +819,6 @@ generic_netmap_txsync(struct netmap_kring *kring, int flags)
 #endif
 	}
 
-	/*
-	 * Second, reclaim completed buffers
-	 */
 	if (!gna->txqdisc && (flags & NAF_FORCE_RECLAIM || nm_kr_txempty(kring))) {
 		/* No more available slots? Set a notification event
 		 * on a netmap slot that will be cleaned in the future.
@@ -795,6 +828,9 @@ generic_netmap_txsync(struct netmap_kring *kring, int flags)
 		generic_set_tx_event(kring, nm_i);
 	}
 
+	/*
+	 * Second, reclaim completed buffers
+	 */
 	generic_netmap_tx_clean(kring, gna->txqdisc);
 
 	return 0;
