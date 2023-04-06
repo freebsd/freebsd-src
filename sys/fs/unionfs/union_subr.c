@@ -388,7 +388,8 @@ unionfs_nodeget(struct mount *mp, struct vnode *uppervp,
 	KASSERT(dvp != NULL || (vp->v_vflag & VV_ROOT) != 0,
 	    ("%s: NULL dvp for non-root vp %p", __func__, vp));
 
-	vn_lock_pair(lowervp, false, uppervp, false); 
+	vn_lock_pair(lowervp, false, LK_EXCLUSIVE, uppervp, false,
+	    LK_EXCLUSIVE);
 	error = insmntque1(vp, mp);
 	if (error != 0) {
 		unionfs_nodeget_cleanup(vp, unp);
