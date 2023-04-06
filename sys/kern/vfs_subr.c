@@ -4987,6 +4987,8 @@ static struct vop_vector sync_vnodeops = {
 	.vop_lock1 =	vop_stdlock,
 	.vop_unlock =	vop_stdunlock,
 	.vop_islocked =	vop_stdislocked,
+	.vop_fplookup_vexec = VOP_EAGAIN,
+	.vop_fplookup_symlink = VOP_EAGAIN,
 };
 VFS_VOP_VECTOR_REGISTER(sync_vnodeops);
 
