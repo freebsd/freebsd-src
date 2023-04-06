@@ -85,6 +85,7 @@ static void l2_packet_receive(int sock, void *eloop_ctx, void *sock_ctx)
 
 	if (pcap_next_ex(pcap, &hdr, &packet) == -1) {
 		wpa_printf(MSG_ERROR, "Error reading packet, has device disappeared?");
+		packet = NULL;
 		eloop_terminate();
 	}
 
