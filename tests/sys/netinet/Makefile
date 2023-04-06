@@ -24,6 +24,8 @@ ATF_TESTS_SH=	arp \
 		output \
 		redirect
 
+ATF_TESTS_PYTEST+=	carp.py
+
 TEST_METADATA.divert+=	required_programs="python"
 TEST_METADATA.forward+=	required_programs="python"
 TEST_METADATA.output+=	required_programs="python"
