@@ -3868,50 +3868,74 @@ vn_lock_pair_pause(const char *wmesg)
 
 /*
  * Lock pair of vnodes vp1, vp2, avoiding lock order reversal.
- * vp1_locked indicates whether vp1 is exclusively locked; if not, vp1
- * must be unlocked.  Same for vp2 and vp2_locked.  One of the vnodes
- * can be NULL.
+ * vp1_locked indicates whether vp1 is locked; if not, vp1 must be
+ * unlocked.  Same for vp2 and vp2_locked.  One of the vnodes can be
+ * NULL.
  *
- * The function returns with both vnodes exclusively locked, and
- * guarantees that it does not create lock order reversal with other
- * threads during its execution.  Both vnodes could be unlocked
- * temporary (and reclaimed).
+ * The function returns with both vnodes exclusively or shared locked,
+ * according to corresponding lkflags, and guarantees that it does not
+ * create lock order reversal with other threads during its execution.
+ * Both vnodes could be unlocked temporary (and reclaimed).
+ *
+ * If requesting shared locking, locked vnode lock must not be recursed.
  */
 void
-vn_lock_pair(struct vnode *vp1, bool vp1_locked, struct vnode *vp2,
-    bool vp2_locked)
+vn_lock_pair(struct vnode *vp1, bool vp1_locked, int lkflags1,
+    struct vnode *vp2, bool vp2_locked, int lkflags2)
 {
 	int error;
 
+	MPASS(lkflags1 == LK_SHARED || lkflags1 == LK_EXCLUSIVE);
+	MPASS(lkflags2 == LK_SHARED || lkflags2 == LK_EXCLUSIVE);
+
 	if (vp1 == NULL && vp2 == NULL)
 		return;
+
 	if (vp1 != NULL) {
-		if (vp1_locked)
-			ASSERT_VOP_ELOCKED(vp1, "vp1");
-		else
+		if (lkflags1 == LK_SHARED &&
+		    (vp1->v_vnlock->lock_object.lo_flags & LK_NOSHARE) != 0)
+			lkflags1 = LK_EXCLUSIVE;
+		if (vp1_locked && VOP_ISLOCKED(vp1) != LK_EXCLUSIVE) {
+			ASSERT_VOP_LOCKED(vp1, "vp1");
+			if (lkflags1 == LK_EXCLUSIVE) {
+				VOP_UNLOCK(vp1);
+				ASSERT_VOP_UNLOCKED(vp1,
+				    "vp1 shared recursed");
+				vp1_locked = false;
+			}
+		} else if (!vp1_locked)
 			ASSERT_VOP_UNLOCKED(vp1, "vp1");
 	} else {
 		vp1_locked = true;
 	}
+
 	if (vp2 != NULL) {
-		if (vp2_locked)
-			ASSERT_VOP_ELOCKED(vp2, "vp2");
-		else
+		if (lkflags2 == LK_SHARED &&
+		    (vp2->v_vnlock->lock_object.lo_flags & LK_NOSHARE) != 0)
+			lkflags2 = LK_EXCLUSIVE;
+		if (vp2_locked && VOP_ISLOCKED(vp2) != LK_EXCLUSIVE) {
+			ASSERT_VOP_LOCKED(vp2, "vp2");
+			if (lkflags2 == LK_EXCLUSIVE) {
+				VOP_UNLOCK(vp2);
+				ASSERT_VOP_UNLOCKED(vp2,
+				    "vp2 shared recursed");
+				vp2_locked = false;
+			}
+		} else if (!vp2_locked)
 			ASSERT_VOP_UNLOCKED(vp2, "vp2");
 	} else {
 		vp2_locked = true;
 	}
+
 	if (!vp1_locked && !vp2_locked) {
-		vn_lock(vp1, LK_EXCLUSIVE | LK_RETRY);
+		vn_lock(vp1, lkflags1 | LK_RETRY);
 		vp1_locked = true;
 	}
 
-	for (;;) {
-		if (vp1_locked && vp2_locked)
-			break;
+	while (!vp1_locked || !vp2_locked) {
 		if (vp1_locked && vp2 != NULL) {
 			if (vp1 != NULL) {
-				error = VOP_LOCK1(vp2, LK_EXCLUSIVE | LK_NOWAIT,
+				error = VOP_LOCK1(vp2, lkflags2 | LK_NOWAIT,
 				    __FILE__, __LINE__);
 				if (error == 0)
 					break;
@@ -3919,12 +3943,12 @@ vn_lock_pair(struct vnode *vp1, bool vp1_locked, struct vnode *vp2,
 				vp1_locked = false;
 				vn_lock_pair_pause("vlp1");
 			}
-			vn_lock(vp2, LK_EXCLUSIVE | LK_RETRY);
+			vn_lock(vp2, lkflags2 | LK_RETRY);
 			vp2_locked = true;
 		}
 		if (vp2_locked && vp1 != NULL) {
 			if (vp2 != NULL) {
-				error = VOP_LOCK1(vp1, LK_EXCLUSIVE | LK_NOWAIT,
+				error = VOP_LOCK1(vp1, lkflags1 | LK_NOWAIT,
 				    __FILE__, __LINE__);
 				if (error == 0)
 					break;
@@ -3932,14 +3956,22 @@ vn_lock_pair(struct vnode *vp1, bool vp1_locked, struct vnode *vp2,
 				vp2_locked = false;
 				vn_lock_pair_pause("vlp2");
 			}
-			vn_lock(vp1, LK_EXCLUSIVE | LK_RETRY);
+			vn_lock(vp1, lkflags1 | LK_RETRY);
 			vp1_locked = true;
 		}
 	}
-	if (vp1 != NULL)
-		ASSERT_VOP_ELOCKED(vp1, "vp1 ret");
-	if (vp2 != NULL)
-		ASSERT_VOP_ELOCKED(vp2, "vp2 ret");
+	if (vp1 != NULL) {
+		if (lkflags1 == LK_EXCLUSIVE)
+			ASSERT_VOP_ELOCKED(vp1, "vp1 ret");
+		else
+			ASSERT_VOP_LOCKED(vp1, "vp1 ret");
+	}
+	if (vp2 != NULL) {
+		if (lkflags2 == LK_EXCLUSIVE)
+			ASSERT_VOP_ELOCKED(vp2, "vp2 ret");
+		else
+			ASSERT_VOP_LOCKED(vp2, "vp2 ret");
+	}
 }
 
 int

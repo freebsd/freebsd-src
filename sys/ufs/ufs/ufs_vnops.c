@@ -230,7 +230,7 @@ ufs_sync_nlink(struct vnode *vp, struct vnode *vp1)
 	if (vp1 != NULL)
 		VOP_UNLOCK(vp1);
 	error = ufs_sync_nlink1(mp);
-	vn_lock_pair(vp, false, vp1, false);
+	vn_lock_pair(vp, false, LK_EXCLUSIVE, vp1, false, LK_EXCLUSIVE);
 	return (error);
 }
 

@@ -3323,7 +3323,7 @@ softdep_prelink(struct vnode *dvp,
 	if (vp != NULL) {
 		VOP_UNLOCK(dvp);
 		ffs_syncvnode(vp, MNT_NOWAIT, 0);
-		vn_lock_pair(dvp, false, vp, true);
+		vn_lock_pair(dvp, false, LK_EXCLUSIVE, vp, true, LK_EXCLUSIVE);
 		if (dvp->v_data == NULL)
 			goto out;
 	}
@@ -3335,7 +3335,8 @@ softdep_prelink(struct vnode *dvp,
 		VOP_UNLOCK(dvp);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		if (vp->v_data == NULL) {
-			vn_lock_pair(dvp, false, vp, true);
+			vn_lock_pair(dvp, false, LK_EXCLUSIVE, vp, true,
+			    LK_EXCLUSIVE);
 			goto out;
 		}
 		ACQUIRE_LOCK(ump);
@@ -3345,7 +3346,8 @@ softdep_prelink(struct vnode *dvp,
 		VOP_UNLOCK(vp);
 		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
 		if (dvp->v_data == NULL) {
-			vn_lock_pair(dvp, true, vp, false);
+			vn_lock_pair(dvp, true, LK_EXCLUSIVE, vp, false,
+			    LK_EXCLUSIVE);
 			goto out;
 		}
 	}
@@ -3360,7 +3362,7 @@ softdep_prelink(struct vnode *dvp,
 	journal_check_space(ump);
 	FREE_LOCK(ump);
 
-	vn_lock_pair(dvp, false, vp, false);
+	vn_lock_pair(dvp, false, LK_EXCLUSIVE, vp, false, LK_EXCLUSIVE);
 out:
 	ndp->ni_dvp_seqc = vn_seqc_read_any(dvp);
 	if (vp != NULL)
