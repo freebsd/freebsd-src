@@ -39,6 +39,82 @@
 
 #include "iw_cxgbe.h"
 
+static void print_tpte(struct adapter *sc, const u32 stag,
+    const struct fw_ri_tpte *tpte)
+{
+	const __be64 *p = (const void *)tpte;
+
+        CH_ERR(sc, "stag idx 0x%x valid %d key 0x%x state %d pdid %d "
+               "perm 0x%x ps %d len 0x%016llx va 0x%016llx\n",
+               stag & 0xffffff00,
+               G_FW_RI_TPTE_VALID(ntohl(tpte->valid_to_pdid)),
+               G_FW_RI_TPTE_STAGKEY(ntohl(tpte->valid_to_pdid)),
+               G_FW_RI_TPTE_STAGSTATE(ntohl(tpte->valid_to_pdid)),
+               G_FW_RI_TPTE_PDID(ntohl(tpte->valid_to_pdid)),
+               G_FW_RI_TPTE_PERM(ntohl(tpte->locread_to_qpid)),
+               G_FW_RI_TPTE_PS(ntohl(tpte->locread_to_qpid)),
+	       (long long)(((u64)ntohl(tpte->len_hi) << 32) | ntohl(tpte->len_lo)),
+               (long long)(((u64)ntohl(tpte->va_hi) << 32) | ntohl(tpte->va_lo_fbo)));
+	CH_ERR(sc, "stag idx 0x%x: %016llx %016llx %016llx %016llx\n",
+	    stag & 0xffffff00,
+	    (long long)be64_to_cpu(p[0]), (long long)be64_to_cpu(p[1]),
+	    (long long)be64_to_cpu(p[2]), (long long)be64_to_cpu(p[3]));
+}
+
+void t4_dump_stag(struct adapter *sc, const u32 stag)
+{
+	struct fw_ri_tpte tpte __aligned(sizeof(__be64)) = {0};
+	const u32 offset = sc->vres.stag.start + ((stag >> 8) * 32);
+
+	if (offset > sc->vres.stag.start + sc->vres.stag.size - 32) {
+		CH_ERR(sc, "stag 0x%x is invalid for current configuration.\n",
+		    stag);
+		return;
+	}
+	read_via_memwin(sc, 0, offset, (u32 *)&tpte, 32);
+	print_tpte(sc, stag, &tpte);
+}
+
+void t4_dump_all_stag(struct adapter *sc)
+{
+	struct fw_ri_tpte tpte __aligned(sizeof(__be64)) = {0};
+	const u32 first = sc->vres.stag.start;
+	const u32 last = first + sc->vres.stag.size - 32;
+	u32 offset, i;
+
+	for (i = 0, offset = first; offset <= last; i++, offset += 32) {
+		tpte.valid_to_pdid = 0;
+		read_via_memwin(sc, 0, offset, (u32 *)&tpte, 4);
+		if (tpte.valid_to_pdid != 0) {
+			read_via_memwin(sc, 0, offset, (u32 *)&tpte, 32);
+			print_tpte(sc, i << 8, &tpte);
+		}
+	}
+}
+
+static void dump_err_cqe(struct c4iw_dev *dev, struct t4_cqe *err_cqe)
+{
+	struct adapter *sc = dev->rdev.adap;
+	__be64 *p = (void *)err_cqe;
+
+	CH_ERR(sc, "AE qpid 0x%x opcode %d status 0x%x "
+	       "type %d wrid.hi 0x%x wrid.lo 0x%x\n",
+	       CQE_QPID(err_cqe), CQE_OPCODE(err_cqe),
+	       CQE_STATUS(err_cqe), CQE_TYPE(err_cqe),
+	       CQE_WRID_HI(err_cqe), CQE_WRID_LOW(err_cqe));
+	CH_ERR(sc, "%016llx %016llx %016llx %016llx\n",
+	    (long long)be64_to_cpu(p[0]), (long long)be64_to_cpu(p[1]),
+	    (long long)be64_to_cpu(p[2]), (long long)be64_to_cpu(p[3]));
+
+	/*
+	 * Ingress WRITE and READ_RESP errors provide
+	 * the offending stag, so parse and log it.
+	 */
+	if (RQ_TYPE(err_cqe) && (CQE_OPCODE(err_cqe) == FW_RI_RDMA_WRITE ||
+	    CQE_OPCODE(err_cqe) == FW_RI_READ_RESP))
+		t4_dump_stag(sc, CQE_WRID_STAG(err_cqe));
+}
+
 static void post_qp_event(struct c4iw_dev *dev, struct c4iw_cq *chp,
 			  struct c4iw_qp *qhp,
 			  struct t4_cqe *err_cqe,
@@ -56,11 +132,7 @@ static void post_qp_event(struct c4iw_dev *dev, struct c4iw_cq *chp,
 		return;
 	}
 
-	printf("AE qpid 0x%x opcode %d status 0x%x "
-	       "type %d wrid.hi 0x%x wrid.lo 0x%x\n",
-	       CQE_QPID(err_cqe), CQE_OPCODE(err_cqe),
-	       CQE_STATUS(err_cqe), CQE_TYPE(err_cqe),
-	       CQE_WRID_HI(err_cqe), CQE_WRID_LOW(err_cqe));
+	dump_err_cqe(dev, err_cqe);
 
 	if (qhp->attr.state == C4IW_QP_STATE_RTS) {
 		attrs.next_state = C4IW_QP_STATE_TERMINATE;

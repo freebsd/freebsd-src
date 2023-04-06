@@ -984,4 +984,6 @@ u32 c4iw_get_qpid(struct c4iw_rdev *rdev, struct c4iw_dev_ucontext *uctx);
 void c4iw_put_qpid(struct c4iw_rdev *rdev, u32 qid,
 		struct c4iw_dev_ucontext *uctx);
 void c4iw_ev_dispatch(struct c4iw_dev *dev, struct t4_cqe *err_cqe);
+void t4_dump_stag(struct adapter *sc, const u32 stag);
+void t4_dump_all_stag(struct adapter *sc);
 #endif
