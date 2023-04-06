@@ -1273,7 +1273,7 @@ vfs_domount_first(
 	 * Use vn_lock_pair to avoid establishing an ordering between vnodes
 	 * from different filesystems.
 	 */
-	vn_lock_pair(vp, false, newdp, false);
+	vn_lock_pair(vp, false, LK_EXCLUSIVE, newdp, false, LK_EXCLUSIVE);
 
 	VI_LOCK(vp);
 	vp->v_iflag &= ~VI_MOUNT;
