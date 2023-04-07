@@ -3063,5 +3063,7 @@ struct vop_vector ufs_fifoops = {
 	.vop_setacl =		ufs_setacl,
 	.vop_aclcheck =		ufs_aclcheck,
 #endif
+	.vop_fplookup_vexec =	VOP_EAGAIN,
+	.vop_fplookup_symlink =	VOP_EAGAIN,
 };
 VFS_VOP_VECTOR_REGISTER(ufs_fifoops);
