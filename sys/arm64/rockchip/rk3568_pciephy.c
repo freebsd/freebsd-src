@@ -206,8 +206,7 @@ rk3568_pciephy_attach(device_t dev)
 	/* Get & assert reset */
 	if (hwreset_get_by_ofw_idx(dev, sc->node, 0, &sc->phy_reset)) {
 		device_printf(dev, "Cannot get reset\n");
-	}
-	else
+	} else
 		hwreset_assert(sc->phy_reset);
 
 	/* Set RC/EP mode not implemented yet (RC mode only) */
@@ -216,8 +215,7 @@ rk3568_pciephy_attach(device_t dev)
 	if (OF_hasprop(sc->node, "data-lanes")) {
 		OF_getencprop(sc->node, "data-lanes", data_lanes,
 		    sizeof(data_lanes));
-	}
-	else
+	} else
 		if (bootverbose)
 			device_printf(dev, "lane 1 & 2 @pcie3x2\n");
 
