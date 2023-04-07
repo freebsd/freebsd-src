@@ -654,10 +654,16 @@ void	cache_vop_vector_register(struct vop_vector *);
 #ifdef INVARIANTS
 void	cache_validate(struct vnode *dvp, struct vnode *vp,
 	    struct componentname *cnp);
+void	cache_validate_vop_vector(struct mount *mp, struct vop_vector *vops);
 void	cache_assert_no_entries(struct vnode *vp);
 #else
 static inline void
 cache_validate(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
+{
+}
+
+static inline void
+cache_validate_vop_vector(struct mount *mp, struct vop_vector *vops)
 {
 }
 

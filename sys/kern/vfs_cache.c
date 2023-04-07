@@ -3956,6 +3956,20 @@ static int cache_fast_lookup = 1;
 
 #define CACHE_FPL_FAILED	-2020
 
+static int
+cache_vop_bad_vexec(struct vop_fplookup_vexec_args *v)
+{
+	vn_printf(v->a_vp, "no proper vop_fplookup_vexec\n");
+	panic("no proper vop_fplookup_vexec");
+}
+
+static int
+cache_vop_bad_symlink(struct vop_fplookup_symlink_args *v)
+{
+	vn_printf(v->a_vp, "no proper vop_fplookup_symlink\n");
+	panic("no proper vop_fplookup_symlink");
+}
+
 void
 cache_vop_vector_register(struct vop_vector *v)
 {
@@ -3974,8 +3988,8 @@ cache_vop_vector_register(struct vop_vector *v)
 	}
 
 	if (ops == 0) {
-		v->vop_fplookup_vexec = VOP_PANIC;
-		v->vop_fplookup_symlink = VOP_PANIC;
+		v->vop_fplookup_vexec = cache_vop_bad_vexec;
+		v->vop_fplookup_symlink = cache_vop_bad_symlink;
 		return;
 	}
 
@@ -3989,6 +4003,28 @@ cache_vop_vector_register(struct vop_vector *v)
 	}
 	panic("bad vop vector %p", v);
 }
+
+#ifdef INVARIANTS
+void
+cache_validate_vop_vector(struct mount *mp, struct vop_vector *vops)
+{
+	if (mp == NULL)
+		return;
+
+	if ((mp->mnt_kern_flag & MNTK_FPLOOKUP) == 0)
+		return;
+
+	if (vops->vop_fplookup_vexec == NULL ||
+	    vops->vop_fplookup_vexec == cache_vop_bad_vexec)
+		panic("bad vop_fplookup_vexec on vector %p for filesystem %s",
+		    vops, mp->mnt_vfc->vfc_name);
+
+	if (vops->vop_fplookup_symlink == NULL ||
+	    vops->vop_fplookup_symlink == cache_vop_bad_symlink)
+		panic("bad vop_fplookup_symlink on vector %p for filesystem %s",
+		    vops, mp->mnt_vfc->vfc_name);
+}
+#endif
 
 void
 cache_fast_lookup_enabled_recalc(void)
