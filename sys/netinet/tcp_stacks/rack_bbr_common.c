@@ -334,13 +334,12 @@ ctf_process_inbound_raw(struct tcpcb *tp, struct socket *so, struct mbuf *m, int
 	 * We process each one by:
 	 * a) saving off the next
 	 * b) stripping off the ether-header
-	 * c) formulating the arguments for
-	 *    the tfb_tcp_hpts_do_segment
-	 * d) calling each mbuf to tfb_tcp_hpts_do_segment
+	 * c) formulating the arguments for tfb_do_segment_nounlock()
+	 * d) calling each mbuf to tfb_do_segment_nounlock()
 	 *    after adjusting the time to match the arrival time.
 	 * Note that the LRO code assures no IP options are present.
 	 *
-	 * The symantics for calling tfb_tcp_hpts_do_segment are the
+	 * The symantics for calling tfb_do_segment_nounlock() are the
 	 * following:
 	 * 1) It returns 0 if all went well and you (the caller) need
 	 *    to release the lock.
