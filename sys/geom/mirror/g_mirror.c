@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
+#include <geom/geom_disk.h>
 #include <geom/mirror/g_mirror.h>
 
 FEATURE(geom_mirror, "GEOM mirroring support");
@@ -479,6 +480,10 @@ g_mirror_init_disk(struct g_mirror_softc *sc, struct g_provider *pp,
 	error = g_getattr("GEOM::candelete", disk->d_consumer, &i);
 	if (error == 0 && i != 0)
 		disk->d_flags |= G_MIRROR_DISK_FLAG_CANDELETE;
+	error = g_getattr("GEOM::rotation_rate", disk->d_consumer,
+		&disk->d_rotation_rate);
+	if (error)
+		disk->d_rotation_rate = DISK_RR_UNKNOWN;
 	if (md->md_provider[0] != '\0')
 		disk->d_flags |= G_MIRROR_DISK_FLAG_HARDCODED;
 	disk->d_sync.ds_consumer = NULL;
@@ -1148,6 +1153,27 @@ g_mirror_kernel_dump(struct bio *bp)
 }
 
 static void
+g_mirror_rotation_rate(struct bio *bp)
+{
+	struct g_mirror_softc *sc;
+	struct g_mirror_disk *disk;
+	bool first = true;
+	uint16_t rr = DISK_RR_UNKNOWN;
+
+	sc = bp->bio_to->private;
+	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+		if (first)
+			rr = disk->d_rotation_rate;
+		else if (rr != disk->d_rotation_rate) {
+			rr = DISK_RR_UNKNOWN;
+			break;
+		}
+		first = false;
+	}
+	g_handleattr(bp, "GEOM::rotation_rate", &rr, sizeof(rr));
+}
+
+static void
 g_mirror_start(struct bio *bp)
 {
 	struct g_mirror_softc *sc;
@@ -1175,6 +1201,9 @@ g_mirror_start(struct bio *bp)
 			return;
 		} else if (strcmp("GEOM::kerneldump", bp->bio_attribute) == 0) {
 			g_mirror_kernel_dump(bp);
+			return;
+		} else if (!strcmp(bp->bio_attribute, "GEOM::rotation_rate")) {
+			g_mirror_rotation_rate(bp);
 			return;
 		}
 		/* FALLTHROUGH */
