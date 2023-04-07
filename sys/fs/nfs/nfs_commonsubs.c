@@ -375,6 +375,10 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 	nd->nd_mreq = nd->nd_mb = mb;
 	nd->nd_bpos = mtod(mb, char *);
 
+	/* For NFSPROC_NULL, there are no arguments. */
+	if (procnum == NFSPROC_NULL)
+		goto out;
+
 	/*
 	 * And fill the first file handle into the request.
 	 */
@@ -470,6 +474,7 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 	} else {
 		(void)nfsm_fhtom(NULL, nd, nfhp, fhlen, 0);
 	}
+out:
 	if (procnum < NFSV42_NPROCS)
 		NFSINCRGLOBAL(nfsstatsv1.rpccnt[procnum]);
 }
