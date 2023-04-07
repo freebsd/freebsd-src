@@ -87,11 +87,7 @@
 #ifdef _KERNEL
 /* We have only 7 bits in rack so assert its true */
 CTASSERT((PACE_TMR_MASK & 0x80) == 0);
-int
-ctf_process_inbound_raw(struct tcpcb *tp, struct socket *so,
-    struct mbuf *m, int has_pkt);
-int
-ctf_do_queued_segments(struct socket *so, struct tcpcb *tp, int have_pkt);
+int ctf_do_queued_segments(struct tcpcb *tp, int have_pkt);
 uint32_t ctf_outstanding(struct tcpcb *tp);
 uint32_t ctf_flight_size(struct tcpcb *tp, uint32_t rc_sacked);
 int

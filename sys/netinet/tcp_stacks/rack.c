@@ -453,9 +453,8 @@ static int32_t rack_ctor(void *mem, int32_t size, void *arg, int32_t how);
 static void
 rack_set_pace_segments(struct tcpcb *tp, struct tcp_rack *rack, uint32_t line, uint64_t *fill_override);
 static void
-rack_do_segment(struct mbuf *m, struct tcphdr *th,
-    struct socket *so, struct tcpcb *tp, int32_t drop_hdrlen, int32_t tlen,
-    uint8_t iptos);
+rack_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
+    int32_t drop_hdrlen, int32_t tlen, uint8_t iptos);
 static void rack_dtor(void *mem, int32_t size, void *arg);
 static void
 rack_log_alt_to_to_cancel(struct tcp_rack *rack,
@@ -16436,11 +16435,12 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 
 
 static int
-rack_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
-    struct tcpcb *tp, int32_t drop_hdrlen, int32_t tlen, uint8_t iptos,
-    int32_t nxt_pkt, struct timeval *tv)
+rack_do_segment_nounlock(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
+    int32_t drop_hdrlen, int32_t tlen, uint8_t iptos, int32_t nxt_pkt,
+    struct timeval *tv)
 {
 	struct inpcb *inp = tptoinpcb(tp);
+	struct socket *so = tptosocket(tp);
 #ifdef TCP_ACCOUNTING
 	uint64_t ts_val;
 #endif
@@ -16823,7 +16823,7 @@ rack_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if ((rack_sack_not_required == 0) &&
 		    ((tp->t_flags & TF_SACK_PERMIT) == 0)) {
 			tcp_switch_back_to_default(tp);
-			(*tp->t_fb->tfb_tcp_do_segment) (m, th, so, tp, drop_hdrlen,
+			(*tp->t_fb->tfb_tcp_do_segment)(tp, m, th, drop_hdrlen,
 			    tlen, iptos);
 #ifdef TCP_ACCOUNTING
 			sched_unpin();
@@ -17006,15 +17006,15 @@ do_output_now:
 	return (retval);
 }
 
-void
-rack_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
-    struct tcpcb *tp, int32_t drop_hdrlen, int32_t tlen, uint8_t iptos)
+static void
+rack_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
+    int32_t drop_hdrlen, int32_t tlen, uint8_t iptos)
 {
 	struct timeval tv;
 
 	/* First lets see if we have old packets */
 	if (tp->t_in_pkt) {
-		if (ctf_do_queued_segments(so, tp, 1)) {
+		if (ctf_do_queued_segments(tp, 1)) {
 			m_freem(m);
 			return;
 		}
@@ -17025,8 +17025,8 @@ rack_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		/* Should not be should we kassert instead? */
 		tcp_get_usecs(&tv);
 	}
-	if (rack_do_segment_nounlock(m, th, so, tp,
-				     drop_hdrlen, tlen, iptos, 0, &tv) == 0) {
+	if (rack_do_segment_nounlock(tp, m, th, drop_hdrlen, tlen, iptos, 0,
+	    &tv) == 0) {
 		INP_WUNLOCK(tptoinpcb(tp));
 	}
 }
