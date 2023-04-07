@@ -602,10 +602,6 @@ struct tcp_function_block {
 			    struct socket *, struct tcpcb *,
 			    int, int, uint8_t,
 			    int, struct timeval *);
-	void	(*tfb_tcp_hpts_do_segment)(struct mbuf *, struct tcphdr *,
-			    struct socket *, struct tcpcb *,
-			    int, int, uint8_t,
-			    int, struct timeval *);
 	int     (*tfb_tcp_ctloutput)(struct inpcb *inp, struct sockopt *sopt);
 	/* Optional memory allocation/free routine */
 	int	(*tfb_tcp_fb_init)(struct tcpcb *, void **);
