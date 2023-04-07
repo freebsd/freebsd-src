@@ -4212,7 +4212,8 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 	vprintf(fmt, ap);
 	va_end(ap);
 	printf("%p: ", (void *)vp);
-	printf("type %s state %s\n", vtypename[vp->v_type], vstatename[vp->v_state]);
+	printf("type %s state %s op %p\n", vtypename[vp->v_type],
+	    vstatename[vp->v_state], vp->v_op);
 	holdcnt = atomic_load_int(&vp->v_holdcnt);
 	printf("    usecount %d, writecount %d, refcount %d seqc users %d",
 	    vp->v_usecount, vp->v_writecount, holdcnt & ~VHOLD_ALL_FLAGS,
