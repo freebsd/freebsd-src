@@ -184,7 +184,7 @@ static int nfsrv_delegconflict(struct nfsstate *stp, int *haslockp,
     NFSPROC_T *p, vnode_t vp);
 static int nfsrv_cleandeleg(vnode_t vp, struct nfslockfile *lfp,
     struct nfsclient *clp, int *haslockp, NFSPROC_T *p);
-static int nfsrv_notsamecredname(struct nfsrv_descript *nd,
+static int nfsrv_notsamecredname(int op, struct nfsrv_descript *nd,
     struct nfsclient *clp);
 static time_t nfsrv_leaseexpiry(void);
 static void nfsrv_delaydelegtimeout(struct nfsstate *stp);
@@ -205,7 +205,8 @@ static void nfsrv_locallock_commit(struct nfslockfile *lfp, int flags,
 static void nfsrv_locklf(struct nfslockfile *lfp);
 static void nfsrv_unlocklf(struct nfslockfile *lfp);
 static struct nfsdsession *nfsrv_findsession(uint8_t *sessionid);
-static int nfsrv_freesession(struct nfsdsession *sep, uint8_t *sessionid);
+static int nfsrv_freesession(struct nfsrv_descript *nd, struct nfsdsession *sep,
+    uint8_t *sessionid);
 static int nfsv4_setcbsequence(struct nfsrv_descript *nd, struct nfsclient *clp,
     int dont_replycache, struct nfsdsession **sepp, int *slotposp);
 static int nfsv4_getcbsession(struct nfsclient *clp, struct nfsdsession **sepp);
@@ -239,6 +240,8 @@ static int nfsrv_createdsfile(vnode_t vp, fhandle_t *fhp, struct pnfsdsfile *pf,
     vnode_t dvp, struct nfsdevice *ds, struct ucred *cred, NFSPROC_T *p,
     vnode_t *tvpp);
 static struct nfsdevice *nfsrv_findmirroredds(struct nfsmount *nmp);
+static int nfsrv_checkmachcred(int op, struct nfsrv_descript *nd,
+    struct nfsclient *clp);
 
 /*
  * Scan the client list for a match and either return the current one,
@@ -378,7 +381,7 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 	/*
 	 * Now, handle the cases where the id is already issued.
 	 */
-	if (nfsrv_notsamecredname(nd, clp)) {
+	if (nfsrv_notsamecredname(NFSV4OP_EXCHANGEID, nd, clp)) {
 	    /*
 	     * Check to see if there is expired state that should go away.
 	     */
@@ -447,7 +450,7 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 
 		/* Get rid of all sessions on this clientid. */
 		LIST_FOREACH_SAFE(sep, &clp->lc_session, sess_list, nsep) {
-			ret = nfsrv_freesession(sep, NULL);
+			ret = nfsrv_freesession(NULL, sep, NULL);
 			if (ret != 0)
 				printf("nfsrv_setclient: verifier changed free"
 				    " session failed=%d\n", ret);
@@ -706,7 +709,8 @@ nfsrv_getclient(nfsquad_t clientid, int opflags, struct nfsclient **clpp,
 		} else if ((nd->nd_flag & ND_NFSV41) == 0 &&
 		     clp->lc_confirm.qval != confirm.qval)
 			error = NFSERR_STALECLIENTID;
-		if (error == 0 && nfsrv_notsamecredname(nd, clp))
+		if (error == 0 && nfsrv_notsamecredname(NFSV4OP_CREATESESSION,
+		    nd, clp))
 			error = NFSERR_CLIDINUSE;
 
 		if (!error) {
@@ -779,7 +783,7 @@ nfsrv_getclient(nfsquad_t clientid, int opflags, struct nfsclient **clpp,
 	 * If called by the Renew Op, we must check the principal.
 	 */
 	if (!error && (opflags & CLOPS_RENEWOP)) {
-	    if (nfsrv_notsamecredname(nd, clp)) {
+	    if (nfsrv_notsamecredname(0, nd, clp)) {
 		doneok = 0;
 		for (i = 0; i < nfsrv_statehashsize && doneok == 0; i++) {
 		    LIST_FOREACH(stp, &clp->lc_stateid[i], ls_hash) {
@@ -819,7 +823,7 @@ out:
  * Perform the NFSv4.1 destroy clientid.
  */
 int
-nfsrv_destroyclient(nfsquad_t clientid, NFSPROC_T *p)
+nfsrv_destroyclient(struct nfsrv_descript *nd, nfsquad_t clientid, NFSPROC_T *p)
 {
 	struct nfsclient *clp;
 	struct nfsclienthashhead *hp;
@@ -849,6 +853,15 @@ nfsrv_destroyclient(nfsquad_t clientid, NFSPROC_T *p)
 		nfsv4_unlock(&nfsv4rootfs_lock, 1);
 		NFSUNLOCKV4ROOTMUTEX();
 		/* Just return ok, since it is gone. */
+		goto out;
+	}
+
+	/* Check for the SP4_MACH_CRED case. */
+	error = nfsrv_checkmachcred(NFSV4OP_DESTROYCLIENTID, nd, clp);
+	if (error != 0) {
+		NFSLOCKV4ROOTMUTEX();
+		nfsv4_unlock(&nfsv4rootfs_lock, 1);
+		NFSUNLOCKV4ROOTMUTEX();
 		goto out;
 	}
 
@@ -1374,7 +1387,7 @@ nfsrv_cleanclient(struct nfsclient *clp, NFSPROC_T *p)
 		nfsrv_freeopenowner(stp, 1, p);
 	if ((clp->lc_flags & LCL_ADMINREVOKED) == 0)
 		LIST_FOREACH_SAFE(sep, &clp->lc_session, sess_list, nsep)
-			(void)nfsrv_freesession(sep, NULL);
+			(void)nfsrv_freesession(NULL, sep, NULL);
 }
 
 /*
@@ -4605,7 +4618,7 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
 			if (procnum != NFSV4PROC_CBNULL)
 				nfsv4_freeslot(&sep->sess_cbsess, slotpos,
 				    true);
-			nfsrv_freesession(sep, NULL);
+			nfsrv_freesession(NULL, sep, NULL);
 		} else if (nd->nd_procnum == NFSV4PROC_CBNULL)
 			error = newnfs_connect(NULL, &clp->lc_req, cred,
 			    NULL, 1, dotls, &clp->lc_req.nr_client);
@@ -4654,7 +4667,7 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
 				nfsv4_freeslot(&sep->sess_cbsess, slotpos,
 				    true);
 			}
-			nfsrv_freesession(sep, NULL);
+			nfsrv_freesession(NULL, sep, NULL);
 		} else
 			error = newnfs_request(nd, NULL, clp, &clp->lc_req,
 			    NULL, NULL, cred, clp->lc_program,
@@ -5877,11 +5890,17 @@ nfsrv_throwawayopens(NFSPROC_T *p)
 /*
  * This function checks to see if the credentials are the same.
  * The check for same credentials is needed for state management operations
- * for NFSv4.0 where 1 is returned if not same, 0 is returned otherwise.
+ * for NFSv4.0 or NFSv4.1/4.2 when SP4_MACH_CRED is configured via
+ * ExchangeID.
+ * Returns 1 for not same, 0 otherwise.
  */
 static int
-nfsrv_notsamecredname(struct nfsrv_descript *nd, struct nfsclient *clp)
+nfsrv_notsamecredname(int op, struct nfsrv_descript *nd, struct nfsclient *clp)
 {
+
+	/* Check for the SP4_MACH_CRED case. */
+	if (op != 0 && nfsrv_checkmachcred(op, nd, clp) != 0)
+		return (1);
 
 	/* For NFSv4.1/4.2, SP4_NONE always allows this. */
 	if ((nd->nd_flag & ND_NFSV41) != 0)
@@ -6301,6 +6320,16 @@ nfsrv_checksequence(struct nfsrv_descript *nd, uint32_t sequenceid,
 	nd->nd_clientid.qval = sep->sess_clp->lc_clientid.qval;
 	nd->nd_flag |= ND_IMPLIEDCLID;
 
+	/* Handle the SP4_MECH_CRED case for NFSv4.1/4.2. */
+	if ((sep->sess_clp->lc_flags & LCL_MACHCRED) != 0 &&
+	    (nd->nd_flag & (ND_GSSINTEGRITY | ND_GSSPRIVACY)) != 0 &&
+	    nd->nd_princlen == sep->sess_clp->lc_namelen &&
+	    !NFSBCMP(sep->sess_clp->lc_name, nd->nd_principal,
+	    nd->nd_princlen)) {
+		nd->nd_flag |= ND_MACHCRED;
+		NFSSET_OPBIT(&nd->nd_allowops, &sep->sess_clp->lc_allowops);
+	}
+
 	/* Save maximum request and reply sizes. */
 	nd->nd_maxreq = sep->sess_maxreq;
 	nd->nd_maxresp = sep->sess_maxresp;
@@ -6458,7 +6487,7 @@ nfsrv_destroysession(struct nfsrv_descript *nd, uint8_t *sessionid)
 	} while (igotlock == 0);
 	NFSUNLOCKV4ROOTMUTEX();
 
-	error = nfsrv_freesession(NULL, sessionid);
+	error = nfsrv_freesession(nd, NULL, sessionid);
 	if (error == 0 && samesess != 0)
 		nd->nd_flag &= ~ND_HASSEQUENCE;
 
@@ -6491,6 +6520,9 @@ nfsrv_bindconnsess(struct nfsrv_descript *nd, uint8_t *sessionid, int *foreaftp)
 	sep = nfsrv_findsession(sessionid);
 	if (sep != NULL) {
 		clp = sep->sess_clp;
+		error = nfsrv_checkmachcred(NFSV4OP_BINDCONNTOSESS, nd, clp);
+		if (error != 0)
+			goto out;
 		if (*foreaftp == NFSCDFC4_BACK ||
 		    *foreaftp == NFSCDFC4_BACK_OR_BOTH ||
 		    *foreaftp == NFSCDFC4_FORE_OR_BOTH) {
@@ -6538,6 +6570,7 @@ nfsrv_bindconnsess(struct nfsrv_descript *nd, uint8_t *sessionid, int *foreaftp)
 		}
 	} else
 		error = NFSERR_BADSESSION;
+out:
 	NFSUNLOCKSESSION(shp);
 	NFSUNLOCKSTATE();
 	if (savxprt != NULL)
@@ -6549,7 +6582,8 @@ nfsrv_bindconnsess(struct nfsrv_descript *nd, uint8_t *sessionid, int *foreaftp)
  * Free up a session structure.
  */
 static int
-nfsrv_freesession(struct nfsdsession *sep, uint8_t *sessionid)
+nfsrv_freesession(struct nfsrv_descript *nd, struct nfsdsession *sep,
+    uint8_t *sessionid)
 {
 	struct nfssessionhash *shp;
 	int i;
@@ -6564,6 +6598,14 @@ nfsrv_freesession(struct nfsdsession *sep, uint8_t *sessionid)
 		NFSLOCKSESSION(shp);
 	}
 	if (sep != NULL) {
+		/* Check for the SP4_MACH_CRED case. */
+		if (nd != NULL && nfsrv_checkmachcred(NFSV4OP_DESTROYSESSION,
+		    nd, sep->sess_clp) != 0) {
+			NFSUNLOCKSESSION(shp);
+			NFSUNLOCKSTATE();
+			return (NFSERR_AUTHERR | AUTH_TOOWEAK);
+		}
+
 		sep->sess_refcnt--;
 		if (sep->sess_refcnt > 0) {
 			NFSUNLOCKSESSION(shp);
@@ -8882,4 +8924,24 @@ nfsrv_marknospc(char *devid, bool setit)
 		}
 		NFSUNLOCKLAYOUT(lhyp);
 	}
+}
+
+/*
+ * Check to see if SP4_MACH_CRED is in use and, if it is, check that the
+ * correct machine credential is being used.
+ */
+static int
+nfsrv_checkmachcred(int op, struct nfsrv_descript *nd, struct nfsclient *clp)
+{
+
+	if ((clp->lc_flags & LCL_MACHCRED) == 0 ||
+	    !NFSISSET_OPBIT(&clp->lc_mustops, op))
+		return (0);
+	KASSERT((nd->nd_flag & ND_NFSV41) != 0,
+	    ("nfsrv_checkmachcred: MachCred for NFSv4.0"));
+	if ((nd->nd_flag & (ND_GSSINTEGRITY | ND_GSSPRIVACY)) != 0 &&
+	    nd->nd_princlen == clp->lc_namelen &&
+	    !NFSBCMP(nd->nd_principal, clp->lc_name, nd->nd_princlen))
+		return (0);
+	return (NFSERR_AUTHERR | AUTH_TOOWEAK);
 }

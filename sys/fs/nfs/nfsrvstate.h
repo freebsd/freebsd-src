@@ -105,6 +105,8 @@ struct nfsclient {
 	time_t		lc_delegtime;		/* Old deleg expiry (sec) */
 	nfsquad_t	lc_clientid;		/* 64 bit clientid */
 	nfsquad_t	lc_confirm;		/* 64 bit confirm value */
+	nfsopbit_t	lc_mustops;		/* Must ops SP4_MACH_CRED */
+	nfsopbit_t	lc_allowops;		/* Allowed ops SP4_MACH_CRED */
 	u_int32_t	lc_program;		/* RPC Program # */
 	u_int32_t	lc_callback;		/* Callback id */
 	u_int32_t	lc_stateindex;		/* Current state index# */
