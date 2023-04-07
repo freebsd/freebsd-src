@@ -58,11 +58,6 @@ struct dpaa2_con_softc {
 	device_t		 dev;
 	struct resource 	*res[DPAA2_CON_MAX_RESOURCES];
 	struct dpaa2_con_attr	 attr;
-
-	/* Help to send commands to MC. */
-	struct dpaa2_cmd	*cmd;
-	uint16_t		 rc_token;
-	uint16_t		 con_token;
 };
 
 extern struct resource_spec dpaa2_con_spec[];

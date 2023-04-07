@@ -437,13 +437,37 @@ struct dpaa2_mcp_softc {
 
 int	dpaa2_mcp_init_portal(struct dpaa2_mcp **mcp, struct resource *res,
 	    struct resource_map *map, uint16_t flags);
-int	dpaa2_mcp_init_command(struct dpaa2_cmd **cmd, uint16_t flags);
 void	dpaa2_mcp_free_portal(struct dpaa2_mcp *mcp);
-void	dpaa2_mcp_free_command(struct dpaa2_cmd *cmd);
 
 /* to quickly update command token */
-struct dpaa2_cmd *dpaa2_mcp_tk(struct dpaa2_cmd *cmd, uint16_t token);
+struct dpaa2_cmd *dpaa2_mcp_tk(struct dpaa2_cmd *cmd, const uint16_t token);
 /* to quickly update command flags */
-struct dpaa2_cmd *dpaa2_mcp_f(struct dpaa2_cmd *cmd, uint16_t flags);
+struct dpaa2_cmd *dpaa2_mcp_f(struct dpaa2_cmd *cmd, const uint16_t flags);
+
+#define DPAA2_CMD_INIT_FLAGS(__cmd, __flags) do {			\
+	KASSERT((__cmd) != NULL, ("%s:%d: failed", __func__, __LINE__)); \
+	struct dpaa2_cmd_header *__hdr;					\
+	uint32_t __dcpi;						\
+									\
+	__hdr = (struct dpaa2_cmd_header *)&((__cmd)->header);		\
+	__hdr->srcid = 0;						\
+	__hdr->status = DPAA2_CMD_STAT_OK;				\
+	__hdr->token = 0;						\
+	__hdr->cmdid = 0;						\
+	__hdr->flags_hw = DPAA2_CMD_DEF;				\
+	__hdr->flags_sw = DPAA2_CMD_DEF;				\
+	if ((__flags) & DPAA2_CMD_HIGH_PRIO) {				\
+		__hdr->flags_hw |= DPAA2_HW_FLAG_HIGH_PRIO;		\
+	}								\
+	if ((__flags) & DPAA2_CMD_INTR_DIS) {				\
+		__hdr->flags_sw |= DPAA2_SW_FLAG_INTR_DIS;		\
+	}								\
+	for (__dcpi = 0; __dcpi < DPAA2_CMD_PARAMS_N; __dcpi++) {	\
+		(__cmd)->params[__dcpi] = 0;				\
+	}								\
+} while (0)
+#define DPAA2_CMD_INIT(c)	DPAA2_CMD_INIT_FLAGS((c), DPAA2_CMD_DEF)
+#define DPAA2_CMD_TK(c, t)	dpaa2_mcp_tk((c), (t))
+#define DPAA2_CMD_F(c, f)	dpaa2_mcp_f((c), (f))
 
 #endif /* _DPAA2_MCP_H */
