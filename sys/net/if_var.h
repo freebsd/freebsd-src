@@ -392,20 +392,6 @@ typedef void (*group_change_event_handler_t)(void *, const char *);
 EVENTHANDLER_DECLARE(group_change_event, group_change_event_handler_t);
 #endif /* _SYS_EVENTHANDLER_H_ */
 
-#define	IF_AFDATA_LOCK_INIT(ifp)	\
-	mtx_init(&(ifp)->if_afdata_lock, "if_afdata", NULL, MTX_DEF)
-
-#define	IF_AFDATA_WLOCK(ifp)	mtx_lock(&(ifp)->if_afdata_lock)
-#define	IF_AFDATA_WUNLOCK(ifp)	mtx_unlock(&(ifp)->if_afdata_lock)
-#define	IF_AFDATA_LOCK(ifp)	IF_AFDATA_WLOCK(ifp)
-#define	IF_AFDATA_UNLOCK(ifp)	IF_AFDATA_WUNLOCK(ifp)
-#define	IF_AFDATA_TRYLOCK(ifp)	mtx_trylock(&(ifp)->if_afdata_lock)
-#define	IF_AFDATA_DESTROY(ifp)	mtx_destroy(&(ifp)->if_afdata_lock)
-
-#define	IF_AFDATA_LOCK_ASSERT(ifp)	MPASS(in_epoch(net_epoch_preempt) || mtx_owned(&(ifp)->if_afdata_lock))
-#define	IF_AFDATA_WLOCK_ASSERT(ifp)	mtx_assert(&(ifp)->if_afdata_lock, MA_OWNED)
-#define	IF_AFDATA_UNLOCK_ASSERT(ifp)	mtx_assert(&(ifp)->if_afdata_lock, MA_NOTOWNED)
-
 /*
  * 72 was chosen below because it is the size of a TCP/IP
  * header (40) + the minimum mss (32).
@@ -563,9 +549,6 @@ void	if_deregister_com_alloc(u_char type);
 void	if_data_copy(struct ifnet *, struct if_data *);
 uint64_t if_get_counter_default(struct ifnet *, ift_counter);
 void	if_inc_counter(struct ifnet *, ift_counter, int64_t);
-
-#define IF_LLADDR(ifp)							\
-    LLADDR((struct sockaddr_dl *)((ifp)->if_addr->ifa_addr))
 
 uint64_t if_setbaudrate(if_t ifp, uint64_t baudrate);
 uint64_t if_getbaudrate(const if_t ifp);
