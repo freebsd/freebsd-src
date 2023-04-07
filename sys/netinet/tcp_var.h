@@ -599,7 +599,7 @@ struct tcp_function_block {
 	int      (*tfb_do_segment_nounlock)(struct tcpcb *, struct mbuf *,
 		    struct tcphdr *, int, int, uint8_t, int, struct timeval *);
 	int     (*tfb_do_queued_segments)(struct tcpcb *, int);
-	int     (*tfb_tcp_ctloutput)(struct inpcb *inp, struct sockopt *sopt);
+	int     (*tfb_tcp_ctloutput)(struct tcpcb *, struct sockopt *);
 	/* Optional memory allocation/free routine */
 	int	(*tfb_tcp_fb_init)(struct tcpcb *, void **);
 	void	(*tfb_tcp_fb_fini)(struct tcpcb *, int);
@@ -1390,7 +1390,7 @@ int find_tcp_function_alias(struct tcp_function_block *blk, struct tcp_function_
 void tcp_switch_back_to_default(struct tcpcb *tp);
 struct tcp_function_block *
 find_and_ref_tcp_fb(struct tcp_function_block *fs);
-int tcp_default_ctloutput(struct inpcb *inp, struct sockopt *sopt);
+int tcp_default_ctloutput(struct tcpcb *tp, struct sockopt *sopt);
 int tcp_ctloutput_set(struct inpcb *inp, struct sockopt *sopt);
 void tcp_log_socket_option(struct tcpcb *tp, uint32_t option_num,
     uint32_t option_val, int err);
