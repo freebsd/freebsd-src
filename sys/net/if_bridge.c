@@ -389,9 +389,12 @@ static int	bridge_fragment(struct ifnet *, struct mbuf **mp,
 static void	bridge_linkstate(struct ifnet *ifp);
 static void	bridge_linkcheck(struct bridge_softc *sc);
 
-/* The default bridge vlan is 1 (IEEE 802.1Q-2003 Table 9-2) */
+/*
+ * Use the "null" value from IEEE 802.1Q-2014 Table 9-2
+ * to indicate untagged frames.
+ */
 #define	VLANTAGOF(_m)	\
-    (_m->m_flags & M_VLANTAG) ? EVL_VLANOFTAG(_m->m_pkthdr.ether_vtag) : 1
+    (_m->m_flags & M_VLANTAG) ? EVL_VLANOFTAG(_m->m_pkthdr.ether_vtag) : DOT1Q_VID_NULL
 
 static struct bstp_cb_ops bridge_ops = {
 	.bcb_state = bridge_state_change,
@@ -1639,8 +1642,13 @@ static int
 bridge_ioctl_daddr(struct bridge_softc *sc, void *arg)
 {
 	struct ifbareq *req = arg;
+	int vlan = req->ifba_vlan;
 
-	return (bridge_rtdaddr(sc, req->ifba_dst, req->ifba_vlan));
+	/* Userspace uses '0' to mean 'any vlan' */
+	if (vlan == 0)
+		vlan = DOT1Q_VID_RSVD_IMPL;
+
+	return (bridge_rtdaddr(sc, req->ifba_dst, vlan));
 }
 
 static int
@@ -2886,10 +2894,6 @@ bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst, uint16_t vlan,
 	     dst[3] == 0 && dst[4] == 0 && dst[5] == 0) != 0)
 		return (EINVAL);
 
-	/* 802.1p frames map to vlan 1 */
-	if (vlan == 0)
-		vlan = 1;
-
 	/*
 	 * A route for this destination might already exist.  If so,
 	 * update it, otherwise create a new one.
@@ -3100,8 +3104,8 @@ bridge_rtdaddr(struct bridge_softc *sc, const uint8_t *addr, uint16_t vlan)
 	BRIDGE_RT_LOCK(sc);
 
 	/*
-	 * If vlan is zero then we want to delete for all vlans so the lookup
-	 * may return more than one.
+	 * If vlan is DOT1Q_VID_RSVD_IMPL then we want to delete for all vlans
+	 * so the lookup may return more than one.
 	 */
 	while ((brt = bridge_rtnode_lookup(sc, addr, vlan)) != NULL) {
 		bridge_rtnode_destroy(sc, brt);
@@ -3232,7 +3236,7 @@ bridge_rtnode_lookup(struct bridge_softc *sc, const uint8_t *addr, uint16_t vlan
 	hash = bridge_rthash(sc, addr);
 	CK_LIST_FOREACH(brt, &sc->sc_rthash[hash], brt_hash) {
 		dir = bridge_rtnode_addr_cmp(addr, brt->brt_addr);
-		if (dir == 0 && (brt->brt_vlan == vlan || vlan == 0))
+		if (dir == 0 && (brt->brt_vlan == vlan || vlan == DOT1Q_VID_RSVD_IMPL))
 			return (brt);
 		if (dir > 0)
 			return (NULL);

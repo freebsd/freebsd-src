@@ -128,6 +128,11 @@ struct	vlanreq {
 
 #define	VLAN_PCP_MAX		7
 
+#define	DOT1Q_VID_NULL		0x0
+#define	DOT1Q_VID_DEF_PVID	0x1
+#define	DOT1Q_VID_DEF_SR_PVID	0x2
+#define	DOT1Q_VID_RSVD_IMPL	0xfff
+
 /*
  * 802.1q full tag. Proto and vid are stored in host byte order.
  */
