@@ -1332,7 +1332,7 @@ again:
 				did_prefetch = 1;
 			}
 			if ((inp->inp_flags2 & INP_SUPPORTS_MBUFQ) && tp->t_in_pkt) {
-				error = (*tp->t_fb->tfb_do_queued_segments)(inp->inp_socket, tp, 0);
+				error = (*tp->t_fb->tfb_do_queued_segments)(tp, 0);
 				if (error) {
 					/* The input killed the connection */
 					goto skip_pacing;

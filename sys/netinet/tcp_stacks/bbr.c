@@ -11261,11 +11261,12 @@ bbr_check_bbr_for_state(struct tcp_bbr *bbr, uint32_t cts, int32_t line, uint32_
 }
 
 static int
-bbr_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
-    struct tcpcb *tp, int32_t drop_hdrlen, int32_t tlen, uint8_t iptos,
-    int32_t nxt_pkt, struct timeval *tv)
+bbr_do_segment_nounlock(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
+    int32_t drop_hdrlen, int32_t tlen, uint8_t iptos, int32_t nxt_pkt,
+    struct timeval *tv)
 {
 	struct inpcb *inp = tptoinpcb(tp);
+	struct socket *so = tptosocket(tp);
 	int32_t thflags, retval;
 	uint32_t cts, lcts;
 	uint32_t tiwin;
@@ -11428,7 +11429,7 @@ bbr_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if ((tp->t_flags & TF_SACK_PERMIT) == 0) {
 			/* Bail */
 			tcp_switch_back_to_default(tp);
-			(*tp->t_fb->tfb_tcp_do_segment) (m, th, so, tp, drop_hdrlen,
+			(*tp->t_fb->tfb_tcp_do_segment)(tp, m, th, drop_hdrlen,
 			    tlen, iptos);
 			return (1);
 		}
@@ -11590,15 +11591,15 @@ done_with_input:
 }
 
 static void
-bbr_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
-    struct tcpcb *tp, int32_t drop_hdrlen, int32_t tlen, uint8_t iptos)
+bbr_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
+    int32_t drop_hdrlen, int32_t tlen, uint8_t iptos)
 {
 	struct timeval tv;
 	int retval;
 
 	/* First lets see if we have old packets */
 	if (tp->t_in_pkt) {
-		if (ctf_do_queued_segments(so, tp, 1)) {
+		if (ctf_do_queued_segments(tp, 1)) {
 			m_freem(m);
 			return;
 		}
@@ -11609,8 +11610,8 @@ bbr_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		/* Should not be should we kassert instead? */
 		tcp_get_usecs(&tv);
 	}
-	retval = bbr_do_segment_nounlock(m, th, so, tp,
-					 drop_hdrlen, tlen, iptos, 0, &tv);
+	retval = bbr_do_segment_nounlock(tp, m, th, drop_hdrlen, tlen, iptos,
+	    0, &tv);
 	if (retval == 0) {
 		INP_WUNLOCK(tptoinpcb(tp));
 	}

@@ -1443,7 +1443,7 @@ tcp_lro_flush_tcphpts(struct lro_ctrl *lc, struct lro_entry *le)
 	if (should_wake) {
 		/* Wakeup */
 		counter_u64_add(tcp_inp_lro_wokeup_queue, 1);
-		if ((*tp->t_fb->tfb_do_queued_segments)(inp->inp_socket, tp, 0))
+		if ((*tp->t_fb->tfb_do_queued_segments)(tp, 0))
 			inp = NULL;
 	}
 	if (inp != NULL)
