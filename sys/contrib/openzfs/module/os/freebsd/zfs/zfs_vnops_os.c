@@ -6264,7 +6264,8 @@ zfs_freebsd_copy_file_range(struct vop_copy_file_range_args *ap)
 			goto bad_write_fallback;
 		}
 	} else {
-		vn_lock_pair(invp, false, outvp, false);
+		vn_lock_pair(invp, false, LK_EXCLUSIVE, outvp, false,
+		    LK_EXCLUSIVE);
 		if (VN_IS_DOOMED(invp) || VN_IS_DOOMED(outvp)) {
 			goto bad_locked_fallback;
 		}
