@@ -546,11 +546,6 @@ struct dpaa2_ni_softc {
 	/* Attributes of the DPAA2 network interface. */
 	struct dpaa2_ni_attr	 attr;
 
-	/* Helps to send commands to MC. */
-	struct dpaa2_cmd	*cmd;
-	uint16_t		 rc_token;
-	uint16_t		 ni_token;
-
 	/* For network interface and miibus. */
 	struct ifnet		*ifp;
 	uint32_t		 if_flags;

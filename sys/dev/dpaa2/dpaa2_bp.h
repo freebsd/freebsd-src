@@ -60,12 +60,6 @@ struct dpaa2_bp_conf {
 struct dpaa2_bp_softc {
 	device_t		 dev;
 	struct dpaa2_bp_attr	 attr;
-
-	/* Help to send commands to MC. */
-	struct dpaa2_cmd	*cmd;
-	uint16_t		 rc_token;
-	uint16_t		 bp_token;
-
 	struct resource 	*res[DPAA2_BP_MAX_RESOURCES];
 };
 

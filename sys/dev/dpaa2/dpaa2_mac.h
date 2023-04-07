@@ -108,12 +108,6 @@ struct dpaa2_mac_softc {
 	struct resource 	*res[DPAA2_MAC_MAX_RESOURCES];
 	struct dpaa2_mac_attr	 attr;
 
-	/* Help to send commands to MC. */
-	struct dpaa2_cmd	*cmd;
-	uint16_t		 rc_token;
-	uint16_t		 mac_token;
-
-	/* Interrupts. */
 	int			 irq_rid[DPAA2_MAC_MSI_COUNT];
 	struct resource		*irq_res;
 	void			*intr; /* interrupt handle */

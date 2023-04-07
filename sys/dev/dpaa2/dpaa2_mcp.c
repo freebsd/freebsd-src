@@ -108,54 +108,14 @@ dpaa2_mcp_free_portal(struct dpaa2_mcp *mcp)
 	free(mcp, M_DPAA2_MCP);
 }
 
-int
-dpaa2_mcp_init_command(struct dpaa2_cmd **cmd, uint16_t flags)
-{
-	const int mflags = flags & DPAA2_CMD_NOWAIT_ALLOC
-	    ? (M_NOWAIT | M_ZERO) : (M_WAITOK | M_ZERO);
-	struct dpaa2_cmd *c;
-	struct dpaa2_cmd_header *hdr;
-
-	if (!cmd)
-		return (DPAA2_CMD_STAT_EINVAL);
-
-	c = malloc(sizeof(struct dpaa2_cmd), M_DPAA2_MCP, mflags);
-	if (!c)
-		return (DPAA2_CMD_STAT_NO_MEMORY);
-
-	hdr = (struct dpaa2_cmd_header *) &c->header;
-	hdr->srcid = 0;
-	hdr->status = DPAA2_CMD_STAT_OK;
-	hdr->token = 0;
-	hdr->cmdid = 0;
-	hdr->flags_hw = DPAA2_CMD_DEF;
-	hdr->flags_sw = DPAA2_CMD_DEF;
-	if (flags & DPAA2_CMD_HIGH_PRIO)
-		hdr->flags_hw |= DPAA2_HW_FLAG_HIGH_PRIO;
-	if (flags & DPAA2_CMD_INTR_DIS)
-		hdr->flags_sw |= DPAA2_SW_FLAG_INTR_DIS;
-	for (uint32_t i = 0; i < DPAA2_CMD_PARAMS_N; i++)
-		c->params[i] = 0;
-	*cmd = c;
-
-	return (0);
-}
-
-void
-dpaa2_mcp_free_command(struct dpaa2_cmd *cmd)
-{
-	if (cmd != NULL)
-		free(cmd, M_DPAA2_MCP);
-}
-
 struct dpaa2_cmd *
 dpaa2_mcp_tk(struct dpaa2_cmd *cmd, uint16_t token)
 {
 	struct dpaa2_cmd_header *hdr;
-	if (cmd != NULL) {
-		hdr = (struct dpaa2_cmd_header *) &cmd->header;
-		hdr->token = token;
-	}
+	KASSERT(cmd != NULL, ("%s: cmd is NULL", __func__));
+
+	hdr = (struct dpaa2_cmd_header *) &cmd->header;
+	hdr->token = token;
 	return (cmd);
 }
 
@@ -163,15 +123,16 @@ struct dpaa2_cmd *
 dpaa2_mcp_f(struct dpaa2_cmd *cmd, uint16_t flags)
 {
 	struct dpaa2_cmd_header *hdr;
-	if (cmd) {
-		hdr = (struct dpaa2_cmd_header *) &cmd->header;
-		hdr->flags_hw = DPAA2_CMD_DEF;
-		hdr->flags_sw = DPAA2_CMD_DEF;
+	KASSERT(cmd != NULL, ("%s: cmd is NULL", __func__));
 
-		if (flags & DPAA2_CMD_HIGH_PRIO)
-			hdr->flags_hw |= DPAA2_HW_FLAG_HIGH_PRIO;
-		if (flags & DPAA2_CMD_INTR_DIS)
-			hdr->flags_sw |= DPAA2_SW_FLAG_INTR_DIS;
+	hdr = (struct dpaa2_cmd_header *) &cmd->header;
+	hdr->flags_hw = DPAA2_CMD_DEF;
+	hdr->flags_sw = DPAA2_CMD_DEF;
+	if (flags & DPAA2_CMD_HIGH_PRIO) {
+		hdr->flags_hw |= DPAA2_HW_FLAG_HIGH_PRIO;
+	}
+	if (flags & DPAA2_CMD_INTR_DIS) {
+		hdr->flags_sw |= DPAA2_SW_FLAG_INTR_DIS;
 	}
 	return (cmd);
 }
@@ -198,7 +159,7 @@ dpaa2_mcp_attach(device_t dev)
 	struct dpaa2_mcp_softc *sc = device_get_softc(dev);
 	struct dpaa2_devinfo *rcinfo = device_get_ivars(pdev);
 	struct dpaa2_devinfo *dinfo = device_get_ivars(dev);
-	struct dpaa2_cmd *cmd;
+	struct dpaa2_cmd cmd;
 	struct dpaa2_mcp *portal;
 	struct resource_map_request req;
 	uint16_t rc_token, mcp_token;
@@ -240,61 +201,40 @@ dpaa2_mcp_attach(device_t dev)
 		goto err_exit;
 	}
 
-	/* Allocate a command to send to MC hardware. */
-	error = dpaa2_mcp_init_command(&cmd, DPAA2_CMD_DEF);
-	if (error) {
-		device_printf(dev, "%s: failed to allocate dpaa2_cmd: "
-		    "error=%d\n", __func__, error);
-		goto err_exit;
-	}
+	DPAA2_CMD_INIT(&cmd);
 
 	/* Open resource container and DPMCP object. */
-	error = DPAA2_CMD_RC_OPEN(dev, child, cmd, rcinfo->id, &rc_token);
+	error = DPAA2_CMD_RC_OPEN(dev, child, &cmd, rcinfo->id, &rc_token);
 	if (error) {
 		device_printf(dev, "%s: failed to open DPRC: error=%d\n",
 		    __func__, error);
-		goto err_free_cmd;
+		goto err_exit;
 	}
-	error = DPAA2_CMD_MCP_OPEN(dev, child, cmd, dinfo->id, &mcp_token);
+	error = DPAA2_CMD_MCP_OPEN(dev, child, &cmd, dinfo->id, &mcp_token);
 	if (error) {
 		device_printf(dev, "%s: failed to open DPMCP: id=%d, error=%d\n",
 		    __func__, dinfo->id, error);
-		goto err_close_rc;
+		goto close_rc;
 	}
 
 	/* Prepare DPMCP object. */
-	error = DPAA2_CMD_MCP_RESET(dev, child, cmd);
+	error = DPAA2_CMD_MCP_RESET(dev, child, &cmd);
 	if (error) {
 		device_printf(dev, "%s: failed to reset DPMCP: id=%d, "
 		    "error=%d\n", __func__, dinfo->id, error);
-		goto err_close_mcp;
+		goto close_mcp;
 	}
 
-	/* Close the DPMCP object and the resource container. */
-	error = DPAA2_CMD_MCP_CLOSE(dev, child, cmd);
-	if (error) {
-		device_printf(dev, "%s: failed to close DPMCP: id=%d, "
-		    "error=%d\n", __func__, dinfo->id, error);
-		goto err_close_rc;
-	}
-	error = DPAA2_CMD_RC_CLOSE(dev, child, dpaa2_mcp_tk(cmd, rc_token));
-	if (error) {
-		device_printf(dev, "%s: failed to close DPRC: error=%d\n",
-		    __func__, error);
-		goto err_free_cmd;
-	}
-
-	dpaa2_mcp_free_command(cmd);
+	(void)DPAA2_CMD_MCP_CLOSE(dev, child, &cmd);
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
 	dinfo->portal = portal;
 
 	return (0);
 
-err_close_mcp:
-	DPAA2_CMD_MCP_CLOSE(dev, child, dpaa2_mcp_tk(cmd, mcp_token));
-err_close_rc:
-	DPAA2_CMD_RC_CLOSE(dev, child, dpaa2_mcp_tk(cmd, rc_token));
-err_free_cmd:
-	dpaa2_mcp_free_command(cmd);
+close_mcp:
+	(void)DPAA2_CMD_MCP_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, mcp_token));
+close_rc:
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
 err_exit:
 	dpaa2_mcp_detach(dev);
 	return (ENXIO);

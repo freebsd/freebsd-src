@@ -92,11 +92,6 @@ struct dpaa2_io_softc {
 	struct dpaa2_swp	*swp;
 	struct dpaa2_io_attr	 attr;
 
-	/* Help to send commands to MC. */
-	struct dpaa2_cmd	*cmd;
-	uint16_t		 rc_token;
-	uint16_t		 io_token;
-
 	struct resource 	*res[DPAA2_IO_MAX_RESOURCES];
 	struct resource_map	 map[DPAA2_IO_MAX_RESOURCES];
 

@@ -118,6 +118,8 @@ dpaa2_mac_attach(device_t dev)
 	struct dpaa2_devinfo *rcinfo = device_get_ivars(pdev);
 	struct dpaa2_devinfo *dinfo = device_get_ivars(dev);
 	struct dpaa2_devinfo *mcp_dinfo;
+	struct dpaa2_cmd cmd;
+	uint16_t rc_token, mac_token;
 	int error;
 
 	sc->dev = dev;
@@ -128,7 +130,7 @@ dpaa2_mac_attach(device_t dev)
 	if (error) {
 		device_printf(dev, "%s: failed to allocate resources: "
 		    "error=%d\n", __func__, error);
-		return (ENXIO);
+		goto err_exit;
 	}
 
 	/* Obtain MC portal. */
@@ -136,42 +138,33 @@ dpaa2_mac_attach(device_t dev)
 	mcp_dinfo = device_get_ivars(mcp_dev);
 	dinfo->portal = mcp_dinfo->portal;
 
-	/* Allocate a command to send to MC hardware. */
-	error = dpaa2_mcp_init_command(&sc->cmd, DPAA2_CMD_DEF);
+	DPAA2_CMD_INIT(&cmd);
+
+	error = DPAA2_CMD_RC_OPEN(dev, child, &cmd, rcinfo->id, &rc_token);
 	if (error) {
-		device_printf(dev, "Failed to allocate dpaa2_cmd: error=%d\n",
-		    error);
+		device_printf(dev, "%s: failed to open DPRC: error=%d\n",
+		    __func__, error);
 		goto err_exit;
 	}
-
-	/* Open resource container and DPMAC object. */
-	error = DPAA2_CMD_RC_OPEN(dev, child, sc->cmd, rcinfo->id,
-	    &sc->rc_token);
+	error = DPAA2_CMD_MAC_OPEN(dev, child, &cmd, dinfo->id, &mac_token);
 	if (error) {
-		device_printf(dev, "Failed to open DPRC: error=%d\n", error);
-		goto err_free_cmd;
-	}
-	error = DPAA2_CMD_MAC_OPEN(dev, child, sc->cmd, dinfo->id,
-	    &sc->mac_token);
-	if (error) {
-		device_printf(dev, "Failed to open DPMAC: id=%d, error=%d\n",
-		    dinfo->id, error);
-		goto err_close_rc;
+		device_printf(dev, "%s: failed to open DPMAC: id=%d, error=%d\n",
+		    __func__, dinfo->id, error);
+		goto close_rc;
 	}
 
-	error = DPAA2_CMD_MAC_GET_ATTRIBUTES(dev, child, sc->cmd, &sc->attr);
+	error = DPAA2_CMD_MAC_GET_ATTRIBUTES(dev, child, &cmd, &sc->attr);
 	if (error) {
-		device_printf(dev, "Failed to get DPMAC attributes: id=%d, "
-		    "error=%d\n", dinfo->id, error);
-		goto err_close_mac;
+		device_printf(dev, "%s: failed to get DPMAC attributes: id=%d, "
+		    "error=%d\n", __func__, dinfo->id, error);
+		goto close_mac;
 	}
-	error = DPAA2_CMD_MAC_GET_ADDR(dev, child, sc->cmd, sc->addr);
-	if (error)
-		device_printf(dev, "Failed to get physical address: error=%d\n",
-		    error);
-	/*
-	 * TODO: Enable debug output via sysctl.
-	 */
+	error = DPAA2_CMD_MAC_GET_ADDR(dev, child, &cmd, sc->addr);
+	if (error) {
+		device_printf(dev, "%s: failed to get physical address: "
+		    "error=%d\n", __func__, error);
+	}
+
 	if (bootverbose) {
 		device_printf(dev, "ether %6D\n", sc->addr, ":");
 		device_printf(dev, "max_rate=%d, eth_if=%s, link_type=%s\n",
@@ -182,18 +175,19 @@ dpaa2_mac_attach(device_t dev)
 
 	error = dpaa2_mac_setup_irq(dev);
 	if (error) {
-		device_printf(dev, "Failed to setup IRQs: error=%d\n", error);
-		goto err_close_mac;
+		device_printf(dev, "%s: failed to setup IRQs: error=%d\n",
+		    __func__, error);
+		goto close_mac;
 	}
 
+	(void)DPAA2_CMD_MAC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, mac_token));
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
 	return (0);
 
-err_close_mac:
-	DPAA2_CMD_MAC_CLOSE(dev, child, dpaa2_mcp_tk(sc->cmd, sc->mac_token));
-err_close_rc:
-	DPAA2_CMD_RC_CLOSE(dev, child, dpaa2_mcp_tk(sc->cmd, sc->rc_token));
-err_free_cmd:
-	dpaa2_mcp_free_command(sc->cmd);
+close_mac:
+	(void)DPAA2_CMD_MAC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, mac_token));
+close_rc:
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
 err_exit:
 	return (ENXIO);
 }
@@ -201,17 +195,7 @@ err_exit:
 static int
 dpaa2_mac_detach(device_t dev)
 {
-	device_t child = dev;
-	struct dpaa2_mac_softc *sc = device_get_softc(dev);
-
-	DPAA2_CMD_MAC_CLOSE(dev, child, dpaa2_mcp_tk(sc->cmd, sc->mac_token));
-	DPAA2_CMD_RC_CLOSE(dev, child, dpaa2_mcp_tk(sc->cmd, sc->rc_token));
-	dpaa2_mcp_free_command(sc->cmd);
-
-	sc->cmd = NULL;
-	sc->rc_token = 0;
-	sc->mac_token = 0;
-
+	/* TBD */
 	return (0);
 }
 
@@ -221,53 +205,80 @@ dpaa2_mac_detach(device_t dev)
 static int
 dpaa2_mac_setup_irq(device_t dev)
 {
+	device_t pdev = device_get_parent(dev);
 	device_t child = dev;
 	struct dpaa2_mac_softc *sc = device_get_softc(dev);
-	struct dpaa2_cmd *cmd = sc->cmd;
-	uint16_t mac_token = sc->mac_token;
+	struct dpaa2_devinfo *rcinfo = device_get_ivars(pdev);
+	struct dpaa2_devinfo *dinfo = device_get_ivars(dev);
+	struct dpaa2_cmd cmd;
+	uint16_t rc_token, mac_token;
 	uint32_t irq_mask;
 	int error;
 
-	/* Configure IRQs. */
 	error = dpaa2_mac_setup_msi(sc);
 	if (error) {
-		device_printf(dev, "Failed to allocate MSI\n");
-		return (error);
+		device_printf(dev, "%s: failed to allocate MSI\n", __func__);
+		goto err_exit;
 	}
 	if ((sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
 	    &sc->irq_rid[0], RF_ACTIVE | RF_SHAREABLE)) == NULL) {
-		device_printf(dev, "Failed to allocate IRQ resource\n");
-		return (ENXIO);
+		device_printf(dev, "%s: failed to allocate IRQ resource\n",
+		    __func__);
+		error = ENXIO;
+		goto err_exit;
 	}
 	if (bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
 	    NULL, dpaa2_mac_intr, sc, &sc->intr)) {
-		device_printf(dev, "Failed to setup IRQ resource\n");
-		return (ENXIO);
+		device_printf(dev, "%s: failed to setup IRQ resource\n",
+		    __func__);
+		error = ENXIO;
+		goto err_exit;
 	}
 
-	/* Configure DPNI to generate interrupts. */
+	DPAA2_CMD_INIT(&cmd);
+
+	error = DPAA2_CMD_RC_OPEN(dev, child, &cmd, rcinfo->id, &rc_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open DPRC: error=%d\n",
+		    __func__, error);
+		goto err_exit;
+	}
+	error = DPAA2_CMD_MAC_OPEN(dev, child, &cmd, dinfo->id, &mac_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open DPMAC: id=%d, error=%d\n",
+		    __func__, dinfo->id, error);
+		goto close_rc;
+	}
+
 	irq_mask =
 	    DPMAC_IRQ_LINK_CFG_REQ |
 	    DPMAC_IRQ_LINK_CHANGED |
 	    DPMAC_IRQ_LINK_UP_REQ |
 	    DPMAC_IRQ_LINK_DOWN_REQ |
 	    DPMAC_IRQ_EP_CHANGED;
-	error = DPAA2_CMD_MAC_SET_IRQ_MASK(dev, child, dpaa2_mcp_tk(cmd,
-	    mac_token), DPMAC_IRQ_INDEX, irq_mask);
+	error = DPAA2_CMD_MAC_SET_IRQ_MASK(dev, child, &cmd, DPMAC_IRQ_INDEX,
+	    irq_mask);
 	if (error) {
-		device_printf(dev, "Failed to set IRQ mask\n");
-		return (error);
+		device_printf(dev, "%s: failed to set IRQ mask\n", __func__);
+		goto close_mac;
 	}
-
-	/* Enable IRQ. */
-	error = DPAA2_CMD_MAC_SET_IRQ_ENABLE(dev, child, cmd, DPMAC_IRQ_INDEX,
+	error = DPAA2_CMD_MAC_SET_IRQ_ENABLE(dev, child, &cmd, DPMAC_IRQ_INDEX,
 	    true);
 	if (error) {
-		device_printf(dev, "Failed to enable IRQ\n");
-		return (error);
+		device_printf(dev, "%s: failed to enable IRQ\n", __func__);
+		goto close_mac;
 	}
 
+	(void)DPAA2_CMD_MAC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, mac_token));
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
 	return (0);
+
+close_mac:
+	(void)DPAA2_CMD_MAC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, mac_token));
+close_rc:
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
+err_exit:
+	return (error);
 }
 
 /**
@@ -297,15 +308,42 @@ static void
 dpaa2_mac_intr(void *arg)
 {
 	struct dpaa2_mac_softc *sc = (struct dpaa2_mac_softc *) arg;
-	device_t child = sc->dev;
+	device_t pdev = device_get_parent(sc->dev);
+	device_t dev = sc->dev;
+	device_t child = dev;
+	struct dpaa2_devinfo *rcinfo = device_get_ivars(pdev);
+	struct dpaa2_devinfo *dinfo = device_get_ivars(dev);
+	struct dpaa2_cmd cmd;
 	uint32_t status = ~0u; /* clear all IRQ status bits */
+	uint16_t rc_token, mac_token;
 	int error;
 
-	error = DPAA2_CMD_MAC_GET_IRQ_STATUS(sc->dev, child,
-	    dpaa2_mcp_tk(sc->cmd, sc->mac_token), DPMAC_IRQ_INDEX, &status);
-	if (error)
+	DPAA2_CMD_INIT(&cmd);
+
+	error = DPAA2_CMD_RC_OPEN(dev, child, &cmd, rcinfo->id, &rc_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open DPRC: error=%d\n",
+		    __func__, error);
+		goto err_exit;
+	}
+	error = DPAA2_CMD_MAC_OPEN(dev, child, &cmd, dinfo->id, &mac_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open DPMAC: id=%d, error=%d\n",
+		    __func__, dinfo->id, error);
+		goto close_rc;
+	}
+	error = DPAA2_CMD_MAC_GET_IRQ_STATUS(dev, child, &cmd, DPMAC_IRQ_INDEX,
+	    &status);
+	if (error) {
 		device_printf(sc->dev, "%s: failed to obtain IRQ status: "
 		    "error=%d\n", __func__, error);
+	}
+
+	(void)DPAA2_CMD_MAC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, mac_token));
+close_rc:
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
+err_exit:
+	return;
 }
 
 static const char *

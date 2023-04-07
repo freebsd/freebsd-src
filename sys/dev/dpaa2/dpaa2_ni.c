@@ -414,19 +414,15 @@ static int dpaa2_ni_setup_sysctls(struct dpaa2_ni_softc *);
 static int dpaa2_ni_setup_dma(struct dpaa2_ni_softc *);
 
 /* Tx/Rx flow configuration */
-static int dpaa2_ni_setup_rx_flow(device_t, struct dpaa2_cmd *,
-    struct dpaa2_ni_fq *);
-static int dpaa2_ni_setup_tx_flow(device_t, struct dpaa2_cmd *,
-    struct dpaa2_ni_fq *);
-static int dpaa2_ni_setup_rx_err_flow(device_t, struct dpaa2_cmd *,
-    struct dpaa2_ni_fq *);
+static int dpaa2_ni_setup_rx_flow(device_t, struct dpaa2_ni_fq *);
+static int dpaa2_ni_setup_tx_flow(device_t, struct dpaa2_ni_fq *);
+static int dpaa2_ni_setup_rx_err_flow(device_t, struct dpaa2_ni_fq *);
 
 /* Configuration subroutines */
-static int dpaa2_ni_set_buf_layout(device_t, struct dpaa2_cmd *);
-static int dpaa2_ni_set_pause_frame(device_t, struct dpaa2_cmd *);
-static int dpaa2_ni_set_qos_table(device_t, struct dpaa2_cmd *);
-static int dpaa2_ni_set_mac_addr(device_t, struct dpaa2_cmd *, uint16_t,
-    uint16_t);
+static int dpaa2_ni_set_buf_layout(device_t);
+static int dpaa2_ni_set_pause_frame(device_t);
+static int dpaa2_ni_set_qos_table(device_t);
+static int dpaa2_ni_set_mac_addr(device_t);
 static int dpaa2_ni_set_hash(device_t, uint64_t);
 static int dpaa2_ni_set_dist_key(device_t, enum dpaa2_ni_dist_mode, uint64_t);
 
@@ -515,6 +511,8 @@ dpaa2_ni_attach(device_t dev)
 	struct dpaa2_devinfo *rcinfo = device_get_ivars(pdev);
 	struct dpaa2_devinfo *dinfo = device_get_ivars(dev);
 	struct dpaa2_devinfo *mcp_dinfo;
+	struct dpaa2_cmd cmd;
+	uint16_t rc_token, ni_token;
 	if_t ifp;
 	char tq_name[32];
 	int error;
@@ -563,7 +561,7 @@ dpaa2_ni_attach(device_t dev)
 	if (error) {
 		device_printf(dev, "%s: failed to allocate resources: "
 		    "error=%d\n", __func__, error);
-		return (ENXIO);
+		goto err_exit;
 	}
 
 	/* Obtain MC portal. */
@@ -578,7 +576,7 @@ dpaa2_ni_attach(device_t dev)
 	if (ifp == NULL) {
 		device_printf(dev, "%s: failed to allocate network interface\n",
 		    __func__);
-		return (ENXIO);
+		goto err_exit;
 	}
 	sc->ifp = ifp;
 	if_initname(ifp, DPAA2_NI_IFNAME, device_get_unit(sc->dev));
@@ -593,30 +591,27 @@ dpaa2_ni_attach(device_t dev)
 	if_setcapabilities(ifp, IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_JUMBO_MTU);
 	if_setcapenable(ifp, if_getcapabilities(ifp));
 
-	/* Allocate a command to send to MC hardware. */
-	error = dpaa2_mcp_init_command(&sc->cmd, DPAA2_CMD_DEF);
-	if (error) {
-		device_printf(dev, "%s: failed to allocate dpaa2_cmd: "
-		    "error=%d\n", __func__, error);
-		goto err_exit;
-	}
+	DPAA2_CMD_INIT(&cmd);
 
 	/* Open resource container and network interface object. */
-	error = DPAA2_CMD_RC_OPEN(dev, child, sc->cmd, rcinfo->id,
-	    &sc->rc_token);
+	error = DPAA2_CMD_RC_OPEN(dev, child, &cmd, rcinfo->id, &rc_token);
 	if (error) {
 		device_printf(dev, "%s: failed to open resource container: "
 		    "id=%d, error=%d\n", __func__, rcinfo->id, error);
-		goto err_free_cmd;
+		goto err_exit;
 	}
-	error = DPAA2_CMD_NI_OPEN(dev, child, dpaa2_mcp_tk(sc->cmd,
-	    sc->rc_token), dinfo->id, &sc->ni_token);
+	error = DPAA2_CMD_NI_OPEN(dev, child, &cmd, dinfo->id, &ni_token);
 	if (error) {
 		device_printf(dev, "%s: failed to open network interface: "
 		    "id=%d, error=%d\n", __func__, dinfo->id, error);
-		goto err_close_rc;
+		goto close_rc;
 	}
 
+	/*
+	 * XXX-DSL: Release new buffers on Buffer Pool State Change Notification
+	 *          (BPSCN) returned as a result to the VDQ command instead.
+	 *          It is similar to CDAN processed in dpaa2_io_intr().
+	 */
 	/* Create a taskqueue thread to release new buffers to the pool. */
 	TASK_INIT(&sc->bp_task, 0, dpaa2_ni_bp_task, sc);
 	bzero(tq_name, sizeof (tq_name));
@@ -627,7 +622,7 @@ dpaa2_ni_attach(device_t dev)
 	if (sc->bp_taskq == NULL) {
 		device_printf(dev, "%s: failed to allocate task queue: %s\n",
 		    __func__, tq_name);
-		goto err_close_ni;
+		goto close_ni;
 	}
 	taskqueue_start_threads(&sc->bp_taskq, 1, PI_NET, "%s", tq_name);
 
@@ -635,32 +630,32 @@ dpaa2_ni_attach(device_t dev)
 	if (error) {
 		device_printf(dev, "%s: failed to setup DPNI: error=%d\n",
 		    __func__, error);
-		goto err_close_ni;
+		goto close_ni;
 	}
 	error = dpaa2_ni_setup_channels(dev);
 	if (error) {
 		device_printf(dev, "%s: failed to setup QBMan channels: "
 		    "error=%d\n", __func__, error);
-		goto err_close_ni;
+		goto close_ni;
 	}
 
 	error = dpaa2_ni_bind(dev);
 	if (error) {
 		device_printf(dev, "%s: failed to bind DPNI: error=%d\n",
 		    __func__, error);
-		goto err_close_ni;
+		goto close_ni;
 	}
 	error = dpaa2_ni_setup_irqs(dev);
 	if (error) {
 		device_printf(dev, "%s: failed to setup IRQs: error=%d\n",
 		    __func__, error);
-		goto err_close_ni;
+		goto close_ni;
 	}
 	error = dpaa2_ni_setup_sysctls(sc);
 	if (error) {
 		device_printf(dev, "%s: failed to setup sysctls: error=%d\n",
 		    __func__, error);
-		goto err_close_ni;
+		goto close_ni;
 	}
 
 	ether_ifattach(sc->ifp, sc->mac.addr);
@@ -668,12 +663,10 @@ dpaa2_ni_attach(device_t dev)
 
 	return (0);
 
-err_close_ni:
-	DPAA2_CMD_NI_CLOSE(dev, child, dpaa2_mcp_tk(sc->cmd, sc->ni_token));
-err_close_rc:
-	DPAA2_CMD_RC_CLOSE(dev, child, dpaa2_mcp_tk(sc->cmd, sc->rc_token));
-err_free_cmd:
-	dpaa2_mcp_free_command(sc->cmd);
+close_ni:
+	DPAA2_CMD_NI_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, ni_token));
+close_rc:
+	DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
 err_exit:
 	return (ENXIO);
 }
@@ -728,17 +721,7 @@ dpaa2_ni_setup_fixed_link(struct dpaa2_ni_softc *sc)
 static int
 dpaa2_ni_detach(device_t dev)
 {
-	device_t child = dev;
-	struct dpaa2_ni_softc *sc = device_get_softc(dev);
-
-	DPAA2_CMD_NI_CLOSE(dev, child, dpaa2_mcp_tk(sc->cmd, sc->ni_token));
-	DPAA2_CMD_RC_CLOSE(dev, child, dpaa2_mcp_tk(sc->cmd, sc->rc_token));
-	dpaa2_mcp_free_command(sc->cmd);
-
-	sc->cmd = NULL;
-	sc->ni_token = 0;
-	sc->rc_token = 0;
-
+	/* TBD */
 	return (0);
 }
 
@@ -748,53 +731,68 @@ dpaa2_ni_detach(device_t dev)
 static int
 dpaa2_ni_setup(device_t dev)
 {
+	device_t pdev = device_get_parent(dev);
 	device_t child = dev;
 	struct dpaa2_ni_softc *sc = device_get_softc(dev);
+	struct dpaa2_devinfo *rcinfo = device_get_ivars(pdev);
 	struct dpaa2_devinfo *dinfo = device_get_ivars(dev);
 	struct dpaa2_ep_desc ep1_desc, ep2_desc; /* endpoint descriptors */
-	struct dpaa2_cmd *cmd = sc->cmd;
+	struct dpaa2_cmd cmd;
 	uint8_t eth_bca[ETHER_ADDR_LEN]; /* broadcast physical address */
-	uint16_t rc_token = sc->rc_token;
-	uint16_t ni_token = sc->ni_token;
-	uint16_t mac_token;
+	uint16_t rc_token, ni_token, mac_token;
 	struct dpaa2_mac_attr attr;
 	enum dpaa2_mac_link_type link_type;
 	uint32_t link;
 	int error;
 
+	DPAA2_CMD_INIT(&cmd);
+
+	error = DPAA2_CMD_RC_OPEN(dev, child, &cmd, rcinfo->id, &rc_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open resource container: "
+		    "id=%d, error=%d\n", __func__, rcinfo->id, error);
+		goto err_exit;
+	}
+	error = DPAA2_CMD_NI_OPEN(dev, child, &cmd, dinfo->id, &ni_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open network interface: "
+		    "id=%d, error=%d\n", __func__, dinfo->id, error);
+		goto close_rc;
+	}
+
 	/* Check if we can work with this DPNI object. */
-	error = DPAA2_CMD_NI_GET_API_VERSION(dev, child, dpaa2_mcp_tk(cmd,
-	    ni_token), &sc->api_major, &sc->api_minor);
+	error = DPAA2_CMD_NI_GET_API_VERSION(dev, child, &cmd, &sc->api_major,
+	    &sc->api_minor);
 	if (error) {
 		device_printf(dev, "%s: failed to get DPNI API version\n",
 		    __func__);
-		return (error);
+		goto close_ni;
 	}
 	if (dpaa2_ni_cmp_api_version(sc, DPNI_VER_MAJOR, DPNI_VER_MINOR) < 0) {
 		device_printf(dev, "%s: DPNI API version %u.%u not supported, "
 		    "need >= %u.%u\n", __func__, sc->api_major, sc->api_minor,
 		    DPNI_VER_MAJOR, DPNI_VER_MINOR);
 		error = ENODEV;
-		return (error);
+		goto close_ni;
 	}
 
 	/* Reset the DPNI object. */
-	error = DPAA2_CMD_NI_RESET(dev, child, cmd);
+	error = DPAA2_CMD_NI_RESET(dev, child, &cmd);
 	if (error) {
 		device_printf(dev, "%s: failed to reset DPNI: id=%d\n",
 		    __func__, dinfo->id);
-		return (error);
+		goto close_ni;
 	}
 
 	/* Obtain attributes of the DPNI object. */
-	error = DPAA2_CMD_NI_GET_ATTRIBUTES(dev, child, cmd, &sc->attr);
+	error = DPAA2_CMD_NI_GET_ATTRIBUTES(dev, child, &cmd, &sc->attr);
 	if (error) {
 		device_printf(dev, "%s: failed to obtain DPNI attributes: "
 		    "id=%d\n", __func__, dinfo->id);
-		return (error);
+		goto close_ni;
 	}
 	if (bootverbose) {
-		device_printf(dev, "options=0x%#x queues=%d tx_channels=%d "
+		device_printf(dev, "\toptions=0x%#x queues=%d tx_channels=%d "
 		    "wriop_version=%#x\n", sc->attr.options, sc->attr.num.queues,
 		    sc->attr.num.channels, sc->attr.wriop_ver);
 		device_printf(dev, "\ttraffic classes: rx=%d tx=%d "
@@ -808,18 +806,18 @@ dpaa2_ni_setup(device_t dev)
 	}
 
 	/* Configure buffer layouts of the DPNI queues. */
-	error = dpaa2_ni_set_buf_layout(dev, cmd);
+	error = dpaa2_ni_set_buf_layout(dev);
 	if (error) {
 		device_printf(dev, "%s: failed to configure buffer layout\n",
 		    __func__);
-		return (error);
+		goto close_ni;
 	}
 
 	/* Configure DMA resources. */
 	error = dpaa2_ni_setup_dma(sc);
 	if (error) {
 		device_printf(dev, "%s: failed to setup DMA\n", __func__);
-		return (error);
+		goto close_ni;
 	}
 
 	/* Setup link between DPNI and an object it's connected to. */
@@ -827,19 +825,20 @@ dpaa2_ni_setup(device_t dev)
 	ep1_desc.if_id = 0; /* DPNI has the only endpoint */
 	ep1_desc.type = dinfo->dtype;
 
-	error = DPAA2_CMD_RC_GET_CONN(dev, child, dpaa2_mcp_tk(cmd, rc_token),
+	error = DPAA2_CMD_RC_GET_CONN(dev, child, DPAA2_CMD_TK(&cmd, rc_token),
 	    &ep1_desc, &ep2_desc, &link);
-	if (error)
+	if (error) {
 		device_printf(dev, "%s: failed to obtain an object DPNI is "
 		    "connected to: error=%d\n", __func__, error);
-	else {
+	} else {
 		device_printf(dev, "connected to %s (id=%d)\n",
 		    dpaa2_ttos(ep2_desc.type), ep2_desc.obj_id);
 
-		error = dpaa2_ni_set_mac_addr(dev, cmd, rc_token, ni_token);
-		if (error)
-			device_printf(dev, "%s: failed to set MAC "
-				      "address: error=%d\n", __func__, error);
+		error = dpaa2_ni_set_mac_addr(dev);
+		if (error) {
+			device_printf(dev, "%s: failed to set MAC address: "
+			    "error=%d\n", __func__, error);
+		}
 
 		if (ep2_desc.type == DPAA2_DEV_MAC) {
 			/*
@@ -856,8 +855,8 @@ dpaa2_ni_setup(device_t dev)
 			 * link state managed by MC firmware).
 			 */
 			error = DPAA2_CMD_MAC_OPEN(sc->dev, child,
-			    dpaa2_mcp_tk(sc->cmd, sc->rc_token),
-			    sc->mac.dpmac_id, &mac_token);
+			    DPAA2_CMD_TK(&cmd, rc_token), sc->mac.dpmac_id,
+			    &mac_token);
 			/*
 			 * Under VFIO, the DPMAC might be sitting in another
 			 * container (DPRC) we don't have access to.
@@ -871,17 +870,17 @@ dpaa2_ni_setup(device_t dev)
 				link_type = DPAA2_MAC_LINK_TYPE_FIXED;
 			} else {
 				error = DPAA2_CMD_MAC_GET_ATTRIBUTES(dev, child,
-				    sc->cmd, &attr);
-				if (error)
+				    &cmd, &attr);
+				if (error) {
 					device_printf(dev, "%s: failed to get "
 					    "DPMAC attributes: id=%d, "
 					    "error=%d\n", __func__, dinfo->id,
 					    error);
-				else
+				} else {
 					link_type = attr.link_type;
+				}
 			}
-			DPAA2_CMD_MAC_CLOSE(dev, child, dpaa2_mcp_tk(sc->cmd,
-			    mac_token));
+			DPAA2_CMD_MAC_CLOSE(dev, child, &cmd);
 
 			if (link_type == DPAA2_MAC_LINK_TYPE_FIXED) {
 				device_printf(dev, "connected DPMAC is in FIXED "
@@ -895,25 +894,28 @@ dpaa2_ni_setup(device_t dev)
 				if (error == 0) {
 					error = MEMAC_MDIO_SET_NI_DEV(
 					    sc->mac.phy_dev, dev);
-					if (error != 0)
+					if (error != 0) {
 						device_printf(dev, "%s: failed "
 						    "to set dpni dev on memac "
 						    "mdio dev %s: error=%d\n",
 						    __func__,
 						    device_get_nameunit(
 						    sc->mac.phy_dev), error);
+					}
 				}
 				if (error == 0) {
 					error = MEMAC_MDIO_GET_PHY_LOC(
 					    sc->mac.phy_dev, &sc->mac.phy_loc);
-					if (error == ENODEV)
+					if (error == ENODEV) {
 						error = 0;
-					if (error != 0)
+					}
+					if (error != 0) {
 						device_printf(dev, "%s: failed "
 						    "to get phy location from "
 						    "memac mdio dev %s: error=%d\n",
 						    __func__, device_get_nameunit(
 						    sc->mac.phy_dev), error);
+					}
 				}
 				if (error == 0) {
 					error = mii_attach(sc->mac.phy_dev,
@@ -922,14 +924,16 @@ dpaa2_ni_setup(device_t dev)
 					    dpaa2_ni_media_status,
 					    BMSR_DEFCAPMASK, sc->mac.phy_loc,
 					    MII_OFFSET_ANY, 0);
-					if (error != 0)
+					if (error != 0) {
 						device_printf(dev, "%s: failed "
 						    "to attach to miibus: "
 						    "error=%d\n",
 						    __func__, error);
+					}
 				}
-				if (error == 0)
+				if (error == 0) {
 					sc->mii = device_get_softc(sc->miibus);
+				}
 			} else {
 				device_printf(dev, "%s: DPMAC link type is not "
 				    "supported\n", __func__);
@@ -951,37 +955,49 @@ dpaa2_ni_setup(device_t dev)
 	 *       in link configuration. It might be necessary to attach miibus
 	 *       and PHY before this point.
 	 */
-	error = dpaa2_ni_set_pause_frame(dev, dpaa2_mcp_tk(cmd, ni_token));
+	error = dpaa2_ni_set_pause_frame(dev);
 	if (error) {
 		device_printf(dev, "%s: failed to configure Rx/Tx pause "
 		    "frames\n", __func__);
-		return (error);
+		goto close_ni;
 	}
 
 	/* Configure ingress traffic classification. */
-	error = dpaa2_ni_set_qos_table(dev, dpaa2_mcp_tk(cmd, ni_token));
-	if (error)
+	error = dpaa2_ni_set_qos_table(dev);
+	if (error) {
 		device_printf(dev, "%s: failed to configure QoS table: "
 		    "error=%d\n", __func__, error);
+		goto close_ni;
+	}
 
 	/* Add broadcast physical address to the MAC filtering table. */
 	memset(eth_bca, 0xff, ETHER_ADDR_LEN);
-	error = DPAA2_CMD_NI_ADD_MAC_ADDR(dev, child, cmd, eth_bca);
+	error = DPAA2_CMD_NI_ADD_MAC_ADDR(dev, child, DPAA2_CMD_TK(&cmd,
+	    ni_token), eth_bca);
 	if (error) {
 		device_printf(dev, "%s: failed to add broadcast physical "
 		    "address to the MAC filtering table\n", __func__);
-		return (error);
+		goto close_ni;
 	}
 
 	/* Set the maximum allowed length for received frames. */
-	error = DPAA2_CMD_NI_SET_MFL(dev, child, cmd, DPAA2_ETH_MFL);
+	error = DPAA2_CMD_NI_SET_MFL(dev, child, &cmd, DPAA2_ETH_MFL);
 	if (error) {
 		device_printf(dev, "%s: failed to set maximum length for "
 		    "received frames\n", __func__);
-		return (error);
+		goto close_ni;
 	}
 
+	(void)DPAA2_CMD_NI_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, ni_token));
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
 	return (0);
+
+close_ni:
+	(void)DPAA2_CMD_NI_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, ni_token));
+close_rc:
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
+err_exit:
+	return (error);
 }
 
 /**
@@ -990,35 +1006,41 @@ dpaa2_ni_setup(device_t dev)
 static int
 dpaa2_ni_setup_channels(device_t dev)
 {
+	device_t pdev = device_get_parent(dev);
+	device_t child = dev;
+	device_t io_dev, con_dev;
 	struct dpaa2_ni_softc *sc = device_get_softc(dev);
-	struct dpaa2_con_softc *consc;
-	struct dpaa2_devinfo *io_info, *con_info;
-	device_t io_dev, con_dev, child = dev;
 	struct dpaa2_ni_channel *channel;
-	struct dpaa2_io_notif_ctx *ctx;
+	struct dpaa2_con_softc *consc;
 	struct dpaa2_con_notif_cfg notif_cfg;
+	struct dpaa2_devinfo *rc_info = device_get_ivars(pdev);
+	struct dpaa2_devinfo *io_info;
+	struct dpaa2_devinfo *con_info;
+	struct dpaa2_io_notif_ctx *ctx;
 	struct dpaa2_buf *buf;
-	int error;
+	struct dpaa2_cmd cmd;
 	struct sysctl_ctx_list *sysctl_ctx;
 	struct sysctl_oid *node;
 	struct sysctl_oid_list *parent;
 	uint32_t i, num_chan;
+	uint16_t rc_token, con_token;
+	int error;
 
 	/* Calculate number of the channels based on the allocated resources. */
-	for (i = 0; i < IO_RES_NUM; i++)
-		if (!sc->res[IO_RID(i)])
+	for (i = 0; i < IO_RES_NUM; i++) {
+		if (!sc->res[IO_RID(i)]) {
 			break;
+		}
+	}
 	num_chan = i;
-	for (i = 0; i < CON_RES_NUM; i++)
-		if (!sc->res[CON_RID(i)])
+	for (i = 0; i < CON_RES_NUM; i++) {
+		if (!sc->res[CON_RID(i)]) {
 			break;
+		}
+	}
 	num_chan = i < num_chan ? i : num_chan;
-
-	/* Limit maximum channels. */
 	sc->chan_n = num_chan > DPAA2_NI_MAX_CHANNELS
 	    ? DPAA2_NI_MAX_CHANNELS : num_chan;
-
-	/* Limit channels by number of the queues. */
 	sc->chan_n = sc->chan_n > sc->attr.num.queues
 	    ? sc->attr.num.queues : sc->chan_n;
 
@@ -1026,29 +1048,47 @@ dpaa2_ni_setup_channels(device_t dev)
 
 	sysctl_ctx = device_get_sysctl_ctx(sc->dev);
 	parent = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev));
-
 	node = SYSCTL_ADD_NODE(sysctl_ctx, parent, OID_AUTO, "channels",
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "DPNI Channels");
 	parent = SYSCTL_CHILDREN(node);
 
 	/* Setup channels for the portal. */
 	for (uint32_t i = 0; i < sc->chan_n; i++) {
-		/* Select software portal. */
 		io_dev = (device_t) rman_get_start(sc->res[IO_RID(i)]);
 		io_info = device_get_ivars(io_dev);
 
-		/* Select DPCON (channel). */
 		con_dev = (device_t) rman_get_start(sc->res[CON_RID(i)]);
 		consc = device_get_softc(con_dev);
 		con_info = device_get_ivars(con_dev);
 
-		/* Enable selected channel. */
-		error = DPAA2_CMD_CON_ENABLE(dev, child, dpaa2_mcp_tk(consc->cmd,
-		    consc->con_token));
+		DPAA2_CMD_INIT(&cmd);
+
+		error = DPAA2_CMD_RC_OPEN(dev, child, &cmd, rc_info->id,
+		    &rc_token);
+		if (error) {
+			device_printf(dev, "%s: failed to open resource "
+			    "container: id=%d, error=%d\n", __func__,
+			    rc_info->id, error);
+			return (error);
+		}
+		error = DPAA2_CMD_CON_OPEN(dev, child, &cmd, con_info->id,
+		    &con_token);
+		if (error) {
+			device_printf(dev, "%s: failed to open DPCON: id=%d, "
+			    "error=%d\n", __func__, con_info->id, error);
+			(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd,
+			    rc_token));
+			return (error);
+		}
+
+		error = DPAA2_CMD_CON_ENABLE(dev, child, &cmd);
 		if (error) {
 			device_printf(dev, "%s: failed to enable channel: "
 			    "dpcon_id=%d, chan_id=%d\n", __func__, con_info->id,
 			    consc->attr.chan_id);
+			(void)DPAA2_CMD_CON_CLOSE(dev, child, &cmd);
+			(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd,
+			    rc_token));
 			return (error);
 		}
 
@@ -1057,6 +1097,9 @@ dpaa2_ni_setup_channels(device_t dev)
 		if (!channel) {
 			device_printf(dev, "%s: failed to allocate a channel\n",
 			    __func__);
+			(void)DPAA2_CMD_CON_CLOSE(dev, child, &cmd);
+			(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd,
+			    rc_token));
 			return (ENOMEM);
 		}
 
@@ -1068,6 +1111,9 @@ dpaa2_ni_setup_channels(device_t dev)
 		channel->io_dev = io_dev;
 		channel->con_dev = con_dev;
 		channel->recycled_n = 0;
+		channel->tx_frames = 0; /* for debug purposes */
+		channel->tx_dropped = 0; /* for debug purposes */
+		channel->rxq_n = 0;
 
 		buf = &channel->store;
 		buf->type = DPAA2_BUF_STORE;
@@ -1075,13 +1121,6 @@ dpaa2_ni_setup_channels(device_t dev)
 		buf->store.dmap = NULL;
 		buf->store.paddr = 0;
 		buf->store.vaddr = NULL;
-
-		/* For debug purposes only! */
-		channel->tx_frames = 0;
-		channel->tx_dropped = 0;
-
-		/* None of the frame queues for this channel configured yet. */
-		channel->rxq_n = 0;
 
 		/* Setup WQ channel notification context. */
 		ctx = &channel->ctx;
@@ -1097,6 +1136,9 @@ dpaa2_ni_setup_channels(device_t dev)
 		if (error) {
 			device_printf(dev, "%s: failed to register notification "
 			    "context\n", __func__);
+			(void)DPAA2_CMD_CON_CLOSE(dev, child, &cmd);
+			(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd,
+			    rc_token));
 			return (error);
 		}
 
@@ -1104,12 +1146,14 @@ dpaa2_ni_setup_channels(device_t dev)
 		notif_cfg.dpio_id = io_info->id;
 		notif_cfg.prior = 0;
 		notif_cfg.qman_ctx = ctx->qman_ctx;
-		error = DPAA2_CMD_CON_SET_NOTIF(dev, child, dpaa2_mcp_tk(
-		    consc->cmd, consc->con_token), &notif_cfg);
+		error = DPAA2_CMD_CON_SET_NOTIF(dev, child, &cmd, &notif_cfg);
 		if (error) {
 			device_printf(dev, "%s: failed to set DPCON "
 			    "notification: dpcon_id=%d, chan_id=%d\n", __func__,
 			    con_info->id, consc->attr.chan_id);
+			(void)DPAA2_CMD_CON_CLOSE(dev, child, &cmd);
+			(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd,
+			    rc_token));
 			return (error);
 		}
 
@@ -1118,12 +1162,18 @@ dpaa2_ni_setup_channels(device_t dev)
 		if (error) {
 			device_printf(dev, "%s: failed to seed buffer pool\n",
 			    __func__);
+			(void)DPAA2_CMD_CON_CLOSE(dev, child, &cmd);
+			(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd,
+			    rc_token));
 			return (error);
 		}
 		error = dpaa2_ni_seed_chan_storage(sc, channel);
 		if (error) {
 			device_printf(dev, "%s: failed to seed channel "
 			    "storage\n", __func__);
+			(void)DPAA2_CMD_CON_CLOSE(dev, child, &cmd);
+			(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd,
+			    rc_token));
 			return (error);
 		}
 
@@ -1132,20 +1182,31 @@ dpaa2_ni_setup_channels(device_t dev)
 		if (error) {
 			device_printf(dev, "%s: failed to prepare TxConf "
 			    "queue: error=%d\n", __func__, error);
+			(void)DPAA2_CMD_CON_CLOSE(dev, child, &cmd);
+			(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd,
+			    rc_token));
 			return (error);
 		}
 		error = dpaa2_ni_setup_fq(dev, channel, DPAA2_NI_QUEUE_RX);
 		if (error) {
 			device_printf(dev, "%s: failed to prepare Rx queue: "
 			    "error=%d\n", __func__, error);
+			(void)DPAA2_CMD_CON_CLOSE(dev, child, &cmd);
+			(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd,
+			    rc_token));
 			return (error);
 		}
 
-		if (bootverbose)
+		if (bootverbose) {
 			device_printf(dev, "channel: dpio_id=%d "
 			    "dpcon_id=%d chan_id=%d, priorities=%d\n",
 			    io_info->id, con_info->id, channel->id,
 			    consc->attr.prior_num);
+		}
+
+		(void)DPAA2_CMD_CON_CLOSE(dev, child, &cmd);
+		(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd,
+		    rc_token));
 	}
 
 	/* There is exactly one Rx error queue per DPNI. */
@@ -1224,15 +1285,34 @@ dpaa2_ni_setup_fq(device_t dev, struct dpaa2_ni_channel *chan,
 static int
 dpaa2_ni_bind(device_t dev)
 {
-	device_t bp_dev, child = dev;
+	device_t pdev = device_get_parent(dev);
+	device_t child = dev;
+	device_t bp_dev;
 	struct dpaa2_ni_softc *sc = device_get_softc(dev);
+	struct dpaa2_devinfo *rcinfo = device_get_ivars(pdev);
+	struct dpaa2_devinfo *dinfo = device_get_ivars(dev);
 	struct dpaa2_devinfo *bp_info;
-	struct dpaa2_cmd *cmd = sc->cmd;
+	struct dpaa2_cmd cmd;
 	struct dpaa2_ni_pools_cfg pools_cfg;
 	struct dpaa2_ni_err_cfg err_cfg;
 	struct dpaa2_ni_channel *chan;
-	uint16_t ni_token = sc->ni_token;
+	uint16_t rc_token, ni_token;
 	int error;
+
+	DPAA2_CMD_INIT(&cmd);
+
+	error = DPAA2_CMD_RC_OPEN(dev, child, &cmd, rcinfo->id, &rc_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open resource container: "
+		    "id=%d, error=%d\n", __func__, rcinfo->id, error);
+		goto err_exit;
+	}
+	error = DPAA2_CMD_NI_OPEN(dev, child, &cmd, dinfo->id, &ni_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open network interface: "
+		    "id=%d, error=%d\n", __func__, dinfo->id, error);
+		goto close_rc;
+	}
 
 	/* Select buffer pool (only one available at the moment). */
 	bp_dev = (device_t) rman_get_start(sc->res[BP_RID(0)]);
@@ -1243,11 +1323,10 @@ dpaa2_ni_bind(device_t dev)
 	pools_cfg.pools[0].bp_obj_id = bp_info->id;
 	pools_cfg.pools[0].backup_flag = 0;
 	pools_cfg.pools[0].buf_sz = sc->buf_sz;
-	error = DPAA2_CMD_NI_SET_POOLS(dev, child, dpaa2_mcp_tk(cmd, ni_token),
-	    &pools_cfg);
+	error = DPAA2_CMD_NI_SET_POOLS(dev, child, &cmd, &pools_cfg);
 	if (error) {
 		device_printf(dev, "%s: failed to set buffer pools\n", __func__);
-		return (error);
+		goto close_ni;
 	}
 
 	/* Setup ingress traffic distribution. */
@@ -1255,21 +1334,22 @@ dpaa2_ni_bind(device_t dev)
 	if (error && error != EOPNOTSUPP) {
 		device_printf(dev, "%s: failed to setup ingress traffic "
 		    "distribution\n", __func__);
-		return (error);
+		goto close_ni;
 	}
-	if (bootverbose && error == EOPNOTSUPP)
+	if (bootverbose && error == EOPNOTSUPP) {
 		device_printf(dev, "Ingress traffic distribution not "
 		    "supported\n");
+	}
 
 	/* Configure handling of error frames. */
 	err_cfg.err_mask = DPAA2_NI_FAS_RX_ERR_MASK;
 	err_cfg.set_err_fas = false;
 	err_cfg.action = DPAA2_NI_ERR_DISCARD;
-	error = DPAA2_CMD_NI_SET_ERR_BEHAVIOR(dev, child, cmd, &err_cfg);
+	error = DPAA2_CMD_NI_SET_ERR_BEHAVIOR(dev, child, &cmd, &err_cfg);
 	if (error) {
 		device_printf(dev, "%s: failed to set errors behavior\n",
 		    __func__);
-		return (error);
+		goto close_ni;
 	}
 
 	/* Configure channel queues to generate CDANs. */
@@ -1278,45 +1358,53 @@ dpaa2_ni_bind(device_t dev)
 
 		/* Setup Rx flows. */
 		for (uint32_t j = 0; j < chan->rxq_n; j++) {
-			error = dpaa2_ni_setup_rx_flow(dev, cmd,
-			    &chan->rx_queues[j]);
+			error = dpaa2_ni_setup_rx_flow(dev, &chan->rx_queues[j]);
 			if (error) {
 				device_printf(dev, "%s: failed to setup Rx "
 				    "flow: error=%d\n", __func__, error);
-				return (error);
+				goto close_ni;
 			}
 		}
 
 		/* Setup Tx flow. */
-		error = dpaa2_ni_setup_tx_flow(dev, cmd, &chan->txc_queue);
+		error = dpaa2_ni_setup_tx_flow(dev, &chan->txc_queue);
 		if (error) {
 			device_printf(dev, "%s: failed to setup Tx "
 			    "flow: error=%d\n", __func__, error);
-			return (error);
+			goto close_ni;
 		}
 	}
 
 	/* Configure RxError queue to generate CDAN. */
-	error = dpaa2_ni_setup_rx_err_flow(dev, cmd, &sc->rxe_queue);
+	error = dpaa2_ni_setup_rx_err_flow(dev, &sc->rxe_queue);
 	if (error) {
 		device_printf(dev, "%s: failed to setup RxError flow: "
 		    "error=%d\n", __func__, error);
-		return (error);
+		goto close_ni;
 	}
 
 	/*
 	 * Get the Queuing Destination ID (QDID) that should be used for frame
 	 * enqueue operations.
 	 */
-	error = DPAA2_CMD_NI_GET_QDID(dev, child, cmd, DPAA2_NI_QUEUE_TX,
+	error = DPAA2_CMD_NI_GET_QDID(dev, child, &cmd, DPAA2_NI_QUEUE_TX,
 	    &sc->tx_qdid);
 	if (error) {
 		device_printf(dev, "%s: failed to get Tx queuing destination "
 		    "ID\n", __func__);
-		return (error);
+		goto close_ni;
 	}
 
+	(void)DPAA2_CMD_NI_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, ni_token));
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
 	return (0);
+
+close_ni:
+	(void)DPAA2_CMD_NI_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, ni_token));
+close_rc:
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
+err_exit:
+	return (error);
 }
 
 /**
@@ -1336,13 +1424,32 @@ dpaa2_ni_setup_rx_dist(device_t dev)
 }
 
 static int
-dpaa2_ni_setup_rx_flow(device_t dev, struct dpaa2_cmd *cmd,
-    struct dpaa2_ni_fq *fq)
+dpaa2_ni_setup_rx_flow(device_t dev, struct dpaa2_ni_fq *fq)
 {
+	device_t pdev = device_get_parent(dev);
 	device_t child = dev;
+	struct dpaa2_devinfo *rcinfo = device_get_ivars(pdev);
+	struct dpaa2_devinfo *dinfo = device_get_ivars(dev);
 	struct dpaa2_devinfo *con_info;
+	struct dpaa2_cmd cmd;
 	struct dpaa2_ni_queue_cfg queue_cfg = {0};
+	uint16_t rc_token, ni_token;
 	int error;
+
+	DPAA2_CMD_INIT(&cmd);
+
+	error = DPAA2_CMD_RC_OPEN(dev, child, &cmd, rcinfo->id, &rc_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open resource container: "
+		    "id=%d, error=%d\n", __func__, rcinfo->id, error);
+		goto err_exit;
+	}
+	error = DPAA2_CMD_NI_OPEN(dev, child, &cmd, dinfo->id, &ni_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open network interface: "
+		    "id=%d, error=%d\n", __func__, dinfo->id, error);
+		goto close_rc;
+	}
 
 	/* Obtain DPCON associated with the FQ's channel. */
 	con_info = device_get_ivars(fq->chan->con_dev);
@@ -1350,12 +1457,12 @@ dpaa2_ni_setup_rx_flow(device_t dev, struct dpaa2_cmd *cmd,
 	queue_cfg.type = DPAA2_NI_QUEUE_RX;
 	queue_cfg.tc = fq->tc;
 	queue_cfg.idx = fq->flowid;
-	error = DPAA2_CMD_NI_GET_QUEUE(dev, child, cmd, &queue_cfg);
+	error = DPAA2_CMD_NI_GET_QUEUE(dev, child, &cmd, &queue_cfg);
 	if (error) {
 		device_printf(dev, "%s: failed to obtain Rx queue "
 		    "configuration: tc=%d, flowid=%d\n", __func__, queue_cfg.tc,
 		    queue_cfg.idx);
-		return (error);
+		goto close_ni;
 	}
 
 	fq->fqid = queue_cfg.fqid;
@@ -1367,12 +1474,12 @@ dpaa2_ni_setup_rx_flow(device_t dev, struct dpaa2_cmd *cmd,
 	queue_cfg.options =
 	    DPAA2_NI_QUEUE_OPT_USER_CTX |
 	    DPAA2_NI_QUEUE_OPT_DEST;
-	error = DPAA2_CMD_NI_SET_QUEUE(dev, child, cmd, &queue_cfg);
+	error = DPAA2_CMD_NI_SET_QUEUE(dev, child, &cmd, &queue_cfg);
 	if (error) {
 		device_printf(dev, "%s: failed to update Rx queue "
 		    "configuration: tc=%d, flowid=%d\n", __func__, queue_cfg.tc,
 		    queue_cfg.idx);
-		return (error);
+		goto close_ni;
 	}
 
 	if (bootverbose) {
@@ -1381,21 +1488,49 @@ dpaa2_ni_setup_rx_flow(device_t dev, struct dpaa2_cmd *cmd,
 		    fq->fqid, (uint64_t) fq);
 	}
 
+	(void)DPAA2_CMD_NI_CLOSE(dev, child, &cmd);
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
 	return (0);
+
+close_ni:
+	(void)DPAA2_CMD_NI_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, ni_token));
+close_rc:
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
+err_exit:
+	return (error);
 }
 
 static int
-dpaa2_ni_setup_tx_flow(device_t dev, struct dpaa2_cmd *cmd,
-    struct dpaa2_ni_fq *fq)
+dpaa2_ni_setup_tx_flow(device_t dev, struct dpaa2_ni_fq *fq)
 {
+	device_t pdev = device_get_parent(dev);
 	device_t child = dev;
 	struct dpaa2_ni_softc *sc = device_get_softc(dev);
+	struct dpaa2_devinfo *rcinfo = device_get_ivars(pdev);
+	struct dpaa2_devinfo *dinfo = device_get_ivars(dev);
 	struct dpaa2_devinfo *con_info;
 	struct dpaa2_ni_queue_cfg queue_cfg = {0};
 	struct dpaa2_ni_tx_ring *tx;
 	struct dpaa2_buf *buf;
+	struct dpaa2_cmd cmd;
 	uint32_t tx_rings_n = 0;
+	uint16_t rc_token, ni_token;
 	int error;
+
+	DPAA2_CMD_INIT(&cmd);
+
+	error = DPAA2_CMD_RC_OPEN(dev, child, &cmd, rcinfo->id, &rc_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open resource container: "
+		    "id=%d, error=%d\n", __func__, rcinfo->id, error);
+		goto err_exit;
+	}
+	error = DPAA2_CMD_NI_OPEN(dev, child, &cmd, dinfo->id, &ni_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open network interface: "
+		    "id=%d, error=%d\n", __func__, dinfo->id, error);
+		goto close_rc;
+	}
 
 	/* Obtain DPCON associated with the FQ's channel. */
 	con_info = device_get_ivars(fq->chan->con_dev);
@@ -1414,12 +1549,12 @@ dpaa2_ni_setup_tx_flow(device_t dev, struct dpaa2_cmd *cmd,
 		queue_cfg.idx = fq->flowid;
 		queue_cfg.chan_id = fq->chan->id;
 
-		error = DPAA2_CMD_NI_GET_QUEUE(dev, child, cmd, &queue_cfg);
+		error = DPAA2_CMD_NI_GET_QUEUE(dev, child, &cmd, &queue_cfg);
 		if (error) {
 			device_printf(dev, "%s: failed to obtain Tx queue "
 			    "configuration: tc=%d, flowid=%d\n", __func__,
 			    queue_cfg.tc, queue_cfg.idx);
-			return (error);
+			goto close_ni;
 		}
 
 		tx = &fq->tx_rings[i];
@@ -1441,7 +1576,7 @@ dpaa2_ni_setup_tx_flow(device_t dev, struct dpaa2_cmd *cmd,
 		if (tx->idx_br == NULL) {
 			device_printf(dev, "%s: failed to setup Tx ring buffer"
 			    " (2) fqid=%d\n", __func__, tx->fqid);
-			return (ENOMEM);
+			goto close_ni;
 		}
 
 		/* Configure Tx buffers. */
@@ -1470,12 +1605,12 @@ dpaa2_ni_setup_tx_flow(device_t dev, struct dpaa2_cmd *cmd,
 	queue_cfg.type = DPAA2_NI_QUEUE_TX_CONF;
 	queue_cfg.tc = 0; /* ignored for TxConf queue */
 	queue_cfg.idx = fq->flowid;
-	error = DPAA2_CMD_NI_GET_QUEUE(dev, child, cmd, &queue_cfg);
+	error = DPAA2_CMD_NI_GET_QUEUE(dev, child, &cmd, &queue_cfg);
 	if (error) {
 		device_printf(dev, "%s: failed to obtain TxConf queue "
 		    "configuration: tc=%d, flowid=%d\n", __func__, queue_cfg.tc,
 		    queue_cfg.idx);
-		return (error);
+		goto close_ni;
 	}
 
 	fq->fqid = queue_cfg.fqid;
@@ -1487,25 +1622,53 @@ dpaa2_ni_setup_tx_flow(device_t dev, struct dpaa2_cmd *cmd,
 	queue_cfg.options =
 	    DPAA2_NI_QUEUE_OPT_USER_CTX |
 	    DPAA2_NI_QUEUE_OPT_DEST;
-	error = DPAA2_CMD_NI_SET_QUEUE(dev, child, cmd, &queue_cfg);
+	error = DPAA2_CMD_NI_SET_QUEUE(dev, child, &cmd, &queue_cfg);
 	if (error) {
 		device_printf(dev, "%s: failed to update TxConf queue "
 		    "configuration: tc=%d, flowid=%d\n", __func__, queue_cfg.tc,
 		    queue_cfg.idx);
-		return (error);
+		goto close_ni;
 	}
 
+	(void)DPAA2_CMD_NI_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, ni_token));
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
 	return (0);
+
+close_ni:
+	(void)DPAA2_CMD_NI_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, ni_token));
+close_rc:
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
+err_exit:
+	return (error);
 }
 
 static int
-dpaa2_ni_setup_rx_err_flow(device_t dev, struct dpaa2_cmd *cmd,
-    struct dpaa2_ni_fq *fq)
+dpaa2_ni_setup_rx_err_flow(device_t dev, struct dpaa2_ni_fq *fq)
 {
+	device_t pdev = device_get_parent(dev);
 	device_t child = dev;
+	struct dpaa2_devinfo *rcinfo = device_get_ivars(pdev);
+	struct dpaa2_devinfo *dinfo = device_get_ivars(dev);
 	struct dpaa2_devinfo *con_info;
 	struct dpaa2_ni_queue_cfg queue_cfg = {0};
+	struct dpaa2_cmd cmd;
+	uint16_t rc_token, ni_token;
 	int error;
+
+	DPAA2_CMD_INIT(&cmd);
+
+	error = DPAA2_CMD_RC_OPEN(dev, child, &cmd, rcinfo->id, &rc_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open resource container: "
+		    "id=%d, error=%d\n", __func__, rcinfo->id, error);
+		goto err_exit;
+	}
+	error = DPAA2_CMD_NI_OPEN(dev, child, &cmd, dinfo->id, &ni_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open network interface: "
+		    "id=%d, error=%d\n", __func__, dinfo->id, error);
+		goto close_rc;
+	}
 
 	/* Obtain DPCON associated with the FQ's channel. */
 	con_info = device_get_ivars(fq->chan->con_dev);
@@ -1513,11 +1676,11 @@ dpaa2_ni_setup_rx_err_flow(device_t dev, struct dpaa2_cmd *cmd,
 	queue_cfg.type = DPAA2_NI_QUEUE_RX_ERR;
 	queue_cfg.tc = fq->tc; /* ignored */
 	queue_cfg.idx = fq->flowid; /* ignored */
-	error = DPAA2_CMD_NI_GET_QUEUE(dev, child, cmd, &queue_cfg);
+	error = DPAA2_CMD_NI_GET_QUEUE(dev, child, &cmd, &queue_cfg);
 	if (error) {
 		device_printf(dev, "%s: failed to obtain RxErr queue "
 		    "configuration\n", __func__);
-		return (error);
+		goto close_ni;
 	}
 
 	fq->fqid = queue_cfg.fqid;
@@ -1529,14 +1692,23 @@ dpaa2_ni_setup_rx_err_flow(device_t dev, struct dpaa2_cmd *cmd,
 	queue_cfg.options =
 	    DPAA2_NI_QUEUE_OPT_USER_CTX |
 	    DPAA2_NI_QUEUE_OPT_DEST;
-	error = DPAA2_CMD_NI_SET_QUEUE(dev, child, cmd, &queue_cfg);
+	error = DPAA2_CMD_NI_SET_QUEUE(dev, child, &cmd, &queue_cfg);
 	if (error) {
 		device_printf(dev, "%s: failed to update RxErr queue "
 		    "configuration\n", __func__);
-		return (error);
+		goto close_ni;
 	}
 
+	(void)DPAA2_CMD_NI_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, ni_token));
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
 	return (0);
+
+close_ni:
+	(void)DPAA2_CMD_NI_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, ni_token));
+close_rc:
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
+err_exit:
+	return (error);
 }
 
 /**
@@ -1545,50 +1717,74 @@ dpaa2_ni_setup_rx_err_flow(device_t dev, struct dpaa2_cmd *cmd,
 static int
 dpaa2_ni_setup_irqs(device_t dev)
 {
+	device_t pdev = device_get_parent(dev);
 	device_t child = dev;
 	struct dpaa2_ni_softc *sc = device_get_softc(dev);
-	struct dpaa2_cmd *cmd = sc->cmd;
-	uint16_t ni_token = sc->ni_token;
+	struct dpaa2_devinfo *rcinfo = device_get_ivars(pdev);
+	struct dpaa2_devinfo *dinfo = device_get_ivars(dev);
+	struct dpaa2_cmd cmd;
+	uint16_t rc_token, ni_token;
 	int error;
+
+	DPAA2_CMD_INIT(&cmd);
+
+	error = DPAA2_CMD_RC_OPEN(dev, child, &cmd, rcinfo->id, &rc_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open resource container: "
+		    "id=%d, error=%d\n", __func__, rcinfo->id, error);
+		goto err_exit;
+	}
+	error = DPAA2_CMD_NI_OPEN(dev, child, &cmd, dinfo->id, &ni_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open network interface: "
+		    "id=%d, error=%d\n", __func__, dinfo->id, error);
+		goto close_rc;
+	}
 
 	/* Configure IRQs. */
 	error = dpaa2_ni_setup_msi(sc);
 	if (error) {
 		device_printf(dev, "%s: failed to allocate MSI\n", __func__);
-		return (error);
+		goto close_ni;
 	}
 	if ((sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
 	    &sc->irq_rid[0], RF_ACTIVE | RF_SHAREABLE)) == NULL) {
 		device_printf(dev, "%s: failed to allocate IRQ resource\n",
 		    __func__);
-		return (ENXIO);
+		goto close_ni;
 	}
 	if (bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
 	    NULL, dpaa2_ni_intr, sc, &sc->intr)) {
 		device_printf(dev, "%s: failed to setup IRQ resource\n",
 		    __func__);
-		return (ENXIO);
+		goto close_ni;
 	}
 
-	/* Configure DPNI to generate interrupts. */
-	error = DPAA2_CMD_NI_SET_IRQ_MASK(dev, child, dpaa2_mcp_tk(cmd,
-	    ni_token), DPNI_IRQ_INDEX,
+	error = DPAA2_CMD_NI_SET_IRQ_MASK(dev, child, &cmd, DPNI_IRQ_INDEX,
 	    DPNI_IRQ_LINK_CHANGED | DPNI_IRQ_EP_CHANGED);
 	if (error) {
 		device_printf(dev, "%s: failed to set DPNI IRQ mask\n",
 		    __func__);
-		return (error);
+		goto close_ni;
 	}
 
-	/* Enable IRQ. */
-	error = DPAA2_CMD_NI_SET_IRQ_ENABLE(dev, child, cmd, DPNI_IRQ_INDEX,
+	error = DPAA2_CMD_NI_SET_IRQ_ENABLE(dev, child, &cmd, DPNI_IRQ_INDEX,
 	    true);
 	if (error) {
 		device_printf(dev, "%s: failed to enable DPNI IRQ\n", __func__);
-		return (error);
+		goto close_ni;
 	}
 
+	(void)DPAA2_CMD_NI_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, ni_token));
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
 	return (0);
+
+close_ni:
+	(void)DPAA2_CMD_NI_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, ni_token));
+close_rc:
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
+err_exit:
+	return (error);
 }
 
 /**
@@ -1622,43 +1818,72 @@ dpaa2_ni_setup_if_caps(struct dpaa2_ni_softc *sc)
 {
 	const bool en_rxcsum = if_getcapenable(sc->ifp) & IFCAP_RXCSUM;
 	const bool en_txcsum = if_getcapenable(sc->ifp) & IFCAP_TXCSUM;
+	device_t pdev = device_get_parent(sc->dev);
 	device_t dev = sc->dev;
 	device_t child = dev;
+	struct dpaa2_devinfo *rcinfo = device_get_ivars(pdev);
+	struct dpaa2_devinfo *dinfo = device_get_ivars(dev);
+	struct dpaa2_cmd cmd;
+	uint16_t rc_token, ni_token;
 	int error;
 
+	DPAA2_CMD_INIT(&cmd);
+
+	error = DPAA2_CMD_RC_OPEN(dev, child, &cmd, rcinfo->id, &rc_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open resource container: "
+		    "id=%d, error=%d\n", __func__, rcinfo->id, error);
+		goto err_exit;
+	}
+	error = DPAA2_CMD_NI_OPEN(dev, child, &cmd, dinfo->id, &ni_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open network interface: "
+		    "id=%d, error=%d\n", __func__, dinfo->id, error);
+		goto close_rc;
+	}
+
 	/* Setup checksums validation. */
-	error = DPAA2_CMD_NI_SET_OFFLOAD(dev, child, dpaa2_mcp_tk(sc->cmd,
-	    sc->ni_token), DPAA2_NI_OFL_RX_L3_CSUM, en_rxcsum);
+	error = DPAA2_CMD_NI_SET_OFFLOAD(dev, child, &cmd,
+	    DPAA2_NI_OFL_RX_L3_CSUM, en_rxcsum);
 	if (error) {
 		device_printf(dev, "%s: failed to %s L3 checksum validation\n",
 		    __func__, en_rxcsum ? "enable" : "disable");
-		return (error);
+		goto close_ni;
 	}
-	error = DPAA2_CMD_NI_SET_OFFLOAD(dev, child, sc->cmd,
+	error = DPAA2_CMD_NI_SET_OFFLOAD(dev, child, &cmd,
 	    DPAA2_NI_OFL_RX_L4_CSUM, en_rxcsum);
 	if (error) {
 		device_printf(dev, "%s: failed to %s L4 checksum validation\n",
 		    __func__, en_rxcsum ? "enable" : "disable");
-		return (error);
+		goto close_ni;
 	}
 
 	/* Setup checksums generation. */
-	error = DPAA2_CMD_NI_SET_OFFLOAD(dev, child, sc->cmd,
+	error = DPAA2_CMD_NI_SET_OFFLOAD(dev, child, &cmd,
 	    DPAA2_NI_OFL_TX_L3_CSUM, en_txcsum);
 	if (error) {
 		device_printf(dev, "%s: failed to %s L3 checksum generation\n",
 		    __func__, en_txcsum ? "enable" : "disable");
-		return (error);
+		goto close_ni;
 	}
-	error = DPAA2_CMD_NI_SET_OFFLOAD(dev, child, sc->cmd,
+	error = DPAA2_CMD_NI_SET_OFFLOAD(dev, child, &cmd,
 	    DPAA2_NI_OFL_TX_L4_CSUM, en_txcsum);
 	if (error) {
 		device_printf(dev, "%s: failed to %s L4 checksum generation\n",
 		    __func__, en_txcsum ? "enable" : "disable");
-		return (error);
+		goto close_ni;
 	}
 
+	(void)DPAA2_CMD_NI_CLOSE(dev, child, &cmd);
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
 	return (0);
+
+close_ni:
+	(void)DPAA2_CMD_NI_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, ni_token));
+close_rc:
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
+err_exit:
+	return (error);
 }
 
 /**
@@ -1669,26 +1894,55 @@ dpaa2_ni_setup_if_flags(struct dpaa2_ni_softc *sc)
 {
 	const bool en_promisc = if_getflags(sc->ifp) & IFF_PROMISC;
 	const bool en_allmulti = if_getflags(sc->ifp) & IFF_ALLMULTI;
+	device_t pdev = device_get_parent(sc->dev);
 	device_t dev = sc->dev;
 	device_t child = dev;
+	struct dpaa2_devinfo *rcinfo = device_get_ivars(pdev);
+	struct dpaa2_devinfo *dinfo = device_get_ivars(dev);
+	struct dpaa2_cmd cmd;
+	uint16_t rc_token, ni_token;
 	int error;
 
-	error = DPAA2_CMD_NI_SET_MULTI_PROMISC(dev, child, dpaa2_mcp_tk(sc->cmd,
-	    sc->ni_token), en_promisc ? true : en_allmulti);
+	DPAA2_CMD_INIT(&cmd);
+
+	error = DPAA2_CMD_RC_OPEN(dev, child, &cmd, rcinfo->id, &rc_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open resource container: "
+		    "id=%d, error=%d\n", __func__, rcinfo->id, error);
+		goto err_exit;
+	}
+	error = DPAA2_CMD_NI_OPEN(dev, child, &cmd, dinfo->id, &ni_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open network interface: "
+		    "id=%d, error=%d\n", __func__, dinfo->id, error);
+		goto close_rc;
+	}
+
+	error = DPAA2_CMD_NI_SET_MULTI_PROMISC(dev, child, &cmd,
+	    en_promisc ? true : en_allmulti);
 	if (error) {
 		device_printf(dev, "%s: failed to %s multicast promiscuous "
 		    "mode\n", __func__, en_allmulti ? "enable" : "disable");
-		return (error);
+		goto close_ni;
 	}
 
-	error = DPAA2_CMD_NI_SET_UNI_PROMISC(dev, child, sc->cmd, en_promisc);
+	error = DPAA2_CMD_NI_SET_UNI_PROMISC(dev, child, &cmd, en_promisc);
 	if (error) {
 		device_printf(dev, "%s: failed to %s unicast promiscuous mode\n",
 		    __func__, en_promisc ? "enable" : "disable");
-		return (error);
+		goto close_ni;
 	}
 
+	(void)DPAA2_CMD_NI_CLOSE(dev, child, &cmd);
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
 	return (0);
+
+close_ni:
+	(void)DPAA2_CMD_NI_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, ni_token));
+close_rc:
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
+err_exit:
+	return (error);
 }
 
 static int
@@ -1887,12 +2141,32 @@ dpaa2_ni_setup_dma(struct dpaa2_ni_softc *sc)
  * @brief Configure buffer layouts of the different DPNI queues.
  */
 static int
-dpaa2_ni_set_buf_layout(device_t dev, struct dpaa2_cmd *cmd)
+dpaa2_ni_set_buf_layout(device_t dev)
 {
+	device_t pdev = device_get_parent(dev);
 	device_t child = dev;
+	struct dpaa2_devinfo *rcinfo = device_get_ivars(pdev);
+	struct dpaa2_devinfo *dinfo = device_get_ivars(dev);
 	struct dpaa2_ni_softc *sc = device_get_softc(dev);
 	struct dpaa2_ni_buf_layout buf_layout = {0};
+	struct dpaa2_cmd cmd;
+	uint16_t rc_token, ni_token;
 	int error;
+
+	DPAA2_CMD_INIT(&cmd);
+
+	error = DPAA2_CMD_RC_OPEN(dev, child, &cmd, rcinfo->id, &rc_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open resource container: "
+		    "id=%d, error=%d\n", __func__, rcinfo->id, error);
+		goto err_exit;
+	}
+	error = DPAA2_CMD_NI_OPEN(dev, child, &cmd, dinfo->id, &ni_token);
+	if (error) {
+		device_printf(sc->dev, "%s: failed to open DPMAC: id=%d, "
+		    "error=%d\n", __func__, dinfo->id, error);
+		goto close_rc;
+	}
 
 	/*
 	 * Select Rx/Tx buffer alignment. It's necessary to ensure that the
@@ -1909,9 +2183,10 @@ dpaa2_ni_set_buf_layout(device_t dev, struct dpaa2_cmd *cmd)
 	 */
 	sc->buf_sz = ALIGN_DOWN(BUF_SIZE, sc->buf_align);
 
-	if (bootverbose)
+	if (bootverbose) {
 		device_printf(dev, "Rx/Tx buffers: size=%d, alignment=%d\n",
 		    sc->buf_sz, sc->buf_align);
+	}
 
 	/*
 	 *    Frame Descriptor       Tx buffer layout
@@ -1942,11 +2217,11 @@ dpaa2_ni_set_buf_layout(device_t dev, struct dpaa2_cmd *cmd)
 	    BUF_LOPT_PRIV_DATA_SZ |
 	    BUF_LOPT_TIMESTAMP | /* requires 128 bytes in HWA */
 	    BUF_LOPT_FRAME_STATUS;
-	error = DPAA2_CMD_NI_SET_BUF_LAYOUT(dev, child, cmd, &buf_layout);
+	error = DPAA2_CMD_NI_SET_BUF_LAYOUT(dev, child, &cmd, &buf_layout);
 	if (error) {
 		device_printf(dev, "%s: failed to set Tx buffer layout\n",
 		    __func__);
-		return (error);
+		goto close_ni;
 	}
 
 	/* Tx-confirmation buffer layout */
@@ -1954,29 +2229,31 @@ dpaa2_ni_set_buf_layout(device_t dev, struct dpaa2_cmd *cmd)
 	buf_layout.options =
 	    BUF_LOPT_TIMESTAMP |
 	    BUF_LOPT_FRAME_STATUS;
-	error = DPAA2_CMD_NI_SET_BUF_LAYOUT(dev, child, cmd, &buf_layout);
+	error = DPAA2_CMD_NI_SET_BUF_LAYOUT(dev, child, &cmd, &buf_layout);
 	if (error) {
 		device_printf(dev, "%s: failed to set TxConf buffer layout\n",
 		    __func__);
-		return (error);
+		goto close_ni;
 	}
 
 	/*
 	 * Driver should reserve the amount of space indicated by this command
 	 * as headroom in all Tx frames.
 	 */
-	error = DPAA2_CMD_NI_GET_TX_DATA_OFF(dev, child, cmd, &sc->tx_data_off);
+	error = DPAA2_CMD_NI_GET_TX_DATA_OFF(dev, child, &cmd, &sc->tx_data_off);
 	if (error) {
 		device_printf(dev, "%s: failed to obtain Tx data offset\n",
 		    __func__);
-		return (error);
+		goto close_ni;
 	}
 
-	if (bootverbose)
+	if (bootverbose) {
 		device_printf(dev, "Tx data offset=%d\n", sc->tx_data_off);
-	if ((sc->tx_data_off % 64) != 0)
+	}
+	if ((sc->tx_data_off % 64) != 0) {
 		device_printf(dev, "Tx data offset (%d) is not a multiplication "
 		    "of 64 bytes\n", sc->tx_data_off);
+	}
 
 	/*
 	 *    Frame Descriptor       Rx buffer layout
@@ -2015,14 +2292,20 @@ dpaa2_ni_set_buf_layout(device_t dev, struct dpaa2_cmd *cmd)
 	    BUF_LOPT_FRAME_STATUS |
 	    BUF_LOPT_PARSER_RESULT |
 	    BUF_LOPT_TIMESTAMP;
-	error = DPAA2_CMD_NI_SET_BUF_LAYOUT(dev, child, cmd, &buf_layout);
+	error = DPAA2_CMD_NI_SET_BUF_LAYOUT(dev, child, &cmd, &buf_layout);
 	if (error) {
 		device_printf(dev, "%s: failed to set Rx buffer layout\n",
 		    __func__);
-		return (error);
+		goto close_ni;
 	}
 
-	return (0);
+	error = 0;
+close_ni:
+	(void)DPAA2_CMD_NI_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, ni_token));
+close_rc:
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
+err_exit:
+	return (error);
 }
 
 /**
@@ -2032,34 +2315,59 @@ dpaa2_ni_set_buf_layout(device_t dev, struct dpaa2_cmd *cmd)
  *       itself generates pause frames (Tx frame).
  */
 static int
-dpaa2_ni_set_pause_frame(device_t dev, struct dpaa2_cmd *cmd)
+dpaa2_ni_set_pause_frame(device_t dev)
 {
+	device_t pdev = device_get_parent(dev);
 	device_t child = dev;
+	struct dpaa2_devinfo *rcinfo = device_get_ivars(pdev);
+	struct dpaa2_devinfo *dinfo = device_get_ivars(dev);
 	struct dpaa2_ni_softc *sc = device_get_softc(dev);
 	struct dpaa2_ni_link_cfg link_cfg = {0};
+	struct dpaa2_cmd cmd;
+	uint16_t rc_token, ni_token;
 	int error;
 
-	error = DPAA2_CMD_NI_GET_LINK_CFG(dev, child, cmd, &link_cfg);
+	DPAA2_CMD_INIT(&cmd);
+
+	error = DPAA2_CMD_RC_OPEN(dev, child, &cmd, rcinfo->id, &rc_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open resource container: "
+		    "id=%d, error=%d\n", __func__, rcinfo->id, error);
+		goto err_exit;
+	}
+	error = DPAA2_CMD_NI_OPEN(dev, child, &cmd, dinfo->id, &ni_token);
+	if (error) {
+		device_printf(sc->dev, "%s: failed to open DPMAC: id=%d, "
+		    "error=%d\n", __func__, dinfo->id, error);
+		goto close_rc;
+	}
+
+	error = DPAA2_CMD_NI_GET_LINK_CFG(dev, child, &cmd, &link_cfg);
 	if (error) {
 		device_printf(dev, "%s: failed to obtain link configuration: "
 		    "error=%d\n", __func__, error);
-		return (error);
+		goto close_ni;
 	}
 
 	/* Enable both Rx and Tx pause frames by default. */
 	link_cfg.options |= DPAA2_NI_LINK_OPT_PAUSE;
 	link_cfg.options &= ~DPAA2_NI_LINK_OPT_ASYM_PAUSE;
 
-	error = DPAA2_CMD_NI_SET_LINK_CFG(dev, child, cmd, &link_cfg);
+	error = DPAA2_CMD_NI_SET_LINK_CFG(dev, child, &cmd, &link_cfg);
 	if (error) {
 		device_printf(dev, "%s: failed to set link configuration: "
 		    "error=%d\n", __func__, error);
-		return (error);
+		goto close_ni;
 	}
 
 	sc->link_options = link_cfg.options;
-
-	return (0);
+	error = 0;
+close_ni:
+	(void)DPAA2_CMD_NI_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, ni_token));
+close_rc:
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
+err_exit:
+	return (error);
 }
 
 /**
@@ -2067,19 +2375,25 @@ dpaa2_ni_set_pause_frame(device_t dev, struct dpaa2_cmd *cmd)
  * frame.
  */
 static int
-dpaa2_ni_set_qos_table(device_t dev, struct dpaa2_cmd *cmd)
+dpaa2_ni_set_qos_table(device_t dev)
 {
+	device_t pdev = device_get_parent(dev);
 	device_t child = dev;
+	struct dpaa2_devinfo *rcinfo = device_get_ivars(pdev);
+	struct dpaa2_devinfo *dinfo = device_get_ivars(dev);
 	struct dpaa2_ni_softc *sc = device_get_softc(dev);
 	struct dpaa2_ni_qos_table tbl;
 	struct dpaa2_buf *buf = &sc->qos_kcfg;
+	struct dpaa2_cmd cmd;
+	uint16_t rc_token, ni_token;
 	int error;
 
 	if (sc->attr.num.rx_tcs == 1 ||
 	    !(sc->attr.options & DPNI_OPT_HAS_KEY_MASKING)) {
-		if (bootverbose)
+		if (bootverbose) {
 			device_printf(dev, "Ingress traffic classification is "
 			    "not supported\n");
+		}
 		return (0);
 	}
 
@@ -2089,15 +2403,16 @@ dpaa2_ni_set_qos_table(device_t dev, struct dpaa2_cmd *cmd)
 	 */
 	KASSERT(buf->type == DPAA2_BUF_STORE, ("%s: not storage buffer",
 	    __func__));
-	if (__predict_true(buf->store.dmat == NULL))
+	if (__predict_true(buf->store.dmat == NULL)) {
 		buf->store.dmat = sc->qos_dmat;
+	}
 
 	error = bus_dmamem_alloc(buf->store.dmat, &buf->store.vaddr,
 	    BUS_DMA_ZERO | BUS_DMA_COHERENT, &buf->store.dmap);
 	if (error) {
 		device_printf(dev, "%s: failed to allocate a buffer for QoS key "
 		    "configuration\n", __func__);
-		return (error);
+		goto err_exit;
 	}
 
 	error = bus_dmamap_load(buf->store.dmat, buf->store.dmap,
@@ -2106,132 +2421,194 @@ dpaa2_ni_set_qos_table(device_t dev, struct dpaa2_cmd *cmd)
 	if (error) {
 		device_printf(dev, "%s: failed to map QoS key configuration "
 		    "buffer into bus space\n", __func__);
-		return (error);
+		goto err_exit;
+	}
+
+	DPAA2_CMD_INIT(&cmd);
+
+	error = DPAA2_CMD_RC_OPEN(dev, child, &cmd, rcinfo->id, &rc_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open resource container: "
+		    "id=%d, error=%d\n", __func__, rcinfo->id, error);
+		goto err_exit;
+	}
+	error = DPAA2_CMD_NI_OPEN(dev, child, &cmd, dinfo->id, &ni_token);
+	if (error) {
+		device_printf(sc->dev, "%s: failed to open DPMAC: id=%d, "
+		    "error=%d\n", __func__, dinfo->id, error);
+		goto close_rc;
 	}
 
 	tbl.default_tc = 0;
 	tbl.discard_on_miss = false;
 	tbl.keep_entries = false;
 	tbl.kcfg_busaddr = buf->store.paddr;
-	error = DPAA2_CMD_NI_SET_QOS_TABLE(dev, child, cmd, &tbl);
+	error = DPAA2_CMD_NI_SET_QOS_TABLE(dev, child, &cmd, &tbl);
 	if (error) {
 		device_printf(dev, "%s: failed to set QoS table\n", __func__);
-		return (error);
+		goto close_ni;
 	}
 
-	error = DPAA2_CMD_NI_CLEAR_QOS_TABLE(dev, child, cmd);
+	error = DPAA2_CMD_NI_CLEAR_QOS_TABLE(dev, child, &cmd);
 	if (error) {
 		device_printf(dev, "%s: failed to clear QoS table\n", __func__);
-		return (error);
+		goto close_ni;
 	}
 
-	return (0);
+	error = 0;
+close_ni:
+	(void)DPAA2_CMD_NI_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, ni_token));
+close_rc:
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
+err_exit:
+	return (error);
 }
 
 static int
-dpaa2_ni_set_mac_addr(device_t dev, struct dpaa2_cmd *cmd, uint16_t rc_token,
-    uint16_t ni_token)
+dpaa2_ni_set_mac_addr(device_t dev)
 {
+	device_t pdev = device_get_parent(dev);
 	device_t child = dev;
 	struct dpaa2_ni_softc *sc = device_get_softc(dev);
 	if_t ifp = sc->ifp;
+	struct dpaa2_devinfo *rcinfo = device_get_ivars(pdev);
+	struct dpaa2_devinfo *dinfo = device_get_ivars(dev);
+	struct dpaa2_cmd cmd;
 	struct ether_addr rnd_mac_addr;
+	uint16_t rc_token, ni_token;
 	uint8_t mac_addr[ETHER_ADDR_LEN];
 	uint8_t dpni_mac_addr[ETHER_ADDR_LEN];
 	int error;
+
+	DPAA2_CMD_INIT(&cmd);
+
+	error = DPAA2_CMD_RC_OPEN(dev, child, &cmd, rcinfo->id, &rc_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open resource container: "
+		    "id=%d, error=%d\n", __func__, rcinfo->id, error);
+		goto err_exit;
+	}
+	error = DPAA2_CMD_NI_OPEN(dev, child, &cmd, dinfo->id, &ni_token);
+	if (error) {
+		device_printf(sc->dev, "%s: failed to open DPMAC: id=%d, "
+		    "error=%d\n", __func__, dinfo->id, error);
+		goto close_rc;
+	}
 
 	/*
 	 * Get the MAC address associated with the physical port, if the DPNI is
 	 * connected to a DPMAC directly associated with one of the physical
 	 * ports.
 	 */
-	error = DPAA2_CMD_NI_GET_PORT_MAC_ADDR(dev, child, dpaa2_mcp_tk(cmd,
-	    ni_token), mac_addr);
+	error = DPAA2_CMD_NI_GET_PORT_MAC_ADDR(dev, child, &cmd, mac_addr);
 	if (error) {
 		device_printf(dev, "%s: failed to obtain the MAC address "
 		    "associated with the physical port\n", __func__);
-		return (error);
+		goto close_ni;
 	}
 
 	/* Get primary MAC address from the DPNI attributes. */
-	error = DPAA2_CMD_NI_GET_PRIM_MAC_ADDR(dev, child, cmd, dpni_mac_addr);
+	error = DPAA2_CMD_NI_GET_PRIM_MAC_ADDR(dev, child, &cmd, dpni_mac_addr);
 	if (error) {
 		device_printf(dev, "%s: failed to obtain primary MAC address\n",
 		    __func__);
-		return (error);
+		goto close_ni;
 	}
 
 	if (!ETHER_IS_ZERO(mac_addr)) {
 		/* Set MAC address of the physical port as DPNI's primary one. */
-		error = DPAA2_CMD_NI_SET_PRIM_MAC_ADDR(dev, child, cmd,
+		error = DPAA2_CMD_NI_SET_PRIM_MAC_ADDR(dev, child, &cmd,
 		    mac_addr);
 		if (error) {
 			device_printf(dev, "%s: failed to set primary MAC "
 			    "address\n", __func__);
-			return (error);
+			goto close_ni;
 		}
-		for (int i = 0; i < ETHER_ADDR_LEN; i++)
+		for (int i = 0; i < ETHER_ADDR_LEN; i++) {
 			sc->mac.addr[i] = mac_addr[i];
+		}
 	} else if (ETHER_IS_ZERO(dpni_mac_addr)) {
 		/* Generate random MAC address as DPNI's primary one. */
 		ether_gen_addr(ifp, &rnd_mac_addr);
-		for (int i = 0; i < ETHER_ADDR_LEN; i++)
+		for (int i = 0; i < ETHER_ADDR_LEN; i++) {
 			mac_addr[i] = rnd_mac_addr.octet[i];
+		}
 
-		error = DPAA2_CMD_NI_SET_PRIM_MAC_ADDR(dev, child, cmd,
+		error = DPAA2_CMD_NI_SET_PRIM_MAC_ADDR(dev, child, &cmd,
 		    mac_addr);
 		if (error) {
 			device_printf(dev, "%s: failed to set random primary "
 			    "MAC address\n", __func__);
-			return (error);
+			goto close_ni;
 		}
-		for (int i = 0; i < ETHER_ADDR_LEN; i++)
+		for (int i = 0; i < ETHER_ADDR_LEN; i++) {
 			sc->mac.addr[i] = mac_addr[i];
+		}
 	} else {
-		for (int i = 0; i < ETHER_ADDR_LEN; i++)
+		for (int i = 0; i < ETHER_ADDR_LEN; i++) {
 			sc->mac.addr[i] = dpni_mac_addr[i];
+		}
 	}
 
-	return (0);
+	error = 0;
+close_ni:
+	(void)DPAA2_CMD_NI_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, ni_token));
+close_rc:
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
+err_exit:
+	return (error);
 }
 
 static void
 dpaa2_ni_miibus_statchg(device_t dev)
 {
-	struct dpaa2_ni_softc *sc;
-	device_t child;
+	device_t pdev = device_get_parent(dev);
+	device_t child = dev;
+	struct dpaa2_ni_softc *sc = device_get_softc(dev);
 	struct dpaa2_mac_link_state mac_link = { 0 };
-	uint16_t mac_token;
+	struct dpaa2_devinfo *rcinfo = device_get_ivars(pdev);
+	struct dpaa2_cmd cmd;
+	uint16_t rc_token, mac_token;
 	int error, link_state;
 
-	sc = device_get_softc(dev);
-	if (sc->fixed_link || sc->mii == NULL)
+	if (sc->fixed_link || sc->mii == NULL) {
 		return;
+	}
 
 	/*
 	 * Note: ifp link state will only be changed AFTER we are called so we
 	 * cannot rely on ifp->if_linkstate here.
 	 */
 	if (sc->mii->mii_media_status & IFM_AVALID) {
-		if (sc->mii->mii_media_status & IFM_ACTIVE)
+		if (sc->mii->mii_media_status & IFM_ACTIVE) {
 			link_state = LINK_STATE_UP;
-		else
+		} else {
 			link_state = LINK_STATE_DOWN;
-	} else
+		}
+	} else {
 		link_state = LINK_STATE_UNKNOWN;
+	}
 
 	if (link_state != sc->link_state) {
-
 		sc->link_state = link_state;
 
-		child = sc->dev;
-		error = DPAA2_CMD_MAC_OPEN(sc->dev, child, dpaa2_mcp_tk(sc->cmd,
-		    sc->rc_token), sc->mac.dpmac_id, &mac_token);
+		DPAA2_CMD_INIT(&cmd);
+
+		error = DPAA2_CMD_RC_OPEN(dev, child, &cmd, rcinfo->id,
+		    &rc_token);
+		if (error) {
+			device_printf(dev, "%s: failed to open resource "
+			    "container: id=%d, error=%d\n", __func__, rcinfo->id,
+			    error);
+			goto err_exit;
+		}
+		error = DPAA2_CMD_MAC_OPEN(dev, child, &cmd, sc->mac.dpmac_id,
+		    &mac_token);
 		if (error) {
 			device_printf(sc->dev, "%s: failed to open DPMAC: "
 			    "id=%d, error=%d\n", __func__, sc->mac.dpmac_id,
 			    error);
-			return;
+			goto close_rc;
 		}
 
 		if (link_state == LINK_STATE_UP ||
@@ -2247,16 +2624,25 @@ dpaa2_ni_miibus_statchg(device_t dev)
 			mac_link.state_valid = true;
 
 			/* Inform DPMAC about link state. */
-			error = DPAA2_CMD_MAC_SET_LINK_STATE(sc->dev, child,
-			    sc->cmd, &mac_link);
-			if (error)
+			error = DPAA2_CMD_MAC_SET_LINK_STATE(dev, child, &cmd,
+			    &mac_link);
+			if (error) {
 				device_printf(sc->dev, "%s: failed to set DPMAC "
 				    "link state: id=%d, error=%d\n", __func__,
 				    sc->mac.dpmac_id, error);
+			}
 		}
-		DPAA2_CMD_MAC_CLOSE(sc->dev, child, dpaa2_mcp_tk(sc->cmd,
-		    mac_token));
+		(void)DPAA2_CMD_MAC_CLOSE(dev, child, &cmd);
+		(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd,
+		    rc_token));
 	}
+
+	return;
+
+close_rc:
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
+err_exit:
+	return;
 }
 
 /**
@@ -2324,8 +2710,13 @@ dpaa2_ni_init(void *arg)
 {
 	struct dpaa2_ni_softc *sc = (struct dpaa2_ni_softc *) arg;
 	if_t ifp = sc->ifp;
+	device_t pdev = device_get_parent(sc->dev);
 	device_t dev = sc->dev;
 	device_t child = dev;
+	struct dpaa2_devinfo *rcinfo = device_get_ivars(pdev);
+	struct dpaa2_devinfo *dinfo = device_get_ivars(dev);
+	struct dpaa2_cmd cmd;
+	uint16_t rc_token, ni_token;
 	int error;
 
 	DPNI_LOCK(sc);
@@ -2335,15 +2726,31 @@ dpaa2_ni_init(void *arg)
 	}
 	DPNI_UNLOCK(sc);
 
-	error = DPAA2_CMD_NI_ENABLE(dev, child, dpaa2_mcp_tk(sc->cmd,
-	    sc->ni_token));
-	if (error)
+	DPAA2_CMD_INIT(&cmd);
+
+	error = DPAA2_CMD_RC_OPEN(dev, child, &cmd, rcinfo->id, &rc_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open resource container: "
+		    "id=%d, error=%d\n", __func__, rcinfo->id, error);
+		goto err_exit;
+	}
+	error = DPAA2_CMD_NI_OPEN(dev, child, &cmd, dinfo->id, &ni_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open network interface: "
+		    "id=%d, error=%d\n", __func__, dinfo->id, error);
+		goto close_rc;
+	}
+
+	error = DPAA2_CMD_NI_ENABLE(dev, child, &cmd);
+	if (error) {
 		device_printf(dev, "%s: failed to enable DPNI: error=%d\n",
 		    __func__, error);
+	}
 
 	DPNI_LOCK(sc);
-	if (sc->mii)
+	if (sc->mii) {
 		mii_mediachg(sc->mii);
+	}
 	callout_reset(&sc->mii_callout, hz, dpaa2_ni_media_tick, sc);
 
 	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, IFF_DRV_OACTIVE);
@@ -2352,6 +2759,13 @@ dpaa2_ni_init(void *arg)
 	/* Force link-state update to initilize things. */
 	dpaa2_ni_miibus_statchg(dev);
 
+	(void)DPAA2_CMD_NI_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, ni_token));
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
+	return;
+
+close_rc:
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
+err_exit:
 	return;
 }
 
@@ -2401,43 +2815,64 @@ dpaa2_ni_qflush(if_t ifp)
 }
 
 static int
-dpaa2_ni_ioctl(if_t ifp, u_long cmd, caddr_t data)
+dpaa2_ni_ioctl(if_t ifp, u_long c, caddr_t data)
 {
 	struct dpaa2_ni_softc *sc = if_getsoftc(ifp);
 	struct ifreq *ifr = (struct ifreq *) data;
-	device_t dev, child;
+	device_t pdev = device_get_parent(sc->dev);
+	device_t dev = sc->dev;
+	device_t child = dev;
+	struct dpaa2_devinfo *rcinfo = device_get_ivars(pdev);
+	struct dpaa2_devinfo *dinfo = device_get_ivars(dev);
+	struct dpaa2_cmd cmd;
 	uint32_t changed = 0;
+	uint16_t rc_token, ni_token;
 	int mtu, error, rc = 0;
 
-	dev = child = sc->dev;
+	DPAA2_CMD_INIT(&cmd);
 
-	switch (cmd) {
+	error = DPAA2_CMD_RC_OPEN(dev, child, &cmd, rcinfo->id, &rc_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open resource container: "
+		    "id=%d, error=%d\n", __func__, rcinfo->id, error);
+		goto err_exit;
+	}
+	error = DPAA2_CMD_NI_OPEN(dev, child, &cmd, dinfo->id, &ni_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open network interface: "
+		    "id=%d, error=%d\n", __func__, dinfo->id, error);
+		goto close_rc;
+	}
+
+	switch (c) {
 	case SIOCSIFMTU:
 		DPNI_LOCK(sc);
 		mtu = ifr->ifr_mtu;
 		if (mtu < ETHERMIN || mtu > ETHERMTU_JUMBO) {
 			DPNI_UNLOCK(sc);
-			return (EINVAL);
+			error = EINVAL;
+			goto close_ni;
 		}
 		if_setmtu(ifp, mtu);
 		DPNI_UNLOCK(sc);
 
 		/* Update maximum frame length. */
-		error = DPAA2_CMD_NI_SET_MFL(dev, child, dpaa2_mcp_tk(sc->cmd,
-		    sc->ni_token), mtu + ETHER_HDR_LEN);
+		error = DPAA2_CMD_NI_SET_MFL(dev, child, &cmd,
+		    mtu + ETHER_HDR_LEN);
 		if (error) {
 			device_printf(dev, "%s: failed to update maximum frame "
 			    "length: error=%d\n", __func__, error);
-			return (error);
+			goto close_ni;
 		}
 		break;
 	case SIOCSIFCAP:
 		changed = if_getcapenable(ifp) ^ ifr->ifr_reqcap;
 		if (changed & IFCAP_HWCSUM) {
-			if ((ifr->ifr_reqcap & changed) & IFCAP_HWCSUM)
+			if ((ifr->ifr_reqcap & changed) & IFCAP_HWCSUM) {
 				if_setcapenablebit(ifp, IFCAP_HWCSUM, 0);
-			else
+			} else {
 				if_setcapenablebit(ifp, 0, IFCAP_HWCSUM);
+			}
 		}
 		rc = dpaa2_ni_setup_if_caps(sc);
 		if (rc) {
@@ -2461,7 +2896,7 @@ dpaa2_ni_ioctl(if_t ifp, u_long cmd, caddr_t data)
 				DPNI_LOCK(sc);
 			}
 		} else if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
-			/* dpni_if_stop(sc); */
+			/* FIXME: Disable DPNI. See dpaa2_ni_init(). */
 		}
 
 		sc->if_flags = if_getflags(ifp);
@@ -2473,9 +2908,10 @@ dpaa2_ni_ioctl(if_t ifp, u_long cmd, caddr_t data)
 		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 			DPNI_UNLOCK(sc);
 			rc = dpaa2_ni_update_mac_filters(ifp);
-			if (rc)
+			if (rc) {
 				device_printf(dev, "%s: failed to update MAC "
 				    "filters: error=%d\n", __func__, rc);
+			}
 			DPNI_LOCK(sc);
 		}
 		DPNI_UNLOCK(sc);
@@ -2483,16 +2919,26 @@ dpaa2_ni_ioctl(if_t ifp, u_long cmd, caddr_t data)
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
 		if (sc->mii)
-			rc = ifmedia_ioctl(ifp, ifr, &sc->mii->mii_media, cmd);
+			rc = ifmedia_ioctl(ifp, ifr, &sc->mii->mii_media, c);
 		else if(sc->fixed_link) {
-			rc = ifmedia_ioctl(ifp, ifr, &sc->fixed_ifmedia, cmd);
+			rc = ifmedia_ioctl(ifp, ifr, &sc->fixed_ifmedia, c);
 		}
 		break;
 	default:
-		rc = ether_ioctl(ifp, cmd, data);
+		rc = ether_ioctl(ifp, c, data);
+		break;
 	}
 
+	(void)DPAA2_CMD_NI_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, ni_token));
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
 	return (rc);
+
+close_ni:
+	(void)DPAA2_CMD_NI_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, ni_token));
+close_rc:
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
+err_exit:
+	return (error);
 }
 
 static int
@@ -2500,18 +2946,36 @@ dpaa2_ni_update_mac_filters(if_t ifp)
 {
 	struct dpaa2_ni_softc *sc = if_getsoftc(ifp);
 	struct dpaa2_ni_mcaddr_ctx ctx;
-	device_t dev, child;
+	device_t pdev = device_get_parent(sc->dev);
+	device_t dev = sc->dev;
+	device_t child = dev;
+	struct dpaa2_devinfo *rcinfo = device_get_ivars(pdev);
+	struct dpaa2_devinfo *dinfo = device_get_ivars(dev);
+	struct dpaa2_cmd cmd;
+	uint16_t rc_token, ni_token;
 	int error;
 
-	dev = child = sc->dev;
+	DPAA2_CMD_INIT(&cmd);
+
+	error = DPAA2_CMD_RC_OPEN(dev, child, &cmd, rcinfo->id, &rc_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open resource container: "
+		    "id=%d, error=%d\n", __func__, rcinfo->id, error);
+		goto err_exit;
+	}
+	error = DPAA2_CMD_NI_OPEN(dev, child, &cmd, dinfo->id, &ni_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open network interface: "
+		    "id=%d, error=%d\n", __func__, dinfo->id, error);
+		goto close_rc;
+	}
 
 	/* Remove all multicast MAC filters. */
-	error = DPAA2_CMD_NI_CLEAR_MAC_FILTERS(dev, child, dpaa2_mcp_tk(sc->cmd,
-	    sc->ni_token), false, true);
+	error = DPAA2_CMD_NI_CLEAR_MAC_FILTERS(dev, child, &cmd, false, true);
 	if (error) {
 		device_printf(dev, "%s: failed to clear multicast MAC filters: "
 		    "error=%d\n", __func__, error);
-		return (error);
+		goto close_ni;
 	}
 
 	ctx.ifp = ifp;
@@ -2520,7 +2984,13 @@ dpaa2_ni_update_mac_filters(if_t ifp)
 
 	if_foreach_llmaddr(ifp, dpaa2_ni_add_maddr, &ctx);
 
-	return (ctx.error);
+	error = ctx.error;
+close_ni:
+	(void)DPAA2_CMD_NI_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, ni_token));
+close_rc:
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
+err_exit:
+	return (error);
 }
 
 static u_int
@@ -2528,16 +2998,48 @@ dpaa2_ni_add_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 {
 	struct dpaa2_ni_mcaddr_ctx *ctx = arg;
 	struct dpaa2_ni_softc *sc = if_getsoftc(ctx->ifp);
-	device_t dev, child;
+	device_t pdev = device_get_parent(sc->dev);
+	device_t dev = sc->dev;
+	device_t child = dev;
+	struct dpaa2_devinfo *rcinfo = device_get_ivars(pdev);
+	struct dpaa2_devinfo *dinfo = device_get_ivars(dev);
+	struct dpaa2_cmd cmd;
+	uint16_t rc_token, ni_token;
+	int error;
 
-	dev = child = sc->dev;
-
-	if (ctx->error != 0)
+	if (ctx->error != 0) {
 		return (0);
+	}
 
 	if (ETHER_IS_MULTICAST(LLADDR(sdl))) {
-		ctx->error = DPAA2_CMD_NI_ADD_MAC_ADDR(dev, child, dpaa2_mcp_tk(
-		    sc->cmd, sc->ni_token), LLADDR(sdl));
+		DPAA2_CMD_INIT(&cmd);
+
+		error = DPAA2_CMD_RC_OPEN(dev, child, &cmd, rcinfo->id,
+		    &rc_token);
+		if (error) {
+			device_printf(dev, "%s: failed to open resource "
+			    "container: id=%d, error=%d\n", __func__, rcinfo->id,
+			    error);
+			return (0);
+		}
+		error = DPAA2_CMD_NI_OPEN(dev, child, &cmd, dinfo->id,
+		    &ni_token);
+		if (error) {
+			device_printf(dev, "%s: failed to open network interface: "
+			    "id=%d, error=%d\n", __func__, dinfo->id, error);
+			(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd,
+			    rc_token));
+			return (0);
+		}
+
+		ctx->error = DPAA2_CMD_NI_ADD_MAC_ADDR(dev, child, &cmd,
+		    LLADDR(sdl));
+
+		(void)DPAA2_CMD_NI_CLOSE(dev, child, DPAA2_CMD_TK(&cmd,
+		    ni_token));
+		(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd,
+		    rc_token));
+
 		if (ctx->error != 0) {
 			device_printf(dev, "%s: can't add more then %d MAC "
 			    "addresses, switching to the multicast promiscuous "
@@ -2562,15 +3064,43 @@ static void
 dpaa2_ni_intr(void *arg)
 {
 	struct dpaa2_ni_softc *sc = (struct dpaa2_ni_softc *) arg;
-	device_t child = sc->dev;
+	device_t pdev = device_get_parent(sc->dev);
+	device_t dev = sc->dev;
+	device_t child = dev;
+	struct dpaa2_devinfo *rcinfo = device_get_ivars(pdev);
+	struct dpaa2_devinfo *dinfo = device_get_ivars(dev);
+	struct dpaa2_cmd cmd;
 	uint32_t status = ~0u; /* clear all IRQ status bits */
+	uint16_t rc_token, ni_token;
 	int error;
 
-	error = DPAA2_CMD_NI_GET_IRQ_STATUS(sc->dev, child, dpaa2_mcp_tk(sc->cmd,
-	    sc->ni_token), DPNI_IRQ_INDEX, &status);
-	if (error)
+	DPAA2_CMD_INIT(&cmd);
+
+	error = DPAA2_CMD_RC_OPEN(dev, child, &cmd, rcinfo->id, &rc_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open resource container: "
+		    "id=%d, error=%d\n", __func__, rcinfo->id, error);
+		goto err_exit;
+	}
+	error = DPAA2_CMD_NI_OPEN(dev, child, &cmd, dinfo->id, &ni_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open network interface: "
+		    "id=%d, error=%d\n", __func__, dinfo->id, error);
+		goto close_rc;
+	}
+
+	error = DPAA2_CMD_NI_GET_IRQ_STATUS(dev, child, &cmd, DPNI_IRQ_INDEX,
+	    &status);
+	if (error) {
 		device_printf(sc->dev, "%s: failed to obtain IRQ status: "
 		    "error=%d\n", __func__, error);
+	}
+
+	(void)DPAA2_CMD_NI_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, ni_token));
+close_rc:
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
+err_exit:
+	return;
 }
 
 /**
@@ -3420,16 +3950,41 @@ dpaa2_ni_collect_stats(SYSCTL_HANDLER_ARGS)
 {
 	struct dpaa2_ni_softc *sc = (struct dpaa2_ni_softc *) arg1;
 	struct dpni_stat *stat = &dpni_stat_sysctls[oidp->oid_number];
-	device_t child = sc->dev;
+	device_t pdev = device_get_parent(sc->dev);
+	device_t dev = sc->dev;
+	device_t child = dev;
+	struct dpaa2_devinfo *rcinfo = device_get_ivars(pdev);
+	struct dpaa2_devinfo *dinfo = device_get_ivars(dev);
+	struct dpaa2_cmd cmd;
 	uint64_t cnt[DPAA2_NI_STAT_COUNTERS];
 	uint64_t result = 0;
+	uint16_t rc_token, ni_token;
 	int error;
 
-	error = DPAA2_CMD_NI_GET_STATISTICS(sc->dev, child,
-	    dpaa2_mcp_tk(sc->cmd, sc->ni_token), stat->page, 0, cnt);
-	if (!error)
-		result = cnt[stat->cnt];
+	DPAA2_CMD_INIT(&cmd);
 
+	error = DPAA2_CMD_RC_OPEN(dev, child, &cmd, rcinfo->id, &rc_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open resource container: "
+		    "id=%d, error=%d\n", __func__, rcinfo->id, error);
+		goto exit;
+	}
+	error = DPAA2_CMD_NI_OPEN(dev, child, &cmd, dinfo->id, &ni_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open network interface: "
+		    "id=%d, error=%d\n", __func__, dinfo->id, error);
+		goto close_rc;
+	}
+
+	error = DPAA2_CMD_NI_GET_STATISTICS(dev, child, &cmd, stat->page, 0, cnt);
+	if (!error) {
+		result = cnt[stat->cnt];
+	}
+
+	(void)DPAA2_CMD_NI_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, ni_token));
+close_rc:
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
+exit:
 	return (sysctl_handle_64(oidp, &result, 0, req));
 }
 
@@ -3478,17 +4033,23 @@ dpaa2_ni_set_hash(device_t dev, uint64_t flags)
 static int
 dpaa2_ni_set_dist_key(device_t dev, enum dpaa2_ni_dist_mode type, uint64_t flags)
 {
+	device_t pdev = device_get_parent(dev);
 	device_t child = dev;
 	struct dpaa2_ni_softc *sc = device_get_softc(dev);
+	struct dpaa2_devinfo *rcinfo = device_get_ivars(pdev);
+	struct dpaa2_devinfo *dinfo = device_get_ivars(dev);
 	struct dpkg_profile_cfg cls_cfg;
 	struct dpkg_extract *key;
 	struct dpaa2_buf *buf = &sc->rxd_kcfg;
+	struct dpaa2_cmd cmd;
+	uint16_t rc_token, ni_token;
 	int i, error = 0;
 
 	KASSERT(buf->type == DPAA2_BUF_STORE, ("%s: not storage buffer",
 	    __func__));
-	if (__predict_true(buf->store.dmat == NULL))
+	if (__predict_true(buf->store.dmat == NULL)) {
 		buf->store.dmat = sc->rxd_dmat;
+	}
 
 	memset(&cls_cfg, 0, sizeof(cls_cfg));
 
@@ -3496,8 +4057,9 @@ dpaa2_ni_set_dist_key(device_t dev, enum dpaa2_ni_dist_mode type, uint64_t flags
 	for (i = 0; i < ARRAY_SIZE(dist_fields); i++) {
 		key = &cls_cfg.extracts[cls_cfg.num_extracts];
 
-		if (!(flags & dist_fields[i].id))
+		if (!(flags & dist_fields[i].id)) {
 			continue;
+		}
 
 		if (cls_cfg.num_extracts >= DPKG_MAX_NUM_OF_EXTRACTS) {
 			device_printf(dev, "%s: failed to add key extraction "
@@ -3538,14 +4100,41 @@ dpaa2_ni_set_dist_key(device_t dev, enum dpaa2_ni_dist_mode type, uint64_t flags
 	}
 
 	if (type == DPAA2_NI_DIST_MODE_HASH) {
-		error = DPAA2_CMD_NI_SET_RX_TC_DIST(dev, child, dpaa2_mcp_tk(
-		    sc->cmd, sc->ni_token), sc->attr.num.queues, 0,
-		    DPAA2_NI_DIST_MODE_HASH, buf->store.paddr);
-		if (error != 0)
+		DPAA2_CMD_INIT(&cmd);
+
+		error = DPAA2_CMD_RC_OPEN(dev, child, &cmd, rcinfo->id,
+		    &rc_token);
+		if (error) {
+			device_printf(dev, "%s: failed to open resource "
+			    "container: id=%d, error=%d\n", __func__, rcinfo->id,
+			    error);
+			goto err_exit;
+		}
+		error = DPAA2_CMD_NI_OPEN(dev, child, &cmd, dinfo->id,
+		    &ni_token);
+		if (error) {
+			device_printf(dev, "%s: failed to open network "
+			    "interface: id=%d, error=%d\n", __func__, dinfo->id,
+			    error);
+			goto close_rc;
+		}
+
+		error = DPAA2_CMD_NI_SET_RX_TC_DIST(dev, child, &cmd,
+		    sc->attr.num.queues, 0, DPAA2_NI_DIST_MODE_HASH,
+		    buf->store.paddr);
+		if (error != 0) {
 			device_printf(dev, "%s: failed to set distribution mode "
 			    "and size for the traffic class\n", __func__);
+		}
+
+		(void)DPAA2_CMD_NI_CLOSE(dev, child, DPAA2_CMD_TK(&cmd,
+		    ni_token));
+close_rc:
+		(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd,
+		    rc_token));
 	}
 
+err_exit:
 	return (error);
 }
 

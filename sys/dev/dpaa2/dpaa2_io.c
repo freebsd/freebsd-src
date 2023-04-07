@@ -127,10 +127,16 @@ dpaa2_io_probe(device_t dev)
 static int
 dpaa2_io_detach(device_t dev)
 {
+	device_t pdev = device_get_parent(dev);
 	device_t child = dev;
 	struct dpaa2_io_softc *sc = device_get_softc(dev);
+	struct dpaa2_devinfo *rcinfo = device_get_ivars(pdev);
 	struct dpaa2_devinfo *dinfo = device_get_ivars(dev);
+	struct dpaa2_cmd cmd;
+	uint16_t rc_token, io_token;
 	int error;
+
+	DPAA2_CMD_INIT(&cmd);
 
 	/* Tear down interrupt handler and release IRQ resources. */
 	dpaa2_io_release_irqs(dev);
@@ -138,39 +144,51 @@ dpaa2_io_detach(device_t dev)
 	/* Free software portal helper object. */
 	dpaa2_swp_free_portal(sc->swp);
 
-	/* Disable DPIO object. */
-	error = DPAA2_CMD_IO_DISABLE(dev, child, dpaa2_mcp_tk(sc->cmd,
-	    sc->io_token));
-	if (error && bootverbose)
+	error = DPAA2_CMD_RC_OPEN(dev, child, &cmd, rcinfo->id, &rc_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open DPRC: error=%d\n",
+		    __func__, error);
+		goto err_exit;
+	}
+	error = DPAA2_CMD_IO_OPEN(dev, child, &cmd, dinfo->id, &io_token);
+	if (error) {
+		device_printf(dev, "%s: failed to open DPIO: id=%d, error=%d\n",
+		    __func__, dinfo->id, error);
+		goto close_rc;
+	}
+
+	error = DPAA2_CMD_IO_DISABLE(dev, child, &cmd);
+	if (error && bootverbose) {
 		device_printf(dev, "%s: failed to disable DPIO: id=%d, "
 		    "error=%d\n", __func__, dinfo->id, error);
+	}
 
-	/* Close control sessions with the DPAA2 objects. */
-	DPAA2_CMD_IO_CLOSE(dev, child, dpaa2_mcp_tk(sc->cmd, sc->io_token));
-	DPAA2_CMD_RC_CLOSE(dev, child, dpaa2_mcp_tk(sc->cmd, sc->rc_token));
-
-	/* Free pre-allocated MC command. */
-	dpaa2_mcp_free_command(sc->cmd);
-	sc->cmd = NULL;
-	sc->io_token = 0;
-	sc->rc_token = 0;
+	(void)DPAA2_CMD_IO_CLOSE(dev, child, &cmd);
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
 
 	/* Unmap memory resources of the portal. */
 	for (int i = 0; i < MEM_RES_NUM; i++) {
-		if (sc->res[MEM_RID(i)] == NULL)
+		if (sc->res[MEM_RID(i)] == NULL) {
 			continue;
+		}
 		error = bus_unmap_resource(sc->dev, SYS_RES_MEMORY,
 		    sc->res[MEM_RID(i)], &sc->map[MEM_RID(i)]);
-		if (error && bootverbose)
+		if (error && bootverbose) {
 			device_printf(dev, "%s: failed to unmap memory "
 			    "resource: rid=%d, error=%d\n", __func__, MEM_RID(i),
 			    error);
+		}
 	}
 
 	/* Release allocated resources. */
 	bus_release_resources(dev, dpaa2_io_spec, sc->res);
 
 	return (0);
+
+close_rc:
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
+err_exit:
+	return (error);
 }
 
 static int
@@ -183,6 +201,7 @@ dpaa2_io_attach(device_t dev)
 	struct dpaa2_devinfo *rcinfo = device_get_ivars(pdev);
 	struct dpaa2_devinfo *dinfo = device_get_ivars(dev);
 	struct dpaa2_devinfo *mcp_dinfo;
+	struct dpaa2_cmd cmd;
 	struct resource_map_request req;
 	struct {
 		vm_memattr_t memattr;
@@ -192,11 +211,11 @@ dpaa2_io_attach(device_t dev)
 		{ VM_MEMATTR_DEVICE, "cache-inhibited part" },
 		{ VM_MEMATTR_DEVICE, "control registers" }
 	};
+	uint16_t rc_token, io_token;
 	int error;
 
 	sc->dev = dev;
 	sc->swp = NULL;
-	sc->cmd = NULL;
 	sc->intr = NULL;
 	sc->irq_resource = NULL;
 
@@ -215,8 +234,9 @@ dpaa2_io_attach(device_t dev)
 
 	/* Map memory resources of the portal. */
 	for (int i = 0; i < MEM_RES_NUM; i++) {
-		if (sc->res[MEM_RID(i)] == NULL)
+		if (sc->res[MEM_RID(i)] == NULL) {
 			continue;
+		}
 
 		resource_init_map_request(&req);
 		req.memattr = map_args[i].memattr;
@@ -229,45 +249,37 @@ dpaa2_io_attach(device_t dev)
 		}
 	}
 
-	/* Allocate a command to send to the MC hardware. */
-	error = dpaa2_mcp_init_command(&sc->cmd, DPAA2_CMD_DEF);
-	if (error) {
-		device_printf(dev, "%s: failed to allocate dpaa2_cmd: "
-		    "error=%d\n", __func__, error);
-		goto err_exit;
-	}
+	DPAA2_CMD_INIT(&cmd);
 
-	/* Prepare DPIO object. */
-	error = DPAA2_CMD_RC_OPEN(dev, child, sc->cmd, rcinfo->id,
-	    &sc->rc_token);
+	error = DPAA2_CMD_RC_OPEN(dev, child, &cmd, rcinfo->id, &rc_token);
 	if (error) {
 		device_printf(dev, "%s: failed to open DPRC: error=%d\n",
 		    __func__, error);
 		goto err_exit;
 	}
-	error = DPAA2_CMD_IO_OPEN(dev, child, sc->cmd, dinfo->id, &sc->io_token);
+	error = DPAA2_CMD_IO_OPEN(dev, child, &cmd, dinfo->id, &io_token);
 	if (error) {
 		device_printf(dev, "%s: failed to open DPIO: id=%d, error=%d\n",
 		    __func__, dinfo->id, error);
-		goto err_exit;
+		goto close_rc;
 	}
-	error = DPAA2_CMD_IO_RESET(dev, child, sc->cmd);
+	error = DPAA2_CMD_IO_RESET(dev, child, &cmd);
 	if (error) {
 		device_printf(dev, "%s: failed to reset DPIO: id=%d, error=%d\n",
 		    __func__, dinfo->id, error);
-		goto err_exit;
+		goto close_io;
 	}
-	error = DPAA2_CMD_IO_GET_ATTRIBUTES(dev, child, sc->cmd, &sc->attr);
+	error = DPAA2_CMD_IO_GET_ATTRIBUTES(dev, child, &cmd, &sc->attr);
 	if (error) {
 		device_printf(dev, "%s: failed to get DPIO attributes: id=%d, "
 		    "error=%d\n", __func__, dinfo->id, error);
-		goto err_exit;
+		goto close_io;
 	}
-	error = DPAA2_CMD_IO_ENABLE(dev, child, sc->cmd);
+	error = DPAA2_CMD_IO_ENABLE(dev, child, &cmd);
 	if (error) {
 		device_printf(dev, "%s: failed to enable DPIO: id=%d, "
 		    "error=%d\n", __func__, dinfo->id, error);
-		goto err_exit;
+		goto close_io;
 	}
 
 	/* Prepare descriptor of the QBMan software portal. */
@@ -306,18 +318,23 @@ dpaa2_io_attach(device_t dev)
 		goto err_exit;
 	}
 
-#if 0
-	/* TODO: Enable debug output via sysctl (to reduce output). */
-	if (bootverbose)
+	if (bootverbose) {
 		device_printf(dev, "dpio_id=%d, swp_id=%d, chan_mode=%s, "
 		    "notif_priors=%d, swp_version=0x%x\n",
 		    sc->attr.id, sc->attr.swp_id,
 		    sc->attr.chan_mode == DPAA2_IO_LOCAL_CHANNEL
 		    ? "local_channel" : "no_channel", sc->attr.priors_num,
 		    sc->attr.swp_version);
-#endif
+	}
+
+	(void)DPAA2_CMD_IO_CLOSE(dev, child, &cmd);
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
 	return (0);
 
+close_io:
+	(void)DPAA2_CMD_IO_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, io_token));
+close_rc:
+	(void)DPAA2_CMD_RC_CLOSE(dev, child, DPAA2_CMD_TK(&cmd, rc_token));
 err_exit:
 	dpaa2_io_detach(dev);
 	return (ENXIO);
@@ -354,10 +371,11 @@ dpaa2_io_conf_wq_channel(device_t iodev, struct dpaa2_io_notif_ctx *ctx)
 	struct dpaa2_io_softc *sc = device_get_softc(iodev);
 
 	/* Enable generation of the CDAN notifications. */
-	if (ctx->cdan_en)
+	if (ctx->cdan_en) {
 		return (dpaa2_swp_conf_wq_channel(sc->swp, ctx->fq_chan_id,
 		    DPAA2_WQCHAN_WE_EN | DPAA2_WQCHAN_WE_CTX, ctx->cdan_en,
 		    ctx->qman_ctx));
+	}
 
 	return (0);
 }
