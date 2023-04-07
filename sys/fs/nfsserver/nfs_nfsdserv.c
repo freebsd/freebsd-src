@@ -4282,6 +4282,7 @@ nfsrvd_exchangeid(struct nfsrv_descript *nd, __unused int isdgram,
 	uint8_t *verf;
 	uint32_t sp4type, v41flags;
 	struct timespec verstime;
+	nfsopbit_t mustops, allowops;
 #ifdef INET
 	struct sockaddr_in *sin, *rin;
 #endif
@@ -4376,7 +4377,22 @@ nfsrvd_exchangeid(struct nfsrv_descript *nd, __unused int isdgram,
  	else
  		v41flags = NFSV4EXCH_USEPNFSMDS;
 	sp4type = fxdr_unsigned(uint32_t, *tl);
-	if (sp4type != NFSV4EXCH_SP4NONE) {
+	if (sp4type == NFSV4EXCH_SP4MACHCRED) {
+		if ((nd->nd_flag & (ND_GSSINTEGRITY | ND_GSSPRIVACY)) == 0 ||
+		    nd->nd_princlen == 0)
+			nd->nd_repstat = (NFSERR_AUTHERR | AUTH_TOOWEAK);
+		if (nd->nd_repstat == 0)
+			nd->nd_repstat = nfsrv_getopbits(nd, &mustops, NULL);
+		if (nd->nd_repstat == 0)
+			nd->nd_repstat = nfsrv_getopbits(nd, &allowops, NULL);
+		if (nd->nd_repstat != 0)
+			goto nfsmout;
+		NFSOPBIT_CLRNOTMUST(&mustops);
+		NFSSET_OPBIT(&clp->lc_mustops, &mustops);
+		NFSOPBIT_CLRNOTALLOWED(&allowops);
+		NFSSET_OPBIT(&clp->lc_allowops, &allowops);
+		clp->lc_flags |= LCL_MACHCRED;
+	} else if (sp4type != NFSV4EXCH_SP4NONE) {
 		nd->nd_repstat = NFSERR_NOTSUPP;
 		goto nfsmout;
 	}
@@ -4398,12 +4414,17 @@ nfsrvd_exchangeid(struct nfsrv_descript *nd, __unused int isdgram,
 	if (nd->nd_repstat == 0) {
 		if (confirm.lval[1] != 0)
 			v41flags |= NFSV4EXCH_CONFIRMEDR;
-		NFSM_BUILD(tl, uint32_t *, 2 * NFSX_HYPER + 3 * NFSX_UNSIGNED);
+		NFSM_BUILD(tl, uint32_t *, NFSX_HYPER + 3 * NFSX_UNSIGNED);
 		*tl++ = clientid.lval[0];			/* ClientID */
 		*tl++ = clientid.lval[1];
 		*tl++ = txdr_unsigned(confirm.lval[0]);		/* SequenceID */
 		*tl++ = txdr_unsigned(v41flags);		/* Exch flags */
-		*tl++ = txdr_unsigned(NFSV4EXCH_SP4NONE);	/* No SSV */
+		*tl = txdr_unsigned(sp4type);			/* No SSV */
+		if (sp4type == NFSV4EXCH_SP4MACHCRED) {
+			nfsrv_putopbit(nd, &mustops);
+			nfsrv_putopbit(nd, &allowops);
+		}
+		NFSM_BUILD(tl, uint32_t *, NFSX_HYPER);
 		txdr_hyper(nfsrv_owner_minor, tl);	/* Owner Minor */
 		if (nfsrv_owner_major[0] != 0)
 			s = nfsrv_owner_major;
@@ -4642,7 +4663,7 @@ nfsrvd_destroyclientid(struct nfsrv_descript *nd, __unused int isdgram,
 	NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
 	clientid.lval[0] = *tl++;
 	clientid.lval[1] = *tl;
-	nd->nd_repstat = nfsrv_destroyclient(clientid, p);
+	nd->nd_repstat = nfsrv_destroyclient(nd, clientid, p);
 nfsmout:
 	NFSEXITCODE2(error, nd);
 	return (error);

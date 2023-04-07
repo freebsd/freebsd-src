@@ -42,6 +42,8 @@ __FBSDID("$FreeBSD$");
 
 #include <fs/nfs/nfsport.h>
 
+#include <security/mac/mac_framework.h>
+
 extern struct nfsrvfh nfs_pubfh;
 extern int nfs_pubfhset;
 extern struct nfsv4lock nfsv4rootfs_lock;
@@ -466,6 +468,8 @@ static int nfsv3to4op[NFS_V3NPROCS] = {
 static struct mtx nfsrvd_statmtx;
 MTX_SYSINIT(nfsst, &nfsrvd_statmtx, "NFSstat", MTX_DEF);
 
+static struct ucred *nfsrv_createrootcred(void);
+
 static void
 nfsrvd_statstart(int op, struct bintime *now)
 {
@@ -715,7 +719,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 	vnode_t vp, nvp, savevp;
 	struct nfsrvfh fh;
 	mount_t new_mp, temp_mp = NULL;
-	struct ucred *credanon;
+	struct ucred *credanon, *rootcred, *savecred;
 	struct nfsexstuff nes, vpnes, savevpnes;
 	fsid_t cur_fsid, save_fsid;
 	static u_int64_t compref = 0;
@@ -726,6 +730,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 	int bextpg, bextpgsiz;
 
 	p = curthread;
+	rootcred = savecred = NULL;
 
 	/* Check for and optionally clear the no space flags for DSs. */
 	nfsrv_checknospc();
@@ -967,6 +972,30 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 			retops++;
 			break;
 		}
+
+		/*
+		 * Check for the case of SP4_MACH_CRED and an operation in
+		 * the allow set.  For these operations, replace nd_cred with
+		 * root credentials so that the operation will not fail due
+		 * to credentials.
+		 * NB: ND_MACHCRED is set by Sequence when the ClientID
+		 * specifies LCL_MACHCRED and the RPC is being performed
+		 * via krb5i or krb5p using the machine principal.
+		 */
+		if ((nd->nd_flag & ND_MACHCRED) != 0) {
+			if (NFSISSET_OPBIT(&nd->nd_allowops, op)) {
+				/* Replace nd_cred with root creds. */
+				if (rootcred == NULL)
+					rootcred = nfsrv_createrootcred();
+				if (savecred == NULL)
+					savecred = nd->nd_cred;
+				nd->nd_cred = rootcred;
+			} else if (savecred != NULL) {
+				nd->nd_cred = savecred;
+				savecred = NULL;
+			}
+		}
+
 		if (nfsv4_opflag[op].savereply)
 			nd->nd_flag |= ND_SAVEREPLY;
 		switch (op) {
@@ -1379,9 +1408,33 @@ nfsmout:
 		vrele(vp);
 	if (savevp)
 		vrele(savevp);
+	if (savecred != NULL)
+		nd->nd_cred = savecred;
+	if (rootcred != NULL)
+		crfree(rootcred);
 	NFSLOCKV4ROOTMUTEX();
 	nfsv4_relref(&nfsv4rootfs_lock);
 	NFSUNLOCKV4ROOTMUTEX();
 
 	NFSEXITCODE2(0, nd);
+}
+
+/* Create a credential for "root". */
+static struct ucred *
+nfsrv_createrootcred(void)
+{
+	struct ucred *cr;
+	gid_t grp;
+
+	cr = crget();
+	cr->cr_uid = cr->cr_ruid = cr->cr_svuid = UID_ROOT;
+	grp = GID_WHEEL;
+	crsetgroups(cr, 1, &grp);
+	cr->cr_rgid = cr->cr_svgid = cr->cr_groups[0];
+	cr->cr_prison = curthread->td_ucred->cr_prison;
+	prison_hold(cr->cr_prison);
+#ifdef MAC
+	mac_cred_associate_nfsd(cr);
+#endif
+	return (cr);
 }
