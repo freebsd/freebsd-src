@@ -597,6 +597,73 @@ mtu_cleanup()
 	vnet_cleanup
 }
 
+atf_test_case "vlan" "cleanup"
+vlan_head()
+{
+	atf_set descr 'Ensure the bridge takes vlan ID into account, PR#270559'
+	atf_set require.user root
+}
+
+vlan_body()
+{
+	vnet_init
+
+	vid=1
+
+	epaira=$(vnet_mkepair)
+	epairb=$(vnet_mkepair)
+
+	br=$(vnet_mkbridge)
+
+	vnet_mkjail one ${epaira}b
+	vnet_mkjail two ${epairb}b
+
+	ifconfig ${br} up
+	ifconfig ${epaira}a up
+	ifconfig ${epairb}a up
+	ifconfig ${br} addm ${epaira}a addm ${epairb}a
+
+	jexec one ifconfig ${epaira}b up
+	jexec one ifconfig ${epaira}b.${vid} create
+
+	jexec two ifconfig ${epairb}b up
+	jexec two ifconfig ${epairb}b.${vid} create
+
+	# Create a MAC address conflict between an untagged and tagged interface
+	jexec two ifconfig ${epairb}b.${vid} ether 02:05:6e:06:28:1a
+	jexec one ifconfig ${epaira}b ether 02:05:6e:06:28:1a
+	jexec one ifconfig ${epaira}b.${vid} ether 02:05:6e:06:28:1b
+
+	# Add ip address, will also populate $br's fowarding table, by ARP announcement
+	jexec one ifconfig ${epaira}b.${vid} 192.0.2.1/24 up
+	jexec two ifconfig ${epairb}b.${vid} 192.0.2.2/24 up
+
+	sleep 0.5
+
+	ifconfig ${br}
+	jexec one ifconfig
+	jexec two ifconfig
+	ifconfig ${br} addr
+
+	atf_check -s exit:0 -o ignore \
+	    jexec one ping -c 1 -t 1 192.0.2.2
+
+	# This will trigger a mac flap (by ARP announcement)
+	jexec one ifconfig ${epaira}b 192.0.2.1/24 up
+
+	sleep 0.5
+
+	ifconfig ${br} addr
+
+	atf_check -s exit:0 -o ignore \
+	    jexec one ping -c 1 -t 1 192.0.2.2
+}
+
+vlan_cleanup()
+{
+	vnet_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "bridge_transmit_ipv4_unicast"
@@ -610,4 +677,5 @@ atf_init_test_cases()
 	atf_add_test_case "stp_validation"
 	atf_add_test_case "gif"
 	atf_add_test_case "mtu"
+	atf_add_test_case "vlan"
 }
