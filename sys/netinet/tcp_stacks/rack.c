@@ -746,18 +746,6 @@ rack_log_gpset(struct tcp_rack *rack, uint32_t seq_end, uint32_t ack_end_t,
 	}
 }
 
-#ifdef NETFLIX_PEAKRATE
-static inline void
-rack_update_peakrate_thr(struct tcpcb *tp)
-{
-	/* Keep in mind that t_maxpeakrate is in B/s. */
-	uint64_t peak;
-	peak = uqmax((tp->t_maxseg * 2),
-		     (((uint64_t)tp->t_maxpeakrate * (uint64_t)(tp->t_srtt)) / (uint64_t)HPTS_USEC_IN_SEC));
-	tp->t_peakrate_thr = (uint32_t)uqmin(peak, UINT32_MAX);
-}
-#endif
-
 static int
 sysctl_rack_clear(SYSCTL_HANDLER_ARGS)
 {
@@ -2346,15 +2334,6 @@ rack_get_bw(struct tcp_rack *rack)
 		return (rack_get_fixed_pacing_bw(rack));
 	}
 	bw = rack_get_gp_est(rack);
-#ifdef NETFLIX_PEAKRATE
-	if ((rack->rc_tp->t_maxpeakrate) &&
-	    (bw > rack->rc_tp->t_maxpeakrate)) {
-		/* The user has set a peak rate to pace at
-		 * don't allow us to pace faster than that.
-		 */
-		return (rack->rc_tp->t_maxpeakrate);
-	}
-#endif
 	return (bw);
 }
 
@@ -3187,7 +3166,7 @@ rack_log_to_prr(struct tcp_rack *rack, int frm, int orig_cwnd, int line)
 	}
 }
 
-#ifdef NETFLIX_EXP_DETECTION
+#ifdef TCP_SAD_DETECTION
 static void
 rack_log_sad(struct tcp_rack *rack, int event)
 {
@@ -3215,7 +3194,7 @@ rack_log_sad(struct tcp_rack *rack, int event)
 		TCP_LOG_EVENTP(rack->rc_tp, NULL,
 		    &rack->rc_inp->inp_socket->so_rcv,
 		    &rack->rc_inp->inp_socket->so_snd,
-		    TCP_SAD_DETECTION, 0,
+		    TCP_SAD_DETECT, 0,
 		    0, &log, false, &tv);
 	}
 }
@@ -3358,7 +3337,7 @@ rack_alloc_limit(struct tcp_rack *rack, uint8_t limit_type)
 				counter_u64_add(rack_alloc_limited_conns, 1);
 			}
 			return (NULL);
-#ifdef NETFLIX_EXP_DETECTION
+#ifdef TCP_SAD_DETECTION
 		} else if ((tcp_sad_limit != 0) &&
 			   (rack->do_detection == 1) &&
 			   (rack->r_ctl.rc_num_split_allocs >= tcp_sad_limit)) {
@@ -5274,18 +5253,6 @@ rack_ack_received(struct tcpcb *tp, struct tcp_rack *rack, uint32_t th_ack, uint
 	    rack_enough_for_measurement(tp, rack, th_ack, &quality)) {
 		/* Measure the Goodput */
 		rack_do_goodput_measurement(tp, rack, th_ack, __LINE__, quality);
-#ifdef NETFLIX_PEAKRATE
-		if ((type == CC_ACK) &&
-		    (tp->t_maxpeakrate)) {
-			/*
-			 * We update t_peakrate_thr. This gives us roughly
-			 * one update per round trip time. Note
-			 * it will only be used if pace_always is off i.e
-			 * we don't do this for paced flows.
-			 */
-			rack_update_peakrate_thr(tp);
-		}
-#endif
 	}
 	/* Which way our we limited, if not cwnd limited no advance in CA */
 	if (tp->snd_cwnd <= tp->snd_wnd)
@@ -5366,14 +5333,6 @@ rack_ack_received(struct tcpcb *tp, struct tcp_rack *rack, uint32_t th_ack, uint
 	if (rack->r_ctl.rc_rack_largest_cwnd < rack->r_ctl.cwnd_to_use) {
 		rack->r_ctl.rc_rack_largest_cwnd = rack->r_ctl.cwnd_to_use;
 	}
-#ifdef NETFLIX_PEAKRATE
-	/* we enforce max peak rate if it is set and we are not pacing */
-	if ((rack->rc_always_pace == 0) &&
-	    tp->t_peakrate_thr &&
-	    (tp->snd_cwnd > tp->t_peakrate_thr)) {
-		tp->snd_cwnd = tp->t_peakrate_thr;
-	}
-#endif
 }
 
 static void
@@ -5926,11 +5885,6 @@ rack_cc_after_idle(struct tcp_rack *rack, struct tcpcb *tp)
 
 	INP_WLOCK_ASSERT(tptoinpcb(tp));
 
-#ifdef NETFLIX_STATS
-	KMOD_TCPSTAT_INC(tcps_idle_restarts);
-	if (tp->t_state == TCPS_ESTABLISHED)
-		KMOD_TCPSTAT_INC(tcps_idle_estrestarts);
-#endif
 	if (CC_ALGO(tp)->after_idle != NULL)
 		CC_ALGO(tp)->after_idle(&tp->t_ccv);
 
@@ -6744,7 +6698,7 @@ rack_start_hpts_timer(struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts,
 		}
 	}
 	hpts_timeout = rack_timer_start(tp, rack, cts, sup_rack);
-#ifdef NETFLIX_EXP_DETECTION
+#ifdef TCP_SAD_DETECTION
 	if (rack->sack_attack_disable &&
 	    (rack->r_ctl.ack_during_sd > 0) &&
 	    (slot < tcp_sad_pacing_interval)) {
@@ -7662,7 +7616,7 @@ rack_remxt_tmr(struct tcpcb *tp)
 	rack_log_to_prr(rack, 6, 0, __LINE__);
 	rack->r_timer_override = 1;
 	if ((((tp->t_flags & TF_SACK_PERMIT) == 0)
-#ifdef NETFLIX_EXP_DETECTION
+#ifdef TCP_SAD_DETECTION
 	    || (rack->sack_attack_disable != 0)
 #endif
 		    ) && ((tp->t_flags & TF_SENTFIN) == 0)) {
@@ -9343,7 +9297,7 @@ rack_proc_sack_blk(struct tcpcb *tp, struct tcp_rack *rack, struct sackblk *sack
 	int insret __diagused;
 	int32_t used_ref = 1;
 	int moved = 0;
-#ifdef NETFLIX_EXP_DETECTION
+#ifdef TCP_SAD_DETECTION
 	int allow_segsiz;
 	int first_time_through = 1;
 #endif
@@ -9353,7 +9307,8 @@ rack_proc_sack_blk(struct tcpcb *tp, struct tcp_rack *rack, struct sackblk *sack
 	start = sack->start;
 	end = sack->end;
 	rsm = *prsm;
-#ifdef NETFLIX_EXP_DETECTION
+
+#ifdef TCP_SAD_DETECTION
 	/*
 	 * There are a strange number of proxys and meddle boxes in the world
 	 * that seem to cut up segments on different boundaries. This gets us
@@ -9384,7 +9339,7 @@ do_rest_ofb:
 		/* TSNH */
 		goto out;
 	}
-#ifdef NETFLIX_EXP_DETECTION
+#ifdef TCP_SAD_DETECTION
 	/* Now we must check for suspicous activity */
 	if ((first_time_through == 1) &&
 	    ((end - start) < min((rsm->r_end - rsm->r_start), allow_segsiz)) &&
@@ -10252,7 +10207,7 @@ rack_do_decay(struct tcp_rack *rack)
 		 * Current default is 800 so it decays
 		 * 80% every second.
 		 */
-#ifdef NETFLIX_EXP_DETECTION
+#ifdef TCP_SAD_DETECTION
 		uint32_t pkt_delta;
 
 		pkt_delta = rack->r_ctl.input_pkt - rack->r_ctl.saved_input_pkt;
@@ -10261,7 +10216,7 @@ rack_do_decay(struct tcp_rack *rack)
 		rack->r_ctl.saved_input_pkt = rack->r_ctl.input_pkt;
 		rack->r_ctl.rc_last_time_decay = rack->r_ctl.act_rcv_time;
 		/* Now do we escape without decay? */
-#ifdef NETFLIX_EXP_DETECTION
+#ifdef TCP_SAD_DETECTION
 		if (rack->rc_in_persist ||
 		    (rack->rc_tp->snd_max == rack->rc_tp->snd_una) ||
 		    (pkt_delta < tcp_sad_low_pps)){
@@ -10706,7 +10661,7 @@ rack_handle_might_revert(struct tcpcb *tp, struct tcp_rack *rack)
 	}
 }
 
-#ifdef NETFLIX_EXP_DETECTION
+#ifdef TCP_SAD_DETECTION
 
 static void
 rack_merge_out_sacks(struct tcp_rack *rack)
@@ -11384,7 +11339,7 @@ out_with_totals:
 		counter_u64_add(rack_move_some, 1);
 	}
 out:
-#ifdef NETFLIX_EXP_DETECTION
+#ifdef TCP_SAD_DETECTION
 	rack_do_detection(tp, rack, BYTES_THIS_ACK(tp, th), ctf_fixed_maxseg(rack->rc_tp));
 #endif
 	if (changed) {
@@ -14275,9 +14230,6 @@ rack_set_pace_segments(struct tcpcb *tp, struct tcp_rack *rack, uint32_t line, u
 		}
 	} else if (rack->rc_always_pace) {
 		if (rack->r_ctl.gp_bw ||
-#ifdef NETFLIX_PEAKRATE
-		    rack->rc_tp->t_maxpeakrate ||
-#endif
 		    rack->r_ctl.init_rate) {
 			/* We have a rate of some sort set */
 			uint32_t  orig;
@@ -15034,7 +14986,7 @@ rack_init(struct tcpcb *tp, void **ptr)
 		rack->rack_hdw_pace_ena = 1;
 	if (rack_hw_rate_caps)
 		rack->r_rack_hw_rate_caps = 1;
-#ifdef NETFLIX_EXP_DETECTION
+#ifdef TCP_SAD_DETECTION
 	rack->do_detection = 1;
 #else
 	rack->do_detection = 0;
@@ -15604,7 +15556,7 @@ rack_log_input_packet(struct tcpcb *tp, struct tcp_rack *rack, struct tcp_ackent
 		uint32_t orig_snd_una;
 		uint8_t xx = 0;
 
-#ifdef NETFLIX_HTTP_LOGGING
+#ifdef TCP_REQUEST_TRK
 		struct http_sendfile_track *http_req;
 
 		if (SEQ_GT(ae->ack, tp->snd_una)) {
@@ -15651,7 +15603,7 @@ rack_log_input_packet(struct tcpcb *tp, struct tcp_rack *rack, struct tcp_ackent
 		log.u_bbr.timeStamp = tcp_get_usecs(&ltv);
 		/* Log the rcv time */
 		log.u_bbr.delRate = ae->timestamp;
-#ifdef NETFLIX_HTTP_LOGGING
+#ifdef TCP_REQUEST_TRK
 		log.u_bbr.applimited = tp->t_http_closed;
 		log.u_bbr.applimited <<= 8;
 		log.u_bbr.applimited |= tp->t_http_open;
@@ -16163,7 +16115,7 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 		}
 		if (acked > sbavail(&so->so_snd))
 			acked_amount = sbavail(&so->so_snd);
-#ifdef NETFLIX_EXP_DETECTION
+#ifdef TCP_SAD_DETECTION
 		/*
 		 * We only care on a cum-ack move if we are in a sack-disabled
 		 * state. We have already added in to the ack_count, and we never
@@ -16641,7 +16593,7 @@ rack_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if (tcp_bblogging_on(rack->rc_tp)) {
 		union tcp_log_stackspecific log;
 		struct timeval ltv;
-#ifdef NETFLIX_HTTP_LOGGING
+#ifdef TCP_REQUEST_TRK
 		struct http_sendfile_track *http_req;
 
 		if (SEQ_GT(th->th_ack, tp->snd_una)) {
@@ -16687,7 +16639,7 @@ rack_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		log.u_bbr.timeStamp = tcp_get_usecs(&ltv);
 		/* Log the rcv time */
 		log.u_bbr.delRate = m->m_pkthdr.rcv_tstmp;
-#ifdef NETFLIX_HTTP_LOGGING
+#ifdef TCP_REQUEST_TRK
 		log.u_bbr.applimited = tp->t_http_closed;
 		log.u_bbr.applimited <<= 8;
 		log.u_bbr.applimited |= tp->t_http_open;
@@ -17474,9 +17426,6 @@ rack_get_pacing_delay(struct tcp_rack *rack, struct tcpcb *tp, uint32_t len, str
 		if (rack->use_fixed_rate) {
 			rate_wanted = bw_est = rack_get_fixed_pacing_bw(rack);
 		} else if ((rack->r_ctl.init_rate == 0) &&
-#ifdef NETFLIX_PEAKRATE
-			   (rack->rc_tp->t_maxpeakrate == 0) &&
-#endif
 			   (rack->r_ctl.gp_bw == 0)) {
 			/* no way to yet do an estimate */
 			bw_est = rate_wanted = 0;
@@ -17717,9 +17666,6 @@ rack_get_pacing_delay(struct tcp_rack *rack, struct tcpcb *tp, uint32_t len, str
 done_w_hdwr:
 		if (rack_limit_time_with_srtt &&
 		    (rack->use_fixed_rate == 0) &&
-#ifdef NETFLIX_PEAKRATE
-		    (rack->rc_tp->t_maxpeakrate == 0) &&
-#endif
 		    (rack->rack_hdrw_pacing == 0)) {
 			/*
 			 * Sanity check, we do not allow the pacing delay
@@ -23043,9 +22989,6 @@ rack_process_option(struct tcpcb *tp, struct tcp_rack *rack, int sopt_name,
 				snt = 0;
 			if ((snt < win) &&
 			    (tp->t_srtt |
-#ifdef NETFLIX_PEAKRATE
-			     tp->t_maxpeakrate |
-#endif
 			     rack->r_ctl.init_rate)) {
 				/*
 				 * We are not past the initial window
@@ -23324,9 +23267,7 @@ rack_process_option(struct tcpcb *tp, struct tcp_rack *rack, int sopt_name,
 	default:
 		break;
 	}
-#ifdef NETFLIX_STATS
 	tcp_log_socket_option(tp, sopt_name, optval, error);
-#endif
 	return (error);
 }
 
@@ -23668,9 +23609,9 @@ rack_fill_info(struct tcpcb *tp, struct tcp_info *ti)
 	ti->tcpi_snd_rexmitpack = tp->t_sndrexmitpack;
 	ti->tcpi_rcv_ooopack = tp->t_rcvoopack;
 	ti->tcpi_snd_zerowin = tp->t_sndzerowin;
-#ifdef NETFLIX_STATS
 	ti->tcpi_total_tlp = tp->t_sndtlppack;
 	ti->tcpi_total_tlp_bytes = tp->t_sndtlpbyte;
+#ifdef NETFLIX_STATS
 	memcpy(&ti->tcpi_rxsyninfo, &tp->t_rxsyninfo, sizeof(struct tcpsyninfo));
 #endif
 #ifdef TCP_OFFLOAD

@@ -2991,13 +2991,6 @@ use_initial_window:
 		bw = bbr->r_ctl.red_bw;
 	else
 		bw = get_filter_value(&bbr->r_ctl.rc_delrate);
-	if (bbr->rc_tp->t_peakrate_thr && (bbr->rc_use_google == 0)) {
-		/*
-		 * Enforce user set rate limit, keep in mind that
-		 * t_peakrate_thr is in B/s already
-		 */
-		bw = uqmin((uint64_t)bbr->rc_tp->t_peakrate_thr, bw);
-	}
 	if (bw == 0) {
 		/* We should not be at 0, go to the initial window then  */
 		goto use_initial_window;
@@ -10071,9 +10064,6 @@ bbr_init(struct tcpcb *tp, void **ptr)
 	bbr->r_ctl.rc_initial_hptsi_bw = bbr_initial_bw_bps;
 	if (bbr_resends_use_tso)
 		bbr->rc_resends_use_tso = 1;
-#ifdef NETFLIX_PEAKRATE
-	tp->t_peakrate_thr = tp->t_maxpeakrate;
-#endif
 	if (tp->snd_una != tp->snd_max) {
 		/* Create a send map for the current outstanding data */
 		struct bbr_sendmap *rsm;
@@ -11669,19 +11659,9 @@ bbr_what_can_we_send(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t sendwin,
 }
 
 static inline void
-bbr_do_error_accounting(struct tcpcb *tp, struct tcp_bbr *bbr, struct bbr_sendmap *rsm, int32_t len, int32_t error)
-{
-#ifdef NETFLIX_STATS
-	KMOD_TCPSTAT_INC(tcps_sndpack_error);
-	KMOD_TCPSTAT_ADD(tcps_sndbyte_error, len);
-#endif
-}
-
-static inline void
 bbr_do_send_accounting(struct tcpcb *tp, struct tcp_bbr *bbr, struct bbr_sendmap *rsm, int32_t len, int32_t error)
 {
 	if (error) {
-		bbr_do_error_accounting(tp, bbr, rsm, len, error);
 		return;
 	}
 	if (rsm) {
@@ -11690,10 +11670,8 @@ bbr_do_send_accounting(struct tcpcb *tp, struct tcp_bbr *bbr, struct bbr_sendmap
 			 * TLP should not count in retran count, but in its
 			 * own bin
 			 */
-#ifdef NETFLIX_STATS
 			KMOD_TCPSTAT_INC(tcps_tlpresends);
 			KMOD_TCPSTAT_ADD(tcps_tlpresend_bytes, len);
-#endif
 		} else {
 			/* Retransmit */
 			tp->t_sndrexmitpack++;
@@ -14206,9 +14184,6 @@ bbr_set_sockopt(struct inpcb *inp, struct sockopt *sopt)
 	case TCP_BBR_PACE_SEG_MIN:
 	case TCP_BBR_PACE_CROSS:
 	case TCP_BBR_PACE_OH:
-#ifdef NETFLIX_PEAKRATE
-	case TCP_MAXPEAKRATE:
-#endif
 	case TCP_BBR_TMR_PACE_OH:
 	case TCP_BBR_RACK_RTT_USE:
 	case TCP_BBR_RETRAN_WTSO:
@@ -14474,14 +14449,7 @@ bbr_set_sockopt(struct inpcb *inp, struct sockopt *sopt)
 		BBR_OPTS_INC(tcp_rack_pkt_delay);
 		bbr->r_ctl.rc_pkt_delay = optval;
 		break;
-#ifdef NETFLIX_PEAKRATE
-	case TCP_MAXPEAKRATE:
-		BBR_OPTS_INC(tcp_maxpeak);
-		error = tcp_set_maxpeakrate(tp, optval);
-		if (!error)
-			tp->t_peakrate_thr = tp->t_maxpeakrate;
-		break;
-#endif
+
 	case TCP_BBR_RETRAN_WTSO:
 		BBR_OPTS_INC(tcp_retran_wtso);
 		if (optval)
@@ -14553,9 +14521,7 @@ bbr_set_sockopt(struct inpcb *inp, struct sockopt *sopt)
 		return (tcp_default_ctloutput(inp, sopt));
 		break;
 	}
-#ifdef NETFLIX_STATS
 	tcp_log_socket_option(tp, sopt->sopt_name, optval, error);
-#endif
 	INP_WUNLOCK(inp);
 	return (error);
 }
