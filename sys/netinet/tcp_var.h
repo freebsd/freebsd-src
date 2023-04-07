@@ -332,7 +332,6 @@ struct tcpcb {
 	tcp_seq snd_up;			/* send urgent pointer */
 	uint32_t snd_wnd;		/* send window */
 	uint32_t snd_cwnd;		/* congestion-controlled window */
-	uint32_t t_peakrate_thr; 	/* pre-calculated peak rate threshold */
 	uint32_t ts_offset;		/* our timestamp offset */
 	uint32_t rfbuf_ts;		/* recv buffer autoscaling timestamp */
 	int	rcv_numsacks;		/* # distinct sack blks present */
@@ -1086,6 +1085,16 @@ struct	tcpstat {
 	uint64_t tcps_ecn_sndect0;		/* ECN Capable Transport */
 	uint64_t tcps_ecn_sndect1;		/* ECN Capable Transport */
 
+	/*
+	 * BBR and Rack implement TLP's these values count TLP bytes in
+	 * two catagories, bytes that were retransmitted and bytes that
+	 * were newly transmited. Both types can serve as TLP's but they
+	 * are accounted differently.
+	 */
+	uint64_t tcps_tlpresends;	/* number of tlp resends */
+	uint64_t tcps_tlpresend_bytes;	/* number of bytes resent by tlp */
+
+
 	uint64_t _pad[4];		/* 4 TBD placeholder for STABLE */
 };
 
@@ -1390,6 +1399,9 @@ struct tcp_function_block *
 find_and_ref_tcp_fb(struct tcp_function_block *fs);
 int tcp_default_ctloutput(struct inpcb *inp, struct sockopt *sopt);
 int tcp_ctloutput_set(struct inpcb *inp, struct sockopt *sopt);
+void tcp_log_socket_option(struct tcpcb *tp, uint32_t option_num,
+    uint32_t option_val, int err);
+
 
 extern counter_u64_t tcp_inp_lro_direct_queue;
 extern counter_u64_t tcp_inp_lro_wokeup_queue;
@@ -1401,7 +1413,7 @@ extern counter_u64_t tcp_comp_total;
 extern counter_u64_t tcp_uncomp_total;
 extern counter_u64_t tcp_bad_csums;
 
-#ifdef NETFLIX_EXP_DETECTION
+#ifdef TCP_SAD_DETECTION
 /* Various SACK attack thresholds */
 extern int32_t tcp_force_detection;
 extern int32_t tcp_sad_limit;

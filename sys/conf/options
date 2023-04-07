@@ -229,6 +229,12 @@ SW_WATCHDOG	opt_watchdog.h
 TCPHPTS         opt_inet.h
 TCP_REQUEST_TRK opt_global.h
 TCP_ACCOUNTING	opt_inet.h
+#
+# TCP SaD Detection is an experimental Sack attack Detection (SaD)
+# algorithm that uses "normal" behaviour with SACK's to detect
+# a possible attack. It is strictly experimental at this point.
+#
+TCP_SAD_DETECTION opt_inet.h
 TURNSTILE_PROFILING
 UMTX_PROFILING
 UMTX_CHAINS	opt_global.h

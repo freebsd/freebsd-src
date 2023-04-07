@@ -143,7 +143,7 @@ VNET_DEFINE(int, tcp_mssdflt) = TCP_MSS;
 VNET_DEFINE(int, tcp_v6mssdflt) = TCP6_MSS;
 #endif
 
-#ifdef NETFLIX_EXP_DETECTION
+#ifdef TCP_SAD_DETECTION
 /*  Sack attack detection thresholds and such */
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, sack_attack,
     CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
@@ -153,11 +153,6 @@ SYSCTL_INT(_net_inet_tcp_sack_attack, OID_AUTO, force_detection,
     CTLFLAG_RW,
     &tcp_force_detection, 0,
     "Do we force detection even if the INP has it off?");
-int32_t tcp_sad_limit = 10000;
-SYSCTL_INT(_net_inet_tcp_sack_attack, OID_AUTO, limit,
-    CTLFLAG_RW,
-    &tcp_sad_limit, 10000,
-    "If SaD is enabled, what is the limit to sendmap entries (0 = unlimited)?");
 int32_t tcp_sad_limit = 10000;
 SYSCTL_INT(_net_inet_tcp_sack_attack, OID_AUTO, limit,
     CTLFLAG_RW,
@@ -4579,3 +4574,22 @@ tcp_http_alloc_req(struct tcpcb *tp, union tcp_log_userdata *user, uint64_t ts)
 	(void)tcp_http_alloc_req_full(tp, &user->http_req, ts, 1);
 }
 #endif
+
+void
+tcp_log_socket_option(struct tcpcb *tp, uint32_t option_num, uint32_t option_val, int err)
+{
+	if (tcp_bblogging_on(tp)) {
+		struct tcp_log_buffer *l;
+
+		l = tcp_log_event(tp, NULL,
+		        &tptosocket(tp)->so_rcv,
+		        &tptosocket(tp)->so_snd,
+		        TCP_LOG_SOCKET_OPT,
+		        err, 0, NULL, 1,
+		        NULL, NULL, 0, NULL);
+		if (l) {
+			l->tlb_flex1 = option_num;
+			l->tlb_flex2 = option_val;
+		}
+	}
+}

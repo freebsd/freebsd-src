@@ -1710,7 +1710,6 @@ tcp_ctloutput_set(struct inpcb *inp, struct sockopt *sopt)
 		 * Ensure the new stack takes ownership with a
 		 * clean slate on peak rate threshold.
 		 */
-		tp->t_peakrate_thr = 0;
 #ifdef TCPHPTS
 		/* Assure that we are not on any hpts */
 		tcp_hpts_remove(tptoinpcb(tp));

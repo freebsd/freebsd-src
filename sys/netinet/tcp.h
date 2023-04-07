@@ -424,6 +424,9 @@ struct tcp_info {
 	u_int32_t	__tcpi_received_e0_bytes;
 	u_int32_t	__tcpi_received_ce_bytes;
 
+	u_int32_t	tcpi_total_tlp;		/* tail loss probes sent */
+	u_int64_t	tcpi_total_tlp_bytes;	/* tail loss probe bytes sent */
+
 	/* Padding to grow without breaking ABI. */
 	u_int32_t	__tcpi_pad[19];		/* Padding. */
 };
