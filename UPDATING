@@ -12,6 +12,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20230411:
+	13.2-RELEASE.
+
 20220701:
 	LinuxKPI pm.h changes require an update to the latest drm-kmod version
 	before re-compiling to avoid errors.
