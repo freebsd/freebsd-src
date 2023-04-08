@@ -248,6 +248,7 @@ struct xvnode {
 #define	VIRF_PGREAD	0x0002	/* Direct reads from the page cache are permitted,
 				   never cleared once set */
 #define	VIRF_MOUNTPOINT	0x0004	/* This vnode is mounted on */
+#define	VIRF_CROSSMP	0x0010	/* Cross-mp vnode, no locking */
 
 #define	VI_TEXT_REF	0x0001	/* Text ref grabbed use ref */
 #define	VI_MOUNT	0x0002	/* Mount in progress */
