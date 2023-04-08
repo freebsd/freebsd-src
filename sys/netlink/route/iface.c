@@ -230,7 +230,7 @@ dump_sa(struct nl_writer *nw, int attr, const struct sockaddr *sa)
                 addr_data = LLADDR_CONST((const struct sockaddr_dl *)sa);
                 break;
         default:
-                NL_LOG(LOG_DEBUG, "unsupported family: %d, skipping", sa->sa_family);
+                NL_LOG(LOG_DEBUG2, "unsupported family: %d, skipping", sa->sa_family);
                 return (true);
         }
 
