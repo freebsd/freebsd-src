@@ -228,6 +228,7 @@ _Static_assert(sizeof(struct vnode) <= 448, "vnode size crosses 448 bytes");
 				   never cleared once set */
 #define	VIRF_MOUNTPOINT	0x0004	/* This vnode is mounted on */
 #define	VIRF_TEXT_REF	0x0008	/* Executable mappings ref the vnode */
+#define	VIRF_CROSSMP	0x0010	/* Cross-mp vnode, no locking */
 
 #define	VI_UNUSED0	0x0001	/* unused */
 #define	VI_MOUNT	0x0002	/* Mount in progress */
