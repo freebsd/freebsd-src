@@ -220,20 +220,37 @@ rtmsg_nl_int(struct nl_helper *h, int cmd, int rtm_flags, int fib, int rtm_addrs
 	snl_add_msg_attr_ip(&nw, RTA_DST, dst);
 	snl_add_msg_attr_u32(&nw, RTA_TABLE, fib);
 
+	uint32_t rta_oif = 0;
+
 	if (gw != NULL) {
 		if (rtm_flags & RTF_GATEWAY) {
 			if (gw->sa_family == dst->sa_family)
 				snl_add_msg_attr_ip(&nw, RTA_GATEWAY, gw);
 			else
 				snl_add_msg_attr_ipvia(&nw, RTA_VIA, gw);
+			if (gw->sa_family == AF_INET6) {
+				struct sockaddr_in6 *gw6 = (struct sockaddr_in6 *)gw;
+
+				if (IN6_IS_ADDR_LINKLOCAL(&gw6->sin6_addr))
+					rta_oif = gw6->sin6_scope_id;
+			}
 		} else {
 			/* Should be AF_LINK */
 			struct sockaddr_dl *sdl = (struct sockaddr_dl *)gw;
 			if (sdl->sdl_index != 0)
-				snl_add_msg_attr_u32(&nw, RTA_OIF, sdl->sdl_index);
+				rta_oif = sdl->sdl_index;
 		}
 	}
 
+	if (dst->sa_family == AF_INET6 && rta_oif == 0) {
+		struct sockaddr_in6 *dst6 = (struct sockaddr_in6 *)dst;
+
+		if (IN6_IS_ADDR_LINKLOCAL(&dst6->sin6_addr))
+			rta_oif = dst6->sin6_scope_id;
+	}
+
+	if (rta_oif != 0)
+		snl_add_msg_attr_u32(&nw, RTA_OIF, rta_oif);
 	if (rtm_flags != 0)
 		snl_add_msg_attr_u32(&nw, NL_RTA_RTFLAGS, rtm_flags);
 
