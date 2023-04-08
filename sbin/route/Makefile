@@ -19,7 +19,11 @@ CFLAGS+= -DINET6
 .endif
 CFLAGS+= -I.
 
+.if ${MK_NETLINK_SUPPORT} != "no"
+SRCS+= route_netlink.c
+.else
 CFLAGS+=-DWITHOUT_NETLINK
+.endif
 
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
