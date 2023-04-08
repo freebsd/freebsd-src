@@ -34,7 +34,7 @@
 
 # 20150714 Slowdown seen with core5 waiting in vlruwk.
 # sysctl vfs.vlru_allow_cache_src=1 used to resolve this.
-# For now change MAXVNODES from 1.000 to 4.000.
+# For now change MAXVNODES from 1.000 to 5.000.
 
 [ `id -u ` -ne 0 ] && echo "Must be root!" && exit 1
 . ../default.cfg
@@ -131,7 +131,7 @@ EOF
 #include <time.h>
 #include <unistd.h>
 
-#define MAXVNODES 4000
+#define MAXVNODES 5000
 #define NBFILES 10000
 #define PARALLEL 4
 #define RTIME (10 * 60)
