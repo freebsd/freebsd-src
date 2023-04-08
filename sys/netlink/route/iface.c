@@ -734,6 +734,7 @@ ifa_get_scope(const struct ifaddr *ifa)
         return (addr_scope);
 }
 
+#ifdef INET6
 static uint8_t
 inet6_get_plen(const struct in6_addr *addr)
 {
@@ -741,6 +742,7 @@ inet6_get_plen(const struct in6_addr *addr)
 	return (bitcount32(addr->s6_addr32[0]) + bitcount32(addr->s6_addr32[1]) +
 	    bitcount32(addr->s6_addr32[2]) + bitcount32(addr->s6_addr32[3]));
 }
+#endif
 
 static uint8_t
 get_sa_plen(const struct sockaddr *sa)
