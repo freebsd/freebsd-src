@@ -1880,17 +1880,17 @@ vn_start_write_refed(struct mount *mp, int flags, bool mplocked)
 		}
 		mflags |= (PUSER - 1);
 		while ((mp->mnt_kern_flag & MNTK_SUSPEND) != 0) {
-			if (flags & V_NOWAIT) {
+			if ((flags & V_NOWAIT) != 0) {
 				error = EWOULDBLOCK;
 				goto unlock;
 			}
 			error = msleep(&mp->mnt_flag, MNT_MTX(mp), mflags,
 			    "suspfs", 0);
-			if (error)
+			if (error != 0)
 				goto unlock;
 		}
 	}
-	if (flags & V_XSLEEP)
+	if ((flags & V_XSLEEP) != 0)
 		goto unlock;
 	mp->mnt_writeopcount++;
 unlock:
@@ -1986,7 +1986,7 @@ vn_start_secondary_write(struct vnode *vp, struct mount **mpp, int flags)
 		MNT_IUNLOCK(mp);
 		return (0);
 	}
-	if (flags & V_NOWAIT) {
+	if ((flags & V_NOWAIT) != 0) {
 		MNT_REL(mp);
 		MNT_IUNLOCK(mp);
 		return (EWOULDBLOCK);
@@ -1996,7 +1996,7 @@ vn_start_secondary_write(struct vnode *vp, struct mount **mpp, int flags)
 	 */
 	mflags = 0;
 	if ((mp->mnt_vfc->vfc_flags & VFCF_SBDRY) != 0) {
-		if (flags & V_PCATCH)
+		if ((flags & V_PCATCH) != 0)
 			mflags |= PCATCH;
 	}
 	mflags |= (PUSER - 1) | PDROP;
