@@ -781,8 +781,7 @@ print_flushed_route(struct snl_parsed_route *r, struct sockaddr *gw)
 	    routename(sa) : netname(sa));
 	sa = gw;
 	printf("%-20.20s ", routename(sa));
-	if (r->rta_table >= 0)
-		printf("-fib %-3d ", r->rta_table);
+	printf("-fib %-3d ", r->rta_table);
 	printf("done\n");
 }
 
