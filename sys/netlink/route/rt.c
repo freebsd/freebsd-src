@@ -732,7 +732,7 @@ get_pxflag(const struct nl_parsed_route *attrs)
 			pxflag = NHF_DEFAULT;
 		break;
 	case AF_INET6:
-		if (attrs->rtm_dst_len == 32)
+		if (attrs->rtm_dst_len == 128)
 			pxflag = NHF_HOST;
 		else if (attrs->rtm_dst_len == 0)
 			pxflag = NHF_DEFAULT;
@@ -776,6 +776,7 @@ create_nexthop_one(struct nl_parsed_route *attrs, struct rta_mpath_nh *mpnh,
 	}
 	if (mpnh->ifp != NULL)
 		nhop_set_transmit_ifp(nh, mpnh->ifp);
+	nhop_set_pxtype_flag(nh, get_pxflag(attrs));
 	nhop_set_rtflags(nh, attrs->rta_rtflags);
 	if (attrs->rtm_protocol > RTPROT_STATIC)
 		nhop_set_origin(nh, attrs->rtm_protocol);
@@ -852,6 +853,7 @@ create_nexthop_from_attrs(struct nl_parsed_route *attrs,
 			nhop_set_broadcast(nh, true);
 		if (attrs->rtm_protocol > RTPROT_STATIC)
 			nhop_set_origin(nh, attrs->rtm_protocol);
+		nhop_set_pxtype_flag(nh, get_pxflag(attrs));
 		nhop_set_rtflags(nh, attrs->rta_rtflags);
 
 		switch (attrs->rtm_type) {
