@@ -708,7 +708,19 @@ finalize_nhop(struct nhop_object *nh, const struct sockaddr *dst, int *perror)
 	}
 	/* Both nh_ifp and gateway are set */
 	if (nh->nh_ifa == NULL) {
-		struct ifaddr *ifa = ifaof_ifpforaddr(&nh->gw_sa, nh->nh_ifp);
+		const struct sockaddr *gw_sa = &nh->gw_sa;
+
+		if (gw_sa->sa_family != dst->sa_family) {
+			/*
+			 * Use dst as the target for determining the default
+			 * preferred ifa IF
+			 * 1) the gateway is link-level (e.g. direct route)
+			 * 2) the gateway family is different (e.g. IPv4 over IPv6).
+			 */
+			gw_sa = dst;
+		}
+
+		struct ifaddr *ifa = ifaof_ifpforaddr(gw_sa, nh->nh_ifp);
 		if (ifa == NULL) {
 			NL_LOG(LOG_DEBUG, "Unable to determine ifa, skipping");
 			*perror = EINVAL;
