@@ -667,10 +667,15 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 
 	/*
 	 * Allow if_bridge(4) to claim this frame.
+	 *
 	 * The BRIDGE_INPUT() macro will update ifp if the bridge changed it
 	 * and the frame should be delivered locally.
+	 *
+	 * If M_BRIDGE_INJECT is set, the packet was received directly by the
+	 * bridge via netmap, so "ifp" is the bridge itself and the packet
+	 * should be re-examined.
 	 */
-	if (ifp->if_bridge != NULL) {
+	if (ifp->if_bridge != NULL || (m->m_flags & M_BRIDGE_INJECT) != 0) {
 		m->m_flags &= ~M_PROMISC;
 		BRIDGE_INPUT(ifp, m);
 		if (m == NULL) {
