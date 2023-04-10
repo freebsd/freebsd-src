@@ -426,10 +426,7 @@ static int
 mos_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct mos_softc *sc = device_get_softc(dev);
-	uWord val;
 	int i, res, locked;
-
-	USETW(val, 0);
 
 	locked = mtx_owned(&sc->sc_mtx);
 	if (!locked)
