@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 
 #include <vm/uma.h>
 
@@ -46,6 +47,7 @@ struct nvme_consumer {
 	nvme_cons_fail_fn_t	fail_fn;
 };
 
+static struct mtx nvme_consumer_mutex;
 struct nvme_consumer nvme_consumer[NVME_MAX_CONSUMERS];
 #define	INVALID_CONSUMER_ID	0xFFFF
 
@@ -57,6 +59,7 @@ static void
 nvme_init(void)
 {
 	uint32_t	i;
+	mtx_init(&nvme_consumer_mutex, "nvme_consumer_mutex", NULL, MTX_DEF);
 
 	for (i = 0; i < NVME_MAX_CONSUMERS; i++)
 		nvme_consumer[i].id = INVALID_CONSUMER_ID;
@@ -67,6 +70,7 @@ SYSINIT(nvme_register, SI_SUB_DRIVERS, SI_ORDER_SECOND, nvme_init, NULL);
 static void
 nvme_uninit(void)
 {
+	mtx_destroy(&nvme_consumer_mutex);
 }
 
 SYSUNINIT(nvme_unregister, SI_SUB_DRIVERS, SI_ORDER_SECOND, nvme_uninit, NULL);
@@ -310,11 +314,9 @@ nvme_register_consumer(nvme_cons_ns_fn_t ns_fn, nvme_cons_ctrlr_fn_t ctrlr_fn,
 {
 	int i;
 
-	/*
-	 * TODO: add locking around consumer registration.
-	 */
 	for (i = 0; i < NVME_MAX_CONSUMERS; i++)
 		if (nvme_consumer[i].id == INVALID_CONSUMER_ID) {
+			mtx_lock(&nvme_consumer_mutex);
 			nvme_consumer[i].id = i;
 			nvme_consumer[i].ns_fn = ns_fn;
 			nvme_consumer[i].ctrlr_fn = ctrlr_fn;
@@ -322,6 +324,8 @@ nvme_register_consumer(nvme_cons_ns_fn_t ns_fn, nvme_cons_ctrlr_fn_t ctrlr_fn,
 			nvme_consumer[i].fail_fn = fail_fn;
 
 			nvme_notify_new_consumer(&nvme_consumer[i]);
+
+			mtx_unlock(&nvme_consumer_mutex);
 			return (&nvme_consumer[i]);
 		}
 
