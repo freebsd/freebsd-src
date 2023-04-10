@@ -136,12 +136,18 @@ static struct epair_tasks_t epair_tasks;
 static void
 epair_clear_mbuf(struct mbuf *m)
 {
+	M_ASSERTPKTHDR(m);
+
 	/* Remove any CSUM_SND_TAG as ether_input will barf. */
 	if (m->m_pkthdr.csum_flags & CSUM_SND_TAG) {
 		m_snd_tag_rele(m->m_pkthdr.snd_tag);
 		m->m_pkthdr.snd_tag = NULL;
 		m->m_pkthdr.csum_flags &= ~CSUM_SND_TAG;
 	}
+
+	/* Clear vlan information. */
+	m->m_flags &= ~M_VLANTAG;
+	m->m_pkthdr.ether_vtag = 0;
 
 	m_tag_delete_nonpersistent(m);
 }
