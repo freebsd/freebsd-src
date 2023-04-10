@@ -309,8 +309,10 @@ struct ifbpstpconf {
 	KASSERT((_ifp)->if_bridge_input != NULL,	\
 	    ("%s: if_bridge not loaded!", __func__));	\
 	_m = (*(_ifp)->if_bridge_input)(_ifp, _m);	\
-	if (_m != NULL)					\
+	if (_m != NULL)	{				\
 		_ifp = _m->m_pkthdr.rcvif;		\
+		m->m_flags &= ~M_BRIDGE_INJECT;		\
+	}						\
 } while (0)
 
 #define BRIDGE_OUTPUT(_ifp, _m, _err)	do {    	\

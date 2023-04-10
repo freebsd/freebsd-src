@@ -421,6 +421,29 @@ interface and not to the bridge members.
 Enabling
 .Va net.link.bridge.pfil_local_phys
 will let you do the additional filtering on the physical interface.
+.Sh NETMAP
+.Xr netmap 4
+applications may open a bridge interface in emulated mode.
+The netmap application will receive all packets which arrive from member
+interfaces.
+In particular, packets which would otherwise be forwarded to another
+member interface will be received by the netmap application.
+.Pp
+When the
+.Xr netmap 4
+application transmits a packet to the host stack via the bridge interface,
+.Nm
+receive it and attempts to determine its
+.Ql source
+interface by looking up the source MAC address in the interface's learning
+tables.
+Packets for which no matching source interface is found are dropped and the
+input error counter is incremented.
+If a matching source interface is found,
+.Nm
+treats the packet as though it was received from the corresponding interface
+and handles it normally without passing the packet back to
+.Xr netmap 4 .
 .Sh EXAMPLES
 The following when placed in the file
 .Pa /etc/rc.conf
@@ -495,6 +518,7 @@ ifconfig bridge0 addm fxp0 addm gif0 up
 .Xr gif 4 ,
 .Xr ipf 4 ,
 .Xr ipfw 4 ,
+.Xr netmap 4 ,
 .Xr pf 4 ,
 .Xr ifconfig 8
 .Sh HISTORY
