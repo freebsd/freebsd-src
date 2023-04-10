@@ -249,7 +249,7 @@ typedef struct _iso9660_disk {
 	int rock_ridge_enabled;
 	/* Other Rock Ridge Variables */
 	char *rock_ridge_renamed_dir_name;
-	int rock_ridge_move_count;
+	unsigned rock_ridge_move_count;
 	cd9660node *rr_moved_dir;
 
 	int archimedes_enabled;
