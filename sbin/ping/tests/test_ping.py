@@ -275,6 +275,8 @@ def redact(output):
         ("hlim=[0-9]*", "hlim="),
         ("ttl=[0-9]*", "ttl="),
         ("time=[0-9.-]*", "time="),
+        ("cp: .*", "cp: xx xx xx xx xx xx xx xx"),
+        ("dp: .*", "dp: xx xx xx xx xx xx xx xx"),
         ("\(-[0-9\.]+[0-9]+ ms\)", "(- ms)"),
         ("[0-9\.]+/[0-9.]+", "/"),
     ]
@@ -1400,6 +1402,39 @@ ping: time of day goes back (- ms), clamping time to 0
                 "redacted": True,
             },
             id="_0_0_special_warp",
+        ),
+        pytest.param(
+            {
+                "src": "192.0.2.1",
+                "dst": "192.0.2.2",
+                "icmp_type": 0,
+                "icmp_code": 0,
+                "special": "wrong",
+            },
+            {
+                "returncode": 0,
+                "stdout": """\
+PATTERN: 0x01
+PING 192.0.2.2 (192.0.2.2): 56 data bytes
+64 bytes from: icmp_seq=0 ttl= time= ms
+wrong data byte #55 should be 0x1 but was 0x0
+cp: xx xx xx xx xx xx xx xx
+	  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1
+	  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1
+	  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  0
+dp: xx xx xx xx xx xx xx xx
+	  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1
+	  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1
+	  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1
+
+--- 192.0.2.2 ping statistics ---
+1 packets transmitted, 1 packets received, 0.0% packet loss
+round-trip min/avg/max/stddev = /// ms
+""",
+                "stderr": "",
+                "redacted": True,
+            },
+            id="_0_0_special_wrong",
         ),
     ]
 
