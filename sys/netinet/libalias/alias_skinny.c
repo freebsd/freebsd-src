@@ -230,7 +230,7 @@ alias_skinny_startmedia(struct StartMediaTransmission *start_media,
     struct alias_link *lnk, u_int32_t localIpAddr,
     ConvDirection direction)
 {
-	struct in_addr dst, src;
+	struct in_addr dst __unused, src __unused;
 
 	(void)pip;
 	(void)tc;
