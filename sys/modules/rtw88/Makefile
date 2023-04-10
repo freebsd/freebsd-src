@@ -40,4 +40,7 @@ CFLAGS+=	${LINUXKPI_INCLUDES}
 CFLAGS+=	-DCONFIG_RTW88_DEBUG
 #CFLAGS+=	-DCONFIG_RTW88_DEBUGFS
 
+# GCC warns about set but unused vaf variables
+CWARNFLAGS.debug.c+= ${NO_WUNUSED_BUT_SET_VARIABLE}
+
 .include <bsd.kmod.mk>
