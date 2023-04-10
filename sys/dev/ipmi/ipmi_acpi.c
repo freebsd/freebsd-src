@@ -80,9 +80,8 @@ ipmi_acpi_attach(device_t dev)
 {
 	ACPI_HANDLE devh;
 	const char *mode;
-	struct ipmi_get_info info;
 	struct ipmi_softc *sc = device_get_softc(dev);
-	int count, error, flags, i, type;
+	int count, error, i, type;
 	int interface_type = 0, interface_version = 0;
 
 	error = 0;
@@ -106,9 +105,6 @@ ipmi_acpi_attach(device_t dev)
 		device_printf(dev, "BT interface not supported\n");
 		return (ENXIO);
 	case SSIF_MODE:
-		if (ACPI_FAILURE(acpi_GetInteger(devh, "_ADR", &flags)))
-			return (ENXIO);
-		info.address = flags;
 		device_printf(dev, "SSIF interface not supported on ACPI\n");
 		return (0);
 	default:
