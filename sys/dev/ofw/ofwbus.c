@@ -130,6 +130,7 @@ ofwbus_attach(device_t dev)
 		if (ofw_bus_gen_setup_devinfo(&obd, node) != 0)
 			continue;
 		simplebus_add_device(dev, node, 0, NULL, -1, NULL);
+		ofw_bus_gen_destroy_devinfo(&obd);
 	}
 	return (bus_generic_attach(dev));
 }
