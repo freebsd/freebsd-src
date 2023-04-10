@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 16, 2017
+.Dd April 10, 2023
 .Dt IF_BRIDGE 4
 .Os
 .Sh NAME
@@ -117,6 +117,15 @@ Multicast and broadcast packets are always forwarded to all
 interfaces that are part of the bridge.
 For unicast traffic, the bridge learns which MAC addresses are associated
 with which interfaces and will forward the traffic selectively.
+.Pp
+By default the bridge logs MAC address port flapping to
+.Xr syslog 3 .
+This behavior can be disabled by setting the
+.Xr sysctl 8
+variable
+.Va net.link.bridge.log_mac_flap
+to
+.Li 0 .
 .Pp
 All the bridged member interfaces need to be up in order to pass network traffic.
 These can be enabled using
