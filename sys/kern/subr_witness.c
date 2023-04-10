@@ -2425,6 +2425,32 @@ witness_restore(struct lock_object *lock, const char *file, int line)
 	instance->li_line = line;
 }
 
+static bool
+witness_find_instance(const struct lock_object *lock,
+    struct lock_instance **instance)
+{
+#ifdef INVARIANT_SUPPORT
+	struct lock_class *class;
+
+	if (lock->lo_witness == NULL || witness_watch < 1 || KERNEL_PANICKED())
+		return (false);
+	class = LOCK_CLASS(lock);
+	if ((class->lc_flags & LC_SLEEPLOCK) != 0) {
+		*instance = find_instance(curthread->td_sleeplocks, lock);
+		return (true);
+	} else if ((class->lc_flags & LC_SPINLOCK) != 0) {
+		*instance = find_instance(PCPU_GET(spinlocks), lock);
+		return (true);
+	} else {
+		kassert_panic("Lock (%s) %s is not sleep or spin!",
+		    class->lc_name, lock->lo_name);
+		return (false);
+	}
+#else
+	return (false);
+#endif
+}
+
 void
 witness_assert(const struct lock_object *lock, int flags, const char *file,
     int line)
@@ -2433,18 +2459,9 @@ witness_assert(const struct lock_object *lock, int flags, const char *file,
 	struct lock_instance *instance;
 	struct lock_class *class;
 
-	if (lock->lo_witness == NULL || witness_watch < 1 || KERNEL_PANICKED())
+	if (!witness_find_instance(lock, &instance))
 		return;
 	class = LOCK_CLASS(lock);
-	if ((class->lc_flags & LC_SLEEPLOCK) != 0)
-		instance = find_instance(curthread->td_sleeplocks, lock);
-	else if ((class->lc_flags & LC_SPINLOCK) != 0)
-		instance = find_instance(PCPU_GET(spinlocks), lock);
-	else {
-		kassert_panic("Lock (%s) %s is not sleep or spin!",
-		    class->lc_name, lock->lo_name);
-		return;
-	}
 	switch (flags) {
 	case LA_UNLOCKED:
 		if (instance != NULL)
@@ -2495,6 +2512,27 @@ witness_assert(const struct lock_object *lock, int flags, const char *file,
 		    fixup_filename(file), line);
 	}
 #endif	/* INVARIANT_SUPPORT */
+}
+
+/*
+ * Checks the ownership of the lock by curthread, consulting the witness list.
+ * Returns:
+ *   0  if witness is disabled or did not work
+ *   -1 if not owned
+ *   1  if owned
+ */
+int
+witness_is_owned(const struct lock_object *lock)
+{
+#ifdef INVARIANT_SUPPORT
+	struct lock_instance *instance;
+
+	if (!witness_find_instance(lock, &instance))
+		return (0);
+	return (instance == NULL ? -1 : 1);
+#else
+	return (0);
+#endif
 }
 
 static void
