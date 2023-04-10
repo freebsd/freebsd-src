@@ -23369,6 +23369,7 @@ rack_set_sockopt(struct tcpcb *tp, struct sockopt *sopt)
 	struct inpcb *inp = tptoinpcb(tp);
 #ifdef INET6
 	struct ip6_hdr *ip6;
+	int32_t mask, tclass;
 #endif
 #ifdef INET
 	struct ip *ip;
@@ -23376,7 +23377,7 @@ rack_set_sockopt(struct tcpcb *tp, struct sockopt *sopt)
 	struct tcp_rack *rack;
 	struct tcp_hybrid_req hybrid;
 	uint64_t loptval;
-	int32_t error = 0, mask, optval, tclass;
+	int32_t error = 0, optval;
 
 	rack = (struct tcp_rack *)tp->t_fb_ptr;
 	if (rack == NULL) {
