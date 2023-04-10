@@ -2,7 +2,7 @@
 .\" Written by Garrett Wollman
 .\" This file is in the public domain.
 .\"
-.Dd March 25, 2023
+.Dd April 10, 2023
 .Dt PROCFS 5
 .Os
 .Sh NAME
@@ -69,7 +69,93 @@ in
 is only implemented on machines which have distinct general
 purpose and floating point register sets.
 .It Pa map
-A map of the process' virtual memory.
+A collection of lines describing the memory regions of the process,
+where each line contains the following fields:
+.Bl -tag -compact -width private-resident
+.It start-address
+The starting address for the region (inclusive).
+.It end-address
+The ending address for the region (exclusive).
+.It resident
+The number of resident pages.
+.It private-resident
+The number of resident pages that were private to the process.
+.It obj
+The virtual address of the
+.Vt struct vm_object
+kernel data structure describing the memory region.
+.It access
+A three character string comprising the characters
+.Sq r ,
+.Sq w
+and
+.Sq x ,
+denoting read, write, and execute permissions respectively.
+The lack of a permission is represented by
+.Sq - .
+.It ref_count
+The number of references to the region.
+.It shadow_count
+The number of VM objects that this region is a shadow for.
+.It flags
+The flags for the object, see the flags named
+.Sy OBJ_*
+in
+.In vm/vm_object.h .
+.It copy-on-write
+Whether the region is copy-on-write.
+One of:
+.Bl -tag -compact -width NCOW
+.It COW
+A copy-on-write region.
+.It NCOW
+A non-copy-on-write region.
+.El
+.It needs-copy
+Whether the region needs a copy.
+One of:
+.Bl -tag -compact -width NNC
+.It NC
+The region needs a copy.
+.It NNC
+The region does not need a copy.
+.El
+.It type
+The type of the region.
+One of:
+.Bl -tag -compact -width unknown
+.It dead
+A region associated with a dead VM object.
+.It device
+A region backed by device memory.
+.It none
+A region not backed by anything.
+.It phys
+A region backed by physical memory.
+.It swap
+A region backed by swap.
+.It unknown
+A region of unknown type.
+.It vnode
+A region backed by a file.
+.El
+.It fullpath
+The path to the file backing the memory region, or
+.Sq -
+if there is no such file.
+.It cred
+One of:
+.Bl -tag -compact -width NCH
+.It CH
+The region is being charged to the user specified in the
+.Sq charged-uid
+field.
+.It NCH
+The region is not being charged to any user.
+.El
+.It charged-uid
+The UID of the user being charged, or -1 if no user is being charged.
+.El
 .It Pa mem
 The complete virtual memory image of the process.
 Only those address which exist in the process can be accessed.
