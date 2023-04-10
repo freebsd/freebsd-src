@@ -202,8 +202,9 @@ procfs_doprocmap(PFS_FILL_ARGS)
 
 		/*
 		 * format:
-		 *  start, end, resident, private resident, cow, access, type,
-		 *         charged, charged uid.
+		 *  start, end, resident, private-resident, obj, access,
+		 *  ref_count, shadow_count, flags, cow, needs_copy, type,
+		 *  fullpath, charged, charged uid.
 		 */
 		error = sbuf_printf(sb,
 		    "0x%lx 0x%lx %d %d %p %s%s%s %d %d 0x%x %s %s %s %s %s %d\n",
