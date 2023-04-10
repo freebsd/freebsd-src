@@ -4685,6 +4685,13 @@ if_llmaddr_count(if_t ifp)
 	return (count);
 }
 
+bool
+if_maddr_empty(if_t ifp)
+{
+
+	return (CK_STAILQ_EMPTY(&ifp->if_multiaddrs));
+}
+
 u_int
 if_foreach_llmaddr(if_t ifp, iflladdr_cb_t cb, void *cb_arg)
 {
