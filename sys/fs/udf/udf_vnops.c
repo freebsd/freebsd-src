@@ -289,9 +289,6 @@ udf_getattr(struct vop_getattr_args *a)
 	struct udf_node *node;
 	struct vattr *vap;
 	struct file_entry *fentry;
-	struct timespec ts;
-
-	ts.tv_sec = 0;
 
 	vp = a->a_vp;
 	vap = a->a_vap;
