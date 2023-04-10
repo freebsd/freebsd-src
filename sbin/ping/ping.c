@@ -1261,14 +1261,14 @@ pr_pack(char *buf, ssize_t cc, struct sockaddr_in *from, struct timespec *tv)
 					for (i = 0; i < datalen; ++i, ++cp) {
 						if ((i % 16) == 8)
 							(void)printf("\n\t");
-						(void)printf("%2x ", *cp);
+						(void)printf(" %2x", *cp);
 					}
 					(void)printf("\ndp:");
 					cp = &outpack[ICMP_MINLEN];
 					for (i = 0; i < datalen; ++i, ++cp) {
 						if ((i % 16) == 8)
 							(void)printf("\n\t");
-						(void)printf("%2x ", *cp);
+						(void)printf(" %2x", *cp);
 					}
 					break;
 				}
