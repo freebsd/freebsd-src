@@ -657,6 +657,7 @@ u_int if_foreach_lladdr(if_t, iflladdr_cb_t, void *);
 u_int if_foreach_llmaddr(if_t, iflladdr_cb_t, void *);
 u_int if_lladdr_count(if_t);
 u_int if_llmaddr_count(if_t);
+bool if_maddr_empty(if_t);
 
 int if_getamcount(const if_t ifp);
 struct ifaddr * if_getifaddr(const if_t ifp);
