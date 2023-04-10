@@ -237,6 +237,7 @@ int	witness_list_locks(struct lock_list_entry **,
 	    int (*)(const char *, ...));
 int	witness_warn(int, struct lock_object *, const char *, ...);
 void	witness_assert(const struct lock_object *, int, const char *, int);
+int	witness_is_owned(const struct lock_object *lock);
 void	witness_display_spinlock(struct lock_object *, struct thread *,
 	    int (*)(const char *, ...));
 int	witness_line(struct lock_object *);
