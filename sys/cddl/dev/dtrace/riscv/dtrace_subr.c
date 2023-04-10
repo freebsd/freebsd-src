@@ -308,6 +308,9 @@ dtrace_invop_start(struct trapframe *frame)
 		return (0);
 	}
 
+	if (match_opcode(invop, MATCH_C_NOP, MASK_C_NOP))
+		return (0);
+
 #ifdef INVARIANTS
 	panic("Instruction %x doesn't match any opcode.", invop);
 #endif
