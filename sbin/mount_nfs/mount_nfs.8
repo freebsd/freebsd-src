@@ -28,7 +28,7 @@
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd September 24, 2022
+.Dd April 3, 2023
 .Dt MOUNT_NFS 8
 .Os
 .Sh NAME
@@ -166,7 +166,7 @@ It allows the mount to be performed by
 and avoids problems with
 cached credentials for the system operations expiring.
 The
-.Dq "service-prinicpal-name"
+.Dq "service-principal-name"
 should be specified without instance or domain and is typically
 .Dq "host" ,
 .Dq "nfs"
@@ -441,6 +441,21 @@ A soft mount, which implies that file system calls will fail
 after
 .Ar retrycnt
 round trip timeout intervals.
+.It Cm syskrb5
+This option specifies that a KerberosV NFSv4 minor version 1 or 2 mount
+uses AUTH_SYS for system operations.
+Using this option avoids the need for a KerberosV mount to have a
+host-based principal entry in the default keytab file
+(no
+.Cm gssname
+option) or a requirement for the user doing the mount to have a
+valid KerberosV ticket granting ticket (TGT) when the mount is done.
+This option is intended to be used with the
+.Cm sec Ns = Ns krb5
+and
+.Cm tls
+options and can only be used for
+NFSv4 mounts with minor version 1 or 2.
 .It Cm tcp
 Use TCP transport.
 This is the default option, as it provides for increased reliability on both
