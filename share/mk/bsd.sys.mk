@@ -95,7 +95,6 @@ CWARNFLAGS.clang+=	-Wno-unused-const-variable
 CWARNFLAGS.clang+=	-Wno-error=unused-but-set-variable
 .endif
 .if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 150000
-CWARNFLAGS.clang+=	-Wno-error=array-parameter
 CWARNFLAGS.clang+=	-Wno-error=deprecated-non-prototype
 CWARNFLAGS.clang+=	-Wno-error=unused-but-set-parameter
 .endif
@@ -127,6 +126,7 @@ CWARNFLAGS+=		-Wno-misleading-indentation
 NO_WBITWISE_INSTEAD_OF_LOGICAL=	-Wno-bitwise-instead-of-logical
 .endif
 .if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 150000
+NO_WARRAY_PARAMETER=	-Wno-array-parameter
 NO_WSTRICT_PROTOTYPES=	-Wno-strict-prototypes
 NO_WDEPRECATED_NON_PROTOTYPE=-Wno-deprecated-non-prototype
 .endif

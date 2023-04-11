@@ -47,10 +47,9 @@ CWARNEXTRA?=	-Wno-error=tautological-compare -Wno-error=empty-body \
 CWARNEXTRA+=	-Wno-error=shift-negative-value
 CWARNEXTRA+=	-Wno-address-of-packed-member
 .if ${COMPILER_VERSION} >= 150000
-# Clang 15 has much more aggressive diagnostics about inconsistently declared
-# array parameters, K&R prototypes, mismatched prototypes, and unused-but-set
-# variables. Make these non-fatal for the time being.
-CWARNEXTRA+=	-Wno-error=array-parameter
+# Clang 15 has much more aggressive diagnostics about K&R prototypes,
+# mismatched prototypes, and unused-but-set variables. Make these
+# non-fatal for the time being.
 CWARNEXTRA+=	-Wno-error=deprecated-non-prototype
 CWARNEXTRA+=	-Wno-error=strict-prototypes
 CWARNEXTRA+=	-Wno-error=unused-but-set-variable
