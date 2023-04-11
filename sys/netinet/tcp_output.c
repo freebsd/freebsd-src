@@ -1204,8 +1204,8 @@ send:
 			tp->t_flags2 &= ~TF2_ECN_SND_ECE;
 #ifdef INET6
 		if (isipv6) {
-			ip6->ip6_flow &= ~htonl(IPTOS_ECN_MASK << 20);
-			ip6->ip6_flow |= htonl(ect << 20);
+			ip6->ip6_flow &= ~htonl(IPTOS_ECN_MASK << IPV6_FLOWLABEL_LEN);
+			ip6->ip6_flow |= htonl(ect << IPV6_FLOWLABEL_LEN);
 		}
 		else
 #endif

@@ -2005,7 +2005,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 			ulen = tlen - sizeof(struct ip6_hdr);
 			uh->uh_ulen = htons(ulen);
 		}
-		ip6->ip6_flow = htonl(ect << 20);
+		ip6->ip6_flow = htonl(ect << IPV6_FLOWLABEL_LEN);
 		ip6->ip6_vfc = IPV6_VERSION;
 		if (port)
 			ip6->ip6_nxt = IPPROTO_UDP;

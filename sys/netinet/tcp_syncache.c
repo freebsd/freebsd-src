@@ -1866,7 +1866,7 @@ syncache_respond(struct syncache *sc, const struct mbuf *m0, int flags)
 			ip6->ip6_nxt = IPPROTO_TCP;
 			th = (struct tcphdr *)(ip6 + 1);
 		}
-		ip6->ip6_flow |= htonl(sc->sc_ip_tos << 20);
+		ip6->ip6_flow |= htonl(sc->sc_ip_tos << IPV6_FLOWLABEL_LEN);
 	}
 #endif
 #if defined(INET6) && defined(INET)
