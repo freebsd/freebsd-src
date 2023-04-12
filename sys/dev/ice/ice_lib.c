@@ -5852,7 +5852,7 @@ ice_add_debug_tunables(struct ice_softc *sc)
 	debug_list = SYSCTL_CHILDREN(sc->debug_sysctls);
 
 	SYSCTL_ADD_U64(ctx, debug_list, OID_AUTO, "debug_mask",
-		       ICE_CTLFLAG_DEBUG | CTLFLAG_RW | CTLFLAG_TUN,
+		       ICE_CTLFLAG_DEBUG | CTLFLAG_RWTUN,
 		       &sc->hw.debug_mask, 0,
 		       ICE_SYSCTL_DEBUG_MASK_HELP);
 
