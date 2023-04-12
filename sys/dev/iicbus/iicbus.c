@@ -325,7 +325,7 @@ iicbus_init_frequency(device_t dev, u_int bus_freq)
 	 */
 	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "frequency", CTLFLAG_RW | CTLFLAG_TUN, &sc->bus_freq,
+	    OID_AUTO, "frequency", CTLFLAG_RWTUN, &sc->bus_freq,
 	    sc->bus_freq, "Bus frequency in Hz");
 }
 
