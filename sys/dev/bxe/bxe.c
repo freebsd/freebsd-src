@@ -285,12 +285,12 @@ SYSCTL_INT(_hw_bxe, OID_AUTO, hc_tx_ticks, CTLFLAG_RDTUN,
 
 /* Maximum number of Rx packets to process at a time */
 static int bxe_rx_budget = 0xffffffff;
-SYSCTL_INT(_hw_bxe, OID_AUTO, rx_budget, CTLFLAG_TUN,
+SYSCTL_INT(_hw_bxe, OID_AUTO, rx_budget, CTLFLAG_RDTUN,
            &bxe_rx_budget, 0, "Rx processing budget");
 
 /* Maximum LRO aggregation size */
 static int bxe_max_aggregation_size = 0;
-SYSCTL_INT(_hw_bxe, OID_AUTO, max_aggregation_size, CTLFLAG_TUN,
+SYSCTL_INT(_hw_bxe, OID_AUTO, max_aggregation_size, CTLFLAG_RDTUN,
            &bxe_max_aggregation_size, 0, "max aggregation size");
 
 /* PCI MRRS: -1 (Auto), 0 (128B), 1 (256B), 2 (512B), 3 (1KB) */
