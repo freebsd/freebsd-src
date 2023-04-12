@@ -525,7 +525,7 @@ _UNIVERSE_TARGETS=	${TARGETS}
 TARGET_ARCHES_arm?=	armv6 armv7
 TARGET_ARCHES_arm64?=	aarch64
 TARGET_ARCHES_powerpc?=	powerpc powerpc64 powerpc64le ${EXTRA_ARCHES_powerpc}
-TARGET_ARCHES_riscv?=	riscv64 riscv64sf
+TARGET_ARCHES_riscv?=	riscv64
 .for target in ${TARGETS}
 TARGET_ARCHES_${target}?= ${target}
 .endfor
