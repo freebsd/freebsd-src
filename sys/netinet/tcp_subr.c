@@ -393,7 +393,8 @@ static struct tcp_function_block tcp_def_funcblk = {
 
 static int tcp_fb_cnt = 0;
 struct tcp_funchead t_functions;
-static struct tcp_function_block *tcp_func_set_ptr = &tcp_def_funcblk;
+VNET_DEFINE_STATIC(struct tcp_function_block *, tcp_func_set_ptr) = &tcp_def_funcblk;
+#define	V_tcp_func_set_ptr VNET(tcp_func_set_ptr)
 
 void
 tcp_record_dsack(struct tcpcb *tp, tcp_seq start, tcp_seq end, int tlp)
@@ -515,7 +516,7 @@ find_and_ref_tcp_default_fb(void)
 	struct tcp_function_block *rblk;
 
 	rw_rlock(&tcp_function_lock);
-	rblk = tcp_func_set_ptr;
+	rblk = V_tcp_func_set_ptr;
 	refcount_acquire(&rblk->tfb_refcnt);
 	rw_runlock(&tcp_function_lock);
 	return (rblk);
@@ -682,7 +683,7 @@ sysctl_net_inet_default_tcp_functions(SYSCTL_HANDLER_ARGS)
 
 	memset(&fs, 0, sizeof(fs));
 	rw_rlock(&tcp_function_lock);
-	blk = find_tcp_fb_locked(tcp_func_set_ptr, NULL);
+	blk = find_tcp_fb_locked(V_tcp_func_set_ptr, NULL);
 	if (blk) {
 		/* Found him */
 		strcpy(fs.function_set_name, blk->tfb_tcp_block_name);
@@ -703,14 +704,14 @@ sysctl_net_inet_default_tcp_functions(SYSCTL_HANDLER_ARGS)
 		error = ENOENT;
 		goto done;
 	}
-	tcp_func_set_ptr = blk;
+	V_tcp_func_set_ptr = blk;
 done:
 	rw_wunlock(&tcp_function_lock);
 	return (error);
 }
 
 SYSCTL_PROC(_net_inet_tcp, OID_AUTO, functions_default,
-    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+    CTLFLAG_VNET | CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
     NULL, 0, sysctl_net_inet_default_tcp_functions, "A",
     "Set/get the default TCP functions");
 
@@ -747,7 +748,7 @@ sysctl_net_inet_list_available(SYSCTL_HANDLER_ARGS)
 		alias = (f->tf_name != f->tf_fb->tfb_tcp_block_name);
 		linesz = snprintf(cp, bufsz, "%-32s%c %-32s %u\n",
 		    f->tf_fb->tfb_tcp_block_name,
-		    (f->tf_fb == tcp_func_set_ptr) ? '*' : ' ',
+		    (f->tf_fb == V_tcp_func_set_ptr) ? '*' : ' ',
 		    alias ? f->tf_name : "-",
 		    f->tf_fb->tfb_refcnt);
 		if (linesz >= bufsz) {
@@ -766,7 +767,7 @@ sysctl_net_inet_list_available(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_net_inet_tcp, OID_AUTO, functions_available,
-    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+    CTLFLAG_VNET | CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
     NULL, 0, sysctl_net_inet_list_available, "A",
     "list available TCP Function sets");
 
@@ -1337,17 +1338,26 @@ deregister_tcp_functions(struct tcp_function_block *blk, bool quiesce,
     bool force)
 {
 	struct tcp_function *f;
+	VNET_ITERATOR_DECL(vnet_iter);
 
 	if (blk == &tcp_def_funcblk) {
 		/* You can't un-register the default */
 		return (EPERM);
 	}
 	rw_wlock(&tcp_function_lock);
-	if (blk == tcp_func_set_ptr) {
-		/* You can't free the current default */
-		rw_wunlock(&tcp_function_lock);
-		return (EBUSY);
+	VNET_LIST_RLOCK_NOSLEEP();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		if (blk == V_tcp_func_set_ptr) {
+			/* You can't free the current default in some vnet. */
+			CURVNET_RESTORE();
+			VNET_LIST_RUNLOCK_NOSLEEP();
+			rw_wunlock(&tcp_function_lock);
+			return (EBUSY);
+		}
+		CURVNET_RESTORE();
 	}
+	VNET_LIST_RUNLOCK_NOSLEEP();
 	/* Mark the block so no more stacks can use it. */
 	blk->tfb_flags |= TCP_FUNC_BEING_REMOVED;
 	/*
@@ -2206,7 +2216,7 @@ tcp_newtcpcb(struct inpcb *inp)
 	tp->t_ccv.type = IPPROTO_TCP;
 	tp->t_ccv.ccvc.tcp = tp;
 	rw_rlock(&tcp_function_lock);
-	tp->t_fb = tcp_func_set_ptr;
+	tp->t_fb = V_tcp_func_set_ptr;
 	refcount_acquire(&tp->t_fb->tfb_refcnt);
 	rw_runlock(&tcp_function_lock);
 	/*
