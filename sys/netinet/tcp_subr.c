@@ -1330,7 +1330,7 @@ register_tcp_functions(struct tcp_function_block *blk, int wait)
  * When called with a force argument, attempt to switch all TCBs to
  * use the default stack instead of returning EBUSY.
  *
- * Returns 0 on success (or if the removal would succeed, or an error
+ * Returns 0 on success (or if the removal would succeed), or an error
  * code on failure.
  */
 int
