@@ -1492,10 +1492,12 @@ sdhci_generic_tune(device_t brdev __unused, device_t reqdev, bool hs400)
 	case bus_timing_uhs_sdr50:
 		if (slot->opt & SDHCI_SDR50_NEEDS_TUNING)
 			break;
-		/* FALLTHROUGH */
-	default:
 		SDHCI_UNLOCK(slot);
 		return (0);
+	default:
+		slot_printf(slot, "Tuning requested but not required.\n");
+		SDHCI_UNLOCK(slot);
+		return (EINVAL);
 	}
 
 	tune_cmd = slot->tune_cmd;
