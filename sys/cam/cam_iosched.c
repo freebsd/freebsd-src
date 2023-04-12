@@ -74,7 +74,7 @@ static SYSCTL_NODE(_kern_cam, OID_AUTO, iosched, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
 #ifdef CAM_IOSCHED_DYNAMIC
 
 static bool do_dynamic_iosched = true;
-SYSCTL_BOOL(_kern_cam_iosched, OID_AUTO, dynamic, CTLFLAG_RD | CTLFLAG_TUN,
+SYSCTL_BOOL(_kern_cam_iosched, OID_AUTO, dynamic, CTLFLAG_RDTUN,
     &do_dynamic_iosched, 1,
     "Enable Dynamic I/O scheduler optimizations.");
 
@@ -99,7 +99,7 @@ SYSCTL_BOOL(_kern_cam_iosched, OID_AUTO, dynamic, CTLFLAG_RD | CTLFLAG_TUN,
  * Note: See computation of EMA and EMVAR for acceptable ranges of alpha.
  */
 static int alpha_bits = 9;
-SYSCTL_INT(_kern_cam_iosched, OID_AUTO, alpha_bits, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_kern_cam_iosched, OID_AUTO, alpha_bits, CTLFLAG_RWTUN,
     &alpha_bits, 1,
     "Bits in EMA's alpha.");
 
