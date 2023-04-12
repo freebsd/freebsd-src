@@ -3837,14 +3837,14 @@ pmap_protect_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva, pt_entry_t mask,
  * pmap and range
  */
 static void
-pmap_mask_set(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, pt_entry_t mask,
+pmap_mask_set_locked(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, pt_entry_t mask,
     pt_entry_t nbits, bool invalidate)
 {
 	vm_offset_t va, va_next;
 	pd_entry_t *l0, *l1, *l2;
 	pt_entry_t *l3p, l3;
 
-	PMAP_LOCK(pmap);
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	for (; sva < eva; sva = va_next) {
 		l0 = pmap_l0(pmap, sva);
 		if (pmap_load(l0) == 0) {
@@ -3938,6 +3938,14 @@ pmap_mask_set(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, pt_entry_t mask,
 		if (va != va_next && invalidate)
 			pmap_s1_invalidate_range(pmap, va, sva, true);
 	}
+}
+
+static void
+pmap_mask_set(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, pt_entry_t mask,
+    pt_entry_t nbits, bool invalidate)
+{
+	PMAP_LOCK(pmap);
+	pmap_mask_set_locked(pmap, sva, eva, mask, nbits, invalidate);
 	PMAP_UNLOCK(pmap);
 }
 
