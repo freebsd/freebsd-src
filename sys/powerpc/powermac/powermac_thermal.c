@@ -61,7 +61,7 @@ static struct kproc_desc pmac_therm_kp = {
 
 SYSINIT(pmac_therm_setup, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY, kproc_start,
     &pmac_therm_kp);
-SYSCTL_INT(_machdep, OID_AUTO, manage_fans, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_machdep, OID_AUTO, manage_fans, CTLFLAG_RWTUN,
     &enable_pmac_thermal, 1, "Enable automatic fan management");
 static MALLOC_DEFINE(M_PMACTHERM, "pmactherm", "Powermac Thermal Management");
 
