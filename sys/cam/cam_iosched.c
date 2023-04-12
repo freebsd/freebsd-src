@@ -71,7 +71,7 @@ static MALLOC_DEFINE(M_CAMSCHED, "CAM I/O Scheduler",
 #ifdef CAM_IOSCHED_DYNAMIC
 
 static bool do_dynamic_iosched = 1;
-SYSCTL_BOOL(_kern_cam, OID_AUTO, do_dynamic_iosched, CTLFLAG_RD | CTLFLAG_TUN,
+SYSCTL_BOOL(_kern_cam, OID_AUTO, do_dynamic_iosched, CTLFLAG_RDTUN,
     &do_dynamic_iosched, 1,
     "Enable Dynamic I/O scheduler optimizations.");
 
@@ -96,7 +96,7 @@ SYSCTL_BOOL(_kern_cam, OID_AUTO, do_dynamic_iosched, CTLFLAG_RD | CTLFLAG_TUN,
  * Note: See computation of EMA and EMVAR for acceptable ranges of alpha.
  */
 static int alpha_bits = 9;
-SYSCTL_INT(_kern_cam, OID_AUTO, iosched_alpha_bits, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_kern_cam, OID_AUTO, iosched_alpha_bits, CTLFLAG_RWTUN,
     &alpha_bits, 1,
     "Bits in EMA's alpha.");
 
