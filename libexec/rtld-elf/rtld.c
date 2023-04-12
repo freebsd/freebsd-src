@@ -1837,23 +1837,20 @@ donelist_check(DoneList *dlp, const Obj_Entry *obj)
 }
 
 /*
- * Hash function for symbol table lookup.  Don't even think about changing
- * this.  It is specified by the System V ABI.
+ * SysV hash function for symbol table lookup.  It is a slightly optimized
+ * version of the hash specified by the System V ABI.
  */
-unsigned long
+Elf32_Word
 elf_hash(const char *name)
 {
 	const unsigned char *p = (const unsigned char *)name;
-	unsigned long h = 0;
-	unsigned long g;
+	Elf32_Word h = 0;
 
 	while (*p != '\0') {
 		h = (h << 4) + *p++;
-		if ((g = h & 0xf0000000) != 0)
-			h ^= g >> 24;
-		h &= ~g;
+		h ^= (h >> 24) & 0xf0;
 	}
-	return (h);
+	return (h & 0x0fffffff);
 }
 
 /*

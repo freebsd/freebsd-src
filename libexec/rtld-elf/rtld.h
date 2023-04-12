@@ -385,7 +385,7 @@ void dump_Elf_Rela(Obj_Entry *, const Elf_Rela *, u_long);
  */
 uintptr_t rtld_round_page(uintptr_t);
 uintptr_t rtld_trunc_page(uintptr_t);
-unsigned long elf_hash(const char *);
+Elf32_Word elf_hash(const char *);
 const Elf_Sym *find_symdef(unsigned long, const Obj_Entry *,
   const Obj_Entry **, int, SymCache *, struct Struct_RtldLockState *);
 void lockdflt_init(void);
