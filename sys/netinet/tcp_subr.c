@@ -1355,8 +1355,6 @@ deregister_tcp_functions(struct tcp_function_block *blk, bool quiesce,
 	 * to the default stack.
 	 */
 	if (force && blk->tfb_refcnt) {
-		struct inpcb_iterator inpi = INP_ALL_ITERATOR(&V_tcbinfo,
-		    INPLOOKUP_WLOCKPCB);
 		struct inpcb *inp;
 		struct tcpcb *tp;
 		VNET_ITERATOR_DECL(vnet_iter);
@@ -1366,6 +1364,9 @@ deregister_tcp_functions(struct tcp_function_block *blk, bool quiesce,
 		VNET_LIST_RLOCK();
 		VNET_FOREACH(vnet_iter) {
 			CURVNET_SET(vnet_iter);
+			struct inpcb_iterator inpi = INP_ALL_ITERATOR(&V_tcbinfo,
+			    INPLOOKUP_WLOCKPCB);
+
 			while ((inp = inp_next(&inpi)) != NULL) {
 				tp = intotcpcb(inp);
 				if (tp == NULL || tp->t_fb != blk)
