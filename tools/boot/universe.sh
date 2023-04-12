@@ -5,7 +5,7 @@
 #
 # Full list of all arches we don't build.
 #
-#	powerpc/powerpcspe riscv/riscv64sf arm/armv6
+#	powerpc/powerpcspe arm/armv6
 #
 # This script is expected to be run in stand (though you could run it anywhere
 # in the tree). It does a full clean build. For stand you can do all the archs in
