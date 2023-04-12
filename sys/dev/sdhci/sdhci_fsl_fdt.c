@@ -1199,22 +1199,10 @@ sdhci_fsl_fdt_tune(device_t bus, device_t child, bool hs400)
 
 	sc = device_get_softc(bus);
 	slot = device_get_ivars(child);
-	error = 0;
-	clk_divider = sc->baseclk_hz / slot->clock;
 
-	switch (sc->slot.host.ios.timing) {
-	case bus_timing_mmc_hs400:
-		return (EINVAL);
-	case bus_timing_mmc_hs200:
-	case bus_timing_uhs_ddr50:
-	case bus_timing_uhs_sdr104:
-		break;
-	case bus_timing_uhs_sdr50:
-		if (slot->opt & SDHCI_SDR50_NEEDS_TUNING)
-			break;
-	default:
+	if (sc->slot.host.ios.timing == bus_timing_uhs_sdr50 &&
+	    !(slot->opt & SDHCI_SDR50_NEEDS_TUNING))
 		return (0);
-	}
 
 	/*
 	 * For tuning mode SD clock divider must be within 3 to 16.
@@ -1222,6 +1210,7 @@ sdhci_fsl_fdt_tune(device_t bus, device_t child, bool hs400)
 	 * For that reason we're just bailing if the dividers don't match
 	 * that requirement.
 	 */
+	clk_divider = sc->baseclk_hz / slot->clock;
 	if (clk_divider < 3 || clk_divider > 16)
 		return (ENXIO);
 
