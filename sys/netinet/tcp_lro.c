@@ -1195,6 +1195,19 @@ tcp_queue_pkts(struct inpcb *inp, struct tcpcb *tp, struct lro_entry *le)
 	le->m_last_mbuf = NULL;
 }
 
+static bool
+tcp_lro_check_wake_status(struct inpcb *inp)
+{
+	struct tcpcb *tp;
+
+	tp = intotcpcb(inp);
+	if (__predict_false(tp == NULL))
+		return (true);
+	if (tp->t_fb->tfb_early_wake_check != NULL)
+		return ((tp->t_fb->tfb_early_wake_check)(tp));
+	return (false);
+}
+
 static struct mbuf *
 tcp_lro_get_last_if_ackcmp(struct lro_ctrl *lc, struct lro_entry *le,
     struct inpcb *inp, int32_t *new_m, bool can_append_old_cmp)
@@ -1751,6 +1764,9 @@ do_bpf_strip_and_compress(struct inpcb *inp, struct lro_ctrl *lc,
 		 * not care about SACKS, then we should wake up.
 		 */
 		*should_wake = true;
+	} else if (*should_wake == false) {
+		/* Wakeup override check if we are false here  */
+		*should_wake = tcp_lro_check_wake_status(inp);
 	}
 	/* Is the ack compressable? */
 	if (can_compress == false)
