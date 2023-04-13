@@ -6280,14 +6280,8 @@ pmap_remove_ptes(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 	return (anyvalid);
 }
 
-/*
- *	Remove the given range of addresses from the specified map.
- *
- *	It is assumed that the start and end are properly
- *	rounded to the page size.
- */
-void
-pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+static void
+pmap_remove1(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, bool map_delete)
 {
 	struct rwlock *lock;
 	vm_page_t mt;
@@ -6319,7 +6313,8 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 
 	pmap_delayed_invl_start();
 	PMAP_LOCK(pmap);
-	pmap_pkru_on_remove(pmap, sva, eva);
+	if (map_delete)
+		pmap_pkru_on_remove(pmap, sva, eva);
 
 	/*
 	 * special handling of removing one page.  a very
@@ -6439,6 +6434,30 @@ out:
 	PMAP_UNLOCK(pmap);
 	pmap_delayed_invl_finish();
 	vm_page_free_pages_toq(&free, true);
+}
+
+/*
+ *	Remove the given range of addresses from the specified map.
+ *
+ *	It is assumed that the start and end are properly
+ *	rounded to the page size.
+ */
+void
+pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+{
+	pmap_remove1(pmap, sva, eva, false);
+}
+
+/*
+ *	Remove the given range of addresses as part of a logical unmap
+ *	operation. This has the effect of calling pmap_remove(), but
+ *	also clears any metadata that should persist for the lifetime
+ *	of a logical mapping.
+ */
+void
+pmap_map_delete(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+{
+	pmap_remove1(pmap, sva, eva, true);
 }
 
 /*
