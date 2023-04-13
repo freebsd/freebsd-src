@@ -174,22 +174,20 @@ struct rtsx_softc {
 
 #define	RTSX_VERSION		"2.1g"
 
-static const struct rtsx_device {
-	uint16_t	vendor_id;
+static const struct rtsx_pciids {
 	uint16_t	device_id;
 	const char	*desc;
-} rtsx_devices[] = {
-	{ RTSX_REALTEK,	RTSX_RTS5209,	RTSX_VERSION " Realtek RTS5209 PCIe SD Card Reader"},
-	{ RTSX_REALTEK,	RTSX_RTS5227,	RTSX_VERSION " Realtek RTS5227 PCIe SD Card Reader"},
-	{ RTSX_REALTEK,	RTSX_RTS5229,	RTSX_VERSION " Realtek RTS5229 PCIe SD Card Reader"},
-	{ RTSX_REALTEK,	RTSX_RTS522A,	RTSX_VERSION " Realtek RTS522A PCIe SD Card Reader"},
-	{ RTSX_REALTEK,	RTSX_RTS525A,	RTSX_VERSION " Realtek RTS525A PCIe SD Card Reader"},
-	{ RTSX_REALTEK,	RTSX_RTS5249,	RTSX_VERSION " Realtek RTS5249 PCIe SD Card Reader"},
-	{ RTSX_REALTEK,	RTSX_RTS5260,	RTSX_VERSION " Realtek RTS5260 PCIe SD Card Reader"},
-	{ RTSX_REALTEK,	RTSX_RTL8402,	RTSX_VERSION " Realtek RTL8402 PCIe SD Card Reader"},
-	{ RTSX_REALTEK,	RTSX_RTL8411,	RTSX_VERSION " Realtek RTL8411 PCIe SD Card Reader"},
-	{ RTSX_REALTEK,	RTSX_RTL8411B,	RTSX_VERSION " Realtek RTL8411B PCIe SD Card Reader"},
-	{ 0, 		0,		NULL}
+} rtsx_ids[] = {
+	{ RTSX_RTS5209, RTSX_VERSION " Realtek RTS5209 PCIe SD Card Reader" },
+	{ RTSX_RTS5227, RTSX_VERSION " Realtek RTS5227 PCIe SD Card Reader" },
+	{ RTSX_RTS5229, RTSX_VERSION " Realtek RTS5229 PCIe SD Card Reader" },
+	{ RTSX_RTS522A, RTSX_VERSION " Realtek RTS522A PCIe SD Card Reader" },
+	{ RTSX_RTS525A, RTSX_VERSION " Realtek RTS525A PCIe SD Card Reader" },
+	{ RTSX_RTS5249, RTSX_VERSION " Realtek RTS5249 PCIe SD Card Reader" },
+	{ RTSX_RTS5260, RTSX_VERSION " Realtek RTS5260 PCIe SD Card Reader" },
+	{ RTSX_RTL8402, RTSX_VERSION " Realtek RTL8402 PCIe SD Card Reader" },
+	{ RTSX_RTL8411, RTSX_VERSION " Realtek RTL8411 PCIe SD Card Reader" },
+	{ RTSX_RTL8411B, RTSX_VERSION " Realtek RTL8411B PCIe SD Card Reader" },
 };
 
 /* See `kenv | grep smbios.system` */
@@ -199,6 +197,7 @@ static const struct rtsx_inversion_model {
 	char	*product;
 } rtsx_inversion_models[] = {
 	{ "LENOVO",		"ThinkPad T470p",	"20J7S0PM00"},
+	{ "LENOVO",		"ThinkPad X13 Gen 1",	"20UF000QRT"},
 	{ NULL,			NULL,			NULL}
 };
 
@@ -3571,22 +3570,19 @@ rtsx_probe(device_t dev)
 	uint16_t vendor_id;
 	uint16_t device_id;
 	int	 i;
-	int	 result;
 
 	vendor_id = pci_get_vendor(dev);
 	device_id = pci_get_device(dev);
 
-	result = ENXIO;
-	for (i = 0; rtsx_devices[i].vendor_id != 0; i++) {
-		if (rtsx_devices[i].vendor_id == vendor_id &&
-		    rtsx_devices[i].device_id == device_id) {
-			device_set_desc(dev, rtsx_devices[i].desc);
-			result = BUS_PROBE_DEFAULT;
-			break;
+	if (vendor_id != RTSX_REALTEK)
+		return (ENXIO);
+	for (i = 0; i < nitems(rtsx_ids); i++) {
+		if (rtsx_ids[i].device_id == device_id) {
+			device_set_desc(dev, rtsx_ids[i].desc);
+			return (BUS_PROBE_DEFAULT);
 		}
 	}
-
-	return (result);
+	return (ENXIO);
 }
 
 /*
@@ -3907,6 +3903,11 @@ static device_method_t rtsx_methods[] = {
 
 DEFINE_CLASS_0(rtsx, rtsx_driver, rtsx_methods, sizeof(struct rtsx_softc));
 DRIVER_MODULE(rtsx, pci, rtsx_driver, NULL, NULL);
+
+/* For Plug and Play */
+MODULE_PNP_INFO("U16:device;D:#;T:vendor=0x10ec", pci, rtsx,
+		rtsx_ids, nitems(rtsx_ids));
+
 #ifndef MMCCAM
 MMC_DECLARE_BRIDGE(rtsx);
 #endif /* !MMCCAM */
