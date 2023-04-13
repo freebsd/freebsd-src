@@ -10,7 +10,8 @@ ATF_TESTS_SH+=	altq \
 		dup \
 		ether \
 		forward \
-		fragmentation \
+		fragmentation_compat \
+		fragmentation_pass \
 		get_state \
 		icmp \
 		killstate \
@@ -29,7 +30,8 @@ ATF_TESTS_SH+=	altq \
 		route_to \
 		rtable \
 		rules_counter \
-		scrub \
+		scrub_compat \
+		scrub_pass \
 		set_skip \
 		set_tos \
 		src_track \
