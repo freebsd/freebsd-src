@@ -429,6 +429,7 @@ print_pool(struct pfctl_pool *pool, u_int16_t p1, u_int16_t p2,
 			print_addr(&pooladdr->addr, af, 0);
 			break;
 		case PF_PASS:
+		case PF_MATCH:
 			if (PF_AZERO(&pooladdr->addr.v.a.addr, af))
 				printf("%s", pooladdr->ifname);
 			else {
@@ -624,6 +625,10 @@ print_status(struct pfctl_status *s, struct pfctl_syncookies *cookies, int opts)
 		    PFCTL_SYNCOOKIES_MODE_NAMES[cookies->mode]);
 		printf("  %-25s %s\n", "active",
 		    s->syncookies_active ? "active" : "inactive");
+		printf("Reassemble %24s %s\n",
+		    s->reass & PF_REASS_ENABLED ? "yes" : "no",
+		    s->reass & PF_REASS_NODF ? "no-df" : ""
+		);
 	}
 }
 
@@ -685,6 +690,7 @@ print_src_node(struct pf_src_node *sn, int opts)
 				printf(", rdr rule %u", sn->rule.nr);
 			break;
 		case PF_PASS:
+		case PF_MATCH:
 			if (sn->rule.nr != -1)
 				printf(", filter rule %u", sn->rule.nr);
 			break;
@@ -810,7 +816,8 @@ void
 print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numeric)
 {
 	static const char *actiontypes[] = { "pass", "block", "scrub",
-	    "no scrub", "nat", "no nat", "binat", "no binat", "rdr", "no rdr" };
+	    "no scrub", "nat", "no nat", "binat", "no binat", "rdr", "no rdr",
+	    "", "", "match"};
 	static const char *anchortypes[] = { "anchor", "anchor", "anchor",
 	    "anchor", "nat-anchor", "nat-anchor", "binat-anchor",
 	    "binat-anchor", "rdr-anchor", "rdr-anchor" };
@@ -946,7 +953,7 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 		print_flags(r->flags);
 		printf("/");
 		print_flags(r->flagset);
-	} else if (r->action == PF_PASS &&
+	} else if ((r->action == PF_PASS || r->action == PF_MATCH) &&
 	    (!r->proto || r->proto == IPPROTO_TCP) &&
 	    !(r->rule_flag & PFRULE_FRAGMENT) &&
 	    !anchor_call[0] && r->keep_state)
@@ -986,6 +993,10 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 			else
 				printf("%s prio(%u, %u)", comma, r->set_prio[0],
 				    r->set_prio[1]);
+			comma = ",";
+		}
+		if (r->scrub_flags & PFSTATE_SETTOS) {
+			printf("%s tos 0x%2.2x", comma, r->set_tos);
 			comma = ",";
 		}
 		printf(" )");
@@ -1113,26 +1124,43 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 			}
 		printf(")");
 	}
-	if (r->rule_flag & PFRULE_FRAGMENT)
-		printf(" fragment");
-	if (r->rule_flag & PFRULE_NODF)
-		printf(" no-df");
-	if (r->rule_flag & PFRULE_RANDOMID)
-		printf(" random-id");
-	if (r->min_ttl)
-		printf(" min-ttl %d", r->min_ttl);
-	if (r->max_mss)
-		printf(" max-mss %d", r->max_mss);
-	if (r->rule_flag & PFRULE_SET_TOS)
-		printf(" set-tos 0x%2.2x", r->set_tos);
 	if (r->allow_opts)
 		printf(" allow-opts");
+	if (r->rule_flag & PFRULE_FRAGMENT)
+		printf(" fragment");
 	if (r->action == PF_SCRUB) {
+		/* Scrub flags for old-style scrub. */
+		if (r->rule_flag & PFRULE_NODF)
+			printf(" no-df");
+		if (r->rule_flag & PFRULE_RANDOMID)
+			printf(" random-id");
+		if (r->min_ttl)
+			printf(" min-ttl %d", r->min_ttl);
+		if (r->max_mss)
+			printf(" max-mss %d", r->max_mss);
+		if (r->rule_flag & PFRULE_SET_TOS)
+			printf(" set-tos 0x%2.2x", r->set_tos);
 		if (r->rule_flag & PFRULE_REASSEMBLE_TCP)
 			printf(" reassemble tcp");
-
+		/* The PFRULE_FRAGMENT_NOREASS is set on all rules by default! */
 		printf(" fragment %sreassemble",
 		    r->rule_flag & PFRULE_FRAGMENT_NOREASS ? "no " : "");
+	} else if (r->scrub_flags & PFSTATE_SCRUBMASK || r->min_ttl || r->max_mss) {
+		/* Scrub actions on normal rules. */
+		printf(" scrub(");
+		if (r->scrub_flags & PFSTATE_NODF)
+			printf(" no-df");
+		if (r->scrub_flags & PFSTATE_RANDOMID)
+			printf(" random-id");
+		if (r->min_ttl)
+			printf(" min-ttl %d", r->min_ttl);
+		if (r->scrub_flags & PFSTATE_SETTOS)
+			printf(" set-tos 0x%2.2x", r->set_tos);
+		if (r->scrub_flags & PFSTATE_SCRUB_TCP)
+			printf(" reassemble tcp");
+		if (r->max_mss)
+			printf(" max-mss %d", r->max_mss);
+		printf(")");
 	}
 	i = 0;
 	while (r->label[i][0])

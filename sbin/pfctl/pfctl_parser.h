@@ -101,6 +101,7 @@ struct pfctl {
 	u_int32_t	 limit[PF_LIMIT_MAX];
 	u_int32_t	 debug;
 	u_int32_t	 hostid;
+	u_int32_t	 reassemble;
 	char		*ifname;
 	bool		 keep_counters;
 	u_int8_t	 syncookies;
@@ -112,6 +113,7 @@ struct pfctl {
 	u_int8_t	 debug_set;
 	u_int8_t	 hostid_set;
 	u_int8_t	 ifname_set;
+	u_int8_t	 reass_set;
 };
 
 struct node_if {
@@ -285,6 +287,7 @@ void	pfctl_move_pool(struct pfctl_pool *, struct pfctl_pool *);
 void	pfctl_clear_pool(struct pfctl_pool *);
 
 int	pfctl_set_timeout(struct pfctl *, const char *, int, int);
+int	pfctl_set_reassembly(struct pfctl *, int, int);
 int	pfctl_set_optimization(struct pfctl *, const char *);
 int	pfctl_set_limit(struct pfctl *, const char *, unsigned int);
 int	pfctl_set_logif(struct pfctl *, char *);

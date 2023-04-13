@@ -94,6 +94,7 @@ int	 pfctl_load_timeout(struct pfctl *, unsigned int, unsigned int);
 int	 pfctl_load_debug(struct pfctl *, unsigned int);
 int	 pfctl_load_logif(struct pfctl *, char *);
 int	 pfctl_load_hostid(struct pfctl *, u_int32_t);
+int	 pfctl_load_reassembly(struct pfctl *, u_int32_t);
 int	 pfctl_load_syncookies(struct pfctl *, u_int8_t);
 int	 pfctl_get_pool(int, struct pfctl_pool *, u_int32_t, u_int32_t, int,
 	    char *);
@@ -2258,6 +2259,7 @@ pfctl_init_options(struct pfctl *pf)
 	pf->limit[PF_LIMIT_TABLE_ENTRIES] = PFR_KENTRY_HIWAT;
 
 	pf->debug = PF_DEBUG_URGENT;
+	pf->reassemble = 0;
 
 	pf->syncookies = false;
 	pf->syncookieswat[0] = PF_SYNCOOKIES_LOWATPCT;
@@ -2316,6 +2318,11 @@ pfctl_load_options(struct pfctl *pf)
 	/* load hostid */
 	if (!(pf->opts & PF_OPT_MERGE) || pf->hostid_set)
 		if (pfctl_load_hostid(pf, pf->hostid))
+			error = 1;
+
+	/* load reassembly settings */
+	if (!(pf->opts & PF_OPT_MERGE) || pf->reass_set)
+		if (pfctl_load_reassembly(pf, pf->reassemble))
 			error = 1;
 
 	/* load keepcounters */
@@ -2415,6 +2422,28 @@ pfctl_load_timeout(struct pfctl *pf, unsigned int timeout, unsigned int seconds)
 }
 
 int
+pfctl_set_reassembly(struct pfctl *pf, int on, int nodf)
+{
+	if ((loadopt & PFCTL_FLAG_OPTION) == 0)
+		return (0);
+
+	pf->reass_set = 1;
+	if (on) {
+		pf->reassemble = PF_REASS_ENABLED;
+		if (nodf)
+			pf->reassemble |= PF_REASS_NODF;
+	} else {
+		pf->reassemble = 0;
+	}
+
+	if (pf->opts & PF_OPT_VERBOSE)
+		printf("set reassemble %s %s\n", on ? "yes" : "no",
+		    nodf ? "no-df" : "");
+
+	return (0);
+}
+
+int
 pfctl_set_optimization(struct pfctl *pf, const char *opt)
 {
 	const struct pf_hint *hint;
@@ -2507,6 +2536,16 @@ pfctl_load_hostid(struct pfctl *pf, u_int32_t hostid)
 {
 	if (ioctl(dev, DIOCSETHOSTID, &hostid)) {
 		warnx("DIOCSETHOSTID");
+		return (1);
+	}
+	return (0);
+}
+
+int
+pfctl_load_reassembly(struct pfctl *pf, u_int32_t reassembly)
+{
+	if (ioctl(dev, DIOCSETREASS, &reassembly)) {
+		warnx("DIOCSETREASS");
 		return (1);
 	}
 	return (0);
