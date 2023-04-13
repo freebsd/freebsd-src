@@ -1373,6 +1373,9 @@ MLINKS+=ifnet.9 if_addmulti.9 \
 	ifnet.9 ifqueue.9 \
 	ifnet.9 ifunit.9 \
 	ifnet.9 ifunit_ref.9
+# IfAPI
+MLINKS+=ifnet.9 ifapi.9
+
 MLINKS+=insmntque.9 insmntque1.9
 MLINKS+=intr_event.9 intr_event_add_handler.9 \
 	intr_event.9 intr_event_create.9 \

@@ -26,10 +26,11 @@
 .\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd Nov 12, 2024
+.Dd December 10, 2024
 .Dt IFNET 9
 .Os
 .Sh NAME
+.Nm if_t ,
 .Nm ifnet ,
 .Nm ifaddr ,
 .Nm ifqueue ,
@@ -44,34 +45,34 @@
 .In net/if_types.h
 .\"
 .Ss "Interface Manipulation Functions"
-.Ft "struct ifnet *"
+.Ft "if_t"
 .Fn if_alloc "u_char type"
-.Ft "struct ifnet *"
+.Ft "if_t"
 .Fn if_alloc_dev "u_char type" "device_t dev"
-.Ft "struct ifnet *"
+.Ft "if_t"
 .Fn if_alloc_domain "u_char type" "int numa_domain"
 .Ft void
-.Fn if_attach "struct ifnet *ifp"
+.Fn if_attach "if_t ifp"
 .Ft void
-.Fn if_detach "struct ifnet *ifp"
+.Fn if_detach "if_t ifp"
 .Ft void
-.Fn if_free "struct ifnet *ifp"
+.Fn if_free "if_t ifp"
 .Ft void
-.Fn if_free_type "struct ifnet *ifp" "u_char type"
+.Fn if_free_type "if_t ifp" "u_char type"
 .Ft void
-.Fn if_down "struct ifnet *ifp"
+.Fn if_down "if_t ifp"
 .Ft int
 .Fn ifioctl "struct socket *so" "u_long cmd" "caddr_t data" "struct thread *td"
 .Ft int
-.Fn ifpromisc "struct ifnet *ifp" "int pswitch"
+.Fn ifpromisc "if_t ifp" "int pswitch"
 .Ft int
-.Fn if_allmulti "struct ifnet *ifp" "int amswitch"
-.Ft "struct ifnet *"
+.Fn if_allmulti "if_t ifp" "int amswitch"
+.Ft "if_t"
 .Fn ifunit "const char *name"
-.Ft "struct ifnet *"
+.Ft "if_t"
 .Fn ifunit_ref "const char *name"
 .Ft void
-.Fn if_up "struct ifnet *ifp"
+.Fn if_up "if_t ifp"
 .\"
 .Ss "Interface Address Functions"
 .Ft "struct ifaddr *"
@@ -81,7 +82,7 @@
 .Ft "struct ifaddr *"
 .Fn ifa_ifwithnet "struct sockaddr *addr" "int ignore_ptp" "int fib"
 .Ft "struct ifaddr *"
-.Fn ifaof_ifpforaddr "struct sockaddr *addr" "struct ifnet *ifp"
+.Fn ifaof_ifpforaddr "struct sockaddr *addr" "if_t ifp"
 .Ft void
 .Fn ifa_ref "struct ifaddr *ifa"
 .Ft void
@@ -89,35 +90,221 @@
 .\"
 .Ss "Interface Multicast Address Functions"
 .Ft int
-.Fn if_addmulti "struct ifnet *ifp" "struct sockaddr *sa" "struct ifmultiaddr **ifmap"
+.Fn if_addmulti "if_t ifp" "struct sockaddr *sa" "struct ifmultiaddr **ifmap"
 .Ft int
-.Fn if_delmulti "struct ifnet *ifp" "struct sockaddr *sa"
+.Fn if_delmulti "if_t ifp" "struct sockaddr *sa"
 .Ft "struct ifmultiaddr *"
-.Fn if_findmulti "struct ifnet *ifp" "struct sockaddr *sa"
+.Fn if_findmulti "if_t ifp" "struct sockaddr *sa"
+.Ss "Output queue accessors"
+.Fn if_dequeue "if_t ifp" "struct mbuf *m"
 .Ss "Output queue macros"
 .Fn IF_DEQUEUE "struct ifqueue *ifq" "struct mbuf *m"
 .\"
+.Ss "if_t accesors"
+.Ft uint64_t
+.Fn if_setbaudrate "if_t ifp" "uint64_t baudrate"
+.Ft uint64_t
+.Fn if_getbaudrate "const if_t ifp"
+.Ft int
+.Fn if_setcapabilities "if_t ifp" "int capabilities"
+.Ft int
+.Fn if_setcapabilitiesbit "if_t ifp" "int setbit" "int clearbit"
+.Ft int
+.Fn if_getcapabilities "const if_t ifp"
+.Ft int
+.Fn if_togglecapenable "if_t ifp" "int togglecap"
+.Ft int
+.Fn if_setcapenable "if_t ifp" "int capenable"
+.Ft int
+.Fn if_setcapenablebit "if_t ifp" "int setcap" "int clearcap"
+.Ft int
+.Fn if_getcapenable "const if_t ifp"
+.Ft int
+.Fn if_setcapabilities2 "if_t ifp" "int capabilities"
+.Ft int
+.Fn if_setcapabilities2bit "if_t ifp" "int setbit" "int clearbit"
+.Ft int
+.Fn if_getcapabilities2 "const if_t ifp"
+.Ft int
+.Fn if_togglecapenable2 "if_t ifp" "int togglecap"
+.Ft int
+.Fn if_setcapenable2 "if_t ifp" "int capenable"
+.Ft int
+.Fn if_setcapenable2bit "if_t ifp" "int setcap" "int clearcap"
+.Ft int
+.Fn if_getcapenable2 "const if_t ifp"
+.Ft int
+.Fn if_getdunit "const if_t ifp"
+.Ft int
+.Fn if_getindex "const if_t ifp"
+.Ft int
+.Fn if_getidxgen "const if_t ifp"
+.Ft const char *
+.Fn if_getdname "const if_t ifp"
+.Ft void
+.Fn if_setdname "if_t ifp" "const char *name"
+.Ft const char *
+.Fn if_name "if_t ifp"
+.Ft int
+.Fn if_setname "if_t ifp" "const char *name"
+.Ft void
+.Fn if_setdescr "if_t ifp" "char *descrbuf"
+.Ft char *
+.Fn if_allocdescr "size_t sz" "int malloc_flag"
+.Ft void
+.Fn if_freedescr "char *descrbuf"
+.Ft int
+.Fn if_getalloctype "const if_t ifp"
+.Ft int
+.Fn if_gettype "const if_t ifp"
+.Ft int
+.Fn if_setdev "if_t ifp" "void *dev"
+.Ft int
+.Fn if_setdrvflagbits "if_t ifp" "int if_setflags" "int clear_flags"
+.Ft int
+.Fn if_getdrvflags "const if_t ifp"
+.Ft int
+.Fn if_setdrvflags "if_t ifp" "int flags"
+.Ft int
+.Fn if_getlinkstate "if_t ifp"
+.Ft int
+.Fn if_clearhwassist "if_t ifp"
+.Ft int
+.Fn if_sethwassistbits "if_t ifp" "int toset" "int toclear"
+.Ft int
+.Fn if_sethwassist "if_t ifp" "int hwassist_bit"
+.Ft int
+.Fn if_gethwassist "const if_t ifp"
+.Ft int
+.Fn if_togglehwassist "if_t ifp" "int toggle_bits"
+.Ft int
+.Fn if_setsoftc "if_t ifp" "void *softc"
+.Ft void *
+.Fn if_getsoftc "if_t ifp"
+.Ft void
+.Fn if_setllsoftc "if_t ifp" "void *softc"
+.Ft void *
+.Fn if_getllsoftc "if_t ifp"
+.Ft u_int
+.Fn if_getfib "if_t ifp"
+.Ft uint8_t
+.Fn if_getaddrlen "if_t ifp"
+.Ft int
+.Fn if_gethwaddr "const if_t ifp" "struct ifreq *"
+.Ft const uint8_t *
+.Fn if_getbroadcastaddr "const if_t ifp"
+.Ft void
+.Fn if_setbroadcastaddr "if_t ifp" "const uint8_t *"
+.Ft int
+.Fn if_setmtu "if_t ifp" "int mtu"
+.Ft int
+.Fn if_getmtu "const if_t ifp"
+.Ft int
+.Fn if_getmtu_family "const if_t ifp" "int family"
+.Ft void
+.Fn if_notifymtu "if_t ifp"
+.Ft int
+.Fn if_setflagbits "if_t ifp" "int set" "int clear"
+.Ft int
+.Fn if_setflags "if_t ifp" "int flags"
+.Ft int
+.Fn if_getflags "const if_t ifp"
+.Ft int
+.Fn if_getnumadomain "if_t ifp"
+.Ft int
+.Fn if_sendq_empty "if_t ifp"
+.Ft int
+.Fn if_setsendqready "if_t ifp"
+.Ft int
+.Fn if_setsendqlen "if_t ifp" "int tx_desc_count"
+.Ft int
+.Fn if_sethwtsomax "if_t ifp" "u_int if_hw_tsomax"
+.Ft int
+.Fn if_sethwtsomaxsegcount "if_t ifp" "u_int if_hw_tsomaxsegcount"
+.Ft int
+.Fn if_sethwtsomaxsegsize "if_t ifp" "u_int if_hw_tsomaxsegsize"
+.Ft u_int
+.Fn if_gethwtsomax "const if_t ifp"
+.Ft u_int
+.Fn if_gethwtsomaxsegcount "const if_t ifp"
+.Ft u_int
+.Fn if_gethwtsomaxsegsize "const if_t ifp"
+.Ft void
+.Fn if_setnetmapadapter "if_t ifp" "struct netmap_adapter *na"
+.Ft struct netmap_adapter *
+.Fn if_getnetmapadapter "if_t ifp"
+.Ft void
+.Fn if_input "if_t ifp" "struct mbuf* sendmp"
+.Ft int
+.Fn if_sendq_prepend "if_t ifp" "struct mbuf *m"
+.Ft struct mbuf *
+.Fn if_dequeue "if_t ifp"
+.Ft int
+.Fn if_setifheaderlen "if_t ifp" "int len"
+.Ft void
+.Fn if_setrcvif "struct mbuf *m" "if_t ifp"
+.Ft void
+.Fn if_setvtag "struct mbuf *m" "u_int16_t tag"
+.Ft u_int16_t
+.Fn if_getvtag "struct mbuf *m"
+.Ft int
+.Fn if_vlantrunkinuse "if_t ifp"
+.Ft caddr_t
+.Fn if_getlladdr "const if_t ifp"
+.Ft struct vnet *
+.Fn if_getvnet "const if_t ifp"
+.Ft void *
+.Fn if_gethandle "u_char"
+.Ft void
+.Fn if_bpfmtap "if_t ifp" "struct mbuf *m"
+.Ft void
+.Fn if_etherbpfmtap "if_t ifp" "struct mbuf *m"
+.Ft void
+.Fn if_vlancap "if_t ifp"
+.Ft int
+.Fn if_transmit "if_t ifp" "struct mbuf *m"
+.Ft void
+.Fn if_init "if_t ifp" "void *ctx"
+.Ft int
+.Fn if_resolvemulti "if_t ifp" "struct sockaddr **" "struct sockaddr *"
+.Ft uint64_t
+.Fn if_getcounter "if_t ifp" "ift_counter counter"
+.Ft struct label *
+.Fn if_getmaclabel "if_t ifp"
+.Ft void
+.Fn if_setmaclabel "if_t ifp" "struct label *label"
+.Ft struct bpf_if *
+.Fn if_getbpf "if_t ifp"
+.Ft uint8_t
+.Fn if_getpcp "if_t ifp"
+.Ft void *
+.Fn if_getl2com "if_t ifp"
+.Ft struct ifvlantrunk *
+.Fn if_getvlantrunk "if_t ifp"
+.Ft bool
+.Fn if_altq_is_enabled "if_t ifp"
+.\"
 .Ss "struct ifnet Member Functions"
 .Ft void
-.Fn \*(lp*if_input\*(rp "struct ifnet *ifp" "struct mbuf *m"
+.Fn \*(lp*if_input\*(rp "if_t ifp" "struct mbuf *m"
 .Ft int
 .Fo \*(lp*if_output\*(rp
-.Fa "struct ifnet *ifp" "struct mbuf *m"
+.Fa "if_t ifp" "struct mbuf *m"
 .Fa "const struct sockaddr *dst" "struct route *ro"
 .Fc
 .Ft void
-.Fn \*(lp*if_start\*(rp "struct ifnet *ifp"
+.Fn \*(lp*if_start\*(rp "if_t ifp"
 .Ft int
-.Fn \*(lp*if_transmit\*(rp "struct ifnet *ifp" "struct mbuf *m"
+.Fn \*(lp*if_transmit\*(rp "if_t ifp" "struct mbuf *m"
 .Ft void
-.Fn \*(lp*if_qflush\*(rp "struct ifnet *ifp"
+.Fn \*(lp*if_qflush\*(rp "if_t ifp"
 .Ft int
-.Fn \*(lp*if_ioctl\*(rp "struct ifnet *ifp" "u_long cmd" "caddr_t data"
+.Fn \*(lp*if_ioctl\*(rp "if_t ifp" "u_long cmd" "caddr_t data"
 .Ft void
 .Fn \*(lp*if_init\*(rp "void *if_softc"
 .Ft int
 .Fo \*(lp*if_resolvemulti\*(rp
-.Fa "struct ifnet *ifp" "struct sockaddr **retsa" "struct sockaddr *addr"
+.Fa "if_t ifp" "struct sockaddr **retsa" "struct sockaddr *addr"
 .Fc
 .Ss "struct ifaddr member function"
 .Ft void
@@ -212,232 +399,98 @@ Interfaces are also associated with an output queue, defined as a
 .Vt "struct ifqueue" ;
 this structure is used to hold packets while the interface is in the
 process of sending another.
-.Ss The ifnet Structure
-The fields of
-.Vt "struct ifnet"
+.Ss The ifnet accessors
+The accessors for
+.Vt "if_t"
 are as follows:
-.Bl -tag -width ".Va if_capabilities" -offset indent
-.It Va if_softc
-.Pq Vt "void *"
-A pointer to the driver's private state block.
-(Initialized by driver.)
-.It Va if_l2com
-.Pq Vt "void *"
-A pointer to the common data for the interface's layer 2 protocol.
-(Initialized by
-.Fn if_alloc . )
-.It Va if_vnet
-.Pq Vt "struct vnet *"
-A pointer to the virtual network stack instance.
-(Initialized by
-.Fn if_attach . )
-.It Va if_home_vnet
-.Pq Vt "struct vnet *"
-A pointer to the parent virtual network stack, where this
-.Vt "struct ifnet"
-originates from.
-(Initialized by
-.Fn if_attach . )
-.It Va if_link
-.Pq Fn TAILQ_ENTRY ifnet
-.Xr queue 3
-macro glue.
-.It Va if_xname
-.Pq Vt "char *"
-The name of the interface,
-(e.g.,
-.Dq Li fxp0
-or
-.Dq Li lo0 ) .
-(Initialized by driver
-(usually via
-.Fn if_initname ) . )
-.It Va if_dname
-.Pq Vt "const char *"
-The name of the driver.
-(Initialized by driver
-(usually via
-.Fn if_initname ) . )
-.It Va if_dunit
+.Bl -tag -width indent -offset indent
+.It Fn if_getbaudrate Fn if_setbaudrate
+.Pq Vt u_long
+The line rate of the interface, in bits per second.
+.It Fn if_setcapabilities Fn if_setcapabilitiesbit Fn if_getcapabilities
+.Pq Vt int
+Flags describing the capabilities the interface supports (see below).
+.It Fn if_getcapenable Fn if_setcapenable Fn if_setcapenablebit Fn if_togglecapenable
+.Pq Vt int
+Flags describing the enabled capabilities of the interface (see below).
+.It Fn if_getcapabilities2 Fn if_setcapabilities2 Fn if_setcapabilities2bit
+.It Fn if_getcapenable2 Fn if_setcapenable2 Fn if_setcapenable2bit Fn if_togglecapenable2
+.It Fn if_getdunit
 .Pq Vt int
 A unique number assigned to each interface managed by a particular
 driver.
 Drivers may choose to set this to
 .Dv IF_DUNIT_NONE
 if a unit number is not associated with the device.
-(Initialized by driver
-(usually via
-.Fn if_initname ) . )
-.It Va if_refcount
-.Pq Vt u_int
-The reference count.
-(Initialized by
-.Fn if_alloc . )
-.It Va if_addrhead
-.Pq Vt "struct ifaddrhead"
-The head of the
-.Xr queue 3
-.Li TAILQ
-containing the list of addresses assigned to this interface.
-.It Va if_pcount
-.Pq Vt int
-A count of promiscuous listeners on this interface, used to
-reference-count the
-.Dv IFF_PROMISC
-flag.
-.It Va if_carp
-.Pq Vt "struct carp_if *"
-A pointer to the CARP interface structure,
-.Xr carp 4 .
-(Initialized by the driver-specific
-.Fn if_ioctl
-routine.)
-.It Va if_bpf
-.Pq Vt "struct bpf_if *"
-Opaque per-interface data for the packet filter,
-.Xr bpf 4 .
-(Initialized by
-.Fn bpf_attach . )
-.It Va if_index
+(Initialized by driver, usually via
+.Fn if_initname . )
+.It Fn if_getindex
 .Pq Vt u_short
-A unique number assigned to each interface in sequence as it is
-attached.
+Return the unique number assigned to the device when attached.
 This number can be used in a
 .Vt "struct sockaddr_dl"
 to refer to a particular interface by index
 (see
 .Xr link_addr 3 ) .
-(Initialized by
-.Fn if_alloc . )
-.It Va if_vlantrunk
-.Pq Vt struct ifvlantrunk *
-A pointer to 802.1Q trunk structure,
-.Xr vlan 4 .
-(Initialized by the driver-specific
-.Fn if_ioctl
-routine.)
-.It Va if_flags
-.Pq Vt int
-Flags describing operational parameters of this interface (see below).
-(Manipulated by generic code.)
-.It Va if_drv_flags
-.Pq Vt int
-Flags describing operational status of this interface (see below).
-(Manipulated by driver.)
-.It Va if_capabilities
-.Pq Vt int
-Flags describing the capabilities the interface supports (see below).
-.It Va if_capenable
-.Pq Vt int
-Flags describing the enabled capabilities of the interface (see below).
-.It Va if_linkmib
-.Pq Vt "void *"
-A pointer to an interface-specific MIB structure exported by
-.Xr ifmib 4 .
-(Initialized by driver.)
-.It Va if_linkmiblen
-.Pq Vt size_t
-The size of said structure.
-(Initialized by driver.)
-.It Va if_data
-.Pq Vt "struct if_data"
-More statistics and information; see
-.Sx "The if_data structure" ,
-below.
-(Initialized by driver, manipulated by both driver and generic
-code.)
-.It Va if_multiaddrs
-.Pq Vt struct ifmultihead
-The head of the
-.Xr queue 3
-.Li TAILQ
-containing the list of multicast addresses assigned to this interface.
-.It Va if_amcount
-.Pq Vt int
-A number of multicast requests on this interface, used to
-reference-count the
-.Dv IFF_ALLMULTI
-flag.
-.It Va if_addr
-.Pq Vt "struct ifaddr *"
-A pointer to the link-level interface address.
-(Initialized by
-.Fn if_alloc . )
-.\" .It Va if_llsoftc
-.\" .Pq Vt "void *"
-.\" The purpose of the field is unclear.
-.It Va if_snd
-.Pq Vt "struct ifaltq"
-The output queue.
-(Manipulated by driver.)
-.It Va if_broadcastaddr
-.Pq Vt "const u_int8_t *"
-A link-level broadcast bytestring for protocols with variable address
-length.
-.It Va if_bridge
-.Pq Vt "void *"
-A pointer to the bridge interface structure,
-.Xr if_bridge 4 .
-(Initialized by the driver-specific
-.Fn if_ioctl
-routine.)
-.It Va if_label
-.Pq Vt "struct label *"
-A pointer to the MAC Framework label structure,
-.Xr mac 4 .
-(Initialized by
-.Fn if_alloc . )
-.It Va if_afdata
-.Pq Vt "void *"
-An address family dependent data region.
-.It Va if_afdata_initialized
-.Pq Vt int
-Used to track the current state of address family initialization.
-.It Va if_afdata_lock
-.Pq Vt "struct rwlock"
-An
-.Xr rwlock 9
-lock used to protect
-.Va if_afdata
-internals.
-.It Va if_linktask
-.Pq Vt "struct task"
-A
-.Xr taskqueue 9
-task scheduled for link state change events of the interface.
-.It Va if_addr_lock
-.Pq Vt "struct rwlock"
-An
-.Xr rwlock 9
-lock used to protect interface-related address lists.
-.It Va if_clones
-.Pq Fn LIST_ENTRY ifnet
-.Xr queue 3
-macro glue for the list of clonable network interfaces.
-.It Va if_groups
-.Pq Fn TAILQ_HEAD "" "ifg_list"
-The head of the
-.Xr queue 3
-.Li TAILQ
-containing the list of groups per interface.
-.It Va if_pf_kif
-.Pq Vt "void *"
-A pointer to the structure used for interface abstraction by
-.Xr pf 4 .
-.It Va if_lagg
-.Pq Vt "void *"
-A pointer to the
-.Xr lagg 4
-interface structure.
-.It Va if_alloctype
-.Pq Vt u_char
+This is initialized by
+.Fn if_alloc .
+.It Fn if_getidxgen
+.It Fn if_getdname Fn if_setdname
+.Pq Ft "const char *"
+The name of the driver.
+This is initialized by driver
+(usually via
+.Fn if_initname ) .
+.It Fn if_name Fn if_setname
+.Pq Vt "char *"
+The name of the interface,
+(e.g.,
+.Ql fxp0
+or
+.Dq Li lo0 ) .
+This is initialized by driver, usually via
+.Fn if_initname .
+.It Fn if_getalloctype
+.Pq Ft u_char
 The type of the interface as it was at the time of its allocation.
 It is used to cache the type passed to
 .Fn if_alloc ,
 but unlike
 .Va if_type ,
 it would not be changed by drivers.
-.It Va if_numa_domain
+.It Fn if_gettype
+.It Fn if_setdev
+.It Fn if_getdrvflags Fn if_setdrvflags Fn if_setdrvflagbits
+.It Fn if_getlinkstate
+.It Fn if_clearhwassist Fn if_sethwassistbits
+.Fn if_gethwassist Fn if_sethwassist Fn if_togglehwassist
+.Pq Vt u_long
+A detailed interpretation of the capabilities
+to offload computational tasks for
+.Em outgoing
+packets.
+The interface driver must keep this field in accord with
+the current value of
+.Va if_capenable .
+.It Fn if_getsoftc Fn if_setsoftc
+.Pq Ft "void *"
+A pointer to the driver's private state block.
+This is initialized by driver at attach.
+.It Fn if_setllsoftc
+.It Fn if_getllsoftc
+.It Fn if_getfib
+.It Fn if_getaddrlen
+.It Fn if_gethwaddr
+.It Fn if_getbroadcastaddr Fn if_setbroadcastaddr
+Access the interface broadcast addess.
+.It Fn if_setmtu
+.It Fn if_getmtu
+Access the interface MTU.
+.It Fn if_setflags Fn if_getflags Fn if_setflagbits
+.Pq Vt int
+Flags describing operational parameters of this interface (see below).
+These flags are manipulated by generic code.
+.It Fn if_getnumadomain
 .Pq Vt uint8_t
 The NUMA domain of the hardware device associated with the interface.
 This is filled in with a wildcard value unless the kernel is NUMA
@@ -446,6 +499,63 @@ using
 .Fn if_alloc_dev
 or
 .Fn if_alloc_domain .
+.It Fn if_sendq_empty
+.It Fn if_setsendqready
+.It Fn if_setsendqlen
+.It Fn if_sethwtsomax Fn if_gethwtsomax
+.It Fn if_sethwtsomaxsegcount Fn if_gethwtsomaxsegcount
+.It Fn if_sethwtsomaxsegsize Fn if_gethwtsomaxsegsize
+.It Fn if_setnetmapadapter Fn if_getnetmapadapter
+.It Fn if_setifheaderlen
+.It Fn if_setrcvif
+.It Fn if_setvtag Fn if_getvtag
+.It Fn if_vlantrunkinuse
+.It Fn if_getlladdr
+.It Fn if_getvnet
+.Pq Vt "struct vnet *"
+A pointer to the virtual network stack instance.
+This is initialized by
+.Fn if_attach .
+.It Fn if_gethandle
+.It Fn if_vlancap
+.It Fn if_getcounter
+.It Fn if_getmaclabel Fn if_setmaclabel
+.It Fn if_getbpf
+.Pq Ft "struct bpf_if *"
+Opaque per-interface data for the packet filter,
+.Xr bpf 4 .
+This is initialized by
+.Fn bpf_attach .
+.It Fn if_getpcp
+.It Fn if_getl2com
+A pointer to the common data for the interface's layer 2 protocol.
+This is initialized by
+.Fn if_alloc .
+.Fn if_getvlantrunk "if_t ifp"
+.Pq Ft struct ifvlantrunk *
+A pointer to 802.1Q trunk structure,
+.Xr vlan 4 .
+This is initialized by the driver-specific
+.Fn if_ioctl
+routine.
+.It Fn if_getdrvflags Fn if_setdrvflags Fn if_setdrvflagbits
+.Pq Ft int
+Flags describing operational status of this interface (see below).
+These flags are manipulated by driver.
+.It Fn if_addmulti Fn if_delmulti Fn if_findmulti
+Add, remove, and find multicast addresses assigned to this interface.
+.It Fn if_getifaddr
+.Pq Vt "struct ifaddr *"
+Get a pointer to the interface's link-level address.
+.It Fn if_getbroadcastaddr Fn if_setbroadcastaddr
+.Pq Ft "const u_int8_t *"
+A link-level broadcast bytestring for protocols with variable address
+length.
+.It Fn if_getafdata
+.Pq Ft "void *"
+An address family dependent data region.
+.It Fn if_addgroup Fn if_delgroup
+Add and delete groups from the interface.
 .El
 .Pp
 References to
@@ -611,7 +721,7 @@ This interface is in all-multicasts mode (used by multicast routers).
 .It Dv IFF_PALLMULTI
 .Aq D
 This interface is in the permanently all-multicasts mode (implies
-.Dv IFF_ALLMULTI) .
+.Dv IFF_ALLMULTI ) .
 .It Dv IFF_DRV_OACTIVE
 .Aq D*
 The interface's hardware output queue (if any) is full; output packets
@@ -891,18 +1001,6 @@ link-layer overhead.
 .It Va ifi_metric
 .Pq Vt u_long
 A dimensionless metric interpreted by a user-mode routing process.
-.It Va ifi_baudrate
-.Pq Vt u_long
-The line rate of the interface, in bits per second.
-.It Va ifi_hwassist
-.Pq Vt u_long
-A detailed interpretation of the capabilities
-to offload computational tasks for
-.Em outgoing
-packets.
-The interface driver must keep this field in accord with
-the current value of
-.Va if_capenable .
 .It Va ifi_epoch
 .Pq Vt time_t
 The system uptime when interface was attached or the statistics
@@ -961,8 +1059,7 @@ Number of packets received for unknown network-layer protocol.
 .It Va ifi_lastchange
 .Pq Vt "struct timeval"
 The time of the last administrative change to the interface (as required
-for
-.Tn SNMP ) .
+for SNMP ) .
 .El
 .Ss Interface Types
 The header file
@@ -997,7 +1094,7 @@ interface
 Serial Line IP
 .It Dv IFT_PARA
 Parallel-port IP
-.Pq Dq Tn PLIP
+.Pq Dq PLIP
 .It Dv IFT_ATM
 Asynchronous Transfer Mode
 .It Dv IFT_USB
@@ -1062,7 +1159,7 @@ is a macro for
 The network mask for multi-access interfaces, and the confusion
 generator for point-to-point interfaces.
 .It Va ifa_ifp
-.Pq Vt "struct ifnet *"
+.Pq Vt "if_t"
 A link back to the interface structure.
 .It Va ifa_link
 .Pq Fn TAILQ_ENTRY ifaddr
@@ -1324,7 +1421,7 @@ and
 appropriately.
 .Pp
 .It Dv SIOCGIFCAPNV
-.Xr NV 9
+.Xr nv 9
 version of the
 .Dv SIOCGIFCAP
 ioctl.
@@ -1368,7 +1465,7 @@ non-modifiable capability bit in
 .Dv if_capabilities .
 .Pp
 .It Dv SIOCSIFCAPNV
-.Xr NV 9
+.Xr nv 9
 version of the
 .Dv SIOCSIFCAP
 ioctl.
