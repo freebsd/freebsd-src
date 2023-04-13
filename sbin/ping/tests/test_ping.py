@@ -1132,8 +1132,8 @@ round-trip min/avg/max/stddev = /// ms
                 "stdout": """\
 PING 192.0.2.2 (192.0.2.2): 56 data bytes
 132 bytes from 192.0.2.2: Destination Host Unreachable
-Vr HL TOS  Len   ID Flg  off TTL Pro  cks      Src      Dst
- 4  f  00 007c 0001   0 0000  40  01 d868 192.0.2.1  192.0.2.2 01010101010101010101010101010101010101010101010101010101010101010101010101010101
+Vr HL TOS  Len   ID Flg  off TTL Pro  cks       Src       Dst Opts
+ 4  f  00 007c 0001   0 0000  40  01 d868 192.0.2.1 192.0.2.2 01010101010101010101010101010101010101010101010101010101010101010101010101010101
 
 
 --- 192.0.2.2 ping statistics ---
@@ -1157,8 +1157,8 @@ Vr HL TOS  Len   ID Flg  off TTL Pro  cks      Src      Dst
                 "stdout": """\
 PING 192.0.2.2 (192.0.2.2): 56 data bytes
 92 bytes from 192.0.2.2: Destination Host Unreachable
-Vr HL TOS  Len   ID Flg  off TTL Pro  cks      Src      Dst
- 4  5  00 0054 0001   2 0000  40  01 b6a4 192.0.2.1  192.0.2.2 
+Vr HL TOS  Len   ID Flg  off TTL Pro  cks       Src       Dst
+ 4  5  00 0054 0001   2 0000  40  01 b6a4 192.0.2.1 192.0.2.2
 
 
 --- 192.0.2.2 ping statistics ---
@@ -1230,8 +1230,8 @@ ping: quoted data too short (28 bytes) from 192.0.2.2
                 "stdout": """\
 PING 192.0.2.2 (192.0.2.2): 56 data bytes
 92 bytes from 192.0.2.2: Destination Host Unreachable
-Vr HL TOS  Len   ID Flg  off TTL Pro  cks      Src      Dst
- 4  5  00 0054 0001   0 0000  40  01 f6a4 192.0.2.1  192.0.2.2 
+Vr HL TOS  Len   ID Flg  off TTL Pro  cks       Src       Dst
+ 4  5  00 0054 0001   0 0000  40  01 f6a4 192.0.2.1 192.0.2.2
 
 
 --- 192.0.2.2 ping statistics ---

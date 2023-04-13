@@ -1670,13 +1670,21 @@ pr_icmph(struct icmp *icp, struct ip *oip, const u_char *const oicmp_raw)
 static void
 pr_iph(struct ip *ip, const u_char *cp)
 {
-	struct in_addr ina;
+	struct in_addr dst_ina, src_ina;
 	int hlen;
 
 	hlen = ip->ip_hl << 2;
 	cp = cp + sizeof(struct ip);		/* point to options */
 
-	(void)printf("Vr HL TOS  Len   ID Flg  off TTL Pro  cks      Src      Dst\n");
+	memcpy(&src_ina, &ip->ip_src.s_addr, sizeof(src_ina));
+	memcpy(&dst_ina, &ip->ip_dst.s_addr, sizeof(dst_ina));
+
+	(void)printf("Vr HL TOS  Len   ID Flg  off TTL Pro  cks %*s %*s",
+	    (int)strlen(inet_ntoa(src_ina)), "Src",
+	    (int)strlen(inet_ntoa(dst_ina)), "Dst");
+	if (hlen > (int)sizeof(struct ip))
+		(void)printf(" Opts");
+	(void)putchar('\n');
 	(void)printf(" %1x  %1x  %02x %04x %04x",
 	    ip->ip_v, ip->ip_hl, ip->ip_tos, ntohs(ip->ip_len),
 	    ntohs(ip->ip_id));
@@ -1685,13 +1693,14 @@ pr_iph(struct ip *ip, const u_char *cp)
 	    ntohs(ip->ip_off) & 0x1fff);
 	(void)printf("  %02x  %02x %04x", ip->ip_ttl, ip->ip_p,
 							    ntohs(ip->ip_sum));
-	memcpy(&ina, &ip->ip_src.s_addr, sizeof ina);
-	(void)printf(" %s ", inet_ntoa(ina));
-	memcpy(&ina, &ip->ip_dst.s_addr, sizeof ina);
-	(void)printf(" %s ", inet_ntoa(ina));
+	(void)printf(" %s", inet_ntoa(src_ina));
+	(void)printf(" %s", inet_ntoa(dst_ina));
 	/* dump any option bytes */
-	while (hlen-- > (int)sizeof(struct ip)) {
-		(void)printf("%02x", *cp++);
+	if (hlen > (int)sizeof(struct ip)) {
+		(void)printf(" ");
+		while (hlen-- > (int)sizeof(struct ip)) {
+			(void)printf("%02x", *cp++);
+		}
 	}
 	(void)putchar('\n');
 }
