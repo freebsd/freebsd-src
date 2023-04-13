@@ -49,9 +49,12 @@ struct nl_writer {
 	void			*_storage;	/* Underlying storage pointer */
 	nl_writer_cb		*cb;		/* Callback to flush data */
 	union {
-		void		*arg_ptr;	/* Callback argument as pointer */
-		uint64_t	arg_uint;	/* Callback argument as int */
-	};
+		void		*ptr;
+		struct {
+			uint16_t	proto;
+			uint16_t	id;
+		} group;
+	} arg;
 	int			num_messages;	/* Number of messages in the buffer */
 	int			malloc_flag;	/* M_WAITOK or M_NOWAIT */
 	uint8_t			writer_type;	/* NS_WRITER_TYPE_* */
