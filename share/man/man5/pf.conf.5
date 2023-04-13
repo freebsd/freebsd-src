@@ -1489,6 +1489,15 @@ The packet is passed;
 state is created unless the
 .Ar no state
 option is specified.
+.It Ar match
+Action is unaltered, the previously matched rule's action still matters.
+Match rules apply queue and rtable assignments for every matched packet,
+subsequent matching pass or match rules can overwrite the assignment,
+if they don't specify a queue or an rtable, respectively, the previously
+set value remains.
+Additionally, match rules can contain log statements; the is logging done
+for each and every matching match rule, so it is possible to log a single
+packet multiple times.
 .El
 .Pp
 By default
@@ -3172,7 +3181,7 @@ schedulers     = ( cbq-def | priq-def | hfsc-def )
 bandwidth-spec = "number" ( "b" | "Kb" | "Mb" | "Gb" | "%" )
 
 etheraction    = "pass" | "block"
-action         = "pass" | "block" [ return ] | [ "no" ] "scrub"
+action         = "pass" | "match" | "block" [ return ] | [ "no" ] "scrub"
 return         = "drop" | "return" | "return-rst" [ "( ttl" number ")" ] |
                  "return-icmp" [ "(" icmpcode [ [ "," ] icmp6code ] ")" ] |
                  "return-icmp6" [ "(" icmp6code ")" ]

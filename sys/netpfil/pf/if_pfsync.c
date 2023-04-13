@@ -581,7 +581,30 @@ pfsync_state_import(struct pfsync_state *sp, int flags)
 	st->direction = sp->direction;
 	st->log = sp->log;
 	st->timeout = sp->timeout;
-	st->state_flags = sp->state_flags;
+	/* 8 from old peers, 16 bits from new peers */
+	st->state_flags = sp->state_flags_compat | ntohs(sp->state_flags);
+
+	if (r == &V_pf_default_rule) {
+		/* ToS and Prio are not sent over struct pfsync_state */
+		st->state_flags &= ~PFSTATE_SETMASK;
+	} else {
+		/* Most actions are applied form state, not from rule. Until
+		 * pfsync can forward all those actions and their parameters we
+		 * must relay on restoring them from the found rule.
+		 * It's a copy of pf_rule_to_actions() */
+		st->qid = r->qid;
+		st->pqid = r->pqid;
+		st->rtableid = r->rtableid;
+		if (r->scrub_flags & PFSTATE_SETTOS)
+			st->set_tos = r->set_tos;
+		st->min_ttl = r->min_ttl;
+		st->max_mss = r->max_mss;
+		st->state_flags |= (r->scrub_flags & (PFSTATE_NODF|PFSTATE_RANDOMID|
+		    PFSTATE_SETTOS|PFSTATE_SCRUB_TCP|PFSTATE_SETPRIO));
+		st->dnpipe = r->dnpipe;
+		st->dnrpipe = r->dnrpipe;
+		/* FIXME: dnflags are not part of state, can't update them */
+	}
 
 	st->id = sp->id;
 	st->creatorid = sp->creatorid;

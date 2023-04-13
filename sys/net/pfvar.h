@@ -310,6 +310,7 @@ _Static_assert(sizeof(time_t) == 4 || sizeof(time_t) == 8, "unexpected time_t si
 
 SYSCTL_DECL(_net_pf);
 MALLOC_DECLARE(M_PFHASH);
+MALLOC_DECLARE(M_PF_RULE_ITEM);
 
 SDT_PROVIDER_DECLARE(pf);
 
@@ -593,8 +594,13 @@ struct pf_kpool {
 };
 
 struct pf_rule_actions {
+	int		 rtableid;
 	uint16_t	 qid;
 	uint16_t	 pqid;
+	uint16_t	 max_mss;
+	uint8_t		 log;
+	uint8_t		 set_tos;
+	uint8_t		 min_ttl;
 	uint16_t	 dnpipe;
 	uint16_t	 dnrpipe;	/* Reverse direction pipe */
 	uint32_t	 flags;
@@ -811,10 +817,18 @@ struct pf_krule {
 #endif
 };
 
+struct pf_krule_item {
+	SLIST_ENTRY(pf_krule_item)	 entry;
+	struct pf_krule			*r;
+};
+
+SLIST_HEAD(pf_krule_slist, pf_krule_item);
+
 struct pf_ksrc_node {
 	LIST_ENTRY(pf_ksrc_node) entry;
 	struct pf_addr	 addr;
 	struct pf_addr	 raddr;
+	struct pf_krule_slist	 match_rules;
 	union pf_krule_ptr rule;
 	struct pfi_kkif	*kif;
 	counter_u64_t	 bytes[2];
@@ -892,16 +906,6 @@ struct pf_state_cmp {
 	u_int8_t		 pad[3];
 };
 
-#define	PFSTATE_ALLOWOPTS	0x01
-#define	PFSTATE_SLOPPY		0x02
-/*  was	PFSTATE_PFLOW		0x04 */
-#define	PFSTATE_NOSYNC		0x08
-#define	PFSTATE_ACK		0x10
-#define	PFRULE_DN_IS_PIPE	0x40
-#define	PFRULE_DN_IS_QUEUE	0x80
-#define	PFSTATE_SETPRIO		0x0200
-#define	PFSTATE_SETMASK   (PFSTATE_SETPRIO)
-
 struct pf_state_scrub_export {
 	uint16_t	pfss_flags;
 	uint8_t		pfss_ttl;	/* stashed TTL		*/
@@ -952,12 +956,13 @@ struct pf_state_export {
 	uint8_t		 proto;
 	uint8_t		 direction;
 	uint8_t		 log;
-	uint8_t		 state_flags;
+	uint8_t		 state_flags_compat;
 	uint8_t		 timeout;
 	uint8_t		 sync_flags;
 	uint8_t		 updates;
+	uint16_t	 state_flags;
 
-	uint8_t		 spare[112];
+	uint8_t		 spare[110];
 };
 _Static_assert(sizeof(struct pf_state_export) == 384, "size incorrect");
 
@@ -974,7 +979,7 @@ struct pf_kstate {
 	 * end of the area
 	 */
 
-	u_int8_t		 state_flags;
+	u_int16_t		 state_flags;
 	u_int8_t		 timeout;
 	u_int8_t		 sync_state; /* PFSYNC_S_x */
 	u_int8_t		 sync_updates; /* XXX */
@@ -985,6 +990,7 @@ struct pf_kstate {
 	LIST_ENTRY(pf_kstate)	 entry;
 	struct pf_state_peer	 src;
 	struct pf_state_peer	 dst;
+	struct pf_krule_slist	 match_rules;
 	union pf_krule_ptr	 rule;
 	union pf_krule_ptr	 anchor;
 	union pf_krule_ptr	 nat_rule;
@@ -1000,18 +1006,22 @@ struct pf_kstate {
 	u_int32_t		 creation;
 	u_int32_t	 	 expire;
 	u_int32_t		 pfsync_time;
-	u_int16_t                qid;
-	u_int16_t                pqid;
+	u_int16_t		 qid;
+	u_int16_t		 pqid;
 	u_int16_t		 dnpipe;
 	u_int16_t		 dnrpipe;
 	u_int16_t		 tag;
 	u_int8_t		 log;
+	int			 rtableid;
+	u_int8_t		 min_ttl;
+	u_int8_t		 set_tos;
+	u_int16_t		 max_mss;
 };
 
 /*
- * Size <= fits 13 objects per page on LP64. Try to not grow the struct beyond that.
+ * Size <= fits 12 objects per page on LP64. Try to not grow the struct beyond that.
  */
-_Static_assert(sizeof(struct pf_kstate) <= 312, "pf_kstate size crosses 312 bytes");
+_Static_assert(sizeof(struct pf_kstate) <= 336, "pf_kstate size crosses 336 bytes");
 #endif
 
 /*
@@ -1061,9 +1071,9 @@ struct pfsync_state {
 	sa_family_t	 af;
 	u_int8_t	 proto;
 	u_int8_t	 direction;
-	u_int8_t	 __spare[2];
+	u_int16_t	 state_flags;
 	u_int8_t	 log;
-	u_int8_t	 state_flags;
+	u_int8_t	 state_flags_compat;
 	u_int8_t	 timeout;
 	u_int8_t	 sync_flags;
 	u_int8_t	 updates;
@@ -1545,6 +1555,7 @@ struct pf_kstatus {
 	bool		syncookies_active;
 	uint64_t	syncookies_inflight[2];
 	uint32_t	states_halfopen;
+	uint32_t	reass;
 };
 #endif
 
@@ -1897,6 +1908,7 @@ struct pfioc_iface {
 #define	DIOCGETETHRULES		_IOWR('D', 99, struct pfioc_nv)
 #define	DIOCGETETHRULESETS	_IOWR('D', 100, struct pfioc_nv)
 #define	DIOCGETETHRULESET	_IOWR('D', 101, struct pfioc_nv)
+#define DIOCSETREASS		_IOWR('D', 102, u_int32_t)
 
 struct pf_ifspeed_v0 {
 	char			ifname[IFNAMSIZ];
@@ -2249,12 +2261,12 @@ struct mbuf 	*pf_build_tcp(const struct pf_krule *, sa_family_t,
 		    const struct pf_addr *, const struct pf_addr *,
 		    u_int16_t, u_int16_t, u_int32_t, u_int32_t,
 		    u_int8_t, u_int16_t, u_int16_t, u_int8_t, int,
-		    u_int16_t);
+		    u_int16_t, int);
 void		 pf_send_tcp(const struct pf_krule *, sa_family_t,
 			    const struct pf_addr *, const struct pf_addr *,
 			    u_int16_t, u_int16_t, u_int32_t, u_int32_t,
 			    u_int8_t, u_int16_t, u_int16_t, u_int8_t, int,
-			    u_int16_t);
+			    u_int16_t, int);
 
 void			 pf_syncookies_init(void);
 void			 pf_syncookies_cleanup(void);
@@ -2367,6 +2379,16 @@ struct pf_krule		*pf_get_translation(struct pf_pdesc *, struct mbuf *,
 struct pf_state_key	*pf_state_key_setup(struct pf_pdesc *, struct pf_addr *,
 			    struct pf_addr *, u_int16_t, u_int16_t);
 struct pf_state_key	*pf_state_key_clone(struct pf_state_key *);
+
+int			 pf_normalize_mss(struct mbuf *m, int off,
+			    struct pf_pdesc *pd, u_int16_t maxmss);
+u_int16_t		 pf_rule_to_scrub_flags(u_int32_t);
+#ifdef INET
+void	pf_scrub_ip(struct mbuf **, uint32_t, uint8_t, uint8_t);
+#endif	/* INET */
+#ifdef INET6
+void	pf_scrub_ip6(struct mbuf **, uint32_t, uint8_t, uint8_t);
+#endif	/* INET6 */
 
 struct pfi_kkif		*pf_kkif_create(int);
 void			 pf_kkif_free(struct pfi_kkif *);

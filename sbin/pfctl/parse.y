@@ -225,13 +225,21 @@ struct node_qassign {
 
 static struct filter_opts {
 	int			 marker;
-#define FOM_FLAGS	0x01
-#define FOM_ICMP	0x02
-#define FOM_TOS		0x04
-#define FOM_KEEP	0x08
-#define FOM_SRCTRACK	0x10
+#define FOM_FLAGS	0x0001
+#define FOM_ICMP	0x0002
+#define FOM_TOS		0x0004
+#define FOM_KEEP	0x0008
+#define FOM_SRCTRACK	0x0010
+#define FOM_MINTTL	0x0020
+#define FOM_MAXMSS	0x0040
+#define FOM_AFTO	0x0080 /* not yet implemmented */
+#define FOM_SETTOS	0x0100
+#define FOM_SCRUB_TCP	0x0200
 #define FOM_SETPRIO	0x0400
+#define FOM_ONCE	0x1000 /* not yet implemmented */
 #define FOM_PRIO	0x2000
+#define FOM_SETDELAY	0x4000
+#define FOM_FRAGCACHE	0x8000 /* does not exist in OpenBSD */
 	struct node_uid		*uid;
 	struct node_gid		*gid;
 	struct {
@@ -266,6 +274,12 @@ static struct filter_opts {
 		struct node_host	*addr;
 		u_int16_t		port;
 	}			 divert;
+	/* new-style scrub opts */
+	int			 nodf;
+	int			 minttl;
+	int			 settos;
+	int			 randomid;
+	int			 max_mss;
 } filter_opts;
 
 static struct antispoof_opts {
@@ -277,10 +291,6 @@ static struct antispoof_opts {
 
 static struct scrub_opts {
 	int			 marker;
-#define SOM_MINTTL	0x01
-#define SOM_MAXMSS	0x02
-#define SOM_FRAGCACHE	0x04
-#define SOM_SETTOS	0x08
 	int			 nodf;
 	int			 minttl;
 	int			 maxmss;
@@ -511,7 +521,7 @@ int	parseport(char *, struct range *r, int);
 %token	<v.i>			PORTBINARY
 %type	<v.interface>		interface if_list if_item_not if_item
 %type	<v.number>		number icmptype icmp6type uid gid
-%type	<v.number>		tos not yesno
+%type	<v.number>		tos not yesno optnodf
 %type	<v.probability>		probability
 %type	<v.i>			no dir af fragcache optimizer syncookie_val
 %type	<v.i>			sourcetrack flush unaryop statelock
@@ -631,7 +641,16 @@ optimizer	: string	{
 		}
 		;
 
-option		: SET OPTIMIZATION STRING		{
+optnodf		: /* empty */	{ $$ = 0; }
+		| NODF		{ $$ = 1; }
+		;
+
+option		: SET REASSEMBLE yesno optnodf		{
+			if (check_rulestate(PFCTL_STATE_OPTION))
+				YYERROR;
+			pfctl_set_reassembly(pf, $3, $4);
+		}
+		| SET OPTIMIZATION STRING		{
 			if (check_rulestate(PFCTL_STATE_OPTION)) {
 				free($3);
 				YYERROR;
@@ -1408,7 +1427,7 @@ scrubrule	: scrubaction dir logquick interface af proto fromto scrub_opts
 				r.min_ttl = $8.minttl;
 			if ($8.maxmss)
 				r.max_mss = $8.maxmss;
-			if ($8.marker & SOM_SETTOS) {
+			if ($8.marker & FOM_SETTOS) {
 				r.rule_flag |= PFRULE_SET_TOS;
 				r.set_tos = $8.settos;
 			}
@@ -1443,7 +1462,7 @@ scrub_opts	:	{
 		}
 		;
 
-scrub_opts_l	: scrub_opts_l scrub_opt
+scrub_opts_l	: scrub_opts_l comma scrub_opt
 		| scrub_opt
 		;
 
@@ -1455,7 +1474,7 @@ scrub_opt	: NODF	{
 			scrub_opts.nodf = 1;
 		}
 		| MINTTL NUMBER {
-			if (scrub_opts.marker & SOM_MINTTL) {
+			if (scrub_opts.marker & FOM_MINTTL) {
 				yyerror("min-ttl cannot be respecified");
 				YYERROR;
 			}
@@ -1463,11 +1482,11 @@ scrub_opt	: NODF	{
 				yyerror("illegal min-ttl value %d", $2);
 				YYERROR;
 			}
-			scrub_opts.marker |= SOM_MINTTL;
+			scrub_opts.marker |= FOM_MINTTL;
 			scrub_opts.minttl = $2;
 		}
 		| MAXMSS NUMBER {
-			if (scrub_opts.marker & SOM_MAXMSS) {
+			if (scrub_opts.marker & FOM_MAXMSS) {
 				yyerror("max-mss cannot be respecified");
 				YYERROR;
 			}
@@ -1475,23 +1494,23 @@ scrub_opt	: NODF	{
 				yyerror("illegal max-mss value %d", $2);
 				YYERROR;
 			}
-			scrub_opts.marker |= SOM_MAXMSS;
+			scrub_opts.marker |= FOM_MAXMSS;
 			scrub_opts.maxmss = $2;
 		}
 		| SETTOS tos {
-			if (scrub_opts.marker & SOM_SETTOS) {
+			if (scrub_opts.marker & FOM_SETTOS) {
 				yyerror("set-tos cannot be respecified");
 				YYERROR;
 			}
-			scrub_opts.marker |= SOM_SETTOS;
+			scrub_opts.marker |= FOM_SETTOS;
 			scrub_opts.settos = $2;
 		}
 		| fragcache {
-			if (scrub_opts.marker & SOM_FRAGCACHE) {
+			if (scrub_opts.marker & FOM_FRAGCACHE) {
 				yyerror("fragcache cannot be respecified");
 				YYERROR;
 			}
-			scrub_opts.marker |= SOM_FRAGCACHE;
+			scrub_opts.marker |= FOM_FRAGCACHE;
 			scrub_opts.fragcache = $1;
 		}
 		| REASSEMBLE STRING {
@@ -2351,6 +2370,21 @@ pfrule		: action dir logquick interface route af proto fromto
 			r.prob = $9.prob;
 			r.rtableid = $9.rtableid;
 
+			if ($9.nodf)
+				r.scrub_flags |= PFSTATE_NODF;
+			if ($9.randomid)
+				r.scrub_flags |= PFSTATE_RANDOMID;
+			if ($9.minttl)
+				r.min_ttl = $9.minttl;
+			if ($9.max_mss)
+				r.max_mss = $9.max_mss;
+			if ($9.marker & FOM_SETTOS) {
+				r.scrub_flags |= PFSTATE_SETTOS;
+				r.set_tos = $9.settos;
+			}
+			if ($9.marker & FOM_SCRUB_TCP)
+				r.scrub_flags |= PFSTATE_SCRUB_TCP;
+
 			if ($9.marker & FOM_PRIO) {
 				if ($9.prio == 0)
 					r.prio = PF_PRIO_ZERO;
@@ -2933,6 +2967,24 @@ filter_opt	: USER uids {
 			filter_opts.divert.port = 1;	/* some random value */
 #endif
 		}
+		| SCRUB '(' scrub_opts ')' {
+			filter_opts.nodf = $3.nodf;
+			filter_opts.minttl = $3.minttl;
+			if ($3.marker & FOM_SETTOS) {
+				/* Old style rules are "scrub set-tos 0x42"
+				 * New style are "set tos 0x42 scrub (...)"
+				 * What is in "scrub(...)"" is unfortunately the
+				 * original scrub syntax so it would overwrite
+				 * "set tos" of a pass/match rule.
+				 */
+				filter_opts.settos = $3.settos;
+			}
+			filter_opts.randomid = $3.randomid;
+			filter_opts.max_mss = $3.maxmss;
+			if ($3.reassemble_tcp)
+				filter_opts.marker |= FOM_SCRUB_TCP;
+			filter_opts.marker |= $3.marker;
+		}
 		| filter_sets
 		;
 
@@ -2952,6 +3004,14 @@ filter_set	: prio {
 			filter_opts.marker |= FOM_SETPRIO;
 			filter_opts.set_prio[0] = $1.b1;
 			filter_opts.set_prio[1] = $1.b2;
+		}
+		| TOS tos {
+			if (filter_opts.marker & FOM_SETTOS) {
+				yyerror("tos cannot be respecified");
+				YYERROR;
+			}
+			filter_opts.marker |= FOM_SETTOS;
+			filter_opts.settos = $2;
 		}
 prio		: PRIO NUMBER {
 			if ($2 < 0 || $2 > PF_PRIO_MAX) {
@@ -5170,6 +5230,7 @@ rule_consistent(struct pfctl_rule *r, int anchor_call)
 
 	switch (r->action) {
 	case PF_PASS:
+	case PF_MATCH:
 	case PF_DROP:
 	case PF_SCRUB:
 	case PF_NOSCRUB:
@@ -5240,8 +5301,8 @@ filter_consistent(struct pfctl_rule *r, int anchor_call)
 		yyerror("max-src-nodes requires 'source-track rule'");
 		problems++;
 	}
-	if (r->action == PF_DROP && r->keep_state) {
-		yyerror("keep state on block rules doesn't make sense");
+	if (r->action != PF_PASS && r->keep_state) {
+		yyerror("keep state is great, but only for pass rules");
 		problems++;
 	}
 	if (r->rule_flag & PFRULE_STATESLOPPY &&
@@ -5250,6 +5311,18 @@ filter_consistent(struct pfctl_rule *r, int anchor_call)
 		yyerror("sloppy state matching cannot be used with "
 		    "synproxy state or modulate state");
 		problems++;
+	}
+	/* match rules rules */
+	if (r->action == PF_MATCH) {
+		if (r->divert.port) {
+			yyerror("divert is not supported on match rules");
+			problems++;
+		}
+		if (r->rt) {
+			yyerror("route-to, reply-to, dup-to and fastroute "
+			   "must not be used on match rules");
+			problems++;
+		}
 	}
 	return (-problems);
 }

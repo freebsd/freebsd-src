@@ -339,8 +339,24 @@ print_state(struct pfctl_state *s, int opts)
 			printf(", anchor %u", s->anchor);
 		if (s->rule != -1)
 			printf(", rule %u", s->rule);
+		if (s->state_flags & PFSTATE_ALLOWOPTS)
+			printf(", allow-opts");
 		if (s->state_flags & PFSTATE_SLOPPY)
 			printf(", sloppy");
+		if (s->state_flags & PFSTATE_NOSYNC)
+			printf(", no-sync");
+		if (s->state_flags & PFSTATE_ACK)
+			printf(", psync-ack");
+		if (s->state_flags & PFSTATE_NODF)
+			printf(", no-df");
+		if (s->state_flags & PFSTATE_SETTOS)
+			printf(", set-tos");
+		if (s->state_flags & PFSTATE_RANDOMID)
+			printf(", random-id");
+		if (s->state_flags & PFSTATE_SCRUB_TCP)
+			printf(", scrub-tcp");
+		if (s->state_flags & PFSTATE_SETPRIO)
+			printf(", set-prio");
 		if (s->sync_flags & PFSYNC_FLAG_SRCNODE)
 			printf(", source-track");
 		if (s->sync_flags & PFSYNC_FLAG_NATSRCNODE)

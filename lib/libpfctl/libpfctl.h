@@ -58,6 +58,7 @@ struct pfctl_status {
 	char		ifname[IFNAMSIZ];
 	uint8_t		pf_chksum[PF_MD5_DIGEST_LENGTH];
 	bool		syncookies_active;
+	uint32_t	reass;
 
 	struct pfctl_status_counters	 counters;
 	struct pfctl_status_counters	 lcounters;
@@ -347,7 +348,7 @@ struct pfctl_state {
 	uint32_t		 creation;
 	uint32_t		 expire;
 	uint32_t		 pfsync_time;
-	uint8_t			 state_flags;
+	uint16_t		 state_flags;
 	uint32_t		 sync_flags;
 };
 

@@ -113,6 +113,7 @@ enum	{ PF_ADDR_ADDRMASK, PF_ADDR_NOROUTE, PF_ADDR_DYNIFTL,
 #define	PF_LOG			0x01
 #define	PF_LOG_ALL		0x02
 #define	PF_LOG_SOCKET_LOOKUP	0x04
+#define	PF_LOG_FORCE		0x08
 
 /* Reasons code for passing/dropping a packet */
 #define PFRES_MATCH	0		/* Explicit match of a rule */
@@ -263,6 +264,9 @@ struct pf_status {
 	char		ifname[IFNAMSIZ];
 	uint8_t		pf_chksum[PF_MD5_DIGEST_LENGTH];
 };
+
+#define PF_REASS_ENABLED	0x01
+#define PF_REASS_NODF		0x02
 
 struct pf_addr {
 	union {
@@ -582,30 +586,49 @@ struct pf_rule {
 	uint64_t		 u_src_nodes;
 };
 
-/* rule flags */
-#define	PFRULE_DROP		0x0000
-#define	PFRULE_RETURNRST	0x0001
-#define	PFRULE_FRAGMENT		0x0002
-#define	PFRULE_RETURNICMP	0x0004
-#define	PFRULE_RETURN		0x0008
-#define	PFRULE_NOSYNC		0x0010
-#define PFRULE_SRCTRACK		0x0020  /* track source states */
-#define PFRULE_RULESRCTRACK	0x0040  /* per rule */
+/* pf_krule->rule_flag and old-style scrub flags */
+#define	PFRULE_DROP		0x00000000
+#define	PFRULE_RETURNRST	0x00000001
+#define	PFRULE_FRAGMENT		0x00000002
+#define	PFRULE_RETURNICMP	0x00000004
+#define	PFRULE_RETURN		0x00000008
+#define	PFRULE_NOSYNC		0x00000010
+#define	PFRULE_SRCTRACK		0x00000020  /* track source states */
+#define	PFRULE_RULESRCTRACK	0x00000040  /* per rule */
+#define	PFRULE_NODF		0x00000100
+#define	PFRULE_FRAGMENT_NOREASS	0x00000200
+#define	PFRULE_RANDOMID		0x00000800
+#define	PFRULE_REASSEMBLE_TCP	0x00001000
+#define	PFRULE_SET_TOS		0x00002000
+#define	PFRULE_IFBOUND		0x00010000 /* if-bound */
+#define	PFRULE_STATESLOPPY	0x00020000 /* sloppy state tracking */
 
 #ifdef _KERNEL
 #define	PFRULE_REFS		0x0080	/* rule has references */
 #endif
 
-/* scrub flags */
-#define	PFRULE_NODF		0x0100
-#define	PFRULE_FRAGMENT_NOREASS	0x0200
-#define PFRULE_RANDOMID		0x0800
-#define PFRULE_REASSEMBLE_TCP	0x1000
-#define PFRULE_SET_TOS		0x2000
+/* pf_rule_actions->dnflags */
+#define	PFRULE_DN_IS_PIPE	0x0040
+#define	PFRULE_DN_IS_QUEUE	0x0080
 
-/* rule flags again */
-#define PFRULE_IFBOUND		0x00010000	/* if-bound */
-#define PFRULE_STATESLOPPY	0x00020000	/* sloppy state tracking */
+/* pf_state->state_flags, pf_rule_actions->flags, pf_krule->scrub_flags */
+#define	PFSTATE_ALLOWOPTS	0x0001
+#define	PFSTATE_SLOPPY		0x0002
+/*  was	PFSTATE_PFLOW		0x0004 */
+#define	PFSTATE_NOSYNC		0x0008
+#define	PFSTATE_ACK		0x0010
+#define	PFSTATE_NODF		0x0020
+#define	PFSTATE_SETTOS		0x0040
+#define	PFSTATE_RANDOMID	0x0080
+#define	PFSTATE_SCRUB_TCP	0x0100
+#define	PFSTATE_SETPRIO		0x0200
+/* was	PFSTATE_INP_UNLINKED	0x0400 */
+/* FreeBSD-specific flags are added from the end to keep space for porting
+ * flags from OpenBSD */
+#define	PFSTATE_DN_IS_PIPE	0x4000
+#define	PFSTATE_DN_IS_QUEUE	0x8000
+#define	PFSTATE_SCRUBMASK (PFSTATE_NODF|PFSTATE_RANDOMID|PFSTATE_SCRUB_TCP)
+#define	PFSTATE_SETMASK   (PFSTATE_SETTOS|PFSTATE_SETPRIO)
 
 #define PFSTATE_HIWAT		100000	/* default state table size */
 #define PFSTATE_ADAPT_START	60000	/* default adaptive timeout start */
