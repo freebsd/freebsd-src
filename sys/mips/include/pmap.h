@@ -184,6 +184,7 @@ void pmap_flush_pvcache(vm_page_t m);
 int pmap_emulate_modified(pmap_t pmap, vm_offset_t va);
 void pmap_page_set_memattr(vm_page_t, vm_memattr_t);
 int pmap_change_attr(vm_offset_t, vm_size_t, vm_memattr_t);
+#define	pmap_map_delete(pmap, sva, eva)	pmap_remove(pmap, sva, eva)
 
 static inline int
 pmap_vmspace_copy(pmap_t dst_pmap __unused, pmap_t src_pmap __unused)

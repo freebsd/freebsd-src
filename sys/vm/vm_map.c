@@ -3965,7 +3965,7 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 		 */
 		if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) != 0 ||
 		    entry->object.vm_object != NULL)
-			pmap_remove(map->pmap, entry->start, entry->end);
+			pmap_map_delete(map->pmap, entry->start, entry->end);
 
 		if (entry->end == map->anon_loc)
 			map->anon_loc = entry->start;

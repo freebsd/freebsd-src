@@ -286,6 +286,7 @@ void	pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva);
 void	pmap_force_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva);
 void	*pmap_trm_alloc(size_t size, int flags);
 void	pmap_trm_free(void *addr, size_t size);
+#define	pmap_map_delete(pmap, sva, eva)	pmap_remove(pmap, sva, eva)
 
 void	invltlb_glob(void);
 
