@@ -168,10 +168,10 @@ SYSCTL_INT(_net_inet_tcp_sack_attack, OID_AUTO, move_thresh,
     CTLFLAG_RW,
     &tcp_sack_to_move_thresh, 600,
     "Percentage of sack moves we must see above (10.1 percent is 101)");
-int32_t tcp_restoral_thresh = 650;	/* 65 % (sack:2:ack -5%) */
+int32_t tcp_restoral_thresh = 450;	/* 45 % (sack:2:ack -25%) (mv:ratio -15%) **/
 SYSCTL_INT(_net_inet_tcp_sack_attack, OID_AUTO, restore_thresh,
     CTLFLAG_RW,
-    &tcp_restoral_thresh, 550,
+    &tcp_restoral_thresh, 450,
     "Percentage of sack to ack percentage we must see below to restore(10.1 percent is 101)");
 int32_t tcp_sad_decay_val = 800;
 SYSCTL_INT(_net_inet_tcp_sack_attack, OID_AUTO, decay_per,
@@ -290,6 +290,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, ts_offset_per_conn, CTLFLAG_VNET | CTLFLAG_R
 /* How many connections are pacing */
 static volatile uint32_t number_of_tcp_connections_pacing = 0;
 static uint32_t shadow_num_connections = 0;
+static counter_u64_t tcp_pacing_failures;
 
 static int tcp_pacing_limit = 10000;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, pacing_limit, CTLFLAG_RW,
@@ -298,6 +299,9 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, pacing_limit, CTLFLAG_RW,
 
 SYSCTL_UINT(_net_inet_tcp, OID_AUTO, pacing_count, CTLFLAG_RD,
     &shadow_num_connections, 0, "Number of TCP connections being paced");
+
+SYSCTL_COUNTER_U64(_net_inet_tcp, OID_AUTO, pacing_failures, CTLFLAG_RD,
+    &tcp_pacing_failures, "Number of times we failed to enable pacing to avoid exceeding the limit");
 
 static int	tcp_log_debug = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_debug, CTLFLAG_RW,
@@ -378,6 +382,7 @@ static struct inpcb *tcp_mtudisc(struct inpcb *, int);
 static struct inpcb *tcp_drop_syn_sent(struct inpcb *, int);
 static char *	tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th,
 		    const void *ip4hdr, const void *ip6hdr);
+static void	tcp_default_switch_failed(struct tcpcb *tp);
 static ipproto_ctlinput_t	tcp_ctlinput;
 static udp_tun_icmp_t		tcp_ctlinput_viaudp;
 
@@ -389,6 +394,7 @@ static struct tcp_function_block tcp_def_funcblk = {
 	.tfb_tcp_handoff_ok = tcp_default_handoff_ok,
 	.tfb_tcp_fb_init = tcp_default_fb_init,
 	.tfb_tcp_fb_fini = tcp_default_fb_fini,
+	.tfb_switch_failed = tcp_default_switch_failed,
 };
 
 static int tcp_fb_cnt = 0;
@@ -1107,7 +1113,7 @@ tcp_default_fb_init(struct tcpcb *tp, void **ptr)
 		    (int32_t)sbavail(&so->so_snd))
 			tcp_setpersist(tp);
 		else
-			tcp_timer_activate(tp, TT_REXMT, tp->t_rxtcur);
+			tcp_timer_activate(tp, TT_REXMT, TP_RXTCUR(tp));
 	}
 
 	/* All non-embryonic sessions get a keepalive timer. */
@@ -1140,6 +1146,12 @@ tcp_default_fb_fini(struct tcpcb *tp, int tcb_is_purged)
 {
 
 	INP_WLOCK_ASSERT(tptoinpcb(tp));
+
+#ifdef TCP_BLACKBOX
+	tcp_log_flowend(tp);
+#endif
+	tp->t_acktime = 0;
+	return;
 }
 
 /*
@@ -1561,6 +1573,7 @@ tcp_init(void *arg __unused)
 	tcp_comp_total = counter_u64_alloc(M_WAITOK);
 	tcp_uncomp_total = counter_u64_alloc(M_WAITOK);
 	tcp_bad_csums = counter_u64_alloc(M_WAITOK);
+	tcp_pacing_failures = counter_u64_alloc(M_WAITOK);
 #ifdef TCPPCAP
 	tcp_pcap_init();
 #endif
@@ -1932,6 +1945,8 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		m_freem(m->m_next);
 		m->m_next = NULL;
 		m->m_data = (caddr_t)ipgen;
+		/* clear any receive flags for proper bpf timestamping */
+		m->m_flags &= ~(M_TSTMP | M_TSTMP_LRO);
 		/* m_len is set later */
 #ifdef INET6
 		if (isipv6) {
@@ -2068,6 +2083,10 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	nth->th_ack = htonl(ack);
 	nth->th_off = (sizeof (struct tcphdr) + optlen) >> 2;
 	tcp_set_flags(nth, flags);
+	if (tp && (flags & TH_RST)) {
+		/* Log the reset */
+		tcp_log_end_status(tp, TCP_EI_STATUS_SERVER_RST);
+	}
 	if (tp != NULL)
 		nth->th_win = htons((u_short) (win >> tp->rcv_scale));
 	else
@@ -2249,6 +2268,9 @@ tcp_newtcpcb(struct inpcb *inp)
 #endif /* INET6 */
 		V_tcp_mssdflt;
 
+	/* All mbuf queue/ack compress flags should be off */
+	tcp_lro_features_off(tptoinpcb(tp));
+
 	callout_init_rw(&tp->t_callout, &inp->inp_lock, CALLOUT_RETURNUNLOCKED);
 	for (int i = 0; i < TT_N; i++)
 		tp->t_timers[i] = SBT_MAX;
@@ -2403,6 +2425,17 @@ tcp_discardcb(struct tcpcb *tp)
 #ifdef TCP_BLACKBOX
 	tcp_log_tcpcbfini(tp);
 #endif
+	if (tp->t_in_pkt) {
+		struct mbuf *m, *n;
+
+		m = tp->t_in_pkt;
+		tp->t_in_pkt = tp->t_tail_pkt = NULL;
+		while (m) {
+			n = m->m_nextpkt;
+			m_freem(m);
+			m = n;
+		}
+	}
 	TCPSTATES_DEC(tp->t_state);
 	if (tp->t_fb->tfb_tcp_fb_fini)
 		(*tp->t_fb->tfb_tcp_fb_fini)(tp, 1);
@@ -3984,6 +4017,7 @@ tcp_can_enable_pacing(void)
 		shadow_num_connections = number_of_tcp_connections_pacing;
 		return (1);
 	} else {
+		counter_u64_add(tcp_pacing_failures, 1);
 		return (0);
 	}
 }
@@ -4007,6 +4041,23 @@ tcp_decrement_paced_conn(void)
 			tcp_pacing_warning = 1;
 		}
 	}
+}
+
+static void
+tcp_default_switch_failed(struct tcpcb *tp)
+{
+	/*
+	 * If a switch fails we only need to
+	 * care about two things:
+	 * a) The inp_flags2
+	 * and
+	 * b) The timer granularity.
+	 * Timeouts, at least for now, don't use the
+	 * old callout system in the other stacks so
+	 * those are hopefully safe.
+	 */
+	tcp_lro_features_off(tptoinpcb(tp));
+	tcp_change_time_units(tp, TCP_TMR_GRANULARITY_TICKS);
 }
 
 #ifdef TCP_ACCOUNTING
