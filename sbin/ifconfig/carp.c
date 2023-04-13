@@ -261,9 +261,9 @@ static struct cmd carp_cmds[] = {
 	DEF_CMD_ARG("vhid",	setcarp_vhid),
 	DEF_CMD_ARG("state",	setcarp_state),
 	DEF_CMD_ARG("peer",	setcarp_peer),
-	DEF_CMD_ARG("mcast",	setcarp_mcast),
+	DEF_CMD("mcast",	0,	setcarp_mcast),
 	DEF_CMD_ARG("peer6",	setcarp_peer6),
-	DEF_CMD_ARG("mcast6",	setcarp_mcast6),
+	DEF_CMD("mcast6", 	0,	setcarp_mcast6),
 };
 static struct afswtch af_carp = {
 	.af_name	= "af_carp",
