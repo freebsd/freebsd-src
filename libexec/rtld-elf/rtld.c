@@ -6029,13 +6029,16 @@ parse_args(char* argv[], int argc, bool *use_pathp, int *fdp,
 					_rtld_error("Both -b and -f specified");
 					rtld_die();
 				}
+				if (j != arglen - 1) {
+					_rtld_error("Invalid options: %s", arg);
+					rtld_die();
+				}
 				i++;
 				*argv0 = argv[i];
 				seen_b = true;
 				break;
 			} else if (opt == 'd') {
 				*dir_ignore = true;
-				break;
 			} else if (opt == 'f') {
 				if (seen_b) {
 					_rtld_error("Both -b and -f specified");
@@ -6050,7 +6053,8 @@ parse_args(char* argv[], int argc, bool *use_pathp, int *fdp,
 				 * name but the descriptor is what
 				 * will actually be executed).
 				 *
-				 * -f must be the last option in, e.g., -abcf.
+				 * -f must be the last option in the
+				 * group, e.g., -abcf <fd>.
 				 */
 				if (j != arglen - 1) {
 					_rtld_error("Invalid options: %s", arg);
