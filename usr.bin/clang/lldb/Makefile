@@ -44,5 +44,6 @@ LIBADD+=	ncursesw
 LIBADD+=	panelw
 LIBADD+=	pthread
 LIBADD+=	z
+LIBADD+=	zstd
 
 .include <bsd.prog.mk>

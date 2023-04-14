@@ -7,8 +7,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "UnwindInfoSection.h"
-#include "ConcatOutputSection.h"
-#include "Config.h"
 #include "InputSection.h"
 #include "OutputSection.h"
 #include "OutputSegment.h"
@@ -23,6 +21,8 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/BinaryFormat/MachO.h"
 #include "llvm/Support/Parallel.h"
+
+#include "mach-o/compact_unwind_encoding.h"
 
 #include <numeric>
 
@@ -82,18 +82,10 @@ using namespace lld::macho;
 // advantage, achieving a 3-order-of-magnitude reduction in the
 // number of entries.
 //
-// * The __TEXT,__unwind_info format can accommodate up to 127 unique
-// encodings for the space-efficient compressed format. In practice,
-// fewer than a dozen unique encodings are used by C++ programs of
-// all sizes. Therefore, we don't even bother implementing the regular
-// non-compressed format. Time will tell if anyone in the field ever
-// overflows the 127-encodings limit.
-//
 // Refer to the definition of unwind_info_section_header in
 // compact_unwind_encoding.h for an overview of the format we are encoding
 // here.
 
-// TODO(gkm): prune __eh_frame entries superseded by __unwind_info, PR50410
 // TODO(gkm): how do we align the 2nd-level pages?
 
 // The offsets of various fields in the on-disk representation of each compact
@@ -187,6 +179,9 @@ private:
   DenseMap<size_t, uint32_t> lsdaIndex;
   std::vector<SecondLevelPage> secondLevelPages;
   uint64_t level2PagesOffset = 0;
+  // The highest-address function plus its size. The unwinder needs this to
+  // determine the address range that is covered by unwind info.
+  uint64_t cueEndBoundary = 0;
 };
 
 UnwindInfoSection::UnwindInfoSection()
@@ -214,7 +209,7 @@ void UnwindInfoSection::addSymbol(const Defined *d) {
   // If we have multiple symbols at the same address, only one of them can have
   // an associated unwind entry.
   if (!p.second && d->unwindEntry) {
-    assert(!p.first->second->unwindEntry);
+    assert(p.first->second == d || !p.first->second->unwindEntry);
     p.first->second = d;
   }
 }
@@ -256,6 +251,11 @@ void UnwindInfoSectionImpl::prepareRelocations(ConcatInputSection *isec) {
   for (size_t i = 0; i < isec->relocs.size(); ++i) {
     Reloc &r = isec->relocs[i];
     assert(target->hasAttr(r.type, RelocAttrBits::UNSIGNED));
+    // Since compact unwind sections aren't part of the inputSections vector,
+    // they don't get canonicalized by scanRelocations(), so we have to do the
+    // canonicalization here.
+    if (auto *referentIsec = r.referent.dyn_cast<InputSection *>())
+      r.referent = referentIsec->canonical();
 
     // Functions and LSDA entries always reside in the same object file as the
     // compact unwind entries that references them, and thus appear as section
@@ -270,7 +270,7 @@ void UnwindInfoSectionImpl::prepareRelocations(ConcatInputSection *isec) {
       // application provides its own personality function, it might be
       // referenced by an extern Defined symbol reloc, or a local section reloc.
       if (auto *defined = dyn_cast<Defined>(s)) {
-        // XXX(vyng) This is a a special case for handling duplicate personality
+        // XXX(vyng) This is a special case for handling duplicate personality
         // symbols. Note that LD64's behavior is a bit different and it is
         // inconsistent with how symbol resolution usually work
         //
@@ -426,14 +426,10 @@ static bool canFoldEncoding(compact_unwind_encoding_t encoding) {
   // of the unwind info's unwind address, two functions that have identical
   // unwind info can't be folded if it's using this encoding since both
   // entries need unique addresses.
-  static_assert(static_cast<uint32_t>(UNWIND_X86_64_MODE_MASK) ==
-                    static_cast<uint32_t>(UNWIND_X86_MODE_MASK),
-                "");
   static_assert(static_cast<uint32_t>(UNWIND_X86_64_MODE_STACK_IND) ==
-                    static_cast<uint32_t>(UNWIND_X86_MODE_STACK_IND),
-                "");
+                static_cast<uint32_t>(UNWIND_X86_MODE_STACK_IND));
   if ((target->cpuType == CPU_TYPE_X86_64 || target->cpuType == CPU_TYPE_X86) &&
-      (encoding & UNWIND_X86_64_MODE_MASK) == UNWIND_X86_64_MODE_STACK_IND) {
+      (encoding & UNWIND_MODE_MASK) == UNWIND_X86_64_MODE_STACK_IND) {
     // FIXME: Consider passing in the two function addresses and getting
     // their two stack sizes off the `subq` and only returning false if they're
     // actually different.
@@ -469,6 +465,10 @@ void UnwindInfoSectionImpl::finalize() {
   llvm::sort(cuIndices, [&](size_t a, size_t b) {
     return cuEntries[a].functionAddress < cuEntries[b].functionAddress;
   });
+
+  // Record the ending boundary before we fold the entries.
+  cueEndBoundary = cuEntries[cuIndices.back()].functionAddress +
+                   cuEntries[cuIndices.back()].functionLength;
 
   // Fold adjacent entries with matching encoding+personality and without LSDA
   // We use three iterators on the same cuIndices to fold in-situ:
@@ -583,10 +583,9 @@ void UnwindInfoSectionImpl::finalize() {
     }
     page.entryCount = i - page.entryIndex;
 
-    // If this is not the final page, see if it's possible to fit more
-    // entries by using the regular format. This can happen when there
-    // are many unique encodings, and we we saturated the local
-    // encoding table early.
+    // If this is not the final page, see if it's possible to fit more entries
+    // by using the regular format. This can happen when there are many unique
+    // encodings, and we saturated the local encoding table early.
     if (i < cuIndices.size() &&
         page.entryCount < REGULAR_SECOND_LEVEL_ENTRIES_MAX) {
       page.kind = UNWIND_SECOND_LEVEL_REGULAR;
@@ -644,6 +643,9 @@ void UnwindInfoSectionImpl::writeTo(uint8_t *buf) const {
   for (const Symbol *personality : personalities)
     *i32p++ = personality->getGotVA() - in.header->addr;
 
+  // FIXME: LD64 checks and warns aboutgaps or overlapse in cuEntries address
+  // ranges. We should do the same too
+
   // Level-1 index
   uint32_t lsdaOffset =
       uip->indexSectionOffset +
@@ -661,9 +663,10 @@ void UnwindInfoSectionImpl::writeTo(uint8_t *buf) const {
     l2PagesOffset += SECOND_LEVEL_PAGE_BYTES;
   }
   // Level-1 sentinel
-  const CompactUnwindEntry &cuEnd = cuEntries[cuIndices.back()];
-  iep->functionOffset =
-      cuEnd.functionAddress - in.header->addr + cuEnd.functionLength;
+  // XXX(vyng): Note that LD64 adds +1 here.
+  // Unsure whether it's a bug or it's their workaround for something else.
+  // See comments from https://reviews.llvm.org/D138320.
+  iep->functionOffset = cueEndBoundary - in.header->addr;
   iep->secondLevelPagesSectionOffset = 0;
   iep->lsdaIndexArraySectionOffset =
       lsdaOffset + entriesWithLsda.size() *
