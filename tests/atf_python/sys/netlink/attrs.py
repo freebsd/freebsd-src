@@ -7,6 +7,8 @@ from atf_python.sys.netlink.utils import enum_or_int
 
 
 class NlAttr(object):
+    HDR_LEN = 4  # sizeof(struct nlattr)
+
     def __init__(self, nla_type, data):
         if isinstance(nla_type, Enum):
             self._nla_type = nla_type.value

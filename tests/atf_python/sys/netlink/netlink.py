@@ -22,8 +22,8 @@ from atf_python.sys.netlink.message import BaseNetlinkMessage
 from atf_python.sys.netlink.message import NlMsgCategory
 from atf_python.sys.netlink.message import NlMsgProps
 from atf_python.sys.netlink.message import StdNetlinkMessage
-from atf_python.sys.netlink.netlink_generic import GenlCtrlMsgType
 from atf_python.sys.netlink.netlink_generic import GenlCtrlAttrType
+from atf_python.sys.netlink.netlink_generic import GenlCtrlMsgType
 from atf_python.sys.netlink.netlink_generic import handler_classes as genl_classes
 from atf_python.sys.netlink.netlink_route import handler_classes as rt_classes
 from atf_python.sys.netlink.utils import align4
