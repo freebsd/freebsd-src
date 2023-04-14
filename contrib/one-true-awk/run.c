@@ -912,6 +912,9 @@ int format(char **pbuf, int *pbufsize, const char *s, Node *a)	/* printf-like co
 		case 'c':
 			flag = 'c';
 			break;
+		case '\0':
+			FATAL("missing printf conversion specifier");
+			break;
 		default:
 			WARNING("weird printf conversion %s", fmt);
 			flag = '?';
