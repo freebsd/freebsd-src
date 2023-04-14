@@ -271,6 +271,12 @@ const struct sio_device ite_devices[] = {
 	{ .type = SUPERIO_DEV_NONE },
 };
 
+const struct sio_device w83627_devices[] = {
+	{ .ldn = 8, .type = SUPERIO_DEV_WDT },
+	{ .ldn = 9, .type = SUPERIO_DEV_GPIO },
+	{ .type = SUPERIO_DEV_NONE },
+};
+
 const struct sio_device nvt_devices[] = {
 	{ .ldn = 8, .type = SUPERIO_DEV_WDT },
 	{ .type = SUPERIO_DEV_NONE },
@@ -280,6 +286,23 @@ const struct sio_device nct5104_devices[] = {
 	{ .ldn = 7, .type = SUPERIO_DEV_GPIO },
 	{ .ldn = 8, .type = SUPERIO_DEV_WDT },
 	{ .ldn = 15, .type = SUPERIO_DEV_GPIO },
+	{ .type = SUPERIO_DEV_NONE },
+};
+
+const struct sio_device nct5585_devices[] = {
+	{ .ldn = 9, .type = SUPERIO_DEV_GPIO },
+	{ .type = SUPERIO_DEV_NONE },
+};
+
+const struct sio_device nct611x_devices[] = {
+	{ .ldn = 0x7, .type = SUPERIO_DEV_GPIO },
+	{ .ldn = 0x8, .type = SUPERIO_DEV_WDT },
+	{ .type = SUPERIO_DEV_NONE },
+};
+
+const struct sio_device nct67xx_devices[] = {
+	{ .ldn = 0x8, .type = SUPERIO_DEV_WDT },
+	{ .ldn = 0x9, .type = SUPERIO_DEV_GPIO },
 	{ .type = SUPERIO_DEV_NONE },
 };
 
@@ -377,7 +400,7 @@ static const struct {
 	{
 		.vendor = SUPERIO_VENDOR_NUVOTON, .devid = 0xa000, .mask = 0xff,
 		.descr = "Winbond 83627DHG",
-		.devices = nvt_devices,
+		.devices = w83627_devices,
 	},
 	{
 		.vendor = SUPERIO_VENDOR_NUVOTON, .devid = 0xa200, .mask = 0xff,
@@ -415,9 +438,19 @@ static const struct {
 		.devices = nct5104_devices,
 	},
 	{
-		.vendor = SUPERIO_VENDOR_NUVOTON, .devid = 0xc500, .mask = 0xff,
-		.descr = "Nuvoton NCT6779",
-		.devices = nvt_devices,
+		.vendor  = SUPERIO_VENDOR_NUVOTON, .devid = 0xc500, .mask = 0xff,
+		.descr   = "Nuvoton NCT6779D",
+		.devices = nct67xx_devices,
+	},
+	{
+		.vendor  = SUPERIO_VENDOR_NUVOTON, .devid = 0xd42a, .extid = 1,
+		.descr   = "Nuvoton NCT6796D-E",
+		.devices = nct67xx_devices,
+	},
+	{
+		.vendor  = SUPERIO_VENDOR_NUVOTON, .devid = 0xd42a, .extid = 2,
+		.descr   = "Nuvoton NCT5585D",
+		.devices = nct5585_devices,
 	},
 	{
 		.vendor = SUPERIO_VENDOR_NUVOTON, .devid = 0xc800, .mask = 0xff,
@@ -433,6 +466,11 @@ static const struct {
 		.vendor = SUPERIO_VENDOR_NUVOTON, .devid = 0xd100, .mask = 0xff,
 		.descr = "Nuvoton NCT6793",
 		.devices = nvt_devices,
+	},
+	{
+		.vendor = SUPERIO_VENDOR_NUVOTON, .devid = 0xd200, .mask = 0xff,
+		.descr = "Nuvoton NCT6112D/NCT6114D/NCT6116D",
+		.devices = nct611x_devices,
 	},
 	{
 		.vendor = SUPERIO_VENDOR_NUVOTON, .devid = 0xd300, .mask = 0xff,
