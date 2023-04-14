@@ -26,9 +26,7 @@
 -- OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 -- SUCH DAMAGE.
 --
--- $Begemot: bsnmp/snmpd/FOKUS-MIB.txt,v 1.5 2004/08/06 08:47:08 brandt Exp $
---
--- Begemot private definitions and fokus root.
+-- Fokus PEN root module.
 --
 FOKUS-MIB DEFINITIONS ::= BEGIN
 
@@ -37,24 +35,29 @@ IMPORTS
 	FROM SNMPv2-SMI;
 
 fokus MODULE-IDENTITY
-    LAST-UPDATED "200202050000Z"
-    ORGANIZATION "Fraunhofer FOKUS, CATS"
+    LAST-UPDATED "202304140000Z"
+    ORGANIZATION "Fraunhofer FOKUS"
     CONTACT-INFO
-	    "		Hartmut Brandt
+	    "		Bjoern Riemer
 
 	     Postal:	Fraunhofer Institute for Open Communication Systems
 			Kaiserin-Augusta-Allee 31
 			10589 Berlin
 			Germany
 
-	     Fax:	+49 30 3463 7352
-
-	     E-mail:	harti@freebsd.org"
+	     E-mail:	iana-pen@fokus.fraunhofer.de"
     DESCRIPTION
 	    "The root of the Fokus enterprises tree."
+    REVISION "202304140000Z"
+    DESCRIPTION
+	    "Contact info updated."
     REVISION "200202050000Z"
     DESCRIPTION
 	    "Initial revision."
     ::= { enterprises 12325 }
 
+--
+-- begemot ::= fokus.1
+--	contact: hartmut.brandt@dlr.de
+--
 END
