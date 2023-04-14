@@ -3203,7 +3203,7 @@ ieee80211_set_mcsset(struct ieee80211com *ic, uint8_t *frm)
 			for (i = 39; i <= 52; i++)
 				setbit(frm, i);
 		}
-		if (ic->ic_txstream >= 4) {
+		if (ic->ic_rxstream >= 4) {
 			for (i = 53; i <= 76; i++)
 				setbit(frm, i);
 		}
