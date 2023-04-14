@@ -93,6 +93,7 @@ struct siosc {
 	superio_vendor_t		vendor;
 	uint16_t			devid;
 	uint8_t				revid;
+	int				extid;
 	uint8_t				current_ldn;
 	uint8_t				ldn_reg;
 	uint8_t				enable_reg;
@@ -292,6 +293,7 @@ static const struct {
 	superio_vendor_t	vendor;
 	uint16_t		devid;
 	uint16_t		mask;
+	int			extid; /* Extra ID: used to handle conflicting devid. */
 	const char		*descr;
 	const struct sio_device	*devices;
 } superio_table[] = {
@@ -479,6 +481,7 @@ superio_detect(device_t dev, bool claim, struct siosc *sc)
 	int error;
 	int rid;
 	int i, m;
+	int prefer;
 
 	error = bus_get_resource(dev, SYS_RES_IOPORT, 0, &port, &count);
 	if (error != 0)
@@ -502,6 +505,11 @@ superio_detect(device_t dev, bool claim, struct siosc *sc)
 			device_printf(dev, "failed to allocate I/O resource\n");
 		return (ENXIO);
 	}
+
+	prefer = 0;
+	resource_int_value(device_get_name(dev), device_get_unit(dev), "prefer", &prefer);
+	if (bootverbose && prefer > 0)
+		device_printf(dev, "prefer extid %d\n", prefer);
 
 	for (m = 0; methods_table[m] != NULL; m++) {
 		methods_table[m]->enter(res, port);
@@ -529,6 +537,8 @@ superio_detect(device_t dev, bool claim, struct siosc *sc)
 				continue;
 			if ((superio_table[i].devid & ~mask) != (devid & ~mask))
 				continue;
+			if (prefer > 0 && prefer != superio_table[i].extid)
+				continue;
 			break;
 		}
 
@@ -554,6 +564,7 @@ superio_detect(device_t dev, bool claim, struct siosc *sc)
 	sc->io_port = port;
 	sc->devid = devid;
 	sc->revid = revid;
+	sc->extid = superio_table[i].extid;
 
 	KASSERT(sc->vendor == SUPERIO_VENDOR_ITE ||
 	    sc->vendor == SUPERIO_VENDOR_NUVOTON ||
@@ -871,6 +882,15 @@ superio_revid(device_t dev)
 	struct siosc *sc = device_get_softc(sio_dev);
 
 	return (sc->revid);
+}
+
+int
+superio_extid(device_t dev)
+{
+	device_t sio_dev = device_get_parent(dev);
+	struct siosc *sc = device_get_softc(sio_dev);
+
+	return (sc->extid);
 }
 
 uint8_t
