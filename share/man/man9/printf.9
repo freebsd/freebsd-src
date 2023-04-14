@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 9, 2020
+.Dd April 14, 2023
 .Dt PRINTF 9
 .Os
 .Sh NAME
@@ -164,14 +164,14 @@ printf_test(void)
 {
 
 	printf("reg=%b\en", 3, "\e10\e2BITTWO\e1BITONE");
-	printf("out: %4D\en", "AAAA", ":");
+	printf("out: %4D\en", "AAZZ", ":");
 }
 .Ed
 .Pp
 will produce the following output:
 .Bd -literal -offset indent
 reg=3<BITTWO,BITONE>
-out: 41:41:41:41
+out: 41:41:5a:5a
 .Ed
 .Pp
 The call
