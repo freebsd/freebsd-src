@@ -2957,11 +2957,10 @@ bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst, uint16_t vlan,
 
 		if (V_log_mac_flap &&
 		    ppsratecheck(&V_log_last, &V_log_count, V_log_interval)) {
-			uint8_t *addr = &brt->brt_addr[0];
 			log(LOG_NOTICE,
-			    "%s: mac address %02x:%02x:%02x:%02x:%02x:%02x vlan %d moved from %s to %s\n",
+			    "%s: mac address %6D vlan %d moved from %s to %s\n",
 			    sc->sc_ifp->if_xname,
-			    addr[0], addr[1], addr[2], addr[3], addr[4], addr[5],
+			    &brt->brt_addr[0], ":",
 			    brt->brt_vlan,
 			    obif->bif_ifp->if_xname,
 			    bif->bif_ifp->if_xname);
