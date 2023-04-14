@@ -35,7 +35,7 @@
     ..
     lib
         clang
-            15.0.7
+            16
                 include
                     cuda_wrappers
                     ..
@@ -44,6 +44,8 @@
                     hlsl
                     ..
                     openmp_wrappers
+                    ..
+                    orc_rt
                     ..
                     ppc_wrappers
                     ..

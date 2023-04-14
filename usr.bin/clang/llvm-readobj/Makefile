@@ -18,6 +18,8 @@ SRCS+=		Win64EHDumper.cpp
 SRCS+=		WindowsResourceDumper.cpp
 SRCS+=		XCOFFDumper.cpp
 
+CFLAGS.llvm-readobj.cpp+=	-Dllvm_readobj_main=main
+
 .include "${SRCTOP}/lib/clang/llvm.pre.mk"
 
 CFLAGS+=	-I${.OBJDIR}
@@ -35,6 +37,7 @@ DPSRCS+=	${TGHDRS}
 CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}
 
 LIBADD+=	z
+LIBADD+=	zstd
 
 LINKS+=		${BINDIR}/llvm-readobj ${BINDIR}/llvm-readelf
 

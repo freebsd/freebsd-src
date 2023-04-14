@@ -55,7 +55,6 @@ template <typename ptr_t> struct jit_descriptor {
 };
 
 namespace {
-
 enum EnableJITLoaderGDB {
   eEnableJITLoaderGDBDefault,
   eEnableJITLoaderGDBOn,
@@ -107,6 +106,7 @@ public:
         g_jitloadergdb_properties[ePropertyEnable].default_uint_value);
   }
 };
+} // namespace
 
 static PluginProperties &GetGlobalPluginProperties() {
   static PluginProperties g_settings;
@@ -114,8 +114,8 @@ static PluginProperties &GetGlobalPluginProperties() {
 }
 
 template <typename ptr_t>
-bool ReadJITEntry(const addr_t from_addr, Process *process,
-                  jit_code_entry<ptr_t> *entry) {
+static bool ReadJITEntry(const addr_t from_addr, Process *process,
+                         jit_code_entry<ptr_t> *entry) {
   lldbassert(from_addr % sizeof(ptr_t) == 0);
 
   ArchSpec::Core core = process->GetTarget().GetArchitecture().GetCore();
@@ -143,8 +143,6 @@ bool ReadJITEntry(const addr_t from_addr, Process *process,
 
   return true;
 }
-
-} // anonymous namespace end
 
 JITLoaderGDB::JITLoaderGDB(lldb_private::Process *process)
     : JITLoader(process), m_jit_objects(),
@@ -194,7 +192,7 @@ void JITLoaderGDB::SetJITBreakpoint(lldb_private::ModuleList &module_list) {
             __FUNCTION__);
 
   addr_t jit_addr = GetSymbolAddress(
-      module_list, ConstString("__jit_debug_register_code"), eSymbolTypeAny);
+      module_list, ConstString("__jit_debug_register_code"), eSymbolTypeCode);
   if (jit_addr == LLDB_INVALID_ADDRESS)
     return;
 

@@ -2763,172 +2763,178 @@ SWIG_Lua_dostring(lua_State *L, const char *str) {
 #define SWIGTYPE_p_lldb__SBThreadCollection swig_types[63]
 #define SWIGTYPE_p_lldb__SBThreadPlan swig_types[64]
 #define SWIGTYPE_p_lldb__SBTrace swig_types[65]
-#define SWIGTYPE_p_lldb__SBType swig_types[66]
-#define SWIGTYPE_p_lldb__SBTypeCategory swig_types[67]
-#define SWIGTYPE_p_lldb__SBTypeEnumMember swig_types[68]
-#define SWIGTYPE_p_lldb__SBTypeEnumMemberList swig_types[69]
-#define SWIGTYPE_p_lldb__SBTypeFilter swig_types[70]
-#define SWIGTYPE_p_lldb__SBTypeFormat swig_types[71]
-#define SWIGTYPE_p_lldb__SBTypeList swig_types[72]
-#define SWIGTYPE_p_lldb__SBTypeMember swig_types[73]
-#define SWIGTYPE_p_lldb__SBTypeMemberFunction swig_types[74]
-#define SWIGTYPE_p_lldb__SBTypeNameSpecifier swig_types[75]
-#define SWIGTYPE_p_lldb__SBTypeSummary swig_types[76]
-#define SWIGTYPE_p_lldb__SBTypeSummaryOptions swig_types[77]
-#define SWIGTYPE_p_lldb__SBTypeSynthetic swig_types[78]
-#define SWIGTYPE_p_lldb__SBUnixSignals swig_types[79]
-#define SWIGTYPE_p_lldb__SBValue swig_types[80]
-#define SWIGTYPE_p_lldb__SBValueList swig_types[81]
-#define SWIGTYPE_p_lldb__SBVariablesOptions swig_types[82]
-#define SWIGTYPE_p_lldb__SBWatchpoint swig_types[83]
-#define SWIGTYPE_p_long_double swig_types[84]
-#define SWIGTYPE_p_long_long swig_types[85]
-#define SWIGTYPE_p_p_void swig_types[86]
-#define SWIGTYPE_p_pthread_rwlock_t swig_types[87]
-#define SWIGTYPE_p_pthread_t swig_types[88]
-#define SWIGTYPE_p_short swig_types[89]
-#define SWIGTYPE_p_signed_char swig_types[90]
-#define SWIGTYPE_p_size_t swig_types[91]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ABI_t swig_types[92]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Baton_t swig_types[93]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Block_t swig_types[94]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__BreakpointLocation_t swig_types[95]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__BreakpointPrecondition_t swig_types[96]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__BreakpointResolver_t swig_types[97]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__BreakpointSite_t swig_types[98]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Breakpoint_t swig_types[99]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__BroadcasterManager_t swig_types[100]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Broadcaster_t swig_types[101]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__CommandObject_t swig_types[102]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__CompileUnit_t swig_types[103]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Connection_t swig_types[104]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__DataBuffer_t swig_types[105]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__DataExtractor_t swig_types[106]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Debugger_t swig_types[107]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Disassembler_t swig_types[108]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__EventDataStructuredData_t swig_types[109]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__EventData_t swig_types[110]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Event_t swig_types[111]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ExecutionContextRef_t swig_types[112]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ExpressionVariable_t swig_types[113]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__File_t swig_types[114]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__FuncUnwinders_t swig_types[115]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Function_t swig_types[116]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__IOHandler_t swig_types[117]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__IOObject_t swig_types[118]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__IRExecutionUnit_t swig_types[119]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__InlineFunctionInfo_t swig_types[120]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Instruction_t swig_types[121]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__InstrumentationRuntime_t swig_types[122]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__JITLoader_t swig_types[123]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__LanguageRuntime_t swig_types[124]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Listener_t swig_types[125]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__MemoryHistory_t swig_types[126]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__MemoryRegionInfo_t swig_types[127]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Module_t swig_types[128]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ObjectFileJITDelegate_t swig_types[129]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ObjectFile_t swig_types[130]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__OptionValueProperties_t swig_types[131]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__OptionValue_t swig_types[132]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Platform_t swig_types[133]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ProcessAttachInfo_t swig_types[134]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Process_t swig_types[135]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__QueueItem_t swig_types[136]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Queue_t swig_types[137]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__REPL_t swig_types[138]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__RecognizedStackFrame_t swig_types[139]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__RegisterCheckpoint_t swig_types[140]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__RegisterContext_t swig_types[141]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__RegularExpression_t swig_types[142]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ScriptInterpreter_t swig_types[143]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ScriptSummaryFormat_t swig_types[144]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ScriptedSyntheticChildren_t swig_types[145]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ScriptedThreadInterface_t swig_types[146]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SearchFilter_t swig_types[147]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SectionLoadList_t swig_types[148]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Section_t swig_types[149]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StackFrameList_t swig_types[150]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StackFrameRecognizer_t swig_types[151]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StackFrame_t swig_types[152]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StopInfo_t swig_types[153]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StreamFile_t swig_types[154]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Stream_t swig_types[155]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StringSummaryFormat_t swig_types[156]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StructuredDataPlugin_t swig_types[157]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SymbolContextSpecifier_t swig_types[158]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SymbolFileType_t swig_types[159]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SyntheticChildrenFrontEnd_t swig_types[160]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SyntheticChildren_t swig_types[161]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Target_t swig_types[162]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ThreadCollection_t swig_types[163]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ThreadPlanTracer_t swig_types[164]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ThreadPlan_t swig_types[165]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ThreadPostMortemTrace_t swig_types[166]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Thread_t swig_types[167]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Trace_t swig_types[168]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeCategoryImpl_t swig_types[169]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeEnumMemberImpl_t swig_types[170]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeFilterImpl_t swig_types[171]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeFormatImpl_t swig_types[172]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeImpl_t swig_types[173]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeMemberFunctionImpl_t swig_types[174]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeNameSpecifierImpl_t swig_types[175]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeSummaryImpl_t swig_types[176]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeSummaryOptions_t swig_types[177]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeSystem_t swig_types[178]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Type_t swig_types[179]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__UnixSignals_t swig_types[180]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__UnwindAssembly_t swig_types[181]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__UnwindPlan_t swig_types[182]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__UserExpression_t swig_types[183]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ValueObjectList_t swig_types[184]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ValueObject_t swig_types[185]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Value_t swig_types[186]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__VariableList_t swig_types[187]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Variable_t swig_types[188]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Watchpoint_t swig_types[189]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__WritableDataBuffer_t swig_types[190]
-#define SWIGTYPE_p_std__string swig_types[191]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__DynamicCheckerFunctions_t swig_types[192]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__DynamicLoader_t swig_types[193]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__File_t swig_types[194]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__JITLoaderList_t swig_types[195]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__MemoryRegionInfo_t swig_types[196]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__OperatingSystem_t swig_types[197]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__ScriptedProcessInterface_t swig_types[198]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__SectionList_t swig_types[199]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__SourceManager_t swig_types[200]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__StackFrameRecognizerManager_t swig_types[201]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__StructuredDataImpl_t swig_types[202]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__SymbolVendor_t swig_types[203]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__SystemRuntime_t swig_types[204]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__TraceCursor_t swig_types[205]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__TraceExporter_t swig_types[206]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__BreakpointLocation_t swig_types[207]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Breakpoint_t swig_types[208]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__BroadcasterManager_t swig_types[209]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Debugger_t swig_types[210]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Listener_t swig_types[211]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Module_t swig_types[212]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__ObjectFileJITDelegate_t swig_types[213]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__OptionValue_t swig_types[214]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Process_t swig_types[215]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Queue_t swig_types[216]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Section_t swig_types[217]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__StackFrame_t swig_types[218]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__StructuredDataPlugin_t swig_types[219]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Target_t swig_types[220]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__ThreadPlan_t swig_types[221]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Thread_t swig_types[222]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Type_t swig_types[223]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__UnixSignals_t swig_types[224]
-#define SWIGTYPE_p_unsigned_char swig_types[225]
-#define SWIGTYPE_p_unsigned_int swig_types[226]
-#define SWIGTYPE_p_unsigned_long_long swig_types[227]
-#define SWIGTYPE_p_unsigned_short swig_types[228]
-#define SWIGTYPE_p_void swig_types[229]
-static swig_type_info *swig_types[231];
-static swig_module_info swig_module = {swig_types, 230, 0, 0, 0, 0};
+#define SWIGTYPE_p_lldb__SBTraceCursor swig_types[66]
+#define SWIGTYPE_p_lldb__SBType swig_types[67]
+#define SWIGTYPE_p_lldb__SBTypeCategory swig_types[68]
+#define SWIGTYPE_p_lldb__SBTypeEnumMember swig_types[69]
+#define SWIGTYPE_p_lldb__SBTypeEnumMemberList swig_types[70]
+#define SWIGTYPE_p_lldb__SBTypeFilter swig_types[71]
+#define SWIGTYPE_p_lldb__SBTypeFormat swig_types[72]
+#define SWIGTYPE_p_lldb__SBTypeList swig_types[73]
+#define SWIGTYPE_p_lldb__SBTypeMember swig_types[74]
+#define SWIGTYPE_p_lldb__SBTypeMemberFunction swig_types[75]
+#define SWIGTYPE_p_lldb__SBTypeNameSpecifier swig_types[76]
+#define SWIGTYPE_p_lldb__SBTypeSummary swig_types[77]
+#define SWIGTYPE_p_lldb__SBTypeSummaryOptions swig_types[78]
+#define SWIGTYPE_p_lldb__SBTypeSynthetic swig_types[79]
+#define SWIGTYPE_p_lldb__SBUnixSignals swig_types[80]
+#define SWIGTYPE_p_lldb__SBValue swig_types[81]
+#define SWIGTYPE_p_lldb__SBValueList swig_types[82]
+#define SWIGTYPE_p_lldb__SBVariablesOptions swig_types[83]
+#define SWIGTYPE_p_lldb__SBWatchpoint swig_types[84]
+#define SWIGTYPE_p_long_double swig_types[85]
+#define SWIGTYPE_p_long_long swig_types[86]
+#define SWIGTYPE_p_p_void swig_types[87]
+#define SWIGTYPE_p_pthread_rwlock_t swig_types[88]
+#define SWIGTYPE_p_pthread_t swig_types[89]
+#define SWIGTYPE_p_short swig_types[90]
+#define SWIGTYPE_p_signed_char swig_types[91]
+#define SWIGTYPE_p_size_t swig_types[92]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ABI_t swig_types[93]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Baton_t swig_types[94]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Block_t swig_types[95]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__BreakpointLocation_t swig_types[96]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__BreakpointPrecondition_t swig_types[97]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__BreakpointResolver_t swig_types[98]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__BreakpointSite_t swig_types[99]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Breakpoint_t swig_types[100]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__BroadcasterManager_t swig_types[101]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Broadcaster_t swig_types[102]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__CommandObject_t swig_types[103]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__CompileUnit_t swig_types[104]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Connection_t swig_types[105]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__DataBuffer_t swig_types[106]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__DataExtractor_t swig_types[107]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Debugger_t swig_types[108]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Disassembler_t swig_types[109]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__EventDataStructuredData_t swig_types[110]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__EventData_t swig_types[111]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Event_t swig_types[112]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ExecutionContextRef_t swig_types[113]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ExpressionVariable_t swig_types[114]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__File_t swig_types[115]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__FuncUnwinders_t swig_types[116]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Function_t swig_types[117]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__IOHandler_t swig_types[118]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__IOObject_t swig_types[119]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__IRExecutionUnit_t swig_types[120]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__InlineFunctionInfo_t swig_types[121]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Instruction_t swig_types[122]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__InstrumentationRuntime_t swig_types[123]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__JITLoader_t swig_types[124]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__LanguageRuntime_t swig_types[125]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Listener_t swig_types[126]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__MemoryHistory_t swig_types[127]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__MemoryRegionInfo_t swig_types[128]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Module_t swig_types[129]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ObjectContainer_t swig_types[130]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ObjectFileJITDelegate_t swig_types[131]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ObjectFile_t swig_types[132]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__OptionValueProperties_t swig_types[133]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__OptionValue_t swig_types[134]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Platform_t swig_types[135]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ProcessAttachInfo_t swig_types[136]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ProcessLaunchInfo_t swig_types[137]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Process_t swig_types[138]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__QueueItem_t swig_types[139]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Queue_t swig_types[140]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__REPL_t swig_types[141]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__RecognizedStackFrame_t swig_types[142]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__RegisterCheckpoint_t swig_types[143]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__RegisterContext_t swig_types[144]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__RegularExpression_t swig_types[145]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ScriptInterpreter_t swig_types[146]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ScriptSummaryFormat_t swig_types[147]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ScriptedSyntheticChildren_t swig_types[148]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ScriptedThreadInterface_t swig_types[149]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SearchFilter_t swig_types[150]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SectionLoadList_t swig_types[151]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Section_t swig_types[152]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StackFrameList_t swig_types[153]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StackFrameRecognizer_t swig_types[154]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StackFrame_t swig_types[155]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StopInfo_t swig_types[156]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StreamFile_t swig_types[157]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Stream_t swig_types[158]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StringSummaryFormat_t swig_types[159]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StructuredDataPlugin_t swig_types[160]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SymbolContextSpecifier_t swig_types[161]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SymbolFileType_t swig_types[162]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SyntheticChildrenFrontEnd_t swig_types[163]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SyntheticChildren_t swig_types[164]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Target_t swig_types[165]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ThreadCollection_t swig_types[166]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ThreadPlanTracer_t swig_types[167]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ThreadPlan_t swig_types[168]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ThreadPostMortemTrace_t swig_types[169]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Thread_t swig_types[170]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TraceCursor_t swig_types[171]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Trace_t swig_types[172]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeCategoryImpl_t swig_types[173]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeEnumMemberImpl_t swig_types[174]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeFilterImpl_t swig_types[175]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeFormatImpl_t swig_types[176]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeImpl_t swig_types[177]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeMemberFunctionImpl_t swig_types[178]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeNameSpecifierImpl_t swig_types[179]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeSummaryImpl_t swig_types[180]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeSummaryOptions_t swig_types[181]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeSystemClang_t swig_types[182]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeSystem_t swig_types[183]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Type_t swig_types[184]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__UnixSignals_t swig_types[185]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__UnwindAssembly_t swig_types[186]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__UnwindPlan_t swig_types[187]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__UserExpression_t swig_types[188]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ValueObjectList_t swig_types[189]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ValueObject_t swig_types[190]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Value_t swig_types[191]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__VariableList_t swig_types[192]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Variable_t swig_types[193]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Watchpoint_t swig_types[194]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__WritableDataBuffer_t swig_types[195]
+#define SWIGTYPE_p_std__string swig_types[196]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__DynamicCheckerFunctions_t swig_types[197]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__DynamicLoader_t swig_types[198]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__File_t swig_types[199]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__JITLoaderList_t swig_types[200]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__MemoryRegionInfo_t swig_types[201]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__OperatingSystem_t swig_types[202]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__ScriptedPlatformInterface_t swig_types[203]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__ScriptedProcessInterface_t swig_types[204]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__SectionList_t swig_types[205]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__SourceManager_t swig_types[206]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__StackFrameRecognizerManager_t swig_types[207]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__StructuredDataImpl_t swig_types[208]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__SymbolVendor_t swig_types[209]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__SystemRuntime_t swig_types[210]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__TraceExporter_t swig_types[211]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__BreakpointLocation_t swig_types[212]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Breakpoint_t swig_types[213]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__BroadcasterManager_t swig_types[214]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Debugger_t swig_types[215]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Listener_t swig_types[216]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Module_t swig_types[217]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__ObjectFileJITDelegate_t swig_types[218]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__OptionValue_t swig_types[219]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Process_t swig_types[220]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Queue_t swig_types[221]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Section_t swig_types[222]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__StackFrame_t swig_types[223]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__StructuredDataPlugin_t swig_types[224]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Target_t swig_types[225]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__ThreadPlan_t swig_types[226]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Thread_t swig_types[227]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__TypeSystem_t swig_types[228]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Type_t swig_types[229]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__UnixSignals_t swig_types[230]
+#define SWIGTYPE_p_unsigned_char swig_types[231]
+#define SWIGTYPE_p_unsigned_int swig_types[232]
+#define SWIGTYPE_p_unsigned_long_long swig_types[233]
+#define SWIGTYPE_p_unsigned_short swig_types[234]
+#define SWIGTYPE_p_void swig_types[235]
+static swig_type_info *swig_types[237];
+static swig_module_info swig_module = {swig_types, 236, 0, 0, 0, 0};
 #define SWIG_TypeQuery(name) SWIG_TypeQueryModule(&swig_module, &swig_module, name)
 #define SWIG_MangledTypeQuery(name) SWIG_MangledTypeQueryModule(&swig_module, &swig_module, name)
 
@@ -18284,7 +18290,7 @@ static int _wrap_SBDebugger_GetInputFileHandle(lua_State* L) {
   
   result = lldb_SBDebugger_GetInputFileHandle(arg1);
   {
-    lldb::FileSP &sp = result;
+    lldb::FileSP sp = result;
     if (sp && sp->IsValid()) {
       luaL_Stream *p = (luaL_Stream *)lua_newuserdata(L, sizeof(luaL_Stream));
       p->closef = &LLDBSwigLuaCloseFileHandle;
@@ -18317,7 +18323,7 @@ static int _wrap_SBDebugger_GetOutputFileHandle(lua_State* L) {
   
   result = lldb_SBDebugger_GetOutputFileHandle(arg1);
   {
-    lldb::FileSP &sp = result;
+    lldb::FileSP sp = result;
     if (sp && sp->IsValid()) {
       luaL_Stream *p = (luaL_Stream *)lua_newuserdata(L, sizeof(luaL_Stream));
       p->closef = &LLDBSwigLuaCloseFileHandle;
@@ -18350,7 +18356,7 @@ static int _wrap_SBDebugger_GetErrorFileHandle(lua_State* L) {
   
   result = lldb_SBDebugger_GetErrorFileHandle(arg1);
   {
-    lldb::FileSP &sp = result;
+    lldb::FileSP sp = result;
     if (sp && sp->IsValid()) {
       luaL_Stream *p = (luaL_Stream *)lua_newuserdata(L, sizeof(luaL_Stream));
       p->closef = &LLDBSwigLuaCloseFileHandle;
@@ -18366,6 +18372,112 @@ static int _wrap_SBDebugger_GetErrorFileHandle(lua_State* L) {
 fail:
   lua_error(L);
   return SWIG_arg;
+}
+
+
+static int _wrap_SBDebugger_GetSetting__SWIG_0(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
+  char *arg2 = (char *) 0 ;
+  lldb::SBStructuredData result;
+  
+  SWIG_check_num_args("lldb::SBDebugger::GetSetting",2,2)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::GetSetting",1,"lldb::SBDebugger *");
+  if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBDebugger::GetSetting",2,"char const *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
+    SWIG_fail_ptr("SBDebugger_GetSetting",1,SWIGTYPE_p_lldb__SBDebugger);
+  }
+  
+  arg2 = (char *)lua_tostring(L, 2);
+  result = (arg1)->GetSetting((char const *)arg2);
+  {
+    lldb::SBStructuredData * resultptr = new lldb::SBStructuredData((const lldb::SBStructuredData &) result);
+    SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBStructuredData,1); SWIG_arg++;
+  }
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_SBDebugger_GetSetting__SWIG_1(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBDebugger *arg1 = (lldb::SBDebugger *) 0 ;
+  lldb::SBStructuredData result;
+  
+  SWIG_check_num_args("lldb::SBDebugger::GetSetting",1,1)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::GetSetting",1,"lldb::SBDebugger *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
+    SWIG_fail_ptr("SBDebugger_GetSetting",1,SWIGTYPE_p_lldb__SBDebugger);
+  }
+  
+  result = (arg1)->GetSetting();
+  {
+    lldb::SBStructuredData * resultptr = new lldb::SBStructuredData((const lldb::SBStructuredData &) result);
+    SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBStructuredData,1); SWIG_arg++;
+  }
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_SBDebugger_GetSetting(lua_State* L) {
+  int argc;
+  int argv[3]={
+    1,2,3
+  };
+  
+  argc = lua_gettop(L);
+  if (argc == 1) {
+    int _v;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBDebugger, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      return _wrap_SBDebugger_GetSetting__SWIG_1(L);
+    }
+  }
+  if (argc == 2) {
+    int _v;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBDebugger, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        _v = SWIG_lua_isnilstring(L,argv[1]);
+      }
+      if (_v) {
+        return _wrap_SBDebugger_GetSetting__SWIG_0(L);
+      }
+    }
+  }
+  
+  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBDebugger_GetSetting'\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBDebugger::GetSetting(char const *)\n"
+    "    lldb::SBDebugger::GetSetting()\n");
+  lua_error(L);return 0;
 }
 
 
@@ -21337,6 +21449,7 @@ static swig_lua_method swig_SBDebugger_methods[]= {
     { "GetInputFileHandle", _wrap_SBDebugger_GetInputFileHandle},
     { "GetOutputFileHandle", _wrap_SBDebugger_GetOutputFileHandle},
     { "GetErrorFileHandle", _wrap_SBDebugger_GetErrorFileHandle},
+    { "GetSetting", _wrap_SBDebugger_GetSetting},
     { "SetInputString", _wrap_SBDebugger_SetInputString},
     { "SetInputFile", _wrap_SBDebugger_SetInputFile},
     { "SetOutputFile", _wrap_SBDebugger_SetOutputFile},
@@ -26074,7 +26187,7 @@ static int _wrap_SBFile_GetFile(lua_State* L) {
   
   result = (arg1)->GetFile();
   {
-    lldb::FileSP &sp = result;
+    lldb::FileSP sp = result;
     if (sp && sp->IsValid()) {
       luaL_Stream *p = (luaL_Stream *)lua_newuserdata(L, sizeof(luaL_Stream));
       p->closef = &LLDBSwigLuaCloseFileHandle;
@@ -30257,6 +30370,39 @@ fail:
 }
 
 
+static int _wrap_SBInstruction_GetControlFlowKind(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBInstruction *arg1 = (lldb::SBInstruction *) 0 ;
+  lldb::SBTarget arg2 ;
+  lldb::SBTarget *argp2 ;
+  lldb::InstructionControlFlowKind result;
+  
+  SWIG_check_num_args("lldb::SBInstruction::GetControlFlowKind",2,2)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBInstruction::GetControlFlowKind",1,"lldb::SBInstruction *");
+  if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBInstruction::GetControlFlowKind",2,"lldb::SBTarget");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBInstruction,0))){
+    SWIG_fail_ptr("SBInstruction_GetControlFlowKind",1,SWIGTYPE_p_lldb__SBInstruction);
+  }
+  
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&argp2,SWIGTYPE_p_lldb__SBTarget,0))){
+    SWIG_fail_ptr("SBInstruction_GetControlFlowKind",2,SWIGTYPE_p_lldb__SBTarget);
+  }
+  arg2 = *argp2;
+  
+  result = (lldb::InstructionControlFlowKind)(arg1)->GetControlFlowKind(arg2);
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
 static int _wrap_SBInstruction_GetData(lua_State* L) {
   int SWIG_arg = 0;
   lldb::SBInstruction *arg1 = (lldb::SBInstruction *) 0 ;
@@ -30684,6 +30830,7 @@ static swig_lua_method swig_SBInstruction_methods[]= {
     { "GetMnemonic", _wrap_SBInstruction_GetMnemonic},
     { "GetOperands", _wrap_SBInstruction_GetOperands},
     { "GetComment", _wrap_SBInstruction_GetComment},
+    { "GetControlFlowKind", _wrap_SBInstruction_GetControlFlowKind},
     { "GetData", _wrap_SBInstruction_GetData},
     { "GetByteSize", _wrap_SBInstruction_GetByteSize},
     { "DoesBranch", _wrap_SBInstruction_DoesBranch},
@@ -46647,6 +46794,54 @@ fail:
 }
 
 
+static int _wrap_SBSymbol_GetValue(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBSymbol *arg1 = (lldb::SBSymbol *) 0 ;
+  uint64_t result;
+  
+  SWIG_check_num_args("lldb::SBSymbol::GetValue",1,1)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBSymbol::GetValue",1,"lldb::SBSymbol *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBSymbol,0))){
+    SWIG_fail_ptr("SBSymbol_GetValue",1,SWIGTYPE_p_lldb__SBSymbol);
+  }
+  
+  result = (uint64_t)(arg1)->GetValue();
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_SBSymbol_GetSize(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBSymbol *arg1 = (lldb::SBSymbol *) 0 ;
+  uint64_t result;
+  
+  SWIG_check_num_args("lldb::SBSymbol::GetSize",1,1)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBSymbol::GetSize",1,"lldb::SBSymbol *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBSymbol,0))){
+    SWIG_fail_ptr("SBSymbol_GetSize",1,SWIGTYPE_p_lldb__SBSymbol);
+  }
+  
+  result = (uint64_t)(arg1)->GetSize();
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
 static int _wrap_SBSymbol_GetPrologueByteSize(lua_State* L) {
   int SWIG_arg = 0;
   lldb::SBSymbol *arg1 = (lldb::SBSymbol *) 0 ;
@@ -46852,6 +47047,8 @@ static swig_lua_method swig_SBSymbol_methods[]= {
     { "GetInstructions", _wrap_SBSymbol_GetInstructions},
     { "GetStartAddress", _wrap_SBSymbol_GetStartAddress},
     { "GetEndAddress", _wrap_SBSymbol_GetEndAddress},
+    { "GetValue", _wrap_SBSymbol_GetValue},
+    { "GetSize", _wrap_SBSymbol_GetSize},
     { "GetPrologueByteSize", _wrap_SBSymbol_GetPrologueByteSize},
     { "GetType", _wrap_SBSymbol_GetType},
     { "GetDescription", _wrap_SBSymbol_GetDescription},
@@ -58701,6 +58898,47 @@ fail:
 }
 
 
+static int _wrap_SBTrace_CreateNewCursor(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBTrace *arg1 = (lldb::SBTrace *) 0 ;
+  lldb::SBError *arg2 = 0 ;
+  lldb::SBThread *arg3 = 0 ;
+  lldb::SBTraceCursor result;
+  
+  SWIG_check_num_args("lldb::SBTrace::CreateNewCursor",3,3)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTrace::CreateNewCursor",1,"lldb::SBTrace *");
+  if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTrace::CreateNewCursor",2,"lldb::SBError &");
+  if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBTrace::CreateNewCursor",3,"lldb::SBThread &");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTrace,0))){
+    SWIG_fail_ptr("SBTrace_CreateNewCursor",1,SWIGTYPE_p_lldb__SBTrace);
+  }
+  
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBError,0))){
+    SWIG_fail_ptr("SBTrace_CreateNewCursor",2,SWIGTYPE_p_lldb__SBError);
+  }
+  
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_lldb__SBThread,0))){
+    SWIG_fail_ptr("SBTrace_CreateNewCursor",3,SWIGTYPE_p_lldb__SBThread);
+  }
+  
+  result = (arg1)->CreateNewCursor(*arg2,*arg3);
+  {
+    lldb::SBTraceCursor * resultptr = new lldb::SBTraceCursor((const lldb::SBTraceCursor &) result);
+    SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBTraceCursor,1); SWIG_arg++;
+  }
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
 static int _wrap_SBTrace_GetStartConfigurationHelp(lua_State* L) {
   int SWIG_arg = 0;
   lldb::SBTrace *arg1 = (lldb::SBTrace *) 0 ;
@@ -59203,6 +59441,7 @@ static swig_lua_attribute swig_SBTrace_attributes[] = {
     {0,0,0}
 };
 static swig_lua_method swig_SBTrace_methods[]= {
+    { "CreateNewCursor", _wrap_SBTrace_CreateNewCursor},
     { "GetStartConfigurationHelp", _wrap_SBTrace_GetStartConfigurationHelp},
     { "SaveToDisk", _wrap_SBTrace_SaveToDisk},
     { "Start", _wrap_SBTrace_Start},
@@ -59238,6 +59477,592 @@ static swig_lua_namespace swig_SBTrace_Sf_SwigStatic = {
 static swig_lua_class *swig_SBTrace_bases[] = {0};
 static const char *swig_SBTrace_base_names[] = {0};
 static swig_lua_class _wrap_class_SBTrace = { "SBTrace", "SBTrace", &SWIGTYPE_p_lldb__SBTrace,_proxy__wrap_new_SBTrace, swig_delete_SBTrace, swig_SBTrace_methods, swig_SBTrace_attributes, &swig_SBTrace_Sf_SwigStatic, swig_SBTrace_meta, swig_SBTrace_bases, swig_SBTrace_base_names };
+
+static int _wrap_new_SBTraceCursor__SWIG_0(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBTraceCursor *result = 0 ;
+  
+  SWIG_check_num_args("lldb::SBTraceCursor::SBTraceCursor",0,0)
+  result = (lldb::SBTraceCursor *)new lldb::SBTraceCursor();
+  SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBTraceCursor,1); SWIG_arg++; 
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_new_SBTraceCursor__SWIG_1(lua_State* L) {
+  int SWIG_arg = 0;
+  SwigValueWrapper< std::shared_ptr< lldb_private::TraceCursor > > arg1 ;
+  lldb::TraceCursorSP *argp1 ;
+  lldb::SBTraceCursor *result = 0 ;
+  
+  SWIG_check_num_args("lldb::SBTraceCursor::SBTraceCursor",1,1)
+  if(!lua_isuserdata(L,1)) SWIG_fail_arg("lldb::SBTraceCursor::SBTraceCursor",1,"lldb::TraceCursorSP");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&argp1,SWIGTYPE_p_std__shared_ptrT_lldb_private__TraceCursor_t,0))){
+    SWIG_fail_ptr("new_SBTraceCursor",1,SWIGTYPE_p_std__shared_ptrT_lldb_private__TraceCursor_t);
+  }
+  arg1 = *argp1;
+  
+  result = (lldb::SBTraceCursor *)new lldb::SBTraceCursor(arg1);
+  SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBTraceCursor,1); SWIG_arg++; 
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_new_SBTraceCursor(lua_State* L) {
+  int argc;
+  int argv[2]={
+    1,2
+  };
+  
+  argc = lua_gettop(L);
+  if (argc == 0) {
+    return _wrap_new_SBTraceCursor__SWIG_0(L);
+  }
+  if (argc == 1) {
+    int _v;
+    {
+      void *ptr;
+      if (lua_isuserdata(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_std__shared_ptrT_lldb_private__TraceCursor_t, SWIG_POINTER_NO_NULL)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      return _wrap_new_SBTraceCursor__SWIG_1(L);
+    }
+  }
+  
+  SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'new_SBTraceCursor'\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBTraceCursor::SBTraceCursor()\n"
+    "    lldb::SBTraceCursor::SBTraceCursor(lldb::TraceCursorSP)\n");
+  lua_error(L);return 0;
+}
+
+
+static int _wrap_SBTraceCursor_SetForwards(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBTraceCursor *arg1 = (lldb::SBTraceCursor *) 0 ;
+  bool arg2 ;
+  
+  SWIG_check_num_args("lldb::SBTraceCursor::SetForwards",2,2)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTraceCursor::SetForwards",1,"lldb::SBTraceCursor *");
+  if(!lua_isboolean(L,2)) SWIG_fail_arg("lldb::SBTraceCursor::SetForwards",2,"bool");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTraceCursor,0))){
+    SWIG_fail_ptr("SBTraceCursor_SetForwards",1,SWIGTYPE_p_lldb__SBTraceCursor);
+  }
+  
+  arg2 = (lua_toboolean(L, 2)!=0);
+  (arg1)->SetForwards(arg2);
+  
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_SBTraceCursor_IsForwards(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBTraceCursor *arg1 = (lldb::SBTraceCursor *) 0 ;
+  bool result;
+  
+  SWIG_check_num_args("lldb::SBTraceCursor::IsForwards",1,1)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTraceCursor::IsForwards",1,"lldb::SBTraceCursor const *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTraceCursor,0))){
+    SWIG_fail_ptr("SBTraceCursor_IsForwards",1,SWIGTYPE_p_lldb__SBTraceCursor);
+  }
+  
+  result = (bool)((lldb::SBTraceCursor const *)arg1)->IsForwards();
+  lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_SBTraceCursor_Next(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBTraceCursor *arg1 = (lldb::SBTraceCursor *) 0 ;
+  
+  SWIG_check_num_args("lldb::SBTraceCursor::Next",1,1)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTraceCursor::Next",1,"lldb::SBTraceCursor *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTraceCursor,0))){
+    SWIG_fail_ptr("SBTraceCursor_Next",1,SWIGTYPE_p_lldb__SBTraceCursor);
+  }
+  
+  (arg1)->Next();
+  
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_SBTraceCursor_HasValue(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBTraceCursor *arg1 = (lldb::SBTraceCursor *) 0 ;
+  bool result;
+  
+  SWIG_check_num_args("lldb::SBTraceCursor::HasValue",1,1)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTraceCursor::HasValue",1,"lldb::SBTraceCursor *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTraceCursor,0))){
+    SWIG_fail_ptr("SBTraceCursor_HasValue",1,SWIGTYPE_p_lldb__SBTraceCursor);
+  }
+  
+  result = (bool)(arg1)->HasValue();
+  lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_SBTraceCursor_GoToId(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBTraceCursor *arg1 = (lldb::SBTraceCursor *) 0 ;
+  lldb::user_id_t arg2 ;
+  bool result;
+  
+  SWIG_check_num_args("lldb::SBTraceCursor::GoToId",2,2)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTraceCursor::GoToId",1,"lldb::SBTraceCursor *");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTraceCursor::GoToId",2,"lldb::user_id_t");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTraceCursor,0))){
+    SWIG_fail_ptr("SBTraceCursor_GoToId",1,SWIGTYPE_p_lldb__SBTraceCursor);
+  }
+  
+  arg2 = (lldb::user_id_t)lua_tointeger(L, 2); 
+  result = (bool)(arg1)->GoToId(arg2);
+  lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_SBTraceCursor_HasId(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBTraceCursor *arg1 = (lldb::SBTraceCursor *) 0 ;
+  lldb::user_id_t arg2 ;
+  bool result;
+  
+  SWIG_check_num_args("lldb::SBTraceCursor::HasId",2,2)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTraceCursor::HasId",1,"lldb::SBTraceCursor const *");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTraceCursor::HasId",2,"lldb::user_id_t");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTraceCursor,0))){
+    SWIG_fail_ptr("SBTraceCursor_HasId",1,SWIGTYPE_p_lldb__SBTraceCursor);
+  }
+  
+  arg2 = (lldb::user_id_t)lua_tointeger(L, 2); 
+  result = (bool)((lldb::SBTraceCursor const *)arg1)->HasId(arg2);
+  lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_SBTraceCursor_GetId(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBTraceCursor *arg1 = (lldb::SBTraceCursor *) 0 ;
+  lldb::user_id_t result;
+  
+  SWIG_check_num_args("lldb::SBTraceCursor::GetId",1,1)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTraceCursor::GetId",1,"lldb::SBTraceCursor const *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTraceCursor,0))){
+    SWIG_fail_ptr("SBTraceCursor_GetId",1,SWIGTYPE_p_lldb__SBTraceCursor);
+  }
+  
+  result = (lldb::user_id_t)((lldb::SBTraceCursor const *)arg1)->GetId();
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_SBTraceCursor_Seek(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBTraceCursor *arg1 = (lldb::SBTraceCursor *) 0 ;
+  int64_t arg2 ;
+  lldb::TraceCursorSeekType arg3 ;
+  bool result;
+  
+  SWIG_check_num_args("lldb::SBTraceCursor::Seek",3,3)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTraceCursor::Seek",1,"lldb::SBTraceCursor *");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTraceCursor::Seek",2,"int64_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBTraceCursor::Seek",3,"lldb::TraceCursorSeekType");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTraceCursor,0))){
+    SWIG_fail_ptr("SBTraceCursor_Seek",1,SWIGTYPE_p_lldb__SBTraceCursor);
+  }
+  
+  arg2 = (int64_t)lua_tointeger(L, 2); 
+  arg3 = (lldb::TraceCursorSeekType)lua_tointeger(L, 3); 
+  result = (bool)(arg1)->Seek(arg2,arg3);
+  lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_SBTraceCursor_GetItemKind(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBTraceCursor *arg1 = (lldb::SBTraceCursor *) 0 ;
+  lldb::TraceItemKind result;
+  
+  SWIG_check_num_args("lldb::SBTraceCursor::GetItemKind",1,1)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTraceCursor::GetItemKind",1,"lldb::SBTraceCursor const *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTraceCursor,0))){
+    SWIG_fail_ptr("SBTraceCursor_GetItemKind",1,SWIGTYPE_p_lldb__SBTraceCursor);
+  }
+  
+  result = (lldb::TraceItemKind)((lldb::SBTraceCursor const *)arg1)->GetItemKind();
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_SBTraceCursor_IsError(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBTraceCursor *arg1 = (lldb::SBTraceCursor *) 0 ;
+  bool result;
+  
+  SWIG_check_num_args("lldb::SBTraceCursor::IsError",1,1)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTraceCursor::IsError",1,"lldb::SBTraceCursor const *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTraceCursor,0))){
+    SWIG_fail_ptr("SBTraceCursor_IsError",1,SWIGTYPE_p_lldb__SBTraceCursor);
+  }
+  
+  result = (bool)((lldb::SBTraceCursor const *)arg1)->IsError();
+  lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_SBTraceCursor_GetError(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBTraceCursor *arg1 = (lldb::SBTraceCursor *) 0 ;
+  char *result = 0 ;
+  
+  SWIG_check_num_args("lldb::SBTraceCursor::GetError",1,1)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTraceCursor::GetError",1,"lldb::SBTraceCursor const *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTraceCursor,0))){
+    SWIG_fail_ptr("SBTraceCursor_GetError",1,SWIGTYPE_p_lldb__SBTraceCursor);
+  }
+  
+  result = (char *)((lldb::SBTraceCursor const *)arg1)->GetError();
+  lua_pushstring(L,(const char *)result); SWIG_arg++;
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_SBTraceCursor_IsEvent(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBTraceCursor *arg1 = (lldb::SBTraceCursor *) 0 ;
+  bool result;
+  
+  SWIG_check_num_args("lldb::SBTraceCursor::IsEvent",1,1)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTraceCursor::IsEvent",1,"lldb::SBTraceCursor const *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTraceCursor,0))){
+    SWIG_fail_ptr("SBTraceCursor_IsEvent",1,SWIGTYPE_p_lldb__SBTraceCursor);
+  }
+  
+  result = (bool)((lldb::SBTraceCursor const *)arg1)->IsEvent();
+  lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_SBTraceCursor_GetEventType(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBTraceCursor *arg1 = (lldb::SBTraceCursor *) 0 ;
+  lldb::TraceEvent result;
+  
+  SWIG_check_num_args("lldb::SBTraceCursor::GetEventType",1,1)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTraceCursor::GetEventType",1,"lldb::SBTraceCursor const *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTraceCursor,0))){
+    SWIG_fail_ptr("SBTraceCursor_GetEventType",1,SWIGTYPE_p_lldb__SBTraceCursor);
+  }
+  
+  result = (lldb::TraceEvent)((lldb::SBTraceCursor const *)arg1)->GetEventType();
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_SBTraceCursor_GetEventTypeAsString(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBTraceCursor *arg1 = (lldb::SBTraceCursor *) 0 ;
+  char *result = 0 ;
+  
+  SWIG_check_num_args("lldb::SBTraceCursor::GetEventTypeAsString",1,1)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTraceCursor::GetEventTypeAsString",1,"lldb::SBTraceCursor const *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTraceCursor,0))){
+    SWIG_fail_ptr("SBTraceCursor_GetEventTypeAsString",1,SWIGTYPE_p_lldb__SBTraceCursor);
+  }
+  
+  result = (char *)((lldb::SBTraceCursor const *)arg1)->GetEventTypeAsString();
+  lua_pushstring(L,(const char *)result); SWIG_arg++;
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_SBTraceCursor_IsInstruction(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBTraceCursor *arg1 = (lldb::SBTraceCursor *) 0 ;
+  bool result;
+  
+  SWIG_check_num_args("lldb::SBTraceCursor::IsInstruction",1,1)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTraceCursor::IsInstruction",1,"lldb::SBTraceCursor const *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTraceCursor,0))){
+    SWIG_fail_ptr("SBTraceCursor_IsInstruction",1,SWIGTYPE_p_lldb__SBTraceCursor);
+  }
+  
+  result = (bool)((lldb::SBTraceCursor const *)arg1)->IsInstruction();
+  lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_SBTraceCursor_GetLoadAddress(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBTraceCursor *arg1 = (lldb::SBTraceCursor *) 0 ;
+  lldb::addr_t result;
+  
+  SWIG_check_num_args("lldb::SBTraceCursor::GetLoadAddress",1,1)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTraceCursor::GetLoadAddress",1,"lldb::SBTraceCursor const *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTraceCursor,0))){
+    SWIG_fail_ptr("SBTraceCursor_GetLoadAddress",1,SWIGTYPE_p_lldb__SBTraceCursor);
+  }
+  
+  result = (lldb::addr_t)((lldb::SBTraceCursor const *)arg1)->GetLoadAddress();
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_SBTraceCursor_GetCPU(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBTraceCursor *arg1 = (lldb::SBTraceCursor *) 0 ;
+  lldb::cpu_id_t result;
+  
+  SWIG_check_num_args("lldb::SBTraceCursor::GetCPU",1,1)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTraceCursor::GetCPU",1,"lldb::SBTraceCursor const *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTraceCursor,0))){
+    SWIG_fail_ptr("SBTraceCursor_GetCPU",1,SWIGTYPE_p_lldb__SBTraceCursor);
+  }
+  
+  result = (lldb::cpu_id_t)((lldb::SBTraceCursor const *)arg1)->GetCPU();
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_SBTraceCursor_IsValid(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBTraceCursor *arg1 = (lldb::SBTraceCursor *) 0 ;
+  bool result;
+  
+  SWIG_check_num_args("lldb::SBTraceCursor::IsValid",1,1)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTraceCursor::IsValid",1,"lldb::SBTraceCursor const *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTraceCursor,0))){
+    SWIG_fail_ptr("SBTraceCursor_IsValid",1,SWIGTYPE_p_lldb__SBTraceCursor);
+  }
+  
+  result = (bool)((lldb::SBTraceCursor const *)arg1)->IsValid();
+  lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static void swig_delete_SBTraceCursor(void *obj) {
+lldb::SBTraceCursor *arg1 = (lldb::SBTraceCursor *) obj;
+delete arg1;
+}
+static int _proxy__wrap_new_SBTraceCursor(lua_State *L) {
+    assert(lua_istable(L,1));
+    lua_pushcfunction(L,_wrap_new_SBTraceCursor);
+    assert(!lua_isnil(L,-1));
+    lua_replace(L,1); /* replace our table with real constructor */
+    lua_call(L,lua_gettop(L)-1,1);
+    return 1;
+}
+static swig_lua_attribute swig_SBTraceCursor_attributes[] = {
+    {0,0,0}
+};
+static swig_lua_method swig_SBTraceCursor_methods[]= {
+    { "SetForwards", _wrap_SBTraceCursor_SetForwards},
+    { "IsForwards", _wrap_SBTraceCursor_IsForwards},
+    { "Next", _wrap_SBTraceCursor_Next},
+    { "HasValue", _wrap_SBTraceCursor_HasValue},
+    { "GoToId", _wrap_SBTraceCursor_GoToId},
+    { "HasId", _wrap_SBTraceCursor_HasId},
+    { "GetId", _wrap_SBTraceCursor_GetId},
+    { "Seek", _wrap_SBTraceCursor_Seek},
+    { "GetItemKind", _wrap_SBTraceCursor_GetItemKind},
+    { "IsError", _wrap_SBTraceCursor_IsError},
+    { "GetError", _wrap_SBTraceCursor_GetError},
+    { "IsEvent", _wrap_SBTraceCursor_IsEvent},
+    { "GetEventType", _wrap_SBTraceCursor_GetEventType},
+    { "GetEventTypeAsString", _wrap_SBTraceCursor_GetEventTypeAsString},
+    { "IsInstruction", _wrap_SBTraceCursor_IsInstruction},
+    { "GetLoadAddress", _wrap_SBTraceCursor_GetLoadAddress},
+    { "GetCPU", _wrap_SBTraceCursor_GetCPU},
+    { "IsValid", _wrap_SBTraceCursor_IsValid},
+    {0,0}
+};
+static swig_lua_method swig_SBTraceCursor_meta[] = {
+    {0,0}
+};
+
+static swig_lua_attribute swig_SBTraceCursor_Sf_SwigStatic_attributes[] = {
+    {0,0,0}
+};
+static swig_lua_const_info swig_SBTraceCursor_Sf_SwigStatic_constants[]= {
+    {0,0,0,0,0,0}
+};
+static swig_lua_method swig_SBTraceCursor_Sf_SwigStatic_methods[]= {
+    {0,0}
+};
+static swig_lua_class* swig_SBTraceCursor_Sf_SwigStatic_classes[]= {
+    0
+};
+
+static swig_lua_namespace swig_SBTraceCursor_Sf_SwigStatic = {
+    "SBTraceCursor",
+    swig_SBTraceCursor_Sf_SwigStatic_methods,
+    swig_SBTraceCursor_Sf_SwigStatic_attributes,
+    swig_SBTraceCursor_Sf_SwigStatic_constants,
+    swig_SBTraceCursor_Sf_SwigStatic_classes,
+    0
+};
+static swig_lua_class *swig_SBTraceCursor_bases[] = {0};
+static const char *swig_SBTraceCursor_base_names[] = {0};
+static swig_lua_class _wrap_class_SBTraceCursor = { "SBTraceCursor", "SBTraceCursor", &SWIGTYPE_p_lldb__SBTraceCursor,_proxy__wrap_new_SBTraceCursor, swig_delete_SBTraceCursor, swig_SBTraceCursor_methods, swig_SBTraceCursor_attributes, &swig_SBTraceCursor_Sf_SwigStatic, swig_SBTraceCursor_meta, swig_SBTraceCursor_bases, swig_SBTraceCursor_base_names };
 
 static int _wrap_new_SBTypeMember__SWIG_0(lua_State* L) {
   int SWIG_arg = 0;
@@ -64429,6 +65254,29 @@ fail:
 
 static int _wrap_new_SBTypeNameSpecifier__SWIG_3(lua_State* L) {
   int SWIG_arg = 0;
+  char *arg1 = (char *) 0 ;
+  lldb::FormatterMatchType arg2 ;
+  lldb::SBTypeNameSpecifier *result = 0 ;
+  
+  SWIG_check_num_args("lldb::SBTypeNameSpecifier::SBTypeNameSpecifier",2,2)
+  if(!SWIG_lua_isnilstring(L,1)) SWIG_fail_arg("lldb::SBTypeNameSpecifier::SBTypeNameSpecifier",1,"char const *");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTypeNameSpecifier::SBTypeNameSpecifier",2,"lldb::FormatterMatchType");
+  arg1 = (char *)lua_tostring(L, 1);
+  arg2 = (lldb::FormatterMatchType)lua_tointeger(L, 2); 
+  result = (lldb::SBTypeNameSpecifier *)new lldb::SBTypeNameSpecifier((char const *)arg1,arg2);
+  SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBTypeNameSpecifier,1); SWIG_arg++; 
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_new_SBTypeNameSpecifier__SWIG_4(lua_State* L) {
+  int SWIG_arg = 0;
   lldb::SBType arg1 ;
   lldb::SBType *argp1 ;
   lldb::SBTypeNameSpecifier *result = 0 ;
@@ -64453,7 +65301,7 @@ fail:
 }
 
 
-static int _wrap_new_SBTypeNameSpecifier__SWIG_4(lua_State* L) {
+static int _wrap_new_SBTypeNameSpecifier__SWIG_5(lua_State* L) {
   int SWIG_arg = 0;
   lldb::SBTypeNameSpecifier *arg1 = 0 ;
   lldb::SBTypeNameSpecifier *result = 0 ;
@@ -64498,7 +65346,7 @@ static int _wrap_new_SBTypeNameSpecifier(lua_State* L) {
       }
     }
     if (_v) {
-      return _wrap_new_SBTypeNameSpecifier__SWIG_3(L);
+      return _wrap_new_SBTypeNameSpecifier__SWIG_4(L);
     }
   }
   if (argc == 1) {
@@ -64512,7 +65360,7 @@ static int _wrap_new_SBTypeNameSpecifier(lua_State* L) {
       }
     }
     if (_v) {
-      return _wrap_new_SBTypeNameSpecifier__SWIG_4(L);
+      return _wrap_new_SBTypeNameSpecifier__SWIG_5(L);
     }
   }
   if (argc == 1) {
@@ -64538,12 +65386,27 @@ static int _wrap_new_SBTypeNameSpecifier(lua_State* L) {
       }
     }
   }
+  if (argc == 2) {
+    int _v;
+    {
+      _v = SWIG_lua_isnilstring(L,argv[0]);
+    }
+    if (_v) {
+      {
+        _v = lua_isnumber(L,argv[1]);
+      }
+      if (_v) {
+        return _wrap_new_SBTypeNameSpecifier__SWIG_3(L);
+      }
+    }
+  }
   
   SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'new_SBTypeNameSpecifier'\n"
     "  Possible C/C++ prototypes are:\n"
     "    lldb::SBTypeNameSpecifier::SBTypeNameSpecifier()\n"
     "    lldb::SBTypeNameSpecifier::SBTypeNameSpecifier(char const *,bool)\n"
     "    lldb::SBTypeNameSpecifier::SBTypeNameSpecifier(char const *)\n"
+    "    lldb::SBTypeNameSpecifier::SBTypeNameSpecifier(char const *,lldb::FormatterMatchType)\n"
     "    lldb::SBTypeNameSpecifier::SBTypeNameSpecifier(lldb::SBType)\n"
     "    lldb::SBTypeNameSpecifier::SBTypeNameSpecifier(lldb::SBTypeNameSpecifier const &)\n");
   lua_error(L);return 0;
@@ -64646,6 +65509,30 @@ static int _wrap_SBTypeNameSpecifier_GetType(lua_State* L) {
     lldb::SBType * resultptr = new lldb::SBType((const lldb::SBType &) result);
     SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBType,1); SWIG_arg++;
   }
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_SBTypeNameSpecifier_GetMatchType(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBTypeNameSpecifier *arg1 = (lldb::SBTypeNameSpecifier *) 0 ;
+  lldb::FormatterMatchType result;
+  
+  SWIG_check_num_args("lldb::SBTypeNameSpecifier::GetMatchType",1,1)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeNameSpecifier::GetMatchType",1,"lldb::SBTypeNameSpecifier *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeNameSpecifier,0))){
+    SWIG_fail_ptr("SBTypeNameSpecifier_GetMatchType",1,SWIGTYPE_p_lldb__SBTypeNameSpecifier);
+  }
+  
+  result = (lldb::FormatterMatchType)(arg1)->GetMatchType();
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -64789,6 +65676,7 @@ static swig_lua_method swig_SBTypeNameSpecifier_methods[]= {
     { "IsEqualTo", _wrap_SBTypeNameSpecifier_IsEqualTo},
     { "GetName", _wrap_SBTypeNameSpecifier_GetName},
     { "GetType", _wrap_SBTypeNameSpecifier_GetType},
+    { "GetMatchType", _wrap_SBTypeNameSpecifier_GetMatchType},
     { "IsRegex", _wrap_SBTypeNameSpecifier_IsRegex},
     { "GetDescription", _wrap_SBTypeNameSpecifier_GetDescription},
     { "__eq", _wrap_SBTypeNameSpecifier___eq},
@@ -70784,6 +71672,33 @@ fail:
 }
 
 
+static int _wrap_SBValueList_GetError(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBValueList *arg1 = (lldb::SBValueList *) 0 ;
+  lldb::SBError result;
+  
+  SWIG_check_num_args("lldb::SBValueList::GetError",1,1)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValueList::GetError",1,"lldb::SBValueList *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValueList,0))){
+    SWIG_fail_ptr("SBValueList_GetError",1,SWIGTYPE_p_lldb__SBValueList);
+  }
+  
+  result = (arg1)->GetError();
+  {
+    lldb::SBError * resultptr = new lldb::SBError((const lldb::SBError &) result);
+    SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBError,1); SWIG_arg++;
+  }
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
 static int _wrap_SBValueList___tostring(lua_State* L) {
   int SWIG_arg = 0;
   lldb::SBValueList *arg1 = (lldb::SBValueList *) 0 ;
@@ -70831,6 +71746,7 @@ static swig_lua_method swig_SBValueList_methods[]= {
     { "GetValueAtIndex", _wrap_SBValueList_GetValueAtIndex},
     { "FindValueObjectByUID", _wrap_SBValueList_FindValueObjectByUID},
     { "GetFirstValueByName", _wrap_SBValueList_GetFirstValueByName},
+    { "GetError", _wrap_SBValueList_GetError},
     { "__tostring", _wrap_SBValueList___tostring},
     {0,0}
 };
@@ -72050,6 +72966,7 @@ static swig_lua_const_info swig_SwigModule_constants[]= {
     {SWIG_LUA_CONSTTAB_INT("LLDB_INVALID_LINE_NUMBER", 4294967295U)},
     {SWIG_LUA_CONSTTAB_INT("LLDB_INVALID_COLUMN_NUMBER", 0)},
     {SWIG_LUA_CONSTTAB_INT("LLDB_INVALID_QUEUE_ID", 0)},
+    {SWIG_LUA_CONSTTAB_INT("LLDB_INVALID_CPU_ID", 4294967295U)},
     {SWIG_LUA_CONSTTAB_STRING("LLDB_ARCH_DEFAULT", "systemArch")},
     {SWIG_LUA_CONSTTAB_STRING("LLDB_ARCH_DEFAULT_32BIT", "systemArch32")},
     {SWIG_LUA_CONSTTAB_STRING("LLDB_ARCH_DEFAULT_64BIT", "systemArch64")},
@@ -72243,6 +73160,7 @@ static swig_lua_const_info swig_SwigModule_constants[]= {
     {SWIG_LUA_CONSTTAB_INT("eSymbolContextSymbol", lldb::eSymbolContextSymbol)},
     {SWIG_LUA_CONSTTAB_INT("eSymbolContextEverything", lldb::eSymbolContextEverything)},
     {SWIG_LUA_CONSTTAB_INT("eSymbolContextVariable", lldb::eSymbolContextVariable)},
+    {SWIG_LUA_CONSTTAB_INT("eSymbolContextLastItem", lldb::eSymbolContextLastItem)},
     {SWIG_LUA_CONSTTAB_INT("ePermissionsWritable", lldb::ePermissionsWritable)},
     {SWIG_LUA_CONSTTAB_INT("ePermissionsReadable", lldb::ePermissionsReadable)},
     {SWIG_LUA_CONSTTAB_INT("ePermissionsExecutable", lldb::ePermissionsExecutable)},
@@ -72429,8 +73347,6 @@ static swig_lua_const_info swig_SwigModule_constants[]= {
     {SWIG_LUA_CONSTTAB_INT("eArgTypeConnectURL", lldb::eArgTypeConnectURL)},
     {SWIG_LUA_CONSTTAB_INT("eArgTypeTargetID", lldb::eArgTypeTargetID)},
     {SWIG_LUA_CONSTTAB_INT("eArgTypeStopHookID", lldb::eArgTypeStopHookID)},
-    {SWIG_LUA_CONSTTAB_INT("eArgTypeReproducerProvider", lldb::eArgTypeReproducerProvider)},
-    {SWIG_LUA_CONSTTAB_INT("eArgTypeReproducerSignal", lldb::eArgTypeReproducerSignal)},
     {SWIG_LUA_CONSTTAB_INT("eArgTypeLastArg", lldb::eArgTypeLastArg)},
     {SWIG_LUA_CONSTTAB_INT("eSymbolTypeAny", lldb::eSymbolTypeAny)},
     {SWIG_LUA_CONSTTAB_INT("eSymbolTypeInvalid", lldb::eSymbolTypeInvalid)},
@@ -72607,6 +73523,10 @@ static swig_lua_const_info swig_SwigModule_constants[]= {
     {SWIG_LUA_CONSTTAB_INT("eTemplateArgumentKindExpression", lldb::eTemplateArgumentKindExpression)},
     {SWIG_LUA_CONSTTAB_INT("eTemplateArgumentKindPack", lldb::eTemplateArgumentKindPack)},
     {SWIG_LUA_CONSTTAB_INT("eTemplateArgumentKindNullPtr", lldb::eTemplateArgumentKindNullPtr)},
+    {SWIG_LUA_CONSTTAB_INT("eFormatterMatchExact", lldb::eFormatterMatchExact)},
+    {SWIG_LUA_CONSTTAB_INT("eFormatterMatchRegex", lldb::eFormatterMatchRegex)},
+    {SWIG_LUA_CONSTTAB_INT("eFormatterMatchCallback", lldb::eFormatterMatchCallback)},
+    {SWIG_LUA_CONSTTAB_INT("eLastFormatterMatchType", lldb::eLastFormatterMatchType)},
     {SWIG_LUA_CONSTTAB_INT("eTypeOptionNone", lldb::eTypeOptionNone)},
     {SWIG_LUA_CONSTTAB_INT("eTypeOptionCascade", lldb::eTypeOptionCascade)},
     {SWIG_LUA_CONSTTAB_INT("eTypeOptionSkipPointers", lldb::eTypeOptionSkipPointers)},
@@ -72740,9 +73660,16 @@ static swig_lua_const_info swig_SwigModule_constants[]= {
     {SWIG_LUA_CONSTTAB_INT("eTraceEventDisabledHW", lldb::eTraceEventDisabledHW)},
     {SWIG_LUA_CONSTTAB_INT("eTraceEventCPUChanged", lldb::eTraceEventCPUChanged)},
     {SWIG_LUA_CONSTTAB_INT("eTraceEventHWClockTick", lldb::eTraceEventHWClockTick)},
+    {SWIG_LUA_CONSTTAB_INT("eTraceEventSyncPoint", lldb::eTraceEventSyncPoint)},
     {SWIG_LUA_CONSTTAB_INT("eTraceItemKindError", lldb::eTraceItemKindError)},
     {SWIG_LUA_CONSTTAB_INT("eTraceItemKindEvent", lldb::eTraceItemKindEvent)},
     {SWIG_LUA_CONSTTAB_INT("eTraceItemKindInstruction", lldb::eTraceItemKindInstruction)},
+    {SWIG_LUA_CONSTTAB_INT("eTraceCursorSeekTypeBeginning", lldb::eTraceCursorSeekTypeBeginning)},
+    {SWIG_LUA_CONSTTAB_INT("eTraceCursorSeekTypeCurrent", lldb::eTraceCursorSeekTypeCurrent)},
+    {SWIG_LUA_CONSTTAB_INT("eTraceCursorSeekTypeEnd", lldb::eTraceCursorSeekTypeEnd)},
+    {SWIG_LUA_CONSTTAB_INT("eDWIMPrintVerbosityNone", lldb::eDWIMPrintVerbosityNone)},
+    {SWIG_LUA_CONSTTAB_INT("eDWIMPrintVerbosityExpression", lldb::eDWIMPrintVerbosityExpression)},
+    {SWIG_LUA_CONSTTAB_INT("eDWIMPrintVerbosityFull", lldb::eDWIMPrintVerbosityFull)},
     {SWIG_LUA_CONSTTAB_INT("SBCommandInterpreter_eBroadcastBitThreadShouldExit", lldb::SBCommandInterpreter::eBroadcastBitThreadShouldExit)},
     {SWIG_LUA_CONSTTAB_INT("SBCommandInterpreter_eBroadcastBitResetPrompt", lldb::SBCommandInterpreter::eBroadcastBitResetPrompt)},
     {SWIG_LUA_CONSTTAB_INT("SBCommandInterpreter_eBroadcastBitQuitCommandReceived", lldb::SBCommandInterpreter::eBroadcastBitQuitCommandReceived)},
@@ -72925,6 +73852,7 @@ static swig_lua_class* swig_SwigModule_classes[]= {
 &_wrap_class_SBThreadCollection,
 &_wrap_class_SBThreadPlan,
 &_wrap_class_SBTrace,
+&_wrap_class_SBTraceCursor,
 &_wrap_class_SBTypeMember,
 &_wrap_class_SBTypeMemberFunction,
 &_wrap_class_SBType,
@@ -73029,6 +73957,7 @@ static swig_type_info _swigt__p_lldb__SBThread = {"_p_lldb__SBThread", "lldb::SB
 static swig_type_info _swigt__p_lldb__SBThreadCollection = {"_p_lldb__SBThreadCollection", "lldb::SBThreadCollection *", 0, 0, (void*)&_wrap_class_SBThreadCollection, 0};
 static swig_type_info _swigt__p_lldb__SBThreadPlan = {"_p_lldb__SBThreadPlan", "lldb::SBThreadPlan *", 0, 0, (void*)&_wrap_class_SBThreadPlan, 0};
 static swig_type_info _swigt__p_lldb__SBTrace = {"_p_lldb__SBTrace", "lldb::SBTrace *", 0, 0, (void*)&_wrap_class_SBTrace, 0};
+static swig_type_info _swigt__p_lldb__SBTraceCursor = {"_p_lldb__SBTraceCursor", "lldb::SBTraceCursor *", 0, 0, (void*)&_wrap_class_SBTraceCursor, 0};
 static swig_type_info _swigt__p_lldb__SBType = {"_p_lldb__SBType", "lldb::SBType *", 0, 0, (void*)&_wrap_class_SBType, 0};
 static swig_type_info _swigt__p_lldb__SBTypeCategory = {"_p_lldb__SBTypeCategory", "lldb::SBTypeCategory *", 0, 0, (void*)&_wrap_class_SBTypeCategory, 0};
 static swig_type_info _swigt__p_lldb__SBTypeEnumMember = {"_p_lldb__SBTypeEnumMember", "lldb::SBTypeEnumMember *", 0, 0, (void*)&_wrap_class_SBTypeEnumMember, 0};
@@ -73092,12 +74021,14 @@ static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__Listener_t = {"_p
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__MemoryHistory_t = {"_p_std__shared_ptrT_lldb_private__MemoryHistory_t", "lldb::MemoryHistorySP *|std::shared_ptr< lldb_private::MemoryHistory > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__MemoryRegionInfo_t = {"_p_std__shared_ptrT_lldb_private__MemoryRegionInfo_t", "std::shared_ptr< lldb_private::MemoryRegionInfo > *|lldb::MemoryRegionInfoSP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__Module_t = {"_p_std__shared_ptrT_lldb_private__Module_t", "lldb::ModuleSP *|std::shared_ptr< lldb_private::Module > *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__ObjectContainer_t = {"_p_std__shared_ptrT_lldb_private__ObjectContainer_t", "std::shared_ptr< lldb_private::ObjectContainer > *|lldb::ObjectContainerSP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__ObjectFileJITDelegate_t = {"_p_std__shared_ptrT_lldb_private__ObjectFileJITDelegate_t", "lldb::ObjectFileJITDelegateSP *|std::shared_ptr< lldb_private::ObjectFileJITDelegate > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__ObjectFile_t = {"_p_std__shared_ptrT_lldb_private__ObjectFile_t", "lldb::ObjectFileSP *|std::shared_ptr< lldb_private::ObjectFile > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__OptionValueProperties_t = {"_p_std__shared_ptrT_lldb_private__OptionValueProperties_t", "lldb::OptionValuePropertiesSP *|std::shared_ptr< lldb_private::OptionValueProperties > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__OptionValue_t = {"_p_std__shared_ptrT_lldb_private__OptionValue_t", "std::shared_ptr< lldb_private::OptionValue > *|lldb::OptionValueSP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__Platform_t = {"_p_std__shared_ptrT_lldb_private__Platform_t", "std::shared_ptr< lldb_private::Platform > *|lldb::PlatformSP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__ProcessAttachInfo_t = {"_p_std__shared_ptrT_lldb_private__ProcessAttachInfo_t", "lldb::ProcessAttachInfoSP *|std::shared_ptr< lldb_private::ProcessAttachInfo > *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__ProcessLaunchInfo_t = {"_p_std__shared_ptrT_lldb_private__ProcessLaunchInfo_t", "lldb::ProcessLaunchInfoSP *|std::shared_ptr< lldb_private::ProcessLaunchInfo > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__Process_t = {"_p_std__shared_ptrT_lldb_private__Process_t", "lldb::ProcessSP *|std::shared_ptr< lldb_private::Process > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__QueueItem_t = {"_p_std__shared_ptrT_lldb_private__QueueItem_t", "std::shared_ptr< lldb_private::QueueItem > *|lldb::QueueItemSP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__Queue_t = {"_p_std__shared_ptrT_lldb_private__Queue_t", "std::shared_ptr< lldb_private::Queue > *|lldb::QueueSP *", 0, 0, (void*)0, 0};
@@ -73131,6 +74062,7 @@ static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__ThreadPlanTracer_
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__ThreadPlan_t = {"_p_std__shared_ptrT_lldb_private__ThreadPlan_t", "lldb::ThreadPlanSP *|std::shared_ptr< lldb_private::ThreadPlan > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__ThreadPostMortemTrace_t = {"_p_std__shared_ptrT_lldb_private__ThreadPostMortemTrace_t", "std::shared_ptr< lldb_private::ThreadPostMortemTrace > *|lldb::ThreadPostMortemTraceSP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__Thread_t = {"_p_std__shared_ptrT_lldb_private__Thread_t", "std::shared_ptr< lldb_private::Thread > *|lldb::ThreadSP *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__TraceCursor_t = {"_p_std__shared_ptrT_lldb_private__TraceCursor_t", "std::shared_ptr< lldb_private::TraceCursor > *|lldb::TraceCursorSP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__Trace_t = {"_p_std__shared_ptrT_lldb_private__Trace_t", "std::shared_ptr< lldb_private::Trace > *|lldb::TraceSP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__TypeCategoryImpl_t = {"_p_std__shared_ptrT_lldb_private__TypeCategoryImpl_t", "std::shared_ptr< lldb_private::TypeCategoryImpl > *|lldb::TypeCategoryImplSP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__TypeEnumMemberImpl_t = {"_p_std__shared_ptrT_lldb_private__TypeEnumMemberImpl_t", "lldb::TypeEnumMemberImplSP *|std::shared_ptr< lldb_private::TypeEnumMemberImpl > *", 0, 0, (void*)0, 0};
@@ -73141,6 +74073,7 @@ static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__TypeMemberFunctio
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__TypeNameSpecifierImpl_t = {"_p_std__shared_ptrT_lldb_private__TypeNameSpecifierImpl_t", "std::shared_ptr< lldb_private::TypeNameSpecifierImpl > *|lldb::TypeNameSpecifierImplSP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__TypeSummaryImpl_t = {"_p_std__shared_ptrT_lldb_private__TypeSummaryImpl_t", "lldb::TypeSummaryImplSP *|std::shared_ptr< lldb_private::TypeSummaryImpl > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__TypeSummaryOptions_t = {"_p_std__shared_ptrT_lldb_private__TypeSummaryOptions_t", "std::shared_ptr< lldb_private::TypeSummaryOptions > *|lldb::TypeSummaryOptionsSP *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__TypeSystemClang_t = {"_p_std__shared_ptrT_lldb_private__TypeSystemClang_t", "std::shared_ptr< lldb_private::TypeSystemClang > *|lldb::TypeSystemClangSP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__TypeSystem_t = {"_p_std__shared_ptrT_lldb_private__TypeSystem_t", "std::shared_ptr< lldb_private::TypeSystem > *|lldb::TypeSystemSP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__Type_t = {"_p_std__shared_ptrT_lldb_private__Type_t", "lldb::TypeSP *|std::shared_ptr< lldb_private::Type > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__UnixSignals_t = {"_p_std__shared_ptrT_lldb_private__UnixSignals_t", "lldb::UnixSignalsSP *|std::shared_ptr< lldb_private::UnixSignals > *", 0, 0, (void*)0, 0};
@@ -73161,6 +74094,7 @@ static swig_type_info _swigt__p_std__unique_ptrT_lldb_private__File_t = {"_p_std
 static swig_type_info _swigt__p_std__unique_ptrT_lldb_private__JITLoaderList_t = {"_p_std__unique_ptrT_lldb_private__JITLoaderList_t", "lldb::JITLoaderListUP *|std::unique_ptr< lldb_private::JITLoaderList > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__unique_ptrT_lldb_private__MemoryRegionInfo_t = {"_p_std__unique_ptrT_lldb_private__MemoryRegionInfo_t", "std::unique_ptr< lldb_private::MemoryRegionInfo > *|lldb::MemoryRegionInfoUP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__unique_ptrT_lldb_private__OperatingSystem_t = {"_p_std__unique_ptrT_lldb_private__OperatingSystem_t", "lldb::OperatingSystemUP *|std::unique_ptr< lldb_private::OperatingSystem > *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_std__unique_ptrT_lldb_private__ScriptedPlatformInterface_t = {"_p_std__unique_ptrT_lldb_private__ScriptedPlatformInterface_t", "std::unique_ptr< lldb_private::ScriptedPlatformInterface > *|lldb::ScriptedPlatformInterfaceUP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__unique_ptrT_lldb_private__ScriptedProcessInterface_t = {"_p_std__unique_ptrT_lldb_private__ScriptedProcessInterface_t", "std::unique_ptr< lldb_private::ScriptedProcessInterface > *|lldb::ScriptedProcessInterfaceUP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__unique_ptrT_lldb_private__SectionList_t = {"_p_std__unique_ptrT_lldb_private__SectionList_t", "lldb::SectionListUP *|std::unique_ptr< lldb_private::SectionList > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__unique_ptrT_lldb_private__SourceManager_t = {"_p_std__unique_ptrT_lldb_private__SourceManager_t", "std::unique_ptr< lldb_private::SourceManager > *|lldb::SourceManagerUP *", 0, 0, (void*)0, 0};
@@ -73168,7 +74102,6 @@ static swig_type_info _swigt__p_std__unique_ptrT_lldb_private__StackFrameRecogni
 static swig_type_info _swigt__p_std__unique_ptrT_lldb_private__StructuredDataImpl_t = {"_p_std__unique_ptrT_lldb_private__StructuredDataImpl_t", "std::unique_ptr< lldb_private::StructuredDataImpl > *|lldb::StructuredDataImplUP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__unique_ptrT_lldb_private__SymbolVendor_t = {"_p_std__unique_ptrT_lldb_private__SymbolVendor_t", "std::unique_ptr< lldb_private::SymbolVendor > *|lldb::SymbolVendorUP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__unique_ptrT_lldb_private__SystemRuntime_t = {"_p_std__unique_ptrT_lldb_private__SystemRuntime_t", "std::unique_ptr< lldb_private::SystemRuntime > *|lldb::SystemRuntimeUP *", 0, 0, (void*)0, 0};
-static swig_type_info _swigt__p_std__unique_ptrT_lldb_private__TraceCursor_t = {"_p_std__unique_ptrT_lldb_private__TraceCursor_t", "std::unique_ptr< lldb_private::TraceCursor > *|lldb::TraceCursorUP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__unique_ptrT_lldb_private__TraceExporter_t = {"_p_std__unique_ptrT_lldb_private__TraceExporter_t", "lldb::TraceExporterUP *|std::unique_ptr< lldb_private::TraceExporter > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__weak_ptrT_lldb_private__BreakpointLocation_t = {"_p_std__weak_ptrT_lldb_private__BreakpointLocation_t", "std::weak_ptr< lldb_private::BreakpointLocation > *|lldb::BreakpointLocationWP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__weak_ptrT_lldb_private__Breakpoint_t = {"_p_std__weak_ptrT_lldb_private__Breakpoint_t", "std::weak_ptr< lldb_private::Breakpoint > *|lldb::BreakpointWP *", 0, 0, (void*)0, 0};
@@ -73186,6 +74119,7 @@ static swig_type_info _swigt__p_std__weak_ptrT_lldb_private__StructuredDataPlugi
 static swig_type_info _swigt__p_std__weak_ptrT_lldb_private__Target_t = {"_p_std__weak_ptrT_lldb_private__Target_t", "std::weak_ptr< lldb_private::Target > *|lldb::TargetWP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__weak_ptrT_lldb_private__ThreadPlan_t = {"_p_std__weak_ptrT_lldb_private__ThreadPlan_t", "std::weak_ptr< lldb_private::ThreadPlan > *|lldb::ThreadPlanWP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__weak_ptrT_lldb_private__Thread_t = {"_p_std__weak_ptrT_lldb_private__Thread_t", "std::weak_ptr< lldb_private::Thread > *|lldb::ThreadWP *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_std__weak_ptrT_lldb_private__TypeSystem_t = {"_p_std__weak_ptrT_lldb_private__TypeSystem_t", "std::weak_ptr< lldb_private::TypeSystem > *|lldb::TypeSystemWP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__weak_ptrT_lldb_private__Type_t = {"_p_std__weak_ptrT_lldb_private__Type_t", "std::weak_ptr< lldb_private::Type > *|lldb::TypeWP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__weak_ptrT_lldb_private__UnixSignals_t = {"_p_std__weak_ptrT_lldb_private__UnixSignals_t", "std::weak_ptr< lldb_private::UnixSignals > *|lldb::UnixSignalsWP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_unsigned_char = {"_p_unsigned_char", "unsigned char *|uint_least8_t *|uint_fast8_t *|uint8_t *", 0, 0, (void*)0, 0};
@@ -73261,6 +74195,7 @@ static swig_type_info *swig_type_initial[] = {
   &_swigt__p_lldb__SBThreadCollection,
   &_swigt__p_lldb__SBThreadPlan,
   &_swigt__p_lldb__SBTrace,
+  &_swigt__p_lldb__SBTraceCursor,
   &_swigt__p_lldb__SBType,
   &_swigt__p_lldb__SBTypeCategory,
   &_swigt__p_lldb__SBTypeEnumMember,
@@ -73324,12 +74259,14 @@ static swig_type_info *swig_type_initial[] = {
   &_swigt__p_std__shared_ptrT_lldb_private__MemoryHistory_t,
   &_swigt__p_std__shared_ptrT_lldb_private__MemoryRegionInfo_t,
   &_swigt__p_std__shared_ptrT_lldb_private__Module_t,
+  &_swigt__p_std__shared_ptrT_lldb_private__ObjectContainer_t,
   &_swigt__p_std__shared_ptrT_lldb_private__ObjectFileJITDelegate_t,
   &_swigt__p_std__shared_ptrT_lldb_private__ObjectFile_t,
   &_swigt__p_std__shared_ptrT_lldb_private__OptionValueProperties_t,
   &_swigt__p_std__shared_ptrT_lldb_private__OptionValue_t,
   &_swigt__p_std__shared_ptrT_lldb_private__Platform_t,
   &_swigt__p_std__shared_ptrT_lldb_private__ProcessAttachInfo_t,
+  &_swigt__p_std__shared_ptrT_lldb_private__ProcessLaunchInfo_t,
   &_swigt__p_std__shared_ptrT_lldb_private__Process_t,
   &_swigt__p_std__shared_ptrT_lldb_private__QueueItem_t,
   &_swigt__p_std__shared_ptrT_lldb_private__Queue_t,
@@ -73363,6 +74300,7 @@ static swig_type_info *swig_type_initial[] = {
   &_swigt__p_std__shared_ptrT_lldb_private__ThreadPlan_t,
   &_swigt__p_std__shared_ptrT_lldb_private__ThreadPostMortemTrace_t,
   &_swigt__p_std__shared_ptrT_lldb_private__Thread_t,
+  &_swigt__p_std__shared_ptrT_lldb_private__TraceCursor_t,
   &_swigt__p_std__shared_ptrT_lldb_private__Trace_t,
   &_swigt__p_std__shared_ptrT_lldb_private__TypeCategoryImpl_t,
   &_swigt__p_std__shared_ptrT_lldb_private__TypeEnumMemberImpl_t,
@@ -73373,6 +74311,7 @@ static swig_type_info *swig_type_initial[] = {
   &_swigt__p_std__shared_ptrT_lldb_private__TypeNameSpecifierImpl_t,
   &_swigt__p_std__shared_ptrT_lldb_private__TypeSummaryImpl_t,
   &_swigt__p_std__shared_ptrT_lldb_private__TypeSummaryOptions_t,
+  &_swigt__p_std__shared_ptrT_lldb_private__TypeSystemClang_t,
   &_swigt__p_std__shared_ptrT_lldb_private__TypeSystem_t,
   &_swigt__p_std__shared_ptrT_lldb_private__Type_t,
   &_swigt__p_std__shared_ptrT_lldb_private__UnixSignals_t,
@@ -73393,6 +74332,7 @@ static swig_type_info *swig_type_initial[] = {
   &_swigt__p_std__unique_ptrT_lldb_private__JITLoaderList_t,
   &_swigt__p_std__unique_ptrT_lldb_private__MemoryRegionInfo_t,
   &_swigt__p_std__unique_ptrT_lldb_private__OperatingSystem_t,
+  &_swigt__p_std__unique_ptrT_lldb_private__ScriptedPlatformInterface_t,
   &_swigt__p_std__unique_ptrT_lldb_private__ScriptedProcessInterface_t,
   &_swigt__p_std__unique_ptrT_lldb_private__SectionList_t,
   &_swigt__p_std__unique_ptrT_lldb_private__SourceManager_t,
@@ -73400,7 +74340,6 @@ static swig_type_info *swig_type_initial[] = {
   &_swigt__p_std__unique_ptrT_lldb_private__StructuredDataImpl_t,
   &_swigt__p_std__unique_ptrT_lldb_private__SymbolVendor_t,
   &_swigt__p_std__unique_ptrT_lldb_private__SystemRuntime_t,
-  &_swigt__p_std__unique_ptrT_lldb_private__TraceCursor_t,
   &_swigt__p_std__unique_ptrT_lldb_private__TraceExporter_t,
   &_swigt__p_std__weak_ptrT_lldb_private__BreakpointLocation_t,
   &_swigt__p_std__weak_ptrT_lldb_private__Breakpoint_t,
@@ -73418,6 +74357,7 @@ static swig_type_info *swig_type_initial[] = {
   &_swigt__p_std__weak_ptrT_lldb_private__Target_t,
   &_swigt__p_std__weak_ptrT_lldb_private__ThreadPlan_t,
   &_swigt__p_std__weak_ptrT_lldb_private__Thread_t,
+  &_swigt__p_std__weak_ptrT_lldb_private__TypeSystem_t,
   &_swigt__p_std__weak_ptrT_lldb_private__Type_t,
   &_swigt__p_std__weak_ptrT_lldb_private__UnixSignals_t,
   &_swigt__p_unsigned_char,
@@ -73493,6 +74433,7 @@ static swig_cast_info _swigc__p_lldb__SBThread[] = {  {&_swigt__p_lldb__SBThread
 static swig_cast_info _swigc__p_lldb__SBThreadCollection[] = {  {&_swigt__p_lldb__SBThreadCollection, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_lldb__SBThreadPlan[] = {  {&_swigt__p_lldb__SBThreadPlan, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_lldb__SBTrace[] = {  {&_swigt__p_lldb__SBTrace, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_lldb__SBTraceCursor[] = {  {&_swigt__p_lldb__SBTraceCursor, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_lldb__SBType[] = {  {&_swigt__p_lldb__SBType, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_lldb__SBTypeCategory[] = {  {&_swigt__p_lldb__SBTypeCategory, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_lldb__SBTypeEnumMember[] = {  {&_swigt__p_lldb__SBTypeEnumMember, 0, 0, 0},{0, 0, 0, 0}};
@@ -73556,12 +74497,14 @@ static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__Listener_t[] = { 
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__MemoryHistory_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__MemoryHistory_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__MemoryRegionInfo_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__MemoryRegionInfo_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__Module_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__Module_t, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__ObjectContainer_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__ObjectContainer_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__ObjectFileJITDelegate_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__ObjectFileJITDelegate_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__ObjectFile_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__ObjectFile_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__OptionValueProperties_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__OptionValueProperties_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__OptionValue_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__OptionValue_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__Platform_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__Platform_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__ProcessAttachInfo_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__ProcessAttachInfo_t, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__ProcessLaunchInfo_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__ProcessLaunchInfo_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__Process_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__Process_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__QueueItem_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__QueueItem_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__Queue_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__Queue_t, 0, 0, 0},{0, 0, 0, 0}};
@@ -73595,6 +74538,7 @@ static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__ThreadPlanTracer_
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__ThreadPlan_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__ThreadPlan_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__ThreadPostMortemTrace_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__ThreadPostMortemTrace_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__Thread_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__Thread_t, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__TraceCursor_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__TraceCursor_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__Trace_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__Trace_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__TypeCategoryImpl_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__TypeCategoryImpl_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__TypeEnumMemberImpl_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__TypeEnumMemberImpl_t, 0, 0, 0},{0, 0, 0, 0}};
@@ -73605,6 +74549,7 @@ static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__TypeMemberFunctio
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__TypeNameSpecifierImpl_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__TypeNameSpecifierImpl_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__TypeSummaryImpl_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__TypeSummaryImpl_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__TypeSummaryOptions_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__TypeSummaryOptions_t, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__TypeSystemClang_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__TypeSystemClang_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__TypeSystem_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__TypeSystem_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__Type_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__Type_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__UnixSignals_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__UnixSignals_t, 0, 0, 0},{0, 0, 0, 0}};
@@ -73625,6 +74570,7 @@ static swig_cast_info _swigc__p_std__unique_ptrT_lldb_private__File_t[] = {  {&_
 static swig_cast_info _swigc__p_std__unique_ptrT_lldb_private__JITLoaderList_t[] = {  {&_swigt__p_std__unique_ptrT_lldb_private__JITLoaderList_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__unique_ptrT_lldb_private__MemoryRegionInfo_t[] = {  {&_swigt__p_std__unique_ptrT_lldb_private__MemoryRegionInfo_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__unique_ptrT_lldb_private__OperatingSystem_t[] = {  {&_swigt__p_std__unique_ptrT_lldb_private__OperatingSystem_t, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_std__unique_ptrT_lldb_private__ScriptedPlatformInterface_t[] = {  {&_swigt__p_std__unique_ptrT_lldb_private__ScriptedPlatformInterface_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__unique_ptrT_lldb_private__ScriptedProcessInterface_t[] = {  {&_swigt__p_std__unique_ptrT_lldb_private__ScriptedProcessInterface_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__unique_ptrT_lldb_private__SectionList_t[] = {  {&_swigt__p_std__unique_ptrT_lldb_private__SectionList_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__unique_ptrT_lldb_private__SourceManager_t[] = {  {&_swigt__p_std__unique_ptrT_lldb_private__SourceManager_t, 0, 0, 0},{0, 0, 0, 0}};
@@ -73632,7 +74578,6 @@ static swig_cast_info _swigc__p_std__unique_ptrT_lldb_private__StackFrameRecogni
 static swig_cast_info _swigc__p_std__unique_ptrT_lldb_private__StructuredDataImpl_t[] = {  {&_swigt__p_std__unique_ptrT_lldb_private__StructuredDataImpl_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__unique_ptrT_lldb_private__SymbolVendor_t[] = {  {&_swigt__p_std__unique_ptrT_lldb_private__SymbolVendor_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__unique_ptrT_lldb_private__SystemRuntime_t[] = {  {&_swigt__p_std__unique_ptrT_lldb_private__SystemRuntime_t, 0, 0, 0},{0, 0, 0, 0}};
-static swig_cast_info _swigc__p_std__unique_ptrT_lldb_private__TraceCursor_t[] = {  {&_swigt__p_std__unique_ptrT_lldb_private__TraceCursor_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__unique_ptrT_lldb_private__TraceExporter_t[] = {  {&_swigt__p_std__unique_ptrT_lldb_private__TraceExporter_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__weak_ptrT_lldb_private__BreakpointLocation_t[] = {  {&_swigt__p_std__weak_ptrT_lldb_private__BreakpointLocation_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__weak_ptrT_lldb_private__Breakpoint_t[] = {  {&_swigt__p_std__weak_ptrT_lldb_private__Breakpoint_t, 0, 0, 0},{0, 0, 0, 0}};
@@ -73650,6 +74595,7 @@ static swig_cast_info _swigc__p_std__weak_ptrT_lldb_private__StructuredDataPlugi
 static swig_cast_info _swigc__p_std__weak_ptrT_lldb_private__Target_t[] = {  {&_swigt__p_std__weak_ptrT_lldb_private__Target_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__weak_ptrT_lldb_private__ThreadPlan_t[] = {  {&_swigt__p_std__weak_ptrT_lldb_private__ThreadPlan_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__weak_ptrT_lldb_private__Thread_t[] = {  {&_swigt__p_std__weak_ptrT_lldb_private__Thread_t, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_std__weak_ptrT_lldb_private__TypeSystem_t[] = {  {&_swigt__p_std__weak_ptrT_lldb_private__TypeSystem_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__weak_ptrT_lldb_private__Type_t[] = {  {&_swigt__p_std__weak_ptrT_lldb_private__Type_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__weak_ptrT_lldb_private__UnixSignals_t[] = {  {&_swigt__p_std__weak_ptrT_lldb_private__UnixSignals_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_unsigned_char[] = {  {&_swigt__p_unsigned_char, 0, 0, 0},{0, 0, 0, 0}};
@@ -73725,6 +74671,7 @@ static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_lldb__SBThreadCollection,
   _swigc__p_lldb__SBThreadPlan,
   _swigc__p_lldb__SBTrace,
+  _swigc__p_lldb__SBTraceCursor,
   _swigc__p_lldb__SBType,
   _swigc__p_lldb__SBTypeCategory,
   _swigc__p_lldb__SBTypeEnumMember,
@@ -73788,12 +74735,14 @@ static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_std__shared_ptrT_lldb_private__MemoryHistory_t,
   _swigc__p_std__shared_ptrT_lldb_private__MemoryRegionInfo_t,
   _swigc__p_std__shared_ptrT_lldb_private__Module_t,
+  _swigc__p_std__shared_ptrT_lldb_private__ObjectContainer_t,
   _swigc__p_std__shared_ptrT_lldb_private__ObjectFileJITDelegate_t,
   _swigc__p_std__shared_ptrT_lldb_private__ObjectFile_t,
   _swigc__p_std__shared_ptrT_lldb_private__OptionValueProperties_t,
   _swigc__p_std__shared_ptrT_lldb_private__OptionValue_t,
   _swigc__p_std__shared_ptrT_lldb_private__Platform_t,
   _swigc__p_std__shared_ptrT_lldb_private__ProcessAttachInfo_t,
+  _swigc__p_std__shared_ptrT_lldb_private__ProcessLaunchInfo_t,
   _swigc__p_std__shared_ptrT_lldb_private__Process_t,
   _swigc__p_std__shared_ptrT_lldb_private__QueueItem_t,
   _swigc__p_std__shared_ptrT_lldb_private__Queue_t,
@@ -73827,6 +74776,7 @@ static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_std__shared_ptrT_lldb_private__ThreadPlan_t,
   _swigc__p_std__shared_ptrT_lldb_private__ThreadPostMortemTrace_t,
   _swigc__p_std__shared_ptrT_lldb_private__Thread_t,
+  _swigc__p_std__shared_ptrT_lldb_private__TraceCursor_t,
   _swigc__p_std__shared_ptrT_lldb_private__Trace_t,
   _swigc__p_std__shared_ptrT_lldb_private__TypeCategoryImpl_t,
   _swigc__p_std__shared_ptrT_lldb_private__TypeEnumMemberImpl_t,
@@ -73837,6 +74787,7 @@ static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_std__shared_ptrT_lldb_private__TypeNameSpecifierImpl_t,
   _swigc__p_std__shared_ptrT_lldb_private__TypeSummaryImpl_t,
   _swigc__p_std__shared_ptrT_lldb_private__TypeSummaryOptions_t,
+  _swigc__p_std__shared_ptrT_lldb_private__TypeSystemClang_t,
   _swigc__p_std__shared_ptrT_lldb_private__TypeSystem_t,
   _swigc__p_std__shared_ptrT_lldb_private__Type_t,
   _swigc__p_std__shared_ptrT_lldb_private__UnixSignals_t,
@@ -73857,6 +74808,7 @@ static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_std__unique_ptrT_lldb_private__JITLoaderList_t,
   _swigc__p_std__unique_ptrT_lldb_private__MemoryRegionInfo_t,
   _swigc__p_std__unique_ptrT_lldb_private__OperatingSystem_t,
+  _swigc__p_std__unique_ptrT_lldb_private__ScriptedPlatformInterface_t,
   _swigc__p_std__unique_ptrT_lldb_private__ScriptedProcessInterface_t,
   _swigc__p_std__unique_ptrT_lldb_private__SectionList_t,
   _swigc__p_std__unique_ptrT_lldb_private__SourceManager_t,
@@ -73864,7 +74816,6 @@ static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_std__unique_ptrT_lldb_private__StructuredDataImpl_t,
   _swigc__p_std__unique_ptrT_lldb_private__SymbolVendor_t,
   _swigc__p_std__unique_ptrT_lldb_private__SystemRuntime_t,
-  _swigc__p_std__unique_ptrT_lldb_private__TraceCursor_t,
   _swigc__p_std__unique_ptrT_lldb_private__TraceExporter_t,
   _swigc__p_std__weak_ptrT_lldb_private__BreakpointLocation_t,
   _swigc__p_std__weak_ptrT_lldb_private__Breakpoint_t,
@@ -73882,6 +74833,7 @@ static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_std__weak_ptrT_lldb_private__Target_t,
   _swigc__p_std__weak_ptrT_lldb_private__ThreadPlan_t,
   _swigc__p_std__weak_ptrT_lldb_private__Thread_t,
+  _swigc__p_std__weak_ptrT_lldb_private__TypeSystem_t,
   _swigc__p_std__weak_ptrT_lldb_private__Type_t,
   _swigc__p_std__weak_ptrT_lldb_private__UnixSignals_t,
   _swigc__p_unsigned_char,

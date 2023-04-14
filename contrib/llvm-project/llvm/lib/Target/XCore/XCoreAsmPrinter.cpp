@@ -114,7 +114,7 @@ void XCoreAsmPrinter::emitGlobalVariable(const GlobalVariable *GV) {
 
   MCSymbol *GVSym = getSymbol(GV);
   const Constant *C = GV->getInitializer();
-  const Align Alignment(DL.getPrefTypeAlignment(C->getType()));
+  const Align Alignment = DL.getPrefTypeAlign(C->getType());
 
   // Mark the start of the global
   getTargetStreamer().emitCCTopData(GVSym->getName());
@@ -134,7 +134,7 @@ void XCoreAsmPrinter::emitGlobalVariable(const GlobalVariable *GV) {
     if (GV->hasWeakLinkage() || GV->hasLinkOnceLinkage() ||
         GV->hasCommonLinkage())
       OutStreamer->emitSymbolAttribute(GVSym, MCSA_Weak);
-    LLVM_FALLTHROUGH;
+    [[fallthrough]];
   case GlobalValue::InternalLinkage:
   case GlobalValue::PrivateLinkage:
     break;

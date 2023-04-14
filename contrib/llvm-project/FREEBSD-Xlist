@@ -7,6 +7,7 @@
 .gitignore
 .mailmap
 CONTRIBUTING.md
+LICENSE.TXT
 README.md
 SECURITY.md
 bolt/
@@ -15,7 +16,7 @@ clang/.clang-format
 clang/.clang-tidy
 clang/.gitignore
 clang/CMakeLists.txt
-clang/CODE_OWNERS.TXT
+clang/CodeOwners.rst
 clang/INSTALL.txt
 clang/ModuleInfo.txt
 clang/NOTES.txt
@@ -31,6 +32,7 @@ clang/include/clang/Basic/Version.inc.in
 clang/include/clang/CMakeLists.txt
 clang/include/clang/Config/
 clang/include/clang/Driver/CMakeLists.txt
+clang/include/clang/Format/.clang-format
 clang/include/clang/Parse/CMakeLists.txt
 clang/include/clang/Sema/CMakeLists.txt
 clang/include/clang/Serialization/CMakeLists.txt
@@ -57,6 +59,7 @@ clang/lib/DirectoryWatcher/CMakeLists.txt
 clang/lib/Driver/CMakeLists.txt
 clang/lib/Edit/CMakeLists.txt
 clang/lib/ExtractAPI/CMakeLists.txt
+clang/lib/Format/.clang-format
 clang/lib/Format/CMakeLists.txt
 clang/lib/Frontend/CMakeLists.txt
 clang/lib/Frontend/Rewrite/CMakeLists.txt
@@ -84,6 +87,7 @@ clang/lib/Tooling/DependencyScanning/CMakeLists.txt
 clang/lib/Tooling/DumpTool/CMakeLists.txt
 clang/lib/Tooling/DumpTool/generate_cxx_src_locs.py
 clang/lib/Tooling/Inclusions/CMakeLists.txt
+clang/lib/Tooling/Inclusions/Stdlib/CMakeLists.txt
 clang/lib/Tooling/Refactoring/CMakeLists.txt
 clang/lib/Tooling/Syntax/CMakeLists.txt
 clang/lib/Tooling/Transformer/CMakeLists.txt
@@ -99,6 +103,7 @@ clang/tools/clang-check/
 clang/tools/clang-diff/
 clang/tools/clang-extdef-mapping/
 clang/tools/clang-format-vs/
+clang/tools/clang-format/.clang-format
 clang/tools/clang-format/CMakeLists.txt
 clang/tools/clang-format/clang-format-bbedit.applescript
 clang/tools/clang-format/clang-format-diff.py
@@ -111,10 +116,8 @@ clang/tools/clang-format/git-clang-format
 clang/tools/clang-fuzzer/
 clang/tools/clang-import-test/
 clang/tools/clang-linker-wrapper/
-clang/tools/clang-nvlink-wrapper/
 clang/tools/clang-offload-bundler/
 clang/tools/clang-offload-packager/
-clang/tools/clang-offload-wrapper/
 clang/tools/clang-refactor/
 clang/tools/clang-rename/
 clang/tools/clang-repl/CMakeLists.txt
@@ -126,6 +129,7 @@ clang/tools/driver/CMakeLists.txt
 clang/tools/driver/Info.plist.in
 clang/tools/include-mapping/
 clang/tools/libclang/
+clang/tools/nvptx-arch/CMakeLists.txt
 clang/tools/scan-build-py/
 clang/tools/scan-build/
 clang/tools/scan-view/
@@ -201,7 +205,9 @@ compiler-rt/lib/msan/.clang-format
 compiler-rt/lib/msan/CMakeLists.txt
 compiler-rt/lib/msan/tests/
 compiler-rt/lib/orc/CMakeLists.txt
-compiler-rt/lib/orc/unittests/
+compiler-rt/lib/orc/tests/CMakeLists.txt
+compiler-rt/lib/orc/tests/tools/CMakeLists.txt
+compiler-rt/lib/orc/tests/unit/CMakeLists.txt
 compiler-rt/lib/profile/CMakeLists.txt
 compiler-rt/lib/safestack/.clang-format
 compiler-rt/lib/safestack/CMakeLists.txt
@@ -209,7 +215,6 @@ compiler-rt/lib/sanitizer_common/.clang-format
 compiler-rt/lib/sanitizer_common/CMakeLists.txt
 compiler-rt/lib/sanitizer_common/scripts/
 compiler-rt/lib/sanitizer_common/tests/
-compiler-rt/lib/scudo/CMakeLists.txt
 compiler-rt/lib/scudo/standalone/CMakeLists.txt
 compiler-rt/lib/scudo/standalone/benchmarks/
 compiler-rt/lib/scudo/standalone/fuzz/CMakeLists.txt
@@ -224,7 +229,6 @@ compiler-rt/lib/tsan/check_cmake.sh
 compiler-rt/lib/tsan/dd/CMakeLists.txt
 compiler-rt/lib/tsan/go/build.bat
 compiler-rt/lib/tsan/go/buildgo.sh
-compiler-rt/lib/tsan/rtl-old/CMakeLists.txt
 compiler-rt/lib/tsan/rtl/CMakeLists.txt
 compiler-rt/lib/tsan/tests/
 compiler-rt/lib/ubsan/CMakeLists.txt
@@ -355,9 +359,11 @@ lldb/source/Plugins/ExpressionParser/Clang/CMakeLists.txt
 lldb/source/Plugins/Instruction/ARM/CMakeLists.txt
 lldb/source/Plugins/Instruction/ARM64/CMakeLists.txt
 lldb/source/Plugins/Instruction/CMakeLists.txt
+lldb/source/Plugins/Instruction/LoongArch/CMakeLists.txt
 lldb/source/Plugins/Instruction/MIPS/CMakeLists.txt
 lldb/source/Plugins/Instruction/MIPS64/CMakeLists.txt
 lldb/source/Plugins/Instruction/PPC64/CMakeLists.txt
+lldb/source/Plugins/Instruction/RISCV/CMakeLists.txt
 lldb/source/Plugins/InstrumentationRuntime/ASan/CMakeLists.txt
 lldb/source/Plugins/InstrumentationRuntime/CMakeLists.txt
 lldb/source/Plugins/InstrumentationRuntime/MainThreadChecker/CMakeLists.txt
@@ -381,6 +387,7 @@ lldb/source/Plugins/MemoryHistory/CMakeLists.txt
 lldb/source/Plugins/MemoryHistory/asan/CMakeLists.txt
 lldb/source/Plugins/ObjectContainer/BSD-Archive/CMakeLists.txt
 lldb/source/Plugins/ObjectContainer/CMakeLists.txt
+lldb/source/Plugins/ObjectContainer/Mach-O-Fileset/CMakeLists.txt
 lldb/source/Plugins/ObjectContainer/Universal-Mach-O/
 lldb/source/Plugins/ObjectFile/Breakpad/CMakeLists.txt
 lldb/source/Plugins/ObjectFile/CMakeLists.txt
@@ -500,6 +507,7 @@ llvm/include/llvm/Frontend/OpenMP/CMakeLists.txt
 llvm/include/llvm/IR/CMakeLists.txt
 llvm/include/llvm/Support/CMakeLists.txt
 llvm/include/llvm/Support/LICENSE.TXT
+llvm/include/llvm/TargetParser/CMakeLists.txt
 llvm/lib/Analysis/CMakeLists.txt
 llvm/lib/Analysis/README.txt
 llvm/lib/Analysis/models/
@@ -518,11 +526,13 @@ llvm/lib/CodeGen/MIRParser/CMakeLists.txt
 llvm/lib/CodeGen/README.txt
 llvm/lib/CodeGen/SelectionDAG/CMakeLists.txt
 llvm/lib/DWARFLinker/CMakeLists.txt
+llvm/lib/DWARFLinkerParallel/CMakeLists.txt
 llvm/lib/DWP/CMakeLists.txt
 llvm/lib/DebugInfo/CMakeLists.txt
 llvm/lib/DebugInfo/CodeView/CMakeLists.txt
 llvm/lib/DebugInfo/DWARF/CMakeLists.txt
 llvm/lib/DebugInfo/GSYM/CMakeLists.txt
+llvm/lib/DebugInfo/LogicalView/CMakeLists.txt
 llvm/lib/DebugInfo/MSF/CMakeLists.txt
 llvm/lib/DebugInfo/PDB/CMakeLists.txt
 llvm/lib/DebugInfo/Symbolize/CMakeLists.txt
@@ -542,11 +552,13 @@ llvm/lib/ExecutionEngine/RuntimeDyld/CMakeLists.txt
 llvm/lib/Extensions/
 llvm/lib/FileCheck/CMakeLists.txt
 llvm/lib/Frontend/CMakeLists.txt
+llvm/lib/Frontend/HLSL/CMakeLists.txt
 llvm/lib/Frontend/OpenACC/CMakeLists.txt
 llvm/lib/Frontend/OpenMP/CMakeLists.txt
 llvm/lib/FuzzMutate/CMakeLists.txt
 llvm/lib/Fuzzer/
 llvm/lib/IR/CMakeLists.txt
+llvm/lib/IRPrinter/CMakeLists.txt
 llvm/lib/IRReader/CMakeLists.txt
 llvm/lib/InterfaceStub/CMakeLists.txt
 llvm/lib/LTO/CMakeLists.txt
@@ -612,6 +624,7 @@ llvm/lib/Target/CSKY/MCTargetDesc/CMakeLists.txt
 llvm/lib/Target/CSKY/TargetInfo/CMakeLists.txt
 llvm/lib/Target/DirectX/CMakeLists.txt
 llvm/lib/Target/DirectX/DXILWriter/CMakeLists.txt
+llvm/lib/Target/DirectX/DirectXIRPasses/CMakeLists.txt
 llvm/lib/Target/DirectX/MCTargetDesc/CMakeLists.txt
 llvm/lib/Target/DirectX/TargetInfo/CMakeLists.txt
 llvm/lib/Target/Hexagon/AsmParser/CMakeLists.txt
@@ -659,6 +672,7 @@ llvm/lib/Target/README.txt
 llvm/lib/Target/RISCV/AsmParser/CMakeLists.txt
 llvm/lib/Target/RISCV/CMakeLists.txt
 llvm/lib/Target/RISCV/Disassembler/CMakeLists.txt
+llvm/lib/Target/RISCV/MCA/CMakeLists.txt
 llvm/lib/Target/RISCV/MCTargetDesc/CMakeLists.txt
 llvm/lib/Target/RISCV/TargetInfo/CMakeLists.txt
 llvm/lib/Target/SPIRV/CMakeLists.txt
@@ -701,6 +715,13 @@ llvm/lib/Target/XCore/Disassembler/CMakeLists.txt
 llvm/lib/Target/XCore/MCTargetDesc/CMakeLists.txt
 llvm/lib/Target/XCore/README.txt
 llvm/lib/Target/XCore/TargetInfo/CMakeLists.txt
+llvm/lib/Target/Xtensa/AsmParser/CMakeLists.txt
+llvm/lib/Target/Xtensa/CMakeLists.txt
+llvm/lib/Target/Xtensa/Disassembler/CMakeLists.txt
+llvm/lib/Target/Xtensa/MCTargetDesc/CMakeLists.txt
+llvm/lib/Target/Xtensa/TargetInfo/CMakeLists.txt
+llvm/lib/TargetParser/CMakeLists.txt
+llvm/lib/Testing/Annotations/CMakeLists.txt
 llvm/lib/Testing/CMakeLists.txt
 llvm/lib/Testing/Support/CMakeLists.txt
 llvm/lib/TextAPI/CMakeLists.txt
@@ -749,7 +770,9 @@ llvm/tools/llvm-cvtres/
 llvm/tools/llvm-cxxdump/CMakeLists.txt
 llvm/tools/llvm-cxxfilt/CMakeLists.txt
 llvm/tools/llvm-cxxmap/CMakeLists.txt
+llvm/tools/llvm-debuginfo-analyzer/CMakeLists.txt
 llvm/tools/llvm-debuginfod-find/
+llvm/tools/llvm-debuginfod/
 llvm/tools/llvm-diff/CMakeLists.txt
 llvm/tools/llvm-diff/lib/CMakeLists.txt
 llvm/tools/llvm-dis-fuzzer/
@@ -758,10 +781,10 @@ llvm/tools/llvm-dlang-demangle-fuzzer/
 llvm/tools/llvm-driver/
 llvm/tools/llvm-dwarfdump/CMakeLists.txt
 llvm/tools/llvm-dwarfdump/fuzzer/
+llvm/tools/llvm-dwarfutil/CMakeLists.txt
 llvm/tools/llvm-dwp/CMakeLists.txt
 llvm/tools/llvm-exegesis/
 llvm/tools/llvm-extract/CMakeLists.txt
-llvm/tools/llvm-go/
 llvm/tools/llvm-gsymutil/
 llvm/tools/llvm-ifs/
 llvm/tools/llvm-isel-fuzzer/
@@ -793,6 +816,7 @@ llvm/tools/llvm-rc/
 llvm/tools/llvm-readobj/CMakeLists.txt
 llvm/tools/llvm-reduce/
 llvm/tools/llvm-remark-size-diff/
+llvm/tools/llvm-remarkutil/CMakeLists.txt
 llvm/tools/llvm-rtdyld/CMakeLists.txt
 llvm/tools/llvm-rust-demangle-fuzzer/
 llvm/tools/llvm-shlib/
@@ -816,7 +840,6 @@ llvm/tools/opt/CMakeLists.txt
 llvm/tools/remarks-shlib/
 llvm/tools/sancov/
 llvm/tools/sanstats/
-llvm/tools/split-file/
 llvm/tools/verify-uselistorder/
 llvm/tools/vfabi-demangle-fuzzer/
 llvm/tools/xcode-toolchain/
@@ -834,6 +857,7 @@ llvm/utils/PerfectShuffle/
 llvm/utils/Reviewing/
 llvm/utils/TableGen/CMakeLists.txt
 llvm/utils/TableGen/GlobalISel/CMakeLists.txt
+llvm/utils/TableGen/jupyter/
 llvm/utils/TableGen/tdtags
 llvm/utils/Target/
 llvm/utils/UnicodeData/
@@ -853,7 +877,6 @@ llvm/utils/codegen-diff
 llvm/utils/collect_and_build_with_pgo.py
 llvm/utils/convert-constraint-log-to-z3.py
 llvm/utils/count/
-llvm/utils/countloc.sh
 llvm/utils/create_ladder_graph.py
 llvm/utils/crosstool/
 llvm/utils/demangle_tree.py
@@ -862,12 +885,12 @@ llvm/utils/emacs/
 llvm/utils/extract-section.py
 llvm/utils/extract_symbols.py
 llvm/utils/extract_vplan.py
+llvm/utils/filecheck_lint/
 llvm/utils/findmisopt
 llvm/utils/findoptdiff
 llvm/utils/findsym.pl
 llvm/utils/fpcmp/
 llvm/utils/gdb-scripts/
-llvm/utils/getsrcs.sh
 llvm/utils/git/
 llvm/utils/gn/
 llvm/utils/indirect_calls.py
@@ -884,14 +907,14 @@ llvm/utils/llvm-mca-compare.py
 llvm/utils/llvm-native-gxx
 llvm/utils/llvm-original-di-preservation.py
 llvm/utils/llvm.grm
-llvm/utils/llvmdo
-llvm/utils/llvmgrep
 llvm/utils/merge-stats.py
 llvm/utils/not/
+llvm/utils/phabricator/
 llvm/utils/pipeline.py
 llvm/utils/prepare-code-coverage-artifact.py
 llvm/utils/reduce_pipeline.py
 llvm/utils/reduce_pipeline_test/
+llvm/utils/relative_lines.py
 llvm/utils/release/
 llvm/utils/remote-exec.py
 llvm/utils/revert_checker.py
@@ -903,12 +926,14 @@ llvm/utils/schedcover.py
 llvm/utils/shuffle_fuzz.py
 llvm/utils/shuffle_select_fuzz_tester.py
 llvm/utils/sort_includes.py
+llvm/utils/split-file/.clang-tidy
+llvm/utils/split-file/CMakeLists.txt
 llvm/utils/sysroot.py
 llvm/utils/testgen/
 llvm/utils/textmate/
 llvm/utils/unicode-case-fold.py
-llvm/utils/unittest/
 llvm/utils/update_analyze_test_checks.py
+llvm/utils/update_any_test_checks.py
 llvm/utils/update_cc_test_checks.py
 llvm/utils/update_llc_test_checks.py
 llvm/utils/update_mca_test_checks.py
@@ -935,6 +960,7 @@ openmp/runtime/README.txt
 openmp/runtime/cmake/
 openmp/runtime/doc/
 openmp/runtime/src/CMakeLists.txt
+openmp/runtime/src/exports_test_so.txt
 openmp/runtime/test/
 openmp/runtime/tools/
 openmp/tools/

@@ -31,6 +31,7 @@ DPSRCS+=	${TGHDRS}
 CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}
 
 LIBADD+=	z
+LIBADD+=	zstd
 
 LINKS=		${BINDIR}/llvm-objdump ${BINDIR}/objdump
 MLINKS=		llvm-objdump.1 objdump.1

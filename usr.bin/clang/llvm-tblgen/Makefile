@@ -50,6 +50,7 @@ SRCS+=		OptParserEmitter.cpp
 SRCS+=		OptRSTEmitter.cpp
 SRCS+=		PredicateExpander.cpp
 SRCS+=		PseudoLoweringEmitter.cpp
+SRCS+=		RISCVTargetDefEmitter.cpp
 SRCS+=		RegisterBankEmitter.cpp
 SRCS+=		RegisterInfoEmitter.cpp
 SRCS+=		SDNodeProperties.cpp
