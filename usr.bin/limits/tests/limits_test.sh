@@ -31,30 +31,58 @@
 # shell interpretation of time(1)
 TIME=/usr/bin/time
 
-atf_test_case cputime_hard_flag
+validate_time_output()
+{
+	local time_output=$1
+
+	# RLIMIT_CPU is enforced by a 1-second timer.  Allow 3 + 1 + a little.
+	atf_check awk '
+		/^(user|sys) / {
+		    sum += $2
+		}
+		END {
+		    if (sum < 3 || sum >= 4.5) {
+			print(sum);
+			exit(1);
+		    }
+		}
+	' < $time_output
+}
+
+atf_test_case cputime_hard_flag cleanup
 cputime_hard_flag_body()
 {
 
-	atf_check -e empty -o match:'cputime[[:space:]]+3 secs' -s exit:0 \
+	atf_check -o match:'cputime[[:space:]]+3 secs' \
 	    limits -H -t 3 limits -H
-	atf_check -e empty -o match:'cputime[[:space:]]+3 secs' -s exit:0 \
+	atf_check -o match:'cputime[[:space:]]+3 secs' \
 	    limits -H -t 3 limits -S
-	atf_check -e match:'real[[:space:]]+[34]\.[0-9][0-9]' -o empty -s signal:sigkill \
+	atf_check -e save:time_output -s signal:sigkill \
 	    limits -H -t 3 $TIME -p sh -c 'while : ; do : ; done'
+	validate_time_output time_output
+}
+cputime_hard_flag_cleanup()
+{
+	rm -f time_output
 }
 
 SIGXCPU=24 # atf_check doesn't know sigxcpu
 
-atf_test_case cputime_soft_flag
+atf_test_case cputime_soft_flag cleanup
 cputime_soft_flag_body()
 {
 
-	atf_check -e empty -o match:'cputime-max[[:space:]]+infinity secs' -s exit:0 \
+	atf_check -o match:'cputime-max[[:space:]]+infinity secs' \
 	    limits -S -t 3 limits -H
-	atf_check -e empty -o match:'cputime-cur[[:space:]]+3 secs' -s exit:0 \
+	atf_check -o match:'cputime-cur[[:space:]]+3 secs' \
 	    limits -S -t 3 limits -S
-	atf_check -e match:'real[[:space:]]+[34]\.[0-9][0-9]' -o empty -s signal:$SIGXCPU \
+	atf_check -e save:time_output -s signal:$SIGXCPU \
 	    limits -S -t 3 $TIME -p sh -c 'while : ; do : ; done'
+	validate_time_output time_output
+}
+cputime_soft_flag_cleanup()
+{
+	rm -f time_output
 }
 
 atf_init_test_cases()
