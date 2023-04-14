@@ -3209,14 +3209,14 @@ ieee80211_set_mcsset(struct ieee80211com *ic, uint8_t *frm)
 		}
 	}
 
+	txparams = 0x1;			/* TX MCS set defined */
 	if (ic->ic_rxstream != ic->ic_txstream) {
-		txparams = 0x1;			/* TX MCS set defined */
 		txparams |= 0x2;		/* TX RX MCS not equal */
 		txparams |= (ic->ic_txstream - 1) << 2;	/* num TX streams */
 		if (ic->ic_htcaps & IEEE80211_HTC_TXUNEQUAL)
 			txparams |= 0x16;	/* TX unequal modulation sup */
-	} else
-		txparams = 0;
+	}
+
 	frm[12] = txparams;
 }
 
