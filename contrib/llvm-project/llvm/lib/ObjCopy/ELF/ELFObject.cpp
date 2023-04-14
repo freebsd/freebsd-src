@@ -438,14 +438,34 @@ template <class ELFT>
 Error ELFSectionWriter<ELFT>::visit(const DecompressedSection &Sec) {
   ArrayRef<uint8_t> Compressed =
       Sec.OriginalData.slice(sizeof(Elf_Chdr_Impl<ELFT>));
-  SmallVector<uint8_t, 128> DecompressedContent;
-  if (Error Err = compression::zlib::uncompress(Compressed, DecompressedContent,
-                                                static_cast<size_t>(Sec.Size)))
+  SmallVector<uint8_t, 128> Decompressed;
+  DebugCompressionType Type;
+  switch (Sec.ChType) {
+  case ELFCOMPRESS_ZLIB:
+    Type = DebugCompressionType::Zlib;
+    break;
+  case ELFCOMPRESS_ZSTD:
+    Type = DebugCompressionType::Zstd;
+    break;
+  default:
     return createStringError(errc::invalid_argument,
-                             "'" + Sec.Name + "': " + toString(std::move(Err)));
+                             "--decompress-debug-sections: ch_type (" +
+                                 Twine(Sec.ChType) + ") of section '" +
+                                 Sec.Name + "' is unsupported");
+  }
+  if (auto *Reason =
+          compression::getReasonIfUnsupported(compression::formatFor(Type)))
+    return createStringError(errc::invalid_argument,
+                             "failed to decompress section '" + Sec.Name +
+                                 "': " + Reason);
+  if (Error E = compression::decompress(Type, Compressed, Decompressed,
+                                        static_cast<size_t>(Sec.Size)))
+    return createStringError(errc::invalid_argument,
+                             "failed to decompress section '" + Sec.Name +
+                                 "': " + toString(std::move(E)));
 
   uint8_t *Buf = reinterpret_cast<uint8_t *>(Out.getBufferStart()) + Sec.Offset;
-  std::copy(DecompressedContent.begin(), DecompressedContent.end(), Buf);
+  std::copy(Decompressed.begin(), Decompressed.end(), Buf);
 
   return Error::success();
 }
@@ -495,8 +515,11 @@ Error ELFSectionWriter<ELFT>::visit(const CompressedSection &Sec) {
   case DebugCompressionType::None:
     std::copy(Sec.OriginalData.begin(), Sec.OriginalData.end(), Buf);
     return Error::success();
-  case DebugCompressionType::Z:
+  case DebugCompressionType::Zlib:
     Chdr.ch_type = ELF::ELFCOMPRESS_ZLIB;
+    break;
+  case DebugCompressionType::Zstd:
+    Chdr.ch_type = ELF::ELFCOMPRESS_ZSTD;
     break;
   }
   Chdr.ch_size = Sec.DecompressedSize;
@@ -509,26 +532,24 @@ Error ELFSectionWriter<ELFT>::visit(const CompressedSection &Sec) {
 }
 
 CompressedSection::CompressedSection(const SectionBase &Sec,
-                                     DebugCompressionType CompressionType)
+                                     DebugCompressionType CompressionType,
+                                     bool Is64Bits)
     : SectionBase(Sec), CompressionType(CompressionType),
       DecompressedSize(Sec.OriginalData.size()), DecompressedAlign(Sec.Align) {
-  compression::zlib::compress(OriginalData, CompressedData);
+  compression::compress(compression::Params(CompressionType), OriginalData,
+                        CompressedData);
 
-  assert(CompressionType != DebugCompressionType::None);
   Flags |= ELF::SHF_COMPRESSED;
-  size_t ChdrSize =
-      std::max(std::max(sizeof(object::Elf_Chdr_Impl<object::ELF64LE>),
-                        sizeof(object::Elf_Chdr_Impl<object::ELF64BE>)),
-               std::max(sizeof(object::Elf_Chdr_Impl<object::ELF32LE>),
-                        sizeof(object::Elf_Chdr_Impl<object::ELF32BE>)));
+  size_t ChdrSize = Is64Bits ? sizeof(object::Elf_Chdr_Impl<object::ELF64LE>)
+                             : sizeof(object::Elf_Chdr_Impl<object::ELF32LE>);
   Size = ChdrSize + CompressedData.size();
   Align = 8;
 }
 
 CompressedSection::CompressedSection(ArrayRef<uint8_t> CompressedData,
-                                     uint64_t DecompressedSize,
+                                     uint32_t ChType, uint64_t DecompressedSize,
                                      uint64_t DecompressedAlign)
-    : CompressionType(DebugCompressionType::None),
+    : ChType(ChType), CompressionType(DebugCompressionType::None),
       DecompressedSize(DecompressedSize), DecompressedAlign(DecompressedAlign) {
   OriginalData = CompressedData;
 }
@@ -1341,7 +1362,7 @@ Expected<std::unique_ptr<Object>> IHexELFBuilder::build() {
 
 template <class ELFT>
 ELFBuilder<ELFT>::ELFBuilder(const ELFObjectFile<ELFT> &ElfObj, Object &Obj,
-                             Optional<StringRef> ExtractPartition)
+                             std::optional<StringRef> ExtractPartition)
     : ElfFile(ElfObj.getELFFile()), Obj(Obj),
       ExtractPartition(ExtractPartition) {
   Obj.IsMips64EL = ElfFile.isMips64EL();
@@ -1706,8 +1727,8 @@ Expected<SectionBase &> ELFBuilder<ELFT>::makeSection(const Elf_Shdr &Shdr) {
     if (!(Shdr.sh_flags & ELF::SHF_COMPRESSED))
       return Obj.addSection<Section>(*Data);
     auto *Chdr = reinterpret_cast<const Elf_Chdr_Impl<ELFT> *>(Data->data());
-    return Obj.addSection<CompressedSection>(
-        CompressedSection(*Data, Chdr->ch_size, Chdr->ch_addralign));
+    return Obj.addSection<CompressedSection>(CompressedSection(
+        *Data, Chdr->ch_type, Chdr->ch_size, Chdr->ch_addralign));
   }
   }
 }
@@ -1855,6 +1876,7 @@ template <class ELFT> Error ELFBuilder<ELFT>::build(bool EnsureSymtab) {
     return HeadersFile.takeError();
 
   const typename ELFFile<ELFT>::Elf_Ehdr &Ehdr = HeadersFile->getHeader();
+  Obj.Is64Bits = Ehdr.e_ident[EI_CLASS] == ELFCLASS64;
   Obj.OSABI = Ehdr.e_ident[EI_OSABI];
   Obj.ABIVersion = Ehdr.e_ident[EI_ABIVERSION];
   Obj.Type = Ehdr.e_type;
@@ -2093,7 +2115,7 @@ Error Object::updateSection(StringRef Name, ArrayRef<uint8_t> Data) {
   if (Data.size() > OldSec->Size && OldSec->ParentSegment)
     return createStringError(errc::invalid_argument,
                              "cannot fit data of size %zu into section '%s' "
-                             "with size %zu that is part of a segment",
+                             "with size %" PRIu64 " that is part of a segment",
                              Data.size(), Name.str().c_str(), OldSec->Size);
 
   if (!OldSec->ParentSegment) {

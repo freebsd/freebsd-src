@@ -875,8 +875,16 @@ static InsertAction computeInsertAction(ArchiveOperation Operation,
 
   if (Operation == QuickAppend || Members.empty())
     return IA_AddOldMember;
-  auto MI = find_if(
-      Members, [Name](StringRef Path) { return comparePaths(Name, Path); });
+
+  auto MI = find_if(Members, [Name](StringRef Path) {
+    if (Thin && !sys::path::is_absolute(Path)) {
+      Expected<std::string> PathOrErr =
+          computeArchiveRelativePath(ArchiveName, Path);
+      return comparePaths(Name, PathOrErr ? *PathOrErr : Path);
+    } else {
+      return comparePaths(Name, Path);
+    }
+  });
 
   if (MI == Members.end())
     return IA_AddOldMember;
@@ -1218,7 +1226,7 @@ static void runMRIScript() {
       break;
     case MRICommand::CreateThin:
       Thin = true;
-      LLVM_FALLTHROUGH;
+      [[fallthrough]];
     case MRICommand::Create:
       Create = true;
       if (!ArchiveName.empty())
@@ -1322,7 +1330,7 @@ static int ar_main(int argc, char **argv) {
   SmallVector<const char *, 0> Argv(argv + 1, argv + argc);
   StringSaver Saver(Alloc);
 
-  cl::ExpandResponseFiles(Saver, getRspQuoting(makeArrayRef(argv, argc)), Argv);
+  cl::ExpandResponseFiles(Saver, getRspQuoting(ArrayRef(argv, argc)), Argv);
 
   // Get BitMode from enviorment variable "OBJECT_MODE" for AIX OS, if
   // specified.
@@ -1465,11 +1473,11 @@ int llvm_ar_main(int argc, char **argv) {
   };
 
   if (Is("dlltool"))
-    return dlltoolDriverMain(makeArrayRef(argv, argc));
+    return dlltoolDriverMain(ArrayRef(argv, argc));
   if (Is("ranlib"))
     return ranlib_main(argc, argv);
   if (Is("lib"))
-    return libDriverMain(makeArrayRef(argv, argc));
+    return libDriverMain(ArrayRef(argv, argc));
   if (Is("ar"))
     return ar_main(argc, argv);
 

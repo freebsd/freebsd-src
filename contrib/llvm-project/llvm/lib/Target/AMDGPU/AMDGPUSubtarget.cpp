@@ -54,6 +54,10 @@ static cl::opt<bool> UseAA("amdgpu-use-aa-in-codegen",
                            cl::desc("Enable the use of AA during codegen."),
                            cl::init(true));
 
+static cl::opt<unsigned> NSAThreshold("amdgpu-nsa-threshold",
+                                      cl::desc("Number of addresses from which to enable MIMG NSA."),
+                                      cl::init(3), cl::Hidden);
+
 GCNSubtarget::~GCNSubtarget() = default;
 
 GCNSubtarget &
@@ -137,6 +141,12 @@ GCNSubtarget::initializeSubtargetDependencies(const Triple &TT,
       HasMovrel = true;
   }
 
+  AddressableLocalMemorySize = LocalMemorySize;
+
+  if (AMDGPU::isGFX10Plus(*this) &&
+      !getFeatureBits().test(AMDGPU::FeatureCuMode))
+    LocalMemorySize *= 2;
+
   // Don't crash on invalid devices.
   if (WavefrontSizeLog2 == 0)
     WavefrontSizeLog2 = 5;
@@ -169,6 +179,7 @@ GCNSubtarget::GCNSubtarget(const Triple &TT, StringRef GPU, StringRef FS,
     FrameLowering(TargetFrameLowering::StackGrowsUp, getStackAlignment(), 0) {
   // clang-format on
   MaxWavesPerEU = AMDGPU::IsaInfo::getMaxWavesPerEU(this);
+  EUsPerCU = AMDGPU::IsaInfo::getEUsPerCU(this);
   CallLoweringInfo.reset(new AMDGPUCallLowering(*getTargetLowering()));
   InlineAsmLoweringInfo.reset(new InlineAsmLowering(getTargetLowering()));
   Legalizer.reset(new AMDGPULegalizerInfo(*this, TM));
@@ -299,19 +310,29 @@ bool GCNSubtarget::zeroesHigh16BitsOfDest(unsigned Opcode) const {
   }
 }
 
-unsigned AMDGPUSubtarget::getMaxLocalMemSizeWithWaveCount(unsigned NWaves,
-  const Function &F) const {
-  if (NWaves == 1)
-    return getLocalMemorySize();
-  unsigned WorkGroupSize = getFlatWorkGroupSizes(F).second;
-  unsigned WorkGroupsPerCu = getMaxWorkGroupsPerCU(WorkGroupSize);
-  if (!WorkGroupsPerCu)
-    return 0;
-  unsigned MaxWaves = getMaxWavesPerEU();
-  return getLocalMemorySize() * MaxWaves / WorkGroupsPerCu / NWaves;
+// Returns the maximum per-workgroup LDS allocation size (in bytes) that still
+// allows the given function to achieve an occupancy of NWaves waves per
+// SIMD / EU, taking into account only the function's *maximum* workgroup size.
+unsigned
+AMDGPUSubtarget::getMaxLocalMemSizeWithWaveCount(unsigned NWaves,
+                                                 const Function &F) const {
+  const unsigned WaveSize = getWavefrontSize();
+  const unsigned WorkGroupSize = getFlatWorkGroupSizes(F).second;
+  const unsigned WavesPerWorkgroup =
+      std::max(1u, (WorkGroupSize + WaveSize - 1) / WaveSize);
+
+  const unsigned WorkGroupsPerCU =
+      std::max(1u, (NWaves * getEUsPerCU()) / WavesPerWorkgroup);
+
+  return getLocalMemorySize() / WorkGroupsPerCU;
 }
 
 // FIXME: Should return min,max range.
+//
+// Returns the maximum occupancy, in number of waves per SIMD / EU, that can
+// be achieved when only the given function is running on the machine; and
+// taking into account the overall number of wave slots, the (maximum) workgroup
+// size, and the per-workgroup LDS allocation size.
 unsigned AMDGPUSubtarget::getOccupancyWithLocalMemSize(uint32_t Bytes,
   const Function &F) const {
   const unsigned MaxWorkGroupSize = getFlatWorkGroupSizes(F).second;
@@ -333,9 +354,12 @@ unsigned AMDGPUSubtarget::getOccupancyWithLocalMemSize(uint32_t Bytes,
 
   NumGroups = std::min(MaxWorkGroupsPerCu, NumGroups);
 
-  // Round to the number of waves.
-  const unsigned MaxGroupNumWaves = (MaxWorkGroupSize + WaveSize - 1) / WaveSize;
+  // Round to the number of waves per CU.
+  const unsigned MaxGroupNumWaves = divideCeil(MaxWorkGroupSize, WaveSize);
   unsigned MaxWaves = NumGroups * MaxGroupNumWaves;
+
+  // Number of waves per EU (SIMD).
+  MaxWaves = divideCeil(MaxWaves, getEUsPerCU());
 
   // Clamp to the maximum possible number of waves.
   MaxWaves = std::min(MaxWaves, getMaxWavesPerEU());
@@ -363,9 +387,9 @@ AMDGPUSubtarget::getDefaultFlatWorkGroupSize(CallingConv::ID CC) const {
   case CallingConv::AMDGPU_ES:
   case CallingConv::AMDGPU_GS:
   case CallingConv::AMDGPU_PS:
-    return std::make_pair(1, getWavefrontSize());
+    return std::pair(1, getWavefrontSize());
   default:
-    return std::make_pair(1u, getMaxFlatWorkGroupSize());
+    return std::pair(1u, getMaxFlatWorkGroupSize());
   }
 }
 
@@ -460,21 +484,21 @@ bool AMDGPUSubtarget::makeLIDRangeMetadata(Instruction *I) const {
       case Intrinsic::amdgcn_workitem_id_x:
       case Intrinsic::r600_read_tidig_x:
         IdQuery = true;
-        LLVM_FALLTHROUGH;
+        [[fallthrough]];
       case Intrinsic::r600_read_local_size_x:
         Dim = 0;
         break;
       case Intrinsic::amdgcn_workitem_id_y:
       case Intrinsic::r600_read_tidig_y:
         IdQuery = true;
-        LLVM_FALLTHROUGH;
+        [[fallthrough]];
       case Intrinsic::r600_read_local_size_y:
         Dim = 1;
         break;
       case Intrinsic::amdgcn_workitem_id_z:
       case Intrinsic::r600_read_tidig_z:
         IdQuery = true;
-        LLVM_FALLTHROUGH;
+        [[fallthrough]];
       case Intrinsic::r600_read_local_size_z:
         Dim = 2;
         break;
@@ -520,7 +544,8 @@ unsigned AMDGPUSubtarget::getImplicitArgNumBytes(const Function &F) const {
 
   // Assume all implicit inputs are used by default
   unsigned NBytes = (AMDGPU::getAmdhsaCodeObjectVersion() >= 5) ? 256 : 56;
-  return AMDGPU::getIntegerAttribute(F, "amdgpu-implicitarg-num-bytes", NBytes);
+  return F.getFnAttributeAsParsedInteger("amdgpu-implicitarg-num-bytes",
+                                         NBytes);
 }
 
 uint64_t AMDGPUSubtarget::getExplicitKernArgSize(const Function &F,
@@ -536,7 +561,7 @@ uint64_t AMDGPUSubtarget::getExplicitKernArgSize(const Function &F,
     const bool IsByRef = Arg.hasByRefAttr();
     Type *ArgTy = IsByRef ? Arg.getParamByRefType() : Arg.getType();
     Align Alignment = DL.getValueOrABITypeAlignment(
-        IsByRef ? Arg.getParamAlign() : None, ArgTy);
+        IsByRef ? Arg.getParamAlign() : std::nullopt, ArgTy);
     uint64_t AllocSize = DL.getTypeAllocSize(ArgTy);
     ExplicitArgBytes = alignTo(ExplicitArgBytes, Alignment) + AllocSize;
     MaxAlign = std::max(MaxAlign, Alignment);
@@ -621,13 +646,8 @@ unsigned GCNSubtarget::getOccupancyWithNumSGPRs(unsigned SGPRs) const {
   return 5;
 }
 
-unsigned GCNSubtarget::getOccupancyWithNumVGPRs(unsigned VGPRs) const {
-  unsigned MaxWaves = getMaxWavesPerEU();
-  unsigned Granule = getVGPRAllocGranule();
-  if (VGPRs < Granule)
-    return MaxWaves;
-  unsigned RoundedRegs = ((VGPRs + Granule - 1) / Granule) * Granule;
-  return std::min(std::max(getTotalNumVGPRs() / RoundedRegs, 1u), MaxWaves);
+unsigned GCNSubtarget::getOccupancyWithNumVGPRs(unsigned NumVGPRs) const {
+  return AMDGPU::IsaInfo::getNumWavesPerEUWithNumVGPRs(this, NumVGPRs);
 }
 
 unsigned
@@ -684,8 +704,8 @@ unsigned GCNSubtarget::getBaseMaxNumSGPRs(
   // Check if maximum number of SGPRs was explicitly requested using
   // "amdgpu-num-sgpr" attribute.
   if (F.hasFnAttribute("amdgpu-num-sgpr")) {
-    unsigned Requested = AMDGPU::getIntegerAttribute(
-      F, "amdgpu-num-sgpr", MaxNumSGPRs);
+    unsigned Requested =
+        F.getFnAttributeAsParsedInteger("amdgpu-num-sgpr", MaxNumSGPRs);
 
     // Make sure requested value does not violate subtarget's specifications.
     if (Requested && (Requested <= ReservedNumSGPRs))
@@ -764,8 +784,8 @@ unsigned GCNSubtarget::getBaseMaxNumVGPRs(
   // Check if maximum number of VGPRs was explicitly requested using
   // "amdgpu-num-vgpr" attribute.
   if (F.hasFnAttribute("amdgpu-num-vgpr")) {
-    unsigned Requested = AMDGPU::getIntegerAttribute(
-      F, "amdgpu-num-vgpr", MaxNumVGPRs);
+    unsigned Requested =
+        F.getFnAttributeAsParsedInteger("amdgpu-num-vgpr", MaxNumVGPRs);
 
     if (hasGFX90AInsts())
       Requested *= 2;
@@ -948,6 +968,18 @@ std::unique_ptr<ScheduleDAGMutation>
 GCNSubtarget::createFillMFMAShadowMutation(const TargetInstrInfo *TII) const {
   return EnablePowerSched ? std::make_unique<FillMFMAShadowMutation>(&InstrInfo)
                           : nullptr;
+}
+
+unsigned GCNSubtarget::getNSAThreshold(const MachineFunction &MF) const {
+  if (NSAThreshold.getNumOccurrences() > 0)
+    return std::max(NSAThreshold.getValue(), 2u);
+
+  int Value = MF.getFunction().getFnAttributeAsParsedInteger(
+      "amdgpu-nsa-threshold", -1);
+  if (Value > 0)
+    return std::max(Value, 2);
+
+  return 3;
 }
 
 const AMDGPUSubtarget &AMDGPUSubtarget::get(const MachineFunction &MF) {

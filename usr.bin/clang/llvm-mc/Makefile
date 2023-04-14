@@ -8,5 +8,6 @@ SRCS+=		Disassembler.cpp
 SRCS+=		llvm-mc.cpp
 
 LIBADD+=	z
+LIBADD+=	zstd
 
 .include "../llvm.prog.mk"

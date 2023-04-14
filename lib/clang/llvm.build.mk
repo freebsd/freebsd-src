@@ -111,7 +111,7 @@ LDFLAGS+=	-Wl,-dead_strip
 LDFLAGS+=	-Wl,--gc-sections
 .endif
 
-CXXSTD?=	c++14
+CXXSTD?=	c++17
 CXXFLAGS+=	-fno-exceptions
 CXXFLAGS+=	-fno-rtti
 .if ${.MAKE.OS} == "FreeBSD" || !defined(BOOTSTRAPPING)

@@ -243,7 +243,7 @@ void PlainCFGBuilder::createVPInstructionsForVPBB(VPBasicBlock *VPBB,
       for (Value *Op : Inst->operands())
         VPOperands.push_back(getOrCreateVPOperand(Op));
 
-      // Build VPInstruction for any arbitraty Instruction without specific
+      // Build VPInstruction for any arbitrary Instruction without specific
       // representation in VPlan.
       NewVPV = cast<VPInstruction>(
           VPIRBuilder.createNaryOp(Inst->getOpcode(), VPOperands, Inst));
@@ -391,7 +391,7 @@ void VPlanHCFGBuilder::buildHierarchicalCFG() {
   Verifier.verifyHierarchicalCFG(TopRegion);
 
   // Compute plain CFG dom tree for VPLInfo.
-  VPDomTree.recalculate(*TopRegion);
+  VPDomTree.recalculate(Plan);
   LLVM_DEBUG(dbgs() << "Dominator Tree after building the plain CFG.\n";
              VPDomTree.print(dbgs()));
 }

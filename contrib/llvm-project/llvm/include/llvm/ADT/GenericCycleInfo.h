@@ -105,7 +105,9 @@ public:
   }
 
   /// \brief Return whether \p Block is an entry block of the cycle.
-  bool isEntry(BlockT *Block) const { return is_contained(Entries, Block); }
+  bool isEntry(const BlockT *Block) const {
+    return is_contained(Entries, Block);
+  }
 
   /// \brief Return whether \p Block is contained in the cycle.
   bool contains(const BlockT *Block) const {
@@ -238,7 +240,7 @@ private:
   /// Map basic blocks to their top level containing cycle.
   DenseMap<BlockT *, CycleT *> BlockMapTopLevel;
 
-  /// Outermost cycles discovered by any DFS.
+  /// Top-level cycles discovered by any DFS.
   ///
   /// Note: The implementation treats the nullptr as the parent of
   /// every top-level cycle. See \ref contains for an example.

@@ -18,11 +18,11 @@
 using namespace clang;
 using namespace clang::targets;
 
-const Builtin::Info PPCTargetInfo::BuiltinInfo[] = {
+static constexpr Builtin::Info BuiltinInfo[] = {
 #define BUILTIN(ID, TYPE, ATTRS)                                               \
-  {#ID, TYPE, ATTRS, nullptr, ALL_LANGUAGES, nullptr},
+  {#ID, TYPE, ATTRS, nullptr, HeaderDesc::NO_HEADER, ALL_LANGUAGES},
 #define LIBBUILTIN(ID, TYPE, ATTRS, HEADER)                                    \
-  {#ID, TYPE, ATTRS, HEADER, ALL_LANGUAGES, nullptr},
+  {#ID, TYPE, ATTRS, nullptr, HeaderDesc::HEADER, ALL_LANGUAGES},
 #include "clang/Basic/BuiltinsPPC.def"
 };
 
@@ -281,7 +281,6 @@ void PPCTargetInfo::getTargetDefines(const LangOptions &Opts,
   if (PointerWidth == 64) {
     Builder.defineMacro("_ARCH_PPC64");
     Builder.defineMacro("__powerpc64__");
-    Builder.defineMacro("__ppc64__");
     Builder.defineMacro("__PPC64__");
   } else if (getTriple().isOSAIX()) {
     // The XL compilers on AIX define _ARCH_PPC64 for both 32 and 64-bit modes.
@@ -755,7 +754,7 @@ const char *const PPCTargetInfo::GCCRegNames[] = {
 };
 
 ArrayRef<const char *> PPCTargetInfo::getGCCRegNames() const {
-  return llvm::makeArrayRef(GCCRegNames);
+  return llvm::ArrayRef(GCCRegNames);
 }
 
 const TargetInfo::GCCRegAlias PPCTargetInfo::GCCRegAliases[] = {
@@ -786,7 +785,7 @@ const TargetInfo::GCCRegAlias PPCTargetInfo::GCCRegAliases[] = {
 };
 
 ArrayRef<TargetInfo::GCCRegAlias> PPCTargetInfo::getGCCRegAliases() const {
-  return llvm::makeArrayRef(GCCRegAliases);
+  return llvm::ArrayRef(GCCRegAliases);
 }
 
 // PPC ELFABIv2 DWARF Definitoin "Table 2.26. Mappings of Common Registers".
@@ -814,7 +813,7 @@ const TargetInfo::AddlRegName GCCAddlRegNames[] = {
 
 ArrayRef<TargetInfo::AddlRegName> PPCTargetInfo::getGCCAddlRegNames() const {
   if (ABI == "elfv2")
-    return llvm::makeArrayRef(GCCAddlRegNames);
+    return llvm::ArrayRef(GCCAddlRegNames);
   else 
     return TargetInfo::getGCCAddlRegNames(); 
 }
@@ -855,6 +854,6 @@ void PPCTargetInfo::adjust(DiagnosticsEngine &Diags, LangOptions &Opts) {
 }
 
 ArrayRef<Builtin::Info> PPCTargetInfo::getTargetBuiltins() const {
-  return llvm::makeArrayRef(BuiltinInfo, clang::PPC::LastTSBuiltin -
-                                             Builtin::FirstTSBuiltin);
+  return llvm::ArrayRef(BuiltinInfo,
+                        clang::PPC::LastTSBuiltin - Builtin::FirstTSBuiltin);
 }

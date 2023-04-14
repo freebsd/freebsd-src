@@ -33,6 +33,8 @@
             ..
             __debug_utils
             ..
+            __expected
+            ..
             __filesystem
             ..
             __format
@@ -47,6 +49,8 @@
             ..
             __memory
             ..
+            __memory_resource
+            ..
             __numeric
             ..
             __random
@@ -56,6 +60,8 @@
             __string
             ..
             __thread
+            ..
+            __tuple_dir
             ..
             __type_traits
             ..

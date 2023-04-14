@@ -4,8 +4,8 @@
 
 .PATH:		${CLANG_SRCS}/lib/Headers
 
-INCSGROUPS=	INCS CUDA HLSL OMP PPC
-INCSDIR=	${LIBDIR}/clang/15.0.7/include
+INCSGROUPS=	INCS CUDA HLSL OMP ORC PPC
+INCSDIR=	${LIBDIR}/clang/16/include
 CUDADIR=	${INCSDIR}/cuda_wrappers
 HLSLDIR=	${INCSDIR}/hlsl
 OMPDIR=		${INCSDIR}/openmp_wrappers
@@ -25,12 +25,14 @@ INCS+=		__clang_hip_cmath.h
 INCS+=		__clang_hip_libdevice_declares.h
 INCS+=		__clang_hip_math.h
 INCS+=		__clang_hip_runtime_wrapper.h
+INCS+=		__clang_hip_stdlib.h
 INCS+=		__stddef_max_align_t.h
 INCS+=		__wmmintrin_aes.h
 INCS+=		__wmmintrin_pclmul.h
 INCS+=		adxintrin.h
 INCS+=		altivec.h
 INCS+=		ammintrin.h
+INCS+=		amxfp16intrin.h
 INCS+=		amxintrin.h
 INCS+=		arm64intr.h
 INCS+=		arm_acle.h
@@ -66,7 +68,10 @@ INCS+=		avx512vnniintrin.h
 INCS+=		avx512vp2intersectintrin.h
 INCS+=		avx512vpopcntdqintrin.h
 INCS+=		avx512vpopcntdqvlintrin.h
+INCS+=		avxifmaintrin.h
 INCS+=		avxintrin.h
+INCS+=		avxneconvertintrin.h
+INCS+=		avxvnniint8intrin.h
 INCS+=		avxvnniintrin.h
 INCS+=		bmi2intrin.h
 INCS+=		bmiintrin.h
@@ -77,6 +82,7 @@ INCS+=		cldemoteintrin.h
 INCS+=		clflushoptintrin.h
 INCS+=		clwbintrin.h
 INCS+=		clzerointrin.h
+INCS+=		cmpccxaddintrin.h
 INCS+=		cpuid.h
 INCS+=		crc32intrin.h
 INCS+=		emmintrin.h
@@ -98,6 +104,7 @@ INCS+=		ia32intrin.h
 INCS+=		immintrin.h
 INCS+=		invpcidintrin.h
 INCS+=		keylockerintrin.h
+INCS+=		larchintrin.h
 INCS+=		lwpintrin.h
 INCS+=		lzcntintrin.h
 INCS+=		mm3dnow.h
@@ -114,8 +121,10 @@ INCS+=		pconfigintrin.h
 INCS+=		pkuintrin.h
 INCS+=		pmmintrin.h
 INCS+=		popcntintrin.h
+INCS+=		prfchiintrin.h
 INCS+=		prfchwintrin.h
 INCS+=		ptwriteintrin.h
+INCS+=		raointintrin.h
 INCS+=		rdpruintrin.h
 INCS+=		rdseedintrin.h
 INCS+=		rtmintrin.h
@@ -170,6 +179,7 @@ INCS+=		varargs.h
 .endif # INSTALL_CONFLICTING_CLANG_HEADERS
 
 CUDA+=		cuda_wrappers/algorithm
+CUDA+=		cuda_wrappers/cmath
 CUDA+=		cuda_wrappers/complex
 CUDA+=		cuda_wrappers/new
 

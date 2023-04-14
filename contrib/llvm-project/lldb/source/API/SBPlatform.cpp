@@ -69,7 +69,7 @@ struct PlatformShellCommand {
   std::string m_output;
   int m_status = 0;
   int m_signo = 0;
-  Timeout<std::ratio<1>> m_timeout = llvm::None;
+  Timeout<std::ratio<1>> m_timeout = std::nullopt;
 };
 // SBPlatformConnectOptions
 SBPlatformConnectOptions::SBPlatformConnectOptions(const char *url)
@@ -261,7 +261,7 @@ void SBPlatformShellCommand::SetTimeoutSeconds(uint32_t sec) {
   LLDB_INSTRUMENT_VA(this, sec);
 
   if (sec == UINT32_MAX)
-    m_opaque_ptr->m_timeout = llvm::None;
+    m_opaque_ptr->m_timeout = std::nullopt;
   else
     m_opaque_ptr->m_timeout = std::chrono::seconds(sec);
 }
@@ -354,7 +354,7 @@ const char *SBPlatform::GetWorkingDirectory() {
 
   PlatformSP platform_sp(GetSP());
   if (platform_sp)
-    return platform_sp->GetWorkingDirectory().GetCString();
+    return platform_sp->GetWorkingDirectory().GetPathAsConstString().AsCString();
   return nullptr;
 }
 
@@ -547,14 +547,15 @@ SBError SBPlatform::Run(SBPlatformShellCommand &shell_command) {
         if (!command)
           return Status("invalid shell command (empty)");
 
-        const char *working_dir = shell_command.GetWorkingDirectory();
-        if (working_dir == nullptr) {
-          working_dir = platform_sp->GetWorkingDirectory().GetCString();
-          if (working_dir)
-            shell_command.SetWorkingDirectory(working_dir);
+        if (shell_command.GetWorkingDirectory() == nullptr) {
+          std::string platform_working_dir =
+              platform_sp->GetWorkingDirectory().GetPath();
+          if (!platform_working_dir.empty())
+            shell_command.SetWorkingDirectory(platform_working_dir.c_str());
         }
         return platform_sp->RunShellCommand(
-            shell_command.m_opaque_ptr->m_shell, command, FileSpec(working_dir),
+            shell_command.m_opaque_ptr->m_shell, command,
+            FileSpec(shell_command.GetWorkingDirectory()),
             &shell_command.m_opaque_ptr->m_status,
             &shell_command.m_opaque_ptr->m_signo,
             &shell_command.m_opaque_ptr->m_output,

@@ -18,8 +18,6 @@
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Lex/Token.h"
 #include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/None.h"
-#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -28,6 +26,7 @@
 #include <algorithm>
 #include <cassert>
 #include <iterator>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -426,8 +425,8 @@ TokenBuffer::expandedForSpelled(llvm::ArrayRef<syntax::Token> Spelled) const {
   // Avoid returning empty ranges.
   if (ExpandedBegin == ExpandedEnd)
     return {};
-  return {llvm::makeArrayRef(ExpandedTokens.data() + ExpandedBegin,
-                             ExpandedTokens.data() + ExpandedEnd)};
+  return {llvm::ArrayRef(ExpandedTokens.data() + ExpandedBegin,
+                         ExpandedTokens.data() + ExpandedEnd)};
 }
 
 llvm::ArrayRef<syntax::Token> TokenBuffer::spelledTokens(FileID FID) const {
@@ -452,23 +451,21 @@ std::string TokenBuffer::Mapping::str() const {
                     BeginSpelled, EndSpelled, BeginExpanded, EndExpanded));
 }
 
-llvm::Optional<llvm::ArrayRef<syntax::Token>>
+std::optional<llvm::ArrayRef<syntax::Token>>
 TokenBuffer::spelledForExpanded(llvm::ArrayRef<syntax::Token> Expanded) const {
   // Mapping an empty range is ambiguous in case of empty mappings at either end
   // of the range, bail out in that case.
   if (Expanded.empty())
-    return llvm::None;
+    return std::nullopt;
   const syntax::Token *First = &Expanded.front();
   const syntax::Token *Last = &Expanded.back();
-  const syntax::Token *FirstSpelled, *LastSpelled;
-  const TokenBuffer::Mapping *FirstMapping, *LastMapping;
-  std::tie(FirstSpelled, FirstMapping) = spelledForExpandedToken(First);
-  std::tie(LastSpelled, LastMapping) = spelledForExpandedToken(Last);
+  auto [FirstSpelled, FirstMapping] = spelledForExpandedToken(First);
+  auto [LastSpelled, LastMapping] = spelledForExpandedToken(Last);
 
   FileID FID = SourceMgr->getFileID(FirstSpelled->location());
   // FIXME: Handle multi-file changes by trying to map onto a common root.
   if (FID != SourceMgr->getFileID(LastSpelled->location()))
-    return llvm::None;
+    return std::nullopt;
 
   const MarkedFile &File = Files.find(FID)->second;
 
@@ -487,7 +484,7 @@ TokenBuffer::spelledForExpanded(llvm::ArrayRef<syntax::Token> Expanded) const {
     SourceRange Range = spelledForExpandedSlow(
         First->location(), Last->location(), Prev, Next, FID, *SourceMgr);
     if (Range.isInvalid())
-      return llvm::None;
+      return std::nullopt;
     return getTokensCovering(File.SpelledTokens, Range, *SourceMgr);
   }
 
@@ -496,10 +493,10 @@ TokenBuffer::spelledForExpanded(llvm::ArrayRef<syntax::Token> Expanded) const {
   unsigned FirstExpanded = Expanded.begin() - ExpandedTokens.data();
   unsigned LastExpanded = Expanded.end() - ExpandedTokens.data();
   if (FirstMapping && FirstExpanded != FirstMapping->BeginExpanded)
-    return llvm::None;
+    return std::nullopt;
   if (LastMapping && LastMapping->EndExpanded != LastExpanded)
-    return llvm::None;
-  return llvm::makeArrayRef(
+    return std::nullopt;
+  return llvm::ArrayRef(
       FirstMapping ? File.SpelledTokens.data() + FirstMapping->BeginSpelled
                    : FirstSpelled,
       LastMapping ? File.SpelledTokens.data() + LastMapping->EndSpelled
@@ -509,10 +506,10 @@ TokenBuffer::spelledForExpanded(llvm::ArrayRef<syntax::Token> Expanded) const {
 TokenBuffer::Expansion TokenBuffer::makeExpansion(const MarkedFile &F,
                                                   const Mapping &M) const {
   Expansion E;
-  E.Spelled = llvm::makeArrayRef(F.SpelledTokens.data() + M.BeginSpelled,
-                                 F.SpelledTokens.data() + M.EndSpelled);
-  E.Expanded = llvm::makeArrayRef(ExpandedTokens.data() + M.BeginExpanded,
-                                  ExpandedTokens.data() + M.EndExpanded);
+  E.Spelled = llvm::ArrayRef(F.SpelledTokens.data() + M.BeginSpelled,
+                             F.SpelledTokens.data() + M.EndSpelled);
+  E.Expanded = llvm::ArrayRef(ExpandedTokens.data() + M.BeginExpanded,
+                              ExpandedTokens.data() + M.EndExpanded);
   return E;
 }
 
@@ -535,7 +532,7 @@ TokenBuffer::fileForSpelled(llvm::ArrayRef<syntax::Token> Spelled) const {
   return File;
 }
 
-llvm::Optional<TokenBuffer::Expansion>
+std::optional<TokenBuffer::Expansion>
 TokenBuffer::expansionStartingAt(const syntax::Token *Spelled) const {
   assert(Spelled);
   const auto &File = fileForSpelled(*Spelled);
@@ -545,7 +542,7 @@ TokenBuffer::expansionStartingAt(const syntax::Token *Spelled) const {
     return M.BeginSpelled < SpelledIndex;
   });
   if (M == File.Mappings.end() || M->BeginSpelled != SpelledIndex)
-    return llvm::None;
+    return std::nullopt;
   return makeExpansion(File, *M);
 }
 
@@ -577,8 +574,8 @@ syntax::spelledTokensTouching(SourceLocation Loc,
   bool AcceptRight = Right != Tokens.end() && Right->location() <= Loc;
   bool AcceptLeft =
       Right != Tokens.begin() && (Right - 1)->endLocation() >= Loc;
-  return llvm::makeArrayRef(Right - (AcceptLeft ? 1 : 0),
-                            Right + (AcceptRight ? 1 : 0));
+  return llvm::ArrayRef(Right - (AcceptLeft ? 1 : 0),
+                        Right + (AcceptRight ? 1 : 0));
 }
 
 llvm::ArrayRef<syntax::Token>
@@ -808,7 +805,7 @@ private:
   // In the simplest case, skips spelled tokens until finding one that produced
   // the NextExpanded token, and creates an empty mapping for them.
   // If Drain is provided, skips remaining tokens from that file instead.
-  void discard(llvm::Optional<FileID> Drain = llvm::None) {
+  void discard(std::optional<FileID> Drain = std::nullopt) {
     SourceLocation Target =
         Drain ? SM.getLocForEndOfFile(*Drain)
               : SM.getExpansionLoc(
@@ -845,7 +842,7 @@ private:
                SpelledTokens[NextSpelled].location() <= KnownEnd)
           ++NextSpelled;
         FlushMapping(); // Emits [NextSpelled, KnownEnd]
-        // Now the loop contitues and will emit (KnownEnd, Target).
+        // Now the loop continues and will emit (KnownEnd, Target).
       } else {
         ++NextSpelled;
       }
@@ -985,7 +982,7 @@ std::string TokenBuffer::dumpForTests() const {
   OS << "expanded tokens:\n"
      << "  ";
   // (!) we do not show '<eof>'.
-  DumpTokens(OS, llvm::makeArrayRef(ExpandedTokens).drop_back());
+  DumpTokens(OS, llvm::ArrayRef(ExpandedTokens).drop_back());
   OS << "\n";
 
   std::vector<FileID> Keys;

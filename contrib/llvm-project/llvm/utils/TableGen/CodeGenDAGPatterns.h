@@ -50,7 +50,7 @@ using TreePatternNodePtr = std::shared_ptr<TreePatternNode>;
 /// To reduce the allocations even further, make MachineValueTypeSet own
 /// the storage and use std::array as the bit container.
 struct MachineValueTypeSet {
-  static_assert(std::is_same<std::underlying_type<MVT::SimpleValueType>::type,
+  static_assert(std::is_same<std::underlying_type_t<MVT::SimpleValueType>,
                              uint8_t>::value,
                 "Change uint8_t here to the SimpleValueType's type");
   static unsigned constexpr Capacity = std::numeric_limits<uint8_t>::max()+1;
@@ -69,7 +69,7 @@ struct MachineValueTypeSet {
   unsigned size() const {
     unsigned Count = 0;
     for (WordType W : Words)
-      Count += countPopulation(W);
+      Count += llvm::popcount(W);
     return Count;
   }
   LLVM_ATTRIBUTE_ALWAYS_INLINE
@@ -150,7 +150,7 @@ struct MachineValueTypeSet {
         WordType W = Set->Words[SkipWords];
         W &= maskLeadingOnes<WordType>(WordWidth-SkipBits);
         if (W != 0)
-          return Count + findFirstSet(W);
+          return Count + llvm::countr_zero(W);
         Count += WordWidth;
         SkipWords++;
       }
@@ -158,7 +158,7 @@ struct MachineValueTypeSet {
       for (unsigned i = SkipWords; i != NumWords; ++i) {
         WordType W = Set->Words[i];
         if (W != 0)
-          return Count + findFirstSet(W);
+          return Count + llvm::countr_zero(W);
         Count += WordWidth;
       }
       return Capacity;
