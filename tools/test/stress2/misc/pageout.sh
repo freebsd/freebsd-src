@@ -33,6 +33,9 @@
 # "panic: handle_written_filepage: not started" seen:
 # https://people.freebsd.org/~pho/stress/log/pageout-2.txt
 
+# "panic: ffs_geom_strategy: bad I/O" seen:
+# https://people.freebsd.org/~pho/stress/log/log0434.txt
+
 [ `id -u ` -ne 0 ] && echo "Must be root!" && exit 1
 . ../default.cfg
 
@@ -49,6 +52,8 @@ mdconfig -l | grep -q md$mdstart &&  mdconfig -d -u $mdstart
 
 mdconfig -a -t swap -s 2g -u $mdstart || exit 1
 
+[ "$newfs_flags" = "-U" ] && [ `jot -r 1 0 1` -eq 1 ] && newfs_flags="-j"
+[ $# -eq 1 ] && newfs_flags="$1" # or use script argument
 newfs $newfs_flags md$mdstart > /dev/null
 
 mount /dev/md$mdstart $mntpoint
@@ -61,8 +66,8 @@ daemon sh -c "(cd ../testcases/swap; ./swap -t 5m -i 20 -l 100 -h)" > /dev/null
 (cd /tmp; /tmp/pageout $f1) &
 sleep .2
 while kill -0 $! 2> /dev/null; do
-	mksnap_ffs $mntpoint $mntpoint/.snap/stress2 &&
-	    rm -f $mntpoint/.snap/stress2
+	rm -f $mntpoint/.snap/stress2
+	mksnap_ffs $mntpoint $mntpoint/.snap/stress2
 done
 while pgrep -q swap; do
 	pkill swap
