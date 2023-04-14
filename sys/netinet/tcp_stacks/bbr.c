@@ -9854,6 +9854,9 @@ bbr_stop_all_timers(struct tcpcb *tp, struct tcp_bbr *bbr)
 		/* We enter in persists, set the flag appropriately */
 		bbr->rc_in_persist = 1;
 	}
+	if (tcp_in_hpts(bbr->rc_inp)) {
+		tcp_hpts_remove(bbr->rc_inp);
+	}
 }
 
 static void

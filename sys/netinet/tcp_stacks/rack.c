@@ -8113,6 +8113,9 @@ rack_stop_all_timers(struct tcpcb *tp, struct tcp_rack *rack)
 		/* We enter in persists, set the flag appropriately */
 		rack->rc_in_persist = 1;
 	}
+	if (tcp_in_hpts(rack->rc_inp)) {
+		tcp_hpts_remove(rack->rc_inp);
+	}
 }
 
 static void
