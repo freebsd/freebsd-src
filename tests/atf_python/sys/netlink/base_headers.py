@@ -15,6 +15,13 @@ class Nlmsghdr(Structure):
     ]
 
 
+class Nlattr(Structure):
+    _fields_ = [
+        ("nla_len", c_ushort),
+        ("nla_type", c_ushort),
+    ]
+
+
 class NlMsgType(Enum):
     NLMSG_NOOP = 1
     NLMSG_ERROR = 2

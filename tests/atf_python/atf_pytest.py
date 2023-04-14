@@ -6,6 +6,7 @@ from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
 
+from atf_python.ktest import generate_ktests
 from atf_python.utils import nodeid_to_method_name
 
 import pytest
@@ -42,6 +43,8 @@ class ATFTestObj(object):
 
     def _get_test_description(self, obj):
         """Returns first non-empty line from func docstring or func name"""
+        if getattr(obj, "descr", None) is not None:
+            return getattr(obj, "descr")
         docstr = obj.function.__doc__
         if docstr:
             for line in docstr.split("\n"):
@@ -162,6 +165,9 @@ class ATFHandler(object):
                 new_items.append(obj)
         items.clear()
         items.extend(new_items)
+
+    def expand_tests(self, collector, name, obj):
+        return generate_ktests(collector, name, obj)
 
     def modify_tests(self, items, config):
         if config.option.atf_cleanup:

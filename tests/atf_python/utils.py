@@ -28,6 +28,11 @@ class LibCWrapper(object):
             return get_errno()
         return 0
 
+    def kldload(self, kld_name: str) -> int:
+        if self._libc.kldload(bytes(kld_name, encoding="ascii")) == -1:
+            return get_errno()
+        return 0
+
     def jail_attach(self, jid: int) -> int:
         if self._libc.jail_attach(jid) != 0:
             return get_errno()
