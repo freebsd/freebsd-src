@@ -1516,6 +1516,12 @@ cam_ccb_status(union ccb *ccb)
 	return ((cam_status)(ccb->ccb_h.status & CAM_STATUS_MASK));
 }
 
+static inline bool
+cam_ccb_success(union ccb *ccb)
+{
+	return (cam_ccb_status(ccb) == CAM_REQ_CMP);
+}
+
 void cam_calc_geometry(struct ccb_calc_geometry *ccg, int extended);
 
 static __inline void

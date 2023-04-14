@@ -1003,7 +1003,7 @@ noerror:
 		    path->bus->sim->max_tagged_dev_openings != 0) {
 			/* Check if the SIM does not want queued commands. */
 			xpt_path_inq(&cpi, path);
-			if (cpi.ccb_h.status == CAM_REQ_CMP &&
+			if (cam_ccb_success((union ccb *)&cpi) &&
 			    (cpi.hba_inquiry & PI_TAG_ABLE)) {
 				/* Report SIM which tags are allowed. */
 				bzero(&cts, sizeof(cts));
@@ -1481,7 +1481,7 @@ ata_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		/* If there is PMP... */
 		if ((scan_info->cpi->hba_inquiry & PI_SATAPM) &&
 		    (scan_info->counter == scan_info->cpi->max_target)) {
-			if (work_ccb->ccb_h.status == CAM_REQ_CMP) {
+			if (cam_ccb_success(work_ccb)) {
 				/* everything else will be probed by it */
 				/* Free the current request path- we're done with it. */
 				xpt_free_path(work_ccb->ccb_h.path);
