@@ -560,7 +560,7 @@ superio_detect(device_t dev, bool claim, struct siosc *sc)
 	    sc->vendor == SUPERIO_VENDOR_FINTEK,
 	    ("Only ITE, Nuvoton and Fintek SuperIO-s are supported"));
 	sc->ldn_reg = 0x07;
-	sc->enable_reg = 0x30;
+	sc->enable_reg = 0x30;	/* FIXME enable_reg not used by nctgpio(4). */
 	sc->current_ldn = 0xff;	/* no device should have this */
 
 	if (superio_table[i].descr != NULL) {
@@ -874,29 +874,43 @@ superio_revid(device_t dev)
 }
 
 uint8_t
-superio_read(device_t dev, uint8_t reg)
+superio_ldn_read(device_t dev, uint8_t ldn, uint8_t reg)
 {
-	device_t sio_dev = device_get_parent(dev);
-	struct siosc *sc = device_get_softc(sio_dev);
-	struct superio_devinfo *dinfo = device_get_ivars(dev);
-	uint8_t v;
+	device_t      sio_dev = device_get_parent(dev);
+	struct siosc *sc      = device_get_softc(sio_dev);
+	uint8_t       v;
 
 	sio_conf_enter(sc);
-	v = sio_ldn_read(sc, dinfo->ldn, reg);
+	v = sio_ldn_read(sc, ldn, reg);
 	sio_conf_exit(sc);
 	return (v);
+}
+
+uint8_t
+superio_read(device_t dev, uint8_t reg)
+{
+	struct superio_devinfo *dinfo = device_get_ivars(dev);
+
+	return (superio_ldn_read(dev, dinfo->ldn, reg));
+}
+
+void
+superio_ldn_write(device_t dev, uint8_t ldn, uint8_t reg, uint8_t val)
+{
+	device_t      sio_dev = device_get_parent(dev);
+	struct siosc *sc      = device_get_softc(sio_dev);
+
+	sio_conf_enter(sc);
+	sio_ldn_write(sc, ldn, reg, val);
+	sio_conf_exit(sc);
 }
 
 void
 superio_write(device_t dev, uint8_t reg, uint8_t val)
 {
-	device_t sio_dev = device_get_parent(dev);
-	struct siosc *sc = device_get_softc(sio_dev);
 	struct superio_devinfo *dinfo = device_get_ivars(dev);
 
-	sio_conf_enter(sc);
-	sio_ldn_write(sc, dinfo->ldn, reg, val);
-	sio_conf_exit(sc);
+	return (superio_ldn_write(dev, dinfo->ldn, reg, val));
 }
 
 bool
@@ -911,7 +925,7 @@ superio_dev_enabled(device_t dev, uint8_t mask)
 	if (sc->vendor == SUPERIO_VENDOR_ITE && dinfo->ldn == 7)
 		return (true);
 
-	v = superio_read(dev, sc->enable_reg);
+	v = superio_read(dev, sc->enable_reg); /* FIXME enable_reg not used by nctgpio(4). */
 	return ((v & mask) != 0);
 }
 
