@@ -395,9 +395,9 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-"usage: split [-l line_count] [-a suffix_length] [file [prefix]]\n"
-"       split -b byte_count[K|k|M|m|G|g] [-a suffix_length] [file [prefix]]\n"
-"       split -n chunk_count [-a suffix_length] [file [prefix]]\n"
-"       split -p pattern [-a suffix_length] [file [prefix]]\n");
+"usage: split [-d] [-l line_count] [-a suffix_length] [file [prefix]]\n"
+"       split [-d] -b byte_count[K|k|M|m|G|g] [-a suffix_length] [file [prefix]]\n"
+"       split [-d] -n chunk_count [-a suffix_length] [file [prefix]]\n"
+"       split [-d] -p pattern [-a suffix_length] [file [prefix]]\n");
 	exit(EX_USAGE);
 }

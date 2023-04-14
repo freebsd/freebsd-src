@@ -28,7 +28,7 @@
 .\"	@(#)split.1	8.3 (Berkeley) 4/16/94
 .\" $FreeBSD$
 .\"
-.Dd October 25, 2022
+.Dd April 18, 2023
 .Dt SPLIT 1
 .Os
 .Sh NAME
@@ -36,12 +36,12 @@
 .Nd split a file into pieces
 .Sh SYNOPSIS
 .Nm
-.Fl d
+.Op Fl d
 .Op Fl l Ar line_count
 .Op Fl a Ar suffix_length
 .Op Ar file Op Ar prefix
 .Nm
-.Fl d
+.Op Fl d
 .Fl b Ar byte_count Ns
 .Oo
 .Sm off
@@ -51,12 +51,12 @@
 .Op Fl a Ar suffix_length
 .Op Ar file Op Ar prefix
 .Nm
-.Fl d
+.Op Fl d
 .Fl n Ar chunk_count
 .Op Fl a Ar suffix_length
 .Op Ar file Op Ar prefix
 .Nm
-.Fl d
+.Op Fl d
 .Fl p Ar pattern
 .Op Fl a Ar suffix_length
 .Op Ar file Op Ar prefix
@@ -186,7 +186,7 @@ $ echo -e "This is 22 bytes long" | split -d -b10
 .Pp
 Split input generating 6 files:
 .Bd -literal -offset indent
-echo -e "This is 22 bytes long" | split -n 6
+$ echo -e "This is 22 bytes long" | split -n 6
 .Ed
 .Pp
 Split input creating a new file every time a line matches the regular expression
