@@ -150,13 +150,13 @@ flag.
 The
 .Fn x86_pkru_get_perm
 function returns access rights for the key specified by the
-.Fn keyidx
+.Fa keyidx
 argument.
 If the value pointed to by
 .Fa access
 is zero after the call, no read or write permissions is granted for
 mappings which are assigned the key
-.Fn keyidx .
+.Fa keyidx .
 If
 .Fa access
 is not zero, read access is permitted.
