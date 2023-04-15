@@ -234,6 +234,12 @@ reap_getpids(struct thread *td, struct proc *p, void *data)
 			pip->pi_flags |= REAPER_PIDINFO_CHILD;
 		if ((p2->p_treeflag & P_TREE_REAPER) != 0)
 			pip->pi_flags |= REAPER_PIDINFO_REAPER;
+		if ((p2->p_flag & P_STOPPED) != 0)
+			pip->pi_flags |= REAPER_PIDINFO_STOPPED;
+		if (p2->p_state == PRS_ZOMBIE)
+			pip->pi_flags |= REAPER_PIDINFO_ZOMBIE;
+		else if ((p2->p_flag & P_WEXIT) != 0)
+			pip->pi_flags |= REAPER_PIDINFO_EXITING;
 		i++;
 	}
 	sx_sunlock(&proctree_lock);
