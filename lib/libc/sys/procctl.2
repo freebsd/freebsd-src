@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 2, 2021
+.Dd April 15, 2023
 .Dt PROCCTL 2
 .Os
 .Sh NAME
@@ -302,7 +302,7 @@ of the process.
 The
 .Fa pi_flags
 field returns the following flags, further describing the descendant:
-.Bl -tag -width REAPER_PIDINFO_REAPER
+.Bl -tag -width REAPER_PIDINFO_EXITING
 .It Dv REAPER_PIDINFO_VALID
 Set to indicate that the
 .Vt procctl_reaper_pidinfo
@@ -320,6 +320,12 @@ field identifies the direct child of the reaper.
 .It Dv REAPER_PIDINFO_REAPER
 The reported process is itself a reaper.
 The descendants of the subordinate reaper are not reported.
+.It Dv REAPER_PIDINFO_ZOMBIE
+The reported process is in the zombie state, ready to be reaped.
+.It Dv REAPER_PIDINFO_STOPPED
+The reported process is stopped by a SIGSTOP/SIGTSTP signal.
+.It Dv REAPER_PIDINFO_EXITING
+The reported process is in the process of exiting (but not yet a zombie).
 .El
 .It Dv PROC_REAP_KILL
 Request to deliver a signal to some subset of the descendants of the reaper.
