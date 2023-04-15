@@ -700,6 +700,19 @@ umtx_abs_timeout_init2(struct umtx_abs_timeout *timo,
 	    (umtxtime->_flags & UMTX_ABSTIME) != 0, &umtxtime->_timeout);
 }
 
+static void
+umtx_abs_timeout_enforce_min(sbintime_t *sbt)
+{
+	sbintime_t when, mint;
+
+	mint = curproc->p_umtx_min_timeout;
+	if (__predict_false(mint != 0)) {
+		when = sbinuptime() + mint;
+		if (*sbt < when)
+			*sbt = when;
+	}
+}
+
 static int
 umtx_abs_timeout_getsbt(struct umtx_abs_timeout *timo, sbintime_t *sbt,
     int *flags)
@@ -739,6 +752,7 @@ umtx_abs_timeout_getsbt(struct umtx_abs_timeout *timo, sbintime_t *sbt,
 			return (0);
 		}
 		*sbt = bttosbt(bt);
+		umtx_abs_timeout_enforce_min(sbt);
 
 		/*
 		 * Check if the absolute time should be aligned to
@@ -4594,6 +4608,33 @@ __umtx_op_robust_lists(struct thread *td, struct _umtx_op_args *uap,
 	return (0);
 }
 
+static int
+__umtx_op_get_min_timeout(struct thread *td, struct _umtx_op_args *uap,
+    const struct umtx_copyops *ops)
+{
+	long val;
+	int error, val1;
+
+	val = sbttons(td->td_proc->p_umtx_min_timeout);
+	if (ops->compat32) {
+		val1 = (int)val;
+		error = copyout(&val1, uap->uaddr1, sizeof(val1));
+	} else {
+		error = copyout(&val, uap->uaddr1, sizeof(val));
+	}
+	return (error);
+}
+
+static int
+__umtx_op_set_min_timeout(struct thread *td, struct _umtx_op_args *uap,
+    const struct umtx_copyops *ops)
+{
+	if (uap->val < 0)
+		return (EINVAL);
+	td->td_proc->p_umtx_min_timeout = nstosbt(uap->val);
+	return (0);
+}
+
 #if defined(__i386__) || defined(__amd64__)
 /*
  * Provide the standard 32-bit definitions for x86, since native/compat32 use a
@@ -4816,6 +4857,8 @@ static const _umtx_op_func op_table[] = {
 	[UMTX_OP_SEM2_WAKE]	= __umtx_op_sem2_wake,
 	[UMTX_OP_SHM]		= __umtx_op_shm,
 	[UMTX_OP_ROBUST_LISTS]	= __umtx_op_robust_lists,
+	[UMTX_OP_GET_MIN_TIMEOUT] = __umtx_op_get_min_timeout,
+	[UMTX_OP_SET_MIN_TIMEOUT] = __umtx_op_set_min_timeout,
 };
 
 static const struct umtx_copyops umtx_native_ops = {
@@ -4990,6 +5033,8 @@ umtx_exec(struct proc *p)
 		umtx_thread_cleanup(td);
 		td->td_rb_list = td->td_rbp_list = td->td_rb_inact = 0;
 	}
+
+	p->p_umtx_min_timeout = 0;
 }
 
 /*

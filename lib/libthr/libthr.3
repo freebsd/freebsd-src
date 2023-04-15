@@ -196,6 +196,12 @@ The integer value of the variable specifies how often blocked
 threads are inserted at the head of the sleep queue, instead of its tail.
 Bigger values reduce the frequency of the FIFO discipline.
 The value must be between 0 and 255.
+.It Dv LIBPTHREAD_UMTX_MIN_TIMEOUT
+The minimal amount of time, in nanoseconds, the thread is required to sleep
+for pthread operations specifying a timeout.
+If the operation requests a timeout less than the value provided,
+it is silently increased to the value.
+The value of zero means no minimum (default).
 .Pp
 .El
 The following
