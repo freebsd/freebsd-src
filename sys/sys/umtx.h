@@ -103,6 +103,8 @@
 #define	UMTX_OP_SEM2_WAKE	24
 #define	UMTX_OP_SHM		25
 #define	UMTX_OP_ROBUST_LISTS	26
+#define	UMTX_OP_GET_MIN_TIMEOUT	27
+#define	UMTX_OP_SET_MIN_TIMEOUT	28
 
 /*
  * Flags for ops; the double-underbar convention must be maintained for future
