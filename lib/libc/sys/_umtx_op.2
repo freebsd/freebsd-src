@@ -1271,6 +1271,17 @@ in which case list processing is continued.
 See
 .Sx ROBUST UMUTEXES
 subsection for details.
+.It Dv UMTX_OP_GET_MIN_TIMEOUT
+Writes out the current value of minimal umtx operations timeout,
+in nanoseconds, into the long integer variable pointed to by
+.Fa uaddr1 .
+.It Dv UMTX_OP_SET_MIN_TIMEOUT
+Set the minimal amount of time, in nanoseconds, the thread is required
+to sleep for umtx operations specifying a timeout using absolute clocks.
+The value is taken from the
+.Fa val
+argument of the call.
+Zero means no minimum.
 .El
 .Pp
 The

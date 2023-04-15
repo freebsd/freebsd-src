@@ -729,6 +729,7 @@ struct proc {
 	char		*p_binname;	/* (b) Binary hardlink name. */
 	void		*p_elf_brandinfo; /* (x) Elf_Brandinfo, NULL for
 						 non ELF binaries. */
+	sbintime_t	p_umtx_min_timeout;
 };
 
 #define	p_session	p_pgrp->pg_session

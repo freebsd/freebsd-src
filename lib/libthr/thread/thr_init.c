@@ -522,6 +522,17 @@ init_private(void)
 		if (env)
 			_thr_queuefifo = atoi(env);
 		TAILQ_INIT(&_thr_atfork_list);
+		env = getenv("LIBPTHREAD_UMTX_MIN_TIMEOUT");
+		if (env) {
+			char *endptr;
+			long mint;
+
+			mint = strtol(env, &endptr, 0);
+			if (*endptr == '\0' && mint >= 0) {
+				_umtx_op(NULL, UMTX_OP_SET_MIN_TIMEOUT,
+				    mint, NULL, NULL);
+			}
+		}
 	}
 	init_once = 1;
 }
