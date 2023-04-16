@@ -58,6 +58,9 @@ local function bootenvSet(env)
 	loader.setenv("vfs.root.mountfrom", env)
 	loader.setenv("currdev", env .. ":")
 	config.reload()
+	if loader.getenv("kernelname") ~= nil then
+		loader.perform("unload")
+	end
 end
 
 local function multiUserPrompt()
