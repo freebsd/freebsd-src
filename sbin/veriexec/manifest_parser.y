@@ -56,6 +56,7 @@ static struct verified_exec_params *params = &oparams;
 # define SHA_DIGEST_LENGTH br_sha1_SIZE
 # define SHA256_DIGEST_LENGTH br_sha256_SIZE
 # define SHA384_DIGEST_LENGTH br_sha384_SIZE
+# define SHA512_DIGEST_LENGTH br_sha512_SIZE
 #endif
 
 static int fmode;
@@ -72,9 +73,8 @@ struct fingerprint_type {
 static const struct fingerprint_type fingerprint_table[] = {
 	{ "sha1", SHA_DIGEST_LENGTH },
 	{ "sha256", SHA256_DIGEST_LENGTH },
-#if MAXFINGERPRINTLEN > 32
 	{ "sha384", SHA384_DIGEST_LENGTH },
-#endif
+	{ "sha512", SHA512_DIGEST_LENGTH },
 	{ NULL, 0 }
 };
 
