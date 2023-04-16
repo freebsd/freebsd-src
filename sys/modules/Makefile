@@ -588,11 +588,13 @@ _mac_priority=	mac_priority
 _mac_seeotheruids= mac_seeotheruids
 _mac_stub=	mac_stub
 _mac_test=	mac_test
+.if ${MK_VERIEXEC} != "no" || defined(ALL_MODULES)
 _mac_veriexec=	mac_veriexec
 _mac_veriexec_sha1= mac_veriexec_sha1
 _mac_veriexec_sha256= mac_veriexec_sha256
 _mac_veriexec_sha384= mac_veriexec_sha384
 _mac_veriexec_sha512= mac_veriexec_sha512
+.endif
 .endif
 
 .if ${MK_NETGRAPH} != "no" || defined(ALL_MODULES)
