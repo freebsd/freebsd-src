@@ -62,7 +62,8 @@ __DEFAULT_NO_OPTIONS = \
     INIT_ALL_ZERO \
     KERNEL_RETPOLINE \
     RATELIMIT \
-    REPRODUCIBLE_BUILD
+    REPRODUCIBLE_BUILD \
+    VERIEXEC
 
 # Some options are totally broken on some architectures. We disable
 # them. If you need to enable them on an experimental basis, you
