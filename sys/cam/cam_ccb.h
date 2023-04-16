@@ -1516,13 +1516,11 @@ cam_ccb_status(union ccb *ccb)
 	return ((cam_status)(ccb->ccb_h.status & CAM_STATUS_MASK));
 }
 
-#ifdef _KERNEL
 static inline bool
 cam_ccb_success(union ccb *ccb)
 {
 	return (cam_ccb_status(ccb) == CAM_REQ_CMP);
 }
-#endif
 
 void cam_calc_geometry(struct ccb_calc_geometry *ccg, int extended);
 
