@@ -135,6 +135,7 @@ function password.check()
 	local pwd = loader.getenv("password")
 	if pwd ~= nil then
 		core.autoboot()
+		loader.setenv("autoboot_delay", "NO")
 		-- The autoboot sequence was interrupted, so we'll need to
 		-- prompt for a password.  Put the screen back into a known
 		-- good state, otherwise we're drawing back a couple lines
