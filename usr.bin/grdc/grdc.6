@@ -26,6 +26,18 @@ The optional
 flag tells grdc to output the time in a 12-hour format.
 In this curses mode implementation,
 the scrolling option has trouble keeping up.
+.Sh ENVIRONMENT
+.Bl -tag -width Ds
+.It Ev TZ
+The time zone to use for displaying the time.
+It is normally specified as a pathname relative to
+.Pa /usr/share/zoneinfo ,
+though see
+.Xr tzset 3
+for more information.
+If this variable is not set, the time zone is determined based on
+.Pa /etc/localtime .
+.El
 .Sh AUTHORS
 .An -nosplit
 .An Amos Shapir ,
