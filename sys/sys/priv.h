@@ -516,9 +516,14 @@
 #define	PRIV_KMEM_WRITE		681	/* Open mem/kmem for writing. */
 
 /*
+ * Kernel debugger privileges.
+ */
+#define	PRIV_KDB_SET_BACKEND	690	/* Allow setting KDB backend. */
+
+/*
  * Track end of privilege list.
  */
-#define	_PRIV_HIGHEST		682
+#define	_PRIV_HIGHEST		691
 
 /*
  * Validate that a named privilege is known by the privilege system.  Invalid
