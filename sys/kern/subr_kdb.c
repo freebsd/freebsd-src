@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/pcpu.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
 #include <sys/smp.h>
@@ -484,6 +485,11 @@ int
 kdb_dbbe_select(const char *name)
 {
 	struct kdb_dbbe *be, **iter;
+	int error;
+
+	error = priv_check(curthread, PRIV_KDB_SET_BACKEND);
+	if (error)
+		return (error);
 
 	SET_FOREACH(iter, kdb_dbbe_set) {
 		be = *iter;
