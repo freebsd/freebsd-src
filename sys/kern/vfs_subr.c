@@ -5063,6 +5063,7 @@ static struct vop_vector sync_vnodeops = {
 	.vop_bypass =	VOP_EOPNOTSUPP,
 	.vop_close =	sync_close,		/* close */
 	.vop_fsync =	sync_fsync,		/* fsync */
+	.vop_getwritemount = vop_stdgetwritemount,
 	.vop_inactive =	sync_inactive,	/* inactive */
 	.vop_need_inactive = vop_stdneed_inactive, /* need_inactive */
 	.vop_reclaim =	sync_reclaim,	/* reclaim */
