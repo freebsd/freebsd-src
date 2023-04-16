@@ -38,6 +38,9 @@
 #endif
 
 #include <sys/cdefs.h>
+#ifndef _KERNEL
+#include <stdbool.h>
+#endif
 
 typedef u_int path_id_t;
 typedef u_int target_id_t;
