@@ -29,7 +29,7 @@
 .\"	@(#)bcd.6	8.1 (Berkeley) 5/31/93
 .\" $FreeBSD$
 .\"
-.Dd January 5, 2018
+.Dd April 16, 2023
 .Dt MORSE 6
 .Os
 .Sh NAME
@@ -178,6 +178,17 @@ device file
 .El
 .Sh SEE ALSO
 .Xr speaker 4
+.Rs
+.%I ITU-T Recommendation F.1
+.%R "Operational provisions for the international public telegram service"
+.%O Division B, I. Morse code
+.Re
+.Rs
+.%I ITU-R M.1677-1
+.%R International Morse code
+.%D 2009
+.%U https://www.itu.int/rec/R-REC-M.1677-1-200910-I/
+.Re
 .Sh HISTORY
 Sound support for
 .Nm
@@ -191,7 +202,7 @@ Ability to key an external device added by
 Farnsworth support for
 .Nm
 added by
-.An Stephen Cravey (N5UUU).
+.An Stephen Cravey (N5UUU) .
 .Sh BUGS
 Only understands a few European characters
 (German and French),
