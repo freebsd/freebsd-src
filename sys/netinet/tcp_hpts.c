@@ -1330,6 +1330,17 @@ again:
 				kern_prefetch(tp->t_fb_ptr, &did_prefetch);
 				did_prefetch = 1;
 			}
+			/*
+			 * We set inp_hpts_calls to 1 before any possible output.
+			 * The contract with the transport is that if it cares about
+			 * hpts calling it should clear the flag. That way next time
+			 * it is called it will know it is hpts.
+			 *
+			 * We also only call tfb_do_queued_segments() <or> tcp_output()
+			 * it is expected that if segments are queued and come in that
+			 * the final input mbuf will cause a call to  output if it is needed.
+			 */
+			inp->inp_hpts_calls = 1;
 			if ((inp->inp_flags2 & INP_SUPPORTS_MBUFQ) &&
 			    !STAILQ_EMPTY(&tp->t_inqueue)) {
 				error = (*tp->t_fb->tfb_do_queued_segments)(tp, 0);
@@ -1337,12 +1348,11 @@ again:
 					/* The input killed the connection */
 					goto skip_pacing;
 				}
+			} else {
+				error = tcp_output(tp);
+				if (error < 0)
+					goto skip_pacing;
 			}
-			inp->inp_hpts_calls = 1;
-			error = tcp_output(tp);
-			if (error < 0)
-				goto skip_pacing;
-			inp->inp_hpts_calls = 0;
 			if (ninp) {
 				/*
 				 * If we have a nxt inp, see if we can

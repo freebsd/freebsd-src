@@ -11581,6 +11581,9 @@ bbr_do_segment_nounlock(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 			/* Do we have the correct timer running? */
 			bbr_timer_audit(tp, bbr, lcts, &so->so_snd);
 		}
+		/* Clear the flag, it may have been cleared by output but we may not have  */
+		if ((nxt_pkt == 0) && (inp->inp_hpts_calls))
+			inp->inp_hpts_calls = 0;
 		/* Do we have a new state */
 		if (bbr->r_state != tp->t_state)
 			bbr_set_state(tp, bbr, tiwin);
@@ -11850,6 +11853,8 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 	memcpy(&bbr->rc_tv, tv, sizeof(struct timeval));
 	cts = tcp_tv_to_usectick(&bbr->rc_tv);
 	inp = bbr->rc_inp;
+	hpts_calling = inp->inp_hpts_calls;
+	inp->inp_hpts_calls = 0;
 	so = inp->inp_socket;
 	sb = &so->so_snd;
 	if (tp->t_nic_ktls_xmit)
@@ -11985,7 +11990,7 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 			merged_val = bbr->rc_pacer_started;
 			merged_val <<= 32;
 			merged_val |= bbr->r_ctl.rc_last_delay_val;
-			bbr_log_pacing_delay_calc(bbr, inp->inp_hpts_calls,
+			bbr_log_pacing_delay_calc(bbr, hpts_calling,
 						 bbr->r_ctl.rc_agg_early, cts, delay_calc, merged_val,
 						 bbr->r_agg_early_set, 3);
 			bbr->r_ctl.rc_last_delay_val = 0;
@@ -12028,8 +12033,6 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 	 * <and> c) We had room to send something.
 	 *
 	 */
-	hpts_calling = inp->inp_hpts_calls;
-	inp->inp_hpts_calls = 0;
 	if (bbr->r_ctl.rc_hpts_flags & PACE_TMR_MASK) {
 		int retval;
 
