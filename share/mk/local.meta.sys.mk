@@ -254,7 +254,6 @@ FREEBSD_REVISION!= sed -n '/^REVISION=/{s,.*=,,;s,",,g;p; }' ${SRCTOP}/sys/conf/
 CROSS_TARGET_FLAGS= -target ${MACHINE_ARCH}-unknown-freebsd${FREEBSD_REVISION}
 CFLAGS+= ${CROSS_TARGET_FLAGS}
 ACFLAGS+= ${CROSS_TARGET_FLAGS}
-LDFLAGS+= -Wl,-m -Wl,elf_${MACHINE_ARCH}_fbsd
 .endif
 
 META_MODE+=	missing-meta=yes
