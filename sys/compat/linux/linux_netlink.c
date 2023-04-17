@@ -312,7 +312,7 @@ rtnl_if_flags_to_linux(unsigned int if_flags)
 		case IFF_ALLMULTI:
 			result |= flag;
 			break;
-		case IFF_KNOWSEPOCH:
+		case IFF_NEEDSEPOCH:
 		case IFF_DRV_OACTIVE:
 		case IFF_SIMPLEX:
 		case IFF_LINK0:

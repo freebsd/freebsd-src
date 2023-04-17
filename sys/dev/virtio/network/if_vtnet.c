@@ -1103,8 +1103,7 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 	dev = sc->vtnet_dev;
 	ifp = sc->vtnet_ifp;
 
-	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
-	    IFF_KNOWSEPOCH);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
 	if_setbaudrate(ifp, IF_Gbps(10));
 	if_setinitfn(ifp, vtnet_init);
 	if_setioctlfn(ifp, vtnet_ioctl);

@@ -543,7 +543,6 @@ epair_setup_ifp(struct epair_softc *sc, char *name, int unit)
 	ifp->if_dname = epairname;
 	ifp->if_dunit = unit;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_flags |= IFF_KNOWSEPOCH;
 	ifp->if_capabilities = IFCAP_VLAN_MTU;
 	ifp->if_capenable = IFCAP_VLAN_MTU;
 	ifp->if_transmit = epair_transmit;
