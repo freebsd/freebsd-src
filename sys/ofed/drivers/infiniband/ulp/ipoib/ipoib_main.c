@@ -922,8 +922,8 @@ ipoib_intf_alloc(const char *name, struct ib_device *hca)
 	}
 	if_initname(dev, name, priv->unit);
 	if_setflags(dev, IFF_BROADCAST | IFF_MULTICAST);
-	if (hca->attrs.device_cap_flags & IB_DEVICE_KNOWSEPOCH)
-		if_setflagbits(dev, IFF_KNOWSEPOCH, 0);
+	if ((hca->attrs.device_cap_flags & IB_DEVICE_KNOWSEPOCH) == 0)
+		if_setflagbits(dev, IFF_NEEDSEPOCH, 0);
 
 	infiniband_ifattach(priv->dev, NULL, priv->broadcastaddr);
 
