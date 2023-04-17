@@ -32,6 +32,7 @@
 #include <sys/types.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/socket.h>
