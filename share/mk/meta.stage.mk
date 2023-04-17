@@ -1,5 +1,4 @@
-# $FreeBSD$
-# $Id: meta.stage.mk,v 1.60 2020/08/19 17:51:53 sjg Exp $
+# $Id: meta.stage.mk,v 1.67 2023/04/17 01:22:10 sjg Exp $
 #
 #	@(#) Copyright (c) 2011-2017, Simon J. Gerraty
 #
@@ -31,8 +30,11 @@ _dirdep ?= ${RELDIR}
 CLEANFILES+= .dirdep
 
 # this allows us to trace dependencies back to their src dir
-.dirdep:	.NOPATH
+.dirdep: .NOPATH
+.if !commands(.dirdep)
+.dirdep:
 	@echo '${_dirdep}' > $@
+.endif
 
 .if defined(NO_POSIX_SHELL) || ${type printf:L:sh:Mbuiltin} == ""
 _stage_file_basename = `basename $$f`
@@ -64,7 +66,7 @@ GENDIRDEPS_FILTER += Nnot-empty-is-important \
 LN_CP_SCRIPT = LnCp() { \
   rm -f $$2 2> /dev/null; \
   { [ -z "$$mode" ] && ${LN:Uln} $$1 $$2 2> /dev/null; } || \
-  cp -p $$1 $$2; }
+  cp -p $$1 $$2 2> /dev/null || cp $$1 $$2; }
 
 # a staging conflict should cause an error
 # a warning is handy when bootstapping different options.
@@ -171,7 +173,7 @@ stage_libs:	.dirdep
 .if !defined(NO_SHLIB_LINKS)
 .if !empty(SHLIB_LINKS)
 	@${STAGE_LINKS_SCRIPT}; StageLinks -s ${STAGE_LIBDIR:${STAGE_DIR_FILTER}} \
-	${SHLIB_LINKS:@t@${STAGE_LIBS:T:M$t.*} $t@}
+	${SHLIB_LINKS:@t@${STAGE_LIBS:T:M$t.*:${STAGE_SHLIB_LINKS_FILTER:U}} $t@}
 .elif !empty(SHLIB_LINK) && !empty(SHLIB_NAME)
 	@${STAGE_LINKS_SCRIPT}; StageLinks -s ${STAGE_LIBDIR:${STAGE_DIR_FILTER}} ${SHLIB_NAME} ${SHLIB_LINK}
 .endif
@@ -262,7 +264,8 @@ CLEANFILES += ${STAGE_AS_SETS:@s@stage*$s@}
 # sometimes things need to be renamed as they are staged
 # each ${file} will be staged as ${STAGE_AS_${file:T}}
 # one could achieve the same with SYMLINKS
-# stage_as_and_symlink makes the original name a symlink to the new name
+# stage_as_and_symlink makes the original name (or ${STAGE_LINK_AS_${name}})
+# a symlink to the new name
 # it is the same as using stage_as and stage_symlinks but ensures
 # both operations happen together
 .for s in ${STAGE_AS_SETS:O:u}
@@ -292,7 +295,7 @@ STAGE_AS_AND_SYMLINK.$s ?= ${.ALLSRC:N.dirdep:Nstage_*}
 stage_as_and_symlink:	stage_as_and_symlink.$s
 stage_as_and_symlink.$s:	.dirdep
 	@${STAGE_AS_SCRIPT}; StageAs ${FLAGS.$@} ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_AS_AND_SYMLINK.$s:O:@f@$f ${STAGE_AS_${f:tA}:U${STAGE_AS_${f:T}:U${f:T}}}@}
-	@${STAGE_LINKS_SCRIPT}; StageLinks -s ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_AS_AND_SYMLINK.$s:O:@f@${STAGE_AS_${f:tA}:U${STAGE_AS_${f:T}:U${f:T}}} $f@}
+	@${STAGE_LINKS_SCRIPT}; StageLinks -s ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_AS_AND_SYMLINK.$s:O:@f@${STAGE_AS_${f:tA}:U${STAGE_AS_${f:T}:U${f:T}}} ${STAGE_LINK_AS_${f}:U$f}@}
 	@touch $@
 .endif
 .endif
@@ -304,7 +307,7 @@ CLEANFILES += ${STAGE_TARGETS} stage_incs stage_includes
 
 # this lot also only makes sense the first time...
 .if !target(__${.PARSEFILE}__)
-__${.PARSEFILE}__:
+__${.PARSEFILE}__: .NOTMAIN
 
 # stage_*links usually needs to follow any others.
 # for non-jobs mode the order here matters
@@ -351,7 +354,7 @@ all: stale_staged
 # get a list of paths that we have previously staged to those same dirs
 # anything in the 2nd list but not the first is stale - remove it.
 stale_staged: staging .NOMETA
-	@egrep '^[WL] .*${STAGE_OBJTOP}' /dev/null ${.MAKE.META.FILES:M*stage_*} | \
+	@${EGREP:Uegrep} '^[WL] .*${STAGE_OBJTOP}' /dev/null ${.MAKE.META.FILES:M*stage_*} | \
 	sed "/\.dirdep/d;s,.* '*\(${STAGE_OBJTOP}/[^ '][^ ']*\).*,\1," | \
 	sort > ${.TARGET}.staged1
 	@grep -l '${_dirdep}' /dev/null ${_STAGED_DIRS:M${STAGE_OBJTOP}*:O:u:@d@$d/*.dirdep@} | \

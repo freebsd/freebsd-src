@@ -49,8 +49,10 @@
 #	The output, is a set of absolute paths with "SB" like:
 #.nf
 #
+#	$SB/obj-i386/bsd/gnu/lib/csu
+#	$SB/obj-i386/bsd/gnu/lib/libgcc
 #	$SB/obj-i386/bsd/include
-#	$SB/obj-i386/bsd/lib/csu/i386
+#	$SB/obj-i386/bsd/lib/csu/i386-elf
 #	$SB/obj-i386/bsd/lib/libc
 #	$SB/src/bsd/include
 #	$SB/src/bsd/sys/i386/include
@@ -75,8 +77,7 @@
 
 
 # RCSid:
-#	$FreeBSD$
-#	$Id: meta2deps.sh,v 1.14 2020/10/02 03:11:17 sjg Exp $
+#	$Id: meta2deps.sh,v 1.20 2023/01/18 01:35:24 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
@@ -137,6 +138,13 @@ add_list() {
     done
     eval "$name=\"$list\""
 }
+
+# some Linux systems have deprecated egrep in favor of grep -E
+# but not everyone supports that
+case "`echo bmake | egrep 'a|b' 2>&1`" in
+bmake) ;;
+*) egrep() { grep -E "$@"; }
+esac
 
 _excludes_f() {
     egrep -v "$EXCLUDES"
@@ -240,8 +248,8 @@ meta2deps() {
 	;;
     *) cat /dev/null "$@";;
     esac 2> /dev/null |
-    sed -e 's,^CWD,C C,;/^[CREFLMV] /!d' -e "s,',,g" |
-    $_excludes | ( version=no
+    sed -e 's,^CWD,C C,;/^[#CREFLMVX] /!d' -e "s,',,g" |
+    $_excludes | ( version=no epids= xpids= eof_token=no
     while read op pid path junk
     do
 	: op=$op pid=$pid path=$path
@@ -259,10 +267,15 @@ meta2deps() {
 	    *) ;;
 	    esac
 	    version=0
+	    case "$eof_token" in
+	    no) ;;		# ignore
+	    0) error "truncated filemon data";;
+	    esac
+	    eof_token=0
 	    continue
 	    ;;
 	$pid,$pid) ;;
-	*)
+	[1-9]*)
 	    case "$lpid" in
 	    "") ;;
 	    *) eval ldir_$lpid=$ldir;;
@@ -272,8 +285,9 @@ meta2deps() {
 	    ;;
 	esac
 
+	: op=$op path=$path
 	case "$op,$path" in
-	V,*) version=$path; continue;;
+	V,*) version=$pid; continue;;
 	W,*srcrel|*.dirdep) continue;;
 	C,*)
 	    case "$path" in
@@ -289,7 +303,18 @@ meta2deps() {
 	    eval cwd_$path=$cwd ldir_$path=$ldir
 	    continue
 	    ;;
+	\#,bye) eof_token=1; continue;;
+	\#*) continue;;
 	*)  dir=${path%/*}
+	    case "$op" in
+	    E)	# setid apps get no tracing so we won't see eXit
+		case `'ls' -l $path 2> /dev/null | sed 's, .*,,'` in
+		*s*) ;;
+		*) epids="$epids $pid";;
+		esac
+		;;
+	    X) xpids="$xpids $pid"; continue;;
+	    esac
 	    case "$path" in
 	    $src_re|$obj_re) ;;
 	    /*/stage/*) ;;
@@ -379,9 +404,22 @@ meta2deps() {
 	    echo $dir;;
 	esac
     done > $tf.dirdep
+    : version=$version
     case "$version" in
     0) error "no filemon data";;
-    esac ) || exit 1
+    esac
+    : eof_token=$eof_token
+    case "$eof_token" in
+    0) error "truncated filemon data";;
+    esac
+    for p in $epids
+    do
+	: p=$p
+	case " $xpids " in
+	*" $p "*) ;;
+	*) error "missing eXit for pid $p";;
+	esac
+    done ) || exit 1
     _nl=echo
     for f in $tf.dirdep $tf.qual $tf.srcdep
     do
