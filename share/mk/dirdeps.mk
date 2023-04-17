@@ -1,6 +1,8 @@
-# $Id: dirdeps.mk,v 1.151 2022/01/28 01:13:14 sjg Exp $
+# $Id: dirdeps.mk,v 1.155 2023/04/15 05:46:19 sjg Exp $
 
-# Copyright (c) 2010-2022, Simon J. Gerraty
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Copyright (c) 2010-2023, Simon J. Gerraty
 # Copyright (c) 2010-2018, Juniper Networks, Inc.
 # All rights reserved.
 #
@@ -179,7 +181,7 @@ _DIRDEP_USE_LEVEL?= 0
 _CURDIR ?= ${.CURDIR}
 _OBJDIR ?= ${.OBJDIR}
 
-.if ${MAKEFILE:T} == ${.PARSEFILE} && empty(DIRDEPS) && ${.TARGETS:Uall:M*/*} != ""
+.if ${MAKEFILE:T} == ${.PARSEFILE} && empty(DIRDEPS) && ${.TARGETS:Uall:M*[/.]*} != ""
 # This little trick let's us do
 #
 # mk -f dirdeps.mk some/dir.${TARGET_SPEC}
@@ -401,7 +403,7 @@ DIRDEP_LOADAVG_LAST = 0
 # Note: expr(1) will exit 1 if the expression evaluates to 0
 # hence the  || true
 DIRDEP_LOADAVG_REPORT = \
-	test -z "${"${expr ${now_utc} - ${DIRDEP_LOADAVG_INTEVAL:U60} - ${DIRDEP_LOADAVG_LAST} || true:L:sh:N-*}":?yes${DIRDEP_LOADAVG_LAST::=${now_utc}}:}" || \
+	test -z "${"${expr ${now_utc} - ${DIRDEP_LOADAVG_INTERVAL:U60} - ${DIRDEP_LOADAVG_LAST} || true:L:sh:N-*}":?yes${DIRDEP_LOADAVG_LAST::=${now_utc}}:}" || \
 	echo "${TRACER}`${DIRDEP_LOADAVG_CMD}`"
 
 # we suppress SUBDIR when visiting the leaves
@@ -577,7 +579,7 @@ ${DIRDEPS_CACHE}:	.META .NOMETA_CMP
 	${"${DEBUG_DIRDEPS:Nno}":?DEBUG_DIRDEPS='${DEBUG_DIRDEPS}':} \
 	${.MAKEFLAGS:tW:S,-D ,-D,g:tw:M*WITH*} \
 	${.MAKEFLAGS:tW:S,-d ,-d,g:tw:M-d*} \
-	3>&1 1>&2 | sed 's,${SRCTOP},_{SRCTOP},g;s,_{,$${,g' >> ${.TARGET}.new && \
+	3>&1 1>&2 | sed 's,${SRCTOP},_{SRCTOP},g;s,_{SRCTOP}/_{SRCTOP},_{SRCTOP},g;s,_{,$${,g' >> ${.TARGET}.new && \
 	mv ${.TARGET}.new ${.TARGET}
 
 .endif
@@ -788,8 +790,9 @@ ${_this_dir}.$m: ${_build_dirs:M*.$m:N${_this_dir}.$m}
 .if !target(_dirdeps_checked.$d)
 # once only
 _dirdeps_checked.$d:
+_dr := ${d:S,^${SRCTOP}/,,}
 .if ${_debug_search}
-.info checking ${d:S,^${SRCTOP}/,,}
+.info checking ${_dr}
 .endif
 # Note: _build_all_dirs is fully qualifed so d:R is always the directory
 .if exists(${d:R})
@@ -822,10 +825,16 @@ DEP_RELDIR := ${_m:H:S,^${SRCTOP}/,,}
 # and reset this
 DIRDEPS =
 .if ${_debug_reldir} && ${_qm} != ${_m}
-.info loading ${_m} for ${d:E}
+.info loading ${_m:S,${SRCTOP}/,,} for ${_dr}
 .endif
 .include <${_m}>
 .else
+# set these as if we found Makefile.depend*
+DEP_RELDIR := ${_dr:R}
+DIRDEPS =
+.if ${_debug_reldir}
+.info loading local.dirdeps-missing.mk for ${_dr}
+.endif
 .-include <local.dirdeps-missing.mk>
 .endif
 .endif
