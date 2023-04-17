@@ -212,8 +212,8 @@ struct file {
 	struct heap_data	 data;
         struct archive_string    script;
 
-	signed int		 virtual:1;
-	signed int		 dir:1;
+	unsigned int		 virtual:1;
+	unsigned int		 dir:1;
 };
 
 struct hardlink {
