@@ -109,8 +109,9 @@ walk_cb_call(struct cxa_thread_dtor *dtor)
 	    __elf_phdr_match_addr(&phdr_info, dtor->func))
 		dtor->func(dtor->obj);
 	else
-		fprintf(stderr, "__cxa_thread_call_dtors: dtr %p from "
-		    "unloaded dso, skipping\n", (void *)(dtor->func));
+		fprintf(stderr,
+		    "__cxa_thread_call_dtors: dtr %p from unloaded dso, skipping\n",
+		    (void *)(dtor->func));
 }
 
 static void
