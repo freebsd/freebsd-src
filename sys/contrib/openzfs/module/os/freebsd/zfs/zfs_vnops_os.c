@@ -6214,7 +6214,6 @@ zfs_deallocate(struct vop_deallocate_args *ap)
 }
 #endif
 
-#if 0
 #ifndef _SYS_SYSPROTO_H_
 struct vop_copy_file_range_args {
 	struct vnode *a_invp;
@@ -6244,6 +6243,11 @@ zfs_freebsd_copy_file_range(struct vop_copy_file_range_args *ap)
 	struct uio io;
 	int error;
 	uint64_t len = *ap->a_lenp;
+
+	if (!zfs_bclone_enabled) {
+		mp = NULL;
+		goto bad_write_fallback;
+	}
 
 	/*
 	 * TODO: If offset/length is not aligned to recordsize, use
@@ -6310,7 +6314,6 @@ bad_write_fallback:
 	    ap->a_incred, ap->a_outcred, ap->a_fsizetd);
 	return (error);
 }
-#endif
 
 struct vop_vector zfs_vnodeops;
 struct vop_vector zfs_fifoops;
@@ -6375,6 +6378,7 @@ struct vop_vector zfs_vnodeops = {
 #if __FreeBSD_version >= 1400043
 	.vop_add_writecount =	vop_stdadd_writecount_nomsync,
 #endif
+	.vop_copy_file_range =	zfs_freebsd_copy_file_range,
 };
 VFS_VOP_VECTOR_REGISTER(zfs_vnodeops);
 
