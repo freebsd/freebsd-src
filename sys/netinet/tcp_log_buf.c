@@ -554,7 +554,10 @@ tcp_log_apply_ratio(struct tcpcb *tp, int ratio)
 		INP_WUNLOCK(inp);
 		return (EOPNOTSUPP);
 	}
-	ratio_hash_thresh = max(1, UINT32_MAX / ratio);
+	if (ratio)
+		ratio_hash_thresh = max(1, UINT32_MAX / ratio);
+	else
+		ratio_hash_thresh = 0;
 	TCPID_BUCKET_REF(tlb);
 	INP_WUNLOCK(inp);
 	TCPID_BUCKET_LOCK(tlb);
@@ -1438,30 +1441,33 @@ tcp_log_tcpcbfini(struct tcpcb *tp)
 
 		memset(&log, 0, sizeof(log));
 		if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
-			for (i = 0; i<TCP_NUM_CNT_COUNTERS; i++) {
+			for (i = 0; i < TCP_NUM_CNT_COUNTERS; i++) {
 				log.u_raw.u64_flex[i] = tp->tcp_cnt_counters[i];
 			}
 			lgb = tcp_log_event(tp, NULL,
-					     NULL,
-					     NULL,
-					     TCP_LOG_ACCOUNTING, 0,
-					     0, &log, false, NULL, NULL, 0, &tv);
-			lgb->tlb_flex1 = TCP_NUM_CNT_COUNTERS;
-			lgb->tlb_flex2 = 1;
+				  NULL,
+				  NULL,
+				  TCP_LOG_ACCOUNTING, 0,
+				  0, &log, false, NULL, NULL, 0, &tv);
+			if (lgb != NULL) {
+				lgb->tlb_flex1 = TCP_NUM_CNT_COUNTERS;
+				lgb->tlb_flex2 = 1;
+			} else
+				goto skip_out;
 			for (i = 0; i<TCP_NUM_CNT_COUNTERS; i++) {
 				log.u_raw.u64_flex[i] = tp->tcp_proc_time[i];
 			}
 			lgb = tcp_log_event(tp, NULL,
-					     NULL,
-					     NULL,
-					     TCP_LOG_ACCOUNTING, 0,
-					     0, &log, false, NULL, NULL, 0, &tv);
-			if (tptoinpcb(tp)->inp_flags2 & INP_MBUF_ACKCMP)
+				 NULL,
+				 NULL,
+				 TCP_LOG_ACCOUNTING, 0,
+				 0, &log, false, NULL, NULL, 0, &tv);
+			if (lgb != NULL) {
 				lgb->tlb_flex1 = TCP_NUM_CNT_COUNTERS;
-			else
-				lgb->tlb_flex1 = TCP_NUM_PROC_COUNTERS;
-			lgb->tlb_flex2 = 2;
+				lgb->tlb_flex2 = 2;
+			}
 		}
+skip_out:
 		log.u_bbr.timeStamp = tcp_get_usecs(&tv);
 		log.u_bbr.cur_del_rate = tp->t_end_info;
 		TCP_LOG_EVENTP(tp, NULL,
