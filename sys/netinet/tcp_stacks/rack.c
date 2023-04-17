@@ -17069,7 +17069,7 @@ rack_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 	struct timeval tv;
 
 	/* First lets see if we have old packets */
-	if (tp->t_in_pkt) {
+	if (!STAILQ_EMPTY(&tp->t_inqueue)) {
 		if (ctf_do_queued_segments(tp, 1)) {
 			m_freem(m);
 			return;

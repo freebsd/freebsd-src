@@ -355,8 +355,7 @@ struct tcpcb {
 	int	t_segqlen;		/* segment reassembly queue length */
 	uint32_t t_segqmbuflen;		/* total reassembly queue byte length */
 	struct	tsegqe_head t_segq;	/* segment reassembly queue */
-	struct mbuf *t_in_pkt;
-	struct mbuf *t_tail_pkt;
+	STAILQ_HEAD(, mbuf) t_inqueue;	/* HPTS input queue */
 	uint32_t snd_ssthresh;		/* snd_cwnd size threshold for
 					 * for slow start exponential to
 					 * linear switch

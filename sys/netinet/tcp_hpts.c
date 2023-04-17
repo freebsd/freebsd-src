@@ -92,9 +92,8 @@ __FBSDID("$FreeBSD$");
  *
  * There is a common functions within the rack_bbr_common code
  * version i.e. ctf_do_queued_segments(). This function
- * knows how to take the input queue of packets from
- * tp->t_in_pkts and process them digging out
- * all the arguments, calling any bpf tap and
+ * knows how to take the input queue of packets from tp->t_inqueue
+ * and process them digging out all the arguments, calling any bpf tap and
  * calling into tfb_do_segment_nounlock(). The common
  * function (ctf_do_queued_segments())  requires that
  * you have defined the tfb_do_segment_nounlock() as
@@ -1331,7 +1330,8 @@ again:
 				kern_prefetch(tp->t_fb_ptr, &did_prefetch);
 				did_prefetch = 1;
 			}
-			if ((inp->inp_flags2 & INP_SUPPORTS_MBUFQ) && tp->t_in_pkt) {
+			if ((inp->inp_flags2 & INP_SUPPORTS_MBUFQ) &&
+			    !STAILQ_EMPTY(&tp->t_inqueue)) {
 				error = (*tp->t_fb->tfb_do_queued_segments)(tp, 0);
 				if (error) {
 					/* The input killed the connection */

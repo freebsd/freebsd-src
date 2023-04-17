@@ -2262,6 +2262,7 @@ tcp_newtcpcb(struct inpcb *inp)
 #endif
 
 	TAILQ_INIT(&tp->t_segq);
+	STAILQ_INIT(&tp->t_inqueue);
 	tp->t_maxseg =
 #ifdef INET6
 		isipv6 ? V_tcp_v6mssdflt :
@@ -2437,8 +2438,10 @@ tcp_discardcb(struct tcpcb *tp)
 		}
 	}
 	TCPSTATES_DEC(tp->t_state);
+
 	if (tp->t_fb->tfb_tcp_fb_fini)
 		(*tp->t_fb->tfb_tcp_fb_fini)(tp, 1);
+	MPASS(STAILQ_EMPTY(&tp->t_inqueue));
 
 	/*
 	 * If we got enough samples through the srtt filter,
@@ -4242,7 +4245,8 @@ tcp_handle_orphaned_packets(struct tcpcb *tp)
 
 	if (tptoinpcb(tp)->inp_flags2 & INP_MBUF_L_ACKS)
 		return;
-	if ((tptoinpcb(tp)->inp_flags2 & INP_SUPPORTS_MBUFQ) == 0) {
+	if ((tptoinpcb(tp)->inp_flags2 & INP_SUPPORTS_MBUFQ) == 0 &&
+	    !STAILQ_EMPTY(&tp->t_inqueue)) {
 		/*
 		 * It is unsafe to process the packets since a
 		 * reset may be lurking in them (its rare but it
@@ -4253,44 +4257,27 @@ tcp_handle_orphaned_packets(struct tcpcb *tp)
 		 * This new stack does not do any fancy LRO features
 		 * so all we can do is toss the packets.
 		 */
-		m = tp->t_in_pkt;
-		tp->t_in_pkt = NULL;
-		tp->t_tail_pkt = NULL;
-		while (m) {
-			save = m->m_nextpkt;
-			m->m_nextpkt = NULL;
+		m = STAILQ_FIRST(&tp->t_inqueue);
+		STAILQ_INIT(&tp->t_inqueue);
+		STAILQ_FOREACH_FROM_SAFE(m, &tp->t_inqueue, m_stailqpkt, save)
 			m_freem(m);
-			m = save;
-		}
 	} else {
 		/*
 		 * Here we have a stack that does mbuf queuing but
 		 * does not support compressed ack's. We must
 		 * walk all the mbufs and discard any compressed acks.
 		 */
-		m = tp->t_in_pkt;
-		prev = NULL;
-		while (m) {
+		STAILQ_FOREACH_SAFE(m, &tp->t_inqueue, m_stailqpkt, save) {
 			if (m->m_flags & M_ACKCMP) {
-				/* We must toss this packet */
-				if (tp->t_tail_pkt == m)
-					tp->t_tail_pkt = prev;
-				if (prev)
-					prev->m_nextpkt = m->m_nextpkt;
+				if (m == STAILQ_FIRST(&tp->t_inqueue))
+					STAILQ_REMOVE_HEAD(&tp->t_inqueue,
+					    m_stailqpkt);
 				else
-					tp->t_in_pkt =  m->m_nextpkt;
-				m->m_nextpkt = NULL;
+					STAILQ_REMOVE_AFTER(&tp->t_inqueue,
+					    prev, m_stailqpkt);
 				m_freem(m);
-				/* move forward */
-				if (prev)
-					m = prev->m_nextpkt;
-				else
-					m = tp->t_in_pkt;
-			} else {
-				/* this one is ok */
+			} else
 				prev = m;
-				m = m->m_nextpkt;
-			}
 		}
 	}
 }

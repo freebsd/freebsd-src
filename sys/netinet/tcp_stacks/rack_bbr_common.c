@@ -493,10 +493,8 @@ ctf_do_queued_segments(struct tcpcb *tp, int have_pkt)
 	struct mbuf *m;
 
 	/* First lets see if we have old packets */
-	if (tp->t_in_pkt) {
-		m = tp->t_in_pkt;
-		tp->t_in_pkt = NULL;
-		tp->t_tail_pkt = NULL;
+	if ((m = STAILQ_FIRST(&tp->t_inqueue)) != NULL) {
+		STAILQ_INIT(&tp->t_inqueue);
 		if (ctf_process_inbound_raw(tp, m, have_pkt)) {
 			/* We lost the tcpcb (maybe a RST came in)? */
 			return(1);
