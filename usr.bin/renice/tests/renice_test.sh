@@ -158,6 +158,11 @@ renice_delim_body() {
 	kill $pid
 }
 
+atf_test_case renice_incr_noarg
+renice_incr_noarg_body() {
+	atf_check -o empty -e ignore -s exit:1 renice -n
+}
+
 atf_init_test_cases() {
 	atf_add_test_case renice_abs_pid
 	atf_add_test_case renice_rel_pid
@@ -166,4 +171,5 @@ atf_init_test_cases() {
 	atf_add_test_case renice_abs_user
 	atf_add_test_case renice_rel_user
 	atf_add_test_case renice_delim
+	atf_add_test_case renice_incr_noarg
 }

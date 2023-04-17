@@ -94,7 +94,7 @@ main(int argc, char *argv[])
 			}
 			if (strcmp(*argv, "-n") == 0) {
 				/* may occur only once, prior to priority */
-				if (haveprio || incr)
+				if (haveprio || incr || argc < 2)
 					usage();
 				incr = true;
 				(void)argc--, argv++;
