@@ -57,6 +57,6 @@ fi
 
 cat > $tempfile <<EOF
 char bootprog_info[] = "$bootprog_info";
-unsigned bootprog_rev = ${r%%.*}${r##*.};
+unsigned bootprog_rev = ${r%%.*} * 1000 + ${r##*.};
 EOF
 mv $tempfile vers.c

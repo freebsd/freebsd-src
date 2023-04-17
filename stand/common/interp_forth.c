@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 #include "bootstrap.h"
 #include "ficl.h"
 
-extern unsigned bootprog_rev;
 INTERP_DEFINE("4th");
 
 /* #define BFORTH_DEBUG */
