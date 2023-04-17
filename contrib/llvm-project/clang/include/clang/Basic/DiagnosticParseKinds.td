@@ -1052,7 +1052,7 @@ def err_lambda_template_parameter_list_empty : Error<
 // C++2b static lambdas
 def err_static_lambda: ExtWarn<
   "static lambdas are a C++2b extension">, InGroup<CXX2b>;
-def warn_cxx20_compat_static_lambda: ExtWarn<
+def warn_cxx20_compat_static_lambda : Warning<
   "static lambdas are incompatible with C++ standards before C++2b">,
   InGroup<CXXPre2bCompat>, DefaultIgnore;
 def err_static_mutable_lambda : Error<
@@ -1606,11 +1606,6 @@ def err_import_in_wrong_fragment : Error<
 
 def err_export_empty : Error<"export declaration cannot be empty">;
 }
-
-def ext_offsetof_member_designator : Extension<
-  "using %select{a member access expression|an array subscript expression}0 "
-  "within '%select{__builtin_offsetof|offsetof}1' is a Clang extension">,
-  InGroup<GNUOffsetofExtensions>;
 
 let CategoryName = "Generics Issue" in {
 

@@ -139,11 +139,6 @@
 #define HAVE_LINK_H 0
 #endif
 
-/* Define to 1 if you have the `lseek64' function. */
-#if defined(__linux__)
-#define HAVE_LSEEK64 1
-#endif
-
 /* Define to 1 if you have the <mach/mach.h> header file. */
 #if __has_include(<mach/mach.h>)
 #define HAVE_MACH_MACH_H 1
@@ -353,10 +348,10 @@
 #define PACKAGE_NAME "LLVM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "LLVM 16.0.0git"
+#define PACKAGE_STRING "LLVM 16.0.1"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "16.0.0git"
+#define PACKAGE_VERSION "16.0.1"
 
 /* Define to the vendor of this package. */
 /* #undef PACKAGE_VENDOR */
