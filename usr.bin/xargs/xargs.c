@@ -91,6 +91,7 @@ static char echo[] = _PATH_ECHO;
 static char **av, **bxp, **ep, **endxp, **xp;
 static char *argp, *bbp, *ebp, *inpline, *p, *replstr;
 static const char *eofstr;
+static long eoflen;
 static int count, insingle, indouble, oflag, pflag, tflag, Rflag, rval, zflag;
 static int cnt, Iflag, jfound, Lflag, Sflag, wasquoted, xflag;
 static int curprocs, maxprocs;
@@ -129,6 +130,7 @@ main(int argc, char *argv[])
 	inpline = replstr = NULL;
 	ep = environ;
 	eofstr = "";
+	eoflen = 0;
 	Jflag = nflag = 0;
 
 	(void)setlocale(LC_ALL, "");
@@ -159,6 +161,7 @@ main(int argc, char *argv[])
 		switch (ch) {
 		case 'E':
 			eofstr = optarg;
+			eoflen = strlen(eofstr);
 			break;
 		case 'I':
 			Jflag = 0;
@@ -348,8 +351,8 @@ arg1:		if (insingle || indouble) {
 			xexit(*av, 1);
 		}
 arg2:
-		foundeof = *eofstr != '\0' &&
-		    strncmp(argp, eofstr, p - argp) == 0;
+		foundeof = eoflen != 0 && p - argp == eoflen &&
+		    strncmp(argp, eofstr, eoflen) == 0;
 
 		/* Do not make empty args unless they are quoted */
 		if ((argp != p || wasquoted) && !foundeof) {
