@@ -180,6 +180,7 @@ extern int isapnp_readport;
  * Version information
  */
 extern char bootprog_info[];
+extern unsigned bootprog_rev;
 
 /*
  * Interpreter information

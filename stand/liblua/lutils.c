@@ -639,6 +639,8 @@ luaopen_loader(lua_State *L)
 	lua_pushstring(L, LUA_PATH);
 	lua_setfield(L, -2, "lua_path");
 	lua_add_features(L);
+	lua_pushinteger(L, bootprog_rev);
+	lua_setfield(L, -2, "version");
 	/* Set global printc to loader.printc */
 	lua_register(L, "printc", lua_printc);
 	return 1;
