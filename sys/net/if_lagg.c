@@ -278,22 +278,22 @@ SYSCTL_INT(_net_link_lagg, OID_AUTO, failover_rx_all, CTLFLAG_RW | CTLFLAG_VNET,
 /* Default value for using flowid */
 VNET_DEFINE_STATIC(int, def_use_flowid) = 0;
 #define	V_def_use_flowid	VNET(def_use_flowid)
-SYSCTL_INT(_net_link_lagg, OID_AUTO, default_use_flowid, CTLFLAG_RWTUN,
-    &VNET_NAME(def_use_flowid), 0,
+SYSCTL_INT(_net_link_lagg, OID_AUTO, default_use_flowid,
+    CTLFLAG_RWTUN | CTLFLAG_VNET, &VNET_NAME(def_use_flowid), 0,
     "Default setting for using flow id for load sharing");
 
 /* Default value for using numa */
 VNET_DEFINE_STATIC(int, def_use_numa) = 1;
 #define	V_def_use_numa	VNET(def_use_numa)
-SYSCTL_INT(_net_link_lagg, OID_AUTO, default_use_numa, CTLFLAG_RWTUN,
-    &VNET_NAME(def_use_numa), 0,
+SYSCTL_INT(_net_link_lagg, OID_AUTO, default_use_numa,
+    CTLFLAG_RWTUN | CTLFLAG_VNET, &VNET_NAME(def_use_numa), 0,
     "Use numa to steer flows");
 
 /* Default value for flowid shift */
 VNET_DEFINE_STATIC(int, def_flowid_shift) = 16;
 #define	V_def_flowid_shift	VNET(def_flowid_shift)
-SYSCTL_INT(_net_link_lagg, OID_AUTO, default_flowid_shift, CTLFLAG_RWTUN,
-    &VNET_NAME(def_flowid_shift), 0,
+SYSCTL_INT(_net_link_lagg, OID_AUTO, default_flowid_shift,
+    CTLFLAG_RWTUN | CTLFLAG_VNET, &VNET_NAME(def_flowid_shift), 0,
     "Default setting for flowid shift for load sharing");
 
 static void
