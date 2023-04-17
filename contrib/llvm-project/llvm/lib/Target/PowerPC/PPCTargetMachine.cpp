@@ -237,8 +237,7 @@ static PPCTargetMachine::PPCABI computeTargetABI(const Triple &TT,
   case Triple::ppc64le:
     return PPCTargetMachine::PPC_ABI_ELFv2;
   case Triple::ppc64:
-    if (TT.isOSFreeBSD() &&
-        (TT.getOSMajorVersion() == 0 || TT.getOSMajorVersion() >= 13))
+    if (TT.isPPC64ELFv2ABI())
       return PPCTargetMachine::PPC_ABI_ELFv2;
     else
       return PPCTargetMachine::PPC_ABI_ELFv1;
