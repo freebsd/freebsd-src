@@ -406,6 +406,25 @@ const static struct nlfield_parser nlf_p_rtnh[] = {
 #undef _OUT
 NL_DECLARE_PARSER(mpath_parser, struct rtnexthop, nlf_p_rtnh, nla_p_rtnh);
 
+static void
+set_scope6(struct sockaddr *sa, struct ifnet *ifp)
+{
+#ifdef INET6
+	if (sa != NULL && sa->sa_family == AF_INET6 && ifp != NULL) {
+		struct sockaddr_in6 *sa6 = (struct sockaddr_in6 *)sa;
+
+		if (IN6_IS_ADDR_LINKLOCAL(&sa6->sin6_addr))
+			in6_set_unicast_scopeid(&sa6->sin6_addr, ifp->if_index);
+	}
+#endif
+}
+
+static void
+post_p_mpath(struct rta_mpath_nh *mpnh)
+{
+	set_scope6(mpnh->gw, mpnh->ifp);
+}
+
 struct rta_mpath {
 	int num_nhops;
 	struct rta_mpath_nh nhops[0];
@@ -432,6 +451,7 @@ nlattr_get_multipath(struct nlattr *nla, struct nl_pstate *npt, const void *arg,
 			    mp->num_nhops - 1);
 			return (error);
 		}
+		post_p_mpath(mpnh);
 
 		int len = NL_ITEM_ALIGN(rtnh->rtnh_len);
 		data_len -= len;
@@ -494,6 +514,13 @@ static const struct nlfield_parser nlf_p_rtmsg[] = {
 #undef _IN
 #undef _OUT
 NL_DECLARE_PARSER(rtm_parser, struct rtmsg, nlf_p_rtmsg, nla_p_rtmsg);
+
+static void
+post_p_rtmsg(struct nl_parsed_route *r)
+{
+	set_scope6(r->rta_dst, r->rta_oif);
+	set_scope6(r->rta_gw, r->rta_oif);
+}
 
 struct netlink_walkargs {
 	struct nl_writer *nw;
@@ -899,6 +926,7 @@ rtnl_handle_newroute(struct nlmsghdr *hdr, struct nlpcb *nlp,
 	error = nl_parse_nlmsg(hdr, &rtm_parser, npt, &attrs);
 	if (error != 0)
 		return (error);
+	post_p_rtmsg(&attrs);
 
 	/* Check if we have enough data */
 	if (attrs.rta_dst == NULL) {
@@ -963,6 +991,7 @@ rtnl_handle_delroute(struct nlmsghdr *hdr, struct nlpcb *nlp,
 	error = nl_parse_nlmsg(hdr, &rtm_parser, npt, &attrs);
 	if (error != 0)
 		return (error);
+	post_p_rtmsg(&attrs);
 
 	if (attrs.rta_dst == NULL) {
 		NLMSG_REPORT_ERR_MSG(npt, "RTA_DST is not set");
@@ -990,6 +1019,7 @@ rtnl_handle_getroute(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *
 	error = nl_parse_nlmsg(hdr, &rtm_parser, npt, &attrs);
 	if (error != 0)
 		return (error);
+	post_p_rtmsg(&attrs);
 
 	if (attrs.rta_table >= V_rt_numfibs) {
 		NLMSG_REPORT_ERR_MSG(npt, "invalid fib");
