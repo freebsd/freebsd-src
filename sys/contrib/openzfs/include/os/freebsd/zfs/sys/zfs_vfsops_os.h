@@ -287,6 +287,7 @@ typedef struct zfid_long {
 
 extern uint_t zfs_fsyncer_key;
 extern int zfs_super_owner;
+extern int zfs_bclone_enabled;
 
 extern void zfs_init(void);
 extern void zfs_fini(void);
