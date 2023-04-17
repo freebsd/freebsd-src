@@ -2426,17 +2426,6 @@ tcp_discardcb(struct tcpcb *tp)
 #ifdef TCP_BLACKBOX
 	tcp_log_tcpcbfini(tp);
 #endif
-	if (tp->t_in_pkt) {
-		struct mbuf *m, *n;
-
-		m = tp->t_in_pkt;
-		tp->t_in_pkt = tp->t_tail_pkt = NULL;
-		while (m) {
-			n = m->m_nextpkt;
-			m_freem(m);
-			m = n;
-		}
-	}
 	TCPSTATES_DEC(tp->t_state);
 
 	if (tp->t_fb->tfb_tcp_fb_fini)
