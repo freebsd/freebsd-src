@@ -13,6 +13,12 @@ MK_PIE=	no
 NO_SHARED=	yes
 CRUNCH_BUILDOPTS+=	MK_PIE=no NO_SHARED=yes
 
+# lld >= 16 became more strict about multiply defined symbols. Since there are
+# many of those in crunchgen'd programs, turn off the check.
+.if ${LINKER_TYPE} == "lld" && ${LINKER_VERSION} >= 160000
+LDFLAGS+=	-Wl,--allow-multiple-definition
+.endif
+
 PROG=	rescue
 BINDIR?=/rescue
 
