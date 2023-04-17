@@ -289,12 +289,12 @@ struct isoent {
 		struct extr_rec	*current;
 	}			 extr_rec_list;
 
-	signed int		 virtual:1;
+	unsigned int		 virtual:1;
 	/* If set to one, this file type is a directory.
 	 * A convenience flag to be used as
 	 * "archive_entry_filetype(isoent->file->entry) == AE_IFDIR".
 	 */
-	signed int		 dir:1;
+	unsigned int		 dir:1;
 };
 
 struct hardlink {
@@ -755,9 +755,9 @@ struct iso9660 {
 
 	/* Used for making zisofs. */
 	struct {
-		signed int	 detect_magic:1;
-		signed int	 making:1;
-		signed int	 allzero:1;
+		unsigned int	 detect_magic:1;
+		unsigned int	 making:1;
+		unsigned int	 allzero:1;
 		unsigned char	 magic_buffer[64];
 		int		 magic_cnt;
 
@@ -7802,8 +7802,8 @@ struct zisofs_extract {
 	uint64_t	 pz_uncompressed_size;
 	size_t		 uncompressed_buffer_size;
 
-	signed int	 initialized:1;
-	signed int	 header_passed:1;
+	unsigned int	 initialized:1;
+	unsigned int	 header_passed:1;
 
 	uint32_t	 pz_offset;
 	unsigned char	*block_pointers;
