@@ -140,8 +140,7 @@ main(int argc, char *argv[])
 {
 	long long converted_int;
 	uint32_t state;
-	char c;
-	int x;
+	int c, x;
 
 	if (argc < 2)
 		return (veriexec_usage());
