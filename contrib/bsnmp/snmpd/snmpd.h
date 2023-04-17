@@ -152,12 +152,12 @@ struct port_input {
 	int		fd;		/* socket */
 	void		*id;		/* evSelect handle */
 
-	int		stream : 1;	/* stream socket */
-	int		cred : 1;	/* want credentials */
+	u_int		stream : 1;	/* stream socket */
+	u_int		cred : 1;	/* want credentials */
 
 	struct sockaddr	*peer;		/* last received packet */
 	socklen_t	peerlen;
-	int		priv : 1;	/* peer is privileged */
+	u_int		priv : 1;	/* peer is privileged */
 
 	u_char		*buf;		/* receive buffer */
 	size_t		buflen;		/* buffer length */
