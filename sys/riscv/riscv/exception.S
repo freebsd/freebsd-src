@@ -56,6 +56,8 @@ __FBSDID("$FreeBSD$");
 	/* Load our pcpu */
 	sd	tp, (TF_TP)(sp)
 	ld	tp, (TF_SIZE)(sp)
+.else
+	sd	tp, (TF_TP)(sp)
 .endif
 
 	sd	t0, (TF_T + 0 * 8)(sp)
