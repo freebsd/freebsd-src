@@ -132,10 +132,10 @@ struct g_part_entry {
 	quad_t		gpe_start;	/* First LBA of partition. */
 	quad_t		gpe_end;	/* Last LBA of partition. */
 	int		gpe_index;
-	int		gpe_created:1;	/* Entry is newly created. */
-	int		gpe_deleted:1;	/* Entry has been deleted. */
-	int		gpe_modified:1;	/* Entry has been modified. */
-	int		gpe_internal:1;	/* Entry is not a used entry. */
+	bool		gpe_created:1;	/* Entry is newly created. */
+	bool		gpe_deleted:1;	/* Entry has been deleted. */
+	bool		gpe_modified:1;	/* Entry has been modified. */
+	bool		gpe_internal:1;	/* Entry is not a used entry. */
 };
 
 /* G_PART table (KOBJ instance). */
@@ -170,12 +170,12 @@ struct g_part_table {
 	uint32_t	gpt_heads;
 
 	int		gpt_depth;	/* Sub-partitioning level. */
-	int		gpt_isleaf:1;	/* Cannot be sub-partitioned. */
-	int		gpt_created:1;	/* Newly created. */
-	int		gpt_modified:1;	/* Table changes have been made. */
-	int		gpt_opened:1;	/* Permissions obtained. */
-	int		gpt_fixgeom:1;	/* Geometry is fixed. */
-	int		gpt_corrupt:1;	/* Table is corrupt. */
+	bool		gpt_isleaf:1;	/* Cannot be sub-partitioned. */
+	bool		gpt_created:1;	/* Newly created. */
+	bool		gpt_modified:1;	/* Table changes have been made. */
+	bool		gpt_opened:1;	/* Permissions obtained. */
+	bool		gpt_fixgeom:1;	/* Geometry is fixed. */
+	bool		gpt_corrupt:1;	/* Table is corrupt. */
 };
 
 struct g_part_entry *g_part_new_entry(struct g_part_table *, int, quad_t,
