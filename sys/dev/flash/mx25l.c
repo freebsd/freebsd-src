@@ -129,6 +129,7 @@ static struct mx25l_flash_ident flash_devices[] = {
 	{ "mx25ll64",	0xc2, 0x2017, 64 * 1024, 128, FL_NONE },
 	{ "mx25ll128",	0xc2, 0x2018, 64 * 1024, 256, FL_ERASE_4K | FL_ERASE_32K },
 	{ "mx25ll256",	0xc2, 0x2019, 64 * 1024, 512, FL_ERASE_4K | FL_ERASE_32K | FL_ENABLE_4B_ADDR },
+	{ "n25q64",     0x20, 0xba17, 64 * 1024, 128, FL_ERASE_4K },
 	{ "s25fl032",	0x01, 0x0215, 64 * 1024, 64, FL_NONE },
 	{ "s25fl064",	0x01, 0x0216, 64 * 1024, 128, FL_NONE },
 	{ "s25fl128",	0x01, 0x2018, 64 * 1024, 256, FL_NONE },
