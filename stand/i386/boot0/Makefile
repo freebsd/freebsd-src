@@ -36,8 +36,11 @@ BOOT_BOOT0_FLAGS?=	0x8f
 # 0xb6 (182d) corresponds to 10 seconds.
 BOOT_BOOT0_TICKS?=	0xb6
 
-# The base address that we the boot0 code to to run it.  Don't change this
-# unless you are glutton for punishment.
+# The BIOS loads boot0 to the hardcoded address 0x7c00.  boot0 copies
+# itself to this alternate base address before continuing execution so
+# that next level boot blocks can be loaded at the 0x7c00 address they
+# expect.  Don't change this unless you are glutton for punishment
+# (and fix ORIGIN in the source to match).
 BOOT_BOOT0_ORG?=	0x600
 ORG=${BOOT_BOOT0_ORG}
 
