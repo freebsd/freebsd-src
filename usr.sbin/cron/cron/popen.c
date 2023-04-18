@@ -55,10 +55,7 @@ static PID_T *pids;
 static int fds;
 
 FILE *
-cron_popen(program, type, e, pidptr)
-	char *program, *type;
-	entry *e;
-	PID_T *pidptr;
+cron_popen(char *program, char *type, entry *e, PID_T *pidptr)
 {
 	register char *cp;
 	FILE *iop;
@@ -226,8 +223,7 @@ pfree:
 }
 
 int
-cron_pclose(iop)
-	FILE *iop;
+cron_pclose(FILE *iop)
 {
 	register int fdes;
 	int omask;

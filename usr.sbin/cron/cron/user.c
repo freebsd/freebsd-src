@@ -29,8 +29,7 @@ static const char rcsid[] =
 static char *User_name;
 
 void
-free_user(u)
-	user	*u;
+free_user(user *u)
 {
 	entry	*e, *ne;
 
@@ -43,17 +42,14 @@ free_user(u)
 }
 
 static void
-log_error(msg)
-	char	*msg;
+log_error(char *msg)
 {
 	log_it(User_name, getpid(), "PARSE", msg);
 }
 
+/* NULL pw implies syscrontab */
 user *
-load_user(crontab_fd, pw, name)
-	int		crontab_fd;
-	struct passwd	*pw;		/* NULL implies syscrontab */
-	char		*name;
+load_user(int crontab_fd, struct passwd *pw, char *name)
 {
 	char	envstr[MAX_ENVSTR];
 	FILE	*file;

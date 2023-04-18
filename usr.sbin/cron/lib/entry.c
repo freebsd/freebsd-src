@@ -68,8 +68,7 @@ static char *ecodes[] =
 
 
 void
-free_entry(e)
-	entry	*e;
+free_entry(entry *e)
 {
 #ifdef LOGIN_CAP
 	if (e->class != NULL)
@@ -87,11 +86,8 @@ free_entry(e)
  * otherwise return a pointer to a new entry.
  */
 entry *
-load_entry(file, error_func, pw, envp)
-	FILE		*file;
-	void		(*error_func)(char *);
-	struct passwd	*pw;
-	char		**envp;
+load_entry(FILE *file, void (*error_func)(char *), struct passwd *pw,
+    char **envp)
 {
 	/* this function reads one crontab entry -- the next -- from a file.
 	 * it skips any leading blank lines, ignores comments, and returns
@@ -517,12 +513,7 @@ load_entry(file, error_func, pw, envp)
 
 
 static char
-get_list(bits, low, high, names, ch, file)
-	bitstr_t	*bits;		/* one bit per flag, default=FALSE */
-	int		low, high;	/* bounds, impl. offset for bitstr */
-	char		*names[];	/* NULL or *[] of names for these elements */
-	int		ch;		/* current character being processed */
-	FILE		*file;		/* file being read */
+get_list(bitstr_t *bits, int low, int high, char *names[], int ch, FILE *file)
 {
 	register int	done;
 
@@ -564,12 +555,7 @@ get_list(bits, low, high, names, ch, file)
 
 
 static char
-get_range(bits, low, high, names, ch, file)
-	bitstr_t	*bits;		/* one bit per flag, default=FALSE */
-	int		low, high;	/* bounds, impl. offset for bitstr */
-	char		*names[];	/* NULL or names of elements */
-	int		ch;		/* current character being processed */
-	FILE		*file;		/* file being read */
+get_range(bitstr_t *bits, int low, int high, char *names[], int ch, FILE *file)
 {
 	/* range = number | number "-" number [ "/" number ]
 	 */
@@ -651,12 +637,7 @@ get_range(bits, low, high, names, ch, file)
 
 
 static char
-get_number(numptr, low, names, ch, file)
-	int	*numptr;	/* where does the result go? */
-	int	low;		/* offset applied to result if symbolic enum used */
-	char	*names[];	/* symbolic names, if any, for enums */
-	int	ch;		/* current character */
-	FILE	*file;		/* source */
+get_number(int *numptr, int low, char *names[], int ch, FILE *file)
 {
 	char	temp[MAX_TEMPSTR], *pc;
 	int	len, i, all_digits;
@@ -708,11 +689,7 @@ get_number(numptr, low, names, ch, file)
 
 
 static int
-set_element(bits, low, high, number)
-	bitstr_t	*bits; 		/* one bit per flag, default=FALSE */
-	int		low;
-	int		high;
-	int		number;
+set_element(bitstr_t *bits, int low, int high, int number)
 {
 	Debug(DPARS|DEXT, ("set_element(?,%d,%d,%d)\n", low, high, number))
 

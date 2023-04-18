@@ -35,9 +35,7 @@ static job	*jhead = NULL, *jtail = NULL;
 
 
 void
-job_add(e, u)
-	register entry *e;
-	register user *u;
+job_add(entry *e, user *u)
 {
 	register job *j;
 
@@ -60,7 +58,7 @@ job_add(e, u)
 
 
 int
-job_runqueue()
+job_runqueue(void)
 {
 	register job	*j, *jn;
 	register int	run = 0;

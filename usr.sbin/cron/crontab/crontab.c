@@ -128,9 +128,7 @@ main(int argc, char *argv[])
 
 
 static void
-parse_args(argc, argv)
-	int	argc;
-	char	*argv[];
+parse_args(int argc, char *argv[])
 {
 	int		argch;
 	char		resolved_path[PATH_MAX];
@@ -261,7 +259,8 @@ copy_file(FILE *in, FILE *out) {
 }
 
 static void
-list_cmd() {
+list_cmd(void)
+{
 	char	n[MAX_FNAME];
 	FILE	*f;
 
@@ -282,7 +281,8 @@ list_cmd() {
 
 
 static void
-delete_cmd() {
+delete_cmd(void)
+{
 	char	n[MAX_FNAME];
 	int ch, first;
 
@@ -308,8 +308,7 @@ delete_cmd() {
 
 
 static void
-check_error(msg)
-	char	*msg;
+check_error(char *msg)
 {
 	CheckErrorCount++;
 	fprintf(stderr, "\"%s\":%d: %s\n", Filename, LineNumber-1, msg);
@@ -317,7 +316,8 @@ check_error(msg)
 
 
 static void
-edit_cmd() {
+edit_cmd(void)
+{
 	char		n[MAX_FNAME], q[MAX_TEMPSTR], *editor;
 	FILE		*f;
 	int		t;
@@ -502,7 +502,8 @@ edit_cmd() {
  *		-2	on install error
  */
 static int
-replace_cmd() {
+replace_cmd(void)
+{
 	char	n[MAX_FNAME], envstr[MAX_ENVSTR], tn[MAX_FNAME];
 	FILE	*tmp;
 	int	ch, eof;
@@ -629,7 +630,8 @@ replace_cmd() {
 
 
 static void
-poke_daemon() {
+poke_daemon(void)
+{
 #ifdef USE_UTIMES
 	struct timeval tvs[2];
 
