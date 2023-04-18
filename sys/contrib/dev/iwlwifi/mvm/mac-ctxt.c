@@ -1438,7 +1438,11 @@ void iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
 
 	if (rx_missed_bcon_since_rx >= stop_trig_missed_bcon_since_rx ||
 	    rx_missed_bcon >= stop_trig_missed_bcon)
+#if defined(__linux__)
 		iwl_fw_dbg_collect_trig(&mvm->fwrt, trigger, NULL);
+#elif defined(__FreeBSD__)
+		iwl_fw_dbg_collect_trig(&mvm->fwrt, trigger, "");
+#endif
 
 out:
 	rcu_read_unlock();
