@@ -52,7 +52,7 @@ MACHINE_ARCH:= ${MACHINE_ARCH.${MACHINE}}
 # now because for universe we want to potentially
 # build for multiple MACHINE_ARCH per MACHINE
 # we need more than MACHINE in TARGET_SPEC
-TARGET_SPEC_VARS= MACHINE MACHINE_ARCH
+TARGET_SPEC_VARS?= MACHINE MACHINE_ARCH
 # see dirdeps.mk
 .if ${TARGET_SPEC:Uno:M*,*} != ""
 _tspec := ${TARGET_SPEC:S/,/ /g}
