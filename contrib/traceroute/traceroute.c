@@ -1347,9 +1347,7 @@ send_probe(int seq, int ttl)
 
 #if	defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
 int
-setpolicy(so, policy)
-	int so;
-	char *policy;
+setpolicy(int so, char *policy)
 {
 	char *buf;
 
