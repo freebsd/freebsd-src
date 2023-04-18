@@ -57,6 +57,7 @@ static const struct tok pf_reasons[] = {
 	{ 12,	"12(state-limit)" },
 	{ 13,	"13(src-limit)" },
 	{ 14,	"14(synproxy)" },
+	{ 15,	"15(map-failed)" },
 	{ 0,	NULL }
 };
 
@@ -64,6 +65,7 @@ static const struct tok pf_actions[] = {
 	{ PF_PASS,		"pass" },
 	{ PF_DROP,		"block" },
 	{ PF_SCRUB,		"scrub" },
+	{ PF_NOSCRUB,		"scrub" },
 	{ PF_NAT,		"nat" },
 	{ PF_NONAT,		"nat" },
 	{ PF_BINAT,		"binat" },
@@ -71,6 +73,8 @@ static const struct tok pf_actions[] = {
 	{ PF_RDR,		"rdr" },
 	{ PF_NORDR,		"rdr" },
 	{ PF_SYNPROXY_DROP,	"synproxy-drop" },
+	{ PF_DEFER,		"pfsync-defer" },
+	{ PF_MATCH,		"match" },
 	{ 0,			NULL }
 };
 
