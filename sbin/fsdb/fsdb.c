@@ -161,6 +161,7 @@ CMDFUNC(chatime);			/* Change atime */
 CMDFUNC(chinum);			/* Change inode # of dirent */
 CMDFUNC(chname);			/* Change dirname of dirent */
 CMDFUNC(chsize);			/* Change size */
+CMDFUNC(chdb);				/* Change direct block pointer */
 
 struct cmdtable cmds[] = {
 	{ "help", "Print out help", 1, 1, FL_RO, helpfn },
@@ -195,6 +196,7 @@ struct cmdtable cmds[] = {
 	{ "mtime", "Change mtime of current inode to MTIME", 2, 2, FL_WR, chmtime },
 	{ "ctime", "Change ctime of current inode to CTIME", 2, 2, FL_WR, chctime },
 	{ "atime", "Change atime of current inode to ATIME", 2, 2, FL_WR, chatime },
+	{ "chdb", "Change db pointer N of current inode to BLKNO", 3, 3, FL_WR, chdb },
 	{ "quit", "Exit", 1, 1, FL_RO, quit },
 	{ "q", "Exit", 1, 1, FL_RO, quit },
 	{ "exit", "Exit", 1, 1, FL_RO, quit },
@@ -1044,6 +1046,36 @@ CMDFUNCSTART(chsize)
     inodirty(&curip);
     printactive(0);
     return rval;
+}
+
+CMDFUNC(chdb)
+{
+	unsigned int idx;
+	daddr_t bno;
+	char *cp;
+
+	if (!checkactive())
+		return 1;
+
+	idx = strtoull(argv[1], &cp, 0);
+	if (cp == argv[1] || *cp != '\0') {
+		warnx("bad pointer idx `%s'", argv[1]);
+		return 1;
+	}
+	bno = strtoll(argv[2], &cp, 0);
+	if (cp == argv[2] || *cp != '\0') {
+		warnx("bad block number `%s'", argv[2]);
+		return 1;
+	}
+	if (idx >= UFS_NDADDR) {
+		warnx("pointer index %d is out of range", idx);
+		return 1;
+	}
+
+	DIP_SET(curinode, di_db[idx], bno);
+	inodirty(&curip);
+	printactive(0);
+	return 0;
 }
 
 CMDFUNCSTART(linkcount)
