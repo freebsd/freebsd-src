@@ -423,8 +423,7 @@ send_docmd(char *name)
 }
 
 static int
-send_dontcmd(name)
-    char *name;
+send_dontcmd(char *name)
 {
     return(send_tncmd(send_dont, "dont", name));
 }
