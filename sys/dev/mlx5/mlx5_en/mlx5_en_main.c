@@ -3873,9 +3873,10 @@ mlx5e_build_ifp_priv(struct mlx5_core_dev *mdev,
 	priv->params.lro_wqe_sz = MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ;
 
 	/*
-	 * CQE zipping is currently defaulted to off. when it won't
-	 * anymore we will consider the HW capability:
-	 * "!!MLX5_CAP_GEN(mdev, cqe_compression)"
+	 * CQE zipping is off, because the per-packet 32-bit Toeplitz hash
+	 * is then not supported. The 32-bit Toeplitz hash is needed to
+	 * correctly demultiplex incoming traffic into the expected
+	 * network queues.
 	 */
 	priv->params.cqe_zipping_en = false;
 
