@@ -56,7 +56,7 @@ static ufs2_daddr_t badblk;
 static ufs2_daddr_t dupblk;
 static ino_t lastino;		/* last inode in use */
 
-static int checkinode(ino_t inumber, struct inodesc *, int rebuildcg);
+static int checkinode(ino_t inumber, struct inodesc *, int rebuiltcg);
 
 void
 pass1(void)
@@ -68,7 +68,7 @@ pass1(void)
 	ino_t inumber, inosused, mininos;
 	ufs2_daddr_t i, cgd;
 	u_int8_t *cp;
-	int c, rebuildcg;
+	int c, rebuiltcg;
 
 	badblk = dupblk = lastino = 0;
 
@@ -99,10 +99,14 @@ pass1(void)
 		inumber = c * sblock.fs_ipg;
 		cgbp = cglookup(c);
 		cgp = cgbp->b_un.b_cg;
-		rebuildcg = 0;
-		if (!check_cgmagic(c, cgbp, 1))
-			rebuildcg = 1;
-		if (!rebuildcg && sblock.fs_magic == FS_UFS2_MAGIC) {
+		rebuiltcg = 0;
+		if (!check_cgmagic(c, cgbp, 0)) {
+			if (!check_cgmagic(c, cgbp, 1))
+				cgheader_corrupt = 1;
+			else
+				rebuiltcg = 1;
+		}
+		if (!rebuiltcg && sblock.fs_magic == FS_UFS2_MAGIC) {
 			inosused = cgp->cg_initediblk;
 			if (inosused > sblock.fs_ipg) {
 				pfatal("Too many initialized inodes (%ju > %d) "
@@ -132,7 +136,7 @@ pass1(void)
 		 * to find the inodes that are really in use, and then
 		 * read only those inodes in from disk.
 		 */
-		if ((preen || inoopt) && usedsoftdep && !rebuildcg) {
+		if ((preen || inoopt) && usedsoftdep && !rebuiltcg) {
 			cp = &cg_inosused(cgp)[(inosused - 1) / CHAR_BIT];
 			for ( ; inosused != 0; cp--) {
 				if (*cp == 0) {
@@ -169,7 +173,7 @@ pass1(void)
 		setinodebuf(c, inosused);
 		for (i = 0; i < inosused; i++, inumber++) {
 			if (inumber < UFS_ROOTINO) {
-				(void)getnextinode(inumber, rebuildcg);
+				(void)getnextinode(inumber, rebuiltcg);
 				continue;
 			}
 			/*
@@ -178,7 +182,7 @@ pass1(void)
 			 * We always keep trying until we get to the minimum
 			 * valid number for this cylinder group.
 			 */
-			if (checkinode(inumber, &idesc, rebuildcg) == 0 &&
+			if (checkinode(inumber, &idesc, rebuiltcg) == 0 &&
 			    i > cgp->cg_initediblk)
 				break;
 		}
@@ -189,7 +193,7 @@ pass1(void)
 		 * fewer in use.
 		 */
 		mininos = roundup(inosused + INOPB(&sblock), INOPB(&sblock));
-		if (inoopt && !preen && !rebuildcg &&
+		if (inoopt && !preen && !rebuiltcg &&
 		    sblock.fs_magic == FS_UFS2_MAGIC &&
 		    cgp->cg_initediblk > 2 * INOPB(&sblock) &&
 		    mininos < cgp->cg_initediblk) {
@@ -209,7 +213,7 @@ pass1(void)
 			inosused = 0;
 		else
 			inosused = lastino - (c * sblock.fs_ipg);
-		if (rebuildcg && inosused > cgp->cg_initediblk &&
+		if (rebuiltcg && inosused > cgp->cg_initediblk &&
 		    sblock.fs_magic == FS_UFS2_MAGIC) {
 			cgp->cg_initediblk = roundup(inosused, INOPB(&sblock));
 			pwarn("CYLINDER GROUP %d: FOUND %d VALID INODES\n", c,
@@ -242,7 +246,7 @@ pass1(void)
 }
 
 static int
-checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
+checkinode(ino_t inumber, struct inodesc *idesc, int rebuiltcg)
 {
 	struct inode ip;
 	union dinode *dp;
@@ -252,7 +256,7 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
 	intmax_t size, fixsize;
 	int j, ret, offset;
 
-	if ((dp = getnextinode(inumber, rebuildcg)) == NULL) {
+	if ((dp = getnextinode(inumber, rebuiltcg)) == NULL) {
 		pfatal("INVALID INODE");
 		goto unknown;
 	}

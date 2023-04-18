@@ -510,7 +510,7 @@ static ino_t nextinum, lastvalidinum;
 static long readcount, readpercg, fullcnt, inobufsize, partialcnt, partialsize;
 
 union dinode *
-getnextinode(ino_t inumber, int rebuildcg)
+getnextinode(ino_t inumber, int rebuiltcg)
 {
 	int j;
 	long size;
@@ -569,7 +569,7 @@ getnextinode(ino_t inumber, int rebuildcg)
 			dirty(&inobuf);
 		}
 	}
-	if (rebuildcg && (char *)dp == inobuf.b_un.b_buf) {
+	if (rebuiltcg && (char *)dp == inobuf.b_un.b_buf) {
 		/*
 		 * Try to determine if we have reached the end of the
 		 * allocated inodes.

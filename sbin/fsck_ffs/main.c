@@ -490,8 +490,13 @@ checkfilesys(char *filesys)
 	if (preen == 0)
 		printf("** Phase 5 - Check Cyl groups\n");
 	snapflush(std_checkblkavail);
-	pass5();
-	IOstats("Pass5");
+	if (cgheader_corrupt) {
+		printf("PHASE 5 SKIPPED DUE TO CORRUPT CYLINDER GROUP "
+		    "HEADER(S)\n");
+	} else {
+		pass5();
+		IOstats("Pass5");
+	}
 
 	/*
 	 * print out summary statistics
