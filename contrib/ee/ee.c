@@ -1951,12 +1951,10 @@ compare(char *string1, char *string2, int sensitive)
 {
 	char *strng1;
 	char *strng2;
-	int tmp;
 	int equal;
 
 	strng1 = string1;
 	strng2 = string2;
-	tmp = 0;
 	if ((strng1 == NULL) || (strng2 == NULL) || (*strng1 == '\0') || (*strng2 == '\0'))
 		return(FALSE);
 	equal = TRUE;
@@ -1976,7 +1974,6 @@ compare(char *string1, char *string2, int sensitive)
 		strng2++;
 		if ((*strng1 == '\0') || (*strng2 == '\0') || (*strng1 == ' ') || (*strng2 == ' '))
 			break;
-		tmp++;
 	}
 	return(equal);
 }
@@ -3353,7 +3350,6 @@ menu_op(struct menu_entries menu_list[])
 	int temp;
 	int list_size;
 	int top_offset;		/* offset from top where menu items start */
-	int vert_pos;		/* vertical position			  */
 	int vert_size;		/* vertical size for menu list item display */
 	int off_start = 1;	/* offset from start of menu items to start display */
 
@@ -3423,7 +3419,6 @@ menu_op(struct menu_entries menu_list[])
 	paint_menu(menu_list, max_width, max_height, list_size, top_offset, temp_win, off_start, vert_size);
 
 	counter = 1;
-	vert_pos = 0;
 	do
 	{
 		if (off_start > 2)
