@@ -360,7 +360,7 @@ undeletecmd(void *v)
  * Interactively dump core on "core"
  */
 int
-core(void)
+core(void *arg __unused)
 {
 	int pid;
 
@@ -386,8 +386,9 @@ core(void)
  * Clobber as many bytes of stack as the user requests.
  */
 int
-clobber(char **argv)
+clobber(void *arg)
 {
+	char **argv = arg;
 	int times;
 
 	if (argv[0] == 0)

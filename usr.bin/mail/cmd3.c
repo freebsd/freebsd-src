@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
  * and forking a sh -c
  */
 int
-shell(char *str)
+shell(void *str)
 {
 	sig_t sigint = signal(SIGINT, SIG_IGN);
 	char *sh;
@@ -74,7 +74,7 @@ shell(char *str)
  */
 /*ARGSUSED*/
 int
-dosh(char *str __unused)
+dosh(void *str __unused)
 {
 	sig_t sigint = signal(SIGINT, SIG_IGN);
 	char *sh;
@@ -146,7 +146,7 @@ overf:
  */
 
 int
-help(void)
+help(void *arg __unused)
 {
 	int c;
 	FILE *f;
@@ -530,7 +530,7 @@ diction(const void *a, const void *b)
 
 /*ARGSUSED*/
 int
-null(int e __unused)
+null(void *arg __unused)
 {
 	return (0);
 }
@@ -540,8 +540,9 @@ null(int e __unused)
  * the current file.
  */
 int
-file(char **argv)
+file(void *arg)
 {
+	char **argv = arg;
 
 	if (argv[0] == NULL) {
 		newfileinfo(0);
@@ -557,8 +558,9 @@ file(char **argv)
  * Expand file names like echo
  */
 int
-echo(char **argv)
+echo(void *arg)
 {
+	char **argv = arg;
 	char **ap, *cp;
 
 	for (ap = argv; *ap != NULL; ap++) {
@@ -574,7 +576,7 @@ echo(char **argv)
 }
 
 int
-Respond(int *msgvec)
+Respond(void *msgvec)
 {
 	if (value("Replyall") == NULL && value("flipr") == NULL)
 		return (doRespond(msgvec));
@@ -625,8 +627,9 @@ doRespond(int msgvec[])
  * .mailrc and do some things if sending, others if receiving.
  */
 int
-ifcmd(char **argv)
+ifcmd(void *arg)
 {
+	char **argv = arg;
 	char *cp;
 
 	if (cond != CANY) {
@@ -656,7 +659,7 @@ ifcmd(char **argv)
  * flip over the conditional flag.
  */
 int
-elsecmd(void)
+elsecmd(void *arg __unused)
 {
 
 	switch (cond) {
@@ -684,7 +687,7 @@ elsecmd(void)
  * End of if statement.  Just set cond back to anything.
  */
 int
-endifcmd(void)
+endifcmd(void *arg __unused)
 {
 
 	if (cond == CANY) {
@@ -699,8 +702,9 @@ endifcmd(void)
  * Set the list of alternate names.
  */
 int
-alternates(char **namelist)
+alternates(void *arg)
 {
+	char **namelist = arg;
 	int c;
 	char **ap, **ap2, *cp;
 

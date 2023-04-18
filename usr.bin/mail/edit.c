@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
  * Edit a message list.
  */
 int
-editor(int *msgvec)
+editor(void *msgvec)
 {
 
 	return (edit1(msgvec, 'e'));
@@ -61,7 +61,7 @@ editor(int *msgvec)
  * Invoke the visual editor on a message list.
  */
 int
-visual(int *msgvec)
+visual(void *msgvec)
 {
 
 	return (edit1(msgvec, 'v'));

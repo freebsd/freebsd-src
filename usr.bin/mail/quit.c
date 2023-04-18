@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
  * The "quit" command.
  */
 int
-quitcmd(void)
+quitcmd(void *arg __unused)
 {
 	/*
 	 * If we are sourcing, then return 1 so execute() can handle it.
