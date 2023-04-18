@@ -8,6 +8,7 @@ SRCS= \
 mlx5_alloc.c \
 mlx5_cmd.c \
 mlx5_cq.c \
+mlx5_diag_cnt.c \
 mlx5_diagnostics.c \
 mlx5_eq.c \
 mlx5_eswitch.c \

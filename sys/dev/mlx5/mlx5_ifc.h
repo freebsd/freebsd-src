@@ -186,6 +186,7 @@ enum {
 	MLX5_CMD_OP_DEACTIVATE_TRACER             = 0x815,
 	MLX5_CMD_OP_ALLOC_TRANSPORT_DOMAIN        = 0x816,
 	MLX5_CMD_OP_DEALLOC_TRANSPORT_DOMAIN      = 0x817,
+	MLX5_CMD_OP_QUERY_DIAGNOSTIC_PARAMS       = 0x819,
 	MLX5_CMD_OP_SET_DIAGNOSTICS               = 0x820,
 	MLX5_CMD_OP_QUERY_DIAGNOSTICS             = 0x821,
 	MLX5_CMD_OP_QUERY_CONG_STATUS             = 0x822,
@@ -5118,6 +5119,22 @@ struct mlx5_ifc_query_dc_cnak_trace_in_bits {
 	u8         reserved_2[0x40];
 };
 
+struct mlx5_ifc_diagnostic_cntr_struct_bits {
+	u8         counter_id[0x10];
+	u8         sample_id[0x10];
+
+	u8         time_stamp_31_0[0x20];
+
+	u8         counter_value_h[0x20];
+
+	u8         counter_value_l[0x20];
+};
+
+enum {
+	MLX5_DIAGNOSTIC_PARAMS_CONTEXT_ENABLE_ENABLE   = 0x1,
+	MLX5_DIAGNOSTIC_PARAMS_CONTEXT_ENABLE_DISABLE  = 0x0,
+};
+
 struct mlx5_ifc_query_cq_out_bits {
 	u8         status[0x8];
 	u8         reserved_0[0x18];
@@ -6854,6 +6871,25 @@ struct mlx5_ifc_diagnostic_params_context_bits {
 	u8         reserved_4[0x80];
 
 	struct mlx5_ifc_counter_id_bits counter_id[0];
+};
+
+struct mlx5_ifc_query_diagnostic_params_in_bits {
+	u8         opcode[0x10];
+	u8         reserved_at_10[0x10];
+
+	u8         reserved_at_20[0x10];
+	u8         op_mod[0x10];
+
+	u8         reserved_at_40[0x40];
+};
+
+struct mlx5_ifc_query_diagnostic_params_out_bits {
+	u8         status[0x8];
+	u8         reserved_at_8[0x18];
+
+	u8         syndrome[0x20];
+
+	struct mlx5_ifc_diagnostic_params_context_bits diagnostic_params_ctx;
 };
 
 struct mlx5_ifc_set_diagnostic_params_in_bits {
