@@ -1259,7 +1259,7 @@ wlan_up()
 	_iflist=$*
 
 	# Parse wlans_$parent="$child ..."
-	for parent in `set | sed -nE 's/wlans_([a-z]+[0-9]+)=.*/\1/p'`; do
+	for parent in `set | sed -nE 's/wlans_([a-z]+[a-z0-9]+[0-9]+)=.*/\1/p'`; do
 		child_wlans=`get_if_var $parent wlans_IF`
 		for child in ${child_wlans}; do
 			create_args="wlandev $parent `get_if_var $child create_args_IF`"
@@ -1301,7 +1301,7 @@ wlan_down()
 	_iflist=$*
 
 	# Parse wlans_$parent="$child ..."
-	for parent in `set | sed -nE 's/wlans_([a-z]+[0-9]+)=.*/\1/p'`; do
+	for parent in `set | sed -nE 's/wlans_([a-z]+[a-z0-9]+[0-9]+)=.*/\1/p'`; do
 		child_wlans=`get_if_var $parent wlans_IF`
 		for child in ${child_wlans}; do
 			case $_iflist in
