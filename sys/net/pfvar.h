@@ -385,16 +385,18 @@ extern struct sx pf_config_lock;
 #define	PF_CONFIG_UNLOCK()	sx_xunlock(&pf_config_lock)
 #define	PF_CONFIG_ASSERT()	sx_assert(&pf_config_lock, SA_XLOCKED)
 
-extern struct rmlock pf_rules_lock;
+VNET_DECLARE(struct rmlock, pf_rules_lock);
+#define	V_pf_rules_lock		VNET(pf_rules_lock)
+
 #define	PF_RULES_RLOCK_TRACKER	struct rm_priotracker _pf_rules_tracker
-#define	PF_RULES_RLOCK()	rm_rlock(&pf_rules_lock, &_pf_rules_tracker)
-#define	PF_RULES_RUNLOCK()	rm_runlock(&pf_rules_lock, &_pf_rules_tracker)
-#define	PF_RULES_WLOCK()	rm_wlock(&pf_rules_lock)
-#define	PF_RULES_WUNLOCK()	rm_wunlock(&pf_rules_lock)
-#define	PF_RULES_WOWNED()	rm_wowned(&pf_rules_lock)
-#define	PF_RULES_ASSERT()	rm_assert(&pf_rules_lock, RA_LOCKED)
-#define	PF_RULES_RASSERT()	rm_assert(&pf_rules_lock, RA_RLOCKED)
-#define	PF_RULES_WASSERT()	rm_assert(&pf_rules_lock, RA_WLOCKED)
+#define	PF_RULES_RLOCK()	rm_rlock(&V_pf_rules_lock, &_pf_rules_tracker)
+#define	PF_RULES_RUNLOCK()	rm_runlock(&V_pf_rules_lock, &_pf_rules_tracker)
+#define	PF_RULES_WLOCK()	rm_wlock(&V_pf_rules_lock)
+#define	PF_RULES_WUNLOCK()	rm_wunlock(&V_pf_rules_lock)
+#define	PF_RULES_WOWNED()	rm_wowned(&V_pf_rules_lock)
+#define	PF_RULES_ASSERT()	rm_assert(&V_pf_rules_lock, RA_LOCKED)
+#define	PF_RULES_RASSERT()	rm_assert(&V_pf_rules_lock, RA_RLOCKED)
+#define	PF_RULES_WASSERT()	rm_assert(&V_pf_rules_lock, RA_WLOCKED)
 
 extern struct mtx_padalign pf_table_stats_lock;
 #define	PF_TABLE_STATS_LOCK()	mtx_lock(&pf_table_stats_lock)

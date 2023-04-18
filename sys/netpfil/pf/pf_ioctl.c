@@ -277,8 +277,9 @@ VNET_DEFINE(int, pf_vnet_active);
 int pf_end_threads;
 struct proc *pf_purge_proc;
 
-struct rmlock			pf_rules_lock;
-struct sx			pf_ioctl_lock;
+VNET_DEFINE(struct rmlock, pf_rules_lock);
+VNET_DEFINE_STATIC(struct sx, pf_ioctl_lock);
+#define	V_pf_ioctl_lock		VNET(pf_ioctl_lock)
 struct sx			pf_end_lock;
 
 /* pfsync */
@@ -2606,7 +2607,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 
 	switch (cmd) {
 	case DIOCSTART:
-		sx_xlock(&pf_ioctl_lock);
+		sx_xlock(&V_pf_ioctl_lock);
 		if (V_pf_status.running)
 			error = EEXIST;
 		else {
@@ -2622,7 +2623,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		break;
 
 	case DIOCSTOP:
-		sx_xlock(&pf_ioctl_lock);
+		sx_xlock(&V_pf_ioctl_lock);
 		if (!V_pf_status.running)
 			error = ENOENT;
 		else {
@@ -5652,8 +5653,8 @@ DIOCCHANGEADDR_error:
 		break;
 	}
 fail:
-	if (sx_xlocked(&pf_ioctl_lock))
-		sx_xunlock(&pf_ioctl_lock);
+	if (sx_xlocked(&V_pf_ioctl_lock))
+		sx_xunlock(&V_pf_ioctl_lock);
 	CURVNET_RESTORE();
 
 #undef ERROUT_IOCTL
@@ -6692,6 +6693,9 @@ pf_load_vnet(void)
 	V_pf_tag_z = uma_zcreate("pf tags", sizeof(struct pf_tagname),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 
+	rm_init_flags(&V_pf_rules_lock, "pf rulesets", RM_RECURSE);
+	sx_init(&V_pf_ioctl_lock, "pf ioctl");
+
 	pf_init_tagset(&V_pf_tags, &pf_rule_tag_hashsize,
 	    PF_RULE_TAG_HASH_SIZE_DEFAULT);
 #ifdef ALTQ
@@ -6710,8 +6714,6 @@ pf_load(void)
 {
 	int error;
 
-	rm_init_flags(&pf_rules_lock, "pf rulesets", RM_RECURSE);
-	sx_init(&pf_ioctl_lock, "pf ioctl");
 	sx_init(&pf_end_lock, "pf end thread");
 
 	pf_mtag_initialize();
@@ -6815,6 +6817,9 @@ pf_unload_vnet(void)
 		pf_counter_u64_deinit(&V_pf_status.fcounters[i]);
 	for (int i = 0; i < SCNT_MAX; i++)
 		counter_u64_free(V_pf_status.scounters[i]);
+
+	rm_destroy(&V_pf_rules_lock);
+	sx_destroy(&V_pf_ioctl_lock);
 }
 
 static void
@@ -6834,8 +6839,6 @@ pf_unload(void)
 
 	pfi_cleanup();
 
-	rm_destroy(&pf_rules_lock);
-	sx_destroy(&pf_ioctl_lock);
 	sx_destroy(&pf_end_lock);
 }
 
