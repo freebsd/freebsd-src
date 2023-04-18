@@ -43,16 +43,51 @@ __FBSDID("$FreeBSD$");
  *
  * System Management BIOS Reference Specification, v2.6 Final
  * http://www.dmtf.org/standards/published_documents/DSP0134_2.6.0.pdf
+ *
+ * System Management BIOS (SMBIOS) Reference Specification, 3.6.0
+ * https://www.dmtf.org/sites/default/files/standards/documents/DSP0134_3.6.0.pdf
  */
 
 /*
- * 2.1.1 SMBIOS Structure Table Entry Point
+ * The first quoted paragraph below can also be found in section 2.1.1 SMBIOS
+ * Structure Table Entry Point of System Management BIOS Reference
+ * Specification, v2.6 Final
  *
- * "On non-EFI systems, the SMBIOS Entry Point structure, described below, can
- * be located by application software by searching for the anchor-string on
- * paragraph (16-byte) boundaries within the physical memory address range
- * 000F0000h to 000FFFFFh. This entry point encapsulates an intermediate anchor
- * string that is used by some existing DMI browsers."
+ * (From System Management BIOS (SMBIOS) Reference Specification, 3.6.0)
+ * 5.2.1 SMBIOS 2.1 (32-bit) Entry Point
+ *
+ * "On non-UEFI systems, the 32-bit SMBIOS Entry Point structure, can be
+ * located by application software by searching for the anchor-string on
+ * paragraph (16-byte) boundaries within the physical memory address
+ * range 000F0000h to 000FFFFFh. This entry point encapsulates an intermediate
+ * anchor string that is used by some existing DMI browsers.
+ *
+ * On UEFI-based systems, the SMBIOS Entry Point structure can be located by
+ * looking in the EFI Configuration Table for the SMBIOS GUID
+ * (SMBIOS_TABLE_GUID, {EB9D2D31-2D88-11D3-9A16-0090273FC14D}) and using the
+ * associated pointer. See section 4.6 of the UEFI Specification for details.
+ * See section 2.3 of the UEFI Specification for how to report the containing
+ * memory type.
+ *
+ * NOTE While the SMBIOS Major and Minor Versions (offsets 06h and 07h)
+ * currently duplicate the information that is present in the SMBIOS BCD
+ * Revision (offset 1Eh), they provide a path for future growth in this
+ * specification. The BCD Revision, for example, provides only a single digit
+ * for each of the major and minor version numbers."
+ *
+ * 5.2.2 SMBIOS 860 3.0 (64-bit) Entry Point
+ *
+ * "On non-UEFI systems, the 64-bit SMBIOS Entry Point structure can be located
+ * by application software by searching for the anchor-string on paragraph
+ * (16-byte) boundaries within the physical memory address range 000F0000h to
+ * 000FFFFFh.
+ *
+ * On UEFI-based systems, the SMBIOS Entry Point structure can be located by
+ * looking in the EFI Configuration Table for the SMBIOS 3.x GUID
+ * (SMBIOS3_TABLE_GUID, {F2FD1544-9794-4A2C-992E-E5BBCF20E394}) and using the
+ * associated pointer. See section 4.6 of the UEFI Specification for details.
+ * See section 2.3 of the UEFI Specification for how to report the containing
+ * memory type."
  */
 #define	SMBIOS_START		0xf0000
 #define	SMBIOS_LENGTH		0x10000
