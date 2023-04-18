@@ -91,10 +91,6 @@ struct _dom_binding {
 #define WRITEFD ypdb->dom_pipe_fds[1]
 #define BROADFD broad_domain->dom_pipe_fds[1]
 
-extern bool_t xdr_domainname(), xdr_ypbind_resp();
-extern bool_t xdr_ypreq_key(), xdr_ypresp_val();
-extern bool_t xdr_ypbind_setdom();
-
 void	checkwork(void);
 void	*ypbindproc_null_2_yp(SVCXPRT *, void *, CLIENT *);
 void	*ypbindproc_setdom_2_yp(SVCXPRT *, struct ypbind_setdom *, CLIENT *);
@@ -301,21 +297,23 @@ ypbindprog_2(struct svc_req *rqstp, register SVCXPRT *transp)
 		struct ypbind_setdom ypbindproc_setdom_2_arg;
 	} argument;
 	struct authunix_parms *creds;
-	char *result;
-	bool_t (*xdr_argument)(), (*xdr_result)();
-	char *(*local)();
+	void *result;
+	xdrproc_t xdr_argument, xdr_result;
+	typedef void *(svc_cb)(SVCXPRT *transp, void *arg,
+	    struct svc_req *rqstp);
+	svc_cb *local;
 
 	switch (rqstp->rq_proc) {
 	case YPBINDPROC_NULL:
-		xdr_argument = xdr_void;
-		xdr_result = xdr_void;
-		local = (char *(*)()) ypbindproc_null_2_yp;
+		xdr_argument = (xdrproc_t)xdr_void;
+		xdr_result = (xdrproc_t)xdr_void;
+		local = (svc_cb *)ypbindproc_null_2_yp;
 		break;
 
 	case YPBINDPROC_DOMAIN:
-		xdr_argument = xdr_domainname;
-		xdr_result = xdr_ypbind_resp;
-		local = (char *(*)()) ypbindproc_domain_2_yp;
+		xdr_argument = (xdrproc_t)xdr_domainname;
+		xdr_result = (xdrproc_t)xdr_ypbind_resp;
+		local = (svc_cb *)ypbindproc_domain_2_yp;
 		break;
 
 	case YPBINDPROC_SETDOM:
@@ -332,9 +330,9 @@ ypbindprog_2(struct svc_req *rqstp, register SVCXPRT *transp)
 			return;
 		}
 
-		xdr_argument = xdr_ypbind_setdom;
-		xdr_result = xdr_void;
-		local = (char *(*)()) ypbindproc_setdom_2_yp;
+		xdr_argument = (xdrproc_t)xdr_ypbind_setdom;
+		xdr_result = (xdrproc_t)xdr_void;
+		local = (svc_cb *)ypbindproc_setdom_2_yp;
 		break;
 
 	default:
@@ -342,13 +340,13 @@ ypbindprog_2(struct svc_req *rqstp, register SVCXPRT *transp)
 		return;
 	}
 	bzero(&argument, sizeof(argument));
-	if (!svc_getargs(transp, (xdrproc_t)xdr_argument, &argument)) {
+	if (!svc_getargs(transp, xdr_argument, &argument)) {
 		svcerr_decode(transp);
 		return;
 	}
 	result = (*local)(transp, &argument, rqstp);
 	if (result != NULL &&
-	    !svc_sendreply(transp, (xdrproc_t)xdr_result, result)) {
+	    !svc_sendreply(transp, xdr_result, result)) {
 		svcerr_systemerr(transp);
 	}
 	return;
