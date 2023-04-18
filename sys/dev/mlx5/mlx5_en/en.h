@@ -959,7 +959,6 @@ struct mlx5_flow_rule;
 
 struct mlx5e_eth_addr_info {
 	u8	addr [ETH_ALEN + 2];
-	u32	tt_vec;
 	/* flow table rule per traffic type */
 	struct mlx5_flow_rule	*ft_rule[MLX5E_NUM_TT];
 };
