@@ -144,9 +144,7 @@ char *hostname;
  */
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	struct timeval *timeout;
 	struct bootp *bp;
