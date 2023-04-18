@@ -238,22 +238,8 @@ fpurestore_fxrstor(void *addr)
 	fxrstor((char *)addr);
 }
 
-static void
-init_xsave(void)
-{
-
-	if (use_xsave)
-		return;
-	if ((cpu_feature2 & CPUID2_XSAVE) == 0)
-		return;
-	use_xsave = 1;
-	TUNABLE_INT_FETCH("hw.use_xsave", &use_xsave);
-}
-
 DEFINE_IFUNC(, void, fpusave, (void *))
 {
-
-	init_xsave();
 	if (!use_xsave)
 		return (fpusave_fxsave);
 	if ((cpu_stdext_feature & CPUID_EXTSTATE_XSAVEOPT) != 0) {
@@ -266,8 +252,6 @@ DEFINE_IFUNC(, void, fpusave, (void *))
 
 DEFINE_IFUNC(, void, fpurestore, (void *))
 {
-
-	init_xsave();
 	if (!use_xsave)
 		return (fpurestore_fxrstor);
 	return ((cpu_stdext_feature & CPUID_STDEXT_NFPUSG) != 0 ?

@@ -1345,6 +1345,11 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	    &pmap_pcid_invlpg_workaround_uena);
 	cpu_init_small_core();
 
+	if ((cpu_feature2 & CPUID2_XSAVE) != 0) {
+		use_xsave = 1;
+		TUNABLE_INT_FETCH("hw.use_xsave", &use_xsave);
+	}
+
 	link_elf_ireloc(kmdp);
 
 	/*
