@@ -187,6 +187,24 @@ static struct arm64_insn arm64_i[] = {
 	    TYPE_02, 0 },			/* ldrsw register */
 	{ "ldrsw", "10011000|IMM(19)|RT(5)",
 	    TYPE_03, OP_SIGN_EXT | OP_LITERAL | OP_MULT_4 },	/* ldr literal */
+        { "str", "1|SF(1)|111000000|IMM(9)|OPTION(2)|RN(5)|RT(5)",
+            TYPE_02, OP_SIGN_EXT }, 		/* str immediate post/pre index */
+        { "str", "1|SF(1)|11100100|IMM(12)|RN(5)|RT(5)",
+            TYPE_02, 0 }, 		        /* str immediate unsigned */
+        { "str", "1|SF(1)|111000001|RM(5)|OPTION(3)|SCALE(1)|10|RN(5)|RT(5)",
+            TYPE_02, 0 }, 			/* str register */
+        { "strb", "00111000000|IMM(9)|OPTION(2)|RN(5)|RT(5)",
+            TYPE_02, OP_SIGN_EXT | OP_SF32 },   /* strb immediate post/pre index */
+        { "strb", "0011100100|IMM(12)|RN(5)|RT(5)",
+            TYPE_02, OP_SF32 },                 /* strb immediate unsigned */
+        { "strb", "00111000001|RM(5)|OPTION(3)|SCALE(1)|10|RN(5)|RT(5)",
+            TYPE_02, OP_SF32 }, 		/* strb register */
+        { "strh", "01111000000|IMM(9)|OPTION(2)|RN(5)|RT(5)",
+	    TYPE_02, OP_SF32 | OP_SIGN_EXT }, 	/* strh immediate post/pre index */
+        { "strh", "0111100100|IMM(12)|RN(5)|RT(5)",
+	    TYPE_02, OP_SF32 }, 		/* immediate unsigned */
+        { "strh", "01111000001|RM(5)|OPTION(3)|SCALE(1)|10|RN(5)|RT(5)",
+            TYPE_02, OP_SF32 }, 		/* strh register */
 	{ NULL, NULL }
 };
 
