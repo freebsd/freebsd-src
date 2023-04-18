@@ -19,7 +19,7 @@ LINKS=	${BINDIR}/less ${BINDIR}/more \
 MLINKS=	less.1 more.1
 CLEANFILES= less.1
 
-CFLAGS+=	${NO_WDEPRECATED_NON_PROTOTYPE}
-
 .include "Makefile.common"
 .include <bsd.prog.mk>
+
+CWARNFLAGS+=	${NO_WDEPRECATED_NON_PROTOTYPE}
