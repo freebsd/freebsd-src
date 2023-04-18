@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2013-2019, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2022 NVIDIA corporation & affiliates.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -652,6 +653,26 @@ struct mlx5_special_contexts {
 	int resd_lkey;
 };
 
+struct mlx5_diag_cnt_id {
+	u16	id;
+	bool	enabled;
+};
+
+struct mlx5_diag_cnt {
+#define	DIAG_LOCK(dc) mutex_lock(&(dc)->lock)
+#define	DIAG_UNLOCK(dc) mutex_unlock(&(dc)->lock)
+	struct mutex lock;
+	struct sysctl_ctx_list sysctl_ctx;
+	struct mlx5_diag_cnt_id *cnt_id;
+	u16	num_of_samples;
+	u16	sample_index;
+	u8	num_cnt_id;
+	u8	log_num_of_samples;
+	u8	log_sample_period;
+	u8	flag;
+	u8	ready;
+};
+
 struct mlx5_flow_root_namespace;
 struct mlx5_core_dev {
 	struct pci_dev	       *pdev;
@@ -681,6 +702,7 @@ struct mlx5_core_dev {
 	struct mlx5_priv	priv;
 	struct mlx5_profile	*profile;
 	atomic_t		num_qps;
+	struct mlx5_diag_cnt	diag_cnt;
 	u32			vsc_addr;
 	u32			issi;
 	struct mlx5_special_contexts special_contexts;

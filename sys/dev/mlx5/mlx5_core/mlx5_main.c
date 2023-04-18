@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2013-2021, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2022 NVIDIA corporation & affiliates.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -50,6 +51,7 @@
 #include <dev/mlx5/mlx5_core/mlx5_core.h>
 #include <dev/mlx5/mlx5_core/eswitch.h>
 #include <dev/mlx5/mlx5_core/fs_core.h>
+#include <dev/mlx5/mlx5_core/diag_cnt.h>
 #ifdef PCI_IOV
 #include <sys/nv.h>
 #include <dev/pci/pci_iov.h>
@@ -1209,10 +1211,16 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		goto err_mpfs;
 	}
 
+	err = mlx5_diag_cnt_init(dev);
+	if (err) {
+		mlx5_core_err(dev, "diag cnt init failed %d\n", err);
+		goto err_fpga;
+	}
+
 	err = mlx5_register_device(dev);
 	if (err) {
 		mlx5_core_err(dev, "mlx5_register_device failed %d\n", err);
-		goto err_fpga;
+		goto err_diag_cnt;
 	}
 
 	set_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state);
@@ -1220,6 +1228,9 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 out:
 	mutex_unlock(&dev->intf_state_mutex);
 	return 0;
+
+err_diag_cnt:
+	mlx5_diag_cnt_cleanup(dev);
 
 err_fpga:
 	mlx5_fpga_device_stop(dev);
@@ -1291,6 +1302,7 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	mlx5_unregister_device(dev);
 
 	mlx5_eswitch_cleanup(dev->priv.eswitch);
+	mlx5_diag_cnt_cleanup(dev);
 	mlx5_fpga_device_stop(dev);
 	mlx5_mpfs_destroy(dev);
 	mlx5_cleanup_fs(dev);
