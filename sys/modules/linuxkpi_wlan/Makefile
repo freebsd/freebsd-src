@@ -5,6 +5,9 @@ KMOD=	linuxkpi_wlan
 SRCS=	linux_80211.c \
 	linux_80211_macops.c
 
+# QCA ath11k support.
+SRCS+=	linux_mhi.c
+
 SRCS+=	opt_wlan.h
 SRCS+=	${LINUXKPI_GENSRCS}
 
