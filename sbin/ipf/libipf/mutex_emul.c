@@ -85,10 +85,7 @@ eMmutex_init(eMmutex_t *mtx, char *who, char *file, int line)
 
 
 void
-eMmutex_destroy(mtx, file, line)
-	eMmutex_t *mtx;
-	char *file;
-	int line;
+eMmutex_destroy(eMmutex_t *mtx, char *file, int line)
 {
 	if (mutex_debug & 1)
 		fprintf(mutex_file,

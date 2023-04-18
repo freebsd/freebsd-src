@@ -24,8 +24,7 @@ static variable_t *find_var(char *);
 static char *expand_string(char *, int);
 
 
-static variable_t *find_var(name)
-	char *name;
+static variable_t *find_var(char *name)
 {
 	variable_t *v;
 

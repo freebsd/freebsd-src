@@ -162,8 +162,7 @@ static	int	sort_dstpt(const void *, const void *);
 #endif
 
 
-static void usage(name)
-	char *name;
+static void usage(char *name)
 {
 #ifdef  USE_INET6
 	fprintf(stderr, "Usage: %s [-46aAdfghIilnoRsv]\n", name);
