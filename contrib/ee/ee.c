@@ -248,7 +248,6 @@ struct menu_entries {
 	int argument;
 	};
 
-int main(int argc, char *argv[]);
 unsigned char *resiz_line(int factor, struct text *rline, int rpos);
 void insert(int character);
 void delete(int disp);
