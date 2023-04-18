@@ -319,7 +319,7 @@ doentry(struct utmpx *bp)
 		    "crash" : "shutdown";
 		/*
 		 * if we're in snapshot mode, we want to exit if this
-		 * shutdown/reboot appears while we we are tracking the
+		 * shutdown/reboot appears while we are tracking the
 		 * active range
 		 */
 		if (snaptime && snapfound)
