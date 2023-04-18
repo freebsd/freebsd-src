@@ -521,9 +521,13 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 			    arm64_reg(sf, rt), arm64_reg(1, rn),
 			    arm64_reg(option & 1, rm));
 
-			/* Calculate amount, it's op(31:30) */
-			amount = (insn >> ARM_INSN_SIZE_OFFSET) &
-			    ARM_INSN_SIZE_MASK;
+			if (scale == 0)
+				amount = 0;
+			else {
+				/* Calculate amount, it's op(31:30) */
+				amount = (insn >> ARM_INSN_SIZE_OFFSET) &
+			            ARM_INSN_SIZE_MASK;
+			}
 
 			switch (option) {
 			case 0x2:
@@ -537,7 +541,7 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 				di->di_printf(", sxtw #%d", amount);
 				break;
 			case 0x7:
-				di->di_printf(", sxts #%d", amount);
+				di->di_printf(", sxtx #%d", amount);
 				break;
 			default:
 				di->di_printf(", RSVD");
