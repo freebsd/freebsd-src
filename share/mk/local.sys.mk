@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+.if !target(_${_this}_)
+_${_this}_: .NOTMAIN
+
 .if ${MK_DIRDEPS_BUILD} == "yes" || ${MK_META_MODE} == "yes"
 
 # Not in the below list as it may make sense for non-meta mode
@@ -21,10 +24,12 @@ MAKE_PRINT_VAR_ON_ERROR+= \
 	.MAKE \
 	.OBJDIR \
 	.TARGETS \
+	CPUTYPE \
 	DESTDIR \
 	LD_LIBRARY_PATH \
 	MACHINE \
 	MACHINE_ARCH \
+	MACHINE_CPUARCH \
 	MAKEOBJDIRPREFIX \
 	MAKESYSPATH \
 	MAKE_VERSION \
@@ -87,3 +92,5 @@ META_NOPHONY?=
 META_COOKIE_RM?=
 META_COOKIE_TOUCH?=
 META_DEPS+=	${META_NOPHONY}
+
+.endif
