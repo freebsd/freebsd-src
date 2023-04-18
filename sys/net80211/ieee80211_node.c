@@ -1688,7 +1688,7 @@ ieee80211_find_vap_node(struct ieee80211_node_table *nt,
 
 /*
  * Fake up a node; this handles node discovery in adhoc mode.
- * Note that for the driver's benefit we we treat this like
+ * Note that for the driver's benefit we treat this like
  * an association so the driver has an opportunity to setup
  * it's private state.
  */
@@ -1895,7 +1895,7 @@ ieee80211_init_neighbor(struct ieee80211_node *ni,
 /*
  * Do node discovery in adhoc mode on receipt of a beacon
  * or probe response frame.  Note that for the driver's
- * benefit we we treat this like an association so the
+ * benefit we treat this like an association so the
  * driver has an opportunity to setup it's private state.
  */
 struct ieee80211_node *

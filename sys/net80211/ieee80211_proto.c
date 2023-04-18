@@ -1687,7 +1687,7 @@ ieee80211_wme_updateparams_locked(struct ieee80211vap *vap)
 		do_aggrmode = 1;
 
 	/*
-	 * IBSS? Only if we we have WME enabled.
+	 * IBSS? Only if we have WME enabled.
 	 */
 	else if ((vap->iv_opmode == IEEE80211_M_IBSS) &&
 	    (vap->iv_flags & IEEE80211_F_WME))
