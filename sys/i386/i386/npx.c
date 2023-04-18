@@ -320,22 +320,8 @@ fpusave_fnsave(union savefpu *addr)
 	fnsave((char *)addr);
 }
 
-static void
-init_xsave(void)
-{
-
-	if (use_xsave)
-		return;
-	if (!cpu_fxsr || (cpu_feature2 & CPUID2_XSAVE) == 0)
-		return;
-	use_xsave = 1;
-	TUNABLE_INT_FETCH("hw.use_xsave", &use_xsave);
-}
-
 DEFINE_IFUNC(, void, fpusave, (union savefpu *))
 {
-
-	init_xsave();
 	if (use_xsave)
 		return ((cpu_stdext_feature & CPUID_EXTSTATE_XSAVEOPT) != 0 ?
 		    fpusave_xsaveopt : fpusave_xsave);
