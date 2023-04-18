@@ -320,8 +320,10 @@ getdatablk(ufs2_daddr_t blkno, long size, int type)
 	 * Skip check for inodes because chkrange() considers
 	 * metadata areas invalid to write data.
 	 */
-	if (type != BT_INODES && chkrange(blkno, size / sblock.fs_fsize))
+	if (type != BT_INODES && chkrange(blkno, size / sblock.fs_fsize)) {
+		failedbuf.b_refcnt++;
 		return (&failedbuf);
+	}
 	bhdp = &bufhashhd[HASH(blkno)];
 	LIST_FOREACH(bp, bhdp, b_hash)
 		if (bp->b_bno == fsbtodb(&sblock, blkno)) {
