@@ -74,5 +74,7 @@ struct vop_vector tmpfs_fifoop_entries = {
 	.vop_pathconf =                 tmpfs_pathconf,
 	.vop_print =			tmpfs_print,
 	.vop_add_writecount =		vop_stdadd_writecount_nomsync,
+	.vop_fplookup_vexec =		VOP_EAGAIN,
+	.vop_fplookup_symlink =		VOP_EAGAIN,
 };
 VFS_VOP_VECTOR_REGISTER(tmpfs_fifoop_entries);
