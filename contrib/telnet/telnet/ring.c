@@ -306,9 +306,8 @@ ring_encrypt(Ring *ring, void (*encryptor)(unsigned char *, int))
     ring->clearto = ring->supply;
 }
 
-    void
-ring_clearto(ring)
-    Ring *ring;
+void
+ring_clearto(Ring *ring)
 {
     if (!ring_empty(ring))
 	ring->clearto = ring->supply;
