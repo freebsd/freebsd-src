@@ -28,11 +28,13 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-#include <sys/param.h>
 
+#include <sys/param.h>
 #include <sys/systm.h>
-#include <machine/disassem.h>
+
 #include <machine/armreg.h>
+#include <machine/disassem.h>
+
 #include <ddb/ddb.h>
 
 #define	ARM64_MAX_TOKEN_LEN	8
@@ -82,12 +84,21 @@ struct arm64_insn_token {
  * Define generic types for instruction printing.
  */
 enum arm64_format_type {
-	TYPE_01,	/* OP <RD>, <RN>, <RM>{, <shift [LSL, LSR, ASR]> #<imm>} SF32/64
-			   OP <RD>, <RN>, #<imm>{, <shift [0, 12]>} SF32/64 */
-	TYPE_02,	/* OP <RT>, [<RN>, #<imm>]{!}] SF32/64
-			   OP <RT>, [<RN>], #<imm>{!} SF32/64
-			   OP <RT>, <RN>, <RM> {, EXTEND AMOUNT } */
-	TYPE_03,	/* OP <RT>, #imm SF32/64 */
+	/*
+	 * OP <RD>, <RN>, <RM>{, <shift [LSL, LSR, ASR]> #imm} SF32/64
+	 * OP <RD>, <RN>, #<imm>{, <shift [0, 12]>} SF32/64
+	 */
+	TYPE_01,
+
+	/*
+	 * OP <RT>, [<RN>, #<imm>]{!} SF32/64
+	 * OP <RT>, [<RN>], #<imm>{!} SF32/64
+	 * OP <RT>, <RN>, <RM> {, EXTEND AMOUNT }
+	 */
+	TYPE_02,
+
+	/* OP <RT>, #imm SF32/64 */
+	TYPE_03,
 };
 
 /*
@@ -101,8 +112,8 @@ enum arm64_format_type {
  * tokens - array of tokens (operands) inside instruction
  */
 struct arm64_insn {
-	char* name;
-	char* format;
+	char *name;
+	char *format;
 	enum arm64_format_type type;
 	uint64_t special_ops;
 	uint32_t mask;
@@ -202,7 +213,7 @@ arm64_disasm_generate_masks(struct arm64_insn *tab)
 		 */
 		a = (INSN_SIZE * NBBY) - 1;
 		while (*format != '\0' && (a >= 0)) {
-			switch(*format) {
+			switch (*format) {
 			case '0':
 				/* Bit is 0, add to mask and pattern */
 				mask |= (1 << a);
@@ -230,7 +241,8 @@ arm64_disasm_generate_masks(struct arm64_insn *tab)
 					i++;
 					format++;
 					if (i >= ARM64_MAX_TOKEN_LEN) {
-						printf("ERROR: token too long in op %s\n",
+						printf("ERROR: "
+						    "token too long in op %s\n",
 						    tab->name);
 						error = 1;
 						break;
@@ -243,7 +255,8 @@ arm64_disasm_generate_masks(struct arm64_insn *tab)
 				ret = sscanf(format, "(%d)", &len);
 				if (ret == 1) {
 					if (token >= ARM64_MAX_TOKEN_CNT) {
-						printf("ERROR: to many tokens in op %s\n",
+						printf("ERROR: "
+						    "too many tokens in op %s\n",
 						    tab->name);
 						error = 1;
 						break;
@@ -357,7 +370,7 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 	while (i_ptr->name) {
 		/* If mask is 0 then the parser was not initialized yet */
 		if ((i_ptr->mask != 0) &&
-		    ((insn & i_ptr->mask) ==  i_ptr->pattern)) {
+		    ((insn & i_ptr->mask) == i_ptr->pattern)) {
 			matchp = 1;
 			break;
 		}
@@ -388,14 +401,17 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 	/* Print opcode by type */
 	switch (i_ptr->type) {
 	case TYPE_01:
-		/* OP <RD>, <RN>, <RM>{, <shift [LSL, LSR, ASR]> #<imm>} SF32/64
-		   OP <RD>, <RN>, #<imm>{, <shift [0, 12]>} SF32/64 */
+		/*
+		 * OP <RD>, <RN>, <RM>{, <shift [LSL, LSR, ASR]> #<imm>} SF32/64
+		 * OP <RD>, <RN>, #<imm>{, <shift [0, 12]>} SF32/64
+		 */
 
 		/* Mandatory tokens */
 		ret = arm64_disasm_read_token(i_ptr, insn, "RD", &rd);
 		ret |= arm64_disasm_read_token(i_ptr, insn, "RN", &rn);
 		if (ret != 0) {
-			printf("ERROR: Missing mandatory token for op %s type %d\n",
+			printf("ERROR: "
+			    "Missing mandatory token for op %s type %d\n",
 			    i_ptr->name, i_ptr->type);
 			goto undefined;
 		}
@@ -420,15 +436,18 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 		}
 		break;
 	case TYPE_02:
-		/* OP <RT>, [<RN>, #<imm>]{!}] SF32/64
-		   OP <RT>, [<RN>], #<imm>{!} SF32/64
-		   OP <RT>, <RN>, <RM> {, EXTEND AMOUNT } */
+		/*
+		 * OP <RT>, [<RN>, #<imm>]{!}] SF32/64
+		 * OP <RT>, [<RN>], #<imm>{!} SF32/64
+		 * OP <RT>, <RN>, <RM> {, EXTEND AMOUNT }
+		 */
 
 		/* Mandatory tokens */
 		ret = arm64_disasm_read_token(i_ptr, insn, "RT", &rt);
 		ret |= arm64_disasm_read_token(i_ptr, insn, "RN", &rn);
 		if (ret != 0) {
-			printf("ERROR: Missing mandatory token for op %s type %d\n",
+			printf("ERROR: "
+			    "Missing mandatory token for op %s type %d\n",
 			    i_ptr->name, i_ptr->type);
 			goto undefined;
 		}
@@ -464,7 +483,8 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 				break;
 			}
 
-			di->di_printf("%s\t%s, ", i_ptr->name, arm64_reg(sf, rt));
+			di->di_printf("%s\t%s, ", i_ptr->name,
+			    arm64_reg(sf, rt));
 			if (inside != 0) {
 				di->di_printf("[%s", arm64_reg(1, rn));
 				if (imm != 0)
@@ -516,7 +536,8 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 		/* Mandatory tokens */
 		ret = arm64_disasm_read_token(i_ptr, insn, "RT", &rt);
 		if (ret != 0) {
-			printf("ERROR: Missing mandatory token for op %s type %d\n",
+			printf("ERROR: "
+			    "Missing mandatory token for op %s type %d\n",
 			    i_ptr->name, i_ptr->type);
 			goto undefined;
 		}
@@ -533,13 +554,13 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 	}
 
 	di->di_printf("\n");
-	return(loc + INSN_SIZE);
+	return (loc + INSN_SIZE);
 
 undefined:
 	di->di_printf("undefined\t%08x\n", insn);
-	return(loc + INSN_SIZE);
+	return (loc + INSN_SIZE);
 }
 
 /* Parse format strings at the very beginning */
-SYSINIT(arm64_disasm_generate_masks, SI_SUB_DDB_SERVICES,
-    SI_ORDER_FIRST, arm64_disasm_generate_masks, arm64_i);
+SYSINIT(arm64_disasm_generate_masks, SI_SUB_DDB_SERVICES, SI_ORDER_FIRST,
+    arm64_disasm_generate_masks, arm64_i);
