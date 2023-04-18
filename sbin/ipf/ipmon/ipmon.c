@@ -470,10 +470,7 @@ read_log(int fd, int *lenp, char *buf, int bufsize)
 
 
 char *
-portlocalname(res, proto, port)
-	int res;
-	char *proto;
-	u_int port;
+portlocalname(int res, char *proto, u_int port)
 {
 	static char pname[8];
 	char *s;

@@ -603,8 +603,7 @@ done:
 }
 
 
-static wordtab_t *yyfindkey(key)
-	char *key;
+static wordtab_t *yyfindkey(char *key)
 {
 	wordtab_t *w;
 

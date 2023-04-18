@@ -28,10 +28,7 @@ pool_open(void)
 }
 
 int
-pool_ioctl(iocfunc, cmd, ptr)
-	ioctlfunc_t iocfunc;
-	ioctlcmd_t cmd;
-	void *ptr;
+pool_ioctl(ioctlfunc_t iocfunc, ioctlcmd_t cmd, void *ptr)
 {
 	return (*iocfunc)(poolfd, cmd, ptr);
 }
