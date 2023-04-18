@@ -16,7 +16,9 @@ SECTIONS
     *(.gnu.warning)
     *(.plt)
   } =0xD4200000
-  . = ALIGN(16);
+  . = ALIGN(4096);
+  _etext = .;
+  __data_start = .;
   .data		: {
     *(.rodata .rodata.* .gnu.linkonce.r.*)
     *(.rodata1)
@@ -78,6 +80,7 @@ SECTIONS
   . = ALIGN(16);
   .dynsym	: { *(.dynsym) }
   _edata = .;
+  __data_size = . - __data_start;
 
   /* Unused sections */
   .interp	: { *(.interp) }
