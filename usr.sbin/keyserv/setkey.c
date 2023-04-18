@@ -72,7 +72,7 @@ static int nodefaultkeys = 0;
  * prohibit the nobody key on this machine k (the -d flag)
  */
 void
-pk_nodefaultkeys()
+pk_nodefaultkeys(void)
 {
 	nodefaultkeys = 1;
 }
@@ -81,8 +81,7 @@ pk_nodefaultkeys()
  * Set the modulus for all our Diffie-Hellman operations
  */
 void
-setmodulus(modx)
-	char *modx;
+setmodulus(char *modx)
 {
 	MODULUS = mp_xtom(modx);
 }
@@ -91,9 +90,7 @@ setmodulus(modx)
  * Set the secretkey key for this uid
  */
 keystatus
-pk_setkey(uid, skey)
-	uid_t uid;
-	keybuf skey;
+pk_setkey(uid_t uid, keybuf skey)
 {
 	if (!storesecretkey(uid, skey)) {
 		return (KEY_SYSTEMERR);
@@ -106,11 +103,7 @@ pk_setkey(uid, skey)
  * secret key associated with uid.
  */
 keystatus
-pk_encrypt(uid, remote_name, remote_key, key)
-	uid_t uid;
-	char *remote_name;
-	netobj	*remote_key;
-	des_block *key;
+pk_encrypt(uid_t uid, char *remote_name, netobj *remote_key, des_block *key)
 {
 	return (pk_crypt(uid, remote_name, remote_key, key, DES_ENCRYPT));
 }
@@ -120,11 +113,7 @@ pk_encrypt(uid, remote_name, remote_key, key)
  * secret key associated with uid.
  */
 keystatus
-pk_decrypt(uid, remote_name, remote_key, key)
-	uid_t uid;
-	char *remote_name;
-	netobj *remote_key;
-	des_block *key;
+pk_decrypt(uid_t uid, char *remote_name, netobj *remote_key, des_block *key)
 {
 	return (pk_crypt(uid, remote_name, remote_key, key, DES_DECRYPT));
 }
@@ -133,9 +122,7 @@ static int store_netname( uid_t, key_netstarg * );
 static int fetch_netname( uid_t, key_netstarg * );
 
 keystatus
-pk_netput(uid, netstore)
-	uid_t uid;
-	key_netstarg *netstore;
+pk_netput(uid_t uid, key_netstarg *netstore)
 {
 	if (!store_netname(uid, netstore)) {
 		return (KEY_SYSTEMERR);
@@ -144,9 +131,7 @@ pk_netput(uid, netstore)
 }
 
 keystatus
-pk_netget(uid, netstore)
-	uid_t uid;
-	key_netstarg *netstore;
+pk_netget(uid_t uid, key_netstarg *netstore)
 {
 	if (!fetch_netname(uid, netstore)) {
 		return (KEY_SYSTEMERR);
@@ -159,12 +144,8 @@ pk_netget(uid, netstore)
  * Do the work of pk_encrypt && pk_decrypt
  */
 static keystatus
-pk_crypt(uid, remote_name, remote_key, key, mode)
-	uid_t uid;
-	char *remote_name;
-	netobj *remote_key;
-	des_block *key;
-	int mode;
+pk_crypt(uid_t uid, char *remote_name, netobj *remote_key, des_block *key,
+    int mode)
 {
 	char *xsecret;
 	char xpublic[1024];
@@ -221,10 +202,7 @@ pk_crypt(uid, remote_name, remote_key, key, mode)
 }
 
 keystatus
-pk_get_conv_key(uid, xpublic, result)
-	uid_t uid;
-	keybuf xpublic;
-	cryptkeyres *result;
+pk_get_conv_key(uid_t uid, keybuf xpublic, cryptkeyres *result)
 {
 	char *xsecret;
 	char xsecret_hold[1024];
@@ -271,9 +249,7 @@ pk_get_conv_key(uid, xpublic, result)
  * overwriting the lower order bits by setting parity.
  */
 static void
-extractdeskey(ck, deskey)
-	MINT *ck;
-	des_block *deskey;
+extractdeskey(MINT *ck, des_block *deskey)
 {
 	MINT *a;
 	short r;
@@ -320,9 +296,7 @@ static struct secretkey_netname_list *g_secretkey_netname;
  * Store the keys and netname for this uid
  */
 static int
-store_netname(uid, netstore)
-	uid_t uid;
-	key_netstarg *netstore;
+store_netname(uid_t uid, key_netstarg *netstore)
 {
 	struct secretkey_netname_list *new;
 	struct secretkey_netname_list **l;
@@ -361,9 +335,7 @@ store_netname(uid, netstore)
  */
 
 static int
-fetch_netname(uid, key_netst)
-	uid_t uid;
-	struct key_netstarg *key_netst;
+fetch_netname(uid_t uid, struct key_netstarg *key_netst)
 {
 	struct secretkey_netname_list *l;
 
@@ -389,8 +361,7 @@ fetch_netname(uid, key_netst)
 }
 
 static char *
-fetchsecretkey(uid)
-	uid_t uid;
+fetchsecretkey(uid_t uid)
 {
 	struct secretkey_netname_list *l;
 
@@ -406,9 +377,7 @@ fetchsecretkey(uid)
  * Store the secretkey for this uid
  */
 static int
-storesecretkey(uid, key)
-	uid_t uid;
-	keybuf key;
+storesecretkey(uid_t uid, keybuf key)
 {
 	struct secretkey_netname_list *new;
 	struct secretkey_netname_list **l;
@@ -437,17 +406,13 @@ storesecretkey(uid, key)
 }
 
 static int
-hexdigit(val)
-	int val;
+hexdigit(int val)
 {
 	return ("0123456789abcdef"[val]);
 }
 
 void
-bin2hex(bin, hex, size)
-	unsigned char *bin;
-	unsigned char *hex;
-	int size;
+bin2hex(unsigned char *bin, unsigned char *hex, int size)
 {
 	int i;
 
@@ -458,8 +423,7 @@ bin2hex(bin, hex, size)
 }
 
 static int
-hexval(dig)
-	char dig;
+hexval(char dig)
 {
 	if ('0' <= dig && dig <= '9') {
 		return (dig - '0');
@@ -473,10 +437,7 @@ hexval(dig)
 }
 
 void
-hex2bin(hex, bin, size)
-	unsigned char *hex;
-	unsigned char *bin;
-	int size;
+hex2bin(unsigned char *hex, unsigned char *bin, int size)
 {
 	int i;
 
@@ -501,10 +462,7 @@ static struct cachekey_list *g_cachedkeys;
  * cache result of expensive multiple precision exponential operation
  */
 static void
-writecache(pub, sec, deskey)
-	char *pub;
-	char *sec;
-	des_block *deskey;
+writecache(char *pub, char *sec, des_block *deskey)
 {
 	struct cachekey_list *new;
 
@@ -523,10 +481,7 @@ writecache(pub, sec, deskey)
  * Try to find the common key in the cache
  */
 static int
-readcache(pub, sec, deskey)
-	char *pub;
-	char *sec;
-	des_block *deskey;
+readcache(char *pub, char *sec, des_block *deskey)
 {
 	struct cachekey_list *found;
 	register struct cachekey_list **l;
