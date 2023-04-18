@@ -51,10 +51,7 @@ const char* cf_optarg;		/* argument associated with option */
 #define	EMSG	""
 
 int
-cf_getopt(nargc, nargv, ostr)
-	int nargc;
-	char * const *nargv;
-	const char *ostr;
+cf_getopt(int nargc, char * const *nargv, const char *ostr)
 {
 	static const char *place = EMSG;		/* option letter processing */
 	char *oli;				/* option letter list index */
