@@ -249,7 +249,7 @@ main(int argc, char *argv[])
 
 		if (FD_ISSET(fd, &r)) {
 			RMPCONN rconn;
-			CLIENT *client, *FindClient();
+			CLIENT *client;
 			int doread = 1;
 
 			while (BpfRead(&rconn, doread)) {
