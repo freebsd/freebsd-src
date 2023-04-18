@@ -36,7 +36,7 @@ BOOT_BOOT0_FLAGS?=	0x8f
 # 0xb6 (182d) corresponds to 10 seconds.
 BOOT_BOOT0_TICKS?=	0xb6
 
-# The base address that we the boot0 code to to run it.  Don't change this
+# The base address that we the boot0 code to run it.  Don't change this
 # unless you are glutton for punishment.
 BOOT_BOOT0_ORG?=	0x600
 ORG=${BOOT_BOOT0_ORG}
