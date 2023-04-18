@@ -1958,7 +1958,11 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 			if (rx_status->signal < rssi)
 				iwl_fw_dbg_collect_trig(&mvm->fwrt, trig,
+#if defined(__linux__)
 							NULL);
+#elif defined(__FreeBSD__)
+							"");
+#endif
 		}
 
 		if (ieee80211_is_data(hdr->frame_control))

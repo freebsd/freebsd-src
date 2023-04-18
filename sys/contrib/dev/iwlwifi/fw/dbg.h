@@ -164,7 +164,11 @@ _iwl_fw_dbg_trigger_simple_stop(struct iwl_fw_runtime *fwrt,
 	if (!iwl_fw_dbg_trigger_check_stop(fwrt, wdev, trigger))
 		return;
 
+#if defined(__linux__)
 	iwl_fw_dbg_collect_trig(fwrt, trigger, NULL);
+#elif defined(__FreeBSD__)
+	iwl_fw_dbg_collect_trig(fwrt, trigger, "");
+#endif
 }
 
 #define iwl_fw_dbg_trigger_simple_stop(fwrt, wdev, trig)	\
