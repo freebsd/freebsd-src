@@ -26,12 +26,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 26, 2020
+.Dd April 18, 2023
 .Dt GEM 4
 .Os
 .Sh NAME
 .Nm gem
-.Nd ERI/GEM/GMAC Ethernet device driver
+.Nd GEM/GMAC Ethernet device driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -51,8 +51,7 @@ if_gem_load="YES"
 The
 .Nm
 driver provides support for the GMAC Ethernet hardware found mostly in
-the last Apple PowerBooks G3s and most G4-based Apple hardware, as
-well as Sun UltraSPARC machines.
+the last Apple PowerBooks G3s and most G4-based Apple hardware.
 .Pp
 All controllers supported by the
 .Nm
@@ -68,8 +67,6 @@ driver include:
 .Bl -bullet -compact
 .It
 Apple GMAC
-.It
-Sun ERI 10/100 Mbps Ethernet
 .It
 Sun GEM Gigabit Ethernet
 .El

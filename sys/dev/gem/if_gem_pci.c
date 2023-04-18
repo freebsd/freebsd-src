@@ -34,7 +34,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * PCI bindings for Apple GMAC, Sun ERI and Sun GEM Ethernet controllers
+ * PCI bindings for Apple GMAC and Sun GEM Ethernet controllers
  */
 
 #include <sys/param.h>
@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/resource.h>
@@ -79,7 +78,6 @@ static const struct gem_pci_dev {
 	int		gpd_variant;
 	const char	*gpd_desc;
 } gem_pci_devlist[] = {
-	{ 0x1101108e, GEM_SUN_ERI,	"Sun ERI 10/100 Ethernet" },
 	{ 0x2bad108e, GEM_SUN_GEM,	"Sun GEM Gigabit Ethernet" },
 	{ 0x0021106b, GEM_APPLE_GMAC,	"Apple UniNorth GMAC Ethernet" },
 	{ 0x0024106b, GEM_APPLE_GMAC,	"Apple Pangea GMAC Ethernet" },
@@ -137,7 +135,7 @@ gem_pci_probe(device_t dev)
 
 static struct resource_spec gem_pci_res_spec[] = {
 	{ SYS_RES_IRQ, 0, RF_SHAREABLE | RF_ACTIVE },	/* GEM_RES_INTR */
-	{ SYS_RES_MEMORY, PCIR_BAR(0), RF_ACTIVE },	/* GEM_RES_BANK1 */
+	{ SYS_RES_MEMORY, PCIR_BAR(0), RF_ACTIVE },	/* GEM_RES_MEM */
 	{ -1, 0 }
 };
 
@@ -170,19 +168,7 @@ gem_pci_attach(device_t dev)
 
 	pci_enable_busmaster(dev);
 
-	/*
-	 * Some Sun GEMs/ERIs do have their intpin register bogusly set to 0,
-	 * although it should be 1.  Correct that.
-	 */
-	if (pci_get_intpin(dev) == 0)
-		pci_set_intpin(dev, 1);
-
-	/* Set the PCI latency timer for Sun ERIs. */
-	if (sc->sc_variant == GEM_SUN_ERI)
-		pci_write_config(dev, PCIR_LATTIMER, GEM_ERI_LATENCY_TIMER, 1);
-
 	sc->sc_dev = dev;
-	sc->sc_flags |= GEM_PCI;
 
 	if (bus_alloc_resources(dev, gem_pci_res_spec, sc->sc_res)) {
 		device_printf(dev, "failed to allocate resources\n");
@@ -192,27 +178,8 @@ gem_pci_attach(device_t dev)
 
 	GEM_LOCK_INIT(sc, device_get_nameunit(dev));
 
-	/*
-	 * Derive GEM_RES_BANK2 from GEM_RES_BANK1.  This seemed cleaner
-	 * with the old way of using copies of the bus tag and handle in
-	 * the softc along with bus_space_*()...
-	 */
-	sc->sc_res[GEM_RES_BANK2] = malloc(sizeof(*sc->sc_res[GEM_RES_BANK2]),
-	    M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (sc->sc_res[GEM_RES_BANK2] == NULL) {
-		device_printf(dev, "failed to allocate bank2 resource\n");
-		goto fail;
-	}
-	rman_set_bustag(sc->sc_res[GEM_RES_BANK2],
-	    rman_get_bustag(sc->sc_res[GEM_RES_BANK1]));
-	bus_space_subregion(rman_get_bustag(sc->sc_res[GEM_RES_BANK1]),
-	    rman_get_bushandle(sc->sc_res[GEM_RES_BANK1]),
-	    GEM_PCI_BANK2_OFFSET, GEM_PCI_BANK2_SIZE,
-	    &sc->sc_res[GEM_RES_BANK2]->r_bushandle);
-
 	/* Determine whether we're running at 66MHz. */
-	if ((GEM_BANK2_READ_4(sc, GEM_PCI_BIF_CONFIG) &
-	   GEM_PCI_BIF_CNF_M66EN) != 0)
+	if ((GEM_READ_4(sc, GEM_PCI_BIF_CONFIG) & GEM_PCI_BIF_CNF_M66EN) != 0)
 		sc->sc_flags |= GEM_PCI66;
 
 #if defined(__powerpc__)
@@ -256,11 +223,11 @@ gem_pci_attach(device_t dev)
 #define	PCI_VPD_SIZE			0x03
 
 #define	GEM_ROM_READ_1(sc, offs)					\
-	GEM_BANK1_READ_1((sc), GEM_PCI_ROM_OFFSET + (offs))
+	GEM_READ_1((sc), GEM_PCI_ROM_OFFSET + (offs))
 #define	GEM_ROM_READ_2(sc, offs)					\
-	GEM_BANK1_READ_2((sc), GEM_PCI_ROM_OFFSET + (offs))
+	GEM_READ_2((sc), GEM_PCI_ROM_OFFSET + (offs))
 #define	GEM_ROM_READ_4(sc, offs)					\
-	GEM_BANK1_READ_4((sc), GEM_PCI_ROM_OFFSET + (offs))
+	GEM_READ_4((sc), GEM_PCI_ROM_OFFSET + (offs))
 
 	/* Read PCI Expansion ROM header. */
 	if (GEM_ROM_READ_2(sc, PCI_ROMHDR_SIG) != PCI_ROMHDR_SIG_MAGIC ||
@@ -307,7 +274,7 @@ gem_pci_attach(device_t dev)
 		device_printf(dev, "unexpected PCI VPD\n");
 		goto fail;
 	}
-	bus_read_region_1(sc->sc_res[GEM_RES_BANK1],
+	bus_read_region_1(sc->sc_res[GEM_RES_MEM],
 	    GEM_PCI_ROM_OFFSET + j + PCI_VPDRES_LARGE_SIZE + PCI_VPD_SIZE,
 	    sc->sc_enaddr, ETHER_ADDR_LEN);
 #endif
@@ -336,8 +303,6 @@ gem_pci_attach(device_t dev)
 	return (0);
 
  fail:
-	if (sc->sc_res[GEM_RES_BANK2] != NULL)
-		free(sc->sc_res[GEM_RES_BANK2], M_DEVBUF);
 	GEM_LOCK_DESTROY(sc);
 	bus_release_resources(dev, gem_pci_res_spec, sc->sc_res);
 	return (ENXIO);
@@ -351,7 +316,6 @@ gem_pci_detach(device_t dev)
 	sc = device_get_softc(dev);
 	bus_teardown_intr(dev, sc->sc_res[GEM_RES_INTR], sc->sc_ih);
 	gem_detach(sc);
-	free(sc->sc_res[GEM_RES_BANK2], M_DEVBUF);
 	GEM_LOCK_DESTROY(sc);
 	bus_release_resources(dev, gem_pci_res_spec, sc->sc_res);
 	return (0);
