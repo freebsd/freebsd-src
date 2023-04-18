@@ -219,18 +219,9 @@ int mlx5_core_modify_cq_moderation(struct mlx5_core_dev *dev,
 				   u16 cq_period,
 				   u16 cq_max_count)
 {
-	u32 in[MLX5_ST_SZ_DW(modify_cq_in)] = {0};
-	void *cqc;
-
-	MLX5_SET(modify_cq_in, in, cqn, cq->cqn);
-	cqc = MLX5_ADDR_OF(modify_cq_in, in, cq_context);
-	MLX5_SET(cqc, cqc, cq_period, cq_period);
-	MLX5_SET(cqc, cqc, cq_max_count, cq_max_count);
-	MLX5_SET(modify_cq_in, in,
-		 modify_field_select_resize_field_select.modify_field_select.modify_field_select,
-		 MLX5_CQ_MODIFY_PERIOD | MLX5_CQ_MODIFY_COUNT);
-
-	return mlx5_core_modify_cq(dev, cq, in, sizeof(in));
+	return (mlx5_core_modify_cq_by_mask(dev, cq,
+	    MLX5_CQ_MODIFY_PERIOD | MLX5_CQ_MODIFY_COUNT,
+	    cq_period, cq_max_count, 0, 0));
 }
 
 int mlx5_core_modify_cq_moderation_mode(struct mlx5_core_dev *dev,
@@ -239,19 +230,34 @@ int mlx5_core_modify_cq_moderation_mode(struct mlx5_core_dev *dev,
 					u16 cq_max_count,
 					u8 cq_mode)
 {
-	u32 in[MLX5_ST_SZ_DW(modify_cq_in)] = {0};
+	return (mlx5_core_modify_cq_by_mask(dev, cq,
+	    MLX5_CQ_MODIFY_PERIOD | MLX5_CQ_MODIFY_COUNT | MLX5_CQ_MODIFY_PERIOD_MODE,
+	    cq_period, cq_max_count, cq_mode, 0));
+}
+
+int
+mlx5_core_modify_cq_by_mask(struct mlx5_core_dev *dev,
+    struct mlx5_core_cq *cq, u32 mask,
+    u16 cq_period, u16 cq_max_count, u8 cq_mode, u8 cq_eqn)
+{
+	u32 in[MLX5_ST_SZ_DW(modify_cq_in)] = {};
 	void *cqc;
 
 	MLX5_SET(modify_cq_in, in, cqn, cq->cqn);
 	cqc = MLX5_ADDR_OF(modify_cq_in, in, cq_context);
-	MLX5_SET(cqc, cqc, cq_period, cq_period);
-	MLX5_SET(cqc, cqc, cq_max_count, cq_max_count);
-	MLX5_SET(cqc, cqc, cq_period_mode, cq_mode);
-	MLX5_SET(modify_cq_in, in,
-		 modify_field_select_resize_field_select.modify_field_select.modify_field_select,
-		 MLX5_CQ_MODIFY_PERIOD | MLX5_CQ_MODIFY_COUNT | MLX5_CQ_MODIFY_PERIOD_MODE);
+	if (mask & MLX5_CQ_MODIFY_PERIOD)
+		MLX5_SET(cqc, cqc, cq_period, cq_period);
+	if (mask & MLX5_CQ_MODIFY_COUNT)
+		MLX5_SET(cqc, cqc, cq_max_count, cq_max_count);
+	if (mask & MLX5_CQ_MODIFY_PERIOD_MODE)
+		MLX5_SET(cqc, cqc, cq_period_mode, cq_mode);
+	if (mask & MLX5_CQ_MODIFY_EQN)
+		MLX5_SET(cqc, cqc, c_eqn, cq_eqn);
 
-	return mlx5_core_modify_cq(dev, cq, in, sizeof(in));
+	MLX5_SET(modify_cq_in, in,
+	    modify_field_select_resize_field_select.modify_field_select.modify_field_select, mask);
+
+	return (mlx5_core_modify_cq(dev, cq, in, sizeof(in)));
 }
 
 int mlx5_init_cq_table(struct mlx5_core_dev *dev)
