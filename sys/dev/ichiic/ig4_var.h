@@ -91,10 +91,10 @@ struct ig4iic_softc {
 	struct ig4_cfg	cfg;
 	uint32_t	intr_mask;
 	uint8_t		last_slave;
-	int		platform_attached : 1;
-	int		use_10bit : 1;
-	int		slave_valid : 1;
-	int		poll: 1;
+	bool		platform_attached : 1;
+	bool		use_10bit : 1;
+	bool		slave_valid : 1;
+	bool		poll: 1;
 
 	/*
 	 * Locking semantics:
