@@ -346,6 +346,7 @@ extern off_t bflag;		/* location of alternate super block */
 extern int bkgrdflag;		/* use a snapshot to run on an active system */
 extern char *blockmap;		/* ptr to primary blk allocation map */
 extern char *cdevname;		/* name of device being checked */
+extern int cgheader_corrupt;	/* one or more CG headers are corrupt */
 extern char ckclean;		/* only do work if not cleanly unmounted */
 extern int ckhashadd;		/* check hashes to be added */
 extern char *copybuf;		/* buffer to copy snapshot blocks */
@@ -493,7 +494,7 @@ int		ftypeok(union dinode *dp);
 void		getblk(struct bufarea *bp, ufs2_daddr_t blk, long size);
 struct bufarea *getdatablk(ufs2_daddr_t blkno, long size, int type);
 struct inoinfo *getinoinfo(ino_t inumber);
-union dinode   *getnextinode(ino_t inumber, int rebuildcg);
+union dinode   *getnextinode(ino_t inumber, int rebuiltcg);
 void		getpathname(char *namebuf, ino_t curdir, ino_t ino);
 void		ginode(ino_t, struct inode *);
 void		gjournal_check(const char *filesys);

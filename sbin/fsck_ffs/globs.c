@@ -110,6 +110,7 @@ ino_t	lfdir;			/* lost & found directory inode number */
 const char *lfname;		/* lost & found directory name */
 int	lfmode;			/* lost & found directory creation mode */
 ufs2_daddr_t n_blks;		/* number of blocks in use */
+int	cgheader_corrupt;	/* one or more CG headers are corrupt */
 ino_t n_files;			/* number of files in use */
 volatile sig_atomic_t	got_siginfo;	/* received a SIGINFO */
 volatile sig_atomic_t	got_sigalarm;	/* received a SIGALRM */
@@ -164,6 +165,7 @@ fsckinit(void)
 	lfmode = 0700;
 	n_blks = 0;
 	n_files = 0;
+	cgheader_corrupt = 0;
 	got_siginfo = 0;
 	got_sigalarm = 0;
 	bzero(&zino.dp1, sizeof(struct ufs1_dinode));

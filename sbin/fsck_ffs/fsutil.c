@@ -988,6 +988,10 @@ blzero(int fd, ufs2_daddr_t blk, long size)
 /*
  * Verify cylinder group's magic number and other parameters.  If the
  * test fails, offer an option to rebuild the whole cylinder group.
+ *
+ * Return 1 if the cylinder group is good or if repair is requested
+ * and is completed successfully. Return 0 if it is bad or if a repair
+ * has been requested but is not completed successfully.
  */
 #undef CHK
 #define CHK(lhs, op, rhs, fmt)						\
@@ -1080,7 +1084,7 @@ check_cgmagic(int cg, struct bufarea *cgbp, int request_rebuild)
 	if (!reply("REBUILD CYLINDER GROUP")) {
 		printf("YOU WILL NEED TO RERUN FSCK.\n");
 		rerun = 1;
-		return (1);
+		return (0);
 	}
 	/*
 	 * Zero out the cylinder group and then initialize critical fields.
@@ -1123,7 +1127,7 @@ check_cgmagic(int cg, struct bufarea *cgbp, int request_rebuild)
 	}
 	cgp->cg_ckhash = calculate_crc32c(~0L, (void *)cgp, sblock.fs_cgsize);
 	cgdirty(cgbp);
-	return (0);
+	return (1);
 }
 
 /*
