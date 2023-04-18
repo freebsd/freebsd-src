@@ -747,6 +747,7 @@ snapremove(ino_t inum)
 		bzero(&snaplist[i - 1], sizeof(struct inode));
 		snapcnt--;
 	}
+	memset(&idesc, 0, sizeof(struct inodesc));
 	idesc.id_type = SNAP;
 	idesc.id_func = snapclean;
 	idesc.id_number = inum;
@@ -767,14 +768,15 @@ snapclean(struct inodesc *idesc)
 	if (blkno == 0)
 		return (KEEPON);
 
-	bp = idesc->id_bp;
 	dp = idesc->id_dp;
 	if (blkno == BLK_NOCOPY || blkno == BLK_SNAP) {
-		if (idesc->id_lbn < UFS_NDADDR)
+		if (idesc->id_lbn < UFS_NDADDR) {
 			DIP_SET(dp, di_db[idesc->id_lbn], 0);
-		else
+		} else {
+			bp = idesc->id_bp;
 			IBLK_SET(bp, bp->b_index, 0);
-		dirty(bp);
+			dirty(bp);
+		}
 	}
 	return (KEEPON);
 }
