@@ -1417,23 +1417,6 @@ mlx5e_disable_rq(struct mlx5e_rq *rq)
 }
 
 static int
-mlx5e_wait_for_min_rx_wqes(struct mlx5e_rq *rq)
-{
-	struct mlx5e_channel *c = rq->channel;
-	struct mlx5e_priv *priv = c->priv;
-	struct mlx5_wq_ll *wq = &rq->wq;
-	int i;
-
-	for (i = 0; i < 1000; i++) {
-		if (wq->cur_sz >= priv->params.min_rx_wqes)
-			return (0);
-
-		msleep(4);
-	}
-	return (-ETIMEDOUT);
-}
-
-static int
 mlx5e_open_rq(struct mlx5e_channel *c,
     struct mlx5e_rq_param *param,
     struct mlx5e_rq *rq)
@@ -2518,7 +2501,6 @@ mlx5e_open_channels(struct mlx5e_priv *priv)
 	struct mlx5e_channel_param *cparam;
 	int err;
 	int i;
-	int j;
 
 	cparam = malloc(sizeof(*cparam), M_MLX5EN, M_WAITOK);
 
@@ -2551,12 +2533,6 @@ mlx5e_open_channels(struct mlx5e_priv *priv)
 			CPU_SET(cpu, &cpuset);
 			intr_setaffinity(irq, CPU_WHICH_INTRHANDLER, &cpuset);
 		}
-	}
-
-	for (j = 0; j < priv->params.num_channels; j++) {
-		err = mlx5e_wait_for_min_rx_wqes(&priv->channel[j].rq);
-		if (err)
-			goto err_close_channels;
 	}
 	free(cparam, M_MLX5EN);
 	return (0);
@@ -3849,8 +3825,6 @@ mlx5e_build_ifp_priv(struct mlx5_core_dev *mdev,
 	    MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_USEC;
 	priv->params.tx_cq_moderation_pkts =
 	    MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_PKTS;
-	priv->params.min_rx_wqes =
-	    MLX5E_PARAMS_DEFAULT_MIN_RX_WQES;
 	priv->params.rx_hash_log_tbl_sz =
 	    (order_base_2(num_comp_vectors) >
 	    MLX5E_PARAMS_DEFAULT_RX_HASH_LOG_TBL_SZ) ?

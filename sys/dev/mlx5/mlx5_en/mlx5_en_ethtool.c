@@ -1035,11 +1035,6 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 		priv->params_ethtool.rx_queue_size =
 		    1 << priv->params.log_rq_size;
 
-		/* update least number of RX WQEs */
-		priv->params.min_rx_wqes = min(
-		    priv->params_ethtool.rx_queue_size - 1,
-		    MLX5E_PARAMS_DEFAULT_MIN_RX_WQES);
-
 		/* restart network interface, if any */
 		if (was_opened)
 			mlx5e_open_locked(priv->ifp);

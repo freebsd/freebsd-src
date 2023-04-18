@@ -107,7 +107,6 @@
 #define	MLX5E_PARAMS_DEFAULT_RX_CQ_MODERATION_PKTS      0x20
 #define	MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_USEC      0x10
 #define	MLX5E_PARAMS_DEFAULT_TX_CQ_MODERATION_PKTS      0x20
-#define	MLX5E_PARAMS_DEFAULT_MIN_RX_WQES                0x80
 #define	MLX5E_PARAMS_DEFAULT_RX_HASH_LOG_TBL_SZ         0x7
 #define	MLX5E_CACHELINE_SIZE CACHE_LINE_SIZE
 #define	MLX5E_HW2SW_MTU(hwmtu) \
@@ -676,7 +675,6 @@ struct mlx5e_params {
 	u16	rx_cq_moderation_pkts;
 	u16	tx_cq_moderation_usec;
 	u16	tx_cq_moderation_pkts;
-	u16	min_rx_wqes;
 	bool	hw_lro_en;
 	bool	cqe_zipping_en;
 	u32	lro_wqe_sz;
