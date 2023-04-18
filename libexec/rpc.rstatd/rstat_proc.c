@@ -406,9 +406,10 @@ rstat_service(struct svc_req *rqstp, SVCXPRT *transp)
 	union {
 		int fill;
 	} argument;
-	char *result;
-	bool_t (*xdr_argument)(), (*xdr_result)();
-	char *(*local)();
+	void *result;
+	xdrproc_t xdr_argument, xdr_result;
+	typedef void *(svc_cb)(void *arg, struct svc_req *rqstp);
+	svc_cb *local;
 
 	switch (rqstp->rq_proc) {
 	case NULLPROC:
@@ -416,17 +417,17 @@ rstat_service(struct svc_req *rqstp, SVCXPRT *transp)
 		goto leave;
 
 	case RSTATPROC_STATS:
-		xdr_argument = xdr_void;
-		xdr_result = xdr_statstime;
+		xdr_argument = (xdrproc_t)xdr_void;
+		xdr_result = (xdrproc_t)xdr_statstime;
                 switch (rqstp->rq_vers) {
                 case RSTATVERS_ORIG:
-                        local = (char *(*)()) rstatproc_stats_1_svc;
+                        local = (svc_cb *)rstatproc_stats_1_svc;
                         break;
                 case RSTATVERS_SWTCH:
-                        local = (char *(*)()) rstatproc_stats_2_svc;
+                        local = (svc_cb *)rstatproc_stats_2_svc;
                         break;
                 case RSTATVERS_TIME:
-                        local = (char *(*)()) rstatproc_stats_3_svc;
+                        local = (svc_cb *)rstatproc_stats_3_svc;
                         break;
                 default:
                         svcerr_progvers(transp, RSTATVERS_ORIG, RSTATVERS_TIME);
@@ -436,17 +437,17 @@ rstat_service(struct svc_req *rqstp, SVCXPRT *transp)
 		break;
 
 	case RSTATPROC_HAVEDISK:
-		xdr_argument = xdr_void;
-		xdr_result = xdr_u_int;
+		xdr_argument = (xdrproc_t)xdr_void;
+		xdr_result = (xdrproc_t)xdr_u_int;
                 switch (rqstp->rq_vers) {
                 case RSTATVERS_ORIG:
-                        local = (char *(*)()) rstatproc_havedisk_1_svc;
+                        local = (svc_cb *)rstatproc_havedisk_1_svc;
                         break;
                 case RSTATVERS_SWTCH:
-                        local = (char *(*)()) rstatproc_havedisk_2_svc;
+                        local = (svc_cb *)rstatproc_havedisk_2_svc;
                         break;
                 case RSTATVERS_TIME:
-                        local = (char *(*)()) rstatproc_havedisk_3_svc;
+                        local = (svc_cb *)rstatproc_havedisk_3_svc;
                         break;
                 default:
                         svcerr_progvers(transp, RSTATVERS_ORIG, RSTATVERS_TIME);
@@ -460,16 +461,16 @@ rstat_service(struct svc_req *rqstp, SVCXPRT *transp)
 		goto leave;
 	}
 	bzero((char *)&argument, sizeof(argument));
-	if (!svc_getargs(transp, (xdrproc_t)xdr_argument, &argument)) {
+	if (!svc_getargs(transp, xdr_argument, &argument)) {
 		svcerr_decode(transp);
 		goto leave;
 	}
 	result = (*local)(&argument, rqstp);
 	if (result != NULL &&
-	    !svc_sendreply(transp, (xdrproc_t)xdr_result, result)) {
+	    !svc_sendreply(transp, xdr_result, result)) {
 		svcerr_systemerr(transp);
 	}
-	if (!svc_freeargs(transp, (xdrproc_t)xdr_argument, &argument))
+	if (!svc_freeargs(transp, xdr_argument, &argument))
 		errx(1, "unable to free arguments");
 leave:
         if (from_inetd)
