@@ -25,7 +25,7 @@ static const char rcsid[] =
 
 
 char **
-env_init()
+env_init(void)
 {
 	register char	**p = (char **) malloc(sizeof(char *));
 
@@ -36,8 +36,7 @@ env_init()
 
 
 void
-env_free(envp)
-	char	**envp;
+env_free(char **envp)
 {
 	char	**p;
 
@@ -49,8 +48,7 @@ env_free(envp)
 
 
 char **
-env_copy(envp)
-	register char	**envp;
+env_copy(char **envp)
 {
 	register int	count, i;
 	register char	**p;
@@ -76,9 +74,7 @@ env_copy(envp)
 
 
 char **
-env_set(envp, envstr)
-	char	**envp;
-	char	*envstr;
+env_set(char **envp, char *envstr)
 {
 	register int	count, found;
 	register char	**p;
@@ -138,9 +134,7 @@ env_set(envp, envstr)
  *		TRUE = was an env setting
  */
 int
-load_env(envstr, f)
-	char	*envstr;
-	FILE	*f;
+load_env(char *envstr, FILE *f)
 {
 	long	filepos;
 	int	fileline;
@@ -252,9 +246,7 @@ load_env(envstr, f)
 
 
 char *
-env_get(name, envp)
-	register char	*name;
-	register char	**envp;
+env_get(char *name, char **envp)
 {
 	register int	len = strlen(name);
 	register char	*p, *q;

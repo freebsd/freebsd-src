@@ -45,9 +45,7 @@ static WAIT_T		wait_on_child(PID_T, const char *);
 extern char	*environ;
 
 void
-do_command(e, u)
-	entry	*e;
-	user	*u;
+do_command(entry *e, user *u)
 {
 	pid_t pid;
 
@@ -86,9 +84,7 @@ do_command(e, u)
 
 
 static void
-child_process(e, u)
-	entry	*e;
-	user	*u;
+child_process(entry *e, user *u)
 {
 	int		stdin_pipe[2], stdout_pipe[2];
 	register char	*input_data;

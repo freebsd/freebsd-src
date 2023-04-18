@@ -55,7 +55,8 @@ static int	dont_daemonize = 0;
 struct pidfh *pfh;
 
 static void
-usage() {
+usage(void)
+{
 #if DEBUGGING
     char **dflags;
 #endif
@@ -98,9 +99,7 @@ open_pidfile(void)
 }
 
 int
-main(argc, argv)
-	int	argc;
-	char	*argv[];
+main(int argc, char *argv[])
 {
 	int runnum;
 	int secres1, secres2;
@@ -200,8 +199,7 @@ main(argc, argv)
 
 
 static void
-run_reboot_jobs(db)
-	cron_db *db;
+run_reboot_jobs(cron_db *db)
 {
 	register user		*u;
 	register entry		*e;
@@ -462,8 +460,7 @@ cron_sleep(cron_db *db, int secres)
  */
 
 static void
-cron_clean(db)
-	cron_db	*db;
+cron_clean(cron_db *db)
 {
 	user		*u;
 	entry		*e;
@@ -518,9 +515,7 @@ sighup_handler(int x)
 
 
 static void
-parse_args(argc, argv)
-	int	argc;
-	char	*argv[];
+parse_args(int argc, char *argv[])
 {
 	int	argch;
 	char	*endp;
