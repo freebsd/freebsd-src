@@ -177,7 +177,6 @@ enum {
 };
 
 struct mlx5_field_desc {
-	struct dentry	       *dent;
 	int			i;
 };
 
@@ -185,7 +184,6 @@ struct mlx5_rsc_debug {
 	struct mlx5_core_dev   *dev;
 	void		       *object;
 	enum dbg_rsc_type	type;
-	struct dentry	       *root;
 	struct mlx5_field_desc	fields[0];
 };
 
@@ -248,12 +246,6 @@ struct mlx5_fw_page {
 #define	mlx5_cmd_msg mlx5_fw_page
 
 struct mlx5_cmd_debug {
-	struct dentry	       *dbg_root;
-	struct dentry	       *dbg_in;
-	struct dentry	       *dbg_out;
-	struct dentry	       *dbg_outlen;
-	struct dentry	       *dbg_status;
-	struct dentry	       *dbg_run;
 	void		       *in_msg;
 	void		       *out_msg;
 	u8			status;
@@ -287,9 +279,6 @@ enum mlx5_cmd_mode {
 struct mlx5_cmd_stats {
 	u64		sum;
 	u64		n;
-	struct dentry  *root;
-	struct dentry  *avg;
-	struct dentry  *count;
 	/* protect command average calculations */
 	spinlock_t	lock;
 };
@@ -585,10 +574,7 @@ struct mlx5_priv {
 
 	/* start: qp staff */
 	struct mlx5_qp_table	qp_table;
-	struct dentry	       *qp_debugfs;
-	struct dentry	       *eq_debugfs;
-	struct dentry	       *cq_debugfs;
-	struct dentry	       *cmdif_debugfs;
+
 	/* end: qp staff */
 
 	/* start: cq staff */
@@ -605,7 +591,6 @@ struct mlx5_priv {
 	struct mutex   pgdir_mutex;
 	struct list_head        pgdir_list;
 	/* end: alloc staff */
-	struct dentry	       *dbg_root;
 
 	/* protect mkey key part */
 	spinlock_t		mkey_lock;
@@ -896,8 +881,6 @@ static inline struct mlx5_core_dev *pci2mlx5_core_dev(struct pci_dev *pdev)
 {
 	return pci_get_drvdata(pdev);
 }
-
-extern struct dentry *mlx5_debugfs_root;
 
 static inline u16 fw_rev_maj(struct mlx5_core_dev *dev)
 {
