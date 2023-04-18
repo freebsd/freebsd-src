@@ -34,13 +34,8 @@
 #ifndef	_IF_GEMREG_H
 #define	_IF_GEMREG_H
 
-/* register definitions for Apple GMAC, Sun ERI and Sun GEM */
+/* register definitions for Apple GMAC and Sun GEM */
 
-/*
- * First bank: these registers live at the start of the PCI
- * mapping, and at the start of the second bank of the SBus
- * version.
- */
 #define	GEM_SEB_STATE		0x0000	/* SEB state reg, R/O */
 #define	GEM_CONFIG		0x0004	/* config reg */
 #define	GEM_STATUS		0x000c	/* status reg */
@@ -94,23 +89,11 @@
 			"b\xdPCS\0b\xeTXMAC\0b\xfRXMAC\0"		\
 			"b\x10MAC_CONTROL\0b\x11MIF\0b\x12IBERR\0\0"
 
-/*
- * Second bank: these registers live at offset 0x1000 of the PCI
- * mapping, and at the start of the first bank of the SBus
- * version.
- */
-#define	GEM_PCI_BANK2_OFFSET	0x1000
-#define	GEM_PCI_BANK2_SIZE	0x14
 /* This is the same as the GEM_STATUS reg but reading it does not clear bits. */
-#define	GEM_PCI_ERROR_STATUS	0x0000	/* PCI error status */
-#define	GEM_PCI_ERROR_MASK	0x0004	/* PCI error mask */
-#define	GEM_PCI_BIF_CONFIG	0x0008	/* PCI BIF configuration */
-#define	GEM_PCI_BIF_DIAG	0x000c	/* PCI BIF diagnostic */
-
-#define	GEM_SBUS_BIF_RESET	0x0000	/* SBus BIF only software reset */
-#define	GEM_SBUS_CONFIG		0x0004	/* SBus IO configuration */
-#define	GEM_SBUS_STATUS		0x0008	/* SBus IO status */
-#define	GEM_SBUS_REVISION	0x000c	/* SBus revision ID */
+#define	GEM_PCI_ERROR_STATUS	0x1000	/* PCI error status */
+#define	GEM_PCI_ERROR_MASK	0x1004	/* PCI error mask */
+#define	GEM_PCI_BIF_CONFIG	0x1008	/* PCI BIF configuration */
+#define	GEM_PCI_BIF_DIAG	0x100c	/* PCI BIF diagnostic */
 
 #define	GEM_RESET		0x0010	/* software reset */
 
@@ -132,27 +115,10 @@
 #define	GEN_PCI_BIF_DIAG_BC_SM	0x007f0000	/* burst ctrl. state machine */
 #define	GEN_PCI_BIF_DIAG_SM	0xff000000	/* BIF state machine */
 
-/* Bits in GEM_SBUS_CONFIG register */
-#define	GEM_SBUS_CFG_BURST_32	0x00000001	/* 32 byte bursts */
-#define	GEM_SBUS_CFG_BURST_64	0x00000002	/* 64 byte bursts */
-#define	GEM_SBUS_CFG_BURST_128	0x00000004	/* 128 byte bursts */
-#define	GEM_SBUS_CFG_64BIT	0x00000008	/* extended transfer mode */
-#define	GEM_SBUS_CFG_PARITY	0x00000200	/* enable parity checking */
-
-/* GEM_SBUS_STATUS register bits */
-#define	GEM_SBUS_STATUS_LERR	0x00000001	/* LERR from SBus slave */
-#define	GEM_SBUS_STATUS_SACK	0x00000002	/* size ack. error */
-#define	GEM_SBUS_STATUS_EACK	0x00000004	/* SBus ctrl. or slave error */
-#define	GEM_SBUS_STATUS_MPARITY	0x00000008	/* SBus master parity error */
-
 /* GEM_RESET register bits -- TX and RX self clear when complete. */
 #define	GEM_RESET_TX		0x00000001	/* Reset TX half. */
 #define	GEM_RESET_RX		0x00000002	/* Reset RX half. */
 #define	GEM_RESET_PCI_RSTOUT	0x00000004	/* Force PCI RSTOUT#. */
-#define	GEM_RESET_CLSZ_MASK	0x00ff0000	/* ERI cache line size */
-#define	GEM_RESET_CLSZ_SHFT	16
-
-/* The rest of the registers live in the first bank again. */
 
 /* TX DMA registers */
 #define	GEM_TX_KICK		0x2000		/* Write last valid desc + 1 */
@@ -476,7 +442,6 @@
  */
 
 /* GEM PCS/Serial link registers */
-/* DO NOT TOUCH THESE REGISTERS ON ERI -- IT HARD HANGS. */
 #define	GEM_MII_CONTROL		0x9000
 #define	GEM_MII_STATUS		0x9004
 #define	GEM_MII_ANAR		0x9008		/* MII advertisement reg */
@@ -581,7 +546,7 @@
 /*
  * PCI Expansion ROM runtime access
  * Sun GEMs map a 1MB space for the PCI Expansion ROM as the second half
- * of the first register bank, although they only support up to 64KB ROMs.
+ * of the register bank, although they only support up to 64KB ROMs.
  */
 #define	GEM_PCI_ROM_OFFSET	0x100000
 #define	GEM_PCI_ROM_SIZE	0x10000
@@ -589,10 +554,6 @@
 /* Wired PHY addresses */
 #define	GEM_PHYAD_INTERNAL	1
 #define	GEM_PHYAD_EXTERNAL	0
-
-/* Miscellaneous */
-#define	GEM_ERI_CACHE_LINE_SIZE	16
-#define	GEM_ERI_LATENCY_TIMER	64
 
 /*
  * descriptor table structures
