@@ -265,8 +265,9 @@ static struct sstack sstack[SSTACK_SIZE];
  * that they are no longer reading from a tty (in all probability).
  */
 int
-source(char **arglist)
+source(void *arg)
 {
+	char **arglist = arg;
 	FILE *fi;
 	char *cp;
 

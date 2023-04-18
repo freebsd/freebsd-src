@@ -672,7 +672,7 @@ newfileinfo(int omsgCount)
  */
 
 int
-pversion(int e __unused)
+pversion(void *arg __unused)
 {
 
 	printf("Version %s\n", version);

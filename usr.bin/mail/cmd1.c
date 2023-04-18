@@ -211,7 +211,7 @@ printhead(int mesg)
  * Print out the value of dot.
  */
 int
-pdot(void)
+pdot(void *arg __unused)
 {
 	printf("%td\n", dot - &message[0] + 1);
 	return (0);
@@ -221,7 +221,7 @@ pdot(void)
  * Print out all the possible commands.
  */
 int
-pcmdlist(void)
+pcmdlist(void *arg __unused)
 {
 	extern const struct cmd cmdtab[];
 	const struct cmd *cp;
@@ -439,7 +439,7 @@ mboxit(void *v)
  * List the folders the user currently has.
  */
 int
-folders(void)
+folders(void *arg __unused)
 {
 	char dirname[PATHSIZE];
 	char *cmd;

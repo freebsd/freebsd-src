@@ -199,7 +199,7 @@ cont:
 			/*
 			 * Dump core.
 			 */
-			core();
+			core(NULL);
 			break;
 		case '!':
 			/*
