@@ -158,7 +158,7 @@ mlx5_add_flow_rule(struct mlx5_flow_table *ft,
 		   u32 action,
 		   u32 flow_tag,
 		   struct mlx5_flow_destination *dest);
-void mlx5_del_flow_rule(struct mlx5_flow_rule *fr);
+void mlx5_del_flow_rule(struct mlx5_flow_rule **);
 
 /*The following API is for sniffer*/
 typedef int (*rule_event_fn)(struct mlx5_flow_rule *rule,
