@@ -529,6 +529,26 @@ options should only be used as a last ditch effort at improving performance
 when mounting servers that do not support TCP mounts.
 .El
 .El
+.Sh IMPLEMENTATION NOTES
+When neither the
+.Cm rsize
+nor
+.Cm wsize
+options are specified, the I/O size will be set to the largest value
+supported by both the NFS client and server.
+The largest value supported by the NFS client is defined by
+the tunable
+.Cd vfs.maxbcachebuf
+which can be set to a power of two up to
+.Cd kern.maxphys .
+.Pp
+The
+.Xr nfsstat 1
+command with the
+.Ic -m
+command line option will show what
+.Nm
+option settings are actually in use for the mount.
 .Sh COMPATIBILITY
 The following command line flags are equivalent to
 .Fl o
@@ -625,26 +645,6 @@ Same as
 Same as
 .Fl o Cm nfsv4
 .El
-.Sh IMPLEMENTATION NOTES
-When neither the
-.Cm rsize
-nor
-.Cm wsize
-options are specified, the I/O size will be set to the largest value
-supported by both the NFS client and server.
-The largest value supported by the NFS client is defined by
-the tunable
-.Cd vfs.maxbcachebuf
-which can be set to a power of two up to
-.Cd kern.maxphys .
-.Pp
-The
-.Xr nfsstat 1
-command with the
-.Ic -m
-command line option will show what
-.Nm
-option settings are actually in use for the mount.
 .Sh SEE ALSO
 .Xr nfsstat 1 ,
 .Xr nmount 2 ,
