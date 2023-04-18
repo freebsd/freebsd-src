@@ -84,6 +84,11 @@ SYSCTL_INT(_hw_mlx5, OID_AUTO, fast_unload_enabled, CTLFLAG_RWTUN,
     &mlx5_fast_unload_enabled, 0,
     "Set to enable fast unload. Clear to disable.");
 
+static int mlx5_core_comp_eq_size = 1024;
+SYSCTL_INT(_hw_mlx5, OID_AUTO, comp_eq_size, CTLFLAG_RDTUN | CTLFLAG_MPSAFE,
+    &mlx5_core_comp_eq_size, 0,
+    "Set default completion EQ size between 1024 and 16384 inclusivly. Value should be power of two.");
+
 static LIST_HEAD(intf_list);
 static LIST_HEAD(dev_list);
 static DEFINE_MUTEX(intf_mutex);
@@ -177,6 +182,22 @@ static struct mlx5_profile profiles[] = {
 		.log_max_qp	= 17,
 	},
 };
+
+static int
+mlx5_core_get_comp_eq_size(void)
+{
+	int value = mlx5_core_comp_eq_size;
+
+	if (value < 1024)
+		value = 1024;
+	else if (value > 16384)
+		value = 16384;
+
+	/* make value power of two, rounded down */
+	while (value & (value - 1))
+		value &= (value - 1);
+	return (value);
+}
 
 static void mlx5_set_driver_version(struct mlx5_core_dev *dev)
 {
@@ -686,7 +707,7 @@ static int alloc_comp_eqs(struct mlx5_core_dev *dev)
 
 	INIT_LIST_HEAD(&table->comp_eqs_list);
 	ncomp_vec = table->num_comp_vectors;
-	nent = MLX5_COMP_EQ_SIZE;
+	nent = mlx5_core_get_comp_eq_size();
 	for (i = 0; i < ncomp_vec; i++) {
 		eq = kzalloc_node(sizeof(*eq), GFP_KERNEL, dev->priv.numa_node);
 
