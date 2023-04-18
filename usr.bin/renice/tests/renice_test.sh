@@ -12,6 +12,12 @@ _renice() {
 	atf_check -o empty -e ignore -s exit:0 renice "$@"
 }
 
+atf_check_nice_value() {
+	local pid=$1
+	local nice=$2
+	atf_check test "$(ps -o nice= -p $pid)" -eq "$nice"
+}
+
 atf_test_case renice_abs_pid
 renice_abs_pid_head() {
 	atf_set "descr" "Set a process's nice number to an absolute value"
@@ -23,7 +29,7 @@ renice_abs_pid_body() {
 	nice="$(ps -o nice= -p $pid)"
 	incr=3
 	_renice $((nice+incr)) $pid
-	atf_check_equal $((nice+incr)) "$(ps -o nice= -p $pid)"
+	atf_check_nice_value $pid $((nice+incr))
 	kill $pid
 }
 
@@ -40,7 +46,7 @@ renice_rel_pid_body() {
 	_renice -n $incr $pid
 	_renice -p -n $incr $pid
 	_renice -n $incr -p $pid
-	atf_check_equal $((nice+incr+incr+incr)) "$(ps -o nice= -p $pid)"
+	atf_check_nice_value $pid $((nice+incr+incr+incr))
 	kill $pid
 }
 
@@ -56,7 +62,7 @@ renice_abs_pgid_body() {
 	nice="$(ps -o nice= -p $pid)"
 	incr=3
 	_renice $((nice+incr)) -g $pgid
-	atf_check_equal $((nice+incr)) "$(ps -o nice= -p $pid)"
+	atf_check_nice_value $pid $((nice+incr))
 	kill $pid
 }
 
@@ -73,7 +79,7 @@ renice_rel_pgid_body() {
 	incr=3
 	_renice -g -n $incr $pgid
 	_renice -n $incr -g $pgid
-	atf_check_equal $((nice+incr+incr)) "$(ps -o nice= -p $pid)"
+	atf_check_nice_value $pid $((nice+incr+incr))
 	kill $pid
 }
 
@@ -88,7 +94,7 @@ renice_abs_user_body() {
 	nice="$(ps -o nice= -p $pid)"
 	incr=3
 	_renice $((nice+incr)) -u $TEST_USER
-	atf_check_equal $((nice+incr)) "$(ps -o nice= -p $pid)"
+	atf_check_nice_value $pid $((nice+incr))
 	kill $pid
 }
 
@@ -104,7 +110,7 @@ renice_rel_user_body() {
 	incr=3
 	_renice -u -n $incr $TEST_USER
 	_renice -n $incr -u $TEST_USER
-	atf_check_equal $((nice+incr+incr)) "$(ps -o nice= -p $pid)"
+	atf_check_nice_value $pid $((nice+incr+incr))
 	kill $pid
 }
 
@@ -121,29 +127,29 @@ renice_delim_body() {
 	# without -p
 	: $((incr=incr+1))
 	_renice -- $((nice+incr)) $pid
-	atf_check_equal $((nice+incr)) "$(ps -o nice= -p $pid)"
+	atf_check_nice_value $pid $((nice+incr))
 	: $((incr=incr+1))
 	_renice $((nice+incr)) -- $pid
-	atf_check_equal $((nice+incr)) "$(ps -o nice= -p $pid)"
+	atf_check_nice_value $pid $((nice+incr))
 	: $((incr=incr+1))
 	_renice $((nice+incr)) $pid --
-	atf_check_equal $((nice+incr)) "$(ps -o nice= -p $pid)"
+	atf_check_nice_value $pid $((nice+incr))
 	# with -p
 	: $((incr=incr+1))
 	_renice -p -- $((nice+incr)) $pid
-	atf_check_equal $((nice+incr)) "$(ps -o nice= -p $pid)"
+	atf_check_nice_value $pid $((nice+incr))
 	: $((incr=incr+1))
 	_renice -p $((nice+incr)) -- $pid
-	atf_check_equal $((nice+incr)) "$(ps -o nice= -p $pid)"
+	atf_check_nice_value $pid $((nice+incr))
 	: $((incr=incr+1))
 	_renice -p $((nice+incr)) $pid --
-	atf_check_equal $((nice+incr)) "$(ps -o nice= -p $pid)"
+	atf_check_nice_value $pid $((nice+incr))
 	: $((incr=incr+1))
 	_renice $((nice+incr)) -p -- $pid
-	atf_check_equal $((nice+incr)) "$(ps -o nice= -p $pid)"
+	atf_check_nice_value $pid $((nice+incr))
 	: $((incr=incr+1))
 	_renice $((nice+incr)) -p $pid --
-	atf_check_equal $((nice+incr)) "$(ps -o nice= -p $pid)"
+	atf_check_nice_value $pid $((nice+incr))
 	kill $pid
 }
 
