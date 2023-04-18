@@ -1,28 +1,7 @@
-#!/bin/sh
-#-
-# Copyright (c) 2022 Klara, Inc.
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in the
-#    documentation and/or other materials provided with the distribution.
+# Copyright (c) 2022-2023 Klara, Inc.
 #
-# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-# SUCH DAMAGE.
+# SPDX-License-Identifier: BSD-2-Clause
 #
 
 # Name of user to use for -u tests when running as root.  Beware that
@@ -33,8 +12,10 @@ _renice() {
 	atf_check -o empty -e ignore -s exit:0 renice "$@"
 }
 
-# Set a process's nice number to an absolute value
 atf_test_case renice_abs_pid
+renice_abs_pid_head() {
+	atf_set "descr" "Set a process's nice number to an absolute value"
+}
 renice_abs_pid_body() {
 	local pid nice incr
 	sleep 60 &
@@ -46,8 +27,10 @@ renice_abs_pid_body() {
 	kill $pid
 }
 
-# Change a process's nice number by a relative value
 atf_test_case renice_rel_pid
+renice_rel_pid_head() {
+	atf_set "descr" "Change a process's nice number by a relative value"
+}
 renice_rel_pid_body() {
 	local pid nice incr
 	sleep 60 &
@@ -61,8 +44,10 @@ renice_rel_pid_body() {
 	kill $pid
 }
 
-# Set a process group's nice number to an absolute value
 atf_test_case renice_abs_pgid
+renice_abs_pgid_head() {
+	atf_set "descr" "Set a process group's nice number to an absolute value"
+}
 renice_abs_pgid_body() {
 	local pid pgid nice incr
 	# make sure target runs in a different pgrp than ours
@@ -75,8 +60,10 @@ renice_abs_pgid_body() {
 	kill $pid
 }
 
-# Change a process group's nice number by a relative value
 atf_test_case renice_rel_pgid
+renice_rel_pgid_head() {
+	atf_set "descr" "Change a process group's nice number by a relative value"
+}
 renice_rel_pgid_body() {
 	local pid pgid nice incr
 	# make sure target runs in a different pgrp than ours
@@ -90,9 +77,9 @@ renice_rel_pgid_body() {
 	kill $pid
 }
 
-# Set a user's processes' nice numbers to an absolute value
 atf_test_case renice_abs_user
 renice_abs_user_head() {
+	atf_set "descr" "Set a user's processes' nice numbers to an absolute value"
 	atf_set "require.user" "root"
 }
 renice_abs_user_body() {
@@ -105,9 +92,9 @@ renice_abs_user_body() {
 	kill $pid
 }
 
-# Change a user's processes' nice numbers by a relative value
 atf_test_case renice_rel_user
 renice_rel_user_head() {
+	atf_set "descr" "Change a user's processes' nice numbers by a relative value"
 	atf_set "require.user" "root"
 }
 renice_rel_user_body() {
@@ -121,8 +108,10 @@ renice_rel_user_body() {
 	kill $pid
 }
 
-# Test various delimiter positions
 atf_test_case renice_delim
+renice_delim_head() {
+	atf_set "descr" "Test various delimiter positions"
+}
 renice_delim_body() {
 	local pid nice incr
 	sleep 60 &
@@ -159,6 +148,9 @@ renice_delim_body() {
 }
 
 atf_test_case renice_incr_noarg
+renice_incr_noarg_head() {
+	atf_set "descr" "Do not segfault if -n is given without an argument"
+}
 renice_incr_noarg_body() {
 	atf_check -o empty -e ignore -s exit:1 renice -n
 }
