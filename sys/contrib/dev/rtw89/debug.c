@@ -2655,7 +2655,7 @@ void __rtw89_debug(struct rtw89_dev *rtwdev,
 #elif defined(__FreeBSD__)
 	{
 		char *str;
-		vasprintf(&str, M_KMALLOC, fmt, args);
+		vasprintf(&str, M_KMALLOC, vaf.fmt, args);
 		dev_printk(KERN_DEBUG, rtwdev->dev, "%s", str);
 		free(str, M_KMALLOC);
 	}

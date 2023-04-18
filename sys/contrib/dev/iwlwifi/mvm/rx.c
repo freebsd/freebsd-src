@@ -427,7 +427,11 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 			if (rx_status->signal < rssi)
 				iwl_fw_dbg_collect_trig(&mvm->fwrt, trig,
+#if defined(__linux__)
 							NULL);
+#elif defined(__FreeBSD__)
+							"");
+#endif
 		}
 
 		if (!mvm->tcm.paused && len >= sizeof(*hdr) &&
@@ -692,7 +696,11 @@ iwl_mvm_rx_stats_check_trigger(struct iwl_mvm *mvm, struct iwl_rx_packet *pkt)
 	if (le32_to_cpup((__le32 *) (pkt->data + trig_offset)) < trig_thold)
 		return;
 
+#if defined(__linux__)
 	iwl_fw_dbg_collect_trig(&mvm->fwrt, trig, NULL);
+#elif defined(__FreeBSD__)
+	iwl_fw_dbg_collect_trig(&mvm->fwrt, trig, "");
+#endif
 }
 
 static void iwl_mvm_stats_energy_iter(void *_data,
