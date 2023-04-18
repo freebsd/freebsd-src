@@ -36,10 +36,7 @@ PRIVATE int insert_generic(struct shared_bindata *, byte **, int *);
  */
 
 int
-dovend_rfc1497(hp, buf, len)
-	struct host *hp;
-	byte *buf;
-	int len;
+dovend_rfc1497(struct host *hp, byte *buf, int len)
 {
 	int bytesleft = len;
 	byte *vp = buf;
@@ -272,11 +269,7 @@ dovend_rfc1497(hp, buf, len)
  */
 
 int
-insert_ip(tag, iplist, dest, bytesleft)
-	byte tag;
-	struct in_addr_list *iplist;
-	byte **dest;
-	int *bytesleft;
+insert_ip(byte tag, struct in_addr_list *iplist, byte **dest, int *bytesleft)
 {
 	struct in_addr *addrptr;
 	unsigned addrcount = 1;
@@ -315,10 +308,7 @@ insert_ip(tag, iplist, dest, bytesleft)
  */
 
 static int
-insert_generic(gendata, buff, bytesleft)
-	struct shared_bindata *gendata;
-	byte **buff;
-	int *bytesleft;
+insert_generic(struct shared_bindata *gendata, byte **buff, int *bytesleft)
 {
 	byte *srcptr;
 	int length, numbytes;
@@ -370,9 +360,7 @@ insert_generic(gendata, buff, bytesleft)
  */
 
 void
-insert_u_long(value, dest)
-	u_int32 value;
-	byte **dest;
+insert_u_long(u_int32 value, byte **dest)
 {
 	byte *temp;
 	int n;

@@ -81,12 +81,7 @@ int hwinfocnt = sizeof(hwinfolist) / sizeof(hwinfolist[0]);
  * bound to hardware address 'ha' of length 'len'.
  */
 void
-setarp(s, ia, hafamily, haddr, halen)
-	int s;						/* socket fd */
-	struct in_addr *ia;			/* protocol address */
-	int hafamily;				/* HW address family */
-	u_char *haddr;				/* HW address data */
-	int halen;
+setarp(int s, struct in_addr *ia, int hafamily, u_char *haddr, int halen)
 {
 #ifdef	SIOCSARP
 #ifdef	WIN_TCP
@@ -207,9 +202,7 @@ setarp(s, ia, hafamily, haddr, halen)
  * Convert a hardware address to an ASCII string.
  */
 char *
-haddrtoa(haddr, hlen)
-	u_char *haddr;
-	int hlen;
+haddrtoa(u_char *haddr, int hlen)
 {
 	static char haddrbuf[3 * MAXHADDRLEN + 1];
 	char *bufptr;
@@ -286,9 +279,7 @@ static u_char conv802table[256] =
 };
 
 void
-haddr_conv802(addr_in, addr_out, len)
-	u_char *addr_in, *addr_out;
-	int len;
+haddr_conv802(u_char *addr_in, u_char *addr_out, int len)
 {
 	u_char *lim;
 
@@ -303,8 +294,7 @@ haddr_conv802(addr_in, addr_out, len)
  * bit-reverse table above.
  */
 static int
-bitrev(n)
-	int n;
+bitrev(int n)
 {
 	int i, r;
 
@@ -317,7 +307,8 @@ bitrev(n)
 	return r;
 }
 
-main()
+void
+main(void)
 {
 	int i;
 	for (i = 0; i <= 0xFF; i++) {

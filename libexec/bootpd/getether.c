@@ -119,9 +119,7 @@ getether(ifname, eap)
 #include <net/if_types.h>
 
 int
-getether(ifname, eap)
-	char *ifname;				/* interface name from ifconfig structure */
-	char *eap;					/* Ether address (output) */
+getether(char *ifname, char *eap)
 {
 	int fd, rc = -1;
 	int n;
