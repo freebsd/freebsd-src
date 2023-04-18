@@ -205,7 +205,7 @@ class StdNetlinkMessage(BaseNetlinkMessage):
                         nla_len, len(data) - off
                     )
                 )
-            nla_type = raw_nla_type & 0x3F
+            nla_type = raw_nla_type & 0x3FFF
             if nla_type in attr_map:
                 v = attr_map[nla_type]
                 val = v["ad"].cls.from_bytes(data[off:off + nla_len], v["ad"].val)

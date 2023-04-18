@@ -21,7 +21,7 @@ class NlAttr(object):
 
     @property
     def nla_type(self):
-        return self._nla_type & 0x3F
+        return self._nla_type & 0x3FFF
 
     @property
     def nla_len(self):
