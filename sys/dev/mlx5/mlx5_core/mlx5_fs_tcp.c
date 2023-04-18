@@ -341,8 +341,6 @@ accel_fs_tcp_destroy_table(struct mlx5e_priv *priv, int i)
 	fs_tcp = &priv->fts.accel_tcp;
 	ft = fs_tcp->tables + i;
 
-	mlx5_del_flow_rule(&fs_tcp->default_rules[i]);
-
 	accel_fs_tcp_destroy_groups(ft);
 	kfree(ft->g);
 	ft->g = NULL;
@@ -358,8 +356,10 @@ mlx5e_accel_fs_tcp_destroy(struct mlx5e_priv *priv)
 	if (!MLX5_CAP_FLOWTABLE_NIC_RX(priv->mdev, ft_field_support.outer_ip_version))
 		return;
 
-	for (i = 0; i < MLX5E_ACCEL_FS_TCP_NUM_TYPES; i++)
+	for (i = 0; i < MLX5E_ACCEL_FS_TCP_NUM_TYPES; i++) {
+		mlx5_del_flow_rule(&priv->fts.accel_tcp.default_rules[i]);
 		accel_fs_tcp_destroy_table(priv, i);
+	}
 }
 
 int
