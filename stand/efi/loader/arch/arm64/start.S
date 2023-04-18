@@ -34,11 +34,14 @@
 
 #define	IMAGE_FILE_MACHINE_ARM64	0xaa64
 
+#define	IMAGE_FILE_EXECUTABLE		0x0002
+
 #define	IMAGE_SCN_CNT_CODE		0x00000020
 #define	IMAGE_SCN_CNT_INITIALIZED_DATA	0x00000040
 #define	IMAGE_SCN_MEM_DISCARDABLE	0x02000000
 #define	IMAGE_SCN_MEM_EXECUTE		0x20000000
 #define	IMAGE_SCN_MEM_READ		0x40000000
+#define	IMAGE_SCN_MEM_WRITE		0x80000000
 
 	.section .peheader,"a"
 efi_start:
@@ -60,22 +63,22 @@ coff_head:
 	.long	0				/* No symbol table */
 	.long	0				/* No symbols */
 	.short	section_table - optional_header	/* Optional header size */
-	.short	0	/* Characteristics TODO: Fill in */
+	.short	IMAGE_FILE_EXECUTABLE		/* Characteristics */
 
 optional_header:
 	.short	0x020b				/* PE32+ (64-bit addressing) */
 	.byte	0				/* Major linker version */
 	.byte	0				/* Minor linker version */
-	.long	_edata - _end_header		/* Code size */
-	.long	0				/* No initialized data */
+	.long	_etext - _end_header		/* Code size */
+	.long	__data_size			/* Initialized data size */
 	.long	0				/* No uninitialized data */
 	.long	_start - efi_start		/* Entry point */
 	.long	_end_header - efi_start		/* Start of code */
 
 optional_windows_header:
 	.quad	0				/* Image base */
-	.long	32				/* Section Alignment */
-	.long	8				/* File alignment */
+	.long	4096				/* Section Alignment */
+	.long	512				/* File alignment */
 	.short	0				/* Major OS version */
 	.short	0				/* Minor OS version */
 	.short	0				/* Major image version */
@@ -104,29 +107,13 @@ optional_windows_header:
 	.quad	0
 
 section_table:
-	/* We need a .reloc section for EFI */
-	.ascii	".reloc"
-	.byte	0
-	.byte	0				/* Pad to 8 bytes */
-	.long	0				/* Virtual size */
-	.long	0				/* Virtual address */
-	.long	0				/* Size of raw data */
-	.long	0				/* Pointer to raw data */
-	.long	0				/* Pointer to relocations */
-	.long	0				/* Pointer to line numbers */
-	.short	0				/* Number of relocations */
-	.short	0				/* Number of line numbers */
-	.long	(IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | \
-		 IMAGE_SCN_MEM_DISCARDABLE)	/* Characteristics */
-
-	/* The contents of the loader */
 	.ascii	".text"
 	.byte	0
 	.byte	0
 	.byte	0				/* Pad to 8 bytes */
-	.long	_edata - _end_header		/* Virtual size */
+	.long	_etext - _end_header		/* Virtual size */
 	.long	_end_header - efi_start		/* Virtual address */
-	.long	_edata - _end_header		/* Size of raw data */
+	.long	_etext - _end_header		/* Size of raw data */
 	.long	_end_header - efi_start		/* Pointer to raw data */
 	.long	0				/* Pointer to relocations */
 	.long	0				/* Pointer to line numbers */
@@ -134,6 +121,23 @@ section_table:
 	.short	0				/* Number of line numbers */
 	.long	(IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE | \
 		 IMAGE_SCN_MEM_READ)		/* Characteristics */
+
+	.ascii	".data"
+	.byte	0
+	.byte	0
+	.byte	0				/* Pad to 8 bytes */
+	.long	__data_size			/* Virtual size */
+	.long	__data_start - efi_start	/* Virtual address */
+	.long	__data_size			/* Size of raw data */
+	.long	__data_start - efi_start	/* Pointer to raw data */
+	.long	0				/* Pointer to relocations */
+	.long	0				/* Pointer to line numbers */
+	.short	0				/* Number of relocations */
+	.short	0				/* Number of line numbers */
+	.long	(IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | \
+		 IMAGE_SCN_MEM_WRITE)		/* Characteristics */
+
+	.align	12
 _end_header:
 
 	.text
