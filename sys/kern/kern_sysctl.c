@@ -1658,7 +1658,7 @@ sysctl_handle_int(SYSCTL_HANDLER_ARGS)
 }
 
 /*
- * Based on on sysctl_handle_int() convert milliseconds into ticks.
+ * Based on sysctl_handle_int() convert milliseconds into ticks.
  * Note: this is used by TCP.
  */
 
@@ -1889,7 +1889,7 @@ retry:
 }
 
 /*
- * Based on on sysctl_handle_64() convert microseconds to a sbintime.
+ * Based on sysctl_handle_64() convert microseconds to a sbintime.
  */
 int
 sysctl_usec_to_sbintime(SYSCTL_HANDLER_ARGS)
@@ -1909,7 +1909,7 @@ sysctl_usec_to_sbintime(SYSCTL_HANDLER_ARGS)
 }
 
 /*
- * Based on on sysctl_handle_64() convert milliseconds to a sbintime.
+ * Based on sysctl_handle_64() convert milliseconds to a sbintime.
  */
 int
 sysctl_msec_to_sbintime(SYSCTL_HANDLER_ARGS)
