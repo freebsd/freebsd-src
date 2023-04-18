@@ -337,9 +337,9 @@ set_slave_addr(ig4iic_softc_t *sc, uint8_t slave)
 {
 	uint32_t tar;
 	uint32_t ctl;
-	int use_10bit;
+	bool use_10bit;
 
-	use_10bit = 0;
+	use_10bit = false;
 	if (sc->slave_valid && sc->last_slave == slave &&
 	    sc->use_10bit == use_10bit) {
 		return;
@@ -364,7 +364,7 @@ set_slave_addr(ig4iic_softc_t *sc, uint8_t slave)
 	reg_write(sc, IG4_REG_CTL, ctl);
 	reg_write(sc, IG4_REG_TAR_ADD, tar);
 	set_controller(sc, IG4_I2C_ENABLE);
-	sc->slave_valid = 1;
+	sc->slave_valid = true;
 	sc->last_slave = slave;
 }
 
@@ -1009,7 +1009,7 @@ ig4iic_set_config(ig4iic_softc_t *sc, bool reset)
 		  (sc->cfg.bus_speed & IG4_CTL_SPEED_MASK));
 
 	/* Force setting of the target address on the next transfer */
-	sc->slave_valid = 0;
+	sc->slave_valid = false;
 
 	return (0);
 }

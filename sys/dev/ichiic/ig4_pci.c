@@ -316,7 +316,7 @@ ig4iic_pci_attach(device_t dev)
 		ig4iic_pci_detach(dev);
 		return (ENXIO);
 	}
-	sc->platform_attached = 1;
+	sc->platform_attached = true;
 
 	error = ig4iic_attach(sc);
 	if (error)
@@ -335,7 +335,7 @@ ig4iic_pci_detach(device_t dev)
 		error = ig4iic_detach(sc);
 		if (error)
 			return (error);
-		sc->platform_attached = 0;
+		sc->platform_attached = false;
 	}
 
 	if (sc->intr_res) {
