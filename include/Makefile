@@ -486,3 +486,16 @@ HOST_MACHINE_ARCH!= uname -p
 MACHINE:= ${HOST_MACHINE}
 MACHINE_ARCH:= ${HOST_MACHINE_ARCH}
 .endif
+
+check-ldirs:
+	missing_dirs=""; \
+	for dir in ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS}; do \
+		if [ ! -d ${SRCTOP}/sys/$$dir ]; then \
+			echo "${SRCTOP}/sys/$$dir"; \
+			missing_dirs="$$missing_dirs $$dir"; \
+		fi; \
+	done; \
+	if [ -n "$$missing_dirs" ]; then \
+		echo "Nonexistant directories:" $$missing_dirs; \
+		false; \
+	fi
