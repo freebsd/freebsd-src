@@ -71,10 +71,16 @@ struct nl_parsed_link {
 	struct nlattr	*ifla_idata;
 	unsigned short	ifi_type;
 	int		ifi_index;
+	uint32_t	ifla_link;
 	uint32_t	ifla_mtu;
 	uint32_t	ifi_flags;
 	uint32_t	ifi_change;
 };
+
+int nl_modify_ifp_generic(struct ifnet *ifp, struct nl_parsed_link *lattrs,
+    const struct nlattr_bmask *bm, struct nl_pstate *npt);
+void nl_store_ifp_cookie(struct nl_pstate *npt, struct ifnet *ifp);
+
 
 typedef int rtnl_iface_create_f(struct nl_parsed_link *lattrs,
     const struct nlattr_bmask *bm, struct nlpcb *nlp, struct nl_pstate *npt);

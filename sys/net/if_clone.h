@@ -56,6 +56,26 @@ typedef int ifc_create_f(struct if_clone *ifc, char *name, size_t maxlen,
     struct ifc_data *ifd, struct ifnet **ifpp);
 typedef int ifc_destroy_f(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags);
 
+struct nl_parsed_link;
+struct nlattr_bmask;
+struct nl_pstate;
+struct nl_writer;
+struct ifc_data_nl {
+	struct nl_parsed_link		*lattrs;/* (in) Parsed link attributes */
+	const struct nlattr_bmask	*bm;	/* (in) Bitmask of set link attributes */
+	struct nl_pstate		*npt;	/* (in) Netlink context */
+	void				*params;/* (in) (Compat) data from ioctl */
+	uint32_t			flags;	/* (in) IFC_F flags */
+	uint32_t			unit;	/* (in/out) Selected unit when IFC_C_AUTOUNIT set */
+	int				error;	/* (out) Return error code */
+	struct ifnet			*ifp;	/* (out) Returned ifp */
+};
+
+typedef int ifc_create_nl_f(struct if_clone *ifc, char *name, size_t maxlen,
+    struct ifc_data_nl *ifd);
+typedef int ifc_modify_nl_f(struct ifnet *ifp, struct ifc_data_nl *ifd);
+typedef void ifc_dump_nl_f(struct ifnet *ifp, struct nl_writer *nw);
+
 struct if_clone_addreq {
 	uint16_t	version; /* Always 0 for now */
 	uint16_t	spare;
@@ -66,17 +86,35 @@ struct if_clone_addreq {
 	ifc_destroy_f	*destroy_f;
 };
 
+struct if_clone_addreq_v2 {
+	uint16_t	version; /* 2 */
+	uint16_t	spare;
+	uint32_t	flags;
+	uint32_t	maxunit; /* Maximum allowed unit number */
+	ifc_match_f	*match_f;
+	ifc_create_f	*create_f;
+	ifc_destroy_f	*destroy_f;
+	ifc_create_nl_f	*create_nl_f;
+	ifc_modify_nl_f	*modify_nl_f;
+	ifc_dump_nl_f	*dump_nl_f;
+};
+
+
 #define	IFC_F_NOGROUP	0x01	/* Creation flag: don't add unit group */
 #define	IFC_F_AUTOUNIT	0x02	/* Creation flag: automatically select unit */
 #define	IFC_F_SYSSPACE	0x04	/* Cloner callback: params pointer is in kernel memory */
 #define	IFC_F_FORCE	0x08	/* Deletion flag: force interface deletion */
+#define	IFC_F_CREATE	0x10	/* Creation flag: indicate creation request */
 
 #define	IFC_NOGROUP	IFC_F_NOGROUP
 
 struct if_clone	*ifc_attach_cloner(const char *name, struct if_clone_addreq *req);
 void ifc_detach_cloner(struct if_clone *ifc);
-int ifc_create_ifp(const char *name, struct ifc_data *ifd,
-    struct ifnet **ifpp);
+int ifc_create_ifp(const char *name, struct ifc_data *ifd, struct ifnet **ifpp);
+
+bool ifc_create_ifp_nl(const char *name, struct ifc_data_nl *ifd);
+bool ifc_modify_ifp_nl(struct ifnet *ifp, struct ifc_data_nl *ifd);
+bool ifc_dump_ifp_nl(struct ifnet *ifp, struct nl_writer *nw);
 
 void ifc_link_ifp(struct if_clone *ifc, struct ifnet *ifp);
 bool ifc_unlink_ifp(struct if_clone *ifc, struct ifnet *ifp);

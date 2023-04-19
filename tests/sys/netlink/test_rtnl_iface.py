@@ -19,6 +19,7 @@ from atf_python.sys.netlink.base_headers import NlMsgType
 from atf_python.sys.netlink.netlink_route import NlRtMsgType
 from atf_python.sys.netlink.netlink_route import rtnl_ifla_attrs
 from atf_python.sys.net.vnet import SingleVnetTestTemplate
+from atf_python.sys.net.tools import ToolsHelper
 
 
 class TestRtNlIface(NetlinkTestTemplate, SingleVnetTestTemplate):
@@ -324,6 +325,7 @@ class TestRtNlIface(NetlinkTestTemplate, SingleVnetTestTemplate):
         msg.nl_hdr.nlmsg_flags = (
             flags | NlmBaseFlags.NLM_F_ACK.value | NlmBaseFlags.NLM_F_REQUEST.value
         )
+        msg.base_hdr.ifi_index = ifindex
 
         msg.add_nla(NlAttrU32(IflattrType.IFLA_LINK, ifindex))
         msg.add_nla(NlAttrStr(IflattrType.IFLA_IFNAME, "vlan22"))
@@ -347,5 +349,6 @@ class TestRtNlIface(NetlinkTestTemplate, SingleVnetTestTemplate):
         assert rx_msg.is_type(NlMsgType.NLMSG_ERROR)
         assert rx_msg.error_code == 0
 
+        ToolsHelper.print_net_debug()
         self.get_interface_byname("vlan22")
         # ToolsHelper.print_net_debug()

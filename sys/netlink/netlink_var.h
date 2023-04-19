@@ -172,6 +172,11 @@ struct genl_group *genl_get_group(uint32_t group_id);
 
 #define	CTRL_FAMILY_NAME	"nlctrl"
 
+struct ifnet;
+struct nl_parsed_link;
+struct nlattr_bmask;
+struct nl_pstate;
+
 /* Function map */
 struct nl_function_wrapper {
 	bool (*nlmsg_add)(struct nl_writer *nw, uint32_t portid, uint32_t seq, uint16_t type,
@@ -185,8 +190,13 @@ struct nl_function_wrapper {
 	bool (*nlmsg_get_group_writer)(struct nl_writer *nw, int size, int protocol, int group_id);
 	bool (*nlmsg_get_chain_writer)(struct nl_writer *nw, int size, struct mbuf **pm);
 	bool (*nlmsg_end_dump)(struct nl_writer *nw, int error, struct nlmsghdr *hdr);
+	int (*nl_modify_ifp_generic)(struct ifnet *ifp, struct nl_parsed_link *lattrs,
+	    const struct nlattr_bmask *bm, struct nl_pstate *npt);
+	void (*nl_store_ifp_cookie)(struct nl_pstate *npt, struct ifnet *ifp);
 };
 void nl_set_functions(const struct nl_function_wrapper *nl);
+
+
 
 #endif
 #endif

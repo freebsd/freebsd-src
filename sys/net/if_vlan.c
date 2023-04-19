@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_kern_tls.h"
+#include "opt_netlink.h"
 #include "opt_vlan.h"
 #include "opt_ratelimit.h"
 
@@ -84,6 +85,11 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 #endif
+
+#include <netlink/netlink.h>
+#include <netlink/netlink_ctl.h>
+#include <netlink/netlink_route.h>
+#include <netlink/route/route_var.h>
 
 #define	VLAN_DEF_HWIDTH	4
 #define	VLAN_IFFLAGS	(IFF_BROADCAST | IFF_MULTICAST)
@@ -319,6 +325,11 @@ static	int vlan_clone_match(struct if_clone *, const char *);
 static	int vlan_clone_create(struct if_clone *, char *, size_t,
     struct ifc_data *, struct ifnet **);
 static	int vlan_clone_destroy(struct if_clone *, struct ifnet *, uint32_t);
+
+static int vlan_clone_create_nl(struct if_clone *ifc, char *name, size_t len,
+    struct ifc_data_nl *ifd);
+static int vlan_clone_modify_nl(struct ifnet *ifp, struct ifc_data_nl *ifd);
+static void vlan_clone_dump_nl(struct ifnet *ifp, struct nl_writer *nw);
 
 static	void vlan_ifdetach(void *arg, struct ifnet *ifp);
 static  void vlan_iflladdr(void *arg, struct ifnet *ifp);
@@ -896,10 +907,14 @@ extern	void (*vlan_input_p)(struct ifnet *, struct mbuf *);
 /* For if_link_state_change() eyes only... */
 extern	void (*vlan_link_state_p)(struct ifnet *);
 
-static struct if_clone_addreq vlan_addreq = {
+static struct if_clone_addreq_v2 vlan_addreq = {
+	.version = 2,
 	.match_f = vlan_clone_match,
 	.create_f = vlan_clone_create,
 	.destroy_f = vlan_clone_destroy,
+	.create_nl_f = vlan_clone_create_nl,
+	.modify_nl_f = vlan_clone_modify_nl,
+	.dump_nl_f = vlan_clone_dump_nl,
 };
 
 static int
@@ -931,7 +946,7 @@ vlan_modevent(module_t mod, int type, void *data)
 		vlan_pcp_p = vlan_pcp;
 		vlan_devat_p = vlan_devat;
 #ifndef VIMAGE
-		vlan_cloner = ifc_attach_cloner(vlanname, &vlan_addreq);
+		vlan_cloner = ifc_attach_cloner(vlanname, (struct if_clone_addreq *)&vlan_addreq);
 #endif
 		if (bootverbose)
 			printf("vlan: initialized, using "
@@ -981,7 +996,7 @@ MODULE_VERSION(if_vlan, 3);
 static void
 vnet_vlan_init(const void *unused __unused)
 {
-	vlan_cloner = ifc_attach_cloner(vlanname, &vlan_addreq);
+	vlan_cloner = ifc_attach_cloner(vlanname, (struct if_clone_addreq *)&vlan_addreq);
 	V_vlan_cloner = vlan_cloner;
 }
 VNET_SYSINIT(vnet_vlan_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
@@ -1220,6 +1235,165 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len,
 	*ifpp = ifp;
 
 	return (0);
+}
+
+/*
+ *
+ * Parsers of IFLA_INFO_DATA inside IFLA_LINKINFO of RTM_NEWLINK
+ *    {{nla_len=8, nla_type=IFLA_LINK}, 2},
+ *    {{nla_len=12, nla_type=IFLA_IFNAME}, "xvlan22"},
+ *    {{nla_len=24, nla_type=IFLA_LINKINFO},
+ *     [
+ *      {{nla_len=8, nla_type=IFLA_INFO_KIND}, "vlan"...},
+ *      {{nla_len=12, nla_type=IFLA_INFO_DATA}, "\x06\x00\x01\x00\x16\x00\x00\x00"}]}
+ */
+
+struct nl_parsed_vlan {
+	uint16_t vlan_id;
+	uint16_t vlan_proto;
+	struct ifla_vlan_flags vlan_flags;
+};
+
+#define	_OUT(_field)	offsetof(struct nl_parsed_vlan, _field)
+static const struct nlattr_parser nla_p_vlan[] = {
+	{ .type = IFLA_VLAN_ID, .off = _OUT(vlan_id), .cb = nlattr_get_uint16 },
+	{ .type = IFLA_VLAN_FLAGS, .off = _OUT(vlan_flags), .cb = nlattr_get_nla },
+	{ .type = IFLA_VLAN_PROTOCOL, .off = _OUT(vlan_proto), .cb = nlattr_get_uint16 },
+};
+#undef _OUT
+NL_DECLARE_ATTR_PARSER(vlan_parser, nla_p_vlan);
+
+static int
+vlan_clone_create_nl(struct if_clone *ifc, char *name, size_t len,
+    struct ifc_data_nl *ifd)
+{
+	struct epoch_tracker et;
+        struct ifnet *ifp_parent;
+	struct nl_pstate *npt = ifd->npt;
+	struct nl_parsed_link *lattrs = ifd->lattrs;
+	int error;
+
+	/*
+	 * lattrs.ifla_ifname is the new interface name
+	 * lattrs.ifi_index contains parent interface index
+	 * lattrs.ifla_idata contains un-parsed vlan data
+	 */
+	struct nl_parsed_vlan attrs = {
+		.vlan_id = 0xFEFE,
+		.vlan_proto = ETHERTYPE_VLAN
+	};
+
+	if (lattrs->ifla_idata == NULL) {
+		nlmsg_report_err_msg(npt, "vlan id is required, guessing not supported");
+		return (ENOTSUP);
+	}
+
+	error = nl_parse_nested(lattrs->ifla_idata, &vlan_parser, npt, &attrs);
+	if (error != 0)
+		return (error);
+	if (attrs.vlan_id > 4095) {
+		nlmsg_report_err_msg(npt, "Invalid VID: %d", attrs.vlan_id);
+		return (EINVAL);
+	}
+	if (attrs.vlan_proto != ETHERTYPE_VLAN && attrs.vlan_proto != ETHERTYPE_QINQ) {
+		nlmsg_report_err_msg(npt, "Unsupported ethertype: 0x%04X", attrs.vlan_proto);
+		return (ENOTSUP);
+	}
+
+	struct vlanreq params = {
+		.vlr_tag = attrs.vlan_id,
+		.vlr_proto = attrs.vlan_proto,
+	};
+	struct ifc_data ifd_new = { .flags = IFC_F_SYSSPACE, .unit = ifd->unit, .params = &params };
+
+	NET_EPOCH_ENTER(et);
+	ifp_parent = ifnet_byindex(lattrs->ifi_index);
+	if (ifp_parent != NULL)
+		strlcpy(params.vlr_parent, if_name(ifp_parent), sizeof(params.vlr_parent));
+	NET_EPOCH_EXIT(et);
+
+	if (ifp_parent == NULL) {
+		nlmsg_report_err_msg(npt, "unable to find parent interface %u", lattrs->ifi_index);
+		return (ENOENT);
+	}
+
+	error = vlan_clone_create(ifc, name, len, &ifd_new, &ifd->ifp);
+
+	return (error);
+}
+
+static int
+vlan_clone_modify_nl(struct ifnet *ifp, struct ifc_data_nl *ifd)
+{
+	struct nl_parsed_link *lattrs = ifd->lattrs;
+
+	if ((lattrs->ifla_idata != NULL) && ((ifd->flags & IFC_F_CREATE) == 0)) {
+		struct epoch_tracker et;
+		struct nl_parsed_vlan attrs = {
+			.vlan_proto = ETHERTYPE_VLAN,
+		};
+		int error;
+
+		error = nl_parse_nested(lattrs->ifla_idata, &vlan_parser, ifd->npt, &attrs);
+		if (error != 0)
+			return (error);
+
+		NET_EPOCH_ENTER(et);
+		struct ifnet *ifp_parent = ifnet_byindex_ref(lattrs->ifla_link);
+		NET_EPOCH_EXIT(et);
+
+		if (ifp_parent == NULL) {
+			nlmsg_report_err_msg(ifd->npt, "unable to find parent interface %u",
+			    lattrs->ifla_link);
+			return (ENOENT);
+		}
+
+		struct ifvlan *ifv = ifp->if_softc;
+		error = vlan_config(ifv, ifp_parent, attrs.vlan_id, attrs.vlan_proto);
+
+		if_rele(ifp_parent);
+		if (error != 0)
+			return (error);
+	}
+
+	return (nl_modify_ifp_generic(ifp, ifd->lattrs, ifd->bm, ifd->npt));
+}
+
+/*
+ *    {{nla_len=24, nla_type=IFLA_LINKINFO},
+ *     [
+ *      {{nla_len=8, nla_type=IFLA_INFO_KIND}, "vlan"...},
+ *      {{nla_len=12, nla_type=IFLA_INFO_DATA}, "\x06\x00\x01\x00\x16\x00\x00\x00"}]}
+ */
+static void
+vlan_clone_dump_nl(struct ifnet *ifp, struct nl_writer *nw)
+{
+	uint32_t parent_index = 0;
+	uint16_t vlan_id = 0;
+	uint16_t vlan_proto = 0;
+
+	VLAN_SLOCK();
+	struct ifvlan *ifv = ifp->if_softc;
+	if (TRUNK(ifv) != NULL)
+		parent_index = PARENT(ifv)->if_index;
+	vlan_id = ifv->ifv_vid;
+	vlan_proto = ifv->ifv_proto;
+	VLAN_SUNLOCK();
+
+	if (parent_index != 0)
+		nlattr_add_u32(nw, IFLA_LINK, parent_index);
+
+	int off = nlattr_add_nested(nw, IFLA_LINKINFO);
+	if (off != 0) {
+		nlattr_add_string(nw, IFLA_INFO_KIND, "vlan");
+		int off2 = nlattr_add_nested(nw, IFLA_INFO_DATA);
+		if (off2 != 0) {
+			nlattr_add_u16(nw, IFLA_VLAN_ID, vlan_id);
+			nlattr_add_u16(nw, IFLA_VLAN_PROTOCOL, vlan_proto);
+			nlattr_set_len(nw, off2);
+		}
+		nlattr_set_len(nw, off);
+	}
 }
 
 static int

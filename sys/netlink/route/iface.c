@@ -303,13 +303,7 @@ dump_iface(struct nl_writer *nw, struct ifnet *ifp, const struct nlmsghdr *hdr,
 	uint32_t val = (ifp->if_flags & IFF_PROMISC) != 0;
         nlattr_add_u32(nw, IFLA_PROMISCUITY, val);
 
-	sx_slock(&rtnl_cloner_lock);
-	struct nl_cloner *cloner = rtnl_iface_find_cloner_locked(ifp->if_dname);
-	if (cloner != NULL && cloner->dump_f != NULL) {
-		/* Ignore any dump error */
-		cloner->dump_f(ifp, nw);
-	}
-	sx_sunlock(&rtnl_cloner_lock);
+	ifc_dump_ifp_nl(ifp, nw);
 
         if (nlmsg_end(nw))
 		return (true);
@@ -353,7 +347,7 @@ NL_DECLARE_ATTR_PARSER(linfo_parser, nla_p_linfo);
 static const struct nlattr_parser nla_p_if[] = {
 	{ .type = IFLA_IFNAME, .off = _OUT(ifla_ifname), .cb = nlattr_get_string },
 	{ .type = IFLA_MTU, .off = _OUT(ifla_mtu), .cb = nlattr_get_uint32 },
-	{ .type = IFLA_LINK, .off = _OUT(ifi_index), .cb = nlattr_get_uint32 },
+	{ .type = IFLA_LINK, .off = _OUT(ifla_link), .cb = nlattr_get_uint32 },
 	{ .type = IFLA_LINKINFO, .arg = &linfo_parser, .cb = nlattr_get_nested },
 	{ .type = IFLA_IFALIAS, .off = _OUT(ifla_ifalias), .cb = nlattr_get_string },
 	{ .type = IFLA_GROUP, .off = _OUT(ifla_group), .cb = nlattr_get_string },
@@ -545,21 +539,16 @@ create_link(struct nlmsghdr *hdr, struct nl_parsed_link *lattrs,
 		return (EINVAL);
 	}
 
-	bool found = false;
-	int error = 0;
+	struct ifc_data_nl ifd = {
+		.flags = IFC_F_CREATE,
+		.lattrs = lattrs,
+		.bm = bm,
+		.npt = npt,
+	};
+	if (ifc_create_ifp_nl(lattrs->ifla_ifname, &ifd) && ifd.error == 0)
+		nl_store_ifp_cookie(npt, ifd.ifp);
 
-	sx_slock(&rtnl_cloner_lock);
-	struct nl_cloner *cloner = rtnl_iface_find_cloner_locked(lattrs->ifla_cloner);
-	if (cloner != NULL) {
-		found = true;
-		error = cloner->create_f(lattrs, bm, nlp, npt);
-	}
-	sx_sunlock(&rtnl_cloner_lock);
-
-	if (!found)
-		error = generic_cloner.create_f(lattrs, bm, nlp, npt);
-
-	return (error);
+	return (ifd.error);
 }
 
 static int
@@ -602,31 +591,20 @@ modify_link(struct nlmsghdr *hdr, struct nl_parsed_link *lattrs,
 	MPASS(ifp != NULL);
 
 	/*
-	 * There can be multiple kinds of interfaces:
-	 * 1) cloned, with additional options
-	 * 2) cloned, but w/o additional options
-	 * 3) non-cloned (e.g. "physical).
-	 *
-	 * Thus, try to find cloner-specific callback and fallback to the
-	 * "default" handler if not found.
+	 * Modification request can address either
+	 * 1) cloned interface, in which case we call the cloner-specific
+	 *  modification routine
+	 * or
+	 * 2) non-cloned (e.g. "physical") interface, in which case we call
+	 *  generic modification routine
 	 */
-	bool found = false;
-	int error = 0;
-
-	sx_slock(&rtnl_cloner_lock);
-	struct nl_cloner *cloner = rtnl_iface_find_cloner_locked(ifp->if_dname);
-	if (cloner != NULL) {
-		found = true;
-		error = cloner->modify_f(ifp, lattrs, bm, nlp, npt);
-	}
-	sx_sunlock(&rtnl_cloner_lock);
-
-	if (!found)
-		error = generic_cloner.modify_f(ifp, lattrs, bm, nlp, npt);
+	struct ifc_data_nl ifd = { .lattrs = lattrs, .bm = bm, .npt = npt };
+	if (!ifc_modify_ifp_nl(ifp, &ifd))
+		ifd.error = nl_modify_ifp_generic(ifp, lattrs, bm, npt);
 
 	if_rele(ifp);
 
-	return (error);
+	return (ifd.error);
 }
 
 
@@ -1067,7 +1045,6 @@ rtnl_ifaces_init(void)
 	    ifnet_link_event, rtnl_handle_iflink, NULL,
 	    EVENTHANDLER_PRI_ANY);
 	NL_VERIFY_PARSERS(all_parsers);
-	rtnl_iface_drivers_register();
 	rtnl_register_messages(cmd_handlers, NL_ARRAY_LEN(cmd_handlers));
 }
 
