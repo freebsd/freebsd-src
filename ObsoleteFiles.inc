@@ -2126,6 +2126,9 @@ OLD_FILES+=usr/include/c++/v1/__nullptr
 OLD_FILES+=usr/include/c++/v1/__string
 OLD_FILES+=usr/include/c++/v1/experimental/filesystem
 
+# 20230331: libpcap updated to 1.10.3
+OLD_FILES+=usr/include/fmtutils.h
+
 # 20230320: vcount.9 removed
 OLD_FILES+=usr/share/man/man9/count_dev.9.gz
 OLD_FILES+=usr/share/man/man9/vcount.9.gz
@@ -4177,6 +4180,7 @@ OLD_FILES+=usr/include/machine/if_wl_wavelan.h
 OLD_FILES+=usr/include/dev/wi/if_wireg.h
 OLD_FILES+=usr/include/dev/wi/if_wavelan_ieee.h
 OLD_FILES+=usr/include/dev/wi/if_wivar.h
+OLD_FILES+=usr/include/netgraph/bluetooth/include/ng_bt3c.h
 OLD_FILES+=usr/sbin/bt3cfw
 OLD_FILES+=usr/share/man/man4/cmw.4.gz
 OLD_FILES+=usr/share/man/man4/if_wi.4.gz
@@ -4460,7 +4464,11 @@ OLD_DIRS+=usr/lib/clang/11.0.0/lib/freebsd
 OLD_DIRS+=usr/lib/clang/11.0.0/lib
 OLD_DIRS+=usr/lib/clang/11.0.0
 
+# 20201226: Siemens SAB 82532 support removed
+OLD_FILES+=usr/include/dev/ic/sab82532.h
+
 # 20201225: PMC for Xscale removed
+OLD_FILES+=usr/include/dev/hwpmc/hwpmc_xscale.h
 OLD_FILES+=usr/share/man/man3/pmc.xscale.3.gz
 
 # 20201225: libregex removed
