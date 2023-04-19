@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 21, 2009
+.Dd April 18, 2023
 .Dt TZSETUP 8
 .Os
 .Sh NAME
@@ -46,8 +46,7 @@ default zone.
 The
 .Nm
 utility also determines whether any adjustment is necessary for systems where
-the hardware clock does not keep
-.Tn UTC .
+the hardware clock does not keep UTC.
 .Pp
 The following options are available:
 .Bl -tag -offset indent -width Fl
@@ -61,8 +60,7 @@ Reinstall the zoneinfo file installed last time.
 The name is obtained from
 .Pa /var/db/zoneinfo .
 .It Fl s
-Skip the initial question about adjusting the clock if not set to
-.Tn UTC .
+Skip the initial question about adjusting the clock if not set to UTC.
 .El
 .Pp
 It is possible to short-circuit the menu system by specifying the
@@ -74,13 +72,9 @@ on the command line; this is intended mainly for pre-configured installation
 scripts or people who know which zoneinfo they want to install.
 .Sh TIMEZONE DATABASE
 The contents of the timezone database are indexed by
-.Pa /usr/share/zoneinfo/zone.tab .
-This file lists, for each timezone data file, the
-.Tn ISO
-3166 territory code, approximate geographical coordinates
-(in
-.Tn ISO
-6709 format),
+.Pa /usr/share/zoneinfo/zone1970.tab .
+This file lists, for each timezone data file, the ISO 3166 territory code,
+approximate geographical coordinates (in ISO 6709 format),
 and location within the territory.
 .Pp
 The maintainers of the database maintain the following policies:
@@ -91,31 +85,29 @@ At least one zone for every country or inhabited geographical territory.
 One zone for every distinct, documented timezone history since the
 beginning of the
 .Ux
-epoch (January 1, 1970,
-.Tn GMT ) .
+epoch (January 1, 1970, GMT).
 .It
 Each zone is named for the most populous city therein.
 (Where possible,
 the database includes pre-1970 history for its city.)
 .El
+.Pp
 The source code to the database
-.Pq Pa /usr/src/share/zoneinfo/[a-z]*
+.Pq Pa /usr/src/contrib/tzdata/[a-z]*
 contains many additional comments and documentation references for the
 historically minded.
 .Sh FILES
-.Bl -tag -width ".Pa /usr/share/zoneinfo/zone.tab" -compact
+.Bl -tag -width ".Pa /usr/share/zoneinfo/zone1970.tab" -compact
 .It Pa /etc/localtime
 current time zone file
 .It Pa /etc/wall_cmos_clock
 see
 .Xr adjkerntz 8
 .It Pa /usr/share/misc/iso3166
-mapping of
-.Tn ISO
-3166 territory codes to names
+mapping of ISO 3166 territory codes to names
 .It Pa /usr/share/zoneinfo
 directory for zoneinfo files
-.It Pa /usr/share/zoneinfo/zone.tab
+.It Pa /usr/share/zoneinfo/zone1970.tab
 mapping of timezone file to country and location
 .It Pa /var/db/zoneinfo
 saved name of the timezone file installed last
@@ -123,21 +115,24 @@ saved name of the timezone file installed last
 .Sh EXAMPLES
 Normal usage, to select the right zoneinfo file via the dialog-based
 user interface:
-.Dl tzsetup
+.Pp
+.Dl # tzsetup
 .Pp
 Install the file
 .Pa /usr/share/zoneinfo/Australia/Sydney :
-.Dl "tzsetup /usr/share/zoneinfo/Australia/Sydney"
 .Pp
-Install the zoneinfo file for Australia/Sydney, assumed to be located
-in
+.Dl "# tzsetup /usr/share/zoneinfo/Australia/Sydney"
+.Pp
+Install the zoneinfo file for Australia/Sydney, assumed to be located in
 .Pa /usr/share/zoneinfo :
-.Dl "tzsetup Australia/Sydney"
+.Pp
+.Dl "# tzsetup Australia/Sydney"
 .Pp
 After a reinstall of the zoneinfo files, you can reinstall the
 latest installed zoneinfo file (as specified in
 .Pa /var/db/zoneinfo ) :
-.Dl "tzsetup -r"
+.Pp
+.Dl "# tzsetup -r"
 .Sh SEE ALSO
 .Xr date 1 ,
 .Xr adjtime 2 ,
@@ -159,8 +154,7 @@ Programs which are already running when
 creates or updates
 .Pa /etc/localtime
 will not reflect the updated timezone.
-When the system is first configured for a
-.Pf non- Tn UTC
+When the system is first configured for a non-UTC
 hardware clock, it is necessary to run
 .Xr adjkerntz 8
 (which normally happens as a part of system startup) in order to update
