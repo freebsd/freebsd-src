@@ -535,10 +535,10 @@ STATNODE_ULONG(count, numcache, "Number of cache entries");
 STATNODE_COUNTER(heldvnodes, numcachehv, "Number of namecache entries with vnodes held");
 STATNODE_COUNTER(drops, numdrops, "Number of dropped entries due to reaching the limit");
 STATNODE_COUNTER(dothits, dothits, "Number of '.' hits");
-STATNODE_COUNTER(dotdothis, dotdothits, "Number of '..' hits");
+STATNODE_COUNTER(dotdothits, dotdothits, "Number of '..' hits");
 STATNODE_COUNTER(miss, nummiss, "Number of cache misses");
 STATNODE_COUNTER(misszap, nummisszap, "Number of cache misses we do not want to cache");
-STATNODE_COUNTER(posszaps, numposzaps,
+STATNODE_COUNTER(poszaps, numposzaps,
     "Number of cache hits (positive) we do not want to cache");
 STATNODE_COUNTER(poshits, numposhits, "Number of cache hits (positive)");
 STATNODE_COUNTER(negzaps, numnegzaps,
