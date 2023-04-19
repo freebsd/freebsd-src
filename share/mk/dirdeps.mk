@@ -1,4 +1,4 @@
-# $Id: dirdeps.mk,v 1.155 2023/04/15 05:46:19 sjg Exp $
+# $Id: dirdeps.mk,v 1.156 2023/04/18 18:39:09 sjg Exp $
 
 # SPDX-License-Identifier: BSD-2-Clause
 #
@@ -349,6 +349,10 @@ BUILD_DIRDEPS ?= yes
 DIRDEPS_CACHE ?= ${_OBJDIR:tA}/dirdeps.cache${_TARGETS:U${.TARGETS}:Nall:O:u:ts-:S,/,_,g:S,^,.,:N.}
 .endif
 
+# sanity check: Makefile.depend.options should *not* include us
+.if ${.INCLUDEDFROMFILE:U:M${.MAKE.DEPENDFILE_PREFIX}.options} != ""
+.error ${DEP_RELDIR}/${.MAKE.DEPENDFILE_PREFIX}.options: should include dirdeps-options.mk
+.endif
 
 # pickup customizations
 # as below you can use !target(_DIRDEP_USE) to protect things
