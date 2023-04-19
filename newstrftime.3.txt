@@ -1,4 +1,4 @@
-NEWSTRFTIME(3)             Library Functions Manual             NEWSTRFTIME(3)
+newstrftime(3)             Library Functions Manual             newstrftime(3)
 
 NAME
        strftime - format date and time
@@ -166,4 +166,4 @@ SEE ALSO
 BUGS
        There is no conversion specification for the phase of the moon.
 
-                                                                NEWSTRFTIME(3)
+Time Zone Database                                              newstrftime(3)

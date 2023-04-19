@@ -1,4 +1,4 @@
-TZFILE(5)                     File Formats Manual                    TZFILE(5)
+tzfile(5)                     File Formats Manual                    tzfile(5)
 
 NAME
        tzfile - timezone information
@@ -153,7 +153,7 @@ DESCRIPTION
        if there is no POSIX-style representation for such instants.  If
        nonempty, the POSIX-style TZ string must agree with the local time type
        after the last transition time if present in the eight-byte data; for
-       example, given the string "WET0WEST,M3.5.0,M10.5.0/3" then if a last
+       example, given the string "WET0WEST,M3.5.0/1,M10.5.0" then if a last
        transition time is in July, the transition's local time type must
        specify a daylight-saving time abbreviated "WEST" that is one hour east
        of UT.  Also, if there is at least one transition, time type 0 is
@@ -366,4 +366,4 @@ SEE ALSO
        doc/html/rfc8536> doi:10.17487/RFC8536 <https://doi.org/10.17487/
        RFC8536>.
 
-                                                                     TZFILE(5)
+Time Zone Database                                                   tzfile(5)

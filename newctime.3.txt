@@ -1,4 +1,4 @@
-NEWCTIME(3)                Library Functions Manual                NEWCTIME(3)
+newctime(3)                Library Functions Manual                newctime(3)
 
 NAME
        asctime, ctime, difftime, gmtime, localtime, mktime - convert date and
@@ -9,13 +9,13 @@ SYNOPSIS
 
        extern char *tzname[]; /* (optional) */
 
-       char *ctime(time_t const *clock);
+       [[deprecated]] char *ctime(time_t const *clock);
 
        char *ctime_r(time_t const *clock, char *buf);
 
        double difftime(time_t time1, time_t time0);
 
-       char *asctime(struct tm const *tm);
+       [[deprecated]] char *asctime(struct tm const *tm);
 
        char *asctime_r(struct tm const *restrict tm,
            char *restrict result);
@@ -62,6 +62,9 @@ DESCRIPTION
        are some other flavor of Universal Time (UT).  Some implementations
        support leap seconds, in contradiction to POSIX.
 
+       The ctime function is deprecated starting in C23.  Callers can use
+       localtime_r and strftime instead.
+
        The localtime and gmtime functions return pointers to "tm" structures,
        described below.  The localtime function corrects for the time zone and
        any time zone adjustments (such as Daylight Saving Time in the United
@@ -73,7 +76,8 @@ DESCRIPTION
 
        The asctime function converts a time value contained in a "tm"
        structure to a string, as shown in the above example, and returns a
-       pointer to the string.
+       pointer to the string.  This function is deprecated starting in C23.
+       Callers can use strftime instead.
 
        The mktime function converts the broken-down time, expressed as local
        time, in the structure pointed to by tm into a calendar time value with
@@ -141,7 +145,8 @@ DESCRIPTION
 FILES
        /usr/share/zoneinfo             timezone information directory
        /usr/share/zoneinfo/localtime   local timezone file
-       /usr/share/zoneinfo/posixrules  used with POSIX-style TZ's
+       /usr/share/zoneinfo/posixrules  default DST rules (obsolete,
+                                       and can cause bugs if present)
        /usr/share/zoneinfo/GMT         for UTC leap seconds
 
        If /usr/share/zoneinfo/GMT is absent, UTC leap seconds are loaded from
@@ -169,4 +174,4 @@ NOTES
        range 1900 through 2099.  To avoid this portability mess, new programs
        should use strftime instead.
 
-                                                                   NEWCTIME(3)
+Time Zone Database                                                 newctime(3)

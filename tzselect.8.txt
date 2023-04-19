@@ -1,4 +1,4 @@
-TZSELECT(8)                 System Manager's Manual                TZSELECT(8)
+tzselect(8)                 System Manager's Manual                tzselect(8)
 
 NAME
        tzselect - select a timezone
@@ -74,4 +74,4 @@ NOTES
        Applications should not assume that tzselect's output matches the
        user's political preferences.
 
-                                                                   TZSELECT(8)
+Time Zone Database                                                 tzselect(8)

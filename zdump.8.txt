@@ -141,4 +141,4 @@ LIMITATIONS
 SEE ALSO
        tzfile(5), zic(8)
 
-                                                                      zdump(8)
+Time Zone Database                                                    zdump(8)

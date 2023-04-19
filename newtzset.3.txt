@@ -1,4 +1,4 @@
-NEWTZSET(3)                Library Functions Manual                NEWTZSET(3)
+newtzset(3)                Library Functions Manual                newtzset(3)
 
 NAME
        tzset - initialize time conversion information
@@ -187,7 +187,8 @@ DESCRIPTION
 FILES
        /usr/share/zoneinfo             timezone information directory
        /usr/share/zoneinfo/localtime   local timezone file
-       /usr/share/zoneinfo/posixrules  used with POSIX-style TZ
+       /usr/share/zoneinfo/posixrules  default DST rules (obsolete,
+                                       and can cause bugs if present)
        /usr/share/zoneinfo/GMT         for UTC leap seconds
 
        If /usr/share/zoneinfo/GMT is absent, UTC leap seconds are loaded from
@@ -196,4 +197,4 @@ FILES
 SEE ALSO
        getenv(3), newctime(3), newstrftime(3), time(2), tzfile(5)
 
-                                                                   NEWTZSET(3)
+Time Zone Database                                                 newtzset(3)
