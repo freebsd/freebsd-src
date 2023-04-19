@@ -52,6 +52,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20230331: libpcap updated to 1.10.3
+OLD_FILES+=usr/include/fmtutils.h
+
 # 20230329: libcasper libraries moved to /lib
 MOVED_LIBS+=lib/casper/libcap_dns.so.2
 MOVED_LIBS+=lib/casper/libcap_fileargs.so.1
@@ -66,6 +69,9 @@ OLD_DIRS+=lib/casper
 
 # 20230324: libvmmapi shlib version bumped to 6
 OLD_LIBS+=usr/lib/libvmmapi.so.5
+
+# 20230323: tzdata 2023a imported
+OLD_FILES+=usr/share/zoneinfo/posixrules
 
 # 20230320: vcount.9 removed
 OLD_FILES+=usr/share/man/man9/count_dev.9.gz
@@ -83,6 +89,12 @@ OLD_FILES+=usr/tests/bin/pkill/pkill-U_test
 
 # 20230309: remove remaining ATM support
 OLD_FILES+=usr/bin/sscop
+OLD_FILES+=usr/include/netgraph/atm/ng_ccatm.h
+OLD_FILES+=usr/include/netgraph/atm/ng_sscfu.h
+OLD_FILES+=usr/include/netgraph/atm/ng_sscop.h
+OLD_FILES+=usr/include/netgraph/atm/ng_uni.h
+OLD_FILES+=usr/include/netgraph/atm/ngatmbase.h
+OLD_FILES+=usr/include/netgraph/ng_atmllc.h
 OLD_FILES+=usr/include/netnatm/addr.h
 OLD_FILES+=usr/include/netnatm/api/atmapi.h
 OLD_FILES+=usr/include/netnatm/api/ccatm.h
@@ -563,6 +575,7 @@ OLD_FILES+=usr/bin/opiepasswd
 OLD_FILES+=usr/bin/otp-md4
 OLD_FILES+=usr/bin/otp-md5
 OLD_FILES+=usr/bin/otp-sha1
+OLD_FILES+=usr/include/opie.h
 OLD_FILES+=usr/lib/libopie.a
 OLD_FILES+=usr/lib/libopie.so
 OLD_LIBS+=usr/lib/libopie.so.8
@@ -628,6 +641,9 @@ OLD_FILES+=usr/share/man/man9/knlist_init_rw_reader.9.gz
 # 20220813: minigzip(1) removed in favor of gzip(1)
 OLD_FILES+=usr/bin/minigzip
 OLD_FILES+=usr/share/man/man1/minigzip.1.gz
+
+# 20220811: MP_WATCHDOG removed
+OLD_FILES+=usr/include/machine/mp_watchdog.h
 
 # 20220811: new iconv encoder trait added
 OLD_LIBS+=usr/lib/i18n/libBIG5.so.4
@@ -1655,6 +1671,7 @@ OLD_FILES+=usr/share/man/man3/efi_set_variables_supported.3.gz
 OLD_FILES+=usr/share/man/man4/meteor.4.gz
 
 # 20211125: Old SCSI drivers removed
+OLD_FILES+=usr/include/dev/ic/esp.h
 OLD_FILES+=usr/share/man/man4/amr.4.gz
 OLD_FILES+=usr/share/man/man4/esp.4.gz
 OLD_FILES+=usr/share/man/man4/iir.4.gz
@@ -5769,6 +5786,9 @@ OLD_FILES+=usr/share/man/man8/ndiscvt.8.gz
 OLD_FILES+=usr/share/man/man8/ndisgen.8.gz
 OLD_FILES+=usr/share/misc/windrv_stub.c
 
+# 20210116: openpromio(4) removed
+OLD_FILES+=usr/include/dev/ofw/openpromio.h
+
 # 20210116: if_wl_wavelan.h removed
 .if ${TARGET_ARCH} == "i386"
 OLD_FILES+=usr/include/machine/if_wl_wavelan.h
@@ -5778,6 +5798,7 @@ OLD_FILES+=usr/include/machine/if_wl_wavelan.h
 OLD_FILES+=usr/include/dev/wi/if_wireg.h
 OLD_FILES+=usr/include/dev/wi/if_wavelan_ieee.h
 OLD_FILES+=usr/include/dev/wi/if_wivar.h
+OLD_FILES+=usr/include/netgraph/bluetooth/include/ng_bt3c.h
 OLD_FILES+=usr/sbin/bt3cfw
 OLD_FILES+=usr/share/man/man4/cmw.4.gz
 OLD_FILES+=usr/share/man/man4/if_wi.4.gz
@@ -6061,7 +6082,11 @@ OLD_DIRS+=usr/lib/clang/11.0.0/lib/freebsd
 OLD_DIRS+=usr/lib/clang/11.0.0/lib
 OLD_DIRS+=usr/lib/clang/11.0.0
 
+# 20201226: Siemens SAB 82532 support removed
+OLD_FILES+=usr/include/dev/ic/sab82532.h
+
 # 20201225: PMC for Xscale removed
+OLD_FILES+=usr/include/dev/hwpmc/hwpmc_xscale.h
 OLD_FILES+=usr/share/man/man3/pmc.xscale.3.gz
 
 # 20201225: libregex removed
