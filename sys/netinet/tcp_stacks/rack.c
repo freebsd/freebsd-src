@@ -1978,12 +1978,23 @@ rack_log_hybrid_bw(struct tcp_rack *rack, uint32_t seq, uint64_t cbw, uint64_t t
 	 * once per chunk and make up the BBpoint that can be turned on by the client.
 	 */
 	if ((mod == HYBRID_LOG_RATE_CAP) || (mod == HYBRID_LOG_CAP_CALC)) {
+		/*
+		 * The very noisy two need to only come out when
+		 * we have verbose logging on.
+		 */
 		if (rack_verbose_logging != 0)
 			do_log = tcp_bblogging_on(rack->rc_tp);
 		else
 			do_log = 0;
-	} else
+	} else if (mod != HYBRID_LOG_BW_MEASURE) {
+		/*
+		 * All other less noisy logs here except the measure which
+		 * also needs to come out on the point and the log.
+		 */
+		do_log = tcp_bblogging_on(rack->rc_tp);		
+	} else {
 		do_log = tcp_bblogging_point_on(rack->rc_tp, TCP_BBPOINT_REQ_LEVEL_LOGGING);
+	}
 
 	if (do_log) {
 		union tcp_log_stackspecific log;
