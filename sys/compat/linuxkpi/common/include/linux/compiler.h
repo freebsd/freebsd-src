@@ -98,7 +98,7 @@
 #define	READ_ONCE(x) ({			\
 	__typeof(x) __var = ({		\
 		barrier();		\
-		ACCESS_ONCE(x);		\
+		(*(const volatile __typeof(x) *)&(x)); \
 	});				\
 	barrier();			\
 	__var;				\
