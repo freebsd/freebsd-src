@@ -28,7 +28,7 @@
 .\"	@(#)netstat.1	8.8 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd February 18, 2023
+.Dd April 19, 2023
 .Dt NETSTAT 1
 .Os
 .Sh NAME
@@ -41,8 +41,6 @@
 .Op Fl -libxo
 .Op Fl 46AaCLnPRSTWx
 .Op Fl f Ar protocol_family | Fl p Ar protocol
-.Op Fl M Ar core
-.Op Fl N Ar system
 .It Nm Fl i | I Ar interface
 .Op Fl -libxo
 .Op Fl 46abdhnW
@@ -113,8 +111,6 @@ depending on the options for the information presented.
 .Nm
 .Op Fl 46AaCLnRSTWx
 .Op Fl f Ar protocol_family | Fl p Ar protocol
-.Op Fl M Ar core
-.Op Fl N Ar system
 .Ek
 .Xc
 Display a list of active sockets
@@ -240,14 +236,6 @@ See
 .It Fl p Ar protocol
 Filter by
 .Ar protocol .
-See
-.Sx GENERAL OPTIONS .
-.It Fl M
-Use an alternative core.
-See
-.Sx GENERAL OPTIONS .
-.It Fl N
-Use an alternative kernel image.
 See
 .Sx GENERAL OPTIONS .
 .El
