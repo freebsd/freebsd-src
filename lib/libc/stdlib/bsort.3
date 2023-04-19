@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2022 Hans Petter Selasky
+.\" Copyright (c) 2022-2023 Hans Petter Selasky
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -24,14 +24,13 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 19, 2023
+.Dd April 20, 2023
 .Dt BSORT 3
 .Os
 .Sh NAME
 .Nm bsort ,
 .Nm bsort_b ,
-.Nm bsort_r
-and
+.Nm bsort_r ,
 .Nm bsort_s
 .Nd sort functions
 .Sh LIBRARY
@@ -196,8 +195,7 @@ main(void)
 .Ed
 .Sh SEE ALSO
 .Xr sort 1 ,
-.Xr qsort 3
-and
+.Xr qsort 3 ,
 .Xr radixsort 3
 .Sh HISTORY
 This implementation was created by Hans Petter Selasky.
