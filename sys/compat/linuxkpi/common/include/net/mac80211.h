@@ -1784,7 +1784,7 @@ ieee80211_action_contains_tpc(struct sk_buff *skb)
 		return (false);
 
 	/* Check that it is TPC Report or Link Measurement Report? */
-	KASSERT(IEEE80211_ACTION_SM_TPCREP == IEEE80211_ACTION_RADIO_MEASUREMENT_LMREP,
+	KASSERT((int)IEEE80211_ACTION_SM_TPCREP == (int)IEEE80211_ACTION_RADIO_MEASUREMENT_LMREP,
 	    ("%s: SM_TPCREP %d != RADIO_MEASUREMENT_LMREP %d\n", __func__,
 	    IEEE80211_ACTION_SM_TPCREP, IEEE80211_ACTION_RADIO_MEASUREMENT_LMREP));
 	if (mgmt->u.action.u.tpc_report.spec_mgmt != IEEE80211_ACTION_SM_TPCREP)
