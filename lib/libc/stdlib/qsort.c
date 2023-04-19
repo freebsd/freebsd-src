@@ -247,6 +247,10 @@ qsort_s(void *a, rsize_t n, rsize_t es, cmp_t *cmp, void *thunk)
 			__throw_constraint_handler_s("qsort_s : cmp == NULL",
 			    EINVAL);
 			return (EINVAL);
+		} else if (es <= 0) {
+			__throw_constraint_handler_s("qsort_s : es <= 0",
+			    EINVAL);
+			return (EINVAL);
 		}
 	}
 
