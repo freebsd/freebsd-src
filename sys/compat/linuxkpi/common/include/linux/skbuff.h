@@ -89,8 +89,16 @@ enum sk_buff_pkt_type {
 
 struct sk_buff_head {
 		/* XXX TODO */
-	struct sk_buff		*next;
-	struct sk_buff		*prev;
+	union {
+		struct {
+			struct sk_buff		*next;
+			struct sk_buff		*prev;
+		};
+		struct sk_buff_head_l {
+			struct sk_buff		*next;
+			struct sk_buff		*prev;
+		} list;
+	};
 	size_t			qlen;
 	spinlock_t		lock;
 };
@@ -527,8 +535,8 @@ __skb_insert(struct sk_buff *new, struct sk_buff *prev, struct sk_buff *next,
 	SKB_TRACE_FMT(new, "prev %p next %p q %p", prev, next, q);
 	new->prev = prev;
 	new->next = next;
-	next->prev = new;
-	prev->next = new;
+	((struct sk_buff_head_l *)next)->prev = new;
+	((struct sk_buff_head_l *)prev)->next = new;
 	q->qlen++;
 }
 
@@ -538,7 +546,7 @@ __skb_queue_after(struct sk_buff_head *q, struct sk_buff *skb,
 {
 
 	SKB_TRACE_FMT(q, "skb %p new %p", skb, new);
-	__skb_insert(new, skb, skb->next, q);
+	__skb_insert(new, skb, ((struct sk_buff_head_l *)skb)->next, q);
 }
 
 static inline void
@@ -551,24 +559,18 @@ __skb_queue_before(struct sk_buff_head *q, struct sk_buff *skb,
 }
 
 static inline void
-__skb_queue_tail(struct sk_buff_head *q, struct sk_buff *skb)
+__skb_queue_tail(struct sk_buff_head *q, struct sk_buff *new)
 {
-	struct sk_buff *s;
 
-	SKB_TRACE2(q, skb);
-	q->qlen++;
-	s = (struct sk_buff *)q;
-	s->prev->next = skb;
-	skb->prev = s->prev;
-	skb->next = s;
-	s->prev = skb;
+	SKB_TRACE2(q, new);
+	__skb_queue_after(q, (struct sk_buff *)q, new);
 }
 
 static inline void
-skb_queue_tail(struct sk_buff_head *q, struct sk_buff *skb)
+skb_queue_tail(struct sk_buff_head *q, struct sk_buff *new)
 {
 	SKB_TRACE2(q, skb);
-	return (__skb_queue_tail(q, skb));
+	return (__skb_queue_tail(q, new));
 }
 
 static inline struct sk_buff *
@@ -818,25 +820,30 @@ skb_mark_not_on_list(struct sk_buff *skb)
 }
 
 static inline void
+___skb_queue_splice_init(const struct sk_buff_head *from,
+    struct sk_buff *p, struct sk_buff *n)
+{
+	struct sk_buff *b, *e;
+
+	b = from->next;
+	e = from->prev;
+
+	b->prev = p;
+	((struct sk_buff_head_l *)p)->next = b;
+	e->next = n;
+	((struct sk_buff_head_l *)n)->prev = e;
+}
+
+static inline void
 skb_queue_splice_init(struct sk_buff_head *from, struct sk_buff_head *to)
 {
-	struct sk_buff *b, *e, *n;
 
 	SKB_TRACE2(from, to);
 
 	if (skb_queue_empty(from))
 		return;
 
-	/* XXX do we need a barrier around this? */
-	b = from->next;
-	e = from->prev;
-	n = to->next;
-
-	b->prev = (struct sk_buff *)to;
-	to->next = b;
-	e->next = n;
-	n->prev = e;
-
+	___skb_queue_splice_init(from, (struct sk_buff *)to, to->next);
 	to->qlen += from->qlen;
 	__skb_queue_head_init(from);
 }
