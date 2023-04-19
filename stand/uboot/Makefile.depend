@@ -3,6 +3,7 @@
 
 DIRDEPS = \
 	stand/fdt \
+	stand/libsa \
 
 
 .include <dirdeps.mk>
