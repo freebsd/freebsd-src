@@ -590,6 +590,7 @@ const char *if_getdname(const if_t ifp);
 void if_setdname(if_t ifp, const char *name);
 const char *if_name(if_t ifp);
 int if_setname(if_t ifp, const char *name);
+int if_rename(struct ifnet *ifp, char *new_name);
 void if_setdescr(if_t ifp, char *descrbuf);
 char *if_allocdescr(size_t sz, int malloc_flag);
 void if_freedescr(char *descrbuf);

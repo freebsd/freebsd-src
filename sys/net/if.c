@@ -2476,13 +2476,9 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	struct ifreq *ifr;
 	int error = 0, do_ifup = 0;
 	int new_flags, temp_flags;
-	size_t namelen, onamelen;
 	size_t descrlen, nvbuflen;
 	char *descrbuf;
 	char new_name[IFNAMSIZ];
-	char old_name[IFNAMSIZ], strbuf[IFNAMSIZ + 8];
-	struct ifaddr *ifa;
-	struct sockaddr_dl *sdl;
 	void *buf;
 	nvlist_t *nvcap;
 	struct siocsifcapnv_driver_data drv_ioctl_data;
@@ -2749,55 +2745,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		    NULL);
 		if (error != 0)
 			return (error);
-		if (new_name[0] == '\0')
-			return (EINVAL);
-		if (strcmp(new_name, ifp->if_xname) == 0)
-			break;
-		if (ifunit(new_name) != NULL)
-			return (EEXIST);
-
-		/*
-		 * XXX: Locking.  Nothing else seems to lock if_flags,
-		 * and there are numerous other races with the
-		 * ifunit() checks not being atomic with namespace
-		 * changes (renames, vmoves, if_attach, etc).
-		 */
-		ifp->if_flags |= IFF_RENAMING;
-		
-		EVENTHANDLER_INVOKE(ifnet_departure_event, ifp);
-
-		if_printf(ifp, "changing name to '%s'\n", new_name);
-
-		IF_ADDR_WLOCK(ifp);
-		strlcpy(old_name, ifp->if_xname, sizeof(old_name));
-		strlcpy(ifp->if_xname, new_name, sizeof(ifp->if_xname));
-		ifa = ifp->if_addr;
-		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-		namelen = strlen(new_name);
-		onamelen = sdl->sdl_nlen;
-		/*
-		 * Move the address if needed.  This is safe because we
-		 * allocate space for a name of length IFNAMSIZ when we
-		 * create this in if_attach().
-		 */
-		if (namelen != onamelen) {
-			bcopy(sdl->sdl_data + onamelen,
-			    sdl->sdl_data + namelen, sdl->sdl_alen);
-		}
-		bcopy(new_name, sdl->sdl_data, namelen);
-		sdl->sdl_nlen = namelen;
-		sdl = (struct sockaddr_dl *)ifa->ifa_netmask;
-		bzero(sdl->sdl_data, onamelen);
-		while (namelen != 0)
-			sdl->sdl_data[--namelen] = 0xff;
-		IF_ADDR_WUNLOCK(ifp);
-
-		EVENTHANDLER_INVOKE(ifnet_arrival_event, ifp);
-
-		ifp->if_flags &= ~IFF_RENAMING;
-
-		snprintf(strbuf, sizeof(strbuf), "name=%s", new_name);
-		devctl_notify("IFNET", old_name, "RENAME", strbuf);
+		error = if_rename(ifp, new_name);
 		break;
 
 #ifdef VIMAGE
@@ -3205,6 +3153,68 @@ out_noref:
 	}
 #endif
 	return (error);
+}
+
+int
+if_rename(struct ifnet *ifp, char *new_name)
+{
+	struct ifaddr *ifa;
+	struct sockaddr_dl *sdl;
+	size_t namelen, onamelen;
+	char old_name[IFNAMSIZ];
+	char strbuf[IFNAMSIZ + 8];
+
+	if (new_name[0] == '\0')
+		return (EINVAL);
+	if (strcmp(new_name, ifp->if_xname) == 0)
+		return (0);
+	if (ifunit(new_name) != NULL)
+		return (EEXIST);
+
+	/*
+	 * XXX: Locking.  Nothing else seems to lock if_flags,
+	 * and there are numerous other races with the
+	 * ifunit() checks not being atomic with namespace
+	 * changes (renames, vmoves, if_attach, etc).
+	 */
+	ifp->if_flags |= IFF_RENAMING;
+
+	EVENTHANDLER_INVOKE(ifnet_departure_event, ifp);
+
+	if_printf(ifp, "changing name to '%s'\n", new_name);
+
+	IF_ADDR_WLOCK(ifp);
+	strlcpy(old_name, ifp->if_xname, sizeof(old_name));
+	strlcpy(ifp->if_xname, new_name, sizeof(ifp->if_xname));
+	ifa = ifp->if_addr;
+	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
+	namelen = strlen(new_name);
+	onamelen = sdl->sdl_nlen;
+	/*
+	 * Move the address if needed.  This is safe because we
+	 * allocate space for a name of length IFNAMSIZ when we
+	 * create this in if_attach().
+	 */
+	if (namelen != onamelen) {
+		bcopy(sdl->sdl_data + onamelen,
+		    sdl->sdl_data + namelen, sdl->sdl_alen);
+	}
+	bcopy(new_name, sdl->sdl_data, namelen);
+	sdl->sdl_nlen = namelen;
+	sdl = (struct sockaddr_dl *)ifa->ifa_netmask;
+	bzero(sdl->sdl_data, onamelen);
+	while (namelen != 0)
+		sdl->sdl_data[--namelen] = 0xff;
+	IF_ADDR_WUNLOCK(ifp);
+
+	EVENTHANDLER_INVOKE(ifnet_arrival_event, ifp);
+
+	ifp->if_flags &= ~IFF_RENAMING;
+
+	snprintf(strbuf, sizeof(strbuf), "name=%s", new_name);
+	devctl_notify("IFNET", old_name, "RENAME", strbuf);
+
+	return (0);
 }
 
 /*
