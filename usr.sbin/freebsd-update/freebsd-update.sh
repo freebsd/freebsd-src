@@ -655,6 +655,63 @@ fetch_setup_verboselevel () {
 	esac
 }
 
+# Check if there are any kernel modules installed from ports.
+# In that case warn the user that a rebuild from ports (i.e. not from
+# packages) might need necessary for the modules to work in the new release.
+upgrade_check_kmod_ports() {
+	local mod_name
+	local modules
+	local pattern
+	local pkg_name
+	local port_name
+	local report
+	local w
+
+	if ! command -v pkg >/dev/null; then
+		echo "Skipping kernel modules check. pkg(8) not present."
+		return
+	fi
+
+	# Most modules are in /boot/modules but we should actually look
+	# in every path configured in module_path
+	search_files="/boot/defaults/loader.conf /boot/loader.conf"
+	pattern=$(grep -shE '^module_path=' ${search_files} |
+		tail -1 |
+		cut -f2 -d\" |
+		tr ";" "|")
+
+	if [ -z "${pattern}" ]; then
+		# Not having module_path in loader.conf is probably an error.
+		# Check at least the most common path
+		pattern="/boot/modules"
+	fi
+
+	# Check the pkg database for modules installed in those directories
+	modules=$(pkg query '%Fp' | grep -E "${pattern}")
+
+	if [ -z "${modules}" ]; then
+		return
+	fi
+
+	echo -e "\n"
+	echo "The following modules have been installed from packages."
+	echo "As a consequence they might not work when performing a major or minor upgrade."
+	echo -e "It is advised to rebuild these ports:\n"
+
+
+	report="Module Package Port\n------ ------- ----\n"
+	for module in ${modules}; do
+		w=$(pkg which "${module}")
+		mod_name=$(echo "${w}" | awk '{print $1;}')
+		pkg_name=$(echo "${w}" | awk '{print $6;}')
+		port_name=$(pkg info -o "${pkg_name}" | awk '{print $2;}')
+		report="${report}${mod_name} ${pkg_name} ${port_name}\n"
+	done
+
+	echo -e "${report}" | column -t
+	echo -e "\n"
+}
+
 # Perform sanity checks and set some final parameters
 # in preparation for fetching files.  Figure out which
 # set of updates should be downloaded: If the user is
@@ -3466,6 +3523,7 @@ cmd_cron () {
 cmd_upgrade () {
 	finalize_components_config ${COMPONENTS}
 	upgrade_check_params
+	upgrade_check_kmod_ports
 	upgrade_run || exit 1
 }
 
