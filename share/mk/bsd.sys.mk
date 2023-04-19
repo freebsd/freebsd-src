@@ -437,6 +437,14 @@ STAGE_AS_${SHLIB_LINK:R}.ld:= ${SHLIB_LINK}
 NO_SHLIB_LINKS=
 .endif
 
+.if defined(STATIC_LDSCRIPT) && target(lib${LIB}.ald)
+STAGE_AS_SETS+= ald
+STAGE_DIR.ald = ${STAGE_LIBDIR}
+STAGE_AS.ald+= lib${LIB}.ald
+STAGE_AS_lib${LIB}.ald = lib${LIB}.a
+stage_as.ald: lib${LIB}.ald
+.endif
+
 .if target(stage_files.shlib)
 stage_libs: ${_LIBS}
 .if defined(DEBUG_FLAGS) && target(${SHLIB_NAME}.symbols)
