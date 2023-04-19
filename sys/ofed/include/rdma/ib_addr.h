@@ -180,7 +180,7 @@ static inline u16 rdma_vlan_dev_vlan_id(if_t dev)
 {
 	uint16_t tag;
 
-	if (if_gettype(dev) != IFT_ETHER || if_getpcp(dev) == IFNET_PCP_NONE)
+	if (if_gettype(dev) == IFT_ETHER && if_getpcp(dev) != IFNET_PCP_NONE)
 		return 0x0000;	/* prio-tagged traffic */
 	if (VLAN_TAG(__DECONST(if_t, dev), &tag) != 0)
 		return 0xffff;
