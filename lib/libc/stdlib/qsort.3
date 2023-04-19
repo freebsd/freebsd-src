@@ -32,7 +32,7 @@
 .\"     @(#)qsort.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd September 30, 2022
+.Dd April 19, 2023
 .Dt QSORT 3
 .Os
 .Sh NAME
@@ -260,7 +260,7 @@ The order of arguments to
 .Fa compar
 is different
 .It
-if
+If
 .Fa nmemb
 or
 .Fa size
@@ -270,7 +270,11 @@ or
 .Fa nmemb
 is not zero and
 .Fa compar
-is NULL, then the runtime-constraint handler is called, and
+is
+.Dv NULL
+or
+.Fa size
+is zero, then the runtime-constraint handler is called, and
 .Fn qsort_s
 returns an error.
 Note that the handler is called before
