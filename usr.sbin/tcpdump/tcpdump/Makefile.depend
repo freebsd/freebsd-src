@@ -9,12 +9,7 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
-	lib/libnv \
 	lib/libpcap \
-	lib/libthr \
-	lib/ofed/libibverbs \
-	lib/ofed/libmlx5 \
-	usr.bin/lex/lib \
 
 
 .include <dirdeps.mk>

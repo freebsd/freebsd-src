@@ -3,10 +3,8 @@
 
 DIRDEPS = \
 	include \
-	stand/i386/btx/btx \
-	stand/i386/btx/btxldr \
-	stand/i386/loader \
-
+	${BOOT_MACHINE_DIR}/btx/btx \
+	${BOOT_MACHINE_DIR}/btx/btxldr \
 
 .include <dirdeps.mk>
 

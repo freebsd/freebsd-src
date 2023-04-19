@@ -10,7 +10,6 @@ DIRDEPS = \
 	lib/libcompiler_rt \
 	lib/libcrypt \
 	lib/libmd \
-	lib/libthr \
 	lib/libutil \
 	lib/msun \
 	usr.bin/yacc.host \

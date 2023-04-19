@@ -4,23 +4,19 @@
 DIRDEPS = \
 	cddl/lib/libavl \
 	cddl/lib/libnvpair \
-	cddl/lib/libumem \
+	cddl/lib/libspl \
+	cddl/lib/libtpool \
 	cddl/lib/libuutil \
 	cddl/lib/libzfs \
 	cddl/lib/libzfs_core \
-	gnu/lib/csu \
+	cddl/lib/libzutil \
 	include \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
-	lib/libexpat \
 	lib/libgeom \
-	lib/libmd \
-	lib/libsbuf \
 	lib/libthr \
-	lib/libutil \
-	lib/libz \
 	lib/msun \
 
 

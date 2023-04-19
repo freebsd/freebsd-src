@@ -3,6 +3,7 @@
 
 DIRDEPS = \
 	usr.bin/xinstall.host \
+	usr.sbin/zic.host \
 
 
 .include <dirdeps.mk>

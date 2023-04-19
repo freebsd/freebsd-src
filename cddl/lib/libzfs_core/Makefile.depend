@@ -3,12 +3,13 @@
 
 DIRDEPS = \
 	cddl/lib/libnvpair \
+	cddl/lib/libspl \
+	cddl/lib/libzutil \
 	include \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
-	lib/msun \
 
 
 .include <dirdeps.mk>

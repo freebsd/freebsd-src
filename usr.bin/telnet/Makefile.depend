@@ -7,12 +7,9 @@ DIRDEPS = \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
-	lib/libcom_err \
 	lib/libcompiler_rt \
-	lib/libcrypt \
 	lib/libtelnet \
-	lib/libthr \
-	lib/ncurses/ncursesw \
+	lib/ncurses/tinfo \
 
 
 .include <dirdeps.mk>

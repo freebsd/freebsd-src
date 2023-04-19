@@ -8,12 +8,8 @@ DIRDEPS = \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
-	lib/libcom_err \
 	lib/libcompiler_rt \
-	lib/libcrypt \
 	lib/libgssapi \
-	lib/libthr \
-	secure/lib/libcrypto \
 
 
 .include <dirdeps.mk>

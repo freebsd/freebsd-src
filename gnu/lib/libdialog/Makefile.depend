@@ -8,7 +8,8 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/msun \
-	lib/ncurses/ncursesw \
+	lib/ncurses/ncurses \
+	lib/ncurses/tinfo \
 
 
 .include <dirdeps.mk>

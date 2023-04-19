@@ -3,14 +3,14 @@
 
 DIRDEPS = \
 	cddl/lib/libnvpair \
+	cddl/lib/libspl \
 	cddl/lib/libzfs \
-	cddl/lib/libzfs_core \
+	cddl/lib/libzfsbootenv \
 	include \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
-	lib/msun \
 
 
 .include <dirdeps.mk>

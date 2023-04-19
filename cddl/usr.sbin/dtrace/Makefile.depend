@@ -4,21 +4,15 @@
 DIRDEPS = \
 	cddl/lib/libctf \
 	cddl/lib/libdtrace \
-	gnu/lib/csu \
+	cddl/lib/libspl \
 	include \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
-	lib/libcxxrt \
 	lib/libelf \
-	lib/libkvm \
 	lib/libproc \
-	lib/libprocstat \
 	lib/librtld_db \
-	lib/libthr \
-	lib/libutil \
-	lib/libz \
 
 
 .include <dirdeps.mk>

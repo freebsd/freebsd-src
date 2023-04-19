@@ -11,17 +11,11 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcapsicum \
 	lib/libcasper/libcasper \
-	lib/libcom_err \
 	lib/libcompiler_rt \
-	lib/libcrypt \
-	lib/libldns \
 	lib/libpam/libpam \
-	lib/libthr \
 	lib/libutil \
-	lib/libz \
 	secure/lib/libcrypto \
 	secure/lib/libssh \
-	secure/lib/libssl \
 
 
 .include <dirdeps.mk>
