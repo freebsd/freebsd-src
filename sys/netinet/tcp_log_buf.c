@@ -1432,11 +1432,11 @@ tcp_log_tcpcbfini(struct tcpcb *tp)
 
 
 	INP_WLOCK_ASSERT(tptoinpcb(tp));
-#ifdef TCP_ACCOUNTING
 	if (tp->_t_logstate) {
-		struct tcp_log_buffer *lgb;
 		union tcp_log_stackspecific log;
 		struct timeval tv;
+#ifdef TCP_ACCOUNTING
+		struct tcp_log_buffer *lgb;
 		int i;
 
 		memset(&log, 0, sizeof(log));
@@ -1468,15 +1468,15 @@ tcp_log_tcpcbfini(struct tcpcb *tp)
 			}
 		}
 skip_out:
+#endif
 		log.u_bbr.timeStamp = tcp_get_usecs(&tv);
 		log.u_bbr.cur_del_rate = tp->t_end_info;
-		TCP_LOG_EVENTP(tp, NULL,
-			       NULL,
-			       NULL,
-			       TCP_LOG_CONNEND, 0,
-			       0, &log, false, &tv);
+		(void)tcp_log_event(tp, NULL,
+	                 NULL,
+			 NULL,
+		         TCP_LOG_CONNEND, 0,
+		         0, &log, false, NULL, NULL, 0,  &tv);
 	}
-#endif
 	/*
 	 * If we were gathering packets to be automatically dumped, try to do
 	 * it now. If this succeeds, the log information in the TCPCB will be
@@ -2910,7 +2910,7 @@ tcp_log_sendfile(struct socket *so, off_t offset, size_t nbytes, int flags)
 			continue;
 		}
 		/* If we reach here its a allocated closed end request */
-		if ((ent->start == offset) || 
+		if ((ent->start == offset) ||
 		    ((offset > ent->start) && (offset < ent->end))){
 			/* Its within this request?? */
 			fnd = 1;

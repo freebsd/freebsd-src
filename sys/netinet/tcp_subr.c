@@ -2423,13 +2423,13 @@ tcp_discardcb(struct tcpcb *tp)
 
 	CC_ALGO(tp) = NULL;
 
-#ifdef TCP_BLACKBOX
-	tcp_log_tcpcbfini(tp);
-#endif
 	TCPSTATES_DEC(tp->t_state);
 
 	if (tp->t_fb->tfb_tcp_fb_fini)
 		(*tp->t_fb->tfb_tcp_fb_fini)(tp, 1);
+#ifdef TCP_BLACKBOX
+	tcp_log_tcpcbfini(tp);
+#endif
 	MPASS(STAILQ_EMPTY(&tp->t_inqueue));
 
 	/*
