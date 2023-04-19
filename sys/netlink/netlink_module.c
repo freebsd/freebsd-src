@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <netlink/netlink.h>
 #include <netlink/netlink_ctl.h>
 #include <netlink/netlink_var.h>
+#include <netlink/route/route_var.h>
 
 #include <machine/atomic.h>
 
