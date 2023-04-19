@@ -29,3 +29,8 @@ CLEANFILES+= .depend
 	@${CXX} -E ${CXXFLAGS} ${.IMPSRC} | grep -v '^[[:space:]]*$$'
 
 .-include <site.autodep.mk>
+
+.ifdef _RECURSING_CRUNCH
+# crunchgen does not want to see our stats
+_reldir_finish: .NOTMAIN
+.endif
