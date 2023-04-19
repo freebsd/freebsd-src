@@ -403,12 +403,12 @@ void ignore_handler_s(const char * __restrict, void * __restrict, errno_t);
 /* K.3.6.3.2 */
 errno_t	 qsort_s(void *, rsize_t, rsize_t,
     int (*)(const void *, const void *, void *), void *);
-#endif /* __EXT1_VISIBLE */
 
 #if __BSD_VISIBLE
 errno_t	 bsort_s(void *, rsize_t, rsize_t,
     int (*)(const void *, const void *, void *), void *);
 #endif /* __BSD_VISIBLE */
+#endif /* __EXT1_VISIBLE */
 
 __END_DECLS
 __NULLABILITY_PRAGMA_POP
