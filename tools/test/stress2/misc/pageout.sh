@@ -35,6 +35,7 @@
 
 # "panic: ffs_geom_strategy: bad I/O" seen:
 # https://people.freebsd.org/~pho/stress/log/log0434.txt
+# Fixed by: 7aeea73e3078
 
 [ `id -u ` -ne 0 ] && echo "Must be root!" && exit 1
 . ../default.cfg
