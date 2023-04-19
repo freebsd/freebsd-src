@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 13, 2019
+.Dd April 19, 2023
 .Dt MFI 4
 .Os
 .Sh NAME
@@ -81,14 +81,14 @@ If the tunable
 .Va hw.mfi.mrsas_enable
 is set to 1,
 then the driver will reduce its probe priority to allow
-.Cd mrsas
+.Xr mrsas 4
 to attach to the card instead of
 .Nm .
 .Pp
 .Nm
 does not provide ATA TRIM support.
 Refer to
-.Cd mrsas
+.Xr mrsas 4
 if TRIM support is required.
 .Sh HARDWARE
 The
