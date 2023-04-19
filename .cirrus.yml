@@ -60,6 +60,10 @@ task:
   - make sysent
   - if ! git diff --exit-code; then printf "\n>>> Generated sysent files not updated, run make sysent <<<\n"; false; fi
 
+  include_ldirs_script:
+  # Check that includes/Makefile refers to existing directories
+  - if ! make -C include/ check-ldirs; then printf "\n>>> include/Makefile lists nonexistant directories <<<\n"; false; fi
+
   post_script:
   - df -m
   - du -m -s /usr/obj
