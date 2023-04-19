@@ -11,6 +11,7 @@ DIRDEPS = \
 	lib/libprocstat \
 	lib/librtld_db \
 	lib/libutil \
+	lib/libz \
 
 
 .include <dirdeps.mk>

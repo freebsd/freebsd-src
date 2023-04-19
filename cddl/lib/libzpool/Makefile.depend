@@ -5,8 +5,8 @@ DIRDEPS = \
 	cddl/lib/libavl \
 	cddl/lib/libicp \
 	cddl/lib/libnvpair \
+	cddl/lib/libspl \
 	cddl/lib/libumem \
-	gnu/lib/csu \
 	include \
 	include/xlocale \
 	lib/${CSU_DIR} \
@@ -15,7 +15,6 @@ DIRDEPS = \
 	lib/libmd \
 	lib/libthr \
 	lib/libz \
-	lib/msun \
 
 
 .include <dirdeps.mk>

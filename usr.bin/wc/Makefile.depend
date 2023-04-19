@@ -8,9 +8,7 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcapsicum \
 	lib/libcompiler_rt \
-	lib/libnv \
-	lib/libutil \
-	lib/libxo \
+	lib/libxo/libxo \
 
 
 .include <dirdeps.mk>

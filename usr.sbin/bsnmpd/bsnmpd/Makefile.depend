@@ -10,8 +10,6 @@ DIRDEPS = \
 	lib/libbsnmp/libbsnmp \
 	lib/libc \
 	lib/libcompiler_rt \
-	lib/libthr \
-	secure/lib/libcrypto \
 	usr.sbin/bsnmpd/gensnmptree.host \
 
 

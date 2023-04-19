@@ -4,6 +4,8 @@
 
 .include <src.opts.mk>
 
+DEP_MACHINE_CPUARCH?= ${MACHINE_CPUARCH}
+
 DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/atf/libatf-c \
@@ -35,9 +37,11 @@ DIRDEPS = \
 	lib/libalias/modules/smedia \
 	lib/libarchive \
 	lib/libauditd \
+	lib/libbe \
 	lib/libbegemot \
 	lib/libblocksruntime \
 	lib/libbluetooth \
+	lib/libbsddialog \
 	lib/libbsdstat \
 	lib/libbsm \
 	lib/libbsnmp/libbsnmp \
@@ -64,6 +68,7 @@ DIRDEPS = \
 	lib/libedit/edit/readline \
 	lib/libelf \
 	lib/libelftc \
+	lib/libevent1 \
 	lib/libevent \
 	lib/libexecinfo \
 	lib/libexpat \
@@ -97,6 +102,7 @@ DIRDEPS = \
 	lib/libifconfig \
 	lib/libipsec \
 	lib/libipx \
+	lib/libiscsiutil \
 	lib/libjail \
 	lib/libkiconv \
 	lib/libkvm \
@@ -107,6 +113,7 @@ DIRDEPS = \
 	lib/libmd \
 	lib/libmemstat \
 	lib/libmilter \
+	lib/libmixer \
 	lib/libmp \
 	lib/libnetgraph \
 	lib/libngatm \
@@ -142,6 +149,7 @@ DIRDEPS = \
 	lib/libproc \
 	lib/libprocstat \
 	lib/libradius \
+	lib/libregex \
 	lib/librpcsec_gss \
 	lib/librpcsvc \
 	lib/librss \
@@ -155,6 +163,7 @@ DIRDEPS = \
 	lib/libsmdb \
 	lib/libsmutil \
 	lib/libsqlite3 \
+	lib/libstats \
 	lib/libstdbuf \
 	lib/libstdthreads \
 	lib/libsysdecode \
@@ -173,6 +182,7 @@ DIRDEPS = \
 	lib/libvgl \
 	lib/libvmmapi \
 	lib/libwrap \
+	lib/libxo \
 	lib/liby \
 	lib/libyaml \
 	lib/libypclnt \
@@ -189,8 +199,8 @@ DIRDEPS = \
 	lib/ncurses/panelw \
 
 .if ${MK_CLANG} != "no" && \
-    (${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
-    ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "i386")
+    (${DEP_MACHINE_CPUARCH} == "aarch64" || ${DEP_MACHINE_CPUARCH} == "amd64" || \
+    ${DEP_MACHINE_CPUARCH} == "arm" || ${DEP_MACHINE_CPUARCH} == "i386")
 DIRDEPS+= \
 	lib/libclang_rt/asan-preinit \
 	lib/libclang_rt/asan \
@@ -206,8 +216,8 @@ DIRDEPS+= \
 
 .endif
 
-.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386" || \
-    ${MACHINE_CPUARCH} == "powerpc"
+.if ${DEP_MACHINE_CPUARCH} == "amd64" || ${DEP_MACHINE_CPUARCH} == "i386" || \
+    ${DEP_MACHINE_CPUARCH} == "powerpc"
 DIRDEPS+= stand/libsa32
 .endif
 
@@ -245,6 +255,10 @@ DIRDEPS+= \
 
 .if ${MK_BLACKLIST_SUPPORT} != "no"
 DIRDEPS+=	lib/libblacklist
+.endif
+
+.if ${MK_ZFS} != "no"
+DIRDEPS+=	cddl/lib/libzutil
 .endif
 
 .include <dirdeps.mk>

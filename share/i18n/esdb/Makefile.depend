@@ -19,7 +19,6 @@ DIRDEPS = \
 	share/i18n/esdb/MISC \
 	share/i18n/esdb/TCVN \
 	share/i18n/esdb/UTF \
-	usr.bin/mkesdb_static.host \
 
 
 .include <dirdeps.mk>

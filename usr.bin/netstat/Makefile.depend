@@ -8,11 +8,11 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
-	lib/libelf \
 	lib/libkvm \
 	lib/libmemstat \
 	lib/libutil \
-	lib/libxo \
+	lib/libxo/libxo \
+	usr.bin/awk.host \
 
 
 .include <dirdeps.mk>

@@ -10,7 +10,7 @@ DIRDEPS = \
 	lib/libcapsicum \
 	lib/libcompiler_rt \
 	lib/libipsec \
-	lib/libnv \
+	lib/libmd \
 	lib/msun \
 
 

@@ -8,6 +8,7 @@ DIRDEPS = \
 	lib/libc \
 	lib/libc++ \
 	lib/libcompiler_rt \
+	lib/libcxxrt \
 	lib/libelf \
 	lib/libpmc/pmu-events.host \
 	lib/msun \

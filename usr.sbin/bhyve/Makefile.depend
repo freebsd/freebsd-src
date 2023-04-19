@@ -6,17 +6,18 @@ DIRDEPS = \
 	include/arpa \
 	include/xlocale \
 	lib/${CSU_DIR} \
+	lib/lib9p \
 	lib/libc \
 	lib/libcam \
 	lib/libcapsicum \
 	lib/libcasper/libcasper \
 	lib/libcompiler_rt \
+	lib/libnetgraph \
+	lib/libnv \
 	lib/libsbuf \
 	lib/libthr \
-	lib/libucl \
 	lib/libutil \
 	lib/libvmmapi \
-	lib/libxo \
 	lib/libz \
 
 

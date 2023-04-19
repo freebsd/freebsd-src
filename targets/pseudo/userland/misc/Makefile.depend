@@ -6,6 +6,8 @@
 .include <src.opts.mk>
 .endif
 
+DEP_MACHINE?= ${MACHINE}
+
 _sys_boot_efi= stand/efi/loader stand/efi/boot1
 .if ${MK_FDT} != "no"
 _sys_boot_fdt= stand/fdt stand/efi/fdt
@@ -88,6 +90,11 @@ DIRDEPS.powerpc= ${_sys_boot_fdt} stand/libsa32 stand/ofw stand/uboot
 DIRDEPS.sparc64= stand/ofw ${_sys_boot_zfs}
 .endif
 
-DIRDEPS+= ${DIRDEPS.${MACHINE}:U}
+DIRDEPS+= ${DIRDEPS.${DEP_MACHINE}:U}
+
+.if ${DEP_MACHINE} == "amd64"
+# do not build stand/i386 for amd64
+DIRDEPS:= ${DIRDEPS:Nstand/i386*} ${DIRDEPS:Mstand/i386*:S/$/.i386,i386/}
+.endif
 
 .include <dirdeps.mk>

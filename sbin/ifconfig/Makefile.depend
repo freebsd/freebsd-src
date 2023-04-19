@@ -8,8 +8,9 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
-	lib/libexpat \
-	lib/libsbuf \
+	lib/libifconfig \
+	lib/libnv \
+	lib/libutil \
 	lib/msun \
 
 

@@ -18,7 +18,6 @@ DIRDEPS = \
 	share/i18n/csmapper/KS \
 	share/i18n/csmapper/MISC \
 	share/i18n/csmapper/TCVN \
-	usr.bin/mkcsmapper_static.host \
 
 
 .include <dirdeps.mk>

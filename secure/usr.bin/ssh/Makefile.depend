@@ -5,20 +5,14 @@ DIRDEPS = \
 	include \
 	include/arpa \
 	include/gssapi \
-	include/rpc \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
-	lib/libcrypt \
-	lib/libldns \
 	lib/libpam/libpam \
-	lib/libthr \
 	lib/libutil \
-	lib/libz \
 	secure/lib/libcrypto \
 	secure/lib/libssh \
-	secure/lib/libssl \
 
 
 .include <dirdeps.mk>

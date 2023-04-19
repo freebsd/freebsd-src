@@ -9,7 +9,6 @@ DIRDEPS = \
 	lib/libcompiler_rt \
 	lib/libnetgraph \
 	lib/libthr \
-	lib/ncurses/ncursesw \
 
 
 .include <dirdeps.mk>
