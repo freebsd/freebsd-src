@@ -31,7 +31,7 @@ task:
       TOOLCHAIN_PKG: amd64-gcc12
   timeout_in: 120m
   install_script:
-  - sh .cirrus-ci/pkg-install.sh ${TOOLCHAIN_PKG}
+  - sh .cirrus-ci/pkg-install.sh ${TOOLCHAIN_PKG} git-lite
 
   setup_script:
   - uname -a
@@ -54,6 +54,11 @@ task:
   test_script:
   - sh .cirrus-ci/pkg-install.sh qemu-nox11
   - sh tools/boot/ci-qemu-test.sh
+
+  make_sysent_script:
+  # Check that make sysent results were committed if required
+  - make sysent
+  - if ! git diff --exit-code; then printf "\n>>> Generated sysent files not updated, run make sysent <<<\n"; false; fi
 
   post_script:
   - df -m
