@@ -446,7 +446,7 @@ vdev_indirect_mapping_entry(vdev_indirect_mapping_t *vim, uint64_t index)
  *
  * It's possible that the given offset will not be in the mapping table
  * (i.e. no mapping entries contain this offset), in which case, the
- * return value value depends on the "next_if_missing" parameter.
+ * return value depends on the "next_if_missing" parameter.
  *
  * If the offset is not found in the table and "next_if_missing" is
  * B_FALSE, then NULL will always be returned. The behavior is intended
