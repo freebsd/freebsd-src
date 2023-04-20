@@ -215,7 +215,8 @@ CFLAGS.gcc+=	-mno-spe
 # Use dot symbols (or, better, the V2 ELF ABI) on powerpc64 to make
 # DDB happy. ELFv2, if available, has some other efficiency benefits.
 #
-.if ${MACHINE_ARCH:Mpowerpc64*} != ""
+.if ${MACHINE_ARCH:Mpowerpc64*} != "" && \
+    ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} < 160000
 CFLAGS+=	-mabi=elfv2
 .endif
 
