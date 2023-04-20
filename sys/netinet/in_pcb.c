@@ -2180,31 +2180,63 @@ out:
 	    grp->il_inpcnt]);
 }
 
+static bool
+in_pcblookup_exact_match(const struct inpcb *inp, struct in_addr faddr,
+    u_short fport, struct in_addr laddr, u_short lport)
+{
+#ifdef INET6
+	/* XXX inp locking */
+	if ((inp->inp_vflag & INP_IPV4) == 0)
+		return (false);
+#endif
+	if (inp->inp_faddr.s_addr == faddr.s_addr &&
+	    inp->inp_laddr.s_addr == laddr.s_addr &&
+	    inp->inp_fport == fport &&
+	    inp->inp_lport == lport)
+		return (true);
+	return (false);
+}
+
 static struct inpcb *
 in_pcblookup_hash_exact(struct inpcbinfo *pcbinfo, struct in_addr faddr,
     u_short fport, struct in_addr laddr, u_short lport)
 {
 	struct inpcbhead *head;
-	struct inpcb *inp, *match;
+	struct inpcb *inp;
 
 	INP_HASH_LOCK_ASSERT(pcbinfo);
 
-	match = NULL;
 	head = &pcbinfo->ipi_hash_exact[INP_PCBHASH(&faddr, lport, fport,
 	    pcbinfo->ipi_hashmask)];
 	CK_LIST_FOREACH(inp, head, inp_hash_exact) {
-#ifdef INET6
-		/* XXX inp locking */
-		if ((inp->inp_vflag & INP_IPV4) == 0)
-			continue;
-#endif
-		if (inp->inp_faddr.s_addr == faddr.s_addr &&
-		    inp->inp_laddr.s_addr == laddr.s_addr &&
-		    inp->inp_fport == fport &&
-		    inp->inp_lport == lport)
+		if (in_pcblookup_exact_match(inp, faddr, fport, laddr, lport))
 			return (inp);
 	}
-	return (match);
+	return (NULL);
+}
+
+typedef enum {
+	INPLOOKUP_MATCH_NONE = 0,
+	INPLOOKUP_MATCH_WILD = 1,
+	INPLOOKUP_MATCH_LADDR = 2,
+} inp_lookup_match_t;
+
+static inp_lookup_match_t
+in_pcblookup_wild_match(const struct inpcb *inp, struct in_addr laddr,
+    u_short lport)
+{
+#ifdef INET6
+	/* XXX inp locking */
+	if ((inp->inp_vflag & INP_IPV4) == 0)
+		return (INPLOOKUP_MATCH_NONE);
+#endif
+	if (inp->inp_faddr.s_addr != INADDR_ANY || inp->inp_lport != lport)
+		return (INPLOOKUP_MATCH_NONE);
+	if (inp->inp_laddr.s_addr == INADDR_ANY)
+		return (INPLOOKUP_MATCH_WILD);
+	if (inp->inp_laddr.s_addr == laddr.s_addr)
+		return (INPLOOKUP_MATCH_LADDR);
+	return (INPLOOKUP_MATCH_NONE);
 }
 
 static struct inpcb *
@@ -2233,15 +2265,11 @@ in_pcblookup_hash_wild_locked(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 	local_wild_mapped = NULL;
 #endif
 	CK_LIST_FOREACH(inp, head, inp_hash_wild) {
+		inp_lookup_match_t match;
 		bool injail;
 
-#ifdef INET6
-		/* XXX inp locking */
-		if ((inp->inp_vflag & INP_IPV4) == 0)
-			continue;
-#endif
-		if (inp->inp_faddr.s_addr != INADDR_ANY ||
-		    inp->inp_lport != lport)
+		match = in_pcblookup_wild_match(inp, laddr, lport);
+		if (match == INPLOOKUP_MATCH_NONE)
 			continue;
 
 		injail = prison_flag(inp->inp_cred, PR_IP4) != 0;
@@ -2254,11 +2282,11 @@ in_pcblookup_hash_wild_locked(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 				continue;
 		}
 
-		if (inp->inp_laddr.s_addr == laddr.s_addr) {
+		if (match == INPLOOKUP_MATCH_LADDR) {
 			if (injail)
 				return (inp);
 			local_exact = inp;
-		} else if (inp->inp_laddr.s_addr == INADDR_ANY) {
+		} else {
 #ifdef INET6
 			/* XXX inp locking, NULL check */
 			if (inp->inp_vflag & INP_IPV6PROTO)
