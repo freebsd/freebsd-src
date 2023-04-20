@@ -2399,7 +2399,6 @@ extern void dtrace_safe_synchronous_signal(void);
 extern int dtrace_mach_aframes(void);
 
 #if defined(__i386) || defined(__amd64)
-extern int dtrace_instr_size(uint8_t *instr);
 extern int dtrace_instr_size_isa(uint8_t *, model_t, int *);
 extern void dtrace_invop_callsite(void);
 #endif
@@ -2427,6 +2426,10 @@ extern void dtrace_helpers_destroy(proc_t *);
 	(cpu_core[curcpu].cpuc_dtrace_flags &= ~(flag))
 
 #endif /* _KERNEL */
+
+#if defined(__i386) || defined(__amd64) || defined (__riscv)
+extern int dtrace_instr_size(uint8_t *instr);
+#endif
 
 #endif	/* _ASM */
 
