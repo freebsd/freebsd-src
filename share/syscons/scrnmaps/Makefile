@@ -14,16 +14,18 @@ CLEANFILES+= ${SCRMAPS_MK} ${SCRMAPS}
 FILES=	${SCRMAPS}
 FILESDIR= ${SHAREDIR}/syscons/scrnmaps
 
+.if ${MACHINE} == "host" || ${MK_DIRDEPS_BUILD} == "no"
 DEPENDOBJS+= ${SCRMAPS_MK}
 build-tools: ${SCRMAPS_MK}
+
+${SCRMAPS_MK}: ${.TARGET:R} mkscrfil.c ${BUILD_TOOLS_META}
+	${CC:N${CCACHE_BIN}} ${CFLAGS} -I${.CURDIR} -DFIL=\"${.TARGET:R}\" \
+	    ${LDFLAGS} -o ${.TARGET} ${.CURDIR}/mkscrfil.c
+.endif
 
 ${SCRMAPS}: ${.TARGET:R}.mk
 	${BTOOLSPATH:U.}/${.TARGET:R}.mk ${.TARGET:R}.tmp
 	uuencode ${.TARGET:R}.tmp ${.TARGET:R} > ${.TARGET}
 	rm -f ${.TARGET:R}.tmp
-
-${SCRMAPS_MK}: ${.TARGET:R} mkscrfil.c ${BUILD_TOOLS_META}
-	${CC:N${CCACHE_BIN}} ${CFLAGS} -I${.CURDIR} -DFIL=\"${.TARGET:R}\" \
-	    ${LDFLAGS} -o ${.TARGET} ${.CURDIR}/mkscrfil.c
 
 .include <bsd.prog.mk>

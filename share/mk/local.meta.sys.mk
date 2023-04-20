@@ -210,11 +210,18 @@ TOOLSDIR?= ${HOST_OBJTOP}/tools
 .elif defined(STAGE_HOST_OBJTOP)
 TOOLSDIR?= ${STAGE_HOST_OBJTOP}
 .endif
+.if ${MK_DIRDEPS_BUILD} == "yes" && ${MACHINE} != "host"
+# ideally tools needed by makefiles like sh,csh,tinfo
+# would be built in their own directories but for now
+# this works well enough.
+BTOOLSPATH= ${HOST_OBJTOP}/${RELDIR}
+.else
 # Only define if it exists in case user didn't run bootstrap-tools.  Otherwise
 # the tool will be built during the build.  Building it assumes it is
 # TARGET==MACHINE.
 .if exists(${HOST_OBJTOP}/tools${.CURDIR})
 BTOOLSPATH= ${HOST_OBJTOP}/tools${.CURDIR}
+.endif
 .endif
 
 # Don't use the bootstrap tools logic on itself.

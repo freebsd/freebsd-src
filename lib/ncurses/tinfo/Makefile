@@ -270,6 +270,11 @@ keys.list: MKkeys_list.sh Caps Caps-ncurses
 	AWK=${AWK} sh ${NCURSES_DIR}/ncurses/tinfo/MKkeys_list.sh \
 	    ${NCURSES_DIR}/include/Caps ${NCURSES_DIR}/include/Caps-ncurses | LC_ALL=C sort > keys.list
 
+.if ${MK_DIRDEPS_BUILD} == "yes" && ${MACHINE} != "host"
+# we need to override the default
+BTOOLSPATH= ${HOST_OBJTOP}/${RELDIR:S,w$,,}
+.endif
+.if ${MACHINE} == "host" || ${MK_DIRDEPS_BUILD} == "no"
 # Build tools
 DEPENDOBJS+= make_hash make_keys
 build-tools: make_hash make_keys
@@ -280,6 +285,14 @@ make_keys: make_keys.c names.c ncurses_def.h ${HEADERS} ${BUILD_TOOLS_META}
 make_hash: make_hash.c hashsize.h ncurses_def.h ${HEADERS} ${BUILD_TOOLS_META}
 	${CC:N${CCACHE_BIN}} -o $@ ${CFLAGS} -DMAIN_PROGRAM \
 		${NCURSES_DIR}/ncurses/tinfo/make_hash.c
+.endif
+.if ${MK_DIRDEPS_BUILD} == "yes" && ${MACHINE} != "host"
+make_keys: ${BTOOLSPATH}/make_keys
+	${LN:Uln} -sf ${.ALLSRC} ${.TARGET}
+
+make_hash: ${BTOOLSPATH}/make_hash
+	${LN:Uln} -sf ${.ALLSRC} ${.TARGET}
+.endif
 
 # ./configure generated
 MKterm.h.awk: MKterm.h.awk.in
