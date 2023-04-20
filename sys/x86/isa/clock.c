@@ -69,10 +69,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/intr_machdep.h>
-#include <machine/ppireg.h>
 #include <machine/timerreg.h>
 #include <x86/apicvar.h>
 #include <x86/init.h>
+#include <x86/ppireg.h>
 
 #include <isa/rtc.h>
 #ifdef DEV_ISA
