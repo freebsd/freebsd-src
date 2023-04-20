@@ -1198,6 +1198,7 @@ static bool pcie_capability_reg_implemented(struct pci_dev *dev, int pos)
 static inline int
 pcie_capability_read_dword(struct pci_dev *dev, int pos, u32 *dst)
 {
+	*dst = 0;
 	if (pos & 3)
 		return -EINVAL;
 
@@ -1210,6 +1211,7 @@ pcie_capability_read_dword(struct pci_dev *dev, int pos, u32 *dst)
 static inline int
 pcie_capability_read_word(struct pci_dev *dev, int pos, u16 *dst)
 {
+	*dst = 0;
 	if (pos & 3)
 		return -EINVAL;
 
