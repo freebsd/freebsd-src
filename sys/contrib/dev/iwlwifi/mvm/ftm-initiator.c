@@ -230,7 +230,11 @@ static void iwl_mvm_ftm_cmd_v5(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 static void iwl_mvm_ftm_cmd_common(struct iwl_mvm *mvm,
 				   struct ieee80211_vif *vif,
+#if defined(__linux__)
 				   struct iwl_tof_range_req_cmd_v9 *cmd,
+#elif defined(__FreeBSD__)
+				   struct iwl_tof_range_req_cmd_v9 *cmd,	/* XXX-BZ Probably better solved by a common struct in fw for top parts of the struct. */
+#endif
 				   struct cfg80211_pmsr_request *req)
 {
 	int i;
