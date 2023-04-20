@@ -128,6 +128,7 @@ DSRCS+=		regs_x86.d
 
 .if ${MACHINE_CPUARCH} == "riscv"
 SRCS+=		instr_size.c
+DSRCS+=		regs_riscv.d
 .endif
 
 YFLAGS+=-d
