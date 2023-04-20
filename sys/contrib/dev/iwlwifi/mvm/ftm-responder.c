@@ -306,6 +306,7 @@ static void iwl_mvm_resp_del_pasn_sta(struct iwl_mvm *mvm,
 	kfree(sta);
 }
 
+#if defined(__linux__)
 int iwl_mvm_ftm_respoder_add_pasn_sta(struct iwl_mvm *mvm,
 				      struct ieee80211_vif *vif,
 				      u8 *addr, u32 cipher, u8 *tk, u32 tk_len,
@@ -374,6 +375,7 @@ int iwl_mvm_ftm_resp_remove_pasn_sta(struct iwl_mvm *mvm,
 	IWL_ERR(mvm, "FTM: PASN station %pM not found\n", addr);
 	return -EINVAL;
 }
+#endif
 
 int iwl_mvm_ftm_start_responder(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {

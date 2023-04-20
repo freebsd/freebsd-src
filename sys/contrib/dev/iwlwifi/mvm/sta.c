@@ -4116,6 +4116,7 @@ u16 iwl_mvm_tid_queued(struct iwl_mvm *mvm, struct iwl_mvm_tid_data *tid_data)
 	return ieee80211_sn_sub(sn, tid_data->next_reclaimed);
 }
 
+#if defined(__linux__)
 int iwl_mvm_add_pasn_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			 struct iwl_mvm_int_sta *sta, u8 *addr, u32 cipher,
 			 u8 *key, u32 key_len)
@@ -4155,6 +4156,7 @@ out:
 	iwl_mvm_dealloc_int_sta(mvm, sta);
 	return ret;
 }
+#endif
 
 void iwl_mvm_cancel_channel_switch(struct iwl_mvm *mvm,
 				   struct ieee80211_vif *vif,
