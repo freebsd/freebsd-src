@@ -764,6 +764,7 @@ void	in_pcbnotifyall(struct inpcbinfo *pcbinfo, struct in_addr,
 void	in_pcbref(struct inpcb *);
 void	in_pcbrehash(struct inpcb *);
 void	in_pcbremhash_locked(struct inpcb *);
+bool	in_pcbrele(struct inpcb *, inp_lookup_t);
 bool	in_pcbrele_rlocked(struct inpcb *);
 bool	in_pcbrele_wlocked(struct inpcb *);
 
