@@ -246,7 +246,3 @@ SRCS+=		switch8.S
 SRCS+=		switchu8.S
 SRCS+=		sync_synchronize.S
 .endif
-
-.if ${MACHINE_ARCH:Mriscv*sf}
-CFLAGS+=	-D__SOFT_FP__
-.endif

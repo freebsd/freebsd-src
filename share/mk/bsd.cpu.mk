@@ -317,11 +317,7 @@ CFLAGS.gcc+= -mabi=spe -mfloat-gprs=double -Wa,-me500
 .endif
 
 .if ${MACHINE_CPUARCH} == "riscv"
-.if ${MACHINE_ARCH:Mriscv*sf}
-CFLAGS += -march=rv64imac -mabi=lp64
-.else
 CFLAGS += -march=rv64imafdc -mabi=lp64d
-.endif
 .endif
 
 # NB: COPTFLAGS is handled in /usr/src/sys/conf/kern.pre.mk
@@ -367,8 +363,7 @@ CXXFLAGS += ${CXXFLAGS.${MACHINE_ARCH}}
 # Size of time_t:		time32, time64
 #
 .if (${MACHINE} == "arm" && (defined(CPUTYPE) && ${CPUTYPE:M*soft*})) || \
-    (${MACHINE_ARCH} == "powerpc" && (defined(CPUTYPE) && ${CPUTYPE} == "e500")) || \
-    ${MACHINE_ARCH:Mriscv*sf*}
+    (${MACHINE_ARCH} == "powerpc" && (defined(CPUTYPE) && ${CPUTYPE} == "e500"))
 MACHINE_ABI+=	soft-float
 .else
 MACHINE_ABI+=	hard-float
