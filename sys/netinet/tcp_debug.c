@@ -177,13 +177,13 @@ tcp_trace(short act, short ostate, struct tcpcb *tp, void *ipgen,
 #ifdef INET6
 		    isipv6 ? ntohs(((struct ip6_hdr *)ipgen)->ip6_plen) :
 #endif
-		    ntohs(((struct ip *)ipgen)->ip_len);
+		    ntohs(((struct ip *)ipgen)->ip_len) -
+		        (((struct ip *)ipgen)->ip_hl << 2);
 		if (act == TA_OUTPUT) {
 			seq = ntohl(seq);
 			ack = ntohl(ack);
 		}
-		if (act == TA_OUTPUT)
-			len -= sizeof (struct tcphdr);
+		len -= th->th_off << 2;
 		if (len)
 			printf("[%x..%x)", seq, seq+len);
 		else
@@ -205,7 +205,8 @@ tcp_trace(short act, short ostate, struct tcpcb *tp, void *ipgen,
 
 	case TA_USER:
 		printf("%s", prurequests[req&0xff]);
-		if ((req & 0xff) == PRU_SLOWTIMO)
+		if ((req & 0xff) == PRU_SLOWTIMO ||
+		    (req & 0xff) == PRU_FASTTIMO)
 			printf("<%s>", tcptimers[req>>8]);
 		break;
 	}

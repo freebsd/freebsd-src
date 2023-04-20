@@ -266,8 +266,12 @@ tcp_timer_delack(void *xtp)
 	struct epoch_tracker et;
 	struct tcpcb *tp = xtp;
 	struct inpcb *inp;
-	CURVNET_SET(tp->t_vnet);
+#ifdef TCPDEBUG
+	int ostate;
 
+	ostate = tp->t_state;
+#endif
+	CURVNET_SET(tp->t_vnet);
 	inp = tp->t_inpcb;
 	KASSERT(inp != NULL, ("%s: tp %p tp->t_inpcb == NULL", __func__, tp));
 	INP_WLOCK(inp);
@@ -287,6 +291,11 @@ tcp_timer_delack(void *xtp)
 	TCPSTAT_INC(tcps_delack);
 	NET_EPOCH_ENTER(et);
 	(void) tp->t_fb->tfb_tcp_output(tp);
+#ifdef TCPDEBUG
+	if (inp->inp_socket->so_options & SO_DEBUG)
+		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
+			  (TCPT_DELACK << 8) | PRU_FASTTIMO);
+#endif
 	INP_WUNLOCK(inp);
 	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
@@ -380,7 +389,7 @@ tcp_timer_2msl(void *xtp)
 #ifdef TCPDEBUG
 	if (tp != NULL && (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
-			  PRU_SLOWTIMO);
+			  (TCPT_2MSL << 8) | PRU_SLOWTIMO);
 #endif
 	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
 
@@ -502,7 +511,7 @@ dropit:
 #ifdef TCPDEBUG
 	if (tp != NULL && (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
-			  PRU_SLOWTIMO);
+			  (TCPT_KEEP << 8) | PRU_SLOWTIMO);
 #endif
 	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
 	NET_EPOCH_EXIT(et);
@@ -592,7 +601,8 @@ tcp_timer_persist(void *xtp)
 
 #ifdef TCPDEBUG
 	if (tp != NULL && tp->t_inpcb->inp_socket->so_options & SO_DEBUG)
-		tcp_trace(TA_USER, ostate, tp, NULL, NULL, PRU_SLOWTIMO);
+		tcp_trace(TA_USER, ostate, tp, NULL, NULL,
+			  (TCPT_PERSIST << 8) | PRU_SLOWTIMO);
 #endif
 	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
 	INP_WUNLOCK(inp);
@@ -875,7 +885,7 @@ tcp_timer_rexmt(void * xtp)
 #ifdef TCPDEBUG
 	if (tp != NULL && (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
-			  PRU_SLOWTIMO);
+			  (TCPT_REXMT << 8) | PRU_SLOWTIMO);
 #endif
 	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
 	INP_WUNLOCK(inp);

@@ -28,13 +28,19 @@
 .\"     @(#)trpt.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd February 15, 2018
+.Dd April 21, 2023
 .Dt TRPT 8
 .Os
 .Sh NAME
 .Nm trpt
 .Nd transliterate protocol trace
 .Sh SYNOPSIS
+To add support for this utility to the kernel, add the following line to the
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options TCPDEBUG"
+.Ed
+.Pp
 .Nm
 .Op Fl a
 .Op Fl f
@@ -44,12 +50,15 @@
 .Oo
 .Ar system Op Ar core
 .Oc
+.Sh DEPRECATION NOTICE
+.Nm
+is deprecated and will not be available in
+.Fx 14.0
+and later.
 .Sh DESCRIPTION
 The
 .Nm
-utility interrogates the buffer of
-.Tn TCP
-trace records created
+utility interrogates the buffer of TCP trace records created
 when a socket is marked for
 .Dq debugging
 (see
@@ -58,11 +67,8 @@ and prints a readable description of these records.
 When no options are supplied,
 .Nm
 prints all the trace records found in the system
-grouped according to
-.Tn TCP
-connection protocol control
-block
-.Pq Tn PCB .
+grouped according to TCP connection protocol control block
+.Pq PCB .
 .Pp
 The following options may be used to
 alter this behavior:
@@ -142,3 +148,10 @@ but this is not saved in the trace record.
 .Pp
 The output format is inscrutable and should be described
 here.
+.Pp
+It is not possible to use the
+.Nm
+utility if the following line is in the kernel config file:
+.Bd -ragged -offset indent
+.Cd "options TCPPCAP"
+.Ed

@@ -124,7 +124,7 @@ main(int argc, char **argv)
 		case 'p':
 			if (npcbs >= TCP_NDEBUG)
 				errx(1, "too many pcb's specified");
-			(void)sscanf(optarg, "%x", (int *)&tcp_pcbs[npcbs++]);
+			(void)sscanf(optarg, "%lx", (long *)&tcp_pcbs[npcbs++]);
 			break;
 		case 's':
 			++sflag;
@@ -369,18 +369,16 @@ tcp_trace(short act, short ostate, struct tcpcb *tp, int family __unused,
 
 		len =
 #ifdef INET6
-		    isipv6 ? ip6->ip6_plen :
+		    isipv6 ? ntohs(ip6->ip6_plen) :
 #endif
-		    ip4->ip_len;
+		    ntohs(ip4->ip_len) - (ip4->ip_hl << 2);
 		win = th->th_win;
 		if (act == TA_OUTPUT) {
 			seq = ntohl(seq);
 			ack = ntohl(ack);
-			len = ntohs(len);
 			win = ntohs(win);
 		}
-		if (act == TA_OUTPUT)
-			len -= sizeof(struct tcphdr);
+		len -= th->th_off << 2;
 		if (len)
 			printf("[%lx..%lx)", (u_long)seq, (u_long)(seq + len));
 		else

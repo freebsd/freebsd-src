@@ -1561,7 +1561,18 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	u_char tcp_saveipgen[IP6_HDR_LEN];
 	struct tcphdr tcp_savetcp;
-	short ostate = 0;
+	short ostate;
+
+	if (so->so_options & SO_DEBUG) {
+		ostate = tp->t_state;
+#ifdef INET6
+		if (mtod(m, struct ip *)->ip_v == 6)
+			bcopy(mtod(m, char *), (char *)tcp_saveipgen, sizeof(struct ip6_hdr));
+		else
+#endif
+			bcopy(mtod(m, char *), (char *)tcp_saveipgen, sizeof(struct ip));
+		tcp_savetcp = *th;
+	}
 #endif
 	thflags = th->th_flags;
 	inc = &tp->t_inpcb->inp_inc;
