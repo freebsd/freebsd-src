@@ -450,12 +450,12 @@ local pattern_table = {
 				maxsyscall = savesyscall
 			end
 			line = line .. "\n"
-			write_line('sysent', line)
-			write_line('sysdcl', line)
-			write_line('sysarg', line)
-			write_line_pfile('syscompat[0-9]*$', line)
-			write_line('sysnames', line)
-			write_line_pfile('systrace.*', line)
+			write_line("sysent", line)
+			write_line("sysdcl", line)
+			write_line("sysarg", line)
+			write_line_pfile("syscompat[0-9]*$", line)
+			write_line("sysnames", line)
+			write_line_pfile("systrace.*", line)
 		end,
 	},
 	{
@@ -906,7 +906,7 @@ local function handle_unimpl(sysnum, sysstart, sysend, comment)
 	end
 end
 
-local function handle_reserved(sysnum, sysstart, sysend, comment)
+local function handle_reserved(sysnum, sysstart, sysend)
 	handle_unimpl(sysnum, sysstart, sysend, "reserved for local use")
 end
 
