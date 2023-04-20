@@ -3,6 +3,10 @@
 ; Linux ABI system call generic name/number map, based on Linux file
 ; include/uapi/asm-generic/unistd.h
 
+; #include's, #defines's, etc. may be included, and are copied to the output
+; files. However, #ifdef, etc will be copied, but any lines that don't start
+; with # will not. Caveat Emptor.
+
 #include <sys/param.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
