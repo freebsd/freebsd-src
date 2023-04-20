@@ -11,7 +11,6 @@ MISRCS+=C99_Exit.c a64l.c abort.c abs.c atexit.c atof.c atoi.c atol.c atoll.c \
 	getsubopt.c hcreate.c hcreate_r.c hdestroy_r.c heapsort.c heapsort_b.c \
 	hsearch_r.c imaxabs.c imaxdiv.c \
 	insque.c l64a.c labs.c ldiv.c llabs.c lldiv.c lsearch.c \
-	bsort.c bsort_r.c bsort_s.c \
 	merge.c mergesort_b.c ptsname.c qsort.c qsort_r.c qsort_r_compat.c \
 	qsort_s.c quick_exit.c radixsort.c rand.c \
 	random.c reallocarray.c reallocf.c realpath.c remque.c \
@@ -37,7 +36,7 @@ MAN+=	a64l.3 abort.3 abs.3 alloca.3 atexit.3 atof.3 \
 	atoi.3 atol.3 at_quick_exit.3 bsearch.3 \
 	div.3 exit.3 getenv.3 getopt.3 getopt_long.3 getsubopt.3 \
 	hcreate.3 imaxabs.3 imaxdiv.3 insque.3 labs.3 ldiv.3 llabs.3 lldiv.3 \
-	lsearch.3 memory.3 ptsname.3 bsort.3 qsort.3 \
+	lsearch.3 memory.3 ptsname.3 qsort.3 \
 	quick_exit.3 \
 	radixsort.3 rand.3 random.3 reallocarray.3 reallocf.3 realpath.3 \
 	set_constraint_handler_s.3 \
@@ -55,7 +54,6 @@ MLINKS+=hcreate.3 hcreate_r.3 hcreate.3 hdestroy_r.3 hcreate.3 hsearch_r.3
 MLINKS+=insque.3 remque.3
 MLINKS+=lsearch.3 lfind.3
 MLINKS+=ptsname.3 grantpt.3 ptsname.3 ptsname_r.3 ptsname.3 unlockpt.3
-MLINKS+=bsort.3 bsort_r.3 bsort.3 bsort_b.3 bsort.3 bsort_s.3
 MLINKS+=qsort.3 heapsort.3 qsort.3 mergesort.3 qsort.3 qsort_r.3 \
 	qsort.3 qsort_s.3
 MLINKS+=rand.3 rand_r.3 rand.3 srand.3
