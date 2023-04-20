@@ -333,41 +333,41 @@ local function process_compat()
 
 	nval = nval << 1
 	for _, v in pairs(compat_options) do
-		if v["stdcompat"] ~= nil then
-			local stdcompat = v["stdcompat"]
-			v["definition"] = "COMPAT_" .. stdcompat:upper()
-			v["compatlevel"] = tonumber(stdcompat:match("([0-9]+)$"))
-			v["flag"] = stdcompat:gsub("FREEBSD", "COMPAT")
-			v["prefix"] = stdcompat:lower() .. "_"
-			v["descr"] = stdcompat:lower()
+		if v.stdcompat ~= nil then
+			local stdcompat = v.stdcompat
+			v.definition = "COMPAT_" .. stdcompat:upper()
+			v.compatlevel = tonumber(stdcompat:match("([0-9]+)$"))
+			v.flag = stdcompat:gsub("FREEBSD", "COMPAT")
+			v.prefix = stdcompat:lower() .. "_"
+			v.descr = stdcompat:lower()
 		end
 
-		local tmpname = "sys" .. v["flag"]:lower()
+		local tmpname = "sys" .. v.flag:lower()
 		local dcltmpname = tmpname .. "dcl"
 		files[tmpname] = io.tmpfile()
 		files[dcltmpname] = io.tmpfile()
-		v["tmp"] = tmpname
-		v["dcltmp"] = dcltmpname
+		v.tmp = tmpname
+		v.dcltmp = dcltmpname
 
-		known_flags[v["flag"]] = nval
-		v["mask"] = nval
+		known_flags[v.flag] = nval
+		v.mask = nval
 		nval = nval << 1
 
-		v["count"] = 0
+		v.count = 0
 	end
 end
 
 local function process_abi_flags()
-	local flags, mask = config["abi_flags"], 0
+	local flags, mask = config.abi_flags, 0
 	for txtflag in flags:gmatch("([^|]+)") do
 		if known_abi_flags[txtflag] == nil then
 			abort(1, "Unknown abi_flag: " .. txtflag)
 		end
 
-		mask = mask | known_abi_flags[txtflag]["value"]
+		mask = mask | known_abi_flags[txtflag].value
 	end
 
-	config["abi_flags_mask"] = mask
+	config.abi_flags_mask = mask
 end
 
 local function abi_changes(name)
@@ -375,11 +375,11 @@ local function abi_changes(name)
 		abort(1, "abi_changes: unknown flag: " .. name)
 	end
 
-	return config["abi_flags_mask"] & known_abi_flags[name]["value"] ~= 0
+	return config.abi_flags_mask & known_abi_flags[name].value ~= 0
 end
 
 local function strip_abi_prefix(funcname)
-	local abiprefix = config["abi_func_prefix"]
+	local abiprefix = config.abi_func_prefix
 	local stripped_name
 	if abiprefix ~= "" and funcname:find("^" .. abiprefix) then
 		stripped_name = funcname:gsub("^" .. abiprefix, "")
@@ -427,7 +427,7 @@ local process_syscall_def
 -- These patterns are processed in order on any line that isn't empty.
 local pattern_table = {
 	{
-		pattern = "%s*$" .. config['os_id_keyword'],
+		pattern = "%s*$" .. config.os_id_keyword,
 		process = function(_, _)
 			-- Ignore... ID tag
 		end,
@@ -503,9 +503,9 @@ local function process_sysfile(file)
 	local function do_match(nextline, prevline)
 		local pattern, handler, dump
 		for _, v in pairs(pattern_table) do
-			pattern = v['pattern']
-			handler = v['process']
-			dump = v['dump_prevline']
+			pattern = v.pattern
+			handler = v.process
+			dump = v.dump_prevline
 			if nextline:match(pattern) then
 				if dump and prevline then
 					process_syscall_def(prevline)
@@ -578,7 +578,7 @@ end
 
 local function check_abi_changes(arg)
 	for k, v in pairs(known_abi_flags) do
-		local expr = v["expr"]
+		local expr = v.expr
 		if abi_changes(k) and expr ~= nil and arg:find(expr) then
 			return true
 		end
@@ -606,7 +606,7 @@ local function process_args(args)
 
 		-- XX TODO: Forward declarations? See: sysstubfwd in CheriBSD
 		if abi_change then
-			local abi_type_suffix = config["abi_type_suffix"]
+			local abi_type_suffix = config.abi_type_suffix
 			argtype = argtype:gsub("_native ", "")
 			argtype = argtype:gsub("(struct [^ ]*)", "%1" ..
 			    abi_type_suffix)
@@ -628,7 +628,7 @@ local function handle_noncompat(sysnum, thr_flag, flags, sysflags, rettype,
     auditev, syscallret, funcname, funcalias, funcargs, argalias)
 	local argssize
 
-	if #funcargs > 0 or flags & known_flags["NODEF"] ~= 0 then
+	if #funcargs > 0 or flags & known_flags.NODEF ~= 0 then
 		argssize = "AS(" .. argalias .. ")"
 	else
 		argssize = "0"
@@ -654,8 +654,8 @@ local function handle_noncompat(sysnum, thr_flag, flags, sysflags, rettype,
 
 		local argtype, argname
 		for idx, arg in ipairs(funcargs) do
-			argtype = arg["type"]
-			argname = arg["name"]
+			argtype = arg.type
+			argname = arg.name
 
 			argtype = trim(argtype:gsub("__restrict$", ""), nil)
 			-- Pointer arg?
@@ -672,7 +672,7 @@ local function handle_noncompat(sysnum, thr_flag, flags, sysflags, rettype,
 			if isptrtype(argtype) then
 				write_line("systrace", string.format(
 				    "\t\tuarg[%d] = (%s)p->%s; /* %s */\n",
-				    idx - 1, config["ptr_intptr_t_cast"],
+				    idx - 1, config.ptr_intptr_t_cast,
 				    argname, argtype))
 			elseif argtype == "union l_semun" then
 				write_line("systrace", string.format(
@@ -708,7 +708,7 @@ local function handle_noncompat(sysnum, thr_flag, flags, sysflags, rettype,
 			write_line("sysarg", string.format("struct %s {\n",
 			    argalias))
 			for _, v in ipairs(funcargs) do
-				local argname, argtype = v["name"], v["type"]
+				local argname, argtype = v.name, v.type
 				write_line("sysarg", string.format(
 				    "\tchar %s_l_[PADL_(%s)]; %s %s; char %s_r_[PADR_(%s)];\n",
 				    argname, argtype,
@@ -738,14 +738,14 @@ local function handle_noncompat(sysnum, thr_flag, flags, sysflags, rettype,
 		end
 		write_line("sysdcl", ";\n")
 		write_line("sysaue", string.format("#define\t%sAUE_%s\t%s\n",
-		    config['syscallprefix'], funcalias, auditev))
+		    config.syscallprefix, funcalias, auditev))
 	end
 
 	write_line("sysent",
 	    string.format("\t{ .sy_narg = %s, .sy_call = (sy_call_t *)", argssize))
 	local column = 8 + 2 + #argssize + 15
 
-	if flags & known_flags["NOSTD"] ~= 0 then
+	if flags & known_flags.NOSTD ~= 0 then
 		write_line("sysent", string.format(
 		    "lkmressys, .sy_auevent = AUE_NULL, " ..
 		    ".sy_flags = %s, .sy_thrcnt = SY_THR_ABSENT },",
@@ -774,9 +774,9 @@ local function handle_noncompat(sysnum, thr_flag, flags, sysflags, rettype,
 	write_line("sysnames", string.format("\t\"%s\",\t\t\t/* %d = %s */\n",
 	    funcalias, sysnum, funcalias))
 
-	if flags & known_flags["NODEF"] == 0 then
+	if flags & known_flags.NODEF == 0 then
 		write_line("syshdr", string.format("#define\t%s%s\t%d\n",
-		    config['syscallprefix'], funcalias, sysnum))
+		    config.syscallprefix, funcalias, sysnum))
 		write_line("sysmk", string.format(" \\\n\t%s.o",
 		    funcalias))
 	end
@@ -801,36 +801,36 @@ local function handle_compat(sysnum, thr_flag, flags, sysflags, rettype,
     auditev, funcname, funcalias, funcargs, argalias)
 	local argssize, out, outdcl, wrap, prefix, descr
 
-	if #funcargs > 0 or flags & known_flags["NODEF"] ~= 0 then
+	if #funcargs > 0 or flags & known_flags.NODEF ~= 0 then
 		argssize = "AS(" .. argalias .. ")"
 	else
 		argssize = "0"
 	end
 
 	for _, v in pairs(compat_options) do
-		if flags & v["mask"] ~= 0 then
-			if config["mincompat"] > v["compatlevel"] then
+		if flags & v.mask ~= 0 then
+			if config.mincompat > v.compatlevel then
 				funcname = strip_abi_prefix(funcname)
-				funcname = v["prefix"] .. funcname
+				funcname = v.prefix .. funcname
 				return handle_obsol(sysnum, funcname, funcname)
 			end
-			v["count"] = v["count"] + 1
-			out = v["tmp"]
-			outdcl = v["dcltmp"]
-			wrap = v["flag"]:lower()
-			prefix = v["prefix"]
-			descr = v["descr"]
+			v.count = v.count + 1
+			out = v.tmp
+			outdcl = v.dcltmp
+			wrap = v.flag:lower()
+			prefix = v.prefix
+			descr = v.descr
 			goto compatdone
 		end
 	end
 
 	::compatdone::
 	local dprotoflags = get_mask({"NOPROTO", "NODEF"})
-	local nargflags = dprotoflags | known_flags["NOARGS"]
+	local nargflags = dprotoflags | known_flags.NOARGS
 	if #funcargs > 0 and flags & nargflags == 0 then
 		write_line(out, string.format("struct %s {\n", argalias))
 		for _, v in ipairs(funcargs) do
-			local argname, argtype = v["name"], v["type"]
+			local argname, argtype = v.name, v.type
 			write_line(out, string.format(
 			    "\tchar %s_l_[PADL_(%s)]; %s %s; char %s_r_[PADR_(%s)];\n",
 			    argname, argtype,
@@ -847,11 +847,11 @@ local function handle_compat(sysnum, thr_flag, flags, sysflags, rettype,
 		    "%s\t%s%s(struct thread *, struct %s *);\n",
 		    rettype, prefix, funcname, argalias))
 		write_line("sysaue", string.format(
-		    "#define\t%sAUE_%s%s\t%s\n", config['syscallprefix'],
+		    "#define\t%sAUE_%s%s\t%s\n", config.syscallprefix,
 		    prefix, funcname, auditev))
 	end
 
-	if flags & known_flags['NOSTD'] ~= 0 then
+	if flags & known_flags.NOSTD ~= 0 then
 		write_line("sysent", string.format(
 		    "\t{ .sy_narg = %s, .sy_call = (sy_call_t *)%s, " ..
 		    ".sy_auevent = %s, .sy_flags = 0, " ..
@@ -878,9 +878,9 @@ local function handle_compat(sysnum, thr_flag, flags, sysflags, rettype,
 		write_line("syshdr", string.format(
 		    "\t\t\t\t/* %d is %s %s */\n",
 		    sysnum, descr, funcalias))
-	elseif flags & known_flags["NODEF"] == 0 then
+	elseif flags & known_flags.NODEF == 0 then
 		write_line("syshdr", string.format("#define\t%s%s%s\t%d\n",
-		    config['syscallprefix'], prefix, funcalias, sysnum))
+		    config.syscallprefix, prefix, funcalias, sysnum))
 		write_line("sysmk", string.format(" \\\n\t%s%s.o",
 		    prefix, funcalias))
 	end
@@ -958,7 +958,7 @@ process_syscall_def = function(line)
 		abort(1, "Range only allowed with RESERVED and UNIMPL: " .. line)
 	end
 
-	if (flags & known_flags["NOTSTATIC"]) ~= 0 then
+	if (flags & known_flags.NOTSTATIC) ~= 0 then
 		thr_flag = "SY_THR_ABSENT"
 	end
 
@@ -1052,16 +1052,16 @@ process_syscall_def = function(line)
 	sysflags = "0"
 
 	-- NODEF events do not get audited
-	if flags & known_flags['NODEF'] ~= 0 then
+	if flags & known_flags.NODEF ~= 0 then
 		auditev = 'AUE_NULL'
 	end
 
 	-- If applicable; strip the ABI prefix from the name
 	local stripped_name = strip_abi_prefix(funcname)
 
-	if flags & known_flags['CAPENABLED'] ~= 0 or
-	    config["capenabled"][funcname] ~= nil or
-	    config["capenabled"][stripped_name] ~= nil then
+	if flags & known_flags.CAPENABLED ~= 0 or
+	    config.capenabled[funcname] ~= nil or
+	    config.capenabled[stripped_name] ~= nil then
 		sysflags = "SYF_CAPENABLED"
 	end
 
@@ -1073,11 +1073,11 @@ process_syscall_def = function(line)
 	local argprefix = ''
 	if abi_changes("pointer_args") then
 		for _, v in ipairs(funcargs) do
-			if isptrtype(v["type"]) then
+			if isptrtype(v.type) then
 				-- argalias should be:
 				--   COMPAT_PREFIX + ABI Prefix + funcname
-				argprefix = config['abi_func_prefix']
-				funcalias = config['abi_func_prefix'] ..
+				argprefix = config.abi_func_prefix
+				funcalias = config.abi_func_prefix ..
 				    funcname
 				goto ptrfound
 			end
@@ -1091,11 +1091,11 @@ process_syscall_def = function(line)
 	if argalias == nil and funcname ~= nil then
 		argalias = argprefix .. funcname .. "_args"
 		for _, v in pairs(compat_options) do
-			local mask = v["mask"]
+			local mask = v.mask
 			if (flags & mask) ~= 0 then
 				-- Multiple aliases doesn't seem to make
 				-- sense.
-				argalias = v["prefix"] .. argalias
+				argalias = v.prefix .. argalias
 				goto out
 			end
 		end
@@ -1109,7 +1109,7 @@ process_syscall_def = function(line)
 	local compatflags = get_mask_pat("COMPAT.*")
 	-- Now try compat...
 	if flags & compatflags ~= 0 then
-		if flags & known_flags['STD'] ~= 0 then
+		if flags & known_flags.STD ~= 0 then
 			abort(1, "Incompatible COMPAT/STD: " .. line)
 		end
 		handle_compat(sysnum, thr_flag, flags, sysflags, rettype,
@@ -1118,11 +1118,11 @@ process_syscall_def = function(line)
 		handle_noncompat(sysnum, thr_flag, flags, sysflags, rettype,
 		    auditev, syscallret, funcname, funcalias, funcargs,
 		    argalias)
-	elseif flags & known_flags["OBSOL"] ~= 0 then
+	elseif flags & known_flags.OBSOL ~= 0 then
 		handle_obsol(sysnum, funcname, funcomment)
-	elseif flags & known_flags["RESERVED"] ~= 0 then
+	elseif flags & known_flags.RESERVED ~= 0 then
 		handle_reserved(sysnum, sysstart, sysend)
-	elseif flags & known_flags["UNIMPL"] ~= 0 then
+	elseif flags & known_flags.UNIMPL ~= 0 then
 		handle_unimpl(sysnum, sysstart, sysend, funcomment)
 	else
 		abort(1, "Bad flags? " .. line)
@@ -1157,18 +1157,18 @@ if configfile ~= nil then
 end
 
 -- We ignore errors here if we're relying on the default configuration.
-if not config_modified["capenabled"] then
-	config["capenabled"] = grab_capenabled(config['capabilities_conf'],
-	    config_modified["capabilities_conf"] == nil)
-elseif config["capenabled"] ~= "" then
+if not config_modified.capenabled then
+	config.capenabled = grab_capenabled(config.capabilities_conf,
+	    config_modified.capabilities_conf == nil)
+elseif config.capenabled ~= "" then
 	-- Due to limitations in the config format mostly, we'll have a comma
 	-- separated list.  Parse it into lines
 	local capenabled = {}
-	-- print("here: " .. config["capenabled"])
-	for sysc in config["capenabled"]:gmatch("([^,]+)") do
+	-- print("here: " .. config.capenabled)
+	for sysc in config.capenabled:gmatch("([^,]+)") do
 		capenabled[sysc] = true
 	end
-	config["capenabled"] = capenabled
+	config.capenabled = capenabled
 end
 process_compat()
 process_abi_flags()
@@ -1203,7 +1203,7 @@ write_line("sysent", string.format([[
 
 /* The casts are bogus but will do for now. */
 struct sysent %s[] = {
-]], config['switchname']))
+]], config.switchname))
 
 write_line("syssw", string.format([[/*
  * System call switch table.
@@ -1212,7 +1212,7 @@ write_line("syssw", string.format([[/*
  * $%s$
  */
 
-]], generated_tag, config['os_id_keyword']))
+]], generated_tag, config.os_id_keyword))
 
 write_line("sysarg", string.format([[/*
  * System call prototypes.
@@ -1250,10 +1250,10 @@ struct thread;
 #define	PADR_(t)	0
 #endif
 
-]], generated_tag, config['os_id_keyword'], config['sysproto_h'],
-    config['sysproto_h']))
+]], generated_tag, config.os_id_keyword, config.sysproto_h,
+    config.sysproto_h))
 for _, v in pairs(compat_options) do
-	write_line(v["tmp"], string.format("\n#ifdef %s\n\n", v["definition"]))
+	write_line(v.tmp, string.format("\n#ifdef %s\n\n", v.definition))
 end
 
 write_line("sysnames", string.format([[/*
@@ -1264,7 +1264,7 @@ write_line("sysnames", string.format([[/*
  */
 
 const char *%s[] = {
-]], generated_tag, config['os_id_keyword'], config['namesname']))
+]], generated_tag, config.os_id_keyword, config.namesname))
 
 write_line("syshdr", string.format([[/*
  * System call numbers.
@@ -1273,12 +1273,12 @@ write_line("syshdr", string.format([[/*
  * $%s$
  */
 
-]], generated_tag, config['os_id_keyword']))
+]], generated_tag, config.os_id_keyword))
 
 write_line("sysmk", string.format([[# FreeBSD system call object files.
 # DO NOT EDIT-- this file is automatically %s.
 # $%s$
-MIASM = ]], generated_tag, config['os_id_keyword']))
+MIASM = ]], generated_tag, config.os_id_keyword))
 
 write_line("systrace", string.format([[/*
  * System call argument to DTrace register array converstion.
@@ -1293,7 +1293,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 {
 	int64_t *iarg = (int64_t *)uarg;
 	switch (sysnum) {
-]], generated_tag, config['os_id_keyword']))
+]], generated_tag, config.os_id_keyword))
 
 write_line("systracetmp", [[static void
 systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
@@ -1318,7 +1318,7 @@ write_line("sysinc",
     "\n#define AS(name) (sizeof(struct name) / sizeof(register_t))\n")
 
 for _, v in pairs(compat_options) do
-	if v["count"] > 0 then
+	if v.count > 0 then
 		write_line("sysinc", string.format([[
 
 #ifdef %s
@@ -1326,11 +1326,11 @@ for _, v in pairs(compat_options) do
 #else
 #define %s(n, name) .sy_narg = 0, .sy_call = (sy_call_t *)nosys
 #endif
-]], v["definition"], v["flag"]:lower(), v["prefix"], v["flag"]:lower()))
+]], v.definition, v.flag:lower(), v.prefix, v.flag:lower()))
 	end
 
-	write_line(v["dcltmp"], string.format("\n#endif /* %s */\n\n",
-	    v["definition"]))
+	write_line(v.dcltmp, string.format("\n#endif /* %s */\n\n",
+	    v.definition))
 end
 
 write_line("sysprotoend", string.format([[
@@ -1340,14 +1340,14 @@ write_line("sysprotoend", string.format([[
 #undef PADR_
 
 #endif /* !%s */
-]], config["sysproto_h"]))
+]], config.sysproto_h))
 
 write_line("sysmk", "\n")
 write_line("sysent", "};\n")
 write_line("sysnames", "};\n")
 -- maxsyscall is the highest seen; MAXSYSCALL should be one higher
 write_line("syshdr", string.format("#define\t%sMAXSYSCALL\t%d\n",
-    config["syscallprefix"], maxsyscall + 1))
+    config.syscallprefix, maxsyscall + 1))
 write_line("systrace", [[
 	default:
 		*n_args = 0;
@@ -1381,8 +1381,8 @@ write_line("syssw", read_file("sysent"))
 write_line("sysproto", read_file("sysarg"))
 write_line("sysproto", read_file("sysdcl"))
 for _, v in pairs(compat_options) do
-	write_line("sysproto", read_file(v["tmp"]))
-	write_line("sysproto", read_file(v["dcltmp"]))
+	write_line("sysproto", read_file(v.tmp))
+	write_line("sysproto", read_file(v.dcltmp))
 end
 write_line("sysproto", read_file("sysaue"))
 write_line("sysproto", read_file("sysprotoend"))
