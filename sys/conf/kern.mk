@@ -226,7 +226,9 @@ CFLAGS.gcc+=	-mabi=elfv2
 .else
 CFLAGS.gcc+=	-mcall-aixdesc
 .endif
+.if ${COMPILER_VERSION} < 160000
 CFLAGS.clang+=	-mabi=elfv2
+.endif
 .endif
 
 #
