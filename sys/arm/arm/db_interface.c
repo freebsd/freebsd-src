@@ -180,10 +180,7 @@ db_validate_address(vm_offset_t addr)
  * Read bytes from kernel address space for debugger.
  */
 int
-db_read_bytes(addr, size, data)
-	vm_offset_t	addr;
-	size_t	size;
-	char	*data;
+db_read_bytes(vm_offset_t addr, size_t size, char *data)
 {
 	char	*src = (char *)addr;
 
