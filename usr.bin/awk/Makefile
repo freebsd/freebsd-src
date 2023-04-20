@@ -25,9 +25,11 @@ awkgram.tab.h: awkgram.h
 proctab.c: maketab awkgram.tab.h
 	${BTOOLSPATH:U.}/maketab awkgram.tab.h > proctab.c
 
+.if ${MACHINE} == "host" || ${MK_DIRDEPS_BUILD} == "no"
 DEPENDOBJS+= maketab
 build-tools: maketab
 maketab: awkgram.tab.h ${BUILD_TOOLS_META}
+.endif
 
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
