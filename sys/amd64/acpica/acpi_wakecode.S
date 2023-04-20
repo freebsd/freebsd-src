@@ -30,9 +30,9 @@
  */
 
 #include <machine/asmacros.h>
-#include <machine/ppireg.h>
 #include <machine/specialreg.h>
 #include <machine/timerreg.h>
+#include <x86/ppireg.h>
 
 #include "assym.inc"
 
