@@ -113,7 +113,7 @@
 /* #undef DISABLE_FD_PASSING */
 
 /* Define if you don't want to use lastlog */
-#define DISABLE_LASTLOG 1
+/* #undef DISABLE_LASTLOG */
 
 /* Define if you don't want to use your system's login() call */
 /* #undef DISABLE_LOGIN */
