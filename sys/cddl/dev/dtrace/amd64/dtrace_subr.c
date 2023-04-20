@@ -449,7 +449,7 @@ dtrace_trap(struct trapframe *frame, u_int type)
 			 * Offset the instruction pointer to the instruction
 			 * following the one causing the fault.
 			 */
-			frame->tf_rip += dtrace_instr_size((u_char *) frame->tf_rip);
+			frame->tf_rip += dtrace_instr_size((uint8_t *) frame->tf_rip);
 			return (1);
 		/* Page fault. */
 		case T_PAGEFLT:
@@ -461,7 +461,7 @@ dtrace_trap(struct trapframe *frame, u_int type)
 			 * Offset the instruction pointer to the instruction
 			 * following the one causing the fault.
 			 */
-			frame->tf_rip += dtrace_instr_size((u_char *) frame->tf_rip);
+			frame->tf_rip += dtrace_instr_size((uint8_t *) frame->tf_rip);
 			return (1);
 		default:
 			/* Handle all other traps in the usual way. */

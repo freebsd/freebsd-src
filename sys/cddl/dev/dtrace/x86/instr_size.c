@@ -49,8 +49,8 @@
 
 typedef	u_int			model_t;
 #define	DATAMODEL_NATIVE	0
-int dtrace_instr_size(uchar_t *);
-int dtrace_instr_size_isa(uchar_t *, model_t, int *);
+int dtrace_instr_size(uint8_t *);
+int dtrace_instr_size_isa(uint8_t *, model_t, int *);
 #endif
 
 #include <dis_tables.h>
@@ -83,7 +83,7 @@ static int
 dtrace_dis_get_byte(void *p)
 {
 	int ret;
-	uchar_t **instr = p;
+	uint8_t **instr = p;
 
 	ret = **instr;
 	*instr += 1;
@@ -101,7 +101,7 @@ dtrace_dis_get_byte(void *p)
  */
 /* ARGSUSED2 */
 static int
-dtrace_dis_isize(uchar_t *instr, dis_isize_t which, model_t model, int *rmindex)
+dtrace_dis_isize(uint8_t *instr, dis_isize_t which, model_t model, int *rmindex)
 {
 	int sz;
 	dis86_t	x;
@@ -127,13 +127,13 @@ dtrace_dis_isize(uchar_t *instr, dis_isize_t which, model_t model, int *rmindex)
 }
 
 int
-dtrace_instr_size_isa(uchar_t *instr, model_t model, int *rmindex)
+dtrace_instr_size_isa(uint8_t *instr, model_t model, int *rmindex)
 {
 	return (dtrace_dis_isize(instr, DIS_ISIZE_INSTR, model, rmindex));
 }
 
 int
-dtrace_instr_size(uchar_t *instr)
+dtrace_instr_size(uint8_t *instr)
 {
 	return (dtrace_dis_isize(instr, DIS_ISIZE_INSTR, DATAMODEL_NATIVE,
 	    NULL));
