@@ -834,7 +834,7 @@ tcp_packets_this_ack(struct tcpcb *tp, tcp_seq ack)
 #define	TF2_ACE_PERMIT		0x00000100 /* Accurate ECN mode */
 #define	TF2_FBYTES_COMPLETE	0x00000400 /* We have first bytes in and out */
 #define	TF2_ECN_USE_ECT1	0x00000800 /* Use ECT(1) marking on session */
-#define TF2_TCP_ACCOUNTING	0x00010000 /* Do TCP accounting */
+#define TF2_TCP_ACCOUNTING	0x00001000 /* Do TCP accounting */
 
 /*
  * Structure to hold TCP options that are only used during segment
