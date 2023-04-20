@@ -31,8 +31,8 @@
 
 #include <machine/asmacros.h>
 #include <machine/specialreg.h>
-#include <machine/timerreg.h>
 #include <x86/ppireg.h>
+#include <x86/timerreg.h>
 
 #include "assym.inc"
 
