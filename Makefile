@@ -119,6 +119,16 @@
 # For more information, see the build(7) manual page.
 #
 
+# Include jobs.mk early if we need it.
+# It will turn:
+# 	make buildworld-jobs
+# into
+# 	make -j${JOB_MAX} buildworld > ../buildworld.log 2>&1
+#
+.if make(*-jobs)
+.include <jobs.mk>
+.endif
+
 .if defined(UNIVERSE_TARGET) || defined(MAKE_JUST_WORLDS) || defined(WITHOUT_KERNELS)
 __DO_KERNELS=no
 .endif
