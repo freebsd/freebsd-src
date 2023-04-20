@@ -126,10 +126,6 @@ FBSD_1.6 {
 };
 
 FBSD_1.7 {
-	bsort;
-	bsort_b;
-	bsort_r;
-	bsort_s;
 	clearenv;
 	qsort_r;
 	secure_getenv;
