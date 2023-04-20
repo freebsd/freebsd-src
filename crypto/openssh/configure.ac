@@ -1037,6 +1037,7 @@ mips-sony-bsd|mips-sony-newsos4)
 	    [NetBSD read function is sometimes redirected, breaking atomicio comparisons against it])
 	;;
 *-*-freebsd*)
+	SKIP_DISABLE_LASTLOG_DEFINE=yes
 	AC_DEFINE([LOCKED_PASSWD_PREFIX], ["*LOCKED*"], [Account locked with pw(1)])
 	AC_DEFINE([SSH_TUN_FREEBSD], [1], [Open tunnel devices the FreeBSD way])
 	AC_CHECK_HEADER([net/if_tap.h], ,
