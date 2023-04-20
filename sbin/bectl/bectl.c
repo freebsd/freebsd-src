@@ -67,23 +67,23 @@ usage(bool explicit)
 	fprintf(fp, "%s",
 	    "Usage:\tbectl {-h | -? | subcommand [args...]}\n"
 #if SOON
-	    "\tbectl add (path)*\n"
+	    "\tbectl [-r beroot] add (path)*\n"
 #endif
-	    "\tbectl activate [-t] beName\n"
-	    "\tbectl activate [-T]\n"
-	    "\tbectl check\n"
-	    "\tbectl create [-r] [-e {nonActiveBe | beName@snapshot}] beName\n"
-	    "\tbectl create [-r] beName@snapshot\n"
-	    "\tbectl destroy [-Fo] {beName | beName@snapshot}\n"
-	    "\tbectl export sourceBe\n"
-	    "\tbectl import targetBe\n"
-	    "\tbectl jail [-bU] [{-o key=value | -u key}]... beName\n"
+	    "\tbectl [-r beroot] activate [-t] beName\n"
+	    "\tbectl [-r beroot] activate [-T]\n"
+	    "\tbectl [-r beroot] check\n"
+	    "\tbectl [-r beroot] create [-r] [-e {nonActiveBe | beName@snapshot}] beName\n"
+	    "\tbectl [-r beroot] create [-r] beName@snapshot\n"
+	    "\tbectl [-r beroot] destroy [-Fo] {beName | beName@snapshot}\n"
+	    "\tbectl [-r beroot] export sourceBe\n"
+	    "\tbectl [-r beroot] import targetBe\n"
+	    "\tbectl [-r beroot] jail [-bU] [{-o key=value | -u key}]... beName\n"
 	    "\t      [utility [argument ...]]\n"
-	    "\tbectl list [-aDHs] [{-c property | -C property}]\n"
-	    "\tbectl mount beName [mountpoint]\n"
-	    "\tbectl rename origBeName newBeName\n"
-	    "\tbectl {ujail | unjail} {jailID | jailName | beName}\n"
-	    "\tbectl {umount | unmount} [-f] beName\n");
+	    "\tbectl [-r beroot] list [-aDHs] [{-c property | -C property}]\n"
+	    "\tbectl [-r beroot] mount beName [mountpoint]\n"
+	    "\tbectl [-r beroot] rename origBeName newBeName\n"
+	    "\tbectl [-r beroot] {ujail | unjail} {jailID | jailName | beName}\n"
+	    "\tbectl [-r beroot] {umount | unmount} [-f] beName\n");
 
 	return (explicit ? 0 : EX_USAGE);
 }

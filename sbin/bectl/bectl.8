@@ -15,7 +15,7 @@
 .\"
 .\"     @(#)be.1
 .\"
-.Dd March 31, 2022
+.Dd April 26, 2023
 .Dt BECTL 8
 .Os
 .Sh NAME
@@ -23,54 +23,67 @@
 .Nd Utility to manage boot environments on ZFS
 .Sh SYNOPSIS
 .Nm
+.Op Fl r Ar beroot
 .Cm activate
 .Op Fl t | Fl T
 .Ar beName
 .Nm
+.Op Fl r Ar beroot
 .Cm check
 .Nm
+.Op Fl r Ar beroot
 .Cm create
 .Op Fl r
 .Op Fl e Brq Ar nonActiveBe | Ar beName Ns Cm @ Ns Ar snapshot
 .Ar newBeName
 .Nm
+.Op Fl r Ar beroot
 .Cm create
 .Op Fl r
 .Ar beName@snapshot
 .Nm
+.Op Fl r Ar beroot
 .Cm destroy
 .Op Fl \&Fo
 .Ar beName Ns Op Cm @ Ns Ar snapshot
 .Nm
+.Op Fl r Ar beroot
 .Cm export
 .Ar sourceBe
 .Nm
+.Op Fl r Ar beroot
 .Cm import
 .Ar targetBe
 .Nm
+.Op Fl r Ar beroot
 .Cm jail
 .Op Fl bU
 .Oo Bro Fl o Ar key Ns Cm = Ns Ar value | Fl u Ar key Brc Oc Ns ...
 .Ar beName
 .Op Ar utility Op Ar argument ...
 .Nm
+.Op Fl r Ar beroot
 .Cm list
 .Op Fl aDHs
 .Op Fl c Ar property
 .Op Fl C Ar property
 .Oo Bro Fl c Ar property | Fl C Ar property Brc Oc
 .Nm
+.Op Fl r Ar beroot
 .Cm mount
 .Ar beName
 .Op Ar mountpoint
 .Nm
+.Op Fl r Ar beroot
 .Cm rename
 .Ar origBeName
 .Ar newBeName
 .Nm
+.Op Fl r Ar beroot
 .Brq Cm ujail | unjail
 .Brq Ar jailId | jailName | beName
 .Nm
+.Op Fl r Ar beroot
 .Brq Cm umount | unmount
 .Op Fl f
 .Ar beName
@@ -86,6 +99,23 @@ bootable clones of datasets.
 Boot environments
 allow the system to be upgraded, while preserving the old system environment in
 a separate ZFS dataset.
+.Pp
+.Nm
+itself accepts an
+.Fl r
+flag specified before the command to indicate the
+.Ar beroot
+that should be used as the boot environment root, or the dataset whose children
+are all boot environments.
+Normally this information is derived from the bootfs property of the pool that
+is mounted at
+.Pa / ,
+but it is useful when the system has not been booted into a ZFS root or a
+different pool should be operated on.
+For instance, booting into the recovery media and manually importing a pool from
+one of the system's resident disks will require the
+.Fl r
+flag to work.
 .Pp
 The following commands are supported by
 .Nm :
@@ -139,11 +169,13 @@ flag is specified, the new environment will be cloned from the given
 .Ar nonActiveBe
 or
 .Ar beName Ns Cm @ Ns Ar snapshot .
-Otherwise, the new environment will be created from the currently booted environment.
+Otherwise, the new environment will be created from the currently booted
+environment.
 .Pp
 If
 .Nm
-is creating from another boot environment, a snapshot of that boot environment will be created to clone from.
+is creating from another boot environment, a snapshot of that boot environment
+will be created to clone from.
 .It Xo
 .Cm create
 .Op Fl r
@@ -274,7 +306,6 @@ is used on next boot once
 .Pq Em \&T ;
 or combination of
 .Pq Em \&NRT .
-.Pp
 .Bl -tag -width indent
 .It Fl a
 Display all datasets.
