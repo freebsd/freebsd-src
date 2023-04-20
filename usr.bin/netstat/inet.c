@@ -383,16 +383,9 @@ protopr(u_long off, const char *name, int af1, int proto)
 		if (Lflag && so->so_qlimit == 0)
 			continue;
 		xo_open_instance("socket");
-		if (Aflag) {
-			if (istcp)
-				xo_emit("{q:address/%*lx} ",
-				    2 * (int)sizeof(void *),
-				    (u_long)inp->inp_ppcb);
-			else
-				xo_emit("{q:address/%*lx} ",
-				    2 * (int)sizeof(void *),
-				    (u_long)so->so_pcb);
-		}
+		if (Aflag)
+			xo_emit("{q:address/%*lx} ", 2 * (int)sizeof(void *),
+			    (u_long)so->so_pcb);
 #ifdef INET6
 		if ((inp->inp_vflag & INP_IPV6) != 0)
 			vchar = ((inp->inp_vflag & INP_IPV4) != 0) ?
