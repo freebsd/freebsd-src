@@ -1993,12 +1993,14 @@ void iwl_mvm_ftm_restart_responder(struct iwl_mvm *mvm,
 				   struct ieee80211_vif *vif);
 void iwl_mvm_ftm_responder_stats(struct iwl_mvm *mvm,
 				 struct iwl_rx_cmd_buffer *rxb);
+#if defined(__linux__)
 int iwl_mvm_ftm_resp_remove_pasn_sta(struct iwl_mvm *mvm,
 				     struct ieee80211_vif *vif, u8 *addr);
 int iwl_mvm_ftm_respoder_add_pasn_sta(struct iwl_mvm *mvm,
 				      struct ieee80211_vif *vif,
 				      u8 *addr, u32 cipher, u8 *tk, u32 tk_len,
 				      u8 *hltk, u32 hltk_len);
+#endif
 void iwl_mvm_ftm_responder_clear(struct iwl_mvm *mvm,
 				 struct ieee80211_vif *vif);
 

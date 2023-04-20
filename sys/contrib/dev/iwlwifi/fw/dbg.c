@@ -1459,6 +1459,9 @@ static int iwl_dump_ini_rxf_iter(struct iwl_fw_runtime *fwrt,
 	__le32 *data;
 	int i;
 
+#if defined(__FreeBSD__)
+	rxf_data.size = 0;
+#endif
 	iwl_ini_get_rxf_data(fwrt, reg_data, &rxf_data);
 	if (!rxf_data.size)
 		return -EIO;
@@ -1984,6 +1987,9 @@ static u32 iwl_dump_ini_rxf_get_size(struct iwl_fw_runtime *fwrt,
 	if (reg->fifos.hdr_only)
 		return size;
 
+#if defined(__FreeBSD__)
+	rx_data.size = 0;
+#endif
 	iwl_ini_get_rxf_data(fwrt, reg_data, &rx_data);
 	size += rx_data.size;
 
