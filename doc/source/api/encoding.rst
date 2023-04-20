@@ -6,6 +6,10 @@ The easiest way to encode data items is using the :func:`cbor_serialize` or :fun
 .. doxygenfunction:: cbor_serialize
 .. doxygenfunction:: cbor_serialize_alloc
 
+To determine the number of bytes needed to serialize an item, use :func:`cbor_serialized_size`:
+
+.. doxygenfunction:: cbor_serialized_size
+
 Type-specific serializers
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 In case you know the type of the item you want to serialize beforehand, you can use one

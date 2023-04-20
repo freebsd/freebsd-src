@@ -45,6 +45,8 @@ typedef enum {
   CBOR_ERR_NONE,
   CBOR_ERR_NOTENOUGHDATA,
   CBOR_ERR_NODATA,
+  // TODO: Should be "malformed" or at least "malformatted". Retained for
+  // backwards compatibility.
   CBOR_ERR_MALFORMATED,
   CBOR_ERR_MEMERROR /** Memory error - item allocation failed. Is it too big for
                        your allocator? */
@@ -85,6 +87,11 @@ typedef enum {
   CBOR_CTRL_NULL = 22,
   CBOR_CTRL_UNDEF = 23
 } _cbor_ctrl;
+
+// Metadata items use size_t (instead of uint64_t) because items in memory take
+// up at least 1B per entry or string byte, so if size_t is narrower than
+// uint64_t, we wouldn't be able to create them in the first place and can save
+// some space.
 
 /** Integers specific metadata */
 struct _cbor_int_metadata {
@@ -184,7 +191,7 @@ struct cbor_indefinite_string_data {
 
 /** High-level decoding error */
 struct cbor_error {
-  /** Aproximate position */
+  /** Approximate position */
   size_t position;
   /** Description */
   cbor_error_code code;
@@ -212,6 +219,8 @@ enum cbor_decoder_status {
    */
   CBOR_DECODER_FINISHED,
   /** Not enough data to invoke a callback */
+  // TODO: The name is inconsistent with CBOR_ERR_NOTENOUGHDATA. Retained for
+  // backwards compatibility.
   CBOR_DECODER_NEDATA,
   /** Bad data (reserved MTB, malformed value, etc.)  */
   CBOR_DECODER_ERROR

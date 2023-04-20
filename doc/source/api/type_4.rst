@@ -2,6 +2,11 @@ Type 4 – Arrays
 =============================
 
 CBOR arrays, just like :doc:`byte strings <type_2>` and :doc:`strings <type_3>`, can be encoded either as definite, or as indefinite.
+Definite arrays have a fixed size which is stored in the header, whereas indefinite arrays do not and are terminated by a special "break" byte instead.
+
+Arrays are explicitly created or decoded as definite or indefinite and will be encoded using the corresponding wire representation, regardless of whether the actual size is known at the time of encoding.
+
+.. note:: Indefinite arrays can be conveniently used with streaming :doc:`decoding <streaming_decoding>` and :doc:`encoding <streaming_encoding>`.
 
 ==================================  =====================================================================================
 Corresponding :type:`cbor_type`     ``CBOR_TYPE_ARRAY``
@@ -28,10 +33,6 @@ Examples
     0x20        Unsigned integer 32
         ...        32 items follow
 
-Streaming indefinite arrays
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Please refer to :doc:`/streaming`.
 
 Getting metadata
 ~~~~~~~~~~~~~~~~~

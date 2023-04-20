@@ -33,8 +33,8 @@ size_t _cbor_encode_uint16(uint16_t value, unsigned char *buffer,
 #ifdef IS_BIG_ENDIAN
     memcpy(buffer + 1, &value, 2);
 #else
-    buffer[1] = value >> 8;
-    buffer[2] = value;
+    buffer[1] = (unsigned char)(value >> 8);
+    buffer[2] = (unsigned char)value;
 #endif
 
     return 3;
@@ -50,10 +50,10 @@ size_t _cbor_encode_uint32(uint32_t value, unsigned char *buffer,
 #ifdef IS_BIG_ENDIAN
     memcpy(buffer + 1, &value, 4);
 #else
-    buffer[1] = value >> 24;
-    buffer[2] = value >> 16;
-    buffer[3] = value >> 8;
-    buffer[4] = value;
+    buffer[1] = (unsigned char)(value >> 24);
+    buffer[2] = (unsigned char)(value >> 16);
+    buffer[3] = (unsigned char)(value >> 8);
+    buffer[4] = (unsigned char)value;
 #endif
 
     return 5;
@@ -69,14 +69,14 @@ size_t _cbor_encode_uint64(uint64_t value, unsigned char *buffer,
 #ifdef IS_BIG_ENDIAN
     memcpy(buffer + 1, &value, 8);
 #else
-    buffer[1] = value >> 56;
-    buffer[2] = value >> 48;
-    buffer[3] = value >> 40;
-    buffer[4] = value >> 32;
-    buffer[5] = value >> 24;
-    buffer[6] = value >> 16;
-    buffer[7] = value >> 8;
-    buffer[8] = value;
+    buffer[1] = (unsigned char)(value >> 56);
+    buffer[2] = (unsigned char)(value >> 48);
+    buffer[3] = (unsigned char)(value >> 40);
+    buffer[4] = (unsigned char)(value >> 32);
+    buffer[5] = (unsigned char)(value >> 24);
+    buffer[6] = (unsigned char)(value >> 16);
+    buffer[7] = (unsigned char)(value >> 8);
+    buffer[8] = (unsigned char)value;
 #endif
 
     return 9;

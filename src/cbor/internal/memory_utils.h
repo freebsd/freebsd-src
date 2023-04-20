@@ -11,8 +11,19 @@
 #include <stdbool.h>
 #include <string.h>
 
-/** Can a and b be multiplied without overflowing size_t? */
+#include "cbor/common.h"
+
+/** Can `a` and `b` be multiplied without overflowing size_t? */
+_CBOR_NODISCARD
 bool _cbor_safe_to_multiply(size_t a, size_t b);
+
+/** Can `a` and `b` be added without overflowing size_t? */
+_CBOR_NODISCARD
+bool _cbor_safe_to_add(size_t a, size_t b);
+
+/** Adds `a` and `b`, propagating zeros and returing 0 on overflow. */
+_CBOR_NODISCARD
+size_t _cbor_safe_signaling_add(size_t a, size_t b);
 
 /** Overflow-proof contiguous array allocation
  *

@@ -26,6 +26,10 @@ struct _cbor_decoder_context {
   struct _cbor_stack *stack;
 };
 
+/** Internal helper: Append item to the top of the stack while handling errors.
+ */
+void _cbor_builder_append(cbor_item_t *item, struct _cbor_decoder_context *ctx);
+
 void cbor_builder_uint8_callback(void *, uint8_t);
 
 void cbor_builder_uint16_callback(void *, uint16_t);
@@ -42,19 +46,19 @@ void cbor_builder_negint32_callback(void *, uint32_t);
 
 void cbor_builder_negint64_callback(void *, uint64_t);
 
-void cbor_builder_string_callback(void *, cbor_data, size_t);
+void cbor_builder_string_callback(void *, cbor_data, uint64_t);
 
 void cbor_builder_string_start_callback(void *);
 
-void cbor_builder_byte_string_callback(void *, cbor_data, size_t);
+void cbor_builder_byte_string_callback(void *, cbor_data, uint64_t);
 
 void cbor_builder_byte_string_start_callback(void *);
 
-void cbor_builder_array_start_callback(void *, size_t);
+void cbor_builder_array_start_callback(void *, uint64_t);
 
 void cbor_builder_indef_array_start_callback(void *);
 
-void cbor_builder_map_start_callback(void *, size_t);
+void cbor_builder_map_start_callback(void *, uint64_t);
 
 void cbor_builder_indef_map_start_callback(void *);
 

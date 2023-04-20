@@ -1,2 +1,9 @@
 ignore:
-  - "test/stream_expectations.c"  # Function pointers are not resolved correctly
+  - "test"
+  - "examples"
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%  # Don't fail CI on trivial changes and Codecov flakiness

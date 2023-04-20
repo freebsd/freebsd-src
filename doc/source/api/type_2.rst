@@ -27,11 +27,6 @@ Storage requirements (indefinite)   ``sizeof(cbor_item_t) * (1 + chunk_count) + 
 ==================================  ======================================================
 
 
-Streaming indefinite byte strings
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Please refer to :doc:`/streaming`.
-
 Getting metadata
 ~~~~~~~~~~~~~~~~~
 
