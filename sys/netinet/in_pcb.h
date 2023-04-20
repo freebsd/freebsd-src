@@ -45,13 +45,13 @@
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #include <sys/_rwlock.h>
+#include <sys/_smr.h>
 #include <net/route.h>
 
 #ifdef _KERNEL
 #include <sys/lock.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
-#include <sys/smr.h>
 #include <sys/sysctl.h>
 #include <net/vnet.h>
 #include <vm/uma.h>
@@ -215,7 +215,8 @@ struct inpcbpolicy;
 struct m_snd_tag;
 struct inpcb {
 	/* Cache line #1 (amd64) */
-	CK_LIST_ENTRY(inpcb) inp_hash;	/* (w:h/r:e)  hash list */
+	CK_LIST_ENTRY(inpcb) inp_hash_exact;	/* hash table linkage */
+	CK_LIST_ENTRY(inpcb) inp_hash_wild;	/* hash table linkage */
 	struct rwlock	inp_lock;
 	/* Cache line #2 (amd64) */
 #define	inp_start_zero	inp_hpts
@@ -261,11 +262,12 @@ struct inpcb {
 	u_char	inp_ip_p;		/* (c) protocol proto */
 	u_char	inp_ip_minttl;		/* (i) minimum TTL or drop */
 	uint32_t inp_flowid;		/* (x) flow id / queue id */
+	smr_seq_t inp_smr;		/* (i) sequence number at disconnect */
 	struct m_snd_tag *inp_snd_tag;	/* (i) send tag for outgoing mbufs */
 	uint32_t inp_flowtype;		/* (x) M_HASHTYPE value */
 
 	/* Local and foreign ports, local and foreign addr. */
-	struct	in_conninfo inp_inc;	/* (i) list for PCB's local port */
+	struct	in_conninfo inp_inc;	/* (i,h) list for PCB's local port */
 
 	/* MAC and IPSEC policy information. */
 	struct	label *inp_label;	/* (i) MAC label */
@@ -430,10 +432,12 @@ struct inpcbinfo {
 
 	/*
 	 * Global hash of inpcbs, hashed by local and foreign addresses and
-	 * port numbers.
+	 * port numbers.  The "exact" hash holds PCBs connected to a foreign
+	 * address, and "wild" holds the rest.
 	 */
 	struct mtx		 ipi_hash_lock;
-	struct inpcbhead 	*ipi_hashbase;		/* (r:e/w:h) */
+	struct inpcbhead 	*ipi_hash_exact;	/* (r:e/w:h) */
+	struct inpcbhead 	*ipi_hash_wild;		/* (r:e/w:h) */
 	u_long			 ipi_hashmask;		/* (c) */
 
 	/*
@@ -643,7 +647,6 @@ int	inp_so_options(const struct inpcb *inp);
 #define	IN6P_RTHDRDSTOPTS	0x00200000 /* receive dstoptions before rthdr */
 #define	IN6P_TCLASS		0x00400000 /* receive traffic class value */
 #define	IN6P_AUTOFLOWLABEL	0x00800000 /* attach flowlabel automatically */
-/* was	INP_TIMEWAIT		0x01000000 */
 #define	INP_ONESBCAST		0x02000000 /* send all-ones broadcast */
 #define	INP_DROPPED		0x04000000 /* protocol drop flag */
 #define	INP_SOCKREF		0x08000000 /* strong socket reference */
@@ -760,6 +763,7 @@ void	in_pcbnotifyall(struct inpcbinfo *pcbinfo, struct in_addr,
 	    int, struct inpcb *(*)(struct inpcb *, int));
 void	in_pcbref(struct inpcb *);
 void	in_pcbrehash(struct inpcb *);
+void	in_pcbremhash_locked(struct inpcb *);
 bool	in_pcbrele_rlocked(struct inpcb *);
 bool	in_pcbrele_wlocked(struct inpcb *);
 

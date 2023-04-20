@@ -58,8 +58,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/eventhandler.h>
 #include <sys/domain.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/smp.h>
+#include <sys/smr.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sockio.h>
@@ -510,7 +512,9 @@ in_pcbinfo_init(struct inpcbinfo *pcbinfo, struct inpcbstorage *pcbstor,
 #endif
 	CK_LIST_INIT(&pcbinfo->ipi_listhead);
 	pcbinfo->ipi_count = 0;
-	pcbinfo->ipi_hashbase = hashinit(hash_nelements, M_PCB,
+	pcbinfo->ipi_hash_exact = hashinit(hash_nelements, M_PCB,
+	    &pcbinfo->ipi_hashmask);
+	pcbinfo->ipi_hash_wild = hashinit(hash_nelements, M_PCB,
 	    &pcbinfo->ipi_hashmask);
 	porthash_nelements = imin(porthash_nelements, IPPORT_MAX + 1);
 	pcbinfo->ipi_porthashbase = hashinit(porthash_nelements, M_PCB,
@@ -532,7 +536,8 @@ in_pcbinfo_destroy(struct inpcbinfo *pcbinfo)
 	KASSERT(pcbinfo->ipi_count == 0,
 	    ("%s: ipi_count = %u", __func__, pcbinfo->ipi_count));
 
-	hashdestroy(pcbinfo->ipi_hashbase, M_PCB, pcbinfo->ipi_hashmask);
+	hashdestroy(pcbinfo->ipi_hash_exact, M_PCB, pcbinfo->ipi_hashmask);
+	hashdestroy(pcbinfo->ipi_hash_wild, M_PCB, pcbinfo->ipi_hashmask);
 	hashdestroy(pcbinfo->ipi_porthashbase, M_PCB,
 	    pcbinfo->ipi_porthashmask);
 	hashdestroy(pcbinfo->ipi_lbgrouphashbase, M_PCB,
@@ -630,6 +635,8 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 #ifdef INET
 		inp->inp_vflag |= INP_IPV4;
 #endif
+	inp->inp_smr = SMR_SEQ_INVALID;
+
 	/*
 	 * Routes in inpcb's can cache L2 as well; they are guaranteed
 	 * to be cleaned up.
@@ -1010,7 +1017,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr_in *sin, in_addr_t *laddrp,
  */
 int
 in_pcbconnect(struct inpcb *inp, struct sockaddr_in *sin, struct ucred *cred,
-    bool rehash)
+    bool rehash __unused)
 {
 	u_short lport, fport;
 	in_addr_t laddr, faddr;
@@ -1018,6 +1025,8 @@ in_pcbconnect(struct inpcb *inp, struct sockaddr_in *sin, struct ucred *cred,
 
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(inp->inp_pcbinfo);
+	KASSERT(in_nullhost(inp->inp_faddr),
+	    ("%s: inp is already connected", __func__));
 
 	lport = inp->inp_lport;
 	laddr = inp->inp_laddr.s_addr;
@@ -1027,28 +1036,26 @@ in_pcbconnect(struct inpcb *inp, struct sockaddr_in *sin, struct ucred *cred,
 	if (error)
 		return (error);
 
+	inp->inp_faddr.s_addr = faddr;
+	inp->inp_fport = fport;
+
 	/* Do the initial binding of the local address if required. */
 	if (inp->inp_laddr.s_addr == INADDR_ANY && inp->inp_lport == 0) {
-		KASSERT(rehash == true,
-		    ("Rehashing required for unbound inps"));
 		inp->inp_lport = lport;
 		inp->inp_laddr.s_addr = laddr;
 		if (in_pcbinshash(inp) != 0) {
-			inp->inp_laddr.s_addr = INADDR_ANY;
-			inp->inp_lport = 0;
+			inp->inp_laddr.s_addr = inp->inp_faddr.s_addr =
+			    INADDR_ANY;
+			inp->inp_lport = inp->inp_fport = 0;
 			return (EAGAIN);
 		}
-	}
-
-	/* Commit the remaining changes. */
-	inp->inp_lport = lport;
-	inp->inp_laddr.s_addr = laddr;
-	inp->inp_faddr.s_addr = faddr;
-	inp->inp_fport = fport;
-	if (rehash) {
-		in_pcbrehash(inp);
 	} else {
-		in_pcbinshash(inp);
+		inp->inp_lport = lport;
+		inp->inp_laddr.s_addr = laddr;
+		if ((inp->inp_flags & INP_INHASHLIST) != 0)
+			in_pcbrehash(inp);
+		else
+			in_pcbinshash(inp);
 	}
 
 	if (anonport)
@@ -1402,11 +1409,16 @@ in_pcbdisconnect(struct inpcb *inp)
 
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(inp->inp_pcbinfo);
+	KASSERT(inp->inp_smr == SMR_SEQ_INVALID,
+	    ("%s: inp %p was already disconnected", __func__, inp));
 
+	in_pcbremhash_locked(inp);
+
+	/* See the comment in in_pcbinshash(). */
+	inp->inp_smr = smr_advance(inp->inp_pcbinfo->ipi_smr);
 	inp->inp_laddr.s_addr = INADDR_ANY;
 	inp->inp_faddr.s_addr = INADDR_ANY;
 	inp->inp_fport = 0;
-	in_pcbrehash(inp);
 }
 #endif /* INET */
 
@@ -1551,11 +1563,11 @@ inp_smr_lock(struct inpcb *inp, const inp_lookup_t lock)
 #define	II_LIST_FIRST(ipi, hash)					\
 		(((hash) == INP_ALL_LIST) ?				\
 		    CK_LIST_FIRST(&(ipi)->ipi_listhead) :		\
-		    CK_LIST_FIRST(&(ipi)->ipi_hashbase[(hash)]))
+		    CK_LIST_FIRST(&(ipi)->ipi_hash_exact[(hash)]))
 #define	II_LIST_NEXT(inp, hash)						\
 		(((hash) == INP_ALL_LIST) ?				\
 		    CK_LIST_NEXT((inp), inp_list) :			\
-		    CK_LIST_NEXT((inp), inp_hash))
+		    CK_LIST_NEXT((inp), inp_hash_exact))
 #define	II_LOCK_ASSERT(inp, lock)					\
 		rw_assert(&(inp)->inp_lock,				\
 		    (lock) == INPLOOKUP_RLOCKPCB ?  RA_RLOCKED : RA_WLOCKED )
@@ -1996,9 +2008,9 @@ in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 		 * Look for an unconnected (wildcard foreign addr) PCB that
 		 * matches the local address and port we're looking for.
 		 */
-		head = &pcbinfo->ipi_hashbase[INP_PCBHASH_WILD(lport,
+		head = &pcbinfo->ipi_hash_wild[INP_PCBHASH_WILD(lport,
 		    pcbinfo->ipi_hashmask)];
-		CK_LIST_FOREACH(inp, head, inp_hash) {
+		CK_LIST_FOREACH(inp, head, inp_hash_wild) {
 #ifdef INET6
 			/* XXX inp locking */
 			if ((inp->inp_vflag & INP_IPV4) == 0)
@@ -2178,9 +2190,9 @@ in_pcblookup_hash_exact(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 	INP_HASH_LOCK_ASSERT(pcbinfo);
 
 	match = NULL;
-	head = &pcbinfo->ipi_hashbase[INP_PCBHASH(&faddr, lport, fport,
+	head = &pcbinfo->ipi_hash_exact[INP_PCBHASH(&faddr, lport, fport,
 	    pcbinfo->ipi_hashmask)];
-	CK_LIST_FOREACH(inp, head, inp_hash) {
+	CK_LIST_FOREACH(inp, head, inp_hash_exact) {
 #ifdef INET6
 		/* XXX inp locking */
 		if ((inp->inp_vflag & INP_IPV4) == 0)
@@ -2214,13 +2226,13 @@ in_pcblookup_hash_wild_locked(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 	 *      3. non-jailed, non-wild.
 	 *      4. non-jailed, wild.
 	 */
-	head = &pcbinfo->ipi_hashbase[INP_PCBHASH_WILD(lport,
+	head = &pcbinfo->ipi_hash_wild[INP_PCBHASH_WILD(lport,
 	    pcbinfo->ipi_hashmask)];
 	local_wild = local_exact = jail_wild = NULL;
 #ifdef INET6
 	local_wild_mapped = NULL;
 #endif
-	CK_LIST_FOREACH(inp, head, inp_hash) {
+	CK_LIST_FOREACH(inp, head, inp_hash_wild) {
 		bool injail;
 
 #ifdef INET6
@@ -2368,21 +2380,31 @@ in_pcbinshash(struct inpcb *inp)
 	struct inpcbporthead *pcbporthash;
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 	struct inpcbport *phd;
+	uint32_t hash;
+	bool connected;
 
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(pcbinfo);
-
 	KASSERT((inp->inp_flags & INP_INHASHLIST) == 0,
 	    ("in_pcbinshash: INP_INHASHLIST"));
 
 #ifdef INET6
-	if (inp->inp_vflag & INP_IPV6)
-		pcbhash = &pcbinfo->ipi_hashbase[INP6_PCBHASH(&inp->in6p_faddr,
-		    inp->inp_lport, inp->inp_fport, pcbinfo->ipi_hashmask)];
-	else
+	if (inp->inp_vflag & INP_IPV6) {
+		hash = INP6_PCBHASH(&inp->in6p_faddr, inp->inp_lport,
+		    inp->inp_fport, pcbinfo->ipi_hashmask);
+		connected = !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr);
+	} else
 #endif
-		pcbhash = &pcbinfo->ipi_hashbase[INP_PCBHASH(&inp->inp_faddr,
-		    inp->inp_lport, inp->inp_fport, pcbinfo->ipi_hashmask)];
+	{
+		hash = INP_PCBHASH(&inp->inp_faddr, inp->inp_lport,
+		    inp->inp_fport, pcbinfo->ipi_hashmask);
+		connected = !in_nullhost(inp->inp_faddr);
+	}
+
+	if (connected)
+		pcbhash = &pcbinfo->ipi_hash_exact[hash];
+	else
+		pcbhash = &pcbinfo->ipi_hash_wild[hash];
 
 	pcbporthash = &pcbinfo->ipi_porthashbase[
 	    INP_PCBPORTHASH(inp->inp_lport, pcbinfo->ipi_porthashmask)];
@@ -2421,31 +2443,65 @@ in_pcbinshash(struct inpcb *inp)
 	}
 	inp->inp_phd = phd;
 	CK_LIST_INSERT_HEAD(&phd->phd_pcblist, inp, inp_portlist);
-	CK_LIST_INSERT_HEAD(pcbhash, inp, inp_hash);
+
+	/*
+	 * The PCB may have been disconnected in the past.  Before we can safely
+	 * make it visible in the hash table, we must wait for all readers which
+	 * may be traversing this PCB to finish.
+	 */
+	if (inp->inp_smr != SMR_SEQ_INVALID) {
+		smr_wait(pcbinfo->ipi_smr, inp->inp_smr);
+		inp->inp_smr = SMR_SEQ_INVALID;
+	}
+
+	if (connected)
+		CK_LIST_INSERT_HEAD(pcbhash, inp, inp_hash_exact);
+	else
+		CK_LIST_INSERT_HEAD(pcbhash, inp, inp_hash_wild);
 	inp->inp_flags |= INP_INHASHLIST;
 
 	return (0);
 }
 
-static void
-in_pcbremhash(struct inpcb *inp)
+void
+in_pcbremhash_locked(struct inpcb *inp)
 {
 	struct inpcbport *phd = inp->inp_phd;
 
 	INP_WLOCK_ASSERT(inp);
+	INP_HASH_WLOCK_ASSERT(inp->inp_pcbinfo);
 	MPASS(inp->inp_flags & INP_INHASHLIST);
 
-	INP_HASH_WLOCK(inp->inp_pcbinfo);
 	if ((inp->inp_flags2 & INP_REUSEPORT_LB) != 0)
 		in_pcbremlbgrouphash(inp);
-	CK_LIST_REMOVE(inp, inp_hash);
+#ifdef INET6
+	if (inp->inp_vflag & INP_IPV6) {
+		if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr))
+			CK_LIST_REMOVE(inp, inp_hash_wild);
+		else
+			CK_LIST_REMOVE(inp, inp_hash_exact);
+	} else
+#endif
+	{
+		if (in_nullhost(inp->inp_faddr))
+			CK_LIST_REMOVE(inp, inp_hash_wild);
+		else
+			CK_LIST_REMOVE(inp, inp_hash_exact);
+	}
 	CK_LIST_REMOVE(inp, inp_portlist);
 	if (CK_LIST_FIRST(&phd->phd_pcblist) == NULL) {
 		CK_LIST_REMOVE(phd, phd_hash);
 		uma_zfree_smr(inp->inp_pcbinfo->ipi_portzone, phd);
 	}
-	INP_HASH_WUNLOCK(inp->inp_pcbinfo);
 	inp->inp_flags &= ~INP_INHASHLIST;
+}
+
+static void
+in_pcbremhash(struct inpcb *inp)
+{
+	INP_HASH_WLOCK(inp->inp_pcbinfo);
+	in_pcbremhash_locked(inp);
+	INP_HASH_WUNLOCK(inp->inp_pcbinfo);
 }
 
 /*
@@ -2453,34 +2509,51 @@ in_pcbremhash(struct inpcb *inp)
  * changed. NOTE: This does not handle the case of the lport changing (the
  * hashed port list would have to be updated as well), so the lport must
  * not change after in_pcbinshash() has been called.
- *
- * XXXGL: a race between this function and SMR-protected hash iterator
- * will lead to iterator traversing a possibly wrong hash list. However,
- * this race should have been here since change from rwlock to epoch.
  */
 void
 in_pcbrehash(struct inpcb *inp)
 {
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 	struct inpcbhead *head;
+	uint32_t hash;
+	bool connected;
 
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(pcbinfo);
-
 	KASSERT(inp->inp_flags & INP_INHASHLIST,
-	    ("in_pcbrehash: !INP_INHASHLIST"));
+	    ("%s: !INP_INHASHLIST", __func__));
+	KASSERT(inp->inp_smr == SMR_SEQ_INVALID,
+	    ("%s: inp was disconnected", __func__));
 
 #ifdef INET6
-	if (inp->inp_vflag & INP_IPV6)
-		head = &pcbinfo->ipi_hashbase[INP6_PCBHASH(&inp->in6p_faddr,
-		    inp->inp_lport, inp->inp_fport, pcbinfo->ipi_hashmask)];
-	else
+	if (inp->inp_vflag & INP_IPV6) {
+		hash = INP6_PCBHASH(&inp->in6p_faddr, inp->inp_lport,
+		    inp->inp_fport, pcbinfo->ipi_hashmask);
+		connected = !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr);
+	} else
 #endif
-		head = &pcbinfo->ipi_hashbase[INP_PCBHASH(&inp->inp_faddr,
-		    inp->inp_lport, inp->inp_fport, pcbinfo->ipi_hashmask)];
+	{
+		hash = INP_PCBHASH(&inp->inp_faddr, inp->inp_lport,
+		    inp->inp_fport, pcbinfo->ipi_hashmask);
+		connected = !in_nullhost(inp->inp_faddr);
+	}
 
-	CK_LIST_REMOVE(inp, inp_hash);
-	CK_LIST_INSERT_HEAD(head, inp, inp_hash);
+	/*
+	 * When rehashing, the caller must ensure that either the new or the old
+	 * foreign address was unspecified.
+	 */
+	if (connected)
+		CK_LIST_REMOVE(inp, inp_hash_wild);
+	else
+		CK_LIST_REMOVE(inp, inp_hash_exact);
+
+	if (connected) {
+		head = &pcbinfo->ipi_hash_exact[hash];
+		CK_LIST_INSERT_HEAD(head, inp, inp_hash_exact);
+	} else {
+		head = &pcbinfo->ipi_hash_wild[hash];
+		CK_LIST_INSERT_HEAD(head, inp, inp_hash_wild);
+	}
 }
 
 /*

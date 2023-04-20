@@ -81,7 +81,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/domain.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
+#include <sys/smr.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sockio.h>
@@ -398,7 +400,7 @@ in6_pcbladdr(struct inpcb *inp, struct sockaddr_in6 *sin6,
  */
 int
 in6_pcbconnect(struct inpcb *inp, struct sockaddr_in6 *sin6, struct ucred *cred,
-    bool rehash)
+    bool rehash __unused)
 {
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 	struct sockaddr_in6 laddr6;
@@ -411,6 +413,8 @@ in6_pcbconnect(struct inpcb *inp, struct sockaddr_in6 *sin6, struct ucred *cred,
 	    ("%s: invalid address family for %p", __func__, sin6));
 	KASSERT(sin6->sin6_len == sizeof(*sin6),
 	    ("%s: invalid address length for %p", __func__, sin6));
+	KASSERT(IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr),
+	    ("%s: inp is already connected", __func__));
 
 	bzero(&laddr6, sizeof(laddr6));
 	laddr6.sin6_family = AF_INET6;
@@ -440,17 +444,6 @@ in6_pcbconnect(struct inpcb *inp, struct sockaddr_in6 *sin6, struct ucred *cred,
 		return (EADDRINUSE);
 	if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr)) {
 		if (inp->inp_lport == 0) {
-			/*
-			 * rehash was required to be true in the past for
-			 * this case; retain that convention.  However,
-			 * we now call in_pcb_lport_dest rather than
-			 * in6_pcbbind; the former does not insert into
-			 * the hash table, the latter does.  Change rehash
-			 * to false to do the in_pcbinshash below.
-			 */
-			KASSERT(rehash == true,
-			    ("Rehashing required for unbound inps"));
-			rehash = false;
 			error = in_pcb_lport_dest(inp,
 			    (struct sockaddr *) &laddr6, &inp->inp_lport,
 			    (struct sockaddr *) sin6, sin6->sin6_port, cred,
@@ -468,7 +461,7 @@ in6_pcbconnect(struct inpcb *inp, struct sockaddr_in6 *sin6, struct ucred *cred,
 		inp->inp_flow |=
 		    (htonl(ip6_randomflowlabel()) & IPV6_FLOWLABEL_MASK);
 
-	if (rehash) {
+	if ((inp->inp_flags & INP_INHASHLIST) != 0) {
 		in_pcbrehash(inp);
 	} else {
 		in_pcbinshash(inp);
@@ -483,13 +476,20 @@ in6_pcbdisconnect(struct inpcb *inp)
 
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(inp->inp_pcbinfo);
+	KASSERT(inp->inp_smr == SMR_SEQ_INVALID,
+	    ("%s: inp %p was already disconnected", __func__, inp));
 
+	in_pcbremhash_locked(inp);
+
+	/* See the comment in in_pcbinshash(). */
+	inp->inp_smr = smr_advance(inp->inp_pcbinfo->ipi_smr);
+
+	/* XXX-MJ torn writes are visible to SMR lookup */
 	memset(&inp->in6p_laddr, 0, sizeof(inp->in6p_laddr));
 	memset(&inp->in6p_faddr, 0, sizeof(inp->in6p_faddr));
 	inp->inp_fport = 0;
 	/* clear flowinfo - draft-itojun-ipv6-flowlabel-api-00 */
 	inp->inp_flow &= ~IPV6_FLOWLABEL_MASK;
-	in_pcbrehash(inp);
 }
 
 struct sockaddr *
@@ -712,9 +712,9 @@ in6_pcblookup_local(struct inpcbinfo *pcbinfo, struct in6_addr *laddr,
 		 * Look for an unconnected (wildcard foreign addr) PCB that
 		 * matches the local address and port we're looking for.
 		 */
-		head = &pcbinfo->ipi_hashbase[INP_PCBHASH_WILD(lport,
+		head = &pcbinfo->ipi_hash_wild[INP_PCBHASH_WILD(lport,
 		    pcbinfo->ipi_hashmask)];
-		CK_LIST_FOREACH(inp, head, inp_hash) {
+		CK_LIST_FOREACH(inp, head, inp_hash_wild) {
 			/* XXX inp locking */
 			if ((inp->inp_vflag & INP_IPV6) == 0)
 				continue;
@@ -952,9 +952,9 @@ in6_pcblookup_hash_exact(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 	 * First look for an exact match.
 	 */
 	match = NULL;
-	head = &pcbinfo->ipi_hashbase[INP6_PCBHASH(faddr, lport, fport,
+	head = &pcbinfo->ipi_hash_exact[INP6_PCBHASH(faddr, lport, fport,
 	    pcbinfo->ipi_hashmask)];
-	CK_LIST_FOREACH(inp, head, inp_hash) {
+	CK_LIST_FOREACH(inp, head, inp_hash_exact) {
 		/* XXX inp locking */
 		if ((inp->inp_vflag & INP_IPV6) == 0)
 			continue;
@@ -982,10 +982,10 @@ in6_pcblookup_hash_wild_locked(struct inpcbinfo *pcbinfo,
 	 *      3. non-jailed, non-wild.
 	 *      4. non-jailed, wild.
 	 */
-	head = &pcbinfo->ipi_hashbase[INP_PCBHASH_WILD(lport,
+	head = &pcbinfo->ipi_hash_wild[INP_PCBHASH_WILD(lport,
 	    pcbinfo->ipi_hashmask)];
 	local_wild = local_exact = jail_wild = NULL;
-	CK_LIST_FOREACH(inp, head, inp_hash) {
+	CK_LIST_FOREACH(inp, head, inp_hash_wild) {
 		bool injail;
 
 		/* XXX inp locking */
