@@ -1756,6 +1756,11 @@ ieee80211_tu_to_usec(unsigned long tu)
 	return (tu * IEEE80211_DUR_TU);
 }
 
+/*
+ * Below we assume that the two values from different emums are the same.
+ * Make sure this does not accidentally change.
+ */
+CTASSERT((int)IEEE80211_ACTION_SM_TPCREP == (int)IEEE80211_ACTION_RADIO_MEASUREMENT_LMREP);
 
 static __inline bool
 ieee80211_action_contains_tpc(struct sk_buff *skb)
@@ -1783,10 +1788,10 @@ ieee80211_action_contains_tpc(struct sk_buff *skb)
 	    mgmt->u.action.category != IEEE80211_ACTION_CAT_RADIO_MEASUREMENT)
 		return (false);
 
-	/* Check that it is TPC Report or Link Measurement Report? */
-	KASSERT((int)IEEE80211_ACTION_SM_TPCREP == (int)IEEE80211_ACTION_RADIO_MEASUREMENT_LMREP,
-	    ("%s: SM_TPCREP %d != RADIO_MEASUREMENT_LMREP %d\n", __func__,
-	    IEEE80211_ACTION_SM_TPCREP, IEEE80211_ACTION_RADIO_MEASUREMENT_LMREP));
+	/*
+	 * Check that it is TPC Report or Link Measurement Report?
+	 * The values of each are the same (see CTASSERT above function).
+	 */
 	if (mgmt->u.action.u.tpc_report.spec_mgmt != IEEE80211_ACTION_SM_TPCREP)
 		return (false);
 
@@ -1834,7 +1839,12 @@ static __inline void
 ieee80211_get_tkip_rx_p1k(struct ieee80211_key_conf *keyconf,
     const u8 *addr, uint32_t iv32, u16 *p1k)
 {
+
+	KASSERT(keyconf != NULL && addr != NULL && p1k != NULL,
+	    ("%s: keyconf %p addr %p p1k %p\n", __func__, keyconf, addr, p1k));
+
 	TODO();
+	memset(p1k, 0xfa, 5 * sizeof(*p1k));	/* Just initializing. */
 }
 
 static __inline size_t
@@ -2051,7 +2061,27 @@ static __inline void
 ieee80211_get_key_rx_seq(struct ieee80211_key_conf *keyconf, uint8_t tid,
     struct ieee80211_key_seq *seq)
 {
+
+	KASSERT(keyconf != NULL && seq != NULL, ("%s: keyconf %p seq %p\n",
+	    __func__, keyconf, seq));
+
 	TODO();
+	switch (keyconf->cipher) {
+	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP_256:
+		memset(seq->ccmp.pn, 0xfa, sizeof(seq->ccmp.pn));	/* XXX TODO */
+		break;
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+		memset(seq->aes_cmac.pn, 0xfa, sizeof(seq->aes_cmac.pn));	/* XXX TODO */
+		break;
+	case WLAN_CIPHER_SUITE_TKIP:
+		seq->tkip.iv32 = 0xfa;		/* XXX TODO */
+		seq->tkip.iv16 = 0xfa;		/* XXX TODO */
+		break;
+	default:
+		pr_debug("%s: unsupported cipher suite %d\n", __func__, keyconf->cipher);
+		break;
+	}
 }
 
 static __inline void
