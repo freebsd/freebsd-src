@@ -122,8 +122,12 @@ CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/intel
 .endif
 
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
-SRCS+=		dis_tables.c
+SRCS+=		dis_tables.c instr_size.c
 DSRCS+=		regs_x86.d
+.endif
+
+.if ${MACHINE_CPUARCH} == "riscv"
+SRCS+=		instr_size.c
 .endif
 
 YFLAGS+=-d

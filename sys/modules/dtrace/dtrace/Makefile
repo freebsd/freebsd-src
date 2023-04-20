@@ -22,8 +22,12 @@ SRCS+=		dis_tables.c \
 		instr_size.c
 CFLAGS+=       -I${SYSDIR}/cddl/contrib/opensolaris/uts/intel \
                -I${SYSDIR}/cddl/dev/dtrace/x86
-
 .endif
+
+.if ${MACHINE_CPUARCH} == "riscv"
+SRCS+=		instr_size.c
+.endif
+
 CFLAGS+= ${OPENZFS_CFLAGS}
 
 SRCS+=		bus_if.h device_if.h vnode_if.h
