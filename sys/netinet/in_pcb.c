@@ -548,7 +548,6 @@ in_pcbinfo_destroy(struct inpcbinfo *pcbinfo)
 /*
  * Initialize a pcbstorage - per protocol zones to allocate inpcbs.
  */
-static void inpcb_dtor(void *, int, void *);
 static void inpcb_fini(void *, int);
 void
 in_pcbstorage_init(void *arg)
@@ -556,7 +555,7 @@ in_pcbstorage_init(void *arg)
 	struct inpcbstorage *pcbstor = arg;
 
 	pcbstor->ips_zone = uma_zcreate(pcbstor->ips_zone_name,
-	    pcbstor->ips_size, NULL, inpcb_dtor, pcbstor->ips_pcbinit,
+	    pcbstor->ips_size, NULL, NULL, pcbstor->ips_pcbinit,
 	    inpcb_fini, UMA_ALIGN_CACHE, UMA_ZONE_SMR);
 	pcbstor->ips_portzone = uma_zcreate(pcbstor->ips_portzone_name,
 	    sizeof(struct inpcbport), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
@@ -1694,6 +1693,10 @@ in_pcbrele_rlocked(struct inpcb *inp)
 	MPASS(inp->inp_flags & INP_FREED);
 	MPASS(inp->inp_socket == NULL);
 	MPASS(inp->inp_in_hpts == 0);
+	crfree(inp->inp_cred);
+#ifdef INVARIANTS
+	inp->inp_cred = NULL;
+#endif
 	INP_RUNLOCK(inp);
 	uma_zfree_smr(inp->inp_pcbinfo->ipi_zone, inp);
 	return (true);
@@ -1711,6 +1714,10 @@ in_pcbrele_wlocked(struct inpcb *inp)
 	MPASS(inp->inp_flags & INP_FREED);
 	MPASS(inp->inp_socket == NULL);
 	MPASS(inp->inp_in_hpts == 0);
+	crfree(inp->inp_cred);
+#ifdef INVARIANTS
+	inp->inp_cred = NULL;
+#endif
 	INP_WUNLOCK(inp);
 	uma_zfree_smr(inp->inp_pcbinfo->ipi_zone, inp);
 	return (true);
@@ -1788,18 +1795,6 @@ in_pcbfree(struct inpcb *inp)
 #endif
 #ifdef INET
 	inp_freemoptions(imo);
-#endif
-	/* Destruction is finalized in inpcb_dtor(). */
-}
-
-static void
-inpcb_dtor(void *mem, int size, void *arg)
-{
-	struct inpcb *inp = mem;
-
-	crfree(inp->inp_cred);
-#ifdef INVARIANTS
-	inp->inp_cred = NULL;
 #endif
 }
 
