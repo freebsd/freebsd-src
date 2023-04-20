@@ -88,9 +88,9 @@ static struct protox {
 	int	pr_usesysctl;		/* non-zero if we use sysctl, not kvm */
 	int	pr_protocol;
 } protox[] = {
-	{ N_TCBINFO,	N_TCPSTAT,	1,	protopr,
+	{ -1	,	N_TCPSTAT,	1,	protopr,
 	  tcp_stats,	NULL,		"tcp",	1,	IPPROTO_TCP },
-	{ N_UDBINFO,	N_UDPSTAT,	1,	protopr,
+	{ -1	,	N_UDPSTAT,	1,	protopr,
 	  udp_stats,	NULL,		"udp",	1,	IPPROTO_UDP },
 #ifdef SCTP
 	{ -1,		N_SCTPSTAT,	1,	sctp_protopr,
@@ -100,13 +100,13 @@ static struct protox {
 	{ -1,		-1,		1,	protopr,
 	 NULL,		NULL,		"sdp",	1,	IPPROTO_TCP },
 #endif
-	{ N_DIVCBINFO,	-1,		1,	protopr,
+	{ -1	,	-1,		1,	protopr,
 	  divert_stats,	NULL,		"divert", 1,	0 },
-	{ N_RIPCBINFO,	N_IPSTAT,	1,	protopr,
+	{ -1	,	N_IPSTAT,	1,	protopr,
 	  ip_stats,	NULL,		"ip",	1,	IPPROTO_RAW },
-	{ N_RIPCBINFO,	N_ICMPSTAT,	1,	protopr,
+	{ -1	,	N_ICMPSTAT,	1,	protopr,
 	  icmp_stats,	NULL,		"icmp",	1,	IPPROTO_ICMP },
-	{ N_RIPCBINFO,	N_IGMPSTAT,	1,	protopr,
+	{ -1	,	N_IGMPSTAT,	1,	protopr,
 	  igmp_stats,	NULL,		"igmp",	1,	IPPROTO_IGMP },
 #ifdef IPSEC
 	{ -1,		N_IPSEC4STAT,	1,	NULL,	/* keep as compat */
@@ -118,7 +118,7 @@ static struct protox {
 	{ -1,		N_IPCOMPSTAT,	1,	NULL,
 	  ipcomp_stats,	NULL,		"ipcomp", 1,	0},
 #endif
-	{ N_RIPCBINFO,	N_PIMSTAT,	1,	protopr,
+	{ -1	,	N_PIMSTAT,	1,	protopr,
 	  pim_stats,	NULL,		"pim",	1,	IPPROTO_PIM },
 	{ -1,		N_CARPSTATS,	1,	NULL,
 	  carp_stats,	NULL,		"carp",	1,	0 },
@@ -134,13 +134,13 @@ static struct protox {
 
 #ifdef INET6
 static struct protox ip6protox[] = {
-	{ N_TCBINFO,	N_TCPSTAT,	1,	protopr,
+	{ -1	,	N_TCPSTAT,	1,	protopr,
 	  tcp_stats,	NULL,		"tcp",	1,	IPPROTO_TCP },
-	{ N_UDBINFO,	N_UDPSTAT,	1,	protopr,
+	{ -1	,	N_UDPSTAT,	1,	protopr,
 	  udp_stats,	NULL,		"udp",	1,	IPPROTO_UDP },
-	{ N_RIPCBINFO,	N_IP6STAT,	1,	protopr,
+	{ -1	,	N_IP6STAT,	1,	protopr,
 	  ip6_stats,	ip6_ifstats,	"ip6",	1,	IPPROTO_RAW },
-	{ N_RIPCBINFO,	N_ICMP6STAT,	1,	protopr,
+	{ -1	,	N_ICMP6STAT,	1,	protopr,
 	  icmp6_stats,	icmp6_ifstats,	"icmp6", 1,	IPPROTO_ICMPV6 },
 #ifdef SDP
 	{ -1,		-1,		1,	protopr,
