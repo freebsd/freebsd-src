@@ -83,7 +83,7 @@ usage() {
 	    "(default: ${DEFAULT_ISOFILE})"
 	echo "       -l: the OS loader to use (default: /boot/userboot.so)"
 	echo "       -L: IP address for UEFI GOP VNC server" \
-	    "(default: ${DEFAULT_VNCHOST}"
+	    "(default: ${DEFAULT_VNCHOST})"
 	echo "       -m: memory size (default: ${DEFAULT_MEMSIZE})"
 	echo "       -n: network adapter emulation type" \
 	    "(default: ${DEFAULT_NIC})"
