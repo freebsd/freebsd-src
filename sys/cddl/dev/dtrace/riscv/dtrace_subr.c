@@ -190,8 +190,6 @@ dtrace_gethrestime(void)
 int
 dtrace_trap(struct trapframe *frame, u_int type)
 {
-	uint16_t insn;
-
 	/*
 	 * A trap can occur while DTrace executes a probe. Before
 	 * executing the probe, DTrace blocks re-scheduling and sets
@@ -219,15 +217,10 @@ dtrace_trap(struct trapframe *frame, u_int type)
 
 			/*
 			 * Offset the instruction pointer to the instruction
-			 * following the one causing the fault. Check if the
-			 * instruction is compressed or not. Standard
-			 * instructions always have bits [1:0] == 11.
+			 * following the one causing the fault.
 			 */
-			insn = *(uint16_t *)frame->tf_sepc;
-			if (match_opcode(insn, 0x3, 0x3))
-				frame->tf_sepc += INSN_SIZE;
-			else
-				frame->tf_sepc += INSN_C_SIZE;
+			frame->tf_sepc +=
+			    dtrace_instr_size((uint8_t *)frame->tf_sepc);
 
 			return (1);
 		default:
