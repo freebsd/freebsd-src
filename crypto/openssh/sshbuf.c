@@ -93,7 +93,7 @@ sshbuf_new(void)
 {
 	struct sshbuf *ret;
 
-	if ((ret = calloc(sizeof(*ret), 1)) == NULL)
+	if ((ret = calloc(1, sizeof(*ret))) == NULL)
 		return NULL;
 	ret->alloc = SSHBUF_SIZE_INIT;
 	ret->max_size = SSHBUF_SIZE_MAX;
@@ -113,7 +113,7 @@ sshbuf_from(const void *blob, size_t len)
 	struct sshbuf *ret;
 
 	if (blob == NULL || len > SSHBUF_SIZE_MAX ||
-	    (ret = calloc(sizeof(*ret), 1)) == NULL)
+	    (ret = calloc(1, sizeof(*ret))) == NULL)
 		return NULL;
 	ret->alloc = ret->size = ret->max_size = len;
 	ret->readonly = 1;

@@ -51,7 +51,7 @@ isns_req_alloc(void)
 {
 	struct isns_req *req;
 
-	req = calloc(sizeof(struct isns_req), 1);
+	req = calloc(1, sizeof(struct isns_req));
 	if (req == NULL) {
 		log_err(1, "calloc");
 		return (NULL);

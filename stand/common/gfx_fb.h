@@ -257,7 +257,7 @@ struct text_pixel {
 	teken_attr_t a;
 };
 
-extern const int cons_to_vga_colors[NCOLORS];
+extern const uint8_t cons_to_vga_colors[NCOLORS];
 
 /* Screen buffer to track changes on the terminal screen. */
 extern struct text_pixel *screen_buffer;

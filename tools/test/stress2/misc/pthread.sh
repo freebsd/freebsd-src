@@ -98,7 +98,7 @@ work_add(int a, int b)
 	struct workitem *w;
 	int dowake = 0;
 
-	w = calloc(sizeof(*w), 1);
+	w = calloc(1, sizeof(*w));
 	w->a = a;
 	w->b = b;
 	pthread_mutex_lock(&worker_mtx);

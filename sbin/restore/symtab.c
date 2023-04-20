@@ -526,12 +526,12 @@ void
 initsymtable(char *filename)
 {
 	char *base;
-	long tblsize;
+	size_t tblsize;
 	struct entry *ep;
 	struct entry *baseep, *lep;
 	struct symtableheader hdr;
 	struct stat stbuf;
-	long i;
+	size_t i;
 	int fd;
 
 	vprintf(stdout, "Initialize symbol table.\n");
@@ -553,10 +553,10 @@ initsymtable(char *filename)
 		panic("cannot stat symbol table file %s\n", filename);
 	}
 	tblsize = stbuf.st_size - sizeof(struct symtableheader);
-	base = calloc(sizeof(char), (unsigned)tblsize);
+	base = calloc(tblsize, sizeof(char));
 	if (base == NULL)
 		panic("cannot allocate space for symbol table\n");
-	if (read(fd, base, (int)tblsize) < 0 ||
+	if (read(fd, base, tblsize) < 0 ||
 	    read(fd, (char *)&hdr, sizeof(struct symtableheader)) < 0) {
 		fprintf(stderr, "read: %s\n", strerror(errno));
 		panic("cannot read symbol table file %s\n", filename);

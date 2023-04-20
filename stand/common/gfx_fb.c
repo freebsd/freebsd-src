@@ -149,12 +149,12 @@ uint32_t cmap[NCMAP];
  *  - blue and red are swapped (1 <-> 4)
  *  - yellow and cyan are swapped (3 <-> 6)
  */
-const int cons_to_vga_colors[NCOLORS] = {
+const uint8_t cons_to_vga_colors[NCOLORS] = {
 	0,  4,  2,  6,  1,  5,  3,  7,
 	8, 12, 10, 14,  9, 13, 11, 15
 };
 
-static const int vga_to_cons_colors[NCOLORS] = {
+static const uint8_t vga_to_cons_colors[NCOLORS] = {
 	0,  1,  2,  3,  4,  5,  6,  7,
 	8,  9, 10, 11,  12, 13, 14, 15
 };
@@ -2616,12 +2616,12 @@ insert_font(char *name, FONT_FLAGS flags)
 		}
 	}
 
-	fp = calloc(sizeof(*fp), 1);
+	fp = calloc(1, sizeof(*fp));
 	if (fp == NULL) {
 		free(font_name);
 		return (false);
 	}
-	fp->font_data = calloc(sizeof(*fp->font_data), 1);
+	fp->font_data = calloc(1, sizeof(*fp->font_data));
 	if (fp->font_data == NULL) {
 		free(font_name);
 		free(fp);

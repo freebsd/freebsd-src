@@ -91,7 +91,7 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
     /* XXX - use a default bootdev of 0.  Is this ok??? */
     bootdevnr = 0;
 
-    bi = calloc(sizeof(*bi), 1);
+    bi = calloc(1, sizeof(*bi));
     switch(rootdev->dd.d_dev->dv_type) {
     case DEVT_CD:
     case DEVT_DISK:

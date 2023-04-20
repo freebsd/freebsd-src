@@ -2515,7 +2515,7 @@ r_timestamp(mousestatus_t *act)
     struct timespec ts3;
     int button;
     int mask;
-    int i;
+    unsigned i;
 
     mask = act->flags & MOUSE_BUTTONS;
 #if 0
@@ -2547,7 +2547,7 @@ r_timestamp(mousestatus_t *act)
 		if (tscmp(&ts, &bstate[i].ts, >)) {
 		    bstate[i].count = 1;
 		} else {
-		    ++bstate[i].count;
+		    bstate[i].count++;
 		}
 		bstate[i].ts = ts1;
 	    } else {
@@ -2561,7 +2561,7 @@ r_timestamp(mousestatus_t *act)
 		    bstate[i].count = 1;
 		    bstate[i].ts = ts1;
 		    act->flags |= button;
-		    debug("button %d timeout", i + 1);
+		    debug("button %u timeout", i + 1);
 		}
 	    } else {
 		/* the button has been up */
@@ -2594,7 +2594,7 @@ r_click(mousestatus_t *act)
     struct mouse_info mouse;
     int button;
     int mask;
-    int i;
+    unsigned i;
 
     mask = act->flags & MOUSE_BUTTONS;
     if (mask == 0)
@@ -2603,7 +2603,7 @@ r_click(mousestatus_t *act)
     button = MOUSE_BUTTON1DOWN;
     for (i = 0; (i < MOUSE_MAXBUTTON) && (mask != 0); ++i) {
 	if (mask & 1) {
-	    debug("mstate[%d]->count:%d", i, mstate[i]->count);
+	    debug("mstate[%u]->count:%d", i, mstate[i]->count);
 	    if (act->button & button) {
 		/* the button is down */
 		mouse.u.event.value = mstate[i]->count;
@@ -2616,7 +2616,7 @@ r_click(mousestatus_t *act)
 	    if (debug < 2)
 		if (!paused)
 		    ioctl(rodent.cfd, CONS_MOUSECTL, &mouse);
-	    debug("button %d  count %d", i + 1, mouse.u.event.value);
+	    debug("button %u  count %d", i + 1, mouse.u.event.value);
 	}
 	button <<= 1;
 	mask >>= 1;

@@ -99,8 +99,8 @@ __collate_load(const char *encoding, __unused locale_t unused)
 	else if (strcmp(encoding, "C.UTF-8") == 0)
 		return (&__xlocale_CUTF8_collate);
 
-	struct xlocale_collate *table = calloc(sizeof(struct xlocale_collate),
-	    1);
+	struct xlocale_collate *table = calloc(1,
+	    sizeof(struct xlocale_collate));
 	if (table == NULL)
 		return (NULL);
 	table->header.header.destructor = destruct_collate;

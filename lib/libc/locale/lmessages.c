@@ -99,8 +99,8 @@ __messages_load_locale(const char *name)
 void *
 __messages_load(const char *name, locale_t l)
 {
-	struct xlocale_messages *new = calloc(sizeof(struct xlocale_messages),
-	    1);
+	struct xlocale_messages *new = calloc(1,
+	    sizeof(struct xlocale_messages));
 	if (new == NULL)
 		return (NULL);
 	new->header.header.destructor = destruct_messages;

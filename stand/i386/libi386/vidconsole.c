@@ -634,10 +634,11 @@ env_screen_nounset(struct env_var *ev __unused)
 static int
 vidc_load_palette(void)
 {
-	int i, roff, goff, boff, rc;
+	size_t i;
+	int roff, goff, boff, rc;
 
 	if (pe8 == NULL)
-		pe8 = calloc(sizeof(*pe8), NCMAP);
+		pe8 = calloc(NCMAP, sizeof(*pe8));
 	if (pe8 == NULL)
 		return (ENOMEM);
 
@@ -652,7 +653,7 @@ vidc_load_palette(void)
 
 	if (rc == 0) {
 		for (i = 0; i < NCMAP; i++) {
-			int idx;
+			size_t idx;
 
 			if (i < NCOLORS)
 				idx = cons_to_vga_colors[i];

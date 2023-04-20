@@ -101,7 +101,7 @@ typedef u_long	BN_ULONG;
 
 #define BN_CTX			int
 #define BN_CTX_new()		NULL
-#define BN_new()		((BIGNUM *)calloc(sizeof(BIGNUM), 1))
+#define BN_new()		((BIGNUM *)calloc(1, sizeof(BIGNUM)))
 #define BN_is_zero(v)		(*(v) == 0)
 #define BN_is_one(v)		(*(v) == 1)
 #define BN_mod_word(a, b)	(*(a) % (b))

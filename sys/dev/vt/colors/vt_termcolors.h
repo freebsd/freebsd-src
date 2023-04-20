@@ -54,7 +54,7 @@ enum vt_color_format {
  *   - blue and red are swapped (1 <-> 4)
  *   - yellow and cyan are swapped (3 <-> 6)
  */
-static const int cons_to_vga_colors[NCOLORS] = {
+static const uint8_t cons_to_vga_colors[NCOLORS] = {
 	0,  4,  2,  6,  1,  5,  3,  7,
 	8, 12, 10, 14,  9, 13, 11, 15
 };

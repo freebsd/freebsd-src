@@ -157,7 +157,7 @@ static int
 vt_generate_cons_palette(uint32_t *palette, int format, uint32_t rmax,
     int roffset, uint32_t gmax, int goffset, uint32_t bmax, int boffset)
 {
-	int i;
+	size_t i;
 
 	switch (format) {
 	case COLOR_FORMAT_VGA:

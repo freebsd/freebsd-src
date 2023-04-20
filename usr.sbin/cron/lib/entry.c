@@ -127,7 +127,7 @@ load_entry(FILE *file, void (*error_func)(const char *), struct passwd *pw,
 	 * of a list of minutes.
 	 */
 
-	e = (entry *) calloc(sizeof(entry), sizeof(char));
+	e = (entry *)calloc(1, sizeof(entry));
 
 	if (e == NULL) {
 		warn("load_entry: calloc failed");

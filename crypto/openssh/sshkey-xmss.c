@@ -100,7 +100,7 @@ sshkey_xmss_init(struct sshkey *key, const char *name)
 		return SSH_ERR_INVALID_FORMAT;
 	if (name == NULL)
 		return SSH_ERR_INVALID_FORMAT;
-	state = calloc(sizeof(struct ssh_xmss_state), 1);
+	state = calloc(1, sizeof(struct ssh_xmss_state));
 	if (state == NULL)
 		return SSH_ERR_ALLOC_FAIL;
 	if (strcmp(name, XMSS_SHA2_256_W16_H10_NAME) == 0) {

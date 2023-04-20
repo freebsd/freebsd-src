@@ -195,7 +195,7 @@ destruct_locale(void *l)
 static locale_t
 alloc_locale(void)
 {
-	locale_t new = calloc(sizeof(struct _xlocale), 1);
+	locale_t new = calloc(1, sizeof(struct _xlocale));
 
 	if (new == NULL)
 		return (NULL);

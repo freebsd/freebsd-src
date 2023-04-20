@@ -211,7 +211,7 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 	n = atoi(argv[1]);
-	pid = calloc(sizeof(pid_t *), n);
+	pid = calloc(n, sizeof(pid_t *));
 
 	start = time(NULL);
 	while (time(NULL) - start < RUNTIME) {

@@ -97,8 +97,7 @@ __numeric_load_locale(const char *name)
 void *
 __numeric_load(const char *name, locale_t l)
 {
-	struct xlocale_numeric *new = calloc(sizeof(struct xlocale_numeric),
-	    1);
+	struct xlocale_numeric *new = calloc(1, sizeof(struct xlocale_numeric));
 	if (new == NULL)
 		return (NULL);
 	new->header.header.destructor = destruct_numeric;

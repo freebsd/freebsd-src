@@ -64,8 +64,8 @@ cinit(void)
 	msg("Cache %d MB, blocksize = %d\n", 
 	    NBlocks * BlockSize / (1024 * 1024), BlockSize);
 
-	base = calloc(sizeof(Block), NBlocks);
-	BlockHash = calloc(sizeof(Block *), HSize);
+	base = calloc(NBlocks, sizeof(Block));
+	BlockHash = calloc(HSize, sizeof(Block *));
 	DataBase = mmap(NULL, NBlocks * BlockSize, 
 			PROT_READ|PROT_WRITE, MAP_ANON, -1, 0);
 	for (i = 0; i < NBlocks; ++i) {

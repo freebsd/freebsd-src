@@ -244,8 +244,8 @@ init_bmachine(bool extended_registers)
 		stack_init(&bmachine.reg[i]);
 
 	bmachine.readstack_sz = READSTACK_SIZE;
-	bmachine.readstack = calloc(sizeof(struct source),
-	    bmachine.readstack_sz);
+	bmachine.readstack = calloc(bmachine.readstack_sz,
+	    sizeof(struct source));
 	if (bmachine.readstack == NULL)
 		err(1, NULL);
 	bmachine.obase = bmachine.ibase = 10;

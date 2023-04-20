@@ -2087,7 +2087,7 @@ setipftype(void)
 	for (fr = frc; fr != NULL; fr = fr->fr_next) {
 		if (fr->fr_type == FR_T_NONE) {
 			fr->fr_type = FR_T_IPF;
-			fr->fr_data = (void *)calloc(sizeof(fripf_t), 1);
+			fr->fr_data = (void *)calloc(1, sizeof(fripf_t));
 			fr->fr_dsize = sizeof(fripf_t);
 			fr->fr_family = frc->fr_family;
 			if (fr->fr_family == AF_INET) {

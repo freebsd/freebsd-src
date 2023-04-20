@@ -295,8 +295,9 @@ m_msdosfs_mount(struct m_vnode *devvp)
 	 * Allocate memory for the bitmap of allocated clusters, and then
 	 * fill it in.
 	 */
-	pmp->pm_inusemap = ecalloc(sizeof(*pmp->pm_inusemap),
-	    ((pmp->pm_maxcluster + N_INUSEBITS) / N_INUSEBITS));
+	pmp->pm_inusemap = ecalloc(((pmp->pm_maxcluster + N_INUSEBITS) /
+				       N_INUSEBITS),
+	    sizeof(*pmp->pm_inusemap));
 	/*
 	 * fillinusemap() needs pm_devvp.
 	 */

@@ -160,8 +160,8 @@ __monetary_load_locale(const char *name)
 void *
 __monetary_load(const char *name, locale_t l)
 {
-	struct xlocale_monetary *new = calloc(sizeof(struct xlocale_monetary),
-	    1);
+	struct xlocale_monetary *new = calloc(1,
+	    sizeof(struct xlocale_monetary));
 	if (new == NULL)
 		return (NULL);
 	new->header.header.destructor = destruct_monetary;
