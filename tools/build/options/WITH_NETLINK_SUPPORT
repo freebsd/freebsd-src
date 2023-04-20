@@ -1,0 +1,5 @@
+.\" $FreeBSD$
+Make libraries and programs use
+.Xr snl 3
+interfaces instead of rtsock and
+.Xr sysctl 3 .
