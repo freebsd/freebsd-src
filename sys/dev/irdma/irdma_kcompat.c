@@ -638,7 +638,8 @@ irdma_fill_ah_info(struct vnet *vnet, struct irdma_ah_info *ah_info,
 	}
 }
 
-static inline u8 irdma_get_vlan_ndev_prio(struct ifnet *ndev, u8 prio){
+static inline u8 irdma_get_vlan_ndev_prio(if_t ndev, u8 prio)
+{
 	return prio;
 }
 
@@ -665,7 +666,7 @@ irdma_create_ah_vlan_tag(struct irdma_device *iwdev,
 		ah_info->vlan_tag = 0;
 
 	if (ah_info->vlan_tag < VLAN_N_VID) {
-		struct ifnet *ndev = sgid_attr->ndev;
+		if_t ndev = sgid_attr->ndev;
 
 		ah_info->insert_vlan_tag = true;
 		vlan_prio = (u16)irdma_get_vlan_ndev_prio(ndev, rt_tos2priority(ah_info->tc_tos));
@@ -777,7 +778,7 @@ irdma_create_ah(struct ib_ah *ib_ah,
 	ah_info = &sc_ah->ah_info;
 	ah_info->ah_idx = ah_id;
 	ah_info->pd_idx = pd->sc_pd.pd_id;
-	ether_addr_copy(ah_info->mac_addr, IF_LLADDR(iwdev->netdev));
+	ether_addr_copy(ah_info->mac_addr, if_getlladdr(iwdev->netdev));
 
 	if (attr->ah_flags & IB_AH_GRH) {
 		ah_info->flow_label = attr->grh.flow_label;
@@ -787,7 +788,7 @@ irdma_create_ah(struct ib_ah *ib_ah,
 
 	ether_addr_copy(dmac, attr->dmac);
 
-	irdma_fill_ah_info(iwdev->netdev->if_vnet, ah_info, &sgid_attr, &sgid_addr.saddr, &dgid_addr.saddr,
+	irdma_fill_ah_info(if_getvnet(iwdev->netdev), ah_info, &sgid_attr, &sgid_addr.saddr, &dgid_addr.saddr,
 			   dmac, ah->av.net_type);
 
 	err = irdma_create_ah_vlan_tag(iwdev, pd, ah_info, &sgid_attr, dmac);
@@ -946,7 +947,7 @@ irdma_create_ah(struct ib_pd *ibpd,
 	ah_info->ah_idx = ah_id;
 	ah_info->pd_idx = pd->sc_pd.pd_id;
 
-	ether_addr_copy(ah_info->mac_addr, IF_LLADDR(iwdev->netdev));
+	ether_addr_copy(ah_info->mac_addr, if_getlladdr(iwdev->netdev));
 	if (attr->ah_flags & IB_AH_GRH) {
 		ah_info->flow_label = attr->grh.flow_label;
 		ah_info->hop_ttl = attr->grh.hop_limit;
@@ -957,7 +958,7 @@ irdma_create_ah(struct ib_pd *ibpd,
 		ib_resolve_eth_dmac(ibpd->device, attr);
 	irdma_ether_copy(dmac, attr);
 
-	irdma_fill_ah_info(iwdev->netdev->if_vnet, ah_info, &sgid_attr, &sgid_addr.saddr, &dgid_addr.saddr,
+	irdma_fill_ah_info(if_getvnet(iwdev->netdev), ah_info, &sgid_attr, &sgid_addr.saddr, &dgid_addr.saddr,
 			   dmac, ah->av.net_type);
 
 	err = irdma_create_ah_vlan_tag(iwdev, pd, ah_info, &sgid_attr, dmac);
@@ -1733,7 +1734,7 @@ kc_irdma_set_roce_cm_info(struct irdma_qp *iwqp, struct ib_qp_attr *attr,
 
 	if (sgid_attr.ndev) {
 		*vlan_id = rdma_vlan_dev_vlan_id(sgid_attr.ndev);
-		ether_addr_copy(iwqp->ctx_info.roce_info->mac_addr, IF_LLADDR(sgid_attr.ndev));
+		ether_addr_copy(iwqp->ctx_info.roce_info->mac_addr, if_getlladdr(sgid_attr.ndev));
 	}
 
 	av->net_type = kc_rdma_gid_attr_network_type(sgid_attr,
@@ -2002,7 +2003,7 @@ irdma_disassociate_ucontext(struct ib_ucontext *context)
 #endif
 
 struct ib_device *
-ib_device_get_by_netdev(struct ifnet *netdev, int driver_id)
+ib_device_get_by_netdev(if_t netdev, int driver_id)
 {
 	struct irdma_device *iwdev;
 	struct irdma_handler *hdl;
@@ -2131,17 +2132,18 @@ irdma_query_port(struct ib_device *ibdev, u8 port,
 		 struct ib_port_attr *props)
 {
 	struct irdma_device *iwdev = to_iwdev(ibdev);
-	struct ifnet *netdev = iwdev->netdev;
+	if_t netdev = iwdev->netdev;
 
 	/* no need to zero out pros here. done by caller */
 
 	props->max_mtu = IB_MTU_4096;
-	props->active_mtu = ib_mtu_int_to_enum(netdev->if_mtu);
+	props->active_mtu = ib_mtu_int_to_enum(if_getmtu(netdev));
 	props->lid = 1;
 	props->lmc = 0;
 	props->sm_lid = 0;
 	props->sm_sl = 0;
-	if ((netdev->if_link_state == LINK_STATE_UP) && (netdev->if_drv_flags & IFF_DRV_RUNNING)) {
+	if ((if_getlinkstate(netdev) == LINK_STATE_UP) &&
+	    (if_getdrvflags(netdev) & IFF_DRV_RUNNING)) {
 		props->state = IB_PORT_ACTIVE;
 		props->phys_state = IB_PORT_PHYS_STATE_LINK_UP;
 	} else {
@@ -2274,7 +2276,7 @@ irdma_query_gid(struct ib_device *ibdev, u8 port, int index,
 	struct irdma_device *iwdev = to_iwdev(ibdev);
 
 	memset(gid->raw, 0, sizeof(gid->raw));
-	ether_addr_copy(gid->raw, IF_LLADDR(iwdev->netdev));
+	ether_addr_copy(gid->raw, if_getlladdr(iwdev->netdev));
 
 	return 0;
 }
@@ -2349,13 +2351,13 @@ kc_set_rdma_uverbs_cmd_mask(struct irdma_device *iwdev)
 int
 ib_get_eth_speed(struct ib_device *ibdev, u32 port_num, u8 *speed, u8 *width)
 {
-	struct ifnet *netdev = ibdev->get_netdev(ibdev, port_num);
+	if_t netdev = ibdev->get_netdev(ibdev, port_num);
 	u32 netdev_speed;
 
 	if (!netdev)
 		return -ENODEV;
 
-	netdev_speed = netdev->if_baudrate;
+	netdev_speed = if_getbaudrate(netdev);
 	dev_put(netdev);
 	if (netdev_speed <= SPEED_1000) {
 		*width = IB_WIDTH_1X;
