@@ -56,15 +56,34 @@
 /*
  * Vnode types.  VNON means no type.
  */
-enum vtype	{ VNON, VREG, VDIR, VBLK, VCHR, VLNK, VSOCK, VFIFO, VBAD,
-		  VMARKER };
-#define VLASTTYPE VMARKER
+enum vtype {
+	VNON,
+	VREG,
+	VDIR,
+	VBLK,
+	VCHR,
+	VLNK,
+	VSOCK,
+	VFIFO,
+	VBAD,
+	VMARKER,
+	VLASTTYPE = VMARKER,
+};
 
-enum vstate	{ VSTATE_UNINITIALIZED, VSTATE_CONSTRUCTED, VSTATE_DESTROYING,
-		  VSTATE_DEAD };
-#define VLASTSTATE VSTATE_DEAD
+enum vstate {
+	VSTATE_UNINITIALIZED,
+	VSTATE_CONSTRUCTED,
+	VSTATE_DESTROYING,
+	VSTATE_DEAD,
+	VLASTSTATE = VSTATE_DEAD,
+};
 
-enum vgetstate	{ VGET_NONE, VGET_HOLDCNT, VGET_USECOUNT };
+enum vgetstate {
+	VGET_NONE,
+	VGET_HOLDCNT,
+	VGET_USECOUNT,
+};
+
 /*
  * Each underlying filesystem allocates its own private area and hangs
  * it from v_data.  If non-null, this area is freed in getnewvnode().
