@@ -35,7 +35,6 @@ LIBZ:=${WORLDTMP}/legacy/usr/lib/libz.a
 CFLAGS+=	-Werror=implicit-function-declaration -Werror=implicit-int \
 		-Werror=return-type -Wundef
 CFLAGS+=	-DHAVE_NBTOOL_CONFIG_H=1
-CFLAGS+=	-I${SRCTOP}/tools/build/cross-build/include/common
 # This is needed for code that compiles for pre-C11 C standards
 CWARNFLAGS.clang+=-Wno-typedef-redefinition
 # bsd.sys.mk explicitly turns on -Wsystem-headers, but that's extremely
@@ -68,6 +67,11 @@ CFLAGS+=	-idirafter ${SRCTOP}/contrib/libarchive/libarchive
 .error Unsupported build OS: ${.MAKE.OS}
 .endif
 .endif # ${.MAKE.OS} != "FreeBSD"
+
+.if ${.MAKE.OS} != "FreeBSD"
+# Add the common compatibility headers after the OS-specific ones.
+CFLAGS+=	-I${SRCTOP}/tools/build/cross-build/include/common
+.endif
 
 # we do not want to capture dependencies referring to the above
 UPDATE_DEPENDFILE= no
