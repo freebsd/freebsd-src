@@ -30,7 +30,6 @@ Contents
    getting_started
    using
    api
-   streaming
    tests
    rfc_conformance
    internal

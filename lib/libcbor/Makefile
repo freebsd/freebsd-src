@@ -7,7 +7,8 @@ PRIVATELIB=
 DIST=${SRCTOP}/contrib/libcbor
 .PATH:	${DIST}/src
 
-SRCS=	cbor.c
+SRCS=	allocators.c
+SRCS+=	cbor.c
 SRCS+=	cbor/arrays.c
 SRCS+=	cbor/bytestrings.c
 SRCS+=	cbor/callbacks.c

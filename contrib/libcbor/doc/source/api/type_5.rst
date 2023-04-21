@@ -1,9 +1,18 @@
 Type 5 – Maps
 =============================
 
-CBOR maps are the plain old associate hash maps known from JSON and many other formats and languages, with one exception: any CBOR data item can be a key, not just strings. This is somewhat unusual and you, as an application developer, should keep that in mind.
+CBOR maps are the plain old associative maps similar JSON objects or Python dictionaries.
 
-Maps can be either definite or indefinite, in much the same way as :doc:`type_4`.
+Definite maps have a fixed size which is stored in the header, whereas indefinite maps do not and are terminated by a special "break" byte instead.
+
+Map are explicitly created or decoded as definite or indefinite and will be encoded using the corresponding wire representation, regardless of whether the actual size is known at the time of encoding.
+
+.. note::
+
+  Indefinite maps can be conveniently used with streaming :doc:`decoding <streaming_decoding>` and :doc:`encoding <streaming_encoding>`.
+  Keys and values can simply be output one by one, alternating keys and values.
+
+.. warning:: Any CBOR data item is a legal map key (not just strings).
 
 ==================================  =====================================================================================
 Corresponding :type:`cbor_type`     ``CBOR_TYPE_MAP``
@@ -14,10 +23,19 @@ Storage requirements (definite)     ``sizeof(cbor_pair) * size + sizeof(cbor_ite
 Storage requirements (indefinite)   ``<= sizeof(cbor_item_t) + sizeof(cbor_pair) * size * BUFFER_GROWTH``
 ==================================  =====================================================================================
 
-Streaming maps
+Examples
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Please refer to :doc:`/streaming`.
+::
+
+    0xbf        Start indefinite map (represents {1: 2})
+        0x01        Unsigned integer 1 (key)
+        0x02        Unsigned integer 2 (value)
+        0xff        "Break" control token
+
+::
+
+    0xa0        Map of size 0
 
 Getting metadata
 ~~~~~~~~~~~~~~~~~
