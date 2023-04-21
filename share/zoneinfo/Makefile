@@ -82,11 +82,15 @@ META_TARGETS+=	zoneinfo install-zoneinfo
 #
 ZICFLAGS?=	-b fat
 
+.if ${MK_DIRDEPS_BUILD} == "yes"
+ZIC= ${STAGE_HOST_OBJTOP}/usr/sbin/zic
+.endif
+
 zoneinfo: ${TDATA}
 	mkdir -p ${TZBUILDDIR}
 	cd ${TZBUILDDIR}; mkdir -p ${TZBUILDSUBDIRS}
 	umask 022; cd ${.CURDIR}; \
-	zic -D -d ${TZBUILDDIR} ${ZICFLAGS} -m ${NOBINMODE} \
+	${ZIC:Uzic} -D -d ${TZBUILDDIR} ${ZICFLAGS} -m ${NOBINMODE} \
 	    ${LEAPFILE} ${TZFILES}
 
 #
