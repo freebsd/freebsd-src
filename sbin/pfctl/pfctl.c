@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
-#include <sys/nv.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/endian.h>
@@ -50,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <net/pfvar.h>
 #include <arpa/inet.h>
 #include <net/altq/altq.h>
-#include <sys/sysctl.h>
 
 #include <err.h>
 #include <errno.h>
