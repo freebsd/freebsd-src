@@ -1988,7 +1988,7 @@ krping_get_ipv6_scope_id(char *name)
 	CURVNET_RESTORE();
 	if (ifp == NULL)
 		return (0);
-	retval = ifp->if_index;
+	retval = if_getindex(ifp);
 	if_rele(ifp);
 	return (retval);
 }

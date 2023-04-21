@@ -183,6 +183,32 @@ irdma_ieq_check_mpacrc(void *desc,
 	return ret_code;
 }
 
+static u_int
+irdma_add_ipv6_cb(void *arg, struct ifaddr *addr, u_int count __unused)
+{
+	struct irdma_device *iwdev = arg;
+	struct sockaddr_in6 *sin6;
+	u32 local_ipaddr6[4] = {};
+	char ip6buf[INET6_ADDRSTRLEN];
+	u8 *mac_addr;
+
+	sin6 = (struct sockaddr_in6 *)addr->ifa_addr;
+
+	irdma_copy_ip_ntohl(local_ipaddr6, (u32 *)&sin6->sin6_addr);
+
+	mac_addr = if_getlladdr(addr->ifa_ifp);
+
+	printf("%s:%d IP=%s, MAC=%02x:%02x:%02x:%02x:%02x:%02x\n",
+	       __func__, __LINE__,
+	       ip6_sprintf(ip6buf, &sin6->sin6_addr),
+	       mac_addr[0], mac_addr[1], mac_addr[2],
+	       mac_addr[3], mac_addr[4], mac_addr[5]);
+
+	irdma_manage_arp_cache(iwdev->rf, mac_addr, local_ipaddr6,
+			       IRDMA_ARP_ADD);
+	return (0);
+}
+
 /**
  * irdma_add_ipv6_addr - add ipv6 address to the hw arp table
  * @iwdev: irdma device
@@ -191,32 +217,37 @@ irdma_ieq_check_mpacrc(void *desc,
 static void
 irdma_add_ipv6_addr(struct irdma_device *iwdev, struct ifnet *ifp)
 {
-	struct ifaddr *ifa, *tmp;
-	struct sockaddr_in6 *sin6;
-	u32 local_ipaddr6[4];
-	u8 *mac_addr;
-	char ip6buf[INET6_ADDRSTRLEN];
-
 	if_addr_rlock(ifp);
-	IRDMA_TAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, tmp) {
-		sin6 = (struct sockaddr_in6 *)ifa->ifa_addr;
-		if (sin6->sin6_family != AF_INET6)
-			continue;
-
-		irdma_copy_ip_ntohl(local_ipaddr6, (u32 *)&sin6->sin6_addr);
-		mac_addr = IF_LLADDR(ifp);
-
-		printf("%s:%d IP=%s, MAC=%02x:%02x:%02x:%02x:%02x:%02x\n",
-		       __func__, __LINE__,
-		       ip6_sprintf(ip6buf, &sin6->sin6_addr),
-		       mac_addr[0], mac_addr[1], mac_addr[2],
-		       mac_addr[3], mac_addr[4], mac_addr[5]);
-
-		irdma_manage_arp_cache(iwdev->rf, mac_addr, local_ipaddr6,
-				       IRDMA_ARP_ADD);
-
-	}
+	if_foreach_addr_type(ifp, AF_INET6, irdma_add_ipv6_cb, iwdev);
 	if_addr_runlock(ifp);
+}
+
+static u_int
+irdma_add_ipv4_cb(void *arg, struct ifaddr *addr, u_int count __unused)
+{
+	struct irdma_device *iwdev = arg;
+	struct sockaddr_in *sin;
+	u32 ip_addr[4] = {};
+	uint8_t *mac_addr;
+
+	sin = (struct sockaddr_in *)addr->ifa_addr;
+
+	ip_addr[0] = ntohl(sin->sin_addr.s_addr);
+
+	mac_addr = if_getlladdr(addr->ifa_ifp);
+
+	printf("%s:%d IP=%d.%d.%d.%d, MAC=%02x:%02x:%02x:%02x:%02x:%02x\n",
+	       __func__, __LINE__,
+	       ip_addr[0] >> 24,
+	       (ip_addr[0] >> 16) & 0xFF,
+	       (ip_addr[0] >> 8) & 0xFF,
+	       ip_addr[0] & 0xFF,
+	       mac_addr[0], mac_addr[1], mac_addr[2],
+	       mac_addr[3], mac_addr[4], mac_addr[5]);
+
+	irdma_manage_arp_cache(iwdev->rf, mac_addr, ip_addr,
+			       IRDMA_ARP_ADD);
+	return (0);
 }
 
 /**
@@ -227,32 +258,8 @@ irdma_add_ipv6_addr(struct irdma_device *iwdev, struct ifnet *ifp)
 static void
 irdma_add_ipv4_addr(struct irdma_device *iwdev, struct ifnet *ifp)
 {
-	struct ifaddr *ifa;
-	struct sockaddr_in *sin;
-	u32 ip_addr[4] = {};
-	u8 *mac_addr;
-
 	if_addr_rlock(ifp);
-	IRDMA_TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-		sin = (struct sockaddr_in *)ifa->ifa_addr;
-		if (sin->sin_family != AF_INET)
-			continue;
-
-		ip_addr[0] = ntohl(sin->sin_addr.s_addr);
-		mac_addr = IF_LLADDR(ifp);
-
-		printf("%s:%d IP=%d.%d.%d.%d, MAC=%02x:%02x:%02x:%02x:%02x:%02x\n",
-		       __func__, __LINE__,
-		       ip_addr[0] >> 24,
-		       (ip_addr[0] >> 16) & 0xFF,
-		       (ip_addr[0] >> 8) & 0xFF,
-		       ip_addr[0] & 0xFF,
-		       mac_addr[0], mac_addr[1], mac_addr[2],
-		       mac_addr[3], mac_addr[4], mac_addr[5]);
-
-		irdma_manage_arp_cache(iwdev->rf, mac_addr, ip_addr,
-				       IRDMA_ARP_ADD);
-	}
+	if_foreach_addr_type(ifp, AF_INET, irdma_add_ipv4_cb, iwdev);
 	if_addr_runlock(ifp);
 }
 
@@ -271,7 +278,7 @@ irdma_add_ip(struct irdma_device *iwdev)
 
 	irdma_add_ipv4_addr(iwdev, ifp);
 	irdma_add_ipv6_addr(iwdev, ifp);
-	for (i = 0; ifp->if_vlantrunk != NULL && i < VLAN_N_VID; ++i) {
+	for (i = 0; if_getvlantrunk(ifp) != NULL && i < VLAN_N_VID; ++i) {
 		ifv = VLAN_DEVAT(ifp, i);
 		if (!ifv)
 			continue;
@@ -293,7 +300,7 @@ irdma_ifaddrevent_handler(void *arg, struct ifnet *ifp, struct ifaddr *ifa, int 
 	if (!ifa || !ifa->ifa_addr || !ifp)
 		return;
 	if (rf->iwdev->netdev != ifp) {
-		for (i = 0; rf->iwdev->netdev->if_vlantrunk != NULL && i < VLAN_N_VID; ++i) {
+		for (i = 0; if_getvlantrunk(rf->iwdev->netdev) != NULL && i < VLAN_N_VID; ++i) {
 			NET_EPOCH_ENTER(et);
 			ifv = VLAN_DEVAT(rf->iwdev->netdev, i);
 			NET_EPOCH_EXIT(et);
@@ -467,7 +474,7 @@ irdma_addr_resolve_neigh_ipv6(struct irdma_cm_node *cm_node,
 
 	dst_addr.sin6_family = AF_INET6;
 	dst_addr.sin6_len = sizeof(dst_addr);
-	dst_addr.sin6_scope_id = iwdev->netdev->if_index;
+	dst_addr.sin6_scope_id = if_getindex(iwdev->netdev);
 
 	irdma_copy_ip_htonl(dst_addr.sin6_addr.__u6_addr.__u6_addr32, dest);
 	err = irdma_get_dst_mac(cm_node, (struct sockaddr *)&dst_addr, dst_mac);

@@ -1630,11 +1630,12 @@ static u8 irdma_get_egress_vlan_prio(u32 *loc_addr, u8 prio, bool ipv4){
  * Returns the net_device of the IPv6 address and also sets the
  * vlan id and mac for that address.
  */
-struct ifnet *
+if_t
 irdma_netdev_vlan_ipv6(u32 *addr, u16 *vlan_id, u8 *mac)
 {
-	struct ifnet *ip_dev = NULL;
+	if_t ip_dev = NULL;
 	struct in6_addr laddr6;
+	struct ifaddr *ifa;
 	u16 scope_id = 0;
 
 	irdma_copy_ip_htonl(laddr6.__u6_addr.__u6_addr32, addr);
@@ -1651,8 +1652,9 @@ irdma_netdev_vlan_ipv6(u32 *addr, u16 *vlan_id, u8 *mac)
 	if (ip_dev) {
 		if (vlan_id)
 			*vlan_id = rdma_vlan_dev_vlan_id(ip_dev);
-		if (ip_dev->if_addr && ip_dev->if_addr->ifa_addr && mac)
-			ether_addr_copy(mac, IF_LLADDR(ip_dev));
+		ifa = if_getifaddr(ip_dev);
+		if (ifa && ifa->ifa_addr && mac)
+			ether_addr_copy(mac, if_getlladdr(ip_dev));
 	}
 
 	return ip_dev;
@@ -1665,7 +1667,7 @@ irdma_netdev_vlan_ipv6(u32 *addr, u16 *vlan_id, u8 *mac)
 u16
 irdma_get_vlan_ipv4(u32 *addr)
 {
-	struct ifnet *netdev;
+	if_t netdev;
 	u16 vlan_id = 0xFFFF;
 
 	netdev = ip_ifp_find(&init_net, htonl(addr[0]));
@@ -1677,179 +1679,92 @@ irdma_get_vlan_ipv4(u32 *addr)
 	return vlan_id;
 }
 
-/**
- * irdma_add_mqh_6 - Adds multiple qhashes for IPv6
- * @iwdev: iWarp device
- * @cm_info: CM info for parent listen node
- * @cm_parent_listen_node: The parent listen node
- *
- * Adds a qhash and a child listen node for every IPv6 address
- * on the adapter and adds the associated qhash filter
- */
-static int
-irdma_add_mqh_6(struct irdma_device *iwdev,
-		struct irdma_cm_info *cm_info,
-		struct irdma_cm_listener *cm_parent_listen_node)
-{
-	struct ifnet *ip_dev;
-	struct ifaddr *ifp;
-	struct irdma_cm_listener *child_listen_node;
-	unsigned long flags;
-	int ret = 0;
-
-	IFNET_RLOCK();
-	IRDMA_TAILQ_FOREACH((ip_dev), &V_ifnet, if_link) {
-		if (!(ip_dev->if_flags & IFF_UP))
-			continue;
-
-		if (((rdma_vlan_dev_vlan_id(ip_dev) >= VLAN_N_VID) ||
-		     (rdma_vlan_dev_real_dev(ip_dev) != iwdev->netdev)) &&
-		    ip_dev != iwdev->netdev)
-			continue;
-
-		if_addr_rlock(ip_dev);
-		IRDMA_TAILQ_FOREACH(ifp, &ip_dev->if_addrhead, ifa_link) {
-			irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_CM,
-				    "IP=%pI6, vlan_id=%d, MAC=%pM\n",
-				    &((struct sockaddr_in6 *)ifp->ifa_addr)->sin6_addr, rdma_vlan_dev_vlan_id(ip_dev),
-				    IF_LLADDR(ip_dev));
-			if (((struct sockaddr_in6 *)ifp->ifa_addr)->sin6_family != AF_INET6)
-				continue;
-			child_listen_node = kzalloc(sizeof(*child_listen_node), GFP_KERNEL);
-			irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_CM,
-				    "Allocating child listener %p\n",
-				    child_listen_node);
-			if (!child_listen_node) {
-				irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_CM, "listener memory allocation\n");
-				ret = -ENOMEM;
-				if_addr_runlock(ip_dev);
-				goto exit;
-			}
-
-			memcpy(child_listen_node, cm_parent_listen_node,
-			       sizeof(*child_listen_node));
-			cm_info->vlan_id = rdma_vlan_dev_vlan_id(ip_dev);
-			child_listen_node->vlan_id = cm_info->vlan_id;
-			irdma_copy_ip_ntohl(child_listen_node->loc_addr,
-					    ((struct sockaddr_in6 *)ifp->ifa_addr)->sin6_addr.__u6_addr.__u6_addr32);
-			memcpy(cm_info->loc_addr, child_listen_node->loc_addr,
-			       sizeof(cm_info->loc_addr));
-			if (!iwdev->vsi.dscp_mode)
-				cm_info->user_pri =
-				    irdma_get_egress_vlan_prio(child_listen_node->loc_addr,
-							       cm_info->user_pri,
-							       false);
-			ret = irdma_manage_qhash(iwdev, cm_info,
-						 IRDMA_QHASH_TYPE_TCP_SYN,
-						 IRDMA_QHASH_MANAGE_TYPE_ADD,
-						 NULL, true);
-			if (ret) {
-				kfree(child_listen_node);
-				continue;
-			}
-
-			child_listen_node->qhash_set = true;
-			spin_lock_irqsave(&iwdev->cm_core.listen_list_lock, flags);
-			list_add(&child_listen_node->child_listen_list,
-				 &cm_parent_listen_node->child_listen_list);
-			spin_unlock_irqrestore(&iwdev->cm_core.listen_list_lock, flags);
-			cm_parent_listen_node->cm_core->stats_listen_nodes_created++;
-		}
-		if_addr_runlock(ip_dev);
-	}
-exit:
-	IFNET_RUNLOCK();
-
-	return ret;
-}
+struct irdma_add_mqh_cbs {
+	struct irdma_device *iwdev;
+	struct irdma_cm_info *cm_info;
+	struct irdma_cm_listener *cm_listen_node;
+};
 
 /**
- * irdma_add_mqh_4 - Adds multiple qhashes for IPv4
- * @iwdev: iWarp device
- * @cm_info: CM info for parent listen node
- * @cm_parent_listen_node: The parent listen node
+ * irdma_add_mqh_ifa_cb - Adds multiple qhashes for IPV4/IPv6
+ * @arg: Calback argument structure from irdma_add_mqh
+ * @ifa: Current address to compute against
+ * @count: Current cumulative output of all callbacks in this iteration
  *
- * Adds a qhash and a child listen node for every IPv4 address
+ * Adds a qhash and a child listen node for a single IPv4/IPv6 address
  * on the adapter and adds the associated qhash filter
  */
-static int
-irdma_add_mqh_4(struct irdma_device *iwdev,
-		struct irdma_cm_info *cm_info,
-		struct irdma_cm_listener *cm_parent_listen_node)
+static u_int
+irdma_add_mqh_ifa_cb(void *arg, struct ifaddr *ifa, u_int count)
 {
-	struct ifnet *ip_dev;
+	struct irdma_add_mqh_cbs *cbs = arg;
 	struct irdma_cm_listener *child_listen_node;
+	struct irdma_cm_info *cm_info = cbs->cm_info;
+	struct irdma_device *iwdev = cbs->iwdev;
+	struct irdma_cm_listener *cm_parent_listen_node = cbs->cm_listen_node;
+	if_t ip_dev = ifa->ifa_ifp;
 	unsigned long flags;
-	struct ifaddr *ifa;
-	int ret = 0;
+	int ret;
 
-	IFNET_RLOCK();
-	IRDMA_TAILQ_FOREACH((ip_dev), &V_ifnet, if_link) {
-		if (!(ip_dev->if_flags & IFF_UP))
-			continue;
+	if (count)
+		return 0;
 
-		if (((rdma_vlan_dev_vlan_id(ip_dev) >= VLAN_N_VID) ||
-		     (rdma_vlan_dev_real_dev(ip_dev) != iwdev->netdev)) &&
-		    ip_dev != iwdev->netdev)
-			continue;
-
-		if_addr_rlock(ip_dev);
-		IRDMA_TAILQ_FOREACH(ifa, &ip_dev->if_addrhead, ifa_link) {
-			irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_CM,
-				    "Allocating child CM Listener forIP=%pI4, vlan_id=%d, MAC=%pM\n",
-				    &ifa->ifa_addr, rdma_vlan_dev_vlan_id(ip_dev),
-				    IF_LLADDR(ip_dev));
-			if (((struct sockaddr_in *)ifa->ifa_addr)->sin_family != AF_INET)
-				continue;
-			child_listen_node = kzalloc(sizeof(*child_listen_node), GFP_KERNEL);
-			cm_parent_listen_node->cm_core->stats_listen_nodes_created++;
-			irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_CM,
-				    "Allocating child listener %p\n",
-				    child_listen_node);
-			if (!child_listen_node) {
-				irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_CM, "listener memory allocation\n");
-				if_addr_runlock(ip_dev);
-				ret = -ENOMEM;
-				goto exit;
-			}
-
-			memcpy(child_listen_node, cm_parent_listen_node,
-			       sizeof(*child_listen_node));
-			child_listen_node->vlan_id = rdma_vlan_dev_vlan_id(ip_dev);
-			cm_info->vlan_id = child_listen_node->vlan_id;
-			child_listen_node->loc_addr[0] =
-			    ntohl(((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr);
-			memcpy(cm_info->loc_addr, child_listen_node->loc_addr,
-			       sizeof(cm_info->loc_addr));
-			if (!iwdev->vsi.dscp_mode)
-				cm_info->user_pri =
-				    irdma_get_egress_vlan_prio(child_listen_node->loc_addr,
-							       cm_info->user_pri,
-							       true);
-			ret = irdma_manage_qhash(iwdev, cm_info,
-						 IRDMA_QHASH_TYPE_TCP_SYN,
-						 IRDMA_QHASH_MANAGE_TYPE_ADD,
-						 NULL, true);
-			if (ret) {
-				kfree(child_listen_node);
-				cm_parent_listen_node->cm_core
-				    ->stats_listen_nodes_created--;
-				continue;
-			}
-
-			child_listen_node->qhash_set = true;
-			spin_lock_irqsave(&iwdev->cm_core.listen_list_lock,
-					  flags);
-			list_add(&child_listen_node->child_listen_list,
-				 &cm_parent_listen_node->child_listen_list);
-			spin_unlock_irqrestore(&iwdev->cm_core.listen_list_lock, flags);
-		}
-		if_addr_runlock(ip_dev);
+	if (cm_info->ipv4)
+		irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_CM,
+			    "Allocating child CM Listener forIP=%pI4, vlan_id=%d, MAC=%pM\n",
+			    &ifa->ifa_addr,
+			    rdma_vlan_dev_vlan_id(ip_dev), if_getlladdr(ip_dev));
+	else
+		irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_CM,
+			    "IP=%pI6, vlan_id=%d, MAC=%pM\n",
+			    &((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr,
+			    rdma_vlan_dev_vlan_id(ip_dev),
+			    if_getlladdr(ip_dev));
+	child_listen_node = kzalloc(sizeof(*child_listen_node), GFP_KERNEL);
+	irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_CM,
+		    "Allocating child listener %p\n",
+		    child_listen_node);
+	if (!child_listen_node) {
+		irdma_debug(&iwdev->rf->sc_dev,
+			    IRDMA_DEBUG_CM,
+			    "listener memory allocation\n");
+		return -ENOMEM;
 	}
-exit:
-	IFNET_RUNLOCK();
 
-	return ret;
+	memcpy(child_listen_node, cm_parent_listen_node,
+	       sizeof(*child_listen_node));
+	cm_info->vlan_id = rdma_vlan_dev_vlan_id(ip_dev);
+	child_listen_node->vlan_id = cm_info->vlan_id;
+	if (cm_info->ipv4)
+		child_listen_node->loc_addr[0] =
+		    ntohl(((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr);
+	else
+		irdma_copy_ip_ntohl(child_listen_node->loc_addr,
+				    ((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr.__u6_addr.__u6_addr32);
+	memcpy(cm_info->loc_addr, child_listen_node->loc_addr,
+	       sizeof(cm_info->loc_addr));
+	if (!iwdev->vsi.dscp_mode)
+		cm_info->user_pri =
+		    irdma_get_egress_vlan_prio(child_listen_node->loc_addr,
+					       cm_info->user_pri,
+					       false);
+	ret = irdma_manage_qhash(iwdev, cm_info,
+				 IRDMA_QHASH_TYPE_TCP_SYN,
+				 IRDMA_QHASH_MANAGE_TYPE_ADD,
+				 NULL, true);
+	if (ret) {
+		kfree(child_listen_node);
+		return ret;
+	}
+
+	child_listen_node->qhash_set = true;
+	spin_lock_irqsave(&iwdev->cm_core.listen_list_lock, flags);
+	list_add(&child_listen_node->child_listen_list,
+		 &cm_parent_listen_node->child_listen_list);
+	spin_unlock_irqrestore(&iwdev->cm_core.listen_list_lock, flags);
+	cm_parent_listen_node->cm_core->stats_listen_nodes_created++;
+
+	return 0;
 }
 
 /**
@@ -1863,21 +1778,42 @@ irdma_add_mqh(struct irdma_device *iwdev,
 	      struct irdma_cm_info *cm_info,
 	      struct irdma_cm_listener *cm_listen_node)
 {
+	struct epoch_tracker et;
+	struct irdma_add_mqh_cbs cbs;
+	struct if_iter iter;
+	if_t ifp;
 	int err;
+
+	cbs.iwdev = iwdev;
+	cbs.cm_info = cm_info;
+	cbs.cm_listen_node = cm_listen_node;
+
 	VNET_ITERATOR_DECL(vnet_iter);
 
 	VNET_LIST_RLOCK();
+	NET_EPOCH_ENTER(et);
 	VNET_FOREACH(vnet_iter) {
-		IFNET_RLOCK();
 		CURVNET_SET_QUIET(vnet_iter);
+		for (ifp = if_iter_start(&iter); ifp != NULL; ifp = if_iter_next(&iter)) {
+			if (!(if_getflags(ifp) & IFF_UP))
+				continue;
 
-		if (cm_info->ipv4)
-			err = irdma_add_mqh_4(iwdev, cm_info, cm_listen_node);
-		else
-			err = irdma_add_mqh_6(iwdev, cm_info, cm_listen_node);
+			if (((rdma_vlan_dev_vlan_id(ifp) >= VLAN_N_VID) ||
+			     (rdma_vlan_dev_real_dev(ifp) != iwdev->netdev)) &&
+			    ifp != iwdev->netdev)
+				continue;
+
+			if_addr_rlock(ifp);
+			if (cm_info->ipv4)
+				err = if_foreach_addr_type(ifp, AF_INET, irdma_add_mqh_ifa_cb, &cbs);
+			else
+				err = if_foreach_addr_type(ifp, AF_INET6, irdma_add_mqh_ifa_cb, &cbs);
+			if_addr_runlock(ifp);
+		}
+		if_iter_finish(&iter);
 		CURVNET_RESTORE();
-		IFNET_RUNLOCK();
 	}
+	NET_EPOCH_EXIT(et);
 	VNET_LIST_RUNLOCK();
 
 	return err;
@@ -2110,7 +2046,7 @@ irdma_cm_create_ah(struct irdma_cm_node *cm_node, bool wait)
 	struct vnet *vnet = rdma_id->route.addr.dev_addr.net;
 #endif
 
-	ether_addr_copy(ah_info.mac_addr, IF_LLADDR(iwdev->netdev));
+	ether_addr_copy(ah_info.mac_addr, if_getlladdr(iwdev->netdev));
 
 	ah_info.hop_ttl = 0x40;
 	ah_info.tc_tos = cm_node->tos;
@@ -2178,7 +2114,7 @@ irdma_make_cm_node(struct irdma_cm_core *cm_core, struct irdma_device *iwdev,
 {
 	struct irdma_cm_node *cm_node;
 	int arpindex;
-	struct ifnet *netdev = iwdev->netdev;
+	if_t netdev = iwdev->netdev;
 
 	/* create an hte and cm_node for this instance */
 	cm_node = kzalloc(sizeof(*cm_node), GFP_ATOMIC);
@@ -2227,7 +2163,7 @@ irdma_make_cm_node(struct irdma_cm_core *cm_core, struct irdma_device *iwdev,
 
 	cm_node->listener = listener;
 	cm_node->cm_id = cm_info->cm_id;
-	ether_addr_copy(cm_node->loc_mac, IF_LLADDR(netdev));
+	ether_addr_copy(cm_node->loc_mac, if_getlladdr(netdev));
 	spin_lock_init(&cm_node->retrans_list_lock);
 	cm_node->ack_rcvd = false;
 

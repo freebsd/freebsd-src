@@ -1122,7 +1122,7 @@ irdma_alloc_set_mac(struct irdma_device *iwdev)
 					     &iwdev->mac_ip_table_idx);
 	if (!status) {
 		status = irdma_add_local_mac_entry(iwdev->rf,
-						   (const u8 *)IF_LLADDR(iwdev->netdev),
+						   (const u8 *)if_getlladdr(iwdev->netdev),
 						   (u8)iwdev->mac_ip_table_idx);
 		if (status)
 			irdma_del_local_mac_entry(iwdev->rf,
@@ -2605,7 +2605,7 @@ irdma_manage_qhash(struct irdma_device *iwdev, struct irdma_cm_info *cminfo,
 	}
 	info->ipv4_valid = cminfo->ipv4;
 	info->user_pri = cminfo->user_pri;
-	ether_addr_copy(info->mac_addr, IF_LLADDR(iwdev->netdev));
+	ether_addr_copy(info->mac_addr, if_getlladdr(iwdev->netdev));
 	info->qp_num = cminfo->qh_qpid;
 	info->dest_port = cminfo->loc_port;
 	info->dest_ip[0] = cminfo->loc_addr[0];

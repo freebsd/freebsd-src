@@ -56,7 +56,7 @@ irdma_query_device(struct ib_device *ibdev,
 
 	memset(props, 0, sizeof(*props));
 	addrconf_addr_eui48((u8 *)&props->sys_image_guid,
-			    IF_LLADDR(iwdev->netdev));
+			    if_getlladdr(iwdev->netdev));
 	props->fw_ver = (u64)irdma_fw_major_ver(&rf->sc_dev) << 32 |
 	    irdma_fw_minor_ver(&rf->sc_dev);
 	props->device_cap_flags = IB_DEVICE_MEM_WINDOW |
@@ -737,7 +737,7 @@ irdma_roce_fill_and_set_qpctx_info(struct irdma_qp *iwqp,
 	udp_info->src_port = 0xc000;
 	udp_info->dst_port = ROCE_V2_UDP_DPORT;
 	roce_info = &iwqp->roce_info;
-	ether_addr_copy(roce_info->mac_addr, IF_LLADDR(iwdev->netdev));
+	ether_addr_copy(roce_info->mac_addr, if_getlladdr(iwdev->netdev));
 
 	roce_info->rd_en = true;
 	roce_info->wr_rdresp_en = true;
@@ -770,7 +770,7 @@ irdma_iw_fill_and_set_qpctx_info(struct irdma_qp *iwqp,
 	struct irdma_iwarp_offload_info *iwarp_info;
 
 	iwarp_info = &iwqp->iwarp_info;
-	ether_addr_copy(iwarp_info->mac_addr, IF_LLADDR(iwdev->netdev));
+	ether_addr_copy(iwarp_info->mac_addr, if_getlladdr(iwdev->netdev));
 	iwarp_info->rd_en = true;
 	iwarp_info->wr_rdresp_en = true;
 	iwarp_info->bind_en = true;
@@ -3507,7 +3507,7 @@ irdma_query_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr)
 	return 0;
 }
 
-static struct ifnet *
+static if_t
 irdma_get_netdev(struct ib_device *ibdev, u8 port_num)
 {
 	struct irdma_device *iwdev = to_iwdev(ibdev);
@@ -3627,7 +3627,7 @@ irdma_init_roce_device(struct irdma_device *iwdev)
 	kc_set_roce_uverbs_cmd_mask(iwdev);
 	iwdev->ibdev.node_type = RDMA_NODE_IB_CA;
 	addrconf_addr_eui48((u8 *)&iwdev->ibdev.node_guid,
-			    IF_LLADDR(iwdev->netdev));
+			    if_getlladdr(iwdev->netdev));
 	irdma_set_device_roce_ops(&iwdev->ibdev);
 	if (iwdev->rf->rdma_ver == IRDMA_GEN_2)
 		irdma_set_device_mcast_ops(&iwdev->ibdev);
@@ -3640,11 +3640,11 @@ irdma_init_roce_device(struct irdma_device *iwdev)
 static int
 irdma_init_iw_device(struct irdma_device *iwdev)
 {
-	struct ifnet *netdev = iwdev->netdev;
+	if_t netdev = iwdev->netdev;
 
 	iwdev->ibdev.node_type = RDMA_NODE_RNIC;
 	addrconf_addr_eui48((u8 *)&iwdev->ibdev.node_guid,
-			    IF_LLADDR(netdev));
+			    if_getlladdr(netdev));
 	iwdev->ibdev.iwcm = kzalloc(sizeof(*iwdev->ibdev.iwcm), GFP_KERNEL);
 	if (!iwdev->ibdev.iwcm)
 		return -ENOMEM;
