@@ -436,7 +436,6 @@ udom_open(const char *path, int flags)
 	 */
 	bzero(&hints, sizeof(hints));
 	hints.ai_family = AF_LOCAL;
-	fd = -1;
 
 	if (fileargs_realpath(fa, path, rpath) == NULL)
 		return (-1);
@@ -449,6 +448,10 @@ udom_open(const char *path, int flags)
 	}
 	cap_rights_init(&rights, CAP_CONNECT, CAP_READ, CAP_WRITE,
 	    CAP_SHUTDOWN, CAP_FSTAT, CAP_FCNTL);
+
+	/* Default error if something goes wrong. */
+	serrno = EINVAL;
+
 	for (res = res0; res != NULL; res = res->ai_next) {
 		fd = socket(res->ai_family, res->ai_socktype,
 		    res->ai_protocol);
@@ -471,39 +474,40 @@ udom_open(const char *path, int flags)
 		else {
 			serrno = errno;
 			close(fd);
-			fd = -1;
 		}
 	}
 	freeaddrinfo(res0);
 
+	if (res == NULL) {
+		errno = serrno;
+		return (-1);
+	}
+
 	/*
 	 * handle the open flags by shutting down appropriate directions
 	 */
-	if (fd >= 0) {
-		switch(flags & O_ACCMODE) {
-		case O_RDONLY:
-			cap_rights_clear(&rights, CAP_WRITE);
-			if (shutdown(fd, SHUT_WR) == -1)
-				warn(NULL);
-			break;
-		case O_WRONLY:
-			cap_rights_clear(&rights, CAP_READ);
-			if (shutdown(fd, SHUT_RD) == -1)
-				warn(NULL);
-			break;
-		default:
-			break;
-		}
 
-		cap_rights_clear(&rights, CAP_CONNECT, CAP_SHUTDOWN);
-		if (caph_rights_limit(fd, &rights) < 0) {
-			serrno = errno;
-			close(fd);
-			errno = serrno;
-			return (-1);
-		}
-	} else {
+	switch (flags & O_ACCMODE) {
+	case O_RDONLY:
+		cap_rights_clear(&rights, CAP_WRITE);
+		if (shutdown(fd, SHUT_WR) == -1)
+			warn(NULL);
+		break;
+	case O_WRONLY:
+		cap_rights_clear(&rights, CAP_READ);
+		if (shutdown(fd, SHUT_RD) == -1)
+			warn(NULL);
+		break;
+	default:
+		break;
+	}
+
+	cap_rights_clear(&rights, CAP_CONNECT, CAP_SHUTDOWN);
+	if (caph_rights_limit(fd, &rights) < 0) {
+		serrno = errno;
+		close(fd);
 		errno = serrno;
+		return (-1);
 	}
 	return (fd);
 }
