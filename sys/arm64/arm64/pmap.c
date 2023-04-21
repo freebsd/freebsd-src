@@ -1241,8 +1241,7 @@ pmap_bootstrap_allocate_kasan_l2(vm_paddr_t start_pa, vm_paddr_t end_pa,
 			continue;
 		}
 
-		pmap_store(l2, (pa & ~Ln_TABLE_MASK) | PMAP_SAN_PTE_BITS |
-		    L2_BLOCK);
+		pmap_store(l2, pa | PMAP_SAN_PTE_BITS | L2_BLOCK);
 	}
 
 	/*
@@ -7800,8 +7799,7 @@ pmap_san_enter(vm_offset_t va)
 	MPASS(l1 != NULL);
 	if ((pmap_load(l1) & ATTR_DESCR_VALID) == 0) {
 		m = pmap_san_enter_alloc_l3();
-		pmap_store(l1, (VM_PAGE_TO_PHYS(m) & ~Ln_TABLE_MASK) |
-		    L1_TABLE);
+		pmap_store(l1, VM_PAGE_TO_PHYS(m) | L1_TABLE);
 	}
 	l2 = pmap_l1_to_l2(l1, va);
 	if ((pmap_load(l2) & ATTR_DESCR_VALID) == 0) {
