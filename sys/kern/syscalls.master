@@ -917,7 +917,7 @@
 		    _In_ _Contains_long_timet_ const struct timeval *tptr
 		);
 	}
-139	AUE_NULL	OBSOL	4.2 sigreturn
+139	AUE_NULL	OBSOL	sigreturn
 140	AUE_ADJTIME	STD {
 		int adjtime(
 		    _In_ _Contains_long_timet_ const struct timeval *delta,
