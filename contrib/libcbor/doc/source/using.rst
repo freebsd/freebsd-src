@@ -34,10 +34,10 @@ feel free to use just some of the ``cbor/*.h`` headers:
 
  - ``cbor/arrays.h`` - :doc:`api/type_4`
  - ``cbor/bytestrings.h`` - :doc:`api/type_2`
- - ``cbor/callbacks.h`` - Callbacks used for :doc:`streaming/decoding`
+ - ``cbor/callbacks.h`` - Callbacks used for :doc:`api/streaming_decoding`
  - ``cbor/common.h`` - Common utilities - always transitively included
  - ``cbor/data.h`` - Data types definitions - always transitively included
- - ``cbor/encoding.h`` - Streaming encoders for :doc:`streaming/encoding`
+ - ``cbor/encoding.h`` - Streaming encoders for :doc:`api/streaming_encoding`
  - ``cbor/floats_ctrls.h`` - :doc:`api/type_7`
  - ``cbor/ints.h`` - :doc:`api/type_0_1`
  - ``cbor/maps.h`` - :doc:`api/type_5`
@@ -75,11 +75,12 @@ of what is it CBOR does, the examples (located in the ``examples`` directory) sh
             .key = cbor_move(cbor_build_uint8(42)),
             .value = cbor_move(cbor_build_string("Is the answer"))
         });
-        /* Output: `length` bytes of data in the `buffer` */
+        /* Output: `buffer_size` bytes of data in the `buffer` */
         unsigned char * buffer;
-        size_t buffer_size, length = cbor_serialize_alloc(root, &buffer, &buffer_size);
+        size_t buffer_size;
+        cbor_serialize_alloc(root, &buffer, &buffer_size);
 
-        fwrite(buffer, 1, length, stdout);
+        fwrite(buffer, 1, buffer_size, stdout);
         free(buffer);
 
         fflush(stdout);

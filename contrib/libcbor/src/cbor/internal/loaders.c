@@ -64,7 +64,7 @@ float _cbor_decode_half(unsigned char *halfp) {
   return (float)(half & 0x8000 ? -val : val);
 }
 
-double _cbor_load_half(cbor_data source) {
+float _cbor_load_half(cbor_data source) {
   /* Discard const */
   return _cbor_decode_half((unsigned char *)source);
 }

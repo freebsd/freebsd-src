@@ -10,41 +10,42 @@
 #include "assert.h"
 
 cbor_float_width cbor_float_get_width(const cbor_item_t *item) {
-  assert(cbor_isa_float_ctrl(item));
+  CBOR_ASSERT(cbor_isa_float_ctrl(item));
   return item->metadata.float_ctrl_metadata.width;
 }
 
 uint8_t cbor_ctrl_value(const cbor_item_t *item) {
-  assert(cbor_isa_float_ctrl(item));
-  assert(cbor_float_get_width(item) == CBOR_FLOAT_0);
+  CBOR_ASSERT(cbor_isa_float_ctrl(item));
+  CBOR_ASSERT(cbor_float_get_width(item) == CBOR_FLOAT_0);
   return item->metadata.float_ctrl_metadata.ctrl;
 }
 
 bool cbor_float_ctrl_is_ctrl(const cbor_item_t *item) {
-  assert(cbor_isa_float_ctrl(item));
+  CBOR_ASSERT(cbor_isa_float_ctrl(item));
   return cbor_float_get_width(item) == CBOR_FLOAT_0;
 }
 
 float cbor_float_get_float2(const cbor_item_t *item) {
-  assert(cbor_is_float(item));
-  assert(cbor_float_get_width(item) == CBOR_FLOAT_16);
+  CBOR_ASSERT(cbor_is_float(item));
+  CBOR_ASSERT(cbor_float_get_width(item) == CBOR_FLOAT_16);
   return *(float *)item->data;
 }
 
 float cbor_float_get_float4(const cbor_item_t *item) {
-  assert(cbor_is_float(item));
-  assert(cbor_float_get_width(item) == CBOR_FLOAT_32);
+  CBOR_ASSERT(cbor_is_float(item));
+  CBOR_ASSERT(cbor_float_get_width(item) == CBOR_FLOAT_32);
   return *(float *)item->data;
 }
 
 double cbor_float_get_float8(const cbor_item_t *item) {
-  assert(cbor_is_float(item));
-  assert(cbor_float_get_width(item) == CBOR_FLOAT_64);
+  CBOR_ASSERT(cbor_is_float(item));
+  CBOR_ASSERT(cbor_float_get_width(item) == CBOR_FLOAT_64);
   return *(double *)item->data;
 }
 
 double cbor_float_get_float(const cbor_item_t *item) {
-  assert(cbor_is_float(item));
+  CBOR_ASSERT(cbor_is_float(item));
+  // cppcheck-suppress missingReturn
   switch (cbor_float_get_width(item)) {
     case CBOR_FLOAT_0:
       return NAN;
@@ -55,46 +56,45 @@ double cbor_float_get_float(const cbor_item_t *item) {
     case CBOR_FLOAT_64:
       return cbor_float_get_float8(item);
   }
-  return NAN; /* Compiler complaints */
 }
 
 bool cbor_get_bool(const cbor_item_t *item) {
-  assert(cbor_is_bool(item));
+  CBOR_ASSERT(cbor_is_bool(item));
   return item->metadata.float_ctrl_metadata.ctrl == CBOR_CTRL_TRUE;
 }
 
 void cbor_set_float2(cbor_item_t *item, float value) {
-  assert(cbor_is_float(item));
-  assert(cbor_float_get_width(item) == CBOR_FLOAT_16);
+  CBOR_ASSERT(cbor_is_float(item));
+  CBOR_ASSERT(cbor_float_get_width(item) == CBOR_FLOAT_16);
   *((float *)item->data) = value;
 }
 
 void cbor_set_float4(cbor_item_t *item, float value) {
-  assert(cbor_is_float(item));
-  assert(cbor_float_get_width(item) == CBOR_FLOAT_32);
+  CBOR_ASSERT(cbor_is_float(item));
+  CBOR_ASSERT(cbor_float_get_width(item) == CBOR_FLOAT_32);
   *((float *)item->data) = value;
 }
 
 void cbor_set_float8(cbor_item_t *item, double value) {
-  assert(cbor_is_float(item));
-  assert(cbor_float_get_width(item) == CBOR_FLOAT_64);
+  CBOR_ASSERT(cbor_is_float(item));
+  CBOR_ASSERT(cbor_float_get_width(item) == CBOR_FLOAT_64);
   *((double *)item->data) = value;
 }
 
 void cbor_set_ctrl(cbor_item_t *item, uint8_t value) {
-  assert(cbor_isa_float_ctrl(item));
-  assert(cbor_float_get_width(item) == CBOR_FLOAT_0);
+  CBOR_ASSERT(cbor_isa_float_ctrl(item));
+  CBOR_ASSERT(cbor_float_get_width(item) == CBOR_FLOAT_0);
   item->metadata.float_ctrl_metadata.ctrl = value;
 }
 
 void cbor_set_bool(cbor_item_t *item, bool value) {
-  assert(cbor_is_bool(item));
+  CBOR_ASSERT(cbor_is_bool(item));
   item->metadata.float_ctrl_metadata.ctrl =
       value ? CBOR_CTRL_TRUE : CBOR_CTRL_FALSE;
 }
 
-cbor_item_t *cbor_new_ctrl() {
-  cbor_item_t *item = _CBOR_MALLOC(sizeof(cbor_item_t));
+cbor_item_t *cbor_new_ctrl(void) {
+  cbor_item_t *item = _cbor_malloc(sizeof(cbor_item_t));
   _CBOR_NOTNULL(item);
 
   *item = (cbor_item_t){
@@ -106,8 +106,8 @@ cbor_item_t *cbor_new_ctrl() {
   return item;
 }
 
-cbor_item_t *cbor_new_float2() {
-  cbor_item_t *item = _CBOR_MALLOC(sizeof(cbor_item_t) + 4);
+cbor_item_t *cbor_new_float2(void) {
+  cbor_item_t *item = _cbor_malloc(sizeof(cbor_item_t) + 4);
   _CBOR_NOTNULL(item);
 
   *item = (cbor_item_t){
@@ -118,8 +118,8 @@ cbor_item_t *cbor_new_float2() {
   return item;
 }
 
-cbor_item_t *cbor_new_float4() {
-  cbor_item_t *item = _CBOR_MALLOC(sizeof(cbor_item_t) + 4);
+cbor_item_t *cbor_new_float4(void) {
+  cbor_item_t *item = _cbor_malloc(sizeof(cbor_item_t) + 4);
   _CBOR_NOTNULL(item);
 
   *item = (cbor_item_t){
@@ -130,8 +130,8 @@ cbor_item_t *cbor_new_float4() {
   return item;
 }
 
-cbor_item_t *cbor_new_float8() {
-  cbor_item_t *item = _CBOR_MALLOC(sizeof(cbor_item_t) + 8);
+cbor_item_t *cbor_new_float8(void) {
+  cbor_item_t *item = _cbor_malloc(sizeof(cbor_item_t) + 8);
   _CBOR_NOTNULL(item);
 
   *item = (cbor_item_t){
@@ -142,14 +142,14 @@ cbor_item_t *cbor_new_float8() {
   return item;
 }
 
-cbor_item_t *cbor_new_null() {
+cbor_item_t *cbor_new_null(void) {
   cbor_item_t *item = cbor_new_ctrl();
   _CBOR_NOTNULL(item);
   cbor_set_ctrl(item, CBOR_CTRL_NULL);
   return item;
 }
 
-cbor_item_t *cbor_new_undef() {
+cbor_item_t *cbor_new_undef(void) {
   cbor_item_t *item = cbor_new_ctrl();
   _CBOR_NOTNULL(item);
   cbor_set_ctrl(item, CBOR_CTRL_UNDEF);

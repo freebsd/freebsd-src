@@ -6,6 +6,7 @@
  */
 
 #include "unicode.h"
+#include <stdint.h>
 
 #define UTF8_ACCEPT 0
 #define UTF8_REJECT 1
@@ -65,12 +66,12 @@ uint32_t _cbor_unicode_decode(uint32_t* state, uint32_t* codep, uint32_t byte) {
   return *state;
 }
 
-size_t _cbor_unicode_codepoint_count(cbor_data source, size_t source_length,
-                                     struct _cbor_unicode_status* status) {
+uint64_t _cbor_unicode_codepoint_count(cbor_data source, uint64_t source_length,
+                                       struct _cbor_unicode_status* status) {
   *status =
       (struct _cbor_unicode_status){.location = 0, .status = _CBOR_UNICODE_OK};
   uint32_t codepoint, state = UTF8_ACCEPT, res;
-  size_t pos = 0, count = 0;
+  uint64_t pos = 0, count = 0;
 
   for (; pos < source_length; pos++) {
     res = _cbor_unicode_decode(&state, &codepoint, source[pos]);
@@ -90,5 +91,5 @@ size_t _cbor_unicode_codepoint_count(cbor_data source, size_t source_length,
 error:
   *status = (struct _cbor_unicode_status){.location = pos,
                                           .status = _CBOR_UNICODE_BADCP};
-  return -1;
+  return 0;
 }

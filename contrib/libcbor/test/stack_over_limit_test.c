@@ -1,12 +1,5 @@
-#include <setjmp.h>
-#include <stdarg.h>
-#include <stddef.h>
-
-#include <cmocka.h>
-
 #include "assertions.h"
 #include "cbor.h"
-#include "stream_expectations.h"
 
 static size_t generate_overflow_data(unsigned char **overflow_data) {
   int i;
@@ -19,17 +12,17 @@ static size_t generate_overflow_data(unsigned char **overflow_data) {
   return CBOR_MAX_STACK_SIZE + 3;
 }
 
-static void test_stack_over_limit(void **state) {
+static void test_stack_over_limit(void **_CBOR_UNUSED(_state)) {
   unsigned char *overflow_data;
   size_t overflow_data_len;
   struct cbor_load_result res;
   overflow_data_len = generate_overflow_data(&overflow_data);
-  cbor_load(overflow_data, overflow_data_len, &res);
+  assert_null(cbor_load(overflow_data, overflow_data_len, &res));
   free(overflow_data);
-  assert_int_equal(res.error.code, CBOR_ERR_MEMERROR);
+  assert_size_equal(res.error.code, CBOR_ERR_MEMERROR);
 }
 
-int main() {
+int main(void) {
   const struct CMUnitTest tests[] = {cmocka_unit_test(test_stack_over_limit)};
   return cmocka_run_group_tests(tests, NULL, NULL);
 }

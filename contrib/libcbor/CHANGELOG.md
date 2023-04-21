@@ -1,5 +1,52 @@
+Template:
+- [Fix issue X in feature Y](https://github.com/PJK/libcbor/pull/XXX) (by [YYY](https://github.com/YYY))
+
 Next
 ---------------------
+
+0.10.2 (2023-01-31)
+---------------------
+- [Fixed minor test bug causing failures for x86 Linux](https://github.com/PJK/libcbor/pull/266) (discovered by [trofi](https://github.com/PJK/libcbor/issues/263))
+  - Actual libcbor functionality not affected, bug was in the test suite
+- [Made tests platform-independent](https://github.com/PJK/libcbor/pull/272)
+
+0.10.1 (2022-12-30)
+---------------------
+- [Fix a regression in `cbor_serialize_alloc` that caused serialization of zero-length strings and bytestrings or byte/strings with zero-length chunks to fail](https://github.com/PJK/libcbor/pull/260) (discovered by [martelletto](https://github.com/martelletto))
+
+0.10.0 (2022-12-29)
+---------------------
+- Make the buffer_size optional in `cbor_serialize_alloc` [[#205]](https://github.com/PJK/libcbor/pull/205) (by [hughsie](https://github.com/hughsie))
+- BREAKING: Improved half-float encoding for denormalized numbers. [[#208]](https://github.com/PJK/libcbor/pull/208) (by [ranvis](https://github.com/ranvis))
+  - Denormalized half-floats will now preserve data in the mantissa
+  - Note: Half-float NaNs still lose data (https://github.com/PJK/libcbor/issues/215)
+- BUILD BREAKING: Minimum CMake version is 3.0 [[#201]](https://github.com/PJK/libcbor/pull/201) (by [thewtex@](https://github.com/thewtex))
+  - See https://repology.org/project/cmake/versions for support; the vast majority of users should not be affected.
+- Fix a potential memory leak when the allocator fails during array or map decoding [[#224]](https://github.com/PJK/libcbor/pull/224) (by [James-ZHANG](https://github.com/James-ZHANG))
+- [Fix a memory leak when the allocator fails when adding chunks to indefinite bytestrings.](https://github.com/PJK/libcbor/pull/242) ([discovered](https://github.com/PJK/libcbor/pull/228) by [James-ZHANG](https://github.com/James-ZHANG))
+- [Fix a memory leak when the allocator fails when adding chunks to indefinite strings](https://github.com/PJK/libcbor/pull/246)
+- Potentially BUILD BREAKING: [Add nodiscard attributes to most functions](https://github.com/PJK/libcbor/pull/248)
+  - **Warning**: This may cause new build warnings and (in rare cases, depending on your configuration) errors
+- BREAKING: [Fix `cbor_copy` leaking memory and creating invalid items when the allocator fails](https://github.com/PJK/libcbor/pull/249).
+  - Previously, the failures were not handled in the interface. Now, `cbor_copy` may return `NULL` upon failure; clients should check the return value
+- [Fix `cbor_build_tag` illegal memory behavior when the allocator fails](https://github.com/PJK/libcbor/pull/249)
+- [Add a new `cbor_serialized_size` API](https://github.com/PJK/libcbor/pull/250)
+- [Reworked `cbor_serialize_alloc` to allocate the exact amount of memory necessary upfront](https://github.com/PJK/libcbor/pull/251)
+  - This should significantly speed up `cbor_serialize_alloc` for large items by avoiding multiple reallocation iterations
+  - Clients should not use the return value of `cbor_serialize_alloc`. It may be removed in the future.
+- BUILD BREAKING: [Deprecate CBOR_CUSTOM_ALLOC](https://github.com/PJK/libcbor/pull/237)
+  - `cbor_set_allocs` will always be enabled from now on
+  - Note: The flag will be kept as a no-op triggering a warning when used for one version and then removed completely
+
+0.9.0 (2021-11-14)
+---------------------
+- Improved pkg-config paths handling [[#164]](https://github.com/PJK/libcbor/pull/164) (by [jtojnar@](https://github.com/jtojnar))
+- Use explicit math.h linkage [[#170]](https://github.com/PJK/libcbor/pull/170)
+- BREAKING: Fixed handling of items that exceed the host size_t range [[#186]](https://github.com/PJK/libcbor/pull/186hg)  
+    - Callbacks for bytestrings, strings, arrays, and maps use uint64_t instead of size_t to allow handling of large items that exceed size_t even if size_t < uint64_t
+    - cbor_decode explicitly checks size to avoid overflows (previously broken, potentially resulting in erroneous decoding on affected systems)
+    - The change should be a noop for 64b systems 
+- Added a [Bazel](https://bazel.build/) build example [[#196]](https://github.com/PJK/libcbor/pull/196) (by [andyjgf@](https://github.com/andyjgf))
 
 0.8.0 (2020-09-20)
 ---------------------

@@ -15,6 +15,10 @@
 #include "strings.h"
 #include "tags.h"
 
+#ifdef DEBUG
+bool _cbor_enable_assert = true;
+#endif
+
 bool cbor_isa_uint(const cbor_item_t *item) {
   return item->type == CBOR_TYPE_UINT;
 }
@@ -78,7 +82,7 @@ cbor_item_t *cbor_incref(cbor_item_t *item) {
 
 void cbor_decref(cbor_item_t **item_ref) {
   cbor_item_t *item = *item_ref;
-  assert(item->refcount > 0);
+  CBOR_ASSERT(item->refcount > 0);
   if (--item->refcount == 0) {
     switch (item->type) {
       case CBOR_TYPE_UINT:
@@ -88,29 +92,29 @@ void cbor_decref(cbor_item_t **item_ref) {
         { break; }
       case CBOR_TYPE_BYTESTRING: {
         if (cbor_bytestring_is_definite(item)) {
-          _CBOR_FREE(item->data);
+          _cbor_free(item->data);
         } else {
           /* We need to decref all chunks */
           cbor_item_t **handle = cbor_bytestring_chunks_handle(item);
           for (size_t i = 0; i < cbor_bytestring_chunk_count(item); i++)
             cbor_decref(&handle[i]);
-          _CBOR_FREE(
+          _cbor_free(
               ((struct cbor_indefinite_string_data *)item->data)->chunks);
-          _CBOR_FREE(item->data);
+          _cbor_free(item->data);
         }
         break;
       }
       case CBOR_TYPE_STRING: {
         if (cbor_string_is_definite(item)) {
-          _CBOR_FREE(item->data);
+          _cbor_free(item->data);
         } else {
           /* We need to decref all chunks */
           cbor_item_t **handle = cbor_string_chunks_handle(item);
           for (size_t i = 0; i < cbor_string_chunk_count(item); i++)
             cbor_decref(&handle[i]);
-          _CBOR_FREE(
+          _cbor_free(
               ((struct cbor_indefinite_string_data *)item->data)->chunks);
-          _CBOR_FREE(item->data);
+          _cbor_free(item->data);
         }
         break;
       }
@@ -120,7 +124,7 @@ void cbor_decref(cbor_item_t **item_ref) {
         size_t size = cbor_array_size(item);
         for (size_t i = 0; i < size; i++)
           if (handle[i] != NULL) cbor_decref(&handle[i]);
-        _CBOR_FREE(item->data);
+        _cbor_free(item->data);
         break;
       }
       case CBOR_TYPE_MAP: {
@@ -130,13 +134,13 @@ void cbor_decref(cbor_item_t **item_ref) {
           cbor_decref(&handle->key);
           if (handle->value != NULL) cbor_decref(&handle->value);
         }
-        _CBOR_FREE(item->data);
+        _cbor_free(item->data);
         break;
-      };
+      }
       case CBOR_TYPE_TAG: {
         if (item->metadata.tag_metadata.tagged_item != NULL)
           cbor_decref(&item->metadata.tag_metadata.tagged_item);
-        _CBOR_FREE(item->data);
+        _cbor_free(item->data);
         break;
       }
       case CBOR_TYPE_FLOAT_CTRL: {
@@ -144,8 +148,7 @@ void cbor_decref(cbor_item_t **item_ref) {
         break;
       }
     }
-    _CBOR_FREE(item);
-    // TODO
+    _cbor_free(item);
     *item_ref = NULL;
   }
 }

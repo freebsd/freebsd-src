@@ -8,6 +8,8 @@
 #ifndef LIBCBOR_CALLBACKS_H
 #define LIBCBOR_CALLBACKS_H
 
+#include <stdint.h>
+
 #include "cbor/cbor_export.h"
 #include "cbor/common.h"
 
@@ -31,10 +33,10 @@ typedef void (*cbor_int64_callback)(void *, uint64_t);
 typedef void (*cbor_simple_callback)(void *);
 
 /** Callback prototype */
-typedef void (*cbor_string_callback)(void *, cbor_data, size_t);
+typedef void (*cbor_string_callback)(void *, cbor_data, uint64_t);
 
 /** Callback prototype */
-typedef void (*cbor_collection_callback)(void *, size_t);
+typedef void (*cbor_collection_callback)(void *, uint64_t);
 
 /** Callback prototype */
 typedef void (*cbor_float_callback)(void *, float);
@@ -130,25 +132,25 @@ CBOR_EXPORT void cbor_null_negint32_callback(void *, uint32_t);
 CBOR_EXPORT void cbor_null_negint64_callback(void *, uint64_t);
 
 /** Dummy callback implementation - does nothing */
-CBOR_EXPORT void cbor_null_string_callback(void *, cbor_data, size_t);
+CBOR_EXPORT void cbor_null_string_callback(void *, cbor_data, uint64_t);
 
 /** Dummy callback implementation - does nothing */
 CBOR_EXPORT void cbor_null_string_start_callback(void *);
 
 /** Dummy callback implementation - does nothing */
-CBOR_EXPORT void cbor_null_byte_string_callback(void *, cbor_data, size_t);
+CBOR_EXPORT void cbor_null_byte_string_callback(void *, cbor_data, uint64_t);
 
 /** Dummy callback implementation - does nothing */
 CBOR_EXPORT void cbor_null_byte_string_start_callback(void *);
 
 /** Dummy callback implementation - does nothing */
-CBOR_EXPORT void cbor_null_array_start_callback(void *, size_t);
+CBOR_EXPORT void cbor_null_array_start_callback(void *, uint64_t);
 
 /** Dummy callback implementation - does nothing */
 CBOR_EXPORT void cbor_null_indef_array_start_callback(void *);
 
 /** Dummy callback implementation - does nothing */
-CBOR_EXPORT void cbor_null_map_start_callback(void *, size_t);
+CBOR_EXPORT void cbor_null_map_start_callback(void *, uint64_t);
 
 /** Dummy callback implementation - does nothing */
 CBOR_EXPORT void cbor_null_indef_map_start_callback(void *);

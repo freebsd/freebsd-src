@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include "cbor.h"
 
-void usage() {
+void usage(void) {
   printf("Usage: readfile [input file]\n");
   exit(1);
 }
@@ -31,6 +31,7 @@ int main(int argc, char* argv[]) {
   /* Assuming `buffer` contains `length` bytes of input data */
   struct cbor_load_result result;
   cbor_item_t* item = cbor_load(buffer, length, &result);
+  free(buffer);
 
   if (result.error.code != CBOR_ERR_NONE) {
     printf(

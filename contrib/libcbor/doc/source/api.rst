@@ -10,7 +10,7 @@ The data API is centered around :type:`cbor_item_t`, a generic handle for any CB
 
 The single most important thing to keep in mind is: :type:`cbor_item_t` **is an opaque type and should only be manipulated using the appropriate functions!** Think of it as an object.
 
-The *libcbor* API closely follows the semantics outlined by `CBOR standard <http://tools.ietf.org/html/rfc7049>`_. This part of the documentation provides a short overview of the CBOR constructs, as well as a general introduction to the *libcbor* API. Remaining reference can be found in the following files structured by data types.
+The *libcbor* API closely follows the semantics outlined by `CBOR standard <https://tools.ietf.org/html/rfc7049>`_. This part of the documentation provides a short overview of the CBOR constructs, as well as a general introduction to the *libcbor* API. Remaining reference can be found in the following files structured by data types.
 
 The API is designed to allow both very tight control & flexibility and general convenience with sane defaults. [#]_ For example, client with very specific requirements (constrained environment, custom application protocol built on top of CBOR, etc.) may choose to take full control (and responsibility) of memory and data structures management by interacting directly with the decoder. Other clients might want to take control of specific aspects (streamed collections, hash maps storage), but leave other responsibilities to *libcbor*. More general clients might prefer to be abstracted away from all aforementioned details and only be presented complete data structures.
 
@@ -28,6 +28,8 @@ The API is designed to allow both very tight control & flexibility and general c
    api/item_reference_counting
    api/decoding
    api/encoding
+   api/streaming_decoding
+   api/streaming_encoding
    api/type_0_1
    api/type_2
    api/type_3

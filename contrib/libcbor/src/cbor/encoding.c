@@ -135,17 +135,23 @@ size_t cbor_encode_half(float value, unsigned char *buffer,
       val & 0x7FFFFFu; /* 0b0000_0000_0111_1111_1111_1111_1111_1111 */
   if (exp == 0xFF) {   /* Infinity or NaNs */
     if (value != value) {
-      res = (uint16_t)0x007e00; /* Not IEEE semantics - required by CBOR
-                                   [s. 3.9] */
+      // We discard information bits in half-float NaNs. This is
+      // not required for the core CBOR protocol (it is only a suggestion in
+      // Section 3.9).
+      // See https://github.com/PJK/libcbor/issues/215
+      res = (uint16_t)0x007e00;
     } else {
-      res = (uint16_t)((val & 0x80000000u) >> 16u | 0x7C00u |
-                       (mant ? 1u : 0u) << 15u);
+      // If the mantissa is non-zero, we have a NaN, but those are handled
+      // above. See
+      // https://en.wikipedia.org/wiki/Half-precision_floating-point_format
+      CBOR_ASSERT(mant == 0u);
+      res = (uint16_t)((val & 0x80000000u) >> 16u | 0x7C00u);
     }
   } else if (exp == 0x00) { /* Zeroes or subnorms */
     res = (uint16_t)((val & 0x80000000u) >> 16u | mant >> 13u);
   } else { /* Normal numbers */
     int8_t logical_exp = (int8_t)(exp - 127);
-    assert(logical_exp == exp - 127);
+    CBOR_ASSERT(logical_exp == exp - 127);
 
     // Now we know that 2^exp <= 0 logically
     if (logical_exp < -24) {
@@ -158,7 +164,9 @@ size_t cbor_encode_half(float value, unsigned char *buffer,
          value is lost. This is an implementation decision that works around the
          absence of standard half-float in the language. */
       res = (uint16_t)((val & 0x80000000u) >> 16u) |  // Extract sign bit
-            (uint16_t)(1u << (24u + logical_exp));
+            ((uint16_t)(1u << (24u + logical_exp)) +
+             (uint16_t)(((mant >> (-logical_exp - 2)) + 1) >>
+                        1));  // Round half away from zero for simplicity
     } else {
       res = (uint16_t)((val & 0x80000000u) >> 16u |
                        ((((uint8_t)logical_exp) + 15u) << 10u) |

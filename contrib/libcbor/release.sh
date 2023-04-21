@@ -22,7 +22,7 @@ cd $DIR
 python3 misc/update_version.py "$1"
 
 echo ">>>>> Checking changelog"
-grep -A 5 -F "$1" CHANGELOG.md || true
+grep -A 10 -F "$1" CHANGELOG.md || true
 prompt "Is the changelog correct and complete?"
 
 echo ">>>>> Checking Doxyfile"
@@ -32,6 +32,10 @@ prompt "Is the Doxyfile version correct?"
 echo ">>>>> Checking CMakeLists"
 grep -A 2 'SET(CBOR_VERSION_MAJOR' CMakeLists.txt
 prompt "Is the CMake version correct?"
+
+echo ">>>>> Checking Bazel build"
+grep -A 2 'CBOR_MAJOR_VERSION' examples/bazel/third_party/libcbor/cbor/configuration.h
+prompt "Is the version correct?"
 
 echo ">>>>> Checking docs"
 grep 'version =\|release =' doc/source/conf.py
@@ -61,7 +65,9 @@ ctest
 popd
 
 prompt "Will proceed to tag the release with $TAG_NAME."
+git commit -a -m "Release $TAG_NAME"
 git tag "$TAG_NAME"
+git push --set-upstream origin $(git rev-parse --abbrev-ref HEAD)
 git push --tags
 
 set +x
