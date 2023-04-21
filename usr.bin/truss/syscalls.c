@@ -578,11 +578,6 @@ static const struct syscall_decode decoded_syscalls[] = {
 	  .args = { { Long, 0 }, { Name, 1 } } },
 	{ .name = "truncate", .ret_type = 1, .nargs = 2,
 	  .args = { { Name | IN, 0 }, { QuadHex | IN, 1 } } },
-#if 0
-	/* Does not exist */
-	{ .name = "umount", .ret_type = 1, .nargs = 2,
-	  .args = { { Name, 0 }, { Int, 2 } } },
-#endif
 	{ .name = "unlink", .ret_type = 1, .nargs = 1,
 	  .args = { { Name, 0 } } },
 	{ .name = "unlinkat", .ret_type = 1, .nargs = 3,
