@@ -141,7 +141,7 @@
 #define	SYS_mkdir	136
 #define	SYS_rmdir	137
 #define	SYS_utimes	138
-				/* 139 is obsolete 4.2 sigreturn */
+				/* 139 is obsolete sigreturn */
 #define	SYS_adjtime	140
 				/* 141 is old getpeername */
 				/* 142 is old gethostid */
