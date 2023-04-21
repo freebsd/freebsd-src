@@ -340,10 +340,10 @@ struct icmpcodeent {
 	u_int8_t code;
 };
 
-const struct icmptypeent *geticmptypebynumber(u_int8_t, u_int8_t);
-const struct icmptypeent *geticmptypebyname(char *, u_int8_t);
-const struct icmpcodeent *geticmpcodebynumber(u_int8_t, u_int8_t, u_int8_t);
-const struct icmpcodeent *geticmpcodebyname(u_long, char *, u_int8_t);
+const struct icmptypeent *geticmptypebynumber(u_int8_t, sa_family_t);
+const struct icmptypeent *geticmptypebyname(char *, sa_family_t);
+const struct icmpcodeent *geticmpcodebynumber(u_int8_t, u_int8_t, sa_family_t);
+const struct icmpcodeent *geticmpcodebyname(u_long, char *, sa_family_t);
 
 struct pf_timeout {
 	const char	*name;
