@@ -40,8 +40,6 @@
 ; Isn't pretty, but there seems to be no other way to trap nosys
 #define	nosys	linux_nosys
 
-; #ifdef's, etc. may be included, and are copied to the output files.
-
 0	AUE_NULL	UNIMPL	setup
 1	AUE_EXIT	STD {
 		void linux_exit(
