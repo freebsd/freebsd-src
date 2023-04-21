@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 # local configuration specific to meta mode
-# XXX some of this should be in meta.sys.mk
 # we assume that MK_DIRDEPS_BUILD=yes
 
 # we need this until there is an alternative
@@ -34,7 +33,6 @@ MACHINE_ARCH.$m?= ${MACHINE_ARCH_LIST.$m:[1]}
 BOOT_MACHINE_DIR.$m ?= boot/$m
 .endfor
 
-.ifndef _TARGET_SPEC
 .if empty(MACHINE_ARCH)
 .if !empty(TARGET_ARCH)
 MACHINE_ARCH= ${TARGET_ARCH}
@@ -44,36 +42,6 @@ MACHINE_ARCH= ${MACHINE_ARCH.${MACHINE}}
 .endif
 MACHINE_ARCH?= ${MACHINE_ARCH.${MACHINE}}
 MACHINE_ARCH:= ${MACHINE_ARCH}
-.else
-# we got here via dirdeps
-MACHINE_ARCH:= ${MACHINE_ARCH.${MACHINE}}
-.endif
-
-# now because for universe we want to potentially
-# build for multiple MACHINE_ARCH per MACHINE
-# we need more than MACHINE in TARGET_SPEC
-TARGET_SPEC_VARS?= MACHINE MACHINE_ARCH
-# see dirdeps.mk
-.if ${TARGET_SPEC:Uno:M*,*} != ""
-_tspec := ${TARGET_SPEC:S/,/ /g}
-MACHINE := ${_tspec:[1]}
-MACHINE_ARCH := ${_tspec:[2]}
-# etc.
-# We need to stop that TARGET_SPEC affecting any submakes
-# and deal with MACHINE=${TARGET_SPEC} in the environment.
-TARGET_SPEC=
-# export but do not track
-.export-env TARGET_SPEC 
-.export ${TARGET_SPEC_VARS}
-.for v in ${TARGET_SPEC_VARS:O:u}
-.if empty($v)
-.undef $v
-.endif
-.endfor
-.endif
-# make sure we know what TARGET_SPEC is
-# as we may need it to find Makefile.depend*
-TARGET_SPEC = ${TARGET_SPEC_VARS:@v@${$v:U}@:ts,}
 
 # to be consistent with src/Makefile just concatenate with '.'s
 TARGET_OBJ_SPEC:= ${TARGET_SPEC:S;,;.;g}
@@ -96,6 +64,7 @@ TARGET_MACHINE= host
 .endif
 .if ${MACHINE} == "host"
 OBJTOP := ${HOST_OBJTOP}
+MACHINE_ARCH= ${MACHINE_ARCH.${MACHINE}}
 .endif
 
 .if ${.MAKE.LEVEL} == 0 || empty(PYTHON)
@@ -266,4 +235,31 @@ ACFLAGS+= ${CROSS_TARGET_FLAGS}
 META_MODE+=	missing-meta=yes
 .if empty(META_MODE:Mnofilemon)
 META_MODE+=	missing-filemon=yes
+.endif
+
+.if ${MK_DIRDEPS_BUILD} == "yes"
+# we set these here, rather than local.gendirdeps.mk
+# so we can ensure any DEP_* values that might be used in
+# conditionals do not cause syntax errors when Makefile.depend
+# is included at level 1+
+
+# order of this list matters!
+GENDIRDEPS_FILTER_DIR_VARS+= \
+       CSU_DIR \
+       BOOT_MACHINE_DIR
+
+# order of this list matters!
+GENDIRDEPS_FILTER_VARS+= \
+       KERNEL_NAME \
+       DEP_MACHINE_CPUARCH \
+       DEP_MACHINE_ARCH \
+       DEP_MACHINE
+
+.if ${.MAKE.LEVEL} > 0
+.for V in ${GENDIRDEPS_FILTER_DIR_VARS:MDEP_*:O:u} \
+	${GENDIRDEPS_FILTER_VARS:MDEP_*:O:u}
+$V?= ${${V:S,DEP_,,}}
+.endfor
+.endif
+
 .endif

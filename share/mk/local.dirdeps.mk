@@ -207,12 +207,13 @@ DIRDEPS+= ${_lib${_lib}reldir}
 
 .if ${MK_STAGING} == "yes"
 # we need targets/pseudo/stage to prep the stage tree
-.if ${DEP_RELDIR} != "targets/pseudo/stage"
+.if ${DEP_RELDIR:N.:N${SRCTOP}:N*pseudo/stage} != ""
 DIRDEPS += targets/pseudo/stage
 .endif
 .endif
 
 DEP_MACHINE_ARCH = ${MACHINE_ARCH.${DEP_MACHINE}}
+DEP_MACHINE_CPUARCH = ${DEP_MACHINE_ARCH:${__TO_CPUARCH}}
 CSU_DIR.${DEP_MACHINE_ARCH} ?= csu/${DEP_MACHINE_ARCH}
 CSU_DIR := ${CSU_DIR.${DEP_MACHINE_ARCH}}
 BOOT_MACHINE_DIR:= ${BOOT_MACHINE_DIR.${DEP_MACHINE}}
