@@ -1348,11 +1348,10 @@ again:
 					/* The input killed the connection */
 					goto skip_pacing;
 				}
-			} else {
-				error = tcp_output(tp);
-				if (error < 0)
-					goto skip_pacing;
 			}
+			error = tcp_output(tp);
+			if (error < 0)
+				goto skip_pacing;
 			if (ninp) {
 				/*
 				 * If we have a nxt inp, see if we can
