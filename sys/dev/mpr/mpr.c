@@ -2764,8 +2764,9 @@ mpr_update_events(struct mpr_softc *sc, struct mpr_event_handle *handle,
 		bcopy(fullmask, (uint8_t *)&evtreq->EventMasks, 16);
 	}
 #else
+	bcopy(sc->event_mask, (uint8_t *)&evtreq->EventMasks, sizeof(sc->event_mask));
 	for (i = 0; i < MPI2_EVENT_NOTIFY_EVENTMASK_WORDS; i++)
-		evtreq->EventMasks[i] = htole32(sc->event_mask[i]);
+		evtreq->EventMasks[i] = htole32(evtreq->EventMasks[i]);
 #endif
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 	cm->cm_data = NULL;
@@ -2819,8 +2820,9 @@ mpr_reregister_events(struct mpr_softc *sc)
 		bcopy(fullmask, (uint8_t *)&evtreq->EventMasks, 16);
 	}
 #else
+	bcopy(sc->event_mask, (uint8_t *)&evtreq->EventMasks, sizeof(sc->event_mask));
 	for (i = 0; i < MPI2_EVENT_NOTIFY_EVENTMASK_WORDS; i++)
-		evtreq->EventMasks[i] = htole32(sc->event_mask[i]);
+		evtreq->EventMasks[i] = htole32(evtreq->EventMasks[i]);
 #endif
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 	cm->cm_data = NULL;
