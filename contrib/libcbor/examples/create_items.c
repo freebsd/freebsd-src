@@ -8,24 +8,25 @@
 #include <stdio.h>
 #include "cbor.h"
 
-int main(int argc, char* argv[]) {
+int main(void) {
   /* Preallocate the map structure */
   cbor_item_t* root = cbor_new_definite_map(2);
   /* Add the content */
-  cbor_map_add(root,
-               (struct cbor_pair){
-                   .key = cbor_move(cbor_build_string("Is CBOR awesome?")),
-                   .value = cbor_move(cbor_build_bool(true))});
-  cbor_map_add(root,
-               (struct cbor_pair){
-                   .key = cbor_move(cbor_build_uint8(42)),
-                   .value = cbor_move(cbor_build_string("Is the answer"))});
+  bool success = cbor_map_add(
+      root, (struct cbor_pair){
+                .key = cbor_move(cbor_build_string("Is CBOR awesome?")),
+                .value = cbor_move(cbor_build_bool(true))});
+  success &= cbor_map_add(
+      root, (struct cbor_pair){
+                .key = cbor_move(cbor_build_uint8(42)),
+                .value = cbor_move(cbor_build_string("Is the answer"))});
+  if (!success) return 1;
   /* Output: `length` bytes of data in the `buffer` */
   unsigned char* buffer;
-  size_t buffer_size,
-      length = cbor_serialize_alloc(root, &buffer, &buffer_size);
+  size_t buffer_size;
+  cbor_serialize_alloc(root, &buffer, &buffer_size);
 
-  fwrite(buffer, 1, length, stdout);
+  fwrite(buffer, 1, buffer_size, stdout);
   free(buffer);
 
   fflush(stdout);

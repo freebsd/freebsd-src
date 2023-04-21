@@ -18,7 +18,7 @@
 mkdir build
 cd build
 # We disable libcbor's default sanitizers since we'll be configuring them ourselves via CFLAGS.
-cmake -D CMAKE_BUILD_TYPE=Debug -D CMAKE_INSTALL_PREFIX="$WORK" -D CBOR_CUSTOM_ALLOC=ON -D SANITIZE=OFF ..
+cmake -D CMAKE_BUILD_TYPE=Debug -D CMAKE_INSTALL_PREFIX="$WORK" -D SANITIZE=OFF ..
 make "-j$(nproc)"
 make install
 

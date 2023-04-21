@@ -10,12 +10,12 @@
 #include "internal/memory_utils.h"
 
 size_t cbor_array_size(const cbor_item_t *item) {
-  assert(cbor_isa_array(item));
+  CBOR_ASSERT(cbor_isa_array(item));
   return item->metadata.array_metadata.end_ptr;
 }
 
 size_t cbor_array_allocated(const cbor_item_t *item) {
-  assert(cbor_isa_array(item));
+  CBOR_ASSERT(cbor_isa_array(item));
   return item->metadata.array_metadata.allocated;
 }
 
@@ -31,9 +31,6 @@ bool cbor_array_set(cbor_item_t *item, size_t index, cbor_item_t *value) {
   } else {
     return false;
   }
-  // TODO: This is unreachable and the index checking logic above seems
-  // suspicious -- out of bounds index is a caller error. Figure out & fix.
-  return true;
 }
 
 bool cbor_array_replace(cbor_item_t *item, size_t index, cbor_item_t *value) {
@@ -45,7 +42,7 @@ bool cbor_array_replace(cbor_item_t *item, size_t index, cbor_item_t *value) {
 }
 
 bool cbor_array_push(cbor_item_t *array, cbor_item_t *pushee) {
-  assert(cbor_isa_array(array));
+  CBOR_ASSERT(cbor_isa_array(array));
   struct _cbor_array_metadata *metadata =
       (struct _cbor_array_metadata *)&array->metadata;
   cbor_item_t **data = (cbor_item_t **)array->data;
@@ -59,7 +56,6 @@ bool cbor_array_push(cbor_item_t *array, cbor_item_t *pushee) {
     /* Exponential realloc */
     if (metadata->end_ptr >= metadata->allocated) {
       // Check for overflows first
-      // TODO: Explicitly test this
       if (!_cbor_safe_to_multiply(CBOR_BUFFER_GROWTH, metadata->allocated)) {
         return false;
       }
@@ -84,22 +80,22 @@ bool cbor_array_push(cbor_item_t *array, cbor_item_t *pushee) {
 }
 
 bool cbor_array_is_definite(const cbor_item_t *item) {
-  assert(cbor_isa_array(item));
+  CBOR_ASSERT(cbor_isa_array(item));
   return item->metadata.array_metadata.type == _CBOR_METADATA_DEFINITE;
 }
 
 bool cbor_array_is_indefinite(const cbor_item_t *item) {
-  assert(cbor_isa_array(item));
+  CBOR_ASSERT(cbor_isa_array(item));
   return item->metadata.array_metadata.type == _CBOR_METADATA_INDEFINITE;
 }
 
 cbor_item_t **cbor_array_handle(const cbor_item_t *item) {
-  assert(cbor_isa_array(item));
+  CBOR_ASSERT(cbor_isa_array(item));
   return (cbor_item_t **)item->data;
 }
 
 cbor_item_t *cbor_new_definite_array(size_t size) {
-  cbor_item_t *item = _CBOR_MALLOC(sizeof(cbor_item_t));
+  cbor_item_t *item = _cbor_malloc(sizeof(cbor_item_t));
   _CBOR_NOTNULL(item);
   cbor_item_t **data = _cbor_alloc_multiple(sizeof(cbor_item_t *), size);
   _CBOR_DEPENDENT_NOTNULL(item, data);
@@ -119,8 +115,8 @@ cbor_item_t *cbor_new_definite_array(size_t size) {
   return item;
 }
 
-cbor_item_t *cbor_new_indefinite_array() {
-  cbor_item_t *item = _CBOR_MALLOC(sizeof(cbor_item_t));
+cbor_item_t *cbor_new_indefinite_array(void) {
+  cbor_item_t *item = _cbor_malloc(sizeof(cbor_item_t));
   _CBOR_NOTNULL(item);
 
   *item = (cbor_item_t){

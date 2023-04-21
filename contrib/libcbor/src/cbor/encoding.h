@@ -16,55 +16,87 @@ extern "C" {
 #endif
 
 /*
- * ============================================================================
- * Primitives encoding
- * ============================================================================
+ * All cbor_encode_* methods take 2 or 3 arguments:
+ * - a logical `value` to encode (except for trivial items such as NULLs)
+ * - an output `buffer` pointer
+ * - a `buffer_size` specification
+ *
+ * They serialize the `value` into one or more bytes and write the bytes to the
+ * output `buffer` and return either the number of bytes written, or 0 if the
+ * `buffer_size` was too small to small to fit the serialized value (in which
+ * case it is not modified).
  */
 
-CBOR_EXPORT size_t cbor_encode_uint8(uint8_t, unsigned char *, size_t);
+_CBOR_NODISCARD CBOR_EXPORT size_t cbor_encode_uint8(uint8_t, unsigned char *,
+                                                     size_t);
 
-CBOR_EXPORT size_t cbor_encode_uint16(uint16_t, unsigned char *, size_t);
+_CBOR_NODISCARD CBOR_EXPORT size_t cbor_encode_uint16(uint16_t, unsigned char *,
+                                                      size_t);
 
-CBOR_EXPORT size_t cbor_encode_uint32(uint32_t, unsigned char *, size_t);
+_CBOR_NODISCARD CBOR_EXPORT size_t cbor_encode_uint32(uint32_t, unsigned char *,
+                                                      size_t);
 
-CBOR_EXPORT size_t cbor_encode_uint64(uint64_t, unsigned char *, size_t);
+_CBOR_NODISCARD CBOR_EXPORT size_t cbor_encode_uint64(uint64_t, unsigned char *,
+                                                      size_t);
 
-CBOR_EXPORT size_t cbor_encode_uint(uint64_t, unsigned char *, size_t);
+_CBOR_NODISCARD CBOR_EXPORT size_t cbor_encode_uint(uint64_t, unsigned char *,
+                                                    size_t);
 
-CBOR_EXPORT size_t cbor_encode_negint8(uint8_t, unsigned char *, size_t);
+_CBOR_NODISCARD CBOR_EXPORT size_t cbor_encode_negint8(uint8_t, unsigned char *,
+                                                       size_t);
 
-CBOR_EXPORT size_t cbor_encode_negint16(uint16_t, unsigned char *, size_t);
+_CBOR_NODISCARD CBOR_EXPORT size_t cbor_encode_negint16(uint16_t,
+                                                        unsigned char *,
+                                                        size_t);
 
-CBOR_EXPORT size_t cbor_encode_negint32(uint32_t, unsigned char *, size_t);
+_CBOR_NODISCARD CBOR_EXPORT size_t cbor_encode_negint32(uint32_t,
+                                                        unsigned char *,
+                                                        size_t);
 
-CBOR_EXPORT size_t cbor_encode_negint64(uint64_t, unsigned char *, size_t);
+_CBOR_NODISCARD CBOR_EXPORT size_t cbor_encode_negint64(uint64_t,
+                                                        unsigned char *,
+                                                        size_t);
 
-CBOR_EXPORT size_t cbor_encode_negint(uint64_t, unsigned char *, size_t);
+_CBOR_NODISCARD CBOR_EXPORT size_t cbor_encode_negint(uint64_t, unsigned char *,
+                                                      size_t);
 
-CBOR_EXPORT size_t cbor_encode_bytestring_start(size_t, unsigned char *,
-                                                size_t);
+_CBOR_NODISCARD CBOR_EXPORT size_t cbor_encode_bytestring_start(size_t,
+                                                                unsigned char *,
+                                                                size_t);
 
-CBOR_EXPORT size_t cbor_encode_indef_bytestring_start(unsigned char *, size_t);
+_CBOR_NODISCARD CBOR_EXPORT size_t
+cbor_encode_indef_bytestring_start(unsigned char *, size_t);
 
-CBOR_EXPORT size_t cbor_encode_string_start(size_t, unsigned char *, size_t);
+_CBOR_NODISCARD CBOR_EXPORT size_t cbor_encode_string_start(size_t,
+                                                            unsigned char *,
+                                                            size_t);
 
-CBOR_EXPORT size_t cbor_encode_indef_string_start(unsigned char *, size_t);
+_CBOR_NODISCARD CBOR_EXPORT size_t
+cbor_encode_indef_string_start(unsigned char *, size_t);
 
-CBOR_EXPORT size_t cbor_encode_array_start(size_t, unsigned char *, size_t);
+_CBOR_NODISCARD CBOR_EXPORT size_t cbor_encode_array_start(size_t,
+                                                           unsigned char *,
+                                                           size_t);
 
-CBOR_EXPORT size_t cbor_encode_indef_array_start(unsigned char *, size_t);
+_CBOR_NODISCARD CBOR_EXPORT size_t
+cbor_encode_indef_array_start(unsigned char *, size_t);
 
-CBOR_EXPORT size_t cbor_encode_map_start(size_t, unsigned char *, size_t);
+_CBOR_NODISCARD CBOR_EXPORT size_t cbor_encode_map_start(size_t,
+                                                         unsigned char *,
+                                                         size_t);
 
-CBOR_EXPORT size_t cbor_encode_indef_map_start(unsigned char *, size_t);
+_CBOR_NODISCARD CBOR_EXPORT size_t cbor_encode_indef_map_start(unsigned char *,
+                                                               size_t);
 
-CBOR_EXPORT size_t cbor_encode_tag(uint64_t, unsigned char *, size_t);
+_CBOR_NODISCARD CBOR_EXPORT size_t cbor_encode_tag(uint64_t, unsigned char *,
+                                                   size_t);
 
-CBOR_EXPORT size_t cbor_encode_bool(bool, unsigned char *, size_t);
+_CBOR_NODISCARD CBOR_EXPORT size_t cbor_encode_bool(bool, unsigned char *,
+                                                    size_t);
 
-CBOR_EXPORT size_t cbor_encode_null(unsigned char *, size_t);
+_CBOR_NODISCARD CBOR_EXPORT size_t cbor_encode_null(unsigned char *, size_t);
 
-CBOR_EXPORT size_t cbor_encode_undef(unsigned char *, size_t);
+_CBOR_NODISCARD CBOR_EXPORT size_t cbor_encode_undef(unsigned char *, size_t);
 
 /** Encodes a half-precision float
  *
@@ -86,21 +118,20 @@ CBOR_EXPORT size_t cbor_encode_undef(unsigned char *, size_t);
  * lost.
  *   - In all other cases, the sign bit, the exponent, and 10 most significant
  * bits of the significand are kept
- *
- * @param value
- * @param buffer Target buffer
- * @param buffer_size Available space in the buffer
- * @return number of bytes written
  */
-CBOR_EXPORT size_t cbor_encode_half(float, unsigned char *, size_t);
+_CBOR_NODISCARD CBOR_EXPORT size_t cbor_encode_half(float, unsigned char *,
+                                                    size_t);
 
-CBOR_EXPORT size_t cbor_encode_single(float, unsigned char *, size_t);
+_CBOR_NODISCARD CBOR_EXPORT size_t cbor_encode_single(float, unsigned char *,
+                                                      size_t);
 
-CBOR_EXPORT size_t cbor_encode_double(double, unsigned char *, size_t);
+_CBOR_NODISCARD CBOR_EXPORT size_t cbor_encode_double(double, unsigned char *,
+                                                      size_t);
 
-CBOR_EXPORT size_t cbor_encode_break(unsigned char *, size_t);
+_CBOR_NODISCARD CBOR_EXPORT size_t cbor_encode_break(unsigned char *, size_t);
 
-CBOR_EXPORT size_t cbor_encode_ctrl(uint8_t, unsigned char *, size_t);
+_CBOR_NODISCARD CBOR_EXPORT size_t cbor_encode_ctrl(uint8_t, unsigned char *,
+                                                    size_t);
 
 #ifdef __cplusplus
 }

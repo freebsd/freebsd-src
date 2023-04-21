@@ -1,11 +1,11 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.0)
 project(libcbor)
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/CMakeModules/")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules/")
 include(CTest)
 
 SET(CBOR_VERSION_MAJOR "0")
-SET(CBOR_VERSION_MINOR "8")
-SET(CBOR_VERSION_PATCH "0")
+SET(CBOR_VERSION_MINOR "10")
+SET(CBOR_VERSION_PATCH "2")
 SET(CBOR_VERSION ${CBOR_VERSION_MAJOR}.${CBOR_VERSION_MINOR}.${CBOR_VERSION_PATCH})
 
 set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY true)
@@ -18,6 +18,13 @@ if(BIG_ENDIAN)
 endif()
 
 option(CBOR_CUSTOM_ALLOC "Custom, dynamically defined allocator support" OFF)
+if(CBOR_CUSTOM_ALLOC)
+    message(WARNING 
+        "CBOR_CUSTOM_ALLOC has been deprecated. Custom allocators are now enabled by default."
+        "The flag is a no-op and will be removed in the next version. "
+        "Please remove CBOR_CUSTOM_ALLOC from your build configuation.")
+endif(CBOR_CUSTOM_ALLOC)
+
 option(CBOR_PRETTY_PRINTER "Include a pretty-printing routine" ON)
 set(CBOR_BUFFER_GROWTH "2" CACHE STRING "Factor for buffer growth & shrinking")
 set(CBOR_MAX_STACK_SIZE "2048" CACHE STRING "maximum size for decoding context stack")
@@ -85,7 +92,7 @@ set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-g")
 include(CheckTypeSize)
 check_type_size("size_t" SIZEOF_SIZE_T)
 if(SIZEOF_SIZE_T LESS 8)
-    message(WARNING "Your size_t is less than 8 bytes. Long items with 64b length specifiers might not work as expected. Make sure to run the tests!")
+    message(WARNING "Your size_t is less than 8 bytes. Decoding of huge items that would exceed the memory address space will always fail. Consider implementing a custom streaming decoder if you need to deal with huge items.")
 else()
     add_definitions(-DEIGHT_BYTE_SIZE_T)
 endif()
@@ -99,19 +106,36 @@ add_custom_target(coverage
                   COMMAND ctest
                   COMMAND lcov --capture --directory . --output-file coverage.info
                   COMMAND genhtml coverage.info --highlight --legend --output-directory coverage_html
-                  COMMAND echo "Coverage report ready: file://${CMAKE_CURRENT_BINARY_DIR}/coverage_html/index.html")
+                  COMMAND echo "Coverage report ready: ${CMAKE_CURRENT_BINARY_DIR}/coverage_html/index.html")
+
+add_custom_target(llvm-coverage
+                    COMMAND make -j 16
+                    COMMAND rm -rf coverage_profiles
+                    COMMAND mkdir coverage_profiles
+                    COMMAND bash -c [[ for TEST in $(ls test/*_test); do LLVM_PROFILE_FILE="coverage_profiles/$(basename -- ${TEST}).profraw" ./${TEST}; done ]]
+                    # VERBATIM makes escaping working, but breaks shell expansions, so we need to explicitly use bash
+                    COMMAND bash -c [[ llvm-profdata merge -sparse $(ls coverage_profiles/*.profraw) -o coverage_profiles/combined.profdata ]]
+                    COMMAND bash -c [[ llvm-cov show -instr-profile=coverage_profiles/combined.profdata test/*_test -format=html > coverage_profiles/report.html ]]
+                    COMMAND bash -c [[ llvm-cov report -instr-profile=coverage_profiles/combined.profdata test/*_test ]]
+                    COMMAND echo "Coverage report ready: ${CMAKE_CURRENT_BINARY_DIR}/coverage_profiles/report.html"
+                    VERBATIM)
+
 include_directories(src)
 
 
-option(COVERAGE "Enable code coverage instrumentation" OFF)
+option(c "Enable code coverage instrumentation" OFF)
 if (COVERAGE)
     message("Configuring code coverage instrumentation")
-    if(NOT CMAKE_C_COMPILER MATCHES "gcc")
-        message(WARNING "Gcov instrumentation only works with GCC")
+    if(CMAKE_C_COMPILER_ID MATCHES "GNU")
+        # https://gcc.gnu.org/onlinedocs/gcc/Debugging-Options.html
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -fprofile-arcs -ftest-coverage --coverage")
+        set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -g -fprofile-arcs -ftest-coverage --coverage")
+    elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fprofile-instr-generate -fcoverage-mapping")
+        set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fprofile-instr-generate")
+    else()
+        message(WARNING "Code coverage build not implemented for compiler ${CMAKE_C_COMPILER_ID}")
     endif()
-    # https://gcc.gnu.org/onlinedocs/gcc/Debugging-Options.html
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -fprofile-arcs -ftest-coverage --coverage")
-    set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -g -fprofile-arcs -ftest-coverage --coverage")
 endif (COVERAGE)
 
 
@@ -139,20 +163,20 @@ else()
     message(STATUS "LTO is not enabled")
 endif(use_lto)
 
-subdirs(src)
+add_subdirectory(src)
 if(use_lto)
     set_property(DIRECTORY src PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif(use_lto)
 
 if (WITH_TESTS)
-    subdirs(test)
+    add_subdirectory(test)
     if(use_lto)
         set_property(DIRECTORY test PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
     endif(use_lto)
 endif (WITH_TESTS)
 
 if (WITH_EXAMPLES)
-    subdirs(examples)
+    add_subdirectory(examples)
     if(use_lto)
         set_property(DIRECTORY examples PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
     endif(use_lto)

@@ -7,6 +7,9 @@ target_link_libraries(create_items cbor)
 add_executable(streaming_parser streaming_parser.c)
 target_link_libraries(streaming_parser cbor)
 
+add_executable(streaming_array streaming_array.c)
+target_link_libraries(streaming_array cbor)
+
 add_executable(sort sort.c)
 target_link_libraries(sort cbor)
 

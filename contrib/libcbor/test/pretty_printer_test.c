@@ -5,13 +5,8 @@
  * it under the terms of the MIT license. See LICENSE for details.
  */
 
-#include <setjmp.h>
-#include <stdarg.h>
-#include <stddef.h>
-
-#include <cmocka.h>
-
 #include <stdio.h>
+#include "assertions.h"
 #include "cbor.h"
 
 unsigned char data[] = {0x8B, 0x01, 0x20, 0x5F, 0x41, 0x01, 0x41, 0x02,
@@ -20,7 +15,7 @@ unsigned char data[] = {0x8B, 0x01, 0x20, 0x5F, 0x41, 0x01, 0x41, 0x02,
                         0xFF, 0xFB, 0x40, 0x09, 0x1E, 0xB8, 0x51, 0xEB,
                         0x85, 0x1F, 0xF6, 0xF7, 0xF5};
 
-static void test_pretty_printer(void **state) {
+static void test_pretty_printer(void **_CBOR_UNUSED(_state)) {
 #if CBOR_PRETTY_PRINTER
   FILE *outfile = tmpfile();
   struct cbor_load_result res;

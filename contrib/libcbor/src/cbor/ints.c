@@ -8,36 +8,37 @@
 #include "ints.h"
 
 cbor_int_width cbor_int_get_width(const cbor_item_t *item) {
-  assert(cbor_is_int(item));
+  CBOR_ASSERT(cbor_is_int(item));
   return item->metadata.int_metadata.width;
 }
 
 uint8_t cbor_get_uint8(const cbor_item_t *item) {
-  assert(cbor_is_int(item));
-  assert(cbor_int_get_width(item) == CBOR_INT_8);
+  CBOR_ASSERT(cbor_is_int(item));
+  CBOR_ASSERT(cbor_int_get_width(item) == CBOR_INT_8);
   return *item->data;
 }
 
 uint16_t cbor_get_uint16(const cbor_item_t *item) {
-  assert(cbor_is_int(item));
-  assert(cbor_int_get_width(item) == CBOR_INT_16);
+  CBOR_ASSERT(cbor_is_int(item));
+  CBOR_ASSERT(cbor_int_get_width(item) == CBOR_INT_16);
   return *(uint16_t *)item->data;
 }
 
 uint32_t cbor_get_uint32(const cbor_item_t *item) {
-  assert(cbor_is_int(item));
-  assert(cbor_int_get_width(item) == CBOR_INT_32);
+  CBOR_ASSERT(cbor_is_int(item));
+  CBOR_ASSERT(cbor_int_get_width(item) == CBOR_INT_32);
   return *(uint32_t *)item->data;
 }
 
 uint64_t cbor_get_uint64(const cbor_item_t *item) {
-  assert(cbor_is_int(item));
-  assert(cbor_int_get_width(item) == CBOR_INT_64);
+  CBOR_ASSERT(cbor_is_int(item));
+  CBOR_ASSERT(cbor_int_get_width(item) == CBOR_INT_64);
   return *(uint64_t *)item->data;
 }
 
 uint64_t cbor_get_int(const cbor_item_t *item) {
-  assert(cbor_is_int(item));
+  CBOR_ASSERT(cbor_is_int(item));
+  // cppcheck-suppress missingReturn
   switch (cbor_int_get_width(item)) {
     case CBOR_INT_8:
       return cbor_get_uint8(item);
@@ -48,46 +49,44 @@ uint64_t cbor_get_int(const cbor_item_t *item) {
     case CBOR_INT_64:
       return cbor_get_uint64(item);
   }
-  // TODO: This should be handled in a default branch
-  return 0xDEADBEEF; /* Compiler complaints */
 }
 
 void cbor_set_uint8(cbor_item_t *item, uint8_t value) {
-  assert(cbor_is_int(item));
-  assert(cbor_int_get_width(item) == CBOR_INT_8);
+  CBOR_ASSERT(cbor_is_int(item));
+  CBOR_ASSERT(cbor_int_get_width(item) == CBOR_INT_8);
   *item->data = value;
 }
 
 void cbor_set_uint16(cbor_item_t *item, uint16_t value) {
-  assert(cbor_is_int(item));
-  assert(cbor_int_get_width(item) == CBOR_INT_16);
+  CBOR_ASSERT(cbor_is_int(item));
+  CBOR_ASSERT(cbor_int_get_width(item) == CBOR_INT_16);
   *(uint16_t *)item->data = value;
 }
 
 void cbor_set_uint32(cbor_item_t *item, uint32_t value) {
-  assert(cbor_is_int(item));
-  assert(cbor_int_get_width(item) == CBOR_INT_32);
+  CBOR_ASSERT(cbor_is_int(item));
+  CBOR_ASSERT(cbor_int_get_width(item) == CBOR_INT_32);
   *(uint32_t *)item->data = value;
 }
 
 void cbor_set_uint64(cbor_item_t *item, uint64_t value) {
-  assert(cbor_is_int(item));
-  assert(cbor_int_get_width(item) == CBOR_INT_64);
+  CBOR_ASSERT(cbor_is_int(item));
+  CBOR_ASSERT(cbor_int_get_width(item) == CBOR_INT_64);
   *(uint64_t *)item->data = value;
 }
 
 void cbor_mark_uint(cbor_item_t *item) {
-  assert(cbor_is_int(item));
+  CBOR_ASSERT(cbor_is_int(item));
   item->type = CBOR_TYPE_UINT;
 }
 
 void cbor_mark_negint(cbor_item_t *item) {
-  assert(cbor_is_int(item));
+  CBOR_ASSERT(cbor_is_int(item));
   item->type = CBOR_TYPE_NEGINT;
 }
 
-cbor_item_t *cbor_new_int8() {
-  cbor_item_t *item = _CBOR_MALLOC(sizeof(cbor_item_t) + 1);
+cbor_item_t *cbor_new_int8(void) {
+  cbor_item_t *item = _cbor_malloc(sizeof(cbor_item_t) + 1);
   _CBOR_NOTNULL(item);
   *item = (cbor_item_t){.data = (unsigned char *)item + sizeof(cbor_item_t),
                         .refcount = 1,
@@ -96,8 +95,8 @@ cbor_item_t *cbor_new_int8() {
   return item;
 }
 
-cbor_item_t *cbor_new_int16() {
-  cbor_item_t *item = _CBOR_MALLOC(sizeof(cbor_item_t) + 2);
+cbor_item_t *cbor_new_int16(void) {
+  cbor_item_t *item = _cbor_malloc(sizeof(cbor_item_t) + 2);
   _CBOR_NOTNULL(item);
   *item = (cbor_item_t){.data = (unsigned char *)item + sizeof(cbor_item_t),
                         .refcount = 1,
@@ -106,8 +105,8 @@ cbor_item_t *cbor_new_int16() {
   return item;
 }
 
-cbor_item_t *cbor_new_int32() {
-  cbor_item_t *item = _CBOR_MALLOC(sizeof(cbor_item_t) + 4);
+cbor_item_t *cbor_new_int32(void) {
+  cbor_item_t *item = _cbor_malloc(sizeof(cbor_item_t) + 4);
   _CBOR_NOTNULL(item);
   *item = (cbor_item_t){.data = (unsigned char *)item + sizeof(cbor_item_t),
                         .refcount = 1,
@@ -116,8 +115,8 @@ cbor_item_t *cbor_new_int32() {
   return item;
 }
 
-cbor_item_t *cbor_new_int64() {
-  cbor_item_t *item = _CBOR_MALLOC(sizeof(cbor_item_t) + 8);
+cbor_item_t *cbor_new_int64(void) {
+  cbor_item_t *item = _cbor_malloc(sizeof(cbor_item_t) + 8);
   _CBOR_NOTNULL(item);
   *item = (cbor_item_t){.data = (unsigned char *)item + sizeof(cbor_item_t),
                         .refcount = 1,

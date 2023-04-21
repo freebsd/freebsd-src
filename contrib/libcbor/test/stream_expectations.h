@@ -1,25 +1,22 @@
-/*
- * This file provides testing tools for the streaming decoder. The intended
- * usage is as follows: 1) SE API wrapper is initialized 2) Client builds
- * (ordered) series of expectations 3) The decoder is executed 4) SE checks all
- * assertions 5) Go to 2) if desired
- */
-
 #ifndef STREAM_EXPECTATIONS_H_
 #define STREAM_EXPECTATIONS_H_
 
-#include <setjmp.h>
-#include <stdarg.h>
-#include <stddef.h>
-
-#include <cmocka.h>
-
-#include <stdint.h>
+#include "assertions.h"
 #include "cbor.h"
 
-// TODO: This setup is overengineered, we currently use one assertion at a time
-// TOOD: We never ensure that the queue is empty
 #define MAX_QUEUE_ITEMS 30
+
+// Utilities to test `cbor_stream_decode`.  See `cbor_stream_decode_test.cc`.
+//
+// Usage:
+// - The `assert_` helpers build a queue of `test_assertion`s
+//   (`assertions_queue` in the implementation file), specifying
+//  - Which callback is expected (`test_expectation`)
+//  - And what is the expected argument value (if applicable,
+//    `test_expectation_data`)
+// - `decode` will invoke `cbor_stream_decode` (test subject)
+// - `cbor_stream_decode` will invoke one of the `_callback` functions, which
+//   will check the passed data against the `assertions_queue`
 
 enum test_expectation {
   UINT8_EQ,
@@ -32,9 +29,12 @@ enum test_expectation {
   NEGINT32_EQ,
   NEGINT64_EQ,
 
-  BSTRING_MEM_EQ, /* Matches length and memory address for definite byte strings
-                   */
+  // Matches length and memory address for definite strings
+  BSTRING_MEM_EQ,
   BSTRING_INDEF_START,
+
+  STRING_MEM_EQ,
+  STRING_INDEF_START,
 
   ARRAY_START, /* Definite arrays only */
   ARRAY_INDEF_START,
@@ -74,16 +74,11 @@ struct test_assertion {
   union test_expectation_data data;
 };
 
-/* Tested function */
-// TODO: This looks overengineered, we only ever use one (?) in the testsuite
-typedef struct cbor_decoder_result decoder_t(cbor_data, size_t,
-                                             const struct cbor_callbacks *,
-                                             void *);
-void set_decoder(decoder_t *);
+/* Test harness -- calls `cbor_stream_decode` and checks assertions */
 struct cbor_decoder_result decode(cbor_data, size_t);
 
-/* Test setup */
-int clear_stream_assertions(void **);
+/* Verify all assertions were applied and clean up */
+int clean_up_stream_assertions(void **);
 
 /* Assertions builders */
 void assert_uint8_eq(uint8_t);
@@ -97,13 +92,16 @@ void assert_negint32_eq(uint32_t);
 void assert_negint64_eq(uint64_t);
 
 void assert_bstring_mem_eq(cbor_data, size_t);
-void assert_bstring_indef_start();
+void assert_bstring_indef_start(void);
+
+void assert_string_mem_eq(cbor_data, size_t);
+void assert_string_indef_start(void);
 
 void assert_array_start(size_t);
-void assert_indef_array_start();
+void assert_indef_array_start(void);
 
 void assert_map_start(size_t);
-void assert_indef_map_start();
+void assert_indef_map_start(void);
 
 void assert_tag_eq(uint64_t);
 
@@ -112,10 +110,10 @@ void assert_float(float);
 void assert_double(double);
 
 void assert_bool(bool);
-void assert_nil(); /* assert_null already exists */
-void assert_undef();
+void assert_nil(void); /* assert_null already exists */
+void assert_undef(void);
 
-void assert_indef_break();
+void assert_indef_break(void);
 
 /* Assertions verifying callbacks */
 void uint8_callback(void *, uint8_t);
@@ -128,13 +126,16 @@ void negint16_callback(void *, uint16_t);
 void negint32_callback(void *, uint32_t);
 void negint64_callback(void *, uint64_t);
 
-void byte_string_callback(void *, cbor_data, size_t);
+void byte_string_callback(void *, cbor_data, uint64_t);
 void byte_string_start_callback(void *);
 
-void array_start_callback(void *, size_t);
+void string_callback(void *, cbor_data, uint64_t);
+void string_start_callback(void *);
+
+void array_start_callback(void *, uint64_t);
 void indef_array_start_callback(void *);
 
-void map_start_callback(void *, size_t);
+void map_start_callback(void *, uint64_t);
 void indef_map_start_callback(void *);
 
 void tag_callback(void *, uint64_t);

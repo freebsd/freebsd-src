@@ -32,22 +32,34 @@ void assert_uint64(cbor_item_t* item, uint64_t num) {
   assert_true(cbor_get_uint64(item) == num);
 }
 
-void assert_decoder_result(size_t read, enum cbor_decoder_status status,
-                           struct cbor_decoder_result result) {
-  assert_true(read == result.read);
-  assert_true(status == result.status);
-  assert_true(0 == result.required);
+void assert_decoder_result(size_t expected_bytes_read,
+                           enum cbor_decoder_status expected_status,
+                           struct cbor_decoder_result actual_result) {
+  assert_true(actual_result.read == expected_bytes_read);
+  assert_true(actual_result.status == expected_status);
+  assert_true(actual_result.required == 0);
 }
 
-void assert_decoder_result_nedata(size_t required,
-                                  struct cbor_decoder_result result) {
-  assert_true(0 == result.read);
-  assert_true(CBOR_DECODER_NEDATA == result.status);
-  assert_int_equal((int)required, (int)result.required);
+void assert_decoder_result_nedata(size_t expected_bytes_required,
+                                  struct cbor_decoder_result actual_result) {
+  assert_true(actual_result.read == 0);
+  assert_true(actual_result.status == CBOR_DECODER_NEDATA);
+  assert_true(actual_result.required == expected_bytes_required);
 }
 
 void assert_minimum_input_size(size_t expected, cbor_data data) {
   for (size_t available = 1; available < expected; available++) {
     assert_decoder_result_nedata(expected, decode(data, 1));
   }
+}
+
+void _assert_size_equal(size_t actual, size_t expected, const char* src_file,
+                        int src_line) {
+  if (actual == expected) return;
+  // Not using `fail_msg` since it mishandles variadic macro arguments, which
+  // causes compiler warnings/
+  // TODO file bug
+  printf("(%s:%d) assert_size_equal: Expected %zu to equal %zu\n", src_file,
+         src_line, actual, expected);
+  fail();
 }

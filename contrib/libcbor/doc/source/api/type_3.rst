@@ -1,7 +1,7 @@
 Type 3 – UTF-8 strings 
 =============================
 
-CBOR strings work in much the same ways as :doc:`type_2`.
+CBOR strings have the same structure as :doc:`type_2`.
 
 ==================================  ======================================================
 Corresponding :type:`cbor_type`     ``CBOR_TYPE_STRING``
@@ -12,10 +12,6 @@ Storage requirements (definite)     ``sizeof(cbor_item_t) + length(handle)``
 Storage requirements (indefinite)   ``sizeof(cbor_item_t) * (1 + chunk_count) + chunks``
 ==================================  ======================================================
 
-Streaming indefinite strings
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Please refer to :doc:`/streaming`.
 
 UTF-8 encoding validation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~

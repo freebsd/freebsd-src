@@ -21,7 +21,14 @@
 #=============================================================================
 #
 
+find_package(PkgConfig QUIET)
+if(PKG_CONFIG_FOUND)
+    pkg_check_modules(PC_CMOCKA QUIET cmocka)
+    set(CMOCKA_DEFINITIONS ${PC_CMOCKA_CFLAGS_OTHER})
+endif()
+
 find_path(CMOCKA_INCLUDE_DIR
+    HINTS ${PC_CMOCKA_INCLUDEDIR} ${PC_CMOCKA_INCLUDE_DIRS}
     NAMES
         cmocka.h
     PATHS
@@ -29,6 +36,7 @@ find_path(CMOCKA_INCLUDE_DIR
 )
 
 find_library(CMOCKA_LIBRARY
+    HINTS ${PC_CMOCKA_LIBDIR} ${PC_CMOCKA_LIBRARY_DIRS}
     NAMES
         cmocka cmocka_shared
     PATHS

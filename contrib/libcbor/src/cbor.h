@@ -39,21 +39,27 @@ extern "C" {
  *
  * @param source The buffer
  * @param source_size
- * @param result[out] Result indicator. #CBOR_ERR_NONE on success
- * @return **new** CBOR item or `NULL` on failure. In that case, \p result
- * contains location and description of the error.
+ * @param[out] result Result indicator. #CBOR_ERR_NONE on success
+ * @return Decoded CBOR item. The item's reference count is initialized to one.
+ * @return `NULL` on failure. In that case, \p result contains the location and
+ * description of the error.
  */
-CBOR_EXPORT cbor_item_t* cbor_load(cbor_data source, size_t source_size,
-                                   struct cbor_load_result* result);
+_CBOR_NODISCARD CBOR_EXPORT cbor_item_t* cbor_load(
+    cbor_data source, size_t source_size, struct cbor_load_result* result);
 
-/** Deep copy of an item
+/** Take a deep copy of an item
  *
- * All the reference counts in the new structure are set to one.
+ * All items this item points to (array and map members, string chunks, tagged
+ * items) will be copied recursively using #cbor_copy. The new item doesn't
+ * alias or point to any items from the original \p item. All the reference
+ * counts in the new structure are set to one.
  *
- * @param item[borrow] item to copy
- * @return **new** CBOR deep copy
+ * @param item item to copy
+ * @return Reference to the new item. The item's reference count is initialized
+ * to one.
+ * @return `NULL` if memory allocation fails
  */
-CBOR_EXPORT cbor_item_t* cbor_copy(cbor_item_t* item);
+_CBOR_NODISCARD CBOR_EXPORT cbor_item_t* cbor_copy(cbor_item_t* item);
 
 #if CBOR_PRETTY_PRINTER
 #include <stdio.h>

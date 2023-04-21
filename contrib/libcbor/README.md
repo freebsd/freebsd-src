@@ -1,12 +1,12 @@
 # [libcbor](https://github.com/PJK/libcbor)
 
-[![Build Status](https://travis-ci.org/PJK/libcbor.svg?branch=master)](https://travis-ci.org/PJK/libcbor)
+[![CircleCI](https://circleci.com/gh/PJK/libcbor/tree/master.svg?style=svg)](https://circleci.com/gh/PJK/libcbor/tree/master)
 [![Build status](https://ci.appveyor.com/api/projects/status/8kkmvmefelsxp5u2?svg=true)](https://ci.appveyor.com/project/PJK/libcbor)
 [![Documentation Status](https://readthedocs.org/projects/libcbor/badge/?version=latest)](https://readthedocs.org/projects/libcbor/?badge=latest)
 [![latest packaged version(s)](https://repology.org/badge/latest-versions/libcbor.svg)](https://repology.org/project/libcbor/versions)
 [![codecov](https://codecov.io/gh/PJK/libcbor/branch/master/graph/badge.svg)](https://codecov.io/gh/PJK/libcbor)
 
-**libcbor** is a C library for parsing and generating [CBOR](http://tools.ietf.org/html/rfc7049), the general-purpose schema-less binary data format.
+**libcbor** is a C library for parsing and generating [CBOR](https://tools.ietf.org/html/rfc7049), the general-purpose schema-less binary data format.
 
 ## Main features
  - Complete RFC conformance
@@ -25,7 +25,7 @@
 
 ```bash
 git clone https://github.com/PJK/libcbor
-cmake -DCMAKE_BUILD_TYPE=Release -DCBOR_CUSTOM_ALLOC=ON libcbor
+cmake -DCMAKE_BUILD_TYPE=Release libcbor
 make
 make install
 ```
@@ -63,29 +63,29 @@ yum install libcbor-devel
 #include <cbor.h>
 #include <stdio.h>
 
-int main(int argc, char * argv[])
-{
-	/* Preallocate the map structure */
-	cbor_item_t * root = cbor_new_definite_map(2);
-	/* Add the content */
-	cbor_map_add(root, (struct cbor_pair) {
-		.key = cbor_move(cbor_build_string("Is CBOR awesome?")),
-		.value = cbor_move(cbor_build_bool(true))
-	});
-	cbor_map_add(root, (struct cbor_pair) {
-		.key = cbor_move(cbor_build_uint8(42)),
-		.value = cbor_move(cbor_build_string("Is the answer"))
-	});
-	/* Output: `length` bytes of data in the `buffer` */
-	unsigned char * buffer;
-	size_t buffer_size,
-		length = cbor_serialize_alloc(root, &buffer, &buffer_size);
+int main(void) {
+  /* Preallocate the map structure */
+  cbor_item_t* root = cbor_new_definite_map(2);
+  /* Add the content */
+  bool success = cbor_map_add(
+      root, (struct cbor_pair){
+                .key = cbor_move(cbor_build_string("Is CBOR awesome?")),
+                .value = cbor_move(cbor_build_bool(true))});
+  success &= cbor_map_add(
+      root, (struct cbor_pair){
+                .key = cbor_move(cbor_build_uint8(42)),
+                .value = cbor_move(cbor_build_string("Is the answer"))});
+  if (!success) return 1;
+  /* Output: `length` bytes of data in the `buffer` */
+  unsigned char* buffer;
+  size_t buffer_size;
+  cbor_serialize_alloc(root, &buffer, &buffer_size);
 
-	fwrite(buffer, 1, length, stdout);
-	free(buffer);
+  fwrite(buffer, 1, buffer_size, stdout);
+  free(buffer);
 
-	fflush(stdout);
-	cbor_decref(&root);
+  fflush(stdout);
+  cbor_decref(&root);
 }
 ```
 
@@ -94,7 +94,7 @@ Get the latest documentation at [libcbor.readthedocs.org](http://libcbor.readthe
 
 ## Contributions
 
-All bug reports and contributions are welcome. Please see https://github.com/PJK/libcbor for more info.
+Bug reports and contributions are welcome. Please see [CONTRIBUTING.md](https://github.com/PJK/libcbor/blob/master/CONTRIBUTING.md) for more info.
 
 Kudos to all the [contributors](https://github.com/PJK/libcbor/graphs/contributors)!
 
