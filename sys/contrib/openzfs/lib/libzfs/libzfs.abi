@@ -484,6 +484,7 @@
     <elf-symbol name='zpool_get_state' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
     <elf-symbol name='zpool_get_state_str' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
     <elf-symbol name='zpool_get_status' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
+    <elf-symbol name='zpool_get_userprop' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
     <elf-symbol name='zpool_get_vdev_prop' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
     <elf-symbol name='zpool_get_vdev_prop_value' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
     <elf-symbol name='zpool_history_unpack' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
@@ -6107,6 +6108,14 @@
     <function-decl name='zpool_get_state_str' mangled-name='zpool_get_state_str' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='zpool_get_state_str'>
       <parameter type-id='4c81de99' name='zhp'/>
       <return type-id='80f4b756'/>
+    </function-decl>
+    <function-decl name='zpool_get_userprop' mangled-name='zpool_get_userprop' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='zpool_get_userprop'>
+      <parameter type-id='4c81de99' name='zhp'/>
+      <parameter type-id='80f4b756' name='propname'/>
+      <parameter type-id='26a90f95' name='buf'/>
+      <parameter type-id='b59d7dce' name='len'/>
+      <parameter type-id='debc6aa3' name='srctype'/>
+      <return type-id='95e97e5e'/>
     </function-decl>
     <function-decl name='zpool_set_prop' mangled-name='zpool_set_prop' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='zpool_set_prop'>
       <parameter type-id='4c81de99' name='zhp'/>
