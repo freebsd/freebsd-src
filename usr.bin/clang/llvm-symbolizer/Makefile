@@ -29,8 +29,8 @@ LIBADD+=	z
 LINKS+=		${BINDIR}/llvm-symbolizer ${BINDIR}/llvm-addr2line
 
 .if ${MK_LLVM_BINUTILS} != "no"
-LINKS=		${BINDIR}/llvm-symbolizer ${BINDIR}/addr2line
-MLINKS=		llvm-addr2line.1 addr2line.1
+LINKS+=		${BINDIR}/llvm-symbolizer ${BINDIR}/addr2line
+MLINKS+=	llvm-addr2line.1 addr2line.1
 .endif
 
 .include "../llvm.prog.mk"
