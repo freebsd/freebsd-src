@@ -50,8 +50,3 @@ ECHO_TRACE?=	true
 
 .include "src.sys.env.mk"
 .-include <site.sys.env.mk>
-
-# For universe we want to potentially
-# build for multiple MACHINE_ARCH per MACHINE
-# so we need more than MACHINE in TARGET_SPEC
-TARGET_SPEC_VARS?= MACHINE MACHINE_ARCH
