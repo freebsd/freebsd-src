@@ -848,7 +848,7 @@ config_error:
 	return rc;
 }
 
-static boolean_t al_eth_lm_retimer_ds25_signal_detect(struct al_eth_lm_context *lm_context,
+static al_bool al_eth_lm_retimer_ds25_signal_detect(struct al_eth_lm_context *lm_context,
 						    uint32_t channel)
 {
 	int rc = 0;
@@ -878,7 +878,7 @@ config_error:
 	return FALSE;
 }
 
-static boolean_t al_eth_lm_retimer_ds25_cdr_lock(struct al_eth_lm_context *lm_context,
+static al_bool al_eth_lm_retimer_ds25_cdr_lock(struct al_eth_lm_context *lm_context,
 					       uint32_t channel)
 {
 	int rc = 0;
