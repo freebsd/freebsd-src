@@ -302,7 +302,7 @@ bitmap_to_arr32(uint32_t *dst, const unsigned long *src, unsigned int size)
 		src++;
 	}
 #else
-	bitmap_copy(dst, src, size);
+	bitmap_copy((unsigned long *)dst, src, size);
 #endif
 	if ((size % 32) != 0) /* Linux uses BITS_PER_LONG. Seems to be a bug */
 		dst[end - 1] &= (uint32_t)(UINT_MAX >> (32 - (size % 32)));
