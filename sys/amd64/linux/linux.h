@@ -90,7 +90,7 @@ typedef struct {
 /*
  * Miscellaneous
  */
-#define LINUX_AT_COUNT		20	/* Count of used aux entry types. */
+#define LINUX_AT_COUNT		21	/* Count of used aux entry types. */
 
 struct l___sysctl_args
 {

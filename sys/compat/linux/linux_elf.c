@@ -488,3 +488,57 @@ linux_trans_osrel(const Elf_Note *note, int32_t *osrel)
 
 	return (true);
 }
+
+int
+__linuxN(copyout_auxargs)(struct image_params *imgp, uintptr_t base)
+{
+	Elf_Auxargs *args;
+	Elf_Auxinfo *aarray, *pos;
+	struct proc *p;
+	int error, issetugid;
+
+	p = imgp->proc;
+	issetugid = p->p_flag & P_SUGID ? 1 : 0;
+	args = imgp->auxargs;
+	aarray = pos = malloc(LINUX_AT_COUNT * sizeof(*pos), M_TEMP,
+	    M_WAITOK | M_ZERO);
+
+	__linuxN(arch_copyout_auxargs)(imgp, &pos);
+	/*
+	 * Do not export AT_CLKTCK when emulating Linux kernel prior to 2.4.0,
+	 * as it has appeared in the 2.4.0-rc7 first time.
+	 * Being exported, AT_CLKTCK is returned by sysconf(_SC_CLK_TCK),
+	 * glibc falls back to the hard-coded CLK_TCK value when aux entry
+	 * is not present.
+	 * Also see linux_times() implementation.
+	 */
+	if (linux_kernver(curthread) >= LINUX_KERNVER_2004000)
+		AUXARGS_ENTRY(pos, LINUX_AT_CLKTCK, stclohz);
+	AUXARGS_ENTRY(pos, AT_PAGESZ, args->pagesz);
+	AUXARGS_ENTRY(pos, AT_PHDR, args->phdr);
+	AUXARGS_ENTRY(pos, AT_PHENT, args->phent);
+	AUXARGS_ENTRY(pos, AT_PHNUM, args->phnum);
+	AUXARGS_ENTRY(pos, AT_BASE, args->base);
+	AUXARGS_ENTRY(pos, AT_FLAGS, args->flags);
+	AUXARGS_ENTRY(pos, AT_ENTRY, args->entry);
+	AUXARGS_ENTRY(pos, AT_UID, imgp->proc->p_ucred->cr_ruid);
+	AUXARGS_ENTRY(pos, AT_EUID, imgp->proc->p_ucred->cr_svuid);
+	AUXARGS_ENTRY(pos, AT_GID, imgp->proc->p_ucred->cr_rgid);
+	AUXARGS_ENTRY(pos, AT_EGID, imgp->proc->p_ucred->cr_svgid);
+	AUXARGS_ENTRY(pos, LINUX_AT_SECURE, issetugid);
+	AUXARGS_ENTRY_PTR(pos, LINUX_AT_RANDOM, imgp->canary);
+	if (imgp->execpathp != 0)
+		AUXARGS_ENTRY(pos, LINUX_AT_EXECFN, PTROUT(imgp->execpathp));
+	if (args->execfd != -1)
+		AUXARGS_ENTRY(pos, AT_EXECFD, args->execfd);
+	AUXARGS_ENTRY(pos, LINUX_AT_MINSIGSTKSZ, LINUX_MINSIGSTKSZ);
+	AUXARGS_ENTRY(pos, AT_NULL, 0);
+
+	free(imgp->auxargs, M_TEMP);
+	imgp->auxargs = NULL;
+	KASSERT(pos - aarray <= LINUX_AT_COUNT, ("Too many auxargs"));
+
+	error = copyout(aarray, PTRIN(base), sizeof(*aarray) * LINUX_AT_COUNT);
+	free(aarray, M_TEMP);
+	return (error);
+}
