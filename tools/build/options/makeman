@@ -20,6 +20,8 @@
 
 set -o errexit
 export LC_ALL=C
+# just be clear that we are not making anything
+export UPDATE_DEPENDFILE=no
 
 t=$(mktemp -d -t makeman)
 trap 'test -d $t && rm -rf $t' exit
