@@ -215,7 +215,7 @@ static void execute_one(void);
 
 static void loop(void)
 {
-  int iter;
+  int iter __unused;
   for (iter = 0;; iter++) {
     int pid = fork();
     if (pid < 0)
