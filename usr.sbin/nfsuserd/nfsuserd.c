@@ -96,9 +96,9 @@ u_char *defaultuser = "nobody";
 uid_t defaultuid = 65534;
 u_char *defaultgroup = "nogroup";
 gid_t defaultgid = 65533;
-int verbose = 0, im_a_slave = 0, nfsuserdcnt = -1, forcestart = 0;
+int verbose = 0, im_a_server = 0, nfsuserdcnt = -1, forcestart = 0;
 int defusertimeout = DEFUSERTIMEOUT, manage_gids = 0;
-pid_t slaves[MAXNFSUSERD];
+pid_t servers[MAXNFSUSERD];
 static struct sockaddr_storage fromip;
 #ifdef INET6
 static struct in6_addr in6loopback = IN6ADDR_LOOPBACK_INIT;
@@ -290,7 +290,7 @@ main(int argc, char *argv[])
 		    dnsname, nid.nid_usermax, nid.nid_usertimeout);
 
 	for (i = 0; i < nfsuserdcnt; i++)
-		slaves[i] = (pid_t)-1;
+		servers[i] = (pid_t)-1;
 
 	nargs.nuserd_family = fromip.ss_family;
 	/*
@@ -444,7 +444,7 @@ main(int argc, char *argv[])
 	exit(0);
 #endif
 	/*
-	 * Temporarily block SIGUSR1 and SIGCHLD, so slaves[] can't
+	 * Temporarily block SIGUSR1 and SIGCHLD, so servers[] can't
 	 * end up bogus.
 	 */
 	sigemptyset(&signew);
@@ -463,14 +463,14 @@ main(int argc, char *argv[])
 	openlog("nfsuserd:", LOG_PID, LOG_DAEMON);
 
 	/*
-	 * Fork off the slave daemons that do the work. All the master
-	 * does is kill them off and cleanup.
+	 * Fork off the server daemons that do the work. All the master
+	 * does is terminate them and cleanup.
 	 */
 	for (i = 0; i < nfsuserdcnt; i++) {
-		slaves[i] = fork();
-		if (slaves[i] == 0) {
-			im_a_slave = 1;
-			setproctitle("slave");
+		servers[i] = fork();
+		if (servers[i] == 0) {
+			im_a_server = 1;
+			setproctitle("server");
 			sigemptyset(&signew);
 			sigaddset(&signew, SIGUSR1);
 			sigprocmask(SIG_UNBLOCK, &signew, NULL);
@@ -481,7 +481,7 @@ main(int argc, char *argv[])
 			svc_run();
 			syslog(LOG_ERR, "nfsuserd died: %m");
 			exit(1);
-		} else if (slaves[i] < 0) {
+		} else if (servers[i] < 0) {
 			syslog(LOG_ERR, "fork: %m");
 		}
 	}
@@ -800,7 +800,7 @@ cleanup_term(int signo __unused)
 {
 	int i, cnt;
 
-	if (im_a_slave)
+	if (im_a_server)
 		exit(0);
 
 	/*
@@ -809,9 +809,9 @@ cleanup_term(int signo __unused)
 	 */
 	cnt = 0;
 	for (i = 0; i < nfsuserdcnt; i++) {
-		if (slaves[i] != (pid_t)-1) {
+		if (servers[i] != (pid_t)-1) {
 			cnt++;
-			kill(slaves[i], SIGUSR1);
+			kill(servers[i], SIGUSR1);
 		}
 	}
 
