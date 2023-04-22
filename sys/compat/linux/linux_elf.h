@@ -42,6 +42,8 @@ struct note_info_list;
 
 void 	__linuxN(prepare_notes)(struct thread *, struct note_info_list *,
 	    size_t *);
+void	__linuxN(arch_copyout_auxargs)(struct image_params *, Elf_Auxinfo **);
+int	__linuxN(copyout_auxargs)(struct image_params *, uintptr_t);
 int	__linuxN(copyout_strings)(struct image_params *, uintptr_t *);
 bool	linux_trans_osrel(const Elf_Note *note, int32_t *osrel);
 
