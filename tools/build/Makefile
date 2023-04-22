@@ -125,7 +125,11 @@ CHACHA20INCSDIR=	${INCLUDEDIR}/crypto/chacha20
 CHACHA20INCS+=	${SRCTOP}/sys/crypto/chacha20/_chacha.h \
 	${SRCTOP}/sys/crypto/chacha20/chacha.h
 
+.if ${MACHINE} == "host"
+_host_arch= ${_HOST_ARCH}
+.else
 _host_arch=${MACHINE}
+.endif
 .if ${_host_arch} == "x86_64"
 # bmake on Linux/mac often prints that instead of amd64
 _host_arch=amd64
