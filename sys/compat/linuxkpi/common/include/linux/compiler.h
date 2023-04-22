@@ -64,6 +64,7 @@
 #undef __always_inline
 #define	__always_inline			inline
 #define	noinline			__noinline
+#define	noinline_for_stack		__noinline
 #define	____cacheline_aligned		__aligned(CACHE_LINE_SIZE)
 #define	____cacheline_aligned_in_smp	__aligned(CACHE_LINE_SIZE)
 #define	fallthrough			/* FALLTHROUGH */ do { } while(0)
