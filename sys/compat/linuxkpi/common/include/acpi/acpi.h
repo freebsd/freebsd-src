@@ -97,4 +97,10 @@ acpi_get_table(ACPI_STRING Signature, UINT32 Instance,
 	return (AcpiGetTable(Signature, Instance, OutTable));
 }
 
+static inline void
+acpi_put_table(ACPI_TABLE_HEADER *Table)
+{
+	AcpiPutTable(Table);
+}
+
 #endif /* _LINUXKPI_ACPI_ACPI_H_ */
