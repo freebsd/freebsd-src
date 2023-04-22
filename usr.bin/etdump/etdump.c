@@ -167,9 +167,8 @@ dump_eltorito(FILE *iso, const char *filename, FILE *outfile,
 	bvd = (boot_volume_descriptor *)buffer;
 	if (memcmp(bvd->identifier, ISO_VOLUME_DESCRIPTOR_STANDARD_ID, 5) != 0)
 		warnx("%s: not a valid ISO", filename);
-	if (bvd->boot_record_indicator[0] != ISO_VOLUME_DESCRIPTOR_BOOT)
-		warnx("%s: not an El Torito bootable ISO", filename);
-	if (memcmp(bvd->boot_system_identifier, ET_ID, 23) != 0)
+	if (bvd->boot_record_indicator[0] != ISO_VOLUME_DESCRIPTOR_BOOT ||
+	    memcmp(bvd->boot_system_identifier, ET_ID, 23) != 0)
 		warnx("%s: not an El Torito bootable ISO", filename);
 
 	boot_catalog = isonum_731(bvd->boot_catalog_pointer);
