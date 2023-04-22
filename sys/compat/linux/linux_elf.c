@@ -528,7 +528,8 @@ __linuxN(copyout_auxargs)(struct image_params *imgp, uintptr_t base)
 	AUXARGS_ENTRY(pos, LINUX_AT_SECURE, issetugid);
 	if (p->p_osrel >= LINUX_KERNVER_2006030 || p->p_osrel == 0)
 		AUXARGS_ENTRY_PTR(pos, LINUX_AT_RANDOM, imgp->canary);
-	if (imgp->execpathp != 0)
+	if ((p->p_osrel >= LINUX_KERNVER_2006026 || p->p_osrel == 0) &&
+	    imgp->execpathp != 0)
 		AUXARGS_ENTRY(pos, LINUX_AT_EXECFN, PTROUT(imgp->execpathp));
 	if (args->execfd != -1)
 		AUXARGS_ENTRY(pos, AT_EXECFD, args->execfd);
