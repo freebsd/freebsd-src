@@ -1,0 +1,7 @@
+DIRDEPS= \
+        usr.bin/mkimg \
+        usr.bin/tar \
+        usr.sbin/makefs \
+
+.include <dirdeps.mk>
+
