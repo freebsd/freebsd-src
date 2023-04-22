@@ -60,7 +60,15 @@ cleanup_worldtmp: .PHONY .NOMETA
 	rm -rf ${OBJTOP}/tmp
 beforedirdeps: cleanup_worldtmp
 .endif
-.endif
+
+# pseudo option for building host tools on old or non-FreeBSD host
+# allows us to leverage Makefile.depend.options with
+# DIRDEPS_OPTIONS = host_egacy
+# dirdeps-options.mk will qualify with ${DEP_MACHINE} (and others)
+# before looking at the bare option.
+MK_host_egacy.host= ${MK_host_egacy}
+
+.endif				# !target(_DIRDEP_USE)
 
 # reset this each time
 DIRDEPS_FILTER.xtras=
@@ -69,6 +77,7 @@ DIRDEPS_FILTER.xtras+= Nusr.bin/clang/clang.host
 .endif
 
 .if ${DEP_MACHINE} != "host"
+MK_host_egacy.${DEP_MACHINE}= no
 
 # this is how we can handle optional dependencies
 .if ${DEP_RELDIR} == "lib/libc"
