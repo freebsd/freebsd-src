@@ -198,7 +198,7 @@ smbios_setenv(const char *name, caddr_t addr, const int offset)
 #define	UUID_GET(base, off)	(*(UUID_TYPE *)((base) + (off)))
 
 static void
-smbios_setuuid(const char *name, const caddr_t addr, const int ver)
+smbios_setuuid(const char *name, const caddr_t addr, const int ver __unused)
 {
 	char		uuid[37];
 	int		byteorder, i, ones, zeros;
