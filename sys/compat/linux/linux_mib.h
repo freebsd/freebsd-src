@@ -46,8 +46,8 @@ int	linux_get_oss_version(struct thread *td);
 
 int	linux_kernver(struct thread *td);
 
-#define	LINUX_KVERSION		4
-#define	LINUX_KPATCHLEVEL	4
+#define	LINUX_KVERSION		5
+#define	LINUX_KPATCHLEVEL	15
 #define	LINUX_KSUBLEVEL		0
 
 #define	LINUX_KERNVER(a,b,c)	(((a) << 16) + ((b) << 8) + (c))
