@@ -79,6 +79,14 @@ JOB_MAX:= ${jm:R}
 .endif
 .endif
 
+.if ${MK_DIRDEPS_BUILD} == "yes"
+.if ${.MAKE.OS} != "FreeBSD" || ${_HOST_OSREL:R} < ${OS_REVISION:R}
+# a pseudo option to indicate we need libegacy for host
+MK_host_egacy= yes
+.endif
+.endif
+MK_host_egacy?= no
+
 .if ${.MAKE.MODE:Mmeta*} != ""
 # we can afford to use cookies to prevent some targets
 # re-running needlessly but only when using filemon.
