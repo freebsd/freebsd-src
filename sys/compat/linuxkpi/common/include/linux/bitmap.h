@@ -289,6 +289,26 @@ bitmap_copy(unsigned long *dst, const unsigned long *src,
 }
 
 static inline void
+bitmap_to_arr32(uint32_t *dst, const unsigned long *src, unsigned int size)
+{
+	const unsigned int end = howmany(size, 32);
+
+#ifdef __LP64__
+	unsigned int i = 0;
+	while (i < end) {
+		dst[i++] = (uint32_t)(*src & UINT_MAX);
+		if (i < end)
+			dst[i++] = (uint32_t)(*src >> 32);
+		src++;
+	}
+#else
+	bitmap_copy(dst, src, size);
+#endif
+	if ((size % 32) != 0) /* Linux uses BITS_PER_LONG. Seems to be a bug */
+		dst[end - 1] &= (uint32_t)(UINT_MAX >> (32 - (size % 32)));
+}
+
+static inline void
 bitmap_or(unsigned long *dst, const unsigned long *src1,
     const unsigned long *src2, const unsigned int size)
 {
