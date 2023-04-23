@@ -952,7 +952,7 @@ const struct sctp_ss_functions sctp_ss_functions[] = {
 		.sctp_ss_set_value = sctp_ss_default_set_value,
 		.sctp_ss_is_user_msgs_incomplete = sctp_ss_default_is_user_msgs_incomplete
 	},
-/* SCTP_SS_ROUND_ROBIN */
+/* SCTP_SS_RR */
 	{
 		.sctp_ss_init = sctp_ss_default_init,
 		.sctp_ss_clear = sctp_ss_default_clear,
@@ -967,7 +967,7 @@ const struct sctp_ss_functions sctp_ss_functions[] = {
 		.sctp_ss_set_value = sctp_ss_default_set_value,
 		.sctp_ss_is_user_msgs_incomplete = sctp_ss_default_is_user_msgs_incomplete
 	},
-/* SCTP_SS_ROUND_ROBIN_PACKET */
+/* SCTP_SS_RR_PKT */
 	{
 		.sctp_ss_init = sctp_ss_default_init,
 		.sctp_ss_clear = sctp_ss_default_clear,
@@ -982,7 +982,7 @@ const struct sctp_ss_functions sctp_ss_functions[] = {
 		.sctp_ss_set_value = sctp_ss_default_set_value,
 		.sctp_ss_is_user_msgs_incomplete = sctp_ss_default_is_user_msgs_incomplete
 	},
-/* SCTP_SS_PRIORITY */
+/* SCTP_SS_PRIO */
 	{
 		.sctp_ss_init = sctp_ss_default_init,
 		.sctp_ss_clear = sctp_ss_prio_clear,
@@ -997,7 +997,7 @@ const struct sctp_ss_functions sctp_ss_functions[] = {
 		.sctp_ss_set_value = sctp_ss_prio_set_value,
 		.sctp_ss_is_user_msgs_incomplete = sctp_ss_default_is_user_msgs_incomplete
 	},
-/* SCTP_SS_FAIR_BANDWITH */
+/* SCTP_SS_FB */
 	{
 		.sctp_ss_init = sctp_ss_default_init,
 		.sctp_ss_clear = sctp_ss_fb_clear,
@@ -1012,7 +1012,7 @@ const struct sctp_ss_functions sctp_ss_functions[] = {
 		.sctp_ss_set_value = sctp_ss_default_set_value,
 		.sctp_ss_is_user_msgs_incomplete = sctp_ss_default_is_user_msgs_incomplete
 	},
-/* SCTP_SS_FIRST_COME */
+/* SCTP_SS_FCFS */
 	{
 		.sctp_ss_init = sctp_ss_fcfs_init,
 		.sctp_ss_clear = sctp_ss_fcfs_clear,

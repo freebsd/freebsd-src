@@ -1738,7 +1738,7 @@ flags_out:
 			}
 			break;
 		}
-	case SCTP_PLUGGABLE_SS:
+	case SCTP_STREAM_SCHEDULER:
 		{
 			struct sctp_assoc_value *av;
 
@@ -1765,7 +1765,7 @@ flags_out:
 			}
 			break;
 		}
-	case SCTP_SS_VALUE:
+	case SCTP_STREAM_SCHEDULER_VALUE:
 		{
 			struct sctp_stream_value *av;
 
@@ -4033,17 +4033,17 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			}
 			break;
 		}
-	case SCTP_PLUGGABLE_SS:
+	case SCTP_STREAM_SCHEDULER:
 		{
 			struct sctp_assoc_value *av;
 
 			SCTP_CHECK_AND_CAST(av, optval, struct sctp_assoc_value, optsize);
 			if ((av->assoc_value != SCTP_SS_DEFAULT) &&
-			    (av->assoc_value != SCTP_SS_ROUND_ROBIN) &&
-			    (av->assoc_value != SCTP_SS_ROUND_ROBIN_PACKET) &&
-			    (av->assoc_value != SCTP_SS_PRIORITY) &&
-			    (av->assoc_value != SCTP_SS_FAIR_BANDWITH) &&
-			    (av->assoc_value != SCTP_SS_FIRST_COME)) {
+			    (av->assoc_value != SCTP_SS_RR) &&
+			    (av->assoc_value != SCTP_SS_RR_PKT) &&
+			    (av->assoc_value != SCTP_SS_PRIO) &&
+			    (av->assoc_value != SCTP_SS_FB) &&
+			    (av->assoc_value != SCTP_SS_FCFS)) {
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 				error = EINVAL;
 				break;
@@ -4082,7 +4082,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			}
 			break;
 		}
-	case SCTP_SS_VALUE:
+	case SCTP_STREAM_SCHEDULER_VALUE:
 		{
 			struct sctp_stream_value *av;
 
