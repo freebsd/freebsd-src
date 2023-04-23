@@ -44,12 +44,11 @@ nsmb.conf	- smbfs lookups configuration file
 pf.conf		- pf(4) example configuration file
 pf.os		- SYN fingerprint database
 phones		- phone number database for tip(1)
-portsnap.conf	- portsnap(8) configuration file
 printcap	- configuration file for lpr(1)
 profile		- system-wide .profile for sh(1)
 protocols	- see protocols(5)
 rc		- system startup script (see init(8))
-rc.bsdextended	- startup policy for the mac_bsdextended(4) security module. 
+rc.bsdextended	- startup policy for the mac_bsdextended(4) security module.
 rc.firewall	- ipfw(8) setup script with basic rulesets
 rc.initdiskless	- configuration file to boot a diskless machine
 rc.resume	- sample run command file for APM Resume Event
@@ -65,7 +64,7 @@ snmpd.config	- example configuration file for bsnmpd(1)
 sysctl.conf	- configuration file for sysctl(8)
 syslog.conf	- configuration file for syslogd(8)
 ttys		- defines port configuration for init(8)
-defaults/bluetooth.device.conf	- 
+defaults/bluetooth.device.conf	-
 defaults/devfs.rules		- default configuration rules for devfs(8)
 defaults/periodic.conf		- default configuration file for periodic(8)
 defaults/rc.conf		- default system configuration info (see rc.conf(5))

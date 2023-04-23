@@ -645,9 +645,6 @@ DIRDEPS+= \
 	usr.sbin/pmccontrol \
 	usr.sbin/pmcstat \
 	usr.sbin/pmcstudy \
-	usr.sbin/portsnap/make_index \
-	usr.sbin/portsnap/phttpget \
-	usr.sbin/portsnap/portsnap \
 	usr.sbin/powerd \
 	usr.sbin/ppp \
 	usr.sbin/pppctl \
