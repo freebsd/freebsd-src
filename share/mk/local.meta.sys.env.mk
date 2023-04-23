@@ -88,3 +88,8 @@ META_MODE+=	missing-meta=yes
 .if empty(META_MODE:Mnofilemon)
 META_MODE+=	missing-filemon=yes
 .endif
+
+.if make(showconfig)
+# this does not need/want filemon
+UPDATE_DEPENDFILE= NO
+.endif
