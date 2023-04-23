@@ -1,4 +1,4 @@
-# $Id: dirdeps.mk,v 1.156 2023/04/18 18:39:09 sjg Exp $
+# $Id: dirdeps.mk,v 1.157 2023/04/22 21:07:51 sjg Exp $
 
 # SPDX-License-Identifier: BSD-2-Clause
 #
@@ -645,9 +645,9 @@ _dm := ${DEP_MACHINE}
 # apply the same filtering that we do when qualifying DIRDEPS.
 # M_dep_qual_fixes expects .${MACHINE}* so add (and remove) '.'
 # Again we expect that any already qualified machines are fully qualified.
-_machines := ${_machines:M*,*} ${_machines:N*,*:@DEP_MACHINE@${DEP_TARGET_SPEC}@:S,^,.,:${M_dep_qual_fixes:ts:}:O:u:S,^.,,}
+_machines := ${_machines:M*,*} ${_machines:N*,*:@DEP_MACHINE@${DEP_TARGET_SPEC}@:S,^,.,:S,^.,,}
 DEP_MACHINE := ${_dm}
-_machines := ${_machines:O:u}
+_machines := ${_machines:${M_dep_qual_fixes:ts:}:O:u}
 .endif
 
 # reset each time through
