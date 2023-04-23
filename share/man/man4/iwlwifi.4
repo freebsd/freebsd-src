@@ -28,7 +28,7 @@
 .\" $FreeBSD$
 .\"
 .Dd June 3, 2022
-.Dt iwlwifi 4
+.Dt IWLWIFI 4
 .Os
 .Sh NAME
 .Nm iwlwifi
@@ -62,10 +62,10 @@ all chipsets supported by the
 part of that driver.
 .Pp
 .Bl -bullet -compact
-.% ---------------------------------------------------------------------
-.% This list is manually generated from a sysctl and post-processing.
-.% Edits will be overwritten on next update.
-.% ---------------------------------------------------------------------
+.\" ---------------------------------------------------------------------
+.\" This list is manually generated from a sysctl and post-processing.
+.\" Edits will be overwritten on next update.
+.\" ---------------------------------------------------------------------
 .It
 Intel(R) Dual Band Wireless AC 7260
 .It
@@ -180,7 +180,7 @@ Intel(R) Wi-Fi 6E AX231 160MHz
 Intel(R) TBD Bz device
 .It
 Intel(R) Wi-Fi 6 AX204 160MHz
-.% ---------------------------------------------------------------------
+.\" ---------------------------------------------------------------------
 .El
 .Pp
 .Nm
@@ -197,7 +197,9 @@ The driver uses the
 and
 .Em linuxkpi
 compat framework to bridge between the Linux and
-native FreeBSD driver code as well as to the native
+native
+.Fx
+driver code as well as to the native
 .Xr net80211 4
 wireless stack.
 .Pp
