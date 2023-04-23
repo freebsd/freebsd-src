@@ -301,6 +301,10 @@ kcsan_memmove(void *dst, const void *src, size_t len)
 	return __builtin_memmove(dst, src, len);
 }
 
+__strong_reference(kcsan_memcpy, __tsan_memcpy);
+__strong_reference(kcsan_memset, __tsan_memset);
+__strong_reference(kcsan_memmove, __tsan_memmove);
+
 char *
 kcsan_strcpy(char *dst, const char *src)
 {
