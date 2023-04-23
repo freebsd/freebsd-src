@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/vnode.h>
+#include <sys/dirent.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/filio.h>
@@ -3734,6 +3735,67 @@ vn_fspacectl(struct file *fp, int cmd, off_t *offset, off_t *length, int flags,
 	}
 
 	return (error);
+}
+
+#define DIRENT_MINSIZE (sizeof(struct dirent) - (MAXNAMLEN+1) + 4)
+
+int
+vn_dir_next_dirent(struct vnode *vp, struct dirent **dpp, char *dirbuf,
+    int dirbuflen, off_t *off, char **cpos, int *len,
+    int *eofflag, struct thread *td)
+{
+	int error, reclen;
+	struct uio uio;
+	struct iovec iov;
+	struct dirent *dp;
+
+	KASSERT(VOP_ISLOCKED(vp), ("vp %p is not locked", vp));
+	KASSERT(vp->v_type == VDIR, ("vp %p is not a directory", vp));
+
+	if (*len == 0) {
+		iov.iov_base = dirbuf;
+		iov.iov_len = dirbuflen;
+
+		uio.uio_iov = &iov;
+		uio.uio_iovcnt = 1;
+		uio.uio_offset = *off;
+		uio.uio_resid = dirbuflen;
+		uio.uio_segflg = UIO_SYSSPACE;
+		uio.uio_rw = UIO_READ;
+		uio.uio_td = td;
+
+		*eofflag = 0;
+
+#ifdef MAC
+		error = mac_vnode_check_readdir(td->td_ucred, vp);
+		if (error == 0)
+#endif
+			error = VOP_READDIR(vp, &uio, td->td_ucred, eofflag,
+		    		NULL, NULL);
+		if (error)
+			return (error);
+
+		*off = uio.uio_offset;
+
+		*cpos = dirbuf;
+		*len = (dirbuflen - uio.uio_resid);
+
+		if (*len == 0)
+			return (ENOENT);
+	}
+
+	dp = (struct dirent *)(*cpos);
+	reclen = dp->d_reclen;
+	*dpp = dp;
+
+	/* check for malformed directory.. */
+	if (reclen < DIRENT_MINSIZE)
+		return (EINVAL);
+
+	*cpos += reclen;
+	*len -= reclen;
+
+	return (0);
 }
 
 static u_long vn_lock_pair_pause_cnt;
