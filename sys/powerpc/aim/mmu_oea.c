@@ -320,7 +320,7 @@ vm_paddr_t moea_kextract(vm_offset_t);
 void moea_kenter_attr(vm_offset_t, vm_paddr_t, vm_memattr_t);
 void moea_kenter(vm_offset_t, vm_paddr_t);
 void moea_page_set_memattr(vm_page_t m, vm_memattr_t ma);
-boolean_t moea_dev_direct_mapped(vm_paddr_t, vm_size_t);
+int moea_dev_direct_mapped(vm_paddr_t, vm_size_t);
 static void moea_sync_icache(pmap_t, vm_offset_t, vm_size_t);
 void moea_dumpsys_map(vm_paddr_t pa, size_t sz, void **va);
 void moea_scan_init(void);
@@ -2658,7 +2658,7 @@ moea_bat_mapped(int idx, vm_paddr_t pa, vm_size_t size)
 	return (0);
 }
 
-boolean_t
+int
 moea_dev_direct_mapped(vm_paddr_t pa, vm_size_t size)
 {
 	int i;
