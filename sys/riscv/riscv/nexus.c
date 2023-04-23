@@ -92,6 +92,7 @@ static bus_set_resource_t	nexus_set_resource;
 static bus_release_resource_t	nexus_release_resource;
 
 static bus_config_intr_t	nexus_config_intr;
+static bus_describe_intr_t	nexus_describe_intr;
 static bus_setup_intr_t		nexus_setup_intr;
 static bus_teardown_intr_t	nexus_teardown_intr;
 
@@ -119,6 +120,7 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_set_resource,	nexus_set_resource),
 	DEVMETHOD(bus_release_resource,	nexus_release_resource),
 	DEVMETHOD(bus_config_intr,	nexus_config_intr),
+	DEVMETHOD(bus_describe_intr,	nexus_describe_intr),
 	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
 	DEVMETHOD(bus_get_bus_tag,	nexus_get_bus_tag),
@@ -333,6 +335,14 @@ nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
 {
 
 	return (intr_teardown_irq(child, r, ih));
+}
+
+static int
+nexus_describe_intr(device_t dev, device_t child, struct resource *irq,
+    void *cookie, const char *descr)
+{
+
+	return (intr_describe_irq(child, irq, cookie, descr));
 }
 
 static bus_space_tag_t
