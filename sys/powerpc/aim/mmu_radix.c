@@ -458,7 +458,7 @@ void mmu_radix_qenter(vm_offset_t, vm_page_t *, int);
 void mmu_radix_qremove(vm_offset_t, int);
 vm_offset_t mmu_radix_quick_enter_page(vm_page_t);
 void mmu_radix_quick_remove_page(vm_offset_t);
-boolean_t mmu_radix_ts_referenced(vm_page_t);
+int mmu_radix_ts_referenced(vm_page_t);
 void mmu_radix_release(pmap_t);
 void mmu_radix_remove(pmap_t, vm_offset_t, vm_offset_t);
 void mmu_radix_remove_all(vm_page_t);
@@ -492,7 +492,7 @@ static void *mmu_radix_mapdev(vm_paddr_t, vm_size_t);
 static void *mmu_radix_mapdev_attr(vm_paddr_t, vm_size_t, vm_memattr_t);
 static void mmu_radix_unmapdev(void *, vm_size_t);
 static void mmu_radix_kenter_attr(vm_offset_t, vm_paddr_t, vm_memattr_t ma);
-static boolean_t mmu_radix_dev_direct_mapped(vm_paddr_t, vm_size_t);
+static int mmu_radix_dev_direct_mapped(vm_paddr_t, vm_size_t);
 static void mmu_radix_dumpsys_map(vm_paddr_t pa, size_t sz, void **va);
 static void mmu_radix_scan_init(void);
 static void	mmu_radix_cpu_bootstrap(int ap);
@@ -3845,7 +3845,7 @@ mmu_radix_is_referenced(vm_page_t m)
  *	invalidations are performed before the PV list lock is
  *	released.
  */
-boolean_t
+int
 mmu_radix_ts_referenced(vm_page_t m)
 {
 	struct md_page *pvh;
@@ -6102,7 +6102,7 @@ mmu_radix_decode_kernel_ptr(vm_offset_t addr,
 	return (0);
 }
 
-static boolean_t
+static int
 mmu_radix_dev_direct_mapped(vm_paddr_t pa, vm_size_t size)
 {
 
