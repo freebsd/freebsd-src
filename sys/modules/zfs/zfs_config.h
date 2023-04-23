@@ -92,7 +92,13 @@
 /* #undef HAVE_BDEV_CHECK_MEDIA_CHANGE */
 
 /* bdev_*_io_acct() available */
-/* #undef HAVE_BDEV_IO_ACCT */
+/* #undef HAVE_BDEV_IO_ACCT_63 */
+
+/* bdev_*_io_acct() available */
+/* #undef HAVE_BDEV_IO_ACCT_OLD */
+
+/* bdev_kobj() exists */
+/* #undef HAVE_BDEV_KOBJ */
 
 /* bdev_max_discard_sectors() is available */
 /* #undef HAVE_BDEV_MAX_DISCARD_SECTORS */
@@ -533,6 +539,9 @@
 /* folio_wait_bit() exists */
 /* #undef HAVE_PAGEMAP_FOLIO_WAIT_BIT */
 
+/* part_to_dev() exists */
+/* #undef HAVE_PART_TO_DEV */
+
 /* iops->getattr() takes a path */
 /* #undef HAVE_PATH_IOPS_GETATTR */
 
@@ -944,7 +953,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.1.9-FreeBSD_g92e0d9d18"
+#define ZFS_META_ALIAS "zfs-2.1.11-FreeBSD_ge25f9131d"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -953,7 +962,7 @@
 /* #undef ZFS_META_DATA */
 
 /* Define the maximum compatible kernel version. */
-#define ZFS_META_KVER_MAX "6.1"
+#define ZFS_META_KVER_MAX "6.2"
 
 /* Define the minimum compatible kernel version. */
 #define ZFS_META_KVER_MIN "3.10"
@@ -974,10 +983,10 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_g92e0d9d18"
+#define ZFS_META_RELEASE "FreeBSD_ge25f9131d"
 
 /* Define the project version. */
-#define ZFS_META_VERSION "2.1.9"
+#define ZFS_META_VERSION "2.1.11"
 
 /* count is located in percpu_ref.data */
 /* #undef ZFS_PERCPU_REF_COUNT_IN_DATA */
