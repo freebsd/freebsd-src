@@ -14,6 +14,9 @@ VERSION_MAP?=	Version.map
 
 CLEANFILES+=	${VERSION_MAP}
 
+.if ${MAKE_VERSION} >= 20230123
+_mpath= ${.SYSPATH}
+.else
 # Compute the make's -m path.
 _mpath=
 _oarg=
@@ -24,6 +27,7 @@ _mpath+= ${_arg}
 _oarg=  ${_arg}
 .endfor
 _mpath+= /usr/share/mk
+.endif
 
 # Look up ${VERSION_GEN} in ${_mpath}.
 _vgen=
