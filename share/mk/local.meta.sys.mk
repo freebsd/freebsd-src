@@ -10,7 +10,9 @@ MK_INSTALL_AS_USER= yes
 
 # to be consistent with src/Makefile just concatenate with '.'s
 TARGET_OBJ_SPEC:= ${TARGET_SPEC:S;,;.;g}
+.if ${MACHINE} != "host"
 OBJTOP:= ${OBJROOT}${TARGET_OBJ_SPEC}
+.endif
 
 .if defined(MAKEOBJDIR)
 .if ${MAKEOBJDIR:M/*} == ""
