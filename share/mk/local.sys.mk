@@ -62,7 +62,7 @@ _PREMK_LIBDIR:=	${LIBDIR}
 .if make(*-jobs) && empty(JOB_MAX)
 # provide a reasonable? default for JOB_MAX based on ncpu
 JOB_MAX_FACTOR?= 1.33
-NPROC?= ${(type nproc) 2> /dev/null:L:sh:M/*:[1]}
+NPROC?= ${(type nproc || true) 2> /dev/null:L:sh:M/*:[1]}
 NPROC:= ${NPROC}
 .if !empty(NPROC)
 ncpu!= ${NPROC}
