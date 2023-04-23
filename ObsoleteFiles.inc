@@ -52,6 +52,13 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20230420: portsnap.8 removed
+OLD_FILES+=etc/portsnap.conf
+OLD_FILES+=usr/libexec/make_index
+OLD_FILES+=usr/sbin/portsnap
+OLD_FILES+=usr/share/examples/etc/portsnap.conf
+OLD_FILES+=usr/share/man/man8/portsnap.8.gz
+
 # 20230331: libpcap updated to 1.10.3
 OLD_FILES+=usr/include/fmtutils.h
 

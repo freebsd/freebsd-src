@@ -49,7 +49,7 @@ SUBDIR+=	bootpd
 SUBDIR+=	fingerd
 .endif
 
-.if ${MK_FREEBSD_UPDATE} != "no" || ${MK_PORTSNAP} != "no"
+.if ${MK_FREEBSD_UPDATE} != "no"
 _phttpget=	phttpget
 .endif
 
