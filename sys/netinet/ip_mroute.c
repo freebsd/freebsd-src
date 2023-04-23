@@ -2891,13 +2891,6 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
 	    &pim_squelch_wholepkt);
 
 	pim_encap_cookie = ip_encap_attach(&ipv4_encap_cfg, NULL, M_WAITOK);
-	if (pim_encap_cookie == NULL) {
-		printf("ip_mroute: unable to attach pim encap\n");
-		VIF_LOCK_DESTROY();
-		MFC_LOCK_DESTROY();
-		MROUTER_LOCK_DESTROY();
-		return (EINVAL);
-	}
 
 	ip_mcast_src = X_ip_mcast_src;
 	ip_mforward = X_ip_mforward;
