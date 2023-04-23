@@ -59,6 +59,31 @@ struct thread *ptrauth_switch(struct thread *);
 void ptrauth_exit_el0(struct thread *);
 void ptrauth_enter_el0(struct thread *);
 
+static bool
+ptrauth_disable(void)
+{
+	const char *family, *maker, *product;
+
+	family = kern_getenv("smbios.system.family");
+	maker = kern_getenv("smbios.system.maker");
+	product = kern_getenv("smbios.system.product");
+	if (family == NULL || maker == NULL || product == NULL)
+		return (false);
+
+	/*
+	 * The Dev Kit appears to be configured to trap upon access to PAC
+	 * registers, but the kernel boots at EL1 and so we have no way to
+	 * inspect or change this configuration.  As a workaround, simply
+	 * disable PAC on this platform.
+	 */
+	if (strcmp(maker, "Microsoft Corporation") == 0 &&
+	    strcmp(family, "Surface") == 0 &&
+	    strcmp(product, "Windows Dev Kit 2023") == 0)
+		return (true);
+
+	return (false);
+}
+
 void
 ptrauth_init(void)
 {
@@ -77,7 +102,11 @@ ptrauth_init(void)
 		return;
 	}
 
-	get_kernel_reg(ID_AA64ISAR1_EL1, &isar1);
+	if (!get_kernel_reg(ID_AA64ISAR1_EL1, &isar1))
+		return;
+
+	if (ptrauth_disable())
+		return;
 
 	/*
 	 * This assumes if there is pointer authentication on the boot CPU
