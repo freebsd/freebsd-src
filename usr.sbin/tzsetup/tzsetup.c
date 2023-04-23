@@ -32,6 +32,11 @@
  * files provided in newer tzdata releases.
  */
 
+/*
+ * When making changes to parser code, run baseline target, check that there are
+ * no unintended changes and commit updated file.
+ */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -242,6 +247,17 @@ find_continent(const char *name)
 		if (strcmp(name, continent_names[i].name) == 0)
 			return (continent_names[i].continent);
 	return (0);
+}
+
+static const char *
+find_continent_name(struct continent *cont)
+{
+	int		i;
+
+	for (i = 0; i < NCONTINENTS; i++)
+		if (cont == continent_names[i].continent)
+			return (continent_names[i].name);
+	return ("Unknown");
 }
 
 struct country {
@@ -784,6 +800,27 @@ install_zoneinfo(const char *zoneinfo)
 }
 
 static void
+dump_zonetab(void)
+{
+	struct country	*cp;
+	struct zone	*zp;
+	const char *cont;
+
+	for (cp = countries; cp->name != NULL; cp++) {
+		printf("%s:%s\n", cp->tlc, cp->name);
+		if (cp->nzones < 0) {
+			cont = find_continent_name(cp->continent);
+			printf("  %s:%s\n", cont, cp->filename);
+		} else {
+			TAILQ_FOREACH(zp, &cp->zones, link) {
+				cont = find_continent_name(zp->continent);
+				printf("  %s:%s\n", cont, zp->filename);
+			}
+		}
+	}
+}
+
+static void
 usage(void)
 {
 
@@ -802,7 +839,9 @@ main(int argc, char **argv)
 	int		c, rv, skiputc;
 	char		vm_guest[16] = "";
 	size_t		len = sizeof(vm_guest);
+	char		*dztpath;
 
+	dztpath = NULL;
 	skiputc = 0;
 
 #ifdef HAVE_BSDDIALOG
@@ -814,10 +853,13 @@ main(int argc, char **argv)
 	    strcmp(vm_guest, "none") != 0)
 		skiputc = 1;
 
-	while ((c = getopt(argc, argv, "C:nrs")) != -1) {
+	while ((c = getopt(argc, argv, "C:d:nrs")) != -1) {
 		switch(c) {
 		case 'C':
 			chrootenv = optarg;
+			break;
+		case 'd':
+			dztpath = optarg;
 			break;
 		case 'n':
 			reallydoit = 0;
@@ -840,7 +882,10 @@ main(int argc, char **argv)
 		usage();
 
 	if (chrootenv == NULL) {
-		strcpy(path_zonetab, _PATH_ZONETAB);
+		if (dztpath == NULL)
+			strcpy(path_zonetab, _PATH_ZONETAB);
+		else
+			strlcpy(path_zonetab, dztpath, sizeof(path_zonetab));
 		strcpy(path_iso3166, _PATH_ISO3166);
 		strcpy(path_zoneinfo, _PATH_ZONEINFO);
 		strcpy(path_localtime, _PATH_LOCALTIME);
@@ -902,6 +947,10 @@ main(int argc, char **argv)
 	read_iso3166_table();
 	read_zones();
 	sort_countries();
+	if (dztpath != NULL) {
+		dump_zonetab();
+		return (0);
+	}
 	make_menus();
 
 	bsddialog_initconf(&conf);
