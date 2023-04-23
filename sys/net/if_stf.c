@@ -249,12 +249,6 @@ stf_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	ifp->if_dunit = IF_DUNIT_NONE;
 
 	sc->encap_cookie = ip_encap_attach(&ipv4_encap_cfg, sc, M_WAITOK);
-	if (sc->encap_cookie == NULL) {
-		if_printf(ifp, "attach failed\n");
-		free(sc, M_STF);
-		ifc_free_unit(ifc, unit);
-		return (ENOMEM);
-	}
 
 	ifp->if_mtu    = IPV6_MMTU;
 	ifp->if_ioctl  = stf_ioctl;
