@@ -278,7 +278,7 @@ vm_paddr_t moea64_kextract(mmu_t, vm_offset_t);
 void moea64_page_set_memattr(mmu_t, vm_page_t m, vm_memattr_t ma);
 void moea64_kenter_attr(mmu_t, vm_offset_t, vm_paddr_t, vm_memattr_t ma);
 void moea64_kenter(mmu_t, vm_offset_t, vm_paddr_t);
-boolean_t moea64_dev_direct_mapped(mmu_t, vm_paddr_t, vm_size_t);
+int moea64_dev_direct_mapped(mmu_t, vm_paddr_t, vm_size_t);
 static void moea64_sync_icache(mmu_t, pmap_t, vm_offset_t, vm_size_t);
 void moea64_dumpsys_map(mmu_t mmu, vm_paddr_t pa, size_t sz,
     void **va);
@@ -2722,7 +2722,7 @@ moea64_clear_bit(mmu_t mmu, vm_page_t m, u_int64_t ptebit)
 	return (count);
 }
 
-boolean_t
+int
 moea64_dev_direct_mapped(mmu_t mmu, vm_paddr_t pa, vm_size_t size)
 {
 	struct pvo_entry *pvo, key;

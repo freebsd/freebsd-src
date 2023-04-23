@@ -375,7 +375,7 @@ static vm_paddr_t	mmu_booke_kextract(mmu_t, vm_offset_t);
 static void		mmu_booke_kenter(mmu_t, vm_offset_t, vm_paddr_t);
 static void		mmu_booke_kenter_attr(mmu_t, vm_offset_t, vm_paddr_t, vm_memattr_t);
 static void		mmu_booke_kremove(mmu_t, vm_offset_t);
-static boolean_t	mmu_booke_dev_direct_mapped(mmu_t, vm_paddr_t, vm_size_t);
+static int		mmu_booke_dev_direct_mapped(mmu_t, vm_paddr_t, vm_size_t);
 static void		mmu_booke_sync_icache(mmu_t, pmap_t, vm_offset_t,
     vm_size_t);
 static void		mmu_booke_dumpsys_map(mmu_t, vm_paddr_t pa, size_t,

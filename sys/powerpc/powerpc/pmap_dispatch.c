@@ -528,7 +528,7 @@ pmap_decode_kernel_ptr(vm_offset_t addr, int *is_user, vm_offset_t *decoded)
 	return (MMU_DECODE_KERNEL_PTR(mmu_obj, addr, is_user, decoded));
 }
 
-boolean_t
+int
 pmap_dev_direct_mapped(vm_paddr_t pa, vm_size_t size)
 {
 
