@@ -29,6 +29,12 @@
 #   (write a meaningful commit message)
 # $ git push freebsd HEAD:stable/12
 #
+#
+# If there are changes to zone1970.tab, update the baseline file by running
+# `make baseline` in usr.sbin/tzsetup to check if tzsetup is able to parse new
+# contents (if not, report/fix tzsetup).  Check that update does not
+# introduce breaking/unexpected changes to continents/countries/zones,
+# and commit the updated baseline file.
 
 .include <src.opts.mk>
 
