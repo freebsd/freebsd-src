@@ -188,7 +188,7 @@ META_NOECHO= :
 UPDATE_DEPENDFILE= NO
 .export UPDATE_DEPENDFILE
 .elif ${_filemon:T} == "filemon" && !exists(${_filemon})
-.error ${.newline}ERROR: The filemon module (${_filemon}) is not loaded.
+.warning ${.newline}ERROR: The filemon module (${_filemon}) is not loaded.
 .endif
 .endif
 
