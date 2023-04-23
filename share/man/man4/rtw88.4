@@ -24,8 +24,8 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 7, 2022
-.Dt rtw88 4
+.Dd April 22, 2023
+.Dt RTW88 4
 .Os
 .Sh NAME
 .Nm rtw88
@@ -69,7 +69,9 @@ The driver uses the
 and
 .Em linuxkpi
 compat framework to bridge between the Linux and
-native FreeBSD driver code as well as to the native
+native
+.Fx
+driver code as well as to the native
 .Xr net80211 4
 wireless stack.
 .Pp
@@ -108,4 +110,4 @@ section above.
 The
 .Nm
 driver first appeared in
-.Fx 14.0 .
+.Fx 13.2 .
