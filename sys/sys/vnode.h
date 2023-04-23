@@ -1096,6 +1096,9 @@ void vfs_hash_remove(struct vnode *vp);
 
 int vfs_kqfilter(struct vop_kqfilter_args *);
 struct dirent;
+int vn_dir_next_dirent(struct vnode *vp, struct dirent **dpp, char *dirbuf,
+    int dirbuflen, off_t *off, char **cpos, int *len,
+    int *eofflag, struct thread *td);
 int vfs_read_dirent(struct vop_readdir_args *ap, struct dirent *dp, off_t off);
 int vfs_emptydir(struct vnode *vp);
 
