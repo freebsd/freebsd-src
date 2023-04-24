@@ -1354,7 +1354,7 @@ bundle_GetLabel(struct bundle *bundle)
 }
 
 int
-bundle_LinkSize()
+bundle_LinkSize(void)
 {
   struct iovec iov[SCATTER_SEGMENTS];
   int niov, expect, f;

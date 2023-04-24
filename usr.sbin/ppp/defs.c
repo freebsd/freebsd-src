@@ -384,7 +384,7 @@ SetTitle(const char *title)
 }
 
 fd_set *
-mkfdset()
+mkfdset(void)
 {
   return (fd_set *)malloc(howmany(getdtablesize(), NFDBITS) * sizeof (fd_mask));
 }

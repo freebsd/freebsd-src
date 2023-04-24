@@ -94,7 +94,7 @@ sig_signal(int sig, sig_type fn)
  * select() returned due to a signal being recorded by signal_recorder().
  */
 int
-sig_Handle()
+sig_Handle(void)
 {
   int sig;
   int got;
