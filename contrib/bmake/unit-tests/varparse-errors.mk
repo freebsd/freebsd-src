@@ -1,4 +1,4 @@
-# $NetBSD: varparse-errors.mk,v 1.7 2022/08/24 22:09:41 rillig Exp $
+# $NetBSD: varparse-errors.mk,v 1.8 2023/02/14 21:56:48 rillig Exp $
 
 # Tests for parsing and evaluating all kinds of variable expressions.
 #
@@ -6,7 +6,6 @@
 # Var_Subst, collecting typical and not so typical use cases.
 #
 # See also:
-#	VarParseResult
 #	Var_Parse
 #	Var_Subst
 

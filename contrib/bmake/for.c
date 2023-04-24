@@ -1,4 +1,4 @@
-/*	$NetBSD: for.c,v 1.170 2022/09/03 00:50:07 rillig Exp $	*/
+/*	$NetBSD: for.c,v 1.171 2023/02/14 21:38:31 rillig Exp $	*/
 
 /*
  * Copyright (c) 1992, The Regents of the University of California.
@@ -58,7 +58,7 @@
 #include "make.h"
 
 /*	"@(#)for.c	8.1 (Berkeley) 6/6/93"	*/
-MAKE_RCSID("$NetBSD: for.c,v 1.170 2022/09/03 00:50:07 rillig Exp $");
+MAKE_RCSID("$NetBSD: for.c,v 1.171 2023/02/14 21:38:31 rillig Exp $");
 
 
 typedef struct ForLoop {
@@ -168,7 +168,9 @@ ForLoop_ParseItems(ForLoop *f, const char *p)
 
 	cpp_skip_whitespace(&p);
 
-	if (Var_Subst(p, SCOPE_GLOBAL, VARE_WANTRES, &items) != VPR_OK) {
+	items = Var_Subst(p, SCOPE_GLOBAL, VARE_WANTRES);
+	if (items == var_Error) {
+		/* TODO: Make this part of the code reachable. */
 		Parse_Error(PARSE_FATAL, "Error in .for loop items");
 		return false;
 	}

@@ -20,6 +20,7 @@ inc.mk
 init.mk
 install-mk
 java.mk
+jobs.mk
 ldorder.mk
 lib.mk
 libnames.mk

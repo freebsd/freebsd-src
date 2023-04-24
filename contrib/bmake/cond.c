@@ -1,4 +1,4 @@
-/*	$NetBSD: cond.c,v 1.342 2022/09/24 16:13:48 rillig Exp $	*/
+/*	$NetBSD: cond.c,v 1.344 2023/02/14 21:08:00 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -92,7 +92,7 @@
 #include "dir.h"
 
 /*	"@(#)cond.c	8.2 (Berkeley) 1/2/94"	*/
-MAKE_RCSID("$NetBSD: cond.c,v 1.342 2022/09/24 16:13:48 rillig Exp $");
+MAKE_RCSID("$NetBSD: cond.c,v 1.344 2023/02/14 21:08:00 rillig Exp $");
 
 /*
  * Conditional expressions conform to this grammar:
@@ -235,8 +235,7 @@ ParseWord(const char **pp, bool doEval)
 			VarEvalMode emode = doEval
 			    ? VARE_UNDEFERR
 			    : VARE_PARSE_ONLY;
-			FStr nestedVal;
-			(void)Var_Parse(&p, SCOPE_CMDLINE, emode, &nestedVal);
+			FStr nestedVal = Var_Parse(&p, SCOPE_CMDLINE, emode);
 			/* TODO: handle errors */
 			Buf_AddStr(&word, nestedVal.str);
 			FStr_Done(&nestedVal);
@@ -380,7 +379,9 @@ is_separator(char ch)
 
 /*
  * In a quoted or unquoted string literal or a number, parse a variable
- * expression.
+ * expression and add its value to the buffer.
+ *
+ * Return whether to continue parsing the leaf.
  *
  * Example: .if x${CENTER}y == "${PREFIX}${SUFFIX}" || 0x${HEX}
  */
@@ -392,7 +393,6 @@ CondParser_StringExpr(CondParser *par, const char *start,
 	VarEvalMode emode;
 	const char *p;
 	bool atStart;
-	VarParseResult parseResult;
 
 	emode = doEval && quoted ? VARE_WANTRES
 	    : doEval ? VARE_UNDEFERR
@@ -400,27 +400,10 @@ CondParser_StringExpr(CondParser *par, const char *start,
 
 	p = par->p;
 	atStart = p == start;
-	parseResult = Var_Parse(&p, SCOPE_CMDLINE, emode, inout_str);
+	*inout_str = Var_Parse(&p, SCOPE_CMDLINE, emode);
 	/* TODO: handle errors */
 	if (inout_str->str == var_Error) {
-		if (parseResult == VPR_ERR) {
-			/*
-			 * FIXME: Even if an error occurs, there is no
-			 *  guarantee that it is reported.
-			 *
-			 * See cond-token-plain.mk $$$$$$$$.
-			 */
-			par->printedError = true;
-		}
-		/*
-		 * XXX: Can there be any situation in which a returned
-		 * var_Error needs to be freed?
-		 */
 		FStr_Done(inout_str);
-		/*
-		 * Even if !doEval, we still report syntax errors, which is
-		 * what getting var_Error back with !doEval means.
-		 */
 		*inout_str = FStr_InitRefer(NULL);
 		return false;
 	}
@@ -428,8 +411,8 @@ CondParser_StringExpr(CondParser *par, const char *start,
 
 	/*
 	 * If the '$' started the string literal (which means no quotes), and
-	 * the variable expression is followed by a space, looks like a
-	 * comparison operator or is the end of the expression, we are done.
+	 * the expression is followed by a space, a comparison operator or
+	 * the end of the expression, we are done.
 	 */
 	if (atStart && is_separator(par->p[0]))
 		return false;
@@ -691,8 +674,8 @@ CondParser_FuncCallEmpty(CondParser *par, bool doEval, Token *out_token)
 		return false;
 
 	cp--;			/* Make cp[1] point to the '('. */
-	(void)Var_Parse(&cp, SCOPE_CMDLINE,
-	    doEval ? VARE_WANTRES : VARE_PARSE_ONLY, &val);
+	val = Var_Parse(&cp, SCOPE_CMDLINE,
+	    doEval ? VARE_WANTRES : VARE_PARSE_ONLY);
 	/* TODO: handle errors */
 
 	if (val.str == var_Error)

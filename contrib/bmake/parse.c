@@ -1,4 +1,4 @@
-/*	$NetBSD: parse.c,v 1.692 2023/01/24 00:24:02 sjg Exp $	*/
+/*	$NetBSD: parse.c,v 1.696 2023/02/15 06:52:58 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -121,7 +121,7 @@
 #include "pathnames.h"
 
 /*	"@(#)parse.c	8.3 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: parse.c,v 1.692 2023/01/24 00:24:02 sjg Exp $");
+MAKE_RCSID("$NetBSD: parse.c,v 1.696 2023/02/15 06:52:58 rillig Exp $");
 
 /*
  * A file being read.
@@ -594,7 +594,7 @@ HandleMessage(ParseErrorLevel level, const char *levelName, const char *umsg)
 		return;
 	}
 
-	(void)Var_Subst(umsg, SCOPE_CMDLINE, VARE_WANTRES, &xmsg);
+	xmsg = Var_Subst(umsg, SCOPE_CMDLINE, VARE_WANTRES);
 	/* TODO: handle errors */
 
 	Parse_Error(level, "%s", xmsg);
@@ -913,10 +913,8 @@ ParseDependencyTargetWord(char **pp, const char *lstart)
 			 * have been discovered in the initial Var_Subst and
 			 * we wouldn't be here.
 			 */
-			FStr val;
-
-			(void)Var_Parse(&cp, SCOPE_CMDLINE,
-			    VARE_PARSE_ONLY, &val);
+			FStr val = Var_Parse(&cp, SCOPE_CMDLINE,
+			    VARE_PARSE_ONLY);
 			FStr_Done(&val);
 		} else
 			cp++;
@@ -1792,10 +1790,8 @@ VarCheckSyntax(VarAssignOp type, const char *uvalue, GNode *scope)
 {
 	if (opts.strict) {
 		if (type != VAR_SUBST && strchr(uvalue, '$') != NULL) {
-			char *expandedValue;
-
-			(void)Var_Subst(uvalue, scope, VARE_PARSE_ONLY,
-			    &expandedValue);
+			char *expandedValue = Var_Subst(uvalue,
+			    scope, VARE_PARSE_ONLY);
 			/* TODO: handle errors */
 			free(expandedValue);
 		}
@@ -1821,7 +1817,7 @@ VarAssign_EvalSubst(GNode *scope, const char *name, const char *uvalue,
 	if (!Var_ExistsExpand(scope, name))
 		Var_SetExpand(scope, name, "");
 
-	(void)Var_Subst(uvalue, scope, VARE_KEEP_DOLLAR_UNDEF, &evalue);
+	evalue = Var_Subst(uvalue, scope, VARE_KEEP_DOLLAR_UNDEF);
 	/* TODO: handle errors */
 
 	Var_SetExpand(scope, name, evalue);
@@ -1890,7 +1886,7 @@ VarAssign_Eval(const char *name, VarAssignOp op, const char *uvalue,
 static void
 VarAssignSpecial(const char *name, const char *avalue)
 {
-	if (strcmp(name, MAKEOVERRIDES) == 0)
+	if (strcmp(name, ".MAKEOVERRIDES") == 0)
 		Main_ExportMAKEFLAGS(false);	/* re-export MAKEFLAGS */
 	else if (strcmp(name, ".CURDIR") == 0) {
 		/*
@@ -1900,9 +1896,9 @@ VarAssignSpecial(const char *name, const char *avalue)
 		 */
 		Dir_InitCur(avalue);
 		Dir_SetPATH();
-	} else if (strcmp(name, MAKE_JOB_PREFIX) == 0)
+	} else if (strcmp(name, ".MAKE.JOB.PREFIX") == 0)
 		Job_SetPrefix();
-	else if (strcmp(name, MAKE_EXPORTED) == 0)
+	else if (strcmp(name, ".MAKE.EXPORTED") == 0)
 		Var_ExportVars(avalue);
 }
 
@@ -2166,8 +2162,8 @@ VarContainsWord(const char *varname, const char *word)
 static void
 TrackInput(const char *name)
 {
-	if (!VarContainsWord(MAKE_MAKEFILES, name))
-		Global_Append(MAKE_MAKEFILES, name);
+	if (!VarContainsWord(".MAKE.MAKEFILES", name))
+		Global_Append(".MAKE.MAKEFILES", name);
 }
 
 
@@ -2258,7 +2254,7 @@ ParseTraditionalInclude(char *line)
 
 	pp_skip_whitespace(&file);
 
-	(void)Var_Subst(file, SCOPE_CMDLINE, VARE_WANTRES, &all_files);
+	all_files = Var_Subst(file, SCOPE_CMDLINE, VARE_WANTRES);
 	/* TODO: handle errors */
 
 	for (file = all_files; !done; file = cp + 1) {
@@ -2303,7 +2299,7 @@ ParseGmakeExport(char *line)
 	/*
 	 * Expand the value before putting it in the environment.
 	 */
-	(void)Var_Subst(value, SCOPE_CMDLINE, VARE_WANTRES, &value);
+	value = Var_Subst(value, SCOPE_CMDLINE, VARE_WANTRES);
 	/* TODO: handle errors */
 
 	setenv(variable, value, 1);
@@ -2880,7 +2876,7 @@ ParseDependencyLine(char *line)
 	 * Var_Subst.
 	 */
 	emode = opts.strict ? VARE_WANTRES : VARE_UNDEFERR;
-	(void)Var_Subst(line, SCOPE_CMDLINE, emode, &expanded_line);
+	expanded_line = Var_Subst(line, SCOPE_CMDLINE, emode);
 	/* TODO: handle errors */
 
 	/* Need a fresh list for the target nodes */

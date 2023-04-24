@@ -1,4 +1,4 @@
-# $Id: autoconf.mk,v 1.17 2023/01/29 17:31:16 sjg Exp $
+# $Id: autoconf.mk,v 1.18 2023/03/22 15:37:19 sjg Exp $
 #
 #	@(#) Copyright (c) 1996-2009, Simon J. Gerraty
 #
@@ -34,7 +34,7 @@ config.status:	config.recheck
 config.status:  config.gen
 .endif
 
-beforebuild: .NOTMAIN config.status
+beforebuild: .NOTMAIN config.status .WAIT
 
 config.recheck: .NOTMAIN ${CONFIGURE_DEPS} config.gen
 	./config.status --recheck

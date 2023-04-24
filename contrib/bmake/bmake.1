@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.360 2023/01/26 20:48:17 sjg Exp $
+.\"	$NetBSD: make.1,v 1.361 2023/03/23 03:29:28 sjg Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd January 26, 2023
+.Dd March 22, 2023
 .Dt BMAKE 1
 .Os
 .Sh NAME
@@ -267,7 +267,9 @@ cooperate to avoid overloading the system.
 Specify the maximum number of jobs that
 .Nm
 may have running at any one time.
-The value is saved in
+The value of
+.Ar max_jobs
+is saved in
 .Va .MAKE.JOBS .
 Turns compatibility mode off, unless the
 .Fl B
@@ -280,6 +282,13 @@ command invocation and then expect to start with a fresh environment
 on the next line.
 It is more efficient to correct the scripts rather than turn backwards
 compatibility on.
+.Pp
+A job token pool with
+.Ar max_jobs
+tokens is used to control the total number of jobs running.
+Each instance of
+.Nm
+will wait for a token from the pool before running a new job.
 .It Fl k
 Continue processing after errors are encountered, but only on those targets
 that do not depend on the target whose creation caused the error.
@@ -2716,3 +2725,15 @@ make
 just counts {} and () in order to find the end of a variable expansion.
 .Pp
 There is no way of escaping a space character in a filename.
+.Pp
+In jobs mode, when a target fails;
+make
+will put an error token into the job token pool.
+This will cause all other instances of
+make
+using that token pool to abort the build and exit with error code 6.
+Sometimes the attempt to suppress a cascade of unnecessary errors,
+can result in a seemingly unexplained
+.Ql *** Error code 6
+
+

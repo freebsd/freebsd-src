@@ -1,4 +1,4 @@
-# $NetBSD: cond-short.mk,v 1.19 2021/12/27 18:54:19 rillig Exp $
+# $NetBSD: cond-short.mk,v 1.20 2023/03/04 13:42:36 rillig Exp $
 #
 # Demonstrates that in conditions, the right-hand side of an && or ||
 # is only evaluated if it can actually influence the result.
@@ -135,28 +135,32 @@ VAR=	# empty again, for the following tests
 .elif ${echo "unexpected nested or" 1>&2 :L:sh}
 .endif
 
-# make sure these do not cause complaint
-#.MAKEFLAGS: -dc
 
-# TODO: Rewrite this whole section and check all the conditions and variables.
-# Several of the assumptions are probably wrong here.
-# TODO: replace 'x=' with '.info' or '.error'.
-V42=	42
-iV1=	${V42}
-iV2=	${V66}
+NUMBER=		42
+INDIR_NUMBER=	${NUMBER}
+INDIR_UNDEF=	${UNDEF}
 
-.if defined(V42) && ${V42} > 0
-x=	Ok
+.if defined(NUMBER) && ${NUMBER} > 0
 .else
-x=	Fail
+.  error
 .endif
-x!=	echo 'defined(V42) && $${V42} > 0: $x' >&2; echo
 
-# With cond.c 1.76 from 2020-07-03, the following condition triggered a
-# warning: "String comparison operator should be either == or !=".
-# This was because the variable expression ${iV2} was defined, but the
-# contained variable V66 was undefined.  The left-hand side of the comparison
-# therefore evaluated to the string "${V66}", which is obviously not a number.
+# Starting with var.c 1.226 from from 2020-07-02, the following condition
+# triggered a warning: "String comparison operator should be either == or !=".
+#
+# The left-hand side of the '&&' evaluated to false, which should have made
+# the right-hand side irrelevant.
+#
+# On the right-hand side of the '&&', the expression ${INDIR_UNDEF} was
+# defined and had the value '${UNDEF}', but the nested variable UNDEF was
+# undefined.  The right hand side "${INDIR_UNDEF}" still needed to be parsed,
+# and in parse-only mode, the "value" of the parsed expression was the
+# uninterpreted variable value, in this case '${UNDEF}'.  And even though the
+# right hand side of the '&&' should have been irrelevant, the two sides of
+# the comparison were still parsed and evaluated.  Comparing these two values
+# numerically was not possible since the string '${UNDEF}' is not a number,
+# so the comparison fell back to string comparison, which then complained
+# about the '>' operator.
 #
 # This was fixed in cond.c 1.79 from 2020-07-09 by not evaluating irrelevant
 # comparisons.  Instead, they are only parsed and then discarded.
@@ -164,59 +168,77 @@ x!=	echo 'defined(V42) && $${V42} > 0: $x' >&2; echo
 # At that time, there was not enough debug logging to see the details in the
 # -dA log.  To actually see it, add debug logging at the beginning and end of
 # Var_Parse.
-.if defined(V66) && ( ${iV2} < ${V42} )
-x=	Fail
-.else
-x=	Ok
+.if defined(UNDEF) && ${INDIR_UNDEF} < ${NUMBER}
+.  error
 .endif
-# XXX: This condition doesn't match the one above. The quotes are missing
-# above.  This is a crucial detail since without quotes, the variable
-# expression ${iV2} evaluates to "${V66}", and with quotes, it evaluates to ""
-# since undefined variables are allowed and expand to an empty string.
-x!=	echo 'defined(V66) && ( "$${iV2}" < $${V42} ): $x' >&2; echo
-
-.if 1 || ${iV1} < ${V42}
-x=	Ok
-.else
-x=	Fail
+# Adding a ':U' modifier to the irrelevant expression didn't help, as that
+# expression was only parsed, not evaluated.  The resulting literal string
+# '${INDIR_UNDEF:U2}' was not numeric either, for the same reason as above.
+.if defined(UNDEF) && ${INDIR_UNDEF:U2} < ${NUMBER}
+.  error
 .endif
-x!=	echo '1 || $${iV1} < $${V42}: $x' >&2; echo
 
-# With cond.c 1.76 from 2020-07-03, the following condition triggered a
-# warning: "String comparison operator should be either == or !=".
-# This was because the variable expression ${iV2} was defined, but the
-# contained variable V66 was undefined.  The left-hand side of the comparison
-# therefore evaluated to the string "${V66}", which is obviously not a number.
+# Enclosing the expression in double quotes changes how that expression is
+# evaluated.  In irrelevant expressions that are enclosed in double quotes,
+# expressions based on undefined variables are allowed and evaluate to an
+# empty string.
 #
-# This was fixed in cond.c 1.79 from 2020-07-09 by not evaluating irrelevant
-# comparisons.  Instead, they are only parsed and then discarded.
+# The manual page stated from at least 1993 on that irrelevant conditions were
+# not evaluated, but that was wrong.  These conditions were evaluated, the
+# only difference was that undefined variables in them didn't trigger an
+# error.  Since numeric conditions are quite rare, this subtle difference
+# didn't catch much attention, as most other conditions such as pattern
+# matches or equality comparisons worked fine and never produced error
+# messages.
+.if defined(UNDEF) && "${INDIR_UNDEF}" < ${NUMBER}
+.  error
+.endif
+
+# Since the condition is relevant, the indirect undefined variable is
+# evaluated as usual, resolving nested undefined expressions to an empty
+# string.
 #
-# At that time, there was not enough debug logging to see the details in the
-# -dA log.  To actually see it, add debug logging at the beginning and end of
-# Var_Parse.
-.if 1 || ${iV2:U2} < ${V42}
-x=	Ok
+# Comparing an empty string numerically is not possible, however, make has an
+# ugly hack in TryParseNumber that treats an empty string as a valid numerical
+# value, thus hiding bugs in the makefile.
+.if ${INDIR_UNDEF} < ${NUMBER}
+#  only due to the ugly hack
 .else
-x=	Fail
+.  error
 .endif
-x!=	echo '1 || $${iV2:U2} < $${V42}: $x' >&2; echo
 
-# the same expressions are fine when the lhs is expanded
-# ${iV1} expands to 42
-.if 0 || ${iV1} <= ${V42}
-x=	Ok
+# Due to the quotes around the left-hand side of the '<', the operand is
+# marked as a string, thus preventing a numerical comparison.
+#
+# expect+1: Comparison with '<' requires both operands '' and '42' to be numeric
+.if "${INDIR_UNDEF}" < ${NUMBER}
+.  info yes
 .else
-x=	Fail
+.  info no
 .endif
-x!=	echo '0 || $${iV1} <= $${V42}: $x' >&2; echo
 
-# ${iV2:U2} expands to 2
-.if 0 || ${iV2:U2} < ${V42}
-x=	Ok
+# The right-hand side of '||' is irrelevant and thus not evaluated.
+.if 1 || ${INDIR_NUMBER} < ${NUMBER}
 .else
-x=	Fail
+.  error
 .endif
-x!=	echo '0 || $${iV2:U2} < $${V42}: $x' >&2; echo
+
+# The right-hand side of '||' is relevant and thus evaluated normally.
+.if 0 || ${INDIR_NUMBER} < ${NUMBER}
+.  error
+.endif
+
+# The right-hand side of '||' evaluates to an empty string, as the variable
+# 'INDIR_UNDEF' is defined, therefore the modifier ':U2' has no effect.
+# Comparing an empty string numerically is not possible, however, make has an
+# ugly hack in TryParseNumber that treats an empty string as a valid numerical
+# value, thus hiding bugs in the makefile.
+.if 0 || ${INDIR_UNDEF:U2} < ${NUMBER}
+#  only due to the ugly hack
+.else
+.  error
+.endif
+
 
 # The right-hand side of the '&&' is irrelevant since the left-hand side
 # already evaluates to false.  Before cond.c 1.79 from 2020-07-09, it was
@@ -229,8 +251,8 @@ x!=	echo '0 || $${iV2:U2} < $${V42}: $x' >&2; echo
 
 # Ensure that irrelevant conditions do not influence the result of the whole
 # condition.  As of cond.c 1.302 from 2021-12-11, an irrelevant function call
-# evaluates to true (see CondParser_FuncCall and CondParser_FuncCallEmpty), an
-# irrelevant comparison evaluates to false (see CondParser_Comparison).
+# evaluated to true (see CondParser_FuncCall and CondParser_FuncCallEmpty), an
+# irrelevant comparison evaluated to false (see CondParser_Comparison).
 #
 # An irrelevant true bubbles up to the outermost CondParser_And, where it is
 # ignored.  An irrelevant false bubbles up to the outermost CondParser_Or,

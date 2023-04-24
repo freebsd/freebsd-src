@@ -1,3 +1,55 @@
+2023-04-14  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230414
+	Merge with NetBSD make, pick up
+	o minor cleanup
+
+2023-03-25  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* main.c: on some systems (eg OS/X) setting RLIMIT_NOFILE to
+	unlimited results in an insane number (0x7fffffffffffffff).
+	If BMAKE_NOFILE_MAX is defined, use that instead.
+
+2023-03-22  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230321
+	Merge with NetBSD make, pick up
+	* make.1: document seemingly unexplained Error code 6.
+
+2023-03-18  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230317
+	Merge with NetBSD make, pick up
+	o compat.c: CompatDeleteTarget skip .PHONY targets to be
+	consistent with JobDeleteTarget.
+	o job.c: fix memory leak in handling sysv :from=to modifiers
+
+2023-03-04  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230303
+	Merge with NetBSD make, pick up
+	o several updated unit-tests
+
+2023-02-22  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230222
+	Merge with NetBSD make, pick up
+	o unit tests for .MAKE.META.IGNORE_{FILTER,PATHS,PATTERNS}
+
+2023-02-20  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230218
+	Merge with NetBSD make, pick up
+	o var.c: fix parsing of unevaluated subexpressions with
+	unbalanced '{}'
+
+2023-02-17  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230215
+	Merge with NetBSD make, pick up
+	o inline macros for some variable names
+	o cond.c: reduce complexity of evaluating expressions
+
 2023-02-08  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* VERSION (_MAKE_VERSION): 20230208

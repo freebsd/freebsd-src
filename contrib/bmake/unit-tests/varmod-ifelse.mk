@@ -1,4 +1,4 @@
-# $NetBSD: varmod-ifelse.mk,v 1.20 2022/09/25 12:51:37 rillig Exp $
+# $NetBSD: varmod-ifelse.mk,v 1.21 2023/02/18 18:23:58 rillig Exp $
 #
 # Tests for the ${cond:?then:else} variable modifier, which evaluates either
 # the then-expression or the else-expression, depending on the condition.
@@ -182,3 +182,67 @@ PRIMES=	2 3 5 7 11
   "1:not_prime 2:prime 3:prime 4:not_prime 5:prime"
 .  error
 .endif
+
+# When parsing the modifier ':?', there are 3 possible cases:
+#
+#	1. The whole expression is only parsed.
+#	2. The expression is parsed and the 'then' branch is evaluated.
+#	3. The expression is parsed and the 'else' branch is evaluated.
+#
+# In all of these cases, the expression must be parsed in the same way,
+# especially when one of the branches contains unbalanced '{}' braces.
+#
+# At 2020-01-01, the expressions from the 'then' and 'else' branches were
+# parsed differently, depending on whether the branch was taken or not.  When
+# the branch was taken, the parser recognized that in the modifier ':S,}},,',
+# the '}}' were ordinary characters.  When the branch was not taken, the
+# parser only counted balanced '{' and '}', ignoring any escaping or other
+# changes in the interpretation.
+#
+# In var.c 1.285 from 2020-07-20, the parsing of the expressions changed so
+# that in both cases the expression is parsed in the same way, taking the
+# unbalanced braces in the ':S' modifiers into account.  This change was not
+# on purpose, the commit message mentioned 'has the same effect', which was a
+# wrong assumption.
+#
+# In var.c 1.323 from 2020-07-26, the unintended fix from var.c 1.285 was
+# reverted, still not knowing about the difference between regular parsing and
+# balanced-mode parsing.
+#
+# In var.c 1.1028 from 2022-08-08, there was another attempt at fixing this
+# inconsistency in parsing, but since that broke parsing of the modifier ':@',
+# it was reverted in var.c 1.1029 from 2022-08-23.
+#
+# In var.c 1.1047 from 2023-02-18, the inconsistency in parsing was finally
+# fixed.  The modifier ':@' now parses the body in balanced mode, while
+# everywhere else the modifier parts have their subexpressions parsed in the
+# same way, no matter whether they are evaluated or not.
+#
+# The modifiers ':@' and ':?' are similar in that they conceptually contain
+# text to be evaluated later or conditionally, still they parse that text
+# differently.  The crucial difference is that the body of the modifier ':@'
+# is always parsed using balanced mode.  The modifier ':?', on the other hand,
+# must parse both of its branches in the same way, no matter whether they are
+# evaluated or not.  Since balanced mode and standard mode are incompatible,
+# it's impossible to use balanced mode in the modifier ':?'.
+.MAKEFLAGS: -dc
+.if 0 && ${1:?${:Uthen0:S,}},,}:${:Uelse0:S,}},,}} != "not evaluated"
+# At 2020-01-07, the expression evaluated to 'then0,,}}', even though it was
+# irrelevant as the '0' had already been evaluated to 'false'.
+.  error
+.endif
+.if 1 && ${0:?${:Uthen1:S,}},,}:${:Uelse1:S,}},,}} != "else1"
+.  error
+.endif
+.if 2 && ${1:?${:Uthen2:S,}},,}:${:Uelse2:S,}},,}} != "then2"
+# At 2020-01-07, the whole expression evaluated to 'then2,,}}' instead of the
+# expected 'then2'.  The 'then' branch of the ':?' modifier was parsed
+# normally, parsing and evaluating the ':S' modifier, thereby treating the
+# '}}' as ordinary characters and resulting in 'then2'.  The 'else' branch was
+# parsed in balanced mode, ignoring that the inner '}}' were ordinary
+# characters.  The '}}' were thus interpreted as the end of the 'else' branch
+# and the whole expression.  This left the trailing ',,}}', which together
+# with the 'then2' formed the result 'then2,,}}'.
+.  error
+.endif
+.MAKEFLAGS: -d0

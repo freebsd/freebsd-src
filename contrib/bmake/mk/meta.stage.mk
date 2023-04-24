@@ -1,4 +1,4 @@
-# $Id: meta.stage.mk,v 1.65 2022/09/09 17:44:29 sjg Exp $
+# $Id: meta.stage.mk,v 1.67 2023/04/17 01:22:10 sjg Exp $
 #
 #	@(#) Copyright (c) 2011-2017, Simon J. Gerraty
 #
@@ -54,7 +54,7 @@ _objroot ?= ${_OBJROOT:tA}
 # make sure this is global
 _STAGED_DIRS ?=
 .export _STAGED_DIRS
-# add each dir we stage to to _STAGED_DIRS
+# add each dir we stage to _STAGED_DIRS
 # and make sure we have absolute paths so that bmake
 # will match against .MAKE.META.BAILIWICK
 STAGE_DIR_FILTER = tA:@d@$${_STAGED_DIRS::+=$$d}$$d@
@@ -173,7 +173,7 @@ stage_libs:	.dirdep
 .if !defined(NO_SHLIB_LINKS)
 .if !empty(SHLIB_LINKS)
 	@${STAGE_LINKS_SCRIPT}; StageLinks -s ${STAGE_LIBDIR:${STAGE_DIR_FILTER}} \
-	${SHLIB_LINKS:@t@${STAGE_LIBS:T:M$t.*} $t@}
+	${SHLIB_LINKS:@t@${STAGE_LIBS:T:M$t.*:${STAGE_SHLIB_LINKS_FILTER:U}} $t@}
 .elif !empty(SHLIB_LINK) && !empty(SHLIB_NAME)
 	@${STAGE_LINKS_SCRIPT}; StageLinks -s ${STAGE_LIBDIR:${STAGE_DIR_FILTER}} ${SHLIB_NAME} ${SHLIB_LINK}
 .endif

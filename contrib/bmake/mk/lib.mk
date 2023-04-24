@@ -1,4 +1,4 @@
-# $Id: lib.mk,v 1.73 2021/12/08 05:56:50 sjg Exp $
+# $Id: lib.mk,v 1.74 2023/04/20 23:45:56 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__: .NOTMAIN
@@ -448,18 +448,19 @@ lib${LIB}_pic.a: ${SOBJS}
 lib${LIB}.${LD_so}: ${SOLIB} ${DPADD}
 	@${META_NOECHO} building shared ${LIB} library \(version ${SHLIB_FULLVERSION}\)
 	@rm -f ${.TARGET}
-.if ${TARGET_OSNAME} == "NetBSD" || ${TARGET_OSNAME} == "FreeBSD"
+.if ${TARGET_OSNAME:NFreeBSD:NNetBSD} == ""
 .if ${OBJECT_FMT} == "ELF"
-	${SHLIB_LD} -x -shared ${SHLIB_SHFLAGS} -o ${.TARGET} \
+	${SHLIB_LD} -x -shared ${SHLIB_SHFLAGS} ${LDFLAGS} -o ${.TARGET} \
 	    ${SHLIB_LDSTARTFILE} \
-	    --whole-archive ${SOLIB} --no-whole-archive ${SHLIB_LDADD} \
-	    ${SHLIB_LDENDFILE}
+	    --whole-archive ${SOLIB} --no-whole-archive \
+	    ${LDADD} ${SHLIB_LDADD} ${SHLIB_LDENDFILE}
 .else
-	${SHLIB_LD} ${LD_x} ${LD_shared} \
-	    -o ${.TARGET} ${SOLIB} ${SHLIB_LDADD}
+	${SHLIB_LD} ${LD_x} ${LD_shared} ${LDFLAGS} \
+	    -o ${.TARGET} ${SOLIB} ${LDADD} ${SHLIB_LDADD}
 .endif
 .else
-	${SHLIB_LD} -o ${.TARGET} ${LD_shared} ${LD_solib} ${DLLIB} ${SHLIB_LDADD}
+	${SHLIB_LD} ${LDFLAGS} -o ${.TARGET} \
+	    ${LD_shared} ${LD_solib} ${DLLIB} ${LDADD} ${SHLIB_LDADD}
 .endif
 .endif
 .if !empty(SHLIB_LINKS)

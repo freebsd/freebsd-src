@@ -19,6 +19,8 @@ make: Bad modifier ":Onrr" for variable "NUMBERS"
 make: "varmod-order.mk" line 77: Malformed conditional (${NUMBERS:Onrr})
 make: Bad modifier ":Orrn" for variable "NUMBERS"
 make: "varmod-order.mk" line 86: Malformed conditional (${NUMBERS:Orrn})
+make: Bad modifier ":On=Off" for variable "SWITCH"
+make: "varmod-order.mk" line 100: Malformed conditional (${SWITCH:On=Off} != "Off")
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

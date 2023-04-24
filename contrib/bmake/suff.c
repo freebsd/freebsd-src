@@ -1,4 +1,4 @@
-/*	$NetBSD: suff.c,v 1.366 2022/03/04 23:17:16 sjg Exp $	*/
+/*	$NetBSD: suff.c,v 1.368 2023/02/14 21:38:31 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -115,7 +115,7 @@
 #include "dir.h"
 
 /*	"@(#)suff.c	8.4 (Berkeley) 3/21/94"	*/
-MAKE_RCSID("$NetBSD: suff.c,v 1.366 2022/03/04 23:17:16 sjg Exp $");
+MAKE_RCSID("$NetBSD: suff.c,v 1.368 2023/02/14 21:38:31 rillig Exp $");
 
 typedef List SuffixList;
 typedef ListNode SuffixListNode;
@@ -1312,9 +1312,7 @@ ExpandChildrenRegular(char *cp, GNode *pgn, GNodeList *members)
 		} else if (*cp == '$') {
 			/* Skip over the variable expression. */
 			const char *nested_p = cp;
-			FStr junk;
-
-			(void)Var_Parse(&nested_p, pgn, VARE_PARSE_ONLY, &junk);
+			FStr junk = Var_Parse(&nested_p, pgn, VARE_PARSE_ONLY);
 			/* TODO: handle errors */
 			if (junk.str == var_Error) {
 				Parse_Error(PARSE_FATAL,
@@ -1385,7 +1383,7 @@ ExpandChildren(GNodeListNode *cln, GNode *pgn)
 	}
 
 	DEBUG1(SUFF, "Expanding \"%s\"...", cgn->name);
-	(void)Var_Subst(cgn->name, pgn, VARE_UNDEFERR, &cp);
+	cp = Var_Subst(cgn->name, pgn, VARE_UNDEFERR);
 	/* TODO: handle errors */
 
 	{

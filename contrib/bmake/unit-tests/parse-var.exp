@@ -1,5 +1,1 @@
-make: Unfinished modifier for "BRACE_GROUP" (',' missing)
-make: "parse-var.mk" line 130: Malformed conditional (0 && ${BRACE_GROUP:S,${BRACE_PAIR:S,{,{{,},<lbraces>,})
-make: Fatal errors encountered -- cannot continue
-make: stopped in unit-tests
-exit status 1
+exit status 0

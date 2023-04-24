@@ -1,7 +1,7 @@
 # RCSid:
-#	$Id: warnings.mk,v 1.15 2020/08/19 17:51:53 sjg Exp $
+#	$Id: warnings.mk,v 1.17 2023/02/16 17:55:52 sjg Exp $
 #
-#	@(#) Copyright (c) 2002, Simon J. Gerraty
+#	@(#) Copyright (c) 2002-2023, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
@@ -20,21 +20,23 @@
 
 # Any number of warnings sets can be added.
 .-include <warnings-sets.mk>
+# This is more in keeping with our current practice
+.-include <local.warnings.mk>
 
 # Modest defaults - put more elaborate sets in warnings-sets.mk
 # -Wunused  etc are here so you can set
 # W_unused=-Wno-unused etc.
-MIN_WARNINGS?= -Wall \
+MIN_WARNINGS ?= -Wall \
 	-Wformat \
 	-Wimplicit \
 	-Wunused \
 	-Wuninitialized
 
-LOW_WARNINGS?= ${MIN_WARNINGS} -W -Wstrict-prototypes -Wmissing-prototypes
+LOW_WARNINGS ?= ${MIN_WARNINGS} -W -Wstrict-prototypes -Wmissing-prototypes
 
-MEDIUM_WARNINGS?= ${LOW_WARNINGS} -Werror
+MEDIUM_WARNINGS ?= ${LOW_WARNINGS}
 
-HIGH_WARNINGS?= ${MEDIUM_WARNINGS} \
+HIGH_WARNINGS ?= ${MEDIUM_WARNINGS} \
 	-Wcast-align \
 	-Wcast-qual \
 	-Wparentheses \
@@ -44,19 +46,46 @@ HIGH_WARNINGS?= ${MEDIUM_WARNINGS} \
 	-Wswitch \
 	-Wwrite-strings
 
-EXTRA_WARNINGS?= ${HIGH_WARNINGS} -Wextra
+EXTRA_WARNINGS ?= ${HIGH_WARNINGS} -Wextra
 
 # The two step default makes it easier to test build with different defaults.
-DEFAULT_WARNINGS_SET?= MIN
-WARNINGS_SET?= ${DEFAULT_WARNINGS_SET}
+DEFAULT_WARNINGS_SET ?= MIN
+WARNINGS_SET ?= ${DEFAULT_WARNINGS_SET}
 
 # There is always someone who wants more...
 .if !empty(WARNINGS_XTRAS)
 ${WARNINGS_SET}_WARNINGS += ${WARNINGS_XTRAS}
 .endif
 
-# If you add sets, besure to list them (you don't have to touch this list).
-ALL_WARNINGS_SETS+= MIN LOW MEDIUM HIGH EXTRA
+# Keep this list ordered!
+WARNINGS_SET_LIST ?= MIN LOW MEDIUM HIGH EXTRA
+
+# We assume WARNINGS_SET_LIST is an ordered list.
+# if WARNINGS_SET is < WERROR_SET we add WARNINGS_NO_ERROR
+# otherwise we add WARNINGS_ERROR
+DEFAULT_WERROR_SET ?= MEDIUM
+WERROR_SET ?= ${DEFAULT_WERROR_SET}
+WARNINGS_ERROR ?= -Werror
+WARNINGS_NO_ERROR ?=
+
+.if ${MAKE_VERSION} >= 20170130
+.for i in ${WARNINGS_SET_LIST:range}
+.if ${WARNINGS_SET_LIST:[$i]} == ${WARNINGS_SET}
+WARNINGS_SETx = $i
+.endif
+.if ${WARNINGS_SET_LIST:[$i]} == ${WERROR_SET}
+WERROR_SETx = $i
+.if ${MAKE_VERSION} >= 20220924
+.break
+.endif
+.endif
+.endfor
+.if ${WARNINGS_SETx:U${WERROR_SETx:U0}} < ${WERROR_SETx:U0}
+${WARNINGS_SET}_WARNINGS += ${WARNINGS_NO_ERROR:U}
+.else
+${WARNINGS_SET}_WARNINGS += ${WARNINGS_ERROR}
+.endif
+.endif
 
 .if !empty(WARNINGS_SET)
 .for ws in ${WARNINGS_SET}
@@ -68,7 +97,7 @@ _empty_warnings: .PHONY
 .BEGIN:
 .endif
 	@echo "ERROR: Invalid: WARNINGS_SET=${ws}"
-	@echo "ERROR: Try one of: ${ALL_WARNINGS_SETS:O:u}"; exit 1
+	@echo "ERROR: Try one of: ${WARNINGS_SET_LIST}"; exit 1
 
 .endif
 .endfor
@@ -96,15 +125,19 @@ W_uninitialized=
 # which makes it easy to turn off override individual flags
 # (see W_uninitialized above).
 #
-# The last bit expands to ${W_foo_${.TARGET:T}:U${W_foo}}
+# The last bit expands to
+# ${W_foo_${.TARGET:T:${TARGET_PREFIX_FILTER:ts:}}:U${W_foo}}
 # which is the bit we ultimately want.  It allows W_* to be set on a
 # per target basis.
 #
 # NOTE: that we force the target extension to be .o
+# TARGET_PREFIX_FILTER defaults to R
 #
 
+TARGET_PREFIX_FILTER ?= R
+
 # define this once, we use it a couple of times below (hence the doubled $$).
-M_warnings_list = @s@$${$$s_WARNINGS}@:O:u:@w@$${$${w:C/-(.)/\1_/}::?=$$w} $${$${w:C/-(.)/\1_/}_${MACHINE_ARCH}_${.TARGET:T:R}.o:U$${$${w:C/-(.)/\1_/}_${.TARGET:T:R}.o:U$${$${w:C/-(.)/\1_/}_${MACHINE_ARCH}:U$${$${w:C/-(.)/\1_/}}}}}@
+M_warnings_list = @s@$${$$s_WARNINGS} $${$$s_WARNINGS.${COMPILER_TYPE}:U}@:O:u:@w@$${$${w:C/-(.)/\1_/}::?=$$w} $${$${w:C/-(.)/\1_/}_${MACHINE_ARCH}_${.TARGET:T:${TARGET_PREFIX_FILTER:ts:}}.o:U$${$${w:C/-(.)/\1_/}_${.TARGET:T:${TARGET_PREFIX_FILTER:ts:}}.o:U$${$${w:C/-(.)/\1_/}_${MACHINE_ARCH}:U$${$${w:C/-(.)/\1_/}}}}}@
 
 # first a list of warnings from the chosen set
 _warnings = ${WARNINGS_SET_${MACHINE_ARCH}:U${WARNINGS_SET}:${M_warnings_list}}
@@ -112,13 +145,13 @@ _warnings = ${WARNINGS_SET_${MACHINE_ARCH}:U${WARNINGS_SET}:${M_warnings_list}}
 # since things like -Wall imply lots of others.
 # this should be a super-set of the -Wno-* in _warnings, but
 # just in case...
-_no_warnings = ${_warnings:M-Wno-*} ${ALL_WARNINGS_SETS:${M_warnings_list}:M-Wno-*}
+_no_warnings = ${_warnings:M-Wno-*} ${WARNINGS_SET_LIST:${M_warnings_list}:M-Wno-*}
 # -Wno-* must follow any others
 WARNINGS += ${_warnings:N-Wno-*} ${_no_warnings:O:u}
 
 .ifndef NO_CFLAGS_WARNINGS
 # Just ${WARNINGS} should do, but this is more flexible?
-CFLAGS+= ${WARNINGS_${.TARGET:T:R}.o:U${WARNINGS}}
+CFLAGS+= ${WARNINGS_${.TARGET:T:${TARGET_PREFIX_FILTER:ts:}}.o:U${WARNINGS}}
 .endif
 
 # it is rather silly that g++ blows up on some warning flags
@@ -130,9 +163,10 @@ NO_CXX_WARNINGS+= \
 	shadow \
 	strict-prototypes
 
-.for s in ${SRCS:M*.c*:N*.c:N*h}
+WARNINGS_CXX_SRCS += ${SRCS:M*.c*:N*.c:N*h}
+.for s in ${WARNINGS_CXX_SRCS:O:u}
 .for w in ${NO_CXX_WARNINGS}
-W_$w_${s:T:R}.o=
+W_$w_${s:T:${TARGET_PREFIX_FILTER:ts:}}.o=
 .endfor
 .endfor
 

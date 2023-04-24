@@ -1,4 +1,4 @@
-# $NetBSD: cond-cmp-string.mk,v 1.16 2022/05/08 06:51:27 rillig Exp $
+# $NetBSD: cond-cmp-string.mk,v 1.17 2023/03/28 14:38:29 rillig Exp $
 #
 # Tests for string comparisons in .if conditions.
 
@@ -15,6 +15,7 @@
 
 # The left-hand side of the comparison must be enclosed in quotes.
 # This one is not enclosed in quotes and thus generates an error message.
+# expect+1: Malformed conditional (str != str)
 .if str != str
 .  error
 .endif
@@ -39,6 +40,7 @@
 
 # It is not possible to concatenate two string literals to form a single
 # string.  In C, Python and the shell this is possible, but not in make.
+# expect+1: Malformed conditional ("string" != "str""ing")
 .if "string" != "str""ing"
 .  error
 .else
@@ -46,6 +48,7 @@
 .endif
 
 # There is no = operator for strings.
+# expect+1: Malformed conditional (!("value" = "value"))
 .if !("value" = "value")
 .  error
 .else
@@ -53,6 +56,7 @@
 .endif
 
 # There is no === operator for strings either.
+# expect+1: Malformed conditional (!("value" === "value"))
 .if !("value" === "value")
 .  error
 .else
@@ -110,6 +114,7 @@
 .endif
 
 # Strings cannot be compared relationally, only for equality.
+# expect+1: Comparison with '<' requires both operands 'string' and 'string' to be numeric
 .if "string" < "string"
 .  error
 .else
@@ -117,6 +122,7 @@
 .endif
 
 # Strings cannot be compared relationally, only for equality.
+# expect+1: Comparison with '<=' requires both operands 'string' and 'string' to be numeric
 .if "string" <= "string"
 .  error
 .else
@@ -124,6 +130,7 @@
 .endif
 
 # Strings cannot be compared relationally, only for equality.
+# expect+1: Comparison with '>' requires both operands 'string' and 'string' to be numeric
 .if "string" > "string"
 .  error
 .else
@@ -131,6 +138,7 @@
 .endif
 
 # Strings cannot be compared relationally, only for equality.
+# expect+1: Comparison with '>=' requires both operands 'string' and 'string' to be numeric
 .if "string" >= "string"
 .  error
 .else
