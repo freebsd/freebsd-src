@@ -413,6 +413,31 @@ generic_pcie_map_id(device_t pci, device_t child, uintptr_t *id)
 }
 
 static int
+generic_pcie_get_iommu(device_t pci, device_t child, uintptr_t *id)
+{
+	struct generic_pcie_acpi_softc *sc;
+	struct pci_id_ofw_iommu *iommu;
+	u_int iommu_sid, iommu_xref;
+	uintptr_t rid;
+	int err;
+
+	iommu = (struct pci_id_ofw_iommu *)id;
+
+	sc = device_get_softc(pci);
+	err = pcib_get_id(pci, child, PCI_ID_RID, &rid);
+	if (err != 0)
+		return (err);
+	err = acpi_iort_map_pci_smmuv3(sc->base.ecam, rid, &iommu_xref,
+	    &iommu_sid);
+	if (err == 0) {
+		iommu->id = iommu_sid;
+		iommu->xref = iommu_xref;
+	}
+
+	return (err);
+}
+
+static int
 generic_pcie_acpi_alloc_msi(device_t pci, device_t child, int count,
     int maxcount, int *irqs)
 {
@@ -479,11 +504,13 @@ static int
 generic_pcie_acpi_get_id(device_t pci, device_t child, enum pci_id_type type,
     uintptr_t *id)
 {
+	if (type == PCI_ID_OFW_IOMMU)
+		return (generic_pcie_get_iommu(pci, child, id));
 
 	if (type == PCI_ID_MSI)
 		return (generic_pcie_map_id(pci, child, id));
-	else
-		return (pcib_get_id(pci, child, type, id));
+
+	return (pcib_get_id(pci, child, type, id));
 }
 
 static device_method_t generic_pcie_acpi_methods[] = {
