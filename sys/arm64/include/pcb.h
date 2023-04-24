@@ -57,6 +57,7 @@ struct pcb {
 	u_int		pcb_flags;
 #define	PCB_SINGLE_STEP_SHIFT	0
 #define	PCB_SINGLE_STEP		(1 << PCB_SINGLE_STEP_SHIFT)
+	uint32_t	pcb_pad1;
 
 	struct vfpstate	*pcb_fpusaved;
 	int		pcb_fpflags;
@@ -66,6 +67,7 @@ struct pcb {
 /* The bits passed to userspace in get_fpcontext */
 #define	PCB_FP_USERMASK	(PCB_FP_STARTED)
 	u_int		pcb_vfpcpu;	/* Last cpu this thread ran VFP code */
+	uint64_t	pcb_pad2;
 
 	/*
 	 * The userspace VFP state. The pcb_fpusaved pointer will point to
