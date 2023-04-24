@@ -67,7 +67,7 @@ struct pcb {
 /* The bits passed to userspace in get_fpcontext */
 #define	PCB_FP_USERMASK	(PCB_FP_STARTED)
 	u_int		pcb_vfpcpu;	/* Last cpu this thread ran VFP code */
-	uint64_t	pcb_pad2;
+	uint64_t	pcb_reserved[5];
 
 	/*
 	 * The userspace VFP state. The pcb_fpusaved pointer will point to
