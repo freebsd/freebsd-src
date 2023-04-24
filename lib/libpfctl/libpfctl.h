@@ -87,6 +87,9 @@ struct pfctl_eth_addr {
 struct pfctl_eth_rule {
 	uint32_t		 nr;
 
+	char			label[PF_RULE_MAX_LABEL_COUNT][PF_RULE_LABEL_SIZE];
+	uint32_t		ridentifier;
+
 	bool			 quick;
 
 	/* Filter */
