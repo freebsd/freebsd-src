@@ -845,7 +845,7 @@ sigalarm_handler(void)
 }
 
 void
-usage()
+usage(void)
 {
 	errx(1, "usage: rpc.lockd [-d <debuglevel>]"
 	    " [-F] [-g <grace period>] [-h <bindip>] [-p <port>]");
@@ -904,7 +904,8 @@ init_nsm(void)
 /*
  * Out of memory, fatal
  */
-void out_of_mem()
+void
+out_of_mem(void)
 {
 	syslog(LOG_ERR, "out of memory");
 	exit(2);
