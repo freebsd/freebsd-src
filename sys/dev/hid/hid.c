@@ -799,7 +799,7 @@ hid_is_collection(const void *desc, hid_size_t size, int32_t usage)
 	struct hid_item hi;
 	int err;
 
-	hd = hid_start_parse(desc, size, hid_input);
+	hd = hid_start_parse(desc, size, 0);
 	if (hd == NULL)
 		return (0);
 
