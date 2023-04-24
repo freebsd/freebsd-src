@@ -183,7 +183,6 @@ dev/usb/controller/ehci_fsl.c	optional	ehci mpc85xx
 dev/vt/hw/ofwfb/ofwfb.c		optional	vt aim
 kern/subr_atomic64.c		optional	powerpc | powerpcspe
 kern/subr_dummy_vdso_tc.c	standard
-kern/syscalls.c			optional	ktr
 kern/subr_sfbuf.c		standard
 libkern/ashldi3.c		optional	powerpc | powerpcspe
 libkern/ashrdi3.c		optional	powerpc | powerpcspe
