@@ -166,8 +166,10 @@
 #define HAVE_READDIR_R 1
 #define HAVE_READLINK 1
 #define HAVE_READLINKAT 1
+#ifndef __linux__
 #define HAVE_READPASSPHRASE 1
 #define HAVE_READPASSPHRASE_H 1
+#endif
 #define HAVE_REGEX_H 1
 #define HAVE_SELECT 1
 #define HAVE_SETENV 1
