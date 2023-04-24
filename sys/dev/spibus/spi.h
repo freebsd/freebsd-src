@@ -34,8 +34,12 @@ struct spi_command {
 	uint32_t tx_data_sz;
 	void	*rx_data;
 	uint32_t rx_data_sz;
+	uint32_t flags;
 };
 #define	SPI_COMMAND_INITIALIZER	{ 0 }
+
+#define	SPI_FLAG_KEEP_CS	0x1		/* Keep chip select asserted */
+#define	SPI_FLAG_NO_SLEEP	0x2		/* Prevent driver from sleeping (use polling) */
 
 #define	SPI_CHIP_SELECT_HIGH	0x1		/* Chip select high (else low) */
 
