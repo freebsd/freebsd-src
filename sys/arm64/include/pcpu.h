@@ -47,10 +47,9 @@ struct debug_monitor_state;
 	pcpu_ssbd pc_ssbd;						\
 	struct pmap *pc_curpmap;					\
 	struct pmap *pc_curvmpmap;					\
-	u_int	pc_bcast_tlbi_workaround;				\
 	/* Store as two u_int values to preserve KBI */			\
-	u_int	pc_mpidr_low;	/* lower MPIDR 32 bits */		\
-	u_int	pc_mpidr_high;	/* upper MPIDR 32 bits */		\
+	uint64_t pc_mpidr;						\
+	u_int	pc_bcast_tlbi_workaround;				\
 	char __pad[197]
 
 #ifdef _KERNEL
@@ -85,8 +84,7 @@ get_curthread(void)
 #define	PCPU_PTR(member)	(&pcpup->pc_ ## member)
 #define	PCPU_SET(member,value)	(pcpup->pc_ ## member = (value))
 
-#define	PCPU_GET_MPIDR(pc)	\
-    ((((uint64_t)((pc)->pc_mpidr_high)) << 32) | ((pc)->pc_mpidr_low))
+#define	PCPU_GET_MPIDR(pc)	((pc)->pc_mpidr)
 
 #endif	/* _KERNEL */
 
