@@ -407,7 +407,7 @@ elf_cpu_unload_file(linker_file_t lf __unused)
 }
 
 static void
-ppc32_runtime_resolve()
+ppc32_runtime_resolve(void)
 {
 
 	/*
