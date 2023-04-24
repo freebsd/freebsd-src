@@ -1,5 +1,8 @@
 # $FreeBSD$ 
 
+# we do not need this
+MK_host_egacy= no
+
 .sinclude <src.opts.mk>
 
 .if defined(.PARSEDIR)
