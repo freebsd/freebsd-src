@@ -7,10 +7,8 @@ make: *** deptgt-delete_on_error-regular removed
 make: *** deptgt-delete_on_error-regular-delete removed
 > deptgt-delete_on_error-phony; false
 *** Error code 1 (continuing)
-make: *** deptgt-delete_on_error-phony removed
 > deptgt-delete_on_error-phony-delete; false
 *** Error code 1 (continuing)
-make: *** deptgt-delete_on_error-phony-delete removed
 > deptgt-delete_on_error-precious; false
 *** Error code 1 (continuing)
 > deptgt-delete_on_error-precious-delete; false

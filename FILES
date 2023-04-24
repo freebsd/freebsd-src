@@ -428,6 +428,7 @@ unit-tests/make-exported.exp
 unit-tests/make-exported.mk
 unit-tests/meta-cmd-cmp.exp
 unit-tests/meta-cmd-cmp.mk
+unit-tests/meta-ignore.inc
 unit-tests/moderrs.exp
 unit-tests/moderrs.mk
 unit-tests/modmatch.exp

@@ -1,4 +1,4 @@
-# $NetBSD: var-scope-cmdline.mk,v 1.1 2022/01/23 16:25:54 rillig Exp $
+# $NetBSD: var-scope-cmdline.mk,v 1.2 2023/04/07 05:54:16 rillig Exp $
 #
 # Tests for variables specified on the command line.
 #
@@ -61,6 +61,10 @@
 # Most cmdline variables are set at the very beginning, when parsing the
 # command line arguments.  Using the special target '.MAKEFLAGS', it is
 # possible to set cmdline variables at any later time.
+#
+# See also:
+#	varcmd.mk
+#	varname-makeflags.mk
 
 # A normal global variable, without any cmdline variable nearby.
 VAR=	global

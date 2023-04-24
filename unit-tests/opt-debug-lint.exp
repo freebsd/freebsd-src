@@ -1,5 +1,7 @@
 make: "opt-debug-lint.mk" line 19: Variable "X" is undefined
+make: "opt-debug-lint.mk" line 19: Malformed conditional ($X)
 make: "opt-debug-lint.mk" line 41: Variable "UNDEF" is undefined
+make: "opt-debug-lint.mk" line 41: Malformed conditional (${UNDEF})
 make: "opt-debug-lint.mk" line 61: Missing delimiter ':' after modifier "L"
 make: "opt-debug-lint.mk" line 61: Missing delimiter ':' after modifier "P"
 make: "opt-debug-lint.mk" line 69: Unknown modifier "${"

@@ -76,7 +76,8 @@ When bmake starts, it looks for ``sys.mk`` and reads it before doing
 anything else.  Thus, this is the place to setup the environment for
 everyone else.
 
-In this distribution, ``sys.mk`` avoids doing anything platform dependent.
+In this distribution, ``sys.mk`` avoids doing anything platform or
+site dependent.
 It is quite short, and includes a number of other files (which may or
 may not exists)
 
@@ -315,7 +316,7 @@ obj.mk
 
 One of the cool aspects of BSD make, is its support for separating
 object files from the src tree.  This is also the source of much
-confusion to some.
+confusion for people unfamiliar with it.
 
 Traditionally one had to do a separate ``make obj`` pass through the
 tree.  If ``MK_AUTO_OBJ`` is set we include auto.obj.mk_.
@@ -326,8 +327,9 @@ In fact if ``MKOBJDIRS`` is set to "auto", `sys.mk`_ will set
 auto.obj.mk
 -----------
 
-This leverages the ``.OBJDIR`` target introduced some years ago to
-NetBSD make, to automatically create and use the desired object dir.
+Creates object dirs and leverages the ``.OBJDIR`` target introduced
+some years ago to NetBSD make, to use them.
+
 
 subdir.mk
 ---------
@@ -461,7 +463,7 @@ would add all the warnings in ``${HIGH_WARNINGS}`` to CFLAGS, but
 on sparc, ``-Wno-unused`` would replace ``-Wunused``.
 
 You should never need to edit ``warnings.mk``, it will include
-``warnings-sets.mk`` if it exists and you use that to make any local
+``warnings-sets.mk`` and/or ``local.warnings.mk`` to pick up
 customizations.
 
 rst2htm.mk
@@ -491,6 +493,21 @@ decide if a target is out-of-date.
 In the past, making use of compiler wrappers like ``ccache``,
 ``distcc`` or the newer ``icecc`` could get quite ugly.
 Using ``cc-wrap.mk`` it could not be simpler.
+
+jobs.mk
+-------
+
+This should be included by the top-level makefile.
+If you do::
+
+	make something-jobs
+
+then ``jobs.mk`` will run::
+
+	make -j${JOB_MAX} someting > ${JOB_LOGDIR}/something.log 2>&1
+
+this ensures you get a build log and JOB_MAX is assumed to be set
+optimally for the host.
 
 Meta mode
 =========
@@ -525,5 +542,5 @@ where you unpacked the tar file, you can::
 .. _mk.tar.gz: http://www.crufty.net/ftp/pub/sjg/mk.tar.gz
 
 :Author: sjg@crufty.net
-:Revision: $Id: mk-files.txt,v 1.21 2022/02/04 19:01:05 sjg Exp $
+:Revision: $Id: mk-files.txt,v 1.22 2023/04/16 23:43:33 sjg Exp $
 :Copyright: Crufty.NET

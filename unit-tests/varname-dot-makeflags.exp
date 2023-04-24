@@ -1,3 +1,10 @@
-echo "$MAKEFLAGS"
- -r -k -d 00000 -D VARNAME WITH SPACES 
+make: "varname-dot-makeflags.mk" line 10: MAKEFLAGS=<undefined>
+make: "varname-dot-makeflags.mk" line 11: .MAKEFLAGS=< -r -k>
+make: "varname-dot-makeflags.mk" line 12: .MAKEOVERRIDES=<>
+make: "varname-dot-makeflags.mk" line 18: MAKEFLAGS=<undefined>
+make: "varname-dot-makeflags.mk" line 20: .MAKEFLAGS=< -r -k -D VARNAME -r>
+make: "varname-dot-makeflags.mk" line 22: .MAKEOVERRIDES=< VAR>
+runtime: MAKEFLAGS=< -r -k -D VARNAME -r VAR=value>
+runtime: .MAKEFLAGS=< -r -k -D VARNAME -r>
+runtime: .MAKEOVERRIDES=< VAR>
 exit status 0

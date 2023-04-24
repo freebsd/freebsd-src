@@ -1,4 +1,4 @@
-/*	$NetBSD: arch.c,v 1.212 2022/12/07 10:28:48 rillig Exp $	*/
+/*	$NetBSD: arch.c,v 1.213 2023/02/14 21:08:00 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -147,7 +147,7 @@ struct ar_hdr {
 #include "dir.h"
 
 /*	"@(#)arch.c	8.2 (Berkeley) 1/2/94"	*/
-MAKE_RCSID("$NetBSD: arch.c,v 1.212 2022/12/07 10:28:48 rillig Exp $");
+MAKE_RCSID("$NetBSD: arch.c,v 1.213 2023/02/14 21:08:00 rillig Exp $");
 
 typedef struct List ArchList;
 typedef struct ListNode ArchListNode;
@@ -269,8 +269,7 @@ Arch_ParseArchive(char **pp, GNodeList *gns, GNode *scope)
 			bool isError;
 
 			/* XXX: is expanded twice: once here and once below */
-			(void)Var_Parse(&nested_p, scope,
-			    VARE_UNDEFERR, &result);
+			result = Var_Parse(&nested_p, scope, VARE_UNDEFERR);
 			/* TODO: handle errors */
 			isError = result.str == var_Error;
 			FStr_Done(&result);
@@ -308,8 +307,8 @@ Arch_ParseArchive(char **pp, GNodeList *gns, GNode *scope)
 				bool isError;
 				const char *nested_p = cp;
 
-				(void)Var_Parse(&nested_p, scope,
-				    VARE_UNDEFERR, &result);
+				result = Var_Parse(&nested_p, scope,
+				    VARE_UNDEFERR);
 				/* TODO: handle errors */
 				isError = result.str == var_Error;
 				FStr_Done(&result);

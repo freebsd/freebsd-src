@@ -1,4 +1,4 @@
-/*	$NetBSD: var.c,v 1.1040 2023/02/09 07:34:15 sjg Exp $	*/
+/*	$NetBSD: var.c,v 1.1049 2023/03/28 14:39:31 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -147,7 +147,7 @@
 #include "metachar.h"
 
 /*	"@(#)var.c	8.3 (Berkeley) 3/19/94" */
-MAKE_RCSID("$NetBSD: var.c,v 1.1040 2023/02/09 07:34:15 sjg Exp $");
+MAKE_RCSID("$NetBSD: var.c,v 1.1049 2023/03/28 14:39:31 rillig Exp $");
 
 /*
  * Variables are defined using one of the VAR=value assignments.  Their
@@ -336,6 +336,7 @@ static VarExportedMode var_exportedVars = VAR_EXPORTED_NONE;
 
 static const char VarEvalMode_Name[][32] = {
 	"parse-only",
+	"parse-balanced",
 	"eval",
 	"eval-defined",
 	"eval-keep-dollar",
@@ -529,7 +530,7 @@ Var_Delete(GNode *scope, const char *varname)
 
 	if (v->exported)
 		unsetenv(v->name.str);
-	if (strcmp(v->name.str, MAKE_EXPORTED) == 0)
+	if (strcmp(v->name.str, ".MAKE.EXPORTED") == 0)
 		var_exportedVars = VAR_EXPORTED_NONE;
 
 	assert(v->name.freeIt == NULL);
@@ -545,7 +546,6 @@ Var_Delete(GNode *scope, const char *varname)
 void
 Var_Undef(const char *arg)
 {
-	VarParseResult vpr;
 	char *expanded;
 	Words varnames;
 	size_t i;
@@ -556,8 +556,9 @@ Var_Undef(const char *arg)
 		return;
 	}
 
-	vpr = Var_Subst(arg, SCOPE_GLOBAL, VARE_WANTRES, &expanded);
-	if (vpr != VPR_OK) {
+	expanded = Var_Subst(arg, SCOPE_GLOBAL, VARE_WANTRES);
+	if (expanded == var_Error) {
+		/* TODO: Make this part of the code reachable. */
 		Parse_Error(PARSE_FATAL,
 		    "Error in variable names to be undefined");
 		return;
@@ -627,7 +628,7 @@ ExportVarEnv(Var *v)
 
 	/* XXX: name is injected without escaping it */
 	expr = str_concat3("${", name, "}");
-	(void)Var_Subst(expr, SCOPE_GLOBAL, VARE_WANTRES, &val);
+	val = Var_Subst(expr, SCOPE_GLOBAL, VARE_WANTRES);
 	/* TODO: handle errors */
 	setenv(name, val, 1);
 	free(val);
@@ -727,8 +728,8 @@ Var_ReexportVars(void)
 		return;
 	}
 
-	(void)Var_Subst("${" MAKE_EXPORTED ":O:u}", SCOPE_GLOBAL, VARE_WANTRES,
-	    &xvarnames);
+	xvarnames = Var_Subst("${.MAKE.EXPORTED:O:u}", SCOPE_GLOBAL,
+	    VARE_WANTRES);
 	/* TODO: handle errors */
 	if (xvarnames[0] != '\0') {
 		Words varnames = Str_Words(xvarnames, false);
@@ -760,7 +761,7 @@ ExportVars(const char *varnames, bool isExport, VarExportMode mode)
 			var_exportedVars = VAR_EXPORTED_SOME;
 
 		if (isExport && mode == VEM_PLAIN)
-			Global_Append(MAKE_EXPORTED, varname);
+			Global_Append(".MAKE.EXPORTED", varname);
 	}
 	Words_Free(words);
 }
@@ -768,9 +769,7 @@ ExportVars(const char *varnames, bool isExport, VarExportMode mode)
 static void
 ExportVarsExpand(const char *uvarnames, bool isExport, VarExportMode mode)
 {
-	char *xvarnames;
-
-	(void)Var_Subst(uvarnames, SCOPE_GLOBAL, VARE_WANTRES, &xvarnames);
+	char *xvarnames = Var_Subst(uvarnames, SCOPE_GLOBAL, VARE_WANTRES);
 	/* TODO: handle errors */
 	ExportVars(xvarnames, isExport, mode);
 	free(xvarnames);
@@ -794,8 +793,6 @@ Var_ExportVars(const char *varnames)
 	ExportVarsExpand(varnames, false, VEM_PLAIN);
 }
 
-
-extern char **environ;
 
 static void
 ClearEnv(void)
@@ -846,10 +843,8 @@ GetVarnamesToUnexport(bool isEnv, const char *arg,
 	}
 
 	if (what != UNEXPORT_NAMED) {
-		char *expanded;
-		/* Using .MAKE.EXPORTED */
-		(void)Var_Subst("${" MAKE_EXPORTED ":O:u}", SCOPE_GLOBAL,
-		    VARE_WANTRES, &expanded);
+		char *expanded = Var_Subst("${.MAKE.EXPORTED:O:u}",
+		    SCOPE_GLOBAL, VARE_WANTRES);
 		/* TODO: handle errors */
 		varnames = FStr_InitOwn(expanded);
 	}
@@ -878,12 +873,11 @@ UnexportVar(Substring varname, UnexportWhat what)
 	if (what == UNEXPORT_NAMED) {
 		/* Remove the variable names from .MAKE.EXPORTED. */
 		/* XXX: v->name is injected without escaping it */
-		char *expr = str_concat3("${" MAKE_EXPORTED ":N",
+		char *expr = str_concat3("${.MAKE.EXPORTED:N",
 		    v->name.str, "}");
-		char *cp;
-		(void)Var_Subst(expr, SCOPE_GLOBAL, VARE_WANTRES, &cp);
+		char *cp = Var_Subst(expr, SCOPE_GLOBAL, VARE_WANTRES);
 		/* TODO: handle errors */
-		Global_Set(MAKE_EXPORTED, cp);
+		Global_Set(".MAKE.EXPORTED", cp);
 		free(cp);
 		free(expr);
 	}
@@ -904,7 +898,7 @@ UnexportVars(FStr *varnames, UnexportWhat what)
 	SubstringWords_Free(words);
 
 	if (what != UNEXPORT_NAMED)
-		Global_Delete(MAKE_EXPORTED);
+		Global_Delete(".MAKE.EXPORTED");
 }
 
 /*
@@ -1014,7 +1008,7 @@ Var_SetWithFlags(GNode *scope, const char *name, const char *val,
 
 		/*
 		 * If requested, don't export these in the environment
-		 * individually.  We still put them in MAKEOVERRIDES so
+		 * individually.  We still put them in .MAKEOVERRIDES so
 		 * that the command-line settings continue to override
 		 * Makefile settings.
 		 */
@@ -1026,7 +1020,7 @@ Var_SetWithFlags(GNode *scope, const char *name, const char *val,
 		 * in ExportVarPlain?
 		 */
 
-		Global_Append(MAKEOVERRIDES, name);
+		Global_Append(".MAKEOVERRIDES", name);
 	}
 
 	if (name[0] == '.' && strcmp(name, MAKE_SAVE_DOLLARS) == 0)
@@ -1706,7 +1700,7 @@ ModifyWord_Loop(Substring word, SepBuf *buf, void *data)
 	assert(word.end[0] == '\0');	/* assume null-terminated word */
 	Var_SetWithFlags(args->scope, args->var, word.start,
 	    VAR_SET_NO_EXPORT);
-	(void)Var_Subst(args->body, args->scope, args->emode, &s);
+	s = Var_Subst(args->body, args->scope, args->emode);
 	/* TODO: handle errors */
 
 	assert(word.end[0] == '\0');	/* assume null-terminated word */
@@ -2153,36 +2147,26 @@ ParseModifierPartExpr(const char **pp, LazyBuf *part, const ModChain *ch,
 		      VarEvalMode emode)
 {
 	const char *p = *pp;
-	FStr nested_val;
-
-	(void)Var_Parse(&p, ch->expr->scope,
-	    VarEvalMode_WithoutKeepDollar(emode), &nested_val);
+	FStr nested_val = Var_Parse(&p, ch->expr->scope,
+	    VarEvalMode_WithoutKeepDollar(emode));
 	/* TODO: handle errors */
-	LazyBuf_AddStr(part, nested_val.str);
+	if (VarEvalMode_ShouldEval(emode))
+		LazyBuf_AddStr(part, nested_val.str);
+	else
+		LazyBuf_AddSubstring(part, Substring_Init(*pp, p));
 	FStr_Done(&nested_val);
 	*pp = p;
 }
 
 /*
- * In a part of a modifier, parse a subexpression but don't evaluate it.
- *
- * XXX: This whole block is very similar to Var_Parse with VARE_PARSE_ONLY.
- * There may be subtle edge cases though that are not yet covered in the unit
- * tests and that are parsed differently, depending on whether they are
- * evaluated or not.
- *
- * This subtle difference is not documented in the manual page, neither is
- * the difference between parsing ':D' and ':M' documented.  No code should
- * ever depend on these details, but who knows.
- *
- * TODO: Before trying to replace this code with Var_Parse, there need to be
- * more unit tests in varmod-loop.mk.  The modifier ':@' uses Var_Subst
- * internally, in which a '$' is escaped as '$$', not as '\$' like in other
- * modifiers.  When parsing the body text '$${var}', skipping over the first
- * '$' would treat '${var}' as a make expression, not as a shell variable.
+ * In a part of a modifier, parse some text that looks like a subexpression.
+ * If the text starts with '$(', any '(' and ')' must be balanced.
+ * If the text starts with '${', any '{' and '}' must be balanced.
+ * If the text starts with '$', that '$' is copied, it is not parsed as a
+ * short-name variable expression.
  */
 static void
-ParseModifierPartDollar(const char **pp, LazyBuf *part)
+ParseModifierPartBalanced(const char **pp, LazyBuf *part)
 {
 	const char *p = *pp;
 	const char *start = *pp;
@@ -2209,7 +2193,7 @@ ParseModifierPartDollar(const char **pp, LazyBuf *part)
 }
 
 /* See ParseModifierPart for the documentation. */
-static VarParseResult
+static bool
 ParseModifierPartSubst(
     const char **pp,
     char delim,
@@ -2249,10 +2233,10 @@ ParseModifierPartSubst(
 			else
 				LazyBuf_Add(part, *p);
 			p++;
-		} else if (VarEvalMode_ShouldEval(emode))
-			ParseModifierPartExpr(&p, part, ch, emode);
+		} else if (emode == VARE_PARSE_BALANCED)
+			ParseModifierPartBalanced(&p, part);
 		else
-			ParseModifierPartDollar(&p, part);
+			ParseModifierPartExpr(&p, part, ch, emode);
 	}
 
 	if (*p != delim) {
@@ -2260,7 +2244,7 @@ ParseModifierPartSubst(
 		Error("Unfinished modifier for \"%s\" ('%c' missing)",
 		    ch->expr->name, delim);
 		LazyBuf_Done(part);
-		return VPR_ERR;
+		return false;
 	}
 
 	*pp = p + 1;
@@ -2271,7 +2255,7 @@ ParseModifierPartSubst(
 		    (int)Substring_Length(sub), sub.start);
 	}
 
-	return VPR_OK;
+	return true;
 }
 
 /*
@@ -2280,11 +2264,11 @@ ParseModifierPartSubst(
  * including the next unescaped delimiter.  The delimiter, as well as the
  * backslash or the dollar, can be escaped with a backslash.
  *
- * Return VPR_OK if parsing succeeded, together with the parsed (and possibly
+ * Return true if parsing succeeded, together with the parsed (and possibly
  * expanded) part.  In that case, pp points right after the delimiter.  The
  * delimiter is not included in the part though.
  */
-static VarParseResult
+static bool
 ParseModifierPart(
     /* The parsing position, updated upon return */
     const char **pp,
@@ -2434,15 +2418,13 @@ ApplyModifier_Loop(const char **pp, ModChain *ch)
 	Expr *expr = ch->expr;
 	struct ModifyWord_LoopArgs args;
 	char prev_sep;
-	VarParseResult res;
 	LazyBuf tvarBuf, strBuf;
 	FStr tvar, str;
 
 	args.scope = expr->scope;
 
 	(*pp)++;		/* Skip the first '@' */
-	res = ParseModifierPart(pp, '@', VARE_PARSE_ONLY, ch, &tvarBuf);
-	if (res != VPR_OK)
+	if (!ParseModifierPart(pp, '@', VARE_PARSE_ONLY, ch, &tvarBuf))
 		return AMR_CLEANUP;
 	tvar = LazyBuf_DoneGet(&tvarBuf);
 	args.var = tvar.str;
@@ -2454,8 +2436,7 @@ ApplyModifier_Loop(const char **pp, ModChain *ch)
 		return AMR_CLEANUP;
 	}
 
-	res = ParseModifierPart(pp, '@', VARE_PARSE_ONLY, ch, &strBuf);
-	if (res != VPR_OK)
+	if (!ParseModifierPart(pp, '@', VARE_PARSE_BALANCED, ch, &strBuf))
 		return AMR_CLEANUP;
 	str = LazyBuf_DoneGet(&strBuf);
 	args.body = str.str;
@@ -2508,11 +2489,8 @@ ParseModifier_Defined(const char **pp, ModChain *ch, bool shouldEval,
 
 		/* Nested variable expression */
 		if (*p == '$') {
-			FStr val;
-
-			(void)Var_Parse(&p, ch->expr->scope,
-			    shouldEval ? ch->expr->emode : VARE_PARSE_ONLY,
-			    &val);
+			FStr val = Var_Parse(&p, ch->expr->scope,
+			    shouldEval ? ch->expr->emode : VARE_PARSE_ONLY);
 			/* TODO: handle errors */
 			if (shouldEval)
 				LazyBuf_AddStr(buf, val.str);
@@ -2666,13 +2644,11 @@ static ApplyModifierResult
 ApplyModifier_ShellCommand(const char **pp, ModChain *ch)
 {
 	Expr *expr = ch->expr;
-	VarParseResult res;
 	LazyBuf cmdBuf;
 	FStr cmd;
 
 	(*pp)++;
-	res = ParseModifierPart(pp, '!', expr->emode, ch, &cmdBuf);
-	if (res != VPR_OK)
+	if (!ParseModifierPart(pp, '!', expr->emode, ch, &cmdBuf))
 		return AMR_CLEANUP;
 	cmd = LazyBuf_DoneGet(&cmdBuf);
 
@@ -2818,7 +2794,7 @@ ParseModifier_Match(const char **pp, const ModChain *ch)
 		 * XXX: Contrary to ParseModifierPart, a dollar in a ':M' or
 		 * ':N' modifier must be escaped as '$$', not as '\$'.
 		 */
-		(void)Var_Subst(pattern, expr->scope, expr->emode, &pattern);
+		pattern = Var_Subst(pattern, expr->scope, expr->emode);
 		/* TODO: handle errors */
 		free(old_pattern);
 	}
@@ -2875,7 +2851,6 @@ ApplyModifier_Subst(const char **pp, ModChain *ch)
 {
 	struct ModifyWord_SubstArgs args;
 	bool oneBigWord;
-	VarParseResult res;
 	LazyBuf lhsBuf, rhsBuf;
 
 	char delim = (*pp)[1];
@@ -2895,15 +2870,13 @@ ApplyModifier_Subst(const char **pp, ModChain *ch)
 		(*pp)++;
 	}
 
-	res = ParseModifierPartSubst(pp, delim, ch->expr->emode, ch, &lhsBuf,
-	    &args.pflags, NULL);
-	if (res != VPR_OK)
+	if (!ParseModifierPartSubst(pp, delim, ch->expr->emode, ch, &lhsBuf,
+	    &args.pflags, NULL))
 		return AMR_CLEANUP;
 	args.lhs = LazyBuf_Get(&lhsBuf);
 
-	res = ParseModifierPartSubst(pp, delim, ch->expr->emode, ch, &rhsBuf,
-	    NULL, &args);
-	if (res != VPR_OK) {
+	if (!ParseModifierPartSubst(pp, delim, ch->expr->emode, ch, &rhsBuf,
+	    NULL, &args)) {
 		LazyBuf_Done(&lhsBuf);
 		return AMR_CLEANUP;
 	}
@@ -2928,7 +2901,6 @@ ApplyModifier_Regex(const char **pp, ModChain *ch)
 	struct ModifyWord_SubstRegexArgs args;
 	bool oneBigWord;
 	int error;
-	VarParseResult res;
 	LazyBuf reBuf, replaceBuf;
 	FStr re;
 
@@ -2941,13 +2913,11 @@ ApplyModifier_Regex(const char **pp, ModChain *ch)
 
 	*pp += 2;
 
-	res = ParseModifierPart(pp, delim, ch->expr->emode, ch, &reBuf);
-	if (res != VPR_OK)
+	if (!ParseModifierPart(pp, delim, ch->expr->emode, ch, &reBuf))
 		return AMR_CLEANUP;
 	re = LazyBuf_DoneGet(&reBuf);
 
-	res = ParseModifierPart(pp, delim, ch->expr->emode, ch, &replaceBuf);
-	if (res != VPR_OK) {
+	if (!ParseModifierPart(pp, delim, ch->expr->emode, ch, &replaceBuf)) {
 		FStr_Done(&re);
 		return AMR_CLEANUP;
 	}
@@ -3180,14 +3150,12 @@ ApplyModifier_Words(const char **pp, ModChain *ch)
 	Expr *expr = ch->expr;
 	const char *estr;
 	int first, last;
-	VarParseResult res;
 	const char *p;
 	LazyBuf estrBuf;
 	FStr festr;
 
 	(*pp)++;		/* skip the '[' */
-	res = ParseModifierPart(pp, ']', expr->emode, ch, &estrBuf);
-	if (res != VPR_OK)
+	if (!ParseModifierPart(pp, ']', expr->emode, ch, &estrBuf))
 		return AMR_CLEANUP;
 	festr = LazyBuf_DoneGet(&estrBuf);
 	estr = festr.str;
@@ -3412,7 +3380,6 @@ static ApplyModifierResult
 ApplyModifier_IfElse(const char **pp, ModChain *ch)
 {
 	Expr *expr = ch->expr;
-	VarParseResult res;
 	LazyBuf thenBuf;
 	LazyBuf elseBuf;
 
@@ -3429,12 +3396,10 @@ ApplyModifier_IfElse(const char **pp, ModChain *ch)
 	}
 
 	(*pp)++;		/* skip past the '?' */
-	res = ParseModifierPart(pp, ':', then_emode, ch, &thenBuf);
-	if (res != VPR_OK)
+	if (!ParseModifierPart(pp, ':', then_emode, ch, &thenBuf))
 		return AMR_CLEANUP;
 
-	res = ParseModifierPart(pp, ch->endc, else_emode, ch, &elseBuf);
-	if (res != VPR_OK) {
+	if (!ParseModifierPart(pp, ch->endc, else_emode, ch, &elseBuf)) {
 		LazyBuf_Done(&thenBuf);
 		return AMR_CLEANUP;
 	}
@@ -3495,7 +3460,6 @@ ApplyModifier_Assign(const char **pp, ModChain *ch)
 	Expr *expr = ch->expr;
 	GNode *scope;
 	FStr val;
-	VarParseResult res;
 	LazyBuf buf;
 
 	const char *mod = *pp;
@@ -3515,8 +3479,7 @@ found_op:
 
 	*pp = mod + (op[0] == '+' || op[0] == '?' || op[0] == '!' ? 3 : 2);
 
-	res = ParseModifierPart(pp, ch->endc, expr->emode, ch, &buf);
-	if (res != VPR_OK)
+	if (!ParseModifierPart(pp, ch->endc, expr->emode, ch, &buf))
 		return AMR_CLEANUP;
 	val = LazyBuf_DoneGet(&buf);
 
@@ -3650,7 +3613,6 @@ static ApplyModifierResult
 ApplyModifier_SysV(const char **pp, ModChain *ch)
 {
 	Expr *expr = ch->expr;
-	VarParseResult res;
 	LazyBuf lhsBuf, rhsBuf;
 	FStr rhs;
 	struct ModifyWord_SysVSubstArgs args;
@@ -3680,15 +3642,13 @@ ApplyModifier_SysV(const char **pp, ModChain *ch)
 	if (*p != ch->endc || !eqFound)
 		return AMR_UNKNOWN;
 
-	res = ParseModifierPart(pp, '=', expr->emode, ch, &lhsBuf);
-	if (res != VPR_OK)
+	if (!ParseModifierPart(pp, '=', expr->emode, ch, &lhsBuf))
 		return AMR_CLEANUP;
 
 	/*
 	 * The SysV modifier lasts until the end of the variable expression.
 	 */
-	res = ParseModifierPart(pp, ch->endc, expr->emode, ch, &rhsBuf);
-	if (res != VPR_OK) {
+	if (!ParseModifierPart(pp, ch->endc, expr->emode, ch, &rhsBuf)) {
 		LazyBuf_Done(&lhsBuf);
 		return AMR_CLEANUP;
 	}
@@ -3714,6 +3674,7 @@ ApplyModifier_SysV(const char **pp, ModChain *ch)
 
 done:
 	LazyBuf_Done(&lhsBuf);
+	FStr_Done(&rhs);
 	return AMR_OK;
 }
 #endif
@@ -3743,6 +3704,18 @@ ApplyModifier_SunShell(const char **pp, ModChain *ch)
 }
 #endif
 
+/*
+ * In cases where the evaluation mode and the definedness are the "standard"
+ * ones, don't log them, to keep the logs readable.
+ */
+static bool
+ShouldLogInSimpleFormat(const Expr *expr)
+{
+	return (expr->emode == VARE_WANTRES ||
+		expr->emode == VARE_UNDEFERR) &&
+	       expr->defined == DEF_REGULAR;
+}
+
 static void
 LogBeforeApply(const ModChain *ch, const char *mod)
 {
@@ -3760,8 +3733,7 @@ LogBeforeApply(const ModChain *ch, const char *mod)
 		return;
 	}
 
-	if ((expr->emode == VARE_WANTRES || expr->emode == VARE_UNDEFERR) &&
-	    expr->defined == DEF_REGULAR) {
+	if (ShouldLogInSimpleFormat(expr)) {
 		debug_printf(
 		    "Evaluating modifier ${%s:%c%s} on value \"%s\"\n",
 		    expr->name, mod[0], is_single_char ? "" : "...",
@@ -3782,9 +3754,7 @@ LogAfterApply(const ModChain *ch, const char *p, const char *mod)
 	const char *value = Expr_Str(expr);
 	const char *quot = value == var_Error ? "" : "\"";
 
-	if ((expr->emode == VARE_WANTRES || expr->emode == VARE_UNDEFERR) &&
-	    expr->defined == DEF_REGULAR) {
-
+	if (ShouldLogInSimpleFormat(expr)) {
 		debug_printf("Result of ${%s:%.*s} is %s%s%s\n",
 		    expr->name, (int)(p - mod), mod,
 		    quot, value == var_Error ? "error" : value, quot);
@@ -3892,9 +3862,7 @@ ApplyModifiersIndirect(ModChain *ch, const char **pp)
 {
 	Expr *expr = ch->expr;
 	const char *p = *pp;
-	FStr mods;
-
-	(void)Var_Parse(&p, expr->scope, expr->emode, &mods);
+	FStr mods = Var_Parse(&p, expr->scope, expr->emode);
 	/* TODO: handle errors */
 
 	if (mods.str[0] != '\0' && !IsDelimiter(*p, ch)) {
@@ -4079,7 +4047,7 @@ cleanup:
 	 * commands with evaluation errors should not be run at all.
 	 *
 	 * To make that happen, Var_Subst must report the actual errors
-	 * instead of returning VPR_OK unconditionally.
+	 * instead of returning the resulting string unconditionally.
 	 */
 	*pp = p;
 	Expr_SetValueRefer(expr, var_Error);
@@ -4169,8 +4137,7 @@ ParseVarname(const char **pp, char startc, char endc,
 
 		/* A variable inside a variable, expand. */
 		if (*p == '$') {
-			FStr nested_val;
-			(void)Var_Parse(&p, scope, emode, &nested_val);
+			FStr nested_val = Var_Parse(&p, scope, emode);
 			/* TODO: handle errors */
 			LazyBuf_AddStr(buf, nested_val.str);
 			FStr_Done(&nested_val);
@@ -4211,7 +4178,7 @@ IsShortVarnameValid(char varname, const char *start)
 static bool
 ParseVarnameShort(char varname, const char **pp, GNode *scope,
 		  VarEvalMode emode,
-		  VarParseResult *out_false_res, const char **out_false_val,
+		  const char **out_false_val,
 		  Var **out_true_var)
 {
 	char name[2];
@@ -4220,7 +4187,6 @@ ParseVarnameShort(char varname, const char **pp, GNode *scope,
 
 	if (!IsShortVarnameValid(varname, *pp)) {
 		(*pp)++;	/* only skip the '$' */
-		*out_false_res = VPR_ERR;
 		*out_false_val = var_Error;
 		return false;
 	}
@@ -4243,22 +4209,8 @@ ParseVarnameShort(char varname, const char **pp, GNode *scope,
 	if (opts.strict && val == var_Error) {
 		Parse_Error(PARSE_FATAL,
 		    "Variable \"%s\" is undefined", name);
-		*out_false_res = VPR_ERR;
-		*out_false_val = val;
-		return false;
 	}
 
-	/*
-	 * XXX: This looks completely wrong.
-	 *
-	 * If undefined expressions are not allowed, this should
-	 * rather be VPR_ERR instead of VPR_UNDEF, together with an
-	 * error message.
-	 *
-	 * If undefined expressions are allowed, this should rather
-	 * be VPR_UNDEF instead of VPR_OK.
-	 */
-	*out_false_res = emode == VARE_UNDEFERR ? VPR_UNDEF : VPR_OK;
 	*out_false_val = val;
 	return false;
 }
@@ -4289,30 +4241,22 @@ FindLocalLegacyVar(Substring varname, GNode *scope,
 	return v;
 }
 
-static VarParseResult
+static FStr
 EvalUndefined(bool dynamic, const char *start, const char *p,
-	      Substring varname, VarEvalMode emode, FStr *out_val)
+	      Substring varname, VarEvalMode emode)
 {
-	if (dynamic) {
-		*out_val = FStr_InitOwn(bmake_strsedup(start, p));
-		return VPR_OK;
-	}
+	if (dynamic)
+		return FStr_InitOwn(bmake_strsedup(start, p));
 
 	if (emode == VARE_UNDEFERR && opts.strict) {
 		Parse_Error(PARSE_FATAL,
 		    "Variable \"%.*s\" is undefined",
 		    (int)Substring_Length(varname), varname.start);
-		*out_val = FStr_InitRefer(var_Error);
-		return VPR_ERR;
+		return FStr_InitRefer(var_Error);
 	}
 
-	if (emode == VARE_UNDEFERR) {
-		*out_val = FStr_InitRefer(var_Error);
-		return VPR_UNDEF;	/* XXX: Should be VPR_ERR instead. */
-	}
-
-	*out_val = FStr_InitRefer(varUndefined);
-	return VPR_OK;
+	return FStr_InitRefer(
+	    emode == VARE_UNDEFERR ? var_Error : varUndefined);
 }
 
 /*
@@ -4329,7 +4273,6 @@ ParseVarnameLong(
 	VarEvalMode emode,
 
 	const char **out_false_pp,
-	VarParseResult *out_false_res,
 	FStr *out_false_val,
 
 	char *out_true_endc,
@@ -4364,7 +4307,6 @@ ParseVarnameLong(
 		LazyBuf_Done(&varname);
 		*out_false_pp = p;
 		*out_false_val = FStr_InitRefer(var_Error);
-		*out_false_res = VPR_ERR;
 		return false;
 	}
 
@@ -4394,8 +4336,8 @@ ParseVarnameLong(
 		if (!haveModifier) {
 			p++;	/* skip endc */
 			*out_false_pp = p;
-			*out_false_res = EvalUndefined(dynamic, start, p,
-			    name, emode, out_false_val);
+			*out_false_val = EvalUndefined(dynamic, start, p,
+			    name, emode);
 			LazyBuf_Done(&varname);
 			return false;
 		}
@@ -4497,23 +4439,23 @@ Var_Parse_FastLane(const char **pp, VarEvalMode emode, FStr *out_value)
  *			point to some random character in the string, to the
  *			location of the parse error, or at the end of the
  *			string.
- *	*out_val	The value of the variable expression, never NULL.
- *	*out_val	var_Error if there was a parse error.
- *	*out_val	var_Error if the base variable of the expression was
+ *	return		The value of the variable expression, never NULL.
+ *	return		var_Error if there was a parse error.
+ *	return		var_Error if the base variable of the expression was
  *			undefined, emode is VARE_UNDEFERR, and none of
  *			the modifiers turned the undefined expression into a
  *			defined expression.
  *			XXX: It is not guaranteed that an error message has
  *			been printed.
- *	*out_val	varUndefined if the base variable of the expression
+ *	return		varUndefined if the base variable of the expression
  *			was undefined, emode was not VARE_UNDEFERR,
  *			and none of the modifiers turned the undefined
  *			expression into a defined expression.
  *			XXX: It is not guaranteed that an error message has
  *			been printed.
  */
-VarParseResult
-Var_Parse(const char **pp, GNode *scope, VarEvalMode emode, FStr *out_val)
+FStr
+Var_Parse(const char **pp, GNode *scope, VarEvalMode emode)
 {
 	const char *p = *pp;
 	const char *const start = p;
@@ -4531,15 +4473,16 @@ Var_Parse(const char **pp, GNode *scope, VarEvalMode emode, FStr *out_val)
 	Var *v;
 	Expr expr = Expr_Literal(NULL, FStr_InitRefer(NULL), emode,
 	    scope, DEF_REGULAR);
+	FStr val;
 
-	if (Var_Parse_FastLane(pp, emode, out_val))
-		return VPR_OK;
+	if (Var_Parse_FastLane(pp, emode, &val))
+		return val;
 
 	/* TODO: Reduce computations in parse-only mode. */
 
 	DEBUG2(VAR, "Var_Parse: %s (%s)\n", start, VarEvalMode_Name[emode]);
 
-	*out_val = FStr_InitRefer(NULL);
+	val = FStr_InitRefer(NULL);
 	extramodifiers = NULL;	/* extra modifiers to apply first */
 	dynamic = false;
 
@@ -4547,19 +4490,16 @@ Var_Parse(const char **pp, GNode *scope, VarEvalMode emode, FStr *out_val)
 
 	startc = p[1];
 	if (startc != '(' && startc != '{') {
-		VarParseResult res;
-		if (!ParseVarnameShort(startc, pp, scope, emode, &res,
-		    &out_val->str, &v))
-			return res;
+		if (!ParseVarnameShort(startc, pp, scope, emode, &val.str, &v))
+			return val;
 		haveModifier = false;
 		p++;
 	} else {
-		VarParseResult res;
 		if (!ParseVarnameLong(&p, startc, scope, emode,
-		    pp, &res, out_val,
+		    pp, &val,
 		    &endc, &v, &haveModifier, &extramodifiers,
 		    &dynamic, &expr.defined))
-			return res;
+			return val;
 	}
 
 	expr.name = v->name.str;
@@ -4595,8 +4535,7 @@ Var_Parse(const char **pp, GNode *scope, VarEvalMode emode, FStr *out_val)
 		if (opts.strict)
 			nested_emode = VarEvalMode_UndefOk(nested_emode);
 		v->inUse = true;
-		(void)Var_Subst(Expr_Str(&expr), scope, nested_emode,
-		    &expanded);
+		expanded = Var_Subst(Expr_Str(&expr), scope, nested_emode);
 		v->inUse = false;
 		/* TODO: handle errors */
 		Expr_SetValueOwn(&expr, expanded);
@@ -4641,8 +4580,7 @@ Var_Parse(const char **pp, GNode *scope, VarEvalMode emode, FStr *out_val)
 		VarFreeShortLived(v);
 	}
 
-	*out_val = expr.value;
-	return VPR_OK;		/* XXX: Is not correct in all cases */
+	return expr.value;
 }
 
 static void
@@ -4661,9 +4599,7 @@ VarSubstExpr(const char **pp, Buffer *buf, GNode *scope,
 {
 	const char *p = *pp;
 	const char *nested_p = p;
-	FStr val;
-
-	(void)Var_Parse(&nested_p, scope, emode, &val);
+	FStr val = Var_Parse(&nested_p, scope, emode);
 	/* TODO: handle errors */
 
 	if (val.str == var_Error || val.str == varUndefined) {
@@ -4737,8 +4673,8 @@ VarSubstPlain(const char **pp, Buffer *res)
  *			variables.  The other scopes are searched as well.
  *	emode		The mode for parsing or evaluating subexpressions.
  */
-VarParseResult
-Var_Subst(const char *str, GNode *scope, VarEvalMode emode, char **out_res)
+char *
+Var_Subst(const char *str, GNode *scope, VarEvalMode emode)
 {
 	const char *p = str;
 	Buffer res;
@@ -4762,8 +4698,7 @@ Var_Subst(const char *str, GNode *scope, VarEvalMode emode, char **out_res)
 			VarSubstPlain(&p, &res);
 	}
 
-	*out_res = Buf_DoneDataCompact(&res);
-	return VPR_OK;
+	return Buf_DoneDataCompact(&res);
 }
 
 void
@@ -4773,7 +4708,7 @@ Var_Expand(FStr *str, GNode *scope, VarEvalMode emode)
 
 	if (strchr(str->str, '$') == NULL)
 		return;
-	(void)Var_Subst(str->str, scope, emode, &expanded);
+	expanded = Var_Subst(str->str, scope, emode);
 	/* TODO: handle errors */
 	FStr_Done(str);
 	*str = FStr_InitOwn(expanded);

@@ -1,4 +1,4 @@
-#	$Id: prog.mk,v 1.38 2022/07/22 20:08:56 sjg Exp $
+#	$Id: prog.mk,v 1.39 2023/04/20 23:45:56 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__: .NOTMAIN
@@ -97,7 +97,7 @@ LOBJS+=	${LSRCS:.c=.ln} ${SRCS:M*.c:.c=.ln}
 .NOPATH: ${OBJS} ${PROG} ${SRCS:M*.[ly]:C/\..$/.c/} ${YHEADER:D${SRCS:M*.y:.y=.h}}
 
 # this is known to work for NetBSD 1.6 and FreeBSD 4.2
-.if ${TARGET_OSNAME} == "NetBSD" || ${TARGET_OSNAME} == "FreeBSD"
+.if ${TARGET_OSNAME:NFreeBSD:NNetBSD} == ""
 _PROGLDOPTS=
 .if ${SHLINKDIR} != "/usr/libexec"	# XXX: change or remove if ld.so moves
 _PROGLDOPTS+=	-Wl,-dynamic-linker=${_SHLINKER}

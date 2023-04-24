@@ -49,6 +49,7 @@ make: "cond-token-plain.mk" line 172: Now the variable '\\' is defined.
 CondParser_Eval: "unquoted\"quoted" != unquoted"quoted
 Comparing "unquoted"quoted" != "unquoted"quoted"
 CondParser_Eval: $$$$$$$$ != ""
+make: "cond-token-plain.mk" line 186: Malformed conditional ($$$$$$$$ != "")
 CondParser_Eval: left == right
 make: "cond-token-plain.mk" line 195: Malformed conditional (left == right)
 CondParser_Eval: ${0:?:} || left == right

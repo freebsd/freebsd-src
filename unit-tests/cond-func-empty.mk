@@ -1,4 +1,4 @@
-# $NetBSD: cond-func-empty.mk,v 1.17 2021/12/28 22:13:56 rillig Exp $
+# $NetBSD: cond-func-empty.mk,v 1.18 2023/03/04 21:15:30 rillig Exp $
 #
 # Tests for the empty() function in .if conditions, which tests a variable
 # expression for emptiness.
@@ -24,11 +24,13 @@ WORD=	word
 .  error
 .endif
 
-# The :S modifier replaces the empty value with an actual word.  The
-# expression is now no longer empty, but it is still based on an undefined
-# variable (DEF_UNDEF).  There are a few variable modifiers that turn an
-# undefined expression into a defined expression, among them :U and :D, but
-# not :S.
+# The :S modifier replaces the empty value with an actual word.  After
+# applying the :S modifier to the expression, it value is 'empty', so it is
+# no longer empty, but it is still based on an undefined variable.  There are
+# a few modifiers that turn an undefined expression into a defined expression,
+# among them :U and :D, but not :S.  Therefore, at the end of evaluating the
+# expression, the expression is still undefined, so its final value becomes an
+# empty string.
 #
 # XXX: This is hard to explain to someone who doesn't know these
 # implementation details.
@@ -45,15 +47,17 @@ WORD=	word
 .  error
 .endif
 
-# And now to the surprising part.  Applying the following :S modifier to the
-# undefined expression makes it non-empty, but the expression is still in
-# state DEF_UNDEF.  The :U modifier that follows only looks at the state
-# DEF_UNDEF to decide whether the variable is defined or not.  This kind of
-# makes sense since the :U modifier tests the _variable_, not the
+# When an expression is based on an undefined variable, its modifiers interact
+# in sometimes surprising ways.  Applying the :S modifier to the undefined
+# expression makes its value non-empty, but doesn't change that the expression
+# is based on an undefined variable.  The :U modifier that follows only looks
+# at the definedness state to decide whether the variable is defined or not.
+# This kind of makes sense since the :U modifier tests the _variable_, not the
 # _expression_.
 #
-# But since the variable was undefined to begin with, the fallback value from
-# the :U modifier is used in this expression.
+# Since the variable was undefined to begin with, the fallback value from the
+# :U modifier is used in this expression, instead of keeping the 'value' from
+# the :S modifier.
 #
 .if ${UNDEF:S,^$,value,W:Ufallback} != "fallback"
 .  error
@@ -90,8 +94,8 @@ WORD=	word
 # neither leading nor trailing spaces are trimmed in the argument of the
 # function.  If the spaces were trimmed, the variable name would be "" and
 # that variable is indeed undefined.  Since CondParser_FuncCallEmpty calls
-# Var_Parse without VARE_UNDEFERR, the value of the undefined variable is
-# returned as an empty string.
+# Var_Parse without VARE_UNDEFERR, the value of the undefined variable ""
+# would be returned as an empty string.
 ${:U }=	space
 .if empty( )
 .  error
@@ -120,9 +124,9 @@ ${:U }=	space
 .  error
 .endif
 
-# Ensure that variable expressions that appear as part of the argument are
-# properly parsed.  Typical use cases for this are .for loops, which are
-# expanded to exactly these ${:U} expressions.
+# Ensure that variable expressions that appear as part of the function call
+# argument are properly parsed.  Typical use cases for this are .for loops,
+# which are expanded to exactly these ${:U} expressions.
 #
 # If everything goes well, the argument expands to "WORD", and that variable
 # is defined at the beginning of this file.  The surrounding 'W' and 'D'
@@ -159,10 +163,9 @@ ${:U WORD }=	variable name with spaces
 # Since at least 1993, the manual page claimed that irrelevant parts of
 # conditions were not evaluated, but that was wrong for a long time.  The
 # expressions in irrelevant parts of the condition were actually evaluated,
-# they just allowed undefined variables to be used in the conditions, and the
-# result of evaluating them was not used further.  These unnecessary
-# evaluations were fixed in several commits, starting with var.c 1.226 from
-# 2020-07-02.
+# they just allowed undefined variables to be used in the conditions.  These
+# unnecessary evaluations were fixed in several commits, starting with var.c
+# 1.226 from 2020-07-02.
 #
 # In this example, the variable "VARNAME2" is not defined, so evaluation of
 # the condition should have stopped at this point, and the rest of the
