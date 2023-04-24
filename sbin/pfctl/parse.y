@@ -379,6 +379,7 @@ int		 expand_skip_interface(struct node_if *);
 int	 check_rulestate(int);
 int	 getservice(char *);
 int	 rule_label(struct pfctl_rule *, char *s[PF_RULE_MAX_LABEL_COUNT]);
+int	 eth_rule_label(struct pfctl_eth_rule *, char *s[PF_RULE_MAX_LABEL_COUNT]);
 int	 rt_tableid_max(void);
 
 void	 mv_rules(struct pfctl_ruleset *, struct pfctl_ruleset *);
@@ -1243,6 +1244,11 @@ etherrule	: ETHER action dir quick interface bridge etherproto etherfromto l3fro
 				memcpy(&r.qname, $10.queues.qname, sizeof(r.qname));
 			r.dnpipe = $10.dnpipe;
 			r.dnflags = $10.free_flags;
+			if (eth_rule_label(&r, $10.label))
+				YYERROR;
+			for (int i = 0; i < PF_RULE_MAX_LABEL_COUNT; i++)
+				free($10.label[i]);
+			r.ridentifier = $10.ridentifier;
 
 			expand_eth_rule(&r, $5, $7, $8.src, $8.dst,
 			    $9.src.host, $9.dst.host, $6, "");
@@ -1365,6 +1371,16 @@ etherfilter_opt	: etherqname	{
 				YYERROR;
 			}
 			filter_opts.queues = $1;
+		}
+		| RIDENTIFIER number {
+			filter_opts.ridentifier = $2;
+		}
+		| label	{
+			if (filter_opts.labelcount >= PF_RULE_MAX_LABEL_COUNT) {
+				yyerror("label can only be used %d times", PF_RULE_MAX_LABEL_COUNT);
+				YYERROR;
+			}
+			filter_opts.label[filter_opts.labelcount++] = $1;
 		}
 		| TAG string				{
 			filter_opts.tag = $2;
@@ -6930,6 +6946,23 @@ getservice(char *n)
 
 int
 rule_label(struct pfctl_rule *r, char *s[PF_RULE_MAX_LABEL_COUNT])
+{
+	for (int i = 0; i < PF_RULE_MAX_LABEL_COUNT; i++) {
+		if (s[i] == NULL)
+			return (0);
+
+		if (strlcpy(r->label[i], s[i], sizeof(r->label[0])) >=
+		    sizeof(r->label[0])) {
+			yyerror("rule label too long (max %d chars)",
+			    sizeof(r->label[0])-1);
+			return (-1);
+		}
+	}
+	return (0);
+}
+
+int
+eth_rule_label(struct pfctl_eth_rule *r, char *s[PF_RULE_MAX_LABEL_COUNT])
 {
 	for (int i = 0; i < PF_RULE_MAX_LABEL_COUNT; i++) {
 		if (s[i] == NULL)

@@ -703,6 +703,9 @@ struct pf_keth_rule {
 	uint8_t			 action;
 	uint16_t		 dnpipe;
 	uint32_t		 dnflags;
+
+	char			label[PF_RULE_MAX_LABEL_COUNT][PF_RULE_LABEL_SIZE];
+	uint32_t		ridentifier;
 };
 
 union pf_krule_ptr {

@@ -625,6 +625,9 @@ pfctl_eth_addr_to_nveth_addr(const struct pfctl_eth_addr *addr)
 static void
 pfctl_nveth_rule_to_eth_rule(const nvlist_t *nvl, struct pfctl_eth_rule *rule)
 {
+	const char *const *labels;
+	size_t labelcount, i;
+
 	rule->nr = nvlist_get_number(nvl, "nr");
 	rule->quick = nvlist_get_bool(nvl, "quick");
 	strlcpy(rule->ifname, nvlist_get_string(nvl, "ifname"), IFNAMSIZ);
@@ -635,6 +638,12 @@ pfctl_nveth_rule_to_eth_rule(const nvlist_t *nvl, struct pfctl_eth_rule *rule)
 	    PF_TAG_NAME_SIZE);
 	rule->match_tag = nvlist_get_number(nvl, "match_tag");
 	rule->match_tag_not = nvlist_get_bool(nvl, "match_tag_not");
+
+	labels = nvlist_get_string_array(nvl, "labels", &labelcount);
+	assert(labelcount <= PF_RULE_MAX_LABEL_COUNT);
+	for (i = 0; i < labelcount; i++)
+		strlcpy(rule->label[i], labels[i], PF_RULE_LABEL_SIZE);
+	rule->ridentifier = nvlist_get_number(nvl, "ridentifier");
 
 	pfctl_nveth_addr_to_eth_addr(nvlist_get_nvlist(nvl, "src"),
 	    &rule->src);
@@ -775,7 +784,7 @@ pfctl_add_eth_rule(int dev, const struct pfctl_eth_rule *r, const char *anchor,
 	nvlist_t *nvl, *addr;
 	void *packed;
 	int error = 0;
-	size_t size;
+	size_t labelcount, size;
 
 	nvl = nvlist_create(0);
 
@@ -810,6 +819,15 @@ pfctl_add_eth_rule(int dev, const struct pfctl_eth_rule *r, const char *anchor,
 
 	pfctl_nv_add_rule_addr(nvl, "ipsrc", &r->ipsrc);
 	pfctl_nv_add_rule_addr(nvl, "ipdst", &r->ipdst);
+
+	labelcount = 0;
+	while (r->label[labelcount][0] != 0 &&
+	    labelcount < PF_RULE_MAX_LABEL_COUNT) {
+		nvlist_append_string_array(nvl, "labels",
+		    r->label[labelcount]);
+		labelcount++;
+	}
+	nvlist_add_number(nvl, "ridentifier", r->ridentifier);
 
 	nvlist_add_string(nvl, "qname", r->qname);
 	nvlist_add_string(nvl, "tagname", r->tagname);
