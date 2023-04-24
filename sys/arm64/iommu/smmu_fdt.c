@@ -168,7 +168,7 @@ smmu_fdt_attach(device_t dev)
 	LIST_INIT(&unit->domain_list);
 
 	/* Use memory start address as an xref. */
-	sc->xref = bus_get_resource_start(dev, SYS_RES_MEMORY, 0);
+	sc->xref = OF_xref_from_node(node);
 
 	err = iommu_register(iommu);
 	if (err) {
@@ -176,7 +176,7 @@ smmu_fdt_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	OF_device_register_xref(OF_xref_from_node(node), dev);
+	OF_device_register_xref(sc->xref, dev);
 
 	return (0);
 
