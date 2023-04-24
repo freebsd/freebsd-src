@@ -112,7 +112,7 @@ static struct prompt *SignalPrompt;
 struct libalias *la;
 
 void
-Cleanup()
+Cleanup(void)
 {
   SignalBundle->CleaningUp = 1;
   bundle_Close(SignalBundle, NULL, CLOSE_STAYDOWN);

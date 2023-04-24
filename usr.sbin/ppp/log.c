@@ -83,7 +83,7 @@ struct prompt *log_PromptContext;
 int log_PromptListChanged;
 
 struct prompt *
-log_PromptList()
+log_PromptList(void)
 {
   return promptlist;
 }
@@ -163,7 +163,7 @@ log_DestroyPrompts(struct server *s)
 }
 
 void
-log_DisplayPrompts()
+log_DisplayPrompts(void)
 {
   struct prompt *p;
 
@@ -254,7 +254,7 @@ log_DiscardLocal(int id, u_long *mask)
 }
 
 void
-log_DiscardAll()
+log_DiscardAll(void)
 {
   LogMask = 0;
 }
@@ -306,7 +306,7 @@ log_SetTun(int tunno, const char *ifaceName)
 }
 
 void
-log_Close()
+log_Close(void)
 {
   closelog();
   LogTunno = -1;

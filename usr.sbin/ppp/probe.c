@@ -67,7 +67,7 @@ ipv6_available(void)
 #endif
 
 void
-probe_Init()
+probe_Init(void)
 {
   probe.select_changes_time = select_changes_time() ? 1 : 0;
   log_Printf(LogDEBUG, "Select changes time: %s\n",
