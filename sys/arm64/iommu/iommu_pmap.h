@@ -33,19 +33,28 @@
 #ifndef	_ARM64_IOMMU_IOMMU_PMAP_H_
 #define	_ARM64_IOMMU_IOMMU_PMAP_H_
 
+struct smmu_pmap {
+	struct mtx	sp_mtx;
+	vm_paddr_t	sp_l0_paddr;
+	pd_entry_t	*sp_l0;
+#ifdef INVARIANTS
+	long		sp_resident_count;
+#endif
+};
+
 /* System MMU (SMMU). */
-int smmu_pmap_enter(pmap_t pmap, vm_offset_t va, vm_paddr_t pa, vm_prot_t prot,
-    u_int flags);
-int smmu_pmap_remove(pmap_t pmap, vm_offset_t va);
+int smmu_pmap_enter(struct smmu_pmap *pmap, vm_offset_t va, vm_paddr_t pa,
+    vm_prot_t prot, u_int flags);
+int smmu_pmap_remove(struct smmu_pmap *pmap, vm_offset_t va);
 
 /* Mali GPU */
-int pmap_gpu_enter(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
+int pmap_gpu_enter(struct smmu_pmap *pmap, vm_offset_t va, vm_paddr_t pa,
     vm_prot_t prot, u_int flags);
-int pmap_gpu_remove(pmap_t pmap, vm_offset_t va);
+int pmap_gpu_remove(struct smmu_pmap *pmap, vm_offset_t va);
 
 /* Common */
-void smmu_pmap_remove_pages(pmap_t pmap);
-void smmu_pmap_release(pmap_t pmap);
-int smmu_pmap_pinit(pmap_t);
+void smmu_pmap_remove_pages(struct smmu_pmap *pmap);
+void smmu_pmap_release(struct smmu_pmap *pmap);
+int smmu_pmap_pinit(struct smmu_pmap *pmap);
 
 #endif /* !_ARM64_IOMMU_IOMMU_PMAP_H_ */

@@ -35,6 +35,8 @@
 #ifndef	_ARM64_IOMMU_SMMUVAR_H_
 #define	_ARM64_IOMMU_SMMUVAR_H_
 
+#include <arm64/iommu/iommu_pmap.h>
+
 #define	SMMU_DEVSTR		"ARM System Memory Management Unit"
 #define	SMMU_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	SMMU_UNLOCK(_sc)	mtx_unlock(&(_sc)->sc_mtx)
@@ -55,7 +57,7 @@ struct smmu_domain {
 	LIST_ENTRY(smmu_domain)	next;
 	u_int entries_cnt;
 	struct smmu_cd			*cd;
-	struct pmap			p;
+	struct smmu_pmap		p;
 	uint16_t			asid;
 };
 
