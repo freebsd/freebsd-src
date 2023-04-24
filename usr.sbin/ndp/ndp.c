@@ -360,7 +360,7 @@ file(char *name)
 }
 
 static void
-getsocket()
+getsocket(void)
 {
 	if (s < 0) {
 		s = socket(PF_ROUTE, SOCK_RAW, 0);
@@ -854,7 +854,7 @@ ndp_ether_aton(char *a, u_char *n)
 }
 
 static void
-usage()
+usage(void)
 {
 	printf("usage: ndp [-nt] hostname\n");
 	printf("       ndp [-nt] -a | -c | -p | -r | -H | -P | -R\n");
@@ -1096,7 +1096,7 @@ ifinfo(char *ifname, int argc, char **argv)
 #endif
 
 static void
-rtrlist()
+rtrlist(void)
 {
 	int mib[] = { CTL_NET, PF_INET6, IPPROTO_ICMPV6, ICMPV6CTL_ND6_DRLIST };
 	char *buf;
@@ -1178,7 +1178,7 @@ rtrlist()
 }
 
 static void
-plist()
+plist(void)
 {
 	int mib[] = { CTL_NET, PF_INET6, IPPROTO_ICMPV6, ICMPV6CTL_ND6_PRLIST };
 	char *buf;
@@ -1330,7 +1330,7 @@ plist()
 }
 
 static void
-pfx_flush()
+pfx_flush(void)
 {
 	char dummyif[IFNAMSIZ+8];
 	int sock;
@@ -1345,7 +1345,7 @@ pfx_flush()
 }
 
 static void
-rtr_flush()
+rtr_flush(void)
 {
 	char dummyif[IFNAMSIZ+8];
 	int sock;
@@ -1360,7 +1360,7 @@ rtr_flush()
 }
 
 static void
-harmonize_rtr()
+harmonize_rtr(void)
 {
 	char dummyif[IFNAMSIZ+8];
 	int sock;
@@ -1402,7 +1402,7 @@ setdefif(char *ifname)
 }
 
 static void
-getdefif()
+getdefif(void)
 {
 	struct in6_ndifreq ndifreq;
 	char ifname[IFNAMSIZ+8];
