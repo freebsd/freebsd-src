@@ -261,7 +261,8 @@ xdr_dir(XDR *xdrsp, char *dirp) {
 }
 
 static void
-usage() {
+usage(void)
+{
 	(void)fprintf(stderr, "%s\n",
 	    "usage: rpc.umntall [-kv] [-e expire] [-h host] [-p path]");
 	exit(1);
