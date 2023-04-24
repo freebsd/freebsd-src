@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2016 Oleksandr Tymoshenko <gonzo@FreeBSD.org>
  * All rights reserved.
  *
@@ -24,9 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "opt_acpi.h"
 
 #include <sys/param.h>
@@ -42,12 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/spibus/spi.h>
 #include <dev/spibus/spibusvar.h>
 
-#include <contrib/dev/acpica/include/acpi.h>
-#include <contrib/dev/acpica/include/accommon.h>
-
-#include <dev/acpica/acpivar.h>
-
-#include "spibus_if.h"
+#include <dev/intel/spi.h>
 
 /**
  *	Macros for driver mutex locking
@@ -71,12 +65,13 @@ __FBSDID("$FreeBSD$");
 #define	RX_FIFO_THRESHOLD	2
 #define	CLOCK_DIV_10MHZ		5
 #define	DATA_SIZE_8BITS		8
+#define	MAX_CLOCK_RATE		50000000
 
 #define	CS_LOW		0
 #define	CS_HIGH		1
 
 #define	INTELSPI_SSPREG_SSCR0	 	0x0
-#define	 SSCR0_SCR(n)				(((n) - 1) << 8)
+#define	 SSCR0_SCR(n)				((((n) - 1) & 0xfff) << 8)
 #define	 SSCR0_SSE				(1 << 7)
 #define	 SSCR0_FRF_SPI				(0 << 4)
 #define	 SSCR0_DSS(n)				(((n) - 1) << 0)
@@ -88,10 +83,6 @@ __FBSDID("$FreeBSD$");
 #define	 SSCR1_SPI_SPH				(1 << 4)
 #define	 SSCR1_SPI_SPO				(1 << 3)
 #define	 SSCR1_MODE_MASK				(SSCR1_SPI_SPO | SSCR1_SPI_SPH)
-#define	 SSCR1_MODE_0				(0)
-#define	 SSCR1_MODE_1				(SSCR1_SPI_SPH)
-#define	 SSCR1_MODE_2				(SSCR1_SPI_SPO)
-#define	 SSCR1_MODE_3				(SSCR1_SPI_SPO | SSCR1_SPI_SPH)
 #define	 SSCR1_TIE				(1 << 1)
 #define	 SSCR1_RIE				(1 << 0)
 #define	INTELSPI_SSPREG_SSSR	 	0x8
@@ -110,36 +101,14 @@ __FBSDID("$FreeBSD$");
 #define	INTELSPI_SSPREG_ITF	 	0x40
 #define	INTELSPI_SSPREG_SITF	 	0x44
 #define	INTELSPI_SSPREG_SIRF	 	0x48
-#define	INTELSPI_SSPREG_PRV_CLOCK_PARAMS	0x400
-#define	INTELSPI_SSPREG_RESETS	 	0x404
-#define	INTELSPI_SSPREG_GENERAL	 	0x408
-#define	INTELSPI_SSPREG_SSP_REG	 	0x40C
-#define	INTELSPI_SSPREG_SPI_CS_CTRL	 0x418
+#define SPI_CS_CTRL(sc) \
+	(intelspi_infos[sc->sc_vers].reg_lpss_base + \
+	 intelspi_infos[sc->sc_vers].reg_cs_ctrl)
 #define	 SPI_CS_CTRL_CS_MASK			(3)
 #define	 SPI_CS_CTRL_SW_MODE			(1 << 0)
 #define	 SPI_CS_CTRL_HW_MODE			(1 << 0)
 #define	 SPI_CS_CTRL_CS_HIGH			(1 << 1)
-#define	 SPI_CS_CTRL_CS_LOW			(0 << 1)
 
-struct intelspi_softc {
-	ACPI_HANDLE		sc_handle;
-	device_t		sc_dev;
-	struct mtx		sc_mtx;
-	int			sc_mem_rid;
-	struct resource		*sc_mem_res;
-	int			sc_irq_rid;
-	struct resource		*sc_irq_res;
-	void			*sc_irq_ih;
-	struct spi_command	*sc_cmd;
-	uint32_t		sc_len;
-	uint32_t		sc_read;
-	uint32_t		sc_flags;
-	uint32_t		sc_written;
-};
-
-static int	intelspi_probe(device_t dev);
-static int	intelspi_attach(device_t dev);
-static int	intelspi_detach(device_t dev);
 static void	intelspi_intr(void *);
 
 static int
@@ -294,25 +263,15 @@ intelspi_init(struct intelspi_softc *sc)
 	INTELSPI_WRITE(sc, INTELSPI_SSPREG_SSCR0, 0);
 
 	/* Manual CS control */
-	reg = INTELSPI_READ(sc, INTELSPI_SSPREG_SPI_CS_CTRL);
+	reg = INTELSPI_READ(sc, SPI_CS_CTRL(sc));
 	reg &= ~(SPI_CS_CTRL_CS_MASK);
 	reg |= (SPI_CS_CTRL_SW_MODE | SPI_CS_CTRL_CS_HIGH);
-	INTELSPI_WRITE(sc, INTELSPI_SSPREG_SPI_CS_CTRL, reg);
+	INTELSPI_WRITE(sc, SPI_CS_CTRL(sc), reg);
 
 	/* Set TX/RX FIFO IRQ threshold levels */
 	reg = SSCR1_TFT(TX_FIFO_THRESHOLD) | SSCR1_RFT(RX_FIFO_THRESHOLD);
-	/*
-	 * Set SPI mode. This should be part of transaction or sysctl
-	 */
-	reg |= SSCR1_MODE_0;
 	INTELSPI_WRITE(sc, INTELSPI_SSPREG_SSCR1, reg);
 
-	/*
-	 * Parent clock on Minowboard Turbot is 50MHz
-	 * divide it by 5 to set to more or less reasonable
-	 * value. But this should be part of transaction config
-	 * or sysctl
-	 */
 	reg = SSCR0_SCR(CLOCK_DIV_10MHZ);
 	/* Put SSP in SPI mode */
 	reg |= SSCR0_FRF_SPI;
@@ -328,24 +287,23 @@ intelspi_set_cs(struct intelspi_softc *sc, int level)
 {
 	uint32_t reg;
 
-	reg = INTELSPI_READ(sc, INTELSPI_SSPREG_SPI_CS_CTRL);
+	reg = INTELSPI_READ(sc, SPI_CS_CTRL(sc));
 	reg &= ~(SPI_CS_CTRL_CS_MASK);
 	reg |= SPI_CS_CTRL_SW_MODE;
 
 	if (level == CS_HIGH)
 		reg |= SPI_CS_CTRL_CS_HIGH;
-	else
-		reg |= SPI_CS_CTRL_CS_LOW;
-		
-	INTELSPI_WRITE(sc, INTELSPI_SSPREG_SPI_CS_CTRL, reg);
+
+	INTELSPI_WRITE(sc, SPI_CS_CTRL(sc), reg);
 }
 
-static int
+int
 intelspi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 {
 	struct intelspi_softc *sc;
-	int err;
-	uint32_t sscr1;
+	int err, poll_limit;
+	uint32_t sscr0, sscr1, mode, clock, cs_delay;
+	bool restart = false;
 
 	sc = device_get_softc(dev);
 	err = 0;
@@ -359,6 +317,8 @@ intelspi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 
 	/* If the controller is in use wait until it is available. */
 	while (sc->sc_flags & INTELSPI_BUSY) {
+		if ((cmd->flags & SPI_FLAG_NO_SLEEP) == SPI_FLAG_NO_SLEEP)
+			return (EBUSY);
 		err = mtx_sleep(dev, &sc->sc_mtx, 0, "intelspi", 0);
 		if (err == EINTR) {
 			INTELSPI_UNLOCK(sc);
@@ -369,6 +329,45 @@ intelspi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	/* Now we have control over SPI controller. */
 	sc->sc_flags = INTELSPI_BUSY;
 
+	/* Configure the clock rate and SPI mode. */
+	spibus_get_clock(child, &clock);
+	spibus_get_mode(child, &mode);
+
+	if (clock != sc->sc_clock || mode != sc->sc_mode) {
+		sscr0 = INTELSPI_READ(sc, INTELSPI_SSPREG_SSCR0);
+		sscr0 &= ~SSCR0_SSE;
+		INTELSPI_WRITE(sc, INTELSPI_SSPREG_SSCR0, sscr0);
+		restart = true;
+	}
+
+	if (clock != sc->sc_clock) {
+		sscr0 = INTELSPI_READ(sc, INTELSPI_SSPREG_SSCR0);
+		sscr0 &= ~SSCR0_SCR(0xfff);
+		if (clock == 0)
+			sscr0 |= SSCR0_SCR(CLOCK_DIV_10MHZ);
+		else
+			sscr0 |= SSCR0_SCR(howmany(MAX_CLOCK_RATE, min(MAX_CLOCK_RATE, clock)));
+		INTELSPI_WRITE(sc, INTELSPI_SSPREG_SSCR0, sscr0);
+		sc->sc_clock = clock;
+	}
+
+	if (mode != sc->sc_mode) {
+		sscr1 = INTELSPI_READ(sc, INTELSPI_SSPREG_SSCR1);
+		sscr1 &= ~SSCR1_MODE_MASK;
+		if (mode & SPIBUS_MODE_CPHA)
+			sscr1 |= SSCR1_SPI_SPH;
+		if (mode & SPIBUS_MODE_CPOL)
+			sscr1 |= SSCR1_SPI_SPO;
+		INTELSPI_WRITE(sc, INTELSPI_SSPREG_SSCR1, sscr1);
+		sc->sc_mode = mode;
+	}
+
+	if (restart) {
+		sscr0 = INTELSPI_READ(sc, INTELSPI_SSPREG_SSCR0);
+		sscr0 |= SSCR0_SSE;
+		INTELSPI_WRITE(sc, INTELSPI_SSPREG_SSCR0, sscr0);
+	}
+
 	/* Save a pointer to the SPI command. */
 	sc->sc_cmd = cmd;
 	sc->sc_read = 0;
@@ -377,19 +376,36 @@ intelspi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 
 	/* Enable CS */
 	intelspi_set_cs(sc, CS_LOW);
-	/* Transfer as much as possible to FIFOs */
-	if (!intelspi_transact(sc)) {
-		/* If FIFO is not large enough - enable interrupts */
-		sscr1 = INTELSPI_READ(sc, INTELSPI_SSPREG_SSCR1);
-		sscr1 |= (SSCR1_TIE | SSCR1_RIE | SSCR1_TINTE);
-		INTELSPI_WRITE(sc, INTELSPI_SSPREG_SSCR1, sscr1);
 
-		/* and wait for transaction to complete */
-		err = mtx_sleep(dev, &sc->sc_mtx, 0, "intelspi", hz * 2);
+	/* Wait the CS delay */
+	spibus_get_cs_delay(child, &cs_delay);
+	DELAY(cs_delay);
+
+	/* Transfer as much as possible to FIFOs */
+	if ((cmd->flags & SPI_FLAG_NO_SLEEP) == SPI_FLAG_NO_SLEEP) {
+		/* We cannot wait with mtx_sleep if we're called from e.g. an ithread */
+		poll_limit = 2000;
+		while (!intelspi_transact(sc) && poll_limit-- > 0)
+			DELAY(1000);
+		if (poll_limit == 0) {
+			device_printf(dev, "polling was stuck, transaction not finished\n");
+			err = EIO;
+		}
+	} else {
+		if (!intelspi_transact(sc)) {
+			/* If FIFO is not large enough - enable interrupts */
+			sscr1 = INTELSPI_READ(sc, INTELSPI_SSPREG_SSCR1);
+			sscr1 |= (SSCR1_TIE | SSCR1_RIE | SSCR1_TINTE);
+			INTELSPI_WRITE(sc, INTELSPI_SSPREG_SSCR1, sscr1);
+
+			/* and wait for transaction to complete */
+			err = mtx_sleep(dev, &sc->sc_mtx, 0, "intelspi", hz * 2);
+		}
 	}
 
-	/* de-asser CS */
-	intelspi_set_cs(sc, CS_HIGH);
+	/* De-assert CS */
+	if ((cmd->flags & SPI_FLAG_KEEP_CS) == 0)
+		intelspi_set_cs(sc, CS_HIGH);
 
 	/* Clear transaction details */
 	sc->sc_cmd = NULL;
@@ -419,32 +435,16 @@ intelspi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	return (err);
 }
 
-static int
-intelspi_probe(device_t dev)
-{
-	static char *gpio_ids[] = { "80860F0E", NULL };
-	int rv;
-	
-	if (acpi_disabled("spi") )
-		return (ENXIO);
-	rv = ACPI_ID_PROBE(device_get_parent(dev), dev, gpio_ids, NULL);
-	if (rv <= 0)
-		device_set_desc(dev, "Intel SPI Controller");
-	return (rv);
-}
-
-static int
+int
 intelspi_attach(device_t dev)
 {
 	struct intelspi_softc	*sc;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
-	sc->sc_handle = acpi_get_handle(dev);
 
 	INTELSPI_LOCK_INIT(sc);
 
-	sc->sc_mem_rid = 0;
 	sc->sc_mem_res = bus_alloc_resource_any(sc->sc_dev,
 	    SYS_RES_MEMORY, &sc->sc_mem_rid, RF_ACTIVE);
 	if (sc->sc_mem_res == NULL) {
@@ -452,9 +452,8 @@ intelspi_attach(device_t dev)
 		goto error;
 	}
 
-	sc->sc_irq_rid = 0;
 	sc->sc_irq_res = bus_alloc_resource_any(sc->sc_dev,
-	    SYS_RES_IRQ, &sc->sc_irq_rid, RF_ACTIVE);
+	    SYS_RES_IRQ, &sc->sc_irq_rid, RF_ACTIVE | RF_SHAREABLE);
 	if (sc->sc_irq_res == NULL) {
 		device_printf(dev, "can't allocate IRQ resource\n");
 		goto error;
@@ -471,7 +470,7 @@ intelspi_attach(device_t dev)
 
 	device_add_child(dev, "spibus", -1);
 
-	return (bus_generic_attach(dev));
+	return (bus_delayed_attach_children(dev));
 
 error:
 	INTELSPI_LOCK_DESTROY(sc);
@@ -487,7 +486,7 @@ error:
 	return (ENXIO);
 }
 
-static int
+int
 intelspi_detach(device_t dev)
 {
 	struct intelspi_softc	*sc;
@@ -510,24 +509,50 @@ intelspi_detach(device_t dev)
 	return (bus_generic_detach(dev));
 }
 
-static device_method_t intelspi_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe, intelspi_probe),
-	DEVMETHOD(device_attach, intelspi_attach),
-	DEVMETHOD(device_detach, intelspi_detach),
+int
+intelspi_suspend(device_t dev)
+{
+	struct intelspi_softc        *sc;
+	int err, i;
 
-	/* SPI interface */
-	DEVMETHOD(spibus_transfer,	intelspi_transfer),
+	sc = device_get_softc(dev);
 
-	DEVMETHOD_END
-};
+	err = bus_generic_suspend(dev);
+	if (err)
+		return (err);
 
-static driver_t intelspi_driver = {
-	"spi",
-	intelspi_methods,
-	sizeof(struct intelspi_softc),
-};
+	for (i = 0; i < 9; i++) {
+		unsigned long offset = i * sizeof(uint32_t);
+		sc->sc_regs[i] = INTELSPI_READ(sc,
+		    intelspi_infos[sc->sc_vers].reg_lpss_base + offset);
+	}
 
-DRIVER_MODULE(intelspi, acpi, intelspi_driver, 0, 0);
-MODULE_DEPEND(intelspi, acpi, 1, 1, 1);
-MODULE_DEPEND(intelspi, spibus, 1, 1, 1);
+	/* Shutdown just in case */
+	INTELSPI_WRITE(sc, INTELSPI_SSPREG_SSCR0, 0);
+
+	return (0);
+}
+
+int
+intelspi_resume(device_t dev)
+{
+	struct intelspi_softc   *sc;
+	int i;
+
+	sc = device_get_softc(dev);
+
+	for (i = 0; i < 9; i++) {
+		unsigned long offset = i * sizeof(uint32_t);
+		INTELSPI_WRITE(sc,
+		    intelspi_infos[sc->sc_vers].reg_lpss_base + offset,
+		    sc->sc_regs[i]);
+	}
+
+	intelspi_init(sc);
+
+	/* Ensure the next transfer would reconfigure these */
+	sc->sc_clock = 0;
+	sc->sc_mode = 0;
+
+	return (bus_generic_resume(dev));
+}

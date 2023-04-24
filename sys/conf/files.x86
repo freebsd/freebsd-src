@@ -145,6 +145,8 @@ dev/imcsmb/imcsmb.c		optional	imcsmb
 dev/imcsmb/imcsmb_pci.c		optional	imcsmb pci
 dev/intel/pchtherm.c		optional	pchtherm
 dev/intel/spi.c			optional	intelspi
+dev/intel/spi_pci.c			optional	intelspi pci
+dev/intel/spi_acpi.c			optional	intelspi acpi
 dev/io/iodev.c			optional	io
 dev/iommu/busdma_iommu.c	optional	acpi iommu pci
 dev/iommu/iommu_gas.c		optional	acpi iommu pci
