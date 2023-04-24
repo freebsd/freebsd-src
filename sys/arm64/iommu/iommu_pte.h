@@ -35,8 +35,6 @@
 
 /* Level 0 table, 512GiB per entry */
 #define	IOMMU_L0_SHIFT		39
-#define	IOMMU_L0_SIZE		(1ul << IOMMU_L0_SHIFT)
-#define	IOMMU_L0_OFFSET		(IOMMU_L0_SIZE - 1ul)
 #define	IOMMU_L0_INVAL		0x0 /* An invalid address */
 		/* 0x1 Level 0 doesn't support block translation */
 		/* 0x2 also marks an invalid address */
@@ -44,14 +42,12 @@
 
 /* Level 1 table, 1GiB per entry */
 #define	IOMMU_L1_SHIFT		30
-#define	IOMMU_L1_SIZE 		(1 << IOMMU_L1_SHIFT)
 #define	IOMMU_L1_INVAL		IOMMU_L0_INVAL
 #define	IOMMU_L1_BLOCK		0x1
 #define	IOMMU_L1_TABLE		IOMMU_L0_TABLE
 
 /* Level 2 table, 2MiB per entry */
 #define	IOMMU_L2_SHIFT		21
-#define	IOMMU_L2_SIZE 		(1 << IOMMU_L2_SHIFT)
 #define	IOMMU_L2_INVAL		IOMMU_L1_INVAL
 #define	IOMMU_L2_BLOCK		IOMMU_L1_BLOCK
 #define	IOMMU_L2_TABLE		IOMMU_L1_TABLE
