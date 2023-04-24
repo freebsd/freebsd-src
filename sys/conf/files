@@ -4016,6 +4016,7 @@ libkern/arc4random_uniform.c	standard
 libkern/asprintf.c		standard
 libkern/bcd.c			standard
 libkern/bsearch.c		standard
+libkern/crc16.c			standard
 libkern/explicit_bzero.c	standard
 libkern/fnmatch.c		standard
 libkern/gsb_crc32.c		standard
