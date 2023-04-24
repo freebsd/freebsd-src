@@ -80,8 +80,6 @@ struct generic_pcie_core_softc {
 	int			bus_start;
 	int			bus_end;
 	int			ecam;
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
 	device_t		dev;
 	bus_space_handle_t	ioh;
 	bus_dma_tag_t		dmat;

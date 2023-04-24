@@ -168,16 +168,14 @@ static void
 bcm_pcib_set_reg(struct bcm_pcib_softc *sc, uint32_t reg, uint32_t val)
 {
 
-	bus_space_write_4(sc->base.base.bst, sc->base.base.bsh, reg,
-	    htole32(val));
+	bus_write_4(sc->base.base.res, reg, htole32(val));
 }
 
 static uint32_t
 bcm_pcib_read_reg(struct bcm_pcib_softc *sc, uint32_t reg)
 {
 
-	return (le32toh(bus_space_read_4(sc->base.base.bst, sc->base.base.bsh,
-	    reg)));
+	return (le32toh(bus_read_4(sc->base.base.res, reg)));
 }
 
 static void
@@ -318,8 +316,6 @@ bcm_pcib_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
     int bytes)
 {
 	struct bcm_pcib_softc *sc;
-	bus_space_handle_t h;
-	bus_space_tag_t	t;
 	bus_addr_t offset;
 	uint32_t data;
 
@@ -330,18 +326,15 @@ bcm_pcib_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 	mtx_lock(&sc->config_mtx);
 	offset = bcm_get_offset_and_prepare_config(sc, bus, slot, func, reg);
 
-	t = sc->base.base.bst;
-	h = sc->base.base.bsh;
-
 	switch (bytes) {
 	case 1:
-		data = bus_space_read_1(t, h, offset);
+		data = bus_read_1(sc->base.base.res, offset);
 		break;
 	case 2:
-		data = le16toh(bus_space_read_2(t, h, offset));
+		data = le16toh(bus_read_2(sc->base.base.res, offset));
 		break;
 	case 4:
-		data = le32toh(bus_space_read_4(t, h, offset));
+		data = le32toh(bus_read_4(sc->base.base.res, offset));
 		break;
 	default:
 		data = ~0U;
@@ -357,8 +350,6 @@ bcm_pcib_write_config(device_t dev, u_int bus, u_int slot,
     u_int func, u_int reg, uint32_t val, int bytes)
 {
 	struct bcm_pcib_softc *sc;
-	bus_space_handle_t h;
-	bus_space_tag_t	t;
 	uint32_t offset;
 
 	sc = device_get_softc(dev);
@@ -368,18 +359,15 @@ bcm_pcib_write_config(device_t dev, u_int bus, u_int slot,
 	mtx_lock(&sc->config_mtx);
 	offset = bcm_get_offset_and_prepare_config(sc, bus, slot, func, reg);
 
-	t = sc->base.base.bst;
-	h = sc->base.base.bsh;
-
 	switch (bytes) {
 	case 1:
-		bus_space_write_1(t, h, offset, val);
+		bus_write_1(sc->base.base.res, offset, val);
 		break;
 	case 2:
-		bus_space_write_2(t, h, offset, htole16(val));
+		bus_write_2(sc->base.base.res, offset, htole16(val));
 		break;
 	case 4:
-		bus_space_write_4(t, h, offset, htole32(val));
+		bus_write_4(sc->base.base.res, offset, htole32(val));
 		break;
 	default:
 		break;

@@ -126,9 +126,6 @@ pci_host_generic_core_attach(device_t dev)
 		}
 		rman_set_mapping(sc->res, &map);
 #endif
-
-		sc->bst = rman_get_bustag(sc->res);
-		sc->bsh = rman_get_bushandle(sc->res);
 	}
 
 	sc->has_pmem = false;
@@ -233,8 +230,6 @@ generic_pcie_read_config(device_t dev, u_int bus, u_int slot,
     u_int func, u_int reg, int bytes)
 {
 	struct generic_pcie_core_softc *sc;
-	bus_space_handle_t h;
-	bus_space_tag_t	t;
 	uint64_t offset;
 	uint32_t data;
 
@@ -248,18 +243,16 @@ generic_pcie_read_config(device_t dev, u_int bus, u_int slot,
 		return (~0U);
 
 	offset = PCIE_ADDR_OFFSET(bus - sc->bus_start, slot, func, reg);
-	t = sc->bst;
-	h = sc->bsh;
 
 	switch (bytes) {
 	case 1:
-		data = bus_space_read_1(t, h, offset);
+		data = bus_read_1(sc->res, offset);
 		break;
 	case 2:
-		data = le16toh(bus_space_read_2(t, h, offset));
+		data = le16toh(bus_read_2(sc->res, offset));
 		break;
 	case 4:
-		data = le32toh(bus_space_read_4(t, h, offset));
+		data = le32toh(bus_read_4(sc->res, offset));
 		break;
 	default:
 		return (~0U);
@@ -273,8 +266,6 @@ generic_pcie_write_config(device_t dev, u_int bus, u_int slot,
     u_int func, u_int reg, uint32_t val, int bytes)
 {
 	struct generic_pcie_core_softc *sc;
-	bus_space_handle_t h;
-	bus_space_tag_t t;
 	uint64_t offset;
 
 	sc = device_get_softc(dev);
@@ -286,18 +277,15 @@ generic_pcie_write_config(device_t dev, u_int bus, u_int slot,
 
 	offset = PCIE_ADDR_OFFSET(bus - sc->bus_start, slot, func, reg);
 
-	t = sc->bst;
-	h = sc->bsh;
-
 	switch (bytes) {
 	case 1:
-		bus_space_write_1(t, h, offset, val);
+		bus_write_1(sc->res, offset, val);
 		break;
 	case 2:
-		bus_space_write_2(t, h, offset, htole16(val));
+		bus_write_2(sc->res, offset, htole16(val));
 		break;
 	case 4:
-		bus_space_write_4(t, h, offset, htole32(val));
+		bus_write_4(sc->res, offset, htole32(val));
 		break;
 	default:
 		return;
