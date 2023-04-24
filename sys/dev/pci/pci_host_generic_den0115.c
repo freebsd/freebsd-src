@@ -52,13 +52,14 @@ static device_attach_t pci_host_acpi_smccc_attach;
 static pcib_read_config_t pci_host_acpi_smccc_read_config;
 static pcib_write_config_t pci_host_acpi_smccc_write_config;
 
+static bool pci_host_acpi_smccc_pci_version(uint32_t *);
+
 static int
 pci_host_acpi_smccc_probe(device_t dev)
 {
 	ACPI_DEVICE_INFO *devinfo;
 	struct resource *res;
 	ACPI_HANDLE h;
-	uint32_t smccc_version;
 	int rid, root;
 
 	if (acpi_disabled("pcib") || (h = acpi_get_handle(dev)) == NULL ||
@@ -80,17 +81,13 @@ pci_host_acpi_smccc_probe(device_t dev)
 		return (ENXIO);
 	}
 
-	/* Check the SMCCC is at least v1.1 */
-	smccc_version = smccc_get_version();
-	if (SMCCC_VERSION_MAJOR(smccc_version) > 1 ||
-	    (SMCCC_VERSION_MAJOR(smccc_version) == 1 &&
-	     SMCCC_VERSION_MINOR(smccc_version) == 0)) {
-		device_set_desc(dev,
-		    "ARM PCI Firmware config space host controller");
-		return (BUS_PROBE_SPECIFIC);
+	/* Check for the PCI_VERSION call */
+	if (!pci_host_acpi_smccc_pci_version(NULL)) {
+		return (ENXIO);
 	}
 
-	return (EINVAL);
+	device_set_desc(dev, "ARM PCI Firmware config space host controller");
+	return (BUS_PROBE_SPECIFIC);
 }
 
 #define	SMCCC_PCI_VERSION						\
@@ -134,11 +131,28 @@ pci_host_acpi_smccc_has_feature(uint32_t pci_func_id)
 	return (true);
 }
 
+static bool
+pci_host_acpi_smccc_pci_version(uint32_t *versionp)
+{
+	struct arm_smccc_res result;
+
+	if (psci_callfn(SMCCC_PCI_VERSION, 0, 0, 0, 0, 0, 0, 0, &result) < 0) {
+		return (false);
+	}
+
+	if (versionp != NULL) {
+		*versionp = result.a0;
+	}
+
+	return (true);
+}
+
 static int
 pci_host_acpi_smccc_attach(device_t dev)
 {
 	struct generic_pcie_acpi_softc *sc;
 	struct arm_smccc_res result;
+	uint32_t version;
 	int end, start;
 	int error;
 
@@ -147,17 +161,16 @@ pci_host_acpi_smccc_attach(device_t dev)
 
 	MPASS(psci_callfn != NULL);
 
-	/* Check there is a version */
-	if (psci_callfn(SMCCC_PCI_VERSION, 0, 0, 0, 0, 0, 0, 0, &result) < 0) {
+	/* Read the version */
+	if (!pci_host_acpi_smccc_pci_version(&version)) {
 		device_printf(dev,
-		    "Failed to read the SMCCC PCI version: %lx\n", result.a0);
+		    "Failed to read the SMCCC PCI version\n");
 		return (ENXIO);
 	}
 
 	if (bootverbose) {
 		device_printf(dev, "Firmware v%d.%d\n",
-		    SMCCC_PCI_MAJOR((uint32_t)result.a0),
-		    SMCCC_PCI_MINOR((uint32_t)result.a0));
+		    SMCCC_PCI_MAJOR(version), SMCCC_PCI_MINOR(version));
 	}
 
 	if (!pci_host_acpi_smccc_has_feature(SMCCC_PCI_READ) ||
