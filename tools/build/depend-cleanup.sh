@@ -112,3 +112,6 @@ clean_dep   usr.sbin/config  mkmakefile c
 # 20230209  83d7ed8af3d9    convert to main.cc and mkoptions.cc
 clean_dep   usr.sbin/config  main c
 clean_dep   usr.sbin/config  mkoptions c
+
+# 20230401  54579376c05e    kqueue1 from syscall to C wrapper
+clean_dep   lib/libc        kqueue1 S
