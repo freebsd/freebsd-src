@@ -33,7 +33,7 @@
 #include "types_ext.h"
 #include "core_ext.h"
 
-uint32_t E500_GetId()
+uint32_t E500_GetId(void)
 {
 	return PCPU_GET(cpuid);
 }

@@ -121,7 +121,7 @@ static struct ofw_compat_data jog_compat[] = {
 };
 
 static struct ofw_compat_data *
-mpc85xx_jog_devcompat()
+mpc85xx_jog_devcompat(void)
 {
 	phandle_t node;
 	int i;

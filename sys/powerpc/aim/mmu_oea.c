@@ -1311,7 +1311,7 @@ moea_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 }
 
 void
-moea_init()
+moea_init(void)
 {
 
 	moea_upvo_zone = uma_zcreate("UPVO entry", sizeof (struct pvo_entry),
@@ -2775,7 +2775,7 @@ moea_dumpsys_map(vm_paddr_t pa, size_t sz, void **va)
 extern struct dump_pa dump_map[PHYS_AVAIL_SZ + 1];
 
 void
-moea_scan_init()
+moea_scan_init(void)
 {
 	struct pvo_entry *pvo;
 	vm_offset_t va;
