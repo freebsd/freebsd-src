@@ -327,9 +327,15 @@ static const struct bcm5974_dev_params bcm5974_dev_params[BCM5974_FLAG_MAX] = {
 		.o = { SN_ORIENT,
 		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
 	},
+	/*
+	 * NOTE: Actually force-sensitive. Pressure has a "size" equal to the max
+	 * so that the "resolution" is 1 (i.e. values will be interpreted as grams).
+	 * No scientific measurements have been done :) but a really hard press
+	 * results in a value around 3500 on model 4.
+	 */
 	[BCM5974_FLAG_WELLSPRING9] = {
 		.tp = tp + TYPE4,
-		.p = { SN_PRESSURE, 0, 300, 0 },
+		.p = { SN_PRESSURE, 0, 4096, 4096 },
 		.w = { SN_WIDTH, 0, 2048, 0 },
 		.x = { SN_COORD, -4828, 5345, 105 },
 		.y = { SN_COORD, -203, 6803, 75 },
