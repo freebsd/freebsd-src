@@ -1829,22 +1829,14 @@ static int
 smmu_pci_get_sid_fdt(device_t child, u_int *xref0, u_int *sid0)
 {
 	struct pci_id_ofw_iommu pi;
-	uint64_t base, size;
-	phandle_t node;
-	u_int xref;
 	int err;
 
 	err = pci_get_id(child, PCI_ID_OFW_IOMMU, (uintptr_t *)&pi);
 	if (err == 0) {
-		/* Our xref is memory base address. */
-		node = OF_node_from_xref(pi.xref);
-		fdt_regsize(node, &base, &size);
-		xref = base;
-
 		if (sid0)
 			*sid0 = pi.id;
 		if (xref0)
-			*xref0 = xref;
+			*xref0 = pi.xref;
 	}
 
 	return (err);
