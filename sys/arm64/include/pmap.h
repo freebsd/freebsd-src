@@ -95,6 +95,7 @@ struct pmap {
 	struct asid_set		*pm_asid_set;	/* The ASID/VMID set to use */
 	enum pmap_stage		pm_stage;
 	int			pm_levels;
+	uint64_t		pm_reserved[4];
 };
 typedef struct pmap *pmap_t;
 

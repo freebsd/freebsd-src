@@ -104,10 +104,10 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/smbios/smbios.h>
 
-_Static_assert(sizeof(struct pcb) == 1216, "struct pcb is incorrect size");
+_Static_assert(sizeof(struct pcb) == 1248, "struct pcb is incorrect size");
 _Static_assert(offsetof(struct pcb, pcb_fpusaved) == 136,
     "pcb_fpusaved changed offset");
-_Static_assert(offsetof(struct pcb, pcb_fpustate) == 160,
+_Static_assert(offsetof(struct pcb, pcb_fpustate) == 192,
     "pcb_fpustate changed offset");
 
 enum arm64_bus arm64_bus_method = ARM64_BUS_NONE;
