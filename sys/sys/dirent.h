@@ -122,11 +122,14 @@ struct freebsd11_dirent {
 #define	_GENERIC_DIRLEN(namlen)					\
 	((__offsetof(struct dirent, d_name) + (namlen) + 1 + 7) & ~7)
 #define	_GENERIC_DIRSIZ(dp)	_GENERIC_DIRLEN((dp)->d_namlen)
+#define	_GENERIC_MINDIRSIZ	_GENERIC_DIRLEN(1) /* Name must not be empty */
+#define	_GENERIC_MAXDIRSIZ	_GENERIC_DIRLEN(MAXNAMLEN)
 #endif /* __BSD_VISIBLE */
 
 #ifdef _KERNEL
 #define	GENERIC_DIRSIZ(dp)	_GENERIC_DIRSIZ(dp)
-
+#define	GENERIC_MINDIRSIZ	_GENERIC_MINDIRSIZ
+#define	GENERIC_MAXDIRSIZ	_GENERIC_MAXDIRSIZ
 /*
  * Ensure that padding bytes are zeroed and that the name is NUL-terminated.
  */
