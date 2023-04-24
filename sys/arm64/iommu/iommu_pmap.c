@@ -503,7 +503,7 @@ _pmap_alloc_l3(struct smmu_pmap *pmap, vm_pindex_t ptepindex)
 		pd_entry_t *l0, *l1, *l2;
 		pd_entry_t tl0, tl1;
 
-		l1index = ptepindex >> Ln_ENTRIES_SHIFT;
+		l1index = ptepindex >> IOMMU_Ln_ENTRIES_SHIFT;
 		l0index = l1index >> IOMMU_L0_ENTRIES_SHIFT;
 
 		l0 = &pmap->sp_l0[l0index];
@@ -792,7 +792,6 @@ smmu_pmap_remove_pages(struct smmu_pmap *pmap)
 	pd_entry_t l0e, *l1, l1e, *l2, l2e;
 	pt_entry_t *l3, l3e;
 	vm_page_t m, m0, m1;
-	vm_offset_t sva;
 	vm_paddr_t pa;
 	vm_paddr_t pa0;
 	vm_paddr_t pa1;
@@ -800,48 +799,43 @@ smmu_pmap_remove_pages(struct smmu_pmap *pmap)
 
 	SMMU_PMAP_LOCK(pmap);
 
-	for (sva = VM_MINUSER_ADDRESS, i = smmu_l0_index(sva);
-	    (i < Ln_ENTRIES && sva < VM_MAXUSER_ADDRESS); i++) {
+	for (i = 0; i < IOMMU_L0_ENTRIES; i++) {
 		l0e = pmap->sp_l0[i];
 		if ((l0e & ATTR_DESCR_VALID) == 0) {
-			sva += IOMMU_L0_SIZE;
 			continue;
 		}
 		pa0 = l0e & ~ATTR_MASK;
 		m0 = PHYS_TO_VM_PAGE(pa0);
 		l1 = (pd_entry_t *)PHYS_TO_DMAP(pa0);
 
-		for (j = smmu_l1_index(sva); j < Ln_ENTRIES; j++) {
+		for (j = 0; j < IOMMU_Ln_ENTRIES; j++) {
 			l1e = l1[j];
 			if ((l1e & ATTR_DESCR_VALID) == 0) {
-				sva += IOMMU_L1_SIZE;
 				continue;
 			}
 			if ((l1e & ATTR_DESCR_MASK) == IOMMU_L1_BLOCK) {
-				sva += IOMMU_L1_SIZE;
 				continue;
 			}
 			pa1 = l1e & ~ATTR_MASK;
 			m1 = PHYS_TO_VM_PAGE(pa1);
 			l2 = (pd_entry_t *)PHYS_TO_DMAP(pa1);
 
-			for (k = smmu_l2_index(sva); k < Ln_ENTRIES; k++) {
+			for (k = 0; k < IOMMU_Ln_ENTRIES; k++) {
 				l2e = l2[k];
 				if ((l2e & ATTR_DESCR_VALID) == 0) {
-					sva += IOMMU_L2_SIZE;
 					continue;
 				}
 				pa = l2e & ~ATTR_MASK;
 				m = PHYS_TO_VM_PAGE(pa);
 				l3 = (pt_entry_t *)PHYS_TO_DMAP(pa);
 
-				for (l = smmu_l3_index(sva); l < Ln_ENTRIES;
-				    l++, sva += IOMMU_L3_SIZE) {
+				for (l = 0; l < IOMMU_Ln_ENTRIES; l++) {
 					l3e = l3[l];
 					if ((l3e & ATTR_DESCR_VALID) == 0)
 						continue;
-					panic("%s: l3e found for va %jx\n",
-					    __func__, sva);
+					panic(
+					  "%s: l3e found (indexes %d %d %d %d)",
+					    __func__, i, j, k, l);
 				}
 
 				vm_page_unwire_noq(m1);
