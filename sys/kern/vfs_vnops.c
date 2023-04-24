@@ -483,7 +483,7 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 			 * If there is no fp, due to kernel-mode open,
 			 * we can call VOP_CLOSE() now.
 			 */
-			if ((vp->v_type == VFIFO || (fmode & FWRITE) != 0 ||
+			if ((vp->v_type == VFIFO ||
 			    !MNT_EXTENDED_SHARED(vp->v_mount)) &&
 			    VOP_ISLOCKED(vp) != LK_EXCLUSIVE)
 				vn_lock(vp, LK_UPGRADE | LK_RETRY);
@@ -528,11 +528,8 @@ vn_close1(struct vnode *vp, int flags, struct ucred *file_cred,
 	struct mount *mp;
 	int error, lock_flags;
 
-	if (vp->v_type != VFIFO && (flags & FWRITE) == 0 &&
-	    MNT_EXTENDED_SHARED(vp->v_mount))
-		lock_flags = LK_SHARED;
-	else
-		lock_flags = LK_EXCLUSIVE;
+	lock_flags = vp->v_type != VFIFO && MNT_EXTENDED_SHARED(vp->v_mount) ?
+	    LK_SHARED : LK_EXCLUSIVE;
 
 	vn_start_write(vp, &mp, V_WAIT);
 	vn_lock(vp, lock_flags | LK_RETRY);
