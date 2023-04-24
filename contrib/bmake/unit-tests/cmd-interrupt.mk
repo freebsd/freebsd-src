@@ -1,4 +1,4 @@
-# $NetBSD: cmd-interrupt.mk,v 1.3 2020/11/15 14:07:53 rillig Exp $
+# $NetBSD: cmd-interrupt.mk,v 1.4 2023/03/18 22:20:12 sjg Exp $
 #
 # Tests for interrupting a command.
 #
@@ -30,7 +30,7 @@ interrupt-ordinary:
 interrupt-phony: .PHONY
 	@${.MAKE} ${MAKEFLAGS} -f ${MAKEFILE} cmd-interrupt-phony || true
 	# The ././ is necessary to work around the file cache.
-	@echo ${.TARGET}: ${exists(././cmd-interrupt-phony) :? error : ok }
+	@echo ${.TARGET}: ${exists(././cmd-interrupt-phony) :? ok : error }
 
 interrupt-precious: .PRECIOUS
 	@${.MAKE} ${MAKEFLAGS} -f ${MAKEFILE} cmd-interrupt-precious || true

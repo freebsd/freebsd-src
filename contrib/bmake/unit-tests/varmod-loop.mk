@@ -1,6 +1,20 @@
-# $NetBSD: varmod-loop.mk,v 1.21 2022/08/23 21:13:46 rillig Exp $
+# $NetBSD: varmod-loop.mk,v 1.23 2023/02/18 11:55:20 rillig Exp $
 #
-# Tests for the :@var@...${var}...@ variable modifier.
+# Tests for the expression modifier ':@var@body@', which replaces each word of
+# the expression with the expanded body, which may contain references to the
+# variable 'var'.  For example, '${1 2 3:L:@word@<${word}>@}' encloses each
+# word in angle quotes, resulting in '<1> <2> <3>'.
+#
+# The variable name can be chosen freely, except that it must not contain a
+# '$'.  For simplicity and readability, variable names should only use the
+# characters 'A-Za-z0-9'.
+#
+# The body may contain subexpressions in the form '${...}' or '$(...)'.  These
+# subexpressions differ from everywhere else in makefiles in that the parser
+# only scans '${...}' for balanced '{' and '}', likewise for '$(...)'.  Any
+# other '$' is left as-is during parsing.  Later, when the body is expanded
+# for each word, each '$$' is interpreted as a single '$', and the remaining
+# '$' are interpreted as expressions, like when evaluating a regular variable.
 
 # Force the test results to be independent of the default value of this
 # setting, which is 'yes' for NetBSD's usr.bin/make but 'no' for the bmake
@@ -17,7 +31,6 @@ varname-overwriting-target:
 	# undefined.  This is something that make doesn't expect, this may
 	# even trigger an assertion failure somewhere.
 	@echo :$@: :${:U1 2 3:@\@@x${@}y@}: :$@:
-
 
 
 # Demonstrate that it is possible to generate dollar signs using the
@@ -192,15 +205,14 @@ CMDLINE=	global		# needed for deleting the environment
 # except for '$i', which is replaced with the then-current value '1' of the
 # iteration variable.
 #
-# XXX: was broken in var.c 1.1028 from 2022-08-08, reverted in var.c 1.1029
-# from 2022-08-23; see parse-var.mk, keyword 'BRACE_GROUP'.
+# See parse-var.mk, keyword 'BRACE_GROUP'.
 all: varmod-loop-literal-dollar
 varmod-loop-literal-dollar: .PHONY
 	: ${:U1:@i@ t=$$(( $${t:-0} + $i ))@}
 
 
 # When parsing the loop body, each '\$', '\@' and '\\' is unescaped to '$',
-# '@' and '\'; all other backslashes are retained.
+# '@' and '\', respectively; all other backslashes are retained.
 #
 # In practice, the '$' is not escaped as '\$', as there is a second round of
 # unescaping '$$' to '$' later when the loop body is expanded after setting the

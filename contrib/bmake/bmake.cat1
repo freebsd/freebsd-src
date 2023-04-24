@@ -157,15 +157,19 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
 
      [1m-j [4m[22mmax_jobs[0m
              Specify the maximum number of jobs that [1mbmake [22mmay have running at
-             any one time.  The value is saved in [4m.MAKE.JOBS[24m.  Turns compati-
-             bility mode off, unless the [1m-B [22moption is also specified.  When
-             compatibility mode is off, all commands associated with a target
-             are executed in a single shell invocation as opposed to the tra-
-             ditional one shell invocation per line.  This can break tradi-
-             tional scripts which change directories on each command invoca-
-             tion and then expect to start with a fresh environment on the
-             next line.  It is more efficient to correct the scripts rather
-             than turn backwards compatibility on.
+             any one time.  The value of [4mmax_jobs[24m is saved in [4m.MAKE.JOBS[24m.
+             Turns compatibility mode off, unless the [1m-B [22moption is also speci-
+             fied.  When compatibility mode is off, all commands associated
+             with a target are executed in a single shell invocation as op-
+             posed to the traditional one shell invocation per line.  This can
+             break traditional scripts which change directories on each com-
+             mand invocation and then expect to start with a fresh environment
+             on the next line.  It is more efficient to correct the scripts
+             rather than turn backwards compatibility on.
+
+             A job token pool with [4mmax_jobs[24m tokens is used to control the to-
+             tal number of jobs running.  Each instance of [1mbmake [22mwill wait for
+             a token from the pool before running a new job.
 
      [1m-k      [22mContinue processing after errors are encountered, but only on
              those targets that do not depend on the target whose creation
@@ -1740,4 +1744,12 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
 
      There is no way of escaping a space character in a filename.
 
-FreeBSD 13.0                   January 26, 2023                   FreeBSD 13.0
+     In jobs mode, when a target fails; make will put an error token into the
+     job token pool.  This will cause all other instances of make using that
+     token pool to abort the build and exit with error code 6.  Sometimes the
+     attempt to suppress a cascade of unnecessary errors, can result in a
+     seemingly unexplained `*** Error code 6'
+
+
+
+FreeBSD 13.0                    March 22, 2023                    FreeBSD 13.0

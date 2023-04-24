@@ -1,4 +1,4 @@
-/*	$NetBSD: job.c,v 1.457 2023/01/17 21:35:19 christos Exp $	*/
+/*	$NetBSD: job.c,v 1.459 2023/02/15 06:52:58 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -155,7 +155,7 @@
 #include "trace.h"
 
 /*	"@(#)job.c	8.2 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: job.c,v 1.457 2023/01/17 21:35:19 christos Exp $");
+MAKE_RCSID("$NetBSD: job.c,v 1.459 2023/02/15 06:52:58 rillig Exp $");
 
 /*
  * A shell defines how the commands are run.  All commands for a target are
@@ -940,7 +940,7 @@ JobWriteCommand(Job *job, ShellWriter *wr, StringListNode *ln, const char *ucmd)
 
 	run = GNode_ShouldExecute(job->node);
 
-	(void)Var_Subst(ucmd, job->node, VARE_WANTRES, &xcmd);
+	xcmd = Var_Subst(ucmd, job->node, VARE_WANTRES);
 	/* TODO: handle errors */
 	xcmdStart = xcmd;
 
@@ -1069,7 +1069,7 @@ JobSaveCommands(Job *job)
 		 * variables such as .TARGET, .IMPSRC.  It is not intended to
 		 * expand the other variables as well; see deptgt-end.mk.
 		 */
-		(void)Var_Subst(cmd, job->node, VARE_WANTRES, &expanded_cmd);
+		expanded_cmd = Var_Subst(cmd, job->node, VARE_WANTRES);
 		/* TODO: handle errors */
 		Lst_Append(&Targ_GetEndNode()->commands, expanded_cmd);
 	}
@@ -1105,8 +1105,7 @@ DebugFailedJob(const Job *job)
 		debug_printf("\t%s\n", cmd);
 
 		if (strchr(cmd, '$') != NULL) {
-			char *xcmd;
-			(void)Var_Subst(cmd, job->node, VARE_WANTRES, &xcmd);
+			char *xcmd = Var_Subst(cmd, job->node, VARE_WANTRES);
 			debug_printf("\t=> %s\n", xcmd);
 			free(xcmd);
 		}
@@ -2232,12 +2231,12 @@ Job_SetPrefix(void)
 {
 	if (targPrefix != NULL) {
 		free(targPrefix);
-	} else if (!Var_Exists(SCOPE_GLOBAL, MAKE_JOB_PREFIX)) {
-		Global_Set(MAKE_JOB_PREFIX, "---");
+	} else if (!Var_Exists(SCOPE_GLOBAL, ".MAKE.JOB.PREFIX")) {
+		Global_Set(".MAKE.JOB.PREFIX", "---");
 	}
 
-	(void)Var_Subst("${" MAKE_JOB_PREFIX "}",
-	    SCOPE_GLOBAL, VARE_WANTRES, &targPrefix);
+	targPrefix = Var_Subst("${.MAKE.JOB.PREFIX}",
+	    SCOPE_GLOBAL, VARE_WANTRES);
 	/* TODO: handle errors */
 }
 

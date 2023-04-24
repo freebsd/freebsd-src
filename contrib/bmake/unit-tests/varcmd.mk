@@ -1,4 +1,4 @@
-# $NetBSD: varcmd.mk,v 1.6 2021/02/16 19:43:09 rillig Exp $
+# $NetBSD: varcmd.mk,v 1.7 2023/04/07 05:54:16 rillig Exp $
 #
 # Test behaviour of recursive make and vars set on command line.
 #
@@ -12,6 +12,10 @@
 # be rewritten to make it clear why there is a difference and why this is
 # actually intended.  Removing that large block of code makes only this test
 # and vardebug.mk fail, which is not enough.
+#
+# See also:
+#	var-scope-cmdline.mk
+#	varname-makeflags.mk
 
 FU=	fu
 FOO?=	foo

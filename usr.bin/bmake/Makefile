@@ -12,7 +12,7 @@ CFLAGS+= -I${.CURDIR}
 CLEANDIRS+= FreeBSD
 CLEANFILES+= bootstrap
 
-#	$Id: Makefile,v 1.123 2023/01/28 02:49:20 sjg Exp $
+#	$Id: Makefile,v 1.124 2023/02/25 20:27:44 sjg Exp $
 
 PROG?=	${.CURDIR:T}
 
@@ -140,9 +140,7 @@ SHAREDIR= ${SHAREDIR.bmake:U${prefix}/share}
 BINDIR= ${BINDIR.bmake:U${prefix}/bin}
 MANDIR= ${MANDIR.bmake:U${SHAREDIR}/man}
 
-.if !exists(.depend)
 ${OBJS}: config.h
-.endif
 
 
 # A simple unit-test driver to help catch regressions

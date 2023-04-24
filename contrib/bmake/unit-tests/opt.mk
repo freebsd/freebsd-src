@@ -1,4 +1,4 @@
-# $NetBSD: opt.mk,v 1.6 2020/11/18 01:06:59 sjg Exp $
+# $NetBSD: opt.mk,v 1.7 2023/02/25 00:07:08 rillig Exp $
 #
 # Tests for the command line options.
 
@@ -7,7 +7,7 @@
 all: .IGNORE
 	# The options from the top-level make are passed to the sub-makes via
 	# the environment variable MAKEFLAGS.  This is where the " -r -k -d 0"
-	# comes from.  See MainParseArg.
+	# comes from.  See MainParseOption.
 	${MAKE} -r -f /dev/null -V MAKEFLAGS
 	@echo
 

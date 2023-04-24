@@ -1,4 +1,4 @@
-# $NetBSD: parse-var.mk,v 1.6 2022/09/25 21:26:23 rillig Exp $
+# $NetBSD: parse-var.mk,v 1.8 2023/02/18 11:16:09 rillig Exp $
 #
 # Tests for parsing variable expressions.
 #
@@ -68,8 +68,7 @@
 #
 # Effects:
 #	How much does the parsing position advance (pp)?
-#	What's the value of the expression (out_val)?
-#	What's the status after parsing the expression (VarParseResult)?
+#	What's the value of the expression (return value)?
 #	What error messages are printed (Parse_Error)?
 #	What no-effect error messages are printed (Error)?
 #	What error messages should be printed but aren't?
@@ -86,12 +85,9 @@ VAR.${:U param }=	value
 .  error
 .endif
 
-# XXX: The following paragraph already uses past tense, in the hope that the
-# parsing behavior can be cleaned up soon.
-
-# Since var.c 1.323 from 2020-07-26 18:11 and except for var.c 1.1028 from
-# 2022-08-08, the exact way of parsing an expression depended on whether the
-# expression was actually evaluated or merely parsed.
+# Since var.c 1.323 from 2020-07-26 18:11 and until var.c 1.1047 from
+# 2023-02-18, the exact way of parsing an expression with subexpressions
+# depended on whether the expression was actually evaluated or merely parsed.
 #
 # If it was evaluated, nested expressions were parsed correctly, parsing each
 # modifier according to its exact definition (see varmod.mk).
@@ -103,30 +99,28 @@ VAR.${:U param }=	value
 # expression was not parsed correctly.  Instead, make only counted the opening
 # and closing delimiters, which failed for nested modifiers with unbalanced
 # braces.
-#
-# This naive brace counting was implemented in ParseModifierPartDollar.  As of
-# var.c 1.1029, there are still several other places that merely count braces
-# instead of properly parsing subexpressions.
 
 #.MAKEFLAGS: -dcpv
 # Keep these braces outside the conditions below, to keep them simple to
-# understand.  If the BRACE_PAIR had been replaced with ':U{}', the '}' would
-# have to be escaped, but not the '{'.  This asymmetry would have made the
-# example even more complicated to understand.
+# understand.  If the expression ${BRACE_PAIR:...} had been replaced with the
+# literal ${:U{}}, the '}' would have to be escaped, but not the '{'.  This
+# asymmetry would have made the example even more complicated to understand.
 BRACE_PAIR=	{}
-# In this test word, the '{{}' in the middle will be replaced.
+# In this test word, the below conditions will replace the '{{}' in the middle
+# with the string '<lbraces>'.
 BRACE_GROUP=	{{{{}}}}
 
 # The inner ':S' modifier turns the word '{}' into '{{}'.
 # The outer ':S' modifier then replaces '{{}' with '<lbraces>'.
-# In the first case, the outer expression is relevant and is parsed correctly.
+# Due to the always-true condition '1', the outer expression is relevant and
+# is parsed correctly.
 .if 1 && ${BRACE_GROUP:S,${BRACE_PAIR:S,{,{{,},<lbraces>,}
 .endif
-# In the second case, the outer expression was irrelevant.  In this case, in
-# the parts of the outer ':S' modifier, make only counted the braces, and since
-# the inner expression '${BRACE_PAIR:...}' contains more '{' than '}', parsing
-# failed with the error message 'Unfinished modifier for "BRACE_GROUP"'.  Fixed
-# in var.c 1.1028 from 2022-08-08, reverted in var.c 1.1029 from 2022-08-23.
+# Due to the always-false condition '0', the outer expression is irrelevant.
+# In this case, in the parts of the outer ':S' modifier, the expression parser
+# only counted the braces, and since the inner expression '${BRACE_PAIR:...}'
+# contains more '{' than '}', parsing failed with the error message 'Unfinished
+# modifier for "BRACE_GROUP"'.  Fixed in var.c 1.1047 from 2023-02-18.
 .if 0 && ${BRACE_GROUP:S,${BRACE_PAIR:S,{,{{,},<lbraces>,}
 .endif
 #.MAKEFLAGS: -d0

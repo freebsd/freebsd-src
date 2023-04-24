@@ -2,9 +2,9 @@
 # See contrib/bmake/bsd.after-import.mk
 #
 # $FreeBSD$
-# $Id: Makefile,v 1.191 2023/01/24 06:09:49 sjg Exp $
+# $Id: Makefile,v 1.193 2023/02/25 20:03:25 sjg Exp $
 #
-# $NetBSD: Makefile,v 1.331 2023/01/24 00:24:02 sjg Exp $
+# $NetBSD: Makefile,v 1.333 2023/02/25 19:30:32 sjg Exp $
 #
 # Unit tests for make(1)
 #
@@ -35,6 +35,21 @@
 # we use these below but we might be an older make
 .MAKE.OS?= ${uname -s:L:sh}
 .MAKE.UID?= ${id -u:L:sh}
+
+# for many tests we need a TMPDIR that will not collide
+# with other users.
+.if ${.OBJDIR} != ${.CURDIR}
+# easy
+TMPDIR:=	${.OBJDIR}/tmp
+.elif defined(TMPDIR)
+TMPDIR:=	${TMPDIR}/uid${.MAKE.UID}
+.else
+TMPDIR:=	/tmp/uid${.MAKE.UID}
+.endif
+# make sure it exists
+.if !exist(${TMPDIR})
+_!= mkdir -p ${TMPDIR}
+.endif
 
 # Each test is in a sub-makefile.
 # Keep the list sorted.
@@ -410,12 +425,16 @@ TESTS+=		varname-dot-make-makefiles
 TESTS+=		varname-dot-make-meta-bailiwick
 TESTS+=		varname-dot-make-meta-created
 TESTS+=		varname-dot-make-meta-files
+.if ${.MAKE.PATH_FILEMON:Uno:Nktrace:N/dev*} == "" && ${TMPDIR:N/tmp*:N/var/tmp*} != ""
+# these tests will not work if TMPDIR is or is a subdir of
+# /tmp or /var/tmp
 TESTS+=		varname-dot-make-meta-ignore_filter
 TESTS+=		varname-dot-make-meta-ignore_paths
 TESTS+=		varname-dot-make-meta-ignore_patterns
+TESTS+=		varname-dot-make-path_filemon
+.endif
 TESTS+=		varname-dot-make-meta-prefix
 TESTS+=		varname-dot-make-mode
-TESTS+=		varname-dot-make-path_filemon
 TESTS+=		varname-dot-make-pid
 TESTS+=		varname-dot-make-ppid
 TESTS+=		varname-dot-make-save_dollars
@@ -542,6 +561,9 @@ SED_CMDS.opt-chdir=		-e 's,\(nonexistent\).[1-9][0-9]*,\1,' \
 	-e '/name/s,file,File,' \
 	-e 's,no such,No such,' \
 	-e 's,Filename,File name,'
+
+# meta line numbers can vary based on filemon implementation
+SED_CMDS.meta-ignore= -e 's,\(\.meta:\) [1-9][0-9]*:,\1 <line>:,'
 SED_CMDS.opt-debug-graph1=	${STD_SED_CMDS.dg1}
 SED_CMDS.opt-debug-graph2=	${STD_SED_CMDS.dg2}
 SED_CMDS.opt-debug-graph3=	${STD_SED_CMDS.dg3}
@@ -575,6 +597,9 @@ SED_CMDS.var-op-shell+=		${STD_SED_CMDS.white-space}
 SED_CMDS.vardebug+=		-e 's,${.SHELL},</path/to/shell>,'
 SED_CMDS.varmod-subst-regex+=	${STD_SED_CMDS.regex}
 SED_CMDS.varparse-errors+=	${STD_SED_CMDS.timestamp}
+SED_CMDS.varname-dot-make-meta-ignore_filter+= ${SED_CMDS.meta-ignore}
+SED_CMDS.varname-dot-make-meta-ignore_paths+= ${SED_CMDS.meta-ignore}
+SED_CMDS.varname-dot-make-meta-ignore_patterns+= ${SED_CMDS.meta-ignore}
 SED_CMDS.varname-dot-parsedir=	-e '/in some cases/ s,^make: "[^"]*,make: "<normalized>,'
 SED_CMDS.varname-dot-parsefile=	-e '/in some cases/ s,^make: "[^"]*,make: "<normalized>,'
 SED_CMDS.varname-dot-shell=	-e 's, = /[^ ]*, = (details omitted),g'
@@ -717,22 +742,6 @@ LANG=		C
 _MKMSG_TEST= :
 .endif
 
-
-# for many tests we need a TMPDIR that will not collide
-# with other users.
-.if ${.OBJDIR} != ${.CURDIR}
-# easy
-TMPDIR:=	${.OBJDIR}/tmp
-.elif defined(TMPDIR)
-TMPDIR:=	${TMPDIR}/uid${.MAKE.UID}
-.else
-TMPDIR:=	/tmp/uid${.MAKE.UID}
-.endif
-# make sure it exists
-.if !exist(${TMPDIR})
-_!= mkdir -p ${TMPDIR}
-.endif
-
 # Some Linux systems such as Fedora have deprecated egrep in favor of grep -E.
 .if ${.MAKE.OS:NLinux} == ""
 EGREP= grep -E
@@ -772,23 +781,23 @@ LIMIT_RESOURCES?=	:
 
 # Postprocess the test output to make the output platform-independent.
 #
-# always pretend .MAKE was called 'make'
-_SED_CMDS+=	-e 's,^${TEST_MAKE:T:S,.,\\.,g}[][0-9]*:,make:,'
-_SED_CMDS+=	-e 's,${TEST_MAKE:S,.,\\.,g},make,'
-_SED_CMDS+=	-e 's,^usage: ${TEST_MAKE:T:S,.,\\.,g} ,usage: make ,'
-# replace anything after 'stopped in' with unit-tests
+# Replace anything after 'stopped in' with unit-tests
 _SED_CMDS+=	-e '/stopped/s, /.*, unit-tests,'
 # Allow the test files to be placed anywhere.
 _SED_CMDS+=	-e 's,\(\.PARSEDIR}\) = `'"/[^']*'"',\1 = <some-dir>,'
 _SED_CMDS+=	-e 's,\(\.INCLUDEDFROMDIR}\) = `'"/[^']*'"',\1 = <some-dir>,'
-_SED_CMDS+=	-e 's,${TMPDIR},<tmpdir>,g'
+_SED_CMDS+=	-e 's,${TMPDIR},<tmpdir>,g' -e 's,${TMPDIR:tA},<tmpdir>,g'
 # canonicalize ${.OBJDIR} and ${.CURDIR}
+_SED_CMDS+=	-e 's,${.CURDIR},<curdir>,g'
 .if ${.OBJDIR} != ${.CURDIR}
 # yes this is inaccurate but none of the tests expect <objdir> anywhere
 # which we get depending on how MAKEOBJDIR is set.
-_SED_CMDS+=	-e 's,${.OBJDIR},<curdir>,g'
+_SED_CMDS+=	-e 's,${.OBJDIR},<curdir>,g' -e 's,${.OBJDIR:tA},<curdir>,g'
 .endif
-_SED_CMDS+=	-e 's,${.CURDIR},<curdir>,g'
+# always pretend .MAKE was called 'make'
+_SED_CMDS+=	-e 's,^${TEST_MAKE:T:S,.,\\.,g}[][0-9]*:,make:,'
+_SED_CMDS+=	-e 's,${TEST_MAKE:S,.,\\.,g},make,'
+_SED_CMDS+=	-e 's,^usage: ${TEST_MAKE:T:S,.,\\.,g} ,usage: make ,'
 _SED_CMDS+=	-e 's,<curdir>/,,g'
 _SED_CMDS+=	-e 's,${UNIT_TESTS:S,.,\\.,g}/,,g'
 _SED_CMDS+=	-e '/MAKE_VERSION/d'

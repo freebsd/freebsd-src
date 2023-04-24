@@ -1,4 +1,4 @@
-# $Id: sys.vars.mk,v 1.12 2023/01/20 17:34:06 sjg Exp $
+# $Id: sys.vars.mk,v 1.14 2023/02/17 22:32:47 sjg Exp $
 #
 #	@(#) Copyright (c) 2003-2023, Simon J. Gerraty
 #
@@ -121,3 +121,11 @@ M_Onr = O
 M_On = On
 M_Onr = Onr
 .endif
+
+# Index of a word in a list.
+# eg. ${LIST:${M_Index:S,K,key,}} is the index of
+# the word "key" in ${LIST}, of course any pattern can be used.
+# If "key" appears more than once, there will be multiple
+# index values use ${M_Index:S,K,key,}:[1] to select only the first.
+M_Index = _:${M_RANGE}:@i@$${"$${_:[$$i]:MK}":?$$i:}@
+

@@ -27,6 +27,13 @@ make: "varmod-ifelse.mk" line 167: true
 make: "varmod-ifelse.mk" line 169: false
 make: Bad conditional expression '	' in '	?true:false'
 make: "varmod-ifelse.mk" line 171: 
+CondParser_Eval: 0 && ${1:?${:Uthen0:S,}},,}:${:Uelse0:S,}},,}} != "not evaluated"
+CondParser_Eval: 1 && ${0:?${:Uthen1:S,}},,}:${:Uelse1:S,}},,}} != "else1"
+CondParser_Eval: 0
+Comparing "else1" != "else1"
+CondParser_Eval: 2 && ${1:?${:Uthen2:S,}},,}:${:Uelse2:S,}},,}} != "then2"
+CondParser_Eval: 1
+Comparing "then2" != "then2"
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1
