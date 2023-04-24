@@ -62,6 +62,11 @@ __FBSDID("$FreeBSD$");
 
 #define	IOMMU_PAGE_SIZE		4096
 
+#define	SMMU_PMAP_LOCK(pmap)	mtx_lock(&(pmap)->sp_mtx)
+#define	SMMU_PMAP_UNLOCK(pmap)	mtx_unlock(&(pmap)->sp_mtx)
+#define	SMMU_PMAP_LOCK_ASSERT(pmap, type) \
+    mtx_assert(&(pmap)->sp_mtx, (type))
+
 #define	NL0PG		(IOMMU_PAGE_SIZE/(sizeof (pd_entry_t)))
 #define	NL1PG		(IOMMU_PAGE_SIZE/(sizeof (pd_entry_t)))
 #define	NL2PG		(IOMMU_PAGE_SIZE/(sizeof (pd_entry_t)))
@@ -80,9 +85,9 @@ __FBSDID("$FreeBSD$");
 #define	smmu_l2_index(va)	(((va) >> IOMMU_L2_SHIFT) & IOMMU_Ln_ADDR_MASK)
 #define	smmu_l3_index(va)	(((va) >> IOMMU_L3_SHIFT) & IOMMU_Ln_ADDR_MASK)
 
-static vm_page_t _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex);
-static void _smmu_pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m,
-    struct spglist *free);
+static vm_page_t _pmap_alloc_l3(struct smmu_pmap *pmap, vm_pindex_t ptepindex);
+static void _smmu_pmap_unwire_l3(struct smmu_pmap *pmap, vm_offset_t va,
+    vm_page_t m, struct spglist *free);
 
 /*
  * These load the old table data and store the new value.
@@ -98,10 +103,10 @@ static void _smmu_pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m,
 /********************/
 
 static __inline pd_entry_t *
-smmu_pmap_l0(pmap_t pmap, vm_offset_t va)
+smmu_pmap_l0(struct smmu_pmap *pmap, vm_offset_t va)
 {
 
-	return (&pmap->pm_l0[smmu_l0_index(va)]);
+	return (&pmap->sp_l0[smmu_l0_index(va)]);
 }
 
 static __inline pd_entry_t *
@@ -114,7 +119,7 @@ smmu_pmap_l0_to_l1(pd_entry_t *l0, vm_offset_t va)
 }
 
 static __inline pd_entry_t *
-smmu_pmap_l1(pmap_t pmap, vm_offset_t va)
+smmu_pmap_l1(struct smmu_pmap *pmap, vm_offset_t va)
 {
 	pd_entry_t *l0;
 
@@ -145,7 +150,7 @@ smmu_pmap_l1_to_l2(pd_entry_t *l1p, vm_offset_t va)
 }
 
 static __inline pd_entry_t *
-smmu_pmap_l2(pmap_t pmap, vm_offset_t va)
+smmu_pmap_l2(struct smmu_pmap *pmap, vm_offset_t va)
 {
 	pd_entry_t *l1;
 
@@ -181,7 +186,7 @@ smmu_pmap_l2_to_l3(pd_entry_t *l2p, vm_offset_t va)
  * The next level may or may not point to a valid page or block.
  */
 static __inline pd_entry_t *
-smmu_pmap_pde(pmap_t pmap, vm_offset_t va, int *level)
+smmu_pmap_pde(struct smmu_pmap *pmap, vm_offset_t va, int *level)
 {
 	pd_entry_t *l0, *l1, *l2, desc;
 
@@ -216,7 +221,7 @@ smmu_pmap_pde(pmap_t pmap, vm_offset_t va, int *level)
  * the first invalid level.
  */
 static __inline pt_entry_t *
-smmu_pmap_pte(pmap_t pmap, vm_offset_t va, int *level)
+smmu_pmap_pte(struct smmu_pmap *pmap, vm_offset_t va, int *level)
 {
 	pd_entry_t *l1, *l2, desc;
 	pt_entry_t *l3;
@@ -266,24 +271,36 @@ smmu_pmap_l3_valid(pt_entry_t l3)
 
 CTASSERT(IOMMU_L1_BLOCK == IOMMU_L2_BLOCK);
 
+#ifdef INVARIANTS
 static __inline void
-smmu_pmap_resident_count_inc(pmap_t pmap, int count)
+smmu_pmap_resident_count_inc(struct smmu_pmap *pmap, int count)
 {
 
-	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	pmap->pm_stats.resident_count += count;
+	SMMU_PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	pmap->sp_resident_count += count;
 }
 
 static __inline void
-smmu_pmap_resident_count_dec(pmap_t pmap, int count)
+smmu_pmap_resident_count_dec(struct smmu_pmap *pmap, int count)
 {
 
-	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	KASSERT(pmap->pm_stats.resident_count >= count,
+	SMMU_PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	KASSERT(pmap->sp_resident_count >= count,
 	    ("pmap %p resident count underflow %ld %d", pmap,
-	    pmap->pm_stats.resident_count, count));
-	pmap->pm_stats.resident_count -= count;
+	    pmap->sp_resident_count, count));
+	pmap->sp_resident_count -= count;
 }
+#else
+static __inline void
+smmu_pmap_resident_count_inc(struct smmu_pmap *pmap, int count)
+{
+}
+
+static __inline void
+smmu_pmap_resident_count_dec(struct smmu_pmap *pmap, int count)
+{
+}
+#endif
 
 /***************************************************
  * Page table page management routines.....
@@ -316,7 +333,7 @@ smmu_pmap_add_delayed_free_list(vm_page_t m, struct spglist *free,
  * page table page was unmapped and FALSE otherwise.
  */
 static inline boolean_t
-smmu_pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m,
+smmu_pmap_unwire_l3(struct smmu_pmap *pmap, vm_offset_t va, vm_page_t m,
     struct spglist *free)
 {
 
@@ -329,11 +346,11 @@ smmu_pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m,
 }
 
 static void
-_smmu_pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m,
+_smmu_pmap_unwire_l3(struct smmu_pmap *pmap, vm_offset_t va, vm_page_t m,
     struct spglist *free)
 {
 
-	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	SMMU_PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	/*
 	 * unmap the page table page
 	 */
@@ -385,7 +402,7 @@ _smmu_pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m,
 }
 
 int
-smmu_pmap_pinit(pmap_t pmap)
+smmu_pmap_pinit(struct smmu_pmap *pmap)
 {
 	vm_page_t m;
 
@@ -394,14 +411,11 @@ smmu_pmap_pinit(pmap_t pmap)
 	 */
 	m = vm_page_alloc_noobj(VM_ALLOC_WAITOK | VM_ALLOC_WIRED |
 	    VM_ALLOC_ZERO);
-	pmap->pm_l0_paddr = VM_PAGE_TO_PHYS(m);
-	pmap->pm_l0 = (pd_entry_t *)PHYS_TO_DMAP(pmap->pm_l0_paddr);
+	pmap->sp_l0_paddr = VM_PAGE_TO_PHYS(m);
+	pmap->sp_l0 = (pd_entry_t *)PHYS_TO_DMAP(pmap->sp_l0_paddr);
 
-	vm_radix_init(&pmap->pm_root);
-	bzero(&pmap->pm_stats, sizeof(pmap->pm_stats));
-
-	pmap->pm_levels = 4;
-	pmap->pm_ttbr = VM_PAGE_TO_PHYS(m);
+	pmap->sp_resident_count = 0;
+	mtx_init(&pmap->sp_mtx, "smmu pmap", NULL, MTX_DEF);
 
 	return (1);
 }
@@ -418,11 +432,11 @@ smmu_pmap_pinit(pmap_t pmap)
  * race conditions.
  */
 static vm_page_t
-_pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex)
+_pmap_alloc_l3(struct smmu_pmap *pmap, vm_pindex_t ptepindex)
 {
 	vm_page_t m, l1pg, l2pg;
 
-	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	SMMU_PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
 	/*
 	 * Allocate a page table page.
@@ -456,7 +470,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex)
 		vm_pindex_t l0index;
 
 		l0index = ptepindex - (NUL2E + NUL1E);
-		l0 = &pmap->pm_l0[l0index];
+		l0 = &pmap->sp_l0[l0index];
 		smmu_pmap_store(l0, VM_PAGE_TO_PHYS(m) | IOMMU_L0_TABLE);
 	} else if (ptepindex >= NUL2E) {
 		vm_pindex_t l0index, l1index;
@@ -466,7 +480,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex)
 		l1index = ptepindex - NUL2E;
 		l0index = l1index >> IOMMU_L0_ENTRIES_SHIFT;
 
-		l0 = &pmap->pm_l0[l0index];
+		l0 = &pmap->sp_l0[l0index];
 		tl0 = smmu_pmap_load(l0);
 		if (tl0 == 0) {
 			/* recurse for allocating page dir */
@@ -492,7 +506,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex)
 		l1index = ptepindex >> Ln_ENTRIES_SHIFT;
 		l0index = l1index >> IOMMU_L0_ENTRIES_SHIFT;
 
-		l0 = &pmap->pm_l0[l0index];
+		l0 = &pmap->sp_l0[l0index];
 		tl0 = smmu_pmap_load(l0);
 		if (tl0 == 0) {
 			/* recurse for allocating page dir */
@@ -542,19 +556,18 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex)
  * Should only be called if the map contains no valid mappings.
  */
 void
-smmu_pmap_release(pmap_t pmap)
+smmu_pmap_release(struct smmu_pmap *pmap)
 {
 	vm_page_t m;
 
-	KASSERT(pmap->pm_stats.resident_count == 0,
+	KASSERT(pmap->sp_resident_count == 0,
 	    ("pmap_release: pmap resident count %ld != 0",
-	    pmap->pm_stats.resident_count));
-	KASSERT(vm_radix_is_empty(&pmap->pm_root),
-	    ("pmap_release: pmap has reserved page table page(s)"));
+	    pmap->sp_resident_count));
 
-	m = PHYS_TO_VM_PAGE(pmap->pm_l0_paddr);
+	m = PHYS_TO_VM_PAGE(pmap->sp_l0_paddr);
 	vm_page_unwire_noq(m);
 	vm_page_free_zero(m);
+	mtx_destroy(&pmap->sp_mtx);
 }
 
 /***************************************************
@@ -565,7 +578,7 @@ smmu_pmap_release(pmap_t pmap)
  * Add a single Mali GPU entry. This function does not sleep.
  */
 int
-pmap_gpu_enter(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
+pmap_gpu_enter(struct smmu_pmap *pmap, vm_offset_t va, vm_paddr_t pa,
     vm_prot_t prot, u_int flags)
 {
 	pd_entry_t *pde;
@@ -578,7 +591,6 @@ pmap_gpu_enter(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 	int lvl;
 	int rv;
 
-	KASSERT(pmap != kernel_pmap, ("kernel pmap used for GPU"));
 	KASSERT(va < VM_MAXUSER_ADDRESS, ("wrong address space"));
 	KASSERT((va & PAGE_MASK) == 0, ("va is misaligned"));
 	KASSERT((pa & PAGE_MASK) == 0, ("pa is misaligned"));
@@ -594,7 +606,7 @@ pmap_gpu_enter(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 
 	CTR2(KTR_PMAP, "pmap_gpu_enter: %.16lx -> %.16lx", va, pa);
 
-	PMAP_LOCK(pmap);
+	SMMU_PMAP_LOCK(pmap);
 
 	/*
 	 * In the case that a page table page is not
@@ -639,7 +651,7 @@ retry:
 
 	rv = KERN_SUCCESS;
 out:
-	PMAP_UNLOCK(pmap);
+	SMMU_PMAP_UNLOCK(pmap);
 
 	return (rv);
 }
@@ -648,7 +660,7 @@ out:
  * Remove a single Mali GPU entry.
  */
 int
-pmap_gpu_remove(pmap_t pmap, vm_offset_t va)
+pmap_gpu_remove(struct smmu_pmap *pmap, vm_offset_t va)
 {
 	pd_entry_t *pde;
 	pt_entry_t *pte;
@@ -656,9 +668,8 @@ pmap_gpu_remove(pmap_t pmap, vm_offset_t va)
 	int rc;
 
 	KASSERT((va & PAGE_MASK) == 0, ("va is misaligned"));
-	KASSERT(pmap != kernel_pmap, ("kernel pmap used for GPU"));
 
-	PMAP_LOCK(pmap);
+	SMMU_PMAP_LOCK(pmap);
 
 	pde = smmu_pmap_pde(pmap, va, &lvl);
 	if (pde == NULL || lvl != 2) {
@@ -674,7 +685,7 @@ pmap_gpu_remove(pmap_t pmap, vm_offset_t va)
 	rc = KERN_SUCCESS;
 
 out:
-	PMAP_UNLOCK(pmap);
+	SMMU_PMAP_UNLOCK(pmap);
 
 	return (rc);
 }
@@ -683,7 +694,7 @@ out:
  * Add a single SMMU entry. This function does not sleep.
  */
 int
-smmu_pmap_enter(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
+smmu_pmap_enter(struct smmu_pmap *pmap, vm_offset_t va, vm_paddr_t pa,
     vm_prot_t prot, u_int flags)
 {
 	pd_entry_t *pde;
@@ -707,7 +718,7 @@ smmu_pmap_enter(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 
 	CTR2(KTR_PMAP, "pmap_senter: %.16lx -> %.16lx", va, pa);
 
-	PMAP_LOCK(pmap);
+	SMMU_PMAP_LOCK(pmap);
 
 	/*
 	 * In the case that a page table page is not
@@ -737,7 +748,7 @@ retry:
 
 	rv = KERN_SUCCESS;
 out:
-	PMAP_UNLOCK(pmap);
+	SMMU_PMAP_UNLOCK(pmap);
 
 	return (rv);
 }
@@ -746,13 +757,13 @@ out:
  * Remove a single SMMU entry.
  */
 int
-smmu_pmap_remove(pmap_t pmap, vm_offset_t va)
+smmu_pmap_remove(struct smmu_pmap *pmap, vm_offset_t va)
 {
 	pt_entry_t *pte;
 	int lvl;
 	int rc;
 
-	PMAP_LOCK(pmap);
+	SMMU_PMAP_LOCK(pmap);
 
 	pte = smmu_pmap_pte(pmap, va, &lvl);
 	KASSERT(lvl == 3,
@@ -765,7 +776,7 @@ smmu_pmap_remove(pmap_t pmap, vm_offset_t va)
 	} else
 		rc = KERN_FAILURE;
 
-	PMAP_UNLOCK(pmap);
+	SMMU_PMAP_UNLOCK(pmap);
 
 	return (rc);
 }
@@ -776,7 +787,7 @@ smmu_pmap_remove(pmap_t pmap, vm_offset_t va)
  * this function panics.
  */
 void
-smmu_pmap_remove_pages(pmap_t pmap)
+smmu_pmap_remove_pages(struct smmu_pmap *pmap)
 {
 	pd_entry_t l0e, *l1, l1e, *l2, l2e;
 	pt_entry_t *l3, l3e;
@@ -787,11 +798,11 @@ smmu_pmap_remove_pages(pmap_t pmap)
 	vm_paddr_t pa1;
 	int i, j, k, l;
 
-	PMAP_LOCK(pmap);
+	SMMU_PMAP_LOCK(pmap);
 
 	for (sva = VM_MINUSER_ADDRESS, i = smmu_l0_index(sva);
 	    (i < Ln_ENTRIES && sva < VM_MAXUSER_ADDRESS); i++) {
-		l0e = pmap->pm_l0[i];
+		l0e = pmap->sp_l0[i];
 		if ((l0e & ATTR_DESCR_VALID) == 0) {
 			sva += IOMMU_L0_SIZE;
 			continue;
@@ -848,11 +859,11 @@ smmu_pmap_remove_pages(pmap_t pmap)
 
 		smmu_pmap_resident_count_dec(pmap, 1);
 		vm_page_free(m0);
-		smmu_pmap_clear(&pmap->pm_l0[i]);
+		smmu_pmap_clear(&pmap->sp_l0[i]);
 	}
 
-	KASSERT(pmap->pm_stats.resident_count == 0,
-	    ("Invalid resident count %jd", pmap->pm_stats.resident_count));
+	KASSERT(pmap->sp_resident_count == 0,
+	    ("Invalid resident count %jd", pmap->sp_resident_count));
 
-	PMAP_UNLOCK(pmap);
+	SMMU_PMAP_UNLOCK(pmap);
 }

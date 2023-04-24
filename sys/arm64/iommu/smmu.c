@@ -840,7 +840,7 @@ smmu_init_cd(struct smmu_softc *sc, struct smmu_domain *domain)
 	uint64_t val;
 	vm_size_t size;
 	struct smmu_cd *cd;
-	pmap_t p;
+	struct smmu_pmap *p;
 
 	size = 1 * (CD_DWORDS << 3);
 
@@ -875,8 +875,8 @@ smmu_init_cd(struct smmu_softc *sc, struct smmu_domain *domain)
 	val |= ((64 - sc->ias) << CD0_T0SZ_S);
 	val |= CD0_IPS_48BITS;
 
-	paddr = p->pm_l0_paddr & CD1_TTB0_M;
-	KASSERT(paddr == p->pm_l0_paddr, ("bad allocation 1"));
+	paddr = p->sp_l0_paddr & CD1_TTB0_M;
+	KASSERT(paddr == p->sp_l0_paddr, ("bad allocation 1"));
 
 	ptr[1] = paddr;
 	ptr[2] = 0;
@@ -1729,7 +1729,6 @@ smmu_domain_alloc(device_t dev, struct iommu_unit *iommu)
 	domain->asid = (uint16_t)new_asid;
 
 	smmu_pmap_pinit(&domain->p);
-	PMAP_LOCK_INIT(&domain->p);
 
 	error = smmu_init_cd(sc, domain);
 	if (error) {
