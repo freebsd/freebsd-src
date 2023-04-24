@@ -110,7 +110,7 @@ efi_1t1_l3(vm_offset_t va)
 		mphys = VM_PAGE_TO_PHYS(m);
 		*l0 = mphys | L0_TABLE;
 	} else {
-		mphys = *l0 & ~ATTR_MASK;
+		mphys = PTE_TO_PHYS(*l0);
 	}
 
 	l1 = (pd_entry_t *)PHYS_TO_DMAP(mphys);
@@ -121,7 +121,7 @@ efi_1t1_l3(vm_offset_t va)
 		mphys = VM_PAGE_TO_PHYS(m);
 		*l1 = mphys | L1_TABLE;
 	} else {
-		mphys = *l1 & ~ATTR_MASK;
+		mphys = PTE_TO_PHYS(*l1);
 	}
 
 	l2 = (pd_entry_t *)PHYS_TO_DMAP(mphys);
@@ -132,7 +132,7 @@ efi_1t1_l3(vm_offset_t va)
 		mphys = VM_PAGE_TO_PHYS(m);
 		*l2 = mphys | L2_TABLE;
 	} else {
-		mphys = *l2 & ~ATTR_MASK;
+		mphys = PTE_TO_PHYS(*l2);
 	}
 
 	l3 = (pt_entry_t *)PHYS_TO_DMAP(mphys);
