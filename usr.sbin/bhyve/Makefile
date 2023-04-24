@@ -5,7 +5,7 @@
 .include <src.opts.mk>
 CFLAGS+=-I${.CURDIR}/../../contrib/lib9p
 CFLAGS+=-I${SRCTOP}/sys
-.PATH:  ${SRCTOP}/sys/cam/ctl
+.PATH:  ${SRCTOP}/sys/libkern ${SRCTOP}/sys/cam/ctl
 
 PROG=	bhyve
 PACKAGE=	bhyve
@@ -26,6 +26,7 @@ SRCS=	\
 	bootrom.c		\
 	config.c		\
 	console.c		\
+	crc16.c			\
 	ctl_util.c		\
 	ctl_scsi_all.c		\
 	fwctl.c			\
