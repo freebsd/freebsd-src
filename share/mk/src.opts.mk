@@ -360,6 +360,12 @@ __DEFAULT_YES_OPTIONS+=NETLINK_SUPPORT
 __DEFAULT_NO_OPTIONS+=NETLINK_SUPPORT
 .endif
 
+# MK_host_egacy is set by local.sys.mk so is valid here
+.if ${MACHINE} == "host" && ${MK_host_egacy} == "yes"
+# we cannot expect tests to work
+BROKEN_OPTIONS+= TESTS
+.endif
+
 .-include <site.src.opts.mk>
 
 .include <bsd.mkopt.mk>

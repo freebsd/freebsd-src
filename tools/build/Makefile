@@ -208,6 +208,18 @@ CFLAGS.closefrom.c+=	-DSTDC_HEADERS -DHAVE_SYS_DIR_H -DHAVE_DIRENT_H \
 SRCS+=	progname.c
 # Stub implementations of fflagstostr/strtofflags
 SRCS+=	fflags.c
+
+# tar needs readpassphrase
+# the version from openssh is already "portable"
+# but we need to take care with .PATH as we
+# do not want getopt_long.c from crypto/openssh/openbsd-compat
+# and we do not want readpassphrase.c from libc/gen
+.PATH: ${SRCTOP}/crypto/openssh
+OBJS_SRCS_FILTER= T R
+SRCS+=	openbsd-compat/readpassphrase.c
+
+INCS+=		${SRCTOP}/crypto/openssh/openbsd-compat/readpassphrase.h
+
 .endif # ${MAKE.OS} == "Linux"
 
 .if ${.MAKE.OS} == "Darwin"
