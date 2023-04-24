@@ -146,6 +146,9 @@ spibus_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 	case SPIBUS_IVAR_CLOCK:
 		*(uint32_t *)result = devi->clock;
 		break;
+	case SPIBUS_IVAR_CS_DELAY:
+		*(uint32_t *)result = devi->cs_delay;
+		break;
 	}
 	return (0);
 }
@@ -173,6 +176,9 @@ spibus_write_ivar(device_t bus, device_t child, int which, uintptr_t value)
 		if (value > 3)
 			return (EINVAL);
 		devi->mode = (uint32_t)value;
+		break;
+	case SPIBUS_IVAR_CS_DELAY:
+		devi->cs_delay = (uint32_t)value;
 		break;
 	default:
 		return (EINVAL);
