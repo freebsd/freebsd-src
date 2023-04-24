@@ -112,8 +112,8 @@ __FBSDID("$FreeBSD$");
  * Z is bumped to mark backwards compatible changes
  */
 #define V_MAJOR		1
-#define V_BACKBREAK	2
-#define V_BACKCOMPAT	4
+#define V_BACKBREAK	3
+#define V_BACKCOMPAT	0
 #define MODVERSION	__CONCAT(V_MAJOR, __CONCAT(V_BACKBREAK, V_BACKCOMPAT))
 #define MODVERSION_STR	__XSTRING(V_MAJOR) "." __XSTRING(V_BACKBREAK) "." \
     __XSTRING(V_BACKCOMPAT)
@@ -257,9 +257,6 @@ struct siftr_stats
 	/* # pkts skipped due to failed malloc calls. */
 	uint32_t nskip_in_malloc;
 	uint32_t nskip_out_malloc;
-	/* # pkts skipped due to failed mtx acquisition. */
-	uint32_t nskip_in_mtx;
-	uint32_t nskip_out_mtx;
 	/* # pkts skipped due to failed inpcb lookups. */
 	uint32_t nskip_in_inpcb;
 	uint32_t nskip_out_inpcb;
@@ -1314,16 +1311,13 @@ siftr_manage_ops(uint8_t action)
 		totalss.n_out = DPCPU_VARSUM(ss, n_out);
 		totalss.nskip_in_malloc = DPCPU_VARSUM(ss, nskip_in_malloc);
 		totalss.nskip_out_malloc = DPCPU_VARSUM(ss, nskip_out_malloc);
-		totalss.nskip_in_mtx = DPCPU_VARSUM(ss, nskip_in_mtx);
-		totalss.nskip_out_mtx = DPCPU_VARSUM(ss, nskip_out_mtx);
 		totalss.nskip_in_tcpcb = DPCPU_VARSUM(ss, nskip_in_tcpcb);
 		totalss.nskip_out_tcpcb = DPCPU_VARSUM(ss, nskip_out_tcpcb);
 		totalss.nskip_in_inpcb = DPCPU_VARSUM(ss, nskip_in_inpcb);
 		totalss.nskip_out_inpcb = DPCPU_VARSUM(ss, nskip_out_inpcb);
 
 		total_skipped_pkts = totalss.nskip_in_malloc +
-		    totalss.nskip_out_malloc + totalss.nskip_in_mtx +
-		    totalss.nskip_out_mtx + totalss.nskip_in_tcpcb +
+		    totalss.nskip_out_malloc + totalss.nskip_in_tcpcb +
 		    totalss.nskip_out_tcpcb + totalss.nskip_in_inpcb +
 		    totalss.nskip_out_inpcb;
 
@@ -1334,8 +1328,6 @@ siftr_manage_ops(uint8_t action)
 		    "num_inbound_tcp_pkts=%ju\tnum_outbound_tcp_pkts=%ju\t"
 		    "total_tcp_pkts=%ju\tnum_inbound_skipped_pkts_malloc=%u\t"
 		    "num_outbound_skipped_pkts_malloc=%u\t"
-		    "num_inbound_skipped_pkts_mtx=%u\t"
-		    "num_outbound_skipped_pkts_mtx=%u\t"
 		    "num_inbound_skipped_pkts_tcpcb=%u\t"
 		    "num_outbound_skipped_pkts_tcpcb=%u\t"
 		    "num_inbound_skipped_pkts_inpcb=%u\t"
@@ -1348,8 +1340,6 @@ siftr_manage_ops(uint8_t action)
 		    (uintmax_t)(totalss.n_in + totalss.n_out),
 		    totalss.nskip_in_malloc,
 		    totalss.nskip_out_malloc,
-		    totalss.nskip_in_mtx,
-		    totalss.nskip_out_mtx,
 		    totalss.nskip_in_tcpcb,
 		    totalss.nskip_out_tcpcb,
 		    totalss.nskip_in_inpcb,

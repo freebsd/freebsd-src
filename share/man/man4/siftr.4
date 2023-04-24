@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 7, 2022
+.Dd April 24, 2023
 .Dt SIFTR 4
 .Os
 .Sh NAME
@@ -370,8 +370,7 @@ operations since the module was most recently enabled.
 disable_time_secs=1238556197    disable_time_usecs=933607 \\
 num_inbound_tcp_pkts=356    num_outbound_tcp_pkts=627 \\
 total_tcp_pkts=983    num_inbound_skipped_pkts_malloc=0 \\
-num_outbound_skipped_pkts_malloc=0    num_inbound_skipped_pkts_mtx=0 \\
-num_outbound_skipped_pkts_mtx=0    num_inbound_skipped_pkts_tcb=0 \\
+num_outbound_skipped_pkts_malloc=0    num_inbound_skipped_pkts_tcb=0 \\
 num_outbound_skipped_pkts_tcb=0    num_inbound_skipped_pkts_icb=0 \\
 num_outbound_skipped_pkts_icb=0    total_skipped_tcp_pkts=0 \\
 flow_list=172.16.7.28;22-172.16.2.5;55931,
@@ -415,16 +414,6 @@ calls.
 Number of outbound packets that were not processed because of failed
 .Fn malloc
 calls.
-.El
-.Bl -tag -offset indent -width Va
-.It Va num_inbound_skipped_pkts_mtx
-Number of inbound packets that were not processed because of failure to add the
-packet to the packet processing queue.
-.El
-.Bl -tag -offset indent -width Va
-.It Va num_outbound_skipped_pkts_mtx
-Number of outbound packets that were not processed because of failure to add the
-packet to the packet processing queue.
 .El
 .Bl -tag -offset indent -width Va
 .It Va num_inbound_skipped_pkts_tcb
