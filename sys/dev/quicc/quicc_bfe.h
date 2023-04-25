@@ -51,8 +51,8 @@ struct quicc_softc {
 
 	u_int		sc_clock;
 
-	int		sc_fastintr:1;
-	int		sc_polled:1;
+	bool		sc_fastintr:1;
+	bool		sc_polled:1;
 };
 
 extern devclass_t quicc_devclass;

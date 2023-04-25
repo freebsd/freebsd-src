@@ -72,11 +72,11 @@ struct scc_mode {
 	device_t	m_dev;
 
 	u_int		m_mode;
-	int		m_attached:1;
-	int		m_fastintr:1;
-	int		m_hasintr:1;
-	int		m_probed:1;
-	int		m_sysdev:1;
+	bool		m_attached:1;
+	bool		m_fastintr:1;
+	bool		m_hasintr:1;
+	bool		m_probed:1;
+	bool		m_sysdev:1;
 
 	driver_filter_t	*ih;
 	serdev_intr_t	*ih_src[SCC_ISRCCNT];
@@ -94,8 +94,8 @@ struct scc_chan {
 	struct scc_mode	ch_mode[SCC_NMODES];
 
 	u_int		ch_nr;
-	int		ch_enabled:1;
-	int		ch_sysdev:1;
+	bool		ch_enabled:1;
+	bool		ch_sysdev:1;
 
 	uint32_t	ch_ipend;
 	uint32_t	ch_hwsig;
@@ -130,9 +130,9 @@ struct scc_softc {
 
 	struct scc_chan	*sc_chan;
 
-	int		sc_fastintr:1;
-	int		sc_leaving:1;
-	int		sc_polled:1;
+	bool		sc_fastintr:1;
+	bool		sc_leaving:1;
+	bool		sc_polled:1;
 
 	uint32_t        sc_hwsig;       /* Signal state. Used by HW driver. */
 };
