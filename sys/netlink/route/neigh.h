@@ -49,7 +49,7 @@ enum {
 	NDA_DST,		/* binary: neigh l3 address */
 	NDA_LLADDR,		/* binary: neigh link-level address */
 	NDA_CACHEINFO,		/* binary, struct nda_cacheinfo */
-	NDA_PROBES,		/* XXX */
+	NDA_PROBES,		/* u32: number of probes sent */
 	NDA_VLAN,		/* upper 802.1Q tag */
 	NDA_PORT,		/* not supported */
 	NDA_VNI,		/* not supported */
@@ -63,10 +63,16 @@ enum {
 	NDA_FLAGS_EXT,		/* u32: ndm_flags */
 	NDA_NDM_STATE_MASK,	/* XXX */
 	NDA_NDM_FLAGS_MASK,	/* XXX */
+	NDA_FREEBSD,		/* nested: FreeBSD-specific */
 	__NDA_MAX
 };
 
 #define	NDA_MAX	(__NDA_MAX - 1)
+
+enum {
+	NDAF_UNSPEC,
+	NDAF_NEXT_STATE_TS,	/* (u32) seconds from time_uptime when moving to the next state */
+};
 
 
 /* ndm_flags / NDA_FLAGS_EXT */
