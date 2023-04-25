@@ -169,6 +169,8 @@ int nlattr_get_flag(struct nlattr *nla, struct nl_pstate *npt,
     const void *arg, void *target);
 int nlattr_get_ip(struct nlattr *nla, struct nl_pstate *npt,
     const void *arg, void *target);
+int nlattr_get_uint8(struct nlattr *nla, struct nl_pstate *npt,
+    const void *arg, void *target);
 int nlattr_get_uint16(struct nlattr *nla, struct nl_pstate *npt,
     const void *arg, void *target);
 int nlattr_get_uint32(struct nlattr *nla, struct nl_pstate *npt,
