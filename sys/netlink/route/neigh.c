@@ -479,7 +479,8 @@ rtnl_handle_delneigh(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *
 		return (EAFNOSUPPORT);
 
 	IF_AFDATA_WLOCK(attrs.nda_ifp);
-	struct llentry *lle = lla_lookup(llt, LLE_EXCLUSIVE, attrs.nda_dst);
+	struct llentry *lle = lla_lookup(llt, LLE_SF(attrs.ndm_family, LLE_EXCLUSIVE),
+	    attrs.nda_dst);
 	if (lle != NULL) {
 		if ((lle->la_flags & LLE_IFADDR) != 0) {
 			LLE_WUNLOCK(lle);
