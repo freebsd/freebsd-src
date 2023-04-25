@@ -233,6 +233,31 @@ ATF_TC_BODY(lookup_cap_dotdot__negative, tc)
 	ATF_REQUIRE_ERRNO(ENOTCAPABLE, openat(dirfd, "../testdir/d1/f1", O_RDONLY) < 0);
 }
 
+ATF_TC(lookup_cap_dotdot__root);
+ATF_TC_HEAD(lookup_cap_dotdot__root, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Validate cap-mode /.. lookup fails");
+}
+
+ATF_TC_BODY(lookup_cap_dotdot__root, tc)
+{
+	int dfd, dfd2;
+
+	check_capsicum();
+
+	dfd = open("/", O_DIRECTORY);
+	ATF_REQUIRE(dfd >= 0);
+
+	dfd2 = openat(dfd, "..", O_DIRECTORY);
+	ATF_REQUIRE(dfd2 >= 0);
+	ATF_REQUIRE(close(dfd2) == 0);
+
+	ATF_REQUIRE(cap_enter() >= 0);
+
+	dfd2 = openat(dfd, "..", O_DIRECTORY);
+	ATF_REQUIRE_ERRNO(ENOTCAPABLE, openat(dfd, "..", O_DIRECTORY));
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -244,6 +269,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, lookup_cap_dotdot__basic);
 	ATF_TP_ADD_TC(tp, lookup_cap_dotdot__advanced);
 	ATF_TP_ADD_TC(tp, lookup_cap_dotdot__negative);
+	ATF_TP_ADD_TC(tp, lookup_cap_dotdot__root);
 
 	return (atf_no_error());
 }
