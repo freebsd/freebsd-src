@@ -1462,6 +1462,6 @@ usage(void)
 	    "usage: ps " SINGLE_OPTS " [-O fmt | -o fmt] [-G gid[,gid...]]",
 	    "          [-J jid[,jid...]] [-M core] [-N system]",
 	    "          [-p pid[,pid...]] [-t tty[,tty...]] [-U user[,user...]]",
-	    "       ps [-L]");
+	    "       ps -L");
 	exit(1);
 }
