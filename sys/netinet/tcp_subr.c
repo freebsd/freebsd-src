@@ -2379,6 +2379,7 @@ tcp_discardcb(struct tcpcb *tp)
 {
 	struct inpcb *inp = tptoinpcb(tp);
 	struct socket *so = tptosocket(tp);
+	struct mbuf *m;
 #ifdef INET6
 	bool isipv6 = (inp->inp_vflag & INP_IPV6) != 0;
 #endif
@@ -2422,7 +2423,13 @@ tcp_discardcb(struct tcpcb *tp)
 #endif
 
 	CC_ALGO(tp) = NULL;
+	if ((m = STAILQ_FIRST(&tp->t_inqueue)) != NULL) {
+		struct mbuf *prev;
 
+		STAILQ_INIT(&tp->t_inqueue);
+		STAILQ_FOREACH_FROM_SAFE(m, &tp->t_inqueue, m_stailqpkt, prev)
+			m_freem(m);
+	}
 	TCPSTATES_DEC(tp->t_state);
 
 	if (tp->t_fb->tfb_tcp_fb_fini)
@@ -2430,7 +2437,6 @@ tcp_discardcb(struct tcpcb *tp)
 #ifdef TCP_BLACKBOX
 	tcp_log_tcpcbfini(tp);
 #endif
-	MPASS(STAILQ_EMPTY(&tp->t_inqueue));
 
 	/*
 	 * If we got enough samples through the srtt filter,
