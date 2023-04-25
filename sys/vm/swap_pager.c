@@ -426,7 +426,7 @@ static int	swap_pager_getpages(vm_object_t, vm_page_t *, int, int *,
     int *);
 static int	swap_pager_getpages_async(vm_object_t, vm_page_t *, int, int *,
     int *, pgo_getpages_iodone_t, void *);
-static void	swap_pager_putpages(vm_object_t, vm_page_t *, int, boolean_t, int *);
+static void	swap_pager_putpages(vm_object_t, vm_page_t *, int, int, int *);
 static boolean_t
 		swap_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before, int *after);
 static void	swap_pager_init(void);

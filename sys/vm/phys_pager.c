@@ -269,7 +269,7 @@ phys_pager_populate(vm_object_t object, vm_pindex_t pidx, int fault_type,
 }
 
 static void
-phys_pager_putpages(vm_object_t object, vm_page_t *m, int count, boolean_t sync,
+phys_pager_putpages(vm_object_t object, vm_page_t *m, int count, int flags,
     int *rtvals)
 {
 

@@ -56,7 +56,7 @@ static vm_object_t sg_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
 static void sg_pager_dealloc(vm_object_t);
 static int sg_pager_getpages(vm_object_t, vm_page_t *, int, int *, int *);
 static void sg_pager_putpages(vm_object_t, vm_page_t *, int, 
-		boolean_t, int *);
+		int, int *);
 static boolean_t sg_pager_haspage(vm_object_t, vm_pindex_t, int *,
 		int *);
 
@@ -211,7 +211,7 @@ sg_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
 
 static void
 sg_pager_putpages(vm_object_t object, vm_page_t *m, int count,
-    boolean_t sync, int *rtvals)
+    int flags, int *rtvals)
 {
 
 	panic("sg_pager_putpage called");
