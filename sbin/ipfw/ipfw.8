@@ -759,7 +759,7 @@ A packet can have multiple tags at the same time.
 Tags are "sticky", meaning once a tag is applied to a packet by a
 matching rule it exists until explicit removal.
 Tags are kept with the packet everywhere within the kernel, but are
-lost when packet leaves the kernel, for example, on transmitting
+lost when the packet leaves the kernel, for example, on transmitting
 packet out to the network or sending packet to a
 .Xr divert 4
 socket.
@@ -793,6 +793,27 @@ keyword, the tag with the number
 is searched among the tags attached to this packet and,
 if found, removed from it.
 Other tags bound to packet, if present, are left untouched.
+.It Cm setmark Ar value | tablearg
+When a packet matches a rule with the
+.Cm setmark
+keyword, a 32-bit numeric mark is assigned to the packet.
+The mark is an extension to the tags.
+As tags, mark is "sticky" so the value is kept the same within the kernel and
+is lost when the packet leaves the kernel.
+Unlike tags, mark can be matched as a lookup table key or compared with bitwise
+mask applied against another value.
+Each packet can have only one mark, so
+.Cm setmark
+always overwrites the previous mark value.
+.Pp
+The initial mark value is 0.
+To check the current mark value, use the
+.Cm mark
+rule option.
+Mark
+.Ar value
+can be entered as decimal or hexadecimal (if prefixed by 0x), and they
+are always printed as hexadecimal.
 .It Cm altq Ar queue
 When a packet matches a rule with the
 .Cm altq
@@ -1845,7 +1866,8 @@ set of parameters as specified in the rule.
 One or more
 of source and destination addresses and ports can be
 specified.
-.It Cm lookup Bro Cm dst-ip | dst-port | dst-mac | src-ip | src-port | src-mac | uid | jail Brc Ar name
+.It Cm lookup Bro Cm dst-ip | dst-port | dst-mac | src-ip | src-port | src-mac | uid |
+.Cm jail | dscp | mark Brc Ar name
 Search an entry in lookup table
 .Ar name
 that matches the field specified as argument.
@@ -2017,6 +2039,23 @@ specified in the same way as
 Tags can be applied to the packet using
 .Cm tag
 rule action parameter (see it's description for details on tags).
+.It Cm mark Ar value[:bitmask] | tablearg[:bitmask]
+Matches packets whose mark is equal to
+.Ar value
+with optional
+.Ar bitmask
+applied to it.
+.Cm tablearg
+can also be used instead of an explicit
+.Ar value
+to match a value supplied by the last table lookup.
+.Pp
+Both
+.Ar value
+and
+.Ar bitmask
+can be entered as decimal or hexadecimal (if prefixed by 0x), and they
+are always printed as hexadecimal.
 .It Cm tcpack Ar ack
 TCP packets only.
 Match if the TCP header acknowledgment number field is set to
@@ -2359,7 +2398,7 @@ The following value types are supported:
 .Bl -tag -width indent
 .It Ar value-mask : Ar value-type Ns Op , Ns Ar value-mask
 .It Ar value-type : Ar skipto | pipe | fib | nat | dscp | tag | divert |
-.Ar netgraph | limit | ipv4
+.Ar netgraph | limit | ipv4 | ipv6 | mark
 .It Cm skipto
 rule number to jump to.
 .It Cm pipe
@@ -2382,16 +2421,19 @@ maximum number of connections.
 IPv4 nexthop to fwd packets to.
 .It Cm ipv6
 IPv6 nexthop to fwd packets to.
+.It Cm mark
+mark value to match/set.
 .El
 .Pp
 The
 .Cm tablearg
 argument can be used with the following actions:
 .Cm nat, pipe, queue, divert, tee, netgraph, ngtee, fwd, skipto, setfib ,
+.Cm setmark ,
 action parameters:
 .Cm tag, untag ,
 rule options:
-.Cm limit, tagged .
+.Cm limit, tagged, mark .
 .Pp
 When used with the
 .Cm skipto
@@ -3326,8 +3368,8 @@ Obey transparent proxy rules only, packet aliasing is not performed.
 .It Cm skip_global
 Skip instance in case of global state lookup (see below).
 .It Cm port_range Ar lower-upper
-Set the aliasing ports between the ranges given. Upper port has to be greater
-than lower.
+Set the aliasing ports between the ranges given.
+Upper port has to be greater than lower.
 .El
 .Pp
 Some special values can be supplied instead of

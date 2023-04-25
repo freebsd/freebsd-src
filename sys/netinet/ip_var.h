@@ -272,13 +272,30 @@ void	in_delayed_cksum(struct mbuf *m);
  * On entry, the structure is valid if slot>0, and refers to the starting
  * rules. 'info' contains the reason for reinject, e.g. divert port,
  * divert direction, and so on.
+ *
+ * Packet Mark is an analogue to ipfw tags with O(1) lookup from mbuf while
+ * regular tags require a single-linked list traversal. Mark is a 32-bit
+ * number that can be looked up in a table [with 'number' table-type], matched
+ * or compared with a number with optional mask applied before comparison.
+ * Having generic nature, Mark can be used in a variety of needs.
+ * For example, it could be used as a security group: mark will hold a
+ * security group id and represent a group of packet flows that shares same
+ * access control policy.
+ * O_MASK opcode can match mark value bitwise so one can build a hierarchical
+ * model designating different meanings for a bit range(s).
  */
 struct ipfw_rule_ref {
+/* struct m_tag spans 24 bytes above this point, see mbuf_tags(9) */
+	/* spare space just to be save in case struct m_tag grows */
+/* -- 32 bytes -- */
 	uint32_t	slot;		/* slot for matching rule	*/
 	uint32_t	rulenum;	/* matching rule number		*/
 	uint32_t	rule_id;	/* matching rule id		*/
 	uint32_t	chain_id;	/* ruleset id			*/
 	uint32_t	info;		/* see below			*/
+	uint32_t	pkt_mark;	/* packet mark			*/
+	uint32_t	spare[2];
+/* -- 64 bytes -- */
 };
 
 enum {

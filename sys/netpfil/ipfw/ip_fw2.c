@@ -2127,6 +2127,11 @@ do {								\
 							eh->ether_shost;
 						keylen = ETHER_ADDR_LEN;
 						break;
+					case LOOKUP_MARK:
+						key = args->rule.pkt_mark;
+						pkey = &key;
+						keylen = sizeof(key);
+						break;
 					}
 					if (keylen == 0)
 						break;
@@ -2773,6 +2778,19 @@ do {								\
 				}
 				break;
 			}
+
+			case O_MARK: {
+				uint32_t mark;
+				if (cmd->arg1 == IP_FW_TARG)
+					mark = TARG_VAL(chain, tablearg, mark);
+				else
+					mark = ((ipfw_insn_u32 *)cmd)->d[0];
+				match =
+				    (args->rule.pkt_mark &
+				    ((ipfw_insn_u32 *)cmd)->d[1]) ==
+				    (mark & ((ipfw_insn_u32 *)cmd)->d[1]);
+				break;
+			}
 				
 			/*
 			 * The second set of opcodes represents 'actions',
@@ -3276,6 +3294,18 @@ do {								\
 				done = 1;	/* exit outer loop */
 				break;
 			}
+
+			case O_SETMARK: {
+				l = 0;		/* exit inner loop */
+				args->rule.pkt_mark = (
+				    (cmd->arg1 == IP_FW_TARG) ?
+				    TARG_VAL(chain, tablearg, mark) :
+				    ((ipfw_insn_u32 *)cmd)->d[0]);
+
+				IPFW_INC_RULE_COUNTER(f, pktlen);
+				break;
+			}
+
 			case O_EXTERNAL_ACTION:
 				l = 0; /* in any case exit inner loop */
 				retval = ipfw_run_eaction(chain, args,

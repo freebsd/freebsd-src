@@ -2760,6 +2760,7 @@ classify_srcdst(ipfw_insn *cmd, uint16_t *puidx, uint8_t *ptype)
 		case LOOKUP_UID:
 		case LOOKUP_JAIL:
 		case LOOKUP_DSCP:
+		case LOOKUP_MARK:
 			*ptype = IPFW_TABLE_NUMBER;
 			break;
 		case LOOKUP_DST_MAC:

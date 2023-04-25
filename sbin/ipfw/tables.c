@@ -106,6 +106,7 @@ static struct _s_x tablevaltypes[] = {
       { "limit",	IPFW_VTYPE_LIMIT },
       { "ipv4",		IPFW_VTYPE_NH4 },
       { "ipv6",		IPFW_VTYPE_NH6 },
+      { "mark",		IPFW_VTYPE_MARK },
       { NULL, 0 }
 };
 
@@ -916,7 +917,7 @@ table_do_modify_record(int cmd, ipfw_obj_header *oh,
 
 	memcpy(pbuf, oh, sizeof(*oh));
 	oh = (ipfw_obj_header *)pbuf;
-	oh->opheader.version = 1;
+	oh->opheader.version = 1; /* Current version */
 
 	ctlv = (ipfw_obj_ctlv *)(oh + 1);
 	ctlv->count = count;
@@ -1662,6 +1663,11 @@ tentry_fill_value(ipfw_obj_header *oh __unused, ipfw_obj_tentry *tent,
 			}
 			etype = "ipv6";
 			break;
+		case IPFW_VTYPE_MARK:
+			v->mark = strtol(n, &e, 16);
+			if (*e != '\0')
+				etype = "mark";
+			break;
 		}
 
 		if (etype != NULL)
@@ -1878,6 +1884,9 @@ table_show_value(char *buf, size_t bufsize, ipfw_table_value *v,
 			    NI_NUMERICHOST) == 0)
 				l = snprintf(buf, sz, "%s,", abuf);
 			break;
+		case IPFW_VTYPE_MARK:
+			l = snprintf(buf, sz, "%#x,", v->mark);
+			break;
 		}
 
 		buf += l;
@@ -2034,37 +2043,17 @@ ipfw_list_ta(int ac __unused, char *av[] __unused)
 }
 
 
-/* Copy of current kernel table_value structure */
-struct _table_value {
-	uint32_t	tag;		/* O_TAG/O_TAGGED */
-	uint32_t	pipe;		/* O_PIPE/O_QUEUE */
-	uint16_t	divert;		/* O_DIVERT/O_TEE */
-	uint16_t	skipto;		/* skipto, CALLRET */
-	uint32_t	netgraph;	/* O_NETGRAPH/O_NGTEE */
-	uint32_t	fib;		/* O_SETFIB */
-	uint32_t	nat;		/* O_NAT */
-	uint32_t	nh4;
-	uint8_t		dscp;
-	uint8_t		spare0;
-	uint16_t	spare1;
-	/* -- 32 bytes -- */
-	struct in6_addr	nh6;
-	uint32_t	limit;		/* O_LIMIT */
-	uint32_t	zoneid;
-	uint64_t	refcnt;		/* Number of references */
-};
-
 static int
 compare_values(const void *_a, const void *_b)
 {
-	const struct _table_value *a, *b;
+	const ipfw_table_value *a, *b;
 
-	a = (const struct _table_value *)_a;
-	b = (const struct _table_value *)_b;
+	a = (const ipfw_table_value *)_a;
+	b = (const ipfw_table_value *)_b;
 
-	if (a->spare1 < b->spare1)
+	if (a->kidx < b->kidx)
 		return (-1);
-	else if (a->spare1 > b->spare1)
+	else if (a->kidx > b->kidx)
 		return (1);
 
 	return (0);
@@ -2075,7 +2064,7 @@ ipfw_list_values(int ac __unused, char *av[] __unused)
 {
 	char buf[128];
 	ipfw_obj_lheader *olh;
-	struct _table_value *v;
+	ipfw_table_value *v;
 	uint32_t i, vmask;
 	int error;
 
@@ -2087,13 +2076,13 @@ ipfw_list_values(int ac __unused, char *av[] __unused)
 
 	table_print_valheader(buf, sizeof(buf), vmask);
 	printf("HEADER: %s\n", buf);
-	v = (struct _table_value *)(olh + 1);
+	v = (ipfw_table_value *)(olh + 1);
 	qsort(v, olh->count, olh->objsize, compare_values);
 	for (i = 0; i < olh->count; i++) {
 		table_show_value(buf, sizeof(buf), (ipfw_table_value *)v,
 		    vmask, 0);
-		printf("[%u] refs=%lu %s\n", v->spare1, (u_long)v->refcnt, buf);
-		v = (struct _table_value *)((caddr_t)v + olh->objsize);
+		printf("[%u] refs=%lu %s\n", v->kidx, (u_long)v->refcnt, buf);
+		v = (ipfw_table_value *)((caddr_t)v + olh->objsize);
 	}
 
 	free(olh);
