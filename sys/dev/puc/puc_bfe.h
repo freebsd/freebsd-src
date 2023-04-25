@@ -65,10 +65,10 @@ struct puc_softc {
 	int		sc_nports;
 	struct puc_port *sc_port;
 
-	int		sc_fastintr:1;
-	int		sc_leaving:1;
-	int		sc_polled:1;
-	int		sc_msi:1;
+	bool		sc_fastintr:1;
+	bool		sc_leaving:1;
+	bool		sc_polled:1;
+	bool		sc_msi:1;
 
 	int		sc_ilr;
 

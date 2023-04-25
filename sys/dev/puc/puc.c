@@ -60,7 +60,7 @@ struct puc_port {
 	int		p_type;
 	int		p_rclk;
 
-	int		p_hasintr:1;
+	bool		p_hasintr:1;
 
 	serdev_intr_t	*p_ihsrc[PUC_ISRCCNT];
 	void		*p_iharg;
