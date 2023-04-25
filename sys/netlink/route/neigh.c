@@ -539,6 +539,7 @@ static const struct rtnl_cmd_handler cmd_handlers[] = {
 		.cmd = NL_RTM_NEWNEIGH,
 		.name = "RTM_NEWNEIGH",
 		.cb = &rtnl_handle_newneigh,
+		.priv = PRIV_NET_ROUTE,
 	},
 	{
 		.cmd = NL_RTM_DELNEIGH,
