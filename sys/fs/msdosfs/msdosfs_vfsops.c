@@ -700,11 +700,14 @@ mountmsdosfs(struct vnode *odevvp, struct mount *mp)
 	}
 	pmp->pm_maxcluster = (pmp->pm_HugeSectors - pmp->pm_firstcluster) /
 	    SecPerClust + 1;
-	pmp->pm_fatsize = pmp->pm_FATsecs * DEV_BSIZE;	/* XXX not used? */
+	pmp->pm_fatsize = pmp->pm_FATsecs * DEV_BSIZE;
 
 	if (pmp->pm_fatmask == 0) {
-		if (pmp->pm_maxcluster <= ((CLUST_RSRVD - CLUST_FIRST) &
-		    FAT12_MASK)) {
+		/*
+		 * The last 10 (or 16?) clusters are reserved and must not
+		 * be allocated for data.
+		 */
+		if (pmp->pm_maxcluster < (CLUST_RSRVD & FAT12_MASK)) {
 			/*
 			 * This will usually be a floppy disk. This size makes
 			 * sure that one FAT entry will not be split across
@@ -720,11 +723,11 @@ mountmsdosfs(struct vnode *odevvp, struct mount *mp)
 		}
 	}
 
-	clusters = (pmp->pm_fatsize / pmp->pm_fatmult) * pmp->pm_fatdiv;
+	clusters = (pmp->pm_fatsize / pmp->pm_fatmult) * pmp->pm_fatdiv ;
 	if (pmp->pm_maxcluster >= clusters) {
 #ifdef MSDOSFS_DEBUG
 		printf("Warning: number of clusters (%ld) exceeds FAT "
-		    "capacity (%ld)\n", pmp->pm_maxcluster + 1, clusters);
+		    "capacity (%ld)\n", pmp->pm_maxcluster - 1, clusters);
 #endif
 		pmp->pm_maxcluster = clusters - 1;
 	}
@@ -1045,7 +1048,7 @@ msdosfs_statfs(struct mount *mp, struct statfs *sbp)
 	pmp = VFSTOMSDOSFS(mp);
 	sbp->f_bsize = pmp->pm_bpcluster;
 	sbp->f_iosize = pmp->pm_bpcluster;
-	sbp->f_blocks = pmp->pm_maxcluster + 1;
+	sbp->f_blocks = pmp->pm_maxcluster - CLUST_FIRST + 1;
 	sbp->f_bfree = pmp->pm_freeclustercount;
 	sbp->f_bavail = pmp->pm_freeclustercount;
 	sbp->f_files =	howmany(pmp->pm_rootdirsize * DEV_BSIZE,
