@@ -153,10 +153,9 @@ INLINE_LIMIT?=	8000
 
 #
 # For RISC-V we specify the soft-float ABI (lp64) to avoid the use of floating
-# point registers within the kernel. However, for kernels supporting hardware
-# float (FPE), we have to include that in the march so we can have limited
-# floating point support in context switching needed for that. This is different
-# than userland where we use a hard-float ABI (lp64d).
+# point registers within the kernel. However, we include the F and D extensions
+# in -march so we can have limited floating point support in context switching
+# code. This is different than userland where we use a hard-float ABI (lp64d).
 #
 # We also specify the "medium" code model, which generates code suitable for a
 # 2GiB addressing range located at any offset, allowing modules to be located

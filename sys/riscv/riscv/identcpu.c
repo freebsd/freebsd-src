@@ -203,10 +203,8 @@ parse_riscv_isa(char *isa, int len, u_long *hwcapp)
 		switch(isa[i]) {
 		case 'a':
 		case 'c':
-#ifdef FPE
 		case 'd':
 		case 'f':
-#endif
 		case 'i':
 		case 'm':
 			hwcap |= HWCAP_ISA_BIT(isa[i]);

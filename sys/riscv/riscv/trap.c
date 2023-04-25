@@ -57,9 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/vm_extern.h>
 
-#ifdef FPE
 #include <machine/fpe.h>
-#endif
 #include <machine/frame.h>
 #include <machine/pcb.h>
 #include <machine/pcpu.h>
@@ -395,7 +393,6 @@ do_trap_user(struct trapframe *frame)
 		ecall_handler();
 		break;
 	case SCAUSE_ILLEGAL_INSTRUCTION:
-#ifdef FPE
 		if ((pcb->pcb_fpflags & PCB_FP_STARTED) == 0) {
 			/*
 			 * May be a FPE trap. Enable FPE usage
@@ -407,7 +404,6 @@ do_trap_user(struct trapframe *frame)
 			pcb->pcb_fpflags |= PCB_FP_STARTED;
 			break;
 		}
-#endif
 		call_trapsignal(td, SIGILL, ILL_ILLTRP, (void *)frame->tf_sepc,
 		    exception);
 		userret(td, frame);
