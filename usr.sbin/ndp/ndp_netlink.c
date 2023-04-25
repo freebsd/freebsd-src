@@ -255,7 +255,7 @@ print_entry(struct snl_parsed_neigh *neigh, struct snl_parsed_link_simple *link)
 	xo_emit(xobuf, host_buf, ether_str(&sdl), ifname);
 
 	/* Print neighbor discovery specific information */
-	uint32_t expire = neigh->ndaf_next_ts;
+	time_t expire = (time_t)neigh->ndaf_next_ts;
 	int expire_in = expire - now.tv_sec;
 	if (expire > now.tv_sec)
 		xo_emit("{d:/ %-9.9s}{e:expires_sec/%d}", sec2str(expire_in), expire_in);
