@@ -1,5 +1,4 @@
 # $FreeBSD$
 
 RISCV				opt_global.h	# For cpu RISCV to work
-FPE				opt_global.h
 INTRNG				opt_global.h
