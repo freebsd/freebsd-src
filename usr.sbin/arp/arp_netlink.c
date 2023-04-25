@@ -382,7 +382,6 @@ set_nl(uint32_t ifindex, struct sockaddr_in *dst, struct sockaddr_dl *sdl, char 
 
 	if (opts.expire_time != 0)
 		opts.flags &= ~RTF_STATIC;
-	printf("EXPIRE: %ld\n", opts.expire_time);
 
 	snl_init_writer(&ss, &nw);
 	struct nlmsghdr *hdr = snl_create_msg_request(&nw, RTM_NEWNEIGH);
