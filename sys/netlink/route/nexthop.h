@@ -56,9 +56,20 @@ enum {
 	NHA_FDB,	/* not supported */
 	NHA_RES_GROUP,	/* not supported */
 	NHA_RES_BUCKET,	/* not supported */
+	NHA_FREEBSD,	/* nested: FreeBSD-specific attributes */
 	__NHA_MAX,
 };
 #define NHA_MAX	(__NHA_MAX - 1)
+
+enum {
+	NHAF_UNSPEC,
+	NHAF_KNHOPS,	/* flag: dump kernel nexthops */
+	NHAF_KGOUPS,	/* flag: dump kernel nexthop groups */
+	NHAF_TABLE,	/* u32: rtable id */
+	NHAF_FAMILY,	/* u32: upper family */
+	NHAF_KID,	/* u32: kernel nexthop index */
+	NHAF_AIF,	/* u32: source interface address */
+};
 
 /*
  * Attributes that can be used as filters:
