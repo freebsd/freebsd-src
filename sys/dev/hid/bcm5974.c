@@ -114,11 +114,13 @@ enum tp_type {
 	TYPE2,			/* button integrated in trackpad */
 	TYPE3,			/* additional header fields since June 2013 */
 	TYPE4,                  /* additional header field for pressure data */
+	TYPE_MT2U,			/* Magic Trackpad 2 USB */
 	TYPE_CNT
 };
 
 /* list of device capability bits */
 #define	HAS_INTEGRATED_BUTTON	1
+#define	USES_COMPACT_REPORT	2
 
 struct tp_type_params {
 	uint8_t	caps;		/* device capability bitmask */
@@ -150,6 +152,36 @@ struct tp_type_params {
 		.offset = 23 * 2,
 		.delta = 2,
 	},
+	[TYPE_MT2U] = {
+		.caps = HAS_INTEGRATED_BUTTON | USES_COMPACT_REPORT,
+		.button = 1,
+		.offset = 12,
+		.delta = 0,
+	},
+};
+
+/* trackpad finger structure - compact version for external "Magic" devices */
+struct tp_finger_compact {
+	uint32_t coords; /* not struct directly due to endian conversion */
+	uint8_t touch_major;
+	uint8_t touch_minor;
+	uint8_t size;
+	uint8_t pressure;
+	unsigned int orientation: 3;
+	unsigned int _unknown1: 1;
+	unsigned int id: 4;
+} __packed;
+
+_Static_assert((sizeof(struct tp_finger_compact) == 9), "tp_finger struct size must be 9");
+
+union tp_finger_compact_coords {
+	uint32_t num;
+	struct {
+		signed int x: 13;
+		signed int y: 13;
+		signed int _unknown: 4;
+		signed int state: 2;
+	} __packed;
 };
 
 /* trackpad finger structure - little endian */
@@ -191,6 +223,7 @@ enum {
 	BCM5974_FLAG_WELLSPRING7A,
 	BCM5974_FLAG_WELLSPRING8,
 	BCM5974_FLAG_WELLSPRING9,
+	BCM5974_FLAG_MAGIC_TRACKPAD2_USB,
 	BCM5974_FLAG_MAX,
 };
 
@@ -342,6 +375,15 @@ static const struct bcm5974_dev_params bcm5974_dev_params[BCM5974_FLAG_MAX] = {
 		.o = { SN_ORIENT,
 		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
 	},
+	[BCM5974_FLAG_MAGIC_TRACKPAD2_USB] = {
+		.tp = tp + TYPE_MT2U,
+		.p = { SN_PRESSURE, 0, 256, 256 },
+		.w = { SN_WIDTH, 0, 2048, 0 },
+		.x = { SN_COORD, -3678, 3934, 48 },
+		.y = { SN_COORD, -2478, 2587, 44 },
+		.o = { SN_ORIENT,
+		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
+	},
 };
 
 #define	BCM5974_DEV(v,p,i)	{					\
@@ -415,6 +457,9 @@ static const struct hid_device_id bcm5974_devs[] = {
 	BCM5974_DEV(APPLE, WELLSPRING9_ANSI, BCM5974_FLAG_WELLSPRING9),
 	BCM5974_DEV(APPLE, WELLSPRING9_ISO, BCM5974_FLAG_WELLSPRING9),
 	BCM5974_DEV(APPLE, WELLSPRING9_JIS, BCM5974_FLAG_WELLSPRING9),
+
+	/* External "Magic" devices */
+	BCM5974_DEV(APPLE, MAGIC_TRACKPAD2, BCM5974_FLAG_MAGIC_TRACKPAD2_USB),
 };
 
 struct bcm5974_softc {
@@ -550,6 +595,7 @@ bcm5974_set_device_mode(struct bcm5974_softc *sc, bool on)
 	case TYPE3:	/* Type 3 does not require a mode switch */
 		break;
 	case TYPE4:
+	case TYPE_MT2U:
 		err = bcm5974_set_device_mode_hid(sc, on);
 		break;
 	default:
@@ -636,8 +682,10 @@ bcm5974_attach(device_t dev)
 	BCM5974_ABS(sc->sc_evdev, ABS_MT_TOUCH_MAJOR, sc->sc_params->w);
 	BCM5974_ABS(sc->sc_evdev, ABS_MT_TOUCH_MINOR, sc->sc_params->w);
 	/* finger approach area */
-	BCM5974_ABS(sc->sc_evdev, ABS_MT_WIDTH_MAJOR, sc->sc_params->w);
-	BCM5974_ABS(sc->sc_evdev, ABS_MT_WIDTH_MINOR, sc->sc_params->w);
+	if ((sc->sc_params->tp->caps & USES_COMPACT_REPORT) == 0) {
+		BCM5974_ABS(sc->sc_evdev, ABS_MT_WIDTH_MAJOR, sc->sc_params->w);
+		BCM5974_ABS(sc->sc_evdev, ABS_MT_WIDTH_MINOR, sc->sc_params->w);
+	}
 	/* finger orientation */
 	BCM5974_ABS(sc->sc_evdev, ABS_MT_ORIENTATION, sc->sc_params->o);
 	/* button properties */
@@ -649,7 +697,8 @@ bcm5974_attach(device_t dev)
 	    0, MAX_FINGERS - 1, 0, 0, 0);
 	evdev_support_abs(sc->sc_evdev, ABS_MT_TRACKING_ID,
 	    -1, MAX_FINGERS - 1, 0, 0, 0);
-	evdev_set_flag(sc->sc_evdev, EVDEV_FLAG_MT_TRACK);
+	if ((sc->sc_params->tp->caps & USES_COMPACT_REPORT) == 0)
+		evdev_set_flag(sc->sc_evdev, EVDEV_FLAG_MT_TRACK);
 	evdev_set_flag(sc->sc_evdev, EVDEV_FLAG_MT_AUTOREL);
 	/* Synaptics compatibility events */
 	evdev_set_flag(sc->sc_evdev, EVDEV_FLAG_MT_STCOMPAT);
@@ -694,11 +743,16 @@ bcm5974_intr(void *context, void *data, hid_size_t len)
 	const struct bcm5974_dev_params *params = sc->sc_params;
 	union evdev_mt_slot slot_data;
 	struct tp_finger *f;
+	struct tp_finger_compact *fc;
+	union tp_finger_compact_coords coords;
 	int ntouch;			/* the finger number in touch */
 	int ibt;			/* button status */
 	int i;
 	int slot;
 	uint8_t fsize = sizeof(struct tp_finger) + params->tp->delta;
+
+	if ((params->tp->caps & USES_COMPACT_REPORT) != 0)
+		fsize = sizeof(struct tp_finger_compact) + params->tp->delta;
 
 	if ((len < params->tp->offset + fsize) ||
 	    ((len - params->tp->offset) % fsize) != 0) {
@@ -711,6 +765,32 @@ bcm5974_intr(void *context, void *data, hid_size_t len)
 	ntouch = (len - params->tp->offset) / fsize;
 
 	for (i = 0, slot = 0; i != ntouch; i++) {
+		if ((params->tp->caps & USES_COMPACT_REPORT) != 0) {
+			fc = (struct tp_finger_compact *)(((uint8_t *)data) +
+			     params->tp->offset + params->tp->delta + i * fsize);
+			coords.num = le32toh(fc->coords);
+			DPRINTFN(BCM5974_LLEVEL_INFO,
+			    "[%d]ibt=%d, taps=%d, x=%5d, y=%5d, state=%4d, "
+			    "tchmaj=%4d, tchmin=%4d, size=%4d, pressure=%4d, "
+			    "ot=%4x, id=%4x\n",
+			    i, ibt, ntouch, coords.x, coords.y,
+			    fc->state, fc->touch_major, fc->touch_minor, fc->size,
+			    fc->pressure, fc->orientation, fc->id);
+			if (fc->touch_major == 0)
+				continue;
+			slot_data = (union evdev_mt_slot) {
+				.id = fc->id,
+				.x = coords.x,
+				.y = params->y.min + params->y.max - coords.y,
+				.p = fc->pressure,
+				.maj = fc->touch_major << 2,
+				.min = fc->touch_minor << 2,
+				.ori = -fc->orientation,
+			};
+			evdev_mt_push_slot(sc->sc_evdev, slot, &slot_data);
+			slot++;
+			continue;
+		}
 		f = (struct tp_finger *)(((uint8_t *)data) +
 		    params->tp->offset + params->tp->delta + i * fsize);
 		DPRINTFN(BCM5974_LLEVEL_INFO,
