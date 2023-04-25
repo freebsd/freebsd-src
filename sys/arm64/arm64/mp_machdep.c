@@ -126,8 +126,6 @@ static void ipi_preempt(void *);
 static void ipi_rendezvous(void *);
 static void ipi_stop(void *);
 
-struct pcb stoppcbs[MAXCPU];
-
 #ifdef FDT
 static u_int fdt_cpuid;
 #endif

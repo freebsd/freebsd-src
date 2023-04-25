@@ -61,8 +61,6 @@ uintptr_t cpudep_ap_bootstrap(void);
 void	cpudep_ap_setup(void);
 void	machdep_ap_bootstrap(void);
 
-extern struct pcb stoppcbs[];
-
 #endif /* !LOCORE */
 #endif /* _KERNEL */
 #endif /* !_MACHINE_SMP_H */
