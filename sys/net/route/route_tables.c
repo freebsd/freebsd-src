@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/vnet.h>
 #include <net/route.h>
+#include <net/route/route_ctl.h>
 #include <net/route/route_var.h>
 
 /* Kernel config default option. */
@@ -384,6 +385,16 @@ struct rib_head *
 rt_tables_get_rnh(uint32_t table, sa_family_t family)
 {
 
+	return (rt_tables_get_rnh_ptr(table, family));
+}
+
+struct rib_head *
+rt_tables_get_rnh_safe(uint32_t table, sa_family_t family)
+{
+	if (__predict_false(table >= V_rt_numfibs))
+		return (NULL);
+	if (__predict_false(family >= (AF_MAX + 1)))
+		return (NULL);
 	return (rt_tables_get_rnh_ptr(table, family));
 }
 

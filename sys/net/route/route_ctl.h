@@ -35,6 +35,8 @@
 #ifndef	_NET_ROUTE_ROUTE_CTL_H_
 #define	_NET_ROUTE_ROUTE_CTL_H_
 
+struct rib_head *rt_tables_get_rnh_safe(uint32_t table, sa_family_t family);
+
 struct rib_cmd_info {
 	uint8_t			rc_cmd;		/* RTM_ADD|RTM_DEL|RTM_CHANGE */
 	uint8_t			spare[3];
