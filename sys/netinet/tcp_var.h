@@ -677,16 +677,6 @@ tcp_output(struct tcpcb *tp)
 	return (rv);
 }
 
-static inline void
-tcp_lro_features_off(struct inpcb *inp)
-{
-	inp->inp_flags2 &= ~(INP_SUPPORTS_MBUFQ|
-	    INP_MBUF_QUEUE_READY|
-	    INP_DONT_SACK_QUEUE|
-	    INP_MBUF_ACKCMP|
-	    INP_MBUF_L_ACKS);
-}
-
 /*
  * tcp_output_unlock()
  * Always returns unlocked, handles drop request from advanced stacks.
@@ -853,6 +843,12 @@ tcp_packets_this_ack(struct tcpcb *tp, tcp_seq ack)
 #define	TF2_ECN_USE_ECT1	0x00000800 /* Use ECT(1) marking on session */
 #define TF2_TCP_ACCOUNTING	0x00001000 /* Do TCP accounting */
 #define	TF2_HPTS_CALLS		0x00002000 /* tcp_output() called via HPTS */
+#define	TF2_MBUF_L_ACKS		0x00004000 /* large mbufs for ack compression */
+#define	TF2_MBUF_ACKCMP		0x00008000 /* mbuf ack compression ok */
+#define	TF2_SUPPORTS_MBUFQ	0x00010000 /* Supports the mbuf queue method */
+#define	TF2_MBUF_QUEUE_READY	0x00020000 /* Inputs can be queued */
+#define	TF2_DONT_SACK_QUEUE	0x00040000 /* Don't wake on sack */
+#define	TF2_CANNOT_DO_ECN	0x00080000 /* The stack does not do ECN */
 
 /*
  * Structure to hold TCP options that are only used during segment
@@ -1543,6 +1539,15 @@ tcp_http_alloc_req_full(struct tcpcb *tp, struct http_req *req, uint64_t ts, int
 int tcp_do_ack_accounting(struct tcpcb *tp, struct tcphdr *th, struct tcpopt *to, uint32_t tiwin, int mss);
 #endif
 
+static inline void
+tcp_lro_features_off(struct tcpcb *tp)
+{
+	tp->t_flags2 &= ~(TF2_SUPPORTS_MBUFQ|
+	    TF2_MBUF_QUEUE_READY|
+	    TF2_DONT_SACK_QUEUE|
+	    TF2_MBUF_ACKCMP|
+	    TF2_MBUF_L_ACKS);
+}
 
 static inline void
 tcp_fields_to_host(struct tcphdr *th)

@@ -1073,7 +1073,7 @@ tcp_default_fb_init(struct tcpcb *tp, void **ptr)
 
 	/* Make sure we get no interesting mbuf queuing behavior */
 	/* All mbuf queue/ack compress flags should be off */
-	tcp_lro_features_off(tptoinpcb(tp));
+	tcp_lro_features_off(tp);
 
 	/* Cancel the GP measurement in progress */
 	tp->t_flags &= ~TF_GPUTINPROG;
@@ -2270,7 +2270,7 @@ tcp_newtcpcb(struct inpcb *inp)
 		V_tcp_mssdflt;
 
 	/* All mbuf queue/ack compress flags should be off */
-	tcp_lro_features_off(tptoinpcb(tp));
+	tcp_lro_features_off(tp);
 
 	callout_init_rw(&tp->t_callout, &inp->inp_lock, CALLOUT_RETURNUNLOCKED);
 	for (int i = 0; i < TT_N; i++)
@@ -4051,14 +4051,14 @@ tcp_default_switch_failed(struct tcpcb *tp)
 	/*
 	 * If a switch fails we only need to
 	 * care about two things:
-	 * a) The inp_flags2
+	 * a) The t_flags2
 	 * and
 	 * b) The timer granularity.
 	 * Timeouts, at least for now, don't use the
 	 * old callout system in the other stacks so
 	 * those are hopefully safe.
 	 */
-	tcp_lro_features_off(tptoinpcb(tp));
+	tcp_lro_features_off(tp);
 	tcp_change_time_units(tp, TCP_TMR_GRANULARITY_TICKS);
 }
 
@@ -4236,15 +4236,15 @@ tcp_handle_orphaned_packets(struct tcpcb *tp)
 	/*
 	 * Called when a stack switch is occuring from the fini()
 	 * of the old stack. We assue the init() as already been
-	 * run of the new stack and it has set the inp_flags2 to
+	 * run of the new stack and it has set the t_flags2 to
 	 * what it supports. This function will then deal with any
 	 * differences i.e. cleanup packets that maybe queued that
 	 * the newstack does not support.
 	 */
 
-	if (tptoinpcb(tp)->inp_flags2 & INP_MBUF_L_ACKS)
+	if (tp->t_flags2 & TF2_MBUF_L_ACKS)
 		return;
-	if ((tptoinpcb(tp)->inp_flags2 & INP_SUPPORTS_MBUFQ) == 0 &&
+	if ((tp->t_flags2 & TF2_SUPPORTS_MBUFQ) == 0 &&
 	    !STAILQ_EMPTY(&tp->t_inqueue)) {
 		/*
 		 * It is unsafe to process the packets since a

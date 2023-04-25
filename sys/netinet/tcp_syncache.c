@@ -1724,7 +1724,7 @@ skip_alloc:
 	if (ltflags & TF_NOOPT)
 		sc->sc_flags |= SCF_NOOPT;
 	/* ECN Handshake */
-	if (V_tcp_do_ecn && (inp->inp_flags2 & INP_CANNOT_DO_ECN) == 0)
+	if (V_tcp_do_ecn && (tp->t_flags2 & TF2_CANNOT_DO_ECN) == 0)
 		sc->sc_flags |= tcp_ecn_syncache_add(tcp_get_flags(th), iptos);
 
 	if (V_tcp_syncookies)

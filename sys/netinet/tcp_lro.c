@@ -91,7 +91,7 @@ static int	tcp_lro_rx_common(struct lro_ctrl *lc, struct mbuf *m,
 		    uint32_t csum, bool use_hash);
 
 #ifdef TCPHPTS
-static bool	do_bpf_strip_and_compress(struct inpcb *, struct lro_ctrl *,
+static bool	do_bpf_strip_and_compress(struct tcpcb *, struct lro_ctrl *,
 		struct lro_entry *, struct mbuf **, struct mbuf **, struct mbuf **,
  		bool *, bool, bool, struct ifnet *, bool);
 
@@ -1192,13 +1192,9 @@ tcp_queue_pkts(struct tcpcb *tp, struct lro_entry *le)
 }
 
 static bool
-tcp_lro_check_wake_status(struct inpcb *inp)
+tcp_lro_check_wake_status(struct tcpcb *tp)
 {
-	struct tcpcb *tp;
 
-	tp = intotcpcb(inp);
-	if (__predict_false(tp == NULL))
-		return (true);
 	if (tp->t_fb->tfb_early_wake_check != NULL)
 		return ((tp->t_fb->tfb_early_wake_check)(tp));
 	return (false);
@@ -1206,14 +1202,9 @@ tcp_lro_check_wake_status(struct inpcb *inp)
 
 static struct mbuf *
 tcp_lro_get_last_if_ackcmp(struct lro_ctrl *lc, struct lro_entry *le,
-    struct inpcb *inp, int32_t *new_m, bool can_append_old_cmp)
+    struct tcpcb *tp, int32_t *new_m, bool can_append_old_cmp)
 {
-	struct tcpcb *tp;
 	struct mbuf *m;
-
-	tp = intotcpcb(inp);
-	if (__predict_false(tp == NULL))
-		return (NULL);
 
 	/* Look at the last mbuf if any in queue */
  	if (can_append_old_cmp) {
@@ -1226,13 +1217,13 @@ tcp_lro_get_last_if_ackcmp(struct lro_ctrl *lc, struct lro_entry *le,
 				return (m);
 			} else {
 				/* Mark we ran out of space */
-				inp->inp_flags2 |= INP_MBUF_L_ACKS;
+				tp->t_flags2 |= TF2_MBUF_L_ACKS;
 			}
 		}
 	}
 	/* Decide mbuf size. */
 	tcp_lro_log(tp, lc, le, NULL, 21, 0, 0, 0, 0);
-	if (inp->inp_flags2 & INP_MBUF_L_ACKS)
+	if (tp->t_flags2 & TF2_MBUF_L_ACKS)
 		m = m_getcl(M_NOWAIT, MT_DATA, M_ACKCMP | M_PKTHDR);
 	else
 		m = m_gethdr(M_NOWAIT, MT_DATA);
@@ -1248,7 +1239,7 @@ tcp_lro_get_last_if_ackcmp(struct lro_ctrl *lc, struct lro_entry *le,
 	return (m);
 }
 
-static struct inpcb *
+static struct tcpcb *
 tcp_lro_lookup(struct ifnet *ifp, struct lro_parser *pa)
 {
 	struct inpcb *inp;
@@ -1277,10 +1268,10 @@ tcp_lro_lookup(struct ifnet *ifp, struct lro_parser *pa)
 		break;
 #endif
 	default:
-		inp = NULL;
-		break;
+		return (NULL);
 	}
-	return (inp);
+
+	return (intotcpcb(inp));
 }
 
 static inline bool
@@ -1335,7 +1326,6 @@ tcp_lro_ack_valid(struct mbuf *m, struct tcphdr *th, uint32_t **ppts, bool *othe
 static int
 tcp_lro_flush_tcphpts(struct lro_ctrl *lc, struct lro_entry *le)
 {
-	struct inpcb *inp;
 	struct tcpcb *tp;
 	struct mbuf **pp, *cmp, *mv_to;
 	struct ifnet *lagg_ifp;
@@ -1364,31 +1354,28 @@ tcp_lro_flush_tcphpts(struct lro_ctrl *lc, struct lro_entry *le)
 	    IN6_IS_ADDR_UNSPECIFIED(&le->inner.data.s_addr.v6)))
 		return (TCP_LRO_CANNOT);
 #endif
-	/* Lookup inp, if any. */
-	inp = tcp_lro_lookup(lc->ifp,
+	/* Lookup inp, if any.  Returns locked TCP inpcb. */
+	tp = tcp_lro_lookup(lc->ifp,
 	    (le->inner.data.lro_type == LRO_TYPE_NONE) ? &le->outer : &le->inner);
-	if (inp == NULL)
+	if (tp == NULL)
 		return (TCP_LRO_CANNOT);
 
 	counter_u64_add(tcp_inp_lro_locks_taken, 1);
 
-	/* Get TCP control structure. */
-	tp = intotcpcb(inp);
-
 	/* Check if the inp is dead, Jim. */
 	if (tp->t_state == TCPS_TIME_WAIT) {
-		INP_WUNLOCK(inp);
+		INP_WUNLOCK(tptoinpcb(tp));
 		return (TCP_LRO_CANNOT);
 	}
 	if (tp->t_lro_cpu == HPTS_CPU_NONE && lc->lro_cpu_is_set == 1)
 		tp->t_lro_cpu = lc->lro_last_cpu;
 	/* Check if the transport doesn't support the needed optimizations. */
-	if ((inp->inp_flags2 & (INP_SUPPORTS_MBUFQ | INP_MBUF_ACKCMP)) == 0) {
-		INP_WUNLOCK(inp);
+	if ((tp->t_flags2 & (TF2_SUPPORTS_MBUFQ | TF2_MBUF_ACKCMP)) == 0) {
+		INP_WUNLOCK(tptoinpcb(tp));
 		return (TCP_LRO_CANNOT);
 	}
 
-	if (inp->inp_flags2 & INP_MBUF_QUEUE_READY)
+	if (tp->t_flags2 & TF2_MBUF_QUEUE_READY)
 		should_wake = false;
 	else
 		should_wake = true;
@@ -1411,7 +1398,7 @@ tcp_lro_flush_tcphpts(struct lro_ctrl *lc, struct lro_entry *le)
 	cmp = NULL;
 	for (pp = &le->m_head; *pp != NULL; ) {
 		mv_to = NULL;
-		if (do_bpf_strip_and_compress(inp, lc, le, pp,
+		if (do_bpf_strip_and_compress(tp, lc, le, pp,
 			&cmp, &mv_to, &should_wake, bpf_req,
  			lagg_bpf_req, lagg_ifp, can_append_old_cmp) == false) {
 			/* Advance to next mbuf. */
@@ -1444,17 +1431,18 @@ tcp_lro_flush_tcphpts(struct lro_ctrl *lc, struct lro_entry *le)
 	/* Check if any data mbufs left. */
 	if (le->m_head != NULL) {
 		counter_u64_add(tcp_inp_lro_direct_queue, 1);
-		tcp_lro_log(tp, lc, le, NULL, 22, 1, inp->inp_flags2, 0, 1);
+		tcp_lro_log(tp, lc, le, NULL, 22, 1, tp->t_flags2, 0, 1);
 		tcp_queue_pkts(tp, le);
 	}
 	if (should_wake) {
 		/* Wakeup */
 		counter_u64_add(tcp_inp_lro_wokeup_queue, 1);
 		if ((*tp->t_fb->tfb_do_queued_segments)(tp, 0))
-			inp = NULL;
+			/* TCP cb gone and unlocked. */
+			return (0);
 	}
-	if (inp != NULL)
-		INP_WUNLOCK(inp);
+	INP_WUNLOCK(tptoinpcb(tp));
+
 	return (0);	/* Success. */
 }
 #endif
@@ -1674,7 +1662,7 @@ build_ack_entry(struct tcp_ackent *ae, struct tcphdr *th, struct mbuf *m,
  * and strip all, but the IPv4/IPv6 header.
  */
 static bool
-do_bpf_strip_and_compress(struct inpcb *inp, struct lro_ctrl *lc,
+do_bpf_strip_and_compress(struct tcpcb *tp, struct lro_ctrl *lc,
     struct lro_entry *le, struct mbuf **pp, struct mbuf **cmp, struct mbuf **mv_to,
     bool *should_wake, bool bpf_req, bool lagg_bpf_req, struct ifnet *lagg_ifp, bool can_append_old_cmp)
 {
@@ -1751,7 +1739,7 @@ do_bpf_strip_and_compress(struct inpcb *inp, struct lro_ctrl *lc,
 
 	/* Now lets look at the should wake states */
 	if ((other_opts == true) &&
-	    ((inp->inp_flags2 & INP_DONT_SACK_QUEUE) == 0)) {
+	    ((tp->t_flags2 & TF2_DONT_SACK_QUEUE) == 0)) {
 		/*
 		 * If there are other options (SACK?) and the
 		 * tcp endpoint has not expressly told us it does
@@ -1760,13 +1748,13 @@ do_bpf_strip_and_compress(struct inpcb *inp, struct lro_ctrl *lc,
 		*should_wake = true;
 	} else if (*should_wake == false) {
 		/* Wakeup override check if we are false here  */
-		*should_wake = tcp_lro_check_wake_status(inp);
+		*should_wake = tcp_lro_check_wake_status(tp);
 	}
 	/* Is the ack compressable? */
 	if (can_compress == false)
 		goto done;
 	/* Does the TCP endpoint support ACK compression? */
-	if ((inp->inp_flags2 & INP_MBUF_ACKCMP) == 0)
+	if ((tp->t_flags2 & TF2_MBUF_ACKCMP) == 0)
 		goto done;
 
 	/* Lets get the TOS/traffic class field */
@@ -1785,7 +1773,8 @@ do_bpf_strip_and_compress(struct inpcb *inp, struct lro_ctrl *lc,
 	/* Now lets get space if we don't have some already */
 	if (*cmp == NULL) {
 new_one:
-		nm = tcp_lro_get_last_if_ackcmp(lc, le, inp, &n_mbuf, can_append_old_cmp);
+		nm = tcp_lro_get_last_if_ackcmp(lc, le, tp, &n_mbuf,
+		    can_append_old_cmp);
 		if (__predict_false(nm == NULL))
 			goto done;
 		*cmp = nm;
@@ -1812,7 +1801,7 @@ new_one:
 		nm = *cmp;
 		if (M_TRAILINGSPACE(nm) < sizeof(struct tcp_ackent)) {
 			/* We ran out of space */
-			inp->inp_flags2 |= INP_MBUF_L_ACKS;
+			tp->t_flags2 |= TF2_MBUF_L_ACKS;
 			goto new_one;
 		}
 	}

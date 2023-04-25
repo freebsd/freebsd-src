@@ -593,8 +593,8 @@ int	inp_so_options(const struct inpcb *inp);
 /*
  * Flags for inp_flags2.
  */
-#define	INP_MBUF_L_ACKS		0x00000001 /* We need large mbufs for ack compression */
-#define	INP_MBUF_ACKCMP		0x00000002 /* TCP mbuf ack compression ok */
+/*				0x00000001 */
+/*				0x00000002 */
 /*				0x00000004 */
 #define	INP_REUSEPORT		0x00000008 /* SO_REUSEPORT option is set */
 /*				0x00000010 */
@@ -605,11 +605,11 @@ int	inp_so_options(const struct inpcb *inp);
 #define	INP_RECVRSSBUCKETID	0x00000200 /* populate recv datagram with bucket id */
 #define	INP_RATE_LIMIT_CHANGED	0x00000400 /* rate limit needs attention */
 #define	INP_ORIGDSTADDR		0x00000800 /* receive IP dst address/port */
-#define INP_CANNOT_DO_ECN	0x00001000 /* The stack does not do ECN */
+/*				0x00001000 */
 #define	INP_REUSEPORT_LB	0x00002000 /* SO_REUSEPORT_LB option is set */
-#define INP_SUPPORTS_MBUFQ	0x00004000 /* Supports the mbuf queue method of LRO */
-#define INP_MBUF_QUEUE_READY	0x00008000 /* The transport is pacing, inputs can be queued */
-#define INP_DONT_SACK_QUEUE	0x00010000 /* If a sack arrives do not wake me */
+/*				0x00004000 */
+/*				0x00008000 */
+/*				0x00010000 */
 #define INP_2PCP_SET		0x00020000 /* If the Eth PCP should be set explicitly */
 #define INP_2PCP_BIT0		0x00040000 /* Eth PCP Bit 0 */
 #define INP_2PCP_BIT1		0x00080000 /* Eth PCP Bit 1 */
