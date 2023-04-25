@@ -62,7 +62,7 @@ typedef struct {
 	uint16_t		Seg_Addr;
 	uint32_t		Phy_Addr;
 	uint16_t		Seg_Size;
-} SEGDESC_t;
+} PACKED SEGDESC_t;
 
 typedef	uint16_t		SEGSEL_t;
 typedef	uint16_t		PXENV_STATUS_t;
@@ -151,7 +151,6 @@ typedef struct {
 
 #define	MAXNUM_MCADDR		8
 typedef struct {
-	PXENV_STATUS_t	Status;
 	uint16_t	MCastAddrCount;
 	MAC_ADDR	McastAddr[MAXNUM_MCADDR];
 } PACKED t_PXENV_UNDI_MCAST_ADDRESS;
