@@ -207,11 +207,8 @@ struct pkt_node {
 	int			conn_state;
 	/* Max Segment Size (bytes). */
 	u_int			max_seg_size;
-	/*
-	 * Smoothed RTT stored as found in the TCP control block
-	 * in units of (TCP_RTT_SCALE*hz).
-	 */
-	int			smoothed_rtt;
+	/* Smoothed RTT (usecs). */
+	uint32_t		srtt;
 	/* Is SACK enabled? */
 	u_char			sack_enabled;
 	/* Window scaling for snd window. */
@@ -220,8 +217,8 @@ struct pkt_node {
 	u_char			rcv_scale;
 	/* TCP control block flags. */
 	u_int			flags;
-	/* Retransmit timeout length. */
-	int			rxt_length;
+	/* Retransmission timeout (usec). */
+	uint32_t		rto;
 	/* Size of the TCP send buffer in bytes. */
 	u_int			snd_buf_hiwater;
 	/* Current num bytes in the send socket buffer. */
@@ -453,7 +450,7 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 		    MAX_LOG_MSG_LEN,
 		    "%c,0x%08x,%zd.%06ld,%x:%x:%x:%x:%x:%x:%x:%x,%u,%x:%x:%x:"
 		    "%x:%x:%x:%x:%x,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,"
-		    "%u,%d,%u,%u,%u,%u,%u,%u,%u,%u\n",
+		    "%u,%u,%u,%u,%u,%u,%u,%u,%u,%u\n",
 		    direction[pkt_node->direction],
 		    pkt_node->hash,
 		    pkt_node->tval.tv_sec,
@@ -485,10 +482,10 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 		    pkt_node->rcv_scale,
 		    pkt_node->conn_state,
 		    pkt_node->max_seg_size,
-		    pkt_node->smoothed_rtt,
+		    pkt_node->srtt,
 		    pkt_node->sack_enabled,
 		    pkt_node->flags,
-		    pkt_node->rxt_length,
+		    pkt_node->rto,
 		    pkt_node->snd_buf_hiwater,
 		    pkt_node->snd_buf_cc,
 		    pkt_node->rcv_buf_hiwater,
@@ -512,7 +509,7 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 		log_buf->ae_bytesused = snprintf(log_buf->ae_data,
 		    MAX_LOG_MSG_LEN,
 		    "%c,0x%08x,%jd.%06ld,%u.%u.%u.%u,%u,%u.%u.%u.%u,%u,%u,%u,"
-		    "%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%d,%u,%u,%u,%u,%u,%u,%u,%u\n",
+		    "%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u\n",
 		    direction[pkt_node->direction],
 		    pkt_node->hash,
 		    (intmax_t)pkt_node->tval.tv_sec,
@@ -536,10 +533,10 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 		    pkt_node->rcv_scale,
 		    pkt_node->conn_state,
 		    pkt_node->max_seg_size,
-		    pkt_node->smoothed_rtt,
+		    pkt_node->srtt,
 		    pkt_node->sack_enabled,
 		    pkt_node->flags,
-		    pkt_node->rxt_length,
+		    pkt_node->rto,
 		    pkt_node->snd_buf_hiwater,
 		    pkt_node->snd_buf_cc,
 		    pkt_node->rcv_buf_hiwater,
@@ -785,10 +782,10 @@ siftr_siftdata(struct pkt_node *pn, struct inpcb *inp, struct tcpcb *tp,
 	pn->rcv_scale = tp->rcv_scale;
 	pn->conn_state = tp->t_state;
 	pn->max_seg_size = tp->t_maxseg;
-	pn->smoothed_rtt = tp->t_srtt;
+	pn->srtt = ((u_int64_t)tp->t_srtt * tick) >> TCP_RTT_SHIFT;
 	pn->sack_enabled = (tp->t_flags & TF_SACK_PERMIT) != 0;
 	pn->flags = tp->t_flags;
-	pn->rxt_length = tp->t_rxtcur;
+	pn->rto = tp->t_rxtcur * tick;
 	pn->snd_buf_hiwater = inp->inp_socket->so_snd.sb_hiwat;
 	pn->snd_buf_cc = sbused(&inp->inp_socket->so_snd);
 	pn->rcv_buf_hiwater = inp->inp_socket->so_rcv.sb_hiwat;
@@ -1270,10 +1267,9 @@ siftr_manage_ops(uint8_t action)
 
 		sbuf_printf(s,
 		    "enable_time_secs=%jd\tenable_time_usecs=%06ld\t"
-		    "siftrver=%s\thz=%u\ttcp_rtt_scale=%u\tsysname=%s\t"
-		    "sysver=%u\tipmode=%u\n",
-		    (intmax_t)tval.tv_sec, tval.tv_usec, MODVERSION_STR, hz,
-		    TCP_RTT_SCALE, SYS_NAME, __FreeBSD_version, SIFTR_IPMODE);
+		    "siftrver=%s\tsysname=%s\tsysver=%u\tipmode=%u\n",
+		    (intmax_t)tval.tv_sec, tval.tv_usec, MODVERSION_STR,
+		    SYS_NAME, __FreeBSD_version, SIFTR_IPMODE);
 
 		sbuf_finish(s);
 		alq_writen(siftr_alq, sbuf_data(s), sbuf_len(s), ALQ_WAITOK);
