@@ -30,6 +30,7 @@
 #include "opt_inet6.h"
 #include <sys/types.h>
 #include <sys/eventhandler.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
