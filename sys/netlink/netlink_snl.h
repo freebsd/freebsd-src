@@ -422,7 +422,8 @@ snl_parse_nlmsg(struct snl_state *ss, struct nlmsghdr *hdr,
 }
 
 static inline bool
-snl_attr_get_flag(struct snl_state *ss __unused, struct nlattr *nla, void *target)
+snl_attr_get_flag(struct snl_state *ss __unused, struct nlattr *nla, const void *arg __unused,
+    void *target)
 {
 	if (NLA_DATA_LEN(nla) == 0) {
 		*((uint8_t *)target) = 1;
