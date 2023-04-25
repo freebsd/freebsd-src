@@ -377,10 +377,10 @@ pfs_mount(struct pfs_info *pi, struct mount *mp)
 	vfs_mountedfrom(mp, pi->pi_name);
 	sbp->f_bsize = PAGE_SIZE;
 	sbp->f_iosize = PAGE_SIZE;
-	sbp->f_blocks = 1;
-	sbp->f_bfree = 0;
-	sbp->f_bavail = 0;
-	sbp->f_files = 1;
+	sbp->f_blocks = 2;
+	sbp->f_bfree = 2;
+	sbp->f_bavail = 2;
+	sbp->f_files = 0;
 	sbp->f_ffree = 0;
 
 	return (0);
