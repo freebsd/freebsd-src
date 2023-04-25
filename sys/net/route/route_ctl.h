@@ -159,6 +159,19 @@ void ip6_writemask(struct in6_addr *addr6, uint8_t mask);
 /* Nexthops */
 uint32_t nhops_get_count(struct rib_head *rh);
 
+struct nhop_priv;
+struct nhop_iter {
+	uint32_t		fibnum;
+	uint8_t			family;
+	struct rib_head		*rh;
+	int			_i;
+	struct nhop_priv	*_next;
+};
+
+struct nhop_object *nhops_iter_start(struct nhop_iter *iter);
+struct nhop_object *nhops_iter_next(struct nhop_iter *iter);
+void nhops_iter_stop(struct nhop_iter *iter);
+
 /* Multipath */
 struct weightened_nhop;
 

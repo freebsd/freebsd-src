@@ -1076,6 +1076,56 @@ nhops_update_ifmtu(struct rib_head *rh, struct ifnet *ifp, uint32_t mtu)
 
 }
 
+struct nhop_object *
+nhops_iter_start(struct nhop_iter *iter)
+{
+	if (iter->rh == NULL)
+		iter->rh = rt_tables_get_rnh_safe(iter->fibnum, iter->family);
+	if (iter->rh != NULL) {
+		struct nh_control *ctl = iter->rh->nh_control;
+
+		NHOPS_RLOCK(ctl);
+
+		iter->_i = 0;
+		iter->_next = CHT_FIRST(&ctl->nh_head, iter->_i);
+
+		return (nhops_iter_next(iter));
+	} else
+		return (NULL);
+}
+
+struct nhop_object *
+nhops_iter_next(struct nhop_iter *iter)
+{
+	struct nhop_priv *nh_priv = iter->_next;
+
+	if (nh_priv != NULL) {
+		iter->_next = nh_priv->nh_next;
+		return (nh_priv->nh);
+	}
+
+	struct nh_control *ctl = iter->rh->nh_control;
+	while (++iter->_i < ctl->nh_head.hash_size) {
+		nh_priv = CHT_FIRST(&ctl->nh_head, iter->_i);
+		if (nh_priv != NULL) {
+			iter->_next = nh_priv->nh_next;
+			return (nh_priv->nh);
+		}
+	}
+
+	return (NULL);
+}
+
+void
+nhops_iter_stop(struct nhop_iter *iter)
+{
+	if (iter->rh != NULL) {
+		struct nh_control *ctl = iter->rh->nh_control;
+
+		NHOPS_RUNLOCK(ctl);
+	}
+}
+
 /*
  * Prints nexthop @nh data in the provided @buf.
  * Example: nh#33/inet/em0/192.168.0.1
