@@ -29,6 +29,7 @@
 
 #include <netlink/netlink_snl.h>
 #include <netlink/netlink_snl_route.h>
+#include <netlink/route/nexthop.h>
 
 /* TODO: this file should be generated automatically */
 
@@ -224,21 +225,31 @@ struct snl_parsed_neigh {
 	uint8_t		ndm_flags;
 	uint16_t	ndm_state;
 	uint32_t	nda_ifindex;
+	uint32_t	nda_probes;
+	uint32_t	ndaf_next_ts;
 	struct sockaddr	*nda_dst;
 	struct nlattr	*nda_lladdr;
 };
 
 #define	_IN(_field)	offsetof(struct ndmsg, _field)
 #define	_OUT(_field)	offsetof(struct snl_parsed_neigh, _field)
+static const struct snl_attr_parser _nla_p_neigh_fbsd[] = {
+	{ .type = NDAF_NEXT_STATE_TS, .off = _OUT(ndaf_next_ts), .cb = snl_attr_get_uint32 },
+};
+SNL_DECLARE_ATTR_PARSER(_neigh_fbsd_parser, _nla_p_neigh_fbsd);
+
 static struct snl_attr_parser _nla_p_neigh_s[] = {
 	{ .type = NDA_DST, .off = _OUT(nda_dst), .cb = snl_attr_get_ip },
 	{ .type = NDA_LLADDR , .off = _OUT(nda_lladdr), .cb = snl_attr_get_nla },
+	{ .type = NDA_PROBES, .off = _OUT(nda_probes), .cb = snl_attr_get_uint32 },
 	{ .type = NDA_IFINDEX, .off = _OUT(nda_ifindex), .cb = snl_attr_get_uint32 },
+	{ .type = NDA_FREEBSD, .arg = &_neigh_fbsd_parser, .cb = snl_attr_get_nested },
 };
 static struct snl_field_parser _fp_p_neigh_s[] = {
 	{.off_in = _IN(ndm_family), .off_out = _OUT(ndm_family), .cb = snl_field_get_uint8 },
 	{.off_in = _IN(ndm_flags), .off_out = _OUT(ndm_flags), .cb = snl_field_get_uint8 },
 	{.off_in = _IN(ndm_state), .off_out = _OUT(ndm_state), .cb = snl_field_get_uint16 },
+	{.off_in = _IN(ndm_ifindex), .off_out = _OUT(nda_ifindex), .cb = snl_field_get_uint32 },
 };
 #undef _IN
 #undef _OUT
@@ -271,10 +282,53 @@ static struct snl_field_parser _fp_p_addr_s[] = {
 #undef _OUT
 SNL_DECLARE_PARSER(snl_rtm_addr_parser, struct ifaddrmsg, _fp_p_addr_s, _nla_p_addr_s);
 
+
+struct snl_parsed_nhop {
+	uint32_t	nha_id;
+	uint8_t		nha_blackhole;
+	uint8_t		nha_groups;
+	uint8_t		nhaf_knhops;
+	uint8_t		nhaf_family;
+	uint32_t	nha_oif;
+	struct sockaddr	*nha_gw;
+	uint8_t		nh_family;
+	uint8_t		nh_protocol;
+	uint32_t	nhaf_table;
+	uint32_t	nhaf_kid;
+	uint32_t	nhaf_aif;
+};
+
+#define	_IN(_field)	offsetof(struct nhmsg, _field)
+#define	_OUT(_field)	offsetof(struct snl_parsed_nhop, _field)
+static struct snl_attr_parser _nla_p_nh_fbsd[] = {
+	{ .type = NHAF_KNHOPS, .off = _OUT(nhaf_knhops), .cb = snl_attr_get_flag },
+	{ .type = NHAF_TABLE, .off = _OUT(nhaf_table), .cb = snl_attr_get_uint32 },
+	{ .type = NHAF_KID, .off = _OUT(nhaf_kid), .cb = snl_attr_get_uint32 },
+	{ .type = NHAF_AIF, .off = _OUT(nhaf_aif), .cb = snl_attr_get_uint32 },
+};
+SNL_DECLARE_ATTR_PARSER(_nh_fbsd_parser, _nla_p_nh_fbsd);
+
+static const struct snl_field_parser _fp_p_nh[] = {
+	{ .off_in = _IN(nh_family), .off_out = _OUT(nh_family), .cb = snl_field_get_uint8 },
+	{ .off_in = _IN(nh_protocol), .off_out = _OUT(nh_protocol), .cb = snl_field_get_uint8 },
+};
+
+static const struct snl_attr_parser _nla_p_nh[] = {
+	{ .type = NHA_ID, .off = _OUT(nha_id), .cb = snl_attr_get_uint32 },
+	{ .type = NHA_BLACKHOLE, .off = _OUT(nha_blackhole), .cb = snl_attr_get_flag },
+	{ .type = NHA_OIF, .off = _OUT(nha_oif), .cb = snl_attr_get_uint32 },
+	{ .type = NHA_GATEWAY, .off = _OUT(nha_gw), .cb = snl_attr_get_ip },
+	{ .type = NHA_FREEBSD, .arg = &_nh_fbsd_parser, .cb = snl_attr_get_nested },
+};
+#undef _IN
+#undef _OUT
+SNL_DECLARE_PARSER(snl_nhmsg_parser, struct nhmsg, _fp_p_nh, _nla_p_nh);
+
 static const struct snl_hdr_parser *snl_all_route_parsers[] = {
 	&_metrics_mp_nh_parser, &_mpath_nh_parser, &_metrics_parser, &snl_rtm_route_parser,
-	&snl_rtm_link_parser, &snl_rtm_link_parser_simple, &snl_rtm_neigh_parser,
-	&snl_rtm_addr_parser,
+	&snl_rtm_link_parser, &snl_rtm_link_parser_simple,
+	&_neigh_fbsd_parser, &snl_rtm_neigh_parser,
+	&snl_rtm_addr_parser, &_nh_fbsd_parser, &snl_nhmsg_parser,
 };
 
 #endif
