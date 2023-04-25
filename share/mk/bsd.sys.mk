@@ -95,7 +95,6 @@ CWARNFLAGS.clang+=	-Wno-unused-const-variable
 CWARNFLAGS.clang+=	-Wno-error=unused-but-set-variable
 .endif
 .if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 150000
-CWARNFLAGS.clang+=	-Wno-error=deprecated-non-prototype
 CWARNFLAGS.clang+=	-Wno-error=unused-but-set-parameter
 .endif
 .endif # WARNS <= 6
