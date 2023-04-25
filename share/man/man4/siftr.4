@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 24, 2023
+.Dd April 25, 2023
 .Dt SIFTR 4
 .Os
 .Sh NAME
@@ -175,14 +175,6 @@ version of
 .Nm .
 .El
 .Bl -tag -offset indent -width Va
-.It Va hz
-tick rate of the kernel in ticks per second.
-.El
-.Bl -tag -offset indent -width Va
-.It Va tcp_rtt_scale
-smoothed RTT estimate scaling factor.
-.El
-.Bl -tag -offset indent -width Va
 .It Va sysname
 operating system name.
 .El
@@ -294,11 +286,7 @@ The maximum segment size for the flow, in bytes.
 .El
 .Bl -tag -offset indent -width Va
 .It Va 17
-The current smoothed RTT estimate for the flow, in units of TCP_RTT_SCALE * HZ,
-where TCP_RTT_SCALE is a define found in tcp_var.h, and HZ is the kernel's tick
-timer.
-Divide by TCP_RTT_SCALE * HZ to get the RTT in secs.
-TCP_RTT_SCALE and HZ are reported in the enable log message.
+The current smoothed RTT estimate for the flow, in units of microsecond.
 .El
 .Bl -tag -offset indent -width Va
 .It Va 18
@@ -313,10 +301,7 @@ for information about the various flags.
 .El
 .Bl -tag -offset indent -width Va
 .It Va 20
-The current retransmission timeout length for the flow, in units of HZ, where HZ
-is the kernel's tick timer.
-Divide by HZ to get the timeout length in seconds.
-HZ is reported in the enable log message.
+The current retransmission timeout length for the flow, in units microsecond.
 .El
 .Bl -tag -offset indent -width Va
 .It Va 21
