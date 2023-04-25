@@ -63,18 +63,13 @@ swapoff3.sh		Excessive OOM killing						20220403
 swapoff5.sh		log0005.txt, known issue					20210111
 systrace.sh		WiP								20200227
 systrace2.sh		WiP								20200227
-syzkaller15.sh		WiP								20200712
-syzkaller16.sh		WiP								20210722
-syzkaller25.sh		WiP								20201116
-syzkaller27.sh		watchdogd fires							20220512
-syzkaller28.sh		WiP								20201120
-syzkaller50.sh		panic: Assertion done != job_total_nbytes failed at ...		20220405
-syzkaller54.sh		panic: td 0xfffffe014f7193a0 is not suspended			20220527
+syzkaller16.sh		zonelimit issue							20210722
+syzkaller28.sh		panic: About to free ctl:0x... so:0x... and its in 1		20201120
+syzkaller31.sh		panic: Bad tailq NEXT(0xfffffe01a0899430->tqh_last) != NULL	20220420
 syzkaller55.sh		panic: Counter goes negative					20220525
 syzkaller59.sh		Page fault							20220625
-syzkaller65.sh		Waiting for fix							20230318
+syzkaller65.sh		panic: in_pcblookup_hash_locked: invalid local address		20230318
 truss3.sh		WiP								20200915
-unionfs9.sh		https://people.freebsd.org/~pho/stress/log/log0404.txt		20230110
 
 # Test not to run for other reasons:
 
