@@ -891,7 +891,7 @@ bbr_start_hpts_timer(struct tcp_bbr *bbr, struct tcpcb *tp, uint32_t cts, int32_
 		 * Tell LRO that it can queue packets while
 		 * we pace.
 		 */
-		bbr->rc_inp->inp_flags2 |= INP_MBUF_QUEUE_READY;
+		bbr->rc_tp->t_flags2 |= TF2_MBUF_QUEUE_READY;
 		if ((bbr->r_ctl.rc_hpts_flags & PACE_TMR_RACK) &&
 		    (bbr->rc_cwnd_limited == 0)) {
 			/*
@@ -899,9 +899,9 @@ bbr_start_hpts_timer(struct tcp_bbr *bbr, struct tcpcb *tp, uint32_t cts, int32_
 			 * are running a rack timer we put on
 			 * the do not disturbe even for sack.
 			 */
-			inp->inp_flags2 |= INP_DONT_SACK_QUEUE;
+			tp->t_flags2 |= TF2_DONT_SACK_QUEUE;
 		} else
-			inp->inp_flags2 &= ~INP_DONT_SACK_QUEUE;
+			tp->t_flags2 &= ~TF2_DONT_SACK_QUEUE;
 		bbr->rc_pacer_started = cts;
 
 		(void)tcp_hpts_insert_diag(tp, HPTS_USEC_TO_SLOTS(slot),
@@ -932,12 +932,12 @@ bbr_start_hpts_timer(struct tcp_bbr *bbr, struct tcpcb *tp, uint32_t cts, int32_
 			 * if a sack arrives as long as we are
 			 * not cwnd limited.
 			 */
-			bbr->rc_inp->inp_flags2 |= INP_MBUF_QUEUE_READY;
-			inp->inp_flags2 |= INP_DONT_SACK_QUEUE;
+			tp->t_flags2 |= (TF2_MBUF_QUEUE_READY |
+			    TF2_DONT_SACK_QUEUE);
 		} else {
 			/* All other timers wake us up */
-			bbr->rc_inp->inp_flags2 &= ~INP_MBUF_QUEUE_READY;
-			inp->inp_flags2 &= ~INP_DONT_SACK_QUEUE;
+			tp->t_flags2 &= ~(TF2_MBUF_QUEUE_READY |
+			    TF2_DONT_SACK_QUEUE);
 		}
 		bbr->bbr_timer_src = frm;
 		bbr_log_to_start(bbr, cts, hpts_timeout, slot, 0);
@@ -2498,7 +2498,7 @@ bbr_log_to_start(struct tcp_bbr *bbr, uint32_t cts, uint32_t to, int32_t slot, u
 		log.u_bbr.flex4 = slot;
 		log.u_bbr.flex5 = bbr->rc_tp->t_hpts_slot;
 		log.u_bbr.flex6 = TICKS_2_USEC(bbr->rc_tp->t_rxtcur);
-		log.u_bbr.pkts_out = bbr->rc_inp->inp_flags2;
+		log.u_bbr.pkts_out = bbr->rc_tp->t_flags2;
 		log.u_bbr.flex8 = which;
 		TCP_LOG_EVENTP(bbr->rc_tp, NULL,
 		    &bbr->rc_inp->inp_socket->so_rcv,
@@ -9940,13 +9940,13 @@ bbr_init(struct tcpcb *tp, void **ptr)
 	}
 	bbr = (struct tcp_bbr *)*ptr;
 	bbr->rtt_valid = 0;
-	inp->inp_flags2 |= INP_CANNOT_DO_ECN;
-	inp->inp_flags2 |= INP_SUPPORTS_MBUFQ;
+	tp->t_flags2 |= TF2_CANNOT_DO_ECN;
+	tp->t_flags2 |= TF2_SUPPORTS_MBUFQ;
 	/* Take off any undesired flags */
-	inp->inp_flags2 &= ~INP_MBUF_QUEUE_READY;
-	inp->inp_flags2 &= ~INP_DONT_SACK_QUEUE;
-	inp->inp_flags2 &= ~INP_MBUF_ACKCMP;
-	inp->inp_flags2 &= ~INP_MBUF_L_ACKS;
+	tp->t_flags2 &= ~TF2_MBUF_QUEUE_READY;
+	tp->t_flags2 &= ~TF2_DONT_SACK_QUEUE;
+	tp->t_flags2 &= ~TF2_MBUF_ACKCMP;
+	tp->t_flags2 &= ~TF2_MBUF_L_ACKS;
 
 	TAILQ_INIT(&bbr->r_ctl.rc_map);
 	TAILQ_INIT(&bbr->r_ctl.rc_free);
@@ -12046,7 +12046,7 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 			return (retval < 0 ? retval : 0);
 		}
 	}
-	bbr->rc_inp->inp_flags2 &= ~INP_MBUF_QUEUE_READY;
+	bbr->rc_tp->t_flags2 &= ~TF2_MBUF_QUEUE_READY;
 	if (hpts_calling &&
 	    (bbr->r_ctl.rc_hpts_flags & PACE_PKT_OUTPUT)) {
 		bbr->r_ctl.rc_last_delay_val = 0;
@@ -14078,15 +14078,14 @@ bbr_switch_failed(struct tcpcb *tp)
 	 * pacer (if our flags are up) if so we are good, if
 	 * not we need to get back into the pacer.
 	 */
-	struct inpcb *inp = tptoinpcb(tp);
 	struct timeval tv;
 	uint32_t cts;
 	uint32_t toval;
 	struct tcp_bbr *bbr;
 	struct hpts_diag diag;
 
-	inp->inp_flags2 |= INP_CANNOT_DO_ECN;
-	inp->inp_flags2 |= INP_SUPPORTS_MBUFQ;
+	tp->t_flags2 |= TF2_CANNOT_DO_ECN;
+	tp->t_flags2 |= TF2_SUPPORTS_MBUFQ;
 	tcp_change_time_units(tp, TCP_TMR_GRANULARITY_TICKS);
 	if (tp->t_in_hpts > IHPTS_NONE) {
 		return;

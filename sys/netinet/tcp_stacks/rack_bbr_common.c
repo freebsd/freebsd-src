@@ -445,8 +445,8 @@ skip_vnet:
 			 * been compressed. We assert the inp has
 			 * the flag set to enable this!
 			 */
-			KASSERT((inp->inp_flags2 & INP_MBUF_ACKCMP),
-			    ("tp:%p inp:%p no INP_MBUF_ACKCMP flags?", tp, inp));
+			KASSERT((tp->t_flags2 & TF2_MBUF_ACKCMP),
+			    ("tp:%p no TF2_MBUF_ACKCMP flags?", tp));
 			tlen = 0;
 			drop_hdrlen = 0;
 			th = NULL;

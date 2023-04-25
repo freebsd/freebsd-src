@@ -1363,7 +1363,7 @@ again:
 			 * cause a call to output if it is needed.
 			 */
 			tp->t_flags2 |= TF2_HPTS_CALLS;
-			if ((inp->inp_flags2 & INP_SUPPORTS_MBUFQ) &&
+			if ((tp->t_flags2 & TF2_SUPPORTS_MBUFQ) &&
 			    !STAILQ_EMPTY(&tp->t_inqueue)) {
 				error = (*tp->t_fb->tfb_do_queued_segments)(tp, 0);
 				if (error) {
