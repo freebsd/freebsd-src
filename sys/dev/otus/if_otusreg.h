@@ -1020,7 +1020,7 @@ struct otus_softc {
 	uint8_t				capflags;
 	uint8_t				rxmask;
 	uint8_t				txmask;
-	int				sc_running:1,
+	bool				sc_running:1,
 					sc_calibrating:1,
 					sc_scanning:1;
 
