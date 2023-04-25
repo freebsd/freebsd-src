@@ -436,11 +436,9 @@ enomem:
 }
 
 static bool
-dump_nhop(const struct user_nhop *unhop, struct nlmsghdr *hdr,
+dump_nhop(const struct nhop_object *nh, uint32_t uidx, struct nlmsghdr *hdr,
     struct nl_writer *nw)
 {
-	struct nhop_object *nh = unhop->un_nhop_src;
-
 	if (!nlmsg_reply(nw, hdr, sizeof(struct nhmsg)))
 		goto enomem;
 
@@ -448,10 +446,11 @@ dump_nhop(const struct user_nhop *unhop, struct nlmsghdr *hdr,
 	ENOMEM_IF_NULL(nhm);
 	nhm->nh_family = nhop_get_neigh_family(nh);
 	nhm->nh_scope = 0; // XXX: what's that?
-	nhm->nh_protocol = unhop->un_protocol;
+	nhm->nh_protocol = nhop_get_origin(nh);
 	nhm->nh_flags = 0;
 
-	nlattr_add_u32(nw, NHA_ID, unhop->un_idx);
+	if (uidx != 0)
+		nlattr_add_u32(nw, NHA_ID, uidx);
 	if (nh->nh_flags & NHF_BLACKHOLE) {
 		nlattr_add_flag(nw, NHA_BLACKHOLE);
 		goto done;
@@ -475,6 +474,19 @@ dump_nhop(const struct user_nhop *unhop, struct nlmsghdr *hdr,
 #endif
 	}
 
+	int off = nlattr_add_nested(nw, NHA_FREEBSD);
+	if (off != 0) {
+		nlattr_add_u32(nw, NHAF_AIF, nh->nh_aifp->if_index);
+
+		if (uidx == 0) {
+			nlattr_add_u32(nw, NHAF_KID, nhop_get_idx(nh));
+			nlattr_add_u32(nw, NHAF_FAMILY, nhop_get_upper_family(nh));
+			nlattr_add_u32(nw, NHAF_TABLE, nhop_get_fibnum(nh));
+		}
+
+		nlattr_set_len(nw, off);
+	}
+
 done:
         if (nlmsg_end(nw))
 		return (true);
@@ -488,7 +500,7 @@ dump_unhop(const struct user_nhop *unhop, struct nlmsghdr *hdr,
     struct nl_writer *nw)
 {
 	if (unhop->un_nhop_src != NULL)
-		dump_nhop(unhop, hdr, nw);
+		dump_nhop(unhop->un_nhop_src, unhop->un_idx, hdr, nw);
 	else
 		dump_nhgrp(unhop, hdr, nw);
 }
@@ -670,15 +682,29 @@ struct nl_parsed_nhop {
 	uint32_t	nha_id;
 	uint8_t		nha_blackhole;
 	uint8_t		nha_groups;
+	uint8_t		nhaf_knhops;
+	uint8_t		nhaf_family;
 	struct ifnet	*nha_oif;
 	struct sockaddr	*nha_gw;
 	struct nlattr	*nha_group;
 	uint8_t		nh_family;
 	uint8_t		nh_protocol;
+	uint32_t	nhaf_table;
+	uint32_t	nhaf_kid;
+	uint32_t	nhaf_aif;
 };
 
 #define	_IN(_field)	offsetof(struct nhmsg, _field)
 #define	_OUT(_field)	offsetof(struct nl_parsed_nhop, _field)
+static struct nlattr_parser nla_p_nh_fbsd[] = {
+	{ .type = NHAF_KNHOPS, .off = _OUT(nhaf_knhops), .cb = nlattr_get_flag },
+	{ .type = NHAF_TABLE, .off = _OUT(nhaf_table), .cb = nlattr_get_uint32 },
+	{ .type = NHAF_FAMILY, .off = _OUT(nhaf_family), .cb = nlattr_get_uint8 },
+	{ .type = NHAF_KID, .off = _OUT(nhaf_kid), .cb = nlattr_get_uint32 },
+	{ .type = NHAF_AIF, .off = _OUT(nhaf_aif), .cb = nlattr_get_uint32 },
+};
+NL_DECLARE_ATTR_PARSER(nh_fbsd_parser, nla_p_nh_fbsd);
+
 static const struct nlfield_parser nlf_p_nh[] = {
 	{ .off_in = _IN(nh_family), .off_out = _OUT(nh_family), .cb = nlf_get_u8 },
 	{ .off_in = _IN(nh_protocol), .off_out = _OUT(nh_protocol), .cb = nlf_get_u8 },
@@ -691,6 +717,7 @@ static const struct nlattr_parser nla_p_nh[] = {
 	{ .type = NHA_OIF, .off = _OUT(nha_oif), .cb = nlattr_get_ifp },
 	{ .type = NHA_GATEWAY, .off = _OUT(nha_gw), .cb = nlattr_get_ip },
 	{ .type = NHA_GROUPS, .off = _OUT(nha_groups), .cb = nlattr_get_flag },
+	{ .type = NHA_FREEBSD, .arg = &nh_fbsd_parser, .cb = nlattr_get_nested },
 };
 #undef _IN
 #undef _OUT
@@ -801,6 +828,7 @@ newnhop(struct nl_parsed_nhop *attrs, struct user_nhop *unhop, struct nl_pstate 
 		return (ENOMEM);
 	}
 	nhop_set_uidx(nh, attrs->nha_id);
+	nhop_set_origin(nh, attrs->nh_protocol);
 
 	if (attrs->nha_blackhole)
 		nhop_set_blackhole(nh, NHF_BLACKHOLE);
@@ -957,13 +985,9 @@ static int
 rtnl_handle_getnhop(struct nlmsghdr *hdr, struct nlpcb *nlp,
     struct nl_pstate *npt)
 {
-	struct unhop_ctl *ctl = atomic_load_ptr(&V_un_ctl);
 	struct user_nhop *unhop;
 	UN_TRACKER;
 	int error;
-
-	if (__predict_false(ctl == NULL))
-		return (ESRCH);
 
 	struct nl_parsed_nhop attrs = {};
 	error = nl_parse_nlmsg(hdr, &nhmsg_parser, npt, &attrs);
@@ -979,8 +1003,13 @@ rtnl_handle_getnhop(struct nlmsghdr *hdr, struct nlpcb *nlp,
 	};
 
 	if (attrs.nha_id != 0) {
+		struct unhop_ctl *ctl = atomic_load_ptr(&V_un_ctl);
+		struct user_nhop key = { .un_idx = attrs.nha_id };
+
+		if (__predict_false(ctl == NULL))
+			return (ESRCH);
+
 		NL_LOG(LOG_DEBUG2, "searching for uidx %u", attrs.nha_id);
-		struct user_nhop key= { .un_idx = attrs.nha_id };
 		UN_RLOCK(ctl);
 		CHT_SLIST_FIND_BYOBJ(&ctl->un_head, unhop, &key, unhop);
 		UN_RUNLOCK(ctl);
@@ -989,15 +1018,53 @@ rtnl_handle_getnhop(struct nlmsghdr *hdr, struct nlpcb *nlp,
 			return (ESRCH);
 		dump_unhop(unhop, &wa.hdr, wa.nw);
 		return (0);
-	}
+	} else if (attrs.nhaf_kid != 0) {
+		struct nhop_iter iter = {
+			.fibnum = attrs.nhaf_table,
+			.family = attrs.nhaf_family,
+		};
+		int error = ESRCH;
 
-	UN_RLOCK(ctl);
-	wa.hdr.nlmsg_flags |= NLM_F_MULTI;
-	CHT_SLIST_FOREACH(&ctl->un_head, unhop, unhop) {
-		if (UNHOP_IS_MASTER(unhop) && match_unhop(&attrs, unhop))
-			dump_unhop(unhop, &wa.hdr, wa.nw);
-	} CHT_SLIST_FOREACH_END;
-	UN_RUNLOCK(ctl);
+		NL_LOG(LOG_DEBUG2, "START table %u family %d", attrs.nhaf_table, attrs.nhaf_family);
+		for (struct nhop_object *nh = nhops_iter_start(&iter); nh;
+		    nh = nhops_iter_next(&iter)) {
+			NL_LOG(LOG_DEBUG3, "get %u", nhop_get_idx(nh));
+			if (nhop_get_idx(nh) == attrs.nhaf_kid) {
+				dump_nhop(nh, 0, &wa.hdr, wa.nw);
+				error = 0;
+				break;
+			}
+		}
+		nhops_iter_stop(&iter);
+		return (error);
+	} else if (attrs.nhaf_knhops) {
+		struct nhop_iter iter = {
+			.fibnum = attrs.nhaf_table,
+			.family = attrs.nhaf_family,
+		};
+
+		NL_LOG(LOG_DEBUG2, "DUMP table %u family %d", attrs.nhaf_table, attrs.nhaf_family);
+		wa.hdr.nlmsg_flags |= NLM_F_MULTI;
+		for (struct nhop_object *nh = nhops_iter_start(&iter); nh;
+		    nh = nhops_iter_next(&iter)) {
+			dump_nhop(nh, 0, &wa.hdr, wa.nw);
+		}
+		nhops_iter_stop(&iter);
+	} else {
+		struct unhop_ctl *ctl = atomic_load_ptr(&V_un_ctl);
+
+		if (__predict_false(ctl == NULL))
+			return (ESRCH);
+
+		NL_LOG(LOG_DEBUG2, "DUMP unhops");
+		UN_RLOCK(ctl);
+		wa.hdr.nlmsg_flags |= NLM_F_MULTI;
+		CHT_SLIST_FOREACH(&ctl->un_head, unhop, unhop) {
+			if (UNHOP_IS_MASTER(unhop) && match_unhop(&attrs, unhop))
+				dump_unhop(unhop, &wa.hdr, wa.nw);
+		} CHT_SLIST_FOREACH_END;
+		UN_RUNLOCK(ctl);
+	}
 
 	if (wa.error == 0) {
 		if (!nlmsg_end_dump(wa.nw, wa.error, &wa.hdr))
@@ -1026,7 +1093,7 @@ static const struct rtnl_cmd_handler cmd_handlers[] = {
 	}
 };
 
-static const struct nlhdr_parser *all_parsers[] = { &nhmsg_parser };
+static const struct nlhdr_parser *all_parsers[] = { &nhmsg_parser, &nh_fbsd_parser };
 
 void
 rtnl_nexthops_init(void)
