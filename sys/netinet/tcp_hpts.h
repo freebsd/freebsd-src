@@ -114,7 +114,7 @@ struct hpts_diag {
 #ifdef _KERNEL
 void tcp_hpts_init(struct tcpcb *);
 void tcp_hpts_remove(struct tcpcb *);
-static bool
+static inline bool
 tcp_in_hpts(struct tcpcb *tp)
 {
 	return (tp->t_in_hpts == IHPTS_ONQUEUE);
