@@ -31,6 +31,13 @@ CFLAGS+=	-DEXPERIMENTAL
 CFLAGS+=	-DDRAFT_IETF_6MAN_IPV6ONLY_FLAG
 .endif
 
+.if ${MK_NETLINK_SUPPORT} != "no"
+SRCS+=	ndp_netlink.c
+.else
+CFLAGS+=-DWITHOUT_NETLINK
+.endif
+
+
 WARNS?=	3
 
 .include <bsd.prog.mk>
