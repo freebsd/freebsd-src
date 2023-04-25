@@ -230,8 +230,8 @@ devfs_statfs(struct mount *mp, struct statfs *sbp)
 	sbp->f_bsize = DEV_BSIZE;
 	sbp->f_iosize = DEV_BSIZE;
 	sbp->f_blocks = 2;		/* 1K to keep df happy */
-	sbp->f_bfree = 0;
-	sbp->f_bavail = 0;
+	sbp->f_bfree = 2;
+	sbp->f_bavail = 2;
 	sbp->f_files = 0;
 	sbp->f_ffree = 0;
 	return (0);
