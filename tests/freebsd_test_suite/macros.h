@@ -53,6 +53,18 @@
 	}								\
 } while(0)
 
+#define	ATF_REQUIRE_SYSCTL_BOOL(_mib_name, _required_value) do {	\
+	bool value;							\
+	size_t size = sizeof(value);					\
+	if (sysctlbyname(_mib_name, &value, &size, NULL, 0) == -1) {	\
+		atf_tc_skip("sysctl for %s failed: %s", _mib_name,	\
+		    strerror(errno));					\
+	}								\
+	if (value != (_required_value))					\
+		atf_tc_skip("requires %s=%d, =%d", (_mib_name),		\
+		    (_required_value), value);				\
+} while (0)
+
 #define ATF_REQUIRE_SYSCTL_INT(_mib_name, _required_value) do {		\
 	int value;							\
 	size_t size = sizeof(value);					\
@@ -60,8 +72,9 @@
 		atf_tc_skip("sysctl for %s failed: %s", _mib_name,	\
 		    strerror(errno));					\
 	}								\
-	if (value != _required_value)					\
-		atf_tc_skip("requires %s=%d", _mib_name, _required_value); \
+	if (value != (_required_value))					\
+		atf_tc_skip("requires %s=%d, =%d", (_mib_name),		\
+		    (_required_value), value);				\
 } while(0)
 
 #define	PLAIN_REQUIRE_FEATURE(_feature_name, _exit_code) do {		\
