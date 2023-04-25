@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 4, 2022
+.Dd April 25, 2023
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -1912,13 +1912,24 @@ However, this option doesn't imply an implicit
 .Cm check-state
 in contrast to
 .Cm keep-state .
-.It Cm recv | xmit | via Brq Ar ifX | Ar if Ns Cm * | Ar table Ns Po Ar name Ns Oo , Ns Ar value Oc Pc | Ar ipno | Ar any
+.It Cm recv | xmit | via Brq Ar ifX | Ar ifmask | Ar table Ns Po Ar name Ns Oo , Ns Ar value Oc Pc | Ar ipno | Ar any
 Matches packets received, transmitted or going through,
 respectively, the interface specified by exact name
 .Po Ar ifX Pc ,
-by device name
-.Po Ar if* Pc ,
+by device mask
+.Po Ar ifmask Pc ,
 by IP address, or through some interface.
+.Pp
+Interface
+name may be matched against
+.Ar ifmask
+with
+.Xr fnmatch 3
+according to the rules used by the shell (f.e. tun*).
+See also the
+.Sx EXAMPLES
+section.
+.Pp
 Table
 .Ar name
 may be used to match interface by its kernel ifindex.
@@ -4217,6 +4228,12 @@ of clients, as below:
 .Dl "ipfw add deny ip from ${badguys} to any"
 .Dl "... normal policies ..."
 .Pp
+Allow any transit packets coming from single vlan 10 and
+going out to vlans 100-1000:
+.Pp
+.Dl "ipfw add 10 allow out recv vlan10 \e"
+.Dl "{ xmit vlan1000 or xmit \*qvlan[1-9]??\*q }"
+.Pp
 The
 .Cm verrevpath
 option could be used to do automated anti-spoofing by adding the
@@ -4740,6 +4757,7 @@ can be changed in a similar way as for
 .Sh SEE ALSO
 .Xr cpp 1 ,
 .Xr m4 1 ,
+.Xr fnmatch 3 ,
 .Xr altq 4 ,
 .Xr divert 4 ,
 .Xr dummynet 4 ,
