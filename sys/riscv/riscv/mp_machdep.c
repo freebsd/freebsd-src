@@ -88,8 +88,6 @@ static device_attach_t riscv64_cpu_attach;
 
 static int ipi_handler(void *);
 
-struct pcb stoppcbs[MAXCPU];
-
 extern uint32_t boot_hart;
 extern cpuset_t all_harts;
 

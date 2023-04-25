@@ -627,18 +627,18 @@ kdb_reenter_silent(void)
 struct pcb *
 kdb_thr_ctx(struct thread *thr)
 {
-#if defined(SMP) && defined(KDB_STOPPEDPCB)
+#ifdef SMP
 	struct pcpu *pc;
 #endif
 
 	if (thr == curthread)
 		return (&kdb_pcb);
 
-#if defined(SMP) && defined(KDB_STOPPEDPCB)
+#ifdef SMP
 	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu)  {
 		if (pc->pc_curthread == thr &&
 		    CPU_ISSET(pc->pc_cpuid, &stopped_cpus))
-			return (KDB_STOPPEDPCB(pc));
+			return (&stoppcbs[pc->pc_cpuid]);
 	}
 #endif
 	return (thr->td_pcb);

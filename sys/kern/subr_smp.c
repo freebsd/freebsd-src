@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <machine/cpu.h>
+#include <machine/pcb.h>
 #include <machine/smp.h>
 
 #include "opt_sched.h"
@@ -75,6 +76,9 @@ int mp_maxcpus = MAXCPU;
 
 volatile int smp_started;
 u_int mp_maxid;
+
+/* Array of CPU contexts saved during a panic. */
+struct pcb *stoppcbs;
 
 static SYSCTL_NODE(_kern, OID_AUTO, smp,
     CTLFLAG_RD | CTLFLAG_CAPRD | CTLFLAG_MPSAFE, NULL,
@@ -177,6 +181,9 @@ mp_start(void *dummy)
 	/* Provide a default for most architectures that don't have SMT/HTT. */
 	if (mp_ncores < 0)
 		mp_ncores = mp_ncpus;
+
+	stoppcbs = mallocarray(mp_maxid + 1, sizeof(struct pcb), M_DEVBUF,
+	    M_WAITOK | M_ZERO);
 
 	cpu_mp_announce();
 }
