@@ -4,7 +4,7 @@
  * Authors: Ravi Pokala (rpokala@freebsd.org), Andriy Gapon (avg@FreeBSD.org)
  *
  * Copyright (c) 2016 Andriy Gapon <avg@FreeBSD.org>
- * Copyright (c) 2018 Panasas
+ * Copyright (c) 2018-2023 Panasas
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -56,6 +56,8 @@ struct jedec_dimm_softc {
 	device_t smbus;
 	uint8_t spd_addr;	/* SMBus address of the SPD EEPROM. */
 	uint8_t tsod_addr;	/* Address of the Thermal Sensor On DIMM */
+	uint8_t mfg_year;
+	uint8_t mfg_week;
 	uint32_t capacity_mb;
 	char type_str[5];
 	char part_str[21]; /* 18 (DDR3) or 20 (DDR4) chars, plus terminator */
@@ -153,6 +155,9 @@ static int jedec_dimm_dump(struct jedec_dimm_softc *sc, enum dram_type type);
 
 static int jedec_dimm_field_to_str(struct jedec_dimm_softc *sc, char *dst,
     size_t dstsz, uint16_t offset, uint16_t len, bool ascii);
+
+static int jedec_dimm_mfg_date(struct jedec_dimm_softc *sc, enum dram_type type,
+    uint8_t *year, uint8_t *week);
 
 static int jedec_dimm_probe(device_t dev);
 
@@ -257,6 +262,11 @@ jedec_dimm_attach(device_t dev)
 		goto out;
 	}
 
+	rc = jedec_dimm_mfg_date(sc, type, &sc->mfg_year, &sc->mfg_week);
+	if (rc != 0) {
+		goto out;
+	}
+
 	rc = jedec_dimm_field_to_str(sc, sc->part_str, sizeof(sc->part_str),
 	    partnum_offset, partnum_len, true);
 	if (rc != 0) {
@@ -335,6 +345,14 @@ no_tsod:
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "serial",
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, sc->serial_str, 0,
 	    "DIMM Serial Number");
+
+	SYSCTL_ADD_U8(ctx, children, OID_AUTO, "mfg_year",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, sc->mfg_year,
+	    "DIMM manufacturing year (20xx)");
+
+	SYSCTL_ADD_U8(ctx, children, OID_AUTO, "mfg_week",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, sc->mfg_week,
+	    "DIMM manufacturing week");
 
 	/* Create the temperature sysctl IFF the TSOD is present and valid */
 	if (tsod_present && (tsod_match != NULL)) {
@@ -816,6 +834,117 @@ out:
 			device_printf(sc->dev,
 			    "unable to restore page for offset 0x%04x: %d\n",
 			    offset, rc2);
+		}
+	}
+
+	return (rc);
+}
+
+/**
+ * Both DDR3 and DDR4 encode manufacturing date as a one-byte BCD-encoded
+ * year (offset from 2000) and a one-byte BCD-encoded week within that year.
+ * The SPD offsets are different between the two types.
+ *
+ * @author rpokala
+ *
+ * @param[in] sc
+ *      Instance-specific context data
+ *
+ * @param[in] dram_type
+ *      The locations of the manufacturing date depends on the type of the DIMM.
+ *
+ * @param[out] year
+ *      The manufacturing year, offset from 2000
+ *
+ * @param[out] week
+ *      The manufacturing week within the year
+ */
+static int
+jedec_dimm_mfg_date(struct jedec_dimm_softc *sc, enum dram_type type,
+    uint8_t *year, uint8_t *week)
+{
+	uint8_t year_bcd;
+	uint8_t week_bcd;
+	uint16_t year_offset;
+	uint16_t week_offset;
+	bool page_changed;
+	int rc;
+
+	switch (type) {
+	case DRAM_TYPE_DDR3_SDRAM:
+		year_offset = SPD_OFFSET_DDR3_MOD_MFG_YEAR;
+		week_offset = SPD_OFFSET_DDR3_MOD_MFG_WEEK;
+		break;
+	case DRAM_TYPE_DDR4_SDRAM:
+		year_offset = SPD_OFFSET_DDR4_MOD_MFG_YEAR;
+		week_offset = SPD_OFFSET_DDR4_MOD_MFG_WEEK;
+		break;
+	default:
+		device_printf(sc->dev, "unsupported dram_type 0x%02x\n", type);
+		rc = EINVAL;
+		page_changed = false;
+		goto out;
+	}
+
+	/* Change to the proper page. Offsets [0, 255] are in page0; offsets
+	 * [256, 512] are in page1.
+	 *
+	 * *The page must be reset to page0 before returning.*
+	 *
+	 * For the page-change operation, only the DTI and LSA matter; the
+	 * offset and write-value are ignored, so use just 0.
+	 *
+	 * Mercifully, JEDEC defined the fields such that all of the
+	 * manufacturing-related ones are on the same page, so we don't need to
+	 * worry about that complication.
+	 */
+	if (year_offset < JEDEC_SPD_PAGE_SIZE) {
+		page_changed = false;
+	} else if (year_offset < (2 * JEDEC_SPD_PAGE_SIZE)) {
+		page_changed = true;
+		rc = smbus_writeb(sc->smbus,
+		    (JEDEC_DTI_PAGE | JEDEC_LSA_PAGE_SET1), 0, 0);
+		if (rc != 0) {
+			device_printf(sc->dev,
+			    "unable to change page for offset 0x%04x: %d\n",
+			    year_offset, rc);
+		}
+		/* Adjust the offset to account for the page change. */
+		year_offset -= JEDEC_SPD_PAGE_SIZE;
+		week_offset -= JEDEC_SPD_PAGE_SIZE;
+	} else {
+		device_printf(sc->dev, "invalid offset 0x%04x\n", year_offset);
+		rc = EINVAL;
+		page_changed = false;
+		goto out;
+	}
+
+	rc = smbus_readb(sc->smbus, sc->spd_addr, year_offset, &year_bcd);
+	if (rc != 0) {
+		device_printf(sc->dev, "failed to read mfg year: %d\n", rc);
+		goto out;
+	}
+
+	rc = smbus_readb(sc->smbus, sc->spd_addr, week_offset, &week_bcd);
+	if (rc != 0) {
+		device_printf(sc->dev, "failed to read mfg week: %d\n", rc);
+		goto out;
+	}
+
+	/* Convert from one-byte BCD to one-byte integer. */
+	*year = (((year_bcd & 0xf0) >> 4) * 10) + (year_bcd & 0x0f);
+	*week = (((week_bcd & 0xf0) >> 4) * 10) + (week_bcd & 0x0f);
+
+out:
+	if (page_changed) {
+		int rc2;
+		/* Switch back to page0 before returning. */
+		rc2 = smbus_writeb(sc->smbus,
+		    (JEDEC_DTI_PAGE | JEDEC_LSA_PAGE_SET0), 0, 0);
+		if (rc2 != 0) {
+			device_printf(sc->dev,
+			    "unable to restore page for offset 0x%04x: %d\n",
+			    year_offset, rc2);
 		}
 	}
 

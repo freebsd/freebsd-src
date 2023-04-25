@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 31, 2018
+.Dd April 25, 2023
 .Dt JEDEC_DIMM 4
 .Os
 .Sh NAME
@@ -76,6 +76,10 @@ interface; all values are read-only:
 a string description of the DIMM, including TSOD and slotid info if present.
 .It Va dev.jedec_dimm.X.capacity
 the DIMM's memory capacity, in megabytes
+.It Va dev.jedec_dimm.X.mfg_week
+the week within the year in which the DIMM was manufactured
+.It Va dev.jedec_dimm.X.mfg_year
+the year in which the DIMM was manufactured
 .It Va dev.jedec_dimm.X.part
 the manufacturer's part number of the DIMM
 .It Va dev.jedec_dimm.X.serial
@@ -144,6 +148,8 @@ dev.jedec_dimm.0.%location: addr=0xa0
 dev.jedec_dimm.0.%parent: smbus0
 dev.jedec_dimm.0.%pnpinfo:
 dev.jedec_dimm.0.capacity: 16384
+dev.jedec_dimm.0.mfg_week: 30
+dev.jedec_dimm.0.mfg_year: 17
 dev.jedec_dimm.0.part: 36ASF2G72PZ-2G1A2
 dev.jedec_dimm.0.serial: 0ea815de
 dev.jedec_dimm.0.slotid: A1
@@ -156,6 +162,8 @@ dev.jedec_dimm.6.%location: addr=0xa8
 dev.jedec_dimm.6.%parent: smbus1
 dev.jedec_dimm.6.%pnpinfo:
 dev.jedec_dimm.6.capacity: 8192
+dev.jedec_dimm.6.mfg_week: 13
+dev.jedec_dimm.6.mfg_year: 19
 dev.jedec_dimm.6.part: VRA9MR8B2H1603
 dev.jedec_dimm.6.serial: 0c4c46ad
 dev.jedec_dimm.6.temp: 43.1C

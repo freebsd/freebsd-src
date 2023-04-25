@@ -3,7 +3,7 @@
  *
  * Authors: Ravi Pokala (rpokala@freebsd.org)
  *
- * Copyright (c) 2018 Panasas
+ * Copyright (c) 2018-2023 Panasas
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -90,6 +90,8 @@
 #define SPD_OFFSET_DDR3_SDRAM_WIDTH	7
 #define SPD_OFFSET_DDR3_BUS_WIDTH	8
 #define SPD_OFFSET_DDR3_TSOD_PRESENT	32
+#define SPD_OFFSET_DDR3_MOD_MFG_YEAR	120
+#define SPD_OFFSET_DDR3_MOD_MFG_WEEK	121
 #define SPD_OFFSET_DDR3_SERIAL		122
 #define SPD_LEN_DDR3_SERIAL		4
 #define SPD_OFFSET_DDR3_PARTNUM		128
@@ -100,6 +102,8 @@
 #define SPD_OFFSET_DDR4_SDRAM_WIDTH	12
 #define SPD_OFFSET_DDR4_BUS_WIDTH	13
 #define SPD_OFFSET_DDR4_TSOD_PRESENT	14
+#define SPD_OFFSET_DDR4_MOD_MFG_YEAR	323
+#define SPD_OFFSET_DDR4_MOD_MFG_WEEK	324
 #define SPD_OFFSET_DDR4_SERIAL		325
 #define SPD_LEN_DDR4_SERIAL		4
 #define SPD_OFFSET_DDR4_PARTNUM		329
