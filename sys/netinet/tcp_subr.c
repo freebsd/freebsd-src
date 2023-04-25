@@ -2148,7 +2148,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 			struct timeval tv;
 
 			memset(&log.u_bbr, 0, sizeof(log.u_bbr));
-			log.u_bbr.inhpts = inp->inp_in_hpts;
+			log.u_bbr.inhpts = tcp_in_hpts(tp);
 			log.u_bbr.flex8 = 4;
 			log.u_bbr.pkts_out = tp->t_maxseg;
 			log.u_bbr.timeStamp = tcp_get_usecs(&tv);
@@ -2315,11 +2315,7 @@ tcp_newtcpcb(struct inpcb *inp)
 	 */
 	inp->inp_ip_ttl = V_ip_defttl;
 #ifdef TCPHPTS
-	/*
-	 * If using hpts lets drop a random number in so
-	 * not all new connections fall on the same CPU.
-	 */
-	inp->inp_hpts_cpu = hpts_random_cpu(inp);
+	tcp_hpts_init(tp);
 #endif
 #ifdef TCPPCAP
 	/*
@@ -2434,6 +2430,7 @@ tcp_discardcb(struct tcpcb *tp)
 
 	if (tp->t_fb->tfb_tcp_fb_fini)
 		(*tp->t_fb->tfb_tcp_fb_fini)(tp, 1);
+	MPASS(!tcp_in_hpts(tp));
 #ifdef TCP_BLACKBOX
 	tcp_log_tcpcbfini(tp);
 #endif
@@ -2529,7 +2526,7 @@ tcp_close(struct tcpcb *tp)
 		tp->t_tfo_pending = NULL;
 	}
 #ifdef TCPHPTS
-	tcp_hpts_remove(inp);
+	tcp_hpts_remove(tp);
 #endif
 	in_pcbdrop(inp);
 	TCPSTAT_INC(tcps_closed);

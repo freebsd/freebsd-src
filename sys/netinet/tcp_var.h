@@ -314,6 +314,23 @@ struct tcpcb {
 	sbintime_t t_timers[TT_N];
 	sbintime_t t_precisions[TT_N];
 
+	/* HPTS. Used by BBR and Rack stacks. See tcp_hpts.c for more info. */
+	TAILQ_ENTRY(tcpcb)	t_hpts;		/* linkage to HPTS ring */
+	STAILQ_HEAD(, mbuf)	t_inqueue;	/* HPTS input packets queue */
+	uint32_t t_hpts_request;	/* Current hpts request, zero if
+					 * fits in the pacing window. */
+	uint32_t t_hpts_slot;		/* HPTS wheel slot this tcb is. */
+	uint32_t t_hpts_drop_reas;	/* Reason we are dropping the pcb. */
+	uint32_t t_hpts_gencnt;
+	uint16_t t_hpts_cpu;		/* CPU chosen by hpts_cpuid(). */
+	uint16_t t_lro_cpu;		/* CPU derived from LRO. */
+#define	HPTS_CPU_NONE	((uint16_t)-1)
+	enum {
+		IHPTS_NONE = 0,
+		IHPTS_ONQUEUE,
+		IHPTS_MOVING,
+	} t_in_hpts;			/* Is it linked into HPTS? */
+
 	uint32_t t_maxseg:24,		/* maximum segment size */
 		_t_logstate:8;		/* State of "black box" logging */
 	uint32_t t_port:16,		/* Tunneling (over udp) port */
@@ -355,7 +372,6 @@ struct tcpcb {
 	int	t_segqlen;		/* segment reassembly queue length */
 	uint32_t t_segqmbuflen;		/* total reassembly queue byte length */
 	struct	tsegqe_head t_segq;	/* segment reassembly queue */
-	STAILQ_HEAD(, mbuf) t_inqueue;	/* HPTS input queue */
 	uint32_t snd_ssthresh;		/* snd_cwnd size threshold for
 					 * for slow start exponential to
 					 * linear switch
@@ -832,9 +848,11 @@ tcp_packets_this_ack(struct tcpcb *tp, tcp_seq ack)
 #define	TF2_ECN_SND_CWR		0x00000040 /* ECN CWR in queue */
 #define	TF2_ECN_SND_ECE		0x00000080 /* ECN ECE in queue */
 #define	TF2_ACE_PERMIT		0x00000100 /* Accurate ECN mode */
+#define	TF2_HPTS_CPU_SET	0x00000200 /* t_hpts_cpu is not random */
 #define	TF2_FBYTES_COMPLETE	0x00000400 /* We have first bytes in and out */
 #define	TF2_ECN_USE_ECT1	0x00000800 /* Use ECT(1) marking on session */
 #define TF2_TCP_ACCOUNTING	0x00001000 /* Do TCP accounting */
+#define	TF2_HPTS_CALLS		0x00002000 /* tcp_output() called via HPTS */
 
 /*
  * Structure to hold TCP options that are only used during segment
