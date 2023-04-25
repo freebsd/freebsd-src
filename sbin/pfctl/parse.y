@@ -351,7 +351,7 @@ int		 rdr_consistent(struct pfctl_rule *);
 int		 process_tabledef(char *, struct table_opts *);
 void		 expand_label_str(char *, size_t, const char *, const char *);
 void		 expand_label_if(const char *, char *, size_t, const char *);
-void		 expand_label_addr(const char *, char *, size_t, u_int8_t,
+void		 expand_label_addr(const char *, char *, size_t, sa_family_t,
 		    struct pf_rule_addr *);
 void		 expand_label_port(const char *, char *, size_t,
 		    struct pf_rule_addr *);
