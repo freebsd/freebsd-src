@@ -1692,7 +1692,6 @@ in_pcbrele_rlocked(struct inpcb *inp)
 
 	MPASS(inp->inp_flags & INP_FREED);
 	MPASS(inp->inp_socket == NULL);
-	MPASS(inp->inp_in_hpts == 0);
 	crfree(inp->inp_cred);
 #ifdef INVARIANTS
 	inp->inp_cred = NULL;
@@ -1713,7 +1712,6 @@ in_pcbrele_wlocked(struct inpcb *inp)
 
 	MPASS(inp->inp_flags & INP_FREED);
 	MPASS(inp->inp_socket == NULL);
-	MPASS(inp->inp_in_hpts == 0);
 	crfree(inp->inp_cred);
 #ifdef INVARIANTS
 	inp->inp_cred = NULL;

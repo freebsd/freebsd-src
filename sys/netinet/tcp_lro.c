@@ -1380,10 +1380,8 @@ tcp_lro_flush_tcphpts(struct lro_ctrl *lc, struct lro_entry *le)
 		INP_WUNLOCK(inp);
 		return (TCP_LRO_CANNOT);
 	}
-	if ((inp->inp_irq_cpu_set == 0)  && (lc->lro_cpu_is_set == 1)) {
-		inp->inp_irq_cpu = lc->lro_last_cpu;
-		inp->inp_irq_cpu_set = 1;
-	}
+	if (tp->t_lro_cpu == HPTS_CPU_NONE && lc->lro_cpu_is_set == 1)
+		tp->t_lro_cpu = lc->lro_last_cpu;
 	/* Check if the transport doesn't support the needed optimizations. */
 	if ((inp->inp_flags2 & (INP_SUPPORTS_MBUFQ | INP_MBUF_ACKCMP)) == 0) {
 		INP_WUNLOCK(inp);
