@@ -288,6 +288,7 @@ static struct _s_x rule_actions[] = {
 	{ "return",		TOK_RETURN },
 	{ "eaction",		TOK_EACTION },
 	{ "tcp-setmss",		TOK_TCPSETMSS },
+	{ "setmark",		TOK_SETMARK },
 	{ NULL, 0 }	/* terminator */
 };
 
@@ -313,6 +314,7 @@ static struct _s_x lookup_keys[] = {
 	{ "uid",		LOOKUP_UID },
 	{ "jail",		LOOKUP_JAIL },
 	{ "dscp",		LOOKUP_DSCP },
+	{ "mark",		LOOKUP_MARK },
 	{ NULL,			0 },
 };
 
@@ -391,6 +393,7 @@ static struct _s_x rule_options[] = {
 	{ "src-ip6",		TOK_SRCIP6 },
 	{ "lookup",		TOK_LOOKUP },
 	{ "flow",		TOK_FLOW },
+	{ "mark",		TOK_MARK },
 	{ "defer-action",	TOK_SKIPACTION },
 	{ "defer-immediate-action",	TOK_SKIPACTION },
 	{ "//",			TOK_COMMENT },
@@ -1102,6 +1105,45 @@ fill_dscp(ipfw_insn *cmd, char *av, int cblen)
 	}
 }
 
+/*
+ * Fill the body of the command with mark value and mask.
+ */
+static void
+fill_mark(ipfw_insn *cmd, char *av, int cblen)
+{
+	uint32_t *value, *mask;
+	char *value_str;
+
+	cmd->opcode = O_MARK;
+	cmd->len |= F_INSN_SIZE(ipfw_insn_u32) + 1;
+
+	CHECK_CMDLEN;
+
+	value = (uint32_t *)(cmd + 1);
+	mask = value + 1;
+
+	value_str = strsep(&av, ":");
+
+	if (strcmp(value_str, "tablearg") == 0) {
+		cmd->arg1 = IP_FW_TARG;
+		*value = 0;
+	} else {
+		/* This is not a tablearg */
+		cmd->arg1 |= 0x8000;
+		*value = strtoul(value_str, NULL, 0);
+	}
+	if (av)
+		*mask = strtoul(av, NULL, 0);
+	else
+		*mask = 0xFFFFFFFF;
+
+	if ((*value & *mask) != *value)
+		errx(EX_DATAERR, "Static mark value: some bits in value are"
+		    " set that will be masked out by mask "
+		    "(%#x & %#x) = %#x != %#x",
+		    *value, *mask, (*value & *mask), *value);
+}
+
 static struct _s_x icmpcodes[] = {
       { "net",			ICMP_UNREACH_NET },
       { "host",			ICMP_UNREACH_HOST },
@@ -1788,6 +1830,19 @@ print_instruction(struct buf_pr *bp, const struct format_opts *fo,
 	case O_SKIP_ACTION:
 		bprintf(bp, " defer-immediate-action");
 		break;
+	case O_MARK:
+		bprintf(bp, " mark");
+		if (cmd->arg1 == IP_FW_TARG)
+			bprintf(bp, " tablearg");
+		else
+			bprintf(bp, " %#x",
+			    ((const ipfw_insn_u32 *)cmd)->d[0]);
+
+		if (((const ipfw_insn_u32 *)cmd)->d[1] != 0xFFFFFFFF)
+			bprintf(bp, ":%#x",
+			    ((const ipfw_insn_u32 *)cmd)->d[1]);
+		break;
+
 	default:
 		bprintf(bp, " [opcode %d len %d]", cmd->opcode,
 		    cmd->len);
@@ -2031,6 +2086,13 @@ print_action_instruction(struct buf_pr *bp, const struct format_opts *fo,
 		else
 			bprint_uint_arg(bp, "call ", cmd->arg1);
 		break;
+	case O_SETMARK:
+		if (cmd->arg1 == IP_FW_TARG) {
+			bprintf(bp, "setmark tablearg");
+			break;
+		}
+		bprintf(bp, "setmark %#x", ((const ipfw_insn_u32 *)cmd)->d[0]);
+		break;
 	default:
 		bprintf(bp, "** unrecognized action %d len %d ",
 			cmd->opcode, cmd->len);
@@ -2175,7 +2237,7 @@ static const int action_opcodes[] = {
 	O_CHECK_STATE, O_ACCEPT, O_COUNT, O_DENY, O_REJECT,
 	O_UNREACH6, O_SKIPTO, O_PIPE, O_QUEUE, O_DIVERT, O_TEE,
 	O_NETGRAPH, O_NGTEE, O_FORWARD_IP, O_FORWARD_IP6, O_NAT,
-	O_SETFIB, O_SETDSCP, O_REASS, O_CALLRETURN,
+	O_SETFIB, O_SETDSCP, O_REASS, O_CALLRETURN, O_SETMARK,
 	/* keep the following opcodes at the end of the list */
 	O_EXTERNAL_ACTION, O_EXTERNAL_INSTANCE, O_EXTERNAL_DATA
 };
@@ -4244,6 +4306,23 @@ chkarg:
 		fill_cmd(action, O_CALLRETURN, F_NOT, 0);
 		break;
 
+	case TOK_SETMARK: {
+		action->opcode = O_SETMARK;
+		action->len = F_INSN_SIZE(ipfw_insn_u32);
+		NEED1("missing mark");
+		if (strcmp(*av, "tablearg") == 0) {
+			action->arg1 = IP_FW_TARG;
+		} else {
+		        ((ipfw_insn_u32 *)action)->d[0] =
+		            strtoul(*av, NULL, 0);
+			/* This is not a tablearg */
+			action->arg1 |= 0x8000;
+		}
+		av++;
+		CHECK_CMDLEN;
+		break;
+	}
+
 	case TOK_TCPSETMSS: {
 		u_long mss;
 		uint16_t idx;
@@ -5129,6 +5208,12 @@ read_options:
 					"is allowed");
 			have_skipcmd = cmd;
 			fill_cmd(cmd, O_SKIP_ACTION, 0, 0);
+			break;
+
+		case TOK_MARK:
+			NEED1("missing mark value:mask");
+			fill_mark(cmd, *av, cblen);
+			av++;
 			break;
 
 		default:

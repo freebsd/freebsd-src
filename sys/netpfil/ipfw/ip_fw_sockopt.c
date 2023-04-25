@@ -566,6 +566,8 @@ import_rule0(struct rule_check_info *ci)
 			break;
 		case O_SETFIB:
 		case O_SETDSCP:
+		case O_SETMARK:
+		case O_MARK:
 			if (cmd->arg1 == IP_FW_TABLEARG)
 				cmd->arg1 = IP_FW_TARG;
 			else
@@ -650,6 +652,8 @@ export_rule0(struct ip_fw *krule, struct ip_fw_rule0 *urule, int len)
 			break;
 		case O_SETFIB:
 		case O_SETDSCP:
+		case O_SETMARK:
+		case O_MARK:
 			if (cmd->arg1 == IP_FW_TARG)
 				cmd->arg1 = IP_FW_TABLEARG;
 			else
@@ -1939,6 +1943,7 @@ check_ipfw_rule_body(ipfw_insn *cmd, int cmd_len, struct rule_check_info *ci)
 			break;
 
 		case O_DSCP:
+		case O_MARK:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn_u32) + 1)
 				goto bad_size;
 			break;
@@ -2001,6 +2006,10 @@ check_ipfw_rule_body(ipfw_insn *cmd, int cmd_len, struct rule_check_info *ci)
 		case O_CHECK_STATE:
 			ci->object_opcodes++;
 			goto check_size;
+		case O_SETMARK:
+			if (cmdlen != F_INSN_SIZE(ipfw_insn_u32))
+				goto bad_size;
+			goto check_action;
 		case O_REJECT:
 			/* "unreach needfrag" has variable len. */
 			if ((cmdlen == F_INSN_SIZE(ipfw_insn) ||

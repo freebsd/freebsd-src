@@ -321,6 +321,9 @@ enum tokens {
 
 	TOK_TCPSETMSS,
 
+	TOK_MARK,
+	TOK_SETMARK,
+
 	TOK_SKIPACTION,
 };
 

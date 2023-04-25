@@ -114,6 +114,7 @@ mask_table_value(struct table_value *src, struct table_value *dst,
 	_MCPY(netgraph, IPFW_VTYPE_NETGRAPH);
 	_MCPY(fib, IPFW_VTYPE_FIB);
 	_MCPY(nat, IPFW_VTYPE_NAT);
+	_MCPY(mark, IPFW_VTYPE_MARK);
 	_MCPY(dscp, IPFW_VTYPE_DSCP);
 	_MCPY(nh4, IPFW_VTYPE_NH4);
 	_MCPY(nh6, IPFW_VTYPE_NH6);
@@ -615,6 +616,7 @@ ipfw_import_table_value_legacy(uint32_t value, struct table_value *v)
 	v->nh4 = value; /* host format */
 	v->dscp = value;
 	v->limit = value;
+	v->mark = value;
 }
 
 /*
@@ -653,6 +655,7 @@ ipfw_import_table_value_v1(ipfw_table_value *iv)
 	v.nh6 = iv->nh6;
 	v.limit = iv->limit;
 	v.zoneid = iv->zoneid;
+	v.mark = iv->mark;
 
 	memcpy(iv, &v, sizeof(ipfw_table_value));
 }
@@ -679,33 +682,34 @@ ipfw_export_table_value_v1(struct table_value *v, ipfw_table_value *piv)
 	iv.nh4 = v->nh4;
 	iv.nh6 = v->nh6;
 	iv.zoneid = v->zoneid;
+	iv.mark = v->mark;
 
 	memcpy(piv, &iv, sizeof(iv));
 }
 
 /*
- * Exports real value data into ipfw_table_value structure.
- * Utilizes "spare1" field to store kernel index.
+ * Exports real value data into ipfw_table_value structure including refcnt.
  */
 static int
 dump_tvalue(struct namedobj_instance *ni, struct named_object *no, void *arg)
 {
 	struct vdump_args *da;
 	struct table_val_link *ptv;
-	struct table_value *v;
+	ipfw_table_value *v;
 
 	da = (struct vdump_args *)arg;
 	ptv = (struct table_val_link *)no;
 
-	v = (struct table_value *)ipfw_get_sopt_space(da->sd, sizeof(*v));
+	v = (ipfw_table_value *)ipfw_get_sopt_space(da->sd, sizeof(*v));
 	/* Out of memory, returning */
 	if (v == NULL) {
 		da->error = ENOMEM;
 		return (ENOMEM);
 	}
 
-	memcpy(v, ptv->pval, sizeof(*v));
-	v->spare1 = ptv->no.kidx;
+	ipfw_export_table_value_v1(ptv->pval, v);
+	v->refcnt = ptv->pval->refcnt;
+	v->kidx = ptv->no.kidx;
 	return (0);
 }
 

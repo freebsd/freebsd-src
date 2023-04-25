@@ -146,6 +146,7 @@ again:
 	args.m = *m0;
 	args.ifp = ifp;
 	args.inp = inp;
+	args.rule.pkt_mark = 0;
 
 	ipfw = ipfw_chk(&args);
 	*m0 = args.m;
@@ -356,7 +357,7 @@ again:
 			return (PFIL_PASS);
 		args.flags |= IPFW_ARGS_REF;
 	}
-	args.m = *m0,
+	args.m = *m0;
 
 	ipfw = ipfw_chk(&args);
 	*m0 = args.m;

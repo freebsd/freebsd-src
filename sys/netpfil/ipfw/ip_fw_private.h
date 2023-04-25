@@ -330,12 +330,13 @@ struct table_value {
 	uint16_t	divert;		/* O_DIVERT/O_TEE */
 	uint16_t	skipto;		/* skipto, CALLRET */
 	uint32_t	netgraph;	/* O_NETGRAPH/O_NGTEE */
-	uint32_t	fib;		/* O_SETFIB */
-	uint32_t	nat;		/* O_NAT */
+	uint16_t	fib;		/* O_SETFIB */
+	uint16_t	nat;		/* O_NAT */
+	uint32_t	mark;		/* O_SETMARK/O_MARK */
 	uint32_t	nh4;
 	uint8_t		dscp;
 	uint8_t		spare0;
-	uint16_t	spare1;
+	uint16_t	kidx;		/* value kernel index */
 	/* -- 32 bytes -- */
 	struct in6_addr	nh6;
 	uint32_t	limit;		/* O_LIMIT */
