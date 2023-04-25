@@ -79,8 +79,6 @@ static SLIST_HEAD(, nl_cloner) nl_cloners = SLIST_HEAD_INITIALIZER(nl_cloners);
 static struct sx rtnl_cloner_lock;
 SX_SYSINIT(rtnl_cloner_lock, &rtnl_cloner_lock, "rtnl cloner lock");
 
-static struct nl_cloner *rtnl_iface_find_cloner_locked(const char *name);
-
 /*
  * RTM_GETLINK request
  * sendto(3, {{len=32, type=RTM_GETLINK, flags=NLM_F_REQUEST|NLM_F_DUMP, seq=1641940952, pid=0},
@@ -1014,19 +1012,6 @@ rtnl_iface_del_cloner(struct nl_cloner *cloner)
 	sx_xlock(&rtnl_cloner_lock);
 	SLIST_REMOVE(&nl_cloners, cloner, nl_cloner, next);
 	sx_xunlock(&rtnl_cloner_lock);
-}
-
-static struct nl_cloner *
-rtnl_iface_find_cloner_locked(const char *name)
-{
-	struct nl_cloner *cloner;
-
-	SLIST_FOREACH(cloner, &nl_cloners, next) {
-		if (!strcmp(name, cloner->name))
-			return (cloner);
-	}
-
-	return (NULL);
 }
 
 void
