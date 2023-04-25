@@ -315,10 +315,22 @@ nlattr_get_ipvia(struct nlattr *nla, struct nl_pstate *npt, const void *arg, voi
 
 
 int
+nlattr_get_uint8(struct nlattr *nla, struct nl_pstate *npt, const void *arg, void *target)
+{
+	if (__predict_false(NLA_DATA_LEN(nla) != sizeof(uint8_t))) {
+		NLMSG_REPORT_ERR_MSG(npt, "nla type %d size(%u) is not uint8",
+		    nla->nla_type, NLA_DATA_LEN(nla));
+		return (EINVAL);
+	}
+	*((uint16_t *)target) = *((const uint16_t *)NL_RTA_DATA_CONST(nla));
+	return (0);
+}
+
+int
 nlattr_get_uint16(struct nlattr *nla, struct nl_pstate *npt, const void *arg, void *target)
 {
 	if (__predict_false(NLA_DATA_LEN(nla) != sizeof(uint16_t))) {
-		NLMSG_REPORT_ERR_MSG(npt, "nla type %d size(%u) is not uint32",
+		NLMSG_REPORT_ERR_MSG(npt, "nla type %d size(%u) is not uint16",
 		    nla->nla_type, NLA_DATA_LEN(nla));
 		return (EINVAL);
 	}
