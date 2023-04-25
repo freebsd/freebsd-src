@@ -1460,9 +1460,9 @@ usage(void)
 #define	SINGLE_OPTS	"[-aCcde" OPT_LAZY_f "HhjlmrSTuvwXxZ]"
 
 	(void)xo_error("%s\n%s\n%s\n%s\n",
-	    "usage: ps " SINGLE_OPTS " [-O fmt | -o fmt] [-G gid[,gid...]]",
-	    "          [-J jid[,jid...]] [-M core] [-N system]",
+	    "usage: ps [--libxo] " SINGLE_OPTS " [-O fmt | -o fmt]",
+	    "          [-G gid[,gid...]] [-J jid[,jid...]] [-M core] [-N system]",
 	    "          [-p pid[,pid...]] [-t tty[,tty...]] [-U user[,user...]]",
-	    "       ps -L");
+	    "       ps [--libxo] -L");
 	exit(1);
 }
