@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 14, 2023
+.Dd April 25, 2023
 .Dt PRINTF 9
 .Os
 .Sh NAME
@@ -94,11 +94,13 @@ and a
 These are used as a register value and a print mask for decoding bitmasks.
 The print mask is made up of two parts: the base and the
 arguments.
-The base value is the output base expressed as an integer value;
+The base value is the output base (radix) expressed as an octal value;
 for example, \e10 gives octal and \e20 gives hexadecimal.
 The arguments are made up of a sequence of bit identifiers.
-Each bit identifier begins with an integer value which is the number of the
-bit (starting from 1) this identifier describes.
+Each bit identifier begins with an
+.Em octal
+value which is the number of the bit (starting from 1) this identifier
+describes.
 The rest of the identifier is a string of characters containing the name of
 the bit.
 The string is terminated by either the bit number at the start of the next
