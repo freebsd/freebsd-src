@@ -56,8 +56,8 @@ __FBSDID("$FreeBSD$");
 
 #if MAXMEMDOM > 1
 static struct cpu_info {
-	int enabled:1;
-	int has_memory:1;
+	bool enabled:1;
+	bool has_memory:1;
 	int domain;
 	int id;
 } *cpus;
