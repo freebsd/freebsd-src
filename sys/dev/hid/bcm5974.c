@@ -167,22 +167,10 @@ struct tp_finger_compact {
 	uint8_t touch_minor;
 	uint8_t size;
 	uint8_t pressure;
-	unsigned int orientation: 3;
-	unsigned int _unknown1: 1;
-	unsigned int id: 4;
+	uint8_t id_ori;
 } __packed;
 
 _Static_assert((sizeof(struct tp_finger_compact) == 9), "tp_finger struct size must be 9");
-
-union tp_finger_compact_coords {
-	uint32_t num;
-	struct {
-		signed int x: 13;
-		signed int y: 13;
-		signed int _unknown: 4;
-		signed int state: 2;
-	} __packed;
-};
 
 /* trackpad finger structure - little endian */
 struct tp_finger {
@@ -381,8 +369,7 @@ static const struct bcm5974_dev_params bcm5974_dev_params[BCM5974_FLAG_MAX] = {
 		.w = { SN_WIDTH, 0, 2048, 0 },
 		.x = { SN_COORD, -3678, 3934, 48 },
 		.y = { SN_COORD, -2478, 2587, 44 },
-		.o = { SN_ORIENT,
-		    -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION, 0 },
+		.o = { SN_ORIENT, -3, 4, 0 },
 	},
 };
 
@@ -744,7 +731,7 @@ bcm5974_intr(void *context, void *data, hid_size_t len)
 	union evdev_mt_slot slot_data;
 	struct tp_finger *f;
 	struct tp_finger_compact *fc;
-	union tp_finger_compact_coords coords;
+	int coords;
 	int ntouch;			/* the finger number in touch */
 	int ibt;			/* button status */
 	int i;
@@ -768,24 +755,26 @@ bcm5974_intr(void *context, void *data, hid_size_t len)
 		if ((params->tp->caps & USES_COMPACT_REPORT) != 0) {
 			fc = (struct tp_finger_compact *)(((uint8_t *)data) +
 			     params->tp->offset + params->tp->delta + i * fsize);
-			coords.num = le32toh(fc->coords);
+			coords = (int)le32toh(fc->coords);
 			DPRINTFN(BCM5974_LLEVEL_INFO,
 			    "[%d]ibt=%d, taps=%d, x=%5d, y=%5d, state=%4d, "
 			    "tchmaj=%4d, tchmin=%4d, size=%4d, pressure=%4d, "
 			    "ot=%4x, id=%4x\n",
-			    i, ibt, ntouch, coords.x, coords.y,
-			    fc->state, fc->touch_major, fc->touch_minor, fc->size,
-			    fc->pressure, fc->orientation, fc->id);
+			    i, ibt, ntouch, coords << 19 >> 19,
+			    coords << 6 >> 19, (u_int)coords >> 30,
+			    fc->touch_major, fc->touch_minor, fc->size,
+			    fc->pressure, fc->id_ori >> 5, fc->id_ori & 0x0f);
 			if (fc->touch_major == 0)
 				continue;
 			slot_data = (union evdev_mt_slot) {
-				.id = fc->id,
-				.x = coords.x,
-				.y = params->y.min + params->y.max - coords.y,
+				.id = fc->id_ori & 0x0f,
+				.x = coords << 19 >> 19,
+				.y = params->y.min + params->y.max -
+				    ((coords << 6) >> 19),
 				.p = fc->pressure,
 				.maj = fc->touch_major << 2,
 				.min = fc->touch_minor << 2,
-				.ori = -fc->orientation,
+				.ori = (int)(fc->id_ori >> 5) - 4,
 			};
 			evdev_mt_push_slot(sc->sc_evdev, slot, &slot_data);
 			slot++;
