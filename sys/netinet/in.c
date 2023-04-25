@@ -1671,6 +1671,7 @@ in_lltable_alloc(struct lltable *llt, u_int flags, const struct sockaddr *l3addr
 		    lladdr_off);
 		lle->la_flags |= LLE_STATIC;
 		lle->r_flags |= (RLLE_VALID | RLLE_IFADDR);
+		lle->la_expire = 0;
 	}
 
 	return (lle);
