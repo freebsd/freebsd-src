@@ -513,7 +513,7 @@ __linuxN(copyout_auxargs)(struct image_params *imgp, uintptr_t base)
 	 * is not present.
 	 * Also see linux_times() implementation.
 	 */
-	if (linux_kernver(curthread) >= LINUX_KERNVER_2004000)
+	if (linux_kernver(td) >= LINUX_KERNVER(2,4,0))
 		AUXARGS_ENTRY(pos, LINUX_AT_CLKTCK, stclohz);
 	AUXARGS_ENTRY(pos, AT_PAGESZ, args->pagesz);
 	AUXARGS_ENTRY(pos, AT_PHDR, args->phdr);
