@@ -49,6 +49,7 @@
 #include <netlink/netlink.h>
 #include <netlink/netlink_ctl.h>
 #include <netlink/netlink_var.h>
+#include <netlink/route/route_var.h>
 
 /* Standard bits: built-in the kernel */
 SYSCTL_NODE(_net, OID_AUTO, netlink, CTLFLAG_RD, 0, "");
@@ -282,11 +283,11 @@ int
 nl_modify_ifp_generic(struct ifnet *ifp, struct nl_parsed_link *lattrs,
     const struct nlattr_bmask *bm , struct nl_pstate *npt)
 {
-	return (_nl->nl_modify_ifp(ifp, lattrs, bm, npt));
+	return (_nl->nl_modify_ifp_generic(ifp, lattrs, bm, npt));
 }
 
-static void
-nl_store_ifp_cookie_stub(struct nl_pstate *npt, struct ifnet *ifp)
+void
+nl_store_ifp_cookie(struct nl_pstate *npt, struct ifnet *ifp)
 {
 	return (_nl->nl_store_ifp_cookie(npt, ifp));
 }
