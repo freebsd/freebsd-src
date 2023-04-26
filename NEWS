@@ -1,3 +1,11 @@
+* Version 1.13.0 (2023-02-20)
+ ** Support for linking against OpenSSL on Windows; gh#668.
+ ** New API calls:
+  - fido_assert_empty_allow_list;
+  - fido_cred_empty_exclude_list.
+ ** fido2-token: fix issue when listing large blobs.
+ ** Improved support for different fuzzing engines.
+
 * Version 1.12.0 (2022-09-22)
  ** Support for COSE_ES384.
  ** Support for hidraw(4) on FreeBSD; gh#597.

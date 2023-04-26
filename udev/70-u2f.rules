@@ -216,6 +216,9 @@ KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="2ccf", ATTRS{idProduct
 # TrustKey Solutions FIDO2 G310 by eWBM Co., Ltd.
 KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="311f", ATTRS{idProduct}=="4a1a", TAG+="uaccess", GROUP="plugdev", MODE="0660"
 
+# TrustKey Solutions FIDO2 G310H/G320H by eWBM Co., Ltd.
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="311f", ATTRS{idProduct}=="4a2a", TAG+="uaccess", GROUP="plugdev", MODE="0660"
+
 # TrustKey Solutions FIDO2 G320 by eWBM Co., Ltd.
 KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="311f", ATTRS{idProduct}=="4c2a", TAG+="uaccess", GROUP="plugdev", MODE="0660"
 

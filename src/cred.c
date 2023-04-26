@@ -562,11 +562,10 @@ fido_cred_reset_tx(fido_cred_t *cred)
 	free(cred->user.icon);
 	free(cred->user.name);
 	free(cred->user.display_name);
-	fido_free_blob_array(&cred->excl);
+	fido_cred_empty_exclude_list(cred);
 
 	memset(&cred->rp, 0, sizeof(cred->rp));
 	memset(&cred->user, 0, sizeof(cred->user));
-	memset(&cred->excl, 0, sizeof(cred->excl));
 	memset(&cred->ext, 0, sizeof(cred->ext));
 
 	cred->type = 0;
@@ -761,6 +760,15 @@ fido_cred_exclude(fido_cred_t *cred, const unsigned char *id_ptr, size_t id_len)
 
 	list_ptr[cred->excl.len++] = id_blob;
 	cred->excl.ptr = list_ptr;
+
+	return (FIDO_OK);
+}
+
+int
+fido_cred_empty_exclude_list(fido_cred_t *cred)
+{
+	fido_free_blob_array(&cred->excl);
+	memset(&cred->excl, 0, sizeof(cred->excl));
 
 	return (FIDO_OK);
 }

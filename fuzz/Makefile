@@ -1,9 +1,9 @@
-# Copyright (c) 2019-2022 Yubico AB. All rights reserved.
+# Copyright (c) 2019-2023 Yubico AB. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 # SPDX-License-Identifier: BSD-2-Clause
 
-IMAGE		:= libfido2-coverage:1.12.2
+IMAGE		:= libfido2-coverage:1.13.1
 RUNNER		:= libfido2-runner
 PROFDATA	:= llvm-profdata
 COV		:= llvm-cov

@@ -1,4 +1,4 @@
-.\" Copyright (c) 2018 Yubico AB. All rights reserved.
+.\" Copyright (c) 2018-2022 Yubico AB. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions are
@@ -25,16 +25,19 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd $Mdocdate: May 23 2018 $
+.Dd $Mdocdate: December 2 2022 $
 .Dt FIDO_CRED_EXCLUDE 3
 .Os
 .Sh NAME
-.Nm fido_cred_exclude
-.Nd appends a credential ID to a credential's list of excluded credentials
+.Nm fido_cred_exclude ,
+.Nm fido_cred_empty_exclude_list
+.Nd manage exclude lists in a FIDO2 credential
 .Sh SYNOPSIS
 .In fido.h
 .Ft int
 .Fn fido_cred_exclude "fido_cred_t *cred" "const unsigned char *ptr" "size_t len"
+.Ft int
+.Fn fido_cred_empty_exclude_list "fido_cred_t *cred"
 .Sh DESCRIPTION
 The
 .Fn fido_cred_exclude
@@ -69,9 +72,16 @@ will fail.
 .Pp
 For the format of a FIDO2 credential ID, please refer to the
 Web Authentication (webauthn) standard.
+.Pp
+The
+.Fn fido_cred_empty_exclude_list
+function empties the list of credentials excluded by
+.Fa cred .
 .Sh RETURN VALUES
 The error codes returned by
 .Fn fido_cred_exclude
+and
+.Fn fido_cred_empty_exclude_list
 are defined in
 .In fido/err.h .
 On success,

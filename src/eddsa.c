@@ -11,7 +11,7 @@
 #include "fido.h"
 #include "fido/eddsa.h"
 
-#if defined(LIBRESSL_VERSION_NUMBER)
+#if defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x3070000f
 EVP_PKEY *
 EVP_PKEY_new_raw_public_key(int type, ENGINE *e, const unsigned char *key,
     size_t keylen)

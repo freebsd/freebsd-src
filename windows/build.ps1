@@ -163,8 +163,8 @@ try {
 	& $CMake ..\..\..\${LIBCBOR} -A "${Arch}" `
 	    -DWITH_EXAMPLES=OFF `
 	    -DBUILD_SHARED_LIBS="${SHARED}" `
-	    -DCMAKE_C_FLAGS_DEBUG="${CFLAGS_DEBUG}" `
-	    -DCMAKE_C_FLAGS_RELEASE="${CFLAGS_RELEASE}" `
+	    -DCMAKE_C_FLAGS_DEBUG="${CFLAGS_DEBUG} /wd4703" `
+	    -DCMAKE_C_FLAGS_RELEASE="${CFLAGS_RELEASE} /wd4703" `
 	    -DCMAKE_INSTALL_PREFIX="${PREFIX}" "${CMAKE_SYSTEM_VERSION}"; `
 	    ExitOnError
 	& $CMake --build . --config ${Config} --verbose; ExitOnError
@@ -219,6 +219,7 @@ try {
 	    -DCRYPTO_INCLUDE_DIRS="${PREFIX}\include" `
 	    -DCRYPTO_LIBRARY_DIRS="${PREFIX}\lib" `
 	    -DCRYPTO_BIN_DIRS="${PREFIX}\bin" `
+	    -DCRYPTO_LIBRARIES="${CRYPTO_LIBRARIES}" `
 	    -DCMAKE_C_FLAGS_DEBUG="${CFLAGS_DEBUG} ${Fido2Flags}" `
 	    -DCMAKE_C_FLAGS_RELEASE="${CFLAGS_RELEASE} ${Fido2Flags}" `
 	    -DCMAKE_INSTALL_PREFIX="${PREFIX}" "${CMAKE_SYSTEM_VERSION}"; `
@@ -230,7 +231,7 @@ try {
 	    ExitOnError
 	# Copy DLLs.
 	if ("${SHARED}" -eq "ON") {
-		"cbor.dll", "crypto-49.dll", "zlib1.dll" | `
+		"cbor.dll", "${CRYPTO_LIBRARIES}.dll", "zlib1.dll" | `
 		    %{ Copy-Item "${PREFIX}\bin\$_" `
 		    -Destination "examples\${Config}" }
 	}

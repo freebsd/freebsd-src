@@ -124,6 +124,7 @@ const unsigned char *fido_cred_user_id_ptr(const fido_cred_t *);
 const unsigned char *fido_cred_x5c_ptr(const fido_cred_t *);
 
 int fido_assert_allow_cred(fido_assert_t *, const unsigned char *, size_t);
+int fido_assert_empty_allow_list(fido_assert_t *);
 int fido_assert_set_authdata(fido_assert_t *, size_t, const unsigned char *,
     size_t);
 int fido_assert_set_authdata_raw(fido_assert_t *, size_t, const unsigned char *,
@@ -143,6 +144,7 @@ int fido_assert_set_uv(fido_assert_t *, fido_opt_t);
 int fido_assert_set_sig(fido_assert_t *, size_t, const unsigned char *, size_t);
 int fido_assert_verify(const fido_assert_t *, size_t, int, const void *);
 int fido_cbor_info_algorithm_cose(const fido_cbor_info_t *, size_t);
+int fido_cred_empty_exclude_list(fido_cred_t *);
 int fido_cred_exclude(fido_cred_t *, const unsigned char *, size_t);
 int fido_cred_prot(const fido_cred_t *);
 int fido_cred_set_attstmt(fido_cred_t *, const unsigned char *, size_t);

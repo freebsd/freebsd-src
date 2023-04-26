@@ -53,7 +53,7 @@ int eddsa_pk_from_ptr(eddsa_pk_t *, const void *, size_t);
 
 #ifdef _FIDO_INTERNAL
 
-#if defined(LIBRESSL_VERSION_NUMBER)
+#if defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x3070000f
 #define EVP_PKEY_ED25519 EVP_PKEY_NONE
 int EVP_PKEY_get_raw_public_key(const EVP_PKEY *, unsigned char *, size_t *);
 EVP_PKEY *EVP_PKEY_new_raw_public_key(int, ENGINE *, const unsigned char *,

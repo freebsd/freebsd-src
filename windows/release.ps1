@@ -8,7 +8,6 @@ $Architectures = @('x64', 'Win32', 'ARM64', 'ARM')
 $InstallPrefixes =  @('Win64', 'Win32', 'ARM64', 'ARM')
 $Types = @('dynamic', 'static')
 $Config = 'Release'
-$LibCrypto = '49'
 $SDK = '143'
 
 . "$PSScriptRoot\const.ps1"
@@ -36,8 +35,8 @@ Function Package-Dynamic(${SRC}, ${DEST}) {
 	Copy-Item "${SRC}\lib\cbor.lib" "${DEST}"
 	Copy-Item "${SRC}\bin\zlib1.dll" "${DEST}"
 	Copy-Item "${SRC}\lib\zlib1.lib" "${DEST}"
-	Copy-Item "${SRC}\bin\crypto-${LibCrypto}.dll" "${DEST}"
-	Copy-Item "${SRC}\lib\crypto-${LibCrypto}.lib" "${DEST}"
+	Copy-Item "${SRC}\bin\${CRYPTO_LIBRARIES}.dll" "${DEST}"
+	Copy-Item "${SRC}\lib\${CRYPTO_LIBRARIES}.lib" "${DEST}"
 	Copy-Item "${SRC}\bin\fido2.dll" "${DEST}"
 	Copy-Item "${SRC}\lib\fido2.lib" "${DEST}"
 }
@@ -45,13 +44,13 @@ Function Package-Dynamic(${SRC}, ${DEST}) {
 Function Package-Static(${SRC}, ${DEST}) {
 	Copy-Item "${SRC}/lib/cbor.lib" "${DEST}"
 	Copy-Item "${SRC}/lib/zlib1.lib" "${DEST}"
-	Copy-Item "${SRC}/lib/crypto-${LibCrypto}.lib" "${DEST}"
+	Copy-Item "${SRC}/lib/${CRYPTO_LIBRARIES}.lib" "${DEST}"
 	Copy-Item "${SRC}/lib/fido2_static.lib" "${DEST}/fido2.lib"
 }
 
 Function Package-PDBs(${SRC}, ${DEST}) {
 	Copy-Item "${SRC}\${LIBRESSL}\crypto\crypto_obj.dir\${Config}\crypto_obj.pdb" `
-	    "${DEST}\crypto-${LibCrypto}.pdb"
+	    "${DEST}\${CRYPTO_LIBRARIES}.pdb"
 	Copy-Item "${SRC}\${LIBCBOR}\src\cbor.dir\${Config}\vc${SDK}.pdb" `
 	    "${DEST}\cbor.pdb"
 	Copy-Item "${SRC}\${ZLIB}\zlib.dir\${Config}\vc${SDK}.pdb" `
@@ -62,7 +61,7 @@ Function Package-PDBs(${SRC}, ${DEST}) {
 
 Function Package-StaticPDBs(${SRC}, ${DEST}) {
 	Copy-Item "${SRC}\${LIBRESSL}\crypto\crypto_obj.dir\${Config}\crypto_obj.pdb" `
-	    "${DEST}\crypto-${LibCrypto}.pdb"
+	    "${DEST}\${CRYPTO_LIBRARIES}.pdb"
 	Copy-Item "${SRC}\${LIBCBOR}\src\${Config}\cbor.pdb" `
 	    "${DEST}\cbor.pdb"
 	Copy-Item "${SRC}\${ZLIB}\${Config}\zlibstatic.pdb" `

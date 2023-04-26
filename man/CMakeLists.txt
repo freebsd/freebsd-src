@@ -59,6 +59,7 @@ list(APPEND MAN_ALIAS
 	es384_pk_new es384_pk_from_EVP_PKEY
 	es384_pk_new es384_pk_from_ptr
 	es384_pk_new es384_pk_to_EVP_PKEY
+	fido_assert_allow_cred fido_assert_empty_allow_list
 	fido_assert_new fido_assert_authdata_len
 	fido_assert_new fido_assert_authdata_ptr
 	fido_assert_new fido_assert_blob_len
@@ -149,6 +150,7 @@ list(APPEND MAN_ALIAS
 	fido_cbor_info_new fido_cbor_info_versions_len
 	fido_cbor_info_new fido_cbor_info_versions_ptr
 	fido_cbor_info_new fido_dev_get_cbor_info
+	fido_cred_exclude fido_cred_empty_exclude_list
 	fido_cred_new fido_cred_aaguid_len
 	fido_cred_new fido_cred_aaguid_ptr
 	fido_cred_new fido_cred_attstmt_len
@@ -295,7 +297,7 @@ endforeach()
 
 # man_html
 foreach(f ${MAN_SOURCES})
-	string(REGEX REPLACE ".[13]" "" g ${f})
+	string(REGEX REPLACE "\\.[13]$" "" g ${f})
 	add_custom_command(OUTPUT ${g}.html
 		COMMAND mandoc -T html -O man="%N.html",style=style.css -I os="Yubico AB" ${f} > ${g}.html
 		DEPENDS ${f})
@@ -304,7 +306,7 @@ endforeach()
 
 # man_html_partial
 foreach(f ${MAN_SOURCES})
-	string(REGEX REPLACE ".[13]" "" g ${f})
+	string(REGEX REPLACE "\\.[13]$" "" g ${f})
 	add_custom_command(OUTPUT ${g}.partial
 		COMMAND cat ${PROJECT_SOURCE_DIR}/man/dyc.css > ${g}.partial
 		COMMAND mandoc -T html -O man="%N.html",fragment ${f} >> ${g}.partial
@@ -357,7 +359,7 @@ if(MANDOC_PATH)
 	install(FILES ${PROJECT_SOURCE_DIR}/man/style.css
 		DESTINATION "${CMAKE_INSTALL_DOCDIR}/html")
 	foreach(f ${MAN_SOURCES})
-		string(REGEX REPLACE ".[13]" "" f ${f})
+		string(REGEX REPLACE "\\.[13]$" "" f ${f})
 		install(FILES ${PROJECT_BINARY_DIR}/man/${f}.html
 			DESTINATION "${CMAKE_INSTALL_DOCDIR}/html")
 	endforeach()

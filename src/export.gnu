@@ -25,6 +25,7 @@
 		fido_assert_clientdata_hash_len;
 		fido_assert_clientdata_hash_ptr;
 		fido_assert_count;
+		fido_assert_empty_allow_list;
 		fido_assert_flags;
 		fido_assert_free;
 		fido_assert_hmac_secret_len;
@@ -125,6 +126,7 @@
 		fido_cred_clientdata_hash_len;
 		fido_cred_clientdata_hash_ptr;
 		fido_cred_display_name;
+		fido_cred_empty_exclude_list;
 		fido_cred_exclude;
 		fido_cred_flags;
 		fido_cred_largeblob_key_len;
