@@ -283,6 +283,7 @@ struct glob_arg {
 #define OPT_RANDOM_SRC  512
 #define OPT_RANDOM_DST  1024
 #define OPT_PPS_STATS   2048
+#define OPT_UPDATE_CSUM 4096
 	int dev_type;
 #ifndef NO_PCAP
 	pcap_t *p;
@@ -1005,6 +1006,85 @@ update_addresses(struct pkt *pkt, struct targ *t)
 	else
 		update_ip6(pkt, t);
 }
+
+static void
+update_ip_size(struct pkt *pkt, int size)
+{
+	struct ip ip;
+	struct udphdr udp;
+	uint16_t oiplen, niplen;
+	uint16_t nudplen;
+	uint16_t ip_sum = 0;
+
+	memcpy(&ip, &pkt->ipv4.ip, sizeof(ip));
+	memcpy(&udp, &pkt->ipv4.udp, sizeof(udp));
+
+	oiplen = ntohs(ip.ip_len);
+	niplen = size - sizeof(struct ether_header);
+	ip.ip_len = htons(niplen);
+	nudplen = niplen - sizeof(struct ip);
+	udp.uh_ulen = htons(nudplen);
+	ip_sum = new_udp_sum(ip_sum, oiplen, niplen);
+
+	/* update checksums */
+	if (ip_sum != 0)
+		ip.ip_sum = ~cksum_add(~ip.ip_sum, htons(ip_sum));
+
+	udp.uh_sum = 0;
+	/* Magic: taken from sbin/dhclient/packet.c */
+	udp.uh_sum = wrapsum(
+		checksum(&udp, sizeof(udp),	/* udp header */
+		checksum(pkt->ipv4.body,	/* udp payload */
+		nudplen - sizeof(udp),
+		checksum(&ip.ip_src, /* pseudo header */
+		2 * sizeof(ip.ip_src),
+		IPPROTO_UDP + (u_int32_t)ntohs(udp.uh_ulen)))));
+
+	memcpy(&pkt->ipv4.ip, &ip, sizeof(ip));
+	memcpy(&pkt->ipv4.udp, &udp, sizeof(udp));
+}
+
+static void
+update_ip6_size(struct pkt *pkt, int size)
+{
+	struct ip6_hdr ip6;
+	struct udphdr udp;
+	uint16_t niplen, nudplen;
+	uint32_t csum;
+
+	memcpy(&ip6, &pkt->ipv6.ip, sizeof(ip6));
+	memcpy(&udp, &pkt->ipv6.udp, sizeof(udp));
+
+	nudplen = niplen = size - sizeof(struct ether_header) - sizeof(ip6);
+	ip6.ip6_plen = htons(niplen);
+	udp.uh_ulen = htons(nudplen);
+
+	/* Save part of pseudo header checksum into csum */
+	udp.uh_sum = 0;
+	csum = IPPROTO_UDP << 24;
+	csum = checksum(&csum, sizeof(csum), nudplen);
+	udp.uh_sum = wrapsum(
+		checksum(&udp, sizeof(udp),	/* udp header */
+		checksum(pkt->ipv6.body,	/* udp payload */
+		nudplen - sizeof(udp),
+		checksum(&pkt->ipv6.ip.ip6_src, /* pseudo header */
+		2 * sizeof(pkt->ipv6.ip.ip6_src), csum))));
+
+	memcpy(&pkt->ipv6.ip, &ip6, sizeof(ip6));
+	memcpy(&pkt->ipv6.udp, &udp, sizeof(udp));
+}
+
+static void
+update_size(struct pkt *pkt, struct targ *t, int size)
+{
+	if (t->g->options & OPT_UPDATE_CSUM) {
+		if (t->g->af == AF_INET)
+			update_ip_size(pkt, size);
+		else
+			update_ip6_size(pkt, size);
+	}
+}
+
 /*
  * initialize one packet and prepare for the next one.
  * The copy could be done better instead of repeating it each time.
@@ -1744,6 +1824,7 @@ sender_body(void *data)
 				size = nrand48(targ->seed) %
 					(targ->g->pkt_size - targ->g->pkt_min_size) +
 					targ->g->pkt_min_size;
+				update_size(pkt, targ, size);
 			}
 			m = send_packets(txring, pkt, frame, size, targ,
 					 limit, options);
@@ -2528,6 +2609,7 @@ usage(int errcode)
 "				OPT_RANDOM_SRC  512\n"
 "				OPT_RANDOM_DST  1024\n"
 "				OPT_PPS_STATS   2048\n"
+"				OPT_UPDATE_CSUM 4096\n"
 		     "",
 		cmd);
 	exit(errcode);
@@ -3284,8 +3366,8 @@ out:
 		g.tx_period.tv_nsec = g.tx_period.tv_nsec % 1000000000;
 	}
 	if (g.td_type == TD_TYPE_SENDER)
-	    D("Sending %d packets every  %ld.%09ld s",
-			g.burst, g.tx_period.tv_sec, g.tx_period.tv_nsec);
+	    D("Sending %d packets every  %jd.%09ld s",
+			g.burst, (intmax_t)g.tx_period.tv_sec, g.tx_period.tv_nsec);
 	/* Install ^C handler. */
 	global_nthreads = g.nthreads;
 	sigemptyset(&ss);
