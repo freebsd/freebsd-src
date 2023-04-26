@@ -31,7 +31,7 @@
 .Nm fido_assert_id_len ,
 .Nm fido_assert_sigcount ,
 .Nm fido_assert_flags
-.Nd FIDO 2 assertion API
+.Nd FIDO2 assertion API
 .Sh SYNOPSIS
 .In fido.h
 .Ft fido_assert_t *
@@ -85,9 +85,12 @@
 .Ft uint8_t
 .Fn fido_assert_flags "const fido_assert_t *assert" "size_t idx"
 .Sh DESCRIPTION
-FIDO 2 assertions are abstracted in
-.Em libfido2
-by the
+A FIDO2 assertion is a collection of statements, each statement a
+map between a challenge, a credential, a signature, and ancillary
+attributes.
+In
+.Em libfido2 ,
+a FIDO2 assertion is abstracted by the
 .Vt fido_assert_t
 type.
 The functions described in this page allow a
@@ -153,47 +156,61 @@ If not NULL, the values returned by these functions point to
 NUL-terminated UTF-8 strings.
 .Pp
 The
-.Fn fido_assert_user_id_ptr ,
 .Fn fido_assert_authdata_ptr ,
-.Fn fido_assert_blob_ptr ,
-.Fn fido_assert_hmac_secret_ptr ,
-.Fn fido_assert_largeblob_key_ptr ,
+.Fn fido_assert_clientdata_hash_ptr ,
+.Fn fido_assert_id_ptr ,
+.Fn fido_assert_user_id_ptr ,
 .Fn fido_assert_sig_ptr ,
+.Fn fido_assert_sigcount ,
 and
-.Fn fido_assert_id_ptr
-functions return pointers to the user ID, CBOR-encoded
-authenticator data, cred blob, hmac-secret,
-.Dq largeBlobKey ,
-signature, and credential ID attributes of statement
-.Fa idx
-in
-.Fa assert .
-.Pp
-The
-.Fn fido_assert_user_id_len ,
-.Fn fido_assert_authdata_len ,
-.Fn fido_assert_blob_len ,
-.Fn fido_assert_hmac_secret_len ,
-.Fn fido_assert_largeblob_key_len ,
-.Fn fido_assert_sig_len ,
-and
-.Fn fido_assert_id_len
-functions can be used to retrieve the corresponding length of a
-specific attribute.
-.Pp
-The
-.Fn fido_assert_sigcount
-function can be used to obtain the signature counter of statement
-.Fa idx
-in
-.Fa assert .
-.Pp
-The
 .Fn fido_assert_flags
-function returns the authenticator data flags of statement
+functions return pointers to the CBOR-encoded authenticator data,
+client data hash, credential ID, user ID, signature, signature
+count, and authenticator data flags of statement
 .Fa idx
 in
 .Fa assert .
+.Pp
+The
+.Fn fido_assert_hmac_secret_ptr
+function returns a pointer to the hmac-secret attribute of statement
+.Fa idx
+in
+.Fa assert .
+The HMAC Secret Extension
+.Pq hmac-secret
+is a CTAP 2.0 extension.
+.Pp
+The
+.Fn fido_assert_blob_ptr
+and
+.Fn fido_assert_largeblob_key_ptr
+functions return pointers to the
+.Dq credBlob
+and
+.Dq largeBlobKey
+attributes of statement
+.Fa idx
+in
+.Fa assert .
+Credential Blob
+.Pq credBlob
+and
+Large Blob Key
+.Pq largeBlobKey
+are CTAP 2.1 extensions.
+.Pp
+The
+.Fn fido_assert_authdata_len ,
+.Fn fido_assert_clientdata_hash_len ,
+.Fn fido_assert_id_len ,
+.Fn fido_assert_user_id_len ,
+.Fn fido_assert_sig_len ,
+.Fn fido_assert_hmac_secret_len ,
+.Fn fido_assert_blob_len ,
+and
+.Fn fido_assert_largeblob_key_len
+functions return the length of a given attribute.
 .Pp
 Please note that the first statement in
 .Fa assert
@@ -202,31 +219,27 @@ has an
 (index) value of 0.
 .Pp
 The authenticator data and signature parts of an assertion
-statement are typically passed to a FIDO 2 server for verification.
-.Pp
-The
-.Fn fido_assert_clientdata_hash_ptr
-function returns a pointer to the client data hash of
-.Fa assert .
-The corresponding length can be obtained by
-.Fn fido_assert_clientdata_hash_len .
+statement are typically passed to a FIDO2 server for verification.
 .Sh RETURN VALUES
 The authenticator data returned by
 .Fn fido_assert_authdata_ptr
 is a CBOR-encoded byte string, as obtained from the authenticator.
 .Pp
 The
+.Fn fido_assert_rp_id ,
 .Fn fido_assert_user_display_name ,
 .Fn fido_assert_user_icon ,
 .Fn fido_assert_user_name ,
 .Fn fido_assert_authdata_ptr ,
 .Fn fido_assert_clientdata_hash_ptr ,
-.Fn fido_assert_hmac_secret_ptr ,
-.Fn fido_assert_largeblob_key_ptr ,
+.Fn fido_assert_id_ptr ,
 .Fn fido_assert_user_id_ptr ,
+.Fn fido_assert_sig_ptr ,
+.Fn fido_assert_hmac_secret_ptr ,
+.Fn fido_assert_blob_ptr ,
 and
-.Fn fido_assert_sig_ptr
-functions return NULL if the respective field in
+.Fn fido_assert_largeblob_key_ptr
+functions may return NULL if the respective field in
 .Fa assert
 is not set.
 If not NULL, returned pointers are guaranteed to exist until any API

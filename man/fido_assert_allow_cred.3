@@ -7,7 +7,7 @@
 .Os
 .Sh NAME
 .Nm fido_assert_allow_cred
-.Nd appends a credential ID to the list of credentials allowed in an assertion
+.Nd allow a credential in a FIDO2 assertion
 .Sh SYNOPSIS
 .In fido.h
 .Ft int
@@ -31,7 +31,7 @@ If
 .Fn fido_assert_allow_cred
 fails, the existing list of allowed credentials is preserved.
 .Pp
-For the format of a FIDO 2 credential ID, please refer to the
+For the format of a FIDO2 credential ID, please refer to the
 Web Authentication (webauthn) standard.
 .Sh RETURN VALUES
 The error codes returned by

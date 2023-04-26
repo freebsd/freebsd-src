@@ -7,7 +7,7 @@
 .Os
 .Sh NAME
 .Nm fido2-token
-.Nd find and manage a FIDO 2 authenticator
+.Nd find and manage a FIDO2 authenticator
 .Sh SYNOPSIS
 .Nm
 .Fl C
@@ -121,7 +121,7 @@
 .Fl V
 .Sh DESCRIPTION
 .Nm
-manages a FIDO 2 authenticator.
+manages a FIDO2 authenticator.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
@@ -176,12 +176,12 @@ where
 is the enrollment's template base64-encoded id.
 The user will be prompted for the PIN.
 .It Fl D Fl u Ar device
-Disables the FIDO 2.1
+Disables the CTAP 2.1
 .Dq user verification always
 feature on
 .Ar device .
 .It Fl G Fl b Fl k Ar key_path Ar blob_path Ar device
-Gets a FIDO 2.1
+Gets a CTAP 2.1
 .Dq largeBlob
 encrypted with
 .Ar key_path
@@ -194,7 +194,7 @@ The blob is written to
 .Ar blob_path .
 A PIN or equivalent user-verification gesture is required.
 .It Fl G Fl b Fl n Ar rp_id Oo Fl i Ar cred_id Oc Ar blob_path Ar device
-Gets a FIDO 2.1
+Gets a CTAP 2.1
 .Dq largeBlob
 associated with
 .Ar rp_id
@@ -234,7 +234,7 @@ The user will be prompted for the PIN.
 .It Fl L
 Produces a list of authenticators found by the operating system.
 .It Fl L Fl b Ar device
-Produces a list of FIDO 2.1
+Produces a list of CTAP 2.1
 .Dq largeBlobs
 on
 .Ar device .
@@ -264,12 +264,12 @@ Sets the PIN of
 .Ar device .
 The user will be prompted for the PIN.
 .It Fl S Fl a Ar device
-Enables FIDO 2.1 Enterprise Attestation on
+Enables CTAP 2.1 Enterprise Attestation on
 .Ar device .
 .It Fl S Fl b Fl k Ar key_path Ar blob_path Ar device
 Sets
 .Ar blob_path
-as a FIDO 2.1
+as a CTAP 2.1
 .Dq largeBlob
 encrypted with
 .Ar key_path
@@ -284,7 +284,7 @@ A PIN or equivalent user-verification gesture is required.
 .It Fl S Fl b Fl n Ar rp_id Oo Fl i Ar cred_id Oc Ar blob_path Ar device
 Sets
 .Ar blob_path
-as a FIDO 2.1
+as a CTAP 2.1
 .Dq largeBlob
 associated with
 .Ar rp_id
@@ -353,7 +353,7 @@ the minimum PIN length of
 Multiple IDs may be specified, separated by commas.
 The user will be prompted for the PIN.
 .It Fl S Fl u Ar device
-Enables the FIDO 2.1
+Enables the CTAP 2.1
 .Dq user verification always
 feature on
 .Ar device .
@@ -392,9 +392,9 @@ An authenticator's path may contain spaces.
 .Pp
 Resident credentials are called
 .Dq discoverable credentials
-in FIDO 2.1.
+in CTAP 2.1.
 .Pp
-Whether the FIDO 2.1
+Whether the CTAP 2.1
 .Dq user verification always
 feature is activated or deactivated after an authenticator reset
 is vendor-specific.

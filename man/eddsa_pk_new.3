@@ -11,7 +11,7 @@
 .Nm eddsa_pk_from_EVP_PKEY ,
 .Nm eddsa_pk_from_ptr ,
 .Nm eddsa_pk_to_EVP_PKEY
-.Nd FIDO 2 COSE EDDSA API
+.Nd FIDO2 COSE EDDSA API
 .Sh SYNOPSIS
 .In openssl/evp.h
 .In fido/eddsa.h
@@ -106,7 +106,7 @@ If an error occurs,
 returns NULL.
 .Sh RETURN VALUES
 The
-.Fn eddsa_pk_from_EC_KEY
+.Fn eddsa_pk_from_EVP_PKEY
 and
 .Fn eddsa_pk_from_ptr
 functions return

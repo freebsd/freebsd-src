@@ -696,7 +696,6 @@ cbor_encode_pin_auth(const fido_dev_t *dev, const fido_blob_t *secret,
 	uint8_t		 prot;
 	fido_blob_t	 key;
 
-
 	key.ptr = secret->ptr;
 	key.len = secret->len;
 

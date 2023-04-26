@@ -8,7 +8,7 @@
 .Sh NAME
 .Nm fido_dev_get_touch_begin ,
 .Nm fido_dev_get_touch_status
-.Nd asynchronously wait for touch on a FIDO 2 authenticator
+.Nd asynchronously wait for touch on a FIDO2 authenticator
 .Sh SYNOPSIS
 .In fido.h
 .Ft int
@@ -17,7 +17,7 @@
 .Fn fido_dev_get_touch_status "fido_dev_t *dev" "int *touched" "int ms"
 .Sh DESCRIPTION
 The functions described in this page allow an application to
-asynchronously wait for touch on a FIDO authenticator.
+asynchronously wait for touch on a FIDO2 authenticator.
 This is useful when multiple authenticators are present and
 the application needs to know which one to use.
 .Pp

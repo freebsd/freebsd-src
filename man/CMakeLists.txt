@@ -44,6 +44,7 @@ list(APPEND MAN_SOURCES
 
 list(APPEND MAN_ALIAS
 	eddsa_pk_new eddsa_pk_free
+	eddsa_pk_new eddsa_pk_from_EVP_PKEY
 	eddsa_pk_new eddsa_pk_from_ptr
 	eddsa_pk_new eddsa_pk_to_EVP_PKEY
 	es256_pk_new es256_pk_free
@@ -75,6 +76,7 @@ list(APPEND MAN_ALIAS
 	fido_assert_new fido_assert_user_id_len
 	fido_assert_new fido_assert_user_id_ptr
 	fido_assert_new fido_assert_user_name
+	fido_assert_set_authdata fido_assert_set_authdata_raw
 	fido_assert_set_authdata fido_assert_set_clientdata
 	fido_assert_set_authdata fido_assert_set_clientdata_hash
 	fido_assert_set_authdata fido_assert_set_count
@@ -117,8 +119,8 @@ list(APPEND MAN_ALIAS
 	fido_cbor_info_new fido_cbor_info_free
 	fido_cbor_info_new fido_cbor_info_maxmsgsiz
 	fido_cbor_info_new fido_cbor_info_maxcredbloblen
-	fido_cbor_info_new fido_cbor_info_maxcredcntlst;
-	fido_cbor_info_new fido_cbor_info_maxcredidlen;
+	fido_cbor_info_new fido_cbor_info_maxcredcntlst
+	fido_cbor_info_new fido_cbor_info_maxcredidlen
 	fido_cbor_info_new fido_cbor_info_fwversion
 	fido_cbor_info_new fido_cbor_info_options_len
 	fido_cbor_info_new fido_cbor_info_options_name_ptr
@@ -163,6 +165,7 @@ list(APPEND MAN_ALIAS
 	fido_cred_new fido_cred_user_name
 	fido_cred_new fido_cred_x5c_len
 	fido_cred_new fido_cred_x5c_ptr
+	fido_cred_verify fido_cred_verify_self
 	fido_credman_metadata_new fido_credman_del_dev_rk
 	fido_credman_metadata_new fido_credman_get_dev_metadata
 	fido_credman_metadata_new fido_credman_get_dev_rk
@@ -211,6 +214,7 @@ list(APPEND MAN_ALIAS
 	fido_dev_info_manifest fido_dev_info_product
 	fido_dev_info_manifest fido_dev_info_product_string
 	fido_dev_info_manifest fido_dev_info_ptr
+	fido_dev_info_manifest fido_dev_info_set
 	fido_dev_info_manifest fido_dev_info_vendor
 	fido_dev_open fido_dev_build
 	fido_dev_open fido_dev_cancel
@@ -219,26 +223,33 @@ list(APPEND MAN_ALIAS
 	fido_dev_open fido_dev_force_fido2
 	fido_dev_open fido_dev_force_u2f
 	fido_dev_open fido_dev_free
+	fido_dev_open fido_dev_has_pin
+	fido_dev_open fido_dev_has_uv
 	fido_dev_open fido_dev_is_fido2
 	fido_dev_open fido_dev_is_winhello
 	fido_dev_open fido_dev_major
 	fido_dev_open fido_dev_minor
 	fido_dev_open fido_dev_new
+	fido_dev_open fido_dev_new_with_info
+	fido_dev_open fido_dev_open_with_info
 	fido_dev_open fido_dev_protocol
 	fido_dev_open fido_dev_supports_cred_prot
 	fido_dev_open fido_dev_supports_credman
+	fido_dev_open fido_dev_supports_permissions
 	fido_dev_open fido_dev_supports_pin
 	fido_dev_open fido_dev_supports_uv
-	fido_dev_open fido_dev_has_uv
 	fido_dev_set_pin fido_dev_get_retry_count
 	fido_dev_set_pin fido_dev_get_uv_retry_count
 	fido_dev_set_pin fido_dev_reset
+	fido_dev_set_io_functions fido_dev_io_handle
 	fido_dev_set_io_functions fido_dev_set_sigmask
 	fido_dev_set_io_functions fido_dev_set_timeout
+	fido_dev_set_io_functions fido_dev_set_transport_functions
 	fido_dev_largeblob_get fido_dev_largeblob_set
 	fido_dev_largeblob_get fido_dev_largeblob_remove
 	fido_dev_largeblob_get fido_dev_largeblob_get_array
 	fido_dev_largeblob_get fido_dev_largeblob_set_array
+	fido_init fido_set_log_handler
 	rs256_pk_new rs256_pk_free
 	rs256_pk_new rs256_pk_from_ptr
 	rs256_pk_new rs256_pk_from_EVP_PKEY
