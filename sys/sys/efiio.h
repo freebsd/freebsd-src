@@ -50,11 +50,20 @@ struct efi_var_ioc
 	size_t datasize;	/* Number of *bytes* in the data */
 };
 
+struct efi_waketime_ioc
+{
+	struct efi_tm	waketime;
+	uint8_t		enabled;
+	uint8_t		pending;
+};
+
 #define EFIIOC_GET_TABLE	_IOWR('E',  1, struct efi_get_table_ioc)
 #define EFIIOC_GET_TIME		_IOR('E',   2, struct efi_tm)
 #define EFIIOC_SET_TIME		_IOW('E',   3, struct efi_tm)
 #define EFIIOC_VAR_GET		_IOWR('E',  4, struct efi_var_ioc)
 #define EFIIOC_VAR_NEXT		_IOWR('E',  5, struct efi_var_ioc)
 #define EFIIOC_VAR_SET		_IOWR('E',  6, struct efi_var_ioc)
+#define EFIIOC_GET_WAKETIME	_IOR('E',   7, struct efi_waketime_ioc)
+#define EFIIOC_SET_WAKETIME	_IOW('E',   8, struct efi_waketime_ioc)
 
 #endif /* _SYS_EFIIO_H_ */
