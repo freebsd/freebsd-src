@@ -3763,7 +3763,8 @@ vmx_pending_intr(struct vlapic *vlapic, int *vecptr)
 	struct pir_desc *pir_desc;
 	struct LAPIC *lapic;
 	uint64_t pending, pirval;
-	uint32_t ppr, vpr;
+	uint8_t ppr, vpr, rvi;
+	struct vm_exit *vmexit;
 	int i;
 
 	/*
@@ -3774,31 +3775,26 @@ vmx_pending_intr(struct vlapic *vlapic, int *vecptr)
 
 	vlapic_vtx = (struct vlapic_vtx *)vlapic;
 	pir_desc = vlapic_vtx->pir_desc;
+	lapic = vlapic->apic_page;
+
+	/*
+	 * While a virtual interrupt may have already been
+	 * processed the actual delivery maybe pending the
+	 * interruptibility of the guest.  Recognize a pending
+	 * interrupt by reevaluating virtual interrupts
+	 * following Section 30.2.1 in the Intel SDM Volume 3.
+	 */
+	vmexit = vm_exitinfo(vlapic->vcpu);
+	KASSERT(vmexit->exitcode == VM_EXITCODE_HLT,
+	    ("vmx_pending_intr: exitcode not 'HLT'"));
+	rvi = vmexit->u.hlt.intr_status & APIC_TPR_INT;
+	ppr = lapic->ppr & APIC_TPR_INT;
+	if (rvi > ppr)
+		return (1);
 
 	pending = atomic_load_acq_long(&pir_desc->pending);
-	if (!pending) {
-		/*
-		 * While a virtual interrupt may have already been
-		 * processed the actual delivery maybe pending the
-		 * interruptibility of the guest.  Recognize a pending
-		 * interrupt by reevaluating virtual interrupts
-		 * following Section 29.2.1 in the Intel SDM Volume 3.
-		 */
-		struct vm_exit *vmexit;
-		uint8_t rvi, ppr;
-
-		vmexit = vm_exitinfo(vlapic->vcpu);
-		KASSERT(vmexit->exitcode == VM_EXITCODE_HLT,
-		    ("vmx_pending_intr: exitcode not 'HLT'"));
-		rvi = vmexit->u.hlt.intr_status & APIC_TPR_INT;
-		lapic = vlapic->apic_page;
-		ppr = lapic->ppr & APIC_TPR_INT;
-		if (rvi > ppr) {
-			return (1);
-		}
-
+	if (!pending)
 		return (0);
-	}
 
 	/*
 	 * If there is an interrupt pending then it will be recognized only
@@ -3807,8 +3803,6 @@ vmx_pending_intr(struct vlapic *vlapic, int *vecptr)
 	 * Special case: if the processor priority is zero then any pending
 	 * interrupt will be recognized.
 	 */
-	lapic = vlapic->apic_page;
-	ppr = lapic->ppr & APIC_TPR_INT;
 	if (ppr == 0)
 		return (1);
 
