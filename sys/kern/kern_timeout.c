@@ -195,9 +195,9 @@ struct callout_cpu {
 #define	cc_migration_time(cc, dir)	cc->cc_exec_entity[dir].ce_migration_time
 #define	cc_migration_prec(cc, dir)	cc->cc_exec_entity[dir].ce_migration_prec
 
-static struct callout_cpu cc_cpu[MAXCPU];
+DPCPU_DEFINE_STATIC(struct callout_cpu, cc_cpu);
 #define	CPUBLOCK	MAXCPU
-#define	CC_CPU(cpu)	(&cc_cpu[(cpu)])
+#define	CC_CPU(cpu)	DPCPU_ID_PTR(cpu, cc_cpu)
 #define	CC_SELF()	CC_CPU(PCPU_GET(cpuid))
 #else
 static struct callout_cpu cc_cpu;
@@ -321,7 +321,7 @@ callout_cpu_init(struct callout_cpu *cc, int cpu)
 {
 	int i;
 
-	mtx_init(&cc->cc_lock, "callout", NULL, MTX_SPIN);
+	mtx_init(&cc->cc_lock, "callout", NULL, MTX_SPIN | MTX_NEW);
 	cc->cc_callwheel = malloc_domainset(sizeof(struct callout_list) *
 	    callwheelsize, M_CALLOUT,
 	    DOMAINSET_PREF(pcpu_find(cpu)->pc_domain), M_WAITOK);
