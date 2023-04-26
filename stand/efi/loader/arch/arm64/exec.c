@@ -83,11 +83,9 @@ elf64_exec(struct preloaded_file *fp)
 
 	/*
 	 * Report the RSDP to the kernel. The old code used the 'hints' method
-	 * to communite this to the kernel. However, while convenient, the
-	 * 'hints' method is fragile and does not work when static hints are
-	 * compiled into the kernel. Instead, move to setting different tunables
-	 * that start with acpi. The old 'hints' can be removed before we branch
-	 * for FreeBSD 15.
+	 * to communicate this to the kernel, but this is now considered legacy.
+	 * Instead, move to setting different tunables that start with acpi.
+	 * The old 'hints' can be removed before we branch for FreeBSD 15.
 	 */
 
 	rsdp = efi_get_table(&acpi20_guid);
