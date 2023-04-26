@@ -3432,7 +3432,7 @@ dev/vt/colors/vt_termcolors.c	optional vt
 dev/vt/font/vt_font_default.c	optional vt
 dev/vt/font/vt_mouse_cursor.c	optional vt
 dev/vt/hw/efifb/efifb.c		optional vt_efifb
-dev/vt/hw/simplefb/simplefb.c	optional vt_simplefb
+dev/vt/hw/simplefb/simplefb.c	optional vt_simplefb fdt
 dev/vt/hw/vbefb/vbefb.c		optional vt_vbefb
 dev/vt/hw/fb/vt_fb.c		optional vt
 dev/vt/hw/vga/vt_vga.c		optional vt vt_vga
