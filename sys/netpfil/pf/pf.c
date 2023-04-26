@@ -7076,8 +7076,10 @@ pf_dummynet_route(struct pf_pdesc *pd, int dir, struct pf_kstate *s,
 		if (pf_pdesc_to_dnflow(dir, pd, r, s, &dnflow)) {
 			pd->pf_mtag->flags |= PF_TAG_DUMMYNET;
 			ip_dn_io_ptr(m0, &dnflow);
-			if (*m0 != NULL)
+			if (*m0 != NULL) {
+				pd->pf_mtag->flags &= ~PF_TAG_ROUTE_TO;
 				pd->pf_mtag->flags &= ~PF_TAG_DUMMYNET;
+			}
 		}
 	}
 
