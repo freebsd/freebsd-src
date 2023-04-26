@@ -484,6 +484,27 @@ read_zones(void)
 }
 
 static void
+dump_zonetab(void)
+{
+	struct country	*cp;
+	struct zone	*zp;
+	const char *cont;
+
+	for (cp = countries; cp->name != NULL; cp++) {
+		printf("%s:%s\n", cp->tlc, cp->name);
+		if (cp->nzones < 0) {
+			cont = find_continent_name(cp->continent);
+			printf("  %s:%s\n", cont, cp->filename);
+		} else {
+			TAILQ_FOREACH(zp, &cp->zones, link) {
+				cont = find_continent_name(zp->continent);
+				printf("  %s:%s\n", cont, zp->filename);
+			}
+		}
+	}
+}
+
+static void
 make_menus(void)
 {
 	struct country	*cp;
@@ -797,27 +818,6 @@ install_zoneinfo(const char *zoneinfo)
 	}
 
 	return (rv);
-}
-
-static void
-dump_zonetab(void)
-{
-	struct country	*cp;
-	struct zone	*zp;
-	const char *cont;
-
-	for (cp = countries; cp->name != NULL; cp++) {
-		printf("%s:%s\n", cp->tlc, cp->name);
-		if (cp->nzones < 0) {
-			cont = find_continent_name(cp->continent);
-			printf("  %s:%s\n", cont, cp->filename);
-		} else {
-			TAILQ_FOREACH(zp, &cp->zones, link) {
-				cont = find_continent_name(zp->continent);
-				printf("  %s:%s\n", cont, zp->filename);
-			}
-		}
-	}
 }
 
 static void
