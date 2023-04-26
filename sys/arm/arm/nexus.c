@@ -256,7 +256,7 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	if (needactivate) {
 		if (bus_activate_resource(child, type, *rid, rv)) {
 			rman_release_resource(rv);
-			return (0);
+			return (NULL);
 		}
 	}
 
