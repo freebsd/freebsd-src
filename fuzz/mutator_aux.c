@@ -15,9 +15,6 @@
 
 #include "mutator_aux.h"
 
-#define HID_DEV_HANDLE	0x68696421
-#define NFC_DEV_HANDLE	0x6e666321
-
 int fido_nfc_rx(fido_dev_t *, uint8_t, unsigned char *, size_t, int);
 int fido_nfc_tx(fido_dev_t *, uint8_t, const unsigned char *, size_t);
 size_t LLVMFuzzerMutate(uint8_t *, size_t, size_t);
@@ -241,16 +238,16 @@ nfc_close(void *handle)
 	assert(handle == (void *)NFC_DEV_HANDLE);
 }
 
-static int
+int
 nfc_read(void *handle, unsigned char *ptr, size_t len, int ms)
 {
 	assert(handle == (void *)NFC_DEV_HANDLE);
-	assert(len > 0 && len <= 256 + 2);
+	assert(len > 0 && len <= 264);
 
 	return buf_read(ptr, len, ms);
 }
 
-static int
+int
 nfc_write(void *handle, const unsigned char *ptr, size_t len)
 {
 	assert(handle == (void *)NFC_DEV_HANDLE);

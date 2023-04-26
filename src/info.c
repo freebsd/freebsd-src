@@ -268,6 +268,8 @@ parse_reply_element(const cbor_item_t *key, const cbor_item_t *val, void *arg)
 		return (decode_string_array(val, &ci->transports));
 	case 10: /* algorithms */
 		return (decode_algorithms(val, &ci->algorithms));
+	case 11: /* maxSerializedLargeBlobArray */
+		return (cbor_decode_uint64(val, &ci->maxlargeblob));
 	case 14: /* fwVersion */
 		return (cbor_decode_uint64(val, &ci->fwversion));
 	case 15: /* maxCredBlobLen */
@@ -459,6 +461,12 @@ uint64_t
 fido_cbor_info_maxcredidlen(const fido_cbor_info_t *ci)
 {
 	return (ci->maxcredidlen);
+}
+
+uint64_t
+fido_cbor_info_maxlargeblob(const fido_cbor_info_t *ci)
+{
+	return (ci->maxlargeblob);
 }
 
 uint64_t

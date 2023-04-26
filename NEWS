@@ -1,3 +1,14 @@
+* Version 1.11.0 (2022-05-03)
+ ** Experimental PCSC support; enable with -DUSE_PCSC.
+ ** Improved OpenSSL 3.0 compatibility.
+ ** Use RFC1951 raw deflate to compress CTAP 2.1 largeBlobs.
+ ** winhello: advertise "uv" instead of "clientPin".
+ ** winhello: support hmac-secret in fido_dev_get_assert().
+ ** New API calls:
+  - fido_cbor_info_maxlargeblob.
+ ** Documentation and reliability fixes.
+ ** Separate build and regress targets.
+
 * Version 1.10.0 (2022-01-17)
  ** hid_osx: handle devices with paths > 511 bytes; gh#462.
  ** bio: fix CTAP2 canonical CBOR encoding in fido_bio_dev_enroll_*(); gh#480.

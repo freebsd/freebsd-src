@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Yubico AB. All rights reserved.
+ * Copyright (c) 2019-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  */
@@ -286,6 +286,9 @@ dev_get_cbor_info(const struct param *p)
 	consume(&n, sizeof(n));
 
 	n = fido_cbor_info_maxcredidlen(ci);
+	consume(&n, sizeof(n));
+
+	n = fido_cbor_info_maxlargeblob(ci);
 	consume(&n, sizeof(n));
 
 	n = fido_cbor_info_fwversion(ci);

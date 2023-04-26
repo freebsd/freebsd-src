@@ -65,13 +65,6 @@ add_executable(fido2-token
 	${COMPAT_SOURCES}
 )
 
-# set the library to link against
-if(BUILD_SHARED_LIBS)
-	set(_FIDO2_LIBRARY fido2_shared)
-else()
-	set(_FIDO2_LIBRARY fido2)
-endif()
-
 target_link_libraries(fido2-cred ${CRYPTO_LIBRARIES} ${_FIDO2_LIBRARY})
 target_link_libraries(fido2-assert ${CRYPTO_LIBRARIES} ${_FIDO2_LIBRARY})
 target_link_libraries(fido2-token ${CRYPTO_LIBRARIES} ${_FIDO2_LIBRARY})

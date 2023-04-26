@@ -4,16 +4,19 @@
  * license that can be found in the LICENSE file.
  */
 
-#define _FIDO_INTERNAL
+#undef NDEBUG
 
 #include <assert.h>
+#include <string.h>
+
+#define _FIDO_INTERNAL
+
 #include <fido.h>
 #include <fido/es256.h>
 #include <fido/rs256.h>
 #include <fido/eddsa.h>
-#include <string.h>
 
-#define FAKE_DEV_HANDLE	((void *)0xdeadbeef)
+static int fake_dev_handle;
 
 static const unsigned char es256_pk[64] = {
 	0x34, 0xeb, 0x99, 0x77, 0x02, 0x9c, 0x36, 0x38,
@@ -94,13 +97,13 @@ dummy_open(const char *path)
 {
 	(void)path;
 
-	return (FAKE_DEV_HANDLE);
+	return (&fake_dev_handle);
 }
 
 static void
 dummy_close(void *handle)
 {
-	assert(handle == FAKE_DEV_HANDLE);
+	assert(handle == &fake_dev_handle);
 }
 
 static int

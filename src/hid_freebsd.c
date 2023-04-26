@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Yubico AB. All rights reserved.
+ * Copyright (c) 2020-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  */
@@ -87,8 +87,8 @@ copy_info(fido_dev_info_t *di, const char *path)
 
 	ok = 0;
 fail:
-	if (fd != -1)
-		close(fd);
+	if (fd != -1 && close(fd) == -1)
+		fido_log_error(errno, "%s: close %s", __func__, path);
 
 	if (ok < 0) {
 		free(di->path);
@@ -105,8 +105,6 @@ fido_hid_manifest(fido_dev_info_t *devlist, size_t ilen, size_t *olen)
 {
 	char	path[64];
 	size_t	i;
-
-	*olen = 0;
 
 	if (ilen == 0)
 		return (FIDO_OK); /* nothing to do */

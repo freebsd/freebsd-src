@@ -1,8 +1,8 @@
-.\" Copyright (c) 2018 Yubico AB. All rights reserved.
+.\" Copyright (c) 2018-2022 Yubico AB. All rights reserved.
 .\" Use of this source code is governed by a BSD-style
 .\" license that can be found in the LICENSE file.
 .\"
-.Dd $Mdocdate: May 24 2018 $
+.Dd $Mdocdate: April 22 2022 $
 .Dt FIDO_CBOR_INFO_NEW 3
 .Os
 .Sh NAME
@@ -29,6 +29,7 @@
 .Nm fido_cbor_info_maxcredbloblen ,
 .Nm fido_cbor_info_maxcredcntlst ,
 .Nm fido_cbor_info_maxcredidlen ,
+.Nm fido_cbor_info_maxlargeblob ,
 .Nm fido_cbor_info_fwversion
 .Nd FIDO2 CBOR Info API
 .Sh SYNOPSIS
@@ -79,6 +80,8 @@
 .Fn fido_cbor_info_maxcredcntlst "const fido_cbor_info_t *ci"
 .Ft uint64_t
 .Fn fido_cbor_info_maxcredidlen "const fido_cbor_info_t *ci"
+.Ft uint64_t
+.Fn fido_cbor_info_maxlargeblob "const fido_cbor_info_t *ci"
 .Ft uint64_t
 .Fn fido_cbor_info_fwversion "const fido_cbor_info_t *ci"
 .Sh DESCRIPTION
@@ -198,6 +201,12 @@ The
 .Fn fido_cbor_info_maxcredidlen
 function returns the maximum supported length of a credential ID
 as reported in
+.Fa ci .
+.Pp
+The
+.Fn fido_cbor_info_maxlargeblob
+function returns the maximum length in bytes of an authenticator's
+serialized largeBlob array as reported in
 .Fa ci .
 .Pp
 The

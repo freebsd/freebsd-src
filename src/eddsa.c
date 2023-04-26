@@ -122,10 +122,19 @@ eddsa_pk_free(eddsa_pk_t **pkp)
 int
 eddsa_pk_from_ptr(eddsa_pk_t *pk, const void *ptr, size_t len)
 {
+	EVP_PKEY *pkey;
+
 	if (len < sizeof(*pk))
 		return (FIDO_ERR_INVALID_ARGUMENT);
 
 	memcpy(pk, ptr, sizeof(*pk));
+
+	if ((pkey = eddsa_pk_to_EVP_PKEY(pk)) == NULL) {
+		fido_log_debug("%s: eddsa_pk_to_EVP_PKEY", __func__);
+		return (FIDO_ERR_INVALID_ARGUMENT);
+	}
+
+	EVP_PKEY_free(pkey);
 
 	return (FIDO_OK);
 }
@@ -147,6 +156,8 @@ eddsa_pk_from_EVP_PKEY(eddsa_pk_t *pk, const EVP_PKEY *pkey)
 {
 	size_t len = 0;
 
+	if (EVP_PKEY_base_id(pkey) != EVP_PKEY_ED25519)
+		return (FIDO_ERR_INVALID_ARGUMENT);
 	if (EVP_PKEY_get_raw_public_key(pkey, NULL, &len) != 1 ||
 	    len != sizeof(pk->x))
 		return (FIDO_ERR_INTERNAL);

@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2021 Yubico AB. All rights reserved.
+# Copyright (c) 2018-2022 Yubico AB. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
@@ -28,18 +28,19 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_COLOR_MAKEFILE OFF)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(FIDO_MAJOR "1")
-set(FIDO_MINOR "10")
+set(FIDO_MINOR "11")
 set(FIDO_PATCH "0")
 set(FIDO_VERSION ${FIDO_MAJOR}.${FIDO_MINOR}.${FIDO_PATCH})
 
 option(BUILD_EXAMPLES    "Build example programs"                  ON)
 option(BUILD_MANPAGES    "Build man pages"                         ON)
-option(BUILD_SHARED_LIBS "Build the shared library"                ON)
-option(BUILD_STATIC_LIBS "Build the static library"                ON)
+option(BUILD_SHARED_LIBS "Build a shared library"                  ON)
+option(BUILD_STATIC_LIBS "Build a static library"                  ON)
 option(BUILD_TOOLS       "Build tool programs"                     ON)
 option(FUZZ              "Enable fuzzing instrumentation"          OFF)
 option(LIBFUZZER         "Build libfuzzer harnesses"               OFF)
 option(USE_HIDAPI        "Use hidapi as the HID backend"           OFF)
+option(USE_PCSC          "Enable experimental PCSC support"        OFF)
 option(USE_WINHELLO      "Abstract Windows Hello as a FIDO device" ON)
 option(NFC_LINUX         "Enable NFC support on Linux"             ON)
 
@@ -91,6 +92,7 @@ check_include_files(sys/random.h HAVE_SYS_RANDOM_H)
 check_include_files(unistd.h HAVE_UNISTD_H)
 
 check_symbol_exists(arc4random_buf stdlib.h HAVE_ARC4RANDOM_BUF)
+check_symbol_exists(asprintf stdio.h HAVE_ASPRINTF)
 check_symbol_exists(clock_gettime time.h HAVE_CLOCK_GETTIME)
 check_symbol_exists(explicit_bzero string.h HAVE_EXPLICIT_BZERO)
 check_symbol_exists(freezero stdlib.h HAVE_FREEZERO)
@@ -116,6 +118,7 @@ try_compile(HAVE_POSIX_IOCTL
 
 list(APPEND CHECK_VARIABLES
 	HAVE_ARC4RANDOM_BUF
+	HAVE_ASPRINTF
 	HAVE_CBOR_H
 	HAVE_CLOCK_GETTIME
 	HAVE_ENDIAN_H
@@ -166,8 +169,8 @@ if(MSVC)
 		   "building under msvc")
 	endif()
 	set(CBOR_LIBRARIES cbor)
-	set(ZLIB_LIBRARIES zlib)
-	set(CRYPTO_LIBRARIES crypto-47)
+	set(ZLIB_LIBRARIES zlib1)
+	set(CRYPTO_LIBRARIES crypto-49)
 	set(MSVC_DISABLED_WARNINGS_LIST
 		"C4152" # nonstandard extension used: function/data pointer
 			# conversion in expression;
@@ -237,6 +240,17 @@ else()
 		add_compile_options(-Wno-unused-parameter)
 	endif()
 
+	if(FUZZ)
+		set(USE_PCSC ON)
+		add_definitions(-DFIDO_FUZZ)
+	endif()
+
+	# If building with PCSC, look for pcsc-lite.
+	if(USE_PCSC AND NOT (APPLE OR CYGWIN OR MSYS OR MINGW))
+		pkg_search_module(PCSC libpcsclite REQUIRED)
+		set(PCSC_LIBRARIES pcsclite)
+	endif()
+
 	if(USE_HIDAPI)
 		add_definitions(-DUSE_HIDAPI)
 		pkg_search_module(HIDAPI hidapi${HIDAPI_SUFFIX} REQUIRED)
@@ -244,7 +258,7 @@ else()
 	endif()
 
 	if(NFC_LINUX)
-		add_definitions(-DNFC_LINUX)
+		add_definitions(-DUSE_NFC)
 	endif()
 
 	if(WIN32)
@@ -285,10 +299,6 @@ else()
 		add_definitions(-DOPENSSL_API_COMPAT=0x10100000L)
 	endif()
 
-	if(FUZZ)
-		add_definitions(-DFIDO_FUZZ)
-	endif()
-
 	if(LIBFUZZER)
 		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=fuzzer-no-link")
 	endif()
@@ -308,6 +318,10 @@ elseif(WIN32)
 	set(TLS "__declspec(thread)")
 endif()
 add_definitions(-DTLS=${TLS})
+
+if(USE_PCSC)
+	add_definitions(-DUSE_PCSC)
+endif()
 
 # export list
 if(APPLE AND (CMAKE_C_COMPILER_ID STREQUAL "Clang" OR
@@ -345,16 +359,18 @@ else()
 	    " /def:\"${CMAKE_CURRENT_SOURCE_DIR}/src/export.msvc\"")
 endif()
 
-include_directories(${CMAKE_SOURCE_DIR}/src)
+include_directories(${PROJECT_SOURCE_DIR}/src)
 include_directories(${CBOR_INCLUDE_DIRS})
 include_directories(${CRYPTO_INCLUDE_DIRS})
 include_directories(${HIDAPI_INCLUDE_DIRS})
+include_directories(${PCSC_INCLUDE_DIRS})
 include_directories(${UDEV_INCLUDE_DIRS})
 include_directories(${ZLIB_INCLUDE_DIRS})
 
 link_directories(${CBOR_LIBRARY_DIRS})
 link_directories(${CRYPTO_LIBRARY_DIRS})
 link_directories(${HIDAPI_LIBRARY_DIRS})
+link_directories(${PCSC_LIBRARY_DIRS})
 link_directories(${UDEV_LIBRARY_DIRS})
 link_directories(${ZLIB_LIBRARY_DIRS})
 
@@ -372,9 +388,14 @@ message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 message(STATUS "CMAKE_C_COMPILER: ${CMAKE_C_COMPILER}")
 message(STATUS "CMAKE_C_COMPILER_ID: ${CMAKE_C_COMPILER_ID}")
 message(STATUS "CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}")
+message(STATUS "CMAKE_CROSSCOMPILING: ${CMAKE_CROSSCOMPILING}")
+message(STATUS "CMAKE_GENERATOR_PLATFORM: ${CMAKE_GENERATOR_PLATFORM}")
+message(STATUS "CMAKE_HOST_SYSTEM_NAME: ${CMAKE_HOST_SYSTEM_NAME}")
+message(STATUS "CMAKE_HOST_SYSTEM_PROCESSOR: ${CMAKE_HOST_SYSTEM_PROCESSOR}")
 message(STATUS "CMAKE_INSTALL_LIBDIR: ${CMAKE_INSTALL_LIBDIR}")
 message(STATUS "CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
 message(STATUS "CMAKE_SYSTEM_NAME: ${CMAKE_SYSTEM_NAME}")
+message(STATUS "CMAKE_SYSTEM_PROCESSOR: ${CMAKE_SYSTEM_PROCESSOR}")
 message(STATUS "CMAKE_SYSTEM_VERSION: ${CMAKE_SYSTEM_VERSION}")
 message(STATUS "CRYPTO_INCLUDE_DIRS: ${CRYPTO_INCLUDE_DIRS}")
 message(STATUS "CRYPTO_LIBRARIES: ${CRYPTO_LIBRARIES}")
@@ -392,6 +413,10 @@ if(USE_HIDAPI)
 	message(STATUS "HIDAPI_LIBRARY_DIRS: ${HIDAPI_LIBRARY_DIRS}")
 	message(STATUS "HIDAPI_VERSION: ${HIDAPI_VERSION}")
 endif()
+message(STATUS "PCSC_INCLUDE_DIRS: ${PCSC_INCLUDE_DIRS}")
+message(STATUS "PCSC_LIBRARIES: ${PCSC_LIBRARIES}")
+message(STATUS "PCSC_LIBRARY_DIRS: ${PCSC_LIBRARY_DIRS}")
+message(STATUS "PCSC_VERSION: ${PCSC_VERSION}")
 message(STATUS "LIBFUZZER: ${LIBFUZZER}")
 message(STATUS "TLS: ${TLS}")
 message(STATUS "UDEV_INCLUDE_DIRS: ${UDEV_INCLUDE_DIRS}")
@@ -400,10 +425,22 @@ message(STATUS "UDEV_LIBRARY_DIRS: ${UDEV_LIBRARY_DIRS}")
 message(STATUS "UDEV_RULES_DIR: ${UDEV_RULES_DIR}")
 message(STATUS "UDEV_VERSION: ${UDEV_VERSION}")
 message(STATUS "USE_HIDAPI: ${USE_HIDAPI}")
+message(STATUS "USE_PCSC: ${USE_PCSC}")
 message(STATUS "USE_WINHELLO: ${USE_WINHELLO}")
 message(STATUS "NFC_LINUX: ${NFC_LINUX}")
 
+if(BUILD_SHARED_LIBS)
+	set(_FIDO2_LIBRARY fido2_shared)
+elseif(BUILD_STATIC_LIBS)
+	set(_FIDO2_LIBRARY fido2)
+else()
+	message(FATAL_ERROR "Nothing to build (BUILD_*_LIBS=OFF)")
+endif()
+
+enable_testing()
+
 subdirs(src)
+subdirs(regress)
 if(BUILD_EXAMPLES)
 	subdirs(examples)
 endif()
@@ -415,10 +452,6 @@ if(BUILD_MANPAGES)
 endif()
 
 if(NOT WIN32)
-	if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT FUZZ)
-		enable_testing()
-		subdirs(regress)
-	endif()
 	if(FUZZ)
 		subdirs(fuzz)
 	endif()

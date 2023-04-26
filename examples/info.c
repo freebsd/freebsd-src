@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  */
@@ -183,6 +183,16 @@ print_maxcredidlen(uint64_t maxcredidlen)
 }
 
 /*
+ * Auxiliary function to print the maximum size of an authenticator's
+ * serialized largeBlob array.
+ */
+static void
+print_maxlargeblob(uint64_t maxlargeblob)
+{
+	printf("maxlargeblob: %d\n", (int)maxlargeblob);
+}
+
+/*
  * Auxiliary function to print an authenticator's firmware version on stdout.
  */
 static void
@@ -263,6 +273,9 @@ getinfo(const char *path)
 
 	/* print maximum length of a credential ID */
 	print_maxcredidlen(fido_cbor_info_maxcredidlen(ci));
+
+	/* print maximum length of largeBlob array */
+	print_maxlargeblob(fido_cbor_info_maxlargeblob(ci));
 
 	/* print firmware version */
 	print_fwversion(fido_cbor_info_fwversion(ci));

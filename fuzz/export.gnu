@@ -85,10 +85,11 @@
 		fido_cbor_info_extensions_len;
 		fido_cbor_info_extensions_ptr;
 		fido_cbor_info_free;
-		fido_cbor_info_maxmsgsiz;
 		fido_cbor_info_maxcredbloblen;
 		fido_cbor_info_maxcredcntlst;
 		fido_cbor_info_maxcredidlen;
+		fido_cbor_info_maxlargeblob;
+		fido_cbor_info_maxmsgsiz;
 		fido_cbor_info_fwversion;
 		fido_cbor_info_new;
 		fido_cbor_info_options_len;
@@ -212,6 +213,7 @@
 		fido_dev_protocol;
 		fido_dev_reset;
 		fido_dev_set_io_functions;
+		fido_dev_set_pcsc;
 		fido_dev_set_pin;
 		fido_dev_set_pin_minlen;
 		fido_dev_set_pin_minlen_rpid;
@@ -237,6 +239,13 @@
 		fido_nl_get_nfc_target;
 		fido_nl_new;
 		fido_nl_power_nfc;
+		fido_pcsc_close;
+		fido_pcsc_manifest;
+		fido_pcsc_open;
+		fido_pcsc_read;
+		fido_pcsc_rx;
+		fido_pcsc_tx;
+		fido_pcsc_write;
 		fido_set_log_handler;
 		fido_strerr;
 		rs256_pk_free;
@@ -246,8 +255,11 @@
 		rs256_pk_new;
 		rs256_pk_to_EVP_PKEY;
 		prng_init;
+		prng_up;
 		fuzz_clock_reset;
 		set_netlink_io_functions;
+		set_pcsc_parameters;
+		set_pcsc_io_functions;
 		set_udev_parameters;
 		uniform_random;
 	local:

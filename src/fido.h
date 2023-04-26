@@ -144,7 +144,9 @@ int fido_cred_set_user(fido_cred_t *, const unsigned char *, size_t,
 int fido_cred_set_x509(fido_cred_t *, const unsigned char *, size_t);
 int fido_cred_verify(const fido_cred_t *);
 int fido_cred_verify_self(const fido_cred_t *);
+#ifdef _FIDO_SIGSET_DEFINED
 int fido_dev_set_sigmask(fido_dev_t *, const fido_sigset_t *);
+#endif
 int fido_dev_cancel(fido_dev_t *);
 int fido_dev_close(fido_dev_t *);
 int fido_dev_get_assert(fido_dev_t *, fido_assert_t *, const char *);
@@ -205,10 +207,11 @@ uint8_t  fido_dev_build(const fido_dev_t *);
 uint8_t  fido_dev_flags(const fido_dev_t *);
 int16_t  fido_dev_info_vendor(const fido_dev_info_t *);
 int16_t  fido_dev_info_product(const fido_dev_info_t *);
-uint64_t fido_cbor_info_maxmsgsiz(const fido_cbor_info_t *);
 uint64_t fido_cbor_info_maxcredbloblen(const fido_cbor_info_t *);
 uint64_t fido_cbor_info_maxcredcntlst(const fido_cbor_info_t *);
 uint64_t fido_cbor_info_maxcredidlen(const fido_cbor_info_t *);
+uint64_t fido_cbor_info_maxlargeblob(const fido_cbor_info_t *);
+uint64_t fido_cbor_info_maxmsgsiz(const fido_cbor_info_t *);
 uint64_t fido_cbor_info_fwversion(const fido_cbor_info_t *);
 
 bool fido_dev_has_pin(const fido_dev_t *);

@@ -1,8 +1,8 @@
-.\" Copyright (c) 2018 Yubico AB. All rights reserved.
+.\" Copyright (c) 2018-2022 Yubico AB. All rights reserved.
 .\" Use of this source code is governed by a BSD-style
 .\" license that can be found in the LICENSE file.
 .\"
-.Dd $Mdocdate: May 23 2018 $
+.Dd $Mdocdate: April 27 2022 $
 .Dt FIDO_ASSERT_SET_AUTHDATA 3
 .Os
 .Sh NAME
@@ -182,6 +182,8 @@ is made, and no references to the passed pointer are kept.
 The HMAC Secret
 .Pq hmac-secret
 Extension is a CTAP 2.0 extension.
+Note that the resulting hmac-secret varies according to whether
+user verification was performed by the authenticator.
 The
 .Fn fido_assert_set_hmac_secret
 function is normally only useful when writing tests.

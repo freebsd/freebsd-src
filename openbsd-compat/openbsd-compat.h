@@ -115,4 +115,8 @@ ssize_t getline(char **, size_t *, FILE *);
 #define IOCTL_REQ(x)	((int)(x))
 #endif
 
+#if !defined(HAVE_ASPRINTF)
+int asprintf(char **, const char *, ...);
+#endif
+
 #endif /* !_OPENBSD_COMPAT_H */

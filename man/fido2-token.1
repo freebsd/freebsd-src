@@ -1,8 +1,8 @@
-.\" Copyright (c) 2018-2021 Yubico AB. All rights reserved.
+.\" Copyright (c) 2018-2022 Yubico AB. All rights reserved.
 .\" Use of this source code is governed by a BSD-style
 .\" license that can be found in the LICENSE file.
 .\"
-.Dd $Mdocdate: September 13 2019 $
+.Dd $Mdocdate: April 11 2022 $
 .Dt FIDO2-TOKEN 1
 .Os
 .Sh NAME
@@ -147,7 +147,7 @@ from
 .Ar device ,
 where
 .Ar key_path
-must hold the blob's base64-encoded encryption key.
+holds the blob's base64-encoded 32-byte AES-256 GCM encryption key.
 A PIN or equivalent user-verification gesture is required.
 .It Fl D Fl b Fl n Ar rp_id Oo Fl i Ar cred_id Oc Ar device
 Deletes a
@@ -189,7 +189,7 @@ from
 .Ar device ,
 where
 .Ar key_path
-must hold the blob's base64-encoded encryption key.
+holds the blob's base64-encoded 32-byte AES-256 GCM encryption key.
 The blob is written to
 .Ar blob_path .
 A PIN or equivalent user-verification gesture is required.
@@ -267,29 +267,27 @@ The user will be prompted for the PIN.
 Enables CTAP 2.1 Enterprise Attestation on
 .Ar device .
 .It Fl S Fl b Fl k Ar key_path Ar blob_path Ar device
-Sets
-.Ar blob_path
-as a CTAP 2.1
+Sets a CTAP 2.1
 .Dq largeBlob
 encrypted with
 .Ar key_path
 on
 .Ar device ,
 where
-.Ar blob_path
-holds the blob's plaintext, and
 .Ar key_path
-the blob's base64-encoded encryption.
+holds the blob's base64-encoded 32-byte AES-256 GCM encryption key.
+The blob is read from
+.Fa blob_path .
 A PIN or equivalent user-verification gesture is required.
 .It Fl S Fl b Fl n Ar rp_id Oo Fl i Ar cred_id Oc Ar blob_path Ar device
-Sets
-.Ar blob_path
-as a CTAP 2.1
+Sets a CTAP 2.1
 .Dq largeBlob
 associated with
 .Ar rp_id
 on
 .Ar device .
+The blob is read from
+.Fa blob_path .
 If
 .Ar rp_id
 has multiple credentials enrolled on

@@ -13,17 +13,6 @@ if(WIN32 AND BUILD_SHARED_LIBS AND NOT CYGWIN AND NOT MSYS)
 	list(APPEND COMPAT_SOURCES ../openbsd-compat/posix_win.c)
 endif()
 
-# set the library to link against
-if(BUILD_STATIC_LIBS)
-	# drop -rdynamic
-	set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
-	set(_FIDO2_LIBRARY fido2)
-elseif(BUILD_SHARED_LIBS)
-	set(_FIDO2_LIBRARY fido2_shared)
-else()
-	set(_FIDO2_LIBRARY ${CRYPTO_LIBRARIES} fido2)
-endif()
-
 # enable -Wconversion -Wsign-conversion
 if(NOT MSVC)
 	set_source_files_properties(assert.c cred.c info.c manifest.c reset.c

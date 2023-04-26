@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Yubico AB. All rights reserved.
+ * Copyright (c) 2019-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  */
@@ -51,6 +51,9 @@
 #define MAXSTR	1024
 #define MAXBLOB	3600
 
+#define HID_DEV_HANDLE	0x68696421
+#define NFC_DEV_HANDLE	0x6e666321
+
 struct blob {
 	uint8_t body[MAXBLOB];
 	size_t len;
@@ -85,6 +88,9 @@ void mutate_string(char *);
 ssize_t fd_read(int, void *, size_t);
 ssize_t fd_write(int, const void *, size_t);
 
+int nfc_read(void *, unsigned char *, size_t, int);
+int nfc_write(void *, const unsigned char *, size_t);
+
 fido_dev_t *open_dev(int);
 void set_wire_data(const uint8_t *, size_t);
 
@@ -93,5 +99,9 @@ void prng_init(unsigned long);
 unsigned long prng_uint32(void);
 
 uint32_t uniform_random(uint32_t);
+
+void set_pcsc_parameters(const struct blob *);
+void set_pcsc_io_functions(int (*)(void *, u_char *, size_t, int),
+    int (*)(void *, const u_char *, size_t), void (*)(const void *, size_t));
 
 #endif /* !_MUTATOR_AUX_H */

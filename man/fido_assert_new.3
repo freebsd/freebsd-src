@@ -1,8 +1,8 @@
-.\" Copyright (c) 2018 Yubico AB. All rights reserved.
+.\" Copyright (c) 2018-2022 Yubico AB. All rights reserved.
 .\" Use of this source code is governed by a BSD-style
 .\" license that can be found in the LICENSE file.
 .\"
-.Dd $Mdocdate: October 22 2019 $
+.Dd $Mdocdate: April 27 2022 $
 .Dt FIDO_ASSERT_NEW 3
 .Os
 .Sh NAME
@@ -180,6 +180,8 @@ in
 The HMAC Secret Extension
 .Pq hmac-secret
 is a CTAP 2.0 extension.
+Note that the resulting hmac-secret varies according to whether
+user verification was performed by the authenticator.
 .Pp
 The
 .Fn fido_assert_blob_ptr

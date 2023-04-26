@@ -72,6 +72,7 @@ product SILICON		0x8acf	U2F Zero
 product PIDCODES	0x5070	SoloKeys SoloHacker
 product PIDCODES	0x50b0	SoloKeys SoloBoot
 product PIDCODES	0x53c1	SatoshiLabs TREZOR
+product PIDCODES	0xbeee	SoloKeys v2
 
 product GOOGLE		0x5026	Google Titan U2F
 

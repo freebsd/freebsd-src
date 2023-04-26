@@ -156,6 +156,12 @@ print_maxcredidlen(uint64_t maxcredidlen)
 }
 
 static void
+print_maxlargeblob(uint64_t maxlargeblob)
+{
+	printf("maxlargeblob: %d\n", (int)maxlargeblob);
+}
+
+static void
 print_fwversion(uint64_t fwversion)
 {
 	printf("fwversion: 0x%x\n", (int)fwversion);
@@ -258,6 +264,9 @@ token_info(int argc, char **argv, char *path)
 
 	/* print maximum length of a credential ID */
 	print_maxcredidlen(fido_cbor_info_maxcredidlen(ci));
+
+	/* print maximum length of serialized largeBlob array */
+	print_maxlargeblob(fido_cbor_info_maxlargeblob(ci));
 
 	/* print firmware version */
 	print_fwversion(fido_cbor_info_fwversion(ci));

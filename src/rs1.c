@@ -9,7 +9,7 @@
 
 #include "fido.h"
 
-#if defined(LIBRESSL_VERSION_NUMBER)
+#if defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x3050200fL
 static EVP_MD *
 rs1_get_EVP_MD(void)
 {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  */
@@ -48,10 +48,14 @@ typedef enum {
 
 typedef void fido_log_handler_t(const char *);
 
+#undef  _FIDO_SIGSET_DEFINED
+#define _FIDO_SIGSET_DEFINED
 #ifdef _WIN32
 typedef int fido_sigset_t;
-#else
+#elif defined(SIG_BLOCK)
 typedef sigset_t fido_sigset_t;
+#else
+#undef _FIDO_SIGSET_DEFINED
 #endif
 
 #ifdef _FIDO_INTERNAL
@@ -216,18 +220,19 @@ typedef struct fido_algo_array {
 } fido_algo_array_t;
 
 typedef struct fido_cbor_info {
-	fido_str_array_t  versions;      /* supported versions: fido2|u2f */
-	fido_str_array_t  extensions;    /* list of supported extensions */
-	fido_str_array_t  transports;    /* list of supported transports */
-	unsigned char     aaguid[16];    /* aaguid */
-	fido_opt_array_t  options;       /* list of supported options */
-	uint64_t          maxmsgsiz;     /* maximum message size */
-	fido_byte_array_t protocols;     /* supported pin protocols */
-	fido_algo_array_t algorithms;    /* list of supported algorithms */
-	uint64_t          maxcredcntlst; /* max number of credentials in list */
-	uint64_t          maxcredidlen;  /* max credential ID length */
-	uint64_t          fwversion;     /* firmware version */
+	fido_str_array_t  versions;       /* supported versions: fido2|u2f */
+	fido_str_array_t  extensions;     /* list of supported extensions */
+	fido_str_array_t  transports;     /* list of supported transports */
+	unsigned char     aaguid[16];     /* aaguid */
+	fido_opt_array_t  options;        /* list of supported options */
+	uint64_t          maxmsgsiz;      /* maximum message size */
+	fido_byte_array_t protocols;      /* supported pin protocols */
+	fido_algo_array_t algorithms;     /* list of supported algorithms */
+	uint64_t          maxcredcntlst;  /* max credentials in list */
+	uint64_t          maxcredidlen;   /* max credential ID length */
+	uint64_t          fwversion;      /* firmware version */
 	uint64_t          maxcredbloblen; /* max credBlob length */
+	uint64_t          maxlargeblob;   /* max largeBlob array length */
 } fido_cbor_info_t;
 
 typedef struct fido_dev_info {

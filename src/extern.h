@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2021 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  */
@@ -118,6 +118,7 @@ size_t fido_hid_report_in_len(void *);
 size_t fido_hid_report_out_len(void *);
 
 /* nfc i/o */
+bool fido_is_nfc(const char *);
 void *fido_nfc_open(const char *);
 void  fido_nfc_close(void *);
 int fido_nfc_read(void *, unsigned char *, size_t, int);
@@ -125,6 +126,17 @@ int fido_nfc_write(void *, const unsigned char *, size_t);
 int fido_nfc_rx(fido_dev_t *, uint8_t, unsigned char *, size_t, int);
 int fido_nfc_tx(fido_dev_t *, uint8_t, const unsigned char *, size_t);
 int fido_nfc_set_sigmask(void *, const fido_sigset_t *);
+int fido_dev_set_nfc(fido_dev_t *);
+
+/* pcsc i/o */
+bool fido_is_pcsc(const char *);
+void *fido_pcsc_open(const char *);
+void  fido_pcsc_close(void *);
+int fido_pcsc_read(void *, unsigned char *, size_t, int);
+int fido_pcsc_write(void *, const unsigned char *, size_t);
+int fido_pcsc_rx(fido_dev_t *, uint8_t, unsigned char *, size_t, int);
+int fido_pcsc_tx(fido_dev_t *, uint8_t, const unsigned char *, size_t);
+int fido_dev_set_pcsc(fido_dev_t *);
 
 /* windows hello */
 int fido_winhello_manifest(fido_dev_info_t *, size_t, size_t *);
@@ -200,6 +212,7 @@ int fido_get_random(void *, size_t);
 int fido_sha256(fido_blob_t *, const u_char *, size_t);
 int fido_time_now(struct timespec *);
 int fido_time_delta(const struct timespec *, int *);
+int fido_to_uint64(const char *, int, uint64_t *);
 
 /* crypto */
 int es256_verify_sig(const fido_blob_t *, EVP_PKEY *, const fido_blob_t *);
@@ -220,11 +233,7 @@ int fido_get_signed_hash_tpm(fido_blob_t *, const fido_blob_t *,
 /* device manifest functions */
 int fido_hid_manifest(fido_dev_info_t *, size_t, size_t *);
 int fido_nfc_manifest(fido_dev_info_t *, size_t, size_t *);
-
-/* device manifest registration */
-typedef int (*dev_manifest_func_t)(fido_dev_info_t *, size_t, size_t *);
-int fido_dev_register_manifest_func(const dev_manifest_func_t);
-void fido_dev_unregister_manifest_func(const dev_manifest_func_t);
+int fido_pcsc_manifest(fido_dev_info_t *, size_t, size_t *);
 
 /* fuzzing instrumentation */
 #ifdef FIDO_FUZZ
@@ -250,6 +259,7 @@ uint32_t uniform_random(uint32_t);
 #define FIDO_DUMMY_USER_ID	1
 #define FIDO_WINHELLO_PATH	"windows://hello"
 #define FIDO_NFC_PREFIX		"nfc:"
+#define FIDO_PCSC_PREFIX	"pcsc:"
 
 #ifdef __cplusplus
 } /* extern "C" */

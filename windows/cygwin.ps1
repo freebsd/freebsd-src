@@ -66,3 +66,4 @@ Start-Process "${Cygwin}\${Setup}" -Wait -NoNewWindow `
 $Env:PATH = "${Root}\bin\;" + $Env:PATH
 cmake "-DCMAKE_BUILD_TYPE=${Config}" -B "build-${Config}"
 make -C "build-${Config}"
+make -C "build-${Config}" regress

@@ -1,3 +1,4 @@
+asprintf
 bind
 BN_bin2bn
 BN_bn2bin
@@ -24,6 +25,8 @@ cbor_new_definite_bytestring
 cbor_new_definite_map
 cbor_serialize_alloc
 clock_gettime
+deflate
+deflateInit2_
 EC_KEY_get0_group
 EC_KEY_get0_private_key
 EC_KEY_new_by_curve_name
@@ -71,6 +74,12 @@ realloc
 RSA_new
 RSA_pkey_ctx_ctrl
 RSA_set0_key
+SCardConnect
+SCardDisconnect
+SCardEstablishContext
+SCardListReaders
+SCardReleaseContext
+SCardTransmit
 SHA1
 SHA256
 strdup

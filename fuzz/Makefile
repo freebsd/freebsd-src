@@ -1,13 +1,13 @@
-# Copyright (c) 2019-2021 Yubico AB. All rights reserved.
+# Copyright (c) 2019-2022 Yubico AB. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-IMAGE		:= libfido2-coverage:1.10.0
+IMAGE		:= libfido2-coverage:1.11.2
 RUNNER		:= libfido2-runner
-PROFDATA	:= llvm-profdata-12
-COV		:= llvm-cov-12
+PROFDATA	:= llvm-profdata-14
+COV		:= llvm-cov-14
 TARGETS		:= fuzz_assert fuzz_bio fuzz_cred fuzz_credman fuzz_hid \
-		   fuzz_largeblob fuzz_netlink fuzz_mgmt
+		   fuzz_largeblob fuzz_netlink fuzz_mgmt fuzz_pcsc
 CORPORA		:= $(foreach f,${TARGETS},${f}/corpus)
 MINIFY		:= $(foreach f,${TARGETS},/minify/${f}/corpus)
 REMOTE		:= gs://libfido2-corpus.clusterfuzz-external.appspot.com
@@ -24,7 +24,7 @@ run: build
 
 sync: run
 	tar Ccf .. - src fuzz | docker exec -i ${RUNNER} tar Cxf /libfido2 -
-	docker exec ${RUNNER} make -C libfido2/build
+	docker exec ${RUNNER} make -C /libfido2/build
 
 corpus: sync
 	docker exec ${RUNNER} /bin/sh -c 'cd /libfido2/fuzz && rm -rf ${TARGETS}'
@@ -45,23 +45,24 @@ corpus.tgz-: ${MINIFY}
 
 profdata: run
 	docker exec ${RUNNER} /bin/sh -c 'rm -f /$@ && ${PROFDATA} \
-		merge -sparse profraw/* -o $@'
+		merge -sparse /profraw/* -o /$@'
 
 report.tgz: profdata
 	docker exec ${RUNNER} /bin/sh -c 'rm -rf /report && mkdir /report && \
 		${COV} show -format=html -tab-size=8 -instr-profile=/$< \
-		--show-branch-summary=false -output-dir=/report \
-		/libfido2/build/src/libfido2.so'
+		-ignore-filename-regex=pcsclite.h --show-branch-summary=false \
+		-output-dir=/report /libfido2/build/src/libfido2.so'
 	docker exec -i ${RUNNER} tar Czcf / - report > $@
 
 summary.txt: profdata
 	docker exec ${RUNNER} ${COV} report -use-color=false \
-		--show-branch-summary=false /libfido2/build/src/libfido2.so \
-		-instr-profile=/$< > $@
+		-ignore-filename-regex=pcsclite.h --show-branch-summary=false \
+		/libfido2/build/src/libfido2.so -instr-profile=/$< > $@
 
 functions.txt: profdata
 	docker exec ${RUNNER} /bin/sh -c '${COV} report -use-color=false \
-		-show-functions --show-branch-summary=false -instr-profile=/$< \
+		-ignore-filename-regex=pcsclite.h -show-functions \
+		--show-branch-summary=false -instr-profile=/$< \
 		/libfido2/build/src/libfido2.so /libfido2/src/*.[ch]' > $@
 
 clean: run

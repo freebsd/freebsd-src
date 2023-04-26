@@ -29,7 +29,7 @@ setpin(const char *path, const char *pin, const char *oldpin)
 		errx(1, "fido_dev_open: %s (0x%x)", fido_strerr(r), r);
 
 	if ((r = fido_dev_set_pin(dev, pin, oldpin)) != FIDO_OK)
-		errx(1, "fido_setpin: %s (0x%x)", fido_strerr(r), r);
+		errx(1, "fido_dev_set_pin: %s (0x%x)", fido_strerr(r), r);
 
 	if ((r = fido_dev_close(dev)) != FIDO_OK)
 		errx(1, "fido_dev_close: %s (0x%x)", fido_strerr(r), r);
