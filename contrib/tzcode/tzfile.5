@@ -1,8 +1,5 @@
 .\" This file is in the public domain, so clarified as of
 .\" 1996-06-05 by Arthur David Olson.
-.\"
-.\" $FreeBSD$
-.\"
 .Dd December 15, 2022
 .Dt TZFILE 5
 .Os
@@ -207,7 +204,7 @@ if there is no POSIX-style representation for such instants.
 If nonempty, the POSIX-style TZ string must agree with the local time
 type after the last transition time if present in the eight-byte data;
 for example, given the string
-.Dq "WET0WEST,M3.5.0,M10.5.0/3"
+.Dq "WET0WEST,M3.5.0/1,M10.5.0"
 then if a last transition time is in July, the transition's local time
 type must specify a daylight-saving time abbreviated
 .Dq "WEST"

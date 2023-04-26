@@ -66,8 +66,10 @@ enum { FORMAT_LEN_GROWTH_BOUND = 5 };
 # define MKDIR_UMASK 0755
 #endif
 
-/* The minimum alignment of a type, for pre-C23 platforms.  */
-#if __STDC_VERSION__ < 201112
+/* The minimum alignment of a type, for pre-C23 platforms.
+   The __SUNPRO_C test is because Oracle Developer Studio 12.6 lacks
+   <stdalign.h> even though __STDC_VERSION__ == 201112.  */
+#if __STDC_VERSION__ < 201112 || defined __SUNPRO_C
 # define alignof(type) offsetof(struct { char a; type b; }, b)
 #elif __STDC_VERSION__ < 202311
 # include <stdalign.h>
@@ -461,49 +463,50 @@ static char		roll[TZ_MAX_LEAPS];
 ** Memory allocation.
 */
 
-static ATTRIBUTE_NORETURN void
+ATTRIBUTE_NORETURN static void
 memory_exhausted(const char *msg)
 {
 	fprintf(stderr, _("%s: Memory exhausted: %s\n"), progname, msg);
 	exit(EXIT_FAILURE);
 }
 
-static ATTRIBUTE_NORETURN void
+ATTRIBUTE_NORETURN static void
 size_overflow(void)
 {
   memory_exhausted(_("size overflow"));
 }
 
-static ATTRIBUTE_REPRODUCIBLE size_t
+ATTRIBUTE_REPRODUCIBLE static ptrdiff_t
 size_sum(size_t a, size_t b)
 {
 #ifdef ckd_add
-  size_t sum;
-  if (!ckd_add(&sum, a, b))
+  ptrdiff_t sum;
+  if (!ckd_add(&sum, a, b) && sum <= INDEX_MAX)
     return sum;
 #else
-  if (b <= SIZE_MAX - a)
+  if (a <= INDEX_MAX && b <= INDEX_MAX - a)
     return a + b;
 #endif
   size_overflow();
 }
 
-static ATTRIBUTE_REPRODUCIBLE size_t
-size_product(size_t nitems, size_t itemsize)
+ATTRIBUTE_REPRODUCIBLE static ptrdiff_t
+size_product(ptrdiff_t nitems, ptrdiff_t itemsize)
 {
 #ifdef ckd_mul
-  size_t product;
-  if (!ckd_mul(&product, nitems, itemsize))
+  ptrdiff_t product;
+  if (!ckd_mul(&product, nitems, itemsize) && product <= INDEX_MAX)
     return product;
 #else
-  if (nitems <= SIZE_MAX / itemsize)
+  ptrdiff_t nitems_max = INDEX_MAX / itemsize;
+  if (nitems <= nitems_max)
     return nitems * itemsize;
 #endif
   size_overflow();
 }
 
-static ATTRIBUTE_REPRODUCIBLE size_t
-align_to(size_t size, size_t alignment)
+ATTRIBUTE_REPRODUCIBLE static ptrdiff_t
+align_to(ptrdiff_t size, ptrdiff_t alignment)
 {
   size_t lo_bits = alignment - 1, sum = size_sum(size, lo_bits);
   return sum & ~lo_bits;
@@ -526,7 +529,7 @@ memcheck(void *ptr)
 	return ptr;
 }
 
-static void * ATTRIBUTE_MALLOC
+ATTRIBUTE_MALLOC static void *
 emalloc(size_t size)
 {
   return memcheck(malloc(size));
@@ -538,7 +541,7 @@ erealloc(void *ptr, size_t size)
   return memcheck(realloc(ptr, size));
 }
 
-static char * ATTRIBUTE_MALLOC
+ATTRIBUTE_MALLOC static char *
 estrdup(char const *str)
 {
   return memcheck(strdup(str));
@@ -551,11 +554,10 @@ grow_nitems_alloc(ptrdiff_t *nitems_alloc, ptrdiff_t itemsize)
 #if defined ckd_add && defined ckd_mul
   ptrdiff_t product;
   if (!ckd_add(nitems_alloc, *nitems_alloc, addend)
-      && !ckd_mul(&product, *nitems_alloc, itemsize) /* && product <= SIZE_MAX */)
+      && !ckd_mul(&product, *nitems_alloc, itemsize) && product <= INDEX_MAX)
     return product;
 #else
-  ptrdiff_t amax = min(PTRDIFF_MAX, SIZE_MAX);
-  if (*nitems_alloc <= ((amax - 1) / 3 * 2) / itemsize) {
+  if (*nitems_alloc <= ((INDEX_MAX - 1) / 3 * 2) / itemsize) {
     *nitems_alloc += addend;
     return *nitems_alloc * itemsize;
   }
@@ -608,7 +610,7 @@ eat(int fnum, lineno num)
 	eats(fnum, num, 0, -1);
 }
 
-static void ATTRIBUTE_FORMAT((printf, 1, 0))
+ATTRIBUTE_FORMAT((printf, 1, 0)) static void
 verror(const char *const string, va_list args)
 {
 	/*
@@ -626,7 +628,7 @@ verror(const char *const string, va_list args)
 	fprintf(stderr, "\n");
 }
 
-static void ATTRIBUTE_FORMAT((printf, 1, 2))
+ATTRIBUTE_FORMAT((printf, 1, 2)) static void
 error(const char *const string, ...)
 {
 	va_list args;
@@ -636,7 +638,7 @@ error(const char *const string, ...)
 	errors = true;
 }
 
-static void ATTRIBUTE_FORMAT((printf, 1, 2))
+ATTRIBUTE_FORMAT((printf, 1, 2)) static void
 warning(const char *const string, ...)
 {
 	va_list args;
@@ -666,7 +668,7 @@ close_file(FILE *stream, char const *dir, char const *name,
   }
 }
 
-static ATTRIBUTE_NORETURN void
+ATTRIBUTE_NORETURN static void
 usage(FILE *stream, int status)
 {
   fprintf(stream,
@@ -1435,7 +1437,7 @@ static char *
 relname(char const *target, char const *linkname)
 {
   size_t i, taillen, dir_len = 0, dotdots = 0;
-  ptrdiff_t dotdotetcsize, linksize = min(PTRDIFF_MAX, SIZE_MAX);
+  ptrdiff_t dotdotetcsize, linksize = INDEX_MAX;
   char const *f = target;
   char *result = NULL;
   if (*linkname == '/') {
@@ -1710,8 +1712,7 @@ infile(int fnum, char const *name)
 	wantcont = false;
 	for (num = 1; ; ++num) {
 		enum { bufsize_bound
-		  = (min(INT_MAX, min(PTRDIFF_MAX, SIZE_MAX))
-		     / FORMAT_LEN_GROWTH_BOUND) };
+		  = (min(INT_MAX, INDEX_MAX) / FORMAT_LEN_GROWTH_BOUND) };
 		char buf[min(_POSIX2_LINE_MAX, bufsize_bound)];
 		int nfields;
 		char *fields[MAX_FIELDS];
@@ -3647,7 +3648,7 @@ lowerit(char a)
 }
 
 /* case-insensitive equality */
-static ATTRIBUTE_REPRODUCIBLE bool
+ATTRIBUTE_REPRODUCIBLE static bool
 ciequal(register const char *ap, register const char *bp)
 {
 	while (lowerit(*ap) == lowerit(*bp++))
@@ -3656,7 +3657,7 @@ ciequal(register const char *ap, register const char *bp)
 	return false;
 }
 
-static ATTRIBUTE_REPRODUCIBLE bool
+ATTRIBUTE_REPRODUCIBLE static bool
 itsabbr(register const char *abbr, register const char *word)
 {
 	if (lowerit(*abbr) != lowerit(*word))
@@ -3672,7 +3673,7 @@ itsabbr(register const char *abbr, register const char *word)
 
 /* Return true if ABBR is an initial prefix of WORD, ignoring ASCII case.  */
 
-static ATTRIBUTE_REPRODUCIBLE bool
+ATTRIBUTE_REPRODUCIBLE static bool
 ciprefix(char const *abbr, char const *word)
 {
   do
@@ -3775,14 +3776,14 @@ getfields(char *cp, char **array, int arrayelts)
 	return nsubs;
 }
 
-static ATTRIBUTE_NORETURN void
+ATTRIBUTE_NORETURN static void
 time_overflow(void)
 {
   error(_("time overflow"));
   exit(EXIT_FAILURE);
 }
 
-static ATTRIBUTE_REPRODUCIBLE zic_t
+ATTRIBUTE_REPRODUCIBLE static zic_t
 oadd(zic_t t1, zic_t t2)
 {
 #ifdef ckd_add
@@ -3796,7 +3797,7 @@ oadd(zic_t t1, zic_t t2)
   time_overflow();
 }
 
-static ATTRIBUTE_REPRODUCIBLE zic_t
+ATTRIBUTE_REPRODUCIBLE static zic_t
 tadd(zic_t t1, zic_t t2)
 {
 #ifdef ckd_add
