@@ -39,7 +39,7 @@ REPORT_BUGS_TO=tz@iana.org
 : ${AWK=awk}
 : ${TZDIR=`pwd`}
 
-# Output one argument as-is to standard output.
+# Output one argument as-is to standard output, with trailing newline.
 # Safer than 'echo', which can mishandle '\' or leading '-'.
 say() {
     printf '%s\n' "$1"
@@ -82,8 +82,8 @@ Report bugs to $REPORT_BUGS_TO."
 
 # Ask the user to select from the function's arguments,
 # and assign the selected argument to the variable 'select_result'.
-# Exit on EOF or I/O error.  Use the shell's 'select' builtin if available,
-# falling back on a less-nice but portable substitute otherwise.
+# Exit on EOF or I/O error.  Use the shell's nicer 'select' builtin if
+# available, falling back on a portable substitute otherwise.
 if
   case $BASH_VERSION in
   ?*) : ;;
@@ -197,16 +197,65 @@ newline='
 '
 IFS=$newline
 
+# Awk script to output a country list.
+output_country_list='
+  BEGIN { FS = "\t" }
+  /^#$/ { next }
+  /^#[^@]/ { next }
+  {
+    commentary = $0 ~ /^#@/
+    if (commentary) {
+      col1ccs = substr($1, 3)
+      conts = $2
+    } else {
+      col1ccs = $1
+      conts = $3
+    }
+    ncc = split(col1ccs, cc, /,/)
+    ncont = split(conts, cont, /,/)
+    for (i = 1; i <= ncc; i++) {
+      elsewhere = commentary
+      for (ci = 1; ci <= ncont; ci++) {
+	if (cont[ci] ~ continent_re) {
+	  if (!cc_seen[cc[i]]++) cc_list[++ccs] = cc[i]
+	  elsewhere = 0
+	}
+      }
+      if (elsewhere) {
+	for (i = 1; i <= ncc; i++) {
+	  cc_elsewhere[cc[i]] = 1
+	}
+      }
+    }
+  }
+  END {
+	  while (getline <TZ_COUNTRY_TABLE) {
+		  if ($0 !~ /^#/) cc_name[$1] = $2
+	  }
+	  for (i = 1; i <= ccs; i++) {
+		  country = cc_list[i]
+		  if (cc_elsewhere[country]) continue
+		  if (cc_name[country]) {
+		    country = cc_name[country]
+		  }
+		  print country
+	  }
+  }
+'
 
 # Awk script to read a time zone table and output the same table,
-# with each column preceded by its distance from 'here'.
-output_distances='
+# with each row preceded by its distance from 'here'.
+# If output_times is set, each row is instead preceded by its local time
+# and any apostrophes are escaped for the shell.
+output_distances_or_times='
   BEGIN {
     FS = "\t"
-    while (getline <TZ_COUNTRY_TABLE)
-      if ($0 ~ /^[^#]/)
-        country[$1] = $2
-    country["US"] = "US" # Otherwise the strings get too long.
+    if (!output_times) {
+      while (getline <TZ_COUNTRY_TABLE)
+	if ($0 ~ /^[^#]/)
+	  country[$1] = $2
+      country["US"] = "US" # Otherwise the strings get too long.
+    }
   }
   function abs(x) {
     return x < 0 ? -x : x;
@@ -268,18 +317,35 @@ output_distances='
     coord_long = convert_longitude(coord)
   }
   /^[^#]/ {
-    here_lat = convert_latitude($2)
-    here_long = convert_longitude($2)
+    inline[inlines++] = $0
+    ncc = split($1, cc, /,/)
+    for (i = 1; i <= ncc; i++)
+      cc_used[cc[i]]++
+  }
+  END {
+   for (h = 0; h < inlines; h++) {
+    $0 = inline[h]
     line = $1 "\t" $2 "\t" $3
     sep = "\t"
     ncc = split($1, cc, /,/)
+    split("", item_seen)
+    item_seen[""] = 1
     for (i = 1; i <= ncc; i++) {
-      line = line sep country[cc[i]]
-      sep = ", "
+      item = cc_used[cc[i]] <= 1 ? country[cc[i]] : $4
+      if (item_seen[item]++) continue
+      line = line sep item
+      sep = "; "
     }
-    if (NF == 4)
-      line = line " - " $4
-    printf "%g\t%s\n", dist(coord_lat, coord_long, here_lat, here_long), line
+    if (output_times) {
+      fmt = "TZ='\''%s'\'' date +'\''%d %%Y %%m %%d %%H:%%M %%a %%b\t%s'\''\n"
+      gsub(/'\''/, "&\\\\&&", line)
+      printf fmt, $3, h, line
+    } else {
+      here_lat = convert_latitude($2)
+      here_long = convert_longitude($2)
+      printf "%g\t%s\n", dist(coord_lat, coord_long, here_lat, here_long), line
+    }
+   }
   }
 '
 
@@ -300,7 +366,7 @@ while
 
 	# Ask the user for continent or ocean.
 
-	echo >&2 'Please select a continent, ocean, "coord", or "TZ".'
+	echo >&2 'Please select a continent, ocean, "coord", "TZ", or "time".'
 
         quoted_continents=`
 	  $AWK '
@@ -331,7 +397,8 @@ while
 	eval '
 	    doselect '"$quoted_continents"' \
 		"coord - I want to use geographical coordinates." \
-		"TZ - I want to specify the timezone using the Posix TZ format."
+		"TZ - I want to specify the timezone using the Posix TZ format." \
+		"time - I know local time already."
 	    continent=$select_result
 	    case $continent in
 	    Americas) continent=America;;
@@ -384,74 +451,99 @@ while
 		    distance_table=`$AWK \
 			    -v coord="$coord" \
 			    -v TZ_COUNTRY_TABLE="$TZ_COUNTRY_TABLE" \
-			    "$output_distances" <"$TZ_ZONE_TABLE" |
+			    "$output_distances_or_times" <"$TZ_ZONE_TABLE" |
 		      sort -n |
 		      sed "${location_limit}q"
 		    `
-		    regions=`say "$distance_table" | $AWK '
-		      BEGIN { FS = "\t" }
-		      { print $NF }
+		    regions=`$AWK \
+		      -v distance_table="$distance_table" '
+		      BEGIN {
+		        nlines = split(distance_table, line, /\n/)
+			for (nr = 1; nr <= nlines; nr++) {
+			  nf = split(line[nr], f, /\t/)
+			  print f[nf]
+			}
+		      }
 		    '`
-		    echo >&2 'Please select one of the following timezones,' \
+		    echo >&2 'Please select one of the following timezones,'
 		    echo >&2 'listed roughly in increasing order' \
 			    "of distance from $coord".
 		    doselect $regions
 		    region=$select_result
-		    TZ=`say "$distance_table" | $AWK -v region="$region" '
-		      BEGIN { FS="\t" }
-		      $NF == region { print $4 }
+		    TZ=`$AWK \
+		      -v distance_table="$distance_table" \
+		      -v region="$region" '
+		      BEGIN {
+		        nlines = split(distance_table, line, /\n/)
+			for (nr = 1; nr <= nlines; nr++) {
+			  nf = split(line[nr], f, /\t/)
+			  if (f[nf] == region) {
+			    print f[4]
+			  }
+			}
+		      }
 		    '`
 		    ;;
 		*)
-		# Get list of names of countries in the continent or ocean.
-		countries=`$AWK \
+		case $continent in
+		time)
+		  minute_format='%a %b %d %H:%M'
+		  old_minute=`TZ=UTC0 date +"$minute_format"`
+		  for i in 1 2 3
+		  do
+		    time_table_command=`
+		      $AWK -v output_times=1 \
+			  "$output_distances_or_times" <"$TZ_ZONE_TABLE"
+		    `
+		    time_table=`eval "$time_table_command"`
+		    new_minute=`TZ=UTC0 date +"$minute_format"`
+		    case $old_minute in
+		    "$new_minute") break;;
+		    esac
+		    old_minute=$new_minute
+		  done
+		  echo >&2 "The system says Universal Time is $new_minute."
+		  echo >&2 "Assuming that's correct, what is the local time?"
+		  eval doselect `
+		    say "$time_table" |
+		    sort -k2n -k2,5 -k1n |
+		    $AWK '{
+		      line = $6 " " $7 " " $4 " " $5
+		      if (line == oldline) next
+		      oldline = line
+		      gsub(/'\''/, "&\\\\&&", line)
+		      printf "'\''%s'\''\n", line
+		    }'
+		  `
+		  time=$select_result
+		  zone_table=`
+		    say "$time_table" |
+		    $AWK -v time="$time" '{
+		      if ($6 " " $7 " " $4 " " $5 == time) {
+			sub(/[^\t]*\t/, "")
+			print
+		      }
+		    }'
+		  `
+		  countries=`
+		     say "$zone_table" |
+		     $AWK \
+			-v continent_re='' \
+			-v TZ_COUNTRY_TABLE="$TZ_COUNTRY_TABLE" \
+			"$output_country_list" |
+		     sort -f
+		  `
+		  ;;
+		*)
+		  zone_table=file
+		  # Get list of names of countries in the continent or ocean.
+		  countries=`$AWK \
 			-v continent_re="^$continent/" \
 			-v TZ_COUNTRY_TABLE="$TZ_COUNTRY_TABLE" \
-		'
-			BEGIN { FS = "\t" }
-			/^#$/ { next }
-			/^#[^@]/ { next }
-			{
-			  commentary = $0 ~ /^#@/
-			  if (commentary) {
-			    col1ccs = substr($1, 3)
-			    conts = $2
-			  } else {
-			    col1ccs = $1
-			    conts = $3
-			  }
-			  ncc = split(col1ccs, cc, /,/)
-			  ncont = split(conts, cont, /,/)
-			  for (i = 1; i <= ncc; i++) {
-			    elsewhere = commentary
-			    for (ci = 1; ci <= ncont; ci++) {
-			      if (cont[ci] ~ continent_re) {
-				if (!cc_seen[cc[i]]++) cc_list[++ccs] = cc[i]
-				elsewhere = 0
-			      }
-			    }
-			    if (elsewhere) {
-			      for (i = 1; i <= ncc; i++) {
-			        cc_elsewhere[cc[i]] = 1
-			      }
-			    }
-			  }
-			}
-			END {
-				while (getline <TZ_COUNTRY_TABLE) {
-					if ($0 !~ /^#/) cc_name[$1] = $2
-				}
-				for (i = 1; i <= ccs; i++) {
-					country = cc_list[i]
-					if (cc_elsewhere[country]) continue
-					if (cc_name[country]) {
-					  country = cc_name[country]
-					}
-					print country
-				}
-			}
-		' <"$TZ_ZONE_TABLE" | sort -f`
-
+			"$output_country_list" \
+			<"$TZ_ZONE_TABLE" | sort -f
+		  `;;
+		esac
 
 		# If there's more than one country, ask the user which one.
 		case $countries in
@@ -459,6 +551,7 @@ while
 			echo >&2 'Please select a country' \
 				'whose clocks agree with yours.'
 			doselect $countries
+			country_result=$select_result
 			country=$select_result;;
 		*)
 			country=$countries
@@ -466,10 +559,15 @@ while
 
 
 		# Get list of timezones in the country.
-		regions=`$AWK \
+		regions=`
+		  case $zone_table in
+		  file) cat -- "$TZ_ZONE_TABLE";;
+		  *) say "$zone_table";;
+		  esac |
+		  $AWK \
 			-v country="$country" \
 			-v TZ_COUNTRY_TABLE="$TZ_COUNTRY_TABLE" \
-		'
+		    '
 			BEGIN {
 				FS = "\t"
 				cc = country
@@ -482,7 +580,8 @@ while
 			}
 			/^#/ { next }
 			$1 ~ cc { print $4 }
-		' <"$TZ_ZONE_TABLE"`
+		    '
+		`
 
 
 		# If there's more than one region, ask the user which one.
@@ -490,17 +589,20 @@ while
 		*"$newline"*)
 			echo >&2 'Please select one of the following timezones.'
 			doselect $regions
-			region=$select_result;;
-		*)
-			region=$regions
+			region=$select_result
 		esac
 
 		# Determine TZ from country and region.
-		TZ=`$AWK \
+		TZ=`
+		  case $zone_table in
+		  file) cat -- "$TZ_ZONE_TABLE";;
+		  *) say "$zone_table";;
+		  esac |
+		  $AWK \
 			-v country="$country" \
 			-v region="$region" \
 			-v TZ_COUNTRY_TABLE="$TZ_COUNTRY_TABLE" \
-		'
+		    '
 			BEGIN {
 				FS = "\t"
 				cc = country
@@ -512,8 +614,9 @@ while
 				}
 			}
 			/^#/ { next }
-			$1 ~ cc && $4 == region { print $3 }
-		' <"$TZ_ZONE_TABLE"`
+			$1 ~ cc && ($4 == region || !region) { print $3 }
+		    '
+		`;;
 		esac
 
 		# Make sure the corresponding zoneinfo file exists.
@@ -549,17 +652,21 @@ Universal Time is now:	$UTdate."
 	# Output TZ info and ask the user to confirm.
 
 	echo >&2 ""
-	echo >&2 "The following information has been given:"
+	echo >&2 "Based on the following information:"
 	echo >&2 ""
-	case $country%$region%$coord in
-	?*%?*%)	say >&2 "	$country$newline	$region";;
-	?*%%)	say >&2 "	$country";;
-	%?*%?*) say >&2 "	coord $coord$newline	$region";;
-	%%?*)	say >&2 "	coord $coord";;
+	case $time%$country_result%$region%$coord in
+	?*%?*%?*%)
+	  say >&2 "	$time$newline	$country_result$newline	$region";;
+	?*%?*%%|?*%%?*%) say >&2 "	$time$newline	$country_result$region";;
+	?*%%%) say >&2 "	$time";;
+	%?*%?*%) say >&2 "	$country_result$newline	$region";;
+	%?*%%)	say >&2 "	$country_result";;
+	%%?*%?*) say >&2 "	coord $coord$newline	$region";;
+	%%%?*)	say >&2 "	coord $coord";;
 	*)	say >&2 "	TZ='$TZ'"
 	esac
 	say >&2 ""
-	say >&2 "Therefore TZ='$TZ' will be used.$extra_info"
+	say >&2 "TZ='$TZ' will be used.$extra_info"
 	say >&2 "Is the above information OK?"
 
 	doselect Yes No

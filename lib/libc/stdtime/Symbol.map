@@ -21,6 +21,7 @@ FBSD_1.0 {
 	gmtime;
 	gmtime_r;
 	offtime;
+	offtime_r;
 	ctime;
 	ctime_r;
 	mktime;

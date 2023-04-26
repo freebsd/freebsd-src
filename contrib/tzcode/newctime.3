@@ -1,6 +1,6 @@
 .\" This file is in the public domain, so clarified as of
 .\" 2009-05-17 by Arthur David Olson.
-.TH NEWCTIME 3
+.TH newctime 3 "" "Time Zone Database"
 .SH NAME
 asctime, ctime, difftime, gmtime, localtime, mktime \- convert date and time
 .SH SYNOPSIS
@@ -11,13 +11,13 @@ asctime, ctime, difftime, gmtime, localtime, mktime \- convert date and time
 .PP
 .BR "extern char *tzname[];" " /\(** (optional) \(**/"
 .PP
-.B char *ctime(time_t const *clock);
+.B [[deprecated]] char *ctime(time_t const *clock);
 .PP
 .B char *ctime_r(time_t const *clock, char *buf);
 .PP
 .B double difftime(time_t time1, time_t time0);
 .PP
-.B char *asctime(struct tm const *tm);
+.B [[deprecated]] char *asctime(struct tm const *tm);
 .PP
 .B "char *asctime_r(struct tm const *restrict tm,"
 .B "    char *restrict result);"
@@ -91,6 +91,15 @@ introduction of UTC and are some other flavor of Universal Time (UT).
 Some implementations support leap seconds, in contradiction to POSIX.
 .PP
 The
+.B ctime
+function is deprecated starting in C23.
+Callers can use
+.B localtime_r
+and
+.B strftime
+instead.
+.PP
+The
 .B localtime
 and
 .B gmtime
@@ -128,6 +137,10 @@ converts a time value contained in a
 structure to a string,
 as shown in the above example,
 and returns a pointer to the string.
+This function is deprecated starting in C23.
+Callers can use
+.B strftime
+instead.
 .PP
 The
 .B mktime
@@ -283,7 +296,8 @@ continue to exist in this form in future releases of this code.
 .br
 /usr/share/zoneinfo/localtime	local timezone file
 .br
-/usr/share/zoneinfo/posixrules	used with POSIX-style TZ's
+/usr/share/zoneinfo/posixrules	default DST rules (obsolete,
+	and can cause bugs if present)
 .br
 /usr/share/zoneinfo/GMT	for UTC leap seconds
 .sp
