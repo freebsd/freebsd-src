@@ -321,7 +321,7 @@ callout_cpu_init(struct callout_cpu *cc, int cpu)
 {
 	int i;
 
-	mtx_init(&cc->cc_lock, "callout", NULL, MTX_SPIN | MTX_NEW);
+	mtx_init(&cc->cc_lock, "callout", NULL, MTX_SPIN);
 	cc->cc_callwheel = malloc_domainset(sizeof(struct callout_list) *
 	    callwheelsize, M_CALLOUT,
 	    DOMAINSET_PREF(pcpu_find(cpu)->pc_domain), M_WAITOK);
