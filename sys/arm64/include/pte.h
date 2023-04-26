@@ -56,6 +56,8 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 #define BASE_ADDR(x)		((x) & BASE_MASK)
 
 #define PTE_TO_PHYS(pte)	BASE_ADDR(pte)
+/* Convert a phys addr to the output address field of a PTE */
+#define PHYS_TO_PTE(pa)		(pa)
 
 /* Bits 58:55 are reserved for software */
 #define	ATTR_SW_UNUSED1		(1UL << 58)
