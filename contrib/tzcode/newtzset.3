@@ -1,6 +1,6 @@
 .\" This file is in the public domain, so clarified as of
 .\" 2009-05-17 by Arthur David Olson.
-.TH NEWTZSET 3
+.TH newtzset 3 "" "Time Zone Database"
 .SH NAME
 tzset \- initialize time conversion information
 .SH SYNOPSIS
@@ -333,7 +333,8 @@ from the rest of the specification.
 .br
 /usr/share/zoneinfo/localtime	local timezone file
 .br
-/usr/share/zoneinfo/posixrules	used with POSIX-style TZ
+/usr/share/zoneinfo/posixrules	default DST rules (obsolete,
+	and can cause bugs if present)
 .br
 /usr/share/zoneinfo/GMT	for UTC leap seconds
 .sp

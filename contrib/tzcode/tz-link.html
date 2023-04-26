@@ -26,6 +26,7 @@ area.
 	  <li><a href="#tzdb">The <code><abbr>tz</abbr></code> database</a></li>
 	  <li><a href="#download">Downloading the <code><abbr>tz</abbr></code> database</a></li>
 	  <li><a href="#changes">Changes to the <code><abbr>tz</abbr></code> database</a></li>
+	  <li><a href="#coordinating">Coordinating with governments and distributors</a></li>
 	  <li><a href="#commentary">Commentary on the <code><abbr>tz</abbr></code> database</a></li>
 	</ul>
       </li>
@@ -169,14 +170,14 @@ through <samp>zzz</samp>, and so on).
 Since version 2022a, each release has been distributed in
 <a href="https://pubs.opengroup.org/onlinepubs/9699919799/utilities/pax.html#tag_20_92_13_06">POSIX
 ustar interchange format</a>, compressed as described above;
-older releases use a nearly-compatible format.
+older releases use a nearly compatible format.
 Since version 2016h, each release has contained a text file named
 "<samp>version</samp>" whose first (and currently only) line is the version.
 Older releases are <a href="https://ftp.iana.org/tz/releases/">archived</a>,
 and are also available in an
 <a href="ftp://ftp.iana.org/tz/releases/"><abbr
 title="File Transfer Protocol">FTP</abbr> directory</a> via a
-less-secure protocol.</p>
+less secure protocol.</p>
 <p>Alternatively, a development repository of code and data can be
 retrieved from <a href="https://github.com">GitHub</a> via the shell
 command:</p>
@@ -213,23 +214,6 @@ messages</a>.
 <a href="https://tzdata-meta.timtimeonline.com/">Metadata for mailing list
 discussions</a> and corresponding data changes can be
 generated <a href="https://github.com/timparenti/tzdata-meta">automatically</a>.
-</p>
-<p>
-If your government plans to change its time zone boundaries or
-daylight saving rules, inform <code>tz@iana.org</code> well in
-advance, as this will coordinate updates to many cell phones,
-computers, and other devices around the world.
-The change should be officially announced at least a year before it affects
-how clocks operate; otherwise, there is a good chance that some
-clocks will operate incorrectly after the change, due
-to delays in propagating updates to software and data. The shorter
-the notice, the more likely clock problems will arise; see "<a
-href="https://codeofmatt.com/2016/04/23/on-the-timing-of-time-zone-changes/">On
-the Timing of Time Zone Changes</a>" for examples.
-The <code><abbr>tz</abbr></code> data can represent planned changes
-far into the future, and a long-planned change can easily be reverted
-or otherwise altered with a year's notice before the change would have
-affected clocks.
 </p>
 <p>
 Changes to the <code><abbr>tz</abbr></code> code and data are often
@@ -283,6 +267,55 @@ found in <a href="theory.html">Theory and pragmatics of the
 <code><abbr>tz</abbr></code> code and data</a>.
 <a href="https://a0.github.io/a0-tzmigration/">A0 TimeZone Migration</a>
 displays changes between recent <code><abbr>tzdb</abbr></code> versions.
+</p>
+</section>
+
+<section>
+<h2 id="coordinating">Coordinating with governments and distributors</h2>
+<p>
+As discussed in
+"<a href="https://www.icann.org/en/blogs/details/how-time-zones-are-coordinated-13-03-2023-en">How
+Time Zones Are Coordinated</a>", the time zone database relies on
+collaboration among governments, the time zone database volunteer
+community, and data distributors downstream.
+<p>
+If your government plans to change its time zone boundaries or
+daylight saving rules, please send email to <a
+href="mailto:tz@iana.org"><code>tz@iana.org</code></a> well in advance,
+as this will lessen confusion and will coordinate updates to many cell phones,
+computers, and other devices around the world.
+In your email, please cite the legislation or regulation that specifies
+the change, so that it can be checked for details such as the exact times
+when clock transitions occur.
+It is OK if a rule change is planned to affect clocks
+far into the future, as a long-planned change can easily be reverted
+or otherwise altered with a year's notice before the change would have
+affected clocks.</p>
+<p>
+There is no fixed schedule for <code><abbr>tzdb</abbr></code> releases.
+However, typically a release occurs every few months.
+Many downstream timezone data distributors wait for
+a <code><abbr>tzdb</abbr></code> release before they produce an update
+to time zone behavior in consumer devices and software products.
+After a release, various parties must integrate, test,
+and roll out an update before <a
+href="https://en.wikipedia.org/wiki/End_user">end users</a> see changes.
+These updates can be expensive, for both the <a
+href="https://en.wikipedia.org/wiki/Quality_assurance">quality
+assurance</a> process and the overall cost of shipping and installing
+updates to each device's copy of <code><abbr>tzdb</abbr></code>.
+Updates may be batched with other updates and may take substantial
+time to reach end users after a release.
+Older devices may no longer be supported and thus may never be updated,
+which means they will continue to use out-of-date rules.</p>
+<p>
+For these reasons any rule change should be promulgated at least a
+year before it affects how clocks operate; otherwise, there is a good
+chance that many clocks will be wrong due to delays in propagating updates,
+and that residents will be confused or even actively resist the change.
+The shorter the notice, the more likely clock problems will arise; see "<a
+href="https://codeofmatt.com/2016/04/23/on-the-timing-of-time-zone-changes/">On
+the Timing of Time Zone Changes</a>" for examples.
 </p>
 </section>
 
@@ -384,7 +417,7 @@ running the command <code>make rearguard_tarballs</code> and compiling
 from the resulting tarballs instead.</p>
 <ul>
 <li><a href="https://sourceforge.net/projects/vzic/">Vzic</a> is a <a
-href="https://en.wikipedia.org/wiki/C_%28programming_language%29">C</a>
+href="https://en.wikipedia.org/wiki/C_(programming_language)">C</a>
 program that compiles
 <code><abbr>tz</abbr></code> source into iCalendar-compatible VTIMEZONE files.
 Vzic is freely
@@ -409,7 +442,7 @@ License. DateTime::TimeZone also contains a script
 transition in the <code><abbr>tz</abbr></code> database.</li>
 <li>The <a href="https://howardhinnant.github.io/date/tz.html">Time Zone
 Database Parser</a> is a
-<a href="https://en.wikipedia.org/wiki/C%2B%2B">C++</a> parser and
+<a href="https://en.wikipedia.org/wiki/C++">C++</a> parser and
 runtime library with <a
 href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0355r7.html">API</a>
 adopted by
@@ -419,7 +452,7 @@ It is freely available under the
 <abbr title="Massachusetts Institute of Technology">MIT</abbr> license.</li>
 <li><a id="ICU" href="https://icu.unicode.org">International Components for
 Unicode (<abbr>ICU</abbr>)</a> contains C/C++ and <a
-href="https://en.wikipedia.org/wiki/Java_%28programming_language%29">Java</a>
+href="https://en.wikipedia.org/wiki/Java_(programming_language)">Java</a>
 libraries for internationalization that
 has a compiler from <code><abbr>tz</abbr></code> source
 and from <abbr title="Common Locale Data Repository">CLDR</abbr> data
@@ -903,6 +936,10 @@ covers the history of local time in the Netherlands from ancient times.</dd>
 <dd>The Department of Internal Affairs maintains a brief <a
 href="https://www.dia.govt.nz/Daylight-Saving-History">History of
 Daylight Saving</a>.</dd>
+<dt>Palestine</dt>
+<dd>The Ministry of Telecom and IT publishes a <a
+href="https://mtit.pna.ps/Site/TimeZoon"
+hreflang="ar">history of clock changes (in Arabic)</a>.</dd>
 <dt>Portugal</dt>
 <dd>The Lisbon Astronomical Observatory publishes a
 <a href="https://oal.ul.pt/hora-legal/" hreflang="pt">history of
@@ -978,7 +1015,7 @@ href="http://leapsecond.com/hpan/an1289.pdf">The
 Science of Timekeeping</a> is a thorough introduction
 to the theory and practice of precision timekeeping.</li>
 <li><a href="https://doi.org/10.1007/978-3-319-59909-0">The Science of
-Time 2016</a> contains several freely-readable papers.</li>
+Time 2016</a> contains several freely readable papers.</li>
 <li><a href="https://www.ntp.org"><abbr
 title="Network Time Protocol">NTP</abbr>: The Network
 Time Protocol</a> (Internet <abbr>RFC</abbr> 5905)
@@ -1050,7 +1087,7 @@ and to
 In practice the two configurations also agree for timestamps before
 1972 even though the historical situation is messy, partly because
 neither <abbr>UTC</abbr> nor <abbr>TAI</abbr>
-is well-defined for sufficiently-old timestamps.</li>
+is well-defined for sufficiently old timestamps.</li>
 <li><a href="https://developers.google.com/time/smear">Leap Smear</a>
 discusses how to gradually adjust <abbr>POSIX</abbr> clocks near a
 leap second so that they disagree with <abbr>UTC</abbr> by at most a
@@ -1078,8 +1115,12 @@ leap second: its history and possible future</a>.
 <a href="https://www.ucolick.org/~sla/leapsecs/"><abbr>UTC</abbr>
 might be redefined
 without Leap Seconds</a> gives pointers on this
-contentious issue, which was active until 2015 and could become active
-again.</li>
+contentious issue.
+The General Conference on Weights and Measures
+<a href="https://www.bipm.org/en/cgpm-2022/resolution-4">voted in 2022</a>
+to discontinue the use of leap seconds by 2035, replacing them with an
+as-yet-undetermined scheme some time after the year 2135.
+</li>
 </ul>
 </section>
 
