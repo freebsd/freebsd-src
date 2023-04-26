@@ -105,7 +105,7 @@ has_l2(struct snl_state *ss, uint32_t ifindex)
 }
 
 static uint32_t
-get_myfib()
+get_myfib(void)
 {
 	uint32_t fibnum = 0;
 	size_t len = sizeof(fibnum);
