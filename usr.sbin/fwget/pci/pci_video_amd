@@ -1,0 +1,139 @@
+#-
+# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+#
+# Copyright 2023 Beckhoff Automation GmbH & Co. KG
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted providing that the following conditions 
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+# IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+# STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+# IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+pci_video_amd()
+{
+	case "$1" in
+		0x678*|0x679*)
+			echo "gpu-firmware-amd-kmod-tahiti"
+			;;
+		0x680*|0x681*)
+			echo "gpu-firmware-amd-kmod-pitcairn"
+			;;
+		0x660*|0x661*|0x662*|0x663*)
+			echo "gpu-firmware-amd-kmod-oland"
+			;;
+		0x682*|0x683*)
+			echo "gpu-firmware-amd-kmod-verde gpu-firmware-amd-kmod-si58"
+			;;
+		0x666*)
+			echo "gpu-firmware-amd-kmod-hainan"
+			;;
+		0x13*)
+			echo "gpu-firmware-amd-kmod-kaveri"
+			;;
+		0x664*|0x664*)
+			echo "gpu-firmware-amd-kmod-bonaire"
+			;;
+		0x67a*|0x67b*)
+			echo "gpu-firmware-amd-kmod-hawaii"
+			;;
+		0x983*)
+			echo "gpu-firmware-amd-kmod-kabini"
+			;;
+		0x985*)
+			echo "gpu-firmware-amd-kmod-mullins"
+			;;
+		0x690*)
+			echo "gpu-firmware-amd-kmod-topaz"
+			;;
+		0x692*|0x693*)
+			echo "gpu-firmware-amd-kmod-tonga"
+			;;
+		0x730*)
+			echo "gpu-firmware-amd-kmod-fiji"
+			;;
+		0x987*)
+			echo "gpu-firmware-amd-kmod-carrizo"
+			;;
+		0x98e4*)
+			echo "gpu-firmware-amd-kmod-stoney"
+			;;
+		0x67e*|0x67ff)
+			echo "gpu-firmware-amd-kmod-polaris11"
+			;;
+		0x67c*|0x67d*|0x6fdf)
+			echo "gpu-firmware-amd-kmod-polaris10"
+			;;
+		0x698*|0x699*)
+			echo "gpu-firmware-amd-kmod-polaris12"
+			;;
+		0x694*)
+			echo "gpu-firmware-amd-kmod-vegam"
+			;;
+		0x686*|0x687*)
+			echo "gpu-firmware-amd-kmod-vega10"
+			;;
+		0x69a*)
+			echo "gpu-firmware-amd-kmod-vega12"
+			;;
+		0x66a*)
+			echo "gpu-firmware-amd-kmod-vega20"
+			;;
+		0x15d*)
+			echo "gpu-firmware-amd-kmod-raven"
+			;;
+		0x738*|0x739*)
+			echo "gpu-firmware-amd-kmod-arcturus"
+			;;
+		0x731*)
+			echo "gpu-firmware-amd-kmod-navi10"
+			;;
+		0x734*)
+			echo "gpu-firmware-amd-kmod-navi14"
+			;;
+		0x15e7|0x1636|0x1638|0x164c)
+			echo "gpu-firmware-amd-kmod-renoir"
+			;;
+		0x736*)
+			echo "gpu-firmware-amd-kmod-navi12"
+			;;
+		0x73a*|0x73b*)
+			echo "gpu-firmware-amd-kmod-sienna-cichlid"
+			;;
+		0x163f)
+			echo "gpu-firmware-amd-kmod-vangogh"
+			;;
+		0x164d|0x1681)
+			echo "gpu-firmware-amd-kmod-yellow-carp"
+			;;
+		0x73c*|0x73d*)
+			echo "gpu-firmware-amd-kmod-navy-flounder"
+			;;
+		0x73e*|0x73f*)
+			echo "gpu-firmware-amd-kmod-dimgrey-cavefish"
+			;;
+		0x740*|0x741*)
+			echo "gpu-firmware-amd-kmod-aldebaran"
+			;;
+		0x13fe)
+			echo "gpu-firmware-amd-kmod-cyan-skillfish2"
+			;;
+		0x742*|0x743*)
+			echo "gpu-firmware-amd-kmod-beige-goby"
+			;;
+	esac
+}
