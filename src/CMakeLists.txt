@@ -1,6 +1,7 @@
-# Copyright (c) 2018-2021 Yubico AB. All rights reserved.
+# Copyright (c) 2018-2022 Yubico AB. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
+# SPDX-License-Identifier: BSD-2-Clause
 
 add_definitions(-D_FIDO_INTERNAL)
 
@@ -21,6 +22,7 @@ list(APPEND FIDO_SOURCES
 	eddsa.c
 	err.c
 	es256.c
+	es384.c
 	hid.c
 	info.c
 	io.c
@@ -83,11 +85,12 @@ else()
 endif()
 
 if(NOT MSVC)
-	set_source_files_properties(${FIDO_SOURCES} PROPERTIES COMPILE_FLAGS
-	    "-Wconversion -Wsign-conversion")
+	set_source_files_properties(${FIDO_SOURCES}
+	    PROPERTIES COMPILE_FLAGS "${EXTRA_CFLAGS}")
 endif()
 
 list(APPEND COMPAT_SOURCES
+	../openbsd-compat/bsd-asprintf.c
 	../openbsd-compat/bsd-getpagesize.c
 	../openbsd-compat/clock_gettime.c
 	../openbsd-compat/endian_win32.c

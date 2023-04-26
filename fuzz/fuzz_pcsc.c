@@ -2,6 +2,7 @@
  * Copyright (c) 2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #define _FIDO_INTERNAL
@@ -116,7 +117,7 @@ size_t
 pack_dummy(uint8_t *ptr, size_t len)
 {
 	struct param dummy;
-	uint8_t	blob[4096];
+	uint8_t	blob[MAXCORPUS];
 	size_t blob_len;
 
 	memset(&dummy, 0, sizeof(dummy));
@@ -231,7 +232,9 @@ test(const struct param *p)
 	set_pcsc_parameters(&p->pcsc_list);
 	set_pcsc_io_functions(nfc_read, nfc_write, consume);
 
+	set_wire_data(p->wiredata_init.body, p->wiredata_init.len);
 	test_manifest();
+
 	test_misc();
 
 	set_wire_data(p->wiredata_init.body, p->wiredata_init.len);

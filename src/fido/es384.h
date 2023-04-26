@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2021 Yubico AB. All rights reserved.
+ * Copyright (c) 2022 Yubico AB. All rights reserved.
  * SPDX-License-Identifier: BSD-2-Clause
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -26,8 +26,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _FIDO_ES256_H
-#define _FIDO_ES256_H
+#ifndef _FIDO_ES384_H
+#define _FIDO_ES384_H
 
 #include <openssl/ec.h>
 
@@ -44,28 +44,16 @@
 extern "C" {
 #endif /* __cplusplus */
 
-es256_pk_t *es256_pk_new(void);
-void es256_pk_free(es256_pk_t **);
-EVP_PKEY *es256_pk_to_EVP_PKEY(const es256_pk_t *);
+es384_pk_t *es384_pk_new(void);
+void es384_pk_free(es384_pk_t **);
+EVP_PKEY *es384_pk_to_EVP_PKEY(const es384_pk_t *);
 
-int es256_pk_from_EC_KEY(es256_pk_t *, const EC_KEY *);
-int es256_pk_from_EVP_PKEY(es256_pk_t *, const EVP_PKEY *);
-int es256_pk_from_ptr(es256_pk_t *, const void *, size_t);
-
-#ifdef _FIDO_INTERNAL
-es256_sk_t *es256_sk_new(void);
-void es256_sk_free(es256_sk_t **);
-EVP_PKEY *es256_sk_to_EVP_PKEY(const es256_sk_t *);
-
-int es256_derive_pk(const es256_sk_t *, es256_pk_t *);
-int es256_sk_create(es256_sk_t *);
-
-int es256_pk_set_x(es256_pk_t *, const unsigned char *);
-int es256_pk_set_y(es256_pk_t *, const unsigned char *);
-#endif
+int es384_pk_from_EC_KEY(es384_pk_t *, const EC_KEY *);
+int es384_pk_from_EVP_PKEY(es384_pk_t *, const EVP_PKEY *);
+int es384_pk_from_ptr(es384_pk_t *, const void *, size_t);
 
 #ifdef __cplusplus
 } /* extern "C" */
 #endif /* __cplusplus */
 
-#endif /* !_FIDO_ES256_H */
+#endif /* !_FIDO_ES384_H */

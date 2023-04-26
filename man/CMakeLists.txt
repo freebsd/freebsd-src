@@ -1,6 +1,7 @@
 # Copyright (c) 2018-2022 Yubico AB. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
+# SPDX-License-Identifier: BSD-2-Clause
 
 find_program(MANDOC_PATH mandoc)
 find_program(GZIP_PATH gzip)
@@ -11,6 +12,7 @@ message(STATUS "GZIP_PATH: ${GZIP_PATH}")
 list(APPEND MAN_SOURCES
 	eddsa_pk_new.3
 	es256_pk_new.3
+	es384_pk_new.3
 	fido2-assert.1
 	fido2-cred.1
 	fido2-token.1
@@ -52,6 +54,11 @@ list(APPEND MAN_ALIAS
 	es256_pk_new es256_pk_from_EVP_PKEY
 	es256_pk_new es256_pk_from_ptr
 	es256_pk_new es256_pk_to_EVP_PKEY
+	es384_pk_new es384_pk_free
+	es384_pk_new es384_pk_from_EC_KEY
+	es384_pk_new es384_pk_from_EVP_PKEY
+	es384_pk_new es384_pk_from_ptr
+	es384_pk_new es384_pk_to_EVP_PKEY
 	fido_assert_new fido_assert_authdata_len
 	fido_assert_new fido_assert_authdata_ptr
 	fido_assert_new fido_assert_blob_len
@@ -114,22 +121,31 @@ list(APPEND MAN_ALIAS
 	fido_cbor_info_new fido_cbor_info_algorithm_cose
 	fido_cbor_info_new fido_cbor_info_algorithm_count
 	fido_cbor_info_new fido_cbor_info_algorithm_type
+	fido_cbor_info_new fido_cbor_info_certs_len
+	fido_cbor_info_new fido_cbor_info_certs_name_ptr
+	fido_cbor_info_new fido_cbor_info_certs_value_ptr
 	fido_cbor_info_new fido_cbor_info_extensions_len
 	fido_cbor_info_new fido_cbor_info_extensions_ptr
 	fido_cbor_info_new fido_cbor_info_free
+	fido_cbor_info_new fido_cbor_info_fwversion
 	fido_cbor_info_new fido_cbor_info_maxcredbloblen
 	fido_cbor_info_new fido_cbor_info_maxcredcntlst
 	fido_cbor_info_new fido_cbor_info_maxcredidlen
 	fido_cbor_info_new fido_cbor_info_maxlargeblob
 	fido_cbor_info_new fido_cbor_info_maxmsgsiz
-	fido_cbor_info_new fido_cbor_info_fwversion
+	fido_cbor_info_new fido_cbor_info_maxrpid_minpinlen
+	fido_cbor_info_new fido_cbor_info_minpinlen
+	fido_cbor_info_new fido_cbor_info_new_pin_required
 	fido_cbor_info_new fido_cbor_info_options_len
 	fido_cbor_info_new fido_cbor_info_options_name_ptr
 	fido_cbor_info_new fido_cbor_info_options_value_ptr
 	fido_cbor_info_new fido_cbor_info_protocols_len
 	fido_cbor_info_new fido_cbor_info_protocols_ptr
+	fido_cbor_info_new fido_cbor_info_rk_remaining
 	fido_cbor_info_new fido_cbor_info_transports_len
 	fido_cbor_info_new fido_cbor_info_transports_ptr
+	fido_cbor_info_new fido_cbor_info_uv_attempts
+	fido_cbor_info_new fido_cbor_info_uv_modality
 	fido_cbor_info_new fido_cbor_info_versions_len
 	fido_cbor_info_new fido_cbor_info_versions_ptr
 	fido_cbor_info_new fido_dev_get_cbor_info

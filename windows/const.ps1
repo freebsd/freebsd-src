@@ -1,12 +1,13 @@
 # Copyright (c) 2021 Yubico AB. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
+# SPDX-License-Identifier: BSD-2-Clause
 
 # LibreSSL coordinates.
 New-Variable -Name 'LIBRESSL_URL' `
     -Value 'https://fastly.cdn.openbsd.org/pub/OpenBSD/LibreSSL' `
     -Option Constant
-New-Variable -Name 'LIBRESSL' -Value 'libressl-3.5.2' -Option Constant
+New-Variable -Name 'LIBRESSL' -Value 'libressl-3.5.3' -Option Constant
 
 # libcbor coordinates.
 New-Variable -Name 'LIBCBOR' -Value 'libcbor-0.9.0' -Option Constant

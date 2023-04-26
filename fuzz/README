@@ -10,6 +10,13 @@ libFuzzer is better suited for bespoke fuzzers; see fuzz_cred.c, fuzz_credman.c,
 fuzz_assert.c, fuzz_hid.c, and fuzz_mgmt.c for examples. To build these
 harnesses, use -DFUZZ=ON -DLIBFUZZER=ON.
 
+If -DFUZZ=ON is enabled, symbols listed in wrapped.sym are wrapped in the
+resulting shared object. The wrapper functions simulate failure according to a
+deterministic RNG and probabilities defined in wrap.c. Harnesses wishing to
+use this functionality should call prng_init() with a seed obtained from the
+corpus. To mutate only the seed part of a libFuzzer harness's corpora,
+use '-reduce_inputs=0 --fido-mutate=seed'.
+
 To run under ASAN/MSAN/UBSAN, libfido2 needs to be linked against flavours of
 libcbor and OpenSSL built with the respective sanitiser. In order to keep
 memory utilisation at a manageable level, you can either enforce limits at

@@ -2,9 +2,11 @@
  * Copyright (c) 2019-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <sys/types.h>
+#include <sys/random.h>
 #include <sys/socket.h>
 
 #include <openssl/bn.h>
@@ -22,9 +24,13 @@
 
 extern int prng_up;
 
+int fuzz_save_corpus;
+
 /*
  * Build wrappers around functions of interest, and have them fail
- * in a pseudo-random manner.
+ * in a pseudo-random manner. A uniform probability of 0.25% (1/400)
+ * allows for a depth of log(0.5)/log(399/400) > 276 operations
+ * before simulated errors become statistically more likely. 
  */
 
 #define WRAP(type, name, args, retval, param, prob)	\
@@ -67,6 +73,14 @@ WRAP(char *,
 	(const char *s),
 	NULL,
 	(s),
+	1
+)
+
+WRAP(ssize_t,
+	getrandom,
+	(void *buf, size_t buflen, unsigned int flags),
+	-1,
+	(buf, buflen, flags),
 	1
 )
 
@@ -653,11 +667,11 @@ int __real_deflate(z_streamp, int);
 int
 __wrap_deflate(z_streamp strm, int flush)
 {
-	if (uniform_random(400) < 1) {
+	if (prng_up && uniform_random(400) < 1) {
 		return Z_BUF_ERROR;
 	}
 	/* should never happen, but we check for it */
-	if (uniform_random(400) < 1) {
+	if (prng_up && uniform_random(400) < 1) {
 		strm->avail_out = UINT_MAX;
 		return Z_STREAM_END;
 	}
@@ -673,7 +687,7 @@ __wrap_asprintf(char **strp, const char *fmt, ...)
 	va_list ap;
 	int r;
 
-	if (uniform_random(400) < 1) {
+	if (prng_up && uniform_random(400) < 1) {
 		*strp = (void *)0xdeadbeef;
 		return -1;
 	}

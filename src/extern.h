@@ -2,6 +2,7 @@
  * Copyright (c) 2018-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #ifndef _EXTERN_H
@@ -57,6 +58,7 @@ cbor_item_t *es256_pk_encode(const es256_pk_t *, int);
 
 /* cbor decoding functions */
 int cbor_decode_attstmt(const cbor_item_t *, fido_attstmt_t *);
+int cbor_decode_bool(const cbor_item_t *, bool *);
 int cbor_decode_cred_authdata(const cbor_item_t *, int, fido_blob_t *,
     fido_authdata_t *, fido_attcred_t *, fido_cred_ext_t *);
 int cbor_decode_assert_authdata(const cbor_item_t *, fido_blob_t *,
@@ -68,6 +70,7 @@ int cbor_decode_rp_entity(const cbor_item_t *, fido_rp_t *);
 int cbor_decode_uint64(const cbor_item_t *, uint64_t *);
 int cbor_decode_user(const cbor_item_t *, fido_user_t *);
 int es256_pk_decode(const cbor_item_t *, es256_pk_t *);
+int es384_pk_decode(const cbor_item_t *, es384_pk_t *);
 int rs256_pk_decode(const cbor_item_t *, rs256_pk_t *);
 int eddsa_pk_decode(const cbor_item_t *, eddsa_pk_t *);
 
@@ -119,6 +122,7 @@ size_t fido_hid_report_out_len(void *);
 
 /* nfc i/o */
 bool fido_is_nfc(const char *);
+bool nfc_is_fido(const char *);
 void *fido_nfc_open(const char *);
 void  fido_nfc_close(void *);
 int fido_nfc_read(void *, unsigned char *, size_t, int);
@@ -194,6 +198,7 @@ int fido_do_ecdh(fido_dev_t *, es256_pk_t **, fido_blob_t **, int *);
 /* types */
 void fido_algo_array_free(fido_algo_array_t *);
 void fido_byte_array_free(fido_byte_array_t *);
+void fido_cert_array_free(fido_cert_array_t *);
 void fido_opt_array_free(fido_opt_array_t *);
 void fido_str_array_free(fido_str_array_t *);
 void fido_algo_free(fido_algo_t *);
@@ -216,10 +221,13 @@ int fido_to_uint64(const char *, int, uint64_t *);
 
 /* crypto */
 int es256_verify_sig(const fido_blob_t *, EVP_PKEY *, const fido_blob_t *);
+int es384_verify_sig(const fido_blob_t *, EVP_PKEY *, const fido_blob_t *);
 int rs256_verify_sig(const fido_blob_t *, EVP_PKEY *, const fido_blob_t *);
 int eddsa_verify_sig(const fido_blob_t *, EVP_PKEY *, const fido_blob_t *);
 int rs1_verify_sig(const fido_blob_t *, EVP_PKEY *, const fido_blob_t *);
 int es256_pk_verify_sig(const fido_blob_t *, const es256_pk_t *,
+    const fido_blob_t *);
+int es384_pk_verify_sig(const fido_blob_t *, const es384_pk_t *,
     const fido_blob_t *);
 int rs256_pk_verify_sig(const fido_blob_t *, const rs256_pk_t *,
     const fido_blob_t *);

@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2019 Yubico AB. All rights reserved.
+ * Copyright (c) 2019-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <assert.h>
@@ -19,6 +20,7 @@ int fido_nfc_rx(fido_dev_t *, uint8_t, unsigned char *, size_t, int);
 int fido_nfc_tx(fido_dev_t *, uint8_t, const unsigned char *, size_t);
 size_t LLVMFuzzerMutate(uint8_t *, size_t, size_t);
 
+extern int prng_up;
 static const uint8_t *wire_data_ptr = NULL;
 static size_t wire_data_len = 0;
 
@@ -157,13 +159,17 @@ mutate_string(char *s)
 	s[n] = '\0';
 }
 
-/* XXX should fail, but doesn't */
 static int
 buf_read(unsigned char *ptr, size_t len, int ms)
 {
 	size_t n;
 
 	(void)ms;
+
+	if (prng_up && uniform_random(400) < 1) {
+		errno = EIO;
+		return -1;
+	}
 
 	if (wire_data_len < len)
 		n = wire_data_len;
@@ -183,7 +189,7 @@ buf_write(const unsigned char *ptr, size_t len)
 {
 	consume(ptr, len);
 
-	if (uniform_random(400) < 1) {
+	if (prng_up && uniform_random(400) < 1) {
 		errno = EIO;
 		return -1;
 	}

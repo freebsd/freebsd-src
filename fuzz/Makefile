@@ -1,11 +1,12 @@
 # Copyright (c) 2019-2022 Yubico AB. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
+# SPDX-License-Identifier: BSD-2-Clause
 
-IMAGE		:= libfido2-coverage:1.11.2
+IMAGE		:= libfido2-coverage:1.12.2
 RUNNER		:= libfido2-runner
-PROFDATA	:= llvm-profdata-14
-COV		:= llvm-cov-14
+PROFDATA	:= llvm-profdata
+COV		:= llvm-cov
 TARGETS		:= fuzz_assert fuzz_bio fuzz_cred fuzz_credman fuzz_hid \
 		   fuzz_largeblob fuzz_netlink fuzz_mgmt fuzz_pcsc
 CORPORA		:= $(foreach f,${TARGETS},${f}/corpus)
@@ -75,8 +76,15 @@ ${CORPORA}:
 	-mkdir -p $@
 	gsutil -q -m rsync -d -r ${REMOTE}/libFuzzer/libfido2_$(@:/corpus=) $@
 
-corpus.tgz: ${CORPORA}
+fetch-oss-fuzz: ${CORPORA}
+	find ${TARGETS} -type f -size +8192c -print0 | xargs -0 rm
+
+fetch-franz:
+	ssh franz tar -C corpus -cf- . | tar -xf-
+
+corpus.tgz:
 	tar zcf $@ ${TARGETS}
 
 .PHONY: build run sync corpus ${TARGETS} ${CORPORA}
 .PHONY: report.tgz summary.txt functions.txt
+.PHONY: fetch-oss-fuzz fetch-franz corpus.tgz

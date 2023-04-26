@@ -48,8 +48,8 @@ The following examples are provided:
 	Configures <pin> as the new PIN of <device>. If [oldpin] is provided,
 	the device's PIN is changed from [oldpin] to <pin>.
 
-- cred [-t ecdsa|rsa|eddsa] [-k pubkey] [-ei cred_id] [-P pin] [-T seconds]
-       [-b blobkey] [-hruv] <device>
+- cred [-t es256|es384|rs256|eddsa] [-k pubkey] [-ei cred_id] [-P pin]
+       [-T seconds] [-b blobkey] [-hruv] <device>
 
 	Creates a new credential on <device> and verify that the credential
 	was signed by the authenticator. The device's attestation certificate
@@ -66,8 +66,8 @@ The following examples are provided:
 	option -b is specified, the credential's "largeBlob" key is stored in
 	<blobkey>.
 
-- assert [-t ecdsa|rsa|eddsa] [-a cred_id] [-h hmac_secret] [-s hmac_salt]
-	 [-P pin] [-T seconds] [-b blobkey] [-puv] <pubkey> <device>
+- assert [-t es256|es384|rs256|eddsa] [-a cred_id] [-h hmac_secret] [-P pin]
+         [-s hmac_salt] [-T seconds] [-b blobkey] [-puv] <pubkey> <device>
 
 	Asks <device> for a FIDO2 assertion corresponding to [cred_id],
 	which may be omitted for resident keys. The obtained assertion

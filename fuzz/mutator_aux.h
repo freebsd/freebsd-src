@@ -2,10 +2,13 @@
  * Copyright (c) 2019-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #ifndef _MUTATOR_AUX_H
 #define _MUTATOR_AUX_H
+
+#include <sys/types.h>
 
 #include <stddef.h>
 #include <stdint.h>
@@ -17,7 +20,7 @@
 #include "../src/fido/credman.h"
 #include "../src/fido/eddsa.h"
 #include "../src/fido/es256.h"
-#include "../src/fido/es256.h"
+#include "../src/fido/es384.h"
 #include "../src/fido/rs256.h"
 #include "../src/netlink.h"
 
@@ -48,8 +51,9 @@
 #define MUTATE_WIREDATA	0x04
 #define MUTATE_ALL	(MUTATE_SEED | MUTATE_PARAM | MUTATE_WIREDATA)
 
-#define MAXSTR	1024
-#define MAXBLOB	3600
+#define MAXSTR		1024
+#define MAXBLOB		3600
+#define MAXCORPUS	8192
 
 #define HID_DEV_HANDLE	0x68696421
 #define NFC_DEV_HANDLE	0x6e666321

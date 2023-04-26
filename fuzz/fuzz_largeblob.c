@@ -2,6 +2,7 @@
  * Copyright (c) 2020 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <assert.h>
@@ -141,7 +142,7 @@ size_t
 pack_dummy(uint8_t *ptr, size_t len)
 {
 	struct param dummy;
-	uint8_t blob[4096];
+	uint8_t blob[MAXCORPUS];
 	size_t blob_len;
 
 	memset(&dummy, 0, sizeof(dummy));

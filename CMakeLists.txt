@@ -1,6 +1,7 @@
 # Copyright (c) 2018-2022 Yubico AB. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
+# SPDX-License-Identifier: BSD-2-Clause
 
 # detect AppleClang; needs to come before project()
 cmake_policy(SET CMP0025 NEW)
@@ -28,7 +29,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_COLOR_MAKEFILE OFF)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(FIDO_MAJOR "1")
-set(FIDO_MINOR "11")
+set(FIDO_MINOR "12")
 set(FIDO_PATCH "0")
 set(FIDO_VERSION ${FIDO_MAJOR}.${FIDO_MINOR}.${FIDO_PATCH})
 
@@ -67,7 +68,7 @@ if(NOT MSVC)
 	if(APPLE)
 		set(FIDO_CFLAGS "${FIDO_CFLAGS} -D_DARWIN_C_SOURCE")
 		set(FIDO_CFLAGS "${FIDO_CFLAGS} -D__STDC_WANT_LIB_EXT1__=1")
-	elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+	elseif((CMAKE_SYSTEM_NAME STREQUAL "Linux") OR MINGW OR CYGWIN)
 		set(FIDO_CFLAGS "${FIDO_CFLAGS} -D_GNU_SOURCE")
 		set(FIDO_CFLAGS "${FIDO_CFLAGS} -D_DEFAULT_SOURCE")
 	elseif(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD" OR
@@ -277,16 +278,21 @@ else()
 	add_compile_options(-Wwrite-strings)
 	add_compile_options(-Wmissing-prototypes)
 	add_compile_options(-Wbad-function-cast)
+	add_compile_options(-Wimplicit-fallthrough)
 	add_compile_options(-pedantic)
 	add_compile_options(-pedantic-errors)
+
+	set(EXTRA_CFLAGS "-Wconversion -Wsign-conversion")
 
 	if(WIN32)
 		add_compile_options(-Wno-type-limits)
 		add_compile_options(-Wno-cast-function-type)
 	endif()
+
 	if(HAVE_SHORTEN_64_TO_32)
 		add_compile_options(-Wshorten-64-to-32)
 	endif()
+
 	if(HAVE_STACK_PROTECTOR_ALL)
 		add_compile_options(-fstack-protector-all)
 	endif()
@@ -301,6 +307,8 @@ else()
 
 	if(LIBFUZZER)
 		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=fuzzer-no-link")
+	else()
+		set(EXTRA_CFLAGS "${EXTRA_CFLAGS} -Wframe-larger-than=2047")
 	endif()
 endif()
 

@@ -1,3 +1,25 @@
+* Version 1.12.0 (2022-09-22)
+ ** Support for COSE_ES384.
+ ** Support for hidraw(4) on FreeBSD; gh#597.
+ ** Improved support for FIDO 2.1 authenticators.
+ ** New API calls:
+  - es384_pk_free;
+  - es384_pk_from_EC_KEY;
+  - es384_pk_from_EVP_PKEY;
+  - es384_pk_from_ptr;
+  - es384_pk_new;
+  - es384_pk_to_EVP_PKEY;
+  - fido_cbor_info_certs_len;
+  - fido_cbor_info_certs_name_ptr;
+  - fido_cbor_info_certs_value_ptr;
+  - fido_cbor_info_maxrpid_minpinlen;
+  - fido_cbor_info_minpinlen;
+  - fido_cbor_info_new_pin_required;
+  - fido_cbor_info_rk_remaining;
+  - fido_cbor_info_uv_attempts;
+  - fido_cbor_info_uv_modality.
+ ** Documentation and reliability fixes.
+
 * Version 1.11.0 (2022-05-03)
  ** Experimental PCSC support; enable with -DUSE_PCSC.
  ** Improved OpenSSL 3.0 compatibility.

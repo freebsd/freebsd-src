@@ -2,6 +2,7 @@
  * Copyright (c) 2020-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <stdio.h>
@@ -287,6 +288,35 @@ fido_nfc_rx(fido_dev_t *d, uint8_t cmd, unsigned char *buf, size_t count, int ms
 		fido_log_debug("%s: cmd=%02x", __func__, cmd);
 		return -1;
 	}
+}
+
+bool
+nfc_is_fido(const char *path)
+{
+	bool fido = false;
+	fido_dev_t *d;
+	int r;
+
+	if ((d = fido_dev_new()) == NULL) {
+		fido_log_debug("%s: fido_dev_new", __func__);
+		goto fail;
+	}
+	/* fido_dev_open selects the fido applet */
+	if ((r = fido_dev_open(d, path)) != FIDO_OK) {
+		fido_log_debug("%s: fido_dev_open: 0x%x", __func__, r);
+		goto fail;
+	}
+	if ((r = fido_dev_close(d)) != FIDO_OK) {
+		fido_log_debug("%s: fido_dev_close: 0x%x", __func__, r);
+		goto fail;
+
+	}
+
+	fido = true;
+fail:
+	fido_dev_free(&d);
+
+	return fido;
 }
 
 #ifdef USE_NFC

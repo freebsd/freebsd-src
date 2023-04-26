@@ -2,6 +2,7 @@
  * Copyright (c) 2021-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <sys/types.h>
@@ -353,6 +354,9 @@ pack_cose(WEBAUTHN_COSE_CREDENTIAL_PARAMETER *alg,
 	switch (type) {
 	case COSE_ES256:
 		alg->lAlg = WEBAUTHN_COSE_ALGORITHM_ECDSA_P256_WITH_SHA256;
+		break;
+	case COSE_ES384:
+		alg->lAlg = WEBAUTHN_COSE_ALGORITHM_ECDSA_P384_WITH_SHA384;
 		break;
 	case COSE_EDDSA:
 		alg->lAlg = -8; /* XXX */;

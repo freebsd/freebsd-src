@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2019 Yubico AB. All rights reserved.
+ * Copyright (c) 2019-2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <sys/types.h>
@@ -54,20 +55,21 @@ get_report_descriptor(int fd, struct hidraw_report_descriptor *hrd)
 static bool
 is_fido(const char *path)
 {
-	int				fd;
-	uint32_t			usage_page = 0;
-	struct hidraw_report_descriptor	hrd;
+	int				 fd = -1;
+	uint32_t			 usage_page = 0;
+	struct hidraw_report_descriptor	*hrd = NULL;
 
-	memset(&hrd, 0, sizeof(hrd));
-
-	if ((fd = fido_hid_unix_open(path)) == -1)
-		return (false);
-
-	if (get_report_descriptor(fd, &hrd) < 0 ||
-	    fido_hid_get_usage(hrd.value, hrd.size, &usage_page) < 0)
+	if ((hrd = calloc(1, sizeof(*hrd))) == NULL ||
+	    (fd = fido_hid_unix_open(path)) == -1)
+		goto out;
+	if (get_report_descriptor(fd, hrd) < 0 ||
+	    fido_hid_get_usage(hrd->value, hrd->size, &usage_page) < 0)
 		usage_page = 0;
 
-	if (close(fd) == -1)
+out:
+	free(hrd);
+
+	if (fd != -1 && close(fd) == -1)
 		fido_log_error(errno, "%s: close", __func__);
 
 	return (usage_page == 0xf1d0);
@@ -240,9 +242,13 @@ void *
 fido_hid_open(const char *path)
 {
 	struct hid_linux *ctx;
-	struct hidraw_report_descriptor hrd;
+	struct hidraw_report_descriptor *hrd;
 	struct timespec tv_pause;
 	long interval_ms, retries = 0;
+	bool looped;
+
+retry:
+	looped = false;
 
 	if ((ctx = calloc(1, sizeof(*ctx))) == NULL ||
 	    (ctx->fd = fido_hid_unix_open(path)) == -1) {
@@ -256,7 +262,8 @@ fido_hid_open(const char *path)
 			fido_hid_close(ctx);
 			return (NULL);
 		}
-		if (retries++ >= 15) {
+		looped = true;
+		if (retries++ >= 20) {
 			fido_log_debug("%s: flock timeout", __func__);
 			fido_hid_close(ctx);
 			return (NULL);
@@ -271,14 +278,23 @@ fido_hid_open(const char *path)
 		}
 	}
 
-	if (get_report_descriptor(ctx->fd, &hrd) < 0 ||
-	    fido_hid_get_report_len(hrd.value, hrd.size, &ctx->report_in_len,
+	if (looped) {
+		fido_log_debug("%s: retrying", __func__);
+		fido_hid_close(ctx);
+		goto retry;
+	}
+
+	if ((hrd = calloc(1, sizeof(*hrd))) == NULL ||
+	    get_report_descriptor(ctx->fd, hrd) < 0 ||
+	    fido_hid_get_report_len(hrd->value, hrd->size, &ctx->report_in_len,
 	    &ctx->report_out_len) < 0 || ctx->report_in_len == 0 ||
 	    ctx->report_out_len == 0) {
 		fido_log_debug("%s: using default report sizes", __func__);
 		ctx->report_in_len = CTAP_MAX_REPORT_LEN;
 		ctx->report_out_len = CTAP_MAX_REPORT_LEN;
 	}
+
+	free(hrd);
 
 	return (ctx);
 }

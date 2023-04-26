@@ -3,6 +3,7 @@
  * Copyright (c) 2022 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
+ * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #if __APPLE__
@@ -147,6 +148,10 @@ copy_info(fido_dev_info_t *di, SCARDCONTEXT ctx, const char *reader, size_t idx)
 	if (asprintf(&di->path, "%s//slot%zu", FIDO_PCSC_PREFIX, idx) == -1) {
 		di->path = NULL;
 		fido_log_debug("%s: asprintf", __func__);
+		goto fail;
+	}
+	if (nfc_is_fido(di->path) == false) {
+		fido_log_debug("%s: nfc_is_fido: %s", __func__, di->path);
 		goto fail;
 	}
 	if ((di->manufacturer = strdup("PC/SC")) == NULL ||
