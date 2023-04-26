@@ -49,6 +49,7 @@ device		vt
 device		kbdmux
 
 device		vt_efifb
+device		vt_simplefb
 
 # Pseudo devices.
 device		crypto			# core crypto support
