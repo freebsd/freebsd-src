@@ -4,7 +4,6 @@
  * license that can be found in the LICENSE file.
  */
 
-#include <openssl/ecdsa.h>
 #include <openssl/sha.h>
 
 #include "fido.h"
@@ -79,7 +78,7 @@ parse_assert_reply(const cbor_item_t *key, const cbor_item_t *val, void *arg)
 
 static int
 fido_dev_get_assert_tx(fido_dev_t *dev, fido_assert_t *assert,
-    const es256_pk_t *pk, const fido_blob_t *ecdh, const char *pin)
+    const es256_pk_t *pk, const fido_blob_t *ecdh, const char *pin, int *ms)
 {
 	fido_blob_t	 f;
 	fido_opt_t	 uv = assert->uv;
@@ -127,7 +126,7 @@ fido_dev_get_assert_tx(fido_dev_t *dev, fido_assert_t *assert,
 	if (pin != NULL || (uv == FIDO_OPT_TRUE &&
 	    fido_dev_supports_permissions(dev))) {
 		if ((r = cbor_add_uv_params(dev, cmd, &assert->cdh, pk, ecdh,
-		    pin, assert->rp_id, &argv[5], &argv[6])) != FIDO_OK) {
+		    pin, assert->rp_id, &argv[5], &argv[6], ms)) != FIDO_OK) {
 			fido_log_debug("%s: cbor_add_uv_params", __func__);
 			goto fail;
 		}
@@ -144,7 +143,7 @@ fido_dev_get_assert_tx(fido_dev_t *dev, fido_assert_t *assert,
 
 	/* frame and transmit */
 	if (cbor_build_frame(cmd, argv, nitems(argv), &f) < 0 ||
-	    fido_tx(dev, CTAP_CMD_CBOR, f.ptr, f.len) < 0) {
+	    fido_tx(dev, CTAP_CMD_CBOR, f.ptr, f.len, ms) < 0) {
 		fido_log_debug("%s: fido_tx", __func__);
 		r = FIDO_ERR_TX;
 		goto fail;
@@ -159,7 +158,7 @@ fail:
 }
 
 static int
-fido_dev_get_assert_rx(fido_dev_t *dev, fido_assert_t *assert, int ms)
+fido_dev_get_assert_rx(fido_dev_t *dev, fido_assert_t *assert, int *ms)
 {
 	unsigned char	reply[FIDO_MAXMSG];
 	int		reply_len;
@@ -200,11 +199,11 @@ fido_dev_get_assert_rx(fido_dev_t *dev, fido_assert_t *assert, int ms)
 }
 
 static int
-fido_get_next_assert_tx(fido_dev_t *dev)
+fido_get_next_assert_tx(fido_dev_t *dev, int *ms)
 {
 	const unsigned char cbor[] = { CTAP_CBOR_NEXT_ASSERT };
 
-	if (fido_tx(dev, CTAP_CMD_CBOR, cbor, sizeof(cbor)) < 0) {
+	if (fido_tx(dev, CTAP_CMD_CBOR, cbor, sizeof(cbor), ms) < 0) {
 		fido_log_debug("%s: fido_tx", __func__);
 		return (FIDO_ERR_TX);
 	}
@@ -213,7 +212,7 @@ fido_get_next_assert_tx(fido_dev_t *dev)
 }
 
 static int
-fido_get_next_assert_rx(fido_dev_t *dev, fido_assert_t *assert, int ms)
+fido_get_next_assert_rx(fido_dev_t *dev, fido_assert_t *assert, int *ms)
 {
 	unsigned char	reply[FIDO_MAXMSG];
 	int		reply_len;
@@ -243,16 +242,17 @@ fido_get_next_assert_rx(fido_dev_t *dev, fido_assert_t *assert, int ms)
 
 static int
 fido_dev_get_assert_wait(fido_dev_t *dev, fido_assert_t *assert,
-    const es256_pk_t *pk, const fido_blob_t *ecdh, const char *pin, int ms)
+    const es256_pk_t *pk, const fido_blob_t *ecdh, const char *pin, int *ms)
 {
 	int r;
 
-	if ((r = fido_dev_get_assert_tx(dev, assert, pk, ecdh, pin)) != FIDO_OK ||
+	if ((r = fido_dev_get_assert_tx(dev, assert, pk, ecdh, pin,
+	    ms)) != FIDO_OK ||
 	    (r = fido_dev_get_assert_rx(dev, assert, ms)) != FIDO_OK)
 		return (r);
 
 	while (assert->stmt_len < assert->stmt_cnt) {
-		if ((r = fido_get_next_assert_tx(dev)) != FIDO_OK ||
+		if ((r = fido_get_next_assert_tx(dev, ms)) != FIDO_OK ||
 		    (r = fido_get_next_assert_rx(dev, assert, ms)) != FIDO_OK)
 			return (r);
 		assert->stmt_len++;
@@ -286,11 +286,12 @@ fido_dev_get_assert(fido_dev_t *dev, fido_assert_t *assert, const char *pin)
 {
 	fido_blob_t	*ecdh = NULL;
 	es256_pk_t	*pk = NULL;
+	int		 ms = dev->timeout_ms;
 	int		 r;
 
 #ifdef USE_WINHELLO
 	if (dev->flags & FIDO_DEV_WINHELLO)
-		return (fido_winhello_get_assert(dev, assert, pin));
+		return (fido_winhello_get_assert(dev, assert, pin, ms));
 #endif
 
 	if (assert->rp_id == NULL || assert->cdh.ptr == NULL) {
@@ -302,19 +303,19 @@ fido_dev_get_assert(fido_dev_t *dev, fido_assert_t *assert, const char *pin)
 	if (fido_dev_is_fido2(dev) == false) {
 		if (pin != NULL || assert->ext.mask != 0)
 			return (FIDO_ERR_UNSUPPORTED_OPTION);
-		return (u2f_authenticate(dev, assert, -1));
+		return (u2f_authenticate(dev, assert, &ms));
 	}
 
 	if (pin != NULL || (assert->uv == FIDO_OPT_TRUE &&
 	    fido_dev_supports_permissions(dev)) ||
 	    (assert->ext.mask & FIDO_EXT_HMAC_SECRET)) {
-		if ((r = fido_do_ecdh(dev, &pk, &ecdh)) != FIDO_OK) {
+		if ((r = fido_do_ecdh(dev, &pk, &ecdh, &ms)) != FIDO_OK) {
 			fido_log_debug("%s: fido_do_ecdh", __func__);
 			goto fail;
 		}
 	}
 
-	r = fido_dev_get_assert_wait(dev, assert, pk, ecdh, pin, -1);
+	r = fido_dev_get_assert_wait(dev, assert, pk, ecdh, pin, &ms);
 	if (r == FIDO_OK && (assert->ext.mask & FIDO_EXT_HMAC_SECRET))
 		if (decrypt_hmac_secrets(dev, assert, ecdh) < 0) {
 			fido_log_debug("%s: decrypt_hmac_secrets", __func__);
@@ -372,7 +373,8 @@ fido_get_signed_hash(int cose_alg, fido_blob_t *dgst,
 	unsigned char		*authdata_ptr = NULL;
 	size_t			 authdata_len;
 	struct cbor_load_result	 cbor;
-	SHA256_CTX		 ctx;
+	const EVP_MD		*md = NULL;
+	EVP_MD_CTX		*ctx = NULL;
 	int			 ok = -1;
 
 	if ((item = cbor_load(authdata_cbor->ptr, authdata_cbor->len,
@@ -386,10 +388,13 @@ fido_get_signed_hash(int cose_alg, fido_blob_t *dgst,
 	authdata_len = cbor_bytestring_length(item);
 
 	if (cose_alg != COSE_EDDSA) {
-		if (dgst->len < SHA256_DIGEST_LENGTH || SHA256_Init(&ctx) == 0 ||
-		    SHA256_Update(&ctx, authdata_ptr, authdata_len) == 0 ||
-		    SHA256_Update(&ctx, clientdata->ptr, clientdata->len) == 0 ||
-		    SHA256_Final(dgst->ptr, &ctx) == 0) {
+		if (dgst->len < SHA256_DIGEST_LENGTH ||
+		    (md = EVP_sha256()) == NULL ||
+		    (ctx = EVP_MD_CTX_new()) == NULL ||
+		    EVP_DigestInit_ex(ctx, md, NULL) != 1 ||
+		    EVP_DigestUpdate(ctx, authdata_ptr, authdata_len) != 1 ||
+		    EVP_DigestUpdate(ctx, clientdata->ptr, clientdata->len) != 1 ||
+		    EVP_DigestFinal_ex(ctx, dgst->ptr, NULL) != 1) {
 			fido_log_debug("%s: sha256", __func__);
 			goto fail;
 		}
@@ -411,122 +416,7 @@ fail:
 	if (item != NULL)
 		cbor_decref(&item);
 
-	return (ok);
-}
-
-int
-fido_verify_sig_es256(const fido_blob_t *dgst, const es256_pk_t *pk,
-    const fido_blob_t *sig)
-{
-	EVP_PKEY	*pkey = NULL;
-	EC_KEY		*ec = NULL;
-	int		 ok = -1;
-
-	/* ECDSA_verify needs ints */
-	if (dgst->len > INT_MAX || sig->len > INT_MAX) {
-		fido_log_debug("%s: dgst->len=%zu, sig->len=%zu", __func__,
-		    dgst->len, sig->len);
-		return (-1);
-	}
-
-	if ((pkey = es256_pk_to_EVP_PKEY(pk)) == NULL ||
-	    (ec = EVP_PKEY_get0_EC_KEY(pkey)) == NULL) {
-		fido_log_debug("%s: pk -> ec", __func__);
-		goto fail;
-	}
-
-	if (ECDSA_verify(0, dgst->ptr, (int)dgst->len, sig->ptr,
-	    (int)sig->len, ec) != 1) {
-		fido_log_debug("%s: ECDSA_verify", __func__);
-		goto fail;
-	}
-
-	ok = 0;
-fail:
-	if (pkey != NULL)
-		EVP_PKEY_free(pkey);
-
-	return (ok);
-}
-
-int
-fido_verify_sig_rs256(const fido_blob_t *dgst, const rs256_pk_t *pk,
-    const fido_blob_t *sig)
-{
-	EVP_PKEY	*pkey = NULL;
-	RSA		*rsa = NULL;
-	int		 ok = -1;
-
-	/* RSA_verify needs unsigned ints */
-	if (dgst->len > UINT_MAX || sig->len > UINT_MAX) {
-		fido_log_debug("%s: dgst->len=%zu, sig->len=%zu", __func__,
-		    dgst->len, sig->len);
-		return (-1);
-	}
-
-	if ((pkey = rs256_pk_to_EVP_PKEY(pk)) == NULL ||
-	    (rsa = EVP_PKEY_get0_RSA(pkey)) == NULL) {
-		fido_log_debug("%s: pk -> ec", __func__);
-		goto fail;
-	}
-
-	if (RSA_verify(NID_sha256, dgst->ptr, (unsigned int)dgst->len, sig->ptr,
-	    (unsigned int)sig->len, rsa) != 1) {
-		fido_log_debug("%s: RSA_verify", __func__);
-		goto fail;
-	}
-
-	ok = 0;
-fail:
-	if (pkey != NULL)
-		EVP_PKEY_free(pkey);
-
-	return (ok);
-}
-
-int
-fido_verify_sig_eddsa(const fido_blob_t *dgst, const eddsa_pk_t *pk,
-    const fido_blob_t *sig)
-{
-	EVP_PKEY	*pkey = NULL;
-	EVP_MD_CTX	*mdctx = NULL;
-	int		 ok = -1;
-
-	/* EVP_DigestVerify needs ints */
-	if (dgst->len > INT_MAX || sig->len > INT_MAX) {
-		fido_log_debug("%s: dgst->len=%zu, sig->len=%zu", __func__,
-		    dgst->len, sig->len);
-		return (-1);
-	}
-
-	if ((pkey = eddsa_pk_to_EVP_PKEY(pk)) == NULL) {
-		fido_log_debug("%s: pk -> pkey", __func__);
-		goto fail;
-	}
-
-	if ((mdctx = EVP_MD_CTX_new()) == NULL) {
-		fido_log_debug("%s: EVP_MD_CTX_new", __func__);
-		goto fail;
-	}
-
-	if (EVP_DigestVerifyInit(mdctx, NULL, NULL, NULL, pkey) != 1) {
-		fido_log_debug("%s: EVP_DigestVerifyInit", __func__);
-		goto fail;
-	}
-
-	if (EVP_DigestVerify(mdctx, sig->ptr, sig->len, dgst->ptr,
-	    dgst->len) != 1) {
-		fido_log_debug("%s: EVP_DigestVerify", __func__);
-		goto fail;
-	}
-
-	ok = 0;
-fail:
-	if (mdctx != NULL)
-		EVP_MD_CTX_free(mdctx);
-
-	if (pkey != NULL)
-		EVP_PKEY_free(pkey);
+	EVP_MD_CTX_free(ctx);
 
 	return (ok);
 }
@@ -589,13 +479,13 @@ fido_assert_verify(const fido_assert_t *assert, size_t idx, int cose_alg,
 
 	switch (cose_alg) {
 	case COSE_ES256:
-		ok = fido_verify_sig_es256(&dgst, pk, &stmt->sig);
+		ok = es256_pk_verify_sig(&dgst, pk, &stmt->sig);
 		break;
 	case COSE_RS256:
-		ok = fido_verify_sig_rs256(&dgst, pk, &stmt->sig);
+		ok = rs256_pk_verify_sig(&dgst, pk, &stmt->sig);
 		break;
 	case COSE_EDDSA:
-		ok = fido_verify_sig_eddsa(&dgst, pk, &stmt->sig);
+		ok = eddsa_pk_verify_sig(&dgst, pk, &stmt->sig);
 		break;
 	default:
 		fido_log_debug("%s: unsupported cose_alg %d", __func__,

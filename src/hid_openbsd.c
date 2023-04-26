@@ -23,6 +23,8 @@ struct hid_openbsd {
 	int fd;
 	size_t report_in_len;
 	size_t report_out_len;
+	sigset_t sigmask;
+	const sigset_t *sigmaskp;
 };
 
 int
@@ -185,10 +187,12 @@ fido_hid_close(void *handle)
 int
 fido_hid_set_sigmask(void *handle, const fido_sigset_t *sigmask)
 {
-	(void)handle;
-	(void)sigmask;
+	struct hid_openbsd *ctx = handle;
 
-	return (FIDO_ERR_INTERNAL);
+	ctx->sigmask = *sigmask;
+	ctx->sigmaskp = &ctx->sigmask;
+
+	return (FIDO_OK);
 }
 
 int
@@ -197,11 +201,14 @@ fido_hid_read(void *handle, unsigned char *buf, size_t len, int ms)
 	struct hid_openbsd *ctx = (struct hid_openbsd *)handle;
 	ssize_t r;
 
-	(void)ms; /* XXX */
-
 	if (len != ctx->report_in_len) {
 		fido_log_debug("%s: invalid len: got %zu, want %zu", __func__,
 		    len, ctx->report_in_len);
+		return (-1);
+	}
+
+	if (fido_hid_unix_wait(ctx->fd, ms, ctx->sigmaskp) < 0) {
+		fido_log_debug("%s: fd not ready", __func__);
 		return (-1);
 	}
 

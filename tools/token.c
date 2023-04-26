@@ -352,6 +352,7 @@ token_set(int argc, char **argv, char *path)
 	char	*len = NULL;
 	char	*display_name = NULL;
 	char	*name = NULL;
+	char	*rpid = NULL;
 	int	 blob = 0;
 	int	 cred = 0;
 	int	 ch;
@@ -390,6 +391,9 @@ token_set(int argc, char **argv, char *path)
 			break;
 		case 'p':
 			display_name = optarg;
+			break;
+		case 'm':
+			rpid = optarg;
 			break;
 		case 'n':
 			name = optarg;
@@ -440,6 +444,8 @@ token_set(int argc, char **argv, char *path)
 
 	if (len)
 		return (config_pin_minlen(path, len));
+	if (rpid)
+		return (config_pin_minlen_rpid(path, rpid));
 	if (force)
 		return (config_force_pin_change(path));
 	if (uv)

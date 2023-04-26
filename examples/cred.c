@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2021 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  */
@@ -17,7 +17,7 @@
 #include "../openbsd-compat/openbsd-compat.h"
 #include "extern.h"
 
-static const unsigned char cdh[32] = {
+static const unsigned char cd[32] = {
 	0xf9, 0x64, 0x57, 0xe7, 0x2d, 0x97, 0xf6, 0xbb,
 	0xdd, 0xd7, 0xfb, 0x06, 0x37, 0x62, 0xea, 0x26,
 	0x20, 0x44, 0x8e, 0x69, 0x7c, 0x03, 0xf2, 0x31,
@@ -42,9 +42,8 @@ usage(void)
 
 static void
 verify_cred(int type, const char *fmt, const unsigned char *authdata_ptr,
-    size_t authdata_len, const unsigned char *x509_ptr, size_t x509_len,
-    const unsigned char *sig_ptr, size_t sig_len, bool rk, bool uv, int ext,
-    const char *key_out, const char *id_out)
+    size_t authdata_len, const unsigned char *attstmt_ptr, size_t attstmt_len,
+    bool rk, bool uv, int ext, const char *key_out, const char *id_out)
 {
 	fido_cred_t	*cred;
 	int		 r;
@@ -57,11 +56,10 @@ verify_cred(int type, const char *fmt, const unsigned char *authdata_ptr,
 	if (r != FIDO_OK)
 		errx(1, "fido_cred_set_type: %s (0x%x)", fido_strerr(r), r);
 
-	/* client data hash */
-	r = fido_cred_set_clientdata_hash(cred, cdh, sizeof(cdh));
+	/* client data */
+	r = fido_cred_set_clientdata(cred, cd, sizeof(cd));
 	if (r != FIDO_OK)
-		errx(1, "fido_cred_set_clientdata_hash: %s (0x%x)",
-		    fido_strerr(r), r);
+		errx(1, "fido_cred_set_clientdata: %s (0x%x)", fido_strerr(r), r);
 
 	/* relying party */
 	r = fido_cred_set_rp(cred, "localhost", "sweet home localhost");
@@ -96,15 +94,10 @@ verify_cred(int type, const char *fmt, const unsigned char *authdata_ptr,
 		goto out;
 	}
 
-	/* x509 */
-	r = fido_cred_set_x509(cred, x509_ptr, x509_len);
+	/* attestation statement */
+	r = fido_cred_set_attstmt(cred, attstmt_ptr, attstmt_len);
 	if (r != FIDO_OK)
-		errx(1, "fido_cred_set_x509: %s (0x%x)", fido_strerr(r), r);
-
-	/* sig */
-	r = fido_cred_set_sig(cred, sig_ptr, sig_len);
-	if (r != FIDO_OK)
-		errx(1, "fido_cred_set_sig: %s (0x%x)", fido_strerr(r), r);
+		errx(1, "fido_cred_set_attstmt: %s (0x%x)", fido_strerr(r), r);
 
 	r = fido_cred_verify(cred);
 	if (r != FIDO_OK)
@@ -138,27 +131,6 @@ out:
 	fido_cred_free(&cred);
 }
 
-static fido_dev_t *
-open_from_manifest(const fido_dev_info_t *dev_infos, size_t len,
-    const char *path)
-{
-	size_t i;
-	fido_dev_t *dev;
-
-	for (i = 0; i < len; i++) {
-		const fido_dev_info_t *curr = fido_dev_info_ptr(dev_infos, i);
-		if (path == NULL ||
-		    strcmp(path, fido_dev_info_path(curr)) == 0) {
-			dev = fido_dev_new_with_info(curr);
-			if (fido_dev_open_with_info(dev) == FIDO_OK)
-				return (dev);
-			fido_dev_free(&dev);
-		}
-	}
-
-	return (NULL);
-}
-
 int
 main(int argc, char **argv)
 {
@@ -171,16 +143,13 @@ main(int argc, char **argv)
 	const char	*blobkey_out = NULL;
 	const char	*key_out = NULL;
 	const char	*id_out = NULL;
-	const char	*path = NULL;
 	unsigned char	*body = NULL;
-	long long	 seconds = 0;
+	long long	 ms = 0;
 	size_t		 len;
 	int		 type = COSE_ES256;
 	int		 ext = 0;
 	int		 ch;
 	int		 r;
-	fido_dev_info_t	*dev_infos = NULL;
-	size_t		 dev_infos_len = 0;
 
 	if ((cred = fido_cred_new()) == NULL)
 		errx(1, "fido_cred_new");
@@ -191,16 +160,12 @@ main(int argc, char **argv)
 			pin = optarg;
 			break;
 		case 'T':
-#ifndef SIGNAL_EXAMPLE
-			(void)seconds;
-			errx(1, "-T not supported");
-#else
-			if (base10(optarg, &seconds) < 0)
+			if (base10(optarg, &ms) < 0)
 				errx(1, "base10: %s", optarg);
-			if (seconds <= 0 || seconds > 30)
+			if (ms <= 0 || ms > 30)
 				errx(1, "-T: %s must be in (0,30]", optarg);
+			ms *= 1000; /* seconds to milliseconds */
 			break;
-#endif
 		case 'b':
 			ext |= FIDO_EXT_LARGEBLOB_KEY;
 			blobkey_out = optarg;
@@ -248,21 +213,20 @@ main(int argc, char **argv)
 		}
 	}
 
-	fido_init(0);
-
 	argc -= optind;
 	argv += optind;
 
-	if (argc > 1)
+	if (argc != 1)
 		usage();
-	dev_infos = fido_dev_info_new(16);
-	fido_dev_info_manifest(dev_infos, 16, &dev_infos_len);
-	if (argc == 1)
-		path = argv[0];
 
-	if ((dev = open_from_manifest(dev_infos, dev_infos_len, path)) == NULL)
-		errx(1, "open_from_manifest");
+	fido_init(0);
 
+	if ((dev = fido_dev_new()) == NULL)
+		errx(1, "fido_dev_new");
+
+	r = fido_dev_open(dev, argv[0]);
+	if (r != FIDO_OK)
+		errx(1, "fido_dev_open: %s (0x%x)", fido_strerr(r), r);
 	if (u2f)
 		fido_dev_force_u2f(dev);
 
@@ -271,11 +235,10 @@ main(int argc, char **argv)
 	if (r != FIDO_OK)
 		errx(1, "fido_cred_set_type: %s (0x%x)", fido_strerr(r), r);
 
-	/* client data hash */
-	r = fido_cred_set_clientdata_hash(cred, cdh, sizeof(cdh));
+	/* client data */
+	r = fido_cred_set_clientdata(cred, cd, sizeof(cd));
 	if (r != FIDO_OK)
-		errx(1, "fido_cred_set_clientdata_hash: %s (0x%x)",
-		    fido_strerr(r), r);
+		errx(1, "fido_cred_set_clientdata: %s (0x%x)", fido_strerr(r), r);
 
 	/* relying party */
 	r = fido_cred_set_rp(cred, "localhost", "sweet home localhost");
@@ -301,20 +264,12 @@ main(int argc, char **argv)
 	if (uv && (r = fido_cred_set_uv(cred, FIDO_OPT_TRUE)) != FIDO_OK)
 		errx(1, "fido_cred_set_uv: %s (0x%x)", fido_strerr(r), r);
 
-#ifdef SIGNAL_EXAMPLE
-	prepare_signal_handler(SIGINT);
-	if (seconds) {
-		prepare_signal_handler(SIGALRM);
-		alarm((unsigned)seconds);
-	}
-#endif
+	/* timeout */
+	if (ms != 0 && (r = fido_dev_set_timeout(dev, (int)ms)) != FIDO_OK)
+		errx(1, "fido_dev_set_timeout: %s (0x%x)", fido_strerr(r), r);
 
-	r = fido_dev_make_cred(dev, cred, pin);
-	if (r != FIDO_OK) {
-#ifdef SIGNAL_EXAMPLE
-		if (got_signal)
-			fido_dev_cancel(dev);
-#endif
+	if ((r = fido_dev_make_cred(dev, cred, pin)) != FIDO_OK) {
+		fido_dev_cancel(dev);
 		errx(1, "fido_makecred: %s (0x%x)", fido_strerr(r), r);
 	}
 
@@ -329,9 +284,8 @@ main(int argc, char **argv)
 		uv = true;
 
 	verify_cred(type, fido_cred_fmt(cred), fido_cred_authdata_ptr(cred),
-	    fido_cred_authdata_len(cred), fido_cred_x5c_ptr(cred),
-	    fido_cred_x5c_len(cred), fido_cred_sig_ptr(cred),
-	    fido_cred_sig_len(cred), rk, uv, ext, key_out, id_out);
+	    fido_cred_authdata_len(cred), fido_cred_attstmt_ptr(cred),
+	    fido_cred_attstmt_len(cred), rk, uv, ext, key_out, id_out);
 
 	if (blobkey_out != NULL) {
 		/* extract the "largeBlob" key */

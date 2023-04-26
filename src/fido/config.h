@@ -26,6 +26,8 @@ int fido_dev_enable_entattest(fido_dev_t *, const char *);
 int fido_dev_force_pin_change(fido_dev_t *, const char *);
 int fido_dev_toggle_always_uv(fido_dev_t *, const char *);
 int fido_dev_set_pin_minlen(fido_dev_t *, size_t, const char *);
+int fido_dev_set_pin_minlen_rpid(fido_dev_t *, const char * const *, size_t,
+    const char *);
 
 #ifdef __cplusplus
 } /* extern "C" */

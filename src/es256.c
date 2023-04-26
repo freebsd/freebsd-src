@@ -1,10 +1,11 @@
 /*
- * Copyright (c) 2018 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2021 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  */
 
 #include <openssl/bn.h>
+#include <openssl/ecdsa.h>
 #include <openssl/obj_mac.h>
 
 #include "fido.h"
@@ -362,6 +363,18 @@ fail:
 	return (ok);
 }
 
+int
+es256_pk_from_EVP_PKEY(es256_pk_t *pk, const EVP_PKEY *pkey)
+{
+	EC_KEY *ec;
+
+	if (EVP_PKEY_base_id(pkey) != EVP_PKEY_EC ||
+	    (ec = EVP_PKEY_get0(pkey)) == NULL)
+		return (FIDO_ERR_INVALID_ARGUMENT);
+
+	return (es256_pk_from_EC_KEY(pk, ec));
+}
+
 EVP_PKEY *
 es256_sk_to_EVP_PKEY(const es256_sk_t *k)
 {
@@ -448,6 +461,53 @@ fail:
 		EC_POINT_free(q);
 	if (ec != NULL)
 		EC_KEY_free(ec);
+
+	return (ok);
+}
+
+int
+es256_verify_sig(const fido_blob_t *dgst, EVP_PKEY *pkey,
+    const fido_blob_t *sig)
+{
+	EVP_PKEY_CTX	*pctx = NULL;
+	int		 ok = -1;
+
+	if (EVP_PKEY_base_id(pkey) != EVP_PKEY_EC) {
+		fido_log_debug("%s: EVP_PKEY_base_id", __func__);
+		goto fail;
+	}
+
+	if ((pctx = EVP_PKEY_CTX_new(pkey, NULL)) == NULL ||
+	    EVP_PKEY_verify_init(pctx) != 1 ||
+	    EVP_PKEY_verify(pctx, sig->ptr, sig->len, dgst->ptr,
+	    dgst->len) != 1) {
+		fido_log_debug("%s: EVP_PKEY_verify", __func__);
+		goto fail;
+	}
+
+	ok = 0;
+fail:
+	EVP_PKEY_CTX_free(pctx);
+
+	return (ok);
+}
+
+int
+es256_pk_verify_sig(const fido_blob_t *dgst, const es256_pk_t *pk,
+    const fido_blob_t *sig)
+{
+	EVP_PKEY	*pkey;
+	int		 ok = -1;
+
+	if ((pkey = es256_pk_to_EVP_PKEY(pk)) == NULL ||
+	    es256_verify_sig(dgst, pkey, sig) < 0) {
+		fido_log_debug("%s: es256_verify_sig", __func__);
+		goto fail;
+	}
+
+	ok = 0;
+fail:
+	EVP_PKEY_free(pkey);
 
 	return (ok);
 }

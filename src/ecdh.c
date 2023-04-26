@@ -8,14 +8,14 @@
 #include <openssl/sha.h>
 #if defined(LIBRESSL_VERSION_NUMBER)
 #include <openssl/hkdf.h>
-#elif OPENSSL_VERSION_NUMBER >= 0x10100000L
+#else
 #include <openssl/kdf.h>
 #endif
 
 #include "fido.h"
 #include "fido/es256.h"
 
-#if defined(LIBRESSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER < 0x10100000L
+#if defined(LIBRESSL_VERSION_NUMBER)
 static int
 hkdf_sha256(uint8_t *key, const char *info, const fido_blob_t *secret)
 {
@@ -56,7 +56,7 @@ hkdf_sha256(uint8_t *key, char *info, fido_blob_t *secret)
 	    EVP_PKEY_CTX_set_hkdf_md(ctx, md) < 1 ||
 	    EVP_PKEY_CTX_set1_hkdf_salt(ctx, salt, sizeof(salt)) < 1 ||
 	    EVP_PKEY_CTX_set1_hkdf_key(ctx, secret->ptr, (int)secret->len) < 1 ||
-	    EVP_PKEY_CTX_add1_hkdf_info(ctx, info, (int)strlen(info)) < 1) {
+	    EVP_PKEY_CTX_add1_hkdf_info(ctx, (void *)info, (int)strlen(info)) < 1) {
 		fido_log_debug("%s: EVP_PKEY_CTX", __func__);
 		goto fail;
 	}
@@ -74,7 +74,7 @@ fail:
 
 	return ok;
 }
-#endif /* defined(LIBRESSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER < 0x10100000L */
+#endif /* defined(LIBRESSL_VERSION_NUMBER) */
 
 static int
 kdf(uint8_t prot, fido_blob_t *key, /* const */ fido_blob_t *secret)
@@ -164,7 +164,7 @@ fail:
 }
 
 int
-fido_do_ecdh(fido_dev_t *dev, es256_pk_t **pk, fido_blob_t **ecdh)
+fido_do_ecdh(fido_dev_t *dev, es256_pk_t **pk, fido_blob_t **ecdh, int *ms)
 {
 	es256_sk_t *sk = NULL; /* our private key */
 	es256_pk_t *ak = NULL; /* authenticator's public key */
@@ -182,7 +182,7 @@ fido_do_ecdh(fido_dev_t *dev, es256_pk_t **pk, fido_blob_t **ecdh)
 		goto fail;
 	}
 	if ((ak = es256_pk_new()) == NULL ||
-	    fido_dev_authkey(dev, ak) != FIDO_OK) {
+	    fido_dev_authkey(dev, ak, ms) != FIDO_OK) {
 		fido_log_debug("%s: fido_dev_authkey", __func__);
 		r = FIDO_ERR_INTERNAL;
 		goto fail;

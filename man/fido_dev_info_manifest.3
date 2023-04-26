@@ -112,11 +112,21 @@ The
 .Fn fido_dev_info_manufacturer_string
 function returns the manufacturer string of
 .Fa di .
+If
+.Fa di
+does not have an associated manufacturer string,
+.Fn fido_dev_info_manufacturer_string
+returns an empty string.
 .Pp
 The
 .Fn fido_dev_info_product_string
 function returns the product string of
 .Fa di .
+If
+.Fa di
+does not have an associated product string,
+.Fn fido_dev_info_product_string
+returns an empty string.
 .Pp
 An example of how to use the functions described in this document
 can be found in the

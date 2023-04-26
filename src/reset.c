@@ -7,11 +7,11 @@
 #include "fido.h"
 
 static int
-fido_dev_reset_tx(fido_dev_t *dev)
+fido_dev_reset_tx(fido_dev_t *dev, int *ms)
 {
 	const unsigned char cbor[] = { CTAP_CBOR_RESET };
 
-	if (fido_tx(dev, CTAP_CMD_CBOR, cbor, sizeof(cbor)) < 0) {
+	if (fido_tx(dev, CTAP_CMD_CBOR, cbor, sizeof(cbor), ms) < 0) {
 		fido_log_debug("%s: fido_tx", __func__);
 		return (FIDO_ERR_TX);
 	}
@@ -20,11 +20,11 @@ fido_dev_reset_tx(fido_dev_t *dev)
 }
 
 static int
-fido_dev_reset_wait(fido_dev_t *dev, int ms)
+fido_dev_reset_wait(fido_dev_t *dev, int *ms)
 {
 	int r;
 
-	if ((r = fido_dev_reset_tx(dev)) != FIDO_OK ||
+	if ((r = fido_dev_reset_tx(dev, ms)) != FIDO_OK ||
 	    (r = fido_rx_cbor_status(dev, ms)) != FIDO_OK)
 		return (r);
 
@@ -39,5 +39,7 @@ fido_dev_reset_wait(fido_dev_t *dev, int ms)
 int
 fido_dev_reset(fido_dev_t *dev)
 {
-	return (fido_dev_reset_wait(dev, -1));
+	int ms = dev->timeout_ms;
+
+	return (fido_dev_reset_wait(dev, &ms));
 }
