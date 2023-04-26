@@ -62,7 +62,7 @@ static void
 oid_get_root(struct oid *o)
 {
 
-	o->id[0] = 1;
+	o->id[0] = CTL_KERN;
 	o->len = 1;
 }
 
@@ -91,8 +91,8 @@ oid_get_next(const struct oid *cur, struct oid *next)
 	int lookup[CTL_MAXNAME + 2];
 	size_t nextsize;
 
-	lookup[0] = 0;
-	lookup[1] = 2;
+	lookup[0] = CTL_SYSCTL;
+	lookup[1] = CTL_SYSCTL_NEXT;
 	memcpy(lookup + 2, cur->id, cur->len * sizeof(lookup[0]));
 	nextsize = sizeof(next->id);
 	if (sysctl(lookup, 2 + cur->len, &next->id, &nextsize, 0, 0) != 0) {
@@ -135,8 +135,8 @@ oid_get_format(const struct oid *o, struct oidformat *of)
 	int lookup[CTL_MAXNAME + 2];
 	size_t oflen;
 
-	lookup[0] = 0;
-	lookup[1] = 4;
+	lookup[0] = CTL_SYSCTL;
+	lookup[1] = CTL_SYSCTL_OIDFMT;
 	memcpy(lookup + 2, o->id, o->len * sizeof(lookup[0]));
 	oflen = sizeof(*of);
 	if (sysctl(lookup, 2 + o->len, of, &oflen, 0, 0) != 0) {
@@ -344,8 +344,8 @@ oid_get_name(const struct oid *o, struct oidname *on)
 	size_t i, len;
 
 	/* Fetch the name and split it up in separate components. */
-	lookup[0] = 0;
-	lookup[1] = 1;
+	lookup[0] = CTL_SYSCTL;
+	lookup[1] = CTL_SYSCTL_NAME;
 	memcpy(lookup + 2, o->id, o->len * sizeof(lookup[0]));
 	len = sizeof(on->names);
 	if (sysctl(lookup, 2 + o->len, on->names, &len, 0, 0) != 0)
@@ -464,8 +464,8 @@ oid_get_description(const struct oid *o, struct oiddescription *od)
 	char *newline;
 	size_t odlen;
 
-	lookup[0] = 0;
-	lookup[1] = 5;
+	lookup[0] = CTL_SYSCTL;
+	lookup[1] = CTL_SYSCTL_OIDDESCR;
 	memcpy(lookup + 2, o->id, o->len * sizeof(lookup[0]));
 	odlen = sizeof(od->description);
 	if (sysctl(lookup, 2 + o->len, &od->description, &odlen, 0, 0) != 0) {
