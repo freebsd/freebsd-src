@@ -29,7 +29,7 @@
 .\"
 .\"     From: @(#)ctime.3	8.1 (Berkeley) 6/4/93
 .\"
-.Dd September 16, 2022
+.Dd March 26, 2024
 .Dt CTIME 3
 .Os
 .Sh NAME
@@ -51,81 +51,78 @@
 .In time.h
 .Vt extern char *tzname[2] ;
 .Ft char *
+.Fn asctime "const struct tm *tm"
+.Ft char *
+.Fn asctime_r "const struct tm *tm" "char *buf"
+.Ft char *
 .Fn ctime "const time_t *clock"
+.Ft char *
+.Fn ctime_r "const time_t *clock" "char *buf"
 .Ft double
 .Fn difftime "time_t time1" "time_t time0"
-.Ft char *
-.Fn asctime "const struct tm *tm"
+.Ft struct tm *
+.Fn gmtime "const time_t *clock"
+.Ft struct tm *
+.Fn gmtime_r "const time_t *clock" "struct tm *result"
 .Ft struct tm *
 .Fn localtime "const time_t *clock"
 .Ft struct tm *
-.Fn gmtime "const time_t *clock"
+.Fn localtime_r "const time_t *clock" "struct tm *result"
 .Ft time_t
 .Fn mktime "struct tm *tm"
 .Ft time_t
 .Fn timegm "struct tm *tm"
-.Ft char *
-.Fn ctime_r "const time_t *clock" "char *buf"
-.Ft struct tm *
-.Fn localtime_r "const time_t *clock" "struct tm *result"
-.Ft struct tm *
-.Fn gmtime_r "const time_t *clock" "struct tm *result"
-.Ft char *
-.Fn asctime_r "const struct tm *tm" "char *buf"
 .Sh DESCRIPTION
-The functions
+The
 .Fn ctime ,
-.Fn gmtime
+.Fn gmtime ,
 and
 .Fn localtime
-all take as an argument a time value representing the time in seconds since
-the Epoch (00:00:00
-.Tn UTC ,
-January 1, 1970; see
+functions all take as argument a pointer to a time value representing
+the time in seconds since the Epoch (00:00:00 UTC on January 1, 1970;
+see
 .Xr time 3 ) .
 .Pp
-The function
+The
 .Fn localtime
-converts the time value pointed at by
+function converts the time value pointed to by
 .Fa clock ,
 and returns a pointer to a
-.Dq Fa struct tm
+.Vt struct tm
 (described below) which contains
 the broken-out time information for the value after adjusting for the current
-time zone (and any other factors such as Daylight Saving Time).
-When the specified time translates to a year that will not fit in an
-.Dv int ,
-.Fn localtime
-returns NULL.
-Time zone adjustments are performed as specified by the
-.Ev TZ
-environment variable (see
+time zone (see
 .Xr tzset 3 ) .
-The function
+When the specified time translates to a year that will not fit in an
+.Vt int ,
 .Fn localtime
-uses
+returns
+.Dv NULL .
+The
+.Fn localtime
+function uses
 .Xr tzset 3
 to initialize time conversion information if
 .Xr tzset 3
 has not already been called by the process.
 .Pp
-After filling in the tm structure,
+After filling in the
+.Vt struct tm ,
 .Fn localtime
 sets the
-.Fa tm_isdst Ns 'th
+.Va tm_isdst Ns 'th
 element of
-.Fa tzname
-to a pointer to an
-.Tn ASCII
-string that is the time zone abbreviation to be
+.Va tzname
+to a pointer to an ASCII string that is the time zone abbreviation to be
 used with
 .Fn localtime Ns 's
 return value.
 .Pp
-The function
+The
 .Fn gmtime
-similarly converts the time value, but without any time zone adjustment,
-and returns a pointer to a tm structure (described below).
+function similarly converts the time value, but without any time zone
+adjustment, and returns a pointer to a
+.Vt struct tm .
 .Pp
 The
 .Fn ctime
@@ -140,65 +137,58 @@ Thu Nov 24 18:22:48 1986\en\e0
 All the fields have constant width.
 .Pp
 The
+.Fn asctime
+function converts the broken down time in the
+.Vt struct tm
+pointed to by
+.Fa tm
+to the form shown in the example above.
+.Pp
+The
 .Fn ctime_r
-function
-provides the same functionality as
+and
+.Fn asctime_r
+functions
+provide the same functionality as
 .Fn ctime
+and
+.Fn asctime
 except the caller must provide the output buffer
-.Fa buf
-to store the result, which must be at least 26 characters long.
+.Fa buf ,
+which must be at least 26 characters long, to store the result in.
 The
 .Fn localtime_r
 and
 .Fn gmtime_r
-functions
-provide the same functionality as
+functions provide the same functionality as
 .Fn localtime
 and
 .Fn gmtime
 respectively, except the caller must provide the output buffer
 .Fa result .
 .Pp
-The
-.Fn asctime
-function
-converts the broken down time in the structure
-.Fa tm
-pointed at by
-.Fa *tm
-to the form
-shown in the example above.
-.Pp
-The
-.Fn asctime_r
-function
-provides the same functionality as
-.Fn asctime
-except the caller provide the output buffer
-.Fa buf
-to store the result, which must be at least 26 characters long.
-.Pp
 The functions
 .Fn mktime
 and
 .Fn timegm
-convert the broken-down time in the structure
-pointed to by tm into a time value with the same encoding as that of the
-values returned by the
+convert the broken-down time in the
+.Vt struct tm
+pointed to by
+.Fa tm
+into a time value with the same encoding as that of the values
+returned by the
 .Xr time 3
-function (that is, seconds from the Epoch,
-.Tn UTC ) .
+function (that is, seconds from the Epoch, UTC).
 The
 .Fn mktime
-function
-interprets the input structure according to the current timezone setting
-(see
-.Xr tzset 3 ) .
-The
+function interprets the input structure according to the current
+timezone setting (see
+.Xr tzset 3 )
+while the
 .Fn timegm
-function
-interprets the input structure as representing Universal Coordinated Time
-.Pq Tn UTC .
+function interprets the input structure as representing Universal
+Coordinated Time
+.Pq UTC .
 .Pp
 The original values of the
 .Fa tm_wday
@@ -227,7 +217,7 @@ A negative value for
 .Fa tm_isdst
 causes the
 .Fn mktime
-function to attempt to divine whether summer time is in effect for the
+function to attempt to guess whether summer time is in effect for the
 specified time.
 The
 .Fa tm_isdst
@@ -253,21 +243,37 @@ The
 .Fn mktime
 function
 returns the specified calendar time; if the calendar time cannot be
-represented, it returns \-1;
+represented, it returns \-1 and sets
+.Xr errno 3
+to an appropriate value.
+.Pp
+Note that \-1 is a valid result (representing one second before
+midnight UTC on the evening of 31 December 1969), so this cannot be
+relied upon to indicate success or failure; instead,
+.Fa tm_wday
+and / or
+.Fa tm_yday
+should be set to an out-of-bounds value (e.g. \-1) prior to calling
+.Fn mktime
+or
+.Fn timegm
+and checked after the call.
 .Pp
 The
 .Fn difftime
-function
-returns the difference between two calendar times,
-.Pf ( Fa time1
--
-.Fa time0 ) ,
-expressed in seconds.
+function returns the difference in seconds between two time values,
+.Fa time1
+\-
+.Fa time0 .
 .Pp
-External declarations as well as the tm structure definition are in the
+External declarations as well as the definition of
+.Vt struct tm
+are in the
 .In time.h
-include file.
-The tm structure includes at least the following fields:
+header.
+The
+.Vt tm
+structure includes at least the following fields:
 .Bd -literal -offset indent
 int tm_sec;	/* seconds (0 - 60) */
 int tm_min;	/* minutes (0 - 59) */
@@ -283,16 +289,14 @@ long tm_gmtoff;	/* offset from UTC in seconds */
 .Ed
 .Pp
 The
-field
 .Fa tm_isdst
-is non-zero if summer time is in effect.
+field is non-zero if summer time is in effect.
 .Pp
-The field
+The
 .Fa tm_gmtoff
-is the offset (in seconds) of the time represented from
-.Tn UTC ,
-with positive
-values indicating east of the Prime Meridian.
+field is the offset in seconds of the time represented from UTC,
+with positive values indicating a time zone ahead of UTC (east of the
+Prime Meridian).
 .Sh SEE ALSO
 .Xr date 1 ,
 .Xr clock_gettime 2 ,
@@ -358,13 +362,13 @@ and
 .Fn timelocal
 in SunOS 4.0.
 .Pp
-The functions
+The
 .Fn asctime_r ,
 .Fn ctime_r ,
-.Fn gmtime_r ,
+.Fn gmtime_r
 and
 .Fn localtime_r
-have been available since
+functions have been available since
 .Fx 8.0 .
 .Sh BUGS
 Except for
@@ -379,13 +383,10 @@ Subsequent calls to these
 function will modify the same object.
 .Pp
 The C Standard provides no mechanism for a program to modify its current
-local timezone setting, and the
-.Tn POSIX Ns No \&-standard
+local timezone setting, and the POSIX-standard
 method is not reentrant.
 (However, thread-safe implementations are provided
-in the
-.Tn POSIX
-threaded environment.)
+in the POSIX threaded environment.)
 .Pp
 The
 .Va tm_zone
