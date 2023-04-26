@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 21, 2020
+.Dd April 21, 2023
 .Dt PKT-GEN 8
 .Os
 .Sh NAME
@@ -150,7 +150,7 @@ mode), a single RX ring (in
 mode), or a TX/RX ring pair.
 The number of
 .Ar threads
-must be less than or equal to the number of TX (or RX) ring available
+must be less than or equal to the number of TX (or RX) rings available
 in the device specified by
 .Ar interface .
 .It Fl T Ar report_ms
@@ -288,7 +288,8 @@ length of 128 bytes.
 You must set the destination MAC address for
 packets to be received by the target host.
 .Bd -literal -offset indent
-pkt-gen -i netmap:ncxl0 -f tx -s 172.16.0.1:53 -d 172.16.1.3:53 -D 00:07:43:29:2a:e0
+pkt-gen -i netmap:ncxl0 -f tx -s 172.16.0.1:53 -d 172.16.1.3:53 \e
+-D 00:07:43:29:2a:e0
 .Ed
 .Sh SEE ALSO
 .Xr netmap 4 ,
