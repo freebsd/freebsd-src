@@ -28,6 +28,7 @@ SUBDIR=	adduser \
 	fifolog \
 	fstyp \
 	fwcontrol \
+	fwget \
 	getfmac \
 	getpmac \
 	gstat \

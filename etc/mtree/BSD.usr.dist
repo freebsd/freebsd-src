@@ -152,6 +152,8 @@
         ..
         dwatch
         ..
+        fwget
+        ..
         hyperv
         ..
         lpr

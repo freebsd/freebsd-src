@@ -1,0 +1,84 @@
+#-
+# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+#
+# Copyright 2023 Beckhoff Automation GmbH & Co. KG
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted providing that the following conditions 
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+# IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+# STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+# IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+pci_get_class()
+{
+	local hexclass=$(echo $1 | sed 's/.*class=\(0x[0-9a-z]*\).*/\1/')
+	case "${hexclass}" in
+		0x030000)
+			echo "video"
+			;;
+	esac
+}
+
+pci_get_vendor()
+{
+	local hexvendor=$(echo $1 | sed 's/.*\ vendor=\(0x[0-9a-z]*\).*/\1/')
+
+	case "${hexvendor}" in
+		0x8086)
+			echo "intel"
+			;;
+		0x1002)
+			echo "amd"
+			;;
+	esac
+}
+
+pci_get_device()
+{
+	local hexdevice=$(echo $1 | sed 's/.*\ device=\(0x[0-9a-z]*\).*/\1/')
+
+	echo ${hexdevice}
+}
+
+pci_search_packages()
+{
+	local IFS
+
+	oldifs=$IFS
+	IFS=$'\n'
+	for fulldevice in $(pciconf -l); do
+		class=$(pci_get_class "${fulldevice}")
+		if [ -z "${class}" ]; then
+			continue
+		fi
+		vendor=$(pci_get_vendor "${fulldevice}")
+		if [ -z "${vendor}" ]; then
+			continue
+		fi
+		device=$(pci_get_device "${fulldevice}")
+
+		log_verbose "Trying to match device ${device} in class ${class} and vendor ${vendor} with pci_${class}_${vendor}" 1>&3
+		if [ ! -f ${LIBEXEC_PATH}/pci_${class}_${vendor} ]; then
+			continue
+		fi
+		. ${LIBEXEC_PATH}/pci_${class}_${vendor}
+
+		pci_${class}_${vendor} ${device}
+	done
+	IFS=${oldifs}
+}
