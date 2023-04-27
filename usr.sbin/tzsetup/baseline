@@ -19,10 +19,10 @@ AQ:Antarctica
   Antarctica:Antarctica/Palmer
   Antarctica:Antarctica/Rothera
   Antarctica:Antarctica/Troll
-  Asia:Asia/Urumqi
-  Pacific:Pacific/Auckland
-  Pacific:Pacific/Port_Moresby
-  Asia:Asia/Riyadh
+  Antarctica:Asia/Urumqi
+  Antarctica:Pacific/Auckland
+  Antarctica:Pacific/Port_Moresby
+  Antarctica:Asia/Riyadh
 AG:Antigua and Barbuda
   America:America/Puerto_Rico
 AR:Argentina
@@ -159,13 +159,13 @@ CN:China
   Asia:Asia/Shanghai
   Asia:Asia/Urumqi
 CX:Christmas Island
-  Asia:Asia/Bangkok
+  Indian:Asia/Bangkok
 CC:Cocos (Keeling) Islands
-  Asia:Asia/Yangon
+  Indian:Asia/Yangon
 CO:Colombia
   America:America/Bogota
 KM:Comoros
-  Africa:Africa/Nairobi
+  Indian:Africa/Nairobi
 CG:Congo
   Africa:Africa/Lagos
 CD:Congo, Democratic Republic of the
@@ -280,7 +280,7 @@ HK:Hong Kong
 HU:Hungary
   Europe:Europe/Budapest
 IS:Iceland
-  Africa:Africa/Abidjan
+  Atlantic:Africa/Abidjan
 IN:India
   Asia:Asia/Kolkata
 ID:Indonesia
@@ -353,7 +353,7 @@ MO:Macao
 MK:Macedonia (the former Yugoslav Republic of)
   Europe:Europe/Belgrade
 MG:Madagascar
-  Africa:Africa/Nairobi
+  Indian:Africa/Nairobi
 MW:Malawi
   Africa:Africa/Maputo
 MY:Malaysia
@@ -375,7 +375,7 @@ MR:Mauritania
 MU:Mauritius
   Indian:Indian/Mauritius
 YT:Mayotte
-  Africa:Africa/Nairobi
+  Indian:Africa/Nairobi
 MX:Mexico
   America:America/Mexico_City
   America:America/Cancun
@@ -507,7 +507,7 @@ RE:Réunion
 BL:Saint Barthélemy
   America:America/Puerto_Rico
 SH:Saint Helena Ascension and Tristan da Cunha
-  Africa:Africa/Abidjan
+  Atlantic:Africa/Abidjan
 KN:Saint Kitts and Nevis
   America:America/Puerto_Rico
 LC:Saint Lucia
@@ -563,7 +563,7 @@ SD:Sudan
 SR:Suriname
   America:America/Paramaribo
 SJ:Svalbard and Jan Mayen
-  Europe:Europe/Berlin
+  Arctic:Europe/Berlin
 SE:Sweden
   Europe:Europe/Berlin
 CH:Switzerland
