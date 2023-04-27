@@ -144,6 +144,9 @@ const struct jedec_dimm_tsod_dev {
 	{ 0x104a, 0x03, "ST Microelectronics TSOD" },
 };
 
+static int jedec_dimm_adjust_offset(struct jedec_dimm_softc *sc,
+    uint16_t orig_offset, uint16_t *new_offset, bool *page_changed);
+
 static int jedec_dimm_attach(device_t dev);
 
 static int jedec_dimm_capacity(struct jedec_dimm_softc *sc, enum dram_type type,
@@ -164,10 +167,80 @@ static int jedec_dimm_probe(device_t dev);
 static int jedec_dimm_readw_be(struct jedec_dimm_softc *sc, uint8_t reg,
     uint16_t *val);
 
+static int jedec_dimm_reset_page0(struct jedec_dimm_softc *sc);
+
 static int jedec_dimm_temp_sysctl(SYSCTL_HANDLER_ARGS);
 
 static const char *jedec_dimm_tsod_match(uint16_t vid, uint16_t did);
 
+
+/**
+ * The DDR4 SPD information is spread across two 256-byte pages, but the
+ * offsets in the spec are absolute, not per-page. If a given offset is on the
+ * second page, we need to change to that page and adjust the offset to be
+ * relative to that page.
+ *
+ * @author rpokala
+ *
+ * @param[in] sc
+ *      Instance-specific context data
+ *
+ * @param[in] orig_offset
+ *      The original value of the offset, before any adjustment is made.
+ *
+ * @param[out] new_offset
+ *      The offset to actually read from, adjusted if needed.
+ *
+ * @param[out] page_changed
+ *      Whether or not the page was actually changed, and the offset adjusted.
+ *      *If 'true', caller must call reset_page0() before itself returning.*
+ */
+static int
+jedec_dimm_adjust_offset(struct jedec_dimm_softc *sc, uint16_t orig_offset,
+	uint16_t *new_offset, bool *page_changed)
+{
+	int rc;
+
+	/* Don't change the offset, or indicate that the page has been changed,
+	 * until the page has actually been changed.
+	 */
+	*new_offset = orig_offset;
+	*page_changed = false;
+
+	/* Change to the proper page. Offsets [0, 255] are in page0; offsets
+	 * [256, 511] are in page1.
+	 */
+	if (orig_offset < JEDEC_SPD_PAGE_SIZE) {
+		/* Within page0; no adjustment or page-change required. */
+		rc = 0;
+		goto out;
+	} else if (orig_offset >= (2 * JEDEC_SPD_PAGE_SIZE)) {
+		/* Outside of expected range. */
+		rc = EINVAL;
+		device_printf(sc->dev, "invalid offset 0x%04x\n", orig_offset);
+		goto out;
+	}
+
+	/* 'orig_offset' is in page1. Switch to that page, and adjust
+	 * 'new_offset' accordingly if successful.
+	 *
+	 * For the page-change operation, only the DTI and LSA matter; the
+	 * offset and write-value are ignored, so just use 0.
+	 */
+	rc = smbus_writeb(sc->smbus, (JEDEC_DTI_PAGE | JEDEC_LSA_PAGE_SET1),
+	    0, 0);
+	if (rc != 0) {
+		device_printf(sc->dev,
+		    "unable to change page for offset 0x%04x: %d\n",
+		    orig_offset, rc);
+		goto out;
+	}
+	*page_changed = true;
+	*new_offset = orig_offset - JEDEC_SPD_PAGE_SIZE;
+
+out:
+	return (rc);
+}
 
 /**
  * device_attach() method. Read the DRAM type, use that to determine the offsets
@@ -458,9 +531,7 @@ jedec_dimm_capacity(struct jedec_dimm_softc *sc, enum dram_type type,
 		sdram_width_offset = SPD_OFFSET_DDR4_SDRAM_WIDTH;
 		break;
 	default:
-		device_printf(sc->dev, "unsupported dram_type 0x%02x\n", type);
-		rc = EINVAL;
-		goto out;
+		__assert_unreachable();
 	}
 
 	rc = smbus_readb(sc->smbus, sc->spd_addr, bus_width_offset,
@@ -673,14 +744,13 @@ jedec_dimm_dump(struct jedec_dimm_softc *sc, enum dram_type type)
 out:
 	if (page_changed) {
 		int rc2;
-		/* Switch back to page0 before returning. */
-		rc2 = smbus_writeb(sc->smbus,
-		    (JEDEC_DTI_PAGE | JEDEC_LSA_PAGE_SET0), 0, 0);
-		if (rc2 != 0) {
-			device_printf(sc->dev, "unable to restore page: %d\n",
-			    rc2);
+
+		rc2 = jedec_dimm_reset_page0(sc);
+		if ((rc2 != 0) && (rc == 0)) {
+			rc = rc2;
 		}
 	}
+
 	return (rc);
 }
 
@@ -715,54 +785,29 @@ jedec_dimm_field_to_str(struct jedec_dimm_softc *sc, char *dst, size_t dstsz,
     uint16_t offset, uint16_t len, bool ascii)
 {
 	uint8_t byte;
+	uint16_t new_offset;
 	int i;
 	int rc;
 	bool page_changed;
 
-	/* Change to the proper page. Offsets [0, 255] are in page0; offsets
-	 * [256, 512] are in page1.
-	 *
-	 * *The page must be reset to page0 before returning.*
-	 *
-	 * For the page-change operation, only the DTI and LSA matter; the
-	 * offset and write-value are ignored, so use just 0.
-	 *
-	 * Mercifully, JEDEC defined the fields such that none of them cross
-	 * pages, so we don't need to worry about that complication.
-	 */
-	if (offset < JEDEC_SPD_PAGE_SIZE) {
-		page_changed = false;
-	} else if (offset < (2 * JEDEC_SPD_PAGE_SIZE)) {
-		page_changed = true;
-		rc = smbus_writeb(sc->smbus,
-		    (JEDEC_DTI_PAGE | JEDEC_LSA_PAGE_SET1), 0, 0);
-		if (rc != 0) {
-			device_printf(sc->dev,
-			    "unable to change page for offset 0x%04x: %d\n",
-			    offset, rc);
-		}
-		/* Adjust the offset to account for the page change. */
-		offset -= JEDEC_SPD_PAGE_SIZE;
-	} else {
-		page_changed = false;
-		rc = EINVAL;
-		device_printf(sc->dev, "invalid offset 0x%04x\n", offset);
+	rc = jedec_dimm_adjust_offset(sc, offset, &new_offset, &page_changed);
+	if (rc != 0) {
 		goto out;
 	}
 
 	/* Sanity-check (adjusted) offset and length; everything must be within
 	 * the same page.
 	 */
-	if (offset >= JEDEC_SPD_PAGE_SIZE) {
+	if (new_offset >= JEDEC_SPD_PAGE_SIZE) {
 		rc = EINVAL;
-		device_printf(sc->dev, "invalid offset 0x%04x\n", offset);
+		device_printf(sc->dev, "invalid offset 0x%04x\n", new_offset);
 		goto out;
 	}
-	if ((offset + len) >= JEDEC_SPD_PAGE_SIZE) {
+	if ((new_offset + len) >= JEDEC_SPD_PAGE_SIZE) {
 		rc = EINVAL;
 		device_printf(sc->dev,
-		    "(offset + len) would cross page (0x%04x + 0x%04x)\n",
-		    offset, len);
+		    "(new_offset + len) would cross page (0x%04x + 0x%04x)\n",
+		    new_offset, len);
 		goto out;
 	}
 
@@ -793,11 +838,12 @@ jedec_dimm_field_to_str(struct jedec_dimm_softc *sc, char *dst, size_t dstsz,
 
 	/* Read a byte at a time. */
 	for (i = 0; i < len; i++) {
-		rc = smbus_readb(sc->smbus, sc->spd_addr, (offset + i), &byte);
+		rc = smbus_readb(sc->smbus, sc->spd_addr, (new_offset + i),
+		    &byte);
 		if (rc != 0) {
 			device_printf(sc->dev,
 			    "failed to read byte at 0x%02x: %d\n",
-			    (offset + i), rc);
+			    (new_offset + i), rc);
 			goto out;
 		}
 		if (ascii) {
@@ -827,13 +873,10 @@ jedec_dimm_field_to_str(struct jedec_dimm_softc *sc, char *dst, size_t dstsz,
 out:
 	if (page_changed) {
 		int rc2;
-		/* Switch back to page0 before returning. */
-		rc2 = smbus_writeb(sc->smbus,
-		    (JEDEC_DTI_PAGE | JEDEC_LSA_PAGE_SET0), 0, 0);
-		if (rc2 != 0) {
-			device_printf(sc->dev,
-			    "unable to restore page for offset 0x%04x: %d\n",
-			    offset, rc2);
+
+		rc2 = jedec_dimm_reset_page0(sc);
+		if ((rc2 != 0) && (rc == 0)) {
+			rc = rc2;
 		}
 	}
 
@@ -880,10 +923,7 @@ jedec_dimm_mfg_date(struct jedec_dimm_softc *sc, enum dram_type type,
 		week_offset = SPD_OFFSET_DDR4_MOD_MFG_WEEK;
 		break;
 	default:
-		device_printf(sc->dev, "unsupported dram_type 0x%02x\n", type);
-		rc = EINVAL;
-		page_changed = false;
-		goto out;
+		__assert_unreachable();
 	}
 
 	/* Change to the proper page. Offsets [0, 255] are in page0; offsets
@@ -1038,6 +1078,32 @@ jedec_dimm_readw_be(struct jedec_dimm_softc *sc, uint8_t reg, uint16_t *val)
 	*val = be16toh(*val);
 
 out:
+	return (rc);
+}
+
+/**
+ * Reset to the default condition of operating on page0. This must be called
+ * after a previous operation changed to page1.
+ *
+ * @author rpokala
+ *
+ * @param[in] sc
+ *      Instance-specific context data
+ */
+static int
+jedec_dimm_reset_page0(struct jedec_dimm_softc *sc)
+{
+	int rc;
+
+	/* For the page-change operation, only the DTI and LSA matter; the
+	 * offset and write-value are ignored, so just use 0.
+	 */
+	rc = smbus_writeb(sc->smbus, (JEDEC_DTI_PAGE | JEDEC_LSA_PAGE_SET0),
+	    0, 0);
+	if (rc != 0) {
+		device_printf(sc->dev, "unable to restore page: %d\n", rc);
+	}
+
 	return (rc);
 }
 
