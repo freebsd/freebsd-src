@@ -3055,11 +3055,11 @@ wg_module_event_handler(module_t mod, int what, void *arg)
 }
 
 static moduledata_t wg_moduledata = {
-	wgname,
+	"if_wg",
 	wg_module_event_handler,
 	NULL
 };
 
-DECLARE_MODULE(wg, wg_moduledata, SI_SUB_PSEUDO, SI_ORDER_ANY);
-MODULE_VERSION(wg, WIREGUARD_VERSION);
-MODULE_DEPEND(wg, crypto, 1, 1, 1);
+DECLARE_MODULE(if_wg, wg_moduledata, SI_SUB_PSEUDO, SI_ORDER_ANY);
+MODULE_VERSION(if_wg, WIREGUARD_VERSION);
+MODULE_DEPEND(if_wg, crypto, 1, 1, 1);
