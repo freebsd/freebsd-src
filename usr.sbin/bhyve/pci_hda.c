@@ -324,7 +324,7 @@ hda_init(nvlist_t *nvl)
 	int err;
 
 #if DEBUG_HDA == 1
-	dbg = fopen("/tmp/bhyve_hda.log", "w+");
+	dbg = fopen(DEBUG_HDA_FILE, "w+");
 #endif
 
 	sc = calloc(1, sizeof(*sc));
