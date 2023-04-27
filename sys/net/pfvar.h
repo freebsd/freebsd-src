@@ -60,6 +60,7 @@
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
+#include <netinet/sctp.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/icmp6.h>
 #endif
@@ -1541,6 +1542,7 @@ struct pf_pdesc {
 	union pf_headers {
 		struct tcphdr		tcp;
 		struct udphdr		udp;
+		struct sctphdr		sctp;
 		struct icmp		icmp;
 #ifdef INET6
 		struct icmp6_hdr	icmp6;
@@ -1570,6 +1572,15 @@ struct pf_pdesc {
 	u_int8_t	 dir;		/* direction */
 	u_int8_t	 sidx;		/* key index for source */
 	u_int8_t	 didx;		/* key index for destination */
+#define PFDESC_SCTP_INIT	0x0001
+#define PFDESC_SCTP_INIT_ACK	0x0002
+#define PFDESC_SCTP_COOKIE	0x0004
+#define PFDESC_SCTP_ABORT	0x0008
+#define PFDESC_SCTP_SHUTDOWN	0x0010
+#define PFDESC_SCTP_SHUTDOWN_COMPLETE	0x0020
+#define PFDESC_SCTP_DATA	0x0040
+#define PFDESC_SCTP_OTHER	0x0080
+	u_int16_t	 sctp_flags;
 };
 #endif
 
@@ -2270,6 +2281,8 @@ int	pf_normalize_tcp_init(struct mbuf *, int, struct pf_pdesc *,
 int	pf_normalize_tcp_stateful(struct mbuf *, int, struct pf_pdesc *,
 	    u_short *, struct tcphdr *, struct pf_kstate *,
 	    struct pf_state_peer *, struct pf_state_peer *, int *);
+int	pf_normalize_sctp(int, struct pfi_kkif *, struct mbuf *, int,
+	    int, void *, struct pf_pdesc *);
 u_int32_t
 	pf_state_expires(const struct pf_kstate *);
 void	pf_purge_expired_fragments(void);

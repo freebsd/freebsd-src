@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #define TCPSTATES
 #include <netinet/tcp_fsm.h>
+#include <netinet/sctp.h>
 #include <net/pfvar.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -206,6 +207,36 @@ print_seq(struct pfctl_state_peer *p)
 		    p->seqhi - p->seqlo);
 }
 
+
+static const char *
+sctp_state_name(int state)
+{
+	switch (state) {
+	case SCTP_CLOSED:
+		return ("CLOSED");
+	case SCTP_BOUND:
+		return ("BOUND");
+	case SCTP_LISTEN:
+		return ("LISTEN");
+	case SCTP_COOKIE_WAIT:
+		return ("COOKIE_WAIT");
+	case SCTP_COOKIE_ECHOED:
+		return ("COOKIE_ECHOED");
+	case SCTP_ESTABLISHED:
+		return ("ESTABLISHED");
+	case SCTP_SHUTDOWN_SENT:
+		return ("SHUTDOWN_SENT");
+	case SCTP_SHUTDOWN_RECEIVED:
+		return ("SHUTDOWN_RECEIVED");
+	case SCTP_SHUTDOWN_ACK_SENT:
+		return ("SHUTDOWN_ACK_SENT");
+	case SCTP_SHUTDOWN_PENDING:
+		return ("SHUTDOWN_PENDING");
+	default:
+		return ("?");
+	}
+}
+
 void
 print_state(struct pfctl_state *s, int opts)
 {
@@ -300,6 +331,9 @@ print_state(struct pfctl_state *s, int opts)
 		const char *states[] = PFUDPS_NAMES;
 
 		printf("   %s:%s\n", states[src->state], states[dst->state]);
+	} else if (proto == IPPROTO_SCTP) {
+		printf("   %s:%s\n", sctp_state_name(src->state),
+		    sctp_state_name(dst->state));
 #ifndef INET6
 	} else if (proto != IPPROTO_ICMP && src->state < PFOTHERS_NSTATES &&
 	    dst->state < PFOTHERS_NSTATES) {
