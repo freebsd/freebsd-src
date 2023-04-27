@@ -8,6 +8,16 @@ how to build different parts of the project, etc. The
 [developer's handbook](https://docs.freebsd.org/en/books/developers-handbook/)
 is another useful resource.
 
+FreeBSD accepts source code contributions using one of several methods:
+- A GitHub [pull request](https://github.com/freebsd/freebsd-src/pulls)
+- A code review in [Phabricator](https://reviews.freebsd.org/differential)
+- An attachment on a [Bugzilla ticket](https://bugs.freebsd.org)
+- Direct access to the [Git repository](https://cgit.freebsd.org/src/)
+
+The preferred method depends on a few factors including the size or scope of
+the change.  GitHub pull requests are preferred for relatively straightforward
+changes where the contributor already has a GitHub account.
+
 ## GitHub Pull Requests
 
 Presently, GitHub 'freebsd-src' repository is one of the publish-only services
