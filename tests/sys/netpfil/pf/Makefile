@@ -31,6 +31,7 @@ ATF_TESTS_SH+=	altq \
 		rules_counter \
 		scrub_compat \
 		scrub_pass \
+		sctp \
 		set_skip \
 		set_tos \
 		src_track \
