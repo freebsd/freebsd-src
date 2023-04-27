@@ -290,6 +290,9 @@ static int		 pf_test_state_udp(struct pf_kstate **, int,
 static int		 pf_test_state_icmp(struct pf_kstate **, int,
 			    struct pfi_kkif *, struct mbuf *, int,
 			    void *, struct pf_pdesc *, u_short *);
+static int		 pf_test_state_sctp(struct pf_kstate **,
+			    struct pfi_kkif *, struct mbuf *, int,
+			    void *, struct pf_pdesc *, u_short *);
 static int		 pf_test_state_other(struct pf_kstate **, int,
 			    struct pfi_kkif *, struct mbuf *, struct pf_pdesc *);
 static u_int16_t	 pf_calc_mss(struct pf_addr *, sa_family_t,
@@ -3700,6 +3703,11 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, int direction,
 		dport = pd->hdr.udp.uh_dport;
 		hdrlen = sizeof(pd->hdr.udp);
 		break;
+	case IPPROTO_SCTP:
+		sport = pd->hdr.sctp.src_port;
+		dport = pd->hdr.sctp.dest_port;
+		hdrlen = sizeof(pd->hdr.sctp);
+		break;
 #ifdef INET
 	case IPPROTO_ICMP:
 		if (pd->af != AF_INET)
@@ -4137,6 +4145,11 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 		pf_set_protostate(s, PF_PEER_SRC, PFUDPS_SINGLE);
 		pf_set_protostate(s, PF_PEER_DST, PFUDPS_NO_TRAFFIC);
 		s->timeout = PFTM_UDP_FIRST_PACKET;
+		break;
+	case IPPROTO_SCTP:
+		pf_set_protostate(s, PF_PEER_SRC, SCTP_COOKIE_WAIT);
+		pf_set_protostate(s, PF_PEER_DST, SCTP_CLOSED);
+		s->timeout = PFTM_TCP_FIRST_PACKET;
 		break;
 	case IPPROTO_ICMP:
 #ifdef INET6
@@ -5694,6 +5707,66 @@ pf_test_state_icmp(struct pf_kstate **state, int direction, struct pfi_kkif *kif
 }
 
 static int
+pf_test_state_sctp(struct pf_kstate **state, struct pfi_kkif *kif,
+    struct mbuf *m, int off, void *h, struct pf_pdesc *pd, u_short *reason)
+{
+	struct pf_state_key_cmp	 key;
+	struct pf_state_peer	*src; //, *dst;
+	struct sctphdr		*sh = &pd->hdr.sctp;
+	u_int8_t		 psrc; //, pdst;
+
+	bzero(&key, sizeof(key));
+	key.af = pd->af;
+	key.proto = IPPROTO_SCTP;
+	if (pd->dir == PF_IN)	{	/* wire side, straight */
+		PF_ACPY(&key.addr[0], pd->src, key.af);
+		PF_ACPY(&key.addr[1], pd->dst, key.af);
+		key.port[0] = sh->src_port;
+		key.port[1] = sh->dest_port;
+	} else {			/* stack side, reverse */
+		PF_ACPY(&key.addr[1], pd->src, key.af);
+		PF_ACPY(&key.addr[0], pd->dst, key.af);
+		key.port[1] = sh->src_port;
+		key.port[0] = sh->dest_port;
+	}
+
+	STATE_LOOKUP(kif, &key, pd->dir, *state, pd);
+
+	if (pd->dir == (*state)->direction) {
+		src = &(*state)->src;
+		psrc = PF_PEER_SRC;
+	} else {
+		src = &(*state)->dst;
+		psrc = PF_PEER_DST;
+	}
+
+	/* Track state. */
+	if (pd->sctp_flags & PFDESC_SCTP_INIT) {
+		if (src->state < SCTP_COOKIE_WAIT) {
+			pf_set_protostate(*state, psrc, SCTP_COOKIE_WAIT);
+			(*state)->timeout = PFTM_TCP_OPENING;
+		}
+	}
+	if (pd->sctp_flags & PFDESC_SCTP_COOKIE) {
+		if (src->state < SCTP_ESTABLISHED) {
+			pf_set_protostate(*state, psrc, SCTP_ESTABLISHED);
+			(*state)->timeout = PFTM_TCP_ESTABLISHED;
+		}
+	}
+	if (pd->sctp_flags & (PFDESC_SCTP_SHUTDOWN | PFDESC_SCTP_ABORT |
+	    PFDESC_SCTP_SHUTDOWN_COMPLETE)) {
+		if (src->state < SCTP_SHUTDOWN_PENDING) {
+			pf_set_protostate(*state, psrc, SCTP_SHUTDOWN_PENDING);
+			(*state)->timeout = PFTM_TCP_CLOSING;
+		}
+	}
+
+	(*state)->expire = time_uptime;
+
+	return (PF_PASS);
+}
+
+static int
 pf_test_state_other(struct pf_kstate **state, int direction, struct pfi_kkif *kif,
     struct mbuf *m, struct pf_pdesc *pd)
 {
@@ -6550,6 +6623,36 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb *
 		break;
 	}
 
+	case IPPROTO_SCTP: {
+		if (!pf_pull_hdr(m, off, &pd.hdr.sctp, sizeof(pd.hdr.sctp),
+		    &action, &reason, AF_INET)) {
+			log = action != PF_PASS;
+			goto done;
+		}
+		pd.sport = &pd.hdr.sctp.src_port;
+		pd.dport = &pd.hdr.sctp.dest_port;
+		if (pd.hdr.sctp.src_port == 0 || pd.hdr.sctp.dest_port == 0) {
+			action = PF_DROP;
+			REASON_SET(&reason, PFRES_SHORT);
+			goto done;
+		}
+		action = pf_normalize_sctp(dir, kif, m, 0, off, h, &pd);
+		if (action == PF_DROP)
+			goto done;
+		action = pf_test_state_sctp(&s, kif, m, off, h, &pd,
+		    &reason);
+		if (action == PF_PASS) {
+			if (V_pfsync_update_state_ptr != NULL)
+				V_pfsync_update_state_ptr(s);
+			r = s->rule.ptr;
+			a = s->anchor.ptr;
+		} else {
+			action = pf_test_rule(&r, &s, pd.dir, kif, m, off,
+			    &pd, &a, &ruleset, inp);
+		}
+		break;
+	}
+
 	case IPPROTO_ICMP: {
 		if (!pf_pull_hdr(m, off, &pd.hdr.icmp, ICMP_MINLEN,
 		    &action, &reason, AF_INET)) {
@@ -6993,6 +7096,36 @@ pf_test6(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb 
 		} else if (s == NULL)
 			action = pf_test_rule(&r, &s, dir, kif, m, off, &pd,
 			    &a, &ruleset, inp);
+		break;
+	}
+
+	case IPPROTO_SCTP: {
+		if (!pf_pull_hdr(m, off, &pd.hdr.sctp, sizeof(pd.hdr.sctp),
+		    &action, &reason, AF_INET6)) {
+			log = action != PF_PASS;
+			goto done;
+		}
+		pd.sport = &pd.hdr.sctp.src_port;
+		pd.dport = &pd.hdr.sctp.dest_port;
+		if (pd.hdr.sctp.src_port == 0 || pd.hdr.sctp.dest_port == 0) {
+			action = PF_DROP;
+			REASON_SET(&reason, PFRES_SHORT);
+			goto done;
+		}
+		action = pf_normalize_sctp(dir, kif, m, 0, off, h, &pd);
+		if (action == PF_DROP)
+			goto done;
+		action = pf_test_state_sctp(&s, kif, m, off, h, &pd,
+		    &reason);
+		if (action == PF_PASS) {
+			if (V_pfsync_update_state_ptr != NULL)
+				V_pfsync_update_state_ptr(s);
+			r = s->rule.ptr;
+			a = s->anchor.ptr;
+		} else {
+			action = pf_test_rule(&r, &s, pd.dir, kif, m, off,
+			    &pd, &a, &ruleset, inp);
+		}
 		break;
 	}
 
