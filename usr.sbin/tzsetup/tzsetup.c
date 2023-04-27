@@ -67,7 +67,7 @@ __FBSDID("$FreeBSD$");
 #define	_PATH_WALL_CMOS_CLOCK	"/etc/wall_cmos_clock"
 
 #ifdef PATH_MAX
-#define	SILLY_BUFFER_SIZE	2*PATH_MAX
+#define	SILLY_BUFFER_SIZE	(2 * PATH_MAX)
 #else
 #warning "Somebody needs to fix this to dynamically size this buffer."
 #define	SILLY_BUFFER_SIZE	2048
@@ -858,7 +858,7 @@ main(int argc, char **argv)
 		skiputc = 1;
 
 	while ((c = getopt(argc, argv, "C:d:nrs")) != -1) {
-		switch(c) {
+		switch (c) {
 		case 'C':
 			chrootenv = optarg;
 			break;
