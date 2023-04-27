@@ -58,12 +58,7 @@
 
 #else
 
-/*
- * XXX kfpu_allowed() should be 1, but this is pending a fix to the BLAKE3
- * generated assembly to avoid clobbering x18.  Turn it back on after that
- * lands.
- */
-#define	kfpu_allowed()		0
+#define	kfpu_allowed()		1
 #define	kfpu_begin() do {						\
 	if (__predict_false(!is_fpu_kern_thread(0)))			\
 		fpu_kern_enter(curthread, NULL, FPU_KERN_NOCTX);	\
