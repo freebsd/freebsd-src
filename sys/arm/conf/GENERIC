@@ -43,9 +43,6 @@ files		"../mv/files.arm7"
 files		"../nvidia/tegra124/files.tegra124"
 files		"../qemu/files.qemu"
 files		"../rockchip/files.rk32xx"
-files		"../ti/files.ti"
-files		"../ti/am335x/files.am335x"
-files		"../ti/omap4/files.omap4"
 files		"../xilinx/files.zynq7"
 
 options 	SOC_ALLWINNER_A10
@@ -140,12 +137,6 @@ device		bcm2835_bsc
 device		fsliic			# Freescale i2c/iic
 device		icee			# AT24Cxxx and compatible EEPROMs
 device		sy8106a			# SY8106A Buck Regulator
-device		ti_i2c
-device		am335x_pmic		# AM335x Power Management IC (TPC65217)
-device		am335x_rtc		# RTC support (power management only)
-device		twl			# TI TWLX0X0/TPS659x0 Power Management
-device		twl_vreg		# twl voltage regulation
-device		twl_clks		# twl external clocks
 
 # i2c RTCs
 device		ds1307			# Dallas DS1307 RTC and compatible
@@ -173,11 +164,7 @@ device		spibus
 device		spigen
 device		bcm2835_spi
 device		mv_spi
-device		ti_spi
 device		zy7_qspi		# Xilinx Zynq QSPI controller
-
-# ADC support
-device		ti_adc
 
 # PWM
 device		pwm
@@ -186,7 +173,6 @@ device		pwm
 # If we don't enable the watchdog driver, the BeagleBone could potentially
 # reboot automatically because the boot loader might have enabled the
 # watchdog.
-device		ti_wdt
 device		imxwdt			# Watchdog. WARNING: can't be disabled!!!
 device		aw_wdog			# Allwinner Watchdog
 
@@ -229,7 +215,6 @@ device		miibus
 
 device		awg			# 10/100/1000 integrated EMAC controller
 device		cgem			# Cadence GEM Gigabit Ethernet device
-device		cpsw			# TI Common Platform Ethernet Switch (CPSW)
 device		dwc			# 10/100/1000 integrated GMAC controller
 device		emac			# 10/100 integrated EMAC controller
 device		ffec			# Freescale Fast Ethernet Controller
@@ -251,21 +236,11 @@ device		dwc_hdmi
 device		imx6_hdmi
 device		imx6_ipu
 
-# TDA19988 HDMI Encoder
-device		tda19988
-
 # Pinmux
 device		fdt_pinctrl
 
-# TI Programmable Realtime Unit support
-device		ti_pruss
-
-# Mailbox support
-device		ti_mbox
-
 # DMA controller
 device		fslsdma
-device		ti_sdma
 device		a10_dmac
 device		a31_dmac
 
@@ -303,6 +278,4 @@ makeoptions	MODULES_EXTRA+="dtb/zynq"
 
 # SOC-specific modules
 makeoptions	MODULES_EXTRA+="allwinner"
-makeoptions	MODULES_EXTRA+="arm_ti"
 makeoptions	MODULES_EXTRA+="imx"
-
