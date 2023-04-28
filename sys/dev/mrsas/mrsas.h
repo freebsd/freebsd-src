@@ -998,7 +998,7 @@ typedef struct _MR_FW_RAID_MAP_EXT {
 
 typedef struct _MR_DRV_RAID_MAP {
 	/*
-	 * Total size of this structure, including this field. This feild
+	 * Total size of this structure, including this field. This field
 	 * will be manupulated by driver for ext raid map, else pick the
 	 * value from firmware raid map.
 	 */
