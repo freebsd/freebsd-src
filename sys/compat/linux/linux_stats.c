@@ -222,9 +222,9 @@ linux_newfstat(struct thread *td, struct linux_newfstat_args *args)
 
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 static int
-stat_copyout(struct stat *buf, void *ubuf)
+old_stat_copyout(struct stat *buf, void *ubuf)
 {
-	struct l_stat lbuf;
+	struct l_old_stat lbuf;
 
 	bzero(&lbuf, sizeof(lbuf));
 	lbuf.st_dev = dev_to_ldev(buf->st_dev);
@@ -266,7 +266,7 @@ linux_stat(struct thread *td, struct linux_stat_args *args)
 	if (error) {
 		return (error);
 	}
-	return (stat_copyout(&buf, args->up));
+	return (old_stat_copyout(&buf, args->up));
 }
 
 int
@@ -286,7 +286,7 @@ linux_lstat(struct thread *td, struct linux_lstat_args *args)
 	if (error) {
 		return (error);
 	}
-	return (stat_copyout(&buf, args->up));
+	return (old_stat_copyout(&buf, args->up));
 }
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
