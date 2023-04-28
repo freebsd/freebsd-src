@@ -924,7 +924,6 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 
 	if (map == NULL)
 		goto out;
-	kmsan_bus_dmamap_sync(&map->kmsan_mem, op);
 	if ((bpage = STAILQ_FIRST(&map->bpages)) == NULL)
 		goto out;
 
@@ -1018,6 +1017,8 @@ next_r:
 	}
 out:
 	atomic_thread_fence_rel();
+	if (map != NULL)
+		kmsan_bus_dmamap_sync(&map->kmsan_mem, op);
 }
 
 #ifdef KMSAN
