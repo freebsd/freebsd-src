@@ -55,7 +55,6 @@ typedef char		*l_caddr_t;
 typedef l_ulong		l_uintptr_t;
 typedef l_long		l_clock_t;
 typedef l_int		l_daddr_t;
-typedef l_ushort	l_dev_t;
 typedef l_uint		l_gid_t;
 typedef l_ushort	l_gid16_t;
 typedef l_ulong		l_ino_t;
