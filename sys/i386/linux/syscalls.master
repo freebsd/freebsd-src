@@ -189,12 +189,7 @@
 		    l_uint secs
 		);
 	}
-28	AUE_FSTAT	STD {
-		int linux_fstat(
-		    l_uint fd,
-		    struct linux_stat *up
-		);
-	}
+28	AUE_NULL	UNIMPL	fstat
 29	AUE_NULL	STD {
 		int linux_pause(void);
 	}
