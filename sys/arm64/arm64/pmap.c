@@ -3295,6 +3295,18 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 }
 
 /*
+ *	Remove the given range of addresses as part of a logical unmap
+ *	operation. This has the effect of calling pmap_remove(), but
+ *	also clears any metadata that should persist for the lifetime
+ *	of a logical mapping.
+ */
+void
+pmap_map_delete(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+{
+	pmap_remove(pmap, sva, eva);
+}
+
+/*
  *	Routine:	pmap_remove_all
  *	Function:
  *		Removes this physical page from
