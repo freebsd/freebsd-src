@@ -172,7 +172,8 @@ struct l_newstat {
 	l_ulong		__unused5;
 };
 
-struct l_stat {
+/* __old_kernel_stat now */
+struct l_old_stat {
 	l_ushort	st_dev;
 	l_ulong		st_ino;
 	l_ushort	st_mode;
