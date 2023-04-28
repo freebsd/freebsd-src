@@ -55,6 +55,10 @@ struct mrsas_passthru_cmd {
 	int complete;
 };
 
+#ifndef PTRIN
+#define PTRIN(p) ((void *)(uintptr_t)(p))
+#endif
+
 /*
  * Function prototypes
  */
