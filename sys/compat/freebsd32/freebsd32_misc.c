@@ -2284,8 +2284,7 @@ ofreebsd32_stat(struct thread *td, struct ofreebsd32_stat_args *uap)
 	struct ostat32 sb32;
 	int error;
 
-	error = kern_statat(td, 0, AT_FDCWD, uap->path, UIO_USERSPACE,
-	    &sb, NULL);
+	error = kern_statat(td, 0, AT_FDCWD, uap->path, UIO_USERSPACE, &sb);
 	if (error)
 		return (error);
 	copy_ostat(&sb, &sb32);
@@ -2334,7 +2333,7 @@ freebsd32_fstatat(struct thread *td, struct freebsd32_fstatat_args *uap)
 	int error;
 
 	error = kern_statat(td, uap->flag, uap->fd, uap->path, UIO_USERSPACE,
-	    &ub, NULL);
+	    &ub);
 	if (error)
 		return (error);
 	copy_stat(&ub, &ub32);
@@ -2351,7 +2350,7 @@ ofreebsd32_lstat(struct thread *td, struct ofreebsd32_lstat_args *uap)
 	int error;
 
 	error = kern_statat(td, AT_SYMLINK_NOFOLLOW, AT_FDCWD, uap->path,
-	    UIO_USERSPACE, &sb, NULL);
+	    UIO_USERSPACE, &sb);
 	if (error)
 		return (error);
 	copy_ostat(&sb, &sb32);
@@ -2469,8 +2468,7 @@ freebsd11_freebsd32_stat(struct thread *td,
 	struct freebsd11_stat32 sb32;
 	int error;
 
-	error = kern_statat(td, 0, AT_FDCWD, uap->path, UIO_USERSPACE,
-	    &sb, NULL);
+	error = kern_statat(td, 0, AT_FDCWD, uap->path, UIO_USERSPACE, &sb);
 	if (error != 0)
 		return (error);
 	error = freebsd11_cvtstat32(&sb, &sb32);
@@ -2505,7 +2503,7 @@ freebsd11_freebsd32_fstatat(struct thread *td,
 	int error;
 
 	error = kern_statat(td, uap->flag, uap->fd, uap->path, UIO_USERSPACE,
-	    &sb, NULL);
+	    &sb);
 	if (error != 0)
 		return (error);
 	error = freebsd11_cvtstat32(&sb, &sb32);
@@ -2523,7 +2521,7 @@ freebsd11_freebsd32_lstat(struct thread *td,
 	int error;
 
 	error = kern_statat(td, AT_SYMLINK_NOFOLLOW, AT_FDCWD, uap->path,
-	    UIO_USERSPACE, &sb, NULL);
+	    UIO_USERSPACE, &sb);
 	if (error != 0)
 		return (error);
 	error = freebsd11_cvtstat32(&sb, &sb32);
@@ -2595,8 +2593,7 @@ freebsd11_freebsd32_nstat(struct thread *td,
 	struct nstat32 nsb;
 	int error;
 
-	error = kern_statat(td, 0, AT_FDCWD, uap->path, UIO_USERSPACE,
-	    &sb, NULL);
+	error = kern_statat(td, 0, AT_FDCWD, uap->path, UIO_USERSPACE, &sb);
 	if (error != 0)
 		return (error);
 	error = freebsd11_cvtnstat32(&sb, &nsb);
@@ -2614,7 +2611,7 @@ freebsd11_freebsd32_nlstat(struct thread *td,
 	int error;
 
 	error = kern_statat(td, AT_SYMLINK_NOFOLLOW, AT_FDCWD, uap->path,
-	    UIO_USERSPACE, &sb, NULL);
+	    UIO_USERSPACE, &sb);
 	if (error != 0)
 		return (error);
 	error = freebsd11_cvtnstat32(&sb, &nsb);

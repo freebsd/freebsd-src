@@ -81,6 +81,7 @@ struct mmap_req {
 	mmap_check_fp_fn	mr_check_fp_fn;
 };
 
+uint64_t at2cnpflags(u_int at_flags, u_int mask);
 int	kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg,
 	    size_t buflen, size_t path_max);
 int	kern_abort2(struct thread *td, const char *why, int nargs,
@@ -319,8 +320,7 @@ int	kern_sigqueue(struct thread *td, pid_t pid, int signum,
 	    union sigval *value);
 int	kern_socket(struct thread *td, int domain, int type, int protocol);
 int	kern_statat(struct thread *td, int flag, int fd, const char *path,
-	    enum uio_seg pathseg, struct stat *sbp,
-	    void (*hook)(struct vnode *vp, struct stat *sbp));
+	    enum uio_seg pathseg, struct stat *sbp);
 int	kern_specialfd(struct thread *td, int type, void *arg);
 int	kern_statfs(struct thread *td, const char *path, enum uio_seg pathseg,
 	    struct statfs *buf);
