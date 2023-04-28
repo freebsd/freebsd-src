@@ -89,7 +89,7 @@ struct linux_lchown16_args {
 };
 struct linux_stat_args {
 	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
-	char up_l_[PADL_(struct linux_stat *)]; struct linux_stat * up; char up_r_[PADR_(struct linux_stat *)];
+	char up_l_[PADL_(struct l_old_stat *)]; struct l_old_stat * up; char up_r_[PADR_(struct l_old_stat *)];
 };
 struct linux_lseek_args {
 	char fdes_l_[PADL_(l_uint)]; l_uint fdes; char fdes_r_[PADR_(l_uint)];
@@ -126,10 +126,6 @@ struct linux_ptrace_args {
 };
 struct linux_alarm_args {
 	char secs_l_[PADL_(l_uint)]; l_uint secs; char secs_r_[PADR_(l_uint)];
-};
-struct linux_fstat_args {
-	char fd_l_[PADL_(l_uint)]; l_uint fd; char fd_r_[PADR_(l_uint)];
-	char up_l_[PADL_(struct linux_stat *)]; struct linux_stat * up; char up_r_[PADR_(struct linux_stat *)];
 };
 struct linux_pause_args {
 	register_t dummy;
@@ -265,7 +261,7 @@ struct linux_symlink_args {
 };
 struct linux_lstat_args {
 	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
-	char up_l_[PADL_(struct l_stat *)]; struct l_stat * up; char up_r_[PADR_(struct l_stat *)];
+	char up_l_[PADL_(struct l_old_stat *)]; struct l_old_stat * up; char up_r_[PADR_(struct l_old_stat *)];
 };
 struct linux_readlink_args {
 	char name_l_[PADL_(char *)]; char * name; char name_r_[PADR_(char *)];
@@ -1716,7 +1712,6 @@ int	linux_getuid16(struct thread *, struct linux_getuid16_args *);
 int	linux_stime(struct thread *, struct linux_stime_args *);
 int	linux_ptrace(struct thread *, struct linux_ptrace_args *);
 int	linux_alarm(struct thread *, struct linux_alarm_args *);
-int	linux_fstat(struct thread *, struct linux_fstat_args *);
 int	linux_pause(struct thread *, struct linux_pause_args *);
 int	linux_utime(struct thread *, struct linux_utime_args *);
 int	linux_access(struct thread *, struct linux_access_args *);
@@ -2130,7 +2125,6 @@ int	linux_mount_setattr(struct thread *, struct linux_mount_setattr_args *);
 #define	LINUX_SYS_AUE_linux_stime	AUE_SETTIMEOFDAY
 #define	LINUX_SYS_AUE_linux_ptrace	AUE_PTRACE
 #define	LINUX_SYS_AUE_linux_alarm	AUE_NULL
-#define	LINUX_SYS_AUE_linux_fstat	AUE_FSTAT
 #define	LINUX_SYS_AUE_linux_pause	AUE_NULL
 #define	LINUX_SYS_AUE_linux_utime	AUE_UTIME
 #define	LINUX_SYS_AUE_linux_access	AUE_ACCESS
