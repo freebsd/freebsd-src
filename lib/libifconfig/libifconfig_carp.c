@@ -55,7 +55,7 @@ static struct snl_attr_parser ap_carp_get[] = {
 	{ .type = CARP_NL_STATE, .off = _OUT(carpr_state), .cb = snl_attr_get_uint32 },
 	{ .type = CARP_NL_ADVBASE, .off = _OUT(carpr_advbase), .cb = snl_attr_get_int32 },
 	{ .type = CARP_NL_ADVSKEW, .off = _OUT(carpr_advskew), .cb = snl_attr_get_int32 },
-	{ .type = CARP_NL_KEY, .off = _OUT(carpr_key), .cb = snl_attr_get_string },
+	{ .type = CARP_NL_KEY, .off = _OUT(carpr_key), .cb = snl_attr_copy_string, .arg_u32 = CARP_KEY_LEN },
 	{ .type = CARP_NL_ADDR, .off = _OUT(carpr_addr), .cb = snl_attr_get_in_addr },
 	{ .type = CARP_NL_ADDR6, .off = _OUT(carpr_addr6), .cb = snl_attr_get_in6_addr },
 };
@@ -176,6 +176,7 @@ ifconfig_carp_set_info(ifconfig_handle_t *h, const char *name,
 	    &carpr->carpr_addr);
 	snl_add_msg_attr(&nw, CARP_NL_ADDR6, sizeof(carpr->carpr_addr6),
 	    &carpr->carpr_addr6);
+	snl_add_msg_attr_string(&nw, CARP_NL_KEY, carpr->carpr_key);
 
 	hdr = snl_finalize_msg(&nw);
 	if (hdr == NULL) {
