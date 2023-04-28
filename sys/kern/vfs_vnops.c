@@ -3606,33 +3606,33 @@ _Static_assert(_GENERIC_MAXDIRSIZ == sizeof(struct dirent),
     "(see _GENERIC_DIRLEN())");
 
 /*
- * Returns successive directory entries through some caller's provided buffer
+ * Returns successive directory entries through some caller's provided buffer.
  *
  * This function automatically refills the provided buffer with calls to
  * VOP_READDIR() (after MAC permission checks).
  *
- * 'td' is used for credentials and passed to uiomove(). 'dirbuf' is the
- * caller's buffer to fill and 'dirbuflen' its allocated size. 'dirbuf' must be
- * properly aligned to access 'struct dirent' structures and 'dirbuflen' must
- * be greater than GENERIC_MAXDIRSIZ to avoid VOP_READDIR() returning EINVAL
- * (the latter is not a strong guarantee (yet); but EINVAL will always be
- * returned if this requirement is not verified). '*dpp' points to the current
- * directory entry in the buffer and '*len' contains the remaining valid bytes
- * in 'dirbuf' after 'dpp' (including the pointed entry).
+ * 'td' is used for credentials and passed to uiomove().  'dirbuf' is the
+ * caller's buffer to fill and 'dirbuflen' its allocated size.  'dirbuf' must
+ * be properly aligned to access 'struct dirent' structures and 'dirbuflen'
+ * must be greater than GENERIC_MAXDIRSIZ to avoid VOP_READDIR() returning
+ * EINVAL (the latter is not a strong guarantee (yet); but EINVAL will always
+ * be returned if this requirement is not verified).  '*dpp' points to the
+ * current directory entry in the buffer and '*len' contains the remaining
+ * valid bytes in 'dirbuf' after 'dpp' (including the pointed entry).
  *
  * At first call (or when restarting the read), '*len' must have been set to 0,
- * '*off' to 0 (or any valid start offset) and '*eofflag' to 0. There are no
- * more entries as soon as '*len' is 0 after a call that returned 0. Calling
+ * '*off' to 0 (or any valid start offset) and '*eofflag' to 0.  There are no
+ * more entries as soon as '*len' is 0 after a call that returned 0.  Calling
  * again this function after such a condition is considered an error and EINVAL
- * will be returned. Other possible error codes are those of VOP_READDIR(),
+ * will be returned.  Other possible error codes are those of VOP_READDIR(),
  * EINTEGRITY if the returned entries do not pass coherency tests, or EINVAL
- * (bad call). All errors are unrecoverable, i.e., the state ('*len', '*off'
- * and '*eofflag') must be re-initialized before a subsequent call. On error or
- * at end of directory, '*dpp' is reset to NULL.
+ * (bad call).  All errors are unrecoverable, i.e., the state ('*len', '*off'
+ * and '*eofflag') must be re-initialized before a subsequent call.  On error
+ * or at end of directory, '*dpp' is reset to NULL.
  *
  * '*len', '*off' and '*eofflag' are internal state the caller should not
- * tamper with except as explained above. '*off' is the next directory offset
- * to read from to refill the buffer. '*eofflag' is set to 0 or 1 by the last
+ * tamper with except as explained above.  '*off' is the next directory offset
+ * to read from to refill the buffer.  '*eofflag' is set to 0 or 1 by the last
  * internal call to VOP_READDIR() that returned without error, indicating
  * whether it reached the end of the directory, and to 2 by this function after
  * all entries have been read.
@@ -3664,7 +3664,7 @@ vn_dir_next_dirent(struct vnode *vp, struct thread *td,
 
 		/*
 		 * The caller continued to call us after an error (we set dp to
-		 * NULL in a previous iteration). Bail out right now.
+		 * NULL in a previous iteration).  Bail out right now.
 		 */
 		if (__predict_false(dp == NULL))
 			return (EINVAL);
