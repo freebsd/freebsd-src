@@ -77,6 +77,8 @@ _ifconfig_carp_get(ifconfig_handle_t *h, const char *name,
 
 	ifconfig_error_clear(h);
 
+	bzero(carp, sizeof(*carp) * ncarp);
+
 	if (! snl_init(&ss, NETLINK_GENERIC)) {
 		ifconfig_error(h, NETLINK, ENOTSUP);
 		return (-1);
