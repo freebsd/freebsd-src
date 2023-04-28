@@ -138,7 +138,12 @@ struct snl_attr_parser {
 	uint16_t		type;	/* Attribute type */
 	uint16_t		off;	/* field offset in the target structure */
 	snl_parse_attr_f	*cb;	/* parser function to call */
-	const void		*arg;	/* Optional argument parser */
+
+	/* Optional parser argument */
+	union {
+		const void		*arg;
+		const uint32_t		 arg_u32;
+	};
 };
 
 struct snl_hdr_parser {
@@ -586,6 +591,19 @@ snl_attr_get_stringn(struct snl_state *ss, struct nlattr *nla,
 
 	*((char **)target) = buf;
 	return (true);
+}
+
+static inline bool
+snl_attr_copy_string(struct snl_state *ss, struct nlattr *nla,
+    const void *arg, void *target)
+{
+	char *tmp;
+
+	if (snl_attr_get_string(ss, nla, NULL, &tmp)) {
+		strlcpy(target, tmp, (size_t)arg);
+		return (true);
+	}
+	return (false);
 }
 
 static inline bool
