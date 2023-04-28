@@ -2725,7 +2725,7 @@ mps_add_chain(struct mps_command *cm)
 	 *	sgc->Flags = ( MPI2_SGE_FLAGS_CHAIN_ELEMENT | MPI2_SGE_FLAGS_64_BIT_ADDRESSING |
 	 *	            MPI2_SGE_FLAGS_SYSTEM_ADDRESS) << MPI2_SGE_FLAGS_SHIFT
 	 *	This is fine.. because we are not using simple element. In case of 
-	 *	MPI2_SGE_CHAIN64, we have separate Length and Flags feild.
+	 *	MPI2_SGE_CHAIN64, we have separate Length and Flags field.
  	 */
 	sgc->Flags = MPI2_SGE_FLAGS_CHAIN_ELEMENT | MPI2_SGE_FLAGS_64_BIT_ADDRESSING;
 	sgc->Address.High = htole32(chain->chain_busaddr >> 32);
