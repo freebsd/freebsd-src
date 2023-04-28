@@ -180,15 +180,13 @@ struct l_timespec64 {
 };
 
 struct l_newstat {
-	l_ushort	st_dev;
-	l_ushort	__pad1;
+	l_ulong		st_dev;
 	l_ulong		st_ino;
 	l_ushort	st_mode;
 	l_ushort	st_nlink;
 	l_ushort	st_uid;
 	l_ushort	st_gid;
-	l_ushort	st_rdev;
-	l_ushort	__pad2;
+	l_ulong		st_rdev;
 	l_ulong		st_size;
 	l_ulong		st_blksize;
 	l_ulong		st_blocks;
