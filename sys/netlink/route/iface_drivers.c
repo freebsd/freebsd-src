@@ -25,6 +25,7 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_netlink.h"
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
@@ -64,7 +65,7 @@ _DECLARE_DEBUG(LOG_DEBUG);
  * such as state, mtu or description.
  */
 int
-nl_modify_ifp_generic(struct ifnet *ifp, struct nl_parsed_link *lattrs,
+_nl_modify_ifp_generic(struct ifnet *ifp, struct nl_parsed_link *lattrs,
     const struct nlattr_bmask *bm, struct nl_pstate *npt)
 {
 	int error;
@@ -118,7 +119,7 @@ nl_modify_ifp_generic(struct ifnet *ifp, struct nl_parsed_link *lattrs,
  *  IFLA_IFNAME(string)
  */
 void
-nl_store_ifp_cookie(struct nl_pstate *npt, struct ifnet *ifp)
+_nl_store_ifp_cookie(struct nl_pstate *npt, struct ifnet *ifp)
 {
 	int ifname_len = strlen(if_name(ifp));
 	uint32_t ifindex = (uint32_t)ifp->if_index;
