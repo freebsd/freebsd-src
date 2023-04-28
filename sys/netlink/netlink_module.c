@@ -187,6 +187,8 @@ const static struct nl_function_wrapper nl_module = {
 	.nlmsg_get_group_writer = _nlmsg_get_group_writer,
 	.nlmsg_get_chain_writer = _nlmsg_get_chain_writer,
 	.nlmsg_end_dump = _nlmsg_end_dump,
+	.nl_modify_ifp_generic = _nl_modify_ifp_generic,
+	.nl_store_ifp_cookie = _nl_store_ifp_cookie,
 };
 #endif
 
