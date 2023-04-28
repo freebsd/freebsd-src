@@ -29,17 +29,23 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ktrace.h"
+
 #include <sys/param.h>
 #include <sys/capsicum.h>
 #include <sys/dirent.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/stat.h>
 #include <sys/syscallsubr.h>
 #include <sys/tty.h>
 #include <sys/vnode.h>
+#ifdef KTRACE
+#include <sys/ktrace.h>
+#endif
 
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
@@ -57,9 +63,33 @@ static int
 linux_kern_statat(struct thread *td, int flag, int fd, const char *path,
     enum uio_seg pathseg, struct stat *sbp)
 {
+	struct nameidata nd;
+	int error;
 
-	return (kern_statat(td, flag, fd, path, pathseg, sbp,
-	    translate_vnhook_major_minor));
+	if ((flag & ~(AT_SYMLINK_NOFOLLOW | AT_RESOLVE_BENEATH |
+	    AT_EMPTY_PATH)) != 0)
+		return (EINVAL);
+
+	NDINIT_ATRIGHTS(&nd, LOOKUP, at2cnpflags(flag, AT_RESOLVE_BENEATH |
+	    AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH) | LOCKSHARED | LOCKLEAF |
+	    AUDITVNODE1, pathseg, path, fd, &cap_fstat_rights, td);
+
+	if ((error = namei(&nd)) != 0) {
+		if (error == ENOTDIR &&
+		    (nd.ni_resflags & NIRES_EMPTYPATH) != 0)
+			error = kern_fstat(td, fd, sbp);
+		return (error);
+	}
+	error = VOP_STAT(nd.ni_vp, sbp, td->td_ucred, NOCRED, td);
+	if (error == 0)
+		translate_vnhook_major_minor(nd.ni_vp, sbp);
+	NDFREE_PNBUF(&nd);
+	vput(nd.ni_vp);
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_STRUCT))
+		ktrstat_error(sbp, error);
+#endif
+	return (error);
 }
 
 #ifdef LINUX_LEGACY_SYSCALLS

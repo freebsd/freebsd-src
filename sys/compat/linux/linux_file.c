@@ -732,7 +732,7 @@ linux_unlink(struct thread *td, struct linux_unlink_args *args)
 		if (error == EPERM) {
 			/* Introduce POSIX noncompliant behaviour of Linux */
 			if (kern_statat(td, 0, AT_FDCWD, args->path,
-			    UIO_USERSPACE, &st, NULL) == 0) {
+			    UIO_USERSPACE, &st) == 0) {
 				if (S_ISDIR(st.st_mode))
 					error = EISDIR;
 			}
@@ -742,8 +742,8 @@ linux_unlink(struct thread *td, struct linux_unlink_args *args)
 		error = kern_funlinkat(td, AT_FDCWD, path, FD_NONE, UIO_SYSSPACE, 0, 0);
 		if (error == EPERM) {
 			/* Introduce POSIX noncompliant behaviour of Linux */
-			if (kern_statat(td, 0, AT_FDCWD, path, UIO_SYSSPACE, &st,
-			    NULL) == 0) {
+			if (kern_statat(td, 0, AT_FDCWD, path, UIO_SYSSPACE,
+			    &st) == 0) {
 				if (S_ISDIR(st.st_mode))
 					error = EISDIR;
 			}
@@ -769,7 +769,7 @@ linux_unlinkat_impl(struct thread *td, enum uio_seg pathseg, const char *path,
 	if (error == EPERM && !(args->flag & LINUX_AT_REMOVEDIR)) {
 		/* Introduce POSIX noncompliant behaviour of Linux */
 		if (kern_statat(td, AT_SYMLINK_NOFOLLOW, dfd, path,
-		    pathseg, &st, NULL) == 0 && S_ISDIR(st.st_mode))
+		    pathseg, &st) == 0 && S_ISDIR(st.st_mode))
 			error = EISDIR;
 	}
 	return (error);
