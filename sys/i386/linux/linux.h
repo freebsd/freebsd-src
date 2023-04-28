@@ -189,19 +189,18 @@ struct l_old_stat {
 };
 
 struct l_stat64 {
-	l_ushort	st_dev;
-	u_char		__pad0[10];
+	l_ulonglong	st_dev;
+	u_char		__pad0[4];
 	l_ulong		__st_ino;
 	l_uint		st_mode;
 	l_uint		st_nlink;
 	l_ulong		st_uid;
 	l_ulong		st_gid;
-	l_ushort	st_rdev;
-	u_char		__pad3[10];
+	l_ulonglong	st_rdev;
+	u_char		__pad3[4];
 	l_longlong	st_size;
 	l_ulong		st_blksize;
-	l_ulong		st_blocks;
-	l_ulong		__pad4;
+	l_ulonglong	st_blocks;
 	struct l_timespec	st_atim;
 	struct l_timespec	st_mtim;
 	struct l_timespec	st_ctim;
