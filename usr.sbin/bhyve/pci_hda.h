@@ -46,12 +46,14 @@
 /*
  * HDA Debug Log
  */
-#define DEBUG_HDA			1
 #if DEBUG_HDA == 1
 extern FILE *dbg;
 #define DPRINTF(fmt, arg...)						\
 do {fprintf(dbg, "%s-%d: " fmt "\n", __func__, __LINE__, ##arg);		\
 fflush(dbg); } while (0)
+#ifndef DEBUG_HDA_FILE
+#define DEBUG_HDA_FILE "/tmp/bhyve_hda.log"
+#endif
 #else
 #define DPRINTF(fmt, arg...)
 #endif

@@ -183,6 +183,7 @@ device		pwm
 device		aw_pwm
 
 device		vt_efifb
+device		vt_simplefb
 
 # EVDEV support
 options 	EVDEV_SUPPORT		# evdev support in legacy drivers

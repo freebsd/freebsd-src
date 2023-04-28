@@ -91,7 +91,7 @@ has_l2(struct snl_state *ss, uint32_t ifindex)
 }
 
 static uint32_t
-get_myfib()
+get_myfib(void)
 {
 	uint32_t fibnum = 0;
 	size_t len = sizeof(fibnum);
@@ -359,7 +359,9 @@ delete_nl(uint32_t ifindex, char *host)
 			xo_warnx("delete %s: %s (%s)", host, strerror(e.error), e.error_str);
 		else
 			xo_warnx("delete %s: %s", host, strerror(e.error));
-	}
+	} else
+		printf("%s (%s) deleted\n", host, inet_ntoa(dst->sin_addr));
+
 	snl_free(&ss);
 
 	return (e.error != 0);

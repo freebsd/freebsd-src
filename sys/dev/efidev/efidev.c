@@ -90,6 +90,21 @@ efidev_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
 		error = efi_set_time(tm);
 		break;
 	}
+	case EFIIOC_GET_WAKETIME:
+	{
+		struct efi_waketime_ioc *wt = (struct efi_waketime_ioc *)addr;
+
+		error = efi_get_waketime(&wt->enabled, &wt->pending,
+		    &wt->waketime);
+		break;
+	}
+	case EFIIOC_SET_WAKETIME:
+	{
+		struct efi_waketime_ioc *wt = (struct efi_waketime_ioc *)addr;
+
+		error = efi_set_waketime(wt->enabled, &wt->waketime);
+		break;
+	}
 	case EFIIOC_VAR_GET:
 	{
 		struct efi_var_ioc *ev = (struct efi_var_ioc *)addr;

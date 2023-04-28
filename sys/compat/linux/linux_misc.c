@@ -384,7 +384,7 @@ struct l_times_argv {
 #define	CONVOTCK(r)	(r.tv_sec * CLK_TCK + r.tv_usec / (1000000 / CLK_TCK))
 #define	CONVNTCK(r)	(r.tv_sec * stclohz + r.tv_usec / (1000000 / stclohz))
 
-#define	CONVTCK(r)	(linux_kernver(td) >= LINUX_KERNVER_2004000 ?		\
+#define	CONVTCK(r)	(linux_kernver(td) >= LINUX_KERNVER(2,4,0) ?	\
 			    CONVNTCK(r) : CONVOTCK(r))
 
 int
@@ -850,7 +850,7 @@ linux_waitid(struct thread *td, struct linux_waitid_args *args)
 		idtype = P_PID;
 		break;
 	case LINUX_P_PGID:
-		if (linux_use54(td) && args->id == 0) {
+		if (linux_kernver(td) >= LINUX_KERNVER(5,4,0) && args->id == 0) {
 			p = td->td_proc;
 			PROC_LOCK(p);
 			id = p->p_pgid;

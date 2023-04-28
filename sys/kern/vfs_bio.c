@@ -118,7 +118,7 @@ struct bufqueue {
 #define	BQ_ASSERT_LOCKED(bq)	mtx_assert(BQ_LOCKPTR((bq)), MA_OWNED)
 
 struct bufdomain {
-	struct bufqueue	bd_subq[MAXCPU + 1]; /* Per-cpu sub queues + global */
+	struct bufqueue	*bd_subq;
 	struct bufqueue bd_dirtyq;
 	struct bufqueue	*bd_cleanq;
 	struct mtx_padalign bd_run_lock;
@@ -1914,6 +1914,9 @@ bd_init(struct bufdomain *bd)
 {
 	int i;
 
+	/* Per-CPU clean buf queues, plus one global queue. */
+	bd->bd_subq = mallocarray(mp_maxid + 2, sizeof(struct bufqueue),
+	    M_BIOBUF, M_WAITOK | M_ZERO);
 	bd->bd_cleanq = &bd->bd_subq[mp_maxid + 1];
 	bq_init(bd->bd_cleanq, QUEUE_CLEAN, mp_maxid + 1, "bufq clean lock");
 	bq_init(&bd->bd_dirtyq, QUEUE_DIRTY, -1, "bufq dirty lock");

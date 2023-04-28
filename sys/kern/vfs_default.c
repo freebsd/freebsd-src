@@ -75,14 +75,8 @@ __FBSDID("$FreeBSD$");
 static int	vop_nolookup(struct vop_lookup_args *);
 static int	vop_norename(struct vop_rename_args *);
 static int	vop_nostrategy(struct vop_strategy_args *);
-static int	get_next_dirent(struct vnode *vp, struct dirent **dpp,
-				char *dirbuf, int dirbuflen, off_t *off,
-				char **cpos, int *len, int *eofflag,
-				struct thread *td);
 static int	dirent_exists(struct vnode *vp, const char *dirname,
 			      struct thread *td);
-
-#define DIRENT_MINSIZE (sizeof(struct dirent) - (MAXNAMLEN+1) + 4)
 
 static int vop_stdis_text(struct vop_is_text_args *ap);
 static int vop_stdunset_text(struct vop_unset_text_args *ap);
@@ -281,109 +275,57 @@ vop_nostrategy (struct vop_strategy_args *ap)
 	return (EOPNOTSUPP);
 }
 
-static int
-get_next_dirent(struct vnode *vp, struct dirent **dpp, char *dirbuf,
-		int dirbuflen, off_t *off, char **cpos, int *len,
-		int *eofflag, struct thread *td)
-{
-	int error, reclen;
-	struct uio uio;
-	struct iovec iov;
-	struct dirent *dp;
-
-	KASSERT(VOP_ISLOCKED(vp), ("vp %p is not locked", vp));
-	KASSERT(vp->v_type == VDIR, ("vp %p is not a directory", vp));
-
-	if (*len == 0) {
-		iov.iov_base = dirbuf;
-		iov.iov_len = dirbuflen;
-
-		uio.uio_iov = &iov;
-		uio.uio_iovcnt = 1;
-		uio.uio_offset = *off;
-		uio.uio_resid = dirbuflen;
-		uio.uio_segflg = UIO_SYSSPACE;
-		uio.uio_rw = UIO_READ;
-		uio.uio_td = td;
-
-		*eofflag = 0;
-
-#ifdef MAC
-		error = mac_vnode_check_readdir(td->td_ucred, vp);
-		if (error == 0)
-#endif
-			error = VOP_READDIR(vp, &uio, td->td_ucred, eofflag,
-		    		NULL, NULL);
-		if (error)
-			return (error);
-
-		*off = uio.uio_offset;
-
-		*cpos = dirbuf;
-		*len = (dirbuflen - uio.uio_resid);
-
-		if (*len == 0)
-			return (ENOENT);
-	}
-
-	dp = (struct dirent *)(*cpos);
-	reclen = dp->d_reclen;
-	*dpp = dp;
-
-	/* check for malformed directory.. */
-	if (reclen < DIRENT_MINSIZE)
-		return (EINVAL);
-
-	*cpos += reclen;
-	*len -= reclen;
-
-	return (0);
-}
-
 /*
- * Check if a named file exists in a given directory vnode.
+ * Check if a named file exists in a given directory vnode
+ *
+ * Returns 0 if the file exists, ENOENT if it doesn't, or errors returned by
+ * vn_dir_next_dirent().
  */
 static int
 dirent_exists(struct vnode *vp, const char *dirname, struct thread *td)
 {
-	char *dirbuf, *cpos;
-	int error, eofflag, dirbuflen, len, found;
+	char *dirbuf;
+	int error, eofflag;
+	size_t dirbuflen, len;
 	off_t off;
 	struct dirent *dp;
 	struct vattr va;
 
-	KASSERT(VOP_ISLOCKED(vp), ("vp %p is not locked", vp));
+	ASSERT_VOP_LOCKED(vp, "vnode not locked");
 	KASSERT(vp->v_type == VDIR, ("vp %p is not a directory", vp));
 
-	found = 0;
-
 	error = VOP_GETATTR(vp, &va, td->td_ucred);
-	if (error)
-		return (found);
+	if (error != 0)
+		return (error);
 
-	dirbuflen = DEV_BSIZE;
+	dirbuflen = MAX(DEV_BSIZE, GENERIC_MAXDIRSIZ);
 	if (dirbuflen < va.va_blocksize)
 		dirbuflen = va.va_blocksize;
-	dirbuf = (char *)malloc(dirbuflen, M_TEMP, M_WAITOK);
+	dirbuf = malloc(dirbuflen, M_TEMP, M_WAITOK);
 
-	off = 0;
 	len = 0;
-	do {
-		error = get_next_dirent(vp, &dp, dirbuf, dirbuflen, &off,
-					&cpos, &len, &eofflag, td);
-		if (error)
+	off = 0;
+	eofflag = 0;
+
+	for (;;) {
+		error = vn_dir_next_dirent(vp, td, dirbuf, dirbuflen,
+		    &dp, &len, &off, &eofflag);
+		if (error != 0)
 			goto out;
+
+		if (len == 0)
+			break;
 
 		if (dp->d_type != DT_WHT && dp->d_fileno != 0 &&
-		    strcmp(dp->d_name, dirname) == 0) {
-			found = 1;
+		    strcmp(dp->d_name, dirname) == 0)
 			goto out;
-		}
-	} while (len > 0 || !eofflag);
+	}
+
+	error = ENOENT;
 
 out:
 	free(dirbuf, M_TEMP);
-	return (found);
+	return (error);
 }
 
 int
@@ -737,26 +679,23 @@ vop_stdvptofh(struct vop_vptofh_args *ap)
 int
 vop_stdvptocnp(struct vop_vptocnp_args *ap)
 {
-	struct vnode *vp = ap->a_vp;
-	struct vnode **dvp = ap->a_vpp;
-	struct ucred *cred;
+	struct vnode *const vp = ap->a_vp;
+	struct vnode **const dvp = ap->a_vpp;
 	char *buf = ap->a_buf;
 	size_t *buflen = ap->a_buflen;
-	char *dirbuf, *cpos;
-	int i, error, eofflag, dirbuflen, flags, locked, len, covered;
+	char *dirbuf;
+	int i = *buflen;
+	int error = 0, covered = 0;
+	int eofflag, flags, locked;
+	size_t dirbuflen, len;
 	off_t off;
 	ino_t fileno;
 	struct vattr va;
 	struct nameidata nd;
-	struct thread *td;
+	struct thread *const td = curthread;
+	struct ucred *const cred = td->td_ucred;
 	struct dirent *dp;
 	struct vnode *mvp;
-
-	i = *buflen;
-	error = 0;
-	covered = 0;
-	td = curthread;
-	cred = td->td_ucred;
 
 	if (vp->v_type != VDIR)
 		return (ENOENT);
@@ -794,31 +733,38 @@ vop_stdvptocnp(struct vop_vptocnp_args *ap)
 
 	fileno = va.va_fileid;
 
-	dirbuflen = DEV_BSIZE;
+	dirbuflen = MAX(DEV_BSIZE, GENERIC_MAXDIRSIZ);
 	if (dirbuflen < va.va_blocksize)
 		dirbuflen = va.va_blocksize;
-	dirbuf = (char *)malloc(dirbuflen, M_TEMP, M_WAITOK);
+	dirbuf = malloc(dirbuflen, M_TEMP, M_WAITOK);
 
 	if ((*dvp)->v_type != VDIR) {
 		error = ENOENT;
 		goto out;
 	}
 
-	off = 0;
 	len = 0;
-	do {
+	off = 0;
+	eofflag = 0;
+
+	for (;;) {
 		/* call VOP_READDIR of parent */
-		error = get_next_dirent(*dvp, &dp, dirbuf, dirbuflen, &off,
-					&cpos, &len, &eofflag, td);
-		if (error)
+		error = vn_dir_next_dirent(*dvp, td,
+		    dirbuf, dirbuflen, &dp, &len, &off, &eofflag);
+		if (error != 0)
 			goto out;
+
+		if (len == 0) {
+			error = ENOENT;
+			goto out;
+		}
 
 		if ((dp->d_type != DT_WHT) &&
 		    (dp->d_fileno == fileno)) {
 			if (covered) {
 				VOP_UNLOCK(*dvp);
 				vn_lock(mvp, LK_SHARED | LK_RETRY);
-				if (dirent_exists(mvp, dp->d_name, td)) {
+				if (dirent_exists(mvp, dp->d_name, td) == 0) {
 					error = ENOENT;
 					VOP_UNLOCK(mvp);
 					vn_lock(*dvp, LK_SHARED | LK_RETRY);
@@ -841,8 +787,7 @@ vop_stdvptocnp(struct vop_vptocnp_args *ap)
 			}
 			goto out;
 		}
-	} while (len > 0 || !eofflag);
-	error = ENOENT;
+	}
 
 out:
 	free(dirbuf, M_TEMP);

@@ -118,10 +118,6 @@ CFLAGS+= -I${BHYVE_SYSDIR}/sys/dev/mii
 CFLAGS+= -I${BHYVE_SYSDIR}/sys/dev/usb/controller
 .if ${MK_BHYVE_SNAPSHOT} != "no"
 CFLAGS+= -I${SRCTOP}/contrib/libucl/include
-
-# Temporary disable capsicum, until we integrate checkpoint code with it.
-CFLAGS+= -DWITHOUT_CAPSICUM
-
 CFLAGS+= -DBHYVE_SNAPSHOT
 .endif
 

@@ -6391,65 +6391,84 @@ filt_vfsvnode(struct knote *kn, long hint)
 int
 vfs_emptydir(struct vnode *vp)
 {
-	struct uio uio;
-	struct iovec iov;
-	struct dirent *dirent, *dp, *endp;
-	int error, eof;
-
-	error = 0;
-	eof = 0;
+	struct thread *const td = curthread;
+	char *dirbuf;
+	size_t dirbuflen, len;
+	off_t off;
+	int eofflag, error;
+	struct dirent *dp;
+	struct vattr va;
 
 	ASSERT_VOP_LOCKED(vp, "vfs_emptydir");
 	VNPASS(vp->v_type == VDIR, vp);
 
-	dirent = malloc(sizeof(struct dirent), M_TEMP, M_WAITOK);
-	iov.iov_base = dirent;
-	iov.iov_len = sizeof(struct dirent);
+	error = VOP_GETATTR(vp, &va, td->td_ucred);
+	if (error != 0)
+		return (error);
 
-	uio.uio_iov = &iov;
-	uio.uio_iovcnt = 1;
-	uio.uio_offset = 0;
-	uio.uio_resid = sizeof(struct dirent);
-	uio.uio_segflg = UIO_SYSSPACE;
-	uio.uio_rw = UIO_READ;
-	uio.uio_td = curthread;
+	dirbuflen = max(DEV_BSIZE, GENERIC_MAXDIRSIZ);
+	if (dirbuflen < va.va_blocksize)
+		dirbuflen = va.va_blocksize;
+	dirbuf = malloc(dirbuflen, M_TEMP, M_WAITOK);
 
-	while (eof == 0 && error == 0) {
-		error = VOP_READDIR(vp, &uio, curthread->td_ucred, &eof,
-		    NULL, NULL);
+	len = 0;
+	off = 0;
+	eofflag = 0;
+
+	for (;;) {
+		error = vn_dir_next_dirent(vp, td, dirbuf, dirbuflen,
+		    &dp, &len, &off, &eofflag);
 		if (error != 0)
+			goto end;
+
+		if (len == 0) {
+			/* EOF */
+			error = 0;
+			goto end;
+		}
+
+		/*
+		 * Skip whiteouts. Unionfs operates on filesystems only and not
+		 * on hierarchies, so these whiteouts would be shadowed on the
+		 * system hierarchy but not for a union using the filesystem of
+		 * their directories as the upper layer. Additionally, unionfs
+		 * currently transparently exposes union-specific metadata of
+		 * its upper layer, meaning that whiteouts can be seen through
+		 * the union view in empty directories. Taking into account
+		 * these whiteouts would then prevent mounting another
+		 * filesystem on such effectively empty directories.
+		 */
+		if (dp->d_type == DT_WHT)
+			continue;
+
+		/*
+		 * Any file in the directory which is not '.' or '..' indicates
+		 * the directory is not empty.
+		 */
+		switch (dp->d_namlen) {
+		case 2:
+			if (dp->d_name[1] != '.') {
+				/* Can't be '..' (nor '.') */
+				error = ENOTEMPTY;
+				goto end;
+			}
+			/* FALLTHROUGH */
+		case 1:
+			if (dp->d_name[0] != '.') {
+				/* Can't be '..' nor '.' */
+				error = ENOTEMPTY;
+				goto end;
+			}
 			break;
-		endp = (void *)((uint8_t *)dirent +
-		    sizeof(struct dirent) - uio.uio_resid);
-		for (dp = dirent; dp < endp;
-		     dp = (void *)((uint8_t *)dp + GENERIC_DIRSIZ(dp))) {
-			if (dp->d_type == DT_WHT)
-				continue;
-			if (dp->d_namlen == 0)
-				continue;
-			if (dp->d_type != DT_DIR &&
-			    dp->d_type != DT_UNKNOWN) {
-				error = ENOTEMPTY;
-				break;
-			}
-			if (dp->d_namlen > 2) {
-				error = ENOTEMPTY;
-				break;
-			}
-			if (dp->d_namlen == 1 &&
-			    dp->d_name[0] != '.') {
-				error = ENOTEMPTY;
-				break;
-			}
-			if (dp->d_namlen == 2 &&
-			    dp->d_name[1] != '.') {
-				error = ENOTEMPTY;
-				break;
-			}
-			uio.uio_resid = sizeof(struct dirent);
+
+		default:
+			error = ENOTEMPTY;
+			goto end;
 		}
 	}
-	free(dirent, M_TEMP);
+
+end:
+	free(dirbuf, M_TEMP);
 	return (error);
 }
 

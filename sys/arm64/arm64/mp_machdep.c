@@ -915,9 +915,8 @@ intr_ipi_lookup(u_int ipi)
  *  source mapped.
  */
 void
-intr_ipi_dispatch(u_int ipi, struct trapframe *tf)
+intr_ipi_dispatch(u_int ipi)
 {
-	void *arg;
 	struct intr_ipi *ii;
 
 	ii = intr_ipi_lookup(ipi);
@@ -926,12 +925,7 @@ intr_ipi_dispatch(u_int ipi, struct trapframe *tf)
 
 	intr_ipi_increment_count(ii->ii_count, PCPU_GET(cpuid));
 
-	/*
-	 * Supply ipi filter with trapframe argument
-	 * if none is registered.
-	 */
-	arg = ii->ii_handler_arg != NULL ? ii->ii_handler_arg : tf;
-	ii->ii_handler(arg);
+	ii->ii_handler(ii->ii_handler_arg);
 }
 
 #ifdef notyet

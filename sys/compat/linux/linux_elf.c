@@ -492,6 +492,7 @@ linux_trans_osrel(const Elf_Note *note, int32_t *osrel)
 int
 __linuxN(copyout_auxargs)(struct image_params *imgp, uintptr_t base)
 {
+	struct thread *td = curthread;
 	Elf_Auxargs *args;
 	Elf_Auxinfo *aarray, *pos;
 	struct proc *p;
@@ -512,7 +513,7 @@ __linuxN(copyout_auxargs)(struct image_params *imgp, uintptr_t base)
 	 * is not present.
 	 * Also see linux_times() implementation.
 	 */
-	if (linux_kernver(curthread) >= LINUX_KERNVER_2004000)
+	if (linux_kernver(td) >= LINUX_KERNVER(2,4,0))
 		AUXARGS_ENTRY(pos, LINUX_AT_CLKTCK, stclohz);
 	AUXARGS_ENTRY(pos, AT_PAGESZ, args->pagesz);
 	AUXARGS_ENTRY(pos, AT_PHDR, args->phdr);
@@ -526,14 +527,13 @@ __linuxN(copyout_auxargs)(struct image_params *imgp, uintptr_t base)
 	AUXARGS_ENTRY(pos, AT_GID, imgp->proc->p_ucred->cr_rgid);
 	AUXARGS_ENTRY(pos, AT_EGID, imgp->proc->p_ucred->cr_svgid);
 	AUXARGS_ENTRY(pos, LINUX_AT_SECURE, issetugid);
-	if (p->p_osrel >= LINUX_KERNVER_2006030 || p->p_osrel == 0)
+	if (linux_kernver(td) >= LINUX_KERNVER(2,6,30))
 		AUXARGS_ENTRY_PTR(pos, LINUX_AT_RANDOM, imgp->canary);
-	if ((p->p_osrel >= LINUX_KERNVER_2006026 || p->p_osrel == 0) &&
-	    imgp->execpathp != 0)
+	if (linux_kernver(td) >= LINUX_KERNVER(2,6,26) && imgp->execpathp != 0)
 		AUXARGS_ENTRY(pos, LINUX_AT_EXECFN, PTROUT(imgp->execpathp));
 	if (args->execfd != -1)
 		AUXARGS_ENTRY(pos, AT_EXECFD, args->execfd);
-	if (p->p_osrel >= LINUX_KERNVER_5013000 || p->p_osrel == 0)
+	if (linux_kernver(td) >= LINUX_KERNVER(5,13,0))
 		AUXARGS_ENTRY(pos, LINUX_AT_MINSIGSTKSZ,
 		    imgp->sysent->sv_minsigstksz);
 	AUXARGS_ENTRY(pos, AT_NULL, 0);

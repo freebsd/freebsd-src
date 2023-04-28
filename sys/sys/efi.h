@@ -254,6 +254,9 @@ struct efi_ops {
 	int 	(*get_time_capabilities)(struct efi_tmcap *);
 	int	(*reset_system)(enum efi_reset);
 	int 	(*set_time)(struct efi_tm *);
+	int 	(*get_waketime)(uint8_t *enabled, uint8_t *pending,
+	    struct efi_tm *tm);
+	int 	(*set_waketime)(uint8_t enable, struct efi_tm *tm);
 	int 	(*var_get)(uint16_t *, struct uuid *, uint32_t *, size_t *,
     void *);
 	int 	(*var_nextname)(size_t *, uint16_t *, struct uuid *);
@@ -317,6 +320,21 @@ static inline int efi_set_time(struct efi_tm *tm)
 	if (active_efi_ops->set_time == NULL)
 		return (ENXIO);
 	return (active_efi_ops->set_time(tm));
+}
+
+static inline int efi_get_waketime(uint8_t *enabled, uint8_t *pending,
+    struct efi_tm *tm)
+{
+	if (active_efi_ops->get_waketime == NULL)
+		return (ENXIO);
+	return (active_efi_ops->get_waketime(enabled, pending, tm));
+}
+
+static inline int efi_set_waketime(uint8_t enable, struct efi_tm *tm)
+{
+	if (active_efi_ops->set_waketime == NULL)
+		return (ENXIO);
+	return (active_efi_ops->set_waketime(enable, tm));
 }
 
 static inline int efi_var_get(uint16_t *name, struct uuid *vendor,

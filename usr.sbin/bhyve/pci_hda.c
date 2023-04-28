@@ -324,7 +324,7 @@ hda_init(nvlist_t *nvl)
 	int err;
 
 #if DEBUG_HDA == 1
-	dbg = fopen("/tmp/bhyve_hda.log", "w+");
+	dbg = fopen(DEBUG_HDA_FILE, "w+");
 #endif
 
 	sc = calloc(1, sizeof(*sc));
@@ -726,17 +726,19 @@ hda_write(struct hda_softc *sc, uint32_t offset, uint8_t size, uint32_t value)
 	return (0);
 }
 
+#if DEBUG_HDA == 1
 static inline void
 hda_print_cmd_ctl_data(struct hda_codec_cmd_ctl *p)
 {
-#if DEBUG_HDA == 1
-	const char *name = p->name;
-#endif
-	DPRINTF("%s size: %d", name, p->size);
-	DPRINTF("%s dma_vaddr: %p", name, p->dma_vaddr);
-	DPRINTF("%s wp: 0x%x", name, p->wp);
-	DPRINTF("%s rp: 0x%x", name, p->rp);
+	DPRINTF("%s size: %d", p->name, p->size);
+	DPRINTF("%s dma_vaddr: %p", p->name, p->dma_vaddr);
+	DPRINTF("%s wp: 0x%x", p->name, p->wp);
+	DPRINTF("%s rp: 0x%x", p->name, p->rp);
 }
+#else
+static inline void
+hda_print_cmd_ctl_data(struct hda_codec_cmd_ctl *p __unused) {}
+#endif
 
 static int
 hda_corb_start(struct hda_softc *sc)

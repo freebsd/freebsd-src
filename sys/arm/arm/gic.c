@@ -573,7 +573,7 @@ dispatch_irq:
 #ifdef SMP
 		/* Call EOI for all IPI before dispatch. */
 		gic_c_write_4(sc, GICC_EOIR, irq_active_reg);
-		intr_ipi_dispatch(sgi_to_ipi[gi->gi_irq], tf);
+		intr_ipi_dispatch(sgi_to_ipi[gi->gi_irq]);
 		goto next_irq;
 #else
 		device_printf(sc->gic_dev, "SGI %u on UP system detected\n",

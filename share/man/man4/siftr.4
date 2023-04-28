@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 25, 2023
+.Dd April 26, 2023
 .Dt SIFTR 4
 .Os
 .Sh NAME
@@ -122,15 +122,6 @@ By default, the file /var/log/siftr.log is used.
 The path can be changed at any time, even while the module is enabled.
 .El
 .Bl -tag -offset indent -width Va
-.It Va net.inet.siftr.genhashes
-controls whether a hash is generated for each TCP packet seen by
-.Nm .
-By default, the value is set to 0, which means no hashes are generated.
-The hashes are useful to correlate which TCP packet triggered the generation of
-a particular log message, but calculating them adds additional computational
-overhead into the fast path.
-.El
-.Bl -tag -offset indent -width Va
 .It Va net.inet.siftr.port_filter
 controls on which source or destination port siftr should capture
 .Nm .
@@ -216,120 +207,116 @@ for out.
 .El
 .Bl -tag -offset indent -width Va
 .It Va 2
-Hash of the packet that triggered the log message.
-.El
-.Bl -tag -offset indent -width Va
-.It Va 3
 Time at which the packet that triggered the log message was processed by
 the
 .Xr pfil 9
 hook function, in seconds and microseconds since the UNIX epoch.
 .El
 .Bl -tag -offset indent -width Va
-.It Va 4
+.It Va 3
 The IPv4 or IPv6 address of the local host, in dotted quad (IPv4 packet)
 or colon-separated hex (IPv6 packet) notation.
 .El
 .Bl -tag -offset indent -width Va
-.It Va 5
+.It Va 4
 The TCP port that the local host is communicating via.
 .El
 .Bl -tag -offset indent -width Va
-.It Va 6
+.It Va 5
 The IPv4 or IPv6 address of the foreign host, in dotted quad (IPv4 packet)
 or colon-separated hex (IPv6 packet) notation.
 .El
 .Bl -tag -offset indent -width Va
-.It Va 7
+.It Va 6
 The TCP port that the foreign host is communicating via.
 .El
 .Bl -tag -offset indent -width Va
-.It Va 8
+.It Va 7
 The slow start threshold for the flow, in bytes.
 .El
 .Bl -tag -offset indent -width Va
-.It Va 9
+.It Va 8
 The current congestion window for the flow, in bytes.
 .El
 .Bl -tag -offset indent -width Va
-.It Va 10
+.It Va 9
 The current state of the t_flags2 field for the flow.
 .El
 .Bl -tag -offset indent -width Va
-.It Va 11
+.It Va 10
 The current sending window for the flow, in bytes.
 The post scaled value is reported, except during the initial handshake (first
 few packets), during which time the unscaled value is reported.
 .El
 .Bl -tag -offset indent -width Va
-.It Va 12
+.It Va 11
 The current receive window for the flow, in bytes.
 The post scaled value is always reported.
 .El
 .Bl -tag -offset indent -width Va
-.It Va 13
+.It Va 12
 The current window scaling factor for the sending window.
 .El
 .Bl -tag -offset indent -width Va
-.It Va 14
+.It Va 13
 The current window scaling factor for the receiving window.
 .El
 .Bl -tag -offset indent -width Va
-.It Va 15
+.It Va 14
 The current state of the TCP finite state machine, as defined
 in
 .Aq Pa netinet/tcp_fsm.h .
 .El
 .Bl -tag -offset indent -width Va
-.It Va 16
+.It Va 15
 The maximum segment size for the flow, in bytes.
 .El
 .Bl -tag -offset indent -width Va
-.It Va 17
+.It Va 16
 The current smoothed RTT estimate for the flow, in units of microsecond.
 .El
 .Bl -tag -offset indent -width Va
-.It Va 18
+.It Va 17
 SACK enabled indicator. 1 if SACK enabled, 0 otherwise.
 .El
 .Bl -tag -offset indent -width Va
-.It Va 19
+.It Va 18
 The current state of the TCP flags for the flow.
 See
 .Aq Pa netinet/tcp_var.h
 for information about the various flags.
 .El
 .Bl -tag -offset indent -width Va
-.It Va 20
+.It Va 19
 The current retransmission timeout length for the flow, in units microsecond.
 .El
 .Bl -tag -offset indent -width Va
-.It Va 21
+.It Va 20
 The current size of the socket send buffer in bytes.
 .El
 .Bl -tag -offset indent -width Va
-.It Va 22
+.It Va 21
 The current number of bytes in the socket send buffer.
 .El
 .Bl -tag -offset indent -width Va
-.It Va 23
+.It Va 22
 The current size of the socket receive buffer in bytes.
 .El
 .Bl -tag -offset indent -width Va
-.It Va 24
+.It Va 23
 The current number of bytes in the socket receive buffer.
 .El
 .Bl -tag -offset indent -width Va
-.It Va 25
+.It Va 24
 The current number of unacknowledged bytes in-flight.
 Bytes acknowledged via SACK are not excluded from this count.
 .El
 .Bl -tag -offset indent -width Va
-.It Va 26
+.It Va 25
 The current number of segments in the reassembly queue.
 .El
 .Bl -tag -offset indent -width Va
-.It Va 27
+.It Va 26
 Flowid for the connection.
 A caveat: Zero '0' either represents a valid flowid or a default value when it's
 not being set.
@@ -337,7 +324,7 @@ There is no easy way to differentiate without looking at actual
 network interface card and drivers being used.
 .El
 .Bl -tag -offset indent -width Va
-.It Va 28
+.It Va 27
 Flow type for the connection.
 Flowtype defines which protocol fields are hashed to produce the flowid.
 A complete listing is available in
@@ -759,8 +746,6 @@ value logged by
 does not take into account bytes that have been
 .No SACK Ap ed
 by the receiving host.
-.It
-Packet hash generation does not currently work for IPv6 based TCP packets.
 .It
 Compressed notation is not used for IPv6 address representation.
 This consumes more bytes than is necessary in log output.

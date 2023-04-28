@@ -4205,7 +4205,7 @@ irdma_cm_post_event(struct irdma_cm_event *event)
  *
  * teardown QPs where source or destination addr matches ip addr
  */
-static void
+static void __unused
 irdma_cm_teardown_connections(struct irdma_device *iwdev,
 			      u32 *ipaddr,
 			      struct irdma_cm_info *nfo,

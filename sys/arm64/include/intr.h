@@ -45,7 +45,7 @@ arm_irq_memory_barrier(uintptr_t irq)
 }
 
 #ifdef SMP
-void intr_ipi_dispatch(u_int, struct trapframe *);
+void intr_ipi_dispatch(u_int);
 #endif
 
 #ifdef DEV_ACPI

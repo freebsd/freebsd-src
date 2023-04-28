@@ -1308,9 +1308,10 @@ vm_vcpu_resume(struct vmctx *ctx)
 }
 
 static int
-vm_checkpoint(struct vmctx *ctx, const char *checkpoint_file, bool stop_vm)
+vm_checkpoint(struct vmctx *ctx, int fddir, const char *checkpoint_file,
+    bool stop_vm)
 {
-	int fd_checkpoint = 0, kdata_fd = 0;
+	int fd_checkpoint = 0, kdata_fd = 0, fd_meta;
 	int ret = 0;
 	int error = 0;
 	size_t memsz;
@@ -1325,14 +1326,14 @@ vm_checkpoint(struct vmctx *ctx, const char *checkpoint_file, bool stop_vm)
 		return (-1);
 	}
 
-	kdata_fd = open(kdata_filename, O_WRONLY | O_CREAT | O_TRUNC, 0700);
+	kdata_fd = openat(fddir, kdata_filename, O_WRONLY | O_CREAT | O_TRUNC, 0700);
 	if (kdata_fd < 0) {
 		perror("Failed to open kernel data snapshot file.");
 		error = -1;
 		goto done;
 	}
 
-	fd_checkpoint = open(checkpoint_file, O_RDWR | O_CREAT | O_TRUNC, 0700);
+	fd_checkpoint = openat(fddir, checkpoint_file, O_RDWR | O_CREAT | O_TRUNC, 0700);
 
 	if (fd_checkpoint < 0) {
 		perror("Failed to create checkpoint file");
@@ -1346,9 +1347,12 @@ vm_checkpoint(struct vmctx *ctx, const char *checkpoint_file, bool stop_vm)
 		goto done;
 	}
 
-	meta_file = fopen(meta_filename, "w");
+	fd_meta = openat(fddir, meta_filename, O_WRONLY | O_CREAT | O_TRUNC, 0700);
+	if (fd_meta != -1)
+		meta_file = fdopen(fd_meta, "w");
 	if (meta_file == NULL) {
 		perror("Failed to open vm metadata snapshot file.");
+		close(fd_meta);
 		goto done;
 	}
 
@@ -1474,10 +1478,13 @@ vm_do_checkpoint(struct vmctx *ctx, const nvlist_t *nvl)
 	int error;
 
 	if (!nvlist_exists_string(nvl, "filename") ||
-	    !nvlist_exists_bool(nvl, "suspend"))
+	    !nvlist_exists_bool(nvl, "suspend") ||
+	    !nvlist_exists_descriptor(nvl, "fddir"))
 		error = EINVAL;
 	else
-		error = vm_checkpoint(ctx, nvlist_get_string(nvl, "filename"),
+		error = vm_checkpoint(ctx,
+		    nvlist_get_descriptor(nvl, "fddir"),
+		    nvlist_get_string(nvl, "filename"),
 		    nvlist_get_bool(nvl, "suspend"));
 
 	return (error);

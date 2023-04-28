@@ -282,41 +282,17 @@ ipi_stop(void *dummy __unused)
 static void
 ipi_preempt(void *arg)
 {
-	struct trapframe *oldframe;
-	struct thread *td;
-
-	critical_enter();
-	td = curthread;
-	td->td_intr_nesting_level++;
-	oldframe = td->td_intr_frame;
-	td->td_intr_frame = (struct trapframe *)arg;
 
 	CTR1(KTR_SMP, "%s: IPI_PREEMPT", __func__);
-	sched_preempt(td);
-
-	td->td_intr_frame = oldframe;
-	td->td_intr_nesting_level--;
-	critical_exit();
+	sched_preempt(curthread);
 }
 
 static void
 ipi_hardclock(void *arg)
 {
-	struct trapframe *oldframe;
-	struct thread *td;
-
-	critical_enter();
-	td = curthread;
-	td->td_intr_nesting_level++;
-	oldframe = td->td_intr_frame;
-	td->td_intr_frame = (struct trapframe *)arg;
 
 	CTR1(KTR_SMP, "%s: IPI_HARDCLOCK", __func__);
 	hardclockintr();
-
-	td->td_intr_frame = oldframe;
-	td->td_intr_nesting_level--;
-	critical_exit();
 }
 
 static void

@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/vnode.h>
+#include <sys/dirent.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/filio.h>
@@ -3735,6 +3736,167 @@ vn_fspacectl(struct file *fp, int cmd, off_t *offset, off_t *length, int flags,
 
 	return (error);
 }
+
+/*
+ * Keep this assert as long as sizeof(struct dirent) is used as the maximum
+ * entry size.
+ */
+_Static_assert(_GENERIC_MAXDIRSIZ == sizeof(struct dirent),
+    "'struct dirent' size must be a multiple of its alignment "
+    "(see _GENERIC_DIRLEN())");
+
+/*
+ * Returns successive directory entries through some caller's provided buffer
+ *
+ * This function automatically refills the provided buffer with calls to
+ * VOP_READDIR() (after MAC permission checks).
+ *
+ * 'td' is used for credentials and passed to uiomove(). 'dirbuf' is the
+ * caller's buffer to fill and 'dirbuflen' its allocated size. 'dirbuf' must be
+ * properly aligned to access 'struct dirent' structures and 'dirbuflen' must
+ * be greater than GENERIC_MAXDIRSIZ to avoid VOP_READDIR() returning EINVAL
+ * (the latter is not a strong guarantee (yet); but EINVAL will always be
+ * returned if this requirement is not verified). '*dpp' points to the current
+ * directory entry in the buffer and '*len' contains the remaining valid bytes
+ * in 'dirbuf' after 'dpp' (including the pointed entry).
+ *
+ * At first call (or when restarting the read), '*len' must have been set to 0,
+ * '*off' to 0 (or any valid start offset) and '*eofflag' to 0. There are no
+ * more entries as soon as '*len' is 0 after a call that returned 0. Calling
+ * again this function after such a condition is considered an error and EINVAL
+ * will be returned. Other possible error codes are those of VOP_READDIR(),
+ * EINTEGRITY if the returned entries do not pass coherency tests, or EINVAL
+ * (bad call). All errors are unrecoverable, i.e., the state ('*len', '*off'
+ * and '*eofflag') must be re-initialized before a subsequent call. On error or
+ * at end of directory, '*dpp' is reset to NULL.
+ *
+ * '*len', '*off' and '*eofflag' are internal state the caller should not
+ * tamper with except as explained above. '*off' is the next directory offset
+ * to read from to refill the buffer. '*eofflag' is set to 0 or 1 by the last
+ * internal call to VOP_READDIR() that returned without error, indicating
+ * whether it reached the end of the directory, and to 2 by this function after
+ * all entries have been read.
+ */
+int
+vn_dir_next_dirent(struct vnode *vp, struct thread *td,
+    char *dirbuf, size_t dirbuflen,
+    struct dirent **dpp, size_t *len, off_t *off, int *eofflag)
+{
+	struct dirent *dp = NULL;
+	int reclen;
+	int error;
+	struct uio uio;
+	struct iovec iov;
+
+	ASSERT_VOP_LOCKED(vp, "vnode not locked");
+	VNASSERT(vp->v_type == VDIR, vp, ("vnode is not a directory"));
+	MPASS2((uintptr_t)dirbuf < (uintptr_t)dirbuf + dirbuflen,
+	    "Address space overflow");
+
+	if (__predict_false(dirbuflen < GENERIC_MAXDIRSIZ)) {
+		/* Don't take any chances in this case */
+		error = EINVAL;
+		goto out;
+	}
+
+	if (*len != 0) {
+		dp = *dpp;
+
+		/*
+		 * The caller continued to call us after an error (we set dp to
+		 * NULL in a previous iteration). Bail out right now.
+		 */
+		if (__predict_false(dp == NULL))
+			return (EINVAL);
+
+		MPASS(*len <= dirbuflen);
+		MPASS2((uintptr_t)dirbuf <= (uintptr_t)dp &&
+		    (uintptr_t)dp + *len <= (uintptr_t)dirbuf + dirbuflen,
+		    "Filled range not inside buffer");
+
+		reclen = dp->d_reclen;
+		if (reclen >= *len) {
+			/* End of buffer reached */
+			*len = 0;
+		} else {
+			dp = (struct dirent *)((char *)dp + reclen);
+			*len -= reclen;
+		}
+	}
+
+	if (*len == 0) {
+		dp = NULL;
+
+		/* Have to refill. */
+		switch (*eofflag) {
+		case 0:
+			break;
+
+		case 1:
+			/* Nothing more to read. */
+			*eofflag = 2; /* Remember the caller reached EOF. */
+			goto success;
+
+		default:
+			/* The caller didn't test for EOF. */
+			error = EINVAL;
+			goto out;
+		}
+
+		iov.iov_base = dirbuf;
+		iov.iov_len = dirbuflen;
+
+		uio.uio_iov = &iov;
+		uio.uio_iovcnt = 1;
+		uio.uio_offset = *off;
+		uio.uio_resid = dirbuflen;
+		uio.uio_segflg = UIO_SYSSPACE;
+		uio.uio_rw = UIO_READ;
+		uio.uio_td = td;
+
+#ifdef MAC
+		error = mac_vnode_check_readdir(td->td_ucred, vp);
+		if (error == 0)
+#endif
+			error = VOP_READDIR(vp, &uio, td->td_ucred, eofflag,
+			    NULL, NULL);
+		if (error != 0)
+			goto out;
+
+		*len = dirbuflen - uio.uio_resid;
+		*off = uio.uio_offset;
+
+		if (*len == 0) {
+			/* Sanity check on INVARIANTS. */
+			MPASS(*eofflag != 0);
+			*eofflag = 1;
+			goto success;
+		}
+
+		/*
+		 * Normalize the flag returned by VOP_READDIR(), since we use 2
+		 * as a sentinel value.
+		 */
+		if (*eofflag != 0)
+			*eofflag = 1;
+
+		dp = (struct dirent *)dirbuf;
+	}
+
+	if (__predict_false(*len < GENERIC_MINDIRSIZ ||
+	    dp->d_reclen < GENERIC_MINDIRSIZ)) {
+		error = EINTEGRITY;
+		dp = NULL;
+		goto out;
+	}
+
+success:
+	error = 0;
+out:
+	*dpp = dp;
+	return (error);
+}
+
 
 static u_long vn_lock_pair_pause_cnt;
 SYSCTL_ULONG(_debug, OID_AUTO, vn_lock_pair_pause, CTLFLAG_RD,

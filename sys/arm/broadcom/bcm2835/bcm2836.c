@@ -369,7 +369,7 @@ bcm_lintc_ipi_dispatch(struct bcm_lintc_softc *sc, u_int cpu,
 #else
 		dsb();
 #endif
-		intr_ipi_dispatch(ipi, tf);
+		intr_ipi_dispatch(ipi);
 	}
 }
 #endif

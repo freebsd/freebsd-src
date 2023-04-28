@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/msan.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
@@ -908,6 +909,7 @@ sbappend_locked(struct sockbuf *sb, struct mbuf *m, int flags)
 
 	if (m == NULL)
 		return;
+	kmsan_check_mbuf(m, "sbappend");
 	sbm_clrprotoflags(m, flags);
 	SBLASTRECORDCHK(sb);
 	n = sb->sb_mb;
@@ -1021,6 +1023,8 @@ sbappendstream_locked(struct sockbuf *sb, struct mbuf *m, int flags)
 	SOCKBUF_LOCK_ASSERT(sb);
 
 	KASSERT(m->m_nextpkt == NULL,("sbappendstream 0"));
+
+	kmsan_check_mbuf(m, "sbappend");
 
 #ifdef KERN_TLS
 	/*
@@ -1170,7 +1174,10 @@ sbappendrecord_locked(struct sockbuf *sb, struct mbuf *m0)
 
 	if (m0 == NULL)
 		return;
+
+	kmsan_check_mbuf(m0, "sbappend");
 	m_clrprotoflags(m0);
+
 	/*
 	 * Put the first mbuf on the queue.  Note this permits zero length
 	 * records.
@@ -1207,6 +1214,12 @@ sbappendaddr_locked_internal(struct sockbuf *sb, const struct sockaddr *asa,
     struct mbuf *m0, struct mbuf *control, struct mbuf *ctrl_last)
 {
 	struct mbuf *m, *n, *nlast;
+
+	if (m0 != NULL)
+		kmsan_check_mbuf(m0, "sbappend");
+	if (control != NULL)
+		kmsan_check_mbuf(control, "sbappend");
+
 #if MSIZE <= 256
 	if (asa->sa_len > MLEN)
 		return (0);
@@ -1316,6 +1329,9 @@ sbappendcontrol_locked(struct sockbuf *sb, struct mbuf *m0,
     struct mbuf *control, int flags)
 {
 	struct mbuf *m, *mlast;
+
+	kmsan_check_mbuf(m0, "sbappend");
+	kmsan_check_mbuf(control, "sbappend");
 
 	sbm_clrprotoflags(m0, flags);
 	m_last(control)->m_next = m0;
