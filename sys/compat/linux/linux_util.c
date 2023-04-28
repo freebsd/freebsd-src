@@ -35,6 +35,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/types.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
@@ -248,7 +249,7 @@ translate_vnhook_major_minor(struct vnode *vp, struct stat *sb)
 		sb->st_dev = rootdevmp->mnt_stat.f_fsid.val[0];
 
 	if (linux_vn_get_major_minor(vp, &major, &minor) == 0)
-		sb->st_rdev = (major << 8 | minor);
+		sb->st_rdev = makedev(major, minor);
 }
 
 char *
