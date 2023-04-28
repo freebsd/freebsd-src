@@ -25,33 +25,36 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/efiio.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
-#include <sys/efiio.h>
 
-static void usage(void)
+static void
+usage(void)
 {
-	printf("Usage:\n"
-	    "  efiwake                          -- print out current EFI time and wake time\n"
+	fprintf(stderr, "Usage:\n"
+	    "  efiwake                          -- print out current "
+	        "EFI time and wake time\n"
 	    "  efiwake -d                       -- disable wake time\n"
 	    "  efiwake -e yyyy-mm-ddThh:mm:ss   -- enable wake time\n"
 	);
-
 	exit(EX_USAGE);
 }
 
-int main(int argc, char **argv)
+int
+main(int argc, char **argv)
 {
+	struct efi_tm now;
 	struct efi_waketime_ioc	waketime;
-	int error, ch;
-	bool enable = false, disable = false;
+	int ch, error, efi_fd;
+	bool disable = false, enable = false;
 
 	memset(&waketime, 0, sizeof(waketime));
 
@@ -63,10 +66,12 @@ int main(int argc, char **argv)
 		case 'e':
 			if (sscanf(optarg,
 			    "%hu-%02hhu-%02hhuT%02hhu:%02hhu:%02hhu",
-			    &waketime.waketime.tm_year, &waketime.waketime.tm_mon,
-			    &waketime.waketime.tm_mday, &waketime.waketime.tm_hour,
-			    &waketime.waketime.tm_min, &waketime.waketime.tm_sec)
-			    != 6) {
+			    &waketime.waketime.tm_year,
+			    &waketime.waketime.tm_mon,
+			    &waketime.waketime.tm_mday,
+			    &waketime.waketime.tm_hour,
+			    &waketime.waketime.tm_min,
+			    &waketime.waketime.tm_sec) != 6) {
 				usage();
 			}
 			enable = true;
@@ -84,11 +89,10 @@ int main(int argc, char **argv)
 	if (disable && enable)
 		usage();
 
-	int efi_fd = open("/dev/efi", O_RDWR);
+	efi_fd = open("/dev/efi", O_RDWR);
 	if (efi_fd < 0)
 		err(EX_OSERR, "cannot open /dev/efi");
 
-	struct efi_tm	now;
 	error = ioctl(efi_fd, EFIIOC_GET_TIME, &now);
 	if (error != 0)
 		err(EX_OSERR, "cannot get EFI time");
@@ -99,7 +103,8 @@ int main(int argc, char **argv)
 	    now.tm_sec);
 
 	if (disable) {
-		/* It's tempting to preserve the current timer value.
+		/*
+		 * It's tempting to preserve the current timer value.
 		 * However, wonky EFI implementations sometimes return bogus
 		 * dates for the wake timer and would then fail disabling it
 		 * here.
@@ -123,7 +128,8 @@ int main(int argc, char **argv)
 	if (error != 0)
 		err(EX_OSERR, "cannot get EFI wake time");
 
-	printf("EFI wake time: %u-%02u-%02uT%02u:%02u:%02u; enabled=%i, pending=%i\n",
+	printf("EFI wake time: %u-%02u-%02uT%02u:%02u:%02u; "
+	    "enabled=%i, pending=%i\n",
 	    waketime.waketime.tm_year, waketime.waketime.tm_mon,
 	    waketime.waketime.tm_mday, waketime.waketime.tm_hour,
 	    waketime.waketime.tm_min, waketime.waketime.tm_sec,
