@@ -612,7 +612,7 @@ kinst_md_deinit(void)
 	CPU_FOREACH(cpu) {
 		tramp = DPCPU_ID_GET(cpu, intr_tramp);
 		if (tramp != NULL) {
-			kinst_trampoline_dealloc(DPCPU_ID_GET(cpu, intr_tramp));
+			kinst_trampoline_dealloc(tramp);
 			DPCPU_ID_SET(cpu, intr_tramp, NULL);
 		}
 	}
