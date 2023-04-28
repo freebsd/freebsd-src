@@ -138,7 +138,7 @@
 18	AUE_STAT	STD {
 		int linux_stat(
 		    char *path,
-		    struct linux_stat *up
+		    struct l_old_stat *up
 		);
 	}
 19	AUE_LSEEK	STD {
@@ -450,7 +450,7 @@
 84	AUE_LSTAT	STD {
 		int linux_lstat(
 		    char *path,
-		    struct l_stat *up
+		    struct l_old_stat *up
 		);
 	}
 85	AUE_READLINK	STD {
