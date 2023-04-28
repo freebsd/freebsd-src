@@ -158,7 +158,8 @@ nl_add_msg_info(struct mbuf *m)
 	m->m_next = sbcreatecontrol(data, sizeof(data),
 	    NETLINK_MSG_INFO, SOL_NETLINK, M_NOWAIT);
 
-	NL_LOG(LOG_DEBUG2, "Storing %lu bytes of data, ctl: %p", sizeof(data), m->m_next);
+	NL_LOG(LOG_DEBUG2, "Storing %u bytes of data, ctl: %p",
+	    (unsigned)sizeof(data), m->m_next);
 }
 
 static __noinline struct mbuf *
