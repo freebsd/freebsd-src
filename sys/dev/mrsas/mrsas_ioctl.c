@@ -40,6 +40,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/abi_compat.h>
 #include <dev/mrsas/mrsas.h>
 #include <dev/mrsas/mrsas_ioctl.h>
 
@@ -54,10 +55,6 @@ struct mrsas_passthru_cmd {
 	u_int32_t sge_count;
 	int complete;
 };
-
-#ifndef PTRIN
-#define PTRIN(p) ((void *)(uintptr_t)(p))
-#endif
 
 /*
  * Function prototypes
