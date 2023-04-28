@@ -39,8 +39,11 @@ int flushroutes_fib_nl(int fib, int af);
 void monitor_nl(int fib);
 
 struct nl_helper;
-static void print_getmsg(struct nl_helper *h, struct nlmsghdr *hdr, struct sockaddr *dst);
-static void print_nlmsg(struct nl_helper *h, struct nlmsghdr *hdr);
+struct snl_msg_info;
+static void print_getmsg(struct nl_helper *h, struct nlmsghdr *hdr,
+    struct sockaddr *dst);
+static void print_nlmsg(struct nl_helper *h, struct nlmsghdr *hdr,
+    struct snl_msg_info *cinfo);
 
 #define s6_addr32 __u6_addr.__u6_addr32
 #define	bitcount32(x)	__bitcount32((uint32_t)(x))
@@ -434,9 +437,9 @@ print_prefix(struct nl_helper *h, char *buf, int bufsize, struct sockaddr *sa, i
 		snprintf(buf + sz, bufsize - sz, "/%d", plen);
 }
 
-
 static int
-print_line_prefix(const char *cmd, const char *name)
+print_line_prefix(struct nlmsghdr *hdr, struct snl_msg_info *cinfo,
+    const char *cmd, const char *name)
 {
 	struct timespec tp;
 	struct tm tm;
@@ -446,7 +449,8 @@ print_line_prefix(const char *cmd, const char *name)
 	localtime_r(&tp.tv_sec, &tm);
 
 	strftime(buf, sizeof(buf), "%T", &tm);
-	int len = printf("%s.%03ld %s %s ", buf, tp.tv_nsec / 1000000, cmd, name);
+	int len = printf("%s.%03ld PID %4u %s %s ", buf, tp.tv_nsec / 1000000,
+	    cinfo->process_id, cmd, name);
 
 	return (len);
 }
@@ -498,7 +502,8 @@ print_nlmsg_route_nhop(struct nl_helper *h, struct snl_parsed_route *r,
 }
 
 static void
-print_nlmsg_route(struct nl_helper *h, struct nlmsghdr *hdr)
+print_nlmsg_route(struct nl_helper *h, struct nlmsghdr *hdr,
+    struct snl_msg_info *cinfo)
 {
 	struct snl_parsed_route r = { .rtax_weight = RT_DEFAULT_WEIGHT };
 	struct snl_state *ss = &h->ss_cmd;
@@ -509,7 +514,7 @@ print_nlmsg_route(struct nl_helper *h, struct nlmsghdr *hdr)
 	// 20:19:41.333 add route 10.0.0.0/24 gw 10.0.0.1 ifp vtnet0 mtu 1500 table inet.0
 
 	const char *cmd = get_action_name(hdr, RTM_NEWROUTE);
-	int len = print_line_prefix(cmd, "route");
+	int len = print_line_prefix(hdr, cinfo, cmd, "route");
 
 	char buf[128];
 	print_prefix(h, buf, sizeof(buf), r.rta_dst, r.rtm_dst_len);
@@ -564,7 +569,8 @@ static const char *operstate[] = {
 };
 
 static void
-print_nlmsg_link(struct nl_helper *h, struct nlmsghdr *hdr)
+print_nlmsg_link(struct nl_helper *h, struct nlmsghdr *hdr,
+    struct snl_msg_info *cinfo)
 {
 	struct snl_parsed_link l = {};
 	struct snl_state *ss = &h->ss_cmd;
@@ -574,7 +580,7 @@ print_nlmsg_link(struct nl_helper *h, struct nlmsghdr *hdr)
 
 	// 20:19:41.333 add iface#3 vtnet0 admin UP oper UP mtu 1500 table inet.0
 	const char *cmd = get_action_name(hdr, RTM_NEWLINK);
-	print_line_prefix(cmd, "iface");
+	print_line_prefix(hdr, cinfo, cmd, "iface");
 
 	printf("iface#%u %s ", l.ifi_index, l.ifla_ifname);
 	printf("admin %s ", (l.ifi_flags & IFF_UP) ? "UP" : "DOWN");
@@ -587,7 +593,8 @@ print_nlmsg_link(struct nl_helper *h, struct nlmsghdr *hdr)
 }
 
 static void
-print_nlmsg_addr(struct nl_helper *h, struct nlmsghdr *hdr)
+print_nlmsg_addr(struct nl_helper *h, struct nlmsghdr *hdr,
+    struct snl_msg_info *cinfo)
 {
 	struct snl_parsed_addr attrs = {};
 	struct snl_state *ss = &h->ss_cmd;
@@ -597,7 +604,7 @@ print_nlmsg_addr(struct nl_helper *h, struct nlmsghdr *hdr)
 
 	// add addr 192.168.1.1/24 iface vtnet0
 	const char *cmd = get_action_name(hdr, RTM_NEWADDR);
-	print_line_prefix(cmd, "addr");
+	print_line_prefix(hdr, cinfo, cmd, "addr");
 
 	char buf[128];
 	struct sockaddr *addr = attrs.ifa_local ? attrs.ifa_local : attrs.ifa_address;
@@ -636,7 +643,8 @@ static const char *nudstate[] = {
 
 
 static void
-print_nlmsg_neigh(struct nl_helper *h, struct nlmsghdr *hdr)
+print_nlmsg_neigh(struct nl_helper *h, struct nlmsghdr *hdr,
+    struct snl_msg_info *cinfo)
 {
 	struct snl_parsed_neigh attrs = {};
 	struct snl_state *ss = &h->ss_cmd;
@@ -646,7 +654,7 @@ print_nlmsg_neigh(struct nl_helper *h, struct nlmsghdr *hdr)
 
 	// add addr 192.168.1.1 state %s lladdr %s iface vtnet0
 	const char *cmd = get_action_name(hdr, RTM_NEWNEIGH);
-	print_line_prefix(cmd, "neigh");
+	print_line_prefix(hdr, cinfo, cmd, "neigh");
 
 	char buf[128];
 	print_prefix(h, buf, sizeof(buf), attrs.nda_dst, -1);
@@ -694,32 +702,35 @@ print_nlmsg_neigh(struct nl_helper *h, struct nlmsghdr *hdr)
 }
 
 static void
-print_nlmsg_generic(struct nl_helper *h, struct nlmsghdr *hdr)
+print_nlmsg_generic(struct nl_helper *h, struct nlmsghdr *hdr, struct snl_msg_info *cinfo)
 {
+	const char *cmd = get_action_name(hdr, 0);
+	print_line_prefix(hdr, cinfo, cmd, "unknown message");
+	printf(" type %u\n", hdr->nlmsg_type);
 }
 
 static void
-print_nlmsg(struct nl_helper *h, struct nlmsghdr *hdr)
+print_nlmsg(struct nl_helper *h, struct nlmsghdr *hdr, struct snl_msg_info *cinfo)
 {
 	switch (hdr->nlmsg_type) {
 	case RTM_NEWLINK:
 	case RTM_DELLINK:
-		print_nlmsg_link(h, hdr);
+		print_nlmsg_link(h, hdr, cinfo);
 		break;
 	case RTM_NEWADDR:
 	case RTM_DELADDR:
-		print_nlmsg_addr(h, hdr);
+		print_nlmsg_addr(h, hdr, cinfo);
 		break;
 	case RTM_NEWROUTE:
 	case RTM_DELROUTE:
-		print_nlmsg_route(h, hdr);
+		print_nlmsg_route(h, hdr, cinfo);
 		break;
 	case RTM_NEWNEIGH:
 	case RTM_DELNEIGH:
-		print_nlmsg_neigh(h, hdr);
+		print_nlmsg_neigh(h, hdr, cinfo);
 		break;
 	default:
-		print_nlmsg_generic(h, hdr);
+		print_nlmsg_generic(h, hdr, cinfo);
 	}
 
 	snl_clear_lb(&h->ss_cmd);
@@ -748,6 +759,10 @@ monitor_nl(int fib)
 #endif
 	};
 
+	int optval = 1;
+	socklen_t optlen = sizeof(optval);
+	setsockopt(ss_event.fd, SOL_NETLINK, NETLINK_MSG_INFO, &optval, optlen);
+
 	for (unsigned int i = 0; i < NL_ARRAY_LEN(groups); i++) {
 		int error;
 		int optval = groups[i];
@@ -758,11 +773,11 @@ monitor_nl(int fib)
 			warn("Unable to subscribe to group %d", optval);
 	}
 
+	struct snl_msg_info attrs = {};
 	struct nlmsghdr *hdr;
-	while ((hdr = snl_read_message(&ss_event)) != NULL)
+	while ((hdr = snl_read_message_dbg(&ss_event, &attrs)) != NULL)
 	{
-		// printf("-- MSG type %d--\n", hdr->nlmsg_type);
-		print_nlmsg(&h, hdr);
+		print_nlmsg(&h, hdr, &attrs);
 		snl_clear_lb(&h.ss_cmd);
 		snl_clear_lb(&ss_event);
 	}
@@ -814,8 +829,10 @@ flushroute_one(struct nl_helper *h, struct snl_parsed_route *r)
 		return (true);
 	};
 
-	if (verbose)
-		print_nlmsg(h, hdr);
+	if (verbose) {
+		struct snl_msg_info attrs = {};
+		print_nlmsg(h, hdr, &attrs);
+	}
 	else {
 		if (r->rta_multipath != NULL) {
 			for (int i = 0; i < r->rta_multipath->num_nhops; i++) {
@@ -863,8 +880,10 @@ flushroutes_fib_nl(int fib, int af)
 
 		if (!snl_parse_nlmsg(&ss, hdr, &snl_rtm_route_parser, &r))
 			continue;
-		if (verbose)
-			print_nlmsg(&h, hdr);
+		if (verbose) {
+			struct snl_msg_info attrs = {};
+			print_nlmsg(&h, hdr, &attrs);
+		}
 		if (r.rta_table != (uint32_t)fib || r.rtm_family != af)
 			continue;
 		if ((r.rta_rtflags & RTF_GATEWAY) == 0)

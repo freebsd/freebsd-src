@@ -189,6 +189,7 @@ const static struct nl_function_wrapper nl_module = {
 	.nlmsg_end_dump = _nlmsg_end_dump,
 	.nl_modify_ifp_generic = _nl_modify_ifp_generic,
 	.nl_store_ifp_cookie = _nl_store_ifp_cookie,
+	.nl_get_thread_nlp = _nl_get_thread_nlp,
 };
 #endif
 
@@ -222,6 +223,7 @@ netlink_modevent(module_t mod __unused, int what, void *priv __unused)
 	switch (what) {
 	case MOD_LOAD:
 		NL_LOG(LOG_DEBUG2, "Loading");
+		nl_osd_register();
 #if !defined(NETLINK) && defined(NETLINK_MODULE)
 		nl_set_functions(&nl_module);
 #endif
@@ -235,6 +237,7 @@ netlink_modevent(module_t mod __unused, int what, void *priv __unused)
 #if !defined(NETLINK) && defined(NETLINK_MODULE)
 			nl_set_functions(NULL);
 #endif
+			nl_osd_unregister();
 		} else
 			ret = EBUSY;
 		break;
