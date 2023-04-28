@@ -306,6 +306,9 @@ parse_regfields(struct ti_sysc_softc *sc) {
 
 	/* Grab the content of reg properties */
 	nreg = OF_getproplen(node, "reg");
+	if (nreg <= 0)
+		return (ENXIO);
+
 	reg = malloc(nreg, M_DEVBUF, M_WAITOK);
 	OF_getencprop(node, "reg", reg, nreg);
 
