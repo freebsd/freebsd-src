@@ -52,30 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_file.h>
 #include <compat/linux/linux_util.h>
 
-static void
-translate_vnhook_major_minor(struct vnode *vp, struct stat *sb)
-{
-	int major, minor;
-
-	if (vn_isdisk(vp)) {
-		sb->st_mode &= ~S_IFMT;
-		sb->st_mode |= S_IFBLK;
-	}
-
-	/*
-	 * Return the same st_dev for every devfs instance.  The reason
-	 * for this is to work around an idiosyncrasy of glibc getttynam()
-	 * implementation: it checks whether st_dev returned for fd 0
-	 * is the same as st_dev returned for the target of /proc/self/fd/0
-	 * symlink, and with linux chroots having their own devfs instance,
-	 * the check will fail if you chroot into it.
-	 */
-	if (rootdevmp != NULL && vp->v_mount->mnt_vfc == rootdevmp->mnt_vfc)
-		sb->st_dev = rootdevmp->mnt_stat.f_fsid.val[0];
-
-	if (linux_vn_get_major_minor(vp, &major, &minor) == 0)
-		sb->st_rdev = (major << 8 | minor);
-}
 
 static int
 linux_kern_statat(struct thread *td, int flag, int fd, const char *path,
