@@ -134,14 +134,14 @@ struct l_timespec {
 };
 
 struct l_newstat {
-	l_dev_t		st_dev;
+	l_ulong		st_dev;
 	l_ino_t		st_ino;
 	l_ulong		st_nlink;
 	l_uint		st_mode;
 	l_uid_t		st_uid;
 	l_gid_t		st_gid;
-	l_uint		__st_pad1;
-	l_dev_t		st_rdev;
+	l_uint		__st_pad0;
+	l_ulong		st_rdev;
 	l_off_t		st_size;
 	l_long		st_blksize;
 	l_long		st_blocks;
