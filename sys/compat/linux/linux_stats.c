@@ -49,8 +49,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/../linux/linux_proto.h>
 #endif
 
-#include <compat/linux/linux_util.h>
 #include <compat/linux/linux_file.h>
+#include <compat/linux/linux_util.h>
 
 static void
 translate_vnhook_major_minor(struct vnode *vp, struct stat *sb)
