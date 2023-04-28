@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/../linux/linux_proto.h>
 #endif
 
+#include <compat/linux/linux.h>
 #include <compat/linux/linux_file.h>
 #include <compat/linux/linux_util.h>
 
@@ -139,38 +140,19 @@ linux_kern_lstat(struct thread *td, const char *path, enum uio_seg pathseg,
 }
 #endif
 
-/*
- * l_dev_t has the same encoding as dev_t in the latter's low 16 bits, so
- * truncation of a dev_t to 16 bits gives the same result as unpacking
- * using major() and minor() and repacking in the l_dev_t format.  This
- * detail is hidden in dev_to_ldev().  Overflow in conversions of dev_t's
- * are not checked for, as for other fields.
- *
- * dev_to_ldev() is only used for translating st_dev.  When we convert
- * st_rdev for copying it out, it isn't really a dev_t, but has already
- * been translated to an l_dev_t in a nontrivial way.  Translating it
- * again would be illogical but would have no effect since the low 16
- * bits have the same encoding.
- *
- * The nontrivial translation for st_rdev renumbers some devices, but not
- * ones that can be mounted on, so it is consistent with the translation
- * for st_dev except when the renumbering or truncation causes conflicts.
- */
-#define	dev_to_ldev(d)	((uint16_t)(d))
-
 static int
 newstat_copyout(struct stat *buf, void *ubuf)
 {
 	struct l_newstat tbuf;
 
 	bzero(&tbuf, sizeof(tbuf));
-	tbuf.st_dev = dev_to_ldev(buf->st_dev);
+	tbuf.st_dev = linux_new_encode_dev(buf->st_dev);
 	tbuf.st_ino = buf->st_ino;
 	tbuf.st_mode = buf->st_mode;
 	tbuf.st_nlink = buf->st_nlink;
 	tbuf.st_uid = buf->st_uid;
 	tbuf.st_gid = buf->st_gid;
-	tbuf.st_rdev = buf->st_rdev;
+	tbuf.st_rdev = linux_new_encode_dev(buf->st_rdev);
 	tbuf.st_size = buf->st_size;
 	tbuf.st_atim.tv_sec = buf->st_atim.tv_sec;
 	tbuf.st_atim.tv_nsec = buf->st_atim.tv_nsec;
@@ -239,19 +221,27 @@ linux_newfstat(struct thread *td, struct linux_newfstat_args *args)
 }
 
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
+
+static __inline uint16_t
+linux_old_encode_dev(dev_t _dev)
+{
+
+	return (_dev == NODEV ? 0 : linux_encode_dev(major(_dev), minor(_dev)));
+}
+
 static int
 old_stat_copyout(struct stat *buf, void *ubuf)
 {
 	struct l_old_stat lbuf;
 
 	bzero(&lbuf, sizeof(lbuf));
-	lbuf.st_dev = dev_to_ldev(buf->st_dev);
+	lbuf.st_dev = linux_old_encode_dev(buf->st_dev);
 	lbuf.st_ino = buf->st_ino;
 	lbuf.st_mode = buf->st_mode;
 	lbuf.st_nlink = buf->st_nlink;
 	lbuf.st_uid = buf->st_uid;
 	lbuf.st_gid = buf->st_gid;
-	lbuf.st_rdev = buf->st_rdev;
+	lbuf.st_rdev = linux_old_encode_dev(buf->st_rdev);
 	lbuf.st_size = MIN(buf->st_size, INT32_MAX);
 	lbuf.st_atim.tv_sec = buf->st_atim.tv_sec;
 	lbuf.st_atim.tv_nsec = buf->st_atim.tv_nsec;
@@ -550,13 +540,13 @@ stat64_copyout(struct stat *buf, void *ubuf)
 	struct l_stat64 lbuf;
 
 	bzero(&lbuf, sizeof(lbuf));
-	lbuf.st_dev = dev_to_ldev(buf->st_dev);
+	lbuf.st_dev = linux_new_encode_dev(buf->st_dev);
 	lbuf.st_ino = buf->st_ino;
 	lbuf.st_mode = buf->st_mode;
 	lbuf.st_nlink = buf->st_nlink;
 	lbuf.st_uid = buf->st_uid;
 	lbuf.st_gid = buf->st_gid;
-	lbuf.st_rdev = buf->st_rdev;
+	lbuf.st_rdev = linux_new_encode_dev(buf->st_rdev);
 	lbuf.st_size = buf->st_size;
 	lbuf.st_atim.tv_sec = buf->st_atim.tv_sec;
 	lbuf.st_atim.tv_nsec = buf->st_atim.tv_nsec;
@@ -762,11 +752,10 @@ statx_copyout(struct stat *buf, void *ubuf)
 	tbuf.stx_ctime.tv_nsec = buf->st_ctim.tv_nsec;
 	tbuf.stx_mtime.tv_sec = buf->st_mtim.tv_sec;
 	tbuf.stx_mtime.tv_nsec = buf->st_mtim.tv_nsec;
-
-	tbuf.stx_rdev_major = buf->st_rdev >> 8;
-	tbuf.stx_rdev_minor = buf->st_rdev & 0xff;
-	tbuf.stx_dev_major = buf->st_dev >> 8;
-	tbuf.stx_dev_minor = buf->st_dev & 0xff;
+	tbuf.stx_rdev_major = linux_encode_major(buf->st_rdev);
+	tbuf.stx_rdev_minor = linux_encode_minor(buf->st_rdev);
+	tbuf.stx_dev_major = linux_encode_major(buf->st_dev);
+	tbuf.stx_dev_minor = linux_encode_minor(buf->st_dev);
 
 	return (copyout(&tbuf, ubuf, sizeof(tbuf)));
 }
