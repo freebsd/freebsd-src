@@ -1711,14 +1711,35 @@ done:
 }
 
 static int
-snapshot_request(const char *vmname, const char *file, bool suspend)
+open_directory(const char *file)
+{
+	char *path;
+	int fd;
+
+	if ((path = strdup(file)) == NULL)
+		return (-1);
+
+	dirname(path);
+	fd = open(path, O_DIRECTORY);
+	free(path);
+
+	return (fd);
+}
+
+static int
+snapshot_request(const char *vmname, char *file, bool suspend)
 {
 	nvlist_t *nvl;
+	int fd;
+
+	if ((fd = open_directory(file)) < 0)
+		return (errno);
 
 	nvl = nvlist_create(0);
 	nvlist_add_string(nvl, "cmd", "checkpoint");
-	nvlist_add_string(nvl, "filename", file);
+	nvlist_add_string(nvl, "filename", basename(file));
 	nvlist_add_bool(nvl, "suspend", suspend);
+	nvlist_move_descriptor(nvl, "fddir", fd);
 
 	return (send_message(vmname, nvl));
 }
