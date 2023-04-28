@@ -68,11 +68,13 @@ enum daemon_mode {
 };
 
 struct daemon_state {
-	int pipe_fd[2];
+	int out_pipe_fd[2];
+	int err_pipe_fd[2];
 	char **argv;
 	const char *child_pidfile;
 	const char *parent_pidfile;
 	const char *output_filename;
+	const char *error_filename;
 	const char *syslog_tag;
 	const char *title;
 	const char *user;
@@ -87,6 +89,7 @@ struct daemon_state {
 	int syslog_facility;
 	int keep_fds_open;
 	int output_fd;
+	int error_fd;
 	bool restart_enabled;
 	bool syslog_enabled;
 	bool log_reopen;
@@ -107,7 +110,7 @@ static void daemon_exec(struct daemon_state *);
 static bool daemon_is_child_dead(struct daemon_state *);
 static void daemon_set_child_pipe(struct daemon_state *);
 
-static const char shortopts[] = "+cfHSp:P:ru:o:s:l:t:m:R:T:h";
+static const char shortopts[] = "+cfHSp:P:ru:o:e:s:l:t:m:R:T:h";
 
 static const struct option longopts[] = {
 	{ "change-dir",         no_argument,            NULL,           'c' },
@@ -115,6 +118,7 @@ static const struct option longopts[] = {
 	{ "sighup",             no_argument,            NULL,           'H' },
 	{ "syslog",             no_argument,            NULL,           'S' },
 	{ "output-file",        required_argument,      NULL,           'o' },
+	{ "error-file",         required_argument,      NULL,           'e' },
 	{ "output-mask",        required_argument,      NULL,           'm' },
 	{ "child-pidfile",      required_argument,      NULL,           'p' },
 	{ "supervisor-pidfile", required_argument,      NULL,           'P' },
@@ -134,7 +138,7 @@ usage(int exitcode)
 {
 	(void)fprintf(stderr,
 	    "usage: daemon [-cfHrS] [-p child_pidfile] [-P supervisor_pidfile]\n"
-	    "              [-u user] [-o output_file] [-t title]\n"
+	    "              [-u user] [-o output_file] [-e error_file] [-t title]\n"
 	    "              [-l syslog_facility] [-s syslog_priority]\n"
 	    "              [-T syslog_tag] [-m output_mask] [-R restart_delay_secs]\n"
 	    "command arguments ...\n");
@@ -144,7 +148,8 @@ usage(int exitcode)
 	    "  --close-fds          -f         Set stdin, stdout, stderr to /dev/null\n"
 	    "  --sighup             -H         Close and re-open output file on SIGHUP\n"
 	    "  --syslog             -S         Send output to syslog\n"
-	    "  --output-file        -o <file>  Append output of the child process to file\n"
+	    "  --output-file        -o <file>  Append stdout of the child process to file\n"
+	    "  --error-file         -e <file>  Append stderr of the child process to file\n"
 	    "  --output-mask        -m <mask>  What to send to syslog/file\n"
 	    "                                  1=stdout, 2=stderr, 3=both\n"
 	    "  --child-pidfile      -p <file>  Write PID of the child process to file\n"
@@ -227,6 +232,10 @@ main(int argc, char *argv[])
 			 */
 			state.mode = MODE_SUPERVISE;
 			break;
+		case 'e':
+			state.error_filename = optarg;
+			state.mode = MODE_SUPERVISE;
+			break;
 		case 'p':
 			state.child_pidfile = optarg;
 			state.mode = MODE_SUPERVISE;
@@ -289,11 +298,21 @@ main(int argc, char *argv[])
 		state.title = argv[0];
 	}
 
+	/*
+	 * For backewards compatibility we redirect both stderr
+	 * and stdout into the same place, unless the user
+	 * explicitly specifies -e
+	 */
+	if (state.error_filename == NULL) {
+		state.error_filename = state.output_filename;
+	}
+
 	if (state.output_filename) {
 		state.output_fd = open_log(state.output_filename);
-		if (state.output_fd == -1) {
-			err(7, "open");
-		}
+	}
+
+	if (state.error_filename) {
+		state.error_fd = open_log(state.error_filename);
 	}
 
 	if (state.syslog_enabled) {
@@ -374,12 +393,18 @@ daemon_eventloop(struct daemon_state *state)
 	 */
 	(void)madvise(NULL, 0, MADV_PROTECT);
 
-	if (pipe(state->pipe_fd)) {
+	if (pipe(state->out_pipe_fd)) {
 		err(1, "pipe");
 	}
 
 	kq = kqueuex(KQUEUE_CLOEXEC);
-	EV_SET(&event, state->pipe_fd[0], EVFILT_READ, EV_ADD|EV_CLEAR, 0, 0,
+	EV_SET(&event, state->out_pipe_fd[0], EVFILT_READ, EV_ADD|EV_CLEAR, 0, 0,
+	    NULL);
+	if (kevent(kq, &event, 1, NULL, 0, NULL) == -1) {
+		err(EXIT_FAILURE, "failed to register kevent");
+	}
+
+	EV_SET(&event, state->err_pipe_fd[0], EVFILT_READ, EV_ADD|EV_CLEAR, 0, 0,
 	    NULL);
 	if (kevent(kq, &event, 1, NULL, 0, NULL) == -1) {
 		err(EXIT_FAILURE, "failed to register kevent");
@@ -419,8 +444,8 @@ daemon_eventloop(struct daemon_state *state)
 	}
 
 	/* case: pid > 0; fork succeeded */
-	close(state->pipe_fd[1]);
-	state->pipe_fd[1] = -1;
+	close(state->out_pipe_fd[1]);
+	state->out_pipe_fd[1] = -1;
 	setproctitle("%s[%d]", state->title, (int)state->pid);
 
 	while (state->mode != MODE_NOCHILD) {
@@ -446,7 +471,10 @@ daemon_eventloop(struct daemon_state *state)
 					/* child is dead, read all until EOF */
 					state->pid = -1;
 					state->mode = MODE_NOCHILD;
-					while (listen_child(state->pipe_fd[0],
+					while (listen_child(state->out_pipe_fd[0],
+					    state))
+						;
+					while (listen_child(state->err_pipe_fd[0],
 					    state))
 						;
 				}
@@ -469,7 +497,7 @@ daemon_eventloop(struct daemon_state *state)
 				 */
 				continue;
 			case SIGHUP:
-				if (state->log_reopen && state->output_fd >= 0) {
+				if (state->log_reopen) {
 					reopen_log(state);
 				}
 				continue;
@@ -483,8 +511,14 @@ daemon_eventloop(struct daemon_state *state)
 			 * EVFILT_READ events
 			 */
 
-			if (event.data > 0) {
-				(void)listen_child(state->pipe_fd[0], state);
+			if (event.data <= 0) {
+				continue;
+			}
+
+			if ((int)event.ident == state->out_pipe_fd[0]) {
+				(void)listen_child(state->out_pipe_fd[0], state);
+			} else if ((int)event.ident == state->err_pipe_fd[0]) {
+				(void)listen_child(state->err_pipe_fd[0], state);
 			}
 			continue;
 		default:
@@ -493,8 +527,10 @@ daemon_eventloop(struct daemon_state *state)
 	}
 
 	close(kq);
-	close(state->pipe_fd[0]);
-	state->pipe_fd[0] = -1;
+	close(state->out_pipe_fd[0]);
+	close(state->err_pipe_fd[0]);
+	state->out_pipe_fd[0] = -1;
+	state->err_pipe_fd[0] = -1;
 }
 
 static void
@@ -584,14 +620,21 @@ restrict_process(const char *user)
  * TODO: simplify signature - state contains pipefd
  */
 static bool
-listen_child(int fd, struct daemon_state *state)
+listen_child(int fd, size_t bytes_available, struct daemon_state *state)
 {
+
+	// TODO: read exactly as many bytes as notified by kq
+	// - drop the case for 0 bytes. The function will never be called with 0 bytes available
+	//
 	static unsigned char buf[LBUF_SIZE];
 	static size_t bytes_read = 0;
 	int rv;
 
-	assert(state != NULL);
-	assert(bytes_read < LBUF_SIZE - 1);
+	// While (bytes_read < bytes_available) {
+	// 	bytes = read(..)
+	// 	send_to_dst line by line
+	// 	bytes_read += bytes
+	// }
 
 	rv = read(fd, buf + bytes_read, LBUF_SIZE - bytes_read - 1);
 	if (rv > 0) {
@@ -641,6 +684,7 @@ listen_child(int fd, struct daemon_state *state)
  * output to a file and/or syslog. If neither are provided, then we bounce
  * everything back to parent's stdout.
  */
+// TODO: make this func take the fd to write to
 static void
 do_output(const unsigned char *buf, size_t len, struct daemon_state *state)
 {
@@ -653,10 +697,12 @@ do_output(const unsigned char *buf, size_t len, struct daemon_state *state)
 	if (state->syslog_enabled) {
 		syslog(state->syslog_priority, "%.*s", (int)len, buf);
 	}
+
 	if (state->output_fd != -1) {
 		if (write(state->output_fd, buf, len) == -1)
 			warn("write");
 	}
+
 	if (state->keep_fds_open &&
 	    !state->syslog_enabled &&
 	    state->output_fd == -1) {
@@ -667,27 +713,37 @@ do_output(const unsigned char *buf, size_t len, struct daemon_state *state)
 static int
 open_log(const char *outfn)
 {
-
-	return open(outfn, O_CREAT | O_WRONLY | O_APPEND | O_CLOEXEC, 0600);
+	int fd = open(outfn, O_CREAT | O_WRONLY | O_APPEND | O_CLOEXEC, 0600);
+	if (fd == -1) {
+		err(7, "open");
+	}
+	return fd;
 }
 
 static void
 reopen_log(struct daemon_state *state)
 {
-	int outfd;
+	int fd;
 
-	outfd = open_log(state->output_filename);
 	if (state->output_fd >= 0) {
+		fd = open_log(state->output_filename);
 		close(state->output_fd);
+		state->output_fd = fd;
 	}
-	state->output_fd = outfd;
+
+        if (state->error_fd >= 0 ) {
+		fd = open_log(state->error_filename);
+		close(state->error_fd);
+		state->error_fd = fd;
+	}
 }
 
 static void
 daemon_state_init(struct daemon_state *state)
 {
 	*state = (struct daemon_state) {
-		.pipe_fd = { -1, -1 },
+		.out_pipe_fd = { -1, -1 },
+		.err_pipe_fd = { -1, -1 },
 		.argv = NULL,
 		.parent_pidfh = NULL,
 		.child_pidfh = NULL,
@@ -708,7 +764,9 @@ daemon_state_init(struct daemon_state *state)
 		.syslog_facility = LOG_DAEMON,
 		.keep_fds_open = 1,
 		.output_fd = -1,
+		.error_fd = -1,
 		.output_filename = NULL,
+		.error_filename = NULL,
 	};
 }
 
@@ -720,12 +778,18 @@ daemon_terminate(struct daemon_state *state)
 	if (state->output_fd >= 0) {
 		close(state->output_fd);
 	}
-	if (state->pipe_fd[0] >= 0) {
-		close(state->pipe_fd[0]);
+	if (state->out_pipe_fd[0] >= 0) {
+		close(state->out_pipe_fd[0]);
+	}
+	if (state->out_pipe_fd[1] >= 0) {
+		close(state->out_pipe_fd[1]);
 	}
 
-	if (state->pipe_fd[1] >= 0) {
-		close(state->pipe_fd[1]);
+	if (state->err_pipe_fd[0] >= 0) {
+		close(state->err_pipe_fd[0]);
+	}
+	if (state->err_pipe_fd[1] >= 0) {
+		close(state->err_pipe_fd[1]);
 	}
 	if (state->syslog_enabled) {
 		closelog();
@@ -765,20 +829,22 @@ static void
 daemon_set_child_pipe(struct daemon_state *state)
 {
 	if (state->stdmask & STDERR_FILENO) {
-		if (dup2(state->pipe_fd[1], STDERR_FILENO) == -1) {
+		if (dup2(state->err_pipe_fd[1], STDERR_FILENO) == -1) {
 			err(1, "dup2");
 		}
 	}
 	if (state->stdmask & STDOUT_FILENO) {
-		if (dup2(state->pipe_fd[1], STDOUT_FILENO) == -1) {
+		if (dup2(state->out_pipe_fd[1], STDOUT_FILENO) == -1) {
 			err(1, "dup2");
 		}
 	}
-	if (state->pipe_fd[1] != STDERR_FILENO &&
-	    state->pipe_fd[1] != STDOUT_FILENO) {
-		close(state->pipe_fd[1]);
+	if (state->out_pipe_fd[1] != STDERR_FILENO &&
+	    state->out_pipe_fd[1] != STDOUT_FILENO) {
+		close(state->out_pipe_fd[1]);
+		close(state->err_pipe_fd[1]);
 	}
 
 	/* The child gets dup'd pipes. */
-	close(state->pipe_fd[0]);
+	close(state->out_pipe_fd[0]);
+	close(state->err_pipe_fd[0]);
 }
