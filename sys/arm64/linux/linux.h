@@ -128,7 +128,7 @@ struct l_timespec {
 #define	LINUX_O_LARGEFILE	000400000
 
 struct l_newstat {
-	l_dev_t		st_dev;
+	l_ulong		st_dev;
 	l_ino_t		st_ino;
 	l_uint		st_mode;
 	l_uint		st_nlink;
@@ -136,7 +136,7 @@ struct l_newstat {
 	l_uid_t		st_uid;
 	l_gid_t		st_gid;
 
-	l_dev_t		st_rdev;
+	l_ulong		st_rdev;
 	l_ulong		__st_pad1;
 	l_off_t		st_size;
 	l_int		st_blksize;
