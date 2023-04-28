@@ -89,7 +89,7 @@ struct linux_lchown16_args {
 };
 struct linux_stat_args {
 	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
-	char up_l_[PADL_(struct linux_stat *)]; struct linux_stat * up; char up_r_[PADR_(struct linux_stat *)];
+	char up_l_[PADL_(struct l_old_stat *)]; struct l_old_stat * up; char up_r_[PADR_(struct l_old_stat *)];
 };
 struct linux_lseek_args {
 	char fdes_l_[PADL_(l_uint)]; l_uint fdes; char fdes_r_[PADR_(l_uint)];
@@ -273,7 +273,7 @@ struct linux_symlink_args {
 };
 struct linux_lstat_args {
 	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
-	char up_l_[PADL_(struct linux_lstat *)]; struct linux_lstat * up; char up_r_[PADR_(struct linux_lstat *)];
+	char up_l_[PADL_(struct l_old_stat *)]; struct l_old_stat * up; char up_r_[PADR_(struct l_old_stat *)];
 };
 struct linux_readlink_args {
 	char name_l_[PADL_(char *)]; char * name; char name_r_[PADR_(char *)];
