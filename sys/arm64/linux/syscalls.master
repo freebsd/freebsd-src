@@ -204,7 +204,7 @@
 		    l_int dfd,
 		    const char *filename,
 		    l_int mode,
-		    l_uint dev
+		    l_dev_t dev
 		);
 	}
 34	AUE_MKDIRAT	STD	{
