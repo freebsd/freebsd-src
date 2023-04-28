@@ -108,5 +108,22 @@ uint32_t genl_get_family_id(const struct genl_family *gf);
 typedef void (*genl_family_event_handler_t)(void *arg, const struct genl_family *gf, int action);
 EVENTHANDLER_DECLARE(genl_family_event, genl_family_event_handler_t);
 
+struct thread;
+#if defined(NETLINK) || defined(NETLINK_MODULE)
+/* Provide optimized calls to the functions inside the same linking unit */
+struct nlpcb *_nl_get_thread_nlp(struct thread *td);
+
+static inline struct nlpcb *
+nl_get_thread_nlp(struct thread *td)
+{
+	return (_nl_get_thread_nlp(td));
+}
+
+#else
+/* Provide access to the functions via netlink_glue.c */
+struct nlpcb *nl_get_thread_nlp(struct thread *td);
+
+#endif /* defined(NETLINK) || defined(NETLINK_MODULE) */
+
 #endif
 #endif
