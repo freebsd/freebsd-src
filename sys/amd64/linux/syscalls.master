@@ -872,7 +872,7 @@
 		int linux_mknod(
 		    char *path,
 		    l_mode_t mode,
-		    l_uint dev
+		    l_dev_t dev
 		);
 	}
 134	AUE_USELIB	UNIMPL	uselib
@@ -1501,7 +1501,7 @@
 		    l_int dfd,
 		    const char *filename,
 		    l_mode_t mode,
-		    l_uint dev
+		    l_dev_t dev
 		);
 	}
 260	AUE_FCHOWNAT	STD {

@@ -1614,7 +1614,7 @@
 		    l_int dfd,
 		    const char *filename,
 		    l_int mode,
-		    l_uint dev
+		    l_dev_t dev
 		);
 	}
 298	AUE_FCHOWNAT	STD {
