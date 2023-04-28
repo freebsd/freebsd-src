@@ -29,6 +29,11 @@
 #define _LINUX_MI_H_
 
 /*
+ * Machine independent set of types for the Linux types.
+ */
+typedef uint32_t	l_dev_t;
+
+/*
  * Private Brandinfo flags
  */
 #define	LINUX_BI_FUTEX_REQUEUE	0x01000000
