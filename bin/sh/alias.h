@@ -42,3 +42,4 @@ struct alias {
 };
 
 struct alias *lookupalias(const char *, int);
+const struct alias *iteralias(const struct alias *);
