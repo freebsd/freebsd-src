@@ -514,6 +514,9 @@ validate_sblock(struct fs *fs, int flags)
 	    %jd);
 	FCHK(fs->fs_sbsize, >, SBLOCKSIZE, %jd);
 	FCHK(fs->fs_sbsize, <, (signed)sizeof(struct fs), %jd);
+	/* fix for misconfigured filesystems */
+	if (fs->fs_maxbsize == 0)
+		fs->fs_maxbsize = fs->fs_bsize;
 	FCHK(fs->fs_maxbsize, <, fs->fs_bsize, %jd);
 	FCHK(powerof2(fs->fs_maxbsize), ==, 0, %jd);
 	FCHK(fs->fs_maxbsize, >, FS_MAXCONTIG * fs->fs_bsize, %jd);
