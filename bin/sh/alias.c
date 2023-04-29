@@ -53,7 +53,7 @@ static int aliases;
 
 static void setalias(const char *, const char *);
 static int unalias(const char *);
-static struct alias **hashalias(const char *);
+static size_t hashalias(const char *);
 
 static
 void
@@ -62,7 +62,7 @@ setalias(const char *name, const char *val)
 	struct alias *ap, **app;
 
 	unalias(name);
-	app = hashalias(name);
+	app = &atab[hashalias(name)];
 	INTOFF;
 	ap = ckmalloc(sizeof (struct alias));
 	ap->name = savestr(name);
@@ -87,7 +87,7 @@ unalias(const char *name)
 {
 	struct alias *ap, **app;
 
-	app = hashalias(name);
+	app = &atab[hashalias(name)];
 
 	for (ap = *app; ap; app = &(ap->next), ap = ap->next) {
 		if (equal(name, ap->name)) {
@@ -145,7 +145,7 @@ lookupalias(const char *name, int check)
 
 	if (aliases == 0)
 		return (NULL);
-	for (ap = *hashalias(name); ap; ap = ap->next) {
+	for (ap = atab[hashalias(name)]; ap; ap = ap->next) {
 		if (equal(name, ap->name)) {
 			if (check && (ap->flag & ALIASINUSE))
 				return (NULL);
@@ -242,7 +242,7 @@ unaliascmd(int argc __unused, char **argv __unused)
 	return (i);
 }
 
-static struct alias **
+static size_t
 hashalias(const char *p)
 {
 	unsigned int hashval;
@@ -250,5 +250,22 @@ hashalias(const char *p)
 	hashval = (unsigned char)*p << 4;
 	while (*p)
 		hashval+= *p++;
-	return &atab[hashval % ATABSIZE];
+	return (hashval % ATABSIZE);
+}
+
+const struct alias *
+iteralias(const struct alias *index)
+{
+	size_t i = 0;
+
+	if (index != NULL) {
+		if (index->next != NULL)
+			return (index->next);
+		i = hashalias(index->name) + 1;
+	}
+	for (; i < ATABSIZE; i++)
+		if (atab[i] != NULL)
+			return (atab[i]);
+
+	return (NULL);
 }
