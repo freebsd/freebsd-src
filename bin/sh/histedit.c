@@ -594,6 +594,20 @@ comparator(const void *a, const void *b, void *thunk)
 		*(char *const *)b + curpos));
 }
 
+static char
+**add_match(char **matches, size_t i, size_t *size, char *match_copy)
+{
+	if (match_copy == NULL)
+		return (NULL);
+	matches[i] = match_copy;
+	if (i >= *size - 1) {
+		*size *= 2;
+		matches = reallocarray(matches, *size, sizeof(matches[0]));
+	}
+
+	return (matches);
+}
+
 /*
  * This function is passed to libedit's fn_complete2(). The library will use
  * it instead of its standard function that finds matching files in current
@@ -605,7 +619,7 @@ static char
 {
 	char *free_path = NULL, *path;
 	const char *dirname;
-	char **matches = NULL;
+	char **matches = NULL, **rmatches;
 	size_t i = 0, size = 16, uniq;
 	size_t curpos = end - start, lcstring = -1;
 
@@ -631,7 +645,6 @@ static char
 		}
 		while ((entry = readdir(dir)) != NULL) {
 			struct stat statb;
-			char **rmatches;
 
 			if (strncmp(entry->d_name, text, curpos) != 0)
 				continue;
@@ -642,11 +655,8 @@ static char
 					continue;
 			} else if (entry->d_type != DT_REG)
 				continue;
-			matches[++i] = strdup(entry->d_name);
-			if (i < size - 1)
-				continue;
-			size *= 2;
-			rmatches = reallocarray(matches, size, sizeof(matches[0]));
+			rmatches = add_match(matches, ++i, &size,
+				strdup(entry->d_name));
 			if (rmatches == NULL) {
 				closedir(dir);
 				goto out;
@@ -654,6 +664,14 @@ static char
 			matches = rmatches;
 		}
 		closedir(dir);
+	}
+	for (const unsigned char *bp = builtincmd; *bp != 0; bp += 2 + bp[0]) {
+		if (curpos > bp[0] || memcmp(bp + 2, text, curpos) != 0)
+			continue;
+		rmatches = add_match(matches, ++i, &size, strndup(bp + 2, bp[0]));
+		if (rmatches == NULL)
+			goto out;
+		matches = rmatches;
 	}
 out:
 	free(free_path);
