@@ -295,6 +295,7 @@ tz [label="Torsten Zuehlsdorff\ntz@FreeBSD.org\n2016/06/04"]
 ultima [label="Richard Gallamore\nultima@FreeBSD.org\n2017/06/07"]
 uqs [label="Ulrich Spoerlein\nuqs@FreeBSD.org\n2012/01/19"]
 vd [label="Vasil Dimov\nvd@FreeBSD.org\n2006/01/19"]
+vvd [label="Vladimir Druzenko\nvvd@FreeBSD.org\n2023/02/02"]
 vishwin [label="Charlie Li\nvishwin@FreeBSD.org\n2021/04/29"]
 vsevolod [label="Vsevolod Stakhov\nvsevolod@FreeBSD.org\n2005/07/22"]
 wen [label="Wen Heping\nwen@FreeBSD.org\n2010/12/13"]
@@ -318,6 +319,7 @@ adamw -> jylefort
 adamw -> ler
 adamw -> mezz
 adamw -> pav
+adamw -> vvd
 adamw -> woodsb02
 
 ade -> jpaetzel
@@ -341,6 +343,7 @@ araujo -> samm
 arrowd -> diizzy
 arrowd -> rhurlin
 arrowd -> vishwin
+arrowd -> vvd
 
 arved -> markus
 arved -> stefan
@@ -798,6 +801,7 @@ tcberner -> rhurlin
 tcberner -> rigoletto
 tcberner -> salvadore
 tcberner -> vishwin
+tcberner -> vvd
 tcberner -> yuri
 tcberner -> zirias
 
