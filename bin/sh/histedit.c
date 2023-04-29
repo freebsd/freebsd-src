@@ -50,6 +50,7 @@ static char sccsid[] = "@(#)histedit.c	8.2 (Berkeley) 5/4/95";
 /*
  * Editline and history functions (and glue).
  */
+#include "alias.h"
 #include "shell.h"
 #include "parser.h"
 #include "var.h"
@@ -667,6 +668,14 @@ static char
 		if (curpos > bp[0] || memcmp(bp + 2, text, curpos) != 0)
 			continue;
 		rmatches = add_match(matches, ++i, &size, strndup(bp + 2, bp[0]));
+		if (rmatches == NULL)
+			goto out;
+		matches = rmatches;
+	}
+	for (const struct alias *ap = NULL; (ap = iteralias(ap)) != NULL;) {
+		if (strncmp(ap->name, text, curpos) != 0)
+			continue;
+		rmatches = add_match(matches, ++i, &size, strdup(ap->name));
 		if (rmatches == NULL)
 			goto out;
 		matches = rmatches;
