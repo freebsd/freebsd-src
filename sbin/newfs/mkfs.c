@@ -332,6 +332,7 @@ restart:
 	 * can put into each cylinder group. If this is too big, we reduce
 	 * the density until it fits.
 	 */
+retry:
 	maxinum = (((int64_t)(1)) << 32) - INOPB(&sblock);
 	minfragsperinode = 1 + fssize / maxinum;
 	if (density == 0) {
@@ -665,6 +666,21 @@ restart:
 		pp->p_fsize = sblock.fs_fsize;
 		pp->p_frag = sblock.fs_frag;
 		pp->p_cpg = sblock.fs_fpg;
+	}
+	/*
+	 * This should NOT happen. If it does complain loudly and
+	 * take evasive action.
+	 */
+	if ((int32_t)CGSIZE(&sblock) > sblock.fs_bsize) {
+		printf("INTERNAL ERROR: ipg %d, fpg %d, contigsumsize %d, ",
+		    sblock.fs_ipg, sblock.fs_fpg, sblock.fs_contigsumsize);
+		printf("old_cpg %d, size_cg %jd, CGSIZE %jd\n",
+		    sblock.fs_old_cpg, sizeof(struct cg), CGSIZE(&sblock));
+		printf("Please file a FreeBSD bug report and include this "
+		    "output\n");
+		maxblkspercg = fragstoblks(&sblock, sblock.fs_fpg) - 1;
+		density = 0;
+		goto retry;
 	}
 }
 
