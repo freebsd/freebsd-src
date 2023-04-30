@@ -545,6 +545,19 @@ clearcmdentry(void)
 }
 
 
+static unsigned int
+hashname(const char *p)
+{
+	unsigned int hashval;
+
+	hashval = (unsigned char)*p << 4;
+	while (*p)
+		hashval += *p++;
+
+	return (hashval % CMDTABLESIZE);
+}
+
+
 /*
  * Locate a command in the command hash table.  If "add" is nonzero,
  * add the command to the table if it is not already present.  The
@@ -559,17 +572,11 @@ static struct tblentry **lastcmdentry;
 static struct tblentry *
 cmdlookup(const char *name, int add)
 {
-	unsigned int hashval;
-	const char *p;
 	struct tblentry *cmdp;
 	struct tblentry **pp;
 	size_t len;
 
-	p = name;
-	hashval = (unsigned char)*p << 4;
-	while (*p)
-		hashval += *p++;
-	pp = &cmdtable[hashval % CMDTABLESIZE];
+	pp = &cmdtable[hashname(name)];
 	for (cmdp = *pp ; cmdp ; cmdp = cmdp->next) {
 		if (equal(cmdp->cmdname, name))
 			break;
@@ -586,6 +593,31 @@ cmdlookup(const char *name, int add)
 	}
 	lastcmdentry = pp;
 	return cmdp;
+}
+
+const void *
+itercmd(const void *entry, struct cmdentry *result)
+{
+	const struct tblentry *e = entry;
+	size_t i = 0;
+
+	if (e != NULL) {
+		if (e->next != NULL) {
+			e = e->next;
+			goto success;
+		}
+		i = hashname(e->cmdname) + 1;
+	}
+	for (; i < CMDTABLESIZE; i++)
+		if ((e = cmdtable[i]) != NULL)
+			goto success;
+
+	return (NULL);
+success:
+	result->cmdtype = e->cmdtype;
+	result->cmdname = e->cmdname;
+
+	return (e);
 }
 
 /*

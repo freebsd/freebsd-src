@@ -53,6 +53,7 @@ struct cmdentry {
 		struct funcdef *func;
 	} u;
 	int special;
+	const char *cmdname;
 };
 
 
@@ -71,3 +72,4 @@ int unsetfunc(const char *);
 int isfunc(const char *);
 int typecmd_impl(int, char **, int, const char *);
 void clearcmdentry(void);
+const void *itercmd(const void *, struct cmdentry *);
