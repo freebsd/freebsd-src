@@ -1133,26 +1133,47 @@ sctp_handle_error(struct sctp_chunkhdr *ch,
 			 */
 			if ((cause_length >= sizeof(struct sctp_error_stale_cookie)) &&
 			    (SCTP_GET_STATE(stcb) == SCTP_STATE_COOKIE_ECHOED)) {
+				struct timeval now;
 				struct sctp_error_stale_cookie *stale_cookie;
+				uint64_t stale_time;
 
-				stale_cookie = (struct sctp_error_stale_cookie *)cause;
-				/* stable_time is in usec, convert to msec. */
-				asoc->cookie_preserve_req = ntohl(stale_cookie->stale_time) / 1000;
-				/* Double it to be more robust on RTX. */
-				asoc->cookie_preserve_req *= 2;
 				asoc->stale_cookie_count++;
-				if (asoc->stale_cookie_count >
-				    asoc->max_init_times) {
+				if (asoc->stale_cookie_count > asoc->max_init_times) {
 					sctp_abort_notification(stcb, false, true, 0, NULL, SCTP_SO_NOT_LOCKED);
-					/* now free the asoc */
 					(void)sctp_free_assoc(stcb->sctp_ep, stcb, SCTP_NORMAL_PROC,
 					    SCTP_FROM_SCTP_INPUT + SCTP_LOC_12);
 					return (-1);
 				}
-				/* blast back to INIT state */
+				stale_cookie = (struct sctp_error_stale_cookie *)cause;
+				stale_time = ntohl(stale_cookie->stale_time);
+				if (stale_time == 0) {
+					/* Use an RTT as an approximation. */
+					(void)SCTP_GETTIME_TIMEVAL(&now);
+					timevalsub(&now, &asoc->time_entered);
+					stale_time = (uint64_t)1000000 * (uint64_t)now.tv_sec + (uint64_t)now.tv_usec;
+					if (stale_time == 0) {
+						stale_time = 1;
+					}
+				}
+				/*
+				 * stale_time is in usec, convert it to
+				 * msec. Round upwards, to ensure that it is
+				 * non-zero.
+				 */
+				stale_time = (stale_time + 999) / 1000;
+				/* Double it, to be more robust on RTX. */
+				stale_time = 2 * stale_time;
+				asoc->cookie_preserve_req = (uint32_t)stale_time;
+				if (asoc->overall_error_count == 0) {
+					sctp_calculate_rto(stcb, asoc, net, &asoc->time_entered,
+					    SCTP_RTT_FROM_NON_DATA);
+				}
+				asoc->overall_error_count = 0;
+				/* Blast back to INIT state */
 				sctp_toss_old_cookies(stcb, &stcb->asoc);
-				SCTP_SET_STATE(stcb, SCTP_STATE_COOKIE_WAIT);
 				sctp_stop_all_cookie_timers(stcb);
+				SCTP_SET_STATE(stcb, SCTP_STATE_COOKIE_WAIT);
+				(void)SCTP_GETTIME_TIMEVAL(&asoc->time_entered);
 				sctp_send_initiate(stcb->sctp_ep, stcb, SCTP_SO_NOT_LOCKED);
 			}
 			break;
