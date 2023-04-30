@@ -132,7 +132,7 @@ fi
 
 # Skip the tests that require extra math if we don't have it.
 if [ "$run_extra_tests" -eq 0 ]; then
-	if [ "$f" = "rand.bc" ]; then
+	if [ "$f" = "rand.bc" ] || [ "$f" = "root.bc" ]; then
 		printf 'Skipping %s script: %s\n' "$d" "$f"
 		exit 0
 	fi
