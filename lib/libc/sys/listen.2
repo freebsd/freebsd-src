@@ -28,7 +28,7 @@
 .\"	From: @(#)listen.2	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd April 14, 2020
+.Dd April 30, 2023
 .Dt LISTEN 2
 .Os
 .Sh NAME
@@ -111,10 +111,20 @@ or less than zero is specified,
 is silently forced to
 .Va kern.ipc.soacceptqueue .
 .Pp
-If the listen queue overflows, the kernel will emit a LOG_DEBUG syslog message.
+If the listen queue overflows, the kernel will emit a syslog message
+using default priority LOG_DEBUG (7).
 The
 .Xr sysctl 3
 MIB variable
+.Va kern.ipc.sooverprio
+may be used to change this priority to any value in a range of 0..7
+(LOG_EMERG..LOG_DEBUG).
+See
+.Xr syslog 3
+for details.
+It may be set to -1 to disable these messages.
+.Pp
+The variable
 .Va kern.ipc.sooverinterval
 specifies a per-socket limit on how often the kernel will emit these messages.
 .Sh INTERACTION WITH ACCEPT FILTERS
@@ -164,6 +174,7 @@ The socket is not of a type that supports the operation
 .Xr connect 2 ,
 .Xr socket 2 ,
 .Xr sysctl 3 ,
+.Xr syslog 3 ,
 .Xr sysctl 8 ,
 .Xr accept_filter 9
 .Sh HISTORY
