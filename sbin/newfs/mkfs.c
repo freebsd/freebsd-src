@@ -671,7 +671,7 @@ retry:
 	if ((int32_t)CGSIZE(&sblock) > sblock.fs_bsize) {
 		printf("INTERNAL ERROR: ipg %d, fpg %d, contigsumsize %d, ",
 		    sblock.fs_ipg, sblock.fs_fpg, sblock.fs_contigsumsize);
-		printf("old_cpg %d, size_cg %jd, CGSIZE %jd\n",
+		printf("old_cpg %d, size_cg %zu, CGSIZE %zu\n",
 		    sblock.fs_old_cpg, sizeof(struct cg), CGSIZE(&sblock));
 		printf("Please file a FreeBSD bug report and include this "
 		    "output\n");
