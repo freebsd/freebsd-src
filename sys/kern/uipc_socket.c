@@ -578,6 +578,10 @@ SYSCTL_INT(_regression, OID_AUTO, sonewconn_earlytest, CTLFLAG_RW,
     &regression_sonewconn_earlytest, 0, "Perform early sonewconn limit test");
 #endif
 
+static int sooverprio = LOG_DEBUG;
+SYSCTL_INT(_kern_ipc, OID_AUTO, sooverprio, CTLFLAG_RW,
+    &sooverprio, 0, "Log priority for listen socket overflows: 0..7 or -1 to disable");
+
 static struct timeval overinterval = { 60, 0 };
 SYSCTL_TIMEVAL_SEC(_kern_ipc, OID_AUTO, sooverinterval, CTLFLAG_RW,
     &overinterval,
@@ -617,7 +621,8 @@ solisten_clone(struct socket *head)
 	if (over) {
 #endif
 		head->sol_overcount++;
-		dolog = !!ratecheck(&head->sol_lastover, &overinterval);
+		dolog = (sooverprio >= 0) &&
+			!!ratecheck(&head->sol_lastover, &overinterval);
 
 		/*
 		 * If we're going to log, copy the overflow count and queue
@@ -706,14 +711,16 @@ solisten_clone(struct socket *head)
 			 * sys/kern/sonewconn_overflow checks for it.
 			 */
 			if (head->so_cred == 0) {
-				log(LOG_DEBUG, "sonewconn: pcb %p (%s): "
+				log(LOG_PRI(sooverprio),
+				    "sonewconn: pcb %p (%s): "
 				    "Listen queue overflow: %i already in "
 				    "queue awaiting acceptance (%d "
 				    "occurrences)\n", head->so_pcb,
 				    sbuf_data(&descrsb),
 			    	qlen, overcount);
 			} else {
-				log(LOG_DEBUG, "sonewconn: pcb %p (%s): "
+				log(LOG_PRI(sooverprio),
+				    "sonewconn: pcb %p (%s): "
 				    "Listen queue overflow: "
 				    "%i already in queue awaiting acceptance "
 				    "(%d occurrences), euid %d, rgid %d, jail %s\n",
