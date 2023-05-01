@@ -3853,3 +3853,33 @@ done:
 		free(entry);
 	return (rc);
 }
+
+/*
+ * Return either a cached copy of the bootenv, or read each of the vdev children
+ * looking for the bootenv. Cache what's found and return the results. Returns 0
+ * when benvp is filled in, and some errno when not.
+ */
+static int
+zfs_get_bootenv_spa(spa_t *spa, nvlist_t **benvp)
+{
+	vdev_t *vd;
+	nvlist_t *benv = NULL;
+
+	if (spa->spa_bootenv == NULL) {
+		STAILQ_FOREACH(vd, &spa->spa_root_vdev->v_children,
+		    v_childlink) {
+			benv = vdev_read_bootenv(vd);
+
+			if (benv != NULL)
+				break;
+		}
+		spa->spa_bootenv = benv;
+	}
+	benv = spa->spa_bootenv;
+
+	if (benv == NULL)
+		return (ENOENT);
+
+	*benvp = benv;
+	return (0);
+}
