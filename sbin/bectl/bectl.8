@@ -353,6 +353,7 @@ If a nonexistent
 is given,
 .Nm
 will make the directory, including intermediate directories as required.
+.Pp
 If no 
 .Ar mountpoint
 is given,
@@ -361,6 +362,12 @@ will make a directory such as Pa be_mount.c6Sf in Pa /tmp
 .
 Randomness in the last four characters of the directory name will prevent
 mount point conflicts.
+Unmount of an environment, followed by mount of the same environment
+without giving a
+.Ar mountpoint
+, will result in a different randomly-named mountpoint.
+.Pp
+Unmount from a temporary mount point will not remove the mount point.
 .It Cm rename Ar origBeName newBeName
 Rename the given
 .Ar origBeName
