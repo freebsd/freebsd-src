@@ -6,7 +6,7 @@ COMMON ITEMS: section later in the file.  These instructions assume that you
 basically know what you are doing.  If not, then please consult the FreeBSD
 Handbook:
 
-https://docs.freebsd.org/en/books/handbook/cutting-edge/#makeworld
+    https://docs.freebsd.org/en/books/handbook/cutting-edge/#makeworld
 
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
