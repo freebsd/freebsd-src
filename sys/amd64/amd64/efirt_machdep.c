@@ -298,6 +298,7 @@ int
 efi_arch_enter(void)
 {
 	pmap_t curpmap;
+	uint64_t cr3;
 
 	curpmap = PCPU_GET(curpmap);
 	PMAP_LOCK_ASSERT(curpmap, MA_OWNED);
@@ -313,8 +314,10 @@ efi_arch_enter(void)
 	if (pmap_pcid_enabled && !invpcid_works)
 		PCPU_SET(curpmap, NULL);
 
-	load_cr3(VM_PAGE_TO_PHYS(efi_pmltop_page) | (pmap_pcid_enabled ?
-	    curpmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid : 0));
+	cr3 = VM_PAGE_TO_PHYS(efi_pmltop_page);
+	if (pmap_pcid_enabled)
+		cr3 |= pmap_get_pcid(curpmap);
+	load_cr3(cr3);
 	/*
 	 * If PCID is enabled, the clear CR3_PCID_SAVE bit in the loaded %cr3
 	 * causes TLB invalidation.
@@ -328,12 +331,16 @@ void
 efi_arch_leave(void)
 {
 	pmap_t curpmap;
+	uint64_t cr3;
 
 	curpmap = &curproc->p_vmspace->vm_pmap;
-	if (pmap_pcid_enabled && !invpcid_works)
-		PCPU_SET(curpmap, curpmap);
-	load_cr3(curpmap->pm_cr3 | (pmap_pcid_enabled ?
-	    curpmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid : 0));
+	cr3 = curpmap->pm_cr3;
+	if (pmap_pcid_enabled) {
+		cr3 |= pmap_get_pcid(curpmap);
+		if (!invpcid_works)
+			PCPU_SET(curpmap, curpmap);
+	}
+	load_cr3(cr3);
 	if (!pmap_pcid_enabled)
 		invltlb();
 	vm_fault_enable_pagefaults(curthread->td_md.md_efirt_dis_pf);
