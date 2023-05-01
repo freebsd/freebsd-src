@@ -1248,7 +1248,7 @@ pmc_core_initialize(struct pmc_mdep *md, int maxcpu, int version_override)
 	if (core_version < 1 || core_version > 5 ||
 	    (core_cputype != PMC_CPU_INTEL_CORE && core_version == 1)) {
 		/* Unknown PMC architecture. */
-		printf("hwpc_core: unknown PMC architecture: %d\n",
+		printf("hwpmc_core: unknown PMC architecture: %d\n",
 		    core_version);
 		return (EPROGMISMATCH);
 	}
