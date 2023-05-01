@@ -370,8 +370,6 @@ Unmount of an environment, followed by mount of the same environment
 without giving a
 .Ar mountpoint
 , will result in a different randomly-named mountpoint.
-.Pp
-Unmount from a temporary mount point will not remove the mount point.
 .It Cm rename Ar origBeName newBeName
 Rename the given
 .Ar origBeName
@@ -397,6 +395,7 @@ Specifying
 will force the unmount if busy.
 .El
 .Pp
+Unmount from a temporary mount point will not remove the mount point.
 .Nm
 prints usage information if
 .Fl h
