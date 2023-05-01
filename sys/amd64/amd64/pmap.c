@@ -9926,20 +9926,20 @@ out:
 }
 
 static uint64_t
-pmap_pcid_alloc(pmap_t pmap, u_int cpuid)
+pmap_pcid_alloc(pmap_t pmap, struct pmap_pcid *pcidp)
 {
 	uint32_t gen, new_gen, pcid_next;
 
 	CRITICAL_ASSERT(curthread);
 	gen = PCPU_GET(pcid_gen);
-	if (pmap->pm_pcids[cpuid].pm_pcid == PMAP_PCID_KERN)
+	if (pcidp->pm_pcid == PMAP_PCID_KERN)
 		return (pti ? 0 : CR3_PCID_SAVE);
-	if (pmap->pm_pcids[cpuid].pm_gen == gen)
+	if (pcidp->pm_gen == gen)
 		return (CR3_PCID_SAVE);
 	pcid_next = PCPU_GET(pcid_next);
 	KASSERT((!pti && pcid_next <= PMAP_PCID_OVERMAX) ||
 	    (pti && pcid_next <= PMAP_PCID_OVERMAX_KERN),
-	    ("cpu %d pcid_next %#x", cpuid, pcid_next));
+	    ("cpu %d pcid_next %#x", PCPU_GET(cpuid), pcid_next));
 	if ((!pti && pcid_next == PMAP_PCID_OVERMAX) ||
 	    (pti && pcid_next == PMAP_PCID_OVERMAX_KERN)) {
 		new_gen = gen + 1;
@@ -9950,25 +9950,23 @@ pmap_pcid_alloc(pmap_t pmap, u_int cpuid)
 	} else {
 		new_gen = gen;
 	}
-	pmap->pm_pcids[cpuid].pm_pcid = pcid_next;
-	pmap->pm_pcids[cpuid].pm_gen = new_gen;
+	pcidp->pm_pcid = pcid_next;
+	pcidp->pm_gen = new_gen;
 	PCPU_SET(pcid_next, pcid_next + 1);
 	return (0);
 }
 
 static uint64_t
-pmap_pcid_alloc_checked(pmap_t pmap, u_int cpuid)
+pmap_pcid_alloc_checked(pmap_t pmap, struct pmap_pcid *pcidp)
 {
 	uint64_t cached;
 
-	cached = pmap_pcid_alloc(pmap, cpuid);
-	KASSERT(pmap->pm_pcids[cpuid].pm_pcid < PMAP_PCID_OVERMAX,
-	    ("pmap %p cpu %d pcid %#x", pmap, cpuid,
-	    pmap->pm_pcids[cpuid].pm_pcid));
-	KASSERT(pmap->pm_pcids[cpuid].pm_pcid != PMAP_PCID_KERN ||
-	    pmap == kernel_pmap,
+	cached = pmap_pcid_alloc(pmap, pcidp);
+	KASSERT(pcidp->pm_pcid < PMAP_PCID_OVERMAX,
+	    ("pmap %p cpu %d pcid %#x", pmap, PCPU_GET(cpuid), pcidp->pm_pcid));
+	KASSERT(pcidp->pm_pcid != PMAP_PCID_KERN || pmap == kernel_pmap,
 	    ("non-kernel pmap pmap %p cpu %d pcid %#x",
-	    pmap, cpuid, pmap->pm_pcids[cpuid].pm_pcid));
+	    pmap, PCPU_GET(cpuid), pcidp->pm_pcid));
 	return (cached);
 }
 
@@ -9984,6 +9982,7 @@ static void
 pmap_activate_sw_pcid_pti(struct thread *td, pmap_t pmap, u_int cpuid)
 {
 	pmap_t old_pmap;
+	struct pmap_pcid *pcidp, *old_pcidp;
 	uint64_t cached, cr3, kcr3, ucr3;
 
 	KASSERT((read_rflags() & PSL_I) == 0,
@@ -9994,17 +9993,18 @@ pmap_activate_sw_pcid_pti(struct thread *td, pmap_t pmap, u_int cpuid)
 		PCPU_SET(ucr3_load_mask, PMAP_UCR3_NOMASK);
 		old_pmap = PCPU_GET(curpmap);
 		MPASS(old_pmap->pm_ucr3 != PMAP_NO_CR3);
-		old_pmap->pm_pcids[cpuid].pm_gen = 0;
+		old_pcidp = &old_pmap->pm_pcids[cpuid];
+		old_pcidp->pm_gen = 0;
 	}
 
-	cached = pmap_pcid_alloc_checked(pmap, cpuid);
+	pcidp = &pmap->pm_pcids[cpuid];
+	cached = pmap_pcid_alloc_checked(pmap, pcidp);
 	cr3 = rcr3();
 	if ((cr3 & ~CR3_PCID_MASK) != pmap->pm_cr3)
-		load_cr3(pmap->pm_cr3 | pmap->pm_pcids[cpuid].pm_pcid);
+		load_cr3(pmap->pm_cr3 | pcidp->pm_pcid);
 	PCPU_SET(curpmap, pmap);
-	kcr3 = pmap->pm_cr3 | pmap->pm_pcids[cpuid].pm_pcid;
-	ucr3 = pmap->pm_ucr3 | pmap->pm_pcids[cpuid].pm_pcid |
-	    PMAP_PCID_USER_PT;
+	kcr3 = pmap->pm_cr3 | pcidp->pm_pcid;
+	ucr3 = pmap->pm_ucr3 | pcidp->pm_pcid | PMAP_PCID_USER_PT;
 
 	if (!cached && pmap->pm_ucr3 != PMAP_NO_CR3)
 		PCPU_SET(ucr3_load_mask, ~CR3_PCID_SAVE);
@@ -10021,16 +10021,17 @@ static void
 pmap_activate_sw_pcid_nopti(struct thread *td __unused, pmap_t pmap,
     u_int cpuid)
 {
+	struct pmap_pcid *pcidp;
 	uint64_t cached, cr3;
 
 	KASSERT((read_rflags() & PSL_I) == 0,
 	    ("PCID needs interrupts disabled in pmap_activate_sw()"));
 
-	cached = pmap_pcid_alloc_checked(pmap, cpuid);
+	pcidp = &pmap->pm_pcids[cpuid];
+	cached = pmap_pcid_alloc_checked(pmap, pcidp);
 	cr3 = rcr3();
 	if (!cached || (cr3 & ~CR3_PCID_MASK) != pmap->pm_cr3)
-		load_cr3(pmap->pm_cr3 | pmap->pm_pcids[cpuid].pm_pcid |
-		    cached);
+		load_cr3(pmap->pm_cr3 | pcidp->pm_pcid | cached);
 	PCPU_SET(curpmap, pmap);
 	if (cached)
 		counter_u64_add(pcid_save_cnt, 1);
