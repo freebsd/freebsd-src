@@ -123,6 +123,8 @@ struct host_timeval {
 #define HOST_MAP_FIXED		0x10
 #define HOST_MAP_ANONYMOUS	0x20
 
+#define HOST_MAP_FAILED		((void *)-1)
+
 /* Mount flags from uapi */
 #define MS_RELATIME (1 << 21)
 
