@@ -827,27 +827,12 @@ zfs_set_bootenv(void *vdev, nvlist_t *benv)
 int
 zfs_get_bootonce(void *vdev, const char *key, char *buf, size_t size)
 {
-	nvlist_t *benv;
-	char *result = NULL;
-	int result_size, rv;
+	spa_t *spa;
 
-	if ((rv = zfs_get_bootenv(vdev, &benv)) != 0)
-		return (rv);
+	if ((spa = spa_find_by_dev((struct zfs_devdesc *)vdev)) == NULL)
+		return (ENXIO);
 
-	if ((rv = nvlist_find(benv, key, DATA_TYPE_STRING, NULL,
-	    &result, &result_size)) == 0) {
-		if (result_size == 0) {
-			/* ignore empty string */
-			rv = ENOENT;
-		} else {
-			size = MIN((size_t)result_size + 1, size);
-			strlcpy(buf, result, size);
-		}
-		(void) nvlist_remove(benv, key, DATA_TYPE_STRING);
-		(void) zfs_set_bootenv(vdev, benv);
-	}
-
-	return (rv);
+	return (zfs_get_bootonce_spa(spa, key, buf, size));
 }
 
 /*
