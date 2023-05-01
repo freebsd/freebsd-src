@@ -384,7 +384,15 @@ pmap_pku_mask_bit(pmap_t pmap)
 #define	VM_PAGE_TO_PV_LIST_LOCK(m)	\
 			PHYS_TO_PV_LIST_LOCK(VM_PAGE_TO_PHYS(m))
 
-struct pmap kernel_pmap_store;
+/*
+ * Statically allocate kernel pmap memory.  However, memory for
+ * pm_pcids is obtained after the dynamic allocator is operational.
+ * Initialize it with a non-canonical pointer to catch early accesses
+ * regardless of the active mapping.
+ */
+struct pmap kernel_pmap_store = {
+	.pm_pcidp = (void *)0xdeadbeefdeadbeef,
+};
 
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
@@ -2026,9 +2034,14 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 
 	/* Initialize TLB Context Id. */
 	if (pmap_pcid_enabled) {
+		kernel_pmap->pm_pcidp = (void *)(uintptr_t)
+		    offsetof(struct pcpu, pc_kpmap_store);
 		for (i = 0; i < MAXCPU; i++) {
-			kernel_pmap->pm_pcids[i].pm_pcid = PMAP_PCID_KERN;
-			kernel_pmap->pm_pcids[i].pm_gen = 1;
+			struct pmap_pcid *pcidp;
+
+			pcidp = zpcpu_get_cpu(kernel_pmap->pm_pcidp, i);
+			pcidp->pm_pcid = PMAP_PCID_KERN;
+			pcidp->pm_gen = 1;
 		}
 
 		/*
@@ -3031,6 +3044,7 @@ pmap_invalidate_ept(pmap_t pmap)
 static inline void
 pmap_invalidate_preipi_pcid(pmap_t pmap)
 {
+	struct pmap_pcid *pcidp;
 	u_int cpuid, i;
 
 	sched_pin();
@@ -3040,8 +3054,10 @@ pmap_invalidate_preipi_pcid(pmap_t pmap)
 		cpuid = 0xffffffff;	/* An impossible value */
 
 	CPU_FOREACH(i) {
-		if (cpuid != i)
-			pmap->pm_pcids[i].pm_gen = 0;
+		if (cpuid != i) {
+			pcidp = zpcpu_get_cpu(pmap->pm_pcidp, i);
+			pcidp->pm_gen = 0;
+		}
 	}
 
 	/*
@@ -4192,7 +4208,7 @@ pmap_pinit_pcids(pmap_t pmap, uint32_t pcid, int gen)
 	int i;
 
 	CPU_FOREACH(i) {
-		pcidp = &pmap->pm_pcids[i];
+		pcidp = zpcpu_get_cpu(pmap->pm_pcidp, i);
 		pcidp->pm_pcid = pcid;
 		pcidp->pm_gen = gen;
 	}
@@ -4215,6 +4231,7 @@ pmap_pinit0(pmap_t pmap)
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 	pmap->pm_flags = pmap_flags;
+	pmap->pm_pcidp = uma_zalloc_pcpu(pcpu_zone_8, M_WAITOK);
 	pmap_pinit_pcids(pmap, PMAP_PCID_KERN + 1, 1);
 	pmap_activate_boot(pmap);
 	td = curthread;
@@ -4398,6 +4415,9 @@ pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type, int flags)
 	pmap->pm_pmltop = (pml5_entry_t *)PHYS_TO_DMAP(pmltop_phys);
 
 	if (pmap_pcid_enabled) {
+		if (pmap->pm_pcidp == NULL)
+			pmap->pm_pcidp = uma_zalloc_pcpu(pcpu_zone_8,
+			    M_WAITOK);
 		pmap_pinit_pcids(pmap, PMAP_PCID_NONE, 0);
 	}
 	pmap->pm_cr3 = PMAP_NO_CR3;	/* initialize to an invalid value */
@@ -9993,11 +10013,11 @@ pmap_activate_sw_pcid_pti(struct thread *td, pmap_t pmap, u_int cpuid)
 		PCPU_SET(ucr3_load_mask, PMAP_UCR3_NOMASK);
 		old_pmap = PCPU_GET(curpmap);
 		MPASS(old_pmap->pm_ucr3 != PMAP_NO_CR3);
-		old_pcidp = &old_pmap->pm_pcids[cpuid];
+		old_pcidp = zpcpu_get_cpu(old_pmap->pm_pcidp, cpuid);
 		old_pcidp->pm_gen = 0;
 	}
 
-	pcidp = &pmap->pm_pcids[cpuid];
+	pcidp = zpcpu_get_cpu(pmap->pm_pcidp, cpuid);
 	cached = pmap_pcid_alloc_checked(pmap, pcidp);
 	cr3 = rcr3();
 	if ((cr3 & ~CR3_PCID_MASK) != pmap->pm_cr3)
@@ -10027,7 +10047,7 @@ pmap_activate_sw_pcid_nopti(struct thread *td __unused, pmap_t pmap,
 	KASSERT((read_rflags() & PSL_I) == 0,
 	    ("PCID needs interrupts disabled in pmap_activate_sw()"));
 
-	pcidp = &pmap->pm_pcids[cpuid];
+	pcidp = zpcpu_get_cpu(pmap->pm_pcidp, cpuid);
 	cached = pmap_pcid_alloc_checked(pmap, pcidp);
 	cr3 = rcr3();
 	if (!cached || (cr3 & ~CR3_PCID_MASK) != pmap->pm_cr3)

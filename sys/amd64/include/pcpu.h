@@ -35,6 +35,7 @@
 #ifndef _MACHINE_PCPU_H_
 #define	_MACHINE_PCPU_H_
 
+#include <machine/_pmap.h>
 #include <machine/segments.h>
 #include <machine/tss.h>
 
@@ -101,7 +102,8 @@ _Static_assert(sizeof(struct monitorbuf) == 128, "2x cache line");
 	uint64_t pc_ucr3_load_mask;					\
 	u_int	pc_small_core;						\
 	u_int	pc_pcid_invlpg_workaround;				\
-	char	__pad[2908]		/* pad to UMA_PCPU_ALLOC_SIZE */
+	struct pmap_pcid pc_kpmap_store;				\
+	char	__pad[2900]		/* pad to UMA_PCPU_ALLOC_SIZE */
 
 #define	PC_DBREG_CMD_NONE	0
 #define	PC_DBREG_CMD_LOAD	1
