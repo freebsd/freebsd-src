@@ -99,9 +99,14 @@ static const struct sagaw_bits_tag {
 	{.agaw = 48, .cap = DMAR_CAP_SAGAW_4LVL, .awlvl = DMAR_CTX2_AW_4LVL,
 	    .pglvl = 4},
 	{.agaw = 57, .cap = DMAR_CAP_SAGAW_5LVL, .awlvl = DMAR_CTX2_AW_5LVL,
-	    .pglvl = 5},
-	{.agaw = 64, .cap = DMAR_CAP_SAGAW_6LVL, .awlvl = DMAR_CTX2_AW_6LVL,
-	    .pglvl = 6}
+	    .pglvl = 5}
+	/*
+	 * 6-level paging (DMAR_CAP_SAGAW_6LVL) is not supported on any
+	 * current VT-d hardware and its SAGAW field value is listed as
+	 * reserved in the VT-d spec.  If support is added in the future,
+	 * this structure and the logic in dmar_maxaddr2mgaw() will need
+	 * to change to avoid attempted comparison against 1ULL << 64.
+	 */
 };
 
 bool
