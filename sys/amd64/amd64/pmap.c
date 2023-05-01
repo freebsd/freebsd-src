@@ -4193,12 +4193,24 @@ pmap_abort_ptp(pmap_t pmap, vm_offset_t va, vm_page_t mpte)
 	}
 }
 
+static void
+pmap_pinit_pcids(pmap_t pmap, uint32_t pcid, int gen)
+{
+	struct pmap_pcid *pcidp;
+	int i;
+
+	CPU_FOREACH(i) {
+		pcidp = &pmap->pm_pcids[i];
+		pcidp->pm_pcid = pcid;
+		pcidp->pm_gen = gen;
+	}
+}
+
 void
 pmap_pinit0(pmap_t pmap)
 {
 	struct proc *p;
 	struct thread *td;
-	int i;
 
 	PMAP_LOCK_INIT(pmap);
 	pmap->pm_pmltop = kernel_pmap->pm_pmltop;
@@ -4211,10 +4223,7 @@ pmap_pinit0(pmap_t pmap)
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 	pmap->pm_flags = pmap_flags;
-	CPU_FOREACH(i) {
-		pmap->pm_pcids[i].pm_pcid = PMAP_PCID_KERN + 1;
-		pmap->pm_pcids[i].pm_gen = 1;
-	}
+	pmap_pinit_pcids(pmap, PMAP_PCID_KERN + 1, 1);
 	pmap_activate_boot(pmap);
 	td = curthread;
 	if (pti) {
@@ -4373,7 +4382,6 @@ pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type, int flags)
 {
 	vm_page_t pmltop_pg, pmltop_pgu;
 	vm_paddr_t pmltop_phys;
-	int i;
 
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 
@@ -4397,9 +4405,8 @@ pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type, int flags)
 	pmltop_phys = VM_PAGE_TO_PHYS(pmltop_pg);
 	pmap->pm_pmltop = (pml5_entry_t *)PHYS_TO_DMAP(pmltop_phys);
 
-	CPU_FOREACH(i) {
-		pmap->pm_pcids[i].pm_pcid = PMAP_PCID_NONE;
-		pmap->pm_pcids[i].pm_gen = 0;
+	if (pmap_pcid_enabled) {
+		pmap_pinit_pcids(pmap, PMAP_PCID_NONE, 0);
 	}
 	pmap->pm_cr3 = PMAP_NO_CR3;	/* initialize to an invalid value */
 	pmap->pm_ucr3 = PMAP_NO_CR3;
