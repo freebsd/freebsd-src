@@ -348,12 +348,13 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 {
 	struct pf_kpool		*rpool = &r->rpool;
 	struct pf_addr		*raddr = NULL, *rmask = NULL;
+	struct pf_srchash	*sh = NULL;
 
 	/* Try to find a src_node if none was given and this
 	   is a sticky-address rule. */
 	if (*sn == NULL && r->rpool.opts & PF_POOL_STICKYADDR &&
 	    (r->rpool.opts & PF_POOL_TYPEMASK) != PF_POOL_NONE)
-		*sn = pf_find_src_node(saddr, r, af, 0);
+		*sn = pf_find_src_node(saddr, r, af, &sh, false);
 
 	/* If a src_node was found or explicitly given and it has a non-zero
 	   route address, use this address. A zeroed address is found if the
