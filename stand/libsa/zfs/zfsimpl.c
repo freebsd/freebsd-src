@@ -3883,3 +3883,19 @@ zfs_get_bootenv_spa(spa_t *spa, nvlist_t **benvp)
 	*benvp = benv;
 	return (0);
 }
+
+/*
+ * Store nvlist to pool label bootenv area. Also updates cached pointer in spa.
+ */
+static int
+zfs_set_bootenv_spa(spa_t *spa, nvlist_t *benv)
+{
+	vdev_t *vd;
+
+	STAILQ_FOREACH(vd, &spa->spa_root_vdev->v_children, v_childlink) {
+		vdev_write_bootenv(vd, benv);
+	}
+
+	spa->spa_bootenv = benv;
+	return (0);
+}

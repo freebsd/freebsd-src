@@ -812,22 +812,12 @@ zfs_get_bootenv(void *vdev, nvlist_t **benvp)
 int
 zfs_set_bootenv(void *vdev, nvlist_t *benv)
 {
-	struct zfs_devdesc *dev = (struct zfs_devdesc *)vdev;
 	spa_t *spa;
-	vdev_t *vd;
 
-	if (dev->dd.d_dev->dv_type != DEVT_ZFS)
-		return (ENOTSUP);
-
-	if ((spa = spa_find_by_dev(dev)) == NULL)
+	if ((spa = spa_find_by_dev((struct zfs_devdesc *)vdev)) == NULL)
 		return (ENXIO);
 
-	STAILQ_FOREACH(vd, &spa->spa_root_vdev->v_children, v_childlink) {
-		vdev_write_bootenv(vd, benv);
-	}
-
-	spa->spa_bootenv = benv;
-	return (0);
+	return (zfs_set_bootenv_spa(spa, benv));
 }
 
 /*
