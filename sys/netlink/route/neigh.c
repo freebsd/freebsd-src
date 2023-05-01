@@ -156,12 +156,9 @@ dump_lle_locked(struct llentry *lle, void *arg)
 
 	ndm = nlmsg_reserve_object(nw, struct ndmsg);
 	ndm->ndm_family = wa->family;
-	ndm->ndm_pad1 = 0;
-	ndm->ndm_pad2 = 0;
 	ndm->ndm_ifindex = wa->ifp->if_index;
 	ndm->ndm_state = lle_state_to_nl_state(wa->family, lle);
 	ndm->ndm_flags = lle_flags_to_nl_flags(lle);
-	ndm->ndm_type = 0;
 
 	switch (wa->family) {
 #ifdef INET
