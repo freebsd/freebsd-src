@@ -1,4 +1,4 @@
 .\" $FreeBSD$
-Do not install header or
+Do not install
 programs used for program development,
 compilers, debuggers etc.
