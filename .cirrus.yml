@@ -10,6 +10,9 @@ compute_engine_instance:
   memory: 8G
   disk: 40
 
+env:
+  PKG_FORMAT: tar
+
 task:
   matrix:
   - name: World and kernel amd64 build and boot smoke test
@@ -46,7 +49,7 @@ task:
   - su user -c "make -j$(sysctl -n hw.ncpu) CROSS_TOOLCHAIN=${TOOLCHAIN_PKG} WITHOUT_TOOLCHAIN=yes buildworld buildkernel"
 
   package_script:
-  - su user -c "make CROSS_TOOLCHAIN=${TOOLCHAIN_PKG} WITHOUT_TOOLCHAIN=yes PKG_FORMAT=tar packages"
+  - su user -c "make CROSS_TOOLCHAIN=${TOOLCHAIN_PKG} WITHOUT_TOOLCHAIN=yes packages"
 
   package_check_script:
   - su user -c "/usr/libexec/flua tools/pkgbase/metalog_reader.lua -c /usr/obj/$(pwd -P)/${TARGET}.${TARGET_ARCH}/worldstage/METALOG"
