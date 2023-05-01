@@ -34,6 +34,9 @@
 
 #include "fbt_isa.h"
 
+#define	FBT_ENTRY	"entry"
+#define	FBT_RETURN	"return"
+
 /*
  * fbt_probe is a bit of a misnomer.  One of these structures is created for
  * each trace point of an FBT probe.  A probe might have multiple trace points

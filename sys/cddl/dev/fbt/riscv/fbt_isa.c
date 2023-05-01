@@ -43,8 +43,6 @@
 
 #define	FBT_C_PATCHVAL		MATCH_C_EBREAK
 #define	FBT_PATCHVAL		MATCH_EBREAK
-#define	FBT_ENTRY		"entry"
-#define	FBT_RETURN		"return"
 #define	FBT_AFRAMES		5
 
 int
