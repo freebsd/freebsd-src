@@ -168,7 +168,7 @@ kboot_rsdp_from_efi(void)
 			return((vm_offset_t)strtoull(walker + 7, NULL, 0));
 		if (strncmp("ACPI=", walker, 5) == 0)
 			return((vm_offset_t)strtoull(walker + 5, NULL, 0));
-		walker += strcspn(walker, "\n");
+		walker += strcspn(walker, "\n") + 1;
 	}
 	return (0);
 }
