@@ -40,6 +40,8 @@
 
 static dev_info_t *devices;
 
+static char zfs_bootonce[VDEV_PAD_SIZE];
+
 uint64_t
 ldi_get_size(void *priv)
 {
@@ -165,6 +167,16 @@ load(const char *filepath, dev_info_t *devinfo, void **bufp, size_t *bufsize)
 		return (EFI_NOT_FOUND);
 	}
 
+	/*
+	 * OK. We've found a filesystem. Any attempt to use it should clear the
+	 * 'once' flag. Prior to now, we'd not be able to clear it anyway. We
+	 * don't care if we can't find the files to boot, or if there's a
+	 * problem with it: we've tried to use it once we're able to mount the
+	 * ZFS dataset.
+	 */
+	*zfs_bootonce = '\0';
+	zfs_get_bootonce_spa(spa, OS_BOOTONCE, zfs_bootonce, sizeof(zfs_bootonce));
+
 	if ((err = zfs_lookup(&zmount, filepath, &dn)) != 0) {
 		if (err == ENOENT) {
 			DPRINTF("Failed to find '%s' on pool '%s' (%d)\n",
@@ -220,6 +232,18 @@ status(void)
 	printf("\n");
 }
 
+static const char *
+extra_env(void)
+{
+	char *rv = NULL;	/* So we return NULL if asprintf fails */
+
+	if (*zfs_bootonce == '\0')
+		return NULL;
+	asprintf(&rv, "zfs-bootonce=%s", zfs_bootonce);
+	return (rv);
+}
+
+
 static void
 init(void)
 {
@@ -241,5 +265,6 @@ const boot_module_t zfs_module =
 	.probe = probe,
 	.load = load,
 	.status = status,
-	.devices = _devices
+	.devices = _devices,
+	.extra_env = extra_env,
 };
