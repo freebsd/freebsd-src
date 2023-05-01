@@ -46,8 +46,6 @@
 #define FBT_BR_MASK		0x03fffffc
 #define FBT_IS_JUMP(instr)	((instr & ~FBT_BR_MASK) == FBT_BRANCH)
 
-#define	FBT_ENTRY	"entry"
-#define	FBT_RETURN	"return"
 #define	FBT_AFRAMES	5
 
 int

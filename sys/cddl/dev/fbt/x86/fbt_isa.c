@@ -57,9 +57,6 @@
 #define	FBT_PATCHVAL		0xf0
 #endif
 
-#define	FBT_ENTRY	"entry"
-#define	FBT_RETURN	"return"
-
 int
 fbt_invop(uintptr_t addr, struct trapframe *frame, uintptr_t scratch __unused)
 {
