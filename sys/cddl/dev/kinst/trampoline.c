@@ -163,6 +163,8 @@ kinst_trampoline_dealloc_locked(uint8_t *tramp, bool freechunks)
 	struct trampchunk *chunk;
 	int off;
 
+	sx_assert(&kinst_tramp_sx, SX_XLOCKED);
+
 	if (tramp == NULL)
 		return;
 
