@@ -533,6 +533,14 @@ pmap_invlpg(pmap_t pmap, vm_offset_t va)
 }
 #endif /* sys/pcpu.h && machine/cpufunc.h */
 
+/* Return pcid for the pmap pmap on current cpu */
+static __inline uint32_t
+pmap_get_pcid(pmap_t pmap)
+{
+	MPASS(pmap_pcid_enabled);
+	return (pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid);
+}
+
 #endif /* _KERNEL */
 
 /* Return various clipped indexes for a given VA */

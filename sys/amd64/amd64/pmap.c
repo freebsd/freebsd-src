@@ -3076,7 +3076,6 @@ pmap_invalidate_page_pcid_cb(pmap_t pmap, vm_offset_t va,
 	struct invpcid_descr d;
 	uint64_t kcr3, ucr3;
 	uint32_t pcid;
-	u_int cpuid;
 
 	/*
 	 * Because pm_pcid is recalculated on a context switch, we
@@ -3095,9 +3094,7 @@ pmap_invalidate_page_pcid_cb(pmap_t pmap, vm_offset_t va,
 	    PCPU_GET(ucr3_load_mask) != PMAP_UCR3_NOMASK)
 		return;
 
-	cpuid = PCPU_GET(cpuid);
-
-	pcid = pmap->pm_pcids[cpuid].pm_pcid;
+	pcid = pmap_get_pcid(pmap);
 	if (invpcid_works1) {
 		d.pcid = pcid | PMAP_PCID_USER_PT;
 		d.pad = 0;
@@ -3172,7 +3169,6 @@ pmap_invalidate_range_pcid_cb(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 	struct invpcid_descr d;
 	uint64_t kcr3, ucr3;
 	uint32_t pcid;
-	u_int cpuid;
 
 	CRITICAL_ASSERT(curthread);
 
@@ -3181,9 +3177,7 @@ pmap_invalidate_range_pcid_cb(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 	    PCPU_GET(ucr3_load_mask) != PMAP_UCR3_NOMASK)
 		return;
 
-	cpuid = PCPU_GET(cpuid);
-
-	pcid = pmap->pm_pcids[cpuid].pm_pcid;
+	pcid = pmap_get_pcid(pmap);
 	if (invpcid_works1) {
 		d.pcid = pcid | PMAP_PCID_USER_PT;
 		d.pad = 0;
@@ -3273,7 +3267,6 @@ pmap_invalidate_all_pcid_cb(pmap_t pmap, bool invpcid_works1)
 	struct invpcid_descr d;
 	uint64_t kcr3;
 	uint32_t pcid;
-	u_int cpuid;
 
 	if (pmap == kernel_pmap) {
 		if (invpcid_works1) {
@@ -3284,9 +3277,8 @@ pmap_invalidate_all_pcid_cb(pmap_t pmap, bool invpcid_works1)
 		}
 	} else if (pmap == PCPU_GET(curpmap)) {
 		CRITICAL_ASSERT(curthread);
-		cpuid = PCPU_GET(cpuid);
 
-		pcid = pmap->pm_pcids[cpuid].pm_pcid;
+		pcid = pmap_get_pcid(pmap);
 		if (invpcid_works1) {
 			d.pcid = pcid;
 			d.pad = 0;
@@ -10152,7 +10144,7 @@ pmap_activate_boot(pmap_t pmap)
 	if (pti) {
 		kcr3 = pmap->pm_cr3;
 		if (pmap_pcid_enabled)
-			kcr3 |= pmap->pm_pcids[cpuid].pm_pcid | CR3_PCID_SAVE;
+			kcr3 |= pmap_get_pcid(pmap) | CR3_PCID_SAVE;
 	} else {
 		kcr3 = PMAP_NO_CR3;
 	}

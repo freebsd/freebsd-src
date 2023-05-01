@@ -767,7 +767,7 @@ invltlb_invpcid_handler(pmap_t smp_tlb_pmap)
 	(*ipi_invltlb_counts[PCPU_GET(cpuid)])++;
 #endif /* COUNT_IPIS */
 
-	d.pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid;
+	d.pcid = pmap_get_pcid(smp_tlb_pmap);
 	d.pad = 0;
 	d.addr = 0;
 	invpcid(&d, smp_tlb_pmap == kernel_pmap ? INVPCID_CTXGLOB :
@@ -786,7 +786,7 @@ invltlb_invpcid_pti_handler(pmap_t smp_tlb_pmap)
 	(*ipi_invltlb_counts[PCPU_GET(cpuid)])++;
 #endif /* COUNT_IPIS */
 
-	d.pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid;
+	d.pcid = pmap_get_pcid(smp_tlb_pmap);
 	d.pad = 0;
 	d.addr = 0;
 	if (smp_tlb_pmap == kernel_pmap) {
@@ -808,8 +808,6 @@ invltlb_invpcid_pti_handler(pmap_t smp_tlb_pmap)
 static void
 invltlb_pcid_handler(pmap_t smp_tlb_pmap)
 {
-	uint32_t pcid;
-  
 #ifdef COUNT_XINVLTLB_HITS
 	xhits_gbl[PCPU_GET(cpuid)]++;
 #endif /* COUNT_XINVLTLB_HITS */
@@ -828,8 +826,8 @@ invltlb_pcid_handler(pmap_t smp_tlb_pmap)
 		 * CPU.
 		 */
 		if (smp_tlb_pmap == PCPU_GET(curpmap)) {
-			pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid;
-			load_cr3(smp_tlb_pmap->pm_cr3 | pcid);
+			load_cr3(smp_tlb_pmap->pm_cr3 |
+			    pmap_get_pcid(smp_tlb_pmap));
 			if (smp_tlb_pmap->pm_ucr3 != PMAP_NO_CR3)
 				PCPU_SET(ucr3_load_mask, ~CR3_PCID_SAVE);
 		}
@@ -865,8 +863,7 @@ invlpg_invpcid_handler(pmap_t smp_tlb_pmap, vm_offset_t smp_tlb_addr1)
 	if (smp_tlb_pmap == PCPU_GET(curpmap) &&
 	    smp_tlb_pmap->pm_ucr3 != PMAP_NO_CR3 &&
 	    PCPU_GET(ucr3_load_mask) == PMAP_UCR3_NOMASK) {
-		d.pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid |
-		    PMAP_PCID_USER_PT;
+		d.pcid = pmap_get_pcid(smp_tlb_pmap) | PMAP_PCID_USER_PT;
 		d.pad = 0;
 		d.addr = smp_tlb_addr1;
 		invpcid(&d, INVPCID_ADDR);
@@ -890,7 +887,7 @@ invlpg_pcid_handler(pmap_t smp_tlb_pmap, vm_offset_t smp_tlb_addr1)
 	if (smp_tlb_pmap == PCPU_GET(curpmap) &&
 	    (ucr3 = smp_tlb_pmap->pm_ucr3) != PMAP_NO_CR3 &&
 	    PCPU_GET(ucr3_load_mask) == PMAP_UCR3_NOMASK) {
-		pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid;
+		pcid = pmap_get_pcid(smp_tlb_pmap);
 		kcr3 = smp_tlb_pmap->pm_cr3 | pcid | CR3_PCID_SAVE;
 		ucr3 |= pcid | PMAP_PCID_USER_PT | CR3_PCID_SAVE;
 		pmap_pti_pcid_invlpg(ucr3, kcr3, smp_tlb_addr1);
@@ -944,8 +941,7 @@ invlrng_invpcid_handler(pmap_t smp_tlb_pmap, vm_offset_t smp_tlb_addr1,
 	if (smp_tlb_pmap == PCPU_GET(curpmap) &&
 	    smp_tlb_pmap->pm_ucr3 != PMAP_NO_CR3 &&
 	    PCPU_GET(ucr3_load_mask) == PMAP_UCR3_NOMASK) {
-		d.pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid |
-		    PMAP_PCID_USER_PT;
+		d.pcid = pmap_get_pcid(smp_tlb_pmap) | PMAP_PCID_USER_PT;
 		d.pad = 0;
 		d.addr = smp_tlb_addr1;
 		do {
@@ -978,7 +974,7 @@ invlrng_pcid_handler(pmap_t smp_tlb_pmap, vm_offset_t smp_tlb_addr1,
 	if (smp_tlb_pmap == PCPU_GET(curpmap) &&
 	    (ucr3 = smp_tlb_pmap->pm_ucr3) != PMAP_NO_CR3 &&
 	    PCPU_GET(ucr3_load_mask) == PMAP_UCR3_NOMASK) {
-		pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid;
+		pcid = pmap_get_pcid(smp_tlb_pmap);
 		kcr3 = smp_tlb_pmap->pm_cr3 | pcid | CR3_PCID_SAVE;
 		ucr3 |= pcid | PMAP_PCID_USER_PT | CR3_PCID_SAVE;
 		pmap_pti_pcid_invlrng(ucr3, kcr3, smp_tlb_addr1, smp_tlb_addr2);
