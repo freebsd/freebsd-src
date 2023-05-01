@@ -1368,19 +1368,6 @@ spa_find_by_name(const char *name)
 }
 
 static spa_t *
-spa_find_by_dev(struct zfs_devdesc *dev)
-{
-
-	if (dev->dd.d_dev->dv_type != DEVT_ZFS)
-		return (NULL);
-
-	if (dev->pool_guid == 0)
-		return (STAILQ_FIRST(&zfs_pools));
-
-	return (spa_find_by_guid(dev->pool_guid));
-}
-
-static spa_t *
 spa_create(uint64_t guid, const char *name)
 {
 	spa_t *spa;

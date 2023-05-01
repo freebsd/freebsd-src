@@ -373,6 +373,19 @@ zfs_readdir(struct open_file *f, struct dirent *d)
 	}
 }
 
+static spa_t *
+spa_find_by_dev(struct zfs_devdesc *dev)
+{
+
+	if (dev->dd.d_dev->dv_type != DEVT_ZFS)
+		return (NULL);
+
+	if (dev->pool_guid == 0)
+		return (STAILQ_FIRST(&zfs_pools));
+
+	return (spa_find_by_guid(dev->pool_guid));
+}
+
 /*
  * if path is NULL, create mount structure, but do not add it to list.
  */
