@@ -321,17 +321,17 @@ arbitrary white space.
 .It Fl s
 Display all snapshots as well.
 .It Fl c Ar property
-Sort boot environments by given property name.
+Sort boot environments by the given ZFS dataset property.
 The following properties are supported:
 .Pp
 .Bl -tag -width 4n -offset indent -compact
-.It name (default output)
+.It name          (the default)
 .It creation
 .It origin
 .It used
-.It usedds
-.It usedsnap
-.It usedrefreserv
+.It usedds        (usedbydataset)
+.It usedsnap      (usedbysnapshots)
+.It usedrefreserv (usedbyrefreservation)
 .El
 .It Fl C Ar property
 Same as the
@@ -347,10 +347,20 @@ or
 .Fl a
 option is used.
 .It Cm mount Ar beName Op Ar mountpoint
-Temporarily mount the boot environment.
-Mount at the specified
+Temporarily mount the given boot environment.
+If a nonexistent
 .Ar mountpoint
-if provided.
+is given,
+.Nm
+will make the directory, including intermediate directories as required.
+If no 
+.Ar mountpoint
+is given,
+.Nm
+will make a directory such as Pa be_mount.c6Sf in Pa /tmp
+.
+Randomness to the last four characters of the directory will prevent
+mount point conflicts.
 .It Cm rename Ar origBeName newBeName
 Rename the given
 .Ar origBeName
