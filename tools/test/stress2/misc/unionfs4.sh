@@ -52,6 +52,8 @@ done
 
 mdconfig -a -t swap -s 2g -u $md1
 mdconfig -a -t swap -s 2g -u $md2
+[ "$newfs_flags" = "-U" ] &&
+    newfs_flags="-j"	# "out of inodes" work around
 newfs $newfs_flags -n md$md1 > /dev/null
 newfs $newfs_flags -n md$md2 > /dev/null
 mount /dev/md$md1 $mp1
