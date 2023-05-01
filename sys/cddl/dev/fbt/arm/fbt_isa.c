@@ -45,9 +45,6 @@
 #define	FBT_JUMP		0xea000000
 #define	FBT_SUBSP		0xe24dd000
 
-#define	FBT_ENTRY	"entry"
-#define	FBT_RETURN	"return"
-
 int
 fbt_invop(uintptr_t addr, struct trapframe *frame, uintptr_t rval)
 {
