@@ -286,6 +286,7 @@
 
 #ifndef LOCORE
 
+#include <sys/kassert.h>
 #include <sys/queue.h>
 #include <sys/_cpuset.h>
 #include <sys/_lock.h>
@@ -390,7 +391,7 @@ struct pmap {
 	long			pm_eptgen;	/* EPT pmap generation id */
 	smr_t			pm_eptsmr;
 	int			pm_flags;
-	struct pmap_pcid	pm_pcids[MAXCPU];
+	struct pmap_pcid	*pm_pcidp;
 	struct rangeset		pm_pkru;
 };
 
@@ -537,8 +538,11 @@ pmap_invlpg(pmap_t pmap, vm_offset_t va)
 static __inline uint32_t
 pmap_get_pcid(pmap_t pmap)
 {
+	struct pmap_pcid *pcidp;
+
 	MPASS(pmap_pcid_enabled);
-	return (pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid);
+	pcidp = zpcpu_get(pmap->pm_pcidp);
+	return (pcidp->pm_pcid);
 }
 
 #endif /* _KERNEL */
