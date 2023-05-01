@@ -798,35 +798,12 @@ zfs_probe_partition(void *arg, const char *partname,
 int
 zfs_get_bootenv(void *vdev, nvlist_t **benvp)
 {
-	struct zfs_devdesc *dev = (struct zfs_devdesc *)vdev;
-	nvlist_t *benv = NULL;
-	vdev_t *vd;
 	spa_t *spa;
 
-	if (dev->dd.d_dev->dv_type != DEVT_ZFS)
-		return (ENOTSUP);
-
-	if ((spa = spa_find_by_dev(dev)) == NULL)
+	if ((spa = spa_find_by_dev((struct zfs_devdesc *)vdev)) == NULL)
 		return (ENXIO);
 
-	if (spa->spa_bootenv == NULL) {
-		STAILQ_FOREACH(vd, &spa->spa_root_vdev->v_children,
-		    v_childlink) {
-			benv = vdev_read_bootenv(vd);
-
-			if (benv != NULL)
-				break;
-		}
-		spa->spa_bootenv = benv;
-	} else {
-		benv = spa->spa_bootenv;
-	}
-
-	if (benv == NULL)
-		return (ENOENT);
-
-	*benvp = benv;
-	return (0);
+	return (zfs_get_bootenv_spa(spa, benvp));
 }
 
 /*
