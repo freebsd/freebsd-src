@@ -520,19 +520,23 @@ smbios_find_struct(int type)
 {
 	caddr_t		dmi;
 	size_t		i;
+	caddr_t		ep;
 
 	if (smbios.addr == NULL)
 		return (NULL);
 
+	ep = smbios.addr + smbios.length;
 	for (dmi = smbios.addr, i = 0;
-	     dmi < smbios.addr + smbios.length && i < smbios.count; i++) {
-		if (SMBIOS_GET8(dmi, 0) == type)
+	     dmi < ep && i < smbios.count; i++) {
+		if (SMBIOS_GET8(dmi, 0) == type) {
 			return dmi;
+		}
 		/* Find structure terminator. */
 		dmi = SMBIOS_GETSTR(dmi);
-		while (SMBIOS_GET16(dmi, 0) != 0)
+		while (SMBIOS_GET16(dmi, 0) != 0 && dmi < ep) {
 			dmi++;
-		dmi += 2;
+		}
+		dmi += 2;	/* For checksum */
 	}
 
 	return (NULL);
