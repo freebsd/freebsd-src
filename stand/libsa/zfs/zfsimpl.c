@@ -3899,3 +3899,36 @@ zfs_set_bootenv_spa(spa_t *spa, nvlist_t *benv)
 	spa->spa_bootenv = benv;
 	return (0);
 }
+
+/*
+ * Get bootonce value by key. The bootonce <key, value> pair is removed from the
+ * bootenv nvlist and the remaining nvlist is committed back to disk. This process
+ * the bootonce flag since we've reached the point in the boot that we've 'used'
+ * the BE. For chained boot scenarios, we may reach this point multiple times (but
+ * only remove it and return 0 the first time).
+ */
+static int
+zfs_get_bootonce_spa(spa_t *spa, const char *key, char *buf, size_t size)
+{
+	nvlist_t *benv;
+	char *result = NULL;
+	int result_size, rv;
+
+	if ((rv = zfs_get_bootenv_spa(spa, &benv)) != 0)
+		return (rv);
+
+	if ((rv = nvlist_find(benv, key, DATA_TYPE_STRING, NULL,
+	    &result, &result_size)) == 0) {
+		if (result_size == 0) {
+			/* ignore empty string */
+			rv = ENOENT;
+		} else if (buf != NULL) {
+			size = MIN((size_t)result_size + 1, size);
+			strlcpy(buf, result, size);
+		}
+		(void)nvlist_remove(benv, key, DATA_TYPE_STRING);
+		(void)zfs_set_bootenv_spa(spa, benv);
+	}
+
+	return (rv);
+}
