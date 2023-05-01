@@ -112,8 +112,9 @@ lessecho: lessecho.o version.o
 defines.h: defines.wn
 	copy $< $@
 
-funcs.h:
-	perl mkfuncs.pl ${LESS_SRC}  > $@
+funcs.h: ${LESS_SRC}
+	-move funcs.h funcs.h.old
+	grep -h "^public [^;]*$$" ${LESS_SRC} | sed "s/$$/;/" >funcs.h
 
 help.c: less.hlp
 	perl mkhelp.pl  < $<  > $@

@@ -1,4 +1,4 @@
-#! /usr/bin/perl
+#! /usr/bin/env perl
 use strict;
 
 # Silly little program to generate the help.c source file

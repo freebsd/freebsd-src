@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2022  Mark Nudelman
+ * Copyright (C) 1984-2023  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -39,19 +39,6 @@
 /*
  * Language details.
  */
-#if HAVE_ANSI_PROTOS
-#define LESSPARAMS(a) a
-#else
-#define LESSPARAMS(a) ()
-#endif
-#if HAVE_VOID
-#define VOID_POINTER    void *
-#define VOID_PARAM      void
-#else
-#define VOID_POINTER    char *
-#define VOID_PARAM
-#define void  int
-#endif
 #if HAVE_CONST
 #define constant        const
 #else
@@ -83,11 +70,35 @@
 #if HAVE_LIMITS_H
 #include <limits.h>
 #endif
+#if HAVE_STDINT_H
+#include <stdint.h>
+#endif
 #if HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
 #if HAVE_STRING_H
 #include <string.h>
+#endif
+
+#if HAVE_STDCKDINT_H
+#include <stdckdint.h>
+#else
+/*
+ * These substitutes for C23 stdckdint macros do not set *R on overflow,
+ * and they assume A and B are nonnegative.  That is good enough for us.
+ */
+#define ckd_add(r, a, b) help_ckd_add(r, a, b, sizeof *(r), signed_expr(*(r)))
+#define ckd_mul(r, a, b) help_ckd_mul(r, a, b, sizeof *(r), signed_expr(*(r)))
+/* True if the integer expression E, after promotion, is signed.  */
+#define signed_expr(e) ((TRUE ? 0 : e) - 1 < 0)
+#endif
+
+#if defined UINTMAX_MAX
+typedef uintmax_t uintmax;
+#elif defined ULLONG_MAX
+typedef unsigned long long uintmax;
+#else
+typedef unsigned long uintmax;
 #endif
 
 /* OS-specific includes */
@@ -114,7 +125,7 @@
 #if !HAVE_STDLIB_H
 char *getenv();
 off_t lseek();
-VOID_POINTER calloc();
+void *calloc();
 void free();
 #endif
 
@@ -289,7 +300,7 @@ typedef off_t           LINENUM;
 /*
  * An IFILE represents an input file.
  */
-#define IFILE           VOID_POINTER
+#define IFILE           void*
 #define NULL_IFILE      ((IFILE)NULL)
 
 /*
@@ -332,11 +343,20 @@ struct wchar_range_table
         int count;
 };
 
+#if HAVE_POLL
+typedef short POLL_EVENTS;
+#endif
+
 #define EOI             (-1)
 
+#define READ_ERR        (-1)
 #define READ_INTR       (-2)
+#define READ_AGAIN      (-3)
 
-/* A fraction is represented by an int n; the fraction is n/NUM_FRAC_DENOM */
+/*
+ * A fraction is represented by a long n; the fraction is n/NUM_FRAC_DENOM.
+ * To avoid overflow problems, 0 <= n < NUM_FRAC_DENUM <= LONG_MAX/100.
+ */
 #define NUM_FRAC_DENOM                  1000000
 #define NUM_LOG_FRAC_DENOM              6
 
@@ -368,6 +388,9 @@ struct wchar_range_table
 #define SRCH_FILTER     (1 << 13) /* Search is for '&' (filter) command */
 #define SRCH_AFTER_TARGET (1 << 14) /* Start search after the target line */
 #define SRCH_WRAP       (1 << 15) /* Wrap-around search (continue at BOF/EOF) */
+#define SRCH_SUBSEARCH(i) (1 << (16+(i))) /* Search for subpattern */
+/* {{ Depends on NUM_SEARCH_COLORS==5 }} */
+#define SRCH_SUBSEARCH_ALL (SRCH_SUBSEARCH(1)|SRCH_SUBSEARCH(2)|SRCH_SUBSEARCH(3)|SRCH_SUBSEARCH(4)|SRCH_SUBSEARCH(5))
 
 #define SRCH_REVERSE(t) (((t) & SRCH_FORW) ? \
                                 (((t) & ~SRCH_FORW) | SRCH_BACK) : \
@@ -406,8 +429,10 @@ struct wchar_range_table
 #define AT_COLOR_MARK     (6 << AT_COLOR_SHIFT)
 #define AT_COLOR_PROMPT   (7 << AT_COLOR_SHIFT)
 #define AT_COLOR_RSCROLL  (8 << AT_COLOR_SHIFT)
-#define AT_COLOR_SEARCH   (9 << AT_COLOR_SHIFT)
-#define AT_COLOR_HEADER   (11 << AT_COLOR_SHIFT)
+#define AT_COLOR_HEADER   (9 << AT_COLOR_SHIFT)
+#define AT_COLOR_SEARCH   (10 << AT_COLOR_SHIFT)
+#define AT_COLOR_SUBSEARCH(i) ((10+(i)) << AT_COLOR_SHIFT)
+#define NUM_SEARCH_COLORS (AT_NUM_COLORS-10-1)
 
 typedef enum { CT_NULL, CT_4BIT, CT_6BIT } COLOR_TYPE;
 
@@ -527,9 +552,18 @@ typedef enum {
 #define S_WINCH         04
 #define ABORT_SIGS()    (sigs & (S_INTERRUPT|S_STOP))
 
+#ifdef EXIT_SUCCESS
+#define QUIT_OK         EXIT_SUCCESS
+#else
 #define QUIT_OK         0
+#endif
+#ifdef EXIT_FAILURE
+#define QUIT_ERROR      EXIT_FAILURE
+#define QUIT_INTERRUPT  (EXIT_FAILURE+1)
+#else
 #define QUIT_ERROR      1
 #define QUIT_INTERRUPT  2
+#endif
 #define QUIT_SAVED_STATUS (-1)
 
 #define FOLLOW_DESC     0
@@ -568,6 +602,10 @@ typedef enum {
 #define X11MOUSE_WHEEL_DOWN 0x41 /* Wheel scroll down */
 #define X11MOUSE_OFFSET     0x20 /* Added to button & pos bytes to create a char */
 
+#if LESSTEST
+#define LESS_DUMP_CHAR CONTROL(']')
+#endif
+
 struct mlist;
 struct loption;
 struct hilite_tree;
@@ -577,11 +615,12 @@ struct ansi_state;
 #include "funcs.h"
 
 /* Functions not included in funcs.h */
-void postoa LESSPARAMS ((POSITION, char*));
-void linenumtoa LESSPARAMS ((LINENUM, char*));
-void inttoa LESSPARAMS ((int, char*));
-int lstrtoi LESSPARAMS ((char*, char**));
-POSITION lstrtopos LESSPARAMS ((char*, char**));
+void postoa(POSITION, char*, int);
+void linenumtoa(LINENUM, char*, int);
+void inttoa(int, char*, int);
+int lstrtoi(char*, char**, int);
+POSITION lstrtopos(char*, char**, int);
+unsigned long lstrtoul(char*, char**, int);
 #if MSDOS_COMPILER==WIN32C
-int pclose LESSPARAMS ((FILE*));
+int pclose(FILE*);
 #endif

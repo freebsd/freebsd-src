@@ -11,10 +11,8 @@ REL := $(shell sed -e '/char version/!d' -e 's/[^0-9.]*\([0-9.]*\).*/\1/' -e q $
 
 ifeq ($(USE_PYTHON),1)
 	MKHELP = mkhelp.py
-	MKFUNCS = mkfuncs.py
 else
 	MKHELP = mkhelp.pl
-	MKFUNCS = mkfuncs.pl
 endif
 
 SRC = \
@@ -41,15 +39,15 @@ DISTFILES = \
 	install.sh defines.h.in mkinstalldirs \
 	less.nro less.man lesskey.nro lesskey.man lessecho.nro lessecho.man \
 	less.hlp \
-	mkfuncs.pl mkhelp.pl \
-	mkfuncs.py mkhelp.py \
+	mkhelp.pl \
+	mkhelp.py \
 	mkutable $(UNICODE_FILES) \
 	${DISTFILES_W}
 
 all: help.c funcs.h $(UNICODE_FILES) ${srcdir}/configure 
 
 release: .FORCE
-	@if grep -s 'Major changes between .*${REL}' NEWS ; then :; else echo '*** NEWS is not updated for ${REL}'; exit 1; fi
+	@if ${srcdir}/ready_to_release -d ${srcdir}; then :; else exit 1; fi
 	${MAKE} -f Makefile.aut tagall 
 	${MAKE} -f Makefile.aut all 
 	${MAKE} -f Makefile.aut clean 
@@ -68,7 +66,7 @@ ${srcdir}/configure ${srcdir}/defines.h.in: ${srcdir}/configure.ac ${srcdir}/Mak
 
 funcs.h: ${SRC:%=${srcdir}/%}
 	-mv -f ${srcdir}/funcs.h ${srcdir}/funcs.h.old
-	${srcdir}/${MKFUNCS} ${SRC:%=${srcdir}/%} >${srcdir}/funcs.h
+	grep -h '^public [^;]*$$' ${SRC:%=${srcdir}/%} | sed 's/$$/;/' >${srcdir}/funcs.h
 
 lint:
 	lint -I. ${CPPFLAGS} ${SRC}
@@ -112,6 +110,12 @@ ubin.uni: unicode/UnicodeData.txt
 wide.uni: unicode/EastAsianWidth.txt
 	./mkutable -f1 W F -- unicode/EastAsianWidth.txt > $@
 
+unicode-check:
+	rm -rf unicode-old
+	mv -f unicode unicode-old
+	${MAKE} -f Makefile.aut unicode/UnicodeData.txt unicode/EastAsianWidth.txt
+	@if diff -q unicode-old unicode >/dev/null; then rm -rf unicode; mv -f unicode-old unicode; echo "unicode files already up to date"; else echo "unicode files updated"; fi
+
 unicode/UnicodeData.txt:
 	mkdir -p unicode
 	lftp -c 'open -u "anonymous:${EMAIL}" ftp.unicode.org ; get Public/UNIDATA/UnicodeData.txt -o $@'
@@ -152,10 +156,10 @@ tagall:
 gnu_upload:
 	@if [ -z "${REL}" ]; then echo "Please set REL=nnn"; exit 1; fi; \
 	LESSREL=less-${REL} && RELDIR=release/$$LESSREL && \
-    TARF=$$LESSREL-release.tar.gz && \
+    TARF=$$LESSREL.tar.gz && \
 	if [ ! -s $$RELDIR/$$TARF ]; then echo "$$RELDIR/$$TARF does not exist"; exit 1; fi; \
 	cd $$RELDIR && \
 	gpg -b $$TARF && \
 	( echo "version: 1.2"; echo "directory: less"; echo "filename: $$TARF" ) > $$TARF.directive && \
-	gpg --clearsign $$TARF.directive
-	@echo "upload ready: cd $$RELDIR; ftp ftp-upload.gnu.org; cd /incoming/ftp; put $$TARF $$TARF.sig $$TARF.directive.asc" 
+	gpg --clearsign $$TARF.directive && \
+	echo "upload ready: cd $$RELDIR; ftp ftp-upload.gnu.org; cd /incoming/ftp; put $$TARF $$TARF.sig $$TARF.directive.asc" 

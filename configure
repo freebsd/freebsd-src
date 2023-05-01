@@ -583,6 +583,7 @@ PACKAGE_BUGREPORT=''
 PACKAGE_URL=''
 
 ac_unique_file="forwback.c"
+ac_header_list=
 # Factoring default headers for most tests.
 ac_includes_default="\
 #include <stdio.h>
@@ -680,7 +681,6 @@ ac_user_opts='
 enable_option_checking
 enable_largefile
 with_secure
-with_no_float
 with_regex
 with_editor
 '
@@ -1319,7 +1319,6 @@ Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-secure           Compile in secure mode
-  --with-no-float         Do not use floating point
   --with-regex=LIB        select regular expression library (LIB is one of auto,none,gnu,pcre,pcre2,posix,regcmp,re_comp,regcomp,regcomp-local) [auto]
   --with-editor=PROGRAM   use PROGRAM as the default editor [vi]
 
@@ -1534,6 +1533,37 @@ fi
 
 } # ac_fn_c_try_cpp
 
+# ac_fn_c_check_header_compile LINENO HEADER VAR INCLUDES
+# -------------------------------------------------------
+# Tests whether HEADER exists and can be compiled using the include files in
+# INCLUDES, setting the cache variable VAR accordingly.
+ac_fn_c_check_header_compile ()
+{
+  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $2" >&5
+$as_echo_n "checking for $2... " >&6; }
+if eval \${$3+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+$4
+#include <$2>
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  eval "$3=yes"
+else
+  eval "$3=no"
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+eval ac_res=\$$3
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
+
+} # ac_fn_c_check_header_compile
+
 # ac_fn_c_try_run LINENO
 # ----------------------
 # Try to link conftest.$ac_ext, and return whether this succeeded. Assumes
@@ -1575,124 +1605,6 @@ fi
   as_fn_set_status $ac_retval
 
 } # ac_fn_c_try_run
-
-# ac_fn_c_check_header_mongrel LINENO HEADER VAR INCLUDES
-# -------------------------------------------------------
-# Tests whether HEADER exists, giving a warning if it cannot be compiled using
-# the include files in INCLUDES and setting the cache variable VAR
-# accordingly.
-ac_fn_c_check_header_mongrel ()
-{
-  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
-  if eval \${$3+:} false; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $2" >&5
-$as_echo_n "checking for $2... " >&6; }
-if eval \${$3+:} false; then :
-  $as_echo_n "(cached) " >&6
-fi
-eval ac_res=\$$3
-	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
-$as_echo "$ac_res" >&6; }
-else
-  # Is the header compilable?
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking $2 usability" >&5
-$as_echo_n "checking $2 usability... " >&6; }
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-$4
-#include <$2>
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  ac_header_compiler=yes
-else
-  ac_header_compiler=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_header_compiler" >&5
-$as_echo "$ac_header_compiler" >&6; }
-
-# Is the header present?
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking $2 presence" >&5
-$as_echo_n "checking $2 presence... " >&6; }
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <$2>
-_ACEOF
-if ac_fn_c_try_cpp "$LINENO"; then :
-  ac_header_preproc=yes
-else
-  ac_header_preproc=no
-fi
-rm -f conftest.err conftest.i conftest.$ac_ext
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_header_preproc" >&5
-$as_echo "$ac_header_preproc" >&6; }
-
-# So?  What about this header?
-case $ac_header_compiler:$ac_header_preproc:$ac_c_preproc_warn_flag in #((
-  yes:no: )
-    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: $2: accepted by the compiler, rejected by the preprocessor!" >&5
-$as_echo "$as_me: WARNING: $2: accepted by the compiler, rejected by the preprocessor!" >&2;}
-    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: $2: proceeding with the compiler's result" >&5
-$as_echo "$as_me: WARNING: $2: proceeding with the compiler's result" >&2;}
-    ;;
-  no:yes:* )
-    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: $2: present but cannot be compiled" >&5
-$as_echo "$as_me: WARNING: $2: present but cannot be compiled" >&2;}
-    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: $2:     check for missing prerequisite headers?" >&5
-$as_echo "$as_me: WARNING: $2:     check for missing prerequisite headers?" >&2;}
-    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: $2: see the Autoconf documentation" >&5
-$as_echo "$as_me: WARNING: $2: see the Autoconf documentation" >&2;}
-    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: $2:     section \"Present But Cannot Be Compiled\"" >&5
-$as_echo "$as_me: WARNING: $2:     section \"Present But Cannot Be Compiled\"" >&2;}
-    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: $2: proceeding with the compiler's result" >&5
-$as_echo "$as_me: WARNING: $2: proceeding with the compiler's result" >&2;}
-    ;;
-esac
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $2" >&5
-$as_echo_n "checking for $2... " >&6; }
-if eval \${$3+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  eval "$3=\$ac_header_compiler"
-fi
-eval ac_res=\$$3
-	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
-$as_echo "$ac_res" >&6; }
-fi
-  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
-
-} # ac_fn_c_check_header_mongrel
-
-# ac_fn_c_check_header_compile LINENO HEADER VAR INCLUDES
-# -------------------------------------------------------
-# Tests whether HEADER exists and can be compiled using the include files in
-# INCLUDES, setting the cache variable VAR accordingly.
-ac_fn_c_check_header_compile ()
-{
-  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $2" >&5
-$as_echo_n "checking for $2... " >&6; }
-if eval \${$3+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-$4
-#include <$2>
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  eval "$3=yes"
-else
-  eval "$3=no"
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-fi
-eval ac_res=\$$3
-	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
-$as_echo "$ac_res" >&6; }
-  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
-
-} # ac_fn_c_check_header_compile
 
 # ac_fn_c_check_type LINENO TYPE VAR INCLUDES
 # -------------------------------------------
@@ -2098,6 +2010,27 @@ $as_echo "$as_me: creating cache $cache_file" >&6;}
   >$cache_file
 fi
 
+as_fn_append ac_header_list " ctype.h"
+as_fn_append ac_header_list " errno.h"
+as_fn_append ac_header_list " fcntl.h"
+as_fn_append ac_header_list " inttypes.h"
+as_fn_append ac_header_list " limits.h"
+as_fn_append ac_header_list " stdckdint.h"
+as_fn_append ac_header_list " stdio.h"
+as_fn_append ac_header_list " stdlib.h"
+as_fn_append ac_header_list " string.h"
+as_fn_append ac_header_list " termcap.h"
+as_fn_append ac_header_list " termio.h"
+as_fn_append ac_header_list " termios.h"
+as_fn_append ac_header_list " time.h"
+as_fn_append ac_header_list " unistd.h"
+as_fn_append ac_header_list " values.h"
+as_fn_append ac_header_list " linux/magic.h"
+as_fn_append ac_header_list " sys/ioctl.h"
+as_fn_append ac_header_list " sys/stream.h"
+as_fn_append ac_header_list " sys/types.h"
+as_fn_append ac_header_list " sys/wait.h"
+as_fn_append ac_header_list " wctype.h"
 # Check that the precious variables saved in the cache have kept the same
 # value.
 ac_cache_corrupted=false
@@ -4178,10 +4111,14 @@ fi
 done
 
 
-for ac_header in ctype.h errno.h fcntl.h limits.h stdio.h stdlib.h string.h termcap.h termio.h termios.h time.h unistd.h values.h sys/ioctl.h sys/stream.h wctype.h
+
+
+
+  for ac_header in $ac_header_list
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
-ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
+ac_fn_c_check_header_compile "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default
+"
 if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
   cat >>confdefs.h <<_ACEOF
 #define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
@@ -4190,6 +4127,49 @@ _ACEOF
 fi
 
 done
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # Checks for typedefs, structures, and compiler characteristics.
@@ -4335,41 +4315,6 @@ else
 cat >>confdefs.h <<_ACEOF
 #define size_t unsigned int
 _ACEOF
-
-fi
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether time.h and sys/time.h may both be included" >&5
-$as_echo_n "checking whether time.h and sys/time.h may both be included... " >&6; }
-if ${ac_cv_header_time+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <sys/types.h>
-#include <sys/time.h>
-#include <time.h>
-
-int
-main ()
-{
-if ((struct tm *) 0)
-return 0;
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  ac_cv_header_time=yes
-else
-  ac_cv_header_time=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_header_time" >&5
-$as_echo "$ac_cv_header_time" >&6; }
-if test $ac_cv_header_time = yes; then
-
-$as_echo "#define TIME_WITH_SYS_TIME 1" >>confdefs.h
 
 fi
 
@@ -4698,19 +4643,7 @@ LIBS="$LIBS $TERMLIBS"
 
 
 
-
 # Checks for identifiers.
-ac_fn_c_check_type "$LINENO" "off_t" "ac_cv_type_off_t" "$ac_includes_default"
-if test "x$ac_cv_type_off_t" = xyes; then :
-
-else
-
-cat >>confdefs.h <<_ACEOF
-#define off_t long int
-_ACEOF
-
-fi
-
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for void" >&5
 $as_echo_n "checking for void... " >&6; }
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
@@ -4805,6 +4738,9 @@ $as_echo_n "checking for procfs... " >&6; }
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 #include <sys/statfs.h>
+#if HAVE_LINUX_MAGIC_H
+#include <linux/magic.h>
+#endif
 int
 main ()
 {
@@ -4848,40 +4784,7 @@ fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 
 # Checks for library functions.
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking return type of signal handlers" >&5
-$as_echo_n "checking return type of signal handlers... " >&6; }
-if ${ac_cv_type_signal+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <sys/types.h>
-#include <signal.h>
-
-int
-main ()
-{
-return *(signal (0, 0)) (0) == 1;
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  ac_cv_type_signal=int
-else
-  ac_cv_type_signal=void
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_type_signal" >&5
-$as_echo "$ac_cv_type_signal" >&6; }
-
-cat >>confdefs.h <<_ACEOF
-#define RETSIGTYPE $ac_cv_type_signal
-_ACEOF
-
-
-for ac_func in fchmod fsync nanosleep poll popen realpath _setjmp sigprocmask sigsetmask snprintf stat system ttyname usleep
+for ac_func in fchmod fsync nanosleep poll popen realpath _setjmp sigprocmask sigsetmask snprintf stat strsignal system ttyname usleep
 do :
   as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
 ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
@@ -5304,44 +5207,6 @@ else
 
 fi
 
-
-# Should we use floating point?
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for floating point" >&5
-$as_echo_n "checking for floating point... " >&6; }
-
-# Check whether --with-no-float was given.
-if test "${with_no_float+set}" = set; then :
-  withval=$with_no_float; WANT_NO_FLOAT=1
-else
-  WANT_NO_FLOAT=0
-fi
-
-if test $WANT_NO_FLOAT = 0; then
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main ()
-{
-double f1 = 12.5; double f2 = f1*f1/2.5;
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }; $as_echo "#define HAVE_FLOAT 1" >>confdefs.h
-
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: disabled by user" >&5
-$as_echo "disabled by user" >&6; }
-fi
 
 # Checks for regular expression functions.
 have_regex=no

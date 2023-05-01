@@ -1,44 +1,44 @@
-.TH LESSECHO 1 "Version 608: 22 Jul 2022"
+.TH LESSECHO 1 "Version 632: 06 Apr 2023"
 .SH NAME
 lessecho \- expand metacharacters
 .SH SYNOPSIS
 .B lessecho
 .I "[-ox] [-cx] [-pn] [-dn] [-mx] [-nn] [-ex] [-a] file ..."
 .SH "DESCRIPTION"
-.I lessecho
+.B lessecho
 is a program that simply echos its arguments on standard output.
 But any metacharacter in the output is preceded by an "escape"
 character, which by default is a backslash.
 .SH OPTIONS
 A summary of options is included below.
 .TP
-.B \-ex
-Specifies "x", rather than backslash, to be the escape char for metachars.
-If x is "-", no escape char is used and arguments containing metachars
+.B \-e\fIx\fP
+Specifies "\fIx\fP", rather than backslash, to be the escape char for metachars.
+If \fIx\fP is "-", no escape char is used and arguments containing metachars
 are surrounded by quotes instead.
 .TP
-.B \-ox
-Specifies "x", rather than double-quote, to be the open quote character,
+.B \-o\fIx\fP
+Specifies "\fIx\fP", rather than double-quote, to be the open quote character,
 which is used if the \-e- option is specified.
 .TP
-.B \-cx
-Specifies "x" to be the close quote character.
+.B \-c\fIx\fP
+Specifies "\fIx\fP" to be the close quote character.
 .TP
-.B \-pn
-Specifies "n" to be the open quote character, as an integer.
+.B \-p\fIn\fP
+Specifies "\fIn\fP" to be the open quote character, as an integer.
 .TP
-.B \-dn
-Specifies "n" to be the close quote character, as an integer.
+.B \-d\fIn\fP
+Specifies "\fIn\fP" to be the close quote character, as an integer.
 .TP
-.B \-mx
-Specifies "x" to be a metachar.
+.B \-m\fIx\fP
+Specifies "\fIx\fP" to be a metachar.
 By default, no characters are considered metachars.
 .TP
-.B \-nn
-Specifies "n" to be a metachar, as an integer.
+.B \-n\fIn\fP
+Specifies "\fIn\fP" to be a metachar, as an integer.
 .TP
-.B \-fn
-Specifies "n" to be the escape char for metachars, as an integer.
+.B \-f\fIn\fP
+Specifies "\fIn\fP" to be the escape char for metachars, as an integer.
 .TP
 .B \-a
 Specifies that all arguments are to be quoted.

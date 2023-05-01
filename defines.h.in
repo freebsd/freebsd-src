@@ -213,6 +213,9 @@
 #define	TABSTOP_MAX	128	/* Max number of custom tab stops */
 #endif
 
+/* Define as the return type of signal handlers (int or void).  */
+#define RETSIGTYPE void
+
 /* Settings automatically determined by configure.  */
 
 
@@ -240,9 +243,6 @@
 /* Define HAVE_FILENO if you have the fileno() macro. */
 #undef HAVE_FILENO
 
-/* Define HAVE_FLOAT if your compiler supports the "double" type. */
-#undef HAVE_FLOAT
-
 /* Define to 1 if you have the `fsync' function. */
 #undef HAVE_FSYNC
 
@@ -254,6 +254,9 @@
 
 /* Define to 1 if you have the <limits.h> header file. */
 #undef HAVE_LIMITS_H
+
+/* Define to 1 if you have the <linux/magic.h> header file. */
+#undef HAVE_LINUX_MAGIC_H
 
 /* Define HAVE_LOCALE if you have locale.h and setlocale. */
 #undef HAVE_LOCALE
@@ -319,6 +322,9 @@
 /* Define HAVE_STAT_INO if your struct stat has st_ino and st_dev. */
 #undef HAVE_STAT_INO
 
+/* Define to 1 if you have the <stdckdint.h> header file. */
+#undef HAVE_STDCKDINT_H
+
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
 
@@ -337,6 +343,9 @@
 /* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
 
+/* Define to 1 if you have the `strsignal' function. */
+#undef HAVE_STRSIGNAL
+
 /* Define to 1 if you have the `system' function. */
 #undef HAVE_SYSTEM
 
@@ -354,6 +363,9 @@
 
 /* Define to 1 if you have the <sys/types.h> header file. */
 #undef HAVE_SYS_TYPES_H
+
+/* Define to 1 if you have the <sys/wait.h> header file. */
+#undef HAVE_SYS_WAIT_H
 
 /* Define to 1 if you have the <termcap.h> header file. */
 #undef HAVE_TERMCAP_H
@@ -432,9 +444,6 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
-/* Define as the return type of signal handlers (`int' or `void'). */
-#undef RETSIGTYPE
-
 /* Define SECURE_COMPILE=1 to build a secure version of less. */
 #undef SECURE_COMPILE
 
@@ -443,9 +452,6 @@
 
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
-
-/* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
-#undef TIME_WITH_SYS_TIME
 
 /* Enable large inode numbers on Mac OS X 10.5.  */
 #ifndef _DARWIN_USE_64_BIT_INODE
