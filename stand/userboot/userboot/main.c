@@ -235,7 +235,6 @@ extract_currdev(void)
 	struct devdesc *dd;
 #if defined(USERBOOT_ZFS_SUPPORT)
 	struct zfs_devdesc zdev;
-	char *buf = NULL;
 
 	if (userboot_zfs_found) {
 	
@@ -272,17 +271,14 @@ extract_currdev(void)
 
 #if defined(USERBOOT_ZFS_SUPPORT)
 	if (userboot_zfs_found) {
-		buf = malloc(VDEV_PAD_SIZE);
-		if (buf != NULL) {
-			if (zfs_get_bootonce(&zdev, OS_BOOTONCE, buf,
-			    VDEV_PAD_SIZE) == 0) {
-				printf("zfs bootonce: %s\n", buf);
-				set_currdev(buf);
-				setenv("zfs-bootonce", buf, 1);
-			}
-			free(buf);
-			(void) zfs_attach_nvstore(&zdev);
+		char buf[VDEV_PAD_SIZE];
+
+		if (zfs_get_bootonce(&zdev, OS_BOOTONCE, buf, sizeof(buf)) == 0) {
+			printf("zfs bootonce: %s\n", buf);
+			set_currdev(buf);
+			setenv("zfs-bootonce", buf, 1);
 		}
+		(void)zfs_attach_nvstore(&zdev);
 	}
 #endif
 }
