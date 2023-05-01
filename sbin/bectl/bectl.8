@@ -325,14 +325,16 @@ Sort boot environments by the given ZFS dataset property.
 The following properties are supported:
 .Pp
 .Bl -tag -width 4n -offset indent -compact
-.It name          (the default)
+.It name (the default)
 .It creation
 .It origin
 .It used
-.It usedds        (usedbydataset)
-.It usedsnap      (usedbysnapshots)
-.It usedrefreserv (usedbyrefreservation)
+.It usedbydataset
+.It usedbyrefreservation
+.It usedbysnapshots
 .El
+.Pp
+Short forms usedds, usedrefreserv and usedsnap are also supported.
 .It Fl C Ar property
 Same as the
 .Fl c
