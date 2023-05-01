@@ -291,6 +291,7 @@
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #include <sys/_pctrie.h>
+#include <machine/_pmap.h>
 #include <sys/_pv_entry.h>
 #include <sys/_rangeset.h>
 #include <sys/_smr.h>
@@ -371,11 +372,6 @@ enum pmap_type {
 	PT_RVI,			/* AMD's nested page tables */
 };
 
-struct pmap_pcids {
-	uint32_t	pm_pcid;
-	uint32_t	pm_gen;
-};
-
 /*
  * The kernel virtual address (KVA) of the level 4 page table page is always
  * within the direct map (DMAP) region.
@@ -394,7 +390,7 @@ struct pmap {
 	long			pm_eptgen;	/* EPT pmap generation id */
 	smr_t			pm_eptsmr;
 	int			pm_flags;
-	struct pmap_pcids	pm_pcids[MAXCPU];
+	struct pmap_pcid	pm_pcids[MAXCPU];
 	struct rangeset		pm_pkru;
 };
 
