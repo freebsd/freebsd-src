@@ -25,6 +25,8 @@
 .Nd Utility to manage boot environments on ZFS
 .Sh SYNOPSIS
 .Nm
+.Op Fl h\&?
+.Nm
 .Op Fl r Ar beroot
 .Cm activate
 .Op Fl t | Fl T
@@ -89,9 +91,6 @@
 .Brq Cm umount | unmount
 .Op Fl f
 .Ar beName
-.Pp
-.Nm
-.Op Fl h\&?
 .Sh DESCRIPTION
 The
 .Nm
@@ -119,9 +118,12 @@ one of the system's resident disks will require the
 .Fl r
 flag to work.
 .Pp
-The following commands are supported by
-.Nm :
+.Ss Supported Subcommands and Flags
 .Bl -tag -width activate
+.It Xo
+.Fl h | 
+.Fl \&?
+Print usage information.
 .It Xo
 .Cm activate
 .Op Fl t | Fl T
@@ -194,7 +196,7 @@ See
 .Sx Boot Environment Structures
 for a discussion on different layouts.
 .Pp
-No new boot environment is created with this command.
+No new boot environment is created with this subcommand.
 .It Xo
 .Cm destroy
 .Op Fl \&Fo
@@ -398,12 +400,6 @@ will force the unmount if busy.
 Unmount from a temporary mount point will not remove the mount point.
 .El
 .Pp
-.Nm
-prints usage information if
-.Fl h
-or
-.Fl \&?
-is specified.
 .Ss Boot Environment Structures
 The traditional
 .Fx
@@ -476,7 +472,7 @@ In this example,
 is excluded from the boot environment.
 .Pp
 .Nm
-commands that have their own
+subcommands that have their own
 .Fl r
 operate on this second,
 .Dq deep
