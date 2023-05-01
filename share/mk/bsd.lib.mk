@@ -378,7 +378,7 @@ ${SHLIB_NAME}.debug: ${SHLIB_NAME_FULL}
 .endif
 .endif #defined(SHLIB_NAME)
 
-.if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"
+.if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
 _LIBS+=		lib${LIB_PRIVATE}${LIB}_pic.a
 
 lib${LIB_PRIVATE}${LIB}_pic.a: ${SOBJS}
@@ -540,7 +540,7 @@ _libinstall:
 .endif # SHLIB_LDSCRIPT
 .endif # SHLIB_LINK
 .endif # SHIB_NAME
-.if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"
+.if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
 	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},dev} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}_pic.a ${DESTDIR}${_LIBDIR}/
 .endif
