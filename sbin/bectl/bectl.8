@@ -353,13 +353,13 @@ Temporarily mount the given boot environment.
 .Pp
 If a nonexistent
 .Ar mountpoint
-is given,
+is given:
 .Nm
 will make the directory, including intermediate directories as required.
 .Pp
 If no 
 .Ar mountpoint
-is given,
+is given:
 .Nm
 will make a directory such as
 .Pa be_mount.c6Sf
@@ -397,6 +397,7 @@ will force the unmount if busy.
 .El
 .Pp
 Unmount from a temporary mount point will not remove the mount point.
+.Pp
 .Nm
 prints usage information if
 .Fl h
