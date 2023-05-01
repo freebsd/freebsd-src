@@ -81,8 +81,14 @@ static struct {
 	HCA(MELLANOX, 4124),	/* ConnectX-6 VF */
 	HCA(MELLANOX, 4125),	/* ConnectX-6 DX */
 	HCA(MELLANOX, 4126),	/* ConnectX family mlx5Gen Virtual Function */
+	HCA(MELLANOX, 4127),	/* ConnectX-6 LX */
+	HCA(MELLANOX, 4129),	/* ConnectX-7 */
+	HCA(MELLANOX, 4131),	/* ConnectX-8 */
 	HCA(MELLANOX, 41682),	/* BlueField integrated ConnectX-5 network controller */
 	HCA(MELLANOX, 41683),	/* BlueField integrated ConnectX-5 network controller VF */
+	HCA(MELLANOX, 41686),	/* BlueField-2 integrated ConnectX-6 Dx network controller */
+	HCA(MELLANOX, 41692),	/* BlueField-3 integrated ConnectX-7 network controller */
+	HCA(MELLANOX, 41695),	/* BlueField-4 integrated ConnectX-8 network controller */
 };
 
 uint32_t mlx5_debug_mask = 0;
