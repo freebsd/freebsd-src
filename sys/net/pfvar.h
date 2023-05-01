@@ -375,6 +375,41 @@ struct pfi_dynaddr {
 #define	PF_STATE_LOCK_ASSERT(s)		do {} while (0)
 #endif /* INVARIANTS */
 
+#ifdef INVARIANTS
+#define	PF_SRC_NODE_LOCK(sn)						\
+	do {								\
+		struct pf_ksrc_node *_sn = (sn);			\
+		struct pf_srchash *_sh = &V_pf_srchash[			\
+		    pf_hashsrc(&_sn->addr, _sn->af)];			\
+		MPASS(_sn->lock == &_sh->lock);				\
+		mtx_lock(_sn->lock);					\
+	} while (0)
+#define	PF_SRC_NODE_UNLOCK(sn)						\
+	do {								\
+		struct pf_ksrc_node *_sn = (sn);			\
+		struct pf_srchash *_sh = &V_pf_srchash[			\
+		    pf_hashsrc(&_sn->addr, _sn->af)];			\
+		MPASS(_sn->lock == &_sh->lock);				\
+		mtx_unlock(_sn->lock);					\
+	} while (0)
+#else
+#define	PF_SRC_NODE_LOCK(sn)	mtx_lock((sn)->lock)
+#define	PF_SRC_NODE_UNLOCK(sn)	mtx_unlock((sn)->lock)
+#endif
+
+#ifdef INVARIANTS
+#define	PF_SRC_NODE_LOCK_ASSERT(sn)					\
+	do {								\
+		struct pf_ksrc_node *_sn = (sn);			\
+		struct pf_srchash *_sh = &V_pf_srchash[			\
+		    pf_hashsrc(&_sn->addr, _sn->af)];			\
+		MPASS(_sn->lock == &_sh->lock);				\
+		PF_HASHROW_ASSERT(_sh);					\
+	} while (0)
+#else /* !INVARIANTS */
+#define	PF_SRC_NODE_LOCK_ASSERT(sn)		do {} while (0)
+#endif /* INVARIANTS */
+
 extern struct mtx_padalign pf_unlnkdrules_mtx;
 #define	PF_UNLNKDRULES_LOCK()	mtx_lock(&pf_unlnkdrules_mtx)
 #define	PF_UNLNKDRULES_UNLOCK()	mtx_unlock(&pf_unlnkdrules_mtx)
@@ -845,6 +880,7 @@ struct pf_ksrc_node {
 	u_int32_t	 expire;
 	sa_family_t	 af;
 	u_int8_t	 ruletype;
+	struct mtx	*lock;
 };
 #endif
 
@@ -2120,7 +2156,8 @@ extern struct pf_kstate		*pf_find_state_all(struct pf_state_key_cmp *,
 extern bool			pf_find_state_all_exists(struct pf_state_key_cmp *,
 				    u_int);
 extern struct pf_ksrc_node	*pf_find_src_node(struct pf_addr *,
-				    struct pf_krule *, sa_family_t, int);
+				    struct pf_krule *, sa_family_t,
+				    struct pf_srchash **, bool);
 extern void			 pf_unlink_src_node(struct pf_ksrc_node *);
 extern u_int			 pf_free_src_nodes(struct pf_ksrc_node_list *);
 extern void			 pf_print_state(struct pf_kstate *);
