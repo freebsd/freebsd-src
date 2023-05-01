@@ -94,6 +94,9 @@ typedef struct boot_module_t
 
 	/* valid devices as found by probe. */
 	dev_info_t *(*devices)(void);
+
+	/* return any environment variables to pass to next stage */
+	const char *(*extra_env)(void);
 } boot_module_t;
 
 extern const boot_module_t *boot_modules[];
