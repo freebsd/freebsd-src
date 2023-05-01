@@ -225,6 +225,7 @@ nlmsg_reserve_data_raw(struct nl_writer *nw, size_t sz)
 
         void *data_ptr = &nw->data[nw->offset];
         nw->offset += sz;
+	bzero(data_ptr, sz);
 
         return (data_ptr);
 }
