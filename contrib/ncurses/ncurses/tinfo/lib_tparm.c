@@ -341,7 +341,7 @@ parse_format(const char *s, char *format, int *len)
  * may be cases that we cannot see the explicit parameter numbers.
  */
 NCURSES_EXPORT(int)
-_nc_tparm_analyze(const char *string, char *p_is_s[NUM_PARM], int *popcount)
+_nc_tparm_analyze(const char *string, char **p_is_s, int *popcount)
 {
     size_t len2;
     int i;

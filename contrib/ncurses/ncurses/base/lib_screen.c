@@ -67,7 +67,7 @@ MODULE_ID("$Id: lib_screen.c,v 1.97 2020/02/02 23:34:34 tom Exp $")
  * format.  It happens to be unused in the file 5.22 database (2015/03/07).
  */
 static const char my_magic[] =
-{'\210', '\210', '\210', '\210'};
+{'\210', '\210', '\210', '\210', 0};
 
 #if NCURSES_EXT_PUTWIN
 typedef enum {
