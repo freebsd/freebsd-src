@@ -204,6 +204,7 @@ MAN=	accept_filter.9 \
 	kobj.9 \
 	kproc.9 \
 	kqueue.9 \
+	kstack_contains.9 \
 	kthread.9 \
 	ktr.9 \
 	lock.9 \
