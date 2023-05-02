@@ -284,7 +284,7 @@ struct dpaa2_ni_channel {
 
 	/* Recycled buffers to release back to the pool. */
 	uint32_t		 recycled_n;
-	bus_addr_t		 recycled[DPAA2_SWP_BUFS_PER_CMD];
+	struct dpaa2_buf	*recycled[DPAA2_SWP_BUFS_PER_CMD];
 
 	/* Frame queues */
 	uint32_t		 rxq_n;
