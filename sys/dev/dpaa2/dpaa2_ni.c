@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright © 2021-2022 Dmitry Salychev
+ * Copyright © 2021-2023 Dmitry Salychev
  * Copyright © 2022 Mathew McBride
  *
  * Redistribution and use in source and binary forms, with or without
@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <machine/atomic.h>
+#include <machine/vmparam.h>
 
 #include <net/ethernet.h>
 #include <net/bpf.h>
@@ -146,14 +147,12 @@ __FBSDID("$FreeBSD$");
 #define BUF_RX_HWA_SIZE		64  /* HW annotation size */
 #define BUF_TX_HWA_SIZE		128 /* HW annotation size */
 #define BUF_SIZE		(MJUM9BYTES)
-#define	BUF_MAXADDR_49BIT	0x1FFFFFFFFFFFFul
-#define	BUF_MAXADDR		(BUS_SPACE_MAXADDR)
 
 #define DPAA2_TX_BUFRING_SZ	(4096u)
 #define DPAA2_TX_SEGLIMIT	(16u) /* arbitrary number */
 #define DPAA2_TX_SEG_SZ		(4096u)
 #define DPAA2_TX_SEGS_MAXSZ	(DPAA2_TX_SEGLIMIT * DPAA2_TX_SEG_SZ)
-#define DPAA2_TX_SGT_SZ		(512u) /* bytes */
+#define DPAA2_TX_SGT_SZ		(PAGE_SIZE) /* bytes */
 
 /* Size of a buffer to keep a QoS table key configuration. */
 #define ETH_QOS_KCFG_BUF_SIZE	256
@@ -428,8 +427,8 @@ static int dpaa2_ni_set_dist_key(device_t, enum dpaa2_ni_dist_mode, uint64_t);
 
 /* Buffers and buffer pools */
 static int dpaa2_ni_seed_buf_pool(struct dpaa2_ni_softc *, uint32_t);
-static int dpaa2_ni_seed_rxbuf(struct dpaa2_ni_softc *, struct dpaa2_buf *, int);
-static int dpaa2_ni_seed_txbuf(struct dpaa2_ni_softc *, struct dpaa2_buf *, int);
+static int dpaa2_ni_seed_rxbuf(struct dpaa2_ni_softc *, struct dpaa2_buf *);
+static int dpaa2_ni_seed_txbuf(struct dpaa2_ni_softc *, struct dpaa2_buf *);
 static int dpaa2_ni_seed_chan_storage(struct dpaa2_ni_softc *,
     struct dpaa2_ni_channel *);
 
@@ -438,10 +437,6 @@ static int dpaa2_ni_build_fd(struct dpaa2_ni_softc *, struct dpaa2_ni_tx_ring *,
     struct dpaa2_buf *, bus_dma_segment_t *, int, struct dpaa2_fd *);
 static int dpaa2_ni_fd_err(struct dpaa2_fd *);
 static uint32_t dpaa2_ni_fd_data_len(struct dpaa2_fd *);
-static int dpaa2_ni_fd_chan_idx(struct dpaa2_fd *);
-static int dpaa2_ni_fd_buf_idx(struct dpaa2_fd *);
-static int dpaa2_ni_fd_tx_idx(struct dpaa2_fd *);
-static int dpaa2_ni_fd_txbuf_idx(struct dpaa2_fd *);
 static int dpaa2_ni_fd_format(struct dpaa2_fd *);
 static bool dpaa2_ni_fd_short_len(struct dpaa2_fd *);
 static int dpaa2_ni_fd_offset(struct dpaa2_fd *);
@@ -1588,9 +1583,9 @@ dpaa2_ni_setup_tx_flow(device_t dev, struct dpaa2_ni_fq *fq)
 			buf->tx.paddr = buf->tx.sgt_paddr = 0;
 			buf->tx.vaddr = buf->tx.sgt_vaddr = NULL;
 			buf->tx.m = NULL;
-			buf->tx.idx = 0;
+			buf->tx.idx = j;
 
-			error = dpaa2_ni_seed_txbuf(sc, buf, j);
+			error = dpaa2_ni_seed_txbuf(sc, buf);
 
 			/* Add index of the Tx buffer to the ring. */
 			buf_ring_enqueue(tx->idx_br, (void *) j);
@@ -2028,17 +2023,12 @@ dpaa2_ni_setup_dma(struct dpaa2_ni_softc *sc)
 	KASSERT((sc->buf_align == BUF_ALIGN) || (sc->buf_align == BUF_ALIGN_V1),
 	    ("unexpected buffer alignment: %d\n", sc->buf_align));
 
-	/*
-	 * DMA tag to allocate buffers for buffer pool.
-	 *
-	 * NOTE: QBMan supports DMA addresses up to 49-bits maximum.
-	 *	 Bits 63-49 are not used by QBMan.
-	 */
+	/* DMA tag to allocate buffers for Rx buffer pool. */
 	error = bus_dma_tag_create(
 	    bus_get_dma_tag(dev),
 	    sc->buf_align, 0,		/* alignment, boundary */
-	    BUF_MAXADDR_49BIT,		/* low restricted addr */
-	    BUF_MAXADDR,		/* high restricted addr */
+	    BUS_SPACE_MAXADDR,		/* low restricted addr */
+	    BUS_SPACE_MAXADDR,		/* high restricted addr */
 	    NULL, NULL,			/* filter, filterarg */
 	    BUF_SIZE, 1,		/* maxsize, nsegments */
 	    BUF_SIZE, 0,		/* maxsegsize, flags */
@@ -2054,8 +2044,8 @@ dpaa2_ni_setup_dma(struct dpaa2_ni_softc *sc)
 	error = bus_dma_tag_create(
 	    bus_get_dma_tag(dev),
 	    sc->buf_align, 0,		/* alignment, boundary */
-	    BUF_MAXADDR_49BIT,		/* low restricted addr */
-	    BUF_MAXADDR,		/* high restricted addr */
+	    BUS_SPACE_MAXADDR,		/* low restricted addr */
+	    BUS_SPACE_MAXADDR,		/* high restricted addr */
 	    NULL, NULL,			/* filter, filterarg */
 	    DPAA2_TX_SEGS_MAXSZ,	/* maxsize */
 	    DPAA2_TX_SEGLIMIT,		/* nsegments */
@@ -2072,7 +2062,7 @@ dpaa2_ni_setup_dma(struct dpaa2_ni_softc *sc)
 	error = bus_dma_tag_create(
 	    bus_get_dma_tag(dev),
 	    ETH_STORE_ALIGN, 0,		/* alignment, boundary */
-	    BUS_SPACE_MAXADDR_32BIT,	/* low restricted addr */
+	    BUS_SPACE_MAXADDR,		/* low restricted addr */
 	    BUS_SPACE_MAXADDR,		/* high restricted addr */
 	    NULL, NULL,			/* filter, filterarg */
 	    ETH_STORE_SIZE, 1,		/* maxsize, nsegments */
@@ -2089,7 +2079,7 @@ dpaa2_ni_setup_dma(struct dpaa2_ni_softc *sc)
 	error = bus_dma_tag_create(
 	    bus_get_dma_tag(dev),
 	    PAGE_SIZE, 0,		/* alignment, boundary */
-	    BUS_SPACE_MAXADDR_32BIT,	/* low restricted addr */
+	    BUS_SPACE_MAXADDR,		/* low restricted addr */
 	    BUS_SPACE_MAXADDR,		/* high restricted addr */
 	    NULL, NULL,			/* filter, filterarg */
 	    DPAA2_CLASSIFIER_DMA_SIZE, 1, /* maxsize, nsegments */
@@ -2105,7 +2095,7 @@ dpaa2_ni_setup_dma(struct dpaa2_ni_softc *sc)
 	error = bus_dma_tag_create(
 	    bus_get_dma_tag(dev),
 	    PAGE_SIZE, 0,		/* alignment, boundary */
-	    BUS_SPACE_MAXADDR_32BIT,	/* low restricted addr */
+	    BUS_SPACE_MAXADDR,		/* low restricted addr */
 	    BUS_SPACE_MAXADDR,		/* high restricted addr */
 	    NULL, NULL,			/* filter, filterarg */
 	    ETH_QOS_KCFG_BUF_SIZE, 1,	/* maxsize, nsegments */
@@ -2121,7 +2111,7 @@ dpaa2_ni_setup_dma(struct dpaa2_ni_softc *sc)
 	error = bus_dma_tag_create(
 	    bus_get_dma_tag(dev),
 	    PAGE_SIZE, 0,		/* alignment, boundary */
-	    BUS_SPACE_MAXADDR_32BIT,	/* low restricted addr */
+	    BUS_SPACE_MAXADDR,		/* low restricted addr */
 	    BUS_SPACE_MAXADDR,		/* high restricted addr */
 	    NULL, NULL,			/* filter, filterarg */
 	    DPAA2_TX_SGT_SZ, 1,		/* maxsize, nsegments */
@@ -2259,7 +2249,7 @@ dpaa2_ni_set_buf_layout(device_t dev)
 	 *    Frame Descriptor       Rx buffer layout
 	 *
 	 *                ADDR -> |---------------------|
-	 *                        | SW FRAME ANNOTATION | 0 bytes
+	 *                        | SW FRAME ANNOTATION | BUF_SWA_SIZE bytes
 	 *                        |---------------------|
 	 *                        | HW FRAME ANNOTATION | BUF_RX_HWA_SIZE bytes
 	 *                        |---------------------|
@@ -2277,9 +2267,9 @@ dpaa2_ni_set_buf_layout(device_t dev)
 	 * NOTE: It's for a single buffer frame only.
 	 */
 	buf_layout.queue_type = DPAA2_NI_QUEUE_RX;
-	buf_layout.pd_size = 0;
+	buf_layout.pd_size = BUF_SWA_SIZE;
 	buf_layout.fd_align = sc->buf_align;
-	buf_layout.head_size = sc->tx_data_off - BUF_RX_HWA_SIZE;
+	buf_layout.head_size = sc->tx_data_off - BUF_RX_HWA_SIZE - BUF_SWA_SIZE;
 	buf_layout.tail_size = 0;
 	buf_layout.pass_frame_status = true;
 	buf_layout.pass_parser_result = true;
@@ -3225,7 +3215,6 @@ dpaa2_ni_tx_locked(struct dpaa2_ni_softc *sc, struct dpaa2_ni_tx_ring *tx,
 		idx = (uint64_t) pidx;
 		buf = &tx->buf[idx];
 		buf->tx.m = m;
-		buf->tx.idx = idx;
 		buf->tx.sgt_paddr = 0;
 	}
 
@@ -3272,10 +3261,8 @@ dpaa2_ni_tx_locked(struct dpaa2_ni_softc *sc, struct dpaa2_ni_tx_ring *tx,
 		}
 	}
 
-	bus_dmamap_sync(buf->tx.dmat, buf->tx.dmap,
-	    BUS_DMASYNC_PREWRITE);
-	bus_dmamap_sync(buf->tx.sgt_dmat, buf->tx.sgt_dmap,
-	    BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(buf->tx.dmat, buf->tx.dmap, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(buf->tx.sgt_dmat, buf->tx.sgt_dmap, BUS_DMASYNC_PREWRITE);
 
 	if (rc != 1) {
 		fq->chan->tx_dropped++;
@@ -3352,24 +3339,21 @@ dpaa2_ni_rx(struct dpaa2_ni_channel *chan, struct dpaa2_ni_fq *fq,
 	struct dpaa2_ni_softc *sc = device_get_softc(chan->ni_dev);
 	struct dpaa2_bp_softc *bpsc;
 	struct dpaa2_buf *buf;
+	struct dpaa2_fa *fa;
 	if_t ifp = sc->ifp;
 	struct mbuf *m;
 	device_t bp_dev;
 	bus_addr_t paddr = (bus_addr_t) fd->addr;
 	bus_addr_t released[DPAA2_SWP_BUFS_PER_CMD];
 	void *buf_data;
-	int buf_idx, buf_len;
-	int error, released_n = 0;
+	int buf_len, error, released_n = 0;
 
-	/*
-	 * Get buffer index from the ADDR_TOK (not used by QBMan) bits of the
-	 * physical address.
-	 */
-	buf_idx = dpaa2_ni_fd_buf_idx(fd);
-	buf = &sc->buf[buf_idx];
+	fa = (struct dpaa2_fa *) PHYS_TO_DMAP(paddr);
+	buf = fa->buf;
 
+	KASSERT(fa->magic == DPAA2_MAGIC, ("%s: wrong magic", __func__));
 	KASSERT(buf->type == DPAA2_BUF_RX, ("%s: not Rx buffer", __func__));
-	if (paddr != buf->rx.paddr) {
+	if (__predict_false(paddr != buf->rx.paddr)) {
 		panic("%s: unexpected physical address: fd(%#jx) != buf(%#jx)",
 		    __func__, paddr, buf->rx.paddr);
 	}
@@ -3398,8 +3382,7 @@ dpaa2_ni_rx(struct dpaa2_ni_channel *chan, struct dpaa2_ni_fq *fq,
 
 	m = buf->rx.m;
 	buf->rx.m = NULL;
-	bus_dmamap_sync(buf->rx.dmat, buf->rx.dmap,
-	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+	bus_dmamap_sync(buf->rx.dmat, buf->rx.dmap, BUS_DMASYNC_POSTREAD);
 	bus_dmamap_unload(buf->rx.dmat, buf->rx.dmap);
 
 	buf_len = dpaa2_ni_fd_data_len(fd);
@@ -3420,7 +3403,7 @@ dpaa2_ni_rx(struct dpaa2_ni_channel *chan, struct dpaa2_ni_fq *fq,
 	if_input(ifp, m);
 
 	/* Keep the buffer to be recycled. */
-	chan->recycled[chan->recycled_n++] = paddr;
+	chan->recycled[chan->recycled_n++] = buf;
 	KASSERT(chan->recycled_n <= DPAA2_SWP_BUFS_PER_CMD,
 	    ("%s: too many buffers to recycle", __func__));
 
@@ -3430,15 +3413,10 @@ dpaa2_ni_rx(struct dpaa2_ni_channel *chan, struct dpaa2_ni_fq *fq,
 		taskqueue_enqueue(sc->bp_taskq, &sc->bp_task);
 
 		for (int i = 0; i < chan->recycled_n; i++) {
-			paddr = chan->recycled[i];
-
-			/* Parse ADDR_TOK of the recycled buffer. */
-			buf_idx = (paddr >> DPAA2_NI_BUF_IDX_SHIFT)
-			    & DPAA2_NI_BUF_IDX_MASK;
-			buf = &sc->buf[buf_idx];
+			buf = chan->recycled[i];
 
 			/* Seed recycled buffer. */
-			error = dpaa2_ni_seed_rxbuf(sc, buf, buf_idx);
+			error = dpaa2_ni_seed_rxbuf(sc, buf);
 			KASSERT(error == 0, ("%s: failed to seed recycled "
 			    "buffer: error=%d", __func__, error));
 			if (__predict_false(error != 0)) {
@@ -3482,18 +3460,16 @@ dpaa2_ni_rx_err(struct dpaa2_ni_channel *chan, struct dpaa2_ni_fq *fq,
 	struct dpaa2_ni_softc *sc = device_get_softc(chan->ni_dev);
 	struct dpaa2_bp_softc *bpsc;
 	struct dpaa2_buf *buf;
+	struct dpaa2_fa *fa;
 	bus_addr_t paddr = (bus_addr_t) fd->addr;
-	int buf_idx, error;
-	
-	/*
-	 * Get buffer index from the ADDR_TOK (not used by QBMan) bits of the
-	 * physical address.
-	 */
-	buf_idx = dpaa2_ni_fd_buf_idx(fd);
-	buf = &sc->buf[buf_idx];
+	int error;
 
+	fa = (struct dpaa2_fa *) PHYS_TO_DMAP(paddr);
+	buf = fa->buf;
+
+	KASSERT(fa->magic == DPAA2_MAGIC, ("%s: wrong magic", __func__));
 	KASSERT(buf->type == DPAA2_BUF_RX, ("%s: not Rx buffer", __func__));
-	if (paddr != buf->rx.paddr) {
+	if (__predict_false(paddr != buf->rx.paddr)) {
 		panic("%s: unexpected physical address: fd(%#jx) != buf(%#jx)",
 		    __func__, paddr, buf->rx.paddr);
 	}
@@ -3520,45 +3496,30 @@ static int
 dpaa2_ni_tx_conf(struct dpaa2_ni_channel *chan, struct dpaa2_ni_fq *fq,
     struct dpaa2_fd *fd)
 {
-	struct dpaa2_ni_softc *sc = device_get_softc(chan->ni_dev);
-	struct dpaa2_ni_channel	*buf_chan;
 	struct dpaa2_ni_tx_ring *tx;
 	struct dpaa2_buf *buf;
-	bus_addr_t paddr = (bus_addr_t) (fd->addr & BUF_MAXADDR_49BIT);
-	uint64_t buf_idx;
-	int chan_idx, tx_idx;
+	struct dpaa2_fa *fa;
+	bus_addr_t paddr = (bus_addr_t) fd->addr;
 
-	/*
-	 * Get channel, Tx ring and buffer indexes from the ADDR_TOK bits
-	 * (not used by QBMan) of the physical address.
-	 */
-	chan_idx = dpaa2_ni_fd_chan_idx(fd);
-	tx_idx = dpaa2_ni_fd_tx_idx(fd);
-	buf_idx = (uint64_t) dpaa2_ni_fd_txbuf_idx(fd);
+	fa = (struct dpaa2_fa *) PHYS_TO_DMAP(paddr);
+	buf = fa->buf;
+	tx = fa->tx;
 
-	KASSERT(tx_idx < DPAA2_NI_MAX_TCS, ("%s: invalid Tx ring index",
-	    __func__));
-	KASSERT(buf_idx < DPAA2_NI_BUFS_PER_TX, ("%s: invalid Tx buffer index",
-	    __func__));
-
-	buf_chan = sc->channels[chan_idx];
-	tx = &buf_chan->txc_queue.tx_rings[tx_idx];
-	buf = &tx->buf[buf_idx];
-
+	KASSERT(fa->magic == DPAA2_MAGIC, ("%s: wrong magic", __func__));
 	KASSERT(buf->type == DPAA2_BUF_TX, ("%s: not Tx buffer", __func__));
 	if (paddr != buf->tx.paddr) {
 		panic("%s: unexpected physical address: fd(%#jx) != buf(%#jx)",
 		    __func__, paddr, buf->tx.paddr);
 	}
 
-
+	bus_dmamap_sync(buf->tx.dmat, buf->tx.dmap, BUS_DMASYNC_POSTWRITE);
+	bus_dmamap_sync(buf->tx.sgt_dmat, buf->tx.sgt_dmap, BUS_DMASYNC_POSTWRITE);
 	bus_dmamap_unload(buf->tx.dmat, buf->tx.dmap);
-	if (buf->tx.sgt_paddr != 0)
-		bus_dmamap_unload(buf->tx.sgt_dmat, buf->tx.sgt_dmap);
+	bus_dmamap_unload(buf->tx.sgt_dmat, buf->tx.sgt_dmap);
 	m_freem(buf->tx.m);
 
 	/* Return Tx buffer index back to the ring. */
-	buf_ring_enqueue(tx->idx_br, (void *) buf_idx);
+	buf_ring_enqueue(tx->idx_br, (void *) buf->tx.idx);
 
 	return (0);
 }
@@ -3620,9 +3581,10 @@ dpaa2_ni_seed_buf_pool(struct dpaa2_ni_softc *sc, uint32_t seedn)
 		buf->rx.dmap = NULL;
 		buf->rx.paddr = 0;
 		buf->rx.vaddr = NULL;
-		error = dpaa2_ni_seed_rxbuf(sc, buf, i);
-		if (error)
+		error = dpaa2_ni_seed_rxbuf(sc, buf);
+		if (error != 0) {
 			break;
+		}
 		paddr[bufn] = buf->rx.paddr;
 		bufn++;
 	}
@@ -3646,9 +3608,10 @@ dpaa2_ni_seed_buf_pool(struct dpaa2_ni_softc *sc, uint32_t seedn)
  * @brief Prepare Rx buffer to be released to the buffer pool.
  */
 static int
-dpaa2_ni_seed_rxbuf(struct dpaa2_ni_softc *sc, struct dpaa2_buf *buf, int idx)
+dpaa2_ni_seed_rxbuf(struct dpaa2_ni_softc *sc, struct dpaa2_buf *buf)
 {
 	struct mbuf *m;
+	struct dpaa2_fa *fa;
 	bus_dmamap_t dmap;
 	bus_dma_segment_t segs;
 	int error, nsegs;
@@ -3666,8 +3629,7 @@ dpaa2_ni_seed_rxbuf(struct dpaa2_ni_softc *sc, struct dpaa2_buf *buf, int idx)
 		error = bus_dmamap_create(buf->rx.dmat, 0, &dmap);
 		if (error) {
 			device_printf(sc->dev, "%s: failed to create DMA map "
-			    "for buffer: buf_idx=%d, error=%d\n", __func__,
-			    idx, error);
+			    "for buffer: error=%d\n", __func__, error);
 			return (error);
 		}
 		buf->rx.dmap = dmap;
@@ -3701,18 +3663,12 @@ dpaa2_ni_seed_rxbuf(struct dpaa2_ni_softc *sc, struct dpaa2_buf *buf, int idx)
 	buf->rx.paddr = segs.ds_addr;
 	buf->rx.vaddr = m->m_data;
 
-	/*
-	 * Write buffer index to the ADDR_TOK (bits 63-49) which is not used by
-	 * QBMan and is supposed to assist in physical to virtual address
-	 * translation.
-	 *
-	 * NOTE: "lowaddr" and "highaddr" of the window which cannot be accessed
-	 * 	 by QBMan must be configured in the DMA tag accordingly.
-	 */
-	buf->rx.paddr =
-	    ((uint64_t)(idx & DPAA2_NI_BUF_IDX_MASK) <<
-		DPAA2_NI_BUF_IDX_SHIFT) |
-	    (buf->rx.paddr & DPAA2_NI_BUF_ADDR_MASK);
+	/* Populate frame annotation for future use. */
+	fa = (struct dpaa2_fa *) m->m_data;
+	fa->magic = DPAA2_MAGIC;
+	fa->buf = buf;
+
+	bus_dmamap_sync(buf->rx.dmat, buf->rx.dmap, BUS_DMASYNC_PREREAD);
 
 	return (0);
 }
@@ -3721,7 +3677,7 @@ dpaa2_ni_seed_rxbuf(struct dpaa2_ni_softc *sc, struct dpaa2_buf *buf, int idx)
  * @brief Prepare Tx buffer to be added to the Tx ring.
  */
 static int
-dpaa2_ni_seed_txbuf(struct dpaa2_ni_softc *sc, struct dpaa2_buf *buf, int idx)
+dpaa2_ni_seed_txbuf(struct dpaa2_ni_softc *sc, struct dpaa2_buf *buf)
 {
 	bus_dmamap_t dmap;
 	int error;
@@ -3819,8 +3775,8 @@ dpaa2_ni_build_fd(struct dpaa2_ni_softc *sc, struct dpaa2_ni_tx_ring *tx,
     struct dpaa2_buf *buf, bus_dma_segment_t *txsegs, int txnsegs,
     struct dpaa2_fd *fd)
 {
-	struct dpaa2_ni_channel	*chan = tx->fq->chan;
 	struct dpaa2_sg_entry *sgt;
+	struct dpaa2_fa *fa;
 	int i, error;
 
 	KASSERT(txnsegs <= DPAA2_TX_SEGLIMIT, ("%s: too many segments, "
@@ -3855,6 +3811,7 @@ dpaa2_ni_build_fd(struct dpaa2_ni_softc *sc, struct dpaa2_ni_tx_ring *tx,
 			    "error=%d\n", __func__, error);
 			return (error);
 		}
+
 		buf->tx.paddr = buf->tx.sgt_paddr;
 		buf->tx.vaddr = buf->tx.sgt_vaddr;
 		sc->tx_sg_frames++; /* for sysctl(9) */
@@ -3862,15 +3819,12 @@ dpaa2_ni_build_fd(struct dpaa2_ni_softc *sc, struct dpaa2_ni_tx_ring *tx,
 		return (EINVAL);
 	}
 
-	fd->addr =
-	    ((uint64_t)(chan->flowid & DPAA2_NI_BUF_CHAN_MASK) <<
-		DPAA2_NI_BUF_CHAN_SHIFT) |
-	    ((uint64_t)(tx->txid & DPAA2_NI_TX_IDX_MASK) <<
-		DPAA2_NI_TX_IDX_SHIFT) |
-	    ((uint64_t)(buf->tx.idx & DPAA2_NI_TXBUF_IDX_MASK) <<
-		DPAA2_NI_TXBUF_IDX_SHIFT) |
-	    (buf->tx.paddr & DPAA2_NI_BUF_ADDR_MASK);
+	fa = (struct dpaa2_fa *) buf->tx.sgt_vaddr;
+	fa->magic = DPAA2_MAGIC;
+	fa->buf = buf;
+	fa->tx = tx;
 
+	fd->addr = buf->tx.paddr;
 	fd->data_length = (uint32_t) buf->tx.m->m_pkthdr.len;
 	fd->bpid_ivp_bmt = 0;
 	fd->offset_fmt_sl = 0x2000u | sc->tx_data_off;
@@ -3892,34 +3846,6 @@ dpaa2_ni_fd_data_len(struct dpaa2_fd *fd)
 		return (fd->data_length & DPAA2_NI_FD_LEN_MASK);
 
 	return (fd->data_length);
-}
-
-static int
-dpaa2_ni_fd_chan_idx(struct dpaa2_fd *fd)
-{
-	return ((((bus_addr_t) fd->addr) >> DPAA2_NI_BUF_CHAN_SHIFT) &
-	    DPAA2_NI_BUF_CHAN_MASK);
-}
-
-static int
-dpaa2_ni_fd_buf_idx(struct dpaa2_fd *fd)
-{
-	return ((((bus_addr_t) fd->addr) >> DPAA2_NI_BUF_IDX_SHIFT) &
-	    DPAA2_NI_BUF_IDX_MASK);
-}
-
-static int
-dpaa2_ni_fd_tx_idx(struct dpaa2_fd *fd)
-{
-	return ((((bus_addr_t) fd->addr) >> DPAA2_NI_TX_IDX_SHIFT) &
-	    DPAA2_NI_TX_IDX_MASK);
-}
-
-static int
-dpaa2_ni_fd_txbuf_idx(struct dpaa2_fd *fd)
-{
-	return ((((bus_addr_t) fd->addr) >> DPAA2_NI_TXBUF_IDX_SHIFT) &
-	    DPAA2_NI_TXBUF_IDX_MASK);
 }
 
 static int

@@ -30,6 +30,8 @@
 
 #include <machine/atomic.h>
 
+#define DPAA2_MAGIC	((uint32_t) 0xD4AA2C0Du)
+
 /**
  * @brief Types of the DPAA2 devices.
  */
