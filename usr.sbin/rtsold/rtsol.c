@@ -81,6 +81,7 @@ static char *make_rsid(const char *, const char *, struct rainfo *);
 
 #define	_ARGS_MANAGED	managedconf_script, ifi->ifname, rasender
 #define	_ARGS_OTHER	otherconf_script, ifi->ifname, rasender
+#define	_ARGS_ALWAYS	alwaysconf_script, ifi->ifname, rasender
 #define	_ARGS_RESADD	resolvconf_script, "-a", rsid
 #define	_ARGS_RESDEL	resolvconf_script, "-d", rsid
 
@@ -327,6 +328,17 @@ rtsol_input(int sock)
 		if (!ifi->managedconfig)
 			CALL_SCRIPT(OTHER, NULL);
 	}
+
+	/*
+	 * "Always" script.
+	 */
+	if (!ifi->alwaysconfig) {
+		const char *rasender = inet_ntop(AF_INET6, &from.sin6_addr,
+		    ntopbuf, sizeof(ntopbuf));
+		ifi->alwaysconfig = 1;
+		CALL_SCRIPT(ALWAYS, NULL);
+	}
+
 	clock_gettime(CLOCK_MONOTONIC_FAST, &now);
 	newent_rai = 0;
 	rai = find_rainfo(ifi, &from);
