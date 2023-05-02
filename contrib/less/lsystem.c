@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2022  Mark Nudelman
+ * Copyright (C) 1984-2023  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -42,10 +42,7 @@ extern IFILE curr_ifile;
  * Pass the specified command to a shell to be executed.
  * Like plain "system()", but handles resetting terminal modes, etc.
  */
-	public void
-lsystem(cmd, donemsg)
-	char *cmd;
-	char *donemsg;
+public void lsystem(char *cmd, char *donemsg)
 {
 	int inp;
 #if HAVE_SHELL
@@ -251,10 +248,7 @@ lsystem(cmd, donemsg)
  * If the mark is on the current screen, or if the mark is ".",
  * the whole current screen is piped.
  */
-	public int
-pipe_mark(c, cmd)
-	int c;
-	char *cmd;
+public int pipe_mark(int c, char *cmd)
 {
 	POSITION mpos, tpos, bpos;
 
@@ -285,11 +279,7 @@ pipe_mark(c, cmd)
  * Create a pipe to the given shell command.
  * Feed it the file contents between the positions spos and epos.
  */
-	public int
-pipe_data(cmd, spos, epos)
-	char *cmd;
-	POSITION spos;
-	POSITION epos;
+public int pipe_data(char *cmd, POSITION spos, POSITION epos)
 {
 	FILE *f;
 	int c;

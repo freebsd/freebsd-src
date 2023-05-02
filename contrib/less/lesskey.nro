@@ -1,5 +1,5 @@
 '\" t
-.TH LESSKEY 1 "Version 608: 22 Jul 2022"
+.TH LESSKEY 1 "Version 632: 06 Apr 2023"
 .SH NAME
 lesskey \- customize key bindings for less
 .SH "SYNOPSIS (deprecated)"
@@ -12,33 +12,33 @@ lesskey \- customize key bindings for less
 .B "lesskey \-\-version"
 .SH SCOPE
 This document describes the format of the 
-.I lesskey
+.B lesskey
 source file, which is used by
-.I less
+.B less
 version 582 and later.
 In previous versions of 
-.IR less ,
+.BR less ,
 a separate program called
-.I lesskey
+.B lesskey
 was used to compile the 
-.I lesskey 
+.B lesskey 
 source file into a format understood by
-.IR less .
+.BR less .
 This compilation step is no longer required and the
-.I lesskey
+.B lesskey
 program is therefore deprecated, although the file format remains supported by
-.I less
+.B less
 itself.
 .PP
 .SH DESCRIPTION
 A
-.I lesskey
+.B lesskey
 file specifies a set of key bindings and environment variables
 to be used by subsequent invocations of
-.I less.
+.BR less .
 .SH FILE FORMAT
 The input file consists of one or more
-.I sections.
+.IR sections .
 Each section starts with a line that identifies the type of section.
 Possible sections are:
 .IP #command
@@ -112,22 +112,22 @@ caret, space, tab and the backslash itself.
 .PP
 An action may be followed by an "extra" string.
 When such a command is entered while running
-.IR less ,
+.BR less ,
 the action is performed, and then the extra
 string is parsed, just as if it were typed in to
-.IR less .
+.BR less .
 This feature can be used in certain cases to extend
 the functionality of a command.
 For example, see the "{" and ":t" commands in the example below.
 The extra string has a special meaning for the "quit" action:
 when
-.I less
+.B less
 quits, the first character of the extra string is used as its exit status.
 .
 .SH EXAMPLE
 The following input file describes the set of
 default command keys used by 
-.IR less .
+.BR less .
 Documentation on each command can be found in the
 .less
 man page, under the key sequence which invokes the command.
@@ -231,12 +231,14 @@ T	prev-tag
 -	toggle-option
 :t	toggle-option t
 s	toggle-option o
-	## Use a long option name by starting the extra string with ONE dash; eg:
-	##   s toggle-option -log-file\n
+	## Use a long option name by starting the 
+	## extra string with ONE dash; eg:
+	##   s toggle-option -log-file\en
 \&_	display-option
 |	pipe
 v	visual
 !	shell
+#	pshell
 +	firstcmd
 H	help
 h	help
@@ -261,14 +263,14 @@ ZZ	quit
 .sp
 .SH PRECEDENCE
 Commands specified by
-.I lesskey
+.B lesskey
 take precedence over the default commands.
 A default command key may be disabled by including it in the
 input file with the action "invalid".
 Alternatively, a key may be defined
 to do nothing by using the action "noaction".
 "noaction" is similar to "invalid", but
-.I less
+.B less
 will give an error beep for an "invalid" command,
 but not for a "noaction" command.
 In addition, ALL default commands may be disabled by
@@ -299,7 +301,7 @@ one per line as in the example below.
 .SH EXAMPLE
 The following input file describes the set of
 default line-editing keys used by
-.IR less :
+.BR less :
 .sp
 .RS 5m
 .TS
@@ -347,7 +349,7 @@ Each line consists of an environment variable name, an equals sign (=)
 and the value to be assigned to the environment variable.
 White space before and after the equals sign is ignored.
 Variables assigned in this way are visible only to
-.IR less .
+.BR less .
 If a variable is specified in the system environment and also in a
 lesskey file, the value in the lesskey file takes precedence.
 .
@@ -363,18 +365,18 @@ it cannot append to a variable in the system environment.
 .SH CONDITIONAL CONFIGURATION
 If a line begins with #version followed by a relational operator and a version number,
 the remainder of the line is parsed if and only if the running version of
-.I less
+.B less
 (or
-.IR lesskey )
+.BR lesskey )
 matches the operator.
 This can be helpful if a lesskey file is used by different versions of
-.IR less .
+.BR less .
 .sp
 For example, suppose that a new command named 'sideways-search' is added in 
-.I less
+.B less
 version 777.
 Then the following line would assign the command to the Q key, but only in versions of
-.I less
+.B less
 which support it. The line would be ignored by versions earlier than 777.
 .sp
 .nf
@@ -395,9 +397,9 @@ l l.
 .RE
 .sp
 The #version feature is not supported in
-.I less
+.B less
 and
-.I lesskey
+.B lesskey
 before version 594.
 In those older versions, all #version lines are ignored.
 .
@@ -421,7 +423,7 @@ which start with a NUL character (0).
 This NUL character should be represented as \e340 in a lesskey file.
 .
 .SH COPYRIGHT
-Copyright (C) 1984-2022  Mark Nudelman
+Copyright (C) 1984-2023  Mark Nudelman
 .PP
 less is part of the GNU project and is free software.
 You can redistribute it and/or modify it

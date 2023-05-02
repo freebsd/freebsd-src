@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2022  Mark Nudelman
+ * Copyright (C) 1984-2023  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -23,8 +23,8 @@
 static struct loption *pendopt;
 public int plusoption = FALSE;
 
-static char *optstring LESSPARAMS((char *s, char **p_str, char *printopt, char *validchars));
-static int flip_triple LESSPARAMS((int val, int lc));
+static char *optstring(char *s, char **p_str, char *printopt, char *validchars);
+static int flip_triple(int val, int lc);
 
 extern int screen_trashed;
 extern int less_is_more;
@@ -35,9 +35,7 @@ extern int opt_use_backslash;
 /*
  * Return a printable description of an option.
  */
-	static char *
-opt_desc(o)
-	struct loption *o;
+static char * opt_desc(struct loption *o)
 {
 	static char buf[OPTNAME_MAX + 10];
 	if (o->oletter == OLETTER_NONE)
@@ -51,9 +49,7 @@ opt_desc(o)
  * Return a string suitable for printing as the "name" of an option.
  * For example, if the option letter is 'x', just return "-x".
  */
-	public char *
-propt(c)
-	int c;
+public char * propt(int c)
 {
 	static char buf[MAX_PRCHAR_LEN+2];
 
@@ -65,9 +61,7 @@ propt(c)
  * Scan an argument (either from the command line or from the 
  * LESS environment variable) and process it.
  */
-	public void
-scan_option(s)
-	char *s;
+public void scan_option(char *s)
 {
 	struct loption *o;
 	int optc;
@@ -301,12 +295,7 @@ scan_option(s)
  *      OPT_UNSET       set to the default value
  *      OPT_SET         set to the inverse of the default value
  */
-	public void
-toggle_option(o, lower, s, how_toggle)
-	struct loption *o;
-	int lower;
-	char *s;
-	int how_toggle;
+public void toggle_option(struct loption *o, int lower, char *s, int how_toggle)
 {
 	int num;
 	int no_prompt;
@@ -487,10 +476,7 @@ toggle_option(o, lower, s, how_toggle)
 /*
  * "Toggle" a triple-valued option.
  */
-	static int
-flip_triple(val, lc)
-	int val;
-	int lc;
+static int flip_triple(int val, int lc)
 {
 	if (lc)
 		return ((val == OPT_ON) ? OPT_OFF : OPT_ON);
@@ -501,9 +487,7 @@ flip_triple(val, lc)
 /*
  * Determine if an option takes a parameter.
  */
-	public int
-opt_has_param(o)
-	struct loption *o;
+public int opt_has_param(struct loption *o)
 {
 	if (o == NULL)
 		return (0);
@@ -516,9 +500,7 @@ opt_has_param(o)
  * Return the prompt to be used for a given option letter.
  * Only string and number valued options have prompts.
  */
-	public char *
-opt_prompt(o)
-	struct loption *o;
+public char * opt_prompt(struct loption *o)
 {
 	if (o == NULL || (o->otype & (STRING|NUMBER)) == 0)
 		return ("?");
@@ -529,9 +511,7 @@ opt_prompt(o)
  * If the specified option can be toggled, return NULL.
  * Otherwise return an appropriate error message.
  */
-	public char *
-opt_toggle_disallowed(c)
-	int c;
+public char * opt_toggle_disallowed(int c)
 {
 	switch (c)
 	{
@@ -550,8 +530,7 @@ opt_toggle_disallowed(c)
  * In that case, the current option is taken to be the string for
  * the previous option.
  */
-	public int
-isoptpending(VOID_PARAM)
+public int isoptpending(void)
 {
 	return (pendopt != NULL);
 }
@@ -559,9 +538,7 @@ isoptpending(VOID_PARAM)
 /*
  * Print error message about missing string.
  */
-	static void
-nostring(printopt)
-	char *printopt;
+static void nostring(char *printopt)
 {
 	PARG parg;
 	parg.p_string = printopt;
@@ -571,8 +548,7 @@ nostring(printopt)
 /*
  * Print error message if a STRING type option is not followed by a string.
  */
-	public void
-nopendopt(VOID_PARAM)
+public void nopendopt(void)
 {
 	nostring(opt_desc(pendopt));
 }
@@ -582,12 +558,7 @@ nopendopt(VOID_PARAM)
  * In the latter case, replace the char with a null char.
  * Return a pointer to the remainder of the string, if any.
  */
-	static char *
-optstring(s, p_str, printopt, validchars)
-	char *s;
-	char **p_str;
-	char *printopt;
-	char *validchars;
+static char * optstring(char *s, char **p_str, char *printopt, char *validchars)
 {
 	char *p;
 	char *out;
@@ -622,10 +593,7 @@ optstring(s, p_str, printopt, validchars)
 
 /*
  */
-	static int
-num_error(printopt, errp)
-	char *printopt;
-	int *errp;
+static int num_error(char *printopt, int *errp, int overflow)
 {
 	PARG parg;
 
@@ -637,7 +605,10 @@ num_error(printopt, errp)
 	if (printopt != NULL)
 	{
 		parg.p_string = printopt;
-		error("Number is required after %s", &parg);
+		error((overflow
+		       ? "Number too large in '%s'"
+		       : "Number is required after %s"),
+		      &parg);
 	}
 	return (-1);
 }
@@ -647,11 +618,7 @@ num_error(printopt, errp)
  * Like atoi(), but takes a pointer to a char *, and updates
  * the char * to point after the translated number.
  */
-	public int
-getnum(sp, printopt, errp)
-	char **sp;
-	char *printopt;
-	int *errp;
+public int getnum(char **sp, char *printopt, int *errp)
 {
 	char *s;
 	int n;
@@ -665,12 +632,11 @@ getnum(sp, printopt, errp)
 		s++;
 	}
 	if (*s < '0' || *s > '9')
-		return (num_error(printopt, errp));
+		return (num_error(printopt, errp, FALSE));
 
-	n = 0;
-	while (*s >= '0' && *s <= '9')
-		n = 10 * n + *s++ - '0';
-	*sp = s;
+	n = lstrtoi(s, sp, 10);
+	if (n < 0)
+		return (num_error(printopt, errp, TRUE));
 	if (errp != NULL)
 		*errp = FALSE;
 	if (neg)
@@ -684,11 +650,7 @@ getnum(sp, printopt, errp)
  * The value of the fraction is returned as parts per NUM_FRAC_DENOM.
  * That is, if "n" is returned, the fraction intended is n/NUM_FRAC_DENOM.
  */
-	public long
-getfraction(sp, printopt, errp)
-	char **sp;
-	char *printopt;
-	int *errp;
+public long getfraction(char **sp, char *printopt, int *errp)
 {
 	char *s;
 	long frac = 0;
@@ -696,19 +658,17 @@ getfraction(sp, printopt, errp)
 
 	s = skipsp(*sp);
 	if (*s < '0' || *s > '9')
-		return (num_error(printopt, errp));
+		return (num_error(printopt, errp, FALSE));
 
 	for ( ;  *s >= '0' && *s <= '9';  s++)
 	{
+		if (NUM_LOG_FRAC_DENOM <= fraclen)
+			continue;
 		frac = (frac * 10) + (*s - '0');
 		fraclen++;
 	}
-	if (fraclen > NUM_LOG_FRAC_DENOM)
-		while (fraclen-- > NUM_LOG_FRAC_DENOM)
-			frac /= 10;
-	else
-		while (fraclen++ < NUM_LOG_FRAC_DENOM)
-			frac *= 10;
+	while (fraclen++ < NUM_LOG_FRAC_DENOM)
+		frac *= 10;
 	*sp = s;
 	if (errp != NULL)
 		*errp = FALSE;
@@ -719,8 +679,7 @@ getfraction(sp, printopt, errp)
 /*
  * Get the value of the -e flag.
  */
-	public int
-get_quit_at_eof(VOID_PARAM)
+public int get_quit_at_eof(void)
 {
 	if (!less_is_more)
 		return quit_at_eof;
