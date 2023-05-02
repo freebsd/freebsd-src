@@ -225,10 +225,8 @@ ds1307_probe(device_t dev)
 		return (ENXIO);
 
 	compat = ofw_bus_search_compatible(dev, ds1307_compat_data);
-	if (compat->ocd_str == NULL)
-		return (ENXIO);
-
-	switch(compat->ocd_data) {
+	if (compat->ocd_str != NULL) {
+		switch(compat->ocd_data) {
 		case TYPE_DS1307:
 			device_set_desc(dev, "Dallas DS1307");
 			break;
@@ -244,11 +242,12 @@ ds1307_probe(device_t dev)
 		default:
 			device_set_desc(dev, "Unknown DS1307-like device");
 			break;
+		}
+		return (BUS_PROBE_DEFAULT);
 	}
-	return (BUS_PROBE_DEFAULT);
 #endif
 
-	device_set_desc(dev, "Maxim DS1307 RTC");
+	device_set_desc(dev, "Maxim DS1307");
 	return (BUS_PROBE_NOWILDCARD);
 }
 
