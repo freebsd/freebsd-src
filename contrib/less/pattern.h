@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2022  Mark Nudelman
+ * Copyright (C) 1984-2023  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -47,16 +47,16 @@ extern int less_is_more;
 
 /* ---- RE_COMP  ---- */
 #if HAVE_RE_COMP
-char *re_comp LESSPARAMS ((char*));
-int re_exec LESSPARAMS ((char*));
+char *re_comp(char*);
+int re_exec(char*);
 #define PATTERN_TYPE             int
 #define SET_NULL_PATTERN(name)   name = 0
 #endif
 
 /* ---- REGCMP  ---- */
 #if HAVE_REGCMP
-char *regcmp LESSPARAMS ((char*));
-char *regex LESSPARAMS ((char**, char*));
+char *regcmp(char*);
+char *regex(char**, char*);
 extern char *__loc1;
 #define PATTERN_TYPE             char **
 #define SET_NULL_PATTERN(name)   name = NULL

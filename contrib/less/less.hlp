@@ -51,6 +51,7 @@
         ^F or @  Start search at FIRST file (for /) or last file (for ?).
         ^K       Highlight matches, but don't move (KEEP position).
         ^R       Don't use REGULAR EXPRESSIONS.
+        ^S _n     Search for match in _n-th parenthesized subpattern.
         ^W       WRAP search if no match found.
  ---------------------------------------------------------------------------
 
@@ -104,6 +105,7 @@
   +_c_m_d                 Execute the less cmd each time a new file is examined.
 
   !_c_o_m_m_a_n_d             Execute the shell command with $SHELL.
+  #_c_o_m_m_a_n_d             Execute the shell command, expanded like a prompt.
   |XX_c_o_m_m_a_n_d            Pipe file between current pos & mark XX to shell command.
   s _f_i_l_e               Save input to a file.
   v                    Edit the current file with $VISUAL or $EDITOR.
@@ -186,7 +188,7 @@
   -T [_t_a_g_s_f_i_l_e] --tag-file=[_t_a_g_s_f_i_l_e]
                   Use an alternate tags file.
   -u  -U  ....  --underline-special  --UNDERLINE-SPECIAL
-                  Change handling of backspaces.
+                  Change handling of backspaces, tabs and carriage returns.
   -V  ........  --version
                   Display the version number of "less".
   -w  ........  --hilite-unread
@@ -207,6 +209,8 @@
                   Don't display tildes after end of file.
   -# [_N]  ....  --shift=[_N]
                   Set horizontal scroll amount (0 = one half screen width).
+                --exit-follow-on-close
+                  Exit F command on a pipe when writer closes pipe.
                 --file-size
                   Automatically determine the size of the input file.
                 --follow-name
@@ -215,8 +219,12 @@
                   Use N lines and M columns to display file headers.
                 --incsearch
                   Search file as each pattern character is typed in.
-                --line-num-width=N
-                  Set the width of the -N line number field to N characters.
+                --intr=_C
+                  Use _C instead of ^X to interrupt a read.
+                --line-num-width=_N
+                  Set the width of the -N line number field to _N characters.
+                --modelines=_N
+                  Read _N lines from the input file and look for vim modelines.
                 --mouse
                   Enable mouse input.
                 --no-keypad
@@ -225,24 +233,44 @@
                   Remove duplicates from command history.
                 --no-number-headers
                   Don't give line numbers to header lines.
+                --no-search-headers
+                  Don't search in header lines or columns.
+                --no-vbell
+                  Disable the terminal's visual bell.
                 --redraw-on-quit
                   Redraw final screen when quitting.
-                --rscroll=C
+                --rscroll=_C
                   Set the character used to mark truncated lines.
                 --save-marks
                   Retain marks across invocations of less.
                 --search-options=[EFKNRW-]
                   Set default options for every search.
-                --status-col-width=N
-                  Set the width of the -J status column to N characters.
+                --show-preproc-errors
+                  Display a message if preprocessor exits with an error status.
+                --proc-backspace
+                  Process backspaces for bold/underline.
+                --SPECIAL-BACKSPACE
+                  Treat backspaces as control characters.
+                --proc-return
+                  Delete carriage returns before newline.
+                --SPECIAL-RETURN
+                  Treat carriage returns as control characters.
+                --proc-tab
+                  Expand tabs to spaces.
+                --SPECIAL-TAB
+                  Treat tabs as control characters.
+                --status-col-width=_N
+                  Set the width of the -J status column to _N characters.
                 --status-line
                   Highlight or color the entire line containing a mark.
                 --use-backslash
                   Subsequent options use backslash as escape char.
                 --use-color
                   Enables colored text.
-                --wheel-lines=N
-                  Each click of the mouse wheel moves N lines.
+                --wheel-lines=_N
+                  Each click of the mouse wheel moves _N lines.
+                --wordwrap
+                  Wrap lines at spaces.
 
 
  ---------------------------------------------------------------------------

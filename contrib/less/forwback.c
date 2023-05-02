@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2022  Mark Nudelman
+ * Copyright (C) 1984-2023  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -38,6 +38,7 @@ extern int clear_bg;
 extern int final_attr;
 extern int header_lines;
 extern int header_cols;
+extern int full_screen;
 #if HILITE_SEARCH
 extern int size_linebuf;
 extern int hilite_search;
@@ -50,8 +51,7 @@ extern char *tagoption;
 /*
  * Sound the bell to indicate user is trying to move past end of file.
  */
-	static void
-eof_bell(VOID_PARAM)
+public void eof_bell(void)
 {
 #if HAVE_TIME
 	static time_type last_eof_bell = 0;
@@ -69,8 +69,7 @@ eof_bell(VOID_PARAM)
 /*
  * Check to see if the end of file is currently displayed.
  */
-	public int
-eof_displayed(VOID_PARAM)
+public int eof_displayed(void)
 {
 	POSITION pos;
 
@@ -96,8 +95,7 @@ eof_displayed(VOID_PARAM)
 /*
  * Check to see if the entire file is currently displayed.
  */
-	public int
-entire_file_displayed(VOID_PARAM)
+public int entire_file_displayed(void)
 {
 	POSITION pos;
 
@@ -116,8 +114,7 @@ entire_file_displayed(VOID_PARAM)
  * of the screen; this can happen when we display a short file
  * for the first time.
  */
-	public void
-squish_check(VOID_PARAM)
+public void squish_check(void)
 {
 	if (!squished)
 		return;
@@ -129,11 +126,7 @@ squish_check(VOID_PARAM)
  * Read the first pfx columns of the next line.
  * If skipeol==0 stop there, otherwise read and discard chars to end of line.
  */
-	static POSITION
-forw_line_pfx(pos, pfx, skipeol)
-	POSITION pos;
-	int pfx;
-	int skipeol;
+static POSITION forw_line_pfx(POSITION pos, int pfx, int skipeol)
 {
 	int save_sc_width = sc_width;
 	int save_auto_wrap = auto_wrap;
@@ -154,9 +147,7 @@ forw_line_pfx(pos, pfx, skipeol)
  * Underline last line of headers, but not at beginning of file
  * (where there is no gap between the last header line and the next line).
  */
-	static void
-set_attr_header(ln)
-	int ln;
+static void set_attr_header(int ln)
 {
 	set_attr_line(AT_COLOR_HEADER);
 	if (ln+1 == header_lines && position(0) != ch_zero())
@@ -167,8 +158,7 @@ set_attr_header(ln)
  * Display file headers, overlaying text already drawn
  * at top and left of screen.
  */
-	public int
-overlay_header(VOID_PARAM)
+public int overlay_header(void)
 {
 	POSITION pos = ch_zero(); /* header lines are at beginning of file */
 	int ln;
@@ -222,13 +212,7 @@ overlay_header(VOID_PARAM)
  *   real line.  If nblank > 0, the pos must be NULL_POSITION.
  *   The first real line after the blanks will start at ch_zero().
  */
-	public void
-forw(n, pos, force, only_last, nblank)
-	int n;
-	POSITION pos;
-	int force;
-	int only_last;
-	int nblank;
+public void forw(int n, POSITION pos, int force, int only_last, int nblank)
 {
 	int nlines = 0;
 	int do_repaint;
@@ -287,7 +271,7 @@ forw(n, pos, force, only_last, nblank)
 			{
 				clear();
 				home();
-			} else if (!first_time && !is_filtering())
+			} else if (!first_time && !is_filtering() && full_screen)
 			{
 				putstr("...skipping...\n");
 			}
@@ -354,6 +338,7 @@ forw(n, pos, force, only_last, nblank)
 		 */
 		if ((first_time || less_is_more) &&
 		    pos == NULL_POSITION && !top_scroll && 
+		    header_lines == 0 && header_cols == 0 &&
 #if TAGS
 		    tagoption == NULL &&
 #endif
@@ -415,12 +400,7 @@ forw(n, pos, force, only_last, nblank)
 /*
  * Display n lines, scrolling backward.
  */
-	public void
-back(n, pos, force, only_last)
-	int n;
-	POSITION pos;
-	int force;
-	int only_last;
+public void back(int n, POSITION pos, int force, int only_last)
 {
 	int nlines = 0;
 	int do_repaint;
@@ -479,11 +459,7 @@ back(n, pos, force, only_last)
  * Display n more lines, forward.
  * Start just after the line currently displayed at the bottom of the screen.
  */
-	public void
-forward(n, force, only_last)
-	int n;
-	int force;
-	int only_last;
+public void forward(int n, int force, int only_last)
 {
 	POSITION pos;
 
@@ -531,11 +507,7 @@ forward(n, force, only_last)
  * Display n more lines, backward.
  * Start just before the line currently displayed at the top of the screen.
  */
-	public void
-backward(n, force, only_last)
-	int n;
-	int force;
-	int only_last;
+public void backward(int n, int force, int only_last)
 {
 	POSITION pos;
 
@@ -554,8 +526,7 @@ backward(n, force, only_last)
  * back_scroll, because the default case depends on sc_height and
  * top_scroll, as well as back_scroll.
  */
-	public int
-get_back_scroll(VOID_PARAM)
+public int get_back_scroll(void)
 {
 	if (no_back_scroll)
 		return (0);
@@ -569,8 +540,7 @@ get_back_scroll(VOID_PARAM)
 /*
  * Will the entire file fit on one screen?
  */
-	public int
-get_one_screen(VOID_PARAM)
+public int get_one_screen(void)
 {
 	int nlines;
 	POSITION pos = ch_zero();
