@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2022  Mark Nudelman
+ * Copyright (C) 1984-2023  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -44,9 +44,7 @@ extern int less_is_more;
  */
 #if MSDOS_COMPILER!=WIN32C
 	/* ARGSUSED*/
-	static RETSIGTYPE
-u_interrupt(type)
-	int type;
+static RETSIGTYPE u_interrupt(int type)
 {
 	bell();
 #if OS2
@@ -78,9 +76,7 @@ u_interrupt(type)
  * "Stop" (^Z) signal handler.
  */
 	/* ARGSUSED*/
-	static RETSIGTYPE
-stop(type)
-	int type;
+static RETSIGTYPE stop(int type)
 {
 	LSIGNAL(SIGTSTP, stop);
 	sigs |= S_STOP;
@@ -103,9 +99,7 @@ stop(type)
  * "Window" change handler
  */
 	/* ARGSUSED*/
-	public RETSIGTYPE
-winch(type)
-	int type;
+public RETSIGTYPE winch(int type)
 {
 	LSIGNAL(SIG_LESSWINDOW, winch);
 	sigs |= S_WINCH;
@@ -121,9 +115,7 @@ winch(type)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-	static BOOL WINAPI 
-wbreak_handler(dwCtrlType)
-	DWORD dwCtrlType;
+static BOOL WINAPI wbreak_handler(DWORD dwCtrlType)
 {
 	switch (dwCtrlType)
 	{
@@ -141,9 +133,7 @@ wbreak_handler(dwCtrlType)
 }
 #endif
 
-	static RETSIGTYPE
-terminate(type)
-	int type;
+static RETSIGTYPE terminate(int type)
 {
 	quit(15);
 }
@@ -151,9 +141,7 @@ terminate(type)
 /*
  * Set up the signal handlers.
  */
-	public void
-init_signals(on)
-	int on;
+public void init_signals(int on)
 {
 	if (on)
 	{
@@ -212,8 +200,7 @@ init_signals(on)
  * Process any signals we have received.
  * A received signal cause a bit to be set in "sigs".
  */
-	public void
-psignals(VOID_PARAM)
+public void psignals(void)
 {
 	int tsignals;
 

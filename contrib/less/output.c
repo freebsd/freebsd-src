@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2022  Mark Nudelman
+ * Copyright (C) 1984-2023  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -31,6 +31,7 @@ extern int so_s_width, so_e_width;
 extern int screen_trashed;
 extern int is_tty;
 extern int oldbot;
+extern char intr_char;
 
 #if MSDOS_COMPILER==WIN32C || MSDOS_COMPILER==BORLANDC || MSDOS_COMPILER==DJGPPC
 extern int ctldisp;
@@ -48,8 +49,7 @@ extern int vt_enabled;
 /*
  * Display the line which is in the line buffer.
  */
-	public void
-put_line(VOID_PARAM)
+public void put_line(void)
 {
 	int c;
 	int i;
@@ -84,8 +84,7 @@ static char *ob = obuf;
 static int outfd = 2; /* stderr */
 
 #if MSDOS_COMPILER==WIN32C || MSDOS_COMPILER==BORLANDC || MSDOS_COMPILER==DJGPPC
-	static void
-win_flush(VOID_PARAM)
+static void win_flush(void)
 {
 	if (ctldisp != OPT_ONPLUS || (vt_enabled && sgr_mode))
 		WIN32textout(obuf, ob - obuf);
@@ -361,8 +360,7 @@ win_flush(VOID_PARAM)
  * sure these messages can be seen before they are
  * overwritten or scrolled away.
  */
-	public void
-flush(VOID_PARAM)
+public void flush(void)
 {
 	int n;
 
@@ -397,9 +395,7 @@ flush(VOID_PARAM)
 /*
  * Set the output file descriptor (1=stdout or 2=stderr).
  */
-	public void
-set_output(fd)
-	int fd;
+public void set_output(int fd)
 {
 	flush();
 	outfd = fd;
@@ -408,9 +404,7 @@ set_output(fd)
 /*
  * Output a character.
  */
-	public int
-putchr(c)
-	int c;
+public int putchr(int c)
 {
 #if 0 /* fake UTF-8 output for testing */
 	extern int utf_mode;
@@ -455,8 +449,7 @@ putchr(c)
 	return (c);
 }
 
-	public void
-clear_bot_if_needed(VOID_PARAM)
+public void clear_bot_if_needed(void)
 {
 	if (!need_clr)
 		return;
@@ -467,9 +460,7 @@ clear_bot_if_needed(VOID_PARAM)
 /*
  * Output a string.
  */
-	public void
-putstr(s)
-	constant char *s;
+public void putstr(constant char *s)
 {
 	while (*s != '\0')
 		putchr(*s++);
@@ -480,9 +471,7 @@ putstr(s)
  * Convert an integral type to a string.
  */
 #define TYPE_TO_A_FUNC(funcname, type) \
-void funcname(num, buf) \
-	type num; \
-	char *buf; \
+void funcname(type num, char *buf, int radix) \
 { \
 	int neg = (num < 0); \
 	char tbuf[INT_STRLEN_BOUND(num)+2]; \
@@ -490,8 +479,8 @@ void funcname(num, buf) \
 	if (neg) num = -num; \
 	*--s = '\0'; \
 	do { \
-		*--s = (num % 10) + '0'; \
-	} while ((num /= 10) != 0); \
+		*--s = "0123456789ABCDEF"[num % radix]; \
+	} while ((num /= radix) != 0); \
 	if (neg) *--s = '-'; \
 	strcpy(buf, s); \
 }
@@ -501,53 +490,42 @@ TYPE_TO_A_FUNC(linenumtoa, LINENUM)
 TYPE_TO_A_FUNC(inttoa, int)
 
 /*
- * Convert an string to an integral type.
+ * Convert a string to an integral type.  Return ((type) -1) on overflow.
  */
 #define STR_TO_TYPE_FUNC(funcname, type) \
-type funcname(buf, ebuf) \
-	char *buf; \
-	char **ebuf; \
+type funcname(char *buf, char **ebuf, int radix) \
 { \
 	type val = 0; \
+	int v = 0; \
 	for (;; buf++) { \
 		char c = *buf; \
-		if (c < '0' || c > '9') break; \
-		val = 10 * val + c - '0'; \
+		int digit = (c >= '0' && c <= '9') ? c - '0' : (c >= 'a' && c <= 'f') ? c - 'a' + 10 : (c >= 'A' && c <= 'F') ? c - 'A' + 10 : -1; \
+		if (digit < 0 || digit >= radix) break; \
+		v |= ckd_mul(&val, val, radix); \
+		v |= ckd_add(&val, val, digit); \
 	} \
 	if (ebuf != NULL) *ebuf = buf; \
-	return val; \
+	return v ? -1 : val; \
 }
 
 STR_TO_TYPE_FUNC(lstrtopos, POSITION)
 STR_TO_TYPE_FUNC(lstrtoi, int)
+STR_TO_TYPE_FUNC(lstrtoul, unsigned long)
 
 /*
- * Output an integer in a given radix.
+ * Print an integral type.
  */
-	static int
-iprint_int(num)
-	int num;
-{
-	char buf[INT_STRLEN_BOUND(num)];
-
-	inttoa(num, buf);
-	putstr(buf);
-	return ((int) strlen(buf));
+#define IPRINT_FUNC(funcname, type, typetoa) \
+static int funcname(type num, int radix) \
+{ \
+	char buf[INT_STRLEN_BOUND(num)]; \
+	typetoa(num, buf, radix); \
+	putstr(buf); \
+	return (int) strlen(buf); \
 }
 
-/*
- * Output a line number in a given radix.
- */
-	static int
-iprint_linenum(num)
-	LINENUM num;
-{
-	char buf[INT_STRLEN_BOUND(num)];
-
-	linenumtoa(num, buf);
-	putstr(buf);
-	return ((int) strlen(buf));
-}
+IPRINT_FUNC(iprint_int, int, inttoa)
+IPRINT_FUNC(iprint_linenum, LINENUM, linenumtoa)
 
 /*
  * This function implements printf-like functionality
@@ -556,10 +534,7 @@ iprint_linenum(num)
  * {{ This paranoia about the portability of printf dates from experiences
  *    with systems in the 1980s and is of course no longer necessary. }}
  */
-	public int
-less_printf(fmt, parg)
-	char *fmt;
-	PARG *parg;
+public int less_printf(char *fmt, PARG *parg)
 {
 	char *s;
 	int col;
@@ -586,11 +561,15 @@ less_printf(fmt, parg)
 				}
 				break;
 			case 'd':
-				col += iprint_int(parg->p_int);
+				col += iprint_int(parg->p_int, 10);
+				parg++;
+				break;
+			case 'x':
+				col += iprint_int(parg->p_int, 16);
 				parg++;
 				break;
 			case 'n':
-				col += iprint_linenum(parg->p_linenum);
+				col += iprint_linenum(parg->p_linenum, 10);
 				parg++;
 				break;
 			case 'c':
@@ -616,8 +595,7 @@ less_printf(fmt, parg)
  * If some other non-trivial char is pressed, unget it, so it will
  * become the next command.
  */
-	public void
-get_return(VOID_PARAM)
+public void get_return(void)
 {
 	int c;
 
@@ -635,10 +613,7 @@ get_return(VOID_PARAM)
  * Output a message in the lower left corner of the screen
  * and wait for carriage return.
  */
-	public void
-error(fmt, parg)
-	char *fmt;
-	PARG *parg;
+public void error(char *fmt, PARG *parg)
 {
 	int col = 0;
 	static char return_to_continue[] = "  (press RETURN)";
@@ -678,37 +653,45 @@ error(fmt, parg)
 	flush();
 }
 
-static char intr_to_abort[] = "... (interrupt to abort)";
-
 /*
  * Output a message in the lower left corner of the screen
  * and don't wait for carriage return.
  * Usually used to warn that we are beginning a potentially
  * time-consuming operation.
  */
-	public void
-ierror(fmt, parg)
-	char *fmt;
-	PARG *parg;
+static void ierror_suffix(char *fmt, PARG *parg, char *suffix1, char *suffix2, char *suffix3)
 {
 	at_exit();
 	clear_bot();
 	at_enter(AT_STANDOUT|AT_COLOR_ERROR);
 	(void) less_printf(fmt, parg);
-	putstr(intr_to_abort);
+	putstr(suffix1);
+	putstr(suffix2);
+	putstr(suffix3);
 	at_exit();
 	flush();
 	need_clr = 1;
+}
+
+public void ierror(char *fmt, PARG *parg)
+{
+	ierror_suffix(fmt, parg, "... (interrupt to abort)", "", "");
+}
+
+public void ixerror(char *fmt, PARG *parg)
+{
+	if (!supports_ctrl_x())
+		ierror(fmt, parg);
+	else
+		ierror_suffix(fmt, parg,
+			"... (", prchar(intr_char), " or interrupt to abort)");
 }
 
 /*
  * Output a message in the lower left corner of the screen
  * and return a single-character response.
  */
-	public int
-query(fmt, parg)
-	char *fmt;
-	PARG *parg;
+public int query(char *fmt, PARG *parg)
 {
 	int c;
 	int col = 0;

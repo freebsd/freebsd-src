@@ -11,6 +11,77 @@
 
 ======================================================================
 
+	Major changes between "less" versions 608 and 632
+
+* Add LESSUTFCHARDEF environment variable (github #275).
+
+* Add # command (github #330).
+
+* Add ^S search modifier (github #196).
+
+* Add --wordwrap option (github #113).
+
+* Add --no-vbell option (github #304).
+
+* Add --no-search-headers option (github #44).
+
+* Add --modelines option (github #89).
+
+* Add --intr option (github #224).
+
+* Add --proc-backspace, --proc-tab and --proc-return options (github #335).
+
+* Add --show-preproc-errors option (github #258).
+
+* Add LESS_LINES and LESS_COLUMNS environment variables (github #84).
+
+* Add LESS_DATA_DELAY environment variable (github #337).
+
+* Allow empty "lines" field in --header option.
+
+* Update Unicode tables.
+
+* Improve ability of ^X to interrupt F command (github #49).
+
+* Status column (-J) shows off-screen matches.
+
+* Parenthesized sub-patterns in searches are colored with unique colors,
+  if supported by the regular expression library (github #196).
+
+* Don't allow opening a tty as file input unless -f is set (github #309).
+
+* Don't require newline input after +&... option (github #339).
+
+* Fix incorrect handling of some Private Use Unicode characters.
+
+* Fix ANSI color bug when overstriking with colored chars (github #276).
+
+* Fix compiler const warning (github #279).
+
+* Fix signal race in iread (github #280).
+
+* Fix reading procfs files on Linux (github #282).
+
+* Fix --ignore-case with ctrl-R (no regex) search (github #300).
+
+* Fix bug doing repeat search after setting & filter (github #299).
+
+* Fix bug doing repeat search before non-repeat search.
+
+* Fix crash with -R and certain line lengths (github #338).
+
+* Fix input of Windows dead keys (github #352).
+
+* Don't retain search options from a cancelled search (github #302).
+
+* Don't call realpath on fake filenames like "-" (github #289).
+
+* Implement lesstest test suite.
+
+* Convert function parameter definitions from K&R to C89 (github #316).
+
+======================================================================
+
 	Major changes between "less" versions 590 and 608
 
 * Add the --header option (github #43).
@@ -241,7 +312,7 @@
 
 * Update Unicode tables to 2017-03-08.
 
-* Pass-thru Unicode formating chars (Cf type) instead of treating them
+* Pass-thru Unicode formatting chars (Cf type) instead of treating them
   as binary chars. But treat them as binary if -U is set.
 
 * Fix erroneous binary file warning when UTF-8 file contains ANSI SGR sequences.
@@ -433,7 +504,7 @@
 
 * Fix problem interrupting the line number calculation for initial prompt.
 
-* Fix SGR emulation when dealing with multiple attributes (eg. bold+underline).
+* Fix SGR emulation when dealing with multiple attributes (e.g. bold+underline).
 
 * Fix highlight bug when searching for underlined/overstruck text.
 
@@ -515,7 +586,7 @@
 
 * The -c option has been made identical with the -C option.
 
-* Allow "/dev/null" as synomym for "-" in LESSHISTFILE to indicate
+* Allow "/dev/null" as synonym for "-" in LESSHISTFILE to indicate
   that no history file should be used.
 
 * Search can now find text which follows a null byte, if the PCRE
@@ -665,7 +736,7 @@
 
 * Improved performance in reading very large pipes.
 
-* Eliminated some dependencies on file offets being 32 bits.
+* Eliminated some dependencies on file offsets being 32 bits.
 
 * Fixed problems when viewing files with very long lines.
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2022  Mark Nudelman
+ * Copyright (C) 1984-2023  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -38,15 +38,13 @@ static char* metachars = NULL;
 static int num_metachars = 0;
 static int size_metachars = 0;
 
-	static void
-pr_usage(VOID_PARAM)
+static void pr_usage(void)
 {
 	fprintf(stderr,
 		"usage: lessecho [-ox] [-cx] [-pn] [-dn] [-mx] [-nn] [-ex] [-fn] [-a] file ...\n");
 }
 
-	static void
-pr_version(VOID_PARAM)
+static void pr_version(void)
 {
 	char *p;
 	char buf[10];
@@ -61,19 +59,13 @@ pr_version(VOID_PARAM)
 	printf("%s\n", buf);
 }
 
-	static void
-pr_error(s)
-	char *s;
+static void pr_error(char *s)
 {
 	fprintf(stderr, "%s\n", s);
 	exit(1);
 }
 
-	static long
-lstrtol(s, radix, pend)
-	char *s;
-	int radix;
-	char **pend;
+static long lstrtol(char *s, char **pend, int radix)
 {
 	int v;
 	int neg = 0;
@@ -141,9 +133,7 @@ lstrtol(s, radix, pend)
 	return (n);
 }
 
-	static void
-add_metachar(ch)
-	int ch;
+static void add_metachar(int ch)
 {
 	if (num_metachars+1 >= size_metachars)
 	{
@@ -164,18 +154,13 @@ add_metachar(ch)
 	metachars[num_metachars] = '\0';
 }
 
-	static int
-is_metachar(ch)
-	int ch;
+static int is_metachar(int ch)
 {
 	return (metachars != NULL && strchr(metachars, ch) != NULL);
 }
 
 #if !HAVE_STRCHR
-	char *
-strchr(s, c)
-	char *s;
-	int c;
+char * strchr(char *s, char c)
 {
 	for ( ;  *s != '\0';  s++)
 		if (*s == c)
@@ -186,10 +171,7 @@ strchr(s, c)
 }
 #endif
 
-	int
-main(argc, argv)
-	int argc;
-	char *argv[];
+int main(int argc, char *argv[])
 {
 	char *arg;
 	char *s;
@@ -210,7 +192,7 @@ main(argc, argv)
 			closequote = *++arg;
 			break;
 		case 'd':
-			closequote = lstrtol(++arg, 0, &s);
+			closequote = lstrtol(++arg, &s, 0);
 			if (s == arg)
 				pr_error("Missing number after -d");
 			break;
@@ -221,7 +203,7 @@ main(argc, argv)
 				meta_escape = arg;
 			break;
 		case 'f':
-			meta_escape_buf[0] = lstrtol(++arg, 0, &s);
+			meta_escape_buf[0] = lstrtol(++arg, &s, 0);
 			meta_escape_buf[1] = '\0';
 			meta_escape = meta_escape_buf;
 			if (s == arg)
@@ -231,7 +213,7 @@ main(argc, argv)
 			openquote = *++arg;
 			break;
 		case 'p':
-			openquote = lstrtol(++arg, 0, &s);
+			openquote = lstrtol(++arg, &s, 0);
 			if (s == arg)
 				pr_error("Missing number after -p");
 			break;
@@ -239,7 +221,7 @@ main(argc, argv)
 			add_metachar(*++arg);
 			break;
 		case 'n':
-			add_metachar(lstrtol(++arg, 0, &s));
+			add_metachar(lstrtol(++arg, &s, 0));
 			if (s == arg)
 				pr_error("Missing number after -n");
 			break;

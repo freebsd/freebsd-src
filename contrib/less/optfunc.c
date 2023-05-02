@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2022  Mark Nudelman
+ * Copyright (C) 1984-2023  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -63,6 +63,10 @@ extern int header_lines;
 extern int header_cols;
 extern int def_search_type;
 extern int chopline;
+extern int tabstops[];
+extern int ntabstops;
+extern int tabdefault;
+extern char intr_char;
 #if LOGFILE
 extern char *namelogfile;
 extern int force_logfile;
@@ -75,7 +79,6 @@ extern char ztags[];
 #endif
 #if LESSTEST
 extern char *ttyin_name;
-extern int rstat_file;
 #endif /*LESSTEST*/
 #if MSDOS_COMPILER
 extern int nm_fg_color, nm_bg_color;
@@ -96,10 +99,7 @@ extern int sgr_mode;
 /*
  * Handler for -o option.
  */
-	public void
-opt_o(type, s)
-	int type;
-	char *s;
+public void opt_o(int type, char *s)
 {
 	PARG parg;
 	char *filename;
@@ -149,10 +149,7 @@ opt_o(type, s)
 /*
  * Handler for -O option.
  */
-	public void
-opt__O(type, s)
-	int type;
-	char *s;
+public void opt__O(int type, char *s)
 {
 	force_logfile = TRUE;
 	opt_o(type, s);
@@ -162,10 +159,7 @@ opt__O(type, s)
 /*
  * Handlers for -j option.
  */
-	public void
-opt_j(type, s)
-	int type;
-	char *s;
+public void opt_j(int type, char *s)
 {
 	PARG parg;
 	int len;
@@ -215,21 +209,17 @@ opt_j(type, s)
 	}
 }
 
-	public void
-calc_jump_sline(VOID_PARAM)
+public void calc_jump_sline(void)
 {
 	if (jump_sline_fraction < 0)
 		return;
-	jump_sline = sc_height * jump_sline_fraction / NUM_FRAC_DENOM;
+	jump_sline = muldiv(sc_height, jump_sline_fraction, NUM_FRAC_DENOM);
 }
 
 /*
  * Handlers for -# option.
  */
-	public void
-opt_shift(type, s)
-	int type;
-	char *s;
+public void opt_shift(int type, char *s)
 {
 	PARG parg;
 	int len;
@@ -279,19 +269,15 @@ opt_shift(type, s)
 	}
 }
 
-	public void
-calc_shift_count(VOID_PARAM)
+public void calc_shift_count(void)
 {
 	if (shift_count_fraction < 0)
 		return;
-	shift_count = sc_width * shift_count_fraction / NUM_FRAC_DENOM;
+	shift_count = muldiv(sc_width, shift_count_fraction, NUM_FRAC_DENOM);
 }
 
 #if USERFILE
-	public void
-opt_k(type, s)
-	int type;
-	char *s;
+public void opt_k(int type, char *s)
 {
 	PARG parg;
 
@@ -308,10 +294,7 @@ opt_k(type, s)
 }
 
 #if HAVE_LESSKEYSRC 
-	public void
-opt_ks(type, s)
-	int type;
-	char *s;
+public void opt_ks(int type, char *s)
 {
 	PARG parg;
 
@@ -333,10 +316,7 @@ opt_ks(type, s)
 /*
  * Handler for -t option.
  */
-	public void
-opt_t(type, s)
-	int type;
-	char *s;
+public void opt_t(int type, char *s)
 {
 	IFILE save_ifile;
 	POSITION pos;
@@ -374,10 +354,7 @@ opt_t(type, s)
 /*
  * Handler for -T option.
  */
-	public void
-opt__T(type, s)
-	int type;
-	char *s;
+public void opt__T(int type, char *s)
 {
 	PARG parg;
 	char *filename;
@@ -406,10 +383,7 @@ opt__T(type, s)
 /*
  * Handler for -p option.
  */
-	public void
-opt_p(type, s)
-	int type;
-	char *s;
+public void opt_p(int type, char *s)
 {
 	switch (type)
 	{
@@ -442,10 +416,7 @@ opt_p(type, s)
 /*
  * Handler for -P option.
  */
-	public void
-opt__P(type, s)
-	int type;
-	char *s;
+public void opt__P(int type, char *s)
 {
 	char **proto;
 	PARG parg;
@@ -481,10 +452,7 @@ opt__P(type, s)
  * Handler for the -b option.
  */
 	/*ARGSUSED*/
-	public void
-opt_b(type, s)
-	int type;
-	char *s;
+public void opt_b(int type, char *s)
 {
 	switch (type)
 	{
@@ -504,10 +472,7 @@ opt_b(type, s)
  * Handler for the -i option.
  */
 	/*ARGSUSED*/
-	public void
-opt_i(type, s)
-	int type;
-	char *s;
+public void opt_i(int type, char *s)
 {
 	switch (type)
 	{
@@ -524,10 +489,7 @@ opt_i(type, s)
  * Handler for the -V option.
  */
 	/*ARGSUSED*/
-	public void
-opt__V(type, s)
-	int type;
-	char *s;
+public void opt__V(int type, char *s)
 {
 	switch (type)
 	{
@@ -544,7 +506,7 @@ opt__V(type, s)
 		putstr(" regular expressions)\n");
 		{
 			char constant *copyright = 
-				"Copyright (C) 1984-2022  Mark Nudelman\n\n";
+				"Copyright (C) 1984-2023  Mark Nudelman\n\n";
 			putstr(copyright);
 		}
 		if (version[strlen(version)-1] == 'x')
@@ -553,6 +515,9 @@ opt__V(type, s)
 			putstr("** and may not function correctly.\n");
 			putstr("** Obtain release builds from the web page below.\n\n");
 		}
+#if LESSTEST
+		putstr("This build supports LESSTEST.\n");
+#endif /*LESSTEST*/
 		putstr("less comes with NO WARRANTY, to the extent permitted by law.\n");
 		putstr("For information about the terms of redistribution,\n");
 		putstr("see the file named README in the less distribution.\n");
@@ -566,11 +531,7 @@ opt__V(type, s)
 /*
  * Parse an MSDOS color descriptor.
  */
-	static void
-colordesc(s, fg_color, bg_color)
-	char *s;
-	int *fg_color;
-	int *bg_color;
+static void colordesc(char *s, int *fg_color, int *bg_color)
 {
 	int fg, bg;
 #if MSDOS_COMPILER==WIN32C
@@ -608,9 +569,7 @@ colordesc(s, fg_color, bg_color)
 }
 #endif
 
-	static int
-color_from_namechar(namechar)
-	char namechar;
+static int color_from_namechar(char namechar)
 {
 	switch (namechar)
 	{
@@ -629,7 +588,10 @@ color_from_namechar(namechar)
 	case 'd': return AT_BOLD;
 	case 'u': return AT_UNDERLINE;
 	case 'k': return AT_BLINK;
-	default:  return -1;
+	default:
+		if (namechar >= '1' && namechar <= '0'+NUM_SEARCH_COLORS)
+			return AT_COLOR_SUBSEARCH(namechar-'0');
+		return -1;
 	}
 }
 
@@ -637,10 +599,7 @@ color_from_namechar(namechar)
  * Handler for the -D option.
  */
 	/*ARGSUSED*/
-	public void
-opt_D(type, s)
-	int type;
-	char *s;
+public void opt_D(int type, char *s)
 {
 	PARG p;
 	int attr;
@@ -714,16 +673,41 @@ opt_D(type, s)
 }
 
 /*
+ */
+public void set_tabs(char *s, int len)
+{
+	int i;
+	char *es = s + len;
+	/* Start at 1 because tabstops[0] is always zero. */
+	for (i = 1;  i < TABSTOP_MAX;  )
+	{
+		int n = 0;
+		int v = FALSE;
+		while (s < es && *s == ' ')
+			s++;
+		for (; s < es && *s >= '0' && *s <= '9'; s++)
+		{
+			v |= ckd_mul(&n, n, 10);
+			v |= ckd_add(&n, n, *s - '0');
+		}
+		if (!v && n > tabstops[i-1])
+			tabstops[i++] = n;
+		while (s < es && *s == ' ')
+			s++;
+		if (s == es || *s++ != ',')
+			break;
+	}
+	if (i < 2)
+		return;
+	ntabstops = i;
+	tabdefault = tabstops[ntabstops-1] - tabstops[ntabstops-2];
+}
+
+/*
  * Handler for the -x option.
  */
-	public void
-opt_x(type, s)
-	int type;
-	char *s;
+public void opt_x(int type, char *s)
 {
-	extern int tabstops[];
-	extern int ntabstops;
-	extern int tabdefault;
 	char msg[60+((INT_STRLEN_BOUND(int)+1)*TABSTOP_MAX)];
 	int i;
 	PARG p;
@@ -732,23 +716,7 @@ opt_x(type, s)
 	{
 	case INIT:
 	case TOGGLE:
-		/* Start at 1 because tabstops[0] is always zero. */
-		for (i = 1;  i < TABSTOP_MAX;  )
-		{
-			int n = 0;
-			s = skipsp(s);
-			while (*s >= '0' && *s <= '9')
-				n = (10 * n) + (*s++ - '0');
-			if (n > tabstops[i-1])
-				tabstops[i++] = n;
-			s = skipsp(s);
-			if (*s++ != ',')
-				break;
-		}
-		if (i < 2)
-			return;
-		ntabstops = i;
-		tabdefault = tabstops[ntabstops-1] - tabstops[ntabstops-2];
+		set_tabs(s, strlen(s));
 		break;
 	case QUERY:
 		strcpy(msg, "Tab stops ");
@@ -774,10 +742,7 @@ opt_x(type, s)
 /*
  * Handler for the -" option.
  */
-	public void
-opt_quote(type, s)
-	int type;
-	char *s;
+public void opt_quote(int type, char *s)
 {
 	char buf[3];
 	PARG parg;
@@ -816,10 +781,7 @@ opt_quote(type, s)
  * Handler for the --rscroll option.
  */
 	/*ARGSUSED*/
-	public void
-opt_rscroll(type, s)
-	int type;
-	char *s;
+public void opt_rscroll(int type, char *s)
 {
 	PARG p;
 
@@ -829,7 +791,7 @@ opt_rscroll(type, s)
 	case TOGGLE: {
 		char *fmt;
 		int attr = AT_STANDOUT;
-		setfmt(s, &fmt, &attr, "*s>");
+		setfmt(s, &fmt, &attr, "*s>", FALSE);
 		if (strcmp(fmt, "-") == 0)
 		{
 			rscroll_char = 0;
@@ -841,7 +803,7 @@ opt_rscroll(type, s)
 		break; }
 	case QUERY: {
 		p.p_string = rscroll_char ? prchar(rscroll_char) : "-";
-		error("rscroll char is %s", &p);
+		error("rscroll character is %s", &p);
 		break; }
 	}
 }
@@ -851,10 +813,7 @@ opt_rscroll(type, s)
  * If from the command line, exit immediately.
  */
 	/*ARGSUSED*/
-	public void
-opt_query(type, s)
-	int type;
-	char *s;
+public void opt_query(int type, char *s)
 {
 	switch (type)
 	{
@@ -871,10 +830,7 @@ opt_query(type, s)
  * Handler for the --mouse option.
  */
 	/*ARGSUSED*/
-	public void
-opt_mousecap(type, s)
-	int type;
-	char *s;
+public void opt_mousecap(int type, char *s)
 {
 	switch (type)
 	{
@@ -894,10 +850,7 @@ opt_mousecap(type, s)
  * Handler for the --wheel-lines option.
  */
 	/*ARGSUSED*/
-	public void
-opt_wheel_lines(type, s)
-	int type;
-	char *s;
+public void opt_wheel_lines(int type, char *s)
 {
 	switch (type)
 	{
@@ -915,10 +868,7 @@ opt_wheel_lines(type, s)
  * Handler for the --line-number-width option.
  */
 	/*ARGSUSED*/
-	public void
-opt_linenum_width(type, s)
-	int type;
-	char *s;
+public void opt_linenum_width(int type, char *s)
 {
 	PARG parg;
 
@@ -942,10 +892,7 @@ opt_linenum_width(type, s)
  * Handler for the --status-column-width option.
  */
 	/*ARGSUSED*/
-	public void
-opt_status_col_width(type, s)
-	int type;
-	char *s;
+public void opt_status_col_width(int type, char *s)
 {
 	PARG parg;
 
@@ -969,10 +916,7 @@ opt_status_col_width(type, s)
  * Handler for the --file-size option.
  */
 	/*ARGSUSED*/
-	public void
-opt_filesize(type, s)
-	int type;
-	char *s;
+public void opt_filesize(int type, char *s)
 {
 	switch (type)
 	{
@@ -987,13 +931,33 @@ opt_filesize(type, s)
 }
 
 /*
+ * Handler for the --intr option.
+ */
+	/*ARGSUSED*/
+public void opt_intr(int type, char *s)
+{
+	PARG p;
+
+	switch (type)
+	{
+	case INIT:
+	case TOGGLE:
+		intr_char = *s;
+		if (intr_char == '^' && s[1] != '\0')
+			intr_char = CONTROL(s[1]);
+		break;
+	case QUERY: {
+		p.p_string = prchar(intr_char);
+		error("interrupt character is %s", &p);
+		break; }
+	}
+}
+
+/*
  * Handler for the --header option.
  */
 	/*ARGSUSED*/
-	public void
-opt_header(type, s)
-	int type;
-	char *s;
+public void opt_header(int type, char *s)
 {
 	int err;
 	int n;
@@ -1002,22 +966,26 @@ opt_header(type, s)
 	{
 	case INIT:
 	case TOGGLE:
-		n = getnum(&s, "header", &err);
-		if (err)
-			error("invalid number of lines", NULL_PARG);
-		else
+		header_lines = 0;
+		header_cols = 0;
+		if (*s != ',')
 		{
-			header_lines = n;
-			header_cols = 0;
-			if (*s == ',')
+			n = getnum(&s, "header", &err);
+			if (err)
 			{
-				++s;
-				n = getnum(&s, "header", &err);
-				if (err)
-					error("invalid number of columns", NULL_PARG);
-				else
-					header_cols = n;
+				error("invalid number of lines", NULL_PARG);
+				return;
 			}
+			header_lines = n;
+		}
+		if (*s == ',')
+		{
+			++s;
+			n = getnum(&s, "header", &err);
+			if (err)
+				error("invalid number of columns", NULL_PARG);
+			else
+				header_cols = n;
 		}
 		break;
 	case QUERY:
@@ -1036,15 +1004,13 @@ opt_header(type, s)
  * Handler for the --search-options option.
  */
 	/*ARGSUSED*/
-	public void
-opt_search_type(type, s)
-	int type;
-	char *s;
+public void opt_search_type(int type, char *s)
 {
 	int st;
 	PARG parg;
 	char buf[16];
 	char *bp;
+	int i;
 
 	switch (type)
 	{
@@ -1064,6 +1030,11 @@ opt_search_type(type, s)
 			case '-': st = 0; break;
 			case '^': break;
 			default:
+				if (*s >= '1' && *s <= '0'+NUM_SEARCH_COLORS)
+				{
+					st |= SRCH_SUBSEARCH(*s-'0');
+					break;
+				}
 				parg.p_char = *s;
 				error("invalid search option '%c'", &parg);
 				return;
@@ -1079,6 +1050,9 @@ opt_search_type(type, s)
 		if (def_search_type & SRCH_NO_MATCH)   *bp++ = 'N'; 
 		if (def_search_type & SRCH_NO_REGEX)   *bp++ = 'R'; 
 		if (def_search_type & SRCH_WRAP)       *bp++ = 'W'; 
+		for (i = 1;  i <= NUM_SEARCH_COLORS;  i++)
+			if (def_search_type & SRCH_SUBSEARCH(i))
+				*bp++ = '0'+i;
 		if (bp == buf)
 			*bp++ = '-';
 		*bp = '\0';
@@ -1093,10 +1067,7 @@ opt_search_type(type, s)
  * Handler for the --tty option.
  */
 	/*ARGSUSED*/
-	public void
-opt_ttyin_name(type, s)
-	int type;
-	char *s;
+public void opt_ttyin_name(int type, char *s)
 {
 	switch (type)
 	{
@@ -1106,33 +1077,9 @@ opt_ttyin_name(type, s)
 		break;
 	}
 }
-
-/*
- * Handler for the --rstat option.
- */
-	/*ARGSUSED*/
-	public void
-opt_rstat(type, s)
-	int type;
-	char *s;
-{
-	switch (type)
-	{
-	case INIT:
-		rstat_file = open(s, O_WRONLY|O_CREAT, 0664);
-		if (rstat_file < 0)
-		{
-			PARG parg;
-			parg.p_string = s;
-			error("Cannot create rstat file \"%s\"", &parg);
-		}
-		break;
-	}
-}
 #endif /*LESSTEST*/
 
-	public int
-chop_line(VOID_PARAM)
+public int chop_line(void)
 {
 	return (chopline || header_cols > 0 || header_lines > 0);
 }
@@ -1140,8 +1087,7 @@ chop_line(VOID_PARAM)
 /*
  * Get the "screen window" size.
  */
-	public int
-get_swindow(VOID_PARAM)
+public int get_swindow(void)
 {
 	if (swindow > 0)
 		return (swindow);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2022  Mark Nudelman
+ * Copyright (C) 1984-2023  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -19,6 +19,7 @@
  * Variables controlled by command line options.
  */
 public int quiet;               /* Should we suppress the audible bell? */
+public int no_vbell;            /* Should we suppress the visual bell? */
 public int how_search;          /* Where should forward searches start? */
 public int top_scroll;          /* Repaint screen from top?
                                    (alternative is scroll from bottom) */
@@ -42,6 +43,7 @@ public int jump_sline;          /* Screen line of "jump target" */
 public long jump_sline_fraction = -1;
 public long shift_count_fraction = -1;
 public int chopline;            /* Truncate displayed lines at screen width */
+public int wordwrap;            /* Wrap lines at space */
 public int no_init;             /* Disable sending ti/te termcap strings */
 public int no_keypad;           /* Disable sending ks/ke termcap strings */
 public int twiddle;             /* Show tildes after EOF */
@@ -68,9 +70,16 @@ public int status_line;         /* Highlight entire marked lines */
 public int header_lines;        /* Freeze header lines at top of screen */
 public int header_cols;         /* Freeze header columns at left of screen */
 public int nonum_headers;       /* Don't give headers line numbers */
+public int nosearch_headers;    /* Don't search in header lines or columns */
 public int redraw_on_quit;      /* Redraw last screen after term deinit */
 public int def_search_type;     /* */
 public int exit_F_on_close;     /* Exit F command when input closes */
+public int modelines;           /* Lines to read looking for modelines */
+public int show_preproc_error;  /* Display msg when preproc exits with error */
+public int proc_backspace;      /* Special handling of backspace */
+public int proc_tab;            /* Special handling of tab */
+public int proc_return;         /* Special handling of carriage return */
+public char intr_char = CONTROL('X'); /* Char to interrupt reads */
 #if HILITE_SEARCH
 public int hilite_search;       /* Highlight matched search patterns? */
 #endif
@@ -149,12 +158,20 @@ static struct optname want_filesize_optname = { "file-size",     NULL };
 static struct optname status_line_optname = { "status-line",     NULL };
 static struct optname header_optname = { "header",               NULL };
 static struct optname nonum_headers_optname = { "no-number-headers", NULL };
+static struct optname nosearch_headers_optname = { "no-search-headers", NULL };
 static struct optname redraw_on_quit_optname = { "redraw-on-quit", NULL };
 static struct optname search_type_optname = { "search-options", NULL };
 static struct optname exit_F_on_close_optname = { "exit-follow-on-close", NULL };
+static struct optname modelines_optname = { "modelines", NULL };
+static struct optname no_vbell_optname = { "no-vbell", NULL };
+static struct optname intr_optname = { "intr", NULL };
+static struct optname wordwrap_optname = { "wordwrap", NULL };
+static struct optname show_preproc_error_optname = { "show-preproc-errors", NULL };
+static struct optname proc_backspace_optname = { "proc-backspace", NULL };
+static struct optname proc_tab_optname = { "proc-tab", NULL };
+static struct optname proc_return_optname = { "proc-return", NULL };
 #if LESSTEST
 static struct optname ttyin_name_optname = { "tty",              NULL };
-static struct optname rstat_optname  = { "rstat",                NULL };
 #endif /*LESSTEST*/
 
 
@@ -392,7 +409,7 @@ static struct loption option[] =
 	},
 #endif
 	{ 'u', &u_optname,
-		TRIPLE|REPAINT, OPT_OFF, &bs_mode, NULL,
+		TRIPLE|REPAINT|HL_REPAINT, OPT_OFF, &bs_mode, NULL,
 		{
 			"Display underlined text in underline mode",
 			"Backspaces cause overstrike",
@@ -501,7 +518,7 @@ static struct loption option[] =
 	},
 	{ OLETTER_NONE, &rscroll_optname,
 		STRING|REPAINT|INIT_HANDLER, 0, NULL, opt_rscroll,
-		{ "right scroll character: ", NULL, NULL }
+		{ "rscroll character: ", NULL, NULL }
 	},
 	{ OLETTER_NONE, &nohistdups_optname,
 		BOOL, OPT_OFF, &no_hist_dups, NULL,
@@ -599,6 +616,14 @@ static struct loption option[] =
 			NULL
 		}
 	},
+	{ OLETTER_NONE, &nosearch_headers_optname,
+		BOOL|HL_REPAINT, 0, &nosearch_headers, NULL,
+		{
+			"Search includes header lines",
+			"Search does not include header lines",
+			NULL
+		}
+	},
 	{ OLETTER_NONE, &redraw_on_quit_optname,
 		BOOL, OPT_OFF, &redraw_on_quit, NULL,
 		{
@@ -623,17 +648,69 @@ static struct loption option[] =
 			NULL
 		}
 	},
-#if LESSTEST
-	{ OLETTER_NONE, &ttyin_name_optname,
-		STRING|NO_TOGGLE, 0, NULL, opt_ttyin_name,
+	{ OLETTER_NONE, &no_vbell_optname,
+		BOOL, OPT_OFF, &no_vbell, NULL,
 		{
-			NULL,
-			NULL,
+			"Display visual bell",
+			"Don't display visual bell",
 			NULL
 		}
 	},
-	{ OLETTER_NONE, &rstat_optname,
-		STRING|NO_TOGGLE, 0, NULL, opt_rstat,
+	{ OLETTER_NONE, &modelines_optname,
+		NUMBER, 0, &modelines, NULL,
+		{
+			"Lines to read looking for modelines: ",
+			"Read %d lines looking for modelines",
+			NULL
+		}
+	},
+	{ OLETTER_NONE, &intr_optname,
+		STRING, 0, NULL, opt_intr,
+		{ "interrupt character: ", NULL, NULL }
+	},
+	{ OLETTER_NONE, &wordwrap_optname,
+		BOOL|REPAINT, OPT_OFF, &wordwrap, NULL,
+		{
+			"Wrap lines at any character",
+			"Wrap lines at spaces",
+			NULL
+		}
+	},
+	{ OLETTER_NONE, &show_preproc_error_optname,
+		BOOL, OPT_OFF, &show_preproc_error, NULL,
+		{
+			"Don't show error message if preprocessor fails",
+			"Show error message if preprocessor fails",
+			NULL
+		}
+	},
+	{ OLETTER_NONE, &proc_backspace_optname,
+		TRIPLE|REPAINT|HL_REPAINT, OPT_OFF, &proc_backspace, NULL,
+		{
+			"Backspace handling is specified by the -U option",
+			"Display underline text in underline mode",
+			"Print backspaces as ^H"
+		}
+	},
+	{ OLETTER_NONE, &proc_tab_optname,
+		TRIPLE|REPAINT|HL_REPAINT, OPT_OFF, &proc_tab, NULL,
+		{
+			"Tab handling is specified by the -U option",
+			"Expand tabs to spaces",
+			"Print tabs as ^I"
+		}
+	},
+	{ OLETTER_NONE, &proc_return_optname,
+		TRIPLE|REPAINT|HL_REPAINT, OPT_OFF, &proc_return, NULL,
+		{
+			"Carriage return handling is specified by the -U option",
+			"Delete carriage return before newline",
+			"Print carriage return as ^M"
+		}
+	},
+#if LESSTEST
+	{ OLETTER_NONE, &ttyin_name_optname,
+		STRING|NO_TOGGLE, 0, NULL, opt_ttyin_name,
 		{
 			NULL,
 			NULL,
@@ -648,8 +725,7 @@ static struct loption option[] =
 /*
  * Initialize each option to its default value.
  */
-	public void
-init_option(VOID_PARAM)
+public void init_option(void)
 {
 	struct loption *o;
 	char *p;
@@ -673,9 +749,7 @@ init_option(VOID_PARAM)
 /*
  * Find an option in the option table, given its option letter.
  */
-	public struct loption *
-findopt(c)
-	int c;
+public struct loption * findopt(int c)
 {
 	struct loption *o;
 
@@ -692,9 +766,7 @@ findopt(c)
 /*
  *
  */
-	static int
-is_optchar(c)
-	char c;
+static int is_optchar(char c)
 {
 	if (ASCII_IS_UPPER(c))
 		return 1;
@@ -711,11 +783,7 @@ is_optchar(c)
  * is updated to point after the matched name.
  * p_oname if non-NULL is set to point to the full option name.
  */
-	public struct loption *
-findopt_name(p_optname, p_oname, p_err)
-	char **p_optname;
-	char **p_oname;
-	int *p_err;
+public struct loption * findopt_name(char **p_optname, char **p_oname, int *p_err)
 {
 	char *optname = *p_optname;
 	struct loption *o;

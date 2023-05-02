@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2022  Mark Nudelman
+ * Copyright (C) 1984-2023  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -30,16 +30,13 @@ public int tty;
 #endif
 #if LESSTEST
 public char *ttyin_name = NULL;
-public int rstat_file = -1;
 #endif /*LESSTEST*/
 extern int sigs;
 extern int utf_mode;
 extern int wheel_lines;
 
 #if !MSDOS_COMPILER
-	static int
-open_tty_device(dev)
-	constant char* dev;
+static int open_tty_device(constant char* dev)
 {
 #if OS2
 	/* The __open() system call translates "/dev/tty" to "con". */
@@ -55,8 +52,7 @@ open_tty_device(dev)
  * In Unix, file descriptor 2 is usually attached to the screen,
  * but also usually lets you read from the keyboard.
  */
-	public int
-open_tty(VOID_PARAM)
+public int open_tty(void)
 {
 	int fd = -1;
 #if LESSTEST
@@ -82,8 +78,7 @@ open_tty(VOID_PARAM)
 /*
  * Open keyboard for input.
  */
-	public void
-open_getchr(VOID_PARAM)
+public void open_getchr(void)
 {
 #if MSDOS_COMPILER==WIN32C
 	/* Need this to let child processes inherit our console handle */
@@ -123,8 +118,7 @@ open_getchr(VOID_PARAM)
 /*
  * Close the keyboard.
  */
-	public void
-close_getchr(VOID_PARAM)
+public void close_getchr(void)
 {
 #if MSDOS_COMPILER==WIN32C
 	SetConsoleMode(tty, console_mode);
@@ -136,9 +130,7 @@ close_getchr(VOID_PARAM)
 /*
  * Close the pipe, restoring the keyboard (CMD resets it, losing the mouse).
  */
-	int
-pclose(f)
-	FILE *f;
+public int pclose(FILE *f)
 {
 	int result;
 
@@ -151,8 +143,7 @@ pclose(f)
 /*
  * Get the number of lines to scroll when mouse wheel is moved.
  */
-	public int
-default_wheel_lines(VOID_PARAM)
+public int default_wheel_lines(void)
 {
 	int lines = 1;
 #if MSDOS_COMPILER==WIN32C
@@ -165,23 +156,10 @@ default_wheel_lines(VOID_PARAM)
 	return lines;
 }
 
-#if LESSTEST
-	public void
-rstat(st)
-	char st;
-{
-	if (rstat_file < 0)
-		return;
-	lseek(rstat_file, SEEK_SET, 0);
-	write(rstat_file, &st, 1);
-}
-#endif /*LESSTEST*/
-
 /*
  * Get a character from the keyboard.
  */
-	public int
-getchr(VOID_PARAM)
+public int getchr(void)
 {
 	char c;
 	int result;
@@ -204,17 +182,11 @@ getchr(VOID_PARAM)
 		if (c == '\003')
 			return (READ_INTR);
 #else
-#if LESSTEST
-		rstat('R');
-#endif /*LESSTEST*/
 		{
 			unsigned char uc;
 			result = iread(tty, &uc, sizeof(char));
 			c = (char) uc;
 		}
-#if LESSTEST
-		rstat('B');
-#endif /*LESSTEST*/
 		if (result == READ_INTR)
 			return (READ_INTR);
 		if (result < 0)
@@ -224,6 +196,14 @@ getchr(VOID_PARAM)
 			 * because error calls getchr!
 			 */
 			quit(QUIT_ERROR);
+		}
+#endif
+#if LESSTEST
+		if (c == LESS_DUMP_CHAR)
+		{
+			dump_screen();
+			result = 0;
+			continue;
 		}
 #endif
 #if 0 /* allow entering arbitrary hex chars for testing */

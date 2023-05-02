@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2022  Mark Nudelman
+ * Copyright (C) 1984-2023  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -37,7 +37,7 @@ static struct {
  * Buffer of ansi sequences which have been shifted off the left edge 
  * of the screen. 
  */
-struct xbuffer shifted_ansi;
+static struct xbuffer shifted_ansi;
 
 /*
  * Ring buffer of last ansi sequences sent.
@@ -61,6 +61,7 @@ public int tabstops[TABSTOP_MAX] = { 0 }; /* Custom tabstops */
 public int ntabstops = 1;        /* Number of tabstops */
 public int tabdefault = 8;       /* Default repeated tabstops */
 public POSITION highest_hilite;  /* Pos of last hilite in file found so far */
+static POSITION line_pos;
 
 static int end_column;  /* Printable length, accounting for backspaces, etc. */
 static int right_curr;
@@ -74,12 +75,15 @@ static char *end_ansi_chars;
 static char *mid_ansi_chars;
 static int in_hilite;
 
-static int attr_swidth LESSPARAMS ((int a));
-static int attr_ewidth LESSPARAMS ((int a));
-static int do_append LESSPARAMS ((LWCHAR ch, char *rep, POSITION pos));
+static int attr_swidth(int a);
+static int attr_ewidth(int a);
+static int do_append(LWCHAR ch, char *rep, POSITION pos);
 
 extern int sigs;
 extern int bs_mode;
+extern int proc_backspace;
+extern int proc_tab;
+extern int proc_return;
 extern int linenums;
 extern int ctldisp;
 extern int twiddle;
@@ -105,23 +109,31 @@ static char mbc_buf[MAX_UTF_CHAR_LEN];
 static int mbc_buf_len = 0;
 static int mbc_buf_index = 0;
 static POSITION mbc_pos;
+static int saved_line_end;
+static int saved_end_column;
 
 /* Configurable color map */
-static char color_map[AT_NUM_COLORS][12] = {
-	"Wm",  /* AT_COLOR_ATTN */
-	"kR",  /* AT_COLOR_BIN */
-	"kR",  /* AT_COLOR_CTRL */
-	"kY",  /* AT_COLOR_ERROR */
-	"c",   /* AT_COLOR_LINENUM */
-	"Wb",  /* AT_COLOR_MARK */
-	"kC",  /* AT_COLOR_PROMPT */
-	"kc",  /* AT_COLOR_RSCROLL */
-	"kG",  /* AT_COLOR_SEARCH */
-	"",    /* AT_COLOR_HEADER */
-	"",    /* AT_UNDERLINE */
-	"",    /* AT_BOLD */
-	"",    /* AT_BLINK */
-	"",    /* AT_STANDOUT */
+struct color_map { int attr; char color[12]; };
+static struct color_map color_map[] = {
+	{ AT_UNDERLINE,            "" },
+	{ AT_BOLD,                 "" },
+	{ AT_BLINK,                "" },
+	{ AT_STANDOUT,             "" },
+	{ AT_COLOR_ATTN,           "Wm" },
+	{ AT_COLOR_BIN,            "kR" },
+	{ AT_COLOR_CTRL,           "kR" },
+	{ AT_COLOR_ERROR,          "kY" },
+	{ AT_COLOR_LINENUM,        "c" },
+	{ AT_COLOR_MARK,           "Wb" },
+	{ AT_COLOR_PROMPT,         "kC" },
+	{ AT_COLOR_RSCROLL,        "kc" },
+	{ AT_COLOR_HEADER,         "" },
+	{ AT_COLOR_SEARCH,         "kG" },
+	{ AT_COLOR_SUBSEARCH(1),   "ky" },
+	{ AT_COLOR_SUBSEARCH(2),   "wb" },
+	{ AT_COLOR_SUBSEARCH(3),   "YM" },
+	{ AT_COLOR_SUBSEARCH(4),   "Yr" },
+	{ AT_COLOR_SUBSEARCH(5),   "Wc" },
 };
 
 /* State while processing an ANSI escape sequence */
@@ -134,8 +146,7 @@ struct ansi_state {
 /*
  * Initialize from environment variables.
  */
-	public void
-init_line(VOID_PARAM)
+public void init_line(void)
 {
 	int ax;
 
@@ -160,8 +171,7 @@ init_line(VOID_PARAM)
 /*
  * Expand the line buffer.
  */
-	static int
-expand_linebuf(VOID_PARAM)
+static int expand_linebuf(void)
 {
 	/* Double the size of the line buffer. */
 	int new_size = size_linebuf * 2;
@@ -191,18 +201,14 @@ expand_linebuf(VOID_PARAM)
 /*
  * Is a character ASCII?
  */
-	public int
-is_ascii_char(ch)
-	LWCHAR ch;
+public int is_ascii_char(LWCHAR ch)
 {
 	return (ch <= 0x7F);
 }
 
 /*
  */
-	static void
-inc_end_column(w)
-	int w;
+static void inc_end_column(int w)
 {
 	if (end_column > right_column && w > 0)
 	{
@@ -212,11 +218,15 @@ inc_end_column(w)
 	end_column += w;
 }
 
+public POSITION line_position(void)
+{
+	return line_pos;
+}
+
 /*
  * Rewind the line buffer.
  */
-	public void
-prewind(VOID_PARAM)
+public void prewind(void)
 {
 	int ax;
 
@@ -241,6 +251,7 @@ prewind(VOID_PARAM)
 	ansi_in_line = 0;
 	hlink_in_line = 0;
 	line_mark_attr = 0;
+	line_pos = NULL_POSITION;
 	xbuf_reset(&shifted_ansi);
 	xbuf_reset(&last_ansi);
 	for (ax = 0;  ax < NUM_LAST_ANSIS;  ax++)
@@ -251,12 +262,17 @@ prewind(VOID_PARAM)
 /*
  * Set a character in the line buffer.
  */
-	static void
-set_linebuf(n, ch, attr)
-	int n;
-	char ch;
-	int attr;
+static void set_linebuf(int n, char ch, int attr)
 {
+	if (n >= size_linebuf)
+	{
+		/*
+		 * Won't fit in line buffer.
+		 * Try to expand it.
+		 */
+		if (expand_linebuf())
+			return;
+	}
 	linebuf.buf[n] = ch;
 	linebuf.attr[n] = attr;
 }
@@ -264,11 +280,7 @@ set_linebuf(n, ch, attr)
 /*
  * Append a character to the line buffer.
  */
-	static void
-add_linebuf(ch, attr, w)
-	char ch;
-	int attr;
-	int w;
+static void add_linebuf(char ch, int attr, int w)
 {
 	set_linebuf(linebuf.end++, ch, attr);
 	inc_end_column(w);
@@ -277,11 +289,7 @@ add_linebuf(ch, attr, w)
 /*
  * Append a string to the line buffer.
  */
-	static void
-addstr_linebuf(s, attr, cw)
-	char *s;
-	int attr;
-	int cw;
+static void addstr_linebuf(char *s, int attr, int cw)
 {
 	for ( ;  *s != '\0';  s++)
 		add_linebuf(*s, attr, cw);
@@ -290,11 +298,7 @@ addstr_linebuf(s, attr, cw)
 /*
  * Set a character in the line prefix buffer.
  */
-	static void
-set_pfx(n, ch, attr)
-	int n;
-	char ch;
-	int attr;
+static void set_pfx(int n, char ch, int attr)
 {
 	linebuf.pfx[n] = ch;
 	linebuf.pfx_attr[n] = attr;
@@ -303,10 +307,7 @@ set_pfx(n, ch, attr)
 /*
  * Append a character to the line prefix buffer.
  */
-	static void
-add_pfx(ch, attr)
-	char ch;
-	int attr;
+static void add_pfx(char ch, int attr)
 {
 	set_pfx(linebuf.pfx_end++, ch, attr);
 }
@@ -314,9 +315,7 @@ add_pfx(ch, attr)
 /*
  * Insert the status column and line number into the line buffer.
  */
-	public void
-plinestart(pos)
-	POSITION pos;
+public void plinestart(POSITION pos)
 {
 	LINENUM linenum = 0;
 	int i;
@@ -367,7 +366,7 @@ plinestart(pos)
 			len = 0;
 		else
 		{
-			linenumtoa(linenum, buf);
+			linenumtoa(linenum, buf, 10);
 			len = (int) strlen(buf);
 		}
 		for (i = 0; i < linenum_width - len; i++)
@@ -383,8 +382,7 @@ plinestart(pos)
  * Return the width of the line prefix (status column and line number).
  * {{ Actual line number can be wider than linenum_width. }}
  */
-	public int
-line_pfx_width(VOID_PARAM)
+public int line_pfx_width(void)
 {
 	int width = 0;
 	if (status_col)
@@ -398,13 +396,12 @@ line_pfx_width(VOID_PARAM)
  * Shift line left so that the last char is just to the left
  * of the first visible column.
  */
-	public void
-pshift_all(VOID_PARAM)
+public void pshift_all(void)
 {
 	int i;
 	for (i = linebuf.print;  i < linebuf.end;  i++)
 		if (linebuf.attr[i] == AT_ANSI)
-			xbuf_add(&shifted_ansi, linebuf.buf[i]);
+			xbuf_add_byte(&shifted_ansi, (unsigned char) linebuf.buf[i]);
 	linebuf.end = linebuf.print;
 	end_column = linebuf.pfx_end;
 }
@@ -413,9 +410,7 @@ pshift_all(VOID_PARAM)
  * Return the printing width of the start (enter) sequence
  * for a given character attribute.
  */
-	static int
-attr_swidth(a)
-	int a;
+static int attr_swidth(int a)
 {
 	int w = 0;
 
@@ -437,9 +432,7 @@ attr_swidth(a)
  * Return the printing width of the end (exit) sequence
  * for a given character attribute.
  */
-	static int
-attr_ewidth(a)
-	int a;
+static int attr_ewidth(int a)
 {
 	int w = 0;
 
@@ -463,12 +456,7 @@ attr_ewidth(a)
  * Adding a character with a given attribute may cause an enter or exit
  * attribute sequence to be inserted, so this must be taken into account.
  */
-	public int
-pwidth(ch, a, prev_ch, prev_a)
-	LWCHAR ch;
-	int a;
-	LWCHAR prev_ch;
-	int prev_a;
+public int pwidth(LWCHAR ch, int a, LWCHAR prev_ch, int prev_a)
 {
 	int w;
 
@@ -530,8 +518,7 @@ pwidth(ch, a, prev_ch, prev_a)
 /*
  * Delete to the previous base character in the line buffer.
  */
-	static int
-backc(VOID_PARAM)
+static int backc(void)
 {
 	LWCHAR ch;
 	char *p;
@@ -558,11 +545,27 @@ backc(VOID_PARAM)
 }
 
 /*
+ * Preserve the current position in the line buffer (for word wrapping).
+ */
+public void savec(void)
+{
+	saved_line_end = linebuf.end;
+	saved_end_column = end_column;
+}
+
+/*
+ * Restore the position in the line buffer (start of line for word wrapping).
+ */
+public void loadc(void)
+{
+	linebuf.end = saved_line_end;
+	end_column = saved_end_column;
+}
+
+/*
  * Is a character the end of an ANSI escape sequence?
  */
-	public int
-is_ansi_end(ch)
-	LWCHAR ch;
+public int is_ansi_end(LWCHAR ch)
 {
 	if (!is_ascii_char(ch))
 		return (0);
@@ -572,9 +575,7 @@ is_ansi_end(ch)
 /*
  * Can a char appear in an ANSI escape sequence, before the end char?
  */
-	public int
-is_ansi_middle(ch)
-	LWCHAR ch;
+public int is_ansi_middle(LWCHAR ch)
 {
 	if (!is_ascii_char(ch))
 		return (0);
@@ -587,11 +588,7 @@ is_ansi_middle(ch)
  * Skip past an ANSI escape sequence.
  * pp is initially positioned just after the CSI_START char.
  */
-	public void
-skip_ansi(pansi, pp, limit)
-	struct ansi_state *pansi;
-	char **pp;
-	constant char *limit;
+public void skip_ansi(struct ansi_state *pansi, char **pp, constant char *limit)
 {
 	LWCHAR c;
 	do {
@@ -604,9 +601,7 @@ skip_ansi(pansi, pp, limit)
  * Determine if a character starts an ANSI escape sequence.
  * If so, return an ansi_state struct; otherwise return NULL.
  */
-	public struct ansi_state *
-ansi_start(ch)
-	LWCHAR ch;
+public struct ansi_state * ansi_start(LWCHAR ch)
 {
 	struct ansi_state *pansi;
 
@@ -623,18 +618,15 @@ ansi_start(ch)
  * Determine whether the next char in an ANSI escape sequence
  * ends the sequence.
  */
-	public int
-ansi_step(pansi, ch)
-	struct ansi_state *pansi;
-	LWCHAR ch;
+public int ansi_step(struct ansi_state *pansi, LWCHAR ch)
 {
 	if (pansi->hlink)
 	{
 		/* Hyperlink ends with \7 or ESC-backslash. */
 		if (ch == '\7')
 			return ANSI_END;
-		if (pansi->prev_esc && ch == '\\')
-			return ANSI_END;
+		if (pansi->prev_esc)
+			return (ch == '\\') ? ANSI_END : ANSI_ERR;
 		pansi->prev_esc = (ch == ESC);
 		return ANSI_MID;
 	}
@@ -662,9 +654,7 @@ ansi_step(pansi, ch)
 /*
  * Free an ansi_state structure.
  */
-	public void
-ansi_done(pansi)
-	struct ansi_state *pansi;
+public void ansi_done(struct ansi_state *pansi)
 {
 	free(pansi);
 }
@@ -672,10 +662,7 @@ ansi_done(pansi)
 /*
  * Will w characters in attribute a fit on the screen?
  */
-	static int
-fits_on_screen(w, a)
-	int w;
-	int a;
+static int fits_on_screen(int w, int a)
 {
 	if (ctldisp == OPT_ON)
 		/* We're not counting, so say that everything fits. */
@@ -691,12 +678,7 @@ fits_on_screen(w, a)
 		if (store_char((ch),(a),(rep),(pos))) return (1); \
 	} while (0)
 
-	static int
-store_char(ch, a, rep, pos)
-	LWCHAR ch;
-	int a;
-	char *rep;
-	POSITION pos;
+static int store_char(LWCHAR ch, int a, char *rep, POSITION pos)
 {
 	int w;
 	int i;
@@ -711,13 +693,13 @@ store_char(ch, a, rep, pos)
 	{
 		int matches;
 		int resend_last = 0;
-		int hl_attr;
+		int hl_attr = 0;
 
 		if (pos == NULL_POSITION)
 		{
 			/* Color the prompt unless it has ansi sequences in it. */
 			hl_attr = ansi_in_line ? 0 : AT_STANDOUT|AT_COLOR_PROMPT;
-		} else
+		} else if (a != AT_ANSI)
 		{
 			hl_attr = is_hilited_attr(pos, pos+1, 0, &matches);
 			if (hl_attr == 0 && status_line)
@@ -729,12 +711,9 @@ store_char(ch, a, rep, pos)
 			 * This character should be highlighted.
 			 * Override the attribute passed in.
 			 */
-			if (a != AT_ANSI)
-			{
-				if (highest_hilite != NULL_POSITION && pos != NULL_POSITION && pos > highest_hilite)
-					highest_hilite = pos;
-				a |= hl_attr;
-			}
+			a |= hl_attr;
+			if (highest_hilite != NULL_POSITION && pos != NULL_POSITION && pos > highest_hilite)
+				highest_hilite = pos;
 			in_hilite = 1;
 		} else 
 		{
@@ -782,23 +761,20 @@ store_char(ch, a, rep, pos)
 	{
 		replen = utf_len(rep[0]);
 	}
-	if (linebuf.end + replen >= size_linebuf-6)
+
+	if (cshift == hshift)
 	{
-		/*
-		 * Won't fit in line buffer.
-		 * Try to expand it.
-		 */
-		if (expand_linebuf())
-			return (1);
+		if (line_pos == NULL_POSITION)
+			line_pos = pos;
+		if (shifted_ansi.end > 0)
+		{
+			/* Copy shifted ANSI sequences to beginning of line. */
+			for (i = 0;  i < shifted_ansi.end;  i++)
+				add_linebuf(shifted_ansi.data[i], AT_ANSI, 0);
+			xbuf_reset(&shifted_ansi);
+		}
 	}
 
-	if (cshift == hshift && shifted_ansi.end > 0)
-	{
-		/* Copy shifted ANSI sequences to beginning of line. */
-		for (i = 0;  i < shifted_ansi.end;  i++)
-			add_linebuf(shifted_ansi.data[i], AT_ANSI, 0);
-		xbuf_reset(&shifted_ansi);
-	}
 	/* Add the char to the buf, even if we will left-shift it next. */
 	inc_end_column(w);
 	for (i = 0;  i < replen;  i++)
@@ -808,7 +784,7 @@ store_char(ch, a, rep, pos)
 	{
 		/* We haven't left-shifted enough yet. */
 		if (a == AT_ANSI)
-			xbuf_add(&shifted_ansi, ch); /* Save ANSI attributes */
+			xbuf_add_byte(&shifted_ansi, (unsigned char) ch); /* Save ANSI attributes */
 		if (linebuf.end > linebuf.print)
 		{
 			/* Shift left enough to put last byte of this char at print-1. */
@@ -838,11 +814,7 @@ store_char(ch, a, rep, pos)
 #define STORE_STRING(s,a,pos) \
 	do { if (store_string((s),(a),(pos))) return (1); } while (0)
 
-	static int
-store_string(s, a, pos)
-	char *s;
-	int a;
-	POSITION pos;
+static int store_string(char *s, int a, POSITION pos)
 {
 	if (!fits_on_screen(strlen(s), a))
 		return 1;
@@ -858,10 +830,7 @@ store_string(s, a, pos)
 #define STORE_TAB(a,pos) \
 	do { if (store_tab((a),(pos))) return (1); } while (0)
 
-	static int
-store_tab(attr, pos)
-	int attr;
-	POSITION pos;
+static int store_tab(int attr, POSITION pos)
 {
 	int to_tab = end_column - linebuf.pfx_end;
 
@@ -886,10 +855,7 @@ store_tab(attr, pos)
 #define STORE_PRCHAR(c, pos) \
 	do { if (store_prchar((c), (pos))) return 1; } while (0)
 
-	static int
-store_prchar(c, pos)
-	LWCHAR c;
-	POSITION pos;
+static int store_prchar(LWCHAR c, POSITION pos)
 {
 	/*
 	 * Convert to printable representation.
@@ -898,9 +864,7 @@ store_prchar(c, pos)
 	return 0;
 }
 
-	static int
-flush_mbc_buf(pos)
-	POSITION pos;
+static int flush_mbc_buf(POSITION pos)
 {
 	int i;
 
@@ -915,10 +879,7 @@ flush_mbc_buf(pos)
  * Expand tabs into spaces, handle underlining, boldfacing, etc.
  * Returns 0 if ok, 1 if couldn't fit in buffer.
  */
-	public int
-pappend(c, pos)
-	int c;
-	POSITION pos;
+public int pappend(int c, POSITION pos)
 {
 	int r;
 
@@ -935,7 +896,7 @@ pappend(c, pos)
 		pendc = '\0';
 	}
 
-	if (c == '\r' && bs_mode == BS_SPECIAL)
+	if (c == '\r' && (proc_return == OPT_ON || (bs_mode == BS_SPECIAL && proc_return == OPT_OFF)))
 	{
 		if (mbc_buf_len > 0)  /* utf_mode must be on. */
 		{
@@ -1008,11 +969,7 @@ pappend(c, pos)
 	return (r);
 }
 
-	static int
-store_control_char(ch, rep, pos)
-	LWCHAR ch;
-	char *rep;
-	POSITION pos;
+static int store_control_char(LWCHAR ch, char *rep, POSITION pos)
 {
 	if (ctldisp == OPT_ON)
 	{
@@ -1026,11 +983,7 @@ store_control_char(ch, rep, pos)
 	return (0);
 }
 
-	static int
-store_ansi(ch, rep, pos)
-	LWCHAR ch;
-	char *rep;
-	POSITION pos;
+static int store_ansi(LWCHAR ch, char *rep, POSITION pos)
 {
 	switch (ansi_step(line_ansi, ch))
 	{
@@ -1038,13 +991,13 @@ store_ansi(ch, rep, pos)
 		STORE_CHAR(ch, AT_ANSI, rep, pos);
 		if (line_ansi->hlink)
 			hlink_in_line = 1;
-		xbuf_add(&last_ansi, ch);
+		xbuf_add_byte(&last_ansi, (unsigned char) ch);
 		break;
 	case ANSI_END:
 		STORE_CHAR(ch, AT_ANSI, rep, pos);
 		ansi_done(line_ansi);
 		line_ansi = NULL;
-		xbuf_add(&last_ansi, ch);
+		xbuf_add_byte(&last_ansi, (unsigned char) ch);
 		xbuf_set(&last_ansis[curr_last_ansi], &last_ansi);
 		xbuf_reset(&last_ansi);
 		curr_last_ansi = (curr_last_ansi + 1) % NUM_LAST_ANSIS;
@@ -1052,7 +1005,7 @@ store_ansi(ch, rep, pos)
 	case ANSI_ERR:
 		{
 			/* Remove whole unrecognized sequence.  */
-			char *start = (cshift < hshift) ? shifted_ansi.data : linebuf.buf;
+			char *start = (cshift < hshift) ? xbuf_char_data(&shifted_ansi): linebuf.buf;
 			int *end = (cshift < hshift) ? &shifted_ansi.end : &linebuf.end;
 			char *p = start + *end;
 			LWCHAR bch;
@@ -1069,32 +1022,25 @@ store_ansi(ch, rep, pos)
 	return (0);
 } 
 
-	static int
-store_bs(ch, rep, pos)
-	LWCHAR ch;
-	char *rep;
-	POSITION pos;
+static int store_bs(LWCHAR ch, char *rep, POSITION pos)
 {
-	if (bs_mode == BS_CONTROL)
+	if (proc_backspace == OPT_ONPLUS || (bs_mode == BS_CONTROL && proc_backspace == OPT_OFF))
 		return store_control_char(ch, rep, pos);
 	if (linebuf.end > 0 &&
 		((linebuf.end <= linebuf.print && linebuf.buf[linebuf.end-1] == '\0') ||
 	     (linebuf.end > 0 && linebuf.attr[linebuf.end - 1] & (AT_ANSI|AT_BINARY))))
 		STORE_PRCHAR('\b', pos);
-	else if (bs_mode == BS_NORMAL)
+	else if (proc_backspace == OPT_OFF && bs_mode == BS_NORMAL)
 		STORE_CHAR(ch, AT_NORMAL, NULL, pos);
-	else if (bs_mode == BS_SPECIAL)
+	else if (proc_backspace == OPT_ON || (bs_mode == BS_SPECIAL && proc_backspace == OPT_OFF))
 		overstrike = backc();
 	return 0;
 }
 
-	static int
-do_append(ch, rep, pos)
-	LWCHAR ch;
-	char *rep;
-	POSITION pos;
+static int do_append(LWCHAR ch, char *rep, POSITION pos)
 {
 	int a = AT_NORMAL;
+	int in_overstrike = overstrike;
 
 	if (ctldisp == OPT_ONPLUS && line_ansi == NULL)
 	{
@@ -1103,13 +1049,14 @@ do_append(ch, rep, pos)
 			ansi_in_line = 1;
 	}
 
+	overstrike = 0;
 	if (line_ansi != NULL)
 		return store_ansi(ch, rep, pos);
 
 	if (ch == '\b')
 		return store_bs(ch, rep, pos);
 
-	if (overstrike > 0)
+	if (in_overstrike > 0)
 	{
 		/*
 		 * Overstrike the character at the current position
@@ -1158,7 +1105,7 @@ do_append(ch, rep, pos)
 			a |= AT_UNDERLINE;
 		}
 		/* Else we replace prev_ch, but we keep its attributes.  */
-	} else if (overstrike < 0)
+	} else if (in_overstrike < 0)
 	{
 		if (   is_composing_char(ch)
 		    || is_combining_char(get_wchar(&linebuf.buf[linebuf.end]), ch))
@@ -1173,15 +1120,9 @@ do_append(ch, rep, pos)
 		/*
 		 * Expand a tab into spaces.
 		 */
-		switch (bs_mode)
-		{
-		case BS_CONTROL:
+		if (proc_tab == OPT_ONPLUS || (bs_mode == BS_CONTROL && proc_tab == OPT_OFF))
 			return store_control_char(ch, rep, pos);
-		case BS_NORMAL:
-		case BS_SPECIAL:
-			STORE_TAB(a, pos);
-			break;
-		}
+		STORE_TAB(a, pos);
 		return (0);
 	}
 	if ((!utf_mode || is_ascii_char(ch)) && control_char((char)ch))
@@ -1200,8 +1141,7 @@ do_append(ch, rep, pos)
 /*
  *
  */
-	public int
-pflushmbc(VOID_PARAM)
+public int pflushmbc(void)
 {
 	int r = 0;
 
@@ -1217,8 +1157,7 @@ pflushmbc(VOID_PARAM)
 /*
  * Switch to normal attribute at end of line.
  */
-	static void
-add_attr_normal(VOID_PARAM)
+static void add_attr_normal(void)
 {
 	if (ctldisp != OPT_ONPLUS || !is_ansi_end('m'))
 		return;
@@ -1230,11 +1169,7 @@ add_attr_normal(VOID_PARAM)
 /*
  * Terminate the line in the line buffer.
  */
-	public void
-pdone(endline, chopped, forw)
-	int endline;
-	int chopped;
-	int forw;
+public void pdone(int endline, int chopped, int forw)
 {
 	(void) pflushmbc();
 
@@ -1326,23 +1261,19 @@ pdone(endline, chopped, forw)
 /*
  * Set an attribute on each char of the line in the line buffer.
  */
-	public void
-set_attr_line(a)
-	int a;
+public void set_attr_line(int a)
 {
 	int i;
 
 	for (i = linebuf.print;  i < linebuf.end;  i++)
-		linebuf.attr[i] |= a;
+		if ((linebuf.attr[i] & AT_COLOR) == 0 || (a & AT_COLOR) == 0)
+			linebuf.attr[i] |= a;
 }
 
 /*
  * Set the char to be displayed in the status column.
  */
-	public void
-set_status_col(c, attr)
-	int c;
-	int attr;
+public void set_status_col(char c, int attr)
 {
 	set_pfx(0, c, attr);
 }
@@ -1352,10 +1283,7 @@ set_status_col(c, attr)
  * Return the character as the function return value,
  * and the character attribute in *ap.
  */
-	public int
-gline(i, ap)
-	int i;
-	int *ap;
+public int gline(int i, int *ap)
 {
 	if (is_null_line)
 	{
@@ -1390,8 +1318,7 @@ gline(i, ap)
 /*
  * Indicate that there is no current line.
  */
-	public void
-null_line(VOID_PARAM)
+public void null_line(void)
 {
 	is_null_line = 1;
 	cshift = 0;
@@ -1402,11 +1329,7 @@ null_line(VOID_PARAM)
  * lines which are not split for screen width.
  * {{ This is supposed to be more efficient than forw_line(). }}
  */
-	public POSITION
-forw_raw_line(curr_pos, linep, line_lenp)
-	POSITION curr_pos;
-	char **linep;
-	int *line_lenp;
+public POSITION forw_raw_line(POSITION curr_pos, char **linep, int *line_lenp)
 {
 	int n;
 	int c;
@@ -1451,11 +1374,7 @@ forw_raw_line(curr_pos, linep, line_lenp)
  * Analogous to back_line(), but deals with "raw lines".
  * {{ This is supposed to be more efficient than back_line(). }}
  */
-	public POSITION
-back_raw_line(curr_pos, linep, line_lenp)
-	POSITION curr_pos;
-	char **linep;
-	int *line_lenp;
+public POSITION back_raw_line(POSITION curr_pos, char **linep, int *line_lenp)
 {
 	int n;
 	int c;
@@ -1522,11 +1441,42 @@ back_raw_line(curr_pos, linep, line_lenp)
 }
 
 /*
+ * Skip cols printable columns at the start of line.
+ * Return number of bytes skipped.
+ */
+public int skip_columns(int cols, char **linep, int *line_lenp)
+{
+	char *line = *linep;
+	char *eline = line + *line_lenp;
+	LWCHAR pch = 0;
+	int bytes;
+
+	while (cols > 0 && line < eline)
+	{
+		LWCHAR ch = step_char(&line, +1, eline);
+		struct ansi_state *pansi = ansi_start(ch);
+		if (pansi != NULL)
+		{
+			skip_ansi(pansi, &line, eline);
+			ansi_done(pansi);
+			pch = 0;
+		} else
+		{
+			int w = pwidth(ch, 0, pch, 0);
+			cols -= w;
+			pch = ch;
+		}
+	}
+	bytes = line - *linep;
+	*linep = line;
+	*line_lenp -= bytes;
+	return (bytes);
+}
+
+/*
  * Append a string to the line buffer.
  */
-	static int
-pappstr(str)
-	constant char *str;
+static int pappstr(constant char *str)
 {
 	while (*str != '\0')
 	{
@@ -1542,9 +1492,7 @@ pappstr(str)
  * If the string is too long to fit on the screen,
  * truncate the beginning of the string to fit.
  */
-	public void
-load_line(str)
-	constant char *str;
+public void load_line(constant char *str)
 {
 	int save_hshift = hshift;
 
@@ -1568,8 +1516,7 @@ load_line(str)
 /*
  * Find the shift necessary to show the end of the longest displayed line.
  */
-	public int
-rrshift(VOID_PARAM)
+public int rrshift(void)
 {
 	POSITION pos;
 	int save_width;
@@ -1594,65 +1541,53 @@ rrshift(VOID_PARAM)
 /*
  * Get the color_map index associated with a given attribute.
  */
-	static int
-color_index(attr)
-	int attr;
+static int lookup_color_index(int attr)
 {
-	if (use_color)
-	{
-		switch (attr & AT_COLOR)
-		{
-		case AT_COLOR_ATTN:    return 0;
-		case AT_COLOR_BIN:     return 1;
-		case AT_COLOR_CTRL:    return 2;
-		case AT_COLOR_ERROR:   return 3;
-		case AT_COLOR_LINENUM: return 4;
-		case AT_COLOR_MARK:    return 5;
-		case AT_COLOR_PROMPT:  return 6;
-		case AT_COLOR_RSCROLL: return 7;
-		case AT_COLOR_SEARCH:  return 8;
-		case AT_COLOR_HEADER:  return 9;
-		}
-	}
+	int cx;
+	for (cx = 0;  cx < sizeof(color_map)/sizeof(*color_map);  cx++)
+		if (color_map[cx].attr == attr)
+			return cx;
+	return -1;
+}
+
+static int color_index(int attr)
+{
+	if (use_color && (attr & AT_COLOR))
+		return lookup_color_index(attr & AT_COLOR);
 	if (attr & AT_UNDERLINE)
-		return 10;
+		return lookup_color_index(AT_UNDERLINE);
 	if (attr & AT_BOLD)
-		return 11;
+		return lookup_color_index(AT_BOLD);
 	if (attr & AT_BLINK)
-		return 12;
+		return lookup_color_index(AT_BLINK);
 	if (attr & AT_STANDOUT)
-		return 13;
+		return lookup_color_index(AT_STANDOUT);
 	return -1;
 }
 
 /*
  * Set the color string to use for a given attribute.
  */
-	public int
-set_color_map(attr, colorstr)
-	int attr;
-	char *colorstr;
+public int set_color_map(int attr, char *colorstr)
 {
 	int cx = color_index(attr);
 	if (cx < 0)
 		return -1;
-	if (strlen(colorstr)+1 > sizeof(color_map[cx]))
+	if (strlen(colorstr)+1 > sizeof(color_map[cx].color))
 		return -1;
 	if (*colorstr != '\0' && parse_color(colorstr, NULL, NULL) == CT_NULL)
 		return -1;
-	strcpy(color_map[cx], colorstr);
+	strcpy(color_map[cx].color, colorstr);
 	return 0;
 }
 
 /*
  * Get the color string to use for a given attribute.
  */
-	public char *
-get_color_map(attr)
-	int attr;
+public char * get_color_map(int attr)
 {
 	int cx = color_index(attr);
 	if (cx < 0)
 		return NULL;
-	return color_map[cx];
+	return color_map[cx].color;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2022  Mark Nudelman
+ * Copyright (C) 1984-2023  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -60,7 +60,7 @@ struct loption
         int otype;              /* Type of the option */
         int odefault;           /* Default value */
         int *ovar;              /* Pointer to the associated variable */
-        void (*ofunc) LESSPARAMS ((int, char*)); /* Pointer to special handling function */
+        void (*ofunc)(int, char*); /* Pointer to special handling function */
         char *odesc[3];         /* Description of each value */
 };
 

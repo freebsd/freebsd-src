@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2022  Mark Nudelman
+ * Copyright (C) 1984-2023  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -13,9 +13,10 @@
 #if HAVE_STAT
 #include <sys/stat.h>
 #endif
-#if OS2
-#include <signal.h>
+#if HAVE_SYS_WAIT_H
+#include <sys/wait.h>
 #endif
+#include <signal.h>
 
 public int fd0 = 0;
 
@@ -28,6 +29,8 @@ extern int sigs;
 extern int hshift;
 extern int want_filesize;
 extern int consecutive_nulls;
+extern int modelines;
+extern int show_preproc_error;
 extern IFILE curr_ifile;
 extern IFILE old_ifile;
 extern struct scrpos initial_scrpos;
@@ -55,10 +58,7 @@ public ino_t curr_ino;
  * words, returning each one as a standard null-terminated string.
  * back_textlist does the same, but runs thru the list backwards.
  */
-	public void
-init_textlist(tlist, str)
-	struct textlist *tlist;
-	char *str;
+public void init_textlist(struct textlist *tlist, char *str)
 {
 	char *s;
 #if SPACES_IN_FILENAMES
@@ -99,10 +99,7 @@ init_textlist(tlist, str)
 	}
 }
 
-	public char *
-forw_textlist(tlist, prev)
-	struct textlist *tlist;
-	char *prev;
+public char * forw_textlist(struct textlist *tlist, char *prev)
 {
 	char *s;
 	
@@ -123,10 +120,7 @@ forw_textlist(tlist, prev)
 	return (s);
 }
 
-	public char *
-back_textlist(tlist, prev)
-	struct textlist *tlist;
-	char *prev;
+public char * back_textlist(struct textlist *tlist, char *prev)
 {
 	char *s;
 	
@@ -150,11 +144,128 @@ back_textlist(tlist, prev)
 }
 
 /*
+ * Parse a single option setting in a modeline.
+ */
+static void modeline_option(char *str, int opt_len)
+{
+	struct mloption { char *opt_name; void (*opt_func)(char*,int); };
+	struct mloption options[] = {
+		{ "ts=",         set_tabs },
+		{ "tabstop=",    set_tabs },
+		{ NULL, NULL }
+	};
+	struct mloption *opt;
+	for (opt = options;  opt->opt_name != NULL;  opt++)
+	{
+		int name_len = strlen(opt->opt_name);
+		if (opt_len > name_len && strncmp(str, opt->opt_name, name_len) == 0)
+		{
+			(*opt->opt_func)(str + name_len, opt_len - name_len);
+			break;
+		}
+	}
+}
+
+/*
+ * String length, terminated by option separator (space or colon).
+ * Space/colon can be escaped with backspace.
+ */
+static int modeline_option_len(char *str)
+{
+	int esc = FALSE;
+	char *s;
+	for (s = str;  *s != '\0';  s++)
+	{
+		if (esc)
+			esc = FALSE;
+		else if (*s == '\\')
+			esc = TRUE;
+		else if (*s == ' ' || *s == ':') /* separator */
+			break;
+	}
+	return (s - str);
+}
+
+/*
+ * Parse colon- or space-separated option settings in a modeline.
+ */
+static void modeline_options(char *str, char end_char)
+{
+	for (;;)
+	{
+		int opt_len;
+		str = skipsp(str);
+		if (*str == '\0' || *str == end_char)
+			break;
+		opt_len = modeline_option_len(str);
+		modeline_option(str, opt_len);
+		str += opt_len;
+		if (*str != '\0')
+			str += 1; /* skip past the separator */
+	}
+}
+
+/*
+ * See if there is a modeline string in a line.
+ */
+static void check_modeline(char *line)
+{
+#if HAVE_STRSTR
+	static char *pgms[] = { "less:", "vim:", "vi:", "ex:", NULL };
+	char **pgm;
+	for (pgm = pgms;  *pgm != NULL;  ++pgm)
+	{
+		char *pline = line;
+		for (;;)
+		{
+			char *str;
+			pline = strstr(pline, *pgm);
+			if (pline == NULL) /* pgm is not in this line */
+				break;
+			str = skipsp(pline + strlen(*pgm));
+			if (pline == line || pline[-1] == ' ')
+			{
+				if (strncmp(str, "set ", 4) == 0)
+					modeline_options(str+4, ':');
+				else if (pgm != &pgms[0]) /* "less:" requires "set" */
+					modeline_options(str, '\0');
+				break;
+			}
+			/* Continue searching the rest of the line. */
+			pline = str;
+		}
+	}
+#endif /* HAVE_STRSTR */
+}
+
+/*
+ * Read lines from start of file and check if any are modelines.
+ */
+static void check_modelines(void)
+{
+	POSITION pos = ch_zero();
+	int i;
+	for (i = 0;  i < modelines;  i++)
+	{
+		char *line;
+		int line_len;
+		if (ABORT_SIGS())
+			return;
+		pos = forw_raw_line(pos, &line, &line_len);
+		if (pos == NULL_POSITION)
+			break;
+		check_modeline(line);
+	}
+}
+
+/*
  * Close a pipe opened via popen.
  */
-	static void
-close_pipe(FILE *pipefd)
+static void close_pipe(FILE *pipefd)
 {
+	int status;
+	PARG parg;
+
 	if (pipefd == NULL)
 		return;
 #if OS2
@@ -164,18 +275,79 @@ close_pipe(FILE *pipefd)
 	 */
 	kill(pipefd->_pid, SIGINT);
 #endif
-	pclose(pipefd);
+	status = pclose(pipefd);
+	if (status == -1)
+	{
+		/* An internal error in 'less', not a preprocessor error.  */
+		parg.p_string = errno_message("pclose");
+		error("%s", &parg);
+		free(parg.p_string);
+		return;
+	}
+	if (!show_preproc_error)
+		return;
+#if defined WIFEXITED && defined WEXITSTATUS
+	if (WIFEXITED(status))
+	{
+		int s = WEXITSTATUS(status);
+		if (s != 0)
+		{
+			parg.p_int = s;
+			error("Input preprocessor failed (status %d)", &parg);
+		}
+		return;
+	}
+#endif
+#if defined WIFSIGNALED && defined WTERMSIG && HAVE_STRSIGNAL
+	if (WIFSIGNALED(status))
+	{
+		int sig = WTERMSIG(status);
+		if (sig != SIGPIPE || ch_length() != NULL_POSITION)
+		{
+			parg.p_string = signal_message(sig);
+			error("Input preprocessor terminated: %s", &parg);
+		}
+		return;
+	}
+#endif
+	if (status != 0)
+	{
+		parg.p_int = status;
+		error("Input preprocessor exited with status %x", &parg);
+	}
+}
+
+/*
+ * Drain and close an input pipe if needed.
+ */
+public void close_altpipe(IFILE ifile)
+{
+	FILE *altpipe = get_altpipe(ifile);
+	if (altpipe != NULL && !(ch_getflags() & CH_KEEPOPEN))
+	{
+		close_pipe(altpipe);
+		set_altpipe(ifile, NULL);
+	}
+}
+
+/*
+ * Check for error status from the current altpipe.
+ * May or may not close the pipe.
+ */
+public void check_altpipe_error(void)
+{
+	if (!show_preproc_error)
+		return;
+	if (curr_ifile != NULL_IFILE && get_altfilename(curr_ifile) != NULL)
+		close_altpipe(curr_ifile);
 }
 
 /*
  * Close the current input file.
  */
-	static void
-close_file(VOID_PARAM)
+static void close_file(void)
 {
 	struct scrpos scrpos;
-	int chflags;
-	FILE *altpipe;
 	char *altfilename;
 	
 	if (curr_ifile == NULL_IFILE)
@@ -194,7 +366,6 @@ close_file(VOID_PARAM)
 	/*
 	 * Close the file descriptor, unless it is a pipe.
 	 */
-	chflags = ch_getflags();
 	ch_close();
 	/*
 	 * If we opened a file using an alternate name,
@@ -203,12 +374,7 @@ close_file(VOID_PARAM)
 	altfilename = get_altfilename(curr_ifile);
 	if (altfilename != NULL)
 	{
-		altpipe = get_altpipe(curr_ifile);
-		if (altpipe != NULL && !(chflags & CH_KEEPOPEN))
-		{
-			close_pipe(altpipe);
-			set_altpipe(curr_ifile, NULL);
-		}
+		close_altpipe(curr_ifile);
 		close_altfile(altfilename, get_filename(curr_ifile));
 		set_altfilename(curr_ifile, NULL);
 	}
@@ -223,9 +389,7 @@ close_file(VOID_PARAM)
  * Filename == "-" means standard input.
  * Filename == NULL means just close the current file.
  */
-	public int
-edit(filename)
-	char *filename;
+public int edit(char *filename)
 {
 	if (filename == NULL)
 		return (edit_ifile(NULL_IFILE));
@@ -233,12 +397,38 @@ edit(filename)
 }
 	
 /*
+ * Clean up what edit_ifile did before error return.
+ */
+static int edit_error(char *filename, char *alt_filename, void *altpipe, IFILE ifile, IFILE was_curr_ifile)
+{
+	if (alt_filename != NULL)
+	{
+		close_pipe(altpipe);
+		close_altfile(alt_filename, filename);
+		free(alt_filename);
+	}
+	del_ifile(ifile);
+	free(filename);
+	/*
+	 * Re-open the current file.
+	 */
+	if (was_curr_ifile == ifile)
+	{
+		/*
+		 * Whoops.  The "current" ifile is the one we just deleted.
+		 * Just give up.
+		 */
+		quit(QUIT_ERROR);
+	}
+	reedit_ifile(was_curr_ifile);
+	return (1);
+}
+
+/*
  * Edit a new file (given its IFILE).
  * ifile == NULL means just close the current file.
  */
-	public int
-edit_ifile(ifile)
-	IFILE ifile;
+public int edit_ifile(IFILE ifile)
 {
 	int f;
 	int answer;
@@ -371,28 +561,7 @@ edit_ifile(ifile)
 			 */
 			error("%s", &parg);
 			free(parg.p_string);
-			err1:
-			if (alt_filename != NULL)
-			{
-				close_pipe(altpipe);
-				close_altfile(alt_filename, filename);
-				free(alt_filename);
-			}
-			del_ifile(ifile);
-			free(filename);
-			/*
-			 * Re-open the current file.
-			 */
-			if (was_curr_ifile == ifile)
-			{
-				/*
-				 * Whoops.  The "current" ifile is the one we just deleted.
-				 * Just give up.
-				 */
-				quit(QUIT_ERROR);
-			}
-			reedit_ifile(was_curr_ifile);
-			return (1);
+			return edit_error(filename, alt_filename, altpipe, ifile, was_curr_ifile);
 		} else if ((f = open(open_filename, OPEN_READ)) < 0)
 		{
 			/*
@@ -401,7 +570,7 @@ edit_ifile(ifile)
 			parg.p_string = errno_message(filename);
 			error("%s", &parg);
 			free(parg.p_string);
-				goto err1;
+			return edit_error(filename, alt_filename, altpipe, ifile, was_curr_ifile);
 		} else 
 		{
 			chflags |= CH_CANSEEK;
@@ -417,10 +586,17 @@ edit_ifile(ifile)
 				if (answer != 'y' && answer != 'Y')
 				{
 					close(f);
-					goto err1;
+					return edit_error(filename, alt_filename, altpipe, ifile, was_curr_ifile);
 				}
 			}
 		}
+	}
+	if (!force_open && f >= 0 && isatty(f))
+	{
+		PARG parg;
+		parg.p_string = filename;
+		error("%s is a terminal (use -f to open it)", &parg);
+		return edit_error(filename, alt_filename, altpipe, ifile, was_curr_ifile);
 	}
 
 	/*
@@ -440,6 +616,7 @@ edit_ifile(ifile)
 	new_file = TRUE;
 	ch_init(f, chflags);
 	consecutive_nulls = 0;
+	check_modelines();
 
 	if (!(chflags & CH_HELPFILE))
 	{
@@ -502,9 +679,7 @@ edit_ifile(ifile)
  * For each filename in the list, enter it into the ifile list.
  * Then edit the first one.
  */
-	public int
-edit_list(filelist)
-	char *filelist;
+public int edit_list(char *filelist)
 {
 	IFILE save_ifile;
 	char *good_filename;
@@ -563,8 +738,7 @@ edit_list(filelist)
 /*
  * Edit the first file in the command line (ifile) list.
  */
-	public int
-edit_first(VOID_PARAM)
+public int edit_first(void)
 {
 	if (nifile() == 0)
 		return (edit_stdin());
@@ -575,8 +749,7 @@ edit_first(VOID_PARAM)
 /*
  * Edit the last file in the command line (ifile) list.
  */
-	public int
-edit_last(VOID_PARAM)
+public int edit_last(void)
 {
 	curr_ifile = NULL_IFILE;
 	return (edit_prev(1));
@@ -586,11 +759,7 @@ edit_last(VOID_PARAM)
 /*
  * Edit the n-th next or previous file in the command line (ifile) list.
  */
-	static int
-edit_istep(h, n, dir)
-	IFILE h;
-	int n;
-	int dir;
+static int edit_istep(IFILE h, int n, int dir)
 {
 	IFILE next;
 
@@ -628,32 +797,22 @@ edit_istep(h, n, dir)
 	return (0);
 }
 
-	static int
-edit_inext(h, n)
-	IFILE h;
-	int n;
+static int edit_inext(IFILE h, int n)
 {
 	return (edit_istep(h, n, +1));
 }
 
-	public int
-edit_next(n)
-	int n;
+public int edit_next(int n)
 {
 	return edit_istep(curr_ifile, n, +1);
 }
 
-	static int
-edit_iprev(h, n)
-	IFILE h;
-	int n;
+static int edit_iprev(IFILE h, int n)
 {
 	return (edit_istep(h, n, -1));
 }
 
-	public int
-edit_prev(n)
-	int n;
+public int edit_prev(int n)
 {
 	return edit_istep(curr_ifile, n, -1);
 }
@@ -661,9 +820,7 @@ edit_prev(n)
 /*
  * Edit a specific file in the command line (ifile) list.
  */
-	public int
-edit_index(n)
-	int n;
+public int edit_index(int n)
 {
 	IFILE h;
 
@@ -682,17 +839,14 @@ edit_index(n)
 	return (edit_ifile(h));
 }
 
-	public IFILE
-save_curr_ifile(VOID_PARAM)
+public IFILE save_curr_ifile(void)
 {
 	if (curr_ifile != NULL_IFILE)
 		hold_ifile(curr_ifile, 1);
 	return (curr_ifile);
 }
 
-	public void
-unsave_ifile(save_ifile)
-	IFILE save_ifile;
+public void unsave_ifile(IFILE save_ifile)
 {
 	if (save_ifile != NULL_IFILE)
 		hold_ifile(save_ifile, -1);
@@ -701,9 +855,7 @@ unsave_ifile(save_ifile)
 /*
  * Reedit the ifile which was previously open.
  */
-	public void
-reedit_ifile(save_ifile)
-	IFILE save_ifile;
+public void reedit_ifile(IFILE save_ifile)
 {
 	IFILE next;
 	IFILE prev;
@@ -735,8 +887,7 @@ reedit_ifile(save_ifile)
 	quit(QUIT_ERROR);
 }
 
-	public void
-reopen_curr_ifile(VOID_PARAM)
+public void reopen_curr_ifile(void)
 {
 	IFILE save_ifile = save_curr_ifile();
 	close_file();
@@ -746,8 +897,7 @@ reopen_curr_ifile(VOID_PARAM)
 /*
  * Edit standard input.
  */
-	public int
-edit_stdin(VOID_PARAM)
+public int edit_stdin(void)
 {
 	if (isatty(fd0))
 	{
@@ -761,8 +911,7 @@ edit_stdin(VOID_PARAM)
  * Copy a file directly to standard output.
  * Used if standard output is not a tty.
  */
-	public void
-cat_file(VOID_PARAM)
+public void cat_file(void)
 {
 	int c;
 
@@ -780,9 +929,7 @@ cat_file(VOID_PARAM)
  * is standard input, create the log file.  
  * We take care not to blindly overwrite an existing file.
  */
-	public void
-use_logfile(filename)
-	char *filename;
+public void use_logfile(char *filename)
 {
 	int exists;
 	int answer;
