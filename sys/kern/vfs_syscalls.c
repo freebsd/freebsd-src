@@ -2438,8 +2438,12 @@ kern_statat(struct thread *td, int flag, int fd, const char *path,
 	    AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH) | LOCKSHARED | LOCKLEAF |
 	    AUDITVNODE1, pathseg, path, fd, &cap_fstat_rights);
 
-	if ((error = namei(&nd)) != 0)
+	if ((error = namei(&nd)) != 0) {
+		if (error == ENOTDIR &&
+		    (nd.ni_resflags & NIRES_EMPTYPATH) != 0)
+			error = kern_fstat(td, fd, sbp);
 		return (error);
+	}
 	error = VOP_STAT(nd.ni_vp, sbp, td->td_ucred, NOCRED);
 	NDFREE_PNBUF(&nd);
 	vput(nd.ni_vp);
