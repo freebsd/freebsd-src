@@ -97,7 +97,7 @@ gjournal_check(const char *filesys)
 		}
 		cgbp = cglookup(cg);
 		cgp = cgbp->b_un.b_cg;
-		if (!check_cgmagic(cg, cgbp, 0)) {
+		if (!check_cgmagic(cg, cgbp)) {
 			rerun = 1;
 			ckfini(0);
 			return;

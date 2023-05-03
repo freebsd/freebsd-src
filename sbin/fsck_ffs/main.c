@@ -492,7 +492,7 @@ checkfilesys(char *filesys)
 	snapflush(std_checkblkavail);
 	if (cgheader_corrupt) {
 		printf("PHASE 5 SKIPPED DUE TO CORRUPT CYLINDER GROUP "
-		    "HEADER(S)\n");
+		    "HEADER(S)\n\n");
 	} else {
 		pass5();
 		IOstats("Pass5");

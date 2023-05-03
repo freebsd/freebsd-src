@@ -1394,7 +1394,7 @@ retry:
 	cg = ino_to_cg(&sblock, ino);
 	cgbp = cglookup(cg);
 	cgp = cgbp->b_un.b_cg;
-	if (!check_cgmagic(cg, cgbp, 0)) {
+	if (!check_cgmagic(cg, cgbp)) {
 		if (anyino == 0)
 			return (0);
 		request = (cg + 1) * sblock.fs_ipg;
