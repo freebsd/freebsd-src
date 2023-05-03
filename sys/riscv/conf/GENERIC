@@ -104,6 +104,9 @@ device		vtnet			# VirtIO Ethernet device
 device		virtio_blk		# VirtIO Block device
 device		virtio_mmio		# VirtIO MMIO bus
 
+# ATA/SCSI peripherals
+device		pass			# Passthrough device (direct ATA/SCSI access)
+
 # NVM Express (NVMe) support
 device		nvme		# base NVMe driver
 options 	NVME_USE_NVD=0	# prefer the cam(4) based nda(4) driver
