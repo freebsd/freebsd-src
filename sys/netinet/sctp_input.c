@@ -2780,16 +2780,13 @@ sctp_handle_cookie_ack(struct sctp_cookie_ack_chunk *cp SCTP_UNUSED,
 		    __LINE__);
 	}
 	sctp_stop_all_cookie_timers(stcb);
+	sctp_toss_old_cookies(stcb, asoc);
 	/* process according to association state */
 	if (SCTP_GET_STATE(stcb) == SCTP_STATE_COOKIE_ECHOED) {
 		/* state change only needed when I am in right state */
 		SCTPDBG(SCTP_DEBUG_INPUT2, "moving to OPEN state\n");
 		SCTP_SET_STATE(stcb, SCTP_STATE_OPEN);
 		sctp_start_net_timers(stcb);
-		if (asoc->state & SCTP_STATE_SHUTDOWN_PENDING) {
-			sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD,
-			    stcb->sctp_ep, stcb, NULL);
-		}
 		/* update RTO */
 		SCTP_STAT_INCR_COUNTER32(sctps_activeestab);
 		SCTP_STAT_INCR_GAUGE32(sctps_currestab);
@@ -2811,6 +2808,21 @@ sctp_handle_cookie_ack(struct sctp_cookie_ack_chunk *cp SCTP_UNUSED,
 			if ((stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET) == 0) {
 				soisconnected(stcb->sctp_socket);
 			}
+		}
+
+		if ((asoc->state & SCTP_STATE_SHUTDOWN_PENDING) &&
+		    TAILQ_EMPTY(&asoc->send_queue) &&
+		    TAILQ_EMPTY(&asoc->sent_queue) &&
+		    (asoc->stream_queue_cnt == 0)) {
+			SCTP_STAT_DECR_GAUGE32(sctps_currestab);
+			SCTP_SET_STATE(stcb, SCTP_STATE_SHUTDOWN_SENT);
+			sctp_stop_timers_for_shutdown(stcb);
+			sctp_send_shutdown(stcb, net);
+			sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWN,
+			    stcb->sctp_ep, stcb, net);
+			sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD,
+			    stcb->sctp_ep, stcb, NULL);
+			sctp_chunk_output(stcb->sctp_ep, stcb, SCTP_OUTPUT_FROM_T3, SCTP_SO_LOCKED);
 		}
 
 		if (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET) {
@@ -2848,8 +2860,6 @@ sctp_handle_cookie_ack(struct sctp_cookie_ack_chunk *cp SCTP_UNUSED,
 		}
 	}
 closed_socket:
-	/* Toss the cookie if I can */
-	sctp_toss_old_cookies(stcb, asoc);
 	/* Restart the timer if we have pending data */
 	TAILQ_FOREACH(chk, &asoc->sent_queue, sctp_next) {
 		if (chk->whoTo != NULL) {
