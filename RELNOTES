@@ -10,6 +10,13 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+d198b8774d2c
+	Add a new "fwget" utility.
+	The goal of this utility is to inspect the system for peripherals
+	that needs firmware and install the appropriate packages for them.
+	For now only pci subsystem is supported and only firmwares for Intel
+	and AMD GPUs are known.
+
 896516e54a8c
 	Add a new "syskrb5" mount option for Kerberized NFSv4.1/4.2 mounts.
 	Without this patch, a Kerberized NFSv4.1/4.2 mount must provide
