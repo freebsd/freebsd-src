@@ -4,21 +4,13 @@ DIRDEPS= \
 	usr.bin/file2c \
 	usr.bin/lex \
 	usr.bin/mkdep \
+	usr.bin/mkimg \
 	usr.bin/rpcgen \
 	usr.bin/sed \
-	usr.bin/xargs \
-	usr.bin/yacc \
-	usr.bin/mkimg \
 	usr.bin/tar \
+	usr.bin/yacc \
 	usr.sbin/makefs \
-
-# these need work
-xDIRDEPS+= \
-	bin/dd \
-	bin/sh \
-	usr.bin/lockf \
-	usr.bin/stat \
-	usr.sbin/mtree \
+	usr.sbin/nmtree \
 
 
 .include <dirdeps.mk>

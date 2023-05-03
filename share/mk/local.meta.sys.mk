@@ -181,4 +181,9 @@ $V?= ${${V:S,DEP_,,}}
 .endfor
 .endif
 
+.if ${MACHINE} == "host" && ${.MAKE.OS} != "FreeBSD"
+# some makefiles expect this
+BOOTSTRAPPING= 0
+.endif
+
 .endif
