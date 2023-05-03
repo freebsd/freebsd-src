@@ -1704,32 +1704,26 @@ struct pfioc_state_kill {
 struct pfioc_states {
 	int	ps_len;
 	union {
-		caddr_t			 psu_buf;
-		struct pfsync_state	*psu_states;
-	} ps_u;
-#define ps_buf		ps_u.psu_buf
-#define ps_states	ps_u.psu_states
+		caddr_t			 ps_buf;
+		struct pfsync_state	*ps_states;
+	};
 };
 
 struct pfioc_states_v2 {
 	int		ps_len;
 	uint64_t	ps_req_version;
 	union {
-		caddr_t			 psu_buf;
-		struct pf_state_export	*psu_states;
-	} ps_u;
-#define ps_buf		ps_u.psu_buf
-#define ps_states	ps_u.psu_states
+		caddr_t			 ps_buf;
+		struct pf_state_export	*ps_states;
+	};
 };
 
 struct pfioc_src_nodes {
 	int	psn_len;
 	union {
-		caddr_t		 psu_buf;
-		struct pf_src_node	*psu_src_nodes;
-	} psn_u;
-#define psn_buf		psn_u.psu_buf
-#define psn_src_nodes	psn_u.psu_src_nodes
+		caddr_t		 psn_buf;
+		struct pf_src_node	*psn_src_nodes;
+	};
 };
 
 struct pfioc_if {

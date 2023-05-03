@@ -233,11 +233,9 @@ struct pfi_kif_cmp {
 struct pfi_kif {
 	char				 pfik_name[IFNAMSIZ];
 	union {
-		RB_ENTRY(pfi_kif)	 _pfik_tree;
-		LIST_ENTRY(pfi_kif)	 _pfik_list;
-	} _pfik_glue;
-#define	pfik_tree	_pfik_glue._pfik_tree
-#define	pfik_list	_pfik_glue._pfik_list
+		RB_ENTRY(pfi_kif)	 pfik_tree;
+		LIST_ENTRY(pfi_kif)	 pfik_list;
+	};
 	u_int64_t			 pfik_packets[2][2][2];
 	u_int64_t			 pfik_bytes[2][2][2];
 	u_int32_t			 pfik_tzero;
@@ -275,12 +273,7 @@ struct pf_addr {
 		u_int8_t		addr8[16];
 		u_int16_t		addr16[8];
 		u_int32_t		addr32[4];
-	} pfa;		    /* 128-bit address */
-#define v4	pfa.v4
-#define v6	pfa.v6
-#define addr8	pfa.addr8
-#define addr16	pfa.addr16
-#define addr32	pfa.addr32
+	};		    /* 128-bit address */
 };
 
 #define PFI_AFLAG_NETWORK	0x01
@@ -344,10 +337,7 @@ struct pf_poolhashkey {
 		u_int8_t		key8[16];
 		u_int16_t		key16[8];
 		u_int32_t		key32[4];
-	} pfk;		    /* 128-bit hash key */
-#define key8	pfk.key8
-#define key16	pfk.key16
-#define key32	pfk.key32
+	};		    /* 128-bit hash key */
 };
 
 struct pf_mape_portset {
