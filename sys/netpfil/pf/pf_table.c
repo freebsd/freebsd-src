@@ -107,21 +107,15 @@ struct pfr_walktree {
 		PFRW_COUNTERS
 	}	 pfrw_op;
 	union {
-		struct pfr_addr		*pfrw1_addr;
-		struct pfr_astats	*pfrw1_astats;
-		struct pfr_kentryworkq	*pfrw1_workq;
-		struct pfr_kentry	*pfrw1_kentry;
-		struct pfi_dynaddr	*pfrw1_dyn;
-	}	 pfrw_1;
+		struct pfr_addr		*pfrw_addr;
+		struct pfr_astats	*pfrw_astats;
+		struct pfr_kentryworkq	*pfrw_workq;
+		struct pfr_kentry	*pfrw_kentry;
+		struct pfi_dynaddr	*pfrw_dyn;
+	};
 	int	 pfrw_free;
 	int	 pfrw_flags;
 };
-#define	pfrw_addr	pfrw_1.pfrw1_addr
-#define	pfrw_astats	pfrw_1.pfrw1_astats
-#define	pfrw_workq	pfrw_1.pfrw1_workq
-#define	pfrw_kentry	pfrw_1.pfrw1_kentry
-#define	pfrw_dyn	pfrw_1.pfrw1_dyn
-#define	pfrw_cnt	pfrw_free
 
 #define	senderr(e)	do { rv = (e); goto _bad; } while (0)
 
@@ -740,7 +734,7 @@ pfr_enqueue_addrs(struct pfr_ktable *kt, struct pfr_kentryworkq *workq,
 		    pfr_walktree, &w))
 			printf("pfr_enqueue_addrs: IPv6 walktree failed.\n");
 	if (naddr != NULL)
-		*naddr = w.pfrw_cnt;
+		*naddr = w.pfrw_free;
 }
 
 static void
@@ -1068,7 +1062,7 @@ pfr_walktree(struct radix_node *rn, void *arg)
 		/* FALLTHROUGH */
 	case PFRW_ENQUEUE:
 		SLIST_INSERT_HEAD(w->pfrw_workq, ke, pfrke_workq);
-		w->pfrw_cnt++;
+		w->pfrw_free++;
 		break;
 	case PFRW_GET_ADDRS:
 		if (w->pfrw_free-- > 0) {
@@ -1089,7 +1083,7 @@ pfr_walktree(struct radix_node *rn, void *arg)
 	case PFRW_POOL_GET:
 		if (ke->pfrke_not)
 			break; /* negative entries are ignored */
-		if (!w->pfrw_cnt--) {
+		if (!w->pfrw_free--) {
 			w->pfrw_kentry = ke;
 			return (1); /* finish search */
 		}
@@ -2347,7 +2341,7 @@ pfr_kentry_byidx(struct pfr_ktable *kt, int idx, int af)
 
 	bzero(&w, sizeof(w));
 	w.pfrw_op = PFRW_POOL_GET;
-	w.pfrw_cnt = idx;
+	w.pfrw_free = idx;
 
 	switch (af) {
 #ifdef INET
