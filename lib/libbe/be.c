@@ -318,7 +318,7 @@ be_promote_dependent_clones(zfs_handle_t *zfs_hdl, struct be_destroy_data *bdd)
 	struct promote_entry *entry;
 
 	snprintf(bdd->target_name, BE_MAXPATHLEN, "%s/", zfs_get_name(zfs_hdl));
-	err = zfs_iter_dependents(zfs_hdl, 0, true, be_dependent_clone_cb, bdd);
+	err = zfs_iter_dependents(zfs_hdl, true, be_dependent_clone_cb, bdd);
 
 	/*
 	 * Drain the list and walk away from it if we're only deleting a
@@ -360,13 +360,13 @@ be_destroy_cb(zfs_handle_t *zfs_hdl, void *data)
 
 	bdd = (struct be_destroy_data *)data;
 	if (bdd->snapname == NULL) {
-		err = zfs_iter_children(zfs_hdl, 0, be_destroy_cb, data);
+		err = zfs_iter_children(zfs_hdl, be_destroy_cb, data);
 		if (err != 0)
 			return (err);
 		return (zfs_destroy(zfs_hdl, false));
 	}
 	/* If we're dealing with snapshots instead, delete that one alone */
-	err = zfs_iter_filesystems(zfs_hdl, 0, be_destroy_cb, data);
+	err = zfs_iter_filesystems(zfs_hdl, be_destroy_cb, data);
 	if (err != 0)
 		return (err);
 	/*
@@ -777,7 +777,7 @@ be_clone_cb(zfs_handle_t *ds, void *data)
 
 	if (ldc->depth_limit == -1 || ldc->depth < ldc->depth_limit) {
 		ldc->depth++;
-		err = zfs_iter_filesystems(ds, 0, be_clone_cb, ldc);
+		err = zfs_iter_filesystems(ds, be_clone_cb, ldc);
 		ldc->depth--;
 	}
 

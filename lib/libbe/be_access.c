@@ -141,7 +141,7 @@ be_mount_iter(zfs_handle_t *zfs_hdl, void *data)
 
 skipmount:
 	++info->depth;
-	err = zfs_iter_filesystems(zfs_hdl, 0, be_mount_iter, info);
+	err = zfs_iter_filesystems(zfs_hdl, be_mount_iter, info);
 	--info->depth;
 	return (err);
 }
@@ -158,7 +158,7 @@ be_umount_iter(zfs_handle_t *zfs_hdl, void *data)
 	info = (struct be_mount_info *)data;
 
 	++info->depth;
-	if((err = zfs_iter_filesystems(zfs_hdl, 0, be_umount_iter, info)) != 0) {
+	if((err = zfs_iter_filesystems(zfs_hdl, be_umount_iter, info)) != 0) {
 		return (err);
 	}
 	--info->depth;
@@ -205,7 +205,7 @@ be_mounted_at(libbe_handle_t *lbh, const char *path, nvlist_t *details)
 
 	info.path = path;
 	info.name = NULL;
-	zfs_iter_filesystems(root_hdl, 0, be_mountcheck_cb, &info);
+	zfs_iter_filesystems(root_hdl, be_mountcheck_cb, &info);
 	zfs_close(root_hdl);
 
 	if (info.name != NULL) {

@@ -95,7 +95,10 @@
 /* #undef HAVE_BDEV_CHECK_MEDIA_CHANGE */
 
 /* bdev_*_io_acct() available */
-/* #undef HAVE_BDEV_IO_ACCT */
+/* #undef HAVE_BDEV_IO_ACCT_63 */
+
+/* bdev_*_io_acct() available */
+/* #undef HAVE_BDEV_IO_ACCT_OLD */
 
 /* bdev_kobj() exists */
 /* #undef HAVE_BDEV_KOBJ */
@@ -335,6 +338,9 @@
 /* yes */
 /* #undef HAVE_GENERIC_FADVISE */
 
+/* generic_fillattr requires struct mnt_idmap* */
+/* #undef HAVE_GENERIC_FILLATTR_IDMAP */
+
 /* generic_fillattr requires struct user_namespace* */
 /* #undef HAVE_GENERIC_FILLATTR_USERNS */
 
@@ -383,6 +389,12 @@
 /* Define if you have the iconv() function and it works. */
 #define HAVE_ICONV 1
 
+/* iops->getattr() takes struct mnt_idmap* */
+/* #undef HAVE_IDMAP_IOPS_GETATTR */
+
+/* iops->setattr() takes struct mnt_idmap* */
+/* #undef HAVE_IDMAP_IOPS_SETATTR */
+
 /* APIs for idmapped mount are present */
 /* #undef HAVE_IDMAP_MNT_API */
 
@@ -398,8 +410,11 @@
 /* inode_owner_or_capable() exists */
 /* #undef HAVE_INODE_OWNER_OR_CAPABLE */
 
+/* inode_owner_or_capable() takes mnt_idmap */
+/* #undef HAVE_INODE_OWNER_OR_CAPABLE_IDMAP */
+
 /* inode_owner_or_capable() takes user_ns */
-/* #undef HAVE_INODE_OWNER_OR_CAPABLE_IDMAPPED */
+/* #undef HAVE_INODE_OWNER_OR_CAPABLE_USERNS */
 
 /* inode_set_flags() exists */
 /* #undef HAVE_INODE_SET_FLAGS */
@@ -419,20 +434,41 @@
 /* in_compat_syscall() is available */
 /* #undef HAVE_IN_COMPAT_SYSCALL */
 
+/* iops->create() takes struct mnt_idmap* */
+/* #undef HAVE_IOPS_CREATE_IDMAP */
+
 /* iops->create() takes struct user_namespace* */
 /* #undef HAVE_IOPS_CREATE_USERNS */
+
+/* iops->mkdir() takes struct mnt_idmap* */
+/* #undef HAVE_IOPS_MKDIR_IDMAP */
 
 /* iops->mkdir() takes struct user_namespace* */
 /* #undef HAVE_IOPS_MKDIR_USERNS */
 
+/* iops->mknod() takes struct mnt_idmap* */
+/* #undef HAVE_IOPS_MKNOD_IDMAP */
+
 /* iops->mknod() takes struct user_namespace* */
 /* #undef HAVE_IOPS_MKNOD_USERNS */
+
+/* iops->permission() takes struct mnt_idmap* */
+/* #undef HAVE_IOPS_PERMISSION_IDMAP */
 
 /* iops->permission() takes struct user_namespace* */
 /* #undef HAVE_IOPS_PERMISSION_USERNS */
 
+/* iops->rename() takes struct mnt_idmap* */
+/* #undef HAVE_IOPS_RENAME_IDMAP */
+
 /* iops->rename() takes struct user_namespace* */
 /* #undef HAVE_IOPS_RENAME_USERNS */
+
+/* iops->setattr() exists */
+/* #undef HAVE_IOPS_SETATTR */
+
+/* iops->symlink() takes struct mnt_idmap* */
+/* #undef HAVE_IOPS_SYMLINK_IDMAP */
 
 /* iops->symlink() takes struct user_namespace* */
 /* #undef HAVE_IOPS_SYMLINK_USERNS */
@@ -665,6 +701,9 @@
 /* Define to 1 if you have the <security/pam_modules.h> header file. */
 #define HAVE_SECURITY_PAM_MODULES_H 1
 
+/* setattr_prepare() accepts mnt_idmap */
+/* #undef HAVE_SETATTR_PREPARE_IDMAP */
+
 /* setattr_prepare() is available, doesn't accept user_namespace */
 /* #undef HAVE_SETATTR_PREPARE_NO_USERNS */
 
@@ -673,6 +712,9 @@
 
 /* iops->set_acl() exists, takes 3 args */
 /* #undef HAVE_SET_ACL */
+
+/* iops->set_acl() takes 4 args, arg1 is struct mnt_idmap * */
+/* #undef HAVE_SET_ACL_IDMAP_DENTRY */
 
 /* iops->set_acl() takes 4 args */
 /* #undef HAVE_SET_ACL_USERNS */
@@ -772,6 +814,9 @@
 /* i_op->tmpfile() uses old dentry signature */
 /* #undef HAVE_TMPFILE_DENTRY */
 
+/* i_op->tmpfile() has mnt_idmap */
+/* #undef HAVE_TMPFILE_IDMAP */
+
 /* i_op->tmpfile() has userns */
 /* #undef HAVE_TMPFILE_USERNS */
 
@@ -792,6 +837,9 @@
 
 /* iops->getattr() takes struct user_namespace* */
 /* #undef HAVE_USERNS_IOPS_GETATTR */
+
+/* iops->setattr() takes struct user_namespace* */
+/* #undef HAVE_USERNS_IOPS_SETATTR */
 
 /* user_namespace->ns.inum exists */
 /* #undef HAVE_USER_NS_COMMON_INUM */
@@ -850,6 +898,9 @@
 /* wq_head->head and wq_entry->entry exist */
 /* #undef HAVE_WAIT_QUEUE_HEAD_ENTRY */
 
+/* int (*writepage_t)() takes struct folio* */
+/* #undef HAVE_WRITEPAGE_T_FOLIO */
+
 /* xattr_handler->get() wants dentry */
 /* #undef HAVE_XATTR_GET_DENTRY */
 
@@ -882,6 +933,9 @@
 
 /* xattr_handler->set() wants xattr_handler */
 /* #undef HAVE_XATTR_SET_HANDLER */
+
+/* xattr_handler->set() takes mnt_idmap */
+/* #undef HAVE_XATTR_SET_IDMAP */
 
 /* xattr_handler->set() takes user_namespace */
 /* #undef HAVE_XATTR_SET_USERNS */
@@ -994,7 +1048,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_g431083f75"
+#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_gd96e29576"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -1003,7 +1057,7 @@
 /* #undef ZFS_META_DATA */
 
 /* Define the maximum compatible kernel version. */
-#define ZFS_META_KVER_MAX "6.1"
+#define ZFS_META_KVER_MAX "6.2"
 
 /* Define the minimum compatible kernel version. */
 #define ZFS_META_KVER_MIN "3.10"
@@ -1024,7 +1078,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_g431083f75"
+#define ZFS_META_RELEASE "FreeBSD_gd96e29576"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.1.99"

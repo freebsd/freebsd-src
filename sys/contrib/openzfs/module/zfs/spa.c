@@ -3084,6 +3084,12 @@ vdev_count_verify_zaps(vdev_t *vd)
 	spa_t *spa = vd->vdev_spa;
 	uint64_t total = 0;
 
+	if (spa_feature_is_active(vd->vdev_spa, SPA_FEATURE_AVZ_V2) &&
+	    vd->vdev_root_zap != 0) {
+		total++;
+		ASSERT0(zap_lookup_int(spa->spa_meta_objset,
+		    spa->spa_all_vdev_zaps, vd->vdev_root_zap));
+	}
 	if (vd->vdev_top_zap != 0) {
 		total++;
 		ASSERT0(zap_lookup_int(spa->spa_meta_objset,
@@ -7098,7 +7104,7 @@ spa_vdev_attach(spa_t *spa, uint64_t guid, nvlist_t *nvroot, int replacing,
  * Detach a device from a mirror or replacing vdev.
  *
  * If 'replace_done' is specified, only detach if the parent
- * is a replacing vdev.
+ * is a replacing or a spare vdev.
  */
 int
 spa_vdev_detach(spa_t *spa, uint64_t guid, uint64_t pguid, int replace_done)
@@ -8321,7 +8327,8 @@ spa_async_thread(void *arg)
 	 * If any devices are done replacing, detach them.
 	 */
 	if (tasks & SPA_ASYNC_RESILVER_DONE ||
-	    tasks & SPA_ASYNC_REBUILD_DONE) {
+	    tasks & SPA_ASYNC_REBUILD_DONE ||
+	    tasks & SPA_ASYNC_DETACH_SPARE) {
 		spa_vdev_resilver_done(spa);
 	}
 
@@ -8665,6 +8672,11 @@ spa_avz_build(vdev_t *vd, uint64_t avz, dmu_tx_t *tx)
 {
 	spa_t *spa = vd->vdev_spa;
 
+	if (vd->vdev_root_zap != 0 &&
+	    spa_feature_is_active(spa, SPA_FEATURE_AVZ_V2)) {
+		VERIFY0(zap_add_int(spa->spa_meta_objset, avz,
+		    vd->vdev_root_zap, tx));
+	}
 	if (vd->vdev_top_zap != 0) {
 		VERIFY0(zap_add_int(spa->spa_meta_objset, avz,
 		    vd->vdev_top_zap, tx));
