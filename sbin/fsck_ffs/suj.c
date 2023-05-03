@@ -183,7 +183,7 @@ cg_lookup(int cgx)
 	if (lastcg && lastcg->sc_cgx == cgx)
 		return (lastcg);
 	cgbp = cglookup(cgx);
-	if (!check_cgmagic(cgx, cgbp, 0))
+	if (!check_cgmagic(cgx, cgbp))
 		err_suj("UNABLE TO REBUILD CYLINDER GROUP %d", cgx);
 	hd = &cghash[HASH(cgx)];
 	LIST_FOREACH(sc, hd, sc_next)
@@ -396,7 +396,7 @@ suj_checkblkavail(ufs2_daddr_t blkno, long frags)
 	cg = dtog(&sblock, blkno);
 	cgbp = cglookup(cg);
 	cgp = cgbp->b_un.b_cg;
-	if (!check_cgmagic(cg, cgbp, 0))
+	if (!check_cgmagic(cg, cgbp))
 		return (-((cg + 1) * sblock.fs_fpg - sblock.fs_frag));
 	baseblk = dtogd(&sblock, blkno);
 	for (j = 0; j <= sblock.fs_frag - frags; j++) {

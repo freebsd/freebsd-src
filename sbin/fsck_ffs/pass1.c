@@ -100,11 +100,17 @@ pass1(void)
 		cgbp = cglookup(c);
 		cgp = cgbp->b_un.b_cg;
 		rebuiltcg = 0;
-		if (!check_cgmagic(c, cgbp, 0)) {
-			if (!check_cgmagic(c, cgbp, 1))
+		if (!check_cgmagic(c, cgbp)) {
+			if (!reply("REBUILD CYLINDER GROUP")) {
 				cgheader_corrupt = 1;
-			else
+				if (!nflag) {
+					printf("YOU WILL NEED TO RERUN FSCK.\n");
+					rerun = 1;
+				}
+			} else {
+				rebuild_cg(c, cgbp);
 				rebuiltcg = 1;
+			}
 		}
 		if (!rebuiltcg && sblock.fs_magic == FS_UFS2_MAGIC) {
 			inosused = cgp->cg_initediblk;
