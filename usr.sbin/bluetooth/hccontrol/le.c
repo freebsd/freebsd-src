@@ -1365,4 +1365,7 @@ struct hci_command le_commands[] = {
 	  "Generate 64 bits of random data",
 	  &le_rand
   },
+  {
+	  NULL,
+  }
 };
