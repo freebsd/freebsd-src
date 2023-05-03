@@ -372,10 +372,12 @@ namei_setup(struct nameidata *ndp, struct vnode **dpp, struct pwd **pwdp)
 	/*
 	 * If we are auditing the kernel pathname, save the user pathname.
 	 */
-	if (cnp->cn_flags & AUDITVNODE1)
-		AUDIT_ARG_UPATH1_VP(td, ndp->ni_rootdir, *dpp, cnp->cn_pnbuf);
-	if (cnp->cn_flags & AUDITVNODE2)
-		AUDIT_ARG_UPATH2_VP(td, ndp->ni_rootdir, *dpp, cnp->cn_pnbuf);
+	if (AUDITING_TD(td)) {
+		if (cnp->cn_flags & AUDITVNODE1)
+			AUDIT_ARG_UPATH1_VP(td, ndp->ni_rootdir, *dpp, cnp->cn_pnbuf);
+		if (cnp->cn_flags & AUDITVNODE2)
+			AUDIT_ARG_UPATH2_VP(td, ndp->ni_rootdir, *dpp, cnp->cn_pnbuf);
+	}
 	if (ndp->ni_startdir != NULL && !startdir_used)
 		vrele(ndp->ni_startdir);
 	if (error != 0) {
