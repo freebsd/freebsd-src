@@ -1902,7 +1902,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	vm_offset_t va;
 	pt_entry_t *pte, *pcpu_pte;
 	struct region_descriptor r_gdt;
-	uint64_t cr4, pcpu_phys;
+	uint64_t cr4, pcpu0_phys;
 	u_long res;
 	int i;
 
@@ -1917,7 +1917,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	 */
 	create_pagetables(firstaddr);
 
-	pcpu_phys = allocpages(firstaddr, MAXCPU);
+	pcpu0_phys = allocpages(firstaddr, 1);
 
 	/*
 	 * Add a physical memory segment (vm_phys_seg) corresponding to the
@@ -1995,10 +1995,15 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	SYSMAP(struct pcpu *, pcpu_pte, __pcpu, MAXCPU);
 	virtual_avail = va;
 
-	for (i = 0; i < MAXCPU; i++) {
-		pcpu_pte[i] = (pcpu_phys + ptoa(i)) | X86_PG_V | X86_PG_RW |
-		    pg_g | pg_nx | X86_PG_M | X86_PG_A;
-	}
+	/*
+	 * Map the BSP PCPU now, the rest of the PCPUs are mapped by
+	 * amd64_mp_alloc_pcpu()/start_all_aps() when we know the
+	 * number of CPUs and NUMA affinity.
+	 */
+	pcpu_pte[0] = pcpu0_phys | X86_PG_V | X86_PG_RW | pg_g | pg_nx |
+	    X86_PG_M | X86_PG_A;
+	for (i = 1; i < MAXCPU; i++)
+		pcpu_pte[i] = 0;
 
 	/*
 	 * Re-initialize PCPU area for BSP after switching.
