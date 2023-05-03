@@ -290,29 +290,32 @@ init_secondary(void)
 	init_secondary_tail();
 }
 
+static void
+amd64_mp_alloc_pcpu(void)
+{
+	vm_page_t m;
+	int cpu;
+
+	/* Allocate pcpu areas to the correct domain. */
+	for (cpu = 1; cpu < mp_ncpus; cpu++) {
+#ifdef NUMA
+		m = NULL;
+		if (vm_ndomains > 1) {
+			m = vm_page_alloc_noobj_domain(
+			    acpi_pxm_get_cpu_locality(cpu_apic_ids[cpu]), 0);
+		}
+		if (m == NULL)
+#endif
+			m = vm_page_alloc_noobj(0);
+		if (m == NULL)
+			panic("cannot alloc pcpu page for cpu %d", cpu);
+		pmap_qenter((vm_offset_t)&__pcpu[cpu], &m, 1);
+	}
+}
+
 /*******************************************************************
  * local functions and data
  */
-
-#ifdef NUMA
-static void
-mp_realloc_pcpu(int cpuid, int domain)
-{
-	vm_page_t m;
-	vm_offset_t oa, na;
-
-	oa = (vm_offset_t)&__pcpu[cpuid];
-	if (vm_phys_domain(pmap_kextract(oa)) == domain)
-		return;
-	m = vm_page_alloc_noobj_domain(domain, 0);
-	if (m == NULL)
-		return;
-	na = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
-	pagecopy((void *)oa, (void *)na);
-	pmap_qenter((vm_offset_t)&__pcpu[cpuid], &m, 1);
-	/* XXX old pcpu page leaked. */
-}
-#endif
 
 /*
  * start each AP in our list
@@ -330,6 +333,7 @@ start_all_aps(void)
 	int apic_id, cpu, domain, i;
 	u_char mpbiosreason;
 
+	amd64_mp_alloc_pcpu();
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
 	MPASS(bootMP_size <= PAGE_SIZE);
@@ -402,16 +406,6 @@ start_all_aps(void)
 	}
 	outb(CMOS_REG, BIOS_RESET);
 	outb(CMOS_DATA, BIOS_WARM);	/* 'warm-start' */
-
-	/* Relocate pcpu areas to the correct domain. */
-#ifdef NUMA
-	if (vm_ndomains > 1)
-		for (cpu = 1; cpu < mp_ncpus; cpu++) {
-			apic_id = cpu_apic_ids[cpu];
-			domain = acpi_pxm_get_cpu_locality(apic_id);
-			mp_realloc_pcpu(cpu, domain);
-		}
-#endif
 
 	/* start each AP */
 	domain = 0;
