@@ -1501,10 +1501,6 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 				SCTP_STAT_INCR_COUNTER32(sctps_collisionestab);
 
 			SCTP_SET_STATE(stcb, SCTP_STATE_OPEN);
-			if (asoc->state & SCTP_STATE_SHUTDOWN_PENDING) {
-				sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD,
-				    stcb->sctp_ep, stcb, NULL);
-			}
 			SCTP_STAT_INCR_GAUGE32(sctps_currestab);
 			sctp_stop_all_cookie_timers(stcb);
 			if (((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
@@ -1718,10 +1714,6 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			SCTP_STAT_INCR_COUNTER32(sctps_collisionestab);
 		}
 		SCTP_SET_STATE(stcb, SCTP_STATE_OPEN);
-		if (asoc->state & SCTP_STATE_SHUTDOWN_PENDING) {
-			sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD,
-			    stcb->sctp_ep, stcb, NULL);
-		}
 		sctp_stop_all_cookie_timers(stcb);
 		sctp_toss_old_cookies(stcb, asoc);
 		sctp_send_cookie_ack(stcb);
@@ -1788,8 +1780,6 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 		}
 		if (asoc->state & SCTP_STATE_SHUTDOWN_PENDING) {
 			SCTP_SET_STATE(stcb, SCTP_STATE_OPEN);
-			sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD,
-			    stcb->sctp_ep, stcb, NULL);
 
 		} else if (SCTP_GET_STATE(stcb) != SCTP_STATE_SHUTDOWN_SENT) {
 			/* move to OPEN state, if not in SHUTDOWN_SENT */
@@ -2174,10 +2164,6 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	/* update current state */
 	SCTPDBG(SCTP_DEBUG_INPUT2, "moving to OPEN state\n");
 	SCTP_SET_STATE(stcb, SCTP_STATE_OPEN);
-	if (asoc->state & SCTP_STATE_SHUTDOWN_PENDING) {
-		sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD,
-		    stcb->sctp_ep, stcb, NULL);
-	}
 	sctp_stop_all_cookie_timers(stcb);
 	SCTP_STAT_INCR_COUNTER32(sctps_passiveestab);
 	SCTP_STAT_INCR_GAUGE32(sctps_currestab);
