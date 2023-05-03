@@ -566,9 +566,8 @@ allowed_luser(struct passwd *pw)
 		syslog(LOG_INFO, "denied access to %s: not listed in %s",
 		    pw->pw_name, PATH_ALLOWFILE);
 
-		/* reuse buf */
-		sprintf(buf, "%s", "\n\nSorry, you are not allowed to use this facility!\n");
-		fputs(buf, stdout);
+		fputs("\n\nSorry, you are not allowed to use this facility!\n",
+		    stdout);
 	}
 	fflush(stdout);
 	return (0);
