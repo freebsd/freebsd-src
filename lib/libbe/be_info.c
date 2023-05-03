@@ -258,7 +258,7 @@ be_proplist_update(prop_data_t *data)
 	    &data->bootonce);
 
 	/* XXX TODO: some error checking here */
-	zfs_iter_filesystems(root_hdl, 0, prop_list_builder_cb, data);
+	zfs_iter_filesystems(root_hdl, prop_list_builder_cb, data);
 
 	zfs_close(root_hdl);
 
@@ -269,7 +269,7 @@ static int
 snapshot_proplist_update(zfs_handle_t *hdl, prop_data_t *data)
 {
 
-	return (zfs_iter_snapshots_sorted(hdl, 0, prop_list_builder_cb, data,
+	return (zfs_iter_snapshots_sorted(hdl, prop_list_builder_cb, data,
 	    0, 0));
 }
 

@@ -736,6 +736,29 @@ zpl_putpage(struct page *pp, struct writeback_control *wbc, void *data)
 	return (0);
 }
 
+#ifdef HAVE_WRITEPAGE_T_FOLIO
+static int
+zpl_putfolio(struct folio *pp, struct writeback_control *wbc, void *data)
+{
+	(void) zpl_putpage(&pp->page, wbc, data);
+	return (0);
+}
+#endif
+
+static inline int
+zpl_write_cache_pages(struct address_space *mapping,
+    struct writeback_control *wbc, void *data)
+{
+	int result;
+
+#ifdef HAVE_WRITEPAGE_T_FOLIO
+	result = write_cache_pages(mapping, wbc, zpl_putfolio, data);
+#else
+	result = write_cache_pages(mapping, wbc, zpl_putpage, data);
+#endif
+	return (result);
+}
+
 static int
 zpl_writepages(struct address_space *mapping, struct writeback_control *wbc)
 {
@@ -760,7 +783,7 @@ zpl_writepages(struct address_space *mapping, struct writeback_control *wbc)
 	 */
 	boolean_t for_sync = (sync_mode == WB_SYNC_ALL);
 	wbc->sync_mode = WB_SYNC_NONE;
-	result = write_cache_pages(mapping, wbc, zpl_putpage, &for_sync);
+	result = zpl_write_cache_pages(mapping, wbc, &for_sync);
 	if (sync_mode != wbc->sync_mode) {
 		if ((result = zpl_enter_verify_zp(zfsvfs, zp, FTAG)) != 0)
 			return (result);
@@ -776,8 +799,7 @@ zpl_writepages(struct address_space *mapping, struct writeback_control *wbc)
 		 * details). That being said, this is a no-op in most cases.
 		 */
 		wbc->sync_mode = sync_mode;
-		result = write_cache_pages(mapping, wbc, zpl_putpage,
-		    &for_sync);
+		result = zpl_write_cache_pages(mapping, wbc, &for_sync);
 	}
 	return (result);
 }
@@ -1027,7 +1049,7 @@ __zpl_ioctl_setflags(struct inode *ip, uint32_t ioctl_flags, xvattr_t *xva)
 	    !capable(CAP_LINUX_IMMUTABLE))
 		return (-EPERM);
 
-	if (!zpl_inode_owner_or_capable(kcred->user_ns, ip))
+	if (!zpl_inode_owner_or_capable(zfs_init_idmap, ip))
 		return (-EACCES);
 
 	xva_init(xva);
@@ -1074,7 +1096,7 @@ zpl_ioctl_setflags(struct file *filp, void __user *arg)
 
 	crhold(cr);
 	cookie = spl_fstrans_mark();
-	err = -zfs_setattr(ITOZ(ip), (vattr_t *)&xva, 0, cr, kcred->user_ns);
+	err = -zfs_setattr(ITOZ(ip), (vattr_t *)&xva, 0, cr, zfs_init_idmap);
 	spl_fstrans_unmark(cookie);
 	crfree(cr);
 
@@ -1122,7 +1144,7 @@ zpl_ioctl_setxattr(struct file *filp, void __user *arg)
 
 	crhold(cr);
 	cookie = spl_fstrans_mark();
-	err = -zfs_setattr(ITOZ(ip), (vattr_t *)&xva, 0, cr, kcred->user_ns);
+	err = -zfs_setattr(ITOZ(ip), (vattr_t *)&xva, 0, cr, zfs_init_idmap);
 	spl_fstrans_unmark(cookie);
 	crfree(cr);
 
@@ -1157,7 +1179,7 @@ __zpl_ioctl_setdosflags(struct inode *ip, uint64_t ioctl_flags, xvattr_t *xva)
 	    !capable(CAP_LINUX_IMMUTABLE))
 		return (-EPERM);
 
-	if (!zpl_inode_owner_or_capable(kcred->user_ns, ip))
+	if (!zpl_inode_owner_or_capable(zfs_init_idmap, ip))
 		return (-EACCES);
 
 	xva_init(xva);
@@ -1210,7 +1232,7 @@ zpl_ioctl_setdosflags(struct file *filp, void __user *arg)
 
 	crhold(cr);
 	cookie = spl_fstrans_mark();
-	err = -zfs_setattr(ITOZ(ip), (vattr_t *)&xva, 0, cr, kcred->user_ns);
+	err = -zfs_setattr(ITOZ(ip), (vattr_t *)&xva, 0, cr, zfs_init_idmap);
 	spl_fstrans_unmark(cookie);
 	crfree(cr);
 
