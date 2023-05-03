@@ -3461,7 +3461,6 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 			} else {
 				/* mark into shutdown pending */
 				SCTP_ADD_SUBSTATE(stcb, SCTP_STATE_SHUTDOWN_PENDING);
-				sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD, stcb->sctp_ep, stcb, NULL);
 				if ((*stcb->asoc.ss_functions.sctp_ss_is_user_msgs_incomplete) (stcb, &stcb->asoc)) {
 					SCTP_ADD_SUBSTATE(stcb, SCTP_STATE_PARTIAL_MSG_LEFT);
 				}
