@@ -342,10 +342,11 @@ pf_get_mape_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
 	return (1);
 }
 
-int
+u_short
 pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
     struct pf_addr *naddr, struct pf_addr *init_addr, struct pf_ksrc_node **sn)
 {
+	u_short			 reason = 0;
 	struct pf_kpool		*rpool = &r->rpool;
 	struct pf_addr		*raddr = NULL, *rmask = NULL;
 	struct pf_srchash	*sh = NULL;
@@ -364,8 +365,10 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 		/* If the supplied address is the same as the current one we've
 		 * been asked before, so tell the caller that there's no other
 		 * address to be had. */
-		if (PF_AEQ(naddr, &(*sn)->raddr, af))
-			return (1);
+		if (PF_AEQ(naddr, &(*sn)->raddr, af)) {
+			reason = PFRES_MAPFAILED;
+			goto done;
+		}
 
 		PF_ACPY(naddr, &(*sn)->raddr, af);
 		if (V_pf_status.debug >= PF_DEBUG_NOISY) {
@@ -375,15 +378,15 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 			pf_print_host(naddr, 0, af);
 			printf("\n");
 		}
-		return (0);
+		goto done;
 	}
 
 	mtx_lock(&rpool->mtx);
 	/* Find the route using chosen algorithm. Store the found route
 	   in src_node if it was given or found. */
 	if (rpool->cur->addr.type == PF_ADDR_NOROUTE) {
-		mtx_unlock(&rpool->mtx);
-		return (1);
+		reason = PFRES_MAPFAILED;
+		goto done_pool_mtx;
 	}
 	if (rpool->cur->addr.type == PF_ADDR_DYNIFTL) {
 		switch (af) {
@@ -392,8 +395,8 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 			if (rpool->cur->addr.p.dyn->pfid_acnt4 < 1 &&
 			    (rpool->opts & PF_POOL_TYPEMASK) !=
 			    PF_POOL_ROUNDROBIN) {
-				mtx_unlock(&rpool->mtx);
-				return (1);
+				reason = PFRES_MAPFAILED;
+				goto done_pool_mtx;
 			}
 			raddr = &rpool->cur->addr.p.dyn->pfid_addr4;
 			rmask = &rpool->cur->addr.p.dyn->pfid_mask4;
@@ -404,8 +407,8 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 			if (rpool->cur->addr.p.dyn->pfid_acnt6 < 1 &&
 			    (rpool->opts & PF_POOL_TYPEMASK) !=
 			    PF_POOL_ROUNDROBIN) {
-				mtx_unlock(&rpool->mtx);
-				return (1);
+				reason = PFRES_MAPFAILED;
+				goto done_pool_mtx;
 			}
 			raddr = &rpool->cur->addr.p.dyn->pfid_addr6;
 			rmask = &rpool->cur->addr.p.dyn->pfid_mask6;
@@ -414,8 +417,8 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 		}
 	} else if (rpool->cur->addr.type == PF_ADDR_TABLE) {
 		if ((rpool->opts & PF_POOL_TYPEMASK) != PF_POOL_ROUNDROBIN) {
-			mtx_unlock(&rpool->mtx);
-			return (1); /* unsupported */
+			reason = PFRES_MAPFAILED;
+			goto done_pool_mtx; /* unsupported */
 		}
 	} else {
 		raddr = &rpool->cur->addr.v.a.addr;
@@ -503,8 +506,8 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 				/* table contains no address of type 'af' */
 				if (rpool->cur != acur)
 					goto try_next;
-				mtx_unlock(&rpool->mtx);
-				return (1);
+				reason = PFRES_MAPFAILED;
+				goto done_pool_mtx;
 			}
 		} else if (rpool->cur->addr.type == PF_ADDR_DYNIFTL) {
 			rpool->tblidx = -1;
@@ -513,8 +516,8 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 				/* table contains no address of type 'af' */
 				if (rpool->cur != acur)
 					goto try_next;
-				mtx_unlock(&rpool->mtx);
-				return (1);
+				reason = PFRES_MAPFAILED;
+				goto done_pool_mtx;
 			}
 		} else {
 			raddr = &rpool->cur->addr.v.a.addr;
@@ -533,8 +536,6 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 	if (*sn != NULL)
 		PF_ACPY(&(*sn)->raddr, naddr, af);
 
-	mtx_unlock(&rpool->mtx);
-
 	if (V_pf_status.debug >= PF_DEBUG_NOISY &&
 	    (rpool->opts & PF_POOL_TYPEMASK) != PF_POOL_NONE) {
 		printf("pf_map_addr: selected address ");
@@ -542,7 +543,15 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 		printf("\n");
 	}
 
-	return (0);
+done_pool_mtx:
+	mtx_unlock(&rpool->mtx);
+
+done:
+	if (reason) {
+		counter_u64_add(V_pf_status.counters[reason], 1);
+	}
+
+	return (reason);
 }
 
 struct pf_krule *
