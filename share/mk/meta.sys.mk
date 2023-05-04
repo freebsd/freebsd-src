@@ -1,4 +1,4 @@
-# $Id: meta.sys.mk,v 1.46 2023/04/18 18:43:00 sjg Exp $
+# $Id: meta.sys.mk,v 1.48 2023/05/04 16:41:10 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010-2021, Simon J. Gerraty
@@ -188,7 +188,7 @@ META_NOECHO= :
 UPDATE_DEPENDFILE= NO
 .export UPDATE_DEPENDFILE
 .elif ${_filemon:T} == "filemon" && !exists(${_filemon})
-.warning ${.newline}ERROR: The filemon module (${_filemon}) is not loaded.
+.error ${.newline}ERROR: The filemon module (${_filemon}) is not loaded.
 .endif
 .endif
 
@@ -205,6 +205,15 @@ dirdeps:
 .MAIN: dirdeps
 .endif
 .endif
+
+.else	# level > 0
+
+# Makefile.depend* get read at level 1+
+# and often refer to DEP_MACHINE etc,
+# so ensure DEP_* (for TARGET_SPEC_VARS anyway) are set
+.for V in ${TARGET_SPEC_VARS}
+DEP_$V = ${$V}
+.endfor
 
 .endif
 .else
