@@ -2036,13 +2036,9 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	if (pmap_pcid_enabled) {
 		kernel_pmap->pm_pcidp = (void *)(uintptr_t)
 		    offsetof(struct pcpu, pc_kpmap_store);
-		for (i = 0; i < MAXCPU; i++) {
-			struct pmap_pcid *pcidp;
 
-			pcidp = zpcpu_get_cpu(kernel_pmap->pm_pcidp, i);
-			pcidp->pm_pcid = PMAP_PCID_KERN;
-			pcidp->pm_gen = 1;
-		}
+		PCPU_SET(kpmap_store.pm_pcid, PMAP_PCID_KERN);
+		PCPU_SET(kpmap_store.pm_gen, 1);
 
 		/*
 		 * PMAP_PCID_KERN + 1 is used for initialization of
