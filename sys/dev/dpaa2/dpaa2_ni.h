@@ -552,7 +552,7 @@ struct dpaa2_ni_softc {
 	struct mtx		 lock;
 	device_t		 miibus;
 	struct mii_data		*mii;
-	boolean_t		 fixed_link;
+	bool			 fixed_link;
 	struct ifmedia		 fixed_ifmedia;
 	int			 media_status;
 

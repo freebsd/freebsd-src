@@ -2776,7 +2776,7 @@ dpaa2_ni_transmit(if_t ifp, struct mbuf *m)
 	struct dpaa2_ni_channel	*chan;
 	struct dpaa2_ni_tx_ring *tx;
 	uint32_t fqid;
-	boolean_t found = false;
+	bool found = false;
 	int chan_n = 0;
 
 	if (__predict_false(!(if_getdrvflags(ifp) & IFF_DRV_RUNNING)))
