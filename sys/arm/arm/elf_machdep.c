@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_global.h"         /* for OPT_KDTRACE_HOOKS */
 #include "opt_stack.h"          /* for OPT_STACK */
 
-static boolean_t elf32_arm_abi_supported(struct image_params *, int32_t *,
+static bool elf32_arm_abi_supported(struct image_params *, int32_t *,
     uint32_t *);
 
 u_long elf_hwcap;
@@ -125,7 +125,7 @@ SYSINIT(elf32, SI_SUB_EXEC, SI_ORDER_FIRST,
 	(sysinit_cfunc_t) elf32_insert_brand_entry,
 	&freebsd_brand_info);
 
-static boolean_t
+static bool
 elf32_arm_abi_supported(struct image_params *imgp, int32_t *osrel __unused,
     uint32_t *fctl0 __unused)
 {
@@ -138,9 +138,9 @@ elf32_arm_abi_supported(struct image_params *imgp, int32_t *osrel __unused,
 		if (bootverbose)
 			uprintf("Attempting to execute non EABI binary (rev %d) image %s",
 			    EF_ARM_EABI_VERSION(hdr->e_flags), imgp->args->fname);
-		return (FALSE);
+		return (false);
 	}
-	return (TRUE);
+	return (true);
 }
 
 void

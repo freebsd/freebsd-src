@@ -89,7 +89,7 @@ typedef struct {
 	const char *interp_newpath;
 	int flags;
 	Elf_Brandnote *brand_note;
-	boolean_t	(*header_supported)(struct image_params *,
+	bool		(*header_supported)(struct image_params *,
 	    int32_t *, uint32_t *);
 		/* High 8 bits of flags is private to the ABI */
 #define	BI_CAN_EXEC_DYN		0x0001
