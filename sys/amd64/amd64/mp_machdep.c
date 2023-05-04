@@ -215,6 +215,8 @@ init_secondary(void)
 	/* See comment in pmap_bootstrap(). */
 	pc->pc_pcid_next = PMAP_PCID_KERN + 2;
 	pc->pc_pcid_gen = 1;
+	pc->pc_kpmap_store.pm_pcid = PMAP_PCID_KERN;
+	pc->pc_kpmap_store.pm_gen = 1;
 
 	pc->pc_smp_tlb_gen = 1;
 
