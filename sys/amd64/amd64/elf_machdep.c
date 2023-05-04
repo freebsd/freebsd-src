@@ -167,17 +167,17 @@ amd64_lower_shared_page(struct sysentvec *sv)
 	}
 }
 
-static boolean_t
+static bool
 freebsd_brand_info_la57_img_compat(struct image_params *imgp,
     int32_t *osrel __unused, uint32_t *fctl0)
 {
 	if ((imgp->proc->p_md.md_flags & P_MD_LA57) != 0)
-		return (TRUE);
+		return (true);
 	if (fctl0 == NULL || (*fctl0 & NT_FREEBSD_FCTL_LA48) != 0)
-		return (FALSE);
+		return (false);
 	if ((imgp->proc->p_md.md_flags & P_MD_LA48) != 0)
-		return (FALSE);
-	return (TRUE);
+		return (false);
+	return (true);
 }
 
 static Elf64_Brandinfo freebsd_brand_info_la48 = {

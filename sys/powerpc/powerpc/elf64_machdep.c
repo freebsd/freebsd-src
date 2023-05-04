@@ -149,9 +149,9 @@ struct sysentvec elf64_freebsd_sysvec_v2 = {
 	.sv_regset_end  = SET_LIMIT(__elfN(regset)),
 };
 
-static boolean_t ppc64_elfv1_header_match(struct image_params *params,
+static bool ppc64_elfv1_header_match(struct image_params *params,
     int32_t *, uint32_t *);
-static boolean_t ppc64_elfv2_header_match(struct image_params *params,
+static bool ppc64_elfv2_header_match(struct image_params *params,
     int32_t *, uint32_t *);
 
 static Elf64_Brandinfo freebsd_brand_info_elfv1 = {
@@ -227,7 +227,7 @@ ppc64_init_sysvecs(void *arg)
 }
 SYSINIT(elf64_sysvec, SI_SUB_EXEC, SI_ORDER_ANY, ppc64_init_sysvecs, NULL);
 
-static boolean_t
+static bool
 ppc64_elfv1_header_match(struct image_params *params, int32_t *osrel __unused,
     uint32_t *fctl0 __unused)
 {
@@ -237,7 +237,7 @@ ppc64_elfv1_header_match(struct image_params *params, int32_t *osrel __unused,
 	return (abi == 0 || abi == 1);
 }
 
-static boolean_t
+static bool
 ppc64_elfv2_header_match(struct image_params *params, int32_t *osrel __unused,
     uint32_t *fctl0 __unused)
 {
