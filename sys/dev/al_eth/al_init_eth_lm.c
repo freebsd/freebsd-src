@@ -206,18 +206,18 @@ static struct retimer_config_reg retimer_ds25_10g_mode[] = {
 
 static int al_eth_lm_retimer_boost_config(struct al_eth_lm_context *lm_context);
 static int al_eth_lm_retimer_ds25_full_config(struct al_eth_lm_context *lm_context);
-static al_bool al_eth_lm_retimer_ds25_signal_detect(
+static bool al_eth_lm_retimer_ds25_signal_detect(
 		struct al_eth_lm_context *lm_context, uint32_t channel);
 static int al_eth_lm_retimer_ds25_cdr_reset(struct al_eth_lm_context *lm_context, uint32_t channel);
-static al_bool al_eth_lm_retimer_ds25_cdr_lock(
+static bool al_eth_lm_retimer_ds25_cdr_lock(
 		struct al_eth_lm_context *lm_context, uint32_t channel);
 static int al_eth_lm_retimer_25g_rx_adaptation(struct al_eth_lm_context *lm_context);
 
 struct al_eth_lm_retimer {
 	int (*config)(struct al_eth_lm_context *lm_context);
 	int (*reset)(struct al_eth_lm_context *lm_context, uint32_t channel);
-	int (*signal_detect)(struct al_eth_lm_context *lm_context, uint32_t channel);
-	int (*cdr_lock)(struct al_eth_lm_context *lm_context, uint32_t channel);
+	bool (*signal_detect)(struct al_eth_lm_context *lm_context, uint32_t channel);
+	bool (*cdr_lock)(struct al_eth_lm_context *lm_context, uint32_t channel);
 	int (*rx_adaptation)(struct al_eth_lm_context *lm_context);
 };
 
@@ -438,7 +438,7 @@ al_eth_module_detect(struct al_eth_lm_context *lm_context,
 }
 
 static struct al_serdes_adv_tx_params da_tx_params = {
-	.override		= TRUE,
+	.override		= AL_TRUE,
 	.amp			= 0x1,
 	.total_driver_units	= 0x13,
 	.c_plus_1		= 0x2,
@@ -448,7 +448,7 @@ static struct al_serdes_adv_tx_params da_tx_params = {
 };
 
 static struct al_serdes_adv_rx_params da_rx_params = {
-	.override		= TRUE,
+	.override		= AL_TRUE,
 	.dcgain			= 0x4,
 	.dfe_3db_freq		= 0x4,
 	.dfe_gain		= 0x3,
@@ -462,7 +462,7 @@ static struct al_serdes_adv_rx_params da_rx_params = {
 };
 
 static struct al_serdes_adv_tx_params optic_tx_params = {
-	.override		= TRUE,
+	.override		= AL_TRUE,
 	.amp			= 0x1,
 	.total_driver_units	= 0x13,
 	.c_plus_1		= 0x2,
@@ -472,7 +472,7 @@ static struct al_serdes_adv_tx_params optic_tx_params = {
 };
 
 static struct al_serdes_adv_rx_params optic_rx_params = {
-	.override		= TRUE,
+	.override		= AL_TRUE,
 	.dcgain			= 0x0,
 	.dfe_3db_freq		= 0x7,
 	.dfe_gain		= 0x0,
@@ -495,7 +495,7 @@ al_eth_serdes_static_tx_params_set(struct al_eth_lm_context *lm_context)
 	if (lm_context->serdes_tx_params_valid != 0) {
 		lm_context->tx_param_dirty = 0;
 
-		lm_context->tx_params_override.override = TRUE;
+		lm_context->tx_params_override.override = AL_TRUE;
 
 		if ((lm_context->serdes_obj->tx_advanced_params_set) == 0) {
 			al_err("tx_advanced_params_set is not supported for this serdes group\n");
@@ -539,7 +539,7 @@ al_eth_serdes_static_rx_params_set(struct al_eth_lm_context *lm_context)
 	if (lm_context->serdes_rx_params_valid != 0) {
 		lm_context->rx_param_dirty = 0;
 
-		lm_context->rx_params_override.override = TRUE;
+		lm_context->rx_params_override.override = AL_TRUE;
 
 		if ((lm_context->serdes_obj->rx_advanced_params_set) == 0) {
 			al_err("rx_advanced_params_set is not supported for this serdes group\n");
@@ -583,7 +583,7 @@ al_eth_rx_equal_run(struct al_eth_lm_context *lm_context)
 	int best_score  = -1;
 	int test_score = -1;
 
-	rx_params.override = FALSE;
+	rx_params.override = AL_FALSE;
 	lm_context->serdes_obj->rx_advanced_params_set(lm_context->serdes_obj,
 							lm_context->lane, &rx_params);
 
@@ -647,7 +647,7 @@ al_eth_rx_equal_run(struct al_eth_lm_context *lm_context)
 	}
 
 	rx_params.precal_code_sel = 0;
-	rx_params.override = TRUE;
+	rx_params.override = AL_TRUE;
 	lm_context->serdes_obj->rx_advanced_params_set(
 					lm_context->serdes_obj,
 					lm_context->lane,
@@ -848,7 +848,7 @@ config_error:
 	return rc;
 }
 
-static al_bool al_eth_lm_retimer_ds25_signal_detect(struct al_eth_lm_context *lm_context,
+static bool al_eth_lm_retimer_ds25_signal_detect(struct al_eth_lm_context *lm_context,
 						    uint32_t channel)
 {
 	int rc = 0;
@@ -868,17 +868,17 @@ static al_bool al_eth_lm_retimer_ds25_signal_detect(struct al_eth_lm_context *lm
 		goto config_error;
 
 	if (reg & LM_DS25_SIGNAL_DETECT_MASK)
-		return TRUE;
+		return true;
 
-	return FALSE;
+	return false;
 
 config_error:
 	al_err("%s: failed to access to the retimer\n", __func__);
 
-	return FALSE;
+	return false;
 }
 
-static al_bool al_eth_lm_retimer_ds25_cdr_lock(struct al_eth_lm_context *lm_context,
+static bool al_eth_lm_retimer_ds25_cdr_lock(struct al_eth_lm_context *lm_context,
 					       uint32_t channel)
 {
 	int rc = 0;
@@ -898,23 +898,23 @@ static al_bool al_eth_lm_retimer_ds25_cdr_lock(struct al_eth_lm_context *lm_cont
 		goto config_error;
 
 	if (reg & LM_DS25_CDR_LOCK_MASK)
-		return TRUE;
+		return true;
 
-	return FALSE;
+	return false;
 
 config_error:
 	al_err("%s: failed to access to the retimer\n", __func__);
 
-	return FALSE;
+	return false;
 }
 
-static boolean_t al_eth_lm_wait_for_lock(struct al_eth_lm_context	*lm_context,
+static bool al_eth_lm_wait_for_lock(struct al_eth_lm_context	*lm_context,
 				       uint32_t			channel)
 {
 	uint32_t timeout = AL_ETH_LM_RETIMER_WAIT_FOR_LOCK;
-	al_bool lock = AL_FALSE;
+	bool lock = false;
 
-	while ((timeout > 0) && (lock == FALSE)) {
+	while ((timeout > 0) && (!lock)) {
 		al_msleep(10);
 		timeout -= 10;
 
@@ -930,16 +930,16 @@ static boolean_t al_eth_lm_wait_for_lock(struct al_eth_lm_context	*lm_context,
 
 static void al_eth_lm_retimer_signal_lock_check(struct al_eth_lm_context	*lm_context,
 						uint32_t			channel,
-						boolean_t			*ready)
+						bool			*ready)
 {
-	al_bool signal_detect = TRUE;
-	al_bool cdr_lock = TRUE;
+	bool signal_detect = true;
+	bool cdr_lock = true;
 
 	if (retimer[lm_context->retimer_type].signal_detect) {
 		if (!retimer[lm_context->retimer_type].signal_detect(lm_context, channel)) {
 			lm_debug("no signal detected on retimer channel %d\n", channel);
 
-			signal_detect = AL_FALSE;
+			signal_detect = false;
 		} else {
 			if (retimer[lm_context->retimer_type].cdr_lock) {
 				cdr_lock = retimer[lm_context->retimer_type].cdr_lock(
@@ -961,13 +961,13 @@ static void al_eth_lm_retimer_signal_lock_check(struct al_eth_lm_context	*lm_con
 	al_info("%s: (channel %d) signal %d cdr lock %d\n",
 		 __func__, channel, signal_detect, (signal_detect) ? cdr_lock : 0);
 
-	*ready = ((cdr_lock == TRUE) && (signal_detect == TRUE));
+	*ready = (cdr_lock && signal_detect);
 }
 
 static int al_eth_lm_retimer_ds25_full_config(struct al_eth_lm_context *lm_context)
 {
 	int rc = 0;
-	al_bool ready;
+	bool ready;
 	struct retimer_config_reg *config_tx;
 	uint32_t config_tx_size;
 	struct retimer_config_reg *config_rx;
@@ -1006,7 +1006,7 @@ static int al_eth_lm_retimer_ds25_full_config(struct al_eth_lm_context *lm_conte
 
 	if (lm_context->serdes_obj->type_get() == AL_SRDS_TYPE_25G) {
 		lm_debug("%s: serdes 25G - perform tx and rx gearbox reset\n", __func__);
-		al_eth_gearbox_reset(lm_context->adapter, TRUE, TRUE);
+		al_eth_gearbox_reset(lm_context->adapter, AL_TRUE, AL_TRUE);
 		DELAY(AL_ETH_LM_GEARBOX_RESET_DELAY);
 	}
 
@@ -1025,7 +1025,7 @@ static int al_eth_lm_retimer_ds25_full_config(struct al_eth_lm_context *lm_conte
 static int al_eth_lm_retimer_25g_rx_adaptation(struct al_eth_lm_context *lm_context)
 {
 	int rc = 0;
-	al_bool ready;
+	bool ready;
 
 	al_eth_lm_retimer_signal_lock_check(lm_context, lm_context->retimer_channel, &ready);
 
@@ -1041,7 +1041,7 @@ static int al_eth_lm_retimer_25g_rx_adaptation(struct al_eth_lm_context *lm_cont
 	return 0;
 }
 
-static int al_eth_lm_check_for_link(struct al_eth_lm_context *lm_context, boolean_t *link_up)
+static int al_eth_lm_check_for_link(struct al_eth_lm_context *lm_context, bool *link_up)
 {
 	struct al_eth_link_status status;
 	int ret = 0;
@@ -1053,7 +1053,7 @@ static int al_eth_lm_check_for_link(struct al_eth_lm_context *lm_context, boolea
 		lm_debug("%s: >>>> Link state DOWN ==> UP\n", __func__);
 		al_eth_led_set(lm_context->adapter, AL_TRUE);
 		lm_context->link_state = AL_ETH_LM_LINK_UP;
-		*link_up = AL_TRUE;
+		*link_up = true;
 
 		return 0;
 	} else if (status.local_fault) {
@@ -1070,7 +1070,7 @@ static int al_eth_lm_check_for_link(struct al_eth_lm_context *lm_context, boolea
 		ret = 0;
 	}
 
-	*link_up = AL_FALSE;
+	*link_up = false;
 	return ret;
 }
 
@@ -1107,10 +1107,10 @@ al_eth_lm_init(struct al_eth_lm_context	*lm_context,
 	lm_context->get_random_byte = params->get_random_byte;
 
 	/* eeprom_read must be provided if sfp_detection is true */
-	al_assert((lm_context->sfp_detection == FALSE) ||
+	al_assert((lm_context->sfp_detection == false) ||
 	    (lm_context->i2c_read != NULL));
 
-	al_assert((lm_context->retimer_exist == FALSE) ||
+	al_assert((lm_context->retimer_exist == false) ||
 	    (lm_context->i2c_write != NULL));
 
 	lm_context->local_adv.selector_field = 1;
@@ -1122,8 +1122,8 @@ al_eth_lm_init(struct al_eth_lm_context	*lm_context,
 	lm_context->local_adv.fec_capability = params->kr_fec_enable;
 
 	lm_context->mode = AL_ETH_LM_MODE_DISCONNECTED;
-	lm_context->serdes_tx_params_valid = FALSE;
-	lm_context->serdes_rx_params_valid = FALSE;
+	lm_context->serdes_tx_params_valid = false;
+	lm_context->serdes_rx_params_valid = false;
 
 	lm_context->rx_param_dirty = 1;
 	lm_context->tx_param_dirty = 1;
@@ -1138,7 +1138,7 @@ al_eth_lm_init(struct al_eth_lm_context	*lm_context,
 
 	lm_context->led_config = params->led_config;
 
-	lm_context->retimer_configured = FALSE;
+	lm_context->retimer_configured = false;
 
 	lm_context->link_state = AL_ETH_LM_LINK_DOWN;
 
@@ -1147,7 +1147,7 @@ al_eth_lm_init(struct al_eth_lm_context	*lm_context,
 
 int
 al_eth_lm_link_detection(struct al_eth_lm_context *lm_context,
-    boolean_t *link_fault, enum al_eth_lm_link_mode *old_mode,
+    bool *link_fault, enum al_eth_lm_link_mode *old_mode,
     enum al_eth_lm_link_mode *new_mode)
 {
 	int err;
@@ -1163,14 +1163,14 @@ al_eth_lm_link_detection(struct al_eth_lm_context *lm_context,
 	 * if the link wasn't up.
 	 */
 	if (lm_context->lm_pause != NULL) {
-		boolean_t lm_pause = lm_context->lm_pause(lm_context->i2c_context);
-		if (lm_pause == TRUE) {
+		bool lm_pause = lm_context->lm_pause(lm_context->i2c_context);
+		if (lm_pause == true) {
 			*new_mode = AL_ETH_LM_MODE_DISCONNECTED;
 			if (link_fault != NULL) {
 				if (lm_context->link_state == AL_ETH_LM_LINK_UP)
-					*link_fault = FALSE;
+					*link_fault = false;
 				else
-					*link_fault = TRUE;
+					*link_fault = true;
 			}
 
 			return 0;
@@ -1181,7 +1181,7 @@ al_eth_lm_link_detection(struct al_eth_lm_context *lm_context,
 	*new_mode = lm_context->mode;
 
 	if (link_fault != NULL)
-		*link_fault = TRUE;
+		*link_fault = true;
 
 	switch (lm_context->link_state) {
 	case AL_ETH_LM_LINK_UP:
@@ -1189,9 +1189,9 @@ al_eth_lm_link_detection(struct al_eth_lm_context *lm_context,
 
 		if (status.link_up) {
 			if (link_fault != NULL)
-				*link_fault = FALSE;
+				*link_fault = false;
 
-			al_eth_led_set(lm_context->adapter, TRUE);
+			al_eth_led_set(lm_context->adapter, AL_TRUE);
 
 			return (0);
 		} else if (status.local_fault) {
@@ -1211,7 +1211,7 @@ al_eth_lm_link_detection(struct al_eth_lm_context *lm_context,
 			lm_context->link_state = AL_ETH_LM_LINK_DOWN;
 
 			break;
-		} else if (status.remote_fault == FALSE) {
+		} else if (status.remote_fault == AL_FALSE) {
 			lm_debug("%s: >>>> Link state DOWN_RF ==> UP\n", __func__);
 			lm_context->link_state = AL_ETH_LM_LINK_UP;
 		}
@@ -1221,7 +1221,7 @@ al_eth_lm_link_detection(struct al_eth_lm_context *lm_context,
 		break;
 	};
 
-	al_eth_led_set(lm_context->adapter, FALSE);
+	al_eth_led_set(lm_context->adapter, AL_FALSE);
 
 	if (lm_context->sfp_detection) {
 		err = al_eth_module_detect(lm_context, new_mode);
@@ -1244,7 +1244,7 @@ al_eth_lm_link_detection(struct al_eth_lm_context *lm_context,
 		lm_context->rx_param_dirty = 1;
 		lm_context->tx_param_dirty = 1;
 
-		lm_context->new_port = TRUE;
+		lm_context->new_port = true;
 
 		if ((*new_mode != AL_ETH_LM_MODE_DISCONNECTED) && (lm_context->led_config)) {
 			struct al_eth_lm_led_config_data data = {0};
@@ -1272,19 +1272,19 @@ al_eth_lm_link_detection(struct al_eth_lm_context *lm_context,
 }
 
 int
-al_eth_lm_link_establish(struct al_eth_lm_context *lm_context, boolean_t *link_up)
+al_eth_lm_link_establish(struct al_eth_lm_context *lm_context, bool *link_up)
 {
-	boolean_t signal_detected;
+	bool signal_detected;
 	int ret = 0;
 
 	switch (lm_context->link_state) {
 	case AL_ETH_LM_LINK_UP:
-		*link_up = TRUE;
+		*link_up = true;
 		lm_debug("%s: return link up\n", __func__);
 
 		return (0);
 	case AL_ETH_LM_LINK_DOWN_RF:
-		*link_up = FALSE;
+		*link_up = false;
 		lm_debug("%s: return link down (DOWN_RF)\n", __func__);
 
 		return (0);
@@ -1297,9 +1297,9 @@ al_eth_lm_link_establish(struct al_eth_lm_context *lm_context, boolean_t *link_u
 	 * finished. in this case link will not be established until LM will be enable again.
 	 */
 	if (lm_context->lm_pause) {
-		boolean_t lm_pause = lm_context->lm_pause(lm_context->i2c_context);
-		if (lm_pause == TRUE) {
-			*link_up = FALSE;
+		bool lm_pause = lm_context->lm_pause(lm_context->i2c_context);
+		if (lm_pause == true) {
+			*link_up = false;
 
 			return (0);
 		}
@@ -1316,11 +1316,11 @@ al_eth_lm_link_establish(struct al_eth_lm_context *lm_context, boolean_t *link_u
 		if (retimer[lm_context->retimer_type].config(lm_context)) {
 			al_info("%s: failed to configure the retimer\n", __func__);
 
-			*link_up = FALSE;
+			*link_up = false;
 			return (1);
 		}
 
-		lm_context->new_port = FALSE;
+		lm_context->new_port = false;
 
 		DELAY(1000);
 	}
@@ -1331,7 +1331,7 @@ al_eth_lm_link_establish(struct al_eth_lm_context *lm_context, boolean_t *link_u
 
 			if (ret != 0) {
 				lm_debug("retimer rx is not ready\n");
-				*link_up = FALSE;
+				*link_up = false;
 
 				return (0);
 			}
@@ -1342,16 +1342,16 @@ al_eth_lm_link_establish(struct al_eth_lm_context *lm_context, boolean_t *link_u
 					lm_context->serdes_obj,
 					lm_context->lane);
 
-	if (signal_detected == FALSE) {
+	if (signal_detected == false) {
 		/* if no signal detected there is nothing to do */
 		lm_debug("serdes signal is down\n");
-		*link_up = AL_FALSE;
+		*link_up = false;
 		return 0;
 	}
 
 	if (lm_context->serdes_obj->type_get() == AL_SRDS_TYPE_25G) {
 		lm_debug("%s: serdes 25G - perform rx gearbox reset\n", __func__);
-		al_eth_gearbox_reset(lm_context->adapter, FALSE, TRUE);
+		al_eth_gearbox_reset(lm_context->adapter, AL_FALSE, AL_TRUE);
 		DELAY(AL_ETH_LM_GEARBOX_RESET_DELAY);
 	}
 
@@ -1400,11 +1400,11 @@ al_eth_lm_link_establish(struct al_eth_lm_context *lm_context, boolean_t *link_u
 			lm_context->serdes_obj->pma_hard_reset_lane(
 						lm_context->serdes_obj,
 						lm_context->lane,
-						TRUE);
+						AL_TRUE);
 			lm_context->serdes_obj->pma_hard_reset_lane(
 						lm_context->serdes_obj,
 						lm_context->lane,
-						FALSE);
+						AL_FALSE);
 			lm_context->link_training_failures = 0;
 		}
 	}
@@ -1437,7 +1437,7 @@ al_eth_lm_link_establish(struct al_eth_lm_context *lm_context, boolean_t *link_u
 		return (0);
 	}
 
-	*link_up = FALSE;
+	*link_up = false;
 	return (1);
 }
 
@@ -1450,13 +1450,13 @@ al_eth_lm_static_parameters_override(struct al_eth_lm_context *lm_context,
 	if (tx_params != NULL) {
 		lm_context->tx_params_override = *tx_params;
 		lm_context->tx_param_dirty = 1;
-		lm_context->serdes_tx_params_valid = TRUE;
+		lm_context->serdes_tx_params_valid = true;
 	}
 
 	if (rx_params != NULL) {
 		lm_context->rx_params_override = *rx_params;
 		lm_context->rx_param_dirty = 1;
-		lm_context->serdes_rx_params_valid = TRUE;
+		lm_context->serdes_rx_params_valid = true;
 	}
 
 	return (0);
@@ -1464,13 +1464,13 @@ al_eth_lm_static_parameters_override(struct al_eth_lm_context *lm_context,
 
 int
 al_eth_lm_static_parameters_override_disable(struct al_eth_lm_context *lm_context,
-    boolean_t tx_params, boolean_t rx_params)
+    bool tx_params, bool rx_params)
 {
 
-	if (tx_params != 0)
-		lm_context->serdes_tx_params_valid = FALSE;
-	if (rx_params != 0)
-		lm_context->serdes_tx_params_valid = FALSE;
+	if (tx_params)
+		lm_context->serdes_tx_params_valid = false;
+	if (rx_params)
+		lm_context->serdes_tx_params_valid = false;
 
 	return (0);
 }
@@ -1526,7 +1526,7 @@ al_eth_lm_mode_convert_to_str(enum al_eth_lm_link_mode val)
 
 void
 al_eth_lm_debug_mode_set(struct al_eth_lm_context *lm_context,
-    boolean_t enable)
+    bool enable)
 {
 
 	lm_context->debug = enable;
