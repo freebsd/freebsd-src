@@ -21,7 +21,7 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
-.Dd January 10, 2024
+.Dd February 2, 2024
 .Dt LOADER.CONF 5
 .Os
 .Sh NAME
@@ -138,6 +138,38 @@ present file.
 should be treated as write-only.
 One cannot depend on any value remaining in the loader environment or carried
 over into the kernel environment.
+.It Ar product_vars
+When set, must be a space separated list of environment variable names to walk
+through to guess product information.
+The order matters as reading a config file override the previously defined
+values.
+Undefined variables are silently ignored.
+.Pp
+When product information can be guessed, for each product information found,
+append
+.Pa /boot/loader.conf.d/PRODUCT
+to
+.Ar loader_conf_dirs .
+It can be typically used as follow:
+.Bd -literal
+smbios.system.planar.maker="PLANAR_MAKER"
+smbios.system.planar.product="PLANAR_PRODUCT"
+smbios.system.product="PRODUCT"
+uboot.m_product="M_PRODUCT"
+product_vars="smbios.system.planar.maker smbios.system.planar.product smbios.system.product uboot.m_product"
+.Ed
+.Pp
+to read files found in the following directories, in that order:
+.Bl -bullet -compact
+.It
+.Pa /boot/loader.conf.d/PLANAR_MAKER
+.It
+.Pa /boot/loader.conf.d/PLANAR_PRODUCT
+.It
+.Pa /boot/loader.conf.d/PRODUCT
+.It
+.Pa /boot/loader.conf.d/M_PRODUCT
+.El
 .It Ar kernel
 Name of the kernel to be loaded.
 If no kernel name is set, no additional
