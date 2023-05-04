@@ -1576,10 +1576,8 @@ pf_normalize_tcp_init(struct mbuf *m, int off, struct pf_pdesc *pd,
 void
 pf_normalize_tcp_cleanup(struct pf_kstate *state)
 {
-	if (state->src.scrub)
-		uma_zfree(V_pf_state_scrub_z, state->src.scrub);
-	if (state->dst.scrub)
-		uma_zfree(V_pf_state_scrub_z, state->dst.scrub);
+	uma_zfree(V_pf_state_scrub_z, state->src.scrub);
+	uma_zfree(V_pf_state_scrub_z, state->dst.scrub);
 
 	/* Someday... flush the TCP segment reassembly descriptors. */
 }

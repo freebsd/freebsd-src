@@ -649,10 +649,8 @@ cleanup:
 	error = ENOMEM;
 	if (skw == sks)
 		sks = NULL;
-	if (skw != NULL)
-		uma_zfree(V_pf_state_key_z, skw);
-	if (sks != NULL)
-		uma_zfree(V_pf_state_key_z, sks);
+	uma_zfree(V_pf_state_key_z, skw);
+	uma_zfree(V_pf_state_key_z, sks);
 
 cleanup_state:	/* pf_state_insert() frees the state keys. */
 	if (st) {
