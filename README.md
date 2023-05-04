@@ -24,7 +24,7 @@ to ease in porting and to alleviate the need for several
 system-dependent packet capture modules in each application.
 
 ```text
-formerly from 	Lawrence Berkeley National Laboratory
+formerly from	Lawrence Berkeley National Laboratory
 		Network Research Group <libpcap@ee.lbl.gov>
 		ftp://ftp.ee.lbl.gov/old/libpcap-0.4a7.tar.Z
 ```

@@ -403,7 +403,7 @@ snf_findalldevs(pcap_if_list_t *devlistp, char *errbuf)
 		 * the port?  If so, should we add them to the
 		 * entry for the device, if they're not already in the
 		 * list of IP addresses for the device?
- 		 */
+		 */
 		(void)snprintf(desc,MAX_DESC_LENGTH,"Myricom %ssnf%d",
 			merge ? "Merge Bitmask Port " : "",
 			merge ? 1 << ifa->snf_ifa_portnum : ifa->snf_ifa_portnum);
@@ -452,14 +452,14 @@ snf_findalldevs(pcap_if_list_t *devlistp, char *errbuf)
 			 */
                         ret = inet_pton(AF_INET, dev->name, &addr.sin_addr);
                         if (ret == 1) {
-                        	/*
-                        	 * Successful conversion of device name
-                        	 * to IPv4 address.
-                        	 */
-	                        addr.sin_family = AF_INET;
-        	                if (add_addr_to_dev(dev, &addr, sizeof(addr),
-                	            NULL, 0, NULL, 0, NULL, 0, errbuf) == -1)
-                        		return -1;
+				/*
+				 * Successful conversion of device name
+				 * to IPv4 address.
+				 */
+				addr.sin_family = AF_INET;
+				if (add_addr_to_dev(dev, &addr, sizeof(addr),
+				    NULL, 0, NULL, 0, NULL, 0, errbuf) == -1)
+					return -1;
                         } else if (ret == -1) {
 				/*
 				 * Error.
@@ -475,7 +475,7 @@ snf_findalldevs(pcap_if_list_t *devlistp, char *errbuf)
 	snf_freeifaddrs(ifaddrs);
 	/*
 	 * Create a snfX entry if port aggregation is enabled
-       	 */
+	 */
 	if (merge) {
 		/*
 		 * Add a new entry with all ports bitmask
