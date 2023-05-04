@@ -964,7 +964,7 @@
  * which is stored with each packet:
  *
  *   EXP_PDU_TAG_DISSECTOR_NAME      the name of the Wireshark dissector
- * 				     that can make sense of the data stored.
+ *				     that can make sense of the data stored.
  *
  *   EXP_PDU_TAG_HEUR_DISSECTOR_NAME the name of the Wireshark heuristic
  *				     dissector that can make sense of the
@@ -1240,7 +1240,7 @@ static struct linktype_map {
 	{ DLT_FR,		LINKTYPE_FRELAY },
 #endif
 
-	{ DLT_ATM_RFC1483, 	LINKTYPE_ATM_RFC1483 },
+	{ DLT_ATM_RFC1483,	LINKTYPE_ATM_RFC1483 },
 	{ DLT_RAW,		LINKTYPE_RAW },
 	{ DLT_SLIP_BSDOS,	LINKTYPE_SLIP_BSDOS },
 	{ DLT_PPP_BSDOS,	LINKTYPE_PPP_BSDOS },

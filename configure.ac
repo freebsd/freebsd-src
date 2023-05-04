@@ -14,7 +14,7 @@ dnl
 # config.sub.
 #
 
-AC_PREREQ(2.64)
+AC_PREREQ(2.69)
 
 AC_INIT(pcap, m4_esyscmd_s([cat VERSION]))
 AC_CONFIG_SRCDIR(pcap.c)
@@ -220,7 +220,7 @@ main(void)
 )
 	    ],
 	    [
-	        # GNU-style
+		# GNU-style
 		AC_MSG_RESULT(yes)
 		AC_DEFINE(HAVE_GNU_STRERROR_R,,
 		    [Define to 1 if you have a GNU-style `strerror_r' function.])
@@ -783,9 +783,9 @@ else
 		V_PCAP=linux
 		VALGRINDTEST_SRC=valgrindtest.c
 	elif test "$ac_cv_header_net_pfilt_h" = yes; then
-	        #
-	        # DEC OSF/1, Digital UNIX, Tru64 UNIX
-        	#
+		#
+		# DEC OSF/1, Digital UNIX, Tru64 UNIX
+		#
 		V_PCAP=pf
 	elif test "$ac_cv_header_net_enet_h" = yes; then
 		#
@@ -982,14 +982,14 @@ enet)
 	#
 	# Capture module
 	#
- 	PLATFORM_C_SRC="pcap-enet.c"
+	PLATFORM_C_SRC="pcap-enet.c"
 	;;
 
 haiku)
 	#
 	# Capture module
 	#
- 	PLATFORM_CXX_SRC="pcap-haiku.cpp"
+	PLATFORM_CXX_SRC="pcap-haiku.cpp"
 
 	#
 	# Just for the sake of it.
@@ -1001,7 +1001,7 @@ linux)
 	#
 	# Capture module
 	#
- 	PLATFORM_C_SRC="pcap-linux.c"
+	PLATFORM_C_SRC="pcap-linux.c"
 
 	#
 	# Do we have the wireless extensions?
@@ -1102,7 +1102,7 @@ bpf)
 	#
 	# Capture module
 	#
- 	PLATFORM_C_SRC="pcap-bpf.c"
+	PLATFORM_C_SRC="pcap-bpf.c"
 
 	#
 	# Check whether we have the *BSD-style ioctls.
@@ -1127,21 +1127,21 @@ pf)
 	#
 	# Capture module
 	#
- 	PLATFORM_C_SRC="pcap-pf.c"
+	PLATFORM_C_SRC="pcap-pf.c"
 	;;
 
 snit)
 	#
 	# Capture module
 	#
- 	PLATFORM_C_SRC="pcap-snit.c"
+	PLATFORM_C_SRC="pcap-snit.c"
 	;;
 
 snoop)
 	#
 	# Capture module
 	#
- 	PLATFORM_C_SRC="pcap-snoop.c"
+	PLATFORM_C_SRC="pcap-snoop.c"
 	;;
 
 dag)
@@ -1188,7 +1188,7 @@ null)
 	#
 	# Capture module
 	#
- 	PLATFORM_C_SRC="pcap-null.c"
+	PLATFORM_C_SRC="pcap-null.c"
 	;;
 
 *)

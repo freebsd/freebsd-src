@@ -1103,9 +1103,8 @@ dnl Since: 0.16
 dnl
 dnl Search for the pkg-config tool and set the PKG_CONFIG variable to
 dnl first found in the path. Checks that the version of pkg-config found
-dnl is at least MIN-VERSION. If MIN-VERSION is not specified, 0.9.0 is
-dnl used since that's the first version where most current features of
-dnl pkg-config existed.
+dnl is at least MIN-VERSION. If MIN-VERSION is not specified, 0.17.0 is
+dnl used since that's the first version where --static was supported.
 AC_DEFUN([PKG_PROG_PKG_CONFIG],
 [m4_pattern_forbid([^_?PKG_[A-Z_]+$])
 m4_pattern_allow([^PKG_CONFIG(_(PATH|LIBDIR|SYSROOT_DIR|ALLOW_SYSTEM_(CFLAGS|LIBS)))?$])
@@ -1118,7 +1117,7 @@ if test "x$ac_cv_env_PKG_CONFIG_set" != "xset"; then
 	AC_PATH_TOOL([PKG_CONFIG], [pkg-config])
 fi
 if test -n "$PKG_CONFIG"; then
-	_pkg_min_version=m4_default([$1], [0.9.0])
+	_pkg_min_version=m4_default([$1], [0.17.0])
 	AC_MSG_CHECKING([pkg-config is at least version $_pkg_min_version])
 	if $PKG_CONFIG --atleast-pkgconfig-version $_pkg_min_version; then
 		AC_MSG_RESULT([yes])
@@ -1205,8 +1204,8 @@ See the pkg-config man page for more details.])
 		#
 		# That failed - report an error.
 		#
-	   	AC_MSG_RESULT([error])
-        	_PKG_SHORT_ERRORS_SUPPORTED
+		AC_MSG_RESULT([error])
+		_PKG_SHORT_ERRORS_SUPPORTED
 	        if test $_pkg_short_errors_supported = yes; then
 		        $1[]_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "$2" 2>&1`
 	        else
@@ -1229,7 +1228,7 @@ _PKG_TEXT])[]dnl
 		#
 		# We don't have pkg-config, so it didn't work.
 		#
-	     	AC_MSG_RESULT([not found (pkg-config not found)])
+		AC_MSG_RESULT([not found (pkg-config not found)])
 	else
 		#
 		# We found the package.

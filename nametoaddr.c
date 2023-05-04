@@ -267,7 +267,7 @@ pcap_nametonetaddr(const char *name)
 	 * *not* always get set if getnetbyname_r() succeeds.
 	 */
 	np = NULL;
- 	err = getnetbyname_r(name, &result_buf, buf, sizeof buf, &np,
+	err = getnetbyname_r(name, &result_buf, buf, sizeof buf, &np,
 	    &h_errnoval);
 	if (err != 0) {
 		/*
@@ -296,16 +296,16 @@ pcap_nametonetaddr(const char *name)
 	else
 		np = &result_buf;
   #else
- 	/*
- 	 * We don't have any getnetbyname_r(); either we have a
- 	 * getnetbyname() that uses thread-specific data, in which
- 	 * case we're thread-safe (sufficiently recent FreeBSD,
- 	 * sufficiently recent Darwin-based OS, sufficiently recent
- 	 * HP-UX, sufficiently recent Tru64 UNIX), or we have the
- 	 * traditional getnetbyname() (everything else, including
- 	 * current NetBSD and OpenBSD), in which case we're not
- 	 * thread-safe.
- 	 */
+	/*
+	 * We don't have any getnetbyname_r(); either we have a
+	 * getnetbyname() that uses thread-specific data, in which
+	 * case we're thread-safe (sufficiently recent FreeBSD,
+	 * sufficiently recent Darwin-based OS, sufficiently recent
+	 * HP-UX, sufficiently recent Tru64 UNIX), or we have the
+	 * traditional getnetbyname() (everything else, including
+	 * current NetBSD and OpenBSD), in which case we're not
+	 * thread-safe.
+	 */
 	np = getnetbyname(name);
   #endif
 	if (np != NULL)
@@ -552,16 +552,16 @@ pcap_nametoproto(const char *str)
 	else
 		p = &result_buf;
   #else
- 	/*
- 	 * We don't have any getprotobyname_r(); either we have a
- 	 * getprotobyname() that uses thread-specific data, in which
- 	 * case we're thread-safe (sufficiently recent FreeBSD,
- 	 * sufficiently recent Darwin-based OS, sufficiently recent
- 	 * HP-UX, sufficiently recent Tru64 UNIX, Windows), or we have
+	/*
+	 * We don't have any getprotobyname_r(); either we have a
+	 * getprotobyname() that uses thread-specific data, in which
+	 * case we're thread-safe (sufficiently recent FreeBSD,
+	 * sufficiently recent Darwin-based OS, sufficiently recent
+	 * HP-UX, sufficiently recent Tru64 UNIX, Windows), or we have
 	 * the traditional getprotobyname() (everything else, including
- 	 * current NetBSD and OpenBSD), in which case we're not
- 	 * thread-safe.
- 	 */
+	 * current NetBSD and OpenBSD), in which case we're not
+	 * thread-safe.
+	 */
 	p = getprotobyname(str);
   #endif
 	if (p != 0)
