@@ -313,10 +313,6 @@ amd64_mp_alloc_pcpu(void)
 	}
 }
 
-/*******************************************************************
- * local functions and data
- */
-
 /*
  * start each AP in our list
  */
