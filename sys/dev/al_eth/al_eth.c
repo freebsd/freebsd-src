@@ -664,7 +664,7 @@ al_eth_mac_table_broadcast_add(struct al_eth_adapter *adapter,
 
 static void
 al_eth_mac_table_promiscuous_set(struct al_eth_adapter *adapter,
-    boolean_t promiscuous)
+    bool promiscuous)
 {
 	struct al_eth_fwd_mac_table_entry entry = { { 0 } };
 
@@ -856,7 +856,7 @@ al_eth_board_params_init(struct al_eth_adapter *adapter)
 			return (-1);
 		}
 
-		adapter->phy_exist = params.phy_exist == TRUE;
+		adapter->phy_exist = params.phy_exist == true;
 		adapter->phy_addr = params.phy_mdio_addr;
 		adapter->an_en = params.autoneg_enable;
 		adapter->lt_en = params.kr_lt_enable;
@@ -904,7 +904,7 @@ al_eth_board_params_init(struct al_eth_adapter *adapter)
 
 		switch (params.media_type) {
 		case AL_ETH_BOARD_MEDIA_TYPE_RGMII:
-			if (params.sfp_plus_module_exist == TRUE)
+			if (params.sfp_plus_module_exist == true)
 				/* Backward compatibility */
 				adapter->mac_mode = AL_ETH_MAC_MODE_SGMII;
 			else
@@ -921,12 +921,12 @@ al_eth_board_params_init(struct al_eth_adapter *adapter)
 			adapter->use_lm = true;
 			break;
 		case AL_ETH_BOARD_MEDIA_TYPE_AUTO_DETECT:
-			adapter->sfp_detection_needed = TRUE;
+			adapter->sfp_detection_needed = true;
 			adapter->auto_speed = false;
 			adapter->use_lm = true;
 			break;
 		case AL_ETH_BOARD_MEDIA_TYPE_AUTO_DETECT_AUTO_SPEED:
-			adapter->sfp_detection_needed = TRUE;
+			adapter->sfp_detection_needed = true;
 			adapter->auto_speed = true;
 			adapter->mac_mode_set = false;
 			adapter->use_lm = true;
@@ -943,9 +943,9 @@ al_eth_board_params_init(struct al_eth_adapter *adapter)
 		device_printf(adapter->dev,
 		    "Board info: phy exist %s. phy addr %d. mdio freq %u Khz. "
 		    "SFP connected %s. media %d\n",
-		    params.phy_exist == TRUE ? "Yes" : "No",
+		    params.phy_exist ? "Yes" : "No",
 		    params.phy_mdio_addr, adapter->mdio_freq,
-		    params.sfp_plus_module_exist == TRUE ? "Yes" : "No",
+		    params.sfp_plus_module_exist ? "Yes" : "No",
 		    params.media_type);
 	}
 
@@ -1299,7 +1299,7 @@ al_eth_xmit_mbuf(struct al_eth_ring *tx_ring, struct mbuf *m)
 	bus_dma_segment_t segs[AL_ETH_PKT_MAX_BUFS + 1];
 	struct al_eth_pkt *hal_pkt;
 	struct al_buf *al_buf;
-	boolean_t remap;
+	bool remap;
 
 	/* Check if queue is ready */
 	if (unlikely(tx_ring->stall) != 0) {
@@ -1333,7 +1333,7 @@ al_eth_xmit_mbuf(struct al_eth_ring *tx_ring, struct mbuf *m)
 		return;
 	}
 
-	remap = TRUE;
+	remap = true;
 	/* Map packets for DMA */
 retry:
 	error = bus_dmamap_load_mbuf_sg(tx_ring->dma_buf_tag, tx_info->dma_map,
@@ -1343,8 +1343,8 @@ retry:
 
 		if (error == EFBIG) {
 			/* Try it again? - one try */
-			if (remap == TRUE) {
-				remap = FALSE;
+			if (remap == true) {
+				remap = false;
 				m_new = m_defrag(m, M_NOWAIT);
 				if (m_new == NULL) {
 					device_printf(tx_ring->dev,
@@ -1846,7 +1846,7 @@ al_eth_hw_init(struct al_eth_adapter *adapter)
 
 	if ((adapter->mac_mode == AL_ETH_MAC_MODE_SGMII) ||
 	    (adapter->mac_mode == AL_ETH_MAC_MODE_RGMII &&
-	     adapter->phy_exist == FALSE)) {
+	     adapter->phy_exist == false)) {
 		rc = al_eth_mac_link_config(&adapter->hal_adapter,
 		    adapter->link_config.force_1000_base_x,
 		    adapter->link_config.autoneg,
@@ -1861,7 +1861,7 @@ al_eth_hw_init(struct al_eth_adapter *adapter)
 	}
 
 	rc = al_eth_mdio_config(&adapter->hal_adapter,
-	    AL_ETH_MDIO_TYPE_CLAUSE_22, TRUE /* shared_mdio_if */,
+	    AL_ETH_MDIO_TYPE_CLAUSE_22, AL_TRUE /* shared_mdio_if */,
 	    adapter->ref_clk_freq, adapter->mdio_freq);
 	if (rc != 0) {
 		device_printf(adapter->dev, "%s failed at mdio config!\n",
@@ -2551,7 +2551,7 @@ al_eth_setup_rx_resources(struct al_eth_adapter *adapter, unsigned int qid)
 		} else {
 			device_printf_dbg(adapter->dev,
 			    "RX Soft LRO[%d] Initialized\n", qid);
-			rx_ring->lro_enabled = TRUE;
+			rx_ring->lro_enabled = true;
 			rx_ring->lro.ifp = adapter->netdev;
 		}
 	}
@@ -2971,9 +2971,9 @@ al_eth_config_rx_fwd(struct al_eth_adapter *adapter)
 	entry.queue_sel_1 = AL_ETH_CTRL_TABLE_QUEUE_SEL_1_THASH_TABLE;
 	entry.queue_sel_2 = AL_ETH_CTRL_TABLE_QUEUE_SEL_2_NO_PRIO;
 	entry.udma_sel = AL_ETH_CTRL_TABLE_UDMA_SEL_MAC_TABLE;
-	entry.filter = FALSE;
+	entry.filter = false;
 
-	al_eth_ctrl_table_def_set(&adapter->hal_adapter, FALSE, &entry);
+	al_eth_ctrl_table_def_set(&adapter->hal_adapter, AL_FALSE, &entry);
 
 	/*
 	 * By default set the mac table to forward all unicast packets to our

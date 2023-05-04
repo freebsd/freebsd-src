@@ -131,9 +131,9 @@ al_eth_kr_an_run(struct al_eth_kr_data *kr_data, struct al_eth_an_adv *an_adv,
     struct al_eth_an_adv *an_partner_adv)
 {
 	int rc;
-	boolean_t page_received = FALSE;
-	boolean_t an_completed = FALSE;
-	boolean_t error = FALSE;
+	al_bool page_received = AL_FALSE;
+	al_bool an_completed = AL_FALSE;
+	al_bool error = AL_FALSE;
 	int timeout = AL_ETH_KR_AN_TIMEOUT;
 
 	rc = al_eth_kr_an_init(kr_data->adapter, an_adv);
@@ -144,7 +144,7 @@ al_eth_kr_an_run(struct al_eth_kr_data *kr_data, struct al_eth_an_adv *an_adv,
 	}
 
 	rc = al_eth_kr_an_start(kr_data->adapter, AL_ETH_AN__LT_LANE_0,
-	    FALSE, TRUE);
+	    AL_FALSE, AL_TRUE);
 	if (rc != 0) {
 		al_err("%s %s autonegotiation enable failed\n",
 		    kr_data->adapter->name, __func__);
@@ -163,7 +163,7 @@ al_eth_kr_an_run(struct al_eth_kr_data *kr_data, struct al_eth_an_adv *an_adv,
 
 		al_eth_kr_an_status_check(kr_data->adapter, &page_received,
 		    &an_completed, &error);
-	} while (page_received == FALSE);
+	} while (page_received == AL_FALSE);
 
 	if (error != 0) {
 		al_info("%s %s autonegotiation failed (status error)\n",
@@ -273,7 +273,7 @@ al_eth_kr_lt_receiver_task_init(struct al_eth_kr_data *kr_data)
 	    sizeof(struct al_eth_kr_status_report_data));
 }
 
-static boolean_t
+static bool
 al_eth_lp_coeff_up_change(struct al_eth_kr_data *kr_data,
     struct al_eth_kr_coef_up_data *lpcoeff)
 {
@@ -281,12 +281,12 @@ al_eth_lp_coeff_up_change(struct al_eth_kr_data *kr_data,
 
 	if (al_memcmp(last_lpcoeff, lpcoeff,
 	    sizeof(struct al_eth_kr_coef_up_data)) == 0) {
-		return (FALSE);
+		return (false);
 	}
 
 	al_memcpy(last_lpcoeff, lpcoeff, sizeof(struct al_eth_kr_coef_up_data));
 
-	return (TRUE);
+	return (true);
 }
 
 /*
@@ -361,17 +361,17 @@ al_eth_kr_lt_transmitter_task_init(struct al_eth_kr_data *kr_data)
 	return (0);
 }
 
-static boolean_t
+static bool
 al_eth_kr_lt_all_not_updated(struct al_eth_kr_status_report_data *report)
 {
 
 	if ((report->c_zero == C72_CSTATE_NOT_UPDATED) &&
 	    (report->c_minus == C72_CSTATE_NOT_UPDATED) &&
 	    (report->c_plus == C72_CSTATE_NOT_UPDATED)) {
-		return (TRUE);
+		return (true);
 	}
 
-	return (FALSE);
+	return (false);
 }
 
 static void
@@ -461,7 +461,7 @@ al_eth_kr_lt_transmitter_task_run(struct al_eth_kr_data *kr_data)
 
 		/* Wait for not_updated for all coefficients from remote */
 		if (al_eth_kr_lt_all_not_updated(&report) != 0) {
-			ldcoeff.preset = TRUE;
+			ldcoeff.preset = AL_TRUE;
 			nextstate = DO_PRESET;
 		}
 		break;
@@ -474,7 +474,7 @@ al_eth_kr_lt_transmitter_task_run(struct al_eth_kr_data *kr_data)
 			nextstate = DO_HOLD;
 		else /* as long as the lp didn't response to the preset
 		      * we should continue sending it */
-			ldcoeff.preset = TRUE;
+			ldcoeff.preset = AL_TRUE;
 		break;
 	case DO_HOLD:
 		/*
@@ -645,7 +645,7 @@ al_eth_kr_lt_transmitter_task_run(struct al_eth_kr_data *kr_data)
 		 * our receiver is ready for data.
 		 * no training will occur any more.
 		 */
-		kr_data->status_report.receiver_ready = TRUE;
+		kr_data->status_report.receiver_ready = AL_TRUE;
 		/*
 		 * in addition to the status we transmit, we also must tell our
 		 * local hardware state-machine that we are done, so the
@@ -698,15 +698,15 @@ al_eth_kr_run_lt(struct al_eth_kr_data *kr_data)
 {
 	unsigned int cnt;
 	int ret = 0;
-	boolean_t page_received = FALSE;
-	boolean_t an_completed = FALSE;
-	boolean_t error = FALSE;
-	boolean_t training_failure = FALSE;
+	al_bool page_received = AL_FALSE;
+	al_bool an_completed = AL_FALSE;
+	al_bool error = AL_FALSE;
+	al_bool training_failure = AL_FALSE;
 
 	al_eth_kr_lt_initialize(kr_data->adapter, AL_ETH_AN__LT_LANE_0);
 
 	if (al_eth_kr_lt_frame_lock_wait(kr_data->adapter, AL_ETH_AN__LT_LANE_0,
-	    AL_ETH_KR_FRAME_LOCK_TIMEOUT) == TRUE) {
+	    AL_ETH_KR_FRAME_LOCK_TIMEOUT) == AL_TRUE) {
 		/*
 		 * when locked, for the first time initialize the receiver and
 		 * transmitter tasks to prepare it for detecting coefficient
@@ -768,7 +768,7 @@ al_eth_kr_run_lt(struct al_eth_kr_data *kr_data)
 	al_eth_kr_lt_stop(kr_data->adapter, AL_ETH_AN__LT_LANE_0);
 
 	cnt = AL_ETH_KR_LT_DONE_TIMEOUT;
-	while (an_completed == FALSE) {
+	while (an_completed == AL_FALSE) {
 		al_eth_kr_an_status_check(kr_data->adapter, &page_received,
 		    &an_completed, &error);
 		DELAY(1);
@@ -806,7 +806,7 @@ int al_eth_an_lt_execute(struct al_hal_eth_adapter	*adapter,
 	 * the link training progress will run rx equalization so need to make
 	 * sure rx parameters is not been override
 	 */
-	rx_params.override = FALSE;
+	rx_params.override = AL_FALSE;
 	kr_data.serdes_obj->rx_advanced_params_set(
 					kr_data.serdes_obj,
 					kr_data.lane,

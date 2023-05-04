@@ -140,11 +140,11 @@ struct al_eth_lm_context {
 
 	uint32_t			link_training_failures;
 
-	boolean_t			tx_param_dirty;
-	boolean_t			serdes_tx_params_valid;
+	bool				tx_param_dirty;
+	bool				serdes_tx_params_valid;
 	struct al_serdes_adv_tx_params	tx_params_override;
-	boolean_t			rx_param_dirty;
-	boolean_t			serdes_rx_params_valid;
+	bool				rx_param_dirty;
+	bool				serdes_rx_params_valid;
 	struct al_serdes_adv_rx_params	rx_params_override;
 
 	struct al_eth_an_adv		local_adv;
@@ -152,20 +152,20 @@ struct al_eth_lm_context {
 
 	enum al_eth_lm_link_mode	mode;
 	uint8_t				da_len;
-	boolean_t			debug;
+	bool				debug;
 
 	/* configurations */
-	boolean_t			sfp_detection;
+	bool				sfp_detection;
 	uint8_t				sfp_bus_id;
 	uint8_t				sfp_i2c_addr;
 
 	enum al_eth_lm_link_mode	default_mode;
 	uint8_t				default_dac_len;
-	boolean_t			link_training;
-	boolean_t			rx_equal;
-	boolean_t			static_values;
+	bool				link_training;
+	bool				rx_equal;
+	bool				static_values;
 
-	boolean_t			retimer_exist;
+	bool				retimer_exist;
 	enum al_eth_retimer_type	retimer_type;
 	uint8_t				retimer_bus_id;
 	uint8_t				retimer_i2c_addr;
@@ -183,16 +183,16 @@ struct al_eth_lm_context {
 	uint32_t			gpio_present;
 
 	enum al_eth_retimer_channel	retimer_tx_channel;
-	boolean_t			retimer_configured;
+	bool				retimer_configured;
 
 	enum al_eth_lm_max_speed	max_speed;
 
-	boolean_t			sfp_detect_force_mode;
+	bool				sfp_detect_force_mode;
 
 	enum al_eth_lm_link_state	link_state;
-	boolean_t			new_port;
+	bool				new_port;
 
-	boolean_t (*lm_pause)(void *handle);
+	bool (*lm_pause)(void *handle);
 
 	void (*led_config)(void *handle, struct al_eth_lm_led_config_data *data);
 };
@@ -209,7 +209,7 @@ struct al_eth_lm_init_params {
 	 * set to true to perform sfp detection if the link is down.
 	 * when set to true, eeprom_read below should NOT be NULL.
 	 */
-	boolean_t			sfp_detection;
+	bool				sfp_detection;
 	/* i2c bus id of the SFP for this port */
 	uint8_t				sfp_bus_id;
 	/* i2c addr of the SFP for this port */
@@ -238,13 +238,13 @@ struct al_eth_lm_init_params {
 	 * - if rx_equal is set serdes equalization will be run to configure the rx parameters.
 	 * - if static_values is set, tx and rx values will be set based on static values.
 	 */
-	boolean_t			retimer_exist;
-	boolean_t			link_training;
-	boolean_t			rx_equal;
-	boolean_t			static_values;
+	bool				retimer_exist;
+	bool				link_training;
+	bool				rx_equal;
+	bool				static_values;
 
 	/* enable / disable fec capabilities in AN */
-	boolean_t			kr_fec_enable;
+	bool				kr_fec_enable;
 
 	/*
 	 * pointer to function that's read 1 byte from eeprom
@@ -267,12 +267,12 @@ struct al_eth_lm_init_params {
 
 	/* in case force mode is true - the default mode will be set regardless to
 	 * the SFP EEPROM content */
-	boolean_t			sfp_detect_force_mode;
+	bool				sfp_detect_force_mode;
 
 	/* lm pause callback - in case it return true the LM will try to preserve
 	 * the current link status and will not try to establish new link (and will not
 	 * access to i2c bus) */
-	boolean_t (*lm_pause)(void *handle);
+	bool (*lm_pause)(void *handle);
 
 	/* config ethernet LEDs according to data. can be NULL if no configuration needed */
 	void (*led_config)(void *handle, struct al_eth_lm_led_config_data *data);
@@ -300,7 +300,7 @@ int al_eth_lm_init(struct al_eth_lm_context *lm_context,
  * @return  0 in case of success. otherwise on failure.
  */
 int al_eth_lm_link_detection(struct al_eth_lm_context *lm_context,
-    boolean_t *link_fault, enum al_eth_lm_link_mode *old_mode,
+    bool *link_fault, enum al_eth_lm_link_mode *old_mode,
     enum al_eth_lm_link_mode *new_mode);
 
 /**
@@ -313,7 +313,7 @@ int al_eth_lm_link_detection(struct al_eth_lm_context *lm_context,
  * @return < 0 in case link was failed to be established
  */
 int al_eth_lm_link_establish(struct al_eth_lm_context *lm_context,
-    boolean_t *link_up);
+    bool *link_up);
 
 /**
  * override the default static parameters
@@ -338,7 +338,7 @@ int al_eth_lm_static_parameters_override(struct al_eth_lm_context *lm_context,
  * @return  0 in case of success. otherwise on failure.
  **/
 int al_eth_lm_static_parameters_override_disable(struct al_eth_lm_context *lm_context,
-   boolean_t tx_params, boolean_t rx_params);
+   bool tx_params, bool rx_params);
 
 /**
  * get the static parameters that are being used
@@ -371,5 +371,5 @@ const char *al_eth_lm_mode_convert_to_str(enum al_eth_lm_link_mode val);
  * @param enable     set to true to enable debug mode
  */
 void al_eth_lm_debug_mode_set(struct al_eth_lm_context *lm_context,
-    boolean_t enable);
+    bool enable);
 #endif
