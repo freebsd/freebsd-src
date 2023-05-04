@@ -1096,6 +1096,8 @@
         ..
         truncate
         ..
+        tsort
+        ..
         units
         ..
         uudecode
