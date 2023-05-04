@@ -658,12 +658,37 @@ function config.readConf(file, loaded_files)
 
 	if load_conf_dirs then
 		local loader_conf_dirs = getEnv("loader_conf_dirs")
+
+		-- If product_vars is set, it must be a list of environment variable names
+		-- to walk through to guess product information. The order matters as
+		-- reading a config files override the previously defined values.
+		--
+		-- If product information can be guessed, for each product information
+		-- found, also read config files found in /boot/loader.conf.d/PRODUCT/.
+		local product_vars = getEnv("product_vars")
+		if product_vars then
+			local product_conf_dirs = ""
+			for var in product_vars:gmatch("%S+") do
+				local product = getEnv(var)
+				if product then
+					product_conf_dirs = product_conf_dirs .. " /boot/loader.conf.d/" .. product
+				end
+			end
+
+			if loader_conf_dirs then
+				loader_conf_dirs = loader_conf_dirs .. product_conf_dirs
+			else
+				loader_conf_dirs = product_conf_dirs
+			end
+		end
+
 		if loader_conf_dirs ~= nil then
 			for name in loader_conf_dirs:gmatch("[%w%p]+") do
 				if lfs.attributes(name, "mode") ~= "directory" then
 					print(MSG_FAILDIR:format(name))
 					goto nextdir
 				end
+
 				for cfile in lfs.dir(name) do
 					if cfile:match(".conf$") then
 						local fpath = name .. "/" .. cfile
