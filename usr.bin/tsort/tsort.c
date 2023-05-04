@@ -183,6 +183,8 @@ main(int argc, char *argv[])
 
 	/* do the sort */
 	tsort();
+        if (ferror(stdout) != 0 || fflush(stdout) != 0)
+                err(1, "stdout");
 	exit(0);
 }
 
