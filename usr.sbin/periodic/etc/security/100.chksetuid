@@ -54,7 +54,7 @@ then
 		}'`
 	find -sx $MP /dev/null \( ! -fstype local \) -prune -o -type f \
 	    \( -perm -u+x -or -perm -g+x -or -perm -o+x \) \
-	    \( -perm -u+s -or -perm -g+s \) -exec ls -liTd \{\} \+ |
+	    \( -perm -u+s -or -perm -g+s \) -exec ls -lid -D "%FT%T" \{\} \+ |
 	check_diff setuid - "${host} setuid diffs:"
 	rc=$?
 fi
