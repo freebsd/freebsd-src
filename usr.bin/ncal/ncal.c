@@ -497,6 +497,8 @@ main(int argc, char *argv[])
 			monthrangeb(y, m, flag_julian_day, before, after);
 		else
 			monthranger(y, m, flag_julian_day, before, after);
+	if (ferror(stdout) != 0 || fflush(stdout) != 0)
+		err(1, "stdout");
 	return (0);
 }
 
