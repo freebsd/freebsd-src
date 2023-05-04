@@ -1,4 +1,4 @@
-# $Id: dirdeps.mk,v 1.157 2023/04/22 21:07:51 sjg Exp $
+# $Id: dirdeps.mk,v 1.158 2023/05/04 18:26:17 sjg Exp $
 
 # SPDX-License-Identifier: BSD-2-Clause
 #
@@ -331,6 +331,14 @@ DEP_${TARGET_SPEC_VARS:[$i]} := ${_tspec:[$i]}
 .endfor
 .else
 DEP_MACHINE := ${_DEP_TARGET_SPEC}
+.endif
+
+# host is special
+.if ${DEP_MACHINE:Mhost*} != ""
+DEP_TARGET_SPEC = ${DEP_MACHINE}
+.for v in ${TARGET_SPEC_VARS:O:u:NMACHINE}
+.undef DEP_$v
+.endfor
 .endif
 
 # reset each time through
