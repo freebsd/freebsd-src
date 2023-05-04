@@ -4541,10 +4541,8 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, int direction,
 			return (action);
 		}
 	} else {
-		if (sk != NULL)
-			uma_zfree(V_pf_state_key_z, sk);
-		if (nk != NULL)
-			uma_zfree(V_pf_state_key_z, nk);
+		uma_zfree(V_pf_state_key_z, sk);
+		uma_zfree(V_pf_state_key_z, nk);
 	}
 
 	/* copy back packet headers if we performed NAT operations */
@@ -4570,10 +4568,8 @@ cleanup:
 		free(ri, M_PF_RULE_ITEM);
 	}
 
-	if (sk != NULL)
-		uma_zfree(V_pf_state_key_z, sk);
-	if (nk != NULL)
-		uma_zfree(V_pf_state_key_z, nk);
+	uma_zfree(V_pf_state_key_z, sk);
+	uma_zfree(V_pf_state_key_z, nk);
 	return (PF_DROP);
 }
 
@@ -4812,10 +4808,8 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 	return (PF_PASS);
 
 csfailed:
-	if (sk != NULL)
-		uma_zfree(V_pf_state_key_z, sk);
-	if (nk != NULL)
-		uma_zfree(V_pf_state_key_z, nk);
+	uma_zfree(V_pf_state_key_z, sk);
+	uma_zfree(V_pf_state_key_z, nk);
 
 	if (sn != NULL) {
 		PF_SRC_NODE_LOCK(sn);
