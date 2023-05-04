@@ -687,7 +687,7 @@ populate_release_addr(phandle_t node, vm_paddr_t *release_addr)
 	*release_addr = (((uintptr_t)buf[0] << 32) | buf[1]);
 }
 
-static boolean_t
+static bool
 start_cpu_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 {
 	uint64_t target_cpu;
@@ -716,11 +716,11 @@ start_cpu_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 	if (!psci_present && cpuid != 0) {
 		if (OF_getprop_alloc(node, "enable-method",
 		    (void **)&enable_method) <= 0)
-			return (FALSE);
+			return (false);
 
 		if (strcmp(enable_method, "spin-table") != 0) {
 			OF_prop_free(enable_method);
-			return (FALSE);
+			return (false);
 		}
 
 		OF_prop_free(enable_method);
@@ -728,12 +728,12 @@ start_cpu_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 		if (release_addr == 0) {
 			printf("Failed to fetch release address for CPU %u",
 			    cpuid);
-			return (FALSE);
+			return (false);
 		}
 	}
 
 	if (!start_cpu(cpuid, target_cpu, 0, release_addr))
-		return (FALSE);
+		return (false);
 
 	/*
 	 * Don't increment for the boot CPU, its CPU ID is reserved.
@@ -748,7 +748,7 @@ start_cpu_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 	cpuid_to_pcpu[cpuid]->pc_domain = domain;
 	if (domain < MAXMEMDOM)
 		CPU_SET(cpuid, &cpuset_domain[domain]);
-	return (TRUE);
+	return (true);
 }
 static void
 cpu_init_fdt(void)

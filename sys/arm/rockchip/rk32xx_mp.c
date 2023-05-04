@@ -119,7 +119,7 @@ rk32xx_mp_start_pmu(uint32_t mask)
 	bus_space_unmap(fdtbus_bs_tag, pmu, PMU_SIZE);
 }
 
-static boolean_t
+static bool
 rk32xx_start_ap(u_int id, phandle_t node, u_int addr_cells, pcell_t *reg)
 {
 	int rv;

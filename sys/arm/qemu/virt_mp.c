@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 
 static int running_cpus;
 
-static boolean_t
+static bool
 virt_start_ap(u_int id, phandle_t node, u_int addr_cells, pcell_t *reg)
 {
 	int err;

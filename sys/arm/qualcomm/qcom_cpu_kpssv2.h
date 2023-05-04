@@ -30,6 +30,6 @@
 #ifndef	__QCOM_CPU_KPSSV2_H__
 #define	__QCOM_CPU_KPSSV2_H__
 
-extern	boolean_t qcom_cpu_kpssv2_regulator_start(u_int id, phandle_t node);
+extern	bool qcom_cpu_kpssv2_regulator_start(u_int id, phandle_t node);
 
 #endif	/* __QCOM_CPU_KPSSV2_H__ */
