@@ -991,7 +991,7 @@ fail:
 	return (error);
 }
 
-static boolean_t
+static bool
 emac_miibus_iowait(struct emac_softc *sc)
 {
 	uint32_t timeout;
