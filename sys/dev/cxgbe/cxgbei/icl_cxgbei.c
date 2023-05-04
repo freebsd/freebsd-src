@@ -625,7 +625,7 @@ icl_cxgbei_conn_pdu_append_bio(struct icl_conn *ic, struct icl_pdu *ip,
 	struct mbuf *m, *m_tail;
 	vm_offset_t vaddr;
 	size_t page_offset, todo, mtodo;
-	boolean_t mapped;
+	bool mapped;
 	int i;
 
 	MPASS(icp->icp_signature == CXGBEI_PDU_SIGNATURE);
@@ -712,7 +712,7 @@ icl_cxgbei_conn_pdu_append_bio(struct icl_conn *ic, struct icl_pdu *ip,
 		todo = MIN(len, PAGE_SIZE - page_offset);
 
 		mapped = pmap_map_io_transient(bp->bio_ma + i, &vaddr, 1,
-		    FALSE);
+		    false);
 
 		do {
 			mtodo = min(todo, M_SIZE(m) - m->m_len);
@@ -727,7 +727,7 @@ icl_cxgbei_conn_pdu_append_bio(struct icl_conn *ic, struct icl_pdu *ip,
 
 		if (__predict_false(mapped))
 			pmap_unmap_io_transient(bp->bio_ma + 1, &vaddr, 1,
-			    FALSE);
+			    false);
 
 		page_offset = 0;
 		len -= todo;
@@ -813,7 +813,7 @@ icl_cxgbei_conn_pdu_get_bio(struct icl_conn *ic, struct icl_pdu *ip,
 	struct icl_cxgbei_pdu *icp = ip_to_icp(ip);
 	vm_offset_t vaddr;
 	size_t page_offset, todo;
-	boolean_t mapped;
+	bool mapped;
 	int i;
 
 	if (icp->icp_flags & ICPF_RX_DDP)
@@ -834,12 +834,12 @@ icl_cxgbei_conn_pdu_get_bio(struct icl_conn *ic, struct icl_pdu *ip,
 		todo = MIN(len, PAGE_SIZE - page_offset);
 
 		mapped = pmap_map_io_transient(bp->bio_ma + i, &vaddr, 1,
-		    FALSE);
+		    false);
 		m_copydata(ip->ip_data_mbuf, pdu_off, todo, (char *)vaddr +
 		    page_offset);
 		if (__predict_false(mapped))
 			pmap_unmap_io_transient(bp->bio_ma + 1, &vaddr, 1,
-			    FALSE);
+			    false);
 
 		page_offset = 0;
 		pdu_off += todo;
