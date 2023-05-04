@@ -1,4 +1,4 @@
-.TH ldns-signzone 1 "30 May 2005"
+.TH ldns-signzone 1 "13 March 2018"
 .SH NAME
 ldns-signzone \- sign a zonefile with DNSSEC data
 .SH SYNOPSIS
@@ -34,7 +34,7 @@ file, and have the KSK bit set.
 \fB-b\fR
 Augments the zone and the RR's with extra comment texts for a more readable
 layout, easier to debug. DS records will have a bubblebabble version of
-the data in the comment text, NSEC3 records will have the original NSEC3
+the data in the comment text, NSEC3 records will have the unhashed owner names
 in the comment text.
 
 Without this option, only DNSKEY RR's will have their Key Tag annotated in
@@ -66,8 +66,22 @@ YYYYMMDD[hhmmss], or a timestamp.
 Use this as the origin of the zone
 
 .TP
+\fB-u\fR
+set SOA serial to the number of seconds since 1-1-1970
+
+.TP
 \fB-v\fR
 Print the version and exit
+
+.TP
+\fB-z\fR \fI[scheme:]hash\fR
+Calculate the zone's digest and add those as ZONEMD RRs. The (optional)
+`scheme' must be `simple` (or 1) and `hash' should be `sha384' (or 1) or
+`sha512' (or 2).  This option can be given more than once.
+
+.TP
+\fB-Z\fR
+Allow ZONEMDs to be added without signing
 
 .TP
 \fB-A\fR
@@ -78,22 +92,28 @@ SEP keys, the DNSKEY RRset is signed with the non\-SEP keys.  This option
 turns off the default and all keys are used to sign the DNSKEY RRset.
 
 .TP
+\fB-U\fR
+Sign with every unique algorithm in the provided keys.  The DNSKEY set
+is signed with all the SEP keys, plus all the non\-SEP keys that have an
+algorithm that was not presen in the SEP key set.
+
+.TP
 \fB-E\fR \fIname\fR
 Use the EVP cryptographic engine with the given name for signing. This
 can have some extra options; see ENGINE OPTIONS for more information.
 
 .TP
-\fB-k\fR \fIid,int\fR
-Use the key with the given id as the signing key for algorithm int as
-a Zone signing key. This option is used when you use an OpenSSL
-engine, see ENGINE OPTIONS for more information.
+\fB-K\fR \fIalgorithm-id,key-id\fR
+
+Use the key `key-id' as the signing key for algorithm `algorithm-id' as
+a Key Signing Key (KSK). This option is used when you use an OpenSSL engine,
+see ENGINE OPTIONS for more information.
 
 .TP
-\fB-K\fR \fIid,int\fR
-
-Use the key with the given id as the signing key for algorithm int as
-a Key signing key. This options is used when you use an OpenSSL engine,
-see ENGINE OPTIONS for more information.
+\fB-k\fR \fIalgorithm-id,key-id\fR
+Use the key `key-id' as the signing key for algorithm `algorithm-id' as
+a Zone Signing Key (ZSK). This option is used when you use an OpenSSL
+engine, see ENGINE OPTIONS for more information.
 
 .TP
 \fB-n\fR
@@ -121,11 +141,15 @@ Number of hash iterations
 .SH ENGINE OPTIONS
 You can modify the possible engines, if supported, by setting an
 OpenSSL configuration file. This is done through the environment
-variable OPENSSL_CONF. If you use \-E with a non-existent engine name,
-ldns-signzone will print a list of engines supported by your
-configuration.
+variable OPENSSL_CONF.
 
-The key options (\-k and \-K) work as follows; you specify a key id, and a DNSSEC algorithm number (for instance, 5 for RSASHA1). The key id can be any of the following:
+The key options (\-k and \-K) work as follows: you specify a DNSSEC
+algorithm (using its symbolic name, for instance, RSASHA256
+or its numeric identifier, for instance, 8), followed by a comma
+and a key identifier (white space is not allowed between the
+algorithm and the comma and between the comma and the key identifier).
+
+The key identifier can be any of the following:
 
     <id>
     <slot>:<id>
@@ -137,6 +161,10 @@ The key options (\-k and \-K) work as follows; you specify a key id, and a DNSSE
 Where '<id>' is the PKCS #11 key identifier in hexadecimal
 notation, '<label>' is the PKCS #11 human-readable label, and '<slot>'
 is the slot number where the token is present.
+
+More recent versions of OpenSSL engines may support
+the PKCS #11 URI scheme (RFC 7512),
+please consult your engine's documentation.
 
 If not already present, a DNSKEY RR is generated from the key
 data, and added to the zone.
@@ -152,8 +180,10 @@ file 'Knlnetlabs.nl.+005+12273.key'. If that is not present, generate
 one with default values from 'Knlnetlabs.nl.+005+12273.private'.
 
 
-.SH AUTHOR
+.SH AUTHORS
 Written by the ldns team as an example for ldns usage.
+.br
+Portions of engine support by Vadim Penzin <vadim@penzin.net>. 
 
 .SH REPORTING BUGS
 Report bugs to <ldns-team@nlnetlabs.nl>. 

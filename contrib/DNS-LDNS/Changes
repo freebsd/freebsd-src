@@ -43,3 +43,11 @@ Revision history for Perl extension DNS::LDNS.
 
 0.52  Tue May 5 09:13:00 2015
         - Fixed typo in META.yml
+
+0.60  Thu Dec 29 11:15:00 2016
+        - Compatibility with ldns 1.7
+        - Dist::zilla build management
+
+0.61  Fri Dec 30 14:32:00 2016
+        - Bugfixes for ldns 1.7 compatibility
+        - Compatibility with perl 5.25

@@ -11,7 +11,7 @@
 	* Lint fixes for the code
 	* Bugzilla was setup for drill
 	* Bug #97 (drill); -S crash was fixed
-	* Add -Q (quiet) flag was added. This supresses output from drill.
+	* Add -Q (quiet) flag was added. This suppresses output from drill.
 
 1.0-pre2: 20 Jun 2005: drill-team
 	* Second prerelease
@@ -60,7 +60,7 @@
 	  - CERT RR supported
 	  - LOC RR support
 	* All non supported RRs are handled as unknown
-	* If no namservers found in /etc/resolv.conf 
+	* If no nameservers found in /etc/resolv.conf 
 	  default to 127.0.0.1
 	* Various bugs fixed
 	  - Close sockets after using them
@@ -74,7 +74,7 @@
 	* Dig is no longer needed to build drill
 
 0.7: Oct 21 2004: Miek
-	* reworked interal code
+	* reworked internal code
 	* DNSSEC is working, except the secure resolving
 	* build updates
 	* more sane options parsing

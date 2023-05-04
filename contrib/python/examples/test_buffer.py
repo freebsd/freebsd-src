@@ -230,7 +230,7 @@ if True:
 
 #if not error_detected:
 if True:
-    mehod_name = "ldns_buffer.flip()"
+    method_name = "ldns_buffer.flip()"
     buf.printf("abcdef")
     try:
         buf.flip()

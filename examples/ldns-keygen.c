@@ -14,11 +14,12 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <unistd.h>
 
 #ifdef HAVE_SSL
 static void
 usage(FILE *fp, char *prog) {
-	fprintf(fp, "%s -a <algorithm> [-b bits] [-r /dev/random] [-v] domain\n",
+	fprintf(fp, "%s -a <algorithm> [-b bits] [-r /dev/random] [-s] [-f] [-v] domain\n",
 		   prog);
 	fprintf(fp, "  generate a new key pair for domain\n");
 	fprintf(fp, "  -a <alg>\tuse the specified algorithm (-a list to");
@@ -27,6 +28,8 @@ usage(FILE *fp, char *prog) {
 	fprintf(fp, "  -b <bits>\tspecify the keylength\n");
 	fprintf(fp, "  -r <random>\tspecify a random device (defaults to /dev/random)\n");
 	fprintf(fp, "\t\tto seed the random generator with\n");
+	fprintf(fp, "  -s\t\tcreate additional symlinks with constant names\n");
+	fprintf(fp, "  -f\t\tforce override of existing symlinks\n");
 	fprintf(fp, "  -v\t\tshow the version and exit\n");
 	fprintf(fp, "  The following files will be created:\n");
 	fprintf(fp, "    K<name>+<alg>+<id>.key\tPublic key in RR format\n");
@@ -47,6 +50,37 @@ show_algorithms(FILE *out)
 	}
 }
 
+static int
+remove_symlink(const char *symlink_name)
+{
+	int result;
+
+	if ((result = unlink(symlink_name)) == -1) {
+		if (errno == ENOENT) {
+			/* it's OK if the link simply didn't exist */
+			result = 0;
+		} else {
+			/* error if unlink fail */
+			fprintf(stderr, "Can't delete symlink %s: %s\n", symlink_name, strerror(errno));
+		}
+	}
+	return result;
+}
+
+static int
+create_symlink(const char *symlink_destination, const char *symlink_name)
+{
+	int result = 0;
+
+	if (!symlink_name)
+		return result;  /* no arg "-s" at all */
+
+	if ((result = symlink(symlink_destination, symlink_name)) == -1) {
+		fprintf(stderr, "Unable to create symlink %s -> %s: %s\n", symlink_name, symlink_destination, strerror(errno));
+	}
+	return result;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -64,6 +98,8 @@ main(int argc, char *argv[])
 	FILE *random;
 	char *filename;
 	char *owner;
+	bool symlink_create;
+	bool symlink_override;
 
 	ldns_signing_algorithm algorithm;
 	ldns_rdf *domain;
@@ -75,8 +111,10 @@ main(int argc, char *argv[])
 	algorithm = 0;
 	random = NULL;
 	ksk = false; /* don't create a ksk per default */
+	symlink_create = false;
+	symlink_override = false;
 
-	while ((c = getopt(argc, argv, "a:kb:r:v")) != -1) {
+	while ((c = getopt(argc, argv, "a:kb:r:sfv")) != -1) {
 		switch (c) {
 		case 'a':
 			if (algorithm != 0) {
@@ -111,6 +149,12 @@ main(int argc, char *argv[])
 				fprintf(stderr, "Cannot open random file %s: %s\n", optarg, strerror(errno));
 				exit(EXIT_FAILURE);
 			}
+			break;
+		case 's':
+			symlink_create = true;
+			break;
+		case 'f':
+			symlink_override = true;
 			break;
 		case 'v':
 			printf("DNSSEC key generator version %s (ldns version %s)\n", LDNS_VERSION, ldns_version());
@@ -148,6 +192,7 @@ main(int argc, char *argv[])
 			exit(1);
 		}
 		break;
+#ifdef USE_DSA
 	case LDNS_SIGN_DSA:
 	case LDNS_SIGN_DSA_NSEC3:
 		if (bits < 512 || bits > 1024) {
@@ -156,6 +201,7 @@ main(int argc, char *argv[])
 			exit(1);
 		}
 		break;
+#endif /* USE_DSA */
 #ifdef USE_GOST
 	case LDNS_SIGN_ECC_GOST:
 		if(!ldns_key_EVP_load_gost_id()) {
@@ -303,6 +349,19 @@ main(int argc, char *argv[])
 		break;
 	}
 
+	/* maybe a symlinks should be removed */
+	if (symlink_create && symlink_override) {
+		if (remove_symlink(".key") != 0) {
+			exit(EXIT_FAILURE);
+		}
+		if (remove_symlink(".private") != 0) {
+			exit(EXIT_FAILURE);
+		}
+		if (remove_symlink(".ds") != 0) {
+			exit(EXIT_FAILURE);
+		}
+	}
+
 	/* print the public key RR to .key */
 	filename = LDNS_XMALLOC(char, strlen(owner) + 17);
 	snprintf(filename, strlen(owner) + 16, "K%s+%03u+%05u.key", owner, algorithm, (unsigned int) ldns_key_keytag(key));
@@ -321,6 +380,11 @@ main(int argc, char *argv[])
 		ldns_rr_print(file, pubkey);
 		ldns_rr_set_question(pubkey, false);
 		fclose(file);
+		if (symlink_create) {
+			if (create_symlink(filename, ".key") != 0) {
+				goto silentfail;
+			}
+		}
 		LDNS_FREE(filename);
 	}
 
@@ -340,6 +404,11 @@ main(int argc, char *argv[])
 
 	ldns_key_print(file, key);
 	fclose(file);
+	if (symlink_create) {
+		if (create_symlink(filename, ".private") != 0) {
+			goto silentfail;
+		}
+	}
 	LDNS_FREE(filename);
 
 	/* print the DS to .ds */
@@ -366,6 +435,11 @@ main(int argc, char *argv[])
 			ldns_rr_print(file, ds);
 			ldns_rr_set_question(ds, false);
 			fclose(file);
+			if (symlink_create) {
+				if (create_symlink(filename, ".ds") != 0) {
+					goto silentfail;
+				}
+			}
 			LDNS_FREE(filename);
 		}
 	}
@@ -379,6 +453,7 @@ main(int argc, char *argv[])
 
 fail:
 	fprintf(stderr, "Unable to open %s: %s\n", filename, strerror(errno));
+silentfail:
 	ldns_key_deep_free(key);
 	free(owner);
 	ldns_rr_free(pubkey);

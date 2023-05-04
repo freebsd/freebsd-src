@@ -456,7 +456,7 @@
 %{
   void _ldns_rr_set_owner(ldns_rr *rr, ldns_rdf *rdf)
   {
-    return ldns_rr_set_owner(rr, ldns_rdf_clone(rdf));
+    ldns_rr_set_owner(rr, ldns_rdf_clone(rdf));
   }
 %}
 
@@ -562,7 +562,7 @@ to create :class:`ldns_rr` instances.
                :type prev: :class:`ldns_rdf`
                :param raiseException: If True, an exception occurs in case a rr
                    instance can't be created.
-               :throws Exception: If `raiseExceprion` is set and fails.
+               :throws Exception: If `raiseException` is set and fails.
                :throws TypeError: When parameters of incorrect types.
                :return: (:class:`ldns_rr`) RR instance or None.
 
@@ -612,7 +612,7 @@ to create :class:`ldns_rr` instances.
                :type prev: :class:`ldns_rdf`
                :param raiseException: If True, an exception occurs in case
                    a rr instance can't be created.
-               :throws Exception: If `raiseExceprion` is set and fails.
+               :throws Exception: If `raiseException` is set and fails.
                :throws TypeError: When parameters of incorrect types.
                :return: (:class:`ldns_rr`) RR instance or None. If the object
                    can't be created and `raiseException` is True,
@@ -657,7 +657,7 @@ to create :class:`ldns_rr` instances.
                :type prev: :class:`ldns_rdf`
                :param raiseException: If True, an exception occurs in case when
                    a rr instance can't be created.
-               :throws Exception: If `raiseExceprion` is set and fails.
+               :throws Exception: If `raiseException` is set and fails.
                :throws TypeError: When parameters of incorrect types.
                :return: None when fails, otherwise a tuple containing:
 
@@ -751,7 +751,7 @@ to create :class:`ldns_rr` instances.
                :type origin: :class:`ldns_dname`
                :param prev: When the owner is white spaces use this.
                :type prev: :class:`ldns_rdf`
-               :param raiseException: Iif True, an exception occurs in case
+               :param raiseException: If True, an exception occurs in case
                    a resolver object can't be created.
                :throws Exception: If `raiseException` is set and the input
                    cannot be read.
@@ -1424,9 +1424,9 @@ to create :class:`ldns_rr` instances.
 
         def rrsig_set_expiration(self, f):
             """
-               Sets the expireation date of a LDNS_RR_TYPE_RRSIG rr.
+               Sets the expiration date of a LDNS_RR_TYPE_RRSIG rr.
                
-               :param f: The expireation date to set.
+               :param f: The expiration date to set.
                :type f: :class:`ldns_rdf`
                :throws TypeError: when `f` of non-:class:`ldns_rdf` type.
                :return: (bool) True on success, False otherwise.
@@ -1653,7 +1653,7 @@ to create :class:`ldns_rr` instances.
                Sets the type in the rr.
                
                :param rr_type: Set to this type.
-               :type rr_type: ineteger
+               :type rr_type: integer
                :throws TypeError: when `rr_type` of non-integer type.
             """
             _ldns.ldns_rr_set_type(self, rr_type)
@@ -1695,7 +1695,7 @@ to create :class:`ldns_rr` instances.
             """
                Calculates the uncompressed size of an RR.
                
-               :return: (inetger) size of the rr.
+               :return: (integer) size of the rr.
             """
             return _ldns.ldns_rr_uncompressed_size(self)
             #parameters: const ldns_rr *,
@@ -2441,7 +2441,7 @@ In order to create a class instance use :meth:`ldns_rr_descriptor`.
                
                :param field: The field number.
                :type field: positive int
-               :throws TypeError: when `field` of non-inetger type.
+               :throws TypeError: when `field` of non-integer type.
                :return: (int) the rdf type for the field.
             """
             return _ldns.ldns_rr_descriptor_field_type(self, field)

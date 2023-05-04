@@ -62,13 +62,10 @@ insert_ds(ldns_rdf *dsowner, uint32_t ttl)
                  * 2147483647 or 0x7FFFFFFF
                  */
                 snprintf(digeststr, 65,
-                        "%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x",
+                        "%08x%08x%08x%08x%08x%08x%08x%08x",
                         (unsigned) rand()%RAND_MAX, (unsigned) rand()%RAND_MAX, (unsigned) rand()%RAND_MAX,
                         (unsigned) rand()%RAND_MAX, (unsigned) rand()%RAND_MAX, (unsigned) rand()%RAND_MAX,
-                        (unsigned) rand()%RAND_MAX, (unsigned) rand()%RAND_MAX, (unsigned) rand()%RAND_MAX,
-                        (unsigned) rand()%RAND_MAX, (unsigned) rand()%RAND_MAX, (unsigned) rand()%RAND_MAX,
-                        (unsigned) rand()%RAND_MAX, (unsigned) rand()%RAND_MAX, (unsigned) rand()%RAND_MAX,
-                        (unsigned) rand()%RAND_MAX);
+                        (unsigned) rand()%RAND_MAX, (unsigned) rand()%RAND_MAX);
                 dsownerstr = ldns_rdf2str(dsowner);
                 fprintf(stdout, "%s\t%u\tIN\tDS\t%d %d %d %s\n", dsownerstr, (unsigned) ttl, keytag, ALGO, DIGESTTYPE, digeststr);
         }
@@ -172,7 +169,7 @@ main(int argc, char **argv) {
         }
         s = ldns_zone_new_frm_fp_l(&z, fp, origin, 0, LDNS_RR_CLASS_IN, &line_nr);
         if (s != LDNS_STATUS_OK) {
-                fprintf(stderr, "%s at %d\n", ldns_get_errorstr_by_id(s), line_nr);
+                fprintf(stderr, "%s at line %d\n", ldns_get_errorstr_by_id(s), line_nr);
                 exit(EXIT_FAILURE);
         }
         if (!ldns_zone_soa(z)) {

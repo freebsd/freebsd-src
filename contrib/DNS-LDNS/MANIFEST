@@ -1,8 +1,6 @@
 Changes
-const-c.inc
-const-xs.inc
-fallback/const-c.inc
-fallback/const-xs.inc
+constants.PL
+dist.ini
 LDNS.xs
 lib/DNS/LDNS.pm
 lib/DNS/LDNS/DNSSecDataChain.pm
@@ -22,7 +20,6 @@ lib/DNS/LDNS/Resolver.pm
 lib/DNS/LDNS/RR.pm
 lib/DNS/LDNS/RRList.pm
 lib/DNS/LDNS/Zone.pm
-Makefile.PL
 MANIFEST
 ppport.h
 README

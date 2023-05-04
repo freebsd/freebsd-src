@@ -40,7 +40,7 @@ usage(FILE *f, char *progname)
 		fprintf(f, "  -n NUMBER\tsplit after this many RRs\n");
 		fprintf(f, "  -o ORIGIN\tuse this as initial origin, for zones starting with @\n");
 		fprintf(f, "  -z\t\tsort the zone prior to splitting. The current ldns zone\n");
-		fprintf(f, "  \t\timplementation makes this unuseable for large zones.\n");
+		fprintf(f, "  \t\timplementation makes this unusable for large zones.\n");
 		fprintf(f, "  -v\t\tshow version number and exit\n");
 }
 

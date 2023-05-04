@@ -1,6 +1,6 @@
 /*
  * ldns-resolver tries to create a resolver structure from /dev/urandom
- * this is only useful to test the library for robusteness with input data
+ * this is only useful to test the library for robustness with input data
  *
  * (c) NLnet Labs 2006 - 2008
  * See the file LICENSE for the license
@@ -36,7 +36,7 @@ main(int argc, char **argv) {
 		printf("Failed: %s at line %d\n", ldns_get_errorstr_by_id(s), line);
 		exit(EXIT_FAILURE);
 	} else {
-		printf("Succes\n");
+		printf("Success\n");
 		ldns_resolver_print(stdout, r);
 		ldns_resolver_deep_free(r);
 	}

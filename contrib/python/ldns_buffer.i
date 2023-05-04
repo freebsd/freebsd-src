@@ -483,7 +483,7 @@
                :param amount: Amount to use.
                :type amount: positive integer
                :throws TypeError: When `amount` of non-integer type.
-               :return: (bool) hether this failed or succeeded.
+               :return: (bool) Whether this failed or succeeded.
             """
             return _ldns.ldns_buffer_reserve(self, amount)
             #parameters: ldns_buffer *, size_t,

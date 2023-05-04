@@ -33,7 +33,6 @@
 #include <fcntl.h>
 
 #include <ldns/ldns.h>
-#include <errno.h>
 
 #ifdef USE_DANE
 #ifdef HAVE_SSL
@@ -61,7 +60,7 @@
 static void
 print_usage(const char* progname)
 {
-#ifdef USE_DANE_VERIY
+#ifdef USE_DANE_VERIFY
 	printf("Usage: %s [OPTIONS] verify <name> <port>\n", progname);
 	printf("   or: %s [OPTIONS] -t <tlsafile> verify\n", progname);
 	printf("\n\tVerify the TLS connection at <name>:<port> or"
@@ -444,7 +443,7 @@ rr_list_filter_rr_type(ldns_rr_list* l, ldns_rr_type t)
  * types "Service certificate constraint" are replaced with 
  * "Domain-issued certificate".
  *
- * This to check what would happen if PKIX validation was successfull always.
+ * This to check what would happen if PKIX validation was successful always.
  */
 static ldns_rr_list*
 dane_no_pkix_transform(const ldns_rr_list* tlas)
@@ -1140,6 +1139,15 @@ dane_verify(ldns_rr_list* tlsas, ldns_rdf* address,
 }
 #endif /* defined(USE_DANE_VERIFY) && OPENSSL_VERSION_NUMBER < 0x10100000 */
 
+#if OPENSSL_VERSION_NUMBER >= 0x10100000  && ! defined(HAVE_LIBRESSL)
+static int _ldns_tls_verify_always_ok(int ok, X509_STORE_CTX *ctx)
+{
+	(void)ok;
+	(void)ctx;
+	return 1;
+}
+#endif
+
 /**
  * Return either an A or AAAA rdf, based on the given
  * string. If it it not a valid ip address, return null.
@@ -1167,7 +1175,9 @@ main(int argc, char* const* argv)
 
 #if OPENSSL_VERSION_NUMBER >= 0x10100000 && ! defined(HAVE_LIBRESSL)
 	size_t        j, usable_tlsas = 0;
+# ifdef USE_DANE_VERIFY
 	X509_STORE_CTX *store_ctx = NULL;
+# endif /* USE_DANE_VERIFY */
 #endif /* OPENSSL_VERSION_NUMBER >= 0x10100000 */
 
 	bool print_tlsa_as_type52   = false;
@@ -1201,9 +1211,9 @@ main(int argc, char* const* argv)
 	int           ai_family = AF_UNSPEC;
 	int           transport = LDNS_DANE_TRANSPORT_TCP;
 
-	char*         name_str = NULL;	/* supress uninitialized warning */
+	char*         name_str = NULL;	/* suppress uninitialized warning */
 	ldns_rdf*     name;
-	uint16_t      port = 0;		/* supress uninitialized warning */
+	uint16_t      port = 0;		/* suppress uninitialized warning */
 
 	ldns_resolver* res            = NULL;
 	ldns_rdf*      nameserver_rdf = NULL;
@@ -1672,9 +1682,11 @@ main(int argc, char* const* argv)
 		assert(0);
 	}
 
-	/* ssl inititalize */
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
+	/* ssl initialize */
 	SSL_load_error_strings();
 	SSL_library_init();
+#endif
 
 	/* ssl load validation store */
 	if (! assume_pkix_validity || CAfile || CApath) {
@@ -1695,6 +1707,26 @@ main(int argc, char* const* argv)
 	if (ctx && SSL_CTX_dane_enable(ctx) <= 0) {
 		ssl_err("could not SSL_CTX_dane_enable");
 	}
+
+	/* Use TLSv1.0 or above for connection. */
+	long flags = 0;
+# ifdef SSL_OP_NO_SSLv2
+	flags |= SSL_OP_NO_SSLv2;
+# endif
+# ifdef SSL_OP_NO_SSLv3
+	flags |= SSL_OP_NO_SSLv3;
+# endif
+# ifdef SSL_OP_NO_COMPRESSION
+	flags |= SSL_OP_NO_COMPRESSION;
+# endif
+	SSL_CTX_set_options(ctx, flags);
+
+	if (CAfile || CApath) {
+		if (!SSL_CTX_load_verify_locations(ctx, CAfile, CApath))
+			ssl_err("could not set verify locations\n");
+
+	} else if (!SSL_CTX_set_default_verify_paths(ctx))
+		ssl_err("could not set default verify paths\n");
 #endif
 	if (! ctx) {
 		ssl_err("could not SSL_CTX_new");
@@ -1784,6 +1816,7 @@ main(int argc, char* const* argv)
 			     if (!usable_tlsas) {
 			     	fprintf(stderr, "No usable TLSA records were found.\n"
 			     			"PKIX validation without DANE will be performed.\n");
+				exit_success = no_tlsas_exit_status;
 			     }
 			     if (!(store_ctx = X509_STORE_CTX_new())) {
 				     ssl_err("could not SSL_new");
@@ -1870,7 +1903,7 @@ main(int argc, char* const* argv)
 						continue;
 					}
 					ret = SSL_dane_tlsa_add(ssl,
-							ldns_rdf2native_int8(ldns_rr_rdf(tlsa_rr, 0)),
+							ldns_rdf2native_int8(ldns_rr_rdf(tlsa_rr, 0)) | (assume_pkix_validity ? 2 : 0),
 							ldns_rdf2native_int8(ldns_rr_rdf(tlsa_rr, 1)),
 							ldns_rdf2native_int8(ldns_rr_rdf(tlsa_rr, 2)),
 							ldns_rdf_data(ldns_rr_rdf(tlsa_rr, 3)),
@@ -1889,6 +1922,10 @@ main(int argc, char* const* argv)
 				if (!usable_tlsas) {
 					fprintf(stderr, "No usable TLSA records were found.\n"
 							"PKIX validation without DANE will be performed.\n");
+
+					exit_success = no_tlsas_exit_status;
+					if (assume_pkix_validity)
+						SSL_set_verify(ssl, SSL_VERIFY_PEER, _ldns_tls_verify_always_ok);
 				}
 			}
 #endif /* OPENSSL_VERSION_NUMBER >= 0x10100000 */
@@ -1951,7 +1988,7 @@ main(int argc, char* const* argv)
 
 			default:     break; /* suppress warning */
 			}
-			while (SSL_shutdown(ssl) == 0);
+			(void)SSL_shutdown(ssl);
 			SSL_free(ssl);
 		} /* end for all addresses */
 	} /* end No certification file */

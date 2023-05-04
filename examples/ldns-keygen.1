@@ -44,6 +44,16 @@ Make ldns-keygen use this file to seed the random generator with. This will
 default to /dev/random.
 
 .TP
+\fB-s\fR
+ldns-keygen will create symbolic links named \fB.private\fR to
+the new generated private key, \fB.key\fR to the public DNSKEY
+and \fB.ds\fR to the file containing DS record data.
+
+.TP
+\fB-f\fR
+force symlinks to be overwritten if they exist.
+
+.TP
 \fB-v\fR
 Show the version and exit
 

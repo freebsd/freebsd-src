@@ -14,7 +14,7 @@ is required.
 
 **Download**
 
-The lates source codes can be downloaded from `here`_.
+The latest source codes can be downloaded from `here`_.
 
 .. _here: http://nlnetlabs.nl/projects/ldns/
 

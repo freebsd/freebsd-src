@@ -163,7 +163,7 @@
 
         @staticmethod
         def new_frm_rr(raiseException=True):
-            """Create a new instace of dnssec name for the given RR.
+            """Create a new instance of dnssec name for the given RR.
                
                :returns: (ldns_dnssec_name) instance
             """

@@ -41,7 +41,7 @@
   $result = SWIG_Python_AppendOutput($result, SWIG_NewPointerObj(SWIG_as_voidptr($1_key), SWIGTYPE_p_ldns_struct_key, SWIG_POINTER_OWN |  0 ));
 }
 
-%exception ldns_key_set_pubkey_owner(ldns_key *k, ldns_rdf *r)  %{ $action Py_INCREF(obj1); %}
+%typemap(argout) ldns_rdf *r "Py_INCREF($input);"
 
 %nodefaultctor ldns_struct_key; //no default constructor & destructor
 %nodefaultdtor ldns_struct_key;
@@ -204,7 +204,7 @@ This class can contains all types of keys that are used in DNSSEC. Mostly used t
         def expiration(self):
             """return the key's expiration date
                
-               :returns: (uint32_t) the experiration date
+               :returns: (uint32_t) the expiration date
             """
             return _ldns.ldns_key_expiration(self)
             #parameters: const ldns_key *,
@@ -514,7 +514,7 @@ void _ldns_key_list_free (ldns_key_list* k) {
             """Set the keylist's key count to count.
                
                :param count:
-                   the cuont
+                   the count
             """
             _ldns.ldns_key_list_set_key_count(self,count)
             #parameters: ldns_key_list *,size_t,

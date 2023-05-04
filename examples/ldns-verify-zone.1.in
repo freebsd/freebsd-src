@@ -13,6 +13,8 @@ RRSIG resource records are checked against the DNSKEY set at the zone apex.
 
 Each name is checked for an NSEC(3), if appropriate.
 
+If ZONEMD resource records are present, one of them needs to match the zone content.
+
 .SH OPTIONS
 .TP
 \fB-h\fR
@@ -71,6 +73,17 @@ Set the verbosity level (default 3):
  4: Same as 3 for now
  5: Print the zone after it has been read, the result, 
     any errors, and the names that are being checked
+
+.TP
+\fB-Z\fR
+Requires a valid ZONEMD RR to be present. When given once, this option will
+permit verifying only the ZONEMD RR of an unsigned zone. When given more than
+once, the zone needs to be validly DNSSEC signed as well.
+
+.TP
+\fB-ZZZ\fR
+When three times a \fB-Z\fR option is given, the ZONEMD RR to be verified is
+considered "detached" and does not need to have valid signatures.
 
 .LP
 \fIperiod\fRs are given in ISO 8601 duration format:

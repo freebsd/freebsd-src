@@ -47,7 +47,7 @@ ldns_rdf, ldns_rdf_type | ldns_rdf_set_size, ldns_rdf_set_type, ldns_rdf_set_dat
 ldns_rdf_set_size, ldns_rdf_set_type, ldns_rdf_set_data | ldns_rdf - set rdf attributes
 ldns_rdf_size, ldns_rdf_get_type, ldns_rdf_data, ldns_rdf_compare | ldns_rdf - get rdf attributes
 ldns_rdf_new, ldns_rdf_clone, ldns_rdf_new_frm_data, ldns_rdf_new_frm_str, ldns_rdf_new_frm_fp, ldns_rdf_free, ldns_rdf_deep_free, ldns_rdf_print | ldns_rdf - ldns_rdf creation, destruction and printing
-ldns_native2rdf_int8, ldns_native2rdf_int16, ldns_native2rdf_int32, ldns_native2rdf_int16_data, ldns_rdf2native_int8, ldns_rdf2native_int16, ldns_rdf2native_int32, ldns_rdf2native_sockaddr_storage, ldns_rdf2native_time_t | ldns_rdf - rdf numeric converion functions
+ldns_native2rdf_int8, ldns_native2rdf_int16, ldns_native2rdf_int32, ldns_native2rdf_int16_data, ldns_rdf2native_int8, ldns_rdf2native_int16, ldns_rdf2native_int32, ldns_rdf2native_sockaddr_storage, ldns_rdf2native_time_t | ldns_rdf - rdf numeric conversion functions
 ldns_rdf_address_reverse | ldns_rdf - reverse an address rdf
 ldns_octet | ldns_rdf - removes escaped from the input
 # why is this in rdata.h?
@@ -121,7 +121,7 @@ ldns_key | ldns_key_new, ldns_key_new_frm_algorithm,ldns_key_new_frm_fp,ldns_key
 
 ### MIEK TOT HIER TOT HIER
 
-# errr.h
+# error.h
 ldns_get_errorstr_by_id, ldns_status - errors
 
 ### net.h
@@ -169,7 +169,7 @@ ldns_rr_label_count | ldns_rr, ldns_rr_list - return ownername label count
 ldns_rr_descriptor, ldns_rr_descript, ldns_rr_descriptor_minimum, ldns_rr_descriptor_maximum, ldns_rr_descriptor_field_type | ldns_rr, ldns_rdf - rdata field descriptors
 
 # packet.h
-ldns_pkt, ldns_pkt_section, ldns_pkt_type | ldns_pkt_new, ldns_pkt_free, ldns_pkt_print, ldns_pkt_query_new, ldns_pkt_query_new_frm_str, ldns_pkt_reply_type, ldns_pkt_id, ldns_pkt_qr, ldns_pkt_aa, ldns_pkt_tc, ldns_pkt_rd, ldns_pkt_cd, ldns_pkt_ra, ldns_pkt_ad, ldns_pkt_get_opcode, ldns_pkt_get_rcode, ldns_pkt_qdcount, ldns_pkt_ancount, ldns_pkt_nscount, ldns_pkt_arcount, ldns_pkt_answerfrom, ldns_pkt_querytime, ldns_pkt_size, ldns_pkt_tsig, ldns_pkt_question, ldns_pkt_answer, ldns_pkt_authority, ldns_pkt_additional, ldns_pkt_get_section_clone, ldns_pkt_rr_list_by_name, ldns_pkt_rr_list_by_type, ldns_pkt_rr_list_by_name_and_type, ldns_pkt_set_flags, ldns_pkt_set_id, ldns_pkt_set_qr, ldns_pkt_set_aa, ldns_pkt_set_tc, ldns_pkt_set_rd, ldns_pkt_set_cd, ldns_pkt_set_ra, ldns_pkt_set_ad, ldns_pkt_set_opcode, ldns_pkt_set_rcode, ldns_pkt_set_qdcount, ldns_pkt_set_ancount, ldns_pkt_set_nscount, ldns_pkt_set_arcount, ldns_pkt_set_answerfrom, ldns_pkt_set_querytime, ldns_pkt_set_size, ldns_pkt_set_section_count, ldns_pkt_set_tsig, ldns_pkt_edns, ldns_pkt_edns_udp_size, ldns_pkt_edns_extended_rcode, ldns_pkt_edns_version, ldns_pkt_edns_z, ldns_pkt_edns_data, ldns_pkt_set_edns_udp_size, ldns_pkt_set_edns_extended_rcode, ldns_pkt_set_edns_version, ldns_pkt_set_edns_z, ldns_pkt_set_edns_data - request or anser packets types
+ldns_pkt, ldns_pkt_section, ldns_pkt_type | ldns_pkt_new, ldns_pkt_free, ldns_pkt_print, ldns_pkt_query_new, ldns_pkt_query_new_frm_str, ldns_pkt_reply_type, ldns_pkt_id, ldns_pkt_qr, ldns_pkt_aa, ldns_pkt_tc, ldns_pkt_rd, ldns_pkt_cd, ldns_pkt_ra, ldns_pkt_ad, ldns_pkt_get_opcode, ldns_pkt_get_rcode, ldns_pkt_qdcount, ldns_pkt_ancount, ldns_pkt_nscount, ldns_pkt_arcount, ldns_pkt_answerfrom, ldns_pkt_querytime, ldns_pkt_size, ldns_pkt_tsig, ldns_pkt_question, ldns_pkt_answer, ldns_pkt_authority, ldns_pkt_additional, ldns_pkt_get_section_clone, ldns_pkt_rr_list_by_name, ldns_pkt_rr_list_by_type, ldns_pkt_rr_list_by_name_and_type, ldns_pkt_set_flags, ldns_pkt_set_id, ldns_pkt_set_qr, ldns_pkt_set_aa, ldns_pkt_set_tc, ldns_pkt_set_rd, ldns_pkt_set_cd, ldns_pkt_set_ra, ldns_pkt_set_ad, ldns_pkt_set_opcode, ldns_pkt_set_rcode, ldns_pkt_set_qdcount, ldns_pkt_set_ancount, ldns_pkt_set_nscount, ldns_pkt_set_arcount, ldns_pkt_set_answerfrom, ldns_pkt_set_querytime, ldns_pkt_set_size, ldns_pkt_set_section_count, ldns_pkt_set_tsig, ldns_pkt_edns, ldns_pkt_edns_udp_size, ldns_pkt_edns_extended_rcode, ldns_pkt_edns_version, ldns_pkt_edns_z, ldns_pkt_edns_unassigned, ldns_pkt_edns_data, ldns_pkt_set_edns_udp_size, ldns_pkt_set_edns_extended_rcode, ldns_pkt_set_edns_version, ldns_pkt_set_edns_z, ldns_pkt_set_edns_unassigned, ldns_pkt_set_edns_data - request or answer packets types
 
 ldns_pkt_new, ldns_pkt_free, ldns_pkt_print, ldns_pkt_query_new, ldns_pkt_query_new_frm_str, ldns_pkt_reply_type | ldns_pkt - ldns_pkt creation, destruction and printing
 #	gets

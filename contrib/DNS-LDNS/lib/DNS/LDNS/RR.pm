@@ -6,7 +6,7 @@ use warnings;
 
 use DNS::LDNS ':all';
 
-our $VERSION = '0.52';
+our $VERSION = '0.61';
 
 sub new {
     my $class = shift;
@@ -24,12 +24,15 @@ sub new {
     }
     else {
 	my %args = @_;
+	# Perl 5.25 does not allow us to pass read-only undef into a
+	# parameter changing function. So we must send it with a variable.
+        my $undef = undef;
 
 	if ($args{str}) {
 	    $rr = _new_from_str($args{str}, 
 		$args{default_ttl} || 0,
 		$args{origin},
-		$args{prev} ? ${$args{prev}} : undef,
+		$args{prev} ? ${$args{prev}} : $undef,
 		$status);
 	}
 	elsif ($args{filename} or $args{file}) {
@@ -47,8 +50,8 @@ sub new {
 	    my $ttl = 0;
 	    $rr = _new_from_file($file, 
 		 $args{default_ttl} ? ${$args{default_ttl}} : $ttl,
-		 $args{origin} ? ${$args{origin}} : undef,
-		 $args{prev} ? ${$args{prev}} : undef,
+		 $args{origin} ? ${$args{origin}} : $undef,
+		 $args{prev} ? ${$args{prev}} : $undef,
 		 $status,
 		 $line_nr);
 	    if ($args{filename}) {

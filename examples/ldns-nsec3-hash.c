@@ -60,6 +60,7 @@ main(int argc, char *argv[])
 				fprintf(stderr, "Salt too long\n");
 				exit(EXIT_FAILURE);
 			}
+			if (nsec3_salt) LDNS_FREE(nsec3_salt);
 			nsec3_salt_length = (uint8_t) (strlen(optarg) / 2);
 			nsec3_salt = LDNS_XMALLOC(uint8_t, nsec3_salt_length);
 			for (c = 0; c < (int) strlen(optarg); c += 2) {
@@ -97,6 +98,8 @@ main(int argc, char *argv[])
 	} else {
 		dname = ldns_dname_new_frm_str(argv[0]);
 		if (!dname) {
+			free(prog);
+			if (nsec3_salt) free(nsec3_salt);
 			fprintf(stderr,
 			        "Error: unable to parse domain name\n");
 			return EXIT_FAILURE;
@@ -107,6 +110,8 @@ main(int argc, char *argv[])
 		                                    nsec3_salt_length,
 		                                    nsec3_salt);
 		if (!hashed_dname) {
+			free(prog);
+			if (nsec3_salt) free(nsec3_salt);
 			fprintf(stderr,
 			        "Error creating NSEC3 hash\n");
 			return EXIT_FAILURE;

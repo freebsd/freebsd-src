@@ -113,7 +113,9 @@ print_rr_status_error(FILE* stream, ldns_rr* rr, ldns_status status)
 	if (status != LDNS_STATUS_OK) {
 		print_rr_error(stream, rr, ldns_get_errorstr_by_id(status));
 		if (verbosity > 0 && status == LDNS_STATUS_SSL_ERR) {
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
 			ERR_load_crypto_strings();
+#endif
 			ERR_print_errors_fp(stream);
 		}
 	}
@@ -168,24 +170,31 @@ static ldns_status
 verify_rrs(ldns_rr_list* rrset_rrs, ldns_dnssec_rrs* cur_sig,
 		ldns_rr_list* keys)
 {
-	ldns_rr_list* good_keys;
 	ldns_status status, result = LDNS_STATUS_OK;
+	ldns_dnssec_rrs *cur_sig_bak = cur_sig;
 
+	/* A single valid signature validates the RRset */
 	while (cur_sig) {
-		good_keys = ldns_rr_list_new();
-		status = ldns_verify_rrsig_keylist_time(rrset_rrs, cur_sig->rr,
-				keys, check_time, good_keys);
+		if (ldns_verify_rrsig_keylist_time( rrset_rrs, cur_sig->rr
+		                                  , keys, check_time, NULL)
+		||  rrsig_check_time_margins(cur_sig->rr))
+			cur_sig = cur_sig->next;
+		else
+			return LDNS_STATUS_OK;
+	}
+	/* Without any valid signature, do print all errors.  */
+	for (cur_sig = cur_sig_bak; cur_sig; cur_sig = cur_sig->next) {
+		status = ldns_verify_rrsig_keylist_time(rrset_rrs,
+		    cur_sig->rr, keys, check_time, NULL);
 		status = status ? status 
-				: rrsig_check_time_margins(cur_sig->rr);
-		if (status != LDNS_STATUS_CRYPTO_NO_MATCHING_KEYTAG_DNSKEY ||
-			       	!no_nomatch_msg) {
-
-			print_rrs_status_error(myerr, rrset_rrs, status,
-					cur_sig);
-		}
+		       : rrsig_check_time_margins(cur_sig->rr);
+		if (!status)
+			; /* pass */
+		else if (!no_nomatch_msg || status !=
+		    LDNS_STATUS_CRYPTO_NO_MATCHING_KEYTAG_DNSKEY)
+			print_rrs_status_error(
+			    myerr, rrset_rrs, status, cur_sig);
 		update_error(&result, status);
-		ldns_rr_list_free(good_keys);
-		cur_sig = cur_sig->next;
 	}
 	return result;
 }
@@ -400,7 +409,8 @@ verify_nsec(ldns_dnssec_zone* zone, ldns_rbnode_t *cur_node,
 
 static ldns_status
 verify_dnssec_name(ldns_rdf *zone_name, ldns_dnssec_zone* zone,
-		ldns_rbnode_t *cur_node, ldns_rr_list *keys)
+		ldns_rbnode_t *cur_node, ldns_rr_list *keys,
+		bool detached_zonemd)
 {
 	ldns_status result = LDNS_STATUS_OK;
 	ldns_status status;
@@ -427,7 +437,8 @@ verify_dnssec_name(ldns_rdf *zone_name, ldns_dnssec_zone* zone,
 					fprintf(myerr, "\t");
 					print_type(myerr, cur_rrset->type);
 					fprintf(myerr, " has signature(s),"
-							" but is glue\n");
+							" but is occluded"
+							" (or glue)\n");
 				}
 				result = LDNS_STATUS_ERR;
 			}
@@ -438,7 +449,8 @@ verify_dnssec_name(ldns_rdf *zone_name, ldns_dnssec_zone* zone,
 				fprintf(myerr, "Error: ");
 				ldns_rdf_print(myerr, name->name);
 				fprintf(myerr, " has an NSEC(3),"
-						" but is glue\n");
+						" but is occluded"
+						" (or glue)\n");
 			}
 			result = LDNS_STATUS_ERR;
 		}
@@ -461,7 +473,10 @@ verify_dnssec_name(ldns_rdf *zone_name, ldns_dnssec_zone* zone,
 			      cur_rrset->type == LDNS_RR_TYPE_DS)) ||
 			    (!on_delegation_point &&
 			     cur_rrset->type != LDNS_RR_TYPE_RRSIG &&
-			     cur_rrset->type != LDNS_RR_TYPE_NSEC)) {
+			     cur_rrset->type != LDNS_RR_TYPE_NSEC &&
+
+			     (   cur_rrset->type != LDNS_RR_TYPE_ZONEMD
+			     || !detached_zonemd || cur_rrset->signatures))) {
 
 				status = verify_dnssec_rrset(zone_name,
 						name->name, cur_rrset, keys);
@@ -501,16 +516,28 @@ add_keys_with_matching_ds(ldns_dnssec_rrsets* from_keys, ldns_rr_list *dss,
 	}
 }
 
+static ldns_resolver *p_ldns_new_res(ldns_resolver** new_res, ldns_status *s)
+{
+	assert(new_res && s);
+	if (!(*s = ldns_resolver_new_frm_file(new_res, NULL))) {
+		ldns_resolver_set_dnssec(*new_res, 1);
+		ldns_resolver_set_dnssec_cd(*new_res, 1);
+		return *new_res;
+	}
+	ldns_resolver_free(*new_res);
+	return (*new_res = NULL);
+}
+
 static ldns_status
 sigchase(ldns_resolver* res, ldns_rdf *zone_name, ldns_dnssec_rrsets *zonekeys,
 		ldns_rr_list *keys)
 {
 	ldns_dnssec_rrs* cur_key;
 	ldns_status status;
-	bool free_resolver = false;
-	ldns_rdf* parent_name;
-	ldns_rr_list* parent_keys;
-	ldns_rr_list* ds_keys;
+	ldns_resolver* new_res = NULL;
+	ldns_rdf* parent_name = NULL;
+	ldns_rr_list* parent_keys = NULL;
+	ldns_rr_list* ds_keys = NULL;
 
 	add_keys_with_matching_ds(zonekeys, keys, keys);
 
@@ -525,63 +552,66 @@ sigchase(ldns_resolver* res, ldns_rdf *zone_name, ldns_dnssec_rrsets *zonekeys,
 
 	/* Continue online on validation failure when the -S option was given.
 	 */
-	if (do_sigchase && 
-	    status == LDNS_STATUS_CRYPTO_NO_MATCHING_KEYTAG_DNSKEY &&
-	    ldns_dname_label_count(zone_name) > 0 ) {
-
-		if (!res) {
-			if ((status = ldns_resolver_new_frm_file(&res, NULL))){
-				ldns_resolver_free(res);
-				if (verbosity > 0) {
-					fprintf(myerr,
-						"Could not create resolver: "
-						"%s\n",
-						ldns_get_errorstr_by_id(status)
-						);
-				}
-				return status;
-			}
-			free_resolver = true;
-			ldns_resolver_set_dnssec(res,1);
-			ldns_resolver_set_dnssec_cd(res, 1);
-		}
-		if ((parent_name = ldns_dname_left_chop(zone_name))) {
-			/*
-			 * Use the (authenticated) keys of the parent zone ...
-			 */
-			parent_keys = ldns_fetch_valid_domain_keys(res,
-					parent_name, keys, &status);
-			ldns_rdf_deep_free(parent_name);
-
-			/*
-			 * ... to validate the DS for the zone ...
-			 */
-			ds_keys = ldns_validate_domain_ds(res, zone_name,
-					parent_keys);
-			ldns_rr_list_free(parent_keys);
-
-			/*
-			 * ... to use it to add the KSK to the trusted keys ...
-			 */
-			add_keys_with_matching_ds(zonekeys, ds_keys, keys);
-			ldns_rr_list_free(ds_keys);
-
-			/*
-			 * ... to validate all zonekeys ...
-			 */
-			status = verify_dnssec_rrset(zone_name, zone_name,
-					zonekeys, keys);
-		} else {
-			status = LDNS_STATUS_MEM_ERR;
-		}
-		if (free_resolver) {
-			ldns_resolver_deep_free(res);
+	if (  !do_sigchase
+	    || status != LDNS_STATUS_CRYPTO_NO_MATCHING_KEYTAG_DNSKEY
+	    || ldns_dname_label_count(zone_name) == 0 ) {
+		if (verbosity > 0) {
+			fprintf(myerr, "Cannot chase the root: %s\n"
+			             , ldns_get_errorstr_by_id(status));
 		}
 
+	} else if (!res && !(res = p_ldns_new_res(&new_res, &status))) {
+		if (verbosity > 0) {
+			fprintf(myerr, "Could not create resolver: %s\n"
+			             , ldns_get_errorstr_by_id(status));
+		}
+	} else if (!(parent_name = ldns_dname_left_chop(zone_name))) {
+		status = LDNS_STATUS_MEM_ERR;
+
+	/*
+	 * Use the (authenticated) keys of the parent zone ...
+	 */
+	} else if (!(parent_keys = ldns_fetch_valid_domain_keys(res,
+				parent_name, keys, &status))) {
+		if (verbosity > 0) {
+			fprintf(myerr,
+				"Could not get valid DNSKEY RRset to "
+				"validate domain's DS: %s\n",
+				ldns_get_errorstr_by_id(status)
+				);
+		}
+	/*
+	 * ... to validate the DS for the zone ...
+	 */
+	} else if (!(ds_keys = ldns_validate_domain_ds(res, zone_name,
+				parent_keys))) {
+		status = LDNS_STATUS_CRYPTO_NO_TRUSTED_DS;
+		if (verbosity > 0) {
+			fprintf(myerr,
+				"Could not get valid DS RRset for domain: %s\n",
+				ldns_get_errorstr_by_id(status)
+				);
+		}
+	} else {
+		/*
+		 * ... to use it to add the KSK to the trusted keys ...
+		 */
+		add_keys_with_matching_ds(zonekeys, ds_keys, keys);
+
+		/*
+		 * ... to validate all zonekeys ...
+		 */
+		status = verify_dnssec_rrset(zone_name, zone_name,
+				zonekeys, keys);
 	}
 	/*
 	 * ... so they can all be added to our list of trusted keys.
 	 */
+	ldns_resolver_deep_free(new_res);
+	ldns_rdf_deep_free(parent_name);
+	ldns_rr_list_free(parent_keys);
+	ldns_rr_list_free(ds_keys);
+
 	if (status == LDNS_STATUS_OK)
 		for (cur_key = zonekeys->rrs; cur_key; cur_key = cur_key->next)
 			ldns_rr_list_push_rr(keys, cur_key->rr);
@@ -590,7 +620,8 @@ sigchase(ldns_resolver* res, ldns_rdf *zone_name, ldns_dnssec_rrsets *zonekeys,
 
 static ldns_status
 verify_dnssec_zone(ldns_dnssec_zone *dnssec_zone, ldns_rdf *zone_name,
-		ldns_rr_list *keys, bool apexonly, int percentage) 
+		ldns_rr_list *keys, bool apexonly, int percentage,
+		bool detached_zonemd) 
 {
 	ldns_rbnode_t *cur_node;
 	ldns_dnssec_rrsets *cur_key_rrset;
@@ -631,7 +662,7 @@ verify_dnssec_zone(ldns_dnssec_zone *dnssec_zone, ldns_rdf *zone_name,
 			 */
 			assert( cur_node->data == dnssec_zone->soa );
 			/* 
-			 * Allthough the percentage option doesn't make sense
+			 * Although the percentage option doesn't make sense
 			 * here, we set it to 100 to force the first node to 
 			 * be checked.
 			 */
@@ -642,7 +673,8 @@ verify_dnssec_zone(ldns_dnssec_zone *dnssec_zone, ldns_rdf *zone_name,
 			if (percentage == 100 
 			    || ((random() % 100) >= 100 - percentage)) {
 				status = verify_dnssec_name(zone_name,
-						dnssec_zone, cur_node, keys);
+						dnssec_zone, cur_node, keys,
+						detached_zonemd);
 				update_error(&result, status);
 				if (apexonly)
 					break;
@@ -663,6 +695,8 @@ static void print_usage(FILE *out, const char *progname)
 	       "and verifies all signatures\n");
 	fprintf(out, "It also checks the NSEC(3) chain, but it "
 	       "will error on opted-out delegations\n");
+	fprintf(out, "It also checks whether ZONEMDs are present, and if so, "
+	       "needs one of them to match the zone's data.\n");
 	fprintf(out, "\nOPTIONS:\n");
 	fprintf(out, "\t-h\t\tshow this text\n");
 	fprintf(out, "\t-a\t\tapex only, check only the zone apex\n");
@@ -690,6 +724,12 @@ static void print_usage(FILE *out, const char *progname)
 	       "for validating it regardless.\n");
 	fprintf(out, "\t-v\t\tshows the version and exits\n");
 	fprintf(out, "\t-V [0-5]\tset verbosity level (default 3)\n");
+	fprintf(out, "\t-Z\t\tRequires a valid ZONEMD RR to be present.\n");
+	fprintf(out, "\t\t\tWhen given once, this option will permit verifying"
+	       "\n\t\t\tjust the ZONEMD RR of an unsigned zone. When given "
+	       "\n\t\t\tmore than once, the zone needs to be validly DNSSEC"
+	       "\n\t\t\tsigned as well. With three times a -Z option (-ZZZ)"
+	       "\n\t\t\ta ZONEMD RR without signatures is allowed.");
 	fprintf(out, "\n<period>s are given in ISO 8601 duration format: "
 	       "P[n]Y[n]M[n]DT[n]H[n]M[n]S\n");
 	fprintf(out, "\nif no file is given standard input is read\n");
@@ -712,12 +752,14 @@ main(int argc, char **argv)
 	ldns_rr_list *keys = ldns_rr_list_new();
 	size_t nkeys = 0;
 	const char *progname = argv[0];
+	int zonemd_required = 0;
+	ldns_dnssec_rrsets *zonemd_rrset;
 
 	check_time = ldns_time(NULL);
 	myout = stdout;
 	myerr = stderr;
 
-	while ((c = getopt(argc, argv, "ae:hi:k:vV:p:St:")) != -1) {
+	while ((c = getopt(argc, argv, "ae:hi:k:vV:p:St:Z")) != -1) {
 		switch(c) {
                 case 'a':
                         apexonly = true;
@@ -813,6 +855,9 @@ main(int argc, char **argv)
 		case 'V':
 			verbosity = atoi(optarg);
 			break;
+		case 'Z':
+			zonemd_required += 1;
+			break;
 		}
 	}
 	if (do_sigchase && nkeys == 0) {
@@ -851,53 +896,71 @@ main(int argc, char **argv)
 
 	s = ldns_dnssec_zone_new_frm_fp_l(&dnssec_zone, fp, NULL, 0,
 			LDNS_RR_CLASS_IN, &line_nr);
-	if (s == LDNS_STATUS_OK) {
-		if (!dnssec_zone->soa) {
-			if (verbosity > 0) {
-				fprintf(myerr,
-					"; Error: no SOA in the zone\n");
-			}
-			exit(EXIT_FAILURE);
-		}
-
-		result = ldns_dnssec_zone_mark_glue(dnssec_zone);
-		if (result != LDNS_STATUS_OK) {
-			if (verbosity > 0) {
-				fprintf(myerr,
-					"There were errors identifying the "
-					"glue in the zone\n");
-			}
-		}
-		if (verbosity >= 5) {
-			ldns_dnssec_zone_print(myout, dnssec_zone);
-		}
-
-		result = verify_dnssec_zone(dnssec_zone,
-				dnssec_zone->soa->name, keys, apexonly,
-				percentage);
-
-		if (result == LDNS_STATUS_OK) {
-			if (verbosity >= 3) {
-				fprintf(myout,
-					"Zone is verified and complete\n");
-			}
-		} else {
-			if (verbosity > 0) {
-				fprintf(myerr,
-					"There were errors in the zone\n");
-			}
-		}
-
-		ldns_dnssec_zone_deep_free(dnssec_zone);
-	} else {
+	if (s != LDNS_STATUS_OK) {
 		if (verbosity > 0) {
-			fprintf(myerr, "%s at %d\n",
+			fprintf(myerr, "%s at line %d\n",
 				ldns_get_errorstr_by_id(s), line_nr);
 		}
                 exit(EXIT_FAILURE);
 	}
-	fclose(fp);
+	if (!dnssec_zone->soa) {
+		if (verbosity > 0) {
+			fprintf(myerr,
+				"; Error: no SOA in the zone\n");
+		}
+		exit(EXIT_FAILURE);
+	}
 
+	result = ldns_dnssec_zone_mark_glue(dnssec_zone);
+	if (result != LDNS_STATUS_OK) {
+		if (verbosity > 0) {
+			fprintf(myerr,
+				"There were errors identifying the "
+				"glue in the zone\n");
+		}
+	}
+	if (verbosity >= 5) {
+		ldns_dnssec_zone_print(myout, dnssec_zone);
+	}
+	zonemd_rrset = ldns_dnssec_zone_find_rrset(dnssec_zone,
+				dnssec_zone->soa->name, LDNS_RR_TYPE_ZONEMD);
+
+	if (zonemd_required == 1
+	&&  !ldns_dnssec_zone_find_rrset(dnssec_zone,
+			       	dnssec_zone->soa->name, LDNS_RR_TYPE_DNSKEY))
+		result = LDNS_STATUS_OK;
+	else
+		result = verify_dnssec_zone(dnssec_zone,
+				dnssec_zone->soa->name, keys, apexonly,
+				percentage, zonemd_required > 2);
+
+	if (zonemd_rrset) {
+		ldns_status zonemd_result
+		    = ldns_dnssec_zone_verify_zonemd(dnssec_zone);
+		
+		if (zonemd_result)
+			fprintf( myerr, "Could not validate zone digest: %s\n"
+			       , ldns_get_errorstr_by_id(zonemd_result));
+
+		else if (verbosity > 3)
+			fprintf( myout
+			       , "Zone digest matched the zone content\n");
+
+		if (zonemd_result)
+			result = zonemd_result;
+
+	} else if (zonemd_required)
+		result = LDNS_STATUS_NO_ZONEMD;
+
+	if (result == LDNS_STATUS_OK) {
+		if (verbosity >= 3) {
+			fprintf(myout, "Zone is verified and complete\n");
+		}
+	} else if (verbosity > 0)
+		fprintf(myerr, "There were errors in the zone\n");
+
+	ldns_dnssec_zone_deep_free(dnssec_zone);
+	fclose(fp);
 	exit(result);
 }
 

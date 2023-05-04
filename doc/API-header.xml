@@ -68,7 +68,7 @@ A small abstract will come here, TBD.
 <section title="Introduction">
 <t>
 LibDNS (or lDNS) is modelled after the Net::DNS perl library. It has
-been shown that Net::DNS  can be used vefficiently for
+been shown that Net::DNS  can be used efficiently for
 programming DNS aware applications. We want to bring the same
 level of efficiency to C programmers.
 </t>
@@ -97,9 +97,9 @@ Further more it is to be expected that lDNS will depend on OpenSSL for
 its cryptography.
 </t>
 <t>
-As said, lDNS is modelled after Net::DNS, therefor its application API
+As said, lDNS is modelled after Net::DNS, therefore its application API
 looks very much like the one used for Net::DNS. Some modification are made
-ofcourse, because not all functionality of Perl can be caught in C.
+of course, because not all functionality of Perl can be caught in C.
 </t>
 
 <t>

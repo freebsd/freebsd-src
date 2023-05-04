@@ -223,7 +223,7 @@ main(int argc, char **argv)
 		if (status != LDNS_STATUS_OK) {
 			printf("Error creating answer: %s\n", ldns_get_errorstr_by_id(status));
 		} else {
-			nb = sendto(sock, (void*)outbuf, answer_size, 0, 
+			(void) sendto(sock, (void*)outbuf, answer_size, 0, 
 				&addr_him, hislen);
 		}
 		

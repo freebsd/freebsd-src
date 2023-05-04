@@ -36,7 +36,7 @@
 /* ========================================================================= */
 
 /*
- * Not here (with the exception of functions defined in this C code sction),
+ * Not here (with the exception of functions defined in this C code section),
  * must be set in ldns_rdf.i.
  */
 
@@ -46,7 +46,7 @@
 /* ========================================================================= */
 
 /*
- * Not here (with the exception of functions defined in this C code sction),
+ * Not here (with the exception of functions defined in this C code section),
  * must be set in ldns_rdf.i.
  */
 

@@ -20,6 +20,10 @@ If a server already has that serial number it will disregard the message.
 The zone that is updated.
 
 .TP
+\fB-I address\fR
+Source IP to send query from.
+
+.TP
 \fB-h\fR
 Show usage and exit
 
@@ -36,9 +40,9 @@ Append a SOA record indicating the serial number of the updated zone.
 Use port as destination port (default the DNS port 53) for the UDP packets.
 
 .TP
-\fB-y key:data\fR
-Use the given TSIG key and base64-data to sign the NOTIFY. Uses the
-hmac-md5 algorithm.
+\fB-y key:data[:algo] \fR
+Use the given TSIG key and base64-data, and optionally an algorithm to sign
+the NOTIFY. The algorithm defaults to hmac-md5.sig-alg.reg.int.
 
 .TP
 \fB-d\fR

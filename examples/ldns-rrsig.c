@@ -2,7 +2,7 @@
  * ldns-rrsig prints out the inception and expiration dates in a more readable 
  * way than the normal RRSIG presentation format
  *
- * for a particulary domain
+ * for a particularly domain
  * (c) NLnet Labs, 2005 - 2008
  * See the file LICENSE for the license
  */
@@ -61,7 +61,7 @@ main(int argc, char *argv[])
 
 	if (argc == 3) {
 		/* optional type arg */
-		type_name = strdup(argv[2]);
+		type_name = argv[2];
 		t = ldns_rdf2rr_type(
 			ldns_rdf_new_frm_str(LDNS_RDF_TYPE_TYPE, type_name));
 		if (t == 0) {
@@ -180,7 +180,7 @@ main(int argc, char *argv[])
 			
 			for(i = 0; i < ldns_rr_list_rr_count(rrsig_type); i++) {
 				memset(&incep, 0, sizeof(incep));
-				if (ldns_serial_arithmitics_gmtime_r(
+				if (ldns_serial_arithmetics_gmtime_r(
 						ldns_rdf2native_time_t(
 						ldns_rr_rrsig_inception(
 						ldns_rr_list_rr(rrsig_type, i))),
@@ -192,7 +192,7 @@ main(int argc, char *argv[])
 					incep_buf[0] = '\0';
 				}
 				memset(&expir, 0, sizeof(expir));
-				if (ldns_serial_arithmitics_gmtime_r(
+				if (ldns_serial_arithmetics_gmtime_r(
 						ldns_rdf2native_time_t(
 						ldns_rr_rrsig_expiration(
 						ldns_rr_list_rr(rrsig_type, i))),

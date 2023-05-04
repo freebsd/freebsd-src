@@ -9,7 +9,7 @@ dpa \- DNS Packet Analyzer. Analyze DNS packets in ip trace files
 .IR TRACEFILE 
 
 .SH DESCRIPTION
-\fBdpa\fR is used to analyze dns packets in trace files. It has 3 main options: count, filter, and count uniques (i.e. count all different occurences).
+\fBdpa\fR is used to analyze dns packets in trace files. It has 3 main options: count, filter, and count uniques (i.e. count all different occurrences).
 
 .SH OPTIONS
 .TP
@@ -54,7 +54,7 @@ If no \-f was given, evaluate all correct dns packets.
 
 .TP
 \fB-u\fR \fImatchnamelist\fR
-Count every occurence of every value of the matchname (for instance, count all packetsizes, see EXAMPLES in ldns-dpa(1) ).
+Count every occurrence of every value of the matchname (for instance, count all packetsizes, see EXAMPLES in ldns-dpa(1) ).
 
 .TP
 \fB-ua\fR
@@ -112,7 +112,7 @@ See the \-s option for possible matchnames, operators and values.
 
 .TP
 ldns-dpa \-u packetsize \-p test.tr
-Count all different packetsizes in test.tr and show the precentages.
+Count all different packetsizes in test.tr and show the percentages.
 
 .TP
 ldns-dpa \-f "edns=1&qr=0" \-of edns.tr test.tr

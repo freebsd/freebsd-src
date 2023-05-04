@@ -987,10 +987,10 @@ match_str(type_operator operator,
 		valuedup = strdup(value);
 		mvaluedup = strdup(mvalue);
 		for (i = 0; i < strlen(valuedup); i++) {
-			valuedup[i] = tolower(valuedup[i]);
+			valuedup[i] = tolower((unsigned char)valuedup[i]);
 		}
 		for (i = 0; i < strlen(mvaluedup); i++) {
-			mvaluedup[i] = tolower(mvaluedup[i]);
+			mvaluedup[i] = tolower((unsigned char)mvaluedup[i]);
 		}
 		result = strstr(valuedup, mvaluedup) != 0;
 		free(valuedup);
@@ -1650,7 +1650,7 @@ parse_match_expression(char *string)
 	match_expression *expr;
 	size_t i,j;
 	size_t leftstart, leftend = 0;
-	char *left_str, *op, *val;
+	char *left_str, *op = NULL, *val;
 	match_table *mt;
 	match_operation *mo = NULL;
 	const type_operators *tos;
@@ -1658,7 +1658,7 @@ parse_match_expression(char *string)
 	ldns_lookup_table *lt = NULL;
 
 	/* remove whitespace */
-	char *str = malloc(strlen(string) + 1);
+	char *str = calloc(1, strlen(string) + 1);
 
 	j = 0;
 	for (i = 0; i < strlen(string); i++) {
@@ -1740,6 +1740,7 @@ parse_match_expression(char *string)
 			free(left_str);
 			if (i >= strlen(str)-1) {
 				result = expr->left;
+				free_match_expression(expr);
 				goto done;
 			}
 		} else if (str[i] == ')') {
@@ -1784,6 +1785,8 @@ parse_match_expression(char *string)
 				if (i > strlen(str)) {
 					printf("parse error no right hand side: %s\n", str);
 					result = NULL;
+					if (op)
+						free(op);
 					goto done;
 				}
 			}
@@ -1794,6 +1797,8 @@ parse_match_expression(char *string)
 			mt = get_match_by_name(left_str);
 			if (!mt) {
 				printf("parse error: unknown match name: %s\n", left_str);
+				if (op)
+					free(op);
 				result = NULL;
 				goto done;
 			} else {
@@ -1801,6 +1806,8 @@ parse_match_expression(char *string)
 				tos = get_type_operators(mt->type);
 				for (j = 0; j < tos->operator_count; j++) {
 					if (get_op_id(op) == tos->operators[j]) {
+						if (mo)
+							free(mo);
 						mo = malloc(sizeof(match_operation));
 						mo->id = mt->id;
 						mo->operator = get_op_id(op);
@@ -1874,6 +1881,8 @@ parse_match_expression(char *string)
 				if (!mo) {
 					printf("parse error: operator %s not allowed for match %s\n", op, left_str);
 					result = NULL;
+					if (op)
+						free(op);
 					goto done;
 				}
 			}
@@ -1914,7 +1923,7 @@ usage(FILE *output)
 	fprintf(output, "\t-u <matchnamelist>:\tCount all occurrences of matchname\n");
 	fprintf(output, "\t-ua:\t\tShow average value of every -u matchname\n");
 	fprintf(output, "\t-uac:\t\tShow average count of every -u matchname\n");
-	fprintf(output, "\t-um <number>:\tOnly show -u results that occured more than number times\n");
+	fprintf(output, "\t-um <number>:\tOnly show -u results that occurred more than number times\n");
 	fprintf(output, "\t-v <level>:\tbe more verbose\n");
 	fprintf(output, "\t-notip <file>:\tDump pcap packets that were not recognized as\n\t\t\tIP packets to file\n");
 	fprintf(output, "\t-baddns <file>:\tDump mangled dns packets to file\n");
@@ -2040,7 +2049,7 @@ handle_ether_packet(const u_char *data, struct pcap_pkthdr cur_hdr, match_counte
 	int ip_hdr_size;
 	uint8_t protocol;
 	size_t data_offset = 0;
-	ldns_rdf *src_addr, *dst_addr;
+	ldns_rdf *src_addr = NULL, *dst_addr = NULL;
 	uint8_t *ap;
 	char *astr;
 	bpf_u_int32 len = cur_hdr.caplen;
@@ -2171,16 +2180,16 @@ printf("timeval: %u ; %u\n", cur_hdr.ts.tv_sec, cur_hdr.ts.tv_usec);
 				if (ldns_str2rdf_a(&src_addr, astr) == LDNS_STATUS_OK) {
 					
 				}
-				free(astr);
 			}
+			free(astr);
 			ap = (uint8_t *) &(iptr->ip_dst);
 			astr = malloc(INET_ADDRSTRLEN);
 			if (inet_ntop(AF_INET, ap, astr, INET_ADDRSTRLEN)) {
 				if (ldns_str2rdf_a(&dst_addr, astr) == LDNS_STATUS_OK) {
 					
 				}
-				free(astr);
 			}
+			free(astr);
 
 			ip_hdr_size = (int) iptr->ip_hl * 4;
 			protocol = (uint8_t) iptr->ip_p;
@@ -2254,6 +2263,8 @@ printf("timeval: %u ; %u\n", cur_hdr.ts.tv_sec, cur_hdr.ts.tv_usec);
 							ldns_pkt_free(pkt);
 							ldns_rdf_deep_free(src_addr);
 							ldns_rdf_deep_free(dst_addr);
+							if (newdata && newdata != data)
+								free((void *)newdata);
 							return 0;
 						}
 					} else {
@@ -2292,6 +2303,10 @@ printf("timeval: %u ; %u\n", cur_hdr.ts.tv_sec, cur_hdr.ts.tv_usec);
 				/* tcp packets are skipped */
 				tcp_packets++;
 			}
+			if (newdata && newdata != data) {
+				free((void *)newdata);
+				newdata = NULL;
+			}
 	/* don't have a define for ethertype ipv6 */
 	} else 	if (ntohs (eptr->ether_type) == ETHERTYPE_IPV6) {
 		/*printf("IPv6!\n");*/
@@ -2312,16 +2327,16 @@ printf("timeval: %u ; %u\n", cur_hdr.ts.tv_sec, cur_hdr.ts.tv_usec);
 			if (ldns_str2rdf_aaaa(&src_addr, astr) == LDNS_STATUS_OK) {
 				
 			}
-			free(astr);
 		}
+		free(astr);
 		ap = (uint8_t *) &(ip6_hdr->ip6_dst);
 		astr = malloc(INET6_ADDRSTRLEN);
 		if (inet_ntop(AF_INET6, ap, astr, INET6_ADDRSTRLEN)) {
 			if (ldns_str2rdf_aaaa(&dst_addr, astr) == LDNS_STATUS_OK) {
 				
 			}
-			free(astr);
 		}
+		free(astr);
 
 		ip_hdr_size = IP6_HEADER_LENGTH;
 		protocol = (uint8_t) ip6_hdr->ip6_ctlun.ip6_un1.ip6_un1_nxt;
@@ -2458,10 +2473,10 @@ parse_match_list(match_counters *counters, char *string)
 				strncpy(substring, &string[lastpos], i - lastpos + 1);
 				substring[i - lastpos] = '\0';
 				expr = parse_match_expression(substring);
+				free(substring);
 				if (!expr) {
 					return false;
 				}
-				free(substring);
 				/*
 				if (expr->op != MATCH_EXPR_LEAF) {
 					fprintf(stderr, "Matchlist can only contain <match>, not a logic expression\n");
@@ -2480,6 +2495,7 @@ parse_match_list(match_counters *counters, char *string)
 
 	if (!expr) {
 		fprintf(stderr, "Bad match: %s\n", substring);
+		free(substring);
 		return false;
 	}
 	free(substring);
@@ -2501,7 +2517,7 @@ parse_uniques(match_id ids[], size_t *count, char *string)
 	match_table *mt;
 
 	/*printf("Parsing unique counts: '%s'\n", string);*/
-	str = malloc(strlen(string) + 1);
+	str = calloc(1, strlen(string) + 1);
 	j = 0;
 	for (i = 0; i < strlen(string); i++) {
 		if (!isspace((unsigned char)string[i])) {
@@ -2514,7 +2530,10 @@ parse_uniques(match_id ids[], size_t *count, char *string)
 	lastpos = 0;
 	for (i = 0; i <= strlen(str); i++) {
 		if (str[i] == ',' || i >= strlen(str)) {
-			strpart = malloc(i - lastpos + 1);
+			if (!(strpart = malloc(i - lastpos + 1))) {
+				free(str);
+				return false;
+			}
 			strncpy(strpart, &str[lastpos], i - lastpos);
 			strpart[i - lastpos] = '\0';
 			if ((mt = get_match_by_name(strpart))) {
@@ -2522,6 +2541,8 @@ parse_uniques(match_id ids[], size_t *count, char *string)
 				*count = *count + 1;
 			} else {
 				printf("Error parsing match list; unknown match name: %s\n", strpart);
+				free(strpart);
+				free(str);
 				return false;
 			}
 			free(strpart);
@@ -2540,7 +2561,6 @@ parse_uniques(match_id ids[], size_t *count, char *string)
 			return false;
 		}
 		free(strpart);
-		lastpos = i + 1;
 	}
 	free(str);
 	return true;

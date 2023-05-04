@@ -1,6 +1,6 @@
 /*
  * ldns-keyfetcher retrieves the DNSKEYS for a certain domain
- * It traces the authoritatives nameservers down from the root
+ * It traces the authoritative nameservers down from the root
  * And uses TCP, to minimize spoofing danger.
  *
  * (c) NLnet Labs, 2006 - 2008
@@ -74,7 +74,7 @@ retrieve_dnskeys(ldns_resolver *local_res, ldns_rdf *name, ldns_rr_type t,
 	}
 
 	/* transfer some properties of local_res to res,
-	 * because they were given on the commandline */
+	 * because they were given on the command line */
 	ldns_resolver_set_ip6(res, 
 			ldns_resolver_ip6(local_res));
 	ldns_resolver_set_port(res, 
@@ -143,7 +143,7 @@ retrieve_dnskeys(ldns_resolver *local_res, ldns_rdf *name, ldns_rr_type t,
 		/* remove the old nameserver from the resolver */
 		while((pop = ldns_resolver_pop_nameserver(res))) { ldns_rdf_deep_free(pop); }
 
-		/* also check for new_nss emptyness */
+		/* also check for new_nss emptiness */
 
 		if (!new_nss_aaaa && !new_nss_a) {
 			/* 
@@ -447,6 +447,7 @@ retrieve_dnskeys(ldns_resolver *local_res, ldns_rdf *name, ldns_rr_type t,
 
 		if (!p) {
 			fprintf(stderr, "no packet received\n");
+			LDNS_FREE(last_nameservers);
 			return NULL;
 		}
 
@@ -454,12 +455,14 @@ retrieve_dnskeys(ldns_resolver *local_res, ldns_rdf *name, ldns_rr_type t,
 			fprintf(stderr, "Error: nameserver at ");
 			ldns_rdf_print(stderr, last_nameservers[nss_i]);
 			fprintf(stderr, " not responding. Unable to check RRset here, aborting.\n");
+			LDNS_FREE(last_nameservers);
 			return NULL;
 		}
 
 		if (ldns_pkt_get_rcode(p) != LDNS_RCODE_NOERROR) {
 			printf("Error in packet:\n");
 			ldns_pkt_print(stdout, p);
+			LDNS_FREE(last_nameservers);
 			return NULL;
 		}
 

@@ -35,7 +35,7 @@
 /* SWIG setting and definitions. */
 /* ========================================================================= */
 
-/* Creates temporary instance of (ldns_rersolver *). */
+/* Creates temporary instance of (ldns_resolver *). */
 %typemap(in,numinputs=0,noblock=1) (ldns_resolver **r)
 {
   ldns_resolver *$1_res;
@@ -350,7 +350,7 @@ record."
                Creates a resolver object from given file name
                
                :param filename: Name of file which contains resolver
-                   informations (usually /etc/resolv.conf).
+                   information (usually /etc/resolv.conf).
                :type filename: str
                :param raiseException: If True, an exception occurs in case a
                    resolver object can't be created.
@@ -431,7 +431,7 @@ record."
                Ask the resolver about name and return all address records.
 
                :param name: The name to look for. String is automatically
-                   converrted to dname.
+                   converted to dname.
                :type name: :class:`ldns_dname` or str
                :param aclass: The class to use.
                :type aclass: ldns_rr_class

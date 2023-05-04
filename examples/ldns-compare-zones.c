@@ -21,15 +21,18 @@
 #define OP_INS '+'
 #define OP_DEL '-'
 #define OP_CHG '~'
+#define OP_EQ  '='
 
 static void 
 usage(char *prog)
 {
-	printf("Usage: %s [-v] [-i] [-d] [-c] [-s] [-e] "
+	printf("Usage: %s [-v] [-i] [-d] [-c] [-u] [-s] [-e] "
 	       "<zonefile1> <zonefile2>\n", prog);
 	printf("       -i - print inserted\n");
 	printf("       -d - print deleted\n");
 	printf("       -c - print changed\n");
+	printf("       -u - print unchanged\n");
+	printf("       -U - print unchanged records in changed names\n");
 	printf("       -a - print all differences (-i -d -c)\n");
 	printf("       -s - do not exclude SOA record from comparison\n");
 	printf("       -z - do not sort zones\n");
@@ -46,19 +49,22 @@ main(int argc, char **argv)
 	ldns_zone      *z1, *z2;
 	ldns_status	s;
 	size_t		i      , j;
+	size_t		k      , l;
+	size_t		nc1    , nc2;
 	ldns_rr_list   *rrl1, *rrl2;
 	int		rr_cmp, rr_chg = 0;
 	ldns_rr        *rr1 = NULL, *rr2 = NULL, *rrx = NULL;
 	int		line_nr1 = 0, line_nr2 = 0;
 	size_t		rrc1   , rrc2;
-	size_t		num_ins = 0, num_del = 0, num_chg = 0;
+	size_t		num_ins = 0, num_del = 0, num_chg = 0, num_eq = 0;
 	int		c;
-	bool		opt_deleted = false, opt_inserted = false, opt_changed = false;
+	bool		opt_deleted = false, opt_inserted  = false;
+	bool            opt_changed = false, opt_unchanged = false, opt_Unchanged = false;
         bool		sort = true, inc_soa = false;
 	bool		opt_exit_status = false;
 	char		op = 0;
 
-	while ((c = getopt(argc, argv, "ahvdicesz")) != -1) {
+	while ((c = getopt(argc, argv, "ahvdicuUesz")) != -1) {
 		switch (c) {
 		case 'h':
 			usage(argv[0]);
@@ -89,6 +95,17 @@ main(int argc, char **argv)
 		case 'c':
 			opt_changed = true;
 			break;
+
+		case 'u':
+			opt_unchanged = true;
+			opt_Unchanged = true;
+			break;
+
+		case 'U':
+			opt_Unchanged = true;
+			opt_changed = true;
+			break;
+
 		case 'a':
 			opt_deleted = true;
 			opt_inserted = true;
@@ -101,7 +118,6 @@ main(int argc, char **argv)
 	argv += optind;
 
 	if (argc != 2) {
-		argc -= optind;
 		argv -= optind;
 		usage(argv[0]);
 		exit(EXIT_FAILURE);
@@ -117,7 +133,7 @@ main(int argc, char **argv)
 						  LDNS_RR_CLASS_IN, &line_nr1);
 	if (s != LDNS_STATUS_OK) {
 		fclose(fp1);
-		fprintf(stderr, "%s: %s at %d\n",
+		fprintf(stderr, "%s: %s at line %d\n",
 			   fn1,
 			   ldns_get_errorstr_by_id(s),
 			   line_nr1);
@@ -137,7 +153,7 @@ main(int argc, char **argv)
 	if (s != LDNS_STATUS_OK) {
 		ldns_zone_deep_free(z1);
 		fclose(fp2);
-		fprintf(stderr, "%s: %s at %d\n",
+		fprintf(stderr, "%s: %s at line %d\n",
 			   fn2,
 			   ldns_get_errorstr_by_id(s),
 			   line_nr2);
@@ -198,12 +214,6 @@ main(int argc, char **argv)
 			rr2 = ldns_rr_list_rr(rrl2, j);
 			rr_cmp = ldns_rr_compare(rr1, rr2);
 
-			/* Completely skip if the rrs are equal */
-			if (rr_cmp == 0) {
-				i++;
-				j++;
-				continue;
-			}
 			rr_chg = ldns_dname_compare(ldns_rr_owner(rr1),
 								   ldns_rr_owner(rr2));
 		} else if (i >= rrc1) {
@@ -222,7 +232,6 @@ main(int argc, char **argv)
 			rr_chg = rr_cmp = -1;
 		}
 		if (rr_cmp < 0) {
-			i++;
 			if ((rrx != NULL) && (ldns_dname_compare(ldns_rr_owner(rr1), 
 											 ldns_rr_owner(rrx)
 											 ) != 0)) {
@@ -244,8 +253,8 @@ main(int argc, char **argv)
 				printf("%c-", op);
 				ldns_rr_print(stdout, rr1);
 			}
+			i++;
 		} else if (rr_cmp > 0) {
-			j++;
 			if ((rrx != NULL) && (ldns_dname_compare(ldns_rr_owner(rr2),
 											 ldns_rr_owner(rrx)
 											 ) != 0)) {
@@ -267,16 +276,78 @@ main(int argc, char **argv)
 				printf("%c+", op);
 				ldns_rr_print(stdout, rr2);
 			}
+			j++;
+		} else {
+			if ((rrx != NULL) && (ldns_dname_compare(ldns_rr_owner(rr1),
+											 ldns_rr_owner(rrx)
+											 ) != 0)) {
+				rrx = NULL;
+			}
+			if (rrx == NULL) {
+				rrx = rr1;
+
+				/* Are all rrs with this name equal? */
+				for ( k = i + 1
+				    ; k < rrc1 &&
+				      ldns_dname_compare(ldns_rr_owner(rr1), 
+					                 ldns_rr_owner(ldns_rr_list_rr(rrl1, k))) == 0
+				    ; k++);
+                                
+
+				for ( l = j + 1
+				    ; l < rrc2 &&
+				      ldns_dname_compare(ldns_rr_owner(rr2), 
+					                 ldns_rr_owner(ldns_rr_list_rr(rrl2, l))) == 0
+				    ; l++);
+
+				if ((k - i) != (l - j)) {
+					op = OP_CHG;
+					num_chg++;
+				} else {
+					nc1 = k - i;
+					nc2 = l - j;
+					for ( k = i + 1, l = j + 1
+					    ; (k - i) < nc1 && (l - j) < nc2 &&
+							ldns_rr_compare(ldns_rr_list_rr(rrl1, k),
+							ldns_rr_list_rr(rrl2, l)) == 0
+					    ; k++, l++);
+					if ((k - i) < nc1) {
+						op = OP_CHG;
+						num_chg++;
+                                       } else {
+						op = OP_EQ;
+						num_eq++;
+					}
+				}
+			}
+			if (((op == OP_EQ ) && opt_unchanged) ||
+			    ((op == OP_CHG) && opt_Unchanged && opt_changed)) {
+				printf("%c=", op);
+				ldns_rr_print(stdout, rr1);
+			}
+			i++;
+			j++;
 		}
 	}
 
-	printf("\t%c%u\t%c%u\t%c%u\n", 
-		  OP_INS, 
-		  (unsigned int) num_ins, 
-		  OP_DEL,
-		  (unsigned int) num_del, 
-		  OP_CHG, 
-		  (unsigned int) num_chg);
+	if (opt_unchanged || opt_Unchanged)
+		printf("\t%c%u\t%c%u\t%c%u\t%c%u\n", 
+			  OP_INS, 
+			  (unsigned int) num_ins, 
+			  OP_DEL,
+			  (unsigned int) num_del, 
+			  OP_CHG, 
+			  (unsigned int) num_chg,
+			  OP_EQ,
+			  (unsigned int) num_eq);
+	else
+		printf("\t%c%u\t%c%u\t%c%u\n", 
+			  OP_INS, 
+			  (unsigned int) num_ins, 
+			  OP_DEL,
+			  (unsigned int) num_del, 
+			  OP_CHG, 
+			  (unsigned int) num_chg);
 
 	/* Free resources */
 	if(inc_soa) {

@@ -2,7 +2,7 @@
 	* Added ldns_rdf.data_as_bytearray(). The method returns a bytearray object
 	  containing rdf data.
 	* Changed the behaviour of ldns_resolver.trusted_key() in order to prevent
-	  memory corrupotion and leaks.
+	  memory corruption and leaks.
 	* Fixed memory leaks when destroying ldns_resolver.
 	* Removed ldns_pkt.section_count(), ldns_resolver.set_searchlist_count()
 	  because it is marked static in the library.

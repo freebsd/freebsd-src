@@ -44,7 +44,7 @@ if True:
     except:
         set_error()
     #
-    # Error when printing a dname wich was created fron an empty string.
+    # Error when printing a dname which was created from an empty string.
     # Must find out why.
     #
     try:

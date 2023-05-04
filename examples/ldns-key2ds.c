@@ -93,7 +93,6 @@ main(int argc, char *argv[])
 	ldns_status result = LDNS_STATUS_OK;
 	int sep_only = 1;
 
-	alg = 0;
 	h = LDNS_SHA1;
 
 	argv++, argc--;

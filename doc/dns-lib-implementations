@@ -20,7 +20,7 @@ From libfiredns(3):
 
 libfiredns is a library for handling asynchronous DNS
 requests.  It provides a very simple interface for sending
-requests and parsing reponses, as well as low-timeout
+requests and parsing responses, as well as low-timeout
 blocking functions.  libfiredns functions have much lower
 timeouts than the stock functions and tend to be faster
 because they send requests to all configured system

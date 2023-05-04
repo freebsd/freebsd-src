@@ -180,7 +180,7 @@ check_packet(uint8_t* wire, size_t len, int tp)
 
 	/* test EDNS0 presence, of OPT record */
 	/* LDNS forgets during pkt parse, but we test the ARCOUNT;
-	 * 0 additionals means no EDNS(on the wire), and after parsing the
+	 * 0 additional means no EDNS(on the wire), and after parsing the
 	 * same additional RRs as before means no EDNS OPT */
 	if(LDNS_ARCOUNT(wire) == 0 ||
 		ldns_pkt_arcount(p) == LDNS_ARCOUNT(wire)) {

@@ -50,7 +50,7 @@ In the third step we tell the resolver to query for our domain, type MX, of clas
 	pkt = resolver.query(dname, ldns.LDNS_RR_TYPE_MX, ldns.LDNS_RR_CLASS_IN, ldns.LDNS_RD)
 
 The function should return a packet if everything goes well and this packet will contain resource records we asked for. 
-Note that there exists a simplier way. Instead of using a dname variable, we can use a string which will be automatically converted.
+Note that there exists a simpler way. Instead of using a dname variable, we can use a string which will be automatically converted.
 ::
 
 	pkt = resolver.query("fit.vutbr.cz", ldns.LDNS_RR_TYPE_MX, ldns.LDNS_RR_CLASS_IN, ldns.LDNS_RD)

@@ -4,9 +4,9 @@
 
 """ Easy DNS (including DNSSEC) via ldns.
 
-ldns is a great library. It is a powerfull tool for
+ldns is a great library. It is a powerful tool for
 working with DNS. python-ldns it is a straight up clone of the C
-interface, howver that is not a very good interface for python. Its
+interface, however that is not a very good interface for python. Its
 documentation is incomplete and some functions don't work as
 described. And some objects don't have a full python API.
 
@@ -204,7 +204,7 @@ class resolver:
 			            defaults to settings from /etc/resolv.conf
 			* dnssec -- should the resolver try and use dnssec or not?
 		    * tcp -- should the resolver use TCP
-		             'auto' is a depricated work around for old ldns problems
+		             'auto' is a deprecated work around for old ldns problems
 		    * port -- the port to use, must be the same for all nameservers
 
 			"""
@@ -238,7 +238,7 @@ class resolver:
 			* rr_type -- the record type to query for
 			* rr_class -- the class to query for, defaults to IN (Internet)
 			* flags -- the flags to send the query with 
-			* tries -- the number of times to attempt to acheive query in case of packet loss, etc
+			* tries -- the number of times to attempt to achieve query in case of packet loss, etc
 			
 			**Examples**
 			
@@ -284,7 +284,7 @@ class resolver:
 
 			If the version of ldnsx you are using is old, it is possible that there could be new rr_types that
 			we don't recognise mnemonic for. You can still use the number XXX or the string "TYPEXXX". To
-			determine what rr_type menmonics we support, please refer to resolver.supported_rr_types()
+			determine what rr_type mnemonics we support, please refer to resolver.supported_rr_types()
 
 		"""
 		# Determine rr_type int
@@ -320,7 +320,7 @@ class resolver:
 			pkt = self._ldns_resolver.query(name, _rr_type, _rr_class, _flags)
 		except KeyboardInterrupt: #Since so much time is spent waiting on ldns, this is very common place for Ctr-C to fall
 			raise
-		except: #Since the ldns exceptiion is not very descriptive...
+		except: #Since the ldns exception is not very descriptive...
 			raise Exception("ldns backend ran into problems. Likely, the name you were querying for, %s, was invalid." % name)
 		#Deal with failed queries
 		if not pkt:
@@ -384,7 +384,7 @@ class resolver:
 			>>>       tlds.append(rr.owner())
 
 		"""
-		#Dname seems to be unecessary on some computers, but it is on others. Avoid bugs.
+		#Dname seems to be unnecessary on some computers, but it is on others. Avoid bugs.
 		if self._ldns_resolver.axfr_start(ldns.ldns_dname(name), ldns.LDNS_RR_CLASS_IN) != ldns.LDNS_STATUS_OK:
 			raise Exception("Starting AXFR failed. Error: %s" % ldns.ldns_get_errorstr_by_id(status))
 		pres = self._ldns_resolver.axfr_next()
@@ -497,7 +497,7 @@ class packet:
 
 		Example returned value: "NOERROR"
 
-		possilbe rcodes (via ldns): "FORMERR", "MASK", "NOERROR",
+		possible rcodes (via ldns): "FORMERR", "MASK", "NOERROR",
 		"NOTAUTH", "NOTIMPL", "NOTZONE", "NXDOMAIN",
 		"NXRSET", "REFUSED", "SERVFAIL", "SHIFT", 
 		"YXDOMAIN", "YXRRSET"
@@ -823,7 +823,7 @@ class resource_record:
 			return -1
 
 	def protocol(self):
-		""" Returns proticol of the DNSKEY"""
+		""" Returns protocol of the DNSKEY"""
 		t = self.rr_type() 
 		if t == "DNSKEY":
 			return int(self[5])

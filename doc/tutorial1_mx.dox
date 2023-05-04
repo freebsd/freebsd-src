@@ -65,7 +65,7 @@
 
 
    We tell the resolver to query for our domain, type MX, of class IN:
-   \skipline ldns_resolver_query
+   \skipline ldns_resolver_search
    \until )
 
    The last argument contains flags to influence the type of query the

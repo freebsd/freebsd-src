@@ -4,6 +4,8 @@ ldns-compare-zones \- read and compare two zonefiles and print differences
 .SH SYNOPSIS
 .B ldns-compare-zones
 .IR [-c]
+.IR [-U]
+.IR [-u]
 .IR [-i]
 .IR [-d]
 .IR [-z]
@@ -13,8 +15,11 @@ ldns-compare-zones \- read and compare two zonefiles and print differences
 .SH DESCRIPTION
 \fBldns-compare-zones\fR reads two DNS zone files and prints number of differences.
 .nf
-Output is formated to:
+Output is formatted to:
         +NUM_INS        \-NUM_DEL        ~NUM_CHG
+
+Except with the \fI-U\fR or \fI-u\fR option.  Then the output is formatted to:
+        +NUM_INS        \-NUM_DEL        ~NUM_CHG        =NUM_EQ
 
 .fi
 The major comparison is based on the owner name. If an owner name is present in zonefile 1, but not in zonefile 2, the resource records with this owner name are considered deleted, and counted as NUM_DEL. If an owner name is present in zonefile 2, but not in zonefile 1, the resource records with this owner name are considered inserted, and counted as NUM_INS. If an owner name is present in both, but there is a difference in the amount or content of the records, these are considered changed, and counted as NUM_CHG.
@@ -23,6 +28,12 @@ The major comparison is based on the owner name. If an owner name is present in 
 \fB-c\fR
 Print resource records whose owner names are in both zone files, but with different resource records. (a.k.a. changed)
 .TP
+\fB-U\fR
+From resource records whose owner names are in both zone files, but with different resource records, print the unchanged records too (a.k.a. changed++).
+.TP
+\fB-u\fR
+Print resource records whose owner names are in both zone files, and which resource records are the same. (a.k.a. unchanged)
+.TP
 \fB-i\fR
 Print resource records whose owner names are present only in ZONEFILE2 (a.k.a. inserted)
 .TP
@@ -30,8 +41,8 @@ Print resource records whose owner names are present only in ZONEFILE2 (a.k.a. i
 Print resource records whose owner names are present only in ZONEFILE1 (a.k.a. deleted)
 .TP
 \fB-a\fR
-Print all changes. Specifying this option is the same as specifying \-c \-i
-amd \-d.
+Print all changes (except unchanged). Specifying this option is the same as specifying \-c \-i
+and \-d.
 .TP
 \fB-z\fR
 Suppress zone sorting; this option is not recommended; it can cause records

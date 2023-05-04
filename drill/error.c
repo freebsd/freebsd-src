@@ -2,7 +2,7 @@
  * error.c
  *
  * error reporting routines
- * basicly wrappers around printf
+ * basically wrappers around printf
  *
  * (c) 2005 NLnet Labs
  *

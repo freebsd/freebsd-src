@@ -3,7 +3,7 @@ package DNS::LDNS::GC;
 use strict;
 use warnings;
 
-our $VERSION = '0.52';
+our $VERSION = '0.61';
 
 my %ref_count;
 my %owned_by;

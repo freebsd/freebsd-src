@@ -147,6 +147,15 @@ struct sockaddr_storage;
 #include <netinet/igmp.h>
 #endif
 #include <errno.h>
+#include <signal.h>
+
+#ifdef HAVE_TARGETCONDITIONALS_H
+#include <TargetConditionals.h>
+#endif
+
+#if defined(TARGET_OS_TV) || defined(TARGET_OS_WATCH)
+#undef HAVE_FORK
+#endif
 
 #define INBUF_SIZE 4096         /* max size for incoming queries */
 #define DEFAULT_PORT 53		/* default if no -p port is specified */
@@ -272,7 +281,7 @@ handle_udp(int udp_sock, struct entry* entries, int *count)
 		&userdata, do_verbose?logfile:0);
 }
 
-static void
+static int
 read_n_bytes(int sock, uint8_t* buf, size_t sz)
 {
 	size_t count = 0;
@@ -280,14 +289,14 @@ read_n_bytes(int sock, uint8_t* buf, size_t sz)
 		ssize_t nb = recv(sock, (void*)(buf+count), sz-count, 0);
 		if(nb < 0) {
 			log_msg("recv(): %s\n", strerror(errno));
-			return;
+			return -1;
 		} else if(nb == 0) {
 			log_msg("recv: remote end closed the channel\n");
-			memset(buf+count, 0, sz-count);
-			return;
+			return sz-count;
 		}
 		count += nb;
 	}
+	return 0;
 }
 
 static void
@@ -325,7 +334,7 @@ handle_tcp(int tcp_sock, struct entry* entries, int *count)
 	struct sockaddr_storage addr_him;
 	socklen_t hislen;
 	uint8_t inbuf[INBUF_SIZE];
-	uint16_t tcplen;
+	uint16_t tcplen = 0;
 	struct handle_tcp_userdata userdata;
 
 	/* accept */
@@ -336,23 +345,58 @@ handle_tcp(int tcp_sock, struct entry* entries, int *count)
 	}
 	userdata.s = s;
 
-	/* tcp recv */
-	read_n_bytes(s, (uint8_t*)&tcplen, sizeof(tcplen));
-	tcplen = ntohs(tcplen);
-	if(tcplen >= INBUF_SIZE) {
-		log_msg("query %d bytes too large, buffer %d bytes.\n",
-			tcplen, INBUF_SIZE);
+	while(1) {
+		/* tcp recv */
+		if (read_n_bytes(s, (uint8_t*)&tcplen, sizeof(tcplen))) {
 #ifndef USE_WINSOCK
-		close(s);
+			close(s);
 #else
-		closesocket(s);
+			closesocket(s);
 #endif
-		return;
-	}
-	read_n_bytes(s, inbuf, tcplen);
+			return;
+		}
+		tcplen = ntohs(tcplen);
+		if(tcplen >= INBUF_SIZE) {
+			log_msg("query %d bytes too large, buffer %d bytes.\n",
+				tcplen, INBUF_SIZE);
+#ifndef USE_WINSOCK
+			close(s);
+#else
+			closesocket(s);
+#endif
+			return;
+		}
+		if (read_n_bytes(s, inbuf, tcplen)) {
+#ifndef USE_WINSOCK
+			close(s);
+#else
+			closesocket(s);
+#endif
+			return;
+		}
 
-	handle_query(inbuf, (ssize_t) tcplen, entries, count, transport_tcp, 
-		send_tcp, &userdata, do_verbose?logfile:0);
+		handle_query(inbuf, (ssize_t) tcplen, entries, count, transport_tcp, 
+			send_tcp, &userdata, do_verbose?logfile:0);
+
+		/* another query straight away? */
+		if(1) {
+			fd_set rset;
+			struct timeval tv;
+			int ret;
+			FD_ZERO(&rset);
+			FD_SET(s, &rset);
+			tv.tv_sec = 0;
+			tv.tv_usec = 100*1000;
+			ret = select(s+1, &rset, NULL, NULL, &tv);
+			if(ret < 0) {
+				error("select(): %s\n", strerror(errno));
+			}
+			if(ret == 0) {
+				/* timeout */
+				break;
+			}
+		}
+	}
 #ifndef USE_WINSOCK
 	close(s);
 #else
@@ -407,7 +451,7 @@ forkit(int number)
 	int i;
 	for(i=0; i<number; i++)
 	{
-#ifndef HAVE_FORK
+#if !defined(HAVE_FORK) || !defined(HAVE_FORK_AVAILABLE)
 #ifndef USE_WINSOCK
 		log_msg("fork() not available.\n");
 		exit(1);
@@ -499,6 +543,9 @@ main(int argc, char **argv)
 	log_msg("Reading datafile %s\n", datafile);
 	entries = read_datafile(datafile, 0);
 
+#ifdef SIGPIPE
+        (void)signal(SIGPIPE, SIG_IGN);
+#endif
 #ifdef USE_WINSOCK
 	if(WSAStartup(MAKEWORD(2,2), &wsa_data) != 0)
 		error("WSAStartup failed\n");

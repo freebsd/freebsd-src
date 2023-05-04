@@ -258,7 +258,7 @@ main(int argc, char **argv)
 
 	fclose(fp);
 	if (s != LDNS_STATUS_OK) {
-		fprintf(stderr, "%s at %d\n", 
+		fprintf(stderr, "%s at line %d\n", 
 				ldns_get_errorstr_by_id(s),
 				line_nr);
                 exit(EXIT_FAILURE);

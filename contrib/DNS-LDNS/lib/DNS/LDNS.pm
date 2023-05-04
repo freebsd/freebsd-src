@@ -651,7 +651,7 @@ our @EXPORT = qw(
 	read_anchor_file
 );
 
-our $VERSION = '0.52';
+our $VERSION = '0.61';
 
 sub AUTOLOAD {
     # This AUTOLOAD is used to 'autoload' constants from the constant()

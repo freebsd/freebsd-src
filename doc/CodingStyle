@@ -60,5 +60,5 @@ The libdns coding style guide
     arcount     = additional section count
 
 ldns-<tools>
-* use exit(EXIT_FAILURE)/ exit(SUCCES)
+* use exit(EXIT_FAILURE)/ exit(EXIT_SUCCESS)
 * 
