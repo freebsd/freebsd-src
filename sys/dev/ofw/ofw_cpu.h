@@ -31,7 +31,7 @@
 #ifndef _DEV_OFW_OFW_CPU_H_
 #define _DEV_OFW_OFW_CPU_H_
 
-typedef boolean_t (*ofw_cpu_foreach_cb)(u_int, phandle_t, u_int, pcell_t *);
+typedef bool (*ofw_cpu_foreach_cb)(u_int, phandle_t, u_int, pcell_t *);
 int ofw_cpu_early_foreach(ofw_cpu_foreach_cb, boolean_t);
 
 #endif /* _DEV_OFW_OFW_CPU_H_ */
