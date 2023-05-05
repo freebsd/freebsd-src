@@ -50,6 +50,7 @@ void summary(void);
 void sigalarm_handler(int);
 void siginfo_handler(int);
 void terminate(int);
+void check_terminate(void);
 void unblock(void);
 void unblock_close(void);
 
@@ -69,3 +70,4 @@ extern u_char casetab[];
 extern char fill_char;
 extern volatile sig_atomic_t need_summary;
 extern volatile sig_atomic_t need_progress;
+extern volatile sig_atomic_t kill_signal;
