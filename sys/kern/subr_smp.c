@@ -975,7 +975,8 @@ quiesce_cpus(cpuset_t map, const char *wmesg, int prio)
 
 	error = 0;
 	if ((prio & PDROP) == 0) {
-		gen = malloc(sizeof(u_int) * MAXCPU, M_TEMP, M_WAITOK);
+		gen = mallocarray(sizeof(u_int), mp_maxid + 1, M_TEMP,
+		    M_WAITOK);
 		for (cpu = 0; cpu <= mp_maxid; cpu++) {
 			if (!CPU_ISSET(cpu, &map) || CPU_ABSENT(cpu))
 				continue;
