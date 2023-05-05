@@ -159,8 +159,6 @@ soft_config_pmc(int cpu, int ri, struct pmc *pm)
 static int
 soft_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc)
 {
-	int error;
-	size_t copied;
 	const struct soft_descr *pd;
 	struct pmc_hw *phw;
 
@@ -172,10 +170,7 @@ soft_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc)
 	phw = &soft_pcpu[cpu]->soft_hw[ri];
 	pd  = &soft_pmcdesc[ri];
 
-	if ((error = copystr(pd->pm_descr.pd_name, pi->pm_name,
-	    PMC_NAME_MAX, &copied)) != 0)
-		return (error);
-
+	strlcpy(pi->pm_name, pd->pm_descr.pd_name, sizeof(pi->pm_name));
 	pi->pm_class = pd->pm_descr.pd_class;
 
 	if (phw->phw_state & PMC_PHW_FLAG_IS_ENABLED) {
