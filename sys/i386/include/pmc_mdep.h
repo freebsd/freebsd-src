@@ -121,11 +121,9 @@ struct pmc_mdep;
 #define	PMC_TRAPFRAME_TO_USER_SP(TF)	((TF)->tf_esp)
 #define	PMC_TRAPFRAME_TO_KERNEL_SP(TF)	((uintptr_t) &((TF)->tf_esp))
 
-#define	PMC_IN_KERNEL_STACK(S,START,END)		\
-	((S) >= (START) && (S) < (END))
+#define	PMC_IN_KERNEL_STACK(va)	kstack_contains(curthread, (va), sizeof(va))
 #define	PMC_IN_KERNEL(va)	INKERNEL(va)
-
-#define	PMC_IN_USERSPACE(va) ((va) <= VM_MAXUSER_ADDRESS)
+#define	PMC_IN_USERSPACE(va)	((va) <= VM_MAXUSER_ADDRESS)
 
 #define	PMC_IN_TRAP_HANDLER(PC) 			\
 	((PC) >= (uintptr_t)start_exceptions + setidt_disp &&	\
