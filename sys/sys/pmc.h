@@ -84,13 +84,6 @@ extern char pmc_cpuid[PMC_CPUID_LEN];
 #define	__PMC_CPUS()						\
 	__PMC_CPU(AMD_K7,	0x00,	"AMD K7")		\
 	__PMC_CPU(AMD_K8,	0x01,	"AMD K8")		\
-	__PMC_CPU(INTEL_P5,	0x80,	"Intel Pentium")	\
-	__PMC_CPU(INTEL_P6,	0x81,	"Intel Pentium Pro")	\
-	__PMC_CPU(INTEL_CL,	0x82,	"Intel Celeron")	\
-	__PMC_CPU(INTEL_PII,	0x83,	"Intel Pentium II")	\
-	__PMC_CPU(INTEL_PIII,	0x84,	"Intel Pentium III")	\
-	__PMC_CPU(INTEL_PM,	0x85,	"Intel Pentium M")	\
-	__PMC_CPU(INTEL_PIV,	0x86,	"Intel Pentium IV")	\
 	__PMC_CPU(INTEL_CORE,	0x87,	"Intel Core Solo/Duo")	\
 	__PMC_CPU(INTEL_CORE2,	0x88,	"Intel Core2")		\
 	__PMC_CPU(INTEL_CORE2EXTREME,	0x89,	"Intel Core2 Extreme")	\
@@ -153,9 +146,6 @@ enum pmc_cputype {
 	__PMC_CLASS(TSC,	0x00,	"CPU Timestamp counter")	\
 	__PMC_CLASS(K7,		0x01,	"AMD K7 performance counters")	\
 	__PMC_CLASS(K8,		0x02,	"AMD K8 performance counters")	\
-	__PMC_CLASS(P5,		0x03,	"Intel Pentium counters")	\
-	__PMC_CLASS(P6,		0x04,	"Intel Pentium Pro counters")	\
-	__PMC_CLASS(P4,		0x05,	"Intel Pentium-IV counters")	\
 	__PMC_CLASS(IAF,	0x06,	"Intel Core2/Atom, fixed function") \
 	__PMC_CLASS(IAP,	0x07,	"Intel Core...Atom, programmable") \
 	__PMC_CLASS(UCF,	0x08,	"Intel Uncore fixed function")	\
