@@ -4,6 +4,9 @@
  * license that can be found in the LICENSE file.
  */
 
+#include <sys/types.h>
+#include <sys/socket.h>
+
 #include <openssl/bn.h>
 #include <openssl/evp.h>
 #include <openssl/sha.h>
@@ -50,6 +53,14 @@ WRAP(void *,
 	1
 )
 
+WRAP(void *,
+	realloc,
+	(void *ptr, size_t size),
+	NULL,
+	(ptr, size),
+	1
+)
+
 WRAP(char *,
 	strdup,
 	(const char *s),
@@ -84,79 +95,11 @@ WRAP(EVP_CIPHER_CTX *,
 )
 
 WRAP(int,
-	EVP_EncryptInit_ex,
-	(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type, ENGINE *impl,
-	    const unsigned char *key, const unsigned char *iv),
-	0,
-	(ctx, type, impl, key, iv),
-	1
-)
-
-WRAP(int,
-	EVP_CIPHER_CTX_set_padding,
-	(EVP_CIPHER_CTX *x, int padding),
-	0,
-	(x, padding),
-	1
-)
-
-WRAP(int,
-	EVP_EncryptUpdate,
-	(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl,
-	    const unsigned char *in, int inl),
-	0,
-	(ctx, out, outl, in, inl),
-	1
-)
-
-WRAP(int,
 	EVP_CipherInit,
 	(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *cipher,
 	    const unsigned char *key, const unsigned char *iv, int enc),
 	0,
 	(ctx, cipher, key, iv, enc),
-	1
-)
-
-WRAP(int,
-	EVP_DecryptInit_ex,
-	(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type, ENGINE *impl,
-	    const unsigned char *key, const unsigned char *iv),
-	0,
-	(ctx, type, impl, key, iv),
-	1
-)
-
-WRAP(int,
-	EVP_DecryptUpdate,
-	(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl,
-	    const unsigned char *in, int inl),
-	0,
-	(ctx, out, outl, in, inl),
-	1
-)
-
-WRAP(int,
-	SHA256_Init,
-	(SHA256_CTX *c),
-	0,
-	(c),
-	1
-)
-
-WRAP(int,
-	SHA256_Update,
-	(SHA256_CTX *c, const void *data, size_t len),
-	0,
-	(c, data, len),
-	1
-)
-
-WRAP(int,
-	SHA256_Final,
-	(unsigned char *md, SHA256_CTX *c),
-	0,
-	(md, c),
 	1
 )
 
@@ -201,6 +144,30 @@ WRAP(int,
 	1
 )
 
+WRAP(int,
+	EVP_DigestInit_ex,
+	(EVP_MD_CTX *ctx, const EVP_MD *type, ENGINE *impl),
+	0,
+	(ctx, type, impl),
+	1
+)
+
+WRAP(int,
+	EVP_DigestUpdate,
+	(EVP_MD_CTX *ctx, const void *data, size_t count),
+	0,
+	(ctx, data, count),
+	1
+)
+
+WRAP(int,
+	EVP_DigestFinal_ex,
+	(EVP_MD_CTX *ctx, unsigned char *md, unsigned int *isize),
+	0,
+	(ctx, md, isize),
+	1
+)
+
 WRAP(BIGNUM *,
 	BN_bin2bn,
 	(const unsigned char *s, int len, BIGNUM *ret),
@@ -241,11 +208,27 @@ WRAP(BIGNUM *,
 	1
 )
 
+WRAP(RSA *,
+	RSA_new,
+	(void),
+	NULL,
+	(),
+	1
+)
+
 WRAP(int,
 	RSA_set0_key,
 	(RSA *r, BIGNUM *n, BIGNUM *e, BIGNUM *d),
 	0,
 	(r, n, e, d),
+	1
+)
+
+WRAP(int,
+	RSA_pkey_ctx_ctrl,
+	(EVP_PKEY_CTX *ctx, int optype, int cmd, int p1, void *p2),
+	-1,
+	(ctx, optype, cmd, p1, p2),
 	1
 )
 
@@ -385,8 +368,48 @@ WRAP(int,
 	1
 )
 
+WRAP(int,
+	EVP_PKEY_verify_init,
+	(EVP_PKEY_CTX *ctx),
+	0,
+	(ctx),
+	1
+)
+
+WRAP(int,
+	EVP_PKEY_CTX_ctrl,
+	(EVP_PKEY_CTX *ctx, int keytype, int optype, int cmd, int p1, void *p2),
+	-1,
+	(ctx, keytype, optype, cmd, p1, p2),
+	1
+)
+
+WRAP(const EVP_MD *,
+	EVP_sha1,
+	(void),
+	NULL,
+	(),
+	1
+)
+
 WRAP(const EVP_MD *,
 	EVP_sha256,
+	(void),
+	NULL,
+	(),
+	1
+)
+
+WRAP(const EVP_CIPHER *,
+	EVP_aes_256_cbc,
+	(void),
+	NULL,
+	(),
+	1
+)
+
+WRAP(const EVP_CIPHER *,
+	EVP_aes_256_gcm,
 	(void),
 	NULL,
 	(),
@@ -433,6 +456,14 @@ WRAP(int,
 	(HMAC_CTX *ctx, unsigned char *md, unsigned int *len),
 	0,
 	(ctx, md, len),
+	1
+)
+
+WRAP(unsigned char *,
+	SHA1,
+	(const unsigned char *d, size_t n, unsigned char *md),
+	NULL,
+	(d, n, md),
 	1
 )
 
@@ -501,8 +532,24 @@ WRAP(cbor_item_t *,
 )
 
 WRAP(cbor_item_t *,
+	cbor_build_uint16,
+	(uint16_t value),
+	NULL,
+	(value),
+	1
+)
+
+WRAP(cbor_item_t *,
 	cbor_build_uint32,
 	(uint32_t value),
+	NULL,
+	(value),
+	1
+)
+
+WRAP(cbor_item_t *,
+	cbor_build_uint64,
+	(uint64_t value),
 	NULL,
 	(value),
 	1
@@ -556,6 +603,14 @@ WRAP(cbor_item_t *,
 	1
 )
 
+WRAP(cbor_item_t *,
+	cbor_new_definite_bytestring,
+	(void),
+	NULL,
+	(),
+	1
+)
+
 WRAP(size_t,
 	cbor_serialize_alloc,
 	(const cbor_item_t *item, cbor_mutable_data *buffer,
@@ -567,16 +622,16 @@ WRAP(size_t,
 
 WRAP(int,
 	fido_tx,
-	(fido_dev_t *d, uint8_t cmd, const void *buf, size_t count),
+	(fido_dev_t *d, uint8_t cmd, const void *buf, size_t count, int *ms),
 	-1,
-	(d, cmd, buf, count),
+	(d, cmd, buf, count, ms),
 	1
 )
 
 WRAP(int,
-	usleep,
-	(unsigned int usec),
+	bind,
+	(int sockfd, const struct sockaddr *addr, socklen_t addrlen),
 	-1,
-	(usec),
+	(sockfd, addr, addrlen),
 	1
 )

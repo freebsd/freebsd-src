@@ -39,7 +39,7 @@ config_prepare_hmac(uint8_t subcmd, const cbor_item_t *item, fido_blob_t *hmac)
 
 static int
 config_tx(fido_dev_t *dev, uint8_t subcmd, cbor_item_t **paramv, size_t paramc,
-    const char *pin)
+    const char *pin, int *ms)
 {
 	cbor_item_t *argv[4];
 	es256_pk_t *pk = NULL;
@@ -68,12 +68,12 @@ config_tx(fido_dev_t *dev, uint8_t subcmd, cbor_item_t **paramv, size_t paramc,
 			fido_log_debug("%s: config_prepare_hmac", __func__);
 			goto fail;
 		}
-		if ((r = fido_do_ecdh(dev, &pk, &ecdh)) != FIDO_OK) {
+		if ((r = fido_do_ecdh(dev, &pk, &ecdh, ms)) != FIDO_OK) {
 			fido_log_debug("%s: fido_do_ecdh", __func__);
 			goto fail;
 		}
 		if ((r = cbor_add_uv_params(dev, cmd, &hmac, pk, ecdh, pin,
-		    NULL, &argv[3], &argv[2])) != FIDO_OK) {
+		    NULL, &argv[3], &argv[2], ms)) != FIDO_OK) {
 			fido_log_debug("%s: cbor_add_uv_params", __func__);
 			goto fail;
 		}
@@ -81,7 +81,7 @@ config_tx(fido_dev_t *dev, uint8_t subcmd, cbor_item_t **paramv, size_t paramc,
 
 	/* framing and transmission */
 	if (cbor_build_frame(cmd, argv, nitems(argv), &f) < 0 ||
-	    fido_tx(dev, CTAP_CMD_CBOR, f.ptr, f.len) < 0) {
+	    fido_tx(dev, CTAP_CMD_CBOR, f.ptr, f.len, ms) < 0) {
 		fido_log_debug("%s: fido_tx", __func__);
 		r = FIDO_ERR_TX;
 		goto fail;
@@ -99,11 +99,12 @@ fail:
 }
 
 static int
-config_enable_entattest_wait(fido_dev_t *dev, const char *pin, int ms)
+config_enable_entattest_wait(fido_dev_t *dev, const char *pin, int *ms)
 {
 	int r;
 
-	if ((r = config_tx(dev, CMD_ENABLE_ENTATTEST, NULL, 0, pin)) != FIDO_OK)
+	if ((r = config_tx(dev, CMD_ENABLE_ENTATTEST, NULL, 0, pin,
+	    ms)) != FIDO_OK)
 		return r;
 
 	return fido_rx_cbor_status(dev, ms);
@@ -112,15 +113,18 @@ config_enable_entattest_wait(fido_dev_t *dev, const char *pin, int ms)
 int
 fido_dev_enable_entattest(fido_dev_t *dev, const char *pin)
 {
-	return (config_enable_entattest_wait(dev, pin, -1));
+	int ms = dev->timeout_ms;
+
+	return (config_enable_entattest_wait(dev, pin, &ms));
 }
 
 static int
-config_toggle_always_uv_wait(fido_dev_t *dev, const char *pin, int ms)
+config_toggle_always_uv_wait(fido_dev_t *dev, const char *pin, int *ms)
 {
 	int r;
 
-	if ((r = config_tx(dev, CMD_TOGGLE_ALWAYS_UV, NULL, 0, pin)) != FIDO_OK)
+	if ((r = config_tx(dev, CMD_TOGGLE_ALWAYS_UV, NULL, 0, pin,
+	    ms)) != FIDO_OK)
 		return r;
 
 	return (fido_rx_cbor_status(dev, ms));
@@ -129,23 +133,31 @@ config_toggle_always_uv_wait(fido_dev_t *dev, const char *pin, int ms)
 int
 fido_dev_toggle_always_uv(fido_dev_t *dev, const char *pin)
 {
-	return config_toggle_always_uv_wait(dev, pin, -1);
+	int ms = dev->timeout_ms;
+
+	return config_toggle_always_uv_wait(dev, pin, &ms);
 }
 
 static int
-config_pin_minlen_tx(fido_dev_t *dev, size_t len, bool force, const char *pin)
+config_pin_minlen_tx(fido_dev_t *dev, size_t len, bool force,
+    const fido_str_array_t *rpid, const char *pin, int *ms)
 {
 	cbor_item_t *argv[3];
 	int r;
 
 	memset(argv, 0, sizeof(argv));
 
-	if ((!len && !force) || len > UINT8_MAX) {
+	if ((rpid == NULL && len == 0 && !force) || len > UINT8_MAX) {
 		r = FIDO_ERR_INVALID_ARGUMENT;
 		goto fail;
 	}
 	if (len && (argv[0] = cbor_build_uint8((uint8_t)len)) == NULL) {
 		fido_log_debug("%s: cbor_encode_uint8", __func__);
+		r = FIDO_ERR_INTERNAL;
+		goto fail;
+	}
+	if (rpid != NULL && (argv[1] = cbor_encode_str_array(rpid)) == NULL) {
+		fido_log_debug("%s: cbor_encode_str_array", __func__);
 		r = FIDO_ERR_INTERNAL;
 		goto fail;
 	}
@@ -155,7 +167,7 @@ config_pin_minlen_tx(fido_dev_t *dev, size_t len, bool force, const char *pin)
 		goto fail;
 	}
 	if ((r = config_tx(dev, CMD_SET_PIN_MINLEN, argv, nitems(argv),
-	    pin)) != FIDO_OK) {
+	    pin, ms)) != FIDO_OK) {
 		fido_log_debug("%s: config_tx", __func__);
 		goto fail;
 	}
@@ -167,12 +179,13 @@ fail:
 }
 
 static int
-config_pin_minlen(fido_dev_t *dev, size_t len, bool force, const char *pin,
-    int ms)
+config_pin_minlen(fido_dev_t *dev, size_t len, bool force,
+    const fido_str_array_t *rpid, const char *pin, int *ms)
 {
 	int r;
 
-	if ((r = config_pin_minlen_tx(dev, len, force, pin)) != FIDO_OK)
+	if ((r = config_pin_minlen_tx(dev, len, force, rpid, pin,
+	    ms)) != FIDO_OK)
 		return r;
 
 	return fido_rx_cbor_status(dev, ms);
@@ -181,11 +194,36 @@ config_pin_minlen(fido_dev_t *dev, size_t len, bool force, const char *pin,
 int
 fido_dev_set_pin_minlen(fido_dev_t *dev, size_t len, const char *pin)
 {
-	return config_pin_minlen(dev, len, false, pin, -1);
+	int ms = dev->timeout_ms;
+
+	return config_pin_minlen(dev, len, false, NULL, pin, &ms);
 }
 
 int
 fido_dev_force_pin_change(fido_dev_t *dev, const char *pin)
 {
-	return config_pin_minlen(dev, 0, true, pin, -1);
+	int ms = dev->timeout_ms;
+
+	return config_pin_minlen(dev, 0, true, NULL, pin, &ms);
+}
+
+int
+fido_dev_set_pin_minlen_rpid(fido_dev_t *dev, const char * const *rpid,
+    size_t n, const char *pin)
+{
+	fido_str_array_t sa;
+	int ms = dev->timeout_ms;
+	int r;
+
+	memset(&sa, 0, sizeof(sa));
+	if (fido_str_array_pack(&sa, rpid, n) < 0) {
+		fido_log_debug("%s: fido_str_array_pack", __func__);
+		r = FIDO_ERR_INTERNAL;
+		goto fail;
+	}
+	r = config_pin_minlen(dev, 0, false, &sa, pin, &ms);
+fail:
+	fido_str_array_free(&sa);
+
+	return r;
 }

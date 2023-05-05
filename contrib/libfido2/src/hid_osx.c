@@ -11,12 +11,17 @@
 #include <signal.h>
 #include <unistd.h>
 
+#include <Availability.h>
 #include <CoreFoundation/CoreFoundation.h>
 #include <IOKit/IOKitLib.h>
 #include <IOKit/hid/IOHIDKeys.h>
 #include <IOKit/hid/IOHIDManager.h>
 
 #include "fido.h"
+
+#if __MAC_OS_X_VERSION_MIN_REQUIRED < 120000
+#define kIOMainPortDefault kIOMasterPortDefault
+#endif
 
 struct hid_osx {
 	IOHIDDeviceRef	ref;
@@ -131,23 +136,18 @@ get_str(IOHIDDeviceRef dev, char **manufacturer, char **product)
 	*manufacturer = NULL;
 	*product = NULL;
 
-	if (get_utf8(dev, CFSTR(kIOHIDManufacturerKey), buf, sizeof(buf)) < 0) {
-		fido_log_debug("%s: get_utf8 manufacturer", __func__);
-		goto fail;
-	}
+	if (get_utf8(dev, CFSTR(kIOHIDManufacturerKey), buf, sizeof(buf)) < 0)
+		*manufacturer = strdup("");
+	else
+		*manufacturer = strdup(buf);
 
-	if ((*manufacturer = strdup(buf)) == NULL) {
-		fido_log_debug("%s: strdup manufacturer", __func__);
-		goto fail;
-	}
+	if (get_utf8(dev, CFSTR(kIOHIDProductKey), buf, sizeof(buf)) < 0)
+		*product = strdup("");
+	else
+		*product = strdup(buf);
 
-	if (get_utf8(dev, CFSTR(kIOHIDProductKey), buf, sizeof(buf)) < 0) {
-		fido_log_debug("%s: get_utf8 product", __func__);
-		goto fail;
-	}
-
-	if ((*product = strdup(buf)) == NULL) {
-		fido_log_debug("%s: strdup product", __func__);
+	if (*manufacturer == NULL || *product == NULL) {
+		fido_log_debug("%s: strdup", __func__);
 		goto fail;
 	}
 
@@ -398,7 +398,7 @@ fido_hid_open(const char *path)
 		goto fail;
 	}
 
-	if ((entry = IORegistryEntryFromPath(kIOMasterPortDefault,
+	if ((entry = IORegistryEntryFromPath(kIOMainPortDefault,
 	    path)) == MACH_PORT_NULL) {
 		fido_log_debug("%s: IORegistryEntryFromPath", __func__);
 		goto fail;

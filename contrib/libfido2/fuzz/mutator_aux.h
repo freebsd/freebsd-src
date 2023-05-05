@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Yubico AB. All rights reserved.
+ * Copyright (c) 2019-2021 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  */
@@ -49,7 +49,7 @@
 #define MUTATE_ALL	(MUTATE_SEED | MUTATE_PARAM | MUTATE_WIREDATA)
 
 #define MAXSTR	1024
-#define MAXBLOB	3072
+#define MAXBLOB	3600
 
 struct blob {
 	uint8_t body[MAXBLOB];
@@ -88,6 +88,7 @@ ssize_t fd_write(int, const void *, size_t);
 fido_dev_t *open_dev(int);
 void set_wire_data(const uint8_t *, size_t);
 
+void fuzz_clock_reset(void);
 void prng_init(unsigned long);
 unsigned long prng_uint32(void);
 

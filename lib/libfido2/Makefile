@@ -32,7 +32,11 @@ SRCS+=	log.c
 SRCS+=	pin.c
 SRCS+=	random.c
 SRCS+=	reset.c
+SRCS+=	rs1.c
 SRCS+=	rs256.c
+SRCS+=	time.c
+SRCS+=	tpm.c
+SRCS+=	types.c
 SRCS+=	u2f.c
 
 SRCS+=	openbsd-compat/freezero.c

@@ -1,4 +1,4 @@
-.\" Copyright (c) 2018 Yubico AB. All rights reserved.
+.\" Copyright (c) 2018-2021 Yubico AB. All rights reserved.
 .\" Use of this source code is governed by a BSD-style
 .\" license that can be found in the LICENSE file.
 .\"
@@ -8,6 +8,7 @@
 .Sh NAME
 .Nm fido_cred_set_authdata ,
 .Nm fido_cred_set_authdata_raw ,
+.Nm fido_cred_set_attstmt ,
 .Nm fido_cred_set_x509 ,
 .Nm fido_cred_set_sig ,
 .Nm fido_cred_set_id ,
@@ -17,6 +18,7 @@
 .Nm fido_cred_set_user ,
 .Nm fido_cred_set_extensions ,
 .Nm fido_cred_set_blob ,
+.Nm fido_cred_set_pin_minlen ,
 .Nm fido_cred_set_prot ,
 .Nm fido_cred_set_rk ,
 .Nm fido_cred_set_uv ,
@@ -37,6 +39,8 @@ typedef enum {
 .Ft int
 .Fn fido_cred_set_authdata_raw "fido_cred_t *cred" "const unsigned char *ptr" "size_t len"
 .Ft int
+.Fn fido_cred_set_attstmt "fido_cred_t *cred" "const unsigned char *ptr" "size_t len"
+.Ft int
 .Fn fido_cred_set_x509 "fido_cred_t *cred" "const unsigned char *ptr" "size_t len"
 .Ft int
 .Fn fido_cred_set_sig "fido_cred_t *cred" "const unsigned char *ptr" "size_t len"
@@ -54,6 +58,8 @@ typedef enum {
 .Fn fido_cred_set_extensions "fido_cred_t *cred" "int flags"
 .Ft int
 .Fn fido_cred_set_blob "fido_cred_t *cred" "const unsigned char *ptr" "size_t len"
+.Ft int
+.Fn fido_cred_set_pin_minlen "fido_cred_t *cred" "size_t len"
 .Ft int
 .Fn fido_cred_set_prot "fido_cred_t *cred" "int prot"
 .Ft int
@@ -80,13 +86,15 @@ of its constituent parts, please refer to the Web Authentication
 .Pp
 The
 .Fn fido_cred_set_authdata ,
+.Fn fido_cred_set_attstmt ,
 .Fn fido_cred_set_x509 ,
 .Fn fido_cred_set_sig ,
 .Fn fido_cred_set_id ,
 and
 .Fn fido_cred_set_clientdata_hash
-functions set the authenticator data, attestation certificate,
-signature, id, and client data hash parts of
+functions set the authenticator data, attestation statement,
+attestation certificate, attestation signature, id, and client
+data hash parts of
 .Fa cred
 to
 .Fa ptr ,
@@ -98,19 +106,33 @@ bytes.
 A copy of
 .Fa ptr
 is made, and no references to the passed pointer are kept.
+.Pp
 The authenticator data passed to
 .Fn fido_cred_set_authdata
 must be a CBOR-encoded byte string, as obtained from
 .Fn fido_cred_authdata_ptr .
 Alternatively, a raw binary blob may be passed to
 .Fn fido_cred_set_authdata_raw .
-.Pp
 An application calling
 .Fn fido_cred_set_authdata
 does not need to call
 .Fn fido_cred_set_id .
 The latter is meant to be used in contexts where the
 credential's authenticator data is not available.
+.Pp
+The attestation statement passed to
+.Fn fido_cred_set_attstmt
+must be a CBOR-encoded map, as obtained from
+.Fn fido_cred_attstmt_ptr .
+An application calling
+.Fn fido_cred_set_attstmt
+does not need to call
+.Fn fido_cred_set_x509
+or
+.Fn fido_cred_set_sig .
+The latter two are meant to be used in contexts where the
+credential's complete attestation statement is not available or
+required.
 .Pp
 The
 .Fn fido_cred_set_clientdata
@@ -183,6 +205,7 @@ At the moment, only the
 .Dv FIDO_EXT_CRED_BLOB ,
 .Dv FIDO_EXT_CRED_PROTECT ,
 .Dv FIDO_EXT_HMAC_SECRET ,
+.Dv FIDO_EXT_MINPINLEN ,
 and
 .Dv FIDO_EXT_LARGEBLOB_KEY
 extensions are supported.
@@ -205,8 +228,32 @@ which must be
 bytes long.
 .Pp
 The
+.Fn fido_cred_set_pin_minlen
+function enables the FIDO 2.1
+.Dv FIDO_EXT_MINPINLEN
+extension on
+.Fa cred
+and sets the expected minimum PIN length of
+.Fa cred
+to
+.Fa len ,
+where
+.Fa len
+is greater than zero.
+If
+.Fa len
+is zero, the
+.Dv FIDO_EXT_MINPINLEN
+extension is disabled on
+.Fa cred .
+.Pp
+The
 .Fn fido_cred_set_prot
-function sets the protection of
+function enables the FIDO 2.1
+.Dv FIDO_EXT_CRED_PROTECT
+extension on
+.Fa cred
+and sets the protection of
 .Fa cred
 to the scalar
 .Fa prot .

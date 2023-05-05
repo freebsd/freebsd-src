@@ -58,8 +58,7 @@ fido_hid_unix_wait(int fd, int ms, const fido_sigset_t *sigmask)
 	pfd.fd = fd;
 
 #ifdef FIDO_FUZZ
-	if (ms < 0)
-		return (0);
+	return (0);
 #endif
 	if (ms > -1) {
 		ts.tv_sec = ms / 1000;

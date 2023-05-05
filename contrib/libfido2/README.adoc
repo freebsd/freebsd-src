@@ -23,6 +23,8 @@ file for the full license text.
 
 *libfido2* is known to work on Linux, macOS, Windows, OpenBSD, and FreeBSD.
 
+NFC support is available on Linux and Windows.
+
 === Documentation
 
 Documentation is available in troff and HTML formats. An
@@ -40,7 +42,7 @@ is also available.
 
 ==== Releases
 
-The current release of *libfido2* is 1.8.0. Please consult Yubico's
+The current release of *libfido2* is 1.9.0. Please consult Yubico's
 https://developers.yubico.com/libfido2/Releases[release page] for source
 and binary releases.
 
@@ -66,7 +68,7 @@ Follow the instructions for Ubuntu 18.04 (Bionic) below.
 
 Or from source, on UNIX-like systems:
 
-  $ (rm -rf build && mkdir build && cd build && cmake ..)
+  $ cmake -B build
   $ make -C build
   $ sudo make -C build install
 
@@ -75,7 +77,8 @@ https://www.freedesktop.org/wiki/Software/pkg-config/[pkg-config] may need to
 be installed, or the PKG_CONFIG_PATH environment variable set.
 
 *libfido2* depends on https://github.com/pjk/libcbor[libcbor],
-https://www.openssl.org[OpenSSL], and https://zlib.net[zlib]. On Linux, libudev
+https://www.openssl.org[OpenSSL] 1.1 or newer, and https://zlib.net[zlib].
+On Linux, libudev
 (part of https://www.freedesktop.org/wiki/Software/systemd[systemd]) is also
 required.
 

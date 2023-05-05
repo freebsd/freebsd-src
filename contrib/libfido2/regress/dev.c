@@ -1,12 +1,14 @@
 /*
- * Copyright (c) 2019 Yubico AB. All rights reserved.
+ * Copyright (c) 2019-2021 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  */
 
 #include <assert.h>
+#include <err.h>
 #include <fido.h>
 #include <string.h>
+#include <time.h>
 
 #include "../fuzz/wiredata_fido2.h"
 
@@ -17,6 +19,7 @@ static uint8_t	 ctap_nonce[8];
 static uint8_t	*wiredata_ptr;
 static size_t	 wiredata_len;
 static int	 initialised;
+static long	 interval_ms;
 
 static void *
 dummy_open(const char *path)
@@ -35,9 +38,9 @@ dummy_close(void *handle)
 static int
 dummy_read(void *handle, unsigned char *ptr, size_t len, int ms)
 {
-	size_t n;
-
-	(void)ms;
+	struct timespec tv;
+	size_t		n;
+	long		d;
 
 	assert(handle == FAKE_DEV_HANDLE);
 	assert(ptr != NULL);
@@ -51,6 +54,21 @@ dummy_read(void *handle, unsigned char *ptr, size_t len, int ms)
 		memcpy(&wiredata_ptr[7], &ctap_nonce, sizeof(ctap_nonce));
 		initialised = 1;
 	}
+
+	if (ms >= 0 && ms < interval_ms)
+		d = ms;
+	else
+		d = interval_ms;
+
+	if (d) {
+		tv.tv_sec = d / 1000;
+		tv.tv_nsec = (d % 1000) * 1000000;
+		if (nanosleep(&tv, NULL) == -1)
+			err(1, "nanosleep");
+	}
+
+	if (d != interval_ms)
+		return (-1); /* timeout */
 
 	if (wiredata_len < len)
 		n = wiredata_len;
@@ -67,12 +85,21 @@ dummy_read(void *handle, unsigned char *ptr, size_t len, int ms)
 static int
 dummy_write(void *handle, const unsigned char *ptr, size_t len)
 {
+	struct timespec tv;
+
 	assert(handle == FAKE_DEV_HANDLE);
 	assert(ptr != NULL);
 	assert(len == REPORT_LEN);
 
 	if (!initialised)
 		memcpy(&ctap_nonce, &ptr[8], sizeof(ctap_nonce));
+
+	if (interval_ms) {
+		tv.tv_sec = interval_ms / 1000;
+		tv.tv_nsec = (interval_ms % 1000) * 1000000;
+		if (nanosleep(&tv, NULL) == -1)
+			err(1, "nanosleep");
+	}
 
 	return ((int)len);
 }
@@ -153,6 +180,7 @@ reopen(void)
 	wiredata = wiredata_setup(cbor_info_data, sizeof(cbor_info_data));
 	assert(fido_dev_open(dev, "dummy") == FIDO_OK);
 	assert(fido_dev_close(dev) == FIDO_OK);
+	fido_dev_free(&dev);
 	wiredata_clear(&wiredata);
 }
 
@@ -177,6 +205,34 @@ double_open(void)
 	assert(fido_dev_open(dev, "dummy") == FIDO_OK);
 	assert(fido_dev_open(dev, "dummy") == FIDO_ERR_INVALID_ARGUMENT);
 	assert(fido_dev_close(dev) == FIDO_OK);
+	fido_dev_free(&dev);
+	wiredata_clear(&wiredata);
+}
+
+static void
+double_close(void)
+{
+	const uint8_t	 cbor_info_data[] = { WIREDATA_CTAP_CBOR_INFO };
+	uint8_t		*wiredata;
+	fido_dev_t	*dev = NULL;
+	fido_dev_io_t	 io;
+
+	memset(&io, 0, sizeof(io));
+
+	io.open = dummy_open;
+	io.close = dummy_close;
+	io.read = dummy_read;
+	io.write = dummy_write;
+
+	wiredata = wiredata_setup(cbor_info_data, sizeof(cbor_info_data));
+	assert((dev = fido_dev_new()) != NULL);
+	assert(fido_dev_close(dev) == FIDO_ERR_INVALID_ARGUMENT);
+	assert(fido_dev_set_io_functions(dev, &io) == FIDO_OK);
+	assert(fido_dev_close(dev) == FIDO_ERR_INVALID_ARGUMENT);
+	assert(fido_dev_open(dev, "dummy") == FIDO_OK);
+	assert(fido_dev_close(dev) == FIDO_OK);
+	assert(fido_dev_close(dev) == FIDO_ERR_INVALID_ARGUMENT);
+	fido_dev_free(&dev);
 	wiredata_clear(&wiredata);
 }
 
@@ -215,6 +271,7 @@ is_fido2(void)
 	assert(fido_dev_is_fido2(dev) == true);
 	assert(fido_dev_supports_pin(dev) == false);
 	assert(fido_dev_close(dev) == FIDO_OK);
+	fido_dev_free(&dev);
 	wiredata_clear(&wiredata);
 }
 
@@ -248,7 +305,92 @@ has_pin(void)
 	assert(fido_dev_reset(dev) == FIDO_OK);
 	assert(fido_dev_has_pin(dev) == false);
 	assert(fido_dev_close(dev) == FIDO_OK);
+	fido_dev_free(&dev);
 	wiredata_clear(&wiredata);
+}
+
+static void
+timeout_rx(void)
+{
+	const uint8_t	 timeout_rx_data[] = {
+			    WIREDATA_CTAP_CBOR_INFO,
+			    WIREDATA_CTAP_KEEPALIVE,
+			    WIREDATA_CTAP_KEEPALIVE,
+			    WIREDATA_CTAP_KEEPALIVE,
+			    WIREDATA_CTAP_KEEPALIVE,
+			    WIREDATA_CTAP_KEEPALIVE,
+			    WIREDATA_CTAP_CBOR_STATUS
+			 };
+	uint8_t		*wiredata;
+	fido_dev_t	*dev = NULL;
+	fido_dev_io_t	 io;
+
+	memset(&io, 0, sizeof(io));
+
+	io.open = dummy_open;
+	io.close = dummy_close;
+	io.read = dummy_read;
+	io.write = dummy_write;
+
+	wiredata = wiredata_setup(timeout_rx_data, sizeof(timeout_rx_data));
+	assert((dev = fido_dev_new()) != NULL);
+	assert(fido_dev_set_io_functions(dev, &io) == FIDO_OK);
+	assert(fido_dev_open(dev, "dummy") == FIDO_OK);
+	assert(fido_dev_set_timeout(dev, 3 * 1000) == FIDO_OK);
+	interval_ms = 1000;
+	assert(fido_dev_reset(dev) == FIDO_ERR_RX);
+	assert(fido_dev_close(dev) == FIDO_OK);
+	fido_dev_free(&dev);
+	wiredata_clear(&wiredata);
+	interval_ms = 0;
+}
+
+static void
+timeout_ok(void)
+{
+	const uint8_t	 timeout_ok_data[] = {
+			    WIREDATA_CTAP_CBOR_INFO,
+			    WIREDATA_CTAP_KEEPALIVE,
+			    WIREDATA_CTAP_KEEPALIVE,
+			    WIREDATA_CTAP_KEEPALIVE,
+			    WIREDATA_CTAP_KEEPALIVE,
+			    WIREDATA_CTAP_KEEPALIVE,
+			    WIREDATA_CTAP_CBOR_STATUS
+			 };
+	uint8_t		*wiredata;
+	fido_dev_t	*dev = NULL;
+	fido_dev_io_t	 io;
+
+	memset(&io, 0, sizeof(io));
+
+	io.open = dummy_open;
+	io.close = dummy_close;
+	io.read = dummy_read;
+	io.write = dummy_write;
+
+	wiredata = wiredata_setup(timeout_ok_data, sizeof(timeout_ok_data));
+	assert((dev = fido_dev_new()) != NULL);
+	assert(fido_dev_set_io_functions(dev, &io) == FIDO_OK);
+	assert(fido_dev_open(dev, "dummy") == FIDO_OK);
+	assert(fido_dev_set_timeout(dev, 30 * 1000) == FIDO_OK);
+	interval_ms = 1000;
+	assert(fido_dev_reset(dev) == FIDO_OK);
+	assert(fido_dev_close(dev) == FIDO_OK);
+	fido_dev_free(&dev);
+	wiredata_clear(&wiredata);
+	interval_ms = 0;
+}
+
+static void
+timeout_misc(void)
+{
+	fido_dev_t *dev;
+
+	assert((dev = fido_dev_new()) != NULL);
+	assert(fido_dev_set_timeout(dev, -2) == FIDO_ERR_INVALID_ARGUMENT);
+	assert(fido_dev_set_timeout(dev, 3 * 1000) == FIDO_OK);
+	assert(fido_dev_set_timeout(dev, -1) == FIDO_OK);
+	fido_dev_free(&dev);
 }
 
 int
@@ -259,8 +401,12 @@ main(void)
 	open_iff_ok();
 	reopen();
 	double_open();
+	double_close();
 	is_fido2();
 	has_pin();
+	timeout_rx();
+	timeout_ok();
+	timeout_misc();
 
 	exit(0);
 }

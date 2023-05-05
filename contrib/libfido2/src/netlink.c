@@ -30,6 +30,8 @@ static ssize_t (*fuzz_write)(int, const void *, size_t);
 #define SOL_NETLINK	270
 #endif
 
+#define NETLINK_POLL_MS	100
+
 /* XXX avoid signed NLA_ALIGNTO */
 #undef NLA_HDRLEN
 #define NLA_HDRLEN	NLMSG_ALIGN(sizeof(struct nlattr))
@@ -694,7 +696,7 @@ fido_nl_get_nfc_target(fido_nl_t *nl, uint32_t dev, uint32_t *target)
 		return (-1);
 	}
 #endif
-	r = nlmsg_rx(nl->fd, reply, sizeof(reply), -1);
+	r = nlmsg_rx(nl->fd, reply, sizeof(reply), NETLINK_POLL_MS);
 #ifndef FIDO_FUZZ
 	if (setsockopt(nl->fd, SOL_NETLINK, NETLINK_DROP_MEMBERSHIP,
 	    &nl->nfc_mcastgrp, sizeof(nl->nfc_mcastgrp)) == -1) {

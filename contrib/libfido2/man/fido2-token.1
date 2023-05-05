@@ -82,6 +82,7 @@
 .Op Fl d
 .Fl i Ar template_id
 .Fl n Ar template_name
+.Ar device
 .Nm
 .Fl S
 .Op Fl d
@@ -110,6 +111,11 @@
 .Fl k Ar user_id
 .Fl n Ar name
 .Fl p Ar display_name
+.Ar device
+.Nm
+.Fl S
+.Fl m
+.Ar rp_id
 .Ar device
 .Nm
 .Fl V
@@ -339,6 +345,12 @@ Sets the minimum PIN length of
 .Ar device
 to
 .Ar pin_length .
+The user will be prompted for the PIN.
+.It Fl S Fl m Ar rp_id Ar device
+Sets the list of relying party IDs that are allowed to retrieve
+the minimum PIN length of
+.Ar device .
+Multiple IDs may be specified, separated by commas.
 The user will be prompted for the PIN.
 .It Fl S Fl u Ar device
 Enables the FIDO 2.1

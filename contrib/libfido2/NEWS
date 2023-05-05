@@ -1,3 +1,25 @@
+* Version 1.9.0 (2021-10-27)
+ ** Enabled NFC support on Linux.
+ ** Added OpenSSL 3.0 compatibility.
+ ** Removed OpenSSL 1.0 compatibility.
+ ** Support for FIDO 2.1 "minPinLength" extension.
+ ** Support for COSE_EDDSA, COSE_ES256, and COSE_RS1 attestation.
+ ** Support for TPM 2.0 attestation.
+ ** Support for device timeouts; see fido_dev_set_timeout().
+ ** New API calls:
+  - es256_pk_from_EVP_PKEY;
+  - fido_cred_attstmt_len;
+  - fido_cred_attstmt_ptr;
+  - fido_cred_pin_minlen;
+  - fido_cred_set_attstmt;
+  - fido_cred_set_pin_minlen;
+  - fido_dev_set_pin_minlen_rpid;
+  - fido_dev_set_timeout;
+  - rs256_pk_from_EVP_PKEY.
+ ** Reliability and portability fixes.
+ ** Better handling of HID devices without identification strings; gh#381.
+ ** Fixed detection of Windows's native webauthn API; gh#382.
+
 * Version 1.8.0 (2021-07-22)
  ** Dropped 'Requires.private' entry from pkg-config file.
  ** Better support for FIDO 2.1 authenticators.
