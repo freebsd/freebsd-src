@@ -204,22 +204,6 @@ __PMC_EV_ALIAS("instruction-retired",	IAF_INSTR_RETIRED_ANY)		\
 __PMC_EV_ALIAS("unhalted-core-cycles",	IAF_CPU_CLK_UNHALTED_CORE)	\
 __PMC_EV_ALIAS("unhalted-reference-cycles", IAF_CPU_CLK_UNHALTED_REF)
 
-
-#define	PMC_EV_IAP_FIRST	PMC_EV_IAP_ARCH_BR_INS_RET
-#define	PMC_EV_IAP_LAST		PMC_EV_IAP_EVENT_FDH_40H
-
-/*
- * Map "architectural" event names to event ids.
- */
-#define	__PMC_EV_ALIAS_INTEL_ARCHITECTURAL()				\
-__PMC_EV_ALIAS("branch-instruction-retired",	IAP_ARCH_BR_INS_RET)	\
-__PMC_EV_ALIAS("branch-misses-retired",		IAP_ARCH_BR_MIS_RET)	\
-__PMC_EV_ALIAS("instruction-retired",		IAP_ARCH_INS_RET)	\
-__PMC_EV_ALIAS("llc-misses",			IAP_ARCH_LLC_MIS)	\
-__PMC_EV_ALIAS("llc-reference",			IAP_ARCH_LLC_REF)	\
-__PMC_EV_ALIAS("unhalted-reference-cycles",	IAP_ARCH_UNH_REF_CYC)	\
-__PMC_EV_ALIAS("unhalted-core-cycles",		IAP_ARCH_UNH_COR_CYC)
-
 #define        __PMC_EV_UCP()                          \
 	__PMC_EV(UCP, EVENT_0CH_04H_E)					   \
 	__PMC_EV(UCP, EVENT_0CH_04H_F)					   \
