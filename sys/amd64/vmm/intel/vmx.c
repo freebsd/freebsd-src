@@ -619,7 +619,9 @@ vmx_modcleanup(void)
 		nmi_flush_l1d_sw = 0;
 
 	smp_rendezvous(NULL, vmx_disable, NULL, NULL);
-	kmem_free(vmxon_region, (mp_maxid + 1) * PAGE_SIZE);
+
+	if (vmxon_region != NULL)
+		kmem_free(vmxon_region, (mp_maxid + 1) * PAGE_SIZE);
 
 	return (0);
 }
