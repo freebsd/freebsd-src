@@ -1146,8 +1146,6 @@ pmc_amd_initialize(void)
 	pcd->pcd_stop_pmc	= amd_stop_pmc;
 	pcd->pcd_write_pmc	= amd_write_pmc;
 
-	pmc_mdep->pmd_pcpu_init = NULL;
-	pmc_mdep->pmd_pcpu_fini = NULL;
 	pmc_mdep->pmd_intr	= amd_intr;
 	pmc_mdep->pmd_switch_in = amd_switch_in;
 	pmc_mdep->pmd_switch_out = amd_switch_out;

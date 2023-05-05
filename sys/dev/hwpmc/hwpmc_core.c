@@ -1248,9 +1248,6 @@ pmc_core_initialize(struct pmc_mdep *md, int maxcpu, int version_override)
 	else
 		md->pmd_intr = core_intr;
 
-	md->pmd_pcpu_fini = NULL;
-	md->pmd_pcpu_init = NULL;
-
 	return (0);
 }
 
