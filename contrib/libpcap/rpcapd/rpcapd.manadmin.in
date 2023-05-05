@@ -30,7 +30,7 @@
 .\"  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 .\"  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.TH RPCAPD @MAN_ADMIN_COMMANDS@ "13 January 2019"
+.TH RPCAPD @MAN_ADMIN_COMMANDS@ "20 January 2023"
 .SH NAME
 rpcapd \- capture daemon to be controlled by a remote libpcap application
 .SH SYNOPSIS
@@ -173,6 +173,46 @@ needs sufficient privileges to perform packet capture, e.g.
 run as root or be owned by root and have suid set. Most operating
 systems provide more elegant solutions when run as user than the
 above solutions, all of them different.
+.LP
+If your system supports
+.BR systemd (1)
+and the corresponding
+.B rpcapd.socket
+and
+.B rpcapd@.service
+service files have been
+installed, the rpcapd service can be enabled by enabling the
+.B rpcapd.socket
+unit.
+.LP
+If your system supports
+.BR launchd (@MAN_ADMIN_COMMANDS@)
+and the
+.B org.tcpdump.rpcapd.plist
+file has been installed, the rpcapd service can be enabled by loading
+the
+.B org.tcpdump.rpcapd
+service.
+.LP
+If your system supports
+.BR inetd (@MAN_ADMIN_COMMANDS@)
+and the
+.B rpcapd.inetd.conf
+entry has been added to
+.BR inetd.conf (@MAN_FILE_FORMATS@),
+the rpcapd service can be enabled by telling
+.B inetd
+to reread its configuration file.
+.LP
+If your system supports
+.BR xinetd (@MAN_ADMIN_COMMANDS@)
+and the
+.B rpcapd.xinetd.conf
+entry has been added to
+.BR xinetd.conf (@MAN_FILE_FORMATS@),
+the rpcapd service can be enabled by telling
+.B xinetd
+to reread its configuration file.
 .SH OPTIONS
 .TP
 .BI \-b " address"
