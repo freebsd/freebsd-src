@@ -341,7 +341,7 @@ e500_pcpu_init(struct pmc_mdep *md, int cpu)
 
 	for (i = 0; i < E500_MAX_PMCS; i++)
 		/* Initialize the PMC to stopped */
-		powerpc_stop_pmc(cpu, i);
+		e500_set_pmc(cpu, i, PMCN_NONE);
 
 	/* Unfreeze global register. */
 	mtpmr(PMR_PMGC0, PMGC_PMIE | PMGC_FCECE);

@@ -220,21 +220,13 @@ tsc_pcpu_init(struct pmc_mdep *md, int cpu)
 }
 
 static int
-tsc_read_pmc(int cpu, int ri, pmc_value_t *v)
+tsc_read_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t *v)
 {
-	struct pmc *pm;
 	enum pmc_mode mode __diagused;
-	const struct pmc_hw *phw;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[tsc,%d] illegal CPU value %d", __LINE__, cpu));
 	KASSERT(ri == 0, ("[tsc,%d] illegal ri %d", __LINE__, ri));
-
-	phw = &tsc_pcpu[cpu]->tc_hw;
-	pm  = phw->phw_pmc;
-
-	KASSERT(pm != NULL,
-	    ("[tsc,%d] no owner for PHW [cpu%d,pmc%d]", __LINE__, cpu, ri));
 
 	mode = PMC_TO_MODE(pm);
 
@@ -270,7 +262,7 @@ tsc_release_pmc(int cpu, int ri __diagused, struct pmc *pmc __unused)
 }
 
 static int
-tsc_start_pmc(int cpu __diagused, int ri __diagused)
+tsc_start_pmc(int cpu __diagused, int ri __diagused, struct pmc *pm __unused)
 {
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
@@ -281,7 +273,7 @@ tsc_start_pmc(int cpu __diagused, int ri __diagused)
 }
 
 static int
-tsc_stop_pmc(int cpu __diagused, int ri __diagused)
+tsc_stop_pmc(int cpu __diagused, int ri __diagused, struct pmc *pm __unused)
 {
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
@@ -292,7 +284,8 @@ tsc_stop_pmc(int cpu __diagused, int ri __diagused)
 }
 
 static int
-tsc_write_pmc(int cpu __diagused, int ri __diagused, pmc_value_t v __unused)
+tsc_write_pmc(int cpu __diagused, int ri __diagused, struct pmc *pm __unused,
+    pmc_value_t v __unused)
 {
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),

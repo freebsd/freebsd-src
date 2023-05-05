@@ -101,13 +101,13 @@ int powerpc_pcpu_fini(struct pmc_mdep *md, int cpu);
 int powerpc_allocate_pmc(int cpu, int ri, struct pmc *pm,
     const struct pmc_op_pmcallocate *a);
 int powerpc_release_pmc(int cpu, int ri, struct pmc *pmc);
-int powerpc_start_pmc(int cpu, int ri);
-int powerpc_stop_pmc(int cpu, int ri);
+int powerpc_start_pmc(int cpu, int ri, struct pmc *pm);
+int powerpc_stop_pmc(int cpu, int ri, struct pmc *pm);
 int powerpc_config_pmc(int cpu, int ri, struct pmc *pm);
 pmc_value_t powerpc_pmcn_read_default(unsigned int pmc);
 void powerpc_pmcn_write_default(unsigned int pmc, uint32_t val);
-int powerpc_read_pmc(int cpu, int ri, pmc_value_t *v);
-int powerpc_write_pmc(int cpu, int ri, pmc_value_t v);
+int powerpc_read_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t *v);
+int powerpc_write_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t v);
 int powerpc_pmc_intr(struct trapframe *tf);
 
 #endif /* _KERNEL */
