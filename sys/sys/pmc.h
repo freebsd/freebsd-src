@@ -62,7 +62,7 @@
  * The patch version is incremented for every bug fix.
  */
 #define	PMC_VERSION_MAJOR	0x09
-#define	PMC_VERSION_MINOR	0x03
+#define	PMC_VERSION_MINOR	0x04
 #define	PMC_VERSION_PATCH	0x0000
 
 #define	PMC_VERSION		(PMC_VERSION_MAJOR << 24 |		\
@@ -1004,8 +1004,10 @@ struct pmc_classdep {
 	/* configuring/reading/writing the hardware PMCs */
 	int (*pcd_config_pmc)(int _cpu, int _ri, struct pmc *_pm);
 	int (*pcd_get_config)(int _cpu, int _ri, struct pmc **_ppm);
-	int (*pcd_read_pmc)(int _cpu, int _ri, pmc_value_t *_value);
-	int (*pcd_write_pmc)(int _cpu, int _ri, pmc_value_t _value);
+	int (*pcd_read_pmc)(int _cpu, int _ri, struct pmc *_pm,
+	    pmc_value_t *_value);
+	int (*pcd_write_pmc)(int _cpu, int _ri, struct pmc *_pm,
+	    pmc_value_t _value);
 
 	/* pmc allocation/release */
 	int (*pcd_allocate_pmc)(int _cpu, int _ri, struct pmc *_t,
@@ -1013,8 +1015,8 @@ struct pmc_classdep {
 	int (*pcd_release_pmc)(int _cpu, int _ri, struct pmc *_pm);
 
 	/* starting and stopping PMCs */
-	int (*pcd_start_pmc)(int _cpu, int _ri);
-	int (*pcd_stop_pmc)(int _cpu, int _ri);
+	int (*pcd_start_pmc)(int _cpu, int _ri, struct pmc *_pm);
+	int (*pcd_stop_pmc)(int _cpu, int _ri, struct pmc *_pm);
 
 	/* description */
 	int (*pcd_describe)(int _cpu, int _ri, struct pmc_info *_pi,
