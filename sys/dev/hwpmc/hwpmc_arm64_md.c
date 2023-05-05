@@ -62,7 +62,8 @@ int
 pmc_save_kernel_callchain(uintptr_t *cc, int maxsamples,
     struct trapframe *tf)
 {
-	uintptr_t pc, r, stackstart, stackend, fp;
+	struct unwind_state frame;
+	uintptr_t stackstart, stackend;
 	struct thread *td;
 	int count;
 
@@ -70,38 +71,26 @@ pmc_save_kernel_callchain(uintptr_t *cc, int maxsamples,
 	    __LINE__));
 
 	td = curthread;
-	pc = PMC_TRAPFRAME_TO_PC(tf);
-	*cc++ = pc;
+	frame.pc = PMC_TRAPFRAME_TO_PC(tf);
+	*cc++ = frame.pc;
 
 	if (maxsamples <= 1)
 		return (1);
 
 	stackstart = (uintptr_t) td->td_kstack;
 	stackend = (uintptr_t) td->td_kstack + td->td_kstack_pages * PAGE_SIZE;
-	fp = PMC_TRAPFRAME_TO_FP(tf);
+	frame.fp = PMC_TRAPFRAME_TO_FP(tf);
 
-	if (!PMC_IN_KERNEL(pc) ||
-	    !PMC_IN_KERNEL_STACK(fp, stackstart, stackend))
+	if (!PMC_IN_KERNEL(frame.pc) ||
+	    !PMC_IN_KERNEL_STACK(frame.fp, stackstart, stackend))
 		return (1);
 
 	for (count = 1; count < maxsamples; count++) {
-		/* Use saved lr as pc. */
-		r = fp + sizeof(uintptr_t);
-		if (!PMC_IN_KERNEL_STACK(r, stackstart, stackend))
+		if (!unwind_frame(curthread, &frame))
 			break;
-		pc = *(uintptr_t *)r;
-		if (!PMC_IN_KERNEL(pc))
+		if (!PMC_IN_KERNEL(frame.pc))
 			break;
-
-		*cc++ = pc;
-
-		/* Switch to next frame up */
-		r = fp;
-		if (!PMC_IN_KERNEL_STACK(r, stackstart, stackend))
-			break;
-		fp = *(uintptr_t *)r;
-		if (!PMC_IN_KERNEL_STACK(fp, stackstart, stackend))
-			break;
+		*cc++ = frame.pc;
 	}
 
 	return (count);
