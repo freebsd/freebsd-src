@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 19, 2022
+.Dd May 5, 2023
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -988,7 +988,7 @@ Be sure to create a per-guest copy of the template VARS file from
 .Bd -literal -offset indent
 bhyve -c 2 -m 4g -w -H \\
   -s 0,hostbridge \\
-  -s 31,lpc -p com1,stdio \\
+  -s 31,lpc -l com1,stdio \\
   -l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI_CODE.fd,BHYVE_UEFI_VARS.fd
    uefivm
 .Ed
