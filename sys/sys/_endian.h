@@ -38,7 +38,7 @@
 
 #include <sys/cdefs.h>				/* visibility macros */
 
-/* BSD Compatiblity */
+/* BSD Compatibility */
 #define	_BYTE_ORDER	__BYTE_ORDER__
 
 /*
