@@ -5455,6 +5455,10 @@ pmc_mdep_alloc(int nclasses)
 	    sizeof(struct pmc_classdep), M_PMC, M_WAITOK|M_ZERO);
 	md->pmd_nclass = n;
 
+	/* Default methods */
+	md->pmd_switch_in = generic_switch_in;
+	md->pmd_switch_out = generic_switch_out;
+
 	/* Add base class. */
 	pmc_soft_initialize(md);
 	return md;
@@ -5491,9 +5495,6 @@ pmc_generic_cpu_initialize(void)
 	md = pmc_mdep_alloc(0);
 
 	md->pmd_cputype    = PMC_CPU_GENERIC;
-
-	md->pmd_switch_in  = generic_switch_in;
-	md->pmd_switch_out = generic_switch_out;
 
 	return (md);
 }

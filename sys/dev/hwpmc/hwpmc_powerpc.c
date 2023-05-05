@@ -105,20 +105,6 @@ pmc_save_kernel_callchain(uintptr_t *cc, int maxsamples,
 	return (frames);
 }
 
-static int
-powerpc_switch_in(struct pmc_cpu *pc, struct pmc_process *pp)
-{
-
-	return (0);
-}
-
-static int
-powerpc_switch_out(struct pmc_cpu *pc, struct pmc_process *pp)
-{
-
-	return (0);
-}
-
 int
 powerpc_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc)
 {
@@ -553,9 +539,6 @@ pmc_md_initialize(void)
 
 	vers = mfpvr() >> 16;
 
-	pmc_mdep->pmd_switch_in  = powerpc_switch_in;
-	pmc_mdep->pmd_switch_out = powerpc_switch_out;
-	
 	switch (vers) {
 	case MPC7447A:
 	case MPC7448:
