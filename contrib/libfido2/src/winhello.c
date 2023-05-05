@@ -12,6 +12,16 @@
 #include "fido.h"
 #include "webauthn.h"
 
+#ifndef NTE_INVALID_PARAMETER
+#define NTE_INVALID_PARAMETER	_HRESULT_TYPEDEF_(0x80090027)
+#endif
+#ifndef NTE_NOT_SUPPORTED
+#define NTE_NOT_SUPPORTED	_HRESULT_TYPEDEF_(0x80090029)
+#endif
+#ifndef NTE_DEVICE_NOT_FOUND
+#define NTE_DEVICE_NOT_FOUND	_HRESULT_TYPEDEF_(0x80090035)
+#endif
+
 #define MAXCHARS	128
 #define MAXCREDS	128
 #define MAXMSEC		6000 * 1000
@@ -40,27 +50,36 @@ struct winhello_cred {
 	wchar_t						*display_name;
 };
 
-static TLS BOOL		  webauthn_loaded;
-static TLS HMODULE	  webauthn_handle;
-static TLS DWORD	(*webauthn_get_api_version)(void);
-static TLS PCWSTR	(*webauthn_strerr)(HRESULT);
-static TLS HRESULT	(*webauthn_get_assert)(HWND, LPCWSTR,
+typedef DWORD	WINAPI	webauthn_get_api_version_t(void);
+typedef PCWSTR	WINAPI	webauthn_strerr_t(HRESULT);
+typedef HRESULT	WINAPI	webauthn_get_assert_t(HWND, LPCWSTR,
 			    PCWEBAUTHN_CLIENT_DATA,
 			    PCWEBAUTHN_AUTHENTICATOR_GET_ASSERTION_OPTIONS,
 			    PWEBAUTHN_ASSERTION *);
-static TLS HRESULT	(*webauthn_make_cred)(HWND,
+typedef HRESULT	WINAPI	webauthn_make_cred_t(HWND,
 			    PCWEBAUTHN_RP_ENTITY_INFORMATION,
 			    PCWEBAUTHN_USER_ENTITY_INFORMATION,
 			    PCWEBAUTHN_COSE_CREDENTIAL_PARAMETERS,
 			    PCWEBAUTHN_CLIENT_DATA,
 			    PCWEBAUTHN_AUTHENTICATOR_MAKE_CREDENTIAL_OPTIONS,
 			    PWEBAUTHN_CREDENTIAL_ATTESTATION *);
-static TLS void		(*webauthn_free_assert)(PWEBAUTHN_ASSERTION);
-static TLS void		(*webauthn_free_attest)(PWEBAUTHN_CREDENTIAL_ATTESTATION);
+typedef void	WINAPI	webauthn_free_assert_t(PWEBAUTHN_ASSERTION);
+typedef void	WINAPI	webauthn_free_attest_t(PWEBAUTHN_CREDENTIAL_ATTESTATION);
+
+static TLS BOOL				 webauthn_loaded;
+static TLS HMODULE			 webauthn_handle;
+static TLS webauthn_get_api_version_t	*webauthn_get_api_version;
+static TLS webauthn_strerr_t		*webauthn_strerr;
+static TLS webauthn_get_assert_t	*webauthn_get_assert;
+static TLS webauthn_make_cred_t		*webauthn_make_cred;
+static TLS webauthn_free_assert_t	*webauthn_free_assert;
+static TLS webauthn_free_attest_t	*webauthn_free_attest;
 
 static int
 webauthn_load(void)
 {
+	DWORD n = 1;
+
 	if (webauthn_loaded || webauthn_handle != NULL) {
 		fido_log_debug("%s: already loaded", __func__);
 		return -1;
@@ -70,34 +89,46 @@ webauthn_load(void)
 		return -1;
 	}
 
-	if ((webauthn_get_api_version = (void *)GetProcAddress(webauthn_handle,
+	if ((webauthn_get_api_version =
+	    (webauthn_get_api_version_t *)GetProcAddress(webauthn_handle,
 	    "WebAuthNGetApiVersionNumber")) == NULL) {
 		fido_log_debug("%s: WebAuthNGetApiVersionNumber", __func__);
+		/* WebAuthNGetApiVersionNumber might not exist */
+	}
+	if (webauthn_get_api_version != NULL &&
+	    (n = webauthn_get_api_version()) < 1) {
+		fido_log_debug("%s: unsupported api %lu", __func__, (u_long)n);
 		goto fail;
 	}
-	if ((webauthn_strerr = (void *)GetProcAddress(webauthn_handle,
+	fido_log_debug("%s: api version %lu", __func__, (u_long)n);
+	if ((webauthn_strerr =
+	    (webauthn_strerr_t *)GetProcAddress(webauthn_handle,
 	    "WebAuthNGetErrorName")) == NULL) {
 		fido_log_debug("%s: WebAuthNGetErrorName", __func__);
 		goto fail;
 	}
-	if ((webauthn_get_assert = (void *)GetProcAddress(webauthn_handle,
+	if ((webauthn_get_assert =
+	    (webauthn_get_assert_t *)GetProcAddress(webauthn_handle,
 	    "WebAuthNAuthenticatorGetAssertion")) == NULL) {
 		fido_log_debug("%s: WebAuthNAuthenticatorGetAssertion",
 		    __func__);
 		goto fail;
 	}
-	if ((webauthn_make_cred = (void *)GetProcAddress(webauthn_handle,
+	if ((webauthn_make_cred =
+	    (webauthn_make_cred_t *)GetProcAddress(webauthn_handle,
 	    "WebAuthNAuthenticatorMakeCredential")) == NULL) {
 		fido_log_debug("%s: WebAuthNAuthenticatorMakeCredential",
 		    __func__);
 		goto fail;
 	}
-	if ((webauthn_free_assert = (void *)GetProcAddress(webauthn_handle,
+	if ((webauthn_free_assert =
+	    (webauthn_free_assert_t *)GetProcAddress(webauthn_handle,
 	    "WebAuthNFreeAssertion")) == NULL) {
 		fido_log_debug("%s: WebAuthNFreeAssertion", __func__);
 		goto fail;
 	}
-	if ((webauthn_free_attest = (void *)GetProcAddress(webauthn_handle,
+	if ((webauthn_free_attest =
+	    (webauthn_free_attest_t *)GetProcAddress(webauthn_handle,
 	    "WebAuthNFreeCredentialAttestation")) == NULL) {
 		fido_log_debug("%s: WebAuthNFreeCredentialAttestation",
 		    __func__);
@@ -149,35 +180,6 @@ to_utf16(const char *utf8)
 	return utf16;
 }
 
-static char *
-to_utf8(const wchar_t *utf16)
-{
-	int nch;
-	char *utf8;
-
-	if (utf16 == NULL) {
-		fido_log_debug("%s: NULL", __func__);
-		return NULL;
-	}
-	if ((nch = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, utf16,
-	    -1, NULL, 0, NULL, NULL)) < 1 || (size_t)nch > MAXCHARS) {
-		fido_log_debug("%s: WideCharToMultiByte %d", __func__);
-		return NULL;
-	}
-	if ((utf8 = calloc((size_t)nch, sizeof(*utf8))) == NULL) {
-		fido_log_debug("%s: calloc", __func__);
-		return NULL;
-	}
-	if (WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, utf16, -1,
-	    utf8, nch, NULL, NULL) != nch) {
-		fido_log_debug("%s: WideCharToMultiByte", __func__);
-		free(utf8);
-		return NULL;
-	}
-
-	return utf8;
-}
-
 static int
 to_fido(HRESULT hr)
 {
@@ -192,7 +194,7 @@ to_fido(HRESULT hr)
 	case NTE_NOT_FOUND:
 		return FIDO_ERR_NOT_ALLOWED;
 	default:
-		fido_log_debug("%s: hr=0x%x", __func__, hr);
+		fido_log_debug("%s: hr=0x%lx", __func__, (u_long)hr);
 		return FIDO_ERR_INTERNAL;
 	}
 }
@@ -249,7 +251,7 @@ pack_credlist(WEBAUTHN_CREDENTIALS *out, const fido_blob_array_t *in)
 }
 
 static int
-set_uv(DWORD *out, fido_opt_t uv, const char *pin)
+set_cred_uv(DWORD *out, fido_opt_t uv, const char *pin)
 {
 	if (pin) {
 		*out = WEBAUTHN_USER_VERIFICATION_REQUIREMENT_REQUIRED;
@@ -258,7 +260,28 @@ set_uv(DWORD *out, fido_opt_t uv, const char *pin)
 
 	switch (uv) {
 	case FIDO_OPT_OMIT:
-		*out = WEBAUTHN_USER_VERIFICATION_REQUIREMENT_ANY;
+	case FIDO_OPT_FALSE:
+		*out = WEBAUTHN_USER_VERIFICATION_REQUIREMENT_DISCOURAGED;
+		break;
+	case FIDO_OPT_TRUE:
+		*out = WEBAUTHN_USER_VERIFICATION_REQUIREMENT_REQUIRED;
+		break;
+	}
+
+	return 0;
+}
+
+static int
+set_assert_uv(DWORD *out, fido_opt_t uv, const char *pin)
+{
+	if (pin) {
+		*out = WEBAUTHN_USER_VERIFICATION_REQUIREMENT_REQUIRED;
+		return 0;
+	}
+
+	switch (uv) {
+	case FIDO_OPT_OMIT:
+		*out = WEBAUTHN_USER_VERIFICATION_REQUIREMENT_PREFERRED;
 		break;
 	case FIDO_OPT_FALSE:
 		*out = WEBAUTHN_USER_VERIFICATION_REQUIREMENT_DISCOURAGED;
@@ -361,7 +384,7 @@ pack_cred_ext(WEBAUTHN_EXTENSIONS *out, const fido_cred_ext_t *in)
 		return 0; /* nothing to do */
 	}
 	if (in->mask & ~(FIDO_EXT_HMAC_SECRET | FIDO_EXT_CRED_PROTECT)) {
-		fido_log_debug("%s: mask 0x%x", in->mask);
+		fido_log_debug("%s: mask 0x%x", __func__, in->mask);
 		return -1;
 	}
 	if (in->mask & FIDO_EXT_HMAC_SECRET)
@@ -508,8 +531,9 @@ translate_fido_assert(struct winhello_assert *ctx, const fido_assert_t *assert,
 		fido_log_debug("%s: pack_credlist", __func__);
 		return FIDO_ERR_INTERNAL;
 	}
-	if (set_uv(&opt->dwUserVerificationRequirement, assert->uv, pin) < 0) {
-		fido_log_debug("%s: set_uv", __func__);
+	if (set_assert_uv(&opt->dwUserVerificationRequirement, assert->uv,
+	    pin) < 0) {
+		fido_log_debug("%s: set_assert_uv", __func__);
 		return FIDO_ERR_INTERNAL;
 	}
 
@@ -587,9 +611,9 @@ translate_fido_cred(struct winhello_cred *ctx, const fido_cred_t *cred,
 		fido_log_debug("%s: pack_cred_ext", __func__);
 		return FIDO_ERR_UNSUPPORTED_EXTENSION;
 	}
-	if (set_uv(&opt->dwUserVerificationRequirement, (cred->ext.mask &
+	if (set_cred_uv(&opt->dwUserVerificationRequirement, (cred->ext.mask &
 	    FIDO_EXT_CRED_PROTECT) ? FIDO_OPT_TRUE : cred->uv, pin) < 0) {
-		fido_log_debug("%s: set_uv", __func__);
+		fido_log_debug("%s: set_cred_uv", __func__);
 		return FIDO_ERR_INTERNAL;
 	}
 	if (cred->rk == FIDO_OPT_TRUE) {
@@ -623,6 +647,10 @@ decode_attobj(const cbor_item_t *key, const cbor_item_t *val, void *arg)
 			goto fail;
 		}
 	} else if (!strcmp(name, "authData")) {
+		if (fido_blob_decode(val, &cred->authdata_raw) < 0) {
+			fido_log_debug("%s: fido_blob_decode", __func__);
+			goto fail;
+		}
 		if (cbor_decode_cred_authdata(val, cred->type,
 		    &cred->authdata_cbor, &cred->authdata, &cred->attcred,
 		    &cred->authdata_ext) < 0) {
@@ -640,9 +668,9 @@ fail:
 }
 
 static int
-translate_winhello_cred(fido_cred_t *cred, const WEBAUTHN_CREDENTIAL_ATTESTATION *att)
+translate_winhello_cred(fido_cred_t *cred,
+    const WEBAUTHN_CREDENTIAL_ATTESTATION *att)
 {
-
 	cbor_item_t *item = NULL;
 	struct cbor_load_result cbor;
 	int r = FIDO_ERR_INTERNAL;
@@ -670,24 +698,6 @@ fail:
 		cbor_decref(&item);
 
 	return r;
-}
-
-static int
-winhello_manifest(void)
-{
-	DWORD n;
-
-	if (!webauthn_loaded && webauthn_load() < 0) {
-		fido_log_debug("%s: webauthn_load", __func__);
-		return FIDO_ERR_INTERNAL;
-	}
-	if ((n = webauthn_get_api_version()) < 1) {
-		fido_log_debug("%s: unsupported api %u", __func__, n);
-		return FIDO_ERR_INTERNAL;
-	}
-	fido_log_debug("%s: api version %u", __func__, n);
-
-	return FIDO_OK;
 }
 
 static int
@@ -761,7 +771,6 @@ winhello_cred_free(struct winhello_cred *ctx)
 int
 fido_winhello_manifest(fido_dev_info_t *devlist, size_t ilen, size_t *olen)
 {
-	int r;
 	fido_dev_info_t *di;
 
 	if (ilen == 0) {
@@ -770,9 +779,9 @@ fido_winhello_manifest(fido_dev_info_t *devlist, size_t ilen, size_t *olen)
 	if (devlist == NULL) {
 		return FIDO_ERR_INVALID_ARGUMENT;
 	}
-	if ((r = winhello_manifest()) != FIDO_OK) {
-		fido_log_debug("%s: winhello_manifest", __func__);
-		return r;
+	if (!webauthn_loaded && webauthn_load() < 0) {
+		fido_log_debug("%s: webauthn_load", __func__);
+		return FIDO_OK; /* not an error */
 	}
 
 	di = &devlist[*olen];
@@ -844,13 +853,16 @@ fido_winhello_get_assert(fido_dev_t *dev, fido_assert_t *assert,
 	}
 	if ((w = GetForegroundWindow()) == NULL) {
 		fido_log_debug("%s: GetForegroundWindow", __func__);
-		goto fail;
+		if ((w = GetTopWindow(NULL)) == NULL) {
+			fido_log_debug("%s: GetTopWindow", __func__);
+			goto fail;
+		}
 	}
 	if ((r = translate_fido_assert(ctx, assert, pin, ms)) != FIDO_OK) {
 		fido_log_debug("%s: translate_fido_assert", __func__);
 		goto fail;
 	}
-	if ((r = winhello_get_assert(w, ctx)) != S_OK) {
+	if ((r = winhello_get_assert(w, ctx)) != FIDO_OK) {
 		fido_log_debug("%s: winhello_get_assert", __func__);
 		goto fail;
 	}
@@ -918,7 +930,10 @@ fido_winhello_make_cred(fido_dev_t *dev, fido_cred_t *cred, const char *pin,
 	}
 	if ((w = GetForegroundWindow()) == NULL) {
 		fido_log_debug("%s: GetForegroundWindow", __func__);
-		goto fail;
+		if ((w = GetTopWindow(NULL)) == NULL) {
+			fido_log_debug("%s: GetTopWindow", __func__);
+			goto fail;
+		}
 	}
 	if ((r = translate_fido_cred(ctx, cred, pin, ms)) != FIDO_OK) {
 		fido_log_debug("%s: translate_fido_cred", __func__);

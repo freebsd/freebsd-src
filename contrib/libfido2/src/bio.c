@@ -424,7 +424,7 @@ bio_enroll_begin_wait(fido_dev_t *dev, fido_bio_template_t *t,
 
 	memset(&argv, 0, sizeof(argv));
 
-	if ((argv[2] = cbor_build_uint32(timo_ms)) == NULL) {
+	if ((argv[2] = cbor_build_uint(timo_ms)) == NULL) {
 		fido_log_debug("%s: cbor encode", __func__);
 		goto fail;
 	}
@@ -520,7 +520,7 @@ bio_enroll_continue_wait(fido_dev_t *dev, const fido_bio_template_t *t,
 	memset(&argv, 0, sizeof(argv));
 
 	if ((argv[0] = fido_blob_encode(&t->id)) == NULL ||
-	    (argv[2] = cbor_build_uint32(timo_ms)) == NULL) {
+	    (argv[2] = cbor_build_uint(timo_ms)) == NULL) {
 		fido_log_debug("%s: cbor encode", __func__);
 		goto fail;
 	}
