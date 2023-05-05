@@ -1677,11 +1677,12 @@ fetch_inspect_system () {
 	echo "done."
 }
 
-# For any paths matching ${MERGECHANGES}, compare $1 and $2 and find any
-# files which differ; generate $3 containing these paths and the old hashes.
+# For any paths matching ${MERGECHANGES}, compare $2 against $1 and $3 and
+# find any files with values unique to $2; generate $4 containing these paths
+# and their corresponding hashes from $1.
 fetch_filter_mergechanges () {
 	# Pull out the paths and hashes of the files matching ${MERGECHANGES}.
-	for F in $1 $2; do
+	for F in $1 $2 $3; do
 		for X in ${MERGECHANGES}; do
 			grep -E "^${X}" ${F}
 		done |
@@ -1689,9 +1690,10 @@ fetch_filter_mergechanges () {
 		    sort > ${F}-values
 	done
 
-	# Any line in $2-values which doesn't appear in $1-values and is a
-	# file means that we should list the path in $3.
-	comm -13 $1-values $2-values |
+	# Any line in $2-values which doesn't appear in $1-values or $3-values
+	# and is a file means that we should list the path in $3.
+	sort $1-values $3-values |
+	    comm -13 - $2-values |
 	    fgrep '|f|' |
 	    cut -f 1 -d '|' > $2-paths
 
@@ -1703,10 +1705,10 @@ fetch_filter_mergechanges () {
 	while read X; do
 		look "${X}|" $1-values |
 		    head -1
-	done < $2-paths > $3
+	done < $2-paths > $4
 
 	# Clean up
-	rm $1-values $2-values $2-paths
+	rm $1-values $2-values $3-values $2-paths
 }
 
 # For any paths matching ${UPDATEIFUNMODIFIED}, remove lines from $[123]
@@ -2711,7 +2713,7 @@ upgrade_run () {
 
 	# Based on ${MERGECHANGES}, generate a file tomerge-old with the
 	# paths and hashes of old versions of files to merge.
-	fetch_filter_mergechanges INDEX-OLD INDEX-PRESENT tomerge-old
+	fetch_filter_mergechanges INDEX-OLD INDEX-PRESENT INDEX-NEW tomerge-old
 
 	# Based on ${UPDATEIFUNMODIFIED}, remove lines from INDEX-* which
 	# correspond to lines in INDEX-PRESENT with hashes not appearing
