@@ -2438,10 +2438,10 @@ __PMC_EV_ALIAS("unhalted-reference-cycles", IAF_CPU_CLK_UNHALTED_REF)
  * 0x2000	0x0080		AMD K7 events
  * 0x2080	0x0100		AMD K8 events
  * 0x10000	0x0080		INTEL architectural fixed-function events
- * 0x10080	0x0F80		INTEL architectural programmable events
- * 0x11000	0x0080		INTEL Pentium 4 events
- * 0x11080	0x0080		INTEL Pentium MMX events
- * 0x11100	0x0100		INTEL Pentium Pro/P-II/P-III/Pentium-M events
+ * 0x10080	0x0F80		free (was INTEL architectural programmable events)
+ * 0x11000	0x0080		free (was INTEL Pentium 4 events)
+ * 0x11080	0x0080		free (was INTEL Pentium MMX events)
+ * 0x11100	0x0100		free (was INTEL Pentium Pro/P-II/P-III/Pentium-M events)
  * 0x11200	0x00FF		free (was INTEL XScale events)
  * 0x11300	0x00FF		free (was MIPS 24K events)
  * 0x11400	0x00FF		free (was Octeon events)
