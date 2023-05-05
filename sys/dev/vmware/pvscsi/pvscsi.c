@@ -1412,7 +1412,7 @@ finish_ccb:
 		cpi->hba_misc = PIM_NOBUSRESET | PIM_UNMAPPED;
 		cpi->hba_eng_cnt = 0;
 		/* cpi->vuhba_flags = 0; */
-		cpi->max_target = sc->max_targets;
+		cpi->max_target = sc->max_targets - 1;
 		cpi->max_lun = 0;
 		cpi->async_flags = 0;
 		cpi->hpath_id = 0;
@@ -1684,6 +1684,7 @@ pvscsi_attach(device_t dev)
 	    PVSCSI_MAX_REQ_QUEUE_DEPTH);
 
 	device_printf(sc->dev, "Use Msg: %d\n", sc->use_msg);
+	device_printf(sc->dev, "Max targets: %d\n", sc->max_targets);
 	device_printf(sc->dev, "REQ num pages: %d\n", sc->req_ring_num_pages);
 	device_printf(sc->dev, "CMP num pages: %d\n", sc->cmp_ring_num_pages);
 	device_printf(sc->dev, "MSG num pages: %d\n", sc->msg_ring_num_pages);
