@@ -1843,34 +1843,34 @@ __PMC_EV_ALIAS("unhalted-reference-cycles", IAF_CPU_CLK_UNHALTED_REF)
  * 0x14100	0x0100		ARMv8 events
  * 0x20000	0x1000		Software events
  */
-#define	__PMC_EVENTS()				\
-	__PMC_EV_BLOCK(TSC,	0x01000)	\
-	__PMC_EV_TSC()				\
-	__PMC_EV_BLOCK(IAF,     0x10000)	\
-	__PMC_EV_IAF()				\
-	__PMC_EV_BLOCK(K7,	0x2000)		\
-	__PMC_EV_K7()				\
-	__PMC_EV_BLOCK(K8,	0x2080)	        \
-	__PMC_EV_K8()				\
-	__PMC_EV_BLOCK(MIPS24K,	0x11300)	\
-	__PMC_EV_MIPS24K()			\
-	__PMC_EV_BLOCK(OCTEON,	0x11400)	\
-	__PMC_EV_OCTEON()			\
-	__PMC_EV_BLOCK(MIPS74K,	0x11500)        \
-	__PMC_EV_MIPS74K()			\
-	__PMC_EV_BLOCK(BERI,	0x11600)        \
-	__PMC_EV_BERI()				\
-	__PMC_EV_BLOCK(PPC7450,	0x13000)	\
-	__PMC_EV_PPC7450()			\
-	__PMC_EV_BLOCK(PPC970,	0x13100)	\
-	__PMC_EV_PPC970()			\
-	__PMC_EV_BLOCK(POWER8,	0x13200)	\
-	__PMC_EV_POWER8()			\
-	__PMC_EV_BLOCK(E500,	0x13300)	\
-	__PMC_EV_E500()				\
-	__PMC_EV_BLOCK(ARMV7,	0x14000)	\
-	__PMC_EV_ARMV7()			\
-	__PMC_EV_BLOCK(ARMV8,	0x14100)	\
+#define	__PMC_EVENTS()					\
+	__PMC_EV_BLOCK(TSC,		0x01000)	\
+	__PMC_EV_TSC()					\
+	__PMC_EV_BLOCK(K7,		0x02000)	\
+	__PMC_EV_K7()					\
+	__PMC_EV_BLOCK(K8,		0x02080)	\
+	__PMC_EV_K8()					\
+	__PMC_EV_BLOCK(IAF,		0x10000)	\
+	__PMC_EV_IAF()					\
+	__PMC_EV_BLOCK(MIPS24K,		0x11300)	\
+	__PMC_EV_MIPS24K()				\
+	__PMC_EV_BLOCK(OCTEON,		0x11400)	\
+	__PMC_EV_OCTEON()				\
+	__PMC_EV_BLOCK(MIPS74K,		0x11500)	\
+	__PMC_EV_MIPS74K()				\
+	__PMC_EV_BLOCK(BERI,		0x11600)	\
+	__PMC_EV_BERI()					\
+	__PMC_EV_BLOCK(PPC7450,		0x13000)	\
+	__PMC_EV_PPC7450()				\
+	__PMC_EV_BLOCK(PPC970,		0x13100)	\
+	__PMC_EV_PPC970()				\
+	__PMC_EV_BLOCK(POWER8,		0x13200)	\
+	__PMC_EV_POWER8()				\
+	__PMC_EV_BLOCK(E500,		0x13300)	\
+	__PMC_EV_E500()					\
+	__PMC_EV_BLOCK(ARMV7,		0x14000)	\
+	__PMC_EV_ARMV7()				\
+	__PMC_EV_BLOCK(ARMV8,		0x14100)	\
 	__PMC_EV_ARMV8()
 
 #define	PMC_EVENT_FIRST	PMC_EV_TSC_TSC
