@@ -7,8 +7,8 @@ $Architectures = @('x64', 'Win32', 'ARM64', 'ARM')
 $InstallPrefixes =  @('Win64', 'Win32', 'ARM64', 'ARM')
 $Types = @('dynamic', 'static')
 $Config = 'Release'
-$LibCrypto = '46'
-$SDK = '142'
+$LibCrypto = '47'
+$SDK = '143'
 
 . "$PSScriptRoot\const.ps1"
 
@@ -49,13 +49,24 @@ Function Package-Static(${SRC}, ${DEST}) {
 }
 
 Function Package-PDBs(${SRC}, ${DEST}) {
-	Copy-Item "${SRC}\${LIBRESSL}\crypto\crypto.dir\${Config}\vc${SDK}.pdb" `
+	Copy-Item "${SRC}\${LIBRESSL}\crypto\crypto_obj.dir\${Config}\crypto_obj.pdb" `
 	    "${DEST}\crypto-${LibCrypto}.pdb"
 	Copy-Item "${SRC}\${LIBCBOR}\src\cbor.dir\${Config}\vc${SDK}.pdb" `
 	    "${DEST}\cbor.pdb"
 	Copy-Item "${SRC}\${ZLIB}\zlib.dir\${Config}\vc${SDK}.pdb" `
 	    "${DEST}\zlib.pdb"
 	Copy-Item "${SRC}\src\fido2_shared.dir\${Config}\vc${SDK}.pdb" `
+	    "${DEST}\fido2.pdb"
+}
+
+Function Package-StaticPDBs(${SRC}, ${DEST}) {
+	Copy-Item "${SRC}\${LIBRESSL}\crypto\Release\crypto-${LibCrypto}.pdb" `
+	    "${DEST}\crypto-${LibCrypto}.pdb"
+	Copy-Item "${SRC}\${LIBCBOR}\src\Release\cbor.pdb" `
+	    "${DEST}\cbor.pdb"
+	Copy-Item "${SRC}\${ZLIB}\Release\zlibstatic.pdb" `
+	    "${DEST}\zlib.pdb"
+	Copy-Item "${SRC}\src\Release\fido2_static.pdb" `
 	    "${DEST}\fido2.pdb"
 }
 
@@ -80,5 +91,7 @@ for ($i = 0; $i -lt $Architectures.Length; $i++) {
 	Package-Tools "${BUILD}\${Arch}\dynamic" `
 	    "${OUTPUT}\pkg\${InstallPrefix}\${Config}\v${SDK}\dynamic"
 	Package-Static "${OUTPUT}\${Arch}\static" `
+	    "${OUTPUT}\pkg\${InstallPrefix}\${Config}\v${SDK}\static"
+	Package-StaticPDBs "${BUILD}\${Arch}\static" `
 	    "${OUTPUT}\pkg\${InstallPrefix}\${Config}\v${SDK}\static"
 }

@@ -9,10 +9,10 @@
 .Nm es256_pk_new ,
 .Nm es256_pk_free ,
 .Nm es256_pk_from_EC_KEY ,
-.Nm es256_pk_from_EVP_KEY ,
+.Nm es256_pk_from_EVP_PKEY ,
 .Nm es256_pk_from_ptr ,
 .Nm es256_pk_to_EVP_PKEY
-.Nd FIDO 2 COSE ES256 API
+.Nd FIDO2 COSE ES256 API
 .Sh SYNOPSIS
 .In openssl/ec.h
 .In fido/es256.h
@@ -82,7 +82,7 @@ No references to
 are kept.
 .Pp
 The
-.Fn es256_pk_from_EVP_KEY
+.Fn es256_pk_from_EVP_PKEY
 function fills
 .Fa pk
 with the contents of
@@ -124,7 +124,7 @@ returns NULL.
 .Sh RETURN VALUES
 The
 .Fn es256_pk_from_EC_KEY ,
-.Fn es256_pk_from_EVP_KEY ,
+.Fn es256_pk_from_EVP_PKEY ,
 and
 .Fn es256_pk_from_ptr
 functions return

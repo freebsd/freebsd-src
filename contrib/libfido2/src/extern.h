@@ -178,7 +178,6 @@ int fido_dev_get_uv_token(fido_dev_t *, uint8_t, const char *,
     int *);
 uint64_t fido_dev_maxmsgsize(const fido_dev_t *);
 int fido_do_ecdh(fido_dev_t *, es256_pk_t **, fido_blob_t **, int *);
-bool fido_dev_supports_permissions(const fido_dev_t *);
 
 /* types */
 void fido_algo_array_free(fido_algo_array_t *);

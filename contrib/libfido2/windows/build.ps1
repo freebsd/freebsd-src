@@ -229,7 +229,7 @@ try {
 	    ExitOnError
 	# Copy DLLs.
 	if ("${SHARED}" -eq "ON") {
-		"cbor.dll", "crypto-46.dll", "zlib1.dll" | `
+		"cbor.dll", "crypto-47.dll", "zlib1.dll" | `
 		    %{ Copy-Item "${PREFIX}\bin\$_" `
 		    -Destination "examples\${Config}" }
 	}
