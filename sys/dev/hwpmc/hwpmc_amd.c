@@ -905,8 +905,6 @@ amd_intr(struct trapframe *tf)
 static int
 amd_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc)
 {
-	int error;
-	size_t copied;
 	const struct amd_descr *pd;
 	struct pmc_hw *phw;
 
@@ -918,10 +916,7 @@ amd_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc)
 	phw = &amd_pcpu[cpu]->pc_amdpmcs[ri];
 	pd  = &amd_pmcdesc[ri];
 
-	if ((error = copystr(pd->pm_descr.pd_name, pi->pm_name,
-		 PMC_NAME_MAX, &copied)) != 0)
-		return error;
-
+	strlcpy(pi->pm_name, pd->pm_descr.pd_name, sizeof(pi->pm_name));
 	pi->pm_class = pd->pm_descr.pd_class;
 
 	if (phw->phw_state & PMC_PHW_FLAG_IS_ENABLED) {

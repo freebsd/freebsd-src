@@ -587,9 +587,8 @@ cmn600_stop_pmc(int cpu, int ri)
 static int
 cmn600_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc)
 {
+	struct pmc_descr *pd;
 	struct pmc_hw *phw;
-	size_t copied;
-	int error;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[cmn600,%d] illegal CPU %d", __LINE__, cpu));
@@ -597,12 +596,10 @@ cmn600_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc)
 	    ri));
 
 	phw = cmn600desc(ri)->pd_phw;
+	pd = &cmn600desc(ri)->pd_descr;
 
-	if ((error = copystr(cmn600desc(ri)->pd_descr.pd_name,
-	    pi->pm_name, PMC_NAME_MAX, &copied)) != 0)
-		return (error);
-
-	pi->pm_class = cmn600desc(ri)->pd_descr.pd_class;
+	strlcpy(pi->pm_name, pd->pd_name, sizeof(pi->pm_name));
+	pi->pm_class = pd->pd_class;
 
 	if (phw->phw_state & PMC_PHW_FLAG_IS_ENABLED) {
 		pi->pm_enabled = TRUE;

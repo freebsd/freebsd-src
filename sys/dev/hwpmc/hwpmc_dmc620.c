@@ -454,9 +454,8 @@ CLASSDEP_FN2(dmc620_stop_pmc, int, cpu, int, ri)
 CLASSDEP_FN4(dmc620_describe, int, cpu, int, ri, struct pmc_info *, pi,
     struct pmc **, ppmc)
 {
+	struct pmc_descr *pd;
 	struct pmc_hw *phw;
-	size_t copied;
-	int error;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[dmc620,%d] illegal CPU %d", __LINE__, cpu));
@@ -464,12 +463,10 @@ CLASSDEP_FN4(dmc620_describe, int, cpu, int, ri, struct pmc_info *, pi,
 	    ri));
 
 	phw = dmc620desc(class, cpu, ri)->pd_phw;
+	pd = &dmc620desc(class, cpu, ri)->pd_descr;
 
-	if ((error = copystr(dmc620desc(class, cpu, ri)->pd_descr.pd_name,
-	    pi->pm_name, PMC_NAME_MAX, &copied)) != 0)
-		return (error);
-
-	pi->pm_class = dmc620desc(class, cpu, ri)->pd_descr.pd_class;
+	strlcpy(pi->pm_name, pd->pd_name, sizeof(pi->pm_name));
+	pi->pm_class = pd->pd_class;
 
 	if (phw->phw_state & PMC_PHW_FLAG_IS_ENABLED) {
 		pi->pm_enabled = TRUE;

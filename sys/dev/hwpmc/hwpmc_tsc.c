@@ -115,8 +115,6 @@ tsc_config_pmc(int cpu, int ri, struct pmc *pm)
 static int
 tsc_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc)
 {
-	int error;
-	size_t copied;
 	const struct tsc_descr *pd;
 	struct pmc_hw *phw;
 
@@ -127,10 +125,7 @@ tsc_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc)
 	phw = &tsc_pcpu[cpu]->tc_hw;
 	pd  = &tsc_pmcdesc[ri];
 
-	if ((error = copystr(pd->pm_descr.pd_name, pi->pm_name,
-	    PMC_NAME_MAX, &copied)) != 0)
-		return (error);
-
+	strlcpy(pi->pm_name, pd->pm_descr.pd_name, sizeof(pi->pm_name));
 	pi->pm_class = pd->pm_descr.pd_class;
 
 	if (phw->phw_state & PMC_PHW_FLAG_IS_ENABLED) {

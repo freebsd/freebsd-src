@@ -122,19 +122,16 @@ powerpc_switch_out(struct pmc_cpu *pc, struct pmc_process *pp)
 int
 powerpc_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc)
 {
-	int error;
 	struct pmc_hw *phw;
-	char powerpc_name[PMC_NAME_MAX];
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[powerpc,%d], illegal CPU %d", __LINE__, cpu));
 
 	phw = &powerpc_pcpu[cpu]->pc_ppcpmcs[ri];
-	snprintf(powerpc_name, sizeof(powerpc_name), "POWERPC-%d", ri);
-	if ((error = copystr(powerpc_name, pi->pm_name, PMC_NAME_MAX,
-	    NULL)) != 0)
-		return error;
+
+	snprintf(pi->pm_name, sizeof(pi->pm_name), "POWERPC-%d", ri);
 	pi->pm_class = powerpc_pcpu[cpu]->pc_class;
+
 	if (phw->phw_state & PMC_PHW_FLAG_IS_ENABLED) {
 		pi->pm_enabled = TRUE;
 		*ppmc          = phw->phw_pmc;
