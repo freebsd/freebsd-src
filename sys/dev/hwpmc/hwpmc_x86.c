@@ -34,21 +34,22 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/pmc.h>
-#include <sys/proc.h>
-#include <sys/systm.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
-#include <machine/intr_machdep.h>
-#include <x86/apicvar.h>
-#include <machine/pmc_mdep.h>
+#include <machine/intr_machdep.h>	/* For x86/apicvar.h */
 #include <machine/md_var.h>
+#include <machine/pmc_mdep.h>
+#include <machine/stack.h>
+#include <machine/vmparam.h>
 
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
+#include <x86/apicvar.h>
 
 #include "hwpmc_soft.h"
 
@@ -155,36 +156,29 @@ pmc_save_user_callchain(uintptr_t *cc, int nframes, struct trapframe *tf)
 int __nosanitizeaddress __nosanitizememory
 pmc_save_kernel_callchain(uintptr_t *cc, int nframes, struct trapframe *tf)
 {
-	int n;
+	uintptr_t fp, pc, ra, sp;
 	uint32_t instr;
-	uintptr_t fp, pc, r, sp, stackstart, stackend;
-	struct thread *td;
+	int n;
 
 	KASSERT(TRAPF_USERMODE(tf) == 0,("[x86,%d] not a kernel backtrace",
 	    __LINE__));
 
-	td = curthread;
 	pc = PMC_TRAPFRAME_TO_PC(tf);
 	fp = PMC_TRAPFRAME_TO_FP(tf);
 	sp = PMC_TRAPFRAME_TO_KERNEL_SP(tf);
 
 	*cc++ = pc;
-	r = fp + sizeof(uintptr_t); /* points to return address */
+	ra = fp + sizeof(uintptr_t); /* points to return address */
 
 	if (nframes <= 1)
 		return (1);
 
-	stackstart = (uintptr_t) td->td_kstack;
-	stackend = (uintptr_t) td->td_kstack + td->td_kstack_pages * PAGE_SIZE;
-
-	if (PMC_IN_TRAP_HANDLER(pc) ||
-	    !PMC_IN_KERNEL(pc) ||
-	    !PMC_IN_KERNEL_STACK(r, stackstart, stackend) ||
-	    !PMC_IN_KERNEL_STACK(sp, stackstart, stackend) ||
-	    !PMC_IN_KERNEL_STACK(fp, stackstart, stackend))
+	if (PMC_IN_TRAP_HANDLER(pc) || !PMC_IN_KERNEL(pc) ||
+	    !PMC_IN_KERNEL_STACK(ra) || !PMC_IN_KERNEL_STACK(sp) ||
+	    !PMC_IN_KERNEL_STACK(fp))
 		return (1);
 
-	instr = *(uint32_t *) pc;
+	instr = *(uint32_t *)pc;
 
 	/*
 	 * Determine whether the interrupted function was in the
@@ -205,15 +199,15 @@ pmc_save_kernel_callchain(uintptr_t *cc, int nframes, struct trapframe *tf)
 		 * and the caller's address is therefore at sp[1].
 		 */
 		sp += sizeof(uintptr_t);
-		if (!PMC_IN_KERNEL_STACK(sp, stackstart, stackend))
+		if (!PMC_IN_KERNEL_STACK(sp))
 			return (1);
-		pc = *(uintptr_t *) sp;
+		pc = *(uintptr_t *)sp;
 	} else {
 		/*
 		 * Not in the function prologue or epilogue.
 		 */
-		pc = *(uintptr_t *) r;
-		fp = *(uintptr_t *) fp;
+		pc = *(uintptr_t *)ra;
+		fp = *(uintptr_t *)fp;
 	}
 
 	for (n = 1; n < nframes; n++) {
@@ -222,12 +216,11 @@ pmc_save_kernel_callchain(uintptr_t *cc, int nframes, struct trapframe *tf)
 		if (PMC_IN_TRAP_HANDLER(pc))
 			break;
 
-		r = fp + sizeof(uintptr_t);
-		if (!PMC_IN_KERNEL_STACK(fp, stackstart, stackend) ||
-		    !PMC_IN_KERNEL_STACK(r, stackstart, stackend))
+		ra = fp + sizeof(uintptr_t);
+		if (!PMC_IN_KERNEL_STACK(fp) || !PMC_IN_KERNEL_STACK(ra))
 			break;
-		pc = *(uintptr_t *) r;
-		fp = *(uintptr_t *) fp;
+		pc = *(uintptr_t *)ra;
+		fp = *(uintptr_t *)fp;
 	}
 
 	return (n);
@@ -236,7 +229,6 @@ pmc_save_kernel_callchain(uintptr_t *cc, int nframes, struct trapframe *tf)
 /*
  * Machine dependent initialization for x86 class platforms.
  */
-
 struct pmc_mdep *
 pmc_md_initialize(void)
 {
