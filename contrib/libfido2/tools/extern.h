@@ -20,7 +20,7 @@ struct blob {
 	size_t len;
 };
 
-#define TOKEN_OPT	"CDGILPRSVabcdefi:k:l:n:p:ru"
+#define TOKEN_OPT	"CDGILPRSVabcdefi:k:l:m:n:p:ru"
 
 #define FLAG_DEBUG	0x01
 #define FLAG_QUIET	0x02
@@ -62,6 +62,7 @@ int config_always_uv(char *, int);
 int config_entattest(char *);
 int config_force_pin_change(char *);
 int config_pin_minlen(char *, const char *);
+int config_pin_minlen_rpid(char *, const char *);
 int cose_type(const char *, int *);
 int cred_make(int, char **);
 int cred_verify(int, char **);

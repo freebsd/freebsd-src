@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2021 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  */
@@ -10,9 +10,12 @@
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+#include <errno.h>
 
 #include "fido.h"
 #include "fido/es256.h"
+
+#define U2F_PACE_MS (100)
 
 #if defined(_MSC_VER)
 static int
@@ -23,6 +26,28 @@ usleep(unsigned int usec)
 	return (0);
 }
 #endif
+
+static int
+delay_ms(unsigned int ms, int *ms_remain)
+{
+	if (*ms_remain > -1 && (unsigned int)*ms_remain < ms)
+		ms = (unsigned int)*ms_remain;
+
+	if (ms > UINT_MAX / 1000) {
+		fido_log_debug("%s: ms=%u", __func__, ms);
+		return (-1);
+	}
+
+	if (usleep(ms * 1000) < 0) {
+		fido_log_error(errno, "%s: usleep", __func__);
+		return (-1);
+	}
+
+	if (*ms_remain > -1)
+		*ms_remain -= (int)ms;
+
+	return (0);
+}
 
 static int
 sig_get(fido_blob_t *sig, const unsigned char **buf, size_t *len)
@@ -115,17 +140,13 @@ authdata_fake(const char *rp_id, uint8_t flags, uint32_t sigcount,
 
 /* TODO: use u2f_get_touch_begin & u2f_get_touch_status instead */
 static int
-send_dummy_register(fido_dev_t *dev, int ms)
+send_dummy_register(fido_dev_t *dev, int *ms)
 {
 	iso7816_apdu_t	*apdu = NULL;
 	unsigned char	 challenge[SHA256_DIGEST_LENGTH];
 	unsigned char	 application[SHA256_DIGEST_LENGTH];
 	unsigned char	 reply[FIDO_MAXMSG];
 	int		 r;
-
-#ifdef FIDO_FUZZ
-	ms = 0; /* XXX */
-#endif
 
 	/* dummy challenge & application */
 	memset(&challenge, 0xff, sizeof(challenge));
@@ -142,7 +163,7 @@ send_dummy_register(fido_dev_t *dev, int ms)
 
 	do {
 		if (fido_tx(dev, CTAP_CMD_MSG, iso7816_ptr(apdu),
-		    iso7816_len(apdu)) < 0) {
+		    iso7816_len(apdu), ms) < 0) {
 			fido_log_debug("%s: fido_tx", __func__);
 			r = FIDO_ERR_TX;
 			goto fail;
@@ -152,8 +173,8 @@ send_dummy_register(fido_dev_t *dev, int ms)
 			r = FIDO_ERR_RX;
 			goto fail;
 		}
-		if (usleep((unsigned)(ms == -1 ? 100 : ms) * 1000) < 0) {
-			fido_log_debug("%s: usleep", __func__);
+		if (delay_ms(U2F_PACE_MS, ms) != 0) {
+			fido_log_debug("%s: delay_ms", __func__);
 			r = FIDO_ERR_RX;
 			goto fail;
 		}
@@ -168,7 +189,7 @@ fail:
 
 static int
 key_lookup(fido_dev_t *dev, const char *rp_id, const fido_blob_t *key_id,
-    int *found, int ms)
+    int *found, int *ms)
 {
 	iso7816_apdu_t	*apdu = NULL;
 	unsigned char	 challenge[SHA256_DIGEST_LENGTH];
@@ -208,7 +229,7 @@ key_lookup(fido_dev_t *dev, const char *rp_id, const fido_blob_t *key_id,
 	}
 
 	if (fido_tx(dev, CTAP_CMD_MSG, iso7816_ptr(apdu),
-	    iso7816_len(apdu)) < 0) {
+	    iso7816_len(apdu), ms) < 0) {
 		fido_log_debug("%s: fido_tx", __func__);
 		r = FIDO_ERR_TX;
 		goto fail;
@@ -274,7 +295,7 @@ parse_auth_reply(fido_blob_t *sig, fido_blob_t *ad, const char *rp_id,
 
 static int
 do_auth(fido_dev_t *dev, const fido_blob_t *cdh, const char *rp_id,
-    const fido_blob_t *key_id, fido_blob_t *sig, fido_blob_t *ad, int ms)
+    const fido_blob_t *key_id, fido_blob_t *sig, fido_blob_t *ad, int *ms)
 {
 	iso7816_apdu_t	*apdu = NULL;
 	unsigned char	 rp_id_hash[SHA256_DIGEST_LENGTH];
@@ -284,7 +305,7 @@ do_auth(fido_dev_t *dev, const fido_blob_t *cdh, const char *rp_id,
 	int		 r;
 
 #ifdef FIDO_FUZZ
-	ms = 0; /* XXX */
+	*ms = 0; /* XXX */
 #endif
 
 	if (cdh->len != SHA256_DIGEST_LENGTH || key_id->len > UINT8_MAX ||
@@ -317,7 +338,7 @@ do_auth(fido_dev_t *dev, const fido_blob_t *cdh, const char *rp_id,
 
 	do {
 		if (fido_tx(dev, CTAP_CMD_MSG, iso7816_ptr(apdu),
-		    iso7816_len(apdu)) < 0) {
+		    iso7816_len(apdu), ms) < 0) {
 			fido_log_debug("%s: fido_tx", __func__);
 			r = FIDO_ERR_TX;
 			goto fail;
@@ -328,8 +349,8 @@ do_auth(fido_dev_t *dev, const fido_blob_t *cdh, const char *rp_id,
 			r = FIDO_ERR_RX;
 			goto fail;
 		}
-		if (usleep((unsigned)(ms == -1 ? 100 : ms) * 1000) < 0) {
-			fido_log_debug("%s: usleep", __func__);
+		if (delay_ms(U2F_PACE_MS, ms) != 0) {
+			fido_log_debug("%s: delay_ms", __func__);
 			r = FIDO_ERR_RX;
 			goto fail;
 		}
@@ -386,6 +407,71 @@ fail:
 
 	if (pk_cbor)
 		cbor_decref(&pk_cbor);
+
+	return (ok);
+}
+
+static int
+encode_cred_attstmt(int cose_alg, const fido_blob_t *x5c,
+    const fido_blob_t *sig, fido_blob_t *out)
+{
+	cbor_item_t		*item = NULL;
+	cbor_item_t		*x5c_cbor = NULL;
+	const uint8_t		 alg_cbor = (uint8_t)(-cose_alg - 1);
+	struct cbor_pair	 kv[3];
+	size_t			 alloc_len;
+	int			 ok = -1;
+
+	memset(&kv, 0, sizeof(kv));
+	memset(out, 0, sizeof(*out));
+
+	if ((item = cbor_new_definite_map(3)) == NULL) {
+		fido_log_debug("%s: cbor_new_definite_map", __func__);
+		goto fail;
+	}
+
+	if ((kv[0].key = cbor_build_string("alg")) == NULL ||
+	    (kv[0].value = cbor_build_negint8(alg_cbor)) == NULL ||
+	    !cbor_map_add(item, kv[0])) {
+		fido_log_debug("%s: alg", __func__);
+		goto fail;
+	}
+
+	if ((kv[1].key = cbor_build_string("sig")) == NULL ||
+	    (kv[1].value = fido_blob_encode(sig)) == NULL ||
+	    !cbor_map_add(item, kv[1])) {
+		fido_log_debug("%s: sig", __func__);
+		goto fail;
+	}
+
+	if ((kv[2].key = cbor_build_string("x5c")) == NULL ||
+	    (kv[2].value = cbor_new_definite_array(1)) == NULL ||
+	    (x5c_cbor = fido_blob_encode(x5c)) == NULL ||
+	    !cbor_array_push(kv[2].value, x5c_cbor) ||
+	    !cbor_map_add(item, kv[2])) {
+		fido_log_debug("%s: x5c", __func__);
+		goto fail;
+	}
+
+	if ((out->len = cbor_serialize_alloc(item, &out->ptr,
+	    &alloc_len)) == 0) {
+		fido_log_debug("%s: cbor_serialize_alloc", __func__);
+		goto fail;
+	}
+
+	ok = 0;
+fail:
+	if (item != NULL)
+		cbor_decref(&item);
+	if (x5c_cbor != NULL)
+		cbor_decref(&x5c_cbor);
+
+	for (size_t i = 0; i < nitems(kv); i++) {
+		if (kv[i].key)
+			cbor_decref(&kv[i].key);
+		if (kv[i].value)
+			cbor_decref(&kv[i].value);
+	}
 
 	return (ok);
 }
@@ -476,6 +562,7 @@ parse_register_reply(fido_cred_t *cred, const unsigned char *reply, size_t len)
 	fido_blob_t	 x5c;
 	fido_blob_t	 sig;
 	fido_blob_t	 ad;
+	fido_blob_t	 stmt;
 	uint8_t		 dummy;
 	uint8_t		 pubkey[65];
 	uint8_t		 kh_len = 0;
@@ -485,6 +572,7 @@ parse_register_reply(fido_cred_t *cred, const unsigned char *reply, size_t len)
 	memset(&x5c, 0, sizeof(x5c));
 	memset(&sig, 0, sizeof(sig));
 	memset(&ad, 0, sizeof(ad));
+	memset(&stmt, 0, sizeof(stmt));
 	r = FIDO_ERR_RX;
 
 	/* status word */
@@ -518,6 +606,12 @@ parse_register_reply(fido_cred_t *cred, const unsigned char *reply, size_t len)
 		goto fail;
 	}
 
+	/* attstmt */
+	if (encode_cred_attstmt(COSE_ES256, &x5c, &sig, &stmt) < 0) {
+		fido_log_debug("%s: encode_cred_attstmt", __func__);
+		goto fail;
+	}
+
 	/* authdata */
 	if (encode_cred_authdata(cred->rp.id, kh, kh_len, pubkey,
 	    sizeof(pubkey), &ad) < 0) {
@@ -527,8 +621,7 @@ parse_register_reply(fido_cred_t *cred, const unsigned char *reply, size_t len)
 
 	if (fido_cred_set_fmt(cred, "fido-u2f") != FIDO_OK ||
 	    fido_cred_set_authdata(cred, ad.ptr, ad.len) != FIDO_OK ||
-	    fido_cred_set_x509(cred, x5c.ptr, x5c.len) != FIDO_OK ||
-	    fido_cred_set_sig(cred, sig.ptr, sig.len) != FIDO_OK) {
+	    fido_cred_set_attstmt(cred, stmt.ptr, stmt.len) != FIDO_OK) {
 		fido_log_debug("%s: fido_cred_set", __func__);
 		r = FIDO_ERR_INTERNAL;
 		goto fail;
@@ -540,12 +633,13 @@ fail:
 	fido_blob_reset(&x5c);
 	fido_blob_reset(&sig);
 	fido_blob_reset(&ad);
+	fido_blob_reset(&stmt);
 
 	return (r);
 }
 
 int
-u2f_register(fido_dev_t *dev, fido_cred_t *cred, int ms)
+u2f_register(fido_dev_t *dev, fido_cred_t *cred, int *ms)
 {
 	iso7816_apdu_t	*apdu = NULL;
 	unsigned char	 rp_id_hash[SHA256_DIGEST_LENGTH];
@@ -553,10 +647,6 @@ u2f_register(fido_dev_t *dev, fido_cred_t *cred, int ms)
 	int		 reply_len;
 	int		 found;
 	int		 r;
-
-#ifdef FIDO_FUZZ
-	ms = 0; /* XXX */
-#endif
 
 	if (cred->rk == FIDO_OPT_TRUE || cred->uv == FIDO_OPT_TRUE) {
 		fido_log_debug("%s: rk=%d, uv=%d", __func__, cred->rk,
@@ -606,7 +696,7 @@ u2f_register(fido_dev_t *dev, fido_cred_t *cred, int ms)
 
 	do {
 		if (fido_tx(dev, CTAP_CMD_MSG, iso7816_ptr(apdu),
-		    iso7816_len(apdu)) < 0) {
+		    iso7816_len(apdu), ms) < 0) {
 			fido_log_debug("%s: fido_tx", __func__);
 			r = FIDO_ERR_TX;
 			goto fail;
@@ -617,8 +707,8 @@ u2f_register(fido_dev_t *dev, fido_cred_t *cred, int ms)
 			r = FIDO_ERR_RX;
 			goto fail;
 		}
-		if (usleep((unsigned)(ms == -1 ? 100 : ms) * 1000) < 0) {
-			fido_log_debug("%s: usleep", __func__);
+		if (delay_ms(U2F_PACE_MS, ms) != 0) {
+			fido_log_debug("%s: delay_ms", __func__);
 			r = FIDO_ERR_RX;
 			goto fail;
 		}
@@ -637,7 +727,7 @@ fail:
 
 static int
 u2f_authenticate_single(fido_dev_t *dev, const fido_blob_t *key_id,
-    fido_assert_t *fa, size_t idx, int ms)
+    fido_assert_t *fa, size_t idx, int *ms)
 {
 	fido_blob_t	sig;
 	fido_blob_t	ad;
@@ -692,7 +782,7 @@ fail:
 }
 
 int
-u2f_authenticate(fido_dev_t *dev, fido_assert_t *fa, int ms)
+u2f_authenticate(fido_dev_t *dev, fido_assert_t *fa, int *ms)
 {
 	size_t	nfound = 0;
 	size_t	nauth_ok = 0;
@@ -739,7 +829,7 @@ u2f_authenticate(fido_dev_t *dev, fido_assert_t *fa, int ms)
 }
 
 int
-u2f_get_touch_begin(fido_dev_t *dev)
+u2f_get_touch_begin(fido_dev_t *dev, int *ms)
 {
 	iso7816_apdu_t	*apdu = NULL;
 	const char	*clientdata = FIDO_DUMMY_CLIENTDATA;
@@ -769,12 +859,12 @@ u2f_get_touch_begin(fido_dev_t *dev)
 	}
 
 	if (dev->attr.flags & FIDO_CAP_WINK) {
-		fido_tx(dev, CTAP_CMD_WINK, NULL, 0);
-		fido_rx(dev, CTAP_CMD_WINK, &reply, sizeof(reply), 200);
+		fido_tx(dev, CTAP_CMD_WINK, NULL, 0, ms);
+		fido_rx(dev, CTAP_CMD_WINK, &reply, sizeof(reply), ms);
 	}
 
 	if (fido_tx(dev, CTAP_CMD_MSG, iso7816_ptr(apdu),
-	    iso7816_len(apdu)) < 0) {
+	    iso7816_len(apdu), ms) < 0) {
 		fido_log_debug("%s: fido_tx", __func__);
 		r = FIDO_ERR_TX;
 		goto fail;
@@ -788,7 +878,7 @@ fail:
 }
 
 int
-u2f_get_touch_status(fido_dev_t *dev, int *touched, int ms)
+u2f_get_touch_status(fido_dev_t *dev, int *touched, int *ms)
 {
 	unsigned char	reply[FIDO_MAXMSG];
 	int		reply_len;
@@ -802,7 +892,7 @@ u2f_get_touch_status(fido_dev_t *dev, int *touched, int ms)
 
 	switch ((reply[reply_len - 2] << 8) | reply[reply_len - 1]) {
 	case SW_CONDITIONS_NOT_SATISFIED:
-		if ((r = u2f_get_touch_begin(dev)) != FIDO_OK) {
+		if ((r = u2f_get_touch_begin(dev, ms)) != FIDO_OK) {
 			fido_log_debug("%s: u2f_get_touch_begin", __func__);
 			return (r);
 		}

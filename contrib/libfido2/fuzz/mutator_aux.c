@@ -37,6 +37,8 @@ consume(const void *body, size_t len)
 
 	while (len--)
 		x ^= *ptr++;
+
+	(void)x;
 }
 
 void
@@ -308,7 +310,8 @@ open_dev(int nfc)
 			goto fail;
 	}
 
-	if (fido_dev_open(dev, "nodev") != FIDO_OK)
+	if (fido_dev_set_timeout(dev, 300) != FIDO_OK ||
+	    fido_dev_open(dev, "nodev") != FIDO_OK)
 		goto fail;
 
 	return dev;

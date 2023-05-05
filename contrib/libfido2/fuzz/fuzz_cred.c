@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Yubico AB. All rights reserved.
+ * Copyright (c) 2019-2021 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  */
@@ -231,12 +231,15 @@ make_cred(fido_cred_t *cred, uint8_t opt, int type, const struct blob *cdh,
 	fido_cred_set_rp(cred, rp_id, rp_name);
 	fido_cred_set_user(cred, user_id->body, user_id->len, user_name,
 	    user_nick, user_icon);
+
 	if (ext & FIDO_EXT_HMAC_SECRET)
 		fido_cred_set_extensions(cred, FIDO_EXT_HMAC_SECRET);
 	if (ext & FIDO_EXT_CRED_BLOB)
 		fido_cred_set_blob(cred, user_id->body, user_id->len);
 	if (ext & FIDO_EXT_LARGEBLOB_KEY)
 		fido_cred_set_extensions(cred, FIDO_EXT_LARGEBLOB_KEY);
+	if (ext & FIDO_EXT_MINPINLEN)
+		fido_cred_set_pin_minlen(cred, strlen(pin));
 
 	if (rk & 1)
 		fido_cred_set_rk(cred, FIDO_OPT_TRUE);
@@ -268,11 +271,13 @@ verify_cred(int type, const unsigned char *cdh_ptr, size_t cdh_len,
     size_t authdata_len, const unsigned char *authdata_raw_ptr,
     size_t authdata_raw_len, int ext, uint8_t rk, uint8_t uv,
     const unsigned char *x5c_ptr, size_t x5c_len, const unsigned char *sig_ptr,
-    size_t sig_len, const char *fmt, int prot)
+    size_t sig_len, const unsigned char *attstmt_ptr, size_t attstmt_len,
+    const char *fmt, int prot, size_t minpinlen)
 {
 	fido_cred_t *cred;
 	uint8_t flags;
 	uint32_t sigcount;
+	int r;
 
 	if ((cred = fido_cred_new()) == NULL)
 		return;
@@ -282,13 +287,19 @@ verify_cred(int type, const unsigned char *cdh_ptr, size_t cdh_len,
 	fido_cred_set_rp(cred, rp_id, rp_name);
 	consume(authdata_ptr, authdata_len);
 	consume(authdata_raw_ptr, authdata_raw_len);
+	consume(x5c_ptr, x5c_len);
+	consume(sig_ptr, sig_len);
+	consume(attstmt_ptr, attstmt_len);
 	if (fido_cred_set_authdata(cred, authdata_ptr, authdata_len) != FIDO_OK)
 		fido_cred_set_authdata_raw(cred, authdata_raw_ptr,
 		    authdata_raw_len);
 	fido_cred_set_extensions(cred, ext);
-	fido_cred_set_x509(cred, x5c_ptr, x5c_len);
-	fido_cred_set_sig(cred, sig_ptr, sig_len);
+	if (fido_cred_set_attstmt(cred, attstmt_ptr, attstmt_len) != FIDO_OK) {
+		fido_cred_set_x509(cred, x5c_ptr, x5c_len);
+		fido_cred_set_sig(cred, sig_ptr, sig_len);
+	}
 	fido_cred_set_prot(cred, prot);
+	fido_cred_set_pin_minlen(cred, minpinlen);
 
 	if (rk & 1)
 		fido_cred_set_rk(cred, FIDO_OPT_TRUE);
@@ -299,12 +310,19 @@ verify_cred(int type, const unsigned char *cdh_ptr, size_t cdh_len,
 
 	/* repeat memory operations to trigger reallocation paths */
 	if (fido_cred_set_authdata(cred, authdata_ptr, authdata_len) != FIDO_OK)
-		fido_cred_set_authdata_raw(cred, authdata_ptr, authdata_len);
+		fido_cred_set_authdata_raw(cred, authdata_raw_ptr,
+		    authdata_raw_len);
+	if (fido_cred_set_attstmt(cred, attstmt_ptr, attstmt_len) != FIDO_OK) {
+		fido_cred_set_x509(cred, x5c_ptr, x5c_len);
+		fido_cred_set_sig(cred, sig_ptr, sig_len);
+	}
 	fido_cred_set_x509(cred, x5c_ptr, x5c_len);
 	fido_cred_set_sig(cred, sig_ptr, sig_len);
 
-	assert(fido_cred_verify(cred) != FIDO_OK);
-	assert(fido_cred_verify_self(cred) != FIDO_OK);
+	r = fido_cred_verify(cred);
+	consume(&r, sizeof(r));
+	r = fido_cred_verify_self(cred);
+	consume(&r, sizeof(r));
 
 	consume(fido_cred_pubkey_ptr(cred), fido_cred_pubkey_len(cred));
 	consume(fido_cred_id_ptr(cred), fido_cred_id_len(cred));
@@ -321,6 +339,8 @@ verify_cred(int type, const unsigned char *cdh_ptr, size_t cdh_len,
 	consume(&sigcount, sizeof(sigcount));
 	type = fido_cred_type(cred);
 	consume(&type, sizeof(type));
+	minpinlen = fido_cred_pin_minlen(cred);
+	consume(&minpinlen, sizeof(minpinlen));
 
 	fido_cred_free(&cred);
 }
@@ -360,7 +380,9 @@ test_cred(const struct param *p)
 	    fido_cred_authdata_raw_len(cred), p->ext, p->rk, p->uv,
 	    fido_cred_x5c_ptr(cred), fido_cred_x5c_len(cred),
 	    fido_cred_sig_ptr(cred), fido_cred_sig_len(cred),
-	    fido_cred_fmt(cred), fido_cred_prot(cred));
+	    fido_cred_attstmt_ptr(cred), fido_cred_attstmt_len(cred),
+	    fido_cred_fmt(cred), fido_cred_prot(cred),
+	    fido_cred_pin_minlen(cred));
 
 	fido_cred_free(&cred);
 }
@@ -408,6 +430,7 @@ void
 test(const struct param *p)
 {
 	prng_init((unsigned int)p->seed);
+	fuzz_clock_reset();
 	fido_init(FIDO_DEBUG);
 	fido_set_log_handler(consume_str);
 
