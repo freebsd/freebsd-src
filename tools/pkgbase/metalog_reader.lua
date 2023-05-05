@@ -401,8 +401,7 @@ function Analysis_session(metalog, verbose, w_notagdirs)
 						warn[#warn+1] = 'warning: ' .. dupmsg .. '\n'
 					end
 				else
-					-- XXX downgrade to warning until instances in the tree are fixed (PR271178)
-					warn[#warn+1] = 'error: ' .. dupmsg .. '\n'
+					errs[#errs+1] = 'error: ' .. dupmsg .. '\n'
 				end
 			elseif not metalogrows_all_equal(rows, false, true) then
 			-- same filename (possibly different tags), different metadata, an error
