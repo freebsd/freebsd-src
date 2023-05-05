@@ -117,10 +117,10 @@ struct mon_bin_mfetch {
 #define MON_IOCX_MFETCH _IOWR(MON_IOC_MAGIC, 7, struct mon_bin_mfetch)
 #define MON_IOCH_MFLUSH _IO(MON_IOC_MAGIC, 8)
 
-#define MON_BIN_SETUP 	0x1 /* setup hdr is present*/
-#define MON_BIN_SETUP_ZERO 	0x2 /* setup buffer is not available */
-#define MON_BIN_DATA_ZERO 	0x4 /* data buffer is not available */
-#define MON_BIN_ERROR 	0x8
+#define MON_BIN_SETUP	0x1 /* setup hdr is present*/
+#define MON_BIN_SETUP_ZERO	0x2 /* setup buffer is not available */
+#define MON_BIN_DATA_ZERO	0x4 /* data buffer is not available */
+#define MON_BIN_ERROR	0x8
 
 /*
  * Private data for capturing on Linux USB.
@@ -373,13 +373,13 @@ probe_devices(int bus)
 		ctrl.bRequest = USB_REQ_GET_DESCRIPTOR;
 		ctrl.wValue = USB_DT_DEVICE << 8;
 		ctrl.wIndex = 0;
- 		ctrl.wLength = sizeof(descriptor);
+		ctrl.wLength = sizeof(descriptor);
 #else
 		ctrl.requesttype = USB_DIR_IN | USB_TYPE_STANDARD | USB_RECIP_DEVICE;
 		ctrl.request = USB_REQ_GET_DESCRIPTOR;
 		ctrl.value = USB_DT_DEVICE << 8;
 		ctrl.index = 0;
- 		ctrl.length = sizeof(descriptor);
+		ctrl.length = sizeof(descriptor);
 #endif
 		ctrl.data = descriptor;
 		ctrl.timeout = CTRL_TIMEOUT;
@@ -463,7 +463,7 @@ static int
 usb_activate(pcap_t* handle)
 {
 	struct pcap_usb_linux *handlep = handle->priv;
-	char 		full_path[USB_LINE_LEN];
+	char		full_path[USB_LINE_LEN];
 
 	/*
 	 * Turn a negative snapshot value (invalid), a snapshot value of

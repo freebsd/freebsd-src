@@ -110,7 +110,7 @@
  * From a quick look at sys/net/if_hippi.h and sys/net/if_hippisubr.c
  * in an older version of NetBSD , the header appears to be:
  *
- * 	a 1-byte ULP field (ULP-id)?
+ *	a 1-byte ULP field (ULP-id)?
  *
  *	a 1-byte flags field;
  *
@@ -1292,7 +1292,7 @@
  * which is stored with each packet:
  *
  *   EXP_PDU_TAG_DISSECTOR_NAME      the name of the Wireshark dissector
- * 				     that can make sense of the data stored.
+ *				     that can make sense of the data stored.
  *
  *   EXP_PDU_TAG_HEUR_DISSECTOR_NAME the name of the Wireshark heuristic
  *				     dissector that can make sense of the
