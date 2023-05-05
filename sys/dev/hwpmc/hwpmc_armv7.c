@@ -389,9 +389,7 @@ armv7_intr(struct trapframe *tf)
 static int
 armv7_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc)
 {
-	char armv7_name[PMC_NAME_MAX];
 	struct pmc_hw *phw;
-	int error;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[armv7,%d], illegal CPU %d", __LINE__, cpu));
@@ -399,11 +397,10 @@ armv7_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc)
 	    ("[armv7,%d] row-index %d out of range", __LINE__, ri));
 
 	phw = &armv7_pcpu[cpu]->pc_armv7pmcs[ri];
-	snprintf(armv7_name, sizeof(armv7_name), "ARMV7-%d", ri);
-	if ((error = copystr(armv7_name, pi->pm_name, PMC_NAME_MAX,
-	    NULL)) != 0)
-		return error;
+
+	snprintf(pi->pm_name, sizeof(pi->pm_name), "ARMV7-%d", ri);
 	pi->pm_class = PMC_CLASS_ARMV7;
+
 	if (phw->phw_state & PMC_PHW_FLAG_IS_ENABLED) {
 		pi->pm_enabled = TRUE;
 		*ppmc = phw->phw_pmc;

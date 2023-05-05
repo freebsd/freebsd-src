@@ -319,9 +319,7 @@ mips_pmc_intr(struct trapframe *tf)
 static int
 mips_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc)
 {
-	int error;
 	struct pmc_hw *phw;
-	char mips_name[PMC_NAME_MAX];
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[mips,%d], illegal CPU %d", __LINE__, cpu));
@@ -329,10 +327,8 @@ mips_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc)
 	    ("[mips,%d] row-index %d out of range", __LINE__, ri));
 
 	phw = &mips_pcpu[cpu]->pc_mipspmcs[ri];
-	snprintf(mips_name, sizeof(mips_name), "MIPS-%d", ri);
-	if ((error = copystr(mips_name, pi->pm_name, PMC_NAME_MAX,
-	    NULL)) != 0)
-		return error;
+
+	snprintf(pi->pm_name, sizeof(pi->pm_name), "MIPS-%d", ri);
 	pi->pm_class = mips_pmc_spec.ps_cpuclass;
 	if (phw->phw_state & PMC_PHW_FLAG_IS_ENABLED) {
 		pi->pm_enabled = TRUE;

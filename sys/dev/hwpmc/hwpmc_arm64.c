@@ -425,9 +425,7 @@ arm64_intr(struct trapframe *tf)
 static int
 arm64_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc)
 {
-	char arm64_name[PMC_NAME_MAX];
 	struct pmc_hw *phw;
-	int error;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[arm64,%d], illegal CPU %d", __LINE__, cpu));
@@ -435,11 +433,10 @@ arm64_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc)
 	    ("[arm64,%d] row-index %d out of range", __LINE__, ri));
 
 	phw = &arm64_pcpu[cpu]->pc_arm64pmcs[ri];
-	snprintf(arm64_name, sizeof(arm64_name), "ARMV8-%d", ri);
-	if ((error = copystr(arm64_name, pi->pm_name, PMC_NAME_MAX,
-	    NULL)) != 0)
-		return (error);
+
+	snprintf(pi->pm_name, sizeof(pi->pm_name), "ARMV8-%d", ri);
 	pi->pm_class = PMC_CLASS_ARMV8;
+
 	if (phw->phw_state & PMC_PHW_FLAG_IS_ENABLED) {
 		pi->pm_enabled = TRUE;
 		*ppmc = phw->phw_pmc;

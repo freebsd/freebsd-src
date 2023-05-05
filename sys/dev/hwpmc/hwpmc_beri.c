@@ -366,8 +366,6 @@ static int
 beri_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc)
 {
 	struct pmc_hw *phw;
-	char beri_name[PMC_NAME_MAX];
-	int error;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[beri,%d], illegal CPU %d", __LINE__, cpu));
@@ -375,10 +373,8 @@ beri_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc)
 	    ("[beri,%d] row-index %d out of range", __LINE__, ri));
 
 	phw = &beri_pcpu[cpu]->pc_beripmcs[ri];
-	snprintf(beri_name, sizeof(beri_name), "MIPS-%d", ri);
-	if ((error = copystr(beri_name, pi->pm_name, PMC_NAME_MAX,
-	    NULL)) != 0)
-		return error;
+
+	snprintf(pi->pm_name, sizeof(pi->pm_name), "MIPS-%d", ri);
 	pi->pm_class = beri_pmc_spec.ps_cpuclass;
 	if (phw->phw_state & PMC_PHW_FLAG_IS_ENABLED) {
 		pi->pm_enabled = TRUE;
