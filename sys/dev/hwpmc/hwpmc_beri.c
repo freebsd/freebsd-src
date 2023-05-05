@@ -217,10 +217,9 @@ beri_allocate_pmc(int cpu, int ri, struct pmc *pm,
 }
 
 static int
-beri_read_pmc(int cpu, int ri, pmc_value_t *v)
+beri_read_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t *v)
 {
 	uint32_t config;
-	struct pmc *pm;
 	pmc_value_t new;
 	pmc_value_t start_val;
 	pmc_value_t stop_val;
@@ -232,7 +231,6 @@ beri_read_pmc(int cpu, int ri, pmc_value_t *v)
 	KASSERT(ri >= 0 && ri < beri_npmcs,
 	    ("[beri,%d] illegal row index %d", __LINE__, ri));
 
-	pm = beri_pcpu[cpu]->pc_beripmcs[ri].phw_pmc;
 	config = pm->pm_md.pm_mips_evsel;
 
 	start_val = beri_pcpu[cpu]->start_values[config];
@@ -260,9 +258,8 @@ beri_read_pmc(int cpu, int ri, pmc_value_t *v)
 }
 
 static int
-beri_write_pmc(int cpu, int ri, pmc_value_t v)
+beri_write_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t v)
 {
-	struct pmc *pm;
 	uint32_t config;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
@@ -270,7 +267,6 @@ beri_write_pmc(int cpu, int ri, pmc_value_t v)
 	KASSERT(ri >= 0 && ri < beri_npmcs,
 	    ("[beri,%d] illegal row-index %d", __LINE__, ri));
 
-	pm = beri_pcpu[cpu]->pc_beripmcs[ri].phw_pmc;
 	config = pm->pm_md.pm_mips_evsel;
 
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
@@ -310,15 +306,11 @@ beri_config_pmc(int cpu, int ri, struct pmc *pm)
 }
 
 static int
-beri_start_pmc(int cpu, int ri)
+beri_start_pmc(int cpu, int ri, struct pmc *pm)
 {
 	uint32_t config;
-        struct pmc *pm;
-        struct pmc_hw *phw;
 	pmc_value_t v;
 
-	phw = &beri_pcpu[cpu]->pc_beripmcs[ri];
-	pm = phw->phw_pmc;
 	config = pm->pm_md.pm_mips_evsel;
 
 	v = beri_event_codes[config].get_func();
@@ -328,15 +320,11 @@ beri_start_pmc(int cpu, int ri)
 }
 
 static int
-beri_stop_pmc(int cpu, int ri)
+beri_stop_pmc(int cpu, int ri, struct pmc *pm)
 {
 	uint32_t config;
-        struct pmc *pm;
-        struct pmc_hw *phw;
 	pmc_value_t v;
 
-	phw = &beri_pcpu[cpu]->pc_beripmcs[ri];
-	pm = phw->phw_pmc;
 	config = pm->pm_md.pm_mips_evsel;
 
 	v = beri_event_codes[config].get_func();

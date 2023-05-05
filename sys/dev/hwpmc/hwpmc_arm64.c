@@ -212,10 +212,9 @@ arm64_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 
 static int
-arm64_read_pmc(int cpu, int ri, pmc_value_t *v)
+arm64_read_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t *v)
 {
 	pmc_value_t tmp;
-	struct pmc *pm;
 	register_t s;
 	int reg;
 
@@ -223,8 +222,6 @@ arm64_read_pmc(int cpu, int ri, pmc_value_t *v)
 	    ("[arm64,%d] illegal CPU value %d", __LINE__, cpu));
 	KASSERT(ri >= 0 && ri < arm64_npmcs,
 	    ("[arm64,%d] illegal row index %d", __LINE__, ri));
-
-	pm  = arm64_pcpu[cpu]->pc_arm64pmcs[ri].phw_pmc;
 
 	/*
 	 * Ensure we don't get interrupted while updating the overflow count.
@@ -261,16 +258,13 @@ arm64_read_pmc(int cpu, int ri, pmc_value_t *v)
 }
 
 static int
-arm64_write_pmc(int cpu, int ri, pmc_value_t v)
+arm64_write_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t v)
 {
-	struct pmc *pm;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[arm64,%d] illegal CPU value %d", __LINE__, cpu));
 	KASSERT(ri >= 0 && ri < arm64_npmcs,
 	    ("[arm64,%d] illegal row-index %d", __LINE__, ri));
-
-	pm  = arm64_pcpu[cpu]->pc_arm64pmcs[ri].phw_pmc;
 
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 		v = ARMV8_RELOAD_COUNT_TO_PERFCTR_VALUE(v);
@@ -307,14 +301,10 @@ arm64_config_pmc(int cpu, int ri, struct pmc *pm)
 }
 
 static int
-arm64_start_pmc(int cpu, int ri)
+arm64_start_pmc(int cpu, int ri, struct pmc *pm)
 {
-	struct pmc_hw *phw;
 	uint32_t config;
-	struct pmc *pm;
 
-	phw    = &arm64_pcpu[cpu]->pc_arm64pmcs[ri];
-	pm     = phw->phw_pmc;
 	config = pm->pm_md.pm_arm64.pm_arm64_evsel;
 
 	/*
@@ -335,13 +325,8 @@ arm64_start_pmc(int cpu, int ri)
 }
 
 static int
-arm64_stop_pmc(int cpu, int ri)
+arm64_stop_pmc(int cpu, int ri, struct pmc *pm __unused)
 {
-	struct pmc_hw *phw;
-	struct pmc *pm;
-
-	phw    = &arm64_pcpu[cpu]->pc_arm64pmcs[ri];
-	pm     = phw->phw_pmc;
 
 	/*
 	 * Disable the PMCs.
@@ -413,10 +398,10 @@ arm64_intr(struct trapframe *tf)
 
 		error = pmc_process_interrupt(PMC_HR, pm, tf);
 		if (error)
-			arm64_stop_pmc(cpu, ri);
+			arm64_stop_pmc(cpu, ri, pm);
 
 		/* Reload sampling count */
-		arm64_write_pmc(cpu, ri, pm->pm_sc.pm_reloadcount);
+		arm64_write_pmc(cpu, ri, pm, pm->pm_sc.pm_reloadcount);
 	}
 
 	return (retval);
