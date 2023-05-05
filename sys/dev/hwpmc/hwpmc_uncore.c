@@ -671,27 +671,6 @@ ucp_start_pmc(int cpu, int ri)
 	    "ucp-start/2 cpu=%d ri=%d evselmsr=0x%x evsel=0x%x",
 	    cpu, ri, SELECTSEL(uncore_cputype) + ri, evsel);
 
-	/* Event specific configuration. */
-	switch (pm->pm_event) {
-	case PMC_EV_UCP_EVENT_0CH_04H_E:
-	case PMC_EV_UCP_EVENT_0CH_08H_E:
-		wrmsr(MSR_GQ_SNOOP_MESF,0x2);
-		break;
-	case PMC_EV_UCP_EVENT_0CH_04H_F:
-	case PMC_EV_UCP_EVENT_0CH_08H_F:
-		wrmsr(MSR_GQ_SNOOP_MESF,0x8);
-		break;
-	case PMC_EV_UCP_EVENT_0CH_04H_M:
-	case PMC_EV_UCP_EVENT_0CH_08H_M:
-		wrmsr(MSR_GQ_SNOOP_MESF,0x1);
-		break;
-	case PMC_EV_UCP_EVENT_0CH_04H_S:
-	case PMC_EV_UCP_EVENT_0CH_08H_S:
-		wrmsr(MSR_GQ_SNOOP_MESF,0x4);
-		break;
-	default:
-		break;
-	}
 	wrmsr(SELECTSEL(uncore_cputype) + ri, evsel);
 
 	cc->pc_globalctrl |= (1ULL << ri);
