@@ -427,6 +427,8 @@ daemon_eventloop(struct daemon_state *state)
 		ret = kevent(kq, NULL, 0, &event, 1, NULL);
 		switch (ret) {
 		case -1:
+			if (errno == EINTR)
+				continue;
 			err(EXIT_FAILURE, "kevent wait");
 		case 0:
 			continue;
