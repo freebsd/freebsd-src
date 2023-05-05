@@ -1043,10 +1043,6 @@ struct pmc_mdep  {
 	 * Machine dependent methods.
 	 */
 
-	/* per-cpu initialization and finalization */
-	int (*pmd_pcpu_init)(struct pmc_mdep *_md, int _cpu);
-	int (*pmd_pcpu_fini)(struct pmc_mdep *_md, int _cpu);
-
 	/* thread context switch in/out */
 	int (*pmd_switch_in)(struct pmc_cpu *_p, struct pmc_process *_pp);
 	int (*pmd_switch_out)(struct pmc_cpu *_p, struct pmc_process *_pp);
