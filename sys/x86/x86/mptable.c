@@ -1264,7 +1264,7 @@ mptable_host_res_handler(ext_entry_ptr entry, void *arg)
 			break;
 		default:
 			printf(
-    "MPTable: Unknown compatiblity address space range for bus %u: %d\n",
+    "MPTable: Unknown compatibility address space range for bus %u: %d\n",
 			    cbasm->bus_id, cbasm->predefined_range);
 			return;
 		}
