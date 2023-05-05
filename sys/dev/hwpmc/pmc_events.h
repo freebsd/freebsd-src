@@ -204,16 +204,6 @@ __PMC_EV_ALIAS("instruction-retired",	IAF_INSTR_RETIRED_ANY)		\
 __PMC_EV_ALIAS("unhalted-core-cycles",	IAF_CPU_CLK_UNHALTED_CORE)	\
 __PMC_EV_ALIAS("unhalted-reference-cycles", IAF_CPU_CLK_UNHALTED_REF)
 
-#define        __PMC_EV_UCP()                          \
-	__PMC_EV(UCP, EVENT_0CH_04H_E)					   \
-	__PMC_EV(UCP, EVENT_0CH_04H_F)					   \
-	__PMC_EV(UCP, EVENT_0CH_04H_M)					   \
-	__PMC_EV(UCP, EVENT_0CH_04H_S)					   \
-	__PMC_EV(UCP, EVENT_0CH_08H_E)					   \
-	__PMC_EV(UCP, EVENT_0CH_08H_F)					   \
-	__PMC_EV(UCP, EVENT_0CH_08H_M)					   \
-	__PMC_EV(UCP, EVENT_0CH_08H_S)					   \
-
 /*
  * ARMv7 Events
  */
@@ -2477,8 +2467,6 @@ __PMC_EV_ALIAS("unhalted-reference-cycles", IAF_CPU_CLK_UNHALTED_REF)
 	__PMC_EV_K7()				\
 	__PMC_EV_BLOCK(K8,	0x2080)	        \
 	__PMC_EV_K8()				\
-	__PMC_EV_BLOCK(UCP,     0x12080)        \
-	__PMC_EV_UCP()				\
 	__PMC_EV_BLOCK(PPC7450,	0x13000)	\
 	__PMC_EV_PPC7450()			\
 	__PMC_EV_BLOCK(PPC970,	0x13100)	\
