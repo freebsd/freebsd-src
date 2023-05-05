@@ -147,11 +147,23 @@ sigalarm_handler(int signo __unused)
 	need_progress = 1;
 }
 
-/* ARGSUSED */
 void
-terminate(int sig)
+terminate(int signo)
 {
 
-	summary();
-	_exit(sig == 0 ? 0 : 1);
+	kill_signal = signo;
+}
+
+void
+check_terminate(void)
+{
+
+	if (kill_signal) {
+		summary();
+		(void)fflush(stderr);
+		signal(kill_signal, SIG_DFL);
+		raise(kill_signal);
+		/* NOT REACHED */
+		_exit(128 + kill_signal);
+	}
 }

@@ -1,5 +1,6 @@
 #
 # Copyright (c) 2017 Spectra Logic Corporation
+# Copyright (c) 2023 Klara, Inc.
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
@@ -46,8 +47,51 @@ seek_overflow_body()
 		dd if=f.in of=f.out bs=4096 seek=-1
 }
 
+atf_test_case sigint
+sigint_open_head()
+{
+	atf_set "descr" "SIGINT while opening destination"
+}
+sigint_open_body()
+{
+	atf_check mkfifo fifo
+	set -m
+	dd if=fifo of=/dev/null 2>stderr &
+	pid=$!
+	sleep 3
+	kill -INT $pid
+	wait $pid
+	rv=$?
+	atf_check test "$rv" -gt 128
+	atf_check -o inline:"INT\n" kill -l $((rv-128))
+	atf_check test -s stderr
+}
+
+atf_test_case sigint
+sigint_read_head()
+{
+	atf_set "descr" "SIGINT while reading source"
+}
+sigint_read_body()
+{
+	atf_check mkfifo fifo
+	(sleep 30 >fifo &) # ensures that dd does not block on open
+	set -m
+	dd if=fifo of=/dev/null 2>stderr &
+	pid=$!
+	sleep 3
+	kill -INT $pid
+	wait $pid
+	rv=$?
+	atf_check test "$rv" -gt 128
+	atf_check -o inline:"INT\n" kill -l $((rv-128))
+	atf_check test -s stderr
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case max_seek
 	atf_add_test_case seek_overflow
+	atf_add_test_case sigint_open
+	atf_add_test_case sigint_read
 }
