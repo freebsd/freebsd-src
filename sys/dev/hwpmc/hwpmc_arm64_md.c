@@ -31,18 +31,17 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/pmc.h>
-#include <sys/proc.h>
 #include <sys/systm.h>
+#include <sys/pmc.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
 #include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <machine/pmc_mdep.h>
 #include <machine/stack.h>
-
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
+#include <machine/vmparam.h>
 
 struct pmc_mdep *
 pmc_md_initialize(void)
@@ -59,30 +58,22 @@ pmc_md_finalize(struct pmc_mdep *md)
 }
 
 int
-pmc_save_kernel_callchain(uintptr_t *cc, int maxsamples,
-    struct trapframe *tf)
+pmc_save_kernel_callchain(uintptr_t *cc, int maxsamples, struct trapframe *tf)
 {
 	struct unwind_state frame;
-	uintptr_t stackstart, stackend;
-	struct thread *td;
 	int count;
 
 	KASSERT(TRAPF_USERMODE(tf) == 0,("[arm,%d] not a kernel backtrace",
 	    __LINE__));
 
-	td = curthread;
 	frame.pc = PMC_TRAPFRAME_TO_PC(tf);
 	*cc++ = frame.pc;
 
 	if (maxsamples <= 1)
 		return (1);
 
-	stackstart = (uintptr_t) td->td_kstack;
-	stackend = (uintptr_t) td->td_kstack + td->td_kstack_pages * PAGE_SIZE;
 	frame.fp = PMC_TRAPFRAME_TO_FP(tf);
-
-	if (!PMC_IN_KERNEL(frame.pc) ||
-	    !PMC_IN_KERNEL_STACK(frame.fp, stackstart, stackend))
+	if (!PMC_IN_KERNEL(frame.pc) || !PMC_IN_KERNEL_STACK(frame.fp))
 		return (1);
 
 	for (count = 1; count < maxsamples; count++) {
