@@ -70,10 +70,9 @@ struct tsc_cpu {
 static struct tsc_cpu **tsc_pcpu;
 
 static int
-tsc_allocate_pmc(int cpu, int ri, struct pmc *pm,
+tsc_allocate_pmc(int cpu __diagused, int ri __diagused, struct pmc *pm __unused,
     const struct pmc_op_pmcallocate *a)
 {
-	(void) cpu;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[tsc,%d] illegal CPU value %d", __LINE__, cpu));
@@ -140,9 +139,8 @@ tsc_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc)
 }
 
 static int
-tsc_get_config(int cpu, int ri, struct pmc **ppm)
+tsc_get_config(int cpu, int ri __diagused, struct pmc **ppm)
 {
-	(void) ri;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[tsc,%d] illegal CPU %d", __LINE__, cpu));
@@ -154,9 +152,8 @@ tsc_get_config(int cpu, int ri, struct pmc **ppm)
 }
 
 static int
-tsc_get_msr(int ri, uint32_t *msr)
+tsc_get_msr(int ri __diagused, uint32_t *msr)
 {
-	(void) ri;
 
 	KASSERT(ri >= 0 && ri < TSC_NPMCS,
 	    ("[tsc,%d] ri %d out of range", __LINE__, ri));
@@ -252,11 +249,9 @@ tsc_read_pmc(int cpu, int ri, pmc_value_t *v)
 }
 
 static int
-tsc_release_pmc(int cpu, int ri, struct pmc *pmc)
+tsc_release_pmc(int cpu, int ri __diagused, struct pmc *pmc __unused)
 {
 	struct pmc_hw *phw __diagused;
-
-	(void) pmc;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[tsc,%d] illegal CPU value %d", __LINE__, cpu));
@@ -275,9 +270,8 @@ tsc_release_pmc(int cpu, int ri, struct pmc *pmc)
 }
 
 static int
-tsc_start_pmc(int cpu, int ri)
+tsc_start_pmc(int cpu __diagused, int ri __diagused)
 {
-	(void) cpu;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[tsc,%d] illegal CPU value %d", __LINE__, cpu));
@@ -287,9 +281,8 @@ tsc_start_pmc(int cpu, int ri)
 }
 
 static int
-tsc_stop_pmc(int cpu, int ri)
+tsc_stop_pmc(int cpu __diagused, int ri __diagused)
 {
-	(void) cpu; (void) ri;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[tsc,%d] illegal CPU value %d", __LINE__, cpu));
@@ -299,9 +292,8 @@ tsc_stop_pmc(int cpu, int ri)
 }
 
 static int
-tsc_write_pmc(int cpu, int ri, pmc_value_t v)
+tsc_write_pmc(int cpu __diagused, int ri __diagused, pmc_value_t v __unused)
 {
-	(void) cpu; (void) ri; (void) v;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[tsc,%d] illegal CPU value %d", __LINE__, cpu));
@@ -354,7 +346,7 @@ pmc_tsc_initialize(struct pmc_mdep *md, int maxcpu)
 }
 
 void
-pmc_tsc_finalize(struct pmc_mdep *md)
+pmc_tsc_finalize(struct pmc_mdep *md __diagused)
 {
 #ifdef	INVARIANTS
 	int i, ncpus;
@@ -366,9 +358,6 @@ pmc_tsc_finalize(struct pmc_mdep *md)
 
 	KASSERT(md->pmd_classdep[PMC_MDEP_CLASS_INDEX_TSC].pcd_class ==
 	    PMC_CLASS_TSC, ("[tsc,%d] class mismatch", __LINE__));
-
-#else
-	(void) md;
 #endif
 
 	free(tsc_pcpu, M_PMC);
