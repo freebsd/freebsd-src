@@ -416,23 +416,6 @@ armv7_get_config(int cpu, int ri, struct pmc **ppm)
 	return 0;
 }
 
-/*
- * XXX don't know what we should do here.
- */
-static int
-armv7_switch_in(struct pmc_cpu *pc, struct pmc_process *pp)
-{
-
-	return 0;
-}
-
-static int
-armv7_switch_out(struct pmc_cpu *pc, struct pmc_process *pp)
-{
-
-	return 0;
-}
-
 static int
 armv7_pcpu_init(struct pmc_mdep *md, int cpu)
 {
@@ -551,11 +534,8 @@ pmc_armv7_initialize(void)
 	pcd->pcd_stop_pmc       = armv7_stop_pmc;
 	pcd->pcd_write_pmc      = armv7_write_pmc;
 
-	pmc_mdep->pmd_intr       = armv7_intr;
-	pmc_mdep->pmd_switch_in  = armv7_switch_in;
-	pmc_mdep->pmd_switch_out = armv7_switch_out;
-	
-	pmc_mdep->pmd_npmc   += armv7_npmcs;
+	pmc_mdep->pmd_intr = armv7_intr;
+	pmc_mdep->pmd_npmc += armv7_npmcs;
 
 	return (pmc_mdep);
 }

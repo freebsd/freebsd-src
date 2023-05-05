@@ -448,23 +448,6 @@ arm64_get_config(int cpu, int ri, struct pmc **ppm)
 	return (0);
 }
 
-/*
- * XXX don't know what we should do here.
- */
-static int
-arm64_switch_in(struct pmc_cpu *pc, struct pmc_process *pp)
-{
-
-	return (0);
-}
-
-static int
-arm64_switch_out(struct pmc_cpu *pc, struct pmc_process *pp)
-{
-
-	return (0);
-}
-
 static int
 arm64_pcpu_init(struct pmc_mdep *md, int cpu)
 {
@@ -614,11 +597,8 @@ pmc_arm64_initialize(void)
 	pcd->pcd_stop_pmc       = arm64_stop_pmc;
 	pcd->pcd_write_pmc      = arm64_write_pmc;
 
-	pmc_mdep->pmd_intr       = arm64_intr;
-	pmc_mdep->pmd_switch_in  = arm64_switch_in;
-	pmc_mdep->pmd_switch_out = arm64_switch_out;
-
-	pmc_mdep->pmd_npmc   += arm64_npmcs;
+	pmc_mdep->pmd_intr = arm64_intr;
+	pmc_mdep->pmd_npmc += arm64_npmcs;
 
 #ifdef DEV_ACPI
 	if (pmc_cmn600_nclasses() > 0)
