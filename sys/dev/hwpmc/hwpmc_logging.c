@@ -110,9 +110,7 @@ static struct mtx pmc_kthread_mtx;	/* sleep lock */
  * Log file record constructors.
  */
 #define	_PMCLOG_TO_HEADER(T,L)						\
-	((PMCLOG_HEADER_MAGIC << 24) |					\
-	 (PMCLOG_TYPE_ ## T << 16)   |					\
-	 ((L) & 0xFFFF))
+	((PMCLOG_HEADER_MAGIC << 24) | (T << 16) | ((L) & 0xFFFF))
 
 /* reserve LEN bytes of space and initialize the entry header */
 #define	_PMCLOG_RESERVE_SAFE(PO,TYPE,LEN,ACTION, TSC) do {	\
@@ -716,7 +714,7 @@ pmclog_configure_log(struct pmc_mdep *md, struct pmc_owner *po, int logfd)
 	PROC_UNLOCK(p);
 	nanotime(&ts);
 	/* create a log initialization entry */
-	PMCLOG_RESERVE_WITH_ERROR(po, INITIALIZE,
+	PMCLOG_RESERVE_WITH_ERROR(po, PMCLOG_TYPE_INITIALIZE,
 	    sizeof(struct pmclog_initialize));
 	PMCLOG_EMIT32(PMC_VERSION);
 	PMCLOG_EMIT32(md->pmd_cputype);
@@ -916,7 +914,7 @@ pmclog_process_callchain(struct pmc *pm, struct pmc_sample *ps)
 	    ps->ps_nsamples * sizeof(uintfptr_t);
 	po = pm->pm_owner;
 	flags = PMC_CALLCHAIN_TO_CPUFLAGS(ps->ps_cpu,ps->ps_flags);
-	PMCLOG_RESERVE_SAFE(po, CALLCHAIN, recordlen, ps->ps_tsc);
+	PMCLOG_RESERVE_SAFE(po, PMCLOG_TYPE_CALLCHAIN, recordlen, ps->ps_tsc);
 	PMCLOG_EMIT32(ps->ps_pid);
 	PMCLOG_EMIT32(ps->ps_tid);
 	PMCLOG_EMIT32(pm->pm_id);
@@ -929,14 +927,16 @@ pmclog_process_callchain(struct pmc *pm, struct pmc_sample *ps)
 void
 pmclog_process_closelog(struct pmc_owner *po)
 {
-	PMCLOG_RESERVE(po,CLOSELOG,sizeof(struct pmclog_closelog));
+	PMCLOG_RESERVE(po, PMCLOG_TYPE_CLOSELOG,
+	    sizeof(struct pmclog_closelog));
 	PMCLOG_DESPATCH_SYNC(po);
 }
 
 void
 pmclog_process_dropnotify(struct pmc_owner *po)
 {
-	PMCLOG_RESERVE(po,DROPNOTIFY,sizeof(struct pmclog_dropnotify));
+	PMCLOG_RESERVE(po, PMCLOG_TYPE_DROPNOTIFY,
+	    sizeof(struct pmclog_dropnotify));
 	PMCLOG_DESPATCH(po);
 }
 
@@ -952,7 +952,7 @@ pmclog_process_map_in(struct pmc_owner *po, pid_t pid, uintfptr_t start,
 	recordlen = offsetof(struct pmclog_map_in, pl_pathname) +
 	    pathlen;
 
-	PMCLOG_RESERVE(po, MAP_IN, recordlen);
+	PMCLOG_RESERVE(po, PMCLOG_TYPE_MAP_IN, recordlen);
 	PMCLOG_EMIT32(pid);
 	PMCLOG_EMIT32(0);
 	PMCLOG_EMITADDR(start);
@@ -966,7 +966,7 @@ pmclog_process_map_out(struct pmc_owner *po, pid_t pid, uintfptr_t start,
 {
 	KASSERT(start <= end, ("[pmclog,%d] start > end", __LINE__));
 
-	PMCLOG_RESERVE(po, MAP_OUT, sizeof(struct pmclog_map_out));
+	PMCLOG_RESERVE(po, PMCLOG_TYPE_MAP_OUT, sizeof(struct pmclog_map_out));
 	PMCLOG_EMIT32(pid);
 	PMCLOG_EMIT32(0);
 	PMCLOG_EMITADDR(start);
@@ -985,7 +985,7 @@ pmclog_process_pmcallocate(struct pmc *pm)
 	PMCDBG1(LOG,ALL,1, "pm=%p", pm);
 
 	if (PMC_TO_CLASS(pm) == PMC_CLASS_SOFT) {
-		PMCLOG_RESERVE(po, PMCALLOCATEDYN,
+		PMCLOG_RESERVE(po, PMCLOG_TYPE_PMCALLOCATEDYN,
 		    sizeof(struct pmclog_pmcallocatedyn));
 		PMCLOG_EMIT32(pm->pm_id);
 		PMCLOG_EMIT32(pm->pm_event);
@@ -1000,7 +1000,7 @@ pmclog_process_pmcallocate(struct pmc *pm)
 		pmc_soft_ev_release(ps);
 		PMCLOG_DESPATCH_SYNC(po);
 	} else {
-		PMCLOG_RESERVE(po, PMCALLOCATE,
+		PMCLOG_RESERVE(po, PMCLOG_TYPE_PMCALLOCATE,
 		    sizeof(struct pmclog_pmcallocate));
 		PMCLOG_EMIT32(pm->pm_id);
 		PMCLOG_EMIT32(pm->pm_event);
@@ -1024,7 +1024,7 @@ pmclog_process_pmcattach(struct pmc *pm, pid_t pid, char *path)
 	pathlen = strlen(path) + 1;	/* #bytes for the string */
 	recordlen = offsetof(struct pmclog_pmcattach, pl_pathname) + pathlen;
 
-	PMCLOG_RESERVE(po, PMCATTACH, recordlen);
+	PMCLOG_RESERVE(po, PMCLOG_TYPE_PMCATTACH, recordlen);
 	PMCLOG_EMIT32(pm->pm_id);
 	PMCLOG_EMIT32(pid);
 	PMCLOG_EMITSTRING(path, pathlen);
@@ -1040,7 +1040,8 @@ pmclog_process_pmcdetach(struct pmc *pm, pid_t pid)
 
 	po = pm->pm_owner;
 
-	PMCLOG_RESERVE(po, PMCDETACH, sizeof(struct pmclog_pmcdetach));
+	PMCLOG_RESERVE(po, PMCLOG_TYPE_PMCDETACH,
+	    sizeof(struct pmclog_pmcdetach));
 	PMCLOG_EMIT32(pm->pm_id);
 	PMCLOG_EMIT32(pid);
 	PMCLOG_DESPATCH_SYNC(po);
@@ -1050,13 +1051,15 @@ void
 pmclog_process_proccreate(struct pmc_owner *po, struct proc *p, int sync)
 {
 	if (sync) {
-		PMCLOG_RESERVE(po, PROC_CREATE, sizeof(struct pmclog_proccreate));
+		PMCLOG_RESERVE(po, PMCLOG_TYPE_PROC_CREATE,
+		    sizeof(struct pmclog_proccreate));
 		PMCLOG_EMIT32(p->p_pid);
 		PMCLOG_EMIT32(p->p_flag);
 		PMCLOG_EMITSTRING(p->p_comm, MAXCOMLEN+1);
 		PMCLOG_DESPATCH_SYNC(po);
 	} else {
-		PMCLOG_RESERVE(po, PROC_CREATE, sizeof(struct pmclog_proccreate));
+		PMCLOG_RESERVE(po, PMCLOG_TYPE_PROC_CREATE,
+		    sizeof(struct pmclog_proccreate));
 		PMCLOG_EMIT32(p->p_pid);
 		PMCLOG_EMIT32(p->p_flag);
 		PMCLOG_EMITSTRING(p->p_comm, MAXCOMLEN+1);
@@ -1081,7 +1084,8 @@ pmclog_process_proccsw(struct pmc *pm, struct pmc_process *pp, pmc_value_t v, st
 
 	po = pm->pm_owner;
 
-	PMCLOG_RESERVE_SAFE(po, PROCCSW, sizeof(struct pmclog_proccsw), pmc_rdtsc());
+	PMCLOG_RESERVE_SAFE(po, PMCLOG_TYPE_PROCCSW,
+	    sizeof(struct pmclog_proccsw), pmc_rdtsc());
 	PMCLOG_EMIT64(v);
 	PMCLOG_EMIT32(pm->pm_id);
 	PMCLOG_EMIT32(pp->pp_proc->p_pid);
@@ -1100,7 +1104,7 @@ pmclog_process_procexec(struct pmc_owner *po, pmc_id_t pmid, pid_t pid,
 
 	pathlen   = strlen(path) + 1;	/* #bytes for the path */
 	recordlen = offsetof(struct pmclog_procexec, pl_pathname) + pathlen;
-	PMCLOG_RESERVE(po, PROCEXEC, recordlen);
+	PMCLOG_RESERVE(po, PMCLOG_TYPE_PROCEXEC, recordlen);
 	PMCLOG_EMIT32(pid);
 	PMCLOG_EMIT32(pmid);
 	PMCLOG_EMITADDR(startaddr);
@@ -1124,7 +1128,8 @@ pmclog_process_procexit(struct pmc *pm, struct pmc_process *pp)
 
 	po = pm->pm_owner;
 
-	PMCLOG_RESERVE(po, PROCEXIT, sizeof(struct pmclog_procexit));
+	PMCLOG_RESERVE(po, PMCLOG_TYPE_PROCEXIT,
+	    sizeof(struct pmclog_procexit));
 	PMCLOG_EMIT32(pm->pm_id);
 	PMCLOG_EMIT32(pp->pp_proc->p_pid);
 	PMCLOG_EMIT64(pp->pp_pmcs[ri].pp_pmcval);
@@ -1138,7 +1143,8 @@ pmclog_process_procexit(struct pmc *pm, struct pmc_process *pp)
 void
 pmclog_process_procfork(struct pmc_owner *po, pid_t oldpid, pid_t newpid)
 {
-	PMCLOG_RESERVE(po, PROCFORK, sizeof(struct pmclog_procfork));
+	PMCLOG_RESERVE(po, PMCLOG_TYPE_PROCFORK,
+	    sizeof(struct pmclog_procfork));
 	PMCLOG_EMIT32(oldpid);
 	PMCLOG_EMIT32(newpid);
 	PMCLOG_DESPATCH(po);
@@ -1151,7 +1157,7 @@ pmclog_process_procfork(struct pmc_owner *po, pid_t oldpid, pid_t newpid)
 void
 pmclog_process_sysexit(struct pmc_owner *po, pid_t pid)
 {
-	PMCLOG_RESERVE(po, SYSEXIT, sizeof(struct pmclog_sysexit));
+	PMCLOG_RESERVE(po, PMCLOG_TYPE_SYSEXIT, sizeof(struct pmclog_sysexit));
 	PMCLOG_EMIT32(pid);
 	PMCLOG_DESPATCH(po);
 }
@@ -1163,7 +1169,8 @@ pmclog_process_threadcreate(struct pmc_owner *po, struct thread *td, int sync)
 
 	p = td->td_proc;
 	if (sync) {
-		PMCLOG_RESERVE(po, THR_CREATE, sizeof(struct pmclog_threadcreate));
+		PMCLOG_RESERVE(po, PMCLOG_TYPE_THR_CREATE,
+		    sizeof(struct pmclog_threadcreate));
 		PMCLOG_EMIT32(td->td_tid);
 		PMCLOG_EMIT32(p->p_pid);
 		PMCLOG_EMIT32(p->p_flag);
@@ -1171,7 +1178,8 @@ pmclog_process_threadcreate(struct pmc_owner *po, struct thread *td, int sync)
 		PMCLOG_EMITSTRING(td->td_name, MAXCOMLEN+1);
 		PMCLOG_DESPATCH_SYNC(po);
 	} else {
-		PMCLOG_RESERVE(po, THR_CREATE, sizeof(struct pmclog_threadcreate));
+		PMCLOG_RESERVE(po, PMCLOG_TYPE_THR_CREATE,
+		    sizeof(struct pmclog_threadcreate));
 		PMCLOG_EMIT32(td->td_tid);
 		PMCLOG_EMIT32(p->p_pid);
 		PMCLOG_EMIT32(p->p_flag);
@@ -1185,7 +1193,8 @@ void
 pmclog_process_threadexit(struct pmc_owner *po, struct thread *td)
 {
 
-	PMCLOG_RESERVE(po, THR_EXIT, sizeof(struct pmclog_threadexit));
+	PMCLOG_RESERVE(po, PMCLOG_TYPE_THR_EXIT,
+	    sizeof(struct pmclog_threadexit));
 	PMCLOG_EMIT32(td->td_tid);
 	PMCLOG_DESPATCH(po);
 }
@@ -1203,7 +1212,7 @@ pmclog_process_userlog(struct pmc_owner *po, struct pmc_op_writelog *wl)
 
 	error = 0;
 
-	PMCLOG_RESERVE_WITH_ERROR(po, USERDATA,
+	PMCLOG_RESERVE_WITH_ERROR(po, PMCLOG_TYPE_USERDATA,
 	    sizeof(struct pmclog_userdata));
 	PMCLOG_EMIT32(wl->pm_userdata);
 	PMCLOG_DESPATCH(po);
