@@ -2002,7 +2002,7 @@ do {								\
 					    >> 8) | (offset != 0));
 				} else {
 					/*
-					 * Compatiblity: historically bare
+					 * Compatibility: historically bare
 					 * "frag" would match IPv6 fragments.
 					 */
 					match = (cmd->arg1 == 0x1 &&
