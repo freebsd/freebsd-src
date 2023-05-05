@@ -1,5 +1,5 @@
 #  Copyright (c) 1993, 1994, 1995, 1996
-# 	The Regents of the University of California.  All rights reserved.
+#	The Regents of the University of California.  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
 #  modification, are permitted provided that: (1) source code distributions
@@ -810,7 +810,7 @@ clean:
 distclean: clean
 	rm -f Makefile grammar.y config.cache config.log config.status \
 	    config.h config.h.in~ configure~ configure.ac~ \
-	    gnuc.h net os-proto.h libpcap.pc pcap-config stamp-h stamp-h.in
+	    net os-proto.h libpcap.pc pcap-config stamp-h stamp-h.in
 	rm -f $(MAN3PCAP_EXPAND:.in=) $(MANFILE:.in=) $(MANMISC:.in=)
 	rm -rf autom4te.cache
 	(cd rpcapd; $(MAKE) distclean)

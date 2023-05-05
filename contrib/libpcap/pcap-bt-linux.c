@@ -367,9 +367,9 @@ bt_read_linux(pcap_t *handle, int max_packets _U_, pcap_handler callback, u_char
 			case HCI_CMSG_DIR:
 				memcpy(&in, CMSG_DATA(cmsg), sizeof in);
 				break;
-                      	case HCI_CMSG_TSTAMP:
-                      		memcpy(&pkth.ts, CMSG_DATA(cmsg),
-                      		    sizeof pkth.ts);
+			case HCI_CMSG_TSTAMP:
+				memcpy(&pkth.ts, CMSG_DATA(cmsg),
+					sizeof pkth.ts);
 				break;
 		}
 		cmsg = CMSG_NXTHDR(&msg, cmsg);

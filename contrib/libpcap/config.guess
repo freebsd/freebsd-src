@@ -1,10 +1,10 @@
 #! /bin/sh
 # Attempt to guess a canonical system name.
-#   Copyright 1992-2022 Free Software Foundation, Inc.
+#   Copyright 1992-2023 Free Software Foundation, Inc.
 
 # shellcheck disable=SC2006,SC2268 # see below for rationale
 
-timestamp='2022-08-01'
+timestamp='2023-01-01'
 
 # This file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by
@@ -60,7 +60,7 @@ version="\
 GNU config.guess ($timestamp)
 
 Originally written by Per Bothner.
-Copyright 1992-2022 Free Software Foundation, Inc.
+Copyright 1992-2023 Free Software Foundation, Inc.
 
 This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
@@ -965,6 +965,12 @@ EOF
 	GNU_SYS=`echo "$UNAME_SYSTEM" | sed 's,^[^/]*/,,' | tr "[:upper:]" "[:lower:]"`
 	GNU_REL=`echo "$UNAME_RELEASE" | sed -e 's/[-(].*//'`
 	GUESS=$UNAME_MACHINE-unknown-$GNU_SYS$GNU_REL-$LIBC
+	;;
+    x86_64:[Mm]anagarm:*:*|i?86:[Mm]anagarm:*:*)
+	GUESS="$UNAME_MACHINE-pc-managarm-mlibc"
+	;;
+    *:[Mm]anagarm:*:*)
+	GUESS="$UNAME_MACHINE-unknown-managarm-mlibc"
 	;;
     *:Minix:*:*)
 	GUESS=$UNAME_MACHINE-unknown-minix

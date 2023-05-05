@@ -1389,7 +1389,7 @@ int sock_bufferize(const void *data, int size, char *outbuf, int *offset, int to
  *
  *   SOCK_RECEIVALL_XXX:
  *
- * 	if SOCK_RECEIVEALL_NO, return as soon as some data is ready
+ *	if SOCK_RECEIVEALL_NO, return as soon as some data is ready
  *	if SOCK_RECEIVALL_YES, wait until 'size' data has been
  *	    received (in case the socket does not have enough data available).
  *

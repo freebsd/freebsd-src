@@ -634,7 +634,7 @@ static int process_client_data (char *errbuf) {								/* returns: -1 = error, 0
 						    "malloc");
 						return -1;
 					}
- 					memset((char *)addr, 0, sizeof(pcap_addr_t)); /* bzero() is deprecated, replaced with memset() */
+					memset((char *)addr, 0, sizeof(pcap_addr_t)); /* bzero() is deprecated, replaced with memset() */
 					if (iff->addresses == 0) iff->addresses = addr;
 					if (prev_addr) prev_addr->next = addr;							/* insert a forward link */
 					if (*ptr) {														/* if there is a count for the address */
