@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-IMAGE		:= libfido2-coverage:1.9.1
+IMAGE		:= libfido2-coverage:1.10.0
 RUNNER		:= libfido2-runner
 PROFDATA	:= llvm-profdata-12
 COV		:= llvm-cov-12

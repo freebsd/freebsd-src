@@ -40,6 +40,7 @@ fido_dev_t *fido_dev_new(void);
 fido_dev_t *fido_dev_new_with_info(const fido_dev_info_t *);
 fido_dev_info_t *fido_dev_info_new(size_t);
 fido_cbor_info_t *fido_cbor_info_new(void);
+void *fido_dev_io_handle(const fido_dev_t *);
 
 void fido_assert_free(fido_assert_t **);
 void fido_cbor_info_free(fido_cbor_info_t **);
@@ -153,6 +154,8 @@ int fido_dev_get_uv_retry_count(fido_dev_t *, int *);
 int fido_dev_get_touch_begin(fido_dev_t *);
 int fido_dev_get_touch_status(fido_dev_t *, int *, int);
 int fido_dev_info_manifest(fido_dev_info_t *, size_t, size_t *);
+int fido_dev_info_set(fido_dev_info_t *, size_t, const char *, const char *,
+    const char *, const fido_dev_io_t *, const fido_dev_transport_t *);
 int fido_dev_make_cred(fido_dev_t *, fido_cred_t *, const char *);
 int fido_dev_open_with_info(fido_dev_t *);
 int fido_dev_open(fido_dev_t *, const char *);
@@ -212,9 +215,10 @@ bool fido_dev_has_pin(const fido_dev_t *);
 bool fido_dev_has_uv(const fido_dev_t *);
 bool fido_dev_is_fido2(const fido_dev_t *);
 bool fido_dev_is_winhello(const fido_dev_t *);
-bool fido_dev_supports_pin(const fido_dev_t *);
-bool fido_dev_supports_cred_prot(const fido_dev_t *);
 bool fido_dev_supports_credman(const fido_dev_t *);
+bool fido_dev_supports_cred_prot(const fido_dev_t *);
+bool fido_dev_supports_permissions(const fido_dev_t *);
+bool fido_dev_supports_pin(const fido_dev_t *);
 bool fido_dev_supports_uv(const fido_dev_t *);
 
 int fido_dev_largeblob_get(fido_dev_t *, const unsigned char *, size_t,

@@ -1,3 +1,17 @@
+* Version 1.10.0 (2022-01-17)
+ ** hid_osx: handle devices with paths > 511 bytes; gh#462.
+ ** bio: fix CTAP2 canonical CBOR encoding in fido_bio_dev_enroll_*(); gh#480.
+ ** winhello: fallback to GetTopWindow() if GetForegroundWindow() fails.
+ ** winhello: fallback to hid_win.c if webauthn.dll isn't available.
+ ** New API calls:
+  - fido_dev_info_set;
+  - fido_dev_io_handle;
+  - fido_dev_new_with_info;
+  - fido_dev_open_with_info.
+ ** Cygwin and NetBSD build fixes.
+ ** Documentation and reliability fixes.
+ ** Support for TPM 2.0 attestation of COSE_ES256 credentials.
+
 * Version 1.9.0 (2021-10-27)
  ** Enabled NFC support on Linux.
  ** Added OpenSSL 3.0 compatibility.

@@ -11,7 +11,7 @@
 .Nm fido_dev_force_pin_change ,
 .Nm fido_dev_set_pin_minlen ,
 .Nm fido_dev_set_pin_minlen_rpid
-.Nd FIDO 2.1 configuration authenticator API
+.Nd CTAP 2.1 configuration authenticator API
 .Sh SYNOPSIS
 .In fido.h
 .In fido/config.h
@@ -27,7 +27,7 @@
 .Fn fido_dev_set_pin_minlen_rpid "fido_dev_t *dev" "const char * const *rpid" "size_t n" "const char *pin"
 .Sh DESCRIPTION
 The functions described in this page allow configuration of a
-FIDO 2.1 authenticator.
+CTAP 2.1 authenticator.
 .Pp
 The
 .Fn fido_dev_enable_entattest
@@ -86,7 +86,7 @@ function sets the list of relying party identifiers
 .Pq RP IDs
 that are allowed to obtain the minimum PIN length of
 .Fa dev
-through the FIDO 2.1
+through the CTAP 2.1
 .Dv FIDO_EXT_MINPINLEN
 extension.
 The list of RP identifiers is denoted by

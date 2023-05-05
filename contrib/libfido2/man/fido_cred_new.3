@@ -40,7 +40,7 @@
 .Nm fido_cred_type ,
 .Nm fido_cred_flags ,
 .Nm fido_cred_sigcount
-.Nd FIDO 2 credential API
+.Nd FIDO2 credential API
 .Sh SYNOPSIS
 .In fido.h
 .Ft fido_cred_t *
@@ -112,7 +112,7 @@
 .Ft uint32_t
 .Fn fido_cred_sigcount "const fido_cred_t *cred"
 .Sh DESCRIPTION
-FIDO 2 credentials are abstracted in
+FIDO2 credentials are abstracted in
 .Em libfido2
 by the
 .Vt fido_cred_t
@@ -155,7 +155,7 @@ may be NULL, in which case
 .Fn fido_cred_free
 is a NOP.
 .Pp
-If the FIDO 2.1
+If the CTAP 2.1
 .Dv FIDO_EXT_MINPINLEN
 extension is enabled on
 .Fa cred ,
@@ -170,7 +170,7 @@ See
 .Xr fido_cred_set_pin_minlen 3
 on how to enable this extension.
 .Pp
-If the FIDO 2.1
+If the CTAP 2.1
 .Dv FIDO_EXT_CRED_PROTECT
 extension is enabled on
 .Fa cred ,
@@ -243,7 +243,7 @@ and
 .Fn fido_cred_attstmt_len .
 .Pp
 The authenticator data, x509 certificate, and signature parts of a
-credential are typically passed to a FIDO 2 server for verification.
+credential are typically passed to a FIDO2 server for verification.
 .Pp
 The
 .Fn fido_cred_type

@@ -201,14 +201,18 @@
 		fido_dev_info_product;
 		fido_dev_info_product_string;
 		fido_dev_info_ptr;
+		fido_dev_info_set;
 		fido_dev_info_vendor;
+		fido_dev_io_handle;
 		fido_dev_is_fido2;
 		fido_dev_is_winhello;
 		fido_dev_major;
 		fido_dev_make_cred;
 		fido_dev_minor;
 		fido_dev_new;
+		fido_dev_new_with_info;
 		fido_dev_open;
+		fido_dev_open_with_info;
 		fido_dev_protocol;
 		fido_dev_reset;
 		fido_dev_set_io_functions;

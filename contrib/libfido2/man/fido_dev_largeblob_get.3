@@ -11,7 +11,7 @@
 .Nm fido_dev_largeblob_remove ,
 .Nm fido_dev_largeblob_get_array ,
 .Nm fido_dev_largeblob_set_array
-.Nd FIDO 2 large blob API
+.Nd FIDO2 large blob API
 .Sh SYNOPSIS
 .In fido.h
 .Ft int
@@ -29,10 +29,10 @@ The
 .Dq largeBlobs
 API of
 .Em libfido2
-allows binary blobs residing on a FIDO 2.1 authenticator to be
+allows binary blobs residing on a CTAP 2.1 authenticator to be
 read, written, and inspected.
 .Dq largeBlobs
-is a FIDO 2.1 extension.
+is a CTAP 2.1 extension.
 .Pp
 .Dq largeBlobs
 are stored as elements of a CBOR array.
@@ -58,9 +58,9 @@ The
 .Dq largeBlobs
 CBOR array is opaque to the authenticator.
 Management of the array is left at the discretion of FIDO2 clients.
-For further details on FIDO 2.1's
+For further details on CTAP 2.1's
 .Dq largeBlobs
-extension, please refer to the FIDO 2.1 spec.
+extension, please refer to the CTAP 2.1 spec.
 .Pp
 The
 .Fn fido_dev_largeblob_get

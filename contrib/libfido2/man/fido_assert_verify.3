@@ -7,11 +7,11 @@
 .Os
 .Sh NAME
 .Nm fido_assert_verify
-.Nd verifies the signature of a FIDO 2 assertion statement
+.Nd verifies the signature of a FIDO2 assertion statement
 .Sh SYNOPSIS
 .In fido.h
 .Ft int
-.Fn fido_assert_verify "fido_assert_t *assert" "size_t idx" "int cose_alg" "const void *pk"
+.Fn fido_assert_verify "const fido_assert_t *assert" "size_t idx" "int cose_alg" "const void *pk"
 .Sh DESCRIPTION
 The
 .Fn fido_assert_verify
@@ -23,7 +23,7 @@ matches the parameters of the assertion.
 Before using
 .Fn fido_assert_verify
 in a sensitive context, the reader is strongly encouraged to make
-herself familiar with the FIDO 2 assertion statement process
+herself familiar with the FIDO2 assertion statement process
 as defined in the Web Authentication (webauthn) standard.
 .Pp
 A brief description follows:

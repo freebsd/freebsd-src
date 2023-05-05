@@ -18,7 +18,7 @@
 .Nm fido_assert_set_uv ,
 .Nm fido_assert_set_rp ,
 .Nm fido_assert_set_sig
-.Nd set parameters of a FIDO 2 assertion
+.Nd set parameters of a FIDO2 assertion
 .Sh SYNOPSIS
 .In fido.h
 .Bd -literal
@@ -29,9 +29,9 @@ typedef enum {
 } fido_opt_t;
 .Ed
 .Ft int
-.Fn fido_assert_set_authdata "fido_assert_t *assert" " size_t idx" "const unsigned char *ptr" "size_t len"
+.Fn fido_assert_set_authdata "fido_assert_t *assert" "size_t idx" "const unsigned char *ptr" "size_t len"
 .Ft int
-.Fn fido_assert_set_authdata_raw "fido_assert_t *assert" " size_t idx" "const unsigned char *ptr" "size_t len"
+.Fn fido_assert_set_authdata_raw "fido_assert_t *assert" "size_t idx" "const unsigned char *ptr" "size_t len"
 .Ft int
 .Fn fido_assert_set_clientdata "fido_assert_t *assert" "const unsigned char *ptr" "size_t len"
 .Ft int
@@ -43,7 +43,7 @@ typedef enum {
 .Ft int
 .Fn fido_assert_set_hmac_salt "fido_assert_t *assert" "const unsigned char *ptr" "size_t len"
 .Ft int
-.Fn fido_assert_set_hmac_secret "fido_assert_t *assert" "const unsigned char *ptr" "size_t len"
+.Fn fido_assert_set_hmac_secret "fido_assert_t *assert" "size_t idx" "const unsigned char *ptr" "size_t len"
 .Ft int
 .Fn fido_assert_set_up "fido_assert_t *assert" "fido_opt_t up"
 .Ft int
@@ -55,14 +55,14 @@ typedef enum {
 .Sh DESCRIPTION
 The
 .Nm
-set of functions define the various parameters of a FIDO 2
+set of functions define the various parameters of a FIDO2
 assertion, allowing a
 .Fa fido_assert_t
 type to be prepared for a subsequent call to
 .Xr fido_dev_get_assert 3
 or
 .Xr fido_assert_verify 3 .
-For the complete specification of a FIDO 2 assertion and the format
+For the complete specification of a FIDO2 assertion and the format
 of its constituent parts, please refer to the Web Authentication
 (webauthn) standard.
 .Pp
@@ -106,11 +106,8 @@ Alternatively, a raw binary blob may be passed to
 .Fn fido_assert_set_authdata_raw .
 .Pp
 The
-.Fn fido_assert_set_clientdata_hash ,
-.Fn fido_assert_set_hmac_salt ,
-and
-.Fn fido_assert_set_hmac_secret
-functions set the client data hash and hmac-salt parts of
+.Fn fido_assert_set_clientdata_hash
+function sets the client data hash of
 .Fa assert
 to
 .Fa ptr ,
@@ -167,6 +164,29 @@ is zero, the extensions of
 are cleared.
 .Pp
 The
+.Fn fido_assert_set_hmac_salt
+and
+.Fn fido_assert_set_hmac_secret
+functions set the hmac-salt and hmac-secret parts of
+.Fa assert
+to
+.Fa ptr ,
+where
+.Fa ptr
+points to
+.Fa len
+bytes.
+A copy of
+.Fa ptr
+is made, and no references to the passed pointer are kept.
+The HMAC Secret
+.Pq hmac-secret
+Extension is a CTAP 2.0 extension.
+The
+.Fn fido_assert_set_hmac_secret
+function is normally only useful when writing tests.
+.Pp
+The
 .Fn fido_assert_set_up
 and
 .Fn fido_assert_set_uv
@@ -184,27 +204,22 @@ by default, allowing the authenticator to use its default settings.
 Use of the
 .Nm
 set of functions may happen in two distinct situations:
-when asking a FIDO device to produce a series of assertion
+when asking a FIDO2 device to produce a series of assertion
 statements, prior to
 .Xr fido_dev_get_assert 3
-(i.e, in the context of a FIDO client), or when verifying assertion
+(i.e, in the context of a FIDO2 client), or when verifying assertion
 statements using
 .Xr fido_assert_verify 3
-(i.e, in the context of a FIDO server).
+(i.e, in the context of a FIDO2 server).
 .Pp
-For a complete description of the generation of a FIDO 2 assertion
-and its verification, please refer to the FIDO 2 specification.
+For a complete description of the generation of a FIDO2 assertion
+and its verification, please refer to the FIDO2 specification.
 An example of how to use the
 .Nm
 set of functions can be found in the
 .Pa examples/assert.c
 file shipped with
 .Em libfido2 .
-.Pp
-.Fn fido_assert_set_hmac_secret
-is not normally useful in a FIDO client or server \(em it is provided
-to enable testing other functionality that relies on retrieving the
-HMAC secret from an assertion obtained from an authenticator.
 .Sh RETURN VALUES
 The
 .Nm

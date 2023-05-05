@@ -24,7 +24,7 @@
 .Nm fido_cred_set_uv ,
 .Nm fido_cred_set_fmt ,
 .Nm fido_cred_set_type
-.Nd set parameters of a FIDO 2 credential
+.Nd set parameters of a FIDO2 credential
 .Sh SYNOPSIS
 .In fido.h
 .Bd -literal
@@ -73,14 +73,14 @@ typedef enum {
 .Sh DESCRIPTION
 The
 .Nm
-set of functions define the various parameters of a FIDO 2
+set of functions define the various parameters of a FIDO2
 credential, allowing a
 .Fa fido_cred_t
 type to be prepared for a subsequent call to
 .Xr fido_dev_make_cred 3
 or
 .Xr fido_cred_verify 3 .
-For the complete specification of a FIDO 2 credential and the format
+For the complete specification of a FIDO2 credential and the format
 of its constituent parts, please refer to the Web Authentication
 (webauthn) standard.
 .Pp
@@ -229,7 +229,7 @@ bytes long.
 .Pp
 The
 .Fn fido_cred_set_pin_minlen
-function enables the FIDO 2.1
+function enables the CTAP 2.1
 .Dv FIDO_EXT_MINPINLEN
 extension on
 .Fa cred
@@ -249,7 +249,7 @@ extension is disabled on
 .Pp
 The
 .Fn fido_cred_set_prot
-function enables the FIDO 2.1
+function enables the CTAP 2.1
 .Dv FIDO_EXT_CRED_PROTECT
 extension on
 .Fa cred
@@ -325,15 +325,15 @@ Note that not all authenticators support COSE_RS256 or COSE_EDDSA.
 Use of the
 .Nm
 set of functions may happen in two distinct situations:
-when generating a new credential on a FIDO device, prior to
+when generating a new credential on a FIDO2 device, prior to
 .Xr fido_dev_make_cred 3
-(i.e, in the context of a FIDO client), or when validating
+(i.e, in the context of a FIDO2 client), or when validating
 a generated credential using
 .Xr fido_cred_verify 3
-(i.e, in the context of a FIDO server).
+(i.e, in the context of a FIDO2 server).
 .Pp
-For a complete description of the generation of a FIDO 2 credential
-and its verification, please refer to the FIDO 2 specification.
+For a complete description of the generation of a FIDO2 credential
+and its verification, please refer to the FIDO2 specification.
 A concrete utilisation example of the
 .Nm
 set of functions can be found in the

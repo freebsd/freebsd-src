@@ -10,7 +10,7 @@ image:https://oss-fuzz-build-logs.storage.googleapis.com/badges/libfido2.svg["Fu
 communicate with a FIDO device over USB, and to verify attestation and
 assertion signatures.
 
-*libfido2* supports the FIDO U2F (CTAP 1) and FIDO 2.0 (CTAP 2) protocols.
+*libfido2* supports the FIDO U2F (CTAP 1) and FIDO2 (CTAP 2) protocols.
 
 For usage, see the `examples/` directory.
 
@@ -42,7 +42,7 @@ is also available.
 
 ==== Releases
 
-The current release of *libfido2* is 1.9.0. Please consult Yubico's
+The current release of *libfido2* is 1.10.0. Please consult Yubico's
 https://developers.yubico.com/libfido2/Releases[release page] for source
 and binary releases.
 

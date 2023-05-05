@@ -548,6 +548,13 @@ fido_dev_set_transport_functions(fido_dev_t *dev, const fido_dev_transport_t *t)
 	return (FIDO_OK);
 }
 
+void *
+fido_dev_io_handle(const fido_dev_t *dev)
+{
+
+	return (dev->io_handle);
+}
+
 void
 fido_init(int flags)
 {

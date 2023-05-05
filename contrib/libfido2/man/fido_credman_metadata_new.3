@@ -26,7 +26,7 @@
 .Nm fido_credman_set_dev_rk ,
 .Nm fido_credman_del_dev_rk ,
 .Nm fido_credman_get_dev_rp
-.Nd FIDO 2 credential management API
+.Nd FIDO2 credential management API
 .Sh SYNOPSIS
 .In fido.h
 .In fido/credman.h
@@ -307,7 +307,7 @@ The
 .Fn fido_credman_set_dev_rk ,
 .Fn fido_credman_del_dev_rk ,
 and
-.Fn  fido_credman_get_dev_rp
+.Fn fido_credman_get_dev_rp
 functions return
 .Dv FIDO_OK
 on success.
@@ -323,4 +323,4 @@ should have their return values checked for NULL.
 .Sh CAVEATS
 Resident credentials are called
 .Dq discoverable credentials
-in FIDO 2.1.
+in CTAP 2.1.

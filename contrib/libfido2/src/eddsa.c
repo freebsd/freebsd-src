@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Yubico AB. All rights reserved.
+ * Copyright (c) 2019-2021 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  */
@@ -37,7 +37,9 @@ EVP_PKEY_get_raw_public_key(const EVP_PKEY *pkey, unsigned char *pub,
 
 	return (0);
 }
+#endif /* LIBRESSL_VERSION_NUMBER */
 
+#if defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x3040000f
 int
 EVP_DigestVerify(EVP_MD_CTX *ctx, const unsigned char *sigret, size_t siglen,
     const unsigned char *tbs, size_t tbslen)
@@ -52,7 +54,7 @@ EVP_DigestVerify(EVP_MD_CTX *ctx, const unsigned char *sigret, size_t siglen,
 
 	return (0);
 }
-#endif /* LIBRESSL_VERSION_NUMBER */
+#endif /* LIBRESSL_VERSION_NUMBER < 0x3040000f */
 
 static int
 decode_coord(const cbor_item_t *item, void *xy, size_t xy_len)

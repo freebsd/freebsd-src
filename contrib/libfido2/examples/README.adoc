@@ -25,7 +25,7 @@ The following definitions are used in the description below:
 
 - <blobkey>
 
-	A credential's associated FIDO 2.1 "largeBlob" symmetric key.
+	A credential's associated CTAP 2.1 "largeBlob" symmetric key.
 
 === Description
 
