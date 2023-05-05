@@ -2085,8 +2085,8 @@ get_if_flags(const char *name, bpf_u_int32 *flags, char *errbuf)
   #ifdef OID_GEN_PHYSICAL_MEDIUM_EX
 		OID_GEN_PHYSICAL_MEDIUM_EX,
   #endif
-  		OID_GEN_PHYSICAL_MEDIUM
-  	};
+		OID_GEN_PHYSICAL_MEDIUM
+	};
 #define N_GEN_PHYSICAL_MEDIUM_OIDS	(sizeof gen_physical_medium_oids / sizeof gen_physical_medium_oids[0])
 	size_t i;
 #endif /* OID_GEN_PHYSICAL_MEDIUM */
@@ -2398,7 +2398,7 @@ pcap_platform_finddevs(pcap_if_list_t *devlistp, char *errbuf)
 		desc++;
 
 	/*
- 	 * Found it - "desc" points to the first of the two
+	 * Found it - "desc" points to the first of the two
 	 * nulls at the end of the list of names, so the
 	 * first byte of the list of descriptions is two bytes
 	 * after it.

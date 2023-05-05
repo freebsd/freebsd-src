@@ -344,7 +344,7 @@ pcap_platform_finddevs(pcap_if_list_t *devlistp, char *errbuf)
 
 	linknamelist_t	*entry, *next;
 	linkwalk_t	lw = {NULL, 0};
-	int 		save_errno;
+	int		save_errno;
 
 	/*
 	 * Get the list of regular interfaces first.

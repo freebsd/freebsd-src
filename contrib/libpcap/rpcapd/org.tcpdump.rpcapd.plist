@@ -5,7 +5,7 @@
 	<key>Disabled</key>
 	<false/>
 	<key>Label</key>
-	<string>com.tcpdump.rpcapd</string>
+	<string>org.tcpdump.rpcapd</string>
 	<key>Program</key>
 	<string>/usr/local/libexec/rpcapd</string>
 	<key>ProgramArguments</key>

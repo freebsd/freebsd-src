@@ -526,8 +526,8 @@ netfilter_activate(pcap_t* handle)
 	nftype_t type = OTHER;
 	int i;
 
- 	if (strncmp(dev, NFLOG_IFACE, strlen(NFLOG_IFACE)) == 0) {
- 		dev += strlen(NFLOG_IFACE);
+	if (strncmp(dev, NFLOG_IFACE, strlen(NFLOG_IFACE)) == 0) {
+		dev += strlen(NFLOG_IFACE);
 		type = NFLOG;
 
 	} else if (strncmp(dev, NFQUEUE_IFACE, strlen(NFQUEUE_IFACE)) == 0) {

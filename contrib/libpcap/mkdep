@@ -92,7 +92,7 @@ _EOF_
 # hack can't deal with anything that requires a search path, and doesn't
 # even try for anything using bracket (<>) syntax.
 #
-# egrep '^#include[ 	]*".*"' /dev/null $* |
+# grep -E '^#include[[:blank:]]*".*"' /dev/null $* |
 # sed -e 's/:[^"]*"\([^"]*\)".*/: \1/' -e 's/\.c/.o/' |
 
 #

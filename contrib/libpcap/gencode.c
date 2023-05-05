@@ -7990,7 +7990,7 @@ gen_broadcast(compiler_state_t *cstate, int proto)
 		default:
 			bpf_error(cstate, "not a broadcast link");
 		}
- 		/*NOTREACHED*/
+		/*NOTREACHED*/
 
 	case Q_IP:
 		/*
@@ -8655,7 +8655,7 @@ gen_acode(compiler_state_t *cstate, const char *s, struct qual q)
 			return (b);
 		} else
 			bpf_error(cstate, "ARCnet address used in non-arc expression");
- 		/*NOTREACHED*/
+		/*NOTREACHED*/
 
 	default:
 		bpf_error(cstate, "aid supported only on ARCnet");
@@ -8691,27 +8691,27 @@ gen_ahostop(compiler_state_t *cstate, const u_char *eaddr, int dir)
 
 	case Q_ADDR1:
 		bpf_error(cstate, "'addr1' and 'address1' are only supported on 802.11");
- 		/*NOTREACHED*/
+		/*NOTREACHED*/
 
 	case Q_ADDR2:
 		bpf_error(cstate, "'addr2' and 'address2' are only supported on 802.11");
- 		/*NOTREACHED*/
+		/*NOTREACHED*/
 
 	case Q_ADDR3:
 		bpf_error(cstate, "'addr3' and 'address3' are only supported on 802.11");
- 		/*NOTREACHED*/
+		/*NOTREACHED*/
 
 	case Q_ADDR4:
 		bpf_error(cstate, "'addr4' and 'address4' are only supported on 802.11");
- 		/*NOTREACHED*/
+		/*NOTREACHED*/
 
 	case Q_RA:
 		bpf_error(cstate, "'ra' is only supported on 802.11");
- 		/*NOTREACHED*/
+		/*NOTREACHED*/
 
 	case Q_TA:
 		bpf_error(cstate, "'ta' is only supported on 802.11");
- 		/*NOTREACHED*/
+		/*NOTREACHED*/
 	}
 	abort();
 	/*NOTREACHED*/
