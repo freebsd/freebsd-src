@@ -14,6 +14,12 @@
 
 #include "fido.h"
 
+#if defined(__MidnightBSD__)
+#define UHID_VENDOR    "MidnightBSD"
+#else
+#define UHID_VENDOR    "FreeBSD"
+#endif
+
 #define MAX_UHID	64
 
 struct hid_freebsd {
@@ -66,7 +72,7 @@ copy_info(fido_dev_info_t *di, const char *path)
 
 	if (ioctl(fd, IOCTL_REQ(USB_GET_DEVICEINFO), &udi) == -1) {
 		fido_log_error(errno, "%s: ioctl", __func__);
-		strlcpy(udi.udi_vendor, "FreeBSD", sizeof(udi.udi_vendor));
+		strlcpy(udi.udi_vendor, UHID_VENDOR, sizeof(udi.udi_vendor));
 		strlcpy(udi.udi_product, "uhid(4)", sizeof(udi.udi_product));
 		udi.udi_vendorNo = 0x0b5d; /* stolen from PCI_VENDOR_OPENBSD */
 	}

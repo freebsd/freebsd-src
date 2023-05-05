@@ -3,10 +3,13 @@
 # license that can be found in the LICENSE file.
 
 list(APPEND COMPAT_SOURCES
+	../openbsd-compat/bsd-getpagesize.c
 	../openbsd-compat/explicit_bzero.c
 	../openbsd-compat/freezero.c
+	../openbsd-compat/recallocarray.c
 	../openbsd-compat/strlcat.c
 	../openbsd-compat/strlcpy.c
+	../openbsd-compat/strsep.c
 )
 
 if(WIN32 AND NOT CYGWIN AND NOT MSYS)

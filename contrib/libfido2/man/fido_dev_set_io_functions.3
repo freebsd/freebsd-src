@@ -1,4 +1,4 @@
-.\" Copyright (c) 2018 Yubico AB. All rights reserved.
+.\" Copyright (c) 2018-2021 Yubico AB. All rights reserved.
 .\" Use of this source code is governed by a BSD-style
 .\" license that can be found in the LICENSE file.
 .\"
@@ -7,7 +7,8 @@
 .Os
 .Sh NAME
 .Nm fido_dev_set_io_functions ,
-.Nm fido_dev_set_sigmask
+.Nm fido_dev_set_sigmask ,
+.Nm fido_dev_set_timeout
 .Nd FIDO 2 device I/O interface
 .Sh SYNOPSIS
 .In fido.h
@@ -34,6 +35,8 @@ typedef sigset_t fido_sigset_t;
 .Fn fido_dev_set_io_functions "fido_dev_t *dev" "const fido_dev_io_t *io"
 .Ft int
 .Fn fido_dev_set_sigmask "fido_dev_t *dev" "const fido_sigset_t *sigmask"
+.Ft int
+.Fn fido_dev_set_timeout "fido_dev_t *dev" "int ms"
 .Sh DESCRIPTION
 The
 .Fn fido_dev_set_io_functions
@@ -122,11 +125,35 @@ No references to
 .Fa sigmask
 are held by
 .Fn fido_dev_set_sigmask .
+.Pp
+The
+.Fn fido_dev_set_timeout
+function informs
+.Em libfido2
+not to block for more than
+.Fa ms
+milliseconds while communicating with
+.Fa dev .
+If a timeout occurs, the corresponding
+.Em fido_dev_*
+function will fail with
+.Dv FIDO_ERR_RX .
+If
+.Fa ms
+is -1,
+then
+.Em libfido2
+may block indefinitely.
+This is the default behaviour.
+When using the Windows Hello backend,
+.Fa ms
+is used as a guidance and may be overwritten by the platform.
 .Sh RETURN VALUES
 On success,
-.Fn fido_dev_set_io_functions
+.Fn fido_dev_set_io_functions ,
+.Fn fido_dev_set_sigmask ,
 and
-.Fn fido_dev_set_sigmask
+.Fn fido_dev_set_timeout
 return
 .Dv FIDO_OK .
 On error, a different error code defined in

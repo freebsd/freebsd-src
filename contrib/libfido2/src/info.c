@@ -186,14 +186,6 @@ out:
 	return (ok);
 }
 
-static void
-free_algo(fido_algo_t *a)
-{
-	free(a->type);
-	a->type = NULL;
-	a->cose = 0;
-}
-
 static int
 decode_algorithm(const cbor_item_t *item, void *arg)
 {
@@ -210,7 +202,7 @@ decode_algorithm(const cbor_item_t *item, void *arg)
 
 	if (cbor_map_iter(item, &aa->ptr[i], decode_algorithm_entry) < 0) {
 		fido_log_debug("%s: decode_algorithm_entry", __func__);
-		free_algo(&aa->ptr[i]);
+		fido_algo_free(&aa->ptr[i]);
 		return (-1);
 	}
 
@@ -287,13 +279,13 @@ parse_reply_element(const cbor_item_t *key, const cbor_item_t *val, void *arg)
 }
 
 static int
-fido_dev_get_cbor_info_tx(fido_dev_t *dev)
+fido_dev_get_cbor_info_tx(fido_dev_t *dev, int *ms)
 {
 	const unsigned char cbor[] = { CTAP_CBOR_GETINFO };
 
 	fido_log_debug("%s: dev=%p", __func__, (void *)dev);
 
-	if (fido_tx(dev, CTAP_CMD_CBOR, cbor, sizeof(cbor)) < 0) {
+	if (fido_tx(dev, CTAP_CMD_CBOR, cbor, sizeof(cbor), ms) < 0) {
 		fido_log_debug("%s: fido_tx", __func__);
 		return (FIDO_ERR_TX);
 	}
@@ -302,13 +294,13 @@ fido_dev_get_cbor_info_tx(fido_dev_t *dev)
 }
 
 static int
-fido_dev_get_cbor_info_rx(fido_dev_t *dev, fido_cbor_info_t *ci, int ms)
+fido_dev_get_cbor_info_rx(fido_dev_t *dev, fido_cbor_info_t *ci, int *ms)
 {
 	unsigned char	reply[FIDO_MAXMSG];
 	int		reply_len;
 
 	fido_log_debug("%s: dev=%p, ci=%p, ms=%d", __func__, (void *)dev,
-	    (void *)ci, ms);
+	    (void *)ci, *ms);
 
 	fido_cbor_info_reset(ci);
 
@@ -323,7 +315,7 @@ fido_dev_get_cbor_info_rx(fido_dev_t *dev, fido_cbor_info_t *ci, int ms)
 }
 
 int
-fido_dev_get_cbor_info_wait(fido_dev_t *dev, fido_cbor_info_t *ci, int ms)
+fido_dev_get_cbor_info_wait(fido_dev_t *dev, fido_cbor_info_t *ci, int *ms)
 {
 	int r;
 
@@ -331,7 +323,7 @@ fido_dev_get_cbor_info_wait(fido_dev_t *dev, fido_cbor_info_t *ci, int ms)
 	if (dev->flags & FIDO_DEV_WINHELLO)
 		return (fido_winhello_get_cbor_info(dev, ci));
 #endif
-	if ((r = fido_dev_get_cbor_info_tx(dev)) != FIDO_OK ||
+	if ((r = fido_dev_get_cbor_info_tx(dev, ms)) != FIDO_OK ||
 	    (r = fido_dev_get_cbor_info_rx(dev, ci, ms)) != FIDO_OK)
 		return (r);
 
@@ -341,7 +333,9 @@ fido_dev_get_cbor_info_wait(fido_dev_t *dev, fido_cbor_info_t *ci, int ms)
 int
 fido_dev_get_cbor_info(fido_dev_t *dev, fido_cbor_info_t *ci)
 {
-	return (fido_dev_get_cbor_info_wait(dev, ci, -1));
+	int ms = dev->timeout_ms;
+
+	return (fido_dev_get_cbor_info_wait(dev, ci, &ms));
 }
 
 /*
@@ -354,58 +348,15 @@ fido_cbor_info_new(void)
 	return (calloc(1, sizeof(fido_cbor_info_t)));
 }
 
-static void
-free_str_array(fido_str_array_t *sa)
-{
-	for (size_t i = 0; i < sa->len; i++)
-		free(sa->ptr[i]);
-
-	free(sa->ptr);
-	sa->ptr = NULL;
-	sa->len = 0;
-}
-
-static void
-free_opt_array(fido_opt_array_t *oa)
-{
-	for (size_t i = 0; i < oa->len; i++)
-		free(oa->name[i]);
-
-	free(oa->name);
-	free(oa->value);
-	oa->name = NULL;
-	oa->value = NULL;
-}
-
-static void
-free_byte_array(fido_byte_array_t *ba)
-{
-	free(ba->ptr);
-
-	ba->ptr = NULL;
-	ba->len = 0;
-}
-
-static void
-free_algo_array(fido_algo_array_t *aa)
-{
-	for (size_t i = 0; i < aa->len; i++)
-		free_algo(&aa->ptr[i]);
-
-	free(aa->ptr);
-	aa->ptr = NULL;
-	aa->len = 0;
-}
-
 void
 fido_cbor_info_reset(fido_cbor_info_t *ci)
 {
-	free_str_array(&ci->versions);
-	free_str_array(&ci->extensions);
-	free_str_array(&ci->transports);
-	free_opt_array(&ci->options);
-	free_byte_array(&ci->protocols);
-	free_algo_array(&ci->algorithms);
+	fido_str_array_free(&ci->versions);
+	fido_str_array_free(&ci->extensions);
+	fido_str_array_free(&ci->transports);
+	fido_opt_array_free(&ci->options);
+	fido_byte_array_free(&ci->protocols);
+	fido_algo_array_free(&ci->algorithms);
 }
 
 void

@@ -147,3 +147,51 @@ out:
 
 	exit(ok);
 }
+
+int
+config_pin_minlen_rpid(char *path, const char *rpids)
+{
+	fido_dev_t *dev;
+	char *otmp, *tmp, *cp;
+	char *pin = NULL, **rpid = NULL;
+	int r, ok = 1;
+	size_t n;
+
+	if ((tmp = strdup(rpids)) == NULL)
+		err(1, "strdup");
+	otmp = tmp;
+	for (n = 0; (cp = strsep(&tmp, ",")) != NULL; n++) {
+		if (n == SIZE_MAX || (rpid = recallocarray(rpid, n, n + 1,
+		    sizeof(*rpid))) == NULL)
+			err(1, "recallocarray");
+		if ((rpid[n] = strdup(cp)) == NULL)
+			err(1, "strdup");
+		if (*rpid[n] == '\0')
+			errx(1, "empty rpid");
+	}
+	free(otmp);
+	if (rpid == NULL || n == 0)
+		errx(1, "could not parse rp_id");
+	dev = open_dev(path);
+	if ((r = fido_dev_set_pin_minlen_rpid(dev, (const char * const *)rpid,
+	    n, NULL)) != FIDO_OK && should_retry_with_pin(dev, r)) {
+		if ((pin = get_pin(path)) == NULL)
+			goto out;
+		r = fido_dev_set_pin_minlen_rpid(dev, (const char * const *)rpid,
+		    n, pin);
+		freezero(pin, PINBUF_LEN);
+		pin = NULL;
+	}
+	if (r != FIDO_OK) {
+		warnx("fido_dev_set_pin_minlen_rpid: %s (0x%x)",
+		    fido_strerr(r), r);
+		goto out;
+	}
+
+	ok = 0;
+out:
+	fido_dev_close(dev);
+	fido_dev_free(&dev);
+
+	exit(ok);
+}

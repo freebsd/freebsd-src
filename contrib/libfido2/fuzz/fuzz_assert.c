@@ -255,6 +255,7 @@ verify_assert(int type, const unsigned char *cdh_ptr, size_t cdh_len,
     int ext, void *pk)
 {
 	fido_assert_t *assert = NULL;
+	int r;
 
 	if ((assert = fido_assert_new()) == NULL)
 		return;
@@ -285,33 +286,52 @@ verify_assert(int type, const unsigned char *cdh_ptr, size_t cdh_len,
 	}
 	fido_assert_set_sig(assert, 0, sig_ptr, sig_len);
 
-	assert(fido_assert_verify(assert, 0, type, pk) != FIDO_OK);
+	r = fido_assert_verify(assert, 0, type, pk);
+	consume(&r, sizeof(r));
 
 	fido_assert_free(&assert);
 }
 
 /*
- * Do a dummy conversion to exercise rs256_pk_from_RSA().
+ * Do a dummy conversion to exercise es256_pk_from_EVP_PKEY().
+ */
+static void
+es256_convert(const es256_pk_t *k)
+{
+	EVP_PKEY *pkey = NULL;
+	es256_pk_t *pk = NULL;
+	int r;
+
+	if ((pkey = es256_pk_to_EVP_PKEY(k)) == NULL ||
+	    (pk = es256_pk_new()) == NULL)
+		goto out;
+
+	r = es256_pk_from_EVP_PKEY(pk, pkey);
+	consume(&r, sizeof(r));
+out:
+	es256_pk_free(&pk);
+	EVP_PKEY_free(pkey);
+}
+
+/*
+ * Do a dummy conversion to exercise rs256_pk_from_EVP_PKEY().
  */
 static void
 rs256_convert(const rs256_pk_t *k)
 {
 	EVP_PKEY *pkey = NULL;
 	rs256_pk_t *pk = NULL;
-	RSA *rsa = NULL;
-	volatile int r;
+	int r;
 
 	if ((pkey = rs256_pk_to_EVP_PKEY(k)) == NULL ||
-	    (pk = rs256_pk_new()) == NULL ||
-	    (rsa = EVP_PKEY_get0_RSA(pkey)) == NULL)
+	    (pk = rs256_pk_new()) == NULL)
 		goto out;
 
-	r = rs256_pk_from_RSA(pk, rsa);
+	r = rs256_pk_from_EVP_PKEY(pk, pkey);
+	consume(&r, sizeof(r));
 out:
-	if (pk)
-		rs256_pk_free(&pk);
-	if (pkey)
-		EVP_PKEY_free(pkey);
+	rs256_pk_free(&pk);
+	EVP_PKEY_free(pkey);
 }
 
 /*
@@ -322,13 +342,14 @@ eddsa_convert(const eddsa_pk_t *k)
 {
 	EVP_PKEY *pkey = NULL;
 	eddsa_pk_t *pk = NULL;
-	volatile int r;
+	int r;
 
 	if ((pkey = eddsa_pk_to_EVP_PKEY(k)) == NULL ||
 	    (pk = eddsa_pk_new()) == NULL)
 		goto out;
 
 	r = eddsa_pk_from_EVP_PKEY(pk, pkey);
+	consume(&r, sizeof(r));
 out:
 	if (pk)
 		eddsa_pk_free(&pk);
@@ -349,6 +370,7 @@ test(const struct param *p)
 	void *pk;
 
 	prng_init((unsigned int)p->seed);
+	fuzz_clock_reset();
 	fido_init(FIDO_DEBUG);
 	fido_set_log_handler(consume_str);
 
@@ -361,6 +383,8 @@ test(const struct param *p)
 
 		es256_pk_from_ptr(es256_pk, p->es256.body, p->es256.len);
 		pk = es256_pk;
+
+		es256_convert(pk);
 
 		break;
 	case 1:
