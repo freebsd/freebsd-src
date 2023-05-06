@@ -3467,7 +3467,7 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 		if (pmap == PCPU_GET(curpmap) && pmap_pcid_enabled &&
 		    pmap->pm_ucr3 != PMAP_NO_CR3) {
 			critical_enter();
-			pcid = pmap->pm_pcids[0].pm_pcid;
+			pcid = pmap->pm_pcidp->pm_pcid;
 			if (invpcid_works) {
 				d.pcid = pcid | PMAP_PCID_USER_PT;
 				d.pad = 0;
@@ -3482,7 +3482,7 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 			critical_exit();
 		}
 	} else if (pmap_pcid_enabled)
-		pmap->pm_pcids[0].pm_gen = 0;
+		pmap->pm_pcidp->pm_gen = 0;
 }
 
 void
@@ -3506,23 +3506,23 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		    pmap->pm_ucr3 != PMAP_NO_CR3) {
 			critical_enter();
 			if (invpcid_works) {
-				d.pcid = pmap->pm_pcids[0].pm_pcid |
+				d.pcid = pmap->pm_pcidp->pm_pcid |
 				    PMAP_PCID_USER_PT;
 				d.pad = 0;
 				d.addr = sva;
 				for (; d.addr < eva; d.addr += PAGE_SIZE)
 					invpcid(&d, INVPCID_ADDR);
 			} else {
-				kcr3 = pmap->pm_cr3 | pmap->pm_pcids[0].
+				kcr3 = pmap->pm_cr3 | pmap->pm_pcidp->
 				    pm_pcid | CR3_PCID_SAVE;
-				ucr3 = pmap->pm_ucr3 | pmap->pm_pcids[0].
+				ucr3 = pmap->pm_ucr3 | pmap->pm_pcidp->
 				    pm_pcid | PMAP_PCID_USER_PT | CR3_PCID_SAVE;
 				pmap_pti_pcid_invlrng(ucr3, kcr3, sva, eva);
 			}
 			critical_exit();
 		}
 	} else if (pmap_pcid_enabled) {
-		pmap->pm_pcids[0].pm_gen = 0;
+		pmap->pm_pcidp->pm_gen = 0;
 	}
 }
 
@@ -3550,7 +3550,7 @@ pmap_invalidate_all(pmap_t pmap)
 		if (pmap_pcid_enabled) {
 			critical_enter();
 			if (invpcid_works) {
-				d.pcid = pmap->pm_pcids[0].pm_pcid;
+				d.pcid = pmap->pm_pcidp->pm_pcid;
 				d.pad = 0;
 				d.addr = 0;
 				invpcid(&d, INVPCID_CTX);
@@ -3559,10 +3559,10 @@ pmap_invalidate_all(pmap_t pmap)
 					invpcid(&d, INVPCID_CTX);
 				}
 			} else {
-				kcr3 = pmap->pm_cr3 | pmap->pm_pcids[0].pm_pcid;
+				kcr3 = pmap->pm_cr3 | pmap->pm_pcidp->pm_pcid;
 				if (pmap->pm_ucr3 != PMAP_NO_CR3) {
-					ucr3 = pmap->pm_ucr3 | pmap->pm_pcids[
-					    0].pm_pcid | PMAP_PCID_USER_PT;
+					ucr3 = pmap->pm_ucr3 | pmap->pm_pcidp->
+					    pm_pcid | PMAP_PCID_USER_PT;
 					pmap_pti_pcid_invalidate(ucr3, kcr3);
 				} else
 					load_cr3(kcr3);
@@ -3572,7 +3572,7 @@ pmap_invalidate_all(pmap_t pmap)
 			invltlb();
 		}
 	} else if (pmap_pcid_enabled) {
-		pmap->pm_pcids[0].pm_gen = 0;
+		pmap->pm_pcidp->pm_gen = 0;
 	}
 }
 
@@ -3591,7 +3591,7 @@ pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde, pd_entry_t newpde)
 	if (pmap == kernel_pmap || pmap == PCPU_GET(curpmap))
 		pmap_update_pde_invalidate(pmap, va, newpde);
 	else
-		pmap->pm_pcids[0].pm_gen = 0;
+		pmap->pm_pcidp->pm_gen = 0;
 }
 #endif /* !SMP */
 
