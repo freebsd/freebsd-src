@@ -6,8 +6,6 @@
 # modules.
 #
 # Exceptions:
-# o While UFS is buildable as a module, the current module lacks
-#   some features (ACL, GJOURNAL) that GENERIC includes.
 # o (non-loaded) random is included due to uncertainty...
 # o Many networking things are included
 #
