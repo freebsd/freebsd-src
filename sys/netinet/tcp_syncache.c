@@ -90,6 +90,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_syncache.h>
 #include <netinet/tcp_ecn.h>
+#ifdef TCP_BLACKBOX
+#include <netinet/tcp_log_buf.h>
+#endif
 #ifdef TCP_OFFLOAD
 #include <netinet/toecore.h>
 #endif
@@ -1012,6 +1015,20 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		struct toedev *tod = sc->sc_tod;
 
 		tod->tod_offload_socket(tod, sc->sc_todctx, so);
+	}
+#endif
+#ifdef TCP_BLACKBOX
+	/*
+	 * Inherit the log state from the listening socket, if
+	 * - the log state of the listening socket is not off and
+	 * - the listening socket was not auto selected from all sessions and
+	 * - a log id is not set on the listening socket.
+	 * This avoids inheriting a log state which was automatically set.
+	 */
+	if ((tcp_get_bblog_state(sototcpcb(lso)) != TCP_LOG_STATE_OFF) &&
+	    ((sototcpcb(lso)->t_flags2 & TF2_LOG_AUTO) == 0) &&
+	    (sototcpcb(lso)->t_lib == NULL)) {
+		tcp_log_state_change(tp, tcp_get_bblog_state(sototcpcb(lso)));
 	}
 #endif
 	/*
