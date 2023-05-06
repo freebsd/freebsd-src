@@ -136,9 +136,7 @@ tcp_bblog_pru(struct tcpcb *tp, uint32_t pru, int error)
 {
 	struct tcp_log_buffer *lgb;
 
-	if (tp == NULL) {
-		return;
-	}
+	KASSERT(tp != NULL, ("tcp_bblog_pru: tp == NULL"));
 	INP_WLOCK_ASSERT(tptoinpcb(tp));
 	if (tcp_bblogging_on(tp)) {
 		lgb = tcp_log_event(tp, NULL, NULL, NULL, TCP_LOG_PRU, error,
@@ -232,8 +230,17 @@ tcp_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	int error = 0;
 	struct inpcb *inp;
-	struct tcpcb *tp = NULL;
+	struct tcpcb *tp;
 	struct sockaddr_in *sinp;
+
+	inp = sotoinpcb(so);
+	KASSERT(inp != NULL, ("tcp_usr_bind: inp == NULL"));
+	INP_WLOCK(inp);
+	if (inp->inp_flags & INP_DROPPED) {
+		INP_WUNLOCK(inp);
+		return (EINVAL);
+	}
+	tp = intotcpcb(inp);
 
 	sinp = (struct sockaddr_in *)nam;
 	if (nam->sa_family != AF_INET) {
@@ -242,28 +249,24 @@ tcp_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 		 */
 		if (nam->sa_family != AF_UNSPEC ||
 		    nam->sa_len < offsetof(struct sockaddr_in, sin_zero) ||
-		    sinp->sin_addr.s_addr != INADDR_ANY)
-			return (EAFNOSUPPORT);
+		    sinp->sin_addr.s_addr != INADDR_ANY) {
+			error = EAFNOSUPPORT;
+			goto out;
+		}
 		nam->sa_family = AF_INET;
 	}
-	if (nam->sa_len != sizeof(*sinp))
-		return (EINVAL);
-
+	if (nam->sa_len != sizeof(*sinp)) {
+		error = EINVAL;
+		goto out;
+	}
 	/*
 	 * Must check for multicast addresses and disallow binding
 	 * to them.
 	 */
-	if (IN_MULTICAST(ntohl(sinp->sin_addr.s_addr)))
-		return (EAFNOSUPPORT);
-
-	inp = sotoinpcb(so);
-	KASSERT(inp != NULL, ("tcp_usr_bind: inp == NULL"));
-	INP_WLOCK(inp);
-	if (inp->inp_flags & INP_DROPPED) {
-		error = EINVAL;
+	if (IN_MULTICAST(ntohl(sinp->sin_addr.s_addr))) {
+		error = EAFNOSUPPORT;
 		goto out;
 	}
-	tp = intotcpcb(inp);
 	INP_HASH_WLOCK(&V_tcbinfo);
 	error = in_pcbbind(inp, sinp, td->td_ucred);
 	INP_HASH_WUNLOCK(&V_tcbinfo);
@@ -282,32 +285,39 @@ tcp6_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	int error = 0;
 	struct inpcb *inp;
-	struct tcpcb *tp = NULL;
+	struct tcpcb *tp;
 	struct sockaddr_in6 *sin6;
 	u_char vflagsav;
-
-	sin6 = (struct sockaddr_in6 *)nam;
-	if (nam->sa_family != AF_INET6)
-		return (EAFNOSUPPORT);
-	if (nam->sa_len != sizeof(*sin6))
-		return (EINVAL);
-
-	/*
-	 * Must check for multicast addresses and disallow binding
-	 * to them.
-	 */
-	if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
-		return (EAFNOSUPPORT);
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp6_usr_bind: inp == NULL"));
 	INP_WLOCK(inp);
-	vflagsav = inp->inp_vflag;
 	if (inp->inp_flags & INP_DROPPED) {
+		INP_WUNLOCK(inp);
+		return (EINVAL);
+	}
+	tp = intotcpcb(inp);
+
+	vflagsav = inp->inp_vflag;
+
+	sin6 = (struct sockaddr_in6 *)nam;
+	if (nam->sa_family != AF_INET6) {
+		error = EAFNOSUPPORT;
+		goto out;
+	}
+	if (nam->sa_len != sizeof(*sin6)) {
 		error = EINVAL;
 		goto out;
 	}
-	tp = intotcpcb(inp);
+	/*
+	 * Must check for multicast addresses and disallow binding
+	 * to them.
+	 */
+	if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {
+		error = EAFNOSUPPORT;
+		goto out;
+	}
+
 	INP_HASH_WLOCK(&V_tcbinfo);
 	inp->inp_vflag &= ~INP_IPV4;
 	inp->inp_vflag |= INP_IPV6;
@@ -353,16 +363,17 @@ tcp_usr_listen(struct socket *so, int backlog, struct thread *td)
 {
 	int error = 0;
 	struct inpcb *inp;
-	struct tcpcb *tp = NULL;
+	struct tcpcb *tp;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_listen: inp == NULL"));
 	INP_WLOCK(inp);
 	if (inp->inp_flags & INP_DROPPED) {
-		error = EINVAL;
-		goto out;
+		INP_WUNLOCK(inp);
+		return (EINVAL);
 	}
 	tp = intotcpcb(inp);
+
 	SOCK_LOCK(so);
 	error = solisten_proto_check(so);
 	if (error != 0) {
@@ -403,18 +414,20 @@ tcp6_usr_listen(struct socket *so, int backlog, struct thread *td)
 {
 	int error = 0;
 	struct inpcb *inp;
-	struct tcpcb *tp = NULL;
+	struct tcpcb *tp;
 	u_char vflagsav;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp6_usr_listen: inp == NULL"));
 	INP_WLOCK(inp);
 	if (inp->inp_flags & INP_DROPPED) {
-		error = EINVAL;
-		goto out;
+		INP_WUNLOCK(inp);
+		return (EINVAL);
 	}
-	vflagsav = inp->inp_vflag;
 	tp = intotcpcb(inp);
+
+	vflagsav = inp->inp_vflag;
+
 	SOCK_LOCK(so);
 	error = solisten_proto_check(so);
 	if (error != 0) {
@@ -469,37 +482,44 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct epoch_tracker et;
 	int error = 0;
 	struct inpcb *inp;
-	struct tcpcb *tp = NULL;
+	struct tcpcb *tp;
 	struct sockaddr_in *sinp;
-
-	sinp = (struct sockaddr_in *)nam;
-	if (nam->sa_family != AF_INET)
-		return (EAFNOSUPPORT);
-	if (nam->sa_len != sizeof (*sinp))
-		return (EINVAL);
-
-	/*
-	 * Must disallow TCP ``connections'' to multicast addresses.
-	 */
-	if (IN_MULTICAST(ntohl(sinp->sin_addr.s_addr)))
-		return (EAFNOSUPPORT);
-	if (ntohl(sinp->sin_addr.s_addr) == INADDR_BROADCAST)
-		return (EACCES);
-	if ((error = prison_remote_ip4(td->td_ucred, &sinp->sin_addr)) != 0)
-		return (error);
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_connect: inp == NULL"));
 	INP_WLOCK(inp);
 	if (inp->inp_flags & INP_DROPPED) {
-		error = ECONNREFUSED;
+		INP_WUNLOCK(inp);
+		return (ECONNREFUSED);
+	}
+	tp = intotcpcb(inp);
+
+	sinp = (struct sockaddr_in *)nam;
+	if (nam->sa_family != AF_INET) {
+		error = EAFNOSUPPORT;
 		goto out;
 	}
+	if (nam->sa_len != sizeof (*sinp)) {
+		error = EINVAL;
+		goto out;
+	}
+	/*
+	 * Must disallow TCP ``connections'' to multicast addresses.
+	 */
+	if (IN_MULTICAST(ntohl(sinp->sin_addr.s_addr))) {
+		error = EAFNOSUPPORT;
+		goto out;
+	}
+	if (ntohl(sinp->sin_addr.s_addr) == INADDR_BROADCAST) {
+		error = EACCES;
+		goto out;
+	}
+	if ((error = prison_remote_ip4(td->td_ucred, &sinp->sin_addr)) != 0)
+		goto out;
 	if (SOLISTENING(so)) {
 		error = EOPNOTSUPP;
 		goto out;
 	}
-	tp = intotcpcb(inp);
 	NET_EPOCH_ENTER(et);
 	if ((error = tcp_connect(tp, sinp, td)) != 0)
 		goto out_in_epoch;
@@ -530,37 +550,43 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct epoch_tracker et;
 	int error = 0;
 	struct inpcb *inp;
-	struct tcpcb *tp = NULL;
+	struct tcpcb *tp;
 	struct sockaddr_in6 *sin6;
 	u_int8_t incflagsav;
 	u_char vflagsav;
 
-	sin6 = (struct sockaddr_in6 *)nam;
-	if (nam->sa_family != AF_INET6)
-		return (EAFNOSUPPORT);
-	if (nam->sa_len != sizeof (*sin6))
-		return (EINVAL);
-
-	/*
-	 * Must disallow TCP ``connections'' to multicast addresses.
-	 */
-	if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
-		return (EAFNOSUPPORT);
-
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp6_usr_connect: inp == NULL"));
 	INP_WLOCK(inp);
+	if (inp->inp_flags & INP_DROPPED) {
+		INP_WUNLOCK(inp);
+		return (ECONNREFUSED);
+	}
+	tp = intotcpcb(inp);
+
 	vflagsav = inp->inp_vflag;
 	incflagsav = inp->inp_inc.inc_flags;
-	if (inp->inp_flags & INP_DROPPED) {
-		error = ECONNREFUSED;
+
+	sin6 = (struct sockaddr_in6 *)nam;
+	if (nam->sa_family != AF_INET6) {
+		error = EAFNOSUPPORT;
+		goto out;
+	}
+	if (nam->sa_len != sizeof (*sin6)) {
+		error = EINVAL;
+		goto out;
+	}
+	/*
+	 * Must disallow TCP ``connections'' to multicast addresses.
+	 */
+	if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {
+		error = EAFNOSUPPORT;
 		goto out;
 	}
 	if (SOLISTENING(so)) {
 		error = EINVAL;
 		goto out;
 	}
-	tp = intotcpcb(inp);
 #ifdef INET
 	/*
 	 * XXXRW: Some confusion: V4/V6 flags relate to binding, and
@@ -672,10 +698,12 @@ tcp_usr_disconnect(struct socket *so)
 	KASSERT(inp != NULL, ("tcp_usr_disconnect: inp == NULL"));
 	INP_WLOCK(inp);
 	if (inp->inp_flags & INP_DROPPED) {
-		error = ECONNRESET;
-		goto out;
+		INP_WUNLOCK(inp);
+		NET_EPOCH_EXIT(et);
+		return (ECONNRESET);
 	}
 	tp = intotcpcb(inp);
+
 	if (tp->t_state == TCPS_TIME_WAIT)
 		goto out;
 	tcp_disconnect(tp);
@@ -696,23 +724,24 @@ static int
 tcp_usr_accept(struct socket *so, struct sockaddr **nam)
 {
 	int error = 0;
-	struct inpcb *inp = NULL;
-	struct tcpcb *tp = NULL;
+	struct inpcb *inp;
+	struct tcpcb *tp;
 	struct in_addr addr;
 	in_port_t port = 0;
-
-	if (so->so_state & SS_ISDISCONNECTED)
-		return (ECONNABORTED);
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_accept: inp == NULL"));
 	INP_WLOCK(inp);
 	if (inp->inp_flags & INP_DROPPED) {
-		error = ECONNABORTED;
-		goto out;
+		INP_WUNLOCK(inp);
+		return (ECONNABORTED);
 	}
 	tp = intotcpcb(inp);
 
+	if (so->so_state & SS_ISDISCONNECTED) {
+		error = ECONNABORTED;
+		goto out;
+	}
 	/*
 	 * We inline in_getpeeraddr and COMMON_END here, so that we can
 	 * copy the data of interest and defer the malloc until after we
@@ -735,28 +764,30 @@ out:
 static int
 tcp6_usr_accept(struct socket *so, struct sockaddr **nam)
 {
-	struct inpcb *inp = NULL;
+	struct inpcb *inp;
 	int error = 0;
-	struct tcpcb *tp = NULL;
+	struct tcpcb *tp;
 	struct in_addr addr;
 	struct in6_addr addr6;
 	struct epoch_tracker et;
 	in_port_t port = 0;
 	int v4 = 0;
 
-	if (so->so_state & SS_ISDISCONNECTED)
-		return (ECONNABORTED);
-
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp6_usr_accept: inp == NULL"));
-	NET_EPOCH_ENTER(et);
+	NET_EPOCH_ENTER(et); /* XXXMT Why is this needed? */
 	INP_WLOCK(inp);
 	if (inp->inp_flags & INP_DROPPED) {
-		error = ECONNABORTED;
-		goto out;
+		INP_WUNLOCK(inp);
+		NET_EPOCH_EXIT(et);
+		return (ECONNABORTED);
 	}
 	tp = intotcpcb(inp);
 
+	if (so->so_state & SS_ISDISCONNECTED) {
+		error = ECONNABORTED;
+		goto out;
+	}
 	/*
 	 * We inline in6_mapped_peeraddr and COMMON_END here, so that we can
 	 * copy the data of interest and defer the malloc until after we
@@ -794,7 +825,7 @@ tcp_usr_shutdown(struct socket *so)
 {
 	int error = 0;
 	struct inpcb *inp;
-	struct tcpcb *tp = NULL;
+	struct tcpcb *tp;
 	struct epoch_tracker et;
 
 	inp = sotoinpcb(so);
@@ -805,6 +836,7 @@ tcp_usr_shutdown(struct socket *so)
 		return (ECONNRESET);
 	}
 	tp = intotcpcb(inp);
+
 	NET_EPOCH_ENTER(et);
 	socantsendmore(so);
 	tcp_usrclosed(tp);
@@ -826,7 +858,7 @@ tcp_usr_rcvd(struct socket *so, int flags)
 {
 	struct epoch_tracker et;
 	struct inpcb *inp;
-	struct tcpcb *tp = NULL;
+	struct tcpcb *tp;
 	int outrv = 0, error = 0;
 
 	inp = sotoinpcb(so);
@@ -837,6 +869,7 @@ tcp_usr_rcvd(struct socket *so, int flags)
 		return (ECONNRESET);
 	}
 	tp = intotcpcb(inp);
+
 	NET_EPOCH_ENTER(et);
 	/*
 	 * For passively-created TFO connections, don't attempt a window
@@ -876,7 +909,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 	struct epoch_tracker et;
 	int error = 0;
 	struct inpcb *inp;
-	struct tcpcb *tp = NULL;
+	struct tcpcb *tp;
 #ifdef INET
 #ifdef INET6
 	struct sockaddr_in sin;
@@ -891,15 +924,6 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 	u_char vflagsav;
 	bool restoreflags;
 
-	if (control != NULL) {
-		/* TCP doesn't do control messages (rights, creds, etc) */
-		if (control->m_len) {
-			m_freem(control);
-			return (EINVAL);
-		}
-		m_freem(control);	/* empty control, just free it */
-	}
-
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_send: inp == NULL"));
 	INP_WLOCK(inp);
@@ -909,13 +933,23 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		INP_WUNLOCK(inp);
 		return (ECONNRESET);
 	}
+	tp = intotcpcb(inp);
 
 	vflagsav = inp->inp_vflag;
 	incflagsav = inp->inp_inc.inc_flags;
 	restoreflags = false;
-	tp = intotcpcb(inp);
 
 	NET_EPOCH_ENTER(et);
+	if (control != NULL) {
+		/* TCP doesn't do control messages (rights, creds, etc) */
+		if (control->m_len > 0) {
+			m_freem(control);
+			error = EINVAL;
+			goto out;
+		}
+		m_freem(control);	/* empty control, just free it */
+	}
+
 	if ((flags & PRUS_OOB) != 0 &&
 	    (error = tcp_pru_options_support(tp, PRUS_OOB)) != 0)
 		goto out;
@@ -1222,7 +1256,7 @@ static void
 tcp_usr_abort(struct socket *so)
 {
 	struct inpcb *inp;
-	struct tcpcb *tp = NULL;
+	struct tcpcb *tp;
 	struct epoch_tracker et;
 
 	inp = sotoinpcb(so);
@@ -1260,7 +1294,7 @@ static void
 tcp_usr_close(struct socket *so)
 {
 	struct inpcb *inp;
-	struct tcpcb *tp = NULL;
+	struct tcpcb *tp;
 	struct epoch_tracker et;
 
 	inp = sotoinpcb(so);
@@ -1318,16 +1352,17 @@ tcp_usr_rcvoob(struct socket *so, struct mbuf *m, int flags)
 {
 	int error = 0;
 	struct inpcb *inp;
-	struct tcpcb *tp = NULL;
+	struct tcpcb *tp;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_rcvoob: inp == NULL"));
 	INP_WLOCK(inp);
 	if (inp->inp_flags & INP_DROPPED) {
-		error = ECONNRESET;
-		goto out;
+		INP_WUNLOCK(inp);
+		return (ECONNRESET);
 	}
 	tp = intotcpcb(inp);
+
 	error = tcp_pru_options_support(tp, PRUS_OOB);
 	if (error) {
 		goto out;
