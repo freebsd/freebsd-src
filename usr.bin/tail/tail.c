@@ -70,7 +70,7 @@ int Fflag, fflag, qflag, rflag, rval, no_files, vflag;
 fileargs_t *fa;
 
 static void obsolete(char **);
-static void usage(void);
+static void usage(void) __dead2;
 
 static const struct option long_opts[] =
 {

@@ -70,7 +70,7 @@ static const char sccsid[] = "@(#)wall.c	8.2 (Berkeley) 11/16/93";
 #include "ttymsg.h"
 
 static void makemsg(char *);
-static void usage(void);
+static void usage(void) __dead2;
 
 static struct wallgroup {
 	struct wallgroup *next;

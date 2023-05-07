@@ -66,7 +66,7 @@ static int flag_I = 1000000;
 			printw(__VA_ARGS__);				\
 	} while(0)
 
-static void usage(void);
+static void usage(void) __dead2;
 
 static const char*
 el_prompt(void)

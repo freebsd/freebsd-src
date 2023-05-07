@@ -47,7 +47,7 @@ static const char rcsid[] =
 #define SPRAYOVERHEAD	86
 #endif
 
-static void usage(void);
+static void usage(void) __dead2;
 static void print_xferstats(unsigned int, int, double);
 
 /* spray buffer */

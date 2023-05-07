@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 static int rm_path(char *);
-static void usage(void);
+static void usage(void) __dead2;
 
 static int pflag;
 static int vflag;

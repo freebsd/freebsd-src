@@ -84,7 +84,7 @@ __FBSDID("$FreeBSD$");
  * Externals, forward declarations, and global variables
  */
 
-static void usage(void);
+static void usage(void) __dead2;
 static void handle_reply(void);
 static void handle_request(void);
 

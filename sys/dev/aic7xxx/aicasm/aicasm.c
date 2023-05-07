@@ -75,7 +75,7 @@ typedef struct patch {
 
 STAILQ_HEAD(patch_list, patch) patches;
 
-static void usage(void);
+static void usage(void) __dead2;
 static void back_patch(void);
 static void output_code(void);
 static void output_listing(char *ifilename);

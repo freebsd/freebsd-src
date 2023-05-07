@@ -62,7 +62,7 @@ static struct rip6	*ripbuf;
 #define	RIPSIZE(n)	(sizeof(struct rip6) + (n-1) * sizeof(struct netinfo6))
 
 int main(int, char **);
-static void usage(void);
+static void usage(void) __dead2;
 static const char *sa_n2a(struct sockaddr *);
 static const char *inet6_n2a(struct in6_addr *);
 
@@ -90,7 +90,6 @@ main(int argc, char *argv[])
 			break;
 		default:
 			usage();
-			exit(1);
 			/*NOTREACHED*/
 		}
 	}
@@ -99,7 +98,6 @@ main(int argc, char *argv[])
 
 	if (argc != 1) {
 		usage();
-		exit(1);
 	}
 
 	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
@@ -168,13 +166,14 @@ main(int argc, char *argv[])
 		}
 	} while (len == RIPSIZE(24));
 
-	exit(0);
+	return 0;
 }
 
 static void
 usage(void)
 {
 	fprintf(stderr, "usage: rip6query [-I iface] address\n");
+	exit(1);
 }
 
 /* getnameinfo() is preferred as we may be able to show ifindex as ifname */

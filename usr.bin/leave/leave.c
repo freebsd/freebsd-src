@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 static void doalarm(u_int);
-static void usage(void);
+static void usage(void) __dead2;
 
 /*
  * leave [[+]hhmm]

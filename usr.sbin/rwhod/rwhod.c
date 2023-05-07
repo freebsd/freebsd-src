@@ -137,7 +137,7 @@ void	run_as(uid_t *uid, gid_t *gid);
 void	quit(const char *msg);
 void	sender_process(void);
 int	verify(char *name, int maxlen);
-static void usage(void);
+static void usage(void) __dead2;
 
 #ifdef DEBUG
 char	*interval(int time, char *updown);

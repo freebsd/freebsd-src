@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfs/nfskpiport.h>
 #include <fs/nfs/nfs.h>
 
-static void usage(void);
+static void usage(void) __dead2;
 
 static struct option longopts[] = {
 	{ "force",	no_argument,	NULL,	'f'	},

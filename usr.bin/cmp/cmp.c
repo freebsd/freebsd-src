@@ -86,7 +86,7 @@ siginfo(int signo)
 }
 #endif
 
-static void usage(void);
+static void usage(void) __dead2;
 
 static bool
 parse_iskipspec(char *spec, off_t *skip1, off_t *skip2)

@@ -82,7 +82,7 @@ static void newfile(void);
 static void split1(void);
 static void split2(void);
 static void split3(void);
-static void usage(void);
+static void usage(void) __dead2;
 
 int
 main(int argc, char **argv)

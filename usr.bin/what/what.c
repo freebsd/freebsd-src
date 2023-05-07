@@ -49,7 +49,7 @@ static const char sccsid[] = "@(#)what.c	8.1 (Berkeley) 6/6/93";
 #include <stdlib.h>
 #include <unistd.h>
 
-static void usage(void);
+static void usage(void) __dead2;
 static bool search(bool, bool, FILE *);
 
 int

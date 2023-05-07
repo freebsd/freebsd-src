@@ -54,7 +54,7 @@ static void sigsys_handler(int);
 static void sigchld_handler(int);
 static void cleanup(void);
 static void receiver(void);
-static void usage(void);
+static void usage(void) __dead2;
 
 static const char *m_str = "The quick brown fox jumped over the lazy dog.";
 

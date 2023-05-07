@@ -90,7 +90,7 @@ static char PKFILE[] = "/etc/publickey";
 static const char *err_string(int);
 #endif	/* YP */
 
-static void usage(void);
+static void usage(void) __dead2;
 
 int
 main(int argc, char *argv[])

@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 
 void done(int);
 void do_write(int, char *, char *, const char *);
-static void usage(void);
+static void usage(void) __dead2;
 int term_chk(int, char *, int *, time_t *, int);
 void wr_fputs(wchar_t *s);
 void search_utmp(int, char *, char *, char *, uid_t);

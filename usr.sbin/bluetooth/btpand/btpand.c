@@ -72,9 +72,9 @@ static const struct {
 	{ "GN",	  SDP_SERVICE_CLASS_GN,   "Group Network"		  },
 };
 
-static void main_exit(int);
+static void main_exit(int) __dead2;
 static void main_detach(void);
-static void usage(void);
+static void usage(void) __dead2;
 
 int
 main(int argc, char *argv[])

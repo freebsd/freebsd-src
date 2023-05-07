@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 
-static void usage(void);
+static void usage(void) __dead2;
 
 int
 main(int argc, char *argv[])

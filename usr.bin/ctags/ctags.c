@@ -87,7 +87,7 @@ char	lbuf[LINE_MAX];
 
 void	init(void);
 void	find_entries(char *);
-static void usage(void);
+static void usage(void) __dead2;
 
 int
 main(int argc, char **argv)

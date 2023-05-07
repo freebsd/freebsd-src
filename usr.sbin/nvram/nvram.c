@@ -41,7 +41,7 @@
 
 #define	DEVICE_NAME	(_PATH_DEV "powermac_nvram")
 
-static void usage(void);
+static void usage(void) __dead2;
 static int remove_var(uint8_t *, int, const char *);
 static int append_var(uint8_t *, int, const char *, const char *);
 

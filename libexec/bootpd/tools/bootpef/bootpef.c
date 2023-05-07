@@ -78,7 +78,7 @@ SOFTWARE.
  */
 
 static void mktagfile(struct host *);
-static void usage(void);
+static void usage(void) __dead2;
 
 /*
  * General

@@ -58,7 +58,7 @@ static int hexdump = 0;
 static int wflag = 0;
 static int zflag = 0;
 
-static void usage(void);
+static void usage(void) __dead2;
 static void dumpitem(const char *label, struct hid_item *h);
 static void dumpitems(report_desc_t r);
 static void prdata(u_char *buf, struct hid_item *h);

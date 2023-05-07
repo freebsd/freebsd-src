@@ -67,7 +67,7 @@ static int pid;
 
 static void no_ktrace(int);
 static void set_pid_clear(const char *, enum clear);
-static void usage(void);
+static void usage(void) __dead2;
 
 int
 main(int argc, char *argv[])
