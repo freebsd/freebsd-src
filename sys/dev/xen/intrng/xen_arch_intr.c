@@ -400,8 +400,8 @@ xen_arch_intr_add_handler(const char *name, driver_filter_t filter,
 {
 	int error;
 
-	error = intr_event_add_handler(isrc->xi_arch, name,
-	    filter, handler, arg, intr_priority(flags), flags, cookiep);
+	error = intr_add_handler(&isrc->xi_arch, name, filter, handler, arg,
+	    flags, cookiep);
 	if (error != 0)
 		return (error);
 
