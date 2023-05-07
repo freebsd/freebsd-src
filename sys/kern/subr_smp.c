@@ -645,7 +645,14 @@ struct cpu_group *
 smp_topo(void)
 {
 	char cpusetbuf[CPUSETBUFSIZ], cpusetbuf2[CPUSETBUFSIZ];
-	struct cpu_group *top;
+	static struct cpu_group *top = NULL;
+
+	/*
+	 * The first call to smp_topo() is guaranteed to occur
+	 * during the kernel boot while we are still single-threaded.
+	 */
+	if (top != NULL)
+		return (top);
 
 	/*
 	 * Check for a fake topology request for debugging purposes.
