@@ -92,7 +92,7 @@ main(int argc, char *argv[])
 	else
 		err(1, ".");
 
-	exit(0);
+	return (0);
 }
 
 void __dead2

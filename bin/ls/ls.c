@@ -615,7 +615,7 @@ main(int argc, char *argv[])
 		traverse(argc, argv, fts_options);
 	else
 		traverse(1, dotav, fts_options);
-	exit(rval);
+	return (rval);
 }
 
 static int output;		/* If anything output. */

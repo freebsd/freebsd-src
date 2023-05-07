@@ -86,7 +86,7 @@ main(int argc, char **argv)
 			 * in case someone tries -F directly.  The -F flag
 			 * is intentionally left out of the usage message.
 			 */
-			exit(5);
+			return (5);
 		case 'n':
 			alwaysno = 1;
 			alwaysyes = 0;

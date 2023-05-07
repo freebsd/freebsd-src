@@ -599,7 +599,7 @@ main(int argc, char **argv)
 	read_linker_hints();
 	if (dump_flag) {
 		search_hints(NULL, NULL, NULL);
-		exit(0);
+		return (0);
 	}
 
 	if (devinfo_init())
@@ -611,4 +611,5 @@ main(int argc, char **argv)
 	else
 		devinfo_foreach_device_child(root, find_unmatched, (void *)0);
 	devinfo_free();
+	return (0);
 }

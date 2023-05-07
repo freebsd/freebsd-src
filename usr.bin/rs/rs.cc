@@ -92,11 +92,11 @@ main(int argc, char *argv[])
 	getfile();
 	if (flags & SHAPEONLY) {
 		printf("%zu %zu\n", irows, icols);
-		exit(0);
+		return (0);
 	}
 	prepfile();
 	putfile();
-	exit(0);
+	return (0);
 }
 
 static void

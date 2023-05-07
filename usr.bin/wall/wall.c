@@ -175,7 +175,7 @@ main(int argc, char *argv[])
 		if ((p = ttymsg(&iov, 1, utmp->ut_line, 60*5)) != NULL)
 			warnx("%s", p);
 	}
-	exit(0);
+	return (0);
 }
 
 static void

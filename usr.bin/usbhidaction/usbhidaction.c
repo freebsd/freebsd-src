@@ -192,7 +192,7 @@ main(int argc, char **argv)
 			if (verbose)
 				err(1, "read");
 			else
-				exit(1);
+				return (1);
 		}
 #if 0
 		if (n != sz) {
@@ -237,7 +237,7 @@ next:
 		}
 
 		if (dieearly)
-			exit(0);
+			return (0);
 
 		if (reparse) {
 			struct command *cmds =
@@ -250,7 +250,7 @@ next:
 		}
 	}
 
-	exit(0);
+	return (0);
 }
 
 void

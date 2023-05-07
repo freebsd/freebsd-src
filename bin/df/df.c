@@ -128,7 +128,7 @@ main(int argc, char *argv[])
 
 	argc = xo_parse_args(argc, argv);
 	if (argc < 0)
-		exit(1);
+		return 1;
 
 	while ((ch = getopt_long(argc, argv, "+abcgHhiklmnPt:T,", long_options,
 	    NULL)) != -1)
@@ -287,7 +287,7 @@ main(int argc, char *argv[])
 	xo_close_container("storage-system-information");
 	if (xo_finish() < 0)
 		rv = EXIT_FAILURE;
-	exit(rv);
+	return (rv);
 }
 
 static char *

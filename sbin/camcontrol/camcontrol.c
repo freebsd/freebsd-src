@@ -10254,7 +10254,7 @@ main(int argc, char **argv)
 
 	if (argc < 2) {
 		usage(0);
-		exit(1);
+		return (1);
 	}
 
 	/*
@@ -10265,11 +10265,11 @@ main(int argc, char **argv)
 	if (optreturn == CC_OR_AMBIGUOUS) {
 		warnx("ambiguous option %s", argv[1]);
 		usage(0);
-		exit(1);
+		return (1);
 	} else if (optreturn == CC_OR_NOT_FOUND) {
 		warnx("option %s not found", argv[1]);
 		usage(0);
-		exit(1);
+		return (1);
 	}
 
 	/*
@@ -10653,5 +10653,5 @@ main(int argc, char **argv)
 	if (cam_dev != NULL)
 		cam_close_device(cam_dev);
 
-	exit(error);
+	return (error);
 }

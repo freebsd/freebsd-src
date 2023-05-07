@@ -192,7 +192,7 @@ main (int argc, char *argv[])
 	if (getline(&prevline, &prevbuflen, ifp) < 0) {
 		if (ferror(ifp))
 			err(1, "%s", ifn);
-		exit(0);
+		return (0);
 	}
 	tprev = convert(prevline);
 
@@ -242,7 +242,7 @@ main (int argc, char *argv[])
 		err(1, "%s", ifn);
 	if (!Dflag)
 		show(ofp, prevline);
-	exit(0);
+	return (0);
 }
 
 static wchar_t *

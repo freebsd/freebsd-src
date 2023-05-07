@@ -104,7 +104,7 @@ main(int argc, char *argv[])
 		}
 		(void)printf("%s\n", hostp);
 	}
-	exit(0);
+	return 0;
 }
 
 static void

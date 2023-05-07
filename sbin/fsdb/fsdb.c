@@ -126,7 +126,7 @@ main(int argc, char *argv[])
 		printf("*** BE SURE TO RUN FSCK TO CLEAN UP ANY DAMAGE\n");
 		printf("*** IF IT IS MOUNTED, RE-MOUNT WITH -u -o reload\n");
 	}
-	exit(rval);
+	return (rval);
 }
 
 #define CMDFUNC(func) int func(int argc, char *argv[])

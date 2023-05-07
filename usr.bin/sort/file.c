@@ -512,10 +512,7 @@ end:
 		s2disorder = NULL;
 	}
 
-	if (res)
-		exit(res);
-
-	return (0);
+	return (res);
 }
 
 /*

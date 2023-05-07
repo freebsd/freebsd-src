@@ -194,5 +194,5 @@ main(int argc, char **argv)
 			usage();
 	}
 	consstatus();
-	exit(0);
+	return (0);
 }

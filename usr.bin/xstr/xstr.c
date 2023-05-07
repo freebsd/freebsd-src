@@ -147,7 +147,7 @@ main(int argc, char *argv[])
 		xsdotc();
 	if (strings[0] == '/')
 		ignore(unlink(strings));
-	exit(0);
+	return (0);
 }
 
 static void

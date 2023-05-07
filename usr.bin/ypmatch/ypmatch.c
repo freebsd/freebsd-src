@@ -90,7 +90,7 @@ main(int argc, char *argv[])
 				printf("Use \"%s\" for \"%s\"\n",
 					ypaliases[i].alias,
 					ypaliases[i].name);
-			exit(0);
+			return 0;
 		case 'd':
 			domainname = optarg;
 			break;
@@ -138,5 +138,5 @@ main(int argc, char *argv[])
 			break;
 		}
 	}
-	exit(rval);
+	return (rval);
 }

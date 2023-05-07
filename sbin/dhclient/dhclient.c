@@ -467,7 +467,7 @@ main(int argc, char *argv[])
 			fflush(stderr);
 			if (++i > 10) {
 				fprintf(stderr, " giving up\n");
-				exit(1);
+				return (1);
 			}
 			sleep(1);
 		}

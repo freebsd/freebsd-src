@@ -117,7 +117,7 @@ main(int argc, char **argv)
 		update_elf_hints(hints_file, argc - optind,
 		    argv + optind, merge || rescan);
 	}
-	exit(0);
+	return (0);
 }
 
 static void

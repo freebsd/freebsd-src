@@ -556,7 +556,7 @@ main(int argc, char *argv[])
 
 	if (list) {
 		listdumpdev();
-		exit(EX_OK);
+		return (EX_OK);
 	}
 
 	if (argc != 1)
@@ -708,5 +708,5 @@ main(int argc, char *argv[])
 	if (verbose)
 		listdumpdev();
 
-	exit(EX_OK);
+	return (EX_OK);
 }

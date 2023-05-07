@@ -87,7 +87,7 @@ main(int argc, char **argv)
 			if (mtu < 28)
 			    {
 				fprintf(stderr, "mtu must be > 28\n");
-				exit(1);
+				return (1);
 			    }
 		case 'r' :
 			resend = optarg;
@@ -118,7 +118,7 @@ main(int argc, char **argv)
 	if (gateway && resolve(gateway, (char *)&gwip) == -1)
 	    {
 		fprintf(stderr,"Cant resolve %s\n", gateway);
-		exit(2);
+		return (2);
 	    }
 
 	if (!dev)

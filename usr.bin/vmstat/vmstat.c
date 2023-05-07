@@ -349,7 +349,7 @@ retry_nlist:
 		} else
 			xo_warnx("kvm_nlist: %s", kvm_geterr(kd));
 		xo_finish();
-		exit(1);
+		return (1);
 	}
 nlist_ok:
 	if (kd && Pflag)
@@ -396,7 +396,7 @@ nlist_ok:
 	if (todo & VMSTAT)
 		dovmstat(interval, reps);
 	xo_finish();
-	exit(0);
+	return (0);
 }
 
 static int

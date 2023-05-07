@@ -94,7 +94,7 @@ main(int argc, char **argv)
 
 	if (!*argv[0]) {
 		printf("\n");
-		exit(0);
+		return 0;
 	}
 	if ((p = basename(argv[0])) == NULL)
 		err(1, "%s", argv[0]);
@@ -111,7 +111,7 @@ main(int argc, char **argv)
 		argv++;
 		(void)printf("%s\n", p);
 	}
-	exit(0);
+	return 0;
 }
 
 void

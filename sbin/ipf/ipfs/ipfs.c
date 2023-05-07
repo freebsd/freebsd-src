@@ -301,7 +301,7 @@ int main(int argc, char *argv[])
 				devfd = opendevice(IPNAT_NAME);
 		}
 		if (devfd == -1)
-			exit(1);
+			return (1);
 	}
 
 	if (lock >= 0)

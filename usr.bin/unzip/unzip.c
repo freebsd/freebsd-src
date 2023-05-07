@@ -1109,7 +1109,7 @@ main(int argc, char *argv[])
 	 */
 	if (zipinfo_mode && !Z1_opt) {
 		printf("Zipinfo mode needs additional options\n");
-		exit(EXIT_FAILURE);
+		return (EXIT_FAILURE);
 	}
 
 	if (argc <= nopts)
@@ -1130,5 +1130,5 @@ main(int argc, char *argv[])
 
 	unzip(zipfile);
 
-	exit(EXIT_SUCCESS);
+	return (EXIT_SUCCESS);
 }

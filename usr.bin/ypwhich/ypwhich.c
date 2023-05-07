@@ -76,7 +76,7 @@ usage(void)
 	    "usage: ypwhich [-t] [-d domain] [[-h] host]\n"
 	    "       ypwhich [-t] [-d domain] [-h host] -m [mname]\n"
 	    "       ypwhich -x\n");
-	exit(1);
+	return (1);
 }
 
 
@@ -157,7 +157,7 @@ main(int argc, char *argv[])
 				printf("\"%s\" is an alias for \"%s\"\n",
 					ypaliases[i].alias,
 					ypaliases[i].name);
-			exit(0);
+			return 0;
 		case 'h':
 			host = optarg;
 			break;
@@ -184,7 +184,7 @@ main(int argc, char *argv[])
 			sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
 			if (bind_host(domain, &sin))
-				exit(1);
+				return 1;
 			break;
 		case 1:
 			bzero(&sin, sizeof sin);
@@ -197,12 +197,12 @@ main(int argc, char *argv[])
 				}
 			}
 			if (bind_host(domain, &sin))
-				exit(1);
+				return 1;
 			break;
 		default:
 			usage();
 		}
-		exit(0);
+		return 0;
 	}
 
 	if (argc > 1)
@@ -235,7 +235,7 @@ main(int argc, char *argv[])
 			errx(1, "can't find master for map %s: reason: %s",
 			    map, yperr_string(r));
 		}
-		exit(0);
+		return 0;
 	}
 
 	ypml = NULL;
@@ -275,5 +275,5 @@ main(int argc, char *argv[])
 		errx(1, "can't get map list for domain %s: reason: %s",
 		    domain, yperr_string(r));
 	}
-	exit(0);
+	return 0;
 }

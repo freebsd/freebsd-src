@@ -198,7 +198,7 @@ main(int argc, char **argv)
 	split2();
 	if (pflag)
 		regfree(&rgx);
-	exit(0);
+	return (0);
 }
 
 /*

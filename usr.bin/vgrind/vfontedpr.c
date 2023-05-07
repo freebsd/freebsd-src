@@ -227,14 +227,14 @@ main(int argc, char **argv)
 	i = cgetent(&defs, defsfile, language);
 	if (i == -1) {
 	    fprintf (stderr, "no entry for language %s\n", language);
-	    exit(0);
+	    return (0);
 	} else  if (i == -2) { fprintf(stderr,
 	    "cannot find vgrindefs file %s\n", defsfile[0]);
-	    exit(0);
+	    return (0);
 	} else if (i == -3) { fprintf(stderr,
 	    "potential reference loop detected in vgrindefs file %s\n",
             defsfile[0]);
-	    exit(0);
+	    return (0);
 	}
 	if (cgetustr(defs, "kw", &cp) == -1)
 	    nokeyw = true;
@@ -343,7 +343,7 @@ main(int argc, char **argv)
 	}
 	needbp = 1;
     } while (argc > 0);
-    exit(0);
+    return (0);
 }
 
 #define isidchr(c) (isalnum(c) || (c) == '_')

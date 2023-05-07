@@ -456,7 +456,7 @@ set_flags(struct g_command *cmd)
 /*
  * Run command.
  */
-static void
+static int
 run_command(int argc, char *argv[])
 {
 	struct g_command *cmd;
@@ -476,7 +476,7 @@ run_command(int argc, char *argv[])
 		if (!std_available(cmd->gc_name)) {
 			warnx("Command '%s' not available; "
 			    "try 'load' first.", argv[0]);
-			exit(EXIT_FAILURE);
+			return (EXIT_FAILURE);
 		}
 	}
 	if ((cmd->gc_flags & G_FLAG_LOADKLD) != 0)
@@ -508,7 +508,7 @@ run_command(int argc, char *argv[])
 			req->nerror = 0;
 		if (req->nerror != 0) {
 			gctl_free(req);
-			exit(EXIT_FAILURE);
+			return (EXIT_FAILURE);
 		}
 	}
 	if (buf[0] != '\0')
@@ -516,7 +516,7 @@ run_command(int argc, char *argv[])
 	gctl_free(req);
 	if (verbose)
 		printf("Done.\n");
-	exit(EXIT_SUCCESS);
+	return (EXIT_SUCCESS);
 }
 
 #ifndef STATIC_GEOM_CLASSES
@@ -851,10 +851,7 @@ main(int argc, char *argv[])
 	}
 
 	get_class(&argc, &argv);
-	run_command(argc, argv);
-	/* NOTREACHED */
-
-	exit(EXIT_FAILURE);
+	return run_command(argc, argv);
 }
 
 static struct gclass *

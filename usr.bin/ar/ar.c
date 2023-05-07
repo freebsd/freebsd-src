@@ -155,7 +155,7 @@ main(int argc, char **argv)
 			if (ar_write_archive(bsdar, 's'))
 				exitcode = EXIT_FAILURE;
 
-		exit(exitcode);
+		return (exitcode);
 	} else {
 		if (argc < 2)
 			bsdar_usage();
@@ -309,7 +309,7 @@ main(int argc, char **argv)
 
 	if (bsdar->mode == 'M') {
 		ar_mode_script(bsdar);
-		exit(EXIT_SUCCESS);
+		return (EXIT_SUCCESS);
 	}
 
 	if ((bsdar->filename = *argv) == NULL)
@@ -322,7 +322,7 @@ main(int argc, char **argv)
 	    bsdar->options & AR_S) {
 		exitcode = ar_write_archive(bsdar, 's');
 		if (!bsdar->mode)
-			exit(exitcode);
+			return (exitcode);
 	}
 
 	switch(bsdar->mode) {
@@ -345,7 +345,7 @@ main(int argc, char **argv)
 		}
 	}
 
-	exit(exitcode);
+	return (exitcode);
 }
 
 static void

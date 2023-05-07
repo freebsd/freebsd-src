@@ -529,5 +529,5 @@ main(int argc, char **argv)
 	}
 
 	hid_dispose_report_desc(r);
-	exit(0);
+	return (0);
 }

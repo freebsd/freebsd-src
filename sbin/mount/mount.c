@@ -229,7 +229,7 @@ main(int argc, char *argv[])
 
 	argc = xo_parse_args(argc, argv);
 	if (argc < 0)
-		exit(1);
+		return (1);
 	xo_open_container("mount");
 
 	while ((ch = getopt(argc, argv, "adF:fLlno:prt:uvw")) != -1)

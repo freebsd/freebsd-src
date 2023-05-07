@@ -326,5 +326,5 @@ main(int argc, char *argv[])
 		usage();
 	}
 	g_gate_close_device();
-	exit(EXIT_SUCCESS);
+	return (EXIT_SUCCESS);
 }

@@ -97,7 +97,7 @@ main(int argc, char *argv[])
 			__builtin_unreachable();
 		case OPT_HELP:
 			help();
-			exit(EXIT_SUCCESS);
+			return (EXIT_SUCCESS);
 		default:
 			usage();
 		}
@@ -128,5 +128,5 @@ main(int argc, char *argv[])
 
 	printf("%u\n", cpus);
 
-	exit(EXIT_SUCCESS);
+	return (EXIT_SUCCESS);
 }

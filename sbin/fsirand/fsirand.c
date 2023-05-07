@@ -99,7 +99,7 @@ main(int argc, char *argv[])
 			putchar('\n');
 	}
 
-	exit(ex);
+	return (ex);
 }
 
 int

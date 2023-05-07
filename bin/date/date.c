@@ -206,8 +206,10 @@ main(int argc, char *argv[])
 	}
 	vary_destroy(v);
 
-	if (Iflag)
+	if (Iflag) {
 		printisodate(lt);
+		return (EXIT_SUCCESS);
+	}
 
 	if (format == rfc2822_format)
 		/*
@@ -219,6 +221,7 @@ main(int argc, char *argv[])
 
 	(void)strftime(buf, sizeof(buf), format, lt);
 	printdate(buf);
+	return (EXIT_SUCCESS);
 }
 
 static void
@@ -227,7 +230,6 @@ printdate(const char *buf)
 	(void)printf("%s\n", buf);
 	if (fflush(stdout))
 		err(1, "stdout");
-	exit(EXIT_SUCCESS);
 }
 
 static void

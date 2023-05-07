@@ -1089,5 +1089,5 @@ main(int argc, char *argv[])
 	}
 	close(sfd);
 	pidfile_remove(pfh);
-	exit(EXIT_SUCCESS);
+	return (EXIT_SUCCESS);
 }

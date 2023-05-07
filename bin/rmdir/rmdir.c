@@ -90,7 +90,7 @@ main(int argc, char *argv[])
 		}
 	}
 
-	exit(errors);
+	return (errors);
 }
 
 static int

@@ -182,7 +182,7 @@ main(int argc __unused, char *argv[])
 	}
 	putp(cr);
 
-	exit(0);
+	return (0);
 }
 
 static void

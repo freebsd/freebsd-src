@@ -101,11 +101,12 @@ int
 main(volatile int argc, char ** volatile argv)
 {
 	int c, n;
+	size_t m;
 	long status = 0;
 
 	(void)setlocale(LC_ALL, "");
 
-	red = (n = strlen(argv[0])) > 2 && argv[0][n - 3] == 'r';
+	red = (m = strlen(argv[0])) > 2 && argv[0][m - 3] == 'r';
 top:
 	while ((c = getopt(argc, argv, "p:sx")) != -1)
 		switch(c) {
@@ -121,7 +122,7 @@ top:
 
 		default:
 			fprintf(stderr, usage, red ? "red" : "ed");
-			exit(1);
+			return 1;
 		}
 	argv += optind;
 	argc -= optind;

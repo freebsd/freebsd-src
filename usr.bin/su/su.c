@@ -475,7 +475,7 @@ main(int argc, char *argv[])
 		if (pid == -1)
 			err(1, "waitpid");
 		PAM_END();
-		exit(WEXITSTATUS(statusp));
+		return (WEXITSTATUS(statusp));
 	case -1:
 		PAM_END();
 		err(1, "fork");

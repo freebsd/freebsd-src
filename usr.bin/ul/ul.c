@@ -158,7 +158,7 @@ main(int argc, char **argv)
 	if (obuf != sobuf) {
 		free(obuf);
 	}
-	exit(0);
+	return (0);
 }
 
 static void

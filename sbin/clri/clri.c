@@ -118,5 +118,5 @@ main(int argc, char *argv[])
 		(void)fsync(disk.d_fd);
 	}
 	(void)ufs_disk_close(&disk);
-	exit(exitval);
+	return (exitval);
 }

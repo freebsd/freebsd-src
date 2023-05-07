@@ -204,7 +204,7 @@ main(int argc, char *argv[])
 		(void)strvisx(visbp, p, nextp - p, 0);
 		(void)printf("%s", visbp);
 	}
-	exit(0);
+	return (0);
 }
 
 void

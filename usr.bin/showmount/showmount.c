@@ -237,7 +237,7 @@ main(int argc, char **argv)
 			exp = exp->ex_next;
 		}
 	}
-	exit(0);
+	return (0);
 }
 
 /*

@@ -230,8 +230,7 @@ main(int argc, char *argv[])
 		scanfiles(argv, 0);
 	if (fclose(stdout))
 		err(1, "stdout");
-	exit(rval);
-	/* NOTREACHED */
+	return rval;
 }
 
 static void

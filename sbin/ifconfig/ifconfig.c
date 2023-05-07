@@ -668,7 +668,7 @@ main(int ac, char *av[])
 					errx(1, "%s: cloning name too long",
 					    args->ifname);
 				ifconfig(&ctx, 1, NULL);
-				exit(exit_code);
+				return (exit_code);
 			}
 #ifdef JAIL
 			/*
@@ -681,7 +681,7 @@ main(int ac, char *av[])
 					errx(1, "%s: interface name too long",
 					    args->ifname);
 				ifconfig(&ctx, 0, NULL);
-				exit(exit_code);
+				return (exit_code);
 			}
 #endif
 			errx(1, "interface %s does not exist", args->ifname);
@@ -782,7 +782,7 @@ list_interfaces_ioctl(if_ctx *ctx)
 	struct ifaddrs *ifap, *sifap, *ifa;
 	struct ifa_order_elt *cur, *tmp;
 	char *namecp = NULL;
-	int ifindex;
+	size_t ifindex;
 	struct ifconfig_args *args = ctx->args;
 
 	if (getifaddrs(&ifap) != 0)

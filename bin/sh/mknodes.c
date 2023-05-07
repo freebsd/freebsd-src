@@ -125,7 +125,7 @@ main(int argc, char *argv[])
 	}
 	fclose(infp);
 	output(argv[2]);
-	exit(0);
+	return (0);
 }
 
 

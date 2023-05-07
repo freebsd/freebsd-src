@@ -1119,7 +1119,7 @@ main(int argc, char *argv[])
 			j++;
 		}
 	if (j)
-		exit(1);
+		return (1);
 
 	if (trace)
 		printf("Message '%s' is OK\n",message);
@@ -1172,7 +1172,7 @@ main(int argc, char *argv[])
 	}
 
 	free(message);
-	exit(0);
+	return 0;
 }
 
 static void

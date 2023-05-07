@@ -105,7 +105,7 @@ main(int argc, char *argv[])
 			rm_file(&argv[2]);
 		else
 			usage();
-		exit(eval);
+		return (eval);
 	}
 
 	rflag = xflag = 0;

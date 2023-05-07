@@ -142,7 +142,7 @@ main(int argc, char *argv[])
 
 	if (op == VERIFY) {
 		verify(inp, outp, buff);
-		exit(0);
+		return (0);
 	}
 
 	if ((oldsig = signal(SIGINT, SIG_IGN)) != SIG_IGN)
@@ -222,7 +222,7 @@ r1:		guesslen = 0;
 			verify(inp, outp, buff);
 		}
 	}
-	exit(0);
+	return (0);
 }
 
 static void

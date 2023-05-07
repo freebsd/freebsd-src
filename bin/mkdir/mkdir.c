@@ -129,7 +129,7 @@ main(int argc, char *argv[])
 			exitval = 1;
 		}
 	}
-	exit(exitval);
+	return (exitval);
 }
 
 

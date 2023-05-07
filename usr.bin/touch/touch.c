@@ -219,7 +219,7 @@ main(int argc, char *argv[])
 		rval = 1;
 		warn("%s", *argv);
 	}
-	exit(rval);
+	return (rval);
 }
 
 #define	ATOI2(ar)	((ar)[0] - '0') * 10 + ((ar)[1] - '0'); (ar) += 2;

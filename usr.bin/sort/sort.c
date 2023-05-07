@@ -1163,7 +1163,7 @@ main(int argc, char **argv)
 				break;
 			case VERSION_OPT:
 				printf("%s\n", VERSION);
-				exit(EXIT_SUCCESS);
+				return (EXIT_SUCCESS);
 				/* NOTREACHED */
 				break;
 			case DEBUG_OPT:

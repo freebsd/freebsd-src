@@ -1577,5 +1577,5 @@ main(int argc, char *argv[])
 	}
 	getfiles();
 	display();
-	exit(0);
+	return (0);
 }

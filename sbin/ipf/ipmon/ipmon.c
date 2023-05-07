@@ -1590,7 +1590,7 @@ main(int argc, char *argv[])
 				fprintf(stderr,
 					"Unknown syslog facility '%s'\n",
 					 optarg);
-				exit(1);
+				return (1);
 			}
 			break;
 		case 'n' :
@@ -1651,7 +1651,7 @@ main(int argc, char *argv[])
 	if (config.cfile)
 		if (load_config(config.cfile) == -1) {
 			unload_config();
-			exit(1);
+			return (1);
 		}
 
 	/*
@@ -1670,7 +1670,7 @@ main(int argc, char *argv[])
 		if (config.log == NULL) {
 			(void) fprintf(stderr, "%s: fopen: %s\n",
 				       argv[optind], STRERROR(errno));
-			exit(1);
+			return (1);
 			/* NOTREACHED */
 		}
 		setvbuf(config.log, NULL, _IONBF, 0);
@@ -1690,12 +1690,12 @@ main(int argc, char *argv[])
 		case -1 :
 			(void) fprintf(stderr, "%s: fork() failed: %s\n",
 				       argv[0], STRERROR(errno));
-			exit(1);
+			return (1);
 			/* NOTREACHED */
 		case 0 :
 			break;
 		default :
-			exit(0);
+			return (0);
 		}
 
 		setsid();

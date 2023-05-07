@@ -1493,7 +1493,7 @@ main(int argc, char **argv)
 		fgets(reply, (int)sizeof(reply), stdin);
 		if (strcasecmp(reply, "yes\n")){
 			printf("Response other than \"yes\"; aborting\n");
-			exit(0);
+			return (0);
 		}
 	}
 
@@ -1600,7 +1600,7 @@ main(int argc, char **argv)
 			err(1, "close");
 		if (statfsp != NULL && (statfsp->f_flags & MNT_RDONLY) != 0 &&
 		    chkdoreload(statfsp, warn) != 0)
-			exit(9);
+			return (9);
 	}
 
 	DBG_CLOSE;

@@ -93,7 +93,7 @@ main(int argc, char *argv[])
 		argv += optind;
 		if (argc != 2)
 			usage();
-		exit(linkit(argv[0], argv[1], 0));
+		return (linkit(argv[0], argv[1], 0));
 	}
 
 	while ((ch = getopt(argc, argv, "FLPfhinsvw")) != -1)
@@ -150,9 +150,9 @@ main(int argc, char *argv[])
 		usage();
 		/* NOTREACHED */
 	case 1:				/* ln source */
-		exit(linkit(argv[0], ".", 1));
+		return (linkit(argv[0], ".", 1));
 	case 2:				/* ln source target */
-		exit(linkit(argv[0], argv[1], 0));
+		return (linkit(argv[0], argv[1], 0));
 	default:
 		;
 	}
@@ -172,7 +172,7 @@ main(int argc, char *argv[])
 		usage();
 	for (exitval = 0; *argv != targetdir; ++argv)
 		exitval |= linkit(*argv, targetdir, 1);
-	exit(exitval);
+	return (exitval);
 }
 
 /*

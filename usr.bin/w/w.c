@@ -153,7 +153,7 @@ main(int argc, char *argv[])
 
 	argc = xo_parse_args(argc, argv);
 	if (argc < 0)
-		exit(1);
+		return (1);
 
 	/* Are we w(1) or uptime(1)? */
 	if (strcmp(basename(argv[0]), "uptime") == 0) {
@@ -340,7 +340,7 @@ main(int argc, char *argv[])
 			if (xo_finish() < 0)
 				xo_err(1, "stdout");
 			(void)kvm_close(kd);
-			exit(0);
+			return (0);
 		}
 
 		xo_emit("{T:/%-*.*s} {T:/%-*.*s} {T:/%-*.*s}  {T:/%s}",
@@ -476,7 +476,7 @@ main(int argc, char *argv[])
 		xo_err(1, "stdout");
 
 	(void)kvm_close(kd);
-	exit(0);
+	return (0);
 }
 
 static void

@@ -168,7 +168,7 @@ main(int argc, char *argv[])
 	if (((opts & OPT_PURGE) != 0) && ((opts & OPT_REMOVE) == 0)) {
 		(void) fprintf(stderr, "%s: -p must be used with -r\n",
 			       argv[0]);
-		exit(1);
+		return (1);
 	}
 
 	initparse();
@@ -183,7 +183,7 @@ main(int argc, char *argv[])
 		    ((fd = open(IPNAT_NAME, O_RDONLY)) == -1)) {
 			(void) fprintf(stderr, "%s: open: %s\n", IPNAT_NAME,
 				STRERROR(errno));
-			exit(1);
+			return (1);
 		}
 	}
 
@@ -192,7 +192,7 @@ main(int argc, char *argv[])
 	if ((opts & OPT_DONOTHING) == 0) {
 		if (checkrev(IPL_NAME) == -1) {
 			fprintf(stderr, "User/kernel version check failed\n");
-			exit(1);
+			return (1);
 		}
 	}
 
@@ -204,18 +204,18 @@ main(int argc, char *argv[])
 		obj.ipfo_ptr = (void *)nsp;
 		if (ioctl(fd, SIOCGNATS, &obj) == -1) {
 			ipferror(fd, "ioctl(SIOCGNATS)");
-			exit(1);
+			return (1);
 		}
 		(void) setgid(getgid());
 		(void) setuid(getuid());
 	} else if ((kernel != NULL) || (core != NULL)) {
 		if (openkmem(kernel, core) == -1)
-			exit(1);
+			return (1);
 
 		natstat_dead(nsp, kernel);
 		if (opts & (OPT_LIST|OPT_STAT))
 			dostats(fd, nsp, opts, 0, natfilter);
-		exit(0);
+		return (0);
 	}
 
 	if (opts & (OPT_FLUSH|OPT_CLEAR))

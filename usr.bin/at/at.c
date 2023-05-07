@@ -912,5 +912,5 @@ main(int argc, char **argv)
 	panic("internal error");
 	break;
     }
-    exit(EXIT_SUCCESS);
+    return (EXIT_SUCCESS);
 }

@@ -163,7 +163,7 @@ main(int argc, char *argv[])
 		if (kevent(kq, e + nleft, 1, NULL, 0, NULL) == -1) {
 			warn("%ld", pid);
 			if (oflag) {
-				exit(EX_OK);
+				return (EX_OK);
 			}
 		} else {
 			nleft++;
@@ -195,7 +195,7 @@ main(int argc, char *argv[])
 				if (verbose) {
 					printf("timeout\n");
 				}
-				exit(124);
+				return (124);
 			}
 			if (verbose) {
 				status = e[i].data;
@@ -213,11 +213,11 @@ main(int argc, char *argv[])
 				}
 			}
 			if (oflag) {
-				exit(EX_OK);
+				return (EX_OK);
 			}
 			--nleft;
 		}
 	}
 
-	exit(EX_OK);
+	return (EX_OK);
 }

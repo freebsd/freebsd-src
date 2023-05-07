@@ -182,7 +182,7 @@ main(int argc, char *argv[])
 
 	if (bkgrdflag && cvtlevel > 0) {
 		pfatal("CANNOT CONVERT A SNAPSHOT\n");
-		exit(EEXIT);
+		return (EEXIT);
 	}
 
 	if (signal(SIGINT, SIG_IGN) != SIG_IGN)
@@ -216,7 +216,7 @@ main(int argc, char *argv[])
 
 	if (returntosingle)
 		ret = 2;
-	exit(ret);
+	return (ret);
 }
 
 static intmax_t

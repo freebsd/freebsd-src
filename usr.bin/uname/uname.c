@@ -151,7 +151,7 @@ main(int argc, char *argv[])
 		flags |= SFLAG;
 
 	print_uname(flags);
-	exit(0);
+	return (0);
 }
 
 #define	CHECK_ENV(opt,var)				\

@@ -299,7 +299,7 @@ main(int argc, char **argv)
 		case HELP_OPT:
 			for (i = 0; help_msg[i] != NULL; i++)
 				printf("%s\n", help_msg[i]);
-			exit(0);
+			return (0);
 			break;
 		default:
 			usage();

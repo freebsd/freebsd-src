@@ -203,11 +203,11 @@ main(int argc, char *argv[])
 
 	if (argc > 1) {
 		if (setjmp(toplevel) != 0)
-			exit(txrx_error);
+			return (txrx_error);
 
 		if (strncmp(argv[1], "tftp://", 7) == 0) {
 			urihandling(argv[1]);
-			exit(txrx_error);
+			return (txrx_error);
 		}
 
 		setpeer(argc, argv);
@@ -221,6 +221,7 @@ main(int argc, char *argv[])
 
 	init_options();
 	command(interactive, el, hist, &he);
+	return (0);
 }
 
 /*

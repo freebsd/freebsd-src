@@ -604,7 +604,7 @@ main(int argc, char **argv)
 		    "No matching processes belonging to you were found\n");
 
 	free(buf);
-	exit(rv ? STATUS_MATCH : STATUS_NOMATCH);
+	return (rv ? STATUS_MATCH : STATUS_NOMATCH);
 }
 
 static void

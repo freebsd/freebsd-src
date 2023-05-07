@@ -433,7 +433,7 @@ main(int argc, char *argv[])
 	if (nmount(iov, iovlen, mntflags) < 0)
 		err(EX_OSERR, "%s on %s", dev, mntpath);
 
-	exit(0);
+	return (0);
 }
 
 void

@@ -159,7 +159,7 @@ main(int argc, char **argv)
 	if (!strncmp(mytty, _PATH_DEV, strlen(_PATH_DEV)))
 		mytty += strlen(_PATH_DEV);
 	if (term_chk(devfd, mytty, &msgsok, &atime, 1))
-		exit(1);
+		return (1);
 	if (!msgsok)
 		errx(1, "you have write permission turned off");
 
@@ -175,7 +175,7 @@ main(int argc, char **argv)
 		if (utmp_chk(argv[0], argv[1]))
 			errx(1, "%s is not logged in on %s", argv[0], argv[1]);
 		if (term_chk(devfd, argv[1], &msgsok, &atime, 1))
-			exit(1);
+			return (1);
 		if (myuid && !msgsok)
 			errx(1, "%s has messages disabled on %s", argv[0], argv[1]);
 		do_write(devfd, argv[1], mytty, login);
@@ -183,7 +183,7 @@ main(int argc, char **argv)
 	default:
 		usage();
 	}
-	done(0);
+	(void)printf("EOF\r\n");
 	return (0);
 }
 

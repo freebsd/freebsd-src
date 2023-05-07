@@ -269,7 +269,7 @@ main(int argc, const char *argv[])
 
     if (setlocale(LC_ALL, "") == NULL) {
         fprintf(stderr, "invalid locale.\n");
-	exit(1);
+	return (1);
     }
 
     mypid = getpid();
@@ -371,7 +371,7 @@ main(int argc, const char *argv[])
 		num = strtonum(optarg, 0, INT_MAX, &errstr);
 		if (errstr != NULL || !find_pid(num)) {
 			fprintf(stderr, "%s: unknown pid\n", optarg);
-			exit(1);
+			return (1);
 		}
 		ps.pid = (pid_t)num;
 		ps.system = true;
@@ -446,7 +446,7 @@ main(int argc, const char *argv[])
 		if ((ps.jid = jail_getid(optarg)) == -1)
 		{
 		    fprintf(stderr, "%s: unknown jail\n", optarg);
-		    exit(1);
+		    return (1);
 		}
 		ps.jail = 1;
 		break;
@@ -501,7 +501,7 @@ main(int argc, const char *argv[])
     /* initialize the kernel memory interface */
     if (machine_init(&statics) == -1)
     {
-	exit(1);
+	return (1);
     }
 
     /* determine sorting order index, if necessary */
@@ -519,7 +519,7 @@ main(int argc, const char *argv[])
 		fprintf(stderr, " %s", *pp++);
 	    }
 	    fputc('\n', stderr);
-	    exit(1);
+	    return (1);
 	}
     }
 
@@ -717,8 +717,7 @@ restart:
 		timeout = delay;
 		select(0, NULL, NULL, NULL, &timeout);
 		if (leaveflag) {
-		    end_screen();
-		    exit(0);
+			quit(0);
 		}
 	    }
 	    else while (no_command)
@@ -732,8 +731,7 @@ restart:
 		timeout = delay;
 
 		if (leaveflag) {
-		    end_screen();
-		    exit(0);
+			quit(0);
 		}
 
 		if (tstopflag) {
@@ -1180,7 +1178,8 @@ restart:
 #ifdef DEBUG
     fclose(debug);
 #endif
-    quit(0);
+    end_screen();
+	return 0;
 }
 
 /*

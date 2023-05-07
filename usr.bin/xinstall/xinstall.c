@@ -375,7 +375,7 @@ main(int argc, char *argv[])
 	if (dodir) {
 		for (; *argv != NULL; ++argv)
 			install_dir(*argv);
-		exit(EX_OK);
+		return (EX_OK);
 		/* NOTREACHED */
 	}
 
@@ -391,12 +391,12 @@ main(int argc, char *argv[])
 					err(EX_USAGE, "%s", to_name);
 				}
 				install(*argv, to_name, fset, iflags);
-				exit(EX_OK);
+				return (EX_OK);
 			}
 		}
 		for (; *argv != to_name; ++argv)
 			install(*argv, to_name, fset, iflags | DIRECTORY);
-		exit(EX_OK);
+		return (EX_OK);
 		/* NOTREACHED */
 	}
 
@@ -424,7 +424,7 @@ main(int argc, char *argv[])
 			    "%s and %s are the same file", *argv, to_name);
 	}
 	install(*argv, to_name, fset, iflags);
-	exit(EX_OK);
+	return (EX_OK);
 	/* NOTREACHED */
 }
 

@@ -72,7 +72,7 @@ main(int argc, char *argv[])
 		} else
 			(void)printf("%s\n", p);
 	} while ((path = *argv++) != NULL);
-	exit(rval);
+	return (rval);
 }
 
 static void

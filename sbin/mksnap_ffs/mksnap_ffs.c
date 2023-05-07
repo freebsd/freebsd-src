@@ -187,5 +187,5 @@ main(int argc, char **argv)
 	if (fchmod(fd, S_IRUSR | S_IRGRP) != 0)
 		err(1, "Cannot chmod %s", snapname);
 
-	exit(EXIT_SUCCESS);
+	return (EXIT_SUCCESS);
 }

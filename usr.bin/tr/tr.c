@@ -147,7 +147,7 @@ main(int argc, char **argv)
 			}
 		if (ferror(stdin))
 			err(1, NULL);
-		exit(0);
+		return (0);
 	}
 
 	/*
@@ -165,7 +165,7 @@ main(int argc, char **argv)
 				(void)putwchar(ch);
 		if (ferror(stdin))
 			err(1, NULL);
-		exit(0);
+		return (0);
 	}
 
 	/*
@@ -182,7 +182,7 @@ main(int argc, char **argv)
 			}
 		if (ferror(stdin))
 			err(1, NULL);
-		exit(0);
+		return (0);
 	}
 
 	/*

@@ -428,5 +428,5 @@ main(int argc, char **argv)
 	error = 0;
 out:
 	pjdlog_fini();
-	exit(error);
+	return (error);
 }

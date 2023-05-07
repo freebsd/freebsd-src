@@ -210,7 +210,7 @@ main(int argc, char **argv)
 			else if (!(langfile = fopen(optarg, "r"))) {
 				fprintf(stderr, "can't open file %s\n",
 					optarg);
-				exit(1);
+				return (1);
 			}
 			iplang(langfile);
 			return (0);
@@ -275,7 +275,7 @@ main(int argc, char **argv)
 			if (mtu < 28)
 			    {
 				fprintf(stderr, "mtu must be > 28\n");
-				exit(1);
+				return (1);
 			    }
 			break;
 		case 'o' :
@@ -320,13 +320,13 @@ main(int argc, char **argv)
 	if (resolve(src, (char *)&ip->ip_src) == -1)
 	    {
 		fprintf(stderr,"Cant resolve %s\n", src);
-		exit(2);
+		return (2);
 	    }
 
 	if (resolve(dst, (char *)&ip->ip_dst) == -1)
 	    {
 		fprintf(stderr,"Cant resolve %s\n", dst);
-		exit(2);
+		return (2);
 	    }
 
 	if (!gateway)
@@ -334,7 +334,7 @@ main(int argc, char **argv)
 	else if (resolve(gateway, (char *)&gwip) == -1)
 	    {
 		fprintf(stderr,"Cant resolve %s\n", gateway);
-		exit(2);
+		return (2);
 	    }
 
 	if (olen)
@@ -350,7 +350,7 @@ main(int argc, char **argv)
 		if (p == NULL)
 		    {
 			fprintf(stderr, "malloc failed\n");
-			exit(2);
+			return (2);
 		    }
 
 		bcopy(ip, p, sizeof(*ip));

@@ -264,7 +264,7 @@ main(int argc, char *argv[])
 		reset_rir();
 		argv++;
 	}
-	exit(0);
+	return (0);
 }
 
 static const char *

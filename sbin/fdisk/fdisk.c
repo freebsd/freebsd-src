@@ -359,7 +359,7 @@ main(int argc, char *argv[])
 			if (partp->dp_flag & 0x80)
 				printf("a %d\n", i + 1);
 		}
-		exit(0);
+		return (0);
 	}
 	if (s_flag) {
 		if (read_s0())
@@ -376,7 +376,7 @@ main(int argc, char *argv[])
 			    (u_long) partp->dp_size, partp->dp_typ,
 			    partp->dp_flag);
 		}
-		exit(0);
+		return (0);
 	}
 
 	printf("******* Working on device %s *******\n",disk);
@@ -395,13 +395,13 @@ main(int argc, char *argv[])
 			print_s0();
 		if (!t_flag)
 			write_s0();
-		exit(0);
+		return (0);
 	}
 	if (f_flag) {
 	    if (read_s0() || i_flag)
 		reset_boot();
 	    if (!read_config(f_flag))
-		exit(1);
+		return (1);
 	    if (v_flag)
 		print_s0();
 	    if (!t_flag)
@@ -445,7 +445,7 @@ main(int argc, char *argv[])
 	    }
 	}
 
-	exit(0);
+	return (0);
 }
 
 static void

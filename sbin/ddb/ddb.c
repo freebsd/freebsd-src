@@ -132,5 +132,5 @@ main(int argc, char *argv[])
 		ddb_readfile(argv[1]);
 	else
 		ddb_main(argc-1, argv+1);
-	exit(EX_OK);
+	return (EX_OK);
 }

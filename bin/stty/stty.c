@@ -153,7 +153,7 @@ args:	argc -= optind;
 		err(1, "tcsetattr");
 	if (i.wset && ioctl(i.fd, TIOCSWINSZ, &i.win) < 0)
 		warn("TIOCSWINSZ");
-	exit(0);
+	return (0);
 }
 
 void

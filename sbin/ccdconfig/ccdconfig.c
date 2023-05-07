@@ -147,16 +147,16 @@ main(int argc, char *argv[])
 	switch (action) {
 		case CCD_CONFIG:
 		case CCD_UNCONFIG:
-			exit(do_single(argc, argv, action));
+			return (do_single(argc, argv, action));
 			/* NOTREACHED */
 
 		case CCD_CONFIGALL:
 		case CCD_UNCONFIGALL:
-			exit(do_all(action));
+			return (do_all(action));
 			/* NOTREACHED */
 
 		case CCD_DUMP:
-			exit(dump_ccd(argc, argv));
+			return (dump_ccd(argc, argv));
 			/* NOTREACHED */
 	}
 	/* NOTREACHED */

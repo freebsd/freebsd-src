@@ -235,7 +235,7 @@ main(int argc, char *argv[])
 			if (spcl.c_ddate < 0) {
 				(void)fprintf(stderr, "bad time \"%s\"\n",
 				    optarg);
-				exit(X_STARTUP);
+				return (X_STARTUP);
 			}
 			Tflag = 1;
 			lastlevel = -1;
@@ -248,7 +248,7 @@ main(int argc, char *argv[])
 		case 'W':		/* what to do */
 		case 'w':
 			lastdump(ch);
-			exit(X_FINOK);	/* do nothing else */
+			return (X_FINOK);	/* do nothing else */
 
 		default:
 			usage();
@@ -258,7 +258,7 @@ main(int argc, char *argv[])
 
 	if (argc < 1) {
 		(void)fprintf(stderr, "Must specify disk or file system\n");
-		exit(X_STARTUP);
+		return (X_STARTUP);
 	}
 	disk = *argv++;
 	argc--;
@@ -267,17 +267,17 @@ main(int argc, char *argv[])
 		while (argc--)
 			(void)fprintf(stderr, " %s", *argv++);
 		(void)fprintf(stderr, "\n");
-		exit(X_STARTUP);
+		return (X_STARTUP);
 	}
 	if (rsync_friendly && (level > 0)) {
 		(void)fprintf(stderr, "%s %s\n", "rsync friendly options",
 		    "can be used only with level 0 dumps.");
-		exit(X_STARTUP);
+		return (X_STARTUP);
 	}
 	if (Tflag && uflag) {
 	        (void)fprintf(stderr,
 		    "You cannot use the T and u flags together.\n");
-		exit(X_STARTUP);
+		return (X_STARTUP);
 	}
 	if (popenout) {
 		tape = "child pipeline process";
@@ -314,13 +314,13 @@ main(int argc, char *argv[])
 #ifdef RDUMP
 		if (strchr(tape, '\n')) {
 		    (void)fprintf(stderr, "invalid characters in tape\n");
-		    exit(X_STARTUP);
+		    return (X_STARTUP);
 		}
 		if (rmthost(host) == 0)
-			exit(X_STARTUP);
+			return (X_STARTUP);
 #else
 		(void)fprintf(stderr, "remote dump not enabled\n");
-		exit(X_STARTUP);
+		return (X_STARTUP);
 #endif
 	}
 	(void)setuid(getuid()); /* rmthost() is the only reason to be setuid */
@@ -546,7 +546,7 @@ main(int argc, char *argv[])
          * tapes, exit now.
          */
         if (just_estimate)
-                exit(0);
+                return (0);
 
 	/*
 	 * Allocate tape buffer.

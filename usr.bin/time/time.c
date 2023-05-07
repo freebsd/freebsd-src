@@ -112,7 +112,7 @@ main(int argc, char **argv)
 		}
 
 	if (!(argc -= optind))
-		exit(0);
+		return (0);
 	argv += optind;
 
 	if (ofn) {
@@ -211,7 +211,7 @@ main(int argc, char **argv)
 			kill(getpid(), exitonsig);
 		}
 	}
-	exit (WIFEXITED(status) ? WEXITSTATUS(status) : EXIT_FAILURE);
+	return (WIFEXITED(status) ? WEXITSTATUS(status) : EXIT_FAILURE);
 }
 
 static void

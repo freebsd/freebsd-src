@@ -545,7 +545,7 @@ main(int argc, char *argv[])
 	}
 
 	if (drop_privs(NULL) != 0)
-		exit(EX_CONFIG);
+		return (EX_CONFIG);
 
 	/* Send the command to the server... */
 	if (hast_proto_send(NULL, controlconn, nv, NULL, 0) == -1) {
@@ -582,5 +582,5 @@ main(int argc, char *argv[])
 		PJDLOG_ABORT("Impossible command!");
 	}
 
-	exit(error);
+	return (error);
 }

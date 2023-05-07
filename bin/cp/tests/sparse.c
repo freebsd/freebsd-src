@@ -69,5 +69,5 @@ main(int argc, char *argv[])
 	while (argc-- > 0)
 		if (!sparse(*argv++))
 			rv = EXIT_FAILURE;
-	exit(rv);
+	return (rv);
 }

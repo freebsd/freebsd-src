@@ -105,7 +105,7 @@ main(int argc, char **argv)
 			if (mtu < 28)
 			    {
 				fprintf(stderr, "mtu must be > 28\n");
-				exit(1);
+				return (1);
 			    }
 			break;
 		case 'p' :
@@ -133,13 +133,13 @@ main(int argc, char **argv)
 	if (resolve(dst, (char *)&ip->ip_dst) == -1)
 	    {
 		fprintf(stderr,"Cant resolve %s\n", dst);
-		exit(2);
+		return (2);
 	    }
 
 	if (resolve(src, (char *)&ip->ip_src) == -1)
 	    {
 		fprintf(stderr,"Cant resolve %s\n", src);
-		exit(2);
+		return (2);
 	    }
 
 	if (!gateway)
@@ -147,7 +147,7 @@ main(int argc, char **argv)
 	else if (resolve(gateway, (char *)&gwip) == -1)
 	    {
 		fprintf(stderr,"Cant resolve %s\n", gateway);
-		exit(2);
+		return (2);
 	    }
 
 

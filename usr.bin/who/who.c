@@ -137,7 +137,7 @@ main(int argc, char *argv[])
 
 	endutxent();
 
-	exit(0);
+	return (0);
 }
 
 static void

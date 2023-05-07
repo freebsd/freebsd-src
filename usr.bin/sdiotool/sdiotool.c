@@ -523,7 +523,7 @@ main(int argc, char **argv) {
 	/* For now, everything non-broadcom is out of the question */
 	if (ci.f[0].man_id != 0x02D0) {
 		printf("The card is not a Broadcom device\n");
-		exit(1);
+		return (1);
 	}
 	/* Init structures */
 	struct brcmf_sdio_dev brcmf_dev;
@@ -553,4 +553,5 @@ main(int argc, char **argv) {
 		     REPLY_MAGIC, magic);
 	}
 	cam_close_spec_device(cam_dev);
+	return (0);
 }

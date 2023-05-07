@@ -209,7 +209,7 @@ main(int argc, char *argv[])
 	free(cmd);
 	sbuf_delete(cmdbuf);
 	free(shell);
-	exit(rval);
+	return (rval);
 }
 
 /*

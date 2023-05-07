@@ -104,7 +104,7 @@ main(int argc, char *argv[])
 				failed |= tabify(filename);
 		}
 	}
-	exit(failed != 0);
+	return (failed != 0);
 }
 
 static void

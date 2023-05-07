@@ -129,7 +129,7 @@ main(int argc __unused, char *argv[])
 	 */
 	if (close(out.fd) == -1 && errno != EINTR)
 		err(1, "close");
-	exit(0);
+	return 0;
 }
 
 static int

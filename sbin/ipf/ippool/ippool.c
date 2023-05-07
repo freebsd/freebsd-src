@@ -117,11 +117,11 @@ main(int argc, char *argv[])
 		err = poolstats(argc, argv);
 		break;
 	default :
-		exit(1);
+		return (1);
 	}
 
 	if (err != 0)
-		exit(1);
+		return (1);
 	return (0);
 }
 

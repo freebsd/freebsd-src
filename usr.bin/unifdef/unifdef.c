@@ -411,9 +411,9 @@ main(int argc, char *argv[])
 		argv++;
 	}
 	switch(exitmode) {
-	case(0): exit(exitstat);
-	case(1): exit(!exitstat);
-	case(2): exit(0);
+	case(0): return (exitstat);
+	case(1): return (!exitstat);
+	case(2): return (0);
 	default: abort(); /* bug */
 	}
 }

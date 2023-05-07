@@ -103,7 +103,7 @@ rule_main(int ac, char **av)
 
 	for (c = ctbl_rule; c->name != NULL; ++c)
 		if (strcmp(c->name, av[0]) == 0)
-			exit((*c->handler)(ac, av));
+			return ((*c->handler)(ac, av));
 	errx(1, "unknown command: %s", av[0]);
 }
 

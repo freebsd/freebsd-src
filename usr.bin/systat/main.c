@@ -199,7 +199,7 @@ main(int argc, char **argv)
 		    O_RDONLY, errbuf);
 		if (kd == NULL) {
 			error("%s", errbuf);
-			exit(1);
+			return (1);
 		}
 	}
 	signal(SIGHUP, die);

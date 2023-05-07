@@ -249,5 +249,5 @@ main(int argc, char *argv[])
 		for (; optind < argc; optind++)
 			(void)onehost(argv[optind]);
 	}
-	exit(0);
+	return (0);
 }

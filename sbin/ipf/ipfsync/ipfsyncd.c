@@ -126,7 +126,7 @@ main(argc, argv)
 
 	if (interface == NULL) {
 		usage(progname);
-		exit(1);
+		return (1);
 	}
 
 	if (!debuglevel) {
@@ -144,11 +144,11 @@ main(argc, argv)
 		case -1 :
 			fprintf(stderr, "%s: fork() failed: %s\n",
 				argv[0], STRERROR(errno));
-			exit(1);
+			return (1);
 			/* NOTREACHED */
 
 		default :
-			exit(0);
+			return (0);
 			/* NOTREACHED */
 		}
 
@@ -211,7 +211,7 @@ tryagain:
 	syslog(LOG_ERR, "signal %d received, exiting...", terminate);
 	debug(1, "signal %d received, exiting...", terminate);
 
-	exit(1);
+	return (1);
 }
 
 

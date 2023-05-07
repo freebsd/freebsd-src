@@ -197,14 +197,14 @@ main(int argc, char *argv[])
 		for (; *argv; argv++)
 			add_file(*argv);
 	else if (fflagstdin)
-		exit(rval);
+		return (rval);
 	else
 		add_file(NULL);
 	process();
 	cfclose(prog, NULL);
 	if (fclose(stdout))
 		err(1, "stdout");
-	exit(rval);
+	return (rval);
 }
 
 static void

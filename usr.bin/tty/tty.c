@@ -71,7 +71,7 @@ main(int argc, char *argv[])
 	t = ttyname(STDIN_FILENO);
 	if (!sflag)
 		puts(t ? t : "not a tty");
-	exit(t ? EXIT_SUCCESS : EXIT_FAILURE);
+	return (t ? EXIT_SUCCESS : EXIT_FAILURE);
 }
 
 static void

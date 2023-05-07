@@ -144,7 +144,7 @@ main(int argc, char *argv[])
 		fprintf(stderr,
 		    "usage: %s [-w] [-f format] [-s string] [-t string] [first [incr]] last\n",
 		    getprogname());
-		exit(1);
+		return (1);
 	}
 
 	last = e_atof(argv[argc - 1]);

@@ -146,7 +146,7 @@ main(int argc, char *argv[])
 			eval |= dumpfs(name, dosb);
 		ufs_disk_close(&disk);
 	}
-	exit(eval);
+	return (eval);
 }
 
 static int

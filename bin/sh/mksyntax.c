@@ -116,18 +116,18 @@ static void output_type_macros(void);
 int
 main(int argc __unused, char **argv __unused)
 {
-	int i;
+	size_t i;
 	char buf[80];
-	int pos;
+	size_t pos;
 
 	/* Create output files */
 	if ((cfile = fopen("syntax.c", "w")) == NULL) {
 		perror("syntax.c");
-		exit(2);
+		return 2;
 	}
 	if ((hfile = fopen("syntax.h", "w")) == NULL) {
 		perror("syntax.h");
-		exit(2);
+		return 2;
 	}
 	fputs(writer, hfile);
 	fputs(writer, cfile);
@@ -138,7 +138,7 @@ main(int argc __unused, char **argv __unused)
 	/* Generate the #define statements in the header file */
 	fputs("/* Syntax classes */\n", hfile);
 	for (i = 0 ; synclass[i].name ; i++) {
-		sprintf(buf, "#define %s %d", synclass[i].name, i);
+		sprintf(buf, "#define %s %zu", synclass[i].name, i);
 		fputs(buf, hfile);
 		for (pos = strlen(buf) ; pos < 32 ; pos = (pos + 8) & ~07)
 			putc('\t', hfile);
@@ -228,7 +228,7 @@ main(int argc __unused, char **argv __unused)
 	add("#?$!-*@", "ISSPECL");
 	finish();
 
-	exit(0);
+	return 0;
 }
 
 

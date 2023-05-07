@@ -86,11 +86,11 @@ main(int argc, char *argv[])
 
 	if (argc > 4) {
 		fprintf(stderr, "usage: tip [-v] [-speed] [system-name]\n");
-		exit(1);
+		return (1);
 	}
 	if (!isatty(0)) {
 		fprintf(stderr, "%s: must be interactive\n", __progname);
-		exit(1);
+		return (1);
 	}
 
 	for (; argc > 1; argv++, argc--) {
@@ -130,7 +130,7 @@ main(int argc, char *argv[])
 	if (strlen(sys) > sizeof PNbuf - 1) {
 		fprintf(stderr, "%s: phone number too long (max = %d bytes)\n",
 			__progname, (int)sizeof(PNbuf) - 1);
-		exit(1);
+		return (1);
 	}
 	strlcpy(PNbuf, sys, sizeof PNbuf - 1);
 	for (p = sys; *p; p++)
@@ -148,12 +148,12 @@ notnumber:
 
 	if ((i = hunt(sys)) == 0) {
 		printf("all ports busy\n");
-		exit(3);
+		return (3);
 	}
 	if (i == -1) {
 		printf("link down\n");
 		(void)uu_unlock(uucplock);
-		exit(3);
+		return (3);
 	}
 	setbuf(stdout, NULL);
 	loginit();
@@ -186,20 +186,20 @@ notnumber:
 		    number(value(BAUDRATE)));
 		daemon_uid();
 		(void)uu_unlock(uucplock);
-		exit(3);
+		return (3);
 	}
 	if ((p = con())) {
 		printf("\07%s\n[EOT]\n", p);
 		daemon_uid();
 		(void)uu_unlock(uucplock);
-		exit(1);
+		return (1);
 	}
 	if (!HW && ttysetup(number(value(BAUDRATE)))) {
 		fprintf(stderr, "%s: bad baud rate %ld\n", __progname,
 		    number(value(BAUDRATE)));
 		daemon_uid();
 		(void)uu_unlock(uucplock);
-		exit(3);
+		return (3);
 	}
 cucommon:
 	/*
@@ -253,7 +253,7 @@ cucommon:
 		tipin();
 	else
 		tipout();
-	exit(0);
+	return (0);
 }
 
 void

@@ -118,7 +118,7 @@ main(int argc, char **argv)
 					err(1, "can't read input");
 				} else {
 					printf("\n");
-					exit(0);
+					return (0);
 				}
 			} else if (*inputline) {
 				add_history(inputline);
@@ -130,7 +130,7 @@ main(int argc, char **argv)
 			}
 		}
 	}
-	exit(0);
+	return (0);
 }
 
 /* Attach a plex to a volume or a subdisk to a plex. */

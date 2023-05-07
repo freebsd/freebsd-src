@@ -266,7 +266,7 @@ main(int argc, char *argv[])
 			err(4, "fopen %s", argv[1]);
 		readlabel(0);
 		if (!getasciilabel(t, &lab))
-			exit(1);
+			return 1;
 		error = writelabel();
 		break;
 
@@ -294,7 +294,7 @@ main(int argc, char *argv[])
 			error = writelabel();
 		break;
 	}
-	exit(error);
+	return (error);
 }
 
 static void

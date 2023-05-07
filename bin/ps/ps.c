@@ -243,7 +243,7 @@ main(int argc, char *argv[])
 
 	argc = xo_parse_args(argc, argv);
 	if (argc < 0)
-		exit(1);
+		return 1;
 
 	while ((ch = getopt(argc, argv, PS_ARGS)) != -1)
 		switch (ch) {
@@ -314,7 +314,7 @@ main(int argc, char *argv[])
 			break;
 		case 'L':
 			showkey();
-			exit(0);
+			return 0;
 		case 'l':
 			parsefmt(lfmt, 0);
 			_fmt = 1;
@@ -460,7 +460,7 @@ main(int argc, char *argv[])
 		usage();
 	}
 	if (optfatal)
-		exit(1);		/* Error messages already printed. */
+		return 1;		/* Error messages already printed. */
 	if (xkeep < 0)			/* Neither -X nor -x was specified. */
 		xkeep = xkeep_implied;
 
@@ -636,7 +636,7 @@ main(int argc, char *argv[])
 	if (nkept == 0) {
 		printheader();
 		xo_finish();
-		exit(1);
+		return 1;
 	}
 
 	/*
@@ -734,7 +734,7 @@ main(int argc, char *argv[])
 		free(kinfo[i].ki_d.prefix);
 	free(kinfo);
 
-	exit(eval);
+	return (eval);
 }
 
 static int

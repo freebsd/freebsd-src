@@ -127,7 +127,7 @@ main(int argc, char *argv[])
 		}
 	if (rval < 0)
 		err(1, "read");
-	exit(exitval);
+	return (exitval);
 }
 
 static void

@@ -74,7 +74,7 @@ main(int argc, char **argv)
 		usage();
 
 	if ((p = getenv("PATH")) == NULL)
-		exit(EXIT_FAILURE);
+		return (EXIT_FAILURE);
 	pathlen = strlen(p) + 1;
 	path = malloc(pathlen);
 	if (path == NULL)
@@ -91,7 +91,7 @@ main(int argc, char **argv)
 		argc--;
 	}
 
-	exit(status);
+	return (status);
 }
 
 static void

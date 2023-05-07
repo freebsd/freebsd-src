@@ -185,7 +185,7 @@ main(int argc, char *argv[])
 	tsort();
 	if (ferror(stdout) != 0 || fflush(stdout) != 0)
 		err(1, "stdout");
-	exit(0);
+	return (0);
 }
 
 /* double the size of oldbuf and return a pointer to the new buffer. */

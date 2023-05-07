@@ -226,7 +226,7 @@ done:	argv += optind;
 	}
 	if (errno)
 		err(1, "fts_read");
-	exit(rval);
+	return (rval);
 }
 
 static void

@@ -104,7 +104,7 @@ main(int argc, char *argv[])
 
 	argc = xo_parse_args(argc, argv);
 	if (argc < 0)
-		exit(EXIT_FAILURE);
+		return (EXIT_FAILURE);
 
 	while ((ch = getopt(argc, argv, "clmwL")) != -1)
 		switch((char)ch) {
@@ -181,7 +181,7 @@ main(int argc, char *argv[])
 	xo_close_container("wc");
 	if (xo_finish() < 0)
 		xo_err(EXIT_FAILURE, "stdout");
-	exit(errors == 0 ? EXIT_SUCCESS : EXIT_FAILURE);
+	return (errors == 0 ? EXIT_SUCCESS : EXIT_FAILURE);
 }
 
 static void

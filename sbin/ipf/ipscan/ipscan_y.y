@@ -522,7 +522,7 @@ main(int argc, char *argv[])
 				fp = fopen(optarg, "r");
 				if (!fp) {
 					perror("open");
-					exit(1);
+					return (1);
 				}
 			}
 			yyin = fp;
@@ -548,7 +548,7 @@ main(int argc, char *argv[])
 		fd = open(IPL_SCAN, O_RDWR);
 		if (fd == -1) {
 			perror("open(IPL_SCAN)");
-			exit(1);
+			return (1);
 		}
 	}
 
@@ -558,12 +558,12 @@ main(int argc, char *argv[])
 		while (!feof(fp))
 			yyparse();
 		fclose(fp);
-		exit(0);
+		return (0);
 	}
 
 	if (opts & (OPT_SHOWLIST|OPT_STAT)) {
 		showlist();
-		exit(0);
+		return (0);
 	}
-	exit(1);
+	return (1);
 }

@@ -77,7 +77,7 @@ int main(argc, argv)
 
 	if (argc < 2) {
 		usage(progname);
-		exit(1);
+		return (1);
 	}
 
 #if 0
@@ -251,6 +251,6 @@ tryagain:
 
 	syslog(LOG_ERR, "signal %d received, exiting...", terminate);
 
-	exit(1);
+	return (1);
 }
 

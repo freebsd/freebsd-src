@@ -803,7 +803,7 @@ main(int argc, char **argv)
 				printf("%s\n", UNITSFILE);
 			else
 				printf("Units data file not found");
-			exit(0);
+			return (0);
 		case 'h':
 			/* FALLTHROUGH */
 

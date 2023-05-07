@@ -219,7 +219,7 @@ main(int argc, char *argv[])
 		printf("\n");
 		mp++;
 	}
-	exit(0);
+	return (0);
 }
 
 

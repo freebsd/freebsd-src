@@ -182,7 +182,7 @@ main(int argc, char **argv)
 
 	if (nmount(iov, iovlen, mntflags) < 0)
 		err(1, "%s", dev);
-	exit(0);
+	return (0);
 }
 
 void

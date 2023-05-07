@@ -145,7 +145,7 @@ main(int argc, char *argv[])
 			break;
 		case 'V' :
 			if (showversion())
-				exit(1);
+				return (1);
 			break;
 		case 'y' :
 			ipf_frsync();

@@ -246,20 +246,20 @@ int main(int argc, char *argv[])
 	if (live_kernel == 1) {
 		if ((state_fd = open(IPSTATE_NAME, O_RDONLY)) == -1) {
 			perror("open(IPSTATE_NAME)");
-			exit(-1);
+			return (-1);
 		}
 		if ((auth_fd = open(IPAUTH_NAME, O_RDONLY)) == -1) {
 			perror("open(IPAUTH_NAME)");
-			exit(-1);
+			return (-1);
 		}
 		if ((nat_fd = open(IPNAT_NAME, O_RDONLY)) == -1) {
 			perror("open(IPAUTH_NAME)");
-			exit(-1);
+			return (-1);
 		}
 		if ((ipf_fd = open(IPL_NAME, O_RDONLY)) == -1) {
 			fprintf(stderr, "open(%s)", IPL_NAME);
 			perror("");
-			exit(-1);
+			return (-1);
 		}
 	}
 
@@ -272,7 +272,7 @@ int main(int argc, char *argv[])
 		(void) checkrev(IPL_NAME);
 	} else {
 		if (openkmem(kern, memf) == -1)
-			exit(-1);
+			return (-1);
 	}
 
 	(void)setgid(getgid());
@@ -330,7 +330,7 @@ int main(int argc, char *argv[])
 			if (filter == NULL) {
 				fprintf(stderr, "Error parseing '%s'\n",
 					optarg);
-				exit(1);
+				return (1);
 			}
 			break;
 		case 'M' :
@@ -351,7 +351,7 @@ int main(int argc, char *argv[])
 			if (protocol == -1) {
 				fprintf(stderr, "%s: Invalid protocol: %s\n",
 					argv[0], optarg);
-				exit(-2);
+				return (-2);
 			}
 			break;
 		case 'R' :
@@ -371,7 +371,7 @@ int main(int argc, char *argv[])
 			fprintf(stderr,
 				"%s: state top facility not compiled in\n",
 				argv[0]);
-			exit(-2);
+			return (-2);
 #endif
 		case 'T' :
 			if (!sscanf(optarg, "%d", &refreshtime) ||
@@ -379,7 +379,7 @@ int main(int argc, char *argv[])
 				fprintf(stderr,
 					"%s: Invalid refreshtime < 1 : %s\n",
 					argv[0], optarg);
-				exit(-2);
+				return (-2);
 			}
 			break;
 		case 'v' :
@@ -398,7 +398,7 @@ int main(int argc, char *argv[])
 #else
 		FPRINTF(stderr, "No -i or -o given with -4 or -6\n");
 #endif
-		exit(-2);
+		return (-2);
 	}
 	if (use_inet4 == 0 && use_inet6 == 0)
 		use_inet4 = use_inet6 = 1;

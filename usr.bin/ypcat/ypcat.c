@@ -101,7 +101,7 @@ main(int argc, char *argv[])
 			for (i = 0; i < nitems(ypaliases); i++)
 				printf("Use \"%s\" for \"%s\"\n",
 				    ypaliases[i].alias, ypaliases[i].name);
-			exit(0);
+			return (0);
 		case 'd':
 			domain = optarg;
 			break;
@@ -140,5 +140,5 @@ main(int argc, char *argv[])
 		errx(1, "no such map %s. Reason: %s",
 		    inmap, yperr_string(r));
 	}
-	exit(0);
+	return (0);
 }

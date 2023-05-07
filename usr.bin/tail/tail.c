@@ -255,7 +255,7 @@ main(int argc, char *argv[])
 
 		if (fstat(fileno(stdin), &sb)) {
 			ierr(fn);
-			exit(1);
+			return (1);
 		}
 
 		/*
@@ -280,7 +280,7 @@ main(int argc, char *argv[])
 		}
 	}
 	fileargs_free(fa);
-	exit(rval);
+	return (rval);
 }
 
 /*

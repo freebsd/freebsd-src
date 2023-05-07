@@ -76,7 +76,7 @@ int main(argc, argv)
 
 	if (argc < 2) {
 		usage(progname);
-		exit(1);
+		return (1);
 	}
 
 #if 0
@@ -90,7 +90,7 @@ int main(argc, argv)
 	lfd = open(IPSYNC_NAME, O_WRONLY);
 	if (lfd == -1) {
 		syslog(LOG_ERR, "Opening %s :%m", IPSYNC_NAME);
-		exit(1);
+		return (1);
 	}
 
 	bzero((char *)&sin, sizeof(sin));
@@ -270,5 +270,5 @@ tryagain:
 
 	syslog(LOG_ERR, "signal %d received, exiting...", terminate);
 
-	exit(1);
+	return (1);
 }

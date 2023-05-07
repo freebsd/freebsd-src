@@ -98,7 +98,7 @@ main(int argc, char *argv[])
 			fclose(in);
 		}
 	}
-	exit(found ? 0 : 1);
+	return (found ? 0 : 1);
 }
 
 static void

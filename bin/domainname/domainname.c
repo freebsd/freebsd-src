@@ -80,7 +80,7 @@ main(int argc, char *argv[])
 			err(1, "getdomainname");
 		(void)printf("%s\n", domainname);
 	}
-	exit(0);
+	return 0;
 }
 
 static void

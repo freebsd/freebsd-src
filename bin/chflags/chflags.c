@@ -212,7 +212,7 @@ main(int argc, char *argv[])
 	}
 	if (errno)
 		err(1, "fts_read");
-	exit(rval);
+	return (rval);
 }
 
 static void

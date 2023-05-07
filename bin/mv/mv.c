@@ -125,7 +125,7 @@ main(int argc, char *argv[])
 	if (stat(argv[argc - 1], &sb) || !S_ISDIR(sb.st_mode)) {
 		if (argc > 2)
 			errx(1, "%s is not a directory", argv[argc - 1]);
-		exit(do_move(argv[0], argv[1]));
+		return (do_move(argv[0], argv[1]));
 	}
 
 	/*
@@ -136,7 +136,7 @@ main(int argc, char *argv[])
 		if (argc > 2)
 			usage();
 		if (lstat(argv[1], &sb) == 0 && S_ISLNK(sb.st_mode))
-			exit(do_move(argv[0], argv[1]));
+			return (do_move(argv[0], argv[1]));
 	}
 
 	/* It's a directory, move each file into it. */
@@ -169,7 +169,7 @@ main(int argc, char *argv[])
 				rval = 1;
 		}
 	}
-	exit(rval);
+	return (rval);
 }
 
 static int

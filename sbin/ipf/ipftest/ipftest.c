@@ -91,14 +91,14 @@ main(int argc, char *argv[])
 
 	softc = ipf_create_all(NULL);
 	if (softc == NULL)
-		exit(1);
+		return (1);
 
 	if (ipf_init_all(softc) == -1)
-		exit(1);
+		return (1);
 
 	i = 1;
 	if (ipftestioctl(IPL_LOGIPF, SIOCFRENB, &i) != 0)
-		exit(1);
+		return (1);
 
 	while ((c = getopt(argc, argv, "6bCdDF:i:I:l:N:P:or:RS:T:vxX")) != -1)
 		switch (c)
@@ -108,7 +108,7 @@ main(int argc, char *argv[])
 			use_inet6 = 1;
 #else
 			fprintf(stderr, "IPv6 not supported\n");
-			exit(1);
+			return (1);
 #endif
 			break;
 		case 'b' :
@@ -180,7 +180,7 @@ main(int argc, char *argv[])
 
 	if (loaded == 0) {
 		(void)fprintf(stderr,"no rules loaded\n");
-		exit(-1);
+		return (-1);
 	}
 
 	if (opts & OPT_SAVEOUT)
@@ -193,7 +193,7 @@ main(int argc, char *argv[])
 
 	if (fd < 0) {
 		perror("error opening input");
-		exit(-1);
+		return (-1);
 	}
 
 	m->m_data = (char *)m->mb_buf;

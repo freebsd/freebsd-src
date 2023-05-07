@@ -118,7 +118,7 @@ main(int argc, char *argv[])
 			break;
 		ruptime(*argv, aflg, cmp);
 	}
-	exit(0);
+	return (0);
 }
 
 static char *
