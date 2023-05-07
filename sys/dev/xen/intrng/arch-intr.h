@@ -67,7 +67,7 @@ xen_arch_intr_describe(struct xenisrc *_Nonnull isrc, void *_Nonnull cookie,
     const char *_Nonnull descr)
 {
 
-	return (intr_event_describe_handler(isrc->xi_arch, cookie, descr));
+	return (intr_describe(&isrc->xi_arch, cookie, descr));
 }
 
 static inline int
