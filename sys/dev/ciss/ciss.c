@@ -279,7 +279,7 @@ TUNABLE_INT("hw.ciss.force_interrupt", &ciss_force_interrupt);
  * stick with matching against subvendor/subdevice, and thus have to
  * be updated for every new CISS adapter that appears.
  */
-#define CISS_BOARD_UNKNWON	0
+#define CISS_BOARD_UNKNOWN	0
 #define CISS_BOARD_SA5		1
 #define CISS_BOARD_SA5B		2
 #define CISS_BOARD_NOMSI	(1<<4)
