@@ -60,6 +60,7 @@
 /sbin/mount_fusefs @asomers
 /secure/usr.bin/openssl/	@juikim
 /share/mk	@bsdimp @bapt @bdrewery @emaste
+/stand		@bsdimp
 /stand/lua	@kevans91
 /sys/amd64/pci	@bsdimp @bsdjhb
 /sys/amd64/vmm/	@bsdjhb @grehan-freebsd
