@@ -82,6 +82,7 @@ static inline int
 xen_arch_intr_event_bind(struct xenisrc *_Nonnull isrc, u_int cpu)
 {
 
+	MPASS(isrc->xi_arch.isrc_event != NULL);
 	return (intr_event_bind(isrc->xi_arch.isrc_event, cpu));
 }
 
