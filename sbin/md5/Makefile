@@ -52,6 +52,12 @@ MLINKS=	md5.1 md5sum.1 \
 	md5.1 skein1024.1 \
 	md5.1 skein1024sum.1
 
+# md5 can also emulate the shasum script that comes with Perl, except
+# that, in bits input mode, it can only handle input lengths that are
+# a multiple of 8 (see manual page).
+#LINKS+= ${BINDIR}/md5 ${BINDIR}/shasum
+#MLINKS+= md5.1 shasum.1
+
 LIBADD=	md
 
 .ifndef(BOOTSTRAPPING)

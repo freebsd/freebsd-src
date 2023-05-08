@@ -21,11 +21,13 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/stat.h>
+#include <sys/time.h>
 
 #include <err.h>
 #include <fcntl.h>
+#include <getopt.h>
 #include <md5.h>
 #include <ripemd.h>
 #include <sha.h>
@@ -54,16 +56,20 @@ __FBSDID("$FreeBSD$");
 #define TEST_BLOCK_COUNT 100000
 #define MDTESTCOUNT 8
 
-static int bflag;
-static int cflag;
-static int pflag;
-static int qflag;
-static int rflag;
-static int sflag;
-static int skip;
+static char *progname;
+
+static bool cflag;
+static bool pflag;
+static bool qflag;
+static bool sflag;
+static bool wflag;
+static bool strict;
+static bool skip;
+static bool ignoreMissing;
 static char* checkAgainst;
 static int checksFailed;
-static int failed;
+static bool failed;
+static int endl = '\n';
 
 typedef void (DIGEST_Init)(void *);
 typedef void (DIGEST_Update)(void *, const unsigned char *, size_t);
@@ -84,21 +90,22 @@ extern const char *SKEIN1024_TestOutput[MDTESTCOUNT];
 
 typedef struct Algorithm_t {
 	const char *progname;
+	const char *perlname;
 	const char *name;
 	const char *(*TestOutput)[MDTESTCOUNT];
 	DIGEST_Init *Init;
 	DIGEST_Update *Update;
 	DIGEST_End *End;
 	char *(*Data)(const void *, unsigned int, char *);
-	char *(*Fd)(int, char *);
 } Algorithm_t;
 
 static void MD5_Update(MD5_CTX *, const unsigned char *, size_t);
-static void MDOutput(const Algorithm_t *, char *, char **);
+static char *MDInput(const Algorithm_t *, FILE *, char *, bool);
+static void MDOutput(const Algorithm_t *, char *, const char *);
 static void MDTimeTrial(const Algorithm_t *);
 static void MDTestSuite(const Algorithm_t *);
-static char *MDFilter(const Algorithm_t *, char*, int);
 static void usage(const Algorithm_t *);
+static void version(void);
 
 typedef union {
 	MD5_CTX md5;
@@ -121,47 +128,155 @@ typedef union {
 /* algorithm function table */
 
 static const struct Algorithm_t Algorithm[] = {
-	{ "md5", "MD5", &MD5TestOutput, (DIGEST_Init*)&MD5Init,
+	{ "md5", NULL, "MD5",
+		&MD5TestOutput, (DIGEST_Init*)&MD5Init,
 		(DIGEST_Update*)&MD5_Update, (DIGEST_End*)&MD5End,
-		&MD5Data, &MD5Fd },
-	{ "sha1", "SHA1", &SHA1_TestOutput, (DIGEST_Init*)&SHA1_Init,
+		&MD5Data },
+	{ "sha1", "1", "SHA1",
+		&SHA1_TestOutput, (DIGEST_Init*)&SHA1_Init,
 		(DIGEST_Update*)&SHA1_Update, (DIGEST_End*)&SHA1_End,
-		&SHA1_Data, &SHA1_Fd },
-	{ "sha224", "SHA224", &SHA224_TestOutput, (DIGEST_Init*)&SHA224_Init,
+		&SHA1_Data },
+	{ "sha224", "224", "SHA224",
+		&SHA224_TestOutput, (DIGEST_Init*)&SHA224_Init,
 		(DIGEST_Update*)&SHA224_Update, (DIGEST_End*)&SHA224_End,
-		&SHA224_Data, &SHA224_Fd },
-	{ "sha256", "SHA256", &SHA256_TestOutput, (DIGEST_Init*)&SHA256_Init,
+		&SHA224_Data },
+	{ "sha256", "256", "SHA256",
+		&SHA256_TestOutput, (DIGEST_Init*)&SHA256_Init,
 		(DIGEST_Update*)&SHA256_Update, (DIGEST_End*)&SHA256_End,
-		&SHA256_Data, &SHA256_Fd },
-	{ "sha384", "SHA384", &SHA384_TestOutput, (DIGEST_Init*)&SHA384_Init,
+		&SHA256_Data },
+	{ "sha384", "384", "SHA384",
+		&SHA384_TestOutput, (DIGEST_Init*)&SHA384_Init,
 		(DIGEST_Update*)&SHA384_Update, (DIGEST_End*)&SHA384_End,
-		&SHA384_Data, &SHA384_Fd },
-	{ "sha512", "SHA512", &SHA512_TestOutput, (DIGEST_Init*)&SHA512_Init,
+		&SHA384_Data },
+	{ "sha512", "512", "SHA512",
+		&SHA512_TestOutput, (DIGEST_Init*)&SHA512_Init,
 		(DIGEST_Update*)&SHA512_Update, (DIGEST_End*)&SHA512_End,
-		&SHA512_Data, &SHA512_Fd },
-	{ "sha512t224", "SHA512t224", &SHA512t224_TestOutput, (DIGEST_Init*)&SHA512_224_Init,
+		&SHA512_Data },
+	{ "sha512t224", "512224", "SHA512t224",
+		&SHA512t224_TestOutput, (DIGEST_Init*)&SHA512_224_Init,
 		(DIGEST_Update*)&SHA512_224_Update, (DIGEST_End*)&SHA512_224_End,
-		&SHA512_224_Data, &SHA512_224_Fd },
-	{ "sha512t256", "SHA512t256", &SHA512t256_TestOutput, (DIGEST_Init*)&SHA512_256_Init,
+		&SHA512_224_Data },
+	{ "sha512t256", "512256", "SHA512t256",
+		&SHA512t256_TestOutput, (DIGEST_Init*)&SHA512_256_Init,
 		(DIGEST_Update*)&SHA512_256_Update, (DIGEST_End*)&SHA512_256_End,
-		&SHA512_256_Data, &SHA512_256_Fd },
-	{ "rmd160", "RMD160", &RIPEMD160_TestOutput,
+		&SHA512_256_Data },
+	{ "rmd160", NULL, "RMD160",
+		&RIPEMD160_TestOutput,
 		(DIGEST_Init*)&RIPEMD160_Init, (DIGEST_Update*)&RIPEMD160_Update,
-		(DIGEST_End*)&RIPEMD160_End, &RIPEMD160_Data, &RIPEMD160_Fd },
-	{ "skein256", "Skein256", &SKEIN256_TestOutput,
+		(DIGEST_End*)&RIPEMD160_End, &RIPEMD160_Data },
+	{ "skein256", NULL, "Skein256",
+		&SKEIN256_TestOutput,
 		(DIGEST_Init*)&SKEIN256_Init, (DIGEST_Update*)&SKEIN256_Update,
-		(DIGEST_End*)&SKEIN256_End, &SKEIN256_Data, &SKEIN256_Fd },
-	{ "skein512", "Skein512", &SKEIN512_TestOutput,
+		(DIGEST_End*)&SKEIN256_End, &SKEIN256_Data },
+	{ "skein512", NULL, "Skein512",
+		&SKEIN512_TestOutput,
 		(DIGEST_Init*)&SKEIN512_Init, (DIGEST_Update*)&SKEIN512_Update,
-		(DIGEST_End*)&SKEIN512_End, &SKEIN512_Data, &SKEIN512_Fd },
-	{ "skein1024", "Skein1024", &SKEIN1024_TestOutput,
+		(DIGEST_End*)&SKEIN512_End, &SKEIN512_Data },
+	{ "skein1024", NULL, "Skein1024",
+		&SKEIN1024_TestOutput,
 		(DIGEST_Init*)&SKEIN1024_Init, (DIGEST_Update*)&SKEIN1024_Update,
-		(DIGEST_End*)&SKEIN1024_End, &SKEIN1024_Data, &SKEIN1024_Fd }
+		(DIGEST_End*)&SKEIN1024_End, &SKEIN1024_Data },
+	{ }
 };
 
-static unsigned	digest;
-static unsigned	malformed;
-static bool	gnu_emu = false;
+static int digest = -1;
+static unsigned int malformed;
+
+static enum mode {
+	mode_bsd,
+	mode_gnu,
+	mode_perl,
+} mode = mode_bsd;
+
+static enum input_mode {
+	input_binary	 = '*',
+	input_text	 = ' ',
+	input_universal	 = 'U',
+	input_bits	 = '^',
+} input_mode = input_binary;
+
+static enum output_mode {
+	output_bare,
+	output_tagged,
+	output_reverse,
+	output_gnu,
+} output_mode = output_tagged;
+
+enum optval {
+	opt_end = -1,
+	/* ensure we don't collide with shortopts */
+	opt_dummy = CHAR_MAX,
+	/* BSD options */
+	opt_check,
+	opt_passthrough,
+	opt_quiet,
+	opt_reverse,
+	opt_string,
+	opt_time_trial,
+	opt_self_test,
+	/* GNU options */
+	opt_binary,
+	opt_help,
+	opt_ignore_missing,
+	opt_status,
+	opt_strict,
+	opt_tag,
+	opt_text,
+	opt_warn,
+	opt_version,
+	opt_zero,
+	/* Perl options */
+	opt_algorithm,
+	opt_bits,
+	opt_universal,
+};
+
+static const struct option bsd_longopts[] = {
+	{ "check",		required_argument,	0, opt_check },
+	{ "passthrough",	no_argument,		0, opt_passthrough },
+	{ "quiet",		no_argument,		0, opt_quiet },
+	{ "reverse",		no_argument,		0, opt_reverse },
+	{ "string",		required_argument,	0, opt_string },
+	{ "time-trial",		no_argument,		0, opt_time_trial },
+	{ "self-test",		no_argument,		0, opt_self_test },
+	{ }
+};
+static const char *bsd_shortopts = "bc:pqrs:tx";
+
+static const struct option gnu_longopts[] = {
+	{ "binary",		no_argument,		0, opt_binary },
+	{ "check",		no_argument,		0, opt_check },
+	{ "help",		no_argument,		0, opt_help },
+	{ "ignore-missing",	no_argument,		0, opt_ignore_missing },
+	{ "quiet",		no_argument,		0, opt_quiet },
+	{ "status",		no_argument,		0, opt_status },
+	{ "strict",		no_argument,		0, opt_strict },
+	{ "tag",		no_argument,		0, opt_tag },
+	{ "text",		no_argument,		0, opt_text },
+	{ "version",		no_argument,		0, opt_version },
+	{ "warn",		no_argument,		0, opt_warn },
+	{ "zero",		no_argument,		0, opt_zero },
+	{ }
+};
+static const char *gnu_shortopts = "bctwz";
+
+static const struct option perl_longopts[] = {
+	{ "algorithm",		required_argument,	0, opt_algorithm },
+	{ "check",		required_argument,	0, opt_check },
+	{ "help",		no_argument,		0, opt_help },
+	{ "ignore-missing",	no_argument,		0, opt_ignore_missing },
+	{ "quiet",		no_argument,		0, opt_quiet },
+	{ "status",		no_argument,		0, opt_status },
+	{ "strict",		no_argument,		0, opt_strict },
+	{ "tag",		no_argument,		0, opt_tag },
+	{ "text",		no_argument,		0, opt_text },
+	{ "UNIVERSAL",		no_argument,		0, opt_universal },
+	{ "version",		no_argument,		0, opt_version },
+	{ "warn",		no_argument,		0, opt_warn },
+	{ "01",			no_argument,		0, opt_bits },
+	{ }
+};
+static const char *perl_shortopts = "0a:bchqstUvw";
 
 static void
 MD5_Update(MD5_CTX *c, const unsigned char *data, size_t len)
@@ -177,60 +292,70 @@ struct chksumrec {
 
 static struct chksumrec *head = NULL;
 static struct chksumrec **next = &head;
+static unsigned int numrecs;
 
 #define PADDING	7	/* extra padding for "SHA512t256 (...) = ...\n" style */
 #define CHKFILELINELEN	(HEX_DIGEST_LENGTH + MAXPATHLEN + PADDING)
 
-static int gnu_check(const char *checksumsfile)
+static void
+gnu_check(const char *checksumsfile)
 {
 	FILE	*inp;
-	char	linebuf[CHKFILELINELEN];
-	int	linelen;
+	char	*linebuf = NULL;
+	size_t	linecap;
+	ssize_t	linelen;
 	int	lineno;
 	char	*filename;
 	char	*hashstr;
 	struct chksumrec	*rec;
 	const char	*digestname;
-	int	digestnamelen;
-	int	hashstrlen;
+	size_t	digestnamelen;
+	size_t	hashstrlen;
 
-	if ((inp = fopen(checksumsfile, "r")) == NULL)
+	if (strcmp(checksumsfile, "-") == 0)
+		inp = stdin;
+	else if ((inp = fopen(checksumsfile, "r")) == NULL)
 		err(1, "%s", checksumsfile);
 	digestname = Algorithm[digest].name;
 	digestnamelen = strlen(digestname);
 	hashstrlen = strlen(*(Algorithm[digest].TestOutput[0]));
-	lineno = 1;
-	while (fgets(linebuf, sizeof(linebuf), inp) != NULL) {
-		linelen = strlen(linebuf) - 1;
-		if (linelen <= 0)
-			break;
-		if (linebuf[linelen] != '\n')
-			errx(1, "malformed input line %d (len=%d)", lineno, linelen);
+	lineno = 0;
+	linecap = CHKFILELINELEN;
+	while ((linelen = getline(&linebuf, &linecap, inp)) > 0) {
+		lineno++;
+		while (linelen > 0 && linebuf[linelen - 1] == '\n')
+			linelen--;
 		linebuf[linelen] = '\0';
 		filename = linebuf + digestnamelen + 2;
 		hashstr = linebuf + linelen - hashstrlen;
 		/*
 		 * supported formats:
 		 * BSD: <DigestName> (<Filename>): <Digest>
-		 * GNU: <Digest> [ *]<Filename>
+		 * GNU: <Digest> [ *U^]<Filename>
 		 */
-		if (linelen >= digestnamelen + hashstrlen + 6 &&
+		if ((size_t)linelen >= digestnamelen + hashstrlen + 6 &&
 		    strncmp(linebuf, digestname, digestnamelen) == 0 &&
 		    strncmp(filename - 2, " (", 2) == 0 &&
-		    strncmp(hashstr - 4, ") = ", 4) == 0) {
+		    strncmp(hashstr - 4, ") = ", 4) == 0 &&
+		    strspn(hashstr, "0123456789ABCDEFabcdef") == hashstrlen) {
 			*(hashstr - 4) = '\0';
-		} else if (linelen >= hashstrlen + 3 &&
+		} else if ((size_t)linelen >= hashstrlen + 3 &&
+		    strspn(linebuf, "0123456789ABCDEFabcdef") == hashstrlen &&
 		    linebuf[hashstrlen] == ' ') {
 			linebuf[hashstrlen] = '\0';
 			hashstr = linebuf;
 			filename = linebuf + hashstrlen + 1;
-			if (*filename == ' ' || *filename == '*')
-				filename++;
 		} else {
+			if (wflag) {
+				warnx("%s: %d: improperly formatted "
+				    "%s checksum line",
+				    checksumsfile, lineno,
+				    mode == mode_perl ? "SHA" : digestname);
+			}
 			malformed++;
 			continue;
 		}
-		rec = malloc(sizeof (*rec));
+		rec = malloc(sizeof(*rec));
 		if (rec == NULL)
 			errx(1, "malloc failed");
 		rec->chksum = strdup(hashstr);
@@ -240,10 +365,10 @@ static int gnu_check(const char *checksumsfile)
 		rec->next = NULL;
 		*next = rec;
 		next = &rec->next;
-		lineno++;
+		numrecs++;
 	}
-	fclose(inp);
-	return (lineno - 1);
+	if (inp != stdin)
+		fclose(inp);
 }
 
 /* Main driver.
@@ -261,18 +386,19 @@ main(int argc, char *argv[])
 #ifdef HAVE_CAPSICUM
 	cap_rights_t	rights;
 #endif
-	int	ch, fd;
-	char   *p, *string;
+	const struct option *longopts;
+	const char *shortopts;
+	FILE   *f;
+	int	i, opt;
+	char   *p, *string = NULL;
 	char	buf[HEX_DIGEST_LENGTH];
 	size_t	len;
-	char	*progname;
 	struct chksumrec	*rec;
-	int	numrecs;
 
- 	if ((progname = strrchr(argv[0], '/')) == NULL)
- 		progname = argv[0];
- 	else
- 		progname++;
+	if ((progname = strrchr(argv[0], '/')) == NULL)
+		progname = argv[0];
+	else
+		progname++;
 
 	/*
 	 * GNU coreutils has a number of programs named *sum. These produce
@@ -284,59 +410,150 @@ main(int argc, char *argv[])
 	 * since that means 'text file' there (though it's a nop in coreutils
 	 * on unix-like systems). The -c flag conflicts, so it's just disabled
 	 * in this mode (though in the future it might be implemented).
+	 *
+	 * We also strive to be compatible with the shasum script which is
+	 * included in Perl.  It is roughly equivalent to the GNU offering
+	 * but uses a command-line argument to select the algorithm, and
+	 * supports only SHA-1 and SHA-2.
 	 */
 	len = strlen(progname);
-	if (len > 3 && strcmp(progname + len - 3, "sum") == 0) {
+	if (strcmp(progname, "shasum") == 0) {
+		mode = mode_perl;
+		input_mode = input_text;
+		output_mode = output_gnu;
+		digest = 1;
+		longopts = perl_longopts;
+		shortopts = perl_shortopts;
+	} else if (len > 3 && strcmp(progname + len - 3, "sum") == 0) {
 		len -= 3;
-		rflag = 1;
-		gnu_emu = true;
+		mode = mode_gnu;
+		input_mode = input_text;
+		/*
+		 * The historical behavior in GNU emulation mode is
+		 * output_reverse, however this not true to the original
+		 * and the flag that was used to force the correct output
+		 * was -b, which means something else (input_binary) in
+		 * GNU land.  Switch to the correct behavior.
+		 */
+		output_mode = output_gnu;
+		longopts = gnu_longopts;
+		shortopts = gnu_shortopts;
+	} else {
+		mode = mode_bsd;
+		input_mode = input_binary;
+		output_mode = output_tagged;
+		longopts = bsd_longopts;
+		shortopts = bsd_shortopts;
 	}
 
- 	for (digest = 0; digest < sizeof(Algorithm)/sizeof(*Algorithm); digest++)
- 		if (strncasecmp(Algorithm[digest].progname, progname, len) == 0)
- 			break;
+	if (digest < 0) {
+		for (digest = 0; Algorithm[digest].progname != NULL; digest++)
+			if (strncasecmp(Algorithm[digest].progname, progname, len) == 0)
+				break;
 
- 	if (digest == sizeof(Algorithm)/sizeof(*Algorithm))
- 		digest = 0;
+		if (Algorithm[digest].progname == NULL)
+			digest = 0;
+	}
 
-	failed = 0;
+	failed = false;
 	checkAgainst = NULL;
 	checksFailed = 0;
-	skip = 0;
-	while ((ch = getopt(argc, argv, "bc:pqrs:tx")) != -1)
-		switch (ch) {
-		case 'b':
-			bflag = 1;
+	skip = false;
+	while ((opt = getopt_long(argc, argv, shortopts, longopts, NULL)) != opt_end)
+		switch (opt) {
+		case opt_bits:
+		case '0':
+			input_mode = input_bits;
 			break;
+		case opt_algorithm:
+		case 'a':
+			for (i = 0; Algorithm[i].progname != NULL; i++) {
+				if (Algorithm[i].perlname != NULL &&
+				    strcasecmp(Algorithm[i].perlname, optarg) == 0) {
+					digest = i;
+					break;
+				}
+			}
+			if (Algorithm[i].progname == NULL)
+				usage(&Algorithm[digest]);
+			break;
+		case opt_binary:
+		case 'b':
+			/* in BSD mode, -b is now a no-op */
+			if (mode != mode_bsd)
+				input_mode = input_binary;
+			break;
+		case opt_check:
 		case 'c':
-			cflag = 1;
-			if (gnu_emu)
-				numrecs = gnu_check(optarg);
-			else
+			cflag = true;
+			if (mode == mode_bsd)
 				checkAgainst = optarg;
 			break;
+		case opt_passthrough:
 		case 'p':
-			pflag = 1;
+			pflag = true;
 			break;
+		case opt_quiet:
 		case 'q':
-			qflag = 1;
+			output_mode = output_bare;
+			qflag = true;
 			break;
+		case opt_reverse:
 		case 'r':
-			rflag = 1;
+			if (!qflag)
+				output_mode = output_reverse;
+			break;
+		case opt_status:
+			sflag = true;
+			break;
+		case opt_strict:
+			strict = 1;
 			break;
 		case 's':
-			sflag = 1;
+			if (mode == mode_perl) {
+				sflag = true;
+				break;
+			}
+			/* fall through */
+		case opt_string:
+			output_mode = output_bare;
 			string = optarg;
 			break;
-		case 't':
-			if (!gnu_emu) {
-				MDTimeTrial(&Algorithm[digest]);
-				skip = 1;
-			} /* else: text mode is a nop */
+		case opt_tag:
+			output_mode = output_tagged;
 			break;
+		case opt_time_trial:
+		case opt_text:
+		case 't':
+			if (mode == mode_bsd) {
+				MDTimeTrial(&Algorithm[digest]);
+				skip = true;
+			} else {
+				input_mode = input_text;
+			}
+			break;
+		case opt_universal:
+		case 'U':
+			input_mode = input_universal;
+			break;
+		case opt_version:
+			version();
+			break;
+		case opt_warn:
+		case 'w':
+			wflag = true;
+			break;
+		case opt_self_test:
 		case 'x':
 			MDTestSuite(&Algorithm[digest]);
-			skip = 1;
+			skip = true;
+			break;
+		case opt_zero:
+		case 'z':
+			endl = '\0';
+			break;
+		case opt_ignore_missing:
+			ignoreMissing = true;
 			break;
 		default:
 			usage(&Algorithm[digest]);
@@ -349,12 +566,17 @@ main(int argc, char *argv[])
 		err(1, "unable to limit rights for stdio");
 #endif
 
-	if (cflag && gnu_emu) {
+	if (cflag && mode != mode_bsd) {
 		/*
-		 * Replace argv by an array of filenames from the digest file
+		 * Read digest files into a linked list, then replace argv
+		 * with an array of the filenames from that list.
 		 */
+		if (argc < 1)
+			usage(&Algorithm[digest]);
+		while (argc--)
+			gnu_check(*argv++);
 		argc = 0;
-		argv = (char**)calloc(sizeof(char *), numrecs + 1);
+		argv = calloc(sizeof(char *), numrecs + 1);
 		for (rec = head; rec != NULL; rec = rec->next) {
 			argv[argc] = rec->filename;
 			argc++;
@@ -365,10 +587,27 @@ main(int argc, char *argv[])
 
 	if (*argv) {
 		do {
-			if ((fd = open(*argv, O_RDONLY)) < 0) {
-				warn("%s", *argv);
-				failed++;
-				if (cflag && gnu_emu)
+			struct stat st;
+			const char *filename = *argv;
+			const char *filemode = "rb";
+
+			if (*filename == '*' ||
+			    *filename == ' ' ||
+			    *filename == 'U' ||
+			    *filename == '^') {
+				if (lstat(filename, &st) != 0) {
+					input_mode = (int)*filename;
+					filename++;
+				}
+			}
+			if (input_mode == input_text)
+				filemode = "r";
+			if ((f = fopen(filename, filemode)) == NULL) {
+				if (errno != ENOENT || !(cflag && ignoreMissing)) {
+					warn("%s", filename);
+					failed = true;
+				}
+				if (cflag && mode != mode_bsd)
 					rec = rec->next;
 				continue;
 			}
@@ -381,38 +620,46 @@ main(int argc, char *argv[])
 			if (*(argv + 1) == NULL) {
 #ifdef HAVE_CAPSICUM
 				cap_rights_init(&rights, CAP_READ);
-				if (caph_rights_limit(fd, &rights) < 0 ||
+				if (caph_rights_limit(fileno(f), &rights) < 0 ||
 				    caph_enter() < 0)
 					err(1, "capsicum");
 #endif
 			}
-			if (cflag && gnu_emu) {
+			if (cflag && mode != mode_bsd) {
 				checkAgainst = rec->chksum;
 				rec = rec->next;
 			}
-			p = Algorithm[digest].Fd(fd, buf);
-			(void)close(fd);
-			MDOutput(&Algorithm[digest], p, argv);
+			p = MDInput(&Algorithm[digest], f, buf, false);
+			(void)fclose(f);
+			MDOutput(&Algorithm[digest], p, filename);
 		} while (*++argv);
-	} else if (!cflag && !sflag && !skip) {
+	} else if (!cflag && string == NULL && !skip) {
 #ifdef HAVE_CAPSICUM
 		if (caph_limit_stdin() < 0 || caph_enter() < 0)
 			err(1, "capsicum");
 #endif
-		p = MDFilter(&Algorithm[digest], (char *)&buf, pflag);
-		MDOutput(&Algorithm[digest], p, NULL);
-	} else if (sflag) {
+		if (mode == mode_bsd)
+			output_mode = output_bare;
+		p = MDInput(&Algorithm[digest], stdin, buf, pflag);
+		MDOutput(&Algorithm[digest], p, "-");
+	} else if (string != NULL) {
 		len = strlen(string);
 		p = Algorithm[digest].Data(string, len, buf);
-		MDOutput(&Algorithm[digest], p, &string);
+		MDOutput(&Algorithm[digest], p, string);
 	}
-	if (gnu_emu) {
-		if (malformed > 0)
+	if (cflag && mode != mode_bsd) {
+		if (!sflag && malformed > 1)
 			warnx("WARNING: %d lines are improperly formatted", malformed);
-		if (checksFailed > 0)
+		else if (!sflag && malformed > 0)
+			warnx("WARNING: %d line is improperly formatted", malformed);
+		if (!sflag && checksFailed > 1)
 			warnx("WARNING: %d computed checksums did NOT match", checksFailed);
+		else if (!sflag && checksFailed > 0)
+			warnx("WARNING: %d computed checksum did NOT match", checksFailed);
+		if (checksFailed != 0 || (strict && malformed > 0))
+			return (1);
 	}
-	if (failed != 0)
+	if (failed)
 		return (1);
 	if (checksFailed != 0)
 		return (2);
@@ -421,47 +668,129 @@ main(int argc, char *argv[])
 }
 
 /*
+ * Common input handling
+ */
+static char *
+MDInput(const Algorithm_t *alg, FILE *f, char *buf, bool tee)
+{
+	char block[4096];
+	DIGEST_CTX context;
+	char *end, *p, *q;
+	size_t len;
+	int bits;
+	uint8_t byte;
+	bool cr = false;
+
+	alg->Init(&context);
+	while ((len = fread(block, 1, sizeof(block), f)) > 0) {
+		switch (input_mode) {
+		case input_binary:
+		case input_text:
+			if (tee && fwrite(block, 1, len, stdout) != (size_t)len)
+				err(1, "stdout");
+			alg->Update(&context, block, len);
+			break;
+		case input_universal:
+			end = block + len;
+			for (p = q = block; p < end; p = q) {
+				if (cr) {
+					if (*p == '\n')
+						p++;
+					if (tee && putchar('\n') == EOF)
+						err(1, "stdout");
+					alg->Update(&context, "\n", 1);
+					cr = false;
+				}
+				for (q = p; q < end && *q != '\r'; q++)
+					/* nothing */;
+				if (q > p) {
+					if (tee &&
+					    fwrite(p, 1, q - p, stdout) !=
+					    (size_t)(q - p))
+						err(1, "stdout");
+					alg->Update(&context, p, q - p);
+				}
+				if (q < end && *q == '\r') {
+					cr = true;
+					q++;
+				}
+			}
+			break;
+		case input_bits:
+			end = block + len;
+			bits = byte = 0;
+			for (p = block; p < end; p++) {
+				if (*p == '0' || *p == '1') {
+					byte <<= 1;
+					byte |= *p - '0';
+					if (++bits == 8) {
+						if (tee && putchar(byte) == EOF)
+							err(1, "stdout");
+						alg->Update(&context, &byte, 1);
+						bits = byte = 0;
+					}
+				}
+			}
+			break;
+		}
+	}
+	if (len < 0) {
+		alg->End(&context, buf);
+		return (NULL);
+	}
+	if (cr) {
+		if (tee && putchar('\n') == EOF)
+			err(1, "stdout");
+		alg->Update(&context, "\n", 1);
+	}
+	if (input_mode == input_bits && bits != 0)
+		errx(1, "input length was not a multiple of 8");
+	return (alg->End(&context, buf));
+}
+
+/*
  * Common output handling
  */
 static void
-MDOutput(const Algorithm_t *alg, char *p, char *argv[])
+MDOutput(const Algorithm_t *alg, char *p, const char *name)
 {
 	bool checkfailed = false;
 
 	if (p == NULL) {
-		warn("%s", *argv);
+		warn("%s", name);
 		failed++;
+	} else if (cflag && mode != mode_bsd) {
+		checkfailed = strcasecmp(checkAgainst, p) != 0;
+		if (!sflag && (!qflag || checkfailed))
+			printf("%s: %s%c", name, checkfailed ? "FAILED" : "OK",
+			    endl);
 	} else {
-		/*
-		 * If argv is NULL we are reading from stdin, where the output
-		 * format has always been just the hash.
-		 */
-		if (cflag && gnu_emu) {
-			checkfailed = strcasecmp(checkAgainst, p) != 0;
-			if (!qflag || checkfailed)
-				printf("%s: %s\n", *argv, checkfailed ? "FAILED" : "OK");
-		} else if (qflag || argv == NULL) {
-			printf("%s\n", p);
-			if (cflag)
-				checkfailed = strcasecmp(checkAgainst, p) != 0;
-		} else {
-			if (rflag)
-				if (gnu_emu)
-					if (bflag)
-						printf("%s *%s", p, *argv);
-					else
-						printf("%s  %s", p, *argv);
-				else
-					printf("%s %s", p, *argv);
-			else
-				printf("%s (%s) = %s", alg->name, *argv, p);
-			if (checkAgainst) {
-				checkfailed = strcasecmp(checkAgainst, p) != 0;
-				if (!qflag && checkfailed)
-					printf(" [ Failed ]");
+		switch (output_mode) {
+		case output_bare:
+			printf("%s", p);
+			break;
+		case output_gnu:
+			printf("%s %c%s", p, input_mode, name);
+			break;
+		case output_reverse:
+			printf("%s %s", p, name);
+			break;
+		case output_tagged:
+			if (mode == mode_perl &&
+			    strncmp(alg->name, "SHA512t", 7) == 0) {
+				printf("%.6s/%s", alg->name, alg->name + 7);
+			} else {
+				printf("%s", alg->name);
 			}
-			printf("\n");
+			printf(" (%s) = %s", name, p);
+			break;
 		}
+		if (checkAgainst) {
+			checkfailed = strcasecmp(checkAgainst, p) != 0;
+			if (!qflag && checkfailed)
+				printf(" [ Failed ]");
+		}
+		printf("%c", endl);
 	}
 	if (checkfailed)
 		checksFailed++;
@@ -676,35 +1005,31 @@ MDTestSuite(const Algorithm_t *alg)
 	}
 }
 
-/*
- * Digests the standard input and prints the result.
- */
-static char *
-MDFilter(const Algorithm_t *alg, char *buf, int tee)
-{
-	DIGEST_CTX context;
-	unsigned int len;
-	unsigned char buffer[BUFSIZ];
-	char *p;
-
-	alg->Init(&context);
-	while ((len = fread(buffer, 1, BUFSIZ, stdin))) {
-		if (tee && len != fwrite(buffer, 1, len, stdout))
-			err(1, "stdout");
-		alg->Update(&context, buffer, len);
-	}
-	p = alg->End(&context, buf);
-
-	return (p);
-}
-
 static void
 usage(const Algorithm_t *alg)
 {
 
-	if (gnu_emu)
-		fprintf(stderr, "usage: %ssum [-pqrtx] [-c file] [-s string] [files ...]\n", alg->progname);
-	else
-		fprintf(stderr, "usage: %s [-pqrtx] [-c string] [-s string] [files ...]\n", alg->progname);
+	switch (mode) {
+	case mode_gnu:
+		fprintf(stderr, "usage: %ssum [-bctwz] [files ...]\n", alg->progname);
+		break;
+	case mode_perl:
+		fprintf(stderr, "usage: shasum [-0bchqstUvw] [-a alg] [files ...]\n");
+		break;
+	default:
+		fprintf(stderr, "usage: %s [-pqrtx] [-c string] [-s string] [files ...]\n",
+		    alg->progname);
+	}
 	exit(1);
+}
+
+static void
+version(void)
+{
+	if (mode == mode_gnu)
+		printf("%s (FreeBSD) ", progname);
+	printf("%d.%d\n",
+	    __FreeBSD_version / 100000,
+	    (__FreeBSD_version / 1000) % 100);
+	exit(0);
 }
