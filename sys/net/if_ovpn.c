@@ -93,6 +93,8 @@ struct ovpn_kkey_dir {
 	 * strictly higher than this.
 	 */
 	uint32_t		rx_seq;
+	uint32_t		tx_seq;
+
 	/* Seen packets, relative to rx_seq. bit(0) will always be 0. */
 	uint64_t		rx_window;
 };
@@ -147,7 +149,6 @@ struct ovpn_kpeer {
 	struct in6_addr		 vpn6;
 
 	struct ovpn_kkey	 keys[2];
-	uint32_t		 tx_seq;
 
 	enum ovpn_del_reason	 del_reason;
 	struct ovpn_keepalive	 keepalive;
@@ -215,6 +216,7 @@ static RB_GENERATE(ovpn_kpeers, ovpn_kpeer, tree, ovpn_peer_compare);
 
 #define OVPN_OP_DATA_V2		0x09
 #define OVPN_OP_SHIFT		3
+#define OVPN_SEQ_ROTATE		0x80000000
 
 VNET_DEFINE_STATIC(struct if_clone *, ovpn_cloner);
 #define	V_ovpn_cloner	VNET(ovpn_cloner)
@@ -429,6 +431,28 @@ ovpn_notify_del_peer(struct ovpn_softc *sc, struct ovpn_kpeer *peer)
 }
 
 static void
+ovpn_notify_key_rotation(struct ovpn_softc *sc, struct ovpn_kpeer *peer)
+{
+	struct ovpn_notification *n;
+
+	n = malloc(sizeof(*n), M_OVPN, M_NOWAIT | M_ZERO);
+	if (n == NULL)
+		return;
+
+	n->peerid = peer->peerid;
+	n->type = OVPN_NOTIF_ROTATE_KEY;
+
+	if (buf_ring_enqueue(sc->notifring, n) != 0) {
+		free(n, M_OVPN);
+	} else if (sc->so != NULL) {
+		/* Wake up userspace */
+		sc->so->so_error = EAGAIN;
+		sorwakeup(sc->so);
+		sowwakeup(sc->so);
+	}
+}
+
+static void
 ovpn_peer_release_ref(struct ovpn_kpeer *peer, bool locked)
 {
 	struct ovpn_softc *sc;
@@ -523,7 +547,6 @@ ovpn_new_peer(struct ifnet *ifp, const nvlist_t *nvl)
 	peer = malloc(sizeof(*peer), M_OVPN, M_WAITOK | M_ZERO);
 	peer->peerid = peerid;
 	peer->sc = sc;
-	peer->tx_seq = 1;
 	peer->refcount = 1;
 	peer->last_active = uma_zalloc_pcpu(pcpu_zone_4, M_WAITOK | M_ZERO);
 	COUNTER_ARRAY_ALLOC(peer->counters, OVPN_PEER_COUNTER_SIZE, M_WAITOK);
@@ -738,6 +761,7 @@ ovpn_create_kkey_dir(struct ovpn_kkey_dir **kdirp,
 
 	kdir->cipher = cipher;
 	kdir->keylen = keylen;
+	kdir->tx_seq = 1;
 	memcpy(kdir->key, key, keylen);
 	kdir->noncelen = ivlen;
 	memcpy(kdir->nonce, iv, ivlen);
@@ -1849,7 +1873,10 @@ ovpn_transmit_to_peer(struct ifnet *ifp, struct mbuf *m,
 	ohdr->opcode |= key->peerid;
 	ohdr->opcode = htonl(ohdr->opcode);
 
-	seq = atomic_fetchadd_32(&peer->tx_seq, 1);
+	seq = atomic_fetchadd_32(&peer->keys[OVPN_KEY_SLOT_PRIMARY].encrypt->tx_seq, 1);
+	if (seq == OVPN_SEQ_ROTATE)
+		ovpn_notify_key_rotation(sc, peer);
+
 	seq = htonl(seq);
 	ohdr->seq = seq;
 
