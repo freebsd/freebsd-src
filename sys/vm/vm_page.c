@@ -2995,9 +2995,7 @@ unlock:
 
 #define	NRUNS	16
 
-CTASSERT(powerof2(NRUNS));
-
-#define	RUN_INDEX(count)	((count) & (NRUNS - 1))
+#define	RUN_INDEX(count, nruns)	((count) % (nruns))
 
 #define	MIN_RECLAIM	8
 
@@ -3025,18 +3023,41 @@ CTASSERT(powerof2(NRUNS));
  *	must be a power of two.
  */
 bool
-vm_page_reclaim_contig_domain(int domain, int req, u_long npages,
-    vm_paddr_t low, vm_paddr_t high, u_long alignment, vm_paddr_t boundary)
+vm_page_reclaim_contig_domain_ext(int domain, int req, u_long npages,
+    vm_paddr_t low, vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
+    int desired_runs)
 {
 	struct vm_domain *vmd;
 	vm_paddr_t curr_low;
-	vm_page_t m_run, m_runs[NRUNS];
+	vm_page_t m_run, _m_runs[NRUNS], *m_runs;
 	u_long count, minalign, reclaimed;
-	int error, i, options, req_class;
+	int error, i, min_reclaim, nruns, options, req_class;
+	bool ret;
 
 	KASSERT(npages > 0, ("npages is 0"));
 	KASSERT(powerof2(alignment), ("alignment is not a power of 2"));
 	KASSERT(powerof2(boundary), ("boundary is not a power of 2"));
+
+	ret = false;
+
+	/*
+	 * If the caller wants to reclaim multiple runs, try to allocate
+	 * space to store the runs.  If that fails, fall back to the old
+	 * behavior of just reclaiming MIN_RECLAIM pages.
+	 */
+	if (desired_runs > 1)
+		m_runs = malloc((NRUNS + desired_runs) * sizeof(*m_runs),
+		    M_TEMP, M_NOWAIT);
+	else
+		m_runs = NULL;
+
+	if (m_runs == NULL) {
+		m_runs = _m_runs;
+		nruns = NRUNS;
+	} else {
+		nruns = NRUNS + desired_runs - 1;
+	}
+	min_reclaim = MAX(desired_runs * npages, MIN_RECLAIM);
 
 	/*
 	 * The caller will attempt an allocation after some runs have been
@@ -3066,7 +3087,7 @@ vm_page_reclaim_contig_domain(int domain, int req, u_long npages,
 	if (count < npages + vmd->vmd_free_reserved || (count < npages +
 	    vmd->vmd_interrupt_free_min && req_class == VM_ALLOC_SYSTEM) ||
 	    (count < npages && req_class == VM_ALLOC_INTERRUPT))
-		return (false);
+		goto done;
 
 	/*
 	 * Scan up to three times, relaxing the restrictions ("options") on
@@ -3085,27 +3106,29 @@ vm_page_reclaim_contig_domain(int domain, int req, u_long npages,
 			if (m_run == NULL)
 				break;
 			curr_low = VM_PAGE_TO_PHYS(m_run) + ptoa(npages);
-			m_runs[RUN_INDEX(count)] = m_run;
+			m_runs[RUN_INDEX(count, nruns)] = m_run;
 			count++;
 		}
 
 		/*
 		 * Reclaim the highest runs in LIFO (descending) order until
 		 * the number of reclaimed pages, "reclaimed", is at least
-		 * MIN_RECLAIM.  Reset "reclaimed" each time because each
+		 * "min_reclaim".  Reset "reclaimed" each time because each
 		 * reclamation is idempotent, and runs will (likely) recur
 		 * from one scan to the next as restrictions are relaxed.
 		 */
 		reclaimed = 0;
-		for (i = 0; count > 0 && i < NRUNS; i++) {
+		for (i = 0; count > 0 && i < nruns; i++) {
 			count--;
-			m_run = m_runs[RUN_INDEX(count)];
+			m_run = m_runs[RUN_INDEX(count, nruns)];
 			error = vm_page_reclaim_run(req_class, domain, npages,
 			    m_run, high);
 			if (error == 0) {
 				reclaimed += npages;
-				if (reclaimed >= MIN_RECLAIM)
-					return (true);
+				if (reclaimed >= min_reclaim) {
+					ret = true;
+					goto done;
+				}
 			}
 		}
 
@@ -3117,9 +3140,23 @@ vm_page_reclaim_contig_domain(int domain, int req, u_long npages,
 			options = VPSC_NOSUPER;
 		else if (options == VPSC_NOSUPER)
 			options = VPSC_ANY;
-		else if (options == VPSC_ANY)
-			return (reclaimed != 0);
+		else if (options == VPSC_ANY) {
+			ret = reclaimed != 0;
+			goto done;
+		}
 	}
+done:
+	if (m_runs != _m_runs)
+		free(m_runs, M_TEMP);
+	return (ret);
+}
+
+bool
+vm_page_reclaim_contig_domain(int domain, int req, u_long npages,
+    vm_paddr_t low, vm_paddr_t high, u_long alignment, vm_paddr_t boundary)
+{
+	return (vm_page_reclaim_contig_domain_ext(domain, req, npages, low, high,
+	    alignment, boundary, 1));
 }
 
 bool
