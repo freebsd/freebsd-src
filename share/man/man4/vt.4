@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 21, 2022
+.Dd May 8, 2023
 .Dt "VT" 4
 .Os
 .Sh NAME
@@ -58,6 +58,7 @@ In
 .Cd kern.vt.kbd_reboot=1
 .Cd kern.vt.kbd_debug=1
 .Cd kern.vt.kbd_panic=0
+.Cd kern.vt.enable_altgr=0
 .Cd kern.vt.enable_bell=1
 .Sh DESCRIPTION
 The
@@ -274,6 +275,8 @@ and can also be changed at runtime with the
 .Xr sysctl 8
 command.
 .Bl -tag -width indent
+.It Va kern.vt.enable_altgr
+Enable AltGr key (do not assume right Alt key as Alt).
 .It Va kern.vt.kbd_halt
 Enable halt keyboard combination.
 .It Va kern.vt.kbd_poweroff
