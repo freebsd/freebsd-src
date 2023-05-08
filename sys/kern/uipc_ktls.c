@@ -88,9 +88,9 @@ struct ktls_wq {
 	int		lastallocfail;
 } __aligned(CACHE_LINE_SIZE);
 
-struct ktls_alloc_thread {
+struct ktls_reclaim_thread {
 	uint64_t wakeups;
-	uint64_t allocs;
+	uint64_t reclaims;
 	struct thread *td;
 	int running;
 };
@@ -98,7 +98,7 @@ struct ktls_alloc_thread {
 struct ktls_domain_info {
 	int count;
 	int cpu[MAXCPU];
-	struct ktls_alloc_thread alloc_td;
+	struct ktls_reclaim_thread reclaim_td;
 };
 
 struct ktls_domain_info ktls_domains[MAXMEMDOM];
@@ -154,10 +154,10 @@ SYSCTL_BOOL(_kern_ipc_tls, OID_AUTO, sw_buffer_cache, CTLFLAG_RDTUN,
     &ktls_sw_buffer_cache, 1,
     "Enable caching of output buffers for SW encryption");
 
-static int ktls_max_alloc = 128;
-SYSCTL_INT(_kern_ipc_tls, OID_AUTO, max_alloc, CTLFLAG_RWTUN,
-    &ktls_max_alloc, 128,
-    "Max number of 16k buffers to allocate in thread context");
+static int ktls_max_reclaim = 1024;
+SYSCTL_INT(_kern_ipc_tls, OID_AUTO, max_reclaim, CTLFLAG_RWTUN,
+    &ktls_max_reclaim, 128,
+    "Max number of 16k buffers to reclaim in thread context");
 
 static COUNTER_U64_DEFINE_EARLY(ktls_tasks_active);
 SYSCTL_COUNTER_U64(_kern_ipc_tls, OID_AUTO, tasks_active, CTLFLAG_RD,
@@ -303,7 +303,7 @@ static MALLOC_DEFINE(M_KTLS, "ktls", "Kernel TLS");
 static void ktls_reset_receive_tag(void *context, int pending);
 static void ktls_reset_send_tag(void *context, int pending);
 static void ktls_work_thread(void *ctx);
-static void ktls_alloc_thread(void *ctx);
+static void ktls_reclaim_thread(void *ctx);
 
 static u_int
 ktls_get_cpu(struct socket *so)
@@ -454,12 +454,12 @@ ktls_init(void)
 				continue;
 			if (CPU_EMPTY(&cpuset_domain[domain]))
 				continue;
-			error = kproc_kthread_add(ktls_alloc_thread,
+			error = kproc_kthread_add(ktls_reclaim_thread,
 			    &ktls_domains[domain], &ktls_proc,
-			    &ktls_domains[domain].alloc_td.td,
-			    0, 0, "KTLS", "alloc_%d", domain);
+			    &ktls_domains[domain].reclaim_td.td,
+			    0, 0, "KTLS", "reclaim_%d", domain);
 			if (error) {
-				printf("Can't add KTLS alloc thread %d error %d\n",
+				printf("Can't add KTLS reclaim thread %d error %d\n",
 				    domain, error);
 				return (error);
 			}
@@ -2702,9 +2702,9 @@ ktls_buffer_alloc(struct ktls_wq *wq, struct mbuf *m)
 		 * see an old value of running == true.
 		 */
 		if (!VM_DOMAIN_EMPTY(domain)) {
-			running = atomic_load_int(&ktls_domains[domain].alloc_td.running);
+			running = atomic_load_int(&ktls_domains[domain].reclaim_td.running);
 			if (!running)
-				wakeup(&ktls_domains[domain].alloc_td);
+				wakeup(&ktls_domains[domain].reclaim_td);
 		}
 	}
 	return (buf);
@@ -3121,65 +3121,51 @@ ktls_bind_domain(int domain)
 }
 
 static void
-ktls_alloc_thread(void *ctx)
+ktls_reclaim_thread(void *ctx)
 {
 	struct ktls_domain_info *ktls_domain = ctx;
-	struct ktls_alloc_thread *sc = &ktls_domain->alloc_td;
-	void **buf;
+	struct ktls_reclaim_thread *sc = &ktls_domain->reclaim_td;
 	struct sysctl_oid *oid;
 	char name[80];
-	int domain, error, i, nbufs;
+	int error, domain;
 
 	domain = ktls_domain - ktls_domains;
 	if (bootverbose)
-		printf("Starting KTLS alloc thread for domain %d\n", domain);
+		printf("Starting KTLS reclaim thread for domain %d\n", domain);
 	error = ktls_bind_domain(domain);
 	if (error)
-		printf("Unable to bind KTLS alloc thread for domain %d: error %d\n",
+		printf("Unable to bind KTLS reclaim thread for domain %d: error %d\n",
 		    domain, error);
 	snprintf(name, sizeof(name), "domain%d", domain);
 	oid = SYSCTL_ADD_NODE(NULL, SYSCTL_STATIC_CHILDREN(_kern_ipc_tls), OID_AUTO,
 	    name, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
-	SYSCTL_ADD_U64(NULL, SYSCTL_CHILDREN(oid), OID_AUTO, "allocs",
-	    CTLFLAG_RD,  &sc->allocs, 0, "buffers allocated");
+	SYSCTL_ADD_U64(NULL, SYSCTL_CHILDREN(oid), OID_AUTO, "reclaims",
+	    CTLFLAG_RD,  &sc->reclaims, 0, "buffers reclaimed");
 	SYSCTL_ADD_U64(NULL, SYSCTL_CHILDREN(oid), OID_AUTO, "wakeups",
 	    CTLFLAG_RD,  &sc->wakeups, 0, "thread wakeups");
 	SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO, "running",
 	    CTLFLAG_RD,  &sc->running, 0, "thread running");
 
-	buf = NULL;
-	nbufs = 0;
 	for (;;) {
 		atomic_store_int(&sc->running, 0);
 		tsleep(sc, PZERO | PNOLOCK, "-",  0);
 		atomic_store_int(&sc->running, 1);
 		sc->wakeups++;
-		if (nbufs != ktls_max_alloc) {
-			free(buf, M_KTLS);
-			nbufs = atomic_load_int(&ktls_max_alloc);
-			buf = malloc(sizeof(void *) * nbufs, M_KTLS,
-			    M_WAITOK | M_ZERO);
-		}
 		/*
-		 * Below we allocate nbufs with different allocation
-		 * flags than we use when allocating normally during
-		 * encryption in the ktls worker thread.  We specify
-		 * M_NORECLAIM in the worker thread. However, we omit
-		 * that flag here and add M_WAITOK so that the VM
-		 * system is permitted to perform expensive work to
-		 * defragment memory.  We do this here, as it does not
-		 * matter if this thread blocks.  If we block a ktls
-		 * worker thread, we risk developing backlogs of
-		 * buffers to be encrypted, leading to surges of
-		 * traffic and potential NIC output drops.
+		 * Below we attempt to reclaim ktls_max_reclaim
+		 * buffers using vm_page_reclaim_contig_domain_ext().
+		 * We do this here, as this function can take several
+		 * seconds to scan all of memory and it does not
+		 * matter if this thread pauses for a while.  If we
+		 * block a ktls worker thread, we risk developing
+		 * backlogs of buffers to be encrypted, leading to
+		 * surges of traffic and potential NIC output drops.
 		 */
-		for (i = 0; i < nbufs; i++) {
-			buf[i] = uma_zalloc(ktls_buffer_zone, M_WAITOK);
-			sc->allocs++;
-		}
-		for (i = 0; i < nbufs; i++) {
-			uma_zfree(ktls_buffer_zone, buf[i]);
-			buf[i] = NULL;
+		if (!vm_page_reclaim_contig_domain_ext(domain, VM_ALLOC_NORMAL,
+		    atop(ktls_maxlen), 0, ~0ul, PAGE_SIZE, 0, ktls_max_reclaim)) {
+			vm_wait_domain(domain);
+		} else {
+			sc->reclaims += ktls_max_reclaim;
 		}
 	}
 }
