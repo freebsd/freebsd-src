@@ -1,9 +1,0 @@
-RMD160 test suite:
-RMD160 ("") = 9c1185a5c5e9fc54612808977ee8f548b2258d31 - verified correct
-RMD160 ("a") = 0bdc9d2d256b3ee9daae347be6f4dc835a467ffe - verified correct
-RMD160 ("abc") = 8eb208f7e05d987a9b044a8e98c6b087f15a0bfc - verified correct
-RMD160 ("message digest") = 5d0689ef49d2fae572b881b123a85ffa21595f36 - verified correct
-RMD160 ("abcdefghijklmnopqrstuvwxyz") = f71c27109c692c1b56bbdceb5b9d2865b3708dbc - verified correct
-RMD160 ("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789") = b0e20b6e3116640286ed3a87a5713079b21f5189 - verified correct
-RMD160 ("12345678901234567890123456789012345678901234567890123456789012345678901234567890") = 9b752e45573d4b39f4dbd3323cab82bf63326bfb - verified correct
-RMD160 ("MD5 has not yet (2001-09-03) been broken, but sufficient attacks have been made that its security is in some doubt") = 5feb69c6bf7c29d95715ad55f57d8ac5b2b7dd32 - verified correct

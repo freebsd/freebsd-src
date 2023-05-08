@@ -1,9 +1,0 @@
-SHA224 test suite:
-SHA224 ("") = d14a028c2a3a2bc9476102bb288234c415a2b01f828ea62ac5b3e42f - verified correct
-SHA224 ("a") = abd37534c7d9a2efb9465de931cd7055ffdb8879563ae98078d6d6d5 - verified correct
-SHA224 ("abc") = 23097d223405d8228642a477bda255b32aadbce4bda0b3f7e36c9da7 - verified correct
-SHA224 ("message digest") = 2cb21c83ae2f004de7e81c3c7019cbcb65b71ab656b22d6d0c39b8eb - verified correct
-SHA224 ("abcdefghijklmnopqrstuvwxyz") = 45a5f72c39c5cff2522eb3429799e49e5f44b356ef926bcf390dccc2 - verified correct
-SHA224 ("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789") = bff72b4fcb7d75e5632900ac5f90d219e05e97a7bde72e740db393d9 - verified correct
-SHA224 ("12345678901234567890123456789012345678901234567890123456789012345678901234567890") = b50aecbe4e9bb0b57bc5f3ae760a8e01db24f203fb3cdcd13148046e - verified correct
-SHA224 ("MD5 has not yet (2001-09-03) been broken, but sufficient attacks have been made that its security is in some doubt") = 5ae55f3779c8a1204210d7ed7689f661fbe140f96f272ab79e19d470 - verified correct
