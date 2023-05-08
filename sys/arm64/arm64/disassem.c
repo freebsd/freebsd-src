@@ -49,19 +49,23 @@ __FBSDID("$FreeBSD$");
 #define	OP_MULT_4	(1UL << 2)	/* Multiply immediate by 4 */
 #define	OP_SF32		(1UL << 3)	/* Force 32-bit access */
 #define	OP_SF_INV	(1UL << 6)	/* SF is inverted (1 means 32 bit access) */
+#define	OP_RD_SP	(1UL << 7)	/* Use sp for RD otherwise xzr */
+#define	OP_RT_SP	(1UL << 8)	/* Use sp for RT otherwise xzr */
+#define	OP_RN_SP	(1UL << 9)	/* Use sp for RN otherwise xzr */
+#define	OP_RM_SP	(1UL << 10)	/* Use sp for RM otherwise xzr */
 
 static const char *w_reg[] = {
 	"w0", "w1", "w2", "w3", "w4", "w5", "w6", "w7",
 	"w8", "w9", "w10", "w11", "w12", "w13", "w14", "w15",
 	"w16", "w17", "w18", "w19", "w20", "w21", "w22", "w23",
-	"w24", "w25", "w26", "w27", "w28", "w29", "w30", "wSP",
+	"w24", "w25", "w26", "w27", "w28", "w29", "w30"
 };
 
 static const char *x_reg[] = {
 	"x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7",
 	"x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15",
 	"x16", "x17", "x18", "x19", "x20", "x21", "x22", "x23",
-	"x24", "x25", "x26", "x27", "x28", "x29", "LR", "SP",
+	"x24", "x25", "x26", "x27", "x28", "x29", "LR"
 };
 
 static const char *shift_2[] = {
@@ -142,69 +146,76 @@ struct arm64_insn {
  */
 static struct arm64_insn arm64_i[] = {
 	{ "add", "SF(1)|0001011|SHIFT(2)|0|RM(5)|IMM(6)|RN(5)|RD(5)",
-	    TYPE_01, 0 },
+	    TYPE_01, 0 },			/* add shifted register */
 	{ "mov", "SF(1)|001000100000000000000|RN(5)|RD(5)",
-	    TYPE_01, 0 },
+	    TYPE_01, OP_RD_SP | OP_RN_SP },	/* mov (to/from sp) */
 	{ "add", "SF(1)|0010001|SHIFT(2)|IMM(12)|RN(5)|RD(5)",
-	    TYPE_01, 0 },
+	    TYPE_01, OP_RD_SP | OP_RN_SP },	/* add immediate */
 	{ "ldr", "1|SF(1)|111000010|IMM(9)|OPTION(2)|RN(5)|RT(5)",
-	    TYPE_02, OP_SIGN_EXT },		/* ldr immediate post/pre index */
+	    TYPE_02, OP_SIGN_EXT | OP_RN_SP },	/* ldr immediate post/pre index */
 	{ "ldr", "1|SF(1)|11100101|IMM(12)|RN(5)|RT(5)",
-	    TYPE_02, 0 },			/* ldr immediate unsigned */
+	    TYPE_02, OP_RN_SP },		/* ldr immediate unsigned */
 	{ "ldr", "1|SF(1)|111000011|RM(5)|OPTION(3)|SCALE(1)|10|RN(5)|RT(5)",
-	    TYPE_02, 0 },			/* ldr register */
+	    TYPE_02, OP_RN_SP },		/* ldr register */
 	{ "ldr", "0|SF(1)|011000|IMM(19)|RT(5)",
 	    TYPE_03, OP_SIGN_EXT | OP_LITERAL | OP_MULT_4 },	/* ldr literal */
 	{ "ldrb", "00|111000010|IMM(9)|OPTION(2)|RN(5)|RT(5)",
-	    TYPE_02, OP_SIGN_EXT | OP_SF32 },	/* ldrb immediate post/pre index */
+	    TYPE_02, OP_SIGN_EXT | OP_SF32 | OP_RN_SP },
+	    /* ldrb immediate post/pre index */
 	{ "ldrb", "00|11100101|IMM(12)|RN(5)|RT(5)",
-	    TYPE_02, OP_SF32 },			/* ldrb immediate unsigned */
+	    TYPE_02, OP_SF32 | OP_RN_SP },	/* ldrb immediate unsigned */
 	{ "ldrb", "00|111000011|RM(5)|OPTION(3)|SCALE(1)|10|RN(5)|RT(5)",
-	    TYPE_02, OP_SF32  },		/* ldrb register */
+	    TYPE_02, OP_SF32 | OP_RN_SP },	/* ldrb register */
 	{ "ldrh", "01|111000010|IMM(9)|OPTION(2)|RN(5)|RT(5)", TYPE_02,
-	    OP_SIGN_EXT | OP_SF32 },		/* ldrh immediate post/pre index */
+	    OP_SIGN_EXT | OP_SF32 | OP_RN_SP },	/* ldrh immediate post/pre index */
 	{ "ldrh", "01|11100101|IMM(12)|RN(5)|RT(5)",
-	    TYPE_02, OP_SF32 },			/* ldrh immediate unsigned */
+	    TYPE_02, OP_SF32 | OP_RN_SP },	/* ldrh immediate unsigned */
 	{ "ldrh", "01|111000011|RM(5)|OPTION(3)|SCALE(1)|10|RN(5)|RT(5)",
-	    TYPE_02, OP_SF32 },			/* ldrh register */
+	    TYPE_02, OP_SF32 | OP_RN_SP },	/* ldrh register */
 	{ "ldrsb", "001110001|SF(1)|0|IMM(9)|OPTION(2)|RN(5)|RT(5)",
-	    TYPE_02, OP_SIGN_EXT | OP_SF_INV },	/* ldrsb immediate post/pre index */
+	    TYPE_02, OP_SIGN_EXT | OP_SF_INV | OP_RN_SP },
+	    /* ldrsb immediate post/pre index */
 	{ "ldrsb", "001110011|SF(1)|IMM(12)|RN(5)|RT(5)",\
-	    TYPE_02, OP_SF_INV},		/* ldrsb immediate unsigned */
+	    TYPE_02, OP_SF_INV | OP_RN_SP },	/* ldrsb immediate unsigned */
 	{ "ldrsb", "001110001|SF(1)|1|RM(5)|OPTION(3)|SCALE(1)|10|RN(5)|RT(5)",
-	    TYPE_02,  OP_SF_INV },		/* ldrsb register */
+	    TYPE_02,  OP_SF_INV | OP_RN_SP },	/* ldrsb register */
 	{ "ldrsh", "011110001|SF(1)|0|IMM(9)|OPTION(2)|RN(5)|RT(5)",
-	    TYPE_02, OP_SIGN_EXT | OP_SF_INV },	/* ldrsh immediate post/pre index */
+	    TYPE_02, OP_SIGN_EXT | OP_SF_INV | OP_RN_SP },
+	    /* ldrsh immediate post/pre index */
 	{ "ldrsh", "011110011|SF(1)|IMM(12)|RN(5)|RT(5)",
-	    TYPE_02, OP_SF_INV},		/* ldrsh immediate unsigned */
+	    TYPE_02, OP_SF_INV | OP_RN_SP },	/* ldrsh immediate unsigned */
 	{ "ldrsh", "011110001|SF(1)|1|RM(5)|OPTION(3)|SCALE(1)|10|RN(5)|RT(5)",
-	    TYPE_02, OP_SF_INV },		/* ldrsh register */
+	    TYPE_02, OP_SF_INV | OP_RN_SP },	/* ldrsh register */
 	{ "ldrsw", "10111000100|IMM(9)|OPTION(2)|RN(5)|RT(5)",
-	    TYPE_02, OP_SIGN_EXT },		/* ldrsw immediate post/pre index */
+	    TYPE_02, OP_SIGN_EXT | OP_RN_SP },	/* ldrsw immediate post/pre index */
 	{ "ldrsw", "1011100110|IMM(12)|RN(5)|RT(5)",
-	    TYPE_02, 0 },			/* ldrsw immediate unsigned */
+	    TYPE_02, OP_RN_SP },		/* ldrsw immediate unsigned */
 	{ "ldrsw", "10111000101|RM(5)|OPTION(3)|SCALE(1)|10|RN(5)|RT(5)",
-	    TYPE_02, 0 },			/* ldrsw register */
+	    TYPE_02, OP_RN_SP },		/* ldrsw register */
 	{ "ldrsw", "10011000|IMM(19)|RT(5)",
-	    TYPE_03, OP_SIGN_EXT | OP_LITERAL | OP_MULT_4 },	/* ldr literal */
-        { "str", "1|SF(1)|111000000|IMM(9)|OPTION(2)|RN(5)|RT(5)",
-            TYPE_02, OP_SIGN_EXT }, 		/* str immediate post/pre index */
-        { "str", "1|SF(1)|11100100|IMM(12)|RN(5)|RT(5)",
-            TYPE_02, 0 }, 		        /* str immediate unsigned */
-        { "str", "1|SF(1)|111000001|RM(5)|OPTION(3)|SCALE(1)|10|RN(5)|RT(5)",
-            TYPE_02, 0 }, 			/* str register */
-        { "strb", "00111000000|IMM(9)|OPTION(2)|RN(5)|RT(5)",
-            TYPE_02, OP_SIGN_EXT | OP_SF32 },   /* strb immediate post/pre index */
-        { "strb", "0011100100|IMM(12)|RN(5)|RT(5)",
-            TYPE_02, OP_SF32 },                 /* strb immediate unsigned */
-        { "strb", "00111000001|RM(5)|OPTION(3)|SCALE(1)|10|RN(5)|RT(5)",
-            TYPE_02, OP_SF32 }, 		/* strb register */
-        { "strh", "01111000000|IMM(9)|OPTION(2)|RN(5)|RT(5)",
-	    TYPE_02, OP_SF32 | OP_SIGN_EXT }, 	/* strh immediate post/pre index */
-        { "strh", "0111100100|IMM(12)|RN(5)|RT(5)",
-	    TYPE_02, OP_SF32 }, 		/* immediate unsigned */
-        { "strh", "01111000001|RM(5)|OPTION(3)|SCALE(1)|10|RN(5)|RT(5)",
-            TYPE_02, OP_SF32 }, 		/* strh register */
+	    TYPE_03, OP_SIGN_EXT | OP_LITERAL | OP_MULT_4 },	/* ldrsw literal */
+	{ "str", "1|SF(1)|111000000|IMM(9)|OPTION(2)|RN(5)|RT(5)",
+	    TYPE_02, OP_SIGN_EXT | OP_RN_SP }, 	/* str immediate post/pre index */
+	{ "str", "1|SF(1)|11100100|IMM(12)|RN(5)|RT(5)",
+	    TYPE_02, OP_RN_SP },		/* str immediate unsigned */
+	{ "str", "1|SF(1)|111000001|RM(5)|OPTION(3)|SCALE(1)|10|RN(5)|RT(5)",
+	    TYPE_02, OP_RN_SP },		/* str register */
+	{ "strb", "00111000000|IMM(9)|OPTION(2)|RN(5)|RT(5)",
+	    TYPE_02, OP_SIGN_EXT | OP_SF32 | OP_RN_SP },
+	    /* strb immediate post/pre index */
+	{ "strb", "0011100100|IMM(12)|RN(5)|RT(5)",
+	    TYPE_02, OP_SF32 | OP_RN_SP },	/* strb immediate unsigned */
+	{ "strb", "00111000001|RM(5)|OPTION(3)|SCALE(1)|10|RN(5)|RT(5)",
+	    TYPE_02, OP_SF32 | OP_RN_SP },	/* strb register */
+	{ "strh", "01111000000|IMM(9)|OPTION(2)|RN(5)|RT(5)",
+	    TYPE_02, OP_SF32 | OP_SIGN_EXT | OP_RN_SP },
+	    /* strh immediate post/pre index */
+	{ "strh", "0111100100|IMM(12)|RN(5)|RT(5)",
+	    TYPE_02, OP_SF32 | OP_RN_SP },
+	    /* strh immediate unsigned */
+	{ "strh", "01111000001|RM(5)|OPTION(3)|SCALE(1)|10|RN(5)|RT(5)",
+	    TYPE_02, OP_SF32 | OP_RN_SP },
+	    /* strh register */
 	{ NULL, NULL }
 };
 
@@ -354,13 +365,27 @@ arm64_disasm_read_token_sign_ext(struct arm64_insn *insn, u_int opcode,
 }
 
 static const char *
-arm64_reg(int b64, int num)
+arm64_w_reg(int num, int wsp)
 {
-
-	if (b64 != 0)
-		return (x_reg[num]);
-
+	if (num == 31)
+		return (wsp != 0 ? "wsp" : "wzr");
 	return (w_reg[num]);
+}
+
+static const char *
+arm64_x_reg(int num, int sp)
+{
+	if (num == 31)
+		return (sp != 0 ? "sp" : "xzr");
+	return (x_reg[num]);
+}
+
+static const char *
+arm64_reg(int b64, int num, int sp)
+{
+	if (b64 != 0)
+		return (arm64_x_reg(num, sp));
+	return (arm64_w_reg(num, sp));
 }
 
 vm_offset_t
@@ -377,6 +402,8 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 	int inside;
 	/* Print exclamation mark if pre-incremented */
 	int pre;
+	/* Indicate if x31 register should be printed as sp or xzr */
+	int rm_sp, rt_sp, rd_sp, rn_sp;
 
 	/* Initialize defaults, all are 0 except SF indicating 64bit access */
 	shift = rd = rm = rn = imm = idx = option = amount = scale = 0;
@@ -416,6 +443,11 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 	if (i_ptr->special_ops & OP_MULT_4)
 		imm <<= 2;
 
+	rm_sp = i_ptr->special_ops & OP_RM_SP;
+	rt_sp = i_ptr->special_ops & OP_RT_SP;
+	rd_sp = i_ptr->special_ops & OP_RD_SP;
+	rn_sp = i_ptr->special_ops & OP_RN_SP;
+
 	/* Print opcode by type */
 	switch (i_ptr->type) {
 	case TYPE_01:
@@ -438,12 +470,12 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 		arm64_disasm_read_token(i_ptr, insn, "SHIFT", &shift);
 		rm_absent = arm64_disasm_read_token(i_ptr, insn, "RM", &rm);
 
-		di->di_printf("%s\t%s, %s", i_ptr->name, arm64_reg(sf, rd),
-		    arm64_reg(sf, rn));
+		di->di_printf("%s\t%s, %s", i_ptr->name,
+		    arm64_reg(sf, rd, rd_sp), arm64_reg(sf, rn, rn_sp));
 
 		/* If RM is present use it, otherwise use immediate notation */
 		if (rm_absent == 0) {
-			di->di_printf(", %s", arm64_reg(sf, rm));
+			di->di_printf(", %s", arm64_reg(sf, rm, rm_sp));
 			if (imm != 0)
 				di->di_printf(", %s #%d", shift_2[shift], imm);
 		} else {
@@ -502,14 +534,14 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 			}
 
 			di->di_printf("%s\t%s, ", i_ptr->name,
-			    arm64_reg(sf, rt));
+			    arm64_reg(sf, rt, rt_sp));
 			if (inside != 0) {
-				di->di_printf("[%s", arm64_reg(1, rn));
+				di->di_printf("[%s", arm64_reg(1, rn, rn_sp));
 				if (imm != 0)
 					di->di_printf(", #%d", imm);
 				di->di_printf("]");
 			} else {
-				di->di_printf("[%s]", arm64_reg(1, rn));
+				di->di_printf("[%s]", arm64_reg(1, rn, rn_sp));
 				if (imm != 0)
 					di->di_printf(", #%d", imm);
 			}
@@ -518,8 +550,8 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 		} else {
 			/* Last bit of option field determines 32/64 bit offset */
 			di->di_printf("%s\t%s, [%s, %s", i_ptr->name,
-			    arm64_reg(sf, rt), arm64_reg(1, rn),
-			    arm64_reg(option & 1, rm));
+			    arm64_reg(sf, rt, rt_sp), arm64_reg(1, rn, rn_sp),
+			    arm64_reg(option & 1, rm, rm_sp));
 
 			if (scale == 0)
 				amount = 0;
@@ -564,7 +596,7 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 			goto undefined;
 		}
 
-		di->di_printf("%s\t%s, ", i_ptr->name, arm64_reg(sf, rt));
+		di->di_printf("%s\t%s, ", i_ptr->name, arm64_reg(sf, rt, rt_sp));
 		if (i_ptr->special_ops & OP_LITERAL)
 			di->di_printf("0x%lx", loc + imm);
 		else
