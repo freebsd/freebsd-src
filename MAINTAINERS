@@ -97,6 +97,7 @@ share/mk/*.test.mk	imp,bapt,bdrewery,	Pre-commit review requested.
 			emaste,ngie,sjg,#test
 stand/forth		dteske	Pre-commit review requested.
 stand/lua		kevans	Pre-commit review requested
+stand			imp	Pre-commit review strongly requested.
 sys/compat/linuxkpi	hselasky		If in doubt, ask.
 			zeising, johalun	pre-commit review requested via
 						#x11 phabricator group.
