@@ -45,31 +45,31 @@ pci_video_intel()
 			;;
 		# Cannonlake
 		0x5a*)
-			echo "gpu-firmware-intel-cannonlake"
+			echo "gpu-firmware-intel-kmod-cannonlake"
 			;;
 		# Icelake
 		0x8a*)
-			echo "gpu-firmware-intel-icelake"
+			echo "gpu-firmware-intel-kmod-icelake"
 			;;
 		# Elkhartlake/Jasperlake
 		0x45*|0x4e*)
-			echo "gpu-firmware-intel-elkhartlake"
+			echo "gpu-firmware-intel-kmod-elkhartlake"
 			;;
 		# Tigerlake
 		0x9a*)
-			echo "gpu-firmware-intel-tigerlake"
+			echo "gpu-firmware-intel-kmod-tigerlake"
 			;;
 		# Rocketlake (Uses tigerlake GuC/HuC firmware)
 		0x4c*)
-			echo "gpu-firmware-intel-rocketlake gpu-firmware-intel-tigerlake"
+			echo "gpu-firmware-intel-kmod-rocketlake gpu-firmware-intel-kmod-tigerlake"
 			;;
 		# DG1
 		0x49*)
-			echo "gpu-firmware-intel-dg1"
+			echo "gpu-firmware-intel-kmod-dg1"
 			;;
 		# Alderlake (Uses tigerlake GuC/HuC firmware)
 		0x46*)
-			echo "gpu-firmware-intel-alderlake gpu-firmware-intel-tigerlake"
+			echo "gpu-firmware-intel-kmod-alderlake gpu-firmware-intel-kmod-tigerlake"
 			;;
 		*)
 			log "No package found for device $1"
