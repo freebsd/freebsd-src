@@ -3,7 +3,7 @@
 PACKAGE=	efi-tools
 
 PROG=	efiwake
-MAN=
+MAN=    efiwake.8
 
 SRCS=	efiwake.c
 
