@@ -154,8 +154,10 @@ struct vm_map_entry {
 #define	MAP_ENTRY_HEADER		0x00080000
 
 #define	MAP_ENTRY_SPLIT_BOUNDARY_MASK	0x00300000
-
 #define	MAP_ENTRY_SPLIT_BOUNDARY_SHIFT	20
+#define	MAP_ENTRY_SPLIT_BOUNDARY_INDEX(entry)			\
+	(((entry)->eflags & MAP_ENTRY_SPLIT_BOUNDARY_MASK) >>	\
+	    MAP_ENTRY_SPLIT_BOUNDARY_SHIFT)
 
 #ifdef	_KERNEL
 static __inline u_char
