@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 30, 2014
+.Dd May 8, 2023
 .Dt ACL 3
 .Os
 .Sh NAME
@@ -158,6 +158,10 @@ and may be used to retrieve an ACL type from an ACL entry.
 This function is described in
 .Xr acl_get_flagset_np 3 ,
 and may be used to retrieve a flagset from an ACL entry.
+.It Fn acl_get_perm_np
+This function is described in
+.Xr acl_get_perm_np 3 ,
+and may be used to check if a permission is set in a permset.
 .It Fn acl_get_permset
 This function is described in
 .Xr acl_get_permset 3 ,
@@ -257,6 +261,7 @@ library.
 .Xr acl_get_brand_np 3 ,
 .Xr acl_get_entry_type_np 3 ,
 .Xr acl_get_flagset_np 3 ,
+.Xr acl_get_perm_np 3 ,
 .Xr acl_get_permset 3 ,
 .Xr acl_get_qualifier 3 ,
 .Xr acl_get_tag_type 3 ,
