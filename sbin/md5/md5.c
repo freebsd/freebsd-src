@@ -686,7 +686,7 @@ MDInput(const Algorithm_t *alg, FILE *f, char *buf, bool tee)
 		switch (input_mode) {
 		case input_binary:
 		case input_text:
-			if (tee && fwrite(block, 1, len, stdout) != (size_t)len)
+			if (tee && fwrite(block, 1, len, stdout) != len)
 				err(1, "stdout");
 			alg->Update(&context, block, len);
 			break;
@@ -734,7 +734,7 @@ MDInput(const Algorithm_t *alg, FILE *f, char *buf, bool tee)
 			break;
 		}
 	}
-	if (len < 0) {
+	if (ferror(f)) {
 		alg->End(&context, buf);
 		return (NULL);
 	}
