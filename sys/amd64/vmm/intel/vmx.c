@@ -4179,6 +4179,9 @@ vmx_vcpu_snapshot(void *vcpui, struct vm_snapshot_meta *meta)
 	SNAPSHOT_BUF_OR_LEAVE(vcpu->guest_msrs,
 	    sizeof(vcpu->guest_msrs), meta, err, done);
 
+	SNAPSHOT_BUF_OR_LEAVE(vcpu->pir_desc,
+	    sizeof(*vcpu->pir_desc), meta, err, done);
+
 	vmxctx = &vcpu->ctx;
 	SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_rdi, meta, err, done);
 	SNAPSHOT_VAR_OR_LEAVE(vmxctx->guest_rsi, meta, err, done);
