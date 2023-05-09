@@ -662,7 +662,7 @@ main(int argc, char *argv[])
 	}
 	if (failed)
 		return (1);
-	if (checksFailed != 0)
+	if (checksFailed > 0)
 		return (2);
 
 	return (0);
@@ -759,7 +759,7 @@ MDOutput(const Algorithm_t *alg, char *p, const char *name)
 
 	if (p == NULL) {
 		warn("%s", name);
-		failed++;
+		failed = true;
 	} else if (cflag && mode != mode_bsd) {
 		checkfailed = strcasecmp(checkAgainst, p) != 0;
 		if (!sflag && (!qflag || checkfailed))
@@ -1001,7 +1001,7 @@ MDTestSuite(const Algorithm_t *alg)
 			printf(" - verified correct\n");
 		} else {
 			printf(" - INCORRECT RESULT!\n");
-			failed++;
+			failed = true;
 		}
 	}
 }
