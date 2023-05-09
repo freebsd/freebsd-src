@@ -334,7 +334,7 @@ xen_arch_intr_alloc(void)
 	if (!(isrc = malloc(sizeof(struct xenisrc), M_XENINTR, M_WAITOK | M_ZERO)))
 		return (NULL);
 
-	error = intr_isrc_register(&isrc->xi_arch, xen_sc->dev, 0, "xen%u:",
+	error = intr_isrc_register(&isrc->xi_arch, xen_sc->dev, 0, "xen%u",
 	    ++counter);
 
 	if (error) {
