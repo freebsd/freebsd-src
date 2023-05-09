@@ -381,8 +381,8 @@ chkrange(ufs2_daddr_t blk, int cnt)
 {
 	int c;
 
-	if (cnt <= 0 || blk <= 0 || blk > maxfsblock ||
-	    cnt - 1 > maxfsblock - blk) {
+	if (cnt <= 0 || blk <= 0 || blk >= maxfsblock ||
+	    cnt > maxfsblock - blk) {
 		if (debug)
 			printf("out of range: blk %ld, offset %i, size %d\n",
 			    (long)blk, (int)fragnum(&sblock, blk), cnt);
