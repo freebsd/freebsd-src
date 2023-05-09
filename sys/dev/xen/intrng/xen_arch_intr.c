@@ -294,13 +294,9 @@ xen_intrng_intr_bind(device_t dev, struct intr_irqsrc *isrc)
 	if (CPU_EMPTY(&isrc->isrc_cpu)) {
 		cpu = xen_arch_intr_next_cpu(xsrc);
 		CPU_SETOF(cpu, &isrc->isrc_cpu);
-	} else {
-		/*
-		 * We can only bind to a single CPU so select
-		 * the first CPU found.
-		 */
-		cpu = CPU_FFS(&isrc->isrc_cpu) - 1;
-	}
+	} else
+		/* INTRNG wants the PIC to choose the processor?! */
+		cpu = xen_arch_intr_next_cpu(xsrc);
 
 	return (xen_intr_assign_cpu(xsrc, cpu));
 }
