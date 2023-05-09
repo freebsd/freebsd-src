@@ -182,8 +182,6 @@ static const struct pci_id pci_ns8250_ids[] = {
 { 0x8086, 0x8d3d, 0xffff, 0,
 	"Intel Corporation C610/X99 series chipset KT Controller", 0x10 },
 { 0x8086, 0x9c3d, 0xffff, 0, "Intel Lynx Point-LP HECI KT", 0x10 },
-{ 0x8086, 0x9d27, 0xffff, 0, "Intel Sunrise Point Controller 0", 0x10, 0, 2 },
-{ 0x8086, 0x9d66, 0xffff, 0, "Intel Sunrise Point Controller 2", 0x10, 0, 2 },
 { 0x8086, 0xa13d, 0xffff, 0,
 	"100 Series/C230 Series Chipset Family KT Redirection",
 	0x10 | PCI_NO_MSI },
