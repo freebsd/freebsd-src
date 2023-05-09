@@ -146,22 +146,29 @@ struct snl_attr_parser {
 	};
 };
 
+typedef bool snl_parse_post_f(struct snl_state *ss, void *target);
+
 struct snl_hdr_parser {
 	int			hdr_off; /* aligned header size */
 	int			fp_size;
 	int			np_size;
 	const struct snl_field_parser	*fp; /* array of header field parsers */
 	const struct snl_attr_parser	*np; /* array of attribute parsers */
+	snl_parse_post_f		*cb_post; /* post-parse callback */
 };
 
-#define	SNL_DECLARE_PARSER(_name, _t, _fp, _np)		\
+#define	SNL_DECLARE_PARSER_EXT(_name, _t, _fp, _np, _cb)	\
 static const struct snl_hdr_parser _name = {		\
 	.hdr_off = sizeof(_t),				\
 	.fp = &((_fp)[0]),				\
 	.np = &((_np)[0]),				\
 	.fp_size = NL_ARRAY_LEN(_fp),			\
 	.np_size = NL_ARRAY_LEN(_np),			\
+	.cb_post = _cb,					\
 }
+
+#define	SNL_DECLARE_PARSER(_name, _t, _fp, _np)		\
+	SNL_DECLARE_PARSER_EXT(_name, _t, _fp, _np, NULL)
 
 #define	SNL_DECLARE_ATTR_PARSER(_name, _np)		\
 static const struct snl_hdr_parser _name = {		\
@@ -470,6 +477,9 @@ snl_parse_header(struct snl_state *ss, void *hdr, int len,
 	struct nlattr *nla_head = (struct nlattr *)(void *)((char *)hdr + parser->hdr_off);
 	bool result = snl_parse_attrs_raw(ss, nla_head, len - parser->hdr_off,
 	    parser->np, parser->np_size, target);
+
+	if (result && parser->cb_post != NULL)
+		result = parser->cb_post(ss, target);
 
 	return (result);
 }
