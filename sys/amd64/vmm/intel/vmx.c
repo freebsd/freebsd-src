@@ -1439,6 +1439,10 @@ vmx_inject_interrupts(struct vmx_vcpu *vcpu, struct vlapic *vlapic,
 	uint64_t rflags, entryinfo;
 	uint32_t gi, info;
 
+	if (vcpu->cap.set & (1 << VM_CAP_MASK_HWINTR)) {
+		return;
+	}
+
 	if (vcpu->state.nextrip != guestrip) {
 		gi = vmcs_read(VMCS_GUEST_INTERRUPTIBILITY);
 		if (gi & HWINTR_BLOCKING) {
@@ -3633,6 +3637,9 @@ vmx_setcap(void *vcpui, int type, int val)
 
 		vlapic = vm_lapic(vcpu->vcpu);
 		vlapic->ipi_exit = val;
+		break;
+	case VM_CAP_MASK_HWINTR:		
+		retval = 0;
 		break;
 	default:
 		break;
