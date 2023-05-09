@@ -21,6 +21,7 @@ MAN8=	dma.8
 MLINKS=	dma.8 dma.conf.5
 CONFS=	dma.conf
 CONFSDIR=	${CONFDIR}/dma
+CFLAGS+=	-DOPENSSL_API_COMPAT=0x10100000L
 YFLAGS+=	-i
 CLEANFILES=	aliases_parse.i
 FILES=	mailer.conf
