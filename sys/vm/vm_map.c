@@ -2445,8 +2445,7 @@ vm_map_clip_start(vm_map_t map, vm_map_entry_t entry, vm_offset_t startaddr)
 	KASSERT(entry->end > startaddr && entry->start < startaddr,
 	    ("%s: invalid clip of entry %p", __func__, entry));
 
-	bdry_idx = (entry->eflags & MAP_ENTRY_SPLIT_BOUNDARY_MASK) >>
-	    MAP_ENTRY_SPLIT_BOUNDARY_SHIFT;
+	bdry_idx = MAP_ENTRY_SPLIT_BOUNDARY_INDEX(entry);
 	if (bdry_idx != 0) {
 		if ((startaddr & (pagesizes[bdry_idx] - 1)) != 0)
 			return (KERN_INVALID_ARGUMENT);
@@ -2519,8 +2518,7 @@ vm_map_clip_end(vm_map_t map, vm_map_entry_t entry, vm_offset_t endaddr)
 	KASSERT(entry->start < endaddr && entry->end > endaddr,
 	    ("%s: invalid clip of entry %p", __func__, entry));
 
-	bdry_idx = (entry->eflags & MAP_ENTRY_SPLIT_BOUNDARY_MASK) >>
-	    MAP_ENTRY_SPLIT_BOUNDARY_SHIFT;
+	bdry_idx = MAP_ENTRY_SPLIT_BOUNDARY_INDEX(entry);
 	if (bdry_idx != 0) {
 		if ((endaddr & (pagesizes[bdry_idx] - 1)) != 0)
 			return (KERN_INVALID_ARGUMENT);
@@ -3513,8 +3511,7 @@ vm_map_wire_locked(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 			saved_start = entry->start;
 			saved_end = entry->end;
 			last_timestamp = map->timestamp;
-			bidx = (entry->eflags & MAP_ENTRY_SPLIT_BOUNDARY_MASK)
-			    >> MAP_ENTRY_SPLIT_BOUNDARY_SHIFT;
+			bidx = MAP_ENTRY_SPLIT_BOUNDARY_INDEX(entry);
 			incr =  pagesizes[bidx];
 			vm_map_busy(map);
 			vm_map_unlock(map);
@@ -3712,9 +3709,7 @@ vm_map_sync(
 				vm_map_unlock_read(map);
 				return (KERN_INVALID_ARGUMENT);
 			}
-			bdry_idx = (entry->eflags &
-			    MAP_ENTRY_SPLIT_BOUNDARY_MASK) >>
-			    MAP_ENTRY_SPLIT_BOUNDARY_SHIFT;
+			bdry_idx = MAP_ENTRY_SPLIT_BOUNDARY_INDEX(entry);
 			if (bdry_idx != 0 &&
 			    ((start & (pagesizes[bdry_idx] - 1)) != 0 ||
 			    (end & (pagesizes[bdry_idx] - 1)) != 0)) {
