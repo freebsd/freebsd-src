@@ -121,14 +121,14 @@ void
 lock_delay(struct lock_delay_arg *la)
 {
 	struct lock_delay_config *lc = la->config;
-	u_short i;
+	u_int i;
 
 	for (i = la->delay; i > 0; i--)
 		cpu_spinwait();
 	la->spin_cnt += la->delay;
 
 	la->delay <<= 1;
-	if (__predict_false(la->delay > lc->max))
+	if (__predict_false(la->delay > (u_int)lc->max))
 		la->delay = lc->max;
 }
 
@@ -148,9 +148,7 @@ lock_delay_default_init(struct lock_delay_config *lc)
 {
 
 	lc->base = 1;
-	lc->max = lock_roundup_2(mp_ncpus) * 256;
-	if (lc->max > 32678)
-		lc->max = 32678;
+	lc->max = min(lock_roundup_2(mp_ncpus) * 256, SHRT_MAX);
 }
 
 struct lock_delay_config __read_frequently locks_delay;
