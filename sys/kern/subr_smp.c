@@ -790,8 +790,8 @@ smp_topo_1level(int share, int count, int flags)
 	int i;
 
 	cpu = 0;
-	top = smp_topo_alloc(1);
 	packages = mp_ncpus / count;
+	top = smp_topo_alloc(1 + packages);
 	top->cg_child = child = top + 1;
 	top->cg_level = CG_SHARE_NONE;
 	for (i = 0; i < packages; i++, child++)
@@ -811,7 +811,8 @@ smp_topo_2level(int l2share, int l2count, int l1share, int l1count,
 	int j;
 
 	cpu = 0;
-	top = smp_topo_alloc(1);
+	top = smp_topo_alloc(1 + mp_ncpus / (l2count * l1count) +
+	    mp_ncpus / l1count);
 	l2g = top + 1;
 	top->cg_child = l2g;
 	top->cg_level = CG_SHARE_NONE;
