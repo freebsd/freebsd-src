@@ -177,13 +177,13 @@ struct snl_parsed_link {
 #define	_IN(_field)	offsetof(struct ifinfomsg, _field)
 #define	_OUT(_field)	offsetof(struct snl_parsed_link, _field)
 static const struct snl_attr_parser _nla_p_link[] = {
-	{ .type = IFLA_ADDRESS, .off = _OUT(ifla_address), .cb = snl_attr_get_nla },
-	{ .type = IFLA_BROADCAST, .off = _OUT(ifla_broadcast), .cb = snl_attr_get_nla },
-	{ .type = IFLA_IFNAME, .off = _OUT(ifla_ifname), .cb = snl_attr_get_string },
+	{ .type = IFLA_ADDRESS, .off = _OUT(ifla_address), .cb = snl_attr_dup_nla },
+	{ .type = IFLA_BROADCAST, .off = _OUT(ifla_broadcast), .cb = snl_attr_dup_nla },
+	{ .type = IFLA_IFNAME, .off = _OUT(ifla_ifname), .cb = snl_attr_dup_string },
 	{ .type = IFLA_MTU, .off = _OUT(ifla_mtu), .cb = snl_attr_get_uint32 },
 	{ .type = IFLA_OPERSTATE, .off = _OUT(ifla_operstate), .cb = snl_attr_get_uint8 },
-	{ .type = IFLA_IFALIAS, .off = _OUT(ifla_ifalias), .cb = snl_attr_get_string },
-	{ .type = IFLA_STATS64, .off = _OUT(ifla_stats64), .cb = snl_attr_copy_struct },
+	{ .type = IFLA_IFALIAS, .off = _OUT(ifla_ifalias), .cb = snl_attr_dup_string },
+	{ .type = IFLA_STATS64, .off = _OUT(ifla_stats64), .cb = snl_attr_dup_struct },
 	{ .type = IFLA_PROMISCUITY, .off = _OUT(ifla_promiscuity), .cb = snl_attr_get_uint32 },
 	{ .type = IFLA_CARRIER, .off = _OUT(ifla_carrier), .cb = snl_attr_get_uint8 },
 };
@@ -208,7 +208,7 @@ struct snl_parsed_link_simple {
 #define	_IN(_field)	offsetof(struct ifinfomsg, _field)
 #define	_OUT(_field)	offsetof(struct snl_parsed_link_simple, _field)
 static struct snl_attr_parser _nla_p_link_s[] = {
-	{ .type = IFLA_IFNAME, .off = _OUT(ifla_ifname), .cb = snl_attr_get_string },
+	{ .type = IFLA_IFNAME, .off = _OUT(ifla_ifname), .cb = snl_attr_dup_string },
 	{ .type = IFLA_MTU, .off = _OUT(ifla_mtu), .cb = snl_attr_get_uint32 },
 };
 static struct snl_field_parser _fp_p_link_s[] = {
@@ -240,7 +240,7 @@ SNL_DECLARE_ATTR_PARSER(_neigh_fbsd_parser, _nla_p_neigh_fbsd);
 
 static struct snl_attr_parser _nla_p_neigh_s[] = {
 	{ .type = NDA_DST, .off = _OUT(nda_dst), .cb = snl_attr_get_ip },
-	{ .type = NDA_LLADDR , .off = _OUT(nda_lladdr), .cb = snl_attr_get_nla },
+	{ .type = NDA_LLADDR , .off = _OUT(nda_lladdr), .cb = snl_attr_dup_nla },
 	{ .type = NDA_PROBES, .off = _OUT(nda_probes), .cb = snl_attr_get_uint32 },
 	{ .type = NDA_IFINDEX, .off = _OUT(nda_ifindex), .cb = snl_attr_get_uint32 },
 	{ .type = NDA_FREEBSD, .arg = &_neigh_fbsd_parser, .cb = snl_attr_get_nested },
@@ -270,7 +270,7 @@ struct snl_parsed_addr {
 static struct snl_attr_parser _nla_p_addr_s[] = {
 	{ .type = IFA_ADDRESS, .off = _OUT(ifa_address), .cb = snl_attr_get_ip },
 	{ .type = IFA_LOCAL, .off = _OUT(ifa_local), .cb = snl_attr_get_ip },
-	{ .type = IFA_LABEL, .off = _OUT(ifa_label), .cb = snl_attr_get_string },
+	{ .type = IFA_LABEL, .off = _OUT(ifa_label), .cb = snl_attr_dup_string },
 	{ .type = IFA_BROADCAST, .off = _OUT(ifa_broadcast), .cb = snl_attr_get_ip },
 };
 static struct snl_field_parser _fp_p_addr_s[] = {
