@@ -182,7 +182,7 @@ extern u_short locks_delay_loops;
 
 struct lock_delay_arg {
 	struct lock_delay_config *config;
-	u_short delay;
+	u_int delay;
 	u_int spin_cnt;
 };
 
