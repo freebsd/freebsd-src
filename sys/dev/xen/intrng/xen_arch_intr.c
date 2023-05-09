@@ -291,39 +291,6 @@ DRIVER_MODULE(xen, ofwbus, xen_driver, 0, 0);
 
 static MALLOC_DEFINE(M_XENINTR, "xen_intr", "Xen Interrupt Services");
 
-static void
-xen_intr_arch_disable_source(void *arg)
-{
-	struct xenisrc *isrc;
-
-	isrc = arg;
-	xen_intr_disable_source(isrc);
-}
-
-static void
-xen_intr_arch_enable_source(void *arg)
-{
-	struct xenisrc *isrc;
-
-	isrc = arg;
-	xen_intr_enable_source(isrc);
-}
-
-static void
-xen_intr_arch_eoi_source(void *arg)
-{
-	/* Nothing to do */
-}
-
-static int
-xen_intr_arch_assign_cpu(void *arg, int cpuid)
-{
-	struct xenisrc *isrc;
-
-	isrc = arg;
-	return (xen_intr_assign_cpu(isrc, cpuid));
-}
-
 struct xenisrc *
 xen_arch_intr_alloc(void)
 {
