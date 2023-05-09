@@ -229,7 +229,7 @@ xen_arch_intr_setup(struct xenisrc *isrc)
 	    xen_intr_arch_enable_source /* unmask */,
 	    xen_intr_arch_eoi_source /* EOI */,
 	    xen_intr_arch_assign_cpu /* cpu assign */,
-	    "xen%d", isrc->xi_port));
+	    "xen%u", isrc->xi_port));
 }
 
 u_long
