@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <getopt.h>
 #include <md5.h>
+#include <osreldate.h>
 #include <ripemd.h>
 #include <sha.h>
 #include <sha224.h>
