@@ -607,6 +607,23 @@ snl_attr_copy_string(struct snl_state *ss, struct nlattr *nla,
 }
 
 static inline bool
+snl_attr_dup_string(struct snl_state *ss __unused, struct nlattr *nla,
+    const void *arg __unused, void *target)
+{
+	size_t maxlen = NLA_DATA_LEN(nla);
+
+	if (strnlen((char *)NLA_DATA(nla), maxlen) < maxlen) {
+		char *buf = snl_allocz(ss, maxlen);
+		if (buf == NULL)
+			return (false);
+		memcpy(buf, NLA_DATA(nla), maxlen);
+		*((char **)target) = buf;
+		return (true);
+	}
+	return (false);
+}
+
+static inline bool
 snl_attr_get_nested(struct snl_state *ss, struct nlattr *nla, const void *arg, void *target)
 {
 	const struct snl_hdr_parser *p = (const struct snl_hdr_parser *)arg;
@@ -624,7 +641,35 @@ snl_attr_get_nla(struct snl_state *ss __unused, struct nlattr *nla,
 }
 
 static inline bool
+snl_attr_dup_nla(struct snl_state *ss __unused, struct nlattr *nla,
+    const void *arg __unused, void *target)
+{
+	void *ptr = snl_allocz(ss, nla->nla_len);
+
+	if (ptr != NULL) {
+		memcpy(ptr, nla, nla->nla_len);
+		*((void **)target) = ptr;
+		return (true);
+	}
+	return (false);
+}
+
+static inline bool
 snl_attr_copy_struct(struct snl_state *ss, struct nlattr *nla,
+    const void *arg __unused, void *target)
+{
+	void *ptr = snl_allocz(ss, NLA_DATA_LEN(nla));
+
+	if (ptr != NULL) {
+		memcpy(ptr, NLA_DATA(nla), NLA_DATA_LEN(nla));
+		*((void **)target) = ptr;
+		return (true);
+	}
+	return (false);
+}
+
+static inline bool
+snl_attr_dup_struct(struct snl_state *ss, struct nlattr *nla,
     const void *arg __unused, void *target)
 {
 	void *ptr = snl_allocz(ss, NLA_DATA_LEN(nla));
