@@ -37,7 +37,7 @@ static inline void
 finalize_sockaddr(struct sockaddr *sa, uint32_t ifindex)
 {
 	if (sa != NULL && sa->sa_family == AF_INET6) {
-		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sa;
+		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)(void *)sa;
 
 		if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr))
 			sin6->sin6_scope_id = ifindex;
@@ -76,7 +76,7 @@ static const struct snl_field_parser _fp_p_mp_nh[] = {
 };
 
 static inline bool
-_cb_p_mp_nh(struct snl_state *ss, void *_target)
+_cb_p_mp_nh(struct snl_state *ss __unused, void *_target)
 {
 	struct rta_mpath_nh *target = _target;
 
@@ -175,7 +175,7 @@ static const struct snl_field_parser _fp_p_route[] = {
 };
 
 static inline bool
-_cb_p_route(struct snl_state *ss, void *_target)
+_cb_p_route(struct snl_state *ss __unused, void *_target)
 {
 	struct snl_parsed_route *target = _target;
 
@@ -283,7 +283,7 @@ static struct snl_field_parser _fp_p_neigh_s[] = {
 };
 
 static inline bool
-_cb_p_neigh(struct snl_state *ss, void *_target)
+_cb_p_neigh(struct snl_state *ss __unused, void *_target)
 {
 	struct snl_parsed_neigh *target = _target;
 
@@ -319,7 +319,7 @@ static const struct snl_field_parser _fp_p_addr_s[] = {
 };
 
 static inline bool
-_cb_p_addr(struct snl_state *ss, void *_target)
+_cb_p_addr(struct snl_state *ss __unused, void *_target)
 {
 	struct snl_parsed_addr *target = _target;
 
@@ -370,7 +370,7 @@ static const struct snl_attr_parser _nla_p_nh[] = {
 };
 
 static inline bool
-_cb_p_nh(struct snl_state *ss, void *_target)
+_cb_p_nh(struct snl_state *ss __unused, void *_target)
 {
 	struct snl_parsed_nhop *target = _target;
 
