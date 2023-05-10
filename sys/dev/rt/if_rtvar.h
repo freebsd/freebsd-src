@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2010-2011 Aleksandr Rybalko <ray@ddteam.net>
  * Copyright (c) 2009-2010 Alexander Egorenkov <egorenar@gmail.com>

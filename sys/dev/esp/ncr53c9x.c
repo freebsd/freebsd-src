@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-2-Clause NetBSD
+ * SPDX-License-Identifier: BSD-2-Clause AND BSD-2-Clause NetBSD
  *
  * Copyright (c) 2004 Scott Long
  * Copyright (c) 2005, 2008 Marius Strobl <marius@FreeBSD.org>

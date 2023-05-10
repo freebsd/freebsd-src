@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 
 /*-
- * SPDX-License-Identifier: BSD-4-Clause AND BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-4-Clause AND BSD-2-Clause
  *
  * Copyright (c) 2002 M. Warner Losh <imp@FreeBSD.org>
  *

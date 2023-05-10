@@ -1,7 +1,7 @@
 #!/usr/bin/awk -f
 
 #-
-# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2006 Max Laier.
 # All rights reserved.

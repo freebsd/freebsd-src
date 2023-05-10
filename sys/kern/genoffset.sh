@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2000, Bruce Evans <bde@freebsd.org>
 # Copyright (c) 2018, Jeff Roberson <jeff@freebsd.org>

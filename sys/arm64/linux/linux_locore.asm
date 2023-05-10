@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (C) 2018 Turing Robotic Industries Inc.
  * Copyright (C) 2020 Andrew Turner <andrew@FreeBSD.org>

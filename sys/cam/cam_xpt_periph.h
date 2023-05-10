@@ -3,7 +3,7 @@
  * Common Access Method Transport (xpt) layer from peripheral
  * drivers.
  *
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 1997 Justin T. Gibbs.
  * All rights reserved.

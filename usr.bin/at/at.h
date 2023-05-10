@@ -1,7 +1,7 @@
 /*-
  *  at.h -  header for at(1)
  *
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  *  Copyright (C) 1993  Thomas Koenig
  *

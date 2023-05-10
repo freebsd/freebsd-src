@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Authors: Ravi Pokala (rpokala@freebsd.org), Andriy Gapon (avg@FreeBSD.org)
  *

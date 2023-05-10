@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2010-2013 Hudson River Trading LLC
 # Written by: John H. Baldwin <jhb@FreeBSD.org>

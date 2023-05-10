@@ -1,7 +1,7 @@
 /*-
  * Common functions for CAM "type" (peripheral) drivers.
  *
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 1997, 1998 Justin T. Gibbs.
  * Copyright (c) 1997, 1998, 1999, 2000 Kenneth D. Merry.

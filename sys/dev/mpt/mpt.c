@@ -2,7 +2,7 @@
  * Generic routines for LSI Fusion adapters.
  * FreeBSD Version.
  *
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-3-Clause
+ * SPDX-License-Identifier: BSD-2-Clause AND BSD-3-Clause
  *
  * Copyright (c) 2000, 2001 by Greg Ansley
  *

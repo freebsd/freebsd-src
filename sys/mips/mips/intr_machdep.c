@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2006 Oleksandr Tymoshenko
  * Copyright (c) 2002-2004 Juli Mallett <jmallett@FreeBSD.org>
