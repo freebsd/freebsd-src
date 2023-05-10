@@ -202,10 +202,16 @@ struct snl_parsed_link {
 	char				*ifla_ifalias;
 	uint32_t			ifla_promiscuity;
 	struct rtnl_link_stats64	*ifla_stats64;
+	struct nlattr			*iflaf_orig_hwaddr;
 };
 
 #define	_IN(_field)	offsetof(struct ifinfomsg, _field)
 #define	_OUT(_field)	offsetof(struct snl_parsed_link, _field)
+static const struct snl_attr_parser _nla_p_link_fbsd[] = {
+	{ .type = IFLAF_ORIG_HWADDR, .off = _OUT(iflaf_orig_hwaddr), .cb = snl_attr_dup_nla },
+};
+SNL_DECLARE_ATTR_PARSER(_link_fbsd_parser, _nla_p_link_fbsd);
+
 static const struct snl_attr_parser _nla_p_link[] = {
 	{ .type = IFLA_ADDRESS, .off = _OUT(ifla_address), .cb = snl_attr_dup_nla },
 	{ .type = IFLA_BROADCAST, .off = _OUT(ifla_broadcast), .cb = snl_attr_dup_nla },
@@ -216,6 +222,7 @@ static const struct snl_attr_parser _nla_p_link[] = {
 	{ .type = IFLA_STATS64, .off = _OUT(ifla_stats64), .cb = snl_attr_dup_struct },
 	{ .type = IFLA_PROMISCUITY, .off = _OUT(ifla_promiscuity), .cb = snl_attr_get_uint32 },
 	{ .type = IFLA_CARRIER, .off = _OUT(ifla_carrier), .cb = snl_attr_get_uint8 },
+	{ .type = IFLA_FREEBSD, .arg = &_link_fbsd_parser, .cb = snl_attr_get_nested },
 };
 static const struct snl_field_parser _fp_p_link[] = {
 	{.off_in = _IN(ifi_index), .off_out = _OUT(ifi_index), .cb = snl_field_get_uint32 },
@@ -394,7 +401,7 @@ SNL_DECLARE_PARSER_EXT(snl_nhmsg_parser, struct nhmsg, _fp_p_nh, _nla_p_nh, _cb_
 
 static const struct snl_hdr_parser *snl_all_route_parsers[] = {
 	&_metrics_mp_nh_parser, &_mpath_nh_parser, &_metrics_parser, &snl_rtm_route_parser,
-	&snl_rtm_link_parser, &snl_rtm_link_parser_simple,
+	&_link_fbsd_parser, &snl_rtm_link_parser, &snl_rtm_link_parser_simple,
 	&_neigh_fbsd_parser, &snl_rtm_neigh_parser,
 	&_addr_fbsd_parser, &snl_rtm_addr_parser, &_nh_fbsd_parser, &snl_nhmsg_parser,
 };
