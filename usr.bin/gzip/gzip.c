@@ -1,7 +1,7 @@
 /*	$NetBSD: gzip.c,v 1.116 2018/10/27 11:39:12 skrll Exp $	*/
 
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 1997, 1998, 2003, 2004, 2006, 2008, 2009, 2010, 2011, 2015, 2017
  *    Matthew R. Green

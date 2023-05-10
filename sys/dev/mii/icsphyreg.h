@@ -1,7 +1,7 @@
 /*	$NetBSD: icsphyreg.h,v 1.2 2003/07/01 22:46:08 msaitoh Exp $	*/
 
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
