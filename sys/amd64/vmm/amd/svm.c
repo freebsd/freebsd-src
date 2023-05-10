@@ -166,7 +166,10 @@ svm_modcleanup(void)
 {
 
 	smp_rendezvous(NULL, svm_disable, NULL, NULL);
-	kmem_free(hsave, (mp_maxid + 1) * PAGE_SIZE);
+
+	if (hsave != NULL)
+		kmem_free(hsave, (mp_maxid + 1) * PAGE_SIZE);
+
 	return (0);
 }
 
