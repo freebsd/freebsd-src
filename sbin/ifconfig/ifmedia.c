@@ -144,7 +144,7 @@ media_status(int s)
 		putchar('\n');
 	}
 
-	if (supmedia) {
+	if (args.supmedia) {
 		printf("\tsupported media:\n");
 		for (size_t i = 0; i < ifmr->ifm_count; ++i) {
 			printf("\t\t");
