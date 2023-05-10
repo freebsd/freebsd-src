@@ -256,7 +256,10 @@ gvt_d_setup_opregion(struct pci_devinst *const pi)
 
 	memcpy(opregion->gva, opregion->hva, opregion->len);
 
-	return (0);
+	pci_set_cfgdata32(pi, PCIR_ASLS_CTL, opregion->gpa);
+
+	return (set_pcir_handler(sc, PCIR_ASLS_CTL, 4, passthru_cfgread_emulate,
+	    passthru_cfgwrite_emulate));
 }
 
 static int
