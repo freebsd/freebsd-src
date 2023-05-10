@@ -46,6 +46,7 @@ SRCS=	\
 	pci_e82545.c		\
 	pci_emul.c		\
 	pci_fbuf.c		\
+	pci_gvt-d.c		\
 	pci_hda.c		\
 	pci_hostbridge.c	\
 	pci_irq.c		\

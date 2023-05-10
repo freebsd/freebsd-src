@@ -64,7 +64,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/vmm.h>
 
-#include "config.h"
 #include "debug.h"
 #include "mem.h"
 #include "pci_passthru.h"
@@ -81,6 +80,8 @@ __FBSDID("$FreeBSD$");
 #define PASSTHRU_MMIO_MAX 2
 
 static int pcifd = -1;
+
+SET_DECLARE(passthru_dev_set, struct passthru_dev);
 
 struct passthru_softc {
 	struct pci_devinst *psc_pi;
@@ -856,6 +857,8 @@ passthru_init(struct pci_devinst *pi, nvlist_t *nvl)
 {
 	int bus, slot, func, error, memflags;
 	struct passthru_softc *sc;
+	struct passthru_dev **devpp;
+	struct passthru_dev *devp, *dev = NULL;
 	const char *value;
 
 	sc = NULL;
@@ -919,9 +922,26 @@ passthru_init(struct pci_devinst *pi, nvlist_t *nvl)
 	if ((error = set_pcir_handler(sc, PCIR_COMMAND, 0x04, NULL, NULL)) != 0)
 		goto done;
 
+	SET_FOREACH(devpp, passthru_dev_set) {
+		devp = *devpp;
+		assert(devp->probe != NULL);
+		if (devp->probe(pi) == 0) {
+			dev = devp;
+			break;
+		}
+	}
+
+	if (dev != NULL) {
+		error = dev->init(pi, nvl);
+		if (error != 0)
+			goto done;
+	}
+
 	error = 0;		/* success */
 done:
 	if (error) {
+		if (dev != NULL)
+			dev->deinit(pi);
 		free(sc);
 		vm_unassign_pptdev(pi->pi_vmctx, bus, slot, func);
 	}
