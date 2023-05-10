@@ -610,6 +610,7 @@ main(int argc, char *argv[])
 		goto done;
 	}
 
+	args.afp = afp;
 	args.argc = argc;
 	args.argv = argv;
 
