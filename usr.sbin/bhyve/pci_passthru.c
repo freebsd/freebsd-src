@@ -660,6 +660,14 @@ done:
 	return (error);
 }
 
+struct pcisel *
+passthru_get_sel(struct passthru_softc *sc)
+{
+	assert(sc != NULL);
+
+	return (&sc->psc_sel);
+}
+
 int
 set_pcir_handler(struct passthru_softc *sc, int reg, int len,
     cfgread_handler rhandler, cfgwrite_handler whandler)
