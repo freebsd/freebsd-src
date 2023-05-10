@@ -3681,8 +3681,10 @@ em_setup_vlan_hw_support(if_ctx_t ctx)
 	/*
 	 * A soft reset zero's out the VFTA, so
 	 * we need to repopulate it now.
+	 * We also insert VLAN 0 in the filter list, so we pass VLAN 0 tagged
+	 * traffic through. This will write the entire table.
 	 */
-	em_if_vlan_filter_write(sc);
+	em_if_vlan_register(ctx, 0);
 
 	/* Enable the Filter Table */
 	em_if_vlan_filter_enable(sc);
