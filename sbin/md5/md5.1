@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd April 12, 2023
+.Dd May 10, 2023
 .Dt MD5 1
 .Os
 .Sh NAME
@@ -273,7 +273,8 @@ When verifying checksums, warn about malformed input.
 .El
 .Sh EXIT STATUS
 The
-.Nm md5 , sha1 , sha224 , sha256 , sha512 , sha512t224 , sha512t256 ,
+.Nm md5 , sha1 , sha224 , sha256 , sha384 , sha512 ,
+.Nm sha512t224 , sha512t256 ,
 .Nm rmd160 , skein256 , skein512 ,
 and
 .Nm skein1024
@@ -284,7 +285,7 @@ and 2 if at least one file does not have the same hash as the
 option.
 .Pp
 The
-.Nm md5sum , sha1sum , sha224sum , sha256sum , sha512sum ,
+.Nm md5sum , sha1sum , sha224sum , sha256sum , sha384sum , sha512sum ,
 .Nm sha512t224sum , sha512t256sum ,
 .Nm rmd160 , skein256 , skein512 , skein1024
 and
