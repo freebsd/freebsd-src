@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: (BSD-2-Clause-NetBSD AND BSD-3-Clause)
+ * SPDX-License-Identifier: (BSD-2-Clause AND BSD-3-Clause)
  *
  * Copyright (c) 2003 Poul-Henning Kamp.
  * Copyright (c) 1996, 1997 The NetBSD Foundation, Inc.

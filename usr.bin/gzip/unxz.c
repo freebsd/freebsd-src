@@ -1,7 +1,7 @@
 /*	$NetBSD: unxz.c,v 1.8 2018/10/06 16:36:45 martin Exp $	*/
 
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
  * All rights reserved.

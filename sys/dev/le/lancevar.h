@@ -1,7 +1,7 @@
 /*	$NetBSD: lancevar.h,v 1.10 2005/12/11 12:21:27 christos Exp $	*/
 
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 1997, 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
