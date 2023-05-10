@@ -79,6 +79,9 @@ static SLIST_HEAD(, nl_cloner) nl_cloners = SLIST_HEAD_INITIALIZER(nl_cloners);
 static struct sx rtnl_cloner_lock;
 SX_SYSINIT(rtnl_cloner_lock, &rtnl_cloner_lock, "rtnl cloner lock");
 
+/* These are external hooks for CARP. */
+extern int	(*carp_get_vhid_p)(struct ifaddr *);
+
 /*
  * RTM_GETLINK request
  * sendto(3, {{len=32, type=RTM_GETLINK, flags=NLM_F_REQUEST|NLM_F_DUMP, seq=1641940952, pid=0},
@@ -795,6 +798,15 @@ dump_iface_addr(struct nl_writer *nw, struct ifnet *ifp, struct ifaddr *ifa,
 
         uint32_t val = 0; // ifa->ifa_flags;
         nlattr_add_u32(nw, IFA_FLAGS, val);
+	/* Store FreeBSD-specific attributes */
+	int off = nlattr_add_nested(nw, IFA_FREEBSD);
+	if (off != 0) {
+		if (ifa->ifa_carp != NULL && carp_get_vhid_p != NULL) {
+			uint32_t vhid  = (uint32_t)(*carp_get_vhid_p)(ifa);
+			nlattr_add_u32(nw, IFAF_VHID, vhid);
+		}
+		nlattr_set_len(nw, off);
+	}
 
 	if (nlmsg_end(nw))
 		return (true);
