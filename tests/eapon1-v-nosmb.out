@@ -1,0 +1,331 @@
+    1  15:17:28.958610 IP (tos 0x0, ttl 128, id 14471, offset 0, flags [none], proto UDP (17), length 207)
+    192.168.1.249.138 > 192.168.1.255.138: UDP, length 179
+    2  15:17:28.958708 IP (tos 0x0, ttl 128, id 14472, offset 0, flags [none], proto UDP (17), length 207)
+    192.168.1.249.138 > 192.168.1.255.138: UDP, length 179
+    3  15:17:28.959360 IP (tos 0x0, ttl 128, id 14473, offset 0, flags [none], proto UDP (17), length 237)
+    192.168.1.249.138 > 192.168.1.255.138: UDP, length 209
+    4  15:17:28.961018 IP (tos 0x0, ttl 128, id 14474, offset 0, flags [none], proto UDP (17), length 78)
+    192.168.1.249.137 > 192.168.1.255.137: UDP, length 50
+    5  15:17:29.710899 IP (tos 0x0, ttl 128, id 14477, offset 0, flags [none], proto UDP (17), length 78)
+    192.168.1.249.137 > 192.168.1.255.137: UDP, length 50
+    6  15:17:30.461235 IP (tos 0x0, ttl 128, id 14478, offset 0, flags [none], proto UDP (17), length 78)
+    192.168.1.249.137 > 192.168.1.255.137: UDP, length 50
+    7  15:17:30.798408 IP (tos 0x0, ttl 128, id 14479, offset 0, flags [none], proto UDP (17), length 229)
+    192.168.1.249.138 > 192.168.1.255.138: UDP, length 201
+    8  15:17:33.464213 IP (tos 0x0, ttl 128, id 14484, offset 0, flags [none], proto UDP (17), length 78)
+    192.168.1.249.137 > 192.168.1.255.137: UDP, length 50
+    9  15:17:34.214302 IP (tos 0x0, ttl 128, id 14485, offset 0, flags [none], proto UDP (17), length 78)
+    192.168.1.249.137 > 192.168.1.255.137: UDP, length 50
+   10  15:17:34.964688 IP (tos 0x0, ttl 128, id 14486, offset 0, flags [none], proto UDP (17), length 78)
+    192.168.1.249.137 > 192.168.1.255.137: UDP, length 50
+   11  15:17:35.473290 ARP, Ethernet (len 6), IPv4 (len 4), Request who-has 192.168.1.1 tell 192.168.1.249, length 28
+   12  15:17:35.481559 ARP, Ethernet (len 6), IPv4 (len 4), Reply 192.168.1.1 is-at 00:0d:88:4f:25:91, length 46
+   13  15:17:35.481577 IP (tos 0x0, ttl 128, id 14487, offset 0, flags [none], proto UDP (17), length 328)
+    192.168.1.249.68 > 192.168.1.1.67: BOOTP/DHCP, Request from 00:04:23:57:a5:7a, length 300, xid 0xc82d253d, secs 36609, Flags [Broadcast]
+	  Client-IP 192.168.1.249
+	  Client-Ethernet-Address 00:04:23:57:a5:7a
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Release
+	    Server-ID (54), length 4: 192.168.1.1
+	    Client-ID (61), length 7: ether 00:04:23:57:a5:7a
+   14  15:17:35.622870 EAP packet (0) v1, len 5, Request (1), id 1, len 5
+		 Type Identity (1)
+   15  15:17:35.666378 IP (tos 0x0, ttl 128, id 14495, offset 0, flags [none], proto UDP (17), length 328)
+    0.0.0.0.68 > 255.255.255.255.67: BOOTP/DHCP, Request from 00:04:23:57:a5:7a, length 300, xid 0x9817873c, Flags [none]
+	  Client-Ethernet-Address 00:04:23:57:a5:7a
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Discover
+	    NOAUTO (116), length 1: Y
+	    Client-ID (61), length 7: ether 00:04:23:57:a5:7a
+	    Requested-IP (50), length 4: 192.168.1.249
+	    Hostname (12), length 8: "DJP95S0J"
+	    Vendor-Class (60), length 8: "MSFT 5.0"
+	    Parameter-Request (55), length 11: 
+	      Subnet-Mask (1), Domain-Name (15), Default-Gateway (3), Domain-Name-Server (6)
+	      Netbios-Name-Server (44), Netbios-Node (46), Netbios-Scope (47), Router-Discovery (31)
+	      Static-Route (33), Classless-Static-Route-Microsoft (249), Vendor-Option (43)
+   16  15:17:35.851486 IP (tos 0x0, ttl 128, id 14497, offset 0, flags [none], proto UDP (17), length 328)
+    0.0.0.0.68 > 255.255.255.255.67: BOOTP/DHCP, Request from 00:04:23:57:a5:7a, length 300, xid 0xd5037d2e, Flags [none]
+	  Client-Ethernet-Address 00:04:23:57:a5:7a
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Discover
+	    NOAUTO (116), length 1: Y
+	    Client-ID (61), length 7: ether 00:04:23:57:a5:7a
+	    Requested-IP (50), length 4: 192.168.1.249
+	    Hostname (12), length 8: "DJP95S0J"
+	    Vendor-Class (60), length 8: "MSFT 5.0"
+	    Parameter-Request (55), length 11: 
+	      Subnet-Mask (1), Domain-Name (15), Default-Gateway (3), Domain-Name-Server (6)
+	      Netbios-Name-Server (44), Netbios-Node (46), Netbios-Scope (47), Router-Discovery (31)
+	      Static-Route (33), Classless-Static-Route-Microsoft (249), Vendor-Option (43)
+   17  15:17:36.156548 EAPOL start (1) v1, len 0
+   18  15:17:36.158698 EAP packet (0) v1, len 5, Request (1), id 2, len 5
+		 Type Identity (1)
+   19  15:17:37.766046 EAP packet (0) v1, len 45, Response (2), id 2, len 45
+		 Type Identity (1), Identity: 1295023820005391@mnc023.mcc295.owlan.org
+   20  15:17:37.790625 EAP packet (0) v1, len 20, Request (1), id 16, len 20
+		 Type SIM (18) subtype [Start] 0x0a
+   21  15:17:37.830669 EAP packet (0) v1, len 76, Response (2), id 16, len 76
+		 Type SIM (18) subtype [Start] 0x0a
+   22  15:17:37.848577 EAP packet (0) v1, len 80, Request (1), id 17, len 80
+		 Type SIM (18) subtype [Challenge] 0x0b
+   23  15:17:38.661939 EAP packet (0) v1, len 28, Response (2), id 17, len 28
+		 Type SIM (18) subtype [Challenge] 0x0b
+   24  15:17:38.685352 EAP packet (0) v1, len 4, Success (3), id 0, len 4
+   25  15:17:38.686358 EAPOL key (3) v1, len 57
+   26  15:17:38.687182 EAPOL key (3) v1, len 44
+   27  15:17:39.852392 IP (tos 0x0, ttl 128, id 14503, offset 0, flags [none], proto UDP (17), length 328)
+    0.0.0.0.68 > 255.255.255.255.67: BOOTP/DHCP, Request from 00:04:23:57:a5:7a, length 300, xid 0xd5037d2e, secs 26881, Flags [none]
+	  Client-Ethernet-Address 00:04:23:57:a5:7a
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Discover
+	    NOAUTO (116), length 1: Y
+	    Client-ID (61), length 7: ether 00:04:23:57:a5:7a
+	    Requested-IP (50), length 4: 192.168.1.249
+	    Hostname (12), length 8: "DJP95S0J"
+	    Vendor-Class (60), length 8: "MSFT 5.0"
+	    Parameter-Request (55), length 11: 
+	      Subnet-Mask (1), Domain-Name (15), Default-Gateway (3), Domain-Name-Server (6)
+	      Netbios-Name-Server (44), Netbios-Node (46), Netbios-Scope (47), Router-Discovery (31)
+	      Static-Route (33), Classless-Static-Route-Microsoft (249), Vendor-Option (43)
+   28  15:17:46.852719 IP (tos 0x0, ttl 128, id 14511, offset 0, flags [none], proto UDP (17), length 328)
+    0.0.0.0.68 > 255.255.255.255.67: BOOTP/DHCP, Request from 00:04:23:57:a5:7a, length 300, xid 0xd5037d2e, secs 26881, Flags [none]
+	  Client-Ethernet-Address 00:04:23:57:a5:7a
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Discover
+	    NOAUTO (116), length 1: Y
+	    Client-ID (61), length 7: ether 00:04:23:57:a5:7a
+	    Requested-IP (50), length 4: 192.168.1.249
+	    Hostname (12), length 8: "DJP95S0J"
+	    Vendor-Class (60), length 8: "MSFT 5.0"
+	    Parameter-Request (55), length 11: 
+	      Subnet-Mask (1), Domain-Name (15), Default-Gateway (3), Domain-Name-Server (6)
+	      Netbios-Name-Server (44), Netbios-Node (46), Netbios-Scope (47), Router-Discovery (31)
+	      Static-Route (33), Classless-Static-Route-Microsoft (249), Vendor-Option (43)
+   29  15:18:02.852731 IP (tos 0x0, ttl 128, id 14514, offset 0, flags [none], proto UDP (17), length 328)
+    0.0.0.0.68 > 255.255.255.255.67: BOOTP/DHCP, Request from 00:04:23:57:a5:7a, length 300, xid 0xd5037d2e, secs 26881, Flags [none]
+	  Client-Ethernet-Address 00:04:23:57:a5:7a
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Discover
+	    NOAUTO (116), length 1: Y
+	    Client-ID (61), length 7: ether 00:04:23:57:a5:7a
+	    Requested-IP (50), length 4: 192.168.1.249
+	    Hostname (12), length 8: "DJP95S0J"
+	    Vendor-Class (60), length 8: "MSFT 5.0"
+	    Parameter-Request (55), length 11: 
+	      Subnet-Mask (1), Domain-Name (15), Default-Gateway (3), Domain-Name-Server (6)
+	      Netbios-Name-Server (44), Netbios-Node (46), Netbios-Scope (47), Router-Discovery (31)
+	      Static-Route (33), Classless-Static-Route-Microsoft (249), Vendor-Option (43)
+   30  15:18:08.689384 EAPOL start (1) v1, len 0
+   31  15:18:08.696826 EAP packet (0) v1, len 5, Request (1), id 3, len 5
+		 Type Identity (1)
+   32  15:18:08.713116 EAP packet (0) v1, len 45, Response (2), id 3, len 45
+		 Type Identity (1), Identity: 1295023820005391@mnc023.mcc295.owlan.org
+   33  15:18:08.787664 EAP packet (0) v1, len 20, Request (1), id 47, len 20
+		 Type SIM (18) subtype [Start] 0x0a
+   34  15:18:10.344628 EAP packet (0) v1, len 76, Response (2), id 47, len 76
+		 Type SIM (18) subtype [Start] 0x0a
+   35  15:18:10.473292 EAP packet (0) v1, len 80, Request (1), id 48, len 80
+		 Type SIM (18) subtype [Challenge] 0x0b
+   36  15:18:11.152435 EAP packet (0) v1, len 28, Response (2), id 48, len 28
+		 Type SIM (18) subtype [Challenge] 0x0b
+   37  15:18:11.251425 EAP packet (0) v1, len 4, Success (3), id 0, len 4
+   38  15:18:11.252509 EAPOL key (3) v1, len 57
+   39  15:18:11.253336 EAPOL key (3) v1, len 44
+   40  15:18:35.856823 ARP, Ethernet (len 6), IPv4 (len 4), Request who-has 169.254.67.194 tell 169.254.67.194, length 28
+   41  15:18:35.885105 ARP, Ethernet (len 6), IPv4 (len 4), Request who-has 169.254.67.194 tell 169.254.67.194, length 28
+   42  15:18:36.885304 ARP, Ethernet (len 6), IPv4 (len 4), Request who-has 169.254.67.194 tell 169.254.67.194, length 28
+   43  15:18:37.907817 IP (tos 0x0, ttl 1, id 14526, offset 0, flags [none], proto UDP (17), length 161)
+    169.254.67.194.4299 > 239.255.255.250.1900: UDP, length 133
+   44  15:18:37.910524 IP (tos 0x0, ttl 1, id 14528, offset 0, flags [none], proto IGMP (2), length 40, options (RA))
+    169.254.67.194 > 224.0.0.22: igmp v3 report, 1 group record(s) [gaddr 239.255.255.250 to_ex, 0 source(s)]
+   45  15:18:37.964030 IP (tos 0x0, ttl 128, id 14530, offset 0, flags [none], proto UDP (17), length 96)
+    169.254.67.194.137 > 169.254.255.255.137: UDP, length 68
+   46  15:18:38.691974 IP (tos 0x0, ttl 1, id 14532, offset 0, flags [none], proto IGMP (2), length 40, options (RA))
+    169.254.67.194 > 224.0.0.22: igmp v3 report, 1 group record(s) [gaddr 239.255.255.250 to_ex, 0 source(s)]
+   47  15:18:38.714004 IP (tos 0x0, ttl 128, id 14533, offset 0, flags [none], proto UDP (17), length 96)
+    169.254.67.194.137 > 169.254.255.255.137: UDP, length 68
+   48  15:18:39.464435 IP (tos 0x0, ttl 128, id 14534, offset 0, flags [none], proto UDP (17), length 96)
+    169.254.67.194.137 > 169.254.255.255.137: UDP, length 68
+   49  15:18:39.898479 IP (tos 0x0, ttl 128, id 14535, offset 0, flags [none], proto UDP (17), length 328)
+    0.0.0.0.68 > 255.255.255.255.67: BOOTP/DHCP, Request from 00:04:23:57:a5:7a, length 300, xid 0x9245394e, Flags [Broadcast]
+	  Client-Ethernet-Address 00:04:23:57:a5:7a
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Discover
+	    NOAUTO (116), length 1: Y
+	    Client-ID (61), length 7: ether 00:04:23:57:a5:7a
+	    Requested-IP (50), length 4: 192.168.1.249
+	    Hostname (12), length 8: "DJP95S0J"
+	    Vendor-Class (60), length 8: "MSFT 5.0"
+	    Parameter-Request (55), length 11: 
+	      Subnet-Mask (1), Domain-Name (15), Default-Gateway (3), Domain-Name-Server (6)
+	      Netbios-Name-Server (44), Netbios-Node (46), Netbios-Scope (47), Router-Discovery (31)
+	      Static-Route (33), Classless-Static-Route-Microsoft (249), Vendor-Option (43)
+   50  15:18:40.214836 IP (tos 0x0, ttl 128, id 14536, offset 0, flags [none], proto UDP (17), length 96)
+    169.254.67.194.137 > 169.254.255.255.137: UDP, length 68
+   51  15:18:40.909196 IP (tos 0x0, ttl 1, id 14538, offset 0, flags [none], proto UDP (17), length 161)
+    169.254.67.194.4299 > 239.255.255.250.1900: UDP, length 133
+   52  15:18:40.965632 IP (tos 0x0, ttl 128, id 14540, offset 0, flags [none], proto UDP (17), length 96)
+    169.254.67.194.137 > 169.254.255.255.137: UDP, length 68
+   53  15:18:41.254259 EAPOL start (1) v1, len 0
+   54  15:18:41.256353 EAP packet (0) v1, len 5, Request (1), id 4, len 5
+		 Type Identity (1)
+   55  15:18:41.275901 EAP packet (0) v1, len 45, Response (2), id 4, len 45
+		 Type Identity (1), Identity: 1295023820005391@mnc023.mcc295.owlan.org
+   56  15:18:41.388857 EAP packet (0) v1, len 20, Request (1), id 80, len 20
+		 Type SIM (18) subtype [Start] 0x0a
+   57  15:18:41.715620 IP (tos 0x0, ttl 128, id 14541, offset 0, flags [none], proto UDP (17), length 96)
+    169.254.67.194.137 > 169.254.255.255.137: UDP, length 68
+   58  15:18:42.466013 IP (tos 0x0, ttl 128, id 14542, offset 0, flags [none], proto UDP (17), length 96)
+    169.254.67.194.137 > 169.254.255.255.137: UDP, length 68
+   59  15:18:42.963175 EAP packet (0) v1, len 76, Response (2), id 80, len 76
+		 Type SIM (18) subtype [Start] 0x0a
+   60  15:18:42.987906 EAP packet (0) v1, len 80, Request (1), id 81, len 80
+		 Type SIM (18) subtype [Challenge] 0x0b
+   61  15:18:43.216408 IP (tos 0x0, ttl 128, id 14543, offset 0, flags [none], proto UDP (17), length 96)
+    169.254.67.194.137 > 169.254.255.255.137: UDP, length 68
+   62  15:18:43.675053 EAP packet (0) v1, len 28, Response (2), id 81, len 28
+		 Type SIM (18) subtype [Challenge] 0x0b
+   63  15:18:43.695554 EAP packet (0) v1, len 4, Success (3), id 0, len 4
+   64  15:18:43.696547 EAPOL key (3) v1, len 57
+   65  15:18:43.697368 EAPOL key (3) v1, len 44
+   66  15:18:43.899684 IP (tos 0x0, ttl 128, id 14544, offset 0, flags [none], proto UDP (17), length 328)
+    0.0.0.0.68 > 255.255.255.255.67: BOOTP/DHCP, Request from 00:04:23:57:a5:7a, length 300, xid 0x9245394e, secs 10497, Flags [Broadcast]
+	  Client-Ethernet-Address 00:04:23:57:a5:7a
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Discover
+	    NOAUTO (116), length 1: Y
+	    Client-ID (61), length 7: ether 00:04:23:57:a5:7a
+	    Requested-IP (50), length 4: 192.168.1.249
+	    Hostname (12), length 8: "DJP95S0J"
+	    Vendor-Class (60), length 8: "MSFT 5.0"
+	    Parameter-Request (55), length 11: 
+	      Subnet-Mask (1), Domain-Name (15), Default-Gateway (3), Domain-Name-Server (6)
+	      Netbios-Name-Server (44), Netbios-Node (46), Netbios-Scope (47), Router-Discovery (31)
+	      Static-Route (33), Classless-Static-Route-Microsoft (249), Vendor-Option (43)
+   67  15:18:43.909719 IP (tos 0x0, ttl 1, id 14546, offset 0, flags [none], proto UDP (17), length 161)
+    169.254.67.194.4299 > 239.255.255.250.1900: UDP, length 133
+   68  15:18:43.967353 IP (tos 0x0, ttl 128, id 14548, offset 0, flags [none], proto UDP (17), length 96)
+    169.254.67.194.137 > 169.254.255.255.137: UDP, length 68
+   69  15:18:43.967896 IP (tos 0x0, ttl 128, id 14549, offset 0, flags [none], proto UDP (17), length 96)
+    169.254.67.194.137 > 169.254.255.255.137: UDP, length 68
+   70  15:18:44.717196 IP (tos 0x0, ttl 128, id 14552, offset 0, flags [none], proto UDP (17), length 96)
+    169.254.67.194.137 > 169.254.255.255.137: UDP, length 68
+   71  15:18:44.718161 IP (tos 0x0, ttl 128, id 14553, offset 0, flags [none], proto UDP (17), length 96)
+    169.254.67.194.137 > 169.254.255.255.137: UDP, length 68
+   72  15:18:45.467593 IP (tos 0x0, ttl 128, id 14554, offset 0, flags [none], proto UDP (17), length 96)
+    169.254.67.194.137 > 169.254.255.255.137: UDP, length 68
+   73  15:18:45.468557 IP (tos 0x0, ttl 128, id 14555, offset 0, flags [none], proto UDP (17), length 96)
+    169.254.67.194.137 > 169.254.255.255.137: UDP, length 68
+   74  15:18:46.217980 IP (tos 0x0, ttl 128, id 14556, offset 0, flags [none], proto UDP (17), length 96)
+    169.254.67.194.137 > 169.254.255.255.137: UDP, length 68
+   75  15:18:46.218950 IP (tos 0x0, ttl 128, id 14557, offset 0, flags [none], proto UDP (17), length 96)
+    169.254.67.194.137 > 169.254.255.255.137: UDP, length 68
+   76  15:18:46.969929 IP (tos 0x0, ttl 128, id 14563, offset 0, flags [none], proto UDP (17), length 207)
+    169.254.67.194.138 > 169.254.255.255.138: UDP, length 179
+   77  15:18:46.970205 IP (tos 0x0, ttl 128, id 14564, offset 0, flags [none], proto UDP (17), length 229)
+    169.254.67.194.138 > 169.254.255.255.138: UDP, length 201
+   78  15:18:48.470207 IP (tos 0x0, ttl 128, id 14566, offset 0, flags [none], proto UDP (17), length 207)
+    169.254.67.194.138 > 169.254.255.255.138: UDP, length 179
+   79  15:18:49.970986 IP (tos 0x0, ttl 128, id 14567, offset 0, flags [none], proto UDP (17), length 207)
+    169.254.67.194.138 > 169.254.255.255.138: UDP, length 179
+   80  15:18:51.471768 IP (tos 0x0, ttl 128, id 14568, offset 0, flags [none], proto UDP (17), length 207)
+    169.254.67.194.138 > 169.254.255.255.138: UDP, length 179
+   81  15:18:52.900388 IP (tos 0x0, ttl 128, id 14569, offset 0, flags [none], proto UDP (17), length 328)
+    0.0.0.0.68 > 255.255.255.255.67: BOOTP/DHCP, Request from 00:04:23:57:a5:7a, length 300, xid 0x9245394e, secs 10497, Flags [Broadcast]
+	  Client-Ethernet-Address 00:04:23:57:a5:7a
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Discover
+	    NOAUTO (116), length 1: Y
+	    Client-ID (61), length 7: ether 00:04:23:57:a5:7a
+	    Requested-IP (50), length 4: 192.168.1.249
+	    Hostname (12), length 8: "DJP95S0J"
+	    Vendor-Class (60), length 8: "MSFT 5.0"
+	    Parameter-Request (55), length 11: 
+	      Subnet-Mask (1), Domain-Name (15), Default-Gateway (3), Domain-Name-Server (6)
+	      Netbios-Name-Server (44), Netbios-Node (46), Netbios-Scope (47), Router-Discovery (31)
+	      Static-Route (33), Classless-Static-Route-Microsoft (249), Vendor-Option (43)
+   82  15:18:52.972547 IP (tos 0x0, ttl 128, id 14570, offset 0, flags [none], proto UDP (17), length 219)
+    169.254.67.194.138 > 169.254.255.255.138: UDP, length 191
+   83  15:18:53.972751 IP (tos 0x0, ttl 128, id 14571, offset 0, flags [none], proto UDP (17), length 219)
+    169.254.67.194.138 > 169.254.255.255.138: UDP, length 191
+   84  15:18:54.972939 IP (tos 0x0, ttl 128, id 14572, offset 0, flags [none], proto UDP (17), length 219)
+    169.254.67.194.138 > 169.254.255.255.138: UDP, length 191
+   85  15:18:55.973129 IP (tos 0x0, ttl 128, id 14573, offset 0, flags [none], proto UDP (17), length 219)
+    169.254.67.194.138 > 169.254.255.255.138: UDP, length 191
+   86  15:18:56.973475 IP (tos 0x0, ttl 128, id 14574, offset 0, flags [none], proto UDP (17), length 96)
+    169.254.67.194.137 > 169.254.255.255.137: UDP, length 68
+   87  15:18:57.723686 IP (tos 0x0, ttl 128, id 14575, offset 0, flags [none], proto UDP (17), length 96)
+    169.254.67.194.137 > 169.254.255.255.137: UDP, length 68
+   88  15:18:58.474079 IP (tos 0x0, ttl 128, id 14576, offset 0, flags [none], proto UDP (17), length 96)
+    169.254.67.194.137 > 169.254.255.255.137: UDP, length 68
+   89  15:18:59.224473 IP (tos 0x0, ttl 128, id 14579, offset 0, flags [none], proto UDP (17), length 96)
+    169.254.67.194.137 > 169.254.255.255.137: UDP, length 68
+   90  15:18:59.974983 IP (tos 0x0, ttl 128, id 14580, offset 0, flags [none], proto UDP (17), length 96)
+    169.254.67.194.137 > 169.254.255.255.137: UDP, length 68
+   91  15:19:00.725263 IP (tos 0x0, ttl 128, id 14581, offset 0, flags [none], proto UDP (17), length 96)
+    169.254.67.194.137 > 169.254.255.255.137: UDP, length 68
+   92  15:19:01.475654 IP (tos 0x0, ttl 128, id 14582, offset 0, flags [none], proto UDP (17), length 96)
+    169.254.67.194.137 > 169.254.255.255.137: UDP, length 68
+   93  15:19:02.226046 IP (tos 0x0, ttl 128, id 14583, offset 0, flags [none], proto UDP (17), length 96)
+    169.254.67.194.137 > 169.254.255.255.137: UDP, length 68
+   94  15:19:02.976511 IP (tos 0x0, ttl 128, id 14584, offset 0, flags [none], proto UDP (17), length 207)
+    169.254.67.194.138 > 169.254.255.255.138: UDP, length 179
+   95  15:19:02.976737 IP (tos 0x0, ttl 128, id 14585, offset 0, flags [none], proto UDP (17), length 207)
+    169.254.67.194.138 > 169.254.255.255.138: UDP, length 179
+   96  15:19:02.977520 IP (tos 0x0, ttl 128, id 14586, offset 0, flags [none], proto UDP (17), length 237)
+    169.254.67.194.138 > 169.254.255.255.138: UDP, length 209
+   97  15:19:02.979092 IP (tos 0x0, ttl 128, id 14587, offset 0, flags [none], proto UDP (17), length 78)
+    169.254.67.194.137 > 169.254.255.255.137: UDP, length 50
+   98  15:19:03.728840 IP (tos 0x0, ttl 128, id 14588, offset 0, flags [none], proto UDP (17), length 78)
+    169.254.67.194.137 > 169.254.255.255.137: UDP, length 50
+   99  15:19:04.479238 IP (tos 0x0, ttl 128, id 14589, offset 0, flags [none], proto UDP (17), length 78)
+    169.254.67.194.137 > 169.254.255.255.137: UDP, length 50
+  100  15:19:07.482218 IP (tos 0x0, ttl 128, id 14593, offset 0, flags [none], proto UDP (17), length 78)
+    169.254.67.194.137 > 169.254.255.255.137: UDP, length 50
+  101  15:19:08.232205 IP (tos 0x0, ttl 128, id 14594, offset 0, flags [none], proto UDP (17), length 78)
+    169.254.67.194.137 > 169.254.255.255.137: UDP, length 50
+  102  15:19:08.982597 IP (tos 0x0, ttl 128, id 14596, offset 0, flags [none], proto UDP (17), length 78)
+    169.254.67.194.137 > 169.254.255.255.137: UDP, length 50
+  103  15:19:09.900631 IP (tos 0x0, ttl 128, id 14598, offset 0, flags [none], proto UDP (17), length 328)
+    0.0.0.0.68 > 255.255.255.255.67: BOOTP/DHCP, Request from 00:04:23:57:a5:7a, length 300, xid 0x9245394e, secs 10497, Flags [Broadcast]
+	  Client-Ethernet-Address 00:04:23:57:a5:7a
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Discover
+	    NOAUTO (116), length 1: Y
+	    Client-ID (61), length 7: ether 00:04:23:57:a5:7a
+	    Requested-IP (50), length 4: 192.168.1.249
+	    Hostname (12), length 8: "DJP95S0J"
+	    Vendor-Class (60), length 8: "MSFT 5.0"
+	    Parameter-Request (55), length 11: 
+	      Subnet-Mask (1), Domain-Name (15), Default-Gateway (3), Domain-Name-Server (6)
+	      Netbios-Name-Server (44), Netbios-Node (46), Netbios-Scope (47), Router-Discovery (31)
+	      Static-Route (33), Classless-Static-Route-Microsoft (249), Vendor-Option (43)
+  104  15:19:13.696821 EAPOL start (1) v1, len 0
+  105  15:19:13.704581 EAP packet (0) v1, len 5, Request (1), id 5, len 5
+		 Type Identity (1)
+  106  15:19:13.718221 EAP packet (0) v1, len 45, Response (2), id 5, len 45
+		 Type Identity (1), Identity: 1295023820005391@mnc023.mcc295.owlan.org
+  107  15:19:13.734974 EAP packet (0) v1, len 20, Request (1), id 112, len 20
+		 Type SIM (18) subtype [Start] 0x0a
+  108  15:19:14.801245 IP (tos 0x0, ttl 128, id 14604, offset 0, flags [none], proto UDP (17), length 229)
+    169.254.67.194.138 > 169.254.255.255.138: UDP, length 201
+  109  15:19:15.293800 EAP packet (0) v1, len 76, Response (2), id 112, len 76
+		 Type SIM (18) subtype [Start] 0x0a
+  110  15:19:15.312531 EAP packet (0) v1, len 80, Request (1), id 113, len 80
+		 Type SIM (18) subtype [Challenge] 0x0b
+  111  15:19:15.997763 EAP packet (0) v1, len 28, Response (2), id 113, len 28
+		 Type SIM (18) subtype [Challenge] 0x0b
+  112  15:19:16.022323 EAP packet (0) v1, len 4, Success (3), id 0, len 4
+  113  15:19:16.023335 EAPOL key (3) v1, len 57
+  114  15:19:16.024149 EAPOL key (3) v1, len 44

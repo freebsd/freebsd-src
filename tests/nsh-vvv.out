@@ -1,0 +1,7 @@
+    1  23:13:40.394208 NSH, ver 0, flags [none], TTL 0, length 6, md type 1, next-protocol IPv4, service-path-id 0x000309, service-index 0x7
+        Context[00]: 0x00000001
+        Context[01]: 0x00000002
+        Context[02]: 0x00000003
+        Context[03]: 0x00000004
+    IP (tos 0x0, ttl 64, id 10308, offset 0, flags [DF], proto UDP (17), length 34)
+    10.0.8.3.52229 > 10.13.13.13.8000: [no cksum] UDP, length 6

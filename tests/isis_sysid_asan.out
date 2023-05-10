@@ -1,4 +1,4 @@
-UI 22! IS-IS, length 469869187
+    1  [Error converting time] UI 22! IS-IS, length 262139
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 224 (224)
 	  source-id: fed0.f90f.58af,  holding time: 34047s, Flags: [unknown circuit type 0x00]
 	  lan-id:    0105.0088.a204.00, Priority: 65, PDU length: 4096
@@ -20,52 +20,5 @@ UI 22! IS-IS, length 469869187
 	    unknown TLV #100, length: 0
 	    unknown TLV #32, length: 16
 		0x0000:  2020 2020 3c20 2020 2020 2020 205a 1a31
-	    IS Neighbor(s) (variable length) TLV #7, length: 238
-	      LAN address length 1 bytes 
-		IS Neighbor: 5a
-		IS Neighbor: 45
-		IS Neighbor: 50
-		IS Neighbor: 48
-		IS Neighbor: 59
-		IS Neighbor: 52
-		IS Neighbor: 5f
-		IS Neighbor: 43
-		IS Neighbor: 54
-		IS Neighbor: 4c
-		IS Neighbor: 08
-		IS Neighbor: 08
-		IS Neighbor: 08
-		IS Neighbor: 08
-		IS Neighbor: 08
-		IS Neighbor: 08
-		IS Neighbor: 08
-		IS Neighbor: 08
-		IS Neighbor: 08
-		IS Neighbor: 08
-		IS Neighbor: 08
-		IS Neighbor: 08
-		IS Neighbor: 08
-		IS Neighbor: 08
-		IS Neighbor: 08
-		IS Neighbor: 08
-		IS Neighbor: 08
-		IS Neighbor: 08
-		IS Neighbor: 08
-		IS Neighbor: 08
-		IS Neighbor: 00
-		IS Neighbor: 00
-		IS Neighbor: 08
-		IS Neighbor: 00
-		IS Neighbor: 20
-		IS Neighbor: 64
-		IS Neighbor: 00
-		IS Neighbor: 20
-		IS Neighbor: 10
-		IS Neighbor: 20
-		IS Neighbor: 20
-		IS Neighbor: 20
-		IS Neighbor: 20
-		IS Neighbor: 20
-		IS Neighbor: 20
-		IS Neighbor: 20
-		IS Neighbor: 20 [|isis]
+	    Instance Identifier TLV #7, length: 238
+	      Instance ID: 346, ITIDs(118): 17744, 18521, 21087, 17236, 19464, 2056, 2056, 2056, 2056, 2056, 2056, 2056, 2056, 2056, 2048, 8, 32, 25600, 8208, 8224, 8224, 8224, 8224,  [|isis]

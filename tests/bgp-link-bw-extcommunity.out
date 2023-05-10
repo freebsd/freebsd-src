@@ -1,0 +1,63 @@
+    1  07:51:47.389652 IP (tos 0xc0, ttl 64, id 60775, offset 0, flags [DF], proto TCP (6), length 460)
+    192.168.10.249.36890 > 192.168.10.252.179: Flags [P.], cksum 0x87a4 (correct), seq 2387217692:2387218100, ack 685497494, win 229, options [nop,nop,TS val 7136044 ecr 4011453153], length 408: BGP
+	Update Message (2), length: 67
+	  Origin (1), length: 1, Flags [T]: Incomplete
+	  AS Path (2), length: 0, Flags [TE]: empty
+	  Next Hop (3), length: 4, Flags [T]: 192.168.10.249
+	  Multi Exit Discriminator (4), length: 4, Flags [O]: 0
+	  Local Preference (5), length: 4, Flags [T]: 100
+	  Extended Community (16), length: 8, Flags [OT]: 
+	    link-BW (0x4004), Flags [non-transitive]: bandwidth: 1.000 Mbps
+	  Updated routes:
+	    10.0.0.0/24
+	Update Message (2), length: 67
+	  Origin (1), length: 1, Flags [T]: Incomplete
+	  AS Path (2), length: 0, Flags [TE]: empty
+	  Next Hop (3), length: 4, Flags [T]: 192.168.10.249
+	  Multi Exit Discriminator (4), length: 4, Flags [O]: 0
+	  Local Preference (5), length: 4, Flags [T]: 100
+	  Extended Community (16), length: 8, Flags [OT]: 
+	    link-BW (0x4004), Flags [non-transitive]: bandwidth: 1.000 Mbps
+	  Updated routes:
+	    10.0.2.0/24
+	Update Message (2), length: 73
+	  Origin (1), length: 1, Flags [T]: Incomplete
+	  AS Path (2), length: 0, Flags [TE]: empty
+	  Next Hop (3), length: 4, Flags [T]: 192.168.10.249
+	  Multi Exit Discriminator (4), length: 4, Flags [O]: 0
+	  Local Preference (5), length: 4, Flags [T]: 100
+	  Extended Community (16), length: 8, Flags [OT]: 
+	    link-BW (0x4004), Flags [non-transitive]: bandwidth: 1.000 Mbps
+	  Updated routes:
+	    10.10.10.100/32
+	    10.10.10.200/32
+	Update Message (2), length: 67
+	  Origin (1), length: 1, Flags [T]: Incomplete
+	  AS Path (2), length: 0, Flags [TE]: empty
+	  Next Hop (3), length: 4, Flags [T]: 192.168.10.249
+	  Multi Exit Discriminator (4), length: 4, Flags [O]: 0
+	  Local Preference (5), length: 4, Flags [T]: 100
+	  Extended Community (16), length: 8, Flags [OT]: 
+	    link-BW (0x4004), Flags [non-transitive]: bandwidth: 1.000 Mbps
+	  Updated routes:
+	    192.168.0.0/24
+	Update Message (2), length: 67
+	  Origin (1), length: 1, Flags [T]: Incomplete
+	  AS Path (2), length: 0, Flags [TE]: empty
+	  Next Hop (3), length: 4, Flags [T]: 192.168.10.249
+	  Multi Exit Discriminator (4), length: 4, Flags [O]: 0
+	  Local Preference (5), length: 4, Flags [T]: 100
+	  Extended Community (16), length: 8, Flags [OT]: 
+	    link-BW (0x4004), Flags [non-transitive]: bandwidth: 1.000 Mbps
+	  Updated routes:
+	    192.168.1.0/24
+	Update Message (2), length: 67
+	  Origin (1), length: 1, Flags [T]: Incomplete
+	  AS Path (2), length: 0, Flags [TE]: empty
+	  Next Hop (3), length: 4, Flags [T]: 192.168.10.249
+	  Multi Exit Discriminator (4), length: 4, Flags [O]: 0
+	  Local Preference (5), length: 4, Flags [T]: 100
+	  Extended Community (16), length: 8, Flags [OT]: 
+	    link-BW (0x4004), Flags [non-transitive]: bandwidth: 1.000 Mbps
+	  Updated routes:
+	    192.168.10.0/24

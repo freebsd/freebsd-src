@@ -1,0 +1,7 @@
+    1  16:32:06.422840 IP (tos 0x0, ttl 64, id 41789, offset 0, flags [none], proto UDP (17), length 83)
+    127.0.0.1.43124 > 127.0.0.1.1812: RADIUS, length: 55
+	Access-Request (1), id: 0xc8, Authenticator: bc6e7022445e359835692c8c121c1985
+	  User-Name Attribute (1), length: 5, Value: bob
+	  User-Password Attribute (2), length: 18, Value: 
+	  Error-Cause Attribute (101), length: 6, Value: Error cause 201: Residual Session Context Removed
+	  Error-Cause Attribute (101), length: 6, Value: Error cause 209: Error-Cause 209 not known

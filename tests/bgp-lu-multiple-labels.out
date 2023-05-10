@@ -1,0 +1,189 @@
+    1  20:31:17.039331 ARP, Ethernet (len 6), IPv4 (len 4), Request who-has 2.1.1.2 tell 2.1.1.1, length 28
+    2  20:31:17.043641 ARP, Ethernet (len 6), IPv4 (len 4), Reply 2.1.1.2 is-at 00:00:76:02:00:00, length 28
+    3  20:31:17.046848 IP (tos 0xc0, ttl 255, id 17243, offset 0, flags [DF], proto TCP (6), length 60)
+    2.1.1.1.40760 > 2.1.1.2.179: Flags [S], cksum 0x9d32 (correct), seq 2629054509, win 29200, options [mss 1460,sackOK,TS val 1383297910 ecr 0,nop,wscale 9], length 0
+    4  20:31:17.049070 IP (tos 0xc0, ttl 255, id 0, offset 0, flags [DF], proto TCP (6), length 60)
+    2.1.1.2.179 > 2.1.1.1.40760: Flags [S.], cksum 0xd0ab (correct), seq 3800966379, ack 2629054510, win 28960, options [mss 1460,sackOK,TS val 1383297912 ecr 1383297910,nop,wscale 9], length 0
+    5  20:31:17.050769 IP (tos 0xc0, ttl 255, id 17244, offset 0, flags [DF], proto TCP (6), length 52)
+    2.1.1.1.40760 > 2.1.1.2.179: Flags [.], cksum 0x705d (correct), ack 1, win 58, options [nop,nop,TS val 1383297913 ecr 1383297912], length 0
+    6  20:31:17.051156 IP (tos 0xc0, ttl 255, id 17245, offset 0, flags [DF], proto TCP (6), length 123)
+    2.1.1.1.40760 > 2.1.1.2.179: Flags [P.], cksum 0x5d4b (correct), seq 1:72, ack 1, win 58, options [nop,nop,TS val 1383297913 ecr 1383297912], length 71: BGP
+	Open Message (1), length: 71
+	  Version 4, my AS 100, Holdtime 180s, ID 0.0.0.1
+	  Optional parameters, length: 42
+	    Option Capabilities Advertisement (2), length: 40
+	      Graceful Restart (64), length: 2
+		Restart Flags: [R], Restart Time 300s
+	      Multiple Labels (8), length: 4
+		AFI IPv4 (1), SAFI labeled Unicast (4), Count: 7
+	      Route Refresh (2), length: 0
+	      Multiprotocol Extensions (1), length: 4
+		AFI IPv4 (1), SAFI Unicast (1)
+	      Multiprotocol Extensions (1), length: 4
+		AFI IPv4 (1), SAFI labeled Unicast (4)
+	      32-Bit AS Number (65), length: 4
+		 4 Byte AS 100
+	      Multiple Paths (69), length: 8
+		AFI IPv4 (1), SAFI Unicast (1), Send/Receive: Receive
+		AFI IPv4 (1), SAFI labeled Unicast (4), Send/Receive: Receive
+    7  20:31:17.054407 IP (tos 0xc0, ttl 255, id 22421, offset 0, flags [DF], proto TCP (6), length 52)
+    2.1.1.2.179 > 2.1.1.1.40760: Flags [.], cksum 0x7015 (correct), ack 72, win 57, options [nop,nop,TS val 1383297914 ecr 1383297913], length 0
+    8  20:31:17.056592 IP (tos 0xc0, ttl 255, id 22422, offset 0, flags [DF], proto TCP (6), length 123)
+    2.1.1.2.179 > 2.1.1.1.40760: Flags [P.], cksum 0x5c03 (correct), seq 1:72, ack 72, win 57, options [nop,nop,TS val 1383297914 ecr 1383297913], length 71: BGP
+	Open Message (1), length: 71
+	  Version 4, my AS 100, Holdtime 180s, ID 0.0.1.1
+	  Optional parameters, length: 42
+	    Option Capabilities Advertisement (2), length: 40
+	      Graceful Restart (64), length: 2
+		Restart Flags: [R], Restart Time 300s
+	      Multiple Labels (8), length: 4
+		AFI IPv4 (1), SAFI labeled Unicast (4), Count: 7
+	      Route Refresh (2), length: 0
+	      Multiprotocol Extensions (1), length: 4
+		AFI IPv4 (1), SAFI Unicast (1)
+	      Multiprotocol Extensions (1), length: 4
+		AFI IPv4 (1), SAFI labeled Unicast (4)
+	      32-Bit AS Number (65), length: 4
+		 4 Byte AS 100
+	      Multiple Paths (69), length: 8
+		AFI IPv4 (1), SAFI Unicast (1), Send/Receive: Receive
+		AFI IPv4 (1), SAFI labeled Unicast (4), Send/Receive: Receive
+    9  20:31:17.058139 IP (tos 0xc0, ttl 255, id 17246, offset 0, flags [DF], proto TCP (6), length 52)
+    2.1.1.1.40760 > 2.1.1.2.179: Flags [.], cksum 0x6fcc (correct), ack 72, win 58, options [nop,nop,TS val 1383297914 ecr 1383297914], length 0
+   10  20:31:17.058330 IP (tos 0xc0, ttl 255, id 17247, offset 0, flags [DF], proto TCP (6), length 71)
+    2.1.1.1.40760 > 2.1.1.2.179: Flags [P.], cksum 0x6b9d (correct), seq 72:91, ack 72, win 58, options [nop,nop,TS val 1383297915 ecr 1383297914], length 19: BGP
+	Keepalive Message (4), length: 19
+   11  20:31:17.060679 IP (tos 0xc0, ttl 255, id 22423, offset 0, flags [DF], proto TCP (6), length 71)
+    2.1.1.2.179 > 2.1.1.1.40760: Flags [P.], cksum 0x6b9e (correct), seq 72:91, ack 72, win 57, options [nop,nop,TS val 1383297915 ecr 1383297914], length 19: BGP
+	Keepalive Message (4), length: 19
+   12  20:31:17.106221 IP (tos 0xc0, ttl 255, id 22424, offset 0, flags [DF], proto TCP (6), length 52)
+    2.1.1.2.179 > 2.1.1.1.40760: Flags [.], cksum 0x6f99 (correct), ack 91, win 57, options [nop,nop,TS val 1383297927 ecr 1383297915], length 0
+   13  20:31:17.106294 IP (tos 0xc0, ttl 255, id 17248, offset 0, flags [DF], proto TCP (6), length 52)
+    2.1.1.1.40760 > 2.1.1.2.179: Flags [.], cksum 0x6f98 (correct), ack 91, win 58, options [nop,nop,TS val 1383297927 ecr 1383297915], length 0
+   14  20:31:17.108030 IP (tos 0xc0, ttl 255, id 22425, offset 0, flags [DF], proto TCP (6), length 124)
+    2.1.1.2.179 > 2.1.1.1.40760: Flags [P.], cksum 0x3776 (correct), seq 91:163, ack 91, win 57, options [nop,nop,TS val 1383297927 ecr 1383297927], length 72: BGP
+	Keepalive Message (4), length: 19
+	Update Message (2), length: 23
+	  End-of-Rib Marker (empty NLRI)
+	Update Message (2), length: 30
+	  Multi-Protocol Unreach NLRI (15), length: 3, Flags [OE]: 
+	    AFI: IPv4 (1), SAFI: labeled Unicast (4)
+	      End-of-Rib Marker (empty NLRI)
+   15  20:31:17.108062 IP (tos 0xc0, ttl 255, id 17249, offset 0, flags [DF], proto TCP (6), length 71)
+    2.1.1.1.40760 > 2.1.1.2.179: Flags [P.], cksum 0x6b5e (correct), seq 91:110, ack 91, win 58, options [nop,nop,TS val 1383297927 ecr 1383297927], length 19: BGP
+	Keepalive Message (4), length: 19
+   16  20:31:17.109422 IP (tos 0xc0, ttl 255, id 22426, offset 0, flags [DF], proto TCP (6), length 52)
+    2.1.1.2.179 > 2.1.1.1.40760: Flags [.], cksum 0x6f32 (correct), ack 110, win 57, options [nop,nop,TS val 1383297927 ecr 1383297927], length 0
+   17  20:31:17.109442 IP (tos 0xc0, ttl 255, id 17250, offset 0, flags [DF], proto TCP (6), length 52)
+    2.1.1.1.40760 > 2.1.1.2.179: Flags [.], cksum 0x6f31 (correct), ack 163, win 58, options [nop,nop,TS val 1383297927 ecr 1383297927], length 0
+   18  20:31:20.832168 IP (tos 0xc0, ttl 255, id 17251, offset 0, flags [DF], proto TCP (6), length 125)
+    2.1.1.1.40760 > 2.1.1.2.179: Flags [P.], cksum 0x083e (correct), seq 110:183, ack 163, win 58, options [nop,nop,TS val 1383298856 ecr 1383297927], length 73: BGP
+	Update Message (2), length: 73
+	  Origin (1), length: 1, Flags [T]: IGP
+	  AS Path (2), length: 6, Flags [T]: 200 
+	  Local Preference (5), length: 4, Flags [T]: 100
+	  Multi-Protocol Reach NLRI (14), length: 26, Flags [OE]: 
+	    AFI: IPv4 (1), SAFI: labeled Unicast (4)
+	    nexthop: 1.1.1.2, nh-length: 4, no SNPA
+	    (illegal prefix length)
+   19  20:31:20.835653 IP (tos 0xc0, ttl 255, id 22427, offset 0, flags [DF], proto TCP (6), length 52)
+    2.1.1.2.179 > 2.1.1.1.40760: Flags [.], cksum 0x67a4 (correct), ack 183, win 57, options [nop,nop,TS val 1383298859 ecr 1383298856], length 0
+   20  20:31:21.300725 IP (tos 0xc0, ttl 255, id 22428, offset 0, flags [DF], proto TCP (6), length 73)
+    2.1.1.2.179 > 2.1.1.1.40760: Flags [P.], cksum 0x5ff8 (correct), seq 163:184, ack 183, win 57, options [nop,nop,TS val 1383298975 ecr 1383298856], length 21: BGP
+	Notification Message (3), length: 21, Cease (6), subcode Administrative Reset (4)
+   21  20:31:21.302316 IP (tos 0xc0, ttl 255, id 22429, offset 0, flags [DF], proto TCP (6), length 52)
+    2.1.1.2.179 > 2.1.1.1.40760: Flags [F.], cksum 0x6719 (correct), seq 184, ack 183, win 57, options [nop,nop,TS val 1383298976 ecr 1383298856], length 0
+   22  20:31:21.305985 IP (tos 0xc0, ttl 255, id 17252, offset 0, flags [DF], proto TCP (6), length 52)
+    2.1.1.1.40760 > 2.1.1.2.179: Flags [.], cksum 0x66a2 (correct), ack 184, win 58, options [nop,nop,TS val 1383298976 ecr 1383298975], length 0
+   23  20:31:21.306119 IP (tos 0xc0, ttl 255, id 17253, offset 0, flags [DF], proto TCP (6), length 52)
+    2.1.1.1.40760 > 2.1.1.2.179: Flags [F.], cksum 0x669f (correct), seq 183, ack 185, win 58, options [nop,nop,TS val 1383298976 ecr 1383298976], length 0
+   24  20:31:21.310203 IP (tos 0xc0, ttl 255, id 22430, offset 0, flags [DF], proto TCP (6), length 52)
+    2.1.1.2.179 > 2.1.1.1.40760: Flags [.], cksum 0x669f (correct), ack 184, win 57, options [nop,nop,TS val 1383298977 ecr 1383298976], length 0
+   25  20:31:22.504930 IP (tos 0xc0, ttl 255, id 19963, offset 0, flags [DF], proto TCP (6), length 60)
+    2.1.1.1.40808 > 2.1.1.2.179: Flags [S], cksum 0x0c2b (correct), seq 590099767, win 29200, options [mss 1460,sackOK,TS val 1383299276 ecr 0,nop,wscale 9], length 0
+   26  20:31:22.507559 IP (tos 0xc0, ttl 255, id 0, offset 0, flags [DF], proto TCP (6), length 60)
+    2.1.1.2.179 > 2.1.1.1.40808: Flags [S.], cksum 0xe6b3 (correct), seq 4063717597, ack 590099768, win 28960, options [mss 1460,sackOK,TS val 1383299277 ecr 1383299276,nop,wscale 9], length 0
+   27  20:31:22.510443 IP (tos 0xc0, ttl 255, id 19964, offset 0, flags [DF], proto TCP (6), length 52)
+    2.1.1.1.40808 > 2.1.1.2.179: Flags [.], cksum 0x8667 (correct), ack 1, win 58, options [nop,nop,TS val 1383299277 ecr 1383299277], length 0
+   28  20:31:22.510598 IP (tos 0xc0, ttl 255, id 19965, offset 0, flags [DF], proto TCP (6), length 123)
+    2.1.1.1.40808 > 2.1.1.2.179: Flags [P.], cksum 0x7355 (correct), seq 1:72, ack 1, win 58, options [nop,nop,TS val 1383299277 ecr 1383299277], length 71: BGP
+	Open Message (1), length: 71
+	  Version 4, my AS 100, Holdtime 180s, ID 0.0.0.1
+	  Optional parameters, length: 42
+	    Option Capabilities Advertisement (2), length: 40
+	      Graceful Restart (64), length: 2
+		Restart Flags: [R], Restart Time 300s
+	      Multiple Labels (8), length: 4
+		AFI IPv4 (1), SAFI labeled Unicast (4), Count: 7
+	      Route Refresh (2), length: 0
+	      Multiprotocol Extensions (1), length: 4
+		AFI IPv4 (1), SAFI Unicast (1)
+	      Multiprotocol Extensions (1), length: 4
+		AFI IPv4 (1), SAFI labeled Unicast (4)
+	      32-Bit AS Number (65), length: 4
+		 4 Byte AS 100
+	      Multiple Paths (69), length: 8
+		AFI IPv4 (1), SAFI Unicast (1), Send/Receive: Receive
+		AFI IPv4 (1), SAFI labeled Unicast (4), Send/Receive: Receive
+   29  20:31:22.514335 IP (tos 0xc0, ttl 255, id 4112, offset 0, flags [DF], proto TCP (6), length 52)
+    2.1.1.2.179 > 2.1.1.1.40808: Flags [.], cksum 0x8620 (correct), ack 72, win 57, options [nop,nop,TS val 1383299278 ecr 1383299277], length 0
+   30  20:31:22.514472 IP (tos 0xc0, ttl 255, id 4113, offset 0, flags [DF], proto TCP (6), length 123)
+    2.1.1.2.179 > 2.1.1.1.40808: Flags [P.], cksum 0x750d (correct), seq 1:72, ack 72, win 57, options [nop,nop,TS val 1383299279 ecr 1383299277], length 71: BGP
+	Open Message (1), length: 71
+	  Version 4, my AS 100, Holdtime 180s, ID 0.0.1.1
+	  Optional parameters, length: 42
+	    Option Capabilities Advertisement (2), length: 40
+	      Graceful Restart (64), length: 2
+		Restart Flags: [R], Restart Time 300s
+	      Multiple Labels (8), length: 4
+		AFI IPv4 (1), SAFI labeled Unicast (4), Count: 4
+	      Route Refresh (2), length: 0
+	      Multiprotocol Extensions (1), length: 4
+		AFI IPv4 (1), SAFI Unicast (1)
+	      Multiprotocol Extensions (1), length: 4
+		AFI IPv4 (1), SAFI labeled Unicast (4)
+	      32-Bit AS Number (65), length: 4
+		 4 Byte AS 100
+	      Multiple Paths (69), length: 8
+		AFI IPv4 (1), SAFI Unicast (1), Send/Receive: Receive
+		AFI IPv4 (1), SAFI labeled Unicast (4), Send/Receive: Receive
+   31  20:31:22.518609 IP (tos 0xc0, ttl 255, id 19966, offset 0, flags [DF], proto TCP (6), length 52)
+    2.1.1.1.40808 > 2.1.1.2.179: Flags [.], cksum 0x85d5 (correct), ack 72, win 58, options [nop,nop,TS val 1383299279 ecr 1383299279], length 0
+   32  20:31:22.518739 IP (tos 0xc0, ttl 255, id 19967, offset 0, flags [DF], proto TCP (6), length 71)
+    2.1.1.1.40808 > 2.1.1.2.179: Flags [P.], cksum 0x81a6 (correct), seq 72:91, ack 72, win 58, options [nop,nop,TS val 1383299280 ecr 1383299279], length 19: BGP
+	Keepalive Message (4), length: 19
+   33  20:31:22.522191 IP (tos 0xc0, ttl 255, id 4114, offset 0, flags [DF], proto TCP (6), length 71)
+    2.1.1.2.179 > 2.1.1.1.40808: Flags [P.], cksum 0x81a7 (correct), seq 72:91, ack 72, win 57, options [nop,nop,TS val 1383299280 ecr 1383299279], length 19: BGP
+	Keepalive Message (4), length: 19
+   34  20:31:22.562115 IP (tos 0xc0, ttl 255, id 4115, offset 0, flags [DF], proto TCP (6), length 52)
+    2.1.1.2.179 > 2.1.1.1.40808: Flags [.], cksum 0x85a3 (correct), ack 91, win 57, options [nop,nop,TS val 1383299291 ecr 1383299280], length 0
+   35  20:31:22.564469 IP (tos 0xc0, ttl 255, id 19968, offset 0, flags [DF], proto TCP (6), length 144)
+    2.1.1.1.40808 > 2.1.1.2.179: Flags [P.], cksum 0x7fc8 (correct), seq 91:183, ack 91, win 58, options [nop,nop,TS val 1383299291 ecr 1383299280], length 92: BGP
+	Keepalive Message (4), length: 19
+	Update Message (2), length: 73
+	  Origin (1), length: 1, Flags [T]: IGP
+	  AS Path (2), length: 6, Flags [T]: 200 
+	  Local Preference (5), length: 4, Flags [T]: 100
+	  Multi-Protocol Reach NLRI (14), length: 26, Flags [OE]: 
+	    AFI: IPv4 (1), SAFI: labeled Unicast (4)
+	    nexthop: 1.1.1.2, nh-length: 4, no SNPA
+	    (illegal prefix length)
+   36  20:31:22.566720 IP (tos 0xc0, ttl 255, id 4116, offset 0, flags [DF], proto TCP (6), length 124)
+    2.1.1.2.179 > 2.1.1.1.40808: Flags [P.], cksum 0x4d24 (correct), seq 91:163, ack 183, win 57, options [nop,nop,TS val 1383299292 ecr 1383299291], length 72: BGP
+	Keepalive Message (4), length: 19
+	Update Message (2), length: 23
+	  End-of-Rib Marker (empty NLRI)
+	Update Message (2), length: 30
+	  Multi-Protocol Unreach NLRI (15), length: 3, Flags [OE]: 
+	    AFI: IPv4 (1), SAFI: labeled Unicast (4)
+	      End-of-Rib Marker (empty NLRI)
+   37  20:31:22.610077 IP (tos 0xc0, ttl 255, id 19969, offset 0, flags [DF], proto TCP (6), length 52)
+    2.1.1.1.40808 > 2.1.1.2.179: Flags [.], cksum 0x84e6 (correct), ack 163, win 58, options [nop,nop,TS val 1383299303 ecr 1383299292], length 0
+   38  20:31:22.683430 IP (tos 0xc0, ttl 255, id 19970, offset 0, flags [DF], proto TCP (6), length 90)
+    2.1.1.1.40808 > 2.1.1.2.179: Flags [P.], cksum 0x0069 (correct), seq 183:221, ack 163, win 58, options [nop,nop,TS val 1383299321 ecr 1383299292], length 38: BGP
+	Update Message (2), length: 38
+	  Multi-Protocol Unreach NLRI (15), length: 11, Flags [OE]: 
+	    AFI: IPv4 (1), SAFI: labeled Unicast (4)
+	      30.1.1.1/32, label:524288 (bottom)
+   39  20:31:22.726086 IP (tos 0xc0, ttl 255, id 4117, offset 0, flags [DF], proto TCP (6), length 52)
+    2.1.1.2.179 > 2.1.1.1.40808: Flags [.], cksum 0x8487 (correct), ack 221, win 57, options [nop,nop,TS val 1383299332 ecr 1383299321], length 0

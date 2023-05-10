@@ -1,4 +1,4 @@
-08:00:27:42:ba:59 > 01:80:c2:00:00:0e, ethertype LLDP (0x88cc), length 1755: LLDP, length 1741
+    1  00:00:00.000000 08:00:27:42:ba:59 > 01:80:c2:00:00:0e, ethertype LLDP (0x88cc), length 1755: LLDP, length 1741
 	Chassis ID TLV (1), length 7
 	  Subtype MAC address (4): 08:00:27:42:ba:59
 	  0x0000:  0408 0027 42ba 59
@@ -30,88 +30,88 @@
 	    Application Priority Table
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 128
-	      Priority: 0, RES: 1, Sel: 4, Protocol ID: 3072
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 32962
+	      Priority: 0, RES: 1, Sel: 4, Protocol ID: 0
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 4, RES: 0, Sel: 0, Protocol ID: 32962
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 6, RES: 0, Sel: 2, Protocol ID: 49676
+	      Priority: 4, RES: 0, Sel: 0, Protocol ID: 49676
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 128
-	      Priority: 0, RES: 1, Sel: 4, Protocol ID: 3072
+	      Priority: 6, RES: 0, Sel: 2, Protocol ID: 3072
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 4, RES: 0, Sel: 0, Protocol ID: 32962
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 32962
+	      Priority: 0, RES: 1, Sel: 4, Protocol ID: 0
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 6, RES: 0, Sel: 2, Protocol ID: 49676
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 128
-	      Priority: 0, RES: 1, Sel: 4, Protocol ID: 3072
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 4, RES: 0, Sel: 0, Protocol ID: 32962
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 6, RES: 0, Sel: 2, Protocol ID: 49676
+	      Priority: 4, RES: 0, Sel: 0, Protocol ID: 49676
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 128
-	      Priority: 0, RES: 1, Sel: 4, Protocol ID: 3072
+	      Priority: 6, RES: 0, Sel: 2, Protocol ID: 3072
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 4, RES: 0, Sel: 0, Protocol ID: 32962
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 32962
+	      Priority: 0, RES: 1, Sel: 4, Protocol ID: 0
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 6, RES: 0, Sel: 2, Protocol ID: 49676
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 128
-	      Priority: 0, RES: 1, Sel: 4, Protocol ID: 3072
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 4, RES: 0, Sel: 0, Protocol ID: 32962
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 6, RES: 0, Sel: 2, Protocol ID: 49676
+	      Priority: 4, RES: 0, Sel: 0, Protocol ID: 49676
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 128
-	      Priority: 0, RES: 1, Sel: 4, Protocol ID: 3072
+	      Priority: 6, RES: 0, Sel: 2, Protocol ID: 3072
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 4, RES: 0, Sel: 0, Protocol ID: 32962
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 32962
+	      Priority: 0, RES: 1, Sel: 4, Protocol ID: 0
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 6, RES: 0, Sel: 2, Protocol ID: 49676
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 128
-	      Priority: 0, RES: 1, Sel: 4, Protocol ID: 3072
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 4, RES: 0, Sel: 0, Protocol ID: 32962
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 6, RES: 0, Sel: 2, Protocol ID: 49676
+	      Priority: 4, RES: 0, Sel: 0, Protocol ID: 49676
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 128
-	      Priority: 0, RES: 1, Sel: 4, Protocol ID: 3072
+	      Priority: 6, RES: 0, Sel: 2, Protocol ID: 3072
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
-	      Priority: 4, RES: 0, Sel: 0, Protocol ID: 32962
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 32962
+	      Priority: 0, RES: 1, Sel: 4, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 4, RES: 0, Sel: 0, Protocol ID: 49676
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 128
+	      Priority: 6, RES: 0, Sel: 2, Protocol ID: 3072
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 32962
+	      Priority: 0, RES: 1, Sel: 4, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 4, RES: 0, Sel: 0, Protocol ID: 49676
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 128
+	      Priority: 6, RES: 0, Sel: 2, Protocol ID: 3072
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 32962
+	      Priority: 0, RES: 1, Sel: 4, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 4, RES: 0, Sel: 0, Protocol ID: 49676
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 128
+	      Priority: 6, RES: 0, Sel: 2, Protocol ID: 3072
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 32962
+	      Priority: 0, RES: 1, Sel: 4, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
+	      Priority: 4, RES: 0, Sel: 0, Protocol ID: 49676
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
 	      Priority: 0, RES: 0, Sel: 0, Protocol ID: 0
 	  0x0000:  0080 c20c 0000 0000 0000 0000 80c2 0c00

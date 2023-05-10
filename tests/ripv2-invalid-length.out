@@ -1,0 +1,12 @@
+    1  08:36:15.227124 IP (tos 0xc0, ttl 2, id 0, offset 0, flags [none], proto UDP (17), length 192)
+    10.7.56.254.520 > 224.0.0.9.520: 
+	RIPv2, Response, length: 160, routes: 8 or less
+	  AFI IPv4,        10.7.0.0/24, tag 0x0000, metric: 1, next-hop: self
+	  AFI IPv4,       10.7.41.0/24, tag 0x0000, metric: 1, next-hop: self
+	  AFI IPv4,       10.7.51.0/24, tag 0x0000, metric: 1, next-hop: self
+	  AFI IPv4,       10.7.52.0/25, tag 0x0000, metric: 1, next-hop: self
+	  AFI IPv4,       10.7.53.0/24, tag 0x0000, metric: 1, next-hop: self
+	  AFI IPv4,       10.7.57.0/24, tag 0x0000, metric: 268435457, next-hop: self
+	  AFI IPv4,       10.7.61.0/24, tag 0x0000, metric: 1, next-hop: self
+	  AFI Unknown (37)
+	  0x0000:  5100 0000 ff00 0000 0000 0000 0000 0002 [remaining entries length 16 < 20] (invalid)

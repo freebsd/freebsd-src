@@ -1,0 +1,8 @@
+    1  01:24:11.327631 IP (tos 0x0, ttl 64, id 65103, offset 0, flags [DF], proto UDP (17), length 60)
+    30.0.0.2.3503 > 1.1.1.1.39381: [bad udp cksum 0x203d -> 0x7fa4!] 
+	LSP-PINGv1, msg-type: MPLS Echo Reply (2), length: 32
+	  reply-mode: Reply via an IPv4/IPv6 UDP packet (2)
+	  Return Code: Replying router is an egress for the FEC at stack depth 0 (3)
+	  Return Subcode: (0)
+	  Sender Handle: 0x00000000, Sequence: 1
+	  Sender Timestamp: 3809381051.326312999 (2020-09-18T01:24:11Z) Receiver Timestamp: 3809381051.327528999 (2020-09-18T01:24:11Z)

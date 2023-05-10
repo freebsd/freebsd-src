@@ -1,0 +1,8 @@
+    1  19:10:12.233047 IP (tos 0x0, ttl 64, id 26479, offset 0, flags [none], proto UDP (17), length 116)
+    10.100.12.170.58699 > 10.100.13.157.6635: MPLS (label 21, tc 0, [S], ttl 63)
+	IP (tos 0x0, ttl 63, id 26479, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.3.0.10 > 10.1.0.10: ICMP echo request, id 42731, seq 16, length 64
+    2  19:10:12.233101 IP (tos 0x0, ttl 64, id 46612, offset 0, flags [none], proto UDP (17), length 116)
+    10.100.13.157.51348 > 10.100.12.170.6635: MPLS (label 46, tc 0, [S], ttl 63)
+	IP (tos 0x0, ttl 63, id 46612, offset 0, flags [none], proto ICMP (1), length 84)
+    10.1.0.10 > 10.3.0.10: ICMP echo reply, id 42731, seq 16, length 64

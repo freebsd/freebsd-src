@@ -1,4 +1,4 @@
-UI 22! IS-IS, length 469869187
+    1  [Error converting time] UI 22! IS-IS, length 262139
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 224 (224)
 	  source-id: fed0.f90f.58af,  holding time: 34047s, Flags: [unknown circuit type 0x00]
 	  lan-id:    0105.0088.a201.00, Priority: 65, PDU length: 4096
@@ -17,9 +17,7 @@ UI 22! IS-IS, length 469869187
 		0x0010:  2026 2020 2020 2020 2020 2020 2020 8f8f
 	    Multi-Topology-Aware Port Capability TLV #143, length: 143
 	       RES: 8, MTID(s): 3983
-	       unknown subTLV #143, length: 143
-		 [|isis]
+	       unknown subTLV #143, length: 143 (> containing TLV length)
 	    Multi-Topology-Aware Port Capability TLV #143, length: 143
 	       RES: 8, MTID(s): 3983
-	       unknown subTLV #143, length: 143
-		 [|isis] [|isis]
+	       unknown subTLV #143, length: 143 (> containing TLV length) [|isis]

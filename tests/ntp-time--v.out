@@ -1,0 +1,20 @@
+    1  13:21:56.928550 IP (tos 0x0, ttl 64, id 24704, offset 0, flags [DF], proto UDP (17), length 76)
+    132.199.152.129.49445 > 132.199.4.1.123: NTPv4, Client, length 48
+	Leap indicator: clock unsynchronized (192), Stratum 0 (unspecified), poll 8 (256s), precision 0
+	Root Delay: 0.000000, Root dispersion: 0.000000, Reference-ID: (unspec)
+	  Reference Timestamp:  0.000000000
+	  Originator Timestamp: 0.000000000
+	  Receive Timestamp:    0.000000000
+	  Transmit Timestamp:   3712483316.928478999 (2017-08-23T13:21:56Z)
+	    Originator - Receive Timestamp:  0.000000000
+	    Originator - Transmit Timestamp: 3712483316.928478999 (2017-08-23T13:21:56Z)
+    2  13:21:56.928851 IP (tos 0xb8, ttl 62, id 8834, offset 0, flags [DF], proto UDP (17), length 76)
+    132.199.4.1.123 > 132.199.152.129.49445: NTPv4, Server, length 48
+	Leap indicator:  (0), Stratum 2 (secondary reference), poll 8 (256s), precision -24
+	Root Delay: 0.000320, Root dispersion: 0.036407, Reference-ID: 0x84c707c9
+	  Reference Timestamp:  3712482106.337741360 (2017-08-23T13:01:46Z)
+	  Originator Timestamp: 3712483316.928478999 (2017-08-23T13:21:56Z)
+	  Receive Timestamp:    3712483316.929920629 (2017-08-23T13:21:56Z)
+	  Transmit Timestamp:   3712483316.929948437 (2017-08-23T13:21:56Z)
+	    Originator - Receive Timestamp:  +0.001441629
+	    Originator - Transmit Timestamp: +0.001469437

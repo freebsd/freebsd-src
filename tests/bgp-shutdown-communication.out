@@ -1,0 +1,6 @@
+    1  17:08:52.850795 IP (tos 0xc0, ttl 255, id 40416, offset 0, flags [DF], proto TCP (6), length 126)
+    165.254.255.24.179 > 165.254.255.17.33202: Flags [P.], cksum 0xa924 (correct), seq 633078120:633078194, ack 1987858625, win 2172, options [nop,nop,TS val 921581890 ecr 3129863171], length 74: BGP
+	Notification Message (3), length: 74, Cease (6), subcode Administrative Shutdown (2), Shutdown Communication (length: 52): "This is a test of the shutdown communication system."
+    2  17:08:52.850795 IP (tos 0xc0, ttl 255, id 40416, offset 0, flags [DF], proto TCP (6), length 126)
+    165.254.255.24.179 > 165.254.255.17.33202: Flags [P.], cksum 0xa724 (correct), seq 0:74, ack 1, win 2172, options [nop,nop,TS val 921581890 ecr 3129863171], length 74: BGP
+	Notification Message (3), length: 74, Cease (6), subcode Administrative Reset (4), Shutdown Communication (length: 52): "This is a test of the shutdown communication system."

@@ -1,0 +1,140 @@
+# -*- perl -*-
+
+# Only attempt OpenSSL-specific tests when compiled with the library.
+# Reading the secret(s) from a file does not work with Capsicum.
+
+$testlist = [
+
+# EAP tests
+    {
+        config_set => 'ENABLE_SMB',
+        name => 'eapon1',
+        input => 'eapon1.pcap',
+        output => 'eapon1.out',
+    },
+
+    {
+        config_unset => 'ENABLE_SMB',
+        name => 'eapon1-nosmb',
+        input => 'eapon1.pcap',
+        output => 'eapon1-nosmb.out',
+    },
+
+    {
+        config_set => 'ENABLE_SMB',
+        name => 'eapon1-v',
+        input => 'eapon1.pcap',
+        output => 'eapon1-v.out',
+        args   => '-v'
+    },
+
+    {
+        config_unset => 'ENABLE_SMB',
+        name => 'eapon1-v-nosmb',
+        input => 'eapon1.pcap',
+        output => 'eapon1-v-nosmb.out',
+        args   => '-v'
+    },
+
+# IPX/Netware packets
+    {
+        config_set => 'ENABLE_SMB',
+        name => 'ipx',
+        input => 'ipx.pcap',
+        output => 'ipx.out',
+    },
+
+    {
+        config_unset => 'ENABLE_SMB',
+        name => 'ipx-nosmb',
+        input => 'ipx.pcap',
+        output => 'ipx-nosmb.out',
+    },
+
+# bad packets from Otto Airamo and Antti Levomäki
+    {
+        config_set   => 'ENABLE_SMB',
+        name => 'nbns-valgrind',
+        input => 'nbns-valgrind.pcap',
+        output => 'nbns-valgrind.out',
+        args   => '-vvv -e',
+    },
+
+    {
+        config_unset   => 'ENABLE_SMB',
+        name => 'nbns-valgrind-nosmb',
+        input => 'nbns-valgrind.pcap',
+        output => 'nbns-valgrind-nosmb.out',
+        args   => '-vvv -e',
+    },
+
+# bad packets from Junjie Wang
+    {
+        config_set   => 'ENABLE_SMB',
+        name => 'smb_print_trans-oobr1',
+        input => 'smb_print_trans-oobr1.pcap',
+        output => 'smb_print_trans-oobr1.out',
+        args   => '-vv',
+    },
+
+    {
+        config_unset   => 'ENABLE_SMB',
+        name => 'smb_print_trans-oobr1-nosmb',
+        input => 'smb_print_trans-oobr1.pcap',
+        output => 'smb_print_trans-oobr1-nosmb.out',
+        args   => '-vv',
+    },
+
+# bad packets from Philippe Antoine
+    {
+        config_set   => 'ENABLE_SMB',
+        name => 'smb_print_trans-oobr2',
+        input => 'smb_print_trans-oobr2.pcap',
+        output => 'smb_print_trans-oobr2.out',
+        args   => '-vv',
+    },
+
+    {
+        config_unset   => 'ENABLE_SMB',
+        name => 'smb_print_trans-oobr2-nosmb',
+        input => 'smb_print_trans-oobr2.pcap',
+        output => 'smb_print_trans-oobr2-nosmb.out',
+        args   => '-vv',
+    },
+
+# bad packets from Luis Rocha
+    {
+        config_set   => 'ENABLE_SMB',
+        name => 'smb_data_print-oobr',
+        input => 'smb_data_print-oobr.pcapng',
+        output => 'smb_data_print-oobr.out',
+        args   => '-vv',
+    },
+
+    {
+        config_unset   => 'ENABLE_SMB',
+        name => 'smb_data_print-oobr-nosmb',
+        input => 'smb_data_print-oobr.pcapng',
+        output => 'smb_data_print-oobr-nosmb.out',
+        args   => '-vv',
+    },
+
+    {
+        config_set   => 'ENABLE_SMB',
+        name => 'smb_data_print-segv',
+        input => 'smb_data_print-segv.pcapng',
+        output => 'smb_data_print-segv.out',
+        args   => '-vv',
+    },
+
+    {
+        config_unset   => 'ENABLE_SMB',
+        name => 'smb_data_print-segv-nosmb',
+        input => 'smb_data_print-segv.pcapng',
+        output => 'smb_data_print-segv-nosmb.out',
+        args   => '-vv',
+    },
+
+    ];
+
+1;

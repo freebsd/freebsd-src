@@ -1,0 +1,245 @@
+    1  17:10:44.789433 IP 10.0.0.2 > 224.0.0.13: PIMv2, Bootstrap, length 14
+    2  17:10:59.798983 IP 10.0.0.2 > 224.0.0.13: PIMv2, Bootstrap, length 14
+    3  17:11:14.807715 IP 10.0.0.2 > 224.0.0.13: PIMv2, Bootstrap, length 14
+    4  17:11:14.823339 IP 10.0.0.2 > 224.0.0.13: PIMv2, Bootstrap, length 14
+    5  17:11:14.838646 IP 10.0.0.2 > 224.0.0.13: PIMv2, Bootstrap, length 26
+    6  17:11:14.854392 IP 10.0.0.2 > 224.0.0.13: PIMv2, Bootstrap, length 58
+    7  17:11:14.870050 IP 10.0.0.2 > 10.0.0.1: PIMv2, Bootstrap, length 14
+    8  17:11:29.877641 IP 10.0.0.1 > 224.0.0.13: PIMv2, Bootstrap, length 14
+    9  17:11:29.882313 IP 10.0.0.1 > 224.0.0.13: PIMv2, Bootstrap, length 14
+   10  17:11:29.886825 IP 10.0.0.1 > 224.0.0.13: PIMv2, Bootstrap, length 26
+   11  17:11:29.891835 IP 10.0.0.1 > 224.0.0.13: PIMv2, Bootstrap, length 58
+   12  17:11:52.114000 IP 10.0.0.2 > 10.0.0.1: PIMv2, Candidate RP Advertisement, length 22
+   13  17:11:52.129609 IP 10.0.0.2 > 10.0.0.1: PIMv2, Candidate RP Advertisement, length 22
+   14  17:11:52.144922 IP 10.0.0.2 > 10.0.0.1: PIMv2, Candidate RP Advertisement, length 30
+   15  17:11:52.160444 IP 10.0.0.2 > 10.0.0.1: PIMv2, Candidate RP Advertisement, length 22
+   16  17:11:52.176120 IP 10.0.0.2 > 10.0.0.1: PIMv2, Candidate RP Advertisement, length 22
+   17  17:11:52.191149 IP 10.0.0.2 > 224.0.0.13: PIMv2, Candidate RP Advertisement, length 22
+   18  17:12:07.197582 IP 10.0.0.2 > 10.0.0.1: PIMv2, Candidate RP Advertisement, length 94
+   19  17:12:22.207593 IP 10.0.0.2 > 224.0.0.13: PIMv2, Candidate RP Advertisement, length 22
+   20  17:12:37.213829 IP 10.0.0.1 > 10.0.0.2: PIMv2, Candidate RP Advertisement, length 22
+   21  17:12:37.218303 IP 10.0.0.1 > 10.0.0.2: PIMv2, Candidate RP Advertisement, length 22
+   22  17:12:37.222610 IP 10.0.0.1 > 10.0.0.2: PIMv2, Candidate RP Advertisement, length 30
+   23  17:12:37.228304 IP 10.0.0.1 > 10.0.0.2: PIMv2, Candidate RP Advertisement, length 30
+   24  17:12:37.233724 IP 10.0.0.13 > 10.0.0.2: PIMv2, Candidate RP Advertisement, length 30
+   25  17:12:49.443041 IP 10.0.0.2 > 224.0.0.13: PIMv2, Join / Prune, length 218
+   26  17:12:49.459068 IP 10.0.0.2 > 224.0.0.13: PIMv2, Join / Prune, length 218
+   27  17:12:49.474922 IP 10.0.0.2 > 224.0.0.13: PIMv2, Join / Prune, length 218
+   28  17:13:04.482150 IP 10.0.0.2 > 224.0.0.13: PIMv2, Join / Prune, length 218
+   29  17:13:19.491684 IP 10.0.0.2 > 224.0.0.13: PIMv2, Join / Prune, length 218
+   30  17:13:34.502041 IP 10.0.0.2 > 224.0.0.13: PIMv2, Join / Prune, length 218
+   31  17:13:49.515669 IP 10.0.0.2 > 224.0.0.13: PIMv2, Join / Prune, length 218
+   32  17:13:49.535091 IP 10.0.0.2 > 224.0.0.13: PIMv2, Join / Prune, length 218
+   33  17:13:49.555281 IP 10.0.0.2 > 224.0.0.13: PIMv2, Join / Prune, length 218
+   34  17:14:04.567818 IP 10.0.0.2 > 224.0.0.13: PIMv2, Join / Prune, length 218
+   35  17:14:19.578882 IP 10.0.0.2 > 10.0.0.1: PIMv2, Join / Prune, length 314
+   36  17:14:34.586658 IP 10.0.0.2 > 224.0.0.13: PIMv2, Join / Prune, length 242
+   37  17:14:49.597897 IP 10.0.0.2 > 10.0.0.1: PIMv2, Join / Prune, length 314
+   38  17:15:04.609866 IP 10.0.0.1 > 224.0.0.13: PIMv2, Join / Prune, length 218
+   39  17:15:04.615696 IP 10.0.0.1 > 224.0.0.13: PIMv2, Join / Prune, length 218
+   40  17:15:24.642963 IP 10.0.0.1 > 224.0.0.13: PIMv2, Join / Prune, length 218
+   41  17:15:24.649511 IP 10.0.0.1 > 224.0.0.13: PIMv2, Join / Prune, length 218
+   42  17:15:36.844192 IP 10.0.0.2 > 224.0.0.13: PIMv2, Assert, length 26
+   43  17:15:36.858926 IP 10.0.0.2 > 224.0.0.13: PIMv2, Assert, length 26
+   44  17:15:36.875457 IP 10.0.0.2 > 224.0.0.13: PIMv2, Assert, length 26
+   45  17:15:51.885935 IP 10.0.0.2 > 224.0.0.13: PIMv2, Assert, length 26
+   46  17:16:06.895682 IP 10.0.0.2 > 10.0.0.1: PIMv2, Assert, length 26
+   47  17:16:21.901980 IP 10.0.0.2 > 224.0.0.13: PIMv2, Assert, length 26
+   48  17:16:36.912545 IP 10.0.0.2 > 10.0.0.1: PIMv2, Assert, length 26
+   49  17:16:51.922176 IP 10.0.0.1 > 224.0.0.13: PIMv2, Assert, length 26
+   50  17:16:51.927014 IP 10.0.0.1 > 224.0.0.13: PIMv2, Assert, length 26
+   51  17:17:04.134866 IP 10.0.0.2 > 10.0.0.1: PIMv2, Register, length 28
+   52  17:17:04.152086 IP 10.0.0.2 > 10.0.0.1: PIMv2, Register, length 28
+   53  17:17:04.168215 IP 10.0.0.2 > 10.0.0.1: PIMv2, Register, length 28
+   54  17:17:04.184607 IP 10.0.0.2 > 10.0.0.1: PIMv2, Register, length 28
+   55  17:17:04.203347 IP 10.0.0.2 > 10.0.0.1: PIMv2, Register, length 1380
+   56  17:17:04.222232 IP 10.0.0.2 > 10.0.0.1: PIMv2, Register, length 1480
+   57  17:17:04.241206 IP 10.0.0.2 > 10.0.0.1: PIMv2, Register, length 31980
+   58  17:17:04.260981 IP 10.0.0.2 > 10.0.0.1: PIMv2, Register, length 65515
+   59  17:17:04.279594 IP 10.0.0.2 > 10.0.0.1: PIMv2, Register, length 28
+   60  17:17:04.297659 IP 10.0.0.2 > 10.0.0.1: PIMv2, Register, length 28
+   61  17:17:04.314768 IP 10.0.0.2 > 224.0.0.13: PIMv2, Register, length 28
+   62  17:17:19.324443 IP 10.0.0.2 > 224.0.0.13: PIMv2, Register, length 28
+   63  17:17:34.361348 IP 10.0.0.1 > 10.0.0.2: PIMv2, Register, length 136
+   64  17:17:34.370054 IP 10.0.0.10 > 10.0.0.2: PIMv2, Register, length 136
+   65  17:17:34.379510 IP 10.0.0.1 > 10.0.0.2: PIMv2, Register, length 136
+   66  17:17:34.387689 IP 10.0.0.1 > 10.0.0.2: PIMv2, Register, length 136
+   67  17:17:34.395915 IP 10.0.0.1 > 10.0.0.2: PIMv2, Register, length 136
+   68  17:17:34.474538 IP 10.0.0.1 > 10.0.0.2: PIMv2, Register, length 28
+   69  17:17:34.496073 IP 10.0.0.1 > 10.0.0.2: PIMv2, Register, length 1280
+   70  17:17:34.505618 IP 10.0.0.1 > 10.0.0.2: PIMv2, Register, length 1380
+   71  17:17:34.517256 IP 10.0.0.1 > 10.0.0.2: PIMv2, Register, length 1480
+   72  17:17:34.547489 IP 10.0.0.1 > 10.0.0.2: PIMv2, Register, length 1380
+   73  17:17:34.556376 IP 10.0.0.1 > 10.0.0.2: PIMv2, Register, length 1480
+   74  17:17:34.566673 IP 10.0.0.1 > 10.0.0.2: PIMv2, Register, length 1580
+   75  17:17:34.595128 IP 10.0.0.1 > 10.0.0.2: PIMv2, Register, length 9780
+   76  17:17:34.604864 IP 10.0.0.1 > 10.0.0.2: PIMv2, Register, length 9880
+   77  17:17:34.616241 IP 10.0.0.1 > 10.0.0.2: PIMv2, Register, length 9980
+   78  17:17:34.642771 IP 10.0.0.1 > 10.0.0.2: PIMv2, Register, length 28
+   79  17:17:41.832778 IP 10.0.0.2 > 10.0.0.1: PIMv2, Register Stop, length 18
+   80  17:17:41.848183 IP 10.0.0.2 > 10.0.0.1: PIMv2, Register Stop, length 18
+   81  17:17:41.863647 IP 10.0.0.2 > 10.0.0.1: PIMv2, Register Stop, length 18
+   82  17:17:41.879212 IP 10.0.0.2 > 10.0.0.1: PIMv2, Register Stop, length 18
+   83  17:17:41.894033 IP 10.0.0.2 > 224.0.0.13: PIMv2, Register Stop, length 18
+   84  17:17:56.904772 IP 10.0.0.2 > 224.0.0.13: PIMv2, Register Stop, length 18
+   85  17:18:11.915223 IP 10.0.0.1 > 10.0.0.2: PIMv2, Register Stop, length 18
+   86  17:18:11.920116 IP 10.0.0.1 > 10.0.0.2: PIMv2, Register Stop, length 18
+   87  17:18:11.924496 IP 10.0.0.1 > 10.0.0.2: PIMv2, Register Stop, length 18
+   88  17:18:11.929456 IP 10.0.0.1 > 10.0.0.2: PIMv2, Register Stop, length 18
+   89  17:18:19.135202 IP 10.0.0.2 > 224.0.0.13: PIMv2, DF Election, length 18
+   90  17:18:19.151462 IP 10.0.0.2 > 224.0.0.13: PIMv2, DF Election, length 18
+   91  17:18:19.167261 IP 10.0.0.2 > 224.0.0.13: PIMv2, DF Election, length 18
+   92  17:18:19.183508 IP 10.0.0.2 > 224.0.0.13: PIMv2, DF Election, length 18
+   93  17:18:19.199269 IP 10.0.0.2 > 224.0.0.13: PIMv2, DF Election, length 34
+   94  17:18:19.215274 IP 10.0.0.2 > 224.0.0.13: PIMv2, DF Election, length 34
+   95  17:18:19.231330 IP 10.0.0.2 > 224.0.0.13: PIMv2, DF Election, length 32
+   96  17:18:19.247063 IP 10.0.0.2 > 224.0.0.13: PIMv2, DF Election, length 32
+   97  17:18:19.263010 IP 10.0.0.2 > 224.0.0.13: PIMv2, DF Election, length 18
+   98  17:18:34.278440 IP 10.0.0.2 > 224.0.0.13: PIMv2, DF Election, length 18
+   99  17:18:49.292244 IP 10.0.0.2 > 10.0.0.1: PIMv2, DF Election, length 18
+  100  17:19:04.301082 IP 10.0.0.2 > 224.0.0.13: PIMv2, DF Election, length 18
+  101  17:19:19.311519 IP 10.0.0.2 > 10.0.0.1: PIMv2, DF Election, length 18
+  102  17:19:34.317677 IP 10.0.0.1 > 224.0.0.13: PIMv2, DF Election, length 18
+  103  17:19:34.323132 IP 10.0.0.1 > 224.0.0.13: PIMv2, DF Election, length 18
+  104  17:19:34.328241 IP 10.0.0.1 > 224.0.0.13: PIMv2, DF Election, length 18
+  105  17:19:34.333292 IP 10.0.0.1 > 224.0.0.13: PIMv2, DF Election, length 18
+  106  17:19:34.338277 IP 10.0.0.1 > 224.0.0.13: PIMv2, DF Election, length 34
+  107  17:19:34.345622 IP 10.0.0.1 > 224.0.0.13: PIMv2, DF Election, length 34
+  108  17:19:34.350734 IP 10.0.0.1 > 224.0.0.13: PIMv2, DF Election, length 32
+  109  17:19:34.355785 IP 10.0.0.1 > 224.0.0.13: PIMv2, DF Election, length 32
+  110  17:19:46.562048 IP 10.0.0.2 > 224.0.0.13: PIMv2, Graft, length 4
+  111  17:20:08.767127 IP 10.0.0.2 > 224.0.0.13: PIMv2, Hello, length 54
+  112  17:20:08.785732 IP 10.0.0.2 > 224.0.0.13: PIMv2, Hello, length 50
+  113  17:20:08.801265 IP 10.0.0.2 > 224.0.0.13: PIMv2, Hello, length 50
+  114  17:20:08.815202 IP 10.0.0.2 > 224.0.0.13: PIMv2, Hello, length 54
+  115  17:20:08.829259 IP 10.0.0.2 > 224.0.0.13: PIMv2, Hello, length 54
+  116  17:20:08.843547 IP 10.0.0.2 > 224.0.0.13: PIMv2, Hello, length 50
+  117  17:20:08.857616 IP 10.0.0.2 > 224.0.0.13: PIMv2, Hello, length 54
+  118  17:20:08.871960 IP 10.0.0.2 > 224.0.0.13: PIMv2, Hello, length 50
+  119  17:20:08.885812 IP 10.0.0.2 > 224.0.0.13: PIMv2, Hello, length 50
+  120  17:20:08.899908 IP 10.0.0.2 > 224.0.0.13: PIMv2, Hello, length 50
+  121  17:20:08.913880 IP 10.0.0.2 > 224.0.0.13: PIMv2, Hello, length 50
+  122  17:20:08.928954 IP 10.0.0.2 > 224.0.0.13: PIMv2, Hello, length 50
+  123  17:20:23.938011 IP 10.0.0.2 > 224.0.0.13: PIMv2, Hello, length 50
+  124  17:20:38.945661 IP 10.0.0.2 > 10.0.0.1: PIMv2, Hello, length 34
+  125  17:20:53.953435 IP 10.0.0.2 > 10.0.0.1: PIMv2, Hello, length 34
+  126  17:21:08.961835 IP 10.0.0.1 > 224.0.0.13: PIMv2, Hello, length 54
+  127  17:21:08.966281 IP 10.0.0.1 > 224.0.0.13: PIMv2, Hello, length 54
+  128  17:21:08.970800 IP 10.0.0.7 > 224.0.0.13: PIMv2, Hello, length 50
+  129  17:21:21.305747 IP6 10::2 > ff02::d: PIMv2, Bootstrap, length 26
+  130  17:21:36.317463 IP6 10::2 > ff02::d: PIMv2, Bootstrap, length 26
+  131  17:21:51.327358 IP6 10::2 > ff02::d: PIMv2, Bootstrap, length 26
+  132  17:21:51.342877 IP6 10::2 > ff02::d: PIMv2, Bootstrap, length 26
+  133  17:21:51.359070 IP6 10::2 > ff02::d: PIMv2, Bootstrap, length 50
+  134  17:21:51.375173 IP6 10::2 > ff02::d: PIMv2, Bootstrap, length 118
+  135  17:21:51.389973 IP6 10::2 > 10::1: PIMv2, Bootstrap, length 26
+  136  17:22:06.397655 IP6 10::1 > ff02::d: PIMv2, Bootstrap, length 26
+  137  17:22:06.401467 IP6 10::1 > ff02::d: PIMv2, Bootstrap, length 26
+  138  17:22:06.405175 IP6 10::1 > ff02::d: PIMv2, Bootstrap, length 50
+  139  17:22:06.409793 IP6 10::1 > ff02::d: PIMv2, Bootstrap, length 118
+  140  17:22:28.670554 IP6 10::2 > 10::1: PIMv2, Candidate RP Advertisement, length 46
+  141  17:22:28.686085 IP6 10::2 > 10::1: PIMv2, Candidate RP Advertisement, length 46
+  142  17:22:28.701051 IP6 10::2 > 10::1: PIMv2, Candidate RP Advertisement, length 66
+  143  17:22:28.716663 IP6 10::2 > 10::1: PIMv2, Candidate RP Advertisement, length 46
+  144  17:22:28.732342 IP6 10::2 > 10::1: PIMv2, Candidate RP Advertisement, length 46
+  145  17:22:28.747319 IP6 10::2 > ff02::d: PIMv2, Candidate RP Advertisement, length 46
+  146  17:22:43.754936 IP6 10::2 > 10::1: PIMv2, Candidate RP Advertisement, length 226
+  147  17:22:58.764755 IP6 10::2 > ff02::d: PIMv2, Candidate RP Advertisement, length 46
+  148  17:23:13.771504 IP6 10::1 > 10::2: PIMv2, Candidate RP Advertisement, length 46
+  149  17:23:13.775525 IP6 10::1 > 10::2: PIMv2, Candidate RP Advertisement, length 46
+  150  17:23:13.779819 IP6 10::1 > 10::2: PIMv2, Candidate RP Advertisement, length 66
+  151  17:23:13.784515 IP6 10::1 > 10::2: PIMv2, Candidate RP Advertisement, length 66
+  152  17:23:26.044171 IP6 10::2 > ff02::d: PIMv2, Join / Prune, length 518
+  153  17:23:26.059514 IP6 10::2 > ff02::d: PIMv2, Join / Prune, length 518
+  154  17:23:26.075326 IP6 10::2 > ff02::d: PIMv2, Join / Prune, length 518
+  155  17:23:41.083345 IP6 10::2 > ff02::d: PIMv2, Join / Prune, length 518
+  156  17:23:56.095440 IP6 10::2 > ff02::d: PIMv2, Join / Prune, length 518
+  157  17:24:11.103070 IP6 10::2 > ff02::d: PIMv2, Join / Prune, length 518
+  158  17:24:26.112599 IP6 10::2 > ff02::d: PIMv2, Join / Prune, length 518
+  159  17:24:26.128184 IP6 10::2 > ff02::d: PIMv2, Join / Prune, length 518
+  160  17:24:26.144272 IP6 10::2 > ff02::d: PIMv2, Join / Prune, length 518
+  161  17:24:41.152302 IP6 10::2 > ff02::d: PIMv2, Join / Prune, length 518
+  162  17:24:56.163412 IP6 10::2 > 10::1: PIMv2, Join / Prune, length 758
+  163  17:25:11.174870 IP6 10::2 > ff02::d: PIMv2, Join / Prune, length 578
+  164  17:25:26.184381 IP6 10::2 > 10::1: PIMv2, Join / Prune, length 758
+  165  17:25:41.195284 IP6 10::1 > ff02::d: PIMv2, Join / Prune, length 518
+  166  17:25:41.202437 IP6 10::1 > ff02::d: PIMv2, Join / Prune, length 518
+  167  17:26:01.234759 IP6 10::1 > ff02::d: PIMv2, Join / Prune, length 518
+  168  17:26:01.241645 IP6 10::1 > ff02::d: PIMv2, Join / Prune, length 518
+  169  17:26:13.486913 IP6 10::2 > ff02::d: PIMv2, Assert, length 50
+  170  17:26:13.501898 IP6 10::2 > ff02::d: PIMv2, Assert, length 50
+  171  17:26:13.517759 IP6 10::2 > ff02::d: PIMv2, Assert, length 50
+  172  17:26:28.527906 IP6 10::2 > ff02::d: PIMv2, Assert, length 50
+  173  17:26:43.534167 IP6 10::2 > 10::1: PIMv2, Assert, length 50
+  174  17:26:58.543141 IP6 10::2 > ff02::d: PIMv2, Assert, length 50
+  175  17:27:13.553752 IP6 10::2 > 10::1: PIMv2, Assert, length 50
+  176  17:27:28.562985 IP6 10::1 > ff02::d: PIMv2, Assert, length 50
+  177  17:27:28.566721 IP6 10::1 > ff02::d: PIMv2, Assert, length 50
+  178  17:27:40.810753 IP6 10::2 > 10::1: PIMv2, Register, length 48
+  179  17:27:40.827314 IP6 10::2 > 10::1: PIMv2, Register, length 48
+  180  17:27:40.843664 IP6 10::2 > 10::1: PIMv2, Register, length 48
+  181  17:27:40.860071 IP6 10::2 > 10::1: PIMv2, Register, length 48
+  182  17:27:40.879398 IP6 10::2 > 10::1: PIMv2, Register, length 1400
+  183  17:27:40.898565 IP6 10::2 > 10::1: PIMv2, Register, length 1500
+  184  17:27:40.918476 IP6 10::2 > 10::1: PIMv2, Register, length 32000
+  185  17:27:40.939877 IP6 10::2 > 10::1: PIMv2, Register, length 65535
+  186  17:27:40.957722 IP6 10::2 > 10::1: PIMv2, Register, length 48
+  187  17:27:40.975732 IP6 10::2 > 10::1: PIMv2, Register, length 48
+  188  17:27:40.993200 IP6 10::2 > ff02::d: PIMv2, Register, length 48
+  189  17:27:56.005578 IP6 10::2 > ff02::d: PIMv2, Register, length 48
+  190  17:28:11.113454 IP6 1::b > 10::2: PIMv2, Register, length 156
+  191  17:28:11.122290 IP6 1::b > 10::2: PIMv2, Register, length 156
+  192  17:28:11.130752 IP6 10::1 > 10::2: PIMv2, Register, length 156
+  193  17:28:11.138877 IP6 10::1 > 10::2: PIMv2, Register, length 156
+  194  17:28:11.147140 IP6 10::1 > 10::2: PIMv2, Register, length 156
+  195  17:28:11.213700 IP6 10::1 > 10::2: PIMv2, Register, length 48
+  196  17:28:11.228981 IP6 10::1 > 10::2: PIMv2, Register, length 48
+  197  17:28:18.502726 IP6 10::2 > 10::1: PIMv2, Register Stop, length 42
+  198  17:28:18.517840 IP6 10::2 > 10::1: PIMv2, Register Stop, length 42
+  199  17:28:18.533422 IP6 10::2 > 10::1: PIMv2, Register Stop, length 42
+  200  17:28:18.549676 IP6 10::2 > 10::1: PIMv2, Register Stop, length 42
+  201  17:28:18.564554 IP6 10::2 > ff02::d: PIMv2, Register Stop, length 42
+  202  17:28:33.570694 IP6 10::2 > ff02::d: PIMv2, Register Stop, length 42
+  203  17:28:48.578934 IP6 10::1 > 10::2: PIMv2, Register Stop, length 42
+  204  17:28:48.582687 IP6 10::1 > 10::2: PIMv2, Register Stop, length 42
+  205  17:28:48.586062 IP6 10::1 > 10::2: PIMv2, Register Stop, length 42
+  206  17:28:48.590187 IP6 10::1 > 10::2: PIMv2, Register Stop, length 42
+  207  17:28:55.824177 IP6 10::2 > ff02::d: PIMv2, DF Election, length 30
+  208  17:28:55.839949 IP6 10::2 > ff02::d: PIMv2, DF Election, length 30
+  209  17:28:55.855650 IP6 10::2 > ff02::d: PIMv2, DF Election, length 30
+  210  17:28:55.871248 IP6 10::2 > ff02::d: PIMv2, DF Election, length 30
+  211  17:28:55.887289 IP6 10::2 > ff02::d: PIMv2, DF Election, length 58
+  212  17:28:55.903013 IP6 10::2 > ff02::d: PIMv2, DF Election, length 58
+  213  17:28:55.919550 IP6 10::2 > ff02::d: PIMv2, DF Election, length 56
+  214  17:28:55.935209 IP6 10::2 > ff02::d: PIMv2, DF Election, length 56
+  215  17:28:55.951452 IP6 10::2 > ff02::d: PIMv2, DF Election, length 30
+  216  17:29:10.963613 IP6 10::2 > ff02::d: PIMv2, DF Election, length 30
+  217  17:29:25.974998 IP6 10::2 > 10::1: PIMv2, DF Election, length 30
+  218  17:29:40.984969 IP6 10::2 > ff02::d: PIMv2, DF Election, length 30
+  219  17:29:55.998320 IP6 10::2 > 10::1: PIMv2, DF Election, length 30
+  220  17:30:11.006628 IP6 10::1 > ff02::d: PIMv2, DF Election, length 30
+  221  17:30:11.011282 IP6 10::1 > ff02::d: PIMv2, DF Election, length 30
+  222  17:30:11.015823 IP6 10::1 > ff02::d: PIMv2, DF Election, length 30
+  223  17:30:11.020041 IP6 10::1 > ff02::d: PIMv2, DF Election, length 30
+  224  17:30:11.024077 IP6 10::1 > ff02::d: PIMv2, DF Election, length 58
+  225  17:30:11.028134 IP6 10::1 > ff02::d: PIMv2, DF Election, length 58
+  226  17:30:11.032519 IP6 10::1 > ff02::d: PIMv2, DF Election, length 56
+  227  17:30:11.037060 IP6 10::1 > ff02::d: PIMv2, DF Election, length 56
+  228  17:30:23.287232 IP6 10::2 > ff02::d: PIMv2, Graft, length 4
+  229  17:30:45.519013 IP6 10::2 > ff02::d: PIMv2, Hello, length 78
+  230  17:30:45.534657 IP6 10::2 > ff02::d: PIMv2, Hello, length 74
+  231  17:30:45.549731 IP6 10::2 > ff02::d: PIMv2, Hello, length 74
+  232  17:30:45.564397 IP6 10::2 > ff02::d: PIMv2, Hello, length 74
+  233  17:30:45.580862 IP6 10::2 > ff02::d: PIMv2, Hello, length 78
+  234  17:30:45.595688 IP6 10::2 > ff02::d: PIMv2, Hello, length 74
+  235  17:30:45.610185 IP6 10::2 > ff02::d: PIMv2, Hello, length 78
+  236  17:30:45.624903 IP6 10::2 > ff02::d: PIMv2, Hello, length 78
+  237  17:30:45.639276 IP6 10::2 > ff02::d: PIMv2, Hello, length 78
+  238  17:30:45.653978 IP6 10::2 > ff02::d: PIMv2, Hello, length 78
+  239  17:30:45.668528 IP6 10::2 > ff02::d: PIMv2, Hello, length 78
+  240  17:30:45.684110 IP6 10::2 > ff02::d: PIMv2, Hello, length 74
+  241  17:31:00.691792 IP6 10::2 > ff02::d: PIMv2, Hello, length 74
+  242  17:31:15.702513 IP6 10::2 > 10::1: PIMv2, Hello, length 34
+  243  17:31:30.708003 IP6 10::2 > 10::1: PIMv2, Hello, length 34
+  244  17:31:45.717892 IP6 10::1 > ff02::d: PIMv2, Hello, length 78
+  245  17:31:45.723603 IP6 10::1 > ff02::d: PIMv2, Hello, length 78

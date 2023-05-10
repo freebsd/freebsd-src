@@ -1,0 +1,30 @@
+    1  23:41:11.292336 LLDP, length 161
+	Chassis ID TLV (1), length 7
+	  Subtype MAC address (4): 00:00:00:02:00:02
+	Port ID TLV (2), length 13
+	  Subtype Interface Name (5): leaf0b-eth10
+	Time to Live TLV (3), length 2: TTL 120s
+	Port Description TLV (4), length 41: Big Cloud Fabric Switch Port leaf0b-eth10
+	System Name TLV (5), length 6: leaf0b
+	System Description TLV (6), length 17
+	  5c:16:c7:00:00:01
+	Organization specific TLV (127), length 5: OUI Unknown (0x0026e1)
+	  0x0000:  0026 e101 01
+	Organization specific TLV (127), length 9: OUI Unknown (0x0026e1)
+	  0x0000:  0026 e102 6c65 6166 30
+	Organization specific TLV (127), length 5: OUI Unknown (0x0026e1)
+	  0x0000:  0026 e103 01
+	Organization specific TLV (127), length 16: OUI Unknown (0x0026e1)
+	  0x0000:  0026 e104 0000 5c16 c70b ba1b 0000 0000
+	Organization specific TLV (127), length 6: OUI Ethernet bridged (0x0080c2)
+	  Priority Flow Control Configuration Subtype (11)
+	    Willing: 0, MBC: 0, RES: 0, PFC cap:1 
+	    PFC Enable
+	     Priority : 0  1  2  3  4  5  6  7
+	     Value    : 0  0  0  0  1  0  0  0  
+	Organization specific TLV (127), length 8: OUI Ethernet bridged (0x0080c2)
+	  Application Priority Subtype (12)
+	    RES: 0
+	    Application Priority Table
+	      Priority: 4, RES: 0, Sel: 4, Protocol ID: 3260
+	End TLV (0), length 0

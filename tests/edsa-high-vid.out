@@ -1,0 +1,4 @@
+    1  00:08:39.888043 EDSA 0xdada, Forward port 0.2, VLAN 1337u, IP 198.18.10.1 > 198.18.10.2: ICMP echo request, id 120, seq 1, length 64
+    2  00:08:39.888132 EDSA 0xdada, CPU > port 0.2, VLAN 0u, IP 198.18.10.2 > 198.18.10.1: ICMP echo reply, id 120, seq 1, length 64
+    3  00:08:39.893713 EDSA 0xdada, Forward port 0.2, VLAN 1337u, IP 198.18.10.1 > 198.18.10.2: ICMP echo request, id 121, seq 1, length 64
+    4  00:08:39.893737 EDSA 0xdada, CPU > port 0.2, VLAN 0u, IP 198.18.10.2 > 198.18.10.1: ICMP echo reply, id 121, seq 1, length 64

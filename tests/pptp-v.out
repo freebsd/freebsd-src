@@ -1,0 +1,54 @@
+    1  08:56:35.148077 IP (tos 0x0, ttl 128, id 951, offset 0, flags [DF], proto TCP (6), length 48)
+    10.1.1.11.3025 > 10.1.1.10.1723: Flags [S], cksum 0x531d (correct), seq 3648253419, win 16384, options [mss 1460,nop,nop,sackOK], length 0
+    2  08:56:35.148207 IP (tos 0x0, ttl 64, id 20404, offset 0, flags [DF], proto TCP (6), length 48)
+    10.1.1.10.1723 > 10.1.1.11.3025: Flags [S.], cksum 0x6a5e (correct), seq 2339250119, ack 3648253420, win 32120, options [mss 1460,nop,nop,sackOK], length 0
+    3  08:56:35.148313 IP (tos 0x0, ttl 64, id 20404, offset 0, flags [DF], proto TCP (6), length 48)
+    10.1.1.10.1723 > 10.1.1.11.3025: Flags [S.], cksum 0x6a5e (correct), seq 2339250119, ack 3648253420, win 32120, options [mss 1460,nop,nop,sackOK], length 0
+    4  08:56:35.148666 IP (tos 0x0, ttl 128, id 952, offset 0, flags [DF], proto TCP (6), length 40)
+    10.1.1.11.3025 > 10.1.1.10.1723: Flags [.], cksum 0xd02a (correct), ack 1, win 17520, length 0
+    5  08:56:35.148886 IP (tos 0x0, ttl 128, id 953, offset 0, flags [DF], proto TCP (6), length 196)
+    10.1.1.11.3025 > 10.1.1.10.1723: Flags [P.], cksum 0x746e (correct), seq 1:157, ack 1, win 17520, length 156: pptp Length=156 CTRL-MSG Magic-Cookie=1a2b3c4d CTRL_MSGTYPE=SCCRQ PROTO_VER(1.0) FRAME_CAP(A) BEARER_CAP(A) MAX_CHAN(0) FIRM_REV(2160) HOSTNAME() VENDOR(Microsoft Windows NT)
+    6  08:56:35.148956 IP (tos 0x0, ttl 64, id 20405, offset 0, flags [DF], proto TCP (6), length 40)
+    10.1.1.10.1723 > 10.1.1.11.3025: Flags [.], cksum 0x9686 (correct), ack 157, win 32120, length 0
+    7  08:56:35.149056 IP (tos 0x0, ttl 64, id 20405, offset 0, flags [DF], proto TCP (6), length 40)
+    10.1.1.10.1723 > 10.1.1.11.3025: Flags [.], cksum 0x9686 (correct), ack 157, win 32120, length 0
+    8  08:56:35.217355 IP (tos 0x0, ttl 64, id 20406, offset 0, flags [DF], proto TCP (6), length 196)
+    10.1.1.10.1723 > 10.1.1.11.3025: Flags [P.], cksum 0xfcf7 (correct), seq 1:157, ack 157, win 32120, length 156: pptp Length=156 CTRL-MSG Magic-Cookie=1a2b3c4d CTRL_MSGTYPE=SCCRP PROTO_VER(1.0) RESULT_CODE(1:Successful channel establishment) ERR_CODE(0:None) FRAME_CAP() BEARER_CAP() MAX_CHAN(1) FIRM_REV(1) HOSTNAME(local) VENDOR(MoretonBay)
+    9  08:56:35.217591 IP (tos 0x0, ttl 64, id 20406, offset 0, flags [DF], proto TCP (6), length 196)
+    10.1.1.10.1723 > 10.1.1.11.3025: Flags [P.], cksum 0xfcf7 (correct), seq 1:157, ack 157, win 32120, length 156: pptp Length=156 CTRL-MSG Magic-Cookie=1a2b3c4d CTRL_MSGTYPE=SCCRP PROTO_VER(1.0) RESULT_CODE(1:Successful channel establishment) ERR_CODE(0:None) FRAME_CAP() BEARER_CAP() MAX_CHAN(1) FIRM_REV(1) HOSTNAME(local) VENDOR(MoretonBay)
+   10  08:56:35.218221 IP (tos 0x0, ttl 128, id 954, offset 0, flags [DF], proto TCP (6), length 208)
+    10.1.1.11.3025 > 10.1.1.10.1723: Flags [P.], cksum 0x1726 (correct), seq 157:325, ack 157, win 17364, length 168: pptp Length=168 CTRL-MSG Magic-Cookie=1a2b3c4d CTRL_MSGTYPE=OCRQ CALL_ID(0) CALL_SER_NUM(30760) MIN_BPS(300) MAX_BPS(100000000) BEARER_TYPE(Any) FRAME_TYPE(E) RECV_WIN(64) PROC_DELAY(0) PHONE_NO_LEN(0) PHONE_NO() SUB_ADDR()
+   11  08:56:35.232225 IP (tos 0x0, ttl 64, id 20407, offset 0, flags [DF], proto TCP (6), length 40)
+    10.1.1.10.1723 > 10.1.1.11.3025: Flags [.], cksum 0x9542 (correct), ack 325, win 32120, length 0
+   12  08:56:35.232337 IP (tos 0x0, ttl 64, id 20407, offset 0, flags [DF], proto TCP (6), length 40)
+    10.1.1.10.1723 > 10.1.1.11.3025: Flags [.], cksum 0x9542 (correct), ack 325, win 32120, length 0
+   13  08:56:35.387060 IP (tos 0x0, ttl 64, id 20408, offset 0, flags [DF], proto TCP (6), length 72)
+    10.1.1.10.1723 > 10.1.1.11.3025: Flags [P.], cksum 0x5643 (correct), seq 157:189, ack 325, win 32120, length 32: pptp Length=32 CTRL-MSG Magic-Cookie=1a2b3c4d CTRL_MSGTYPE=OCRP CALL_ID(0) PEER_CALL_ID(0) RESULT_CODE(1:Connected) ERR_CODE(0:None) CAUSE_CODE(0) CONN_SPEED(100000000) RECV_WIN(64) PROC_DELAY(0) PHY_CHAN_ID(0)
+   14  08:56:35.387196 IP (tos 0x0, ttl 64, id 20408, offset 0, flags [DF], proto TCP (6), length 72)
+    10.1.1.10.1723 > 10.1.1.11.3025: Flags [P.], cksum 0x5643 (correct), seq 157:189, ack 325, win 32120, length 32: pptp Length=32 CTRL-MSG Magic-Cookie=1a2b3c4d CTRL_MSGTYPE=OCRP CALL_ID(0) PEER_CALL_ID(0) RESULT_CODE(1:Connected) ERR_CODE(0:None) CAUSE_CODE(0) CONN_SPEED(100000000) RECV_WIN(64) PROC_DELAY(0) PHY_CHAN_ID(0)
+   15  08:56:35.395885 IP (tos 0x0, ttl 128, id 955, offset 0, flags [DF], proto TCP (6), length 64)
+    10.1.1.11.3025 > 10.1.1.10.1723: Flags [P.], cksum 0x7826 (correct), seq 325:349, ack 189, win 17332, length 24: pptp Length=24 CTRL-MSG Magic-Cookie=1a2b3c4d CTRL_MSGTYPE=SLI PEER_CALL_ID(0) SEND_ACCM(0xffffffff) RECV_ACCM(0xffffffff)
+   16  08:56:35.411903 IP (tos 0x0, ttl 128, id 956, offset 0, flags [none], proto GRE (47), length 80)
+    10.1.1.11 > 10.1.1.10: GREv1, Flags [key present, sequence# present], call 0, seq 0, length 60
+	LCP, Conf-Request (0x01), id 0, length 46
+	encoded length 44 (=Option(s) length 40)
+	  Magic-Num Option (0x05), length 6: 0x021952cf
+	  PFC Option (0x07), length 2
+	  ACFC Option (0x08), length 2
+	  Call-Back Option (0x0d), length 3: : Callback Operation CBCP (6)
+	  MRRU Option (0x11), length 4: 1614
+	  End-Disc Option (0x13), length 23: Local
+   17  08:56:35.412217 IP (tos 0x0, ttl 64, id 20409, offset 0, flags [DF], proto TCP (6), length 40)
+    10.1.1.10.1723 > 10.1.1.11.3025: Flags [.], cksum 0x950a (correct), ack 349, win 32120, length 0
+   18  08:56:35.412318 IP (tos 0x0, ttl 64, id 20409, offset 0, flags [DF], proto TCP (6), length 40)
+    10.1.1.10.1723 > 10.1.1.11.3025: Flags [.], cksum 0x950a (correct), ack 349, win 32120, length 0
+   19  08:56:36.347146 IP (tos 0x0, ttl 64, id 20410, offset 0, flags [DF], proto TCP (6), length 40)
+    10.1.1.10.1723 > 10.1.1.11.3025: Flags [F.], cksum 0x9509 (correct), seq 189, ack 349, win 32120, length 0
+   20  08:56:36.347265 IP (tos 0x0, ttl 64, id 20410, offset 0, flags [DF], proto TCP (6), length 40)
+    10.1.1.10.1723 > 10.1.1.11.3025: Flags [F.], cksum 0x9509 (correct), seq 189, ack 349, win 32120, length 0
+   21  08:56:36.347587 IP (tos 0x0, ttl 128, id 957, offset 0, flags [DF], proto TCP (6), length 40)
+    10.1.1.11.3025 > 10.1.1.10.1723: Flags [F.], cksum 0xcecc (correct), seq 349, ack 190, win 17332, length 0
+   22  08:56:36.347676 IP (tos 0x0, ttl 64, id 20411, offset 0, flags [DF], proto TCP (6), length 40)
+    10.1.1.10.1723 > 10.1.1.11.3025: Flags [.], cksum 0x9508 (correct), ack 350, win 32120, length 0
+   23  08:56:36.347775 IP (tos 0x0, ttl 64, id 20411, offset 0, flags [DF], proto TCP (6), length 40)
+    10.1.1.10.1723 > 10.1.1.11.3025: Flags [.], cksum 0x9508 (correct), ack 350, win 32120, length 0

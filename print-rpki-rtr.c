@@ -20,18 +20,16 @@
 /* specification: RFC 6810 */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
-#include <netdissect-stdinc.h>
+#include "netdissect-stdinc.h"
 
-#include <string.h>
-
+#define ND_LONGJMP_FROM_TCHECK
 #include "netdissect.h"
 #include "extract.h"
 #include "addrtoname.h"
 
-static const char tstr[] = "[|RPKI-RTR]";
 
 /*
  * RPKI/Router PDU header
@@ -40,27 +38,26 @@ static const char tstr[] = "[|RPKI-RTR]";
  * The length does include the version and length fields.
  */
 typedef struct rpki_rtr_pdu_ {
-    u_char version;		/* Version number */
-    u_char pdu_type;		/* PDU type */
+    nd_uint8_t version;		/* Version number */
+    nd_uint8_t pdu_type;		/* PDU type */
     union {
-	u_char session_id[2];	/* Session id */
-	u_char error_code[2];	/* Error code */
+	nd_uint16_t session_id;	/* Session id */
+	nd_uint16_t error_code;	/* Error code */
     } u;
-    u_char length[4];
+    nd_uint32_t length;
 } rpki_rtr_pdu;
-#define RPKI_RTR_PDU_OVERHEAD (offsetof(rpki_rtr_pdu, rpki_rtr_pdu_msg))
 
 /*
  * IPv4 Prefix PDU.
  */
 typedef struct rpki_rtr_pdu_ipv4_prefix_ {
     rpki_rtr_pdu pdu_header;
-    u_char flags;
-    u_char prefix_length;
-    u_char max_length;
-    u_char zero;
-    u_char prefix[4];
-    u_char as[4];
+    nd_uint8_t flags;
+    nd_uint8_t prefix_length;
+    nd_uint8_t max_length;
+    nd_uint8_t zero;
+    nd_ipv4 prefix;
+    nd_uint32_t as;
 } rpki_rtr_pdu_ipv4_prefix;
 
 /*
@@ -68,12 +65,12 @@ typedef struct rpki_rtr_pdu_ipv4_prefix_ {
  */
 typedef struct rpki_rtr_pdu_ipv6_prefix_ {
     rpki_rtr_pdu pdu_header;
-    u_char flags;
-    u_char prefix_length;
-    u_char max_length;
-    u_char zero;
-    u_char prefix[16];
-    u_char as[4];
+    nd_uint8_t flags;
+    nd_uint8_t prefix_length;
+    nd_uint8_t max_length;
+    nd_uint8_t zero;
+    nd_ipv6 prefix;
+    nd_uint32_t as;
 } rpki_rtr_pdu_ipv6_prefix;
 
 /*
@@ -81,7 +78,7 @@ typedef struct rpki_rtr_pdu_ipv6_prefix_ {
  */
 typedef struct rpki_rtr_pdu_error_report_ {
     rpki_rtr_pdu pdu_header;
-    u_char encapsulated_pdu_length[4]; /* Encapsulated PDU length */
+    nd_uint32_t encapsulated_pdu_length; /* Encapsulated PDU length */
     /* Copy of Erroneous PDU (variable, optional) */
     /* Length of Error Text (4 octets in network byte order) */
     /* Arbitrary Text of Error Diagnostic Message (variable, optional) */
@@ -175,44 +172,43 @@ indent_string (u_int indent)
  * Print a single PDU.
  */
 static u_int
-rpki_rtr_pdu_print (netdissect_options *ndo, const u_char *tptr, const u_int len,
-	const u_char recurse, const u_int indent)
+rpki_rtr_pdu_print(netdissect_options *ndo, const u_char *tptr, const u_int len,
+		   const u_char recurse, const u_int indent)
 {
     const rpki_rtr_pdu *pdu_header;
     u_int pdu_type, pdu_len, hexdump;
     const u_char *msg;
 
     /* Protocol Version */
-    ND_TCHECK_8BITS(tptr);
-    if (*tptr != 0) {
+    if (GET_U_1(tptr) != 0) {
 	/* Skip the rest of the input buffer because even if this is
 	 * a well-formed PDU of a future RPKI-Router protocol version
 	 * followed by a well-formed PDU of RPKI-Router protocol
 	 * version 0, there is no way to know exactly how to skip the
 	 * current PDU.
 	 */
-	ND_PRINT((ndo, "%sRPKI-RTRv%u (unknown)", indent_string(8), *tptr));
+	ND_PRINT("%sRPKI-RTRv%u (unknown)", indent_string(8), GET_U_1(tptr));
 	return len;
     }
     if (len < sizeof(rpki_rtr_pdu)) {
-	ND_PRINT((ndo, "(%u bytes is too few to decode)", len));
+	ND_PRINT("(%u bytes is too few to decode)", len);
 	goto invalid;
     }
-    ND_TCHECK2(*tptr, sizeof(rpki_rtr_pdu));
+    ND_TCHECK_LEN(tptr, sizeof(rpki_rtr_pdu));
     pdu_header = (const rpki_rtr_pdu *)tptr;
-    pdu_type = pdu_header->pdu_type;
-    pdu_len = EXTRACT_32BITS(pdu_header->length);
+    pdu_type = GET_U_1(pdu_header->pdu_type);
+    pdu_len = GET_BE_U_4(pdu_header->length);
     /* Do not check bounds with pdu_len yet, do it in the case blocks
      * below to make it possible to decode at least the beginning of
      * a truncated Error Report PDU or a truncated encapsulated PDU.
      */
     hexdump = FALSE;
 
-    ND_PRINT((ndo, "%sRPKI-RTRv%u, %s PDU (%u), length: %u",
+    ND_PRINT("%sRPKI-RTRv%u, %s PDU (%u), length: %u",
 	   indent_string(8),
-	   pdu_header->version,
+	   GET_U_1(pdu_header->version),
 	   tok2str(rpki_rtr_pdu_values, "Unknown", pdu_type),
-	   pdu_type, pdu_len));
+	   pdu_type, pdu_len);
     if (pdu_len < sizeof(rpki_rtr_pdu) || pdu_len > len)
 	goto invalid;
 
@@ -226,12 +222,11 @@ rpki_rtr_pdu_print (netdissect_options *ndo, const u_char *tptr, const u_int len
     case RPKI_RTR_END_OF_DATA_PDU:
 	if (pdu_len != sizeof(rpki_rtr_pdu) + 4)
 	    goto invalid;
-	ND_TCHECK2(*tptr, pdu_len);
         msg = (const u_char *)(pdu_header + 1);
-	ND_PRINT((ndo, "%sSession ID: 0x%04x, Serial: %u",
+	ND_PRINT("%sSession ID: 0x%04x, Serial: %u",
 	       indent_string(indent+2),
-	       EXTRACT_16BITS(pdu_header->u.session_id),
-	       EXTRACT_32BITS(msg)));
+	       GET_BE_U_2(pdu_header->u.session_id),
+	       GET_BE_U_4(msg));
 	break;
 
 	/*
@@ -252,24 +247,23 @@ rpki_rtr_pdu_print (netdissect_options *ndo, const u_char *tptr, const u_int len
 	if (pdu_len != sizeof(rpki_rtr_pdu))
 	    goto invalid;
 	/* no additional boundary to check */
-	ND_PRINT((ndo, "%sSession ID: 0x%04x",
+	ND_PRINT("%sSession ID: 0x%04x",
 	       indent_string(indent+2),
-	       EXTRACT_16BITS(pdu_header->u.session_id)));
+	       GET_BE_U_2(pdu_header->u.session_id));
 	break;
 
     case RPKI_RTR_IPV4_PREFIX_PDU:
 	{
 	    const rpki_rtr_pdu_ipv4_prefix *pdu;
 
-	    if (pdu_len != sizeof(rpki_rtr_pdu) + 12)
+	    if (pdu_len != sizeof(rpki_rtr_pdu_ipv4_prefix))
 		goto invalid;
-	    ND_TCHECK2(*tptr, pdu_len);
 	    pdu = (const rpki_rtr_pdu_ipv4_prefix *)tptr;
-	    ND_PRINT((ndo, "%sIPv4 Prefix %s/%u-%u, origin-as %u, flags 0x%02x",
+	    ND_PRINT("%sIPv4 Prefix %s/%u-%u, origin-as %u, flags 0x%02x",
 		   indent_string(indent+2),
-		   ipaddr_string(ndo, pdu->prefix),
-		   pdu->prefix_length, pdu->max_length,
-		   EXTRACT_32BITS(pdu->as), pdu->flags));
+		   GET_IPADDR_STRING(pdu->prefix),
+		   GET_U_1(pdu->prefix_length), GET_U_1(pdu->max_length),
+		   GET_BE_U_4(pdu->as), GET_U_1(pdu->flags));
 	}
 	break;
 
@@ -277,15 +271,14 @@ rpki_rtr_pdu_print (netdissect_options *ndo, const u_char *tptr, const u_int len
 	{
 	    const rpki_rtr_pdu_ipv6_prefix *pdu;
 
-	    if (pdu_len != sizeof(rpki_rtr_pdu) + 24)
+	    if (pdu_len != sizeof(rpki_rtr_pdu_ipv6_prefix))
 		goto invalid;
-	    ND_TCHECK2(*tptr, pdu_len);
 	    pdu = (const rpki_rtr_pdu_ipv6_prefix *)tptr;
-	    ND_PRINT((ndo, "%sIPv6 Prefix %s/%u-%u, origin-as %u, flags 0x%02x",
+	    ND_PRINT("%sIPv6 Prefix %s/%u-%u, origin-as %u, flags 0x%02x",
 		   indent_string(indent+2),
-		   ip6addr_string(ndo, pdu->prefix),
-		   pdu->prefix_length, pdu->max_length,
-		   EXTRACT_32BITS(pdu->as), pdu->flags));
+		   GET_IP6ADDR_STRING(pdu->prefix),
+		   GET_U_1(pdu->prefix_length), GET_U_1(pdu->max_length),
+		   GET_BE_U_4(pdu->as), GET_U_1(pdu->flags));
 	}
 	break;
 
@@ -298,19 +291,19 @@ rpki_rtr_pdu_print (netdissect_options *ndo, const u_char *tptr, const u_int len
 	    /* Do not test for the "Length of Error Text" data element yet. */
 	    if (pdu_len < tlen + 4)
 		goto invalid;
-	    ND_TCHECK2(*tptr, tlen + 4);
+	    ND_TCHECK_LEN(tptr, tlen + 4);
 	    /* Safe up to and including the "Length of Encapsulated PDU"
 	     * data element, more data elements may be present.
 	     */
 	    pdu = (const rpki_rtr_pdu_error_report *)tptr;
-	    encapsulated_pdu_length = EXTRACT_32BITS(pdu->encapsulated_pdu_length);
+	    encapsulated_pdu_length = GET_BE_U_4(pdu->encapsulated_pdu_length);
 	    tlen += 4;
 
-	    error_code = EXTRACT_16BITS(pdu->pdu_header.u.error_code);
-	    ND_PRINT((ndo, "%sError code: %s (%u), Encapsulated PDU length: %u",
+	    error_code = GET_BE_U_2(pdu->pdu_header.u.error_code);
+	    ND_PRINT("%sError code: %s (%u), Encapsulated PDU length: %u",
 		   indent_string(indent+2),
 		   tok2str(rpki_rtr_error_codes, "Unknown", error_code),
-		   error_code, encapsulated_pdu_length));
+		   error_code, encapsulated_pdu_length);
 
 	    if (encapsulated_pdu_length) {
 		/* Section 5.10 of RFC 6810 says:
@@ -328,10 +321,10 @@ rpki_rtr_pdu_print (netdissect_options *ndo, const u_char *tptr, const u_int len
 		if (pdu_len < tlen + encapsulated_pdu_length)
 		    goto invalid;
 		if (! recurse) {
-		    ND_TCHECK2(*tptr, tlen + encapsulated_pdu_length);
+		    ND_TCHECK_LEN(tptr, tlen + encapsulated_pdu_length);
 		}
 		else {
-		    ND_PRINT((ndo, "%s-----encapsulated PDU-----", indent_string(indent+4)));
+		    ND_PRINT("%s-----encapsulated PDU-----", indent_string(indent+4));
 		    rpki_rtr_pdu_print(ndo, tptr + tlen,
 			encapsulated_pdu_length, 0, indent + 2);
 		}
@@ -340,7 +333,7 @@ rpki_rtr_pdu_print (netdissect_options *ndo, const u_char *tptr, const u_int len
 
 	    if (pdu_len < tlen + 4)
 		goto invalid;
-	    ND_TCHECK2(*tptr, tlen + 4);
+	    ND_TCHECK_LEN(tptr, tlen + 4);
 	    /* Safe up to and including the "Length of Error Text" data element,
 	     * one more data element may be present.
 	     */
@@ -348,22 +341,21 @@ rpki_rtr_pdu_print (netdissect_options *ndo, const u_char *tptr, const u_int len
 	    /*
 	     * Extract, trail-zero and print the Error message.
 	     */
-	    text_length = EXTRACT_32BITS(tptr + tlen);
+	    text_length = GET_BE_U_4(tptr + tlen);
 	    tlen += 4;
 
 	    if (text_length) {
 		if (pdu_len < tlen + text_length)
 		    goto invalid;
-		/* fn_printn() makes the bounds check */
-		ND_PRINT((ndo, "%sError text: ", indent_string(indent+2)));
-		if (fn_printn(ndo, tptr + tlen, text_length, ndo->ndo_snapend))
-			goto trunc;
+		/* nd_printn() makes the bounds check */
+		ND_PRINT("%sError text: ", indent_string(indent+2));
+		(void)nd_printn(ndo, tptr + tlen, text_length, NULL);
 	    }
 	}
 	break;
 
     default:
-	ND_TCHECK2(*tptr, pdu_len);
+	ND_TCHECK_LEN(tptr, pdu_len);
 
 	/*
 	 * Unknown data, please hexdump.
@@ -378,19 +370,17 @@ rpki_rtr_pdu_print (netdissect_options *ndo, const u_char *tptr, const u_int len
     return pdu_len;
 
 invalid:
-    ND_PRINT((ndo, "%s", istr));
-    ND_TCHECK2(*tptr, len);
-    return len;
-trunc:
-    ND_PRINT((ndo, "\n\t%s", tstr));
+    nd_print_invalid(ndo);
+    ND_TCHECK_LEN(tptr, len);
     return len;
 }
 
 void
-rpki_rtr_print(netdissect_options *ndo, register const u_char *pptr, register u_int len)
+rpki_rtr_print(netdissect_options *ndo, const u_char *pptr, u_int len)
 {
+    ndo->ndo_protocol = "rpki_rtr";
     if (!ndo->ndo_vflag) {
-	ND_PRINT((ndo, ", RPKI-RTR"));
+	ND_PRINT(", RPKI-RTR");
 	return;
     }
     while (len) {
@@ -399,10 +389,3 @@ rpki_rtr_print(netdissect_options *ndo, register const u_char *pptr, register u_
 	pptr += pdu_len;
     }
 }
-
-/*
- * Local Variables:
- * c-style: whitesmith
- * c-basic-offset: 4
- * End:
- */

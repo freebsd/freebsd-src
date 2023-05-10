@@ -1,0 +1,2139 @@
+    1  17:10:44.789433 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 34)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 14
+	Bootstrap, cksum 0xcaa5 (correct) tag=17c hashmlen=4 BSRprio=93 BSR=10.0.0.1
+    2  17:10:59.798983 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 34)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 14
+	Bootstrap, cksum 0xcaa5 (correct) tag=17c hashmlen=4 BSRprio=93 BSR=10.0.0.1
+    3  17:11:14.807715 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 34)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 14
+	Bootstrap, cksum 0xc306 (correct) tag=177 hashmlen=12 BSRprio=0 BSR=10.0.0.2
+    4  17:11:14.823339 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 34)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 14
+	Bootstrap, cksum 0xc384 (correct) tag=ca hashmlen=12 BSRprio=46 BSR=10.0.0.3
+    5  17:11:14.838646 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 46)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 26
+	Bootstrap, cksum 0xd6ab (correct) tag=1b6 hashmlen=21 BSRprio=248 BSR=10.0.0.4 (group0: 225.0.0.1 RPcnt=0 FRPcnt=0)
+    6  17:11:14.854392 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 78)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 58
+	Bootstrap, cksum 0x5abd (correct) tag=21 hashmlen=5 BSRprio=45 BSR=10.0.0.7 (group0: 225.0.0.2(0x01) RPcnt=1 FRPcnt=1 RP0=10.0.0.5,holdtime=1m58s,prio=107) (group1: 225.0.0.3 RPcnt=1 FRPcnt=1 RP0=10.0.0.6,holdtime=2m43s,prio=39)
+    7  17:11:14.870050 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 34)
+    10.0.0.2 > 10.0.0.1: PIMv2, length 14
+	Bootstrap, cksum 0xc296 (correct) tag=166 hashmlen=12 BSRprio=123 BSR=10.0.0.8
+    8  17:11:29.877641 IP (tos 0xc0, ttl 1, id 5368, offset 0, flags [DF], proto PIM (103), length 34)
+    10.0.0.1 > 224.0.0.13: PIMv2, length 14
+	Bootstrap, cksum 0xc2e0 (correct) tag=ea hashmlen=12 BSRprio=172 BSR=10.0.0.9
+    9  17:11:29.882313 IP (tos 0xc0, ttl 1, id 5369, offset 0, flags [DF], proto PIM (103), length 34)
+    10.0.0.1 > 224.0.0.13: PIMv2, length 14
+	Bootstrap, cksum 0xbdd6 (correct) tag=cb hashmlen=17 BSRprio=212 BSR=10.0.0.10
+   10  17:11:29.886825 IP (tos 0xc0, ttl 1, id 5370, offset 0, flags [DF], proto PIM (103), length 46)
+    10.0.0.1 > 224.0.0.13: PIMv2, length 26
+	Bootstrap, cksum 0xd12c (correct) tag=139 hashmlen=27 BSRprio=234 BSR=10.0.0.11 (group0: 225.0.0.4 RPcnt=0 FRPcnt=0)
+   11  17:11:29.891835 IP (tos 0xc0, ttl 1, id 5371, offset 0, flags [DF], proto PIM (103), length 78)
+    10.0.0.1 > 224.0.0.13: PIMv2, length 58
+	Bootstrap, cksum 0x58fb (correct) tag=c9 hashmlen=1 BSRprio=90 BSR=10.0.0.14 (group0: 225.0.0.5(0x01) RPcnt=1 FRPcnt=1 RP0=10.0.0.12,holdtime=1m28s,prio=58) (group1: 225.0.0.6 RPcnt=1 FRPcnt=1 RP0=10.0.0.13,holdtime=2m27s,prio=93)
+   12  17:11:52.114000 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 42)
+    10.0.0.2 > 10.0.0.1: PIMv2, length 22
+	Candidate RP Advertisement, cksum 0xe833 (correct) prefix-cnt=1 prio=78 holdtime=1m31s RP=10.0.0.1 Group0=225.0.0.1(0x01)
+   13  17:11:52.129609 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 42)
+    10.0.0.2 > 10.0.0.1: PIMv2, length 22
+	Candidate RP Advertisement, cksum 0xe824 (correct) prefix-cnt=1 prio=155 holdtime=4m43s RP=10.0.0.2 Group0=225.0.0.2
+   14  17:11:52.144922 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 50)
+    10.0.0.2 > 10.0.0.1: PIMv2, length 30
+	Candidate RP Advertisement, cksum 0x051a (correct) prefix-cnt=2 prio=213 holdtime=3m17s RP=10.0.0.3 Group0=225.0.0.3 Group1=225.0.0.4
+   15  17:11:52.160444 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 42)
+    10.0.0.2 > 10.0.0.1: PIMv2, length 22
+	Candidate RP Advertisement, cksum 0xe743 (correct) prefix-cnt=1 prio=180 holdtime=3m42s RP=10.0.0.4 Group0=225.0.0.5(0x01)
+   16  17:11:52.176120 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 42)
+    10.0.0.2 > 10.0.0.1: PIMv2, length 22
+	Candidate RP Advertisement, cksum 0xe743 (correct) prefix-cnt=1 prio=180 holdtime=3m42s RP=10.0.0.4 Group0=225.0.0.5(0x01)
+   17  17:11:52.191149 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 42)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 22
+	Candidate RP Advertisement, cksum 0xe53f (correct) prefix-cnt=1 prio=85 holdtime=13m51s RP=10.0.0.5 Group0=225.0.0.6(0x01)
+   18  17:12:07.197582 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 114)
+    10.0.0.2 > 10.0.0.1: PIMv2, length 94
+	Candidate RP Advertisement, cksum 0xe860 (correct) prefix-cnt=2 prio=63 holdtime=11m10s RP=10.0.0.6 Group0=225.0.0.7(0x01) Group1=225.0.0.8(0x01)
+   19  17:12:22.207593 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 42)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 22
+	Candidate RP Advertisement, cksum 0xe789 (correct) prefix-cnt=1 prio=139 holdtime=2m58s RP=10.0.0.7 Group0=225.0.0.17(0x01)
+   20  17:12:37.213829 IP (tos 0xc0, ttl 255, id 32347, offset 0, flags [DF], proto PIM (103), length 42)
+    10.0.0.1 > 10.0.0.2: PIMv2, length 22
+	Candidate RP Advertisement, cksum 0xe4a6 (correct) prefix-cnt=1 prio=100 holdtime=15m54s RP=10.0.0.8 Group0=225.0.0.18(0x01)
+   21  17:12:37.218303 IP (tos 0xc0, ttl 255, id 32348, offset 0, flags [DF], proto PIM (103), length 42)
+    10.0.0.1 > 10.0.0.2: PIMv2, length 22
+	Candidate RP Advertisement, cksum 0xe622 (correct) prefix-cnt=1 prio=118 holdtime=13m30s RP=10.0.0.9 Group0=225.0.0.19
+   22  17:12:37.222610 IP (tos 0xc0, ttl 255, id 32349, offset 0, flags [DF], proto PIM (103), length 50)
+    10.0.0.1 > 10.0.0.2: PIMv2, length 30
+	Candidate RP Advertisement, cksum 0x0551 (correct) prefix-cnt=2 prio=39 holdtime=4m35s RP=10.0.0.10 Group0=225.0.0.20 Group1=225.0.0.21
+   23  17:12:37.228304 IP (tos 0xc0, ttl 255, id 32350, offset 0, flags [DF], proto PIM (103), length 50)
+    10.0.0.1 > 10.0.0.2: PIMv2, length 30
+	Candidate RP Advertisement, cksum 0x0544 (correct) prefix-cnt=2 prio=151 holdtime=2m51s RP=10.0.0.11 Group0=225.0.0.23 Group1=225.0.0.22
+   24  17:12:37.233724 IP (tos 0xc0, ttl 255, id 44910, offset 0, flags [DF], proto PIM (103), length 50)
+    10.0.0.13 > 10.0.0.2: PIMv2, length 30
+	Candidate RP Advertisement, cksum 0x0252 (correct) prefix-cnt=2 prio=24 holdtime=8m55s RP=10.0.0.12 Group0=225.0.0.25(0x01) Group1=225.0.0.24(0x01)
+   25  17:12:49.443041 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 238)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 218
+	Join / Prune, cksum 0x9453 (correct), upstream-neighbor: 10.0.0.8
+	  3 group(s), holdtime: 45s
+	    group #1: 225.0.0.3(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.3(R)
+	      joined source #2: 10.0.0.1(S)
+	      joined source #3: 10.0.0.4(WR)
+	      joined source #4: 10.0.0.2(R)
+	      pruned source #1: 10.0.0.7(R)
+	      pruned source #2: 10.0.0.6(R)
+	      pruned source #3: 10.0.0.5(S)
+	    group #2: 225.0.0.1(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.3(R)
+	      joined source #2: 10.0.0.1(S)
+	      joined source #3: 10.0.0.4(WR)
+	      joined source #4: 10.0.0.2(R)
+	      pruned source #1: 10.0.0.7(R)
+	      pruned source #2: 10.0.0.6(R)
+	      pruned source #3: 10.0.0.5(S)
+	    group #3: 225.0.0.2(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.3(R)
+	      joined source #2: 10.0.0.1(S)
+	      joined source #3: 10.0.0.4(WR)
+	      joined source #4: 10.0.0.2(R)
+	      pruned source #1: 10.0.0.7(R)
+	      pruned source #2: 10.0.0.6(R)
+	      pruned source #3: 10.0.0.5(S)
+   26  17:12:49.459068 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 238)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 218
+	Join / Prune, cksum 0x9453 (correct), upstream-neighbor: 10.0.0.8
+	  3 group(s), holdtime: 45s
+	    group #1: 225.0.0.3(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.3(R)
+	      joined source #2: 10.0.0.1(S)
+	      joined source #3: 10.0.0.4(WR)
+	      joined source #4: 10.0.0.2(R)
+	      pruned source #1: 10.0.0.7(R)
+	      pruned source #2: 10.0.0.6(R)
+	      pruned source #3: 10.0.0.5(S)
+	    group #2: 225.0.0.1(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.3(R)
+	      joined source #2: 10.0.0.1(S)
+	      joined source #3: 10.0.0.4(WR)
+	      joined source #4: 10.0.0.2(R)
+	      pruned source #1: 10.0.0.7(R)
+	      pruned source #2: 10.0.0.6(R)
+	      pruned source #3: 10.0.0.5(S)
+	    group #3: 225.0.0.2(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.3(R)
+	      joined source #2: 10.0.0.1(S)
+	      joined source #3: 10.0.0.4(WR)
+	      joined source #4: 10.0.0.2(R)
+	      pruned source #1: 10.0.0.7(R)
+	      pruned source #2: 10.0.0.6(R)
+	      pruned source #3: 10.0.0.5(S)
+   27  17:12:49.474922 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 238)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 218
+	Join / Prune, cksum 0x939a (correct), upstream-neighbor: 10.0.0.16
+	  3 group(s), holdtime: 45s
+	    group #1: 225.0.0.4(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.10(R)
+	      joined source #2: 10.0.0.12(WR)
+	      joined source #3: 10.0.0.9(S)
+	      joined source #4: 10.0.0.11(R)
+	      pruned source #1: 10.0.0.14(R)
+	      pruned source #2: 10.0.0.13(S)
+	      pruned source #3: 10.0.0.15(R)
+	    group #2: 225.0.0.5(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.10(R)
+	      joined source #2: 10.0.0.12(WR)
+	      joined source #3: 10.0.0.9(S)
+	      joined source #4: 10.0.0.11(R)
+	      pruned source #1: 10.0.0.14(R)
+	      pruned source #2: 10.0.0.13(S)
+	      pruned source #3: 10.0.0.15(R)
+	    group #3: 225.0.0.6(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.10(R)
+	      joined source #2: 10.0.0.12(WR)
+	      joined source #3: 10.0.0.9(S)
+	      joined source #4: 10.0.0.11(R)
+	      pruned source #1: 10.0.0.14(R)
+	      pruned source #2: 10.0.0.13(S)
+	      pruned source #3: 10.0.0.15(R)
+   28  17:13:04.482150 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 238)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 218
+	Join / Prune, cksum 0x939a (correct), upstream-neighbor: 10.0.0.16
+	  3 group(s), holdtime: 45s
+	    group #1: 225.0.0.4(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.10(R)
+	      joined source #2: 10.0.0.12(WR)
+	      joined source #3: 10.0.0.9(S)
+	      joined source #4: 10.0.0.11(R)
+	      pruned source #1: 10.0.0.14(R)
+	      pruned source #2: 10.0.0.13(S)
+	      pruned source #3: 10.0.0.15(R)
+	    group #2: 225.0.0.5(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.10(R)
+	      joined source #2: 10.0.0.12(WR)
+	      joined source #3: 10.0.0.9(S)
+	      joined source #4: 10.0.0.11(R)
+	      pruned source #1: 10.0.0.14(R)
+	      pruned source #2: 10.0.0.13(S)
+	      pruned source #3: 10.0.0.15(R)
+	    group #3: 225.0.0.6(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.10(R)
+	      joined source #2: 10.0.0.12(WR)
+	      joined source #3: 10.0.0.9(S)
+	      joined source #4: 10.0.0.11(R)
+	      pruned source #1: 10.0.0.14(R)
+	      pruned source #2: 10.0.0.13(S)
+	      pruned source #3: 10.0.0.15(R)
+   29  17:13:19.491684 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 238)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 218
+	Join / Prune, cksum 0x12e3 (correct), upstream-neighbor: 10.0.0.24
+	  3 group(s), holdtime: 45s
+	    group #1: 225.0.0.7, joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.18(R)
+	      joined source #2: 10.0.0.17(S)
+	      joined source #3: 10.0.0.20(WR)
+	      joined source #4: 10.0.0.19(R)
+	      pruned source #1: 10.0.0.21(S)
+	      pruned source #2: 10.0.0.22(R)
+	      pruned source #3: 10.0.0.23(R)
+	    group #2: 225.0.0.8, joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.18(R)
+	      joined source #2: 10.0.0.17(S)
+	      joined source #3: 10.0.0.20(WR)
+	      joined source #4: 10.0.0.19(R)
+	      pruned source #1: 10.0.0.21(S)
+	      pruned source #2: 10.0.0.22(R)
+	      pruned source #3: 10.0.0.23(R)
+	    group #3: 225.0.0.9, joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.18(R)
+	      joined source #2: 10.0.0.17(S)
+	      joined source #3: 10.0.0.20(WR)
+	      joined source #4: 10.0.0.19(R)
+	      pruned source #1: 10.0.0.21(S)
+	      pruned source #2: 10.0.0.22(R)
+	      pruned source #3: 10.0.0.23(R)
+   30  17:13:34.502041 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 238)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 218
+	Join / Prune, cksum 0x12e3 (correct), upstream-neighbor: 10.0.0.24
+	  3 group(s), holdtime: 45s
+	    group #1: 225.0.0.7, joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.18(R)
+	      joined source #2: 10.0.0.17(S)
+	      joined source #3: 10.0.0.20(WR)
+	      joined source #4: 10.0.0.19(R)
+	      pruned source #1: 10.0.0.21(S)
+	      pruned source #2: 10.0.0.22(R)
+	      pruned source #3: 10.0.0.23(R)
+	    group #2: 225.0.0.8, joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.18(R)
+	      joined source #2: 10.0.0.17(S)
+	      joined source #3: 10.0.0.20(WR)
+	      joined source #4: 10.0.0.19(R)
+	      pruned source #1: 10.0.0.21(S)
+	      pruned source #2: 10.0.0.22(R)
+	      pruned source #3: 10.0.0.23(R)
+	    group #3: 225.0.0.9, joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.18(R)
+	      joined source #2: 10.0.0.17(S)
+	      joined source #3: 10.0.0.20(WR)
+	      joined source #4: 10.0.0.19(R)
+	      pruned source #1: 10.0.0.21(S)
+	      pruned source #2: 10.0.0.22(R)
+	      pruned source #3: 10.0.0.23(R)
+   31  17:13:49.515669 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 238)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 218
+	Join / Prune, cksum 0x122a (correct), upstream-neighbor: 10.0.0.32
+	  3 group(s), holdtime: 45s
+	    group #1: 225.0.0.11, joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.25(S)
+	      joined source #2: 10.0.0.27(R)
+	      joined source #3: 10.0.0.26(R)
+	      joined source #4: 10.0.0.28(WR)
+	      pruned source #1: 10.0.0.29(S)
+	      pruned source #2: 10.0.0.31(R)
+	      pruned source #3: 10.0.0.30(R)
+	    group #2: 225.0.0.12, joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.25(S)
+	      joined source #2: 10.0.0.27(R)
+	      joined source #3: 10.0.0.26(R)
+	      joined source #4: 10.0.0.28(WR)
+	      pruned source #1: 10.0.0.29(S)
+	      pruned source #2: 10.0.0.31(R)
+	      pruned source #3: 10.0.0.30(R)
+	    group #3: 225.0.0.10, joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.25(S)
+	      joined source #2: 10.0.0.27(R)
+	      joined source #3: 10.0.0.26(R)
+	      joined source #4: 10.0.0.28(WR)
+	      pruned source #1: 10.0.0.29(S)
+	      pruned source #2: 10.0.0.31(R)
+	      pruned source #3: 10.0.0.30(R)
+   32  17:13:49.535091 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 238)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 218
+	Join / Prune, cksum 0x122a (correct), upstream-neighbor: 10.0.0.32
+	  3 group(s), holdtime: 45s
+	    group #1: 225.0.0.11, joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.25(S)
+	      joined source #2: 10.0.0.27(R)
+	      joined source #3: 10.0.0.26(R)
+	      joined source #4: 10.0.0.28(WR)
+	      pruned source #1: 10.0.0.29(S)
+	      pruned source #2: 10.0.0.31(R)
+	      pruned source #3: 10.0.0.30(R)
+	    group #2: 225.0.0.12, joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.25(S)
+	      joined source #2: 10.0.0.27(R)
+	      joined source #3: 10.0.0.26(R)
+	      joined source #4: 10.0.0.28(WR)
+	      pruned source #1: 10.0.0.29(S)
+	      pruned source #2: 10.0.0.31(R)
+	      pruned source #3: 10.0.0.30(R)
+	    group #3: 225.0.0.10, joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.25(S)
+	      joined source #2: 10.0.0.27(R)
+	      joined source #3: 10.0.0.26(R)
+	      joined source #4: 10.0.0.28(WR)
+	      pruned source #1: 10.0.0.29(S)
+	      pruned source #2: 10.0.0.31(R)
+	      pruned source #3: 10.0.0.30(R)
+   33  17:13:49.555281 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 238)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 218
+	Join / Prune, cksum 0x1171 (correct), upstream-neighbor: 10.0.0.40
+	  3 group(s), holdtime: 45s
+	    group #1: 225.0.0.15, joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.36(WR)
+	      joined source #2: 10.0.0.34(R)
+	      joined source #3: 10.0.0.35(R)
+	      joined source #4: 10.0.0.33(S)
+	      pruned source #1: 10.0.0.39(R)
+	      pruned source #2: 10.0.0.38(R)
+	      pruned source #3: 10.0.0.37(S)
+	    group #2: 225.0.0.13, joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.36(WR)
+	      joined source #2: 10.0.0.34(R)
+	      joined source #3: 10.0.0.35(R)
+	      joined source #4: 10.0.0.33(S)
+	      pruned source #1: 10.0.0.39(R)
+	      pruned source #2: 10.0.0.38(R)
+	      pruned source #3: 10.0.0.37(S)
+	    group #3: 225.0.0.14, joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.36(WR)
+	      joined source #2: 10.0.0.34(R)
+	      joined source #3: 10.0.0.35(R)
+	      joined source #4: 10.0.0.33(S)
+	      pruned source #1: 10.0.0.39(R)
+	      pruned source #2: 10.0.0.38(R)
+	      pruned source #3: 10.0.0.37(S)
+   34  17:14:04.567818 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 238)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 218
+	Join / Prune, cksum 0x1171 (correct), upstream-neighbor: 10.0.0.40
+	  3 group(s), holdtime: 45s
+	    group #1: 225.0.0.15, joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.36(WR)
+	      joined source #2: 10.0.0.34(R)
+	      joined source #3: 10.0.0.35(R)
+	      joined source #4: 10.0.0.33(S)
+	      pruned source #1: 10.0.0.39(R)
+	      pruned source #2: 10.0.0.38(R)
+	      pruned source #3: 10.0.0.37(S)
+	    group #2: 225.0.0.13, joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.36(WR)
+	      joined source #2: 10.0.0.34(R)
+	      joined source #3: 10.0.0.35(R)
+	      joined source #4: 10.0.0.33(S)
+	      pruned source #1: 10.0.0.39(R)
+	      pruned source #2: 10.0.0.38(R)
+	      pruned source #3: 10.0.0.37(S)
+	    group #3: 225.0.0.14, joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.36(WR)
+	      joined source #2: 10.0.0.34(R)
+	      joined source #3: 10.0.0.35(R)
+	      joined source #4: 10.0.0.33(S)
+	      pruned source #1: 10.0.0.39(R)
+	      pruned source #2: 10.0.0.38(R)
+	      pruned source #3: 10.0.0.37(S)
+   35  17:14:19.578882 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 334)
+    10.0.0.2 > 10.0.0.1: PIMv2, length 314
+	Join / Prune, cksum 0x6ad5 (correct), upstream-neighbor: 10.0.0.52
+	  3 group(s), holdtime: 45s
+	    group #1: 225.0.0.16, joined sources: 4, pruned sources: 7
+	      joined source #1: 10.0.0.43(R)
+	      joined source #2: 10.0.0.41(S)
+	      joined source #3: 10.0.0.44(WR)
+	      joined source #4: 10.0.0.42(R)
+	      pruned source #1: 10.0.0.47(S)
+	      pruned source #2: 10.0.0.45(S)
+	      pruned source #3: 10.0.0.50(R)
+	      pruned source #4: 10.0.0.48(R)
+	      pruned source #5: 10.0.0.46(S)
+	      pruned source #6: 10.0.0.51(R)
+	      pruned source #7: 10.0.0.49(R)
+	    group #2: 225.0.0.17, joined sources: 4, pruned sources: 7
+	      joined source #1: 10.0.0.43(R)
+	      joined source #2: 10.0.0.41(S)
+	      joined source #3: 10.0.0.44(WR)
+	      joined source #4: 10.0.0.42(R)
+	      pruned source #1: 10.0.0.47(S)
+	      pruned source #2: 10.0.0.45(S)
+	      pruned source #3: 10.0.0.50(R)
+	      pruned source #4: 10.0.0.48(R)
+	      pruned source #5: 10.0.0.46(S)
+	      pruned source #6: 10.0.0.51(R)
+	      pruned source #7: 10.0.0.49(R)
+	    group #3: 225.0.0.18, joined sources: 4, pruned sources: 7
+	      joined source #1: 10.0.0.43(R)
+	      joined source #2: 10.0.0.41(S)
+	      joined source #3: 10.0.0.44(WR)
+	      joined source #4: 10.0.0.42(R)
+	      pruned source #1: 10.0.0.47(S)
+	      pruned source #2: 10.0.0.45(S)
+	      pruned source #3: 10.0.0.50(R)
+	      pruned source #4: 10.0.0.48(R)
+	      pruned source #5: 10.0.0.46(S)
+	      pruned source #6: 10.0.0.51(R)
+	      pruned source #7: 10.0.0.49(R)
+   36  17:14:34.586658 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 262)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 242
+	Join / Prune, cksum 0xd88e (correct), upstream-neighbor: 10.0.0.61
+	  3 group(s), holdtime: 45s
+	    group #1: 225.0.0.19, joined sources: 4, pruned sources: 4
+	      joined source #1: 10.0.0.54(R)
+	      joined source #2: 10.0.0.56(WR)
+	      joined source #3: 10.0.0.55(R)
+	      joined source #4: 10.0.0.53(S)
+	      pruned source #1: 10.0.0.60(R)
+	      pruned source #2: 10.0.0.57(S)
+	      pruned source #3: 10.0.0.58(S)
+	      pruned source #4: 10.0.0.59(S)
+	    group #2: 225.0.0.20, joined sources: 4, pruned sources: 4
+	      joined source #1: 10.0.0.54(R)
+	      joined source #2: 10.0.0.56(WR)
+	      joined source #3: 10.0.0.55(R)
+	      joined source #4: 10.0.0.53(S)
+	      pruned source #1: 10.0.0.60(R)
+	      pruned source #2: 10.0.0.57(S)
+	      pruned source #3: 10.0.0.58(S)
+	      pruned source #4: 10.0.0.59(S)
+	    group #3: 225.0.0.21, joined sources: 4, pruned sources: 4
+	      joined source #1: 10.0.0.54(R)
+	      joined source #2: 10.0.0.56(WR)
+	      joined source #3: 10.0.0.55(R)
+	      joined source #4: 10.0.0.53(S)
+	      pruned source #1: 10.0.0.60(R)
+	      pruned source #2: 10.0.0.57(S)
+	      pruned source #3: 10.0.0.58(S)
+	      pruned source #4: 10.0.0.59(S)
+   37  17:14:49.597897 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 334)
+    10.0.0.2 > 10.0.0.1: PIMv2, length 314
+	Join / Prune, cksum 0x67f9 (correct), upstream-neighbor: 10.0.0.73
+	  3 group(s), holdtime: 45s
+	    group #1: 225.0.0.24, joined sources: 4, pruned sources: 7
+	      joined source #1: 10.0.0.62(S)
+	      joined source #2: 10.0.0.65(WR)
+	      joined source #3: 10.0.0.63(R)
+	      joined source #4: 10.0.0.64(R)
+	      pruned source #1: 10.0.0.72(R)
+	      pruned source #2: 10.0.0.66(S)
+	      pruned source #3: 10.0.0.70(R)
+	      pruned source #4: 10.0.0.69(R)
+	      pruned source #5: 10.0.0.71(R)
+	      pruned source #6: 10.0.0.67(S)
+	      pruned source #7: 10.0.0.68(S)
+	    group #2: 225.0.0.23, joined sources: 4, pruned sources: 7
+	      joined source #1: 10.0.0.62(S)
+	      joined source #2: 10.0.0.65(WR)
+	      joined source #3: 10.0.0.63(R)
+	      joined source #4: 10.0.0.64(R)
+	      pruned source #1: 10.0.0.72(R)
+	      pruned source #2: 10.0.0.66(S)
+	      pruned source #3: 10.0.0.70(R)
+	      pruned source #4: 10.0.0.69(R)
+	      pruned source #5: 10.0.0.71(R)
+	      pruned source #6: 10.0.0.67(S)
+	      pruned source #7: 10.0.0.68(S)
+	    group #3: 225.0.0.22, joined sources: 4, pruned sources: 7
+	      joined source #1: 10.0.0.62(S)
+	      joined source #2: 10.0.0.65(WR)
+	      joined source #3: 10.0.0.63(R)
+	      joined source #4: 10.0.0.64(R)
+	      pruned source #1: 10.0.0.72(R)
+	      pruned source #2: 10.0.0.66(S)
+	      pruned source #3: 10.0.0.70(R)
+	      pruned source #4: 10.0.0.69(R)
+	      pruned source #5: 10.0.0.71(R)
+	      pruned source #6: 10.0.0.67(S)
+	      pruned source #7: 10.0.0.68(S)
+   38  17:15:04.609866 IP (tos 0xc0, ttl 1, id 33130, offset 0, flags [DF], proto PIM (103), length 238)
+    10.0.0.1 > 224.0.0.13: PIMv2, length 218
+	Join / Prune, cksum 0x51c5 (correct), upstream-neighbor: 10.0.0.81
+	  3 group(s), holdtime: 45s
+	    group #1: 225.0.0.26(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.76(SR)
+	      joined source #2: 10.0.0.75(SR)
+	      joined source #3: 10.0.0.74(S)
+	      joined source #4: 10.0.0.77(SWR)
+	      pruned source #1: 10.0.0.79(SR)
+	      pruned source #2: 10.0.0.80(SR)
+	      pruned source #3: 10.0.0.78(S)
+	    group #2: 225.0.0.25(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.76(SR)
+	      joined source #2: 10.0.0.75(SR)
+	      joined source #3: 10.0.0.74(S)
+	      joined source #4: 10.0.0.77(SWR)
+	      pruned source #1: 10.0.0.79(SR)
+	      pruned source #2: 10.0.0.80(SR)
+	      pruned source #3: 10.0.0.78(S)
+	    group #3: 225.0.0.27(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.76(SR)
+	      joined source #2: 10.0.0.75(SR)
+	      joined source #3: 10.0.0.74(S)
+	      joined source #4: 10.0.0.77(SWR)
+	      pruned source #1: 10.0.0.79(SR)
+	      pruned source #2: 10.0.0.80(SR)
+	      pruned source #3: 10.0.0.78(S)
+   39  17:15:04.615696 IP (tos 0xc0, ttl 1, id 33132, offset 0, flags [DF], proto PIM (103), length 238)
+    10.0.0.1 > 224.0.0.13: PIMv2, length 218
+	Join / Prune, cksum 0x51c5 (correct), upstream-neighbor: 10.0.0.81
+	  3 group(s), holdtime: 45s
+	    group #1: 225.0.0.26(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.76(SR)
+	      joined source #2: 10.0.0.75(SR)
+	      joined source #3: 10.0.0.74(S)
+	      joined source #4: 10.0.0.77(SWR)
+	      pruned source #1: 10.0.0.79(SR)
+	      pruned source #2: 10.0.0.80(SR)
+	      pruned source #3: 10.0.0.78(S)
+	    group #2: 225.0.0.25(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.76(SR)
+	      joined source #2: 10.0.0.75(SR)
+	      joined source #3: 10.0.0.74(S)
+	      joined source #4: 10.0.0.77(SWR)
+	      pruned source #1: 10.0.0.79(SR)
+	      pruned source #2: 10.0.0.80(SR)
+	      pruned source #3: 10.0.0.78(S)
+	    group #3: 225.0.0.27(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.76(SR)
+	      joined source #2: 10.0.0.75(SR)
+	      joined source #3: 10.0.0.74(S)
+	      joined source #4: 10.0.0.77(SWR)
+	      pruned source #1: 10.0.0.79(SR)
+	      pruned source #2: 10.0.0.80(SR)
+	      pruned source #3: 10.0.0.78(S)
+   40  17:15:24.642963 IP (tos 0xc0, ttl 1, id 35347, offset 0, flags [DF], proto PIM (103), length 238)
+    10.0.0.1 > 224.0.0.13: PIMv2, length 218
+	Join / Prune, cksum 0xcf9b (correct), upstream-neighbor: 10.0.0.105
+	  3 group(s), holdtime: 45s
+	    group #1: 225.0.0.36, joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.99(SR)
+	      joined source #2: 10.0.0.100(SR)
+	      joined source #3: 10.0.0.98(S)
+	      joined source #4: 10.0.0.101(SWR)
+	      pruned source #1: 10.0.0.103(SR)
+	      pruned source #2: 10.0.0.104(SR)
+	      pruned source #3: 10.0.0.102(S)
+	    group #2: 225.0.0.35, joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.99(SR)
+	      joined source #2: 10.0.0.100(SR)
+	      joined source #3: 10.0.0.98(S)
+	      joined source #4: 10.0.0.101(SWR)
+	      pruned source #1: 10.0.0.103(SR)
+	      pruned source #2: 10.0.0.104(SR)
+	      pruned source #3: 10.0.0.102(S)
+	    group #3: 225.0.0.34, joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.99(SR)
+	      joined source #2: 10.0.0.100(SR)
+	      joined source #3: 10.0.0.98(S)
+	      joined source #4: 10.0.0.101(SWR)
+	      pruned source #1: 10.0.0.103(SR)
+	      pruned source #2: 10.0.0.104(SR)
+	      pruned source #3: 10.0.0.102(S)
+   41  17:15:24.649511 IP (tos 0xc0, ttl 1, id 35349, offset 0, flags [DF], proto PIM (103), length 238)
+    10.0.0.1 > 224.0.0.13: PIMv2, length 218
+	Join / Prune, cksum 0xcf9b (correct), upstream-neighbor: 10.0.0.105
+	  3 group(s), holdtime: 45s
+	    group #1: 225.0.0.36, joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.99(SR)
+	      joined source #2: 10.0.0.100(SR)
+	      joined source #3: 10.0.0.98(S)
+	      joined source #4: 10.0.0.101(SWR)
+	      pruned source #1: 10.0.0.103(SR)
+	      pruned source #2: 10.0.0.104(SR)
+	      pruned source #3: 10.0.0.102(S)
+	    group #2: 225.0.0.35, joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.99(SR)
+	      joined source #2: 10.0.0.100(SR)
+	      joined source #3: 10.0.0.98(S)
+	      joined source #4: 10.0.0.101(SWR)
+	      pruned source #1: 10.0.0.103(SR)
+	      pruned source #2: 10.0.0.104(SR)
+	      pruned source #3: 10.0.0.102(S)
+	    group #3: 225.0.0.34, joined sources: 4, pruned sources: 3
+	      joined source #1: 10.0.0.99(SR)
+	      joined source #2: 10.0.0.100(SR)
+	      joined source #3: 10.0.0.98(S)
+	      joined source #4: 10.0.0.101(SWR)
+	      pruned source #1: 10.0.0.103(SR)
+	      pruned source #2: 10.0.0.104(SR)
+	      pruned source #3: 10.0.0.102(S)
+   42  17:15:36.844192 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 46)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 26
+	Assert, cksum 0xeddc (correct) group=225.0.0.1 src=10.0.0.1 pref=0 metric=0
+   43  17:15:36.858926 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 46)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 26
+	Assert, cksum 0xeddc (correct) group=225.0.0.1 src=10.0.0.1 pref=0 metric=0
+   44  17:15:36.875457 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 46)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 26
+	Assert, cksum 0xedda (correct) group=225.0.0.2 src=10.0.0.2 pref=0 metric=0
+   45  17:15:51.885935 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 46)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 26
+	Assert, cksum 0xedda (correct) group=225.0.0.2 src=10.0.0.2 pref=0 metric=0
+   46  17:16:06.895682 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 46)
+    10.0.0.2 > 10.0.0.1: PIMv2, length 26
+	Assert, cksum 0xedd8 (correct) group=225.0.0.3 src=10.0.0.3 pref=0 metric=0
+   47  17:16:21.901980 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 46)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 26
+	Assert, cksum 0xedd6 (correct) group=225.0.0.4 src=10.0.0.4 pref=0 metric=0
+   48  17:16:36.912545 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 46)
+    10.0.0.2 > 10.0.0.1: PIMv2, length 26
+	Assert, cksum 0xedd4 (correct) group=225.0.0.5 src=10.0.0.5 pref=0 metric=0
+   49  17:16:51.922176 IP (tos 0xc0, ttl 1, id 46328, offset 0, flags [DF], proto PIM (103), length 46)
+    10.0.0.1 > 224.0.0.13: PIMv2, length 26
+	Assert, cksum 0xedd2 (correct) group=225.0.0.6 src=10.0.0.6 pref=0 metric=0
+   50  17:16:51.927014 IP (tos 0xc0, ttl 1, id 46329, offset 0, flags [DF], proto PIM (103), length 46)
+    10.0.0.1 > 224.0.0.13: PIMv2, length 26
+	Assert, cksum 0xedd2 (correct) group=225.0.0.6 src=10.0.0.6 pref=0 metric=0
+   51  17:17:04.134866 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 48)
+    10.0.0.2 > 10.0.0.1: PIMv2, length 28
+	Register, cksum 0x9eff (correct), Flags [ Null ]
+	IP (tos 0x0, ttl 1, id 1, offset 0, flags [DF], proto PIM (103), length 20)
+    10.0.0.1 > 225.0.0.1:  [|pim]
+   52  17:17:04.152086 IP (tos 0x1,ECT(1), ttl 10, id 1, offset 0, flags [none], proto PIM (103), length 48)
+    10.0.0.2 > 10.0.0.1: PIMv2, length 28
+	Register, cksum 0x9eff (correct), Flags [ Null ]
+	IP (tos 0x0, ttl 1, id 1, offset 0, flags [DF], proto PIM (103), length 20)
+    10.0.0.1 > 225.0.0.1:  [|pim]
+   53  17:17:04.168215 IP (tos 0x4, ttl 30, id 1, offset 0, flags [none], proto PIM (103), length 48)
+    10.0.0.2 > 10.0.0.1: PIMv2, length 28
+	Register, cksum 0x9eff (correct), Flags [ Null ]
+	IP (tos 0x0, ttl 1, id 1, offset 0, flags [DF], proto PIM (103), length 20)
+    10.0.0.1 > 225.0.0.1:  [|pim]
+   54  17:17:04.184607 IP (tos 0x7,CE, ttl 63, id 1, offset 0, flags [none], proto PIM (103), length 48)
+    10.0.0.2 > 10.0.0.1: PIMv2, length 28
+	Register, cksum 0x9eff (correct), Flags [ Null ]
+	IP (tos 0x0, ttl 1, id 1, offset 0, flags [DF], proto PIM (103), length 20)
+    10.0.0.1 > 225.0.0.1:  [|pim]
+   55  17:17:04.203347 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 1400)
+    10.0.0.2 > 10.0.0.1: PIMv2, length 1380
+	Register, cksum 0xdeff (correct), Flags [ none ]
+	IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto UDP (17), length 1372)
+    10.0.0.2.2468 > 225.0.0.2.2468: [udp sum ok] UDP, length 1344
+   56  17:17:04.222232 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 1500)
+    10.0.0.2 > 10.0.0.1: PIMv2, length 1480
+	Register, cksum 0xdeff (correct), Flags [ none ]
+	IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto UDP (17), length 1472)
+    10.0.0.3.2468 > 225.0.0.3.2468: [udp sum ok] UDP, length 1444
+   57  17:17:04.241206 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 32000)
+    10.0.0.2 > 10.0.0.1: PIMv2, length 31980
+	Register, cksum 0xdeff (correct), Flags [ none ]
+	IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto UDP (17), length 31972)
+    10.0.0.4.2468 > 225.0.0.4.2468: [udp sum ok] UDP, length 31944
+   58  17:17:04.260981 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 65535)
+    10.0.0.2 > 10.0.0.1: PIMv2, length 65515
+	Register, cksum 0xdeff (correct), Flags [ none ]
+	IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto UDP (17), length 65507)
+    10.0.0.5.2468 > 225.0.0.5.2468: UDP, length 65479
+   59  17:17:04.279594 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 48)
+    10.0.0.2 > 10.0.0.1: PIMv2, length 28
+	Register, cksum 0x9eff (correct), Flags [ Null ]
+	IP (tos 0x0, ttl 1, id 1, offset 0, flags [DF], proto PIM (103), length 20)
+    10.0.0.6 > 225.0.0.6:  [|pim]
+   60  17:17:04.297659 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 48)
+    10.0.0.2 > 10.0.0.1: PIMv2, length 28
+	Register, cksum 0x9eff (correct), Flags [ Null ]
+	IP (tos 0x0, ttl 1, id 1, offset 0, flags [DF], proto PIM (103), length 20)
+    10.0.0.6 > 225.0.0.6:  [|pim]
+   61  17:17:04.314768 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 48)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 28
+	Register, cksum 0x9eff (correct), Flags [ Null ]
+	IP (tos 0x0, ttl 1, id 1, offset 0, flags [DF], proto PIM (103), length 20)
+    10.0.0.7 > 225.0.0.7:  [|pim]
+   62  17:17:19.324443 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 48)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 28
+	Register, cksum 0x9eff (correct), Flags [ Null ]
+	IP (tos 0x0, ttl 1, id 1, offset 0, flags [DF], proto PIM (103), length 20)
+    10.0.0.8 > 225.0.0.8:  [|pim]
+   63  17:17:34.361348 IP (tos 0x1,ECT(1), ttl 255, id 739, offset 0, flags [DF], proto PIM (103), length 156)
+    10.0.0.1 > 10.0.0.2: PIMv2, length 136
+	Register, cksum 0xdeff (correct), Flags [ none ]
+	IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto UDP (17), length 128)
+    10.0.0.9.2468 > 225.0.0.9.2468: [udp sum ok] UDP, length 100
+   64  17:17:34.370054 IP (tos 0x2,ECT(0), ttl 1, id 51552, offset 0, flags [DF], proto PIM (103), length 156)
+    10.0.0.10 > 10.0.0.2: PIMv2, length 136
+	Register, cksum 0xdeff (correct), Flags [ none ]
+	IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto UDP (17), length 128)
+    10.0.0.9.2468 > 225.0.0.9.2468: [udp sum ok] UDP, length 100
+   65  17:17:34.379510 IP (tos 0x4, ttl 10, id 744, offset 0, flags [DF], proto PIM (103), length 156)
+    10.0.0.1 > 10.0.0.2: PIMv2, length 136
+	Register, cksum 0xdeff (correct), Flags [ none ]
+	IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto UDP (17), length 128)
+    10.0.0.9.2468 > 225.0.0.9.2468: [udp sum ok] UDP, length 100
+   66  17:17:34.387689 IP (tos 0x5,ECT(1), ttl 200, id 746, offset 0, flags [DF], proto PIM (103), length 156)
+    10.0.0.1 > 10.0.0.2: PIMv2, length 136
+	Register, cksum 0xdeff (correct), Flags [ none ]
+	IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto UDP (17), length 128)
+    10.0.0.9.2468 > 225.0.0.9.2468: [udp sum ok] UDP, length 100
+   67  17:17:34.395915 IP (tos 0x7,CE, ttl 20, id 747, offset 0, flags [DF], proto PIM (103), length 156)
+    10.0.0.1 > 10.0.0.2: PIMv2, length 136
+	Register, cksum 0xdeff (correct), Flags [ none ]
+	IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto UDP (17), length 128)
+    10.0.0.9.2468 > 225.0.0.9.2468: [udp sum ok] UDP, length 100
+   68  17:17:34.474538 IP (tos 0xc0, ttl 255, id 759, offset 0, flags [DF], proto PIM (103), length 48)
+    10.0.0.1 > 10.0.0.2: PIMv2, length 28
+	Register, cksum 0x9eff (correct), Flags [ Null ]
+	IP (tos 0x0, ttl 1, id 1, offset 0, flags [DF], proto PIM (103), length 20)
+    10.0.0.11 > 225.0.0.10:  [|pim]
+   69  17:17:34.496073 IP (tos 0x0, ttl 10, id 762, offset 0, flags [DF], proto PIM (103), length 1300)
+    10.0.0.1 > 10.0.0.2: PIMv2, length 1280
+	Register, cksum 0xdeff (correct), Flags [ none ]
+	IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto UDP (17), length 1272)
+    10.0.0.12.2468 > 225.0.0.11.2468: [udp sum ok] UDP, length 1244
+   70  17:17:34.505618 IP (tos 0x0, ttl 10, id 764, offset 0, flags [DF], proto PIM (103), length 1400)
+    10.0.0.1 > 10.0.0.2: PIMv2, length 1380
+	Register, cksum 0xdeff (correct), Flags [ none ]
+	IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto UDP (17), length 1372)
+    10.0.0.13.2468 > 225.0.0.12.2468: [udp sum ok] UDP, length 1344
+   71  17:17:34.517256 IP (tos 0x0, ttl 10, id 766, offset 0, flags [none], proto PIM (103), length 1500)
+    10.0.0.1 > 10.0.0.2: PIMv2, length 1480
+	Register, cksum 0xdeff (correct), Flags [ none ]
+	IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto UDP (17), length 1472)
+    10.0.0.14.2468 > 225.0.0.13.2468: [udp sum ok] UDP, length 1444
+   72  17:17:34.547489 IP (tos 0x0, ttl 10, id 769, offset 0, flags [DF], proto PIM (103), length 1400)
+    10.0.0.1 > 10.0.0.2: PIMv2, length 1380
+	Register, cksum 0xdeff (correct), Flags [ none ]
+	IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto UDP (17), length 1372)
+    10.0.0.15.2468 > 225.0.0.14.2468: [udp sum ok] UDP, length 1344
+   73  17:17:34.556376 IP (tos 0x0, ttl 10, id 772, offset 0, flags [DF], proto PIM (103), length 1500)
+    10.0.0.1 > 10.0.0.2: PIMv2, length 1480
+	Register, cksum 0xdeff (correct), Flags [ none ]
+	IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto UDP (17), length 1472)
+    10.0.0.16.2468 > 225.0.0.15.2468: [udp sum ok] UDP, length 1444
+   74  17:17:34.566673 IP (tos 0x0, ttl 10, id 774, offset 0, flags [none], proto PIM (103), length 1600)
+    10.0.0.1 > 10.0.0.2: PIMv2, length 1580
+	Register, cksum 0xdeff (correct), Flags [ none ]
+	IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto UDP (17), length 1572)
+    10.0.0.17.2468 > 225.0.0.16.2468: [udp sum ok] UDP, length 1544
+   75  17:17:34.595128 IP (tos 0x0, ttl 10, id 775, offset 0, flags [DF], proto PIM (103), length 9800)
+    10.0.0.1 > 10.0.0.2: PIMv2, length 9780
+	Register, cksum 0xdeff (correct), Flags [ none ]
+	IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto UDP (17), length 9772)
+    10.0.0.18.2468 > 225.0.0.17.2468: [udp sum ok] UDP, length 9744
+   76  17:17:34.604864 IP (tos 0x0, ttl 10, id 776, offset 0, flags [DF], proto PIM (103), length 9900)
+    10.0.0.1 > 10.0.0.2: PIMv2, length 9880
+	Register, cksum 0xdeff (correct), Flags [ none ]
+	IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto UDP (17), length 9872)
+    10.0.0.19.2468 > 225.0.0.18.2468: [udp sum ok] UDP, length 9844
+   77  17:17:34.616241 IP (tos 0x0, ttl 10, id 778, offset 0, flags [none], proto PIM (103), length 10000)
+    10.0.0.1 > 10.0.0.2: PIMv2, length 9980
+	Register, cksum 0xdeff (correct), Flags [ none ]
+	IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto UDP (17), length 9972)
+    10.0.0.20.2468 > 225.0.0.19.2468: [udp sum ok] UDP, length 9944
+   78  17:17:34.642771 IP (tos 0xc0, ttl 255, id 779, offset 0, flags [DF], proto PIM (103), length 48)
+    10.0.0.1 > 10.0.0.2: PIMv2, length 28
+	Register, cksum 0x9eff (correct), Flags [ Null ]
+	IP (tos 0x0, ttl 1, id 1, offset 0, flags [DF], proto PIM (103), length 20)
+    10.0.0.21 > 225.0.0.20:  [|pim]
+   79  17:17:41.832778 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 38)
+    10.0.0.2 > 10.0.0.1: PIMv2, length 18
+	Register Stop, cksum 0xf0dc (correct) group=225.0.0.1 source=10.0.0.1
+   80  17:17:41.848183 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 38)
+    10.0.0.2 > 10.0.0.1: PIMv2, length 18
+	Register Stop, cksum 0xf0dc (correct) group=225.0.0.1 source=10.0.0.1
+   81  17:17:41.863647 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 38)
+    10.0.0.2 > 10.0.0.1: PIMv2, length 18
+	Register Stop, cksum 0xf0da (correct) group=225.0.0.2 source=10.0.0.2
+   82  17:17:41.879212 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 38)
+    10.0.0.2 > 10.0.0.1: PIMv2, length 18
+	Register Stop, cksum 0xf0da (correct) group=225.0.0.2 source=10.0.0.2
+   83  17:17:41.894033 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 38)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 18
+	Register Stop, cksum 0xf0d8 (correct) group=225.0.0.3 source=10.0.0.3
+   84  17:17:56.904772 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 38)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 18
+	Register Stop, cksum 0xf0d6 (correct) group=225.0.0.4 source=10.0.0.4
+   85  17:18:11.915223 IP (tos 0xc0, ttl 255, id 6730, offset 0, flags [DF], proto PIM (103), length 38)
+    10.0.0.1 > 10.0.0.2: PIMv2, length 18
+	Register Stop, cksum 0xf0d4 (correct) group=225.0.0.5 source=10.0.0.5
+   86  17:18:11.920116 IP (tos 0xc0, ttl 255, id 6731, offset 0, flags [DF], proto PIM (103), length 38)
+    10.0.0.1 > 10.0.0.2: PIMv2, length 18
+	Register Stop, cksum 0xf0d4 (correct) group=225.0.0.5 source=10.0.0.5
+   87  17:18:11.924496 IP (tos 0xc0, ttl 255, id 6732, offset 0, flags [DF], proto PIM (103), length 38)
+    10.0.0.1 > 10.0.0.2: PIMv2, length 18
+	Register Stop, cksum 0xf0d4 (correct) group=225.0.0.5 source=10.0.0.5
+   88  17:18:11.929456 IP (tos 0xc0, ttl 255, id 6733, offset 0, flags [DF], proto PIM (103), length 38)
+    10.0.0.1 > 10.0.0.2: PIMv2, length 18
+	Register Stop, cksum 0xf0d2 (correct) group=225.0.0.6 source=10.0.0.6
+   89  17:18:19.135202 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 38)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 18
+	DF Election, cksum 0xca80 (correct)
+	  Offer, rpa=10.0.0.1 sender pref=100 sender metric=10
+   90  17:18:19.151462 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 38)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 18
+	DF Election, cksum 0xca80 (correct)
+	  Offer, rpa=10.0.0.1 sender pref=100 sender metric=10
+   91  17:18:19.167261 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 38)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 18
+	DF Election, cksum 0xca6f (correct)
+	  Winner, rpa=10.0.0.2 sender pref=100 sender metric=10
+   92  17:18:19.183508 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 38)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 18
+	DF Election, cksum 0xca6f (correct)
+	  Winner, rpa=10.0.0.2 sender pref=100 sender metric=10
+   93  17:18:19.199269 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 54)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 34
+	DF Election, cksum 0x6d52 (correct)
+	  Backoff, rpa=10.0.0.3 sender pref=100 sender metric=10
+	  offer addr=10.0.0.4 offer pref=1000 offer metric=10000 interval 10000ms
+   94  17:18:19.215274 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 54)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 34
+	DF Election, cksum 0x6d52 (correct)
+	  Backoff, rpa=10.0.0.3 sender pref=100 sender metric=10
+	  offer addr=10.0.0.4 offer pref=1000 offer metric=10000 interval 10000ms
+   95  17:18:19.231330 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 52)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 32
+	DF Election, cksum 0x944e (correct)
+	  Pass, rpa=10.0.0.5 sender pref=100 sender metric=10
+	  new winner addr=10.0.0.6 new winner pref=1000 new winner metric=10000
+   96  17:18:19.247063 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 52)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 32
+	DF Election, cksum 0x944e (correct)
+	  Pass, rpa=10.0.0.5 sender pref=100 sender metric=10
+	  new winner addr=10.0.0.6 new winner pref=1000 new winner metric=10000
+   97  17:18:19.263010 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 38)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 18
+	DF Election, cksum 0xca7a (correct)
+	  Offer, rpa=10.0.0.7 sender pref=100 sender metric=10
+   98  17:18:34.278440 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 38)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 18
+	DF Election, cksum 0xca7a (correct)
+	  Offer, rpa=10.0.0.7 sender pref=100 sender metric=10
+   99  17:18:49.292244 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 38)
+    10.0.0.2 > 10.0.0.1: PIMv2, length 18
+	DF Election, cksum 0xca79 (correct)
+	  Offer, rpa=10.0.0.8 sender pref=100 sender metric=10
+  100  17:19:04.301082 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 38)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 18
+	DF Election, cksum 0xca78 (correct)
+	  Offer, rpa=10.0.0.9 sender pref=100 sender metric=10
+  101  17:19:19.311519 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 38)
+    10.0.0.2 > 10.0.0.1: PIMv2, length 18
+	DF Election, cksum 0xca77 (correct)
+	  Offer, rpa=10.0.0.10 sender pref=100 sender metric=10
+  102  17:19:34.317677 IP (tos 0xc0, ttl 1, id 53314, offset 0, flags [DF], proto PIM (103), length 38)
+    10.0.0.1 > 224.0.0.13: PIMv2, length 18
+	DF Election, cksum 0xca76 (correct)
+	  Offer, rpa=10.0.0.11 sender pref=100 sender metric=10
+  103  17:19:34.323132 IP (tos 0xc0, ttl 1, id 53315, offset 0, flags [DF], proto PIM (103), length 38)
+    10.0.0.1 > 224.0.0.13: PIMv2, length 18
+	DF Election, cksum 0xca76 (correct)
+	  Offer, rpa=10.0.0.11 sender pref=100 sender metric=10
+  104  17:19:34.328241 IP (tos 0xc0, ttl 1, id 53317, offset 0, flags [DF], proto PIM (103), length 38)
+    10.0.0.1 > 224.0.0.13: PIMv2, length 18
+	DF Election, cksum 0xca65 (correct)
+	  Winner, rpa=10.0.0.12 sender pref=100 sender metric=10
+  105  17:19:34.333292 IP (tos 0xc0, ttl 1, id 53318, offset 0, flags [DF], proto PIM (103), length 38)
+    10.0.0.1 > 224.0.0.13: PIMv2, length 18
+	DF Election, cksum 0xca65 (correct)
+	  Winner, rpa=10.0.0.12 sender pref=100 sender metric=10
+  106  17:19:34.338277 IP (tos 0xc0, ttl 1, id 53319, offset 0, flags [DF], proto PIM (103), length 54)
+    10.0.0.1 > 224.0.0.13: PIMv2, length 34
+	DF Election, cksum 0x6d3e (correct)
+	  Backoff, rpa=10.0.0.13 sender pref=100 sender metric=10
+	  offer addr=10.0.0.14 offer pref=1000 offer metric=10000 interval 10000ms
+  107  17:19:34.345622 IP (tos 0xc0, ttl 1, id 53320, offset 0, flags [DF], proto PIM (103), length 54)
+    10.0.0.1 > 224.0.0.13: PIMv2, length 34
+	DF Election, cksum 0x6d3e (correct)
+	  Backoff, rpa=10.0.0.13 sender pref=100 sender metric=10
+	  offer addr=10.0.0.14 offer pref=1000 offer metric=10000 interval 10000ms
+  108  17:19:34.350734 IP (tos 0xc0, ttl 1, id 53321, offset 0, flags [DF], proto PIM (103), length 52)
+    10.0.0.1 > 224.0.0.13: PIMv2, length 32
+	DF Election, cksum 0x943a (correct)
+	  Pass, rpa=10.0.0.15 sender pref=100 sender metric=10
+	  new winner addr=10.0.0.16 new winner pref=1000 new winner metric=10000
+  109  17:19:34.355785 IP (tos 0xc0, ttl 1, id 53323, offset 0, flags [DF], proto PIM (103), length 52)
+    10.0.0.1 > 224.0.0.13: PIMv2, length 32
+	DF Election, cksum 0x943a (correct)
+	  Pass, rpa=10.0.0.15 sender pref=100 sender metric=10
+	  new winner addr=10.0.0.16 new winner pref=1000 new winner metric=10000
+  110  17:19:46.562048 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 24)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 4
+	Graft, cksum 0xd9ff (correct), upstream-neighbor:  [|pimv2]
+  111  17:20:08.767127 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 74)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 54
+	Hello, cksum 0xc62e (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Bi-Directional Capability Option (22), length 0, Value: 
+	  Address List Option (24), length 12, Value: 
+	    10.0.0.1
+	    10.0.0.2
+	    0x0000:  0100 0a00 0001 0100 0a00 0002
+  112  17:20:08.785732 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 70)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 50
+	Hello, cksum 0xc644 (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Address List Option (24), length 12, Value: 
+	    10.0.0.1
+	    10.0.0.2
+	    0x0000:  0100 0a00 0001 0100 0a00 0002
+  113  17:20:08.801265 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 70)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 50
+	Hello, cksum 0xc644 (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Address List Option (24), length 12, Value: 
+	    10.0.0.1
+	    10.0.0.2
+	    0x0000:  0100 0a00 0001 0100 0a00 0002
+  114  17:20:08.815202 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 74)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 54
+	Hello, cksum 0xc62e (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Bi-Directional Capability Option (22), length 0, Value: 
+	  Address List Option (24), length 12, Value: 
+	    10.0.0.1
+	    10.0.0.2
+	    0x0000:  0100 0a00 0001 0100 0a00 0002
+  115  17:20:08.829259 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 74)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 54
+	Hello, cksum 0xc62e (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Bi-Directional Capability Option (22), length 0, Value: 
+	  Address List Option (24), length 12, Value: 
+	    10.0.0.1
+	    10.0.0.2
+	    0x0000:  0100 0a00 0001 0100 0a00 0002
+  116  17:20:08.843547 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 70)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 50
+	Hello, cksum 0xc644 (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Address List Option (24), length 12, Value: 
+	    10.0.0.1
+	    10.0.0.2
+	    0x0000:  0100 0a00 0001 0100 0a00 0002
+  117  17:20:08.857616 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 74)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 54
+	Hello, cksum 0xc62e (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Bi-Directional Capability Option (22), length 0, Value: 
+	  Address List Option (24), length 12, Value: 
+	    10.0.0.1
+	    10.0.0.2
+	    0x0000:  0100 0a00 0001 0100 0a00 0002
+  118  17:20:08.871960 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 70)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 50
+	Hello, cksum 0xc644 (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Address List Option (24), length 12, Value: 
+	    10.0.0.1
+	    10.0.0.2
+	    0x0000:  0100 0a00 0001 0100 0a00 0002
+  119  17:20:08.885812 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 70)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 50
+	Hello, cksum 0xc644 (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Address List Option (24), length 12, Value: 
+	    10.0.0.1
+	    10.0.0.2
+	    0x0000:  0100 0a00 0001 0100 0a00 0002
+  120  17:20:08.899908 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 70)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 50
+	Hello, cksum 0xc644 (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Address List Option (24), length 12, Value: 
+	    10.0.0.1
+	    10.0.0.2
+	    0x0000:  0100 0a00 0001 0100 0a00 0002
+  121  17:20:08.913880 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 70)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 50
+	Hello, cksum 0xc644 (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Address List Option (24), length 12, Value: 
+	    10.0.0.1
+	    10.0.0.2
+	    0x0000:  0100 0a00 0001 0100 0a00 0002
+  122  17:20:08.928954 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 70)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 50
+	Hello, cksum 0xc640 (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Address List Option (24), length 12, Value: 
+	    10.0.0.3
+	    10.0.0.4
+	    0x0000:  0100 0a00 0003 0100 0a00 0004
+  123  17:20:23.938011 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 70)
+    10.0.0.2 > 224.0.0.13: PIMv2, length 50
+	Hello, cksum 0xc640 (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Address List Option (24), length 12, Value: 
+	    10.0.0.3
+	    10.0.0.4
+	    0x0000:  0100 0a00 0003 0100 0a00 0004
+  124  17:20:38.945661 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 54)
+    10.0.0.2 > 10.0.0.1: PIMv2, length 34
+	Hello, cksum 0xdc6b (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+  125  17:20:53.953435 IP (tos 0x0, ttl 64, id 1, offset 0, flags [none], proto PIM (103), length 54)
+    10.0.0.2 > 10.0.0.1: PIMv2, length 34
+	Hello, cksum 0xdc6b (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+  126  17:21:08.961835 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [DF], proto PIM (103), length 74)
+    10.0.0.1 > 224.0.0.13: PIMv2, length 54
+	Hello, cksum 0xc626 (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Bi-Directional Capability Option (22), length 0, Value: 
+	  Address List Option (24), length 12, Value: 
+	    10.0.0.6
+	    10.0.0.5
+	    0x0000:  0100 0a00 0006 0100 0a00 0005
+  127  17:21:08.966281 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [DF], proto PIM (103), length 74)
+    10.0.0.1 > 224.0.0.13: PIMv2, length 54
+	Hello, cksum 0xc626 (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Bi-Directional Capability Option (22), length 0, Value: 
+	  Address List Option (24), length 12, Value: 
+	    10.0.0.6
+	    10.0.0.5
+	    0x0000:  0100 0a00 0006 0100 0a00 0005
+  128  17:21:08.970800 IP (tos 0xc0, ttl 1, id 0, offset 0, flags [DF], proto PIM (103), length 70)
+    10.0.0.7 > 224.0.0.13: PIMv2, length 50
+	Hello, cksum 0xc636 (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Address List Option (24), length 12, Value: 
+	    10.0.0.9
+	    10.0.0.8
+	    0x0000:  0100 0a00 0009 0100 0a00 0008
+  129  17:21:21.305747 IP6 (hlim 64, next-header PIM (103) payload length: 26) 10::2 > ff02::d: PIMv2, length 26
+	Bootstrap, cksum 0xbc73 (correct) tag=5f hashmlen=29 BSRprio=7 BSR=1::2
+  130  17:21:36.317463 IP6 (hlim 64, next-header PIM (103) payload length: 26) 10::2 > ff02::d: PIMv2, length 26
+	Bootstrap, cksum 0xbc73 (correct) tag=5f hashmlen=29 BSRprio=7 BSR=1::2
+  131  17:21:51.327358 IP6 (hlim 64, next-header PIM (103) payload length: 26) 10::2 > ff02::d: PIMv2, length 26
+	Bootstrap, cksum 0xc1d1 (correct) tag=195 hashmlen=22 BSRprio=114 BSR=1::3
+  132  17:21:51.342877 IP6 (hlim 64, next-header PIM (103) payload length: 26) 10::2 > ff02::d: PIMv2, length 26
+	Bootstrap, cksum 0xcd68 (correct) tag=133 hashmlen=11 BSRprio=60 BSR=1::4
+  133  17:21:51.359070 IP6 (hlim 64, next-header PIM (103) payload length: 50) 10::2 > ff02::d: PIMv2, length 50
+	Bootstrap, cksum 0xbe23 (correct) tag=116 hashmlen=25 BSRprio=1 BSR=1::5 (group0: ff02::1 RPcnt=0 FRPcnt=0)
+  134  17:21:51.375173 IP6 (hlim 64, next-header PIM (103) payload length: 118) 10::2 > ff02::d: PIMv2, length 118
+	Bootstrap, cksum 0x9791 (correct) tag=1e9 hashmlen=16 BSRprio=59 BSR=1::8 (group0: ff02::2(0x01) RPcnt=1 FRPcnt=1 RP0=1::6,holdtime=1m15s,prio=64) (group1: ff02::3 RPcnt=1 FRPcnt=1 RP0=1::7,holdtime=1m30s,prio=229)
+  135  17:21:51.389973 IP6 (hlim 64, next-header PIM (103) payload length: 26) 10::2 > 10::1: PIMv2, length 26
+	Bootstrap, cksum 0xbadd (correct) tag=9e hashmlen=29 BSRprio=86 BSR=1::9
+  136  17:22:06.397655 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 26) 10::1 > ff02::d: PIMv2, length 26
+	Bootstrap, cksum 0xcdee (correct) tag=6c hashmlen=11 BSRprio=120 BSR=1::a
+  137  17:22:06.401467 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 26) 10::1 > ff02::d: PIMv2, length 26
+	Bootstrap, cksum 0xd0dc (correct) tag=75 hashmlen=8 BSRprio=128 BSR=1::b
+  138  17:22:06.405175 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 50) 10::1 > ff02::d: PIMv2, length 50
+	Bootstrap, cksum 0xcfd8 (correct) tag=1f9 hashmlen=6 BSRprio=96 BSR=1::c (group0: ff02::4 RPcnt=0 FRPcnt=0)
+  139  17:22:06.409793 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 118) 10::1 > ff02::d: PIMv2, length 118
+	Bootstrap, cksum 0x773d (correct) tag=110 hashmlen=18 BSRprio=218 BSR=1::f (group0: ff02::5(0x01) RPcnt=1 FRPcnt=1 RP0=1::d,holdtime=1m52s,prio=205) (group1: ff02::6 RPcnt=1 FRPcnt=1 RP0=1::e,holdtime=2m49s,prio=118)
+  140  17:22:28.670554 IP6 (hlim 64, next-header PIM (103) payload length: 46) 10::2 > 10::1: PIMv2, length 46
+	Candidate RP Advertisement, cksum 0xce65 (correct) prefix-cnt=1 prio=73 holdtime=13m6s RP=1::2 Group0=ff02::1(0x01)
+  141  17:22:28.686085 IP6 (hlim 64, next-header PIM (103) payload length: 46) 10::2 > 10::1: PIMv2, length 46
+	Candidate RP Advertisement, cksum 0xcedd (correct) prefix-cnt=1 prio=152 holdtime=14m1s RP=1::3 Group0=ff02::2
+  142  17:22:28.701051 IP6 (hlim 64, next-header PIM (103) payload length: 66) 10::2 > 10::1: PIMv2, length 66
+	Candidate RP Advertisement, cksum 0xcd13 (correct) prefix-cnt=2 prio=131 holdtime=10m51s RP=1::4 Group0=ff02::3 Group1=ff02::4
+  143  17:22:28.716663 IP6 (hlim 64, next-header PIM (103) payload length: 46) 10::2 > 10::1: PIMv2, length 46
+	Candidate RP Advertisement, cksum 0xcfa4 (correct) prefix-cnt=1 prio=75 holdtime=7m38s RP=1::5 Group0=ff02::5(0x01)
+  144  17:22:28.732342 IP6 (hlim 64, next-header PIM (103) payload length: 46) 10::2 > 10::1: PIMv2, length 46
+	Candidate RP Advertisement, cksum 0xcfa4 (correct) prefix-cnt=1 prio=75 holdtime=7m38s RP=1::5 Group0=ff02::5(0x01)
+  145  17:22:28.747319 IP6 (hlim 64, next-header PIM (103) payload length: 46) 10::2 > ff02::d: PIMv2, length 46
+	Candidate RP Advertisement, cksum 0xd0bf (correct) prefix-cnt=1 prio=211 holdtime=4m54s RP=1::6 Group0=ff02::6(0x01)
+  146  17:22:43.754936 IP6 (hlim 64, next-header PIM (103) payload length: 226) 10::2 > 10::1: PIMv2, length 226
+	Candidate RP Advertisement, cksum 0xb46b (correct) prefix-cnt=2 prio=242 holdtime=15m25s RP=1::7 Group0=ff02::7(0x01) Group1=ff02::8(0x01)
+  147  17:22:58.764755 IP6 (hlim 64, next-header PIM (103) payload length: 46) 10::2 > ff02::d: PIMv2, length 46
+	Candidate RP Advertisement, cksum 0xce10 (correct) prefix-cnt=1 prio=189 holdtime=16m30s RP=1::8 Group0=ff02::11(0x01)
+  148  17:23:13.771504 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 255, next-header PIM (103) payload length: 46) 10::1 > 10::2: PIMv2, length 46
+	Candidate RP Advertisement, cksum 0xccca (correct) prefix-cnt=1 prio=233 holdtime=16m53s RP=1::9 Group0=ff02::12(0x01)
+  149  17:23:13.775525 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 255, next-header PIM (103) payload length: 46) 10::1 > 10::2: PIMv2, length 46
+	Candidate RP Advertisement, cksum 0xcf2c (correct) prefix-cnt=1 prio=48 holdtime=14m2s RP=1::a Group0=ff02::13
+  150  17:23:13.779819 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 255, next-header PIM (103) payload length: 66) 10::1 > 10::2: PIMv2, length 66
+	Candidate RP Advertisement, cksum 0xceda (correct) prefix-cnt=2 prio=113 holdtime=2m53s RP=1::b Group0=ff02::15 Group1=ff02::14
+  151  17:23:13.784515 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 255, next-header PIM (103) payload length: 66) 10::1 > 10::2: PIMv2, length 66
+	Candidate RP Advertisement, cksum 0xcca8 (incorrect) prefix-cnt=2 prio=49 holdtime=13m31s RP=1::c Group0=ff02::17 Group1=ff02::16
+  152  17:23:26.044171 IP6 (hlim 64, next-header PIM (103) payload length: 518) 10::2 > ff02::d: PIMv2, length 518
+	Join / Prune, cksum 0xf292 (correct), upstream-neighbor: 1::9
+	  3 group(s), holdtime: 45s
+	    group #1: ff02::3(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 1::5(WR)
+	      joined source #2: 1::3(R)
+	      joined source #3: 1::2(S)
+	      joined source #4: 1::4(R)
+	      pruned source #1: 1::8(R)
+	      pruned source #2: 1::7(R)
+	      pruned source #3: 1::6(S)
+	    group #2: ff02::2(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 1::5(WR)
+	      joined source #2: 1::3(R)
+	      joined source #3: 1::2(S)
+	      joined source #4: 1::4(R)
+	      pruned source #1: 1::8(R)
+	      pruned source #2: 1::7(R)
+	      pruned source #3: 1::6(S)
+	    group #3: ff02::1(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 1::5(WR)
+	      joined source #2: 1::3(R)
+	      joined source #3: 1::2(S)
+	      joined source #4: 1::4(R)
+	      pruned source #1: 1::8(R)
+	      pruned source #2: 1::7(R)
+	      pruned source #3: 1::6(S)
+  153  17:23:26.059514 IP6 (hlim 64, next-header PIM (103) payload length: 518) 10::2 > ff02::d: PIMv2, length 518
+	Join / Prune, cksum 0xf292 (correct), upstream-neighbor: 1::9
+	  3 group(s), holdtime: 45s
+	    group #1: ff02::3(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 1::5(WR)
+	      joined source #2: 1::3(R)
+	      joined source #3: 1::2(S)
+	      joined source #4: 1::4(R)
+	      pruned source #1: 1::8(R)
+	      pruned source #2: 1::7(R)
+	      pruned source #3: 1::6(S)
+	    group #2: ff02::2(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 1::5(WR)
+	      joined source #2: 1::3(R)
+	      joined source #3: 1::2(S)
+	      joined source #4: 1::4(R)
+	      pruned source #1: 1::8(R)
+	      pruned source #2: 1::7(R)
+	      pruned source #3: 1::6(S)
+	    group #3: ff02::1(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 1::5(WR)
+	      joined source #2: 1::3(R)
+	      joined source #3: 1::2(S)
+	      joined source #4: 1::4(R)
+	      pruned source #1: 1::8(R)
+	      pruned source #2: 1::7(R)
+	      pruned source #3: 1::6(S)
+  154  17:23:26.075326 IP6 (hlim 64, next-header PIM (103) payload length: 518) 10::2 > ff02::d: PIMv2, length 518
+	Join / Prune, cksum 0xf1d9 (correct), upstream-neighbor: 1::11
+	  3 group(s), holdtime: 45s
+	    group #1: ff02::6(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 1::c(R)
+	      joined source #2: 1::a(S)
+	      joined source #3: 1::b(R)
+	      joined source #4: 1::d(WR)
+	      pruned source #1: 1::e(S)
+	      pruned source #2: 1::10(R)
+	      pruned source #3: 1::f(R)
+	    group #2: ff02::5(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 1::c(R)
+	      joined source #2: 1::a(S)
+	      joined source #3: 1::b(R)
+	      joined source #4: 1::d(WR)
+	      pruned source #1: 1::e(S)
+	      pruned source #2: 1::10(R)
+	      pruned source #3: 1::f(R)
+	    group #3: ff02::4(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 1::c(R)
+	      joined source #2: 1::a(S)
+	      joined source #3: 1::b(R)
+	      joined source #4: 1::d(WR)
+	      pruned source #1: 1::e(S)
+	      pruned source #2: 1::10(R)
+	      pruned source #3: 1::f(R)
+  155  17:23:41.083345 IP6 (hlim 64, next-header PIM (103) payload length: 518) 10::2 > ff02::d: PIMv2, length 518
+	Join / Prune, cksum 0xf1d9 (correct), upstream-neighbor: 1::11
+	  3 group(s), holdtime: 45s
+	    group #1: ff02::6(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 1::c(R)
+	      joined source #2: 1::a(S)
+	      joined source #3: 1::b(R)
+	      joined source #4: 1::d(WR)
+	      pruned source #1: 1::e(S)
+	      pruned source #2: 1::10(R)
+	      pruned source #3: 1::f(R)
+	    group #2: ff02::5(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 1::c(R)
+	      joined source #2: 1::a(S)
+	      joined source #3: 1::b(R)
+	      joined source #4: 1::d(WR)
+	      pruned source #1: 1::e(S)
+	      pruned source #2: 1::10(R)
+	      pruned source #3: 1::f(R)
+	    group #3: ff02::4(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 1::c(R)
+	      joined source #2: 1::a(S)
+	      joined source #3: 1::b(R)
+	      joined source #4: 1::d(WR)
+	      pruned source #1: 1::e(S)
+	      pruned source #2: 1::10(R)
+	      pruned source #3: 1::f(R)
+  156  17:23:56.095440 IP6 (hlim 64, next-header PIM (103) payload length: 518) 10::2 > ff02::d: PIMv2, length 518
+	Join / Prune, cksum 0x7122 (correct), upstream-neighbor: 1::19
+	  3 group(s), holdtime: 45s
+	    group #1: ff02::7, joined sources: 4, pruned sources: 3
+	      joined source #1: 1::15(WR)
+	      joined source #2: 1::13(R)
+	      joined source #3: 1::14(R)
+	      joined source #4: 1::12(S)
+	      pruned source #1: 1::18(R)
+	      pruned source #2: 1::17(R)
+	      pruned source #3: 1::16(S)
+	    group #2: ff02::9, joined sources: 4, pruned sources: 3
+	      joined source #1: 1::15(WR)
+	      joined source #2: 1::13(R)
+	      joined source #3: 1::14(R)
+	      joined source #4: 1::12(S)
+	      pruned source #1: 1::18(R)
+	      pruned source #2: 1::17(R)
+	      pruned source #3: 1::16(S)
+	    group #3: ff02::8, joined sources: 4, pruned sources: 3
+	      joined source #1: 1::15(WR)
+	      joined source #2: 1::13(R)
+	      joined source #3: 1::14(R)
+	      joined source #4: 1::12(S)
+	      pruned source #1: 1::18(R)
+	      pruned source #2: 1::17(R)
+	      pruned source #3: 1::16(S)
+  157  17:24:11.103070 IP6 (hlim 64, next-header PIM (103) payload length: 518) 10::2 > ff02::d: PIMv2, length 518
+	Join / Prune, cksum 0x7122 (correct), upstream-neighbor: 1::19
+	  3 group(s), holdtime: 45s
+	    group #1: ff02::7, joined sources: 4, pruned sources: 3
+	      joined source #1: 1::15(WR)
+	      joined source #2: 1::13(R)
+	      joined source #3: 1::14(R)
+	      joined source #4: 1::12(S)
+	      pruned source #1: 1::18(R)
+	      pruned source #2: 1::17(R)
+	      pruned source #3: 1::16(S)
+	    group #2: ff02::9, joined sources: 4, pruned sources: 3
+	      joined source #1: 1::15(WR)
+	      joined source #2: 1::13(R)
+	      joined source #3: 1::14(R)
+	      joined source #4: 1::12(S)
+	      pruned source #1: 1::18(R)
+	      pruned source #2: 1::17(R)
+	      pruned source #3: 1::16(S)
+	    group #3: ff02::8, joined sources: 4, pruned sources: 3
+	      joined source #1: 1::15(WR)
+	      joined source #2: 1::13(R)
+	      joined source #3: 1::14(R)
+	      joined source #4: 1::12(S)
+	      pruned source #1: 1::18(R)
+	      pruned source #2: 1::17(R)
+	      pruned source #3: 1::16(S)
+  158  17:24:26.112599 IP6 (hlim 64, next-header PIM (103) payload length: 518) 10::2 > ff02::d: PIMv2, length 518
+	Join / Prune, cksum 0x7069 (correct), upstream-neighbor: 1::21
+	  3 group(s), holdtime: 45s
+	    group #1: ff02::c, joined sources: 4, pruned sources: 3
+	      joined source #1: 1::1c(R)
+	      joined source #2: 1::1d(WR)
+	      joined source #3: 1::1a(S)
+	      joined source #4: 1::1b(R)
+	      pruned source #1: 1::1e(S)
+	      pruned source #2: 1::20(R)
+	      pruned source #3: 1::1f(R)
+	    group #2: ff02::b, joined sources: 4, pruned sources: 3
+	      joined source #1: 1::1c(R)
+	      joined source #2: 1::1d(WR)
+	      joined source #3: 1::1a(S)
+	      joined source #4: 1::1b(R)
+	      pruned source #1: 1::1e(S)
+	      pruned source #2: 1::20(R)
+	      pruned source #3: 1::1f(R)
+	    group #3: ff02::a, joined sources: 4, pruned sources: 3
+	      joined source #1: 1::1c(R)
+	      joined source #2: 1::1d(WR)
+	      joined source #3: 1::1a(S)
+	      joined source #4: 1::1b(R)
+	      pruned source #1: 1::1e(S)
+	      pruned source #2: 1::20(R)
+	      pruned source #3: 1::1f(R)
+  159  17:24:26.128184 IP6 (hlim 64, next-header PIM (103) payload length: 518) 10::2 > ff02::d: PIMv2, length 518
+	Join / Prune, cksum 0x7069 (correct), upstream-neighbor: 1::21
+	  3 group(s), holdtime: 45s
+	    group #1: ff02::c, joined sources: 4, pruned sources: 3
+	      joined source #1: 1::1c(R)
+	      joined source #2: 1::1d(WR)
+	      joined source #3: 1::1a(S)
+	      joined source #4: 1::1b(R)
+	      pruned source #1: 1::1e(S)
+	      pruned source #2: 1::20(R)
+	      pruned source #3: 1::1f(R)
+	    group #2: ff02::b, joined sources: 4, pruned sources: 3
+	      joined source #1: 1::1c(R)
+	      joined source #2: 1::1d(WR)
+	      joined source #3: 1::1a(S)
+	      joined source #4: 1::1b(R)
+	      pruned source #1: 1::1e(S)
+	      pruned source #2: 1::20(R)
+	      pruned source #3: 1::1f(R)
+	    group #3: ff02::a, joined sources: 4, pruned sources: 3
+	      joined source #1: 1::1c(R)
+	      joined source #2: 1::1d(WR)
+	      joined source #3: 1::1a(S)
+	      joined source #4: 1::1b(R)
+	      pruned source #1: 1::1e(S)
+	      pruned source #2: 1::20(R)
+	      pruned source #3: 1::1f(R)
+  160  17:24:26.144272 IP6 (hlim 64, next-header PIM (103) payload length: 518) 10::2 > ff02::d: PIMv2, length 518
+	Join / Prune, cksum 0x6fb0 (correct), upstream-neighbor: 1::29
+	  3 group(s), holdtime: 45s
+	    group #1: ff02::f, joined sources: 4, pruned sources: 3
+	      joined source #1: 1::25(WR)
+	      joined source #2: 1::23(R)
+	      joined source #3: 1::22(S)
+	      joined source #4: 1::24(R)
+	      pruned source #1: 1::28(R)
+	      pruned source #2: 1::26(S)
+	      pruned source #3: 1::27(R)
+	    group #2: ff02::e, joined sources: 4, pruned sources: 3
+	      joined source #1: 1::25(WR)
+	      joined source #2: 1::23(R)
+	      joined source #3: 1::22(S)
+	      joined source #4: 1::24(R)
+	      pruned source #1: 1::28(R)
+	      pruned source #2: 1::26(S)
+	      pruned source #3: 1::27(R)
+	    group #3: ff02::d, joined sources: 4, pruned sources: 3
+	      joined source #1: 1::25(WR)
+	      joined source #2: 1::23(R)
+	      joined source #3: 1::22(S)
+	      joined source #4: 1::24(R)
+	      pruned source #1: 1::28(R)
+	      pruned source #2: 1::26(S)
+	      pruned source #3: 1::27(R)
+  161  17:24:41.152302 IP6 (hlim 64, next-header PIM (103) payload length: 518) 10::2 > ff02::d: PIMv2, length 518
+	Join / Prune, cksum 0x6fb0 (correct), upstream-neighbor: 1::29
+	  3 group(s), holdtime: 45s
+	    group #1: ff02::f, joined sources: 4, pruned sources: 3
+	      joined source #1: 1::25(WR)
+	      joined source #2: 1::23(R)
+	      joined source #3: 1::22(S)
+	      joined source #4: 1::24(R)
+	      pruned source #1: 1::28(R)
+	      pruned source #2: 1::26(S)
+	      pruned source #3: 1::27(R)
+	    group #2: ff02::e, joined sources: 4, pruned sources: 3
+	      joined source #1: 1::25(WR)
+	      joined source #2: 1::23(R)
+	      joined source #3: 1::22(S)
+	      joined source #4: 1::24(R)
+	      pruned source #1: 1::28(R)
+	      pruned source #2: 1::26(S)
+	      pruned source #3: 1::27(R)
+	    group #3: ff02::d, joined sources: 4, pruned sources: 3
+	      joined source #1: 1::25(WR)
+	      joined source #2: 1::23(R)
+	      joined source #3: 1::22(S)
+	      joined source #4: 1::24(R)
+	      pruned source #1: 1::28(R)
+	      pruned source #2: 1::26(S)
+	      pruned source #3: 1::27(R)
+  162  17:24:56.163412 IP6 (hlim 64, next-header PIM (103) payload length: 758) 10::2 > 10::1: PIMv2, length 758
+	Join / Prune, cksum 0x2e8c (correct), upstream-neighbor: 1::35
+	  3 group(s), holdtime: 45s
+	    group #1: ff02::12, joined sources: 4, pruned sources: 7
+	      joined source #1: 1::2c(R)
+	      joined source #2: 1::2a(S)
+	      joined source #3: 1::2b(R)
+	      joined source #4: 1::2d(WR)
+	      pruned source #1: 1::33(R)
+	      pruned source #2: 1::2e(S)
+	      pruned source #3: 1::2f(S)
+	      pruned source #4: 1::30(S)
+	      pruned source #5: 1::32(R)
+	      pruned source #6: 1::31(R)
+	      pruned source #7: 1::34(R)
+	    group #2: ff02::11, joined sources: 4, pruned sources: 7
+	      joined source #1: 1::2c(R)
+	      joined source #2: 1::2a(S)
+	      joined source #3: 1::2b(R)
+	      joined source #4: 1::2d(WR)
+	      pruned source #1: 1::33(R)
+	      pruned source #2: 1::2e(S)
+	      pruned source #3: 1::2f(S)
+	      pruned source #4: 1::30(S)
+	      pruned source #5: 1::32(R)
+	      pruned source #6: 1::31(R)
+	      pruned source #7: 1::34(R)
+	    group #3: ff02::10, joined sources: 4, pruned sources: 7
+	      joined source #1: 1::2c(R)
+	      joined source #2: 1::2a(S)
+	      joined source #3: 1::2b(R)
+	      joined source #4: 1::2d(WR)
+	      pruned source #1: 1::33(R)
+	      pruned source #2: 1::2e(S)
+	      pruned source #3: 1::2f(S)
+	      pruned source #4: 1::30(S)
+	      pruned source #5: 1::32(R)
+	      pruned source #6: 1::31(R)
+	      pruned source #7: 1::34(R)
+  163  17:25:11.174870 IP6 (hlim 64, next-header PIM (103) payload length: 578) 10::2 > ff02::d: PIMv2, length 578
+	Join / Prune, cksum 0x506c (correct), upstream-neighbor: 1::3e
+	  3 group(s), holdtime: 45s
+	    group #1: ff02::13, joined sources: 4, pruned sources: 4
+	      joined source #1: 1::36(S)
+	      joined source #2: 1::38(R)
+	      joined source #3: 1::37(R)
+	      joined source #4: 1::39(WR)
+	      pruned source #1: 1::3c(S)
+	      pruned source #2: 1::3b(S)
+	      pruned source #3: 1::3a(S)
+	      pruned source #4: 1::3d(R)
+	    group #2: ff02::15, joined sources: 4, pruned sources: 4
+	      joined source #1: 1::36(S)
+	      joined source #2: 1::38(R)
+	      joined source #3: 1::37(R)
+	      joined source #4: 1::39(WR)
+	      pruned source #1: 1::3c(S)
+	      pruned source #2: 1::3b(S)
+	      pruned source #3: 1::3a(S)
+	      pruned source #4: 1::3d(R)
+	    group #3: ff02::14, joined sources: 4, pruned sources: 4
+	      joined source #1: 1::36(S)
+	      joined source #2: 1::38(R)
+	      joined source #3: 1::37(R)
+	      joined source #4: 1::39(WR)
+	      pruned source #1: 1::3c(S)
+	      pruned source #2: 1::3b(S)
+	      pruned source #3: 1::3a(S)
+	      pruned source #4: 1::3d(R)
+  164  17:25:26.184381 IP6 (hlim 64, next-header PIM (103) payload length: 758) 10::2 > 10::1: PIMv2, length 758
+	Join / Prune, cksum 0x2bb0 (correct), upstream-neighbor: 1::4a
+	  3 group(s), holdtime: 45s
+	    group #1: ff02::17, joined sources: 4, pruned sources: 7
+	      joined source #1: 1::3f(S)
+	      joined source #2: 1::40(R)
+	      joined source #3: 1::42(WR)
+	      joined source #4: 1::41(R)
+	      pruned source #1: 1::46(R)
+	      pruned source #2: 1::43(S)
+	      pruned source #3: 1::45(S)
+	      pruned source #4: 1::47(R)
+	      pruned source #5: 1::44(S)
+	      pruned source #6: 1::49(R)
+	      pruned source #7: 1::48(R)
+	    group #2: ff02::16, joined sources: 4, pruned sources: 7
+	      joined source #1: 1::3f(S)
+	      joined source #2: 1::40(R)
+	      joined source #3: 1::42(WR)
+	      joined source #4: 1::41(R)
+	      pruned source #1: 1::46(R)
+	      pruned source #2: 1::43(S)
+	      pruned source #3: 1::45(S)
+	      pruned source #4: 1::47(R)
+	      pruned source #5: 1::44(S)
+	      pruned source #6: 1::49(R)
+	      pruned source #7: 1::48(R)
+	    group #3: ff02::18, joined sources: 4, pruned sources: 7
+	      joined source #1: 1::3f(S)
+	      joined source #2: 1::40(R)
+	      joined source #3: 1::42(WR)
+	      joined source #4: 1::41(R)
+	      pruned source #1: 1::46(R)
+	      pruned source #2: 1::43(S)
+	      pruned source #3: 1::45(S)
+	      pruned source #4: 1::47(R)
+	      pruned source #5: 1::44(S)
+	      pruned source #6: 1::49(R)
+	      pruned source #7: 1::48(R)
+  165  17:25:41.195284 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 518) 10::1 > ff02::d: PIMv2, length 518
+	Join / Prune, cksum 0xb005 (correct), upstream-neighbor: 1::52
+	  3 group(s), holdtime: 45s
+	    group #1: ff02::1a(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 1::4d(SR)
+	      joined source #2: 1::4c(SR)
+	      joined source #3: 1::4b(S)
+	      joined source #4: 1::4e(SWR)
+	      pruned source #1: 1::50(SR)
+	      pruned source #2: 1::51(SR)
+	      pruned source #3: 1::4f(S)
+	    group #2: ff02::19(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 1::4d(SR)
+	      joined source #2: 1::4c(SR)
+	      joined source #3: 1::4b(S)
+	      joined source #4: 1::4e(SWR)
+	      pruned source #1: 1::50(SR)
+	      pruned source #2: 1::51(SR)
+	      pruned source #3: 1::4f(S)
+	    group #3: ff02::1b(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 1::4d(SR)
+	      joined source #2: 1::4c(SR)
+	      joined source #3: 1::4b(S)
+	      joined source #4: 1::4e(SWR)
+	      pruned source #1: 1::50(SR)
+	      pruned source #2: 1::51(SR)
+	      pruned source #3: 1::4f(S)
+  166  17:25:41.202437 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 518) 10::1 > ff02::d: PIMv2, length 518
+	Join / Prune, cksum 0xb005 (correct), upstream-neighbor: 1::52
+	  3 group(s), holdtime: 45s
+	    group #1: ff02::1a(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 1::4d(SR)
+	      joined source #2: 1::4c(SR)
+	      joined source #3: 1::4b(S)
+	      joined source #4: 1::4e(SWR)
+	      pruned source #1: 1::50(SR)
+	      pruned source #2: 1::51(SR)
+	      pruned source #3: 1::4f(S)
+	    group #2: ff02::19(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 1::4d(SR)
+	      joined source #2: 1::4c(SR)
+	      joined source #3: 1::4b(S)
+	      joined source #4: 1::4e(SWR)
+	      pruned source #1: 1::50(SR)
+	      pruned source #2: 1::51(SR)
+	      pruned source #3: 1::4f(S)
+	    group #3: ff02::1b(0x80), joined sources: 4, pruned sources: 3
+	      joined source #1: 1::4d(SR)
+	      joined source #2: 1::4c(SR)
+	      joined source #3: 1::4b(S)
+	      joined source #4: 1::4e(SWR)
+	      pruned source #1: 1::50(SR)
+	      pruned source #2: 1::51(SR)
+	      pruned source #3: 1::4f(S)
+  167  17:26:01.234759 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 518) 10::1 > ff02::d: PIMv2, length 518
+	Join / Prune, cksum 0x2ddc (correct), upstream-neighbor: 1::6a
+	  3 group(s), holdtime: 45s
+	    group #1: ff02::23, joined sources: 4, pruned sources: 3
+	      joined source #1: 1::65(SR)
+	      joined source #2: 1::64(SR)
+	      joined source #3: 1::63(S)
+	      joined source #4: 1::66(SWR)
+	      pruned source #1: 1::68(SR)
+	      pruned source #2: 1::69(SR)
+	      pruned source #3: 1::67(S)
+	    group #2: ff02::22, joined sources: 4, pruned sources: 3
+	      joined source #1: 1::65(SR)
+	      joined source #2: 1::64(SR)
+	      joined source #3: 1::63(S)
+	      joined source #4: 1::66(SWR)
+	      pruned source #1: 1::68(SR)
+	      pruned source #2: 1::69(SR)
+	      pruned source #3: 1::67(S)
+	    group #3: ff02::24, joined sources: 4, pruned sources: 3
+	      joined source #1: 1::65(SR)
+	      joined source #2: 1::64(SR)
+	      joined source #3: 1::63(S)
+	      joined source #4: 1::66(SWR)
+	      pruned source #1: 1::68(SR)
+	      pruned source #2: 1::69(SR)
+	      pruned source #3: 1::67(S)
+  168  17:26:01.241645 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 518) 10::1 > ff02::d: PIMv2, length 518
+	Join / Prune, cksum 0x2ddc (correct), upstream-neighbor: 1::6a
+	  3 group(s), holdtime: 45s
+	    group #1: ff02::23, joined sources: 4, pruned sources: 3
+	      joined source #1: 1::65(SR)
+	      joined source #2: 1::64(SR)
+	      joined source #3: 1::63(S)
+	      joined source #4: 1::66(SWR)
+	      pruned source #1: 1::68(SR)
+	      pruned source #2: 1::69(SR)
+	      pruned source #3: 1::67(S)
+	    group #2: ff02::22, joined sources: 4, pruned sources: 3
+	      joined source #1: 1::65(SR)
+	      joined source #2: 1::64(SR)
+	      joined source #3: 1::63(S)
+	      joined source #4: 1::66(SWR)
+	      pruned source #1: 1::68(SR)
+	      pruned source #2: 1::69(SR)
+	      pruned source #3: 1::67(S)
+	    group #3: ff02::24, joined sources: 4, pruned sources: 3
+	      joined source #1: 1::65(SR)
+	      joined source #2: 1::64(SR)
+	      joined source #3: 1::63(S)
+	      joined source #4: 1::66(SWR)
+	      pruned source #1: 1::68(SR)
+	      pruned source #2: 1::69(SR)
+	      pruned source #3: 1::67(S)
+  169  17:26:13.486913 IP6 (hlim 64, next-header PIM (103) payload length: 50) 10::2 > ff02::d: PIMv2, length 50
+	Assert, cksum 0xd7bd (correct) group=ff02::1 src=1::2 pref=0 metric=0
+  170  17:26:13.501898 IP6 (hlim 64, next-header PIM (103) payload length: 50) 10::2 > ff02::d: PIMv2, length 50
+	Assert, cksum 0xd7bd (correct) group=ff02::1 src=1::2 pref=0 metric=0
+  171  17:26:13.517759 IP6 (hlim 64, next-header PIM (103) payload length: 50) 10::2 > ff02::d: PIMv2, length 50
+	Assert, cksum 0xd7bb (correct) group=ff02::2 src=1::3 pref=0 metric=0
+  172  17:26:28.527906 IP6 (hlim 64, next-header PIM (103) payload length: 50) 10::2 > ff02::d: PIMv2, length 50
+	Assert, cksum 0xd7bb (correct) group=ff02::2 src=1::3 pref=0 metric=0
+  173  17:26:43.534167 IP6 (hlim 64, next-header PIM (103) payload length: 50) 10::2 > 10::1: PIMv2, length 50
+	Assert, cksum 0xd6b8 (correct) group=ff02::3 src=1::4 pref=0 metric=0
+  174  17:26:58.543141 IP6 (hlim 64, next-header PIM (103) payload length: 50) 10::2 > ff02::d: PIMv2, length 50
+	Assert, cksum 0xd7b7 (correct) group=ff02::4 src=1::5 pref=0 metric=0
+  175  17:27:13.553752 IP6 (hlim 64, next-header PIM (103) payload length: 50) 10::2 > 10::1: PIMv2, length 50
+	Assert, cksum 0xd6b4 (correct) group=ff02::5 src=1::6 pref=0 metric=0
+  176  17:27:28.562985 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 50) 10::1 > ff02::d: PIMv2, length 50
+	Assert, cksum 0xd7b4 (correct) group=ff02::6 src=1::7 pref=0 metric=0
+  177  17:27:28.566721 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 50) 10::1 > ff02::d: PIMv2, length 50
+	Assert, cksum 0xd7b4 (correct) group=ff02::6 src=1::7 pref=0 metric=0
+  178  17:27:40.810753 IP6 (hlim 64, next-header PIM (103) payload length: 48) 10::2 > 10::1: PIMv2, length 48
+	Register, cksum 0xcc3c (correct), Flags [ Null ]
+	IP6 (class 0xc0, hlim 1, next-header PIM (103) payload length: 0) 1::2 > ff02::1:  [|pim]
+  179  17:27:40.827314 IP6 (hlim 64, next-header PIM (103) payload length: 48) 10::2 > 10::1: PIMv2, length 48
+	Register, cksum 0xcc3c (correct), Flags [ Null ]
+	IP6 (class 0xc0, hlim 1, next-header PIM (103) payload length: 0) 1::2 > ff02::1:  [|pim]
+  180  17:27:40.843664 IP6 (hlim 64, next-header PIM (103) payload length: 48) 10::2 > 10::1: PIMv2, length 48
+	Register, cksum 0xcc3c (correct), Flags [ Null ]
+	IP6 (class 0xc0, hlim 1, next-header PIM (103) payload length: 0) 1::2 > ff02::1:  [|pim]
+  181  17:27:40.860071 IP6 (hlim 64, next-header PIM (103) payload length: 48) 10::2 > 10::1: PIMv2, length 48
+	Register, cksum 0xcc3c (correct), Flags [ Null ]
+	IP6 (class 0xc0, hlim 1, next-header PIM (103) payload length: 0) 1::2 > ff02::1:  [|pim]
+  182  17:27:40.879398 IP6 (hlim 64, next-header PIM (103) payload length: 1400) 10::2 > 10::1: PIMv2, length 1400
+	Register, cksum 0x67ce (correct), Flags [ none ]
+	IP6 (hlim 64, next-header UDP (17) payload length: 1352) 1::3.2468 > ff02::2.2468: [udp sum ok] UDP, length 1344
+  183  17:27:40.898565 IP6 (hlim 64, next-header PIM (103) payload length: 1500) 10::2 > 10::1: PIMv2, length 1500
+	Register, cksum 0x676a (correct), Flags [ none ]
+	IP6 (hlim 64, next-header UDP (17) payload length: 1452) 1::4.2468 > ff02::3.2468: [udp sum ok] UDP, length 1444
+  184  17:27:40.918476 IP6 (hlim 64, next-header PIM (103) payload length: 32000) 10::2 > 10::1: PIMv2, length 32000
+	Register, cksum 0xf045 (correct), Flags [ none ]
+	IP6 (hlim 64, next-header UDP (17) payload length: 31952) 1::5.2468 > ff02::4.2468: [udp sum ok] UDP, length 31944
+  185  17:27:40.939877 IP6 (hlim 64, next-header PIM (103) payload length: 65535) 10::2 > 10::1: PIMv2, length 65535
+	Register, cksum 0x6d46 (unverified), Flags [ none ]
+	IP6 (hlim 64, next-header UDP (17) payload length: 65487) 1::6.2468 > ff02::5.2468: UDP, length 65479
+  186  17:27:40.957722 IP6 (hlim 64, next-header PIM (103) payload length: 48) 10::2 > 10::1: PIMv2, length 48
+	Register, cksum 0xcc32 (correct), Flags [ Null ]
+	IP6 (class 0xc0, hlim 1, next-header PIM (103) payload length: 0) 1::7 > ff02::6:  [|pim]
+  187  17:27:40.975732 IP6 (hlim 64, next-header PIM (103) payload length: 48) 10::2 > 10::1: PIMv2, length 48
+	Register, cksum 0xcc32 (correct), Flags [ Null ]
+	IP6 (class 0xc0, hlim 1, next-header PIM (103) payload length: 0) 1::7 > ff02::6:  [|pim]
+  188  17:27:40.993200 IP6 (hlim 64, next-header PIM (103) payload length: 48) 10::2 > ff02::d: PIMv2, length 48
+	Register, cksum 0xcd31 (correct), Flags [ Null ]
+	IP6 (class 0xc0, hlim 1, next-header PIM (103) payload length: 0) 1::8 > ff02::7:  [|pim]
+  189  17:27:56.005578 IP6 (hlim 64, next-header PIM (103) payload length: 48) 10::2 > ff02::d: PIMv2, length 48
+	Register, cksum 0xcd2f (correct), Flags [ Null ]
+	IP6 (class 0xc0, hlim 1, next-header PIM (103) payload length: 0) 1::9 > ff02::8:  [|pim]
+  190  17:28:11.113454 IP6 (class 0xc0, flowlabel 0xe75c5, hlim 255, next-header PIM (103) payload length: 156) 1::b > 10::2: PIMv2, length 156
+	Register, cksum 0xde72 (correct), Flags [ none ]
+	IP6 (hlim 64, next-header UDP (17) payload length: 108) 1::a.2468 > ff02::9.2468: [udp sum ok] UDP, length 100
+  191  17:28:11.122290 IP6 (class 0xc0, flowlabel 0xe75c5, hlim 1, next-header PIM (103) payload length: 156) 1::b > 10::2: PIMv2, length 156
+	Register, cksum 0xde72 (correct), Flags [ none ]
+	IP6 (hlim 64, next-header UDP (17) payload length: 108) 1::a.2468 > ff02::9.2468: [udp sum ok] UDP, length 100
+  192  17:28:11.130752 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 10, next-header PIM (103) payload length: 156) 10::1 > 10::2: PIMv2, length 156
+	Register, cksum 0xde6d (correct), Flags [ none ]
+	IP6 (hlim 64, next-header UDP (17) payload length: 108) 1::a.2468 > ff02::9.2468: [udp sum ok] UDP, length 100
+  193  17:28:11.138877 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 200, next-header PIM (103) payload length: 156) 10::1 > 10::2: PIMv2, length 156
+	Register, cksum 0xde6d (correct), Flags [ none ]
+	IP6 (hlim 64, next-header UDP (17) payload length: 108) 1::a.2468 > ff02::9.2468: [udp sum ok] UDP, length 100
+  194  17:28:11.147140 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 20, next-header PIM (103) payload length: 156) 10::1 > 10::2: PIMv2, length 156
+	Register, cksum 0xde6d (correct), Flags [ none ]
+	IP6 (hlim 64, next-header UDP (17) payload length: 108) 1::a.2468 > ff02::9.2468: [udp sum ok] UDP, length 100
+  195  17:28:11.213700 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 255, next-header PIM (103) payload length: 48) 10::1 > 10::2: PIMv2, length 48
+	Register, cksum 0x9e6d (correct), Flags [ Null ]
+	IP6 (class 0xc0, hlim 1, next-header PIM (103) payload length: 0) 1::c > ff02::a:  [|pim]
+  196  17:28:11.228981 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 255, next-header PIM (103) payload length: 48) 10::1 > 10::2: PIMv2, length 48
+	Register, cksum 0x9e7e (incorrect), Flags [ Null ]
+	IP6 (class 0xc0, hlim 1, next-header PIM (103) payload length: 0) 1::d > ff02::b:  [|pim]
+  197  17:28:18.502726 IP6 (hlim 64, next-header PIM (103) payload length: 42) 10::2 > 10::1: PIMv2, length 42
+	Register Stop, cksum 0xd9c4 (correct) group=ff02::1 source=1::2
+  198  17:28:18.517840 IP6 (hlim 64, next-header PIM (103) payload length: 42) 10::2 > 10::1: PIMv2, length 42
+	Register Stop, cksum 0xd9c4 (correct) group=ff02::1 source=1::2
+  199  17:28:18.533422 IP6 (hlim 64, next-header PIM (103) payload length: 42) 10::2 > 10::1: PIMv2, length 42
+	Register Stop, cksum 0xd9c2 (correct) group=ff02::2 source=1::3
+  200  17:28:18.549676 IP6 (hlim 64, next-header PIM (103) payload length: 42) 10::2 > 10::1: PIMv2, length 42
+	Register Stop, cksum 0xd9c2 (correct) group=ff02::2 source=1::3
+  201  17:28:18.564554 IP6 (hlim 64, next-header PIM (103) payload length: 42) 10::2 > ff02::d: PIMv2, length 42
+	Register Stop, cksum 0xdac1 (correct) group=ff02::3 source=1::4
+  202  17:28:33.570694 IP6 (hlim 64, next-header PIM (103) payload length: 42) 10::2 > ff02::d: PIMv2, length 42
+	Register Stop, cksum 0xdabf (correct) group=ff02::4 source=1::5
+  203  17:28:48.578934 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 255, next-header PIM (103) payload length: 42) 10::1 > 10::2: PIMv2, length 42
+	Register Stop, cksum 0xd9bc (correct) group=ff02::5 source=1::6
+  204  17:28:48.582687 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 255, next-header PIM (103) payload length: 42) 10::1 > 10::2: PIMv2, length 42
+	Register Stop, cksum 0xd9bc (correct) group=ff02::5 source=1::6
+  205  17:28:48.586062 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 255, next-header PIM (103) payload length: 42) 10::1 > 10::2: PIMv2, length 42
+	Register Stop, cksum 0xd9bc (correct) group=ff02::5 source=1::6
+  206  17:28:48.590187 IP6 (class 0xc0, flowlabel 0xfe48b, hlim 255, next-header PIM (103) payload length: 42) 10::1 > 10::2: PIMv2, length 42
+	Register Stop, cksum 0xd9cb (incorrect) group=ff02::6 source=1::7
+  207  17:28:55.824177 IP6 (hlim 64, next-header PIM (103) payload length: 30) 10::2 > ff02::d: PIMv2, length 30
+	DF Election, cksum 0xd3d7 (correct)
+	  Offer, rpa=1::2 sender pref=100 sender metric=10
+  208  17:28:55.839949 IP6 (hlim 64, next-header PIM (103) payload length: 30) 10::2 > ff02::d: PIMv2, length 30
+	DF Election, cksum 0xd3d7 (correct)
+	  Offer, rpa=1::2 sender pref=100 sender metric=10
+  209  17:28:55.855650 IP6 (hlim 64, next-header PIM (103) payload length: 30) 10::2 > ff02::d: PIMv2, length 30
+	DF Election, cksum 0xd3c6 (correct)
+	  Winner, rpa=1::3 sender pref=100 sender metric=10
+  210  17:28:55.871248 IP6 (hlim 64, next-header PIM (103) payload length: 30) 10::2 > ff02::d: PIMv2, length 30
+	DF Election, cksum 0xd3c6 (correct)
+	  Winner, rpa=1::3 sender pref=100 sender metric=10
+  211  17:28:55.887289 IP6 (hlim 64, next-header PIM (103) payload length: 58) 10::2 > ff02::d: PIMv2, length 58
+	DF Election, cksum 0x7f8b (correct)
+	  Backoff, rpa=1::4 sender pref=100 sender metric=10
+	  offer addr=1::5 offer pref=1000 offer metric=10000 interval 10000ms
+  212  17:28:55.903013 IP6 (hlim 64, next-header PIM (103) payload length: 58) 10::2 > ff02::d: PIMv2, length 58
+	DF Election, cksum 0x7f8b (correct)
+	  Backoff, rpa=1::4 sender pref=100 sender metric=10
+	  offer addr=1::5 offer pref=1000 offer metric=10000 interval 10000ms
+  213  17:28:55.919550 IP6 (hlim 64, next-header PIM (103) payload length: 56) 10::2 > ff02::d: PIMv2, length 56
+	DF Election, cksum 0xa689 (correct)
+	  Pass, rpa=1::6 sender pref=100 sender metric=10
+	  new winner addr=1::7 new winner pref=1000 new winner metric=10000
+  214  17:28:55.935209 IP6 (hlim 64, next-header PIM (103) payload length: 56) 10::2 > ff02::d: PIMv2, length 56
+	DF Election, cksum 0xa689 (correct)
+	  Pass, rpa=1::6 sender pref=100 sender metric=10
+	  new winner addr=1::7 new winner pref=1000 new winner metric=10000
+  215  17:28:55.951452 IP6 (hlim 64, next-header PIM (103) payload length: 30) 10::2 > ff02::d: PIMv2, length 30
+	DF Election, cksum 0xd3d1 (correct)
+	  Offer, rpa=1::8 sender pref=100 sender metric=10
+  216  17:29:10.963613 IP6 (hlim 64, next-header PIM (103) payload length: 30) 10::2 > ff02::d: PIMv2, length 30
+	DF Election, cksum 0xd3d1 (correct)
+	  Offer, rpa=1::8 sender pref=100 sender metric=10
+  217  17:29:25.974998 IP6 (hlim 64, next-header PIM (103) payload length: 30) 10::2 > 10::1: PIMv2, length 30
+	DF Election, cksum 0xd2cf (correct)
+	  Offer, rpa=1::9 sender pref=100 sender metric=10
+  218  17:29:40.984969 IP6 (hlim 64, next-header PIM (103) payload length: 30) 10::2 > ff02::d: PIMv2, length 30
+	DF Election, cksum 0xd3cf (correct)
+	  Offer, rpa=1::a sender pref=100 sender metric=10
+  219  17:29:55.998320 IP6 (hlim 64, next-header PIM (103) payload length: 30) 10::2 > 10::1: PIMv2, length 30
+	DF Election, cksum 0xd2cd (correct)
+	  Offer, rpa=1::b sender pref=100 sender metric=10
+  220  17:30:11.006628 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 30) 10::1 > ff02::d: PIMv2, length 30
+	DF Election, cksum 0xd3ce (correct)
+	  Offer, rpa=1::c sender pref=100 sender metric=10
+  221  17:30:11.011282 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 30) 10::1 > ff02::d: PIMv2, length 30
+	DF Election, cksum 0xd3ce (correct)
+	  Offer, rpa=1::c sender pref=100 sender metric=10
+  222  17:30:11.015823 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 30) 10::1 > ff02::d: PIMv2, length 30
+	DF Election, cksum 0xd3bd (correct)
+	  Winner, rpa=1::d sender pref=100 sender metric=10
+  223  17:30:11.020041 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 30) 10::1 > ff02::d: PIMv2, length 30
+	DF Election, cksum 0xd3bd (correct)
+	  Winner, rpa=1::d sender pref=100 sender metric=10
+  224  17:30:11.024077 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 58) 10::1 > ff02::d: PIMv2, length 58
+	DF Election, cksum 0x7f78 (correct)
+	  Backoff, rpa=1::e sender pref=100 sender metric=10
+	  offer addr=1::f offer pref=1000 offer metric=10000 interval 10000ms
+  225  17:30:11.028134 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 58) 10::1 > ff02::d: PIMv2, length 58
+	DF Election, cksum 0x7f78 (correct)
+	  Backoff, rpa=1::e sender pref=100 sender metric=10
+	  offer addr=1::f offer pref=1000 offer metric=10000 interval 10000ms
+  226  17:30:11.032519 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 56) 10::1 > ff02::d: PIMv2, length 56
+	DF Election, cksum 0xa676 (correct)
+	  Pass, rpa=1::10 sender pref=100 sender metric=10
+	  new winner addr=1::11 new winner pref=1000 new winner metric=10000
+  227  17:30:11.037060 IP6 (class 0xc0, flowlabel 0x4b462, hlim 1, next-header PIM (103) payload length: 56) 10::1 > ff02::d: PIMv2, length 56
+	DF Election, cksum 0xa676 (correct)
+	  Pass, rpa=1::10 sender pref=100 sender metric=10
+	  new winner addr=1::11 new winner pref=1000 new winner metric=10000
+  228  17:30:23.287232 IP6 (hlim 64, next-header PIM (103) payload length: 4) 10::2 > ff02::d: PIMv2, length 4
+	Graft, cksum 0xda72 (correct), upstream-neighbor:  [|pimv2]
+  229  17:30:45.519013 IP6 (hlim 64, next-header PIM (103) payload length: 78) 10::2 > ff02::d: PIMv2, length 78
+	Hello, cksum 0xd83b (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Bi-Directional Capability Option (22), length 0, Value: 
+	  Address List Option (24), length 36, Value: 
+	    1::2
+	    1::3
+	    0x0000:  0200 0001 0000 0000 0000 0000 0000 0000
+	    0x0010:  0002 0200 0001 0000 0000 0000 0000 0000
+	    0x0020:  0000 0003
+  230  17:30:45.534657 IP6 (hlim 64, next-header PIM (103) payload length: 74) 10::2 > ff02::d: PIMv2, length 74
+	Hello, cksum 0xd855 (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Address List Option (24), length 36, Value: 
+	    1::2
+	    1::3
+	    0x0000:  0200 0001 0000 0000 0000 0000 0000 0000
+	    0x0010:  0002 0200 0001 0000 0000 0000 0000 0000
+	    0x0020:  0000 0003
+  231  17:30:45.549731 IP6 (hlim 64, next-header PIM (103) payload length: 74) 10::2 > ff02::d: PIMv2, length 74
+	Hello, cksum 0xd855 (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Address List Option (24), length 36, Value: 
+	    1::2
+	    1::3
+	    0x0000:  0200 0001 0000 0000 0000 0000 0000 0000
+	    0x0010:  0002 0200 0001 0000 0000 0000 0000 0000
+	    0x0020:  0000 0003
+  232  17:30:45.564397 IP6 (hlim 64, next-header PIM (103) payload length: 74) 10::2 > ff02::d: PIMv2, length 74
+	Hello, cksum 0xd855 (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Address List Option (24), length 36, Value: 
+	    1::2
+	    1::3
+	    0x0000:  0200 0001 0000 0000 0000 0000 0000 0000
+	    0x0010:  0002 0200 0001 0000 0000 0000 0000 0000
+	    0x0020:  0000 0003
+  233  17:30:45.580862 IP6 (hlim 64, next-header PIM (103) payload length: 78) 10::2 > ff02::d: PIMv2, length 78
+	Hello, cksum 0xd83b (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Bi-Directional Capability Option (22), length 0, Value: 
+	  Address List Option (24), length 36, Value: 
+	    1::2
+	    1::3
+	    0x0000:  0200 0001 0000 0000 0000 0000 0000 0000
+	    0x0010:  0002 0200 0001 0000 0000 0000 0000 0000
+	    0x0020:  0000 0003
+  234  17:30:45.595688 IP6 (hlim 64, next-header PIM (103) payload length: 74) 10::2 > ff02::d: PIMv2, length 74
+	Hello, cksum 0xd855 (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Address List Option (24), length 36, Value: 
+	    1::2
+	    1::3
+	    0x0000:  0200 0001 0000 0000 0000 0000 0000 0000
+	    0x0010:  0002 0200 0001 0000 0000 0000 0000 0000
+	    0x0020:  0000 0003
+  235  17:30:45.610185 IP6 (hlim 64, next-header PIM (103) payload length: 78) 10::2 > ff02::d: PIMv2, length 78
+	Hello, cksum 0xd83b (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Bi-Directional Capability Option (22), length 0, Value: 
+	  Address List Option (24), length 36, Value: 
+	    1::2
+	    1::3
+	    0x0000:  0200 0001 0000 0000 0000 0000 0000 0000
+	    0x0010:  0002 0200 0001 0000 0000 0000 0000 0000
+	    0x0020:  0000 0003
+  236  17:30:45.624903 IP6 (hlim 64, next-header PIM (103) payload length: 78) 10::2 > ff02::d: PIMv2, length 78
+	Hello, cksum 0xd83b (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Bi-Directional Capability Option (22), length 0, Value: 
+	  Address List Option (24), length 36, Value: 
+	    1::2
+	    1::3
+	    0x0000:  0200 0001 0000 0000 0000 0000 0000 0000
+	    0x0010:  0002 0200 0001 0000 0000 0000 0000 0000
+	    0x0020:  0000 0003
+  237  17:30:45.639276 IP6 (hlim 64, next-header PIM (103) payload length: 78) 10::2 > ff02::d: PIMv2, length 78
+	Hello, cksum 0xd83b (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Bi-Directional Capability Option (22), length 0, Value: 
+	  Address List Option (24), length 36, Value: 
+	    1::2
+	    1::3
+	    0x0000:  0200 0001 0000 0000 0000 0000 0000 0000
+	    0x0010:  0002 0200 0001 0000 0000 0000 0000 0000
+	    0x0020:  0000 0003
+  238  17:30:45.653978 IP6 (hlim 64, next-header PIM (103) payload length: 78) 10::2 > ff02::d: PIMv2, length 78
+	Hello, cksum 0xd83b (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Bi-Directional Capability Option (22), length 0, Value: 
+	  Address List Option (24), length 36, Value: 
+	    1::2
+	    1::3
+	    0x0000:  0200 0001 0000 0000 0000 0000 0000 0000
+	    0x0010:  0002 0200 0001 0000 0000 0000 0000 0000
+	    0x0020:  0000 0003
+  239  17:30:45.668528 IP6 (hlim 64, next-header PIM (103) payload length: 78) 10::2 > ff02::d: PIMv2, length 78
+	Hello, cksum 0xd83b (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Bi-Directional Capability Option (22), length 0, Value: 
+	  Address List Option (24), length 36, Value: 
+	    1::2
+	    1::3
+	    0x0000:  0200 0001 0000 0000 0000 0000 0000 0000
+	    0x0010:  0002 0200 0001 0000 0000 0000 0000 0000
+	    0x0020:  0000 0003
+  240  17:30:45.684110 IP6 (hlim 64, next-header PIM (103) payload length: 74) 10::2 > ff02::d: PIMv2, length 74
+	Hello, cksum 0xd851 (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Address List Option (24), length 36, Value: 
+	    1::4
+	    1::5
+	    0x0000:  0200 0001 0000 0000 0000 0000 0000 0000
+	    0x0010:  0004 0200 0001 0000 0000 0000 0000 0000
+	    0x0020:  0000 0005
+  241  17:31:00.691792 IP6 (hlim 64, next-header PIM (103) payload length: 74) 10::2 > ff02::d: PIMv2, length 74
+	Hello, cksum 0xd851 (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Address List Option (24), length 36, Value: 
+	    1::4
+	    1::5
+	    0x0000:  0200 0001 0000 0000 0000 0000 0000 0000
+	    0x0010:  0004 0200 0001 0000 0000 0000 0000 0000
+	    0x0020:  0000 0005
+  242  17:31:15.702513 IP6 (hlim 64, next-header PIM (103) payload length: 34) 10::2 > 10::1: PIMv2, length 34
+	Hello, cksum 0xdbbf (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+  243  17:31:30.708003 IP6 (hlim 64, next-header PIM (103) payload length: 34) 10::2 > 10::1: PIMv2, length 34
+	Hello, cksum 0xdbbf (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+  244  17:31:45.717892 IP6 (class 0xc0, hlim 1, next-header PIM (103) payload length: 78) 10::1 > ff02::d: PIMv2, length 78
+	Hello, cksum 0xd834 (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Bi-Directional Capability Option (22), length 0, Value: 
+	  Address List Option (24), length 36, Value: 
+	    1::7
+	    1::6
+	    0x0000:  0200 0001 0000 0000 0000 0000 0000 0000
+	    0x0010:  0007 0200 0001 0000 0000 0000 0000 0000
+	    0x0020:  0000 0006
+  245  17:31:45.723603 IP6 (class 0xc0, hlim 1, next-header PIM (103) payload length: 78) 10::1 > ff02::d: PIMv2, length 78
+	Hello, cksum 0xd834 (correct)
+	  Hold Time Option (1), length 2, Value: 50s
+	    0x0000:  0032
+	  LAN Prune Delay Option (2), length 4, Value: 
+	    T-bit=0, LAN delay 10ms, Override interval 100ms
+	    0x0000:  000a 0064
+	  DR Priority Option (19), length 4, Value: 150
+	    0x0000:  0000 0096
+	  Generation ID Option (20), length 4, Value: 0x00000226
+	    0x0000:  0000 0226
+	  Bi-Directional Capability Option (22), length 0, Value: 
+	  Address List Option (24), length 36, Value: 
+	    1::7
+	    1::6
+	    0x0000:  0200 0001 0000 0000 0000 0000 0000 0000
+	    0x0010:  0007 0200 0001 0000 0000 0000 0000 0000
+	    0x0020:  0000 0006

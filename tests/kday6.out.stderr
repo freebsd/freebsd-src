@@ -1,2 +1,0 @@
-reading from file kday6.pcap, link-type MFR (FRF.16 Frame Relay)
-tcpdump: pcap_loop: invalid packet capture length 976894522, bigger than snaplen of 65535

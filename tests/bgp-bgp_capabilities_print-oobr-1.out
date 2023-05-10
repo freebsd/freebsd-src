@@ -1,17 +1,12 @@
-IP (tos 0x1f,CE, ttl 254, id 38671, offset 0, flags [+, DF, rsvd], proto TCP (6), length 4135, bad cksum 200 (->1fdd)!)
-    226.219.0.0.179 > 16.233.34.0.100: Flags [SPUE], seq 347537408:347541483, win 511, urg 65535, options [eol], length 4075: BGP [|BGP]
+    1  01:04:13.49220352 IP (tos 0x1f,CE, ttl 254, id 38671, offset 0, flags [+, DF, rsvd], proto TCP (6), length 4135, bad cksum 200 (->1fdd)!)
+    226.219.0.0.179 > 16.233.34.0.100: Flags [SPUE], seq 347537408:347541483, win 511, urg 65535, options [eol], length 4075: BGP [|bgp]
 	Open Message (1), length: 59
 	  Version 255, my AS 65528, Holdtime 4324s, ID 144.8.32.4
 	  Optional parameters, length: 29
 	    Option Unknown (0), length: 0
 	      no decoder for option 0
 	    Option Capabilities Advertisement (2), length: 8
-	      Graceful Restart (64), length: 0
-		Restart Flags: [none], Restart Time 0s
-	      Unknown (0), length: 0
-		no decoder for Capability 0
-	      32-Bit AS Number (65), length: 4
-		 4 Byte AS 2
+	      Graceful Restart (64), length: 0 (too short, < 2)
 	    Option Unknown (0), length: 2
 	      no decoder for option 0
 	    Option Capabilities Advertisement (2), length: 2
@@ -21,7 +16,6 @@ IP (tos 0x1f,CE, ttl 254, id 38671, offset 0, flags [+, DF, rsvd], proto TCP (6)
 	    Option Capabilities Advertisement (2), length: 7
 	      Multiple Routes to a Destination (4), length: 0
 		no decoder for Capability 4
-	      Unknown (8), length: 0
-		no decoder for Capability 8
+	      Multiple Labels (8), length: 0
 	      Route Refresh (Cisco) (128), length: 0
-	      Graceful Restart (64), length: 0[|BGP]
+	      Graceful Restart (64), length: 0 (too short, < 2)

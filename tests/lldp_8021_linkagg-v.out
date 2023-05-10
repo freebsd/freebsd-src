@@ -1,0 +1,8 @@
+    1  05:27:44.860864 LLDP, length 11
+	Organization specific TLV (127), length 9: OUI Ethernet bridged (0x0080c2)
+	  Link aggregation Subtype (7)
+	    aggregation status [supported, enabled], aggregation port ID 100
+    2  05:27:46.902307 LLDP, length 11
+	Organization specific TLV (127), length 9: OUI Ethernet bridged (0x0080c2)
+	  Link aggregation Subtype (7)
+	    aggregation status [supported], aggregation port ID 0

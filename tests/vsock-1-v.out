@@ -1,0 +1,20 @@
+    1  12:31:11.261679 VIRTIO (len 0, type STREAM, op REQUEST, flags 0, buf_alloc 262144, fwd_cnt 0)
+	3.1024 > 2.1234 CONNECT, length 76
+    2  12:31:11.261740 VIRTIO (len 0, type STREAM, op RESPONSE, flags 0, buf_alloc 262144, fwd_cnt 0)
+	2.1234 > 3.1024 CONNECT, length 76
+    3  12:31:12.552718 VIRTIO (len 6, type STREAM, op RW, flags 0, buf_alloc 262144, fwd_cnt 0)
+	3.1024 > 2.1234 PAYLOAD, length 82
+    4  12:31:12.552854 VIRTIO (len 0, type STREAM, op CREDIT UPDATE, flags 0, buf_alloc 262144, fwd_cnt 6)
+	2.1234 > 3.1024 CONTROL, length 76
+    5  12:31:13.817848 VIRTIO (len 6, type STREAM, op RW, flags 0, buf_alloc 262144, fwd_cnt 0)
+	3.1024 > 2.1234 PAYLOAD, length 82
+    6  12:31:13.817897 VIRTIO (len 0, type STREAM, op CREDIT UPDATE, flags 0, buf_alloc 262144, fwd_cnt 12)
+	2.1234 > 3.1024 CONTROL, length 76
+    7  12:31:16.939624 VIRTIO (len 7, type STREAM, op RW, flags 0, buf_alloc 262144, fwd_cnt 12)
+	2.1234 > 3.1024 PAYLOAD, length 83
+    8  12:31:16.947538 VIRTIO (len 0, type STREAM, op CREDIT UPDATE, flags 0, buf_alloc 262144, fwd_cnt 7)
+	3.1024 > 2.1234 CONTROL, length 76
+    9  12:31:17.368933 VIRTIO (len 0, type STREAM, op SHUTDOWN, flags 3, buf_alloc 262144, fwd_cnt 12)
+	2.1234 > 3.1024 DISCONNECT, length 76
+   10  12:31:17.377004 VIRTIO (len 0, type STREAM, op RST, flags 0, buf_alloc 262144, fwd_cnt 7)
+	3.1024 > 2.1234 DISCONNECT, length 76

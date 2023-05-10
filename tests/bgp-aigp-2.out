@@ -1,0 +1,12 @@
+    1  16:35:36.779852 IP (tos 0x0, ttl 64, id 65464, offset 0, flags [DF], proto TCP (6), length 126)
+    1.0.1.1.33933 > 1.0.1.2.179: Flags [P.], cksum 0xdf3f (correct), seq 1822120333:1822120407, ack 3227512929, win 128, options [nop,nop,TS val 3213935882 ecr 3055548704], length 74: BGP
+	Update Message (2), length: 74
+	  Origin (1), length: 1, Flags [T]: EGP
+	  AS Path (2), length: 4, Flags [T]: 101 
+	  Next Hop (3), length: 4, Flags [T]: 0.0.0.0
+	  Multi-Protocol Reach NLRI (14), length: 16, Flags [O]: 
+	    AFI: IPv4 (1), SAFI: labeled Unicast (4)
+	    nexthop: 1.0.1.1, nh-length: 4, no SNPA
+	      123.1.1.0/24, label:20 (bottom)
+	  Accumulated IGP Metric (26), length: 11, Flags [O]: 
+	    AIGP TLV (1), length 11, metric 4294967295

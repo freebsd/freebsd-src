@@ -1,2 +1,0 @@
-reading from file cve2015-0261-ipv6.pcap, link-type SLIP (SLIP)
-tcpdump: pcap_loop: invalid packet capture length 268463617, bigger than snaplen of 65535

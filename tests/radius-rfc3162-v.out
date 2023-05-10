@@ -1,0 +1,12 @@
+    1  15:58:04.205048 IP (tos 0x0, ttl 64, id 60508, offset 0, flags [DF], proto UDP (17), length 169)
+    127.0.0.1.39646 > 127.0.0.1.1812: RADIUS, length: 141
+	Access-Request (1), id: 0xf0, Authenticator: 2afdb090418ac6365298fbbb15e0fd2e
+	  User-Name Attribute (1), length: 5, Value: bob
+	  User-Password Attribute (2), length: 18, Value: 
+	  NAS-IPv6-Address Attribute (95), length: 18, Value: 2001:db8:a0b:12f0::1
+	  Framed-IPv6-Prefix Attribute (97), length: 20, Value: 2001:db8:a0b:12f0::/64
+	  Framed-IPv6-Prefix Attribute (97), length: 12, Value: 2001:db8:a0b:12f0::/64
+	  Framed-IPv6-Prefix Attribute (97), length: 4, Value: ::/0
+	  Framed-IPv6-Prefix Attribute (97), length: 3, Value: ERROR: length 1 not in range (2..18)
+	  Framed-IPv6-Prefix Attribute (97), length: 21, Value: ERROR: length 19 not in range (2..18)
+	  Framed-IPv6-Prefix Attribute (97), length: 20, Value: ERROR: netmask 129 not in range (0..128)

@@ -1,2 +1,0 @@
-reading from file pktap-heap-overflow.pcap, link-type 149
-tcpdump: pcap_loop: invalid packet capture length 4076008178, bigger than snaplen of 1024

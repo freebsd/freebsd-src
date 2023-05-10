@@ -1,0 +1,277 @@
+    1  15:52:49.322823 IP 127.0.0.1.6633 > 127.0.0.1.35359: Flags [P.], seq 3305197767:3305197951, ack 3938018648, win 100, options [nop,nop,TS val 534888 ecr 533649], length 184: OpenFlow
+	version 1.3, type FLOW_MOD, length 184, xid 0x00000199
+    2  15:52:49.362355 IP 127.0.0.1.35359 > 127.0.0.1.6633: Flags [.], ack 184, win 98, options [nop,nop,TS val 534898 ecr 534888], length 0
+    3  15:52:49.367093 IP 127.0.0.1.6633 > 127.0.0.1.35359: Flags [P.], seq 184:192, ack 1, win 100, options [nop,nop,TS val 534899 ecr 534898], length 8: OpenFlow
+	version 1.3, type ECHO_REQUEST, length 8, xid 0x0000019a
+    4  15:52:49.367137 IP 127.0.0.1.35359 > 127.0.0.1.6633: Flags [.], ack 192, win 98, options [nop,nop,TS val 534899 ecr 534899], length 0
+    5  15:52:49.367403 IP 127.0.0.1.35359 > 127.0.0.1.6633: Flags [P.], seq 1:9, ack 192, win 98, options [nop,nop,TS val 534899 ecr 534899], length 8: OpenFlow
+	version 1.3, type ECHO_REPLY, length 8, xid 0x0000019a
+    6  15:52:49.367421 IP 127.0.0.1.6633 > 127.0.0.1.35359: Flags [.], ack 9, win 100, options [nop,nop,TS val 534899 ecr 534899], length 0
+    7  12:15:37.979676 IP 127.0.0.1.6633 > 127.0.0.1.43230: Flags [P.], seq 402287444:402287812, ack 1282739451, win 98, options [nop,nop,TS val 2953476 ecr 2952724], length 368: OpenFlow
+	version 1.3, type FLOW_MOD, length 368, xid 0x00000012
+    8  12:15:37.985455 IP 127.0.0.1.43230 > 127.0.0.1.6633: Flags [P.], seq 1:381, ack 368, win 90, options [nop,nop,TS val 2953478 ecr 2953476], length 380: OpenFlow
+	version 1.3, type ERROR, length 380, xid 0x00000012
+    9  12:15:37.985482 IP 127.0.0.1.6633 > 127.0.0.1.43230: Flags [.], ack 381, win 103, options [nop,nop,TS val 2953478 ecr 2953478], length 0
+   10  14:53:56.336558 IP 127.0.0.1.6633 > 127.0.0.1.56562: Flags [P.], seq 4055369935:4055370055, ack 963939871, win 94, options [nop,nop,TS val 3963146 ecr 3962600], length 120: OpenFlow
+	version 1.3, type GROUP_MOD, length 120, xid 0x0000008a
+   11  14:53:56.339805 IP 127.0.0.1.56562 > 127.0.0.1.6633: Flags [P.], seq 1:133, ack 120, win 86, options [nop,nop,TS val 3963147 ecr 3963146], length 132: OpenFlow
+	version 1.3, type ERROR, length 132, xid 0x0000008a
+   12  14:53:56.339839 IP 127.0.0.1.6633 > 127.0.0.1.56562: Flags [.], ack 133, win 98, options [nop,nop,TS val 3963147 ecr 3963147], length 0
+   13  07:06:07.923021 IP 127.0.0.1.56439 > 127.0.0.1.6633: Flags [S], seq 2797182347, win 43690, options [mss 65495,sackOK,TS val 1659569 ecr 0,nop,wscale 9], length 0
+   14  07:06:07.923406 IP 127.0.0.1.6633 > 127.0.0.1.56439: Flags [R.], seq 0, ack 2797182348, win 0, length 0
+   15  07:06:11.948050 IP 127.0.0.1.56440 > 127.0.0.1.6633: Flags [S], seq 2428319552, win 43690, options [mss 65495,sackOK,TS val 1660576 ecr 0,nop,wscale 9], length 0
+   16  07:06:11.948123 IP 127.0.0.1.6633 > 127.0.0.1.56440: Flags [S.], seq 2308881340, ack 2428319553, win 43690, options [mss 65495,sackOK,TS val 1660576 ecr 1660576,nop,wscale 9], length 0
+   17  07:06:11.948171 IP 127.0.0.1.56440 > 127.0.0.1.6633: Flags [.], ack 1, win 86, options [nop,nop,TS val 1660576 ecr 1660576], length 0
+   18  07:06:11.948588 IP 127.0.0.1.56440 > 127.0.0.1.6633: Flags [P.], seq 1:9, ack 1, win 86, options [nop,nop,TS val 1660576 ecr 1660576], length 8: OpenFlow
+	version 1.3, type HELLO, length 8, xid 0x83ea7e23
+   19  07:06:11.948646 IP 127.0.0.1.6633 > 127.0.0.1.56440: Flags [.], ack 9, win 86, options [nop,nop,TS val 1660576 ecr 1660576], length 0
+   20  07:06:11.951581 IP 127.0.0.1.6633 > 127.0.0.1.56440: Flags [P.], seq 1:9, ack 9, win 86, options [nop,nop,TS val 1660577 ecr 1660576], length 8: OpenFlow
+	version 1.0, type HELLO, length 8, xid 0x95b6dc37
+   21  07:06:11.951654 IP 127.0.0.1.56440 > 127.0.0.1.6633: Flags [.], ack 9, win 86, options [nop,nop,TS val 1660577 ecr 1660577], length 0
+   22  07:06:11.954851 IP 127.0.0.1.56440 > 127.0.0.1.6633: Flags [P.], seq 9:107, ack 9, win 86, options [nop,nop,TS val 1660577 ecr 1660577], length 98: OpenFlow
+	version 1.3, type ERROR, length 98, xid 0xc4420f26
+   23  07:06:11.956875 IP 127.0.0.1.56440 > 127.0.0.1.6633: Flags [F.], seq 107, ack 9, win 86, options [nop,nop,TS val 1660578 ecr 1660577], length 0
+   24  07:06:11.995263 IP 127.0.0.1.6633 > 127.0.0.1.56440: Flags [.], ack 108, win 86, options [nop,nop,TS val 1660588 ecr 1660577], length 0
+   25  07:06:11.996996 IP 127.0.0.1.6633 > 127.0.0.1.56440: Flags [P.], seq 9:17, ack 108, win 86, options [nop,nop,TS val 1660588 ecr 1660577], length 8: OpenFlow
+	version 1.0, type FEATURES_REQUEST, length 8, xid 0x852f7e3a
+   26  07:06:11.997117 IP 127.0.0.1.56440 > 127.0.0.1.6633: Flags [R], seq 2428319660, win 0, length 0
+   27  20:23:02.447284 IP 127.0.0.1.6633 > 127.0.0.1.37123: Flags [P.], seq 3295811422:3295811430, ack 623716506, win 94, options [nop,nop,TS val 683124 ecr 682086], length 8: OpenFlow
+	version 1.3, type HELLO, length 8, xid 0x0000015f
+   28  20:23:02.487886 IP 127.0.0.1.37123 > 127.0.0.1.6633: Flags [.], ack 8, win 86, options [nop,nop,TS val 683135 ecr 683124], length 0
+   29  20:23:03.289931 IP 127.0.0.1.6633 > 127.0.0.1.37123: Flags [P.], seq 8:16, ack 1, win 94, options [nop,nop,TS val 683335 ecr 683135], length 8: OpenFlow
+	version 1.3, type ECHO_REQUEST, length 8, xid 0x00000160
+   30  20:23:03.290134 IP 127.0.0.1.37123 > 127.0.0.1.6633: Flags [.], ack 16, win 86, options [nop,nop,TS val 683335 ecr 683335], length 0
+   31  20:23:03.292620 IP 127.0.0.1.37123 > 127.0.0.1.6633: Flags [P.], seq 1:9, ack 16, win 86, options [nop,nop,TS val 683336 ecr 683335], length 8: OpenFlow
+	version 1.3, type ECHO_REPLY, length 8, xid 0x00000160
+   32  20:23:03.292690 IP 127.0.0.1.6633 > 127.0.0.1.37123: Flags [.], ack 9, win 94, options [nop,nop,TS val 683336 ecr 683336], length 0
+   33  20:23:03.674363 IP 127.0.0.1.6633 > 127.0.0.1.37123: Flags [P.], seq 16:32, ack 9, win 94, options [nop,nop,TS val 683431 ecr 683336], length 16: OpenFlow
+	version 1.3, type HELLO, length 16, xid 0x00000161
+   34  20:23:03.711246 IP 127.0.0.1.37123 > 127.0.0.1.6633: Flags [.], ack 32, win 86, options [nop,nop,TS val 683441 ecr 683431], length 0
+   35  09:18:28.508689 IP 127.0.0.1.6633 > 127.0.0.1.52621: Flags [P.], seq 2774334230:2774334238, ack 3518786755, win 94, options [nop,nop,TS val 2174690 ecr 2173441], length 8: OpenFlow
+	version 1.3, type ECHO_REQUEST, length 8, xid 0x0000004d
+   36  09:18:28.512206 IP 127.0.0.1.52621 > 127.0.0.1.6633: Flags [P.], seq 1:9, ack 8, win 86, options [nop,nop,TS val 2174691 ecr 2174690], length 8: OpenFlow
+	version 1.3, type ECHO_REPLY, length 8, xid 0x0000004d
+   37  09:18:28.512310 IP 127.0.0.1.6633 > 127.0.0.1.52621: Flags [.], ack 9, win 94, options [nop,nop,TS val 2174691 ecr 2174691], length 0
+   38  09:18:29.938866 IP 127.0.0.1.6633 > 127.0.0.1.52621: Flags [P.], seq 8:29, ack 9, win 94, options [nop,nop,TS val 2175048 ecr 2174691], length 21: OpenFlow
+	version 1.3, type ECHO_REQUEST, length 21, xid 0x0000004e
+   39  09:18:29.940525 IP 127.0.0.1.52621 > 127.0.0.1.6633: Flags [P.], seq 9:30, ack 29, win 86, options [nop,nop,TS val 2175048 ecr 2175048], length 21: OpenFlow
+	version 1.3, type ECHO_REPLY, length 21, xid 0x0000004e
+   40  09:18:29.940621 IP 127.0.0.1.6633 > 127.0.0.1.52621: Flags [.], ack 30, win 94, options [nop,nop,TS val 2175048 ecr 2175048], length 0
+   41  15:41:10.777155 IP 127.0.0.1.6633 > 127.0.0.1.58445: Flags [P.], seq 2142345193:2142345209, ack 115176160, win 94, options [nop,nop,TS val 175830 ecr 174634], length 16: OpenFlow
+	version 1.3, type EXPERIMENTER, length 16, xid 0x00000041
+   42  15:41:10.782182 IP 127.0.0.1.58445 > 127.0.0.1.6633: Flags [P.], seq 1:29, ack 16, win 86, options [nop,nop,TS val 175831 ecr 175830], length 28: OpenFlow
+	version 1.3, type ERROR, length 28, xid 0x00000041
+   43  15:41:10.782279 IP 127.0.0.1.6633 > 127.0.0.1.58445: Flags [.], ack 29, win 94, options [nop,nop,TS val 175831 ecr 175831], length 0
+   44  15:41:10.978145 IP 127.0.0.1.6633 > 127.0.0.1.58445: Flags [P.], seq 16:24, ack 29, win 94, options [nop,nop,TS val 175880 ecr 175831], length 8: OpenFlow
+	version 1.3, type ECHO_REQUEST, length 8, xid 0x00000042
+   45  15:41:10.981725 IP 127.0.0.1.58445 > 127.0.0.1.6633: Flags [P.], seq 29:37, ack 24, win 86, options [nop,nop,TS val 175881 ecr 175880], length 8: OpenFlow
+	version 1.3, type ECHO_REPLY, length 8, xid 0x00000042
+   46  15:41:10.981828 IP 127.0.0.1.6633 > 127.0.0.1.58445: Flags [.], ack 37, win 94, options [nop,nop,TS val 175881 ecr 175881], length 0
+   47  15:41:11.640555 IP 127.0.0.1.6633 > 127.0.0.1.58445: Flags [P.], seq 24:57, ack 37, win 94, options [nop,nop,TS val 176046 ecr 175881], length 33: OpenFlow
+	version 1.3, type EXPERIMENTER, length 33, xid 0x00000043
+   48  15:41:11.649632 IP 127.0.0.1.58445 > 127.0.0.1.6633: Flags [P.], seq 37:82, ack 57, win 86, options [nop,nop,TS val 176048 ecr 176046], length 45: OpenFlow
+	version 1.3, type ERROR, length 45, xid 0x00000043
+   49  15:41:11.649721 IP 127.0.0.1.6633 > 127.0.0.1.58445: Flags [.], ack 82, win 94, options [nop,nop,TS val 176048 ecr 176048], length 0
+   50  15:47:18.960105 IP 127.0.0.1.6633 > 127.0.0.1.58445: Flags [P.], seq 649:657, ack 698, win 94, options [nop,nop,TS val 267876 ecr 267134], length 8: OpenFlow
+	version 1.3, type FEATURES_REQUEST, length 8, xid 0x0000008e
+   51  15:47:18.962238 IP 127.0.0.1.58445 > 127.0.0.1.6633: Flags [P.], seq 698:730, ack 657, win 86, options [nop,nop,TS val 267876 ecr 267876], length 32: OpenFlow
+	version 1.3, type FEATURES_REPLY, length 32, xid 0x0000008e
+   52  15:47:18.962333 IP 127.0.0.1.6633 > 127.0.0.1.58445: Flags [.], ack 730, win 94, options [nop,nop,TS val 267876 ecr 267876], length 0
+   53  16:32:34.623939 IP 127.0.0.1.6633 > 127.0.0.1.58447: Flags [P.], seq 2583631865:2583631873, ack 3924671623, win 94, options [nop,nop,TS val 946792 ecr 945543], length 8: OpenFlow
+	version 1.3, type ECHO_REQUEST, length 8, xid 0x0000002e
+   54  16:32:34.625658 IP 127.0.0.1.58447 > 127.0.0.1.6633: Flags [P.], seq 1:9, ack 8, win 86, options [nop,nop,TS val 946792 ecr 946792], length 8: OpenFlow
+	version 1.3, type ECHO_REPLY, length 8, xid 0x0000002e
+   55  16:32:34.625750 IP 127.0.0.1.6633 > 127.0.0.1.58447: Flags [.], ack 9, win 94, options [nop,nop,TS val 946792 ecr 946792], length 0
+   56  16:32:34.844806 IP 127.0.0.1.6633 > 127.0.0.1.58447: Flags [P.], seq 8:20, ack 9, win 94, options [nop,nop,TS val 946847 ecr 946792], length 12: OpenFlow
+	version 1.3, type SET_CONFIG, length 12, xid 0x0000002f
+   57  16:32:34.883698 IP 127.0.0.1.58447 > 127.0.0.1.6633: Flags [.], ack 20, win 86, options [nop,nop,TS val 946857 ecr 946847], length 0
+   58  16:32:36.376083 IP 127.0.0.1.6633 > 127.0.0.1.58447: Flags [P.], seq 20:28, ack 9, win 94, options [nop,nop,TS val 947230 ecr 946857], length 8: OpenFlow
+	version 1.3, type GET_CONFIG_REQUEST, length 8, xid 0x00000030
+   59  16:32:36.376174 IP 127.0.0.1.58447 > 127.0.0.1.6633: Flags [.], ack 28, win 86, options [nop,nop,TS val 947230 ecr 947230], length 0
+   60  16:32:36.378403 IP 127.0.0.1.58447 > 127.0.0.1.6633: Flags [P.], seq 9:21, ack 28, win 86, options [nop,nop,TS val 947230 ecr 947230], length 12: OpenFlow
+	version 1.3, type GET_CONFIG_REPLY, length 12, xid 0x00000030
+   61  16:32:36.378465 IP 127.0.0.1.6633 > 127.0.0.1.58447: Flags [.], ack 21, win 94, options [nop,nop,TS val 947230 ecr 947230], length 0
+   62  17:39:10.589931 IP 127.0.0.1.6633 > 127.0.0.1.58449: Flags [P.], seq 359193673:359193681, ack 3843617605, win 111, options [nop,nop,TS val 1945783 ecr 1944534], length 8: OpenFlow
+	version 1.3, type ECHO_REQUEST, length 8, xid 0x000000a6
+   63  17:39:10.592125 IP 127.0.0.1.58449 > 127.0.0.1.6633: Flags [P.], seq 1:9, ack 8, win 86, options [nop,nop,TS val 1945784 ecr 1945783], length 8: OpenFlow
+	version 1.3, type ECHO_REPLY, length 8, xid 0x000000a6
+   64  17:39:10.592223 IP 127.0.0.1.6633 > 127.0.0.1.58449: Flags [.], ack 9, win 111, options [nop,nop,TS val 1945784 ecr 1945784], length 0
+   65  17:39:11.275605 IP 127.0.0.1.6633 > 127.0.0.1.58449: Flags [P.], seq 8:108, ack 9, win 111, options [nop,nop,TS val 1945955 ecr 1945784], length 100: OpenFlow
+	version 1.3, type PACKET_OUT, length 100, xid 0x000000a7
+   66  17:39:11.278453 IP 127.0.0.1.58449 > 127.0.0.1.6633: Flags [P.], seq 9:163, ack 108, win 86, options [nop,nop,TS val 1945955 ecr 1945955], length 154: OpenFlow
+	version 1.3, type PACKET_IN, length 154, xid 0x00000000
+   67  17:39:11.278747 IP 127.0.0.1.6633 > 127.0.0.1.58449: Flags [.], ack 163, win 115, options [nop,nop,TS val 1945956 ecr 1945955], length 0
+   68  17:39:11.293620 IP 127.0.0.1.6633 > 127.0.0.1.58449: Flags [P.], seq 108:208, ack 163, win 115, options [nop,nop,TS val 1945959 ecr 1945955], length 100: OpenFlow
+	version 1.3, type PACKET_OUT, length 100, xid 0x000000a8
+   69  17:39:11.296836 IP 127.0.0.1.58449 > 127.0.0.1.6633: Flags [P.], seq 163:345, ack 208, win 86, options [nop,nop,TS val 1945960 ecr 1945959], length 182: OpenFlow
+	version 1.3, type PACKET_IN, length 182, xid 0x00000000
+   70  17:39:11.334896 IP 127.0.0.1.6633 > 127.0.0.1.58449: Flags [.], ack 345, win 119, options [nop,nop,TS val 1945970 ecr 1945960], length 0
+   71  10:22:45.030583 IP 127.0.0.1.6633 > 127.0.0.1.53146: Flags [P.], seq 1089079797:1089079893, ack 1672614427, win 94, options [nop,nop,TS val 4009818 ecr 4009376], length 96: OpenFlow
+	version 1.3, type FLOW_MOD, length 96, xid 0x00000076
+   72  10:22:45.067011 IP 127.0.0.1.53146 > 127.0.0.1.6633: Flags [.], ack 96, win 86, options [nop,nop,TS val 4009828 ecr 4009818], length 0
+   73  10:22:46.038093 IP 127.0.0.1.53146 > 127.0.0.1.6633: Flags [P.], seq 1:65, ack 96, win 86, options [nop,nop,TS val 4010070 ecr 4009818], length 64: OpenFlow
+	version 1.3, type FLOW_REMOVED, length 64, xid 0x00000000
+   74  10:22:46.038127 IP 127.0.0.1.6633 > 127.0.0.1.53146: Flags [.], ack 65, win 94, options [nop,nop,TS val 4010070 ecr 4010070], length 0
+   75  13:15:24.725748 IP 127.0.0.1.38906 > 127.0.0.1.6633: Flags [P.], seq 2781543975:2781544055, ack 1865664008, win 86, options [nop,nop,TS val 1794904 ecr 1794249], length 80: OpenFlow
+	version 1.3, type PORT_STATUS, length 80, xid 0x00000000
+   76  13:15:24.725788 IP 127.0.0.1.6633 > 127.0.0.1.38906: Flags [.], ack 80, win 94, options [nop,nop,TS val 1794904 ecr 1794904], length 0
+   77  16:37:49.792852 IP 127.0.0.1.6633 > 127.0.0.1.34845: Flags [P.], seq 2833437351:2833437367, ack 1981193718, win 98, options [nop,nop,TS val 130273 ecr 129636], length 16: OpenFlow
+	version 1.3, type MULTIPART_REQUEST, length 16, xid 0x0000004f
+   78  16:37:49.796567 IP 127.0.0.1.34845 > 127.0.0.1.6633: Flags [P.], seq 1:1073, ack 16, win 86, options [nop,nop,TS val 130274 ecr 130273], length 1072: OpenFlow
+	version 1.3, type MULTIPART_REPLY, length 1072, xid 0x0000004f
+   79  16:37:49.796657 IP 127.0.0.1.6633 > 127.0.0.1.34845: Flags [.], ack 1073, win 103, options [nop,nop,TS val 130274 ecr 130274], length 0
+   80  17:10:39.694164 IP 127.0.0.1.6633 > 127.0.0.1.34887: Flags [P.], seq 1963343585:1963343649, ack 2145731315, win 105, options [nop,nop,TS val 622748 ecr 622308], length 64: OpenFlow
+	version 1.3, type MULTIPART_REQUEST, length 64, xid 0x00000076
+   81  17:10:39.695936 IP 127.0.0.1.34887 > 127.0.0.1.6633: Flags [P.], seq 1:185, ack 64, win 86, options [nop,nop,TS val 622748 ecr 622748], length 184: OpenFlow
+	version 1.3, type MULTIPART_REPLY, length 184, xid 0x00000076
+   82  17:10:39.696001 IP 127.0.0.1.6633 > 127.0.0.1.34887: Flags [.], ack 185, win 109, options [nop,nop,TS val 622749 ecr 622748], length 0
+   83  17:10:39.706507 IP 127.0.0.1.6633 > 127.0.0.1.34887: Flags [P.], seq 64:128, ack 185, win 109, options [nop,nop,TS val 622751 ecr 622748], length 64: OpenFlow
+	version 1.3, type MULTIPART_REQUEST, length 64, xid 0x00000077
+   84  17:10:39.708491 IP 127.0.0.1.34887 > 127.0.0.1.6633: Flags [P.], seq 185:225, ack 128, win 86, options [nop,nop,TS val 622752 ecr 622751], length 40: OpenFlow
+	version 1.3, type MULTIPART_REPLY, length 40, xid 0x00000077
+   85  17:10:39.747947 IP 127.0.0.1.6633 > 127.0.0.1.34887: Flags [.], ack 225, win 109, options [nop,nop,TS val 622762 ecr 622752], length 0
+   86  17:20:21.268792 IP 127.0.0.1.6633 > 127.0.0.1.34887: Flags [P.], seq 1072:1088, ack 2705, win 256, options [nop,nop,TS val 768142 ecr 767309], length 16: OpenFlow
+	version 1.3, type MULTIPART_REQUEST, length 16, xid 0x000000ed
+   87  17:20:21.270799 IP 127.0.0.1.34887 > 127.0.0.1.6633: Flags [P.], seq 2705:4257, ack 1088, win 86, options [nop,nop,TS val 768142 ecr 768142], length 1552: OpenFlow
+	version 1.3, type MULTIPART_REPLY, length 1552, xid 0x000000ed
+   88  17:20:21.270887 IP 127.0.0.1.6633 > 127.0.0.1.34887: Flags [.], ack 4257, win 254, options [nop,nop,TS val 768142 ecr 768142], length 0
+   89  17:21:32.610984 IP 127.0.0.1.6633 > 127.0.0.1.34887: Flags [P.], seq 1248:1272, ack 4981, win 256, options [nop,nop,TS val 785977 ecr 784870], length 24: OpenFlow
+	version 1.3, type MULTIPART_REQUEST, length 24, xid 0x000000ff
+   90  17:21:32.614400 IP 127.0.0.1.34887 > 127.0.0.1.6633: Flags [P.], seq 4981:5557, ack 1272, win 86, options [nop,nop,TS val 785978 ecr 785977], length 576: OpenFlow
+	version 1.3, type MULTIPART_REPLY, length 576, xid 0x000000ff
+   91  17:21:32.614511 IP 127.0.0.1.6633 > 127.0.0.1.34887: Flags [.], ack 5557, win 255, options [nop,nop,TS val 785978 ecr 785978], length 0
+   92  17:21:32.932077 IP 127.0.0.1.6633 > 127.0.0.1.34887: Flags [P.], seq 1272:1280, ack 5557, win 256, options [nop,nop,TS val 786058 ecr 785978], length 8: OpenFlow
+	version 1.3, type ECHO_REQUEST, length 8, xid 0x00000100
+   93  17:21:32.939513 IP 127.0.0.1.34887 > 127.0.0.1.6633: Flags [P.], seq 5557:5565, ack 1280, win 86, options [nop,nop,TS val 786059 ecr 786058], length 8: OpenFlow
+	version 1.3, type ECHO_REPLY, length 8, xid 0x00000100
+   94  17:21:32.939617 IP 127.0.0.1.6633 > 127.0.0.1.34887: Flags [.], ack 5565, win 256, options [nop,nop,TS val 786059 ecr 786059], length 0
+   95  17:27:12.201785 IP 127.0.0.1.6633 > 127.0.0.1.34887: Flags [P.], seq 1840:1864, ack 6277, win 256, options [nop,nop,TS val 870875 ecr 869809], length 24: OpenFlow
+	version 1.3, type MULTIPART_REQUEST, length 24, xid 0x00000147
+   96  17:27:12.204185 IP 127.0.0.1.34887 > 127.0.0.1.6633: Flags [P.], seq 6277:6453, ack 1864, win 86, options [nop,nop,TS val 870876 ecr 870875], length 176: OpenFlow
+	version 1.3, type MULTIPART_REPLY, length 176, xid 0x00000147
+   97  17:27:12.204269 IP 127.0.0.1.6633 > 127.0.0.1.34887: Flags [.], ack 6453, win 256, options [nop,nop,TS val 870876 ecr 870876], length 0
+   98  17:27:12.931668 IP 127.0.0.1.6633 > 127.0.0.1.34887: Flags [P.], seq 1864:1872, ack 6453, win 256, options [nop,nop,TS val 871057 ecr 870876], length 8: OpenFlow
+	version 1.3, type ECHO_REQUEST, length 8, xid 0x00000148
+   99  17:27:12.938585 IP 127.0.0.1.34887 > 127.0.0.1.6633: Flags [P.], seq 6453:6461, ack 1872, win 86, options [nop,nop,TS val 871059 ecr 871057], length 8: OpenFlow
+	version 1.3, type ECHO_REPLY, length 8, xid 0x00000148
+  100  17:27:12.938697 IP 127.0.0.1.6633 > 127.0.0.1.34887: Flags [.], ack 6461, win 256, options [nop,nop,TS val 871059 ecr 871059], length 0
+  101  17:57:16.110186 IP 127.0.0.1.6633 > 127.0.0.1.34888: Flags [P.], seq 555521909:555521933, ack 1543280532, win 105, options [nop,nop,TS val 1321852 ecr 1321585], length 24: OpenFlow
+	version 1.3, type MULTIPART_REQUEST, length 24, xid 0x0000001f
+  102  17:57:16.113738 IP 127.0.0.1.34888 > 127.0.0.1.6633: Flags [P.], seq 1:201, ack 24, win 86, options [nop,nop,TS val 1321853 ecr 1321852], length 200: OpenFlow
+	version 1.3, type MULTIPART_REPLY, length 200, xid 0x0000001f
+  103  17:57:16.113974 IP 127.0.0.1.6633 > 127.0.0.1.34888: Flags [.], ack 201, win 109, options [nop,nop,TS val 1321853 ecr 1321853], length 0
+  104  17:57:17.127188 IP 127.0.0.1.6633 > 127.0.0.1.34888: Flags [P.], seq 24:40, ack 201, win 109, options [nop,nop,TS val 1322106 ecr 1321853], length 16: OpenFlow
+	version 1.3, type MULTIPART_REQUEST, length 16, xid 0x00000020
+  105  17:57:17.129487 IP 127.0.0.1.34888 > 127.0.0.1.6633: Flags [P.], seq 201:353, ack 40, win 86, options [nop,nop,TS val 1322107 ecr 1322106], length 152: OpenFlow
+	version 1.3, type MULTIPART_REPLY, length 152, xid 0x00000020
+  106  17:57:17.130202 IP 127.0.0.1.6633 > 127.0.0.1.34888: Flags [.], ack 353, win 113, options [nop,nop,TS val 1322107 ecr 1322107], length 0
+  107  17:57:17.869382 IP 127.0.0.1.6633 > 127.0.0.1.34888: Flags [P.], seq 40:56, ack 353, win 113, options [nop,nop,TS val 1322292 ecr 1322107], length 16: OpenFlow
+	version 1.3, type MULTIPART_REQUEST, length 16, xid 0x00000021
+  108  17:57:17.871408 IP 127.0.0.1.34888 > 127.0.0.1.6633: Flags [P.], seq 353:409, ack 56, win 86, options [nop,nop,TS val 1322292 ecr 1322292], length 56: OpenFlow
+	version 1.3, type MULTIPART_REPLY, length 56, xid 0x00000021
+  109  17:57:17.871493 IP 127.0.0.1.6633 > 127.0.0.1.34888: Flags [.], ack 409, win 113, options [nop,nop,TS val 1322292 ecr 1322292], length 0
+  110  10:02:19.814878 IP 127.0.0.1.6633 > 127.0.0.1.36546: Flags [P.], seq 260443467:260443491, ack 382342041, win 100, options [nop,nop,TS val 344035 ecr 343141], length 24: OpenFlow
+	version 1.3, type MULTIPART_REQUEST, length 24, xid 0x00000028
+  111  10:02:19.815701 IP 127.0.0.1.36546 > 127.0.0.1.6633: Flags [P.], seq 1:145, ack 24, win 88, options [nop,nop,TS val 344035 ecr 344035], length 144: OpenFlow
+	version 1.3, type MULTIPART_REPLY, length 144, xid 0x00000028
+  112  10:02:19.815724 IP 127.0.0.1.6633 > 127.0.0.1.36546: Flags [.], ack 145, win 105, options [nop,nop,TS val 344035 ecr 344035], length 0
+  113  10:02:20.713618 IP 127.0.0.1.6633 > 127.0.0.1.36546: Flags [P.], seq 24:48, ack 145, win 105, options [nop,nop,TS val 344260 ecr 344035], length 24: OpenFlow
+	version 1.3, type MULTIPART_REQUEST, length 24, xid 0x00000029
+  114  10:02:20.714133 IP 127.0.0.1.36546 > 127.0.0.1.6633: Flags [P.], seq 145:225, ack 48, win 88, options [nop,nop,TS val 344260 ecr 344260], length 80: OpenFlow
+	version 1.3, type MULTIPART_REPLY, length 80, xid 0x00000029
+  115  10:02:20.714160 IP 127.0.0.1.6633 > 127.0.0.1.36546: Flags [.], ack 225, win 105, options [nop,nop,TS val 344260 ecr 344260], length 0
+  116  10:02:21.229978 IP 127.0.0.1.6633 > 127.0.0.1.36546: Flags [P.], seq 48:56, ack 225, win 105, options [nop,nop,TS val 344389 ecr 344260], length 8: OpenFlow
+	version 1.3, type ECHO_REQUEST, length 8, xid 0x0000002a
+  117  10:02:21.231013 IP 127.0.0.1.36546 > 127.0.0.1.6633: Flags [P.], seq 225:233, ack 56, win 88, options [nop,nop,TS val 344389 ecr 344389], length 8: OpenFlow
+	version 1.3, type ECHO_REPLY, length 8, xid 0x0000002a
+  118  10:02:21.231044 IP 127.0.0.1.6633 > 127.0.0.1.36546: Flags [.], ack 233, win 105, options [nop,nop,TS val 344389 ecr 344389], length 0
+  119  10:02:21.852874 IP 127.0.0.1.6633 > 127.0.0.1.36546: Flags [P.], seq 56:72, ack 233, win 105, options [nop,nop,TS val 344545 ecr 344389], length 16: OpenFlow
+	version 1.3, type MULTIPART_REQUEST, length 16, xid 0x0000002b
+  120  10:02:21.853489 IP 127.0.0.1.36546 > 127.0.0.1.6633: Flags [P.], seq 233:265, ack 72, win 88, options [nop,nop,TS val 344545 ecr 344545], length 32: OpenFlow
+	version 1.3, type MULTIPART_REPLY, length 32, xid 0x0000002b
+  121  10:02:21.853515 IP 127.0.0.1.6633 > 127.0.0.1.36546: Flags [.], ack 265, win 105, options [nop,nop,TS val 344545 ecr 344545], length 0
+  122  10:30:09.945368 IP 127.0.0.1.6633 > 127.0.0.1.36547: Flags [P.], seq 3359330522:3359330530, ack 3471458557, win 256, options [nop,nop,TS val 761568 ecr 760318], length 8: OpenFlow
+	version 1.3, type ECHO_REQUEST, length 8, xid 0x0000000d
+  123  10:30:09.946140 IP 127.0.0.1.36547 > 127.0.0.1.6633: Flags [P.], seq 1:9, ack 8, win 86, options [nop,nop,TS val 761568 ecr 761568], length 8: OpenFlow
+	version 1.3, type ECHO_REPLY, length 8, xid 0x0000000d
+  124  10:30:09.946173 IP 127.0.0.1.6633 > 127.0.0.1.36547: Flags [.], ack 9, win 256, options [nop,nop,TS val 761568 ecr 761568], length 0
+  125  10:30:10.672306 IP 127.0.0.1.6633 > 127.0.0.1.36547: Flags [P.], seq 8:24, ack 9, win 256, options [nop,nop,TS val 761749 ecr 761568], length 16: OpenFlow
+	version 1.3, type MULTIPART_REQUEST, length 16, xid 0x0000000e
+  126  10:30:10.673261 IP 127.0.0.1.36547 > 127.0.0.1.6633: Flags [P.], seq 9:11801, ack 24, win 86, options [nop,nop,TS val 761750 ecr 761749], length 11792: OpenFlow
+	version 1.3, type MULTIPART_REPLY, length 11792, xid 0x0000000e
+  127  10:30:10.673292 IP 127.0.0.1.6633 > 127.0.0.1.36547: Flags [.], ack 11801, win 244, options [nop,nop,TS val 761750 ecr 761750], length 0
+  128  10:30:10.675065 IP 127.0.0.1.36547 > 127.0.0.1.6633: Flags [P.], seq 11801:23593, ack 24, win 86, options [nop,nop,TS val 761750 ecr 761750], length 11792: OpenFlow
+	version 1.3, type MULTIPART_REPLY, length 11792, xid 0x0000000e
+  129  10:30:10.675124 IP 127.0.0.1.6633 > 127.0.0.1.36547: Flags [.], ack 23593, win 244, options [nop,nop,TS val 761750 ecr 761750], length 0
+  130  10:30:10.675159 IP 127.0.0.1.36547 > 127.0.0.1.6633: Flags [P.], seq 23593:35385, ack 24, win 86, options [nop,nop,TS val 761750 ecr 761750], length 11792: OpenFlow
+	version 1.3, type MULTIPART_REPLY, length 11792, xid 0x0000000e
+  131  10:30:10.675174 IP 127.0.0.1.6633 > 127.0.0.1.36547: Flags [.], ack 35385, win 232, options [nop,nop,TS val 761750 ecr 761750], length 0
+  132  10:30:10.675194 IP 127.0.0.1.36547 > 127.0.0.1.6633: Flags [P.], seq 35385:47177, ack 24, win 86, options [nop,nop,TS val 761750 ecr 761750], length 11792: OpenFlow
+	version 1.3, type MULTIPART_REPLY, length 11792, xid 0x0000000e
+  133  10:30:10.675206 IP 127.0.0.1.6633 > 127.0.0.1.36547: Flags [.], ack 47177, win 219, options [nop,nop,TS val 761750 ecr 761750], length 0
+  134  10:30:10.675226 IP 127.0.0.1.36547 > 127.0.0.1.6633: Flags [P.], seq 47177:58969, ack 24, win 86, options [nop,nop,TS val 761750 ecr 761750], length 11792: OpenFlow
+	version 1.3, type MULTIPART_REPLY, length 11792, xid 0x0000000e
+  135  10:30:10.675238 IP 127.0.0.1.6633 > 127.0.0.1.36547: Flags [.], ack 58969, win 207, options [nop,nop,TS val 761750 ecr 761750], length 0
+  136  10:30:10.675257 IP 127.0.0.1.36547 > 127.0.0.1.6633: Flags [P.], seq 58969:70761, ack 24, win 86, options [nop,nop,TS val 761750 ecr 761750], length 11792: OpenFlow
+	version 1.3, type MULTIPART_REPLY, length 11792, xid 0x0000000e
+  137  10:30:10.675294 IP 127.0.0.1.36547 > 127.0.0.1.6633: Flags [P.], seq 70761:82553, ack 24, win 86, options [nop,nop,TS val 761750 ecr 761750], length 11792: OpenFlow
+	version 1.3, type MULTIPART_REPLY, length 11792, xid 0x0000000e
+  138  10:30:10.675314 IP 127.0.0.1.36547 > 127.0.0.1.6633: Flags [P.], seq 82553:94345, ack 24, win 86, options [nop,nop,TS val 761750 ecr 761750], length 11792: OpenFlow
+	version 1.3, type MULTIPART_REPLY, length 11792, xid 0x0000000e
+  139  10:30:10.675325 IP 127.0.0.1.6633 > 127.0.0.1.36547: Flags [.], ack 82553, win 182, options [nop,nop,TS val 761750 ecr 761750], length 0
+  140  10:30:10.712539 IP 127.0.0.1.6633 > 127.0.0.1.36547: Flags [.], ack 94345, win 256, options [nop,nop,TS val 761760 ecr 761750], length 0
+  141  10:46:50.838754 IP 127.0.0.1.6633 > 127.0.0.1.36548: Flags [P.], seq 75556183:75556199, ack 3751019041, win 98, options [nop,nop,TS val 1011791 ecr 1010724], length 16: OpenFlow
+	version 1.3, type MULTIPART_REQUEST, length 16, xid 0x0000000d
+  142  10:46:50.839431 IP 127.0.0.1.36548 > 127.0.0.1.6633: Flags [P.], seq 1:337, ack 16, win 86, options [nop,nop,TS val 1011791 ecr 1011791], length 336: OpenFlow
+	version 1.3, type MULTIPART_REPLY, length 336, xid 0x0000000d
+  143  10:46:50.839471 IP 127.0.0.1.6633 > 127.0.0.1.36548: Flags [.], ack 337, win 103, options [nop,nop,TS val 1011791 ecr 1011791], length 0
+  144  19:45:16.495434 IP 127.0.0.1.6633 > 127.0.0.1.51984: Flags [P.], seq 1323837391:1323837399, ack 1278624979, win 94, options [nop,nop,TS val 6181422 ecr 6180173], length 8: OpenFlow
+	version 1.3, type ECHO_REQUEST, length 8, xid 0x0000006d
+  145  19:45:16.496030 IP 127.0.0.1.51984 > 127.0.0.1.6633: Flags [P.], seq 1:9, ack 8, win 86, options [nop,nop,TS val 6181423 ecr 6181422], length 8: OpenFlow
+	version 1.3, type ECHO_REPLY, length 8, xid 0x0000006d
+  146  19:45:16.496057 IP 127.0.0.1.6633 > 127.0.0.1.51984: Flags [.], ack 9, win 94, options [nop,nop,TS val 6181423 ecr 6181423], length 0
+  147  19:45:17.176752 IP 127.0.0.1.6633 > 127.0.0.1.51984: Flags [P.], seq 8:24, ack 9, win 94, options [nop,nop,TS val 6181593 ecr 6181423], length 16: OpenFlow
+	version 1.3, type TABLE_MOD, length 16, xid 0x0000006e
+  148  19:45:17.215970 IP 127.0.0.1.51984 > 127.0.0.1.6633: Flags [.], ack 24, win 86, options [nop,nop,TS val 6181603 ecr 6181593], length 0
+  149  19:53:23.472776 IP 127.0.0.1.6633 > 127.0.0.1.51984: Flags [P.], seq 936:976, ack 1361, win 98, options [nop,nop,TS val 6303167 ecr 6302673], length 40: OpenFlow
+	version 1.3, type PORT_MOD, length 40, xid 0x000000d4
+  150  19:53:23.473744 IP 127.0.0.1.51984 > 127.0.0.1.6633: Flags [P.], seq 1361:1441, ack 976, win 86, options [nop,nop,TS val 6303167 ecr 6303167], length 80: OpenFlow
+	version 1.3, type PORT_STATUS, length 80, xid 0x00000000
+  151  19:53:23.473777 IP 127.0.0.1.6633 > 127.0.0.1.51984: Flags [.], ack 1441, win 98, options [nop,nop,TS val 6303167 ecr 6303167], length 0
+  152  19:55:19.511983 IP 127.0.0.1.6633 > 127.0.0.1.51984: Flags [P.], seq 1168:1176, ack 1633, win 98, options [nop,nop,TS val 6332177 ecr 6331422], length 8: OpenFlow
+	version 1.3, type BARRIER_REQUEST, length 8, xid 0x000000ed
+  153  19:55:19.513048 IP 127.0.0.1.51984 > 127.0.0.1.6633: Flags [P.], seq 1633:1641, ack 1176, win 86, options [nop,nop,TS val 6332177 ecr 6332177], length 8: OpenFlow
+	version 1.3, type BARRIER_REPLY, length 8, xid 0x000000ed
+  154  19:55:19.513081 IP 127.0.0.1.6633 > 127.0.0.1.51984: Flags [.], ack 1641, win 98, options [nop,nop,TS val 6332177 ecr 6332177], length 0
+  155  20:10:12.609713 IP 127.0.0.1.6633 > 127.0.0.1.51987: Flags [P.], seq 2129684753:2129684761, ack 2572383599, win 96, options [nop,nop,TS val 6555451 ecr 6554199], length 8: OpenFlow
+	version 1.3, type ECHO_REQUEST, length 8, xid 0x0000007d
+  156  20:10:12.610357 IP 127.0.0.1.51987 > 127.0.0.1.6633: Flags [P.], seq 1:9, ack 8, win 86, options [nop,nop,TS val 6555451 ecr 6555451], length 8: OpenFlow
+	version 1.3, type ECHO_REPLY, length 8, xid 0x0000007d
+  157  20:10:12.610382 IP 127.0.0.1.6633 > 127.0.0.1.51987: Flags [.], ack 9, win 96, options [nop,nop,TS val 6555451 ecr 6555451], length 0
+  158  20:10:13.364783 IP 127.0.0.1.6633 > 127.0.0.1.51987: Flags [P.], seq 8:24, ack 9, win 96, options [nop,nop,TS val 6555640 ecr 6555451], length 16: OpenFlow
+	version 1.3, type QUEUE_GET_CONFIG_REQUEST, length 16, xid 0x0000007e
+  159  20:10:13.366754 IP 127.0.0.1.51987 > 127.0.0.1.6633: Flags [P.], seq 9:89, ack 24, win 86, options [nop,nop,TS val 6555640 ecr 6555640], length 80: OpenFlow
+	version 1.3, type QUEUE_GET_CONFIG_REPLY, length 80, xid 0x0000007e
+  160  20:10:13.366788 IP 127.0.0.1.6633 > 127.0.0.1.51987: Flags [.], ack 89, win 96, options [nop,nop,TS val 6555640 ecr 6555640], length 0
+  161  20:24:40.574081 IP 127.0.0.1.6633 > 127.0.0.1.51987: Flags [P.], seq 1432:1456, ack 1497, win 96, options [nop,nop,TS val 6772442 ecr 6771701], length 24: OpenFlow
+	version 1.3, type ROLE_REQUEST, length 24, xid 0x0000012f
+  162  20:24:40.574726 IP 127.0.0.1.51987 > 127.0.0.1.6633: Flags [P.], seq 1497:1521, ack 1456, win 86, options [nop,nop,TS val 6772442 ecr 6772442], length 24: OpenFlow
+	version 1.3, type ROLE_REPLY, length 24, xid 0x0000012f
+  163  20:24:40.574748 IP 127.0.0.1.6633 > 127.0.0.1.51987: Flags [.], ack 1521, win 96, options [nop,nop,TS val 6772442 ecr 6772442], length 0
+  164  20:28:52.608224 IP 127.0.0.1.6633 > 127.0.0.1.51987: Flags [P.], seq 1904:1912, ack 1985, win 96, options [nop,nop,TS val 6835451 ecr 6834201], length 8: OpenFlow
+	version 1.3, type ECHO_REQUEST, length 8, xid 0x00000165
+  165  20:28:52.609219 IP 127.0.0.1.51987 > 127.0.0.1.6633: Flags [P.], seq 1985:1993, ack 1912, win 86, options [nop,nop,TS val 6835451 ecr 6835451], length 8: OpenFlow
+	version 1.3, type ECHO_REPLY, length 8, xid 0x00000165
+  166  20:28:52.609246 IP 127.0.0.1.6633 > 127.0.0.1.51987: Flags [.], ack 1993, win 96, options [nop,nop,TS val 6835451 ecr 6835451], length 0
+  167  20:28:54.103683 IP 127.0.0.1.6633 > 127.0.0.1.51987: Flags [P.], seq 1912:1944, ack 1993, win 96, options [nop,nop,TS val 6835824 ecr 6835451], length 32: OpenFlow
+	version 1.3, type SET_ASYNC, length 32, xid 0x00000166
+  168  20:28:54.140673 IP 127.0.0.1.51987 > 127.0.0.1.6633: Flags [.], ack 1944, win 86, options [nop,nop,TS val 6835834 ecr 6835824], length 0
+  169  20:28:56.308694 IP 127.0.0.1.6633 > 127.0.0.1.51987: Flags [P.], seq 1944:1952, ack 1993, win 96, options [nop,nop,TS val 6836376 ecr 6835834], length 8: OpenFlow
+	version 1.3, type GET_ASYNC_REQUEST, length 8, xid 0x00000167
+  170  20:28:56.308754 IP 127.0.0.1.51987 > 127.0.0.1.6633: Flags [.], ack 1952, win 86, options [nop,nop,TS val 6836376 ecr 6836376], length 0
+  171  20:28:56.309209 IP 127.0.0.1.51987 > 127.0.0.1.6633: Flags [P.], seq 1993:2025, ack 1952, win 86, options [nop,nop,TS val 6836376 ecr 6836376], length 32: OpenFlow
+	version 1.3, type GET_ASYNC_REPLY, length 32, xid 0x00000167
+  172  20:28:56.309230 IP 127.0.0.1.6633 > 127.0.0.1.51987: Flags [.], ack 2025, win 96, options [nop,nop,TS val 6836376 ecr 6836376], length 0
+  173  20:37:22.358712 IP 127.0.0.1.6633 > 127.0.0.1.51989: Flags [P.], seq 1436436734:1436436782, ack 2087738396, win 96, options [nop,nop,TS val 6962888 ecr 6961981], length 48: OpenFlow
+	version 1.3, type METER_MOD, length 48, xid 0x00000010
+  174  20:37:22.396699 IP 127.0.0.1.51989 > 127.0.0.1.6633: Flags [.], ack 48, win 86, options [nop,nop,TS val 6962898 ecr 6962888], length 0

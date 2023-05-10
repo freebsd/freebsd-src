@@ -1,0 +1,23 @@
+    1  02:10:20.634030 BRCM tag OP: IG, TC: 0, TE: None, TS: 0, DST map: 0x0080, IP 0.0.0.0.68 > 255.255.255.255.67: BOOTP/DHCP, Request from 00:10:18:de:38:1e, length 300
+    2  02:10:20.696008 BRCM tag OP: IG, TC: 0, TE: None, TS: 0, DST map: 0x0020, IP 0.0.0.0.68 > 255.255.255.255.67: BOOTP/DHCP, Request from 00:10:18:de:38:1e, length 300
+    3  02:10:23.151503 BRCM tag OP: EG, CID: 0, RC: exception, TC: 0, port: 0, IP 192.168.1.1 > 192.168.1.255: ICMP echo request, id 22737, seq 1, length 64
+    4  02:10:23.650963 BRCM tag OP: IG, TC: 0, TE: None, TS: 0, DST map: 0x0080, IP 0.0.0.0.68 > 255.255.255.255.67: BOOTP/DHCP, Request from 00:10:18:de:38:1e, length 300
+    5  02:10:23.712960 BRCM tag OP: IG, TC: 0, TE: None, TS: 0, DST map: 0x0020, IP 0.0.0.0.68 > 255.255.255.255.67: BOOTP/DHCP, Request from 00:10:18:de:38:1e, length 300
+    6  02:10:24.177588 BRCM tag OP: EG, CID: 0, RC: exception, TC: 0, port: 0, IP 192.168.1.1 > 192.168.1.255: ICMP echo request, id 22737, seq 2, length 64
+    7  02:10:25.201640 BRCM tag OP: EG, CID: 0, RC: exception, TC: 0, port: 0, IP 192.168.1.1 > 192.168.1.255: ICMP echo request, id 22737, seq 3, length 64
+    8  02:10:30.015266 BRCM tag OP: EG, CID: 0, RC: exception, TC: 0, port: 0, IP 192.168.1.1 > 192.168.1.115: ICMP echo request, id 22744, seq 1, length 64
+    9  02:10:30.015480 BRCM tag OP: IG, TC: 0, TE: None, TS: 0, DST map: 0x0001, IP 192.168.1.115 > 192.168.1.1: ICMP echo reply, id 22744, seq 1, length 64
+   10  02:10:30.158348 BRCM tag OP: IG, TC: 0, TE: None, TS: 0, DST map: 0x0001, IP 192.168.1.115.68 > 192.168.1.1.67: BOOTP/DHCP, Request from 00:10:18:de:38:1e, length 300
+   11  02:10:30.170023 BRCM tag OP: EG, CID: 0, RC: exception, TC: 0, port: 0, IP 192.168.1.1.67 > 192.168.1.115.68: BOOTP/DHCP, Reply, length 300
+   12  02:10:33.178632 BRCM tag OP: IG, TC: 0, TE: None, TS: 0, DST map: 0x0002, IP 192.168.3.23.68 > 192.168.3.1.67: BOOTP/DHCP, Request from 00:10:18:de:38:1e, length 300
+   13  02:10:33.191027 BRCM tag OP: EG, CID: 0, RC: exception, TC: 0, port: 1, IP 192.168.3.1.67 > 192.168.3.23.68: BOOTP/DHCP, Reply, length 300
+   14  02:10:35.080973 BRCM tag OP: IG, TC: 0, TE: None, TS: 0, DST map: 0x0001, ARP, Request who-has 192.168.1.1 tell 192.168.1.115, length 50
+   15  02:10:35.081198 BRCM tag OP: EG, CID: 0, RC: exception, TC: 0, port: 0, ARP, Reply 192.168.1.1 is-at 68:05:ca:18:47:70, length 46
+   16  02:10:35.249563 BRCM tag OP: EG, CID: 0, RC: exception, TC: 0, port: 0, ARP, Request who-has 192.168.1.115 tell 192.168.1.1, length 46
+   17  02:10:35.249634 BRCM tag OP: IG, TC: 0, TE: None, TS: 0, DST map: 0x0001, ARP, Reply 192.168.1.115 is-at 00:10:18:de:38:1e, length 50
+   18  02:10:36.495763 BRCM tag OP: EG, CID: 0, RC: exception, TC: 0, port: 1, IP 192.168.3.1 > 192.168.3.23: ICMP echo request, id 22748, seq 1, length 64
+   19  02:10:36.495906 BRCM tag OP: IG, TC: 0, TE: None, TS: 0, DST map: 0x0002, IP 192.168.3.23 > 192.168.3.1: ICMP echo reply, id 22748, seq 1, length 64
+   20  02:10:37.521654 BRCM tag OP: EG, CID: 0, RC: exception, TC: 0, port: 1, IP 192.168.3.1 > 192.168.3.23: ICMP echo request, id 22748, seq 2, length 64
+   21  02:10:37.521717 BRCM tag OP: IG, TC: 0, TE: None, TS: 0, DST map: 0x0002, IP 192.168.3.23 > 192.168.3.1: ICMP echo reply, id 22748, seq 2, length 64
+   22  02:10:38.321557 BRCM tag OP: EG, CID: 0, RC: exception, TC: 0, port: 1, ARP, Request who-has 192.168.3.23 tell 192.168.3.1, length 46
+   23  02:10:38.321602 BRCM tag OP: IG, TC: 0, TE: None, TS: 0, DST map: 0x0002, ARP, Reply 192.168.3.23 is-at 00:10:18:de:38:1e, length 50

@@ -1,0 +1,432 @@
+    1  09:30:44.514026 IP (tos 0x0, ttl 64, id 46879, offset 0, flags [DF], proto UDP (17), length 328)
+    10.30.1.1.67 > 10.40.2.3.67: BOOTP/DHCP, Request from 5a:4f:34:b1:af:66, length 300, hops 1, xid 0x3cd0af7e, Flags [none]
+	  Gateway-IP 10.30.1.1
+	  Client-Ethernet-Address 5a:4f:34:b1:af:66
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Discover
+	    Parameter-Request (55), length 13: 
+	      Subnet-Mask (1), BR (28), Time-Zone (2), Classless-Static-Route (121)
+	      Domain-Name (15), Domain-Name-Server (6), Hostname (12), YD (40)
+	      YS (41), NTP (42), MTU (26), Unknown (119)
+	      Default-Gateway (3)
+    2  09:30:44.514702 IP (tos 0x0, ttl 64, id 25012, offset 0, flags [DF], proto ICMP (1), length 48)
+    10.40.2.3 > 10.30.4.4: ICMP echo request, id 16420, seq 0, length 28
+    3  09:30:45.516190 IP (tos 0x0, ttl 64, id 12528, offset 0, flags [DF], proto UDP (17), length 328)
+    10.40.2.3.67 > 10.30.1.1.67: BOOTP/DHCP, Reply, length 300, hops 1, xid 0x3cd0af7e, Flags [none]
+	  Your-IP 10.30.4.4
+	  Gateway-IP 10.30.1.1
+	  Client-Ethernet-Address 5a:4f:34:b1:af:66
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Offer
+	    Server-ID (54), length 4: 10.40.2.3
+	    Lease-Time (51), length 4: 43200
+	    Subnet-Mask (1), length 4: 255.255.0.0
+	    Default-Gateway (3), length 4: 10.30.1.1
+    4  09:30:45.517296 IP (tos 0x0, ttl 64, id 47088, offset 0, flags [DF], proto UDP (17), length 328)
+    10.30.1.1.67 > 10.40.2.3.67: BOOTP/DHCP, Request from 5a:4f:34:b1:af:66, length 300, hops 1, xid 0x3cd0af7e, Flags [none]
+	  Gateway-IP 10.30.1.1
+	  Client-Ethernet-Address 5a:4f:34:b1:af:66
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Request
+	    Server-ID (54), length 4: 10.40.2.3
+	    Requested-IP (50), length 4: 10.30.4.4
+	    Parameter-Request (55), length 13: 
+	      Subnet-Mask (1), BR (28), Time-Zone (2), Classless-Static-Route (121)
+	      Domain-Name (15), Domain-Name-Server (6), Hostname (12), YD (40)
+	      YS (41), NTP (42), MTU (26), Unknown (119)
+	      Default-Gateway (3)
+    5  09:30:45.518089 IP (tos 0x0, ttl 64, id 12529, offset 0, flags [DF], proto UDP (17), length 328)
+    10.40.2.3.67 > 10.30.1.1.67: BOOTP/DHCP, Reply, length 300, hops 1, xid 0x3cd0af7e, Flags [none]
+	  Your-IP 10.30.4.4
+	  Gateway-IP 10.30.1.1
+	  Client-Ethernet-Address 5a:4f:34:b1:af:66
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: ACK
+	    Server-ID (54), length 4: 10.40.2.3
+	    Lease-Time (51), length 4: 43200
+	    Subnet-Mask (1), length 4: 255.255.0.0
+	    Default-Gateway (3), length 4: 10.30.1.1
+    6  09:30:47.583028 IP (tos 0xc0, ttl 64, id 40042, offset 0, flags [none], proto ICMP (1), length 76)
+    10.40.1.1 > 10.40.2.3: ICMP host 10.30.4.4 unreachable, length 56
+	IP (tos 0x0, ttl 63, id 25012, offset 0, flags [DF], proto ICMP (1), length 48)
+    10.40.2.3 > 10.30.4.4: ICMP echo request, id 16420, seq 0, length 28
+    7  09:30:49.545424 ARP, Ethernet (len 6), IPv4 (len 4), Request who-has 10.40.1.1 tell 10.40.2.3, length 46
+    8  09:30:49.545438 ARP, Ethernet (len 6), IPv4 (len 4), Reply 10.40.1.1 is-at 74:83:ef:07:d0:a9, length 28
+    9  09:30:58.968421 IP (tos 0x0, ttl 64, id 0, offset 0, flags [none], proto UDP (17), length 310)
+    10.30.1.1.67 > 10.40.2.3.67: BOOTP/DHCP, Request from 5a:4f:34:b1:af:66, length 282, hops 1, xid 0x1, Flags [none]
+	  Gateway-IP 10.30.1.1
+	  Client-Ethernet-Address 5a:4f:34:b1:af:66
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: LeaseQuery
+   10  09:30:58.969373 IP (tos 0x0, ttl 64, id 13020, offset 0, flags [DF], proto UDP (17), length 308)
+    10.40.2.3.67 > 10.30.1.1.67: BOOTP/DHCP, Reply, length 280, hops 1, xid 0x1, Flags [none]
+	  Client-IP 10.30.4.4
+	  Gateway-IP 10.30.1.1
+	  Client-Ethernet-Address 5a:4f:34:b1:af:66
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: LeaseActive
+	    Server-ID (54), length 4: 10.40.2.3
+	    Lease-Time (51), length 4: 43187
+	    RN (58), length 4: 21587
+	    RB (59), length 4: 37787
+	    Associated-IP (92), length 4: 10.50.4.4
+	    Last-Transaction-Time (91), length 4: 13
+   11  09:31:14.845616 IP (tos 0x0, ttl 64, id 30802, offset 0, flags [DF], proto UDP (17), length 328)
+    10.50.1.1.67 > 10.40.2.3.67: BOOTP/DHCP, Request from 5a:4f:34:b1:af:66, length 300, hops 1, xid 0xbebd1734, Flags [none]
+	  Gateway-IP 10.50.1.1
+	  Client-Ethernet-Address 5a:4f:34:b1:af:66
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Discover
+	    Parameter-Request (55), length 13: 
+	      Subnet-Mask (1), BR (28), Time-Zone (2), Classless-Static-Route (121)
+	      Domain-Name (15), Domain-Name-Server (6), Hostname (12), YD (40)
+	      YS (41), NTP (42), MTU (26), Unknown (119)
+	      Default-Gateway (3)
+   12  09:31:14.846289 IP (tos 0x0, ttl 64, id 1143, offset 0, flags [DF], proto ICMP (1), length 48)
+    10.40.2.3 > 10.50.4.4: ICMP echo request, id 51245, seq 0, length 28
+   13  09:31:15.847700 IP (tos 0x0, ttl 64, id 28608, offset 0, flags [DF], proto UDP (17), length 328)
+    10.40.2.3.67 > 10.50.1.1.67: BOOTP/DHCP, Reply, length 300, hops 1, xid 0xbebd1734, Flags [none]
+	  Your-IP 10.50.4.4
+	  Gateway-IP 10.50.1.1
+	  Client-Ethernet-Address 5a:4f:34:b1:af:66
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Offer
+	    Server-ID (54), length 4: 10.40.2.3
+	    Lease-Time (51), length 4: 43200
+	    Subnet-Mask (1), length 4: 255.255.0.0
+	    Default-Gateway (3), length 4: 10.50.1.1
+   14  09:31:15.848914 IP (tos 0x0, ttl 64, id 30972, offset 0, flags [DF], proto UDP (17), length 328)
+    10.50.1.1.67 > 10.40.2.3.67: BOOTP/DHCP, Request from 5a:4f:34:b1:af:66, length 300, hops 1, xid 0xbebd1734, Flags [none]
+	  Gateway-IP 10.50.1.1
+	  Client-Ethernet-Address 5a:4f:34:b1:af:66
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Request
+	    Server-ID (54), length 4: 10.40.2.3
+	    Requested-IP (50), length 4: 10.50.4.4
+	    Parameter-Request (55), length 13: 
+	      Subnet-Mask (1), BR (28), Time-Zone (2), Classless-Static-Route (121)
+	      Domain-Name (15), Domain-Name-Server (6), Hostname (12), YD (40)
+	      YS (41), NTP (42), MTU (26), Unknown (119)
+	      Default-Gateway (3)
+   15  09:31:15.849515 IP (tos 0x0, ttl 64, id 28609, offset 0, flags [DF], proto UDP (17), length 328)
+    10.40.2.3.67 > 10.50.1.1.67: BOOTP/DHCP, Reply, length 300, hops 1, xid 0xbebd1734, Flags [none]
+	  Your-IP 10.50.4.4
+	  Gateway-IP 10.50.1.1
+	  Client-Ethernet-Address 5a:4f:34:b1:af:66
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: ACK
+	    Server-ID (54), length 4: 10.40.2.3
+	    Lease-Time (51), length 4: 43200
+	    Subnet-Mask (1), length 4: 255.255.0.0
+	    Default-Gateway (3), length 4: 10.50.1.1
+   16  09:31:17.915011 IP (tos 0xc0, ttl 64, id 44295, offset 0, flags [none], proto ICMP (1), length 76)
+    10.40.1.1 > 10.40.2.3: ICMP host 10.50.4.4 unreachable, length 56
+	IP (tos 0x0, ttl 63, id 1143, offset 0, flags [DF], proto ICMP (1), length 48)
+    10.40.2.3 > 10.50.4.4: ICMP echo request, id 51245, seq 0, length 28
+   17  09:31:20.008803 ARP, Ethernet (len 6), IPv4 (len 4), Request who-has 10.40.1.1 tell 10.40.2.3, length 46
+   18  09:31:20.008839 ARP, Ethernet (len 6), IPv4 (len 4), Reply 10.40.1.1 is-at 74:83:ef:07:d0:a9, length 28
+   19  09:31:24.877831 IP (tos 0x0, ttl 64, id 0, offset 0, flags [none], proto UDP (17), length 310)
+    10.30.1.1.67 > 10.40.2.3.67: BOOTP/DHCP, Request from 5a:4f:34:b1:af:66, length 282, hops 1, xid 0x1, Flags [none]
+	  Gateway-IP 10.30.1.1
+	  Client-Ethernet-Address 5a:4f:34:b1:af:66
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: LeaseQuery
+   20  09:31:24.878717 IP (tos 0x0, ttl 64, id 16753, offset 0, flags [DF], proto UDP (17), length 308)
+    10.40.2.3.67 > 10.30.1.1.67: BOOTP/DHCP, Reply, length 280, hops 1, xid 0x1, Flags [none]
+	  Client-IP 10.50.4.4
+	  Gateway-IP 10.30.1.1
+	  Client-Ethernet-Address 5a:4f:34:b1:af:66
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: LeaseActive
+	    Server-ID (54), length 4: 10.40.2.3
+	    Lease-Time (51), length 4: 43191
+	    RN (58), length 4: 21591
+	    RB (59), length 4: 37791
+	    Associated-IP (92), length 4: 10.30.4.4
+	    Last-Transaction-Time (91), length 4: 9
+   21  09:31:28.225031 IP (tos 0x0, ttl 64, id 0, offset 0, flags [none], proto UDP (17), length 310)
+    10.30.1.1.67 > 10.40.2.3.67: BOOTP/DHCP, Request from 5a:4f:34:b1:af:66, length 282, hops 1, xid 0x1, Flags [none]
+	  Gateway-IP 10.30.1.1
+	  Client-Ethernet-Address 5a:4f:34:b1:af:66
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: LeaseQuery
+   22  09:31:28.225976 IP (tos 0x0, ttl 64, id 17423, offset 0, flags [DF], proto UDP (17), length 308)
+    10.40.2.3.67 > 10.30.1.1.67: BOOTP/DHCP, Reply, length 280, hops 1, xid 0x1, Flags [none]
+	  Client-IP 10.50.4.4
+	  Gateway-IP 10.30.1.1
+	  Client-Ethernet-Address 5a:4f:34:b1:af:66
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: LeaseActive
+	    Server-ID (54), length 4: 10.40.2.3
+	    Lease-Time (51), length 4: 43187
+	    RN (58), length 4: 21587
+	    RB (59), length 4: 37787
+	    Associated-IP (92), length 4: 10.30.4.4
+	    Last-Transaction-Time (91), length 4: 13
+   23  09:31:35.017184 IP (tos 0x0, ttl 64, id 33783, offset 0, flags [DF], proto UDP (17), length 328)
+    10.50.1.1.67 > 10.40.2.3.67: BOOTP/DHCP, Request from 5a:4f:34:b1:af:66, length 300, hops 1, xid 0x5ad9290e, Flags [none]
+	  Gateway-IP 10.50.1.1
+	  Client-Ethernet-Address 5a:4f:34:b1:af:66
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Discover
+	    Parameter-Request (55), length 13: 
+	      Subnet-Mask (1), BR (28), Time-Zone (2), Classless-Static-Route (121)
+	      Domain-Name (15), Domain-Name-Server (6), Hostname (12), YD (40)
+	      YS (41), NTP (42), MTU (26), Unknown (119)
+	      Default-Gateway (3)
+   24  09:31:35.017845 IP (tos 0x0, ttl 64, id 29423, offset 0, flags [DF], proto UDP (17), length 328)
+    10.40.2.3.67 > 10.50.1.1.67: BOOTP/DHCP, Reply, length 300, hops 1, xid 0x5ad9290e, Flags [none]
+	  Your-IP 10.50.4.4
+	  Gateway-IP 10.50.1.1
+	  Client-Ethernet-Address 5a:4f:34:b1:af:66
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Offer
+	    Server-ID (54), length 4: 10.40.2.3
+	    Lease-Time (51), length 4: 43200
+	    Subnet-Mask (1), length 4: 255.255.0.0
+	    Default-Gateway (3), length 4: 10.50.1.1
+   25  09:31:35.018697 IP (tos 0x0, ttl 64, id 33784, offset 0, flags [DF], proto UDP (17), length 328)
+    10.50.1.1.67 > 10.40.2.3.67: BOOTP/DHCP, Request from 5a:4f:34:b1:af:66, length 300, hops 1, xid 0x5ad9290e, Flags [none]
+	  Gateway-IP 10.50.1.1
+	  Client-Ethernet-Address 5a:4f:34:b1:af:66
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Request
+	    Server-ID (54), length 4: 10.40.2.3
+	    Requested-IP (50), length 4: 10.50.4.4
+	    Parameter-Request (55), length 13: 
+	      Subnet-Mask (1), BR (28), Time-Zone (2), Classless-Static-Route (121)
+	      Domain-Name (15), Domain-Name-Server (6), Hostname (12), YD (40)
+	      YS (41), NTP (42), MTU (26), Unknown (119)
+	      Default-Gateway (3)
+   26  09:31:35.019247 IP (tos 0x0, ttl 64, id 29424, offset 0, flags [DF], proto UDP (17), length 328)
+    10.40.2.3.67 > 10.50.1.1.67: BOOTP/DHCP, Reply, length 300, hops 1, xid 0x5ad9290e, Flags [none]
+	  Your-IP 10.50.4.4
+	  Gateway-IP 10.50.1.1
+	  Client-Ethernet-Address 5a:4f:34:b1:af:66
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: ACK
+	    Server-ID (54), length 4: 10.40.2.3
+	    Lease-Time (51), length 4: 43200
+	    Subnet-Mask (1), length 4: 255.255.0.0
+	    Default-Gateway (3), length 4: 10.50.1.1
+   27  09:31:39.799063 IP (tos 0x0, ttl 64, id 0, offset 0, flags [none], proto UDP (17), length 310)
+    10.30.1.1.67 > 10.40.2.3.67: BOOTP/DHCP, Request from 5a:4f:34:b1:af:66, length 282, hops 1, xid 0x1, Flags [none]
+	  Gateway-IP 10.30.1.1
+	  Client-Ethernet-Address 5a:4f:34:b1:af:66
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: LeaseQuery
+   28  09:31:39.800108 IP (tos 0x0, ttl 64, id 19639, offset 0, flags [DF], proto UDP (17), length 308)
+    10.40.2.3.67 > 10.30.1.1.67: BOOTP/DHCP, Reply, length 280, hops 1, xid 0x1, Flags [none]
+	  Client-IP 10.50.4.4
+	  Gateway-IP 10.30.1.1
+	  Client-Ethernet-Address 5a:4f:34:b1:af:66
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: LeaseActive
+	    Server-ID (54), length 4: 10.40.2.3
+	    Lease-Time (51), length 4: 43196
+	    RN (58), length 4: 21596
+	    RB (59), length 4: 37796
+	    Associated-IP (92), length 4: 10.30.4.4
+	    Last-Transaction-Time (91), length 4: 4
+   29  09:31:44.840289 ARP, Ethernet (len 6), IPv4 (len 4), Request who-has 10.40.1.1 tell 10.40.2.3, length 46
+   30  09:31:44.840312 ARP, Ethernet (len 6), IPv4 (len 4), Reply 10.40.1.1 is-at 74:83:ef:07:d0:a9, length 28
+   31  09:31:56.852864 IP (tos 0x0, ttl 64, id 54915, offset 0, flags [DF], proto UDP (17), length 328)
+    10.30.1.1.67 > 10.40.2.3.67: BOOTP/DHCP, Request from 5a:4f:34:b1:af:66, length 300, hops 1, xid 0xf9704526, Flags [none]
+	  Gateway-IP 10.30.1.1
+	  Client-Ethernet-Address 5a:4f:34:b1:af:66
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Discover
+	    Parameter-Request (55), length 13: 
+	      Subnet-Mask (1), BR (28), Time-Zone (2), Classless-Static-Route (121)
+	      Domain-Name (15), Domain-Name-Server (6), Hostname (12), YD (40)
+	      YS (41), NTP (42), MTU (26), Unknown (119)
+	      Default-Gateway (3)
+   32  09:31:56.853508 IP (tos 0x0, ttl 64, id 37390, offset 0, flags [DF], proto ICMP (1), length 48)
+    10.40.2.3 > 10.30.4.4: ICMP echo request, id 16420, seq 0, length 28
+   33  09:31:57.854797 IP (tos 0x0, ttl 64, id 20224, offset 0, flags [DF], proto UDP (17), length 328)
+    10.40.2.3.67 > 10.30.1.1.67: BOOTP/DHCP, Reply, length 300, hops 1, xid 0xf9704526, Flags [none]
+	  Your-IP 10.30.4.4
+	  Gateway-IP 10.30.1.1
+	  Client-Ethernet-Address 5a:4f:34:b1:af:66
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Offer
+	    Server-ID (54), length 4: 10.40.2.3
+	    Lease-Time (51), length 4: 43200
+	    Subnet-Mask (1), length 4: 255.255.0.0
+	    Default-Gateway (3), length 4: 10.30.1.1
+   34  09:31:57.855819 IP (tos 0x0, ttl 64, id 55004, offset 0, flags [DF], proto UDP (17), length 328)
+    10.30.1.1.67 > 10.40.2.3.67: BOOTP/DHCP, Request from 5a:4f:34:b1:af:66, length 300, hops 1, xid 0xf9704526, Flags [none]
+	  Gateway-IP 10.30.1.1
+	  Client-Ethernet-Address 5a:4f:34:b1:af:66
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Request
+	    Server-ID (54), length 4: 10.40.2.3
+	    Requested-IP (50), length 4: 10.30.4.4
+	    Parameter-Request (55), length 13: 
+	      Subnet-Mask (1), BR (28), Time-Zone (2), Classless-Static-Route (121)
+	      Domain-Name (15), Domain-Name-Server (6), Hostname (12), YD (40)
+	      YS (41), NTP (42), MTU (26), Unknown (119)
+	      Default-Gateway (3)
+   35  09:31:57.856371 IP (tos 0x0, ttl 64, id 20225, offset 0, flags [DF], proto UDP (17), length 328)
+    10.40.2.3.67 > 10.30.1.1.67: BOOTP/DHCP, Reply, length 300, hops 1, xid 0xf9704526, Flags [none]
+	  Your-IP 10.30.4.4
+	  Gateway-IP 10.30.1.1
+	  Client-Ethernet-Address 5a:4f:34:b1:af:66
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: ACK
+	    Server-ID (54), length 4: 10.40.2.3
+	    Lease-Time (51), length 4: 43200
+	    Subnet-Mask (1), length 4: 255.255.0.0
+	    Default-Gateway (3), length 4: 10.30.1.1
+   36  09:31:59.930995 IP (tos 0xc0, ttl 64, id 52522, offset 0, flags [none], proto ICMP (1), length 76)
+    10.40.1.1 > 10.40.2.3: ICMP host 10.30.4.4 unreachable, length 56
+	IP (tos 0x0, ttl 63, id 37390, offset 0, flags [DF], proto ICMP (1), length 48)
+    10.40.2.3 > 10.30.4.4: ICMP echo request, id 16420, seq 0, length 28
+   37  09:32:06.472831 IP (tos 0x0, ttl 64, id 0, offset 0, flags [none], proto UDP (17), length 310)
+    10.30.1.1.67 > 10.40.2.3.67: BOOTP/DHCP, Request from 5a:4f:34:b1:af:66, length 282, hops 1, xid 0x1, Flags [none]
+	  Gateway-IP 10.30.1.1
+	  Client-Ethernet-Address 5a:4f:34:b1:af:66
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: LeaseQuery
+   38  09:32:06.473655 IP (tos 0x0, ttl 64, id 22361, offset 0, flags [DF], proto UDP (17), length 308)
+    10.40.2.3.67 > 10.30.1.1.67: BOOTP/DHCP, Reply, length 280, hops 1, xid 0x1, Flags [none]
+	  Client-IP 10.30.4.4
+	  Gateway-IP 10.30.1.1
+	  Client-Ethernet-Address 5a:4f:34:b1:af:66
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: LeaseActive
+	    Server-ID (54), length 4: 10.40.2.3
+	    Lease-Time (51), length 4: 43191
+	    RN (58), length 4: 21591
+	    RB (59), length 4: 37791
+	    Associated-IP (92), length 4: 10.50.4.4
+	    Last-Transaction-Time (91), length 4: 9
+   39  09:34:29.649179 IP (tos 0x0, ttl 64, id 0, offset 0, flags [none], proto UDP (17), length 310)
+    10.30.1.1.67 > 10.40.2.3.67: BOOTP/DHCP, Request from 00:00:00:00:00:00, length 282, hops 1, xid 0x1, Flags [none]
+	  Client-IP 0.161.224.64
+	  Your-IP 64.0.0.0
+	  Gateway-IP 10.30.1.1
+	  Client-Ethernet-Address 00:00:00:00:00:00
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: LeaseQuery
+   40  09:34:29.650219 IP (tos 0x0, ttl 64, id 39858, offset 0, flags [DF], proto UDP (17), length 284)
+    10.40.2.3.67 > 10.30.1.1.67: BOOTP/DHCP, Reply, length 256, hops 1, xid 0x1, Flags [none]
+	  Client-IP 0.161.224.64
+	  Your-IP 64.0.0.0
+	  Gateway-IP 10.30.1.1
+	  Client-Ethernet-Address 00:00:00:00:00:00
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: LeaseUnknown
+	    Server-ID (54), length 4: 10.40.2.3
+	    Default-Gateway (3), length 4: 10.30.1.1
+   41  09:34:34.821056 ARP, Ethernet (len 6), IPv4 (len 4), Request who-has 10.40.1.1 tell 10.40.2.3, length 46
+   42  09:34:34.821079 ARP, Ethernet (len 6), IPv4 (len 4), Reply 10.40.1.1 is-at 74:83:ef:07:d0:a9, length 28
+   43  09:37:40.343842 IP (tos 0x0, ttl 64, id 0, offset 0, flags [none], proto UDP (17), length 310)
+    10.30.1.1.67 > 10.40.2.3.67: BOOTP/DHCP, Request from 00:00:00:00:00:00, length 282, hops 1, xid 0x1, Flags [none]
+	  Client-IP 0.161.224.64
+	  Your-IP 64.0.0.0
+	  Gateway-IP 10.30.1.1
+	  Client-Ethernet-Address 00:00:00:00:00:00
+	  Vendor-#0x53633501
+   44  09:59:07.320395 IP (tos 0x0, ttl 64, id 0, offset 0, flags [none], proto UDP (17), length 310)
+    10.30.1.1.67 > 10.40.2.3.67: BOOTP/DHCP, Request from 01:00:00:00:00:00, length 282, hops 1, xid 0x1, Flags [none]
+	  Client-IP 0.161.224.64
+	  Your-IP 64.0.0.0
+	  Gateway-IP 0.10.30.1
+	  Client-Ethernet-Address 01:00:00:00:00:00
+	  Vendor-#0x82536335
+   45  10:02:01.305524 IP (tos 0x0, ttl 128, id 0, offset 0, flags [none], proto UDP (17), length 310)
+    10.30.1.1.67 > 10.40.2.3.67: BOOTP/DHCP, Request from 00:00:00:00:00:00, length 282, hops 1, xid 0x1, Flags [none]
+	  Client-IP 10.30.4.4
+	  Gateway-IP 10.30.1.1
+	  Client-Ethernet-Address 00:00:00:00:00:00
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: LeaseQuery
+   46  10:02:01.306377 ARP, Ethernet (len 6), IPv4 (len 4), Request who-has 10.40.1.1 tell 10.40.2.3, length 46
+   47  10:02:01.306390 ARP, Ethernet (len 6), IPv4 (len 4), Reply 10.40.1.1 is-at 74:83:ef:07:d0:a9, length 28
+   48  10:02:01.306866 IP (tos 0x0, ttl 64, id 48355, offset 0, flags [DF], proto UDP (17), length 302)
+    10.40.2.3.67 > 10.30.1.1.67: BOOTP/DHCP, Reply, length 274, hops 1, xid 0x1, Flags [none]
+	  Client-IP 10.30.4.4
+	  Gateway-IP 10.30.1.1
+	  Client-Ethernet-Address 5a:4f:34:b1:af:66
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: LeaseActive
+	    Server-ID (54), length 4: 10.40.2.3
+	    Lease-Time (51), length 4: 41396
+	    RN (58), length 4: 19796
+	    RB (59), length 4: 35996
+	    Last-Transaction-Time (91), length 4: 1804
+   49  10:02:57.556501 IP (tos 0x0, ttl 128, id 0, offset 0, flags [none], proto UDP (17), length 310)
+    10.30.1.1.67 > 10.40.2.3.67: BOOTP/DHCP, Request from 00:00:00:00:00:00, length 282, hops 1, xid 0x1, Flags [none]
+	  Client-IP 10.50.4.4
+	  Gateway-IP 10.30.1.1
+	  Client-Ethernet-Address 00:00:00:00:00:00
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: LeaseQuery
+   50  10:02:57.557434 IP (tos 0x0, ttl 64, id 50998, offset 0, flags [DF], proto UDP (17), length 302)
+    10.40.2.3.67 > 10.30.1.1.67: BOOTP/DHCP, Reply, length 274, hops 1, xid 0x1, Flags [none]
+	  Client-IP 10.50.4.4
+	  Gateway-IP 10.30.1.1
+	  Client-Ethernet-Address 5a:4f:34:b1:af:66
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: LeaseActive
+	    Server-ID (54), length 4: 10.40.2.3
+	    Lease-Time (51), length 4: 41318
+	    RN (58), length 4: 19718
+	    RB (59), length 4: 35918
+	    Last-Transaction-Time (91), length 4: 1882
+   51  10:03:02.564973 ARP, Ethernet (len 6), IPv4 (len 4), Request who-has 10.40.1.1 tell 10.40.2.3, length 46
+   52  10:03:02.564989 ARP, Ethernet (len 6), IPv4 (len 4), Reply 10.40.1.1 is-at 74:83:ef:07:d0:a9, length 28
+   53  10:03:16.115168 IP (tos 0x0, ttl 64, id 0, offset 0, flags [none], proto UDP (17), length 310)
+    10.30.1.1.67 > 10.40.2.3.67: BOOTP/DHCP, Request from 5a:4f:34:b1:af:66, length 282, hops 1, xid 0x1, Flags [none]
+	  Gateway-IP 10.30.1.1
+	  Client-Ethernet-Address 5a:4f:34:b1:af:66
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: LeaseQuery
+   54  10:03:16.116147 IP (tos 0x0, ttl 64, id 52645, offset 0, flags [DF], proto UDP (17), length 308)
+    10.40.2.3.67 > 10.30.1.1.67: BOOTP/DHCP, Reply, length 280, hops 1, xid 0x1, Flags [none]
+	  Client-IP 10.30.4.4
+	  Gateway-IP 10.30.1.1
+	  Client-Ethernet-Address 5a:4f:34:b1:af:66
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: LeaseActive
+	    Server-ID (54), length 4: 10.40.2.3
+	    Lease-Time (51), length 4: 41321
+	    RN (58), length 4: 19721
+	    RB (59), length 4: 35921
+	    Associated-IP (92), length 4: 10.50.4.4
+	    Last-Transaction-Time (91), length 4: 1879

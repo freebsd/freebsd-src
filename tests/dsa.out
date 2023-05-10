@@ -1,0 +1,8 @@
+    1  22:21:39.544060 DSA Forward port 0.1, VLAN 0u, IP 192.168.30.1 > 192.168.30.2: ICMP echo request, id 13586, seq 1, length 64
+    2  22:21:39.544382 DSA CPU > port 0.1, VLAN 0u, IP 192.168.30.2 > 192.168.30.1: ICMP echo reply, id 13586, seq 1, length 64
+    3  22:21:40.563126 DSA Forward port 0.1, VLAN 0u, IP 192.168.30.1 > 192.168.30.2: ICMP echo request, id 13586, seq 2, length 64
+    4  22:21:40.563252 DSA CPU > port 0.1, VLAN 0u, IP 192.168.30.2 > 192.168.30.1: ICMP echo reply, id 13586, seq 2, length 64
+    5  22:21:41.576445 DSA Forward port 0.1, VLAN 0u, IP 192.168.30.1 > 192.168.30.2: ICMP echo request, id 13586, seq 3, length 64
+    6  22:21:41.576541 DSA CPU > port 0.1, VLAN 0u, IP 192.168.30.2 > 192.168.30.1: ICMP echo reply, id 13586, seq 3, length 64
+    7  22:21:44.560086 DSA CPU > port 0.1, VLAN 0u, ARP, Request who-has 192.168.30.1 tell 192.168.30.2, length 28
+    8  22:21:44.560415 DSA Forward port 0.1, VLAN 0u, ARP, Reply 192.168.30.1 is-at 00:50:b6:29:10:70, length 46

@@ -1,0 +1,23 @@
+# -*- perl -*-
+
+# This "verbose" ISIS protocol test involves a float calculation that
+# may produce a slightly different result depending on the compiler and
+# the version of the instruction set for which it's generating code (see
+# GitHub issue #333 for another example). The test is done only if we have
+# a floating-point type, as reported by "./tcpdump --fp-type", of FPTYPE1.
+#
+# XXX - this works on my 32-bit x86 Linux virtual machine, so do this
+# regardless of the floating-point type, so always do this.  If it
+# fails on some platform, we'll need to tweak tcpdump and tests/TESTrun
+# to check for *that* floating-point difference.
+
+$testlist = [
+    {
+        name => 'isis-seg-fault-1-v',
+        input => 'isis-seg-fault-1.pcapng',
+        output => 'isis-seg-fault-1-v.out',
+        args   => '-v'
+    },
+    ];
+
+1;

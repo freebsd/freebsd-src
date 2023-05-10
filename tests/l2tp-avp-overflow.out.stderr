@@ -1,2 +1,0 @@
-reading from file l2tp-avp-overflow.pcap, link-type EN10MB (Ethernet)
-tcpdump: pcap_loop: invalid packet capture length 2147430448, bigger than snaplen of 58

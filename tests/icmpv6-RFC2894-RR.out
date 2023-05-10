@@ -1,0 +1,6 @@
+    1  17:24:20.953888 IP6 2001:db8:1:0:a00:27ff:fef4:4dcf > 2001:db8:1:0:a00:27ff:fef4:4dcf: ICMP6, router renumbering, command, seq=0 match(add,fec0::/48) use(3ffe:501:fffe::/48/16), length 72
+    2  17:24:50.966750 IP6 2001:db8:1:0:a00:27ff:fef4:4dcf > 2001:db8:1:0:a00:27ff:fef4:4dcf: ICMP6, router renumbering, command, seq=0 match(add,fec0::/48) use(3ffe:501:fffe::/48/16), length 72
+    3  17:25:20.976267 IP6 2001:db8:1:0:a00:27ff:fef4:4dcf > 2001:db8:1:0:a00:27ff:fef4:4dcf: ICMP6, router renumbering, command, seq=0 match(add,fec0::/48) use(3ffe:501:fffe::/48/16), length 72
+    4  17:25:20.978460 IP6 2001:db8:1:0:a00:27ff:fef4:4dcf > 2001:db8:1:0:a00:27ff:fef4:4dcf: ICMP6, router renumbering, command, seq=16777216 match(change,3ffe:501:ffff::/48) use(3ffe:501:ffff::/48/16), length 72
+    5  17:25:50.997724 IP6 2001:db8:1:0:a00:27ff:fef4:4dcf > 2001:db8:1:0:a00:27ff:fef4:4dcf: ICMP6, router renumbering, command, seq=16777216 match(change,3ffe:501:ffff::/48) use(3ffe:501:ffff::/48/16), length 72
+    6  17:26:21.005793 IP6 2001:db8:1:0:a00:27ff:fef4:4dcf > 2001:db8:1:0:a00:27ff:fef4:4dcf: ICMP6, router renumbering, command, seq=16777216 match(change,3ffe:501:ffff::/48) use(3ffe:501:ffff::/48/16), length 72

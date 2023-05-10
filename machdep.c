@@ -20,34 +20,18 @@
  */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
-/*
- * XXX - all we need, on platforms other than DEC OSF/1 (a/k/a Digital UNIX,
- * a/k/a Tru64 UNIX), is "size_t", which is a standard C type; what do we
- * need to do to get it defined?  This is clearly wrong, as we shouldn't
- * have to include UNIX or Windows system header files to get it.
- */
-#include <netdissect-stdinc.h>
-
-#ifndef HAVE___ATTRIBUTE__
-#define __attribute__(x)
-#endif /* HAVE___ATTRIBUTE__ */
+#include <stddef.h>
 
 #ifdef __osf__
+#include <stdio.h>
 #include <sys/sysinfo.h>
 #include <sys/proc.h>
-
-#if !defined(HAVE_SNPRINTF)
-int snprintf(char *, size_t, const char *, ...)
-#ifdef __ATTRIBUTE___FORMAT_OK
-     __attribute__((format(printf, 3, 4)))
-#endif /* __ATTRIBUTE___FORMAT_OK */
-     ;
-#endif /* !defined(HAVE_SNPRINTF) */
 #endif /* __osf__ */
 
+#include "varattrs.h"
 #include "machdep.h"
 
 /*

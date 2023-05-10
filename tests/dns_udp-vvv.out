@@ -1,0 +1,4 @@
+    1  09:19:54.740079 IP (tos 0x0, ttl 64, id 22989, offset 0, flags [none], proto UDP (17), length 84)
+    192.168.1.11.43966 > 209.87.249.18.53: [udp sum ok] 22836+ [1au] A? www.tcpdump.org. ar: . OPT UDPsize=4096 [COOKIE 42f5d00996f90b13] (56)
+    2  09:19:54.870361 IP (tos 0x0, ttl 128, id 45, offset 0, flags [none], proto UDP (17), length 252)
+    209.87.249.18.53 > 192.168.1.11.43966: [udp sum ok] 22836*- q: A? www.tcpdump.org. 2/2/5 www.tcpdump.org. [1m] A 192.139.46.66, www.tcpdump.org. [1m] A 198.199.88.104 ns: tcpdump.org. [1d] NS sns.cooperix.net., tcpdump.org. [1d] NS nic.sandelman.ca. ar: nic.sandelman.ca. [5m] A 209.87.249.18, nic.sandelman.ca. [5m] AAAA 2607:f0b0:f::babe:f00d, sns.cooperix.net. [2h] A 97.107.133.15, sns.cooperix.net. [2h] AAAA 2600:3c03::f03c:91ff:fe96:e8ef, . OPT UDPsize=4096 (224)

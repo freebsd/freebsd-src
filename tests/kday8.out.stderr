@@ -1,2 +1,0 @@
-reading from file kday8.pcap, link-type EN10MB (Ethernet)
-tcpdump: pcap_loop: truncated dump file; tried to read 16 header bytes, only got 3

@@ -1,0 +1,132 @@
+# -*- perl -*-
+
+$testlist = [
+    {
+        config_unset => 'HAVE_NO_PRINTF_Z',
+        name => 'ospf-gmpls',
+        input => 'ospf-gmpls.pcap',
+        output => 'ospf-gmpls.out',
+        args   => '-v'
+    },
+    {
+        config_unset => 'HAVE_NO_PRINTF_Z',
+        name => 'ospf-nssa-bitnt',
+        input => 'ospf-nssa-bitnt.pcap',
+        output => 'ospf-nssa-bitnt.out',
+        args   => '-v'
+    },
+    {
+        config_unset => 'HAVE_NO_PRINTF_Z',
+        name => 'ospf3_ah-vv',
+        input => 'OSPFv3_with_AH.pcap',
+        output => 'ospf3_ah-vv.out',
+        args   => '-vv'
+    },
+    {
+        config_unset => 'HAVE_NO_PRINTF_Z',
+        name => 'ospf3_bc-vv',
+        input => 'OSPFv3_broadcast_adjacency.pcap',
+        output => 'ospf3_bc-vv.out',
+        args   => '-vv'
+    },
+    {
+        config_unset => 'HAVE_NO_PRINTF_Z',
+        name => 'ospf3_mp-vv',
+        input => 'OSPFv3_multipoint_adjacencies.pcap',
+        output => 'ospf3_mp-vv.out',
+        args   => '-vv'
+    },
+    {
+        config_unset => 'HAVE_NO_PRINTF_Z',
+        name => 'ospf3_nbma-vv',
+        input => 'OSPFv3_NBMA_adjacencies.pcap',
+        output => 'ospf3_nbma-vv.out',
+        args   => '-vv'
+    },
+    {
+        config_unset => 'HAVE_NO_PRINTF_Z',
+        name => 'ospf2-seg-fault-1-v',
+        input => 'ospf2-seg-fault-1.pcapng',
+        output => 'ospf2-seg-fault-1-v.out',
+        args   => '-v'
+    },
+    {
+        config_unset => 'HAVE_NO_PRINTF_Z',
+        name => 'm3ua-vv',
+        input => 'isup.pcap',
+        output => 'isupvv.out',
+        args   => '-vv'
+    },
+    {
+        config_unset => 'HAVE_NO_PRINTF_Z',
+        name => 'rsvp_infloop-v',
+        input => 'rsvp-infinite-loop.pcap',
+        output => 'rsvp_infloop-v.out',
+        args   => '-v'
+    },
+    {
+        config_unset => 'HAVE_NO_PRINTF_Z',
+        name => 'decnet',
+        input => 'DECnet_Phone.pcap',
+        output => 'decnet.out',
+        args   => ''
+    },
+    {
+        config_unset => 'HAVE_NO_PRINTF_Z',
+        name => 'eigrp-tlv-oobr',
+        input => 'eigrp-tlv-oobr.pcap',
+        output => 'eigrp-tlv-oobr.out',
+        args   => '-vvv -e'
+    },
+    {
+        config_unset => 'HAVE_NO_PRINTF_Z',
+        name => 'isis-areaaddr-oobr-1',
+        input => 'isis-areaaddr-oobr-1.pcap',
+        output => 'isis-areaaddr-oobr-1.out',
+        args   => '-vvv -e'
+    },
+    {
+        config_unset => 'HAVE_NO_PRINTF_Z',
+        name => 'isis-areaaddr-oobr-2',
+        input => 'isis-areaaddr-oobr-2.pcap',
+        output => 'isis-areaaddr-oobr-2.out',
+        args   => '-vvv -e'
+    },
+    {
+        config_unset => 'HAVE_NO_PRINTF_Z',
+        name => 'pktap-heap-overflow',
+        input => 'pktap-heap-overflow.pcap',
+        output => 'pktap-heap-overflow.out',
+        args   => '-v'
+    },
+    {
+        config_unset => 'HAVE_NO_PRINTF_Z',
+        name => 'dns-zlip-1',
+        input => 'dns-zlip-1.pcap',
+        output => 'dns-zlip-1.out',
+        args   => ''
+    },
+    {
+        config_unset => 'HAVE_NO_PRINTF_Z',
+        name => 'dns-zlip-2',
+        input => 'dns-zlip-2.pcap',
+        output => 'dns-zlip-2.out',
+        args   => ''
+    },
+    {
+        config_unset => 'HAVE_NO_PRINTF_Z',
+        name => 'dns-zlip-3',
+        input => 'dns-zlip-3.pcap',
+        output => 'dns-zlip-3.out',
+        args   => ''
+    },
+    {
+        config_unset => 'HAVE_NO_PRINTF_Z',
+        name => 'sflow_print-segv',
+        input => 'sflow_print-segv.pcap',
+        output => 'sflow_print-segv.out',
+        args   => '-v'
+    },
+];
+
+1;

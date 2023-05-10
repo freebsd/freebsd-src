@@ -1,0 +1,3 @@
+    1  08:40:34.846110 IP (tos 0xc0, ttl 1, id 27458, offset 0, flags [DF], proto TCP (6), length 284)
+    192.168.10.123.36208 > 192.168.10.17.179: Flags [P.], cksum 0x415a (correct), seq 496762307:496762539, ack 691810051, win 502, options [nop,nop,TS val 822562185 ecr 4289027422], length 232: BGP
+	Notification Message (3), length: 232, Cease (6), subcode Administrative Shutdown (2), Shutdown Communication (length: 210): "[TICKET-1-1438367390] software upgrade; Expected downtime for 2 hours;[TICKET-1-1438367390] software upgrade; Expected downtime for 2 hours;[TICKET-1-1438367390] software upgrade; Expected downtime for 2 hours;"
