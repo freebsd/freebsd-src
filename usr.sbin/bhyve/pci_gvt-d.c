@@ -222,7 +222,39 @@ gvt_d_setup_opregion(struct pci_devinst *const pi)
 	opregion->len = header->size * KB;
 	munmap(header, sizeof(header));
 
+	opregion->hva = mmap(NULL, opregion->len * KB, PROT_READ, MAP_SHARED,
+	    memfd, opregion->hpa);
+	if (opregion->hva == MAP_FAILED) {
+		warn("%s: Unable to map host OpRegion", __func__);
+		close(memfd);
+		return (-1);
+	}
 	close(memfd);
+
+	opregion->gpa = gvt_d_alloc_mmio_memory(opregion->hpa, opregion->len,
+	    E820_ALIGNMENT_NONE, E820_TYPE_NVS);
+	if (opregion->gpa == 0) {
+		warnx(
+		    "%s: Unable to add OpRegion to E820 table (hpa 0x%lx len 0x%lx)",
+		    __func__, opregion->hpa, opregion->len);
+		e820_dump_table();
+		return (-1);
+	}
+	opregion->gva = vm_map_gpa(pi->pi_vmctx, opregion->gpa, opregion->len);
+	if (opregion->gva == NULL) {
+		warnx("%s: Unable to map guest OpRegion", __func__);
+		return (-1);
+	}
+	if (opregion->gpa != opregion->hpa) {
+		/*
+		 * A 1:1 host to guest mapping is not required but this could
+		 * change in the future.
+		 */
+		warnx(
+		    "Warning: Unable to reuse host address of OpRegion. GPU passthrough might not work properly.");
+	}
+
+	memcpy(opregion->gva, opregion->hva, opregion->len);
 
 	return (0);
 }
@@ -247,8 +279,18 @@ done:
 }
 
 static void
-gvt_d_deinit(struct pci_devinst *const pi __unused)
+gvt_d_deinit(struct pci_devinst *const pi)
 {
+	struct passthru_softc *sc;
+	struct passthru_mmio_mapping *opregion;
+
+	sc = pi->pi_arg;
+
+	opregion = passthru_get_mmio(sc, GVT_D_MAP_OPREGION);
+
+	/* HVA is only set, if it's initialized */
+	if (opregion->hva)
+		munmap((void *)opregion->hva, opregion->len);
 }
 
 static struct passthru_dev gvt_d_dev = {
