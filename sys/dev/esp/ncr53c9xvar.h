@@ -1,7 +1,7 @@
 /*	$NetBSD: ncr53c9xvar.h,v 1.55 2011/07/31 18:39:00 jakllsch Exp $	*/
 
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-NetBSD AND BSD-4-Clause
+ * SPDX-License-Identifier: BSD-2-Clause AND BSD-4-Clause
  *
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
  * All rights reserved.

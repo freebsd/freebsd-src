@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: BSD-2-Clause-NetBSD AND BSD-3-Clause */
+/* SPDX-License-Identifier: BSD-2-Clause AND BSD-3-Clause */
 
 /*
  * Copyright (c) 2019 Internet Initiative Japan, Inc.

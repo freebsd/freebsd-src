@@ -1,7 +1,7 @@
 /*	$NetBSD: linux_time.c,v 1.14 2006/05/14 03:40:54 christos Exp $ */
 
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2001 The NetBSD Foundation, Inc.
  * All rights reserved.

@@ -4,7 +4,7 @@ __FBSDID("$FreeBSD$");
 /*	$NetBSD: ulpt.c,v 1.60 2003/10/04 21:19:50 augustss Exp $	*/
 
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 1998, 2003 The NetBSD Foundation, Inc.
  * All rights reserved.

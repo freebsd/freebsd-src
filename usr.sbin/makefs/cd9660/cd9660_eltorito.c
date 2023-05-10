@@ -1,7 +1,7 @@
 /*	$NetBSD: cd9660_eltorito.c,v 1.23 2018/03/28 06:48:55 nonaka Exp $	*/
 
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2005 Daniel Watt, Walter Deignan, Ryan Gabrys, Alan
  * Perez-Rathke and Ram Vedam.  All rights reserved.

@@ -1,7 +1,7 @@
 /*	$NetBSD: data.c,v 1.8 2000/04/02 11:10:53 augustss Exp $	*/
 
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 1999 Lennart Augustsson <augustss@netbsd.org>
  * All rights reserved.

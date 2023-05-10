@@ -1,7 +1,7 @@
 /*	$NetBSD: bridgestp.c,v 1.5 2003/11/28 08:56:48 keihan Exp $	*/
 
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2000 Jason L. Wright (jason@thought.net)
  * Copyright (c) 2006 Andrew Thompson (thompsa@FreeBSD.org)

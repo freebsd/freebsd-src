@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause AND BSD-2-Clause-NetBSDE
+ * SPDX-License-Identifier: BSD-3-Clause AND BSD-2-ClauseE
  *
  * Copyright (c) KATO Takenori, 1999.
  *

@@ -1,7 +1,7 @@
 /*	$NetBSD: makecontext.c,v 1.5 2009/12/14 01:07:42 matt Exp $	*/
 
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-NetBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2001 The NetBSD Foundation, Inc.
  * All rights reserved.
