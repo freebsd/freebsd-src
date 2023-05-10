@@ -1,0 +1,17 @@
+    1  18:42:19.016934 IS-IS, length 97
+	L1 LSP, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
+	  lsp-id: 1920.0000.0008.00-00, seq: 0x00000031, lifetime: 65534s
+	  chksum: 0xc3ad (correct), PDU length: 97, Flags: [ L2 IS ]
+	    Area address(es) TLV #1, length: 4
+	      Area address (length: 3): 49.0002
+	    Protocols supported TLV #129, length: 2
+	      NLPID(s): IPv6 (0x8e), IPv4 (0xcc)
+	    Extended IPv4 Reachability TLV #135, length: 27
+	      IPv4 prefix:       10.0.27.0/31, Distribution: up, Metric: 1000000
+	      IPv4 prefix:         7.7.7.1/32, Distribution: up, Metric: 1000000, sub-TLVs present (8)
+	        Prefix SID subTLV #3, length: 6, Flags [Node], Algo SPF (0), index 40
+	    Extended IS Reachability TLV #22, length: 11
+	      IS Neighbor: 1921.6800.1003.00, Metric: 1000000, no sub-TLVs present
+	    IS-IS Router Capability TLV #242, length: 16
+	      Router-ID 7.7.7.1, Flags [none]
+		SR-Capabilities subTLV #2, length: 9, Flags [ipv4, ipv6], Range 1000, SID value 4000

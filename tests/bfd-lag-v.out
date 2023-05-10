@@ -1,0 +1,40 @@
+    1  17:19:29.162992 IP (tos 0xc0, ttl 255, id 0, offset 0, flags [none], proto UDP (17), length 52)
+    10.0.0.2.51255 > 10.0.0.1.6784: BFDv1, length: 24
+	Lag, State Down, Flags: [Poll], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (3000 ms Detection time), BFD Length: 24
+	My Discriminator: 0x0de60837, Your Discriminator: 0x00000000
+	  Desired min Tx Interval:    1000 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+    2  17:19:30.154937 IP (tos 0xc0, ttl 255, id 0, offset 0, flags [none], proto UDP (17), length 52)
+    10.0.0.2.51255 > 10.0.0.1.6784: BFDv1, length: 24
+	Lag, State Down, Flags: [Poll], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (3000 ms Detection time), BFD Length: 24
+	My Discriminator: 0x0de60837, Your Discriminator: 0x00000000
+	  Desired min Tx Interval:    1000 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+    3  17:19:31.146839 IP (tos 0xc0, ttl 255, id 0, offset 0, flags [none], proto UDP (17), length 52)
+    10.0.0.2.51255 > 10.0.0.1.6784: BFDv1, length: 24
+	Lag, State Down, Flags: [Poll], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (3000 ms Detection time), BFD Length: 24
+	My Discriminator: 0x0de60837, Your Discriminator: 0x00000000
+	  Desired min Tx Interval:    1000 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+    4  17:19:32.074819 IP (tos 0xc0, ttl 255, id 0, offset 0, flags [none], proto UDP (17), length 52)
+    10.0.0.2.51255 > 10.0.0.1.6784: BFDv1, length: 24
+	Lag, State Down, Flags: [Poll], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (3000 ms Detection time), BFD Length: 24
+	My Discriminator: 0x0de60837, Your Discriminator: 0x00000000
+	  Desired min Tx Interval:    1000 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+    5  17:19:32.842739 IP (tos 0xc0, ttl 255, id 0, offset 0, flags [none], proto UDP (17), length 52)
+    10.0.0.2.51255 > 10.0.0.1.6784: BFDv1, length: 24
+	Lag, State Down, Flags: [Poll], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (3000 ms Detection time), BFD Length: 24
+	My Discriminator: 0x0de60837, Your Discriminator: 0x00000000
+	  Desired min Tx Interval:    1000 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms

@@ -1,0 +1,22 @@
+    1  15:44:09.947213 IP (tos 0x0, ttl 64, id 42696, offset 0, flags [DF], proto TCP (6), length 60)
+    192.168.1.11.57469 > 209.87.249.18.8053: Flags [S], cksum 0xf4f0 (correct), seq 3802885148, win 64240, options [mss 1460,sackOK,TS val 2931281549 ecr 0,nop,wscale 7], length 0
+    2  15:44:10.091462 IP (tos 0x0, ttl 128, id 4486, offset 0, flags [none], proto TCP (6), length 44)
+    209.87.249.18.8053 > 192.168.1.11.57469: Flags [S.], cksum 0x1923 (correct), seq 856651289, ack 3802885149, win 64240, options [mss 1460], length 0
+    3  15:44:10.091537 IP (tos 0x0, ttl 64, id 42697, offset 0, flags [DF], proto TCP (6), length 40)
+    192.168.1.11.57469 > 209.87.249.18.8053: Flags [.], cksum 0x30e0 (correct), seq 1, ack 1, win 64240, length 0
+    4  15:44:10.092032 IP (tos 0x0, ttl 64, id 42698, offset 0, flags [DF], proto TCP (6), length 98)
+    192.168.1.11.57469 > 209.87.249.18.8053: Flags [P.], cksum 0x9724 (correct), seq 1:59, ack 1, win 64240, length 58 56178+ [1au] A? www.tcpdump.org. ar: . OPT UDPsize=4096 [COOKIE c4006c3e5053fc43] (56)
+    5  15:44:10.092267 IP (tos 0x0, ttl 128, id 4487, offset 0, flags [none], proto TCP (6), length 40)
+    209.87.249.18.8053 > 192.168.1.11.57469: Flags [.], cksum 0x30a6 (correct), seq 1, ack 59, win 64240, length 0
+    6  15:44:10.236187 IP (tos 0x0, ttl 128, id 4488, offset 0, flags [none], proto TCP (6), length 250)
+    209.87.249.18.8053 > 192.168.1.11.57469: Flags [P.], cksum 0x69e6 (correct), seq 1:211, ack 59, win 64240, length 210 56178*- q: A? www.tcpdump.org. 1/2/5 www.tcpdump.org. A 192.139.46.66 ns: tcpdump.org. NS nic.sandelman.ca., tcpdump.org. NS sns.cooperix.net. ar: nic.sandelman.ca. A 209.87.249.18, nic.sandelman.ca. AAAA 2607:f0b0:f::babe:f00d, sns.cooperix.net. A 97.107.133.15, sns.cooperix.net. AAAA 2600:3c03::f03c:91ff:fe96:e8ef, . OPT UDPsize=4096 (208)
+    7  15:44:10.236250 IP (tos 0x0, ttl 64, id 42699, offset 0, flags [DF], proto TCP (6), length 40)
+    192.168.1.11.57469 > 209.87.249.18.8053: Flags [.], cksum 0x30a6 (correct), seq 59, ack 211, win 64030, length 0
+    8  15:44:10.237389 IP (tos 0x0, ttl 64, id 42700, offset 0, flags [DF], proto TCP (6), length 40)
+    192.168.1.11.57469 > 209.87.249.18.8053: Flags [F.], cksum 0x30a5 (correct), seq 59, ack 211, win 64030, length 0
+    9  15:44:10.237718 IP (tos 0x0, ttl 128, id 4489, offset 0, flags [none], proto TCP (6), length 40)
+    209.87.249.18.8053 > 192.168.1.11.57469: Flags [.], cksum 0x2fd4 (correct), seq 211, ack 60, win 64239, length 0
+   10  15:44:10.381399 IP (tos 0x0, ttl 128, id 4490, offset 0, flags [none], proto TCP (6), length 40)
+    209.87.249.18.8053 > 192.168.1.11.57469: Flags [FP.], cksum 0x2fcb (correct), seq 211, ack 60, win 64239, length 0
+   11  15:44:10.381475 IP (tos 0x0, ttl 64, id 0, offset 0, flags [DF], proto TCP (6), length 40)
+    192.168.1.11.57469 > 209.87.249.18.8053: Flags [.], cksum 0x30a4 (correct), seq 60, ack 212, win 64030, length 0

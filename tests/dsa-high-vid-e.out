@@ -1,0 +1,4 @@
+    1  00:06:42.569821 02:f0:bb:ed:00:0f > d6:18:e2:69:ee:01, Marvell DSA mode Forward, dev 0, port 2, untagged, VID 1337, FPri 0, ethertype IPv4 (0x0800), length 102: 198.18.10.1 > 198.18.10.2: ICMP echo request, id 116, seq 1, length 64
+    2  00:06:42.569913 d6:18:e2:69:ee:01 > 02:f0:bb:ed:00:0f, Marvell DSA mode From CPU, target dev 0, port 2, untagged, VID 0, FPri 0, ethertype IPv4 (0x0800), length 102: 198.18.10.2 > 198.18.10.1: ICMP echo reply, id 116, seq 1, length 64
+    3  00:06:42.575549 02:f0:bb:ed:00:0f > d6:18:e2:69:ee:01, Marvell DSA mode Forward, dev 0, port 2, untagged, VID 1337, FPri 5, ethertype IPv4 (0x0800), length 102: 198.18.10.1 > 198.18.10.2: ICMP echo request, id 117, seq 1, length 64
+    4  00:06:42.575572 d6:18:e2:69:ee:01 > 02:f0:bb:ed:00:0f, Marvell DSA mode From CPU, target dev 0, port 2, untagged, VID 0, FPri 0, ethertype IPv4 (0x0800), length 102: 198.18.10.2 > 198.18.10.1: ICMP echo reply, id 117, seq 1, length 64

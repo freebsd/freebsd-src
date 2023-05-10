@@ -1,0 +1,320 @@
+    1  15:32:49.715242 IP (tos 0xc0, ttl 255, id 53796, offset 0, flags [none], proto UDP (17), length 52)
+    161.1.12.1.60409 > 161.1.12.12.3784: BFDv1, length: 24
+	Control, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (900 ms Detection time), BFD Length: 24
+	My Discriminator: 0x7429abf9, Your Discriminator: 0xd43a40c1
+	  Desired min Tx Interval:     300 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+    2  15:32:49.725449 IP (tos 0xc0, ttl 255, id 24067, offset 0, flags [none], proto UDP (17), length 52)
+    101.0.0.12.51993 > 101.0.0.1.4784: BFDv1, length: 24
+	Multihop, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (1200 ms Detection time), BFD Length: 24
+	My Discriminator: 0x89860b19, Your Discriminator: 0x457f7451
+	  Desired min Tx Interval:     400 ms
+	  Required min Rx Interval:    400 ms
+	  Required min Echo Interval:  400 ms
+    3  15:32:49.771212 IP (tos 0xc0, ttl 255, id 42520, offset 0, flags [none], proto UDP (17), length 52)
+    101.0.0.1.62545 > 101.0.0.12.4784: BFDv1, length: 24
+	Multihop, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (900 ms Detection time), BFD Length: 24
+	My Discriminator: 0x457f7451, Your Discriminator: 0x89860b19
+	  Desired min Tx Interval:     300 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+    4  15:32:49.963242 IP (tos 0xc0, ttl 255, id 53821, offset 0, flags [none], proto UDP (17), length 52)
+    161.1.12.1.60409 > 161.1.12.12.3784: BFDv1, length: 24
+	Control, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (900 ms Detection time), BFD Length: 24
+	My Discriminator: 0x7429abf9, Your Discriminator: 0xd43a40c1
+	  Desired min Tx Interval:     300 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+    5  15:32:50.077458 IP (tos 0xc0, ttl 255, id 24116, offset 0, flags [none], proto UDP (17), length 52)
+    101.0.0.12.51993 > 101.0.0.1.4784: BFDv1, length: 24
+	Multihop, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (1200 ms Detection time), BFD Length: 24
+	My Discriminator: 0x89860b19, Your Discriminator: 0x457f7451
+	  Desired min Tx Interval:     400 ms
+	  Required min Rx Interval:    400 ms
+	  Required min Echo Interval:  400 ms
+    6  15:32:50.123245 IP (tos 0xc0, ttl 255, id 42545, offset 0, flags [none], proto UDP (17), length 52)
+    101.0.0.1.62545 > 101.0.0.12.4784: BFDv1, length: 24
+	Multihop, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (900 ms Detection time), BFD Length: 24
+	My Discriminator: 0x457f7451, Your Discriminator: 0x89860b19
+	  Desired min Tx Interval:     300 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+    7  15:32:50.251236 IP (tos 0xc0, ttl 255, id 53849, offset 0, flags [none], proto UDP (17), length 52)
+    161.1.12.1.60409 > 161.1.12.12.3784: BFDv1, length: 24
+	Control, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (900 ms Detection time), BFD Length: 24
+	My Discriminator: 0x7429abf9, Your Discriminator: 0xd43a40c1
+	  Desired min Tx Interval:     300 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+    8  15:32:50.429453 IP (tos 0xc0, ttl 255, id 24181, offset 0, flags [none], proto UDP (17), length 52)
+    101.0.0.12.51993 > 101.0.0.1.4784: BFDv1, length: 24
+	Multihop, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (1200 ms Detection time), BFD Length: 24
+	My Discriminator: 0x89860b19, Your Discriminator: 0x457f7451
+	  Desired min Tx Interval:     400 ms
+	  Required min Rx Interval:    400 ms
+	  Required min Echo Interval:  400 ms
+    9  15:32:50.443240 IP (tos 0xc0, ttl 255, id 42625, offset 0, flags [none], proto UDP (17), length 52)
+    101.0.0.1.62545 > 101.0.0.12.4784: BFDv1, length: 24
+	Multihop, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (900 ms Detection time), BFD Length: 24
+	My Discriminator: 0x457f7451, Your Discriminator: 0x89860b19
+	  Desired min Tx Interval:     300 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+   10  15:32:50.495231 IP (tos 0xc0, ttl 255, id 53880, offset 0, flags [none], proto UDP (17), length 52)
+    161.1.12.1.60409 > 161.1.12.12.3784: BFDv1, length: 24
+	Control, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (900 ms Detection time), BFD Length: 24
+	My Discriminator: 0x7429abf9, Your Discriminator: 0xd43a40c1
+	  Desired min Tx Interval:     300 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+   11  15:32:50.763252 IP (tos 0xc0, ttl 255, id 53916, offset 0, flags [none], proto UDP (17), length 52)
+    161.1.12.1.60409 > 161.1.12.12.3784: BFDv1, length: 24
+	Control, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (900 ms Detection time), BFD Length: 24
+	My Discriminator: 0x7429abf9, Your Discriminator: 0xd43a40c1
+	  Desired min Tx Interval:     300 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+   12  15:32:50.781440 IP (tos 0xc0, ttl 255, id 24228, offset 0, flags [none], proto UDP (17), length 52)
+    101.0.0.12.51993 > 101.0.0.1.4784: BFDv1, length: 24
+	Multihop, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (1200 ms Detection time), BFD Length: 24
+	My Discriminator: 0x89860b19, Your Discriminator: 0x457f7451
+	  Desired min Tx Interval:     400 ms
+	  Required min Rx Interval:    400 ms
+	  Required min Echo Interval:  400 ms
+   13  15:32:50.795209 IP (tos 0xc0, ttl 255, id 42645, offset 0, flags [none], proto UDP (17), length 52)
+    101.0.0.1.62545 > 101.0.0.12.4784: BFDv1, length: 24
+	Multihop, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (900 ms Detection time), BFD Length: 24
+	My Discriminator: 0x457f7451, Your Discriminator: 0x89860b19
+	  Desired min Tx Interval:     300 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+   14  15:32:51.055254 IP (tos 0xc0, ttl 255, id 53938, offset 0, flags [none], proto UDP (17), length 52)
+    161.1.12.1.60409 > 161.1.12.12.3784: BFDv1, length: 24
+	Control, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (900 ms Detection time), BFD Length: 24
+	My Discriminator: 0x7429abf9, Your Discriminator: 0xd43a40c1
+	  Desired min Tx Interval:     300 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+   15  15:32:51.169437 IP (tos 0xc0, ttl 255, id 24241, offset 0, flags [none], proto UDP (17), length 52)
+    101.0.0.12.51993 > 101.0.0.1.4784: BFDv1, length: 24
+	Multihop, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (1200 ms Detection time), BFD Length: 24
+	My Discriminator: 0x89860b19, Your Discriminator: 0x457f7451
+	  Desired min Tx Interval:     400 ms
+	  Required min Rx Interval:    400 ms
+	  Required min Echo Interval:  400 ms
+   16  15:32:51.179235 IP (tos 0xc0, ttl 255, id 42685, offset 0, flags [none], proto UDP (17), length 52)
+    101.0.0.1.62545 > 101.0.0.12.4784: BFDv1, length: 24
+	Multihop, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (900 ms Detection time), BFD Length: 24
+	My Discriminator: 0x457f7451, Your Discriminator: 0x89860b19
+	  Desired min Tx Interval:     300 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+   17  15:32:51.263249 IP (tos 0xc0, ttl 255, id 53987, offset 0, flags [none], proto UDP (17), length 52)
+    161.1.12.1.60409 > 161.1.12.12.3784: BFDv1, length: 24
+	Control, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (900 ms Detection time), BFD Length: 24
+	My Discriminator: 0x7429abf9, Your Discriminator: 0xd43a40c1
+	  Desired min Tx Interval:     300 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+   18  15:32:51.517455 IP (tos 0xc0, ttl 255, id 24294, offset 0, flags [none], proto UDP (17), length 52)
+    101.0.0.12.51993 > 101.0.0.1.4784: BFDv1, length: 24
+	Multihop, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (1200 ms Detection time), BFD Length: 24
+	My Discriminator: 0x89860b19, Your Discriminator: 0x457f7451
+	  Desired min Tx Interval:     400 ms
+	  Required min Rx Interval:    400 ms
+	  Required min Echo Interval:  400 ms
+   19  15:32:51.531253 IP (tos 0xc0, ttl 255, id 42759, offset 0, flags [none], proto UDP (17), length 52)
+    101.0.0.1.62545 > 101.0.0.12.4784: BFDv1, length: 24
+	Multihop, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (900 ms Detection time), BFD Length: 24
+	My Discriminator: 0x457f7451, Your Discriminator: 0x89860b19
+	  Desired min Tx Interval:     300 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+   20  15:32:51.563242 IP (tos 0xc0, ttl 255, id 54018, offset 0, flags [none], proto UDP (17), length 52)
+    161.1.12.1.60409 > 161.1.12.12.3784: BFDv1, length: 24
+	Control, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (900 ms Detection time), BFD Length: 24
+	My Discriminator: 0x7429abf9, Your Discriminator: 0xd43a40c1
+	  Desired min Tx Interval:     300 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+   21  15:32:51.815238 IP (tos 0xc0, ttl 255, id 54063, offset 0, flags [none], proto UDP (17), length 52)
+    161.1.12.1.60409 > 161.1.12.12.3784: BFDv1, length: 24
+	Control, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (900 ms Detection time), BFD Length: 24
+	My Discriminator: 0x7429abf9, Your Discriminator: 0xd43a40c1
+	  Desired min Tx Interval:     300 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+   22  15:32:51.851228 IP (tos 0xc0, ttl 255, id 42801, offset 0, flags [none], proto UDP (17), length 52)
+    101.0.0.1.62545 > 101.0.0.12.4784: BFDv1, length: 24
+	Multihop, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (900 ms Detection time), BFD Length: 24
+	My Discriminator: 0x457f7451, Your Discriminator: 0x89860b19
+	  Desired min Tx Interval:     300 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+   23  15:32:51.901437 IP (tos 0xc0, ttl 255, id 24357, offset 0, flags [none], proto UDP (17), length 52)
+    101.0.0.12.51993 > 101.0.0.1.4784: BFDv1, length: 24
+	Multihop, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (1200 ms Detection time), BFD Length: 24
+	My Discriminator: 0x89860b19, Your Discriminator: 0x457f7451
+	  Desired min Tx Interval:     400 ms
+	  Required min Rx Interval:    400 ms
+	  Required min Echo Interval:  400 ms
+   24  15:32:52.055249 IP (tos 0xc0, ttl 255, id 54069, offset 0, flags [none], proto UDP (17), length 52)
+    161.1.12.1.60409 > 161.1.12.12.3784: BFDv1, length: 24
+	Control, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (900 ms Detection time), BFD Length: 24
+	My Discriminator: 0x7429abf9, Your Discriminator: 0xd43a40c1
+	  Desired min Tx Interval:     300 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+   25  15:32:52.171267 IP (tos 0xc0, ttl 255, id 42809, offset 0, flags [none], proto UDP (17), length 52)
+    101.0.0.1.62545 > 101.0.0.12.4784: BFDv1, length: 24
+	Multihop, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (900 ms Detection time), BFD Length: 24
+	My Discriminator: 0x457f7451, Your Discriminator: 0x89860b19
+	  Desired min Tx Interval:     300 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+   26  15:32:52.221449 IP (tos 0xc0, ttl 255, id 24379, offset 0, flags [none], proto UDP (17), length 52)
+    101.0.0.12.51993 > 101.0.0.1.4784: BFDv1, length: 24
+	Multihop, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (1200 ms Detection time), BFD Length: 24
+	My Discriminator: 0x89860b19, Your Discriminator: 0x457f7451
+	  Desired min Tx Interval:     400 ms
+	  Required min Rx Interval:    400 ms
+	  Required min Echo Interval:  400 ms
+   27  15:32:52.363241 IP (tos 0xc0, ttl 255, id 54140, offset 0, flags [none], proto UDP (17), length 52)
+    161.1.12.1.60409 > 161.1.12.12.3784: BFDv1, length: 24
+	Control, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (900 ms Detection time), BFD Length: 24
+	My Discriminator: 0x7429abf9, Your Discriminator: 0xd43a40c1
+	  Desired min Tx Interval:     300 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+   28  15:32:52.523246 IP (tos 0xc0, ttl 255, id 42894, offset 0, flags [none], proto UDP (17), length 52)
+    101.0.0.1.62545 > 101.0.0.12.4784: BFDv1, length: 24
+	Multihop, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (900 ms Detection time), BFD Length: 24
+	My Discriminator: 0x457f7451, Your Discriminator: 0x89860b19
+	  Desired min Tx Interval:     300 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+   29  15:32:52.541447 IP (tos 0xc0, ttl 255, id 24387, offset 0, flags [none], proto UDP (17), length 52)
+    101.0.0.12.51993 > 101.0.0.1.4784: BFDv1, length: 24
+	Multihop, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (1200 ms Detection time), BFD Length: 24
+	My Discriminator: 0x89860b19, Your Discriminator: 0x457f7451
+	  Desired min Tx Interval:     400 ms
+	  Required min Rx Interval:    400 ms
+	  Required min Echo Interval:  400 ms
+   30  15:32:52.623226 IP (tos 0xc0, ttl 255, id 54156, offset 0, flags [none], proto UDP (17), length 52)
+    161.1.12.1.60409 > 161.1.12.12.3784: BFDv1, length: 24
+	Control, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (900 ms Detection time), BFD Length: 24
+	My Discriminator: 0x7429abf9, Your Discriminator: 0xd43a40c1
+	  Desired min Tx Interval:     300 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+   31  15:32:52.893448 IP (tos 0xc0, ttl 255, id 24420, offset 0, flags [none], proto UDP (17), length 52)
+    101.0.0.12.51993 > 101.0.0.1.4784: BFDv1, length: 24
+	Multihop, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (1200 ms Detection time), BFD Length: 24
+	My Discriminator: 0x89860b19, Your Discriminator: 0x457f7451
+	  Desired min Tx Interval:     400 ms
+	  Required min Rx Interval:    400 ms
+	  Required min Echo Interval:  400 ms
+   32  15:32:52.907208 IP (tos 0xc0, ttl 255, id 42968, offset 0, flags [none], proto UDP (17), length 52)
+    101.0.0.1.62545 > 101.0.0.12.4784: BFDv1, length: 24
+	Multihop, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (900 ms Detection time), BFD Length: 24
+	My Discriminator: 0x457f7451, Your Discriminator: 0x89860b19
+	  Desired min Tx Interval:     300 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+   33  15:32:52.939217 IP (tos 0xc0, ttl 255, id 54161, offset 0, flags [none], proto UDP (17), length 52)
+    161.1.12.1.60409 > 161.1.12.12.3784: BFDv1, length: 24
+	Control, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (900 ms Detection time), BFD Length: 24
+	My Discriminator: 0x7429abf9, Your Discriminator: 0xd43a40c1
+	  Desired min Tx Interval:     300 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+   34  15:32:53.175261 IP (tos 0xc0, ttl 255, id 54189, offset 0, flags [none], proto UDP (17), length 52)
+    161.1.12.1.60409 > 161.1.12.12.3784: BFDv1, length: 24
+	Control, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (900 ms Detection time), BFD Length: 24
+	My Discriminator: 0x7429abf9, Your Discriminator: 0xd43a40c1
+	  Desired min Tx Interval:     300 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+   35  15:32:53.245445 IP (tos 0xc0, ttl 255, id 24444, offset 0, flags [none], proto UDP (17), length 52)
+    101.0.0.12.51993 > 101.0.0.1.4784: BFDv1, length: 24
+	Multihop, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (1200 ms Detection time), BFD Length: 24
+	My Discriminator: 0x89860b19, Your Discriminator: 0x457f7451
+	  Desired min Tx Interval:     400 ms
+	  Required min Rx Interval:    400 ms
+	  Required min Echo Interval:  400 ms
+   36  15:32:53.259218 IP (tos 0xc0, ttl 255, id 43041, offset 0, flags [none], proto UDP (17), length 52)
+    101.0.0.1.62545 > 101.0.0.12.4784: BFDv1, length: 24
+	Multihop, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (900 ms Detection time), BFD Length: 24
+	My Discriminator: 0x457f7451, Your Discriminator: 0x89860b19
+	  Desired min Tx Interval:     300 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+   37  15:32:53.455241 IP (tos 0xc0, ttl 255, id 54223, offset 0, flags [none], proto UDP (17), length 52)
+    161.1.12.1.60409 > 161.1.12.12.3784: BFDv1, length: 24
+	Control, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (900 ms Detection time), BFD Length: 24
+	My Discriminator: 0x7429abf9, Your Discriminator: 0xd43a40c1
+	  Desired min Tx Interval:     300 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+   38  15:32:53.565443 IP (tos 0xc0, ttl 255, id 24471, offset 0, flags [none], proto UDP (17), length 52)
+    101.0.0.12.51993 > 101.0.0.1.4784: BFDv1, length: 24
+	Multihop, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (1200 ms Detection time), BFD Length: 24
+	My Discriminator: 0x89860b19, Your Discriminator: 0x457f7451
+	  Desired min Tx Interval:     400 ms
+	  Required min Rx Interval:    400 ms
+	  Required min Echo Interval:  400 ms
+   39  15:32:53.611260 IP (tos 0xc0, ttl 255, id 43060, offset 0, flags [none], proto UDP (17), length 52)
+    101.0.0.1.62545 > 101.0.0.12.4784: BFDv1, length: 24
+	Multihop, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (900 ms Detection time), BFD Length: 24
+	My Discriminator: 0x457f7451, Your Discriminator: 0x89860b19
+	  Desired min Tx Interval:     300 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms
+   40  15:32:53.739250 IP (tos 0xc0, ttl 255, id 54269, offset 0, flags [none], proto UDP (17), length 52)
+    161.1.12.1.60409 > 161.1.12.12.3784: BFDv1, length: 24
+	Control, State Up, Flags: [none], Diagnostic: No Diagnostic (0x00)
+	Detection Timer Multiplier: 3 (900 ms Detection time), BFD Length: 24
+	My Discriminator: 0x7429abf9, Your Discriminator: 0xd43a40c1
+	  Desired min Tx Interval:     300 ms
+	  Required min Rx Interval:    300 ms
+	  Required min Echo Interval:  300 ms

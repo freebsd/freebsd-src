@@ -1,0 +1,99 @@
+    1  12:36:55.841195 IS-IS, length 495
+	L2 LSP, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
+	  lsp-id: 0192.0168.0001.00-00, seq: 0x0000000b, lifetime:  1196s
+	  chksum: 0xc074 (incorrect should be 0x3cf5), PDU length: 495, Flags: [ L2 IS ]
+	    Area address(es) TLV #1, length: 4
+	      Area address (length: 3): 49.0002
+	    LSP Buffersize TLV #14, length: 2
+	      LSP Buffersize: 1492
+	    Protocols supported TLV #129, length: 2
+	      NLPID(s): IPv4 (0xcc), IPv6 (0x8e)
+	    Traffic Engineering Router ID TLV #134, length: 4
+	      Traffic Engineering Router ID: 192.168.0.1
+	    IPv4 Interface address(es) TLV #132, length: 4
+	      IPv4 interface address: 192.168.0.1
+	    Hostname TLV #137, length: 9
+	      Hostname: vmx-18-r1
+	    IS Reachability TLV #2, length: 34
+	      IsNotVirtual
+	      IS Neighbor: 0192.0168.0002.02, Default Metric: 10, Internal
+	      IS Neighbor: 0192.0168.0003.02, Default Metric: 63, Internal
+	      IS Neighbor: 0192.0168.0004.02, Default Metric: 63, Internal
+	    Extended IS Reachability TLV #22, length: 184
+	      IS Neighbor: 0192.0168.0002.02, Metric: 10, sub-TLVs present (81)
+	        IPv4 interface address subTLV #6, length: 4, 10.0.12.1
+	        Link Local/Remote Identifier subTLV #4, length: 8, 0x00000180, 0x00000000
+	        Unreserved bandwidth subTLV #11, length: 32
+	          TE-Class 0: 1000.000 Mbps
+	          TE-Class 1: 1000.000 Mbps
+	          TE-Class 2: 1000.000 Mbps
+	          TE-Class 3: 1000.000 Mbps
+	          TE-Class 4: 1000.000 Mbps
+	          TE-Class 5: 1000.000 Mbps
+	          TE-Class 6: 1000.000 Mbps
+	          TE-Class 7: 1000.000 Mbps
+	        Reservable link bandwidth subTLV #10, length: 4, 1000.000 Mbps
+	        Maximum link bandwidth subTLV #9, length: 4, 1000.000 Mbps
+	        Administrative groups subTLV #3, length: 4, 0x00000000
+	        LAN Adjacency Segment Identifier subTLV #32, length: 11
+	          Flags: [Value, Local significance]
+	          Weight: 0
+	          Neighbor System-ID: 0192.0168.0002
+	          Label: 18
+	      IS Neighbor: 0192.0168.0003.02, Metric: 63, sub-TLVs present (81)
+	        IPv4 interface address subTLV #6, length: 4, 10.0.13.1
+	        Link Local/Remote Identifier subTLV #4, length: 8, 0x00000182, 0x00000000
+	        Unreserved bandwidth subTLV #11, length: 32
+	          TE-Class 0: 1000.000 Mbps
+	          TE-Class 1: 1000.000 Mbps
+	          TE-Class 2: 1000.000 Mbps
+	          TE-Class 3: 1000.000 Mbps
+	          TE-Class 4: 1000.000 Mbps
+	          TE-Class 5: 1000.000 Mbps
+	          TE-Class 6: 1000.000 Mbps
+	          TE-Class 7: 1000.000 Mbps
+	        Reservable link bandwidth subTLV #10, length: 4, 1000.000 Mbps
+	        Maximum link bandwidth subTLV #9, length: 4, 1000.000 Mbps
+	        Administrative groups subTLV #3, length: 4, 0x00000000
+	        LAN Adjacency Segment Identifier subTLV #32, length: 11
+	          Flags: [Value, Local significance]
+	          Weight: 0
+	          Neighbor System-ID: 0192.0168.0003
+	          Label: 16
+	    Extended IS Reachability TLV #22, length: 92
+	      IS Neighbor: 0192.0168.0004.02, Metric: 63, sub-TLVs present (81)
+	        IPv4 interface address subTLV #6, length: 4, 10.0.14.1
+	        Link Local/Remote Identifier subTLV #4, length: 8, 0x00000183, 0x00000000
+	        Unreserved bandwidth subTLV #11, length: 32
+	          TE-Class 0: 1000.000 Mbps
+	          TE-Class 1: 1000.000 Mbps
+	          TE-Class 2: 1000.000 Mbps
+	          TE-Class 3: 1000.000 Mbps
+	          TE-Class 4: 1000.000 Mbps
+	          TE-Class 5: 1000.000 Mbps
+	          TE-Class 6: 1000.000 Mbps
+	          TE-Class 7: 1000.000 Mbps
+	        Reservable link bandwidth subTLV #10, length: 4, 1000.000 Mbps
+	        Maximum link bandwidth subTLV #9, length: 4, 1000.000 Mbps
+	        Administrative groups subTLV #3, length: 4, 0x00000000
+	        LAN Adjacency Segment Identifier subTLV #32, length: 11
+	          Flags: [Value, Local significance]
+	          Weight: 0
+	          Neighbor System-ID: 0192.0168.0004
+	          Label: 17
+	    IPv4 Internal Reachability TLV #128, length: 60
+	      IPv4 prefix:       10.0.12.0/24, Distribution: up, Metric: 10, Internal
+	      IPv4 prefix:       10.0.13.0/24, Distribution: up, Metric: 63, Internal
+	      IPv4 prefix:       10.0.14.0/24, Distribution: up, Metric: 63, Internal
+	      IPv4 prefix:     172.16.11.0/24, Distribution: up, Metric: 63, Internal
+	      IPv4 prefix:     192.168.0.1/32, Distribution: up, Metric: 63, Internal
+	    Extended IPv4 Reachability TLV #135, length: 41
+	      IPv4 prefix:       10.0.12.0/24, Distribution: up, Metric: 10
+	      IPv4 prefix:       10.0.13.0/24, Distribution: up, Metric: 63
+	      IPv4 prefix:       10.0.14.0/24, Distribution: up, Metric: 63
+	      IPv4 prefix:     172.16.11.0/24, Distribution: up, Metric: 63
+	      IPv4 prefix:     192.168.0.1/32, Distribution: up, Metric: 63
+	    IS-IS Router Capability TLV #242, length: 8
+	      Router-ID 192.168.0.1, Flags [S bit, D bit]
+		unknown subTLV #19, length: 1
+		0x0000:  00

@@ -1,4 +1,4 @@
-IS-IS, length 1497
+    1  03:09:46.435536 IS-IS, length 1497
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 3 (0)
 	  source-id: 4444.0444.4444,  holding time: 10s, Flags: [Level 2 only]
 	  lan-id:    6344.4444.4444.01, Priority: 64, PDU length: 1497
@@ -16,6 +16,9 @@ IS-IS, length 1497
 	    IS Alias ID TLV #24, length: 255
 	      IS Neighbor: f500.0000.0000.00, no sub-TLVs present
 	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
+	      IS Neighbor: 0000.0000.0056.00, no sub-TLVs present
+	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
+	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
 	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
 	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
 	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
@@ -31,147 +34,24 @@ IS-IS, length 1497
 	        unknown subTLV #0, length: 0
 	        unknown subTLV #0, length: 0
 	        unknown subTLV #64, length: 0
-	        unknown subTLV #0, length: 189
-		    0x0000:  0000 0000 0000 0000 0000 0000 0000 0000
-		    0x0010:  00c2 0000 0000 0000 0000 0000 0000 0000
-		    0x0020:  0000 0000 0000 0000 0000 0000 0020 0000
-		    0x0030:  00f0 0000 0000 0000 0000 0000 0000 0000
-		    0x0040:  0000 0000 0000 0000 0000 0000 5900 0000
-		    0x0050:  0000 0000 0000 0000 0000 0000 0000 0000
-		    0x0060:  0000 0000 0000 0000 0000 0000 0000 0000
-		    0x0070:  0000 0000 0000 0000 0000 0000 0000 0000
-		    0x0080:  0000 0000 0000 0000 0000 7d00 0008 ff00
-		    0x0090:  004a 0000 0000 0000 0000 0000 0000 0000
-		    0x00a0:  8000 0000 0000 0000 0000 0000 0000 0000
-		    0x00b0:  0000 0000 0000 0000 0000 0000 00
-	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
-	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
-	      IS Neighbor: 3400.0000.0000.00, no sub-TLVs present
-	      IS Neighbor: 0000.2302.0000.00, no sub-TLVs present
-	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
-	      IS Neighbor: 0069.0000.0000.00, no sub-TLVs present
-	      IS Neighbor: 0200.0000.0000.00, no sub-TLVs present
-	      IS Neighbor: 0000.0067.0000.00, no sub-TLVs present
-	      IS Neighbor: 0000.0000.0000.00, sub-TLVs present (37)
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
-	      IS Neighbor: 7800.0000.0000.00, no sub-TLVs present
-	      IS Neighbor: 0000.0000.0065.00, sub-TLVs present (128)
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #66, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 8
-		    0x0000:  0000 0008 ff00 0000
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #121, length: 1
-		    0x0000:  00
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #50, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #0, length: 0
-	        unknown subTLV #132, length: 8
-		    0x0000:  0000 0000 0000 0000
-	        unknown subTLV #0, length: 0
-	      IS Neighbor: 8900.0000.0000.00, no sub-TLVs present
-	      IS Neighbor: 2500.0000.0000.00, no sub-TLVs present
-	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
-	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
-	      IS Neighbor: 0000.2500.0000.c9, no sub-TLVs present
+	        unknown subTLV #0, length: 189 (remaining data in subTLVs shorter than the current subTLV)
 	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
 	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
 	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
-	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
-	      IS Neighbor: 0008.0000.0000.00, no sub-TLVs present
-	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
+	      IS Neighbor: 0000.2000.0000.f0, no sub-TLVs present
 	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
 	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
 	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
-	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
-	      IS Neighbor: f700.0000.0000.00, no sub-TLVs present
+	      IS Neighbor: 0059.0000.0000.00, no sub-TLVs present
 	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
 	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
 	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
 	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
 	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
 	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
-	      IS Neighbor: 0000.004f.0000.00, no sub-TLVs present
-	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
-	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
-	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
-	      IS Neighbor: 3d00.0000.0000.00, no sub-TLVs present
-	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
-	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
-	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
-	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
-	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
-	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
-	      IS Neighbor: 0080.0002.0000.00, no sub-TLVs present
-	      IS Neighbor: 0000.0000.007e.00, no sub-TLVs present
-	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
-	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
-	      IS Neighbor: 0000.0000.0000.00, no sub-TLVs present
+	      IS Neighbor: 0000.0000.0000.00, sub-TLVs present (125)
+	        unknown subTLV #0, length: 0
+	        Remaining data in TLV shorter than a subTLV header
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 255
 	    Padding TLV #8, length: 247

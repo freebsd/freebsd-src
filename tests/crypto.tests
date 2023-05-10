@@ -1,0 +1,116 @@
+# -*- perl -*-
+
+# Only attempt OpenSSL-specific tests when compiled with the library.
+# Reading the secret(s) from a file does not work with Capsicum.
+
+$testlist = [
+    {
+        config_set => 'HAVE_LIBCRYPTO',
+        name => 'esp1',
+        input => '02-sunrise-sunset-esp.pcap',
+        output => 'esp1.out',
+        args   => '-E "0x12345678@192.1.2.45 3des-cbc-hmac96:0x4043434545464649494a4a4c4c4f4f515152525454575758"'
+    },
+
+    {
+        config_set => 'HAVE_LIBCRYPTO',
+        name => 'esp2',
+        input => '08-sunrise-sunset-esp2.pcap',
+        output => 'esp2.out',
+        args   => '-E "0x12345678@192.1.2.45 3des-cbc-hmac96:0x43434545464649494a4a4c4c4f4f51515252545457575840,0xabcdabcd@192.0.1.1 3des-cbc-hmac96:0x434545464649494a4a4c4c4f4f5151525254545757584043"'
+    },
+
+    {
+        config_set => 'HAVE_LIBCRYPTO',
+        name => 'esp3',
+        input => '02-sunrise-sunset-esp.pcap',
+        output => 'esp1.out',
+        args   => '-E "3des-cbc-hmac96:0x4043434545464649494a4a4c4c4f4f515152525454575758"',
+    },
+
+    {
+        config_set   => 'HAVE_LIBCRYPTO',
+        config_unset => 'HAVE_CAPSICUM',
+        name => 'esp4',
+        input => '08-sunrise-sunset-esp2.pcap',
+        output => 'esp2.out',
+        args   => '-E "file @TESTDIR@/esp-secrets.txt"',
+    },
+
+    {
+        config_set   => 'HAVE_LIBCRYPTO',
+        config_unset => 'HAVE_CAPSICUM',
+        name => 'esp5',
+        input => '08-sunrise-sunset-aes.pcap',
+        output => 'esp5.out',
+        args   => '-E "file @TESTDIR@/esp-secrets.txt"',
+    },
+
+    {
+        config_set   => 'HAVE_LIBCRYPTO',
+        config_unset => 'HAVE_CAPSICUM',
+        name => 'espudp1',
+        input => 'espudp1.pcap',
+        output => 'espudp1.out',
+        args   => '-nnnn -E "file @TESTDIR@/esp-secrets.txt"',
+    },
+
+    {
+        config_set   => 'HAVE_LIBCRYPTO',
+        config_unset => 'HAVE_CAPSICUM',
+        name => 'ikev2pI2',
+        input => 'ikev2pI2.pcap',
+        output => 'ikev2pI2.out',
+        args   => '-v -v -v -v -E "file @TESTDIR@/ikev2pI2-secrets.txt"',
+    },
+
+    {
+        config_set   => 'HAVE_LIBCRYPTO',
+        config_unset => 'HAVE_CAPSICUM',
+        name => 'isakmp4',
+        input => 'isakmp4500.pcap',
+        output => 'isakmp4.out',
+        args   => '-E "file @TESTDIR@/esp-secrets.txt"',
+    },
+
+    #bgp-as-path-oobr-ssl ${testsdir}/bgp-as-path-oobr.pcap ${testsdir}/bgp-as-path-oobr-ssl.out '-vvv -e'
+    {
+        config_set   => 'HAVE_LIBCRYPTO',
+        name => 'bgp-as-path-oobr-ssl',
+        input => 'bgp-as-path-oobr.pcap',
+        output => 'bgp-as-path-oobr-ssl.out',
+        args   => '-vvv -e'
+    },
+
+    # bgp-aigp-oobr-ssl ${testsdir}/bgp-aigp-oobr.pcap ${testsdir}/bgp-aigp-oobr-ssl.out '-vvv -e'
+    {
+        config_set   => 'HAVE_LIBCRYPTO',
+        name => 'bgp-aigp-oobr-ssl',
+        input => 'bgp-aigp-oobr.pcap',
+        output => 'bgp-aigp-oobr-ssl.out',
+        args   => '-vvv -e'
+    },
+
+    # bgp-as-path-oobr-nossl ${testsdir}/bgp-as-path-oobr.pcap ${testsdir}/bgp-as-path-oobr-nossl.out '-vvv -e'
+    {
+        config_unset   => 'HAVE_LIBCRYPTO',
+        name => 'bgp-as-path-oobr-nossl',
+        input => 'bgp-as-path-oobr.pcap',
+        output => 'bgp-as-path-oobr-nossl.out',
+        args   => '-vvv -e'
+    },
+
+    # bgp-aigp-oobr-nossl ${testsdir}/bgp-aigp-oobr.pcap ${testsdir}/bgp-aigp-oobr-nossl.out '-vvv -e'
+    {
+        config_unset   => 'HAVE_LIBCRYPTO',
+        name => 'bgp-aigp-oobr-nossl',
+        input => 'bgp-aigp-oobr.pcap',
+        output => 'bgp-aigp-oobr-nossl.out',
+        args   => '-vvv -e'
+    },
+
+    ];
+
+1;
+
+

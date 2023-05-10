@@ -1,0 +1,15 @@
+# -*- perl -*-
+
+$testlist = [
+    # This specific test fails on OpenBSD because the .pcap file uses DLT_RAW,
+    # which OpenBSD treats as DLT_LOOP.
+    {
+        config_unset => 'IS_OPENBSD',
+        name => 'heap-overflow-1',
+        input => 'heap-overflow-1.pcap',
+        output => 'heap-overflow-1.out',
+        args   => '-v'
+    },
+];
+
+1;

@@ -1,4 +1,4 @@
-UI 22! Pad! IS-IS, length 1644274306
+    1  [Error converting time] UI 22! Pad! IS-IS, length 262138
 	L2 Lan IIH, hlen: 27, v: 1, pdu-v: 1, sys-id-len: 6 (0), max-area: 224 (224)
 	  source-id: fe02.0000.d0f9,  holding time: 3928s, Flags: [unknown circuit type 0x00]
 	  lan-id:    1000.4101.0000.88, Priority: 127, PDU length: 44959
@@ -24,5 +24,4 @@ UI 22! Pad! IS-IS, length 1644274306
 	       RES: 8, MTID(s): 385
 	       unknown subTLV #129, length: 68
 	       unknown subTLV #32, length: 32
-	       unknown subTLV #129, length: 129
-		 [|isis] [|isis]
+	       unknown subTLV #129, length: 129 (> containing TLV length) [|isis]

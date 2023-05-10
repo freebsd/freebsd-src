@@ -102,14 +102,6 @@ AC_DEFUN(AC_LBL_C_INIT,
 	    # -Werror forces warnings to be errors.
 	    #
 	    ac_lbl_cc_force_warning_errors=-Werror
-
-	    #
-	    # Use -ffloat-store so that, on 32-bit x86, we don't
-	    # do 80-bit arithmetic with the FPU; that way we should
-	    # get the same results for floating-point calculations
-	    # on x86-32 and x86-64.
-	    #
-	    AC_LBL_CHECK_COMPILER_OPT($1, -ffloat-store)
     else
 	    $2="$$2 -I/usr/local/include"
 	    LDFLAGS="$LDFLAGS -L/usr/local/lib"
@@ -169,7 +161,7 @@ AC_DEFUN(AC_LBL_C_INIT,
 		    ;;
 
 	    osf*)
-	    	    #
+		    #
 		    # Presumed to be DEC OSF/1, Digital UNIX, or
 		    # Tru64 UNIX.
 		    #
@@ -219,36 +211,6 @@ AC_DEFUN(AC_LBL_C_INIT,
 ])
 
 dnl
-dnl Check whether, if you pass an unknown warning option to the
-dnl compiler, it fails or just prints a warning message and succeeds.
-dnl Set ac_lbl_unknown_warning_option_error to the appropriate flag
-dnl to force an error if it would otherwise just print a warning message
-dnl and succeed.
-dnl
-AC_DEFUN(AC_LBL_CHECK_UNKNOWN_WARNING_OPTION_ERROR,
-    [
-	AC_MSG_CHECKING([whether the compiler fails when given an unknown warning option])
-	save_CFLAGS="$CFLAGS"
-	CFLAGS="$CFLAGS -Wxyzzy-this-will-never-succeed-xyzzy"
-	AC_TRY_COMPILE(
-	    [],
-	    [return 0],
-	    [
-		AC_MSG_RESULT([no])
-		#
-		# We're assuming this is clang, where
-		# -Werror=unknown-warning-option is the appropriate
-		# option to force the compiler to fail.
-		#
-		ac_lbl_unknown_warning_option_error="-Werror=unknown-warning-option"
-	    ],
-	    [
-		AC_MSG_RESULT([yes])
-	    ])
-	CFLAGS="$save_CFLAGS"
-    ])
-
-dnl
 dnl Check whether the compiler option specified as the second argument
 dnl is supported by the compiler and, if so, add it to the macro
 dnl specified as the first argument
@@ -257,21 +219,35 @@ AC_DEFUN(AC_LBL_CHECK_COMPILER_OPT,
     [
 	AC_MSG_CHECKING([whether the compiler supports the $2 option])
 	save_CFLAGS="$CFLAGS"
-	if expr "x$2" : "x-W.*" >/dev/null
-	then
-	    CFLAGS="$CFLAGS $ac_lbl_unknown_warning_option_error $2"
-	elif expr "x$2" : "x-f.*" >/dev/null
-	then
-	    CFLAGS="$CFLAGS -Werror $2"
-	elif expr "x$2" : "x-m.*" >/dev/null
-	then
-	    CFLAGS="$CFLAGS -Werror $2"
-	else
-	    CFLAGS="$CFLAGS $2"
-	fi
-	AC_TRY_COMPILE(
-	    [],
-	    [return 0],
+	CFLAGS="$CFLAGS $2"
+	#
+	# XXX - yes, this depends on the way AC_LANG_WERROR works,
+	# but no mechanism is provided to turn AC_LANG_WERROR on
+	# *and then turn it back off*, so that we *only* do it when
+	# testing compiler options - 15 years after somebody asked
+	# for it:
+	#
+	#     https://autoconf.gnu.narkive.com/gTAVmfKD/how-to-cancel-flags-set-by-ac-lang-werror
+	#
+	save_ac_c_werror_flag="$ac_c_werror_flag"
+	ac_c_werror_flag=yes
+	#
+	# We use AC_LANG_SOURCE() so that we can control the complete
+	# content of the program being compiled.  We do not, for example,
+	# want the default "int main()" that AC_LANG_PROGRAM() generates,
+	# as it will generate a warning with -Wold-style-definition, meaning
+	# that we would treat it as not working, as the test will fail if
+	# *any* error output, including a warning due to the flag we're
+	# testing, is generated; see
+	#
+	#    https://www.postgresql.org/message-id/2192993.1591682589%40sss.pgh.pa.us
+	#    https://www.postgresql.org/message-id/2192993.1591682589%40sss.pgh.pa.us
+	#
+	# This may, as per those two messages, be fixed in autoconf 2.70,
+	# but we only require 2.64 or newer for now.
+	#
+	AC_COMPILE_IFELSE(
+	    [AC_LANG_SOURCE([[int main(void) { return 0; }]])],
 	    [
 		AC_MSG_RESULT([yes])
 		CFLAGS="$save_CFLAGS"
@@ -281,6 +257,7 @@ AC_DEFUN(AC_LBL_CHECK_COMPILER_OPT,
 		AC_MSG_RESULT([no])
 		CFLAGS="$save_CFLAGS"
 	    ])
+	ac_c_werror_flag="$save_ac_c_werror_flag"
     ])
 
 dnl
@@ -371,11 +348,10 @@ AC_DEFUN(AC_LBL_CHECK_DEPENDENCY_GENERATION_OPT,
 	if test ! -z "$ac_lbl_dependency_flag"; then
 		AC_LANG_CONFTEST(
 		    [AC_LANG_SOURCE([[int main(void) { return 0; }]])])
-		echo "$CC" $ac_lbl_dependency_flag conftest.c >&5
-		if "$CC" $ac_lbl_dependency_flag conftest.c >/dev/null 2>&1; then
+		if AC_RUN_LOG([eval "$CC $ac_lbl_dependency_flag conftest.c >/dev/null 2>&1"]); then
 			AC_MSG_RESULT([yes, with $ac_lbl_dependency_flag])
 			DEPENDENCY_CFLAG="$ac_lbl_dependency_flag"
-			MKDEP='${srcdir}/mkdep'
+			MKDEP='${top_srcdir}/mkdep'
 		else
 			AC_MSG_RESULT([no])
 			#
@@ -451,8 +427,9 @@ AC_DEFUN(AC_LBL_C_INLINE,
 dnl
 dnl Use pfopen.c if available and pfopen() not in standard libraries
 dnl Require libpcap
-dnl Look for libpcap in ..
-dnl Use the installed libpcap if there is no local version
+dnl Look for libpcap in directories under ..; those are local versions.
+dnl Look for an installed libpcap if there is no local version or if
+dnl the user said not to look for a local version.
 dnl
 dnl usage:
 dnl
@@ -473,176 +450,401 @@ AC_DEFUN(AC_LBL_LIBPCAP,
     LBL_LIBS="$LIBS"
     pfopen=/usr/examples/packetfilter/pfopen.c
     if test -f $pfopen ; then
-	    AC_CHECK_FUNCS(pfopen)
-	    if test $ac_cv_func_pfopen = "no" ; then
-		    AC_MSG_RESULT(Using $pfopen)
-		    LIBS="$LIBS $pfopen"
-	    fi
+        AC_CHECK_FUNCS(pfopen)
+        if test $ac_cv_func_pfopen = "no" ; then
+            AC_MSG_RESULT(Using $pfopen)
+            LIBS="$LIBS $pfopen"
+        fi
     fi
-	libpcap=FAIL
-	AC_MSG_CHECKING(for local pcap library)
-	AC_ARG_WITH([system-libpcap],
-		[AS_HELP_STRING([--with-system-libpcap], [don't use local pcap library])])
-	if test "x$with_system_libpcap" != xyes ; then
-		lastdir=FAIL
-    	places=`ls $srcdir/.. | sed -e 's,/$,,' -e "s,^,$srcdir/../," | \
-		egrep '/libpcap-[[0-9]]+\.[[0-9]]+(\.[[0-9]]*)?([[ab]][[0-9]]*|-PRE-GIT)?$'`
-    	places2=`ls .. | sed -e 's,/$,,' -e "s,^,../," | \
-		egrep '/libpcap-[[0-9]]+\.[[0-9]]+(\.[[0-9]]*)?([[ab]][[0-9]]*|-PRE-GIT)?$'`
-    	for dir in $places $srcdir/../libpcap ../libpcap $srcdir/libpcap $places2 ; do
-	    	basedir=`echo $dir | sed -e 's/[[ab]][[0-9]]*$//' | \
-	        	sed -e 's/-PRE-GIT$//' `
-	    	if test $lastdir = $basedir ; then
-		    	dnl skip alphas when an actual release is present
-		    	continue;
-	    	fi
-	    	lastdir=$dir
-	    	if test -r $dir/libpcap.a ; then
-		    	libpcap=$dir/libpcap.a
-		    	d=$dir
-		    	dnl continue and select the last one that exists
-	    	fi
-		done
-	fi
-    if test $libpcap = FAIL ; then
-	    AC_MSG_RESULT(not found)
+    libpcap=FAIL
+    AC_MSG_CHECKING([whether to look for a local libpcap])
+    AC_ARG_ENABLE(local-libpcap,
+        AS_HELP_STRING([--disable-local-libpcap],
+                       [don't look for a local libpcap @<:@default=check for a local libpcap@:>@]),,
+        enableval=yes)
+    case "$enableval" in
 
-	    #
-	    # Look for pcap-config.
-	    #
-	    AC_PATH_TOOL(PCAP_CONFIG, pcap-config)
-	    if test -n "$PCAP_CONFIG" ; then
-		#
-		# Found - use it to get the include flags for
-		# libpcap and the flags to link with libpcap.
-		#
-		# Please read section 11.6 "Shell Substitutions"
-		# in the autoconf manual before doing anything
-		# to this that involves quoting.  Especially note
-		# the statement "There is just no portable way to use
-		# double-quoted strings inside double-quoted back-quoted
-		# expressions (pfew!)."
-		#
-		cflags=`"$PCAP_CONFIG" --cflags`
-		$2="$cflags $$2"
-		libpcap=`"$PCAP_CONFIG" --libs`
-	    else
-		#
-		# Not found; look for pcap.
-		#
-		AC_CHECK_LIB(pcap, main, libpcap="-lpcap")
-		if test $libpcap = FAIL ; then
-		    AC_MSG_ERROR(see the INSTALL doc for more info)
-		fi
-		dnl
-		dnl Some versions of Red Hat Linux put "pcap.h" in
-		dnl "/usr/include/pcap"; had the LBL folks done so,
-		dnl that would have been a good idea, but for
-		dnl the Red Hat folks to do so just breaks source
-		dnl compatibility with other systems.
-		dnl
-		dnl We work around this by assuming that, as we didn't
-		dnl find a local libpcap, libpcap is in /usr/lib or
-		dnl /usr/local/lib and that the corresponding header
-		dnl file is under one of those directories; if we don't
-		dnl find it in either of those directories, we check to
-		dnl see if it's in a "pcap" subdirectory of them and,
-		dnl if so, add that subdirectory to the "-I" list.
-		dnl
-		dnl (We now also put pcap.h in /usr/include/pcap, but we
-		dnl leave behind a /usr/include/pcap.h that includes it,
-		dnl so you can still just include <pcap.h>.)
-		dnl
-		AC_MSG_CHECKING(for extraneous pcap header directories)
-		if test \( ! -r /usr/local/include/pcap.h \) -a \
-			\( ! -r /usr/include/pcap.h \); then
-		    if test -r /usr/local/include/pcap/pcap.h; then
-			d="/usr/local/include/pcap"
-		    elif test -r /usr/include/pcap/pcap.h; then
-			d="/usr/include/pcap"
-		    fi
-		fi
-		if test -z "$d" ; then
-		    AC_MSG_RESULT(not found)
-		else
-		    $2="-I$d $$2"
-		    AC_MSG_RESULT(found -- -I$d added)
-		fi
-	    fi
+    no)
+        AC_MSG_RESULT(no)
+        #
+        # Don't look for a local libpcap.
+        #
+        using_local_libpcap=no
+        ;;
+
+    *)
+        AC_MSG_RESULT(yes)
+        #
+        # Look for a local pcap library.
+        #
+        AC_MSG_CHECKING(for local pcap library)
+        lastdir=FAIL
+        places=`ls $srcdir/.. | sed -e 's,/$,,' -e "s,^,$srcdir/../," | \
+            egrep '/libpcap-[[0-9]]+\.[[0-9]]+(\.[[0-9]]*)?([[ab]][[0-9]]*|-PRE-GIT|rc.)?$'`
+        places2=`ls .. | sed -e 's,/$,,' -e "s,^,../," | \
+            egrep '/libpcap-[[0-9]]+\.[[0-9]]+(\.[[0-9]]*)?([[ab]][[0-9]]*|-PRE-GIT|rc.)?$'`
+        for dir in $places $srcdir/../libpcap ../libpcap $srcdir/libpcap $places2 ; do
+            basedir=`echo $dir | sed -e 's/[[ab]][[0-9]]*$//' | \
+                sed -e 's/-PRE-GIT$//' `
+            if test $lastdir = $basedir ; then
+                dnl skip alphas when an actual release is present
+                continue;
+            fi
+            lastdir=$dir
+            if test -r $dir/libpcap.a ; then
+                libpcap=$dir/libpcap.a
+                local_pcap_dir=$dir
+                dnl continue and select the last one that exists
+            fi
+        done
+        if test $libpcap = FAIL ; then
+            #
+            # We didn't find a local libpcap.
+            #
+            AC_MSG_RESULT(not found)
+            using_local_libpcap=no;
+        else
+            #
+            # We found a local libpcap.
+            #
+            AC_MSG_RESULT($libpcap)
+            using_local_libpcap=yes
+        fi
+        ;;
+    esac
+
+    if test $using_local_libpcap = no ; then
+        #
+        # We didn't find a local libpcap.
+        # Look for an installed pkg-config.
+        #
+        AC_PATH_TOOL(PKG_CONFIG, pkg-config)
+        if test -n "$PKG_CONFIG" ; then
+            #
+            # We have it.  Are there .pc files for libpcap?
+            #
+            # --exists was introduced in pkg-config 0.4.0; that
+            # dates back to late 2000, so we won't worry about
+            # earlier releases that lack it.
+            #
+            AC_MSG_CHECKING(whether there are .pc files for libpcap)
+            if "$PKG_CONFIG" libpcap --exists ; then
+                #
+                # Yes, so we can use pkg-config to get configuration
+                # information for libpcap.
+                #
+                AC_MSG_RESULT(yes)
+                pkg_config_usable=yes
+            else
+                #
+                # No, so we can't use pkg-config to get configuration
+                # information for libpcap.
+                #
+                AC_MSG_RESULT(no)
+                pkg_config_usable=no
+            fi
+        else
+            #
+            # We don't have it, so we obviously can't use it.
+            #
+            pkg_config_usable=no
+        fi
+        if test "$pkg_config_usable" = "yes" ; then
+            #
+            # Found both - use pkg-config to get the include flags for
+            # libpcap and the flags to link with libpcap.
+            #
+            # Please read section 11.6 "Shell Substitutions"
+            # in the autoconf manual before doing anything
+            # to this that involves quoting.  Especially note
+            # the statement "There is just no portable way to use
+            # double-quoted strings inside double-quoted back-quoted
+            # expressions (pfew!)."
+            #
+            cflags=`"$PKG_CONFIG" libpcap --cflags`
+            $2="$cflags $$2"
+            libpcap=`"$PKG_CONFIG" libpcap --libs`
+        else
+            #
+            # No pkg-config
+            # Look for an installed pcap-config.
+            #
+            AC_PATH_TOOL(PCAP_CONFIG, pcap-config)
+            if test -n "$PCAP_CONFIG" ; then
+                #
+                # Found - use it to get the include flags for
+                # libpcap and the flags to link with libpcap.
+                #
+                # If this is a vendor-supplied pcap-config, which
+                # we define as being "a pcap-config in /usr/bin
+                # or /usr/ccs/bin" (the latter is for Solaris and
+                # Sun/Oracle Studio), there are some issues.  Work
+                # around them.
+                #
+                if test \( "$PCAP_CONFIG" = "/usr/bin/pcap-config" \) -o \
+                        \( "$PCAP_CONFIG" = "/usr/ccs/bin/pcap-config" \) ; then
+                    #
+                    # It's vendor-supplied.
+                    #
+                    case "$host_os" in
+
+                    darwin*)
+                        #
+                        # This is macOS or another Darwin-based OS.
+                        #
+                        # That means that /usr/bin/pcap-config it
+                        # may provide -I/usr/local/include with --cflags
+                        # and -L/usr/local/lib with --libs, rather than
+                        # pointing to the OS-supplied library and
+                        # Xcode-supplied headers.  Remember that, so we
+                        # ignore those values.
+                        #
+                        _broken_apple_pcap_config=yes
+                        ;;
+
+                    solaris*)
+                        #
+                        # This is Solaris 2 or later, i.e. SunOS 5.x.
+                        #
+                        # At least on Solaris 11; there's /usr/bin/pcap-config,
+                        # which reports -L/usr/lib with --libs, causing
+                        # the 32-bit libraries to be found, and there's
+                        # /usr/bin/{64bitarch}/pcap-config, where {64bitarch}
+                        # is a name for the 64-bit version of the instruction
+                        # set, which reports -L /usr/lib/{64bitarch}, causing
+                        # the 64-bit libraries to be found.
+                        #
+                        # So if we're building 64-bit targets, we replace
+                        # PCAP_CONFIG with /usr/bin/{64bitarch}; we get
+                        # {64bitarch} as the output of "isainfo -n".
+                        #
+                        # Are we building 32-bit or 64-bit?  Get the
+                        # size of void *, and check that.
+                        #
+                        AC_CHECK_SIZEOF([void *])
+                        if test ac_cv_sizeof_void_p -eq 8 ; then
+                            isainfo_output=`isainfo -n`
+                            if test ! -z "$isainfo_output" ; then
+                                #
+                                # Success - change PCAP_CONFIG.
+                                #
+                                PCAP_CONFIG=`echo $PCAP_CONFIG | sed "s;/bin/;/bin/$isainfo_output/;"`
+                            fi
+                        fi
+                        ;;
+                    esac
+                fi
+                #
+                # Please read section 11.6 "Shell Substitutions"
+                # in the autoconf manual before doing anything
+                # to this that involves quoting.  Especially note
+                # the statement "There is just no portable way to use
+                # double-quoted strings inside double-quoted back-quoted
+                # expressions (pfew!)."
+                #
+                cflags=`"$PCAP_CONFIG" --cflags`
+                #
+                # Work around macOS (and probably other Darwin) brokenness,
+                # by not adding /usr/local/include if it's from the broken
+                # Apple pcap-config.
+                #
+                if test "$_broken_apple_pcap_config" = "yes" ; then
+                    #
+                    # Strip -I/usr/local/include with sed.
+                    #
+                    cflags=`echo $cflags | sed 's;-I/usr/local/include;;'`
+                fi
+                $2="$cflags $$2"
+                libpcap=`"$PCAP_CONFIG" --libs`
+                #
+                # Work around macOS (and probably other Darwin) brokenness,
+                # by not adding /usr/local/lib if it's from the broken
+                # Apple pcap-config.
+                #
+                if test "$_broken_apple_pcap_config" = "yes" ; then
+                    #
+                    # Strip -L/usr/local/lib with sed.
+                    #
+                    libpcap=`echo $libpcap | sed 's;-L/usr/local/lib;;'`
+                fi
+            else
+                #
+                # Not found; look for an installed pcap.
+                #
+                AC_CHECK_LIB(pcap, main, libpcap="-lpcap")
+                if test $libpcap = FAIL ; then
+                    AC_MSG_ERROR(see the INSTALL doc for more info)
+                fi
+                dnl
+                dnl Some versions of Red Hat Linux put "pcap.h" in
+                dnl "/usr/include/pcap"; had the LBL folks done so,
+                dnl that would have been a good idea, but for
+                dnl the Red Hat folks to do so just breaks source
+                dnl compatibility with other systems.
+                dnl
+                dnl We work around this by assuming that, as we didn't
+                dnl find a local libpcap, libpcap is in /usr/lib or
+                dnl /usr/local/lib and that the corresponding header
+                dnl file is under one of those directories; if we don't
+                dnl find it in either of those directories, we check to
+                dnl see if it's in a "pcap" subdirectory of them and,
+                dnl if so, add that subdirectory to the "-I" list.
+                dnl
+                dnl (We now also put pcap.h in /usr/include/pcap, but we
+                dnl leave behind a /usr/include/pcap.h that includes it,
+                dnl so you can still just include <pcap.h>.)
+                dnl
+                AC_MSG_CHECKING(for extraneous pcap header directories)
+                if test \( ! -r /usr/local/include/pcap.h \) -a \
+                        \( ! -r /usr/include/pcap.h \); then
+                    if test -r /usr/local/include/pcap/pcap.h; then
+                        d="/usr/local/include/pcap"
+                    elif test -r /usr/include/pcap/pcap.h; then
+                        d="/usr/include/pcap"
+                    fi
+                fi
+                if test -z "$d" ; then
+                    AC_MSG_RESULT(not found)
+                else
+                    $2="-I$d $$2"
+                    AC_MSG_RESULT(found -- -I$d added)
+                fi
+            fi
+        fi
     else
-	    $1=$libpcap
-	    places=`ls $srcdir/.. | sed -e 's,/$,,' -e "s,^,$srcdir/../," | \
-    	 		egrep '/libpcap-[[0-9]]*.[[0-9]]*(.[[0-9]]*)?([[ab]][[0-9]]*)?$'`
-	    places2=`ls .. | sed -e 's,/$,,' -e "s,^,../," | \
-    	 		egrep '/libpcap-[[0-9]]*.[[0-9]]*(.[[0-9]]*)?([[ab]][[0-9]]*)?$'`
+        #
+        # We found a local libpcap.  Add it to the dependencies for
+        # tcpdump.
+        #
+        $1=$libpcap
+
+        #
+        # Look for its pcap-config script.
+        #
+        AC_PATH_PROG(PCAP_CONFIG, pcap-config,, $local_pcap_dir)
+
+        if test -n "$PCAP_CONFIG"; then
+            #
+            # We don't want its --cflags or --libs output, because
+            # those presume it's installed.  For the C compiler flags,
+            # we add the source directory for the local libpcap, so
+            # we pick up its header files.
+            #
+            # We do, however, want its additional libraries, as required
+            # when linking statically, because it makes calls to
+            # routines in those libraries, so we'll need to link with
+            # them, because we'll be linking statically with it.
+            #
+            # If it supports --static-pcap-only. use that, as we will be
+            # linking with a static libpcap but won't be linking
+            # statically with any of the libraries on which it depends;
+            # those libraries might not even have static versions
+            # installed.
+            #
+            # That means we need to find out the libraries on which
+            # libpcap directly depends, so we can link with them, but we
+            # don't need to link with the libraries on which those
+            # libraries depend as, on all UN*Xes with which I'm
+            # familiar, the libraries on which a shared library depends
+            # are stored in the library and are automatically loaded by
+            # the run-time linker, without the executable having to be
+            # linked with those libraries.  (This allows a library to be
+            # changed to depend on more libraries without breaking that
+            # library's ABI.)
+            #
+            # The only way to test for that support is to see if the
+            # script contains the string "static-pcap-only"; we can't
+            # try using that flag and checking for errors, as the
+            # versions of the script that didn't have that flag wouldn't
+            # report or return an error for an unsupported command-line
+            # flag.  Those older versions provided, with --static, only
+            # the libraries on which libpcap depends, not the
+            # dependencies of those libraries; the versions with
+            # --static-pcap-only provide all the dependencies with
+            # --static, for the benefit of programs that are completely
+            # statically linked, and provide only the direct
+            # dependencies with --static-pcap-only.
+            #
+            if grep -s -q "static-pcap-only" "$PCAP_CONFIG"
+            then
+                static_opt="--static-pcap-only"
+            else
+                static_opt="--static"
+            fi
+            $2="-I$local_pcap_dir $$2"
+            additional_libs=`"$PCAP_CONFIG" $static_opt --additional-libs`
+            libpcap="$libpcap $additional_libs"
+        else
+            #
+            # It doesn't have a pcap-config script.
+            # Make sure it has a pcap.h file.
+            #
+            places=`ls $srcdir/.. | sed -e 's,/$,,' -e "s,^,$srcdir/../," | \
+                egrep '/libpcap-[[0-9]]*.[[0-9]]*(.[[0-9]]*)?([[ab]][[0-9]]*)?$'`
+            places2=`ls .. | sed -e 's,/$,,' -e "s,^,../," | \
+                egrep '/libpcap-[[0-9]]*.[[0-9]]*(.[[0-9]]*)?([[ab]][[0-9]]*)?$'`
             pcapH=FAIL
-	    if test -r $d/pcap.h; then
-                    pcapH=$d
-	    else
+            if test -r $local_pcap_dir/pcap.h; then
+                pcapH=$local_pcap_dir
+            else
                 for dir in $places $srcdir/../libpcap ../libpcap $srcdir/libpcap $places2 ; do
-                   if test -r $dir/pcap.h ; then
-                       pcapH=$dir
-                   fi
+                    if test -r $dir/pcap.h ; then
+                        pcapH=$dir
+                    fi
                 done
             fi
 
             if test $pcapH = FAIL ; then
-                    AC_MSG_ERROR(cannot find pcap.h: see INSTALL)
- 	    fi
+                AC_MSG_ERROR(cannot find pcap.h: see INSTALL)
+            fi
+
+            #
+            # Force the compiler to look for header files in the
+            # directory containing pcap.h.
+            #
             $2="-I$pcapH $$2"
-	    AC_MSG_RESULT($libpcap)
-	    AC_PATH_PROG(PCAP_CONFIG, pcap-config,, $d)
-	    if test -n "$PCAP_CONFIG"; then
-		#
-		# The libpcap directory has a pcap-config script.
-		# Use it to get any additioal libraries needed
-		# to link with the libpcap archive library in
-		# that directory.
-		#
-		# Please read section 11.6 "Shell Substitutions"
-		# in the autoconf manual before doing anything
-		# to this that involves quoting.  Especially note
-		# the statement "There is just no portable way to use
-		# double-quoted strings inside double-quoted back-quoted
-		# expressions (pfew!)."
-		#
-		additional_libs=`"$PCAP_CONFIG" --additional-libs --static`
-		libpcap="$libpcap $additional_libs"
-	    fi
+        fi
     fi
+
+    if test -z "$PKG_CONFIG" -a -z "$PCAP_CONFIG"; then
+        #
+        # We don't have pkg-config or pcap-config; find out any additional
+        # link flags we need.  (If we have pkg-config or pcap-config, we
+        # assume it tells us what we need.)
+        #
+        case "$host_os" in
+
+        aix*)
+            #
+            # If libpcap is DLPI-based, we have to use /lib/pse.exp if
+            # present, as we use the STREAMS routines.
+            #
+            # (XXX - true only if we're linking with a static libpcap?)
+            #
+            pseexe="/lib/pse.exp"
+            AC_MSG_CHECKING(for $pseexe)
+            if test -f $pseexe ; then
+                AC_MSG_RESULT(yes)
+                LIBS="$LIBS -I:$pseexe"
+            fi
+
+            #
+            # If libpcap is BPF-based, we need "-lodm" and "-lcfg", as
+            # we use them to load the BPF module.
+            #
+            # (XXX - true only if we're linking with a static libpcap?)
+            #
+            LIBS="$LIBS -lodm -lcfg"
+            ;;
+
+	solaris*)
+            # libdlpi is needed for Solaris 11 and later.
+            AC_CHECK_LIB(dlpi, dlpi_walk, LIBS="$LIBS -ldlpi" LDFLAGS="-L/lib $LDFLAGS", ,-L/lib)
+            ;;
+        esac
+    fi
+
     LIBS="$libpcap $LIBS"
-    if ! test -n "$PCAP_CONFIG" ; then
-	#
-	# We don't have pcap-config; find out any additional link flags
-	# we need.  (If we have pcap-config, we assume it tells us what
-	# we need.)
-	#
-	case "$host_os" in
-
-	aix*)
-	    #
-	    # If libpcap is DLPI-based, we have to use /lib/pse.exp if
-	    # present, as we use the STREAMS routines.
-	    #
-	    # (XXX - true only if we're linking with a static libpcap?)
-	    #
-	    pseexe="/lib/pse.exp"
-	    AC_MSG_CHECKING(for $pseexe)
-	    if test -f $pseexe ; then
-		    AC_MSG_RESULT(yes)
-		    LIBS="$LIBS -I:$pseexe"
-	    fi
-
-	    #
-	    # If libpcap is BPF-based, we need "-lodm" and "-lcfg", as
-	    # we use them to load the BPF module.
-	    #
-	    # (XXX - true only if we're linking with a static libpcap?)
-	    #
-	    LIBS="$LIBS -lodm -lcfg"
-	    ;;
-	esac
-    fi
 
     dnl
     dnl Check for "pcap_loop()", to make sure we found a working
@@ -653,9 +855,9 @@ AC_DEFUN(AC_LBL_LIBPCAP,
     dnl that will cause confusing errors at build time.)
     dnl
     AC_CHECK_FUNC(pcap_loop,,
-	[
-	    AC_MSG_ERROR(
-[This is a bug, please follow the guidelines in CONTRIBUTING and include the
+    [
+        AC_MSG_ERROR(
+[This is a bug, please follow the guidelines in CONTRIBUTING.md and include the
 config.log file in your report.  If you have downloaded libpcap from
 tcpdump.org, and built it yourself, please also include the config.log
 file from the libpcap source directory, the Makefile from the libpcap
@@ -664,43 +866,8 @@ this could be a problem with the libpcap that was built, and we will
 not be able to determine why this is happening, and thus will not be
 able to fix it, without that information, as we have not been able to
 reproduce this problem ourselves.])
-	])
+    ])
 ])
-
-dnl
-dnl Define RETSIGTYPE and RETSIGVAL
-dnl
-dnl usage:
-dnl
-dnl	AC_LBL_TYPE_SIGNAL
-dnl
-dnl results:
-dnl
-dnl	RETSIGTYPE (defined)
-dnl	RETSIGVAL (defined)
-dnl
-AC_DEFUN(AC_LBL_TYPE_SIGNAL,
-    [AC_BEFORE([$0], [AC_LBL_LIBPCAP])
-    AC_TYPE_SIGNAL
-    if test "$ac_cv_type_signal" = void ; then
-	    AC_DEFINE(RETSIGVAL,[],[return value of signal handlers])
-    else
-	    AC_DEFINE(RETSIGVAL,(0),[return value of signal handlers])
-    fi
-    case "$host_os" in
-
-    irix*)
-	    AC_DEFINE(_BSD_SIGNALS,1,[get BSD semantics on Irix])
-	    ;;
-
-    *)
-	    dnl prefer sigaction() to sigset()
-	    AC_CHECK_FUNCS(sigaction)
-	    if test $ac_cv_func_sigaction = no ; then
-		    AC_CHECK_FUNCS(sigset)
-	    fi
-	    ;;
-    esac])
 
 dnl
 dnl If using gcc, make sure we have ANSI ioctl definitions
@@ -765,31 +932,6 @@ AC_DEFUN(AC_LBL_UNION_WAIT,
 	    AC_DEFINE(DECLWAITSTATUS,union wait,[type for wait])
     else
 	    AC_DEFINE(DECLWAITSTATUS,int,[type for wait])
-    fi])
-
-dnl
-dnl Checks to see if the sockaddr struct has the 4.4 BSD sa_len member
-dnl
-dnl usage:
-dnl
-dnl	AC_LBL_SOCKADDR_SA_LEN
-dnl
-dnl results:
-dnl
-dnl	HAVE_SOCKADDR_SA_LEN (defined)
-dnl
-AC_DEFUN(AC_LBL_SOCKADDR_SA_LEN,
-    [AC_MSG_CHECKING(if sockaddr struct has the sa_len member)
-    AC_CACHE_VAL(ac_cv_lbl_sockaddr_has_sa_len,
-	AC_TRY_COMPILE([
-#	include <sys/types.h>
-#	include <sys/socket.h>],
-	[u_int i = sizeof(((struct sockaddr *)0)->sa_len)],
-	ac_cv_lbl_sockaddr_has_sa_len=yes,
-	ac_cv_lbl_sockaddr_has_sa_len=no))
-    AC_MSG_RESULT($ac_cv_lbl_sockaddr_has_sa_len)
-    if test $ac_cv_lbl_sockaddr_has_sa_len = yes ; then
-	    AC_DEFINE(HAVE_SOCKADDR_SA_LEN,1,[if struct sockaddr has the sa_len member])
     fi])
 
 dnl
@@ -859,106 +1001,6 @@ AC_DEFUN(AC_LBL_CHECK_64BIT_FORMAT,
   ])
 
 dnl
-dnl Checks to see if unaligned memory accesses fail
-dnl
-dnl usage:
-dnl
-dnl	AC_LBL_UNALIGNED_ACCESS
-dnl
-dnl results:
-dnl
-dnl	LBL_ALIGN (DEFINED)
-dnl
-AC_DEFUN(AC_LBL_UNALIGNED_ACCESS,
-    [AC_MSG_CHECKING(if unaligned accesses fail)
-    AC_CACHE_VAL(ac_cv_lbl_unaligned_fail,
-	[case "$host_cpu" in
-
-	#
-	# These are CPU types where:
-	#
-	#	the CPU faults on an unaligned access, but at least some
-	#	OSes that support that CPU catch the fault and simulate
-	#	the unaligned access (e.g., Alpha/{Digital,Tru64} UNIX) -
-	#	the simulation is slow, so we don't want to use it;
-	#
-	#	the CPU, I infer (from the old
-	#
-	# XXX: should also check that they don't do weird things (like on arm)
-	#
-	#	comment) doesn't fault on unaligned accesses, but doesn't
-	#	do a normal unaligned fetch, either (e.g., presumably, ARM);
-	#
-	#	for whatever reason, the test program doesn't work
-	#	(this has been claimed to be the case for several of those
-	#	CPUs - I don't know what the problem is; the problem
-	#	was reported as "the test program dumps core" for SuperH,
-	#	but that's what the test program is *supposed* to do -
-	#	it dumps core before it writes anything, so the test
-	#	for an empty output file should find an empty output
-	#	file and conclude that unaligned accesses don't work).
-	#
-	# This run-time test won't work if you're cross-compiling, so
-	# in order to support cross-compiling for a particular CPU,
-	# we have to wire in the list of CPU types anyway, as far as
-	# I know, so perhaps we should just have a set of CPUs on
-	# which we know it doesn't work, a set of CPUs on which we
-	# know it does work, and have the script just fail on other
-	# cpu types and update it when such a failure occurs.
-	#
-	alpha*|arm*|bfin*|hp*|mips*|sh*|sparc*|ia64|nv1)
-		ac_cv_lbl_unaligned_fail=yes
-		;;
-
-	*)
-		cat >conftest.c <<EOF
-#		include <sys/types.h>
-#		include <sys/wait.h>
-#		include <stdio.h>
-		unsigned char a[[5]] = { 1, 2, 3, 4, 5 };
-		main() {
-		unsigned int i;
-		pid_t pid;
-		int status;
-		/* avoid "core dumped" message */
-		pid = fork();
-		if (pid <  0)
-			exit(2);
-		if (pid > 0) {
-			/* parent */
-			pid = waitpid(pid, &status, 0);
-			if (pid < 0)
-				exit(3);
-			exit(!WIFEXITED(status));
-		}
-		/* child */
-		i = *(unsigned int *)&a[[1]];
-		printf("%d\n", i);
-		exit(0);
-		}
-EOF
-		${CC-cc} -o conftest $CFLAGS $CPPFLAGS $LDFLAGS \
-		    conftest.c $LIBS >/dev/null 2>&1
-		if test ! -x conftest ; then
-			dnl failed to compile for some reason
-			ac_cv_lbl_unaligned_fail=yes
-		else
-			./conftest >conftest.out
-			if test ! -s conftest.out ; then
-				ac_cv_lbl_unaligned_fail=yes
-			else
-				ac_cv_lbl_unaligned_fail=no
-			fi
-		fi
-		rm -f -r conftest* core core.conftest
-		;;
-	esac])
-    AC_MSG_RESULT($ac_cv_lbl_unaligned_fail)
-    if test $ac_cv_lbl_unaligned_fail = yes ; then
-	    AC_DEFINE(LBL_ALIGN,1,[if unaligned access fails])
-    fi])
-
-dnl
 dnl If the file .devel exists:
 dnl	Add some warning flags if the compiler supports them
 dnl	If an os prototype include exists, symlink os-proto.h to it
@@ -983,19 +1025,22 @@ AC_DEFUN(AC_LBL_DEVEL,
 	    # Skip all the warning option stuff on some compilers.
 	    #
 	    if test "$ac_lbl_cc_dont_try_gcc_dashW" != yes; then
-		    AC_LBL_CHECK_UNKNOWN_WARNING_OPTION_ERROR()
-		    AC_LBL_CHECK_COMPILER_OPT($1, -Wall)
-		    AC_LBL_CHECK_COMPILER_OPT($1, -Wmissing-prototypes)
-		    AC_LBL_CHECK_COMPILER_OPT($1, -Wstrict-prototypes)
-		    AC_LBL_CHECK_COMPILER_OPT($1, -Wwrite-strings)
-		    AC_LBL_CHECK_COMPILER_OPT($1, -Wpointer-arith)
-		    AC_LBL_CHECK_COMPILER_OPT($1, -Wcast-qual)
-		    AC_LBL_CHECK_COMPILER_OPT($1, -Wshadow)
-		    AC_LBL_CHECK_COMPILER_OPT($1, -Wdeclaration-after-statement)
-		    AC_LBL_CHECK_COMPILER_OPT($1, -Wpedantic)
-		    AC_LBL_CHECK_COMPILER_OPT($1, -Wold-style-definition)
-		    AC_LBL_CHECK_COMPILER_OPT($1, -Wused-but-marked-unused)
 		    AC_LBL_CHECK_COMPILER_OPT($1, -W)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wall)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wassign-enum)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wcast-qual)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wmissing-prototypes)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wmissing-variable-declarations)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wold-style-definition)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wpedantic)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wpointer-arith)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wpointer-sign)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wshadow)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wsign-compare)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wstrict-prototypes)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wunreachable-code-return)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wused-but-marked-unused)
+		    AC_LBL_CHECK_COMPILER_OPT($1, -Wwrite-strings)
 	    fi
 	    AC_LBL_CHECK_DEPENDENCY_GENERATION_OPT()
 	    #
@@ -1102,11 +1147,11 @@ dnl This test exists so that every application developer does not test
 dnl this in a different, and subtly broken fashion.
 
 dnl It has been argued that this test should be broken up into two
-dnl seperate tests, one for the resolver libraries, and one for the
+dnl separate tests, one for the resolver libraries, and one for the
 dnl libraries necessary for using Sockets API. Unfortunately, the two
 dnl are carefully intertwined and allowing the autoconf user to use
-dnl them independantly potentially results in unfortunate ordering
-dnl dependancies -- as such, such component macros would have to
+dnl them independently potentially results in unfortunate ordering
+dnl dependencies -- as such, such component macros would have to
 dnl carefully use indirection and be aware if the other components were
 dnl executed. Since other autoconf macros do not go to this trouble,
 dnl and almost no applications use sockets without the resolver, this
@@ -1161,168 +1206,6 @@ dnl LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 dnl OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 dnl SUCH DAMAGE.
 
-dnl
-dnl Test for __attribute__
-dnl
-
-AC_DEFUN(AC_C___ATTRIBUTE__, [
-AC_MSG_CHECKING(for __attribute__)
-AC_CACHE_VAL(ac_cv___attribute__, [
-AC_COMPILE_IFELSE([
-  AC_LANG_SOURCE([[
-#include <stdlib.h>
-
-static void foo(void) __attribute__ ((noreturn));
-
-static void
-foo(void)
-{
-  exit(1);
-}
-
-int
-main(int argc, char **argv)
-{
-  foo();
-}
-  ]])],
-ac_cv___attribute__=yes,
-ac_cv___attribute__=no)])
-if test "$ac_cv___attribute__" = "yes"; then
-  AC_DEFINE(HAVE___ATTRIBUTE__, 1, [define if your compiler has __attribute__])
-else
-  #
-  # We can't use __attribute__, so we can't use __attribute__((unused)),
-  # so we define _U_ to an empty string.
-  #
-  V_DEFS="$V_DEFS -D_U_=\"\""
-fi
-AC_MSG_RESULT($ac_cv___attribute__)
-])
-
-
-dnl
-dnl Test whether __attribute__((unused)) can be used without warnings
-dnl
-
-AC_DEFUN(AC_C___ATTRIBUTE___UNUSED, [
-AC_MSG_CHECKING([whether __attribute__((unused)) can be used without warnings])
-AC_CACHE_VAL(ac_cv___attribute___unused, [
-save_CFLAGS="$CFLAGS"
-CFLAGS="$CFLAGS $ac_lbl_cc_force_warning_errors"
-AC_COMPILE_IFELSE([
-  AC_LANG_SOURCE([[
-#include <stdlib.h>
-#include <stdio.h>
-
-int
-main(int argc  __attribute((unused)), char **argv __attribute((unused)))
-{
-  printf("Hello, world!\n");
-  return 0;
-}
-  ]])],
-ac_cv___attribute___unused=yes,
-ac_cv___attribute___unused=no)])
-CFLAGS="$save_CFLAGS"
-if test "$ac_cv___attribute___unused" = "yes"; then
-  V_DEFS="$V_DEFS -D_U_=\"__attribute__((unused))\""
-else
-  V_DEFS="$V_DEFS -D_U_=\"\""
-fi
-AC_MSG_RESULT($ac_cv___attribute___unused)
-])
-
-dnl
-dnl Test whether __attribute__((format)) can be used without warnings
-dnl
-
-AC_DEFUN(AC_C___ATTRIBUTE___FORMAT, [
-AC_MSG_CHECKING([whether __attribute__((format)) can be used without warnings])
-AC_CACHE_VAL(ac_cv___attribute___format, [
-save_CFLAGS="$CFLAGS"
-CFLAGS="$CFLAGS $ac_lbl_cc_force_warning_errors"
-AC_COMPILE_IFELSE([
-  AC_LANG_SOURCE([[
-#include <stdlib.h>
-
-extern int foo(const char *fmt, ...)
-		  __attribute__ ((format (printf, 1, 2)));
-
-int
-main(int argc, char **argv)
-{
-  foo("%s", "test");
-}
-  ]])],
-ac_cv___attribute___format=yes,
-ac_cv___attribute___format=no)])
-CFLAGS="$save_CFLAGS"
-if test "$ac_cv___attribute___format" = "yes"; then
-  AC_DEFINE(__ATTRIBUTE___FORMAT_OK, 1,
-    [define if your compiler allows __attribute__((format)) without a warning])
-fi
-AC_MSG_RESULT($ac_cv___attribute___format)
-])
-
-dnl
-dnl Test whether __attribute__((format)) can be applied to function
-dnl pointers
-dnl
-
-AC_DEFUN(AC_C___ATTRIBUTE___FORMAT_FUNCTION_POINTER, [
-AC_MSG_CHECKING([whether __attribute__((format)) can be applied to function pointers])
-AC_CACHE_VAL(ac_cv___attribute___format_function_pointer, [
-AC_COMPILE_IFELSE([
-  AC_LANG_SOURCE([[
-#include <stdlib.h>
-
-extern int (*foo)(const char *fmt, ...)
-		  __attribute__ ((format (printf, 1, 2)));
-
-int
-main(int argc, char **argv)
-{
-  (*foo)("%s", "test");
-}
-  ]])],
-ac_cv___attribute___format_function_pointer=yes,
-ac_cv___attribute___format_function_pointer=no)])
-if test "$ac_cv___attribute___format_function_pointer" = "yes"; then
-  AC_DEFINE(__ATTRIBUTE___FORMAT_OK_FOR_FUNCTION_POINTERS, 1,
-    [define if your compiler allows __attribute__((format)) to be applied to function pointers])
-fi
-AC_MSG_RESULT($ac_cv___attribute___format_function_pointer)
-])
-
-AC_DEFUN(AC_C___ATTRIBUTE___NORETURN_FUNCTION_POINTER, [
-AC_MSG_CHECKING([whether __attribute__((noreturn)) can be applied to function pointers without warnings])
-AC_CACHE_VAL(ac_cv___attribute___noreturn_function_pointer, [
-save_CFLAGS="$CFLAGS"
-CFLAGS="$CFLAGS $ac_lbl_cc_force_warning_errors"
-AC_COMPILE_IFELSE([
-  AC_LANG_SOURCE([[
-#include <stdlib.h>
-
-extern int (*foo)(int i)
-		  __attribute__ ((noreturn));
-
-int
-main(int argc, char **argv)
-{
-  (*foo)(1);
-}
-  ]])],
-ac_cv___attribute___noreturn_function_pointer=yes,
-ac_cv___attribute___noreturn_function_pointer=no)])
-CFLAGS="$save_CFLAGS"
-if test "$ac_cv___attribute___noreturn_function_pointer" = "yes"; then
-  AC_DEFINE(__ATTRIBUTE___NORETURN_OK_FOR_FUNCTION_POINTERS, 1,
-    [define if your compiler allows __attribute__((noreturn)) to be applied to function pointers])
-fi
-AC_MSG_RESULT($ac_cv___attribute___noreturn_function_pointer)
-])
-
 AC_DEFUN(AC_LBL_SSLEAY,
     [
 	#
@@ -1346,9 +1229,9 @@ AC_DEFUN(AC_LBL_SSLEAY,
 	# Or should we just look for "libcrypto.*"?
 	#
 	if test -d "$1/$tmplib" -a \( -f "$1/$tmplib/libcrypto.a" -o \
-		          	    -f "$1/$tmplib/libcrypto.so" -o \
-		          	    -f "$1/$tmplib/libcrypto.sl" -o \
-			  	    -f "$1/$tmplib/libcrypto.dylib" \); then
+				    -f "$1/$tmplib/libcrypto.so" -o \
+				    -f "$1/$tmplib/libcrypto.sl" -o \
+				    -f "$1/$tmplib/libcrypto.dylib" \); then
 		ac_cv_ssleay_path="$1"
 	fi
 

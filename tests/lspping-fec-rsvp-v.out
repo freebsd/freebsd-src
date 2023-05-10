@@ -1,4 +1,4 @@
-MPLS (label 100704, exp 7, [S], ttl 255)
+    1  10:13:57.562886 MPLS (label 100704, tc 7, [S], ttl 255)
 	IP (tos 0x0, ttl 64, id 40269, offset 0, flags [none], proto UDP (17), length 88)
     12.4.4.4.4529 > 127.0.0.1.3503: 
 	LSP-PINGv1, msg-type: MPLS Echo Request (1), length: 60
@@ -6,20 +6,20 @@ MPLS (label 100704, exp 7, [S], ttl 255)
 	  Return Code: No return code or return code contained in the Error Code TLV (0)
 	  Return Subcode: (0)
 	  Sender Handle: 0x00000000, Sequence: 1
-	  Sender Timestamp: Receiver Timestamp: no timestamp
+	  Sender Timestamp: 1087208037.000131030 (1934-06-15T10:13:57Z) Receiver Timestamp: no timestamp
 	  Target FEC Stack TLV (1), length: 24
 	    RSVP IPv4 Session Query subTLV (3), length: 20
 	      tunnel end-point 12.1.1.1, tunnel sender 12.4.4.4, lsp-id 0x0010
 	      tunnel-id 0x5372, extended tunnel-id 12.4.4.4
-IP (tos 0xc0, ttl 62, id 50634, offset 0, flags [none], proto UDP (17), length 60)
+    2  10:13:57.563663 IP (tos 0xc0, ttl 62, id 50634, offset 0, flags [none], proto UDP (17), length 60)
     10.20.0.1.3503 > 12.4.4.4.4529: 
 	LSP-PINGv1, msg-type: MPLS Echo Reply (2), length: 32
 	  reply-mode: Reply via an IPv4/IPv6 UDP packet (2)
 	  Return Code: Replying router is an egress for the FEC at stack depth 0 (3)
 	  Return Subcode: (0)
 	  Sender Handle: 0x00000000, Sequence: 1
-	  Sender Timestamp: Receiver Timestamp: 
-MPLS (label 100704, exp 7, [S], ttl 255)
+	  Sender Timestamp: 1087208037.000131030 (1934-06-15T10:13:57Z) Receiver Timestamp: 1087208037.000131348 (1934-06-15T10:13:57Z)
+    3  10:13:58.572787 MPLS (label 100704, tc 7, [S], ttl 255)
 	IP (tos 0x0, ttl 64, id 40271, offset 0, flags [none], proto UDP (17), length 88)
     12.4.4.4.4529 > 127.0.0.1.3503: 
 	LSP-PINGv1, msg-type: MPLS Echo Request (1), length: 60
@@ -27,20 +27,20 @@ MPLS (label 100704, exp 7, [S], ttl 255)
 	  Return Code: No return code or return code contained in the Error Code TLV (0)
 	  Return Subcode: (0)
 	  Sender Handle: 0x00000000, Sequence: 2
-	  Sender Timestamp: Receiver Timestamp: no timestamp
+	  Sender Timestamp: 1087208038.000133345 (1934-06-15T10:13:58Z) Receiver Timestamp: no timestamp
 	  Target FEC Stack TLV (1), length: 24
 	    RSVP IPv4 Session Query subTLV (3), length: 20
 	      tunnel end-point 12.1.1.1, tunnel sender 12.4.4.4, lsp-id 0x0010
 	      tunnel-id 0x5372, extended tunnel-id 12.4.4.4
-IP (tos 0xc0, ttl 62, id 50635, offset 0, flags [none], proto UDP (17), length 60)
+    4  10:13:58.585727 IP (tos 0xc0, ttl 62, id 50635, offset 0, flags [none], proto UDP (17), length 60)
     10.20.0.1.3503 > 12.4.4.4.4529: 
 	LSP-PINGv1, msg-type: MPLS Echo Reply (2), length: 32
 	  reply-mode: Reply via an IPv4/IPv6 UDP packet (2)
 	  Return Code: Replying router is an egress for the FEC at stack depth 0 (3)
 	  Return Subcode: (0)
 	  Sender Handle: 0x00000000, Sequence: 2
-	  Sender Timestamp: Receiver Timestamp: 
-MPLS (label 100704, exp 7, [S], ttl 255)
+	  Sender Timestamp: 1087208038.000133345 (1934-06-15T10:13:58Z) Receiver Timestamp: 1087208038.000136480 (1934-06-15T10:13:58Z)
+    5  10:13:59.572866 MPLS (label 100704, tc 7, [S], ttl 255)
 	IP (tos 0x0, ttl 64, id 40273, offset 0, flags [none], proto UDP (17), length 88)
     12.4.4.4.4529 > 127.0.0.1.3503: 
 	LSP-PINGv1, msg-type: MPLS Echo Request (1), length: 60
@@ -48,20 +48,20 @@ MPLS (label 100704, exp 7, [S], ttl 255)
 	  Return Code: No return code or return code contained in the Error Code TLV (0)
 	  Return Subcode: (0)
 	  Sender Handle: 0x00000000, Sequence: 3
-	  Sender Timestamp: Receiver Timestamp: no timestamp
+	  Sender Timestamp: 1087208039.000133363 (1934-06-15T10:13:59Z) Receiver Timestamp: no timestamp
 	  Target FEC Stack TLV (1), length: 24
 	    RSVP IPv4 Session Query subTLV (3), length: 20
 	      tunnel end-point 12.1.1.1, tunnel sender 12.4.4.4, lsp-id 0x0010
 	      tunnel-id 0x5372, extended tunnel-id 12.4.4.4
-IP (tos 0xc0, ttl 62, id 50637, offset 0, flags [none], proto UDP (17), length 60)
+    6  10:13:59.573713 IP (tos 0xc0, ttl 62, id 50637, offset 0, flags [none], proto UDP (17), length 60)
     10.20.0.1.3503 > 12.4.4.4.4529: 
 	LSP-PINGv1, msg-type: MPLS Echo Reply (2), length: 32
 	  reply-mode: Reply via an IPv4/IPv6 UDP packet (2)
 	  Return Code: Replying router is an egress for the FEC at stack depth 0 (3)
 	  Return Subcode: (0)
 	  Sender Handle: 0x00000000, Sequence: 3
-	  Sender Timestamp: Receiver Timestamp: 
-MPLS (label 100704, exp 7, [S], ttl 255)
+	  Sender Timestamp: 1087208039.000133363 (1934-06-15T10:13:59Z) Receiver Timestamp: 1087208039.000133684 (1934-06-15T10:13:59Z)
+    7  10:14:00.572959 MPLS (label 100704, tc 7, [S], ttl 255)
 	IP (tos 0x0, ttl 64, id 40275, offset 0, flags [none], proto UDP (17), length 88)
     12.4.4.4.4529 > 127.0.0.1.3503: 
 	LSP-PINGv1, msg-type: MPLS Echo Request (1), length: 60
@@ -69,20 +69,20 @@ MPLS (label 100704, exp 7, [S], ttl 255)
 	  Return Code: No return code or return code contained in the Error Code TLV (0)
 	  Return Subcode: (0)
 	  Sender Handle: 0x00000000, Sequence: 4
-	  Sender Timestamp: Receiver Timestamp: no timestamp
+	  Sender Timestamp: 1087208040.000133384 (1934-06-15T10:14:00Z) Receiver Timestamp: no timestamp
 	  Target FEC Stack TLV (1), length: 24
 	    RSVP IPv4 Session Query subTLV (3), length: 20
 	      tunnel end-point 12.1.1.1, tunnel sender 12.4.4.4, lsp-id 0x0010
 	      tunnel-id 0x5372, extended tunnel-id 12.4.4.4
-IP (tos 0xc0, ttl 62, id 50638, offset 0, flags [none], proto UDP (17), length 60)
+    8  10:14:00.573746 IP (tos 0xc0, ttl 62, id 50638, offset 0, flags [none], proto UDP (17), length 60)
     10.20.0.1.3503 > 12.4.4.4.4529: 
 	LSP-PINGv1, msg-type: MPLS Echo Reply (2), length: 32
 	  reply-mode: Reply via an IPv4/IPv6 UDP packet (2)
 	  Return Code: Replying router is an egress for the FEC at stack depth 0 (3)
 	  Return Subcode: (0)
 	  Sender Handle: 0x00000000, Sequence: 4
-	  Sender Timestamp: Receiver Timestamp: 
-MPLS (label 100704, exp 7, [S], ttl 255)
+	  Sender Timestamp: 1087208040.000133384 (1934-06-15T10:14:00Z) Receiver Timestamp: 1087208040.000133697 (1934-06-15T10:14:00Z)
+    9  10:14:01.573010 MPLS (label 100704, tc 7, [S], ttl 255)
 	IP (tos 0x0, ttl 64, id 40278, offset 0, flags [none], proto UDP (17), length 88)
     12.4.4.4.4529 > 127.0.0.1.3503: 
 	LSP-PINGv1, msg-type: MPLS Echo Request (1), length: 60
@@ -90,16 +90,16 @@ MPLS (label 100704, exp 7, [S], ttl 255)
 	  Return Code: No return code or return code contained in the Error Code TLV (0)
 	  Return Subcode: (0)
 	  Sender Handle: 0x00000000, Sequence: 5
-	  Sender Timestamp: Receiver Timestamp: no timestamp
+	  Sender Timestamp: 1087208041.000133401 (1934-06-15T10:14:01Z) Receiver Timestamp: no timestamp
 	  Target FEC Stack TLV (1), length: 24
 	    RSVP IPv4 Session Query subTLV (3), length: 20
 	      tunnel end-point 12.1.1.1, tunnel sender 12.4.4.4, lsp-id 0x0010
 	      tunnel-id 0x5372, extended tunnel-id 12.4.4.4
-IP (tos 0xc0, ttl 62, id 50641, offset 0, flags [none], proto UDP (17), length 60)
+   10  10:14:01.573838 IP (tos 0xc0, ttl 62, id 50641, offset 0, flags [none], proto UDP (17), length 60)
     10.20.0.1.3503 > 12.4.4.4.4529: 
 	LSP-PINGv1, msg-type: MPLS Echo Reply (2), length: 32
 	  reply-mode: Reply via an IPv4/IPv6 UDP packet (2)
 	  Return Code: Replying router is an egress for the FEC at stack depth 0 (3)
 	  Return Subcode: (0)
 	  Sender Handle: 0x00000000, Sequence: 5
-	  Sender Timestamp: Receiver Timestamp: 
+	  Sender Timestamp: 1087208041.000133401 (1934-06-15T10:14:01Z) Receiver Timestamp: 1087208041.000133707 (1934-06-15T10:14:01Z)

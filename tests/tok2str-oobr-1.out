@@ -1,4 +1,4 @@
-00:0c:29:31:85:a5 > 00:0c:29:ac:b9:50, ethertype IPv4 (0x0800), length 321: (tos 0xc0, ttl 254, id 20061, offset 0, flags [none], proto TCP (6), length 307)
+    1  15:16:31.074315 00:0c:29:31:85:a5 > 00:0c:29:ac:b9:50, ethertype IPv4 (0x0800), length 321: (tos 0xc0, ttl 254, id 20061, offset 0, flags [none], proto TCP (6), length 307)
     10.0.0.4.179 > 10.0.0.2.64588: Flags [P.], cksum 0x707c (incorrect -> 0x6883), seq 786752827:786753082, ack 3829861902, win 16357, options [nop,nop,TS val 6993003 ecr 4502201], length 255: BGP
 	Update Message (2), length: 100
 	  Origin (1), length: 1, Flags [T]: IGP
@@ -9,8 +9,7 @@
 	  Extended Community (16), length: 24, Flags [OT]: 
 	    target (0x0002), Flags [none]: 1:1 (= 0.0.0.1)
 	    source-AS (0x0009), Flags [none]: AS 1
-	    unknown extd community typecode (0x010a), Flags [none]
-	      0x0000:  010a 0a00 0004 0006
+	    unknown extd community typecode (0x010a), Flags [none]: 0a0000040006
 	    0x0000:  0002 0001 0000 0001 0009 0001 0000 0000
 	    0x0010:  010a 0a00 0004 0006
 	  Multi-Protocol Reach NLRI (14), length: 32, Flags [OE]: 
@@ -54,8 +53,4 @@
 	    AFI: IPv4 (1), SAFI: labeled VPN Unicast (128)
 	      End-of-Rib Marker (empty NLRI)
 	    0x0000:  0001 80
-	Update Message (2), length: 30
-	  Withdrawn routes: 1 bytes
-	  Unknown Attribute (0), length: 3, Flags [+f]: 
-	    no Attribute 0 decoder
-	    0x0000:  0001 05[|BGP]
+	Update Message (2), length: 30 [|bgp]

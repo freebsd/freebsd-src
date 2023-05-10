@@ -1,0 +1,4 @@
+    1  09:19:54.740079 IP (tos 0x0, ttl 64, id 22989, offset 0, flags [none], proto UDP (17), length 84)
+    192.168.1.11.43966 > 209.87.249.18.53: 22836+ [1au] A? www.tcpdump.org. (56)
+    2  09:19:54.870361 IP (tos 0x0, ttl 128, id 45, offset 0, flags [none], proto UDP (17), length 252)
+    209.87.249.18.53 > 192.168.1.11.43966: 22836*- 2/2/5 www.tcpdump.org. A 192.139.46.66, www.tcpdump.org. A 198.199.88.104 (224)

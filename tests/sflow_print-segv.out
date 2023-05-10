@@ -1,0 +1,2 @@
+    1  17:04:53.834750 IP (tos 0x0, ttl 64, id 60790, offset 0, flags [none], proto UDP (17), length 896, bad cksum 72f3 (->72f7)!)
+    10.0.0.250.3895 > 10.1.2.5.6343: sFlowv5 [length 8 < 28] (invalid)

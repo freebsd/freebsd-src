@@ -20,17 +20,18 @@
 /* specification: RFC 5171 */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
-#include <netdissect-stdinc.h>
+#include "netdissect-stdinc.h"
 
+#define ND_LONGJMP_FROM_TCHECK
 #include "netdissect.h"
 #include "extract.h"
 
-static const char tstr[] = " [|udld]";
 
 #define UDLD_HEADER_LEN			4
+#define UDLD_TLV_HEADER_LEN		4
 #define UDLD_DEVICE_ID_TLV		0x0001
 #define UDLD_PORT_ID_TLV		0x0002
 #define UDLD_ECHO_TLV			0x0003
@@ -58,9 +59,15 @@ static const struct tok udld_code_values[] = {
     { 0, NULL}
 };
 
-static const struct tok udld_flags_values[] = {
-    { 0x00, "RT"},
-    { 0x01, "RSY"},
+static const struct tok udld_flags_bitmap_str[] = {
+    { 1U << 0, "RT"    },
+    { 1U << 1, "RSY"   },
+    { 1U << 2, "MBZ-2" },
+    { 1U << 3, "MBZ-3" },
+    { 1U << 4, "MBZ-4" },
+    { 1U << 5, "MBZ-5" },
+    { 1U << 6, "MBZ-6" },
+    { 1U << 7, "MBZ-7" },
     { 0, NULL}
 };
 
@@ -94,105 +101,107 @@ static const struct tok udld_flags_values[] = {
 #define	UDLD_EXTRACT_OPCODE(x) ((x)&0x1f)
 
 void
-udld_print (netdissect_options *ndo, const u_char *pptr, u_int length)
+udld_print(netdissect_options *ndo,
+           const u_char *tptr, u_int length)
 {
-    int code, type, len;
-    const u_char *tptr;
+    uint8_t ver, code, flags;
 
+    ndo->ndo_protocol = "udld";
     if (length < UDLD_HEADER_LEN)
-        goto trunc;
+        goto invalid;
 
-    tptr = pptr;
+    ver = UDLD_EXTRACT_VERSION(GET_U_1(tptr));
+    code = UDLD_EXTRACT_OPCODE(GET_U_1(tptr));
+    tptr += 1;
+    length -= 1;
 
-    ND_TCHECK2(*tptr, UDLD_HEADER_LEN);
+    flags = GET_U_1(tptr);
+    tptr += 1;
+    length -= 1;
 
-    code = UDLD_EXTRACT_OPCODE(*tptr);
-
-    ND_PRINT((ndo, "UDLDv%u, Code %s (%x), Flags [%s] (0x%02x), length %u",
-           UDLD_EXTRACT_VERSION(*tptr),
+    ND_PRINT("UDLDv%u, Code %s (%x), Flags [%s] (0x%02x), length %u",
+           ver,
            tok2str(udld_code_values, "Reserved", code),
            code,
-           bittok2str(udld_flags_values, "none", *(tptr+1)),
-           *(tptr+1),
-           length));
+           bittok2str(udld_flags_bitmap_str, "none", flags),
+           flags,
+           length + 2);
 
     /*
      * In non-verbose mode, just print version and opcode type
      */
     if (ndo->ndo_vflag < 1) {
-	return;
+        goto tcheck_remainder;
     }
 
-    ND_PRINT((ndo, "\n\tChecksum 0x%04x (unverified)", EXTRACT_16BITS(tptr+2)));
+    ND_PRINT("\n\tChecksum 0x%04x (unverified)", GET_BE_U_2(tptr));
+    tptr += 2;
+    length -= 2;
 
-    tptr += UDLD_HEADER_LEN;
+    while (length) {
+        uint16_t type, len;
 
-    while (tptr < (pptr+length)) {
-
-        ND_TCHECK2(*tptr, 4);
-	type = EXTRACT_16BITS(tptr);
-        len  = EXTRACT_16BITS(tptr+2);
-
-        ND_PRINT((ndo, "\n\t%s (0x%04x) TLV, length %u",
-               tok2str(udld_tlv_values, "Unknown", type),
-               type, len));
-
-        if (type == 0)
+        if (length < UDLD_TLV_HEADER_LEN)
             goto invalid;
+
+	type = GET_BE_U_2(tptr);
+        tptr += 2;
+        length -= 2;
+
+        len  = GET_BE_U_2(tptr);
+        tptr += 2;
+        length -= 2;
+
+        ND_PRINT("\n\t%s (0x%04x) TLV, length %u",
+               tok2str(udld_tlv_values, "Unknown", type),
+               type, len);
 
         /* infinite loop check */
-        if (len <= 4)
+        if (len <= UDLD_TLV_HEADER_LEN)
             goto invalid;
 
-        len -= 4;
-        tptr += 4;
-
-        ND_TCHECK2(*tptr, len);
+        len -= UDLD_TLV_HEADER_LEN;
+        if (length < len)
+            goto invalid;
 
         switch (type) {
         case UDLD_DEVICE_ID_TLV:
         case UDLD_PORT_ID_TLV:
         case UDLD_DEVICE_NAME_TLV:
-            ND_PRINT((ndo, ", "));
-            fn_printzp(ndo, tptr, len, NULL);
+            ND_PRINT(", ");
+            nd_printjnp(ndo, tptr, len);
             break;
 
         case UDLD_ECHO_TLV:
-            ND_PRINT((ndo, ", "));
-            (void)fn_printn(ndo, tptr, len, NULL);
+            ND_PRINT(", ");
+            (void)nd_printn(ndo, tptr, len, NULL);
             break;
 
         case UDLD_MESSAGE_INTERVAL_TLV:
         case UDLD_TIMEOUT_INTERVAL_TLV:
             if (len != 1)
                 goto invalid;
-            ND_PRINT((ndo, ", %us", (*tptr)));
+            ND_PRINT(", %us", (GET_U_1(tptr)));
             break;
 
         case UDLD_SEQ_NUMBER_TLV:
             if (len != 4)
                 goto invalid;
-            ND_PRINT((ndo, ", %u", EXTRACT_32BITS(tptr)));
+            ND_PRINT(", %u", GET_BE_U_4(tptr));
             break;
 
         default:
+            ND_TCHECK_LEN(tptr, len);
             break;
         }
         tptr += len;
+        length -= len;
     }
 
     return;
 
 invalid:
-    ND_PRINT((ndo, "%s", istr));
-    return;
-trunc:
-    ND_PRINT((ndo, "%s", tstr));
+    nd_print_invalid(ndo);
+tcheck_remainder:
+    ND_TCHECK_LEN(tptr, length);
 }
-
-/*
- * Local Variables:
- * c-style: whitesmith
- * c-basic-offset: 4
- * End:
- */

@@ -1,0 +1,290 @@
+/* cmakeconfig.h.in */
+
+/* Define to 1 if arpa/inet.h declares `ether_ntohost' */
+#cmakedefine ARPA_INET_H_DECLARES_ETHER_NTOHOST 1
+
+/* define if you want to build the possibly-buggy SMB printer */
+#cmakedefine ENABLE_SMB 1
+
+/* Define to 1 if you have the `bpf_dump' function. */
+#cmakedefine HAVE_BPF_DUMP 1
+
+/* capsicum support available */
+#cmakedefine HAVE_CAPSICUM 1
+
+/* Define to 1 if you have the `cap_enter' function. */
+#cmakedefine HAVE_CAP_ENTER 1
+
+/* Define to 1 if you have the `cap_ioctls_limit' function. */
+#cmakedefine HAVE_CAP_IOCTLS_LIMIT 1
+
+/* Define to 1 if you have the <cap-ng.h> header file. */
+#cmakedefine HAVE_CAP_NG_H 1
+
+/* Define to 1 if you have the `cap_rights_limit' function. */
+#cmakedefine HAVE_CAP_RIGHTS_LIMIT 1
+
+/* Casper support available */
+#cmakedefine HAVE_CASPER 1
+
+/* Define to 1 if you have the declaration of `ether_ntohost' */
+#cmakedefine HAVE_DECL_ETHER_NTOHOST 1
+
+/* Define to 1 if you have the `ether_ntohost' function. */
+#cmakedefine HAVE_ETHER_NTOHOST 1
+
+/* Define to 1 if you have the `EVP_CIPHER_CTX_new' function. */
+#cmakedefine HAVE_EVP_CIPHER_CTX_NEW 1
+
+/* Define to 1 if you have the `EVP_DecryptInit_ex' function. */
+#cmakedefine HAVE_EVP_DECRYPTINIT_EX 1
+
+/* Define to 1 if you have the <fcntl.h> header file. */
+#cmakedefine HAVE_FCNTL_H 1
+
+/* Define to 1 if you have the `fork' function. */
+#cmakedefine HAVE_FORK 1
+
+/* Define to 1 if you have the `getopt_long' function. */
+#cmakedefine HAVE_GETOPT_LONG 1
+
+/* define if you have getrpcbynumber() */
+#cmakedefine HAVE_GETRPCBYNUMBER 1
+
+/* Define to 1 if you have the `getservent' function. */
+#cmakedefine HAVE_GETSERVENT 1
+
+/* Define to 1 if you have the <inttypes.h> header file. */
+#cmakedefine HAVE_INTTYPES_H 1
+
+/* Define to 1 if you have the `cap-ng' library (-lcap-ng). */
+#cmakedefine HAVE_LIBCAP_NG 1
+
+/* Define to 1 if you have the `crypto' library (-lcrypto). */
+#cmakedefine HAVE_LIBCRYPTO 1
+
+/* Define to 1 if you have the `rpc' library (-lrpc). */
+#cmakedefine HAVE_LIBRPC 1
+
+/* Define to 1 if you have the <memory.h> header file. */
+#cmakedefine HAVE_MEMORY_H 1
+
+/* Define to 1 if you have the <net/if.h> header file. */
+#cmakedefine HAVE_NET_IF_H 1
+
+/* Define to 1 if you have the `openat' function. */
+#cmakedefine HAVE_OPENAT 1
+
+/* Define to 1 if you have the <openssl/evp.h> header file. */
+#cmakedefine HAVE_OPENSSL_EVP_H 1
+
+/* define if the OS provides AF_INET6 and struct in6_addr */
+#cmakedefine HAVE_OS_IPV6_SUPPORT 1
+
+/* if there's an os_proto.h for this platform, to use additional prototypes */
+#cmakedefine HAVE_OS_PROTO_H 1
+
+/* Define to 1 if you have the `pcap_breakloop' function. */
+#cmakedefine HAVE_PCAP_BREAKLOOP 1
+
+/* Define to 1 if you have the `pcap_create' function. */
+#cmakedefine HAVE_PCAP_CREATE 1
+
+/* define if libpcap has pcap_datalink_name_to_val() */
+#cmakedefine HAVE_PCAP_DATALINK_NAME_TO_VAL 1
+
+/* define if libpcap has pcap_datalink_val_to_description() */
+#cmakedefine HAVE_PCAP_DATALINK_VAL_TO_DESCRIPTION 1
+
+/* define if libpcap has pcap_debug */
+#cmakedefine HAVE_PCAP_DEBUG 1
+
+/* Define to 1 if you have the `pcap_dump_flush' function. */
+#cmakedefine HAVE_PCAP_DUMP_FLUSH 1
+
+/* Define to 1 if you have the `pcap_dump_ftell' function. */
+#cmakedefine HAVE_PCAP_DUMP_FTELL 1
+
+/* Define to 1 if you have the `pcap_dump_ftell64' function. */
+#cmakedefine HAVE_PCAP_DUMP_FTELL64 1
+
+/* Define to 1 if you have the `pcap_findalldevs' function. */
+#cmakedefine HAVE_PCAP_FINDALLDEVS 1
+
+/* Define to 1 if you have the `pcap_findalldevs_ex' function. */
+#cmakedefine HAVE_PCAP_FINDALLDEVS_EX 1
+
+/* Define to 1 if you have the `pcap_free_datalinks' function. */
+#cmakedefine HAVE_PCAP_FREE_DATALINKS 1
+
+/* Define to 1 if the system has the type `pcap_if_t'. */
+#cmakedefine HAVE_PCAP_IF_T 1
+
+/* Define to 1 if you have the `pcap_lib_version' function. */
+#cmakedefine HAVE_PCAP_LIB_VERSION 1
+
+/* define if libpcap has pcap_list_datalinks() */
+#cmakedefine HAVE_PCAP_LIST_DATALINKS 1
+
+/* Define to 1 if you have the `pcap_open' function. */
+#cmakedefine HAVE_PCAP_OPEN 1
+
+/* Define to 1 if you have the <pcap/pcap-inttypes.h> header file. */
+#cmakedefine HAVE_PCAP_PCAP_INTTYPES_H 1
+
+/* Define to 1 if you have the `pcap_setdirection' function. */
+#cmakedefine HAVE_PCAP_SETDIRECTION 1
+
+/* Define to 1 if you have the `pcap_set_datalink' function. */
+#cmakedefine HAVE_PCAP_SET_DATALINK 1
+
+/* Define to 1 if you have the `pcap_set_immediate_mode' function. */
+#cmakedefine HAVE_PCAP_SET_IMMEDIATE_MODE 1
+
+/* Define to 1 if you have the `pcap_set_optimizer_debug' function. */
+#cmakedefine HAVE_PCAP_SET_OPTIMIZER_DEBUG 1
+
+/* Define to 1 if you have the `pcap_set_parser_debug' function. */
+#cmakedefine HAVE_PCAP_SET_PARSER_DEBUG 1
+
+/* Define to 1 if you have the `pcap_set_tstamp_precision' function. */
+#cmakedefine HAVE_PCAP_SET_TSTAMP_PRECISION 1
+
+/* Define to 1 if you have the `pcap_set_tstamp_type' function. */
+#cmakedefine HAVE_PCAP_SET_TSTAMP_TYPE 1
+
+/* define if libpcap has pcap_version */
+#cmakedefine HAVE_PCAP_VERSION 1
+
+/* Define to 1 if you have the `pcap_wsockinit' function. */
+#cmakedefine HAVE_PCAP_WSOCKINIT 1
+
+/* Define to 1 if you have the `pfopen' function. */
+#cmakedefine HAVE_PFOPEN 1
+
+/* Define to 1 if you have the <rpc/rpcent.h> header file. */
+#cmakedefine HAVE_RPC_RPCENT_H 1
+
+/* Define to 1 if you have the <rpc/rpc.h> header file. */
+#cmakedefine HAVE_RPC_RPC_H 1
+
+/* Define to 1 if you have the `setlinebuf' function. */
+#cmakedefine HAVE_SETLINEBUF 1
+
+/* Define to 1 if you have the <stdint.h> header file. */
+#cmakedefine HAVE_STDINT_H 1
+
+/* Define to 1 if you have the <stdlib.h> header file. */
+#cmakedefine HAVE_STDLIB_H 1
+
+/* Define to 1 if you have the `strdup' function. */
+#cmakedefine HAVE_STRDUP 1
+
+/* Define to 1 if you have the <strings.h> header file. */
+#cmakedefine HAVE_STRINGS_H 1
+
+/* Define to 1 if you have the <string.h> header file. */
+#cmakedefine HAVE_STRING_H 1
+
+/* Define to 1 if you have the `strlcat' function. */
+#cmakedefine HAVE_STRLCAT 1
+
+/* Define to 1 if you have the `strlcpy' function. */
+#cmakedefine HAVE_STRLCPY 1
+
+/* Define to 1 if you have the `strsep' function. */
+#cmakedefine HAVE_STRSEP 1
+
+/* Define to 1 if the system has the type `struct ether_addr'. */
+#cmakedefine HAVE_STRUCT_ETHER_ADDR 1
+
+/* Define to 1 if you have the <sys/stat.h> header file. */
+#cmakedefine HAVE_SYS_STAT_H 1
+
+/* Define to 1 if you have the <sys/types.h> header file. */
+#cmakedefine HAVE_SYS_TYPES_H 1
+
+/* Define to 1 if the system has the type `uintptr_t'. */
+#cmakedefine HAVE_UINTPTR_T 1
+
+/* Define to 1 if you have the <unistd.h> header file. */
+#cmakedefine HAVE_UNISTD_H 1
+
+/* Define to 1 if you have the `vfork' function. */
+#cmakedefine HAVE_VFORK 1
+
+/* Define to 1 if you have the `wsockinit' function. */
+#cmakedefine HAVE_WSOCKINIT 1
+
+/* define if libpcap has yydebug */
+#cmakedefine HAVE_YYDEBUG 1
+
+/* Define to 1 if netinet/ether.h declares `ether_ntohost' */
+#cmakedefine NETINET_ETHER_H_DECLARES_ETHER_NTOHOST 1
+
+/* Define to 1 if netinet/if_ether.h declares `ether_ntohost' */
+#cmakedefine NETINET_IF_ETHER_H_DECLARES_ETHER_NTOHOST 1
+
+/* Define to 1 if net/ethernet.h declares `ether_ntohost' */
+#cmakedefine NET_ETHERNET_H_DECLARES_ETHER_NTOHOST 1
+
+/* Define to the address where bug reports for this package should be sent. */
+#cmakedefine PACKAGE_BUGREPORT ""
+
+/* Define to the full name of this package. */
+#cmakedefine PACKAGE_NAME "@PACKAGE_NAME@"
+
+/* Define to the full name and version of this package. */
+#cmakedefine PACKAGE_STRING "@PACKAGE_STRING@"
+
+/* Define to the one symbol short name of this package. */
+#cmakedefine PACKAGE_TARNAME ""
+
+/* Define to the home page for this package. */
+#cmakedefine PACKAGE_URL ""
+
+/* Define to the version of this package. */
+#cmakedefine PACKAGE_VERSION "@PACKAGE_VERSION@"
+
+/* Define to 1 if you have the ANSI C header files. */
+#cmakedefine STDC_HEADERS 1
+
+/* Define to 1 if sys/ethernet.h declares `ether_ntohost' */
+#cmakedefine SYS_ETHERNET_H_DECLARES_ETHER_NTOHOST 1
+
+/* define if you have ether_ntohost() and it works */
+#cmakedefine USE_ETHER_NTOHOST 1
+
+/* Define if you enable support for libsmi */
+#cmakedefine USE_LIBSMI 1
+
+/* define if should chroot when dropping privileges */
+#cmakedefine WITH_CHROOT "@WITH_CHROOT@"
+
+/* define if should drop privileges by default */
+#cmakedefine WITH_USER "@WITH_USER@"
+
+/* define on AIX to get certain functions */
+#cmakedefine _SUN 1
+
+/* to handle Ultrix compilers that don't support const in prototypes */
+#cmakedefine const 1
+
+/* Define as token for inline if inlining supported */
+#cmakedefine inline 1
+
+/* Define to `uint16_t' if u_int16_t not defined. */
+#cmakedefine u_int16_t 1
+
+/* Define to `uint32_t' if u_int32_t not defined. */
+#cmakedefine u_int32_t 1
+
+/* Define to `uint64_t' if u_int64_t not defined. */
+#cmakedefine u_int64_t 1
+
+/* Define to `uint8_t' if u_int8_t not defined. */
+#cmakedefine u_int8_t 1
+
+/* Define to the type of an unsigned integer type wide enough to hold a
+   pointer, if such a type exists, and if the system does not define it. */
+#cmakedefine uintptr_t 1

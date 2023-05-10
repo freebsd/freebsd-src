@@ -1,0 +1,5 @@
+    1  06:35:44.134748448 IP (tos 0xc, ttl 254, id 21263, offset 0, flags [rsvd], proto TCP (6), length 517, bad cksum 8e15 (->99c9)!)
+    241.0.93.20.179 > 255.247.0.1.200: Flags [none], seq 2146691977:2146692450, win 56026, options [unknown-161,eol], length 473: BGP
+	Update Message (2), length: 45
+	  Withdrawn routes:
+	    255.123.0.0/16 [|bgp]

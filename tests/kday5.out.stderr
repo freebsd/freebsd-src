@@ -1,2 +1,0 @@
-reading from file kday5.pcap, link-type EN10MB (Ethernet)
-tcpdump: pcap_loop: invalid packet capture length 168430090, bigger than snaplen of 65535

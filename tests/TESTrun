@@ -1,0 +1,502 @@
+#!/usr/bin/env perl
+
+#
+# Were we told where to find tcpdump?
+#
+if (!($TCPDUMP = $ENV{TCPDUMP_BIN})) {
+    #
+    # No.  Use the appropriate path.
+    #
+    if ($^O eq 'MSWin32') {
+        #
+        # XXX - assume, for now, a Visual Studio debug build, so that
+        # tcpdump is in the Debug subdirectory.
+        #
+        $TCPDUMP = "Debug\\tcpdump"
+    } else {
+        $TCPDUMP = "./tcpdump"
+    }
+}
+
+#
+# Make true and false work as Booleans.
+#
+use constant true => 1;
+use constant false => 0;
+
+use File::Basename;
+use POSIX qw( WEXITSTATUS WIFEXITED);
+use Cwd qw(abs_path getcwd);
+use File::Path qw(mkpath);   # mkpath works with ancient perl, as well as newer perl
+use File::Spec;
+use Data::Dumper;            # for debugging.
+
+# these are created in the directory where we are run, which might be
+# a build directory.
+my $newdir = "tests/NEW";
+my $diffdir= "tests/DIFF";
+mkpath($newdir);
+mkpath($diffdir);
+my $origdir = getcwd();
+my $srcdir  = $ENV{'srcdir'} || ".";
+# Default to unified diff and allow to fall back to basic diff if necessary.
+my $diff_flags = defined $ENV{'DIFF_FLAGS'} ? $ENV{'DIFF_FLAGS'} : '-u';
+
+#
+# Force UTC, so time stamps are printed in a standard time zone, and
+# tests don't have to be run in the time zone in which the output
+# file was generated.
+#
+$ENV{'TZ'}='GMT0';
+
+#
+# Get the tests directory from $0.
+#
+my $testsdir = dirname($0);
+
+#
+# Convert it to an absolute path, so it works even after we do a cd.
+#
+$testsdir = abs_path($testsdir);
+print "Running tests from ${testsdir}\n";
+print "with ${TCPDUMP}, version:\n";
+system "${TCPDUMP} --version";
+
+unshift(@INC, $testsdir);
+
+$passedcount = 0;
+$failedcount = 0;
+#
+my $failureoutput=$origdir . "/tests/failure-outputs.txt";
+
+# truncate the output file
+open(FAILUREOUTPUT, ">" . $failureoutput);
+close(FAILUREOUTPUT);
+
+$confighhash = undef;
+
+sub showfile {
+    local($path) = @_;
+
+    #
+    # XXX - just do this directly in Perl?
+    #
+    if ($^O eq 'MSWin32') {
+        my $winpath = File::Spec->canonpath($path);
+        system "type $winpath";
+    } else {
+        system "cat $path";
+    }
+}
+
+sub runtest {
+    local($name, $input, $output, $options) = @_;
+    my $r;
+
+    $outputbase = basename($output);
+    my $coredump = false;
+    my $status = 0;
+    my $linecount = 0;
+    my $rawstderrlog = "tests/NEW/${outputbase}.raw.stderr";
+    my $stderrlog = "tests/NEW/${outputbase}.stderr";
+    my $diffstat = 0;
+    my $errdiffstat = 0;
+
+    # we used to do this as a nice pipeline, but the problem is that $r fails to
+    # to be set properly if the tcpdump core dumps.
+    #
+    # Furthermore, on Windows, fc can't read the standard input, so we
+    # can't do it as a pipeline in any case.
+    $r = system "$TCPDUMP -# -n -r $input $options >tests/NEW/${outputbase} 2>${rawstderrlog}";
+    if($r != 0) {
+        #
+        # Something other than "tcpdump opened the file, read it, and
+        # dissected all the packets".  What happened?
+        #
+        # We write out an exit status after whatever the subprocess
+        # wrote out, so it shows up when we diff the expected output
+        # with it.
+        #
+        open(OUTPUT, ">>"."tests/NEW/$outputbase") || die "fail to open $outputbase\n";
+        if($r == -1) {
+            # failed to start due to error.
+            $status = $!;
+            printf OUTPUT "FAILED TO RUN: status: %d\n", $status;
+        } else {
+            if ($^O eq 'MSWin32' or $^O eq 'msys') {
+                #
+                # On Windows, the return value of system is the lower 8
+                # bits of the exit status of the process, shifted left
+                # 8 bits.
+                #
+                # If the process crashed, rather than exiting, the
+                # exit status will be one of the EXCEPTION_ values
+                # listed in the documentation for the GetExceptionCode()
+                # macro.
+                #
+                # Those are defined as STATUS_ values, which should have
+                # 0xC in the topmost 4 bits (being fatal error
+                # statuses); some of them have a value that fits in
+                # the lower 8 bits.  We could, I guess, assume that
+                # any value that 1) isn't returned by tcpdump and 2)
+                # corresponds to the lower 8 bits of a STATUS_ value
+                # used as an EXCEPTION_ value indicates that tcpdump
+                # exited with that exception.
+                #
+                # However, as we're running tcpdump with system, which
+                # runs the command through cmd.exe, and as cmd.exe
+                # doesn't map the command's exit code to its own exit
+                # code in any straightforward manner, we can't get
+                # that information in any case, so there's no point
+                # in trying to interpret it in that fashion.
+                #
+                $status = $r >> 8;
+            } else {
+                #
+                # On UN*Xes, the return status is a POSIX as filled in
+                # by wait() or waitpid().
+                #
+                # POSIX offers some calls for analyzing it, such as
+                # WIFSIGNALED() to test whether it indicates that the
+                # process was terminated by a signal, WTERMSIG() to
+                # get the signal number from it, WIFEXITED() to test
+                # whether it indicates that the process exited normally,
+                # and WEXITSTATUS() to get the exit status from it.
+                #
+                # POSIX doesn't standardize core dumps, so the POSIX
+                # calls can't test whether a core dump occurred.
+                # However, all the UN*Xes we are likely to encounter
+                # follow Research UNIX in this regard, with the exit
+                # status containing either 0 or a signal number in
+                # the lower 7 bits, with 0 meaning "exited rather
+                # than being terminated by a signal", the "core dumped"
+                # flag in the 0x80 bit, and, if the signal number is
+                # 0, the exit status in the next 8 bits up.
+                #
+                # This should be cleaned up to use the POSIX calls
+                # from the Perl library - and to define an additional
+                # WCOREDUMP() call to test the "core dumped" bit and
+                # use that.
+                #
+                # But note also that, as we're running tcpdump with
+                # system, which runs the command through a shell, if
+                # tcpdump crashes, we'll only know that if the shell
+                # maps the signal indication and uses that as its
+                # exit status.
+                #
+                # The good news is that the Bourne shell, and compatible
+                # shells, have traditionally done that.  If the process
+                # for which the shell reports the exit status terminates
+                # with a signal, it adds 128 to the signal number and
+                # returns that as its exit status.  (This is why the
+                # "this is now working right" behavior described in a
+                # comment below is occurring.)
+                #
+                # As tcpdump itself never returns with an exit status
+                # >= 128, we can try checking for an exit status with
+                # the 0x80 bit set and, if we have one, get the signal
+                # number from the lower 7 bits of the exit status.  We
+                # can't get the "core dumped" indication from the
+                # shell's exit status; all we can do is check whether
+                # there's a core file.
+                #
+                if( $r & 128 ) {
+                    $coredump = $r & 127;
+                }
+                if( WIFEXITED($r)) {
+                    $status = WEXITSTATUS($r);
+                }
+            }
+
+            if($coredump || $status) {
+                printf OUTPUT "EXIT CODE %08x: dump:%d code: %d\n", $r, $coredump, $status;
+            } else {
+                printf OUTPUT "EXIT CODE %08x\n", $r;
+            }
+            $r = 0;
+        }
+        close(OUTPUT);
+    }
+    if($r == 0) {
+        #
+        # Compare tcpdump's output with what we think it should be.
+        # If tcpdump failed to produce output, we've produced our own
+        # "output" above, with the exit status.
+        #
+        if ($^O eq 'MSWin32') {
+            my $winoutput = File::Spec->canonpath($output);
+            $r = system "fc /lb1000 /t /1 $winoutput tests\\NEW\\$outputbase >tests\\DIFF\\$outputbase.diff";
+            $diffstat = $r >> 8;
+        } else {
+            $r = system "diff $diff_flags $output tests/NEW/$outputbase >tests/DIFF/$outputbase.diff";
+            $diffstat = WEXITSTATUS($r);
+        }
+    }
+
+    # process the standard error file, sanitize "reading from" line,
+    # and count lines
+    $linecount = 0;
+    open(ERRORRAW, "<" . $rawstderrlog);
+    open(ERROROUT, ">" . $stderrlog);
+    while(<ERRORRAW>) {
+        next if /^$/;  # blank lines are boring
+        if(/^(reading from file )(.*)(,.*)$/) {
+            my $filename = basename($2);
+            print ERROROUT "${1}${filename}${3}\n";
+            next;
+        }
+        print ERROROUT;
+        $linecount++;
+    }
+    close(ERROROUT);
+    close(ERRORRAW);
+
+    if ( -f "$output.stderr" ) {
+        #
+        # Compare the standard error with what we think it should be.
+        #
+        if ($^O eq 'MSWin32') {
+            my $winoutput = File::Spec->canonpath($output);
+            my $canonstderrlog = File::Spec->canonpath($stderrlog);
+            $nr = system "fc /lb1000 /t /1 $winoutput.stderr $canonstderrlog >tests\DIFF\$outputbase.stderr.diff";
+            $errdiffstat = $nr >> 8;
+        } else {
+            $nr = system "diff $output.stderr $stderrlog >tests/DIFF/$outputbase.stderr.diff";
+            $errdiffstat = WEXITSTATUS($nr);
+        }
+        if($r == 0) {
+            $r = $nr;
+        }
+    }
+
+    if($r == 0) {
+        if($linecount == 0 && $status == 0) {
+            unlink($stderrlog);
+        } else {
+            $errdiffstat = 1;
+        }
+    }
+
+    #print sprintf("END: %08x\n", $r);
+
+    if($r == 0) {
+        if($linecount == 0) {
+            printf "    %-40s: passed\n", $name;
+        } else {
+            printf "    %-40s: passed with error messages:\n", $name;
+            showfile($stderrlog);
+        }
+        unlink "tests/DIFF/$outputbase.diff";
+        return 0;
+    }
+    # must have failed!
+    printf "    %-40s: TEST FAILED(exit core=%d/diffstat=%d,%d/r=%d)", $name, $coredump, $diffstat, $errdiffstat, $r;
+    open FOUT, '>>tests/failure-outputs.txt';
+    printf FOUT "\nFailed test: $name\n\n";
+    close FOUT;
+    if(-f "tests/DIFF/$outputbase.diff") {
+        #
+        # XXX - just do this directly in Perl?
+        #
+        if ($^O eq 'MSWin32') {
+            system "type tests\\DIFF\\$outputbase.diff >> tests\\failure-outputs.txt";
+        } else {
+            system "cat tests/DIFF/$outputbase.diff >> tests/failure-outputs.txt";
+        }
+    }
+
+    if($r == -1) {
+        print " (failed to execute: $!)\n";
+        return(30);
+    }
+
+    # this is not working right, $r == 0x8b00 when there is a core dump.
+    # clearly, we need some platform specific perl magic to take this apart, so look for "core"
+    # too.
+    # In particular, on Solaris 10 SPARC an alignment problem results in SIGILL,
+    # a core dump and $r set to 0x00008a00 ($? == 138 in the shell).
+    if($r & 127 || -f "core") {
+        my $with = ($r & 128) ? 'with' : 'without';
+        if(-f "core") {
+            $with = "with";
+        }
+        printf " (terminated with signal %u, %s coredump)", ($r & 127), $with;
+        if($linecount == 0) {
+            print "\n";
+        } else {
+            print " with error messages:\n";
+            showfile($stderrlog);
+        }
+        return(($r & 128) ? 10 : 20);
+    }
+    if($linecount == 0) {
+        print "\n";
+    } else {
+        print " with error messages:\n";
+        showfile($stderrlog);
+    }
+    return(5);
+}
+
+sub loadconfighash {
+    if(defined($confighhash)) {
+        return $confighhash;
+    }
+
+    $main::confighhash = {};
+
+    # this could be loaded once perhaps.
+    open(CONFIG_H, "config.h") || die "Can not open config.h: $!\n";
+    while(<CONFIG_H>) {
+        chomp;
+        if(/^\#define (.*) 1/) {
+            #print "Setting $1\n";
+            $main::confighhash->{$1} = 1;
+        }
+    }
+    close(CONFIG_H);
+    #print Dumper($main::confighhash);
+
+    # also run tcpdump --fp-type to get the type of floating-point
+    # arithmetic we're doing, setting a HAVE_{fptype} key based
+    # on the value it prints
+    open(FPTYPE_PIPE, "$TCPDUMP --fp-type |") or die("piping tcpdump --fp-type failed\n");
+    my $fptype_val = <FPTYPE_PIPE>;
+    close(FPTYPE_PIPE);
+    my $have_fptype;
+    if($fptype_val == "9877.895") {
+        $have_fptype = "HAVE_FPTYPE1";
+    } else {
+        $have_fptype = "HAVE_FPTYPE2";
+    }
+    $main::confighhash->{$have_fptype} = 1;
+
+    # and check whether this is OpenBSD, as one test fails in OpenBSD
+    # due to the sad hellscape of low-numbered DLT_ values, due to
+    # 12 meaning "OpenBSD loopback" rather than "raw IP" on OpenBSD
+    if($^O eq "openbsd") {
+        $main::confighhash->{"IS_OPENBSD"} = 1;
+    }
+
+    return $main::confighhash;
+}
+
+
+sub runOneComplexTest {
+    local($testconfig) = @_;
+
+    my $output = $testconfig->{output};
+    my $input  = $testconfig->{input};
+    my $name   = $testconfig->{name};
+    my $options= $testconfig->{args};
+    my $foundit = 1;
+    my $unfoundit=1;
+
+    my $configset = $testconfig->{config_set};
+    my $configunset = $testconfig->{config_unset};
+    my $ch = loadconfighash();
+    #print Dumper($ch);
+
+    if(defined($configset)) {
+        $foundit = ($ch->{$configset} == 1);
+    }
+    if(defined($configunset)) {
+        $unfoundit=($ch->{$configunset} != 1);
+    }
+
+    if(!$foundit) {
+        printf "    %-40s: skipped (%s not set)\n", $name, $configset;
+        return 0;
+    }
+
+    if(!$unfoundit) {
+        printf "    %-40s: skipped (%s set)\n", $name, $configunset;
+        return 0;
+    }
+
+    #use Data::Dumper;
+    #print Dumper($testconfig);
+
+    # EXPAND any occurrences of @TESTDIR@ to $testsdir
+    $options =~ s/\@TESTDIR\@/$testsdir/;
+
+    my $result = runtest($name,
+                         $testsdir . "/" . $input,
+                         $testsdir . "/" . $output,
+                         $options);
+
+    if($result == 0) {
+        $passedcount++;
+    } else {
+        $failedcount++;
+    }
+}
+
+# *.tests files are PERL hash definitions.  They should create an array of hashes
+# one per test, and place it into the variable @testlist.
+sub runComplexTests {
+    my @files = glob( $testsdir . '/*.tests' );
+    foreach $file (@files) {
+        my @testlist = undef;
+        my $definitions;
+        print "FILE: ${file}\n";
+        open(FILE, "<".$file) || die "can not open $file: $!";
+        {
+            local $/ = undef;
+            $definitions = <FILE>;
+        }
+        close(FILE);
+        #print "STUFF: ${definitions}\n";
+        eval $definitions;
+        if(defined($testlist)) {
+            #use Data::Dumper;
+            #print Dumper($testlist);
+            foreach $test (@$testlist) {
+                runOneComplexTest($test);
+            }
+        } else {
+            warn "File: ${file} could not be loaded as PERL: $!";
+        }
+    }
+}
+
+sub runSimpleTests {
+
+    local($only)=@_;
+
+    open(TESTLIST, "<" . "${testsdir}/TESTLIST") || die "no ${testsdir}/TESTFILE: $!\n";
+    while(<TESTLIST>) {
+        next if /^\#/;
+        next if /^$/;
+
+        unlink("core");
+        ($name, $input, $output, @options) = split;
+        #print "processing ${only} vs ${name}\n";
+        next if(defined($only) && $only ne $name);
+
+        my $options = join(" ", @options);
+        #print "@{options} becomes ${options}\n";
+
+        my $hash = { name => $name,
+                     input=> $input,
+                     output=>$output,
+                     args => $options };
+
+        runOneComplexTest($hash);
+    }
+}
+
+if(scalar(@ARGV) == 0) {
+    runSimpleTests();
+    runComplexTests();
+} else {
+    runSimpleTests($ARGV[0]);
+}
+
+# exit with number of failing tests.
+print "------------------------------------------------\n";
+printf("%4u tests failed\n",$failedcount);
+printf("%4u tests passed\n",$passedcount);
+
+showfile(${failureoutput});
+exit $failedcount;

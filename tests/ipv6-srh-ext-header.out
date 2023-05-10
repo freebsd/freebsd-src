@@ -1,0 +1,1 @@
+    1  16:29:31.085223 IP6 (flowlabel 0x889ad, hlim 64, next-header Routing (43) payload length: 144) a:b:c:12::1 > a:b:c:2::f1:0: RT6 (len=4, type=4, segleft=1, last-entry=1, flags=0x0, tag=0, [0]a:b:c:3::d6, [1]a:b:c:2::f1:0) IP6 (flowlabel 0x889ad, hlim 64, next-header ICMPv6 (58) payload length: 64) a:b:c:12::1 > b2::2: [icmp6 sum ok] ICMP6, echo request, id 1774, seq 1

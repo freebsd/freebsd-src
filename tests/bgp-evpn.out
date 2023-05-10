@@ -1,0 +1,23 @@
+    1  14:33:30.055180 IP (tos 0xc0, ttl 255, id 64247, offset 0, flags [none], proto TCP (6), length 123)
+    2.2.2.2.179 > 3.3.3.3.56988: Flags [P.], cksum 0x3c01 (correct), seq 334666955:334667026, ack 4146650227, win 16384, options [nop,nop,TS val 2156984502 ecr 2156984501], length 71: BGP
+	Open Message (1), length: 71
+	  Version 4, my AS 65000, Holdtime 90s, ID 2.2.2.2
+	  Optional parameters, length: 42
+	    Option Capabilities Advertisement (2), length: 6
+	      Multiprotocol Extensions (1), length: 4
+		AFI IPv4 (1), SAFI labeled VPN Unicast (128)
+	    Option Capabilities Advertisement (2), length: 6
+	      Multiprotocol Extensions (1), length: 4
+		AFI VPLS (25), SAFI EVPN (70)
+	    Option Capabilities Advertisement (2), length: 2
+	      Route Refresh (Cisco) (128), length: 0
+	    Option Capabilities Advertisement (2), length: 2
+	      Route Refresh (2), length: 0
+	    Option Capabilities Advertisement (2), length: 4
+	      Graceful Restart (64), length: 2
+		Restart Flags: [none], Restart Time 120s
+	    Option Capabilities Advertisement (2), length: 6
+	      32-Bit AS Number (65), length: 4
+		 4 Byte AS 65000
+	    Option Capabilities Advertisement (2), length: 2
+	      Long-lived Graceful Restart (71), length: 0

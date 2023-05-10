@@ -20,7 +20,6 @@
  *
  * OSPF support contributed by Jeffrey Honig (jch@mitchell.cit.cornell.edu)
  */
-#define	OSPF_TYPE_UMD           0	/* UMd's special monitoring packets */
 #define	OSPF_TYPE_HELLO         1	/* Hello */
 #define	OSPF_TYPE_DD            2	/* Database Description */
 #define	OSPF_TYPE_LS_REQ        3	/* Link State Request */
@@ -35,11 +34,10 @@
  *
  */
 
-#define OSPF_OPTION_T	0x01	/* T bit: TOS support	*/
-#define OSPF_OPTION_E	0x02	/* E bit: External routes advertised	*/
+#define	OSPF_OPTION_MT	0x01	/* MT bit: multi-topology */
+#define	OSPF_OPTION_E	0x02	/* E bit: External routes advertised */
 #define	OSPF_OPTION_MC	0x04	/* MC bit: Multicast capable */
 #define	OSPF_OPTION_NP	0x08	/* N/P bit: NSSA capable */
-#define	OSPF_OPTION_EA	0x10	/* EA bit: External Attribute capable */
 #define	OSPF_OPTION_L	0x10	/* L bit: Packet contains LLS data block */
 #define	OSPF_OPTION_DC	0x20	/* DC bit: Demand circuit capable */
 #define	OSPF_OPTION_O	0x40	/* O bit: Opaque LSA capable */
@@ -117,8 +115,10 @@
 /* rla_flags	*/
 #define	RLA_FLAG_B	0x01
 #define	RLA_FLAG_E	0x02
-#define	RLA_FLAG_W1	0x04
-#define	RLA_FLAG_W2	0x08
+#define	RLA_FLAG_V	0x04
+#define	RLA_FLAG_W	0x08
+#define	RLA_FLAG_NT	0x10 /* RFC3101 Appendix B */
+#define	RLA_FLAG_H	0x80
 
 /* sla_tosmetric breakdown	*/
 #define	SLA_MASK_TOS		0x7f000000
@@ -148,14 +148,14 @@
  * TOS metric struct (will be 0 or more in router links update)
  */
 struct tos_metric {
-    uint8_t tos_type;
-    uint8_t reserved;
-    uint8_t tos_metric[2];
+    nd_uint8_t  tos_type;
+    nd_uint8_t  reserved;
+    nd_uint16_t tos_metric;
 };
 struct tos_link {
-    uint8_t link_type;
-    uint8_t link_tos_count;
-    uint8_t tos_metric[2];
+    nd_uint8_t  link_type;
+    nd_uint8_t  link_tos_count;
+    nd_uint16_t tos_metric;
 };
 union un_tos {
     struct tos_link link;
@@ -164,20 +164,20 @@ union un_tos {
 
 /* link state advertisement header */
 struct lsa_hdr {
-    uint16_t ls_age;
-    uint8_t ls_options;
-    uint8_t ls_type;
+    nd_uint16_t ls_age;
+    nd_uint8_t  ls_options;
+    nd_uint8_t  ls_type;
     union {
-        struct in_addr lsa_id;
+        nd_ipv4 lsa_id;
         struct { /* opaque LSAs change the LSA-ID field */
-            uint8_t opaque_type;
-            uint8_t opaque_id[3];
+            nd_uint8_t  opaque_type;
+            nd_uint24_t opaque_id;
 	} opaque_field;
     } un_lsa_id;
-    struct in_addr ls_router;
-    uint32_t ls_seq;
-    uint16_t ls_chksum;
-    uint16_t ls_length;
+    nd_ipv4     ls_router;
+    nd_uint32_t ls_seq;
+    nd_uint16_t ls_chksum;
+    nd_uint16_t ls_length;
 };
 
 /* link state advertisement */
@@ -188,68 +188,68 @@ struct lsa {
     union {
 	/* Router links advertisements */
 	struct {
-	    uint8_t rla_flags;
-	    uint8_t rla_zero[1];
-	    uint16_t rla_count;
+	    nd_uint8_t  rla_flags;
+	    nd_byte     rla_zero;
+	    nd_uint16_t rla_count;
 	    struct rlalink {
-		struct in_addr link_id;
-		struct in_addr link_data;
+		nd_ipv4 link_id;
+		nd_ipv4 link_data;
                 union un_tos un_tos;
 	    } rla_link[1];		/* may repeat	*/
 	} un_rla;
 
 	/* Network links advertisements */
 	struct {
-	    struct in_addr nla_mask;
-	    struct in_addr nla_router[1];	/* may repeat	*/
+	    nd_ipv4 nla_mask;
+	    nd_ipv4 nla_router[1];	/* may repeat	*/
 	} un_nla;
 
 	/* Summary links advertisements */
 	struct {
-	    struct in_addr sla_mask;
-	    uint32_t sla_tosmetric[1];	/* may repeat	*/
+	    nd_ipv4     sla_mask;
+	    nd_uint32_t sla_tosmetric[1];	/* may repeat	*/
 	} un_sla;
 
 	/* AS external links advertisements */
 	struct {
-	    struct in_addr asla_mask;
+	    nd_ipv4 asla_mask;
 	    struct aslametric {
-		uint32_t asla_tosmetric;
-		struct in_addr asla_forward;
-		struct in_addr asla_tag;
+		nd_uint32_t asla_tosmetric;
+		nd_ipv4     asla_forward;
+		nd_ipv4     asla_tag;
 	    } asla_metric[1];		/* may repeat	*/
 	} un_asla;
 
 	/* Multicast group membership */
 	struct mcla {
-	    uint32_t mcla_vtype;
-	    struct in_addr mcla_vid;
+	    nd_uint32_t mcla_vtype;
+	    nd_ipv4     mcla_vid;
 	} un_mcla[1];
 
         /* Opaque TE LSA */
         struct {
-	    uint16_t type;
-	    uint16_t length;
-	    uint8_t data[1]; /* may repeat   */
-	} un_te_lsa_tlv;
+	    nd_uint16_t type;
+	    nd_uint16_t length;
+	    nd_byte     data[1]; /* may repeat   */
+	} un_te_lsa_tlv[1]; /* may repeat */
 
         /* Opaque Grace LSA */
         struct {
-	    uint16_t type;
-	    uint16_t length;
-	    uint8_t data[1]; /* may repeat   */
-	} un_grace_tlv;
+	    nd_uint16_t type;
+	    nd_uint16_t length;
+	    nd_byte     data[1]; /* may repeat   */
+	} un_grace_tlv[1]; /* may repeat */
 
         /* Opaque Router information LSA */
         struct {
-	    uint16_t type;
-	    uint16_t length;
-	    uint8_t data[1]; /* may repeat   */
-	} un_ri_tlv;
+	    nd_uint16_t type;
+	    nd_uint16_t length;
+	    nd_byte     data[1]; /* may repeat   */
+	} un_ri_tlv[1]; /* may repeat */
 
         /* Unknown LSA */
         struct unknown {
-	    uint8_t data[1]; /* may repeat   */
+	    nd_byte data[1]; /* may repeat   */
 	} un_unknown[1];
 
     } lsa_un;
@@ -261,54 +261,54 @@ struct lsa {
  * the main header
  */
 struct ospfhdr {
-    uint8_t ospf_version;
-    uint8_t ospf_type;
-    uint16_t ospf_len;
-    struct in_addr ospf_routerid;
-    struct in_addr ospf_areaid;
-    uint16_t ospf_chksum;
-    uint16_t ospf_authtype;
-    uint8_t ospf_authdata[OSPF_AUTH_SIZE];
+    nd_uint8_t  ospf_version;
+    nd_uint8_t  ospf_type;
+    nd_uint16_t ospf_len;
+    nd_ipv4     ospf_routerid;
+    nd_ipv4     ospf_areaid;
+    nd_uint16_t ospf_chksum;
+    nd_uint16_t ospf_authtype;
+    nd_byte     ospf_authdata[OSPF_AUTH_SIZE];
     union {
 
 	/* Hello packet */
 	struct {
-	    struct in_addr hello_mask;
-	    uint16_t hello_helloint;
-	    uint8_t hello_options;
-	    uint8_t hello_priority;
-	    uint32_t hello_deadint;
-	    struct in_addr hello_dr;
-	    struct in_addr hello_bdr;
-	    struct in_addr hello_neighbor[1]; /* may repeat	*/
+	    nd_ipv4     hello_mask;
+	    nd_uint16_t hello_helloint;
+	    nd_uint8_t  hello_options;
+	    nd_uint8_t  hello_priority;
+	    nd_uint32_t hello_deadint;
+	    nd_ipv4     hello_dr;
+	    nd_ipv4     hello_bdr;
+	    nd_ipv4     hello_neighbor[1]; /* may repeat	*/
 	} un_hello;
 
 	/* Database Description packet */
 	struct {
-	    uint16_t db_ifmtu;
-	    uint8_t db_options;
-	    uint8_t db_flags;
-	    uint32_t db_seq;
+	    nd_uint16_t db_ifmtu;
+	    nd_uint8_t  db_options;
+	    nd_uint8_t  db_flags;
+	    nd_uint32_t db_seq;
 	    struct lsa_hdr db_lshdr[1]; /* may repeat	*/
 	} un_db;
 
 	/* Link State Request */
 	struct lsr {
-	    uint8_t ls_type[4];
+	    nd_uint32_t ls_type;
             union {
-                struct in_addr ls_stateid;
+                nd_ipv4 ls_stateid;
                 struct { /* opaque LSAs change the LSA-ID field */
-                    uint8_t opaque_type;
-                    uint8_t opaque_id[3];
+                    nd_uint8_t  opaque_type;
+                    nd_uint24_t opaque_id;
                 } opaque_field;
             } un_ls_stateid;
-	    struct in_addr ls_router;
+	    nd_ipv4 ls_router;
 	} un_lsr[1];		/* may repeat	*/
 
 	/* Link State Update */
 	struct {
-	    uint32_t lsu_count;
-	    struct lsa lsu_lsa[1]; /* may repeat	*/
+	    nd_uint32_t lsu_count;
+	    struct lsa  lsu_lsa[1]; /* may repeat	*/
 	} un_lsu;
 
 	/* Link State Acknowledgement */

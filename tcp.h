@@ -33,24 +33,23 @@
  *	@(#)tcp.h	8.1 (Berkeley) 6/10/93
  */
 
-typedef	uint32_t	tcp_seq;
 /*
  * TCP header.
  * Per RFC 793, September, 1981.
  */
 struct tcphdr {
-	uint16_t	th_sport;		/* source port */
-	uint16_t	th_dport;		/* destination port */
-	tcp_seq		th_seq;			/* sequence number */
-	tcp_seq		th_ack;			/* acknowledgement number */
-	uint8_t		th_offx2;		/* data offset, rsvd */
-	uint8_t		th_flags;
-	uint16_t	th_win;			/* window */
-	uint16_t	th_sum;			/* checksum */
-	uint16_t	th_urp;			/* urgent pointer */
-} UNALIGNED;
+	nd_uint16_t	th_sport;		/* source port */
+	nd_uint16_t	th_dport;		/* destination port */
+	nd_uint32_t	th_seq;			/* sequence number */
+	nd_uint32_t	th_ack;			/* acknowledgement number */
+	nd_uint8_t	th_offx2;		/* data offset, rsvd */
+	nd_uint8_t	th_flags;
+	nd_uint16_t	th_win;			/* window */
+	nd_uint16_t	th_sum;			/* checksum */
+	nd_uint16_t	th_urp;			/* urgent pointer */
+};
 
-#define TH_OFF(th)	(((th)->th_offx2 & 0xf0) >> 4)
+#define TH_OFF(th)	((GET_U_1((th)->th_offx2) & 0xf0) >> 4)
 
 /* TCP flags */
 #define	TH_FIN     0x01
@@ -104,14 +103,14 @@ struct tcphdr {
 #ifndef SMTP_PORT
 #define SMTP_PORT		25
 #endif
+#ifndef WHOIS_PORT
+#define WHOIS_PORT		43
+#endif
 #ifndef NAMESERVER_PORT
 #define NAMESERVER_PORT		53
 #endif
 #ifndef HTTP_PORT
 #define HTTP_PORT		80
-#endif
-#ifndef NETBIOS_NS_PORT
-#define NETBIOS_NS_PORT		137	/* RFC 1001, RFC 1002 */
 #endif
 #ifndef NETBIOS_SSN_PORT
 #define NETBIOS_SSN_PORT	139	/* RFC 1001, RFC 1002 */

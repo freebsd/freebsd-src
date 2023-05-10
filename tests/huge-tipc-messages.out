@@ -1,0 +1,13 @@
+    1  00:16:27.751856 TIPC v2.0 1.1.2:3511725154 > 1.1.2:424133152, headerlength 40 bytes, MessageSize 40 bytes, Low Importance Data payload, messageType NAMED_MSG
+    2  00:16:27.751868 TIPC v2.0 1.1.2:36452003 > 3511725154, headerlength 24 bytes, MessageSize 24 bytes, Low Importance Data payload, messageType CONN_MSG
+    3  00:16:27.752201 TIPC v2.0 1.1.2:3511725154 > 36452003, headerlength 24 bytes, MessageSize 66000 bytes, Low Importance Data payload, messageType CONN_MSG
+    4  00:16:27.752706 TIPC v2.0 1.1.2:3511725154 > 36452003, headerlength 24 bytes, MessageSize 24 bytes, Critical Importance Data payload, messageType CONN_MSG
+    5  00:18:04.887066 TIPC v2.0 1.1.2:2724677849 > 1.1.2:424133152, headerlength 40 bytes, MessageSize 40 bytes, Low Importance Data payload, messageType NAMED_MSG
+    6  00:18:04.887080 TIPC v2.0 1.1.2:350680339 > 2724677849, headerlength 24 bytes, MessageSize 24 bytes, Low Importance Data payload, messageType CONN_MSG
+    7  00:18:04.887672 TIPC v2.0 1.1.2:2724677849 > 350680339, headerlength 24 bytes, MessageSize 65536 bytes, Low Importance Data payload, messageType CONN_MSG
+    8  00:18:04.887787 TIPC v2.0 1.1.2:350680339 > 1.1.2:2724677849, headerlength 40 bytes, MessageSize 40 bytes, Connection Manager internal, messageType NAMED_MSG
+    9  00:18:04.888471 TIPC v2.0 1.1.2:2724677849 > 350680339, headerlength 24 bytes, MessageSize 24 bytes, Critical Importance Data payload, messageType CONN_MSG
+   10  00:18:28.880141 TIPC v2.0 1.1.2:1877724975 > 1.1.2:424133152, headerlength 40 bytes, MessageSize 40 bytes, Low Importance Data payload, messageType NAMED_MSG
+   11  00:18:28.880540 TIPC v2.0 1.1.2:3523527029 > 1877724975, headerlength 24 bytes, MessageSize 24 bytes, Low Importance Data payload, messageType CONN_MSG
+   12  00:18:28.881372 TIPC v2.0 1.1.2:1877724975 > 3523527029, headerlength 24 bytes, MessageSize 65535 bytes, Low Importance Data payload, messageType CONN_MSG
+   13  00:18:28.882335 TIPC v2.0 1.1.2:1877724975 > 3523527029, headerlength 24 bytes, MessageSize 24 bytes, Critical Importance Data payload, messageType CONN_MSG

@@ -1,0 +1,12 @@
+    1  21:48:17.261490 IP (tos 0xc0, ttl 1, id 52, offset 0, flags [none], proto OSPF (89), length 96)
+    10.0.34.3 > 224.0.0.5: OSPFv2, LS-Update, length 76
+	Router-ID 10.0.34.3, Area 0.0.0.1, Authentication Type: none (0), 1 LSA
+	  LSA #1
+	  Advertising Router 10.0.34.3, seq 0x80000004, age 1s, length 28
+	    Router LSA (1), LSA-ID: 10.0.34.3
+	    Options: [NSSA, Demand Circuit]
+	    Router LSA Options: [ABR, ASBR, Nt]
+	      Neighbor Router-ID: 10.0.34.4, Interface Address: 10.0.34.3
+		topology default (0), metric 1
+	      Stub Network: 10.0.34.0, Mask: 255.255.255.0
+		topology default (0), metric 1
