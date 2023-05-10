@@ -51,6 +51,7 @@ static const char rcsid[] =
 #include <net/ethernet.h>
 
 #include "ifconfig.h"
+#include "ifconfig_netlink.h"
 
 static struct ifreq link_ridreq;
 
@@ -90,6 +91,7 @@ print_pcp(int s)
 		printf("\tpcp %d\n", ifr.ifr_lan_pcp);
 }
 
+#ifdef WITHOUT_NETLINK
 static void
 link_status(int s __unused, const struct ifaddrs *ifa)
 {
@@ -143,6 +145,45 @@ pcp:
 	print_pcp(s);
 }
 
+#else
+static uint8_t
+convert_iftype(uint8_t iftype)
+{
+	switch (iftype) {
+	case IFT_IEEE8023ADLAG:
+		return (IFT_ETHER);
+	case IFT_INFINIBANDLAG:
+		return (IFT_INFINIBAND);
+	}
+	return (iftype);
+}
+
+static void
+link_status_nl(struct ifconfig_args *args __unused, struct io_handler *h,
+    if_link_t *link, if_addr_t *ifa __unused)
+{
+	if (link->ifla_address != NULL) {
+		struct sockaddr_dl sdl = {
+			.sdl_len = sizeof(struct sockaddr_dl),
+			.sdl_family = AF_LINK,
+			.sdl_type = convert_iftype(link->ifi_type),
+			.sdl_alen = NLA_DATA_LEN(link->ifla_address),
+		};
+		memcpy(LLADDR(&sdl), NLA_DATA(link->ifla_address), sdl.sdl_alen);
+		print_lladdr(&sdl);
+
+		if (link->iflaf_orig_hwaddr != NULL) {
+			struct nlattr *hwaddr = link->iflaf_orig_hwaddr;
+
+			if (memcmp(NLA_DATA(hwaddr), NLA_DATA(link->ifla_address), sdl.sdl_alen))
+				print_ether((struct ether_addr *)NLA_DATA(hwaddr), "hwaddr");
+		}
+	}
+	if (convert_iftype(link->ifi_type) == IFT_ETHER)
+		print_pcp(h->s);
+}
+#endif
+
 static void
 link_getaddr(const char *addr, int which)
 {
@@ -180,7 +221,11 @@ link_getaddr(const char *addr, int which)
 static struct afswtch af_link = {
 	.af_name	= "link",
 	.af_af		= AF_LINK,
+#ifdef WITHOUT_NETLINK
 	.af_status	= link_status,
+#else
+	.af_status_nl	= link_status_nl,
+#endif
 	.af_getaddr	= link_getaddr,
 	.af_aifaddr	= SIOCSIFLLADDR,
 	.af_addreq	= &link_ridreq,
@@ -188,7 +233,11 @@ static struct afswtch af_link = {
 static struct afswtch af_ether = {
 	.af_name	= "ether",
 	.af_af		= AF_LINK,
+#ifdef WITHOUT_NETLINK
 	.af_status	= link_status,
+#else
+	.af_status_nl	= link_status_nl,
+#endif
 	.af_getaddr	= link_getaddr,
 	.af_aifaddr	= SIOCSIFLLADDR,
 	.af_addreq	= &link_ridreq,
@@ -196,7 +245,11 @@ static struct afswtch af_ether = {
 static struct afswtch af_lladdr = {
 	.af_name	= "lladdr",
 	.af_af		= AF_LINK,
+#ifdef WITHOUT_NETLINK
 	.af_status	= link_status,
+#else
+	.af_status_nl	= link_status_nl,
+#endif
 	.af_getaddr	= link_getaddr,
 	.af_aifaddr	= SIOCSIFLLADDR,
 	.af_addreq	= &link_ridreq,

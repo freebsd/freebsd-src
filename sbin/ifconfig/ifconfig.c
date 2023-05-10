@@ -108,20 +108,14 @@ int	exit_code = 0;
 /* Formatter Strings */
 char	*f_inet, *f_inet6, *f_ether, *f_addr;
 
-static	bool group_member(const char *ifname, const char *match,
-		const char *nomatch);
-static	int ifconfig(int argc, char *const *argv, int iscreate,
-		const struct afswtch *afp);
+static void list_interfaces_ioctl(struct ifconfig_args *args);
 static	void status(struct ifconfig_args *args, const struct sockaddr_dl *sdl,
 		struct ifaddrs *ifa);
-static	void tunnel_status(int s);
 static _Noreturn void usage(void);
 
 static int getifflags(const char *ifname, int us, bool err_ok);
 
 static struct afswtch *af_getbyname(const char *name);
-static struct afswtch *af_getbyfamily(int af);
-static void af_other_status(int);
 
 void printifnamemaybe(void);
 
@@ -403,7 +397,15 @@ void printifnamemaybe()
 		printf("%s\n", name);
 }
 
-static void list_interfaces(struct ifconfig_args *args);
+static void
+list_interfaces(struct ifconfig_args *args)
+{
+#ifdef WITHOUT_NETLINK
+	list_interfaces_ioctl(args);
+#else
+	list_interfaces_nl(args);
+#endif
+}
 
 int
 main(int argc, char *argv[])
@@ -651,7 +653,7 @@ match_afp(const struct afswtch *afp, int sa_family, const struct sockaddr_dl *sd
 	return (afp->af_af == sa_family);
 }
 
-static bool
+bool
 match_if_flags(struct ifconfig_args *args, int if_flags)
 {
 	if ((if_flags & IFF_CANTCONFIG) != 0)
@@ -663,8 +665,9 @@ match_if_flags(struct ifconfig_args *args, int if_flags)
 	return (true);
 }
 
+#ifdef WITHOUT_NETLINK
 static void
-list_interfaces(struct ifconfig_args *args)
+list_interfaces_ioctl(struct ifconfig_args *args)
 {
 	struct ifa_queue q = TAILQ_HEAD_INITIALIZER(q);
 	struct ifaddrs *ifap, *sifap, *ifa;
@@ -743,13 +746,14 @@ list_interfaces(struct ifconfig_args *args)
 		printf("\n");
 	freeifaddrs(ifap);
 }
+#endif
 
 /*
  * Returns true if an interface should be listed because any its groups
  * matches shell pattern "match" and none of groups matches pattern "nomatch".
  * If any pattern is NULL, corresponding condition is skipped.
  */
-static bool
+bool
 group_member(const char *ifname, const char *match, const char *nomatch)
 {
 	static int		 sock = -1;
@@ -832,7 +836,7 @@ af_getbyname(const char *name)
 	return NULL;
 }
 
-static struct afswtch *
+struct afswtch *
 af_getbyfamily(int af)
 {
 	struct afswtch *afp;
@@ -843,7 +847,7 @@ af_getbyfamily(int af)
 	return NULL;
 }
 
-static void
+void
 af_other_status(int s)
 {
 	struct afswtch *afp;
@@ -933,7 +937,7 @@ static void setifdstaddr(const char *, int, int, const struct afswtch *);
 static const struct cmd setifdstaddr_cmd =
 	DEF_CMD("ifdstaddr", 0, setifdstaddr);
 
-static int
+int
 ifconfig(int argc, char *const *argv, int iscreate, const struct afswtch *uafp)
 {
 	const struct afswtch *afp, *nafp;
@@ -1514,7 +1518,7 @@ print_ifcap_nv(struct ifconfig_args *args, int s)
 		Perror("ioctl (SIOCGIFCAP)");
 }
 
-static void
+void
 print_ifcap(struct ifconfig_args *args, int s)
 {
 	if (ioctl(s, SIOCGIFCAP, (caddr_t)&ifr) != 0)
@@ -1533,7 +1537,7 @@ print_ifcap(struct ifconfig_args *args, int s)
 	}
 }
 
-static void
+void
 print_ifstatus(int s)
 {
 	struct ifstat ifs;
@@ -1543,13 +1547,14 @@ print_ifstatus(int s)
 		printf("%s", ifs.ascii);
 }
 
-static void
+void
 print_metric(int s)
 {
 	if (ioctl(s, SIOCGIFMETRIC, &ifr) != -1)
 		printf(" metric %d", ifr.ifr_metric);
 }
 
+#ifdef WITHOUT_NETLINK
 static void
 print_mtu(int s)
 {
@@ -1658,8 +1663,9 @@ status(struct ifconfig_args *args, const struct sockaddr_dl *sdl,
 	close(s);
 	return;
 }
+#endif
 
-static void
+void
 tunnel_status(int s)
 {
 	af_all_tunnel_status(s);

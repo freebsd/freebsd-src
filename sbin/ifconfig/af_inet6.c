@@ -57,6 +57,7 @@ static const char rcsid[] =
 #include <netinet6/nd6.h>	/* Define ND6_INFINITE_LIFETIME */
 
 #include "ifconfig.h"
+#include "ifconfig_netlink.h"
 
 static	struct in6_ifreq in6_ridreq;
 static	struct in6_aliasreq in6_addreq =
@@ -242,6 +243,7 @@ print_lifetime(const char *prepend, time_t px_time, struct timespec *now)
 	printf(" %s", px_time < now->tv_sec ? "0" : sec2str(px_time - now->tv_sec));
 }
 
+#ifdef WITHOUT_NETLINK
 static void
 in6_status(int s __unused, const struct ifaddrs *ifa)
 {
@@ -312,6 +314,67 @@ in6_status(int s __unused, const struct ifaddrs *ifa)
 
 	putchar('\n');
 }
+
+#else
+static void
+show_lifetime(struct ifa_cacheinfo *ci)
+{
+	struct timespec now;
+	uint32_t pl, vl;
+
+	if (ci == NULL)
+		return;
+
+	int count = ci->ifa_prefered != ND6_INFINITE_LIFETIME;
+	count += ci->ifa_valid != ND6_INFINITE_LIFETIME;
+	if (count == 0)
+		return;
+
+	pl = (ci->ifa_prefered == ND6_INFINITE_LIFETIME) ? 0 : ci->ifa_prefered;
+	vl = (ci->ifa_valid == ND6_INFINITE_LIFETIME) ? 0 : ci->ifa_valid;
+
+	clock_gettime(CLOCK_MONOTONIC_FAST, &now);
+	print_lifetime("pltime", pl + now.tv_sec, &now);
+	print_lifetime("vltime", vl + now.tv_sec, &now);
+}
+
+static struct sockaddr_in6 *
+satosin6(struct sockaddr *sa)
+{
+	return ((struct sockaddr_in6 *)(void *)sa);
+}
+
+static void
+in6_status_nl(struct ifconfig_args *args __unused, struct io_handler *h,
+    if_link_t *link, if_addr_t *ifa)
+{
+	int plen = ifa->ifa_prefixlen;
+	uint32_t scopeid;
+
+	if (ifa->ifa_local == NULL) {
+		/* Non-P2P address */
+		scopeid = satosin6(ifa->ifa_address)->sin6_scope_id;
+		print_addr(satosin6(ifa->ifa_address));
+	} else {
+		scopeid = satosin6(ifa->ifa_local)->sin6_scope_id;
+		print_addr(satosin6(ifa->ifa_local));
+		print_p2p(satosin6(ifa->ifa_address));
+	}
+
+	print_mask(plen);
+	print_flags(ifa->ifaf_flags);
+
+	if (scopeid != 0)
+		printf(" scopeid 0x%x", scopeid);
+
+	show_lifetime(ifa->ifa_cacheinfo);
+
+	if (ifa->ifaf_vhid != 0)
+		printf(" vhid %d", ifa->ifaf_vhid);
+
+	putchar('\n');
+}
+#endif
 
 #define	SIN6(x) ((struct sockaddr_in6 *) &(x))
 static struct	sockaddr_in6 *sin6tab[] = {
@@ -531,7 +594,11 @@ static struct cmd inet6_cmds[] = {
 static struct afswtch af_inet6 = {
 	.af_name	= "inet6",
 	.af_af		= AF_INET6,
+#ifdef WITHOUT_NETLINK
 	.af_status	= in6_status,
+#else
+	.af_status_nl	= in6_status_nl,
+#endif
 	.af_getaddr	= in6_getaddr,
 	.af_getprefix	= in6_getprefix,
 	.af_other_status = nd6_status,

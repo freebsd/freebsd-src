@@ -150,6 +150,20 @@ enum {
 	DSTADDR,
 };
 
+struct snl_state;
+struct snl_parsed_addr;
+struct snl_parsed_link;
+typedef struct snl_parsed_link if_link_t;
+typedef struct snl_parsed_addr if_addr_t;
+struct ifconfig_args;
+struct io_handler {
+	int			s;	/* socket to use for ioctls */
+	struct snl_state	*ss;	/* NETLINK_ROUTE snl(3) socket */
+};
+
+typedef	void af_status_nl_f(struct ifconfig_args *args, struct io_handler *h,
+    if_link_t *link, if_addr_t *ifa);
+
 struct afswtch {
 	const char	*af_name;	/* as given on cmd line, e.g. "inet" */
 	short		af_af;		/* AF_* */
@@ -162,7 +176,11 @@ struct afswtch {
 	 * is defined then it is invoked after all address status
 	 * is presented.
 	 */
+#ifndef WITHOUT_NETLINK
+	af_status_nl_f	*af_status_nl;
+#else
 	void		(*af_status)(int, const struct ifaddrs *);
+#endif
 	void		(*af_other_status)(int);
 					/* parse address method */
 	void		(*af_getaddr)(const char *, int);
@@ -238,6 +256,19 @@ void	sfp_status(int s, struct ifreq *ifr, int verbose);
 
 struct sockaddr_dl;
 bool	match_ether(const struct sockaddr_dl *sdl);
+bool	match_if_flags(struct ifconfig_args *args, int if_flags);
+int	ifconfig(int argc, char *const *argv, int iscreate, const struct afswtch *uafp);
+bool	group_member(const char *ifname, const char *match, const char *nomatch);
+void	print_ifcap(struct ifconfig_args *args, int s);
+void	tunnel_status(int s);
+struct afswtch	*af_getbyfamily(int af);
+void	af_other_status(int s);
+void	print_ifstatus(int s);
+void	print_metric(int s);
+
+/* Netlink-related functions */
+void	list_interfaces_nl(struct ifconfig_args *args);
+
 /*
  * XXX expose this so modules that neeed to know of any pending
  * operations on ifmedia can avoid cmd line ordering confusion.
