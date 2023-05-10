@@ -39,6 +39,7 @@
 #pragma once
 
 #include <libifconfig.h>
+#include <stdbool.h>
 
 #define	__constructor	__attribute__((constructor))
 
@@ -182,6 +183,22 @@ struct afswtch {
 };
 void	af_register(struct afswtch *);
 
+struct ifconfig_args {
+	bool all;		/* Match everything */
+	bool downonly;		/* Down-only items */
+	bool uponly;		/* Up-only items */
+	bool namesonly;		/* Output only names */
+	bool noload;		/* Do not load relevant kernel modules */
+	bool supmedia;		/* Supported media */
+	bool printkeys;		/* Print security keys */
+	int verbose;		/* verbosity level */
+	int argc;
+	char **argv;
+	const char *matchgroup;		/* Group name to match */
+	const char *nogroup;		/* Group name to exclude */
+	const struct afswtch *afp;	/* AF we're operating on */
+};
+
 struct option {
 	const char *opt;
 	const char *opt_usage;
@@ -194,12 +211,12 @@ extern	ifconfig_handle_t *lifh;
 extern	struct ifreq ifr;
 extern	char name[IFNAMSIZ];	/* name of interface */
 extern	int allmedia;
-extern	int supmedia;
 extern	int printkeys;
 extern	int newaddr;
 extern	int verbose;
 extern	int printifname;
 extern	int exit_code;
+extern struct ifconfig_args args;
 
 void	setifcap(const char *, int value, int s, const struct afswtch *);
 void	setifcapnv(const char *vname, const char *arg, int s,
@@ -208,7 +225,7 @@ void	setifcapnv(const char *vname, const char *arg, int s,
 void	Perror(const char *cmd);
 void	printb(const char *s, unsigned value, const char *bits);
 
-void	ifmaybeload(const char *name);
+void	ifmaybeload(struct ifconfig_args *args, const char *name);
 
 typedef int  clone_match_func(const char *);
 typedef void clone_callback_func(int, struct ifreq *);
