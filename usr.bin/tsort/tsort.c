@@ -183,8 +183,8 @@ main(int argc, char *argv[])
 
 	/* do the sort */
 	tsort();
-        if (ferror(stdout) != 0 || fflush(stdout) != 0)
-                err(1, "stdout");
+	if (ferror(stdout) != 0 || fflush(stdout) != 0)
+		err(1, "stdout");
 	exit(0);
 }
 
@@ -251,7 +251,7 @@ get_node(char *name)
 
 	switch ((*db->get)(db, &key, &data, 0)) {
 	case 0:
-		bcopy(data.data, &n, sizeof(n));
+		memcpy(&n, data.data, sizeof(n));
 		return (n);
 	case 1:
 		break;
@@ -268,7 +268,7 @@ get_node(char *name)
 	n->n_arcs = NULL;
 	n->n_refcnt = 0;
 	n->n_flags = 0;
-	bcopy(name, n->n_name, key.size);
+	memcpy(n->n_name, name, key.size);
 
 	/* Add to linked list. */
 	if ((n->n_next = graph) != NULL)
