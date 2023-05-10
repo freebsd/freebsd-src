@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2004-2008 Sam Leffler, Errno Consulting
  * Copyright (c) 2004 Video54 Technologies, Inc.

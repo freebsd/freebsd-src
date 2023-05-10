@@ -1,6 +1,6 @@
 #!/usr/local/bin/perl -wC
 
-# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright 2009 Edwin Groothuis <edwin@FreeBSD.org>
 # Copyright 2015 John Marino <draco@marino.st>

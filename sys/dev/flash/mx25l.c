@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2009 Oleksandr Tymoshenko.  All rights reserved.
  * Copyright (c) 2018 Ian Lepore.  All rights reserved.

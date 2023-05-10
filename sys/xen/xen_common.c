@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright © 2008, 2013 Citrix Systems, Inc.
  * Copyright © 2012 Spectra Logic Corporation

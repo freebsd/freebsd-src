@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * This is the Posix.2 mandated C compiler.  Basically, a hook to the
  * cc(1) command.

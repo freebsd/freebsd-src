@@ -1,7 +1,7 @@
 /*	$NetBSD: puc.c,v 1.7 2000/07/29 17:43:38 jlam Exp $	*/
 
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-3-Clause
+ * SPDX-License-Identifier: BSD-2-Clause AND BSD-3-Clause
  *
  * Copyright (c) 2002 JF Hay.  All rights reserved.
  * Copyright (c) 2000 M. Warner Losh <imp@FreeBSD.org>

@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 1999, Matthew Dillon.  All Rights Reserved.
  * Copyright (c) 2001, Thomas Moestl.  All Rights Reserved.

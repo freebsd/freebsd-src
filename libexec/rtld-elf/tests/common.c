@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  * Copyright 2014 Jonathan Anderson.
  * Copyright 2021 Mariusz Zaborski <oshogbo@FreeBSD.org>
  *

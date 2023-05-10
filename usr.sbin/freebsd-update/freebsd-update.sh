@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #-
-# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright 2004-2007 Colin Percival
 # All rights reserved

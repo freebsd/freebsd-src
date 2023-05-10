@@ -1,6 +1,6 @@
 #!/usr/bin/awk -f
 #-
-# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright 2019 Ian Lepore <ian@freebsd.org>
 #

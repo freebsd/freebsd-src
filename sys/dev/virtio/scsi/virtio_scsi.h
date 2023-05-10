@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * This header is BSD licensed so anyone can use the definitions to implement
  * compatible drivers/servers.
