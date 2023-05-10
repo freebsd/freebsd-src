@@ -142,9 +142,18 @@ enum {
 	IFLA_DEVLINK_PORT,
 	IFLA_GSO_IPV4_MAX_SIZE,
 	IFLA_GRO_IPV4_MAX_SIZE,
+	IFLA_FREEBSD,
 	__IFLA_MAX
 };
 #define IFLA_MAX (__IFLA_MAX - 1)
+
+enum {
+	IFLAF_UNSPEC		= 0,
+	IFLAF_ORIG_IFNAME	= 1,	/* string, original interface name at creation */
+	IFLAF_ORIG_HWADDR	= 2,	/* binary, original hardware address */
+	__IFLAF_MAX
+};
+#define IFLAF_MAX (__IFLAF_MAX - 1)
 
 /*
  * Attributes that can be used as filters:

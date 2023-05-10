@@ -194,6 +194,17 @@ get_operstate(struct ifnet *ifp, struct if_state *pstate)
 	}
 }
 
+static void
+get_hwaddr(struct nl_writer *nw, struct ifnet *ifp)
+{
+	struct ifreq ifr = {};
+
+	if (if_gethwaddr(ifp, &ifr) == 0) {
+		nlattr_add(nw, IFLAF_ORIG_HWADDR, if_getaddrlen(ifp),
+		    ifr.ifr_addr.sa_data);
+	}
+}
+
 static unsigned
 ifp_flags_to_netlink(const struct ifnet *ifp)
 {
@@ -281,8 +292,10 @@ dump_iface(struct nl_writer *nw, struct ifnet *ifp, const struct nlmsghdr *hdr,
         nlattr_add_u8(nw, IFLA_PROTO_DOWN, val);
         nlattr_add_u8(nw, IFLA_LINKMODE, val);
 */
-        if ((ifp->if_addr != NULL)) {
-                dump_sa(nw, IFLA_ADDRESS, ifp->if_addr->ifa_addr);
+        if (if_getaddrlen(ifp) != 0) {
+		struct ifaddr *ifa = if_getifaddr(ifp);
+
+                dump_sa(nw, IFLA_ADDRESS, ifa->ifa_addr);
         }
 
         if ((ifp->if_broadcastaddr != NULL)) {
@@ -299,6 +312,14 @@ dump_iface(struct nl_writer *nw, struct ifnet *ifp, const struct nlmsghdr *hdr,
 
 	if (ifp->if_description != NULL)
 		nlattr_add_string(nw, IFLA_IFALIAS, ifp->if_description);
+
+	/* Store FreeBSD-specific attributes */
+	int off = nlattr_add_nested(nw, IFLA_FREEBSD);
+	if (off != 0) {
+		get_hwaddr(nw, ifp);
+
+		nlattr_set_len(nw, off);
+	}
 
 	get_stats(nw, ifp);
 
