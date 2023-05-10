@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD AND BSD-2-Clause-NetBSD
+ * SPDX-License-Identifier: BSD-2-Clause AND BSD-2-Clause-NetBSD
  *
  * Copyright (c) 2012 Yusuke Tanaka
  * All rights reserved.

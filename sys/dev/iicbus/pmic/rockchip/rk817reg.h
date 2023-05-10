@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBS
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2021, 2022 Soren Schmidt <sos@deepcore.dk>
  *

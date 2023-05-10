@@ -1,6 +1,6 @@
 #-
 #
-# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright 2020 Michal Meloun <mmel@FreeBSD.org>
 #

@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (C) 1999 by Andrey A. Chernov, Moscow, Russia.
  * (C) 18 Sep 1999, Alex G. Bulushev (bag@demos.su)

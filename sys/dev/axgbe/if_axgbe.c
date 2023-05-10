@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2016,2017 SoftIron Inc.
  * Copyright (c) 2020 Advanced Micro Devices, Inc.

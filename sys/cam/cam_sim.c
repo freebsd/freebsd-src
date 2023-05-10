@@ -1,7 +1,7 @@
 /*-
  * Common functions for SCSI Interface Modules (SIMs).
  *
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 1997 Justin T. Gibbs.
  * All rights reserved.

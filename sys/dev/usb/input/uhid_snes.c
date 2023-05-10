@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright 2013, Michael Terrell <vashisnotatree@gmail.com>
  * Copyright 2018, Johannes Lundberg <johalun0@gmail.com>

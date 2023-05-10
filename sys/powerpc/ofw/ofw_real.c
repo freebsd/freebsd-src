@@ -1,7 +1,7 @@
 /*	$NetBSD: Locore.c,v 1.7 2000/08/20 07:04:59 tsubai Exp $	*/
 
 /*-
- * SPDX-License-Identifier:BSD-4-Clause AND BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier:BSD-4-Clause AND BSD-2-Clause
  *
  * Copyright (C) 1995, 1996 Wolfgang Solfrank.
  * Copyright (C) 1995, 1996 TooLs GmbH.
