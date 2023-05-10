@@ -194,6 +194,7 @@ struct ifconfig_args {
 	int verbose;		/* verbosity level */
 	int argc;
 	char **argv;
+	const char *ifname;	/* Requested interface name */
 	const char *matchgroup;		/* Group name to match */
 	const char *nogroup;		/* Group name to exclude */
 	const struct afswtch *afp;	/* AF we're operating on */

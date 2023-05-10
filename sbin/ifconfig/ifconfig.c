@@ -412,7 +412,6 @@ main(int argc, char *argv[])
 	const struct afswtch *afp = NULL;
 	int ifindex;
 	char options[1024], *envformat;
-	const char *ifname;
 	struct option *p;
 	size_t iflen;
 	int flags;
@@ -516,7 +515,6 @@ main(int argc, char *argv[])
 		if (argc > 1)
 			usage();
 
-		ifname = NULL;
 		ifindex = 0;
 		if (argc == 1) {
 			afp = af_getbyname(*argv);
@@ -533,13 +531,13 @@ main(int argc, char *argv[])
 		if (argc < 1)
 			usage();
 
-		ifname = *argv;
+		args.ifname = *argv;
 		argc--, argv++;
 
 		/* check and maybe load support for this interface */
-		ifmaybeload(&args, ifname);
+		ifmaybeload(&args, args.ifname);
 
-		ifindex = if_nametoindex(ifname);
+		ifindex = if_nametoindex(args.ifname);
 		if (ifindex == 0) {
 			/*
 			 * NOTE:  We must special-case the `create' command
@@ -548,10 +546,10 @@ main(int argc, char *argv[])
 			 */
 			if (argc > 0 && (strcmp(argv[0], "create") == 0 ||
 			    strcmp(argv[0], "plumb") == 0)) {
-				iflen = strlcpy(name, ifname, sizeof(name));
+				iflen = strlcpy(name, args.ifname, sizeof(name));
 				if (iflen >= sizeof(name))
 					errx(1, "%s: cloning name too long",
-					    ifname);
+					    args.ifname);
 				ifconfig(argc, argv, 1, NULL);
 				exit(exit_code);
 			}
@@ -562,15 +560,15 @@ main(int argc, char *argv[])
 			 * to find the interface as it lives in another vnet.
 			 */
 			if (argc > 0 && (strcmp(argv[0], "-vnet") == 0)) {
-				iflen = strlcpy(name, ifname, sizeof(name));
+				iflen = strlcpy(name, args.ifname, sizeof(name));
 				if (iflen >= sizeof(name))
 					errx(1, "%s: interface name too long",
-					    ifname);
+					    args.ifname);
 				ifconfig(argc, argv, 0, NULL);
 				exit(exit_code);
 			}
 #endif
-			errx(1, "interface %s does not exist", ifname);
+			errx(1, "interface %s does not exist", args.ifname);
 		} else {
 			/*
 			 * Do not allow use `create` command as hostname if
@@ -580,7 +578,7 @@ main(int argc, char *argv[])
 			    strcmp(argv[0], "plumb") == 0)) {
 				if (argc == 1)
 					errx(1, "interface %s already exists",
-					    ifname);
+					    args.ifname);
 				argc--, argv++;
 			}
 		}
@@ -598,10 +596,10 @@ main(int argc, char *argv[])
 	 * which doesn't require building, sorting, and searching the entire
 	 * system address list
 	 */
-	if ((argc > 0) && (ifname != NULL)) {
-		iflen = strlcpy(name, ifname, sizeof(name));
+	if ((argc > 0) && (args.ifname != NULL)) {
+		iflen = strlcpy(name, args.ifname, sizeof(name));
 		if (iflen >= sizeof(name)) {
-			warnx("%s: interface name too long, skipping", ifname);
+			warnx("%s: interface name too long, skipping", args.ifname);
 		} else {
 			flags = getifflags(name, -1, false);
 			if (!(((flags & IFF_CANTCONFIG) != 0) ||
@@ -650,7 +648,6 @@ list_interfaces(struct ifconfig_args *args)
 	for (ifa = sifap; ifa; ifa = ifa->ifa_next) {
 		struct ifreq paifr = {};
 		const struct sockaddr_dl *sdl;
-		const char *ifname;
 
 		strlcpy(paifr.ifr_name, ifa->ifa_name, sizeof(paifr.ifr_name));
 		if (sizeof(paifr.ifr_addr) >= ifa->ifa_addr->sa_len) {
@@ -658,7 +655,7 @@ list_interfaces(struct ifconfig_args *args)
 			    ifa->ifa_addr->sa_len);
 		}
 
-		if (ifname != NULL && strcmp(ifname, ifa->ifa_name) != 0)
+		if (args->ifname != NULL && strcmp(args->ifname, ifa->ifa_name) != 0)
 			continue;
 		if (ifa->ifa_addr->sa_family == AF_LINK)
 			sdl = (const struct sockaddr_dl *) ifa->ifa_addr;
