@@ -302,13 +302,16 @@ struct snl_parsed_addr {
 	struct sockaddr	*ifa_address;
 	struct sockaddr	*ifa_broadcast;
 	char		*ifa_label;
+	struct ifa_cacheinfo	*ifa_cacheinfo;
 	uint32_t	ifaf_vhid;
+	uint32_t	ifaf_flags;
 };
 
 #define	_IN(_field)	offsetof(struct ifaddrmsg, _field)
 #define	_OUT(_field)	offsetof(struct snl_parsed_addr, _field)
 static const struct snl_attr_parser _nla_p_addr_fbsd[] = {
 	{ .type = IFAF_VHID, .off = _OUT(ifaf_vhid), .cb = snl_attr_get_uint32 },
+	{ .type = IFAF_FLAGS, .off = _OUT(ifaf_flags), .cb = snl_attr_get_uint32 },
 };
 SNL_DECLARE_ATTR_PARSER(_addr_fbsd_parser, _nla_p_addr_fbsd);
 
@@ -317,6 +320,7 @@ static const struct snl_attr_parser _nla_p_addr_s[] = {
 	{ .type = IFA_LOCAL, .off = _OUT(ifa_local), .cb = snl_attr_get_ip },
 	{ .type = IFA_LABEL, .off = _OUT(ifa_label), .cb = snl_attr_dup_string },
 	{ .type = IFA_BROADCAST, .off = _OUT(ifa_broadcast), .cb = snl_attr_get_ip },
+	{ .type = IFA_CACHEINFO, .off = _OUT(ifa_cacheinfo), .cb = snl_attr_dup_struct },
 	{ .type = IFA_FREEBSD, .arg = &_addr_fbsd_parser, .cb = snl_attr_get_nested },
 };
 static const struct snl_field_parser _fp_p_addr_s[] = {
