@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
 #include <vm/pmap.h>
 
 #include <machine/psl.h>
@@ -134,7 +135,7 @@ SYSCTL_NODE(_hw_vmm, OID_AUTO, vmx, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
     NULL);
 
 int vmxon_enabled[MAXCPU];
-static char vmxon_region[MAXCPU][PAGE_SIZE] __aligned(PAGE_SIZE);
+static uint8_t *vmxon_region;
 
 static uint32_t pinbased_ctls, procbased_ctls, procbased_ctls2;
 static uint32_t exit_ctls, entry_ctls;
@@ -618,6 +619,7 @@ vmx_modcleanup(void)
 		nmi_flush_l1d_sw = 0;
 
 	smp_rendezvous(NULL, vmx_disable, NULL, NULL);
+	kmem_free(vmxon_region, (mp_maxid + 1) * PAGE_SIZE);
 
 	return (0);
 }
@@ -638,8 +640,8 @@ vmx_enable(void *arg __unused)
 
 	load_cr4(rcr4() | CR4_VMXE);
 
-	*(uint32_t *)vmxon_region[curcpu] = vmx_revision();
-	error = vmxon(vmxon_region[curcpu]);
+	*(uint32_t *)&vmxon_region[curcpu * PAGE_SIZE] = vmx_revision();
+	error = vmxon(&vmxon_region[curcpu * PAGE_SIZE]);
 	if (error == 0)
 		vmxon_enabled[curcpu] = 1;
 }
@@ -649,7 +651,7 @@ vmx_modresume(void)
 {
 
 	if (vmxon_enabled[curcpu])
-		vmxon(vmxon_region[curcpu]);
+		vmxon(&vmxon_region[curcpu * PAGE_SIZE]);
 }
 
 static int
@@ -953,6 +955,8 @@ vmx_modinit(int ipinum)
 	vmx_msr_init();
 
 	/* enable VMX operation */
+	vmxon_region = kmem_malloc((mp_maxid + 1) * PAGE_SIZE,
+	    M_WAITOK | M_ZERO);
 	smp_rendezvous(NULL, vmx_enable, NULL, NULL);
 
 	vmx_initialized = 1;
