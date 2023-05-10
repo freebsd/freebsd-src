@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <net/route/nhop.h>
 #include <net/route/route_ctl.h>
+#include <netinet6/in6_var.h>
 #include <netlink/netlink.h>
 #include <netlink/netlink_ctl.h>
 #include <netlink/netlink_route.h>
@@ -749,6 +750,52 @@ get_sa_plen(const struct sockaddr *sa)
         return (0);
 }
 
+#ifdef INET6
+static uint32_t
+in6_flags_to_nl(uint32_t flags)
+{
+	uint32_t nl_flags = 0;
+
+	if (flags & IN6_IFF_TEMPORARY)
+		nl_flags |= IFA_F_TEMPORARY;
+	if (flags & IN6_IFF_NODAD)
+		nl_flags |= IFA_F_NODAD;
+	if (flags & IN6_IFF_DEPRECATED)
+		nl_flags |= IFA_F_DEPRECATED;
+	if (flags & IN6_IFF_TENTATIVE)
+		nl_flags |= IFA_F_TENTATIVE;
+	if ((flags & (IN6_IFF_AUTOCONF|IN6_IFF_TEMPORARY)) == 0)
+		flags |= IFA_F_PERMANENT;
+	if (flags & IN6_IFF_DUPLICATED)
+		flags |= IFA_F_DADFAILED;
+	return (nl_flags);
+}
+
+static void
+export_cache_info6(struct nl_writer *nw, const struct in6_ifaddr *ia)
+{
+	struct ifa_cacheinfo ci = {
+		.cstamp = ia->ia6_createtime * 1000,
+		.tstamp = ia->ia6_updatetime * 1000,
+		.ifa_prefered = ia->ia6_lifetime.ia6t_pltime,
+		.ifa_valid = ia->ia6_lifetime.ia6t_vltime,
+	};
+
+	nlattr_add(nw, IFA_CACHEINFO, sizeof(ci), &ci);
+}
+#endif
+
+static void
+export_cache_info(struct nl_writer *nw, struct ifaddr *ifa)
+{
+	switch (ifa->ifa_addr->sa_family) {
+#ifdef INET6
+	case AF_INET6:
+		export_cache_info6(nw, (struct in6_ifaddr *)ifa);
+		break;
+#endif
+	}
+}
 
 /*
  * {'attrs': [('IFA_ADDRESS', '12.0.0.1'),
@@ -796,8 +843,17 @@ dump_iface_addr(struct nl_writer *nw, struct ifnet *ifp, struct ifaddr *ifa,
 
         nlattr_add_string(nw, IFA_LABEL, if_name(ifp));
 
-        uint32_t val = 0; // ifa->ifa_flags;
-        nlattr_add_u32(nw, IFA_FLAGS, val);
+        uint32_t nl_ifa_flags = 0;
+#ifdef INET6
+	if (sa->sa_family == AF_INET6) {
+		struct in6_ifaddr *ia = (struct in6_ifaddr *)ifa;
+		nl_ifa_flags = in6_flags_to_nl(ia->ia6_flags);
+	}
+#endif
+        nlattr_add_u32(nw, IFA_FLAGS, nl_ifa_flags);
+
+	export_cache_info(nw, ifa);
+
 	/* Store FreeBSD-specific attributes */
 	int off = nlattr_add_nested(nw, IFA_FREEBSD);
 	if (off != 0) {
@@ -805,6 +861,14 @@ dump_iface_addr(struct nl_writer *nw, struct ifnet *ifp, struct ifaddr *ifa,
 			uint32_t vhid  = (uint32_t)(*carp_get_vhid_p)(ifa);
 			nlattr_add_u32(nw, IFAF_VHID, vhid);
 		}
+#ifdef INET6
+		if (sa->sa_family == AF_INET6) {
+			uint32_t ifa_flags = ((struct in6_ifaddr *)ifa)->ia6_flags;
+
+			nlattr_add_u32(nw, IFAF_FLAGS, ifa_flags);
+		}
+#endif
+
 		nlattr_set_len(nw, off);
 	}
 
