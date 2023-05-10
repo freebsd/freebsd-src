@@ -1,8 +1,6 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * SPDX-License-Identifier: BSD-2-Clause
- *
  * Copyright (c) 2013-2014 Qlogic Corporation
  * All rights reserved.
  *

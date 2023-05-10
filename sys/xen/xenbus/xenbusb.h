@@ -1,6 +1,4 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause
- *
  * Core definitions and data structures shareable across OS platforms.
  *
  * SPDX-License-Identifier: BSD-2-Clause
