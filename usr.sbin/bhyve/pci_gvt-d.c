@@ -6,12 +6,16 @@
  */
 
 #include <sys/types.h>
+#include <sys/mman.h>
 #include <sys/sysctl.h>
 
 #include <dev/pci/pcireg.h>
 
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "e820.h"
 #include "pci_gvt-d-opregion.h"
@@ -21,14 +25,20 @@
 #define MB (1024 * KB)
 #define GB (1024 * MB)
 
+#ifndef _PATH_MEM
+#define _PATH_MEM "/dev/mem"
+#endif
+
 #define PCI_VENDOR_INTEL 0x8086
 
-#define PCIR_BDSM 0x5C /* Base of Data Stolen Memory register */
+#define PCIR_BDSM 0x5C	   /* Base of Data Stolen Memory register */
+#define PCIR_ASLS_CTL 0xFC /* Opregion start address register */
 
 #define PCIM_BDSM_GSM_ALIGNMENT \
 	0x00100000 /* Graphics Stolen Memory is 1 MB aligned */
 
 #define GVT_D_MAP_GSM 0
+#define GVT_D_MAP_OPREGION 1
 
 static int
 gvt_d_probe(struct pci_devinst *const pi)
@@ -168,12 +178,67 @@ gvt_d_setup_gsm(struct pci_devinst *const pi)
 }
 
 static int
+gvt_d_setup_opregion(struct pci_devinst *const pi)
+{
+	struct passthru_softc *sc;
+	struct passthru_mmio_mapping *opregion;
+	struct igd_opregion_header *header;
+	uint64_t asls;
+	int memfd;
+
+	sc = pi->pi_arg;
+
+	memfd = open(_PATH_MEM, O_RDONLY, 0);
+	if (memfd < 0) {
+		warn("%s: Failed to open %s", __func__, _PATH_MEM);
+		return (-1);
+	}
+
+	opregion = passthru_get_mmio(sc, GVT_D_MAP_OPREGION);
+	if (opregion == NULL) {
+		warnx("%s: Unable to access opregion", __func__);
+		close(memfd);
+		return (-1);
+	}
+
+	asls = read_config(passthru_get_sel(sc), PCIR_ASLS_CTL, 4);
+
+	header = mmap(NULL, sizeof(*header), PROT_READ, MAP_SHARED, memfd,
+	    asls);
+	if (header == MAP_FAILED) {
+		warn("%s: Unable to map OpRegion header", __func__);
+		close(memfd);
+		return (-1);
+	}
+	if (memcmp(header->sign, IGD_OPREGION_HEADER_SIGN,
+	    sizeof(header->sign)) != 0) {
+		warnx("%s: Invalid OpRegion signature", __func__);
+		munmap(header, sizeof(*header));
+		close(memfd);
+		return (-1);
+	}
+
+	opregion->hpa = asls;
+	opregion->len = header->size * KB;
+	munmap(header, sizeof(header));
+
+	close(memfd);
+
+	return (0);
+}
+
+static int
 gvt_d_init(struct pci_devinst *const pi, nvlist_t *const nvl __unused)
 {
 	int error;
 
 	if ((error = gvt_d_setup_gsm(pi)) != 0) {
 		warnx("%s: Unable to setup Graphics Stolen Memory", __func__);
+		goto done;
+	}
+
+	if ((error = gvt_d_setup_opregion(pi)) != 0) {
+		warnx("%s: Unable to setup OpRegion", __func__);
 		goto done;
 	}
 
