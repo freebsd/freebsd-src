@@ -1127,11 +1127,6 @@ run_rc_command()
 			_run_rc_precmd || return 1
 			if [ -n "$rc_pid" ]; then
 				echo "${name} is running as pid $rc_pid."
-				# for cpuset debug only, not committable (cut)
-				if [ -n "$_cpuset" -a -x $CPUSET ]; then
-					echo -n "on CPU(s)"
-					$CPUSET -g -p "$rc_pid" | cut -s -d: -f 2
-				fi
 			else
 				echo "${name} is not running."
 				return 1
