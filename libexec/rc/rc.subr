@@ -69,7 +69,7 @@ rc_service="$0"
 
 # list_vars pattern
 #	List variables matching glob pattern.
-# 
+#
 list_vars()
 {
 	# Localize 'set' option below.
@@ -444,7 +444,7 @@ sort_lite()
 	local curitem curitem_orig curitem_mod curitem_haskey
 	local dest dest_orig dest_mod dest_haskey
 	local d gt n
-	local i=1 
+	local i=1
 	while [ $i -le $nitems ]; do
 		curitem_haskey=1 # Assume sort field (-k POS) exists
 		eval curitem=\"\$src_$i\"
@@ -1093,19 +1093,19 @@ run_rc_command()
 				echo "$desc"
 			fi
 			;;
-	
+
 		extracommands)
 			echo "$extra_commands"
 			;;
 
 		enable)
 			_out=$(/usr/sbin/sysrc -vs "$name" "$rcvar=YES") &&
-				echo "$name enabled in ${_out%%:*}"	
+				echo "$name enabled in ${_out%%:*}"
 			;;
 
 		disable)
 			_out=$(/usr/sbin/sysrc -vs "$name" "$rcvar=NO") &&
-				echo "$name disabled in ${_out%%:*}"	
+				echo "$name disabled in ${_out%%:*}"
 			;;
 
 		delete)
