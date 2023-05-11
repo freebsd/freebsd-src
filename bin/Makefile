@@ -8,6 +8,7 @@ SUBDIR= cat \
 	chio \
 	chmod \
 	cp \
+	cpuset \
 	date \
 	dd \
 	df \
