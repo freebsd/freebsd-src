@@ -52,7 +52,7 @@ ID="/usr/bin/id"
 IDCMD="if [ -x $ID ]; then $ID -un; fi"
 PS="/bin/ps -ww"
 JID=0
-CPUSET="/usr/bin/cpuset"
+CPUSET="/bin/cpuset"
 
 # rc_service provides the path to the service script that we are executing.
 # This is not being set here in an execution context, necessarily, so it's
@@ -981,7 +981,7 @@ run_rc_command()
 	esac
 
 	_cpusetcmd=
-	if [ -n "$_cpuset" -a -x $CPUSET ]; then
+	if [ -n "$_cpuset" ]; then
 		_cpusetcmd="$CPUSET -l $_cpuset"
 	fi
 

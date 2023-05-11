@@ -28,7 +28,6 @@ SUBDIR=	alias \
 	column \
 	comm \
 	compress \
-	cpuset \
 	csplit \
 	ctlstat \
 	cut \
