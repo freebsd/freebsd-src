@@ -29,47 +29,47 @@ pci_video_intel()
 	case "$1" in
 		# Skylake
 		0x19*)
-			echo "gpu-firmware-intel-kmod-skylake"
+			addpkg "gpu-firmware-intel-kmod-skylake"
 			;;
 		# Broxton
 		0x0a*|0x1a*|0x5a84|0x5a85)
-			echo "gpu-firmware-intel-kmod-broxton"
+			addpkg "gpu-firmware-intel-kmod-broxton"
 			;;
 		# Geminilake
 		0x318*)
-			echo "gpu-firmware-intel-kmod-geminilake"
+			addpkg "gpu-firmware-intel-kmod-geminilake"
 			;;
 		# Kabylake, Coffeelake and Cometlake
 		0x59*|0x87*|0x9b*|0x3e*)
-			echo "gpu-firmware-intel-kmod-kabylake"
+			addpkg "gpu-firmware-intel-kmod-kabylake"
 			;;
 		# Cannonlake
 		0x5a*)
-			echo "gpu-firmware-intel-kmod-cannonlake"
+			addpkg "gpu-firmware-intel-kmod-cannonlake"
 			;;
 		# Icelake
 		0x8a*)
-			echo "gpu-firmware-intel-kmod-icelake"
+			addpkg "gpu-firmware-intel-kmod-icelake"
 			;;
 		# Elkhartlake/Jasperlake
 		0x45*|0x4e*)
-			echo "gpu-firmware-intel-kmod-elkhartlake"
+			addpkg "gpu-firmware-intel-kmod-elkhartlake"
 			;;
 		# Tigerlake
 		0x9a*)
-			echo "gpu-firmware-intel-kmod-tigerlake"
+			addpkg "gpu-firmware-intel-kmod-tigerlake"
 			;;
 		# Rocketlake (Uses tigerlake GuC/HuC firmware)
 		0x4c*)
-			echo "gpu-firmware-intel-kmod-rocketlake gpu-firmware-intel-kmod-tigerlake"
+			addpkg "gpu-firmware-intel-kmod-rocketlake gpu-firmware-intel-kmod-tigerlake"
 			;;
 		# DG1
 		0x49*)
-			echo "gpu-firmware-intel-kmod-dg1"
+			addpkg "gpu-firmware-intel-kmod-dg1"
 			;;
 		# Alderlake (Uses tigerlake GuC/HuC firmware)
 		0x46*)
-			echo "gpu-firmware-intel-kmod-alderlake gpu-firmware-intel-kmod-tigerlake"
+			addpkg "gpu-firmware-intel-kmod-alderlake gpu-firmware-intel-kmod-tigerlake"
 			;;
 		*)
 			log "No package found for device $1"
