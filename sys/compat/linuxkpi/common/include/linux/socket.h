@@ -33,6 +33,17 @@
 
 #include <sys/socket.h>
 
+#define	AF_QIPCRTR			42
+
+static inline int
+kernel_connect(int sd, struct sockaddr *sa, size_t salen, int flags)
+{
+
+	/* kern_connectat()? It is used for sockaddr_qrtr by ath1xk/qmi. */
+	pr_debug("%s: TODO\n", __func__);
+	return (-EINVAL);
+}
+
 #ifdef notyet
 static inline int
 memcpy_toiovec(struct iovec *v, unsigned char *kdata, int len)
