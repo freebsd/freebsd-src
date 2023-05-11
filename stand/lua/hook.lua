@@ -60,7 +60,7 @@ end
 -- Takes a hooktype and runs all functions associated with that specific hook
 -- type in the order that they were registered in. This ordering should likely
 -- not be relied upon.
-function hook.runAll(hooktype)
+function hook.runAll(hooktype, data)
 	local selected_hooks = registered_hooks[hooktype]
 	if selected_hooks == nil then
 		-- This message, and the print() above, should only be seen by
@@ -74,7 +74,7 @@ function hook.runAll(hooktype)
 	end
 	if #selected_hooks > 0 then
 		for _, func in ipairs(selected_hooks) do
-			func()
+			func(data)
 		end
 	end
 	return #selected_hooks

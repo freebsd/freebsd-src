@@ -1,0 +1,77 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\"
+.\" Copyright (c) 2020 Kyle Evans <kevans@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 10, 2023
+.Dt LOADER.CONF.LUA 5
+.Os
+.Sh NAME
+.Nm loader.conf.lua
+.Nd Lua-based system bootstrap configuration file
+.Sh DESCRIPTION
+When the lua-based
+.Xr loader 8
+encounters a filename in
+.Va loader_conf_files
+that has a
+.Dq .lua
+suffix, it will be loaded and executed by the lua interpreter in a limited
+environment.
+.Pp
+The limited environment does not contain the ability to reference or load other
+lua modules.
+Existing loader environment variables may be referenced as if they were already
+defined global variables.
+.Pp
+A lua configuration file may set any global variable, which will subsequently
+be processed and added to the environment after execution of the configuration
+file has completed.
+Other than the
+.Ar exec
+setting, all variables described in
+.Xr loader.conf 5
+operate the same in the
+.Nm
+environment.
+Note that the settings describing module options can only be set in the
+environment; there is currently no way for a
+.Pa loader.conf.lua
+to fetch them.
+At this time, global table and function values are ignored.
+.Pp
+The
+.Fn config.buildenv
+hook will be run with an empty environment provided to it that may be populated
+by a custom
+.Pa local.lua .
+.Sh SEE ALSO
+.Xr loader.conf 5
+.Sh AUTHORS
+The mechanism for loading
+.Nm
+files was originally written by
+.An Kyle Evans Aq Mt kevans@FreeBSD.org .
