@@ -34,8 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <efi.h>
 #include <efilib.h>
 
-#include "loader_efi.h"
-
 static EFI_GUID serial = SERIAL_IO_PROTOCOL;
 
 #define	COMC_TXWAIT	0x40000		/* transmit timeout */
