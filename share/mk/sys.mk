@@ -33,6 +33,7 @@ __DEFAULT_NO_OPTIONS= \
 
 __DEFAULT_DEPENDENT_OPTIONS= \
 	AUTO_OBJ/DIRDEPS_BUILD \
+	META_ERROR_TARGET/DIRDEPS_BUILD \
 	META_MODE/DIRDEPS_BUILD \
 	STAGING/DIRDEPS_BUILD \
 	SYSROOT/DIRDEPS_BUILD
@@ -57,27 +58,13 @@ MK_META_MODE=	no
 .endif
 
 .if ${MK_DIRDEPS_BUILD} == "yes"
-.sinclude <meta.sys.mk>
-.elif ${MK_META_MODE} == "yes"
-META_MODE+=	meta
-.if empty(.MAKEFLAGS:M-s)
-# verbose will show .MAKE.META.PREFIX for each target.
-META_MODE+=	verbose
+.-include <sys.dirdeps.mk>
 .endif
-.if !defined(NO_META_MISSING)
-META_MODE+=	missing-meta=yes
-.endif
-# silent will hide command output if a .meta file is created.
-.if !defined(NO_SILENT)
-META_MODE+=	silent=yes
-.endif
+.if ${MK_META_MODE} == "yes"
 .if !exists(/dev/filemon) || defined(NO_FILEMON)
 META_MODE+= nofilemon
 .endif
-# Require filemon data with bmake
-.if empty(META_MODE:Mnofilemon)
-META_MODE+= missing-filemon=yes
-.endif
+.-include <meta.sys.mk>
 .endif
 META_MODE?= normal
 .export META_MODE

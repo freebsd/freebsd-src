@@ -220,11 +220,6 @@ OBJROOT=	${SRCTOP}/
 .endif
 .endif	# defined(NO_OBJ)
 
-.if !defined(HOST_TARGET)
-# we need HOST_TARGET etc below.
-.include <host-target.mk>
-.export HOST_TARGET
-.endif
 HOST_OBJTOP?=	${OBJROOT}${HOST_TARGET}
 
 .endif	# ${MK_DIRDEPS_BUILD} == "no"

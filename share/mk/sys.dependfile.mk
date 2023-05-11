@@ -1,20 +1,22 @@
-# $FreeBSD$
-# $Id: sys.dependfile.mk,v 1.7 2016/02/20 01:57:39 sjg Exp $
+# $Id: sys.dependfile.mk,v 1.10 2023/05/10 19:23:26 sjg Exp $
 #
-#	@(#) Copyright (c) 2012, Simon J. Gerraty
+#	@(#) Copyright (c) 2012-2023, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
 #	Permission to copy, redistribute or otherwise
-#	use this file is hereby granted provided that 
+#	use this file is hereby granted provided that
 #	the above copyright notice and this notice are
-#	left intact. 
-#      
+#	left intact.
+#
 #	Please send copies of changes and bug-fixes to:
 #	sjg@crufty.net
 #
 
-# This only makes sense in meta mode.
+.if !target(__${.PARSEFILE}__)
+__${.PARSEFILE}__: .NOTMAIN
+
+# This only makes sense for DIRDEPS_BUILD.
 # This allows a mixture of auto generated as well as manually edited
 # dependency files, which can be differentiated by their names.
 # As per dirdeps.mk we only require:
@@ -58,3 +60,5 @@ MACHINE := ${_m}
 .endif
 .endif
 .MAKE.DEPENDFILE ?= ${.MAKE.DEPENDFILE_DEFAULT}
+
+.endif

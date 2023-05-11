@@ -1,4 +1,4 @@
-# $Id: dirdeps.mk,v 1.158 2023/05/04 18:26:17 sjg Exp $
+# $Id: dirdeps.mk,v 1.160 2023/05/10 20:44:58 sjg Exp $
 
 # SPDX-License-Identifier: BSD-2-Clause
 #
@@ -272,6 +272,10 @@ _machine_dependfiles := ${.MAKE.DEPENDFILE_PREFERENCE:T:M*${MACHINE}*}
 .MAKE.DEPENDFILE_PREFIX := ${_default_dependfile:T}
 .endif
 .endif
+
+# turn a list into a set of :N modifiers
+# NskipFoo = ${Foo:${M_ListToSkip}}
+M_ListToSkip ?= O:u:S,^,N,:ts:
 
 # this is how we identify non-machine specific dependfiles
 N_notmachine := ${.MAKE.DEPENDFILE_PREFERENCE:E:N*${MACHINE}*:${M_ListToSkip}}
@@ -661,7 +665,7 @@ _machines := ${_machines:${M_dep_qual_fixes:ts:}:O:u}
 # reset each time through
 _build_dirs =
 
-.if ${DEP_RELDIR} == ${_DEP_RELDIR}
+.if ${DEP_RELDIR} == ${_DEP_RELDIR} && ${_CURDIR} != ${SRCTOP}
 # pickup other machines for this dir if necessary
 _build_dirs += ${_machines:@m@${_CURDIR}.$m@}
 .endif
