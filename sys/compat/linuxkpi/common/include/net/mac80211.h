@@ -755,7 +755,7 @@ struct ieee80211_tx_info {
 			bool				is_valid_ack_signal;
 			void				*status_driver_data[16 / sizeof(void *)];		/* XXX TODO */
 		} status;
-#define	IEEE80211_TX_INFO_DRIVER_DATA_SIZE	(5 * sizeof(void *))			/* XXX TODO 5? */
+#define	IEEE80211_TX_INFO_DRIVER_DATA_SIZE	40
 		void					*driver_data[IEEE80211_TX_INFO_DRIVER_DATA_SIZE / sizeof(void *)];
 	};
 };
