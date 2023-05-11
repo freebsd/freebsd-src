@@ -47,7 +47,6 @@ struct serial {
 	uint32_t	databits;
 	EFI_PARITY_TYPE	parity;
 	EFI_STOP_BITS_TYPE stopbits;
-	uint32_t	rtsdtr_off;	/* boolean */
 	int		ioaddr;		/* index in handles array */
 	EFI_HANDLE	currdev;	/* current serial device */
 	EFI_HANDLE	condev;		/* EFI Console device */
@@ -275,7 +274,6 @@ comc_probe(struct console *sc)
 	comc_port->databits = 8;
 	comc_port->parity = DefaultParity;
 	comc_port->stopbits = DefaultStopBits;
-	comc_port->rtsdtr_off = 0;		/* rts-dtr is on */
 
 	handle = NULL;
 	env = getenv("efi_com_port");
@@ -515,7 +513,6 @@ static bool
 comc_setup(void)
 {
 	EFI_STATUS status;
-	UINT32 control;
 	char *ev;
 
 	/* port is not usable */
@@ -544,18 +541,17 @@ comc_setup(void)
 			return (false);
 	}
 
+#ifdef EFI_FORCE_RTS
 	if (comc_port->sio->GetControl != NULL && comc_port->sio->SetControl != NULL) {
+		UINT32 control;
+
 		status = comc_port->sio->GetControl(comc_port->sio, &control);
 		if (EFI_ERROR(status))
 			return (false);
-		if (comc_port->rtsdtr_off) {
-			control &= ~(EFI_SERIAL_REQUEST_TO_SEND |
-			    EFI_SERIAL_DATA_TERMINAL_READY);
-		} else {
-			control |= EFI_SERIAL_REQUEST_TO_SEND;
-		}
+		control |= EFI_SERIAL_REQUEST_TO_SEND;
 		(void) comc_port->sio->SetControl(comc_port->sio, control);
 	}
+#endif
 	/* Mark this port usable. */
 	eficom.c_flags |= (C_PRESENTIN | C_PRESENTOUT);
 	return (true);
