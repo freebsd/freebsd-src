@@ -81,6 +81,20 @@ struct console eficom = {
 	.c_ready = comc_ischar,
 };
 
+#if defined(__aarch64__) && __FreeBSD_version < 1500000
+static void	comc_probe_compat(struct console *);
+struct console comconsole = {
+	.c_name = "comconsole",
+	.c_desc = "serial port",
+	.c_flags = 0,
+	.c_probe = comc_probe_compat,
+	.c_init = comc_init,
+	.c_out = comc_putchar,
+	.c_in = comc_getchar,
+	.c_ready = comc_ischar,
+};
+#endif
+
 static EFI_STATUS
 efi_serial_init(EFI_HANDLE **handlep, int *nhandles)
 {
@@ -327,6 +341,17 @@ comc_probe(struct console *sc)
 		sc->c_flags = C_PRESENTIN | C_PRESENTOUT;
 	}
 }
+
+#if defined(__aarch64__) && __FreeBSD_version < 1500000
+static void
+comc_probe_compat(struct console *sc)
+{
+	comc_probe(sc);
+	if (sc->c_flags & (C_PRESENTIN | C_PRESENTOUT)) {
+		printf("comconsole: comconsole device name is deprecated, switch to eficom\n");
+	}
+}
+#endif
 
 static int
 comc_init(int arg __unused)
