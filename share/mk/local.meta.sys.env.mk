@@ -4,12 +4,6 @@
 # before we process TARGET_SPEC
 # we assume that MK_DIRDEPS_BUILD=yes
 
-.if !defined(HOST_TARGET) || !defined(HOST_MACHINE)
-# we need HOST_TARGET etc below.
-.include <host-target.mk>
-.export HOST_TARGET
-.endif
-
 # from src/Makefile (for universe)
 TARGET_ARCHES_arm?=     arm armv6 armv7
 TARGET_ARCHES_arm64?=   aarch64
@@ -41,11 +35,6 @@ MACHINE_ARCH= ${MACHINE_ARCH.${MACHINE}}
 MACHINE_ARCH?= ${MACHINE_ARCH.${MACHINE}}
 MACHINE_ARCH:= ${MACHINE_ARCH}
 
-# For universe we want to potentially
-# build for multiple MACHINE_ARCH per MACHINE
-# so we need more than MACHINE in TARGET_SPEC
-TARGET_SPEC_VARS?= MACHINE MACHINE_ARCH
-
 HOST_OBJTOP ?= ${OBJROOT}${HOST_TARGET}
 
 .if ${REQUESTED_MACHINE:U${MACHINE}} == "host"
@@ -74,17 +63,13 @@ PYTHON ?= /usr/local/bin/python
 .endif
 .endif
 
-# this is sufficient for most of the tree.
-.MAKE.DEPENDFILE_DEFAULT = ${.MAKE.DEPENDFILE_PREFIX}
-
-# but if we have a machine qualified file it should be used in preference
-.MAKE.DEPENDFILE_PREFERENCE = \
-	${.MAKE.DEPENDFILE_PREFIX}.${MACHINE} \
-	${.MAKE.DEPENDFILE_PREFIX}
-
-.undef .MAKE.DEPENDFILE
-
-META_MODE+=	missing-meta=yes
+.if !defined(NO_META_MISSING)
+META_MODE+=    missing-meta=yes
+.endif
+# silent will hide command output if a .meta file is created.
+.if !defined(NO_SILENT)
+META_MODE+=    silent=yes
+.endif
 .if empty(META_MODE:Mnofilemon)
 META_MODE+=	missing-filemon=yes
 .endif

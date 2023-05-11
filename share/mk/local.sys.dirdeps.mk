@@ -6,39 +6,13 @@
 # we need this until there is an alternative
 MK_INSTALL_AS_USER= yes
 
+.-include <site.sys.dirdeps.mk>
+# previously only included for DIRDEPS_BUILD anyway
 .-include <site.meta.sys.mk>
 
-# to be consistent with src/Makefile just concatenate with '.'s
-TARGET_OBJ_SPEC:= ${TARGET_SPEC:S;,;.;g}
-.if ${MACHINE} != "host"
-OBJTOP:= ${OBJROOT}${TARGET_OBJ_SPEC}
-.endif
-
-.if defined(MAKEOBJDIR)
-.if ${MAKEOBJDIR:M/*} == ""
-.error Cannot use MAKEOBJDIR=${MAKEOBJDIR}${.newline}Unset MAKEOBJDIR to get default:  MAKEOBJDIR='${_default_makeobjdir}'
-.endif
-.endif
-
-
-# we want to end up with a singe stage tree for all machines
 .if ${MK_STAGING} == "yes"
-.if empty(STAGE_ROOT)
-STAGE_ROOT?= ${OBJROOT}stage
-.export STAGE_ROOT
-.endif
-.endif
 
-.if ${MK_STAGING} == "yes"
-.if ${MACHINE} == "host"
-STAGE_MACHINE= ${HOST_TARGET}
-.else
-STAGE_MACHINE:= ${TARGET_OBJ_SPEC}
-.endif
-STAGE_OBJTOP:= ${STAGE_ROOT}/${STAGE_MACHINE}
-STAGE_COMMON_OBJTOP:= ${STAGE_ROOT}/common
 STAGE_TARGET_OBJTOP:= ${STAGE_ROOT}/${TARGET_OBJ_SPEC}
-STAGE_HOST_OBJTOP:= ${STAGE_ROOT}/${HOST_TARGET}
 # These are exported for hooking in out-of-tree builds.  They will always
 # be overridden in sub-makes above when building in-tree.
 .if ${.MAKE.LEVEL} > 0
@@ -156,7 +130,6 @@ CFLAGS+= ${CROSS_TARGET_FLAGS}
 ACFLAGS+= ${CROSS_TARGET_FLAGS}
 .endif
 
-.if ${MK_DIRDEPS_BUILD} == "yes"
 # we set these here, rather than local.gendirdeps.mk
 # so we can ensure any DEP_* values that might be used in
 # conditionals do not cause syntax errors when Makefile.depend
@@ -184,6 +157,4 @@ $V?= ${${V:S,DEP_,,}}
 .if ${MACHINE} == "host" && ${.MAKE.OS} != "FreeBSD"
 # some makefiles expect this
 BOOTSTRAPPING= 0
-.endif
-
 .endif
