@@ -69,14 +69,9 @@ static int	comc_speed_set(struct env_var *, int, const void *);
 
 static struct serial	*comc_port;
 extern struct console efi_console;
-bool efi_comconsole_avail = false;
 
-#if defined(__amd64__)
-#define comconsole eficomconsole
-#endif
-
-struct console comconsole = {
-	.c_name = "comconsole",
+struct console eficom = {
+	.c_name = "eficom",
 	.c_desc = "serial port",
 	.c_flags = 0,
 	.c_probe = comc_probe,
@@ -259,18 +254,6 @@ comc_probe(struct console *sc)
 	char *env, *buf, *ep;
 	size_t sz;
 
-#if defined(__amd64__)
-	/*
-	 * For x86-64, don't use this driver if not running in Hyper-V.
-	 */
-	env = getenv("smbios.bios.version");
-	if (env == NULL || strncmp(env, "Hyper-V", 7) != 0) {
-		/* Disable being seen as "comconsole". */
-		comconsole.c_name = "efiserialio";
-		return;
-	}
-#endif
-
 	if (comc_port == NULL) {
 		comc_port = calloc(1, sizeof (struct serial));
 		if (comc_port == NULL)
@@ -339,13 +322,9 @@ comc_probe(struct console *sc)
 	env_setenv("efi_com_speed", EV_VOLATILE, value,
 	    comc_speed_set, env_nounset);
 
-	comconsole.c_flags = 0;
+	eficom.c_flags = 0;
 	if (comc_setup()) {
 		sc->c_flags = C_PRESENTIN | C_PRESENTOUT;
-		efi_comconsole_avail = true;
-	} else {
-		/* disable being seen as "comconsole" */
-		comconsole.c_name = "efiserialio";
 	}
 }
 
@@ -356,7 +335,7 @@ comc_init(int arg __unused)
 	if (comc_setup())
 		return (CMD_OK);
 
-	comconsole.c_flags = 0;
+	eficom.c_flags = 0;
 	return (CMD_ERROR);
 }
 
@@ -522,35 +501,41 @@ comc_setup(void)
 	if (comc_port->sio == NULL)
 		return (false);
 
-	status = comc_port->sio->Reset(comc_port->sio);
-	if (EFI_ERROR(status))
-		return (false);
-
-	ev = getenv("smbios.bios.version");
-	if (ev != NULL && strncmp(ev, "Hyper-V", 7) == 0) {
-		status = comc_port->sio->SetAttributes(comc_port->sio,
-	            0, 0, 0, DefaultParity, 0, DefaultStopBits);
-	} else {
-		status = comc_port->sio->SetAttributes(comc_port->sio,
-		    comc_port->baudrate, comc_port->receivefifodepth,
-		    comc_port->timeout, comc_port->parity,
-		    comc_port->databits, comc_port->stopbits);
+	if (comc_port->sio->Reset != NULL) {
+		status = comc_port->sio->Reset(comc_port->sio);
+		if (EFI_ERROR(status))
+			return (false);
 	}
 
-	if (EFI_ERROR(status))
-		return (false);
+	if (comc_port->sio->SetAttributes != NULL) {
+		ev = getenv("smbios.bios.version");
+		if (ev != NULL && strncmp(ev, "Hyper-V", 7) == 0) {
+			status = comc_port->sio->SetAttributes(comc_port->sio,
+			    0, 0, 0, DefaultParity, 0, DefaultStopBits);
+		} else {
+			status = comc_port->sio->SetAttributes(comc_port->sio,
+			    comc_port->baudrate, comc_port->receivefifodepth,
+			    comc_port->timeout, comc_port->parity,
+			    comc_port->databits, comc_port->stopbits);
+		}
 
-	status = comc_port->sio->GetControl(comc_port->sio, &control);
-	if (EFI_ERROR(status))
-		return (false);
-	if (comc_port->rtsdtr_off) {
-		control &= ~(EFI_SERIAL_REQUEST_TO_SEND |
-		    EFI_SERIAL_DATA_TERMINAL_READY);
-	} else {
-		control |= EFI_SERIAL_REQUEST_TO_SEND;
+		if (EFI_ERROR(status))
+			return (false);
 	}
-	(void) comc_port->sio->SetControl(comc_port->sio, control);
+
+	if (comc_port->sio->GetControl != NULL && comc_port->sio->SetControl != NULL) {
+		status = comc_port->sio->GetControl(comc_port->sio, &control);
+		if (EFI_ERROR(status))
+			return (false);
+		if (comc_port->rtsdtr_off) {
+			control &= ~(EFI_SERIAL_REQUEST_TO_SEND |
+			    EFI_SERIAL_DATA_TERMINAL_READY);
+		} else {
+			control |= EFI_SERIAL_REQUEST_TO_SEND;
+		}
+		(void) comc_port->sio->SetControl(comc_port->sio, control);
+	}
 	/* Mark this port usable. */
-	comconsole.c_flags |= (C_PRESENTIN | C_PRESENTOUT);
+	eficom.c_flags |= (C_PRESENTIN | C_PRESENTOUT);
 	return (true);
 }
