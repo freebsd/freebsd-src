@@ -1647,11 +1647,6 @@ options 	MFI_DEBUG
 device		mrsas		# LSI/Avago MegaRAID SAS/SATA, 6Gb/s and 12Gb/s
 
 #
-# 3ware ATA RAID
-#
-device		twe		# 3ware ATA RAID
-
-#
 # Serial ATA host controllers:
 #
 # ahci: Advanced Host Controller Interface (AHCI) compatible
