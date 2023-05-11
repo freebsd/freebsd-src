@@ -168,7 +168,7 @@ svm_modcleanup(void)
 	smp_rendezvous(NULL, svm_disable, NULL, NULL);
 
 	if (hsave != NULL)
-		kmem_free(hsave, (mp_maxid + 1) * PAGE_SIZE);
+		kmem_free((vm_offset_t)hsave, (mp_maxid + 1) * PAGE_SIZE);
 
 	return (0);
 }
@@ -272,7 +272,7 @@ svm_modinit(int ipinum)
 	svm_npt_init(ipinum);
 
 	/* Enable SVM on all CPUs */
-	hsave = kmem_malloc((mp_maxid + 1) * PAGE_SIZE, M_WAITOK | M_ZERO);
+	hsave = (void *)kmem_malloc((mp_maxid + 1) * PAGE_SIZE, M_WAITOK | M_ZERO);
 	smp_rendezvous(NULL, svm_enable, NULL, NULL);
 
 	return (0);

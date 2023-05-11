@@ -621,7 +621,7 @@ vmx_modcleanup(void)
 	smp_rendezvous(NULL, vmx_disable, NULL, NULL);
 
 	if (vmxon_region != NULL)
-		kmem_free(vmxon_region, (mp_maxid + 1) * PAGE_SIZE);
+		kmem_free((vm_offset_t)vmxon_region, (mp_maxid + 1) * PAGE_SIZE);
 
 	return (0);
 }
@@ -957,7 +957,7 @@ vmx_modinit(int ipinum)
 	vmx_msr_init();
 
 	/* enable VMX operation */
-	vmxon_region = kmem_malloc((mp_maxid + 1) * PAGE_SIZE,
+	vmxon_region = (void *)kmem_malloc((mp_maxid + 1) * PAGE_SIZE,
 	    M_WAITOK | M_ZERO);
 	smp_rendezvous(NULL, vmx_enable, NULL, NULL);
 
