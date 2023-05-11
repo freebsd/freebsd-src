@@ -56,6 +56,98 @@ fsu_fault_nopcb:
 END(fsu_fault)
 
 /*
+ * int swapueword8_llsc(volatile uint8_t *, uint8_t *)
+ */
+ENTRY(swapueword8_llsc)
+	check_user_access 0, (VM_MAXUSER_ADDRESS-3), fsu_fault_nopcb
+	adr	x6, fsu_fault		/* Load the fault handler */
+	SET_FAULT_HANDLER(x6, x4)	/* And set it */
+	ENTER_USER_ACCESS(w6, x4)
+
+	ldrb	w7, [x1]
+
+	ldxrb	w2, [x0]
+	stxrb	w3, w7, [x0]
+	cbnz	w3, 1f
+
+	strb	w2, [x1]		/* Stash old value in *val */
+
+1:	EXIT_USER_ACCESS(w6)
+	SET_FAULT_HANDLER(xzr, x6)
+	mov	w0, w3
+	ret
+END(swapueword8_llsc)
+
+/*
+ * int swapueword8_lse(volatile uint8_t *, uint8_t *)
+ */
+ENTRY(swapueword8_lse)
+	check_user_access 0, (VM_MAXUSER_ADDRESS-3), fsu_fault_nopcb
+	adr	x6, fsu_fault		/* Load the fault handler */
+	SET_FAULT_HANDLER(x6, x4)	/* And set it */
+	ENTER_USER_ACCESS(w6, x4)
+
+	ldrb	w7, [x1]
+
+	.arch_extension lse
+	swpb	w7, w2, [x0]
+	.arch_extension nolse
+
+	strb	w2, [x1]		/* Stash old value in *val */
+
+	EXIT_USER_ACCESS(w6)
+	SET_FAULT_HANDLER(xzr, x6)
+	mov	w0, #0
+	ret
+END(swapueword8_lse)
+
+/*
+ * int swapueword32_llsc(volatile uint32_t *, uint32_t *)
+ */
+ENTRY(swapueword32_llsc)
+	check_user_access 0, (VM_MAXUSER_ADDRESS-3), fsu_fault_nopcb
+	adr	x6, fsu_fault		/* Load the fault handler */
+	SET_FAULT_HANDLER(x6, x4)	/* And set it */
+	ENTER_USER_ACCESS(w6, x4)
+
+	ldr	w7, [x1]
+
+	ldxr	w2, [x0]		/* Stash the old value in w2 */
+	stxr	w3, w7, [x0]		/* Store new value */
+	cbnz	w3, 1f
+
+	str	w2, [x1]		/* Stash old value in *val */
+
+1:	EXIT_USER_ACCESS(w6)
+	SET_FAULT_HANDLER(xzr, x6)
+	mov	w0, w3
+	ret
+END(swapueword32_llsc)
+
+/*
+ * int swapueword32_lse(volatile uint32_t *, uint32_t *)
+ */
+ENTRY(swapueword32_lse)
+	check_user_access 0, (VM_MAXUSER_ADDRESS-3), fsu_fault_nopcb
+	adr	x6, fsu_fault		/* Load the fault handler */
+	SET_FAULT_HANDLER(x6, x4)	/* And set it */
+	ENTER_USER_ACCESS(w6, x4)
+
+	ldr	w7, [x1]
+
+	.arch_extension lse
+	swp	w7, w2, [x0]
+	.arch_extension nolse
+
+	str	w2, [x1]		/* Stash old value in *val */
+
+	EXIT_USER_ACCESS(w6)
+	SET_FAULT_HANDLER(xzr, x6)
+	mov	w0, #0
+	ret
+END(swapueword32_llsc)
+
+/*
  * int casueword32_llsc(volatile uint32_t *, uint32_t, uint32_t *, uint32_t)
  */
 ENTRY(casueword32_llsc)

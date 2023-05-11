@@ -32,12 +32,20 @@
 
 #include <machine/atomic.h>
 #include <machine/ifunc.h>
+#define _MD_WANT_SWAPWORD
+#include <machine/md_var.h>
 
 int casueword32_llsc(volatile uint32_t *, uint32_t, uint32_t *, uint32_t);
 int casueword32_lse(volatile uint32_t *, uint32_t, uint32_t *, uint32_t);
 
 int casueword_llsc(volatile u_long *, u_long, u_long *, u_long);
 int casueword_lse(volatile u_long *, u_long, u_long *, u_long);
+
+int swapueword8_llsc(volatile uint8_t *, uint8_t *);
+int swapueword8_lse(volatile uint8_t *, uint8_t *);
+
+int swapueword32_llsc(volatile uint32_t *, uint32_t *);
+int swapueword32_lse(volatile uint32_t *, uint32_t *);
 
 DEFINE_IFUNC(, int, casueword32, (volatile uint32_t *base, uint32_t oldval,
     uint32_t *oldvalp, uint32_t newval))
@@ -55,4 +63,20 @@ DEFINE_IFUNC(, int, casueword, (volatile u_long *base, u_long oldval,
 		return (casueword_lse);
 
 	return (casueword_llsc);
+}
+
+DEFINE_IFUNC(, int, swapueword8, (volatile uint8_t *base, uint8_t *val))
+{
+	if (lse_supported)
+		return (swapueword8_lse);
+
+	return (swapueword8_llsc);
+}
+
+DEFINE_IFUNC(, int, swapueword32, (volatile uint32_t *base, uint32_t *val))
+{
+	if (lse_supported)
+		return (swapueword32_lse);
+
+	return (swapueword32_llsc);
 }
