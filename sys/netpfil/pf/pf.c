@@ -3875,10 +3875,8 @@ pf_match_eth_tag(struct mbuf *m, struct pf_keth_rule *r, int *tag, int mtag)
 }
 
 static void
-pf_bridge_to(struct pfi_kkif *kif, struct mbuf *m)
+pf_bridge_to(struct ifnet *ifp, struct mbuf *m)
 {
-	struct ifnet *ifp = kif->pfik_ifp;
-
 	/* If we don't have the interface drop the packet. */
 	if (ifp == NULL) {
 		m_freem(m);
@@ -3897,7 +3895,7 @@ pf_bridge_to(struct pfi_kkif *kif, struct mbuf *m)
 		return;
 	}
 
-	kif->pfik_ifp->if_transmit(kif->pfik_ifp, m);
+	ifp->if_transmit(ifp, m);
 }
 
 static int
@@ -3916,6 +3914,7 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf **m0)
 	struct pf_mtag *mtag;
 	struct pf_keth_ruleq *rules;
 	struct pf_addr *src = NULL, *dst = NULL;
+	struct pfi_kkif *bridge_to;
 	sa_family_t af = 0;
 	uint16_t proto;
 	int asd = 0, match = 0;
@@ -4097,6 +4096,9 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf **m0)
 		mtag->qid = r->qid;
 	}
 
+	action = r->action;
+	bridge_to = r->bridge_to;
+
 	/* Dummynet */
 	if (r->dnpipe) {
 		struct ip_fw_args dnflow;
@@ -4151,20 +4153,20 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf **m0)
 			break;
 		}
 
+		PF_RULES_RUNLOCK();
+
 		mtag->flags |= PF_TAG_DUMMYNET;
 		ip_dn_io_ptr(m0, &dnflow);
 		if (*m0 != NULL)
 			mtag->flags &= ~PF_TAG_DUMMYNET;
+	} else {
+		PF_RULES_RUNLOCK();
 	}
 
-	action = r->action;
-
-	if (action == PF_PASS && r->bridge_to) {
-		pf_bridge_to(r->bridge_to, *m0);
+	if (action == PF_PASS && bridge_to) {
+		pf_bridge_to(bridge_to->pfik_ifp, *m0);
 		*m0 = NULL; /* We've eaten the packet. */
 	}
-
-	PF_RULES_RUNLOCK();
 
 	return (action);
 }
