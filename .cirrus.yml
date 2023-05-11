@@ -21,12 +21,14 @@ task:
       TARGET_ARCH: amd64
       TOOLCHAIN_PKG: llvm15
   - name: World and kernel arm64 build and boot smoke test
+    only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src'
     trigger_type: manual
     env:
       TARGET: arm64
       TARGET_ARCH: aarch64
       TOOLCHAIN_PKG: llvm15
   - name: World and kernel gcc12 amd64 build and boot smoke test (manual)
+    only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src'
     trigger_type: manual
     env:
       TARGET: amd64
