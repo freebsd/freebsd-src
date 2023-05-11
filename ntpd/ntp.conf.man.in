@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH ntp.conf 5 "23 Jun 2020" "4.2.8p15" "File Formats"
+.TH ntp.conf 5 "31 May 2023" "4.2.8p16" "File Formats"
 .\"
 .\" EDIT THIS FILE WITH CAUTION (in-mem file)
 .\"
-.\" It has been AutoGen-ed June 23, 2020 at 02:20:36 AM by AutoGen 5.18.5
+.\" It has been AutoGen-ed May 31, 2023 at 02:49:38 PM by AutoGen 5.18.16
 .\" From the definitions ntp.conf.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -1657,17 +1657,27 @@ client abuse.
 The
 \f\*[B-Font]average\f[]
 subcommand specifies the minimum average packet
-spacing, while the
+spacing in log2 seconds, defaulting to 3 (8s), while the
 \f\*[B-Font]minimum\f[]
-subcommand specifies the minimum packet spacing.
+subcommand specifies the minimum packet spacing
+in seconds, defaulting to 2.
 Packets that violate these minima are discarded
 and a kiss-o'-death packet returned if enabled.
-The default
-minimum average and minimum are 5 and 2, respectively.
 The
 \f\*[B-Font]monitor\f[]
-subcommand specifies the probability of discard
-for packets that overflow the rate-control window.
+subcommand indirectly specifies the probability of
+replacing the oldest entry from the monitor (MRU)
+list of recent requests used to enforce rate controls,
+when that list is at its maximum size. The probability
+of replacing the oldest entry is the age of that entry
+in seconds divided by the
+\f\*[B-Font]monitor\f[]
+value, default 3000. For example, if the oldest entry
+in the MRU list represents a request 300 seconds ago,
+by default the probability of replacing it with an
+entry representing the client request being processed
+now is 10%. Conversely, if the oldest entry is more
+than 3000 seconds old, the probability is 100%.
 .TP 7
 .NOP \f\*[B-Font]restrict\f[] \f\*[B-Font]address\f[] [\f\*[B-Font]mask\f[] \f\*[I-Font]mask\f[]] [\f\*[B-Font]ippeerlimit\f[] \f\*[I-Font]int\f[]] [\f\*[I-Font]flag\f[] \f\*[I-Font]...\f[]]
 The
@@ -3101,7 +3111,7 @@ one telephone number used to dial the telephone JJY service.
 The Hayes command ATDT is normally prepended to the number.
 The number can contain other modem control codes as well.
 .TP 7
-.NOP \f\*[B-Font]pollskewlist\f[] [\f\*[I-Font]poll\f[] \f\*[I-Font]value\f[] | \f\*[I-Font]value\f[]] \f\*[I-Font]...\f[] [\f\*[B-Font]default\f[] \f\*[I-Font]value\f[] | \f\*[I-Font]value\f[]]
+.NOP \f\*[B-Font]pollskewlist\f[] [\f\*[I-Font]poll\f[] \f\*[I-Font]early\f[] \f\*[I-Font]late\f[]] \f\*[I-Font]...\f[] [\f\*[B-Font]default\f[] \f\*[I-Font]early\f[] \f\*[I-Font]late\f[]]
 Enable skewing of our poll requests to our servers.
 \f\*[I-Font]poll\f[]
 is a number between 3 and 17 inclusive, identifying a specific poll interval.
@@ -3112,9 +3122,11 @@ a poll interval of 17 corresponds to
 131,072 seconds, or about a day and a half.
 The next two numbers must be between 0 and one-half of the poll interval,
 inclusive.
-The first number specifies how early the poll may start,
+Ar early
+specifies how early the poll may start,
 while
-the second number specifies how late the poll may be delayed.
+Ar late
+specifies how late the poll may be delayed.
 With no arguments, internally specified default values are chosen.
 .TP 7
 .NOP \f\*[B-Font]reset\f[] [\f\*[B-Font]allpeers\f[]] [\f\*[B-Font]auth\f[]] [\f\*[B-Font]ctl\f[]] [\f\*[B-Font]io\f[]] [\f\*[B-Font]mem\f[]] [\f\*[B-Font]sys\f[]] [\f\*[B-Font]timer\f[]]
@@ -3449,7 +3461,7 @@ RFC5905
 .SH "AUTHORS"
 The University of Delaware and Network Time Foundation
 .SH "COPYRIGHT"
-Copyright (C) 1992-2020 The University of Delaware and Network Time Foundation all rights reserved.
+Copyright (C) 1992-2023 The University of Delaware and Network Time Foundation all rights reserved.
 This program is released under the terms of the NTP license, <http://ntp.org/license>.
 .SH BUGS
 The syntax checking is not picky; some combinations of
@@ -3467,7 +3479,7 @@ services when they become universally available.
 .sp \n(Ppu
 .ne 2
 
-Please send bug reports to: http://bugs.ntp.org, bugs@ntp.org
+Please send bug reports to: https://bugs.ntp.org, bugs@ntp.org
 .SH NOTES
 This document was derived from FreeBSD.
 .sp \n(Ppu

@@ -268,9 +268,9 @@ init_io_completion_port(void)
 	}
 
 	/* Initialize the Wait Handles table */
-	WaitHandles[0] = WaitableIoEventHandle;
+	WaitHandles[0] = WaitableTimerHandle;
 	WaitHandles[1] = WaitableExitEventHandle; /* exit request */
-	WaitHandles[2] = WaitableTimerHandle;
+	WaitHandles[2] = WaitableIoEventHandle;
 	ActiveWaitHandles = 3;
 
 	/* Supply ntp_worker.c with function to add or remove a
@@ -1407,7 +1407,7 @@ io_completion_port_add_clock_io(
 	}
 
 	if (NULL == (lpo = IoCtxAlloc(iopad, rio->device_ctx))) {
-		msyslog(LOG_ERR, "%: no IO context: %m", msgh);
+		msyslog(LOG_ERR, "%s: no IO context: %m", msgh);
 		goto fail;
 	}
 
@@ -1489,6 +1489,7 @@ QueueSocketRecv(
 		"QueueSocketRecv: cannot schedule socket receive";
 
 	WSABUF	wsabuf;
+	DWORD	err;
 	int	rc;
 
 	lpo->onIoDone = OnSocketRecv;
@@ -1504,10 +1505,17 @@ QueueSocketRecv(
 	wsabuf.buf = (char *)buff->recv_buffer;
 	wsabuf.len = sizeof(buff->recv_buffer);
 
-	rc = WSARecvFrom(lpo->io.sfd, &wsabuf, 1, NULL, &lpo->ioFlags,
-			 &buff->recv_srcadr.sa, &buff->recv_srcadr_len, 
-			 &lpo->ol, NULL);
-	return !rc || IoResultCheck((DWORD)WSAGetLastError(), lpo, msgh);
+	do {
+		rc = WSARecvFrom(lpo->io.sfd, &wsabuf, 1, NULL, &lpo->ioFlags,
+			&buff->recv_srcadr.sa, &buff->recv_srcadr_len,
+			&lpo->ol, NULL);
+		if (!rc) {
+			return TRUE;
+		}
+		err = (DWORD)WSAGetLastError();
+	} while (WSAENETRESET == err);	/* [Bug 3784] ICMP TTL exceeded */
+
+	return IoResultCheck(err, lpo, msgh);
 }
 
 /* ----------------------------------------------------------------- */
@@ -1857,17 +1865,17 @@ GetReceivedBuffers(void)
 			FALSE, INFINITE, TRUE);
 		switch (index) {
 
-		case WAIT_OBJECT_0 + 0: /* Io event */
-			DPRINTF(4, ("IoEvent occurred\n"));
-			have_packet = TRUE;
+		case WAIT_OBJECT_0 + 0: /* timer */
+			timer();
 			break;
 
 		case WAIT_OBJECT_0 + 1: /* exit request */
 			exit(0);
 			break;
 
-		case WAIT_OBJECT_0 + 2: /* timer */
-			timer();
+		case WAIT_OBJECT_0 + 2: /* Io event */
+			DPRINTF(7, ("IoEvent occurred\n"));
+			have_packet = TRUE;
 			break;
 
 		case WAIT_IO_COMPLETION: /* there might be something after APC */

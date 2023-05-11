@@ -44,7 +44,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				InlineFunctionExpansion="1"
-				AdditionalIncludeDirectories=".,..\..\..\ntpd,..\include,..\..\..\include,..\..\..\lib\isc\win32\include,..\..\..\lib\isc\include,$(OPENSSL_INC),..\..\..\sntp\libopts"
+				AdditionalIncludeDirectories=".,..\..\..\ntpd,..\include,..\..\..\include,..\..\..\libntp\lib\isc\win32\include,..\..\..\libntp\lib\isc\include,$(OPENSSL_INC),..\..\..\sntp\libopts"
 				PreprocessorDefinitions="NDEBUG;_CONSOLE;WIN32;__STDC__;SYS_WINNT;HAVE_CONFIG_H;_CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES=1;_CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES_COUNT=1;_CRT_SECURE_NO_DEPRECATE"
 				StringPooling="true"
 				RuntimeLibrary="2"
@@ -136,7 +136,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories=".,..\..\..\ntpd,..\include,..\..\..\include,..\..\..\lib\isc\win32\include,..\..\..\lib\isc\include,$(OPENSSL_INC),..\..\..\sntp\libopts"
+				AdditionalIncludeDirectories=".,..\..\..\ntpd,..\include,..\..\..\include,..\..\..\libntp\lib\isc\win32\include,..\..\..\libntp\lib\isc\include,$(OPENSSL_INC),..\..\..\sntp\libopts"
 				PreprocessorDefinitions="_DEBUG;_CONSOLE;WIN32;__STDC__;SYS_WINNT;HAVE_CONFIG_H;_CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES=1;_CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES_COUNT=1;_CRT_SECURE_NO_DEPRECATE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -208,6 +208,50 @@
 			Name="Source Files"
 			Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 			>
+			<File
+				RelativePath="..\..\..\ntpd\ntp_clockdev.c"
+				>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="..\..\..\ntpd\ntp_ppsdev.c"
+				>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						AdditionalIncludeDirectories=""
+						PreprocessorDefinitions=""
+					/>
+				</FileConfiguration>
+			</File>
 			<File
 				RelativePath="..\..\..\ntpd\cmd_args.c"
 				>
@@ -722,7 +766,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\include\isc\assertions.h"
+				RelativePath="..\..\..\libntp\lib\isc\include\isc\assertions.h"
 				>
 			</File>
 			<File
@@ -730,7 +774,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\include\isc\boolean.h"
+				RelativePath="..\..\..\libntp\lib\isc\include\isc\boolean.h"
 				>
 			</File>
 			<File
@@ -762,7 +806,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\include\isc\interfaceiter.h"
+				RelativePath="..\..\..\libntp\lib\isc\include\isc\interfaceiter.h"
 				>
 			</File>
 			<File
@@ -794,7 +838,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\include\isc\netaddr.h"
+				RelativePath="..\..\..\libntp\lib\isc\include\isc\netaddr.h"
 				>
 			</File>
 			<File
@@ -950,7 +994,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\include\isc\result.h"
+				RelativePath="..\..\..\libntp\lib\isc\include\isc\result.h"
 				>
 			</File>
 			<File
@@ -974,7 +1018,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\win32\include\isc\win32os.h"
+				RelativePath="..\..\..\libntp\lib\isc\win32\include\isc\win32os.h"
 				>
 			</File>
 		</Filter>

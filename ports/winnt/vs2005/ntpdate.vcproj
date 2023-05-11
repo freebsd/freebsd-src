@@ -43,7 +43,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories=".,..\include,..\..\..\include,..\..\..\lib\isc\win32\include,..\..\..\lib\isc\include,$(OPENSSL_INC)"
+				AdditionalIncludeDirectories=".,..\include,..\..\..\include,..\..\..\libntp\lib\isc\win32\include,..\..\..\libntp\lib\isc\include,$(OPENSSL_INC)"
 				PreprocessorDefinitions="_DEBUG;_CONSOLE;WIN32;__STDC__;SYS_WINNT;HAVE_CONFIG_H;_CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES=1;_CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES_COUNT=1;_CRT_SECURE_NO_DEPRECATE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -138,7 +138,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				InlineFunctionExpansion="1"
-				AdditionalIncludeDirectories=".,..\include,..\..\..\include,..\..\..\lib\isc\win32\include,..\..\..\lib\isc\include,$(OPENSSL_INC)"
+				AdditionalIncludeDirectories=".,..\include,..\..\..\include,..\..\..\libntp\lib\isc\win32\include,..\..\..\libntp\lib\isc\include,$(OPENSSL_INC)"
 				PreprocessorDefinitions="NDEBUG;_CONSOLE;WIN32;__STDC__;SYS_WINNT;HAVE_CONFIG_H;_CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES=1;_CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES_COUNT=1;_CRT_SECURE_NO_DEPRECATE"
 				StringPooling="true"
 				RuntimeLibrary="2"

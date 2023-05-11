@@ -10,7 +10,7 @@
 
 const char *
 refnumtoa(
-	sockaddr_u *num
+	const sockaddr_u *num
 	)
 {
 	u_int32 netnum;

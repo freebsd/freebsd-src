@@ -13,7 +13,7 @@
   <body>
     <h3>Generic NMEA GPS Receiver</h3>
 <p>Last update:
-  <!-- #BeginDate format:En2m -->13-Jan-2020  07:12<!-- #EndDate -->
+  <!-- #BeginDate format:En2m -->17-Oct-2020  16:00<!-- #EndDate -->
   UTC</p>
     <hr>
     <h4>Synopsis</h4>
@@ -349,6 +349,15 @@
           you <em>really</em> trust the receiver!
           See <a href="#datetrust">below</a>. <strong>Caveat:</strong>
           This (hitherto undocumented) bit has moved!
+	</td>
+       </tr><tr>
+        <td align="center">19</td>
+        <td align="center">524288</td>
+        <td align="center">0x80000</td>
+        <td>Ignore receiver status, assume time is always good as long
+	  as it is present at all.  A possible option for receivers
+	  with a good hold-over characteristic, but most likely
+	  harmful in general. Use at own risk.
 	</td>
       </tr>
     </tbody></table> 

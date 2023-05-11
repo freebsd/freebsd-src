@@ -9,7 +9,7 @@
 /*
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2018 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -27,50 +27,6 @@
  *  4379e7444a0e2ce2b12dd6f5a52a27a4d02d39d247901d3285c88cf0d37f477b  COPYING.lgplv3
  *  13aa749a5b0a454917a944ed8fffc530b784f5ead522b1aacaf4ec8aa55a6239  COPYING.mbsd
  */
-
-/* = = = START-STATIC-FORWARD = = = */
-static void
-file_preset(tOptions * opts, char const * fname, int dir);
-
-static char *
-handle_comment(char * txt);
-
-static char *
-handle_cfg(tOptions * opts, tOptState * ost, char * txt, int dir);
-
-static char *
-handle_directive(tOptions * opts, char * txt);
-
-static char *
-aoflags_directive(tOptions * opts, char * txt);
-
-static char *
-program_directive(tOptions * opts, char * txt);
-
-static char *
-handle_section(tOptions * opts, char * txt);
-
-static int
-parse_xml_encoding(char ** ppz);
-
-static char *
-trim_xml_text(char * intxt, char const * pznm, tOptionLoadMode mode);
-
-static void
-cook_xml_text(char * pzData);
-
-static char *
-handle_struct(tOptions * opts, tOptState * ost, char * txt, int dir);
-
-static char const *
-parse_keyword(tOptions * opts, char const * txt, tOptionValue * typ);
-
-static char const *
-parse_set_mem(tOptions * opts, char const * txt, tOptionValue * typ);
-
-static char const *
-parse_value(char const * txt, tOptionValue * typ);
-/* = = = END-STATIC-FORWARD = = = */
 
 /**
  *  Skip over some unknown attribute
@@ -182,9 +138,9 @@ optionFindValue(const tOptDesc * odesc, char const * name, char const * val)
     }
 
     else do {
-        tArgList *    argl  = odesc->optCookie;
-        int           argct = argl->useCt;
-        const void ** poptv = VOIDP(argl->apzArgs);
+        tArgList * argl  = odesc->optCookie;
+        int        argct = argl->useCt;
+        void **    poptv = (void **)(argl->apzArgs);
 
         if (argct == 0) {
             errno = ENOENT;
@@ -192,7 +148,7 @@ optionFindValue(const tOptDesc * odesc, char const * name, char const * val)
         }
 
         if (name == NULL) {
-            res = (const tOptionValue *)*poptv;
+            res = (tOptionValue *)*poptv;
             break;
         }
 
@@ -249,7 +205,7 @@ optionFindNextValue(const tOptDesc * odesc, const tOptionValue * pPrevVal,
                     char const * pzName, char const * pzVal)
 {
     bool old_found = false;
-    const tOptionValue * res = NULL;
+    tOptionValue * res = NULL;
 
     (void)pzName;
     (void)pzVal;
@@ -264,12 +220,12 @@ optionFindNextValue(const tOptDesc * odesc, const tOptionValue * pPrevVal,
     }
 
     else do {
-        tArgList *    argl  = odesc->optCookie;
-        int           ct    = argl->useCt;
-        const void ** poptv = VOIDP(argl->apzArgs);
+        tArgList * argl = odesc->optCookie;
+        int        ct   = argl->useCt;
+        void **   poptv = (void **)argl->apzArgs;
 
         while (--ct >= 0) {
-            const tOptionValue * pOV = *(poptv++);
+            tOptionValue * pOV = *(poptv++);
             if (old_found) {
                 res = pOV;
                 break;
@@ -315,8 +271,8 @@ optionFindNextValue(const tOptDesc * odesc, const tOptionValue * pPrevVal,
 tOptionValue const *
 optionGetValue(tOptionValue const * oov, char const * vname)
 {
-    tArgList *           arg_list;
-    const tOptionValue * res = NULL;
+    tArgList *     arg_list;
+    tOptionValue * res = NULL;
 
     if ((oov == NULL) || (oov->valType != OPARG_TYPE_HIERARCHY)) {
         errno = EINVAL;
@@ -325,14 +281,14 @@ optionGetValue(tOptionValue const * oov, char const * vname)
     arg_list = oov->v.nestVal;
 
     if (arg_list->useCt > 0) {
-        int           ct     = arg_list->useCt;
-        const void ** ovlist = VOIDP(arg_list->apzArgs);
+        int     ct     = arg_list->useCt;
+        void ** ovlist = (void **)(arg_list->apzArgs);
 
         if (vname == NULL) {
-            res = (const tOptionValue *)*ovlist;
+            res = (tOptionValue *)*ovlist;
 
         } else do {
-            const tOptionValue * opt_val = *(ovlist++);
+            tOptionValue * opt_val = *(ovlist++);
             if (strcmp(opt_val->pzName, vname) == 0) {
                 res = opt_val;
                 break;
@@ -374,9 +330,9 @@ optionGetValue(tOptionValue const * oov, char const * vname)
 tOptionValue const *
 optionNextValue(tOptionValue const * ov_list,tOptionValue const * oov )
 {
-    tArgList *           arg_list;
-    const tOptionValue * res = NULL;
-    int                  err = EINVAL;
+    tArgList *     arg_list;
+    tOptionValue * res = NULL;
+    int            err = EINVAL;
 
     if ((ov_list == NULL) || (ov_list->valType != OPARG_TYPE_HIERARCHY)) {
         errno = EINVAL;
@@ -384,18 +340,18 @@ optionNextValue(tOptionValue const * ov_list,tOptionValue const * oov )
     }
     arg_list = ov_list->v.nestVal;
     {
-        int           ct     = arg_list->useCt;
-        const void ** o_list = VOIDP(arg_list->apzArgs);
+        int     ct    = arg_list->useCt;
+        void ** o_list = (void **)(arg_list->apzArgs);
 
         while (ct-- > 0) {
-            const tOptionValue * nov = *(o_list++);
+            tOptionValue * nov = *(o_list++);
             if (nov == oov) {
                 if (ct == 0) {
                     err = ENOENT;
 
                 } else {
                     err = 0;
-                    res = (const tOptionValue *)*o_list;
+                    res = (tOptionValue *)*o_list;
                 }
                 break;
             }
@@ -466,6 +422,7 @@ file_preset(tOptions * opts, char const * fname, int dir)
                 ftext = strchr(ftext + 2, '>');
                 if (ftext++ != NULL)
                     break;
+                /* FALLTHROUGH */
 
             default:
                 ftext = NULL;
@@ -626,9 +583,9 @@ handle_directive(tOptions * opts, char * txt)
 
     for (ix = 0; ix < dir_ct; ix++) {
         size_t len = strlen(dir_names[ix]);
-        if (  (strncmp(txt + 2, dir_names[ix], len) == 0)
-           && (! IS_VALUE_NAME_CHAR(txt[len+2])) )
-            return dir_disp[ix](opts, txt + len + 2);
+        if (  (strncmp(txt, dir_names[ix], len) == 0)
+           && (! IS_VALUE_NAME_CHAR(txt[len])) )
+            return dir_disp[ix](opts, txt + len);
     }
 
     /*
@@ -681,44 +638,35 @@ aoflags_directive(tOptions * opts, char * txt)
 static char *
 program_directive(tOptions * opts, char * txt)
 {
-    static char const ttlfmt[] = "<?";
-    size_t ttl_len  = sizeof(ttlfmt) + strlen(zCfgProg);
-    char * ttl      = AGALOC(ttl_len, "prog title");
     size_t name_len = strlen(opts->pzProgName);
 
-    memcpy(ttl, ttlfmt, sizeof(ttlfmt) - 1);
-    memcpy(ttl + sizeof(ttlfmt) - 1, zCfgProg, ttl_len - (sizeof(ttlfmt) - 1));
-
-    do  {
-        txt = SPN_WHITESPACE_CHARS(txt+1);
+    for (;; txt += zCfgProg_LEN) {
+        txt = SPN_WHITESPACE_CHARS(txt);
 
         if (  (strneqvcmp(txt, opts->pzProgName, (int)name_len) == 0)
-           && (IS_END_XML_TOKEN_CHAR(txt[name_len])) ) {
-            txt += name_len;
-            break;
-        }
+           && (IS_END_XML_TOKEN_CHAR(txt[name_len])) )
 
-        txt = strstr(txt, ttl);
-    } while (txt != NULL);
+            return txt + name_len;
 
-    AGFREE(ttl);
-    if (txt != NULL)
-        for (;;) {
-            if (*txt == NUL) {
-                txt = NULL;
-                break;
-            }
-            if (*(txt++) == '>')
-                break;
-        }
+        txt = strstr(txt, zCfgProg);
+        if (txt == NULL)
+            return txt;
+    }
 
-    return txt;
+    for (;;) {
+        if (*txt == NUL)
+            return NULL;
+
+        if (*(txt++) == '>')
+            return txt;
+    }
 }
 
 /**
  *  "txt" points to a '[' character.
  *  The "traditional" [PROG_NAME] segmentation of the config file.
  *  Do not ever mix with the "<?program prog-name>" variation.
+ *  The templates reject program names over 16 characters.
  *
  *  @param[in,out] opts  program option descriptor
  *  @param[in]     txt   scanning pointer
@@ -736,8 +684,10 @@ handle_section(tOptions * opts, char * txt)
         return NULL;
 
     {
-        char z[24];
-        sprintf(z, "[%s]", opts->pzPROGNAME);
+        char z[24] = "[";
+        memcpy(z+1, opts->pzPROGNAME, len);
+        z[++len] = ']';
+        z[++len] = NUL;
         txt = strstr(txt, z);
     }
 
@@ -839,16 +789,22 @@ parse_xml_encoding(char ** ppz)
 static char *
 trim_xml_text(char * intxt, char const * pznm, tOptionLoadMode mode)
 {
-    static char const fmt[] = "</%s>";
-    size_t len = strlen(pznm) + sizeof(fmt) - 2 /* for %s */;
+    size_t nm_len = strlen(pznm);
     char * etext;
 
     {
         char z[64], *pz = z;
-        if (len >= sizeof(z))
-            pz = AGALOC(len, "scan name");
 
-        len = (size_t)sprintf(pz, fmt, pznm);
+        if (nm_len + 4 >= sizeof(z))
+            pz = AGALOC(nm_len + 4, "scan name");
+
+        pz[0] = '<';
+        pz[1] = '/';
+        memcpy(pz+2, pznm, nm_len);
+        nm_len  += 2;
+        pz[nm_len++] = '>';
+        pz[nm_len]   = NUL;
+
         *intxt = ' ';
         etext = strstr(intxt, pz);
         if (pz != z) AGFREE(pz);
@@ -858,7 +814,7 @@ trim_xml_text(char * intxt, char const * pznm, tOptionLoadMode mode)
         return etext;
 
     {
-        char * result = etext + len;
+        char * result = etext + nm_len;
 
         if (mode != OPTION_LOAD_UNCOOKED)
             etext = SPN_WHITESPACE_BACK(intxt, etext);
@@ -997,7 +953,7 @@ handle_struct(tOptions * opts, tOptState * ost, char * txt, int dir)
  *  scanning the "homerc" list, or from a specific file request.
  *  (see "optionFileLoad()", the implementation for --load-opts)
  */
-LOCAL void
+static void
 intern_file_load(tOptions * opts)
 {
     uint32_t  svfl;
@@ -1198,7 +1154,7 @@ optionLoadOpt(tOptions * opts, tOptDesc * odesc)
  *
  * @returns NULL on failure, otherwise the scan point
  */
-LOCAL char const *
+static char const *
 parse_attrs(tOptions * opts, char const * txt, tOptionLoadMode * pMode,
             tOptionValue * pType)
 {

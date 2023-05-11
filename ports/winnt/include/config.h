@@ -75,7 +75,7 @@
 
 /* Prevent inclusion of winsock.h in windows.h */
 #ifndef _WINSOCKAPI_
-#define _WINSOCKAPI_  
+#define _WINSOCKAPI_
 #endif
 
 #ifndef __RPCASYNC_H__
@@ -213,15 +213,7 @@ typedef int socklen_t;
 #define SO_EXCLUSIVEADDRUSE ((int)(~SO_REUSEADDR))
 #endif
 
-#if defined _MSC_VER && _MSC_VER < 1400
-/*
- * Use 32-bit time definitions for versions prior to VS 2005
- * VS 2005 defaults to 64-bit time
- */
-# define SIZEOF_TIME_T 4
-#else
-# define SIZEOF_TIME_T 8
-#endif
+#define SIZEOF_TIME_T 8
 
 
 /*
@@ -309,8 +301,7 @@ extern void arc4random_buf(void *buf, size_t nbytes);
  */
 #define __func__	__FUNCTION__
 
-typedef int pid_t;		/* PID is an int */
-typedef int ssize_t;	/* ssize is an int */
+typedef int	pid_t;	/* PID is an int */
 
 /*
  * Map the stream to the file number
@@ -502,6 +493,13 @@ typedef unsigned long uintptr_t;
   typedef unsigned __int64 uint64_t;
 #endif
 
+#ifdef _WIN64		/* mirroring SIZE_MAX from limits.h */
+  typedef SSIZE_T	ssize_t;
+#define SSIZE_MAX	_I64_MAX
+#else
+  typedef int		ssize_t;
+#define SSIZE_MAX	INT_MAX
+#endif
 
 /* Directory separator, usually / or \ */
 #define	DIR_SEP	'\\'

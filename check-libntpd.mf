@@ -1,0 +1,19 @@
+##
+## check-libntpd.mf - automake fragment
+##
+
+BUILT_SOURCES	+= check-libntpd
+
+# CLEANFILES addition below won't be needed after a while.
+# Leave it in for now for folks tracking the source repo
+# who have the file from a former version of the rule.
+# DLH Jan 2023
+
+CLEANFILES	+= check-libntpd
+
+check-libntpd: $(top_builddir)/ntpd/libntpd.a
+	 @: avoid default SCCS get by some make implementations
+
+$(top_builddir)/ntpd/libntpd.a:
+	cd $(top_builddir)/ntpd && $(MAKE) $(AM_MAKEFLAGS) libntpd.a
+

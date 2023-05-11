@@ -1,7 +1,7 @@
-#AUTOMAKE_OPTIONS = foreign 1.9 subdir-objects
 NULL =
 BUILT_SOURCES =
 CLEANFILES =
+DISTCLEANFILES =
 
 std_unity_list =	 						\
 	$(abs_top_srcdir)/sntp/unity/auto/generate_test_runner.rb	\
@@ -59,23 +59,7 @@ if !NTP_CROSSCOMPILE
 TESTS += $(check_PROGRAMS)
 endif
 
-## check-libntp.mf - automake fragment
-## slightly adapted for deeper directory
-
-BUILT_SOURCES	+= check-libntp check-libunity
-CLEANFILES	+= check-libntp check-libunity
-
-check-libntp: ../../libntp/libntp.a
-	@echo stamp > $@
-
-../../libntp/libntp.a:
-	cd ../../libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
-
-check-libunity: ../../sntp/unity/libunity.a
-	@echo stamp > $@
-
-../../sntp/unity/libunity.a:
-	cd ../../sntp/unity && $(MAKE) $(AM_MAKEFLAGS) libunity.a
-
+include $(top_srcdir)/check-libntp.mf
+include $(top_srcdir)/check-libunity.mf
 include $(top_srcdir)/depsver.mf
 include $(top_srcdir)/includes.mf

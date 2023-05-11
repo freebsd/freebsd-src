@@ -13,7 +13,7 @@
 /*
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2018 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -32,19 +32,13 @@
  *  13aa749a5b0a454917a944ed8fffc530b784f5ead522b1aacaf4ec8aa55a6239  COPYING.mbsd
  */
 
-/* = = = START-STATIC-FORWARD = = = */
-static void
-do_env_opt(tOptState * os, char * env_name,
-            tOptions * pOpts, teEnvPresetType type);
-/* = = = END-STATIC-FORWARD = = = */
-
 /*
  *  doPrognameEnv - check for preset values from the ${PROGNAME}
  *  environment variable.  This is accomplished by parsing the text into
  *  tokens, temporarily replacing the arg vector and calling
  *  immediate_opts and/or regular_opts.
  */
-LOCAL void
+static void
 doPrognameEnv(tOptions * pOpts, teEnvPresetType type)
 {
     char const *        env_opts = getenv(pOpts->pzPROGNAME);
@@ -187,7 +181,7 @@ do_env_opt(tOptState * os, char * env_name,
  *  env_presets - check for preset values from the envrionment
  *  This routine should process in all, immediate or normal modes....
  */
-LOCAL void
+static void
 env_presets(tOptions * pOpts, teEnvPresetType type)
 {
     int        ct;

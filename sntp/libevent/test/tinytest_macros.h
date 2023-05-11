@@ -113,8 +113,8 @@
 #define tt_assert_test_fmt_type(a,b,str_test,type,test,printf_type,printf_fmt, \
     setup_block,cleanup_block,die_on_fail)				\
 	TT_STMT_BEGIN							\
-	type val1_ = (a);						\
-	type val2_ = (b);						\
+	type val1_ = (type)(a);						\
+	type val2_ = (type)(b);						\
 	int tt_status_ = (test);					\
 	if (!tt_status_ || tinytest_get_verbosity_()>1)	{		\
 		printf_type print_;					\
@@ -158,6 +158,14 @@
 	tt_assert_test_type(a,b,#a" "#op" "#b,long,(val1_ op val2_), \
 	    "%ld",TT_EXIT_TEST_FUNCTION)
 
+/** To compare SOCKET(windows)/fd */
+#define tt_fd_op(a,op,b) do {                                          \
+	int _a = (int)(a);                                             \
+	int _b = (int)(b);                                             \
+	tt_assert_test_type(_a,_b,#a" "#op" "#b,long,(val1_ op val2_), \
+	    "%ld",TT_EXIT_TEST_FUNCTION);                              \
+} while (0)
+
 #define tt_uint_op(a,op,b)						\
 	tt_assert_test_type(a,b,#a" "#op" "#b,unsigned long,		\
 	    (val1_ op val2_),"%lu",TT_EXIT_TEST_FUNCTION)
@@ -165,6 +173,12 @@
 #define tt_ptr_op(a,op,b)						\
 	tt_assert_test_type(a,b,#a" "#op" "#b,const void*,              \
 	    (val1_ op val2_),"%p",TT_EXIT_TEST_FUNCTION)
+
+/** XXX: have some issues with printing this non-NUL terminated strings */
+#define tt_nstr_op(n,a,op,b)						\
+	tt_assert_test_type_opt(a,b,#a" "#op" "#b,const char *,		\
+	    (val1_ && val2_ && strncmp(val1_,val2_,(n)) op 0),"<%s>",	\
+	    TT_EXIT_TEST_FUNCTION)
 
 #define tt_str_op(a,op,b)						\
 	tt_assert_test_type_opt(a,b,#a" "#op" "#b,const char *,		\

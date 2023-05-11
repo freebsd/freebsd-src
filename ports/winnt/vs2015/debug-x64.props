@@ -20,5 +20,4 @@
       <AdditionalLibraryDirectories>$(OPENSSL64_LIB)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup />
 </Project>

@@ -6,6 +6,7 @@ sbin_PROGRAMS =	$(ADJTIMED_DS)
 
 BUILT_SOURCES =
 CLEANFILES =
+DISTCLEANFILES =
 EXTRA_PROGRAMS = adjtimed
 
 AM_CFLAGS  = $(CFLAGS_NTP)
@@ -19,6 +20,6 @@ LDADD = ../libntp/libntp.a $(LDADD_LIBNTP) $(LIBM) $(PTHREAD_LIBS)
 AM_LDFLAGS = $(NTP_HARD_LDFLAGS)
 
 include $(top_srcdir)/bincheck.mf
-include $(top_srcdir)/sntp/check-libntp.mf
+include $(top_srcdir)/check-libntp.mf
 include $(top_srcdir)/depsver.mf
 include $(top_srcdir)/includes.mf

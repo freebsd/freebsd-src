@@ -13,9 +13,10 @@ if not exist "%1\keyword-gen.exe" goto ExeNotFound
 "%1\keyword-gen.exe" ..\..\..\..\ntpd\ntp_parser.h > new_keyword.h
 
 REM check if we must create both files from scratch
-if not exist "%HDR_FILE%" goto createFiles
-if not exist "%UTD_FILE%" goto createFiles
+if not exist "%HDR_FILE%" goto missingFiles
+if not exist "%UTD_FILE%" goto missingFiles
 
+:compareFiles
 findstr /v diff_ignore_line new_keyword.h > new_keyword_cmp.h
 findstr /v diff_ignore_line "%HDR_FILE%"  > ntp_keyword_cmp.h
 set meat_changed=0
@@ -23,6 +24,17 @@ fc /L ntp_keyword_cmp.h new_keyword_cmp.h > NUL
 if errorlevel 1 set meat_changed=1
 del ntp_keyword_cmp.h new_keyword_cmp.h
 if "0"=="%meat_changed%" goto SkipUpdate
+
+:missingFiles
+REM The files may have been deleted by the IDE in a Clean or Rebuild.
+REM Check if we're in a BitKeeper repo and if so retrieve the most
+REM recent version of the files.
+bk root ../../../.. 2>NUL >NUL
+if errorlevel 1 goto createFiles
+
+bk checkout %HDR_FILE% %UTD_FILE%
+if errorlevel 1 goto createFiles
+goto compareFiles
 
 :createFiles
 copy /y /v new_keyword.h "%HDR_FILE%"  > NUL

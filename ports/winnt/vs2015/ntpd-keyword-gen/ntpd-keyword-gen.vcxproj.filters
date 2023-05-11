@@ -29,9 +29,6 @@
     <ClInclude Include="..\..\..\..\include\lib_strbuf.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\net.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\..\include\ntp_config.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -63,6 +60,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\include\ntp_types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\win32\include\isc\net.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -18,11 +18,5 @@
     <ClCompile Include="..\..\instsrv\instsrv.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="version.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <CustomBuild Include="..\..\..\..\packageinfo.sh" />
   </ItemGroup>
 </Project>

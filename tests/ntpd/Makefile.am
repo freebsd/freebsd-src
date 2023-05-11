@@ -1,6 +1,7 @@
 NULL =
 BUILT_SOURCES =
 CLEANFILES =
+DISTCLEANFILES =
 
 std_unity_list =							\
 	$(abs_top_srcdir)/sntp/unity/auto/generate_test_runner.rb	\
@@ -89,7 +90,7 @@ test_leapsec_LDADD =			\
 test_leapsec_SOURCES =			\
 	leapsec.c			\
 	run-leapsec.c			\
-	$(srcdir)/../libntp/test-libntp.c		\
+	test-libntp.c			\
 	$(NULL)
 
 $(srcdir)/run-leapsec.c: $(srcdir)/leapsec.c $(std_unity_list)
@@ -109,12 +110,14 @@ test_ntp_prio_q_LDADD =			\
 test_ntp_prio_q_SOURCES =			\
 	ntp_prio_q.c				\
 	run-ntp_prio_q.c			\
-	$(srcdir)/../libntp/test-libntp.c	\
+	test-libntp.c				\
 	$(NULL)
 
 $(srcdir)/run-ntp_prio_q.c: $(srcdir)/ntp_prio_q.c $(std_unity_list)
 	$(run_unity) $< $@
 
+../../ntpd/ntpdsim-ntp_prio_q.o:
+	cd ../../ntpd && $(MAKE) $(AM_MAKEFLAGS) ntpdsim-ntp_prio_q.o
 
 ###
 test_ntp_restrict_CFLAGS =		\
@@ -129,7 +132,7 @@ test_ntp_restrict_LDADD =		\
 test_ntp_restrict_SOURCES =		\
 	ntp_restrict.c			\
 	run-ntp_restrict.c		\
-	$(srcdir)/../libntp/test-libntp.c	\
+	test-libntp.c			\
 	$(NULL)
 
 $(srcdir)/run-ntp_restrict.c: $(srcdir)/ntp_restrict.c $(std_unity_list)
@@ -150,7 +153,7 @@ test_rc_cmdlength_LDADD =		\
 test_rc_cmdlength_SOURCES =		\
 	rc_cmdlength.c			\
 	run-rc_cmdlength.c		\
-	$(srcdir)/../libntp/test-libntp.c	\
+	test-libntp.c			\
 	$(NULL)
 
 $(srcdir)/run-rc_cmdlength.c: $(srcdir)/rc_cmdlength.c $(std_unity_list)
@@ -167,7 +170,7 @@ test_ntp_signd_LDADD =			\
 test_ntp_signd_SOURCES =			\
 	t-ntp_signd.c				\
 	run-t-ntp_signd.c			\
-	$(srcdir)/../libntp/test-libntp.c	\
+	test-libntp.c	\
 	$(NULL)
 
 $(srcdir)/run-t-ntp_signd.c: $(srcdir)/t-ntp_signd.c $(std_unity_list)
@@ -189,7 +192,7 @@ test_ntp_scanner_LDADD =		\
 test_ntp_scanner_SOURCES =			\
 	t-ntp_scanner.c				\
 	run-t-ntp_scanner.c			\
-	$(srcdir)/../libntp/test-libntp.c	\
+	test-libntp.c				\
 	$(NULL)
 
 $(srcdir)/run-t-ntp_scanner.c: $(srcdir)/t-ntp_scanner.c $(std_unity_list)
@@ -202,34 +205,8 @@ if !NTP_CROSSCOMPILE
 TESTS += $(check_PROGRAMS)
 endif
 
-## check-libntp.mf - automake fragment
-## slightly adapted for deeper directory
-
-BUILT_SOURCES	+= check-libntpd check-libntp check-libunity
-CLEANFILES	+= check-libntpd check-libntp check-libunity
-
-check-libntpd: ../../ntpd/libntpd.a
-	@echo stamp > $@
-
-../../ntpd/libntpd.a:
-	cd ../../ntpd && $(MAKE) $(AM_MAKEFLAGS) libntpd.a
-
-
-check-libntp: ../../libntp/libntp.a
-	@echo stamp > $@
-
-../../libntp/libntp.a:
-	cd ../../libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
-
-
-check-libunity: ../../sntp/unity/libunity.a
-	@echo stamp > $@
-
-../../sntp/unity/libunity.a:
-	cd ../../sntp/unity && $(MAKE) $(AM_MAKEFLAGS) libunity.a
-
-$(top_builddir)/ntpd/ntpdsim-ntp_prio_q.o:
-	cd ../../ntpd/ && $(MAKE) $(AM_MAKEFLAGS) ntpdsim-ntp_prio_q.o
-
+include $(top_srcdir)/check-libntp.mf
+include $(top_srcdir)/check-libntpd.mf
+include $(top_srcdir)/check-libunity.mf
 include $(top_srcdir)/depsver.mf
 include $(top_srcdir)/includes.mf

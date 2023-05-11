@@ -104,6 +104,16 @@ flag = {
 	_EndOfDoc_;
 };
 
+flag = {
+    name      = unconnected;
+    value     = u;
+    descrip   = "Use unconnected UDP to communicate with ntpd (default on Windows)";
+    doc = <<-  _EndOfDoc_
+	Open an unconnected UDP association to ntpd (the default
+	on Windows).
+	_EndOfDoc_;
+};
+
 /* explain: Additional information whenever the usage routine is invoked */
 explain = <<- _END_EXPLAIN
 	_END_EXPLAIN;

@@ -92,7 +92,7 @@ format_errmsg(
  * errno_to_str() - a thread-safe strerror() replacement.
  *		    Hides the varied signatures of strerror_r().
  *		    For Windows, we have:
- *			#define errno_to_str isc_strerror
+ *			#define errno_to_str isc__strerror
  */
 #ifndef errno_to_str
 void

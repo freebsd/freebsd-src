@@ -14,6 +14,8 @@
 #include "ntp_iocplmem.h"
 #include "ntp_iocpltypes.h"
 
+const char * (*termios_device_lookup_func)(const sockaddr_u*, int) = NULL;
+
 /* -------------------------------------------------------------------
  * COM port management
  *
@@ -174,14 +176,18 @@ common_serial_open(
 	handle = INVALID_HANDLE_VALUE;
 
 	pch = NULL;
-	if ('/' == dev[0]) {
+
+	if (0 == _strnicmp("\\\\.\\COM", dev, 7)) {
+		 pch = dev + 7;
+		 TRACE(1, ("common_serial_open skipped '\\\\.\\COM' leaving %s\n", pch));
+	} else if ('/' == dev[0]) {
 		pch = dev + strlen(dev);
 		while (isdigit((u_char)pch[-1]))
 			--pch;
 		TRACE(1, ("common_serial_open skipped to ending digits leaving %s\n", pch));
 	} else if (0 == _strnicmp("COM", dev, 3)) {
 		pch = dev + 3;
-		TRACE(1, ("common_serial_open skipped COM leaving %s\n", pch));
+		TRACE(1, ("common_serial_open skipped 'COM' leaving %s\n", pch));
 	}
 
 	if (!pch || !isdigit((u_char)pch[0])) {
@@ -314,11 +320,14 @@ tty_open(
  */
 int
 refclock_open(
+	const sockaddr_u *srcadr,
 	const char *	dev,	/* device name pointer */
 	u_int		speed,	/* serial port speed (code) */
 	u_int		flags	/* line discipline flags */
 	)
 {
+	extern const char* clockdev_lookup(const sockaddr_u *, int);
+
 	const char *	windev;
 	HANDLE		h;
 	COMMTIMEOUTS	timeouts;
@@ -327,6 +336,11 @@ refclock_open(
 	int		fd;
 	int		translate;
 
+	if (NULL != termios_device_lookup_func) {
+		const char * altdev = (*termios_device_lookup_func)(srcadr, 0);
+		if (NULL != altdev)
+			dev = altdev;
+	}
 	/*
 	 * open communication port handle
 	 */

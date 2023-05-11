@@ -242,7 +242,7 @@
     <ClInclude Include="..\..\..\..\include\ntp_string.h" />
     <ClInclude Include="..\..\..\..\include\ntp_syslog.h" />
     <ClInclude Include="..\..\..\..\include\ntp_unixtime.h" />
-    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\net.h" />
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\win32\include\isc\net.h" />
     <ClInclude Include="..\..\..\..\ntpdate\ntpdate.h" />
     <ClInclude Include="..\..\include\config.h" />
     <ClInclude Include="..\..\include\syslog.h" />

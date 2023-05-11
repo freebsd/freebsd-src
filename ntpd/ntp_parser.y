@@ -97,6 +97,7 @@
 %token	<Integer>	T_Ctl
 %token	<Integer>	T_Day
 %token	<Integer>	T_Default
+%token	<Integer>	T_Device
 %token	<Integer>	T_Digest
 %token	<Integer>	T_Disable
 %token	<Integer>	T_Discard
@@ -211,6 +212,7 @@
 %token	<Integer>	T_PollSkewList
 %token	<Integer>	T_Pool
 %token	<Integer>	T_Port
+%token	<Integer>	T_PpsData
 %token	<Integer>	T_Preempt
 %token	<Integer>	T_Prefer
 %token	<Integer>	T_Protostats
@@ -244,6 +246,7 @@
 %token	<Integer>	T_Tick
 %token	<Integer>	T_Time1
 %token	<Integer>	T_Time2
+%token	<Integer>	T_TimeData
 %token	<Integer>	T_Timer
 %token	<Integer>	T_Timingstats
 %token	<Integer>	T_Tinker
@@ -298,6 +301,9 @@
 %type	<Attr_val>	crypto_command
 %type	<Attr_val_fifo>	crypto_command_list
 %type	<Integer>	crypto_str_keyword
+%type	<Attr_val>	device_item
+%type	<Integer>	device_item_path_keyword
+%type	<Attr_val_fifo>	device_item_list
 %type	<Attr_val>	discard_option
 %type	<Integer>	discard_option_keyword
 %type	<Attr_val_fifo>	discard_option_list
@@ -423,6 +429,7 @@ command :	/* NULL STATEMENT */
 	|	tinker_command
 	|	miscellaneous_command
 	|	simulate_command
+	|	device_command
 	;
 
 /* Server Commands
@@ -1057,6 +1064,43 @@ fudge_factor_bool_keyword
 	|	T_Flag2
 	|	T_Flag3
 	|	T_Flag4
+	;
+
+/* Device Commands
+ * --------------
+ */
+
+device_command
+	:	T_Device address device_item_list
+		{
+			addr_opts_node *aon;
+
+			aon = create_addr_opts_node($2, $3);
+			APPEND_G_FIFO(cfgt.device, aon);
+		}
+	;
+
+device_item_list
+	:	device_item_list device_item
+		{
+			$$ = $1;
+			APPEND_G_FIFO($$, $2);
+		}
+	|	device_item
+		{
+			$$ = NULL;
+			APPEND_G_FIFO($$, $1);
+		}
+	;
+
+device_item
+	:	device_item_path_keyword T_String
+			{ $$ = create_attr_sval($1, $2); }
+	;
+
+device_item_path_keyword
+	:	T_TimeData
+	|	T_PpsData
 	;
 
 /* rlimit Commands
@@ -1770,7 +1814,7 @@ yyerror(
 	if (!lex_from_file()) {
 		/* Save the error message in the correct buffer */
 		retval = snprintf(remote_config.err_msg + remote_config.err_pos,
-				  MAXLINE - remote_config.err_pos,
+				  sizeof remote_config.err_msg - remote_config.err_pos,
 				  "column %d %s",
 				  ip_ctx->errpos.ncol, msg);
 

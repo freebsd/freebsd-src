@@ -127,7 +127,7 @@ ltor(l_fp l)
 
 
 int
-main()
+main(void)
 {
 	l_fp l;
 	int rc;

@@ -30,7 +30,7 @@
  * serial.sys with CD timestamping support.
  *								       *
  * This Windows version was derived by Dave Hart		       *
- * <davehart@davehart.com> from David L. Mills' timepps-Solaris.h      *
+ * <davehart@gmail.com> from David L. Mills' timepps-Solaris.h	       *
  *								       *
  ***********************************************************************
  *								       *

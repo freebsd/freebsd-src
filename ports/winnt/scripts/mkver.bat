@@ -20,6 +20,19 @@ see notes/remarks directly below this header:
 #
 #
 # Changes:
+#
+# 04/01/2023	Dave Hart
+#				- Use fast 'bk root' to check for BitKeeper
+#				  instead of invocation that gets ChangeSet.
+#				- Removed compatibility with building from
+#				  one level shallower used before multiple
+#				  compiler versions were supported.
+#				- Add 'const ' to output version.c
+#				- Add -G, -U and -S options to split
+#				  out ChangeSet revision retrieval from
+#				  version.c generation for VS 2015
+#				  dependency improvements.
+#
 # 03/03/2017	Brian Inglis
 #				- ensure Windows system32 from COMSPEC added to start
 #				  of PATH in case other find commands are on PATH
@@ -32,7 +45,7 @@ see notes/remarks directly below this header:
 # 12/21/2009	Dave Hart
 #				- packageinfo.sh uses prerelease= now not
 #				  releasecandidate=
-# 08/28/2009	Dave Hart	
+# 08/28/2009	Dave Hart
 #				- support for building using per-compiler subdirs of winnt
 # 08/08/2006	Heiko Gerstung
 #				- bugfixed point / rcpoint errors leading to a wrong
@@ -59,24 +72,80 @@ see notes/remarks directly below this header:
 #				  to the version number
 #				- major rework of the time and date recognition routines
 #				  in order to reflect international settings and OS-
-#				  dependand formats
+#				  dependent formats
 #
 ######################################################################
 
 Notes/Howtos:
 
-If you spot an error stating that bk.exe could not be found or executed
-although it is installed on your computer, you should try to add the path 
-to your BK binary in your IDE configuration (for VisualStudio see 
-Tools/Options/Directories/Executables).
+This batch file is used in two different ways.
 
-Alternatively you can create a file called 'version' in the root path of 
-your ntp source tree which holds a string that is added to the version number.
+In the original design, used by compilers earlier than Visual Studio 2015,
+it is invoked once from a program Windows port directory such as:
 
+...\ntp-src\ports\winnt\vs2013\ntpd
+
+with a command line like:
+
+call mkver.bat -P ntpd
+
+And it does the entire job of generating version.c, including determining
+the source code manager revision number, directly from BitKeeper if it's
+on the path and the sources are in a bk repository.  Otherwise, with sources
+from a distribution tarball, the revision comes from text file sntp\scm-rev.
+sntp\scm-rev is not present in bk repos, it is generated as part of the
+'make dist' run on a POSIX system.
+
+For Visual Studio 2015, the dependency logic in the project files has been
+improved to better ensure version.c is updated when the ChangeSet revision
+has changed.  To accomplish this, it was necessary to split the invocations
+of mkver.bat into two phases.  The first phase depends on whether the
+SCM revision is obtained from sntp\scm-rev or from a bk repo.  For scm-rev,
+the first phase invocation for the ntpd example is:
+
+call mkver.bat -U scm-rev
+
+To retrieve the revision from bk:
+
+call mkver.bat -G scm-rev
+
+In either case, a text file scm-rev is created with a current timestamp in
+the program Windows port directory such as ...\ports\winnt\vs2015\ntpd. The
+second-phase invocation which generates version.c is:
+
+call mkver.bat -S scm-rev -P ntpd
+
+This causes mkver.bat to skip the revision checks and simply use the one in
+the scm-rev text file.
 
 :PROG
+SET UPDATESCMREV=
+SET GENERATESCMREV=
+SET OUTPUTSCMREV=
+SET SCMREV=
+
 IF {%1} == {} GOTO USAGE
 IF {%1} == {-H} GOTO USAGE
+IF {%1} == {-U} (
+	IF {%2} == {} GOTO USAGE
+	SET UPDATESCMREV=%2
+	SET OUTPUTSCMREV=%2
+	IF NOT {%3} == {} GOTO USAGE
+	GOTO UPDATE_SCM_REV
+)
+IF {%1} == {-G} (
+	IF {%2} == {} GOTO USAGE
+	SET GENERATESCMREV=%2
+	SET OUTPUTSCMREV=%2
+	IF NOT {%3} == {} GOTO USAGE
+	GOTO GENERATE_SCM_REV
+)
+IF {%1} == {-S} (
+	IF {%2} == {} GOTO USAGE
+	SET SCMREV=%2
+	SHIFT
+	SHIFT
+)
 IF {%2} == {} GOTO USAGE
 IF {%1} == {-P} GOTO BEGIN
 
@@ -93,7 +162,7 @@ SET PATH=%COMSPEC:\cmd.exe=%;%PATH%
 SET GENERATED_PROGRAM=%2
 
 REM *****************************************************************************************************************
-REM Reimplemented from orginal Unix Shell script
+REM Increment build number, reimplemented from orginal Unix Shell script
 REM *****************************************************************************************************************
 	IF NOT EXIST .version ECHO 0 > .version
 	FOR /F %%i IN (.version) do @SET RUN=%%i
@@ -145,7 +214,7 @@ REM ****************************************************************************
 	SET UTC_SIGN=
 	
 	REM *** Now get the timezone settings from the registry
-	reg export "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\TimeZoneInformation" %TEMP%\TZ-%GENERATED_PROGRAM%.TMP
+	reg export "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\TimeZoneInformation" %TEMP%\TZ-%GENERATED_PROGRAM%.TMP >NUL
 	REM was: regedit /e %TEMP%\TZ-%GENERATED_PROGRAM%.TMP "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\TimeZoneInformation"
 	IF NOT EXIST %TEMP%\TZ-%GENERATED_PROGRAM%.TMP GOTO NOTZINFO
 
@@ -187,7 +256,6 @@ REM ****************************************************************************
 	
 	
 :NOTZINFO
-echo off
 
 REM *****************************************************************************************************************
 REM Now grab the Version number out of the source code (using the packageinfo.sh file...)
@@ -198,12 +266,7 @@ REM ****************************************************************************
 	REM a version.m4 file.
 	SET F_PACKAGEINFO_SH=..\..\..\..\packageinfo.sh
 	IF EXIST %F_PACKAGEINFO_SH% goto VER_FROM_PACKAGE_INFO
-	REM next two lines can go away when all windows compilers are building under
-	rem ports\winnt\<compiler dir>\<binary name dir> (ports\winnt\vs2008\ntpd)
-	rem rather than ports\winnt\<binary name dir> (ports\winnt\ntpd)
-	SET F_PACKAGEINFO_SH=..\..\..\packageinfo.sh
-	IF EXIST %F_PACKAGEINFO_SH% goto VER_FROM_PACKAGE_INFO
-        goto ERRNOVERF
+	goto ERRNOVERF
 
 :VER_FROM_PACKAGE_INFO
 	REM Get version from packageinfo.sh file, which contains lines reading e.g.
@@ -239,29 +302,48 @@ REM ****************************************************************************
 
 	SET VER=%PROTO%.%MAJOR%.%MINOR%%POINT%%SPECIAL%%PR_SUF%%PR_POINT%
 	
-	REM Now we have the version info, try to add a BK ChangeSet version number
-	
+	REM Now we have the version info, try to add a BK ChangeSet revision
+
+	IF "%SCMREV%" == "" GOTO GENERATE_SCM_REV
+
+	REM ** Called as -S to use generated scm-rev file.
+	FOR /F "TOKENS=1" %%a IN ('type %SCMREV%') DO @SET CSET=%%a
+	GOTO HAVECHANGESETREVISION
+
+:GENERATE_SCM_REV
 	REM ** Check if BK is installed ...
-	bk -R prs -hr+ -nd:I: ChangeSet 2> NUL > NUL
+	bk root ../../../.. 2> NUL > NUL
 	IF ERRORLEVEL 1 GOTO NOBK
 
 	REM ** Try to get the CSet rev directly from BK
 	FOR /F "TOKENS=1 DELIMS==" %%a IN ('bk.exe -R prs -hr+ -nd:I: ChangeSet') DO @SET CSET=%%a
 
 :NOBK
+	IF NOT "%GENERATESCMREV%" == "" GOTO WRITE_SCM_REV
+
+:UPDATE_SCM_REV
 	REM ** If that was not successful, we'll take a look into a version file, if available
 	IF EXIST ..\..\..\..\sntp\scm-rev (
 		IF "%CSET%"=="" FOR /F "TOKENS=1" %%a IN ('type ..\..\..\..\sntp\scm-rev') DO @SET CSET=%%a
 	)
-	REM next if block can go away once all windows compilers are building in
-	REM ports\winnt\<compiler dir>\<binary name dir> (ports\winnt\vs2008\ntpd)
-	IF EXIST ..\..\..\sntp\scm-rev (
-		IF "%CSET%"=="" FOR /F "TOKENS=1" %%a IN ('type ..\..\..\sntp\scm-rev') DO @SET CSET=%%a
-	)
 
+	IF "%UPDATESCMREV%" == "" GOTO HAVECHANGESETREVISION
+
+:WRITE_SCM_REV
+	REM ** Called as -U scm-rev or -G scm-rev to update scm-rev file only
+	IF "%CSET%" == "" GOTO EMPTYCSET
+	ECHO %CSET% >%OUTPUTSCMREV%
+	GOTO EOF
+
+:EMPTYCSET
+	ECHO Warning: mkver.bat : Could not find sntp\scm-rev nor bk ChangeSet!
+	REM like touch, create empty file >%OUTPUTSCMREV%
+	GOTO EOF
+
+:HAVECHANGESETREVISION
 	REM ** Now, expand our version number with the CSet revision, if we managed to get one
 	IF NOT "%CSET%"=="" SET VER=%VER%@%CSET%
-		
+
 	REM We can add a "crypto" identifier (-o) if we see that Crypto support is included in our build
 	REM we always include openssl on windows...
 	SET VER=%VER%-o
@@ -276,7 +358,7 @@ REM ****************************************************************************
 	IF exist userset.reg del userset.reg
 	IF exist userset.txt del userset.txt
 	
-	reg export "HKEY_CURRENT_USER\Control Panel\International" userset.reg
+	reg export "HKEY_CURRENT_USER\Control Panel\International" userset.reg >NUL
 	REM was: regedit /E userset.reg "HKEY_CURRENT_USER\Control Panel\International"
 	IF not exist userset.reg goto ERRNOREG
 
@@ -358,10 +440,6 @@ REM ****************************************************************************
 
 :DATEOK
 
-	REM Clean up any temporary files we may have created...
-	REM IF exist userset.reg del userset.reg
-	REM IF exist userset.txt del userset.txt
-
 	IF "%NMM%" == "01" SET MONTH=Jan
 	IF "%NMM%" == "02" SET MONTH=Feb
 	IF "%NMM%" == "03" SET MONTH=Mar
@@ -396,15 +474,14 @@ REM ****************************************************************************
 	IF "%NMM%" == "12" SET MONTH=Dec
 
 :DATE_OK
-	IF "%SS" == "" SET SS="00"
 
 
 REM *****************************************************************************************************************
 REM Now create a valid version.c file ...
 REM *****************************************************************************************************************
 
-	ECHO Version %VER% Build %RUN% date %MONTH%/%DAY%/%YEAR% time %HOUR%:%MIN%:%SEC% %UTC%
-	ECHO char * Version = "%GENERATED_PROGRAM% %VER% %MONTH% %DAY% %HOUR%:%MIN%:%SEC% %UTC% %YEAR% (%RUN%)" ; > version.c
+	ECHO %GENERATED_PROGRAM% version %VER% date %MONTH% %DAY% %YEAR% time %HOUR%:%MIN%:%SEC% %UTC% (%RUN%)
+	ECHO const char *Version = "%GENERATED_PROGRAM% %VER% %MONTH% %DAY% %HOUR%:%MIN%:%SEC% %UTC% %YEAR% (%RUN%)"; > version.c
 	GOTO EOF
 
 
@@ -434,8 +511,11 @@ REM Show'em how to run (me)
 REM *****************************************************************************************************************
 :USAGE
 
-   ECHO Usage: mkver.bat [ -P <Program Name> -H ]
-   ECHO   -P          Database Name
+   ECHO Usage: mkver.bat { -H | [-S <scm-rev>] -P <ProgName> | -G <scm-rev> | -U <scm-rev>}
+   ECHO   -P          Name of program for which to generate version.c
+   ECHO   -S          scm-rev file to use
+   ECHO   -G          scm-rev file to generate from bk
+   ECHO   -U          scm-rev file to update from sntp\scm-rev
    ECHO   -H          Help on options
 
 REM *****************************************************************************************************************

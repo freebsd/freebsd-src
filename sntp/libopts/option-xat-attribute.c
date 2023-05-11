@@ -31,7 +31,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "option-xat-attribute.h"
-/* ANSI-C code produced by gperf version 3.0.4 */
+/* ANSI-C code produced by gperf version 3.1 */
 /* Command-line: gperf option-xat-attribute.gp  */
 /* Computed positions: -k'1' */
 
@@ -64,7 +64,7 @@ typedef struct {
 /* maximum key range = 6, duplicates = 0 */
 
 static unsigned int
-option_xat_attribute_hash (register const char *str, register unsigned int len)
+option_xat_attribute_hash (register const char *str, register size_t len)
 {
   static const unsigned char asso_values[] =
     {
@@ -111,13 +111,13 @@ static const option_xat_attribute_map_t option_xat_attribute_table[] =
   };
 
 static inline const option_xat_attribute_map_t *
-find_option_xat_attribute_name (register const char *str, register unsigned int len)
+find_option_xat_attribute_name (register const char *str, register size_t len)
 {
   if (len <= 8 && len >= 4)
     {
-      register int key = (int)option_xat_attribute_hash (str, len);
+      register unsigned int key = (int)option_xat_attribute_hash (str, len);
 
-      if (key <= 9 && key >= 0)
+      if (key <= 9)
         {
           register const char *s = option_xat_attribute_table[key].xat_name;
 

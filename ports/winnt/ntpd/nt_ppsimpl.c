@@ -108,9 +108,7 @@ myRegReadMultiString(
 	/* take two turns: one to get the size, another one to malloc & read */
 	do {
 		if (rType != REG_NONE) {
-			retv = malloc(rSize += 2);
-			if (NULL == retv)
-				goto fail;
+			retv = emalloc(rSize += 2);
 		}
 		rc = RegQueryValueExA(hKey, szValue, NULL, &rType, retv, &rSize);
 		if (ERROR_SUCCESS != rc || (REG_SZ != rType && REG_MULTI_SZ != rType))
@@ -157,16 +155,16 @@ internal_create_pps_handle(
 {
 	pps_unit_t *	punit = NULL;
 
-	if (NULL == g_curr_provider)
+	if (NULL == g_curr_provider) {
 		fprintf(stderr, "create_pps_handle: provider backend called me outside time_pps_create\n");
-	else
-		punit = calloc(1, sizeof(pps_unit_t));
-	
-	if (NULL != punit) {
-		punit->provider = g_curr_provider;
-		punit->context = prov_context;
-		punit->magic = PPSAPI_MAGIC_UNIT;
+		return (pps_handle_t)NULL;
 	}
+
+	punit = emalloc(sizeof(*punit));
+	punit->provider = g_curr_provider;
+	punit->context = prov_context;
+	punit->magic = PPSAPI_MAGIC_UNIT;
+
 	return (pps_handle_t)punit;
 }
 
@@ -341,19 +339,17 @@ regfail:
 
 	/* get size & allocate buffer */
 	rSize = strlen(cp);
-	s_Value = malloc(rSize + 2);
-	if (s_Value == NULL)
-		goto envfail;
+	s_Value = emalloc(rSize + 2);
 
 	/* copy string value and convert to MULTI_SZ.
-	 * Converts sequences of ';' to a single NUL byte, and rplaces
+	 * Converts sequences of ';' to a single NUL byte, and replaces
 	 * slashes by backslashes on the fly.
 	 */
 	for (op = s_Value; *cp; ++cp) {
 		if (*cp == '/') {
 			*op++ = '\\';
 		} else if (*cp == ';') {
-			if (op != s_Value && op[-1])
+			if (op != s_Value)
 				*op++ = '\0';
 		} else {
 			*op++ = *cp;
@@ -388,7 +384,7 @@ provlist_next_item(
 	const char     *phead, *phold;
 	char	       *retv, *endp;
 	int/*BOOL*/	nodir;
-	DWORD		slen, mlen;
+	size_t		slen, mlen;
 
 	/* get next item -- might be start of a new round or the end */
 again:
@@ -404,7 +400,7 @@ again:
 	/* Inspect the next section of input string. It must be
 	 * either an absolute path or just a name.
 	 */
-	if (isalpha((u_char)phead[0]) && phead[1] == ':' && phead[2] == '\\') {
+	if (isalpha(phead[0]) && phead[1] == ':' && phead[2] == '\\') {
 		nodir = FALSE;
 	} else {
 		nodir = TRUE;
@@ -418,7 +414,7 @@ again:
 			phead = phold;
 		}
 	}
-	if (!*phead || strchr("\\.:", (u_char)phead[strlen(phead) - 1]))
+	if (!*phead || strchr("\\.:", phead[strlen(phead) - 1]))
 		goto again;	/* empty or looks like a directory! */
 
 	/* Make sure we have a proper module path when we need one. */
@@ -429,23 +425,19 @@ again:
 	}
 
 	/* Prepare buffer for copy of file name. */
-	slen = (DWORD)strlen(phead); /* 4GB string should be enough... */
+	slen = strlen(phead);
 	if (nodir && NULL != s_modpath) {
 		/* Prepend full path to executable to the name. */
-		mlen = (DWORD)strlen(s_modpath);
-		endp = retv = malloc(mlen + slen + 1);
-		if (NULL != endp) {
-			memcpy(endp, s_modpath, mlen);
-			endp += mlen;
-		}
+		mlen = strlen(s_modpath);
+		endp = retv = emalloc(mlen + slen + 1);
+		memcpy(endp, s_modpath, mlen);
+		endp += mlen;
 	} else {
-		endp = retv = malloc(slen + 1u);
+		endp = retv = emalloc(slen + 1);
 	}
-	/* Copy with conversion from '/' to '\\' */
-	if (NULL != endp) {
-		memcpy(endp, phead, slen);
-		endp[slen] = '\0';
-	}
+	memcpy(endp, phead, slen);
+	endp[slen] = '\0';
+
 	return retv;
 }
 
@@ -460,19 +452,11 @@ load_pps_provider(
 
 	char			short_name[16];
 	char			full_name[64];
-	ppsapi_provider *	prov = NULL;
-	HMODULE			hmod = NULL;
+	ppsapi_provider *	prov;
+	HMODULE			hmod;
 	pppsapi_prov_init	pprov_init;
-	int			errc;
 
-	prov = calloc(1, sizeof(*prov));
-	if (NULL == prov) {
-		errc = errno;
-		msyslog(LOG_WARNING, msgfmt, dllpath,
-			strerror(errc));
-		return errc;
-	}
-	
+	prov = emalloc(sizeof(*prov));
 	hmod = LoadLibraryA(dllpath);
 	if (NULL == hmod) {
 		msyslog(LOG_WARNING, msgfmt, dllpath,
@@ -498,8 +482,8 @@ load_pps_provider(
 		return cleanup_load(prov, hmod, EACCES);
 	}
 	
-	prov->short_name = (*short_name) ? _strdup(short_name) : NULL;
-	prov->full_name  = (*full_name ) ? _strdup(full_name ) : NULL;
+	prov->short_name = (*short_name) ? estrdup(short_name) : NULL;
+	prov->full_name  = (*full_name ) ? estrdup(full_name ) : NULL;
 	if (NULL == prov->short_name || NULL == prov->full_name) {
 		msyslog(LOG_WARNING, msgfmt, dllpath,
 			"missing names");

@@ -19,7 +19,10 @@
     <Link>
       <TargetMachine>MachineX64</TargetMachine>
       <AdditionalLibraryDirectories>$(OPENSSL64_LIB)</AdditionalLibraryDirectories>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
+    <Lib>
+      <LinkTimeCodeGeneration>true</LinkTimeCodeGeneration>
+    </Lib>
   </ItemDefinitionGroup>
-  <ItemGroup />
 </Project>

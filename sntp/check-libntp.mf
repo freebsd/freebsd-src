@@ -1,14 +1,15 @@
 ## check-libntp.mf - automake fragment
 ##
-## tests/libntp/Makefile.am
-## sntp/tests/Makefile.am
-## The above files have adaptations of this for deeper nesting.
+## ../check-libntp.mf
+## The above file has a version of this for the non-sntp portion
+## of the NTP package.
 
 BUILT_SOURCES	+= check-libntp
 CLEANFILES	+= check-libntp
 
-check-libntp: ../libntp/libntp.a
+check-libntp: $(top_builddir)/../libntp/libntp.a
+	@: avoid default SCCS get by some make implementations
 
-../libntp/libntp.a:
-	cd ../libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
+$(top_builddir)/../libntp/libntp.a:
+	cd $(top_builddir)/../libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
 

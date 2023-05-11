@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="DebugXP|Win32">
@@ -30,106 +30,57 @@
     <ProjectGuid>{400FBFCB-462E-40D0-B06B-3B74E3FFFD00}</ProjectGuid>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+  <PropertyGroup Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
-    <PlatformToolset>v140</PlatformToolset>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
-    <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugXP|Win32'" Label="Configuration">
-    <ConfigurationType>StaticLibrary</ConfigurationType>
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration">
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='DebugXP'" Label="Configuration">
     <PlatformToolset>v140_xp</PlatformToolset>
-    <UseOfMfc>false</UseOfMfc>
-    <CharacterSet>MultiByte</CharacterSet>
-    <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
-    <ConfigurationType>StaticLibrary</ConfigurationType>
+  <PropertyGroup Condition="'$(Configuration)'=='Release'" Label="Configuration">
     <PlatformToolset>v140</PlatformToolset>
-    <UseOfMfc>false</UseOfMfc>
-    <CharacterSet>MultiByte</CharacterSet>
-    <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'" Label="Configuration">
-    <ConfigurationType>StaticLibrary</ConfigurationType>
+  <PropertyGroup Condition="'$(Configuration)'=='ReleaseXP'" Label="Configuration">
     <PlatformToolset>v140_xp</PlatformToolset>
-    <UseOfMfc>false</UseOfMfc>
-    <CharacterSet>MultiByte</CharacterSet>
-    <WholeProgramOptimization>true</WholeProgramOptimization>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-    <ConfigurationType>StaticLibrary</ConfigurationType>
-    <PlatformToolset>v140</PlatformToolset>
-    <UseOfMfc>false</UseOfMfc>
-    <CharacterSet>MultiByte</CharacterSet>
-    <WholeProgramOptimization>true</WholeProgramOptimization>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
-    <ConfigurationType>StaticLibrary</ConfigurationType>
-    <PlatformToolset>v140</PlatformToolset>
-    <UseOfMfc>false</UseOfMfc>
-    <CharacterSet>MultiByte</CharacterSet>
-    <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-  <ImportGroup Label="ExtensionSettings">
-  </ImportGroup>
+  <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\debug.props" />
     <Import Project="..\common.props" />
+    <Import Project="..\debug.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='DebugXP|Win32'" Label="PropertySheets">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\debug.props" />
     <Import Project="..\common.props" />
+    <Import Project="..\debug.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\release.props" />
     <Import Project="..\common.props" />
+    <Import Project="..\release.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'" Label="PropertySheets">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\release.props" />
     <Import Project="..\common.props" />
+    <Import Project="..\release.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\debug-x64.props" />
     <Import Project="..\common.props" />
+    <Import Project="..\debug-x64.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\release-x64.props" />
     <Import Project="..\common.props" />
+    <Import Project="..\release-x64.props" />
   </ImportGroup>
-  <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
     <_ProjectFileVersion>12.0.30501.0</_ProjectFileVersion>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+  <PropertyGroup>
     <OutDir>$(TmpBaseDir)\</OutDir>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">
-    <OutDir>$(TmpBaseDir)\</OutDir>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>$(TmpBaseDir)\</OutDir>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <OutDir>$(TmpBaseDir)\</OutDir>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugXP|Win32'">
-    <OutDir>$(TmpBaseDir)\</OutDir>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>$(TmpBaseDir)\</OutDir>
-  </PropertyGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+  <ItemDefinitionGroup>
     <ResourceCompile>
-      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <Culture>0x0409</Culture>
     </ResourceCompile>
     <Lib>
@@ -140,76 +91,30 @@
       <OutputFile>$(IntDir)$(ProjectName).bsc</OutputFile>
     </Bscmake>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">
-    <ResourceCompile>
-      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <Culture>0x0409</Culture>
-    </ResourceCompile>
-    <Lib>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-    </Lib>
-    <Bscmake>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-      <OutputFile>$(IntDir)$(ProjectName).bsc</OutputFile>
-    </Bscmake>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+  <ItemDefinitionGroup Condition="'$(Platform)'=='x64'">
     <Midl>
       <TargetEnvironment>X64</TargetEnvironment>
     </Midl>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <Culture>0x0409</Culture>
     </ResourceCompile>
-    <Lib>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-    </Lib>
-    <Bscmake>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-      <OutputFile>$(IntDir)$(ProjectName).bsc</OutputFile>
-    </Bscmake>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='ReleaseXP'">
+    <ResourceCompile>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
     <ResourceCompile>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <Culture>0x0409</Culture>
     </ResourceCompile>
-    <Lib>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-    </Lib>
-    <Bscmake>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-      <OutputFile>$(IntDir)$(ProjectName).bsc</OutputFile>
-    </Bscmake>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugXP|Win32'">
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='DebugXP'">
     <ResourceCompile>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <Culture>0x0409</Culture>
     </ResourceCompile>
-    <Lib>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-    </Lib>
-    <Bscmake>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-      <OutputFile>$(IntDir)$(ProjectName).bsc</OutputFile>
-    </Bscmake>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <Midl>
-      <TargetEnvironment>X64</TargetEnvironment>
-    </Midl>
-    <ResourceCompile>
-      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <Culture>0x0409</Culture>
-    </ResourceCompile>
-    <Lib>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-    </Lib>
-    <Bscmake>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-      <OutputFile>$(IntDir)$(ProjectName).bsc</OutputFile>
-    </Bscmake>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\..\libntp\adjtime.c" />
@@ -254,6 +159,7 @@
     <ClCompile Include="..\..\..\..\libntp\ntp_libopts.c" />
     <ClCompile Include="..\..\..\..\libntp\ntp_lineedit.c" />
     <ClCompile Include="..\..\..\..\libntp\ntp_random.c" />
+    <ClCompile Include="..\..\..\..\libntp\ntp_realpath.c" />
     <ClCompile Include="..\..\..\..\libntp\ntp_rfc2553.c" />
     <ClCompile Include="..\..\..\..\libntp\ntp_worker.c" />
     <ClCompile Include="..\..\..\..\libntp\numtoa.c" />
@@ -281,35 +187,34 @@
     <ClCompile Include="..\..\..\..\libntp\work_thread.c" />
     <ClCompile Include="..\..\..\..\libntp\xsbprintf.c" />
     <ClCompile Include="..\..\..\..\libntp\ymd2yd.c" />
-    <ClCompile Include="..\..\..\..\lib\isc\assertions.c" />
-    <ClCompile Include="..\..\..\..\lib\isc\backtrace-emptytbl.c" />
-    <ClCompile Include="..\..\..\..\lib\isc\backtrace.c" />
-    <ClCompile Include="..\..\..\..\lib\isc\buffer.c" />
-    <ClCompile Include="..\..\..\..\lib\isc\error.c" />
-    <ClCompile Include="..\..\..\..\lib\isc\event.c" />
-    <ClCompile Include="..\..\..\..\lib\isc\inet_aton.c" />
-    <ClCompile Include="..\..\..\..\lib\isc\inet_ntop.c" />
-    <ClCompile Include="..\..\..\..\lib\isc\inet_pton.c" />
-    <ClCompile Include="..\..\..\..\lib\isc\lib.c" />
-    <ClCompile Include="..\..\..\..\lib\isc\log.c" />
-    <ClCompile Include="..\..\..\..\lib\isc\md5.c" />
-    <ClCompile Include="..\..\..\..\lib\isc\netaddr.c" />
-    <ClCompile Include="..\..\..\..\lib\isc\netscope.c" />
-    <ClCompile Include="..\..\..\..\lib\isc\nls\msgcat.c" />
-    <ClCompile Include="..\..\..\..\lib\isc\ondestroy.c" />
-    <ClCompile Include="..\..\..\..\lib\isc\sha1.c" />
-    <ClCompile Include="..\..\..\..\lib\isc\sockaddr.c" />
-    <ClCompile Include="..\..\..\..\lib\isc\task.c" />
-    <ClCompile Include="..\..\..\..\lib\isc\tsmemcmp.c" />
-    <ClCompile Include="..\..\..\..\lib\isc\win32\condition.c" />
-    <ClCompile Include="..\..\..\..\lib\isc\win32\interfaceiter.c" />
-    <ClCompile Include="..\..\..\..\lib\isc\win32\net.c" />
-    <ClCompile Include="..\..\..\..\lib\isc\win32\once.c" />
-    <ClCompile Include="..\..\..\..\lib\isc\win32\stdtime.c" />
-    <ClCompile Include="..\..\..\..\lib\isc\win32\strerror.c" />
-    <ClCompile Include="..\..\..\..\lib\isc\win32\thread.c" />
-    <ClCompile Include="..\..\..\..\lib\isc\win32\time.c" />
-    <ClCompile Include="..\..\..\..\lib\isc\win32\win32os.c" />
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\assertions.c" />
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\backtrace-emptytbl.c" />
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\backtrace.c" />
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\buffer.c" />
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\error.c" />
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\event.c" />
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\inet_ntop.c" />
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\inet_pton.c" />
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\lib.c" />
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\log.c" />
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\md5.c" />
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\netaddr.c" />
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\netscope.c" />
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\nls\msgcat.c" />
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\ondestroy.c" />
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\sha1.c" />
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\sockaddr.c" />
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\task.c" />
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\tsmemcmp.c" />
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\win32\condition.c" />
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\win32\interfaceiter.c" />
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\win32\net.c" />
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\win32\once.c" />
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\win32\stdtime.c" />
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\win32\strerror.c" />
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\win32\thread.c" />
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\win32\time.c" />
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\win32\win32os.c" />
     <ClCompile Include="..\..\..\..\sntp\libopts\libopts.c" />
     <ClCompile Include="..\..\libntp\arc4wrap.c" />
     <ClCompile Include="..\..\libntp\getclock.c" />
@@ -366,27 +271,27 @@
     <ClInclude Include="..\..\..\..\include\timetoa.h" />
     <ClInclude Include="..\..\..\..\include\timevalops.h" />
     <ClInclude Include="..\..\..\..\include\vint64ops.h" />
-    <ClInclude Include="..\..\..\..\lib\isc\include\isc\buffer.h" />
-    <ClInclude Include="..\..\..\..\lib\isc\include\isc\event.h" />
-    <ClInclude Include="..\..\..\..\lib\isc\include\isc\hash.h" />
-    <ClInclude Include="..\..\..\..\lib\isc\include\isc\interfaceiter.h" />
-    <ClInclude Include="..\..\..\..\lib\isc\include\isc\log.h" />
-    <ClInclude Include="..\..\..\..\lib\isc\include\isc\md5.h" />
-    <ClInclude Include="..\..\..\..\lib\isc\include\isc\netaddr.h" />
-    <ClInclude Include="..\..\..\..\lib\isc\include\isc\netscope.h" />
-    <ClInclude Include="..\..\..\..\lib\isc\include\isc\ondestroy.h" />
-    <ClInclude Include="..\..\..\..\lib\isc\include\isc\socket.h" />
-    <ClInclude Include="..\..\..\..\lib\isc\include\isc\task.h" />
-    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\condition.h" />
-    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\ipv6.h" />
-    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\mutex.h" />
-    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\net.h" />
-    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\platform.h" />
-    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\stat.h" />
-    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\stdtime.h" />
-    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\thread.h" />
-    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\time.h" />
-    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\win32os.h" />
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\include\isc\buffer.h" />
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\include\isc\event.h" />
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\include\isc\hash.h" />
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\include\isc\interfaceiter.h" />
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\include\isc\log.h" />
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\include\isc\md5.h" />
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\include\isc\netaddr.h" />
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\include\isc\netscope.h" />
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\include\isc\ondestroy.h" />
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\include\isc\socket.h" />
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\include\isc\task.h" />
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\win32\include\isc\condition.h" />
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\win32\include\isc\ipv6.h" />
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\win32\include\isc\mutex.h" />
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\win32\include\isc\net.h" />
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\win32\include\isc\platform.h" />
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\win32\include\isc\stat.h" />
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\win32\include\isc\stdtime.h" />
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\win32\include\isc\thread.h" />
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\win32\include\isc\time.h" />
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\win32\include\isc\win32os.h" />
     <ClInclude Include="..\..\..\..\sntp\libopts\ag-char-map.h" />
     <ClInclude Include="..\..\include\arpa\inet.h" />
     <ClInclude Include="..\..\include\clockstuff.h" />
@@ -407,30 +312,9 @@
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\..\libntp\messages.mc">
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Message Compiler</Message>
-      <Message Condition="'$(Configuration)|$(Platform)'=='DebugXP|Win32'">Message Compiler</Message>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">mc -h %(RootDir)%(Directory) -r %(RootDir)%(Directory) -e h %(FullPath)
-</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='DebugXP|Win32'">mc -h %(RootDir)%(Directory) -r %(RootDir)%(Directory) -e h %(FullPath)
-</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">%(RootDir)%(Directory)%(Filename).rc;%(RootDir)%(Directory)%(Filename).h;%(RootDir)%(Directory)msg00001.bin;%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='DebugXP|Win32'">%(RootDir)%(Directory)%(Filename).rc;%(RootDir)%(Directory)%(Filename).h;%(RootDir)%(Directory)msg00001.bin;%(Outputs)</Outputs>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Message Compiler</Message>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">mc -h %(RootDir)%(Directory) -r %(RootDir)%(Directory) -e h %(FullPath)
-</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(RootDir)%(Directory)%(Filename).rc;%(RootDir)%(Directory)%(Filename).h;%(RootDir)%(Directory)msg00001.bin;%(Outputs)</Outputs>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Message Compiler</Message>
-      <Message Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">Message Compiler</Message>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">mc -h %(RootDir)%(Directory) -r %(RootDir)%(Directory) -e h %(FullPath)
-</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">mc -h %(RootDir)%(Directory) -r %(RootDir)%(Directory) -e h %(FullPath)
-</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">%(RootDir)%(Directory)%(Filename).rc;%(RootDir)%(Directory)%(Filename).h;%(RootDir)%(Directory)msg00001.bin;%(Outputs)</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='ReleaseXP|Win32'">%(RootDir)%(Directory)%(Filename).rc;%(RootDir)%(Directory)%(Filename).h;%(RootDir)%(Directory)msg00001.bin;%(Outputs)</Outputs>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Message Compiler</Message>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">mc -h %(RootDir)%(Directory) -r %(RootDir)%(Directory) -e h %(FullPath)
-</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(RootDir)%(Directory)%(Filename).rc;%(RootDir)%(Directory)%(Filename).h;%(RootDir)%(Directory)msg00001.bin;%(Outputs)</Outputs>
+      <Message>Message Compiler</Message>
+      <Command>mc -h %(RootDir)%(Directory) -r %(RootDir)%(Directory) -e h %(FullPath)</Command>
+      <Outputs>%(RootDir)%(Directory)%(Filename).rc;%(RootDir)%(Directory)%(Filename).h;%(RootDir)%(Directory)msg00001.bin;%(Outputs)</Outputs>
     </CustomBuild>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

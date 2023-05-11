@@ -121,7 +121,7 @@
 #define	MD5SIZE		20	/* maximum key size */
 #ifdef AUTOKEY
 #define	PLEN		512	/* default prime modulus size (bits) */
-#define	ILEN		256	/* default identity modulus size (bits) */
+#define	ILEN		512	/* default identity modulus size (bits) */
 #define	MVMAX		100	/* max MV parameters */
 
 /*
@@ -266,7 +266,7 @@ InitWin32Sockets() {
 /*
  * followlink() - replace filename with its target if symlink.
  *
- * Some readlink() implementations do not null-terminate the result.
+ * readlink() does not null-terminate the result.
  */
 void
 followlink(
@@ -274,18 +274,22 @@ followlink(
 	size_t	bufsiz
 	)
 {
-	int len;
+	ssize_t	len;
+	char *	target;
 
-	REQUIRE(bufsiz > 0);
+	REQUIRE(bufsiz > 0 && bufsiz <= SSIZE_MAX);
 
-	len = readlink(fname, fname, (int)bufsiz);
-	if (len < 0 ) {
+	target = emalloc(bufsiz);
+	len = readlink(fname, target, bufsiz);
+	if (len < 0) {
 		fname[0] = '\0';
 		return;
 	}
-	if (len > (int)bufsiz - 1)
-		len = (int)bufsiz - 1;
+	if ((size_t)len > bufsiz - 1)
+		len = bufsiz - 1;
+	memcpy(fname, target, len);
 	fname[len] = '\0';
+	free(target);
 }
 
 

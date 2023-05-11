@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="Source Files">
@@ -15,6 +15,12 @@
     <Filter Include="Resource Files">
       <UniqueIdentifier>{723fb507-c0d4-4c49-bb1e-644e479d13d2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="libisc Header Files">
+      <UniqueIdentifier>{d1cd5a9b-c4c7-463b-a1c6-77f120b1b0b1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="libisc Source Files">
+      <UniqueIdentifier>{ed829a7e-4c71-4567-9c82-5f4caee37f03}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\..\libntp\a_md5encrypt.c">
@@ -24,9 +30,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\libntp\arc4wrap.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\isc\assertions.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\libntp\atoint.c">
@@ -50,15 +53,6 @@
     <ClCompile Include="..\..\..\..\libntp\authusekey.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\isc\backtrace-emptytbl.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\isc\backtrace.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\isc\buffer.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\..\libntp\buftvtots.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -77,9 +71,6 @@
     <ClCompile Include="..\..\..\..\libntp\clocktypes.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\isc\win32\condition.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\..\libntp\decodenetnum.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -90,12 +81,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\libntp\emalloc.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\isc\error.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\isc\event.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\libntp\findconfig.c">
@@ -119,22 +104,7 @@
     <ClCompile Include="..\..\..\..\libntp\icom.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\isc\inet_aton.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\isc\inet_ntop.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\isc\inet_pton.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\isc\win32\interfaceiter.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\..\libntp\iosignal.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\isc\lib.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\libntp\lib_strbuf.c">
@@ -143,13 +113,7 @@
     <ClCompile Include="..\..\..\..\sntp\libopts\libopts.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\isc\log.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\..\libntp\machines.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\isc\md5.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\libntp\mktime.c">
@@ -158,25 +122,13 @@
     <ClCompile Include="..\..\..\..\libntp\modetoa.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\isc\nls\msgcat.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\..\libntp\mstolfp.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\libntp\msyslog.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\isc\win32\net.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\isc\netaddr.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\..\libntp\netof.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\isc\netscope.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\libntp\ntp_calendar.c">
@@ -215,12 +167,6 @@
     <ClCompile Include="..\..\..\..\libntp\octtoint.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\isc\win32\once.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\isc\ondestroy.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\..\libntp\prettydate.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -239,13 +185,7 @@
     <ClCompile Include="..\..\libntp\SetSystemTime.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\isc\sha1.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\..\libntp\snprintf.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\isc\sockaddr.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\libntp\socket.c">
@@ -263,13 +203,7 @@
     <ClCompile Include="..\..\..\..\libntp\statestr.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\isc\win32\stdtime.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\..\libntp\strdup.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\isc\win32\strerror.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\libntp\strl_obsd.c">
@@ -284,16 +218,7 @@
     <ClCompile Include="..\..\..\..\libntp\systime.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\isc\task.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\libntp\termios.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\isc\win32\thread.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\isc\win32\time.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\libntp\timetoa.c">
@@ -317,9 +242,6 @@
     <ClCompile Include="..\..\libntp\win32_io.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\isc\win32\win32os.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\..\libntp\work_fork.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -335,11 +257,95 @@
     <ClCompile Include="..\..\..\..\libntp\is_ip_address.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\lib\isc\tsmemcmp.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\..\libntp\libssl_compat.c">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\ntp_realpath.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\assertions.c">
+      <Filter>libisc Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\backtrace.c">
+      <Filter>libisc Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\backtrace-emptytbl.c">
+      <Filter>libisc Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\buffer.c">
+      <Filter>libisc Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\win32\condition.c">
+      <Filter>libisc Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\error.c">
+      <Filter>libisc Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\event.c">
+      <Filter>libisc Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\inet_ntop.c">
+      <Filter>libisc Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\inet_pton.c">
+      <Filter>libisc Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\win32\interfaceiter.c">
+      <Filter>libisc Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\lib.c">
+      <Filter>libisc Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\log.c">
+      <Filter>libisc Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\md5.c">
+      <Filter>libisc Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\nls\msgcat.c">
+      <Filter>libisc Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\win32\net.c">
+      <Filter>libisc Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\netaddr.c">
+      <Filter>libisc Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\netscope.c">
+      <Filter>libisc Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\win32\once.c">
+      <Filter>libisc Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\ondestroy.c">
+      <Filter>libisc Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\sha1.c">
+      <Filter>libisc Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\sockaddr.c">
+      <Filter>libisc Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\win32\stdtime.c">
+      <Filter>libisc Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\win32\strerror.c">
+      <Filter>libisc Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\task.c">
+      <Filter>libisc Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\win32\thread.c">
+      <Filter>libisc Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\win32\time.c">
+      <Filter>libisc Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\tsmemcmp.c">
+      <Filter>libisc Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\libntp\lib\isc\win32\win32os.c">
+      <Filter>libisc Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -349,13 +355,7 @@
     <ClInclude Include="..\..\..\..\include\binio.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\isc\include\isc\buffer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\include\clockstuff.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\condition.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\config.h">
@@ -364,22 +364,13 @@
     <ClInclude Include="..\..\..\..\include\declcond.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\isc\include\isc\event.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\include\gaa_compat.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\isc\include\isc\hash.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\include\ieee754io.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\arpa\inet.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\isc\include\isc\interfaceiter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\include\intreswork.h">
@@ -391,26 +382,14 @@
     <ClInclude Include="..\..\..\..\include\iosignal.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\ipv6.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\..\include\l_stdlib.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\include\lib_strbuf.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\isc\include\isc\log.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\..\include\isc\mem.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\mutex.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\net.h">
-      <Filter>Header Files</Filter>
+      <Filter>libisc Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\netdb.h">
       <Filter>Header Files</Filter>
@@ -505,12 +484,6 @@
     <ClInclude Include="..\..\..\..\include\ntpd.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\isc\include\isc\ondestroy.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\platform.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\..\include\recvbuff.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -520,25 +493,10 @@
     <ClInclude Include="..\..\include\sys\signal.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\stat.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\stdtime.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\include\syslog.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\isc\include\isc\task.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\include\termios.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\thread.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\time.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\sys\time.h">
@@ -562,21 +520,6 @@
     <ClInclude Include="..\..\libntp\messages.h">
       <Filter>Generated Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\isc\include\isc\md5.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\isc\include\isc\netaddr.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\isc\include\isc\netscope.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\isc\include\isc\socket.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\..\lib\isc\win32\include\isc\win32os.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\..\include\safecast.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -588,6 +531,69 @@
     </ClInclude>
     <ClInclude Include="..\..\include\msvc_ssl_autolib.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\include\isc\buffer.h">
+      <Filter>libisc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\win32\include\isc\condition.h">
+      <Filter>libisc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\include\isc\event.h">
+      <Filter>libisc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\include\isc\hash.h">
+      <Filter>libisc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\include\isc\interfaceiter.h">
+      <Filter>libisc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\win32\include\isc\ipv6.h">
+      <Filter>libisc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\include\isc\log.h">
+      <Filter>libisc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\include\isc\md5.h">
+      <Filter>libisc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\win32\include\isc\mutex.h">
+      <Filter>libisc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\win32\include\isc\net.h">
+      <Filter>libisc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\include\isc\netaddr.h">
+      <Filter>libisc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\include\isc\netscope.h">
+      <Filter>libisc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\include\isc\ondestroy.h">
+      <Filter>libisc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\win32\include\isc\platform.h">
+      <Filter>libisc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\include\isc\socket.h">
+      <Filter>libisc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\win32\include\isc\stat.h">
+      <Filter>libisc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\win32\include\isc\stdtime.h">
+      <Filter>libisc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\include\isc\task.h">
+      <Filter>libisc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\win32\include\isc\thread.h">
+      <Filter>libisc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\win32\include\isc\time.h">
+      <Filter>libisc Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\libntp\lib\isc\win32\include\isc\win32os.h">
+      <Filter>libisc Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

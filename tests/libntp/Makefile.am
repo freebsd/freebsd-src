@@ -1,6 +1,7 @@
 NULL =
 BUILT_SOURCES =
 CLEANFILES =
+DISTCLEANFILES =
 
 std_unity_list =	 						\
 	$(abs_top_srcdir)/sntp/unity/auto/generate_test_runner.rb	\
@@ -37,6 +38,7 @@ check_PROGRAMS =		\
 	test-numtohost		\
 	test-octtoint		\
 	test-prettydate		\
+	test-realpath		\
 	test-recvbuff		\
 	test-refidsmear		\
 	test-refnumtoa		\
@@ -102,6 +104,7 @@ BUILT_SOURCES +=			\
 	$(srcdir)/run-numtohost.c	\
 	$(srcdir)/run-octtoint.c	\
 	$(srcdir)/run-prettydate.c	\
+	$(srcdir)/run-realpath.c	\
 	$(srcdir)/run-recvbuff.c	\
 	$(srcdir)/run-refidsmear.c	\
 	$(srcdir)/run-refnumtoa.c	\
@@ -382,6 +385,16 @@ $(srcdir)/run-prettydate.c: $(srcdir)/prettydate.c $(std_unity_list)
 
 ###
 
+test_realpath_SOURCES =		\
+	realpath.c		\
+	run-realpath.c		\
+	$(NULL)
+
+$(srcdir)/run-realpath.c: $(srcdir)/realpath.c $(std_unity_list)
+	$(run_unity) $< $@
+
+###
+
 test_recvbuff_SOURCES =		\
 	recvbuff.c		\
 	run-recvbuff.c		\
@@ -566,23 +579,7 @@ if !NTP_CROSSCOMPILE
 TESTS += $(check_PROGRAMS)
 endif
 
-## check-libntp.mf - automake fragment
-## slightly adapted for deeper directory
-
-BUILT_SOURCES	+= check-libntp check-libunity
-CLEANFILES	+= check-libntp check-libunity
-
-check-libntp: ../../libntp/libntp.a
-	@echo stamp > $@
-
-../../libntp/libntp.a:
-	cd ../../libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
-
-check-libunity: ../../sntp/unity/libunity.a
-	@echo stamp > $@
-
-../../sntp/unity/libunity.a:
-	cd ../../sntp/unity && $(MAKE) $(AM_MAKEFLAGS) libunity.a
-
+include $(top_srcdir)/check-libntp.mf
+include $(top_srcdir)/check-libunity.mf
 include $(top_srcdir)/depsver.mf
 include $(top_srcdir)/includes.mf

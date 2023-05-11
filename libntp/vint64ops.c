@@ -17,32 +17,13 @@
 #include "ntp_fp.h"
 #include "vint64ops.h"
 
-/* ---------------------------------------------------------------------
- * GCC is rather sticky with its 'const' attribute. We have to do it more
- * explicit than with a cast if we want to get rid of a CONST qualifier.
- * Greetings from the PASCAL world, where casting was only possible via
- * untagged unions...
- */
-static inline void*
-noconst(
-	const void* ptr
-	)
-{
-	union {
-		const void * cp;
-		void *       vp;
-	} tmp;
-	tmp.cp = ptr;
-	return tmp.vp;
-}
-
 /* -------------------------------------------------------------------------*/
 
 vint64
 strtouv64(
-	const char * begp,
-	char **      endp,
-	int          base
+	char const *		begp,
+	char const ** const	endp,
+	int			base
 	)
 {
 	vint64  res;
@@ -116,7 +97,7 @@ strtouv64(
 	if (!num)
 		errno = EINVAL;
 	if (endp)
-		*endp = (char*)noconst(src);
+		*endp = (const char *)src;
 	if (sig)
 		M_NEG(res.D_s.hi, res.D_s.lo);
 	return res;

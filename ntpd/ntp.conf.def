@@ -1528,17 +1528,27 @@ client abuse.
 The
 .Cm average
 subcommand specifies the minimum average packet
-spacing, while the
+spacing in log2 seconds, defaulting to 3 (8s), while the
 .Cm minimum
-subcommand specifies the minimum packet spacing.
+subcommand specifies the minimum packet spacing
+in seconds, defaulting to 2.
 Packets that violate these minima are discarded
 and a kiss-o'-death packet returned if enabled.
-The default
-minimum average and minimum are 5 and 2, respectively.
 The
 .Ic monitor
-subcommand specifies the probability of discard
-for packets that overflow the rate-control window.
+subcommand indirectly specifies the probability of
+replacing the oldest entry from the monitor (MRU)
+list of recent requests used to enforce rate controls,
+when that list is at its maximum size. The probability
+of replacing the oldest entry is the age of that entry
+in seconds divided by the
+.Ic monitor
+value, default 3000. For example, if the oldest entry
+in the MRU list represents a request 300 seconds ago,
+by default the probability of replacing it with an
+entry representing the client request being processed
+now is 10%. Conversely, if the oldest entry is more
+than 3000 seconds old, the probability is 100%.
 .It Xo Ic restrict address
 .Op Cm mask Ar mask
 .Op Cm ippeerlimit Ar int
@@ -2935,12 +2945,12 @@ The number can contain other modem control codes as well.
 .It Xo Cm pollskewlist
 .Oo
 .Ar poll
-.Ar value | value
+.Ar early late
 .Oc
 .Ar ...
 .Oo
 .Cm default
-.Ar value | value
+.Ar early late
 .Oc
 .Xc
 Enable skewing of our poll requests to our servers.
@@ -2953,9 +2963,11 @@ a poll interval of 17 corresponds to
 131,072 seconds, or about a day and a half.
 The next two numbers must be between 0 and one-half of the poll interval,
 inclusive.
-The first number specifies how early the poll may start,
+Ar early
+specifies how early the poll may start,
 while
-the second number specifies how late the poll may be delayed.
+Ar late
+specifies how late the poll may be delayed.
 With no arguments, internally specified default values are chosen.
 .It Xo Ic reset
 .Oo

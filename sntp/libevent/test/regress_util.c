@@ -23,6 +23,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+/** For event_debug() usage/coverage */
+#define EVENT_VISIBILITY_WANT_DLLIMPORT
+
 #include "../util-internal.h"
 
 #ifdef _WIN32
@@ -206,6 +210,65 @@ regress_ipv6_parse(void *ptr)
 	TT_BLATHER(("Skipping IPv6 address parsing."));
 #endif
 }
+
+static struct ipv6_entry_scope {
+	const char *addr;
+	ev_uint32_t res[4];
+	unsigned scope;
+	enum entry_status status;
+} ipv6_entries_scope[] = {
+	{ "2001:DB8::", { 0x20010db8, 0, 0 }, 0, NORMAL },
+	{ "2001:DB8::%0", { 0x20010db8, 0, 0, 0 }, 0, NORMAL },
+	{ "2001:DB8::%1", { 0x20010db8, 0, 0, 0 }, 1, NORMAL },
+	{ "foobar.", { 0, 0, 0, 0 }, 0, BAD },
+	{ "2001:DB8::%does-not-exist", { 0, 0, 0, 0 }, 0, BAD },
+	{ NULL, { 0, 0, 0, 0,  }, 0, BAD },
+};
+static void
+regress_ipv6_parse_scope(void *ptr)
+{
+#ifdef AF_INET6
+	int i, j;
+	unsigned if_scope;
+
+	for (i = 0; ipv6_entries_scope[i].addr; ++i) {
+		struct ipv6_entry_scope *ent = &ipv6_entries_scope[i];
+		struct in6_addr in6;
+		int r;
+		r = evutil_inet_pton_scope(AF_INET6, ent->addr, &in6,
+			&if_scope);
+		if (r == 0) {
+			if (ent->status != BAD)
+				TT_FAIL(("%s did not parse, but it's a good address!",
+					ent->addr));
+			continue;
+		}
+		if (ent->status == BAD) {
+			TT_FAIL(("%s parsed, but we expected an error", ent->addr));
+			continue;
+		}
+		for (j = 0; j < 4; ++j) {
+			/* Can't use s6_addr32 here; some don't have it. */
+			ev_uint32_t u =
+			    ((ev_uint32_t)in6.s6_addr[j*4  ] << 24) |
+			    ((ev_uint32_t)in6.s6_addr[j*4+1] << 16) |
+			    ((ev_uint32_t)in6.s6_addr[j*4+2] << 8) |
+			    ((ev_uint32_t)in6.s6_addr[j*4+3]);
+			if (u != ent->res[j]) {
+				TT_FAIL(("%s did not parse as expected.", ent->addr));
+				continue;
+			}
+		}
+		if (if_scope != ent->scope) {
+			TT_FAIL(("%s did not parse as expected.", ent->addr));
+			continue;
+		}
+	}
+#else
+	TT_BLATHER(("Skipping IPv6 address parsing."));
+#endif
+}
+
 
 static struct sa_port_ent {
 	const char *parse;
@@ -922,6 +985,16 @@ end:
 }
 
 static void
+test_EVUTIL_IS_(void *arg)
+{
+	tt_int_op(EVUTIL_ISDIGIT_('0'), ==, 1);
+	tt_int_op(EVUTIL_ISDIGIT_('a'), ==, 0);
+	tt_int_op(EVUTIL_ISDIGIT_('\xff'), ==, 0);
+end:
+	;
+}
+
+static void
 test_evutil_getaddrinfo(void *arg)
 {
 	struct evutil_addrinfo *ai = NULL, *a;
@@ -1111,6 +1184,41 @@ test_evutil_getaddrinfo_live(void *arg)
 		TT_BLATHER(("ipv6.google.com resolved to %s",
 			cp?cp:"<unwriteable>"));
 	}
+
+end:
+	if (ai)
+		evutil_freeaddrinfo(ai);
+}
+
+static void
+test_evutil_getaddrinfo_AI_ADDRCONFIG(void *arg)
+{
+	struct evutil_addrinfo *ai = NULL;
+	struct evutil_addrinfo hints;
+	int r;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = EVUTIL_AI_PASSIVE|EVUTIL_AI_ADDRCONFIG;
+
+	/* IPv4 */
+	r = evutil_getaddrinfo("127.0.0.1", "80", &hints, &ai);
+	tt_int_op(r, ==, 0);
+	tt_assert(ai);
+	tt_ptr_op(ai->ai_next, ==, NULL);
+	test_ai_eq(ai, "127.0.0.1:80", SOCK_STREAM, IPPROTO_TCP);
+	evutil_freeaddrinfo(ai);
+	ai = NULL;
+
+	/* IPv6 */
+	r = evutil_getaddrinfo("::1", "80", &hints, &ai);
+	tt_int_op(r, ==, 0);
+	tt_assert(ai);
+	tt_ptr_op(ai->ai_next, ==, NULL);
+	test_ai_eq(ai, "[::1]:80", SOCK_STREAM, IPPROTO_TCP);
+	evutil_freeaddrinfo(ai);
+	ai = NULL;
 
 end:
 	if (ai)
@@ -1378,9 +1486,164 @@ end:
 	;
 }
 
+static void
+create_tm_from_unix_epoch(struct tm *cur_p, const time_t t)
+{
+#ifdef _WIN32
+	struct tm *tmp = gmtime(&t);
+	if (!tmp) {
+		fprintf(stderr, "gmtime: %s (%i)", strerror(errno), (int)t);
+		exit(1);
+	}
+	*cur_p = *tmp;
+#else
+	gmtime_r(&t, cur_p);
+#endif
+}
+
+static struct date_rfc1123_case {
+	time_t t;
+	char date[30];
+} date_rfc1123_cases[] = {
+	{           0, "Thu, 01 Jan 1970 00:00:00 GMT"} /* UNIX time of zero */,
+	{   946684799, "Fri, 31 Dec 1999 23:59:59 GMT"} /* the last moment of the 20th century */,
+	{   946684800, "Sat, 01 Jan 2000 00:00:00 GMT"} /* the first moment of the 21st century */,
+	{   981072000, "Fri, 02 Feb 2001 00:00:00 GMT"},
+	{  1015113600, "Sun, 03 Mar 2002 00:00:00 GMT"},
+	{  1049414400, "Fri, 04 Apr 2003 00:00:00 GMT"},
+	{  1083715200, "Wed, 05 May 2004 00:00:00 GMT"},
+	{  1118016000, "Mon, 06 Jun 2005 00:00:00 GMT"},
+	{  1152230400, "Fri, 07 Jul 2006 00:00:00 GMT"},
+	{  1186531200, "Wed, 08 Aug 2007 00:00:00 GMT"},
+	{  1220918400, "Tue, 09 Sep 2008 00:00:00 GMT"},
+	{  1255132800, "Sat, 10 Oct 2009 00:00:00 GMT"},
+	{  1289433600, "Thu, 11 Nov 2010 00:00:00 GMT"},
+	{  1323648000, "Mon, 12 Dec 2011 00:00:00 GMT"},
+#ifndef _WIN32
+#if EVENT__SIZEOF_TIME_T > 4
+	/** In win32 case we have max   "23:59:59 January 18, 2038, UTC" for time32 */
+	{  4294967296, "Sun, 07 Feb 2106 06:28:16 GMT"} /* 2^32 */,
+	/** In win32 case we have max "23:59:59, December 31, 3000, UTC" for time64 */
+	{253402300799, "Fri, 31 Dec 9999 23:59:59 GMT"} /* long long future no one can imagine */,
+#endif /* time_t != 32bit */
+	{  1456704000, "Mon, 29 Feb 2016 00:00:00 GMT"} /* leap year */,
+#endif
+	{  1435708800, "Wed, 01 Jul 2015 00:00:00 GMT"} /* leap second */,
+	{  1481866376, "Fri, 16 Dec 2016 05:32:56 GMT"} /* the time this test case is generated */,
+	{0, ""} /* end of test cases. */
+};
+
+static void
+test_evutil_date_rfc1123(void *arg)
+{
+	struct tm query;
+	char result[30];
+	size_t i = 0;
+
+	/* Checks if too small buffers are safely accepted. */
+	{
+		create_tm_from_unix_epoch(&query, 0);
+		evutil_date_rfc1123(result, 8, &query);
+		tt_str_op(result, ==, "Thu, 01");
+	}
+
+	/* Checks for testcases. */
+	for (i = 0; ; i++) {
+		struct date_rfc1123_case c = date_rfc1123_cases[i];
+
+		if (strlen(c.date) == 0)
+			break;
+
+		create_tm_from_unix_epoch(&query, c.t);
+		evutil_date_rfc1123(result, sizeof(result), &query);
+		tt_str_op(result, ==, c.date);
+	}
+
+end:
+	;
+}
+
+static void
+test_evutil_v4addr_is_local(void *arg)
+{
+	struct sockaddr_in sin;
+	sin.sin_family = AF_INET;
+
+	/* we use evutil_inet_pton() here to fill in network-byte order */
+#define LOCAL(str, yes) do {                                              \
+	tt_int_op(evutil_inet_pton(AF_INET, str, &sin.sin_addr), ==, 1);  \
+	tt_int_op(evutil_v4addr_is_local_(&sin.sin_addr), ==, yes);       \
+} while (0)
+
+	/** any */
+	sin.sin_addr.s_addr = INADDR_ANY;
+	tt_int_op(evutil_v4addr_is_local_(&sin.sin_addr), ==, 1);
+
+	/** loopback */
+	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	tt_int_op(evutil_v4addr_is_local_(&sin.sin_addr), ==, 1);
+	LOCAL("127.0.0.1", 1);
+	LOCAL("127.255.255.255", 1);
+	LOCAL("121.0.0.1", 0);
+
+	/** link-local */
+	LOCAL("169.254.0.1", 1);
+	LOCAL("169.254.255.255", 1);
+	LOCAL("170.0.0.0", 0);
+
+	/** Multicast */
+	LOCAL("224.0.0.0", 1);
+	LOCAL("239.255.255.255", 1);
+	LOCAL("240.0.0.0", 0);
+end:
+	;
+}
+
+static void
+test_evutil_v6addr_is_local(void *arg)
+{
+	struct sockaddr_in6 sin6;
+	struct in6_addr anyaddr = IN6ADDR_ANY_INIT;
+	struct in6_addr loopback = IN6ADDR_LOOPBACK_INIT;
+
+	sin6.sin6_family = AF_INET6;
+#define LOCAL6(str, yes) do {                                              \
+	tt_int_op(evutil_inet_pton(AF_INET6, str, &sin6.sin6_addr), ==, 1);\
+	tt_int_op(evutil_v6addr_is_local_(&sin6.sin6_addr), ==, yes);      \
+} while (0)
+
+	/** any */
+	tt_int_op(evutil_v6addr_is_local_(&anyaddr), ==, 1);
+	LOCAL6("::0", 1);
+
+	/** loopback */
+	tt_int_op(evutil_v6addr_is_local_(&loopback), ==, 1);
+	LOCAL6("::1", 1);
+
+	/** IPV4 mapped */
+	LOCAL6("::ffff:0:0", 1);
+	/** IPv4 translated */
+	LOCAL6("::ffff:0:0:0", 1);
+	/** IPv4/IPv6 translation */
+	LOCAL6("64:ff9b::", 0);
+	/** Link-local */
+	LOCAL6("fe80::", 1);
+	/** Multicast */
+	LOCAL6("ff00::", 1);
+	/** Unspecified */
+	LOCAL6("::", 1);
+
+	/** Global Internet */
+	LOCAL6("2001::", 0);
+	LOCAL6("2001:4860:4802:32::1b", 0);
+end:
+	;
+}
+
 struct testcase_t util_testcases[] = {
 	{ "ipv4_parse", regress_ipv4_parse, 0, NULL, NULL },
 	{ "ipv6_parse", regress_ipv6_parse, 0, NULL, NULL },
+	{ "ipv6_parse_scope", regress_ipv6_parse_scope, 0, NULL, NULL },
 	{ "sockaddr_port_parse", regress_sockaddr_port_parse, 0, NULL, NULL },
 	{ "sockaddr_port_format", regress_sockaddr_port_format, 0, NULL, NULL },
 	{ "sockaddr_predicates", test_evutil_sockaddr_predicates, 0,NULL,NULL },
@@ -1393,21 +1656,26 @@ struct testcase_t util_testcases[] = {
 	{ "upcast", test_evutil_upcast, 0, NULL, NULL },
 	{ "integers", test_evutil_integers, 0, NULL, NULL },
 	{ "rand", test_evutil_rand, TT_FORK, NULL, NULL },
+	{ "EVUTIL_IS_", test_EVUTIL_IS_, 0, NULL, NULL },
 	{ "getaddrinfo", test_evutil_getaddrinfo, TT_FORK, NULL, NULL },
 	{ "getaddrinfo_live", test_evutil_getaddrinfo_live, TT_FORK|TT_OFF_BY_DEFAULT, NULL, NULL },
+	{ "getaddrinfo_AI_ADDRCONFIG", test_evutil_getaddrinfo_AI_ADDRCONFIG, TT_FORK|TT_OFF_BY_DEFAULT, NULL, NULL },
 #ifdef _WIN32
 	{ "loadsyslib", test_evutil_loadsyslib, TT_FORK, NULL, NULL },
 #endif
 	{ "mm_malloc", test_event_malloc, 0, NULL, NULL },
 	{ "mm_calloc", test_event_calloc, 0, NULL, NULL },
 	{ "mm_strdup", test_event_strdup, 0, NULL, NULL },
-	{ "usleep", test_evutil_usleep, 0, NULL, NULL },
+	{ "usleep", test_evutil_usleep, TT_RETRIABLE, NULL, NULL },
 	{ "monotonic_res", test_evutil_monotonic_res, 0, &basic_setup, (void*)"" },
 	{ "monotonic_res_precise", test_evutil_monotonic_res, TT_OFF_BY_DEFAULT, &basic_setup, (void*)"precise" },
 	{ "monotonic_res_fallback", test_evutil_monotonic_res, TT_OFF_BY_DEFAULT, &basic_setup, (void*)"fallback" },
 	{ "monotonic_prc", test_evutil_monotonic_prc, 0, &basic_setup, (void*)"" },
-	{ "monotonic_prc_precise", test_evutil_monotonic_prc, 0, &basic_setup, (void*)"precise" },
+	{ "monotonic_prc_precise", test_evutil_monotonic_prc, TT_RETRIABLE, &basic_setup, (void*)"precise" },
 	{ "monotonic_prc_fallback", test_evutil_monotonic_prc, 0, &basic_setup, (void*)"fallback" },
+	{ "date_rfc1123", test_evutil_date_rfc1123, 0, NULL, NULL },
+	{ "evutil_v4addr_is_local", test_evutil_v4addr_is_local, 0, NULL, NULL },
+	{ "evutil_v6addr_is_local", test_evutil_v6addr_is_local, 0, NULL, NULL },
 	END_OF_TESTCASES,
 };
 

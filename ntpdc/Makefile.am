@@ -20,15 +20,27 @@ AM_LDFLAGS = $(LDFLAGS_NTP)
 AM_LDFLAGS += $(NTP_HARD_LDFLAGS)
 
 # LDADD might need RESLIB and ADJLIB
-ntpdc_LDADD  = version.o $(LIBOPTS_LDADD)
+ntpdc_LDADD  = $(LIBOPTS_LDADD)
 ntpdc_LDADD += ../libntp/libntp.a $(LDADD_LIBNTP) $(LIBM)
 ntpdc_LDADD += $(PTHREAD_LIBS) $(EDITLINE_LIBS)
 ntpdc_LDADD += $(LDADD_NTP)
 # ntpdc-layout doesn't need any additional libraries at all
 ntpdc_layout_LDADD=
 
-DISTCLEANFILES=	.version version.c config.log $(man_MANS)
-CLEANFILES=	check-layout layout.here nl.c ntpdc-layout
+DISTCLEANFILES =	\
+	$(man_MANS)	\
+	config.log	\
+	$(NULL)
+
+CLEANFILES =		\
+	check-layout	\
+	layout.here	\
+	nl.c		\
+	ntpdc-layout	\
+	.version	\
+	version.c	\
+	$(NULL)
+
 noinst_HEADERS=	ntpdc.h
 ETAGS_ARGS= 	Makefile.am
 EXTRA_DIST=			\
@@ -83,12 +95,12 @@ $(srcdir)/ntpdc-opts.h: $(srcdir)/ntpdc-opts.c
 	@: do-nothing action to avoid default SCCS get, .h built with .c
 	
 $(srcdir)/ntpdc-opts.c: $(srcdir)/ntpdc-opts.def $(std_def_list)
-	$(run_ag) ntpdc-opts.def
+	$(AM_V_GEN)$(run_ag) ntpdc-opts.def
 
 ###
 
 $(srcdir)/ntpdc.1ntpdcman: $(srcdir)/ntpdc-opts.def $(std_def_list)
-	$(run_ag) -DMAN_SECTION=1ntpdcman -Tagman-cmd.tpl ntpdc-opts.def
+	$(AM_V_GEN)$(run_ag) -DMAN_SECTION=1ntpdcman -Tagman-cmd.tpl ntpdc-opts.def
 
 $(srcdir)/ntpdc.man.in: $(srcdir)/ntpdc.1ntpdcman $(top_srcdir)/sntp/scripts/mansec2subst.sed
 	sed -f $(top_srcdir)/sntp/scripts/mansec2subst.sed $(srcdir)/ntpdc.1ntpdcman > $(srcdir)/ntpdc.man.in+
@@ -97,7 +109,7 @@ $(srcdir)/ntpdc.man.in: $(srcdir)/ntpdc.1ntpdcman $(top_srcdir)/sntp/scripts/man
 ###
 
 $(srcdir)/ntpdc.1ntpdcmdoc: $(srcdir)/ntpdc-opts.def $(std_def_list)
-	$(run_ag) -DMAN_SECTION=1ntpdcmdoc -Tagmdoc-cmd.tpl ntpdc-opts.def
+	$(AM_V_GEN)$(run_ag) -DMAN_SECTION=1ntpdcmdoc -Tagmdoc-cmd.tpl ntpdc-opts.def
 
 $(srcdir)/ntpdc.mdoc.in: $(srcdir)/ntpdc.1ntpdcmdoc $(top_srcdir)/sntp/scripts/mansec2subst.sed
 	sed -f $(top_srcdir)/sntp/scripts/mansec2subst.sed $(srcdir)/ntpdc.1ntpdcmdoc > $(srcdir)/ntpdc.mdoc.in+
@@ -115,40 +127,36 @@ $(srcdir)/invoke-ntpdc.menu: $(srcdir)/invoke-ntpdc.texi
 	@: do-nothing action to avoid default SCCS get, .menu built with .texi
 	
 $(srcdir)/invoke-ntpdc.texi: $(srcdir)/ntpdc-opts.def $(std_def_list)
-	$(run_ag) -Tagtexi-cmd.tpl -DLEVEL=section ntpdc-opts.def
+	$(AM_V_GEN)$(run_ag) -Tagtexi-cmd.tpl -DLEVEL=section ntpdc-opts.def
 	$(top_srcdir)/scripts/build/check--help $@
 
-$(srcdir)/ntpdc.html: $(srcdir)/invoke-ntpdc.menu $(srcdir)/invoke-ntpdc.texi $(srcdir)/ntpdc.texi $(top_srcdir)/sntp/include/version.texi
+$(srcdir)/ntpdc.html: $(srcdir)/invoke-ntpdc.texi $(srcdir)/ntpdc.texi $(top_srcdir)/sntp/include/version.texi
 	cd $(srcdir) && ( makeinfo --force --html --no-split -I ../sntp -o ntpdc.html ntpdc.texi || true )
 
 ntpdc_SOURCES = ntpdc.c ntpdc_ops.c ntpdc-opts.c ntpdc-opts.h
+nodist_ntpdc_SOURCES = version.c
 
 ntpdc-layout.o: nl.c
 
 layout.here: ntpdc-layout
-	./ntpdc-layout > $@
+	$(AM_V_at)./ntpdc-layout > $@
 
 check-layout: ntpdc-layout $(srcdir)/layout.std layout.here
-	cmp $(srcdir)/layout.std layout.here && echo stamp > $@
+	$(AM_V_at)cmp $(srcdir)/layout.std layout.here && echo stamp > $@
 
-$(PROGRAMS): version.o
-
-$(top_srcdir)/sntp/scm-rev:
-	cd ../sntp && $(MAKE) $(AM_MAKEFLAGS) check-scm-rev
-
-version.c: $(ntpdc_OBJECTS) ../libntp/libntp.a Makefile $(top_srcdir)/sntp/scm-rev
-	env CSET=`cat $(top_srcdir)/sntp/scm-rev` $(top_builddir)/scripts/build/mkver ntpdc
+version.c: Makefile $(top_srcdir)/sntp/scm-rev
+	$(AM_V_GEN)env CSET=`cat $(top_srcdir)/sntp/scm-rev` $(top_builddir)/scripts/build/mkver ntpdc
 	
-version.o: version.c
-	env CCACHE_DISABLE=1 $(COMPILE) -c version.c -o version.o
-
 # I ran nl_in.c (attached, to be installed into ntpdc) through
 # $(CC) -E nl_in.c | nl.pl > nl.c
 nl.c: nl_in.c nl.pl Makefile.am ../config.h ../include/ntp_request.h ntpdc.h
-	$(CC) -E $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(srcdir)/nl_in.c | ./nl.pl > nl.c
+	$(AM_V_GEN)$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
+		$(AM_CPPFLAGS) $(CPPFLAGS) $(srcdir)/nl_in.c | ./nl.pl > $@
+
 
 include $(top_srcdir)/bincheck.mf
 include $(top_srcdir)/check-libopts.mf
-include $(top_srcdir)/sntp/check-libntp.mf
+include $(top_srcdir)/check-libntp.mf
+include $(top_srcdir)/check-scm-rev.mf
 include $(top_srcdir)/depsver.mf
 include $(top_srcdir)/includes.mf

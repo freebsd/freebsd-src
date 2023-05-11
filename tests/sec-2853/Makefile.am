@@ -2,6 +2,7 @@
 NULL =
 BUILT_SOURCES =
 CLEANFILES =
+DISTCLEANFILES =
 
 std_unity_list =	 						\
 	$(abs_top_srcdir)/sntp/unity/auto/generate_test_runner.rb	\
@@ -18,9 +19,9 @@ check_PROGRAMS = sec-2853
 
 # HMS: we may not need some of these:
 LDADD =					\
-	$(top_builddir)/ntpd/rc_cmdlength.o	\
 	$(top_builddir)/sntp/unity/libunity.a	\
 	$(top_builddir)/libntp/libntp.a	\
+	$(top_builddir)/ntpd/libntpd.a	\
 	$(LDADD_LIBNTP)			\
 	$(PTHREAD_LIBS)			\
 	$(LDADD_NTP)			\
@@ -62,29 +63,8 @@ if !NTP_CROSSCOMPILE
 TESTS += $(check_PROGRAMS)
 endif
 
-## check-libntp.mf - automake fragment
-## slightly adapted for deeper directory
-
-BUILT_SOURCES	+= check-libntp check-libunity check-rc-cmdlength
-CLEANFILES	+= check-libntp check-libunity check-rc-cmdlength
-
-check-libntp: ../../libntp/libntp.a
-	@echo stamp > $@
-
-../../libntp/libntp.a:
-	cd ../../libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
-
-check-libunity: ../../sntp/unity/libunity.a
-	@echo stamp > $@
-
-../../sntp/unity/libunity.a:
-	cd ../../libunity && $(MAKE) $(AM_MAKEFLAGS) libunity.a
-
-check-rc-cmdlength: ../../ntpd/rc_cmdlength.o
-	@echo stamp > $@
-
-../../ntpd/rc_cmdlength.o:
-	cd ../../ntpd && $(MAKE) $(AM_MAKEFLAGS) rc_cmdlength.o
-
+include $(top_srcdir)/check-libntp.mf
+include $(top_srcdir)/check-libntpd.mf
+include $(top_srcdir)/check-libunity.mf
 include $(top_srcdir)/depsver.mf
 include $(top_srcdir)/includes.mf

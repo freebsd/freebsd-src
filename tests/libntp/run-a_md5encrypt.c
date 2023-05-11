@@ -62,11 +62,11 @@ int main(int argc, char *argv[])
   progname = argv[0];
   suite_setup();
   UnityBegin("a_md5encrypt.c");
-  RUN_TEST(test_Encrypt, 40);
-  RUN_TEST(test_DecryptValid, 41);
-  RUN_TEST(test_DecryptInvalid, 42);
-  RUN_TEST(test_IPv4AddressToRefId, 43);
-  RUN_TEST(test_IPv6AddressToRefId, 44);
+  RUN_TEST(test_Encrypt, 41);
+  RUN_TEST(test_DecryptValid, 42);
+  RUN_TEST(test_DecryptInvalid, 43);
+  RUN_TEST(test_IPv4AddressToRefId, 44);
+  RUN_TEST(test_IPv6AddressToRefId, 45);
 
   return (UnityEnd());
 }

@@ -36,6 +36,7 @@ union {
 	"ijklmnopqrstuvwx\0\0\0\0\x0c\x0e\x84\xcf\x0b\xb7\xa8\x68\x8e\x52\x38\xdb\xbc\x1c\x39\x54"
 };
 
+static const keyid_t keyId = 42;
 
 void test_Encrypt(void);
 void test_DecryptValid(void);
@@ -54,7 +55,7 @@ test_Encrypt(void) {
 
 	length = MD5authencrypt(keytype, key, keyLength, packetPtr, packetLength);
 
-	TEST_ASSERT_TRUE(MD5authdecrypt(keytype, key, keyLength, packetPtr, packetLength, length));
+	TEST_ASSERT_TRUE(MD5authdecrypt(keytype, key, keyLength, packetPtr, packetLength, length, keyId));
 
 	TEST_ASSERT_EQUAL(20, length);
 	TEST_ASSERT_EQUAL_MEMORY(expectedPacket.u8, packetPtr, totalLength);
@@ -64,12 +65,12 @@ test_Encrypt(void) {
 
 void
 test_DecryptValid(void) {
-	TEST_ASSERT_TRUE(MD5authdecrypt(keytype, key, keyLength, expectedPacket.u32, packetLength, 20));
+	TEST_ASSERT_TRUE(MD5authdecrypt(keytype, key, keyLength, expectedPacket.u32, packetLength, 20, keyId));
 }
 
 void
 test_DecryptInvalid(void) {
-	TEST_ASSERT_FALSE(MD5authdecrypt(keytype, key, keyLength, invalidPacket.u32, packetLength, 20));
+	TEST_ASSERT_FALSE(MD5authdecrypt(keytype, key, keyLength, invalidPacket.u32, packetLength, 20, keyId));
 }
 
 void

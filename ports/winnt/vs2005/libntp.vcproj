@@ -41,7 +41,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories=".,..\include,..\..\..\include,..\..\..\lib\isc\win32\include,..\..\..\lib\isc\include,$(OPENSSL_INC),..\..\..\sntp\libopts"
+				AdditionalIncludeDirectories=".,..\include,..\..\..\include,..\..\..\libntp\lib\isc\win32\include,..\..\..\libntp\lib\isc\include,$(OPENSSL_INC),..\..\..\sntp\libopts"
 				PreprocessorDefinitions="_DEBUG;_LIB;WIN32;__STDC__;SYS_WINNT;HAVE_CONFIG_H;_WIN32_WINNT=0x400;_CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES=1;_CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES_COUNT=1;_CRT_SECURE_NO_DEPRECATE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -118,7 +118,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				InlineFunctionExpansion="1"
-				AdditionalIncludeDirectories=".,..\include,..\..\..\include,..\..\..\lib\isc\win32\include,..\..\..\lib\isc\include,$(OPENSSL_INC),..\..\..\sntp\libopts"
+				AdditionalIncludeDirectories=".,..\include,..\..\..\include,..\..\..\libntp\lib\isc\win32\include,..\..\..\libntp\lib\isc\include,$(OPENSSL_INC),..\..\..\sntp\libopts"
 				PreprocessorDefinitions="NDEBUG;_LIB;WIN32;__STDC__;SYS_WINNT;HAVE_CONFIG_H;_WIN32_WINNT=0x400;_CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES=1;_CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES_COUNT=1;_CRT_SECURE_NO_DEPRECATE"
 				StringPooling="true"
 				RuntimeLibrary="2"
@@ -185,7 +185,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\assertions.c"
+				RelativePath="..\..\..\libntp\lib\isc\assertions.c"
 				>
 			</File>
 			<File
@@ -213,15 +213,15 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\buffer.c"
+				RelativePath="..\..\..\libntp\lib\isc\buffer.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\backtrace-emtpytbl.c"
+				RelativePath="..\..\..\libntp\lib\isc\backtrace-emtpytbl.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\backtrace.c"
+				RelativePath="..\..\..\libntp\lib\isc\backtrace.c"
 				>
 			</File>
 			<File
@@ -249,7 +249,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\win32\condition.c"
+				RelativePath="..\..\..\libntp\lib\isc\win32\condition.c"
 				>
 			</File>
 			<File
@@ -269,11 +269,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\error.c"
+				RelativePath="..\..\..\libntp\lib\isc\error.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\event.c"
+				RelativePath="..\..\..\libntp\lib\isc\event.c"
 				>
 			</File>
 			<File
@@ -305,19 +305,15 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\inet_aton.c"
+				RelativePath="..\..\..\libntp\lib\isc\inet_ntop.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\inet_ntop.c"
+				RelativePath="..\..\..\libntp\lib\isc\inet_pton.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\inet_pton.c"
-				>
-			</File>
-			<File
-				RelativePath="..\..\..\lib\isc\win32\interfaceiter.c"
+				RelativePath="..\..\..\libntp\lib\isc\win32\interfaceiter.c"
 				>
 			</File>
 			<File
@@ -325,7 +321,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\lib.c"
+				RelativePath="..\..\..\libntp\lib\isc\lib.c"
 				>
 			</File>
 			<File
@@ -345,7 +341,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\log.c"
+				RelativePath="..\..\..\libntp\lib\isc\log.c"
 				>
 			</File>
 			<File
@@ -353,7 +349,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\md5.c"
+				RelativePath="..\..\..\libntp\lib\isc\md5.c"
 				>
 			</File>
 			<File
@@ -365,7 +361,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\nls\msgcat.c"
+				RelativePath="..\..\..\libntp\lib\isc\nls\msgcat.c"
 				>
 			</File>
 			<File
@@ -377,11 +373,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\win32\net.c"
+				RelativePath="..\..\..\libntp\lib\isc\win32\net.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\netaddr.c"
+				RelativePath="..\..\..\libntp\lib\isc\netaddr.c"
 				>
 			</File>
 			<File
@@ -389,7 +385,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\netscope.c"
+				RelativePath="..\..\..\libntp\lib\isc\netscope.c"
 				>
 			</File>
 			<File
@@ -417,6 +413,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\libntp\ntp_realpath.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\libntp\ntp_rfc2553.c"
 				>
 			</File>
@@ -437,11 +437,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\win32\once.c"
+				RelativePath="..\..\..\libntp\lib\isc\win32\once.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\ondestroy.c"
+				RelativePath="..\..\..\libntp\lib\isc\ondestroy.c"
 				>
 			</File>
 			<File
@@ -473,7 +473,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\sockaddr.c"
+				RelativePath="..\..\..\libntp\lib\isc\sockaddr.c"
 				>
 			</File>
 			<File
@@ -497,11 +497,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\win32\stdtime.c"
+				RelativePath="..\..\..\libntp\lib\isc\win32\stdtime.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\win32\strerror.c"
+				RelativePath="..\..\..\libntp\lib\isc\win32\strerror.c"
 				>
 			</File>
 			<File
@@ -521,7 +521,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\task.c"
+				RelativePath="..\..\..\libntp\lib\isc\task.c"
 				>
 			</File>
 			<File
@@ -529,11 +529,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\win32\thread.c"
+				RelativePath="..\..\..\libntp\lib\isc\win32\thread.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\win32\time.c"
+				RelativePath="..\..\..\libntp\lib\isc\win32\time.c"
 				>
 			</File>
 			<File
@@ -549,7 +549,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\tsmemcmp.c"
+				RelativePath="..\..\..\libntp\lib\isc\tsmemcmp.c"
 				>
 			</File>
 			<File
@@ -565,7 +565,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\win32\win32os.c"
+				RelativePath="..\..\..\libntp\lib\isc\win32\win32os.c"
 				>
 			</File>
 			<File
@@ -594,7 +594,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\include\isc\buffer.h"
+				RelativePath="..\..\..\libntp\lib\isc\include\isc\buffer.h"
 				>
 			</File>
 			<File
@@ -602,7 +602,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\win32\include\isc\condition.h"
+				RelativePath="..\..\..\libntp\lib\isc\win32\include\isc\condition.h"
 				>
 			</File>
 			<File
@@ -610,7 +610,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\include\isc\event.h"
+				RelativePath="..\..\..\libntp\lib\isc\include\isc\event.h"
 				>
 			</File>
 			<File
@@ -618,7 +618,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\include\isc\hash.h"
+				RelativePath="..\..\..\libntp\lib\isc\include\isc\hash.h"
 				>
 			</File>
 			<File
@@ -634,7 +634,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\include\isc\interfaceiter.h"
+				RelativePath="..\..\..\libntp\lib\isc\include\isc\interfaceiter.h"
 				>
 			</File>
 			<File
@@ -654,7 +654,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\win32\include\isc\ipv6.h"
+				RelativePath="..\..\..\libntp\lib\isc\win32\include\isc\ipv6.h"
 				>
 			</File>
 			<File
@@ -666,7 +666,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\include\isc\log.h"
+				RelativePath="..\..\..\libntp\lib\isc\include\isc\log.h"
 				>
 			</File>
 			<File
@@ -678,7 +678,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\include\isc\net.h"
+				RelativePath="..\..\..\libntp\lib\isc\include\isc\net.h"
 				>
 			</File>
 			<File
@@ -794,11 +794,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\include\isc\ondestroy.h"
+				RelativePath="..\..\..\libntp\lib\isc\include\isc\ondestroy.h"
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\win32\include\isc\platform.h"
+				RelativePath="..\..\..\libntp\lib\isc\win32\include\isc\platform.h"
 				>
 			</File>
 			<File
@@ -814,11 +814,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\win32\include\isc\stat.h"
+				RelativePath="..\..\..\libntp\lib\isc\win32\include\isc\stat.h"
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\win32\include\isc\stdtime.h"
+				RelativePath="..\..\..\libntp\lib\isc\win32\include\isc\stdtime.h"
 				>
 			</File>
 			<File
@@ -826,7 +826,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\include\isc\task.h"
+				RelativePath="..\..\..\libntp\lib\isc\include\isc\task.h"
 				>
 			</File>
 			<File
@@ -834,11 +834,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\win32\include\isc\thread.h"
+				RelativePath="..\..\..\libntp\lib\isc\win32\include\isc\thread.h"
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\win32\include\isc\time.h"
+				RelativePath="..\..\..\libntp\lib\isc\win32\include\isc\time.h"
 				>
 			</File>
 			<File
@@ -850,7 +850,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\isc\win32\include\isc\win32os.h"
+				RelativePath="..\..\..\libntp\lib\isc\win32\include\isc\win32os.h"
 				>
 			</File>
 		</Filter>
