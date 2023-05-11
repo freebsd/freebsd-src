@@ -8,16 +8,23 @@
 #include <sys/types.h>
 #include <sys/sysctl.h>
 
-#include <err.h>
-
 #include <dev/pci/pcireg.h>
 
+#include <err.h>
 #include <errno.h>
 
+#include "e820.h"
 #include "pci_gvt-d-opregion.h"
 #include "pci_passthru.h"
 
+#define KB (1024UL)
+#define MB (1024 * KB)
+#define GB (1024 * MB)
+
 #define PCI_VENDOR_INTEL 0x8086
+
+#define PCIM_BDSM_GSM_ALIGNMENT \
+	0x00100000 /* Graphics Stolen Memory is 1 MB aligned */
 
 #define GVT_D_MAP_GSM 0
 
@@ -39,6 +46,27 @@ gvt_d_probe(struct pci_devinst *const pi)
 		return (ENXIO);
 
 	return (0);
+}
+
+static vm_paddr_t
+gvt_d_alloc_mmio_memory(const vm_paddr_t host_address, const vm_paddr_t length,
+    const vm_paddr_t alignment, const enum e820_memory_type type)
+{
+	vm_paddr_t address;
+
+	/* Try to reuse host address. */
+	address = e820_alloc(host_address, length, E820_ALIGNMENT_NONE, type,
+	    E820_ALLOCATE_SPECIFIC);
+	if (address != 0) {
+		return (address);
+	}
+
+	/*
+	 * We're not able to reuse the host address. Fall back to the highest usable
+	 * address below 4 GB.
+	 */
+	return (
+	    e820_alloc(4 * GB, length, alignment, type, E820_ALLOCATE_HIGHEST));
 }
 
 /*
@@ -95,6 +123,38 @@ gvt_d_setup_gsm(struct pci_devinst *const pi)
 		return (-1);
 	}
 	gsm->hva = NULL; /* unused */
+	gsm->gva = NULL; /* unused */
+	gsm->gpa = gvt_d_alloc_mmio_memory(gsm->hpa, gsm->len,
+	    PCIM_BDSM_GSM_ALIGNMENT, E820_TYPE_RESERVED);
+	if (gsm->gpa == 0) {
+		warnx(
+		    "%s: Unable to add Graphics Stolen Memory to E820 table (hpa 0x%lx len 0x%lx)",
+		    __func__, gsm->hpa, gsm->len);
+		e820_dump_table();
+		return (-1);
+	}
+	if (gsm->gpa != gsm->hpa) {
+		/*
+		 * ACRN source code implies that graphics driver for newer Intel
+		 * platforms like Tiger Lake will read the Graphics Stolen Memory
+		 * address from an MMIO register. We have three options to solve this
+		 * issue:
+		 *    1. Patch the value in the MMIO register
+		 *       This could have unintended side effects. Without any
+		 *       documentation how this register is used by the GPU, don't do
+		 *       it.
+		 *    2. Trap the MMIO register
+		 *       It's not possible to trap a single MMIO register. We need to
+		 *       trap a whole page. Trapping a bunch of MMIO register could
+		 *       degrade the performance noticeably. We have to test it.
+		 *    3. Use an 1:1 host to guest mapping
+		 *       Maybe not always possible. As far as we know, no supported
+		 *       platform requires a 1:1 mapping. For that reason, just log a
+		 *       warning.
+		 */
+		warnx(
+		    "Warning: Unable to reuse host address of Graphics Stolen Memory. GPU passthrough might not work properly.");
+	}
 
 	return (0);
 }
