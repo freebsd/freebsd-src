@@ -56,7 +56,7 @@
 #define	DEBUG_MOD_NAME	nl_domain
 #define	DEBUG_MAX_LEVEL	LOG_DEBUG3
 #include <netlink/netlink_debug.h>
-_DECLARE_DEBUG(LOG_DEBUG);
+_DECLARE_DEBUG(LOG_INFO);
 
 _Static_assert((NLP_MAX_GROUPS % 64) == 0,
     "NLP_MAX_GROUPS has to be multiple of 64");

@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 #define	DEBUG_MOD_NAME	nl_iface
 #define	DEBUG_MAX_LEVEL	LOG_DEBUG3
 #include <netlink/netlink_debug.h>
-_DECLARE_DEBUG(LOG_DEBUG);
+_DECLARE_DEBUG(LOG_INFO);
 
 struct netlink_walkargs {
 	struct nl_writer *nw;
