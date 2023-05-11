@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 9, 2018
+.Dd April 28, 2020
 .Dt HOOK.LUA 8
 .Os
 .Sh NAME
@@ -39,6 +39,8 @@ Hooks are functions used to attach custom behaviors at pre-defined points in
 loader execution.
 These pre-defined points are what we refer to as
 .Dq hook types .
+Hooks may also take an optional data parameter, which may or may not be
+populated by the caller.
 .Pp
 Before using the functionality provided by
 .Nm ,

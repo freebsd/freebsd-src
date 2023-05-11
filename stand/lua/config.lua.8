@@ -217,11 +217,19 @@ as well as a representation of
 The following hooks are defined in
 .Nm :
 .Bl -tag -width "config.reloaded" -offset indent
+.It Fn config.buildenv env
 .It Fn config.loaded
 .It Fn config.reloaded
 .It Fn kernel.loaded
 .It Fn modules.loaded
 .El
+.Pp
+Note that the
+.Fn config.buildenv
+hook is only invoked when an environment needs to be built to execute a lua
+configuration file that has been specified in
+.Ev loader_conf_files .
+It will be invoked for each configuration file encountered.
 .Sh SEE ALSO
 .Xr loader.conf 5 ,
 .Xr loader 8 ,
