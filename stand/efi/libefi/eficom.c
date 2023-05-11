@@ -41,6 +41,7 @@ static EFI_GUID serial = SERIAL_IO_PROTOCOL;
 #define	PNP0501		0x501		/* 16550A-compatible COM port */
 
 struct serial {
+	uint64_t	newbaudrate;
 	uint64_t	baudrate;
 	uint32_t	timeout;
 	uint32_t	receivefifodepth;
@@ -300,7 +301,8 @@ comc_probe(struct console *sc)
 		if (EFI_ERROR(status)) {
 			comc_port->sio = NULL;
 		} else {
-			comc_port->baudrate = comc_port->sio->Mode->BaudRate;
+			comc_port->newbaudrate =
+			    comc_port->baudrate = comc_port->sio->Mode->BaudRate;
 			comc_port->timeout = comc_port->sio->Mode->Timeout;
 			comc_port->receivefifodepth =
 			    comc_port->sio->Mode->ReceiveFifoDepth;
@@ -322,7 +324,7 @@ comc_probe(struct console *sc)
 		env = getenv("comconsole_speed");
 
 	if (comc_parse_intval(env, &val) == CMD_OK)
-		comc_port->baudrate = val;
+		comc_port->newbaudrate = val;
 
 	if (env != NULL)
 		unsetenv("efi_com_speed");
@@ -497,10 +499,9 @@ comc_speed_set(struct env_var *ev, int flags, const void *value)
 	if (comc_parse_intval(value, &speed) != CMD_OK) 
 		return (CMD_ERROR);
 
-	comc_port->baudrate = speed;
-	(void) comc_setup();
-
-	env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
+	comc_port->newbaudrate = speed;
+	if (comc_setup())
+		env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
 
 	return (CMD_OK);
 }
@@ -525,20 +526,24 @@ comc_setup(void)
 			return (false);
 	}
 
-	if (comc_port->sio->SetAttributes != NULL) {
+	/*
+	 * Avoid setting the baud rate on Hyper-V. Also, only set the baud rate
+	 * if the baud rate has changed from the default. And pass in '0' or
+	 * DefaultFoo when we're not changing those values. Some EFI
+	 * implementations get cranky when you set things to the values reported
+	 * back even when they are unchanged.
+	 */
+	if (comc_port->sio->SetAttributes != NULL &&
+	    comc_port->newbaudrate != comc_port->baudrate) {
 		ev = getenv("smbios.bios.version");
-		if (ev != NULL && strncmp(ev, "Hyper-V", 7) == 0) {
+		if (ev != NULL && strncmp(ev, "Hyper-V", 7) != 0) {
 			status = comc_port->sio->SetAttributes(comc_port->sio,
-			    0, 0, 0, DefaultParity, 0, DefaultStopBits);
-		} else {
-			status = comc_port->sio->SetAttributes(comc_port->sio,
-			    comc_port->baudrate, comc_port->receivefifodepth,
-			    comc_port->timeout, comc_port->parity,
-			    comc_port->databits, comc_port->stopbits);
+			    comc_port->newbaudrate, 0, 0, DefaultParity, 0,
+			    DefaultStopBits);
+			if (EFI_ERROR(status))
+				return (false);
+			comc_port->baudrate = comc_port->newbaudrate;
 		}
-
-		if (EFI_ERROR(status))
-			return (false);
 	}
 
 #ifdef EFI_FORCE_RTS
