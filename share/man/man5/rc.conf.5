@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 11, 2023
+.Dd May 11, 2023
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -197,6 +197,14 @@ services are enabled that utilize the force_depend check.
 .Pq Vt str
 .Xr chroot 8
 to this directory before running the service.
+.It Ao Ar name Ac Ns Va _cpuset
+.Pq Vt str
+A list of CPUs to run the service on.
+Passed to
+.Xr cpuset 1
+using the
+.Fl l
+flag.
 .It Ao Ar name Ac Ns Va _fib
 .Pq Vt int
 The
@@ -4922,6 +4930,7 @@ these are the flags to pass to the
 .El
 .Sh SEE ALSO
 .Xr chmod 1 ,
+.Xr cpuset 1 ,
 .Xr gdb 1 Pq Pa ports/devel/gdb ,
 .Xr kbdcontrol 1 ,
 .Xr limits 1 ,
