@@ -47,7 +47,6 @@ struct serial {
 	uint32_t	databits;
 	EFI_PARITY_TYPE	parity;
 	EFI_STOP_BITS_TYPE stopbits;
-	uint32_t	ignore_cd;	/* boolean */
 	uint32_t	rtsdtr_off;	/* boolean */
 	int		ioaddr;		/* index in handles array */
 	EFI_HANDLE	currdev;	/* current serial device */
@@ -276,7 +275,6 @@ comc_probe(struct console *sc)
 	comc_port->databits = 8;
 	comc_port->parity = DefaultParity;
 	comc_port->stopbits = DefaultStopBits;
-	comc_port->ignore_cd = 1;		/* ignore cd */
 	comc_port->rtsdtr_off = 0;		/* rts-dtr is on */
 
 	handle = NULL;
