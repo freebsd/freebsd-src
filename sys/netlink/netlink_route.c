@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #define	DEBUG_MOD_NAME	nl_route_core
 #define	DEBUG_MAX_LEVEL	LOG_DEBUG3
 #include <netlink/netlink_debug.h>
-_DECLARE_DEBUG(LOG_DEBUG);
+_DECLARE_DEBUG(LOG_INFO);
 
 #define	HANDLER_MAX_NUM	(NL_RTM_MAX + 10)
 static const struct rtnl_cmd_handler *rtnl_handler[HANDLER_MAX_NUM] = {};
