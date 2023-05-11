@@ -66,21 +66,24 @@ test_getnameinfo_v4(cap_channel_t *chan, int family, const char *ip)
 	struct sockaddr_in ipaddr;
 	char capfn[MAXHOSTNAMELEN];
 	char origfn[MAXHOSTNAMELEN];
-	int ret;
+	int capret, sysret;
 
 	memset(&ipaddr, 0, sizeof(ipaddr));
 	ipaddr.sin_family = family;
 	inet_pton(family, ip, &ipaddr.sin_addr);
 
-	ret = cap_getnameinfo(chan, (struct sockaddr *)&ipaddr, sizeof(ipaddr),
+	capret = cap_getnameinfo(chan, (struct sockaddr *)&ipaddr, sizeof(ipaddr),
 	    capfn, sizeof(capfn), NULL, 0, NI_NAMEREQD);
-	if (ret != 0) {
-		return (ret);
-	}
+	if (capret != 0 && capret == ENOTCAPABLE)
+		return (ENOTCAPABLE);
 
-	ret = getnameinfo((struct sockaddr *)&ipaddr, sizeof(ipaddr), origfn,
+	sysret = getnameinfo((struct sockaddr *)&ipaddr, sizeof(ipaddr), origfn,
 	    sizeof(origfn), NULL, 0, NI_NAMEREQD);
-	ATF_REQUIRE(ret == 0);
+	if (sysret != 0) {
+		atf_tc_skip("getnameinfo(%s) failed: %s",
+		    ip, gai_strerror(sysret));
+	}
+	ATF_REQUIRE(capret == 0);
 	ATF_REQUIRE(strcmp(origfn, capfn) == 0);
 
 	return (0);
@@ -92,21 +95,24 @@ test_getnameinfo_v6(cap_channel_t *chan, const char *ip)
 	struct sockaddr_in6 ipaddr;
 	char capfn[MAXHOSTNAMELEN];
 	char origfn[MAXHOSTNAMELEN];
-	int ret;
+	int capret, sysret;
 
 	memset(&ipaddr, 0, sizeof(ipaddr));
 	ipaddr.sin6_family = AF_INET6;
 	inet_pton(AF_INET6, ip, &ipaddr.sin6_addr);
 
-	ret = cap_getnameinfo(chan, (struct sockaddr *)&ipaddr, sizeof(ipaddr),
+	capret = cap_getnameinfo(chan, (struct sockaddr *)&ipaddr, sizeof(ipaddr),
 	    capfn, sizeof(capfn), NULL, 0, NI_NAMEREQD);
-	if (ret != 0) {
-		return (ret);
-	}
+	if (capret != 0 && capret == ENOTCAPABLE)
+		return (ENOTCAPABLE);
 
-	ret = getnameinfo((struct sockaddr *)&ipaddr, sizeof(ipaddr), origfn,
+	sysret = getnameinfo((struct sockaddr *)&ipaddr, sizeof(ipaddr), origfn,
 	    sizeof(origfn), NULL, 0, NI_NAMEREQD);
-	ATF_REQUIRE(ret == 0);
+	if (sysret != 0) {
+		atf_tc_skip("getnameinfo(%s) failed: %s",
+		    ip, gai_strerror(sysret));
+	}
+	ATF_REQUIRE(capret == 0);
 	ATF_REQUIRE(strcmp(origfn, capfn) == 0);
 
 	return (0);
@@ -133,13 +139,14 @@ test_gethostbyaddr_v4(cap_channel_t *chan, int family, const char *ip)
 	inet_pton(AF_INET, ip, &ipaddr);
 
 	caphp = cap_gethostbyaddr(chan, &ipaddr, sizeof(ipaddr), family);
-	if (caphp == NULL) {
-		return (h_errno);
-	}
+	if (caphp == NULL && h_errno == ENOTCAPABLE)
+		return (ENOTCAPABLE);
 
 	orighp = gethostbyaddr(&ipaddr, sizeof(ipaddr), family);
-	ATF_REQUIRE(orighp != NULL);
-	ATF_REQUIRE(strcmp(caphp->h_name, caphp->h_name) == 0);
+	if (orighp == NULL)
+		atf_tc_skip("gethostbyaddr(%s) failed", ip);
+	ATF_REQUIRE(caphp != NULL);
+	ATF_REQUIRE(strcmp(orighp->h_name, caphp->h_name) == 0);
 
 	return (0);
 }
@@ -154,12 +161,14 @@ test_gethostbyaddr_v6(cap_channel_t *chan, const char *ip)
 	inet_pton(AF_INET6, ip, &ipaddr);
 
 	caphp = cap_gethostbyaddr(chan, &ipaddr, sizeof(ipaddr), AF_INET6);
-	if (caphp == NULL)
-		return (h_errno);
+	if (caphp == NULL && h_errno == ENOTCAPABLE)
+		return (ENOTCAPABLE);
 
 	orighp = gethostbyaddr(&ipaddr, sizeof(ipaddr), AF_INET6);
-	ATF_REQUIRE(orighp != NULL);
-	ATF_REQUIRE(strcmp(caphp->h_name, caphp->h_name) == 0);
+	if (orighp == NULL)
+		atf_tc_skip("gethostbyaddr(%s) failed", ip);
+	ATF_REQUIRE(caphp != NULL);
+	ATF_REQUIRE(strcmp(orighp->h_name, caphp->h_name) == 0);
 
 	return (0);
 }
@@ -181,19 +190,21 @@ test_getaddrinfo(cap_channel_t *chan, int family, const char *domain,
 {
 	struct addrinfo hints, *capres, *origres, *res0, *res1;
 	bool found;
-	int ret;
+	int capret, sysret;
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = family;
 	hints.ai_socktype = SOCK_STREAM;
 
-	ret = cap_getaddrinfo(chan, domain, servname, &hints, &capres);
-	if (ret != 0) {
-		return (ret);
-	}
+	capret = cap_getaddrinfo(chan, domain, servname, &hints, &capres);
+	if (capret != 0 && capret == ENOTCAPABLE)
+		return (capret);
 
-	ret = getaddrinfo(domain, servname, &hints, &origres);
-	ATF_REQUIRE(ret == 0);
+	sysret = getaddrinfo(domain, servname, &hints, &origres);
+	if (sysret != 0)
+		atf_tc_skip("getaddrinfo(%s) failed: %s",
+		    domain, gai_strerror(sysret));
+	ATF_REQUIRE(capret == 0);
 
 	for (res0 = capres; res0 != NULL; res0 = res0->ai_next) {
 		found = false;
@@ -219,14 +230,15 @@ test_gethostbyname(cap_channel_t *chan, int family, const char *domain)
 	struct hostent *caphp, *orighp;
 
 	caphp = cap_gethostbyname2(chan, domain, family);
-	if (caphp == NULL) {
+	if (caphp == NULL && h_errno == ENOTCAPABLE)
 		return (h_errno);
-	}
 
 	orighp = gethostbyname2(domain, family);
-	ATF_REQUIRE(orighp != NULL);
-	ATF_REQUIRE(strcmp(caphp->h_name, orighp->h_name) == 0);
+	if (orighp == NULL)
+		atf_tc_skip("gethostbyname2(%s) failed", domain);
 
+	ATF_REQUIRE(caphp != NULL);
+	ATF_REQUIRE(strcmp(caphp->h_name, orighp->h_name) == 0);
 	return (0);
 }
 
@@ -257,7 +269,7 @@ test_connect(cap_channel_t *chan, const char *ip, unsigned short port)
 	int capfd, ret, serrno;
 
 	capfd = socket(AF_INET, SOCK_STREAM, 0);
-	ATF_REQUIRE(capfd > 0);
+	ATF_REQUIRE(capfd >= 0);
 
 	memset(&ipv4, 0, sizeof(ipv4));
 	ipv4.sin_family = AF_INET;
@@ -266,7 +278,31 @@ test_connect(cap_channel_t *chan, const char *ip, unsigned short port)
 
 	ret = cap_connect(chan, capfd, (struct sockaddr *)&ipv4, sizeof(ipv4));
 	serrno = errno;
-	close(capfd);
+	ATF_REQUIRE(close(capfd) == 0);
+
+	if (ret < 0 && serrno != ENOTCAPABLE) {
+		int sd;
+
+		/*
+		 * If the connection failed, it might be because we can't reach
+		 * the destination host.  To check, try a plain connect() and
+		 * see if it fails with the same error.
+		 */
+		sd = socket(AF_INET, SOCK_STREAM, 0);
+		ATF_REQUIRE(sd >= 0);
+
+		memset(&ipv4, 0, sizeof(ipv4));
+		ipv4.sin_family = AF_INET;
+		ipv4.sin_port = htons(port);
+		inet_pton(AF_INET, ip, &ipv4.sin_addr);
+		ret = connect(sd, (struct sockaddr *)&ipv4, sizeof(ipv4));
+		ATF_REQUIRE(ret < 0);
+		ATF_REQUIRE_MSG(errno == serrno, "errno %d != serrno %d",
+		    errno, serrno);
+		ATF_REQUIRE(close(sd) == 0);
+		atf_tc_skip("connect(%s:%d) failed: %s",
+		    ip, port, strerror(serrno));
+	}
 
 	return (ret < 0 ? serrno : 0);
 }
@@ -1151,6 +1187,7 @@ ATF_TC_BODY(capnet__limits_connecttodns, tc)
 	cap_net_limit_t *limit;
 	struct addrinfo hints, *capres, *res;
 	int family[] = { AF_INET };
+	int error;
 
 	capnet = create_network_service();
 
@@ -1179,9 +1216,12 @@ ATF_TC_BODY(capnet__limits_connecttodns, tc)
 		s = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 		ATF_REQUIRE(s >= 0);
 
-		ATF_REQUIRE(cap_connect(capnet, s, res->ai_addr,
-		    res->ai_addrlen) == 0);
-		close(s);
+		error = cap_connect(capnet, s, res->ai_addr,
+		    res->ai_addrlen);
+		if (error != 0 && errno != ENOTCAPABLE)
+			atf_tc_skip("unable to connect: %s", strerror(errno));
+		ATF_REQUIRE(error == 0);
+		ATF_REQUIRE(close(s) == 0);
 	}
 
 	freeaddrinfo(capres);
@@ -1198,7 +1238,7 @@ ATF_TC_BODY(capnet__limits_deprecated_connecttodns, tc)
 	struct in_addr ipaddr;
 	struct sockaddr_in connaddr;
 	int family[] = { AF_INET };
-	int i;
+	int error, i;
 
 	capnet = create_network_service();
 
@@ -1230,9 +1270,12 @@ ATF_TC_BODY(capnet__limits_deprecated_connecttodns, tc)
 		    (char *)caphp->h_addr_list[i], caphp->h_length);
 		connaddr.sin_port = htons(80);
 
-		ATF_REQUIRE(cap_connect(capnet, s, (struct sockaddr *)&connaddr,
-		    sizeof(connaddr)) == 0);
-		close(s);
+		error = cap_connect(capnet, s, (struct sockaddr *)&connaddr,
+		    sizeof(connaddr));
+		if (error != 0 && errno != ENOTCAPABLE)
+			atf_tc_skip("unable to connect: %s", strerror(errno));
+		ATF_REQUIRE(error == 0);
+		ATF_REQUIRE(close(s) == 0);
 	}
 
 	cap_close(capnet);
