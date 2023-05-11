@@ -26,6 +26,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <md5.h>
