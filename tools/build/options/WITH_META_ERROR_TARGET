@@ -1,0 +1,14 @@
+.\" $FreeBSD$
+Enable the META_MODE .ERROR target.
+.Pp
+This target will copy the meta file of a failed target
+to
+.Va ERROR_LOGDIR
+(default is
+.Ql ${SRCTOP:H}/error )
+to help with failure analysis.
+Depends on
+.Va WITH_META_MODE .
+This default when
+.Va WITH_DIRDEPS_BUILD
+is set.
