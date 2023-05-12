@@ -575,6 +575,23 @@ efi_devpath_last_node(EFI_DEVICE_PATH *devpath)
 	return (devpath);
 }
 
+/*
+ * Walk device path nodes, return next instance or end node.
+ */
+EFI_DEVICE_PATH *
+efi_devpath_next_instance(EFI_DEVICE_PATH *devpath)
+{
+	while (!IsDevicePathEnd(devpath)) {
+		devpath = NextDevicePathNode(devpath);
+		if (IsDevicePathEndType(devpath) &&
+		    devpath->SubType == END_INSTANCE_DEVICE_PATH_SUBTYPE) {
+			devpath = NextDevicePathNode(devpath);
+			break;
+		}
+	}
+	return (devpath);
+}
+
 EFI_DEVICE_PATH *
 efi_devpath_trim(EFI_DEVICE_PATH *devpath)
 {
