@@ -36,6 +36,8 @@ Note that there is currently no mass install feature for this.
 This build is designed for producing packages, that can then be installed
 on a target system.
 .Pp
-The implementation in FreeBSD is incomplete.
-Competion would require leaf directories for building each kernel
+The implementation in
+.Fx
+is incomplete.
+Completion would require leaf directories for building each kernel
 and package so that their dependencies can be tracked.
