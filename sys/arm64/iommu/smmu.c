@@ -65,7 +65,7 @@
  * Queues.
  *
  * Register interface and Memory-based circular buffer queues are used
- * to inferface SMMU.
+ * to interface SMMU.
  *
  * These are a Command queue for commands to send to the SMMU and an Event
  * queue for event/fault reports from the SMMU. Optionally PRI queue is
