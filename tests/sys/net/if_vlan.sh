@@ -221,6 +221,34 @@ qinq_dot_cleanup()
 	vnet_cleanup
 }
 
+atf_test_case "qinq_setflags" "cleanup"
+qinq_setflags_head()
+{
+	atf_set descr 'Test setting flags on a QinQ device'
+	atf_set require.user root
+}
+
+qinq_setflags_body()
+{
+	vnet_init
+
+	epair=$(vnet_mkepair)
+
+	ifconfig ${epair}a up
+	vlan1=$(ifconfig vlan create)
+	ifconfig $vlan1 vlan 1 vlandev ${epair}a
+	vlan2=$(ifconfig vlan create)
+	ifconfig $vlan2 vlan 2 vlandev $vlan1
+
+	# This panics, incorrect locking
+	ifconfig $vlan2 promisc
+}
+
+qinq_setflags_cleanup()
+{
+	vnet_cleanup
+}
+
 atf_test_case "bpf_pcp" "cleanup"
 bpf_pcp_head()
 {
@@ -273,5 +301,6 @@ atf_init_test_cases()
 	atf_add_test_case "qinq_deep"
 	atf_add_test_case "qinq_legacy"
 	atf_add_test_case "qinq_dot"
+	atf_add_test_case "qinq_setflags"
 	atf_add_test_case "bpf_pcp"
 }
