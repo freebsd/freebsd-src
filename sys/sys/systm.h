@@ -509,6 +509,9 @@ int alloc_unr(struct unrhdr *uh);
 int alloc_unr_specific(struct unrhdr *uh, u_int item);
 int alloc_unrl(struct unrhdr *uh);
 void free_unr(struct unrhdr *uh, u_int item);
+void *create_iter_unr(struct unrhdr *uh);
+int next_iter_unr(void *handle);
+void free_iter_unr(void *handle);
 
 struct unrhdr64 {
         uint64_t	counter;
