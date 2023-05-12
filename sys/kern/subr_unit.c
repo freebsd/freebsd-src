@@ -207,6 +207,12 @@ CTASSERT((sizeof(struct unr) % sizeof(bitstr_t)) == 0);
 /* Number of bits we can store in the bitmap */
 #define NBITS (NBBY * sizeof(((struct unrb *)NULL)->map))
 
+static inline bool
+is_bitmap(struct unrhdr *uh, struct unr *up)
+{
+	return (up->ptr != uh && up->ptr != NULL);
+}
+
 /* Is the unrb empty in at least the first len bits? */
 static inline bool
 ub_empty(struct unrb *ub, int len) {
@@ -246,7 +252,7 @@ check_unrhdr(struct unrhdr *uh, int line)
 	z = 0;
 	TAILQ_FOREACH(up, &uh->head, list) {
 		z++;
-		if (up->ptr != uh && up->ptr != NULL) {
+		if (is_bitmap(uh, up)) {
 			ub = up->ptr;
 			KASSERT (up->len <= NBITS,
 			    ("UNR inconsistency: len %u max %zd (line %d)\n",
@@ -407,12 +413,6 @@ clear_unrhdr(struct unrhdr *uh)
 	init_unrhdr(uh, uh->low, uh->high, uh->mtx);
 
 	check_unrhdr(uh, __LINE__);
-}
-
-static __inline int
-is_bitmap(struct unrhdr *uh, struct unr *up)
-{
-	return (up->ptr != uh && up->ptr != NULL);
 }
 
 /*
