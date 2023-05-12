@@ -881,6 +881,7 @@ struct proc {
 #define	P2_WEXIT		0x00040000	/* exit just started, no
 						   external thread_single() is
 						   permitted */
+#define	P2_REAPKILLED		0x00080000
 
 /* Flags protected by proctree_lock, kept in p_treeflags. */
 #define	P_TREE_ORPHANED		0x00000001	/* Reparented, on orphan list */
