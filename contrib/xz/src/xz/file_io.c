@@ -602,7 +602,7 @@ io_open_src_real(file_pair *pair)
 	if (!follow_symlinks) {
 		struct stat st;
 		if (lstat(pair->src_name, &st)) {
-			message_error("%s: %s", pair->src_name,
+			message_error(_("%s: %s"), pair->src_name,
 					strerror(errno));
 			return true;
 
@@ -676,7 +676,7 @@ io_open_src_real(file_pair *pair)
 			// Something else than O_NOFOLLOW failing
 			// (assuming that the race conditions didn't
 			// confuse us).
-			message_error("%s: %s", pair->src_name,
+			message_error(_("%s: %s"), pair->src_name,
 					strerror(errno));
 
 		return true;
@@ -766,7 +766,7 @@ io_open_src_real(file_pair *pair)
 	return false;
 
 error_msg:
-	message_error("%s: %s", pair->src_name, strerror(errno));
+	message_error(_("%s: %s"), pair->src_name, strerror(errno));
 error:
 	(void)close(pair->src_fd);
 	return true;
@@ -937,27 +937,48 @@ io_open_dest_real(file_pair *pair)
 		pair->dest_fd = open(pair->dest_name, flags, mode);
 
 		if (pair->dest_fd == -1) {
-			message_error("%s: %s", pair->dest_name,
+			message_error(_("%s: %s"), pair->dest_name,
 					strerror(errno));
 			free(pair->dest_name);
 			return true;
 		}
 	}
 
-#ifndef TUKLIB_DOSLIKE
-	// dest_st isn't used on DOS-like systems except as a dummy
-	// argument to io_unlink(), so don't fstat() on such systems.
 	if (fstat(pair->dest_fd, &pair->dest_st)) {
 		// If fstat() really fails, we have a safe fallback here.
-#	if defined(__VMS)
+#if defined(__VMS)
 		pair->dest_st.st_ino[0] = 0;
 		pair->dest_st.st_ino[1] = 0;
 		pair->dest_st.st_ino[2] = 0;
-#	else
+#else
 		pair->dest_st.st_dev = 0;
 		pair->dest_st.st_ino = 0;
-#	endif
-	} else if (try_sparse && opt_mode == MODE_DECOMPRESS) {
+#endif
+	}
+#if defined(TUKLIB_DOSLIKE) && !defined(__DJGPP__)
+	// Check that the output file is a regular file. We open with O_EXCL
+	// but that doesn't prevent open()/_open() on Windows from opening
+	// files like "con" or "nul".
+	//
+	// With DJGPP this check is done with stat() even before opening
+	// the output file. That method or a variant of it doesn't work on
+	// Windows because on Windows stat()/_stat64() sets st.st_mode so
+	// that S_ISREG(st.st_mode) will be true even for special files.
+	// With fstat()/_fstat64() it works.
+	else if (pair->dest_fd != STDOUT_FILENO
+			&& !S_ISREG(pair->dest_st.st_mode)) {
+		message_error("%s: Destination is not a regular file",
+				pair->dest_name);
+
+		// dest_fd needs to be reset to -1 to keep io_close() working.
+		(void)close(pair->dest_fd);
+		pair->dest_fd = -1;
+
+		free(pair->dest_name);
+		return true;
+	}
+#elif !defined(TUKLIB_DOSLIKE)
+	else if (try_sparse && opt_mode == MODE_DECOMPRESS) {
 		// When writing to standard output, we need to be extra
 		// careful:
 		//  - It may be connected to something else than
@@ -1157,8 +1178,7 @@ io_fix_src_pos(file_pair *pair, size_t rewind_size)
 extern size_t
 io_read(file_pair *pair, io_buf *buf, size_t size)
 {
-	// We use small buffers here.
-	assert(size < SSIZE_MAX);
+	assert(size <= IO_BUFFER_SIZE);
 
 	size_t pos = 0;
 
@@ -1285,7 +1305,7 @@ is_sparse(const io_buf *buf)
 static bool
 io_write_buf(file_pair *pair, const uint8_t *buf, size_t size)
 {
-	assert(size < SSIZE_MAX);
+	assert(size <= IO_BUFFER_SIZE);
 
 	while (size > 0) {
 		const ssize_t amount = write(pair->dest_fd, buf, size);

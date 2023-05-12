@@ -19,6 +19,16 @@
 #	include <immintrin.h>
 #endif
 
+// Only include <intrin.h> if it is needed. The header is only needed
+// on Windows when using an MSVC compatible compiler. The Intel compiler
+// can use the intrinsics without the header file.
+#if defined(TUKLIB_FAST_UNALIGNED_ACCESS) \
+		&& defined(_MSC_VER) \
+		&& defined(_M_X64) \
+		&& !defined(__INTEL_COMPILER)
+#	include <intrin.h>
+#endif
+
 
 /// Find out how many equal bytes the two buffers have.
 ///
@@ -39,7 +49,7 @@
 ///             It's rounded up to 2^n. This extra amount needs to be
 ///             allocated in the buffers being used. It needs to be
 ///             initialized too to keep Valgrind quiet.
-static inline uint32_t lzma_attribute((__always_inline__))
+static lzma_always_inline uint32_t
 lzma_memcmplen(const uint8_t *buf1, const uint8_t *buf2,
 		uint32_t len, uint32_t limit)
 {
@@ -59,11 +69,13 @@ lzma_memcmplen(const uint8_t *buf1, const uint8_t *buf2,
 	while (len < limit) {
 		const uint64_t x = read64ne(buf1 + len) - read64ne(buf2 + len);
 		if (x != 0) {
-#	if defined(_M_X64) // MSVC or Intel C compiler on Windows
+	// MSVC or Intel C compiler on Windows
+#	if (defined(_MSC_VER) || defined(__INTEL_COMPILER)) && defined(_M_X64)
 			unsigned long tmp;
 			_BitScanForward64(&tmp, x);
 			len += (uint32_t)tmp >> 3;
-#	else // GCC, clang, or Intel C compiler
+	// GCC, Clang, or Intel C compiler
+#	else
 			len += (uint32_t)__builtin_ctzll(x) >> 3;
 #	endif
 			return my_min(len, limit);
@@ -89,7 +101,8 @@ lzma_memcmplen(const uint8_t *buf1, const uint8_t *buf2,
 	// version isn't used on x86-64.
 #	define LZMA_MEMCMPLEN_EXTRA 16
 	while (len < limit) {
-		const uint32_t x = 0xFFFF ^ _mm_movemask_epi8(_mm_cmpeq_epi8(
+		const uint32_t x = 0xFFFF ^ (uint32_t)_mm_movemask_epi8(
+			_mm_cmpeq_epi8(
 			_mm_loadu_si128((const __m128i *)(buf1 + len)),
 			_mm_loadu_si128((const __m128i *)(buf2 + len))));
 

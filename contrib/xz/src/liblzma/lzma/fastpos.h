@@ -91,6 +91,7 @@ get_dist_slot_2(uint32_t dist)
 
 #define FASTPOS_BITS 13
 
+lzma_attr_visibility_hidden
 extern const uint8_t lzma_fastpos[1 << FASTPOS_BITS];
 
 

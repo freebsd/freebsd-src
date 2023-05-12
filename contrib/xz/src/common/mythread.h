@@ -79,7 +79,7 @@ do { \
 } while (0)
 
 
-#if !(defined(_WIN32) && !defined(__CYGWIN__))
+#if !(defined(_WIN32) && !defined(__CYGWIN__)) && !defined(__wasm__)
 // Use sigprocmask() to set the signal mask in single-threaded programs.
 #include <signal.h>
 
@@ -378,7 +378,7 @@ typedef struct {
 			abort(); \
 		if (pending_) { \
 			func(); \
-			if (!InitOnceComplete(&once, 0, NULL)) \
+			if (!InitOnceComplete(&once_, 0, NULL)) \
 				abort(); \
 		} \
 	} while (0)

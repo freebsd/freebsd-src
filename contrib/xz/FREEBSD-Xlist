@@ -1,4 +1,3 @@
-$FreeBSD$
 */*/*/Makefile.*
 */*/Makefile.*
 */.gitignore

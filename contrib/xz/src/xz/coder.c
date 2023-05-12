@@ -128,7 +128,8 @@ coder_add_filter(lzma_vli id, void *options)
 }
 
 
-static void lzma_attribute((__noreturn__))
+tuklib_attr_noreturn
+static void
 memlimit_too_small(uint64_t memory_usage)
 {
 	message(V_ERROR, _("Memory usage limit is too low for the given "
@@ -688,7 +689,7 @@ coder_init(file_pair *pair)
 			strm.avail_out = 0;
 			while ((ret = lzma_code(&strm, LZMA_RUN))
 					== LZMA_UNSUPPORTED_CHECK)
-				message_warning("%s: %s", pair->src_name,
+				message_warning(_("%s: %s"), pair->src_name,
 						message_strm(ret));
 
 			// With --single-stream lzma_code won't wait for
@@ -704,7 +705,7 @@ coder_init(file_pair *pair)
 	}
 
 	if (ret != LZMA_OK) {
-		message_error("%s: %s", pair->src_name, message_strm(ret));
+		message_error(_("%s: %s"), pair->src_name, message_strm(ret));
 		if (ret == LZMA_MEMLIMIT_ERROR)
 			message_mem_needed(V_ERROR, lzma_memusage(&strm));
 
@@ -964,10 +965,10 @@ coder_normal(file_pair *pair)
 			// wrong and we print an error. Otherwise it's just
 			// a warning and coding can continue.
 			if (stop) {
-				message_error("%s: %s", pair->src_name,
+				message_error(_("%s: %s"), pair->src_name,
 						message_strm(ret));
 			} else {
-				message_warning("%s: %s", pair->src_name,
+				message_warning(_("%s: %s"), pair->src_name,
 						message_strm(ret));
 
 				// When compressing, all possible errors set

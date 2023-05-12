@@ -350,7 +350,7 @@ file_info_decode(void *coder_ptr, const lzma_allocator *allocator,
 		// coder->temp[coder->temp_size - LZMA_STREAM_HEADER_SIZE].
 		//
 		// Otherwise we will need to seek. The seeking is done so
-		// that Stream Footer wil be at the end of coder->temp.
+		// that Stream Footer will be at the end of coder->temp.
 		// This way it's likely that we also get a complete Index
 		// field into coder->temp without needing a separate seek
 		// for that (unless the Index field is big).
