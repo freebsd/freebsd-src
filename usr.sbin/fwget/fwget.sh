@@ -44,14 +44,9 @@ EOF
 	exit 1
 }
 
-log_start()
-{
-	exec 3>&1 4>&2
-}
-
 log()
 {
-	echo $@ 1>&3
+	echo $@
 }
 
 log_verbose()
@@ -60,7 +55,7 @@ log_verbose()
 		return
 	fi
 
-	echo $@ 1>&3
+	echo $@
 }
 
 addpkg()
@@ -81,8 +76,6 @@ addpkg()
 
 DRY_RUN=n
 VERBOSE=n
-
-log_start
 
 while [ $# -gt 0 ]; do
 	case $1 in
