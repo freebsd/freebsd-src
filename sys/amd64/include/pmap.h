@@ -534,6 +534,7 @@ pmap_invlpg(pmap_t pmap, vm_offset_t va)
 }
 #endif /* sys/pcpu.h && machine/cpufunc.h */
 
+#if defined(_SYS_PCPU_H_)
 /* Return pcid for the pmap pmap on current cpu */
 static __inline uint32_t
 pmap_get_pcid(pmap_t pmap)
@@ -544,6 +545,7 @@ pmap_get_pcid(pmap_t pmap)
 	pcidp = zpcpu_get(pmap->pm_pcidp);
 	return (pcidp->pm_pcid);
 }
+#endif /* sys/pcpu.h */
 
 #endif /* _KERNEL */
 
