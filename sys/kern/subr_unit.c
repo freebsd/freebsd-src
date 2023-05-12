@@ -192,7 +192,7 @@ struct unrb {
 CTASSERT((sizeof(struct unr) % sizeof(bitstr_t)) == 0);
 
 /* Number of bits we can store in the bitmap */
-#define NBITS (8 * sizeof(((struct unrb*)NULL)->map))
+#define NBITS (NBBY * sizeof(((struct unrb *)NULL)->map))
 
 /* Is the unrb empty in at least the first len bits? */
 static inline bool
@@ -1011,7 +1011,7 @@ test_alloc_unr_specific(struct unrhdr *uh, u_int i, char a[])
 }
 
 static void
-usage(char** argv)
+usage(char **argv)
 {
 	printf("%s [-h] [-r REPETITIONS] [-v]\n", argv[0]);
 }
