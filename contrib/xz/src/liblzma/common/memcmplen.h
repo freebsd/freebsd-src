@@ -19,6 +19,16 @@
 #	include <immintrin.h>
 #endif
 
+// Only include <intrin.h> if it is needed. The header is only needed
+// on Windows when using an MSVC compatible compiler. The Intel compiler
+// can use the intrinsics without the header file.
+#if defined(TUKLIB_FAST_UNALIGNED_ACCESS) \
+		&& (defined(_MSC_VER) \
+		&& defined(_M_X64) \
+		&& !defined(__INTEL_COMPILER))
+#	include <intrin.h>
+#endif
+
 
 /// Find out how many equal bytes the two buffers have.
 ///
@@ -89,7 +99,8 @@ lzma_memcmplen(const uint8_t *buf1, const uint8_t *buf2,
 	// version isn't used on x86-64.
 #	define LZMA_MEMCMPLEN_EXTRA 16
 	while (len < limit) {
-		const uint32_t x = 0xFFFF ^ _mm_movemask_epi8(_mm_cmpeq_epi8(
+		const uint32_t x = 0xFFFF ^ (uint32_t)_mm_movemask_epi8(
+			_mm_cmpeq_epi8(
 			_mm_loadu_si128((const __m128i *)(buf1 + len)),
 			_mm_loadu_si128((const __m128i *)(buf2 + len))));
 

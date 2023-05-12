@@ -1,3 +1,270 @@
+commit 238b4e5458b4bd2cadefb768b8ea7c6b70a191ac
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-05-04 20:38:52 +0800
+
+    Translations: Update the Croatian translation.
+
+ po/hr.po | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+commit 0cee63c3c6c4f9084a5e7fa7c15a1863ac8e5ffc
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-05-04 19:50:42 +0800
+
+    Bump version and soname for 5.4.3.
+
+ src/liblzma/Makefile.am        | 2 +-
+ src/liblzma/api/lzma/version.h | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+commit 01f937ea9a49005c5091c0165fa0c1e572dd1749
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-05-02 20:39:56 +0800
+
+    Add NEWS for 5.4.3.
+
+ NEWS | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+commit e9b9ea953179502d5245b4e6ca4f5ffe9d5797b1
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-05-03 22:46:42 +0300
+
+    tuklib_integer.h: Fix a recent copypaste error in Clang detection.
+    
+    Wrong line was changed in 7062348bf35c1e4cbfee00ad9fffb4a21aa6eff7.
+    Also, this has >= instead of == since ints larger than 32 bits would
+    work too even if not relevant in practice.
+
+ src/common/tuklib_integer.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit be6e39a8622f0d905072874ec25b1ffd155b12e1
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-04-20 20:15:00 +0800
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 9e343a46cf87a345799222c0b0b3a6f3358dde0c
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-04-19 22:22:16 +0800
+
+    Windows: Include <intrin.h> when needed.
+    
+    Legacy Windows did not need to #include <intrin.h> to use the MSVC
+    intrinsics. Newer versions likely just issue a warning, but the MSVC
+    documentation says to include the header file for the intrinsics we use.
+    
+    GCC and Clang can "pretend" to be MSVC on Windows, so extra checks are
+    needed in tuklib_integer.h to only include <intrin.h> when it will is
+    actually needed.
+
+ src/common/tuklib_integer.h    |  6 ++++++
+ src/liblzma/common/memcmplen.h | 10 ++++++++++
+ 2 files changed, 16 insertions(+)
+
+commit 12321a9390acc076b414035a46df9d7545ac379f
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-04-19 21:59:03 +0800
+
+    tuklib_integer: Use __builtin_clz() with Clang.
+    
+    Clang has support for __builtin_clz(), but previously Clang would
+    fallback to either the MSVC intrinsic or the regular C code. This was
+    discovered due to a bug where a new version of Clang required the
+    <intrin.h> header file in order to use the MSVC intrinsics.
+    
+    Thanks to Anton Kochkov for notifying us about the bug.
+
+ src/common/tuklib_integer.h | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+commit d1f0e01c395960efd6c29ff144eda4f4c8c1c6d3
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-04-14 18:42:33 +0300
+
+    liblzma: Update project maintainers in lzma.h.
+    
+    AUTHORS was updated earlier, lzma.h was simply forgotten.
+
+ src/liblzma/api/lzma.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 8204c5d1304e1e3b7487801b4acaf8e3179a6c52
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-04-13 20:45:19 +0800
+
+    liblzma: Cleans up old commented out code.
+
+ src/liblzma/common/alone_encoder.c | 11 -----------
+ 1 file changed, 11 deletions(-)
+
+commit 32980d1562bc031013306be1c787761fa63da87d
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-03-28 22:32:40 +0800
+
+    CMake: Update liblzma-config.cmake generation.
+    
+    Now that the threading is configurable, the liblzma CMake package only
+    needs the threading library when using POSIX threads.
+
+ CMakeLists.txt | 33 ++++++++++++++++++++++-----------
+ 1 file changed, 22 insertions(+), 11 deletions(-)
+
+commit 023907faa965476fb921a6344253c50e0ba795f9
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-03-28 22:25:33 +0800
+
+    CMake: Allows setting thread method.
+    
+    The thread method is now configurable for the CMake build. It matches
+    the Autotools build by allowing ON (pick the best threading method),
+    OFF (no threading), posix, win95, and vista. If both Windows and
+    posix threading are both available, then ON will choose Windows
+    threading. Windows threading will also not use:
+    
+    target_link_libraries(liblzma Threads::Threads)
+    
+    since on systems like MinGW-w64 it would link the posix threads
+    without purpose.
+
+ CMakeLists.txt | 144 +++++++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 104 insertions(+), 40 deletions(-)
+
+commit ba176d77cbb164b13006516660fc1ff6c59dedb5
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-03-24 20:05:59 +0800
+
+    CMake: Only build xzdec if decoders are enabled.
+
+ CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit c99d697df800e9bc47e09facf88bcfdb9e0264a5
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-03-22 15:42:04 +0800
+
+    Build: Removes redundant check for LZMA1 filter support.
+
+ src/liblzma/lzma/Makefile.inc | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+commit 54a2fd8c850e626343b79c4cc8fcac2f638ec890
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-03-23 15:14:29 +0200
+
+    CMake: Bump maximum policy version to 3.26.
+    
+    It adds only one new policy related to FOLDERS which we don't use.
+    This makes it clear that the code is compatible with the policies
+    up to 3.26.
+
+ CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 622d0fdc02d5f565c2872d79bc70c669c95c8284
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-03-21 23:36:00 +0800
+
+    CMake: Conditionally build xz list.* files if decoders are enabled.
+
+ CMakeLists.txt | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+commit 3e2dc523c596cd770a6a7c58cacc0d0d8761e853
+Author: Jia Tan <jiat0218@gmail.com>
+Date:   2023-02-25 11:46:50 +0800
+
+    CMake: Allow configuring features as cache variables.
+    
+    This allows users to change the features they build either in
+    CMakeCache.txt or by using a CMake GUI. The sources built for
+    liblzma are affected by this too, so only the necessary files
+    will be compiled.
+
+ CMakeLists.txt | 528 ++++++++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 391 insertions(+), 137 deletions(-)
+
+commit 0c053f97337fa4ead77acefb577e8e86f8ef388d
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-03-21 14:07:51 +0200
+
+    Build: Add a comment that AC_PROG_CC_C99 is needed for Autoconf 2.69.
+    
+    It's obsolete in Autoconf >= 2.70 and just an alias for AC_PROG_CC
+    but Autoconf 2.69 requires AC_PROG_CC_C99 to get a C99 compiler.
+
+ configure.ac | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit 915d4f6058d52f84d2b58b0a5f3c8272eaa6c1bd
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-03-21 14:04:37 +0200
+
+    Build: configure.ac: Use AS_IF and AS_CASE where required.
+    
+    This makes no functional difference in the generated configure
+    (at least with the Autotools versions I have installed) but this
+    change might prevent future bugs like the one that was just
+    fixed in the commit 5a5bd7f871818029d5ccbe189f087f591258c294.
+
+ configure.ac | 30 +++++++++++++++---------------
+ 1 file changed, 15 insertions(+), 15 deletions(-)
+
+commit b848c039586ed2cddb6fb033680dac107cc5143f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-03-21 13:12:03 +0200
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit c775ba1602a74f29dbc2088bbe4d02c23fc32ba1
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-03-21 13:11:49 +0200
+
+    Build: Fix --disable-threads breaking the building of shared libs.
+    
+    This is broken in the releases 5.2.6 to 5.4.2. A workaround
+    for these releases is to pass EGREP='grep -E' as an argument
+    to configure in addition to --disable-threads.
+    
+    The problem appeared when m4/ax_pthread.m4 was updated in
+    the commit 6629ed929cc7d45a11e385f357ab58ec15e7e4ad which
+    introduced the use of AC_EGREP_CPP. AC_EGREP_CPP calls
+    AC_REQUIRE([AC_PROG_EGREP]) to set the shell variable EGREP
+    but this was only executed if POSIX threads were enabled.
+    Libtool code also has AC_REQUIRE([AC_PROG_EGREP]) but Autoconf
+    omits it as AC_PROG_EGREP has already been required earlier.
+    Thus, if not using POSIX threads, the shell variable EGREP
+    would be undefined in the Libtool code in configure.
+    
+    ax_pthread.m4 is fine. The bug was in configure.ac which called
+    AX_PTHREAD conditionally in an incorrect way. Using AS_CASE
+    ensures that all AC_REQUIREs get always run.
+    
+    Thanks to Frank Busse for reporting the bug.
+    Fixes: https://github.com/tukaani-project/xz/issues/45
+
+ configure.ac | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
+
+commit 0673c9ec98b6bae12b33dc295564514aaa26e2fc
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2023-03-19 22:45:59 +0200
+
+    liblzma: Silence -Wsign-conversion in SSE2 code in memcmplen.h.
+    
+    Thanks to Christian Hesse for reporting the issue.
+    Fixes: https://github.com/tukaani-project/xz/issues/44
+
+ src/liblzma/common/memcmplen.h | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
 commit 6ca8046ecbc7a1c81ee08f544bfd1414819fb2e8
 Author: Jia Tan <jiat0218@gmail.com>
 Date:   2023-03-18 23:22:06 +0800
