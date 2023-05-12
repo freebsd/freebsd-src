@@ -1072,6 +1072,15 @@ zfs_clone_range(znode_t *inzp, uint64_t *inoffp, znode_t *outzp,
 
 	inzfsvfs = ZTOZSB(inzp);
 	outzfsvfs = ZTOZSB(outzp);
+
+	/*
+	 * We need to call zfs_enter() potentially on two different datasets,
+	 * so we need a dedicated function for that.
+	 */
+	error = zfs_enter_two(inzfsvfs, outzfsvfs, FTAG);
+	if (error != 0)
+		return (error);
+
 	inos = inzfsvfs->z_os;
 	outos = outzfsvfs->z_os;
 
@@ -1082,14 +1091,6 @@ zfs_clone_range(znode_t *inzp, uint64_t *inoffp, znode_t *outzp,
 		zfs_exit_two(inzfsvfs, outzfsvfs, FTAG);
 		return (SET_ERROR(EXDEV));
 	}
-
-	/*
-	 * We need to call zfs_enter() potentially on two different datasets,
-	 * so we need a dedicated function for that.
-	 */
-	error = zfs_enter_two(inzfsvfs, outzfsvfs, FTAG);
-	if (error != 0)
-		return (error);
 
 	ASSERT(!outzfsvfs->z_replay);
 
@@ -1246,16 +1247,10 @@ zfs_clone_range(znode_t *inzp, uint64_t *inoffp, znode_t *outzp,
 			break;
 		}
 
-		/*
-		 * Start a transaction.
-		 */
-		tx = dmu_tx_create(outos);
-
 		nbps = maxblocks;
-		error = dmu_read_l0_bps(inos, inzp->z_id, inoff, size, tx, bps,
+		error = dmu_read_l0_bps(inos, inzp->z_id, inoff, size, bps,
 		    &nbps);
 		if (error != 0) {
-			dmu_tx_abort(tx);
 			/*
 			 * If we are tyring to clone a block that was created
 			 * in the current transaction group. Return an error,
@@ -1276,12 +1271,15 @@ zfs_clone_range(znode_t *inzp, uint64_t *inoffp, znode_t *outzp,
 		 */
 		if (BP_IS_PROTECTED(&bps[0])) {
 			if (inzfsvfs != outzfsvfs) {
-				dmu_tx_abort(tx);
 				error = SET_ERROR(EXDEV);
 				break;
 			}
 		}
 
+		/*
+		 * Start a transaction.
+		 */
+		tx = dmu_tx_create(outos);
 		dmu_tx_hold_sa(tx, outzp->z_sa_hdl, B_FALSE);
 		db = (dmu_buf_impl_t *)sa_get_db(outzp->z_sa_hdl);
 		DB_DNODE_ENTER(db);
@@ -1309,8 +1307,12 @@ zfs_clone_range(znode_t *inzp, uint64_t *inoffp, znode_t *outzp,
 			    ((len - 1) / inblksz + 1) * inblksz);
 		}
 
-		dmu_brt_clone(outos, outzp->z_id, outoff, size, tx, bps, nbps,
-		    B_FALSE);
+		error = dmu_brt_clone(outos, outzp->z_id, outoff, size, tx,
+		    bps, nbps, B_FALSE);
+		if (error != 0) {
+			dmu_tx_commit(tx);
+			break;
+		}
 
 		zfs_clear_setid_bits_if_necessary(outzfsvfs, outzp, cr,
 		    &clear_setid_bits_txg, tx);

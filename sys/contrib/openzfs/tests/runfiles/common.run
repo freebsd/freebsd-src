@@ -325,7 +325,8 @@ tests = ['zfs_wait_deleteq', 'zfs_wait_getsubopt']
 tags = ['functional', 'cli_root', 'zfs_wait']
 
 [tests/functional/cli_root/zhack]
-tests = ['zhack_label_checksum']
+tests = ['zhack_label_repair_001', 'zhack_label_repair_002',
+    'zhack_label_repair_003', 'zhack_label_repair_004']
 pre =
 post =
 tags = ['functional', 'cli_root', 'zhack']
@@ -421,7 +422,7 @@ tests = ['zpool_import_001_pos', 'zpool_import_002_pos',
     'import_cachefile_mirror_detached',
     'import_cachefile_paths_changed',
     'import_cachefile_shared_device',
-    'import_devices_missing',
+    'import_devices_missing', 'import_log_missing',
     'import_paths_changed',
     'import_rewind_config_changed',
     'import_rewind_device_replaced']

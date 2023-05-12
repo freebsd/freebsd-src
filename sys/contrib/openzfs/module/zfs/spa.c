@@ -2387,7 +2387,7 @@ spa_load_verify_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
 	 * When damaged consider it to be a metadata error since we cannot
 	 * trust the BP_GET_TYPE and BP_GET_LEVEL values.
 	 */
-	if (!zfs_blkptr_verify(spa, bp, B_FALSE, BLK_VERIFY_LOG)) {
+	if (!zfs_blkptr_verify(spa, bp, BLK_CONFIG_NEEDED, BLK_VERIFY_LOG)) {
 		atomic_inc_64(&sle->sle_meta_count);
 		return (0);
 	}
@@ -6377,6 +6377,16 @@ spa_tryimport(nvlist_t *tryconfig)
 	} else {
 		spa->spa_config_source = SPA_CONFIG_SRC_SCAN;
 	}
+
+	/*
+	 * spa_import() relies on a pool config fetched by spa_try_import()
+	 * for spare/cache devices. Import flags are not passed to
+	 * spa_tryimport(), which makes it return early due to a missing log
+	 * device and missing retrieving the cache device and spare eventually.
+	 * Passing ZFS_IMPORT_MISSING_LOG to spa_tryimport() makes it fetch
+	 * the correct configuration regardless of the missing log device.
+	 */
+	spa->spa_import_flags |= ZFS_IMPORT_MISSING_LOG;
 
 	error = spa_load(spa, SPA_LOAD_TRYIMPORT, SPA_IMPORT_EXISTING);
 

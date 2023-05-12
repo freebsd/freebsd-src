@@ -250,6 +250,7 @@ nobase_dist_datadir_zfs_tests_tests_DATA += \
 	functional/cli_root/zpool_upgrade/zpool_upgrade.cfg \
 	functional/cli_root/zpool_upgrade/zpool_upgrade.kshlib \
 	functional/cli_root/zpool_wait/zpool_wait.kshlib \
+	functional/cli_root/zhack/library.kshlib \
 	functional/cli_user/misc/misc.cfg \
 	functional/cli_user/zfs_list/zfs_list.cfg \
 	functional/cli_user/zfs_list/zfs_list.kshlib \
@@ -932,7 +933,10 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/cli_root/zfs/zfs_001_neg.ksh \
 	functional/cli_root/zfs/zfs_002_pos.ksh \
 	functional/cli_root/zfs/zfs_003_neg.ksh \
-	functional/cli_root/zhack/zhack_label_checksum.ksh \
+	functional/cli_root/zhack/zhack_label_repair_001.ksh \
+	functional/cli_root/zhack/zhack_label_repair_002.ksh \
+	functional/cli_root/zhack/zhack_label_repair_003.ksh \
+	functional/cli_root/zhack/zhack_label_repair_004.ksh \
 	functional/cli_root/zpool_add/add_nested_replacing_spare.ksh \
 	functional/cli_root/zpool_add/add-o_ashift.ksh \
 	functional/cli_root/zpool_add/add_prop_ashift.ksh \
@@ -1052,6 +1056,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/cli_root/zpool_import/import_cachefile_paths_changed.ksh \
 	functional/cli_root/zpool_import/import_cachefile_shared_device.ksh \
 	functional/cli_root/zpool_import/import_devices_missing.ksh \
+	functional/cli_root/zpool_import/import_log_missing.ksh \
 	functional/cli_root/zpool_import/import_paths_changed.ksh \
 	functional/cli_root/zpool_import/import_rewind_config_changed.ksh \
 	functional/cli_root/zpool_import/import_rewind_device_replaced.ksh \

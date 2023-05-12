@@ -2173,7 +2173,7 @@ restart:
 
 int
 dmu_read_l0_bps(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
-    dmu_tx_t *tx, blkptr_t *bps, size_t *nbpsp)
+    blkptr_t *bps, size_t *nbpsp)
 {
 	dmu_buf_t **dbp, *dbuf;
 	dmu_buf_impl_t *db;
@@ -2197,10 +2197,6 @@ dmu_read_l0_bps(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
 
 		mutex_enter(&db->db_mtx);
 
-		/*
-		 * If the block is not on the disk yet, it has no BP assigned.
-		 * There is not much we can do...
-		 */
 		if (!list_is_empty(&db->db_dirty_records)) {
 			dbuf_dirty_record_t *dr;
 
@@ -2235,10 +2231,6 @@ dmu_read_l0_bps(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
 			error = SET_ERROR(EAGAIN);
 			goto out;
 		}
-		if (dmu_buf_is_dirty(dbuf, tx)) {
-			error = SET_ERROR(EAGAIN);
-			goto out;
-		}
 		/*
 		 * Make sure we clone only data blocks.
 		 */
@@ -2257,7 +2249,7 @@ out:
 	return (error);
 }
 
-void
+int
 dmu_brt_clone(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
     dmu_tx_t *tx, const blkptr_t *bps, size_t nbps, boolean_t replay)
 {
@@ -2267,7 +2259,7 @@ dmu_brt_clone(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
 	struct dirty_leaf *dl;
 	dbuf_dirty_record_t *dr;
 	const blkptr_t *bp;
-	int numbufs;
+	int error = 0, i, numbufs;
 
 	spa = os->os_spa;
 
@@ -2275,27 +2267,37 @@ dmu_brt_clone(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
 	    &numbufs, &dbp));
 	ASSERT3U(nbps, ==, numbufs);
 
-	for (int i = 0; i < numbufs; i++) {
+	/*
+	 * Before we start cloning make sure that the dbufs sizes match new BPs
+	 * sizes. If they don't, that's a no-go, as we are not able to shrink
+	 * dbufs.
+	 */
+	for (i = 0; i < numbufs; i++) {
 		dbuf = dbp[i];
 		db = (dmu_buf_impl_t *)dbuf;
 		bp = &bps[i];
 
 		ASSERT0(db->db_level);
 		ASSERT(db->db_blkid != DMU_BONUS_BLKID);
+		ASSERT(db->db_blkid != DMU_SPILL_BLKID);
+
+		if (!BP_IS_HOLE(bp) && BP_GET_LSIZE(bp) != dbuf->db_size) {
+			error = SET_ERROR(EXDEV);
+			goto out;
+		}
+	}
+
+	for (i = 0; i < numbufs; i++) {
+		dbuf = dbp[i];
+		db = (dmu_buf_impl_t *)dbuf;
+		bp = &bps[i];
+
+		ASSERT0(db->db_level);
+		ASSERT(db->db_blkid != DMU_BONUS_BLKID);
+		ASSERT(db->db_blkid != DMU_SPILL_BLKID);
 		ASSERT(BP_IS_HOLE(bp) || dbuf->db_size == BP_GET_LSIZE(bp));
 
-		mutex_enter(&db->db_mtx);
-
-		VERIFY(!dbuf_undirty(db, tx));
-		ASSERT(list_head(&db->db_dirty_records) == NULL);
-		if (db->db_buf != NULL) {
-			arc_buf_destroy(db->db_buf, db);
-			db->db_buf = NULL;
-		}
-
-		mutex_exit(&db->db_mtx);
-
-		dmu_buf_will_not_fill(dbuf, tx);
+		dmu_buf_will_clone(dbuf, tx);
 
 		mutex_enter(&db->db_mtx);
 
@@ -2305,7 +2307,6 @@ dmu_brt_clone(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
 		dl = &dr->dt.dl;
 		dl->dr_overridden_by = *bp;
 		dl->dr_brtwrite = B_TRUE;
-
 		dl->dr_override_state = DR_OVERRIDDEN;
 		if (BP_IS_HOLE(bp)) {
 			dl->dr_overridden_by.blk_birth = 0;
@@ -2331,8 +2332,10 @@ dmu_brt_clone(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
 			brt_pending_add(spa, bp, tx);
 		}
 	}
-
+out:
 	dmu_buf_rele_array(dbp, numbufs, FTAG);
+
+	return (error);
 }
 
 void
