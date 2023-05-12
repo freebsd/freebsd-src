@@ -72,6 +72,11 @@
 
 #define	NAME_MAX_LEN 64
 
+typedef struct clones {
+	uint64_t clone_ds;
+	list_node_t node;
+} clones_t;
+
 /*
  * spa_upgrade_errlog_limit : A zfs module parameter that controls the number
  *		of on-disk error log entries that will be converted to the new
@@ -135,10 +140,6 @@ name_to_bookmark(char *buf, zbookmark_phys_t *zb)
 }
 
 #ifdef _KERNEL
-static int check_clones(spa_t *spa, uint64_t zap_clone, uint64_t snap_count,
-    uint64_t *snap_obj_array, zbookmark_err_phys_t *zep, void* uaddr,
-    uint64_t *count);
-
 static void
 zep_to_zb(uint64_t dataset, zbookmark_err_phys_t *zep, zbookmark_phys_t *zb)
 {
@@ -162,15 +163,15 @@ name_to_object(char *buf, uint64_t *obj)
 static int get_head_ds(spa_t *spa, uint64_t dsobj, uint64_t *head_ds)
 {
 	dsl_dataset_t *ds;
-	int error = dsl_dataset_hold_obj(spa->spa_dsl_pool,
-	    dsobj, FTAG, &ds);
+	int error = dsl_dataset_hold_obj_flags(spa->spa_dsl_pool,
+	    dsobj, DS_HOLD_FLAG_DECRYPT, FTAG, &ds);
 
 	if (error != 0)
 		return (error);
 
 	ASSERT(head_ds);
 	*head_ds = dsl_dir_phys(ds->ds_dir)->dd_head_dataset_obj;
-	dsl_dataset_rele(ds, FTAG);
+	dsl_dataset_rele_flags(ds, DS_HOLD_FLAG_DECRYPT, FTAG);
 
 	return (error);
 }
@@ -291,12 +292,13 @@ copyout_entry(const zbookmark_phys_t *zb, void *uaddr, uint64_t *count)
  */
 static int
 check_filesystem(spa_t *spa, uint64_t head_ds, zbookmark_err_phys_t *zep,
-    void *uaddr, uint64_t *count)
+    void *uaddr, uint64_t *count, list_t *clones_list)
 {
 	dsl_dataset_t *ds;
 	dsl_pool_t *dp = spa->spa_dsl_pool;
 
-	int error = dsl_dataset_hold_obj(dp, head_ds, FTAG, &ds);
+	int error = dsl_dataset_hold_obj_flags(dp, head_ds,
+	    DS_HOLD_FLAG_DECRYPT, FTAG, &ds);
 	if (error != 0)
 		return (error);
 
@@ -304,23 +306,6 @@ check_filesystem(spa_t *spa, uint64_t head_ds, zbookmark_err_phys_t *zep,
 	uint64_t txg_to_consider = spa->spa_syncing_txg;
 	boolean_t check_snapshot = B_TRUE;
 	error = find_birth_txg(ds, zep, &latest_txg);
-
-	/*
-	 * If the filesystem is encrypted and the key is not loaded
-	 * or the encrypted filesystem is not mounted the error will be EACCES.
-	 * In that case report an error in the head filesystem and return.
-	 */
-	if (error == EACCES) {
-		dsl_dataset_rele(ds, FTAG);
-		zbookmark_phys_t zb;
-		zep_to_zb(head_ds, zep, &zb);
-		error = copyout_entry(&zb, uaddr, count);
-		if (error != 0) {
-			dsl_dataset_rele(ds, FTAG);
-			return (error);
-		}
-		return (0);
-	}
 
 	/*
 	 * If find_birth_txg() errors out otherwise, let txg_to_consider be
@@ -333,7 +318,7 @@ check_filesystem(spa_t *spa, uint64_t head_ds, zbookmark_err_phys_t *zep,
 		zep_to_zb(head_ds, zep, &zb);
 		error = copyout_entry(&zb, uaddr, count);
 		if (error != 0) {
-			dsl_dataset_rele(ds, FTAG);
+			dsl_dataset_rele_flags(ds, DS_HOLD_FLAG_DECRYPT, FTAG);
 			return (error);
 		}
 		check_snapshot = B_FALSE;
@@ -351,14 +336,14 @@ check_filesystem(spa_t *spa, uint64_t head_ds, zbookmark_err_phys_t *zep,
 		    dsl_dataset_phys(ds)->ds_snapnames_zapobj, &snap_count);
 
 		if (error != 0) {
-			dsl_dataset_rele(ds, FTAG);
+			dsl_dataset_rele_flags(ds, DS_HOLD_FLAG_DECRYPT, FTAG);
 			return (error);
 		}
 	}
 
 	if (snap_count == 0) {
 		/* Filesystem without snapshots. */
-		dsl_dataset_rele(ds, FTAG);
+		dsl_dataset_rele_flags(ds, DS_HOLD_FLAG_DECRYPT, FTAG);
 		return (0);
 	}
 
@@ -370,20 +355,21 @@ check_filesystem(spa_t *spa, uint64_t head_ds, zbookmark_err_phys_t *zep,
 	uint64_t snap_obj_txg = dsl_dataset_phys(ds)->ds_prev_snap_txg;
 	uint64_t zap_clone = dsl_dir_phys(ds->ds_dir)->dd_clones;
 
-	dsl_dataset_rele(ds, FTAG);
+	dsl_dataset_rele_flags(ds, DS_HOLD_FLAG_DECRYPT, FTAG);
 
 	/* Check only snapshots created from this file system. */
 	while (snap_obj != 0 && zep->zb_birth < snap_obj_txg &&
 	    snap_obj_txg <= txg_to_consider) {
 
-		error = dsl_dataset_hold_obj(dp, snap_obj, FTAG, &ds);
+		error = dsl_dataset_hold_obj_flags(dp, snap_obj,
+		    DS_HOLD_FLAG_DECRYPT, FTAG, &ds);
 		if (error != 0)
 			goto out;
 
 		if (dsl_dir_phys(ds->ds_dir)->dd_head_dataset_obj != head_ds) {
 			snap_obj = dsl_dataset_phys(ds)->ds_prev_snap_obj;
 			snap_obj_txg = dsl_dataset_phys(ds)->ds_prev_snap_txg;
-			dsl_dataset_rele(ds, FTAG);
+			dsl_dataset_rele_flags(ds, DS_HOLD_FLAG_DECRYPT, FTAG);
 			continue;
 		}
 
@@ -403,33 +389,20 @@ check_filesystem(spa_t *spa, uint64_t head_ds, zbookmark_err_phys_t *zep,
 			zep_to_zb(snap_obj, zep, &zb);
 			error = copyout_entry(&zb, uaddr, count);
 			if (error != 0) {
-				dsl_dataset_rele(ds, FTAG);
+				dsl_dataset_rele_flags(ds, DS_HOLD_FLAG_DECRYPT,
+				    FTAG);
 				goto out;
 			}
 		}
 		snap_obj = dsl_dataset_phys(ds)->ds_prev_snap_obj;
 		snap_obj_txg = dsl_dataset_phys(ds)->ds_prev_snap_txg;
-		dsl_dataset_rele(ds, FTAG);
+		dsl_dataset_rele_flags(ds, DS_HOLD_FLAG_DECRYPT, FTAG);
 	}
 
-	if (zap_clone != 0 && aff_snap_count > 0) {
-		error = check_clones(spa, zap_clone, snap_count, snap_obj_array,
-		    zep, uaddr, count);
-	}
+	if (zap_clone == 0 || aff_snap_count == 0)
+		return (0);
 
-out:
-	kmem_free(snap_obj_array, sizeof (*snap_obj_array));
-	return (error);
-}
-
-/*
- * Clone checking.
- */
-static int check_clones(spa_t *spa, uint64_t zap_clone, uint64_t snap_count,
-    uint64_t *snap_obj_array, zbookmark_err_phys_t *zep, void* uaddr,
-    uint64_t *count)
-{
-	int error = 0;
+	/* Check clones. */
 	zap_cursor_t *zc;
 	zap_attribute_t *za;
 
@@ -440,10 +413,9 @@ static int check_clones(spa_t *spa, uint64_t zap_clone, uint64_t snap_count,
 	    zap_cursor_retrieve(zc, za) == 0;
 	    zap_cursor_advance(zc)) {
 
-		dsl_pool_t *dp = spa->spa_dsl_pool;
 		dsl_dataset_t *clone;
-		error = dsl_dataset_hold_obj(dp, za->za_first_integer,
-		    FTAG, &clone);
+		error = dsl_dataset_hold_obj_flags(dp, za->za_first_integer,
+		    DS_HOLD_FLAG_DECRYPT, FTAG, &clone);
 
 		if (error != 0)
 			break;
@@ -458,22 +430,22 @@ static int check_clones(spa_t *spa, uint64_t zap_clone, uint64_t snap_count,
 			    == snap_obj_array[i])
 				found = B_TRUE;
 		}
-		dsl_dataset_rele(clone, FTAG);
+		dsl_dataset_rele_flags(clone, DS_HOLD_FLAG_DECRYPT, FTAG);
 
 		if (!found)
 			continue;
 
-		error = check_filesystem(spa, za->za_first_integer, zep,
-		    uaddr, count);
-
-		if (error != 0)
-			break;
+		clones_t *ct = kmem_zalloc(sizeof (*ct), KM_SLEEP);
+		ct->clone_ds = za->za_first_integer;
+		list_insert_tail(clones_list, ct);
 	}
 
 	zap_cursor_fini(zc);
 	kmem_free(za, sizeof (*za));
 	kmem_free(zc, sizeof (*zc));
 
+out:
+	kmem_free(snap_obj_array, sizeof (*snap_obj_array));
 	return (error);
 }
 
@@ -488,14 +460,14 @@ find_top_affected_fs(spa_t *spa, uint64_t head_ds, zbookmark_err_phys_t *zep,
 		return (error);
 
 	dsl_dataset_t *ds;
-	error = dsl_dataset_hold_obj(spa->spa_dsl_pool, oldest_dsobj,
-	    FTAG, &ds);
+	error = dsl_dataset_hold_obj_flags(spa->spa_dsl_pool, oldest_dsobj,
+	    DS_HOLD_FLAG_DECRYPT, FTAG, &ds);
 	if (error != 0)
 		return (error);
 
 	*top_affected_fs =
 	    dsl_dir_phys(ds->ds_dir)->dd_head_dataset_obj;
-	dsl_dataset_rele(ds, FTAG);
+	dsl_dataset_rele_flags(ds, DS_HOLD_FLAG_DECRYPT, FTAG);
 	return (0);
 }
 
@@ -521,10 +493,43 @@ process_error_block(spa_t *spa, uint64_t head_ds, zbookmark_err_phys_t *zep,
 	}
 
 	uint64_t top_affected_fs;
+	uint64_t init_count = *count;
 	int error = find_top_affected_fs(spa, head_ds, zep, &top_affected_fs);
 	if (error == 0) {
+		clones_t *ct;
+		list_t clones_list;
+
+		list_create(&clones_list, sizeof (clones_t),
+		    offsetof(clones_t, node));
+
 		error = check_filesystem(spa, top_affected_fs, zep,
-		    uaddr, count);
+		    uaddr, count, &clones_list);
+
+		while ((ct = list_remove_head(&clones_list)) != NULL) {
+			error = check_filesystem(spa, ct->clone_ds, zep,
+			    uaddr, count, &clones_list);
+			kmem_free(ct, sizeof (*ct));
+
+			if (error) {
+				while (!list_is_empty(&clones_list)) {
+					ct = list_remove_head(&clones_list);
+					kmem_free(ct, sizeof (*ct));
+				}
+				break;
+			}
+		}
+
+		list_destroy(&clones_list);
+	}
+	if (error == 0 && init_count == *count) {
+		/*
+		 * If we reach this point, no errors have been detected
+		 * in the checked filesystems/snapshots. Before returning mark
+		 * the error block to be removed from the error lists and logs.
+		 */
+		zbookmark_phys_t zb;
+		zep_to_zb(head_ds, zep, &zb);
+		spa_remove_error(spa, &zb, &zep->zb_birth);
 	}
 
 	return (error);
@@ -536,37 +541,111 @@ process_error_block(spa_t *spa, uint64_t head_ds, zbookmark_err_phys_t *zep,
  * so that we can later remove the related log entries in sync context.
  */
 static void
-spa_add_healed_error(spa_t *spa, uint64_t obj, zbookmark_phys_t *healed_zb)
+spa_add_healed_error(spa_t *spa, uint64_t obj, zbookmark_phys_t *healed_zb,
+    const uint64_t *birth)
 {
 	char name[NAME_MAX_LEN];
 
 	if (obj == 0)
 		return;
 
-	bookmark_to_name(healed_zb, name, sizeof (name));
-	mutex_enter(&spa->spa_errlog_lock);
-	if (zap_contains(spa->spa_meta_objset, obj, name) == 0) {
-		/*
-		 * Found an error matching healed zb, add zb to our
-		 * tree of healed errors
-		 */
-		avl_tree_t *tree = &spa->spa_errlist_healed;
-		spa_error_entry_t search;
-		spa_error_entry_t *new;
-		avl_index_t where;
-		search.se_bookmark = *healed_zb;
-		mutex_enter(&spa->spa_errlist_lock);
-		if (avl_find(tree, &search, &where) != NULL) {
-			mutex_exit(&spa->spa_errlist_lock);
-			mutex_exit(&spa->spa_errlog_lock);
-			return;
+	boolean_t held_list = B_FALSE;
+	boolean_t held_log = B_FALSE;
+
+	if (!spa_feature_is_enabled(spa, SPA_FEATURE_HEAD_ERRLOG)) {
+		bookmark_to_name(healed_zb, name, sizeof (name));
+
+		if (zap_contains(spa->spa_meta_objset, healed_zb->zb_objset,
+		    name) == 0) {
+			if (!MUTEX_HELD(&spa->spa_errlog_lock)) {
+				mutex_enter(&spa->spa_errlog_lock);
+				held_log = B_TRUE;
+			}
+
+			/*
+			 * Found an error matching healed zb, add zb to our
+			 * tree of healed errors
+			 */
+			avl_tree_t *tree = &spa->spa_errlist_healed;
+			spa_error_entry_t search;
+			spa_error_entry_t *new;
+			avl_index_t where;
+			search.se_bookmark = *healed_zb;
+			if (!MUTEX_HELD(&spa->spa_errlist_lock)) {
+				mutex_enter(&spa->spa_errlist_lock);
+				held_list = B_TRUE;
+			}
+			if (avl_find(tree, &search, &where) != NULL) {
+				if (held_list)
+					mutex_exit(&spa->spa_errlist_lock);
+				if (held_log)
+					mutex_exit(&spa->spa_errlog_lock);
+				return;
+			}
+			new = kmem_zalloc(sizeof (spa_error_entry_t), KM_SLEEP);
+			new->se_bookmark = *healed_zb;
+			avl_insert(tree, new, where);
+			if (held_list)
+				mutex_exit(&spa->spa_errlist_lock);
+			if (held_log)
+				mutex_exit(&spa->spa_errlog_lock);
 		}
-		new = kmem_zalloc(sizeof (spa_error_entry_t), KM_SLEEP);
-		new->se_bookmark = *healed_zb;
-		avl_insert(tree, new, where);
-		mutex_exit(&spa->spa_errlist_lock);
+		return;
 	}
-	mutex_exit(&spa->spa_errlog_lock);
+
+	zbookmark_err_phys_t healed_zep;
+	healed_zep.zb_object = healed_zb->zb_object;
+	healed_zep.zb_level = healed_zb->zb_level;
+	healed_zep.zb_blkid = healed_zb->zb_blkid;
+
+	if (birth != NULL)
+		healed_zep.zb_birth = *birth;
+	else
+		healed_zep.zb_birth = 0;
+
+	errphys_to_name(&healed_zep, name, sizeof (name));
+
+	zap_cursor_t zc;
+	zap_attribute_t za;
+	for (zap_cursor_init(&zc, spa->spa_meta_objset, spa->spa_errlog_last);
+	    zap_cursor_retrieve(&zc, &za) == 0; zap_cursor_advance(&zc)) {
+		if (zap_contains(spa->spa_meta_objset, za.za_first_integer,
+		    name) == 0) {
+			if (!MUTEX_HELD(&spa->spa_errlog_lock)) {
+				mutex_enter(&spa->spa_errlog_lock);
+				held_log = B_TRUE;
+			}
+
+			avl_tree_t *tree = &spa->spa_errlist_healed;
+			spa_error_entry_t search;
+			spa_error_entry_t *new;
+			avl_index_t where;
+			search.se_bookmark = *healed_zb;
+
+			if (!MUTEX_HELD(&spa->spa_errlist_lock)) {
+				mutex_enter(&spa->spa_errlist_lock);
+				held_list = B_TRUE;
+			}
+
+			if (avl_find(tree, &search, &where) != NULL) {
+				if (held_list)
+					mutex_exit(&spa->spa_errlist_lock);
+				if (held_log)
+					mutex_exit(&spa->spa_errlog_lock);
+				continue;
+			}
+			new = kmem_zalloc(sizeof (spa_error_entry_t), KM_SLEEP);
+			new->se_bookmark = *healed_zb;
+			new->se_zep = healed_zep;
+			avl_insert(tree, new, where);
+
+			if (held_list)
+				mutex_exit(&spa->spa_errlist_lock);
+			if (held_log)
+				mutex_exit(&spa->spa_errlog_lock);
+		}
+	}
+	zap_cursor_fini(&zc);
 }
 
 /*
@@ -604,12 +683,36 @@ spa_remove_healed_errors(spa_t *spa, avl_tree_t *s, avl_tree_t *l, dmu_tx_t *tx)
 	    &cookie)) != NULL) {
 		remove_error_from_list(spa, s, &se->se_bookmark);
 		remove_error_from_list(spa, l, &se->se_bookmark);
-		bookmark_to_name(&se->se_bookmark, name, sizeof (name));
 		kmem_free(se, sizeof (spa_error_entry_t));
-		(void) zap_remove(spa->spa_meta_objset,
-		    spa->spa_errlog_last, name, tx);
-		(void) zap_remove(spa->spa_meta_objset,
-		    spa->spa_errlog_scrub, name, tx);
+
+		if (!spa_feature_is_enabled(spa, SPA_FEATURE_HEAD_ERRLOG)) {
+			bookmark_to_name(&se->se_bookmark, name, sizeof (name));
+			(void) zap_remove(spa->spa_meta_objset,
+			    spa->spa_errlog_last, name, tx);
+			(void) zap_remove(spa->spa_meta_objset,
+			    spa->spa_errlog_scrub, name, tx);
+		} else {
+			errphys_to_name(&se->se_zep, name, sizeof (name));
+			zap_cursor_t zc;
+			zap_attribute_t za;
+			for (zap_cursor_init(&zc, spa->spa_meta_objset,
+			    spa->spa_errlog_last);
+			    zap_cursor_retrieve(&zc, &za) == 0;
+			    zap_cursor_advance(&zc)) {
+				zap_remove(spa->spa_meta_objset,
+				    za.za_first_integer, name, tx);
+			}
+			zap_cursor_fini(&zc);
+
+			for (zap_cursor_init(&zc, spa->spa_meta_objset,
+			    spa->spa_errlog_scrub);
+			    zap_cursor_retrieve(&zc, &za) == 0;
+			    zap_cursor_advance(&zc)) {
+				zap_remove(spa->spa_meta_objset,
+				    za.za_first_integer, name, tx);
+			}
+			zap_cursor_fini(&zc);
+		}
 	}
 }
 
@@ -618,14 +721,10 @@ spa_remove_healed_errors(spa_t *spa, avl_tree_t *s, avl_tree_t *l, dmu_tx_t *tx)
  * later in spa_remove_healed_errors().
  */
 void
-spa_remove_error(spa_t *spa, zbookmark_phys_t *zb)
+spa_remove_error(spa_t *spa, zbookmark_phys_t *zb, const uint64_t *birth)
 {
-	char name[NAME_MAX_LEN];
-
-	bookmark_to_name(zb, name, sizeof (name));
-
-	spa_add_healed_error(spa, spa->spa_errlog_last, zb);
-	spa_add_healed_error(spa, spa->spa_errlog_scrub, zb);
+	spa_add_healed_error(spa, spa->spa_errlog_last, zb, birth);
+	spa_add_healed_error(spa, spa->spa_errlog_scrub, zb, birth);
 }
 
 static uint64_t
@@ -736,7 +835,8 @@ sync_upgrade_errlog(spa_t *spa, uint64_t spa_err_obj, uint64_t *newobj,
 		dsl_dataset_t *ds;
 		objset_t *os;
 
-		int error = dsl_dataset_hold_obj(dp, zb.zb_objset, FTAG, &ds);
+		int error = dsl_dataset_hold_obj_flags(dp, zb.zb_objset,
+		    DS_HOLD_FLAG_DECRYPT, FTAG, &ds);
 		if (error != 0)
 			continue;
 
@@ -751,7 +851,7 @@ sync_upgrade_errlog(spa_t *spa, uint64_t spa_err_obj, uint64_t *newobj,
 		 * truly persistent, it should re-appear after a scan.
 		 */
 		if (dmu_objset_from_ds(ds, &os) != 0) {
-			dsl_dataset_rele(ds, FTAG);
+			dsl_dataset_rele_flags(ds, DS_HOLD_FLAG_DECRYPT, FTAG);
 			continue;
 		}
 
@@ -759,7 +859,7 @@ sync_upgrade_errlog(spa_t *spa, uint64_t spa_err_obj, uint64_t *newobj,
 		blkptr_t bp;
 
 		if (dnode_hold(os, zep.zb_object, FTAG, &dn) != 0) {
-			dsl_dataset_rele(ds, FTAG);
+			dsl_dataset_rele_flags(ds, DS_HOLD_FLAG_DECRYPT, FTAG);
 			continue;
 		}
 
@@ -773,7 +873,7 @@ sync_upgrade_errlog(spa_t *spa, uint64_t spa_err_obj, uint64_t *newobj,
 
 		rw_exit(&dn->dn_struct_rwlock);
 		dnode_rele(dn, FTAG);
-		dsl_dataset_rele(ds, FTAG);
+		dsl_dataset_rele_flags(ds, DS_HOLD_FLAG_DECRYPT, FTAG);
 
 		if (error != 0 || BP_IS_HOLE(&bp))
 			continue;
@@ -827,62 +927,84 @@ spa_upgrade_errlog(spa_t *spa, dmu_tx_t *tx)
 static int
 process_error_log(spa_t *spa, uint64_t obj, void *uaddr, uint64_t *count)
 {
-	zap_cursor_t zc;
-	zap_attribute_t za;
-
 	if (obj == 0)
 		return (0);
 
+	zap_cursor_t *zc;
+	zap_attribute_t *za;
+
+	zc = kmem_zalloc(sizeof (zap_cursor_t), KM_SLEEP);
+	za = kmem_zalloc(sizeof (zap_attribute_t), KM_SLEEP);
+
 	if (!spa_feature_is_enabled(spa, SPA_FEATURE_HEAD_ERRLOG)) {
-		for (zap_cursor_init(&zc, spa->spa_meta_objset, obj);
-		    zap_cursor_retrieve(&zc, &za) == 0;
-		    zap_cursor_advance(&zc)) {
+		for (zap_cursor_init(zc, spa->spa_meta_objset, obj);
+		    zap_cursor_retrieve(zc, za) == 0;
+		    zap_cursor_advance(zc)) {
 			if (*count == 0) {
-				zap_cursor_fini(&zc);
+				zap_cursor_fini(zc);
+				kmem_free(zc, sizeof (*zc));
+				kmem_free(za, sizeof (*za));
 				return (SET_ERROR(ENOMEM));
 			}
 
 			zbookmark_phys_t zb;
-			name_to_bookmark(za.za_name, &zb);
+			name_to_bookmark(za->za_name, &zb);
 
 			int error = copyout_entry(&zb, uaddr, count);
 			if (error != 0) {
-				zap_cursor_fini(&zc);
+				zap_cursor_fini(zc);
+				kmem_free(zc, sizeof (*zc));
+				kmem_free(za, sizeof (*za));
 				return (error);
 			}
 		}
-		zap_cursor_fini(&zc);
+		zap_cursor_fini(zc);
+		kmem_free(zc, sizeof (*zc));
+		kmem_free(za, sizeof (*za));
 		return (0);
 	}
 
-	for (zap_cursor_init(&zc, spa->spa_meta_objset, obj);
-	    zap_cursor_retrieve(&zc, &za) == 0;
-	    zap_cursor_advance(&zc)) {
+	for (zap_cursor_init(zc, spa->spa_meta_objset, obj);
+	    zap_cursor_retrieve(zc, za) == 0;
+	    zap_cursor_advance(zc)) {
 
-		zap_cursor_t head_ds_cursor;
-		zap_attribute_t head_ds_attr;
+		zap_cursor_t *head_ds_cursor;
+		zap_attribute_t *head_ds_attr;
 
-		uint64_t head_ds_err_obj = za.za_first_integer;
+		head_ds_cursor = kmem_zalloc(sizeof (zap_cursor_t), KM_SLEEP);
+		head_ds_attr = kmem_zalloc(sizeof (zap_attribute_t), KM_SLEEP);
+
+		uint64_t head_ds_err_obj = za->za_first_integer;
 		uint64_t head_ds;
-		name_to_object(za.za_name, &head_ds);
-		for (zap_cursor_init(&head_ds_cursor, spa->spa_meta_objset,
-		    head_ds_err_obj); zap_cursor_retrieve(&head_ds_cursor,
-		    &head_ds_attr) == 0; zap_cursor_advance(&head_ds_cursor)) {
+		name_to_object(za->za_name, &head_ds);
+		for (zap_cursor_init(head_ds_cursor, spa->spa_meta_objset,
+		    head_ds_err_obj); zap_cursor_retrieve(head_ds_cursor,
+		    head_ds_attr) == 0; zap_cursor_advance(head_ds_cursor)) {
 
 			zbookmark_err_phys_t head_ds_block;
-			name_to_errphys(head_ds_attr.za_name, &head_ds_block);
+			name_to_errphys(head_ds_attr->za_name, &head_ds_block);
 			int error = process_error_block(spa, head_ds,
 			    &head_ds_block, uaddr, count);
 
 			if (error != 0) {
-				zap_cursor_fini(&head_ds_cursor);
-				zap_cursor_fini(&zc);
+				zap_cursor_fini(head_ds_cursor);
+				kmem_free(head_ds_cursor,
+				    sizeof (*head_ds_cursor));
+				kmem_free(head_ds_attr, sizeof (*head_ds_attr));
+
+				zap_cursor_fini(zc);
+				kmem_free(za, sizeof (*za));
+				kmem_free(zc, sizeof (*zc));
 				return (error);
 			}
 		}
-		zap_cursor_fini(&head_ds_cursor);
+		zap_cursor_fini(head_ds_cursor);
+		kmem_free(head_ds_cursor, sizeof (*head_ds_cursor));
+		kmem_free(head_ds_attr, sizeof (*head_ds_attr));
 	}
-	zap_cursor_fini(&zc);
+	zap_cursor_fini(zc);
+	kmem_free(za, sizeof (*za));
+	kmem_free(zc, sizeof (*zc));
 	return (0);
 }
 
@@ -1229,7 +1351,8 @@ find_txg_ancestor_snapshot(spa_t *spa, uint64_t new_head, uint64_t old_head,
 	dsl_dataset_t *ds;
 	dsl_pool_t *dp = spa->spa_dsl_pool;
 
-	int error = dsl_dataset_hold_obj(dp, old_head, FTAG, &ds);
+	int error = dsl_dataset_hold_obj_flags(dp, old_head,
+	    DS_HOLD_FLAG_DECRYPT, FTAG, &ds);
 	if (error != 0)
 		return (error);
 
@@ -1237,9 +1360,9 @@ find_txg_ancestor_snapshot(spa_t *spa, uint64_t new_head, uint64_t old_head,
 	uint64_t prev_obj_txg = dsl_dataset_phys(ds)->ds_prev_snap_txg;
 
 	while (prev_obj != 0) {
-		dsl_dataset_rele(ds, FTAG);
-		if ((error = dsl_dataset_hold_obj(dp, prev_obj,
-		    FTAG, &ds)) == 0 &&
+		dsl_dataset_rele_flags(ds, DS_HOLD_FLAG_DECRYPT, FTAG);
+		if ((error = dsl_dataset_hold_obj_flags(dp, prev_obj,
+		    DS_HOLD_FLAG_DECRYPT, FTAG, &ds)) == 0 &&
 		    dsl_dir_phys(ds->ds_dir)->dd_head_dataset_obj == new_head)
 			break;
 
@@ -1249,7 +1372,7 @@ find_txg_ancestor_snapshot(spa_t *spa, uint64_t new_head, uint64_t old_head,
 		prev_obj_txg = dsl_dataset_phys(ds)->ds_prev_snap_txg;
 		prev_obj = dsl_dataset_phys(ds)->ds_prev_snap_obj;
 	}
-	dsl_dataset_rele(ds, FTAG);
+	dsl_dataset_rele_flags(ds, DS_HOLD_FLAG_DECRYPT, FTAG);
 	ASSERT(prev_obj != 0);
 	*txg = prev_obj_txg;
 	return (0);
