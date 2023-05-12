@@ -225,6 +225,122 @@ ub_full(struct unrb *ub, int len)
 	return (first_clear == -1);
 }
 
+/*
+ * start: ipos = -1, upos = NULL;
+ * end:   ipos = -1, upos = uh
+ */
+struct unrhdr_iter {
+	struct unrhdr *uh;
+	int ipos;
+	int upos_first_item;
+	void *upos;
+};
+
+void *
+create_iter_unr(struct unrhdr *uh)
+{
+	struct unrhdr_iter *iter;
+
+	iter = Malloc(sizeof(*iter));
+	iter->ipos = -1;
+	iter->uh = uh;
+	iter->upos = NULL;
+	iter->upos_first_item = -1;
+	return (iter);
+}
+
+static void
+next_iter_unrl(struct unrhdr *uh, struct unrhdr_iter *iter)
+{
+	struct unr *up;
+	struct unrb *ub;
+	u_int y;
+	int c;
+
+	if (iter->ipos == -1) {
+		if (iter->upos == uh)
+			return;
+		y = uh->low - 1;
+		if (uh->first == 0) {
+			up = TAILQ_FIRST(&uh->head);
+			if (up == NULL) {
+				iter->upos = uh;
+				return;
+			}
+			iter->upos = up;
+			if (up->ptr == NULL)
+				iter->upos = NULL;
+			else
+				iter->upos_first_item = uh->low;
+		}
+	} else {
+		y = iter->ipos;
+	}
+
+	up = iter->upos;
+
+	/* Special case for the compacted [low, first) run. */
+	if (up == NULL) {
+		if (y + 1 < uh->low + uh->first) {
+			iter->ipos = y + 1;
+			return;
+		}
+		up = iter->upos = TAILQ_FIRST(&uh->head);
+		iter->upos_first_item = uh->low + uh->first;
+	}
+
+	for (;;) {
+		if (y + 1 < iter->upos_first_item + up->len) {
+			if (up->ptr == uh) {
+				iter->ipos = y + 1;
+				return;
+			} else if (is_bitmap(uh, up)) {
+				ub = up->ptr;
+				bit_ffs_at(&ub->map[0],
+				    y + 1 - iter->upos_first_item,
+				    up->len, &c);
+				if (c != -1) {
+					iter->ipos = iter->upos_first_item + c;
+					return;
+				}
+			}
+		}
+		iter->upos_first_item += up->len;
+		y = iter->upos_first_item - 1;
+		up = iter->upos = TAILQ_NEXT((struct unr *)iter->upos, list);
+		if (iter->upos == NULL) {
+			iter->ipos = -1;
+			iter->upos = uh;
+			return;
+		}
+	}
+}
+
+/*
+ * returns -1 on end, otherwise the next element
+ */
+int
+next_iter_unr(void *handle)
+{
+	struct unrhdr *uh;
+	struct unrhdr_iter *iter;
+
+	iter = handle;
+	uh = iter->uh;
+	if (uh->mtx != NULL)
+		mtx_lock(uh->mtx);
+	next_iter_unrl(uh, iter);
+	if (uh->mtx != NULL)
+		mtx_unlock(uh->mtx);
+	return (iter->ipos);
+}
+
+void
+free_iter_unr(void *handle)
+{
+	Free(handle);
+}
+
 #if defined(DIAGNOSTIC) || !defined(_KERNEL)
 /*
  * Consistency check function.
@@ -1041,6 +1157,11 @@ test_alloc_unr_specific(struct unrhdr *uh, u_int i, char a[])
 		a[i] = 1;
 		VPRINTF("A %d\n", j);
 	}
+}
+
+static void
+test_iter(void)
+{
 }
 
 static void
