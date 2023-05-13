@@ -56,3 +56,5 @@ ECHO_TRACE?=	true
 .include <host-target.mk>
 .export HOST_TARGET
 .endif
+
+.include <sys.machine.mk>
