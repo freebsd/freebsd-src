@@ -392,8 +392,6 @@ unit-tests/export-variants.exp
 unit-tests/export-variants.mk
 unit-tests/export.exp
 unit-tests/export.mk
-unit-tests/forloop.exp
-unit-tests/forloop.mk
 unit-tests/forsubst.exp
 unit-tests/forsubst.mk
 unit-tests/gnode-submake.exp
@@ -713,6 +711,8 @@ unit-tests/varmod-match-escape.exp
 unit-tests/varmod-match-escape.mk
 unit-tests/varmod-match.exp
 unit-tests/varmod-match.mk
+unit-tests/varmod-mtime.exp
+unit-tests/varmod-mtime.mk
 unit-tests/varmod-no-match.exp
 unit-tests/varmod-no-match.mk
 unit-tests/varmod-order-numeric.exp

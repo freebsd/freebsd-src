@@ -1,4 +1,4 @@
-# $Id: meta.autodep.mk,v 1.56 2022/09/09 17:44:29 sjg Exp $
+# $Id: meta.autodep.mk,v 1.57 2023/05/13 15:52:24 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -137,6 +137,10 @@ FORCE_DPADD += ${_nonlibs:@x@${DPADD:M*/$x}@}
 
 .if !make(gendirdeps)
 .END:	gendirdeps
+.endif
+
+.if ${LOCAL_DEPENDS_GUARD:U} == "no"
+.depend:
 .endif
 
 # if we don't have OBJS, then .depend isn't useful

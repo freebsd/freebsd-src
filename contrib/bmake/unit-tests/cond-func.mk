@@ -1,12 +1,12 @@
-# $NetBSD: cond-func.mk,v 1.11 2022/01/07 19:30:17 rillig Exp $
+# $NetBSD: cond-func.mk,v 1.12 2023/05/10 15:53:32 rillig Exp $
 #
 # Tests for those parts of the functions in .if conditions that are common
 # among several functions.
 #
-# The below test uses the function defined(...) since it has no side-effects,
-# the other functions (except empty(...)) would work equally well.  The
-# function empty is special because it uses a different parsing algorithm for
-# its argument.
+# The below test uses the 'defined' function since it has no side-effects.
+# The other functions would work equally well, except for 'empty', which
+# parses its argument differently from the other functions.
+#
 
 DEF=			defined
 ${:UA B}=		variable name with spaces
@@ -74,7 +74,7 @@ ${VARNAME_UNBALANCED_BRACES}=	variable name with unbalanced braces
 
 # There may be spaces around the operators and parentheses, and even
 # inside the parentheses.  The spaces inside the parentheses are not
-# allowed for the empty() function (see cond-func-empty.mk), therefore
+# allowed for the 'empty' function (see cond-func-empty.mk), therefore
 # they are typically omitted for the other functions as well.
 .if ! defined ( DEF )
 .  error

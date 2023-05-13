@@ -1,42 +1,41 @@
-make: "directive-for.mk" line 108: outer
-make: "directive-for.mk" line 133: a:\ a:\file.txt
-make: "directive-for.mk" line 133: d:\\
-make: "directive-for.mk" line 133: d:\\file.txt
-make: "directive-for.mk" line 140: ( ( (
-make: "directive-for.mk" line 140: [ [ [
-make: "directive-for.mk" line 140: { { {
-make: "directive-for.mk" line 140: ) ) )
-make: "directive-for.mk" line 140: ] ] ]
-make: "directive-for.mk" line 140: } } }
-make: "directive-for.mk" line 140: (()) (()) (())
-make: "directive-for.mk" line 140: [[]] [[]] [[]]
-make: "directive-for.mk" line 140: {{}} {{}} {{}}
-make: "directive-for.mk" line 140: )( )( )(
-make: "directive-for.mk" line 140: ][ ][ ][
-make: "directive-for.mk" line 140: }{ }{ }{
-make: "directive-for.mk" line 148: outer value value
-make: "directive-for.mk" line 148: outer "quoted" \"quoted\"
-make: "directive-for.mk" line 154: Unknown modifier "Z"
-make: "directive-for.mk" line 155: XXX: Not reached word1
-make: "directive-for.mk" line 155: XXX: Not reached word3
-make: "directive-for.mk" line 160: no iteration variables in for
-make: "directive-for.mk" line 162: Missing argument for ".error"
-make: "directive-for.mk" line 163: for-less endfor
-make: "directive-for.mk" line 187: 1 open conditional
-make: "directive-for.mk" line 203: for-less endfor
-make: "directive-for.mk" line 204: if-less endif
-make: "directive-for.mk" line 212: if-less endif
+make: "directive-for.mk" line 119: outer
+make: "directive-for.mk" line 137: a:\ a:\file.txt
+make: "directive-for.mk" line 137: d:\\
+make: "directive-for.mk" line 137: d:\\file.txt
+make: "directive-for.mk" line 148: ( ( (
+make: "directive-for.mk" line 148: [ [ [
+make: "directive-for.mk" line 148: { { {
+make: "directive-for.mk" line 148: ) ) )
+make: "directive-for.mk" line 148: ] ] ]
+make: "directive-for.mk" line 148: } } }
+make: "directive-for.mk" line 148: (()) (()) (())
+make: "directive-for.mk" line 148: [[]] [[]] [[]]
+make: "directive-for.mk" line 148: {{}} {{}} {{}}
+make: "directive-for.mk" line 148: )( )( )(
+make: "directive-for.mk" line 148: ][ ][ ][
+make: "directive-for.mk" line 148: }{ }{ }{
+make: "directive-for.mk" line 168: invalid character ':' in .for loop variable name
+make: "directive-for.mk" line 175: invalid character '$' in .for loop variable name
+make: "directive-for.mk" line 187: invalid character '$' in .for loop variable name
+make: "directive-for.mk" line 198: Unknown modifier "Z"
+make: "directive-for.mk" line 199: XXX: Not reached word1
+make: "directive-for.mk" line 199: XXX: Not reached word3
+make: "directive-for.mk" line 206: no iteration variables in for
+make: "directive-for.mk" line 232: 1 open conditional
+make: "directive-for.mk" line 248: for-less endfor
+make: "directive-for.mk" line 249: if-less endif
+make: "directive-for.mk" line 257: if-less endif
+For: new loop 2
+For: end for 2
 For: end for 1
 For: loop body:
 .\
    for inner in i
 .\
    endfor
-make: "directive-for.mk" line 229: Unexpected end of file in .for loop
+For: end for 1
 For: loop body:
-.\
-   endfor
-make: "directive-for.mk" line 227: for-less endfor
+make: "directive-for.mk" line 305: newline-item=(a)
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

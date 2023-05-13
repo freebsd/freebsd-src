@@ -1,4 +1,4 @@
-# $Id: sys.mk,v 1.54 2022/09/09 17:44:29 sjg Exp $
+# $Id: sys.mk,v 1.55 2023/05/10 19:23:26 sjg Exp $
 #
 #	@(#) Copyright (c) 2003-2009, Simon J. Gerraty
 #
@@ -85,6 +85,9 @@ OPTIONS_DEFAULT_DEPENDENT += \
 .-include <options.mk>
 
 # :Uno incase options.mk not installed
+.if ${MK_DIRDEPS_BUILD:Uno} == "yes"
+.-include <sys.dirdeps.mk>
+.endif
 .if ${MK_META_MODE:Uno} == "yes"
 .-include <meta.sys.mk>
 .MAKE.MODE ?= meta verbose {META_MODE}

@@ -1,4 +1,4 @@
-# $Id: jobs.mk,v 1.7 2023/04/18 23:32:28 sjg Exp $
+# $Id: jobs.mk,v 1.9 2023/04/27 18:10:27 sjg Exp $
 #
 #	@(#) Copyright (c) 2012-2023, Simon J. Gerraty
 #
@@ -38,19 +38,28 @@ now_utc ?= ${%s:L:gmtime}
 start_utc := ${now_utc}
 .endif
 
-.info ${.newline}${TIME_STAMP} Start ${.TARGETS}
-
 .if make(*-jobs)
+.info ${.newline}${TIME_STAMP} Start ${.TARGETS}
 
 JOB_LOGDIR ?= ${SRCTOP:H}
 JOB_LOG = ${JOB_LOGDIR}/${.TARGET:S,-jobs,,:S,/,_,g}.log
 JOB_LOG_GENS ?= 4
 # we like to rotate logs
 .if empty(NEWLOG_SH)
+.for d in ${.SYSPATH:U${.PARSEDIR}:@x@$x $x/scripts@}
+.if exists($d/newlog.sh)
+NEWLOG_SH := $d/newlog.sh
+.if ${MAKE_VERSION} > 20220924
+.break
+.endif
+.endif
+.endfor
+.if empty(NEWLOG_SH)
 .ifdef M_whence
 NEWLOG_SH := ${newlog.sh:L:${M_whence}}
 .else
 NEWLOG_SH := ${(type newlog.sh) 2> /dev/null:L:sh:M/*}
+.endif
 .endif
 .endif
 .if !empty(NEWLOG_SH) && exists(${NEWLOG_SH})
@@ -72,7 +81,7 @@ JOB_ARGS+= -j${JOB_MAX}
 # build orchestration works as expected (DIRDEPS_BUILD)
 ${.TARGETS:M*-jobs}:
 	@${NEWLOG} ${JOB_NEWLOG_ARGS} ${JOB_LOG}
-	@echo Logging to ${JOB_LOG}
+	@echo "${TIME_STAMP} Start ${.TARGET:S,-jobs,,} ${JOB_ARGS} ${JOB_LOG_START} log=${JOB_LOG}" | tee ${JOB_LOG}
 	@cd ${.CURDIR} && env MAKELEVEL=0 \
 	${.MAKE} ${JOB_ARGS} _TARGETS=${.TARGET:S,-jobs,,} ${.TARGET:S,-jobs,,} >> ${JOB_LOG} 2>&1
 

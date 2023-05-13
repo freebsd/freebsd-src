@@ -1,4 +1,4 @@
-# $NetBSD: var-scope-local.mk,v 1.5 2022/02/09 21:09:24 rillig Exp $
+# $NetBSD: var-scope-local.mk,v 1.7 2023/04/29 10:16:24 rillig Exp $
 #
 # Tests for target-local variables, such as ${.TARGET} or $@.  These variables
 # are relatively short-lived as they are created just before making the
@@ -12,6 +12,64 @@
 
 .MAIN: all
 
+# Target-local variables in a target rule
+#
+# In target rules, '$*' only strips the extension off the pathname if the
+# extension is listed in '.SUFFIXES'.
+#
+# expect: target-rule.ext: * = <target-rule.ext>
+all: target-rule.ext dir/subdir/target-rule.ext
+target-rule.ext dir/subdir/target-rule.ext: .PHONY
+	@echo '$@: @ = <${@:Uundefined}>'
+	@echo '$@: % = <${%:Uundefined}>'
+	@echo '$@: ? = <${?:Uundefined}>'
+	@echo '$@: < = <${<:Uundefined}>'
+	@echo '$@: * = <${*:Uundefined}>'
+
+.SUFFIXES: .ir-gen-from .ir-from .ir-to
+
+# In target rules, '$*' strips the extension off the pathname of the target
+# if the extension is listed in '.SUFFIXES'.
+#
+# expect: target-rule.ir-gen-from: * = <target-rule>
+all: target-rule.ir-gen-from dir/subdir/target-rule-dir.ir-gen-from
+target-rule.ir-gen-from dir/subdir/target-rule-dir.ir-gen-from:
+	@echo '$@: @ = <${@:Uundefined}>'
+	@echo '$@: % = <${%:Uundefined}>'
+	@echo '$@: ? = <${?:Uundefined}>'
+	@echo '$@: < = <${<:Uundefined}>'
+	@echo '$@: * = <${*:Uundefined}>'
+
+.ir-from.ir-to:
+	@echo '$@: @ = <${@:Uundefined}>'
+	@echo '$@: % = <${%:Uundefined}>'
+	@echo '$@: ? = <${?:Uundefined}>'
+	@echo '$@: < = <${<:Uundefined}>'
+	@echo '$@: * = <${*:Uundefined}>'
+.ir-gen-from.ir-from:
+	@echo '$@: @ = <${@:Uundefined}>'
+	@echo '$@: % = <${%:Uundefined}>'
+	@echo '$@: ? = <${?:Uundefined}>'
+	@echo '$@: < = <${<:Uundefined}>'
+	@echo '$@: * = <${*:Uundefined}>'
+
+# Target-local variables in an inference rule
+all: inference-rule.ir-to dir/subdir/inference-rule.ir-to
+inference-rule.ir-from: .PHONY
+dir/subdir/inference-rule.ir-from: .PHONY
+
+# Target-local variables in a chain of inference rules
+all: inference-rule-chain.ir-to dir/subdir/inference-rule-chain.ir-to
+inference-rule-chain.ir-gen-from: .PHONY
+dir/subdir/inference-rule-chain.ir-gen-from: .PHONY
+
+# The run-time 'check' directives from above happen after the parse-time
+# 'check' directives from below.
+#
+# expect-reset
+
+# Deferred evaluation during parsing
+#
 # The target-local variables can be used in expressions, just like other
 # variables.  When these expressions are evaluated outside of a target, these
 # expressions are not yet expanded, instead their text is preserved, to allow
@@ -20,8 +78,8 @@
 #
 # Conditions from .if directives are evaluated in the scope of the command
 # line, which means that variables from the command line, from the global
-# scope and from the environment are resolved, in this order (but see the
-# command line option '-e').  In that phase, expressions involving
+# scope and from the environment are resolved, in this precedence order (but
+# see the command line option '-e').  In that phase, expressions involving
 # target-local variables need to be preserved, including the exact names of
 # the variables.
 #
@@ -77,13 +135,17 @@
 .endif
 
 
+# Custom local variables
+#
 # Additional target-local variables may be defined in dependency lines.
 .MAKEFLAGS: -dv
 # In the following line, the ':=' may either be interpreted as an assignment
 # operator or as the dependency operator ':', followed by an empty variable
 # name and the assignment operator '='.  It is the latter since in an
-# assignment, the left-hand side must be at most a single word.  The empty
-# variable name is expanded twice, once for 'one' and once for 'two'.
+# assignment, the left-hand side must be a single word or empty.
+#
+# The empty variable name is expanded twice, once for 'one' and once for
+# 'two'.
 # expect: Var_SetExpand: variable name "" expands to empty string, with value "three" - ignored
 # expect: Var_SetExpand: variable name "" expands to empty string, with value "three" - ignored
 one two:=three
@@ -205,32 +267,3 @@ a_use: .USE VAR=use
 
 all: var-scope-local-use.o
 var-scope-local-use.o: a_use
-
-
-# Since parse.c 1.656 from 2022-01-27 and before parse.c 1.662 from
-# 2022-02-05, there was an out-of-bounds read in Parse_IsVar when looking for
-# a variable assignment in a dependency line with trailing whitespace.  Lines
-# without trailing whitespace were not affected.  Global variable assignments
-# were guaranteed to have no trailing whitespace and were thus not affected.
-#
-# Try to reproduce some variants that may lead to a crash, depending on the
-# memory allocator.  To get a crash, the terminating '\0' of the line must be
-# the last byte of a memory page.  The expression '${:U}' forces this trailing
-# whitespace.
-
-# On FreeBSD x86_64, a crash could in some cases be forced using the following
-# line, which has length 47, so the terminating '\0' may end up at an address
-# of the form 0xXXXX_XXXX_XXXX_Xfff:
-Try_to_crash_FreeBSD.xxxxxxxxxxxxxxxxxx: 12345 ${:U}
-
-# The following line has length 4095, so line[4095] == '\0'.  If the line is
-# allocated on a page boundary and the following page is not mapped, this line
-# leads to a segmentation fault.
-${:U:range=511:@_@1234567@:ts.}: 12345 ${:U}
-
-# The following line has length 8191, so line[8191] == '\0'.  If the line is
-# allocated on a page boundary and the following page is not mapped, this line
-# leads to a segmentation fault.
-${:U:range=1023:@_@1234567@:ts.}: 12345 ${:U}
-
-12345:
