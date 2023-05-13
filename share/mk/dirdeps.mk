@@ -1,4 +1,4 @@
-# $Id: dirdeps.mk,v 1.160 2023/05/10 20:44:58 sjg Exp $
+# $Id: dirdeps.mk,v 1.161 2023/05/13 21:02:14 sjg Exp $
 
 # SPDX-License-Identifier: BSD-2-Clause
 #
@@ -717,7 +717,16 @@ _build_dirs += \
 	${_machines:Nhost*:@m@${__unqual_depdirs:@d@$d.$m@}@}
 
 # qualify everything now
-_build_dirs := ${_build_dirs:${M_dep_qual_fixes:ts:}:O:u}
+.if ${_debug_reldir}
+.info _build_dirs=${_build_dirs}
+.endif
+# make sure we do not mess with qualifying "host" entries
+_build_dirs := ${_build_dirs:M*.host*} \
+	${_build_dirs:N*.host*:${M_dep_qual_fixes:ts:}}
+_build_dirs := ${_build_dirs:O:u}
+.if ${_debug_reldir}
+.info _build_dirs=${_build_dirs}
+.endif
 
 .endif				# empty DIRDEPS
 
