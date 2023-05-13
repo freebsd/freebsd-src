@@ -1176,15 +1176,93 @@ test_alloc_unr_specific(struct unrhdr *uh, u_int i, char a[])
 	}
 }
 
+#define	TBASE	7
+#define	XSIZE	10
+#define	ISIZE	1000
+
+static int
+test_iter_compar(const void *a, const void *b)
+{
+	return (*(const int *)a - *(const int *)b);
+}
+
+static void
+test_iter_fill(int *vals, struct unrhdr *uh, int i, int v, int *res)
+{
+	int x;
+
+	vals[i] = v;
+	x = alloc_unr_specific(uh, v);
+	if (x != v) {
+		VPRINTF("alloc_unr_specific failed %d %d\n", x, v);
+		*res = 1;
+	}
+}
+
 static void
 test_iter(void)
 {
+	struct unrhdr *uh;
+	void *ihandle;
+	int vals[ISIZE];
+	int i, j, v, x, res;
+
+	res = 0;
+	uh = new_unrhdr(TBASE, INT_MAX, NULL);
+	for (i = 0; i < XSIZE; i++) {
+		vals[i] = i + TBASE;
+		x = alloc_unr_specific(uh, i + TBASE);
+		if (x != i + TBASE) {
+			VPRINTF("alloc_unr_specific failed %d %d\n", x,
+			    i + TBASE);
+			res = 1;
+		}
+	}
+	for (; i < ISIZE; i++) {
+		for (;;) {
+again:
+			v = arc4random_uniform(INT_MAX);
+			if (v < TBASE)
+				goto again;
+			for (j = 0; j < i; j++) {
+				if (v == vals[j] || v + 1 == vals[j])
+					goto again;
+			}
+			break;
+		}
+		test_iter_fill(vals, uh, i, v, &res);
+		i++, v++;
+		if (i < ISIZE)
+			test_iter_fill(vals, uh, i, v, &res);
+	}
+	qsort(vals, ISIZE, sizeof(vals[0]), test_iter_compar);
+
+	ihandle = create_iter_unr(uh);
+	i = 0;
+	while ((v = next_iter_unr(ihandle)) != -1) {
+		if (vals[i] != v) {
+			VPRINTF("iter %d: iter %d != val %d\n", i, v, vals[i]);
+			if (res == 0) {
+				if (verbose)
+					print_unrhdr(uh);
+				res = 1;
+			}
+		} else {
+			VPRINTF("iter %d: val %d\n", i, v);
+		}
+		i++;
+	}
+	free_iter_unr(ihandle);
+	clean_unrhdr(uh);
+	clear_unrhdr(uh);
+	delete_unrhdr(uh);
+	exit(res);
 }
 
 static void
 usage(char **argv)
 {
-	printf("%s [-h] [-r REPETITIONS] [-v]\n", argv[0]);
+	printf("%s [-h] [-i] [-r REPETITIONS] [-v]\n", argv[0]);
 }
 
 int
@@ -1196,11 +1274,16 @@ main(int argc, char **argv)
 	long reps = 1, m;
 	int ch;
 	u_int i;
+	bool testing_iter;
 
 	verbose = false;
+	testing_iter = false;
 
-	while ((ch = getopt(argc, argv, "hr:v")) != -1) {
+	while ((ch = getopt(argc, argv, "hir:v")) != -1) {
 		switch (ch) {
+		case 'i':
+			testing_iter = true;
+			break;
 		case 'r':
 			errno = 0;
 			reps = strtol(optarg, NULL, 0);
@@ -1221,6 +1304,10 @@ main(int argc, char **argv)
 	}
 
 	setbuf(stdout, NULL);
+
+	if (testing_iter)
+		test_iter();
+
 	uh = new_unrhdr(0, count - 1, NULL);
 	print_unrhdr(uh);
 
