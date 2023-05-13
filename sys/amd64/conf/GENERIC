@@ -375,7 +375,7 @@ device		virtio_balloon		# VirtIO Memory Balloon device
 device		kvm_clock		# KVM paravirtual clock driver
 
 # HyperV drivers and enhancement support
-device		hyperv			# HyperV drivers 
+device		hyperv			# HyperV drivers
 
 # Xen HVM Guest Optimizations
 # NOTE: XENHVM depends on xenpci and xentimer.
