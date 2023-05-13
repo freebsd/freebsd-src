@@ -2,9 +2,9 @@
 # See contrib/bmake/bsd.after-import.mk
 #
 # $FreeBSD$
-# $Id: Makefile,v 1.193 2023/02/25 20:03:25 sjg Exp $
+# $Id: Makefile,v 1.195 2023/05/10 18:26:24 sjg Exp $
 #
-# $NetBSD: Makefile,v 1.333 2023/02/25 19:30:32 sjg Exp $
+# $NetBSD: Makefile,v 1.335 2023/05/10 13:03:06 rillig Exp $
 #
 # Unit tests for make(1)
 #
@@ -378,6 +378,7 @@ TESTS+=		varmod-loop-delete
 TESTS+=		varmod-loop-varname
 TESTS+=		varmod-match
 TESTS+=		varmod-match-escape
+TESTS+=		varmod-mtime
 TESTS+=		varmod-no-match
 TESTS+=		varmod-order
 TESTS+=		varmod-order-numeric
