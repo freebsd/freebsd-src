@@ -215,7 +215,6 @@ TESTS+=		export
 TESTS+=		export-all
 TESTS+=		export-env
 TESTS+=		export-variants
-TESTS+=		forloop
 TESTS+=		forsubst
 TESTS+=		gnode-submake
 TESTS+=		hanoi-include
