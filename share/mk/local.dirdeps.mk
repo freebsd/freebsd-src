@@ -13,7 +13,7 @@ DIRDEPS_FILTER+= N*.host
 .endif
 
 # pseudo machines get no qualification
-.for m in host common
+.for m in ${PSEUDO_MACHINE_LIST:Nhost*}
 M_dep_qual_fixes += C;($m),[^/.,]*$$;\1;
 .endfor
 #.info M_dep_qual_fixes=${M_dep_qual_fixes}
