@@ -1,3 +1,38 @@
+2023-05-10  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* meta.autodep.mk: if LOCAL_DEPENDS_GUARD is "no"
+	suppress processing of .depend
+
+2023-05-09  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* dirdeps.mk: do not add _CURDIR to DIRDEPS for SRCTOP
+
+	* meta.sys.mk sys.dirdeps.mk:
+	originally DIRDEPS_BUILD and META_MODE were the same thing,
+	but META_MODE is useful by itself.
+	Move things from meta.sys.mk which actually pertain to
+	DIRDEPS_BUILD to sys.dirdeps.mk
+
+2023-05-04  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20230504 May the Forth be with you
+
+	* dirdeps.mk: as with meta.sys.mk we treat "host" as special.
+	DEP_TARGET_SPEC is just ${DEP_MACHINE}
+
+	* meta.sys.mk: ensure DEP_* for TARGET_SPEC_VARS are set at
+	level > 0 since these are often refered to in Makefile.depend*
+
+2023-04-26  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* jobs.mk: report ${.TARGET} ${JOB_ARGS} ${JOB_LOG} and
+	anything in ${JOB_LOG_START}
+
+	* jobs.mk: look for newlog.sh in ${.SYSPATH:U${.PARSEDIR}}
+	or a scripts subdir before searching $PATH.
+
+	* FILES: include newlog.sh for jobs.mk
+
 2023-04-20  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* install-mk (MK_VERSION): 20230420

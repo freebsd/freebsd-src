@@ -1,4 +1,4 @@
-/*	$NetBSD: for.c,v 1.171 2023/02/14 21:38:31 rillig Exp $	*/
+/*	$NetBSD: for.c,v 1.174 2023/05/09 19:43:12 rillig Exp $	*/
 
 /*
  * Copyright (c) 1992, The Regents of the University of California.
@@ -58,7 +58,7 @@
 #include "make.h"
 
 /*	"@(#)for.c	8.1 (Berkeley) 6/6/93"	*/
-MAKE_RCSID("$NetBSD: for.c,v 1.171 2023/02/14 21:38:31 rillig Exp $");
+MAKE_RCSID("$NetBSD: for.c,v 1.174 2023/05/09 19:43:12 rillig Exp $");
 
 
 typedef struct ForLoop {
@@ -71,6 +71,22 @@ typedef struct ForLoop {
 
 static ForLoop *accumFor;	/* Loop being accumulated */
 
+
+/* See LK_FOR_BODY. */
+static void
+skip_whitespace_or_line_continuation(const char **pp)
+{
+	const char *p = *pp;
+	for (;;) {
+		if (ch_isspace(*p))
+			p++;
+		else if (p[0] == '\\' && p[1] == '\n')
+			p += 2;
+		else
+			break;
+	}
+	*pp = p;
+}
 
 static ForLoop *
 ForLoop_New(void)
@@ -123,6 +139,13 @@ ForLoop_Details(ForLoop *f)
 }
 
 static bool
+IsValidInVarname(char c)
+{
+	return c != '$' && c != ':' && c != '\\' &&
+	    c != '(' && c != '{' && c != ')' && c != '}';
+}
+
+static void
 ForLoop_ParseVarnames(ForLoop *f, const char **pp)
 {
 	const char *p = *pp;
@@ -133,15 +156,20 @@ ForLoop_ParseVarnames(ForLoop *f, const char **pp)
 		cpp_skip_whitespace(&p);
 		if (*p == '\0') {
 			Parse_Error(PARSE_FATAL, "missing `in' in for");
-			return false;
+			f->vars.len = 0;
+			return;
 		}
 
-		/*
-		 * XXX: This allows arbitrary variable names;
-		 * see directive-for.mk.
-		 */
-		for (len = 1; p[len] != '\0' && !ch_isspace(p[len]); len++)
-			continue;
+		for (len = 0; p[len] != '\0' && !ch_isspace(p[len]); len++) {
+			if (!IsValidInVarname(p[len])) {
+				Parse_Error(PARSE_FATAL,
+				    "invalid character '%c' "
+				    "in .for loop variable name",
+				    p[len]);
+				f->vars.len = 0;
+				return;
+			}
+		}
 
 		if (len == 2 && p[0] == 'i' && p[1] == 'n') {
 			p += 2;
@@ -154,11 +182,10 @@ ForLoop_ParseVarnames(ForLoop *f, const char **pp)
 
 	if (f->vars.len == 0) {
 		Parse_Error(PARSE_FATAL, "no iteration variables in for");
-		return false;
+		return;
 	}
 
 	*pp = p;
-	return true;
 }
 
 static bool
@@ -221,17 +248,14 @@ For_Eval(const char *line)
 	ForLoop *f;
 
 	p = line + 1;		/* skip the '.' */
-	cpp_skip_whitespace(&p);
+	skip_whitespace_or_line_continuation(&p);
 
 	if (IsFor(p)) {
 		p += 3;
 
 		f = ForLoop_New();
-		if (!ForLoop_ParseVarnames(f, &p)) {
-			ForLoop_Free(f);
-			return -1;
-		}
-		if (!ForLoop_ParseItems(f, p))
+		ForLoop_ParseVarnames(f, &p);
+		if (f->vars.len > 0 && !ForLoop_ParseItems(f, p))
 			f->items.len = 0;	/* don't iterate */
 
 		accumFor = f;
@@ -254,7 +278,7 @@ For_Accum(const char *line, int *forLevel)
 
 	if (*p == '.') {
 		p++;
-		cpp_skip_whitespace(&p);
+		skip_whitespace_or_line_continuation(&p);
 
 		if (IsEndfor(p)) {
 			DEBUG1(FOR, "For: end for %d\n", *forLevel);

@@ -1,22 +1,17 @@
-make: "directive-for-errors.mk" line 7: Unknown directive "fori"
-make: "directive-for-errors.mk" line 8: warning: 
-make: "directive-for-errors.mk" line 9: for-less endfor
-make: "directive-for-errors.mk" line 19: Unknown directive "for"
-make: "directive-for-errors.mk" line 20: warning: 
-make: "directive-for-errors.mk" line 21: for-less endfor
-make: "directive-for-errors.mk" line 37: Dollar $ 1 1 and backslash 2 2 2.
-make: "directive-for-errors.mk" line 37: Dollar $ 3 3 and backslash 4 4 4.
-make: "directive-for-errors.mk" line 43: no iteration variables in for
-make: "directive-for-errors.mk" line 47: warning: Should not be reached.
-make: "directive-for-errors.mk" line 48: for-less endfor
-make: "directive-for-errors.mk" line 53: Wrong number of words (5) in .for substitution list with 3 variables
-make: "directive-for-errors.mk" line 64: missing `in' in for
-make: "directive-for-errors.mk" line 66: warning: Should not be reached.
-make: "directive-for-errors.mk" line 67: for-less endfor
-make: "directive-for-errors.mk" line 73: Unknown modifier "Z"
-make: "directive-for-errors.mk" line 74: warning: Should not be reached.
-make: "directive-for-errors.mk" line 74: warning: Should not be reached.
-make: "directive-for-errors.mk" line 74: warning: Should not be reached.
+make: "directive-for-errors.mk" line 11: Unknown directive "fori"
+make: "directive-for-errors.mk" line 12: warning: <>
+make: "directive-for-errors.mk" line 13: for-less endfor
+make: "directive-for-errors.mk" line 27: Unknown directive "for"
+make: "directive-for-errors.mk" line 28: warning: <>
+make: "directive-for-errors.mk" line 29: for-less endfor
+make: "directive-for-errors.mk" line 46: invalid character '$' in .for loop variable name
+make: "directive-for-errors.mk" line 54: no iteration variables in for
+make: "directive-for-errors.mk" line 66: Wrong number of words (5) in .for substitution list with 3 variables
+make: "directive-for-errors.mk" line 80: missing `in' in for
+make: "directive-for-errors.mk" line 91: Unknown modifier "Z"
+make: "directive-for-errors.mk" line 92: warning: Should not be reached.
+make: "directive-for-errors.mk" line 92: warning: Should not be reached.
+make: "directive-for-errors.mk" line 92: warning: Should not be reached.
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

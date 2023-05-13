@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.361 2023/03/23 03:29:28 sjg Exp $
+.\"	$NetBSD: make.1,v 1.366 2023/05/10 18:22:33 sjg Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd March 22, 2023
+.Dd May 10, 2023
 .Dt BMAKE 1
 .Os
 .Sh NAME
@@ -796,12 +796,10 @@ The list of sources for this target that were deemed out-of-date; also
 known as
 .Sq Va \&? .
 .It Va .PREFIX
-The file prefix of the target, containing only the file portion, no suffix
-or preceding directory components; also known as
+The name of the target with suffix (if declared in
+.Ic .SUFFIXES )
+removed; also known as
 .Sq Va * .
-The suffix must be one of the known suffixes declared with
-.Ic .SUFFIXES ,
-or it is not recognized.
 .It Va .TARGET
 The name of the target; also known as
 .Sq Va @ .
@@ -1513,6 +1511,25 @@ producing the formatted timestamp.
 If a
 .Ar timestamp
 value is not provided or is 0, the current time is used.
+.It Cm \&:mtime Ns Oo Cm = Ns Ar timestamp Oc
+Call
+.Xr stat 2
+with each word as pathname;
+use
+.Ql st_mtime
+as the new value.
+If
+.Xr stat 2
+fails; use
+.Ar timestamp
+or current time.
+If
+.Ar timestamp
+is set to
+.Ql error ,
+then
+.Xr stat 2
+failure will cause an error.
 .It Cm \&:tA
 Attempts to convert the value to an absolute path using
 .Xr realpath 3 .
@@ -2735,5 +2752,3 @@ using that token pool to abort the build and exit with error code 6.
 Sometimes the attempt to suppress a cascade of unnecessary errors,
 can result in a seemingly unexplained
 .Ql *** Error code 6
-
-

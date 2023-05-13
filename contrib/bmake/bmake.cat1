@@ -515,11 +515,8 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
            [4m.OODATE[24m   The list of sources for this target that were deemed out-
                      of-date; also known as `[4m?[24m'.
 
-           [4m.PREFIX[24m   The file prefix of the target, containing only the file
-                     portion, no suffix or preceding directory components;
-                     also known as `[4m*[24m'.  The suffix must be one of the known
-                     suffixes declared with [1m.SUFFIXES[22m, or it is not recog-
-                     nized.
+           [4m.PREFIX[24m   The name of the target with suffix (if declared in
+                     [1m.SUFFIXES[22m) removed; also known as `[4m*[24m'.
 
            [4m.TARGET[24m   The name of the target; also known as `[4m@[24m'.  For compati-
                      bility with other makes this is an alias for [4m.ARCHIVE[24m in
@@ -985,6 +982,12 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
           The value is interpreted as a format string for strftime(3), using
           localtime(3), producing the formatted timestamp.  If a [4mtimestamp[0m
           value is not provided or is 0, the current time is used.
+
+     [1m:mtime[22m[[1m=[4m[22mtimestamp[24m]
+          Call stat(2) with each word as pathname; use `st_mtime' as the new
+          value.  If stat(2) fails; use [4mtimestamp[24m or current time.  If
+          [4mtimestamp[24m is set to `error', then stat(2) failure will cause an er-
+          ror.
 
      [1m:tA  [22mAttempts to convert the value to an absolute path using realpath(3).
           If that fails, the value is unchanged.
@@ -1750,6 +1753,4 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
      attempt to suppress a cascade of unnecessary errors, can result in a
      seemingly unexplained `*** Error code 6'
 
-
-
-FreeBSD 13.0                    March 22, 2023                    FreeBSD 13.0
+FreeBSD 13.0                     May 10, 2023                     FreeBSD 13.0

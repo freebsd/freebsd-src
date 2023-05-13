@@ -1,13 +1,13 @@
-make: "varmod-gmtime.mk" line 57: Invalid time value at "${:U1593536400}} != "mtime=11593536400}""
-make: "varmod-gmtime.mk" line 57: Malformed conditional (${%Y:L:gmtime=${:U1593536400}} != "mtime=11593536400}")
-make: "varmod-gmtime.mk" line 67: Invalid time value at "-1} != """
-make: "varmod-gmtime.mk" line 67: Malformed conditional (${:L:gmtime=-1} != "")
-make: "varmod-gmtime.mk" line 76: Invalid time value at " 1} != """
-make: "varmod-gmtime.mk" line 76: Malformed conditional (${:L:gmtime= 1} != "")
-make: "varmod-gmtime.mk" line 119: Invalid time value at "10000000000000000000000000000000} != """
-make: "varmod-gmtime.mk" line 119: Malformed conditional (${:L:gmtime=10000000000000000000000000000000} != "")
-make: "varmod-gmtime.mk" line 130: Invalid time value at "error} != """
-make: "varmod-gmtime.mk" line 130: Malformed conditional (${:L:gmtime=error} != "")
+make: "varmod-gmtime.mk" line 59: Invalid time value "-1"
+make: "varmod-gmtime.mk" line 59: Malformed conditional (${:L:gmtime=-1} != "")
+make: "varmod-gmtime.mk" line 68: Invalid time value " 1"
+make: "varmod-gmtime.mk" line 68: Malformed conditional (${:L:gmtime= 1} != "")
+make: "varmod-gmtime.mk" line 114: Invalid time value "10000000000000000000000000000000"
+make: "varmod-gmtime.mk" line 114: Malformed conditional (${:L:gmtime=10000000000000000000000000000000} != "")
+make: "varmod-gmtime.mk" line 125: Invalid time value "error"
+make: "varmod-gmtime.mk" line 125: Malformed conditional (${:L:gmtime=error} != "")
+make: "varmod-gmtime.mk" line 134: Invalid time value "100000S,1970,bad,"
+make: "varmod-gmtime.mk" line 134: Malformed conditional (${%Y:L:gmtime=100000S,1970,bad,} != "bad")
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

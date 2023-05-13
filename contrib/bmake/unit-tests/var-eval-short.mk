@@ -1,4 +1,4 @@
-# $NetBSD: var-eval-short.mk,v 1.8 2021/12/27 18:54:19 rillig Exp $
+# $NetBSD: var-eval-short.mk,v 1.9 2023/05/09 16:27:00 rillig Exp $
 #
 # Tests for each variable modifier to ensure that they only do the minimum
 # necessary computations.  If the result of the expression is irrelevant,
@@ -79,8 +79,9 @@ DEFINED=	# defined
 .if 0 && ${:Uword:E}
 .endif
 
-# As of 2021-03-14, the error 'Invalid time value: ${FAIL}}' is ok since
-# ':gmtime' does not expand its argument.
+# Before var.c 1.1050 from 2023-05-09, the ':gmtime' modifier produced the
+# error message 'Invalid time value: ${FAIL}}' since it did not expand its
+# argument.
 .if 0 && ${:Uword:gmtime=${FAIL}}
 .endif
 
@@ -93,8 +94,9 @@ DEFINED=	# defined
 .if 0 && ${value:L}
 .endif
 
-# As of 2021-03-14, the error 'Invalid time value: ${FAIL}}' is ok since
-# ':localtime' does not expand its argument.
+# Before var.c 1.1050 from 2023-05-09, the ':localtime' modifier produced the
+# error message 'Invalid time value: ${FAIL}}' since it did not expand its
+# argument.
 .if 0 && ${:Uword:localtime=${FAIL}}
 .endif
 
