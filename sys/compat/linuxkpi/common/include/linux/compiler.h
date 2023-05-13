@@ -91,7 +91,7 @@
 
 #define	WRITE_ONCE(x,v) do {		\
 	barrier();			\
-	ACCESS_ONCE(x) = (v);		\
+	(*(volatile __typeof(x) *)(uintptr_t)&(x)) = (v); \
 	barrier();			\
 } while (0)
 
