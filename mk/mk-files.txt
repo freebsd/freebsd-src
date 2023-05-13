@@ -441,6 +441,8 @@ Leverages ``bmake`` to compute optimal link order for libraries.
 This works nicely and makes refactoring a breeze - so long as you
 have no (or few) cicular dependencies between libraries.
 
+Consider this experimental.
+
 man.mk
 ------
 
@@ -509,16 +511,57 @@ then ``jobs.mk`` will run::
 this ensures you get a build log and JOB_MAX is assumed to be set
 optimally for the host.
 
-Meta mode
+META_MODE
 =========
 
 The 20110505 and later versions of ``mk-files`` include a number of
 makefiles contributed by Juniper Networks, Inc.
 These allow the latest version of bmake_ to run in `meta mode`_
-see `dirdeps.mk`_
+see `dirdeps.mk`_ and DIRDEPS_BUILD_ below.
 
 .. _`dirdeps.mk`: /help/sjg/dirdeps.htm
 .. _`meta mode`: bmake-meta-mode.htm
+
+DIRDEPS_BUILD
+=============
+
+When the `meta mode`_ was originally done, there was no distinction
+between META_MODE_ and ``DIRDEPS_BUILD``, but as these were integrated
+into FreeBSD it became clear that META_MODE_ could be useful to many
+developers independently of ``DIRDEPS_BUILD``.
+
+Thus today we distinguish between the two.
+We have the following makefiles which are relevant to
+``DIRDEPS_BUILD`` or META_MODE_::
+
+	share/mk/auto.obj.mk
+	share/mk/dirdeps-cache-update.mk
+	share/mk/dirdeps-only.mk
+	share/mk/dirdeps-options.mk
+	share/mk/dirdeps-targets.mk
+	share/mk/dirdeps.mk
+	share/mk/gendirdeps.mk
+	share/mk/host-target.mk
+	share/mk/install-new.mk
+	share/mk/meta.autodep.mk
+	share/mk/meta.stage.mk
+	share/mk/meta.sys.mk
+	share/mk/meta2deps.py
+	share/mk/meta2deps.sh
+	share/mk/sys.dependfile.mk
+	share/mk/sys.dirdeps.mk
+
+and the following are typically used for customization.
+See `freebsd-meta-mode`_ and `netbsd-meta-mode`_::
+
+	share/mk/local.dirdeps-build.mk
+	share/mk/local.dirdeps-missing.mk
+	share/mk/local.dirdeps.mk
+	share/mk/local.meta.sys.mk
+	share/mk/local.sys.dirdeps.env.mk
+	share/mk/local.sys.dirdeps.mk
+	share/mk/local.sys.mk
+
 
 Install
 =======
@@ -538,9 +581,11 @@ where you unpacked the tar file, you can::
 
 .. _bmake: bmake.htm
 .. _NetBSD: http://www.netbsd.org/
-.. _mkdeps.sh: http://www.crufty.net/ftp/pub/sjg/mkdeps.sh
-.. _mk.tar.gz: http://www.crufty.net/ftp/pub/sjg/mk.tar.gz
+.. _mkdeps.sh: https://www.crufty.net/ftp/pub/sjg/mkdeps.sh
+.. _mk.tar.gz: https://www.crufty.net/ftp/pub/sjg/mk.tar.gz
+.. _`freebsd-meta-mode`: https://www.crufty.net/sjg/docs/freebsd-meta-mode.htm
+.. _`netbsd-meta-mode`: https://www.crufty.net/sjg/docs/netbsd-meta-mode.htm
 
 :Author: sjg@crufty.net
-:Revision: $Id: mk-files.txt,v 1.22 2023/04/16 23:43:33 sjg Exp $
+:Revision: $Id: mk-files.txt,v 1.23 2023/05/11 22:55:08 sjg Exp $
 :Copyright: Crufty.NET

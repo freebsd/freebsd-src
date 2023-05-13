@@ -1,3 +1,27 @@
+2023-05-10  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230510
+	Merge with NetBSD make, pick up
+	o parse.c: don't print null filename in stack traces
+	o var.c: :mtime operate on each word in variable value
+
+2023-05-09  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230509
+	Merge with NetBSD make, pick up
+	o for.c: skip syntactically wrong .for loops
+	o var.c: allow for :gmtime=${mtime}
+	add :mtime[=timestamp] where timestamp is used if stat(2)
+	fails, if :mtime=error stat(2) failure causes error.
+
+2023-05-05  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20230504
+	Merge with NetBSD make, pick up
+	o compat.c: fix compile on NetBSD 7.2
+	o make.1: fix documentation of .PREFIX to match reality and POSIX
+	o unit-tests: improved var-scope-local
+
 2023-04-14  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* VERSION (_MAKE_VERSION): 20230414

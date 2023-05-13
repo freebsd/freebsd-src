@@ -1,7 +1,10 @@
-# $NetBSD: varmod-gmtime.mk,v 1.10 2021/01/19 05:26:34 rillig Exp $
+# $NetBSD: varmod-gmtime.mk,v 1.14 2023/05/10 15:53:32 rillig Exp $
 #
 # Tests for the :gmtime variable modifier, which formats a timestamp
 # using strftime(3) in UTC.
+#
+# See also:
+#	varmod-localtime.mk
 
 .if ${TZ:Uundefined} != "undefined"	# see unit-tests/Makefile
 .  error
@@ -41,20 +44,9 @@
 .endif
 
 
-# As of 2020-08-16, it is not possible to pass the seconds via a
-# variable expression.  This is because parsing of the :gmtime
-# modifier stops at the '$' and returns to ApplyModifiers.
-#
-# There, a colon would be skipped but not a dollar.
-# Parsing therefore continues at the '$' of the ${:U159...}, looking
-# for an ordinary variable modifier.
-#
-# At this point, the ${:U} is expanded and interpreted as a variable
-# modifier, which results in the error message "Unknown modifier '1'".
-#
-# If ApplyModifier_Gmtime were to pass its argument through
-# ParseModifierPart, this would work.
-.if ${%Y:L:gmtime=${:U1593536400}} != "mtime=11593536400}"
+# Before var.c 1.1050 from 2023-05-09, it was not possible to pass the
+# seconds via a variable expression.
+.if ${%Y:L:gmtime=${:U1593536400}} != "2020"
 .  error
 .endif
 
@@ -74,6 +66,8 @@
 # Spaces were allowed before var.c 1.631 from 2020-10-31 21:40:20, not
 # because it would make sense but just as a side-effect from using strtoul.
 .if ${:L:gmtime= 1} != ""
+.  error
+.else
 .  error
 .endif
 
@@ -115,7 +109,8 @@
 # ULONG_MAX, which got converted to -1.  This resulted in a time stamp of
 # the second before 1970.
 #
-# Since var.c 1.631, the overflow is detected and produces a parse error.
+# Since var.c 1.631 from 2020-10-31, the overflow is detected and produces a
+# parse error.
 .if ${:L:gmtime=10000000000000000000000000000000} != ""
 .  error
 .else
@@ -133,5 +128,11 @@
 .  error
 .endif
 
+# Before var.c 1.1050 from 2023-05-09, the timestamp could be directly
+# followed by the next modifier, without a ':' separator.  This was the same
+# bug as for the ':L' and ':P' modifiers.
+.if ${%Y:L:gmtime=100000S,1970,bad,} != "bad"
+.  error
+.endif
 
 all:
