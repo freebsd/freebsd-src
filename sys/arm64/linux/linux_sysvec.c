@@ -295,7 +295,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	memcpy(&frame->sf.sf_uc.uc_sc.regs, tf->tf_x, sizeof(tf->tf_x));
 	frame->sf.sf_uc.uc_sc.regs[30] = tf->tf_lr;
 	frame->sf.sf_uc.uc_sc.sp = tf->tf_sp;
-	frame->sf.sf_uc.uc_sc.pc = tf->tf_lr;
+	frame->sf.sf_uc.uc_sc.pc = tf->tf_elr;
 	frame->sf.sf_uc.uc_sc.pstate = tf->tf_spsr;
 	frame->sf.sf_uc.uc_sc.fault_address = (register_t)ksi->ksi_addr;
 
