@@ -29,6 +29,7 @@
 .Os
 .Sh NAME
 .Nm new_unrhdr ,
+.Nm clean_unrhdr ,
 .Nm clear_unrhdr ,
 .Nm delete_unrhdr ,
 .Nm alloc_unr ,
@@ -39,6 +40,10 @@
 .In sys/systm.h
 .Ft "struct unrhdr *"
 .Fn new_unrhdr "int low" "int high" "struct mtx *mutex"
+.Ft void
+.Fn clean_unrhdr "struct unrhdr *uh"
+.Ft void
+.Fn clean_unrhdrl "struct unrhdr *uh"
 .Ft void
 .Fn clear_unrhdr "struct unrhdr *uh"
 .Ft void
@@ -86,6 +91,26 @@ This function frees the memory associated with the entity, it does not free
 any units.
 To free all units use
 .Fn clear_unrhdr .
+.It Fn clean_unrhdr uh
+Freeing unit numbers might result in some internal memory becoming unused.
+There are
+.Nm unit
+allocator consumers that cannot tolerate taking
+.Xr malloc 9
+locks to free the memory, while having their unit mutex locked.
+For this reason, free of the unused memory after delete is postponed
+until the consumer can afford calling into the
+.Xr malloc 9
+subsystem.
+Call
+.Fn clean_unrhdr uh
+to do the cleanup.
+In particular, this needs to be done before freeing a unr, if
+a deletion of units could have been performed.
+.It Fn clean_unrhdrl
+Same as
+.Fn clean_unrhdr ,
+but assumes that the unr mutex is already owned, if any.
 .It Fn alloc_unr uh
 Return a new unit number.
 The lowest free number is always allocated.
