@@ -70,6 +70,7 @@ VERSION
 	global:
 		linux_platform;
 		kern_timekeep_base;
+		__user_rt_sigreturn;
 	local: *;
 	};
 }
