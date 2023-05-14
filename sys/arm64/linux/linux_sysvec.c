@@ -118,7 +118,7 @@ LIN_SDT_PROBE_DEFINE0(sysvec, linux_exec_setregs, todo);
 
 LINUX_VDSO_SYM_CHAR(linux_platform);
 LINUX_VDSO_SYM_INTPTR(kern_timekeep_base);
-LINUX_VDSO_SYM_INTPTR(linux_vdso_sigcode);
+LINUX_VDSO_SYM_INTPTR(__kernel_rt_sigreturn);
 
 static int
 linux_fetch_syscall_args(struct thread *td)
@@ -355,7 +355,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	tf->tf_x[29] = (register_t)&fp->fp;
 	tf->tf_x[8] = (register_t)catcher;
 	tf->tf_sp = (register_t)fp;
-	tf->tf_elr = (register_t)linux_vdso_sigcode;
+	tf->tf_elr = (register_t)__kernel_rt_sigreturn;
 
 	CTR3(KTR_SIG, "sendsig: return td=%p pc=%#x sp=%#x", td, tf->tf_elr,
 	    tf->tf_sp);
