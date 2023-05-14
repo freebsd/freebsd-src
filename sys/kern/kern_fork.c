@@ -1118,6 +1118,9 @@ fork_exit(void (*callout)(void *, struct trapframe *), void *arg,
 void
 fork_return(struct thread *td, struct trapframe *frame)
 {
+#ifdef KTRACE
+	struct syscall_args *sa;
+#endif
 	struct proc *p;
 
 	p = td->td_proc;
@@ -1160,7 +1163,9 @@ fork_return(struct thread *td, struct trapframe *frame)
 	userret(td, frame);
 
 #ifdef KTRACE
-	if (KTRPOINT(td, KTR_SYSRET))
-		ktrsysret(SYS_fork, 0, 0);
+	if (KTRPOINT(td, KTR_SYSRET)) {
+		sa = &td->td_sa;
+		ktrsysret(sa->code, 0, 0);
+	}
 #endif
 }
