@@ -301,7 +301,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	/* Stack frame for unwinding */
 	frame->fp = tf->tf_x[29];
-	frame->lr = tf->tf_lr;
+	frame->lr = tf->tf_elr;
 
 	/* Translate the signal. */
 	sig = bsd_to_linux_signal(sig);
@@ -352,6 +352,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		tf->tf_x[1] = 0;
 		tf->tf_x[2] = 0;
 	}
+	tf->tf_x[29] = (register_t)&fp->fp;
 	tf->tf_x[8] = (register_t)catcher;
 	tf->tf_sp = (register_t)fp;
 	tf->tf_elr = (register_t)linux_vdso_sigcode;
