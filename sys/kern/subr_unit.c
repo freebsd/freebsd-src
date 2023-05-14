@@ -191,6 +191,12 @@ mtx_assert(struct mtx *mp, int flag)
  * For bitmaps the len field represents the number of allocated items.
  *
  * The bitmap is the same size as struct unr to optimize memory management.
+ *
+ * Two special ranges are not covered by unrs:
+ * - at the start of the allocator space, all elements in [low, low + first)
+ *   are allocated;
+ * - at the end of the allocator space, all elements in [high - last, high]
+ *   are free.
  */
 struct unr {
 	TAILQ_ENTRY(unr)	list;
