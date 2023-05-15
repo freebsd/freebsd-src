@@ -2364,42 +2364,6 @@ done:
 	return (ret);
 }
 
-static int
-pci_find_slotted_dev(const char *dev_name, struct pci_devemu **pde,
-		     struct pci_devinst **pdi)
-{
-	struct businfo *bi;
-	struct slotinfo *si;
-	struct funcinfo *fi;
-	int bus, slot, func;
-
-	assert(dev_name != NULL);
-	assert(pde != NULL);
-	assert(pdi != NULL);
-
-	for (bus = 0; bus < MAXBUSES; bus++) {
-		if ((bi = pci_businfo[bus]) == NULL)
-			continue;
-
-		for (slot = 0; slot < MAXSLOTS; slot++) {
-			si = &bi->slotinfo[slot];
-			for (func = 0; func < MAXFUNCS; func++) {
-				fi = &si->si_funcs[func];
-				if (fi->fi_pde == NULL)
-					continue;
-				if (strcmp(dev_name, fi->fi_pde->pe_emu) != 0)
-					continue;
-
-				*pde = fi->fi_pde;
-				*pdi = fi->fi_devi;
-				return (0);
-			}
-		}
-	}
-
-	return (EINVAL);
-}
-
 int
 pci_snapshot(struct vm_snapshot_meta *meta)
 {
@@ -2409,57 +2373,26 @@ pci_snapshot(struct vm_snapshot_meta *meta)
 
 	assert(meta->dev_name != NULL);
 
-	ret = pci_find_slotted_dev(meta->dev_name, &pde, &pdi);
-	if (ret != 0) {
-		fprintf(stderr, "%s: no such name: %s\r\n",
-			__func__, meta->dev_name);
-		memset(meta->buffer.buf_start, 0, meta->buffer.buf_size);
-		return (0);
-	}
+	pdi = meta->dev_data;
+	pde = pdi->pi_d;
 
-	meta->dev_data = pdi;
-
-	if (pde->pe_snapshot == NULL) {
-		fprintf(stderr, "%s: not implemented yet for: %s\r\n",
-			__func__, meta->dev_name);
-		return (-1);
-	}
+	if (pde->pe_snapshot == NULL)
+		return (ENOTSUP);
 
 	ret = pci_snapshot_pci_dev(meta);
-	if (ret != 0) {
-		fprintf(stderr, "%s: failed to snapshot pci dev\r\n",
-			__func__);
-		return (-1);
-	}
-
-	ret = (*pde->pe_snapshot)(meta);
+	if (ret == 0)
+		ret = (*pde->pe_snapshot)(meta);
 
 	return (ret);
 }
 
 int
-pci_pause(const char *dev_name)
+pci_pause(struct pci_devinst *pdi)
 {
-	struct pci_devemu *pde;
-	struct pci_devinst *pdi;
-	int ret;
-
-	assert(dev_name != NULL);
-
-	ret = pci_find_slotted_dev(dev_name, &pde, &pdi);
-	if (ret != 0) {
-		/*
-		 * It is possible to call this function without
-		 * checking that the device is inserted first.
-		 */
-		fprintf(stderr, "%s: no such name: %s\n", __func__, dev_name);
-		return (0);
-	}
+	struct pci_devemu *pde = pdi->pi_d;
 
 	if (pde->pe_pause == NULL) {
 		/* The pause/resume functionality is optional. */
-		fprintf(stderr, "%s: not implemented for: %s\n",
-			__func__, dev_name);
 		return (0);
 	}
 
@@ -2467,28 +2400,12 @@ pci_pause(const char *dev_name)
 }
 
 int
-pci_resume(const char *dev_name)
+pci_resume(struct pci_devinst *pdi)
 {
-	struct pci_devemu *pde;
-	struct pci_devinst *pdi;
-	int ret;
-
-	assert(dev_name != NULL);
-
-	ret = pci_find_slotted_dev(dev_name, &pde, &pdi);
-	if (ret != 0) {
-		/*
-		 * It is possible to call this function without
-		 * checking that the device is inserted first.
-		 */
-		fprintf(stderr, "%s: no such name: %s\n", __func__, dev_name);
-		return (0);
-	}
+	struct pci_devemu *pde = pdi->pi_d;
 
 	if (pde->pe_resume == NULL) {
 		/* The pause/resume functionality is optional. */
-		fprintf(stderr, "%s: not implemented for: %s\n",
-			__func__, dev_name);
 		return (0);
 	}
 
@@ -2665,6 +2582,42 @@ pci_emul_dior(struct pci_devinst *pi, int baridx, uint64_t offset, int size)
 }
 
 #ifdef BHYVE_SNAPSHOT
+struct pci_devinst *
+pci_next(const struct pci_devinst *cursor)
+{
+	unsigned bus = 0, slot = 0, func = 0;
+	struct businfo *bi;
+	struct slotinfo *si;
+	struct funcinfo *fi;
+
+	bus = cursor ? cursor->pi_bus : 0;
+	slot = cursor ? cursor->pi_slot : 0;
+	func = cursor ? (cursor->pi_func + 1) : 0;
+
+	for (; bus < MAXBUSES; bus++) {
+		if ((bi = pci_businfo[bus]) == NULL)
+			continue;
+
+		if (slot >= MAXSLOTS)
+			slot = 0;
+
+		for (; slot < MAXSLOTS; slot++) {
+			si = &bi->slotinfo[slot];
+			if (func >= MAXFUNCS)
+				func = 0;
+			for (; func < MAXFUNCS; func++) {
+				fi = &si->si_funcs[func];
+				if (fi->fi_devi == NULL)
+					continue;
+
+				return (fi->fi_devi);
+			}
+		}
+	}
+
+	return (NULL);
+}
+
 static int
 pci_emul_snapshot(struct vm_snapshot_meta *meta __unused)
 {
