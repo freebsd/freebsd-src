@@ -164,9 +164,11 @@ arm_cond_match(uint32_t insn, struct trapframe *frame)
 	case INSN_COND_AL:
 		match = true;
 		break;
+	default:
+		__assert_unreachable();
 	}
 
-	return (!match != !invert);
+	return (match != invert);
 }
 
 #ifdef COMPAT_FREEBSD32
