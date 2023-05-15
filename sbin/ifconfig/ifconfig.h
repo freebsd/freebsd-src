@@ -191,6 +191,7 @@ struct ifconfig_args {
 	bool noload;		/* Do not load relevant kernel modules */
 	bool supmedia;		/* Supported media */
 	bool printkeys;		/* Print security keys */
+	bool allfamilies;	/* Print all families */
 	int verbose;		/* verbosity level */
 	int argc;
 	char **argv;
@@ -235,6 +236,8 @@ void	clone_setdefcallback_filter(clone_match_func *, clone_callback_func *);
 
 void	sfp_status(int s, struct ifreq *ifr, int verbose);
 
+struct sockaddr_dl;
+bool	match_ether(const struct sockaddr_dl *sdl);
 /*
  * XXX expose this so modules that neeed to know of any pending
  * operations on ifmedia can avoid cmd line ordering confusion.

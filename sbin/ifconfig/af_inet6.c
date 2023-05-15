@@ -169,19 +169,87 @@ setip6eui64(const char *cmd, int dummy __unused, int s,
 }
 
 static void
+print_addr(struct sockaddr_in6 *sin)
+{
+	int error, n_flags;
+
+	if (f_addr != NULL && strcmp(f_addr, "fqdn") == 0)
+		n_flags = 0;
+	else if (f_addr != NULL && strcmp(f_addr, "host") == 0)
+		n_flags = NI_NOFQDN;
+	else
+		n_flags = NI_NUMERICHOST;
+	error = getnameinfo((struct sockaddr *)sin, sin->sin6_len,
+			    addr_buf, sizeof(addr_buf), NULL, 0,
+			    n_flags);
+	if (error != 0)
+		inet_ntop(AF_INET6, &sin->sin6_addr, addr_buf,
+			  sizeof(addr_buf));
+	printf("\tinet6 %s", addr_buf);
+}
+
+static void
+print_p2p(struct sockaddr_in6 *sin)
+{
+	int error;
+
+	error = getnameinfo((struct sockaddr *)sin, sin->sin6_len, addr_buf,
+	    sizeof(addr_buf), NULL, 0, NI_NUMERICHOST);
+
+	if (error != 0)
+		inet_ntop(AF_INET6, &sin->sin6_addr, addr_buf, sizeof(addr_buf));
+	printf(" --> %s", addr_buf);
+}
+
+static void
+print_mask(int plen)
+{
+	if (f_inet6 != NULL && strcmp(f_inet6, "cidr") == 0)
+		printf("/%d", plen);
+	else
+		printf(" prefixlen %d", plen);
+}
+
+static void
+print_flags(int flags6)
+{
+	if ((flags6 & IN6_IFF_ANYCAST) != 0)
+		printf(" anycast");
+	if ((flags6 & IN6_IFF_TENTATIVE) != 0)
+		printf(" tentative");
+	if ((flags6 & IN6_IFF_DUPLICATED) != 0)
+		printf(" duplicated");
+	if ((flags6 & IN6_IFF_DETACHED) != 0)
+		printf(" detached");
+	if ((flags6 & IN6_IFF_DEPRECATED) != 0)
+		printf(" deprecated");
+	if ((flags6 & IN6_IFF_AUTOCONF) != 0)
+		printf(" autoconf");
+	if ((flags6 & IN6_IFF_TEMPORARY) != 0)
+		printf(" temporary");
+	if ((flags6 & IN6_IFF_PREFER_SOURCE) != 0)
+		printf(" prefer_source");
+
+}
+
+static void
+print_lifetime(const char *prepend, time_t px_time, struct timespec *now)
+{
+	printf(" %s", prepend);
+	if (px_time == 0)
+		printf(" infty");
+
+	printf(" %s", px_time < now->tv_sec ? "0" : sec2str(px_time - now->tv_sec));
+}
+
+static void
 in6_status(int s __unused, const struct ifaddrs *ifa)
 {
-	struct sockaddr_in6 *sin, null_sin;
+	struct sockaddr_in6 *sin, null_sin = {};
 	struct in6_ifreq ifr6;
 	int s6;
 	u_int32_t flags6;
 	struct in6_addrlifetime lifetime;
-	struct timespec now;
-	int error, n_flags;
-
-	clock_gettime(CLOCK_MONOTONIC_FAST, &now);
-
-	memset(&null_sin, 0, sizeof(null_sin));
 
 	sin = (struct sockaddr_in6 *)ifa->ifa_addr;
 	if (sin == NULL)
@@ -209,19 +277,7 @@ in6_status(int s __unused, const struct ifaddrs *ifa)
 	lifetime = ifr6.ifr_ifru.ifru_lifetime;
 	close(s6);
 
-	if (f_addr != NULL && strcmp(f_addr, "fqdn") == 0)
-		n_flags = 0;
-	else if (f_addr != NULL && strcmp(f_addr, "host") == 0)
-		n_flags = NI_NOFQDN;
-	else
-		n_flags = NI_NUMERICHOST;
-	error = getnameinfo((struct sockaddr *)sin, sin->sin6_len,
-			    addr_buf, sizeof(addr_buf), NULL, 0,
-			    n_flags);
-	if (error != 0)
-		inet_ntop(AF_INET6, &sin->sin6_addr, addr_buf,
-			  sizeof(addr_buf));
-	printf("\tinet6 %s", addr_buf);
+	print_addr(sin);
 
 	if (ifa->ifa_flags & IFF_POINTOPOINT) {
 		sin = (struct sockaddr_in6 *)ifa->ifa_dstaddr;
@@ -229,67 +285,27 @@ in6_status(int s __unused, const struct ifaddrs *ifa)
 		 * some of the interfaces do not have valid destination
 		 * address.
 		 */
-		if (sin != NULL && sin->sin6_family == AF_INET6) {
-			int error;
-
-			error = getnameinfo((struct sockaddr *)sin,
-					    sin->sin6_len, addr_buf,
-					    sizeof(addr_buf), NULL, 0,
-					    NI_NUMERICHOST);
-			if (error != 0)
-				inet_ntop(AF_INET6, &sin->sin6_addr, addr_buf,
-					  sizeof(addr_buf));
-			printf(" --> %s", addr_buf);
-		}
+		if (sin != NULL && sin->sin6_family == AF_INET6)
+			print_p2p(sin);
 	}
 
 	sin = (struct sockaddr_in6 *)ifa->ifa_netmask;
 	if (sin == NULL)
 		sin = &null_sin;
-	if (f_inet6 != NULL && strcmp(f_inet6, "cidr") == 0)
-		printf("/%d", prefix(&sin->sin6_addr,
-			sizeof(struct in6_addr)));
-	else
-		printf(" prefixlen %d", prefix(&sin->sin6_addr,
-			sizeof(struct in6_addr)));
+	print_mask(prefix(&sin->sin6_addr, sizeof(struct in6_addr)));
 
-	if ((flags6 & IN6_IFF_ANYCAST) != 0)
-		printf(" anycast");
-	if ((flags6 & IN6_IFF_TENTATIVE) != 0)
-		printf(" tentative");
-	if ((flags6 & IN6_IFF_DUPLICATED) != 0)
-		printf(" duplicated");
-	if ((flags6 & IN6_IFF_DETACHED) != 0)
-		printf(" detached");
-	if ((flags6 & IN6_IFF_DEPRECATED) != 0)
-		printf(" deprecated");
-	if ((flags6 & IN6_IFF_AUTOCONF) != 0)
-		printf(" autoconf");
-	if ((flags6 & IN6_IFF_TEMPORARY) != 0)
-		printf(" temporary");
-	if ((flags6 & IN6_IFF_PREFER_SOURCE) != 0)
-		printf(" prefer_source");
+	print_flags(flags6);
 
 	if (((struct sockaddr_in6 *)(ifa->ifa_addr))->sin6_scope_id)
 		printf(" scopeid 0x%x",
 		    ((struct sockaddr_in6 *)(ifa->ifa_addr))->sin6_scope_id);
 
 	if (ip6lifetime && (lifetime.ia6t_preferred || lifetime.ia6t_expire)) {
-		printf(" pltime");
-		if (lifetime.ia6t_preferred) {
-			printf(" %s", lifetime.ia6t_preferred < now.tv_sec
-			    ? "0" :
-			    sec2str(lifetime.ia6t_preferred - now.tv_sec));
-		} else
-			printf(" infty");
+		struct timespec now;
 
-		printf(" vltime");
-		if (lifetime.ia6t_expire) {
-			printf(" %s", lifetime.ia6t_expire < now.tv_sec
-			    ? "0" :
-			    sec2str(lifetime.ia6t_expire - now.tv_sec));
-		} else
-			printf(" infty");
+		clock_gettime(CLOCK_MONOTONIC_FAST, &now);
+		print_lifetime("pltime", lifetime.ia6t_preferred, &now);
+		print_lifetime("vltime", lifetime.ia6t_expire, &now);
 	}
 
 	print_vhid(ifa, " ");
