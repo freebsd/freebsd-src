@@ -279,14 +279,6 @@ get_lle(struct netlink_walkargs *wa, struct ifnet *ifp, int family, struct socka
 	if (llt == NULL)
 		return (ESRCH);
 
-#ifdef INET6
-	if (dst->sa_family == AF_INET6) {
-		struct sockaddr_in6 *dst6 = (struct sockaddr_in6 *)dst;
-
-		if (IN6_IS_SCOPE_LINKLOCAL(&dst6->sin6_addr))
-			in6_set_unicast_scopeid(&dst6->sin6_addr, ifp->if_index);
-	}
-#endif
 	struct llentry *lle = lla_lookup(llt, LLE_UNLOCKED, dst);
 	if (lle == NULL)
 		return (ESRCH);
@@ -295,6 +287,19 @@ get_lle(struct netlink_walkargs *wa, struct ifnet *ifp, int family, struct socka
 	wa->family = family;
 
 	return (dump_lle(llt, lle, wa));
+}
+
+static void
+set_scope6(struct sockaddr *sa, struct ifnet *ifp)
+{
+#ifdef INET6
+	if (sa != NULL && sa->sa_family == AF_INET6 && ifp != NULL) {
+		struct sockaddr_in6 *sa6 = (struct sockaddr_in6 *)sa;
+
+		if (IN6_IS_ADDR_LINKLOCAL(&sa6->sin6_addr))
+			in6_set_unicast_scopeid(&sa6->sin6_addr, if_getindex(ifp));
+	}
+#endif
 }
 
 struct nl_parsed_neigh {
@@ -330,7 +335,16 @@ static const struct nlattr_parser nla_p_neigh[] = {
 };
 #undef _IN
 #undef _OUT
-NL_DECLARE_PARSER(ndmsg_parser, struct ndmsg, nlf_p_neigh, nla_p_neigh);
+
+static bool
+post_p_neigh(void *_attrs, struct nl_pstate *npt __unused)
+{
+	struct nl_parsed_neigh *attrs = (struct nl_parsed_neigh *)_attrs;
+
+	set_scope6(attrs->nda_dst, attrs->nda_ifp);
+	return (true);
+}
+NL_DECLARE_PARSER_EXT(ndmsg_parser, struct ndmsg, NULL, nlf_p_neigh, nla_p_neigh, post_p_neigh);
 
 
 /*
