@@ -81,6 +81,13 @@ class NlAttrNested(NlAttr):
         super().__init__(nla_type, b"")
         self.nla_list = val
 
+    def get_nla(self, nla_type):
+        nla_type_raw = enum_or_int(nla_type)
+        for nla in self.nla_list:
+            if nla.nla_type == nla_type_raw:
+                return nla
+        return None
+
     @property
     def nla_len(self):
         return align4(len(b"".join([bytes(nla) for nla in self.nla_list]))) + 4
@@ -128,6 +135,33 @@ class NlAttrU32(NlAttr):
 
     def __bytes__(self):
         return self._to_bytes(struct.pack("@I", self.u32))
+
+
+class NlAttrS32(NlAttr):
+    def __init__(self, nla_type, val):
+        self.s32 = enum_or_int(val)
+        super().__init__(nla_type, b"")
+
+    @property
+    def nla_len(self):
+        return 8
+
+    def _print_attr_value(self):
+        return " val={}".format(self.s32)
+
+    @staticmethod
+    def _validate(data):
+        assert len(data) == 8
+        nla_len, nla_type = struct.unpack("@HH", data[:4])
+        assert nla_len == 8
+
+    @classmethod
+    def _parse(cls, data):
+        nla_len, nla_type, val = struct.unpack("@HHi", data)
+        return cls(nla_type, val)
+
+    def __bytes__(self):
+        return self._to_bytes(struct.pack("@i", self.s32))
 
 
 class NlAttrU16(NlAttr):
@@ -227,6 +261,18 @@ class NlAttrIp(NlAttr):
 
     def _print_attr_value(self):
         return " addr={}".format(self.addr)
+
+
+class NlAttrIp4(NlAttrIp):
+    def __init__(self, nla_type, addr: str):
+        super().__init__(nla_type, addr)
+        assert self.family == socket.AF_INET
+
+
+class NlAttrIp6(NlAttrIp):
+    def __init__(self, nla_type, addr: str):
+        super().__init__(nla_type, addr)
+        assert self.family == socket.AF_INET6
 
 
 class NlAttrStr(NlAttr):

@@ -1,12 +1,15 @@
 #!/usr/local/bin/python3
+import struct
 from ctypes import c_int64
 from ctypes import c_long
 from ctypes import sizeof
 from ctypes import Structure
 from enum import Enum
-import struct
 
 from atf_python.sys.netlink.attrs import NlAttr
+from atf_python.sys.netlink.attrs import NlAttrIp4
+from atf_python.sys.netlink.attrs import NlAttrIp6
+from atf_python.sys.netlink.attrs import NlAttrS32
 from atf_python.sys.netlink.attrs import NlAttrStr
 from atf_python.sys.netlink.attrs import NlAttrU16
 from atf_python.sys.netlink.attrs import NlAttrU32
@@ -16,8 +19,8 @@ from atf_python.sys.netlink.message import NlMsgCategory
 from atf_python.sys.netlink.message import NlMsgProps
 from atf_python.sys.netlink.message import StdNetlinkMessage
 from atf_python.sys.netlink.utils import AttrDescr
-from atf_python.sys.netlink.utils import prepare_attrs_map
 from atf_python.sys.netlink.utils import enum_or_int
+from atf_python.sys.netlink.utils import prepare_attrs_map
 
 
 class NetlinkGenlMessage(StdNetlinkMessage):
@@ -62,6 +65,7 @@ class NetlinkGenlMessage(StdNetlinkMessage):
 
 
 GenlCtrlFamilyName = "nlctrl"
+
 
 class GenlCtrlMsgType(Enum):
     CTRL_CMD_UNSPEC = 0
@@ -109,6 +113,52 @@ class NetlinkGenlCtrlMessage(NetlinkGenlMessage):
     ]
     nl_attrs_map = genl_ctrl_attrs
     family_name = GenlCtrlFamilyName
+
+
+CarpFamilyName = "carp"
+
+
+class CarpMsgType(Enum):
+    CARP_NL_CMD_UNSPEC = 0
+    CARP_NL_CMD_GET = 1
+    CARP_NL_CMD_SET = 2
+
+
+class CarpAttrType(Enum):
+    CARP_NL_UNSPEC = 0
+    CARP_NL_VHID = 1
+    CARP_NL_STATE = 2
+    CARP_NL_ADVBASE = 3
+    CARP_NL_ADVSKEW = 4
+    CARP_NL_KEY = 5
+    CARP_NL_IFINDEX = 6
+    CARP_NL_ADDR = 7
+    CARP_NL_ADDR6 = 8
+    CARP_NL_IFNAME = 9
+
+
+carp_gen_attrs = prepare_attrs_map(
+    [
+        AttrDescr(CarpAttrType.CARP_NL_VHID, NlAttrU32),
+        AttrDescr(CarpAttrType.CARP_NL_STATE, NlAttrU32),
+        AttrDescr(CarpAttrType.CARP_NL_ADVBASE, NlAttrS32),
+        AttrDescr(CarpAttrType.CARP_NL_ADVSKEW, NlAttrS32),
+        AttrDescr(CarpAttrType.CARP_NL_KEY, NlAttr),
+        AttrDescr(CarpAttrType.CARP_NL_IFINDEX, NlAttrU32),
+        AttrDescr(CarpAttrType.CARP_NL_ADDR, NlAttrIp4),
+        AttrDescr(CarpAttrType.CARP_NL_ADDR6, NlAttrIp6),
+        AttrDescr(CarpAttrType.CARP_NL_IFNAME, NlAttrStr),
+    ]
+)
+
+
+class CarpGenMessage(NetlinkGenlMessage):
+    messages = [
+        NlMsgProps(CarpMsgType.CARP_NL_CMD_GET, NlMsgCategory.GET),
+        NlMsgProps(CarpMsgType.CARP_NL_CMD_SET, NlMsgCategory.NEW),
+    ]
+    nl_attrs_map = carp_gen_attrs
+    family_name = CarpFamilyName
 
 
 KtestFamilyName = "ktest"
@@ -223,6 +273,7 @@ class KtestMsgMessage(NetlinkGenlMessage):
 
 
 handler_classes = {
+    CarpFamilyName: [CarpGenMessage],
     GenlCtrlFamilyName: [NetlinkGenlCtrlMessage],
     KtestFamilyName: [KtestInfoMessage, KtestMsgMessage],
 }
