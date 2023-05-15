@@ -50,6 +50,7 @@ static const char rcsid[] =
 #include <sysexits.h>
 #include <termios.h>
 #include <unistd.h>
+#include <spawn.h>
 
 #include "pw.h"
 #include "bitmap.h"
@@ -57,6 +58,7 @@ static const char rcsid[] =
 
 #define LOGNAMESIZE (MAXLOGNAME-1)
 
+extern char **environ;
 static		char locked_str[] = "*LOCKED*";
 
 static struct passwd fakeuser = {
@@ -694,11 +696,16 @@ rmat(uid_t uid)
 			    stat(e->d_name, &st) == 0 &&
 			    !S_ISDIR(st.st_mode) &&
 			    st.st_uid == uid) {
-				char            tmp[MAXPATHLEN];
-
-				snprintf(tmp, sizeof(tmp), "/usr/bin/atrm %s",
-				    e->d_name);
-				system(tmp);
+				const char *argv[] = {
+					"/usr/sbin/atrm",
+					e->d_name,
+					NULL
+				};
+				if (posix_spawn(NULL, argv[0], NULL, NULL,
+				    (char *const *) argv, environ)) {
+					warn("Failed to execute '%s %s'",
+					    argv[0], argv[1]);
+				}
 			}
 		}
 		closedir(d);
@@ -915,9 +922,18 @@ pw_user_del(int argc, char **argv, char *arg1)
 		/* Remove crontabs */
 		snprintf(file, sizeof(file), "/var/cron/tabs/%s", pwd->pw_name);
 		if (access(file, F_OK) == 0) {
-			snprintf(file, sizeof(file), "crontab -u %s -r",
-			    pwd->pw_name);
-			system(file);
+			const char *argv[] = {
+				"crontab",
+				"-u",
+				pwd->pw_name,
+				"-r",
+				NULL
+			};
+			if (posix_spawnp(NULL, argv[0], NULL, NULL,
+						(char *const *) argv, environ)) {
+				warn("Failed to execute '%s %s'",
+						argv[0], argv[1]);
+			}
 		}
 	}
 
