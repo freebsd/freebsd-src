@@ -76,6 +76,7 @@ SRCS=	\
 	spinup_ap.c		\
 	task_switch.c		\
 	tpm_device.c		\
+	tpm_emul_passthru.c	\
 	uart_emul.c		\
 	usb_emul.c		\
 	usb_mouse.c		\
