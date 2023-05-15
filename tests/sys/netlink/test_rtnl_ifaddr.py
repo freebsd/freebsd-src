@@ -6,7 +6,7 @@ from atf_python.sys.net.vnet import SingleVnetTestTemplate
 from atf_python.sys.netlink.base_headers import NlmBaseFlags
 from atf_python.sys.netlink.base_headers import Nlmsghdr
 from atf_python.sys.netlink.netlink import NetlinkTestTemplate
-from atf_python.sys.netlink.netlink_route import IfattrType
+from atf_python.sys.netlink.netlink_route import IfaAttrType
 from atf_python.sys.netlink.netlink_route import NetlinkIfaMessage
 from atf_python.sys.netlink.netlink_route import NlRtMsgType
 from atf_python.sys.netlink.netlink_route import RtScope
@@ -115,12 +115,12 @@ class TestRtNlIfaddr(NetlinkTestTemplate, SingleVnetTestTemplate):
         # Ignore IFA_FLAGS for now
         assert msg.base_hdr.ifa_scope == RtScope.RT_SCOPE_UNIVERSE.value
 
-        assert msg.get_nla(IfattrType.IFA_ADDRESS).addr == "192.0.2.1"
-        assert msg.get_nla(IfattrType.IFA_LOCAL).addr == "192.0.2.1"
-        assert msg.get_nla(IfattrType.IFA_BROADCAST).addr == "192.0.2.255"
+        assert msg.get_nla(IfaAttrType.IFA_ADDRESS).addr == "192.0.2.1"
+        assert msg.get_nla(IfaAttrType.IFA_LOCAL).addr == "192.0.2.1"
+        assert msg.get_nla(IfaAttrType.IFA_BROADCAST).addr == "192.0.2.255"
 
         epair_ifname = self.vnet.iface_alias_map["if1"].name
-        assert msg.get_nla(IfattrType.IFA_LABEL).text == epair_ifname
+        assert msg.get_nla(IfaAttrType.IFA_LABEL).text == epair_ifname
 
     def test_6_broadcast(self):
         """Tests header/attr output for listing IPv6 ifas on broadcast iface"""
@@ -137,12 +137,12 @@ class TestRtNlIfaddr(NetlinkTestTemplate, SingleVnetTestTemplate):
         # Ignore IFA_FLAGS for now
         assert msg.base_hdr.ifa_scope == RtScope.RT_SCOPE_UNIVERSE.value
 
-        assert msg.get_nla(IfattrType.IFA_ADDRESS).addr == "2001:db8::1"
-        assert msg.get_nla(IfattrType.IFA_LOCAL) is None
-        assert msg.get_nla(IfattrType.IFA_BROADCAST) is None
+        assert msg.get_nla(IfaAttrType.IFA_ADDRESS).addr == "2001:db8::1"
+        assert msg.get_nla(IfaAttrType.IFA_LOCAL) is None
+        assert msg.get_nla(IfaAttrType.IFA_BROADCAST) is None
 
         epair_ifname = self.vnet.iface_alias_map["if1"].name
-        assert msg.get_nla(IfattrType.IFA_LABEL).text == epair_ifname
+        assert msg.get_nla(IfaAttrType.IFA_LABEL).text == epair_ifname
 
         # Local: fe80::/64
         msg = lmsg
@@ -150,12 +150,12 @@ class TestRtNlIfaddr(NetlinkTestTemplate, SingleVnetTestTemplate):
         # Ignore IFA_FLAGS for now
         assert msg.base_hdr.ifa_scope == RtScope.RT_SCOPE_LINK.value
 
-        addr = ipaddress.ip_address(msg.get_nla(IfattrType.IFA_ADDRESS).addr)
+        addr = ipaddress.ip_address(msg.get_nla(IfaAttrType.IFA_ADDRESS).addr)
         assert addr.is_link_local
         # Verify that ifindex is not emmbedded
         assert struct.unpack("!H", addr.packed[2:4])[0] == 0
-        assert msg.get_nla(IfattrType.IFA_LOCAL) is None
-        assert msg.get_nla(IfattrType.IFA_BROADCAST) is None
+        assert msg.get_nla(IfaAttrType.IFA_LOCAL) is None
+        assert msg.get_nla(IfaAttrType.IFA_BROADCAST) is None
 
         epair_ifname = self.vnet.iface_alias_map["if1"].name
-        assert msg.get_nla(IfattrType.IFA_LABEL).text == epair_ifname
+        assert msg.get_nla(IfaAttrType.IFA_LABEL).text == epair_ifname
