@@ -263,9 +263,10 @@ void	pci_write_dsdt(void);
 uint64_t pci_ecfg_base(void);
 int	pci_bus_configured(int bus);
 #ifdef BHYVE_SNAPSHOT
+struct pci_devinst *pci_next(const struct pci_devinst *cursor);
 int	pci_snapshot(struct vm_snapshot_meta *meta);
-int	pci_pause(const char *dev_name);
-int	pci_resume(const char *dev_name);
+int	pci_pause(struct pci_devinst *pdi);
+int	pci_resume(struct pci_devinst *pdi);
 #endif
 
 static __inline void

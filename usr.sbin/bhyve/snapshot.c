@@ -138,20 +138,6 @@ static sig_t old_winch_handler;
  _a < _b ? _a : _b;       	\
  })
 
-static const struct vm_snapshot_dev_info snapshot_devs[] = {
-	{ "atkbdc",	atkbdc_snapshot,	NULL,		NULL		},
-	{ "virtio-net",	pci_snapshot,		pci_pause,	pci_resume	},
-	{ "virtio-blk",	pci_snapshot,		pci_pause,	pci_resume	},
-	{ "virtio-rnd",	pci_snapshot,		NULL,		NULL		},
-	{ "lpc",	pci_snapshot,		NULL,		NULL		},
-	{ "fbuf",	pci_snapshot,		NULL,		NULL		},
-	{ "xhci",	pci_snapshot,		NULL,		NULL		},
-	{ "e1000",	pci_snapshot,		NULL,		NULL		},
-	{ "ahci",	pci_snapshot,		pci_pause,	pci_resume	},
-	{ "ahci-hd",	pci_snapshot,		pci_pause,	pci_resume	},
-	{ "ahci-cd",	pci_snapshot,		pci_pause,	pci_resume	},
-};
-
 static const struct vm_snapshot_kern_info snapshot_kern_structs[] = {
 	{ "vhpet",	STRUCT_VHPET	},
 	{ "vm",		STRUCT_VM	},
@@ -856,31 +842,29 @@ vm_restore_kern_structs(struct vmctx *ctx, struct restore_state *rstate)
 }
 
 static int
-vm_restore_device(struct restore_state *rstate,
-		    const struct vm_snapshot_dev_info *info)
+vm_restore_device(struct restore_state *rstate, vm_snapshot_dev_cb func,
+    const char *name, void *data)
 {
 	void *dev_ptr;
 	size_t dev_size;
 	int ret;
 	struct vm_snapshot_meta *meta;
 
-	dev_ptr = lookup_dev(info->dev_name, JSON_DEV_ARR_KEY, rstate,
-	    &dev_size);
+	dev_ptr = lookup_dev(name, JSON_DEV_ARR_KEY, rstate, &dev_size);
+
 	if (dev_ptr == NULL) {
-		fprintf(stderr, "Failed to lookup dev: %s\r\n", info->dev_name);
-		fprintf(stderr, "Continuing the restore/migration process\r\n");
-		return (0);
+		EPRINTLN("Failed to lookup dev: %s", name);
+		return (EINVAL);
 	}
 
 	if (dev_size == 0) {
-		fprintf(stderr, "%s: Device size is 0. "
-			"Assuming %s is not used\r\n",
-			__func__, info->dev_name);
-		return (0);
+		EPRINTLN("Restore device size is 0: %s", name);
+		return (EINVAL);
 	}
 
 	meta = &(struct vm_snapshot_meta) {
-		.dev_name = info->dev_name,
+		.dev_name = name,
+		.dev_data = data,
 
 		.buffer.buf_start = dev_ptr,
 		.buffer.buf_size = dev_size,
@@ -891,11 +875,10 @@ vm_restore_device(struct restore_state *rstate,
 		.op = VM_SNAPSHOT_RESTORE,
 	};
 
-	ret = (*info->snapshot_cb)(meta);
+	ret = func(meta);
 	if (ret != 0) {
-		fprintf(stderr, "Failed to restore dev: %s\r\n",
-			info->dev_name);
-		return (-1);
+		EPRINTLN("Failed to restore dev: %s %d", name, ret);
+		return (ret);
 	}
 
 	return (0);
@@ -904,33 +887,30 @@ vm_restore_device(struct restore_state *rstate,
 int
 vm_restore_devices(struct restore_state *rstate)
 {
-	size_t i;
 	int ret;
+	struct pci_devinst *pdi = NULL;
 
-	for (i = 0; i < nitems(snapshot_devs); i++) {
-		ret = vm_restore_device(rstate, &snapshot_devs[i]);
-		if (ret != 0)
+	while ((pdi = pci_next(pdi)) != NULL) {
+		ret = vm_restore_device(rstate, pci_snapshot, pdi->pi_name, pdi);
+		if (ret)
 			return (ret);
 	}
 
-	return 0;
+	return (vm_restore_device(rstate, atkbdc_snapshot, "atkbdc", NULL));
 }
 
 int
 vm_pause_devices(void)
 {
-	const struct vm_snapshot_dev_info *info;
-	size_t i;
 	int ret;
+	struct pci_devinst *pdi = NULL;
 
-	for (i = 0; i < nitems(snapshot_devs); i++) {
-		info = &snapshot_devs[i];
-		if (info->pause_cb == NULL)
-			continue;
-
-		ret = info->pause_cb(info->dev_name);
-		if (ret != 0)
+	while ((pdi = pci_next(pdi)) != NULL) {
+		ret = pci_pause(pdi);
+		if (ret) {
+			EPRINTLN("Cannot pause dev %s: %d", pdi->pi_name, ret);
 			return (ret);
+		}
 	}
 
 	return (0);
@@ -939,18 +919,15 @@ vm_pause_devices(void)
 int
 vm_resume_devices(void)
 {
-	const struct vm_snapshot_dev_info *info;
-	size_t i;
 	int ret;
+	struct pci_devinst *pdi = NULL;
 
-	for (i = 0; i < nitems(snapshot_devs); i++) {
-		info = &snapshot_devs[i];
-		if (info->resume_cb == NULL)
-			continue;
-
-		ret = info->resume_cb(info->dev_name);
-		if (ret != 0)
+	while ((pdi = pci_next(pdi)) != NULL) {
+		ret = pci_resume(pdi);
+		if (ret) {
+			EPRINTLN("Cannot resume '%s': %d", pdi->pi_name, ret);
 			return (ret);
+		}
 	}
 
 	return (0);
@@ -1089,16 +1066,21 @@ vm_snapshot_dev_write_data(int data_fd, xo_handle_t *xop, const char *array_key,
 }
 
 static int
-vm_snapshot_device(const struct vm_snapshot_dev_info *info,
-		     int data_fd, xo_handle_t *xop,
-		     struct vm_snapshot_meta *meta, off_t *offset)
+vm_snapshot_device(vm_snapshot_dev_cb func, const char *dev_name,
+    void *devdata, int data_fd, xo_handle_t *xop,
+    struct vm_snapshot_meta *meta, off_t *offset)
 {
 	int ret;
 
-	ret = (*info->snapshot_cb)(meta);
+	memset(meta->buffer.buf_start, 0, meta->buffer.buf_size);
+	meta->buffer.buf = meta->buffer.buf_start;
+	meta->buffer.buf_rem = meta->buffer.buf_size;
+	meta->dev_name = dev_name;
+	meta->dev_data = devdata;
+
+	ret = func(meta);
 	if (ret != 0) {
-		fprintf(stderr, "Failed to snapshot %s; ret=%d\r\n",
-			meta->dev_name, ret);
+		EPRINTLN("Failed to snapshot %s; ret=%d", dev_name, ret);
 		return (ret);
 	}
 
@@ -1116,8 +1098,9 @@ vm_snapshot_devices(int data_fd, xo_handle_t *xop)
 	int ret;
 	off_t offset;
 	void *buffer;
-	size_t buf_size, i;
+	size_t buf_size;
 	struct vm_snapshot_meta *meta;
+	struct pci_devinst *pdi;
 
 	buf_size = SNAPSHOT_BUFFER_SIZE;
 
@@ -1143,19 +1126,17 @@ vm_snapshot_devices(int data_fd, xo_handle_t *xop)
 
 	xo_open_list_h(xop, JSON_DEV_ARR_KEY);
 
-	/* Restore other devices that support this feature */
-	for (i = 0; i < nitems(snapshot_devs); i++) {
-		meta->dev_name = snapshot_devs[i].dev_name;
-
-		memset(meta->buffer.buf_start, 0, meta->buffer.buf_size);
-		meta->buffer.buf = meta->buffer.buf_start;
-		meta->buffer.buf_rem = meta->buffer.buf_size;
-
-		ret = vm_snapshot_device(&snapshot_devs[i], data_fd, xop,
-					   meta, &offset);
+	/* Save PCI devices */
+	pdi = NULL;
+	while ((pdi = pci_next(pdi)) != NULL) {
+		ret = vm_snapshot_device(pci_snapshot, pdi->pi_name, pdi,
+		    data_fd, xop, meta, &offset);
 		if (ret != 0)
 			goto snapshot_err;
 	}
+
+	ret = vm_snapshot_device(atkbdc_snapshot, "atkbdc", NULL,
+	    data_fd, xop, meta, &offset);
 
 	xo_close_list_h(xop, JSON_DEV_ARR_KEY);
 
