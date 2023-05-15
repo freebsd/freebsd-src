@@ -302,7 +302,7 @@ class Nlsock:
         hdr = Nlmsghdr(
             nlmsg_type=NlConst.GENL_ID_CTRL,
             nlmsg_flags=NlmBaseFlags.NLM_F_REQUEST.value,
-            nlmsg_seq = self.helper.get_seq(),
+            nlmsg_seq=self.helper.get_seq(),
         )
         ghdr = GenlMsgHdr(cmd=GenlCtrlMsgType.CTRL_CMD_GETFAMILY.value)
         nla = NlAttrStr(GenlCtrlAttrType.CTRL_ATTR_FAMILY_NAME, family_name)
@@ -341,6 +341,13 @@ class Nlsock:
         raw_msg = self._data[: hdr.nlmsg_len]
         self._data = self._data[hdr.nlmsg_len:]
         return self.parse_message(raw_msg)
+
+    def get_reply(self, tx_msg):
+        self.write_message(tx_msg)
+        while True:
+            rx_msg = self.read_message()
+            if tx_msg.nl_hdr.nlmsg_seq == rx_msg.nl_hdr.nlmsg_seq:
+                return rx_msg
 
 
 class NetlinkMultipartIterator(object):

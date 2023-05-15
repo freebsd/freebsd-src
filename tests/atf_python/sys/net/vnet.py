@@ -151,7 +151,7 @@ class VnetInterface(object):
 
 class IfaceFactory(object):
     INTERFACES_FNAME = "created_ifaces.lst"
-    AUTODELETE_TYPES = ("epair", "lo", "tap", "tun")
+    AUTODELETE_TYPES = ("epair", "gif", "gre", "lo", "tap", "tun")
 
     def __init__(self):
         self.file_name = self.INTERFACES_FNAME
@@ -386,8 +386,9 @@ class VnetTestTemplate(BaseTest):
         vnet_factory = VnetFactory(topology_id)
         for obj_name, obj_data in topo.items():
             if obj_name.startswith("if"):
-                epair_ifaces = iface_factory.create_iface(obj_name, "epair")
-                smap = SingleInterfaceMap(epair_ifaces, [])
+                iface_type = obj_data.get("type", "epair")
+                ifaces = iface_factory.create_iface(obj_name, iface_type)
+                smap = SingleInterfaceMap(ifaces, [])
                 iface_map[obj_name] = smap
         for obj_name, obj_data in topo.items():
             if obj_name.startswith("vnet"):
@@ -494,17 +495,25 @@ class VnetTestTemplate(BaseTest):
 class SingleVnetTestTemplate(VnetTestTemplate):
     IPV6_PREFIXES: List[str] = []
     IPV4_PREFIXES: List[str] = []
+    IFTYPE = "epair"
 
-    def setup_method(self, method):
+    def _setup_default_topology(self):
         topology = copy.deepcopy(
             {
                 "vnet1": {"ifaces": ["if1"]},
-                "if1": {"prefixes4": [], "prefixes6": []},
+                "if1": {"type": self.IFTYPE, "prefixes4": [], "prefixes6": []},
             }
         )
         for prefix in self.IPV6_PREFIXES:
             topology["if1"]["prefixes6"].append((prefix,))
         for prefix in self.IPV4_PREFIXES:
             topology["if1"]["prefixes4"].append((prefix,))
-        self.TOPOLOGY = topology
+        return topology
+
+    def setup_method(self, method):
+        if not getattr(self, "TOPOLOGY", None):
+            self.TOPOLOGY = self._setup_default_topology()
+        else:
+            names = self.TOPOLOGY.keys()
+            assert len([n for n in names if n.startswith("vnet")]) == 1
         super().setup_method(method)
