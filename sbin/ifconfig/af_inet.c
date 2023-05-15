@@ -60,16 +60,9 @@ static char addr_buf[NI_MAXHOST];	/*for getnameinfo()*/
 extern char *f_inet, *f_addr;
 
 static void
-in_status(int s __unused, const struct ifaddrs *ifa)
+print_addr(struct sockaddr_in *sin)
 {
-	struct sockaddr_in *sin, null_sin;
 	int error, n_flags;
-	
-	memset(&null_sin, 0, sizeof(null_sin));
-
-	sin = (struct sockaddr_in *)ifa->ifa_addr;
-	if (sin == NULL)
-		return;
 
 	if (f_addr != NULL && strcmp(f_addr, "fqdn") == 0)
 		n_flags = 0;
@@ -85,6 +78,18 @@ in_status(int s __unused, const struct ifaddrs *ifa)
 		inet_ntop(AF_INET, &sin->sin_addr, addr_buf, sizeof(addr_buf));
 	
 	printf("\tinet %s", addr_buf);
+}
+
+static void
+in_status(int s __unused, const struct ifaddrs *ifa)
+{
+	struct sockaddr_in *sin, null_sin = {};
+
+	sin = (struct sockaddr_in *)ifa->ifa_addr;
+	if (sin == NULL)
+		return;
+
+	print_addr(sin);
 
 	if (ifa->ifa_flags & IFF_POINTOPOINT) {
 		sin = (struct sockaddr_in *)ifa->ifa_dstaddr;
