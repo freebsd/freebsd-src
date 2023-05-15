@@ -86,6 +86,14 @@ pci_amd_hostbridge_legacy_config(nvlist_t *nvl, const char *opts __unused)
 	return (0);
 }
 
+#ifdef BHYVE_SNAPSHOT
+static int
+pci_de_snapshot(struct vm_snapshot_meta *meta __unused)
+{
+	return (0);
+}
+#endif
+
 static const struct pci_devemu pci_de_amd_hostbridge = {
 	.pe_emu = "amd_hostbridge",
 	.pe_legacy_config = pci_amd_hostbridge_legacy_config,
@@ -96,5 +104,8 @@ PCI_EMUL_SET(pci_de_amd_hostbridge);
 static const struct pci_devemu pci_de_hostbridge = {
 	.pe_emu = "hostbridge",
 	.pe_init = pci_hostbridge_init,
+#ifdef BHYVE_SNAPSHOT
+	.pe_snapshot =	pci_de_snapshot,
+#endif
 };
 PCI_EMUL_SET(pci_de_hostbridge);
