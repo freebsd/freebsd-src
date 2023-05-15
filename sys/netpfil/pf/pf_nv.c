@@ -77,7 +77,7 @@ __FBSDID("$FreeBSD$");
 		if (! nvlist_exists_number_array(nvl, name))			\
 			return (EINVAL);					\
 		n = nvlist_get_number_array(nvl, name, &nitems);		\
-		if (nitems != maxelems)						\
+		if (nitems > maxelems)						\
 			return (E2BIG);						\
 		if (nelems != NULL)						\
 			*nelems = nitems;					\
