@@ -128,7 +128,6 @@ static int	pfsync_in_iack(struct mbuf *, int, int, int);
 static int	pfsync_in_upd(struct mbuf *, int, int, int);
 static int	pfsync_in_upd_c(struct mbuf *, int, int, int);
 static int	pfsync_in_ureq(struct mbuf *, int, int, int);
-static int	pfsync_in_del(struct mbuf *, int, int, int);
 static int	pfsync_in_del_c(struct mbuf *, int, int, int);
 static int	pfsync_in_bus(struct mbuf *, int, int, int);
 static int	pfsync_in_tdb(struct mbuf *, int, int, int);
@@ -142,7 +141,7 @@ static int (*pfsync_acts[])(struct mbuf *, int, int, int) = {
 	pfsync_in_upd,			/* PFSYNC_ACT_UPD */
 	pfsync_in_upd_c,		/* PFSYNC_ACT_UPD_C */
 	pfsync_in_ureq,			/* PFSYNC_ACT_UPD_REQ */
-	pfsync_in_del,			/* PFSYNC_ACT_DEL */
+	pfsync_in_error,		/* PFSYNC_ACT_DEL */
 	pfsync_in_del_c,		/* PFSYNC_ACT_DEL_C */
 	pfsync_in_error,		/* PFSYNC_ACT_INS_F */
 	pfsync_in_error,		/* PFSYNC_ACT_DEL_F */
@@ -161,14 +160,14 @@ struct pfsync_q {
 static void	pfsync_out_state(struct pf_kstate *, void *);
 static void	pfsync_out_iack(struct pf_kstate *, void *);
 static void	pfsync_out_upd_c(struct pf_kstate *, void *);
-static void	pfsync_out_del(struct pf_kstate *, void *);
+static void	pfsync_out_del_c(struct pf_kstate *, void *);
 
 static struct pfsync_q pfsync_qs[] = {
 	{ pfsync_out_state, sizeof(struct pfsync_state),   PFSYNC_ACT_INS },
 	{ pfsync_out_iack,  sizeof(struct pfsync_ins_ack), PFSYNC_ACT_INS_ACK },
 	{ pfsync_out_state, sizeof(struct pfsync_state),   PFSYNC_ACT_UPD },
 	{ pfsync_out_upd_c, sizeof(struct pfsync_upd_c),   PFSYNC_ACT_UPD_C },
-	{ pfsync_out_del,   sizeof(struct pfsync_del_c),   PFSYNC_ACT_DEL_C }
+	{ pfsync_out_del_c, sizeof(struct pfsync_del_c),   PFSYNC_ACT_DEL_C }
 };
 
 static void	pfsync_q_ins(struct pf_kstate *, int, bool);
@@ -1128,37 +1127,6 @@ pfsync_in_ureq(struct mbuf *m, int offset, int count, int flags)
 }
 
 static int
-pfsync_in_del(struct mbuf *m, int offset, int count, int flags)
-{
-	struct mbuf *mp;
-	struct pfsync_state *sa, *sp;
-	struct pf_kstate *st;
-	int len = count * sizeof(*sp);
-	int offp, i;
-
-	mp = m_pulldown(m, offset, len, &offp);
-	if (mp == NULL) {
-		V_pfsyncstats.pfsyncs_badlen++;
-		return (-1);
-	}
-	sa = (struct pfsync_state *)(mp->m_data + offp);
-
-	for (i = 0; i < count; i++) {
-		sp = &sa[i];
-
-		st = pf_find_state_byid(sp->id, sp->creatorid);
-		if (st == NULL) {
-			V_pfsyncstats.pfsyncs_badstate++;
-			continue;
-		}
-		st->state_flags |= PFSTATE_NOSYNC;
-		pf_unlink_state(st);
-	}
-
-	return (len);
-}
-
-static int
 pfsync_in_del_c(struct mbuf *m, int offset, int count, int flags)
 {
 	struct mbuf *mp;
@@ -1526,7 +1494,7 @@ pfsync_out_upd_c(struct pf_kstate *st, void *buf)
 }
 
 static void
-pfsync_out_del(struct pf_kstate *st, void *buf)
+pfsync_out_del_c(struct pf_kstate *st, void *buf)
 {
 	struct pfsync_del_c *dp = buf;
 
@@ -2039,7 +2007,7 @@ pfsync_update_state_req(struct pf_kstate *st)
 
 	case PFSYNC_S_INS:
 	case PFSYNC_S_UPD:
-	case PFSYNC_S_DEL:
+	case PFSYNC_S_DEL_C:
 		/* we're already handling it */
 		break;
 
@@ -2089,7 +2057,7 @@ pfsync_delete_state(struct pf_kstate *st)
 		/* FALLTHROUGH */
 
 	case PFSYNC_S_NONE:
-		pfsync_q_ins(st, PFSYNC_S_DEL, ref);
+		pfsync_q_ins(st, PFSYNC_S_DEL_C, ref);
 		break;
 
 	default:
