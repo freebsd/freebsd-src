@@ -291,61 +291,76 @@ class IfinfoMsg(Structure):
 
 class IflattrType(Enum):
     IFLA_UNSPEC = 0
-    IFLA_ADDRESS = auto()
-    IFLA_BROADCAST = auto()
-    IFLA_IFNAME = auto()
-    IFLA_MTU = auto()
-    IFLA_LINK = auto()
-    IFLA_QDISC = auto()
-    IFLA_STATS = auto()
-    IFLA_COST = auto()
-    IFLA_PRIORITY = auto()
-    IFLA_MASTER = auto()
-    IFLA_WIRELESS = auto()
-    IFLA_PROTINFO = auto()
-    IFLA_TXQLEN = auto()
-    IFLA_MAP = auto()
-    IFLA_WEIGHT = auto()
-    IFLA_OPERSTATE = auto()
-    IFLA_LINKMODE = auto()
-    IFLA_LINKINFO = auto()
-    IFLA_NET_NS_PID = auto()
-    IFLA_IFALIAS = auto()
-    IFLA_NUM_VF = auto()
-    IFLA_VFINFO_LIST = auto()
-    IFLA_STATS64 = auto()
-    IFLA_VF_PORTS = auto()
-    IFLA_PORT_SELF = auto()
-    IFLA_AF_SPEC = auto()
-    IFLA_GROUP = auto()
-    IFLA_NET_NS_FD = auto()
-    IFLA_EXT_MASK = auto()
-    IFLA_PROMISCUITY = auto()
-    IFLA_NUM_TX_QUEUES = auto()
-    IFLA_NUM_RX_QUEUES = auto()
-    IFLA_CARRIER = auto()
-    IFLA_PHYS_PORT_ID = auto()
-    IFLA_CARRIER_CHANGES = auto()
-    IFLA_PHYS_SWITCH_ID = auto()
-    IFLA_LINK_NETNSID = auto()
-    IFLA_PHYS_PORT_NAME = auto()
-    IFLA_PROTO_DOWN = auto()
-    IFLA_GSO_MAX_SEGS = auto()
-    IFLA_GSO_MAX_SIZE = auto()
-    IFLA_PAD = auto()
-    IFLA_XDP = auto()
-    IFLA_EVENT = auto()
-    IFLA_NEW_NETNSID = auto()
-    IFLA_IF_NETNSID = auto()
-    IFLA_CARRIER_UP_COUNT = auto()
-    IFLA_CARRIER_DOWN_COUNT = auto()
-    IFLA_NEW_IFINDEX = auto()
-    IFLA_MIN_MTU = auto()
-    IFLA_MAX_MTU = auto()
-    IFLA_PROP_LIST = auto()
-    IFLA_ALT_IFNAME = auto()
-    IFLA_PERM_ADDRESS = auto()
-    IFLA_PROTO_DOWN_REASON = auto()
+    IFLA_ADDRESS = 1
+    IFLA_BROADCAST = 2
+    IFLA_IFNAME = 3
+    IFLA_MTU = 4
+    IFLA_LINK = 5
+    IFLA_QDISC = 6
+    IFLA_STATS = 7
+    IFLA_COST = 8
+    IFLA_PRIORITY = 9
+    IFLA_MASTER = 10
+    IFLA_WIRELESS = 11
+    IFLA_PROTINFO = 12
+    IFLA_TXQLEN = 13
+    IFLA_MAP = 14
+    IFLA_WEIGHT = 15
+    IFLA_OPERSTATE = 16
+    IFLA_LINKMODE = 17
+    IFLA_LINKINFO = 18
+    IFLA_NET_NS_PID = 19
+    IFLA_IFALIAS = 20
+    IFLA_NUM_VF = 21
+    IFLA_VFINFO_LIST = 22
+    IFLA_STATS64 = 23
+    IFLA_VF_PORTS = 24
+    IFLA_PORT_SELF = 25
+    IFLA_AF_SPEC = 26
+    IFLA_GROUP = 27
+    IFLA_NET_NS_FD = 28
+    IFLA_EXT_MASK = 29
+    IFLA_PROMISCUITY = 30
+    IFLA_NUM_TX_QUEUES = 31
+    IFLA_NUM_RX_QUEUES = 32
+    IFLA_CARRIER = 33
+    IFLA_PHYS_PORT_ID = 34
+    IFLA_CARRIER_CHANGES = 35
+    IFLA_PHYS_SWITCH_ID = 36
+    IFLA_LINK_NETNSID = 37
+    IFLA_PHYS_PORT_NAME = 38
+    IFLA_PROTO_DOWN = 39
+    IFLA_GSO_MAX_SEGS = 40
+    IFLA_GSO_MAX_SIZE = 41
+    IFLA_PAD = 42
+    IFLA_XDP = 43
+    IFLA_EVENT = 44
+    IFLA_NEW_NETNSID = 45
+    IFLA_IF_NETNSID = 46
+    IFLA_CARRIER_UP_COUNT = 47
+    IFLA_CARRIER_DOWN_COUNT = 48
+    IFLA_NEW_IFINDEX = 49
+    IFLA_MIN_MTU = 50
+    IFLA_MAX_MTU = 51
+    IFLA_PROP_LIST = 52
+    IFLA_ALT_IFNAME = 53
+    IFLA_PERM_ADDRESS = 54
+    IFLA_PROTO_DOWN_REASON = 55
+    IFLA_PARENT_DEV_NAME = 56
+    IFLA_PARENT_DEV_BUS_NAME = 57
+    IFLA_GRO_MAX_SIZE = 58
+    IFLA_TSO_MAX_SEGS = 59
+    IFLA_ALLMULTI = 60
+    IFLA_DEVLINK_PORT = 61
+    IFLA_GSO_IPV4_MAX_SIZE = 62
+    IFLA_GRO_IPV4_MAX_SIZE = 63
+    IFLA_FREEBSD = 64
+
+
+class IflafAttrType(Enum):
+    IFLAF_UNSPEC = 0
+    IFLAF_ORIG_IFNAME = 1
+    IFLAF_ORIG_HWADDR = 2
 
 
 class IflinkInfo(Enum):
@@ -378,16 +393,59 @@ class IfaddrMsg(Structure):
 
 class IfaAttrType(Enum):
     IFA_UNSPEC = 0
-    IFA_ADDRESS = auto()
-    IFA_LOCAL = auto()
-    IFA_LABEL = auto()
-    IFA_BROADCAST = auto()
-    IFA_ANYCAST = auto()
-    IFA_CACHEINFO = auto()
-    IFA_MULTICAST = auto()
-    IFA_FLAGS = auto()
-    IFA_RT_PRIORITY = auto()
-    IFA_TARGET_NETNSID = auto()
+    IFA_ADDRESS = 1
+    IFA_LOCAL = 2
+    IFA_LABEL = 3
+    IFA_BROADCAST = 4
+    IFA_ANYCAST = 5
+    IFA_CACHEINFO = 6
+    IFA_MULTICAST = 7
+    IFA_FLAGS = 8
+    IFA_RT_PRIORITY = 9
+    IFA_TARGET_NETNSID = 10
+    IFA_FREEBSD = 11
+
+
+class IfafAttrType(Enum):
+    IFAF_UNSPEC = 0
+    IFAF_VHID = 1
+    IFAF_FLAGS = 2
+
+
+class IfaCacheInfo(Structure):
+    _fields_ = [
+        ("ifa_prefered", c_uint),   # seconds till the end of the prefix considered preferred
+        ("ifa_valid", c_uint),      # seconds till the end of the prefix considered valid
+        ("cstamp", c_uint),         # creation time in 1ms intervals from the boot time
+        ("tstamp", c_uint),         # update time in 1ms intervals from the boot time
+    ]
+
+
+class IfaFlags(Enum):
+    IFA_F_TEMPORARY = 0x01
+    IFA_F_NODAD = 0x02
+    IFA_F_OPTIMISTIC = 0x04
+    IFA_F_DADFAILED = 0x08
+    IFA_F_HOMEADDRESS = 0x10
+    IFA_F_DEPRECATED = 0x20
+    IFA_F_TENTATIVE = 0x40
+    IFA_F_PERMANENT = 0x80
+    IFA_F_MANAGETEMPADDR = 0x100
+    IFA_F_NOPREFIXROUTE = 0x200
+    IFA_F_MCAUTOJOIN = 0x400
+    IFA_F_STABLE_PRIVACY = 0x800
+
+
+class IfafFlags6(Enum):
+    IN6_IFF_ANYCAST = 0x01
+    IN6_IFF_TENTATIVE = 0x02
+    IN6_IFF_DUPLICATED = 0x04
+    IN6_IFF_DETACHED = 0x08
+    IN6_IFF_DEPRECATED = 0x10
+    IN6_IFF_NODAD = 0x20
+    IN6_IFF_AUTOCONF = 0x40
+    IN6_IFF_TEMPORARY = 0x80
+    IN6_IFF_PREFER_SOURCE = 0x100
 
 
 class NdMsg(Structure):
@@ -462,6 +520,25 @@ class NlAttrMac(NlAttr):
 class NlAttrIfStats(NlAttr):
     def _print_attr_value(self):
         return " stats={...}"
+
+
+class NlAttrCacheInfo(NlAttr):
+    def __init__(self, nla_type, data):
+        super().__init__(nla_type, data)
+        self.ci = IfaCacheInfo.from_buffer_copy(data)
+
+    @staticmethod
+    def _validate(data):
+        nla_len, nla_type = struct.unpack("@HH", data[:4])
+        data_len = nla_len - 4
+        if data_len != sizeof(IfaCacheInfo):
+            raise ValueError(
+                "Error validating attr {}: wrong size".format(nla_type)
+            )  # noqa: E501
+
+    def _print_attr_value(self):
+        return " ifa_prefered={} ifa_valid={} cstamp={} tstamp={}".format(
+                self.ci.ifa_prefered, self.ci.ifa_valid, self.ci.cstamp, self.ci.tstamp)
 
 
 class NlAttrVia(NlAttr):
@@ -565,6 +642,13 @@ rtnl_ifla_attrs = prepare_attrs_map(
                 AttrDescr(IflinkInfo.IFLA_INFO_DATA, NlAttr),
             ],
         ),
+        AttrDescr(
+            IflattrType.IFLA_FREEBSD,
+            NlAttrNested,
+            [
+                AttrDescr(IflafAttrType.IFLAF_ORIG_HWADDR, NlAttrMac),
+            ],
+        ),
     ]
 )
 
@@ -576,6 +660,15 @@ rtnl_ifa_attrs = prepare_attrs_map(
         AttrDescr(IfaAttrType.IFA_BROADCAST, NlAttrIp),
         AttrDescr(IfaAttrType.IFA_ANYCAST, NlAttrIp),
         AttrDescr(IfaAttrType.IFA_FLAGS, NlAttrU32),
+        AttrDescr(IfaAttrType.IFA_CACHEINFO, NlAttrCacheInfo),
+        AttrDescr(
+            IfaAttrType.IFA_FREEBSD,
+            NlAttrNested,
+            [
+                AttrDescr(IfafAttrType.IFAF_VHID, NlAttrU32),
+                AttrDescr(IfafAttrType.IFAF_FLAGS, NlAttrU32),
+            ],
+        ),
     ]
 )
 
