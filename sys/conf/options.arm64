@@ -14,6 +14,8 @@ PERTHREAD_SSP			opt_global.h
 
 # Binary compatibility
 COMPAT_FREEBSD32		opt_global.h
+# Emulate SWP/SWPB for COMPAT_FREEBSD32
+EMUL_SWP			opt_global.h
 
 # EFI Runtime services support
 EFIRT				opt_efirt.h
