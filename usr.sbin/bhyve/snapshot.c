@@ -856,7 +856,7 @@ vm_restore_kern_structs(struct vmctx *ctx, struct restore_state *rstate)
 }
 
 static int
-vm_restore_user_dev(struct restore_state *rstate,
+vm_restore_device(struct restore_state *rstate,
 		    const struct vm_snapshot_dev_info *info)
 {
 	void *dev_ptr;
@@ -901,15 +901,14 @@ vm_restore_user_dev(struct restore_state *rstate,
 	return (0);
 }
 
-
 int
-vm_restore_user_devs(struct restore_state *rstate)
+vm_restore_devices(struct restore_state *rstate)
 {
 	size_t i;
 	int ret;
 
 	for (i = 0; i < nitems(snapshot_devs); i++) {
-		ret = vm_restore_user_dev(rstate, &snapshot_devs[i]);
+		ret = vm_restore_device(rstate, &snapshot_devs[i]);
 		if (ret != 0)
 			return (ret);
 	}
@@ -918,7 +917,7 @@ vm_restore_user_devs(struct restore_state *rstate)
 }
 
 int
-vm_pause_user_devs(void)
+vm_pause_devices(void)
 {
 	const struct vm_snapshot_dev_info *info;
 	size_t i;
@@ -938,7 +937,7 @@ vm_pause_user_devs(void)
 }
 
 int
-vm_resume_user_devs(void)
+vm_resume_devices(void)
 {
 	const struct vm_snapshot_dev_info *info;
 	size_t i;
@@ -1090,7 +1089,7 @@ vm_snapshot_dev_write_data(int data_fd, xo_handle_t *xop, const char *array_key,
 }
 
 static int
-vm_snapshot_user_dev(const struct vm_snapshot_dev_info *info,
+vm_snapshot_device(const struct vm_snapshot_dev_info *info,
 		     int data_fd, xo_handle_t *xop,
 		     struct vm_snapshot_meta *meta, off_t *offset)
 {
@@ -1112,7 +1111,7 @@ vm_snapshot_user_dev(const struct vm_snapshot_dev_info *info,
 }
 
 static int
-vm_snapshot_user_devs(int data_fd, xo_handle_t *xop)
+vm_snapshot_devices(int data_fd, xo_handle_t *xop)
 {
 	int ret;
 	off_t offset;
@@ -1152,7 +1151,7 @@ vm_snapshot_user_devs(int data_fd, xo_handle_t *xop)
 		meta->buffer.buf = meta->buffer.buf_start;
 		meta->buffer.buf_rem = meta->buffer.buf_size;
 
-		ret = vm_snapshot_user_dev(&snapshot_devs[i], data_fd, xop,
+		ret = vm_snapshot_device(&snapshot_devs[i], data_fd, xop,
 					   meta, &offset);
 		if (ret != 0)
 			goto snapshot_err;
@@ -1294,7 +1293,7 @@ vm_checkpoint(struct vmctx *ctx, int fddir, const char *checkpoint_file,
 
 	vm_vcpu_pause(ctx);
 
-	ret = vm_pause_user_devs();
+	ret = vm_pause_devices();
 	if (ret != 0) {
 		fprintf(stderr, "Could not pause devices\r\n");
 		error = ret;
@@ -1322,7 +1321,7 @@ vm_checkpoint(struct vmctx *ctx, int fddir, const char *checkpoint_file,
 		goto done;
 	}
 
-	ret = vm_snapshot_user_devs(kdata_fd, xop);
+	ret = vm_snapshot_devices(kdata_fd, xop);
 	if (ret != 0) {
 		fprintf(stderr, "Failed to snapshot device state.\n");
 		error = -1;
@@ -1337,7 +1336,7 @@ vm_checkpoint(struct vmctx *ctx, int fddir, const char *checkpoint_file,
 	}
 
 done:
-	ret = vm_resume_user_devs();
+	ret = vm_resume_devices();
 	if (ret != 0)
 		fprintf(stderr, "Could not resume devices\r\n");
 	vm_vcpu_resume(ctx);
