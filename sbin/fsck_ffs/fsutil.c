@@ -1038,7 +1038,7 @@ check_cgmagic(int cg, struct bufarea *cgbp)
 		CHK(cgp->cg_ndblk, !=, sblock.fs_size - cgbase(&sblock, cg),
 		    "%jd");
 	}
-	start = &cgp->cg_space[0] - (u_char *)(&cgp->cg_firstfield);
+	start = sizeof(*cgp);
 	if (sblock.fs_magic == FS_UFS2_MAGIC) {
 		CHK(cgp->cg_iusedoff, !=, start, "%jd");
 	} else if (sblock.fs_magic == FS_UFS1_MAGIC) {
@@ -1098,7 +1098,7 @@ rebuild_cg(int cg, struct bufarea *cgbp)
 		cgp->cg_ndblk = sblock.fs_fpg;
 	else
 		cgp->cg_ndblk = sblock.fs_size - cgbase(&sblock, cg);
-	start = &cgp->cg_space[0] - (u_char *)(&cgp->cg_firstfield);
+	start = sizeof(*cgp);
 	if (sblock.fs_magic == FS_UFS2_MAGIC) {
 		cgp->cg_iusedoff = start;
 	} else if (sblock.fs_magic == FS_UFS1_MAGIC) {
