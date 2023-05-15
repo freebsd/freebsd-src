@@ -376,7 +376,7 @@ class IfaddrMsg(Structure):
     ]
 
 
-class IfattrType(Enum):
+class IfaAttrType(Enum):
     IFA_UNSPEC = 0
     IFA_ADDRESS = auto()
     IFA_LOCAL = auto()
@@ -570,12 +570,12 @@ rtnl_ifla_attrs = prepare_attrs_map(
 
 rtnl_ifa_attrs = prepare_attrs_map(
     [
-        AttrDescr(IfattrType.IFA_ADDRESS, NlAttrIp),
-        AttrDescr(IfattrType.IFA_LOCAL, NlAttrIp),
-        AttrDescr(IfattrType.IFA_LABEL, NlAttrStr),
-        AttrDescr(IfattrType.IFA_BROADCAST, NlAttrIp),
-        AttrDescr(IfattrType.IFA_ANYCAST, NlAttrIp),
-        AttrDescr(IfattrType.IFA_FLAGS, NlAttrU32),
+        AttrDescr(IfaAttrType.IFA_ADDRESS, NlAttrIp),
+        AttrDescr(IfaAttrType.IFA_LOCAL, NlAttrIp),
+        AttrDescr(IfaAttrType.IFA_LABEL, NlAttrStr),
+        AttrDescr(IfaAttrType.IFA_BROADCAST, NlAttrIp),
+        AttrDescr(IfaAttrType.IFA_ANYCAST, NlAttrIp),
+        AttrDescr(IfaAttrType.IFA_FLAGS, NlAttrU32),
     ]
 )
 
