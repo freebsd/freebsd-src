@@ -47,14 +47,21 @@ class BaseTest(object):
     TARGET_USER = None  # Set to the target user by the framework
     REQUIRED_MODULES: List[str] = []
 
+    def require_module(self, mod_name: str, skip=True):
+        error_code = libc.modfind(mod_name)
+        if error_code == 0:
+            return
+        err_str = os.strerror(error_code)
+        txt = "kernel module '{}' not available: {}".format(mod_name, err_str)
+        if skip:
+            pytest.skip(txt)
+        else:
+            raise ValueError(txt)
+
     def _check_modules(self):
         for mod_name in self.REQUIRED_MODULES:
-            error_code = libc.modfind(mod_name)
-            if error_code != 0:
-                err_str = os.strerror(error_code)
-                pytest.skip(
-                    "kernel module '{}' not available: {}".format(mod_name, err_str)
-                )
+            self.require_module(mod_name)
+
     @property
     def atf_vars(self) -> Dict[str, str]:
         px = "_ATF_VAR_"
