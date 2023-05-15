@@ -1029,7 +1029,8 @@ pci_emul_init(struct vmctx *ctx, struct pci_devemu *pde, int bus, int slot,
 	pdi->pi_lintr.pirq_pin = 0;
 	pdi->pi_lintr.ioapic_irq = 0;
 	pdi->pi_d = pde;
-	snprintf(pdi->pi_name, PI_NAMESZ, "%s-pci-%d", pde->pe_emu, slot);
+	snprintf(pdi->pi_name, PI_NAMESZ, "%s@pci.%d.%d.%d", pde->pe_emu, bus,
+	    slot, func);
 
 	/* Disable legacy interrupts */
 	pci_set_cfgdata8(pdi, PCIR_INTLINE, 255);
