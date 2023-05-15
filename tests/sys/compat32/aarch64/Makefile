@@ -1,3 +1,5 @@
+# XXX: Doesn't work with GCC and requires an LLVM with the ARM backend
+.if 0
 PACKAGE=	tests
 FILESGROUPS+=	asmprogs
 
@@ -22,3 +24,4 @@ ${aprog}: ${aprog}.S
 .endfor
 
 .include <bsd.test.mk>
+.endif
