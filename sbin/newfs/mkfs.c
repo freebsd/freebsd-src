@@ -721,7 +721,7 @@ initcg(int cylno, time_t utime)
 	acg.cg_ndblk = dmax - cbase;
 	if (sblock.fs_contigsumsize > 0)
 		acg.cg_nclusterblks = acg.cg_ndblk / sblock.fs_frag;
-	start = &acg.cg_space[0] - (u_char *)(&acg.cg_firstfield);
+	start = sizeof(acg);
 	if (Oflag == 2) {
 		acg.cg_iusedoff = start;
 	} else {
@@ -749,7 +749,8 @@ initcg(int cylno, time_t utime)
 		    howmany(fragstoblks(&sblock, sblock.fs_fpg), CHAR_BIT);
 	}
 	if (acg.cg_nextfreeoff > (unsigned)sblock.fs_cgsize) {
-		printf("Panic: cylinder group too big\n");
+		printf("Panic: cylinder group too big by %d bytes\n",
+		    acg.cg_nextfreeoff - (unsigned)sblock.fs_cgsize);
 		exit(37);
 	}
 	acg.cg_cs.cs_nifree += sblock.fs_ipg;

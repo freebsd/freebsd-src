@@ -634,7 +634,7 @@ initcg(uint32_t cylno, time_t utime, const fsinfo_t *fsopts)
 	acg.cg_ndblk = dmax - cbase;
 	if (sblock.fs_contigsumsize > 0)
 		acg.cg_nclusterblks = acg.cg_ndblk >> sblock.fs_fragshift;
-	start = &acg.cg_space[0] - (u_char *)(&acg.cg_firstfield);
+	start = sizeof(acg);
 	if (Oflag == 2) {
 		acg.cg_iusedoff = start;
 	} else {

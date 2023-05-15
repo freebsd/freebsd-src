@@ -116,7 +116,7 @@ pass5(void)
 			}
 		}
 	}
-	basesize = &newcg->cg_space[0] - (u_char *)(&newcg->cg_firstfield);
+	basesize = sizeof(*newcg);
 	if (sblock.fs_magic == FS_UFS2_MAGIC) {
 		newcg->cg_iusedoff = basesize;
 	} else {
@@ -131,7 +131,7 @@ pass5(void)
 		    fs->fs_old_cpg * sizeof(int32_t);
 		newcg->cg_iusedoff = newcg->cg_old_boff +
 		    fs->fs_old_cpg * fs->fs_old_nrpos * sizeof(u_int16_t);
-		memset(&newcg->cg_space[0], 0, newcg->cg_iusedoff - basesize);
+		memset(&newcg[1], 0, newcg->cg_iusedoff - basesize);
 	}
 	inomapsize = howmany(fs->fs_ipg, CHAR_BIT);
 	newcg->cg_freeoff = newcg->cg_iusedoff + inomapsize;
