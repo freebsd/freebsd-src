@@ -95,9 +95,9 @@ void checkpoint_cpu_suspend(int vcpu);
 int restore_vm_mem(struct vmctx *ctx, struct restore_state *rstate);
 int vm_restore_kern_structs(struct vmctx *ctx, struct restore_state *rstate);
 
-int vm_restore_user_devs(struct restore_state *rstate);
-int vm_pause_user_devs(void);
-int vm_resume_user_devs(void);
+int vm_restore_devices(struct restore_state *rstate);
+int vm_pause_devices(void);
+int vm_resume_devices(void);
 
 int get_checkpoint_msg(int conn_fd, struct vmctx *ctx);
 void *checkpoint_thread(void *param);
