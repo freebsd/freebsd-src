@@ -39,13 +39,46 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/signal.h>
 #include <sys/signalvar.h>
+#include <sys/sysctl.h>
 #include <sys/sysent.h>
 
+#include <machine/atomic.h>
 #include <machine/frame.h>
+#define _MD_WANT_SWAPWORD
+#include <machine/md_var.h>
+#include <machine/pcb.h>
 #include <machine/undefined.h>
 #include <machine/vmparam.h>
 
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
+
+/* Low bit masked off */
+#define	INSN_COND(insn)	((insn >> 28) & ~0x1)
+#define	INSN_COND_INVERTED(insn)	((insn >> 28) & 0x1)
+#define	INSN_COND_EQ	0x00	/* NE */
+#define	INSN_COND_CS	0x02	/* CC */
+#define	INSN_COND_MI	0x04	/* PL */
+#define	INSN_COND_VS	0x06	/* VC */
+#define	INSN_COND_HI	0x08	/* LS */
+#define	INSN_COND_GE	0x0a	/* LT */
+#define	INSN_COND_GT	0x0c	/* LE */
+#define	INSN_COND_AL	0x0e	/* Always */
+
 MALLOC_DEFINE(M_UNDEF, "undefhandler", "Undefined instruction handler data");
+
+#ifdef COMPAT_FREEBSD32
+#ifndef EMUL_SWP
+#define	EMUL_SWP	0
+#endif
+
+SYSCTL_DECL(_compat_arm);
+
+static bool compat32_emul_swp = EMUL_SWP;
+SYSCTL_BOOL(_compat_arm, OID_AUTO, emul_swp,
+    CTLFLAG_RWTUN | CTLFLAG_MPSAFE, &compat32_emul_swp, 0,
+    "Enable SWP/SWPB emulation");
+#endif
 
 struct undef_handler {
 	LIST_ENTRY(undef_handler) uh_link;
@@ -88,6 +121,54 @@ id_aa64mmfr2_handler(vm_offset_t va, uint32_t insn, struct trapframe *frame,
 	return (0);
 }
 
+static bool
+arm_cond_match(uint32_t insn, struct trapframe *frame)
+{
+	uint64_t spsr;
+	uint32_t cond;
+	bool invert;
+	bool match;
+
+	/*
+	 * Generally based on the function of the same name in NetBSD, though
+	 * condition bits left in their original position rather than shifting
+	 * over the low bit that indicates inversion for quicker sanity checking
+	 * against spec.
+	 */
+	spsr = frame->tf_spsr;
+	cond = INSN_COND(insn);
+	invert = INSN_COND_INVERTED(insn);
+
+	switch (cond) {
+	case INSN_COND_EQ:
+		match = (spsr & PSR_Z) != 0;
+		break;
+	case INSN_COND_CS:
+		match = (spsr & PSR_C) != 0;
+		break;
+	case INSN_COND_MI:
+		match = (spsr & PSR_N) != 0;
+		break;
+	case INSN_COND_VS:
+		match = (spsr & PSR_V) != 0;
+		break;
+	case INSN_COND_HI:
+		match = (spsr & (PSR_C | PSR_Z)) == PSR_C;
+		break;
+	case INSN_COND_GE:
+		match = (!(spsr & PSR_N) == !(spsr & PSR_V));
+		break;
+	case INSN_COND_GT:
+		match = !(spsr & PSR_Z) && (!(spsr & PSR_N) == !(spsr & PSR_V));
+		break;
+	case INSN_COND_AL:
+		match = true;
+		break;
+	}
+
+	return (!match != !invert);
+}
+
 #ifdef COMPAT_FREEBSD32
 /* arm32 GDB breakpoints */
 #define GDB_BREAKPOINT	0xe6000011
@@ -113,6 +194,86 @@ gdb_trapper(vm_offset_t va, uint32_t insn, struct trapframe *frame,
 	}
 	return 0;
 }
+
+static int
+swp_emulate(vm_offset_t va, uint32_t insn, struct trapframe *frame,
+    uint32_t esr)
+{
+	ksiginfo_t ksi;
+	struct thread *td;
+	vm_offset_t vaddr;
+	uint64_t *regs;
+	uint32_t val;
+	int attempts, error, Rn, Rd, Rm;
+	bool is_swpb;
+
+	td = curthread;
+
+	/*
+	 * swp, swpb only; there are no Thumb swp/swpb instructions so we can
+	 * safely bail out if we're in Thumb mode.
+	 */
+	if (!compat32_emul_swp || !SV_PROC_FLAG(td->td_proc, SV_ILP32) ||
+	    (frame->tf_spsr & PSR_T) != 0)
+		return (0);
+	else if ((insn & 0x0fb00ff0) != 0x01000090)
+		return (0);
+	else if (!arm_cond_match(insn, frame))
+		goto next;	/* Handled, but does nothing */
+
+	Rn = (insn & 0xf0000) >> 16;
+	Rd = (insn & 0xf000) >> 12;
+	Rm = (insn & 0xf);
+
+	regs = frame->tf_x;
+	vaddr = regs[Rn] & 0xffffffff;
+	val = regs[Rm];
+
+	/* Enforce alignment for swp. */
+	is_swpb = (insn & 0x00400000) != 0;
+	if (!is_swpb && (vaddr & 3) != 0)
+		goto fault;
+
+	attempts = 0;
+
+	do {
+		if (is_swpb) {
+			uint8_t bval;
+
+			bval = val;
+			error = swapueword8((void *)vaddr, &bval);
+			val = bval;
+		} else {
+			error = swapueword32((void *)vaddr, &val);
+		}
+
+		if (error == -1)
+			goto fault;
+
+		/*
+		 * Avoid potential DoS, e.g., on CPUs that don't implement
+		 * global monitors.
+		 */
+		if (error != 0 && (++attempts % 5) == 0)
+			maybe_yield();
+	} while (error != 0);
+
+	regs[Rd] = val;
+
+next:
+	/* No thumb SWP/SWPB */
+	frame->tf_elr += 4; //INSN_SIZE;
+
+	return (1);
+fault:
+	ksiginfo_init_trap(&ksi);
+	ksi.ksi_signo = SIGSEGV;
+	ksi.ksi_code = SEGV_MAPERR;
+	ksi.ksi_addr = (void *)va;
+	trapsignal(td, &ksi);
+
+	return (1);
+}
 #endif
 
 void
@@ -125,6 +286,7 @@ undef_init(void)
 	install_undef_handler(false, id_aa64mmfr2_handler);
 #ifdef COMPAT_FREEBSD32
 	install_undef_handler(true, gdb_trapper);
+	install_undef_handler(true, swp_emulate);
 #endif
 }
 
