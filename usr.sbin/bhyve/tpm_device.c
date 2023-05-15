@@ -17,13 +17,18 @@
 #include "acpi_device.h"
 #include "config.h"
 #include "tpm_device.h"
+#include "tpm_emul.h"
 
 #define TPM_ACPI_DEVICE_NAME "TPM"
 #define TPM_ACPI_HARDWARE_ID "MSFT0101"
 
+SET_DECLARE(tpm_emul_set, struct tpm_emul);
+
 struct tpm_device {
 	struct vmctx *vm_ctx;
 	struct acpi_device *acpi_dev;
+	struct tpm_emul *emul;
+	void *emul_sc;
 };
 
 static const struct acpi_device_emul tpm_acpi_device_emul = {
@@ -37,6 +42,9 @@ tpm_device_destroy(struct tpm_device *const dev)
 	if (dev == NULL)
 		return;
 
+	if (dev->emul != NULL && dev->emul->deinit != NULL)
+		dev->emul->deinit(dev->emul_sc);
+
 	acpi_device_destroy(dev->acpi_dev);
 	free(dev);
 }
@@ -46,6 +54,7 @@ tpm_device_create(struct tpm_device **const new_dev, struct vmctx *const vm_ctx,
     nvlist_t *const nvl)
 {
 	struct tpm_device *dev = NULL;
+	struct tpm_emul **ppemul;
 	const char *value;
 	int error;
 
@@ -74,6 +83,26 @@ tpm_device_create(struct tpm_device **const new_dev, struct vmctx *const vm_ctx,
 	    &tpm_acpi_device_emul);
 	if (error)
 		goto err_out;
+
+	value = get_config_value_node(nvl, "type");
+	assert(value != NULL);
+	SET_FOREACH(ppemul, tpm_emul_set) {
+		if (strcmp(value, (*ppemul)->name))
+			continue;
+		dev->emul = *ppemul;
+		break;
+	}
+	if (dev->emul == NULL) {
+		warnx("TPM emulation \"%s\" not found", value);
+		error = EINVAL;
+		goto err_out;
+	}
+
+	if (dev->emul->init) {
+		error = dev->emul->init(&dev->emul_sc, nvl);
+		if (error)
+			goto err_out;
+	}
 
 	*new_dev = dev;
 
