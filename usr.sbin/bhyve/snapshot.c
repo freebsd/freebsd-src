@@ -118,10 +118,10 @@ static sig_t old_winch_handler;
 
 #define	SNAPSHOT_BUFFER_SIZE (20 * MB)
 
-#define	JSON_STRUCT_ARR_KEY		"structs"
+#define	JSON_KERNEL_ARR_KEY		"kern_structs"
 #define	JSON_DEV_ARR_KEY		"devices"
 #define	JSON_BASIC_METADATA_KEY 	"basic metadata"
-#define	JSON_SNAPSHOT_REQ_KEY		"snapshot_req"
+#define	JSON_SNAPSHOT_REQ_KEY		"device"
 #define	JSON_SIZE_KEY			"size"
 #define	JSON_FILE_OFFSET_KEY		"file_offset"
 
@@ -422,16 +422,16 @@ lookup_struct(enum snapshot_req struct_id, struct restore_state *rstate,
 	ucl_object_iter_t it = NULL;
 	int64_t snapshot_req, size, file_offset;
 
-	structs = ucl_object_lookup(rstate->meta_root_obj, JSON_STRUCT_ARR_KEY);
+	structs = ucl_object_lookup(rstate->meta_root_obj, JSON_KERNEL_ARR_KEY);
 	if (structs == NULL) {
 		fprintf(stderr, "Failed to find '%s' object.\n",
-			JSON_STRUCT_ARR_KEY);
+			JSON_KERNEL_ARR_KEY);
 		return (NULL);
 	}
 
 	if (ucl_object_type(structs) != UCL_ARRAY) {
 		fprintf(stderr, "Object '%s' is not an array.\n",
-		JSON_STRUCT_ARR_KEY);
+		JSON_KERNEL_ARR_KEY);
 		return (NULL);
 	}
 
@@ -1059,7 +1059,7 @@ vm_snapshot_kern_struct(int data_fd, xo_handle_t *xop, const char *array_key,
 		  meta->dev_req);
 	xo_emit_h(xop, "{:" JSON_SIZE_KEY "/%lu}\n", data_size);
 	xo_emit_h(xop, "{:" JSON_FILE_OFFSET_KEY "/%lu}\n", *offset);
-	xo_close_instance_h(xop, JSON_STRUCT_ARR_KEY);
+	xo_close_instance_h(xop, JSON_KERNEL_ARR_KEY);
 
 	*offset += data_size;
 
@@ -1095,7 +1095,7 @@ vm_snapshot_kern_structs(struct vmctx *ctx, int data_fd, xo_handle_t *xop)
 		.op = VM_SNAPSHOT_SAVE,
 	};
 
-	xo_open_list_h(xop, JSON_STRUCT_ARR_KEY);
+	xo_open_list_h(xop, JSON_KERNEL_ARR_KEY);
 	for (i = 0; i < nitems(snapshot_kern_structs); i++) {
 		meta->dev_name = snapshot_kern_structs[i].struct_name;
 		meta->dev_req  = snapshot_kern_structs[i].req;
@@ -1111,7 +1111,7 @@ vm_snapshot_kern_structs(struct vmctx *ctx, int data_fd, xo_handle_t *xop)
 			goto err_vm_snapshot_kern_data;
 		}
 	}
-	xo_close_list_h(xop, JSON_STRUCT_ARR_KEY);
+	xo_close_list_h(xop, JSON_KERNEL_ARR_KEY);
 
 err_vm_snapshot_kern_data:
 	if (buffer != NULL)
