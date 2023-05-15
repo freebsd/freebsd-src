@@ -1469,7 +1469,7 @@ eli_setkey(struct gctl_req *req)
 
 	if (req->error == NULL || req->error[0] == '\0') {
 		printf("Note, that the master key encrypted with old keys "
-		    "and/or passphrase may still exists in a metadata backup "
+		    "and/or passphrase may still exist in a metadata backup "
 		    "file.\n");
 	}
 }
