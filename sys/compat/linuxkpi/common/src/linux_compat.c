@@ -2147,6 +2147,20 @@ del_timer_sync(struct timer_list *timer)
 	return (1);
 }
 
+int
+timer_delete_sync(struct timer_list *timer)
+{
+
+	return (del_timer_sync(timer));
+}
+
+int
+timer_shutdown_sync(struct timer_list *timer)
+{
+
+	return (del_timer_sync(timer));
+}
+
 /* greatest common divisor, Euclid equation */
 static uint64_t
 lkpi_gcd_64(uint64_t a, uint64_t b)
