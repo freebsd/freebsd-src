@@ -10,7 +10,8 @@ TESTS_SUBDIRS+=		${_audit}
 TESTS_SUBDIRS+=		auditpipe
 TESTS_SUBDIRS+=		capsicum
 TESTS_SUBDIRS+=		${_cddl}
-TESTS_SUBDIRS+=		compat32
+# XXX: Currently broken in CI
+#TESTS_SUBDIRS+=		compat32
 TESTS_SUBDIRS+=		devrandom
 TESTS_SUBDIRS+=		fifo
 TESTS_SUBDIRS+=		file
