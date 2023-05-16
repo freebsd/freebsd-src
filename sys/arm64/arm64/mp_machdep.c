@@ -274,7 +274,7 @@ init_secondary(uint64_t cpu)
 	cpu_initclocks_ap();
 
 #ifdef VFP
-	vfp_init();
+	vfp_init_secondary();
 #endif
 
 	dbg_init();
