@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2020-2022 The FreeBSD Foundation
+ * Copyright (c) 2020-2023 The FreeBSD Foundation
  * Copyright (c) 2020-2022 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
@@ -49,6 +49,8 @@
 #define	WLAN_OUI_TYPE_MICROSOFT_TPC		(8)
 #define	WLAN_OUI_TYPE_WFA_P2P			(9)
 #define	WLAN_OUI_WFA				(0x506F9A)
+
+#define	IEEE80211_LINK_UNSPECIFIED		0x0f
 
 /* hw->conf.flags */
 enum ieee80211_hw_conf_flags {
@@ -114,6 +116,7 @@ enum ieee80211_bss_changed {
 	BSS_CHANGED_HE_OBSS_PD		= BIT(27),
 	BSS_CHANGED_TWT			= BIT(28),
 	BSS_CHANGED_UNSOL_BCAST_PROBE_RESP = BIT(30),
+	BSS_CHANGED_EHT_PUNCTURING	= BIT(31),
 };
 
 /* 802.11 Figure 9-256 Suite selector format. [OUI(3), SUITE TYPE(1)] */
@@ -224,6 +227,15 @@ struct ieee80211_chanctx_conf {
 
 struct ieee80211_rate_status {
 	struct rate_info			rate_idx;
+	uint8_t					try_count;
+};
+
+struct ieee80211_ema_beacons {
+	uint8_t					cnt;
+	struct {
+		struct sk_buff			*skb;
+		struct ieee80211_mutable_offsets offs;
+	} bcn[0];
 };
 
 #define	WLAN_MEMBERSHIP_LEN			(8)
@@ -231,7 +243,11 @@ struct ieee80211_rate_status {
 
 struct ieee80211_bss_conf {
 	/* TODO FIXME */
+	struct ieee80211_vif			*vif;
 	const uint8_t				*bssid;
+	uint8_t					addr[ETH_ALEN];
+	uint8_t					link_id;
+	uint8_t					_pad0;
 	uint8_t					transmitter_bssid[ETH_ALEN];
 	struct ieee80211_ftm_responder_params	*ftmr_params;
 	struct ieee80211_p2p_noa_attr		p2p_noa_attr;
@@ -248,11 +264,28 @@ struct ieee80211_bss_conf {
 	} he_oper;
 	struct cfg80211_he_bss_color		he_bss_color;
 	struct ieee80211_he_obss_pd		he_obss_pd;
+
+	bool					ht_ldpc;
+	bool					vht_ldpc;
+	bool					he_ldpc;
+	bool					vht_mu_beamformee;
+	bool					vht_mu_beamformer;
+	bool					vht_su_beamformee;
+	bool					vht_su_beamformer;
+	bool					he_mu_beamformer;
+	bool					he_su_beamformee;
+	bool					he_su_beamformer;
+	bool					he_full_ul_mumimo;
+	bool					eht_su_beamformee;
+	bool					eht_su_beamformer;
+	bool					eht_mu_beamformer;
+
 	size_t					ssid_len;
 	uint8_t					ssid[IEEE80211_NWID_LEN];
 	uint16_t				aid;
 	uint16_t				ht_operation_mode;
 	int					arp_addr_cnt;
+	uint16_t				eht_puncturing;
 
 	uint8_t					dtim_period;
 	uint8_t					sync_dtim_count;
@@ -265,16 +298,20 @@ struct ieee80211_bss_conf {
 	bool					use_short_preamble;
 	bool					use_short_slot;
 	bool					he_support;
+	bool					eht_support;
 	bool					csa_active;
+	bool					mu_mimo_owner;
 	uint32_t				sync_device_ts;
 	uint64_t				sync_tsf;
 	uint16_t				beacon_int;
 	int16_t					txpower;
 	uint32_t				basic_rates;
 	int					mcast_rate[NUM_NL80211_BANDS];
+	enum ieee80211_reg_ap_power 		power_type;
 	struct cfg80211_bitrate_mask		beacon_tx_rate;
 	struct mac80211_fils_discovery		fils_discovery;
 	struct ieee80211_chanctx_conf		*chanctx_conf;
+	struct ieee80211_vif			*mbssid_tx_vif;
 
 	int		ack_enabled, bssid_index, bssid_indicator, cqm_rssi_hyst, cqm_rssi_thold, ema_ap, frame_time_rts_th, ftm_responder;
 	int		htc_trig_based_pkt_ext;
@@ -410,6 +447,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_SUPPORTS_RX_DECAP_OFFLOAD,
 	IEEE80211_HW_SUPPORTS_TX_ENCAP_OFFLOAD,
 	IEEE80211_HW_SUPPORTS_RC_TABLE,
+	IEEE80211_HW_DETECTS_COLOR_COLLISION,
 
 	/* Keep last. */
 	NUM_IEEE80211_HW_FLAGS
@@ -477,6 +515,7 @@ struct ieee80211_key_conf {
 	uint16_t			flags;
 	uint8_t				keylen;
 	uint8_t				key[0];
+	int8_t				link_id;	/* signed! */
 };
 
 struct ieee80211_key_seq {
@@ -529,31 +568,47 @@ enum ieee80211_rx_status_flags {
 	RX_FLAG_ONLY_MONITOR		= BIT(25),
 	RX_FLAG_SKIP_MONITOR		= BIT(26),
 	RX_FLAG_8023			= BIT(27),
+	RX_FLAG_RADIOTAP_TLV_AT_END	= BIT(28),
 };
 
 enum mac80211_rx_encoding {
 	RX_ENC_LEGACY		= 0,
 	RX_ENC_HT,
 	RX_ENC_VHT,
-	RX_ENC_HE
+	RX_ENC_HE,
+	RX_ENC_EHT,
 };
 
 struct ieee80211_rx_status {
 	/* TODO FIXME, this is too large. Over-reduce types to u8 where possible. */
-	uint64_t			boottime_ns;
+	union {
+		uint64_t			boottime_ns;
+		int64_t				ack_tx_hwtstamp;
+	};
 	uint64_t			mactime;
 	uint32_t			device_timestamp;
 	enum ieee80211_rx_status_flags	flag;
 	uint16_t			freq;
-	uint8_t				encoding:2, bw:3, he_ru:3;	/* enum mac80211_rx_encoding, rate_info_bw */	/* See mt76.h */
+	uint8_t				encoding:3, bw:4;	/* enum mac80211_rx_encoding, rate_info_bw */	/* See mt76.h */
 	uint8_t				ampdu_reference;
 	uint8_t				band;
 	uint8_t				chains;
 	int8_t				chain_signal[IEEE80211_MAX_CHAINS];
 	int8_t				signal;
 	uint8_t				enc_flags;
-	uint8_t				he_dcm;
-	uint8_t				he_gi;
+	union {
+		struct {
+			uint8_t		he_ru:3;	/* nl80211::enum nl80211_he_ru_alloc */
+			uint8_t		he_gi:2;	/* nl80211::enum nl80211_he_gi */
+			uint8_t		he_dcm:1;
+		};
+		struct {
+			uint8_t		ru:4;		/* nl80211::enum nl80211_eht_ru_alloc */
+			uint8_t		gi:2;		/* nl80211::enum nl80211_eht_gi */
+		} eht;
+	};
+	bool				link_valid;
+	uint8_t				link_id;	/* very incosistent sizes? */
 	uint8_t				zero_length_psdu_type;
 	uint8_t				nss;
 	uint8_t				rate_idx;
@@ -562,6 +617,7 @@ struct ieee80211_rx_status {
 struct ieee80211_tx_status {
 	struct ieee80211_sta		*sta;
 	struct ieee80211_tx_info	*info;
+	int64_t				ack_hwtstamp;
 
 	u8				n_rates;
 	struct ieee80211_rate_status	*rates;
@@ -608,17 +664,22 @@ struct ieee80211_sta_txpwr {
 	short				power;
 };
 
+#define	IEEE80211_NUM_TIDS			16	/* net80211::WME_NUM_TID */
 struct ieee80211_sta_agg {
-	/* XXX TODO */
-	int max_amsdu_len;
+	uint16_t				max_amsdu_len;
+	uint16_t				max_rc_amsdu_len;
+	uint16_t				max_tid_amsdu_len[IEEE80211_NUM_TIDS];
 };
 
 struct ieee80211_link_sta {
+	uint8_t					addr[ETH_ALEN];
+	uint8_t					link_id;
 	uint32_t				supp_rates[NUM_NL80211_BANDS];
 	struct ieee80211_sta_ht_cap		ht_cap;
 	struct ieee80211_sta_vht_cap		vht_cap;
 	struct ieee80211_sta_he_cap		he_cap;
 	struct ieee80211_sta_he_6ghz_capa	he_6ghz_capa;
+	struct ieee80211_sta_eht_cap		eht_cap;
 	uint8_t					rx_nss;
 	enum ieee80211_sta_rx_bw		bandwidth;
 	enum ieee80211_smps_mode		smps_mode;
@@ -626,21 +687,27 @@ struct ieee80211_link_sta {
 	struct ieee80211_sta_txpwr		txpwr;
 };
 
-#define	IEEE80211_NUM_TIDS			16	/* net80211::WME_NUM_TID */
 struct ieee80211_sta {
 	/* TODO FIXME */
-	int		max_amsdu_len, max_amsdu_subframes, max_rc_amsdu_len;
+	int		max_amsdu_subframes;
 	int		mfp, smps_mode, tdls, tdls_initiator;
 	struct ieee80211_txq			*txq[IEEE80211_NUM_TIDS + 1];	/* iwlwifi: 8 and adds +1 to tid_data, net80211::IEEE80211_TID_SIZE */
 	struct ieee80211_sta_rates		*rates;	/* some rcu thing? */
-	uint32_t				max_tid_amsdu_len[IEEE80211_NUM_TIDS];
 	uint8_t					addr[ETH_ALEN];
 	uint16_t				aid;
 	bool					wme;
 	uint8_t					max_sp;
 	uint8_t					uapsd_queues;
+	uint16_t				valid_links;
 
 	struct ieee80211_link_sta		deflink;
+	struct ieee80211_link_sta		*link[IEEE80211_MLD_MAX_NUM_LINKS];	/* rcu? */
+
+#ifndef __FOR_LATER_DRV_UPDATE
+	uint16_t				max_rc_amsdu_len;
+	uint16_t				max_amsdu_len;
+	uint16_t				max_tid_amsdu_len[IEEE80211_NUM_TIDS];
+#endif
 
 	/* Must stay last. */
 	uint8_t					drv_priv[0] __aligned(CACHE_LINE_SIZE);
@@ -681,16 +748,24 @@ enum ieee80211_vif_driver_flags {
 	IEEE80211_VIF_BEACON_FILTER		= BIT(0),
 	IEEE80211_VIF_SUPPORTS_CQM_RSSI		= BIT(1),
 	IEEE80211_VIF_SUPPORTS_UAPSD		= BIT(2),
+	IEEE80211_VIF_DISABLE_SMPS_OVERRIDE	= BIT(3),
 };
 
 #define	IEEE80211_BSS_ARP_ADDR_LIST_LEN		4
 
 struct ieee80211_vif_cfg {
 	uint16_t				aid;
+	uint16_t				eml_cap;
+	uint16_t				eml_med_sync_delay;
 	bool					assoc;
 	bool					ps;
+	bool					idle;
+	bool					ibss_joined;
 	int					arp_addr_cnt;
+	size_t					ssid_len;
 	uint32_t				arp_addr_list[IEEE80211_BSS_ARP_ADDR_LIST_LEN];		/* big endian */
+	uint8_t					ssid[IEEE80211_NWID_LEN];
+	uint8_t					ap_addr[ETH_ALEN];
 };
 
 struct ieee80211_vif {
@@ -707,7 +782,11 @@ struct ieee80211_vif {
 	struct ieee80211_chanctx_conf	*chanctx_conf;
 	struct ieee80211_txq		*txq;
 	struct ieee80211_bss_conf	bss_conf;
+	struct ieee80211_bss_conf	*link_conf[IEEE80211_MLD_MAX_NUM_LINKS];	/* rcu? */
 	uint8_t				hw_queue[IEEE80211_NUM_ACS];
+	uint16_t			active_links;
+	uint16_t			valid_links;
+	struct ieee80211_vif		*mbssid_tx_vif;
 
 /* #ifdef CONFIG_MAC80211_DEBUGFS */	/* Do not change structure depending on compile-time option. */
 	struct dentry			*debugfs_dir;
@@ -720,6 +799,7 @@ struct ieee80211_vif {
 struct ieee80211_vif_chanctx_switch {
 	struct ieee80211_chanctx_conf	*old_ctx, *new_ctx;
 	struct ieee80211_vif		*vif;
+	struct ieee80211_bss_conf	*link_conf;
 };
 
 struct ieee80211_prep_tx_info {
@@ -750,7 +830,7 @@ struct ieee80211_tx_info {
 			uint8_t				ampdu_len;
 			uint8_t				antenna;
 			uint16_t			tx_time;
-			bool				is_valid_ack_signal;
+			uint8_t				flags;
 			void				*status_driver_data[16 / sizeof(void *)];		/* XXX TODO */
 		} status;
 #define	IEEE80211_TX_INFO_DRIVER_DATA_SIZE	40
@@ -792,11 +872,10 @@ enum ieee80211_iface_iter {
 	IEEE80211_IFACE_ITER_NORMAL	= BIT(0),
 	IEEE80211_IFACE_ITER_RESUME_ALL	= BIT(1),
 	IEEE80211_IFACE_SKIP_SDATA_NOT_IN_DRIVER = BIT(2),	/* seems to be an iter flag */
+	IEEE80211_IFACE_ITER_ACTIVE	= BIT(3),
 
 	/* Internal flags only. */
-	/* ieee80211_iterate_active_interfaces*(). */
 	IEEE80211_IFACE_ITER__ATOMIC	= BIT(6),
-	IEEE80211_IFACE_ITER__ACTIVE	= BIT(7),
 	IEEE80211_IFACE_ITER__MTX	= BIT(8),
 };
 
@@ -864,6 +943,7 @@ struct ieee80211_ops {
 	void (*mgd_protect_tdls_discover)(struct ieee80211_hw *, struct ieee80211_vif *);
 
 	void (*flush)(struct ieee80211_hw *, struct ieee80211_vif *, u32, bool);
+	void (*flush_sta)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_sta *);
 
 	int  (*set_frag_threshold)(struct ieee80211_hw *, u32);
 
@@ -933,6 +1013,7 @@ struct ieee80211_ops {
 	int  (*set_key)(struct ieee80211_hw *, enum set_key_cmd, struct ieee80211_vif *, struct ieee80211_sta *, struct ieee80211_key_conf *);
 	void (*set_default_unicast_key)(struct ieee80211_hw *, struct ieee80211_vif *, int);
 	void (*update_tkip_key)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_key_conf *, struct ieee80211_sta *, u32, u16 *);
+	void (*set_rekey_data)(struct ieee80211_hw *, struct ieee80211_vif *, struct cfg80211_gtk_rekey_data *);
 
 	int  (*start_pmsr)(struct ieee80211_hw *, struct ieee80211_vif *, struct cfg80211_pmsr_request *);
 	void (*abort_pmsr)(struct ieee80211_hw *, struct ieee80211_vif *, struct cfg80211_pmsr_request *);
@@ -960,6 +1041,14 @@ struct ieee80211_ops {
 
 	void (*add_twt_setup)(struct ieee80211_hw *, struct ieee80211_sta *, struct ieee80211_twt_setup *);
 	void (*twt_teardown_request)(struct ieee80211_hw *, struct ieee80211_sta *, u8);
+
+	int (*set_hw_timestamp)(struct ieee80211_hw *, struct ieee80211_vif *, struct cfg80211_set_hw_timestamp *);
+
+        void (*link_info_changed)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_bss_conf *, u64);
+        void (*vif_cfg_changed)(struct ieee80211_hw *, struct ieee80211_vif *, u64);
+
+	int (*change_vif_links)(struct ieee80211_hw *, struct ieee80211_vif *, u16, u16, struct ieee80211_bss_conf *[IEEE80211_MLD_MAX_NUM_LINKS]);
+	int (*change_sta_links)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_sta *, u16, u16);
 
 /* #ifdef CONFIG_MAC80211_DEBUGFS */	/* Do not change depending on compile-time option. */
 	void (*sta_add_debugfs)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_sta *, struct dentry *);
@@ -1017,7 +1106,7 @@ void linuxkpi_ieee80211_queue_work(struct ieee80211_hw *, struct work_struct *);
 struct sk_buff *linuxkpi_ieee80211_pspoll_get(struct ieee80211_hw *,
     struct ieee80211_vif *);
 struct sk_buff *linuxkpi_ieee80211_nullfunc_get(struct ieee80211_hw *,
-    struct ieee80211_vif *, bool);
+    struct ieee80211_vif *, int, bool);
 void linuxkpi_ieee80211_txq_get_depth(struct ieee80211_txq *, unsigned long *,
     unsigned long *);
 struct wireless_dev *linuxkpi_ieee80211_vif_to_wdev(struct ieee80211_vif *);
@@ -1140,6 +1229,37 @@ ieee80211_restart_hw(struct ieee80211_hw *hw)
 	linuxkpi_ieee80211_restart_hw(hw);
 }
 
+static inline void
+ieee80211_hw_restart_disconnect(struct ieee80211_vif *vif)
+{
+	TODO();
+}
+
+/* -------------------------------------------------------------------------- */
+
+#define	link_conf_dereference_check(_vif, _linkid)			\
+    rcu_dereference_check((_vif)->link_conf[_linkid], true)
+
+#define	link_conf_dereference_protected(_vif, _linkid)			\
+    rcu_dereference_protected((_vif)->link_conf[_linkid], true)
+
+#define	link_sta_dereference_check(_sta, _linkid)			\
+    rcu_dereference_check((_sta)->link[_linkid], true)
+
+#define	link_sta_dereference_protected(_sta, _linkid)			\
+    rcu_dereference_protected((_sta)->link[_linkid], true)
+
+#define	for_each_vif_active_link(_vif, _link, _linkid)			\
+    for (_linkid = 0; _linkid < nitems((_vif)->link_conf); _linkid++)	\
+	if ( ((_vif)->active_links == 0 /* no MLO */ ||			\
+	    ((_vif)->active_links & BIT(_linkid)) != 0) &&		\
+	    (_link = rcu_dereference((_vif)->link_conf[_linkid])) )
+
+#define	for_each_sta_active_link(_vif, _sta, _linksta, _linkid)		\
+    for (_linkid = 0; _linkid < nitems((_vif)->link_conf); _linkid++)	\
+	if ( ((_vif)->active_links == 0 /* no MLO */ ||			\
+	    ((_vif)->active_links & BIT(_linkid)) != 0) &&		\
+	    (_linksta = link_sta_dereference_protected((_sta), (_linkid))) )
 
 /* -------------------------------------------------------------------------- */
 
@@ -1301,8 +1421,18 @@ ieee80211_is_back_req(__le16 fc)
 }
 
 static __inline bool
+#ifdef __FOR_LATER_DRV_UPDATE
+ieee80211_is_bufferable_mmpdu(struct sk_buff *skb)
+{
+	struct ieee80211_mgmt *mgmt;
+	__le16 fc;
+
+	mgmt = (struct ieee80211_mgmt *)skb->data;
+	fc = mgmt->frame_control;
+#else
 ieee80211_is_bufferable_mmpdu(__le16 fc)
 {
+#endif
 
 	/* 11.2.2 Bufferable MMPDUs, 80211-2020. */
 	/* XXX we do not care about IBSS yet. */
@@ -1310,11 +1440,13 @@ ieee80211_is_bufferable_mmpdu(__le16 fc)
 	if (!ieee80211_is_mgmt(fc))
 		return (false);
 	if (ieee80211_is_action(fc))		/* XXX FTM? */
-		return (true);
+		return (true);			/* XXX false? */
 	if (ieee80211_is_disassoc(fc))
 		return (true);
 	if (ieee80211_is_deauth(fc))
 		return (true);
+
+	TODO();
 
 	return (false);
 }
@@ -1382,6 +1514,20 @@ ieee80211_is_first_frag(__le16 fc)
 
 static __inline bool
 ieee80211_is_robust_mgmt_frame(struct sk_buff *skb)
+{
+	TODO();
+	return (false);
+}
+
+static __inline bool
+ieee80211_is_ftm(struct sk_buff *skb)
+{
+	TODO();
+	return (false);
+}
+
+static __inline bool
+ieee80211_is_timing_measurement(struct sk_buff *skb)
 {
 	TODO();
 	return (false);
@@ -1569,6 +1715,13 @@ ieee80211_next_txq(struct ieee80211_hw *hw, uint8_t ac)
 	return (linuxkpi_ieee80211_next_txq(hw, ac));
 }
 
+static inline void
+ieee80211_handle_wake_tx_queue(struct ieee80211_hw *hw,
+    struct ieee80211_txq *txq)
+{
+	TODO();
+}
+
 /* -------------------------------------------------------------------------- */
 
 static __inline uint8_t
@@ -1599,7 +1752,7 @@ ieee80211_iterate_active_interfaces_atomic(struct ieee80211_hw *hw,
 {
 
 	flags |= IEEE80211_IFACE_ITER__ATOMIC;
-	flags |= IEEE80211_IFACE_ITER__ACTIVE;
+	flags |= IEEE80211_IFACE_ITER_ACTIVE;
 	linuxkpi_ieee80211_iterate_interfaces(hw, flags, iterfunc, arg);
 }
 
@@ -1610,7 +1763,7 @@ ieee80211_iterate_active_interfaces(struct ieee80211_hw *hw,
     void *arg)
 {
 
-	flags |= IEEE80211_IFACE_ITER__ACTIVE;
+	flags |= IEEE80211_IFACE_ITER_ACTIVE;
 	linuxkpi_ieee80211_iterate_interfaces(hw, flags, iterfunc, arg);
 }
 
@@ -1620,7 +1773,7 @@ ieee80211_iterate_active_interfaces_mtx(struct ieee80211_hw *hw,
     void(*iterfunc)(void *, uint8_t *, struct ieee80211_vif *),
     void *arg)
 {
-	flags |= IEEE80211_IFACE_ITER__ACTIVE;
+	flags |= IEEE80211_IFACE_ITER_ACTIVE;
 	flags |= IEEE80211_IFACE_ITER__MTX;
 	linuxkpi_ieee80211_iterate_interfaces(hw, flags, iterfunc, arg);
 }
@@ -1869,7 +2022,11 @@ ieee80211_ie_split(const u8 *ies, size_t ies_len,
 }
 
 static __inline void
-ieee80211_request_smps(struct ieee80211_vif *vif, enum ieee80211_smps_mode smps)
+ieee80211_request_smps(struct ieee80211_vif *vif,
+#ifdef __FOR_LATER_DRV_UPDATE
+    u_int link_id,
+#endif
+    enum ieee80211_smps_mode smps)
 {
 	static const char *smps_mode_name[] = {
 		"SMPS_OFF",
@@ -1971,6 +2128,20 @@ ieee80211_rate_set_vht(struct ieee80211_tx_rate *r, uint32_t f1, uint32_t f2)
 	TODO();
 }
 
+static __inline uint8_t
+ieee80211_rate_get_vht_nss(struct ieee80211_tx_rate *r)
+{
+	TODO();
+	return (0);
+}
+
+static __inline uint8_t
+ieee80211_rate_get_vht_mcs(struct ieee80211_tx_rate *r)
+{
+	TODO();
+	return (0);
+}
+
 static __inline void
 ieee80211_reserve_tid(struct ieee80211_sta *sta, uint8_t tid)
 {
@@ -2024,6 +2195,12 @@ ieee80211_sta_pspoll(struct ieee80211_sta *sta)
 }
 
 static __inline void
+ieee80211_sta_recalc_aggregates(struct ieee80211_sta *sta)
+{
+	TODO();
+}
+
+static __inline void
 ieee80211_sta_uapsd_trigger(struct ieee80211_sta *sta, int ntids)
 {
 	TODO();
@@ -2044,7 +2221,11 @@ ieee80211_tx_dequeue(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
 }
 
 static __inline void
-ieee80211_update_mu_groups(struct ieee80211_vif *vif, uint8_t *ms, uint8_t *up)
+ieee80211_update_mu_groups(struct ieee80211_vif *vif,
+#ifdef __FOR_LATER_DRV_UPDATE
+    u_int _i,
+#endif
+    uint8_t *ms, uint8_t *up)
 {
 	TODO();
 }
@@ -2164,14 +2345,20 @@ ieee80211_proberesp_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 static __inline struct sk_buff *
 ieee80211_nullfunc_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+#ifdef __FOR_LATER_DRV_UPDATE
+    int linkid,
+#endif
     bool qos)
 {
+#ifndef __FOR_LATER_DRV_UPDATE
+	int linkid = 0;
+#endif
 
 	/* Only STA needs this.  Otherwise return NULL and panic bad drivers. */
 	if (vif->type != NL80211_IFTYPE_STATION)
 		return (NULL);
 
-	return (linuxkpi_ieee80211_nullfunc_get(hw, vif, qos));
+	return (linuxkpi_ieee80211_nullfunc_get(hw, vif, linkid, qos));
 }
 
 static __inline struct sk_buff *
@@ -2489,10 +2676,55 @@ ieee80211_report_wowlan_wakeup(struct ieee80211_vif *vif,
 }
 
 static __inline void
-ieeee80211_obss_color_collision_notify(struct ieee80211_vif *vif,
-    uint64_t obss_color_bitmap)
+ieee80211_obss_color_collision_notify(struct ieee80211_vif *vif,
+    uint64_t obss_color_bitmap, gfp_t gfp)
 {
 	TODO();
+}
+
+static __inline void
+ieee80211_refresh_tx_agg_session_timer(struct ieee80211_sta *sta,
+    uint8_t tid)
+{
+	TODO();
+}
+
+static __inline struct ieee80211_ema_beacons *
+ieee80211_beacon_get_template_ema_list(struct ieee80211_hw *hw,
+    struct ieee80211_vif *vif, uint32_t link_id)
+{
+	TODO();
+	return (NULL);
+}
+
+static __inline void
+ieee80211_beacon_free_ema_list(struct ieee80211_ema_beacons *bcns)
+{
+	TODO();
+}
+
+static inline bool
+ieee80211_vif_is_mld(const struct ieee80211_vif *vif)
+{
+
+	/* If valid_links is non-zero, the vif is an MLD. */
+	return (vif->valid_links != 0);
+}
+
+static __inline const struct ieee80211_sta_he_cap *
+ieee80211_get_he_iftype_cap_vif(const struct ieee80211_supported_band *band,
+    struct ieee80211_vif *vif)
+{
+	TODO();
+	return (NULL);
+}
+
+static __inline const struct ieee80211_sta_eht_cap *
+ieee80211_get_eht_iftype_cap_vif(const struct ieee80211_supported_band *band,
+    struct ieee80211_vif *vif)
+{
+	TODO();
+	return (NULL);
 }
 
 #define	ieee80211_send_bar(_v, _r, _t, _s)				\

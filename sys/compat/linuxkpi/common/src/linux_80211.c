@@ -2273,6 +2273,7 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	/* XXX-BZ hardcoded for now! */
 #if 1
 	vif->chanctx_conf = NULL;
+	vif->bss_conf.vif = vif;
 	vif->bss_conf.idle = true;
 	vif->bss_conf.ps = false;
 	vif->bss_conf.chandef.width = NL80211_CHAN_WIDTH_20_NOHT;
@@ -3845,12 +3846,12 @@ linuxkpi_ieee80211_iterate_interfaces(struct ieee80211_hw *hw,
 	if (flags & ~(IEEE80211_IFACE_ITER_NORMAL|
 	    IEEE80211_IFACE_ITER_RESUME_ALL|
 	    IEEE80211_IFACE_SKIP_SDATA_NOT_IN_DRIVER|
-	    IEEE80211_IFACE_ITER__ACTIVE|IEEE80211_IFACE_ITER__ATOMIC)) {
+	    IEEE80211_IFACE_ITER_ACTIVE|IEEE80211_IFACE_ITER__ATOMIC)) {
 		ic_printf(lhw->ic, "XXX TODO %s flags(%#x) not yet supported.\n",
 		    __func__, flags);
 	}
 
-	active = (flags & IEEE80211_IFACE_ITER__ACTIVE) != 0;
+	active = (flags & IEEE80211_IFACE_ITER_ACTIVE) != 0;
 	atomic = (flags & IEEE80211_IFACE_ITER__ATOMIC) != 0;
 	nin_drv = (flags & IEEE80211_IFACE_SKIP_SDATA_NOT_IN_DRIVER) != 0;
 
@@ -4515,7 +4516,7 @@ linuxkpi_ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 		txs.final_rate = info->status.rates[0].idx;
 		txs.flags |= IEEE80211_RATECTL_STATUS_FINAL_RATE;
 #endif
-		if (info->status.is_valid_ack_signal) {
+		if (info->status.flags & IEEE80211_TX_STATUS_ACK_SIGNAL_VALID) {
 			txs.rssi = info->status.ack_signal;		/* XXX-BZ CONVERT? */
 			txs.flags |= IEEE80211_RATECTL_STATUS_RSSI;
 		}
@@ -4540,7 +4541,7 @@ linuxkpi_ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 		    "band %u hw_queue %u tx_time_est %d : "
 		    "rates [ %u %u %#x, %u %u %#x, %u %u %#x, %u %u %#x ] "
 		    "ack_signal %u ampdu_ack_len %u ampdu_len %u antenna %u "
-		    "tx_time %u is_valid_ack_signal %u "
+		    "tx_time %u flags %#x "
 		    "status_driver_data [ %p %p ]\n",
 		    __func__, hw, skb, status, info->flags,
 		    info->band, info->hw_queue, info->tx_time_est,
@@ -4554,7 +4555,7 @@ linuxkpi_ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 		    info->status.rates[3].flags,
 		    info->status.ack_signal, info->status.ampdu_ack_len,
 		    info->status.ampdu_len, info->status.antenna,
-		    info->status.tx_time, info->status.is_valid_ack_signal,
+		    info->status.tx_time, info->status.flags,
 		    info->status.status_driver_data[0],
 		    info->status.status_driver_data[1]);
 #endif
@@ -4698,12 +4699,14 @@ linuxkpi_ieee80211_pspoll_get(struct ieee80211_hw *hw,
 
 struct sk_buff *
 linuxkpi_ieee80211_nullfunc_get(struct ieee80211_hw *hw,
-    struct ieee80211_vif *vif, bool qos)
+    struct ieee80211_vif *vif, int linkid, bool qos)
 {
 	struct lkpi_vif *lvif;
 	struct ieee80211vap *vap;
 	struct sk_buff *skb;
 	struct ieee80211_frame *nullf;
+
+	IMPROVE("linkid");
 
 	skb = dev_alloc_skb(hw->extra_tx_headroom + sizeof(*nullf));
 	if (skb == NULL)
