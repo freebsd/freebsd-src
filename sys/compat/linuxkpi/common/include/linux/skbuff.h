@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2020-2022 The FreeBSD Foundation
+ * Copyright (c) 2020-2023 The FreeBSD Foundation
  * Copyright (c) 2021-2022 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
@@ -46,6 +46,7 @@
 #include <linux/gfp.h>
 #include <linux/compiler.h>
 #include <linux/spinlock.h>
+#include <linux/ktime.h>
 
 /* #define	SKB_DEBUG */
 #ifdef SKB_DEBUG
@@ -83,6 +84,10 @@ enum sk_buff_pkt_type {
 	PACKET_BROADCAST,
 	PACKET_MULTICAST,
 	PACKET_OTHERHOST,
+};
+
+struct skb_shared_hwtstamps {
+	ktime_t			hwtstamp;
 };
 
 #define	NET_SKB_PAD		max(CACHE_LINE_SIZE, 32)
@@ -154,6 +159,7 @@ struct sk_buff {
 	uint16_t		_flags;		/* Internal flags. */
 #define	_SKB_FLAGS_SKBEXTFRAG	0x0001
 	enum sk_buff_pkt_type	pkt_type;
+	uint16_t		mac_header;	/* offset of mac_header */
 
 	/* "Scratch" area for layers to store metadata. */
 	/* ??? I see sizeof() operations so probably an array. */
@@ -928,7 +934,30 @@ skb_header_cloned(struct sk_buff *skb)
 }
 
 static inline uint8_t *
-skb_mac_header(struct sk_buff *skb)
+skb_mac_header(const struct sk_buff *skb)
+{
+	SKB_TRACE(skb);
+	/* Make sure the mac_header was set as otherwise we return garbage. */
+	WARN_ON(skb->mac_header == 0);
+	return (skb->head + skb->mac_header);
+}
+static inline void
+skb_reset_mac_header(struct sk_buff *skb)
+{
+	SKB_TRACE(skb);
+	skb->mac_header = skb->data - skb->head;
+}
+
+static inline void
+skb_set_mac_header(struct sk_buff *skb, const size_t len)
+{
+	SKB_TRACE(skb);
+	skb_reset_mac_header(skb);
+	skb->mac_header += len;
+}
+
+static inline struct skb_shared_hwtstamps *
+skb_hwtstamps(struct sk_buff *skb)
 {
 	SKB_TRACE(skb);
 	SKB_TODO();
@@ -937,13 +966,6 @@ skb_mac_header(struct sk_buff *skb)
 
 static inline void
 skb_orphan(struct sk_buff *skb)
-{
-	SKB_TRACE(skb);
-	SKB_TODO();
-}
-
-static inline void
-skb_reset_mac_header(struct sk_buff *skb)
 {
 	SKB_TRACE(skb);
 	SKB_TODO();
