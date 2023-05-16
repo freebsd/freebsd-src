@@ -636,7 +636,7 @@ pw_checkname(char *name, int gecos)
 		showtype = "gecos field";
 	} else {
 		/* See if the name is valid as a userid or group. */
-		badchars = " ,\t:+&#%$^()!@~*?<>=|\\/\"";
+		badchars = " ,\t:+&#%$^()!@~*?<>=|\\/\";";
 		showtype = "userid/group name";
 		/* Userids and groups can not have a leading '-'. */
 		if (*ch == '-')
