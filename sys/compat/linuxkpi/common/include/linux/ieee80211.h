@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2020-2021 The FreeBSD Foundation
+ * Copyright (c) 2020-2023 The FreeBSD Foundation
  *
  * This software was developed by Björn Zeeb under sponsorship from
  * the FreeBSD Foundation.
@@ -60,9 +60,10 @@ struct ieee80211_mmie_16 {
 
 #define	IEEE80211_INVAL_HW_QUEUE		((uint8_t)-1)
 
-#define	IEEE80211_MAX_AMPDU_BUF_HT		0x40
 #define	IEEE80211_MAX_AMPDU_BUF			256	/* for HE? */
+#define	IEEE80211_MAX_AMPDU_BUF_HT		64
 #define	IEEE80211_MAX_AMPDU_BUF_HE		256
+#define	IEEE80211_MAX_AMPDU_BUF_EHT		1024
 
 #define	IEEE80211_MAX_FRAME_LEN			2352
 #define	IEEE80211_MAX_DATA_LEN			(2300 + IEEE80211_CRC_LEN)
@@ -140,8 +141,8 @@ enum ieee80211_min_mpdu_start_spacing {
 	IEEE80211_HT_MPDU_DENSITY_NONE		= 0,
 #if 0
 	IEEE80211_HT_MPDU_DENSITY_XXX		= 1,	/* 1/4 us */
-	IEEE80211_HT_MPDU_DENSITY_YYY		= 2,	/* 1/2 us */
 #endif
+	IEEE80211_HT_MPDU_DENSITY_0_5		= 2,	/* 1/2 us */
 	IEEE80211_HT_MPDU_DENSITY_1		= 3,	/* 1 us */
 	IEEE80211_HT_MPDU_DENSITY_2		= 4,	/* 2 us */
 	IEEE80211_HT_MPDU_DENSITY_4		= 5,	/* 4us */
@@ -159,6 +160,7 @@ enum ieee80211_min_mpdu_start_spacing {
 #define	IEEE80211_FCTL_FROMDS			(IEEE80211_FC1_DIR_FROMDS << 8)
 #define	IEEE80211_FCTL_TODS			(IEEE80211_FC1_DIR_TODS << 8)
 #define	IEEE80211_FCTL_MOREFRAGS		(IEEE80211_FC1_MORE_FRAG << 8)
+#define	IEEE80211_FCTL_PM			(IEEE80211_FC1_PWR_MGT << 8)
 
 #define	IEEE80211_FTYPE_MGMT			IEEE80211_FC0_TYPE_MGT
 #define	IEEE80211_FTYPE_CTL			IEEE80211_FC0_TYPE_CTL
@@ -170,8 +172,12 @@ enum ieee80211_min_mpdu_start_spacing {
 #define	IEEE80211_STYPE_DISASSOC		IEEE80211_FC0_SUBTYPE_DISASSOC
 #define	IEEE80211_STYPE_AUTH			IEEE80211_FC0_SUBTYPE_AUTH
 #define	IEEE80211_STYPE_DEAUTH			IEEE80211_FC0_SUBTYPE_DEAUTH
+#define	IEEE80211_STYPE_CTS			IEEE80211_FC0_SUBTYPE_CTS
+#define	IEEE80211_STYPE_RTS			IEEE80211_FC0_SUBTYPE_RTS
 #define	IEEE80211_STYPE_ACTION			IEEE80211_FC0_SUBTYPE_ACTION
 #define	IEEE80211_STYPE_QOS_DATA		IEEE80211_FC0_SUBTYPE_QOS_DATA
+#define	IEEE80211_STYPE_QOS_NULLFUNC		IEEE80211_FC0_SUBTYPE_QOS_NULL
+#define	IEEE80211_STYPE_QOS_CFACK		0xd0	/* XXX-BZ reserved? */
 
 #define	IEEE80211_NUM_ACS			4	/* net8021::WME_NUM_AC */
 
@@ -211,15 +217,19 @@ enum ieee80211_tdls_action_code {
 	/* 11-255 reserved */
 };
 
-/* 9.4.2.27, Table 9-135. Extended Capabilities field. */
+/* 802.11-2020 9.4.2.26, Table 9-153. Extended Capabilities field. */
 /* This is split up into octets CAPA1 = octet 1, ... */
 #define	WLAN_EXT_CAPA1_EXT_CHANNEL_SWITCHING			BIT(2  % 8)
 #define	WLAN_EXT_CAPA3_MULTI_BSSID_SUPPORT			BIT(22 % 8)
+#define	WLAN_EXT_CAPA3_TIMING_MEASUREMENT_SUPPORT		BIT(23 % 8)
 #define	WLAN_EXT_CAPA8_OPMODE_NOTIF				BIT(62 % 8)
+#define	WLAN_EXT_CAPA8_MAX_MSDU_IN_AMSDU_LSB			BIT(63 % 8)
+#define	WLAN_EXT_CAPA9_MAX_MSDU_IN_AMSDU_MSB			BIT(64 % 8)
+#define	WLAN_EXT_CAPA10_TWT_REQUESTER_SUPPORT			BIT(77 % 8)
+#define	WLAN_EXT_CAPA10_TWT_RESPONDER_SUPPORT			BIT(78 % 8)
+#define	WLAN_EXT_CAPA10_OBSS_NARROW_BW_RU_TOLERANCE_SUPPORT	BIT(79 % 8)
 
-#define	WLAN_EXT_CAPA10_TWT_REQUESTER_SUPPORT			BIT(5)		/* XXX */
-#define	WLAN_EXT_CAPA10_OBSS_NARROW_BW_RU_TOLERANCE_SUPPORT	BIT(7)		/* XXX */
-#define	WLAN_EXT_CAPA10_TWT_RESPONDER_SUPPORT			BIT(6)		/* XXX */
+#define	WLAN_EXT_CAPA11_EMA_SUPPORT				0x00	/* XXX TODO FIXME */
 
 
 /* iwlwifi/mvm/utils:: for (ac = IEEE80211_AC_VO; ac <= IEEE80211_AC_VI; ac++) */
@@ -261,6 +271,8 @@ enum ieee80211_ac_numbers {
 #define	IEEE80211_HT_MCS_TX_MAX_STREAMS_MASK	0x0c
 #define	IEEE80211_HT_MCS_RX_HIGHEST_MASK	0x3ff
 #define	IEEE80211_HT_MCS_MASK_LEN		10
+
+#define	IEEE80211_MLD_MAX_NUM_LINKS		15
 
 struct ieee80211_mcs_info {
 	uint8_t		rx_mask[IEEE80211_HT_MCS_MASK_LEN];
@@ -384,12 +396,20 @@ enum ieee80211_tx_info_flags {
 	IEEE80211_TX_CTL_HW_80211_ENCAP		= BIT(16),
 	IEEE80211_TX_CTL_USE_MINRATE		= BIT(17),
 	IEEE80211_TX_CTL_RATE_CTRL_PROBE	= BIT(18),
+	IEEE80211_TX_CTL_LDPC			= BIT(19),
+	IEEE80211_TX_CTL_STBC			= BIT(20),
+};
+
+enum ieee80211_tx_status_flags {
+	IEEE80211_TX_STATUS_ACK_SIGNAL_VALID	= BIT(0),
 };
 
 enum ieee80211_tx_control_flags {
 	/* XXX TODO .. right shift numbers */
 	IEEE80211_TX_CTRL_PORT_CTRL_PROTO	= BIT(0),
 	IEEE80211_TX_CTRL_PS_RESPONSE		= BIT(1),
+	IEEE80211_TX_CTRL_RATE_INJECT		= BIT(2),
+	IEEE80211_TX_CTRL_MLO_LINK		= 0xF0000000,	/* This is IEEE80211_LINK_UNSPECIFIED on the high bits. */
 };
 
 enum ieee80211_tx_rate_flags {
@@ -403,6 +423,8 @@ enum ieee80211_tx_rate_flags {
 	IEEE80211_TX_RC_VHT_MCS			= BIT(6),
 	IEEE80211_TX_RC_USE_SHORT_PREAMBLE	= BIT(7),
 };
+
+#define	IEEE80211_RNR_TBTT_PARAMS_PSD_RESERVED	-128
 
 #define	IEEE80211_HT_CTL_LEN	4
 
@@ -511,10 +533,27 @@ struct ieee80211_mgmt {
 					/* Optional follows... */
 					uint8_t variable[0];
 				} addba_req;
+				/* XXX */
+				struct {
+					uint8_t dialog_token;
+				} wnm_timing_msr;
 			} u;
 		} action;
 	} u;
 };
+
+struct ieee80211_cts {		/* net80211::ieee80211_frame_cts */
+        __le16		frame_control;
+        __le16		duration;
+	uint8_t		ra[ETH_ALEN];
+} __packed;
+
+struct ieee80211_rts {		/* net80211::ieee80211_frame_rts */
+        __le16		frame_control;
+        __le16		duration;
+	uint8_t		ra[ETH_ALEN];
+	uint8_t		ta[ETH_ALEN];
+} __packed;
 
 #define	MHZ_TO_KHZ(_f)		((_f) * 1000)
 #define	DBI_TO_MBI(_g)		((_g) * 100)
@@ -546,6 +585,7 @@ enum ieee80211_eid {
 	WLAN_EID_HT_CAPABILITY			= 45,	/* IEEE80211_ELEMID_HTCAP */
 	WLAN_EID_RSN				= 48,	/* IEEE80211_ELEMID_RSN */
 	WLAN_EID_EXT_SUPP_RATES			= 50,
+	WLAN_EID_EXT_NON_INHERITANCE		= 56,
 	WLAN_EID_EXT_CHANSWITCH_ANN		= 60,
 	WLAN_EID_MULTIPLE_BSSID			= 71,	/* IEEE80211_ELEMID_MULTIBSSID */
 	WLAN_EID_MULTI_BSSID_IDX		= 85,
@@ -648,6 +688,12 @@ enum ieee80211_twt_setup_cmd {
 
 struct ieee80211_bssid_index {
 	int	bssid_index;
+};
+
+enum ieee80211_reg_ap_power {
+	IEEE80211_REG_LPI_AP,
+	IEEE80211_REG_SP_AP,
+	IEEE80211_REG_VLP_AP,
 };
 
 /* net80211: IEEE80211_IS_CTL() */
