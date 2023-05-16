@@ -1,11 +1,12 @@
 #!/usr/local/bin/python3
 import copy
 import ipaddress
-import re
 import os
+import re
 import socket
 import sys
 import time
+from multiprocessing import connection
 from multiprocessing import Pipe
 from multiprocessing import Process
 from typing import Dict
@@ -218,6 +219,8 @@ class VnetInstance(object):
             iface.set_jailed(True)
             self.iface_alias_map[iface.alias] = iface
             self.iface_map[iface.name] = iface
+            # Allow reference to interfce aliases as attributes
+            setattr(self, iface.alias, iface)
         self.need_dad = False  # Disable duplicate address detection by default
         self.attached = False
         self.pipe = None
@@ -364,7 +367,8 @@ class VnetTestTemplate(BaseTest):
                 if prefixes6:
                     iface.enable_ipv6()
             for prefix in prefixes6 + prefixes4:
-                iface.setup_addr(prefix[idx])
+                if prefix[idx]:
+                    iface.setup_addr(prefix[idx])
         for iface in ipv6_ifaces:
             while iface.has_tentative():
                 time.sleep(0.1)
@@ -378,18 +382,28 @@ class VnetTestTemplate(BaseTest):
             self.drop_privileges()
             handler(vnet)
 
+    def _get_topo_ifmap(self, topo: Dict):
+        iface_factory = IfaceFactory()
+        iface_map: Dict[str, SingleInterfaceMap] = {}
+        iface_aliases = set()
+        for obj_name, obj_data in topo.items():
+            if obj_name.startswith("vnet"):
+                for iface_alias in obj_data["ifaces"]:
+                    iface_aliases.add(iface_alias)
+        for iface_alias in iface_aliases:
+            print("Creating {}".format(iface_alias))
+            iface_data = topo[iface_alias]
+            iface_type = iface_data.get("type", "epair")
+            ifaces = iface_factory.create_iface(iface_alias, iface_type)
+            smap = SingleInterfaceMap(ifaces, [])
+            iface_map[iface_alias] = smap
+        return iface_map
+
     def setup_topology(self, topo: Dict, topology_id: str):
         """Creates jails & interfaces for the provided topology"""
-        iface_map: Dict[str, SingleInterfaceMap] = {}
         vnet_map = {}
-        iface_factory = IfaceFactory()
         vnet_factory = VnetFactory(topology_id)
-        for obj_name, obj_data in topo.items():
-            if obj_name.startswith("if"):
-                iface_type = obj_data.get("type", "epair")
-                ifaces = iface_factory.create_iface(obj_name, iface_type)
-                smap = SingleInterfaceMap(ifaces, [])
-                iface_map[obj_name] = smap
+        iface_map = self._get_topo_ifmap(topo)
         for obj_name, obj_data in topo.items():
             if obj_name.startswith("vnet"):
                 vnet_ifaces = []
@@ -401,6 +415,8 @@ class VnetTestTemplate(BaseTest):
                     vnet_ifaces.append(iface_map[iface_alias].ifaces[idx])
                 vnet = vnet_factory.create_vnet(obj_name, vnet_ifaces)
                 vnet_map[obj_name] = vnet
+                # Allow reference to VNETs as attributes
+                setattr(self, obj_name, vnet)
         # Debug output
         print("============= TEST TOPOLOGY =============")
         for vnet_alias, vnet in vnet_map.items():
@@ -484,8 +500,18 @@ class VnetTestTemplate(BaseTest):
             return pipe.recv()
         raise TimeoutError
 
+    def wait_objects_any(self, pipe_list, timeout=5):
+        objects = connection.wait(pipe_list, timeout)
+        if objects:
+            return objects[0].recv()
+        raise TimeoutError
+
     def send_object(self, pipe, obj):
         pipe.send(obj)
+
+    def wait(self):
+        while True:
+            time.sleep(1)
 
     @property
     def curvnet(self):
