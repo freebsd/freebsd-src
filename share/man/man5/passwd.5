@@ -31,7 +31,7 @@
 .\"     From: @(#)passwd.5	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd June 30, 2022
+.Dd May 16, 2023
 .Dt PASSWD 5
 .Os
 .Sh NAME
@@ -131,7 +131,7 @@ The login name must not begin with a hyphen
 .Pq Ql \&- ,
 and cannot contain 8-bit characters, tabs or spaces, or any of these
 symbols:
-.Ql \&,:+&#%^\&(\&)!@~*?<>=|\e\\&/" .
+.Ql \&,:+&#%^\&(\&)!@~*?<>=|\e\\&/"\&; .
 The dollar symbol
 .Pq Ql \&$
 is allowed only as the last character for use with Samba.
