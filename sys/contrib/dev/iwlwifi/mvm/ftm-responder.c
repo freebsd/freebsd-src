@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  */
 #include <net/cfg80211.h>
 #include <linux/etherdevice.h>
@@ -104,7 +104,8 @@ iwl_mvm_ftm_responder_set_ndp(struct iwl_mvm *mvm,
 static int
 iwl_mvm_ftm_responder_cmd(struct iwl_mvm *mvm,
 			  struct ieee80211_vif *vif,
-			  struct cfg80211_chan_def *chandef)
+			  struct cfg80211_chan_def *chandef,
+			  struct ieee80211_bss_conf *link_conf)
 {
 	u32 cmd_id = WIDE_ID(LOCATION_GROUP, TOF_RESPONDER_CONFIG_CMD);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
@@ -119,7 +120,7 @@ iwl_mvm_ftm_responder_cmd(struct iwl_mvm *mvm,
 			cpu_to_le32(IWL_TOF_RESPONDER_CMD_VALID_CHAN_INFO |
 				    IWL_TOF_RESPONDER_CMD_VALID_BSSID |
 				    IWL_TOF_RESPONDER_CMD_VALID_STA_ID),
-		.sta_id = mvmvif->bcast_sta.sta_id,
+		.sta_id = mvmvif->link[link_conf->link_id]->bcast_sta.sta_id,
 	};
 	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id, 6);
 	int err;
@@ -318,6 +319,8 @@ int iwl_mvm_ftm_respoder_add_pasn_sta(struct iwl_mvm *mvm,
 		.addr = addr,
 		.hltk = hltk,
 	};
+	struct iwl_mvm_pasn_hltk_data *hltk_data_ptr = NULL;
+
 	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
 					   WIDE_ID(LOCATION_GROUP, TOF_RESPONDER_DYN_CONFIG_CMD),
 					   2);
@@ -329,10 +332,19 @@ int iwl_mvm_ftm_respoder_add_pasn_sta(struct iwl_mvm *mvm,
 		return -ENOTSUPP;
 	}
 
-	hltk_data.cipher = iwl_mvm_cipher_to_location_cipher(cipher);
-	if (hltk_data.cipher == IWL_LOCATION_CIPHER_INVALID) {
-		IWL_ERR(mvm, "invalid cipher: %u\n", cipher);
+	if ((!hltk || !hltk_len) && (!tk || !tk_len)) {
+		IWL_ERR(mvm, "TK and HLTK not set\n");
 		return -EINVAL;
+	}
+
+	if (hltk && hltk_len) {
+		hltk_data.cipher = iwl_mvm_cipher_to_location_cipher(cipher);
+		if (hltk_data.cipher == IWL_LOCATION_CIPHER_INVALID) {
+			IWL_ERR(mvm, "invalid cipher: %u\n", cipher);
+			return -EINVAL;
+		}
+
+		hltk_data_ptr = &hltk_data;
 	}
 
 	if (tk && tk_len) {
@@ -351,7 +363,7 @@ int iwl_mvm_ftm_respoder_add_pasn_sta(struct iwl_mvm *mvm,
 		list_add_tail(&sta->list, &mvm->resp_pasn_list);
 	}
 
-	ret = iwl_mvm_ftm_responder_dyn_cfg_v3(mvm, vif, NULL, &hltk_data);
+	ret = iwl_mvm_ftm_responder_dyn_cfg_v3(mvm, vif, NULL, hltk_data_ptr);
 	if (ret && sta)
 		iwl_mvm_resp_del_pasn_sta(mvm, vif, sta);
 
@@ -377,7 +389,8 @@ int iwl_mvm_ftm_resp_remove_pasn_sta(struct iwl_mvm *mvm,
 }
 #endif
 
-int iwl_mvm_ftm_start_responder(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+int iwl_mvm_ftm_start_responder(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+				struct ieee80211_bss_conf *bss_conf)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct ieee80211_ftm_responder_params *params;
@@ -386,11 +399,11 @@ int iwl_mvm_ftm_start_responder(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	struct iwl_mvm_phy_ctxt *phy_ctxt;
 	int ret;
 
-	params = vif->bss_conf.ftmr_params;
+	params = bss_conf->ftmr_params;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (WARN_ON_ONCE(!vif->bss_conf.ftm_responder))
+	if (WARN_ON_ONCE(!bss_conf->ftm_responder))
 		return -EINVAL;
 
 	if (vif->p2p || vif->type != NL80211_IFTYPE_AP ||
@@ -400,7 +413,7 @@ int iwl_mvm_ftm_start_responder(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	}
 
 	rcu_read_lock();
-	pctx = rcu_dereference(vif->chanctx_conf);
+	pctx = rcu_dereference(bss_conf->chanctx_conf);
 	/* Copy the ctx to unlock the rcu and send the phy ctxt. We don't care
 	 * about changes in the ctx after releasing the lock because the driver
 	 * is still protected by the mutex. */
@@ -415,7 +428,7 @@ int iwl_mvm_ftm_start_responder(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	if (ret)
 		return ret;
 
-	ret = iwl_mvm_ftm_responder_cmd(mvm, vif, &ctx.def);
+	ret = iwl_mvm_ftm_responder_cmd(mvm, vif, &ctx.def, bss_conf);
 	if (ret)
 		return ret;
 
@@ -437,13 +450,14 @@ void iwl_mvm_ftm_responder_clear(struct iwl_mvm *mvm,
 }
 
 void iwl_mvm_ftm_restart_responder(struct iwl_mvm *mvm,
-				   struct ieee80211_vif *vif)
+				   struct ieee80211_vif *vif,
+				   struct ieee80211_bss_conf *bss_conf)
 {
-	if (!vif->bss_conf.ftm_responder)
+	if (!bss_conf->ftm_responder)
 		return;
 
 	iwl_mvm_ftm_responder_clear(mvm, vif);
-	iwl_mvm_ftm_start_responder(mvm, vif);
+	iwl_mvm_ftm_start_responder(mvm, vif, bss_conf);
 }
 
 void iwl_mvm_ftm_responder_stats(struct iwl_mvm *mvm,
