@@ -4,6 +4,10 @@
  * Copyright (c) 2010 Panasas, Inc.
  * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
  * All rights reserved.
+ * Copyright 2023 The FreeBSD Foundation
+ *
+ * Portions of this software was developed by Björn Zeeb
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,8 +40,6 @@
 #include <sys/random.h>
 #include <sys/libkern.h>
 
-#define	get_random_u32() get_random_int()
-
 static inline void
 get_random_bytes(void *buf, int nbytes)
 {
@@ -52,6 +54,30 @@ get_random_int(void)
 
 	get_random_bytes(&val, sizeof(val));
 	return (val);
+}
+
+#define	get_random_u32() get_random_int()
+
+/*
+ * See "Fast Random Integer Generation in an Interval" by Daniel Lemire
+ * [https://arxiv.org/pdf/1805.10941.pdf] for implementation insights.
+ */
+static inline uint32_t
+get_random_u32_inclusive(uint32_t floor, uint32_t ceil)
+{
+	uint64_t x;
+	uint32_t t, v;
+
+	MPASS(ceil >= floor);
+
+	v = get_random_u32();
+	t = ceil - floor + 1;
+	x = (uint64_t)t * v;
+	while (x < t)
+		x = (uint64_t)t * get_random_u32();
+	v = x >> 32;
+
+	return (floor + v);
 }
 
 static inline u_long
