@@ -29,6 +29,18 @@ static void rtw8822ce_efuse_parsing(struct rtw_efuse *efuse,
 	ether_addr_copy(efuse->addr, map->e.mac_addr);
 }
 
+static void rtw8822cu_efuse_parsing(struct rtw_efuse *efuse,
+				    struct rtw8822c_efuse *map)
+{
+	ether_addr_copy(efuse->addr, map->u.mac_addr);
+}
+
+static void rtw8822cs_efuse_parsing(struct rtw_efuse *efuse,
+				    struct rtw8822c_efuse *map)
+{
+	ether_addr_copy(efuse->addr, map->s.mac_addr);
+}
+
 static int rtw8822c_read_efuse(struct rtw_dev *rtwdev, u8 *log_map)
 {
 	struct rtw_efuse *efuse = &rtwdev->efuse;
@@ -57,6 +69,12 @@ static int rtw8822c_read_efuse(struct rtw_dev *rtwdev, u8 *log_map)
 	switch (rtw_hci_type(rtwdev)) {
 	case RTW_HCI_TYPE_PCIE:
 		rtw8822ce_efuse_parsing(efuse, map);
+		break;
+	case RTW_HCI_TYPE_USB:
+		rtw8822cu_efuse_parsing(efuse, map);
+		break;
+	case RTW_HCI_TYPE_SDIO:
+		rtw8822cs_efuse_parsing(efuse, map);
 		break;
 	default:
 		/* unsupported now */
@@ -2186,7 +2204,11 @@ static void rtw8822c_set_channel_rf(struct rtw_dev *rtwdev, u8 channel, u8 bw)
 	u32 rf_reg18 = 0;
 	u32 rf_rxbb = 0;
 
+#if defined(__linux__)
 	rf_reg18 = rtw_read_rf(rtwdev, RF_PATH_A, 0x18, RFREG_MASK);
+#elif defined(__FreeBSD__)
+	rf_reg18 = rtw_read_rf(rtwdev, RF_PATH_A, RF_CFGCH, RFREG_MASK);
+#endif
 
 	rf_reg18 &= ~(RF18_BAND_MASK | RF18_CHANNEL_MASK | RF18_RFSI_MASK |
 		      RF18_BW_MASK);
@@ -3259,7 +3281,11 @@ static void rtw8822c_dpk_information(struct rtw_dev *rtwdev)
 	u32  reg;
 	u8 band_shift;
 
+#if defined(__linux__)
 	reg = rtw_read_rf(rtwdev, RF_PATH_A, 0x18, RFREG_MASK);
+#elif defined(__FreeBSD__)
+	reg = rtw_read_rf(rtwdev, RF_PATH_A, RF_CFGCH, RFREG_MASK);
+#endif
 
 	band_shift = FIELD_GET(BIT(16), reg);
 	dpk_info->dpk_band = 1 << band_shift;
@@ -4140,7 +4166,11 @@ static bool rtw8822c_dpk_reload(struct rtw_dev *rtwdev)
 
 	dpk_info->is_reload = false;
 
+#if defined(__linux__)
 	channel = (u8)(rtw_read_rf(rtwdev, RF_PATH_A, 0x18, RFREG_MASK) & 0xff);
+#elif defined(__FreeBSD__)
+	channel = (u8)(rtw_read_rf(rtwdev, RF_PATH_A, RF_CFGCH, RFREG_MASK) & 0xff);
+#endif
 
 	if (channel == dpk_info->dpk_ch) {
 		rtw_dbg(rtwdev, RTW_DBG_RFK,
@@ -4557,6 +4587,18 @@ static void rtw8822c_adaptivity(struct rtw_dev *rtwdev)
 	rtw_phy_set_edcca_th(rtwdev, l2h, h2l);
 }
 
+static void rtw8822c_fill_txdesc_checksum(struct rtw_dev *rtwdev,
+					  struct rtw_tx_pkt_info *pkt_info,
+					  u8 *txdesc)
+{
+	const struct rtw_chip_info *chip = rtwdev->chip;
+	size_t words;
+
+	words = (pkt_info->pkt_offset * 8 + chip->tx_pkt_desc_sz) / 2;
+
+	fill_txdesc_checksum_common(txdesc, words);
+}
+
 static const struct rtw_pwr_seq_cmd trans_carddis_to_cardemu_8822c[] = {
 	{0x0086,
 	 RTW_PWR_CUT_ALL_MSK,
@@ -4895,6 +4937,8 @@ static const struct rtw_rfe_def rtw8822c_rfe_defs[] = {
 	[0] = RTW_DEF_RFE(8822c, 0, 0),
 	[1] = RTW_DEF_RFE(8822c, 0, 0),
 	[2] = RTW_DEF_RFE(8822c, 0, 0),
+	[3] = RTW_DEF_RFE(8822c, 0, 0),
+	[4] = RTW_DEF_RFE(8822c, 0, 0),
 	[5] = RTW_DEF_RFE(8822c, 0, 5),
 	[6] = RTW_DEF_RFE(8822c, 0, 0),
 };
@@ -4978,6 +5022,7 @@ static struct rtw_chip_ops rtw8822c_ops = {
 	.cfo_track		= rtw8822c_cfo_track,
 	.config_tx_path		= rtw8822c_config_tx_path,
 	.config_txrx_mode	= rtw8822c_config_trx_mode,
+	.fill_txdesc_checksum	= rtw8822c_fill_txdesc_checksum,
 
 	.coex_set_init		= rtw8822c_coex_cfg_init,
 	.coex_set_ant_switch	= NULL,
@@ -5329,12 +5374,13 @@ const struct rtw_chip_info rtw8822c_hw_spec = {
 	.txff_size = 262144,
 	.rxff_size = 24576,
 	.fw_rxff_size = 12288,
+	.rsvd_drv_pg_num = 16,
 	.txgi_factor = 2,
 	.is_pwr_by_rate_dec = false,
 	.max_power_index = 0x7f,
 	.csi_buf_pg_num = 50,
 	.band = RTW_BAND_2G | RTW_BAND_5G,
-	.page_size = 128,
+	.page_size = TX_PAGE_SIZE,
 	.dig_min = 0x20,
 	.default_1ss_tx_path = BB_PATH_A,
 	.path_div_supported = true,
@@ -5379,6 +5425,7 @@ const struct rtw_chip_info rtw8822c_hw_spec = {
 	.wowlan_stub = &rtw_wowlan_stub_8822c,
 	.max_sched_scan_ssids = 4,
 #endif
+	.max_scan_ie_len = (RTW_PROBE_PG_CNT - 1) * TX_PAGE_SIZE,
 	.coex_para_ver = 0x22020720,
 	.bt_desired_ver = 0x20,
 	.scbd_support = true,
