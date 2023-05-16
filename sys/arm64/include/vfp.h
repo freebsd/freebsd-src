@@ -67,7 +67,11 @@ struct pcb;
 struct thread;
 
 void	vfp_init(void);
+void	vfp_enable(void);
+void	vfp_disable(void);
 void	vfp_discard(struct thread *);
+void	vfp_store(struct vfpstate *);
+void	vfp_restore(struct vfpstate *);
 void	vfp_new_thread(struct thread *, struct thread *, bool);
 void	vfp_reset_state(struct thread *, struct pcb *);
 void	vfp_restore_state(void);
