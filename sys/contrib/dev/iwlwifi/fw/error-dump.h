@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2014, 2018-2021 Intel Corporation
+ * Copyright (C) 2014, 2018-2022 Intel Corporation
  * Copyright (C) 2014-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -76,6 +76,18 @@ struct iwl_fw_error_dump_data {
 } __packed;
 
 /**
+ * struct iwl_dump_file_name_info - data for dump file name addition
+ * @type: region type with reserved bits
+ * @len: the length of file name string to be added to dump file
+ * @data: the string need to be added to dump file
+ */
+struct iwl_dump_file_name_info {
+	__le32 type;
+	__le32 len;
+	__u8 data[];
+} __packed;
+
+/**
  * struct iwl_fw_error_dump_file - the layout of the header of the file
  * @barker: must be %IWL_FW_ERROR_DUMP_BARKER
  * @file_len: the length of all the file starting from %barker
@@ -84,7 +96,7 @@ struct iwl_fw_error_dump_data {
 struct iwl_fw_error_dump_file {
 	__le32 barker;
 	__le32 file_len;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 /**
@@ -230,6 +242,9 @@ struct iwl_fw_error_dump_mem {
 
 /* Use bit 31 as dump info type to avoid colliding with region types */
 #define IWL_INI_DUMP_INFO_TYPE BIT(31)
+
+/* Use bit 31 and bit 24 as dump name type to avoid colliding with region types */
+#define IWL_INI_DUMP_NAME_TYPE (BIT(31) | BIT(24))
 
 /**
  * struct iwl_fw_error_dump_data - data for one type
