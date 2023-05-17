@@ -1450,14 +1450,23 @@ int ath10k_pci_hif_tx_sg(struct ath10k *ar, u8 pipe_id,
 	/* `i` is equal to `n_items -1` after for() */
 
 	ath10k_dbg(ar, ATH10K_DBG_PCI,
+#if defined(__linux__)
+		    "pci tx item %d paddr %pad len %d n_items %d\n",
+		    i, &items[i].paddr, items[i].len, n_items);
+#elif defined(__FreeBSD__)
 		   "pci tx item %d paddr %pad len %d n_items %d pipe_id %u\n",
 		   i, &items[i].paddr, items[i].len, n_items, pipe_id);
+	/*
+	 * XXX-BZ specific debug; the DELAY makes things work for one chipset.
+	 * There's likely a race somewhere (here or LinuxKPI).
+	 */
 	if (n_items == 1 && items[i].len == 140) {
 		ath10k_dbg_dump(ar, ATH10K_DBG_PCI, NULL, "pci tx data: ",
 				items[i].vaddr, items[i].len);
 		dump_stack();
 		DELAY(500);
 	}
+#endif
 	ath10k_dbg_dump(ar, ATH10K_DBG_PCI_DUMP, NULL, "pci tx data: ",
 			items[i].vaddr, items[i].len);
 
