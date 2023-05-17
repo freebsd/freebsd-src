@@ -1752,11 +1752,13 @@ ifmaybeload(struct ifconfig_args *args, const char *name)
 
 	/* trim the interface number off the end */
 	strlcpy(ifname, name, sizeof(ifname));
-	for (dp = ifname; *dp != 0; dp++)
-		if (isdigit(*dp)) {
-			*dp = 0;
+	dp = ifname + strlen(ifname) - 1;
+	for (; dp > ifname; dp--) {
+		if (isdigit(*dp))
+			*dp = '\0';
+		else
 			break;
-		}
+	}
 
 	/* Either derive it from the map or guess otherwise */
 	*ifkind = '\0';
