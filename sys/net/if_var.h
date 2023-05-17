@@ -127,13 +127,13 @@ typedef enum {
 typedef	void (*if_start_fn_t)(if_t);
 typedef	int (*if_ioctl_fn_t)(if_t, u_long, caddr_t);
 typedef	void (*if_init_fn_t)(void *);
-typedef	void (*if_input_fn_t)(struct ifnet *, struct mbuf *);
-typedef	int (*if_output_fn_t)
-    (struct ifnet *, struct mbuf *, const struct sockaddr *, struct route *);
+typedef	void (*if_input_fn_t)(if_t, struct mbuf *);
+typedef	int (*if_output_fn_t)(if_t, struct mbuf *, const struct sockaddr *,
+    struct route *);
 typedef void (*if_qflush_fn_t)(if_t);
 typedef int (*if_transmit_fn_t)(if_t, struct mbuf *);
 typedef	uint64_t (*if_get_counter_t)(if_t, ift_counter);
-typedef	void (*if_reassign_fn_t)(struct ifnet *, struct vnet *, char *);
+typedef	void (*if_reassign_fn_t)(if_t, struct vnet *, char *);
 
 struct ifnet_hw_tsomax {
 	u_int	tsomaxbytes;	/* TSO total burst length limit in bytes */
@@ -275,7 +275,7 @@ union if_snd_tag_query_params {
 	struct if_snd_tag_rate_limit_params tls_rate_limit;
 };
 
-typedef int (if_snd_tag_alloc_t)(struct ifnet *, union if_snd_tag_alloc_params *,
+typedef int (if_snd_tag_alloc_t)(if_t, union if_snd_tag_alloc_params *,
     struct m_snd_tag **);
 typedef int (if_snd_tag_modify_t)(struct m_snd_tag *, union if_snd_tag_modify_params *);
 typedef int (if_snd_tag_query_t)(struct m_snd_tag *, union if_snd_tag_query_params *);
@@ -314,9 +314,9 @@ struct if_ratelimit_query_results {
 	uint32_t min_segment_burst;	/* The amount the adapter bursts at each send */
 };
 
-typedef void (if_ratelimit_query_t)(struct ifnet *,
+typedef void (if_ratelimit_query_t)(if_t,
     struct if_ratelimit_query_results *);
-typedef int (if_ratelimit_setup_t)(struct ifnet *, uint64_t, uint32_t);
+typedef int (if_ratelimit_setup_t)(if_t, uint64_t, uint32_t);
 #define	IF_NODOM	255
 /*
  * Locks for address lists on the network interface.
@@ -331,24 +331,23 @@ typedef int (if_ratelimit_setup_t)(struct ifnet *, uint64_t, uint32_t);
 
 #ifdef _KERNEL
 /* interface link layer address change event */
-typedef void (*iflladdr_event_handler_t)(void *, struct ifnet *);
+typedef void (*iflladdr_event_handler_t)(void *, if_t);
 EVENTHANDLER_DECLARE(iflladdr_event, iflladdr_event_handler_t);
 /* interface address change event */
-typedef void (*ifaddr_event_handler_t)(void *, struct ifnet *);
+typedef void (*ifaddr_event_handler_t)(void *, if_t);
 EVENTHANDLER_DECLARE(ifaddr_event, ifaddr_event_handler_t);
-typedef void (*ifaddr_event_ext_handler_t)(void *, struct ifnet *,
-    struct ifaddr *, int);
+typedef void (*ifaddr_event_ext_handler_t)(void *, if_t, struct ifaddr *, int);
 EVENTHANDLER_DECLARE(ifaddr_event_ext, ifaddr_event_ext_handler_t);
 #define	IFADDR_EVENT_ADD	0
 #define	IFADDR_EVENT_DEL	1
 /* new interface arrival event */
-typedef void (*ifnet_arrival_event_handler_t)(void *, struct ifnet *);
+typedef void (*ifnet_arrival_event_handler_t)(void *, if_t);
 EVENTHANDLER_DECLARE(ifnet_arrival_event, ifnet_arrival_event_handler_t);
 /* interface departure event */
-typedef void (*ifnet_departure_event_handler_t)(void *, struct ifnet *);
+typedef void (*ifnet_departure_event_handler_t)(void *, if_t);
 EVENTHANDLER_DECLARE(ifnet_departure_event, ifnet_departure_event_handler_t);
 /* Interface link state change event */
-typedef void (*ifnet_link_event_handler_t)(void *, struct ifnet *, int);
+typedef void (*ifnet_link_event_handler_t)(void *, if_t, int);
 EVENTHANDLER_DECLARE(ifnet_link_event, ifnet_link_event_handler_t);
 /* Interface up/down event */
 #define IFNET_EVENT_UP		0
@@ -356,7 +355,7 @@ EVENTHANDLER_DECLARE(ifnet_link_event, ifnet_link_event_handler_t);
 #define IFNET_EVENT_PCP		2	/* priority code point, PCP */
 #define	IFNET_EVENT_UPDATE_BAUDRATE	3
 
-typedef void (*ifnet_event_fn)(void *, struct ifnet *ifp, int event);
+typedef void (*ifnet_event_fn)(void *, if_t ifp, int event);
 EVENTHANDLER_DECLARE(ifnet_event, ifnet_event_fn);
 
 /*
@@ -372,7 +371,7 @@ struct ifg_group {
 
 struct ifg_member {
 	CK_STAILQ_ENTRY(ifg_member)	 ifgm_next; /* (CK_) */
-	struct ifnet		*ifgm_ifp;
+	if_t				 ifgm_ifp;
 };
 
 struct ifg_list {
@@ -417,7 +416,7 @@ struct ifaddr {
 	struct	sockaddr *ifa_dstaddr;	/* other end of p-to-p link */
 #define	ifa_broadaddr	ifa_dstaddr	/* broadcast address interface */
 	struct	sockaddr *ifa_netmask;	/* used to determine subnet */
-	struct	ifnet *ifa_ifp;		/* back-pointer to interface */
+	if_t		 ifa_ifp;		/* back-pointer to interface */
 	struct	carp_softc *ifa_carp;	/* pointer to CARP data */
 	CK_STAILQ_ENTRY(ifaddr) ifa_link;	/* queue macro glue */
 	u_short	ifa_flags;		/* mostly rt_flags for cloning */
@@ -446,7 +445,7 @@ struct ifmultiaddr {
 	CK_STAILQ_ENTRY(ifmultiaddr) ifma_link; /* queue macro glue */
 	struct	sockaddr *ifma_addr; 	/* address this membership is for */
 	struct	sockaddr *ifma_lladdr;	/* link-layer translation, if any */
-	struct	ifnet *ifma_ifp;	/* back-pointer to interface */
+	if_t	ifma_ifp;		/* back-pointer to interface */
 	u_int	ifma_refcount;		/* reference count */
 	int	ifma_flags;
 	void	*ifma_protospec;	/* protocol-specific state, if any */
@@ -468,19 +467,19 @@ extern	struct sx ifnet_sxlock;
  * being freed by the network epoch.  The _ref variant also acquires a
  * reference that must be freed using if_rele().
  */
-struct ifnet	*ifnet_byindex(u_int);
-struct ifnet	*ifnet_byindex_ref(u_int);
+if_t ifnet_byindex(u_int);
+if_t ifnet_byindex_ref(u_int);
 
 /*
  * ifnet_byindexgen() looks up ifnet by index and generation count,
  * attempting to restore a weak pointer that had been stored across
  * the epoch.
  */
-struct ifnet   *ifnet_byindexgen(uint16_t idx, uint16_t gen);
+if_t ifnet_byindexgen(uint16_t idx, uint16_t gen);
 
 VNET_DECLARE(struct ifnethead, ifnet);
 VNET_DECLARE(struct ifgrouphead, ifg_head);
-VNET_DECLARE(struct ifnet *, loif);	/* first loopback interface */
+VNET_DECLARE(if_t, loif);	/* first loopback interface */
 
 #define	V_ifnet		VNET(ifnet)
 #define	V_ifg_head	VNET(ifg_head)
@@ -492,39 +491,39 @@ VNET_DECLARE(struct ifnet *, loif);	/* first loopback interface */
 #define MCDPRINTF(...)
 #endif
 
-int	if_addgroup(struct ifnet *, const char *);
-int	if_delgroup(struct ifnet *, const char *);
-int	if_addmulti(struct ifnet *, struct sockaddr *, struct ifmultiaddr **);
-int	if_allmulti(struct ifnet *, int);
-struct	ifnet* if_alloc(u_char);
-struct	ifnet* if_alloc_dev(u_char, device_t dev);
-void	if_attach(struct ifnet *);
-void	if_dead(struct ifnet *);
-int	if_delmulti(struct ifnet *, struct sockaddr *);
+int	if_addgroup(if_t, const char *);
+int	if_delgroup(if_t, const char *);
+int	if_addmulti(if_t, struct sockaddr *, struct ifmultiaddr **);
+int	if_allmulti(if_t, int);
+if_t	if_alloc(u_char);
+if_t	if_alloc_dev(u_char, device_t dev);
+void	if_attach(if_t);
+void	if_dead(if_t);
+int	if_delmulti(if_t, struct sockaddr *);
 void	if_delmulti_ifma(struct ifmultiaddr *);
 void	if_delmulti_ifma_flags(struct ifmultiaddr *, int flags);
-void	if_detach(struct ifnet *);
-void	if_purgeaddrs(struct ifnet *);
-void	if_delallmulti(struct ifnet *);
-void	if_down(struct ifnet *);
+void	if_detach(if_t);
+void	if_purgeaddrs(if_t);
+void	if_delallmulti(if_t);
+void	if_down(if_t);
 struct ifmultiaddr *
-	if_findmulti(struct ifnet *, const struct sockaddr *);
+	if_findmulti(if_t, const struct sockaddr *);
 void	if_freemulti(struct ifmultiaddr *ifma);
-void	if_free(struct ifnet *);
-void	if_initname(struct ifnet *, const char *, int);
-void	if_link_state_change(struct ifnet *, int);
-int	if_printf(struct ifnet *, const char *, ...) __printflike(2, 3);
-int	if_log(struct ifnet *, int, const char *, ...) __printflike(3, 4);
-void	if_ref(struct ifnet *);
-void	if_rele(struct ifnet *);
-bool	__result_use_check if_try_ref(struct ifnet *);
-int	if_setlladdr(struct ifnet *, const u_char *, int);
-int	if_tunnel_check_nesting(struct ifnet *, struct mbuf *, uint32_t, int);
-void	if_up(struct ifnet *);
+void	if_free(if_t);
+void	if_initname(if_t, const char *, int);
+void	if_link_state_change(if_t, int);
+int	if_printf(if_t, const char *, ...) __printflike(2, 3);
+int	if_log(if_t, int, const char *, ...) __printflike(3, 4);
+void	if_ref(if_t);
+void	if_rele(if_t);
+bool	__result_use_check if_try_ref(if_t);
+int	if_setlladdr(if_t, const u_char *, int);
+int	if_tunnel_check_nesting(if_t, struct mbuf *, uint32_t, int);
+void	if_up(if_t);
 int	ifioctl(struct socket *, u_long, caddr_t, struct thread *);
-int	ifpromisc(struct ifnet *, int);
-struct	ifnet *ifunit(const char *);
-struct	ifnet *ifunit_ref(const char *);
+int	ifpromisc(if_t, int);
+if_t	ifunit(const char *);
+if_t	ifunit_ref(const char *);
 
 int	ifa_add_loopback_route(struct ifaddr *, struct sockaddr *);
 int	ifa_del_loopback_route(struct ifaddr *, struct sockaddr *);
@@ -537,18 +536,18 @@ struct	ifaddr *ifa_ifwithdstaddr(const struct sockaddr *, int);
 struct	ifaddr *ifa_ifwithnet(const struct sockaddr *, int, int);
 struct	ifaddr *ifa_ifwithroute(int, const struct sockaddr *,
     const struct sockaddr *, u_int);
-struct	ifaddr *ifaof_ifpforaddr(const struct sockaddr *, struct ifnet *);
+struct	ifaddr *ifaof_ifpforaddr(const struct sockaddr *, if_t);
 int	ifa_preferred(struct ifaddr *, struct ifaddr *);
 
-int	if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen);
+int	if_simloop(if_t ifp, struct mbuf *m, int af, int hlen);
 
-typedef	void *if_com_alloc_t(u_char type, struct ifnet *ifp);
+typedef	void *if_com_alloc_t(u_char type, if_t ifp);
 typedef	void if_com_free_t(void *com, u_char type);
 void	if_register_com_alloc(u_char type, if_com_alloc_t *a, if_com_free_t *f);
 void	if_deregister_com_alloc(u_char type);
-void	if_data_copy(struct ifnet *, struct if_data *);
-uint64_t if_get_counter_default(struct ifnet *, ift_counter);
-void	if_inc_counter(struct ifnet *, ift_counter, int64_t);
+void	if_data_copy(if_t, struct if_data *);
+uint64_t if_get_counter_default(if_t, ift_counter);
+void	if_inc_counter(if_t, ift_counter, int64_t);
 
 uint64_t if_setbaudrate(if_t ifp, uint64_t baudrate);
 uint64_t if_getbaudrate(const if_t ifp);
@@ -573,7 +572,7 @@ const char *if_getdname(const if_t ifp);
 void if_setdname(if_t ifp, const char *name);
 const char *if_name(if_t ifp);
 int if_setname(if_t ifp, const char *name);
-int if_rename(struct ifnet *ifp, char *new_name);
+int if_rename(if_t ifp, char *new_name);
 void if_setdescr(if_t ifp, char *descrbuf);
 char *if_allocdescr(size_t sz, int malloc_flag);
 void if_freedescr(char *descrbuf);
@@ -646,7 +645,7 @@ bool if_altq_is_enabled(if_t ifp);
 
 void *if_getafdata(if_t ifp, int);
 
-int if_snd_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
+int if_snd_tag_alloc(if_t ifp, union if_snd_tag_alloc_params *params,
     struct m_snd_tag **mstp);
 /*
  * Traversing through interface address lists.
@@ -691,7 +690,7 @@ if_transmit_fn_t if_gettransmitfn(if_t ifp);
 void if_setqflushfn(if_t ifp, if_qflush_fn_t);
 void if_setgetcounterfn(if_t ifp, if_get_counter_t);
 void if_setsndtagallocfn(if_t ifp, if_snd_tag_alloc_t);
-void if_setdebugnet_methods(struct ifnet *, struct debugnet_methods *);
+void if_setdebugnet_methods(if_t, struct debugnet_methods *);
 void if_setreassignfn(if_t ifp, if_reassign_fn_t);
 void if_setratelimitqueryfn(if_t ifp, if_ratelimit_query_t);
 
@@ -704,7 +703,7 @@ void *ifr_data_get_ptr(void *ifrp);
 void *ifr_buffer_get_buffer(void *data);
 size_t ifr_buffer_get_length(void *data);
 
-int ifhwioctl(u_long, struct ifnet *, caddr_t, struct thread *);
+int ifhwioctl(u_long, if_t, caddr_t, struct thread *);
 
 #ifdef DEVICE_POLLING
 enum poll_cmd { POLL_ONLY, POLL_AND_CHECK_STATUS };
