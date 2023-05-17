@@ -918,8 +918,10 @@ pagetable_end:
 el2_pagetable:
 	.space	PAGE_SIZE
 
-.text
-EENTRY(aarch32_sigcode)
+	.section .rodata, "a", %progbits
+	.globl	aarch32_sigcode
+	.align 2
+aarch32_sigcode:
 	.word 0xe1a0000d	// mov r0, sp
 	.word 0xe2800040	// add r0, r0, #SIGF_UC
 	.word 0xe59f700c	// ldr r7, [pc, #12]
@@ -927,10 +929,10 @@ EENTRY(aarch32_sigcode)
 	.word 0xe59f7008	// ldr r7, [pc, #8]
 	.word 0xef000000	// swi #0
 	.word 0xeafffffa	// b . - 16
-EEND(aarch32_sigcode)
 	.word SYS_sigreturn
 	.word SYS_exit
 	.align	3
+	.size aarch32_sigcode, . - aarch32_sigcode
 aarch32_esigcode:
 	.data
 	.global sz_aarch32_sigcode
