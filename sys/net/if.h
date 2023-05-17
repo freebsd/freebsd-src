@@ -655,7 +655,7 @@ struct ifdownreason {
  * Opaque interface structure.
  */
 
-typedef struct ifnet * if_t;
+typedef struct ifnet *if_t;
 
 #ifdef _KERNEL
 #ifdef MALLOC_DECLARE
