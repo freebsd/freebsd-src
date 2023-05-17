@@ -1715,10 +1715,12 @@ ktls_reset_send_tag(void *context, int pending)
 			CURVNET_SET(inp->inp_vnet);
 			tp = tcp_drop(tp, ECONNABORTED);
 			CURVNET_RESTORE();
-			if (tp != NULL)
+			if (tp != NULL) {
 				counter_u64_add(ktls_ifnet_reset_dropped, 1);
-		}
-		INP_WUNLOCK(inp);
+				INP_WUNLOCK(inp);
+			}
+		} else
+			INP_WUNLOCK(inp);
 		NET_EPOCH_EXIT(et);
 
 		counter_u64_add(ktls_ifnet_reset_failed, 1);
