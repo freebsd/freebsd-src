@@ -237,7 +237,7 @@ setcarp_peer6(const char *val, int d, int s, const struct afswtch *afp)
 	hints.ai_family = AF_INET6;
 	hints.ai_flags = AI_NUMERICHOST;
 
-	if (getaddrinfo(val, NULL, &hints, &res) == 1)
+	if (getaddrinfo(val, NULL, &hints, &res) != 0)
 		errx(1, "Invalid IPv6 address %s", val);
 
 	memcpy(&carp_addr6, &((struct sockaddr_in6 *)res->ai_addr)->sin6_addr,
