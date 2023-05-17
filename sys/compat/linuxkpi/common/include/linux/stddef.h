@@ -5,5 +5,11 @@
 
 #include <sys/stddef.h>
 
+#define	struct_group(NAME, ...)						\
+    union {								\
+	struct { __VA_ARGS__ };						\
+	struct { __VA_ARGS__ } NAME;					\
+    }
+
 #endif	/* _LINUXKPI_LINUX_STDDEF_H_ */
 
