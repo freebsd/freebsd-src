@@ -382,10 +382,11 @@ nhgrp_free(struct nhgrp_object *nhg)
 			NET_EPOCH_EXIT(et);
 			return;
 		}
+		MPASS((nhg_priv->nhg_idx == 0));
+		MPASS((nhg_priv->nhg_refcount == 0));
 	}
 	NET_EPOCH_EXIT(et);
 
-	KASSERT((nhg_priv->nhg_idx == 0), ("gr_idx != 0"));
 	NET_EPOCH_CALL(destroy_nhgrp_epoch, &nhg_priv->nhg_epoch_ctx);
 }
 
@@ -402,10 +403,6 @@ destroy_nhgrp_int(struct nhgrp_priv *nhg_priv)
 __noinline static void
 destroy_nhgrp(struct nhgrp_priv *nhg_priv)
 {
-
-	KASSERT((nhg_priv->nhg_refcount == 0), ("nhg_refcount != 0"));
-	KASSERT((nhg_priv->nhg_idx == 0), ("gr_idx != 0"));
-
 	IF_DEBUG_LEVEL(LOG_DEBUG2) {
 		char nhgbuf[NHOP_PRINT_BUFSIZE] __unused;
 		FIB_NH_LOG(LOG_DEBUG2, nhg_priv->nhg_nh_weights[0].nh,
