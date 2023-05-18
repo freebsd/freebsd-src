@@ -742,3 +742,12 @@ DEFINE_IFUNC(, int, futex_xorl, (int, uint32_t *, int *))
 	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
 	    futex_xorl_smap : futex_xorl_nosmap);
 }
+
+int
+linux_ptrace_peekuser(struct thread *td, pid_t pid, void *addr, void *data)
+{
+
+	LINUX_RATELIMIT_MSG_OPT1("PTRACE_PEEKUSER offset %ld not implemented; "
+	    "returning EINVAL", (uintptr_t)addr);
+	return (EINVAL);
+}

@@ -367,3 +367,34 @@ linux_ptrace_getregs_machdep(struct thread *td, pid_t pid,
 
 	return (0);
 }
+
+#define	LINUX_URO(a,m) ((uintptr_t)a == offsetof(struct linux_pt_regset, m))
+
+int
+linux_ptrace_peekuser(struct thread *td, pid_t pid, void *addr, void *data)
+{
+	struct linux_pt_regset reg;
+	struct reg b_reg;
+	uint64_t val;
+	int error;
+
+	if ((uintptr_t)addr & (sizeof(data) -1) || (uintptr_t)addr < 0)
+		return (EIO);
+	if ((uintptr_t)addr >= sizeof(struct linux_pt_regset)) {
+		LINUX_RATELIMIT_MSG_OPT1("PTRACE_PEEKUSER offset %ld "
+		    "not implemented; returning EINVAL", (uintptr_t)addr);
+		return (EINVAL);
+	}
+
+	if (LINUX_URO(addr, fs_base))
+		return (kern_ptrace(td, PT_GETFSBASE, pid, data, 0));
+	if (LINUX_URO(addr, gs_base))
+		return (kern_ptrace(td, PT_GETGSBASE, pid, data, 0));
+	if ((error = kern_ptrace(td, PT_GETREGS, pid, &b_reg, 0)) != 0)
+		return (error);
+	bsd_to_linux_regset(&b_reg, &reg);
+	val = *(&reg.r15 + ((uintptr_t)addr / sizeof(reg.r15)));
+	return (copyout(&val, data, sizeof(val)));
+}
+
+#undef LINUX_URO
