@@ -164,16 +164,9 @@ Set the
 .Em type-of-service
 in probe packets to the following value (default zero).  The value must be
 a decimal integer in the range 0 to 255.  This option can be used to
-see if different types-of-service result in different paths.  (If you
-are not running 4.4bsd, this may be academic since the normal network
-services like telnet and ftp don't let you control the TOS).
-Not all values of TOS are legal or
-meaningful \- see the IP spec for definitions.  Useful values are
-probably
-.Fl t Ar 16
-(low delay) and
-.Fl t Ar 8
-(high throughput).
+see if different types-of-service result in different paths.  The upper six
+bits are the Differentiated Services Codepoint (RFC4594). The lower two
+bits are the Explicit Congestion Notification field (RFC3168).
 .It Fl v
 Verbose output.  Received ICMP packets other than
 .Dv TIME_EXCEEDED
