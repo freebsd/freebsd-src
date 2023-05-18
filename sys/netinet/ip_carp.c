@@ -1065,7 +1065,8 @@ carp_send_ad_locked(struct carp_softc *sc)
 
 		/* Set the multicast destination. */
 		memcpy(&ip6->ip6_dst, &sc->sc_carpaddr6, sizeof(ip6->ip6_dst));
-		if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
+		if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) ||
+		    IN6_IS_ADDR_LINKLOCAL(&ip6->ip6_dst)) {
 			if (in6_setscope(&ip6->ip6_dst, sc->sc_carpdev, NULL) != 0) {
 				m_freem(m);
 				CARP_DEBUG("%s: in6_setscope failed\n", __func__);
