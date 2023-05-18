@@ -38,6 +38,8 @@
 
 #include <sys/uio.h>
 
+extern int linux_debug;
+
 MALLOC_DECLARE(M_LINUX);
 MALLOC_DECLARE(M_EPOLL);
 
