@@ -1009,8 +1009,12 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 		error = ENOIOCTL;
 		break;
 	case LINUX_TIOCSPTLCK:
-		/* Our unlockpt() does nothing. */
-		error = 0;
+		/*
+		 * Our unlockpt() does nothing. Check that fd refers
+		 * to a pseudo-terminal master device.
+		 */
+		args->cmd = TIOCPTMASTER;
+		error = (sys_ioctl(td, (struct ioctl_args *)args));
 		break;
 	default:
 		error = ENOIOCTL;
