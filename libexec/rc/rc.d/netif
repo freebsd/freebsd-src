@@ -215,7 +215,7 @@ netif_common()
 		esac
 		if ${_func} ${ifn} $2; then
 			_ok="${_ok} ${ifn}"
-			if ipv6if ${ifn}; then
+			if ipv6if ${ifn} && [ "${ifn}" != "lo0" ]; then
 				_dadwait=1
 			fi
 		else
