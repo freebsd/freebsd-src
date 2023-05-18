@@ -175,14 +175,6 @@ linux_ptrace_peek(struct thread *td, pid_t pid, void *addr, void *data)
 }
 
 static int
-linux_ptrace_pokeuser(struct thread *td, pid_t pid, void *addr, void *data)
-{
-
-	linux_msg(td, "PTRACE_POKEUSER not implemented; returning EINVAL");
-	return (EINVAL);
-}
-
-static int
 linux_ptrace_setoptions(struct thread *td, pid_t pid, l_ulong data)
 {
 	struct linux_pemuldata *pem;
