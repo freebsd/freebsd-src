@@ -279,6 +279,8 @@ int	linux_ptrace_getregs_machdep(struct thread *td, pid_t pid,
 	    struct linux_pt_regset *l_regset);
 int	linux_ptrace_peekuser(struct thread *td, pid_t pid,
 	    void *addr, void *data);
+int	linux_ptrace_pokeuser(struct thread *td, pid_t pid,
+	    void *addr, void *data);
 #endif /* _KERNEL */
 
 #endif /* !_AMD64_LINUX_H_ */

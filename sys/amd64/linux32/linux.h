@@ -433,6 +433,8 @@ void	bsd_to_linux_regset32(const struct reg32 *b_reg,
 	    struct linux_pt_regset32 *l_regset);
 int	linux_ptrace_peekuser(struct thread *td, pid_t pid,
 	    void *addr, void *data);
+int	linux_ptrace_pokeuser(struct thread *td, pid_t pid,
+	    void *addr, void *data);
 
 extern bool linux32_emulate_i386;
 #endif /* _KERNEL */

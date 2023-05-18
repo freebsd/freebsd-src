@@ -751,3 +751,12 @@ linux_ptrace_peekuser(struct thread *td, pid_t pid, void *addr, void *data)
 	    "returning EINVAL", (uintptr_t)addr);
 	return (EINVAL);
 }
+
+int
+linux_ptrace_pokeuser(struct thread *td, pid_t pid, void *addr, void *data)
+{
+
+	LINUX_RATELIMIT_MSG_OPT1("PTRACE_POKEUSER offset %ld "
+	    "not implemented; returning EINVAL", (uintptr_t)addr);
+	return (EINVAL);
+}
