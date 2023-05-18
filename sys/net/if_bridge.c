@@ -2940,12 +2940,12 @@ bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst, uint16_t vlan,
 		memcpy(brt->brt_addr, dst, ETHER_ADDR_LEN);
 		brt->brt_vlan = vlan;
 
+		brt->brt_dst = bif;
 		if ((error = bridge_rtnode_insert(sc, brt)) != 0) {
 			uma_zfree(V_bridge_rtnode_zone, brt);
 			BRIDGE_RT_UNLOCK(sc);
 			return (error);
 		}
-		brt->brt_dst = bif;
 		bif->bif_addrcnt++;
 
 		BRIDGE_RT_UNLOCK(sc);
@@ -2953,6 +2953,8 @@ bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst, uint16_t vlan,
 
 	if ((brt->brt_flags & IFBAF_TYPEMASK) == IFBAF_DYNAMIC &&
 	    (obif = brt->brt_dst) != bif) {
+		MPASS(obif != NULL);
+
 		BRIDGE_RT_LOCK(sc);
 		brt->brt_dst->bif_addrcnt--;
 		brt->brt_dst = bif;
