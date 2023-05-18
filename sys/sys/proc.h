@@ -271,11 +271,11 @@ struct thread {
 	const char	*td_wmesg;	/* (t) Reason for sleep. */
 	volatile u_char td_owepreempt;  /* (k*) Preempt on last critical_exit */
 	u_char		td_tsqueue;	/* (t) Turnstile queue blocked on. */
+	u_char		td_stopsched;	/* (k) Scheduler stopped. */
 	short		td_locks;	/* (k) Debug: count of non-spin locks */
 	short		td_rw_rlocks;	/* (k) Count of rwlock read locks. */
 	short		td_sx_slocks;	/* (k) Count of sx shared locks. */
 	short		td_lk_slocks;	/* (k) Count of lockmgr shared locks. */
-	short		td_stopsched;	/* (k) Scheduler stopped. */
 	struct turnstile *td_blocked;	/* (t) Lock thread is blocked on. */
 	const char	*td_lockname;	/* (t) Name of lock blocked on. */
 	LIST_HEAD(, turnstile) td_contested;	/* (q) Contested locks. */
