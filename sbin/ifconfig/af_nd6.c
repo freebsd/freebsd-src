@@ -99,7 +99,7 @@ void
 setnd6defif(if_ctx *ctx, const char *dummyaddr __unused, int d)
 {
 	struct in6_ndifreq ndifreq = {};
-	int ifindex;
+	unsigned int ifindex;
 	int error;
 
 	strlcpy(ndifreq.ifname, ctx->ifname, sizeof(ndifreq.ifname));

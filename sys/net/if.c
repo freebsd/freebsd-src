@@ -151,7 +151,7 @@ struct ifreq32 {
 		int		ifru_media;
 		uint32_t	ifru_data;
 		int		ifru_cap[2];
-		u_int		ifru_fib;
+		unsigned int		ifru_fib;
 		u_char		ifru_vlan_pcp;
 	} ifr_ifru;
 };
@@ -179,7 +179,7 @@ struct ifdrv32 {
 
 struct ifgroupreq32 {
 	char	ifgr_name[IFNAMSIZ];
-	u_int	ifgr_len;
+	unsigned int	ifgr_len;
 	union {
 		char		ifgru_group[IFNAMSIZ];
 		uint32_t	ifgru_groups;
@@ -366,7 +366,7 @@ MALLOC_DEFINE(M_IFADDR, "ifaddr", "interface address");
 MALLOC_DEFINE(M_IFMADDR, "ether_multi", "link-level multicast address");
 
 struct ifnet *
-ifnet_byindex(u_int idx)
+ifnet_byindex(unsigned int idx)
 {
 	struct ifnet *ifp;
 
@@ -384,7 +384,7 @@ ifnet_byindex(u_int idx)
 }
 
 struct ifnet *
-ifnet_byindex_ref(u_int idx)
+ifnet_byindex_ref(unsigned int idx)
 {
 	struct ifnet *ifp;
 
@@ -699,7 +699,7 @@ if_free(struct ifnet *ifp)
 void
 if_ref(struct ifnet *ifp)
 {
-	u_int old __diagused;
+	unsigned int old __diagused;
 
 	/* We don't assert the ifnet list lock here, but arguably should. */
 	old = refcount_acquire(&ifp->if_refcount);
@@ -1267,7 +1267,7 @@ static int
 if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 {
 #ifdef DEV_BPF
-	u_int bif_dlt, bif_hdrlen;
+	unsigned int bif_dlt, bif_hdrlen;
 #endif
 	int rc;
 
@@ -1601,7 +1601,8 @@ if_delgroups(struct ifnet *ifp)
 static int
 if_getgroup(struct ifgroupreq *ifgr, struct ifnet *ifp)
 {
-	int			 len, error;
+	unsigned int 		 len;
+	int 				 error;
 	struct ifg_list		*ifgl;
 	struct ifg_req		 ifgrq, *ifgp;
 
@@ -1640,7 +1641,8 @@ if_getgroupmembers(struct ifgroupreq *ifgr)
 	struct ifg_group	*ifg;
 	struct ifg_member	*ifgm;
 	struct ifg_req		 ifgrq, *ifgp;
-	int			 len, error;
+	unsigned int len;
+	int error;
 
 	IFNET_RLOCK();
 	CK_STAILQ_FOREACH(ifg, &V_ifg_head, ifg_next)
@@ -1782,7 +1784,7 @@ fail:
 void
 ifa_ref(struct ifaddr *ifa)
 {
-	u_int old __diagused;
+	unsigned int old __diagused;
 
 	old = refcount_acquire(&ifa->ifa_refcnt);
 	KASSERT(old > 0, ("%s: ifa %p has 0 refs", __func__, ifa));
@@ -1945,7 +1947,7 @@ ifa_ifwithnet(const struct sockaddr *addr, int ignore_ptp, int fibnum)
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 	struct ifaddr *ifa_maybe = NULL;
-	u_int af = addr->sa_family;
+	unsigned int af = addr->sa_family;
 	const char *addr_data = addr->sa_data, *cplim;
 
 	NET_EPOCH_ASSERT();
@@ -2037,7 +2039,7 @@ ifaof_ifpforaddr(const struct sockaddr *addr, struct ifnet *ifp)
 	const char *cp, *cp2, *cp3;
 	char *cplim;
 	struct ifaddr *ifa_maybe = NULL;
-	u_int af = addr->sa_family;
+	unsigned int af = addr->sa_family;
 
 	if (af >= AF_MAX)
 		return (NULL);
@@ -3884,7 +3886,7 @@ if_delmulti_locked(struct ifnet *ifp, struct ifmultiaddr *ifma, int detaching)
  * Set noinline to be dtrace-friendly
  */
 __noinline int
-if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
+if_setlladdr(struct ifnet *ifp, const u_char *lladdr, unsigned int len)
 {
 	struct sockaddr_dl *sdl;
 	struct ifaddr *ifa;
@@ -4500,12 +4502,12 @@ if_getmtu_family(const if_t ifp, int family)
  * link level addresses.  Driver shall not know 'struct ifaddr' neither
  * 'struct ifmultiaddr'.
  */
-u_int
+unsigned int
 if_lladdr_count(if_t ifp)
 {
 	struct epoch_tracker et;
 	struct ifaddr *ifa;
-	u_int count;
+	unsigned int count;
 
 	count = 0;
 	NET_EPOCH_ENTER(et);
@@ -4637,12 +4639,12 @@ if_iter_finish(struct if_iter *iter)
 	/* Nothing to do here for now. */
 }
 
-u_int
+unsigned int
 if_foreach_lladdr(if_t ifp, iflladdr_cb_t cb, void *cb_arg)
 {
 	struct epoch_tracker et;
 	struct ifaddr *ifa;
-	u_int count;
+	unsigned int count;
 
 	MPASS(cb);
 
@@ -4659,7 +4661,7 @@ if_foreach_lladdr(if_t ifp, iflladdr_cb_t cb, void *cb_arg)
 	return (count);
 }
 
-u_int
+unsigned int
 if_llmaddr_count(if_t ifp)
 {
 	struct epoch_tracker et;
@@ -4683,12 +4685,12 @@ if_maddr_empty(if_t ifp)
 	return (CK_STAILQ_EMPTY(&ifp->if_multiaddrs));
 }
 
-u_int
+unsigned int
 if_foreach_llmaddr(if_t ifp, iflladdr_cb_t cb, void *cb_arg)
 {
 	struct epoch_tracker et;
 	struct ifmultiaddr *ifma;
-	u_int count;
+	unsigned int count;
 
 	MPASS(cb);
 
@@ -4705,12 +4707,12 @@ if_foreach_llmaddr(if_t ifp, iflladdr_cb_t cb, void *cb_arg)
 	return (count);
 }
 
-u_int
+unsigned int
 if_foreach_addr_type(if_t ifp, int type, if_addr_cb_t cb, void *cb_arg)
 {
 	struct epoch_tracker et;
 	struct ifaddr *ifa;
-	u_int count;
+	unsigned int count;
 
 	MPASS(cb);
 
@@ -4929,39 +4931,39 @@ if_vlancap(if_t ifp)
 }
 
 int
-if_sethwtsomax(if_t ifp, u_int if_hw_tsomax)
+if_sethwtsomax(if_t ifp, unsigned int if_hw_tsomax)
 {
 	ifp->if_hw_tsomax = if_hw_tsomax;
         return (0);
 }
 
 int
-if_sethwtsomaxsegcount(if_t ifp, u_int if_hw_tsomaxsegcount)
+if_sethwtsomaxsegcount(if_t ifp, unsigned int if_hw_tsomaxsegcount)
 {
 	ifp->if_hw_tsomaxsegcount = if_hw_tsomaxsegcount;
         return (0);
 }
 
 int
-if_sethwtsomaxsegsize(if_t ifp, u_int if_hw_tsomaxsegsize)
+if_sethwtsomaxsegsize(if_t ifp, unsigned int if_hw_tsomaxsegsize)
 {
 	ifp->if_hw_tsomaxsegsize = if_hw_tsomaxsegsize;
         return (0);
 }
 
-u_int
+unsigned int
 if_gethwtsomax(const if_t ifp)
 {
 	return (ifp->if_hw_tsomax);
 }
 
-u_int
+unsigned int
 if_gethwtsomaxsegcount(const if_t ifp)
 {
 	return (ifp->if_hw_tsomaxsegcount);
 }
 
-u_int
+unsigned int
 if_gethwtsomaxsegsize(const if_t ifp)
 {
 	return (ifp->if_hw_tsomaxsegsize);
@@ -5144,7 +5146,7 @@ if_getafdata(if_t ifp, int af)
 	return (ifp->if_afdata[af]);
 }
 
-u_int
+unsigned int
 if_getfib(if_t ifp)
 {
 	return (ifp->if_fib);

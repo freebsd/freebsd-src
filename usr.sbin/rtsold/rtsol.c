@@ -164,7 +164,8 @@ rtsol_input(int sock)
 	struct msghdr hdr;
 	struct sockaddr_in6 from;
 	char answer[1500], ntopbuf[INET6_ADDRSTRLEN], ifnamebuf[IFNAMSIZ];
-	int l, ifindex = 0, *hlimp = NULL;
+	int l, *hlimp = NULL;
+	unsigned int ifindex = 0;
 	ssize_t msglen;
 	struct in6_pktinfo *pi = NULL;
 	struct ifinfo *ifi = NULL;

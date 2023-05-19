@@ -141,8 +141,8 @@ rr_pco_check(int len, struct rr_pco_match *rpm)
 }
 
 static void
-do_use_prefix(int len, struct rr_pco_match *rpm,
-	struct in6_rrenumreq *irr, int ifindex)
+do_use_prefix(size_t len, struct rr_pco_match *rpm, struct in6_rrenumreq *irr,
+	unsigned int ifindex)
 {
 	struct rr_pco_use *rpu, *rpulim;
 	struct rainfo *rai;
@@ -255,9 +255,9 @@ do_use_prefix(int len, struct rr_pco_match *rpm,
  * return 0 on success, 1 on failure
  */
 static int
-do_pco(struct icmp6_router_renum *rr, int len, struct rr_pco_match *rpm)
+do_pco(struct icmp6_router_renum *rr, size_t len, struct rr_pco_match *rpm)
 {
-	int ifindex = 0;
+	unsigned int ifindex = 0;
 	struct in6_rrenumreq irr;
 	struct ifinfo *ifi;
 	
@@ -312,7 +312,7 @@ do_pco(struct icmp6_router_renum *rr, int len, struct rr_pco_match *rpm)
  * return 0 on success, 1 on failure
  */
 static int
-do_rr(int len, struct icmp6_router_renum *rr)
+do_rr(size_t len, struct icmp6_router_renum *rr)
 {
 	struct rr_pco_match *rpm;
 	char *cp, *lim;
@@ -324,12 +324,12 @@ do_rr(int len, struct icmp6_router_renum *rr)
 	update_ifinfo(&ifilist, UPDATE_IFINFO_ALL);
 
 	while (cp < lim) {
-		int rpmlen;
+		size_t rpmlen;
 
 		rpm = (struct rr_pco_match *)cp;
-		if ((size_t)len < sizeof(struct rr_pco_match)) {
+		if (len < sizeof(struct rr_pco_match)) {
 		    tooshort:
-			syslog(LOG_ERR, "<%s> pkt too short. left len = %d. "
+			syslog(LOG_ERR, "<%s> pkt too short. left len = %zu. "
 			    "garbage at end of pkt?", __func__, len);
 			return (1);
 		}
@@ -355,7 +355,7 @@ do_rr(int len, struct icmp6_router_renum *rr)
  * return 0 on success, 1 on failure
  */
 static int
-rr_command_check(int len, struct icmp6_router_renum *rr, struct in6_addr *from,
+rr_command_check(size_t len, struct icmp6_router_renum *rr, struct in6_addr *from,
 	struct in6_addr *dst)
 {
 	u_char ntopbuf[INET6_ADDRSTRLEN];
@@ -364,7 +364,7 @@ rr_command_check(int len, struct icmp6_router_renum *rr, struct in6_addr *from,
 	/* rr_command length check */
 	if ((size_t)len < (sizeof(struct icmp6_router_renum) +
 	    sizeof(struct rr_pco_match))) {
-		syslog(LOG_ERR,	"<%s> rr_command len %d is too short",
+		syslog(LOG_ERR,	"<%s> rr_command len %zu is too short",
 		    __func__, len);
 		return (1);
 	}
@@ -411,7 +411,7 @@ rr_command_check(int len, struct icmp6_router_renum *rr, struct in6_addr *from,
 }
 
 static void
-rr_command_input(int len, struct icmp6_router_renum *rr,
+rr_command_input(size_t len, struct icmp6_router_renum *rr,
 	struct in6_addr *from, struct in6_addr *dst)
 {
 	/* rr_command validity check */
@@ -436,7 +436,7 @@ rr_command_input(int len, struct icmp6_router_renum *rr,
 }
 
 void
-rr_input(int len, struct icmp6_router_renum *rr, struct in6_pktinfo *pi,
+rr_input(size_t len, struct icmp6_router_renum *rr, struct in6_pktinfo *pi,
 	struct sockaddr_in6 *from, struct in6_addr *dst)
 {
 	u_char ntopbuf[2][INET6_ADDRSTRLEN], ifnamebuf[IFNAMSIZ];
@@ -449,9 +449,9 @@ rr_input(int len, struct icmp6_router_renum *rr, struct in6_pktinfo *pi,
 	    if_indextoname(pi->ipi6_ifindex, ifnamebuf));
 
 	/* packet validation based on Section 4.1 of RFC2894 */
-	if ((size_t)len < sizeof(struct icmp6_router_renum)) {
+	if (len < sizeof(struct icmp6_router_renum)) {
 		syslog(LOG_NOTICE,
-		    "<%s>: RR short message (size %d) from %s to %s on %s",
+		    "<%s>: RR short message (size %zu) from %s to %s on %s",
 		    __func__, len,
 		    inet_ntop(AF_INET6, &from->sin6_addr, ntopbuf[0],
 			sizeof(ntopbuf[0])),

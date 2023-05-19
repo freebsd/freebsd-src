@@ -350,8 +350,8 @@ print_groups(ifconfig_handle_t *lifh, struct ifaddrs *ifa)
 {
 	struct ifgroupreq ifgr;
 	struct ifg_req *ifg;
-	int len;
-	int cnt = 0;
+	unsigned int len;
+	unsigned int cnt = 0;
 
 	if (ifconfig_get_groups(lifh, ifa->ifa_name, &ifgr) != 0) {
 		err(1, "Failed to get groups");

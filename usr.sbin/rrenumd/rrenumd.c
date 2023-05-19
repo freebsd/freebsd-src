@@ -486,7 +486,7 @@ rrenum_snd_fullsequence()
 static void
 rrenum_input(int s)
 {
-	int i;
+	ssize_t i;
 	struct icmp6_router_renum *rr;
 
 	/* get message */
@@ -498,8 +498,8 @@ rrenum_input(int s)
 	if (s == s4)
 		i -= sizeof(struct ip);
 	if (i < sizeof(struct icmp6_router_renum)) {
-		syslog(LOG_ERR, "<%s> packet size(%d) is too short",
-		       __func__, i);
+		syslog(LOG_ERR, "<%s> packet size(%zd) is too short", __func__,
+		    i);
 		return;
 	}
 	if (s == s4) {

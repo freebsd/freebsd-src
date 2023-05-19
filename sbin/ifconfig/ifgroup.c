@@ -83,13 +83,13 @@ static void
 getifgroups(if_ctx *ctx)
 {
 	struct ifgroupreq ifgr;
-	size_t cnt;
+	size_t cnt, size;
 
 	if (ifconfig_get_groups(lifh, ctx->ifname, &ifgr) == -1)
 		return;
 
-	cnt = 0;
-	for (size_t i = 0; i < ifgr.ifgr_len / sizeof(struct ifg_req); ++i) {
+	size = ifgr.ifgr_len / sizeof(struct ifg_req);
+	for (size_t i = cnt = 0; i < size; ++i) {
 		struct ifg_req *ifg = &ifgr.ifgr_groups[i];
 
 		if (strcmp(ifg->ifgrq_group, "all")) {
@@ -108,7 +108,7 @@ getifgroups(if_ctx *ctx)
 static void
 printgroup(const char *groupname)
 {
-	struct ifgroupreq	 ifgr;
+	struct ifgroupreq	ifgr;
 	struct ifg_req		*ifg;
 	unsigned int		 len;
 	int			 s;

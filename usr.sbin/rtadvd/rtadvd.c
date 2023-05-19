@@ -153,13 +153,13 @@ static void	rtadvd_shutdown(void);
 static void	sock_open(struct sockinfo *);
 static void	rtsock_open(struct sockinfo *);
 static void	rtadvd_input(struct sockinfo *);
-static void	rs_input(int, struct nd_router_solicit *,
+static void	rs_input(size_t, struct nd_router_solicit *,
 		    struct in6_pktinfo *, struct sockaddr_in6 *);
-static void	ra_input(int, struct nd_router_advert *,
+static void	ra_input(size_t, struct nd_router_advert *,
 		    struct in6_pktinfo *, struct sockaddr_in6 *);
 static int	prefix_check(struct nd_opt_prefix_info *, struct rainfo *,
 		    struct sockaddr_in6 *);
-static int	nd6_options(struct nd_opt_hdr *, int,
+static int	nd6_options(struct nd_opt_hdr *, size_t,
 		    union nd_opt *, uint32_t);
 static void	free_ndopts(union nd_opt *);
 static void	rtmsg_input(struct sockinfo *);
@@ -458,7 +458,8 @@ rtadvd_shutdown(void)
 static void
 rtmsg_input(struct sockinfo *s)
 {
-	int n, type, ifindex = 0, plen;
+	int type, ifindex = 0, plen;
+	ssize_t n;
 	size_t len;
 	char msg[2048], *next, *lim;
 	char ifname[IFNAMSIZ];
@@ -476,9 +477,13 @@ rtmsg_input(struct sockinfo *s)
 		exit(1);
 	}
 	n = read(s->si_fd, msg, sizeof(msg));
+	if (n < 0) {
+		syslog(LOG_ERR, "<%s> internal error", __func__);
+		exit(1);
+	}
 	rtm = (struct rt_msghdr *)msg;
 	syslog(LOG_DEBUG, "<%s> received a routing message "
-	    "(type = %d, len = %d)", __func__, rtm->rtm_type, n);
+	    "(type = %d, len = %zd)", __func__, rtm->rtm_type, n);
 
 	if (n > rtm->rtm_msglen) {
 		/*
@@ -488,7 +493,7 @@ rtmsg_input(struct sockinfo *s)
 		syslog(LOG_DEBUG,
 		    "<%s> received data length is larger than "
 		    "1st routing message len. multiple messages? "
-		    "read %d bytes, but 1st msg len = %d",
+		    "read %zd bytes, but 1st msg len = %d",
 		    __func__, n, rtm->rtm_msglen);
 #if 0
 		/* adjust length */
@@ -517,10 +522,10 @@ rtmsg_input(struct sockinfo *s)
 			break;
 		case RTM_NEWADDR:
 		case RTM_DELADDR:
-			ifindex = (int)((struct ifa_msghdr *)next)->ifam_index;
+			ifindex = (unsigned int)((struct ifa_msghdr *)next)->ifam_index;
 			break;
 		case RTM_IFINFO:
-			ifindex = (int)((struct if_msghdr *)next)->ifm_index;
+			ifindex = (unsigned int)((struct if_msghdr *)next)->ifm_index;
 			break;
 		case RTM_IFANNOUNCE:
 			ifan = (struct if_announcemsghdr *)next;
@@ -574,8 +579,8 @@ rtmsg_input(struct sockinfo *s)
 		ifi = if_indextoifinfo(ifindex);
 		if (ifi == NULL) {
 			syslog(LOG_DEBUG,
-			    "<%s> ifinfo not found for idx=%d.  Why?",
-			    __func__, ifindex);
+			    "<%s> ifinfo not found for idx=%u.  Why?", __func__,
+			    ifindex);
 			continue;
 		}
 		rai = ifi->ifi_rainfo;
@@ -712,7 +717,8 @@ rtmsg_input(struct sockinfo *s)
 void
 rtadvd_input(struct sockinfo *s)
 {
-	ssize_t i;
+	ssize_t temp;
+	size_t i;
 	int *hlimp = NULL;
 #ifdef OLDRAWSOCKET
 	struct ip6_hdr *ip;
@@ -737,8 +743,10 @@ rtadvd_input(struct sockinfo *s)
 	 * receive options.
 	 */
 	rcvmhdr.msg_controllen = rcvcmsgbuflen;
-	if ((i = recvmsg(s->si_fd, &rcvmhdr, 0)) < 0)
+	if ((temp = recvmsg(s->si_fd, &rcvmhdr, 0)) < 0)
 		return;
+	
+	i = (size_t)temp;
 
 	/* extract optional information via Advanced API */
 	for (cm = (struct cmsghdr *)CMSG_FIRSTHDR(&rcvmhdr);
@@ -779,17 +787,17 @@ rtadvd_input(struct sockinfo *s)
 	}
 
 #ifdef OLDRAWSOCKET
-	if ((size_t)i < sizeof(struct ip6_hdr) + sizeof(struct icmp6_hdr)) {
+	if (i < sizeof(struct ip6_hdr) + sizeof(struct icmp6_hdr)) {
 		syslog(LOG_ERR,
-		    "packet size(%d) is too short", i);
+		    "packet size(%zu) is too short", i);
 		return;
 	}
 
 	ip = (struct ip6_hdr *)rcvmhdr.msg_iov[0].iov_base;
 	icp = (struct icmp6_hdr *)(ip + 1); /* XXX: ext. hdr? */
 #else
-	if ((size_t)i < sizeof(struct icmp6_hdr)) {
-		syslog(LOG_ERR, "packet size(%zd) is too short", i);
+	if (i < sizeof(struct icmp6_hdr)) {
+		syslog(LOG_ERR, "packet size(%zu) is too short", i);
 		return;
 	}
 
@@ -823,10 +831,10 @@ rtadvd_input(struct sockinfo *s)
 			    if_indextoname(pi->ipi6_ifindex, ifnamebuf));
 			return;
 		}
-		if ((size_t)i < sizeof(struct nd_router_solicit)) {
+		if (i < sizeof(struct nd_router_solicit)) {
 			syslog(LOG_NOTICE,
 			    "RS from %s on %s does not have enough "
-			    "length (len = %zd)",
+			    "length (len = %zu)",
 			    inet_ntop(AF_INET6, &rcvfrom.sin6_addr, ntopbuf,
 			    sizeof(ntopbuf)),
 			    if_indextoname(pi->ipi6_ifindex, ifnamebuf), i);
@@ -868,10 +876,10 @@ rtadvd_input(struct sockinfo *s)
 			    if_indextoname(pi->ipi6_ifindex, ifnamebuf));
 			return;
 		}
-		if ((size_t)i < sizeof(struct nd_router_advert)) {
+		if (i < sizeof(struct nd_router_advert)) {
 			syslog(LOG_NOTICE,
 			    "RA from %s on %s does not have enough "
-			    "length (len = %zd)",
+			    "length (len = %zu)",
 			    inet_ntop(AF_INET6, &rcvfrom.sin6_addr, ntopbuf,
 			    sizeof(ntopbuf)),
 			    if_indextoname(pi->ipi6_ifindex, ifnamebuf), i);
@@ -903,7 +911,7 @@ rtadvd_input(struct sockinfo *s)
 }
 
 static void
-rs_input(int len, struct nd_router_solicit *rs,
+rs_input(size_t len, struct nd_router_solicit *rs,
 	 struct in6_pktinfo *pi, struct sockaddr_in6 *from)
 {
 	char ntopbuf[INET6_ADDRSTRLEN];
@@ -1066,7 +1074,7 @@ check_accept_rtadv(int idx)
 }
 
 static void
-ra_input(int len, struct nd_router_advert *nra,
+ra_input(size_t len, struct nd_router_advert *nra,
 	 struct in6_pktinfo *pi, struct sockaddr_in6 *from)
 {
 	struct rainfo *rai;
@@ -1227,7 +1235,7 @@ ra_input(int len, struct nd_router_advert *nra,
 static uint32_t
 udiff(uint32_t u, uint32_t v)
 {
-	return (u >= v ? u - v : v - u);
+	return (u > v ? u - v : v - u);
 }
 
 /* return a non-zero value if the received prefix is inconsistent with ours */
@@ -1409,13 +1417,13 @@ prefix_match(struct in6_addr *p0, int plen0,
 }
 
 static int
-nd6_options(struct nd_opt_hdr *hdr, int limit,
+nd6_options(struct nd_opt_hdr *hdr, size_t limit,
 	union nd_opt *ndopts, uint32_t optflags)
 {
-	int optlen = 0;
+	size_t optlen = 0;
 
 	for (; limit > 0; limit -= optlen) {
-		if ((size_t)limit < sizeof(struct nd_opt_hdr)) {
+		if (limit < sizeof(struct nd_opt_hdr)) {
 			syslog(LOG_INFO, "<%s> short option header", __func__);
 			goto bad;
 		}
@@ -1633,7 +1641,7 @@ rtsock_open(struct sockinfo *s)
 }
 
 struct ifinfo *
-if_indextoifinfo(int idx)
+if_indextoifinfo(unsigned int idx)
 {
 	struct ifinfo *ifi;
 	char *name, name0[IFNAMSIZ];
@@ -1648,11 +1656,9 @@ if_indextoifinfo(int idx)
 	}
 
 	if (ifi != NULL)
-		syslog(LOG_DEBUG, "<%s> ifi found (idx=%d)",
-		    __func__, idx);
+		syslog(LOG_DEBUG, "<%s> ifi found (idx=%u)", __func__, idx);
 	else
-		syslog(LOG_DEBUG, "<%s> ifi not found (idx=%d)",
-		    __func__, idx);
+		syslog(LOG_DEBUG, "<%s> ifi not found (idx=%u)", __func__, idx);
 
 	return (NULL);		/* search failed */
 }
@@ -1660,7 +1666,7 @@ if_indextoifinfo(int idx)
 void
 ra_output(struct ifinfo *ifi)
 {
-	int i;
+	ssize_t i;
 	struct cmsghdr *cm;
 	struct in6_pktinfo *pi;
 	struct soliciter *sol;
@@ -1764,12 +1770,10 @@ ra_output(struct ifinfo *ifi)
 
 	i = sendmsg(sock.si_fd, &sndmhdr, 0);
 
-	if (i < 0 || (size_t)i != rai->rai_ra_datalen)  {
-		if (i < 0) {
-			syslog(LOG_ERR, "<%s> sendmsg on %s: %s",
-			    __func__, ifi->ifi_ifname,
-			    strerror(errno));
-		}
+	if (i < 0) {
+		syslog(LOG_ERR, "<%s> sendmsg on %s: %s", __func__,
+			ifi->ifi_ifname, strerror(errno));
+		return;
 	}
 
 	/*

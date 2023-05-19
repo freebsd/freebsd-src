@@ -2658,7 +2658,7 @@ rt_entry(struct rt_msghdr *rtm, int again)
 	char	*rtmp, *ifname = NULL;
 	struct	riprt *rrt, *orrt;
 	struct	netinfo6 *np;
-	int ifindex;
+	unsigned int ifindex;
 
 	sin6_dst = sin6_gw = sin6_mask = sin6_genmask = sin6_ifp = 0;
 	if ((rtm->rtm_flags & RTF_UP) == 0 || rtm->rtm_flags &
@@ -2774,14 +2774,14 @@ rt_entry(struct rt_msghdr *rtm, int again)
 
 	/* Interface */
 	ifindex = rtm->rtm_index;
-	if ((unsigned int)ifindex < nindex2ifc && index2ifc[ifindex])
+	if (ifindex < nindex2ifc && index2ifc[ifindex])
 		ifname = index2ifc[ifindex]->ifc_name;
 	else {
 		trace(1, " not configured\n");
 		free(rrt);
 		return;
 	}
-	trace(1, " if %s sock %d", ifname, ifindex);
+	trace(1, " if %s sock %u", ifname, ifindex);
 	rrt->rrt_index = ifindex;
 
 	trace(1, "\n");

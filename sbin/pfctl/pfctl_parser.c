@@ -1340,7 +1340,8 @@ static struct node_host	*iftab;
 static void
 ifa_add_groups_to_map(char *ifa_name)
 {
-	int			 s, len;
+	int					 s;
+	unsigned int		 len;
 	struct ifgroupreq	 ifgr;
 	struct ifg_req		*ifg;
 
@@ -1368,14 +1369,14 @@ ifa_add_groups_to_map(char *ifa_name)
 		if (strcmp(ifg->ifgrq_group, "all")) {
 			ENTRY	 		 item;
 			ENTRY			*ret_item;
-			int			*answer;
-	
+			unsigned int	*answer;
+
 			item.key = ifg->ifgrq_group;
 			if (hsearch_r(item, FIND, &ret_item, &isgroup_map) == 0) {
 				struct ifgroupreq	 ifgr2;
 
 				/* Don't know the answer yet */
-				if ((answer = malloc(sizeof(int))) == NULL)
+				if ((answer = malloc(sizeof(unsigned int))) == NULL)
 					err(1, "malloc");
 
 				bzero(&ifgr2, sizeof(ifgr2));
@@ -1520,7 +1521,7 @@ get_query_socket(void)
 /*
  * Returns the response len if the name is a group, otherwise returns 0.
  */
-static int
+static u_int
 is_a_group(char *name)
 {
 	ENTRY	 		 item;
@@ -1530,7 +1531,7 @@ is_a_group(char *name)
 	if (hsearch_r(item, FIND, &ret_item, &isgroup_map) == 0)
 		return (0);
 
-	return (*(int *)ret_item->data);
+	return (*(u_int *)ret_item->data);
 }
 
 struct node_host *
@@ -1563,8 +1564,9 @@ struct node_host *
 ifa_grouplookup(char *ifa_name, int flags)
 {
 	struct ifg_req		*ifg;
-	struct ifgroupreq	 ifgr;
-	int			 s, len;
+	struct ifgroupreq	ifgr;
+	int 				s;
+	unsigned int 		len;
 	struct node_host	*n, *h = NULL;
 
 	s = get_query_socket();
@@ -1685,7 +1687,7 @@ ifa_lookup(char *ifa_name, int flags)
 int
 ifa_skip_if(const char *filter, struct node_host *p)
 {
-	int	n;
+	size_t n;
 
 	if (p->af != AF_INET && p->af != AF_INET6)
 		return (1);
@@ -1694,7 +1696,7 @@ ifa_skip_if(const char *filter, struct node_host *p)
 	if (!strcmp(p->ifname, filter))
 		return (0);	/* exact match */
 	n = strlen(filter);
-	if (n < 1 || n >= IFNAMSIZ)
+	if (n == 0 || n >= IFNAMSIZ)
 		return (1);	/* sanity check */
 	if (filter[n-1] >= '0' && filter[n-1] <= '9')
 		return (1);	/* only do exact match in that case */
@@ -1712,7 +1714,7 @@ host(const char *s)
 	char			*p, *q, *ps;
 
 	if ((p = strrchr(s, '/')) != NULL) {
-		mask = strtol(p+1, &q, 0);
+		mask = (int)strtol(p+1, &q, 0);
 		if (!q || *q || mask > 128 || q == (p+1)) {
 			fprintf(stderr, "invalid netmask '%s'\n", p);
 			return (NULL);

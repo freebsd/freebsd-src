@@ -136,7 +136,7 @@ static int set(int, char **);
 static void get(char *);
 static int delete(char *);
 static int dump(struct sockaddr_in6 *, int);
-static struct in6_nbrinfo *getnbrinfo(struct in6_addr *, int, int);
+static struct in6_nbrinfo *getnbrinfo(struct in6_addr *, unsigned int, int);
 static int ndp_ether_aton(char *, u_char *);
 static void usage(void);
 static void ifinfo(char *, int, char **);
@@ -859,7 +859,7 @@ dump(struct sockaddr_in6 *addr, int cflag)
 }
 
 static struct in6_nbrinfo *
-getnbrinfo(struct in6_addr *addr, int ifindex, int warning)
+getnbrinfo(struct in6_addr *addr, unsigned int ifindex, int warning)
 {
 	static struct in6_nbrinfo nbi;
 	int sock;

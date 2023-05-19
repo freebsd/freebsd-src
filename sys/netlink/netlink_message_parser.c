@@ -480,7 +480,7 @@ nlattr_get_nested(struct nlattr *nla, struct nl_pstate *npt, const void *arg, vo
 int
 nlf_get_ifp(void *src, struct nl_pstate *npt, void *target)
 {
-	int ifindex = *((const int *)src);
+	unsigned int ifindex = *((const unsigned int *)src);
 
 	NET_EPOCH_ASSERT();
 

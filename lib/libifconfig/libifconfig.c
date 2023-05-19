@@ -494,7 +494,7 @@ int
 ifconfig_get_groups(ifconfig_handle_t *h, const char *name,
     struct ifgroupreq *ifgr)
 {
-	int len;
+	unsigned int len;
 
 	memset(ifgr, 0, sizeof(*ifgr));
 	strlcpy(ifgr->ifgr_name, name, IFNAMSIZ);

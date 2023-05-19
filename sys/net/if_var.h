@@ -517,7 +517,7 @@ int	if_log(if_t, int, const char *, ...) __printflike(3, 4);
 void	if_ref(if_t);
 void	if_rele(if_t);
 bool	__result_use_check if_try_ref(if_t);
-int	if_setlladdr(if_t, const u_char *, int);
+int	if_setlladdr(if_t, const u_char *, unsigned int);
 int	if_tunnel_check_nesting(if_t, struct mbuf *, uint32_t, int);
 void	if_up(if_t);
 int	ifioctl(struct socket *, u_long, caddr_t, struct thread *);

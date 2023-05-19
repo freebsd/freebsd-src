@@ -46,18 +46,18 @@ extern struct sockinfo ctrlsock;
 int lladdropt_length(struct sockaddr_dl *);
 void lladdropt_fill(struct sockaddr_dl *, struct nd_opt_hdr *);
 int rtbuf_len(void);
-char *get_next_msg(char *, char *, int, size_t *, int);
+char *get_next_msg(char *, char *, unsigned int, size_t *, int);
 struct in6_addr *get_addr(char *);
-int get_rtm_ifindex(char *);
+unsigned int get_rtm_ifindex(char *);
 int get_prefixlen(char *);
 int prefixlen(unsigned char *, unsigned char *);
 
-struct ifinfo	*update_ifinfo(struct ifilist_head_t *, int);
+struct ifinfo	*update_ifinfo(struct ifilist_head_t *, unsigned int);
 int		update_ifinfo_nd_flags(struct ifinfo *);
 struct ifinfo	*update_persist_ifinfo(struct ifilist_head_t *,
 			const char *);
 
-int		sock_mc_join(struct sockinfo *, int);
-int		sock_mc_leave(struct sockinfo *, int);
+int		sock_mc_join(struct sockinfo *, unsigned int);
+int		sock_mc_leave(struct sockinfo *, unsigned int);
 int		sock_mc_rr_update(struct sockinfo *, char *);
 int		getinet6sysctl(int);

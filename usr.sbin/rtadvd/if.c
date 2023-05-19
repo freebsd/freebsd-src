@@ -164,7 +164,7 @@ rtbuf_len(void)
 #define SIN6(s) ((struct sockaddr_in6 *)(s))
 #define SDL(s) ((struct sockaddr_dl *)(s))
 char *
-get_next_msg(char *buf, char *lim, int ifindex, size_t *lenp, int filter)
+get_next_msg(char *buf, char *lim, unsigned int ifindex, size_t *lenp, int filter)
 {
 	struct rt_msghdr *rtm;
 	struct ifa_msghdr *ifam;
@@ -269,7 +269,7 @@ get_addr(char *buf)
 	return (&SIN6(rti_info[RTAX_DST])->sin6_addr);
 }
 
-int
+unsigned int
 get_rtm_ifindex(char *buf)
 {
 	struct rt_msghdr *rtm = (struct rt_msghdr *)buf;
@@ -342,7 +342,7 @@ struct ifinfo *
 update_persist_ifinfo(struct ifilist_head_t *ifi_head, const char *ifname)
 {
 	struct ifinfo *ifi;
-	int ifindex;
+	unsigned int ifindex;
 
 	ifi = NULL;
 	ifindex = if_nametoindex(ifname);
@@ -411,7 +411,7 @@ update_ifinfo_nd_flags(struct ifinfo *ifi)
 #define MAX_SYSCTL_TRY 5
 
 struct ifinfo *
-update_ifinfo(struct ifilist_head_t *ifi_head, int ifindex)
+update_ifinfo(struct ifilist_head_t *ifi_head, unsigned int ifindex)
 {
 	struct if_msghdr *ifm;
 	struct ifinfo *ifi = NULL;
@@ -487,7 +487,7 @@ update_ifinfo(struct ifilist_head_t *ifi_head, int ifindex)
 			char ifname[IFNAMSIZ];
 
 			syslog(LOG_DEBUG, "<%s> RTM_IFINFO found. "
-			    "ifm_index = %d, ifindex = %d",
+			    "ifm_index = %d, ifindex = %u",
 			    __func__, ifm->ifm_index, ifindex);
 
 			/* when ifindex is specified */
@@ -656,9 +656,8 @@ getinet6sysctl(int code)
 		return (value);
 }
 
-
 int
-sock_mc_join(struct sockinfo *s, int ifindex)
+sock_mc_join(struct sockinfo *s, unsigned int ifindex)
 {
 	struct ipv6_mreq mreq;
 	char ifname[IFNAMSIZ];
@@ -695,7 +694,7 @@ sock_mc_join(struct sockinfo *s, int ifindex)
 }
 
 int
-sock_mc_leave(struct sockinfo *s, int ifindex)
+sock_mc_leave(struct sockinfo *s, unsigned int ifindex)
 {
 	struct ipv6_mreq mreq;
 	char ifname[IFNAMSIZ];

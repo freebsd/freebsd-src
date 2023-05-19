@@ -782,7 +782,7 @@ list_interfaces_ioctl(if_ctx *ctx)
 	struct ifaddrs *ifap, *sifap, *ifa;
 	struct ifa_order_elt *cur, *tmp;
 	char *namecp = NULL;
-	int ifindex;
+	size_t ifindex;
 	struct ifconfig_args *args = ctx->args;
 
 	if (getifaddrs(&ifap) != 0)
@@ -865,9 +865,9 @@ list_interfaces_ioctl(if_ctx *ctx)
 bool
 group_member(const char *ifname, const char *match, const char *nomatch)
 {
-	static int		 sock = -1;
+	static int			sock = -1;
 
-	struct ifgroupreq	 ifgr;
+	struct ifgroupreq	ifgr;
 	struct ifg_req		*ifg;
 	unsigned int		 len;
 	bool			 matched, nomatched;

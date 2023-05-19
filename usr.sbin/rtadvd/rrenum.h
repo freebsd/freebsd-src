@@ -32,5 +32,5 @@
  * SUCH DAMAGE.
  */
 
-void rr_input(int, struct icmp6_router_renum *, struct in6_pktinfo *,
+void rr_input(size_t, struct icmp6_router_renum *, struct in6_pktinfo *,
 	struct sockaddr_in6 *, struct in6_addr *);

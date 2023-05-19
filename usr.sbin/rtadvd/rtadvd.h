@@ -296,7 +296,7 @@ void			ra_output(struct ifinfo *);
 
 int			prefix_match(struct in6_addr *, int,
 			    struct in6_addr *, int);
-struct ifinfo		*if_indextoifinfo(int);
+struct ifinfo		*if_indextoifinfo(unsigned int);
 struct prefix		*find_prefix(struct rainfo *,
 			    struct in6_addr *, int);
 void			rtadvd_set_reload(int);
