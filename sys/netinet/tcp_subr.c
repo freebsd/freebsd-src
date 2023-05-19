@@ -4649,8 +4649,10 @@ tcp_get_srtt(struct tcpcb *tp, int granularity)
 
 	if (tp->t_tmr_granularity == TCP_TMR_GRANULARITY_USEC)
 		srtt = tp->t_srtt;
-	else if (tp->t_tmr_granularity == TCP_TMR_GRANULARITY_TICKS)
+	else if (tp->t_tmr_granularity == TCP_TMR_GRANULARITY_TICKS) {
+		/* TICKS are stored shifted; unshift for the real TICKS */
 		srtt = tp->t_srtt >> TCP_RTT_SHIFT;
+	}
 	if (tp->t_tmr_granularity == granularity)
 		return (srtt);
 	/* If we reach here they are oppsite what the caller wants */
