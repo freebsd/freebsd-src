@@ -95,7 +95,7 @@ main(int argc, char *argv[])
 	bool Iflag, jflag, Rflag;
 	const char *format;
 	char buf[1024];
-	char *fmt;
+	char *fmt, *outzone = NULL;
 	char *tmp;
 	struct vary *v;
 	const struct vary *badv;
@@ -108,7 +108,7 @@ main(int argc, char *argv[])
 	(void) setlocale(LC_TIME, "");
 	rflag = 0;
 	Iflag = jflag = Rflag = 0;
-	while ((ch = getopt(argc, argv, "f:I::jnRr:uv:")) != -1)
+	while ((ch = getopt(argc, argv, "f:I::jnRr:uv:z:")) != -1)
 		switch((char)ch) {
 		case 'f':
 			fmt = optarg;
@@ -152,6 +152,9 @@ main(int argc, char *argv[])
 		case 'u':		/* do everything in UTC */
 			(void)setenv("TZ", "UTC0", 1);
 			break;
+		case 'z':
+			outzone = optarg;
+			break;
 		case 'v':
 			v = vary_append(v, optarg);
 			break;
@@ -189,6 +192,8 @@ main(int argc, char *argv[])
 		format = *argv + 1;
 	}
 
+	if (outzone != NULL && setenv("TZ", outzone, 1) != 0)
+		err(1, "setenv(TZ)");
 	lt = localtime(&tval);
 	if (lt == NULL)
 		errx(1, "invalid time");
@@ -210,6 +215,7 @@ main(int argc, char *argv[])
 		 * locale.
 		 */
 		setlocale(LC_TIME, "C");
+
 
 	(void)strftime(buf, sizeof(buf), format, lt);
 	printdate(buf);
@@ -385,7 +391,7 @@ usage(void)
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
 	    "usage: date [-jnRu] [-I[date|hours|minutes|seconds]] [-f input_fmt]",
 	    "            "
-	    "[-r filename|seconds] [-v[+|-]val[y|m|w|d|H|M|S]]",
+	    "[ -z output_zone ] [-r filename|seconds] [-v[+|-]val[y|m|w|d|H|M|S]]",
 	    "            "
 	    "[[[[[[cc]yy]mm]dd]HH]MM[.SS] | new_date] [+output_fmt]"
 	    );
