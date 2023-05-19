@@ -883,7 +883,7 @@ pf_reassemble6(struct mbuf **m0, struct ip6_hdr *ip6, struct ip6_frag *fraghdr,
 	/* Take protocol from first fragment header. */
 	m = m_getptr(m, hdrlen + offsetof(struct ip6_frag, ip6f_nxt), &off);
 	KASSERT(m, ("%s: short mbuf chain", __func__));
-	proto = *(mtod(m, caddr_t) + off);
+	proto = *(mtod(m, uint8_t *) + off);
 	m = *m0;
 
 	/* Delete frag6 header */
@@ -967,7 +967,7 @@ pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag,
 		m = m_getptr(m, extoff + offsetof(struct ip6_ext, ip6e_nxt),
 		    &off);
 		KASSERT((m != NULL), ("pf_refragment6: short mbuf chain"));
-		proto = *(mtod(m, caddr_t) + off);
+		proto = *(mtod(m, uint8_t *) + off);
 		*(mtod(m, char *) + off) = IPPROTO_FRAGMENT;
 		m = *m0;
 	} else {

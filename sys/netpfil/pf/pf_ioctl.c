@@ -1447,8 +1447,8 @@ pf_setup_pfsync_matching(struct pf_kruleset *rs)
 
 		if (rs->rules[rs_cnt].inactive.rcount) {
 			rs->rules[rs_cnt].inactive.ptr_array =
-			    malloc(sizeof(caddr_t) *
-			    rs->rules[rs_cnt].inactive.rcount,
+			    mallocarray(rs->rules[rs_cnt].inactive.rcount,
+			    sizeof(struct pf_rule **),
 			    M_TEMP, M_NOWAIT);
 
 			if (!rs->rules[rs_cnt].inactive.ptr_array)
