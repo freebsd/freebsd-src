@@ -444,7 +444,7 @@ htcp_recalc_alpha(struct cc_var *ccv)
 			 */
 			if (V_htcp_rtt_scaling)
 				alpha = max(1, (min(max(HTCP_MINROWE,
-				    (CCV(ccv, t_srtt) << HTCP_SHIFT) /
+				    (tcp_get_srtt(ccv->ccvc.tcp, TCP_TMR_GRANULARITY_TICKS) << HTCP_SHIFT) /
 				    htcp_rtt_ref), HTCP_MAXROWE) * alpha)
 				    >> HTCP_SHIFT);
 
@@ -495,18 +495,18 @@ htcp_record_rtt(struct cc_var *ccv)
 	 * or minrtt is currently equal to its initialised value. Ignore SRTT
 	 * until a min number of samples have been taken.
 	 */
-	if ((CCV(ccv, t_srtt) < htcp_data->minrtt ||
+	if ((tcp_get_srtt(ccv->ccvc.tcp, TCP_TMR_GRANULARITY_TICKS) < htcp_data->minrtt ||
 	    htcp_data->minrtt == TCPTV_SRTTBASE) &&
 	    (CCV(ccv, t_rttupdated) >= HTCP_MIN_RTT_SAMPLES))
-		htcp_data->minrtt = CCV(ccv, t_srtt);
+		htcp_data->minrtt = tcp_get_srtt(ccv->ccvc.tcp, TCP_TMR_GRANULARITY_TICKS);
 
 	/*
 	 * Record the current SRTT as our maxrtt if it's the largest we've
 	 * seen. Ignore SRTT until a min number of samples have been taken.
 	 */
-	if (CCV(ccv, t_srtt) > htcp_data->maxrtt
+	if (tcp_get_srtt(ccv->ccvc.tcp, TCP_TMR_GRANULARITY_TICKS) > htcp_data->maxrtt
 	    && CCV(ccv, t_rttupdated) >= HTCP_MIN_RTT_SAMPLES)
-		htcp_data->maxrtt = CCV(ccv, t_srtt);
+		htcp_data->maxrtt = tcp_get_srtt(ccv->ccvc.tcp, TCP_TMR_GRANULARITY_TICKS);
 }
 
 /*
