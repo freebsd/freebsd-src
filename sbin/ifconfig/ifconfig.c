@@ -910,11 +910,11 @@ group_member(const char *ifname, const char *match, const char *nomatch)
 	matched = false;
 	nomatched = true;
 	for (ifg = ifgr.ifgr_groups; ifg && len >= sizeof(*ifg); ifg++) {
-		len -= sizeof(struct ifg_req);
-		if (match)
-			matched |= !fnmatch(match, ifg->ifgrq_group, 0);
-		if (nomatch)
-			nomatched &= fnmatch(nomatch, ifg->ifgrq_group, 0);
+		len -= sizeof(*ifg);
+		if (match && !matched)
+			matched = !fnmatch(match, ifg->ifgrq_group, 0);
+		if (nomatch && nomatched)
+			nomatched = fnmatch(nomatch, ifg->ifgrq_group, 0);
 	}
 	free(ifgr.ifgr_groups);
 
