@@ -285,6 +285,13 @@ in_set_tunnel(int s, struct addrinfo *srcres, struct addrinfo *dstres)
 		warn("SIOCSIFPHYADDR");
 }
 
+static void
+in_set_vhid(int vhid)
+{
+	in_addreq.ifra_vhid = vhid;
+}
+
+
 static struct afswtch af_inet = {
 	.af_name	= "inet",
 	.af_af		= AF_INET,
@@ -297,6 +304,7 @@ static struct afswtch af_inet = {
 	.af_postproc	= in_postproc,
 	.af_status_tunnel = in_status_tunnel,
 	.af_settunnel	= in_set_tunnel,
+	.af_setvhid	= in_set_vhid,
 	.af_difaddr	= SIOCDIFADDR,
 	.af_aifaddr	= SIOCAIFADDR,
 	.af_ridreq	= &in_ridreq,

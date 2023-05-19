@@ -555,6 +555,12 @@ in6_set_tunnel(int s, struct addrinfo *srcres, struct addrinfo *dstres)
 		warn("SIOCSIFPHYADDR_IN6");
 }
 
+static void
+in6_set_vhid(int vhid)
+{
+	in6_addreq.ifra_vhid = vhid;
+}
+
 static struct cmd inet6_cmds[] = {
 	DEF_CMD_ARG("prefixlen",			setifprefixlen),
 	DEF_CMD("anycast",	IN6_IFF_ANYCAST,	setip6flags),
@@ -605,6 +611,7 @@ static struct afswtch af_inet6 = {
 	.af_postproc	= in6_postproc,
 	.af_status_tunnel = in6_status_tunnel,
 	.af_settunnel	= in6_set_tunnel,
+	.af_setvhid	= in6_set_vhid,
 	.af_difaddr	= SIOCDIFADDR_IN6,
 	.af_aifaddr	= SIOCAIFADDR_IN6,
 	.af_ridreq	= &in6_addreq,

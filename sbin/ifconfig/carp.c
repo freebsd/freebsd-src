@@ -111,31 +111,9 @@ setcarp_vhid(const char *val, int d, int s, const struct afswtch *afp)
 		errx(1, "vhid must be greater than 0 and less than %u",
 		    CARP_MAXVHID);
 
-	switch (afp->af_af) {
-#ifdef INET
-	case AF_INET:
-	    {
-		struct in_aliasreq *ifra;
-
-		ifra = (struct in_aliasreq *)afp->af_addreq;
-		ifra->ifra_vhid = carpr_vhid;
-		break;
-	    }
-#endif
-#ifdef INET6
-	case AF_INET6:
-	    {
-		struct in6_aliasreq *ifra;
-
-		ifra = (struct in6_aliasreq *)afp->af_addreq;
-		ifra->ifra_vhid = carpr_vhid;
-		break;
-	    }
-#endif
-	default:
+	if (afp->af_setvhid == NULL)
 		errx(1, "%s doesn't support carp(4)", afp->af_name);
-	}
-
+	afp->af_setvhid(carpr_vhid);
 	callback_register(setcarp_callback, NULL);
 }
 

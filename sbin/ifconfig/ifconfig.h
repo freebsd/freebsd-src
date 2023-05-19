@@ -161,6 +161,7 @@ struct io_handler {
 	struct snl_state	*ss;	/* NETLINK_ROUTE snl(3) socket */
 };
 
+typedef void af_setvhid_f(int vhid);
 typedef	void af_status_nl_f(struct ifconfig_args *args, struct io_handler *h,
     if_link_t *link, if_addr_t *ifa);
 
@@ -188,6 +189,7 @@ struct afswtch {
 	void		(*af_getprefix)(const char *, int);
 	void		(*af_postproc)(int s, const struct afswtch *,
 			    int newaddr, int ifflags);
+	af_setvhid_f	*af_setvhid;	/* Set CARP vhid for an address */
 	u_long		af_difaddr;	/* set dst if address ioctl */
 	u_long		af_aifaddr;	/* set if address ioctl */
 	void		*af_ridreq;	/* */
