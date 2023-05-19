@@ -128,6 +128,18 @@ snl_attr_get_ipvia(struct snl_state *ss, struct nlattr *nla,
 }
 
 static inline bool
+snl_add_msg_attr_ip4(struct snl_writer *nw, int attrtype, const struct in_addr *addr)
+{
+	return (snl_add_msg_attr(nw, attrtype, 4, addr));
+}
+
+static inline bool
+snl_add_msg_attr_ip6(struct snl_writer *nw, int attrtype, const struct in6_addr *addr)
+{
+	return (snl_add_msg_attr(nw, attrtype, 16, addr));
+}
+
+static inline bool
 snl_add_msg_attr_ip(struct snl_writer *nw, int attrtype, const struct sockaddr *sa)
 {
 	const void *addr;
