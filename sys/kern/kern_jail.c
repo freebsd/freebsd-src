@@ -3035,7 +3035,6 @@ prison_cleanup(struct prison *pr)
 {
 	sx_assert(&allprison_lock, SA_XLOCKED);
 	mtx_assert(&pr->pr_mtx, MA_NOTOWNED);
-	vfs_exjail_delete(pr);
 	shm_remove_prison(pr);
 	(void)osd_jail_call(pr, PR_METHOD_REMOVE, NULL);
 }

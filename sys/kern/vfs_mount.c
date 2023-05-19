@@ -618,11 +618,6 @@ vfs_mount_destroy(struct mount *mp)
 #endif
 	if (mp->mnt_opt != NULL)
 		vfs_freeopts(mp->mnt_opt);
-	if (mp->mnt_exjail != NULL) {
-		atomic_subtract_int(&mp->mnt_exjail->cr_prison->pr_exportcnt,
-		    1);
-		crfree(mp->mnt_exjail);
-	}
 	if (mp->mnt_export != NULL) {
 		vfs_free_addrlist(mp->mnt_export);
 		free(mp->mnt_export, M_MOUNT);
@@ -1241,7 +1236,7 @@ vfs_domount_update(
 			} else
 				export_error = EINVAL;
 			if (export_error == 0)
-				export_error = vfs_export(mp, &export, true);
+				export_error = vfs_export(mp, &export);
 			free(export.ex_groups, M_TEMP);
 			break;
 		case (sizeof(export)):
@@ -1263,7 +1258,7 @@ vfs_domount_update(
 			else
 				export_error = EINVAL;
 			if (export_error == 0)
-				export_error = vfs_export(mp, &export, true);
+				export_error = vfs_export(mp, &export);
 			free(grps, M_TEMP);
 			break;
 		default:
