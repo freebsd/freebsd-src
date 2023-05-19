@@ -570,8 +570,8 @@ cubic_record_rtt(struct cc_var *ccv)
 	/* Ignore srtt until a min number of samples have been taken. */
 	if (CCV(ccv, t_rttupdated) >= CUBIC_MIN_RTT_SAMPLES) {
 		cubic_data = ccv->cc_data;
-		t_srtt_ticks = CCV(ccv, t_srtt) / TCP_RTT_SCALE;
-
+		t_srtt_ticks = tcp_get_srtt(ccv->ccvc.tcp,
+					    TCP_TMR_GRANULARITY_TICKS);
 		/*
 		 * Record the current SRTT as our minrtt if it's the smallest
 		 * we've seen or minrtt is currently equal to its initialised

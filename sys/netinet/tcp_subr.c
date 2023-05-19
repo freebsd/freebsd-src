@@ -4316,7 +4316,7 @@ tcp_http_log_req_info(struct tcpcb *tp, struct http_sendfile_track *http,
 
 		memset(&log.u_bbr, 0, sizeof(log.u_bbr));
 #ifdef TCPHPTS
-		log.u_bbr.inhpts = tcp_in_hpts(tptoinpcb(tp));
+		log.u_bbr.inhpts = tcp_in_hpts(tp);
 #endif
 		log.u_bbr.flex8 = val;
 		log.u_bbr.rttProp = http->timestamp;
@@ -4640,4 +4640,32 @@ tcp_log_socket_option(struct tcpcb *tp, uint32_t option_num, uint32_t option_val
 			l->tlb_flex2 = option_val;
 		}
 	}
+}
+
+uint32_t
+tcp_get_srtt(struct tcpcb *tp, int granularity)
+{
+	uint32_t srtt;
+
+	if (tp->t_tmr_granularity == TCP_TMR_GRANULARITY_USEC)
+		srtt = tp->t_srtt;
+	else if (tp->t_tmr_granularity == TCP_TMR_GRANULARITY_TICKS)
+		srtt = tp->t_srtt >> TCP_RTT_SHIFT;
+	if (tp->t_tmr_granularity == granularity)
+		return (srtt);
+	/* If we reach here they are oppsite what the caller wants */
+	if (granularity == TCP_TMR_GRANULARITY_USEC) {
+		/*
+		 * The user wants useconds and internally
+		 * its kept in ticks, convert to useconds.
+		 */
+		srtt =  TICKS_2_USEC(srtt);
+	} else if (granularity == TCP_TMR_GRANULARITY_TICKS) {
+		/*
+		 * The user wants ticks and internally its
+		 * kept in useconds, convert to ticks.
+		 */
+		srtt = USEC_2_TICKS(srtt);
+	}
+	return (srtt);
 }
