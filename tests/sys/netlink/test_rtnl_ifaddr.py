@@ -254,6 +254,41 @@ class TestRtNlIfaddrOpsBroadcast(RtnlIfaOps):
         assert rx_msg.get_nla(IfaAttrType.IFA_LOCAL).addr == str(ifa.ip)
         assert rx_msg.get_nla(IfaAttrType.IFA_BROADCAST).addr == str(ifa_brd)
 
+    @pytest.mark.parametrize(
+        "brd",
+        [
+            pytest.param((32, True, "192.0.2.1"), id="auto_32"),
+            pytest.param((31, True, "255.255.255.255"), id="auto_31"),
+            pytest.param((30, True, "192.0.2.3"), id="auto_30"),
+            pytest.param((30, False, "192.0.2.2"), id="custom_30"),
+            pytest.param((24, False, "192.0.2.7"), id="custom_24"),
+        ],
+    )
+    def test_add_4_brd(self, brd):
+        """Tests proper broadcast setup when adding IPv4 ifa"""
+        plen, auto_brd, ifa_brd_str = brd
+        ifa = ipaddress.ip_interface("192.0.2.1/{}".format(plen))
+        iface = self.vnet.iface_alias_map["if1"]
+        ifa_brd = ipaddress.ip_address(ifa_brd_str)
+
+        msg = self.create_msg(ifa)
+        msg.add_nla(NlAttrIp(IfaAttrType.IFA_LOCAL, str(ifa.ip)))
+        if not auto_brd:
+            msg.add_nla(NlAttrIp(IfaAttrType.IFA_BROADCAST, str(ifa_brd)))
+
+        self.send_check_success(msg)
+
+        lst = self.get_ifa_list(iface.ifindex, self.get_family_from_ip(ifa.ip))
+        assert len(lst) == 1
+        rx_msg = lst[0]
+
+        assert rx_msg.base_hdr.ifa_prefixlen == ifa.network.prefixlen
+        assert rx_msg.base_hdr.ifa_scope == RtScope.RT_SCOPE_UNIVERSE.value
+
+        assert rx_msg.get_nla(IfaAttrType.IFA_ADDRESS).addr == str(ifa.ip)
+        assert rx_msg.get_nla(IfaAttrType.IFA_LOCAL).addr == str(ifa.ip)
+        assert rx_msg.get_nla(IfaAttrType.IFA_BROADCAST).addr == str(ifa_brd)
+
     def test_add_6(self):
         ifa = ipaddress.ip_interface("2001:db8::1/64")
         iface = self.vnet.iface_alias_map["if1"]
