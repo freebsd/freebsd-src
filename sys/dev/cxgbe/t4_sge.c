@@ -331,12 +331,12 @@ static void drain_wrq_wr_list(struct adapter *, struct sge_wrq *);
 
 static int sysctl_bufsizes(SYSCTL_HANDLER_ARGS);
 #ifdef RATELIMIT
-#if defined(INET) || defined(INET6)
-static inline u_int txpkt_eo_len16(u_int, u_int, u_int);
-#endif
 static int ethofld_fw4_ack(struct sge_iq *, const struct rss_header *,
     struct mbuf *);
+#if defined(INET) || defined(INET6)
+static inline u_int txpkt_eo_len16(u_int, u_int, u_int);
 static int ethofld_transmit(if_t, struct mbuf *);
+#endif
 #endif
 
 static counter_u64_t extfree_refs;
@@ -6497,6 +6497,7 @@ done:
     ETID_FLOWC_NPARAMS * sizeof(struct fw_flowc_mnemval)), 16))
 #define ETID_FLOWC_LEN16 (howmany(ETID_FLOWC_LEN, 16))
 
+#if defined(INET) || defined(INET6)
 static int
 send_etid_flowc_wr(struct cxgbe_rate_tag *cst, struct port_info *pi,
     struct vi_info *vi)
@@ -6540,6 +6541,7 @@ send_etid_flowc_wr(struct cxgbe_rate_tag *cst, struct port_info *pi,
 
 	return (0);
 }
+#endif
 
 #define ETID_FLUSH_LEN16 (howmany(sizeof (struct fw_flowc_wr), 16))
 
@@ -6780,6 +6782,7 @@ ethofld_tx(struct cxgbe_rate_tag *cst)
 	}
 }
 
+#if defined(INET) || defined(INET6)
 static int
 ethofld_transmit(if_t ifp, struct mbuf *m0)
 {
@@ -6838,6 +6841,7 @@ done:
 	mtx_unlock(&cst->lock);
 	return (rc);
 }
+#endif
 
 static int
 ethofld_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m0)
