@@ -295,11 +295,15 @@ struct msi_msg {
 	uint32_t			data;
 };
 
-struct msi_desc {
-	struct msi_msg			msg;
+struct pci_msi_desc {
 	struct {
 		bool			is_64;
 	} msi_attrib;
+};
+
+struct msi_desc {
+	struct msi_msg			msg;
+	struct pci_msi_desc		pci;
 };
 
 /*
