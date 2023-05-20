@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2022 Bjoern A. Zeeb
+ * Copyright (c) 2022-2023 Bjoern A. Zeeb
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -67,7 +67,7 @@ struct qmi_elem_info {
 	enum soc_qcom_qmi_array_type		array_type;
 	uint8_t					tlv_type;
 	uint32_t				offset;
-	struct qmi_elem_info			*ei_array;
+	const struct qmi_elem_info		*ei_array;
 };
 
 struct qmi_response_type_v01 {
@@ -84,10 +84,10 @@ struct qmi_service {
 };
 
 struct qmi_msg_handler {
-	uint32_t		type;
-	uint32_t		msg_id;
-	struct qmi_elem_info	*ei;
-	size_t			decoded_size;
+	uint32_t				type;
+	uint32_t				msg_id;
+	const struct qmi_elem_info		*ei;
+	size_t					decoded_size;
 	void	(*fn)(struct qmi_handle *, struct sockaddr_qrtr *, struct qmi_txn *, const void *);
 };
 
@@ -140,7 +140,7 @@ qmi_handle_release(struct qmi_handle *handle)
 
 static __inline int
 qmi_send_request(struct qmi_handle *handle, void *x, struct qmi_txn *txn,
-    uint32_t msd_id, size_t len, struct qmi_elem_info *ei, void *req)
+    uint32_t msd_id, size_t len, const struct qmi_elem_info *ei, void *req)
 {
 
 	/* XXX TODO */
@@ -156,7 +156,7 @@ qmi_txn_cancel(struct qmi_txn *txn)
 
 static __inline int
 qmi_txn_init(struct qmi_handle *handle, struct qmi_txn *txn,
-    struct qmi_elem_info *ei, void *resp)
+    const struct qmi_elem_info *ei, void *resp)
 {
 
 	/* XXX TODO */
