@@ -339,10 +339,18 @@ ether_setup(struct net_device *ndev)
 }
 
 static __inline void
-dev_net_set(struct net_device *dev, void *p)
+dev_net_set(struct net_device *ndev, void *p)
 {
 
 	pr_debug("%s: TODO\n", __func__);
+}
+
+static __inline int
+dev_set_threaded(struct net_device *ndev, bool threaded)
+{
+
+	pr_debug("%s: TODO\n", __func__);
+	return (-ENODEV);
 }
 
 /* -------------------------------------------------------------------------- */
