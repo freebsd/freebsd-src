@@ -59,10 +59,30 @@ static const char rcsid[] =
 #include "ifconfig.h"
 #include "ifconfig_netlink.h"
 
+#ifndef WITHOUT_NETLINK
+struct in6_px {
+	struct in6_addr		addr;
+	int			plen;
+	bool			set;
+};
+struct in6_pdata {
+	struct in6_px		addr;
+	struct in6_px		dst_addr;
+	struct in6_addrlifetime	lifetime;
+	uint32_t		flags;
+	uint32_t		vhid;
+};
+
+static struct in6_pdata in6_del;
+static struct in6_pdata in6_add = {
+	.lifetime = { 0, 0, ND6_INFINITE_LIFETIME, ND6_INFINITE_LIFETIME },
+};
+#else
 static	struct in6_ifreq in6_ridreq;
 static	struct in6_aliasreq in6_addreq =
   { .ifra_flags = 0,
     .ifra_lifetime = { 0, 0, ND6_INFINITE_LIFETIME, ND6_INFINITE_LIFETIME } };
+#endif
 static	int ip6lifetime;
 
 static	int prefix(void *, int);
@@ -80,8 +100,16 @@ static void
 setifprefixlen(const char *addr, int dummy __unused, int s,
     const struct afswtch *afp)
 {
+#ifdef WITHOUT_NETLINK
         if (afp->af_getprefix != NULL)
                 afp->af_getprefix(addr, MASK);
+#else
+	int plen = strtol(addr, NULL, 10);
+
+	if ((plen < 0) || (plen > 128))
+		errx(1, "%s: bad value", addr);
+	in6_add.addr.plen = plen;
+#endif
 	explicit_prefix = 1;
 }
 
@@ -92,10 +120,17 @@ setip6flags(const char *dummyaddr __unused, int flag, int dummysoc __unused,
 	if (afp->af_af != AF_INET6)
 		err(1, "address flags can be set only for inet6 addresses");
 
+#ifdef WITHOUT_NETLINK
 	if (flag < 0)
 		in6_addreq.ifra_flags &= ~(-flag);
 	else
 		in6_addreq.ifra_flags |= flag;
+#else
+	if (flag < 0)
+		in6_add.flags &= ~(-flag);
+	else
+		in6_add.flags |= flag;
+#endif
 }
 
 static void
@@ -105,6 +140,11 @@ setip6lifetime(const char *cmd, const char *val, int s,
 	struct timespec now;
 	time_t newval;
 	char *ep;
+#ifdef WITHOUT_NETLINK
+	struct in6_addrlifetime *lifetime = &in6_addreq.ifra_lifetime;
+#else
+	struct in6_addrlifetime *lifetime = &in6_add.lifetime;
+#endif
 
 	clock_gettime(CLOCK_MONOTONIC_FAST, &now);
 	newval = (time_t)strtoul(val, &ep, 0);
@@ -113,11 +153,11 @@ setip6lifetime(const char *cmd, const char *val, int s,
 	if (afp->af_af != AF_INET6)
 		errx(1, "%s not allowed for the AF", cmd);
 	if (strcmp(cmd, "vltime") == 0) {
-		in6_addreq.ifra_lifetime.ia6t_expire = now.tv_sec + newval;
-		in6_addreq.ifra_lifetime.ia6t_vltime = newval;
+		lifetime->ia6t_expire = now.tv_sec + newval;
+		lifetime->ia6t_vltime = newval;
 	} else if (strcmp(cmd, "pltime") == 0) {
-		in6_addreq.ifra_lifetime.ia6t_preferred = now.tv_sec + newval;
-		in6_addreq.ifra_lifetime.ia6t_pltime = newval;
+		lifetime->ia6t_preferred = now.tv_sec + newval;
+		lifetime->ia6t_pltime = newval;
 	}
 }
 
@@ -146,7 +186,11 @@ setip6eui64(const char *cmd, int dummy __unused, int s,
 
 	if (afp->af_af != AF_INET6)
 		errx(EXIT_FAILURE, "%s not allowed for the AF", cmd);
+#ifdef WITHOUT_NETLINK
  	in6 = (struct in6_addr *)&in6_addreq.ifra_addr.sin6_addr;
+#else
+	in6 = &in6_add.addr.addr;
+#endif
 	if (memcmp(&in6addr_any.s6_addr[8], &in6->s6_addr[8], 8) != 0)
 		errx(EXIT_FAILURE, "interface index is already filled");
 	if (getifaddrs(&ifap) != 0)
@@ -374,8 +418,92 @@ in6_status_nl(struct ifconfig_args *args __unused, struct io_handler *h,
 
 	putchar('\n');
 }
+
+static struct in6_px *sin6tab_nl[] = {
+        &in6_del.addr,          /* RIDADDR */
+        &in6_add.addr,          /* ADDR */
+        NULL,                   /* MASK */
+        &in6_add.dst_addr,      /* DSTADDR*/
+};
+
+static void
+in6_getaddr(const char *addr_str, int which)
+{
+        struct in6_px *px = sin6tab_nl[which];
+
+        newaddr &= 1;
+
+        px->set = true;
+        px->plen = 128;
+        if (which == ADDR) {
+                char *p = NULL;
+                if((p = strrchr(addr_str, '/')) != NULL) {
+                        *p = '\0';
+                        int plen = strtol(p + 1, NULL, 10);
+			if (plen < 0 || plen > 128)
+                                errx(1, "%s: bad value", p + 1);
+                        px->plen = plen;
+                        explicit_prefix = 1;
+                }
+        }
+
+        struct addrinfo hints = { .ai_family = AF_INET6 };
+        struct addrinfo *res;
+
+        int error = getaddrinfo(addr_str, NULL, &hints, &res);
+        if (error != 0) {
+                if (inet_pton(AF_INET6, addr_str, &px->addr) != 1)
+                        errx(1, "%s: bad value", addr_str);
+        } else {
+                struct sockaddr_in6 *sin6;
+
+                sin6 = (struct sockaddr_in6 *)(void *)res->ai_addr;
+                px->addr = sin6->sin6_addr;
+                freeaddrinfo(res);
+        }
+}
+
+static int
+in6_exec_nl(struct io_handler *h, int action, void *data)
+{
+	struct in6_pdata *pdata = (struct in6_pdata *)data;
+	struct snl_writer nw = {};
+
+	snl_init_writer(h->ss, &nw);
+	struct nlmsghdr *hdr = snl_create_msg_request(&nw, action);
+	struct ifaddrmsg *ifahdr = snl_reserve_msg_object(&nw, struct ifaddrmsg);
+
+	ifahdr->ifa_family = AF_INET6;
+	ifahdr->ifa_prefixlen = pdata->addr.plen;
+	ifahdr->ifa_index = if_nametoindex_nl(h->ss, name);
+
+	snl_add_msg_attr_ip6(&nw, IFA_LOCAL, &pdata->addr.addr);
+	if (action == NL_RTM_NEWADDR && pdata->dst_addr.set)
+		snl_add_msg_attr_ip6(&nw, IFA_ADDRESS, &pdata->dst_addr.addr);
+
+	struct ifa_cacheinfo ci = {
+		.ifa_prefered = pdata->lifetime.ia6t_pltime,
+		.ifa_valid =  pdata->lifetime.ia6t_vltime,
+	};
+	snl_add_msg_attr(&nw, IFA_CACHEINFO, sizeof(ci), &ci);
+
+	int off = snl_add_msg_attr_nested(&nw, IFA_FREEBSD);
+	snl_add_msg_attr_u32(&nw, IFAF_FLAGS, pdata->flags);
+	if (pdata->vhid != 0)
+		snl_add_msg_attr_u32(&nw, IFAF_VHID, pdata->vhid);
+	snl_end_attr_nested(&nw, off);
+
+	if (!snl_finalize_msg(&nw) || !snl_send_message(h->ss, hdr))
+		return (0);
+
+	struct snl_errmsg_data e = {};
+	snl_read_reply_code(h->ss, hdr->nlmsg_seq, &e);
+
+	return (e.error);
+}
 #endif
 
+#ifdef WITHOUT_NETLINK
 #define	SIN6(x) ((struct sockaddr_in6 *) &(x))
 static struct	sockaddr_in6 *sin6tab[] = {
 	SIN6(in6_ridreq.ifr_addr), SIN6(in6_addreq.ifra_addr),
@@ -463,6 +591,7 @@ prefix(void *val, int size)
 			return(0);
 	return (plen);
 }
+#endif
 
 static char *
 sec2str(time_t total)
@@ -558,7 +687,11 @@ in6_set_tunnel(int s, struct addrinfo *srcres, struct addrinfo *dstres)
 static void
 in6_set_vhid(int vhid)
 {
+#ifdef WITHOUT_NETLINK
 	in6_addreq.ifra_vhid = vhid;
+#else
+	in6_add.vhid = (uint32_t)vhid;
+#endif
 }
 
 static struct cmd inet6_cmds[] = {
@@ -606,16 +739,27 @@ static struct afswtch af_inet6 = {
 	.af_status_nl	= in6_status_nl,
 #endif
 	.af_getaddr	= in6_getaddr,
+#ifdef WITHOUT_NETLINK
 	.af_getprefix	= in6_getprefix,
+#endif
 	.af_other_status = nd6_status,
 	.af_postproc	= in6_postproc,
 	.af_status_tunnel = in6_status_tunnel,
 	.af_settunnel	= in6_set_tunnel,
 	.af_setvhid	= in6_set_vhid,
+#ifdef WITHOUT_NETLINK
 	.af_difaddr	= SIOCDIFADDR_IN6,
 	.af_aifaddr	= SIOCAIFADDR_IN6,
 	.af_ridreq	= &in6_addreq,
 	.af_addreq	= &in6_addreq,
+	.af_exec	= af_exec_ioctl,
+#else
+	.af_difaddr	= NL_RTM_DELADDR,
+	.af_aifaddr	= NL_RTM_NEWADDR,
+	.af_ridreq	= &in6_add,
+	.af_addreq	= &in6_add,
+	.af_exec	= in6_exec_nl,
+#endif
 };
 
 static void
