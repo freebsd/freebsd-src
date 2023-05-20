@@ -158,6 +158,17 @@ _thr_rtld_lock_release(void *lock)
 	l = (struct rtld_lock *)lock;
 	
 	state = l->lock.rw_state;
+	if (__predict_false(_thr_after_fork)) {
+		/*
+		 * After fork, only this thread is running, there is no
+		 * waiters.  Keeping waiters recorded in rwlock breaks
+		 * wake logic.
+		 */
+		atomic_clear_int(&l->lock.rw_state,
+		    URWLOCK_WRITE_WAITERS | URWLOCK_READ_WAITERS);
+		l->lock.rw_blocked_readers = 0;
+		l->lock.rw_blocked_writers = 0;
+	}
 	if (_thr_rwlock_unlock(&l->lock) == 0) {
 		if ((state & URWLOCK_WRITE_OWNER) == 0)
 			curthread->rdlock_count--;
