@@ -1009,7 +1009,7 @@ lkpi_pci_msi_desc_alloc(int irq)
 
 	desc = malloc(sizeof(*desc), M_DEVBUF, M_WAITOK | M_ZERO);
 
-	desc->msi_attrib.is_64 =
+	desc->pci.msi_attrib.is_64 =
 	   (msi->msi_ctrl & PCIM_MSICTRL_64BIT) ? true : false;
 	desc->msg.data = msi->msi_data;
 
