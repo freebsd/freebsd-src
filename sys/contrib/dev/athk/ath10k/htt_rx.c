@@ -301,12 +301,16 @@ void ath10k_htt_rx_free(struct ath10k_htt *htt)
 			  ath10k_htt_get_vaddr_ring(htt),
 			  htt->rx_ring.base_paddr);
 
+	ath10k_htt_config_paddrs_ring(htt, NULL);
+
 	dma_free_coherent(htt->ar->dev,
 			  sizeof(*htt->rx_ring.alloc_idx.vaddr),
 			  htt->rx_ring.alloc_idx.vaddr,
 			  htt->rx_ring.alloc_idx.paddr);
+	htt->rx_ring.alloc_idx.vaddr = NULL;
 
 	kfree(htt->rx_ring.netbufs_ring);
+	htt->rx_ring.netbufs_ring = NULL;
 }
 
 static inline struct sk_buff *ath10k_htt_rx_netbuf_pop(struct ath10k_htt *htt)
@@ -429,7 +433,11 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 				RX_MSDU_END_INFO0_LAST_MSDU;
 
 		/* FIXME: why are we skipping the first part of the rx_desc? */
-		trace_ath10k_htt_rx_desc(ar, rx_desc + sizeof(u32),
+#if defined(__linux__)
+		trace_ath10k_htt_rx_desc(ar, (void *)rx_desc + sizeof(u32),
+#elif defined(__FreeBSD__)
+		trace_ath10k_htt_rx_desc(ar, (u8 *)rx_desc + sizeof(u32),
+#endif
 					 hw->rx_desc_ops->rx_desc_size - sizeof(u32));
 
 		if (last_msdu)
@@ -858,8 +866,10 @@ err_dma_idx:
 			  ath10k_htt_get_rx_ring_size(htt),
 			  vaddr_ring,
 			  htt->rx_ring.base_paddr);
+	ath10k_htt_config_paddrs_ring(htt, NULL);
 err_dma_ring:
 	kfree(htt->rx_ring.netbufs_ring);
+	htt->rx_ring.netbufs_ring = NULL;
 err_netbuf:
 	return -ENOMEM;
 }
@@ -1389,7 +1399,7 @@ static void ath10k_process_rx(struct ath10k *ar, struct sk_buff *skb)
 		   ath10k_get_tid(hdr, tid, sizeof(tid)),
 		   is_multicast_ether_addr(ieee80211_get_DA(hdr)) ?
 							"mcast" : "ucast",
-		   (__le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_SEQ) >> 4,
+		   IEEE80211_SEQ_TO_SN(__le16_to_cpu(hdr->seq_ctrl)),
 		   (status->encoding == RX_ENC_LEGACY) ? "legacy" : "",
 		   (status->encoding == RX_ENC_HT) ? "ht" : "",
 		   (status->encoding == RX_ENC_VHT) ? "vht" : "",
@@ -1960,15 +1970,14 @@ static void ath10k_htt_rx_h_csum_offload(struct ath10k_hw_params *hw,
 }
 
 static u64 ath10k_htt_rx_h_get_pn(struct ath10k *ar, struct sk_buff *skb,
-				  u16 offset,
 				  enum htt_rx_mpdu_encrypt_type enctype)
 {
 	struct ieee80211_hdr *hdr;
 	u64 pn = 0;
 	u8 *ehdr;
 
-	hdr = (struct ieee80211_hdr *)(skb->data + offset);
-	ehdr = skb->data + offset + ieee80211_hdrlen(hdr->frame_control);
+	hdr = (struct ieee80211_hdr *)skb->data;
+	ehdr = skb->data + ieee80211_hdrlen(hdr->frame_control);
 
 	if (enctype == HTT_RX_MPDU_ENCRYPT_AES_CCM_WPA2) {
 		pn = ehdr[0];
@@ -1982,19 +1991,17 @@ static u64 ath10k_htt_rx_h_get_pn(struct ath10k *ar, struct sk_buff *skb,
 }
 
 static bool ath10k_htt_rx_h_frag_multicast_check(struct ath10k *ar,
-						 struct sk_buff *skb,
-						 u16 offset)
+						 struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr;
 
-	hdr = (struct ieee80211_hdr *)(skb->data + offset);
+	hdr = (struct ieee80211_hdr *)skb->data;
 	return !is_multicast_ether_addr(hdr->addr1);
 }
 
 static bool ath10k_htt_rx_h_frag_pn_check(struct ath10k *ar,
 					  struct sk_buff *skb,
 					  u16 peer_id,
-					  u16 offset,
 					  enum htt_rx_mpdu_encrypt_type enctype)
 {
 	struct ath10k_peer *peer;
@@ -2009,16 +2016,16 @@ static bool ath10k_htt_rx_h_frag_pn_check(struct ath10k *ar,
 		return false;
 	}
 
-	hdr = (struct ieee80211_hdr *)(skb->data + offset);
+	hdr = (struct ieee80211_hdr *)skb->data;
 	if (ieee80211_is_data_qos(hdr->frame_control))
 		tid = ieee80211_get_tid(hdr);
 	else
 		tid = ATH10K_TXRX_NON_QOS_TID;
 
 	last_pn = &peer->frag_tids_last_pn[tid];
-	new_pn.pn48 = ath10k_htt_rx_h_get_pn(ar, skb, offset, enctype);
+	new_pn.pn48 = ath10k_htt_rx_h_get_pn(ar, skb, enctype);
 	frag_number = le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_FRAG;
-	seq = (__le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_SEQ) >> 4;
+	seq = IEEE80211_SEQ_TO_SN(__le16_to_cpu(hdr->seq_ctrl));
 
 	if (frag_number == 0) {
 		last_pn->pn48 = new_pn.pn48;
@@ -2183,13 +2190,11 @@ static void ath10k_htt_rx_h_mpdu(struct ath10k *ar,
 			frag_pn_check = ath10k_htt_rx_h_frag_pn_check(ar,
 								      msdu,
 								      peer_id,
-								      0,
 								      enctype);
 
 		if (frag)
 			multicast_check = ath10k_htt_rx_h_frag_multicast_check(ar,
-									       msdu,
-									       0);
+									       msdu);
 
 		if (!frag_pn_check || !multicast_check) {
 			/* Discard the fragment with invalid PN or multicast DA
@@ -2634,7 +2639,7 @@ static bool ath10k_htt_rx_proc_rx_ind_hl(struct ath10k_htt *htt,
 
 	/* I have not yet seen any case where num_mpdu_ranges > 1.
 	 * qcacld does not seem handle that case either, so we introduce the
-	 * same limitiation here as well.
+	 * same limitation here as well.
 	 */
 	if (num_mpdu_ranges > 1)
 		ath10k_warn(ar,
@@ -2956,7 +2961,7 @@ static bool ath10k_htt_rx_proc_rx_frag_ind_hl(struct ath10k_htt *htt,
 
 	hdr_space = ieee80211_hdrlen(hdr->frame_control);
 	sc = __le16_to_cpu(hdr->seq_ctrl);
-	seq = (sc & IEEE80211_SCTL_SEQ) >> 4;
+	seq = IEEE80211_SEQ_TO_SN(sc);
 	frag = sc & IEEE80211_SCTL_FRAG;
 
 	sec_index = MS(rx_desc_info, HTT_RX_DESC_HL_INFO_MCAST_BCAST) ?
@@ -3709,7 +3714,7 @@ static void ath10k_htt_rx_tx_mode_switch_ind(struct ath10k *ar,
 	threshold = MS(info1, HTT_TX_MODE_SWITCH_IND_INFO1_THRESHOLD);
 
 	ath10k_dbg(ar, ATH10K_DBG_HTT,
-		   "htt rx tx mode switch ind info0 0x%04hx info1 0x%04x enable %d num records %zd mode %d threshold %u\n",
+		   "htt rx tx mode switch ind info0 0x%04x info1 0x%04x enable %d num records %zd mode %d threshold %u\n",
 		   info0, info1, enable, num_records, mode, threshold);
 
 	len += sizeof(resp->tx_mode_switch_ind.records[0]) * num_records;
@@ -3986,7 +3991,7 @@ ath10k_update_per_peer_tx_stats(struct ath10k *ar,
 	switch (txrate.flags) {
 	case WMI_RATE_PREAMBLE_OFDM:
 		if (arsta->arvif && arsta->arvif->vif)
-			conf = rcu_dereference(arsta->arvif->vif->chanctx_conf);
+			conf = rcu_dereference(arsta->arvif->vif->bss_conf.chanctx_conf);
 		if (conf && conf->def.chan->band == NL80211_BAND_5GHZ)
 			arsta->tx_info.status.rates[0].idx = rate_idx - 4;
 		break;
@@ -4029,6 +4034,10 @@ ath10k_update_per_peer_tx_stats(struct ath10k *ar,
 	case RATE_INFO_BW_80:
 		arsta->tx_info.status.rates[0].flags |=
 				IEEE80211_TX_RC_80_MHZ_WIDTH;
+		break;
+	case RATE_INFO_BW_160:
+		arsta->tx_info.status.rates[0].flags |=
+				IEEE80211_TX_RC_160_MHZ_WIDTH;
 		break;
 	}
 
