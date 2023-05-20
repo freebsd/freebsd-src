@@ -92,10 +92,10 @@ struct	ifreq ifr;
 char	name[IFNAMSIZ];
 char	*descr = NULL;
 size_t	descrlen = 64;
-int	setaddr;
-int	setmask;
-int	doalias;
-int	clearaddr;
+static int	setaddr;
+static int	setmask;
+static int	doalias;
+static int	clearaddr;
 int	newaddr = 1;
 int	verbose;
 int	printifname = 0;
@@ -968,6 +968,45 @@ static void setifdstaddr(const char *, int, int, const struct afswtch *);
 static const struct cmd setifdstaddr_cmd =
 	DEF_CMD("ifdstaddr", 0, setifdstaddr);
 
+static void
+delifaddr(int s, const struct afswtch *afp)
+{
+	if (afp->af_ridreq == NULL || afp->af_difaddr == 0) {
+		warnx("interface %s cannot change %s addresses!",
+		    name, afp->af_name);
+		clearaddr = 0;
+		return;
+	}
+
+	strlcpy(((struct ifreq *)afp->af_ridreq)->ifr_name, name,
+		sizeof ifr.ifr_name);
+	int ret = ioctl(s, afp->af_difaddr, afp->af_ridreq);
+	if (ret < 0) {
+		if (errno == EADDRNOTAVAIL && (doalias >= 0)) {
+			/* means no previous address for interface */
+		} else
+			Perror("ioctl (SIOCDIFADDR)");
+	}
+}
+
+static void
+addifaddr(int s, const struct afswtch *afp)
+{
+	if (afp->af_addreq == NULL || afp->af_aifaddr == 0) {
+		warnx("interface %s cannot change %s addresses!",
+		      name, afp->af_name);
+		newaddr = 0;
+		return;
+	}
+
+	if (setaddr || setmask) {
+		strlcpy(((struct ifreq *)afp->af_addreq)->ifr_name, name,
+			sizeof ifr.ifr_name);
+		if (ioctl(s, afp->af_aifaddr, afp->af_addreq) < 0)
+			Perror("ioctl (SIOCAIFADDR)");
+	}
+}
+
 int
 ifconfig(int argc, char *const *argv, int iscreate, const struct afswtch *uafp)
 {
@@ -1088,38 +1127,10 @@ top:
 	/*
 	 * Do deferred operations.
 	 */
-	if (clearaddr) {
-		if (afp->af_ridreq == NULL || afp->af_difaddr == 0) {
-			warnx("interface %s cannot change %s addresses!",
-			      name, afp->af_name);
-			clearaddr = 0;
-		}
-	}
-	if (clearaddr) {
-		int ret;
-		strlcpy(((struct ifreq *)afp->af_ridreq)->ifr_name, name,
-			sizeof ifr.ifr_name);
-		ret = ioctl(s, afp->af_difaddr, afp->af_ridreq);
-		if (ret < 0) {
-			if (errno == EADDRNOTAVAIL && (doalias >= 0)) {
-				/* means no previous address for interface */
-			} else
-				Perror("ioctl (SIOCDIFADDR)");
-		}
-	}
-	if (newaddr) {
-		if (afp->af_addreq == NULL || afp->af_aifaddr == 0) {
-			warnx("interface %s cannot change %s addresses!",
-			      name, afp->af_name);
-			newaddr = 0;
-		}
-	}
-	if (newaddr && (setaddr || setmask)) {
-		strlcpy(((struct ifreq *)afp->af_addreq)->ifr_name, name,
-			sizeof ifr.ifr_name);
-		if (ioctl(s, afp->af_aifaddr, afp->af_addreq) < 0)
-			Perror("ioctl (SIOCAIFADDR)");
-	}
+	if (clearaddr)
+		delifaddr(s, afp);
+	if (newaddr)
+		addifaddr(s, afp);
 
 	close(s);
 	return(0);
