@@ -779,6 +779,8 @@ extern int		_suspend_all_waiters __hidden;
 extern int		_suspend_all_cycle __hidden;
 extern struct pthread	*_single_thread __hidden;
 
+extern bool		_thr_after_fork __hidden;
+
 /*
  * Function prototype definitions.
  */
