@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH11K_PEER_H
@@ -20,6 +21,11 @@ struct ath11k_peer {
 	struct ieee80211_key_conf *keys[WMI_MAX_KEY_INDEX + 1];
 	struct dp_rx_tid rx_tid[IEEE80211_NUM_TIDS + 1];
 
+	/* peer id based rhashtable list pointer */
+	struct rhash_head rhash_id;
+	/* peer addr based rhashtable list pointer */
+	struct rhash_head rhash_addr;
+
 	/* Info used in MMIC verification of
 	 * RX fragments
 	 */
@@ -29,6 +35,7 @@ struct ath11k_peer {
 	u16 sec_type;
 	u16 sec_type_grp;
 	bool is_authorized;
+	bool dp_setup_done;
 };
 
 void ath11k_peer_unmap_event(struct ath11k_base *ab, u16 peer_id);
@@ -47,5 +54,7 @@ int ath11k_wait_for_peer_delete_done(struct ath11k *ar, u32 vdev_id,
 				     const u8 *addr);
 struct ath11k_peer *ath11k_peer_find_by_vdev_id(struct ath11k_base *ab,
 						int vdev_id);
-
+int ath11k_peer_rhash_tbl_init(struct ath11k_base *ab);
+void ath11k_peer_rhash_tbl_destroy(struct ath11k_base *ab);
+int ath11k_peer_rhash_delete(struct ath11k_base *ab, struct ath11k_peer *peer);
 #endif /* _PEER_H_ */
