@@ -1046,6 +1046,14 @@ napi_consume_skb(struct sk_buff *skb, int budget)
 	SKB_TODO();
 }
 
+static inline uint32_t
+skb_get_hash(struct sk_buff *skb)
+{
+	SKB_TRACE(skb);
+	SKB_TODO();
+	return (0);
+}
+
 #define	SKB_WITH_OVERHEAD(_s)						\
 	(_s) - ALIGN(sizeof(struct skb_shared_info), CACHE_LINE_SIZE)
 
