@@ -93,7 +93,7 @@ struct ovpn_kkey_dir {
 	 * strictly higher than this.
 	 */
 	uint32_t		rx_seq;
-	uint32_t		tx_seq;
+	uint64_t		tx_seq;
 
 	/* Seen packets, relative to rx_seq. bit(0) will always be 0. */
 	uint64_t		rx_window;
@@ -1830,6 +1830,7 @@ ovpn_transmit_to_peer(struct ifnet *ifp, struct mbuf *m,
 	struct ovpn_softc *sc;
 	struct cryptop *crp;
 	uint32_t af, seq;
+	uint64_t seq64;
 	size_t len, ovpn_hdr_len;
 	int tunnel_len;
 	int ret;
@@ -1873,11 +1874,24 @@ ovpn_transmit_to_peer(struct ifnet *ifp, struct mbuf *m,
 	ohdr->opcode |= key->peerid;
 	ohdr->opcode = htonl(ohdr->opcode);
 
-	seq = atomic_fetchadd_32(&peer->keys[OVPN_KEY_SLOT_PRIMARY].encrypt->tx_seq, 1);
-	if (seq == OVPN_SEQ_ROTATE)
+	seq64 = atomic_fetchadd_64(&peer->keys[OVPN_KEY_SLOT_PRIMARY].encrypt->tx_seq, 1);
+	if (seq64 == OVPN_SEQ_ROTATE) {
 		ovpn_notify_key_rotation(sc, peer);
+	} else if (seq64 > UINT32_MAX) {
+		/* We've wrapped, give up on this packet. */
+		if (_ovpn_lock_trackerp != NULL)
+			OVPN_RUNLOCK(sc);
+		OVPN_COUNTER_ADD(sc, nomem_data_pkts_out, 1);
 
-	seq = htonl(seq);
+		/* Let's avoid (very unlikely, but still) wraparounds of the
+		 * 64-bit counter taking us back to 0. */
+		atomic_set_64(&peer->keys[OVPN_KEY_SLOT_PRIMARY].encrypt->tx_seq,
+		    UINT32_MAX);
+
+		return (ENOBUFS);
+	}
+
+	seq = htonl(seq64 & UINT32_MAX);
 	ohdr->seq = seq;
 
 	OVPN_PEER_COUNTER_ADD(peer, pkt_out, 1);
