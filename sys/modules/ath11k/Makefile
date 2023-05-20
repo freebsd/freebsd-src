@@ -4,15 +4,21 @@ DEVATH11KDIR=	${SRCTOP}/sys/contrib/dev/athk/ath11k
 .PATH: ${DEVATH11KDIR}
 
 WITH_DEBUGFS=	0		# Does not yet compile
+WITH_CONFIG_PM=	0
 
 KMOD=	if_ath11k
 
 SRCS+=	core.c hal.c hal_tx.c hal_rx.c
 SRCS+=	wmi.c mac.c reg.c htc.c qmi.c
 SRCS+=	dp.c dp_tx.c dp_rx.c debug.c
-SRCS+=	ce.c peer.c dbring.c hw.c wow.c
+SRCS+=	ce.c peer.c dbring.c hw.c
 
-SRCS+=	mhi.c pci.c
+SRCS+=	mhi.c pci.c pcic.c
+
+.if defined(WITH_CONFIG_PM) && ${WITH_CONFIG_PM} > 0
+CFLAGS+=	-DCONFIG_PM=${WITH_CONFIG_PM}
+SRCS+=	wow.c
+.endif
 
 # Other
 SRCS+=	${LINUXKPI_GENSRCS}
