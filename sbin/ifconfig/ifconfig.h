@@ -152,10 +152,15 @@ struct ifaddrs;
 struct addrinfo;
 
 enum {
-	RIDADDR,
-	ADDR,
-	MASK,
-	DSTADDR,
+	RIDADDR = 0,
+	ADDR = 1,
+	MASK = 2,
+	DSTADDR = 3,
+#ifdef WITHOUT_NETLINK
+	BRDADDR = 3,
+#else
+	BRDADDR = 4,
+#endif
 };
 
 struct snl_parsed_addr;
@@ -168,6 +173,7 @@ typedef	void af_status_nl_f(if_ctx *ctx, if_link_t *link, if_addr_t *ifa);
 typedef void af_status_f(if_ctx *ctx, const struct ifaddrs *);
 typedef void af_other_status_f(if_ctx *ctx);
 typedef void af_postproc_f(if_ctx *ctx, int newaddr, int ifflags);
+typedef	int af_exec_f(if_ctx *ctx, unsigned long action, void *data);
 
 struct afswtch {
 	const char	*af_name;	/* as given on cmd line, e.g. "inet" */
@@ -192,6 +198,7 @@ struct afswtch {
 	void		(*af_getprefix)(const char *, int);
 	af_postproc_f	*af_postproc;
 	af_setvhid_f	*af_setvhid;	/* Set CARP vhid for an address */
+	af_exec_f	*af_exec;	/* Handler to interact with kernel */
 	u_long		af_difaddr;	/* set dst if address ioctl */
 	u_long		af_aifaddr;	/* set if address ioctl */
 	void		*af_ridreq;	/* */
@@ -204,6 +211,7 @@ struct afswtch {
 				struct addrinfo *dstres);
 };
 void	af_register(struct afswtch *);
+int	af_exec_ioctl(if_ctx *ctx, unsigned long action, void *data);
 
 struct ifconfig_args {
 	bool all;		/* Match everything */
@@ -262,7 +270,7 @@ void	sfp_status(int s, struct ifreq *ifr, int verbose);
 struct sockaddr_dl;
 bool	match_ether(const struct sockaddr_dl *sdl);
 bool	match_if_flags(struct ifconfig_args *args, int if_flags);
-int	ifconfig(int argc, char *const *argv, int iscreate, const struct afswtch *uafp);
+int	ifconfig(if_ctx *ctx, int iscreate, const struct afswtch *uafp);
 bool	group_member(const char *ifname, const char *match, const char *nomatch);
 void	print_ifcap(struct ifconfig_args *args, int s);
 void	tunnel_status(int s);
@@ -273,6 +281,9 @@ void	print_metric(int s);
 
 /* Netlink-related functions */
 void	list_interfaces_nl(struct ifconfig_args *args);
+int	ifconfig_wrapper_nl(struct ifconfig_args *args, int iscreate,
+		const struct afswtch *uafp);
+uint32_t if_nametoindex_nl(struct snl_state *ss, const char *ifname);
 
 /*
  * XXX expose this so modules that neeed to know of any pending

@@ -122,6 +122,26 @@ nl_init_socket(struct snl_state *ss)
 	err(1, "unable to open netlink socket");
 }
 
+int
+ifconfig_wrapper_nl(struct ifconfig_args *args, int iscreate,
+    const struct afswtch *uafp)
+{
+	struct snl_state ss = {};
+	struct ifconfig_context ctx = {
+		.args = args,
+		.io_s = -1,
+		.io_ss = &ss,
+	};
+
+	nl_init_socket(&ss);
+
+	int error = ifconfig(&ctx, iscreate, uafp);
+
+	snl_free(&ss);
+
+	return (error);
+}
+
 struct ifa {
 	struct ifa		*next;
 	uint32_t		idx;
@@ -183,6 +203,29 @@ prepare_ifmap(struct snl_state *ss)
 		iface->idx = ifmap->count;
 	}
 	return (ifmap);
+}
+
+uint32_t
+if_nametoindex_nl(struct snl_state *ss, const char *ifname)
+{
+	struct snl_writer nw = {};
+	struct snl_parsed_link_simple link = {};
+
+	snl_init_writer(ss, &nw);
+	struct nlmsghdr *hdr = snl_create_msg_request(&nw, RTM_GETLINK);
+	snl_reserve_msg_object(&nw, struct ifinfomsg);
+	snl_add_msg_attr_string(&nw, IFLA_IFNAME, ifname);
+
+	if (!snl_finalize_msg(&nw) || !snl_send_message(ss, hdr))
+		return (0);
+
+	hdr = snl_read_reply(ss, hdr->nlmsg_seq);
+	if (hdr->nlmsg_type != NL_RTM_NEWLINK)
+		return (0);
+	if (!snl_parse_nlmsg(ss, hdr, &snl_rtm_link_parser_simple, &link))
+		return (0);
+
+	return (link.ifi_index);
 }
 
 static void
@@ -418,7 +461,7 @@ list_interfaces_nl(struct ifconfig_args *args)
 		} else if (args->argc == 0)
 			status_nl(ctx, iface);
 		else
-			ifconfig(args->argc, args->argv, 0, args->afp);
+			ifconfig(ctx, 0, args->afp);
 	}
 	if (args->namesonly)
 		printf("\n");

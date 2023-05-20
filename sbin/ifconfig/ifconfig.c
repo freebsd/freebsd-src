@@ -119,6 +119,7 @@ static	void status(struct ifconfig_args *args, const struct sockaddr_dl *sdl,
 		struct ifaddrs *ifa);
 #endif
 static _Noreturn void usage(void);
+static void Perrorc(const char *cmd, int error);
 
 static int getifflags(const char *ifname, int us, bool err_ok);
 
@@ -560,6 +561,34 @@ args_parse(struct ifconfig_args *args, int argc, char *argv[])
 	verbose = args->verbose;
 }
 
+static int
+ifconfig_wrapper(struct ifconfig_args *args, int iscreate,
+    const struct afswtch *uafp)
+{
+#ifdef WITHOUT_NETLINK
+	struct ifconfig_context ctx = {
+		.args = args,
+		.io_s = -1,
+	};
+
+	return (ifconfig(&ctx, iscreate, uafp));
+#else
+	return (ifconfig_wrapper_nl(args, iscreate, uafp));
+#endif
+}
+
+static bool
+isargcreate(const char *arg)
+{
+	if (arg == NULL)
+		return (false);
+
+	if (strcmp(arg, "create") == 0 || strcmp(arg, "plumb") == 0)
+		return (true);
+
+	return (false);
+}
+
 int
 main(int ac, char *av[])
 {
@@ -613,13 +642,12 @@ main(int ac, char *av[])
 			 * right here as we would otherwise fail when trying
 			 * to find the interface.
 			 */
-			if (arg != NULL && (strcmp(arg, "create") == 0 ||
-			    strcmp(arg, "plumb") == 0)) {
+			if (isargcreate(arg)) {
 				iflen = strlcpy(name, args->ifname, sizeof(name));
 				if (iflen >= sizeof(name))
 					errx(1, "%s: cloning name too long",
 					    args->ifname);
-				ifconfig(args->argc, args->argv, 1, NULL);
+				ifconfig_wrapper(args, 1, NULL);
 				exit(exit_code);
 			}
 #ifdef JAIL
@@ -633,7 +661,7 @@ main(int ac, char *av[])
 				if (iflen >= sizeof(name))
 					errx(1, "%s: interface name too long",
 					    args->ifname);
-				ifconfig(args->argc, args->argv, 0, NULL);
+				ifconfig_wrapper(args, 0, NULL);
 				exit(exit_code);
 			}
 #endif
@@ -643,8 +671,7 @@ main(int ac, char *av[])
 			 * Do not allow use `create` command as hostname if
 			 * address family is not specified.
 			 */
-			if (arg != NULL && (strcmp(arg, "create") == 0 ||
-			    strcmp(arg, "plumb") == 0)) {
+			if (isargcreate(arg)) {
 				if (args->argc == 1)
 					errx(1, "interface %s already exists",
 					    args->ifname);
@@ -674,7 +701,7 @@ main(int ac, char *av[])
 			if (!(((flags & IFF_CANTCONFIG) != 0) ||
 				(args->downonly && (flags & IFF_UP) != 0) ||
 				(args->uponly && (flags & IFF_UP) == 0)))
-				ifconfig(args->argc, args->argv, 0, args->afp);
+				ifconfig_wrapper(args, 0, args->afp);
 		}
 		goto done;
 	}
@@ -802,7 +829,7 @@ list_interfaces_ioctl(struct ifconfig_args *args)
 		ifindex++;
 
 		if (args->argc > 0)
-			ifconfig(args->argc, args->argv, 0, args->afp);
+			ifconfig_wrapper(args, 0, args->afp);
 		else
 			status(args, sdl, ifa);
 	}
@@ -1001,31 +1028,42 @@ static void setifdstaddr(if_ctx *ctx, const char *addr, int param __unused);
 static const struct cmd setifdstaddr_cmd =
 	DEF_CMD("ifdstaddr", 0, setifdstaddr);
 
-static void
-delifaddr(int s, const struct afswtch *afp)
+int
+af_exec_ioctl(if_ctx *ctx, unsigned long action, void *data)
 {
-	if (afp->af_ridreq == NULL || afp->af_difaddr == 0) {
+	struct ifreq *req = (struct ifreq *)data;
+
+	strlcpy(req->ifr_name, name, sizeof(req->ifr_name));
+	if (ioctl_ctx(ctx, action, req) == 0)
+		return (0);
+	return (errno);
+}
+
+static void
+delifaddr(if_ctx *ctx, const struct afswtch *afp)
+{
+	int error;
+
+	if (afp->af_exec == NULL) {
 		warnx("interface %s cannot change %s addresses!",
 		    name, afp->af_name);
 		clearaddr = 0;
 		return;
 	}
 
-	strlcpy(((struct ifreq *)afp->af_ridreq)->ifr_name, name,
-		sizeof ifr.ifr_name);
-	int ret = ioctl(s, afp->af_difaddr, afp->af_ridreq);
-	if (ret < 0) {
-		if (errno == EADDRNOTAVAIL && (doalias >= 0)) {
+	error = afp->af_exec(ctx, afp->af_difaddr, afp->af_ridreq);
+	if (error != 0) {
+		if (error == EADDRNOTAVAIL && (doalias >= 0)) {
 			/* means no previous address for interface */
 		} else
-			Perror("ioctl (SIOCDIFADDR)");
+			Perrorc("ioctl (SIOCDIFADDR)", error);
 	}
 }
 
 static void
-addifaddr(int s, const struct afswtch *afp)
+addifaddr(if_ctx *ctx, const struct afswtch *afp)
 {
-	if (afp->af_addreq == NULL || afp->af_aifaddr == 0) {
+	if (afp->af_exec == NULL) {
 		warnx("interface %s cannot change %s addresses!",
 		      name, afp->af_name);
 		newaddr = 0;
@@ -1033,21 +1071,26 @@ addifaddr(int s, const struct afswtch *afp)
 	}
 
 	if (setaddr || setmask) {
-		strlcpy(((struct ifreq *)afp->af_addreq)->ifr_name, name,
-			sizeof ifr.ifr_name);
-		if (ioctl(s, afp->af_aifaddr, afp->af_addreq) < 0)
-			Perror("ioctl (SIOCAIFADDR)");
+		int error = afp->af_exec(ctx, afp->af_aifaddr, afp->af_addreq);
+		if (error != 0)
+			Perrorc("ioctl (SIOCAIFADDR)", error);
 	}
 }
 
 int
-ifconfig(int argc, char *const *argv, int iscreate, const struct afswtch *uafp)
+ifconfig(if_ctx *orig_ctx, int iscreate, const struct afswtch *uafp)
 {
-	struct ifconfig_context ctx = {};
 	const struct afswtch *afp, *nafp;
 	const struct cmd *p;
 	struct callback *cb;
 	int s;
+	int argc = orig_ctx->args->argc;
+	char *const *argv = orig_ctx->args->argv;
+	struct ifconfig_context _ctx = {
+		.args = orig_ctx->args,
+		.io_ss = orig_ctx->io_ss,
+	};
+	struct ifconfig_context *ctx = &_ctx;
 
 	strlcpy(ifr.ifr_name, name, sizeof ifr.ifr_name);
 	afp = NULL;
@@ -1085,8 +1128,8 @@ top:
 	     (s = socket(AF_LOCAL, SOCK_DGRAM, 0)) < 0))
 		err(1, "socket(family %u,SOCK_DGRAM)", ifr.ifr_addr.sa_family);
 
-	ctx.io_s = s;
-	ctx.afp = afp;
+	ctx->io_s = s;
+	ctx->afp = afp;
 
 	while (argc > 0) {
 		p = cmd_lookup(*argv, iscreate);
@@ -1132,22 +1175,22 @@ top:
 			if (argv[1] == NULL)
 				errx(1, "'%s' requires argument",
 				    p->c_name);
-			p->c_u.c_func(&ctx, argv[1], 0);
+			p->c_u.c_func(ctx, argv[1], 0);
 			argc--, argv++;
 		} else if (p->c_parameter == OPTARG && p->c_u.c_func) {
-			p->c_u.c_func(&ctx, argv[1], 0);
+			p->c_u.c_func(ctx, argv[1], 0);
 			if (argv[1] != NULL)
 				argc--, argv++;
 		} else if (p->c_parameter == NEXTARG2 && p->c_u.c_func2) {
 			if (argc < 3)
 				errx(1, "'%s' requires 2 arguments",
 				    p->c_name);
-			p->c_u.c_func2(&ctx, argv[1], argv[2]);
+			p->c_u.c_func2(ctx, argv[1], argv[2]);
 			argc -= 2, argv += 2;
 		} else if (p->c_parameter == SPARAM && p->c_u.c_func3) {
-			p->c_u.c_func3(&ctx, *argv, p->c_sparameter);
+			p->c_u.c_func3(ctx, *argv, p->c_sparameter);
 		} else if (p->c_u.c_func)
-			p->c_u.c_func(&ctx, *argv, p->c_parameter);
+			p->c_u.c_func(ctx, *argv, p->c_parameter);
 		argc--, argv++;
 	}
 
@@ -1155,7 +1198,7 @@ top:
 	 * Do any post argument processing required by the address family.
 	 */
 	if (afp->af_postproc != NULL)
-		afp->af_postproc(&ctx, newaddr, getifflags(name, s, true));
+		afp->af_postproc(ctx, newaddr, getifflags(name, s, true));
 	/*
 	 * Do deferred callbacks registered while processing
 	 * command-line arguments.
@@ -1166,9 +1209,9 @@ top:
 	 * Do deferred operations.
 	 */
 	if (clearaddr)
-		delifaddr(s, afp);
+		delifaddr(ctx, afp);
 	if (newaddr)
-		addifaddr(s, afp);
+		addifaddr(ctx, afp);
 
 	close(s);
 	return(0);
@@ -1276,7 +1319,7 @@ setifbroadaddr(if_ctx *ctx, const char *addr, int dummy __unused)
 	const struct afswtch *afp = ctx->afp;
 
 	if (afp->af_getaddr != NULL)
-		afp->af_getaddr(addr, DSTADDR);
+		afp->af_getaddr(addr, BRDADDR);
 }
 
 static void
@@ -1749,8 +1792,8 @@ tunnel_status(int s)
 	af_all_tunnel_status(s);
 }
 
-void
-Perror(const char *cmd)
+static void
+Perrorc(const char *cmd, int error)
 {
 	switch (errno) {
 
@@ -1763,8 +1806,14 @@ Perror(const char *cmd)
 		break;
 
 	default:
-		err(1, "%s", cmd);
+		errc(1, error, "%s", cmd);
 	}
+}
+
+void
+Perror(const char *cmd)
+{
+	Perrorc(cmd, errno);
 }
 
 /*
