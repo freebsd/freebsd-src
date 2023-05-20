@@ -55,8 +55,26 @@ static const char rcsid[] =
 #include "ifconfig.h"
 #include "ifconfig_netlink.h"
 
+#ifdef WITHOUT_NETLINK
 static struct in_aliasreq in_addreq;
 static struct ifreq in_ridreq;
+#else
+struct in_px {
+	struct in_addr		addr;
+	int			plen;
+	bool			addrset;
+	bool			maskset;
+};
+struct in_pdata {
+	struct in_px		addr;
+	struct in_px		dst_addr;
+	struct in_px		brd_addr;
+	uint32_t		flags;
+	uint32_t		vhid;
+};
+static struct in_pdata in_add, in_del;
+#endif
+
 static char addr_buf[NI_MAXHOST];	/*for getnameinfo()*/
 extern char *f_inet, *f_addr;
 
@@ -182,6 +200,8 @@ in_status_nl(struct ifconfig_args *args __unused, struct io_handler *h,
 }
 #endif
 
+
+#ifdef WITHOUT_NETLINK
 #define SIN(x) ((struct sockaddr_in *) &(x))
 static struct sockaddr_in *sintab[] = {
 	SIN(in_ridreq.ifr_addr), SIN(in_addreq.ifra_addr),
@@ -233,14 +253,156 @@ in_getaddr(const char *s, int which)
 		errx(1, "%s: bad value", s);
 }
 
+#else
+
+static struct in_px *sintab_nl[] = {
+	&in_del.addr,		/* RIDADDR */
+	&in_add.addr,		/* ADDR */
+	NULL,			/* MASK */
+	&in_add.dst_addr,	/* DSTADDR*/
+	&in_add.brd_addr,	/* BRDADDR*/
+};
+
+static void
+in_getip(const char *addr_str, struct in_addr *ip)
+{
+	struct hostent *hp;
+	struct netent *np;
+
+	if (inet_aton(addr_str, ip))
+		return;
+	if ((hp = gethostbyname(addr_str)) != NULL)
+		bcopy(hp->h_addr, (char *)ip,
+		    MIN((size_t)hp->h_length, sizeof(ip)));
+	else if ((np = getnetbyname(addr_str)) != NULL)
+		*ip = inet_makeaddr(np->n_net, INADDR_ANY);
+	else
+		errx(1, "%s: bad value", addr_str);
+}
+
+static void
+in_getaddr(const char *s, int which)
+{
+        struct in_px *px = sintab_nl[which];
+
+	if (which == MASK) {
+		struct in_px *px_addr = sintab_nl[ADDR];
+		struct in_addr mask = {};
+
+		in_getip(s, &mask);
+		px_addr->plen = __bitcount32(mask.s_addr);
+		px_addr->maskset = true;
+		return;
+	}
+
+	if (which == ADDR) {
+		char *p = NULL;
+
+		if((p = strrchr(s, '/')) != NULL) {
+			const char *errstr;
+			/* address is `name/masklen' */
+			int masklen;
+			*p = '\0';
+			if (!isdigit(*(p + 1)))
+				errstr = "invalid";
+			else
+				masklen = (int)strtonum(p + 1, 0, 32, &errstr);
+			if (errstr != NULL) {
+				*p = '/';
+				errx(1, "%s: bad value (width %s)", s, errstr);
+			}
+			px->plen = masklen;
+			px->maskset = true;
+		}
+	}
+
+	in_getip(s, &px->addr);
+	px->addrset = true;
+}
+
+
+static int
+in_exec_nl(struct io_handler *h, int action, void *data)
+{
+	struct in_pdata *pdata = (struct in_pdata *)data;
+	struct snl_writer nw = {};
+
+	snl_init_writer(h->ss, &nw);
+	struct nlmsghdr *hdr = snl_create_msg_request(&nw, action);
+	struct ifaddrmsg *ifahdr = snl_reserve_msg_object(&nw, struct ifaddrmsg);
+
+	ifahdr->ifa_family = AF_INET;
+	ifahdr->ifa_prefixlen = pdata->addr.plen;
+	ifahdr->ifa_index = if_nametoindex_nl(h->ss, name);
+
+	snl_add_msg_attr_ip4(&nw, IFA_LOCAL, &pdata->addr.addr);
+	if (action == NL_RTM_NEWADDR && pdata->dst_addr.addrset)
+		snl_add_msg_attr_ip4(&nw, IFA_ADDRESS, &pdata->dst_addr.addr);
+	if (action == NL_RTM_NEWADDR && pdata->brd_addr.addrset)
+		snl_add_msg_attr_ip4(&nw, IFA_BROADCAST, &pdata->brd_addr.addr);
+
+	int off = snl_add_msg_attr_nested(&nw, IFA_FREEBSD);
+	snl_add_msg_attr_u32(&nw, IFAF_FLAGS, pdata->flags);
+	if (pdata->vhid != 0)
+		snl_add_msg_attr_u32(&nw, IFAF_VHID, pdata->vhid);
+	snl_end_attr_nested(&nw, off);
+
+	if (!snl_finalize_msg(&nw) || !snl_send_message(h->ss, hdr))
+		return (0);
+
+	struct snl_errmsg_data e = {};
+	snl_read_reply_code(h->ss, hdr->nlmsg_seq, &e);
+	if (e.error_str != NULL)
+		warnx("%s(): %s", __func__, e.error_str);
+
+	return (e.error);
+}
+
+static void
+in_setdefaultmask_nl(void)
+{
+        struct in_px *px = sintab_nl[ADDR];
+
+	in_addr_t i = ntohl(px->addr.s_addr);
+
+	/*
+	 * If netmask isn't supplied, use historical default.
+	 * This is deprecated for interfaces other than loopback
+	 * or point-to-point; warn in other cases.  In the future
+	 * we should return an error rather than warning.
+	 */
+	if (IN_CLASSA(i))
+		px->plen = IN_CLASSA_NSHIFT;
+	else if (IN_CLASSB(i))
+		px->plen = IN_CLASSB_NSHIFT;
+	else
+		px->plen = IN_CLASSC_NSHIFT;
+	px->maskset = true;
+}
+#endif
+
+static void
+warn_nomask(ifflags)
+{
+    if ((ifflags & (IFF_POINTOPOINT | IFF_LOOPBACK)) == 0) {
+	warnx("WARNING: setting interface address without mask "
+	    "is deprecated,\ndefault mask may not be correct.");
+    }
+}
+
 static void
 in_postproc(int s, const struct afswtch *afp, int newaddr, int ifflags)
 {
-	if (sintab[ADDR]->sin_len != 0 && sintab[MASK]->sin_len == 0 &&
-	    newaddr && (ifflags & (IFF_POINTOPOINT | IFF_LOOPBACK)) == 0) {
-		warnx("WARNING: setting interface address without mask "
-		    "is deprecated,\ndefault mask may not be correct.");
+#ifdef WITHOUT_NETLINK
+	if (sintab[ADDR]->sin_len != 0 && sintab[MASK]->sin_len == 0 && newaddr) {
+		warn_nomask(ifflags);
 	}
+#else
+	if (sintab_nl[ADDR]->addrset && !sintab_nl[ADDR]->maskset && newaddr) {
+		warn_nomask(ifflags);
+	    in_setdefaultmask_nl();
+	}
+#endif
 }
 
 static void
@@ -288,9 +450,12 @@ in_set_tunnel(int s, struct addrinfo *srcres, struct addrinfo *dstres)
 static void
 in_set_vhid(int vhid)
 {
+#ifdef WITHOUT_NETLINK
 	in_addreq.ifra_vhid = vhid;
+#else
+	in_add.vhid = (uint32_t)vhid;
+#endif
 }
-
 
 static struct afswtch af_inet = {
 	.af_name	= "inet",
@@ -305,10 +470,19 @@ static struct afswtch af_inet = {
 	.af_status_tunnel = in_status_tunnel,
 	.af_settunnel	= in_set_tunnel,
 	.af_setvhid	= in_set_vhid,
+#ifdef WITHOUT_NETLINK
 	.af_difaddr	= SIOCDIFADDR,
 	.af_aifaddr	= SIOCAIFADDR,
 	.af_ridreq	= &in_ridreq,
 	.af_addreq	= &in_addreq,
+	.af_exec	= af_exec_ioctl,
+#else
+	.af_difaddr	= NL_RTM_DELADDR,
+	.af_aifaddr	= NL_RTM_NEWADDR,
+	.af_ridreq	= &in_del,
+	.af_addreq	= &in_add,
+	.af_exec	= in_exec_nl,
+#endif
 };
 
 static __constructor void
