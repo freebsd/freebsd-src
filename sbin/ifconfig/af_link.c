@@ -228,6 +228,7 @@ static struct afswtch af_link = {
 	.af_getaddr	= link_getaddr,
 	.af_aifaddr	= SIOCSIFLLADDR,
 	.af_addreq	= &link_ridreq,
+	.af_exec	= af_exec_ioctl,
 };
 static struct afswtch af_ether = {
 	.af_name	= "ether",
@@ -240,6 +241,7 @@ static struct afswtch af_ether = {
 	.af_getaddr	= link_getaddr,
 	.af_aifaddr	= SIOCSIFLLADDR,
 	.af_addreq	= &link_ridreq,
+	.af_exec	= af_exec_ioctl,
 };
 static struct afswtch af_lladdr = {
 	.af_name	= "lladdr",
@@ -252,6 +254,7 @@ static struct afswtch af_lladdr = {
 	.af_getaddr	= link_getaddr,
 	.af_aifaddr	= SIOCSIFLLADDR,
 	.af_addreq	= &link_ridreq,
+	.af_exec	= af_exec_ioctl,
 };
 
 static __constructor void
