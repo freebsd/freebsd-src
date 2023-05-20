@@ -1258,7 +1258,9 @@ rtnl_handle_addr(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *npt)
 		return (ENOENT);
 	}
 
+#if defined(INET) || defined(INET6)
 	bool new = hdr->nlmsg_type == NL_RTM_NEWADDR;
+#endif
 
 	/*
 	 * TODO: Properly handle NLM_F_CREATE / NLM_F_EXCL.
