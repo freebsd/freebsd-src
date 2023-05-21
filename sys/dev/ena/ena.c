@@ -3296,7 +3296,8 @@ ena_destroy_device(struct ena_adapter *adapter, bool graceful)
 	if (!ENA_FLAG_ISSET(ENA_FLAG_DEVICE_RUNNING, adapter))
 		return;
 
-	if_link_state_change(ifp, LINK_STATE_DOWN);
+	if (!graceful)
+		if_link_state_change(ifp, LINK_STATE_DOWN);
 
 	ENA_TIMER_DRAIN(adapter);
 
