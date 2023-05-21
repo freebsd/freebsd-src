@@ -59,6 +59,10 @@ tslog(void * td, int type, const char * f, const char * s)
 	uint64_t tsc = get_cyclecount();
 	long pos;
 
+	/* A NULL thread is thread0 before curthread is set. */
+	if (td == NULL)
+		td = &thread0;
+
 	/* Grab a slot. */
 	pos = atomic_fetchadd_long(&nrecs, 1);
 
