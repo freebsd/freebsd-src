@@ -1164,6 +1164,8 @@ err_sup:
 	return err;
 }
 
+static DEFINE_MUTEX(set_port_type_mutex);
+
 static ssize_t set_port_type(struct device *dev,
 			     struct device_attribute *attr,
 			     const char *buf, size_t count)
@@ -1172,7 +1174,6 @@ static ssize_t set_port_type(struct device *dev,
 						   port_attr);
 	struct mlx4_dev *mdev = info->dev;
 	enum mlx4_port_type port_type;
-	static DEFINE_MUTEX(set_port_type_mutex);
 	int err;
 
 	mutex_lock(&set_port_type_mutex);
