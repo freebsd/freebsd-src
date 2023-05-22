@@ -56,9 +56,6 @@ enum dbg_access_t {
 
 void dbg_monitor_init(void);
 void dbg_register_sync(struct debug_monitor_state *);
-int dbg_setup_watchpoint(struct debug_monitor_state *, vm_offset_t, vm_size_t,
-    enum dbg_access_t);
-int dbg_remove_watchpoint(struct debug_monitor_state *, vm_offset_t, vm_size_t);
 
 #ifdef DDB
 void dbg_show_watchpoint(void);
