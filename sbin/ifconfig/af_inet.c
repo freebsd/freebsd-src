@@ -382,12 +382,12 @@ in_setdefaultmask_nl(void)
 #endif
 
 static void
-warn_nomask(int ifflags)
+warn_nomask(ifflags)
 {
-	if ((ifflags & (IFF_POINTOPOINT | IFF_LOOPBACK)) == 0) {
-		warnx("WARNING: setting interface address without mask "
-		    "is deprecated,\ndefault mask may not be correct.");
-	}
+    if ((ifflags & (IFF_POINTOPOINT | IFF_LOOPBACK)) == 0) {
+	warnx("WARNING: setting interface address without mask "
+	    "is deprecated,\ndefault mask may not be correct.");
+    }
 }
 
 static void
