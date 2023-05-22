@@ -304,15 +304,7 @@ bcm_gpio_set_pud(struct bcm_gpio_softc *sc, uint32_t pin, uint32_t state)
 	/* Must be called with lock held. */
 	BCM_GPIO_LOCK_ASSERT(sc);
 
-	if (sc->sc_is2711 == false) { /* BCM2835 */
-		uint32_t bank;
-
-		bank = BCM_GPIO_BANK(pin);
-		BCM_GPIO_WRITE(sc, BCM2835_GPIO_GPPUD(0), state);
-		BCM_GPIO_WRITE(sc, BCM2835_GPIO_GPPUDCLK(bank), BCM_GPIO_MASK(pin));
-		BCM_GPIO_WRITE(sc, BCM2835_GPIO_GPPUD(0), 0);
-		BCM_GPIO_WRITE(sc, BCM2835_GPIO_GPPUDCLK(bank), 0);
-	} else { /* BCM2711 */
+	if (sc->sc_is2711) { /* BCM2711 */
 		u_int mask  = BCM2711_GPIO_MASK(pin);
 		u_int regid = BCM2711_GPIO_REGID(pin);
 		uint32_t reg;
@@ -335,6 +327,14 @@ bcm_gpio_set_pud(struct bcm_gpio_softc *sc, uint32_t pin, uint32_t state)
 #define __SHIFTIN(__x, __mask) ((__x) * __LOWEST_SET_BIT(__mask))
 		reg |= __SHIFTIN(state, mask);
 		BCM_GPIO_WRITE(sc, BCM2711_GPIO_GPPUD(regid), reg);
+	} else { /* BCM2835 */
+		uint32_t bank;
+
+		bank = BCM_GPIO_BANK(pin);
+		BCM_GPIO_WRITE(sc, BCM2835_GPIO_GPPUD(0), state);
+		BCM_GPIO_WRITE(sc, BCM2835_GPIO_GPPUDCLK(bank), BCM_GPIO_MASK(pin));
+		BCM_GPIO_WRITE(sc, BCM2835_GPIO_GPPUD(0), 0);
+		BCM_GPIO_WRITE(sc, BCM2835_GPIO_GPPUDCLK(bank), 0);
 	}
 }
 
@@ -815,8 +815,7 @@ bcm_gpio_attach(device_t dev)
 		/* Node is not a GPIO controller. */
 		goto fail;
 	/* Guess I'm BCM2711 or not. */
-	sc->sc_is2711 = ofw_bus_node_is_compatible(gpio, "brcm,bcm2711-gpio")
-	    ? true : false;
+	sc->sc_is2711 = ofw_bus_node_is_compatible(gpio, "brcm,bcm2711-gpio");
 	sc->sc_maxpins = sc->sc_is2711 ? BCM2711_GPIO_PINS : BCM2835_GPIO_PINS;
 	/* Setup the GPIO interrupt handler. */
 	if (bcm_gpio_intr_attach(dev)) {
