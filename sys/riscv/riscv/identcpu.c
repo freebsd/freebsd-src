@@ -431,5 +431,12 @@ printcpuinfo(u_int cpu)
 		    desc->cpu_mvendor_name, desc->cpu_march_name, hart);
 
 		printf("  marchid=%#lx, mimpid=%#lx\n", marchid, mimpid);
+		printf("  ISA: %#b\n", desc->isa_extensions,
+		    "\020"
+		    "\01Atomic"
+		    "\03Compressed"
+		    "\04Double"
+		    "\06Float"
+		    "\15Mult/Div");
 	}
 }
