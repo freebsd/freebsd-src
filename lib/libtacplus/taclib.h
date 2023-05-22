@@ -60,6 +60,7 @@ struct tac_handle;
 #define TAC_AUTHEN_SENDAUTH	0x04
 
 /* Authentication types */
+#define TAC_AUTHEN_TYPE_NOT_SET	0x00
 #define TAC_AUTHEN_TYPE_ASCII	0x01
 #define TAC_AUTHEN_TYPE_PAP	0x02
 #define TAC_AUTHEN_TYPE_CHAP	0x03
