@@ -49,6 +49,7 @@
 
 typedef	u_int			model_t;
 #define	DATAMODEL_NATIVE	0
+int dtrace_dis_get_byte(void *);
 int dtrace_instr_size(uint8_t *);
 int dtrace_instr_size_isa(uint8_t *, model_t, int *);
 #endif
@@ -79,7 +80,7 @@ typedef enum dis_isize {
 /*
  * get a byte from instruction stream
  */
-static int
+int
 dtrace_dis_get_byte(void *p)
 {
 	int ret;
