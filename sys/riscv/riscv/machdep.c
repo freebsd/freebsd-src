@@ -131,7 +131,7 @@ cpu_startup(void *dummy)
 {
 
 	sbi_print_version();
-	printcpuinfo();
+	printcpuinfo(0);
 
 	printf("real memory  = %ju (%ju MB)\n", ptoa((uintmax_t)realmem),
 	    ptoa((uintmax_t)realmem) / (1024 * 1024));
@@ -542,7 +542,7 @@ initriscv(struct riscv_bootparams *rvbp)
 	/*
 	 * Identify CPU/ISA features.
 	 */
-	identify_cpu();
+	identify_cpu(0);
 
 	/* Do basic tuning, hz etc */
 	init_param1();

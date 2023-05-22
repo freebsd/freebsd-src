@@ -89,8 +89,8 @@ extern char etext[];
 void	cpu_halt(void) __dead2;
 void	cpu_reset(void) __dead2;
 void	fork_trampoline(void);
-void	identify_cpu(void);
-void	printcpuinfo(void);
+void	identify_cpu(u_int cpu);
+void	printcpuinfo(u_int cpu);
 
 static __inline uint64_t
 get_cyclecount(void)
