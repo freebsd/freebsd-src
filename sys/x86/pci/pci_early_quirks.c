@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/tslog.h>
 
 #include <vm/vm.h>
 /* XXX: enable this once the KPI is available */
@@ -317,5 +318,7 @@ void
 pci_early_quirks(void)
 {
 
+	TSENTER();
 	intel_graphics_stolen();
+	TSEXIT();
 }

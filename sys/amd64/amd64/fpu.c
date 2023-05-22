@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
+#include <sys/tslog.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <sys/signalvar.h>
@@ -360,6 +361,7 @@ fpuinit(void)
 	u_int mxcsr;
 	u_short control;
 
+	TSENTER();
 	if (IS_BSP())
 		fpuinit_bsp1();
 
@@ -401,6 +403,7 @@ fpuinit(void)
 	ldmxcsr(mxcsr);
 	start_emulating();
 	intr_restore(saveintr);
+	TSEXIT();
 }
 
 /*
