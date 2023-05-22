@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 PROG_CXX=	llvm-tblgen
+MAN=
 
 SRCDIR=		llvm/utils/TableGen
 SRCS+=		AsmMatcherEmitter.cpp

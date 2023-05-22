@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 .\" Man page generated from reStructuredText.
 .
 .
@@ -28,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "LLVM-PROFDATA" "1" "2021-06-07" "12" "LLVM"
+.TH "LLVM-PROFDATA" "1" "2023-05-24" "16" "LLVM"
 .SH NAME
 llvm-profdata \- Profile data tool
 .SH SYNOPSIS
@@ -69,18 +68,18 @@ arguments are processed once for each time they are seen.
 .SS OPTIONS
 .INDENT 0.0
 .TP
-.B \-help
+.B \-\-help
 Print a summary of command line options.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-output=output, \-o=output
+.B \-\-output=<output>, \-o
 Specify the output file name.  \fIOutput\fP cannot be \fB\-\fP as the resulting
 indexed profile data can\(aqt be written to standard output.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-weighted\-input=weight,filename
+.B \-\-weighted\-input=<weight,filename>
 Specify an input file name along with a weight. The profile counts of the
 supplied \fBfilename\fP will be scaled (multiplied) by the supplied
 \fBweight\fP, where \fBweight\fP is a decimal integer >= 1.
@@ -89,43 +88,43 @@ weight of 1. Examples are shown below.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-input\-files=path, \-f=path
+.B \-\-input\-files=<path>, \-f
 Specify a file which contains a list of files to merge. The entries in this
 file are newline\-separated. Lines starting with \(aq#\(aq are skipped. Entries may
 be of the form <filename> or <weight>,<filename>.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-remapping\-file=path, \-r=path
+.B \-\-remapping\-file=<path>, \-r
 Specify a file which contains a remapping from symbol names in the input
 profile to the symbol names that should be used in the output profile. The
 file should consist of lines of the form \fB<input\-symbol> <output\-symbol>\fP\&.
 Blank lines and lines starting with \fB#\fP are skipped.
 .sp
-The llvm\-cxxmap tool can be used to generate the symbol
+The \fI\%llvm\-cxxmap\fP tool can be used to generate the symbol
 remapping file.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-instr (default)
+.B \-\-instr (default)
 Specify that the input profile is an instrumentation\-based profile.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-sample
+.B \-\-sample
 Specify that the input profile is a sample\-based profile.
 .sp
 The format of the generated file can be generated in one of three ways:
 .INDENT 7.0
 .TP
-.B \-binary (default)
+.B \-\-binary (default)
 .UNINDENT
 .sp
 Emit the profile using a binary encoding. For instrumentation\-based profile
 the output format is the indexed binary format.
 .INDENT 7.0
 .TP
-.B \-extbinary
+.B \-\-extbinary
 .UNINDENT
 .sp
 Emit the profile using an extensible binary encoding. This option can only
@@ -134,7 +133,7 @@ more compact with compression enabled and can be loaded faster than the
 default binary encoding.
 .INDENT 7.0
 .TP
-.B \-text
+.B \-\-text
 .UNINDENT
 .sp
 Emit the profile in text mode. This option can also be used with both
@@ -143,27 +142,27 @@ the profile will be dumped in the text format that is parsable by the profile
 reader.
 .INDENT 7.0
 .TP
-.B \-gcc
+.B \-\-gcc
 .UNINDENT
 .sp
 Emit the profile using GCC\(aqs gcov format (Not yet supported).
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-sparse[=true|false]
+.B \-\-sparse[=true|false]
 Do not emit function records with 0 execution count. Can only be used in
 conjunction with \-instr. Defaults to false, since it can inhibit compiler
 optimization during PGO.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-num\-threads=N, \-j=N
+.B \-\-num\-threads=<N>, \-j
 Use N threads to perform profile merging. When N=0, llvm\-profdata auto\-detects
 an appropriate number of threads to use. This is the default.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-failure\-mode=[any|all]
+.B \-\-failure\-mode=[any|all]
 Set the failure mode. There are two options: \(aqany\(aq causes the merge command to
 fail if any profiles are invalid, and \(aqall\(aq causes the merge command to fail
 only if all profiles are invalid. If \(aqall\(aq is set, information from any
@@ -172,57 +171,64 @@ failure mode is \(aqany\(aq.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-prof\-sym\-list=path
+.B \-\-prof\-sym\-list=<path>
 Specify a file which contains a list of symbols to generate profile symbol
 list in the profile. This option can only be used with sample\-based profile
 in extbinary format. The entries in this file are newline\-separated.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-compress\-all\-sections=[true|false]
+.B \-\-compress\-all\-sections=[true|false]
 Compress all sections when writing the profile. This option can only be used
 with sample\-based profile in extbinary format.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-use\-md5=[true|false]
+.B \-\-use\-md5=[true|false]
 Use MD5 to represent string in name table when writing the profile.
 This option can only be used with sample\-based profile in extbinary format.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-gen\-partial\-profile=[true|false]
+.B \-\-gen\-partial\-profile=[true|false]
 Mark the profile to be a partial profile which only provides partial profile
 coverage for the optimized target. This option can only be used with
 sample\-based profile in extbinary format.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-supplement\-instr\-with\-sample=path_to_sample_profile
+.B \-\-supplement\-instr\-with\-sample=<file>
 Supplement an instrumentation profile with sample profile. The sample profile
 is the input of the flag. Output will be in instrumentation format (only works
 with \-instr).
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-zero\-counter\-threshold=threshold_float_number
+.B \-\-zero\-counter\-threshold=<float>
 For the function which is cold in instr profile but hot in sample profile, if
-the ratio of the number of zero counters divided by the the total number of
+the ratio of the number of zero counters divided by the total number of
 counters is above the threshold, the profile of the function will be regarded
 as being harmful for performance and will be dropped.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-instr\-prof\-cold\-threshold=threshold_int_number
+.B \-\-instr\-prof\-cold\-threshold=<int>
 User specified cold threshold for instr profile which will override the cold
 threshold got from profile summary.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-suppl\-min\-size\-threshold=threshold_int_number
+.B \-\-suppl\-min\-size\-threshold=<int>
 If the size of a function is smaller than the threshold, assume it can be
 inlined by PGO early inliner and it will not be adjusted based on sample
 profile.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-debug\-info=<path>
+Specify the executable or \fB\&.dSYM\fP that contains debug info for the raw profile.
+When \fB\-debug\-info\-correlate\fP was used for instrumentation, use this option
+to correlate the raw profile.
 .UNINDENT
 .SS EXAMPLES
 .SS Basic Usage
@@ -240,13 +246,13 @@ llvm\-profdata merge foo.profdata bar.profdata baz.profdata \-output merged.prof
 .UNINDENT
 .SS Weighted Input
 .sp
-The input file \fIfoo.profdata\fP is especially important, multiply its counts by 10:
+The input file \fBfoo.profdata\fP is especially important, multiply its counts by 10:
 .INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
 .ft C
-llvm\-profdata merge \-weighted\-input=10,foo.profdata bar.profdata baz.profdata \-output merged.profdata
+llvm\-profdata merge \-\-weighted\-input=10,foo.profdata bar.profdata baz.profdata \-\-output merged.profdata
 .ft P
 .fi
 .UNINDENT
@@ -258,7 +264,7 @@ Exactly equivalent to the previous invocation (explicit form; useful for program
 .sp
 .nf
 .ft C
-llvm\-profdata merge \-weighted\-input=10,foo.profdata \-weighted\-input=1,bar.profdata \-weighted\-input=1,baz.profdata \-output merged.profdata
+llvm\-profdata merge \-\-weighted\-input=10,foo.profdata \-\-weighted\-input=1,bar.profdata \-\-weighted\-input=1,baz.profdata \-\-output merged.profdata
 .ft P
 .fi
 .UNINDENT
@@ -278,38 +284,48 @@ input from standard input.
 .SS OPTIONS
 .INDENT 0.0
 .TP
-.B \-all\-functions
+.B \-\-all\-functions
 Print details for every function.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-counts
+.B \-\-binary\-ids
+Print embedded binary ids in a profile.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-counts
 Print the counter values for the displayed functions.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-function=string
+.B \-\-show\-format=<text|json|yaml>
+Emit output in the selected format if supported by the provided profile type.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-function=<string>
 Print details for a function if the function\(aqs name contains the given string.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-help
+.B \-\-help
 Print a summary of command line options.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-output=output, \-o=output
+.B \-\-output=<output>, \-o
 Specify the output file name.  If \fIoutput\fP is \fB\-\fP or it isn\(aqt specified,
 then the output is sent to standard output.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-instr (default)
+.B \-\-instr (default)
 Specify that the input profile is an instrumentation\-based profile.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-text
+.B \-\-text
 Instruct the profile dumper to show profile counts in the text format of the
 instrumentation\-based profile data representation. By default, the profile
 information is dumped in a more human readable form (also in text) with
@@ -317,50 +333,68 @@ annotations.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-topn=n
+.B \-\-topn=<n>
 Instruct the profile dumper to show the top \fBn\fP functions with the
 hottest basic blocks in the summary section. By default, the topn functions
 are not dumped.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-sample
+.B \-\-sample
 Specify that the input profile is a sample\-based profile.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-memop\-sizes
+.B \-\-memop\-sizes
 Show the profiled sizes of the memory intrinsic calls for shown functions.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-value\-cutoff=n
+.B \-\-value\-cutoff=<n>
 Show only those functions whose max count values are greater or equal to \fBn\fP\&.
 By default, the value\-cutoff is set to 0.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-list\-below\-cutoff
+.B \-\-list\-below\-cutoff
 Only output names of functions whose max count value are below the cutoff
 value.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-showcs
+.B \-\-profile\-version
+Print profile version.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-showcs
 Only show context sensitive profile counts. The default is to filter all
 context sensitive profile counts.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-show\-prof\-sym\-list=[true|false]
+.B \-\-show\-prof\-sym\-list=[true|false]
 Show profile symbol list if it exists in the profile. This option is only
 meaningful for sample\-based profile in extbinary format.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-show\-sec\-info\-only=[true|false]
+.B \-\-show\-sec\-info\-only=[true|false]
 Show basic information about each section in the profile. This option is
 only meaningful for sample\-based profile in extbinary format.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-debug\-info=<path>
+Specify the executable or \fB\&.dSYM\fP that contains debug info for the raw profile.
+When \fB\-debug\-info\-correlate\fP was used for instrumentation, use this option
+to show the correlated functions from the raw profile.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-covered
+Show only the functions that have been executed, i.e., functions with non\-zero
+counts.
 .UNINDENT
 .SH OVERLAP
 .SS SYNOPSIS
@@ -394,29 +428,29 @@ Here is an example, if \fIbase profile file\fP has counts of {400, 600}, and
 .SS OPTIONS
 .INDENT 0.0
 .TP
-.B \-function=string
+.B \-\-function=<string>
 Print details for a function if the function\(aqs name contains the given string.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-help
+.B \-\-help
 Print a summary of command line options.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-o=output or \-o output
+.B \-\-output=<output>, \-o
 Specify the output file name.  If \fIoutput\fP is \fB\-\fP or it isn\(aqt specified,
 then the output is sent to standard output.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-value\-cutoff=n
+.B \-\-value\-cutoff=<n>
 Show only those functions whose max count values are greater or equal to \fBn\fP\&.
 By default, the value\-cutoff is set to max of unsigned long long.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-cs
+.B \-\-cs
 Only show overlap for the context sensitive profile counts. The default is to show
 non\-context sensitive profile counts.
 .UNINDENT
@@ -427,6 +461,6 @@ if it cannot read input files, or if there is a mismatch between their data.
 .SH AUTHOR
 Maintained by the LLVM Team (https://llvm.org/).
 .SH COPYRIGHT
-2003-2021, LLVM Project
+2003-2023, LLVM Project
 .\" Generated by docutils manpage writer.
 .
