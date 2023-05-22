@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/elf.h>
 #include <machine/md_var.h>
-#include <machine/trap.h>
 
 #ifdef FDT
 #include <dev/fdt/fdt_common.h>
@@ -69,6 +68,7 @@ register_t mimpid;	/* The implementation ID */
 struct cpu_desc {
 	const char	*cpu_mvendor_name;
 	const char	*cpu_march_name;
+	u_int		isa_extensions;		/* Single-letter extensions. */
 };
 
 struct cpu_desc cpu_desc[MAXCPU];
@@ -128,7 +128,7 @@ static const struct {
 #define	ISA_PREFIX_LEN		(sizeof(ISA_PREFIX) - 1)
 
 static __inline int
-parse_ext_s(char *isa, int idx, int len)
+parse_ext_s(struct cpu_desc *desc __unused, char *isa, int idx, int len)
 {
 	/*
 	 * Proceed to the next multi-letter extension or the end of the
@@ -144,7 +144,7 @@ parse_ext_s(char *isa, int idx, int len)
 }
 
 static __inline int
-parse_ext_x(char *isa, int idx, int len)
+parse_ext_x(struct cpu_desc *desc __unused, char *isa, int idx, int len)
 {
 	/*
 	 * Proceed to the next multi-letter extension or the end of the
@@ -158,7 +158,7 @@ parse_ext_x(char *isa, int idx, int len)
 }
 
 static __inline int
-parse_ext_z(char *isa, int idx, int len)
+parse_ext_z(struct cpu_desc *desc __unused, char *isa, int idx, int len)
 {
 	/*
 	 * Proceed to the next multi-letter extension or the end of the
@@ -196,13 +196,17 @@ parse_ext_version(char *isa, int idx, u_int *majorp __unused,
 /*
  * Parse the ISA string, building up the set of HWCAP bits as they are found.
  */
-static void
-parse_riscv_isa(char *isa, int len, u_long *hwcapp)
+static int
+parse_riscv_isa(struct cpu_desc *desc, char *isa, int len)
 {
-	u_long hwcap;
 	int i;
 
-	hwcap = 0;
+	/* Check the string prefix. */
+	if (strncmp(isa, ISA_PREFIX, ISA_PREFIX_LEN) != 0) {
+		printf("%s: Unrecognized ISA string: %s\n", __func__, isa);
+		return (-1);
+	}
+
 	i = ISA_PREFIX_LEN;
 	while (i < len) {
 		switch(isa[i]) {
@@ -212,11 +216,11 @@ parse_riscv_isa(char *isa, int len, u_long *hwcapp)
 		case 'f':
 		case 'i':
 		case 'm':
-			hwcap |= HWCAP_ISA_BIT(isa[i]);
+			desc->isa_extensions |= HWCAP_ISA_BIT(isa[i]);
 			i++;
 			break;
 		case 'g':
-			hwcap |= HWCAP_ISA_G;
+			desc->isa_extensions |= HWCAP_ISA_G;
 			i++;
 			break;
 		case 's':
@@ -234,20 +238,20 @@ parse_riscv_isa(char *isa, int len, u_long *hwcapp)
 			/*
 			 * Supervisor-level extension namespace.
 			 */
-			i = parse_ext_s(isa, i, len);
+			i = parse_ext_s(desc, isa, i, len);
 			break;
 		case 'x':
 			/*
 			 * Custom extension namespace. For now, we ignore
 			 * these.
 			 */
-			i = parse_ext_x(isa, i, len);
+			i = parse_ext_x(desc, isa, i, len);
 			break;
 		case 'z':
 			/*
 			 * Multi-letter standard extension namespace.
 			 */
-			i = parse_ext_z(isa, i, len);
+			i = parse_ext_z(desc, isa, i, len);
 			break;
 		case '_':
 			i++;
@@ -261,48 +265,46 @@ parse_riscv_isa(char *isa, int len, u_long *hwcapp)
 		i = parse_ext_version(isa, i, NULL, NULL);
 	}
 
-	if (hwcapp != NULL)
-		*hwcapp = hwcap;
+	return (0);
 }
 
 #ifdef FDT
 static void
-fill_elf_hwcap(void *dummy __unused)
+identify_cpu_features_fdt(u_int cpu, struct cpu_desc *desc)
 {
 	char isa[1024];
-	u_long hwcap;
 	phandle_t node;
 	ssize_t len;
+	pcell_t reg;
+	u_int hart;
 
 	node = OF_finddevice("/cpus");
 	if (node == -1) {
-		if (bootverbose)
-			printf("fill_elf_hwcap: Can't find cpus node\n");
+		printf("%s: could not find /cpus node in FDT\n", __func__);
 		return;
 	}
 
+	hart = pcpu_find(cpu)->pc_hart;
+
 	/*
-	 * Iterate through the CPUs and examine their ISA string. While we
-	 * could assign elf_hwcap to be whatever the boot CPU supports, to
-	 * handle the (unusual) case of running a system with hetergeneous
-	 * ISAs, keep only the extension bits that are common to all harts.
+	 * Locate our current CPU's node in the device-tree, and parse its
+	 * contents to detect supported CPU/ISA features and extensions.
 	 */
 	for (node = OF_child(node); node > 0; node = OF_peer(node)) {
 		/* Skip any non-CPU nodes, such as cpu-map. */
 		if (!ofw_bus_node_is_compatible(node, "riscv"))
 			continue;
 
+		/* Find this CPU */
+		if (OF_getencprop(node, "reg", &reg, sizeof(reg)) <= 0 ||
+		    reg != hart)
+			continue;
+
 		len = OF_getprop(node, "riscv,isa", isa, sizeof(isa));
 		KASSERT(len <= sizeof(isa), ("ISA string truncated"));
 		if (len == -1) {
-			if (bootverbose)
-				printf("fill_elf_hwcap: "
-				    "Can't find riscv,isa property\n");
-			return;
-		} else if (strncmp(isa, ISA_PREFIX, ISA_PREFIX_LEN) != 0) {
-			if (bootverbose)
-				printf("fill_elf_hwcap: "
-				    "Unsupported ISA string: %s\n", isa);
+			printf("%s: could not find 'riscv,isa' property "
+			    "for CPU %d, hart %u\n", __func__, cpu, hart);
 			return;
 		}
 
@@ -312,17 +314,50 @@ fill_elf_hwcap(void *dummy __unused)
 		 */
 		for (int i = 0; i < len; i++)
 			isa[i] = tolower(isa[i]);
-		parse_riscv_isa(isa, len, &hwcap);
+		if (parse_riscv_isa(desc, isa, len) != 0)
+			return;
 
-		if (elf_hwcap != 0)
-			elf_hwcap &= hwcap;
-		else
-			elf_hwcap = hwcap;
+		/* We are done. */
+		break;
+	}
+	if (node <= 0) {
+		printf("%s: could not find FDT node for CPU %u, hart %u\n",
+		    __func__, cpu, hart);
 	}
 }
-
-SYSINIT(identcpu, SI_SUB_CPU, SI_ORDER_ANY, fill_elf_hwcap, NULL);
 #endif
+
+static void
+identify_cpu_features(u_int cpu, struct cpu_desc *desc)
+{
+#ifdef FDT
+	identify_cpu_features_fdt(cpu, desc);
+#endif
+}
+
+/*
+ * Update kernel/user global state based on the feature parsing results, stored
+ * in desc.
+ *
+ * We keep only the subset of values common to all CPUs.
+ */
+static void
+update_global_capabilities(u_int cpu, struct cpu_desc *desc)
+{
+#define UPDATE_CAP(t, v)				\
+	do {						\
+		if (cpu == 0) {				\
+			(t) = (v);			\
+		} else {				\
+			(t) &= (v);			\
+		}					\
+	} while (0)
+
+	/* Update the capabilities exposed to userspace via AT_HWCAP. */
+	UPDATE_CAP(elf_hwcap, (u_long)desc->isa_extensions);
+
+#undef UPDATE_CAP
+}
 
 static void
 identify_cpu_ids(struct cpu_desc *desc)
@@ -364,22 +399,28 @@ identify_cpu_ids(struct cpu_desc *desc)
 }
 
 void
-identify_cpu(void)
+identify_cpu(u_int cpu)
 {
-	struct cpu_desc *desc = &cpu_desc[PCPU_GET(cpuid)];
+	struct cpu_desc *desc = &cpu_desc[cpu];
 
 	identify_cpu_ids(desc);
+	identify_cpu_features(cpu, desc);
+
+	update_global_capabilities(cpu, desc);
 }
 
 void
-printcpuinfo(void)
+printcpuinfo(u_int cpu)
 {
 	struct cpu_desc *desc;
-	u_int cpu, hart;
+	u_int hart;
 
-	cpu = PCPU_GET(cpuid);
-	hart = PCPU_GET(hart);
 	desc = &cpu_desc[cpu];
+	hart = pcpu_find(cpu)->pc_hart;
+
+	/* XXX: check this here so we are guaranteed to have console output. */
+	KASSERT(desc->isa_extensions != 0,
+	    ("Empty extension set for CPU %u, did parsing fail?", cpu));
 
 	/* Print details for boot CPU or if we want verbose output */
 	if (cpu == 0 || bootverbose) {
