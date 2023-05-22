@@ -37,19 +37,19 @@
 .Op Fl r Ar reviewer1 Ns Op Cm \&, Ns Ar reviewer2 ...
 .Op Fl s Ar subscriber1 Ns Op Cm \&, Ns Ar subscriber2 ...
 .Op Fl p Ar parent
-.Op Ar commit Ns | Ns Ar commit-range
+.Op Ar commit ... Ns | Ns Ar commit-range
 .Nm
-.Cm list Ar commit Ns | Ns Ar commit-range
+.Cm list Ar commit ... Ns | Ns Ar commit-range
 .Nm
 .Cm patch Ar diff1 Ns Op Cm \&, Ns Ar diff2
 .Nm
 .Cm stage
 .Op Fl b Ar branch
-.Op Ar commit Ns | Ns Ar commit-range
+.Op Ar commit ... Ns | Ns Ar commit-range
 .Nm
 .Cm update
 .Op Fl m Ar message
-.Op Ar commit Ns | Ns Ar commit-range
+.Op Ar commit ... Ns | Ns Ar commit-range
 .Sh DESCRIPTION
 The
 .Nm
@@ -190,6 +190,11 @@ $ git arc create HEAD~3..HEAD
 .Pp
 Pairs of consecutive commits are linked into a patch stack.
 Note that the first commit in the specified range is excluded.
+.Pp
+Create a series of separate reviews for each of the following commits:
+.Bd -literal -offset indent
+$ git arc create b409afcfedcdda ca03ed1345aff0
+.Ed
 .Pp
 Update the review corresponding to commit b409afcfedcdda:
 .Bd -literal -offset indent
