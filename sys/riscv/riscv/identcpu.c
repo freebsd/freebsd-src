@@ -65,10 +65,13 @@ register_t mvendorid;	/* The CPU's JEDEC vendor ID */
 register_t marchid;	/* The architecture ID */
 register_t mimpid;	/* The implementation ID */
 
+u_int mmu_caps;
+
 struct cpu_desc {
 	const char	*cpu_mvendor_name;
 	const char	*cpu_march_name;
 	u_int		isa_extensions;		/* Single-letter extensions. */
+	u_int		mmu_caps;
 };
 
 struct cpu_desc cpu_desc[MAXCPU];
@@ -272,6 +275,20 @@ parse_riscv_isa(struct cpu_desc *desc, char *isa, int len)
 
 #ifdef FDT
 static void
+parse_mmu_fdt(struct cpu_desc *desc, phandle_t node)
+{
+	char mmu[16];
+
+	desc->mmu_caps |= MMU_SV39;
+	if (OF_getprop(node, "mmu-type", mmu, sizeof(mmu)) > 0) {
+		if (strcmp(mmu, "riscv,sv48") == 0)
+			desc->mmu_caps |= MMU_SV48;
+		else if (strcmp(mmu, "riscv,sv57") == 0)
+			desc->mmu_caps |= MMU_SV48 | MMU_SV57;
+	}
+}
+
+static void
 identify_cpu_features_fdt(u_int cpu, struct cpu_desc *desc)
 {
 	char isa[1024];
@@ -319,6 +336,9 @@ identify_cpu_features_fdt(u_int cpu, struct cpu_desc *desc)
 		if (parse_riscv_isa(desc, isa, len) != 0)
 			return;
 
+		/* Check MMU features. */
+		parse_mmu_fdt(desc, node);
+
 		/* We are done. */
 		break;
 	}
@@ -357,6 +377,11 @@ update_global_capabilities(u_int cpu, struct cpu_desc *desc)
 
 	/* Update the capabilities exposed to userspace via AT_HWCAP. */
 	UPDATE_CAP(elf_hwcap, (u_long)desc->isa_extensions);
+
+	/*
+	 * MMU capabilities, e.g. Sv48.
+	 */
+	UPDATE_CAP(mmu_caps, desc->mmu_caps);
 
 #undef UPDATE_CAP
 }
@@ -431,6 +456,11 @@ printcpuinfo(u_int cpu)
 		    desc->cpu_mvendor_name, desc->cpu_march_name, hart);
 
 		printf("  marchid=%#lx, mimpid=%#lx\n", marchid, mimpid);
+		printf("  MMU: %#b\n", desc->mmu_caps,
+		    "\020"
+		    "\01Sv39"
+		    "\02Sv48"
+		    "\03Sv57");
 		printf("  ISA: %#b\n", desc->isa_extensions,
 		    "\020"
 		    "\01Atomic"

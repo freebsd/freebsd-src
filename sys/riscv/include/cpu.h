@@ -83,6 +83,14 @@
 /* SiFive marchid values */
 #define	MARCHID_SIFIVE_U7	MARCHID_COMMERCIAL(7)
 
+/*
+ * MMU virtual-addressing modes. Support for each level implies the previous,
+ * so Sv48-enabled systems MUST support Sv39, etc.
+ */
+#define	MMU_SV39	0x1	/* 3-level paging */
+#define	MMU_SV48	0x2	/* 4-level paging */
+#define	MMU_SV57	0x4	/* 5-level paging */
+
 extern char btext[];
 extern char etext[];
 
