@@ -67,42 +67,47 @@ register_t marchid;	/* The architecture ID */
 register_t mimpid;	/* The implementation ID */
 
 struct cpu_desc {
-	u_int		cpu_impl;
-	u_int		cpu_part_num;
-	const char	*cpu_impl_name;
-	const char	*cpu_part_name;
+	const char	*cpu_mvendor_name;
+	const char	*cpu_march_name;
 };
 
 struct cpu_desc cpu_desc[MAXCPU];
 
-struct cpu_parts {
-	u_int		part_id;
-	const char	*part_name;
+/*
+ * Micro-architecture tables.
+ */
+struct marchid_entry {
+	register_t	march_id;
+	const char	*march_name;
 };
-#define	CPU_PART_NONE	{ -1, "Unknown Processor" }
 
-struct cpu_implementers {
-	u_int			impl_id;
-	const char		*impl_name;
+#define	MARCHID_END	{ -1ul, NULL }
+
+/* Open-source RISC-V architecture IDs; globally allocated. */
+static const struct marchid_entry global_marchids[] = {
+	{ MARCHID_UCB_ROCKET,	"UC Berkeley Rocket"		},
+	{ MARCHID_UCB_BOOM,	"UC Berkeley Boom"		},
+	{ MARCHID_UCB_SPIKE,	"UC Berkeley Spike"		},
+	{ MARCHID_UCAM_RVBS,	"University of Cambridge RVBS"	},
+	MARCHID_END
 };
-#define	CPU_IMPLEMENTER_NONE	{ 0, "Unknown Implementer" }
+
+static const struct marchid_entry sifive_marchids[] = {
+	{ MARCHID_SIFIVE_U7,	"6/7/P200/X200-Series Processor" },
+	MARCHID_END
+};
 
 /*
- * CPU base
+ * Known CPU vendor/manufacturer table.
  */
-static const struct cpu_parts cpu_parts_std[] = {
-	{ CPU_PART_RV32,	"RV32" },
-	{ CPU_PART_RV64,	"RV64" },
-	{ CPU_PART_RV128,	"RV128" },
-	CPU_PART_NONE,
-};
-
-/*
- * Implementers table.
- */
-const struct cpu_implementers cpu_implementers[] = {
-	{ CPU_IMPL_UCB_ROCKET,	"UC Berkeley Rocket" },
-	CPU_IMPLEMENTER_NONE,
+static const struct {
+	register_t			mvendor_id;
+	const char			*mvendor_name;
+	const struct marchid_entry	*marchid_table;
+} mvendor_ids[] = {
+	{ MVENDORID_UNIMPL,	"Unspecified",		NULL		},
+	{ MVENDORID_SIFIVE,	"SiFive",		sifive_marchids	},
+	{ MVENDORID_THEAD,	"T-Head",		NULL		},
 };
 
 /*
@@ -321,48 +326,63 @@ fill_elf_hwcap(void *dummy __unused)
 SYSINIT(identcpu, SI_SUB_CPU, SI_ORDER_ANY, fill_elf_hwcap, NULL);
 #endif
 
+static void
+identify_cpu_ids(struct cpu_desc *desc)
+{
+	const struct marchid_entry *table = NULL;
+	int i;
+
+	desc->cpu_mvendor_name = "Unknown";
+	desc->cpu_march_name = "Unknown";
+
+	/*
+	 * Search for a recognized vendor, and possibly obtain the secondary
+	 * table for marchid lookup.
+	 */
+	for (i = 0; i < nitems(mvendor_ids); i++) {
+		if (mvendorid == mvendor_ids[i].mvendor_id) {
+			desc->cpu_mvendor_name = mvendor_ids[i].mvendor_name;
+			table = mvendor_ids[i].marchid_table;
+			break;
+		}
+	}
+
+	if (marchid == MARCHID_UNIMPL) {
+		desc->cpu_march_name = "Unspecified";
+		return;
+	}
+
+	if (MARCHID_IS_OPENSOURCE(marchid)) {
+		table = global_marchids;
+	} else if (table == NULL)
+		return;
+
+	for (i = 0; table[i].march_name != NULL; i++) {
+		if (marchid == table[i].march_id) {
+			desc->cpu_march_name = table[i].march_name;
+			break;
+		}
+	}
+}
+
 void
 identify_cpu(void)
 {
-	const struct cpu_parts *cpu_partsp;
-	uint32_t part_id;
-	uint32_t impl_id;
-	uint64_t misa;
-	u_int cpu;
-	size_t i;
-
-	cpu_partsp = NULL;
-
-	/* TODO: can we get misa somewhere ? */
-	misa = 0;
+	struct cpu_desc *desc;
+	u_int cpu, hart;
 
 	cpu = PCPU_GET(cpuid);
+	hart = PCPU_GET(hart);
+	desc = &cpu_desc[cpu];
 
-	impl_id	= CPU_IMPL(mimpid);
-	for (i = 0; i < nitems(cpu_implementers); i++) {
-		if (impl_id == cpu_implementers[i].impl_id ||
-		    cpu_implementers[i].impl_id == 0) {
-			cpu_desc[cpu].cpu_impl = impl_id;
-			cpu_desc[cpu].cpu_impl_name = cpu_implementers[i].impl_name;
-			cpu_partsp = cpu_parts_std;
-			break;
-		}
-	}
-
-	part_id = CPU_PART(misa);
-	for (i = 0; &cpu_partsp[i] != NULL; i++) {
-		if (part_id == cpu_partsp[i].part_id ||
-		    cpu_partsp[i].part_id == -1) {
-			cpu_desc[cpu].cpu_part_num = part_id;
-			cpu_desc[cpu].cpu_part_name = cpu_partsp[i].part_name;
-			break;
-		}
-	}
+	identify_cpu_ids(desc);
 
 	/* Print details for boot CPU or if we want verbose output */
 	if (cpu == 0 || bootverbose) {
-		printf("CPU(%d): %s %s\n", cpu,
-		    cpu_desc[cpu].cpu_impl_name,
-		    cpu_desc[cpu].cpu_part_name);
+		/* Summary line. */
+		printf("CPU %-3u: Vendor=%s Core=%s (Hart %u)\n", cpu,
+		    desc->cpu_mvendor_name, desc->cpu_march_name, hart);
+
+		printf("  marchid=%#lx, mimpid=%#lx\n", marchid, mimpid);
 	}
 }
