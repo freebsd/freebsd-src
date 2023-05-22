@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/systm.h>
 #include <sys/timetc.h>
 #include <sys/vdso.h>
@@ -41,6 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/pmap.h>
 
 #include <dev/hyperv/include/hyperv.h>
 #include <dev/hyperv/include/hyperv_busdma.h>
@@ -51,7 +54,6 @@ __FBSDID("$FreeBSD$");
 
 struct hyperv_reftsc_ctx {
 	struct hyperv_reftsc	*tsc_ref;
-	struct hyperv_dma	tsc_ref_dma;
 };
 
 static uint32_t			hyperv_tsc_vdso_timehands(
@@ -117,7 +119,7 @@ hyperv_tsc_mmap(struct cdev *dev __unused, vm_ooffset_t offset,
 	if (offset != 0)
 		return (EOPNOTSUPP);
 
-	*paddr = hyperv_ref_tsc.tsc_ref_dma.hv_paddr;
+	*paddr = pmap_kextract((vm_offset_t)hyperv_ref_tsc.tsc_ref);
 	return (0);
 }
 
@@ -208,18 +210,17 @@ hyperv_tsc_tcinit(void *dummy __unused)
 		return;
 	}
 
-	hyperv_ref_tsc.tsc_ref = hyperv_dmamem_alloc(NULL, PAGE_SIZE, 0,
-	    sizeof(struct hyperv_reftsc), &hyperv_ref_tsc.tsc_ref_dma,
-	    BUS_DMA_WAITOK | BUS_DMA_ZERO);
+	hyperv_ref_tsc.tsc_ref = contigmalloc(PAGE_SIZE, M_DEVBUF,
+	    M_WAITOK | M_ZERO, 0ul, ~0ul, PAGE_SIZE, 0);
 	if (hyperv_ref_tsc.tsc_ref == NULL) {
 		printf("hyperv: reftsc page allocation failed\n");
 		return;
 	}
 
 	orig = rdmsr(MSR_HV_REFERENCE_TSC);
-	val = MSR_HV_REFTSC_ENABLE | (orig & MSR_HV_REFTSC_RSVD_MASK) |
-	    ((hyperv_ref_tsc.tsc_ref_dma.hv_paddr >> PAGE_SHIFT) <<
-	     MSR_HV_REFTSC_PGSHIFT);
+	val = (pmap_kextract((vm_offset_t)hyperv_ref_tsc.tsc_ref) >>
+	    PAGE_SHIFT) << MSR_HV_REFTSC_PGSHIFT;
+	val |= MSR_HV_REFTSC_ENABLE | (orig & MSR_HV_REFTSC_RSVD_MASK);
 	wrmsr(MSR_HV_REFERENCE_TSC, val);
 
 	/* Register "enlightened" timecounter. */

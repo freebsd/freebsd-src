@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
@@ -425,9 +426,9 @@ vmbus_connect(struct vmbus_softc *sc, uint32_t version)
 	req = vmbus_msghc_dataptr(mh);
 	req->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_CONNECT;
 	req->chm_ver = version;
-	req->chm_evtflags = sc->vmbus_evtflags_dma.hv_paddr;
-	req->chm_mnf1 = sc->vmbus_mnf1_dma.hv_paddr;
-	req->chm_mnf2 = sc->vmbus_mnf2_dma.hv_paddr;
+	req->chm_evtflags = pmap_kextract((vm_offset_t)sc->vmbus_evtflags);
+	req->chm_mnf1 = pmap_kextract((vm_offset_t)sc->vmbus_mnf1);
+	req->chm_mnf2 = pmap_kextract((vm_offset_t)sc->vmbus_mnf2);
 
 	error = vmbus_msghc_exec(sc, mh);
 	if (error) {
@@ -744,17 +745,17 @@ vmbus_synic_setup(void *xsc)
 	 * Setup the SynIC message.
 	 */
 	orig = RDMSR(MSR_HV_SIMP);
-	val = MSR_HV_SIMP_ENABLE | (orig & MSR_HV_SIMP_RSVD_MASK) |
-	    ((VMBUS_PCPU_GET(sc, message_dma.hv_paddr, cpu) >> PAGE_SHIFT)
-		<< MSR_HV_SIMP_PGSHIFT);
+	val = pmap_kextract((vm_offset_t)VMBUS_PCPU_GET(sc, message, cpu)) &
+	    MSR_HV_SIMP_PGMASK;
+	val |= MSR_HV_SIMP_ENABLE | (orig & MSR_HV_SIMP_RSVD_MASK);
 	WRMSR(MSR_HV_SIMP, val);
 	/*
 	 * Setup the SynIC event flags.
 	 */
 	orig = RDMSR(MSR_HV_SIEFP);
-	val = MSR_HV_SIEFP_ENABLE | (orig & MSR_HV_SIEFP_RSVD_MASK) |
-	    ((VMBUS_PCPU_GET(sc, event_flags_dma.hv_paddr, cpu) >> PAGE_SHIFT)
-		<< MSR_HV_SIEFP_PGSHIFT);
+	val = pmap_kextract((vm_offset_t)VMBUS_PCPU_GET(sc, event_flags, cpu)) &
+	    MSR_HV_SIMP_PGMASK;
+	val |= MSR_HV_SIEFP_ENABLE | (orig & MSR_HV_SIEFP_RSVD_MASK);
 	WRMSR(MSR_HV_SIEFP, val);
 
 	/*
@@ -817,48 +818,43 @@ vmbus_synic_teardown(void *arg)
 static int
 vmbus_dma_alloc(struct vmbus_softc *sc)
 {
-	bus_dma_tag_t parent_dtag;
 	uint8_t *evtflags;
 	int cpu;
 
-	parent_dtag = bus_get_dma_tag(sc->vmbus_dev);
 	CPU_FOREACH(cpu) {
 		void *ptr;
 
 		/*
 		 * Per-cpu messages and event flags.
 		 */
-		ptr = hyperv_dmamem_alloc(parent_dtag, PAGE_SIZE, 0,
-		    PAGE_SIZE, VMBUS_PCPU_PTR(sc, message_dma, cpu),
-		    BUS_DMA_WAITOK | BUS_DMA_ZERO);
+		ptr = contigmalloc(PAGE_SIZE, M_DEVBUF, M_WAITOK | M_ZERO,
+		    0ul, ~0ul, PAGE_SIZE, 0);
 		if (ptr == NULL)
 			return ENOMEM;
 		VMBUS_PCPU_GET(sc, message, cpu) = ptr;
 
-		ptr = hyperv_dmamem_alloc(parent_dtag, PAGE_SIZE, 0,
-		    PAGE_SIZE, VMBUS_PCPU_PTR(sc, event_flags_dma, cpu),
-		    BUS_DMA_WAITOK | BUS_DMA_ZERO);
+		ptr = contigmalloc(PAGE_SIZE, M_DEVBUF, M_WAITOK | M_ZERO,
+		    0ul, ~0ul, PAGE_SIZE, 0);
 		if (ptr == NULL)
 			return ENOMEM;
 		VMBUS_PCPU_GET(sc, event_flags, cpu) = ptr;
 	}
 
-	evtflags = hyperv_dmamem_alloc(parent_dtag, PAGE_SIZE, 0,
-	    PAGE_SIZE, &sc->vmbus_evtflags_dma, BUS_DMA_WAITOK | BUS_DMA_ZERO);
+	evtflags = contigmalloc(PAGE_SIZE, M_DEVBUF, M_WAITOK | M_ZERO,
+	    0ul, ~0ul, PAGE_SIZE, 0);
 	if (evtflags == NULL)
 		return ENOMEM;
 	sc->vmbus_rx_evtflags = (u_long *)evtflags;
 	sc->vmbus_tx_evtflags = (u_long *)(evtflags + (PAGE_SIZE / 2));
 	sc->vmbus_evtflags = evtflags;
 
-	sc->vmbus_mnf1 = hyperv_dmamem_alloc(parent_dtag, PAGE_SIZE, 0,
-	    PAGE_SIZE, &sc->vmbus_mnf1_dma, BUS_DMA_WAITOK | BUS_DMA_ZERO);
+	sc->vmbus_mnf1 = contigmalloc(PAGE_SIZE, M_DEVBUF, M_WAITOK | M_ZERO,
+	    0ul, ~0ul, PAGE_SIZE, 0);
 	if (sc->vmbus_mnf1 == NULL)
 		return ENOMEM;
 
-	sc->vmbus_mnf2 = hyperv_dmamem_alloc(parent_dtag, PAGE_SIZE, 0,
-	    sizeof(struct vmbus_mnf), &sc->vmbus_mnf2_dma,
-	    BUS_DMA_WAITOK | BUS_DMA_ZERO);
+	sc->vmbus_mnf2 = contigmalloc(sizeof(struct vmbus_mnf), M_DEVBUF,
+	    M_WAITOK | M_ZERO, 0ul, ~0ul, PAGE_SIZE, 0);
 	if (sc->vmbus_mnf2 == NULL)
 		return ENOMEM;
 
@@ -871,31 +867,29 @@ vmbus_dma_free(struct vmbus_softc *sc)
 	int cpu;
 
 	if (sc->vmbus_evtflags != NULL) {
-		hyperv_dmamem_free(&sc->vmbus_evtflags_dma, sc->vmbus_evtflags);
+		contigfree(sc->vmbus_evtflags, PAGE_SIZE, M_DEVBUF);
 		sc->vmbus_evtflags = NULL;
 		sc->vmbus_rx_evtflags = NULL;
 		sc->vmbus_tx_evtflags = NULL;
 	}
 	if (sc->vmbus_mnf1 != NULL) {
-		hyperv_dmamem_free(&sc->vmbus_mnf1_dma, sc->vmbus_mnf1);
+		contigfree(sc->vmbus_mnf1, PAGE_SIZE, M_DEVBUF);
 		sc->vmbus_mnf1 = NULL;
 	}
 	if (sc->vmbus_mnf2 != NULL) {
-		hyperv_dmamem_free(&sc->vmbus_mnf2_dma, sc->vmbus_mnf2);
+		contigfree(sc->vmbus_mnf2, sizeof(struct vmbus_mnf), M_DEVBUF);
 		sc->vmbus_mnf2 = NULL;
 	}
 
 	CPU_FOREACH(cpu) {
 		if (VMBUS_PCPU_GET(sc, message, cpu) != NULL) {
-			hyperv_dmamem_free(
-			    VMBUS_PCPU_PTR(sc, message_dma, cpu),
-			    VMBUS_PCPU_GET(sc, message, cpu));
+			contigfree(VMBUS_PCPU_GET(sc, message, cpu), PAGE_SIZE,
+			    M_DEVBUF);
 			VMBUS_PCPU_GET(sc, message, cpu) = NULL;
 		}
 		if (VMBUS_PCPU_GET(sc, event_flags, cpu) != NULL) {
-			hyperv_dmamem_free(
-			    VMBUS_PCPU_PTR(sc, event_flags_dma, cpu),
-			    VMBUS_PCPU_GET(sc, event_flags, cpu));
+			contigfree(VMBUS_PCPU_GET(sc, event_flags, cpu),
+			    PAGE_SIZE, M_DEVBUF);
 			VMBUS_PCPU_GET(sc, event_flags, cpu) = NULL;
 		}
 	}

@@ -39,7 +39,6 @@
 #include <sys/taskqueue.h>
 
 #include <dev/hyperv/include/hyperv.h>
-#include <dev/hyperv/include/hyperv_busdma.h>
 #include <dev/hyperv/include/vmbus.h>
 #include <dev/hyperv/vmbus/vmbus_brvar.h>
 
@@ -99,7 +98,6 @@ struct vmbus_channel {
 	 */
 
 	struct hyperv_mon_param		*ch_monprm;
-	struct hyperv_dma		ch_monprm_dma;
 
 	uint32_t			ch_id;		/* channel id */
 	device_t			ch_dev;
@@ -127,7 +125,7 @@ struct vmbus_channel {
 	struct vmbus_channel		*ch_prichan;	/* owner primary chan */
 
 	void				*ch_bufring;	/* TX+RX bufrings */
-	struct hyperv_dma		ch_bufring_dma;
+	size_t				ch_bufring_size;
 	uint32_t			ch_bufring_gpadl;
 
 	struct task			ch_attach_task;	/* run in ch_mgmt_tq */

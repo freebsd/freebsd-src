@@ -85,6 +85,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 #include <sys/epoch.h>
 
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/pmap.h>
+
 #include <machine/atomic.h>
 #include <machine/in_cksum.h>
 
@@ -4984,9 +4988,8 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 	 * - A large enough buffer is allocated, certain version of NVSes
 	 *   may further limit the usable space.
 	 */
-	sc->hn_rxbuf = hyperv_dmamem_alloc(bus_get_dma_tag(dev),
-	    PAGE_SIZE, 0, HN_RXBUF_SIZE, &sc->hn_rxbuf_dma,
-	    BUS_DMA_WAITOK | BUS_DMA_ZERO);
+	sc->hn_rxbuf = contigmalloc(HN_RXBUF_SIZE, M_DEVBUF, M_WAITOK | M_ZERO,
+	    0ul, ~0ul, PAGE_SIZE, 0);
 	if (sc->hn_rxbuf == NULL) {
 		device_printf(sc->hn_dev, "allocate rxbuf failed\n");
 		return (ENOMEM);
@@ -5016,9 +5019,8 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
 		struct hn_rx_ring *rxr = &sc->hn_rx_ring[i];
 
-		rxr->hn_br = hyperv_dmamem_alloc(bus_get_dma_tag(dev),
-		    PAGE_SIZE, 0, HN_TXBR_SIZE + HN_RXBR_SIZE,
-		    &rxr->hn_br_dma, BUS_DMA_WAITOK);
+		rxr->hn_br = contigmalloc(HN_TXBR_SIZE + HN_RXBR_SIZE, M_DEVBUF,
+		    M_WAITOK | M_ZERO, 0ul, ~0ul, PAGE_SIZE, 0);
 		if (rxr->hn_br == NULL) {
 			device_printf(dev, "allocate bufring failed\n");
 			return (ENOMEM);
@@ -5171,7 +5173,7 @@ hn_destroy_rx_data(struct hn_softc *sc)
 
 	if (sc->hn_rxbuf != NULL) {
 		if ((sc->hn_flags & HN_FLAG_RXBUF_REF) == 0)
-			hyperv_dmamem_free(&sc->hn_rxbuf_dma, sc->hn_rxbuf);
+			contigfree(sc->hn_rxbuf, HN_RXBUF_SIZE, M_DEVBUF);
 		else
 			device_printf(sc->hn_dev, "RXBUF is referenced\n");
 		sc->hn_rxbuf = NULL;
@@ -5186,7 +5188,8 @@ hn_destroy_rx_data(struct hn_softc *sc)
 		if (rxr->hn_br == NULL)
 			continue;
 		if ((rxr->hn_rx_flags & HN_RX_FLAG_BR_REF) == 0) {
-			hyperv_dmamem_free(&rxr->hn_br_dma, rxr->hn_br);
+			contigfree(rxr->hn_br, HN_TXBR_SIZE + HN_RXBR_SIZE,
+			    M_DEVBUF);
 		} else {
 			device_printf(sc->hn_dev,
 			    "%dth channel bufring is referenced", i);
@@ -5491,9 +5494,8 @@ hn_create_tx_data(struct hn_softc *sc, int ring_cnt)
 	 *
 	 * NOTE: It is shared by all channels.
 	 */
-	sc->hn_chim = hyperv_dmamem_alloc(bus_get_dma_tag(sc->hn_dev),
-	    PAGE_SIZE, 0, HN_CHIM_SIZE, &sc->hn_chim_dma,
-	    BUS_DMA_WAITOK | BUS_DMA_ZERO);
+	sc->hn_chim = contigmalloc(HN_CHIM_SIZE, M_DEVBUF, M_WAITOK | M_ZERO,
+	    0ul, ~0ul, PAGE_SIZE, 0);
 	if (sc->hn_chim == NULL) {
 		device_printf(sc->hn_dev, "allocate txbuf failed\n");
 		return (ENOMEM);
@@ -5689,7 +5691,7 @@ hn_destroy_tx_data(struct hn_softc *sc)
 
 	if (sc->hn_chim != NULL) {
 		if ((sc->hn_flags & HN_FLAG_CHIM_REF) == 0) {
-			hyperv_dmamem_free(&sc->hn_chim_dma, sc->hn_chim);
+			contigfree(sc->hn_chim, HN_CHIM_SIZE, M_DEVBUF);
 		} else {
 			device_printf(sc->hn_dev,
 			    "chimney sending buffer is referenced");
@@ -6263,7 +6265,7 @@ hn_chan_attach(struct hn_softc *sc, struct vmbus_channel *chan)
 	 * Open this channel
 	 */
 	cbr.cbr = rxr->hn_br;
-	cbr.cbr_paddr = rxr->hn_br_dma.hv_paddr;
+	cbr.cbr_paddr = pmap_kextract((vm_offset_t)rxr->hn_br);
 	cbr.cbr_txsz = HN_TXBR_SIZE;
 	cbr.cbr_rxsz = HN_RXBR_SIZE;
 	error = vmbus_chan_open_br(chan, &cbr, NULL, 0, hn_chan_callback, rxr);
