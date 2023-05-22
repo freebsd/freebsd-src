@@ -40,6 +40,7 @@ extern u_long elf_hwcap;
 extern register_t mvendorid;
 extern register_t marchid;
 extern register_t mimpid;
+extern u_int mmu_caps;
 
 struct dumperinfo;
 struct minidumpstate;
