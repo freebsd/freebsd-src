@@ -256,6 +256,7 @@ init_secondary(uint64_t hart)
 	 * runtime chip identification.
 	 */
 	identify_cpu();
+	printcpuinfo();
 
 	/* Enable software interrupts */
 	riscv_unmask_ipi();

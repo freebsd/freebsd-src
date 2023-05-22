@@ -368,14 +368,20 @@ identify_cpu_ids(struct cpu_desc *desc)
 void
 identify_cpu(void)
 {
+	struct cpu_desc *desc = &cpu_desc[PCPU_GET(cpuid)];
+
+	identify_cpu_ids(desc);
+}
+
+void
+printcpuinfo(void)
+{
 	struct cpu_desc *desc;
 	u_int cpu, hart;
 
 	cpu = PCPU_GET(cpuid);
 	hart = PCPU_GET(hart);
 	desc = &cpu_desc[cpu];
-
-	identify_cpu_ids(desc);
 
 	/* Print details for boot CPU or if we want verbose output */
 	if (cpu == 0 || bootverbose) {
