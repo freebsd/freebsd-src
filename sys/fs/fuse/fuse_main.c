@@ -96,7 +96,6 @@ struct mtx fuse_mtx;
 extern struct vfsops fuse_vfsops;
 extern struct cdevsw fuse_cdevsw;
 extern struct vop_vector fuse_fifonops;
-extern uma_zone_t fuse_pbuf_zone;
 
 static struct vfsconf fuse_vfsconf = {
 	.vfc_version = VFS_VERSION,
@@ -151,7 +150,6 @@ fuse_loader(struct module *m, int what, void *arg)
 		fuse_file_init();
 		fuse_internal_init();
 		fuse_node_init();
-		fuse_pbuf_zone = pbuf_zsecond_create("fusepbuf", nswbuf / 2);
 
 		/* vfs_modevent ignores its first arg */
 		if ((err = vfs_modevent(NULL, what, &fuse_vfsconf)))
@@ -161,7 +159,6 @@ fuse_loader(struct module *m, int what, void *arg)
 		if ((err = vfs_modevent(NULL, what, &fuse_vfsconf)))
 			return (err);
 		fuse_bringdown(eh_tag);
-		uma_zdestroy(fuse_pbuf_zone);
 		break;
 	default:
 		return (EINVAL);
