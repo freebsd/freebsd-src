@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 .\" Man page generated from reStructuredText.
 .
 .
@@ -28,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "LLVM-MCA" "1" "2021-06-07" "12" "LLVM"
+.TH "LLVM-MCA" "1" "2023-05-24" "16" "LLVM"
 .SH NAME
 llvm-mca \- LLVM Machine Code Analyzer
 .SH SYNOPSIS
@@ -41,8 +40,8 @@ available in LLVM (e.g. scheduling models) to statically measure the performance
 of machine code in a specific CPU.
 .sp
 Performance is measured in terms of throughput as well as processor resource
-consumption. The tool currently works for processors with an out\-of\-order
-backend, for which there is a scheduling model available in LLVM.
+consumption. The tool currently works for processors with a backend for which
+there is a scheduling model available in LLVM.
 .sp
 The main goal of this tool is not just to predict the performance of the code
 when run on the target, but also help with diagnosing potential performance
@@ -93,12 +92,12 @@ please \fI\%file a bug\fP
 against the appropriate backend.
 .SH OPTIONS
 .sp
-If \fBinput\fP is "\fB\-\fP" or omitted, \fBllvm\-mca\fP reads from standard
+If \fBinput\fP is \(dq\fB\-\fP\(dq or omitted, \fBllvm\-mca\fP reads from standard
 input. Otherwise, it will read from the specified filename.
 .sp
 If the \fI\%\-o\fP option is omitted, then \fBllvm\-mca\fP will send its output
 to standard output if the input is from standard input.  If the \fI\%\-o\fP
-option specifies "\fB\-\fP", then the output will also be sent to standard output.
+option specifies \(dq\fB\-\fP\(dq, then the output will also be sent to standard output.
 .INDENT 0.0
 .TP
 .B \-help
@@ -153,7 +152,7 @@ zero, then the default dispatch width is used.
 .B \-register\-file\-size=<size>
 Specify the size of the register file. When specified, this flag limits how
 many physical registers are available for register renaming purposes. A value
-of zero for this flag means "unlimited number of physical registers".
+of zero for this flag means \(dqunlimited number of physical registers\(dq.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -197,8 +196,8 @@ timeline view prints information for up to 10 iterations.
 .INDENT 0.0
 .TP
 .B \-timeline\-max\-cycles=<cycles>
-Limit the number of cycles in the timeline view. By default, the number of
-cycles is set to 80.
+Limit the number of cycles in the timeline view, or use 0 for no limit. By
+default, the number of cycles is set to 80.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -240,6 +239,12 @@ Enable the printing of instruction encodings within the instruction info view.
 .UNINDENT
 .INDENT 0.0
 .TP
+.B \-show\-barriers
+Enable the printing of LoadBarrier and StoreBarrier flags within the
+instruction info view.
+.UNINDENT
+.INDENT 0.0
+.TP
 .B \-all\-stats
 Print all hardware statistics. This enables extra statistics related to the
 dispatch logic, the hardware schedulers, the register file(s), and the retire
@@ -263,15 +268,34 @@ instruction in sequence.
 .TP
 .B \-bottleneck\-analysis
 Print information about bottlenecks that affect the throughput. This analysis
-can be expensive, and it is disabled by default.  Bottlenecks are highlighted
-in the summary view.
+can be expensive, and it is disabled by default. Bottlenecks are highlighted
+in the summary view. Bottleneck analysis is currently not supported for
+processors with an in\-order backend.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-json
-Print the requested views in JSON format. The instructions and the processor
-resources are printed as members of special top level JSON objects.  The
-individual views refer to them by index.
+Print the requested views in valid JSON format. The instructions and the
+processor resources are printed as members of special top level JSON objects.
+The individual views refer to them by index. However, not all views are
+currently supported. For example, the report from the bottleneck analysis is
+not printed out in JSON. All the default views are currently supported.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-disable\-cb
+Force usage of the generic CustomBehaviour and InstrPostProcess classes rather
+than using the target specific implementation. The generic classes never
+detect any custom hazards or make any post processing modifications to
+instructions.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-disable\-im
+Force usage of the generic InstrumentManager rather than using the target
+specific implementation. The generic class creates Instruments that provide
+no extra information, and InstrumentManager never overrides the default
+schedule class for a given instruction.
 .UNINDENT
 .SH EXIT STATUS
 .sp
@@ -281,9 +305,9 @@ to standard error, and the tool returns 1.
 .sp
 \fBllvm\-mca\fP allows for the optional usage of special code comments to
 mark regions of the assembly code to be analyzed.  A comment starting with
-substring \fBLLVM\-MCA\-BEGIN\fP marks the beginning of a code region. A comment
-starting with substring \fBLLVM\-MCA\-END\fP marks the end of a code region.  For
-example:
+substring \fBLLVM\-MCA\-BEGIN\fP marks the beginning of an analysis region. A
+comment starting with substring \fBLLVM\-MCA\-END\fP marks the end of a region.
+For example:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -300,9 +324,9 @@ example:
 If no user\-defined region is specified, then \fBllvm\-mca\fP assumes a
 default region which contains every instruction in the input file.  Every region
 is analyzed in isolation, and the final performance report is the union of all
-the reports generated for every code region.
+the reports generated for every analysis region.
 .sp
-Code regions can have names. For example:
+Analysis regions can have names. For example:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -316,7 +340,7 @@ Code regions can have names. For example:
 .UNINDENT
 .UNINDENT
 .sp
-The code from the example above defines a region named "A simple example" with a
+The code from the example above defines a region named \(dqA simple example\(dq with a
 single instruction in it. Note how the region name doesn\(aqt have to be repeated
 in the \fBLLVM\-MCA\-END\fP directive. In the absence of overlapping regions,
 an anonymous \fBLLVM\-MCA\-END\fP directive always ends the currently active user
@@ -368,9 +392,9 @@ C++. As a workaround, inline assembly directives may be used:
 .nf
 .ft C
 int foo(int a, int b) {
-  __asm volatile("# LLVM\-MCA\-BEGIN foo");
+  __asm volatile(\(dq# LLVM\-MCA\-BEGIN foo\(dq:::\(dqmemory\(dq);
   a += 42;
-  __asm volatile("# LLVM\-MCA\-END");
+  __asm volatile(\(dq# LLVM\-MCA\-END\(dq:::\(dqmemory\(dq);
   a *= b;
   return a;
 }
@@ -387,6 +411,125 @@ to emit markers, then the recommendation is to always verify that the output
 assembly is equivalent to the assembly generated in the absence of markers.
 The \fI\%Clang options to emit optimization reports\fP
 can also help in detecting missed optimizations.
+.SH INSTRUMENT REGIONS
+.sp
+An InstrumentRegion describes a region of assembly code guarded by
+special LLVM\-MCA comment directives.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+# LLVM\-MCA\-<INSTRUMENT_TYPE> <data>
+  ...  ## asm
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+where \fIINSTRUMENT_TYPE\fP is a type defined by the target and expects
+to use \fIdata\fP\&.
+.sp
+A comment starting with substring \fILLVM\-MCA\-<INSTRUMENT_TYPE>\fP
+brings data into scope for llvm\-mca to use in its analysis for
+all following instructions.
+.sp
+If a comment with the same \fIINSTRUMENT_TYPE\fP is found later in the
+instruction list, then the original InstrumentRegion will be
+automatically ended, and a new InstrumentRegion will begin.
+.sp
+If there are comments containing the different \fIINSTRUMENT_TYPE\fP,
+then both data sets remain available. In contrast with an AnalysisRegion,
+an InstrumentRegion does not need a comment to end the region.
+.sp
+Comments that are prefixed with \fILLVM\-MCA\-\fP but do not correspond to
+a valid \fIINSTRUMENT_TYPE\fP for the target cause an error, except for
+\fIBEGIN\fP and \fIEND\fP, since those correspond to AnalysisRegions. Comments
+that do not start with \fILLVM\-MCA\-\fP are ignored by :program \fIllvm\-mca\fP\&.
+.sp
+An instruction (a MCInst) is added to an InstrumentRegion R only
+if its location is in range [R.RangeStart, R.RangeEnd].
+.sp
+On RISCV targets, vector instructions have different behaviour depending
+on the LMUL. Code can be instrumented with a comment that takes the
+following form:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+# LLVM\-MCA\-RISCV\-LMUL <M1|M2|M4|M8|MF2|MF4|MF8>
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+The RISCV InstrumentManager will override the schedule class for vector
+instructions to use the scheduling behaviour of its pseudo\-instruction
+which is LMUL dependent. It makes sense to place RISCV instrument
+comments directly after \fIvset{i}vl{i}\fP instructions, although
+they can be placed anywhere in the program.
+.sp
+Example of program with no call to \fIvset{i}vl{i}\fP:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+# LLVM\-MCA\-RISCV\-LMUL M2
+vadd.vv v2, v2, v2
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Example of program with call to \fIvset{i}vl{i}\fP:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+vsetvli zero, a0, e8, m1, tu, mu
+# LLVM\-MCA\-RISCV\-LMUL M1
+vadd.vv v2, v2, v2
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Example of program with multiple calls to \fIvset{i}vl{i}\fP:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+vsetvli zero, a0, e8, m1, tu, mu
+# LLVM\-MCA\-RISCV\-LMUL M1
+vadd.vv v2, v2, v2
+vsetvli zero, a0, e8, m8, tu, mu
+# LLVM\-MCA\-RISCV\-LMUL M8
+vadd.vv v2, v2, v2
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Example of program with call to \fIvsetvl\fP:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+vsetvl rd, rs1, rs2
+# LLVM\-MCA\-RISCV\-LMUL M1
+vadd.vv v12, v12, v12
+vsetvl rd, rs1, rs2
+# LLVM\-MCA\-RISCV\-LMUL M4
+vadd.vv v12, v12, v12
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
 .SH HOW LLVM-MCA WORKS
 .sp
 \fBllvm\-mca\fP takes assembly code as input. The assembly code is parsed
@@ -486,7 +629,9 @@ overview of the performance throughput. Important performance indicators are
 Throughput).
 .sp
 Field \fIDispatchWidth\fP is the maximum number of micro opcodes that are dispatched
-to the out\-of\-order backend every simulated cycle.
+to the out\-of\-order backend every simulated cycle. For processors with an
+in\-order backend, \fIDispatchWidth\fP is the maximum number of micro opcodes issued
+to the backend every simulated cycle.
 .sp
 IPC is computed dividing the total number of simulated instructions by the total
 number of cycles.
@@ -782,6 +927,9 @@ Instructions from the critical sequence are expected to significantly impact
 performance. By construction, the accuracy of this analysis is strongly
 dependent on the simulation and (as always) by the quality of the processor
 model in llvm.
+.sp
+Bottleneck analysis is currently not supported for processors with an in\-order
+backend.
 .SS Extra Statistics to Further Diagnose Performance Issues
 .sp
 The \fB\-all\-stats\fP command line option enables extra statistics and performance
@@ -939,11 +1087,14 @@ Write Back (Instruction is executed, and results are written back).
 Retire (Instruction is retired; writes are architecturally committed).
 .UNINDENT
 .sp
-The default pipeline only models the out\-of\-order portion of a processor.
-Therefore, the instruction fetch and decode stages are not modeled. Performance
-bottlenecks in the frontend are not diagnosed. \fBllvm\-mca\fP assumes that
-instructions have all been decoded and placed into a queue before the simulation
-start.  Also, \fBllvm\-mca\fP does not model branch prediction.
+The in\-order pipeline implements the following sequence of stages:
+* InOrderIssue (Instruction is issued to the processor pipelines).
+* Retire (Instruction is retired; writes are architecturally committed).
+.sp
+\fBllvm\-mca\fP assumes that instructions have all been decoded and placed
+into a queue before the simulation start. Therefore, the instruction fetch and
+decode stages are not modeled. Performance bottlenecks in the frontend are not
+diagnosed. Also, \fBllvm\-mca\fP does not model branch prediction.
 .SS Instruction Dispatch
 .sp
 During the dispatch stage, instructions are picked in program order from a
@@ -977,7 +1128,7 @@ dispatch stalls caused by the lack of physical registers.
 The number of reorder buffer entries consumed by an instruction depends on the
 number of micro\-opcodes specified for that instruction by the target scheduling
 model.  The reorder buffer is responsible for tracking the progress of
-instructions that are "in\-flight", and retiring them in program order.  The
+instructions that are \(dqin\-flight\(dq, and retiring them in program order.  The
 number of entries in the reorder buffer defaults to the value specified by field
 \fIMicroOpBufferSize\fP in the target scheduling model.
 .sp
@@ -1029,7 +1180,7 @@ instructions wait until they reach the write\-back stage.  At that point, they
 get removed from the queue and the retire control unit is notified.
 .sp
 When instructions are executed, the retire control unit flags the instruction as
-"ready to retire."
+\(dqready to retire.\(dq
 .sp
 Instructions are retired in program order.  The register file is notified of the
 retirement so that it can free the physical registers that were allocated for
@@ -1084,25 +1235,26 @@ fences.
 .UNINDENT
 .sp
 The LSUnit does not attempt to predict if a load or store hits or misses the L1
-cache.  It only knows if an instruction "MayLoad" and/or "MayStore."  For
-loads, the scheduling model provides an "optimistic" load\-to\-use latency (which
+cache.  It only knows if an instruction \(dqMayLoad\(dq and/or \(dqMayStore.\(dq  For
+loads, the scheduling model provides an \(dqoptimistic\(dq load\-to\-use latency (which
 usually matches the load\-to\-use latency for when there is a hit in the L1D).
 .sp
-\fBllvm\-mca\fP does not know about serializing operations or memory\-barrier
-like instructions.  The LSUnit conservatively assumes that an instruction which
-has both "MayLoad" and unmodeled side effects behaves like a "soft"
-load\-barrier.  That means, it serializes loads without forcing a flush of the
-load queue.  Similarly, instructions that "MayStore" and have unmodeled side
-effects are treated like store barriers.  A full memory barrier is a "MayLoad"
-and "MayStore" instruction with unmodeled side effects.  This is inaccurate, but
-it is the best that we can do at the moment with the current information
-available in LLVM.
+\fBllvm\-mca\fP does not (on its own) know about serializing operations or
+memory\-barrier like instructions.  The LSUnit used to conservatively use an
+instruction\(aqs \(dqMayLoad\(dq, \(dqMayStore\(dq, and unmodeled side effects flags to
+determine whether an instruction should be treated as a memory\-barrier. This was
+inaccurate in general and was changed so that now each instruction has an
+IsAStoreBarrier and IsALoadBarrier flag. These flags are mca specific and
+default to false for every instruction. If any instruction should have either of
+these flags set, it should be done within the target\(aqs InstrPostProcess class.
+For an example, look at the \fIX86InstrPostProcess::postProcessInstruction\fP method
+within \fIllvm/lib/Target/X86/MCA/X86CustomBehaviour.cpp\fP\&.
 .sp
 A load/store barrier consumes one entry of the load/store queue.  A load/store
 barrier enforces ordering of loads/stores.  A younger load cannot pass a load
 barrier.  Also, a younger store cannot pass a store barrier.  A younger load
 has to wait for the memory/load barrier to execute.  A load/store barrier is
-"executed" when it becomes the oldest entry in the load/store queue(s). That
+\(dqexecuted\(dq when it becomes the oldest entry in the load/store queue(s). That
 also means, by construction, all of the older loads/stores have been executed.
 .sp
 In conclusion, the full set of load/store consistency rules are:
@@ -1120,9 +1272,97 @@ A load may not pass a previous store unless \fB\-noalias\fP is set.
 .IP 6. 3
 A load has to wait until an older load barrier is fully executed.
 .UNINDENT
+.SS In\-order Issue and Execute
+.sp
+In\-order processors are modelled as a single \fBInOrderIssueStage\fP stage. It
+bypasses Dispatch, Scheduler and Load/Store unit. Instructions are issued as
+soon as their operand registers are available and resource requirements are
+met. Multiple instructions can be issued in one cycle according to the value of
+the \fBIssueWidth\fP parameter in LLVM\(aqs scheduling model.
+.sp
+Once issued, an instruction is moved to \fBIssuedInst\fP set until it is ready to
+retire. \fBllvm\-mca\fP ensures that writes are committed in\-order. However,
+an instruction is allowed to commit writes and retire out\-of\-order if
+\fBRetireOOO\fP property is true for at least one of its writes.
+.SS Custom Behaviour
+.sp
+Due to certain instructions not being expressed perfectly within their
+scheduling model, \fBllvm\-mca\fP isn\(aqt always able to simulate them
+perfectly. Modifying the scheduling model isn\(aqt always a viable
+option though (maybe because the instruction is modeled incorrectly on
+purpose or the instruction\(aqs behaviour is quite complex). The
+CustomBehaviour class can be used in these cases to enforce proper
+instruction modeling (often by customizing data dependencies and detecting
+hazards that \fBllvm\-mca\fP has no way of knowing about).
+.sp
+\fBllvm\-mca\fP comes with one generic and multiple target specific
+CustomBehaviour classes. The generic class will be used if the \fB\-disable\-cb\fP
+flag is used or if a target specific CustomBehaviour class doesn\(aqt exist for
+that target. (The generic class does nothing.) Currently, the CustomBehaviour
+class is only a part of the in\-order pipeline, but there are plans to add it
+to the out\-of\-order pipeline in the future.
+.sp
+CustomBehaviour\(aqs main method is \fIcheckCustomHazard()\fP which uses the
+current instruction and a list of all instructions still executing within
+the pipeline to determine if the current instruction should be dispatched.
+As output, the method returns an integer representing the number of cycles
+that the current instruction must stall for (this can be an underestimate
+if you don\(aqt know the exact number and a value of 0 represents no stall).
+.sp
+If you\(aqd like to add a CustomBehaviour class for a target that doesn\(aqt
+already have one, refer to an existing implementation to see how to set it
+up. The classes are implemented within the target specific backend (for
+example \fI/llvm/lib/Target/AMDGPU/MCA/\fP) so that they can access backend symbols.
+.SS Instrument Manager
+.sp
+On certain architectures, scheduling information for certain instructions
+do not contain all of the information required to identify the most precise
+schedule class. For example, data that can have an impact on scheduling can
+be stored in CSR registers.
+.sp
+One example of this is on RISCV, where values in registers such as \fIvtype\fP
+and \fIvl\fP change the scheduling behaviour of vector instructions. Since MCA
+does not keep track of the values in registers, instrument comments can
+be used to specify these values.
+.sp
+InstrumentManager\(aqs main function is \fIgetSchedClassID()\fP which has access
+to the MCInst and all of the instruments that are active for that MCInst.
+This function can use the instruments to override the schedule class of
+the MCInst.
+.sp
+On RISCV, instrument comments containing LMUL information are used
+by \fIgetSchedClassID()\fP to map a vector instruction and the active
+LMUL to the scheduling class of the pseudo\-instruction that describes
+that base instruction and the active LMUL.
+.SS Custom Views
+.sp
+\fBllvm\-mca\fP comes with several Views such as the Timeline View and
+Summary View. These Views are generic and can work with most (if not all)
+targets. If you wish to add a new View to \fBllvm\-mca\fP and it does not
+require any backend functionality that is not already exposed through MC layer
+classes (MCSubtargetInfo, MCInstrInfo, etc.), please add it to the
+\fI/tools/llvm\-mca/View/\fP directory. However, if your new View is target specific
+AND requires unexposed backend symbols or functionality, you can define it in
+the \fI/lib/Target/<TargetName>/MCA/\fP directory.
+.sp
+To enable this target specific View, you will have to use this target\(aqs
+CustomBehaviour class to override the \fICustomBehaviour::getViews()\fP methods.
+There are 3 variations of these methods based on where you want your View to
+appear in the output: \fIgetStartViews()\fP, \fIgetPostInstrInfoViews()\fP, and
+\fIgetEndViews()\fP\&. These methods returns a vector of Views so you will want to
+return a vector containing all of the target specific Views for the target in
+question.
+.sp
+Because these target specific (and backend dependent) Views require the
+\fICustomBehaviour::getViews()\fP variants, these Views will not be enabled if
+the \fI\-disable\-cb\fP flag is used.
+.sp
+Enabling these custom Views does not affect the non\-custom (generic) Views.
+Continue to use the usual command line arguments to enable / disable those
+Views.
 .SH AUTHOR
 Maintained by the LLVM Team (https://llvm.org/).
 .SH COPYRIGHT
-2003-2021, LLVM Project
+2003-2023, LLVM Project
 .\" Generated by docutils manpage writer.
 .

@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 .\" Man page generated from reStructuredText.
 .
 .
@@ -28,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "LLVM-SYMBOLIZER" "1" "2021-06-07" "12" "LLVM"
+.TH "LLVM-SYMBOLIZER" "1" "2023-05-24" "16" "LLVM"
 .SH NAME
 llvm-symbolizer \- convert addresses into source code locations
 .SH SYNOPSIS
@@ -36,22 +35,27 @@ llvm-symbolizer \- convert addresses into source code locations
 \fBllvm\-symbolizer\fP [\fIoptions\fP] [\fIaddresses...\fP]
 .SH DESCRIPTION
 .sp
-\fBllvm\-symbolizer\fP reads object file names and addresses from the
-command\-line and prints corresponding source code locations to standard output.
+\fBllvm\-symbolizer\fP reads input names and addresses from the command\-line
+and prints corresponding source code locations to standard output. It can also
+symbolize logs containing \fI\%Symbolizer Markup\fP via
+\fI\%\-\-filter\-markup\fP\&.
 .sp
 If no address is specified on the command\-line, it reads the addresses from
-standard input. If no object file is specified on the command\-line, but
-addresses are, or if at any time an input value is not recognized, the input is
-simply echoed to the output.
+standard input. If no input name is specified on the command\-line, but addresses
+are, or if at any time an input value is not recognized, the input is simply
+echoed to the output.
 .sp
-A positional argument or standard input value can be preceded by "DATA" or
-"CODE" to indicate that the address should be symbolized as data or executable
-code respectively. If neither is specified, "CODE" is assumed. DATA is
+Input names can be specified together with the addresses either on standard
+input or as positional arguments on the command\-line. By default, input names
+are interpreted as object file paths. However, prefixing a name with
+\fBBUILDID:\fP states that it is a hex build ID rather than a path. This will look
+up the corresponding debug binary. For consistency, prefixing a name with
+\fBFILE:\fP explicitly states that it is an object file path (the default).
+.sp
+A positional argument or standard input value can be preceded by \(dqDATA\(dq or
+\(dqCODE\(dq to indicate that the address should be symbolized as data or executable
+code respectively. If neither is specified, \(dqCODE\(dq is assumed. DATA is
 symbolized as address and symbol size rather than line number.
-.sp
-Object files can be specified together with the addresses either on standard
-input or as positional arguments on the command\-line, following any "DATA" or
-"CODE" prefix.
 .sp
 \fBllvm\-symbolizer\fP parses options from the environment variable
 \fBLLVM_SYMBOLIZER_OPTS\fP after parsing options from the command line.
@@ -69,7 +73,7 @@ printed differently (see \fI\%\-\-demangle\fP).
 .nf
 .ft C
 // test.h
-extern "C" inline int foz() {
+extern \(dqC\(dq inline int foz() {
   return 1234;
 }
 .ft P
@@ -82,7 +86,7 @@ extern "C" inline int foz() {
 .nf
 .ft C
 // test.cpp
-#include "test.h"
+#include \(dqtest.h\(dq
 int bar=42;
 
 int foo() {
@@ -162,7 +166,7 @@ Example 3 \- object specified with address:
 .sp
 .nf
 .ft C
-$ llvm\-symbolizer "test.elf 0x400490" "inlined.elf 0x400480"
+$ llvm\-symbolizer \(dqtest.elf 0x400490\(dq \(dqFILE:inlined.elf 0x400480\(dq
 baz()
 /tmp/test.cpp:11:0
 
@@ -170,7 +174,7 @@ foo()
 /tmp/test.cpp:8:10
 
 $ cat addr2.txt
-test.elf 0x4004a0
+FILE:test.elf 0x4004a0
 inlined.elf 0x400480
 
 $ llvm\-symbolizer < addr2.txt
@@ -184,13 +188,13 @@ foo()
 .UNINDENT
 .UNINDENT
 .sp
-Example 4 \- CODE and DATA prefixes:
+Example 4 \- BUILDID and FILE prefixes:
 .INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
 .ft C
-$ llvm\-symbolizer \-\-obj=test.elf "CODE 0x400490" "DATA 0x601028"
+$ llvm\-symbolizer \(dqFILE:test.elf 0x400490\(dq \(dqDATA BUILDID:123456789abcdef 0x601028\(dq
 baz()
 /tmp/test.cpp:11:0
 
@@ -198,10 +202,38 @@ bar
 6295592 4
 
 $ cat addr3.txt
+FILE:test.elf 0x400490
+DATA BUILDID:123456789abcdef 0x601028
+
+$ llvm\-symbolizer < addr3.txt
+baz()
+/tmp/test.cpp:11:0
+
+bar
+6295592 4
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Example 5 \- CODE and DATA prefixes:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ llvm\-symbolizer \-\-obj=test.elf \(dqCODE 0x400490\(dq \(dqDATA 0x601028\(dq
+baz()
+/tmp/test.cpp:11:0
+
+bar
+6295592 4
+
+$ cat addr4.txt
 CODE test.elf 0x4004a0
 DATA inlined.elf 0x601028
 
-$ llvm\-symbolizer < addr3.txt
+$ llvm\-symbolizer < addr4.txt
 main
 /tmp/test.cpp:15:0
 
@@ -212,7 +244,7 @@ bar
 .UNINDENT
 .UNINDENT
 .sp
-Example 5 \- path\-style options:
+Example 6 \- path\-style options:
 .sp
 This example uses the same source file as above, but the source file\(aqs
 full path is /tmp/foo/test.cpp and is compiled as follows. The first case
@@ -255,6 +287,34 @@ absolute path.
 .UNINDENT
 .INDENT 0.0
 .TP
+.B \-\-build\-id
+Look up the object using the given build ID, specified as a hexadecimal
+string. Mutually exclusive with \fI\%\-\-obj\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-color [=<always|auto|never>]
+Specify whether to use color in \fI\%\-\-filter\-markup\fP mode. Defaults to
+\fBauto\fP, which detects whether standard output supports color. Specifying
+\fB\-\-color\fP alone is equivalent to \fB\-\-color=always\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-debug\-file\-directory <path>
+Provide a path to a directory with a \fI\&.build\-id\fP subdirectory to search for
+debug information for stripped binaries. Multiple instances of this argument
+are searched in the order given.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-debuginfod, \-\-no\-debuginfod
+Whether or not to try debuginfod lookups for debug binaries. Unless specified,
+debuginfod is only enabled if libcurl was compiled in (\fBLLVM_ENABLE_CURL\fP)
+and at least one server URL was provided by the environment variable
+\fBDEBUGINFOD_URLS\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
 .B \-\-demangle, \-C
 Print demangled function names, if the names are mangled (e.g. the mangled
 name \fI_Z3bazv\fP becomes \fIbaz()\fP, whilst the non\-mangled name \fIfoz\fP is printed
@@ -272,6 +332,32 @@ debug data.
 When a separate file contains debug data, and is referenced by a GNU debug
 link section, use the specified path as a basis for locating the debug data if
 it cannot be found relative to the object.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-filter\-markup
+Reads from standard input, converts contained
+\fI\%Symbolizer Markup\fP into human\-readable form,
+and prints the results to standard output. The following markup elements are
+not yet supported:
+.INDENT 7.0
+.IP \(bu 2
+\fB{{{hexdict}}}\fP
+.IP \(bu 2
+\fB{{{dumpfile}}}\fP
+.UNINDENT
+.sp
+The \fB{{{bt}}}\fP backtrace element reports frames using the following syntax:
+.sp
+\fB#<number>[.<inline>] <address> <function> <file>:<line>:<col> (<module>+<relative address>)\fP
+.sp
+\fB<inline>\fP provides frame numbers for calls inlined into the caller
+coresponding to \fB<number>\fP\&. The inlined call numbers start at 1 and increase
+from callee to caller.
+.sp
+\fB<address>\fP is an address inside the call instruction to the function.  The
+address may not be the start of the instruction.  \fB<relative address>\fP is
+the corresponding virtual offset in the \fB<module>\fP loaded at that address.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -305,11 +391,12 @@ Don\(aqt print demangled function names.
 .TP
 .B \-\-obj <path>, \-\-exe, \-e
 Path to object file to be symbolized. If \fB\-\fP is specified, read the object
-directly from the standard input stream.
+directly from the standard input stream. Mutually exclusive with
+\fI\%\-\-build\-id\fP\&.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-\-output\-style <LLVM|GNU>
+.B \-\-output\-style <LLVM|GNU|JSON>
 Specify the preferred output style. Defaults to \fBLLVM\fP\&. When the output
 style is set to \fBGNU\fP, the tool follows the style of GNU\(aqs \fBaddr2line\fP\&.
 The differences from the \fBLLVM\fP style are:
@@ -320,11 +407,16 @@ Does not print the column of a source code location.
 Does not add an empty line after the report for an address.
 .IP \(bu 2
 Does not replace the name of an inlined function with the name of the
-topmost caller when inlined frames are not shown and \fI\%\-\-use\-symbol\-table\fP
-is on.
+topmost caller when inlined frames are not shown.
 .IP \(bu 2
 Prints an address\(aqs debug\-data discriminator when it is non\-zero. One way to
 produce discriminators is to compile with clang\(aqs \-fdebug\-info\-for\-profiling.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B \fBJSON\fP style provides a machine readable output in JSON. If addresses are
+supplied via stdin, the output JSON will be a series of individual objects.
+Otherwise, all results will be contained in a single array.
 .UNINDENT
 .INDENT 7.0
 .INDENT 3.5
@@ -349,6 +441,52 @@ foo() at /tmp/test.cpp:6
 $ clang \-g \-fdebug\-info\-for\-profiling test.cpp \-o profiling.elf
 $ llvm\-symbolizer \-\-output\-style=GNU \-\-obj=profiling.elf 0x401167 \-p \-\-no\-inlines
 main at /tmp/test.cpp:15 (discriminator 2)
+
+$ llvm\-symbolizer \-\-output\-style=JSON \-\-obj=inlined.elf 0x4004be 0x400486 \-p
+[
+  {
+    \(dqAddress\(dq: \(dq0x4004be\(dq,
+    \(dqModuleName\(dq: \(dqinlined.elf\(dq,
+    \(dqSymbol\(dq: [
+      {
+        \(dqColumn\(dq: 18,
+        \(dqDiscriminator\(dq: 0,
+        \(dqFileName\(dq: \(dq/tmp/test.cpp\(dq,
+        \(dqFunctionName\(dq: \(dqbaz()\(dq,
+        \(dqLine\(dq: 11,
+        \(dqStartAddress\(dq: \(dq0x4004be\(dq,
+        \(dqStartFileName\(dq: \(dq/tmp/test.cpp\(dq,
+        \(dqStartLine\(dq: 9
+      },
+      {
+        \(dqColumn\(dq: 0,
+        \(dqDiscriminator\(dq: 0,
+        \(dqFileName\(dq: \(dq/tmp/test.cpp\(dq,
+        \(dqFunctionName\(dq: \(dqmain\(dq,
+        \(dqLine\(dq: 15,
+        \(dqStartAddress\(dq: \(dq0x4004be\(dq,
+        \(dqStartFileName\(dq: \(dq/tmp/test.cpp\(dq,
+        \(dqStartLine\(dq: 14
+      }
+    ]
+  },
+  {
+    \(dqAddress\(dq: \(dq0x400486\(dq,
+    \(dqModuleName\(dq: \(dqinlined.elf\(dq,
+    \(dqSymbol\(dq: [
+      {
+        \(dqColumn\(dq: 3,
+        \(dqDiscriminator\(dq: 0,
+        \(dqFileName\(dq: \(dq/tmp/test.cpp\(dq,
+        \(dqFunctionName\(dq: \(dqfoo()\(dq,
+        \(dqLine\(dq: 6,
+        \(dqStartAddress\(dq: \(dq0x400486\(dq,
+        \(dqStartFileName\(dq: \(dq/tmp/test.cpp\(dq,
+        \(dqStartLine\(dq: 5
+      }
+    ]
+  }
+]
 .ft P
 .fi
 .UNINDENT
@@ -359,6 +497,8 @@ main at /tmp/test.cpp:15 (discriminator 2)
 .B \-\-pretty\-print, \-p
 Print human readable output. If \fI\%\-\-inlining\fP is specified, the
 enclosing scope is prefixed by (inlined by).
+For JSON output, the option will cause JSON to be indented and split over
+new lines. Otherwise, the JSON output will be printed in a compact form.
 .INDENT 7.0
 .INDENT 3.5
 .sp
@@ -405,7 +545,7 @@ Print \fBN\fP lines of source context for each symbolized address.
 .sp
 .nf
 .ft C
-$ llvm\-symbolizer \-\-obj=test.elf 0x400490 \-\-print\-source\-context\-lines=2
+$ llvm\-symbolizer \-\-obj=test.elf 0x400490 \-\-print\-source\-context\-lines=3
 baz()
 /tmp/test.cpp:11:0
 10  :   volatile int k = 42;
@@ -425,14 +565,8 @@ the full path, this will be the same as the default.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-\-use\-symbol\-table
-Prefer function names stored in symbol table to function names in debug info
-sections. Defaults to true.
-.UNINDENT
-.INDENT 0.0
-.TP
 .B \-\-verbose
-Print verbose line and column information.
+Print verbose address, line and column information.
 .INDENT 7.0
 .INDENT 3.5
 .sp
@@ -441,14 +575,18 @@ Print verbose line and column information.
 $ llvm\-symbolizer \-\-obj=inlined.elf \-\-verbose 0x4004be
 baz()
   Filename: /tmp/test.cpp
-Function start line: 9
+  Function start filename: /tmp/test.cpp
+  Function start line: 9
+  Function start address: 0x4004b6
   Line: 11
   Column: 18
 main
   Filename: /tmp/test.cpp
-Function start line: 14
+  Function start filename: /tmp/test.cpp
+  Function start line: 14
+  Function start address: 0x4004b0
   Line: 15
-  Column: 0
+  Column: 18
 .ft P
 .fi
 .UNINDENT
@@ -517,6 +655,6 @@ error.
 .SH AUTHOR
 Maintained by the LLVM Team (https://llvm.org/).
 .SH COPYRIGHT
-2003-2021, LLVM Project
+2003-2023, LLVM Project
 .\" Generated by docutils manpage writer.
 .

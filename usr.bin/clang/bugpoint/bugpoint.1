@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 .\" Man page generated from reStructuredText.
 .
 .
@@ -28,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "BUGPOINT" "1" "2021-06-07" "12" "LLVM"
+.TH "BUGPOINT" "1" "2023-05-24" "16" "LLVM"
 .SH NAME
 bugpoint \- automatic test case reduction tool
 .SH SYNOPSIS
@@ -42,7 +41,7 @@ can be used to debug three types of failures: optimizer crashes, miscompilations
 by optimizers, or bad native code generation (including problems in the static
 and JIT compilers).  It aims to reduce large test cases to small, useful ones.
 For more information on the design and inner workings of \fBbugpoint\fP, as well as
-advice for using bugpoint, see /Bugpoint in the LLVM
+advice for using bugpoint, see \fI\%LLVM bugpoint tool: design and usage\fP in the LLVM
 distribution.
 .SH OPTIONS
 .sp
@@ -67,7 +66,7 @@ code is considered a test failure. Defaults to false.
 .INDENT 0.0
 .INDENT 3.5
 Pass all arguments specified after \fB\-\-args\fP to the test program whenever it runs.
-Note that if any of the \fIprogram args\fP start with a "\fB\-\fP", you should use:
+Note that if any of the \fIprogram args\fP start with a \(dq\fB\-\fP\(dq, you should use:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -79,8 +78,8 @@ bugpoint [bugpoint args] \-\-args \-\- [program args]
 .UNINDENT
 .UNINDENT
 .sp
-The "\fB\-\-\fP" right after the \fB\-\-args\fP option tells \fBbugpoint\fP to consider
-any options starting with "\fB\-\fP" to be part of the \fB\-\-args\fP option, not as
+The \(dq\fB\-\-\fP\(dq right after the \fB\-\-args\fP option tells \fBbugpoint\fP to consider
+any options starting with \(dq\fB\-\fP\(dq to be part of the \fB\-\-args\fP option, not as
 options to \fBbugpoint\fP itself.
 .UNINDENT
 .UNINDENT
@@ -102,8 +101,8 @@ bugpoint [bugpoint args] \-\-tool\-args \-\- [tool args]
 .UNINDENT
 .UNINDENT
 .sp
-The "\fB\-\-\fP" right after the \fB\-\-tool\-args\fP option tells \fBbugpoint\fP to
-consider any options starting with "\fB\-\fP" to be part of the \fB\-\-tool\-args\fP
+The \(dq\fB\-\-\fP\(dq right after the \fB\-\-tool\-args\fP option tells \fBbugpoint\fP to
+consider any options starting with \(dq\fB\-\fP\(dq to be part of the \fB\-\-tool\-args\fP
 option, not as options to \fBbugpoint\fP itself. (See \fB\-\-args\fP, above.)
 .UNINDENT
 .UNINDENT
@@ -111,7 +110,7 @@ option, not as options to \fBbugpoint\fP itself. (See \fB\-\-args\fP, above.)
 \fB\-\-safe\-tool\-args\fP \fItool args\fP
 .INDENT 0.0
 .INDENT 3.5
-Pass all arguments specified after \fB\-\-safe\-tool\-args\fP to the "safe" execution
+Pass all arguments specified after \fB\-\-safe\-tool\-args\fP to the \(dqsafe\(dq execution
 tool.
 .UNINDENT
 .UNINDENT
@@ -205,9 +204,9 @@ to zero to disable the limit.
 .INDENT 0.0
 .INDENT 3.5
 Whenever the test program produces output on its standard output stream, it
-should match the contents of \fIfilename\fP (the "reference output"). If you
+should match the contents of \fIfilename\fP (the \(dqreference output\(dq). If you
 do not use this option, \fBbugpoint\fP will attempt to generate a reference output
-by compiling the program with the "safe" backend and running it.
+by compiling the program with the \(dqsafe\(dq backend and running it.
 .UNINDENT
 .UNINDENT
 .sp
@@ -225,13 +224,13 @@ custom command (see \fB\-\-exec\-command\fP) respectively.
 .INDENT 0.0
 .INDENT 3.5
 When debugging a code generator, \fBbugpoint\fP should use the specified code
-generator as the "safe" code generator. This is a known\-good code generator
-used to generate the "reference output" if it has not been provided, and to
+generator as the \(dqsafe\(dq code generator. This is a known\-good code generator
+used to generate the \(dqreference output\(dq if it has not been provided, and to
 compile portions of the program that as they are excluded from the testcase.
 These options allow you to choose the
 static native code compiler, or a custom command, (see \fB\-\-exec\-command\fP)
 respectively. The interpreter and the JIT backends cannot currently
-be used as the "safe" backends.
+be used as the \(dqsafe\(dq backends.
 .UNINDENT
 .UNINDENT
 .sp
@@ -249,9 +248,9 @@ be useful for cross\-compilation.
 .INDENT 3.5
 This option defines the command to use with the \fB\-\-compile\-custom\fP
 option to compile the bitcode testcase. The command should exit with a
-failure exit code if the file is "interesting" and should exit with a
+failure exit code if the file is \(dqinteresting\(dq and should exit with a
 success exit code (i.e. 0) otherwise (this is the same as if it crashed on
-"interesting" inputs).
+\(dqinteresting\(dq inputs).
 .sp
 This can be useful for
 testing compiler output without running any link or execute stages. To
@@ -263,14 +262,14 @@ testcase and pass the name of an executable compile\-command script in this form
 .nf
 .ft C
 #!/bin/sh
-llc "$@"
+llc \(dq$@\(dq
 not FileCheck [bugpoint input file].ll < bugpoint\-test\-program.s
 .ft P
 .fi
 .UNINDENT
 .UNINDENT
 .sp
-This script will "fail" as long as FileCheck passes. So the result
+This script will \(dqfail\(dq as long as FileCheck passes. So the result
 will be the minimum bitcode that passes FileCheck.
 .UNINDENT
 .UNINDENT
@@ -287,7 +286,7 @@ option.
 \fB\-\-verbose\-errors\fP=\fI{true,false}\fP
 .INDENT 0.0
 .INDENT 3.5
-The default behavior of bugpoint is to print "<crash>" when it finds a reduced
+The default behavior of bugpoint is to print \(dq<crash>\(dq when it finds a reduced
 test that crashes compilation. This flag prints the output of the crashing
 program to stderr. This is useful to make sure it is the same error being
 tracked down and not a different error that happens to crash the compiler as
@@ -304,6 +303,6 @@ if an error occurs, it will exit with a non\-zero value.
 .SH AUTHOR
 Maintained by the LLVM Team (https://llvm.org/).
 .SH COPYRIGHT
-2003-2021, LLVM Project
+2003-2023, LLVM Project
 .\" Generated by docutils manpage writer.
 .

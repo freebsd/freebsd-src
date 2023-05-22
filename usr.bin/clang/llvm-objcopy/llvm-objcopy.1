@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 .\" Man page generated from reStructuredText.
 .
 .
@@ -28,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "LLVM-OBJCOPY" "1" "2021-06-07" "12" "LLVM"
+.TH "LLVM-OBJCOPY" "1" "2023-05-24" "16" "LLVM"
 .SH NAME
 llvm-objcopy \- object copying and editing tool
 .SH SYNOPSIS
@@ -40,9 +39,9 @@ llvm-objcopy \- object copying and editing tool
 usage, it makes a semantic copy of the input to the output. If any options are
 specified, the output may be modified along the way, e.g. by removing sections.
 .sp
-If no output file is specified, the input file is modified in\-place. If "\-" is
+If no output file is specified, the input file is modified in\-place. If \(dq\-\(dq is
 specified for the input file, the input is read from the program\(aqs standard
-input stream. If "\-" is specified for the output file, the output is written to
+input stream. If \(dq\-\(dq is specified for the output file, the output is written to
 the standard output stream of the program.
 .sp
 If the input is an archive, any requested operations will be applied to each
@@ -64,7 +63,7 @@ Add a .gnu_debuglink section for \fB<debug\-file>\fP to the output.
 .B \-\-add\-section <section=file>
 Add a section named \fB<section>\fP with the contents of \fB<file>\fP to the
 output. For ELF objects the section will be of type \fISHT_NOTE\fP, if the name
-starts with ".note". Otherwise, it will have type \fISHT_PROGBITS\fP\&. Can be
+starts with \(dq.note\(dq. Otherwise, it will have type \fISHT_PROGBITS\fP\&. Can be
 specified multiple times to add multiple sections.
 .sp
 For MachO objects, \fB<section>\fP must be formatted as
@@ -86,7 +85,7 @@ headers.
 .B \-\-discard\-all, \-x
 Remove most local symbols from the output. Different file formats may limit
 this to a subset of the local symbols. For example, file and section symbols in
-ELF objects will not be discarded.
+ELF objects will not be discarded. Additionally, remove all debug sections.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -164,7 +163,7 @@ For MachO objects, \fB<section>\fP must be formatted as
 .INDENT 0.0
 .TP
 .B \-\-set\-section\-alignment <section>=<align>
-Set the alignment of section \fB<section>\fP to \fI<align>\(ga\fP\&. Can be specified
+Set the alignment of section \fB<section>\fP to \fB<align>\fP\&. Can be specified
 multiple times to update multiple sections.
 .UNINDENT
 .INDENT 0.0
@@ -280,6 +279,13 @@ multiple times to read names from multiple files.
 .B \-\-strip\-unneeded
 Remove from the output all local or undefined symbols that are not required by
 relocations. Also remove all debug sections.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-update\-section <name>=<file>
+Replace the contents of the section \fB<name>\fP with contents from the file
+\fB<file>\fP\&. If the section \fB<name>\fP is part of a segment, the new contents
+cannot be larger than the existing section.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -409,36 +415,15 @@ section references. Any invalid sh_link fields will be set to zero.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-\-build\-id\-link\-dir <dir>
-Set the directory used by \fI\%\-\-build\-id\-link\-input\fP and
-\fI\%\-\-build\-id\-link\-output\fP\&.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-build\-id\-link\-input <suffix>
-Hard\-link the input to \fB<dir>/xx/xxx<suffix>\fP, where \fB<dir>\fP is the directory
-specified by \fI\%\-\-build\-id\-link\-dir\fP\&. The path used is derived from the
-hex build ID.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-build\-id\-link\-output <suffix>
-Hard\-link the output to \fB<dir>/xx/xxx<suffix>\fP, where \fB<dir>\fP is the directory
-specified by \fI\%\-\-build\-id\-link\-dir\fP\&. The path used is derived from the
-hex build ID.
-.UNINDENT
-.INDENT 0.0
-.TP
 .B \-\-change\-start <incr>, \-\-adjust\-start
 Add \fB<incr>\fP to the program\(aqs start address. Can be specified multiple
 times, in which case the values will be applied cumulatively.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-\-compress\-debug\-sections [<style>]
-Compress DWARF debug sections in the output, using the specified style.
-Supported styles are \fIzlib\-gnu\fP and \fIzlib\fP\&. Defaults to \fIzlib\fP if no style is
-specified.
+.B \-\-compress\-debug\-sections [<format>]
+Compress DWARF debug sections in the output, using the specified format.
+Supported formats are \fBzlib\fP and \fBzstd\fP\&. Use \fBzlib\fP if \fB<format>\fP is omitted.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -448,7 +433,7 @@ Decompress any compressed DWARF debug sections in the output.
 .INDENT 0.0
 .TP
 .B \-\-discard\-locals, \-X
-Remove local symbols starting with ".L" from the output.
+Remove local symbols starting with \(dq.L\(dq from the output.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -493,7 +478,7 @@ Keep symbols of type \fISTT_FILE\fP, even if they would otherwise be stripped.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-\-keep\-global\-symbol <symbol>
+.B \-\-keep\-global\-symbol <symbol>, \-G
 Make all symbols local in the output, except for symbols with the name
 \fB<symbol>\fP\&. Can be specified multiple times to ignore multiple symbols.
 .UNINDENT
@@ -596,6 +581,12 @@ supported flags. Can be specified multiple times to rename multiple sections.
 .UNINDENT
 .INDENT 0.0
 .TP
+.B \-\-set\-section\-type <section>=<type>
+Set the type of section \fB<section>\fP to the integer \fB<type>\fP\&. Can be
+specified multiple times to update multiple sections.
+.UNINDENT
+.INDENT 0.0
+.TP
 .B \-\-set\-start\-addr <addr>
 Set the start address of the output to \fB<addr>\fP\&. Overrides any previously
 specified \fI\%\-\-change\-start\fP or \fI\%\-\-adjust\-start\fP options.
@@ -650,6 +641,18 @@ a \(aq#\(aq. Can be specified multiple times to read names from multiple files.
 .TP
 .B \-\-weaken
 Mark all defined global symbols as weak in the output.
+.UNINDENT
+.SH MACH-O-SPECIFIC OPTIONS
+.INDENT 0.0
+.TP
+.B \-\-keep\-undefined
+Keep undefined symbols, even if they would otherwise be stripped.
+.UNINDENT
+.SH COFF-SPECIFIC OPTIONS
+.INDENT 0.0
+.TP
+.B \-\-subsystem <name>[:<version>]
+Set the PE subsystem, and optionally subsystem version.
 .UNINDENT
 .SH SUPPORTED FORMATS
 .sp
@@ -728,7 +731,7 @@ the address of the first loadable section in the output.
 Otherwise, it exits with code 0.
 .SH BUGS
 .sp
-To report bugs, please visit <\fI\%https://bugs.llvm.org/\fP>.
+To report bugs, please visit <\fI\%https://github.com/llvm/llvm\-project/labels/tools:llvm\-objcopy/strip/\fP>.
 .sp
 There is a known issue with \fI\%\-\-input\-target\fP and \fI\%\-\-target\fP
 causing only \fBbinary\fP and \fBihex\fP formats to have any effect. Other values
@@ -740,6 +743,6 @@ format.
 .SH AUTHOR
 Maintained by the LLVM Team (https://llvm.org/).
 .SH COPYRIGHT
-2003-2021, LLVM Project
+2003-2023, LLVM Project
 .\" Generated by docutils manpage writer.
 .

@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 .\" Man page generated from reStructuredText.
 .
 .
@@ -28,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "LLVM-OBJDUMP" "1" "2021-06-07" "12" "LLVM"
+.TH "LLVM-OBJDUMP" "1" "2023-05-24" "16" "LLVM"
 .SH NAME
 llvm-objdump \- LLVM's object file dumper
 .SH SYNOPSIS
@@ -53,7 +52,11 @@ Display the information contained within an archive\(aqs headers.
 .INDENT 0.0
 .TP
 .B \-d, \-\-disassemble
-Disassemble all text sections found in the input files.
+Disassemble all executable sections found in the input files. On some
+architectures (AArch64, PPC64, x86), all known instructions are disassembled by
+default. On the others, \fI\%\-\-mcpu\fP or \fI\%\-\-mattr\fP is needed to
+enable some instruction sets. Disabled instructions are displayed as
+\fB<unknown>\fP\&.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -133,10 +136,12 @@ Display the contents of the dynamic symbol table.
 .TP
 .B \-u, \-\-unwind\-info
 Display the unwind info of the input(s).
+.sp
+This operation is only currently supported for COFF and Mach\-O object files.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-\-version
+.B \-v, \-\-version
 Display the version of the \fBllvm\-objdump\fP executable. Does not stack
 with other commands.
 .UNINDENT
@@ -165,8 +170,29 @@ for a list of available targets.
 .UNINDENT
 .INDENT 0.0
 .TP
+.B \-\-build\-id=<string>
+Look up the object using the given build ID, specified as a hexadecimal
+string. The found object is handled as if it were an input filename.
+.UNINDENT
+.INDENT 0.0
+.TP
 .B \-C, \-\-demangle
 Demangle symbol names in the output.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-debug\-file\-directory <path>
+Provide a path to a directory with a \fI\&.build\-id\fP subdirectory to search for
+debug information for stripped binaries. Multiple instances of this argument
+are searched in the order given.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-debuginfod, \-\-no\-debuginfod
+Whether or not to try debuginfod lookups for debug binaries. Unless specified,
+debuginfod is only enabled if libcurl was compiled in (\fBLLVM_ENABLE_CURL\fP)
+and at least one server URL was provided by the environment variable
+\fBDEBUGINFOD_URLS\fP\&.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -179,7 +205,7 @@ to \fBunicode\fP if omitted.
 .TP
 .B \-\-debug\-vars\-indent=<width>
 Distance to indent the source\-level variable display, relative to the start
-of the disassembly. Defaults to 40 characters.
+of the disassembly. Defaults to 52 characters.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -196,8 +222,21 @@ When disassembling, display source line numbers. Implies
 .INDENT 0.0
 .TP
 .B \-M, \-\-disassembler\-options=<opt1[,opt2,...]>
-Pass target\-specific disassembler options. Currently supported for ARM targets
-only. Available options are \fBreg\-names\-std\fP and \fBreg\-names\-raw\fP\&.
+Pass target\-specific disassembler options. Available options:
+.INDENT 7.0
+.IP \(bu 2
+\fBreg\-names\-std\fP: ARM only (default). Print in ARM \(aqs instruction set documentation, with r13/r14/r15 replaced by sp/lr/pc.
+.IP \(bu 2
+\fBreg\-names\-raw\fP: ARM only. Use r followed by the register number.
+.IP \(bu 2
+\fBno\-aliases\fP: AArch64 and RISC\-V only. Print raw instruction mnemonic instead of pseudo instruction mnemonic.
+.IP \(bu 2
+\fBnumeric\fP: RISC\-V only. Print raw register names instead of ABI mnemonic. (e.g. print x1 instead of ra)
+.IP \(bu 2
+\fBatt\fP: x86 only (default). Print in the AT&T syntax.
+.IP \(bu 2
+\fBintel\fP: x86 only. Print in the intel syntax.
+.UNINDENT
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -213,13 +252,24 @@ the available attributes.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-\-no\-leading\-addr
-When disassembling, do not print leading addresses.
+.B \-\-no\-leading\-addr, \-\-no\-addresses
+When disassembling, do not print leading addresses for instructions or inline
+relocations.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-no\-print\-imm\-hex
+Do not use hex format for immediate values in disassembly output.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-no\-show\-raw\-insn
 When disassembling, do not print the raw bytes of each instruction.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-offloading
+Display the content of the LLVM offloading section.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -229,14 +279,27 @@ absolute paths.
 .UNINDENT
 .INDENT 0.0
 .TP
+.B \-\-prefix\-strip=<level>
+When disassembling with the \fI\%\-\-source\fP option, strip out \fBlevel\fP
+initial directories from absolute paths. This option has no effect without
+\fI\%\-\-prefix\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
 .B \-\-print\-imm\-hex
-Use hex format when printing immediate values in disassembly output.
+Use hex format when printing immediate values in disassembly output (default).
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-S, \-\-source
 When disassembling, display source interleaved with the disassembly. Implies
 \fI\%\-\-disassemble\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-show\-all\-symbols
+Show all symbols during disassembly, even if multiple symbols are defined at
+the same location.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -269,7 +332,9 @@ When disassembling, symbolize a branch target operand to print a label instead o
 .sp
 When printing a PC\-relative global symbol reference, print it as an offset from the leading symbol.
 .sp
-Only works with an X86 linked image.
+When a bb\-address\-map section is present (i.e., the object file is built with \fB\-fbasic\-block\-sections=labels\fP), labels are retrieved from that section instead.
+.sp
+Only works with PowerPC objects or X86 linked images.
 .INDENT 7.0
 .TP
 .B Example:
@@ -314,6 +379,7 @@ Ignored for compatibility with GNU objdump.
 .INDENT 0.0
 .TP
 .B \-\-x86\-asm\-syntax=<style>
+Deprecated.
 When used with \fI\%\-\-disassemble\fP, choose style of code to emit from
 X86 backend. Supported values are:
 .INDENT 7.0
@@ -363,12 +429,6 @@ Display binding info
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-\-cfg
-Create a CFG for every symbol in the object file and write it to a graphviz
-file.
-.UNINDENT
-.INDENT 0.0
-.TP
 .B \-\-data\-in\-code
 Display the data in code table.
 .UNINDENT
@@ -376,6 +436,17 @@ Display the data in code table.
 .TP
 .B \-\-dis\-symname=<name>
 Disassemble just the specified symbol\(aqs instructions.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-chained\-fixups
+Print chained fixup information.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-dyld\-info
+Print bind and rebase information used by dyld to resolve external
+references in a final linked binary.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -396,6 +467,14 @@ Display the shared library\(aqs ID for dylib files.
 .TP
 .B \-\-exports\-trie
 Display exported symbols.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-function\-starts [=<addrs|names|both>]
+Print the function starts table for Mach\-O objects. Either \fBaddrs\fP
+(default) to print only the addresses of functions, \fBnames\fP to print only
+the names of the functions (when available), or \fBboth\fP to print the
+names beside the addresses.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -465,6 +544,11 @@ Display rebasing information.
 .UNINDENT
 .INDENT 0.0
 .TP
+.B \-\-rpaths
+Display runtime search paths for the binary.
+.UNINDENT
+.INDENT 0.0
+.TP
 .B \-\-universal\-headers
 Display universal headers.
 .UNINDENT
@@ -481,13 +565,14 @@ Add symbol description to disassembly output.
 .UNINDENT
 .SH BUGS
 .sp
-To report bugs, please visit <\fI\%https://bugs.llvm.org/\fP>.
+To report bugs, please visit <\fI\%https://github.com/llvm/llvm\-project/labels/tools:llvm\-objdump/\fP>.
 .SH SEE ALSO
 .sp
-\fBllvm\-nm(1)\fP, \fBllvm\-readelf(1)\fP, \fBllvm\-readobj(1)\fP
+\fBllvm\-nm(1)\fP, \fBllvm\-otool(1)\fP, \fBllvm\-readelf(1)\fP,
+\fBllvm\-readobj(1)\fP
 .SH AUTHOR
 Maintained by the LLVM Team (https://llvm.org/).
 .SH COPYRIGHT
-2003-2021, LLVM Project
+2003-2023, LLVM Project
 .\" Generated by docutils manpage writer.
 .

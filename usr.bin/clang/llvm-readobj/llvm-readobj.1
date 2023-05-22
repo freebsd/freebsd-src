@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "LLVM-READOBJ" "1" "2021-09-22" "12" "LLVM"
+.TH "LLVM-READOBJ" "1" "2023-05-24" "16" "LLVM"
 .SH NAME
 llvm-readobj \- LLVM Object Reader
 .SH SYNOPSIS
@@ -38,7 +38,7 @@ llvm-readobj \- LLVM Object Reader
 The \fBllvm\-readobj\fP tool displays low\-level format\-specific information
 about one or more object files.
 .sp
-If \fBinput\fP is "\fB\-\fP", \fBllvm\-readobj\fP reads from standard
+If \fBinput\fP is \(dq\fB\-\fP\(dq, \fBllvm\-readobj\fP reads from standard
 input. Otherwise, it will read from the specified \fBfilenames\fP\&.
 .SH DIFFERENCES TO LLVM-READELF
 .sp
@@ -85,35 +85,25 @@ Display the address\-significance table.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-\-color
-Use colors in the output for warnings and errors.
-.UNINDENT
-.INDENT 0.0
-.TP
 .B \-\-expand\-relocs
-When used with \fI\%\-\-relocations\fP, display each relocation in an expanded
+When used with \fI\%\-\-relocs\fP, display each relocation in an expanded
 multi\-line format.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-\-file\-headers, \-h
+.B \-\-file\-header, \-h
 Display file headers.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-headers, \-e
-Equivalent to setting: \fI\%\-\-file\-headers\fP, \fI\%\-\-program\-headers\fP,
+Equivalent to setting: \fI\%\-\-file\-header\fP, \fI\%\-\-program\-headers\fP,
 and \fI\%\-\-sections\fP\&.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-help
 Display a summary of command line options.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-\-help\-list
-Display an uncategorized summary of command line options.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -133,7 +123,7 @@ Display the relocation entries in the file.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-\-sections, \-\-section\-headers, \-s, \-S
+.B \-\-sections, \-\-section\-headers, \-S
 Display all sections.
 .UNINDENT
 .INDENT 0.0
@@ -156,6 +146,12 @@ This option has no effect for GNU style output.
 .UNINDENT
 .INDENT 0.0
 .TP
+.B \-\-sort\-symbols=<sort_key[,sort_key]>
+Specify the keys to sort symbols before displaying symtab.
+Valid values for sort_key are \fBname\fP and \fBtype\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
 .B \-\-stackmap
 Display contents of the stackmap section.
 .UNINDENT
@@ -167,7 +163,12 @@ section index or section name.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-\-symbols, \-\-syms, \-t
+.B \-\-string\-table
+Display contents of the string table.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-symbols, \-\-syms, \-s
 Display the symbol table.
 .UNINDENT
 .INDENT 0.0
@@ -192,6 +193,12 @@ The following options are implemented only for the ELF file format.
 .TP
 .B \-\-arch\-specific, \-A
 Display architecture\-specific information, e.g. the ARM attributes section on ARM.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-bb\-addr\-map
+Display the contents of the basic block address map section(s), which contain the
+address of each function, along with the relative offset of each basic block.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -225,7 +232,7 @@ Display the callgraph profile section.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-\-elf\-hash\-histogram, \-\-histogram, \-I
+.B \-\-histogram, \-I
 Display a bucket list histogram for dynamic symbol hash tables.
 .UNINDENT
 .INDENT 0.0
@@ -236,13 +243,14 @@ Display the linker options section.
 .INDENT 0.0
 .TP
 .B \-\-elf\-output\-style=<value>
-Format ELF information in the specified style. Valid options are \fBLLVM\fP and
-\fBGNU\fP\&. \fBLLVM\fP output (the default) is an expanded and structured format,
-whilst \fBGNU\fP output mimics the equivalent GNU \fBreadelf\fP output.
+Format ELF information in the specified style. Valid options are \fBLLVM\fP,
+\fBGNU\fP, and \fBJSON\fP\&. \fBLLVM\fP output (the default) is an expanded and
+structured format. \fBGNU\fP output mimics the equivalent GNU \fBreadelf\fP
+output. \fBJSON\fP is JSON formatted output intended for machine consumption.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-\-elf\-section\-groups, \-\-section\-groups, \-g
+.B \-\-section\-groups, \-g
 Display section groups.
 .UNINDENT
 .INDENT 0.0
@@ -264,6 +272,12 @@ Display the hash table for dynamic symbols.
 .TP
 .B \-\-notes, \-n
 Display all notes.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-pretty\-print
+When used with \fI\%\-\-elf\-output\-style\fP, JSON output will be formatted in
+a more readable format.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -388,6 +402,34 @@ Display the load config.
 .B \-\-coff\-resources
 Display the .rsrc section.
 .UNINDENT
+.SH XCOFF SPECIFIC OPTIONS
+.sp
+The following options are implemented only for the XCOFF file format.
+.INDENT 0.0
+.TP
+.B \-\-auxiliary\-header
+Display XCOFF Auxiliary header.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-exception\-section
+Display XCOFF exception section entries.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-loader\-section\-header
+Display XCOFF loader section header.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-loader\-section\-symbols
+Display symbol table of loader section.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-loader\-section\-relocations
+Display relocation entries of loader section.
+.UNINDENT
 .SH EXIT STATUS
 .sp
 \fBllvm\-readobj\fP returns 0 under normal operation. It returns a non\-zero
@@ -398,6 +440,6 @@ exit code if there were any errors.
 .SH AUTHOR
 Maintained by the LLVM Team (https://llvm.org/).
 .SH COPYRIGHT
-2003-2021, LLVM Project
+2003-2023, LLVM Project
 .\" Generated by docutils manpage writer.
 .
