@@ -449,18 +449,30 @@ printcpuinfo(u_int cpu)
 	KASSERT(desc->isa_extensions != 0,
 	    ("Empty extension set for CPU %u, did parsing fail?", cpu));
 
-	/* Print details for boot CPU or if we want verbose output */
-	if (cpu == 0 || bootverbose) {
-		/* Summary line. */
-		printf("CPU %-3u: Vendor=%s Core=%s (Hart %u)\n", cpu,
-		    desc->cpu_mvendor_name, desc->cpu_march_name, hart);
+	/*
+	 * Suppress the output of some fields in the common case of identical
+	 * CPU features.
+	 */
+#define	SHOULD_PRINT(_field)	\
+    (cpu == 0 || desc[0]._field != desc[-1]._field)
 
+	/* Always print summary line. */
+	printf("CPU %-3u: Vendor=%s Core=%s (Hart %u)\n", cpu,
+	    desc->cpu_mvendor_name, desc->cpu_march_name, hart);
+
+	/* These values are global. */
+	if (cpu == 0)
 		printf("  marchid=%#lx, mimpid=%#lx\n", marchid, mimpid);
+
+	if (SHOULD_PRINT(mmu_caps)) {
 		printf("  MMU: %#b\n", desc->mmu_caps,
 		    "\020"
 		    "\01Sv39"
 		    "\02Sv48"
 		    "\03Sv57");
+	}
+
+	if (SHOULD_PRINT(isa_extensions)) {
 		printf("  ISA: %#b\n", desc->isa_extensions,
 		    "\020"
 		    "\01Atomic"
@@ -469,4 +481,6 @@ printcpuinfo(u_int cpu)
 		    "\06Float"
 		    "\15Mult/Div");
 	}
+
+#undef SHOULD_PRINT
 }
