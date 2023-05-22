@@ -321,7 +321,7 @@ LENTRY(drop_to_el1)
 	/* Zero vttbr_el2 so a hypervisor can tell the host and guest apart */
 	msr	vttbr_el2, xzr
 
-	mov	x2, #(PSR_F | PSR_I | PSR_A | PSR_D | PSR_M_EL1h)
+	mov	x2, #(PSR_DAIF | PSR_M_EL1h)
 	msr	spsr_el2, x2
 
 	/* Configure GICv3 CPU interface */
