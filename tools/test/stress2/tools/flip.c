@@ -70,6 +70,15 @@ flip(void *ap, size_t len)
 #endif
 }
 
+static void
+trash(char *c)
+{
+	if (arc4random() % 2 == 1)
+		*c = 0;
+	else
+		arc4random_buf(c, sizeof(c));
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -122,7 +131,10 @@ main(int argc, char *argv[])
 			err(1, "lseek()");
 		if (read(fd, &c, 1) != 1)
 			err(1, "read()");
-		flip(&c, 1);
+		if (arc4random() % 100 < 80)
+			flip(&c, 1);
+		else
+			trash(&c);
 		if (lseek(fd, pos, SEEK_SET) == -1)
 			err(1, "lseek()");
 		if (write(fd, &c, 1) != 1)
