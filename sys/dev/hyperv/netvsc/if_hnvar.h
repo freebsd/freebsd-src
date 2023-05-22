@@ -102,7 +102,6 @@ struct hn_rx_ring {
 	struct sysctl_oid *hn_rx_sysctl_tree;
 
 	void		*hn_br;		/* TX/RX bufring */
-	struct hyperv_dma hn_br_dma;
 
 	struct vmbus_channel *hn_chan;
 } __aligned(CACHE_LINE_SIZE);
@@ -242,10 +241,8 @@ struct hn_softc {
 
 	void			*hn_rxbuf;
 	uint32_t		hn_rxbuf_gpadl;
-	struct hyperv_dma	hn_rxbuf_dma;
 
 	uint32_t		hn_chim_gpadl;
-	struct hyperv_dma	hn_chim_dma;
 
 	uint32_t		hn_rndis_rid;
 	uint32_t		hn_ndis_ver;

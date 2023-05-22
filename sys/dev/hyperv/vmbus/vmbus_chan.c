@@ -43,7 +43,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/atomic.h>
 #include <machine/stdarg.h>
 
-#include <dev/hyperv/include/hyperv_busdma.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_extern.h>
+
 #include <dev/hyperv/include/vmbus_xact.h>
 #include <dev/hyperv/vmbus/hyperv_var.h>
 #include <dev/hyperv/vmbus/vmbus_reg.h>
@@ -137,7 +140,8 @@ vmbus_chan_signal(const struct vmbus_channel *chan)
 	if (chan->ch_txflags & VMBUS_CHAN_TXF_HASMNF)
 		atomic_set_int(chan->ch_montrig, chan->ch_montrig_mask);
 	else
-		hypercall_signal_event(chan->ch_monprm_dma.hv_paddr);
+		hypercall_signal_event(pmap_kextract(
+		    (vm_offset_t)chan->ch_monprm));
 }
 
 static __inline void
@@ -340,16 +344,16 @@ vmbus_chan_open(struct vmbus_channel *chan, int txbr_size, int rxbr_size,
 	 * Allocate the TX+RX bufrings.
 	 */
 	KASSERT(chan->ch_bufring == NULL, ("bufrings are allocated"));
-	chan->ch_bufring = hyperv_dmamem_alloc(bus_get_dma_tag(chan->ch_dev),
-	    PAGE_SIZE, 0, txbr_size + rxbr_size, &chan->ch_bufring_dma,
-	    BUS_DMA_WAITOK);
+	chan->ch_bufring_size = txbr_size + rxbr_size;
+	chan->ch_bufring = contigmalloc(chan->ch_bufring_size, M_DEVBUF,
+	    M_WAITOK | M_ZERO, 0ul, ~0ul, PAGE_SIZE, 0);
 	if (chan->ch_bufring == NULL) {
 		vmbus_chan_printf(chan, "bufring allocation failed\n");
 		return (ENOMEM);
 	}
 
 	cbr.cbr = chan->ch_bufring;
-	cbr.cbr_paddr = chan->ch_bufring_dma.hv_paddr;
+	cbr.cbr_paddr = pmap_kextract((vm_offset_t)chan->ch_bufring);
 	cbr.cbr_txsz = txbr_size;
 	cbr.cbr_rxsz = rxbr_size;
 
@@ -367,8 +371,8 @@ vmbus_chan_open(struct vmbus_channel *chan, int txbr_size, int rxbr_size,
 			    "leak %d bytes memory\n", chan->ch_id,
 			    txbr_size + rxbr_size);
 		} else {
-			hyperv_dmamem_free(&chan->ch_bufring_dma,
-			    chan->ch_bufring);
+			contigfree(chan->ch_bufring, chan->ch_bufring_size,
+			    M_DEVBUF);
 		}
 		chan->ch_bufring = NULL;
 	}
@@ -938,7 +942,7 @@ disconnect:
 	 * Destroy the TX+RX bufrings.
 	 */
 	if (chan->ch_bufring != NULL) {
-		hyperv_dmamem_free(&chan->ch_bufring_dma, chan->ch_bufring);
+		contigfree(chan->ch_bufring, chan->ch_bufring_size, M_DEVBUF);
 		chan->ch_bufring = NULL;
 	}
 	return (error);
@@ -1630,9 +1634,8 @@ vmbus_chan_alloc(struct vmbus_softc *sc)
 
 	chan = malloc(sizeof(*chan), M_DEVBUF, M_WAITOK | M_ZERO);
 
-	chan->ch_monprm = hyperv_dmamem_alloc(bus_get_dma_tag(sc->vmbus_dev),
-	    HYPERCALL_PARAM_ALIGN, 0, sizeof(struct hyperv_mon_param),
-	    &chan->ch_monprm_dma, BUS_DMA_WAITOK | BUS_DMA_ZERO);
+	chan->ch_monprm = contigmalloc(sizeof(struct hyperv_mon_param),
+	    M_DEVBUF, M_WAITOK | M_ZERO, 0ul, ~0ul, HYPERCALL_PARAM_ALIGN, 0);
 	if (chan->ch_monprm == NULL) {
 		device_printf(sc->vmbus_dev, "monprm alloc failed\n");
 		free(chan, M_DEVBUF);
@@ -1671,7 +1674,7 @@ vmbus_chan_free(struct vmbus_channel *chan)
 	KASSERT(chan->ch_poll_intvl == 0, ("chan%u: polling is activated",
 	    chan->ch_id));
 
-	hyperv_dmamem_free(&chan->ch_monprm_dma, chan->ch_monprm);
+	contigfree(chan->ch_monprm, sizeof(struct hyperv_mon_param), M_DEVBUF);
 	mtx_destroy(&chan->ch_subchan_lock);
 	sx_destroy(&chan->ch_orphan_lock);
 	vmbus_rxbr_deinit(&chan->ch_rxbr);
