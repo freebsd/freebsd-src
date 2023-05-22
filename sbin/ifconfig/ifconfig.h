@@ -144,15 +144,10 @@ struct ifaddrs;
 struct addrinfo;
 
 enum {
-	RIDADDR = 0,
-	ADDR = 1,
-	MASK = 2,
-	DSTADDR = 3,
-#ifdef WITHOUT_NETLINK
-	BRDADDR = 3,
-#else
-	BRDADDR = 4,
-#endif
+	RIDADDR,
+	ADDR,
+	MASK,
+	DSTADDR,
 };
 
 struct snl_state;
@@ -169,7 +164,6 @@ struct io_handler {
 typedef void af_setvhid_f(int vhid);
 typedef	void af_status_nl_f(struct ifconfig_args *args, struct io_handler *h,
     if_link_t *link, if_addr_t *ifa);
-typedef	int af_exec_f(struct io_handler *h, int action, void *data);
 
 struct afswtch {
 	const char	*af_name;	/* as given on cmd line, e.g. "inet" */
@@ -196,7 +190,6 @@ struct afswtch {
 	void		(*af_postproc)(int s, const struct afswtch *,
 			    int newaddr, int ifflags);
 	af_setvhid_f	*af_setvhid;	/* Set CARP vhid for an address */
-	af_exec_f	*af_exec;	/* Handler to interact with kernel */
 	u_long		af_difaddr;	/* set dst if address ioctl */
 	u_long		af_aifaddr;	/* set if address ioctl */
 	void		*af_ridreq;	/* */
@@ -209,7 +202,6 @@ struct afswtch {
 				struct addrinfo *dstres);
 };
 void	af_register(struct afswtch *);
-int	af_exec_ioctl(struct io_handler *h, int action, void *data);
 
 struct ifconfig_args {
 	bool all;		/* Match everything */
@@ -267,8 +259,7 @@ void	sfp_status(int s, struct ifreq *ifr, int verbose);
 struct sockaddr_dl;
 bool	match_ether(const struct sockaddr_dl *sdl);
 bool	match_if_flags(struct ifconfig_args *args, int if_flags);
-int	ifconfig(struct ifconfig_args *args, struct io_handler *h,
-		int iscreate, const struct afswtch *uafp);
+int	ifconfig(int argc, char *const *argv, int iscreate, const struct afswtch *uafp);
 bool	group_member(const char *ifname, const char *match, const char *nomatch);
 void	print_ifcap(struct ifconfig_args *args, int s);
 void	tunnel_status(int s);
@@ -279,9 +270,6 @@ void	print_metric(int s);
 
 /* Netlink-related functions */
 void	list_interfaces_nl(struct ifconfig_args *args);
-int	ifconfig_wrapper_nl(struct ifconfig_args *args, int iscreate,
-		const struct afswtch *uafp);
-uint32_t if_nametoindex_nl(struct snl_state *ss, const char *ifname);
 
 /*
  * XXX expose this so modules that neeed to know of any pending
