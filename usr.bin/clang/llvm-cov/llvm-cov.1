@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 .\" Man page generated from reStructuredText.
 .
 .
@@ -28,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "LLVM-COV" "1" "2021-06-07" "12" "LLVM"
+.TH "LLVM-COV" "1" "2023-05-24" "16" "LLVM"
 .SH NAME
 llvm-cov \- emit coverage information
 .SH SYNOPSIS
@@ -70,9 +69,7 @@ To use \fBllvm\-cov gcov\fP, you must first build an instrumented version
 of your application that collects coverage data as it runs. Compile with the
 \fB\-fprofile\-arcs\fP and \fB\-ftest\-coverage\fP options to add the
 instrumentation. (Alternatively, you can use the \fB\-\-coverage\fP option, which
-includes both of those other options.) You should compile with debugging
-information (\fB\-g\fP) and without optimization (\fB\-O0\fP); otherwise, the
-coverage data cannot be accurately mapped back to the source code.
+includes both of those other options.)
 .sp
 At the time you compile the instrumented code, a \fB\&.gcno\fP data file will be
 generated for each object file. These \fB\&.gcno\fP files contain half of the
@@ -125,6 +122,11 @@ Display branch counts instead of probabilities (requires \-b).
 .UNINDENT
 .INDENT 0.0
 .TP
+.B \-m, \-\-demangled\-names
+Demangle function names.
+.UNINDENT
+.INDENT 0.0
+.TP
 .B \-f, \-\-function\-summaries
 Show a summary of coverage for each function instead of just one summary for
 an entire source file.
@@ -150,7 +152,7 @@ displayed.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-o=<DIR|FILE>, \-\-object\-directory=<DIR>, \-\-object\-file=<FILE>
+.B \-o <DIR|FILE>, \-\-object\-directory=<DIR>, \-\-object\-file=<FILE>
 Find objects in DIR or based on FILE\(aqs path. If you specify a particular
 object file, the coverage data files are expected to have the same base name
 with \fB\&.gcno\fP and \fB\&.gcda\fP extensions. If you specify a directory, the
@@ -166,6 +168,22 @@ file. The directories are separate by \fB#\fP characters, with \fB\&.\fP directo
 removed and \fB\&..\fP directories replaced by \fB^\fP characters. When used with
 the \-\-long\-file\-names option, this applies to both the main file name and the
 included file name.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-r
+Only dump files with relative paths or absolute paths with the prefix specified
+by \fB\-s\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-s <string>
+Source prefix to elide.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-t, \-\-stdout
+Print to stdout instead of producing \fB\&.gcov\fP files.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -191,12 +209,12 @@ it exits with zero.
 .SH SHOW COMMAND
 .SS SYNOPSIS
 .sp
-\fBllvm\-cov show\fP [\fIoptions\fP] \-instr\-profile \fIPROFILE\fP \fIBIN\fP [\fI\-object BIN,...\fP] [[\fI\-object BIN\fP]] [\fISOURCES\fP]
+\fBllvm\-cov show\fP [\fIoptions\fP] \-instr\-profile \fIPROFILE\fP [\fIBIN\fP] [\fI\-object BIN\fP]... [\fI\-sources\fP] [\fISOURCE\fP]...
 .SS DESCRIPTION
 .sp
 The \fBllvm\-cov show\fP command shows line by line coverage of the
-binaries \fIBIN\fP,...  using the profile data \fIPROFILE\fP\&. It can optionally be
-filtered to only show the coverage for the files listed in \fISOURCES\fP\&.
+binaries \fIBIN\fP\&...  using the profile data \fIPROFILE\fP\&. It can optionally be
+filtered to only show the coverage for the files listed in \fISOURCE\fP\&....
 .sp
 \fIBIN\fP may be an executable, object file, dynamic library, or archive (thin or
 otherwise).
@@ -219,7 +237,7 @@ tool.
 .TP
 .B \-show\-branches=<VIEW>
 Show coverage for branch conditions in terms of either count or percentage.
-The supported views are: "count", "percent".
+The supported views are: \(dqcount\(dq, \(dqpercent\(dq.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -274,9 +292,9 @@ Show code coverage only for functions with the given name.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-name\-whitelist=<FILE>
+.B \-name\-allowlist=<FILE>
 Show code coverage only for functions listed in the given file. Each line in
-the file should start with \fIwhitelist_fun:\fP, immediately followed by the name
+the file should start with \fIallowlist_fun:\fP, immediately followed by the name
 of the function to accept. This name can be a wildcard expression.
 .UNINDENT
 .INDENT 0.0
@@ -292,7 +310,7 @@ Skip source code files with file paths that match the given regular expression.
 .INDENT 0.0
 .TP
 .B \-format=<FORMAT>
-Use the specified output format. The supported formats are: "text", "html".
+Use the specified output format. The supported formats are: \(dqtext\(dq, \(dqhtml\(dq.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -327,6 +345,13 @@ use. This is the default.
 .UNINDENT
 .INDENT 0.0
 .TP
+.B \-compilation\-dir=<dir>
+Directory used as a base for relative coverage mapping paths. Only applicable
+when binaries have been compiled with one of \fI\-fcoverage\-prefix\-map\fP
+\fI\-fcoverage\-compilation\-dir\fP, or \fI\-ffile\-compilation\-dir\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
 .B \-line\-coverage\-gt=<N>
 Show code coverage only for functions with line coverage greater than the
 given threshold.
@@ -356,15 +381,38 @@ Map the paths in the coverage data to local source file paths. This allows you
 to generate the coverage data on one machine, and then use llvm\-cov on a
 different machine where you have the same files on a different path.
 .UNINDENT
+.INDENT 0.0
+.TP
+.B \-coverage\-watermark=<high>,<low>
+Set high and low watermarks for coverage in html format output. This allows you
+to set the high and low watermark of coverage as desired, green when
+coverage >= high, red when coverage < low, and yellow otherwise. Both high and
+low should be between 0\-100 and high > low.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-debuginfod
+.UNINDENT
+.sp
+Use debuginfod to look up coverage mapping for binary IDs present in the profile
+but not in any object given on the command line. Defaults to true if debuginfod
+is compiled in and configured via the DEBUGINFOD_URLS environment variable.
+.INDENT 0.0
+.TP
+.B \-debug\-file\-directory=<dir>
+.UNINDENT
+.sp
+Provides local directories to search for objects corresponding to binary IDs in
+the profile (as with debuginfod). Defaults to system build ID directories.
 .SH REPORT COMMAND
 .SS SYNOPSIS
 .sp
-\fBllvm\-cov report\fP [\fIoptions\fP] \-instr\-profile \fIPROFILE\fP \fIBIN\fP [\fI\-object BIN,...\fP] [[\fI\-object BIN\fP]] [\fISOURCES\fP]
+\fBllvm\-cov report\fP [\fIoptions\fP] \-instr\-profile \fIPROFILE\fP [\fIBIN\fP] [\fI\-object BIN\fP]... [\fI\-sources\fP] [\fISOURCE\fP]...
 .SS DESCRIPTION
 .sp
 The \fBllvm\-cov report\fP command displays a summary of the coverage of
-the binaries \fIBIN\fP,... using the profile data \fIPROFILE\fP\&. It can optionally be
-filtered to only show the coverage for the files listed in \fISOURCES\fP\&.
+the binaries \fIBIN\fP\&... using the profile data \fIPROFILE\fP\&. It can optionally be
+filtered to only show the coverage for the files listed in \fISOURCE\fP\&....
 .sp
 \fIBIN\fP may be an executable, object file, dynamic library, or archive (thin or
 otherwise).
@@ -391,6 +439,11 @@ non\-universal binary.
 .UNINDENT
 .INDENT 0.0
 .TP
+.B \-show\-region\-summary
+Show statistics for all regions. Defaults to true.
+.UNINDENT
+.INDENT 0.0
+.TP
 .B \-show\-branch\-summary
 Show statistics for all branch conditions. Defaults to true.
 .UNINDENT
@@ -409,14 +462,37 @@ Show statistics for all function instantiations. Defaults to false.
 .B \-ignore\-filename\-regex=<PATTERN>
 Skip source code files with file paths that match the given regular expression.
 .UNINDENT
+.INDENT 0.0
+.TP
+.B \-compilation\-dir=<dir>
+Directory used as a base for relative coverage mapping paths. Only applicable
+when binaries have been compiled with one of \fI\-fcoverage\-prefix\-map\fP
+\fI\-fcoverage\-compilation\-dir\fP, or \fI\-ffile\-compilation\-dir\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-debuginfod
+.UNINDENT
+.sp
+Attempt to look up coverage mapping from objects using debuginfod. This is
+attempted by default for binary IDs present in the profile but not provided on
+the command line, so long as debuginfod is compiled in and configured via
+DEBUGINFOD_URLS.
+.INDENT 0.0
+.TP
+.B \-debug\-file\-directory=<dir>
+.UNINDENT
+.sp
+Provides a directory to search for objects corresponding to binary IDs in the
+profile.
 .SH EXPORT COMMAND
 .SS SYNOPSIS
 .sp
-\fBllvm\-cov export\fP [\fIoptions\fP] \-instr\-profile \fIPROFILE\fP \fIBIN\fP [\fI\-object BIN,...\fP] [[\fI\-object BIN\fP]] [\fISOURCES\fP]
+\fBllvm\-cov export\fP [\fIoptions\fP] \-instr\-profile \fIPROFILE\fP [\fIBIN\fP] [\fI\-object BIN\fP]... [\fI\-sources\fP] [\fISOURCE\fP]...
 .SS DESCRIPTION
 .sp
 The \fBllvm\-cov export\fP command exports coverage data of the binaries
-\fIBIN\fP,... using the profile data \fIPROFILE\fP in either JSON or lcov trace file
+\fIBIN\fP\&... using the profile data \fIPROFILE\fP in either JSON or lcov trace file
 format.
 .sp
 When exporting JSON, the regions, functions, branches, expansions, and
@@ -424,7 +500,7 @@ summaries of the coverage data will be exported. When exporting an lcov trace
 file, the line\-based coverage, branch coverage, and summaries will be exported.
 .sp
 The exported data can optionally be filtered to only export the coverage
-for the files listed in \fISOURCES\fP\&.
+for the files listed in \fISOURCE\fP\&....
 .sp
 For information on compiling programs for coverage and generating profile data,
 see \fI\%SHOW COMMAND\fP\&.
@@ -440,8 +516,8 @@ non\-universal binary.
 .INDENT 0.0
 .TP
 .B \-format=<FORMAT>
-Use the specified output format. The supported formats are: "text" (JSON),
-"lcov".
+Use the specified output format. The supported formats are: \(dqtext\(dq (JSON),
+\(dqlcov\(dq.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -476,9 +552,32 @@ Skip exporting per\-function coverage data.
 Use N threads to export coverage data. When N=0, llvm\-cov auto\-detects an
 appropriate number of threads to use. This is the default.
 .UNINDENT
+.INDENT 0.0
+.TP
+.B \-compilation\-dir=<dir>
+Directory used as a base for relative coverage mapping paths. Only applicable
+when binaries have been compiled with one of \fI\-fcoverage\-prefix\-map\fP
+\fI\-fcoverage\-compilation\-dir\fP, or \fI\-ffile\-compilation\-dir\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-debuginfod
+.UNINDENT
+.sp
+Attempt to look up coverage mapping from objects using debuginfod. This is
+attempted by default for binary IDs present in the profile but not provided on
+the command line, so long as debuginfod is compiled in and configured via
+DEBUGINFOD_URLS.
+.INDENT 0.0
+.TP
+.B \-debug\-file\-directory=<dir>
+.UNINDENT
+.sp
+Provides a directory to search for objects corresponding to binary IDs in the
+profile.
 .SH AUTHOR
 Maintained by the LLVM Team (https://llvm.org/).
 .SH COPYRIGHT
-2003-2021, LLVM Project
+2003-2023, LLVM Project
 .\" Generated by docutils manpage writer.
 .
