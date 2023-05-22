@@ -137,7 +137,7 @@ do_secure_trace(ldns_resolver *local_res, ldns_rdf *name, ldns_rr_type t,
 	ldns_rr_list *correct_key_list;
 	ldns_rr_list *trusted_ds_rrs;
 	bool new_keys_trusted = false;
-	ldns_rr_list *current_correct_keys;
+	ldns_rr_list *current_correct_keys = NULL;
 	ldns_rr_list *dataset;
 
 	ldns_rr_list *nsec_rrs = NULL;
@@ -241,7 +241,7 @@ do_secure_trace(ldns_resolver *local_res, ldns_rdf *name, ldns_rr_type t,
 			goto done;
 		}
 	}
-	labels = LDNS_XMALLOC(ldns_rdf*, labels_count + 2);
+	labels = LDNS_CALLOC(ldns_rdf*, labels_count + 2);
 	if (!labels) {
 		goto done;
 	}
@@ -256,6 +256,13 @@ do_secure_trace(ldns_resolver *local_res, ldns_rdf *name, ldns_rr_type t,
 	 */
 	for(i = (ssize_t)labels_count + 1; i > 0; i--) {
 		status = ldns_resolver_send(&local_p, res, labels[i], LDNS_RR_TYPE_NS, c, 0);
+		if (status != LDNS_STATUS_OK) {
+			fprintf(stderr, "Error sending query: %s\n", ldns_get_errorstr_by_id(status));
+			result = status;
+			goto done;
+		}
+
+		/* TODO: handle status */
 
 		if (verbosity >= 5) {
 			ldns_pkt_print(stdout, local_p);
@@ -497,12 +504,43 @@ do_secure_trace(ldns_resolver *local_res, ldns_rdf *name, ldns_rr_type t,
 			p = get_dnssec_pkt(res, labels[i-1], LDNS_RR_TYPE_DS);
 			(void) get_ds(p, labels[i-1], &ds_list, &ds_sig_list);
 			if (!ds_list) {
-				ldns_pkt_free(p);
-				if (ds_sig_list) {
+				ldns_rr_list_deep_free(ds_sig_list);
+				(void) get_dnssec_rr( p, labels[i-1]
+				                    , LDNS_RR_TYPE_CNAME
+				                    , &ds_list, &ds_sig_list);
+				if (ds_list) {
+					st = ldns_verify( ds_list, ds_sig_list
+					                , correct_key_list
+					                , current_correct_keys);
+
+					if (st == LDNS_STATUS_OK) {
+						printf(";; No DS record found "
+						       "for ");
+						ldns_rdf_print(stdout,
+							labels[i-1]);
+						printf(", but valid CNAME");
+					} else {
+						printf(BOGUS " Unable to verify "
+						       "denial of existence for ");
+						ldns_rdf_print(stdout,
+							labels[i-1]);
+						printf(", because of BOGUS CNAME");
+					}
+					printf("\n");
 					ldns_rr_list_deep_free(ds_sig_list);
+					ldns_pkt_free(p);
+					ldns_rr_list_deep_free(ds_list);
+					ds_list = NULL;
+					ds_sig_list = NULL;
+					p = NULL;
+				} else {
+					ldns_rr_list_deep_free(ds_sig_list);
+					ldns_pkt_free(p);
+					p = get_dnssec_pkt(res, name,
+							LDNS_RR_TYPE_DNSKEY);
+					(void) get_ds(p, NULL
+					             , &ds_list, &ds_sig_list); 
 				}
-				p = get_dnssec_pkt(res, name, LDNS_RR_TYPE_DNSKEY);
-				(void) get_ds(p, NULL, &ds_list, &ds_sig_list); 
 			}
 			if (ds_sig_list) {
 				if (ds_list) {
@@ -606,7 +644,7 @@ do_secure_trace(ldns_resolver *local_res, ldns_rdf *name, ldns_rr_type t,
 							printf(";; No DS for ");
 							ldns_rdf_print(stdout, labels[i - 1]);
 						} else {
-							printf("[B] Unable to verify denial of existence for ");
+							printf(BOGUS " Unable to verify denial of existence for ");
 							ldns_rdf_print(stdout, labels[i - 1]);
 							printf(" DS: %s\n", ldns_get_errorstr_by_id(status));
 						}
@@ -710,7 +748,7 @@ do_secure_trace(ldns_resolver *local_res, ldns_rdf *name, ldns_rr_type t,
 						}
 						printf("\n");
 					} else {
-						printf("[B] Unable to verify denial of existence for ");
+						printf(BOGUS " Unable to verify denial of existence for ");
 						ldns_rdf_print(stdout, name);
 						printf(" type ");
 						if (descriptor && descriptor->_name) {
@@ -736,7 +774,7 @@ do_secure_trace(ldns_resolver *local_res, ldns_rdf *name, ldns_rr_type t,
 		ldns_rr_list_deep_free(ds_sig_list);
 		ds_sig_list = NULL;
 	}
-	printf(";;" SELF " self sig OK; " BOGUS " bogus; " TRUST " trusted\n");
+	printf(";;" SELF " self sig OK; " BOGUS " bogus; " TRUST " trusted; " UNSIGNED " unsigned\n");
 	/* verbose mode?
 	printf("Trusted keys:\n");
 	ldns_rr_list_print(stdout, trusted_keys);

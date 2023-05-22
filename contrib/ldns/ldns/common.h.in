@@ -27,6 +27,9 @@
 #define LDNS_BUILD_CONFIG_USE_DANE         @ldns_build_config_use_dane@
 #define LDNS_BUILD_CONFIG_HAVE_B32_PTON    @ldns_build_config_have_b32_pton@
 #define LDNS_BUILD_CONFIG_HAVE_B32_NTOP    @ldns_build_config_have_b32_ntop@
+#define LDNS_BUILD_CONFIG_USE_DSA          @ldns_build_config_use_dsa@
+#define LDNS_BUILD_CONFIG_USE_ED25519      @ldns_build_config_use_ed25519@
+#define LDNS_BUILD_CONFIG_USE_ED448        @ldns_build_config_use_ed448@
 
 /*
  * HAVE_STDBOOL_H is not available when distributed as a library, but no build 

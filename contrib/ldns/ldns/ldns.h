@@ -101,6 +101,7 @@ Or you can just use the menu above to browse through the API docs.
 #include <ldns/dnssec_verify.h>
 #include <ldns/dnssec_sign.h>
 #include <ldns/duration.h>
+#include <ldns/edns.h>
 #include <ldns/error.h>
 #include <ldns/higher.h>
 #include <ldns/host2str.h>

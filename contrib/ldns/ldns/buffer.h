@@ -400,6 +400,22 @@ ldns_buffer_write_string(ldns_buffer *buffer, const char *str)
 }
 
 /**
+ * copies the given (null-delimited) string to the current position at the buffer
+ * increasing the capacity if necessary
+ * \param[in] buffer the buffer
+ * \param[in] str the string to write
+ */
+INLINE void
+ldns_buffer_write_chars(ldns_buffer *buffer, const char *str)
+{
+	if (!ldns_buffer_reserve(buffer, strlen(str)))
+		buffer->_status = LDNS_STATUS_MEM_ERR;
+	else
+		ldns_buffer_write_string(buffer, str);
+}
+
+
+/**
  * writes the given byte of data at the given position in the buffer
  * \param[in] buffer the buffer
  * \param[in] at the position in the buffer
@@ -422,6 +438,21 @@ ldns_buffer_write_u8(ldns_buffer *buffer, uint8_t data)
 {
 	ldns_buffer_write_u8_at(buffer, buffer->_position, data);
 	buffer->_position += sizeof(data);
+}
+
+/**
+ * writes the given byte of data at the current position in the buffer
+ * increasing the capacity if necessary
+ * \param[in] buffer the buffer
+ * \param[in] data the 8 bits to write
+ */
+INLINE void
+ldns_buffer_write_char(ldns_buffer *buffer, uint8_t data)
+{
+	if (!ldns_buffer_reserve(buffer, sizeof(data)))
+		buffer->_status = LDNS_STATUS_MEM_ERR;
+	else
+		ldns_buffer_write_u8(buffer, data);
 }
 
 /**

@@ -171,7 +171,7 @@ do_trace(ldns_resolver *local_res, ldns_rdf *name, ldns_rr_type t,
         }
 
 	/* transfer some properties of local_res to res,
-	 * because they were given on the commandline */
+	 * because they were given on the command line */
 	ldns_resolver_set_ip6(res, 
 			ldns_resolver_ip6(local_res));
 	ldns_resolver_set_port(res, 
@@ -295,7 +295,7 @@ do_trace(ldns_resolver *local_res, ldns_rdf *name, ldns_rr_type t,
 
 	ldns_pkt_free(p);
 	p = NULL;
-	status = ldns_resolver_send(&p, res, name, t, c, 0);
+	(void) ldns_resolver_send(&p, res, name, t, c, 0);
 	if (!p) {
 		goto cleanup;
 	}

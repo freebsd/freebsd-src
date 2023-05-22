@@ -35,6 +35,7 @@
 #include <ldns/error.h>
 #include <ldns/common.h>
 #include <ldns/rr.h>
+#include <ldns/edns.h>
 #include <sys/time.h>
 
 #ifdef __cplusplus
@@ -251,12 +252,14 @@ struct ldns_struct_pkt
 	uint8_t _edns_extended_rcode;
 	/** EDNS Version */
 	uint8_t _edns_version;
-        /* OPT pseudo-RR presence flag */
-        uint8_t _edns_present;
+	/* OPT pseudo-RR presence flag */
+	uint8_t _edns_present;
 	/** Reserved EDNS data bits */
 	uint16_t _edns_z;
 	/** Arbitrary EDNS rdata */
 	ldns_rdf *_edns_data;
+	/** Structed EDNS data */
+	ldns_edns_option_list *_edns_list;
 	/**  Question section */
 	ldns_rr_list	*_question;
 	/**  Answer section */
@@ -355,9 +358,9 @@ bool ldns_pkt_ad(const ldns_pkt *p);
  */
 ldns_pkt_opcode ldns_pkt_get_opcode(const ldns_pkt *p);
 /**
- * Return the packet's respons code
+ * Return the packet's response code
  * \param[in] p the packet
- * \return the respons code
+ * \return the response code
  */
 ldns_pkt_rcode ldns_pkt_get_rcode(const ldns_pkt *p);
 /**
@@ -586,7 +589,7 @@ void ldns_pkt_set_ad(ldns_pkt *p, bool b);
  */
 void ldns_pkt_set_opcode(ldns_pkt *p, ldns_pkt_opcode c);
 /**
- * Set the packet's respons code
+ * Set the packet's response code
  * \param[in] p the packet
  * \param[in] c the rcode
  */
@@ -687,7 +690,7 @@ uint8_t ldns_pkt_edns_version(const ldns_pkt *packet);
  */
 uint16_t ldns_pkt_edns_z(const ldns_pkt *packet);
 /**
- * return the packet's edns data
+ * return the packet's EDNS data
  * \param[in] packet the packet
  * \return the data
  */
@@ -707,6 +710,18 @@ bool ldns_pkt_edns_do(const ldns_pkt *packet);
 void ldns_pkt_set_edns_do(ldns_pkt *packet, bool value);
 
 /**
+ * return the packet's EDNS header bits that are unassigned.
+ */
+uint16_t ldns_pkt_edns_unassigned(const ldns_pkt *packet);
+
+/**
+ * Set the packet's EDNS header bits that are unassigned.
+ * \param[in] packet the packet
+ * \param[in] value the value
+ */
+void ldns_pkt_set_edns_unassigned(ldns_pkt *packet, uint16_t value);
+
+/**
  * returns true if this packet needs and EDNS rr to be sent.
  * At the moment the only reason is an expected packet
  * size larger than 512 bytes, but for instance dnssec would
@@ -716,6 +731,16 @@ void ldns_pkt_set_edns_do(ldns_pkt *packet, bool value);
  * \return true if packet needs edns rr
  */
 bool ldns_pkt_edns(const ldns_pkt *packet);
+
+/**
+ * Returns a list of structured EDNS options. The list will be automatically
+ * freed when the packet is freed. The option list can be manipulated and
+ * will be used when converting the packet to wireformat with ldns_pkt2wire.
+ *
+ * \param[in] packet the packet which contains the EDNS data
+ * \return the list of EDNS options
+ */
+ldns_edns_option_list* ldns_pkt_edns_get_option_list(ldns_pkt *packet);
 
 /**
  * Set the packet's edns udp size
@@ -742,11 +767,19 @@ void ldns_pkt_set_edns_version(ldns_pkt *packet, uint8_t v);
  */
 void ldns_pkt_set_edns_z(ldns_pkt *packet, uint16_t z);
 /**
- * Set the packet's edns data
+ * Set the packet's EDNS data
  * \param[in] packet the packet
  * \param[in] data the data
  */
 void ldns_pkt_set_edns_data(ldns_pkt *packet, ldns_rdf *data);
+
+/**
+ * Set the packet's structured EDNS data. Once an edns_option_list is set 
+ * (or get), the option list will be used for converting into wireformat. 
+ * \param[in] packet the packet
+ * \param[in] list the options list that will create the data
+ */
+void ldns_pkt_set_edns_option_list(ldns_pkt *packet, ldns_edns_option_list *list);
 
 /**
  * allocates and initializes a ldns_pkt structure.
@@ -837,7 +870,7 @@ void ldns_pkt_set_answer(ldns_pkt *p, ldns_rr_list *rr);
 void ldns_pkt_set_question(ldns_pkt *p, ldns_rr_list *rr);
 
 /**
- * directly set the auhority section
+ * directly set the authority section
  * \param[in] p packet to operate on
  * \param[in] rr rrlist to set
  */
