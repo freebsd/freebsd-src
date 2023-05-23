@@ -393,6 +393,10 @@ again:
 			goto bad;
 		}
 		ia = ifatoia(rte->rt_ifa);
+		if (ia == NULL) {
+			/* race with rtrequest1_fib_change */
+			goto again;
+		}
 		ifp = rte->rt_ifp;
 		counter_u64_add(rte->rt_pksent, 1);
 		rt_update_ro_flags(ro);
