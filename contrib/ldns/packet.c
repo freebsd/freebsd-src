@@ -759,6 +759,8 @@ ldns_pkt_edns(const ldns_pkt *pkt)
 }
 
 ldns_edns_option_list*
+pkt_edns_data2edns_option_list(const ldns_rdf *edns_data);
+ldns_edns_option_list*
 pkt_edns_data2edns_option_list(const ldns_rdf *edns_data)
 {
 	size_t pos = 0;

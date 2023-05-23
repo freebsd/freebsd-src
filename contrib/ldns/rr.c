@@ -724,6 +724,10 @@ ldns_rr_new_frm_fp(ldns_rr **newrr, FILE *fp, uint32_t *ttl, ldns_rdf **origin, 
 ldns_status
 _ldns_rr_new_frm_fp_l_internal(ldns_rr **newrr, FILE *fp,
 		uint32_t *default_ttl, ldns_rdf **origin, ldns_rdf **prev,
+		int *line_nr, bool *explicit_ttl);
+ldns_status
+_ldns_rr_new_frm_fp_l_internal(ldns_rr **newrr, FILE *fp,
+		uint32_t *default_ttl, ldns_rdf **origin, ldns_rdf **prev,
 		int *line_nr, bool *explicit_ttl)
 {
 	char *line = NULL;

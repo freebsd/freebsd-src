@@ -2198,7 +2198,7 @@ static const size_t svcparam_key_defs_len = sizeof(svcparam_key_defs)
 /* svcparam_key2buffer_str() should actually be in host2str.c, but we need the
  * svcparam_key_defs for it and it is not an exposed symbol anyway.
  */
-ldns_status svcparam_key2buffer_str(ldns_buffer *output, uint16_t key)
+static ldns_status svcparam_key2buffer_str(ldns_buffer *output, uint16_t key)
 {
 	if (key <= LDNS_SVCPARAM_KEY_LAST_KEY)
 		ldns_buffer_write_string(output, svcparam_key_defs[key].str);

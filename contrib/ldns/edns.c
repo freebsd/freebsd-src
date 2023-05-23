@@ -73,21 +73,21 @@ ldns_edns_get_wireformat_buffer(const ldns_edns_option *edns)
 }
 
 /* write */
-void
+static void
 ldns_edns_set_size(ldns_edns_option *edns, size_t size)
 {
 	assert(edns != NULL);
 	edns->_size = size;
 }
 
-void
+static void
 ldns_edns_set_code(ldns_edns_option *edns, ldns_edns_option_code code)
 {
 	assert(edns != NULL);
 	edns->_code = code;
 }
 
-void
+static void
 ldns_edns_set_data(ldns_edns_option *edns, void *data)
 {
 	/* only copy the pointer */
