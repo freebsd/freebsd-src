@@ -28,7 +28,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd November 23, 2022
+.Dd May 22, 2023
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -90,10 +90,6 @@ file descriptor files;
 see
 .Xr fd 4
 .El
-.It Pa /home/
-user HOME directories.
-This is a symlink to
-.Pa /usr/home/
 .It Pa /etc/
 system configuration files and scripts
 .Pp
@@ -141,6 +137,12 @@ see
 .It Pa ssl/
 OpenSSL configuration files
 .El
+.It Pa /home/
+users' HOME directories;
+the layout is not standardized, but a typical interactive user
+.Dv beastie
+might receive their own directory
+.Pa /home/beastie
 .It Pa /lib/
 critical system libraries needed for binaries in
 .Pa /bin
@@ -218,12 +220,6 @@ and
 .Xr bsdinstall 8
 .It Pa include/
 standard C include files
-.It Pa home/
-users' HOME directories;
-the layout is not standardized, but a typical interactive user
-.Dv beastie
-might receive their own directory under
-.Pa /usr/home/beastie
 .Pp
 .It Pa lib/
 shared and archive
