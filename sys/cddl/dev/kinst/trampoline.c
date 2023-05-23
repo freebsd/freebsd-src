@@ -28,9 +28,6 @@
 #include "kinst.h"
 #include "kinst_isa.h"
 
-/*
- * We can have 4KB/32B = 128 trampolines per chunk.
- */
 #define KINST_TRAMPS_PER_CHUNK	(KINST_TRAMPCHUNK_SIZE / KINST_TRAMP_SIZE)
 
 struct trampchunk {
@@ -46,6 +43,21 @@ static struct sx		kinst_tramp_sx;
 SX_SYSINIT(kinst_tramp_sx, &kinst_tramp_sx, "kinst tramp");
 static eventhandler_tag		kinst_thread_ctor_handler;
 static eventhandler_tag		kinst_thread_dtor_handler;
+
+/*
+ * Fill the trampolines with KINST_TRAMP_FILL_PATTERN so that the kernel will
+ * crash cleanly if things somehow go wrong.
+ */
+static void
+kinst_trampoline_fill(uint8_t *addr, int size)
+{
+	int i;
+
+	for (i = 0; i < size; i += KINST_TRAMP_FILL_SIZE) {
+		memcpy(&addr[i], KINST_TRAMP_FILL_PATTERN,
+		    KINST_TRAMP_FILL_SIZE);
+	}
+}
 
 static struct trampchunk *
 kinst_trampchunk_alloc(void)
@@ -77,7 +89,7 @@ kinst_trampchunk_alloc(void)
 	    M_WAITOK | M_EXEC);
 	KASSERT(error == KERN_SUCCESS, ("kmem_back failed: %d", error));
 
-	KINST_TRAMP_INIT((void *)trampaddr, KINST_TRAMPCHUNK_SIZE);
+	kinst_trampoline_fill((uint8_t *)trampaddr, KINST_TRAMPCHUNK_SIZE);
 
 	/* Allocate a tracker for this chunk. */
 	chunk = malloc(sizeof(*chunk), M_KINST, M_WAITOK);
@@ -171,7 +183,7 @@ kinst_trampoline_dealloc_locked(uint8_t *tramp, bool freechunks)
 	TAILQ_FOREACH(chunk, &kinst_trampchunks, next) {
 		for (off = 0; off < KINST_TRAMPS_PER_CHUNK; off++) {
 			if (chunk->addr + off * KINST_TRAMP_SIZE == tramp) {
-				KINST_TRAMP_INIT(tramp, KINST_TRAMP_SIZE);
+				kinst_trampoline_fill(tramp, KINST_TRAMP_SIZE);
 				BIT_SET(KINST_TRAMPS_PER_CHUNK, off,
 				    &chunk->free);
 				if (freechunks &&
