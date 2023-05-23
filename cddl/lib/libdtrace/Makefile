@@ -133,6 +133,7 @@ DSRCS+=		regs_riscv.d
 
 .if ${MACHINE_CPUARCH} == "aarch64"
 SRCS+=		instr_size.c
+DSRCS+=		regs_aarch64.d
 .endif
 
 YFLAGS+=-d

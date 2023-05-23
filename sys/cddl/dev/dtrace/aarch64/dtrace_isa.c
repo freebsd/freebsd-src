@@ -280,10 +280,20 @@ dtrace_getstackdepth(int aframes)
 ulong_t
 dtrace_getreg(struct trapframe *rp, uint_t reg)
 {
-
-	printf("IMPLEMENT ME: %s\n", __func__);
-
-	return (0);
+	switch (reg) {
+	case REG_X0 ... REG_X29:
+		return (rp->tf_x[reg]);
+	case REG_LR:
+		return (rp->tf_lr);
+	case REG_SP:
+		return (rp->tf_sp);
+	case REG_PC:
+		return (rp->tf_elr);
+	default:
+		DTRACE_CPUFLAG_SET(CPU_DTRACE_ILLOP);
+		return (0);
+	}
+	/* NOTREACHED */
 }
 
 static int
