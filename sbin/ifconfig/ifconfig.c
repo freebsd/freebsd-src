@@ -42,6 +42,9 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/ioctl.h>
+#ifdef JAIL
+#include <sys/jail.h>
+#endif
 #include <sys/module.h>
 #include <sys/linker.h>
 #include <sys/queue.h>
@@ -189,12 +192,12 @@ usage(void)
 	}
 
 	fprintf(stderr,
-	"usage: ifconfig [-f type:format] %sinterface address_family\n"
+	"usage: ifconfig [-j jail] [-f type:format] %sinterface address_family\n"
 	"                [address [dest_address]] [parameters]\n"
-	"       ifconfig interface create\n"
-	"       ifconfig -a %s[-d] [-m] [-u] [-v] [address_family]\n"
-	"       ifconfig -l [-d] [-u] [address_family]\n"
-	"       ifconfig %s[-d] [-m] [-u] [-v]\n",
+	"       ifconfig [-j jail] interface create\n"
+	"       ifconfig [-j jail] -a %s[-d] [-m] [-u] [-v] [address_family]\n"
+	"       ifconfig [-j jail] -l [-d] [-u] [address_family]\n"
+	"       ifconfig [-j jail] %s[-d] [-m] [-u] [-v]\n",
 		options, options, options);
 	exit(1);
 }
@@ -412,12 +415,18 @@ main(int argc, char *argv[])
 	struct ifreq paifr;
 	const struct sockaddr_dl *sdl;
 	char options[1024], *cp, *envformat, *namecp = NULL;
+#ifdef JAIL
+	char *jail_name = NULL;
+#endif
 	struct ifa_queue q = TAILQ_HEAD_INITIALIZER(q);
 	struct ifa_order_elt *cur, *tmp;
 	const char *ifname, *matchgroup, *nogroup;
 	struct option *p;
 	size_t iflen;
 	int flags;
+#ifdef JAIL
+        int jid;
+#endif
 
 	all = downonly = uponly = namesonly = noload = verbose = 0;
 	f_inet = f_inet6 = f_ether = f_addr = NULL;
@@ -438,7 +447,7 @@ main(int argc, char *argv[])
 	atexit(printifnamemaybe);
 
 	/* Parse leading line options */
-	strlcpy(options, "G:adf:klmnuv", sizeof(options));
+	strlcpy(options, "G:adf:j:klmnuv", sizeof(options));
 	for (p = opts; p != NULL; p = p->next)
 		strlcat(options, p->opt, sizeof(options));
 	while ((c = getopt(argc, argv, options)) != -1) {
@@ -458,6 +467,15 @@ main(int argc, char *argv[])
 			if (optarg == NULL || all == 0)
 				usage();
 			nogroup = optarg;
+			break;
+		case 'j':
+#ifdef JAIL
+			if (optarg == NULL)
+				usage();
+			jail_name = optarg;
+#else
+			Perror("not built with jail support");
+#endif
 			break;
 		case 'k':
 			printkeys++;
@@ -510,6 +528,16 @@ main(int argc, char *argv[])
 	/* no arguments is equivalent to '-a' */
 	if (!namesonly && argc < 1)
 		all = 1;
+
+#ifdef JAIL
+	if (jail_name) {
+		jid = jail_getid(jail_name);
+		if (jid == -1)
+			Perror("jail not found");
+		if (jail_attach(jid) != 0)
+			Perror("cannot attach to jail");
+	}
+#endif
 
 	/* -a and -l allow an address family arg to limit the output */
 	if (all || namesonly) {
