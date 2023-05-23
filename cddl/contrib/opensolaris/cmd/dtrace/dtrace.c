@@ -77,7 +77,7 @@ typedef struct dtrace_cmd {
 #define	E_USAGE		2
 
 static const char DTRACE_OPTSTR[] =
-	"3:6:aAb:Bc:CD:ef:FGhHi:I:lL:m:n:o:p:P:qs:SU:vVwx:X:Z";
+	"3:6:aAb:Bc:CdD:ef:FGhHi:I:lL:m:n:o:p:P:qs:SU:vVwx:X:Z";
 
 static char **g_argv;
 static int g_argc;
@@ -130,7 +130,7 @@ usage(FILE *fp)
 {
 	static const char predact[] = "[[ predicate ] action ]";
 
-	(void) fprintf(fp, "Usage: %s [-32|-64] [-aACeFGhHlqSvVwZ] "
+	(void) fprintf(fp, "Usage: %s [-32|-64] [-aACdeFGhHlqSvVwZ] "
 	    "[-b bufsz] [-c cmd] [-D name[=def]]\n\t[-I path] [-L path] "
 	    "[-o output] [-p pid] [-s script] [-U name]\n\t"
 	    "[-x opt[=val]] [-X a|c|s|t]\n\n"
@@ -152,6 +152,7 @@ usage(FILE *fp)
 	    "\t-b  set trace buffer size\n"
 	    "\t-c  run specified command and exit upon its completion\n"
 	    "\t-C  run cpp(1) preprocessor on script files\n"
+	    "\t-d  dump script after syntactic transformations\n"
 	    "\t-D  define symbol when invoking preprocessor\n"
 	    "\t-e  exit after compiling request but prior to enabling probes\n"
 	    "\t-f  enable or list probes matching the specified function name\n"
@@ -1557,6 +1558,10 @@ main(int argc, char *argv[])
 
 			case 'C':
 				g_cflags |= DTRACE_C_CPP;
+				break;
+
+			case 'd':
+				g_cflags |= DTRACE_C_SUGAR;
 				break;
 
 			case 'D':
