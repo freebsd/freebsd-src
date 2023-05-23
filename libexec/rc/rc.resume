@@ -43,11 +43,6 @@ if [ -r /var/run/rc.suspend.pid ]; then
 	echo 'rc.resume: killed rc.suspend that was still around'
 fi
 
-# Turns on a power supply of a card in the slot inactivated.
-# See also contrib/pccardq.c (only for PAO users).
-# pccardq | awk -F '~' '$5 == "inactive" \
-#	{ printf("pccardc power %d 1", $1); }' | sh
-
 # If a device driver has problems resuming, try unloading it before
 # suspend and reloading it on resume.  Example:
 # kldload usb
