@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2020-2023 The FreeBSD Foundation
- * Copyright (c) 2021-2022 Bjoern A. Zeeb
+ * Copyright (c) 2021-2023 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
  * the FreeBSD Foundation.
@@ -1046,12 +1046,28 @@ napi_consume_skb(struct sk_buff *skb, int budget)
 	SKB_TODO();
 }
 
+static inline struct sk_buff *
+napi_build_skb(void *data, size_t len)
+{
+
+	SKB_TRACE(skb);
+	SKB_TODO();
+	return (NULL);
+}
+
 static inline uint32_t
 skb_get_hash(struct sk_buff *skb)
 {
 	SKB_TRACE(skb);
 	SKB_TODO();
 	return (0);
+}
+
+static inline void
+skb_mark_for_recycle(struct sk_buff *skb)
+{
+	SKB_TRACE(skb);
+	SKB_TODO();
 }
 
 #define	SKB_WITH_OVERHEAD(_s)						\
