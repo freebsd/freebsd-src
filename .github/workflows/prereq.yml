@@ -1,0 +1,34 @@
+---
+name: Quick Checker
+
+on:
+  push:
+    branches: [ 'ci-*' ]
+  pull_request:
+    branches: [ 'main' ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 500
+      - name: Pull pain
+        run: git fetch --no-tags --no-recurse-submodules --depth=500 origin main
+      - name: Environment
+        run: |
+          echo $GITHUB_REF_NAME
+          git rev-list -1 $GITHUB_REF_NAME
+          git rev-list -1 origin/main
+      - name: Recent enough main?
+        run: git merge-base origin/main $GITHUB_REF_NAME
+      - name: Check Email
+        run:  sh ./tools/build/check-email.sh origin/main..$GITHUB_REF_NAME
+      - name: Check Style
+        run:  ./tools/build/checkstyle9.pl -color=always origin/main..$GITHUB_REF_NAME
