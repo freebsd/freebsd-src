@@ -42,6 +42,9 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/ioctl.h>
+#ifdef JAIL
+#include <sys/jail.h>
+#endif
 #include <sys/module.h>
 #include <sys/linker.h>
 #include <sys/nv.h>
@@ -184,12 +187,12 @@ usage(void)
 	}
 
 	fprintf(stderr,
-	"usage: ifconfig [-f type:format] %sinterface address_family\n"
+	"usage: ifconfig [-j jail] [-f type:format] %sinterface address_family\n"
 	"                [address [dest_address]] [parameters]\n"
-	"       ifconfig interface create\n"
-	"       ifconfig -a %s[-d] [-m] [-u] [-v] [address_family]\n"
-	"       ifconfig -l [-d] [-u] [address_family]\n"
-	"       ifconfig %s[-d] [-m] [-u] [-v]\n",
+	"       ifconfig [-j jail] interface create\n"
+	"       ifconfig [-j jail] -a %s[-d] [-m] [-u] [-v] [address_family]\n"
+	"       ifconfig [-j jail] -l [-d] [-u] [address_family]\n"
+	"       ifconfig [-j jail] %s[-d] [-m] [-u] [-v]\n",
 		options, options, options);
 	exit(1);
 }
@@ -437,7 +440,7 @@ args_parse(struct ifconfig_args *args, int argc, char *argv[])
 	int c;
 
 	/* Parse leading line options */
-	strlcpy(options, "G:adf:klmnuv", sizeof(options));
+	strlcpy(options, "G:adf:j:klmnuv", sizeof(options));
 	for (p = opts; p != NULL; p = p->next)
 		strlcat(options, p->opt, sizeof(options));
 	while ((c = getopt(argc, argv, options)) != -1) {
@@ -457,6 +460,15 @@ args_parse(struct ifconfig_args *args, int argc, char *argv[])
 			if (optarg == NULL || args->all == 0)
 				usage();
 			args->nogroup = optarg;
+			break;
+		case 'j':
+#ifdef JAIL
+			if (optarg == NULL)
+				usage();
+			args->jail_name = optarg;
+#else
+			Perror("not built with jail support");
+#endif
 			break;
 		case 'k':
 			args->printkeys = true;
@@ -547,7 +559,9 @@ main(int ac, char *av[])
 	char *envformat;
 	size_t iflen;
 	int flags;
-
+#ifdef JAIL
+	int jid;
+#endif
 	f_inet = f_inet6 = f_ether = f_addr = NULL;
 
 	lifh = ifconfig_open();
@@ -565,6 +579,16 @@ main(int ac, char *av[])
 	atexit(printifnamemaybe);
 
 	args_parse(&args, ac, av);
+
+#ifdef JAIL
+	if (args.jail_name) {
+		jid = jail_getid(args.jail_name);
+		if (jid == -1)
+			Perror("jail not found");
+		if (jail_attach(jid) != 0)
+			Perror("cannot attach to jail");
+	}
+#endif
 
 	if (!args.all && !args.namesonly) {
 		/* not listing, need an argument */

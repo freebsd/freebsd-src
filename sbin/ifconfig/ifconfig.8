@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd March 6, 2023
+.Dd May 22, 2023
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -36,6 +36,7 @@
 .Nd configure network interface parameters
 .Sh SYNOPSIS
 .Nm
+.Op Fl j Ar jail
 .Op Fl kLmn
 .Op Fl f Ar type Ns Cm \&: Ns Ar format
 .Ar interface
@@ -49,9 +50,11 @@
 .Oc
 .Op Ar parameters
 .Nm
+.Op Fl j Ar jail
 .Ar interface
 .Cm destroy
 .Nm
+.Op Fl j Ar jail
 .Fl a
 .Op Fl dkLmuv
 .Op Fl f Ar type Ns Cm \&: Ns Ar format
@@ -61,13 +64,16 @@
 .Nm
 .Fl C
 .Nm
+.Op Fl j Ar jail
 .Fl g Ar groupname
 .Nm
+.Op Fl j Ar jail
 .Fl l
 .Op Fl du
 .Op Fl g Ar groupname
 .Op Ar address_family
 .Nm
+.Op Fl j Ar jail
 .Op Fl dkLmuv
 .Op Fl f Ar type Ns Cm \&: Ns Ar format
 .Sh DESCRIPTION
@@ -233,6 +239,22 @@ Setting
 to
 .Cm all
 selects all interfaces.
+.It Fl j Ar jail
+Perform the actions inside the
+.Ar jail .
+.Pp
+The
+.Cm ifconfig
+will first attach to the
+.Ar jail
+(by jail id or jail name) before performing the effects.
+.Pp
+This allow network interfaces of
+.Ar jail
+to be configured even if the
+.Cm ifconfig
+binary is not available in
+.Ar jail .
 .It Fl k
 Print keying information for the
 .Ar interface ,
