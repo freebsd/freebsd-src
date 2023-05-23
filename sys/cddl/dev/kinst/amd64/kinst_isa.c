@@ -246,18 +246,6 @@ kinst_set_disp32(struct kinst_probe *kp, uint8_t *bytes)
 	kp->kp_md.disp = (int64_t)disp32;
 }
 
-static int
-kinst_dis_get_byte(void *p)
-{
-	int ret;
-	uint8_t **instr = p;
-
-	ret = **instr;
-	(*instr)++;
-
-	return (ret);
-}
-
 /*
  * Set up all of the state needed to faithfully execute a probed instruction.
  *
@@ -294,7 +282,7 @@ kinst_instr_dissect(struct kinst_probe *kp, uint8_t **instr)
 	kpmd = &kp->kp_md;
 
 	d86.d86_data = instr;
-	d86.d86_get_byte = kinst_dis_get_byte;
+	d86.d86_get_byte = dtrace_dis_get_byte;
 	d86.d86_check_func = NULL;
 	if (dtrace_disx86(&d86, SIZE64) != 0) {
 		KINST_LOG("failed to disassemble instruction at: %p", *instr);
