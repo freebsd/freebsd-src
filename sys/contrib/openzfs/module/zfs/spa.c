@@ -7421,6 +7421,10 @@ spa_vdev_initialize_impl(spa_t *spa, uint64_t guid, uint64_t cmd_type,
 	    vd->vdev_initialize_state != VDEV_INITIALIZE_ACTIVE) {
 		mutex_exit(&vd->vdev_initialize_lock);
 		return (SET_ERROR(ESRCH));
+	} else if (cmd_type == POOL_INITIALIZE_UNINIT &&
+	    vd->vdev_initialize_thread != NULL) {
+		mutex_exit(&vd->vdev_initialize_lock);
+		return (SET_ERROR(EBUSY));
 	}
 
 	switch (cmd_type) {
@@ -7432,6 +7436,9 @@ spa_vdev_initialize_impl(spa_t *spa, uint64_t guid, uint64_t cmd_type,
 		break;
 	case POOL_INITIALIZE_SUSPEND:
 		vdev_initialize_stop(vd, VDEV_INITIALIZE_SUSPENDED, vd_list);
+		break;
+	case POOL_INITIALIZE_UNINIT:
+		vdev_uninitialize(vd);
 		break;
 	default:
 		panic("invalid cmd_type %llu", (unsigned long long)cmd_type);
@@ -8166,6 +8173,7 @@ spa_scan_stop(spa_t *spa)
 	ASSERT(spa_config_held(spa, SCL_ALL, RW_WRITER) == 0);
 	if (dsl_scan_resilvering(spa->spa_dsl_pool))
 		return (SET_ERROR(EBUSY));
+
 	return (dsl_scan_cancel(spa->spa_dsl_pool));
 }
 
@@ -8190,6 +8198,10 @@ spa_scan(spa_t *spa, pool_scan_func_t func)
 		spa_async_request(spa, SPA_ASYNC_RESILVER_DONE);
 		return (0);
 	}
+
+	if (func == POOL_SCAN_ERRORSCRUB &&
+	    !spa_feature_is_enabled(spa, SPA_FEATURE_HEAD_ERRLOG))
+		return (SET_ERROR(ENOTSUP));
 
 	return (dsl_scan(spa->spa_dsl_pool, func));
 }
@@ -8942,12 +8954,12 @@ spa_sync_props(void *arg, dmu_tx_t *tx)
 			}
 
 			/* normalize the property name */
-			propname = zpool_prop_to_name(prop);
-			proptype = zpool_prop_get_type(prop);
-			if (prop == ZPOOL_PROP_INVAL &&
-			    zfs_prop_user(elemname)) {
+			if (prop == ZPOOL_PROP_INVAL) {
 				propname = elemname;
 				proptype = PROP_TYPE_STRING;
+			} else {
+				propname = zpool_prop_to_name(prop);
+				proptype = zpool_prop_get_type(prop);
 			}
 
 			if (nvpair_type(elem) == DATA_TYPE_STRING) {
@@ -9242,6 +9254,7 @@ spa_sync_iterate_to_convergence(spa_t *spa, dmu_tx_t *tx)
 		brt_sync(spa, txg);
 		ddt_sync(spa, txg);
 		dsl_scan_sync(dp, tx);
+		dsl_errorscrub_sync(dp, tx);
 		svr_sync(spa, tx);
 		spa_sync_upgrades(spa, tx);
 
