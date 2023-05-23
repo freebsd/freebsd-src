@@ -42,7 +42,40 @@
 extern "C" {
 #endif
 
-/* Place here */
+#define REG_X0		0
+#define REG_X1		1
+#define REG_X2		2
+#define REG_X3		3
+#define REG_X4		4
+#define REG_X5		5
+#define REG_X6		6
+#define REG_X7		7
+#define REG_X8		8
+#define REG_X9		9
+#define REG_X10		10
+#define REG_X11		11
+#define REG_X12		12
+#define REG_X13		13
+#define REG_X14		14
+#define REG_X15		15
+#define REG_X16		16
+#define REG_X17		17
+#define REG_X18		18
+#define REG_X19		19
+#define REG_X20		20
+#define REG_X21		21
+#define REG_X22		22
+#define REG_X23		23
+#define REG_X24		24
+#define REG_X25		25
+#define REG_X26		26
+#define REG_X27		27
+#define REG_X28		28
+#define REG_X29		29
+#define REG_FP		REG_X29
+#define REG_LR		30
+#define REG_SP		31
+#define REG_PC		32
 
 #ifdef	__cplusplus
 }
