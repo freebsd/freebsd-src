@@ -46,61 +46,57 @@ __FBSDID("$FreeBSD$");
 
 #define	GREBITS	"\020\01ENABLE_CSUM\02ENABLE_SEQ\03UDPENCAP"
 
-static	void gre_status(int s);
-
 static void
-gre_status(int s)
+gre_status(if_ctx *ctx)
 {
 	uint32_t opts, port;
 
 	opts = 0;
 	ifr.ifr_data = (caddr_t)&opts;
-	if (ioctl(s, GREGKEY, &ifr) == 0)
+	if (ioctl_ctx(ctx, GREGKEY, &ifr) == 0)
 		if (opts != 0)
 			printf("\tgrekey: 0x%x (%u)\n", opts, opts);
 	opts = 0;
-	if (ioctl(s, GREGOPTS, &ifr) != 0 || opts == 0)
+	if (ioctl_ctx(ctx, GREGOPTS, &ifr) != 0 || opts == 0)
 		return;
 
 	port = 0;
 	ifr.ifr_data = (caddr_t)&port;
-	if (ioctl(s, GREGPORT, &ifr) == 0 && port != 0)
+	if (ioctl_ctx(ctx, GREGPORT, &ifr) == 0 && port != 0)
 		printf("\tudpport: %u\n", port);
 	printb("\toptions", opts, GREBITS);
 	putchar('\n');
 }
 
 static void
-setifgrekey(const char *val, int dummy __unused, int s, 
-    const struct afswtch *afp)
+setifgrekey(if_ctx *ctx, const char *val, int dummy __unused)
 {
 	uint32_t grekey = strtol(val, NULL, 0);
 
 	strlcpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
 	ifr.ifr_data = (caddr_t)&grekey;
-	if (ioctl(s, GRESKEY, (caddr_t)&ifr) < 0)
+	if (ioctl(ctx->io_s, GRESKEY, (caddr_t)&ifr) < 0)
 		warn("ioctl (set grekey)");
 }
 
 static void
-setifgreport(const char *val, int dummy __unused, int s,
-    const struct afswtch *afp)
+setifgreport(if_ctx *ctx, const char *val, int dummy __unused)
 {
 	uint32_t udpport = strtol(val, NULL, 0);
 
 	strlcpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
 	ifr.ifr_data = (caddr_t)&udpport;
-	if (ioctl(s, GRESPORT, (caddr_t)&ifr) < 0)
+	if (ioctl(ctx->io_s, GRESPORT, (caddr_t)&ifr) < 0)
 		warn("ioctl (set udpport)");
 }
 
 static void
-setifgreopts(const char *val, int d, int s, const struct afswtch *afp)
+setifgreopts(if_ctx *ctx, const char *val, int d)
 {
 	uint32_t opts;
 
 	ifr.ifr_data = (caddr_t)&opts;
-	if (ioctl(s, GREGOPTS, &ifr) == -1) {
+	if (ioctl(ctx->io_s, GREGOPTS, &ifr) == -1) {
 		warn("ioctl(GREGOPTS)");
 		return;
 	}
@@ -110,7 +106,7 @@ setifgreopts(const char *val, int d, int s, const struct afswtch *afp)
 	else
 		opts |= d;
 
-	if (ioctl(s, GRESOPTS, &ifr) == -1) {
+	if (ioctl(ctx->io_s, GRESOPTS, &ifr) == -1) {
 		warn("ioctl(GIFSOPTS)");
 		return;
 	}

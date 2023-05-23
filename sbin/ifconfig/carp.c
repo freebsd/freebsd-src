@@ -60,12 +60,7 @@
 
 static const char *carp_states[] = { CARP_STATES };
 
-static void carp_status(int s);
-static void setcarp_vhid(const char *, int, int, const struct afswtch *rafp);
 static void setcarp_callback(int, void *);
-static void setcarp_advbase(const char *,int, int, const struct afswtch *rafp);
-static void setcarp_advskew(const char *, int, int, const struct afswtch *rafp);
-static void setcarp_passwd(const char *, int, int, const struct afswtch *rafp);
 
 static int carpr_vhid = -1;
 static int carpr_advskew = -1;
@@ -76,7 +71,7 @@ static struct in6_addr carp_addr6;
 static unsigned char const *carpr_key;
 
 static void
-carp_status(int s)
+carp_status(if_ctx *ctx __unused)
 {
 	struct ifconfig_carp carpr[CARP_MAXVHID];
 	char addr_buf[NI_MAXHOST];
@@ -102,8 +97,9 @@ carp_status(int s)
 }
 
 static void
-setcarp_vhid(const char *val, int d, int s, const struct afswtch *afp)
+setcarp_vhid(if_ctx *ctx, const char *val, int dummy __unused)
 {
+	const struct afswtch *afp = ctx->afp;
 
 	carpr_vhid = atoi(val);
 
@@ -148,7 +144,7 @@ setcarp_callback(int s, void *arg __unused)
 }
 
 static void
-setcarp_passwd(const char *val, int d, int s, const struct afswtch *afp)
+setcarp_passwd(if_ctx *ctx __unused, const char *val, int dummy __unused)
 {
 
 	if (carpr_vhid == -1)
@@ -158,7 +154,7 @@ setcarp_passwd(const char *val, int d, int s, const struct afswtch *afp)
 }
 
 static void
-setcarp_advskew(const char *val, int d, int s, const struct afswtch *afp)
+setcarp_advskew(if_ctx *ctx __unused, const char *val, int dummy __unused)
 {
 
 	if (carpr_vhid == -1)
@@ -168,7 +164,7 @@ setcarp_advskew(const char *val, int d, int s, const struct afswtch *afp)
 }
 
 static void
-setcarp_advbase(const char *val, int d, int s, const struct afswtch *afp)
+setcarp_advbase(if_ctx *ctx __unused, const char *val, int dummy __unused)
 {
 
 	if (carpr_vhid == -1)
@@ -178,7 +174,7 @@ setcarp_advbase(const char *val, int d, int s, const struct afswtch *afp)
 }
 
 static void
-setcarp_state(const char *val, int d, int s, const struct afswtch *afp)
+setcarp_state(if_ctx *ctx __unused, const char *val, int dummy __unused)
 {
 	int i;
 
@@ -195,19 +191,19 @@ setcarp_state(const char *val, int d, int s, const struct afswtch *afp)
 }
 
 static void
-setcarp_peer(const char *val, int d, int s, const struct afswtch *afp)
+setcarp_peer(if_ctx *ctx __unused, const char *val, int dummy __unused)
 {
 	carp_addr.s_addr = inet_addr(val);
 }
 
 static void
-setcarp_mcast(const char *val, int d, int s, const struct afswtch *afp)
+setcarp_mcast(if_ctx *ctx __unused, const char *val __unused, int dummy __unused)
 {
 	carp_addr.s_addr = htonl(INADDR_CARP_GROUP);
 }
 
 static void
-setcarp_peer6(const char *val, int d, int s, const struct afswtch *afp)
+setcarp_peer6(if_ctx *ctx __unused, const char *val, int dummy __unused)
 {
 	struct addrinfo hints, *res;
 
@@ -224,7 +220,7 @@ setcarp_peer6(const char *val, int d, int s, const struct afswtch *afp)
 }
 
 static void
-setcarp_mcast6(const char *val, int d, int s, const struct afswtch *afp)
+setcarp_mcast6(if_ctx *ctx __unused, const char *val __unused, int dummy __unused)
 {
 	bzero(&carp_addr6, sizeof(carp_addr6));
 	carp_addr6.s6_addr[0] = 0xff;
@@ -253,8 +249,8 @@ static __constructor void
 carp_ctor(void)
 {
 	/* Default to multicast. */
-	setcarp_mcast(NULL, 0, 0, NULL);
-	setcarp_mcast6(NULL, 0, 0, NULL);
+	setcarp_mcast(NULL, NULL, 0);
+	setcarp_mcast6(NULL, NULL, 0);
 
 	for (size_t i = 0; i < nitems(carp_cmds);  i++)
 		cmd_register(&carp_cmds[i]);

@@ -52,7 +52,7 @@
 #include "ifconfig.h"
 
 static int
-do_cmd(int sock, u_long op, void *arg, size_t argsize, int set)
+do_cmd(if_ctx *ctx, u_long op, void *arg, size_t argsize, int set)
 {
 	struct ifdrv ifd;
 
@@ -63,15 +63,15 @@ do_cmd(int sock, u_long op, void *arg, size_t argsize, int set)
 	ifd.ifd_len = argsize;
 	ifd.ifd_data = arg;
 
-	return (ioctl(sock, set ? SIOCSDRVSPEC : SIOCGDRVSPEC, &ifd));
+	return (ioctl_ctx(ctx, set ? SIOCSDRVSPEC : SIOCGDRVSPEC, &ifd));
 }
 
 static void
-stf_status(int s)
+stf_status(if_ctx *ctx)
 {
 	struct stfv4args param;
 
-	if (do_cmd(s, STF6RD_GV4NET, &param, sizeof(param), 0) < 0)
+	if (do_cmd(ctx, STF6RD_GV4NET, &param, sizeof(param), 0) < 0)
 		return;
 
 	printf("\tv4net %s/%d -> ", inet_ntoa(param.srcv4_addr),
@@ -80,7 +80,7 @@ stf_status(int s)
 }
 
 static void
-setstf_br(const char *val, int d, int s, const struct afswtch *afp)
+setstf_br(if_ctx *ctx, const char *val, int d __unused)
 {
 	struct stfv4args req;
 	struct sockaddr_in sin;
@@ -94,12 +94,12 @@ setstf_br(const char *val, int d, int s, const struct afswtch *afp)
 		errx(1, "%s: bad value", val);
 
 	req.braddr = sin.sin_addr;
-	if (do_cmd(s, STF6RD_SBR, &req, sizeof(req), 1) < 0)
+	if (do_cmd(ctx, STF6RD_SBR, &req, sizeof(req), 1) < 0)
 		err(1, "STF6RD_SBR%s",  val);
 }
 
 static void
-setstf_set(const char *val, int d, int s, const struct afswtch *afp)
+setstf_set(if_ctx *ctx, const char *val, int d __unused)
 {
 	struct stfv4args req;
 	struct sockaddr_in sin;
@@ -126,7 +126,7 @@ setstf_set(const char *val, int d, int s, const struct afswtch *afp)
 		errx(1, "%s: bad value", val);
 
 	memcpy(&req.srcv4_addr, &sin.sin_addr, sizeof(req.srcv4_addr));
-	if (do_cmd(s, STF6RD_SV4NET, &req, sizeof(req), 1) < 0)
+	if (do_cmd(ctx, STF6RD_SV4NET, &req, sizeof(req), 1) < 0)
 		err(1, "STF6RD_SV4NET %s",  val);
 }
 

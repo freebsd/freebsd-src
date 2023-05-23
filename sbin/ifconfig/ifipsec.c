@@ -51,18 +51,18 @@ __FBSDID("$FreeBSD$");
 #include "ifconfig.h"
 
 static void
-ipsec_status(int s)
+ipsec_status(if_ctx *ctx)
 {
 	uint32_t reqid;
 
 	ifr.ifr_data = (caddr_t)&reqid;
-	if (ioctl(s, IPSECGREQID, &ifr) == -1)
+	if (ioctl_ctx(ctx, IPSECGREQID, &ifr) == -1)
 		return;
 	printf("\treqid: %u\n", reqid);
 }
 
-static
-DECL_CMD_FUNC(setreqid, val, arg)
+static void
+setreqid(if_ctx *ctx, const char *val, int dummy __unused)
 {
 	char *ep;
 	uint32_t v;
@@ -74,7 +74,7 @@ DECL_CMD_FUNC(setreqid, val, arg)
 	}
 	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
 	ifr.ifr_data = (char *)&v;
-	if (ioctl(s, IPSECSREQID, &ifr) == -1) {
+	if (ioctl_ctx(ctx, IPSECSREQID, &ifr) == -1) {
 		warn("ioctl(IPSECSREQID)");
 		return;
 	}

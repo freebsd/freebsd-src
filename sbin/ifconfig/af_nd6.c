@@ -70,21 +70,19 @@ static const char rcsid[] =
 #endif
 
 static int isnd6defif(int);
-void setnd6flags(const char *, int, int, const struct afswtch *);
-void setnd6defif(const char *, int, int, const struct afswtch *);
-void nd6_status(int);
+void setnd6flags(if_ctx *, const char *, int);
+void setnd6defif(if_ctx *,const char *, int);
+void nd6_status(if_ctx *);
 
 void
-setnd6flags(const char *dummyaddr __unused,
-	int d, int s,
-	const struct afswtch *afp)
+setnd6flags(if_ctx *ctx, const char *dummyaddr __unused, int d)
 {
 	struct in6_ndireq nd;
 	int error;
 
 	memset(&nd, 0, sizeof(nd));
 	strlcpy(nd.ifname, ifr.ifr_name, sizeof(nd.ifname));
-	error = ioctl(s, SIOCGIFINFO_IN6, &nd);
+	error = ioctl_ctx(ctx, SIOCGIFINFO_IN6, &nd);
 	if (error) {
 		warn("ioctl(SIOCGIFINFO_IN6)");
 		return;
@@ -93,15 +91,13 @@ setnd6flags(const char *dummyaddr __unused,
 		nd.ndi.flags &= ~(-d);
 	else
 		nd.ndi.flags |= d;
-	error = ioctl(s, SIOCSIFINFO_IN6, (caddr_t)&nd);
+	error = ioctl_ctx(ctx, SIOCSIFINFO_IN6, (caddr_t)&nd);
 	if (error)
 		warn("ioctl(SIOCSIFINFO_IN6)");
 }
 
 void
-setnd6defif(const char *dummyaddr __unused,
-	int d, int s,
-	const struct afswtch *afp)
+setnd6defif(if_ctx *ctx, const char *dummyaddr __unused, int d)
 {
 	struct in6_ndifreq ndifreq;
 	int ifindex;
@@ -111,7 +107,7 @@ setnd6defif(const char *dummyaddr __unused,
 	strlcpy(ndifreq.ifname, ifr.ifr_name, sizeof(ndifreq.ifname));
 
 	if (d < 0) {
-		if (isnd6defif(s)) {
+		if (isnd6defif(ctx->io_s)) {
 			/* ifindex = 0 means to remove default if */
 			ifindex = 0;
 		} else
@@ -122,7 +118,7 @@ setnd6defif(const char *dummyaddr __unused,
 	}
 
 	ndifreq.ifindex = ifindex;
-	error = ioctl(s, SIOCSDEFIFACE_IN6, (caddr_t)&ndifreq);
+	error = ioctl_ctx(ctx, SIOCSDEFIFACE_IN6, (caddr_t)&ndifreq);
 	if (error)
 		warn("ioctl(SIOCSDEFIFACE_IN6)");
 }
@@ -147,7 +143,7 @@ isnd6defif(int s)
 }
 
 void
-nd6_status(int s)
+nd6_status(if_ctx *ctx __unused)
 {
 	struct in6_ndireq nd;
 	int s6;

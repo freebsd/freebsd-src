@@ -93,7 +93,7 @@ print_pcp(int s)
 
 #ifdef WITHOUT_NETLINK
 static void
-link_status(int s __unused, const struct ifaddrs *ifa)
+link_status(if_ctx *ctx, const struct ifaddrs *ifa)
 {
 	/* XXX no const 'cuz LLADDR is defined wrong */
 	struct sockaddr_dl *sdl;
@@ -142,7 +142,7 @@ link_status(int s __unused, const struct ifaddrs *ifa)
 
 	print_ether((const struct ether_addr *)&ifr.ifr_addr.sa_data, "hwaddr");
 pcp:
-	print_pcp(s);
+	print_pcp(ctx->io_s);
 }
 
 #else
@@ -159,8 +159,7 @@ convert_iftype(uint8_t iftype)
 }
 
 static void
-link_status_nl(struct ifconfig_args *args __unused, struct io_handler *h,
-    if_link_t *link, if_addr_t *ifa __unused)
+link_status_nl(if_ctx *ctx, if_link_t *link, if_addr_t *ifa __unused)
 {
 	if (link->ifla_address != NULL) {
 		struct sockaddr_dl sdl = {
@@ -180,7 +179,7 @@ link_status_nl(struct ifconfig_args *args __unused, struct io_handler *h,
 		}
 	}
 	if (convert_iftype(link->ifi_type) == IFT_ETHER)
-		print_pcp(h->s);
+		print_pcp(ctx->io_s);
 }
 #endif
 
@@ -224,7 +223,7 @@ static struct afswtch af_link = {
 #ifdef WITHOUT_NETLINK
 	.af_status	= link_status,
 #else
-	.af_status_nl	= link_status_nl,
+	.af_status	= link_status_nl,
 #endif
 	.af_getaddr	= link_getaddr,
 	.af_aifaddr	= SIOCSIFLLADDR,
@@ -236,7 +235,7 @@ static struct afswtch af_ether = {
 #ifdef WITHOUT_NETLINK
 	.af_status	= link_status,
 #else
-	.af_status_nl	= link_status_nl,
+	.af_status	= link_status_nl,
 #endif
 	.af_getaddr	= link_getaddr,
 	.af_aifaddr	= SIOCSIFLLADDR,
@@ -248,7 +247,7 @@ static struct afswtch af_lladdr = {
 #ifdef WITHOUT_NETLINK
 	.af_status	= link_status,
 #else
-	.af_status_nl	= link_status_nl,
+	.af_status	= link_status_nl,
 #endif
 	.af_getaddr	= link_getaddr,
 	.af_aifaddr	= SIOCSIFLLADDR,

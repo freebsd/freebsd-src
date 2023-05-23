@@ -83,7 +83,7 @@ print_addr(struct sockaddr_in *sin)
 
 #ifdef WITHOUT_NETLINK
 static void
-in_status(int s __unused, const struct ifaddrs *ifa)
+in_status(if_ctx *ctx __unused, const struct ifaddrs *ifa)
 {
 	struct sockaddr_in *sin, null_sin = {};
 
@@ -143,8 +143,7 @@ get_mask(int plen)
 }
 
 static void
-in_status_nl(struct ifconfig_args *args __unused, struct io_handler *h,
-    if_link_t *link, if_addr_t *ifa)
+in_status_nl(if_ctx *ctx __unused, if_link_t *link, if_addr_t *ifa)
 {
 	struct sockaddr_in *sin = satosin(ifa->ifa_local);
 	int plen = ifa->ifa_prefixlen;
@@ -228,7 +227,7 @@ in_getaddr(const char *s, int which)
 }
 
 static void
-in_postproc(int s, const struct afswtch *afp, int newaddr, int ifflags)
+in_postproc(if_ctx *ctx __unused, int newaddr, int ifflags)
 {
 	if (sintab[ADDR]->sin_len != 0 && sintab[MASK]->sin_len == 0 &&
 	    newaddr && (ifflags & (IFF_POINTOPOINT | IFF_LOOPBACK)) == 0) {
@@ -292,7 +291,7 @@ static struct afswtch af_inet = {
 #ifdef WITHOUT_NETLINK
 	.af_status	= in_status,
 #else
-	.af_status_nl	= in_status_nl,
+	.af_status	= in_status_nl,
 #endif
 	.af_getaddr	= in_getaddr,
 	.af_postproc	= in_postproc,

@@ -73,7 +73,7 @@ get_val(const char *cp, u_long *valp)
 }
 
 static int
-do_cmd(int sock, u_long op, void *arg, size_t argsize, int set)
+do_cmd(if_ctx *ctx, u_long op, void *arg, size_t argsize, int set)
 {
 	struct ifdrv ifd;
 
@@ -84,21 +84,21 @@ do_cmd(int sock, u_long op, void *arg, size_t argsize, int set)
 	ifd.ifd_len = argsize;
 	ifd.ifd_data = arg;
 
-	return (ioctl(sock, set ? SIOCSDRVSPEC : SIOCGDRVSPEC, &ifd));
+	return (ioctl(ctx->io_s, set ? SIOCSDRVSPEC : SIOCGDRVSPEC, &ifd));
 }
 
 static int
-vxlan_exists(int sock)
+vxlan_exists(if_ctx *ctx)
 {
 	struct ifvxlancfg cfg;
 
 	bzero(&cfg, sizeof(cfg));
 
-	return (do_cmd(sock, VXLAN_CMD_GET_CONFIG, &cfg, sizeof(cfg), 0) != -1);
+	return (do_cmd(ctx, VXLAN_CMD_GET_CONFIG, &cfg, sizeof(cfg), 0) != -1);
 }
 
 static void
-vxlan_status(int s)
+vxlan_status(if_ctx *ctx)
 {
 	struct ifvxlancfg cfg;
 	char src[NI_MAXHOST], dst[NI_MAXHOST];
@@ -108,7 +108,7 @@ vxlan_status(int s)
 
 	bzero(&cfg, sizeof(cfg));
 
-	if (do_cmd(s, VXLAN_CMD_GET_CONFIG, &cfg, sizeof(cfg), 0) < 0)
+	if (do_cmd(ctx, VXLAN_CMD_GET_CONFIG, &cfg, sizeof(cfg), 0) < 0)
 		return;
 
 	vni = cfg.vxlc_vni;
@@ -194,8 +194,8 @@ vxlan_create(int s, struct ifreq *ifr)
 	ioctl_ifcreate(s, ifr);
 }
 
-static
-DECL_CMD_FUNC(setvxlan_vni, arg, d)
+static void
+setvxlan_vni(if_ctx *ctx, const char *arg, int dummy __unused)
 {
 	struct ifvxlancmd cmd;
 	u_long val;
@@ -203,7 +203,7 @@ DECL_CMD_FUNC(setvxlan_vni, arg, d)
 	if (get_val(arg, &val) < 0 || val >= VXLAN_VNI_MAX)
 		errx(1, "invalid network identifier: %s", arg);
 
-	if (!vxlan_exists(s)) {
+	if (!vxlan_exists(ctx)) {
 		params.vxlp_with |= VXLAN_PARAM_WITH_VNI;
 		params.vxlp_vni = val;
 		return;
@@ -212,12 +212,12 @@ DECL_CMD_FUNC(setvxlan_vni, arg, d)
 	bzero(&cmd, sizeof(cmd));
 	cmd.vxlcmd_vni = val;
 
-	if (do_cmd(s, VXLAN_CMD_SET_VNI, &cmd, sizeof(cmd), 1) < 0)
+	if (do_cmd(ctx, VXLAN_CMD_SET_VNI, &cmd, sizeof(cmd), 1) < 0)
 		err(1, "VXLAN_CMD_SET_VNI");
 }
 
-static
-DECL_CMD_FUNC(setvxlan_local, addr, d)
+static void
+setvxlan_local(if_ctx *ctx, const char *addr, int dummy __unused)
 {
 	struct ifvxlancmd cmd;
 	struct addrinfo *ai;
@@ -261,7 +261,7 @@ DECL_CMD_FUNC(setvxlan_local, addr, d)
 
 	freeaddrinfo(ai);
 
-	if (!vxlan_exists(s)) {
+	if (!vxlan_exists(ctx)) {
 		if (cmd.vxlcmd_sa.sa.sa_family == AF_INET) {
 			params.vxlp_with |= VXLAN_PARAM_WITH_LOCAL_ADDR4;
 			params.vxlp_local_sa.in4 = cmd.vxlcmd_sa.in4;
@@ -272,12 +272,12 @@ DECL_CMD_FUNC(setvxlan_local, addr, d)
 		return;
 	}
 
-	if (do_cmd(s, VXLAN_CMD_SET_LOCAL_ADDR, &cmd, sizeof(cmd), 1) < 0)
+	if (do_cmd(ctx, VXLAN_CMD_SET_LOCAL_ADDR, &cmd, sizeof(cmd), 1) < 0)
 		err(1, "VXLAN_CMD_SET_LOCAL_ADDR");
 }
 
-static
-DECL_CMD_FUNC(setvxlan_remote, addr, d)
+static void
+setvxlan_remote(if_ctx *ctx, const char *addr, int dummy __unused)
 {
 	struct ifvxlancmd cmd;
 	struct addrinfo *ai;
@@ -321,7 +321,7 @@ DECL_CMD_FUNC(setvxlan_remote, addr, d)
 
 	freeaddrinfo(ai);
 
-	if (!vxlan_exists(s)) {
+	if (!vxlan_exists(ctx)) {
 		if (cmd.vxlcmd_sa.sa.sa_family == AF_INET) {
 			params.vxlp_with |= VXLAN_PARAM_WITH_REMOTE_ADDR4;
 			params.vxlp_remote_sa.in4 = cmd.vxlcmd_sa.in4;
@@ -332,12 +332,12 @@ DECL_CMD_FUNC(setvxlan_remote, addr, d)
 		return;
 	}
 
-	if (do_cmd(s, VXLAN_CMD_SET_REMOTE_ADDR, &cmd, sizeof(cmd), 1) < 0)
+	if (do_cmd(ctx, VXLAN_CMD_SET_REMOTE_ADDR, &cmd, sizeof(cmd), 1) < 0)
 		err(1, "VXLAN_CMD_SET_REMOTE_ADDR");
 }
 
-static
-DECL_CMD_FUNC(setvxlan_group, addr, d)
+static void
+setvxlan_group(if_ctx *ctx, const char *addr, int dummy __unused)
 {
 	struct ifvxlancmd cmd;
 	struct addrinfo *ai;
@@ -381,7 +381,7 @@ DECL_CMD_FUNC(setvxlan_group, addr, d)
 
 	freeaddrinfo(ai);
 
-	if (!vxlan_exists(s)) {
+	if (!vxlan_exists(ctx)) {
 		if (cmd.vxlcmd_sa.sa.sa_family == AF_INET) {
 			params.vxlp_with |= VXLAN_PARAM_WITH_REMOTE_ADDR4;
 			params.vxlp_remote_sa.in4 = cmd.vxlcmd_sa.in4;
@@ -392,12 +392,12 @@ DECL_CMD_FUNC(setvxlan_group, addr, d)
 		return;
 	}
 
-	if (do_cmd(s, VXLAN_CMD_SET_REMOTE_ADDR, &cmd, sizeof(cmd), 1) < 0)
+	if (do_cmd(ctx, VXLAN_CMD_SET_REMOTE_ADDR, &cmd, sizeof(cmd), 1) < 0)
 		err(1, "VXLAN_CMD_SET_REMOTE_ADDR");
 }
 
-static
-DECL_CMD_FUNC(setvxlan_local_port, arg, d)
+static void
+setvxlan_local_port(if_ctx *ctx, const char *arg, int dummy __unused)
 {
 	struct ifvxlancmd cmd;
 	u_long val;
@@ -405,7 +405,7 @@ DECL_CMD_FUNC(setvxlan_local_port, arg, d)
 	if (get_val(arg, &val) < 0 || val >= UINT16_MAX)
 		errx(1, "invalid local port: %s", arg);
 
-	if (!vxlan_exists(s)) {
+	if (!vxlan_exists(ctx)) {
 		params.vxlp_with |= VXLAN_PARAM_WITH_LOCAL_PORT;
 		params.vxlp_local_port = val;
 		return;
@@ -414,12 +414,12 @@ DECL_CMD_FUNC(setvxlan_local_port, arg, d)
 	bzero(&cmd, sizeof(cmd));
 	cmd.vxlcmd_port = val;
 
-	if (do_cmd(s, VXLAN_CMD_SET_LOCAL_PORT, &cmd, sizeof(cmd), 1) < 0)
+	if (do_cmd(ctx, VXLAN_CMD_SET_LOCAL_PORT, &cmd, sizeof(cmd), 1) < 0)
 		err(1, "VXLAN_CMD_SET_LOCAL_PORT");
 }
 
-static
-DECL_CMD_FUNC(setvxlan_remote_port, arg, d)
+static void
+setvxlan_remote_port(if_ctx *ctx, const char *arg, int dummy __unused)
 {
 	struct ifvxlancmd cmd;
 	u_long val;
@@ -427,7 +427,7 @@ DECL_CMD_FUNC(setvxlan_remote_port, arg, d)
 	if (get_val(arg, &val) < 0 || val >= UINT16_MAX)
 		errx(1, "invalid remote port: %s", arg);
 
-	if (!vxlan_exists(s)) {
+	if (!vxlan_exists(ctx)) {
 		params.vxlp_with |= VXLAN_PARAM_WITH_REMOTE_PORT;
 		params.vxlp_remote_port = val;
 		return;
@@ -436,12 +436,12 @@ DECL_CMD_FUNC(setvxlan_remote_port, arg, d)
 	bzero(&cmd, sizeof(cmd));
 	cmd.vxlcmd_port = val;
 
-	if (do_cmd(s, VXLAN_CMD_SET_REMOTE_PORT, &cmd, sizeof(cmd), 1) < 0)
+	if (do_cmd(ctx, VXLAN_CMD_SET_REMOTE_PORT, &cmd, sizeof(cmd), 1) < 0)
 		err(1, "VXLAN_CMD_SET_REMOTE_PORT");
 }
 
-static
-DECL_CMD_FUNC2(setvxlan_port_range, arg1, arg2)
+static void
+setvxlan_port_range(if_ctx *ctx, const char *arg1, const char *arg2)
 {
 	struct ifvxlancmd cmd;
 	u_long min, max;
@@ -453,7 +453,7 @@ DECL_CMD_FUNC2(setvxlan_port_range, arg1, arg2)
 	if (max < min)
 		errx(1, "invalid port range");
 
-	if (!vxlan_exists(s)) {
+	if (!vxlan_exists(ctx)) {
 		params.vxlp_with |= VXLAN_PARAM_WITH_PORT_RANGE;
 		params.vxlp_min_port = min;
 		params.vxlp_max_port = max;
@@ -464,12 +464,12 @@ DECL_CMD_FUNC2(setvxlan_port_range, arg1, arg2)
 	cmd.vxlcmd_port_min = min;
 	cmd.vxlcmd_port_max = max;
 
-	if (do_cmd(s, VXLAN_CMD_SET_PORT_RANGE, &cmd, sizeof(cmd), 1) < 0)
+	if (do_cmd(ctx, VXLAN_CMD_SET_PORT_RANGE, &cmd, sizeof(cmd), 1) < 0)
 		err(1, "VXLAN_CMD_SET_PORT_RANGE");
 }
 
-static
-DECL_CMD_FUNC(setvxlan_timeout, arg, d)
+static void
+setvxlan_timeout(if_ctx *ctx, const char *arg, int dummy __unused)
 {
 	struct ifvxlancmd cmd;
 	u_long val;
@@ -477,7 +477,7 @@ DECL_CMD_FUNC(setvxlan_timeout, arg, d)
 	if (get_val(arg, &val) < 0 || (val & ~0xFFFFFFFF) != 0)
 		errx(1, "invalid timeout value: %s", arg);
 
-	if (!vxlan_exists(s)) {
+	if (!vxlan_exists(ctx)) {
 		params.vxlp_with |= VXLAN_PARAM_WITH_FTABLE_TIMEOUT;
 		params.vxlp_ftable_timeout = val & 0xFFFFFFFF;
 		return;
@@ -486,12 +486,12 @@ DECL_CMD_FUNC(setvxlan_timeout, arg, d)
 	bzero(&cmd, sizeof(cmd));
 	cmd.vxlcmd_ftable_timeout = val & 0xFFFFFFFF;
 
-	if (do_cmd(s, VXLAN_CMD_SET_FTABLE_TIMEOUT, &cmd, sizeof(cmd), 1) < 0)
+	if (do_cmd(ctx, VXLAN_CMD_SET_FTABLE_TIMEOUT, &cmd, sizeof(cmd), 1) < 0)
 		err(1, "VXLAN_CMD_SET_FTABLE_TIMEOUT");
 }
 
-static
-DECL_CMD_FUNC(setvxlan_maxaddr, arg, d)
+static void
+setvxlan_maxaddr(if_ctx *ctx, const char *arg, int dummy __unused)
 {
 	struct ifvxlancmd cmd;
 	u_long val;
@@ -499,7 +499,7 @@ DECL_CMD_FUNC(setvxlan_maxaddr, arg, d)
 	if (get_val(arg, &val) < 0 || (val & ~0xFFFFFFFF) != 0)
 		errx(1, "invalid maxaddr value: %s",  arg);
 
-	if (!vxlan_exists(s)) {
+	if (!vxlan_exists(ctx)) {
 		params.vxlp_with |= VXLAN_PARAM_WITH_FTABLE_MAX;
 		params.vxlp_ftable_max = val & 0xFFFFFFFF;
 		return;
@@ -508,16 +508,16 @@ DECL_CMD_FUNC(setvxlan_maxaddr, arg, d)
 	bzero(&cmd, sizeof(cmd));
 	cmd.vxlcmd_ftable_max = val & 0xFFFFFFFF;
 
-	if (do_cmd(s, VXLAN_CMD_SET_FTABLE_MAX, &cmd, sizeof(cmd), 1) < 0)
+	if (do_cmd(ctx, VXLAN_CMD_SET_FTABLE_MAX, &cmd, sizeof(cmd), 1) < 0)
 		err(1, "VXLAN_CMD_SET_FTABLE_MAX");
 }
 
-static
-DECL_CMD_FUNC(setvxlan_dev, arg, d)
+static void
+setvxlan_dev(if_ctx *ctx, const char *arg, int dummy __unused)
 {
 	struct ifvxlancmd cmd;
 
-	if (!vxlan_exists(s)) {
+	if (!vxlan_exists(ctx)) {
 		params.vxlp_with |= VXLAN_PARAM_WITH_MULTICAST_IF;
 		strlcpy(params.vxlp_mc_ifname, arg,
 		    sizeof(params.vxlp_mc_ifname));
@@ -527,12 +527,12 @@ DECL_CMD_FUNC(setvxlan_dev, arg, d)
 	bzero(&cmd, sizeof(cmd));
 	strlcpy(cmd.vxlcmd_ifname, arg, sizeof(cmd.vxlcmd_ifname));
 
-	if (do_cmd(s, VXLAN_CMD_SET_MULTICAST_IF, &cmd, sizeof(cmd), 1) < 0)
+	if (do_cmd(ctx, VXLAN_CMD_SET_MULTICAST_IF, &cmd, sizeof(cmd), 1) < 0)
 		err(1, "VXLAN_CMD_SET_MULTICAST_IF");
 }
 
-static
-DECL_CMD_FUNC(setvxlan_ttl, arg, d)
+static void
+setvxlan_ttl(if_ctx *ctx, const char *arg, int dummy __unused)
 {
 	struct ifvxlancmd cmd;
 	u_long val;
@@ -540,7 +540,7 @@ DECL_CMD_FUNC(setvxlan_ttl, arg, d)
 	if (get_val(arg, &val) < 0 || val > 256)
 		errx(1, "invalid TTL value: %s", arg);
 
-	if (!vxlan_exists(s)) {
+	if (!vxlan_exists(ctx)) {
 		params.vxlp_with |= VXLAN_PARAM_WITH_TTL;
 		params.vxlp_ttl = val;
 		return;
@@ -549,16 +549,16 @@ DECL_CMD_FUNC(setvxlan_ttl, arg, d)
 	bzero(&cmd, sizeof(cmd));
 	cmd.vxlcmd_ttl = val;
 
-	if (do_cmd(s, VXLAN_CMD_SET_TTL, &cmd, sizeof(cmd), 1) < 0)
+	if (do_cmd(ctx, VXLAN_CMD_SET_TTL, &cmd, sizeof(cmd), 1) < 0)
 		err(1, "VXLAN_CMD_SET_TTL");
 }
 
-static
-DECL_CMD_FUNC(setvxlan_learn, arg, d)
+static void
+setvxlan_learn(if_ctx *ctx, const char *arg, int d)
 {
 	struct ifvxlancmd cmd;
 
-	if (!vxlan_exists(s)) {
+	if (!vxlan_exists(ctx)) {
 		params.vxlp_with |= VXLAN_PARAM_WITH_LEARN;
 		params.vxlp_learn = d;
 		return;
@@ -568,12 +568,12 @@ DECL_CMD_FUNC(setvxlan_learn, arg, d)
 	if (d != 0)
 		cmd.vxlcmd_flags |= VXLAN_CMD_FLAG_LEARN;
 
-	if (do_cmd(s, VXLAN_CMD_SET_LEARN, &cmd, sizeof(cmd), 1) < 0)
+	if (do_cmd(ctx, VXLAN_CMD_SET_LEARN, &cmd, sizeof(cmd), 1) < 0)
 		err(1, "VXLAN_CMD_SET_LEARN");
 }
 
 static void
-setvxlan_flush(const char *val, int d, int s, const struct afswtch *afp)
+setvxlan_flush(if_ctx *ctx, const char *val __unused, int d)
 {
 	struct ifvxlancmd cmd;
 
@@ -581,7 +581,7 @@ setvxlan_flush(const char *val, int d, int s, const struct afswtch *afp)
 	if (d != 0)
 		cmd.vxlcmd_flags |= VXLAN_CMD_FLAG_FLUSH_ALL;
 
-	if (do_cmd(s, VXLAN_CMD_FLUSH, &cmd, sizeof(cmd), 1) < 0)
+	if (do_cmd(ctx, VXLAN_CMD_FLUSH, &cmd, sizeof(cmd), 1) < 0)
 		err(1, "VXLAN_CMD_FLUSH");
 }
 

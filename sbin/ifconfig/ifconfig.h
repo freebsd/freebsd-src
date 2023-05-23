@@ -45,12 +45,13 @@
 
 struct afswtch;
 struct cmd;
+struct ifconfig_context;
 
-typedef	void c_func(const char *cmd, int arg, int s, const struct afswtch *afp);
-typedef	void c_func2(const char *arg1, const char *arg2, int s,
-    const struct afswtch *afp);
-typedef	void c_func3(const char *cmd, const char *arg, int s,
-    const struct afswtch *afp);
+typedef	void c_func(const struct ifconfig_context *ctx, const char *cmd, int arg);
+typedef	void c_func2(const struct ifconfig_context *ctx, const char *arg1,
+    const char *arg2);
+typedef	void c_func3(const struct ifconfig_context *ctx, const char *cmd,
+    const char *arg);
 
 struct cmd {
 	const char *c_name;
@@ -74,13 +75,8 @@ typedef	void callback_func(int s, void *);
 void	callback_register(callback_func *, void *);
 
 /*
- * Macros for declaring command functions and initializing entries.
+ * Macros for initializing command handlers.
  */
-#define	DECL_CMD_FUNC(name, cmd, arg) \
-	void name(const char *cmd, int arg, int s, const struct afswtch *afp)
-#define	DECL_CMD_FUNC2(name, arg1, arg2) \
-	void name(const char *arg1, const char *arg2, int s, \
-	    const struct afswtch *afp)
 
 #define	DEF_CMD(name, param, func) {		\
     .c_name = (name),				\
@@ -140,6 +136,18 @@ void	callback_register(callback_func *, void *);
     .c_next = NULL,				\
 }
 
+struct snl_state;
+struct ifconfig_args;
+struct ifconfig_context {
+	struct ifconfig_args	*args;
+	const struct afswtch	*afp;
+	int			io_s;	/* fd to use for ioctl() */
+	struct snl_state	*io_ss;	/* NETLINK_ROUTE socket */
+};
+typedef const struct ifconfig_context if_ctx;
+
+#define	ioctl_ctx(ctx, _req, ...)	ioctl((ctx)->io_s, _req, ## __VA_ARGS__)
+
 struct ifaddrs;
 struct addrinfo;
 
@@ -150,20 +158,16 @@ enum {
 	DSTADDR,
 };
 
-struct snl_state;
 struct snl_parsed_addr;
 struct snl_parsed_link;
 typedef struct snl_parsed_link if_link_t;
 typedef struct snl_parsed_addr if_addr_t;
-struct ifconfig_args;
-struct io_handler {
-	int			s;	/* socket to use for ioctls */
-	struct snl_state	*ss;	/* NETLINK_ROUTE snl(3) socket */
-};
 
 typedef void af_setvhid_f(int vhid);
-typedef	void af_status_nl_f(struct ifconfig_args *args, struct io_handler *h,
-    if_link_t *link, if_addr_t *ifa);
+typedef	void af_status_nl_f(if_ctx *ctx, if_link_t *link, if_addr_t *ifa);
+typedef void af_status_f(if_ctx *ctx, const struct ifaddrs *);
+typedef void af_other_status_f(if_ctx *ctx);
+typedef void af_postproc_f(if_ctx *ctx, int newaddr, int ifflags);
 
 struct afswtch {
 	const char	*af_name;	/* as given on cmd line, e.g. "inet" */
@@ -178,17 +182,15 @@ struct afswtch {
 	 * is presented.
 	 */
 #ifndef WITHOUT_NETLINK
-	af_status_nl_f	*af_status_nl;
+	af_status_nl_f	*af_status;
 #else
-	void		(*af_status)(int, const struct ifaddrs *);
+	af_status_f	*af_status;
 #endif
-	void		(*af_other_status)(int);
-					/* parse address method */
+	af_other_status_f	*af_other_status;
 	void		(*af_getaddr)(const char *, int);
 					/* parse prefix method (IPv6) */
 	void		(*af_getprefix)(const char *, int);
-	void		(*af_postproc)(int s, const struct afswtch *,
-			    int newaddr, int ifflags);
+	af_postproc_f	*af_postproc;
 	af_setvhid_f	*af_setvhid;	/* Set CARP vhid for an address */
 	u_long		af_difaddr;	/* set dst if address ioctl */
 	u_long		af_aifaddr;	/* set if address ioctl */
@@ -239,12 +241,11 @@ extern	int newaddr;
 extern	int verbose;
 extern	int printifname;
 extern	int exit_code;
-extern struct ifconfig_args args;
+extern struct ifconfig_args global_args;
 extern	char *f_inet, *f_inet6, *f_ether, *f_addr;
 
-void	setifcap(const char *, int value, int s, const struct afswtch *);
-void	setifcapnv(const char *vname, const char *arg, int s,
-	    const struct afswtch *afp);
+void	setifcap(if_ctx *ctx, const char *, int value);
+void	setifcapnv(if_ctx *ctx, const char *vname, const char *arg);
 
 void	Perror(const char *cmd);
 void	printb(const char *s, unsigned value, const char *bits);
@@ -266,7 +267,7 @@ bool	group_member(const char *ifname, const char *match, const char *nomatch);
 void	print_ifcap(struct ifconfig_args *args, int s);
 void	tunnel_status(int s);
 struct afswtch	*af_getbyfamily(int af);
-void	af_other_status(int s);
+void	af_other_status(if_ctx *ctx);
 void	print_ifstatus(int s);
 void	print_metric(int s);
 
