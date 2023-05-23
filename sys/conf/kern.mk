@@ -271,7 +271,7 @@ CFLAGS+= -ftrivial-auto-var-init=zero
 CFLAGS+= -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang
 .endif
 .else
-.warning InitAll (zeros) requested but not support by compiler
+.warning InitAll (zeros) requested but not supported by compiler
 .endif
 .elif ${MK_INIT_ALL_PATTERN} == "yes"
 .if ${COMPILER_FEATURES:Minit-all}
