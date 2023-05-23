@@ -193,9 +193,9 @@ buildfs() {
 			-o fs=zroot\;mountpoint=none \
 			-o fs=zroot/ROOT\;mountpoint=none \
 			-o fs=zroot/ROOT/default\;mountpoint=/ \
+			-o fs=zroot/home\;mountpoint=/home \
 			-o fs=zroot/tmp\;mountpoint=/tmp\;exec=on\;setuid=off \
 			-o fs=zroot/usr\;mountpoint=/usr\;canmount=off \
-			-o fs=zroot/usr/home \
 			-o fs=zroot/usr/ports\;setuid=off \
 			-o fs=zroot/usr/src \
 			-o fs=zroot/usr/obj \
