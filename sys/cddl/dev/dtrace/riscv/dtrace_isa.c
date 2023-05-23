@@ -309,31 +309,31 @@ dtrace_getstackdepth(int aframes)
 }
 
 ulong_t
-dtrace_getreg(struct trapframe *rp, uint_t reg)
+dtrace_getreg(struct trapframe *frame, uint_t reg)
 {
 	switch (reg) {
 	case REG_ZERO:
 		return (0);
 	case REG_RA:
-		return (rp->tf_ra);
+		return (frame->tf_ra);
 	case REG_SP:
-		return (rp->tf_sp);
+		return (frame->tf_sp);
 	case REG_GP:
-		return (rp->tf_gp);
+		return (frame->tf_gp);
 	case REG_TP:
-		return (rp->tf_tp);
+		return (frame->tf_tp);
 	case REG_T0 ... REG_T2:
-		return (rp->tf_t[reg - REG_T0]);
+		return (frame->tf_t[reg - REG_T0]);
 	case REG_S0 ... REG_S1:
-		return (rp->tf_s[reg - REG_S0]);
+		return (frame->tf_s[reg - REG_S0]);
 	case REG_A0 ... REG_A7:
-		return (rp->tf_a[reg - REG_A0]);
+		return (frame->tf_a[reg - REG_A0]);
 	case REG_S2 ... REG_S11:
-		return (rp->tf_s[reg - REG_S2 + 2]);
+		return (frame->tf_s[reg - REG_S2 + 2]);
 	case REG_T3 ... REG_T6:
-		return (rp->tf_t[reg - REG_T3 + 3]);
+		return (frame->tf_t[reg - REG_T3 + 3]);
 	case REG_PC:
-		return (rp->tf_sepc);
+		return (frame->tf_sepc);
 	default:
 		DTRACE_CPUFLAG_SET(CPU_DTRACE_ILLOP);
 		return (0);
