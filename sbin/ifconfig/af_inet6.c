@@ -65,7 +65,9 @@ static	struct in6_aliasreq in6_addreq =
     .ifra_lifetime = { 0, 0, ND6_INFINITE_LIFETIME, ND6_INFINITE_LIFETIME } };
 static	int ip6lifetime;
 
+#ifdef WITHOUT_NETLINK
 static	int prefix(void *, int);
+#endif
 static	char *sec2str(time_t);
 static	int explicit_prefix = 0;
 extern	char *f_inet6, *f_addr;
@@ -154,7 +156,7 @@ setip6eui64(const char *cmd, int dummy __unused, int s,
 	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
 		if (ifa->ifa_addr->sa_family == AF_INET6 &&
 		    strcmp(ifa->ifa_name, name) == 0) {
-			sin6 = (const struct sockaddr_in6 *)ifa->ifa_addr;
+			sin6 = (const struct sockaddr_in6 *)satosin6(ifa->ifa_addr);
 			if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
 				lladdr = &sin6->sin6_addr;
 				break;
@@ -338,12 +340,6 @@ show_lifetime(struct ifa_cacheinfo *ci)
 	print_lifetime("vltime", vl + now.tv_sec, &now);
 }
 
-static struct sockaddr_in6 *
-satosin6(struct sockaddr *sa)
-{
-	return ((struct sockaddr_in6 *)(void *)sa);
-}
-
 static void
 in6_status_nl(struct ifconfig_args *args __unused, struct io_handler *h,
     if_link_t *link, if_addr_t *ifa)
@@ -376,10 +372,9 @@ in6_status_nl(struct ifconfig_args *args __unused, struct io_handler *h,
 }
 #endif
 
-#define	SIN6(x) ((struct sockaddr_in6 *) &(x))
 static struct	sockaddr_in6 *sin6tab[] = {
-	SIN6(in6_ridreq.ifr_addr), SIN6(in6_addreq.ifra_addr),
-	SIN6(in6_addreq.ifra_prefixmask), SIN6(in6_addreq.ifra_dstaddr)
+	&in6_ridreq.ifr_addr, &in6_addreq.ifra_addr,
+	&in6_addreq.ifra_prefixmask, &in6_addreq.ifra_dstaddr
 };
 
 static void
@@ -440,6 +435,7 @@ in6_getaddr(const char *s, int which)
 	}
 }
 
+#ifdef WITHOUT_NETLINK
 static int
 prefix(void *val, int size)
 {
@@ -463,6 +459,7 @@ prefix(void *val, int size)
 			return(0);
 	return (plen);
 }
+#endif
 
 static char *
 sec2str(time_t total)

@@ -264,7 +264,7 @@ getregdata(void)
  * 11b > 11g.
  */
 static int
-canpromote(int i, int from, int to)
+canpromote(unsigned int i, uint32_t from, uint32_t to)
 {
 	const struct ieee80211_channel *fc = &chaninfo->ic_chans[i];
 	u_int j;
@@ -301,7 +301,7 @@ canpromote(int i, int from, int to)
  * XXX VHT
  */
 static int
-promote(int i)
+promote(unsigned int i)
 {
 	/*
 	 * Query the current mode of the interface in case it's
@@ -347,7 +347,7 @@ promote(int i)
 }
 
 static void
-mapfreq(struct ieee80211_channel *chan, int freq, int flags)
+mapfreq(struct ieee80211_channel *chan, uint16_t freq, unsigned int flags)
 {
 	u_int i;
 
@@ -367,7 +367,7 @@ mapfreq(struct ieee80211_channel *chan, int freq, int flags)
 }
 
 static void
-mapchan(struct ieee80211_channel *chan, int ieee, int flags)
+mapchan(struct ieee80211_channel *chan, uint8_t ieee, unsigned int flags)
 {
 	u_int i;
 
@@ -662,7 +662,7 @@ set80211stationname(const char *val, int d, int s, const struct afswtch *rafp)
  * The result is not validated here; it's assumed to be
  * checked against the channel table fetched from the kernel.
  */ 
-static int
+static unsigned int
 getchannelflags(const char *val, int freq)
 {
 #define	_CHAN_HT	0x80000000
@@ -808,7 +808,7 @@ getchannelflags(const char *val, int freq)
 static void
 getchannel(int s, struct ieee80211_channel *chan, const char *val)
 {
-	int v, flags;
+	unsigned int v, flags;
 	char *eptr;
 
 	memset(chan, 0, sizeof(*chan));
@@ -2084,11 +2084,9 @@ chanlookup(const struct ieee80211_channel chans[], int nchans,
 }
 
 static int
-chanfind(const struct ieee80211_channel chans[], int nchans, int flags)
+chanfind(const struct ieee80211_channel chans[], int nchans, unsigned int flags)
 {
-	int i;
-
-	for (i = 0; i < nchans; i++) {
+	for (int i = 0; i < nchans; i++) {
 		const struct ieee80211_channel *c = &chans[i];
 		if ((c->ic_flags & flags) == flags)
 			return 1;
@@ -2699,7 +2697,7 @@ getflags(int flags)
 }
 
 static void
-printie(const char* tag, const uint8_t *ie, size_t ielen, int maxlen)
+printie(const char* tag, const uint8_t *ie, size_t ielen, unsigned int maxlen)
 {
 	printf("%s", tag);
 	if (verbose) {
@@ -2829,14 +2827,14 @@ printvhtpwrenv(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
 	if (verbose) {
 		const struct ieee80211_ie_vht_txpwrenv *vhtpwr =
 		    (const struct ieee80211_ie_vht_txpwrenv *) ie;
-		int i, n;
+		size_t i, n;
 		const char *sep = "";
 
 		/* Get count; trim at ielen */
 		n = (vhtpwr->tx_info &
 		    IEEE80211_VHT_TXPWRENV_INFO_COUNT_MASK) + 1;
 		/* Trim at ielen */
-		if (n > ielen - 3)
+		if (n + 3 > ielen)
 			n = ielen - 3;
 		printf("<tx_info 0x%02x pwr:[", vhtpwr->tx_info);
 		for (i = 0; i < n; i++) {
@@ -3006,11 +3004,10 @@ printapchanrep(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
 		const struct ieee80211_ap_chan_report_ie *ap =
 		    (const struct ieee80211_ap_chan_report_ie *) ie;
 		const char *sep = "";
-		int i;
 
 		printf("<class %u, chan:[", ap->i_class);
 
-		for (i = 3; i < ielen; i++) {
+		for (size_t i = 3; i < ielen; i++) {
 			printf("%s%u", sep, ie[i]);
 			sep = ",";
 		}
@@ -3331,7 +3328,7 @@ printwpsie(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
 				break;
 			case IEEE80211_WPS_ATTR_DEV_PASSWORD_ID:
 				n = LE_READ_2(ie);
-				if (n < nitems(dev_pass_id))
+				if (n < (int)nitems(dev_pass_id))
 					printf(" dpi:%s", dev_pass_id[n]);
 				break;
 			case IEEE80211_WPS_ATTR_MANUFACTURER:
@@ -3492,11 +3489,10 @@ static void
 printrates(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
 {
 	const char *sep;
-	int i;
 
 	printf("%s", tag);
 	sep = "<";
-	for (i = 2; i < ielen; i++) {
+	for (size_t i = 2; i < ielen; i++) {
 		printf("%s%s%d", sep,
 		    ie[i] & IEEE80211_RATE_BASIC ? "B" : "",
 		    ie[i] & IEEE80211_RATE_VAL);
@@ -3603,7 +3599,7 @@ iename(int elemid)
 }
 
 static void
-printies(const u_int8_t *vp, int ielen, int maxcols)
+printies(const u_int8_t *vp, int ielen, unsigned int maxcols)
 {
 	while (ielen > 0) {
 		switch (vp[0]) {
@@ -3737,7 +3733,7 @@ list_scan(int s)
 
 	if (get80211len(s, IEEE80211_IOC_SCAN_RESULTS, buf, sizeof(buf), &len) < 0)
 		errx(1, "unable to get scan results");
-	if (len < sizeof(struct ieee80211req_scan_result))
+	if (len < (int)sizeof(struct ieee80211req_scan_result))
 		return;
 
 	getchaninfo(s);
@@ -3756,7 +3752,7 @@ list_scan(int s)
 		const struct ieee80211req_scan_result *sr;
 		const uint8_t *vp, *idp;
 
-		sr = (const struct ieee80211req_scan_result *) cp;
+		sr = (const struct ieee80211req_scan_result *)(const void *) cp;
 		vp = cp + sr->isr_ie_off;
 		if (sr->isr_meshid_len) {
 			idp = vp + sr->isr_ssid_len;
@@ -3781,7 +3777,7 @@ list_scan(int s)
 		printbssidname((const struct ether_addr *)sr->isr_bssid);
 		printf("\n");
 		cp += sr->isr_len, len -= sr->isr_len;
-	} while (len >= sizeof(struct ieee80211req_scan_result));
+	} while (len >= (int)sizeof(struct ieee80211req_scan_result));
 }
 
 static void
@@ -3862,13 +3858,13 @@ gettxseq(const struct ieee80211req_sta_info *si)
 static int
 getrxseq(const struct ieee80211req_sta_info *si)
 {
-	int i, rxseq;
+	int rxseq;
 
 	if ((si->isi_state & IEEE80211_NODE_QOS) == 0)
 		return si->isi_rxseqs[0];
 	/* XXX not right but usually what folks want */
 	rxseq = 0;
-	for (i = 0; i < IEEE80211_TID_SIZE; i++)
+	for (unsigned int i = 0; i < IEEE80211_TID_SIZE; i++)
 		if (si->isi_rxseqs[i] > rxseq)
 			rxseq = si->isi_rxseqs[i];
 	return rxseq;
@@ -3896,7 +3892,7 @@ list_stations(int s)
 	}
 	if (get80211len(s, IEEE80211_IOC_STA_INFO, &u, sizeof(u), &len) < 0)
 		errx(1, "unable to get station information");
-	if (len < sizeof(struct ieee80211req_sta_info))
+	if (len < (int)sizeof(struct ieee80211req_sta_info))
 		return;
 
 	getchaninfo(s);
@@ -3968,7 +3964,7 @@ list_stations(int s)
 		printmimo(&si->isi_mimo);
 		printf("\n");
 		cp += si->isi_len, len -= si->isi_len;
-	} while (len >= sizeof(struct ieee80211req_sta_info));
+	} while (len >= (int)sizeof(struct ieee80211req_sta_info));
 }
 
 static const char *
@@ -4108,7 +4104,7 @@ print_channels(int s, const struct ieee80211req_chaninfo *chans,
 	struct ieee80211req_chaninfo *achans;
 	uint8_t reported[IEEE80211_CHAN_BYTES];
 	const struct ieee80211_channel *c;
-	int i, half;
+	unsigned int i, half;
 
 	achans = malloc(IEEE80211_CHANINFO_SPACE(chans));
 	if (achans == NULL)
@@ -4202,7 +4198,7 @@ list_txpow(int s)
 	struct ieee80211req_chaninfo *achans;
 	uint8_t reported[IEEE80211_CHAN_BYTES];
 	struct ieee80211_channel *c, *prev;
-	int i, half;
+	unsigned int i, half;
 
 	getchaninfo(s);
 	achans = malloc(IEEE80211_CHANINFO_SPACE(chaninfo));
@@ -4623,7 +4619,8 @@ list_mesh(int s)
 		, "MSEQ"
 		, "FLAGS");
 
-	for (rt = &routes[0]; rt - &routes[0] < ireq.i_len / sizeof(*rt); rt++){
+	for (unsigned int i = 0; i < ireq.i_len / sizeof(*rt); i++) {
+		rt = &routes[i];
 		printf("%s ",
 		    ether_ntoa((const struct ether_addr *)rt->imr_dest));
 		printf("%s %4u   %4u   %6u %6u    %c%c\n",
@@ -6079,9 +6076,7 @@ static struct afswtch af_ieee80211 = {
 static __constructor void
 ieee80211_ctor(void)
 {
-	int i;
-
-	for (i = 0; i < nitems(ieee80211_cmds);  i++)
+	for (size_t i = 0; i < nitems(ieee80211_cmds);  i++)
 		cmd_register(&ieee80211_cmds[i]);
 	af_register(&af_ieee80211);
 	clone_setdefcallback_prefix("wlan", wlan_create);

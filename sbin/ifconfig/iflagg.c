@@ -78,12 +78,11 @@ setlaggproto(const char *val, int d, int s, const struct afswtch *afp)
 {
 	struct lagg_protos lpr[] = LAGG_PROTOS;
 	struct lagg_reqall ra;
-	int i;
 
 	bzero(&ra, sizeof(ra));
 	ra.ra_proto = LAGG_PROTO_MAX;
 
-	for (i = 0; i < nitems(lpr); i++) {
+	for (size_t i = 0; i < nitems(lpr); i++) {
 		if (strcmp(val, lpr[i].lpr_name) == 0) {
 			ra.ra_proto = lpr[i].lpr_proto;
 			break;
@@ -279,7 +278,7 @@ lagg_status(int s)
 		}
 	}
 
-	for (size_t i = 0; i < ra->ra_ports; ++i) {
+	for (size_t i = 0; i < (size_t)ra->ra_ports; ++i) {
 		lp = &ports[i].rp_lacpreq;
 		printf("\tlaggport: %s ", ports[i].rp_portname);
 		printb("flags", ports[i].rp_flags, LAGG_PORT_BITS);
@@ -298,9 +297,8 @@ static
 DECL_CMD_FUNC(setlaggtype, arg, d)
 {
 	static const struct lagg_types lt[] = LAGG_TYPES;
-	int i;
 
-	for (i = 0; i < nitems(lt); i++) {
+	for (size_t i = 0; i < nitems(lt); i++) {
 		if (strcmp(arg, lt[i].lt_name) == 0) {
 			params.lagg_type = lt[i].lt_value;
 			return;
@@ -346,9 +344,7 @@ static struct afswtch af_lagg = {
 static __constructor void
 lagg_ctor(void)
 {
-	int i;
-
-	for (i = 0; i < nitems(lagg_cmds);  i++)
+	for (size_t i = 0; i < nitems(lagg_cmds);  i++)
 		cmd_register(&lagg_cmds[i]);
 	af_register(&af_lagg);
 	clone_setdefcallback_prefix("lagg", lagg_create);

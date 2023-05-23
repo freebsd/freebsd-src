@@ -93,8 +93,10 @@ ifconfig_handle_t *lifh;
 struct	ifreq ifr;
 
 char	name[IFNAMSIZ];
-char	*descr = NULL;
-size_t	descrlen = 64;
+#ifdef WITHOUT_NETLINK
+static char	*descr = NULL;
+static size_t	descrlen = 64;
+#endif
 static int	setaddr;
 static int	setmask;
 static int	doalias;
@@ -111,16 +113,16 @@ int	exit_code = 0;
 /* Formatter Strings */
 char	*f_inet, *f_inet6, *f_ether, *f_addr;
 
+#ifdef WITHOUT_NETLINK
 static void list_interfaces_ioctl(struct ifconfig_args *args);
 static	void status(struct ifconfig_args *args, const struct sockaddr_dl *sdl,
 		struct ifaddrs *ifa);
+#endif
 static _Noreturn void usage(void);
 
 static int getifflags(const char *ifname, int us, bool err_ok);
 
 static struct afswtch *af_getbyname(const char *name);
-
-void printifnamemaybe(void);
 
 static struct option *opts = NULL;
 
@@ -210,6 +212,7 @@ ioctl_ifcreate(int s, struct ifreq *ifr)
 	}
 }
 
+#ifdef WITHOUT_NETLINK
 static int
 calcorders(struct ifaddrs *ifa, struct ifa_queue *q)
 {
@@ -296,6 +299,7 @@ cmpifaddrs(struct ifaddrs *a, struct ifaddrs *b, struct ifa_queue *q)
 
 	return (0);
 }
+#endif
 
 static void freeformat(void)
 {
@@ -339,6 +343,7 @@ static void setformat(char *input)
 	free(formatstr);
 }
 
+#ifdef WITHOUT_NETLINK
 static struct ifaddrs *
 sortifaddrs(struct ifaddrs *list,
     int (*compare)(struct ifaddrs *, struct ifaddrs *, struct ifa_queue *),
@@ -393,8 +398,10 @@ sortifaddrs(struct ifaddrs *list,
 
 	return (result);
 }
+#endif
 
-void printifnamemaybe()
+static void
+printifnamemaybe(void)
 {
 	if (printifname)
 		printf("%s\n", name);
@@ -694,6 +701,19 @@ match_ether(const struct sockaddr_dl *sdl)
 	}
 }
 
+bool
+match_if_flags(struct ifconfig_args *args, int if_flags)
+{
+	if ((if_flags & IFF_CANTCONFIG) != 0)
+		return (false);
+	if (args->downonly && (if_flags & IFF_UP) != 0)
+		return (false);
+	if (args->uponly && (if_flags & IFF_UP) == 0)
+		return (false);
+	return (true);
+}
+
+#ifdef WITHOUT_NETLINK
 static bool
 match_afp(const struct afswtch *afp, int sa_family, const struct sockaddr_dl *sdl)
 {
@@ -708,19 +728,6 @@ match_afp(const struct afswtch *afp, int sa_family, const struct sockaddr_dl *sd
 	return (afp->af_af == sa_family);
 }
 
-bool
-match_if_flags(struct ifconfig_args *args, int if_flags)
-{
-	if ((if_flags & IFF_CANTCONFIG) != 0)
-		return (false);
-	if (args->downonly && (if_flags & IFF_UP) != 0)
-		return (false);
-	if (args->uponly && (if_flags & IFF_UP) == 0)
-		return (false);
-	return (true);
-}
-
-#ifdef WITHOUT_NETLINK
 static void
 list_interfaces_ioctl(struct ifconfig_args *args)
 {
@@ -815,7 +822,7 @@ group_member(const char *ifname, const char *match, const char *nomatch)
 
 	struct ifgroupreq	 ifgr;
 	struct ifg_req		*ifg;
-	int			 len;
+	unsigned int		 len;
 	bool			 matched, nomatched;
 
 	/* Sanity checks. */
@@ -1806,7 +1813,7 @@ ifmaybeload(struct ifconfig_args *args, const char *name)
 {
 #define MOD_PREFIX_LEN		3	/* "if_" */
 	struct module_stat mstat;
-	int i, fileid, modid;
+	int fileid, modid;
 	char ifkind[IFNAMSIZ + MOD_PREFIX_LEN], ifname[IFNAMSIZ], *dp;
 	const char *cp;
 	struct module_map_entry *mme;
@@ -1829,7 +1836,7 @@ ifmaybeload(struct ifconfig_args *args, const char *name)
 	/* Either derive it from the map or guess otherwise */
 	*ifkind = '\0';
 	found = false;
-	for (i = 0; i < nitems(module_map); ++i) {
+	for (unsigned i = 0; i < nitems(module_map); ++i) {
 		mme = &module_map[i];
 		if (strcmp(mme->ifname, ifname) == 0) {
 			strlcpy(ifkind, mme->kldname, sizeof(ifkind));

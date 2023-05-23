@@ -128,10 +128,10 @@ vxlan_status(int s)
 		dst[0] = dstport[0] = '\0';
 
 	if (!ipv6) {
-		struct sockaddr_in *sin = (struct sockaddr_in *)rsa;
+		struct sockaddr_in *sin = satosin(rsa);
 		mc = IN_MULTICAST(ntohl(sin->sin_addr.s_addr));
 	} else {
-		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)rsa;
+		struct sockaddr_in6 *sin6 = satosin6(rsa);
 		mc = IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr);
 	}
 
@@ -235,7 +235,7 @@ DECL_CMD_FUNC(setvxlan_local, addr, d)
 	switch (ai->ai_family) {
 #ifdef INET
 	case AF_INET: {
-		struct sockaddr_in *sin = (struct sockaddr_in *)sa;
+		struct sockaddr_in *sin = satosin(sa);
 
 		if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
 			errx(1, "local address cannot be multicast");
@@ -246,7 +246,7 @@ DECL_CMD_FUNC(setvxlan_local, addr, d)
 #endif
 #ifdef INET6
 	case AF_INET6: {
-		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sa;
+		struct sockaddr_in6 *sin6 = satosin6(sa);
 
 		if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 			errx(1, "local address cannot be multicast");
@@ -295,7 +295,7 @@ DECL_CMD_FUNC(setvxlan_remote, addr, d)
 	switch (ai->ai_family) {
 #ifdef INET
 	case AF_INET: {
-		struct sockaddr_in *sin = (struct sockaddr_in *)sa;
+		struct sockaddr_in *sin = satosin(sa);
 
 		if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
 			errx(1, "remote address cannot be multicast");
@@ -306,7 +306,7 @@ DECL_CMD_FUNC(setvxlan_remote, addr, d)
 #endif
 #ifdef INET6
 	case AF_INET6: {
-		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sa;
+		struct sockaddr_in6 *sin6 = satosin6(sa);
 
 		if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 			errx(1, "remote address cannot be multicast");
@@ -355,7 +355,7 @@ DECL_CMD_FUNC(setvxlan_group, addr, d)
 	switch (ai->ai_family) {
 #ifdef INET
 	case AF_INET: {
-		struct sockaddr_in *sin = (struct sockaddr_in *)sa;
+		struct sockaddr_in *sin = satosin(sa);
 
 		if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
 			errx(1, "group address must be multicast");
@@ -366,7 +366,7 @@ DECL_CMD_FUNC(setvxlan_group, addr, d)
 #endif
 #ifdef INET6
 	case AF_INET6: {
-		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sa;
+		struct sockaddr_in6 *sin6 = satosin6(sa);
 
 		if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 			errx(1, "group address must be multicast");

@@ -144,9 +144,7 @@ static struct afswtch af_stf = {
 static __constructor void
 stf_ctor(void)
 {
-	int i;
-
-	for (i = 0; i < nitems(stf_cmds);  i++)
+	for (size_t i = 0; i < nitems(stf_cmds);  i++)
 		cmd_register(&stf_cmds[i]);
 	af_register(&af_stf);
 }
