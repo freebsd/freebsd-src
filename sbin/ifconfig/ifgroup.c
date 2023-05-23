@@ -114,7 +114,7 @@ printgroup(const char *groupname)
 {
 	struct ifgroupreq	 ifgr;
 	struct ifg_req		*ifg;
-	int			 len;
+	unsigned int		 len;
 	int			 s;
 
 	s = socket(AF_LOCAL, SOCK_DGRAM, 0);
@@ -150,19 +150,23 @@ static struct cmd group_cmds[] = {
 	DEF_CMD_ARG("group",	setifgroup),
 	DEF_CMD_ARG("-group",	unsetifgroup),
 };
+
 static struct afswtch af_group = {
 	.af_name	= "af_group",
 	.af_af		= AF_UNSPEC,
 	.af_other_status = getifgroups,
 };
-static struct option group_gopt = { "g:", "[-g groupname]", printgroup };
+
+static struct option group_gopt = {
+	.opt		= "g:",
+	.opt_usage	= "[-g groupname]",
+	.cb		= printgroup,
+};
 
 static __constructor void
 group_ctor(void)
 {
-	int i;
-
-	for (i = 0; i < nitems(group_cmds);  i++)
+	for (size_t i = 0; i < nitems(group_cmds);  i++)
 		cmd_register(&group_cmds[i]);
 	af_register(&af_group);
 	opt_register(&group_gopt);

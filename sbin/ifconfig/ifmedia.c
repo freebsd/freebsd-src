@@ -146,7 +146,7 @@ media_status(int s)
 
 	if (args.supmedia) {
 		printf("\tsupported media:\n");
-		for (size_t i = 0; i < ifmr->ifm_count; ++i) {
+		for (int i = 0; i < ifmr->ifm_count; ++i) {
 			printf("\t\t");
 			print_media_ifconfig(ifmr->ifm_ulist[i]);
 			putchar('\n');
@@ -486,9 +486,7 @@ static struct afswtch af_media = {
 static __constructor void
 ifmedia_ctor(void)
 {
-	size_t i;
-
-	for (i = 0; i < nitems(media_cmds);  i++)
+	for (size_t i = 0; i < nitems(media_cmds);  i++)
 		cmd_register(&media_cmds[i]);
 	af_register(&af_media);
 }

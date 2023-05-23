@@ -124,7 +124,7 @@ bridge_addresses(int s, const char *prefix)
 	struct ifbaconf ifbac;
 	struct ifbareq *ifba;
 	char *inbuf = NULL, *ninbuf;
-	int i, len = 8192;
+	size_t len = 8192;
 	struct ether_addr ea;
 
 	for (;;) {
@@ -140,7 +140,7 @@ bridge_addresses(int s, const char *prefix)
 		len *= 2;
 	}
 
-	for (i = 0; i < ifbac.ifbac_len / sizeof(*ifba); i++) {
+	for (unsigned long i = 0; i < ifbac.ifbac_len / sizeof(*ifba); i++) {
 		ifba = ifbac.ifbac_req + i;
 		memcpy(ea.octet, ifba->ifba_dst,
 		    sizeof(ea.octet));
@@ -683,9 +683,7 @@ static struct afswtch af_bridge = {
 static __constructor void
 bridge_ctor(void)
 {
-	int i;
-
-	for (i = 0; i < nitems(bridge_cmds);  i++)
+	for (size_t i = 0; i < nitems(bridge_cmds);  i++)
 		cmd_register(&bridge_cmds[i]);
 	af_register(&af_bridge);
 }

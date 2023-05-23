@@ -142,12 +142,6 @@ get_mask(int plen)
 	return (a);
 }
 
-static struct sockaddr_in *
-satosin(struct sockaddr *sa)
-{
-	return ((struct sockaddr_in *)(void *)sa);
-}
-
 static void
 in_status_nl(struct ifconfig_args *args __unused, struct io_handler *h,
     if_link_t *link, if_addr_t *ifa)
@@ -204,7 +198,7 @@ in_getaddr(const char *s, int which)
 		if((p = strrchr(s, '/')) != NULL) {
 			const char *errstr;
 			/* address is `name/masklen' */
-			int masklen;
+			int masklen = 0;
 			struct sockaddr_in *min = sintab[MASK];
 			*p = '\0';
 			if (!isdigit(*(p + 1)))

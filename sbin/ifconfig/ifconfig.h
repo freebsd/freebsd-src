@@ -240,6 +240,7 @@ extern	int verbose;
 extern	int printifname;
 extern	int exit_code;
 extern struct ifconfig_args args;
+extern	char *f_inet, *f_inet6, *f_ether, *f_addr;
 
 void	setifcap(const char *, int value, int s, const struct afswtch *);
 void	setifcapnv(const char *vname, const char *arg, int s,
@@ -281,3 +282,20 @@ struct ifmediareq *ifmedia_getstate(void);
 void print_vhid(const struct ifaddrs *, const char *);
 
 void ioctl_ifcreate(int s, struct ifreq *);
+
+/* Helpers */
+struct sockaddr_in;
+struct sockaddr_in6;
+struct sockaddr;
+
+static inline struct sockaddr_in6 *
+satosin6(struct sockaddr *sa)
+{
+	return ((struct sockaddr_in6 *)(void *)sa);
+}
+
+static inline struct sockaddr_in *
+satosin(struct sockaddr *sa)
+{
+	return ((struct sockaddr_in *)(void *)sa);
+}

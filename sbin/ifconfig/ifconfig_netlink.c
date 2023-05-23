@@ -288,7 +288,7 @@ sort_iface_ifaddrs(struct snl_state *ss, struct iface *iface)
 	struct ifa **sorted_ifaddrs = snl_allocz(ss, iface->ifa_count * sizeof(void *));
 	struct ifa *ifa = iface->ifa;
 
-	for (int i = 0; i < iface->ifa_count; i++) {
+	for (uint32_t i = 0; i < iface->ifa_count; i++) {
 		struct ifa *ifa_next = ifa->next;
 
 		sorted_ifaddrs[i] = ifa;
@@ -298,7 +298,7 @@ sort_iface_ifaddrs(struct snl_state *ss, struct iface *iface)
 	qsort(sorted_ifaddrs, iface->ifa_count, sizeof(void *), cmp_ifaddr);
 	ifa = sorted_ifaddrs[0];
 	iface->ifa = ifa;
-	for (int i = 1; i < iface->ifa_count; i++) {
+	for (uint32_t i = 1; i < iface->ifa_count; i++) {
 		ifa->next = sorted_ifaddrs[i];
 		ifa = sorted_ifaddrs[i];
 	}
@@ -371,7 +371,8 @@ get_local_socket(void)
 static void
 set_global_ifname(if_link_t *link)
 {
-	int iflen = strlcpy(name, link->ifla_ifname, sizeof(name));
+	size_t iflen = strlcpy(name, link->ifla_ifname, sizeof(name));
+
 	if (iflen >= sizeof(name))
 		errx(1, "%s: cloning name too long", link->ifla_ifname);
 	strlcpy(ifr.ifr_name, link->ifla_ifname, sizeof(ifr.ifr_name));
@@ -386,7 +387,7 @@ list_interfaces_nl(struct ifconfig_args *args)
 
 	struct ifmap *ifmap = prepare_ifmap(&ss);
 	struct iface **sorted_ifaces = snl_allocz(&ss, ifmap->count * sizeof(void *));
-	for (int i = 0, num = 0; i < ifmap->size; i++) {
+	for (uint32_t i = 0, num = 0; i < ifmap->size; i++) {
 		if (ifmap->ifaces[i] != NULL) {
 			sorted_ifaces[num++] = ifmap->ifaces[i];
 			if (num == ifmap->count)
@@ -401,7 +402,7 @@ list_interfaces_nl(struct ifconfig_args *args)
 		.ss = &ss,
 	};
 
-	for (int i = 0, num = 0; i < ifmap->count; i++) {
+	for (uint32_t i = 0, num = 0; i < ifmap->count; i++) {
 		struct iface *iface = sorted_ifaces[i];
 
 		if (!match_iface(args, iface))

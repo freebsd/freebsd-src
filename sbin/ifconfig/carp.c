@@ -252,13 +252,11 @@ static struct afswtch af_carp = {
 static __constructor void
 carp_ctor(void)
 {
-	int i;
-
 	/* Default to multicast. */
 	setcarp_mcast(NULL, 0, 0, NULL);
 	setcarp_mcast6(NULL, 0, 0, NULL);
 
-	for (i = 0; i < nitems(carp_cmds);  i++)
+	for (size_t i = 0; i < nitems(carp_cmds);  i++)
 		cmd_register(&carp_cmds[i]);
 	af_register(&af_carp);
 }

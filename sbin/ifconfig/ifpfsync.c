@@ -330,8 +330,8 @@ pfsync_status(int s)
 	char syncdev[IFNAMSIZ];
 	char syncpeer_str[NI_MAXHOST];
 	struct sockaddr_storage syncpeer;
-	int maxupdates;
-	int flags;
+	int maxupdates = 0;
+	int flags = 0;
 	int error;
 
 	nvl = nvlist_create(0);
@@ -401,9 +401,7 @@ static struct afswtch af_pfsync = {
 static __constructor void
 pfsync_ctor(void)
 {
-	int i;
-
-	for (i = 0; i < nitems(pfsync_cmds);  i++)
+	for (size_t i = 0; i < nitems(pfsync_cmds);  i++)
 		cmd_register(&pfsync_cmds[i]);
 	af_register(&af_pfsync);
 }
