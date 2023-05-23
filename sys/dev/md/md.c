@@ -98,6 +98,7 @@
 #include <geom/geom_int.h>
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_param.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
@@ -232,8 +233,6 @@ static LIST_HEAD(, md_s) md_softc_list = LIST_HEAD_INITIALIZER(md_softc_list);
 #define NMASK	(NINDIR-1)
 static int nshift;
 
-static uma_zone_t md_pbuf_zone;
-
 struct indir {
 	uintptr_t	*array;
 	u_int		total;
@@ -276,6 +275,7 @@ struct md_s {
 	char file[PATH_MAX];
 	char label[PATH_MAX];
 	struct ucred *cred;
+	vm_offset_t kva;
 
 	/* MD_SWAP related fields */
 	vm_object_t object;
@@ -877,11 +877,11 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 	struct iovec *piov;
 	struct mount *mp;
 	struct vnode *vp;
-	struct buf *pb;
 	bus_dma_segment_t *vlist;
 	struct thread *td;
 	off_t iolen, iostart, off, len;
 	int ma_offs, npages;
+	bool mapped;
 
 	switch (bp->bio_cmd) {
 	case BIO_READ:
@@ -902,11 +902,11 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 
 	td = curthread;
 	vp = sc->vnode;
-	pb = NULL;
 	piov = NULL;
 	ma_offs = bp->bio_ma_offset;
 	off = bp->bio_offset;
 	len = bp->bio_length;
+	mapped = false;
 
 	/*
 	 * VNODE I/O
@@ -955,22 +955,21 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 		auio.uio_iovcnt = piov - auio.uio_iov;
 		piov = auio.uio_iov;
 	} else if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
-		pb = uma_zalloc(md_pbuf_zone, M_WAITOK);
-		MPASS((pb->b_flags & B_MAXPHYS) != 0);
 		bp->bio_resid = len;
 unmapped_step:
 		npages = atop(min(maxphys, round_page(len + (ma_offs &
 		    PAGE_MASK))));
 		iolen = min(ptoa(npages) - (ma_offs & PAGE_MASK), len);
 		KASSERT(iolen > 0, ("zero iolen"));
-		pmap_qenter((vm_offset_t)pb->b_data,
-		    &bp->bio_ma[atop(ma_offs)], npages);
-		aiov.iov_base = (void *)((vm_offset_t)pb->b_data +
-		    (ma_offs & PAGE_MASK));
+		KASSERT(npages <= atop(MAXPHYS + PAGE_SIZE),
+		    ("npages %d too large", npages));
+		pmap_qenter(sc->kva, &bp->bio_ma[atop(ma_offs)], npages);
+		aiov.iov_base = (void *)(sc->kva + (ma_offs & PAGE_MASK));
 		aiov.iov_len = iolen;
 		auio.uio_iov = &aiov;
 		auio.uio_iovcnt = 1;
 		auio.uio_resid = iolen;
+		mapped = true;
 	} else {
 		aiov.iov_base = bp->bio_data;
 		aiov.iov_len = bp->bio_length;
@@ -998,8 +997,8 @@ unmapped_step:
 		VOP_ADVISE(vp, iostart, auio.uio_offset - 1,
 		    POSIX_FADV_DONTNEED);
 
-	if (pb != NULL) {
-		pmap_qremove((vm_offset_t)pb->b_data, npages);
+	if (mapped) {
+		pmap_qremove(sc->kva, npages);
 		if (error == 0) {
 			len -= iolen;
 			bp->bio_resid -= iolen;
@@ -1007,7 +1006,6 @@ unmapped_step:
 			if (len > 0)
 				goto unmapped_step;
 		}
-		uma_zfree(md_pbuf_zone, pb);
 	} else {
 		bp->bio_resid = auio.uio_resid;
 	}
@@ -1276,7 +1274,7 @@ mdnew(int unit, int *errp, enum md_types type)
 		return (NULL);
 	}
 
-	sc = (struct md_s *)malloc(sizeof *sc, M_MD, M_WAITOK | M_ZERO);
+	sc = malloc(sizeof(*sc), M_MD, M_WAITOK | M_ZERO);
 	sc->type = type;
 	bioq_init(&sc->bio_queue);
 	mtx_init(&sc->queue_mtx, "md bio queue", NULL, MTX_DEF);
@@ -1484,6 +1482,8 @@ mdcreate_vnode(struct md_s *sc, struct md_req *mdr, struct thread *td)
 		nd.ni_vp->v_vflag &= ~VV_MD;
 		goto bad;
 	}
+
+	sc->kva = kva_alloc(MAXPHYS + PAGE_SIZE);
 	return (0);
 bad:
 	VOP_UNLOCK(nd.ni_vp);
@@ -1542,6 +1542,8 @@ mddestroy(struct md_s *sc, struct thread *td)
 		destroy_indir(sc, sc->indir);
 	if (sc->uma)
 		uma_zdestroy(sc->uma);
+	if (sc->kva)
+		kva_free(sc->kva, MAXPHYS + PAGE_SIZE);
 
 	LIST_REMOVE(sc, list);
 	free_unr(md_uh, sc->unit);
@@ -2076,7 +2078,6 @@ g_md_init(struct g_class *mp __unused)
 			sx_xunlock(&md_sx);
 		}
 	}
-	md_pbuf_zone = pbuf_zsecond_create("mdpbuf", nswbuf / 10);
 	status_dev = make_dev(&mdctl_cdevsw, INT_MAX, UID_ROOT, GID_WHEEL,
 	    0600, MDCTL_NAME);
 	g_topology_lock();
@@ -2172,6 +2173,5 @@ g_md_fini(struct g_class *mp __unused)
 	sx_destroy(&md_sx);
 	if (status_dev != NULL)
 		destroy_dev(status_dev);
-	uma_zdestroy(md_pbuf_zone);
 	delete_unrhdr(md_uh);
 }
