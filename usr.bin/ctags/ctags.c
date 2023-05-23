@@ -218,6 +218,8 @@ nextline:
 			}
 		}
 	}
+	if (ferror(stdout) != 0 || fflush(stdout) != 0)
+		err(1, "stdout");
 	exit(exit_val);
 }
 
