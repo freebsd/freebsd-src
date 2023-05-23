@@ -32,7 +32,7 @@
 .\"     @(#)pwd.1	8.2 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd October 24, 2020
+.Dd May 22, 2023
 .Dt PWD 1
 .Os
 .Sh NAME
@@ -78,20 +78,20 @@ Logical current working directory.
 Show current working directory with symbolic links resolved:
 .Bd -literal -offset indent
 $ /bin/pwd
-/usr/home/fernape
+/usr/src/sys/kern
 .Ed
 .Pp
 Show the logical current directory.
 Then use
 .Xr file 1
 to inspect the
-.Pa /home
+.Pa /sys
 directory:
 .Bd -literal -offset indent
 $ /bin/pwd -L
-/home/fernape
-$ file /home
-/home: symbolic link to usr/home
+/sys/kern
+$ file /sys
+/sys: symbolic link to usr/src/sys
 .Ed
 .Sh SEE ALSO
 .Xr builtin 1 ,
