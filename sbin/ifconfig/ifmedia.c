@@ -98,7 +98,7 @@ static void print_media(ifmedia_t, bool);
 static void print_media_ifconfig(ifmedia_t);
 
 static void
-media_status(int s)
+media_status(if_ctx *ctx __unused)
 {
 	struct ifmediareq *ifmr;
 
@@ -144,7 +144,7 @@ media_status(int s)
 		putchar('\n');
 	}
 
-	if (args.supmedia) {
+	if (global_args.supmedia) {
 		printf("\tsupported media:\n");
 		for (int i = 0; i < ifmr->ifm_count; ++i) {
 			printf("\t\t");
@@ -190,7 +190,7 @@ setifmediacallback(int s, void *arg)
 }
 
 static void
-setmedia(const char *val, int d, int s, const struct afswtch *afp)
+setmedia(if_ctx *ctx __unused, const char *val, int d __unused)
 {
 	struct ifmediareq *ifmr;
 	int subtype;
@@ -217,17 +217,17 @@ setmedia(const char *val, int d, int s, const struct afswtch *afp)
 }
 
 static void
-setmediaopt(const char *val, int d, int s, const struct afswtch *afp)
+setmediaopt(if_ctx *ctx, const char *val, int d __unused)
 {
 
-	domediaopt(val, false, s);
+	domediaopt(val, false, ctx->io_s);
 }
 
 static void
-unsetmediaopt(const char *val, int d, int s, const struct afswtch *afp)
+unsetmediaopt(if_ctx *ctx, const char *val, int d __unused)
 {
 
-	domediaopt(val, true, s);
+	domediaopt(val, true, ctx->io_s);
 }
 
 static void
@@ -256,7 +256,7 @@ domediaopt(const char *val, bool clear, int s)
 }
 
 static void
-setmediainst(const char *val, int d, int s, const struct afswtch *afp)
+setmediainst(if_ctx *ctx __unused, const char *val, int d __unused)
 {
 	struct ifmediareq *ifmr;
 	int inst;
@@ -275,7 +275,7 @@ setmediainst(const char *val, int d, int s, const struct afswtch *afp)
 }
 
 static void
-setmediamode(const char *val, int d, int s, const struct afswtch *afp)
+setmediamode(if_ctx *ctx __unused, const char *val, int d __unused)
 {
 	struct ifmediareq *ifmr;
 	int mode;

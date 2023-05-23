@@ -47,9 +47,8 @@ static const char rcsid[] =
 
 #include "ifconfig.h"
 
-/* ARGSUSED */
 static void
-setifgroup(const char *group_name, int d, int s, const struct afswtch *rafp)
+setifgroup(if_ctx *ctx, const char *group_name, int dummy __unused)
 {
 	struct ifgroupreq ifgr;
 
@@ -61,13 +60,12 @@ setifgroup(const char *group_name, int d, int s, const struct afswtch *rafp)
 
 	if (strlcpy(ifgr.ifgr_group, group_name, IFNAMSIZ) >= IFNAMSIZ)
 		errx(1, "setifgroup: group name too long");
-	if (ioctl(s, SIOCAIFGROUP, (caddr_t)&ifgr) == -1 && errno != EEXIST)
+	if (ioctl_ctx(ctx, SIOCAIFGROUP, (caddr_t)&ifgr) == -1 && errno != EEXIST)
 		err(1," SIOCAIFGROUP");
 }
 
-/* ARGSUSED */
 static void
-unsetifgroup(const char *group_name, int d, int s, const struct afswtch *rafp)
+unsetifgroup(if_ctx *ctx, const char *group_name, int dummy __unused)
 {
 	struct ifgroupreq ifgr;
 
@@ -79,12 +77,12 @@ unsetifgroup(const char *group_name, int d, int s, const struct afswtch *rafp)
 
 	if (strlcpy(ifgr.ifgr_group, group_name, IFNAMSIZ) >= IFNAMSIZ)
 		errx(1, "unsetifgroup: group name too long");
-	if (ioctl(s, SIOCDIFGROUP, (caddr_t)&ifgr) == -1 && errno != ENOENT)
+	if (ioctl_ctx(ctx, SIOCDIFGROUP, (caddr_t)&ifgr) == -1 && errno != ENOENT)
 		err(1, "SIOCDIFGROUP");
 }
 
 static void
-getifgroups(int s)
+getifgroups(if_ctx *ctx __unused)
 {
 	struct ifgroupreq ifgr;
 	size_t cnt;

@@ -72,25 +72,27 @@ static	char *sec2str(time_t);
 static	int explicit_prefix = 0;
 extern	char *f_inet6, *f_addr;
 
-extern void setnd6flags(const char *, int, int, const struct afswtch *);
-extern void setnd6defif(const char *, int, int, const struct afswtch *);
-extern void nd6_status(int);
+extern void setnd6flags(if_ctx *, const char *, int);
+extern void setnd6defif(if_ctx *,const char *, int);
+extern void nd6_status(if_ctx *);
 
 static	char addr_buf[NI_MAXHOST];	/*for getnameinfo()*/
 
 static void
-setifprefixlen(const char *addr, int dummy __unused, int s,
-    const struct afswtch *afp)
+setifprefixlen(if_ctx *ctx, const char *addr, int dummy __unused)
 {
+	const struct afswtch *afp = ctx->afp;
+
         if (afp->af_getprefix != NULL)
                 afp->af_getprefix(addr, MASK);
 	explicit_prefix = 1;
 }
 
 static void
-setip6flags(const char *dummyaddr __unused, int flag, int dummysoc __unused,
-    const struct afswtch *afp)
+setip6flags(if_ctx *ctx, const char *dummyaddr __unused, int flag)
 {
+	const struct afswtch *afp = ctx->afp;
+
 	if (afp->af_af != AF_INET6)
 		err(1, "address flags can be set only for inet6 addresses");
 
@@ -101,9 +103,9 @@ setip6flags(const char *dummyaddr __unused, int flag, int dummysoc __unused,
 }
 
 static void
-setip6lifetime(const char *cmd, const char *val, int s, 
-    const struct afswtch *afp)
+setip6lifetime(if_ctx *ctx, const char *cmd, const char *val)
 {
+	const struct afswtch *afp = ctx->afp;
 	struct timespec now;
 	time_t newval;
 	char *ep;
@@ -124,23 +126,21 @@ setip6lifetime(const char *cmd, const char *val, int s,
 }
 
 static void
-setip6pltime(const char *seconds, int dummy __unused, int s, 
-    const struct afswtch *afp)
+setip6pltime(if_ctx *ctx, const char *seconds, int dummy __unused)
 {
-	setip6lifetime("pltime", seconds, s, afp);
+	setip6lifetime(ctx, "pltime", seconds);
 }
 
 static void
-setip6vltime(const char *seconds, int dummy __unused, int s, 
-    const struct afswtch *afp)
+setip6vltime(if_ctx *ctx, const char *seconds, int dummy __unused)
 {
-	setip6lifetime("vltime", seconds, s, afp);
+	setip6lifetime(ctx, "vltime", seconds);
 }
 
 static void
-setip6eui64(const char *cmd, int dummy __unused, int s,
-    const struct afswtch *afp)
+setip6eui64(if_ctx *ctx, const char *cmd, int dummy __unused)
 {
+	const struct afswtch *afp = ctx->afp;
 	struct ifaddrs *ifap, *ifa;
 	const struct sockaddr_in6 *sin6 = NULL;
 	const struct in6_addr *lladdr = NULL;
@@ -247,7 +247,7 @@ print_lifetime(const char *prepend, time_t px_time, struct timespec *now)
 
 #ifdef WITHOUT_NETLINK
 static void
-in6_status(int s __unused, const struct ifaddrs *ifa)
+in6_status(if_ctx *ctx __unused, const struct ifaddrs *ifa)
 {
 	struct sockaddr_in6 *sin, null_sin = {};
 	struct in6_ifreq ifr6;
@@ -341,8 +341,7 @@ show_lifetime(struct ifa_cacheinfo *ci)
 }
 
 static void
-in6_status_nl(struct ifconfig_args *args __unused, struct io_handler *h,
-    if_link_t *link, if_addr_t *ifa)
+in6_status_nl(if_ctx *ctx __unused, if_link_t *link, if_addr_t *ifa)
 {
 	int plen = ifa->ifa_prefixlen;
 	uint32_t scopeid;
@@ -495,14 +494,14 @@ sec2str(time_t total)
 }
 
 static void
-in6_postproc(int s, const struct afswtch *afp, int newaddr __unused,
+in6_postproc(if_ctx *ctx, int newaddr __unused,
     int ifflags __unused)
 {
 	if (explicit_prefix == 0) {
 		/* Aggregatable address architecture defines all prefixes
 		   are 64. So, it is convenient to set prefixlen to 64 if
 		   it is not specified. */
-		setifprefixlen("64", 0, s, afp);
+		setifprefixlen(ctx, "64", 0);
 		/* in6_getprefix("64", MASK) if MASK is available here... */
 	}
 }
@@ -600,7 +599,7 @@ static struct afswtch af_inet6 = {
 #ifdef WITHOUT_NETLINK
 	.af_status	= in6_status,
 #else
-	.af_status_nl	= in6_status_nl,
+	.af_status	= in6_status_nl,
 #endif
 	.af_getaddr	= in6_getaddr,
 	.af_getprefix	= in6_getprefix,

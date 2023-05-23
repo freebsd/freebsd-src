@@ -46,26 +46,25 @@
 #include "ifconfig.h"
 
 static void
-fib_status(int s)
+fib_status(if_ctx *ctx)
 {
 	struct ifreq ifr;
 
 	memset(&ifr, 0, sizeof(ifr));
 	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
-	if (ioctl(s, SIOCGIFFIB, (caddr_t)&ifr) == 0 &&
+	if (ioctl_ctx(ctx, SIOCGIFFIB, (caddr_t)&ifr) == 0 &&
 	    ifr.ifr_fib != RT_DEFAULT_FIB)
 		printf("\tfib: %u\n", ifr.ifr_fib);
 
 	memset(&ifr, 0, sizeof(ifr));
 	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
-	if (ioctl(s, SIOCGTUNFIB, (caddr_t)&ifr) == 0 &&
+	if (ioctl_ctx(ctx, SIOCGTUNFIB, (caddr_t)&ifr) == 0 &&
 	    ifr.ifr_fib != RT_DEFAULT_FIB)
 		printf("\ttunnelfib: %u\n", ifr.ifr_fib);
 }
 
 static void
-setiffib(const char *val, int dummy __unused, int s,
-    const struct afswtch *afp)
+setiffib(if_ctx *ctx, const char *val, int dummy __unused)
 {
 	unsigned long fib;
 	char *ep;
@@ -78,13 +77,12 @@ setiffib(const char *val, int dummy __unused, int s,
 
 	strlcpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
 	ifr.ifr_fib = fib;
-	if (ioctl(s, SIOCSIFFIB, (caddr_t)&ifr) < 0)
+	if (ioctl(ctx->io_s, SIOCSIFFIB, (caddr_t)&ifr) < 0)
 		warn("ioctl (SIOCSIFFIB)");
 }
 
 static void
-settunfib(const char *val, int dummy __unused, int s,
-    const struct afswtch *afp)
+settunfib(if_ctx *ctx, const char *val, int dummy __unused)
 {
 	unsigned long fib;
 	char *ep;
@@ -97,7 +95,7 @@ settunfib(const char *val, int dummy __unused, int s,
 
 	strlcpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
 	ifr.ifr_fib = fib;
-	if (ioctl(s, SIOCSTUNFIB, (caddr_t)&ifr) < 0)
+	if (ioctl(ctx->io_s, SIOCSTUNFIB, (caddr_t)&ifr) < 0)
 		warn("ioctl (SIOCSTUNFIB)");
 }
 

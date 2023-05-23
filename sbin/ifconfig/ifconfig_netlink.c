@@ -305,16 +305,17 @@ sort_iface_ifaddrs(struct snl_state *ss, struct iface *iface)
 }
 
 static void
-status_nl(struct ifconfig_args *args, struct io_handler *h, struct iface *iface)
+status_nl(if_ctx *ctx, struct iface *iface)
 {
 	if_link_t *link = &iface->link;
+	struct ifconfig_args *args = ctx->args;
 
 	printf("%s: ", link->ifla_ifname);
 
 	printf("flags=%x", link->ifi_flags);
 	print_bits("IFF", &link->ifi_flags, 1, IFFBITS, nitems(IFFBITS));
 
-	print_metric(h->s);
+	print_metric(ctx->io_s);
 	printf(" mtu %d\n", link->ifla_mtu);
 
 	if (link->ifla_ifalias != NULL)
@@ -322,40 +323,40 @@ status_nl(struct ifconfig_args *args, struct io_handler *h, struct iface *iface)
 
 	/* TODO: convert to netlink */
 	strlcpy(ifr.ifr_name, link->ifla_ifname, sizeof(ifr.ifr_name));
-	print_ifcap(args, h->s);
-	tunnel_status(h->s);
+	print_ifcap(args, ctx->io_s);
+	tunnel_status(ctx->io_s);
 
 	if (args->allfamilies | (args->afp != NULL && args->afp->af_af == AF_LINK)) {
 		/* Start with link-level */
 		const struct afswtch *p = af_getbyfamily(AF_LINK);
 		if (p != NULL && link->ifla_address != NULL)
-			p->af_status_nl(args, h, link, NULL);
+			p->af_status(ctx, link, NULL);
 	}
 
-	sort_iface_ifaddrs(h->ss, iface);
+	sort_iface_ifaddrs(ctx->io_ss, iface);
 
 	for (struct ifa *ifa = iface->ifa; ifa != NULL; ifa = ifa->next) {
 		if (args->allfamilies) {
 			const struct afswtch *p = af_getbyfamily(ifa->addr.ifa_family);
 
 			if (p != NULL)
-				p->af_status_nl(args, h, link, &ifa->addr);
+				p->af_status(ctx, link, &ifa->addr);
 		} else if (args->afp->af_af == ifa->addr.ifa_family) {
 			const struct afswtch *p = args->afp;
 
-			p->af_status_nl(args, h, link, &ifa->addr);
+			p->af_status(ctx, link, &ifa->addr);
 		}
 	}
 
 	/* TODO: convert to netlink */
 	if (args->allfamilies)
-		af_other_status(h->s);
+		af_other_status(ctx);
 	else if (args->afp->af_other_status != NULL)
-		args->afp->af_other_status(h->s);
+		args->afp->af_other_status(ctx);
 
-	print_ifstatus(h->s);
+	print_ifstatus(ctx->io_s);
 	if (args->verbose > 0)
-		sfp_status(h->s, &ifr, args->verbose);
+		sfp_status(ctx->io_s, &ifr, args->verbose);
 }
 
 static int
@@ -382,6 +383,12 @@ void
 list_interfaces_nl(struct ifconfig_args *args)
 {
 	struct snl_state ss = {};
+	struct ifconfig_context _ctx = {
+		.args = args,
+		.io_s = get_local_socket(),
+		.io_ss = &ss,
+	};
+	struct ifconfig_context *ctx = &_ctx;
 
 	nl_init_socket(&ss);
 
@@ -397,11 +404,6 @@ list_interfaces_nl(struct ifconfig_args *args)
 	qsort(sorted_ifaces, ifmap->count, sizeof(void *), cmp_iface);
 	prepare_ifaddrs(&ss, ifmap);
 
-	struct io_handler h = {
-		.s = get_local_socket(),
-		.ss = &ss,
-	};
-
 	for (uint32_t i = 0, num = 0; i < ifmap->count; i++) {
 		struct iface *iface = sorted_ifaces[i];
 
@@ -415,14 +417,14 @@ list_interfaces_nl(struct ifconfig_args *args)
 				printf(" ");
 			fputs(iface->link.ifla_ifname, stdout);
 		} else if (args->argc == 0)
-			status_nl(args, &h, iface);
+			status_nl(ctx, iface);
 		else
 			ifconfig(args->argc, args->argv, 0, args->afp);
 	}
 	if (args->namesonly)
 		printf("\n");
 
-	close(h.s);
+	close(ctx->io_s);
 	snl_free(&ss);
 }
 
