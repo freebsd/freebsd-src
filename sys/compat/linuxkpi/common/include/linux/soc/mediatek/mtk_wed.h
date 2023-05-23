@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2022 Bjoern A. Zeeb
+ * Copyright (c) 2022-2023 Bjoern A. Zeeb
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,13 +31,27 @@
 struct mtk_wed_device {
 };
 
+#define	WED_WO_STA_REC	0x6
+
 #define	mtk_wed_device_start(_dev, _mask)		do { } while(0)
 #define	mtk_wed_device_detach(_dev)			do { } while(0)
 #define	mtk_wed_device_irq_get(_dev, _mask)		0
 #define	mtk_wed_device_irq_set_mask(_dev, _mask)	do { } while(0)
+#define	mtk_wed_device_update_msg(_dev, _id, _msg, _len)	(-ENODEV)
+#define	mtk_wed_device_dma_reset(_dev)			do {} while (0)
+#define	mtk_wed_device_ppe_check(_dev, _skb, _reason, _entry) \
+    do {} while (0)
+#define	mtk_wed_device_stop(_dev)			do { } while(0)
 
 static inline bool
 mtk_wed_device_active(struct mtk_wed_device *dev __unused)
+{
+
+	return (false);
+}
+
+static inline bool
+mtk_wed_get_rx_capa(struct mtk_wed_device *dev __unused)
 {
 
 	return (false);
