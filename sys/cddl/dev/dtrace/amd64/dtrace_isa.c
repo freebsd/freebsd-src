@@ -476,7 +476,7 @@ dtrace_getstackdepth(int aframes)
 }
 
 ulong_t
-dtrace_getreg(struct trapframe *rp, uint_t reg)
+dtrace_getreg(struct trapframe *frame, uint_t reg)
 {
 	/* This table is dependent on reg.d. */
 	int regmap[] = {
@@ -515,57 +515,57 @@ dtrace_getreg(struct trapframe *rp, uint_t reg)
 
 	switch (reg) {
 	case REG_RDI:
-		return (rp->tf_rdi);
+		return (frame->tf_rdi);
 	case REG_RSI:
-		return (rp->tf_rsi);
+		return (frame->tf_rsi);
 	case REG_RDX:
-		return (rp->tf_rdx);
+		return (frame->tf_rdx);
 	case REG_RCX:
-		return (rp->tf_rcx);
+		return (frame->tf_rcx);
 	case REG_R8:
-		return (rp->tf_r8);
+		return (frame->tf_r8);
 	case REG_R9:
-		return (rp->tf_r9);
+		return (frame->tf_r9);
 	case REG_RAX:
-		return (rp->tf_rax);
+		return (frame->tf_rax);
 	case REG_RBX:
-		return (rp->tf_rbx);
+		return (frame->tf_rbx);
 	case REG_RBP:
-		return (rp->tf_rbp);
+		return (frame->tf_rbp);
 	case REG_R10:
-		return (rp->tf_r10);
+		return (frame->tf_r10);
 	case REG_R11:
-		return (rp->tf_r11);
+		return (frame->tf_r11);
 	case REG_R12:
-		return (rp->tf_r12);
+		return (frame->tf_r12);
 	case REG_R13:
-		return (rp->tf_r13);
+		return (frame->tf_r13);
 	case REG_R14:
-		return (rp->tf_r14);
+		return (frame->tf_r14);
 	case REG_R15:
-		return (rp->tf_r15);
+		return (frame->tf_r15);
 	case REG_DS:
-		return (rp->tf_ds);
+		return (frame->tf_ds);
 	case REG_ES:
-		return (rp->tf_es);
+		return (frame->tf_es);
 	case REG_FS:
-		return (rp->tf_fs);
+		return (frame->tf_fs);
 	case REG_GS:
-		return (rp->tf_gs);
+		return (frame->tf_gs);
 	case REG_TRAPNO:
-		return (rp->tf_trapno);
+		return (frame->tf_trapno);
 	case REG_ERR:
-		return (rp->tf_err);
+		return (frame->tf_err);
 	case REG_RIP:
-		return (rp->tf_rip);
+		return (frame->tf_rip);
 	case REG_CS:
-		return (rp->tf_cs);
+		return (frame->tf_cs);
 	case REG_SS:
-		return (rp->tf_ss);
+		return (frame->tf_ss);
 	case REG_RFL:
-		return (rp->tf_rflags);
+		return (frame->tf_rflags);
 	case REG_RSP:
-		return (rp->tf_rsp);
+		return (frame->tf_rsp);
 	default:
 		DTRACE_CPUFLAG_SET(CPU_DTRACE_ILLOP);
 		return (0);
