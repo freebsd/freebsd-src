@@ -29,13 +29,11 @@
 pci_network_mediatek_mt7915()
 {
 
-	# awk '/PCI_DEVICE\(PCI_VENDOR_ID_MEDIATEK,/ { gsub(").*", "", $3); printf "%s)\taddpkg \"wifi-firmware-mt76-kmod\"; return 1 ;;\n", tolower($3) }' *.c
+	# awk 'BEGIN { x = 0; } { if (/mt7915_pci_device_table/) { x=1 }; if (/^\};/) { x=0 }; if (x==1 && /PCI_DEVICE\(PCI_VENDOR_ID_MEDIATEK,/) { gsub(").*", "", $3); printf "%s)\taddpkg \"wifi-firmware-mt76-kmod\"; return 1 ;;\n", tolower($3) } }' *.c
 
 	case "$1" in
 	0x7915)	addpkg "wifi-firmware-mt76-kmod"; return 1 ;;
 	0x7906)	addpkg "wifi-firmware-mt76-kmod"; return 1 ;;
-	0x7916)	addpkg "wifi-firmware-mt76-kmod"; return 1 ;;
-	0x790a)	addpkg "wifi-firmware-mt76-kmod"; return 1 ;;
 	esac
 }
 
@@ -43,7 +41,7 @@ pci_network_mediatek_mt7915()
 pci_network_mediatek_mt7921()
 {
 
-	# awk '/PCI_DEVICE\(PCI_VENDOR_ID_MEDIATEK,/ { gsub(").*", "", $3); printf "%s)\taddpkg \"wifi-firmware-mt76-kmod\"; return 1 ;;\n", tolower($3) }' *.c
+	# awk 'BEGIN { x = 0; } { if (/mt7921_pci_device_table/) { x=1 }; if (/^\};/) { x=0 }; if (x==1 && /PCI_DEVICE\(PCI_VENDOR_ID_MEDIATEK,/) { gsub(").*", "", $3); printf "%s)\taddpkg \"wifi-firmware-mt76-kmod\"; return 1 ;;\n", tolower($3) } }' *.c
         case "$1" in
 	0x7961)	addpkg "wifi-firmware-mt76-kmod"; return 1 ;;
 	0x7922)	addpkg "wifi-firmware-mt76-kmod"; return 1 ;;
@@ -52,11 +50,20 @@ pci_network_mediatek_mt7921()
 	esac
 }
 
+# mt7996
+pci_network_mediatek_mt7996()
+{
+
+	# awk 'BEGIN { x = 0; } { if (/mt7996_pci_device_table/) { x=1 }; if (/^\};/) { x=0 }; if (x==1 && /PCI_DEVICE\(PCI_VENDOR_ID_MEDIATEK,/) { gsub(").*", "", $3); printf "%s)\taddpkg \"wifi-firmware-mt76-kmod\"; return 1 ;;\n", tolower($3) } }' *.c
+	case "$1" in
+	0x7990)	addpkg "wifi-firmware-mt76-kmod"; return 1 ;;
+	esac
+}
 
 pci_network_mediatek()
 {
 
-	for _drv in mt7915 mt7921; do
+	for _drv in mt7915 mt7921 mt7996; do
 		pci_network_mediatek_${_drv} "$1"
 		case $? in
 		1)	break ;;
