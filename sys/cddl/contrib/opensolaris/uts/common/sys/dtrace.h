@@ -2427,9 +2427,7 @@ extern void dtrace_helpers_destroy(proc_t *);
 
 #endif /* _KERNEL */
 
-#if defined(__i386) || defined(__amd64) || defined (__riscv)
 extern int dtrace_instr_size(uint8_t *instr);
-#endif
 
 #if defined(__i386) || defined(__amd64)
 extern int dtrace_dis_get_byte(void *p);
