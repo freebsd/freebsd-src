@@ -24,7 +24,7 @@ CFLAGS+=       -I${SYSDIR}/cddl/contrib/opensolaris/uts/intel \
                -I${SYSDIR}/cddl/dev/dtrace/x86
 .endif
 
-.if ${MACHINE_CPUARCH} == "riscv"
+.if ${MACHINE_CPUARCH} == "riscv" || ${MACHINE_CPUARCH} == "aarch64"
 SRCS+=		instr_size.c
 .endif
 
