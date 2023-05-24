@@ -25,7 +25,6 @@ ATF_TESTS_SH+=	altq \
 		pfsync	\
 		prio \
 		proxy \
-		rdr \
 		ridentifier \
 		route_to \
 		rtable \

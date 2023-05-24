@@ -325,6 +325,10 @@ VNET_DECLARE(struct pfil_head *, inet6_pfil_head);
 #define	V_inet6_pfil_head	VNET(inet6_pfil_head)
 #define	PFIL_INET6_NAME		"inet6"
 
+VNET_DECLARE(struct pfil_head *, inet6_local_pfil_head);
+#define	V_inet6_local_pfil_head	VNET(inet6_local_pfil_head)
+#define	PFIL_INET6_LOCAL_NAME	"inet6-local"
+
 #ifdef IPSTEALTH
 VNET_DECLARE(int, ip6stealth);
 #define	V_ip6stealth			VNET(ip6stealth)

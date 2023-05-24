@@ -9,6 +9,7 @@ ATF_TESTS_SH+=	\
 		dummynet \
 		pass_block \
 		nat \
+		rdr \
 		tos \
 		fragments \
 		forward
