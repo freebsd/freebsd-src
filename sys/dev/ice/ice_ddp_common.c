@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2022, Intel Corporation
+/*  Copyright (c) 2023, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -1470,14 +1470,14 @@ struct ice_buf_build *ice_pkg_buf_alloc(struct ice_hw *hw)
 	return bld;
 }
 
-static bool ice_is_gtp_u_profile(u16 prof_idx)
+static bool ice_is_gtp_u_profile(u32 prof_idx)
 {
 	return (prof_idx >= ICE_PROFID_IPV6_GTPU_TEID &&
 		prof_idx <= ICE_PROFID_IPV6_GTPU_IPV6_TCP) ||
 	       prof_idx == ICE_PROFID_IPV4_GTPU_TEID;
 }
 
-static bool ice_is_gtp_c_profile(u16 prof_idx)
+static bool ice_is_gtp_c_profile(u32 prof_idx)
 {
 	switch (prof_idx) {
 	case ICE_PROFID_IPV4_GTPC_TEID:

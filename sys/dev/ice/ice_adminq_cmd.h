@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2022, Intel Corporation
+/*  Copyright (c) 2023, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -1987,6 +1987,7 @@ struct ice_aqc_get_port_options {
 	u8 port_options_count;
 #define ICE_AQC_PORT_OPT_COUNT_S	0
 #define ICE_AQC_PORT_OPT_COUNT_M	(0xF << ICE_AQC_PORT_OPT_COUNT_S)
+#define ICE_AQC_PORT_OPT_MAX		16
 	u8 innermost_phy_index;
 	u8 port_options;
 #define ICE_AQC_PORT_OPT_ACTIVE_S	0
