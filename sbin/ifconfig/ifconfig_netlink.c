@@ -124,7 +124,6 @@ nl_init_socket(struct snl_state *ss)
 
 struct ifa {
 	struct ifa		*next;
-	uint32_t		count;
 	uint32_t		idx;
 	struct snl_parsed_addr	addr;
 };
@@ -214,7 +213,7 @@ prepare_ifaddrs(struct snl_state *ss, struct ifmap *ifmap)
 			continue;
 		struct iface *iface = ifmap->ifaces[ifindex];
 		ifa->next = iface->ifa;
-		ifa->count = ++count;
+		ifa->idx = ++count;
 		iface->ifa = ifa;
 		iface->ifa_count++;
 	}
