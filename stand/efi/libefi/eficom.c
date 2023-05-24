@@ -254,6 +254,11 @@ comc_get_con_serial_handle(const char *name)
 	return (NULL);
 }
 
+/*
+ * Called from cons_probe() to see if this device is available.
+ * Return immediately on x86, except for hyperv, since it interferes with
+ * common configurations otherwise (yes, this is just firewalling the bug).
+ */
 static void
 comc_probe(struct console *sc)
 {
@@ -264,6 +269,18 @@ comc_probe(struct console *sc)
 	unsigned val;
 	char *env, *buf, *ep;
 	size_t sz;
+
+#ifdef __amd64__
+	/*
+	 * This driver tickles issues on a number of different firmware loads.
+	 * It is only required for HyperV, and is only known to work on HyperV,
+	 * so only allow it on HyperV.
+	 */
+	env = getenv("smbios.bios.version");
+	if (env == NULL || strncmp(env, "Hyper-V", 7) != 0) {
+		return;
+	}
+#endif
 
 	if (comc_port == NULL) {
 		comc_port = calloc(1, sizeof (struct serial));
