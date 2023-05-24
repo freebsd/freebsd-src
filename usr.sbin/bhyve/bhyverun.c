@@ -198,17 +198,6 @@ static cpuset_t cpumask;
 
 static void vm_loop(struct vmctx *ctx, struct vcpu *vcpu);
 
-static struct bhyvestats {
-	uint64_t	vmexit_bogus;
-	uint64_t	vmexit_reqidle;
-	uint64_t	vmexit_hlt;
-	uint64_t	vmexit_pause;
-	uint64_t	vmexit_mtrap;
-	uint64_t	vmexit_inst_emul;
-	uint64_t	cpu_switch_rotate;
-	uint64_t	cpu_switch_direct;
-} stats;
-
 static struct vcpu_info {
 	struct vmctx	*ctx;
 	struct vcpu	*vcpu;
@@ -753,8 +742,6 @@ vmexit_bogus(struct vmctx *ctx __unused, struct vcpu *vcpu __unused,
 {
 	assert(vmrun->vm_exit->inst_length == 0);
 
-	stats.vmexit_bogus++;
-
 	return (VMEXIT_CONTINUE);
 }
 
@@ -764,8 +751,6 @@ vmexit_reqidle(struct vmctx *ctx __unused, struct vcpu *vcpu __unused,
 {
 	assert(vmrun->vm_exit->inst_length == 0);
 
-	stats.vmexit_reqidle++;
-
 	return (VMEXIT_CONTINUE);
 }
 
@@ -773,8 +758,6 @@ static int
 vmexit_hlt(struct vmctx *ctx __unused, struct vcpu *vcpu __unused,
     struct vm_run *vmrun __unused)
 {
-	stats.vmexit_hlt++;
-
 	/*
 	 * Just continue execution with the next instruction. We use
 	 * the HLT VM exit as a way to be friendly with the host
@@ -787,8 +770,6 @@ static int
 vmexit_pause(struct vmctx *ctx __unused, struct vcpu *vcpu __unused,
     struct vm_run *vmrun __unused)
 {
-	stats.vmexit_pause++;
-
 	return (VMEXIT_CONTINUE);
 }
 
@@ -797,8 +778,6 @@ vmexit_mtrap(struct vmctx *ctx __unused, struct vcpu *vcpu,
     struct vm_run *vmrun)
 {
 	assert(vmrun->vm_exit->inst_length == 0);
-
-	stats.vmexit_mtrap++;
 
 #ifdef BHYVE_SNAPSHOT
 	checkpoint_cpu_suspend(vcpu_id(vcpu));
@@ -821,8 +800,6 @@ vmexit_inst_emul(struct vmctx *ctx __unused, struct vcpu *vcpu,
 	enum vm_cpu_mode mode;
 
 	vme = vmrun->vm_exit;
-
-	stats.vmexit_inst_emul++;
 
 	vie = &vme->u.inst_emul.vie;
 	if (!vie->decoded) {
