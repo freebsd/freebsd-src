@@ -362,10 +362,13 @@ comc_probe(struct console *sc)
 static void
 comc_probe_compat(struct console *sc)
 {
-	comc_probe(sc);
-	if (sc->c_flags & (C_PRESENTIN | C_PRESENTOUT)) {
+	comc_probe(&eficom);
+	if (eficom.c_flags & (C_PRESENTIN | C_PRESENTOUT)) {
 		printf("comconsole: comconsole device name is deprecated, switch to eficom\n");
 	}
+	/*
+	 * Note: We leave the present bits unset in sc to avoid ghosting.
+	 */
 }
 #endif
 
