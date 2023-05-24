@@ -196,6 +196,11 @@ ofw_cpu_probe(device_t dev)
 		return (ENXIO);
 
 	device_set_desc(dev, "Open Firmware CPU");
+	if (!bootverbose && device_get_unit(dev) != 0) {
+		device_quiet(dev);
+		device_quiet_children(dev);
+	}
+
 	return (0);
 }
 
