@@ -1885,7 +1885,7 @@ ovpn_transmit_to_peer(struct ifnet *ifp, struct mbuf *m,
 
 		/* Let's avoid (very unlikely, but still) wraparounds of the
 		 * 64-bit counter taking us back to 0. */
-		atomic_set_64(&peer->keys[OVPN_KEY_SLOT_PRIMARY].encrypt->tx_seq,
+		atomic_store_64(&peer->keys[OVPN_KEY_SLOT_PRIMARY].encrypt->tx_seq,
 		    UINT32_MAX);
 
 		return (ENOBUFS);
