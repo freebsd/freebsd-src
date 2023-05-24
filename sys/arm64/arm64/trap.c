@@ -329,7 +329,8 @@ data_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
 		print_registers(frame);
 		print_gp_register("far", far);
 		printf(" esr: %.16lx\n", esr);
-		panic("data abort with spinlock held");
+		panic("data abort with spinlock held (spinlock count %d != 0)",
+		    td->td_md.md_spinlock_count);
 	}
 #endif
 	if (td->td_critnest != 0 || WITNESS_CHECK(WARN_SLEEPOK |
