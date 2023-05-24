@@ -329,6 +329,16 @@ comc_probe(struct console *sc)
 		}
 	}
 
+	/*
+	 * If there's no sio, then the device isn't there, so just return since
+	 * the present flags aren't yet set.
+	 */
+	if (comc_port->sio == NULL) {
+		free(comc_port);
+		comc_port = NULL;
+		return;
+	}
+
 	if (env != NULL) 
 		unsetenv("efi_com_port");
 	snprintf(value, sizeof (value), "%u", comc_port->ioaddr);
