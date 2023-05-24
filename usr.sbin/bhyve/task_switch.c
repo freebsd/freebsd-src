@@ -704,7 +704,7 @@ push_errcode(struct vcpu *vcpu, struct vm_guest_paging *paging,
 	} while (0)
 
 int
-vmexit_task_switch(struct vmctx *ctx, struct vcpu *vcpu, struct vm_exit *vmexit)
+vmexit_task_switch(struct vmctx *ctx, struct vcpu *vcpu, struct vm_run *vmrun)
 {
 	struct seg_desc nt;
 	struct tss32 oldtss, newtss;
@@ -712,12 +712,14 @@ vmexit_task_switch(struct vmctx *ctx, struct vcpu *vcpu, struct vm_exit *vmexit)
 	struct vm_guest_paging *paging, sup_paging;
 	struct user_segment_descriptor nt_desc, ot_desc;
 	struct iovec nt_iov[2], ot_iov[2];
+	struct vm_exit *vmexit;
 	uint64_t cr0, ot_base;
 	uint32_t eip, ot_lim, access;
 	int error, ext, fault, minlimit, nt_type, ot_type;
 	enum task_switch_reason reason;
 	uint16_t nt_sel, ot_sel;
 
+	vmexit = vmrun->vm_exit;
 	task_switch = &vmexit->u.task_switch;
 	nt_sel = task_switch->tsssel;
 	ext = vmexit->u.task_switch.ext;

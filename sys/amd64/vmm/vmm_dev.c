@@ -93,7 +93,29 @@ struct vm_snapshot_meta_old {
 
 #define VM_SNAPSHOT_REQ_OLD \
 	_IOWR('v', IOCNUM_SNAPSHOT_REQ, struct vm_snapshot_meta_old)
-#endif
+
+struct vm_exit_ipi_13 {
+	uint32_t	mode;
+	uint8_t		vector;
+	__BITSET_DEFINE(, 256) dmask;
+};
+
+struct vm_exit_13 {
+	uint32_t	exitcode;
+	int32_t		inst_length;
+	uint64_t	rip;
+	uint64_t	u[120 / sizeof(uint64_t)];
+};
+
+struct vm_run_13 {
+	int		cpuid;
+	struct vm_exit_13 vm_exit;
+};
+
+#define	VM_RUN_13 \
+	_IOWR('v', IOCNUM_RUN, struct vm_run_13)
+
+#endif /* COMPAT_FREEBSD13 */
 
 struct devmem_softc {
 	int	segid;
@@ -396,6 +418,9 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vm_seg_desc *vmsegdesc;
 	struct vm_register_set *vmregset;
 	struct vm_run *vmrun;
+#ifdef COMPAT_FREEBSD13
+	struct vm_run_13 *vmrun_13;
+#endif
 	struct vm_exception *vmexc;
 	struct vm_lapic_irq *vmirq;
 	struct vm_lapic_msi *vmmsi;
@@ -459,6 +484,9 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	 */
 	switch (cmd) {
 	case VM_RUN:
+#ifdef COMPAT_FREEBSD13
+	case VM_RUN_13:
+#endif
 	case VM_GET_REGISTER:
 	case VM_SET_REGISTER:
 	case VM_GET_SEGMENT_DESCRIPTOR:
@@ -579,11 +607,73 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		break;
 	}
 
-	switch(cmd) {
-	case VM_RUN:
+	switch (cmd) {
+	case VM_RUN: {
+		struct vm_exit *vme;
+
 		vmrun = (struct vm_run *)data;
-		error = vm_run(vcpu, &vmrun->vm_exit);
+		vme = vm_exitinfo(vcpu);
+
+		error = vm_run(vcpu);
+		if (error != 0)
+			break;
+
+		error = copyout(vme, vmrun->vm_exit, sizeof(*vme));
+		if (error != 0)
+			break;
+		if (vme->exitcode == VM_EXITCODE_IPI) {
+			error = copyout(vm_exitinfo_cpuset(vcpu),
+			    vmrun->cpuset,
+			    min(vmrun->cpusetsize, sizeof(cpuset_t)));
+			if (error != 0)
+				break;
+			if (sizeof(cpuset_t) < vmrun->cpusetsize) {
+				uint8_t *p;
+
+				p = (uint8_t *)vmrun->cpuset +
+				    sizeof(cpuset_t);
+				while (error == 0 &&
+				    p < (uint8_t *)vmrun->cpuset +
+				    vmrun->cpusetsize) {
+					error = subyte(p++, 0);
+				}
+			}
+		}
 		break;
+	}
+#ifdef COMPAT_FREEBSD13
+	case VM_RUN_13: {
+		struct vm_exit *vme;
+		struct vm_exit_13 *vme_13;
+
+		vmrun_13 = (struct vm_run_13 *)data;
+		vme_13 = &vmrun_13->vm_exit;
+		vme = vm_exitinfo(vcpu);
+
+		error = vm_run(vcpu);
+		if (error == 0) {
+			vme_13->exitcode = vme->exitcode;
+			vme_13->inst_length = vme->inst_length;
+			vme_13->rip = vme->rip;
+			memcpy(vme_13->u, &vme->u, sizeof(vme_13->u));
+			if (vme->exitcode == VM_EXITCODE_IPI) {
+				struct vm_exit_ipi_13 *ipi;
+				cpuset_t *dmask;
+				int cpu;
+
+				dmask = vm_exitinfo_cpuset(vcpu);
+				ipi = (struct vm_exit_ipi_13 *)&vme_13->u[0];
+				BIT_ZERO(256, &ipi->dmask);
+				CPU_FOREACH_ISSET(cpu, dmask) {
+					if (cpu >= 256)
+						break;
+					BIT_SET(256, cpu, &ipi->dmask);
+				}
+			}
+		}
+		break;
+	}
+#endif
 	case VM_SUSPEND:
 		vmsuspend = (struct vm_suspend *)data;
 		error = vm_suspend(sc->vm, vmsuspend->how);

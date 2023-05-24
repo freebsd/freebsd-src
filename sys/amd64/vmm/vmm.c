@@ -123,6 +123,7 @@ struct vcpu {
 	uint64_t	guest_xcr0;	/* (i) guest %xcr0 register */
 	void		*stats;		/* (a,i) statistics */
 	struct vm_exit	exitinfo;	/* (x) exit reason and collateral */
+	cpuset_t	exitinfo_cpuset; /* (x) storage for vmexit handlers */
 	uint64_t	nextrip;	/* (x) next instruction to execute */
 	uint64_t	tsc_offset;	/* (o) TSC offsetting */
 };
@@ -397,6 +398,12 @@ struct vm_exit *
 vm_exitinfo(struct vcpu *vcpu)
 {
 	return (&vcpu->exitinfo);
+}
+
+cpuset_t *
+vm_exitinfo_cpuset(struct vcpu *vcpu)
+{
+	return (&vcpu->exitinfo_cpuset);
 }
 
 static int
@@ -1837,7 +1844,7 @@ vm_exit_astpending(struct vcpu *vcpu, uint64_t rip)
 }
 
 int
-vm_run(struct vcpu *vcpu, struct vm_exit *vme_user)
+vm_run(struct vcpu *vcpu)
 {
 	struct vm *vm = vcpu->vm;
 	struct vm_eventinfo evinfo;
@@ -1938,8 +1945,6 @@ restart:
 	vmm_stat_incr(vcpu, VMEXIT_USERSPACE, 1);
 	VMM_CTR2(vcpu, "retu %d/%d", error, vme->exitcode);
 
-	/* copy the exit information */
-	*vme_user = *vme;
 	return (error);
 }
 
