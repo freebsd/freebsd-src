@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2022, Intel Corporation
+/*  Copyright (c) 2023, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -700,14 +700,11 @@ ice_update_link_status(struct ice_softc *sc, bool update_media)
 			ice_rdma_link_change(sc, LINK_STATE_UP, baudrate);
 
 			ice_link_up_msg(sc);
-
-			update_media = true;
 		} else { /* link is down */
 			iflib_link_state_change(sc->ctx, LINK_STATE_DOWN, 0);
 			ice_rdma_link_change(sc, LINK_STATE_DOWN, 0);
-
-			update_media = true;
 		}
+		update_media = true;
 	}
 
 	/* Update the supported media types */
@@ -718,8 +715,6 @@ ice_update_link_status(struct ice_softc *sc, bool update_media)
 				      ice_status_str(status),
 				      ice_aq_str(hw->adminq.sq_last_status));
 	}
-
-	/* TODO: notify VFs of link state change */
 }
 
 /**
@@ -1965,7 +1960,7 @@ ice_if_init(if_ctx_t ctx)
 		goto err_cleanup_tx;
 	}
 
-	err = ice_control_rx_queues(&sc->pf_vsi, true);
+	err = ice_control_all_rx_queues(&sc->pf_vsi, true);
 	if (err) {
 		device_printf(dev,
 			      "Unable to enable Rx rings for transmit: %s\n",
@@ -1984,7 +1979,7 @@ ice_if_init(if_ctx_t ctx)
 	/* We use software interrupts for Tx, so we only program the hardware
 	 * interrupts for Rx.
 	 */
-	ice_configure_rxq_interrupts(&sc->pf_vsi);
+	ice_configure_all_rxq_interrupts(&sc->pf_vsi);
 	ice_configure_rx_itr(&sc->pf_vsi);
 
 	/* Configure promiscuous mode */
@@ -1996,7 +1991,7 @@ ice_if_init(if_ctx_t ctx)
 	return;
 
 err_stop_rx:
-	ice_control_rx_queues(&sc->pf_vsi, false);
+	ice_control_all_rx_queues(&sc->pf_vsi, false);
 err_cleanup_tx:
 	ice_vsi_disable_tx(&sc->pf_vsi);
 }
@@ -2902,7 +2897,7 @@ ice_if_stop(if_ctx_t ctx)
 
 	/* Disable the Tx and Rx queues */
 	ice_vsi_disable_tx(&sc->pf_vsi);
-	ice_control_rx_queues(&sc->pf_vsi, false);
+	ice_control_all_rx_queues(&sc->pf_vsi, false);
 }
 
 /**

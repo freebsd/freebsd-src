@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2022, Intel Corporation
+/*  Copyright (c) 2023, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -580,16 +580,23 @@ ice_setup_vsi_qmap(struct ice_vsi *vsi, struct ice_vsi_ctx *ctx)
 
 	MPASS(vsi->rx_qmap != NULL);
 
-	/* TODO:
-	 * Handle scattered queues (for VFs)
-	 */
-	if (vsi->qmap_type != ICE_RESMGR_ALLOC_CONTIGUOUS)
+	switch (vsi->qmap_type) {
+	case ICE_RESMGR_ALLOC_CONTIGUOUS:
+		ctx->info.mapping_flags |= CPU_TO_LE16(ICE_AQ_VSI_Q_MAP_CONTIG);
+
+		ctx->info.q_mapping[0] = CPU_TO_LE16(vsi->rx_qmap[0]);
+		ctx->info.q_mapping[1] = CPU_TO_LE16(vsi->num_rx_queues);
+
+		break;
+	case ICE_RESMGR_ALLOC_SCATTERED:
+		ctx->info.mapping_flags |= CPU_TO_LE16(ICE_AQ_VSI_Q_MAP_NONCONTIG);
+
+		for (int i = 0; i < vsi->num_rx_queues; i++)
+			ctx->info.q_mapping[i] = CPU_TO_LE16(vsi->rx_qmap[i]);
+		break;
+	default:
 		return (EOPNOTSUPP);
-
-	ctx->info.mapping_flags |= CPU_TO_LE16(ICE_AQ_VSI_Q_MAP_CONTIG);
-
-	ctx->info.q_mapping[0] = CPU_TO_LE16(vsi->rx_qmap[0]);
-	ctx->info.q_mapping[1] = CPU_TO_LE16(vsi->num_rx_queues);
+	}
 
 	/* Calculate the next power-of-2 of number of queues */
 	if (vsi->num_rx_queues)
@@ -1219,50 +1226,88 @@ ice_add_media_types(struct ice_softc *sc, struct ifmedia *media)
 }
 
 /**
- * ice_configure_rxq_interrupts - Configure HW Rx queues for MSI-X interrupts
+ * ice_configure_rxq_interrupt - Configure HW Rx queue for an MSI-X interrupt
+ * @hw: ice hw structure
+ * @rxqid: Rx queue index in PF space
+ * @vector: MSI-X vector index in PF/VF space
+ * @itr_idx: ITR index to use for interrupt
+ *
+ * @remark ice_flush() may need to be called after this
+ */
+void
+ice_configure_rxq_interrupt(struct ice_hw *hw, u16 rxqid, u16 vector, u8 itr_idx)
+{
+	u32 val;
+
+	MPASS(itr_idx <= ICE_ITR_NONE);
+
+	val = (QINT_RQCTL_CAUSE_ENA_M |
+	       (itr_idx << QINT_RQCTL_ITR_INDX_S) |
+	       (vector << QINT_RQCTL_MSIX_INDX_S));
+	wr32(hw, QINT_RQCTL(rxqid), val);
+}
+
+/**
+ * ice_configure_all_rxq_interrupts - Configure HW Rx queues for MSI-X interrupts
  * @vsi: the VSI to configure
  *
  * Called when setting up MSI-X interrupts to configure the Rx hardware queues.
  */
 void
-ice_configure_rxq_interrupts(struct ice_vsi *vsi)
+ice_configure_all_rxq_interrupts(struct ice_vsi *vsi)
 {
 	struct ice_hw *hw = &vsi->sc->hw;
 	int i;
 
 	for (i = 0; i < vsi->num_rx_queues; i++) {
 		struct ice_rx_queue *rxq = &vsi->rx_queues[i];
-		u32 val;
 
-		val = (QINT_RQCTL_CAUSE_ENA_M |
-		       (ICE_RX_ITR << QINT_RQCTL_ITR_INDX_S) |
-		       (rxq->irqv->me << QINT_RQCTL_MSIX_INDX_S));
-		wr32(hw, QINT_RQCTL(vsi->rx_qmap[rxq->me]), val);
+		ice_configure_rxq_interrupt(hw, vsi->rx_qmap[rxq->me],
+					    rxq->irqv->me, ICE_RX_ITR);
 	}
 
 	ice_flush(hw);
 }
 
 /**
- * ice_configure_txq_interrupts - Configure HW Tx queues for MSI-X interrupts
+ * ice_configure_txq_interrupt - Configure HW Tx queue for an MSI-X interrupt
+ * @hw: ice hw structure
+ * @txqid: Tx queue index in PF space
+ * @vector: MSI-X vector index in PF/VF space
+ * @itr_idx: ITR index to use for interrupt
+ *
+ * @remark ice_flush() may need to be called after this
+ */
+void
+ice_configure_txq_interrupt(struct ice_hw *hw, u16 txqid, u16 vector, u8 itr_idx)
+{
+	u32 val;
+
+	MPASS(itr_idx <= ICE_ITR_NONE);
+
+	val = (QINT_TQCTL_CAUSE_ENA_M |
+	       (itr_idx << QINT_TQCTL_ITR_INDX_S) |
+	       (vector << QINT_TQCTL_MSIX_INDX_S));
+	wr32(hw, QINT_TQCTL(txqid), val);
+}
+
+/**
+ * ice_configure_all_txq_interrupts - Configure HW Tx queues for MSI-X interrupts
  * @vsi: the VSI to configure
  *
  * Called when setting up MSI-X interrupts to configure the Tx hardware queues.
  */
 void
-ice_configure_txq_interrupts(struct ice_vsi *vsi)
+ice_configure_all_txq_interrupts(struct ice_vsi *vsi)
 {
 	struct ice_hw *hw = &vsi->sc->hw;
 	int i;
 
 	for (i = 0; i < vsi->num_tx_queues; i++) {
 		struct ice_tx_queue *txq = &vsi->tx_queues[i];
-		u32 val;
 
-		val = (QINT_TQCTL_CAUSE_ENA_M |
-		       (ICE_TX_ITR << QINT_TQCTL_ITR_INDX_S) |
-		       (txq->irqv->me << QINT_TQCTL_MSIX_INDX_S));
-		wr32(hw, QINT_TQCTL(vsi->tx_qmap[txq->me]), val);
+		ice_configure_txq_interrupt(hw, vsi->tx_qmap[txq->me],
+					    txq->irqv->me, ICE_TX_ITR);
 	}
 
 	ice_flush(hw);
@@ -1277,7 +1322,7 @@ ice_configure_txq_interrupts(struct ice_vsi *vsi)
  * queue disable logic to dissociate the Rx queue from the interrupt.
  *
  * Note: this function must be called prior to disabling Rx queues with
- * ice_control_rx_queues, otherwise the Rx queue may not be disabled properly.
+ * ice_control_all_rx_queues, otherwise the Rx queue may not be disabled properly.
  */
 void
 ice_flush_rxq_interrupts(struct ice_vsi *vsi)
@@ -1413,7 +1458,6 @@ ice_setup_tx_ctx(struct ice_tx_queue *txq, struct ice_tlan_ctx *tlan_ctx, u16 pf
 
 	tlan_ctx->pf_num = hw->pf_id;
 
-	/* For now, we only have code supporting PF VSIs */
 	switch (vsi->type) {
 	case ICE_VSI_PF:
 		tlan_ctx->vmvf_type = ICE_TLAN_CTX_VMVF_TYPE_PF;
@@ -1648,7 +1692,66 @@ ice_is_rxq_ready(struct ice_hw *hw, int pf_q, u32 *reg)
 }
 
 /**
- * ice_control_rx_queues - Configure hardware to start or stop the Rx queues
+ * ice_control_rx_queue - Configure hardware to start or stop an Rx queue
+ * @vsi: VSI containing queue to enable/disable
+ * @qidx: Queue index in VSI space
+ * @enable: true to enable queue, false to disable
+ *
+ * Control the Rx queue through the QRX_CTRL register, enabling or disabling
+ * it. Wait for the appropriate time to ensure that the queue has actually
+ * reached the expected state.
+ */
+int
+ice_control_rx_queue(struct ice_vsi *vsi, u16 qidx, bool enable)
+{
+	struct ice_hw *hw = &vsi->sc->hw;
+	device_t dev = vsi->sc->dev;
+	u32 qrx_ctrl = 0;
+	int err;
+
+	struct ice_rx_queue *rxq = &vsi->rx_queues[qidx];
+	int pf_q = vsi->rx_qmap[rxq->me];
+
+	err = ice_is_rxq_ready(hw, pf_q, &qrx_ctrl);
+	if (err) {
+		device_printf(dev,
+			      "Rx queue %d is not ready\n",
+			      pf_q);
+		return err;
+	}
+
+	/* Skip if the queue is already in correct state */
+	if (enable == !!(qrx_ctrl & QRX_CTRL_QENA_STAT_M))
+		return (0);
+
+	if (enable)
+		qrx_ctrl |= QRX_CTRL_QENA_REQ_M;
+	else
+		qrx_ctrl &= ~QRX_CTRL_QENA_REQ_M;
+	wr32(hw, QRX_CTRL(pf_q), qrx_ctrl);
+
+	/* wait for the queue to finalize the request */
+	err = ice_is_rxq_ready(hw, pf_q, &qrx_ctrl);
+	if (err) {
+		device_printf(dev,
+			      "Rx queue %d %sable timeout\n",
+			      pf_q, (enable ? "en" : "dis"));
+		return err;
+	}
+
+	/* this should never happen */
+	if (enable != !!(qrx_ctrl & QRX_CTRL_QENA_STAT_M)) {
+		device_printf(dev,
+			      "Rx queue %d invalid state\n",
+			      pf_q);
+		return (EDOOFUS);
+	}
+
+	return (0);
+}
+
+/**
+ * ice_control_all_rx_queues - Configure hardware to start or stop the Rx queues
  * @vsi: VSI to enable/disable queues
  * @enable: true to enable queues, false to disable
  *
@@ -1657,11 +1760,8 @@ ice_is_rxq_ready(struct ice_hw *hw, int pf_q, u32 *reg)
  * reached the expected state.
  */
 int
-ice_control_rx_queues(struct ice_vsi *vsi, bool enable)
+ice_control_all_rx_queues(struct ice_vsi *vsi, bool enable)
 {
-	struct ice_hw *hw = &vsi->sc->hw;
-	device_t dev = vsi->sc->dev;
-	u32 qrx_ctrl = 0;
 	int i, err;
 
 	/* TODO: amortize waits by changing all queues up front and then
@@ -1669,43 +1769,9 @@ ice_control_rx_queues(struct ice_vsi *vsi, bool enable)
 	 * when we have a large number of queues.
 	 */
 	for (i = 0; i < vsi->num_rx_queues; i++) {
-		struct ice_rx_queue *rxq = &vsi->rx_queues[i];
-		int pf_q = vsi->rx_qmap[rxq->me];
-
-		err = ice_is_rxq_ready(hw, pf_q, &qrx_ctrl);
-		if (err) {
-			device_printf(dev,
-				      "Rx queue %d is not ready\n",
-				      pf_q);
-			return err;
-		}
-
-		/* Skip if the queue is already in correct state */
-		if (enable == !!(qrx_ctrl & QRX_CTRL_QENA_STAT_M))
-			continue;
-
-		if (enable)
-			qrx_ctrl |= QRX_CTRL_QENA_REQ_M;
-		else
-			qrx_ctrl &= ~QRX_CTRL_QENA_REQ_M;
-		wr32(hw, QRX_CTRL(pf_q), qrx_ctrl);
-
-		/* wait for the queue to finalize the request */
-		err = ice_is_rxq_ready(hw, pf_q, &qrx_ctrl);
-		if (err) {
-			device_printf(dev,
-				      "Rx queue %d %sable timeout\n",
-				      pf_q, (enable ? "en" : "dis"));
-			return err;
-		}
-
-		/* this should never happen */
-		if (enable != !!(qrx_ctrl & QRX_CTRL_QENA_STAT_M)) {
-			device_printf(dev,
-				      "Rx queue %d invalid state\n",
-				      pf_q);
-			return (EDOOFUS);
-		}
+		err = ice_control_rx_queue(vsi, i, enable);
+		if (err)
+			break;
 	}
 
 	return (0);
@@ -4745,7 +4811,7 @@ ice_add_sysctls_mac_pfc_one_stat(struct sysctl_ctx_list *ctx,
 
 	namebuf = sbuf_new_auto();
 	descbuf = sbuf_new_auto();
-	for (int i = 0; i < ICE_MAX_DCB_TCS; i++) {
+	for (int i = 0; i < ICE_MAX_TRAFFIC_CLASS; i++) {
 		sbuf_clear(namebuf);
 		sbuf_clear(descbuf);
 
@@ -5134,6 +5200,58 @@ free_filter_lists:
 }
 
 /**
+ * ice_add_vlan_hw_filters - Add multiple VLAN filters for a given VSI
+ * @vsi: The VSI to add the filter for
+ * @vid: array of VLAN ids to add
+ * @length: length of vid array
+ *
+ * Programs HW filters so that the given VSI will receive the specified VLANs.
+ */
+enum ice_status
+ice_add_vlan_hw_filters(struct ice_vsi *vsi, u16 *vid, u16 length)
+{
+	struct ice_hw *hw = &vsi->sc->hw;
+	struct ice_list_head vlan_list;
+	struct ice_fltr_list_entry *vlan_entries;
+	enum ice_status status;
+
+	MPASS(length > 0);
+
+	INIT_LIST_HEAD(&vlan_list);
+
+	vlan_entries = (struct ice_fltr_list_entry *)
+	    malloc(sizeof(*vlan_entries) * length, M_ICE, M_NOWAIT | M_ZERO);
+	if (!vlan_entries)
+		return (ICE_ERR_NO_MEMORY);
+
+	for (u16 i = 0; i < length; i++) {
+		vlan_entries[i].fltr_info.lkup_type = ICE_SW_LKUP_VLAN;
+		vlan_entries[i].fltr_info.fltr_act = ICE_FWD_TO_VSI;
+		vlan_entries[i].fltr_info.flag = ICE_FLTR_TX;
+		vlan_entries[i].fltr_info.src_id = ICE_SRC_ID_VSI;
+		vlan_entries[i].fltr_info.vsi_handle = vsi->idx;
+		vlan_entries[i].fltr_info.l_data.vlan.vlan_id = vid[i];
+
+		LIST_ADD(&vlan_entries[i].list_entry, &vlan_list);
+	}
+
+	status = ice_add_vlan(hw, &vlan_list);
+	if (!status)
+		goto done;
+
+	device_printf(vsi->sc->dev, "Failed to add VLAN filters:\n");
+	for (u16 i = 0; i < length; i++) {
+		device_printf(vsi->sc->dev,
+		    "- vlan %d, status %d\n",
+		    vlan_entries[i].fltr_info.l_data.vlan.vlan_id,
+		    vlan_entries[i].status);
+	}
+done:
+	free(vlan_entries, M_ICE);
+	return (status);
+}
+
+/**
  * ice_add_vlan_hw_filter - Add a VLAN filter for a given VSI
  * @vsi: The VSI to add the filter for
  * @vid: VLAN to add
@@ -5143,28 +5261,64 @@ free_filter_lists:
 enum ice_status
 ice_add_vlan_hw_filter(struct ice_vsi *vsi, u16 vid)
 {
+	return ice_add_vlan_hw_filters(vsi, &vid, 1);
+}
+
+/**
+ * ice_remove_vlan_hw_filters - Remove multiple VLAN filters for a given VSI
+ * @vsi: The VSI to remove the filters from
+ * @vid: array of VLAN ids to remove
+ * @length: length of vid array
+ *
+ * Removes previously programmed HW filters for the specified VSI.
+ */
+enum ice_status
+ice_remove_vlan_hw_filters(struct ice_vsi *vsi, u16 *vid, u16 length)
+{
 	struct ice_hw *hw = &vsi->sc->hw;
 	struct ice_list_head vlan_list;
-	struct ice_fltr_list_entry vlan_entry;
+	struct ice_fltr_list_entry *vlan_entries;
+	enum ice_status status;
+
+	MPASS(length > 0);
 
 	INIT_LIST_HEAD(&vlan_list);
-	memset(&vlan_entry, 0, sizeof(vlan_entry));
 
-	vlan_entry.fltr_info.lkup_type = ICE_SW_LKUP_VLAN;
-	vlan_entry.fltr_info.fltr_act = ICE_FWD_TO_VSI;
-	vlan_entry.fltr_info.flag = ICE_FLTR_TX;
-	vlan_entry.fltr_info.src_id = ICE_SRC_ID_VSI;
-	vlan_entry.fltr_info.vsi_handle = vsi->idx;
-	vlan_entry.fltr_info.l_data.vlan.vlan_id = vid;
+	vlan_entries = (struct ice_fltr_list_entry *)
+	    malloc(sizeof(*vlan_entries) * length, M_ICE, M_NOWAIT | M_ZERO);
+	if (!vlan_entries)
+		return (ICE_ERR_NO_MEMORY);
 
-	LIST_ADD(&vlan_entry.list_entry, &vlan_list);
+	for (u16 i = 0; i < length; i++) {
+		vlan_entries[i].fltr_info.lkup_type = ICE_SW_LKUP_VLAN;
+		vlan_entries[i].fltr_info.fltr_act = ICE_FWD_TO_VSI;
+		vlan_entries[i].fltr_info.flag = ICE_FLTR_TX;
+		vlan_entries[i].fltr_info.src_id = ICE_SRC_ID_VSI;
+		vlan_entries[i].fltr_info.vsi_handle = vsi->idx;
+		vlan_entries[i].fltr_info.l_data.vlan.vlan_id = vid[i];
 
-	return ice_add_vlan(hw, &vlan_list);
+		LIST_ADD(&vlan_entries[i].list_entry, &vlan_list);
+	}
+
+	status = ice_remove_vlan(hw, &vlan_list);
+	if (!status)
+		goto done;
+
+	device_printf(vsi->sc->dev, "Failed to remove VLAN filters:\n");
+	for (u16 i = 0; i < length; i++) {
+		device_printf(vsi->sc->dev,
+		    "- vlan %d, status %d\n",
+		    vlan_entries[i].fltr_info.l_data.vlan.vlan_id,
+		    vlan_entries[i].status);
+	}
+done:
+	free(vlan_entries, M_ICE);
+	return (status);
 }
 
 /**
  * ice_remove_vlan_hw_filter - Remove a VLAN filter for a given VSI
- * @vsi: The VSI to add the filter for
+ * @vsi: The VSI to remove the filter from
  * @vid: VLAN to remove
  *
  * Removes a previously programmed HW filter for the specified VSI.
@@ -5172,23 +5326,7 @@ ice_add_vlan_hw_filter(struct ice_vsi *vsi, u16 vid)
 enum ice_status
 ice_remove_vlan_hw_filter(struct ice_vsi *vsi, u16 vid)
 {
-	struct ice_hw *hw = &vsi->sc->hw;
-	struct ice_list_head vlan_list;
-	struct ice_fltr_list_entry vlan_entry;
-
-	INIT_LIST_HEAD(&vlan_list);
-	memset(&vlan_entry, 0, sizeof(vlan_entry));
-
-	vlan_entry.fltr_info.lkup_type = ICE_SW_LKUP_VLAN;
-	vlan_entry.fltr_info.fltr_act = ICE_FWD_TO_VSI;
-	vlan_entry.fltr_info.flag = ICE_FLTR_TX;
-	vlan_entry.fltr_info.src_id = ICE_SRC_ID_VSI;
-	vlan_entry.fltr_info.vsi_handle = vsi->idx;
-	vlan_entry.fltr_info.l_data.vlan.vlan_id = vid;
-
-	LIST_ADD(&vlan_entry.list_entry, &vlan_list);
-
-	return ice_remove_vlan(hw, &vlan_list);
+	return ice_remove_vlan_hw_filters(vsi, &vid, 1);
 }
 
 #define ICE_SYSCTL_HELP_RX_ITR			\
@@ -8203,7 +8341,7 @@ ice_stop_pf_vsi(struct ice_softc *sc)
 
 	/* Disable the Tx and Rx queues */
 	ice_vsi_disable_tx(&sc->pf_vsi);
-	ice_control_rx_queues(&sc->pf_vsi, false);
+	ice_control_all_rx_queues(&sc->pf_vsi, false);
 }
 
 /**

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2022, Intel Corporation
+/*  Copyright (c) 2023, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -37,81 +37,81 @@
 #include "ice_flow.h"
 #include "ice_switch.h"
 
-#define ICE_PF_RESET_WAIT_COUNT	300
+#define ICE_PF_RESET_WAIT_COUNT	500
 
 static const char * const ice_link_mode_str_low[] = {
-	[0] = "100BASE_TX",
-	[1] = "100M_SGMII",
-	[2] = "1000BASE_T",
-	[3] = "1000BASE_SX",
-	[4] = "1000BASE_LX",
-	[5] = "1000BASE_KX",
-	[6] = "1G_SGMII",
-	[7] = "2500BASE_T",
-	[8] = "2500BASE_X",
-	[9] = "2500BASE_KX",
-	[10] = "5GBASE_T",
-	[11] = "5GBASE_KR",
-	[12] = "10GBASE_T",
-	[13] = "10G_SFI_DA",
-	[14] = "10GBASE_SR",
-	[15] = "10GBASE_LR",
-	[16] = "10GBASE_KR_CR1",
-	[17] = "10G_SFI_AOC_ACC",
-	[18] = "10G_SFI_C2C",
-	[19] = "25GBASE_T",
-	[20] = "25GBASE_CR",
-	[21] = "25GBASE_CR_S",
-	[22] = "25GBASE_CR1",
-	[23] = "25GBASE_SR",
-	[24] = "25GBASE_LR",
-	[25] = "25GBASE_KR",
-	[26] = "25GBASE_KR_S",
-	[27] = "25GBASE_KR1",
-	[28] = "25G_AUI_AOC_ACC",
-	[29] = "25G_AUI_C2C",
-	[30] = "40GBASE_CR4",
-	[31] = "40GBASE_SR4",
-	[32] = "40GBASE_LR4",
-	[33] = "40GBASE_KR4",
-	[34] = "40G_XLAUI_AOC_ACC",
-	[35] = "40G_XLAUI",
-	[36] = "50GBASE_CR2",
-	[37] = "50GBASE_SR2",
-	[38] = "50GBASE_LR2",
-	[39] = "50GBASE_KR2",
-	[40] = "50G_LAUI2_AOC_ACC",
-	[41] = "50G_LAUI2",
-	[42] = "50G_AUI2_AOC_ACC",
-	[43] = "50G_AUI2",
-	[44] = "50GBASE_CP",
-	[45] = "50GBASE_SR",
-	[46] = "50GBASE_FR",
-	[47] = "50GBASE_LR",
-	[48] = "50GBASE_KR_PAM4",
-	[49] = "50G_AUI1_AOC_ACC",
-	[50] = "50G_AUI1",
-	[51] = "100GBASE_CR4",
-	[52] = "100GBASE_SR4",
-	[53] = "100GBASE_LR4",
-	[54] = "100GBASE_KR4",
-	[55] = "100G_CAUI4_AOC_ACC",
-	[56] = "100G_CAUI4",
-	[57] = "100G_AUI4_AOC_ACC",
-	[58] = "100G_AUI4",
-	[59] = "100GBASE_CR_PAM4",
-	[60] = "100GBASE_KR_PAM4",
-	[61] = "100GBASE_CP2",
-	[62] = "100GBASE_SR2",
-	[63] = "100GBASE_DR",
+	ice_arr_elem_idx(0, "100BASE_TX"),
+	ice_arr_elem_idx(1, "100M_SGMII"),
+	ice_arr_elem_idx(2, "1000BASE_T"),
+	ice_arr_elem_idx(3, "1000BASE_SX"),
+	ice_arr_elem_idx(4, "1000BASE_LX"),
+	ice_arr_elem_idx(5, "1000BASE_KX"),
+	ice_arr_elem_idx(6, "1G_SGMII"),
+	ice_arr_elem_idx(7, "2500BASE_T"),
+	ice_arr_elem_idx(8, "2500BASE_X"),
+	ice_arr_elem_idx(9, "2500BASE_KX"),
+	ice_arr_elem_idx(10, "5GBASE_T"),
+	ice_arr_elem_idx(11, "5GBASE_KR"),
+	ice_arr_elem_idx(12, "10GBASE_T"),
+	ice_arr_elem_idx(13, "10G_SFI_DA"),
+	ice_arr_elem_idx(14, "10GBASE_SR"),
+	ice_arr_elem_idx(15, "10GBASE_LR"),
+	ice_arr_elem_idx(16, "10GBASE_KR_CR1"),
+	ice_arr_elem_idx(17, "10G_SFI_AOC_ACC"),
+	ice_arr_elem_idx(18, "10G_SFI_C2C"),
+	ice_arr_elem_idx(19, "25GBASE_T"),
+	ice_arr_elem_idx(20, "25GBASE_CR"),
+	ice_arr_elem_idx(21, "25GBASE_CR_S"),
+	ice_arr_elem_idx(22, "25GBASE_CR1"),
+	ice_arr_elem_idx(23, "25GBASE_SR"),
+	ice_arr_elem_idx(24, "25GBASE_LR"),
+	ice_arr_elem_idx(25, "25GBASE_KR"),
+	ice_arr_elem_idx(26, "25GBASE_KR_S"),
+	ice_arr_elem_idx(27, "25GBASE_KR1"),
+	ice_arr_elem_idx(28, "25G_AUI_AOC_ACC"),
+	ice_arr_elem_idx(29, "25G_AUI_C2C"),
+	ice_arr_elem_idx(30, "40GBASE_CR4"),
+	ice_arr_elem_idx(31, "40GBASE_SR4"),
+	ice_arr_elem_idx(32, "40GBASE_LR4"),
+	ice_arr_elem_idx(33, "40GBASE_KR4"),
+	ice_arr_elem_idx(34, "40G_XLAUI_AOC_ACC"),
+	ice_arr_elem_idx(35, "40G_XLAUI"),
+	ice_arr_elem_idx(36, "50GBASE_CR2"),
+	ice_arr_elem_idx(37, "50GBASE_SR2"),
+	ice_arr_elem_idx(38, "50GBASE_LR2"),
+	ice_arr_elem_idx(39, "50GBASE_KR2"),
+	ice_arr_elem_idx(40, "50G_LAUI2_AOC_ACC"),
+	ice_arr_elem_idx(41, "50G_LAUI2"),
+	ice_arr_elem_idx(42, "50G_AUI2_AOC_ACC"),
+	ice_arr_elem_idx(43, "50G_AUI2"),
+	ice_arr_elem_idx(44, "50GBASE_CP"),
+	ice_arr_elem_idx(45, "50GBASE_SR"),
+	ice_arr_elem_idx(46, "50GBASE_FR"),
+	ice_arr_elem_idx(47, "50GBASE_LR"),
+	ice_arr_elem_idx(48, "50GBASE_KR_PAM4"),
+	ice_arr_elem_idx(49, "50G_AUI1_AOC_ACC"),
+	ice_arr_elem_idx(50, "50G_AUI1"),
+	ice_arr_elem_idx(51, "100GBASE_CR4"),
+	ice_arr_elem_idx(52, "100GBASE_SR4"),
+	ice_arr_elem_idx(53, "100GBASE_LR4"),
+	ice_arr_elem_idx(54, "100GBASE_KR4"),
+	ice_arr_elem_idx(55, "100G_CAUI4_AOC_ACC"),
+	ice_arr_elem_idx(56, "100G_CAUI4"),
+	ice_arr_elem_idx(57, "100G_AUI4_AOC_ACC"),
+	ice_arr_elem_idx(58, "100G_AUI4"),
+	ice_arr_elem_idx(59, "100GBASE_CR_PAM4"),
+	ice_arr_elem_idx(60, "100GBASE_KR_PAM4"),
+	ice_arr_elem_idx(61, "100GBASE_CP2"),
+	ice_arr_elem_idx(62, "100GBASE_SR2"),
+	ice_arr_elem_idx(63, "100GBASE_DR"),
 };
 
 static const char * const ice_link_mode_str_high[] = {
-	[0] = "100GBASE_KR2_PAM4",
-	[1] = "100G_CAUI2_AOC_ACC",
-	[2] = "100G_CAUI2",
-	[3] = "100G_AUI2_AOC_ACC",
-	[4] = "100G_AUI2",
+	ice_arr_elem_idx(0, "100GBASE_KR2_PAM4"),
+	ice_arr_elem_idx(1, "100G_CAUI2_AOC_ACC"),
+	ice_arr_elem_idx(2, "100G_CAUI2"),
+	ice_arr_elem_idx(3, "100G_AUI2_AOC_ACC"),
+	ice_arr_elem_idx(4, "100G_AUI2"),
 };
 
 /**
@@ -1292,7 +1292,7 @@ static enum ice_status ice_pf_reset(struct ice_hw *hw)
 	 * that is occurring during a download package operation.
 	 */
 	for (cnt = 0; cnt < ICE_GLOBAL_CFG_LOCK_TIMEOUT +
-		ICE_PF_RESET_WAIT_COUNT; cnt++) {
+	     ICE_PF_RESET_WAIT_COUNT; cnt++) {
 		reg = rd32(hw, PFGEN_CTRL);
 		if (!(reg & PFGEN_CTRL_PFSWR_M))
 			break;
@@ -1378,6 +1378,37 @@ ice_copy_rxq_ctx_to_hw(struct ice_hw *hw, u8 *ice_rxq_ctx, u32 rxq_index)
 	return ICE_SUCCESS;
 }
 
+/**
+ * ice_copy_rxq_ctx_from_hw - Copy rxq context register from HW
+ * @hw: pointer to the hardware structure
+ * @ice_rxq_ctx: pointer to the rxq context
+ * @rxq_index: the index of the Rx queue
+ *
+ * Copies rxq context from HW register space to dense structure
+ */
+static enum ice_status
+ice_copy_rxq_ctx_from_hw(struct ice_hw *hw, u8 *ice_rxq_ctx, u32 rxq_index)
+{
+	u8 i;
+
+	if (!ice_rxq_ctx)
+		return ICE_ERR_BAD_PTR;
+
+	if (rxq_index > QRX_CTRL_MAX_INDEX)
+		return ICE_ERR_PARAM;
+
+	/* Copy each dword separately from HW */
+	for (i = 0; i < ICE_RXQ_CTX_SIZE_DWORDS; i++) {
+		u32 *ctx = (u32 *)(ice_rxq_ctx + (i * sizeof(u32)));
+
+		*ctx = rd32(hw, QRX_CONTEXT(i, rxq_index));
+
+		ice_debug(hw, ICE_DBG_QCTX, "qrxdata[%d]: %08X\n", i, *ctx);
+	}
+
+	return ICE_SUCCESS;
+}
+
 /* LAN Rx Queue Context */
 static const struct ice_ctx_ele ice_rlan_ctx_info[] = {
 	/* Field		Width	LSB */
@@ -1430,6 +1461,32 @@ ice_write_rxq_ctx(struct ice_hw *hw, struct ice_rlan_ctx *rlan_ctx,
 }
 
 /**
+ * ice_read_rxq_ctx - Read rxq context from HW
+ * @hw: pointer to the hardware structure
+ * @rlan_ctx: pointer to the rxq context
+ * @rxq_index: the index of the Rx queue
+ *
+ * Read rxq context from HW register space and then converts it from dense
+ * structure to sparse
+ */
+enum ice_status
+ice_read_rxq_ctx(struct ice_hw *hw, struct ice_rlan_ctx *rlan_ctx,
+		 u32 rxq_index)
+{
+	u8 ctx_buf[ICE_RXQ_CTX_SZ] = { 0 };
+	enum ice_status status;
+
+	if (!rlan_ctx)
+		return ICE_ERR_BAD_PTR;
+
+	status = ice_copy_rxq_ctx_from_hw(hw, ctx_buf, rxq_index);
+	if (status)
+		return status;
+
+	return ice_get_ctx(ctx_buf, (u8 *)rlan_ctx, ice_rlan_ctx_info);
+}
+
+/**
  * ice_clear_rxq_ctx
  * @hw: pointer to the hardware structure
  * @rxq_index: the index of the Rx queue to clear
@@ -1450,7 +1507,9 @@ enum ice_status ice_clear_rxq_ctx(struct ice_hw *hw, u32 rxq_index)
 	return ICE_SUCCESS;
 }
 
-/* LAN Tx Queue Context */
+/* LAN Tx Queue Context used for set Tx config by ice_aqc_opc_add_txqs,
+ * Bit[0-175] is valid
+ */
 const struct ice_ctx_ele ice_tlan_ctx_info[] = {
 				    /* Field			Width	LSB */
 	ICE_CTX_STORE(ice_tlan_ctx, base,			57,	0),
@@ -3041,7 +3100,6 @@ enum ice_status
 ice_aq_set_port_params(struct ice_port_info *pi, u16 bad_frame_vsi,
 		       bool save_bad_pac, bool pad_short_pac, bool double_vlan,
 		       struct ice_sq_cd *cd)
-
 {
 	struct ice_aqc_set_port_params *cmd;
 	struct ice_hw *hw = pi->hw;
@@ -3093,8 +3151,8 @@ bool ice_is_100m_speed_supported(struct ice_hw *hw)
  * Note: In the structure of [phy_type_low, phy_type_high], there should
  * be one bit set, as this function will convert one PHY type to its
  * speed.
- * If no bit gets set, ICE_LINK_SPEED_UNKNOWN will be returned
- * If more than one bit gets set, ICE_LINK_SPEED_UNKNOWN will be returned
+ * If no bit gets set, ICE_AQ_LINK_SPEED_UNKNOWN will be returned
+ * If more than one bit gets set, ICE_AQ_LINK_SPEED_UNKNOWN will be returned
  */
 static u16
 ice_get_link_speed_based_on_phy_type(u64 phy_type_low, u64 phy_type_high)
@@ -4772,7 +4830,7 @@ ice_aq_get_internal_data(struct ice_hw *hw, u8 cluster_id, u16 table_id,
  * @ce_info:  a description of the struct to be filled
  */
 static void
-ice_read_byte(u8 *src_ctx, u8 *dest_ctx, struct ice_ctx_ele *ce_info)
+ice_read_byte(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 {
 	u8 dest_byte, mask;
 	u8 *src, *target;
@@ -4790,7 +4848,7 @@ ice_read_byte(u8 *src_ctx, u8 *dest_ctx, struct ice_ctx_ele *ce_info)
 
 	ice_memcpy(&dest_byte, src, sizeof(dest_byte), ICE_DMA_TO_NONDMA);
 
-	dest_byte &= ~(mask);
+	dest_byte &= mask;
 
 	dest_byte >>= shift_width;
 
@@ -4808,7 +4866,7 @@ ice_read_byte(u8 *src_ctx, u8 *dest_ctx, struct ice_ctx_ele *ce_info)
  * @ce_info:  a description of the struct to be filled
  */
 static void
-ice_read_word(u8 *src_ctx, u8 *dest_ctx, struct ice_ctx_ele *ce_info)
+ice_read_word(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 {
 	u16 dest_word, mask;
 	u8 *src, *target;
@@ -4830,7 +4888,7 @@ ice_read_word(u8 *src_ctx, u8 *dest_ctx, struct ice_ctx_ele *ce_info)
 	/* the data in the memory is stored as little endian so mask it
 	 * correctly
 	 */
-	src_word &= ~(CPU_TO_LE16(mask));
+	src_word &= CPU_TO_LE16(mask);
 
 	/* get the data back into host order before shifting */
 	dest_word = LE16_TO_CPU(src_word);
@@ -4851,7 +4909,7 @@ ice_read_word(u8 *src_ctx, u8 *dest_ctx, struct ice_ctx_ele *ce_info)
  * @ce_info:  a description of the struct to be filled
  */
 static void
-ice_read_dword(u8 *src_ctx, u8 *dest_ctx, struct ice_ctx_ele *ce_info)
+ice_read_dword(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 {
 	u32 dest_dword, mask;
 	__le32 src_dword;
@@ -4881,7 +4939,7 @@ ice_read_dword(u8 *src_ctx, u8 *dest_ctx, struct ice_ctx_ele *ce_info)
 	/* the data in the memory is stored as little endian so mask it
 	 * correctly
 	 */
-	src_dword &= ~(CPU_TO_LE32(mask));
+	src_dword &= CPU_TO_LE32(mask);
 
 	/* get the data back into host order before shifting */
 	dest_dword = LE32_TO_CPU(src_dword);
@@ -4902,7 +4960,7 @@ ice_read_dword(u8 *src_ctx, u8 *dest_ctx, struct ice_ctx_ele *ce_info)
  * @ce_info:  a description of the struct to be filled
  */
 static void
-ice_read_qword(u8 *src_ctx, u8 *dest_ctx, struct ice_ctx_ele *ce_info)
+ice_read_qword(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 {
 	u64 dest_qword, mask;
 	__le64 src_qword;
@@ -4932,7 +4990,7 @@ ice_read_qword(u8 *src_ctx, u8 *dest_ctx, struct ice_ctx_ele *ce_info)
 	/* the data in the memory is stored as little endian so mask it
 	 * correctly
 	 */
-	src_qword &= ~(CPU_TO_LE64(mask));
+	src_qword &= CPU_TO_LE64(mask);
 
 	/* get the data back into host order before shifting */
 	dest_qword = LE64_TO_CPU(src_qword);
@@ -4953,7 +5011,7 @@ ice_read_qword(u8 *src_ctx, u8 *dest_ctx, struct ice_ctx_ele *ce_info)
  * @ce_info:  a description of the structure to be read from
  */
 enum ice_status
-ice_get_ctx(u8 *src_ctx, u8 *dest_ctx, struct ice_ctx_ele *ce_info)
+ice_get_ctx(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 {
 	int f;
 
@@ -5789,7 +5847,7 @@ enum ice_fw_modes ice_get_fw_mode(struct ice_hw *hw)
 }
 
 /**
- * ice_cfg_get_cur_lldp_persist_status
+ * ice_get_cur_lldp_persist_status
  * @hw: pointer to the HW struct
  * @lldp_status: return value of LLDP persistent status
  *
@@ -6266,6 +6324,8 @@ ice_aq_set_health_status_config(struct ice_hw *hw, u8 event_source,
  *               when PF owns more than 1 port it must be true
  * @active_option_idx: index of active port option in returned buffer
  * @active_option_valid: active option in returned buffer is valid
+ * @pending_option_idx: index of pending port option in returned buffer
+ * @pending_option_valid: pending option in returned buffer is valid
  *
  * Calls Get Port Options AQC (0x06ea) and verifies result.
  */
@@ -6273,16 +6333,13 @@ enum ice_status
 ice_aq_get_port_options(struct ice_hw *hw,
 			struct ice_aqc_get_port_options_elem *options,
 			u8 *option_count, u8 lport, bool lport_valid,
-			u8 *active_option_idx, bool *active_option_valid)
+			u8 *active_option_idx, bool *active_option_valid,
+			u8 *pending_option_idx, bool *pending_option_valid)
 {
 	struct ice_aqc_get_port_options *cmd;
 	struct ice_aq_desc desc;
 	enum ice_status status;
-	u8 pmd_count;
-	u8 max_speed;
 	u8 i;
-
-	ice_debug(hw, ICE_DBG_TRACE, "%s\n", __func__);
 
 	/* options buffer shall be able to hold max returned options */
 	if (*option_count < ICE_AQC_PORT_OPT_COUNT_M)
@@ -6291,8 +6348,7 @@ ice_aq_get_port_options(struct ice_hw *hw,
 	cmd = &desc.params.get_port_options;
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_get_port_options);
 
-	if (lport_valid)
-		cmd->lport_num = lport;
+	cmd->lport_num = lport;
 	cmd->lport_num_valid = lport_valid;
 
 	status = ice_aq_send_cmd(hw, &desc, options,
@@ -6313,32 +6369,57 @@ ice_aq_get_port_options(struct ice_hw *hw,
 			  *active_option_idx);
 	}
 
-	/* verify indirect FW response & mask output options fields */
+	*pending_option_valid = cmd->pending_port_option_status &
+				ICE_AQC_PENDING_PORT_OPT_VALID;
+	if (*pending_option_valid) {
+		*pending_option_idx = cmd->pending_port_option_status &
+				      ICE_AQC_PENDING_PORT_OPT_IDX_M;
+		if (*pending_option_idx > (*option_count - 1))
+			return ICE_ERR_OUT_OF_RANGE;
+		ice_debug(hw, ICE_DBG_PHY, "pending idx: %x\n",
+			  *pending_option_idx);
+	}
+
+	/* mask output options fields */
 	for (i = 0; i < *option_count; i++) {
 		options[i].pmd &= ICE_AQC_PORT_OPT_PMD_COUNT_M;
 		options[i].max_lane_speed &= ICE_AQC_PORT_OPT_MAX_LANE_M;
-		pmd_count = options[i].pmd;
-		max_speed = options[i].max_lane_speed;
 		ice_debug(hw, ICE_DBG_PHY, "pmds: %x max speed: %x\n",
-			  pmd_count, max_speed);
-
-		/* check only entries containing valid max pmd speed values,
-		 * other reserved values may be returned, when logical port
-		 * used is unrelated to specific option
-		 */
-		if (max_speed <= ICE_AQC_PORT_OPT_MAX_LANE_100G) {
-			if (pmd_count > ICE_MAX_PORT_PER_PCI_DEV)
-				return ICE_ERR_OUT_OF_RANGE;
-			if (pmd_count > 2 &&
-			    max_speed > ICE_AQC_PORT_OPT_MAX_LANE_25G)
-				return ICE_ERR_CFG;
-			if (pmd_count > 7 &&
-			    max_speed > ICE_AQC_PORT_OPT_MAX_LANE_10G)
-				return ICE_ERR_CFG;
-		}
+			  options[i].pmd, options[i].max_lane_speed);
 	}
 
 	return ICE_SUCCESS;
+}
+
+/**
+ * ice_aq_set_port_option
+ * @hw: pointer to the hw struct
+ * @lport: logical port to call the command with
+ * @lport_valid: when false, FW uses port owned by the PF instead of lport,
+ *               when PF owns more than 1 port it must be true
+ * @new_option: new port option to be written
+ *
+ * Calls Set Port Options AQC (0x06eb).
+ */
+enum ice_status
+ice_aq_set_port_option(struct ice_hw *hw, u8 lport, u8 lport_valid,
+		       u8 new_option)
+{
+	struct ice_aqc_set_port_option *cmd;
+	struct ice_aq_desc desc;
+
+	if (new_option >= ICE_AQC_PORT_OPT_COUNT_M)
+		return ICE_ERR_PARAM;
+
+	cmd = &desc.params.set_port_option;
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_set_port_option);
+
+	cmd->lport_num = lport;
+
+	cmd->lport_num_valid = lport_valid;
+	cmd->selected_port_option = new_option;
+
+	return ice_aq_send_cmd(hw, &desc, NULL, 0, NULL);
 }
 
 /**
@@ -6438,6 +6519,42 @@ bool ice_fw_supports_report_dflt_cfg(struct ice_hw *hw)
 	return ice_is_fw_api_min_ver(hw, ICE_FW_API_REPORT_DFLT_CFG_MAJ,
 				     ICE_FW_API_REPORT_DFLT_CFG_MIN,
 				     ICE_FW_API_REPORT_DFLT_CFG_PATCH);
+}
+
+/* each of the indexes into the following array match the speed of a return
+ * value from the list of AQ returned speeds like the range:
+ * ICE_AQ_LINK_SPEED_10MB .. ICE_AQ_LINK_SPEED_100GB excluding
+ * ICE_AQ_LINK_SPEED_UNKNOWN which is BIT(15) The array is defined as 15
+ * elements long because the link_speed returned by the firmware is a 16 bit
+ * value, but is indexed by [fls(speed) - 1]
+ */
+static const u32 ice_aq_to_link_speed[15] = {
+	ICE_LINK_SPEED_10MBPS,	/* BIT(0) */
+	ICE_LINK_SPEED_100MBPS,
+	ICE_LINK_SPEED_1000MBPS,
+	ICE_LINK_SPEED_2500MBPS,
+	ICE_LINK_SPEED_5000MBPS,
+	ICE_LINK_SPEED_10000MBPS,
+	ICE_LINK_SPEED_20000MBPS,
+	ICE_LINK_SPEED_25000MBPS,
+	ICE_LINK_SPEED_40000MBPS,
+	ICE_LINK_SPEED_50000MBPS,
+	ICE_LINK_SPEED_100000MBPS,	/* BIT(10) */
+	ICE_LINK_SPEED_UNKNOWN,
+	ICE_LINK_SPEED_UNKNOWN,
+	ICE_LINK_SPEED_UNKNOWN,
+	ICE_LINK_SPEED_UNKNOWN		/* BIT(14) */
+};
+
+/**
+ * ice_get_link_speed - get integer speed from table
+ * @index: array index from fls(aq speed) - 1
+ *
+ * Returns: u32 value containing integer speed
+ */
+u32 ice_get_link_speed(u16 index)
+{
+	return ice_aq_to_link_speed[index];
 }
 
 /**

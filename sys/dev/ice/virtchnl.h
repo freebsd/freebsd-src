@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2022, Intel Corporation
+/*  Copyright (c) 2023, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -202,6 +202,9 @@ enum virtchnl_ops {
 	VIRTCHNL_OP_MAP_QUEUE_VECTOR = 111,
 	VIRTCHNL_OP_CONFIG_QUEUE_BW = 112,
 	VIRTCHNL_OP_CONFIG_QUANTA = 113,
+	VIRTCHNL_OP_FLOW_SUBSCRIBE = 114,
+	VIRTCHNL_OP_FLOW_UNSUBSCRIBE = 115,
+	/* opcode 116 through 128 are reserved */
 	VIRTCHNL_OP_MAX,
 };
 
@@ -300,6 +303,10 @@ static inline const char *virtchnl_op_str(enum virtchnl_ops v_opcode)
 		return "VIRTCHNL_OP_DISABLE_QUEUES_V2";
 	case VIRTCHNL_OP_MAP_QUEUE_VECTOR:
 		return "VIRTCHNL_OP_MAP_QUEUE_VECTOR";
+	case VIRTCHNL_OP_FLOW_SUBSCRIBE:
+		return "VIRTCHNL_OP_FLOW_SUBSCRIBE";
+	case VIRTCHNL_OP_FLOW_UNSUBSCRIBE:
+		return "VIRTCHNL_OP_FLOW_UNSUBSCRIBE";
 	case VIRTCHNL_OP_MAX:
 		return "VIRTCHNL_OP_MAX";
 	default:
@@ -436,6 +443,7 @@ VIRTCHNL_CHECK_STRUCT_LEN(16, virtchnl_vsi_resource);
 	/* BIT(8) is reserved */
 #define VIRTCHNL_VF_LARGE_NUM_QPAIRS		BIT(9)
 #define VIRTCHNL_VF_OFFLOAD_CRC			BIT(10)
+#define VIRTCHNL_VF_OFFLOAD_FSUB_PF		BIT(14)
 #define VIRTCHNL_VF_OFFLOAD_VLAN_V2		BIT(15)
 #define VIRTCHNL_VF_OFFLOAD_VLAN		BIT(16)
 #define VIRTCHNL_VF_OFFLOAD_RX_POLLING		BIT(17)
@@ -1438,6 +1446,7 @@ enum virtchnl_vfr_states {
 };
 
 #define VIRTCHNL_MAX_NUM_PROTO_HDRS	32
+#define VIRTCHNL_MAX_NUM_PROTO_HDRS_W_MSK	16
 #define VIRTCHNL_MAX_SIZE_RAW_PACKET	1024
 #define PROTO_HDR_SHIFT			5
 #define PROTO_HDR_FIELD_START(proto_hdr_type) \
@@ -1630,6 +1639,22 @@ struct virtchnl_proto_hdr {
 
 VIRTCHNL_CHECK_STRUCT_LEN(72, virtchnl_proto_hdr);
 
+struct virtchnl_proto_hdr_w_msk {
+	/* see enum virtchnl_proto_hdr_type */
+	s32 type;
+	u32 pad;
+	/**
+	 * binary buffer in network order for specific header type.
+	 * For example, if type = VIRTCHNL_PROTO_HDR_IPV4, a IPv4
+	 * header is expected to be copied into the buffer.
+	 */
+	u8 buffer_spec[64];
+	/* binary buffer for bit-mask applied to specific header type */
+	u8 buffer_mask[64];
+};
+
+VIRTCHNL_CHECK_STRUCT_LEN(136, virtchnl_proto_hdr_w_msk);
+
 struct virtchnl_proto_hdrs {
 	u8 tunnel_level;
 	/**
@@ -1642,12 +1667,18 @@ struct virtchnl_proto_hdrs {
 	 */
 	int count;
 	/**
-	 * number of proto layers, must < VIRTCHNL_MAX_NUM_PROTO_HDRS
-	 * must be 0 for a raw packet request.
+	 * count must <=
+	 * VIRTCHNL_MAX_NUM_PROTO_HDRS + VIRTCHNL_MAX_NUM_PROTO_HDRS_W_MSK
+	 * count = 0 :					select raw
+	 * 1 < count <= VIRTCHNL_MAX_NUM_PROTO_HDRS :	select proto_hdr
+	 * count > VIRTCHNL_MAX_NUM_PROTO_HDRS :	select proto_hdr_w_msk
+	 * last valid index = count - VIRTCHNL_MAX_NUM_PROTO_HDRS
 	 */
 	union {
 		struct virtchnl_proto_hdr
 			proto_hdr[VIRTCHNL_MAX_NUM_PROTO_HDRS];
+		struct virtchnl_proto_hdr_w_msk
+			proto_hdr_w_msk[VIRTCHNL_MAX_NUM_PROTO_HDRS_W_MSK];
 		struct {
 			u16 pkt_len;
 			u8 spec[VIRTCHNL_MAX_SIZE_RAW_PACKET];
@@ -1668,7 +1699,7 @@ struct virtchnl_rss_cfg {
 
 VIRTCHNL_CHECK_STRUCT_LEN(2444, virtchnl_rss_cfg);
 
-/* action configuration for FDIR */
+/* action configuration for FDIR and FSUB */
 struct virtchnl_filter_action {
 	/* see enum virtchnl_action type */
 	s32 type;
@@ -1785,6 +1816,66 @@ struct virtchnl_fdir_del {
 };
 
 VIRTCHNL_CHECK_STRUCT_LEN(12, virtchnl_fdir_del);
+
+/* Status returned to VF after VF requests FSUB commands
+ * VIRTCHNL_FSUB_SUCCESS
+ * VF FLOW related request is successfully done by PF
+ * The request can be OP_FLOW_SUBSCRIBE/UNSUBSCRIBE.
+ *
+ * VIRTCHNL_FSUB_FAILURE_RULE_NORESOURCE
+ * OP_FLOW_SUBSCRIBE request is failed due to no Hardware resource.
+ *
+ * VIRTCHNL_FSUB_FAILURE_RULE_EXIST
+ * OP_FLOW_SUBSCRIBE request is failed due to the rule is already existed.
+ *
+ * VIRTCHNL_FSUB_FAILURE_RULE_NONEXIST
+ * OP_FLOW_UNSUBSCRIBE request is failed due to this rule doesn't exist.
+ *
+ * VIRTCHNL_FSUB_FAILURE_RULE_INVALID
+ * OP_FLOW_SUBSCRIBE request is failed due to parameters validation
+ * or HW doesn't support.
+ */
+enum virtchnl_fsub_prgm_status {
+	VIRTCHNL_FSUB_SUCCESS = 0,
+	VIRTCHNL_FSUB_FAILURE_RULE_NORESOURCE,
+	VIRTCHNL_FSUB_FAILURE_RULE_EXIST,
+	VIRTCHNL_FSUB_FAILURE_RULE_NONEXIST,
+	VIRTCHNL_FSUB_FAILURE_RULE_INVALID,
+};
+
+/* VIRTCHNL_OP_FLOW_SUBSCRIBE
+ * VF sends this request to PF by filling out vsi_id,
+ * validate_only, priority, proto_hdrs and actions.
+ * PF will return flow_id
+ * if the request is successfully done and return status to VF.
+ */
+struct virtchnl_flow_sub {
+	u16 vsi_id; /* INPUT */
+	u8 validate_only; /* INPUT */
+	/* 0 is the highest priority; INPUT */
+	u8 priority;
+	u32 flow_id; /* OUTPUT */
+	struct virtchnl_proto_hdrs proto_hdrs; /* INPUT */
+	struct virtchnl_filter_action_set actions; /* INPUT */
+	/* see enum virtchnl_fsub_prgm_status; OUTPUT */
+	s32 status;
+};
+
+VIRTCHNL_CHECK_STRUCT_LEN(2616, virtchnl_flow_sub);
+
+/* VIRTCHNL_OP_FLOW_UNSUBSCRIBE
+ * VF sends this request to PF by filling out vsi_id
+ * and flow_id. PF will return status to VF.
+ */
+struct virtchnl_flow_unsub {
+	u16 vsi_id; /* INPUT */
+	u16 pad;
+	u32 flow_id; /* INPUT */
+	/* see enum virtchnl_fsub_prgm_status; OUTPUT */
+	s32 status;
+};
+
+VIRTCHNL_CHECK_STRUCT_LEN(12, virtchnl_flow_unsub);
 
 /* VIRTCHNL_OP_GET_QOS_CAPS
  * VF sends this message to get its QoS Caps, such as
@@ -2171,6 +2262,12 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		break;
 	case VIRTCHNL_OP_DEL_FDIR_FILTER:
 		valid_len = sizeof(struct virtchnl_fdir_del);
+		break;
+	case VIRTCHNL_OP_FLOW_SUBSCRIBE:
+		valid_len = sizeof(struct virtchnl_flow_sub);
+		break;
+	case VIRTCHNL_OP_FLOW_UNSUBSCRIBE:
+		valid_len = sizeof(struct virtchnl_flow_unsub);
 		break;
 	case VIRTCHNL_OP_GET_QOS_CAPS:
 		break;

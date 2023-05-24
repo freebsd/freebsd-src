@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2022, Intel Corporation
+/*  Copyright (c) 2023, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -30,8 +30,8 @@
  */
 /*$FreeBSD$*/
 
-#ifndef _ICE_DDP_H_
-#define _ICE_DDP_H_
+#ifndef _ICE_DDP_COMMON_H_
+#define _ICE_DDP_COMMON_H_
 
 #include "ice_osdep.h"
 #include "ice_adminq_cmd.h"
@@ -475,4 +475,4 @@ void ice_pkg_buf_free(struct ice_hw *hw, struct ice_buf_build *bld);
 
 enum ice_status ice_cfg_tx_topo(struct ice_hw *hw, u8 *buf, u32 len);
 
-#endif /* _ICE_DDP_H_ */
+#endif /* _ICE_DDP_COMMON_H_ */
