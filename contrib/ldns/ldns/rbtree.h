@@ -151,7 +151,7 @@ ldns_rbnode_t *ldns_rbtree_search(ldns_rbtree_t *rbtree, const void *key);
  * Find, but match does not have to be exact.
  * @param rbtree: tree to find in.
  * @param key: key to find position of.
- * @param result: set to the exact node if present, otherwise to element that
+ * @param[out] result: set to the exact node if present, otherwise to element that
  *   precedes the position of key in the tree. NULL if no smaller element.
  * @return: true if exact match in result. Else result points to <= element,
  * or NULL if key is smaller than the smallest key.

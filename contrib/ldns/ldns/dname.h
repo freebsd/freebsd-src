@@ -134,7 +134,7 @@ ldns_rdf *ldns_dname_new_frm_data(uint16_t size, const void *data);
 void ldns_dname2canonical(const ldns_rdf *rdf);
 
 /**
- * test wether the name sub falls under parent (i.e. is a subdomain
+ * test whether the name sub falls under parent (i.e. is a subdomain
  * of parent). This function will return false if the given dnames are
  * equal.
  * \param[in] sub the name to test

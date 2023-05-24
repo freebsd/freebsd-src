@@ -121,9 +121,9 @@ bool ldns_rr_rrsig_set_origttl(ldns_rr *r, ldns_rdf *f);
  */
 ldns_rdf* ldns_rr_rrsig_expiration(const ldns_rr *r);
 /**
- * sets the expireation date of a LDNS_RR_TYPE_RRSIG rr
+ * sets the expiration date of a LDNS_RR_TYPE_RRSIG rr
  * \param[in] r the rr to use
- * \param[in] f the expireation date to set
+ * \param[in] f the expiration date to set
  * \return true on success, false otherwise
  */
 bool ldns_rr_rrsig_set_expiration(ldns_rr *r, ldns_rdf *f);

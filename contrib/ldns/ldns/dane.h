@@ -43,7 +43,7 @@ enum ldns_enum_tlsa_certificate_usage
 	/** CA constraint */
 	LDNS_TLSA_USAGE_PKIX_TA				=   0,
 	LDNS_TLSA_USAGE_CA_CONSTRAINT			=   0,
-	/** Sevice certificate constraint */
+	/** Service certificate constraint */
 	LDNS_TLSA_USAGE_PKIX_EE				=   1,
 	LDNS_TLSA_USAGE_SERVICE_CERTIFICATE_CONSTRAINT	=   1,
 	/** Trust anchor assertion */
@@ -122,7 +122,7 @@ typedef enum ldns_enum_dane_transport ldns_dane_transport;
  *
  * \param[out] tlsa_owner The created dname.
  * \param[in] name The dname that should be prefixed.
- * \param[in] port The service port number for wich the name should be created.
+ * \param[in] port The service port number for which the name should be created.
  * \param[in] transport The transport for which the name should be created.
  * \return LDNS_STATUS_OK on success or an error code otherwise.
  */

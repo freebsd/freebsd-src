@@ -1,6 +1,13 @@
 #ifndef LDNS_SHA1_H
 #define LDNS_SHA1_H
 
+#include <stdint.h>  /* uint32_t and friends */
+#include <stddef.h>  /* size_t and NULL */
+
+#if LDNS_BUILD_CONFIG_HAVE_INTTYPES_H
+# include <inttypes.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -29,7 +36,7 @@ void ldns_sha1_final(unsigned char digest[LDNS_SHA1_DIGEST_LENGTH], ldns_sha1_ct
  *             available
  * \return the SHA1 digest of the given data
  */
-unsigned char *ldns_sha1(unsigned char *data, unsigned int data_len, unsigned char *digest);
+unsigned char *ldns_sha1(const unsigned char *data, unsigned int data_len, unsigned char *digest);
 
 #ifdef __cplusplus
 }

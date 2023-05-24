@@ -3,7 +3,7 @@
  *
  * dname specific rdata implementations
  * A dname is a rdf structure with type LDNS_RDF_TYPE_DNAME
- * It is not a /real/ type! All function must therefor check
+ * It is not a /real/ type! All function must therefore check
  * for LDNS_RDF_TYPE_DNAME.
  *
  * a Net::DNS like library for C
