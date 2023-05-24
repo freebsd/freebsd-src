@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2022, Intel Corporation
+/*  Copyright (c) 2023, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -63,16 +63,16 @@
  * @var ice_rc_version
  * @brief driver release candidate version number
  */
-const char ice_driver_version[] = "1.37.7-k";
+const char ice_driver_version[] = "1.37.11-k";
 const uint8_t ice_major_version = 1;
 const uint8_t ice_minor_version = 37;
-const uint8_t ice_patch_version = 7;
+const uint8_t ice_patch_version = 11;
 const uint8_t ice_rc_version = 0;
 
 #define PVIDV(vendor, devid, name) \
-	PVID(vendor, devid, name " - 1.37.7-k")
+	PVID(vendor, devid, name " - 1.37.11-k")
 #define PVIDV_OEM(vendor, devid, svid, sdevid, revid, name) \
-	PVID_OEM(vendor, devid, svid, sdevid, revid, name " - 1.37.7-k")
+	PVID_OEM(vendor, devid, svid, sdevid, revid, name " - 1.37.11-k")
 
 /**
  * @var ice_vendor_info_array

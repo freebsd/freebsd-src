@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2022, Intel Corporation
+/*  Copyright (c) 2023, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -71,6 +71,8 @@ void ice_debug_array(struct ice_hw *hw, uint64_t mask, uint32_t rowsize,
 		     uint32_t groupsize, uint8_t *buf, size_t len);
 void ice_info_fwlog(struct ice_hw *hw, uint32_t rowsize, uint32_t groupsize,
 		    uint8_t *buf, size_t len);
+
+#define ice_fls(_n) flsl(_n)
 
 #define ice_info(_hw, _fmt, args...) \
 	device_printf(ice_hw_to_dev(_hw), (_fmt), ##args)
