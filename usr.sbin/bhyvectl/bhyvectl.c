@@ -1751,7 +1751,7 @@ main(int argc, char *argv[])
 	char *vmname;
 	int error, ch, vcpuid, ptenum;
 	vm_paddr_t gpa_pmap;
-	struct vm_exit vmexit;
+	struct vm_run vmrun;
 	uint64_t rax, cr0, cr2, cr3, cr4, dr0, dr1, dr2, dr3, dr6, dr7;
 	uint64_t rsp, rip, rflags, efer, pat;
 	uint64_t eptp, bm, addr, u64, pteval[4], *pte, info[2];
@@ -2386,7 +2386,13 @@ main(int argc, char *argv[])
 	}
 
 	if (!error && run) {
-		error = vm_run(vcpu, &vmexit);
+		struct vm_exit vmexit;
+		cpuset_t cpuset;
+
+		vmrun.vm_exit = &vmexit;
+		vmrun.cpuset = &cpuset;
+		vmrun.cpusetsize = sizeof(cpuset);
+		error = vm_run(vcpu, &vmrun);
 		if (error == 0)
 			dump_vm_run_exitcode(&vmexit, vcpuid);
 		else
