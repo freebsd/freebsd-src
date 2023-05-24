@@ -42,7 +42,7 @@ ldns_pkt *ldns_update_pkt_new(ldns_rdf *zone_rdf, ldns_rr_class clas, const ldns
  * \param[in] p packet to copy to
  * \param[in] r resolver to copy from
  *
- * \return status wether successfull or not
+ * \return status whether successful or not
  */
 ldns_status ldns_update_pkt_tsig_add(ldns_pkt *p, const ldns_resolver *r);
 

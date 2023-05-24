@@ -139,6 +139,12 @@ enum ldns_enum_rdf_type
 	LDNS_RDF_TYPE_SELECTOR,
 	LDNS_RDF_TYPE_MATCHING_TYPE,
 
+	/** draft-ietf-mboned-driad-amt-discovery **/
+	LDNS_RDF_TYPE_AMTRELAY,
+
+	/** draft-ietf-dnsop-svcb-https **/
+	LDNS_RDF_TYPE_SVCPARAMS,
+
 	/* Aliases */
 	LDNS_RDF_TYPE_BITMAP = LDNS_RDF_TYPE_NSEC
 };
@@ -162,7 +168,23 @@ enum ldns_enum_cert_algorithm
 };
 typedef enum ldns_enum_cert_algorithm ldns_cert_algorithm;
 
-
+/**
+ * keys types in SVCPARAMS rdata fields
+ */
+enum ldns_enum_svcparam_key
+{
+	LDNS_SVCPARAM_KEY_MANDATORY		= 0,
+	LDNS_SVCPARAM_KEY_ALPN			= 1,
+	LDNS_SVCPARAM_KEY_NO_DEFAULT_ALPN	= 2,
+	LDNS_SVCPARAM_KEY_PORT			= 3,
+	LDNS_SVCPARAM_KEY_IPV4HINT		= 4,
+	LDNS_SVCPARAM_KEY_ECH			= 5,
+	LDNS_SVCPARAM_KEY_IPV6HINT		= 6,
+        LDNS_SVCPARAM_KEY_DOHPATH               = 7,
+	LDNS_SVCPARAM_KEY_LAST_KEY		= 7,
+	LDNS_SVCPARAM_KEY_RESERVED		= 65535
+};
+typedef	enum ldns_enum_svcparam_key ldns_svcparam_key;
 
 /**
  * Resource record data field.
@@ -240,7 +262,7 @@ uint8_t *ldns_rdf_data(const ldns_rdf *rd);
 /**
  * allocates a new rdf structure and fills it.
  * This function DOES NOT copy the contents from
- * the buffer, unlinke ldns_rdf_new_frm_data()
+ * the buffer, unlike ldns_rdf_new_frm_data()
  * \param[in] type type of the rdf
  * \param[in] size size of the buffer
  * \param[in] data pointer to the buffer to be copied
@@ -251,7 +273,7 @@ ldns_rdf *ldns_rdf_new(ldns_rdf_type type, size_t size, void *data);
 /**
  * allocates a new rdf structure and fills it.
  * This function _does_ copy the contents from
- * the buffer, unlinke ldns_rdf_new()
+ * the buffer, unlike ldns_rdf_new()
  * \param[in] type type of the rdf
  * \param[in] size size of the buffer
  * \param[in] data pointer to the buffer to be copied

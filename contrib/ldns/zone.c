@@ -9,6 +9,7 @@
 #include <ldns/config.h>
 
 #include <ldns/ldns.h>
+#include <ldns/internal.h>
 
 #include <strings.h>
 #include <limits.h>
@@ -180,7 +181,7 @@ ldns_zone_new(void)
 	return z;
 }
 
-/* we regocnize:
+/* we recognize:
  * $TTL, $ORIGIN
  */
 ldns_status
@@ -191,17 +192,22 @@ ldns_zone_new_frm_fp(ldns_zone **z, FILE *fp, const ldns_rdf *origin, uint32_t t
 
 /* XXX: class is never used */
 ldns_status
-ldns_zone_new_frm_fp_l(ldns_zone **z, FILE *fp, const ldns_rdf *origin, uint32_t ttl,
-        ldns_rr_class ATTR_UNUSED(c), int *line_nr)
+ldns_zone_new_frm_fp_l(ldns_zone **z, FILE *fp, const ldns_rdf *origin,
+	uint32_t default_ttl, ldns_rr_class ATTR_UNUSED(c), int *line_nr)
 {
 	ldns_zone *newzone;
-	ldns_rr *rr;
+	ldns_rr *rr, *prev_rr = NULL;
 	uint32_t my_ttl;
 	ldns_rdf *my_origin;
 	ldns_rdf *my_prev;
 	bool soa_seen = false; 	/* 2 soa are an error */
 	ldns_status s;
 	ldns_status ret;
+	/* RFC 1035 Section 5.1, says 'Omitted class and TTL values are default
+	 * to the last explicitly stated values.'
+	 */
+	bool ttl_from_TTL = false;
+	bool explicit_ttl = false;
 
 	/* most cases of error are memory problems */
 	ret = LDNS_STATUS_MEM_ERR;
@@ -210,7 +216,7 @@ ldns_zone_new_frm_fp_l(ldns_zone **z, FILE *fp, const ldns_rdf *origin, uint32_t
 	my_origin = NULL;
 	my_prev = NULL;
 
-	my_ttl    = ttl;
+	my_ttl    = default_ttl;
 	
 	if (origin) {
 		my_origin = ldns_rdf_clone(origin);
@@ -224,9 +230,58 @@ ldns_zone_new_frm_fp_l(ldns_zone **z, FILE *fp, const ldns_rdf *origin, uint32_t
 	if (!newzone) goto error;
 
 	while(!feof(fp)) {
-		s = ldns_rr_new_frm_fp_l(&rr, fp, &my_ttl, &my_origin, &my_prev, line_nr);
+		/* If ttl came from $TTL line, then it should be the default.
+		 * (RFC 2308 Section 4)
+		 * Otherwise it "defaults to the last explicitly stated value"
+		 * (RFC 1035 Section 5.1)
+		 */
+		if (ttl_from_TTL)
+			my_ttl = default_ttl;
+		s = _ldns_rr_new_frm_fp_l_internal(&rr, fp, &my_ttl, &my_origin,
+				&my_prev, line_nr, &explicit_ttl);
 		switch (s) {
 		case LDNS_STATUS_OK:
+			if (explicit_ttl) {
+				if (!ttl_from_TTL) {
+					/* No $TTL, so ttl "defaults to the
+					 * last explicitly stated value"
+					 * (RFC 1035 Section 5.1)
+					 */
+					my_ttl = ldns_rr_ttl(rr);
+				}
+			/* When ttl is implicit, try to adhere to the rules as
+			 * much as possible. (also for compatibility with bind)
+			 * This was changed when fixing an issue with ZONEMD
+			 * which hashes the TTL too.
+			 */
+			} else if (ldns_rr_get_type(rr) == LDNS_RR_TYPE_SIG
+			       ||  ldns_rr_get_type(rr) == LDNS_RR_TYPE_RRSIG) {
+				if (ldns_rr_rd_count(rr) >= 4
+				&&  ldns_rdf_get_type(ldns_rr_rdf(rr, 3)) == LDNS_RDF_TYPE_INT32)
+
+					/* SIG without explicit ttl get ttl
+					 * from the original_ttl field
+					 * (RFC 2535 Section 7.2)
+					 *
+					 * Similarly for RRSIG, but stated less
+					 * specifically in the spec.
+					 * (RFC 4034 Section 3)
+					 */
+					ldns_rr_set_ttl(rr,
+					    ldns_rdf2native_int32(
+					        ldns_rr_rdf(rr, 3)));
+
+			} else if (prev_rr
+			       &&  ldns_rr_get_type(prev_rr) == ldns_rr_get_type(rr)
+			       &&  ldns_dname_compare( ldns_rr_owner(prev_rr)
+			                             , ldns_rr_owner(rr)) == 0)
+
+				/* "TTLs of all RRs in an RRSet must be the same"
+				 * (RFC 2881 Section 5.2)
+				 */
+				ldns_rr_set_ttl(rr, ldns_rr_ttl(prev_rr));
+
+			prev_rr = rr;
 			if (ldns_rr_get_type(rr) == LDNS_RR_TYPE_SOA) {
 				if (soa_seen) {
 					/* second SOA 
@@ -245,19 +300,25 @@ ldns_zone_new_frm_fp_l(ldns_zone **z, FILE *fp, const ldns_rdf *origin, uint32_t
 			}
 			
 			/* a normal RR - as sofar the DNS is normal */
-			if (!ldns_zone_push_rr(newzone, rr)) goto error;
+			if (!ldns_zone_push_rr(newzone, rr)) {
+				ldns_rr_free(rr);
+				goto error;
+			}
+			break;
 
 		case LDNS_STATUS_SYNTAX_EMPTY:
 			/* empty line was seen */
 		case LDNS_STATUS_SYNTAX_TTL:
 			/* the function set the ttl */
+			default_ttl = my_ttl;
+			ttl_from_TTL = true;
 			break;
 		case LDNS_STATUS_SYNTAX_ORIGIN:
 			/* the function set the origin */
 			break;
 		case LDNS_STATUS_SYNTAX_INCLUDE:
 			ret = LDNS_STATUS_SYNTAX_INCLUDE_ERR_NOTIMPL;
-			break;
+			goto error;
 		default:
 			ret = s;
 			goto error;

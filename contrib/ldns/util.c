@@ -293,23 +293,34 @@ ldns_gmtime64_r(int64_t clock, struct tm *result)
 #endif /* SIZEOF_TIME_T <= 4 */
 
 static int64_t
-ldns_serial_arithmitics_time(int32_t time, time_t now)
+ldns_serial_arithmetics_time(int32_t time, time_t now)
 {
-	int32_t offset = time - (int32_t) now;
+	/* Casting due to https://github.com/NLnetLabs/ldns/issues/71 */
+	int32_t offset = (int32_t) ((uint32_t) time - (uint32_t) now);
 	return (int64_t) now + offset;
 }
 
+struct tm *
+ldns_serial_arithmetics_gmtime_r(int32_t time, time_t now, struct tm *result)
+{
+#if SIZEOF_TIME_T <= 4
+	int64_t secs_since_epoch = ldns_serial_arithmetics_time(time, now);
+	return  ldns_gmtime64_r(secs_since_epoch, result);
+#else
+	time_t  secs_since_epoch = ldns_serial_arithmetics_time(time, now);
+	return  gmtime_r(&secs_since_epoch, result);
+#endif
+}
 
+#ifdef ldns_serial_arithmitics_gmtime_r
+#undef ldns_serial_arithmitics_gmtime_r
+#endif
+/* alias function because of previously used wrong spelling */
+struct tm *ldns_serial_arithmitics_gmtime_r(int32_t, time_t, struct tm *);
 struct tm *
 ldns_serial_arithmitics_gmtime_r(int32_t time, time_t now, struct tm *result)
 {
-#if SIZEOF_TIME_T <= 4
-	int64_t secs_since_epoch = ldns_serial_arithmitics_time(time, now);
-	return  ldns_gmtime64_r(secs_since_epoch, result);
-#else
-	time_t  secs_since_epoch = ldns_serial_arithmitics_time(time, now);
-	return  gmtime_r(&secs_since_epoch, result);
-#endif
+	return ldns_serial_arithmetics_gmtime_r(time, now, result);
 }
 
 /**
@@ -377,7 +388,7 @@ ldns_init_random(FILE *fd, unsigned int size)
 		RAND_seed(seed, (int) size);
 #else
 		/* Seed the standard prng, only uses the first
-		 * unsigned sizeof(unsiged int) bytes found in the entropy pool
+		 * unsigned sizeof(unsigned int) bytes found in the entropy pool
 		 */
 		memcpy(&seed_i, seed, sizeof(seed_i));
 		srandom(seed_i);
@@ -548,10 +559,12 @@ ldns_b32_ntop_base(const uint8_t* src, size_t src_sz,
 
 		/* ........ ........ ....4444 4....... ........ */
 		         c =  src[3]         >> 7 ;
+		/* fallthrough */
 	case 3: dst[4] = b32[(src[2] & 0x0f) << 1 | c];
 
 		/* ........ .......3 3333.... ........ ........ */
 			 c =  src[2]         >> 4 ;
+		/* fallthrough */
 	case 2:	dst[3] = b32[(src[1] & 0x01) << 4 | c];
 
 		/* ........ ..22222. ........ ........ ........ */
@@ -559,6 +572,7 @@ ldns_b32_ntop_base(const uint8_t* src, size_t src_sz,
 
 		/* .....111 11...... ........ ........ ........ */
 	                 c =  src[1]         >> 6 ;
+		/* fallthrough */
 	case 1:	dst[1] = b32[(src[0] & 0x07) << 2 | c];
 
 		/* 00000... ........ ........ ........ ........ */
@@ -569,9 +583,12 @@ ldns_b32_ntop_base(const uint8_t* src, size_t src_sz,
 		switch (src_sz) {
 			case 1: dst[2] = '=';
 				dst[3] = '=';
+				/* fallthrough */
 			case 2: dst[4] = '=';
+				/* fallthrough */
 			case 3: dst[5] = '=';
 				dst[6] = '=';
+				/* fallthrough */
 			case 4: dst[7] = '=';
 		}
 	}
@@ -696,15 +713,18 @@ ldns_b32_pton_base(const char* src, size_t src_sz,
 			/* ........ ........ ........ .55555.. ........ */
 			/* ........ ........ ....4444 4....... ........ */
 			dst[3] = buf[4] << 7 | buf[5] << 2 | buf[6] >> 3;
+			/* fallthrough */
 
 		case 5: /* ........ ........ ....4444 4....... ........ */
 			/* ........ .......3 3333.... ........ ........ */
 			dst[2] = buf[3] << 4 | buf[4] >> 1;
+			/* fallthrough */
 
 		case 4: /* ........ .......3 3333.... ........ ........ */
 			/* ........ ..22222. ........ ........ ........ */
 			/* .....111 11...... ........ ........ ........ */
 			dst[1] = buf[1] << 6 | buf[2] << 1 | buf[3] >> 4;
+			/* fallthrough */
 
 		case 2: /* .....111 11...... ........ ........ ........ */
 			/* 00000... ........ ........ ........ ........ */

@@ -51,11 +51,11 @@ ldns is developed by the ldns team at NLnet Labs. This team currently
 consists of:
   o Willem Toorop
   o Wouter Wijngaards
-  o Matthijs Mekking
 
 Former main developers:
   o Jelte Jansen
   o Miek Gieben
+  o Matthijs Mekking
 
 * Credits
 We have received patches from the following people, thanks!
@@ -70,6 +70,7 @@ We have received patches from the following people, thanks!
   o Havard Eidnes
   o Leo Baltus
   o Dag-Erling Smørgrav
+  o Felipe Gasper
 
 
 INFORMATION FOR SPECIFIC OPERATING SYSTEMS
@@ -96,7 +97,7 @@ contrib/build-solaris.sh
 KNOWN ISSUES
 
 A complete list of currently known open issues can be found here:
-http://www.nlnetlabs.nl/projects/ldns/bugs
+https://github.com/NLnetLabs/ldns/issues
 
 * pyldns
 Compiling pyldns produces many ``unused parameter'' warnings.  Those are

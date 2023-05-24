@@ -63,6 +63,7 @@ ldns_buffer_set_capacity(ldns_buffer *buffer, size_t capacity)
 	
 	ldns_buffer_invariant(buffer);
 	assert(buffer->_position <= capacity);
+	assert(!buffer->_fixed);
 
 	data = (uint8_t *) LDNS_XREALLOC(buffer->_data, uint8_t, capacity);
 	if (!data) {
@@ -79,7 +80,6 @@ bool
 ldns_buffer_reserve(ldns_buffer *buffer, size_t amount)
 {
 	ldns_buffer_invariant(buffer);
-	assert(!buffer->_fixed);
 	if (buffer->_capacity < buffer->_position + amount) {
 		size_t new_capacity = buffer->_capacity * 3 / 2;
 

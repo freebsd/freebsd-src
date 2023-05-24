@@ -1,7 +1,7 @@
 /*
  * Verify or create TLS authentication with DANE (RFC6698)
  *
- * (c) NLnetLabs 2012
+ * (c) NLnetLabs 2012-2020
  *
  * See the file LICENSE for the license.
  *
@@ -27,6 +27,63 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/x509v3.h>
+#endif
+
+/* OpenSSL context options. At the moment, disable SSLv2, SSLv3
+ * and Compression, if available. TLSv1.0 is allowed at the moment.
+ * TLSv1.1 is the first to provide elliptic curves, so it is usually
+ * allowed in a TLS stack. TLSv1.2 is the first to provide authentication
+ * modes of operation, like GCM. The defines below are a moving
+ * target based on OpenSSL library version. Grep is useful to find
+ * the defines: grep -IR SSL_OP_NO_ /usr/include/openssl.
+ */
+#ifdef HAVE_SSL
+# ifdef SSL_OP_NO_SSLv2
+	const long NoOpenSSLv2 = SSL_OP_NO_SSLv2;
+# else
+	const long NoOpenSSLv2 = 0L;
+# endif
+# ifdef SSL_OP_NO_SSLv3
+	const long NoOpenSSLv3 = SSL_OP_NO_SSLv3;
+# else
+	const long NoOpenSSLv3 = 0L;
+# endif
+# ifdef SSL_OP_NO_TLSv1
+	const long NoOpenTLSv1 = SSL_OP_NO_TLSv1;
+# else
+	const long NoOpenTLSv1 = 0L;
+# endif
+# ifdef SSL_OP_NO_DTLSv1
+	const long NoOpenDTLSv1 = SSL_OP_NO_DTLSv1;
+# else
+	const long NoOpenDTLSv1 = 0L;
+# endif
+# ifdef SSL_OP_NO_COMPRESSION
+	const long NoOpenSSLCompression = SSL_OP_NO_COMPRESSION;
+# else
+	const long NoOpenSSLCompression = 0L;
+# endif
+#endif
+
+#if defined(USE_DANE_VERIFY) && defined(USE_DANE_TA_USAGE)
+static SSL_CTX*
+ldns_dane_new_ssl_context(void)
+{
+	SSL_CTX* ssl_ctx;
+
+	ssl_ctx = SSL_CTX_new(TLS_client_method());
+	if (ssl_ctx != NULL)
+	{
+		/* ldns allows TLS and DTLS v1.0 at the moment. Some may disagree.
+		 * Sometime in the future they may be disabled, too. Maybe
+		 * --disable-tlsv1 and --disable-dtlsv1 should be configure options.
+		 */
+		long flags = NoOpenSSLv2 | NoOpenSSLv3 | NoOpenSSLCompression;
+		SSL_CTX_set_options(ssl_ctx, flags);
+	}
+
+	return ssl_ctx;
+}
 #endif
 
 ldns_status
@@ -193,7 +250,7 @@ ldns_dane_pkix_validate(X509* cert, STACK_OF(X509)* extra_certs,
 }
 
 
-/* Orinary PKIX validation of cert (with extra_certs to help)
+/* Ordinary PKIX validation of cert (with extra_certs to help)
  * against the CA's in store, but also return the validation chain.
  */
 static ldns_status
@@ -641,7 +698,7 @@ ldns_dane_verify_rr(const ldns_rr* tlsa_rr,
 	 * verification.  We use these undocumented means with the ldns
 	 * dane function prototypes which did only offline dane verification.
 	 */
-	if (!(ssl_ctx = SSL_CTX_new(TLS_client_method())))
+	if (!(ssl_ctx = ldns_dane_new_ssl_context()))
 		s = LDNS_STATUS_MEM_ERR;
 
 	else if (SSL_CTX_dane_enable(ssl_ctx) <= 0)
@@ -841,7 +898,7 @@ ldns_dane_verify(const ldns_rr_list* tlsas,
 	 * verification.  We use these undocumented means with the ldns
 	 * dane function prototypes which did only offline dane verification.
 	 */
-	if (!(ssl_ctx = SSL_CTX_new(TLS_client_method())))
+	if (!(ssl_ctx = ldns_dane_new_ssl_context()))
 		s = LDNS_STATUS_MEM_ERR;
 
 	else if (SSL_CTX_dane_enable(ssl_ctx) <= 0)

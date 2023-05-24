@@ -46,23 +46,16 @@
 #ifndef __LDNS_SHA2_H__
 #define __LDNS_SHA2_H__
 
+#include <stdint.h>  /* uint32_t and friends */
+#include <stddef.h>  /* size_t and NULL */
+
+#if LDNS_BUILD_CONFIG_HAVE_INTTYPES_H
+# include <inttypes.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-
-/*
- * Import u_intXX_t size_t type definitions from system headers.  You
- * may need to change this, or define these things yourself in this
- * file.
- */
-#include <sys/types.h>
-
-#if LDNS_BUILD_CONFIG_HAVE_INTTYPES_H
-
-#include <inttypes.h>
-
-#endif /* LDNS_BUILD_CONFIG_HAVE_INTTYPES_H */
 
 
 /*** SHA-256/384/512 Various Length Definitions ***********************/
@@ -116,7 +109,7 @@ void ldns_sha512_final(uint8_t[LDNS_SHA512_DIGEST_LENGTH], ldns_sha512_CTX*);
  *             available
  * \return the SHA1 digest of the given data
  */
-unsigned char *ldns_sha256(unsigned char *data, unsigned int data_len, unsigned char *digest);
+unsigned char *ldns_sha256(const unsigned char *data, unsigned int data_len, unsigned char *digest);
 
 /**
  * Convenience function to digest a fixed block of data at once.
@@ -128,7 +121,7 @@ unsigned char *ldns_sha256(unsigned char *data, unsigned int data_len, unsigned 
  *             available
  * \return the SHA1 digest of the given data
  */
-unsigned char *ldns_sha384(unsigned char *data, unsigned int data_len, unsigned char *digest);
+unsigned char *ldns_sha384(const unsigned char *data, unsigned int data_len, unsigned char *digest);
 
 /**
  * Convenience function to digest a fixed block of data at once.
@@ -140,7 +133,7 @@ unsigned char *ldns_sha384(unsigned char *data, unsigned int data_len, unsigned 
  *             available
  * \return the SHA1 digest of the given data
  */
-unsigned char *ldns_sha512(unsigned char *data, unsigned int data_len, unsigned char *digest);
+unsigned char *ldns_sha512(const unsigned char *data, unsigned int data_len, unsigned char *digest);
 
 #ifdef	__cplusplus
 }

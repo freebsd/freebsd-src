@@ -59,7 +59,7 @@ usage(FILE *stream, const char *progname)
 	fprintf(stream, "\t-6\t\tstay on ip6\n");
 	fprintf(stream, "\t-a\t\tfallback to EDNS0 and TCP if the answer is truncated\n");
 	fprintf(stream, "\t-b <bufsize>\tuse <bufsize> as the buffer size (defaults to 512 b)\n");
-	fprintf(stream, "\t-c <file>\tuse file for rescursive nameserver configuration"
+	fprintf(stream, "\t-c <file>\tuse file for recursive nameserver configuration"
 			"\n\t\t\t(/etc/resolv.conf)\n");
 	fprintf(stream, "\t-k <file>\tspecify a file that contains a trusted DNSSEC key [**]\n");
 	fprintf(stream, "\t\t\tUsed to verify any signatures in the current answer.\n");
@@ -111,7 +111,7 @@ main(int argc, char *argv[])
         ldns_resolver   *cmdline_res = NULL; /* only used to resolv @name names */
 	ldns_rr_list	*cmdline_rr_list = NULL;
 	ldns_rdf	*cmdline_dname = NULL;
-        ldns_rdf 	*qname, *qname_tmp;
+        ldns_rdf 	*qname;
         ldns_pkt	*pkt;
         ldns_pkt	*qpkt;
         char 		*serv;
@@ -156,6 +156,7 @@ main(int argc, char *argv[])
 	bool		qds;
 	bool		qusevc;
 	bool 		qrandom;
+	bool            drill_reverse = false;
 	
 	char		*resolv_conf_file = NULL;
 	
@@ -165,11 +166,15 @@ main(int argc, char *argv[])
 
 	uint8_t         s6addr[16];
 	char            ip6_arpa_str[74];
+	uint8_t         s4addr[4];
+	char            in_addr_arpa_str[40];
 
 #ifdef USE_WINSOCK
 	int r;
 	WSADATA wsa_data;
 #endif
+	ldns_output_format_storage fmt_storage;
+	ldns_output_format* fmt = ldns_output_format_init(&fmt_storage);
 
 	int_type = -1; serv = NULL; type = 0; 
 	int_clas = -1; name = NULL; clas = 0;
@@ -198,6 +203,7 @@ main(int argc, char *argv[])
 	qusevc = false;
 	qrandom = true;
 	key_verified = NULL;
+	ldns_edns_option_list* edns_list = NULL;
 
 	ldns_init_random(NULL, 0);
 
@@ -244,6 +250,7 @@ main(int argc, char *argv[])
 				verbosity = atoi(optarg);
 				break;
 			case 'Q':
+				fmt->flags |= LDNS_FMT_SHORT;
 				verbosity = -1;
 				break;
 			case 'f':
@@ -357,12 +364,16 @@ main(int argc, char *argv[])
 				result = EXIT_SUCCESS;
 				goto exit;
 			case 'x':
-				PURPOSE = DRILL_REVERSE;
+				drill_reverse = true;
 				break;
 			case 'y':
 #ifdef HAVE_SSL
 				if (strchr(optarg, ':')) {
 					tsig_separator = (size_t) (strchr(optarg, ':') - optarg);
+					if (tsig_algorithm) {
+						free(tsig_algorithm);
+						tsig_algorithm = NULL;
+					}
 					if (strchr(optarg + tsig_separator + 1, ':')) {
 						tsig_separator2 = (size_t) (strchr(optarg + tsig_separator + 1, ':') - optarg);
 						tsig_algorithm = xmalloc(strlen(optarg) - tsig_separator2);
@@ -447,6 +458,31 @@ main(int argc, char *argv[])
 			serv = argv[i] + 1;
 			continue;
 		}
+		/* if ^+ then it's an EDNS option */
+		if (argv[i][0] == '+') {
+			if (!strcmp(argv[i]+1, "nsid")) {
+				ldns_edns_option *edns;
+				edns_list = ldns_edns_option_list_new();
+
+				/* create NSID EDNS*/
+				edns = ldns_edns_new_from_data(LDNS_EDNS_NSID, 0, NULL);
+
+				if (edns_list == NULL || edns == NULL) {
+					error("EDNS option could not be allocated");
+					break;
+				}
+
+				if (!(ldns_edns_option_list_push(edns_list, edns))) {
+					error("EDNS option NSID could not be attached");
+					break;
+				}
+				continue;
+			}
+			else {
+				error("Unsupported argument after '+'");
+				break;
+			}
+		}
 		/* if has a dot, it's a name */
 		if (strchr(argv[i], '.')) {
 			name = argv[i];
@@ -487,11 +523,65 @@ main(int argc, char *argv[])
 		clas = LDNS_RR_CLASS_IN;
 	}
 	if (int_type == -1) {
-		if (PURPOSE != DRILL_REVERSE) {
+		if (!drill_reverse) {
 			type = LDNS_RR_TYPE_A;
 		} else {
 			type = LDNS_RR_TYPE_PTR;
 		}
+	}
+	if (!drill_reverse)
+		; /* pass */
+	else if (strchr(name, ':')) { /* ipv4 or ipv6 addr? */
+		if (!inet_pton(AF_INET6, name, &s6addr)) {
+			error("Syntax error: cannot parse IPv6 address\n");
+		}
+		(void) snprintf(ip6_arpa_str, sizeof(ip6_arpa_str),
+		    "%x.%x.%x.%x.%x.%x.%x.%x."
+		    "%x.%x.%x.%x.%x.%x.%x.%x."
+		    "%x.%x.%x.%x.%x.%x.%x.%x."
+		    "%x.%x.%x.%x.%x.%x.%x.%x.ip6.arpa.",
+		    (unsigned int)(s6addr[15] & 0x0F),
+		    (unsigned int)(s6addr[15] >> 4),
+		    (unsigned int)(s6addr[14] & 0x0F),
+		    (unsigned int)(s6addr[14] >> 4),
+		    (unsigned int)(s6addr[13] & 0x0F),
+		    (unsigned int)(s6addr[13] >> 4),
+		    (unsigned int)(s6addr[12] & 0x0F),
+		    (unsigned int)(s6addr[12] >> 4),
+		    (unsigned int)(s6addr[11] & 0x0F),
+		    (unsigned int)(s6addr[11] >> 4),
+		    (unsigned int)(s6addr[10] & 0x0F),
+		    (unsigned int)(s6addr[10] >> 4),
+		    (unsigned int)(s6addr[9] & 0x0F),
+		    (unsigned int)(s6addr[9] >> 4),
+		    (unsigned int)(s6addr[8] & 0x0F),
+		    (unsigned int)(s6addr[8] >> 4),
+		    (unsigned int)(s6addr[7] & 0x0F),
+		    (unsigned int)(s6addr[7] >> 4),
+		    (unsigned int)(s6addr[6] & 0x0F),
+		    (unsigned int)(s6addr[6] >> 4),
+		    (unsigned int)(s6addr[5] & 0x0F),
+		    (unsigned int)(s6addr[5] >> 4),
+		    (unsigned int)(s6addr[4] & 0x0F),
+		    (unsigned int)(s6addr[4] >> 4),
+		    (unsigned int)(s6addr[3] & 0x0F),
+		    (unsigned int)(s6addr[3] >> 4),
+		    (unsigned int)(s6addr[2] & 0x0F),
+		    (unsigned int)(s6addr[2] >> 4),
+		    (unsigned int)(s6addr[1] & 0x0F),
+		    (unsigned int)(s6addr[1] >> 4),
+		    (unsigned int)(s6addr[0] & 0x0F),
+		    (unsigned int)(s6addr[0] >> 4));
+		name = ip6_arpa_str;
+
+	} else if (!inet_pton(AF_INET, name, &s4addr)) {
+		error("Syntax error: cannot parse IPv4 address\n");
+
+	} else {
+		(void) snprintf(in_addr_arpa_str, sizeof(in_addr_arpa_str),
+		    "%d.%d.%d.%d.in-addr.arpa.", (int)s4addr[3],
+		    (int)s4addr[2], (int)s4addr[1], (int)s4addr[0]);
+		name = in_addr_arpa_str;
 	}
 
 	if (src) {
@@ -732,96 +822,13 @@ main(int argc, char *argv[])
 			}
 			status = ldns_resolver_prepare_query_pkt(&qpkt, res, qname, type, clas, qflags);
 			if(status != LDNS_STATUS_OK) {
-				error("%s", "making query: %s", 
+				error("%s", "making query: %s",
 					ldns_get_errorstr_by_id(status));
 			}
 			dump_hex(qpkt, query_file);
 			ldns_pkt_free(qpkt);
 			break;
 		case DRILL_NSEC:
-			break;
-		case DRILL_REVERSE:
-			/* ipv4 or ipv6 addr? */
-			if (strchr(name, ':')) {
-				if (!inet_pton(AF_INET6, name, &s6addr)) {
-					error("Syntax error: cannot parse IPv6 address\n");
-				}
-				(void) snprintf(ip6_arpa_str, sizeof(ip6_arpa_str),
-				    "%x.%x.%x.%x.%x.%x.%x.%x."
-				    "%x.%x.%x.%x.%x.%x.%x.%x."
-				    "%x.%x.%x.%x.%x.%x.%x.%x."
-				    "%x.%x.%x.%x.%x.%x.%x.%x.ip6.arpa.",
-				    (unsigned int)(s6addr[15] & 0x0F),
-				    (unsigned int)(s6addr[15] >> 4),
-				    (unsigned int)(s6addr[14] & 0x0F),
-				    (unsigned int)(s6addr[14] >> 4),
-				    (unsigned int)(s6addr[13] & 0x0F),
-				    (unsigned int)(s6addr[13] >> 4),
-				    (unsigned int)(s6addr[12] & 0x0F),
-				    (unsigned int)(s6addr[12] >> 4),
-				    (unsigned int)(s6addr[11] & 0x0F),
-				    (unsigned int)(s6addr[11] >> 4),
-				    (unsigned int)(s6addr[10] & 0x0F),
-				    (unsigned int)(s6addr[10] >> 4),
-				    (unsigned int)(s6addr[9] & 0x0F),
-				    (unsigned int)(s6addr[9] >> 4),
-				    (unsigned int)(s6addr[8] & 0x0F),
-				    (unsigned int)(s6addr[8] >> 4),
-				    (unsigned int)(s6addr[7] & 0x0F),
-				    (unsigned int)(s6addr[7] >> 4),
-				    (unsigned int)(s6addr[6] & 0x0F),
-				    (unsigned int)(s6addr[6] >> 4),
-				    (unsigned int)(s6addr[5] & 0x0F),
-				    (unsigned int)(s6addr[5] >> 4),
-				    (unsigned int)(s6addr[4] & 0x0F),
-				    (unsigned int)(s6addr[4] >> 4),
-				    (unsigned int)(s6addr[3] & 0x0F),
-				    (unsigned int)(s6addr[3] >> 4),
-				    (unsigned int)(s6addr[2] & 0x0F),
-				    (unsigned int)(s6addr[2] >> 4),
-				    (unsigned int)(s6addr[1] & 0x0F),
-				    (unsigned int)(s6addr[1] >> 4),
-				    (unsigned int)(s6addr[0] & 0x0F),
-				    (unsigned int)(s6addr[0] >> 4));
-
-				qname = ldns_dname_new_frm_str(ip6_arpa_str);
-			} else {
-				qname = ldns_dname_new_frm_str(name);
-				if (qname) {
-					qname_tmp = ldns_dname_reverse(qname);
-					ldns_rdf_deep_free(qname);
-					qname = qname_tmp;
-					qname_tmp = ldns_dname_new_frm_str("in-addr.arpa.");
-					status = ldns_dname_cat(qname, qname_tmp);
-					if (status != LDNS_STATUS_OK) {
-						error("%s", "could not create reverse address for ip4: %s\n", ldns_get_errorstr_by_id(status));
-					}
-					ldns_rdf_deep_free(qname_tmp);
-				}
-			}
-			if (!qname) {
-				error("%s", "-x implies an ip address");
-			}
-			
-			/* create a packet and set the RD flag on it */
-			pkt = NULL;
-			status = ldns_resolver_query_status(
-					&pkt, res, qname, type, clas, qflags);
-			if (status != LDNS_STATUS_OK) {
-				error("error sending query: %s",
-					ldns_get_errorstr_by_id(status));
-			}
-			if (!pkt)  {
-				if (status == LDNS_STATUS_OK) {
-					error("%s", "pkt sending");
-				}
-				result = EXIT_FAILURE;
-			} else {
-				if (verbosity != -1) {
-					ldns_pkt_print(stdout, pkt);
-				}
-				ldns_pkt_free(pkt);
-			}
 			break;
 		case DRILL_QUERY:
 		default:
@@ -886,9 +893,22 @@ main(int argc, char *argv[])
 				} else {
 					/* create a packet and set the RD flag on it */
 					pkt = NULL;
-					status = ldns_resolver_query_status(
-							&pkt, res, qname,
-							type, clas, qflags);
+
+					status = ldns_resolver_prepare_query_pkt(&qpkt,
+						res, qname, type, clas, qflags);
+					if(status != LDNS_STATUS_OK) {
+						error("%s", "making query: %s", 
+							ldns_get_errorstr_by_id(status));
+					}
+
+					if (edns_list) {
+						/* attach the structed EDNS options */
+						ldns_pkt_set_edns_option_list(qpkt, edns_list);
+					}
+
+					status = ldns_resolver_send_pkt(&pkt, res, qpkt);
+					ldns_pkt_free(qpkt);
+
 					if (status != LDNS_STATUS_OK) {
 						error("error sending query: %s"
 						     , ldns_get_errorstr_by_id(
@@ -897,12 +917,13 @@ main(int argc, char *argv[])
 				}
 			}
 			
-			if (!pkt)  {
+			/* now handling the response message/packet */
+			if (!pkt) {
 				mesg("No packet received");
 				result = EXIT_FAILURE;
 			} else {
+				ldns_pkt_print_fmt(stdout, fmt, pkt);
 				if (verbosity != -1) {
-					ldns_pkt_print(stdout, pkt);
 					if (ldns_pkt_tc(pkt)) {
 						fprintf(stdout,
 							"\n;; WARNING: The answer packet was truncated; you might want to\n");
@@ -1016,9 +1037,17 @@ main(int argc, char *argv[])
 	xfree(tsig_algorithm);
 
 #ifdef HAVE_SSL
-	CRYPTO_cleanup_all_ex_data();
-	ERR_free_strings();
-	EVP_cleanup();
+#if OPENSSL_VERSION_NUMBER < 0x10100000L || defined(HAVE_LIBRESSL)
+#ifdef HAVE_CRYPTO_CLEANUP_ALL_EX_DATA
+	CRYPTO_cleanup_all_ex_data ();
+#endif
+#ifdef HAVE_ERR_FREE_STRINGS
+	ERR_free_strings ();
+#endif
+#ifdef HAVE_EVP_CLEANUP
+	EVP_cleanup ();
+#endif
+#endif
 #endif
 #ifdef USE_WINSOCK
 	WSACleanup();

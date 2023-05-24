@@ -43,7 +43,7 @@ struct ldns_struct_zone
 {
 	/** the soa defines a zone */
 	ldns_rr 	*_soa;
-	/* basicly a zone is a list of rr's */
+	/* basically a zone is a list of rr's */
 	ldns_rr_list 	*_rrs;
 	/* we could change this to be a b-tree etc etc todo */
 };
@@ -97,7 +97,7 @@ void ldns_zone_set_rrs(ldns_zone *z, ldns_rr_list *rrlist);
  * copying, so the rr_list structure inside z is modified!
  * \param[in] z the zone to add to
  * \param[in] list the list to add
- * \return a true on succes otherwise falsed
+ * \return a true on success otherwise false
  */
 bool ldns_zone_push_rr_list(ldns_zone *z, const ldns_rr_list *list);
 
@@ -106,7 +106,7 @@ bool ldns_zone_push_rr_list(ldns_zone *z, const ldns_rr_list *list);
  * copying, so the rr_list structure inside z is modified!
  * \param[in] z the zone to add to
  * \param[in] rr the rr to add
- * \return a true on succes otherwise falsed
+ * \return a true on success otherwise false
  */
 bool ldns_zone_push_rr(ldns_zone *z, ldns_rr *rr);
 

@@ -31,6 +31,15 @@
 /* Define to 1 if you have the `calloc' function. */
 #define HAVE_CALLOC 1
 
+/* Define to 1 if you have the `CONF_modules_unload' function. */
+#define HAVE_CONF_MODULES_UNLOAD 1
+
+/* Define to 1 if you have the `CRYPTO_cleanup_all_ex_data' function. */
+/* #undef HAVE_CRYPTO_CLEANUP_ALL_EX_DATA */
+
+/* Define to 1 if you have the `CRYPTO_memcmp' function. */
+#define HAVE_CRYPTO_MEMCMP 1
+
 /* Define to 1 if you have the `ctime_r' function. */
 #define HAVE_CTIME_R 1
 
@@ -40,17 +49,21 @@
 /* Is a CAPATH given at configure time */
 #define HAVE_DANE_CA_PATH 0
 
+/* Define to 1 if you have the declaration of `EVP_PKEY_base_id', and to 0 if
+   you don't. */
+#define HAVE_DECL_EVP_PKEY_BASE_ID 1
+
+/* Define to 1 if you have the declaration of `NID_ED25519', and to 0 if you
+   don't. */
+#define HAVE_DECL_NID_ED25519 1
+
+/* Define to 1 if you have the declaration of `NID_ED448', and to 0 if you
+   don't. */
+#define HAVE_DECL_NID_ED448 1
+
 /* Define to 1 if you have the declaration of `NID_secp384r1', and to 0 if you
    don't. */
 #define HAVE_DECL_NID_SECP384R1 1
-
-/* Define to 1 if you have the declaration of `NID_X25519', and to 0 if you
-   don't. */
-/* #undef HAVE_DECL_NID_X25519 */
-
-/* Define to 1 if you have the declaration of `NID_X448', and to 0 if you
-   don't. */
-/* #undef HAVE_DECL_NID_X448 */
 
 /* Define to 1 if you have the declaration of `NID_X9_62_prime256v1', and to 0
    if you don't. */
@@ -80,8 +93,20 @@
 /* Define to 1 if you have the `endservent' function. */
 #define HAVE_ENDSERVENT 1
 
-/* Define to 1 if you have the `ENGINE_load_cryptodev' function. */
-#define HAVE_ENGINE_LOAD_CRYPTODEV 1
+/* Define to 1 if you have the `ENGINE_cleanup' function. */
+/* #undef HAVE_ENGINE_CLEANUP */
+
+/* Define to 1 if you have the `ENGINE_free' function. */
+#define HAVE_ENGINE_FREE 1
+
+/* Define to 1 if you have the `ERR_free_strings' function. */
+/* #undef HAVE_ERR_FREE_STRINGS */
+
+/* Define to 1 if you have the `ERR_load_crypto_strings' function. */
+/* #undef HAVE_ERR_LOAD_CRYPTO_STRINGS */
+
+/* Define to 1 if you have the `EVP_cleanup' function. */
+/* #undef HAVE_EVP_CLEANUP */
 
 /* Define to 1 if you have the `EVP_dss1' function. */
 /* #undef HAVE_EVP_DSS1 */
@@ -89,8 +114,11 @@
 /* Define to 1 if you have the `EVP_MD_CTX_new' function. */
 #define HAVE_EVP_MD_CTX_NEW 1
 
-/* Define to 1 if you have the `EVP_PKEY_base_id' function. */
+/* Define to 1 if you have the EVP_PKEY_base_id function or macro. */
 #define HAVE_EVP_PKEY_BASE_ID 1
+
+/* Define to 1 if you have the `EVP_PKEY_get_base_id' function. */
+/* #undef HAVE_EVP_PKEY_GET_BASE_ID */
 
 /* Define to 1 if you have the `EVP_PKEY_keygen' function. */
 #define HAVE_EVP_PKEY_KEYGEN 1
@@ -110,6 +138,9 @@
 /* Define to 1 if you have the `fork' function. */
 #define HAVE_FORK 1
 
+/* if fork is available for compile */
+#define HAVE_FORK_AVAILABLE 1
+
 /* Whether getaddrinfo is available */
 #define HAVE_GETADDRINFO 1
 
@@ -118,9 +149,6 @@
 
 /* Define to 1 if you have the `gmtime_r' function. */
 #define HAVE_GMTIME_R 1
-
-/* If you have HMAC_Update */
-#define HAVE_HMAC_UPDATE 1
 
 /* Define to 1 if you have the `inet_aton' function. */
 #define HAVE_INET_ATON 1
@@ -152,18 +180,14 @@
 /* Define to 1 if you have the `localtime_r' function. */
 #define HAVE_LOCALTIME_R 1
 
-/* Define to 1 if your system has a GNU libc compatible `malloc' function, and
-   to 0 otherwise. */
-#define HAVE_MALLOC 1
-
 /* Define to 1 if you have the `memmove' function. */
 #define HAVE_MEMMOVE 1
 
-/* Define to 1 if you have the <memory.h> header file. */
-#define HAVE_MEMORY_H 1
-
 /* Define to 1 if you have the `memset' function. */
 #define HAVE_MEMSET 1
+
+/* Define to 1 if you have the <minix/config.h> header file. */
+/* #undef HAVE_MINIX_CONFIG_H */
 
 /* Define to 1 if you have the <netdb.h> header file. */
 #define HAVE_NETDB_H 1
@@ -198,8 +222,23 @@
 /* Define to 1 if you have the <net/if.h> header file. */
 /* #undef HAVE_NET_IF_H */
 
+/* Define to 1 if you have the <openssl/conf.h> header file. */
+#define HAVE_OPENSSL_CONF_H 1
+
+/* Define to 1 if you have the <openssl/engine.h> header file. */
+#define HAVE_OPENSSL_ENGINE_H 1
+
 /* Define to 1 if you have the <openssl/err.h> header file. */
 #define HAVE_OPENSSL_ERR_H 1
+
+/* Define to 1 if you have the <openssl/evp.h> header file. */
+#define HAVE_OPENSSL_EVP_H 1
+
+/* Define to 1 if you have the `OPENSSL_init_crypto' function. */
+#define HAVE_OPENSSL_INIT_CRYPTO 1
+
+/* Define to 1 if you have the `OPENSSL_init_ssl' function. */
+/* #undef HAVE_OPENSSL_INIT_SSL */
 
 /* Define to 1 if you have the <openssl/rand.h> header file. */
 #define HAVE_OPENSSL_RAND_H 1
@@ -219,10 +258,6 @@
 /* Define to 1 if you have the `random' function. */
 #define HAVE_RANDOM 1
 
-/* Define to 1 if your system has a GNU libc compatible `realloc' function,
-   and to 0 otherwise. */
-#define HAVE_REALLOC 1
-
 /* Define to 1 if you have the `sleep' function. */
 #define HAVE_SLEEP 1
 
@@ -240,6 +275,9 @@
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #define HAVE_STDINT_H 1
+
+/* Define to 1 if you have the <stdio.h> header file. */
+#define HAVE_STDIO_H 1
 
 /* Define to 1 if you have the <stdlib.h> header file. */
 #define HAVE_STDLIB_H 1
@@ -274,6 +312,9 @@
 /* define if you have sys/types.h */
 #define HAVE_SYS_TYPES_H 1
 
+/* Define to 1 if you have the <TargetConditionals.h> header file. */
+/* #undef HAVE_TARGETCONDITIONALS_H */
+
 /* Define to 1 if you have the `timegm' function. */
 #define HAVE_TIMEGM 1
 
@@ -288,6 +329,9 @@
 
 /* Define to 1 if you have the <vfork.h> header file. */
 /* #undef HAVE_VFORK_H */
+
+/* Define to 1 if you have the <wchar.h> header file. */
+#define HAVE_WCHAR_H 1
 
 /* Define to 1 if you have the <winsock2.h> header file. */
 /* #undef HAVE_WINSOCK2_H */
@@ -320,7 +364,7 @@
 #define PACKAGE_NAME "ldns"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "ldns 1.7.0"
+#define PACKAGE_STRING "ldns 1.8.3"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "libdns"
@@ -329,10 +373,16 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.7.0"
+#define PACKAGE_VERSION "1.8.3"
+
+/* Define this to enable RR type AMTRELAY. */
+/* #undef RRTYPE_AMTRELAY */
 
 /* Define this to enable RR type AVC. */
 /* #undef RRTYPE_AVC */
+
+/* Define this to enable RR type DOA. */
+/* #undef RRTYPE_DOA */
 
 /* Define this to enable RR type NINFO. */
 /* #undef RRTYPE_NINFO */
@@ -343,13 +393,18 @@
 /* Define this to enable RR type RKEY. */
 /* #undef RRTYPE_RKEY */
 
+/* Define this to enable RR types SVCB and HTTPS. */
+#define RRTYPE_SVCB_HTTPS /**/
+
 /* Define this to enable RR type TA. */
 /* #undef RRTYPE_TA */
 
 /* The size of `time_t', as computed by sizeof. */
 #define SIZEOF_TIME_T 8
 
-/* Define to 1 if you have the ANSI C header files. */
+/* Define to 1 if all of the C90 standard headers exist (not just the ones
+   required in a freestanding environment). This macro is provided for
+   backward compatibility; new code need not use it. */
 #define STDC_HEADERS 1
 
 /* Define this to enable messages to stderr. */
@@ -374,10 +429,10 @@
 #define USE_ECDSA 1
 
 /* Define this to enable ED25519 support. */
-/* #undef USE_ED25519 */
+#define USE_ED25519 1
 
 /* Define this to enable ED448 support. */
-/* #undef USE_ED448 */
+#define USE_ED448 1
 
 /* Define this to enable GOST support. */
 /* #undef USE_GOST */
@@ -389,21 +444,87 @@
 #ifndef _ALL_SOURCE
 # define _ALL_SOURCE 1
 #endif
+/* Enable general extensions on macOS.  */
+#ifndef _DARWIN_C_SOURCE
+# define _DARWIN_C_SOURCE 1
+#endif
+/* Enable general extensions on Solaris.  */
+#ifndef __EXTENSIONS__
+# define __EXTENSIONS__ 1
+#endif
 /* Enable GNU extensions on systems that have them.  */
 #ifndef _GNU_SOURCE
 # define _GNU_SOURCE 1
 #endif
-/* Enable threading extensions on Solaris.  */
+/* Enable X/Open compliant socket functions that do not require linking
+   with -lxnet on HP-UX 11.11.  */
+#ifndef _HPUX_ALT_XOPEN_SOCKET_API
+# define _HPUX_ALT_XOPEN_SOCKET_API 1
+#endif
+/* Identify the host operating system as Minix.
+   This macro does not affect the system headers' behavior.
+   A future release of Autoconf may stop defining this macro.  */
+#ifndef _MINIX
+/* # undef _MINIX */
+#endif
+/* Enable general extensions on NetBSD.
+   Enable NetBSD compatibility extensions on Minix.  */
+#ifndef _NETBSD_SOURCE
+# define _NETBSD_SOURCE 1
+#endif
+/* Enable OpenBSD compatibility extensions on NetBSD.
+   Oddly enough, this does nothing on OpenBSD.  */
+#ifndef _OPENBSD_SOURCE
+# define _OPENBSD_SOURCE 1
+#endif
+/* Define to 1 if needed for POSIX-compatible behavior.  */
+#ifndef _POSIX_SOURCE
+/* # undef _POSIX_SOURCE */
+#endif
+/* Define to 2 if needed for POSIX-compatible behavior.  */
+#ifndef _POSIX_1_SOURCE
+/* # undef _POSIX_1_SOURCE */
+#endif
+/* Enable POSIX-compatible threading on Solaris.  */
 #ifndef _POSIX_PTHREAD_SEMANTICS
 # define _POSIX_PTHREAD_SEMANTICS 1
+#endif
+/* Enable extensions specified by ISO/IEC TS 18661-5:2014.  */
+#ifndef __STDC_WANT_IEC_60559_ATTRIBS_EXT__
+# define __STDC_WANT_IEC_60559_ATTRIBS_EXT__ 1
+#endif
+/* Enable extensions specified by ISO/IEC TS 18661-1:2014.  */
+#ifndef __STDC_WANT_IEC_60559_BFP_EXT__
+# define __STDC_WANT_IEC_60559_BFP_EXT__ 1
+#endif
+/* Enable extensions specified by ISO/IEC TS 18661-2:2015.  */
+#ifndef __STDC_WANT_IEC_60559_DFP_EXT__
+# define __STDC_WANT_IEC_60559_DFP_EXT__ 1
+#endif
+/* Enable extensions specified by ISO/IEC TS 18661-4:2015.  */
+#ifndef __STDC_WANT_IEC_60559_FUNCS_EXT__
+# define __STDC_WANT_IEC_60559_FUNCS_EXT__ 1
+#endif
+/* Enable extensions specified by ISO/IEC TS 18661-3:2015.  */
+#ifndef __STDC_WANT_IEC_60559_TYPES_EXT__
+# define __STDC_WANT_IEC_60559_TYPES_EXT__ 1
+#endif
+/* Enable extensions specified by ISO/IEC TR 24731-2:2010.  */
+#ifndef __STDC_WANT_LIB_EXT2__
+# define __STDC_WANT_LIB_EXT2__ 1
+#endif
+/* Enable extensions specified by ISO/IEC 24747:2009.  */
+#ifndef __STDC_WANT_MATH_SPEC_FUNCS__
+# define __STDC_WANT_MATH_SPEC_FUNCS__ 1
 #endif
 /* Enable extensions on HP NonStop.  */
 #ifndef _TANDEM_SOURCE
 # define _TANDEM_SOURCE 1
 #endif
-/* Enable general extensions on Solaris.  */
-#ifndef __EXTENSIONS__
-# define __EXTENSIONS__ 1
+/* Enable X/Open extensions.  Define to 500 only if necessary
+   to make mbstate_t available.  */
+#ifndef _XOPEN_SOURCE
+/* # undef _XOPEN_SOURCE */
 #endif
 
 
@@ -425,18 +546,8 @@
 # endif
 #endif
 
-/* Define to 1 if on MINIX. */
-/* #undef _MINIX */
-
 /* Enable for compile on Minix */
-/* #undef _NETBSD_SOURCE */
-
-/* Define to 2 if the system does not provide POSIX.1 features except with
-   this defined. */
-/* #undef _POSIX_1_SOURCE */
-
-/* Define to 1 if you need to in order for `stat' and other things to work. */
-/* #undef _POSIX_SOURCE */
+#define _NETBSD_SOURCE 1
 
 /* Define to empty if `const' does not conform to ANSI C. */
 /* #undef const */
@@ -468,14 +579,8 @@
 /* Define to `size_t' if <sys/types.h> does not define. */
 /* #undef intptr_t */
 
-/* Define to rpl_malloc if the replacement function should be used. */
-/* #undef malloc */
-
-/* Define to `int' if <sys/types.h> does not define. */
+/* Define as a signed integer type capable of holding a process identifier. */
 /* #undef pid_t */
-
-/* Define to rpl_realloc if the replacement function should be used. */
-/* #undef realloc */
 
 /* Define to `unsigned int' if <sys/types.h> does not define. */
 /* #undef size_t */
@@ -645,10 +750,10 @@ size_t strlcpy(char *dst, const char *src, size_t siz);
 
 #ifdef USE_WINSOCK
 #define SOCK_INVALID INVALID_SOCKET
-#define close_socket(_s) do { if (_s > SOCK_INVALID) {closesocket(_s); _s = SOCK_INVALID;} } while(0)
+#define close_socket(_s) do { if (_s != SOCK_INVALID) {closesocket(_s); _s = -1;} } while(0)
 #else
 #define SOCK_INVALID -1
-#define close_socket(_s) do { if (_s > SOCK_INVALID) {close(_s); _s = SOCK_INVALID;} } while(0)
+#define close_socket(_s) do { if (_s != SOCK_INVALID) {close(_s); _s = -1;} } while(0)
 #endif
 
 #ifdef __cplusplus

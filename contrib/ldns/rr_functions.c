@@ -24,7 +24,7 @@
  * return a specific rdf
  * \param[in] type type of RR
  * \param[in] rr   the rr itself
- * \param[in] pos  at which postion to get it
+ * \param[in] pos  at which position to get it
  * \return the rdf sought
  */
 static ldns_rdf *
@@ -41,7 +41,7 @@ ldns_rr_function(ldns_rr_type type, const ldns_rr *rr, size_t pos)
  * \param[in] type type of RR
  * \param[in] rr   the rr itself
  * \param[in] rdf  the rdf to set
- * \param[in] pos  at which postion to set it
+ * \param[in] pos  at which position to set it
  * \return true or false
  */
 static bool
@@ -269,14 +269,17 @@ ldns_rr_dnskey_key_size_raw(const unsigned char* keydata,
                             const size_t len,
                             const ldns_algorithm alg)
 {
+#ifdef USE_DSA
 	/* for DSA keys */
 	uint8_t t;
+#endif /* USE_DSA */
 	
 	/* for RSA keys */
 	uint16_t exp;
 	uint16_t int16;
 	
 	switch ((ldns_signing_algorithm)alg) {
+#ifdef USE_DSA
 	case LDNS_SIGN_DSA:
 	case LDNS_SIGN_DSA_NSEC3:
 		if (len > 0) {
@@ -286,6 +289,7 @@ ldns_rr_dnskey_key_size_raw(const unsigned char* keydata,
 			return 0;
 		}
 		break;
+#endif /* USE_DSA */
 	case LDNS_SIGN_RSAMD5:
 	case LDNS_SIGN_RSASHA1:
 	case LDNS_SIGN_RSASHA1_NSEC3:

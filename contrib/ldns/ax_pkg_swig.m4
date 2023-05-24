@@ -1,5 +1,5 @@
 # ===========================================================================
-#        http://www.gnu.org/software/autoconf-archive/ax_pkg_swig.html
+#       https://www.gnu.org/software/autoconf-archive/ax_pkg_swig.html
 # ===========================================================================
 #
 # SYNOPSIS
@@ -32,9 +32,9 @@
 # LICENSE
 #
 #   Copyright (c) 2008 Sebastian Huber <sebastian-huber@web.de>
-#   Copyright (c) 2008 Alan W. Irwin <irwin@beluga.phys.uvic.ca>
+#   Copyright (c) 2008 Alan W. Irwin
 #   Copyright (c) 2008 Rafael Laboissiere <rafael@laboissiere.net>
-#   Copyright (c) 2008 Andrew Collier <colliera@ukzn.ac.za>
+#   Copyright (c) 2008 Andrew Collier
 #   Copyright (c) 2011 Murray Cumming <murrayc@openismus.com>
 #
 #   This program is free software; you can redistribute it and/or modify it
@@ -48,7 +48,7 @@
 #   Public License for more details.
 #
 #   You should have received a copy of the GNU General Public License along
-#   with this program. If not, see <http://www.gnu.org/licenses/>.
+#   with this program. If not, see <https://www.gnu.org/licenses/>.
 #
 #   As a special exception, the respective Autoconf Macro's copyright owner
 #   gives unlimited permission to copy, distribute and modify the configure
@@ -63,11 +63,11 @@
 #   modified version of the Autoconf Macro, you may extend this special
 #   exception to the GPL to apply to your modified version as well.
 
-#serial 8
+#serial 13
 
 AC_DEFUN([AX_PKG_SWIG],[
-        # Ubuntu has swig 2.0 as /usr/bin/swig2.0
-        AC_PATH_PROGS([SWIG],[swig2.0 swig])
+        # Find path to the "swig" executable.
+        AC_PATH_PROGS([SWIG],[swig swig3.0 swig2.0])
         if test -z "$SWIG" ; then
                 m4_ifval([$3],[$3],[:])
         elif test -n "$1" ; then

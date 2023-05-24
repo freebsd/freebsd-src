@@ -250,7 +250,7 @@ bool ldns_resolver_dnssec_cd(const ldns_resolver *r);
 /**
  * Get the resolver's DNSSEC anchors
  * \param[in] r the resolver
- * \return an rr_list containg trusted DNSSEC anchors
+ * \return an rr_list containing trusted DNSSEC anchors
  */
 ldns_rr_list * ldns_resolver_dnssec_anchors(const ldns_resolver *r);
 /**
@@ -730,7 +730,7 @@ ldns_status ldns_resolver_new_frm_fp_l(ldns_resolver **r, FILE *fp, int *line_nr
 ldns_status ldns_resolver_new_frm_file(ldns_resolver **r, const char *filename);
 
 /**
- * Frees the allocated space for this resolver. Only frees the resolver pionter! You should probably be using _deep_free.
+ * Frees the allocated space for this resolver. Only frees the resolver pointer! You should probably be using _deep_free.
  * \param res resolver to free
  */
 void ldns_resolver_free(ldns_resolver *res);
@@ -766,7 +766,7 @@ bool ldns_axfr_complete(const ldns_resolver *resolver);
 
 /**
  * Returns a pointer to the last ldns_pkt that was sent by the server in the AXFR transfer
- * uasable for instance to get the error code on failure
+ * usable for instance to get the error code on failure
  * \param[in] res the resolver that was used in the axfr transfer
  * \return ldns_pkt the last packet sent
  */

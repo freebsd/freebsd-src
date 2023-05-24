@@ -118,7 +118,7 @@ extern "C" {
  * This function will initialize and allocate memory space for the packet 
  * structure.
  * 
- * \param[in] packet pointer to the structure to hold the packet
+ * \param[out] packet pointer to the structure to hold the packet
  * \param[in] data pointer to the buffer with the data
  * \param[in] len the length of the data buffer (in bytes)
  * \return LDNS_STATUS_OK if everything succeeds, error otherwise
@@ -130,7 +130,7 @@ ldns_status ldns_wire2pkt(ldns_pkt **packet, const uint8_t *data, size_t len);
  * This function will initialize and allocate memory space for the packet 
  * structure.
  * 
- * \param[in] packet pointer to the structure to hold the packet
+ * \param[out] packet pointer to the structure to hold the packet
  * \param[in] buffer the buffer with the data
  * \return LDNS_STATUS_OK if everything succeeds, error otherwise
  */
@@ -142,7 +142,7 @@ ldns_status ldns_buffer2pkt_wire(ldns_pkt **packet, const ldns_buffer *buffer);
  * space for the dname structure. The length of the wiredata of this rdf 
  * is added to the *pos value.
  *
- * \param[in] dname pointer to the structure to hold the rdata value
+ * \param[out] dname pointer to the structure to hold the rdata value
  * \param[in] wire pointer to the buffer with the data
  * \param[in] max the length of the data buffer (in bytes)
  * \param[in] pos the position of the rdf in the buffer (ie. the number of bytes 
@@ -177,7 +177,7 @@ ldns_status ldns_wire2rdf(ldns_rr *rr, const uint8_t *wire, size_t max, size_t *
  * structure.
  * The length of the wiredata of this rr is added to the *pos value.
  * 
- * \param[in] rr pointer to the structure to hold the rdata value
+ * \param[out] rr pointer to the structure to hold the rdata value
  * \param[in] wire pointer to the buffer with the data
  * \param[in] max the length of the data buffer (in bytes)
  * \param[in] pos the position of the rr in the buffer (ie. the number of bytes 

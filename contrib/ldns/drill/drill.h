@@ -21,7 +21,6 @@
 #define DRILL_AFROMFILE 3
 #define DRILL_QTOFILE 	4
 #define DRILL_NSEC	5
-#define DRILL_REVERSE	6
 #define DRILL_SECTRACE 	7
 
 #define DRILL_ON(VAR, BIT) \

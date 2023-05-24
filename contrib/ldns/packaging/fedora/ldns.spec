@@ -23,7 +23,7 @@ BuildRequires:  python-devel, swig
 %endif
 
 %description
-ldns is a library with the aim to simplify DNS programing in C. All
+ldns is a library with the aim to simplify DNS programming in C. All
 lowlevel DNS/DNSSEC operations are supported. We also define a higher
 level API which allows a programmer to (for instance) create or sign
 packets.
@@ -125,7 +125,7 @@ rm -rf %{buildroot}
 
 * Wed Jun 08 2011 Paul Wouters <paul@xelerance.com> - 1.6.10-1
 - Updated to 1.6.10
-- commented out build dependancies for svn snapshots
+- commented out build dependencies for svn snapshots
 
 * Sun Mar 27 2011 Paul Wouters <paul@xelerance.com> - 1.6.9-1
 - Updated to 1.6.9

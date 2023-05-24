@@ -69,6 +69,32 @@ ssize_t ldns_fget_token(FILE *f, char *token, const char *delim, size_t limit);
  */
 ssize_t ldns_fget_token_l(FILE *f, char *token, const char *delim, size_t limit, int *line_nr);
 
+/** 
+ * returns a token/char from the stream f.
+ * This function deals with ( and ) in the stream,
+ * and ignores when it finds them.
+ * \param[in] *f the file to read from
+ * \param[out] **token this should be a reference to a string buffer in which
+ *                     the token is put. A new buffer will be allocated when
+ *                     *token is NULL and fixed is false. If the buffer is too
+ *                     small to hold the token, the buffer is reallocated with
+ *                     double the size (of limit).
+ *                     If fixed is true, the string buffer may not be NULL
+ *                     and limit must be set to the buffer size. In that case
+ *                     no reallocations will be done.
+ * \param[in,out] *limit reference to the size of the token buffer. Will be
+ *                       reset to the new limit of the token buffer if the
+ *                       buffer is reallocated.
+ * \param [in] fixed If fixed is false, the token buffer is allowed to grow
+ *                   when needed (by way of reallocation). If true, the token
+ *                   buffer will not be resized.
+ * \param[in] *delim chars at which the parsing should stop
+ * \param[in] line_nr pointer to an integer containing the current line number (for debugging purposes)
+ * \return LDNS_STATUS_OK on success, LDNS_STATUS_SYNTAX_EMPTY when no token
+ *         was read and an error otherwise.
+ */
+ldns_status ldns_fget_token_l_st(FILE *f, char **token, size_t *limit, bool fixed, const char *delim, int *line_nr);
+
 /**
  * returns a token/char from the buffer b.
  * This function deals with ( and ) in the buffer,
@@ -86,9 +112,9 @@ ssize_t ldns_bget_token(ldns_buffer *b, char *token, const char *delim, size_t l
  * after the keyword + k_del until we hit d_del
  * \param[in] f file pointer to read from
  * \param[in] keyword keyword to look for
- * \param[in] k_del keyword delimeter 
+ * \param[in] k_del keyword delimiter 
  * \param[out] data the data found 
- * \param[in] d_del the data delimeter
+ * \param[in] d_del the data delimiter
  * \param[in] data_limit maximum size the the data buffer
  * \return the number of character read
  */
@@ -99,9 +125,9 @@ ssize_t ldns_fget_keyword_data(FILE *f, const char *keyword, const char *k_del, 
  * after the keyword + k_del until we hit d_del
  * \param[in] f file pointer to read from
  * \param[in] keyword keyword to look for
- * \param[in] k_del keyword delimeter 
+ * \param[in] k_del keyword delimiter 
  * \param[out] data the data found 
- * \param[in] d_del the data delimeter
+ * \param[in] d_del the data delimiter
  * \param[in] data_limit maximum size the the data buffer
  * \param[in] line_nr pointer to an integer containing the current line number (for
 debugging purposes)
@@ -114,9 +140,9 @@ ssize_t ldns_fget_keyword_data_l(FILE *f, const char *keyword, const char *k_del
  * after the keyword + k_del until we hit d_del
  * \param[in] b buffer pointer to read from
  * \param[in] keyword keyword to look for
- * \param[in] k_del keyword delimeter 
+ * \param[in] k_del keyword delimiter 
  * \param[out] data the data found 
- * \param[in] d_del the data delimeter
+ * \param[in] d_del the data delimiter
  * \param[in] data_limit maximum size the the data buffer
  * \return the number of character read
  */

@@ -71,7 +71,7 @@ static void ldns_rbtree_insert_fixup(ldns_rbtree_t *rbtree, ldns_rbnode_t *node)
 static void ldns_rbtree_delete_fixup(ldns_rbtree_t* rbtree, ldns_rbnode_t* child, ldns_rbnode_t* child_parent);
 
 /*
- * Creates a new red black tree, intializes and returns a pointer to it.
+ * Creates a new red black tree, initializes and returns a pointer to it.
  *
  * Return NULL on failure.
  *
