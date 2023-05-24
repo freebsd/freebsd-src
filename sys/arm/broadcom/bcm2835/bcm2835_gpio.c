@@ -163,7 +163,8 @@ enum bcm_gpio_pud {
 #define	BCM2835_GPIO_GPPUDCLK(_bank) (0x98 + _bank * 4)	/* Pin Pull up clock */
 
 #define	BCM2711_GPIO_GPPUD(x)	(0x0e4 + (x) * sizeof(uint32_t)) /* Pin Pull up/down */
-#define	BCM2711_GPIO_MASK(n)	(0x3 << ((n) % 16)*2)
+#define	BCM2711_GPIO_MASK		(0x3)
+#define	BCM2711_GPIO_SHIFT(n)	(((n) % 16) * 2)
 #define	BCM2711_GPIO_REGID(n)	((n) / 16)
 
 static struct ofw_compat_data compat_data[] = {
@@ -305,8 +306,8 @@ bcm_gpio_set_pud(struct bcm_gpio_softc *sc, uint32_t pin, uint32_t state)
 	BCM_GPIO_LOCK_ASSERT(sc);
 
 	if (sc->sc_is2711) { /* BCM2711 */
-		u_int mask  = BCM2711_GPIO_MASK(pin);
 		u_int regid = BCM2711_GPIO_REGID(pin);
+		u_int shift = BCM2711_GPIO_SHIFT(pin);
 		uint32_t reg;
 
 		switch (state) {
@@ -322,10 +323,8 @@ bcm_gpio_set_pud(struct bcm_gpio_softc *sc, uint32_t pin, uint32_t state)
 		}
 
 		reg = BCM_GPIO_READ(sc, BCM2711_GPIO_GPPUD(regid));
-		reg &= ~mask;
-#define __LOWEST_SET_BIT(__mask) ((((__mask) - 1) & (__mask)) ^ (__mask))
-#define __SHIFTIN(__x, __mask) ((__x) * __LOWEST_SET_BIT(__mask))
-		reg |= __SHIFTIN(state, mask);
+		reg &= ~(BCM2711_GPIO_MASK << shift);
+		reg |= (state << shift);
 		BCM_GPIO_WRITE(sc, BCM2711_GPIO_GPPUD(regid), reg);
 	} else { /* BCM2835 */
 		uint32_t bank;
