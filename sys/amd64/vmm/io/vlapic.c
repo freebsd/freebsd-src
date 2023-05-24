@@ -1146,7 +1146,7 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 		vmexit->exitcode = VM_EXITCODE_IPI;
 		vmexit->u.ipi.mode = mode;
 		vmexit->u.ipi.vector = vec;
-		vmexit->u.ipi.dmask = ipimask;
+		*vm_exitinfo_cpuset(vlapic->vcpu) = ipimask;
 
 		*retu = true;
 	}
@@ -1166,7 +1166,7 @@ int
 vm_handle_ipi(struct vcpu *vcpu, struct vm_exit *vme, bool *retu)
 {
 	struct vlapic *vlapic = vm_lapic(vcpu);
-	cpuset_t *dmask = &vme->u.ipi.dmask;
+	cpuset_t *dmask = vm_exitinfo_cpuset(vcpu);
 	uint8_t vec = vme->u.ipi.vector;
 
 	*retu = true;
