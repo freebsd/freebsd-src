@@ -930,6 +930,22 @@ main(int argc, CHAR16 *argv[])
 	archsw.arch_readin = efi_readin;
 	archsw.arch_zfs_probe = efi_zfs_probe;
 
+#if !defined(__arm__)
+	for (k = 0; k < ST->NumberOfTableEntries; k++) {
+		guid = &ST->ConfigurationTable[k].VendorGuid;
+		if (!memcmp(guid, &smbios, sizeof(EFI_GUID)) ||
+		    !memcmp(guid, &smbios3, sizeof(EFI_GUID))) {
+			char buf[40];
+
+			snprintf(buf, sizeof(buf), "%p",
+			    ST->ConfigurationTable[k].VendorTable);
+			setenv("hint.smbios.0.mem", buf, 1);
+			smbios_detect(ST->ConfigurationTable[k].VendorTable);
+			break;
+		}
+	}
+#endif
+
         /* Get our loaded image protocol interface structure. */
 	(void) OpenProtocolByHandle(IH, &imgid, (void **)&boot_img);
 
@@ -1180,22 +1196,6 @@ main(int argc, CHAR16 *argv[])
 
 	autoload_font(false);	/* Set up the font list for console. */
 	efi_init_environment();
-
-#if !defined(__arm__)
-	for (k = 0; k < ST->NumberOfTableEntries; k++) {
-		guid = &ST->ConfigurationTable[k].VendorGuid;
-		if (!memcmp(guid, &smbios, sizeof(EFI_GUID)) ||
-		    !memcmp(guid, &smbios3, sizeof(EFI_GUID))) {
-			char buf[40];
-
-			snprintf(buf, sizeof(buf), "%p",
-			    ST->ConfigurationTable[k].VendorTable);
-			setenv("hint.smbios.0.mem", buf, 1);
-			smbios_detect(ST->ConfigurationTable[k].VendorTable);
-			break;
-		}
-	}
-#endif
 
 	interact();			/* doesn't return */
 
