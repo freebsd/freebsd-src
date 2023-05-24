@@ -10,6 +10,14 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+bbb2d2ce4220:
+	Change pw (hence bsdinstall) not to move /home to /usr/home.
+	Previously, when creating the path to home directories, pw
+	would move any path in the root directory under /usr, creating
+	a symlink in root.  In particular, the default /home would become
+	/usr/home.  Now /home is at the top level by default.  /usr/home
+	can be used explicitly.
+
 3416e102c4e9:
 	Remove TI code from armv7 GENERIC kernel.
 	This code doesn't cope with newer DTS and hasn't in a long time so
