@@ -101,13 +101,6 @@
 #define	CLIDR_CTYPE_ID		0x3	/* Split instruction and data */
 #define	CLIDR_CTYPE_UNIFIED	0x4	/* Unified */
 
-/* CNTHCTL_EL2 - Counter-timer Hypervisor Control register */
-#define	CNTHCTL_EVNTI_MASK	(0xf << 4) /* Bit to trigger event stream */
-#define	CNTHCTL_EVNTDIR		(1 << 3) /* Control transition trigger bit */
-#define	CNTHCTL_EVNTEN		(1 << 2) /* Enable event stream */
-#define	CNTHCTL_EL1PCEN		(1 << 1) /* Allow EL0/1 physical timer access */
-#define	CNTHCTL_EL1PCTEN	(1 << 0) /*Allow EL0/1 physical counter access*/
-
 /* CNTP_CTL_EL0 - Counter-timer Physical Timer Control register */
 #define	CNTP_CTL_EL0		MRS_REG(CNTP_CTL_EL0)
 #define	CNTP_CTL_EL0_op0	3
