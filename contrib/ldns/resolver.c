@@ -764,7 +764,7 @@ ldns_resolver_new_frm_fp(ldns_resolver **res, FILE *fp)
 ldns_status
 ldns_resolver_new_frm_fp_l(ldns_resolver **res, FILE *fp, int *line_nr)
 {
-	ldns_resolver *r;
+	ldns_resolver *r = NULL;
 	const char *keyword[LDNS_RESOLV_KEYWORDS];
 	char word[LDNS_MAX_LINELEN + 1];
 	int8_t expect;
@@ -780,7 +780,7 @@ ldns_resolver_new_frm_fp_l(ldns_resolver **res, FILE *fp, int *line_nr)
         if(!line_nr) line_nr = &lnr;
 
 	if(!fp) {
-		myfp = fopen("/etc/resolv.conf", "r");
+		myfp = fopen(LDNS_RESOLV_CONF, "r");
 		if(!myfp)
 			return LDNS_STATUS_FILE_ERR;
 	}
@@ -800,7 +800,6 @@ ldns_resolver_new_frm_fp_l(ldns_resolver **res, FILE *fp, int *line_nr)
 	keyword[LDNS_RESOLV_SORTLIST] = "sortlist";
 	keyword[LDNS_RESOLV_OPTIONS] = "options";
 	keyword[LDNS_RESOLV_ANCHOR] = "anchor";
-	expect = LDNS_RESOLV_KEYWORD;
 
 	r = ldns_resolver_new();
 	if (!r) {
@@ -860,6 +859,7 @@ ldns_resolver_new_frm_fp_l(ldns_resolver **res, FILE *fp, int *line_nr)
 				gtr = ldns_fget_token_l(myfp, word, LDNS_PARSE_NORMAL, 0, line_nr);
 				if (gtr == 0) {
 					if(!fp) fclose(myfp);
+					ldns_resolver_deep_free(r);
 					return LDNS_STATUS_SYNTAX_MISSING_VALUE_ERR;
 				}
                                 if(word[0] == '#') {
@@ -868,8 +868,8 @@ ldns_resolver_new_frm_fp_l(ldns_resolver **res, FILE *fp, int *line_nr)
                                 }
 				tmp = ldns_rdf_new_frm_str(LDNS_RDF_TYPE_DNAME, word);
 				if (!tmp) {
-					ldns_resolver_deep_free(r);
 					if(!fp) fclose(myfp);
+					ldns_resolver_deep_free(r);
 					return LDNS_STATUS_SYNTAX_DNAME_ERR;
 				}
 
@@ -882,6 +882,7 @@ ldns_resolver_new_frm_fp_l(ldns_resolver **res, FILE *fp, int *line_nr)
 				gtr = ldns_fget_token_l(myfp, word, LDNS_PARSE_NORMAL, 0, line_nr);
 				if (gtr == 0) {
 					if(!fp) fclose(myfp);
+					ldns_resolver_deep_free(r);
 					return LDNS_STATUS_SYNTAX_MISSING_VALUE_ERR;
 				}
                                 if(word[0] == '#') {
@@ -1108,7 +1109,8 @@ ldns_resolver_search_status(ldns_pkt** pkt,
 
 			s = ldns_resolver_query_status(pkt, r,
 					new_name, t, c, flags);
-			ldns_rdf_free(new_name);
+			ldns_rdf_deep_free(new_name);
+
 			if (pkt && *pkt) {
 				if (s == LDNS_STATUS_OK && 
 						ldns_pkt_get_rcode(*pkt) ==
@@ -1132,6 +1134,7 @@ ldns_resolver_search(const ldns_resolver *r,const  ldns_rdf *name,
 	if (ldns_resolver_search_status(&pkt, (ldns_resolver *)r,
 				name, t, c, flags) != LDNS_STATUS_OK) {
 		ldns_pkt_free(pkt);
+		return NULL;
 	}
 	return pkt;
 }
@@ -1165,6 +1168,7 @@ ldns_resolver_query(const ldns_resolver *r, const ldns_rdf *name,
 	if (ldns_resolver_query_status(&pkt, (ldns_resolver *)r,
 				name, t, c, flags) != LDNS_STATUS_OK) {
 		ldns_pkt_free(pkt);
+		return NULL;
 	}
 	return pkt;
 }
@@ -1178,6 +1182,7 @@ ldns_resolver_backup_rtt(ldns_resolver *r)
 	if (old_rtt && ldns_resolver_nameserver_count(r)) {
 		new_rtt = LDNS_XMALLOC(size_t
 				, ldns_resolver_nameserver_count(r));
+		if (!new_rtt) return NULL;
 		memcpy(new_rtt, old_rtt, sizeof(size_t)
 				* ldns_resolver_nameserver_count(r));
 		ldns_resolver_set_rtt(r, new_rtt);
@@ -1240,6 +1245,7 @@ ldns_resolver_send_pkt(ldns_pkt **answer, ldns_resolver *r,
 				    ldns_pkt_tc(answer_pkt)) {
 					ldns_resolver_set_usevc(r, true);
 					ldns_pkt_free(answer_pkt);
+					answer_pkt = NULL;
 					stat = ldns_send(&answer_pkt, r, query_pkt);
 					ldns_resolver_set_usevc(r, false);
 				}
@@ -1247,7 +1253,7 @@ ldns_resolver_send_pkt(ldns_pkt **answer, ldns_resolver *r,
 		}
 	}
 
-	if (answer) {
+	if (answer && answer_pkt) {
 		*answer = answer_pkt;
 	}
 
@@ -1528,14 +1534,14 @@ void
 ldns_axfr_abort(ldns_resolver *resolver)
 {
 	/* Only abort if an actual AXFR is in progress */
-	if (resolver->_socket != 0)
+	if (resolver->_socket != -1)
 	{
 #ifndef USE_WINSOCK
 		close(resolver->_socket);
 #else
 		closesocket(resolver->_socket);
 #endif
-		resolver->_socket = 0;
+		resolver->_socket = -1;
 	}
 }
 

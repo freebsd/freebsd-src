@@ -1,3 +1,166 @@
+1.8.3	2022-08-15
+	* bugfix #183: Assertion failure with OPT record without rdata.
+	  This caused packet creation with only a DO bit (for DNSSEC OK)
+	  to crash. Thanks Anand Buddhdev and others for reporting this
+	  so quickly.
+	* Fix for syntax error in pyldns
+
+1.8.2	2022-08-12
+	* bugfix #147: Allow for tabs in whitespace before quoted rdata
+	  fields. Thanks Felipe Gasper
+	* bugfix #149: Add some missing [out] annotations to doxygen
+	  parameters. Thanks aldot.
+	* Fix build error on Solaris 10 with inet_ntop redeclaration error.
+	* Fix -U flag with ldns-signzone. Thanks Ulrich and Jonathan
+	* Enable compile of SVCB and HTTPS support by default.
+	* bugfix #179: Free line memory even if zone file parsing fails
+	  Thanks Claudius Zingerli
+	* bugfix #166: Grow buffer when writing chars and fixed size
+	  strings when converting to presentation format, preventing
+	  potential assersion errors.
+	* bugfix #46: Print network errors when secure tracing.
+	  Thanks reedjc
+	* EDNS0 Option handling and conversion into presentation format.
+	* bugfix #145: ldns-verify-zone should not call occluded records
+	  glue. Thanks Habbie
+
+1.8.1	2021-12-03
+	* bugfix #146: ldns-1.7.1 had soname 3.0, so ldns-1.8.x soname
+	  needs to larger. Thanks Leah Neukirchen & Felipe Gasper
+	* Undo PR#123 fix ldns.pc installation when building out-of-source
+	  Thanks Axel Xu
+
+1.8.0	2021-11-26
+	* bugfix #38: Print "line" before line number when printing
+	  zone parse errors. Thanks Petr Špaček.
+	* bugfix: Revert unused variables in ldns-config removal patch.
+	* bugfix #50: heap Out-of-bound Read vulnerability in
+	  rr_frm_str_internal reported by pokerfacett.
+	* bugfix #51: Heap Out-of-bound Read vulnerability in
+	  ldns_nsec3_salt_data reported by pokerfacett.
+	* Fix memory leak in examples/ldns-testns handle_tcp routine.
+	* Detect fixed time memory compare for openssl 0.9.8.
+	* Fix compile warning by variable initialisation for older gcc.
+	* Fix #92: ldns-testns.c:429:15: error: 'fork' is unavailable: not
+	  available on tvOS.
+	* Fix for #93: fix packaging/libldns.pc Makefile rule.
+	* ZONEMD support in ldns-signzone and ldns-verify-zone
+	* ldns-testns can answer several queries over one tcp connection,
+	  if they arrive within 100msec of each other.
+	* Fix so that ldns-testns does not leak sockets if the read fails.
+	* SVCB and HTTPS draft rrtypes.
+	  Enable with --enable-rrtype-svcb-https.
+	* bugfix #117: Assertion failure with DNSSEC validating of 
+	  non existence of RR types at the root.  Thanks ZjYwMj
+	* Set NSEC(3) ttls to the minimum of the MINIMUM field of the SOA
+	  record and the TTL of the SOA itself. draft-ietf-dnsop-nsec-ttl
+	* bugfix #119: Let example tools read longer RR's than
+	  LDNS_MAX_LINELEN
+	* Add SVCPARAMS to python ldns_rdf_type2str function.
+	* PR #134 Miscellaneous spelling fixes. Thanks jsoref!
+	* Fix that ldns-read-zone and ldns_zone_new_frm_fp_l properly return
+	  the $INCLUDE not implemented error.
+	* Fix that ldns-read-zone and ldns_zone_new_frm_fp_l count the line
+	  number for an empty line after a comment.
+	* Fix #135: Fix compile with OpenSSL-3.0.0-beta2.
+	* PR #107: Added ldns_pkt2buffer_wire_compress() to make dname 
+	  compression optional when converting packets to wire format.
+	  Thanks Eli Lindsey
+	* Option to ldns-keygen to create symlinks with known names 
+	  (i.e. without the key id) to the created files.
+	  Thanks Andreas Schulze
+	* Fix #121: Correct handling of centimetres by LOC parser.
+	  Thanks Felipe Gasper
+	* PR #126: Link with libldns.la in Makefile.in.
+	  Thanks orbea
+	* PR #127: Added option -Q to drill to give short answer.
+	  Thanks niknah
+	* PR #133: Update m4 files for python modules.
+	  Thanks Petr Menšík
+	* Bufix CAA value fields may be empty: Thanks Robert Mortimer
+	* PR #108: Fix for ldns-compare-zones net detecting when first zone
+	  has a RRset that shrinks from two to one RRs, or grows from one
+	  to two RRs. Thanks Emilio Caballero
+	* Fix #131: Drill sig chasing breaks with gcc-11 and
+	  strict-aliasing. Thanks Stanislav Levin
+	* Fix #130: Unless $TLL is defined, ttl defaults to the last
+	  explicitly stated value. Thanks Benno
+	* Fix #48: Missing UNSIGNED legend with drill. Thanks reedjc
+	* Fix #143: EVP_PKEY_base_id became a macro with OpenSSL > 3.0
+	  Thanks Daniel J. Luke
+	* Let ldns-signzone warn for high NSEC3 iteration counts.
+	  Thanks Andreas Schulze
+
+1.7.1	2019-07-26
+	* bugfix: Manage verification paths for OpenSSL >= 1.1.0
+	  Thanks Marco Davids
+	* bugfix #4106: find the SDK on MacOS X <= 10.6
+	  Thanks Bill Cole
+	* bugfix #4155: ldns-config contains never used variables
+	  Thanks Petr Menšík
+	* bugfix #4221: drill -x crashes with malformed IPv4 address 
+	  Thanks Oleksandr Tymoshenko
+	* bugfix #3437: CDS & CDNSKEY RRsets should be signed with the KSK
+	  Thanks Tony Finch
+	* bugfix #1566, #1568, #1569, #1570: Potential NULL Dereferences
+	  Thanks Bill Parker
+	* bugfix #1260: Anticipate strchr returning NULL on unfound char
+	  Thanks Stephan Zeisberg
+	* bugfix #1257: Free after reallocing to 0 size (CVE-2017-1000232)
+	  Thanks Stephan Zeisberg
+	* bugfix #1256: Check parse limit before t increment (CVE-2017-1000231)
+	  Thanks Stephan Zeisberg
+	* bugfix #1245: Only one signature per RRset needs to be valid with
+	  ldns-verify-zone.  Thanks Emil Natan.
+	* ldns-notify can use all supported hash algorithms with -y.
+	* bugfix #1209: make install ldns.pc file
+	  Thanks Oleksandr Natalenko
+	* bugfix #1218: Only chase DS if signer is parent of owner.
+	  Thanks Emil Natan
+	* bugfix #617: Retry WKS service and protocol names lower case.
+	  Thanks Siali Yan
+	* Spelling errors in binaries and man pages
+	  Thanks Andreas Schulze
+	* removed duplicate condition in ldns_udp_send_query.
+	* ldns_wire2pkt: fix null pointer dereference if pkt allocation fails
+	  and fix memory leak with more EDNS sections
+	  Thanks Jan Vcelak
+	* bugfix #1399: ldns_pkt2wire() Python binding is broken.
+	  Thanks James Raftery
+	* ED25519 and ED448 support. Default is to autodetect support in
+	  OpenSSL.  Disable with --disable-ed25519 and --disable-ed448.
+	* ldns-notify: can have IPv6 address as argument.
+	* Fix time sensitive TSIG compare vulnerability.
+	* Fix that ldns-testns ignores sigpipe.
+	* Fix that ldns-notify sets the query RR as question RR, this
+	  removes the wrong TTL and 0 rdata from the packet printout.
+	* Allow -T flag to be used together with drill -x
+	* Python bindings compile with swig 4.0
+	  Thanks Jitka Plesníková
+	* bugfix #4248: drill -DT fails for CNAME domain
+	  Thanks Thom Wiggers
+	* bugfix #4214: Various fixes and leaks found by coverity.
+	  Thanks Petr Menšík 
+	* Feature #3394: An -I option to ldns-notify to specify a source
+	  IP address to send to notify from.  Thanks Geert Hendrickx
+	* Bugfix #279: New API functions ldns_udp_connect2,
+	  ldns_tcp_connect2, ldns_udp_bgsend2 and ldns_tcp_bgsend2,
+	  that return -1 on failure and allow socket number 0
+	  to be returned too.  Thanks Joerg Sonnenberger
+	* Bugfix #1447: More verbose reporting of chasing problems with
+	  ldns-verify-zone.  Thanks Stephane Guedon
+	* OpenSSL engine support with ldns-signzone.
+	  See also https://penzin.net/ldns-signzone/
+	  Many thanks Vadim Penzin.
+	* Various improvements found with shellcheck.
+	  Thanks Jeffrey Walton
+	* PR #36 Update manpage of ldns-notify to mention algorithm
+	  support with TSIG.  Thanks Anand Buddhdev
+	* Compile warnings with signed char input to to_lower()
+	  and is_digit() with NetBSD.  Thanks Håvard Eidnes
+	* Missing Makefile.PL in DNS-LDNS perl module contribution.
+	  Thanks Jaap Akkerhuis
+
 1.7.0	2016-12-20
 	* Fix lookup of relative names in ldns_resolver_search.
 	* bugfix #548: Double free for answers > 4096 in ldns_resolver_send_pkt
@@ -98,7 +261,7 @@
 	  Thanks William King
 	* Use OpenSSL DANE functions for verification (unless explicitly
 	  disabled with --disable-dane-ta-usage).
-	* Bumb .so version
+	* Bump .so version
 	* Include OPENPGPKEY RR type by default
 	* rdata processing for SMIMEA RR type
 	* Fix crash in displaying TLSA RR's.
@@ -168,7 +331,7 @@
 	* bugfix #505: Manpage and usage output fixes (Thanks Tomas Hozza)
 	* Adjust ldns_sha1() so that the input data is not modified (Thanks
 	  Marc Buijsman)
-	* Messages to stderr are now off by default and can be reenabled with
+	* Messages to stderr are now off by default and can be re-enabled with
 	  the --enable-stderr-msgs configure option.
 
 1.6.16	2012-11-13
@@ -197,7 +360,7 @@
 	  in sync.
 	* Let ldns_pkt_push_rr now return false on (memory) errors.
 	* Make buffer_export comply to documentation and fix buffer2str
-	* Various improvements and fixes of pyldns from Katel Slany
+	* Various improvements and fixes of pyldns from Karel Slany
 	  now documented in their own Changelog.
 	* bugfix: Make ldns_resolver_pop_nameserver clear the array when
 	  there was only one.
@@ -236,7 +399,7 @@
 	* bugfix #433: Allocate rdf using ldns_rdf_new in ldns_dname_label
 	* bugfix #432: Use LDNS_MALLOC & LDNS_FREE i.s.o. malloc & free
 	* bugfix #431: Added error message for LDNS_STATUS_INVALID_B32_EXT
-	* bugfix #427: Explicitely link ssl with the programs that use it.
+	* bugfix #427: Explicitly link ssl with the programs that use it.
 	* Fix reading \DDD: Error on values that are outside range (>255).
 	* bugfix #429: fix doxyparse.pl fails on NetBSD because specified
 	  path to perl.
@@ -300,7 +463,7 @@
 	* Update of libdns.vim (thanks Miek Gieben)
 	* Added the ldnsx Python module to our contrib section, which adds even
 	  more pythonisticism to the usage of ldns with  Python. (Many thanks
-	  to Christpher Olah and Paul Wouters)
+	  to Christopher Olah and Paul Wouters)
 	  The ldnsx module is automatically installed when --with-pyldns is
 	  used with configuring, but may explicitly be excluded with the
 	  --without-pyldnsx option to configure.
@@ -328,7 +491,7 @@
 	* bugfix #380: Minimizing effect of discrepancies in sizeof(bool) at
 	  build time and when used.
 	* bugfix #383: Fix detection of empty nonterminals of multiple labels.
-	* Fixed the ommission of rrsets in nsec(3)s and rrsigs to all occluded
+	* Fixed the omission of rrsets in nsec(3)s and rrsigs to all occluded
 	  names (in stead of just the ones that contain glue only) and all
 	  occluded records on the delegation points (in stead of just the glue).
 	* Clarify the operation of ldns_dnssec_mark_glue and the usage of
@@ -511,7 +674,7 @@
 	* --enable-gost : use the GOST algorithm (experimental).
 	* Added some missing options to drill manpage
 	* Some fixes to --without-ssl option
-	* Fixed quote parsing withing strings
+	* Fixed quote parsing within strings
 	* Bitmask fix in EDNS handling
 	* Fixed non-fqdn domain name completion for rdata field domain
 	  names of length 1
@@ -618,7 +781,7 @@
 	  from Shane Kerr, bug id 188)
 	* zone.c memory leaks on error and allocation checks fixed (patch
 	from Shane Kerr, bug id 189)
-	* ldns-zplit output and error messages fixed (patch from Shane Kerr,
+	* ldns-zsplit output and error messages fixed (patch from Shane Kerr,
 	  bug id 190)
 	* Fixed potential buffer overflow in ldns_str2rdf_dname
 	* Signing code no longer signs delegation NS rrsets
@@ -647,7 +810,7 @@
 	* DLV RR type added
 	* TCP fallback system has been improved
 	* HMAC-SHA256 TSIG support has been added.
-	* TTLS are now correcly set in NSEC(3) records when signing zones
+	* TTLS are now correctly set in NSEC(3) records when signing zones
 
 	EXAMPLE TOOLS:
 	* New example: ldns-revoke to revoke DNSKEYs according to RFC5011
@@ -722,7 +885,7 @@
 28 Nov 2007 1.2.2:
 	* Added support for HMAC-MD5 keys in generator
 	* Added a new example tool (written by Ondrej Sury): ldns-compare-zones
-	* ldns-keygen now checks key sizes for rfc conformancy
+	* ldns-keygen now checks key sizes for rfc conformance
 	* ldns-signzone outputs SSL error if present
 	* Fixed manpages (thanks to Ondrej Sury)
 	* Fixed Makefile for -j <x>
@@ -800,7 +963,7 @@
 	* -r was killed in favor of -o <header bit mnemonic> which
 	  allows for a header bits setting (and maybe more in the
 	  future)
-	* DNSSEC is never automaticaly set, even when you query
+	* DNSSEC is never automatically set, even when you query
 	  for DNSKEY/RRSIG or DS.
 	* Implement a crude RTT check, it now distinguishes between
 	  reachable and unreachable.
@@ -812,7 +975,7 @@
 	* ldns-dpa was added to the examples - this is the Dns Packet
 	  Analyzer tool.
 	* ldnsd - as very, very simple nameserver impl.
-	* ldns-zsplit - split zones for parrallel signing
+	* ldns-zsplit - split zones for parallel signing
 	* ldns-zcat - cat split zones back together
 	* ldns-keyfetcher - Fetches DNSKEY records with a few (non-strong,
 	  non-DNSSEC) anti-spoofing techniques.
@@ -831,7 +994,7 @@
 	API:
 	Changed:
 	* renamed ldns/dns.h to ldns/ldns.h
-	* ldns_rr_new_frm_str() is extented with an extra variable which
+	* ldns_rr_new_frm_str() is extended with an extra variable which
 	  in common use may be NULL. This trickles through to:
 	  o ldns_rr_new_frm_fp
 	  o ldns_rr_new_frm_fp_l
@@ -872,7 +1035,7 @@
 	* char *_when was removed from the ldns_pkt structure
 
 18 Oct 2005: 1.0.0: ldns-team
-	* Commited a patch from Håkan Olsson
+	* Committed a patch from Håkan Olsson
 	* Added UPDATE support (Jakob Schlyter and Håkan Olsson)
 	* License change: ldns is now BSD licensed
 	* ldns now depends on SSL
@@ -905,7 +1068,7 @@
 13 Jun 2005: 0.65: ldns-team
 	* Repository is online at:
 	  http://www.nlnetlabs.nl/ldns/svn/
-	* Apply reference copying throuhgout ldns, except in 2
+	* Apply reference copying throughout ldns, except in 2
 	  places in the ldns_resolver structure (._domain and
 	 ._nameservers)
 	* Usual array of bugfixes
@@ -914,7 +1077,7 @@
 
 23 May 2005: 0.60: ldns-team
 	* Removed config.h from the header installed files
-	  (you're not supposed to include that in a libary)
+	  (you're not supposed to include that in a library)
 	* Further tweaking
 	  - DNSSEC signing/verification works
 	  - Assorted bug fixes and tweaks (memory management)

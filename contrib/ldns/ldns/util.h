@@ -27,8 +27,8 @@ extern "C" {
 #define dprintf(X,Y) fprintf(stderr, (X), (Y))
 /* #define	dprintf(X, Y)  */
 
-#define LDNS_VERSION "1.7.0"
-#define LDNS_REVISION ((1<<16)|(7<<8)|(0))
+#define LDNS_VERSION "1.8.3"
+#define LDNS_REVISION ((1<<16)|(8<<8)|(3))
 
 /**
  * splint static inline workaround
@@ -274,19 +274,22 @@ time_t mktime_from_utc(const struct tm *tm);
 
 /**
  * The function interprets time as the number of seconds since epoch
- * with respect to now using serial arithmitics (rfc1982).
+ * with respect to now using serial arithmetics (rfc1982).
  * That number of seconds is then converted to broken-out time information.
  * This is especially useful when converting the inception and expiration
  * fields of RRSIG records.
  *
  * \param[in] time number of seconds since epoch (midnight, January 1st, 1970)
- *            to be intepreted as a serial arithmitics number relative to now.
+ *            to be interpreted as a serial arithmetics number relative to now.
  * \param[in] now number of seconds since epoch (midnight, January 1st, 1970)
  *            to which the time value is compared to determine the final value.
  * \param[out] result the struct with the broken-out time information
  * \return result on success or NULL on error
  */
-struct tm * ldns_serial_arithmitics_gmtime_r(int32_t time, time_t now, struct tm *result);
+struct tm * ldns_serial_arithmetics_gmtime_r(int32_t time, time_t now, struct tm *result);
+
+/* previously used wrong spelling */
+#define ldns_serial_arithmitics_gmtime_r ldns_serial_arithmetics_gmtime_r
  
 /**
  * Seed the random function.

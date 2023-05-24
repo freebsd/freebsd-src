@@ -2,7 +2,15 @@
 # Copyright 2009, Wouter Wijngaards, NLnet Labs.   
 # BSD licensed.
 #
-# Version 34
+# Version 41
+# 2021-07-30 fix for openssl use of lib64 directory.
+# 2021-06-14 fix nonblocking test to use host instead of target for mingw test.
+# 2021-05-17 fix nonblocking socket test from grep on mingw32 to mingw for
+# 	     64bit compatibility.
+# 2021-03-24 fix ACX_FUNC_DEPRECATED to use CPPFLAGS and CFLAGS.
+# 2021-01-05 fix defun for aclocal
+# 2021-01-05 autoconf 2.70 autoupdate and fixes, no AC_TRY_COMPILE
+# 2020-08-24 Use EVP_sha256 instead of HMAC_Update (for openssl-3.0.0).
 # 2016-03-21 Check -ldl -pthread for libcrypto for ldns and openssl 1.1.0.
 # 2016-03-21 Use HMAC_Update instead of HMAC_CTX_Init (for openssl-1.1.0).
 # 2016-01-04 -D_DEFAULT_SOURCE defined with -D_BSD_SOURCE for Linux glibc 2.20
@@ -446,15 +454,12 @@ AC_DEFUN([ACX_CHECK_FORMAT_ATTRIBUTE],
 AC_MSG_CHECKING(whether the C compiler (${CC-cc}) accepts the "format" attribute)
 AC_CACHE_VAL(ac_cv_c_format_attribute,
 [ac_cv_c_format_attribute=no
-AC_TRY_COMPILE(
-[#include <stdio.h>
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <stdio.h>
 void f (char *format, ...) __attribute__ ((format (printf, 1, 2)));
 void (*pf) (char *format, ...) __attribute__ ((format (printf, 1, 2)));
-], [
+]], [[
    f ("%s", "str");
-],
-[ac_cv_c_format_attribute="yes"],
-[ac_cv_c_format_attribute="no"])
+]])],[ac_cv_c_format_attribute="yes"],[ac_cv_c_format_attribute="no"])
 ])
 
 AC_MSG_RESULT($ac_cv_c_format_attribute)
@@ -483,14 +488,11 @@ AC_DEFUN([ACX_CHECK_UNUSED_ATTRIBUTE],
 AC_MSG_CHECKING(whether the C compiler (${CC-cc}) accepts the "unused" attribute)
 AC_CACHE_VAL(ac_cv_c_unused_attribute,
 [ac_cv_c_unused_attribute=no
-AC_TRY_COMPILE(
-[#include <stdio.h>
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <stdio.h>
 void f (char *u __attribute__((unused)));
-], [
+]], [[
    f ("x");
-],
-[ac_cv_c_unused_attribute="yes"],
-[ac_cv_c_unused_attribute="no"])
+]])],[ac_cv_c_unused_attribute="yes"],[ac_cv_c_unused_attribute="no"])
 ])
 
 dnl Setup ATTR_UNUSED config.h parts.
@@ -547,7 +549,7 @@ dnl as a requirement so that is gets called before LIBTOOL
 dnl because libtools 'AC_REQUIRE' names are right after this one, before
 dnl this function contents.
 AC_REQUIRE([ACX_LIBTOOL_C_PRE])
-AC_PROG_LIBTOOL
+LT_INIT
 ])
 
 dnl Detect if u_char type is defined, otherwise define it.
@@ -668,35 +670,41 @@ AC_DEFUN([ACX_SSL_CHECKS], [
             HAVE_SSL=yes
             dnl assume /usr is already in the lib and dynlib paths.
             if test "$ssldir" != "/usr" -a "$ssldir" != ""; then
-                LDFLAGS="$LDFLAGS -L$ssldir/lib"
-                LIBSSL_LDFLAGS="$LIBSSL_LDFLAGS -L$ssldir/lib"
-                ACX_RUNTIME_PATH_ADD([$ssldir/lib])
+		if test ! -d "$ssldir/lib" -a -d "$ssldir/lib64"; then
+			LDFLAGS="$LDFLAGS -L$ssldir/lib64"
+			LIBSSL_LDFLAGS="$LIBSSL_LDFLAGS -L$ssldir/lib64"
+			ACX_RUNTIME_PATH_ADD([$ssldir/lib64])
+		else
+			LDFLAGS="$LDFLAGS -L$ssldir/lib"
+			LIBSSL_LDFLAGS="$LIBSSL_LDFLAGS -L$ssldir/lib"
+			ACX_RUNTIME_PATH_ADD([$ssldir/lib])
+		fi
             fi
         
-            AC_MSG_CHECKING([for HMAC_Update in -lcrypto])
+            AC_MSG_CHECKING([for EVP_sha256 in -lcrypto])
             LIBS="$LIBS -lcrypto"
             LIBSSL_LIBS="$LIBSSL_LIBS -lcrypto"
-            AC_TRY_LINK(, [
-                int HMAC_Update(void);
-                (void)HMAC_Update();
-              ], [
+            AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [[
+                int EVP_sha256(void);
+                (void)EVP_sha256();
+              ]])],[
                 AC_MSG_RESULT(yes)
-                AC_DEFINE([HAVE_HMAC_UPDATE], 1, 
-                          [If you have HMAC_Update])
-              ], [
+                AC_DEFINE([HAVE_EVP_SHA256], 1,
+                          [If you have EVP_sha256])
+              ],[
                 AC_MSG_RESULT(no)
                 # check if -lwsock32 or -lgdi32 are needed.	
                 BAKLIBS="$LIBS"
                 BAKSSLLIBS="$LIBSSL_LIBS"
-                LIBS="$LIBS -lgdi32"
-                LIBSSL_LIBS="$LIBSSL_LIBS -lgdi32"
+		LIBS="$LIBS -lgdi32 -lws2_32"
+		LIBSSL_LIBS="$LIBSSL_LIBS -lgdi32 -lws2_32"
                 AC_MSG_CHECKING([if -lcrypto needs -lgdi32])
-                AC_TRY_LINK([], [
-                    int HMAC_Update(void);
-                    (void)HMAC_Update();
-                  ],[
-                    AC_DEFINE([HAVE_HMAC_UPDATE], 1, 
-                        [If you have HMAC_Update])
+                AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [[
+                    int EVP_sha256(void);
+                    (void)EVP_sha256();
+                  ]])],[
+                    AC_DEFINE([HAVE_EVP_SHA256], 1,
+                        [If you have EVP_sha256])
                     AC_MSG_RESULT(yes) 
                   ],[
                     AC_MSG_RESULT(no)
@@ -705,12 +713,12 @@ AC_DEFUN([ACX_SSL_CHECKS], [
                     LIBS="$LIBS -ldl"
                     LIBSSL_LIBS="$LIBSSL_LIBS -ldl"
                     AC_MSG_CHECKING([if -lcrypto needs -ldl])
-                    AC_TRY_LINK([], [
-                        int HMAC_Update(void);
-                        (void)HMAC_Update();
-                      ],[
-                        AC_DEFINE([HAVE_HMAC_UPDATE], 1, 
-                            [If you have HMAC_Update])
+                    AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [[
+                        int EVP_sha256(void);
+                        (void)EVP_sha256();
+                      ]])],[
+                        AC_DEFINE([HAVE_EVP_SHA256], 1,
+                            [If you have EVP_sha256])
                         AC_MSG_RESULT(yes) 
                       ],[
                         AC_MSG_RESULT(no)
@@ -719,12 +727,12 @@ AC_DEFUN([ACX_SSL_CHECKS], [
                         LIBS="$LIBS -ldl -pthread"
                         LIBSSL_LIBS="$LIBSSL_LIBS -ldl -pthread"
                         AC_MSG_CHECKING([if -lcrypto needs -ldl -pthread])
-                        AC_TRY_LINK([], [
-                            int HMAC_Update(void);
-                            (void)HMAC_Update();
-                          ],[
-                            AC_DEFINE([HAVE_HMAC_UPDATE], 1, 
-                                [If you have HMAC_Update])
+                        AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [[
+                            int EVP_sha256(void);
+                            (void)EVP_sha256();
+                          ]])],[
+                            AC_DEFINE([HAVE_EVP_SHA256], 1,
+                                [If you have EVP_sha256])
                             AC_MSG_RESULT(yes) 
                           ],[
                             AC_MSG_RESULT(no)
@@ -749,8 +757,7 @@ dnl Checks main header files of SSL.
 dnl
 AC_DEFUN([ACX_WITH_SSL],
 [
-AC_ARG_WITH(ssl, AC_HELP_STRING([--with-ssl=pathname],
-                                    [enable SSL (will check /usr/local/ssl
+AC_ARG_WITH(ssl, AS_HELP_STRING([--with-ssl=pathname],[enable SSL (will check /usr/local/ssl
                             /usr/lib/ssl /usr/ssl /usr/pkg /usr/local /opt/local /usr/sfw /usr)]),[
         ],[
             withval="yes"
@@ -768,8 +775,7 @@ dnl Checks main header files of SSL.
 dnl
 AC_DEFUN([ACX_WITH_SSL_OPTIONAL],
 [
-AC_ARG_WITH(ssl, AC_HELP_STRING([--with-ssl=pathname],
-                                [enable SSL (will check /usr/local/ssl
+AC_ARG_WITH(ssl, AS_HELP_STRING([--with-ssl=pathname],[enable SSL (will check /usr/local/ssl
                                 /usr/lib/ssl /usr/ssl /usr/pkg /usr/local /opt/local /usr/sfw /usr)]),[
         ],[
             withval="yes"
@@ -839,7 +845,11 @@ dnl see if on windows
 if test "$ac_cv_header_windows_h" = "yes"; then
 	AC_DEFINE(USE_WINSOCK, 1, [Whether the windows socket API is used])
 	USE_WINSOCK="1"
-	LIBS="$LIBS -lws2_32"
+	if echo $LIBS | grep 'lws2_32' >/dev/null; then
+		:
+	else
+		LIBS="$LIBS -lws2_32"
+	fi
 fi
 ],
 dnl no quick getaddrinfo, try mingw32 and winsock2 library.
@@ -889,7 +899,7 @@ AC_CACHE_VAL(cv_cc_deprecated_$cache,
 [
 echo '$3' >conftest.c
 echo 'void f(){ $2 }' >>conftest.c
-if test -z "`$CC -c conftest.c 2>&1 | grep deprecated`"; then
+if test -z "`$CC $CPPFLAGS $CFLAGS -c conftest.c 2>&1 | grep -e deprecated -e unavailable`"; then
 eval "cv_cc_deprecated_$cache=no"
 else
 eval "cv_cc_deprecated_$cache=yes"
@@ -915,7 +925,7 @@ dnl a nonblocking socket do not work, a new call to select is necessary.
 AC_DEFUN([ACX_CHECK_NONBLOCKING_BROKEN],
 [
 AC_MSG_CHECKING([if nonblocking sockets work])
-if echo $target | grep mingw32 >/dev/null; then 
+if echo $host | grep mingw >/dev/null; then
 	AC_MSG_RESULT([no (windows)])
 	AC_DEFINE([NONBLOCKING_IS_BROKEN], 1, [Define if the network stack does not fully support nonblocking io (causes lower performance).])
 else
@@ -1057,7 +1067,7 @@ dnl defines MKDIR_HAS_ONE_ARG
 AC_DEFUN([ACX_MKDIR_ONE_ARG],
 [
 AC_MSG_CHECKING([whether mkdir has one arg])
-AC_TRY_COMPILE([
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 #include <stdio.h>
 #include <unistd.h>
 #ifdef HAVE_WINSOCK2_H
@@ -1066,14 +1076,12 @@ AC_TRY_COMPILE([
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
-], [
+]], [[
 	(void)mkdir("directory");
-],
-AC_MSG_RESULT(yes)
+]])],[AC_MSG_RESULT(yes)
 AC_DEFINE(MKDIR_HAS_ONE_ARG, 1, [Define if mkdir has one argument.])
-,
-AC_MSG_RESULT(no)
-)
+],[AC_MSG_RESULT(no)
+])
 ])dnl end of ACX_MKDIR_ONE_ARG
 
 dnl Check for ioctlsocket function. works on mingw32 too.
