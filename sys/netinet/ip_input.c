@@ -140,7 +140,9 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, check_interface, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ip_checkinterface), 0,
     "Verify packet arrives on correct interface");
 
-VNET_DEFINE(pfil_head_t, inet_pfil_head);	/* Packet filter hooks */
+/* Packet filter hooks */
+VNET_DEFINE(pfil_head_t, inet_pfil_head);
+VNET_DEFINE(pfil_head_t, inet_local_pfil_head);
 
 static struct netisr_handler ip_nh = {
 	.nh_name = "ip",
@@ -327,6 +329,10 @@ ip_init(void)
 	args.pa_type = PFIL_TYPE_IP4;
 	args.pa_headname = PFIL_INET_NAME;
 	V_inet_pfil_head = pfil_head_register(&args);
+
+	args.pa_flags = PFIL_OUT;
+	args.pa_headname = PFIL_INET_LOCAL_NAME;
+	V_inet_local_pfil_head = pfil_head_register(&args);
 
 	if (hhook_head_register(HHOOK_TYPE_IPSEC_IN, AF_INET,
 	    &V_ipsec_hhh_in[HHOOK_IPSEC_INET],
@@ -815,6 +821,20 @@ ours:
 	if (V_ipstealth && hlen > sizeof (struct ip) && ip_dooptions(m, 1))
 		return;
 #endif /* IPSTEALTH */
+
+	/*
+	 * We are going to ship the packet to the local protocol stack. Call the
+	 * filter again for this 'output' action, allowing redirect-like rules
+	 * to adjust the source address.
+	 */
+	if (PFIL_HOOKED_OUT(V_inet_local_pfil_head)) {
+		if (pfil_run_hooks(V_inet_local_pfil_head, &m, V_loif, PFIL_OUT, NULL) !=
+		    PFIL_PASS)
+			return;
+		if (m == NULL)			/* consumed by filter */
+			return;
+		ip = mtod(m, struct ip *);
+	}
 
 	/*
 	 * Attempt reassembly; if it succeeds, proceed.
