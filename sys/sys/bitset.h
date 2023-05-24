@@ -309,9 +309,6 @@
 #define	__BITSET_SIZE(_s)	(__bitset_words((_s)) * sizeof(long))
 
 #if defined(_KERNEL) || defined(_WANT_FREEBSD_BITSET)
-/*
- * Dynamically allocate a bitset.
- */
 #define	BIT_AND(_s, d, s)			__BIT_AND(_s, d, s)
 #define	BIT_AND2(_s, d, s1, s2)			__BIT_AND2(_s, d, s1, s2)
 #define	BIT_ANDNOT(_s, d, s)			__BIT_ANDNOT(_s, d, s)
@@ -328,8 +325,7 @@
 #define	BIT_FFS_AT(_s, p, start)		__BIT_FFS_AT(_s, p, start)
 #define	BIT_FILL(_s, p)				__BIT_FILL(_s, p)
 #define	BIT_FLS(_s, p)				__BIT_FLS(_s, p)
-#define BIT_FOREACH(_s, i, p, op)		__BIT_FOREACH(_s, i, p, op)
-#define	BIT_FOREACH_ADVANCE(_s, i, p, op)	__BIT_FOREACH_ADVANCE(_s, i, p, op)
+#define	BIT_FOREACH(_s, i, p, op)		__BIT_FOREACH(_s, i, p, op)
 #define	BIT_FOREACH_ISCLR(_s, i, p)		__BIT_FOREACH_ISCLR(_s, i, p)
 #define	BIT_FOREACH_ISSET(_s, i, p)		__BIT_FOREACH_ISSET(_s, i, p)
 #define	BIT_ISFULLSET(_s, p)			__BIT_ISFULLSET(_s, p)
@@ -350,6 +346,9 @@
 #define	BIT_ZERO(_s, p)				__BIT_ZERO(_s, p)
 
 #if defined(_KERNEL)
+/*
+ * Dynamically allocate a bitset.
+ */
 #define BITSET_ALLOC(_s, mt, mf)		malloc(__BITSET_SIZE((_s)), mt, (mf))
 #define	BITSET_FREE(p, mt)			free(p, mt)
 #endif /* _KERNEL */
