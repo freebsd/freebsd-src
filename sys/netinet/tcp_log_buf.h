@@ -259,7 +259,7 @@ enum tcp_log_events {
 	TCP_TIMELY_WORK,	/* Logs regarding Timely CC tweaks  58 */
 	TCP_LOG_USER_EVENT,	/* User space event data            59 */
 	TCP_LOG_SENDFILE,	/* sendfile() logging for TCP connections 60 */
-	TCP_LOG_HTTP_T,		/* logging of http request tracking 61 */
+	TCP_LOG_REQ_T,		/* logging of request tracking 61 */
 	TCP_LOG_ACCOUNTING,	/* Log of TCP Accounting data 62 */
 	TCP_LOG_FSB,		/* FSB information 63 */
 	RACK_DSACK_HANDLING,	/* Handling of DSACK in rack for reordering window 64 */
@@ -371,7 +371,7 @@ struct tcp_log_dev_log_queue {
 #define TCP_TP_ENOBUF		0x00000002	/* When we hit enobufs with software pacing */
 #define TCP_TP_COLLAPSED_WND	0x00000003	/* When a peer to collapses its rwnd on us */
 #define TCP_TP_COLLAPSED_RXT	0x00000004	/* When we actually retransmit a collapsed window rsm */
-#define TCP_TP_HTTP_LOG_FAIL	0x00000005	/* We tried to allocate a HTTP log but had no space */
+#define TCP_TP_REQ_LOG_FAIL	0x00000005	/* We tried to allocate a Request log but had no space */
 #define TCP_TP_RESET_RCV	0x00000006	/* Triggers when we receive a RST */
 #define TCP_TP_EXCESS_RXT	0x00000007	/* When we get excess RXT's clamping the cwnd */
 #define TCP_TP_SAD_TRIGGERED	0x00000008	/* Sack Attack Detection triggers */
@@ -511,7 +511,7 @@ tcp_trace_point(struct tcpcb *tp, int num)
  * your point will never come out. You specify your defined point in the bbpoint
  * side of the inline. An example of this you can find in rack where the
  * TCP_BBPOINT_REQ_LEVEL_LOGGING is used. There a specific set of logs are generated
- * for each http request that rack is tracking.
+ * for each request that tcp is tracking.
  *
  * When turning on BB logging use the inline:
  * tcp_set_bblog_state(struct tcpcb *tp, uint8_t ls, uint8_t bbpoint)

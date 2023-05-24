@@ -463,7 +463,7 @@ struct tcp_function_set {
 /*
  * TCP log user opaque
  */
-struct http_req {
+struct tcp_snd_req {
 	uint64_t timestamp;
 	uint64_t start;
 	uint64_t end;
@@ -471,7 +471,7 @@ struct http_req {
 };
 
 union tcp_log_userdata {
-	struct http_req http_req;
+	struct tcp_snd_req tcp_req;
 };
 
 struct tcp_log_user {
@@ -501,7 +501,7 @@ struct tcp_log_user {
 #define TCP_HYBRID_PACING_SETMSS	0x1000		/* Internal flag that tellsus we set the mss on this entry */
 
 struct tcp_hybrid_req {
-	struct http_req req;
+	struct tcp_snd_req req;
 	uint64_t cspr;
 	uint32_t hint_maxseg;
 	uint32_t hybrid_flags;

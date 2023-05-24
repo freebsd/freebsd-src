@@ -1,3 +1,4 @@
+
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
@@ -2852,7 +2853,7 @@ tcp_log_sendfile(struct socket *so, off_t offset, size_t nbytes, int flags)
 	struct inpcb *inp;
 	struct tcpcb *tp;
 #ifdef TCP_REQUEST_TRK
-	struct http_sendfile_track *ent;
+	struct tcp_sendfile_track *ent;
 	int i, fnd;
 #endif
 
@@ -2885,27 +2886,27 @@ tcp_log_sendfile(struct socket *so, off_t offset, size_t nbytes, int flags)
 		    TCP_LOG_SENDFILE, 0, 0, &log, false, &tv);
 	}
 #ifdef TCP_REQUEST_TRK
-	if (tp->t_http_req == 0) {
+	if (tp->t_tcpreq_req == 0) {
 		/* No http requests to track */
 		goto done;
 	}
 	fnd = 0;
-	if (tp->t_http_closed == 0) {
+	if (tp->t_tcpreq_closed == 0) {
 		/* No closed end req to track */
 		goto skip_closed_req;
 	}
-	for(i = 0; i < MAX_TCP_HTTP_REQ; i++) {
+	for(i = 0; i < MAX_TCP_TRK_REQ; i++) {
 		/* Lets see if this one can be found */
-		ent = &tp->t_http_info[i];
-		if (ent->flags == TCP_HTTP_TRACK_FLG_EMPTY) {
+		ent = &tp->t_tcpreq_info[i];
+		if (ent->flags == TCP_TRK_TRACK_FLG_EMPTY) {
 			/* Not used */
 			continue;
 		}
-		if (ent->flags & TCP_HTTP_TRACK_FLG_OPEN) {
+		if (ent->flags & TCP_TRK_TRACK_FLG_OPEN) {
 			/* This pass does not consider open requests */
 			continue;
 		}
-		if (ent->flags & TCP_HTTP_TRACK_FLG_COMP) {
+		if (ent->flags & TCP_TRK_TRACK_FLG_COMP) {
 			/* Don't look at what we have completed */
 			continue;
 		}
@@ -2919,7 +2920,7 @@ tcp_log_sendfile(struct socket *so, off_t offset, size_t nbytes, int flags)
 			/*
 			 * It is at or past the end, its complete.
 			 */
-			ent->flags |= TCP_HTTP_TRACK_FLG_SEQV;
+			ent->flags |= TCP_TRK_TRACK_FLG_SEQV;
 			/*
 			 * When an entry completes we can take (snd_una + sb_cc) and know where
 			 * the end of the range really is. Note that this works since two
@@ -2934,10 +2935,10 @@ tcp_log_sendfile(struct socket *so, off_t offset, size_t nbytes, int flags)
 			if (SEQ_GT((tp->snd_una + so->so_snd.sb_ccc), ent->end_seq))
 				ent->end_seq = tp->snd_una + so->so_snd.sb_ccc;
 			if ((offset + nbytes) >= ent->end) {
-				ent->flags |= TCP_HTTP_TRACK_FLG_COMP;
-				tcp_http_log_req_info(tp, ent, i, TCP_HTTP_REQ_LOG_COMPLETE, offset, nbytes);
+				ent->flags |= TCP_TRK_TRACK_FLG_COMP;
+				tcp_req_log_req_info(tp, ent, i, TCP_TRK_REQ_LOG_COMPLETE, offset, nbytes);
 			} else {
-				tcp_http_log_req_info(tp, ent, i, TCP_HTTP_REQ_LOG_MOREYET, offset, nbytes);
+				tcp_req_log_req_info(tp, ent, i, TCP_TRK_REQ_LOG_MOREYET, offset, nbytes);
 			}
 			/* We assume that sendfile never sends overlapping requests */
 			goto done;
@@ -2946,23 +2947,23 @@ tcp_log_sendfile(struct socket *so, off_t offset, size_t nbytes, int flags)
 skip_closed_req:
 	if (!fnd) {
 		/* Ok now lets look for open requests */
-		for(i = 0; i < MAX_TCP_HTTP_REQ; i++) {
-			ent = &tp->t_http_info[i];
-			if (ent->flags == TCP_HTTP_TRACK_FLG_EMPTY) {
+		for(i = 0; i < MAX_TCP_TRK_REQ; i++) {
+			ent = &tp->t_tcpreq_info[i];
+			if (ent->flags == TCP_TRK_TRACK_FLG_EMPTY) {
 				/* Not used */
 				continue;
 			}
-			if ((ent->flags & TCP_HTTP_TRACK_FLG_OPEN) == 0)
+			if ((ent->flags & TCP_TRK_TRACK_FLG_OPEN) == 0)
 				continue;
 			/* If we reach here its an allocated open request */
 			if (ent->start == offset) {
 				/* It begins this request */
 				ent->start_seq = tp->snd_una +
 				    tptosocket(tp)->so_snd.sb_ccc;
-				ent->flags |= TCP_HTTP_TRACK_FLG_SEQV;
+				ent->flags |= TCP_TRK_TRACK_FLG_SEQV;
 				break;
 			} else if (offset > ent->start) {
-				ent->flags |= TCP_HTTP_TRACK_FLG_SEQV;
+				ent->flags |= TCP_TRK_TRACK_FLG_SEQV;
 				break;
 			}
 		}
