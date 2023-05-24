@@ -5,6 +5,7 @@
 #include <openssl/bn.h>
 #include <openssl/err.h>
 #include <openssl/rsaerr.h>
+#include "internal/endian.h"
 #include "internal/numbers.h"
 #include "internal/constant_time.h"
 #include "bn_local.h"
@@ -12,8 +13,7 @@
 # if BN_BYTES == 8
 typedef uint64_t limb_t;
 #  if defined(__SIZEOF_INT128__) && __SIZEOF_INT128__ == 16
-/* nonstandard; implemented by gcc on 64-bit platforms */
-typedef __uint128_t limb2_t;
+typedef uint128_t limb2_t;
 #   define HAVE_LIMB2_T
 #  endif
 #  define LIMB_BIT_SIZE 64
@@ -439,7 +439,7 @@ static void mod_montgomery(limb_t *ret, limb_t *a, size_t anum, limb_t *mod,
 
     /* add multiples of the modulus to the value until R divides it cleanly */
     for (i = modnum; i > 0; i--, rp--) {
-        v = _mul_add_limb(rp, mod, modnum, rp[modnum - 1] * ni0, tmp2);
+        v = _mul_add_limb(rp, mod, modnum, rp[modnum-1] * ni0, tmp2);
         v = v + carry + rp[-1];
         carry |= (v != rp[-1]);
         carry &= (v <= rp[-1]);
@@ -467,48 +467,38 @@ static void BN_to_limb(const BIGNUM *bn, limb_t *buf, size_t limbs)
 #if LIMB_BYTE_SIZE == 8
 static ossl_inline uint64_t be64(uint64_t host)
 {
-    const union {
-        long one;
-        char little;
-    } is_endian = { 1 };
+    uint64_t big = 0;
+    DECLARE_IS_ENDIAN;
 
-    if (is_endian.little) {
-        uint64_t big = 0;
-
-        big |= (host & 0xff00000000000000) >> 56;
-        big |= (host & 0x00ff000000000000) >> 40;
-        big |= (host & 0x0000ff0000000000) >> 24;
-        big |= (host & 0x000000ff00000000) >>  8;
-        big |= (host & 0x00000000ff000000) <<  8;
-        big |= (host & 0x0000000000ff0000) << 24;
-        big |= (host & 0x000000000000ff00) << 40;
-        big |= (host & 0x00000000000000ff) << 56;
-        return big;
-    } else {
+    if (!IS_LITTLE_ENDIAN)
         return host;
-    }
+
+    big |= (host & 0xff00000000000000) >> 56;
+    big |= (host & 0x00ff000000000000) >> 40;
+    big |= (host & 0x0000ff0000000000) >> 24;
+    big |= (host & 0x000000ff00000000) >>  8;
+    big |= (host & 0x00000000ff000000) <<  8;
+    big |= (host & 0x0000000000ff0000) << 24;
+    big |= (host & 0x000000000000ff00) << 40;
+    big |= (host & 0x00000000000000ff) << 56;
+    return big;
 }
 
 #else
 /* Not all platforms have htobe32(). */
 static ossl_inline uint32_t be32(uint32_t host)
 {
-    const union {
-        long one;
-        char little;
-    } is_endian = { 1 };
+    uint32_t big = 0;
+    DECLARE_IS_ENDIAN;
 
-    if (is_endian.little) {
-        uint32_t big = 0;
-
-        big |= (host & 0xff000000) >> 24;
-        big |= (host & 0x00ff0000) >> 8;
-        big |= (host & 0x0000ff00) << 8;
-        big |= (host & 0x000000ff) << 24;
-        return big;
-    } else {
+    if (!IS_LITTLE_ENDIAN)
         return host;
-    }
+
+    big |= (host & 0xff000000) >> 24;
+    big |= (host & 0x00ff0000) >> 8;
+    big |= (host & 0x0000ff00) << 8;
+    big |= (host & 0x000000ff) << 24;
+    return big;
 }
 #endif
 
@@ -579,7 +569,7 @@ int ossl_bn_rsa_do_unblind(const BIGNUM *intermediate,
 
     /* modulus size in bytes can be equal to num but after limbs conversion it becomes bigger */
     if (num < BN_num_bytes(to_mod)) {
-        BNerr(BN_F_OSSL_BN_RSA_DO_UNBLIND, ERR_R_PASSED_INVALID_ARGUMENT);
+        ERR_raise(ERR_LIB_BN, ERR_R_PASSED_INVALID_ARGUMENT);
         goto err;
     }
 
