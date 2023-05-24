@@ -754,7 +754,7 @@ ixgbe_initialize_receive_units(if_ctx_t ctx)
 
 	ixgbe_initialize_rss_mapping(sc);
 
-	if (sc->num_rx_queues > 1) {
+	if (sc->feat_en & IXGBE_FEATURE_RSS) {
 		/* RSS and RX IPP Checksum are mutually exclusive */
 		rxcsum |= IXGBE_RXCSUM_PCSD;
 	}
