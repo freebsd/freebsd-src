@@ -26,17 +26,19 @@
 # SUCH DAMAGE.
 
 . $(atf_get_srcdir)/utils.subr
+. $(atf_get_srcdir)/runner.subr
 
-atf_test_case "basic" "cleanup"
 basic_head()
 {
-	atf_set descr 'Basic rdr test'
+	atf_set descr 'Basic IPv4 NAT test'
 	atf_set require.user root
 }
 
 basic_body()
 {
-	pft_init
+	firewall=$1
+	firewall_init $firewall
+	nat_init $firewall
 
 	epair=$(vnet_mkepair)
 
@@ -48,10 +50,13 @@ basic_body()
 	jexec alcatraz ifconfig ${epair}b 192.0.2.1/24 up
 	jexec alcatraz sysctl net.inet.ip.forwarding=1
 
-	# Enable pf!
-	jexec alcatraz pfctl -e
-	pft_set_rules alcatraz \
-		"rdr pass on ${epair}b proto tcp from any to 198.51.100.0/24 port 1234 -> 192.0.2.1 port 4321"
+	# Enable redirect filter rule
+	firewall_config alcatraz ${firewall} \
+		"pf" \
+			"rdr pass on ${epair}b proto tcp from any to 198.51.100.0/24 port 1234 -> 192.0.2.1 port 4321" \
+		"ipfnat" \
+			"rdr ${epair}b from any to 198.51.100.0/24 port = 1234 -> 192.0.2.1 port 4321 tcp"
+
 
 	echo "foo" | jexec alcatraz nc -N -l 4321 &
 	sleep 1
@@ -64,10 +69,69 @@ basic_body()
 
 basic_cleanup()
 {
-	pft_cleanup
+	firewall=$1
+	firewall_cleanup $firewall
 }
 
-atf_init_test_cases()
+local_redirect_head()
 {
-	atf_add_test_case "basic"
+	atf_set descr 'Redirect local traffic test'
+	atf_set require.user root
 }
+
+local_redirect_body()
+{
+	firewall=$1
+	firewall_init $firewall
+	nat_init $firewall
+
+	bridge=$(vnet_mkbridge)
+	ifconfig ${bridge} 192.0.2.1/24 up
+
+	epair1=$(vnet_mkepair)
+	epair2=$(vnet_mkepair)
+
+	vnet_mkjail first ${epair1}b
+	ifconfig ${epair1}a up
+	ifconfig ${bridge} addm ${epair1}a
+	jexec first ifconfig ${epair1}b 192.0.2.2/24 up
+	jexec first ifconfig lo0 127.0.0.1/8 up
+
+	vnet_mkjail second ${epair2}b
+	ifconfig ${epair2}a up
+	ifconfig ${bridge} addm ${epair2}a
+	jexec second ifconfig ${epair2}b 192.0.2.3/24 up
+	jexec second ifconfig lo0 127.0.0.1/8 up
+	jexec second sysctl net.inet.ip.forwarding=1
+
+	# Enable redirect filter rule
+	firewall_config second ${firewall} \
+		"pf" \
+			"rdr pass proto tcp from any to 192.0.2.3/24 port 1234 -> 192.0.2.2 port 4321" \
+		"ipfnat" \
+			"rdr '*' from any to 192.0.2.3/24 port = 1234 -> 192.0.2.2 port 4321 tcp"
+
+	echo "foo" | jexec first nc -N -l 4321 &
+	sleep 1
+
+	# Verify that second can use its rule to redirect local connections to first
+	result=$(jexec second nc -N -w 3 192.0.2.3 1234)
+	if [ "$result" != "foo" ]; then
+		atf_fail "Redirect failed"
+	fi
+}
+
+local_redirect_cleanup()
+{
+	firewall=$1
+	firewall_cleanup $firewall
+}
+
+setup_tests \
+		basic \
+			pf \
+			ipfnat \
+		local_redirect \
+			pf \
+			ipfnat
+

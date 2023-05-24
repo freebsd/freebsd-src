@@ -58,12 +58,16 @@ firewall_config()
 		jexec ${jname} pfctl -e
 		jexec ${jname} pfctl -F all
 		jexec ${jname} pfctl -f $cwd/pf.rule
+		jexec ${jname} pfilctl link -o pf:default-out inet-local
+		jexec ${jname} pfilctl link -o pf:default-out6 inet6-local
 	elif [ ${fw} == "ipf" ]; then
 		jexec ${jname} ipf -E
 		jexec ${jname} ipf -Fa -f $cwd/ipf.rule
 	elif [ ${fw} == "ipfnat" ]; then
 		jexec ${jname} service ipfilter start
 		jexec ${jname} ipnat -CF -f $cwd/ipfnat.rule
+		jexec ${jname} pfilctl link -o ipfilter:default-ip4 inet-local
+		jexec ${jname} pfilctl link -o ipfilter:default-ip6 inet6-local
 	else
 		atf_fail "$fw is not a valid firewall to configure"
 	fi
