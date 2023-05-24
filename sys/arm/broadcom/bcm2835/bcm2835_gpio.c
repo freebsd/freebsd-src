@@ -163,7 +163,7 @@ enum bcm_gpio_pud {
 #define	BCM2835_GPIO_GPPUDCLK(_bank) (0x98 + _bank * 4)	/* Pin Pull up clock */
 
 #define	BCM2711_GPIO_GPPUD(x)	(0x0e4 + (x) * sizeof(uint32_t)) /* Pin Pull up/down */
-#define	BCM2711_GPIO_MASK		(0x3)
+#define	BCM2711_GPIO_MASK	(0x3)
 #define	BCM2711_GPIO_SHIFT(n)	(((n) % 16) * 2)
 #define	BCM2711_GPIO_REGID(n)	((n) / 16)
 
