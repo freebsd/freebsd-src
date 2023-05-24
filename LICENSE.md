@@ -59,7 +59,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 The files `src/rand.c` and `include/rand.h` are under the following copyrights
 and license:
 
-Copyright (c) 2014-2017 Melissa O'Neill and PCG Project contributors
+Copyright (c) 2014-2017 Melissa O'Neill and PCG Project contributors<br>
 Copyright (c) 2018-2023 Gavin D. Howard <gavin@gavinhoward.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of

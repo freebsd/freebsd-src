@@ -47,6 +47,7 @@ misc7
 misc8
 void
 rand
+rand_limits
 recursive_arrays
 divmod
 modexp
