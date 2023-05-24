@@ -559,7 +559,7 @@ static int
 rack_do_syn_sent(struct mbuf *m, struct tcphdr *th,
     struct socket *so, struct tcpcb *tp, struct tcpopt *to, int32_t drop_hdrlen,
     int32_t tlen, uint32_t tiwin, int32_t thflags, int32_t nxt_pkt, uint8_t iptos);
-static void rack_chk_http_and_hybrid_on_out(struct tcp_rack *rack, tcp_seq seq, uint32_t len, uint64_t cts);
+static void rack_chk_req_and_hybrid_on_out(struct tcp_rack *rack, tcp_seq seq, uint32_t len, uint64_t cts);
 struct rack_sendmap *
 tcp_rack_output(struct tcpcb *tp, struct tcp_rack *rack,
     uint32_t tsused);
@@ -1967,7 +1967,7 @@ rack_get_fixed_pacing_bw(struct tcp_rack *rack)
 static void
 rack_log_hybrid_bw(struct tcp_rack *rack, uint32_t seq, uint64_t cbw, uint64_t tim,
 	uint64_t data, uint8_t mod, uint16_t aux,
-	struct http_sendfile_track *cur)
+	struct tcp_sendfile_track *cur)
 {
 #ifdef TCP_REQUEST_TRK
 	int do_log = 0;
@@ -2049,8 +2049,8 @@ rack_log_hybrid_bw(struct tcp_rack *rack, uint32_t seq, uint64_t cbw, uint64_t t
 			/* localtime = <delivered | applimited>*/
 			log.u_bbr.applimited = (uint32_t)(cur->localtime & 0x00000000ffffffff);
 			log.u_bbr.delivered = (uint32_t)((cur->localtime >> 32) & 0x00000000ffffffff);
-			off = (uint64_t)(cur) - (uint64_t)(&rack->rc_tp->t_http_info[0]);
-			log.u_bbr.bbr_substate = (uint8_t)(off / sizeof(struct http_sendfile_track));
+			off = (uint64_t)(cur) - (uint64_t)(&rack->rc_tp->t_tcpreq_info[0]);
+			log.u_bbr.bbr_substate = (uint8_t)(off / sizeof(struct tcp_sendfile_track));
 			log.u_bbr.flex4 = (uint32_t)(rack->rc_tp->t_sndbytes - cur->sent_at_fs);
 			log.u_bbr.flex5 = (uint32_t)(rack->rc_tp->t_snd_rxt_bytes - cur->rxt_at_fs);
 			log.u_bbr.flex7 = (uint16_t)cur->hybrid_flags;
@@ -2126,7 +2126,7 @@ rack_rate_cap_bw(struct tcp_rack *rack, uint64_t *bw, int *capped)
 		 * is in bw_rate_cap, but we need to look at
 		 * how long it is until we hit the deadline.
 		 */
-		struct http_sendfile_track *ent;
+		struct tcp_sendfile_track *ent;
 
 		ent = rack->r_ctl.rc_last_sft;
 		microuptime(&tv);
@@ -2153,7 +2153,7 @@ rack_rate_cap_bw(struct tcp_rack *rack, uint64_t *bw, int *capped)
 		 * Now ideally we want to use the end_seq to figure out how much more
 		 * but it might not be possible (only if we have the TRACK_FG_COMP on the entry..
 		 */
-		if (ent->flags & TCP_HTTP_TRACK_FLG_COMP) {
+		if (ent->flags & TCP_TRK_TRACK_FLG_COMP) {
 			if (SEQ_GT(ent->end_seq, rack->rc_tp->snd_una))
 				lenleft = ent->end_seq - rack->rc_tp->snd_una;
 			else {
@@ -8364,7 +8364,7 @@ rack_log_output(struct tcpcb *tp, struct tcpopt *to, int32_t len,
 	/* First question is it a retransmission or new? */
 	if (seq_out == snd_max) {
 		/* Its new */
-		rack_chk_http_and_hybrid_on_out(rack, seq_out, len, cts);
+		rack_chk_req_and_hybrid_on_out(rack, seq_out, len, cts);
 again:
 		rsm = rack_alloc(rack);
 		if (rsm == NULL) {
@@ -11552,7 +11552,7 @@ rack_check_bottom_drag(struct tcpcb *tp,
 #ifdef TCP_REQUEST_TRK
 static void
 rack_log_hybrid(struct tcp_rack *rack, uint32_t seq,
-		struct http_sendfile_track *cur, uint8_t mod, int line, int err)
+		struct tcp_sendfile_track *cur, uint8_t mod, int line, int err)
 {
 	int do_log;
 
@@ -11593,8 +11593,8 @@ rack_log_hybrid(struct tcp_rack *rack, uint32_t seq,
 			log.u_bbr.epoch = (uint32_t)(cur->deadline & 0x00000000ffffffff);
 			log.u_bbr.lt_epoch = (uint32_t)((cur->deadline >> 32) & 0x00000000ffffffff) ;
 			log.u_bbr.bbr_state = 1;
-			off = (uint64_t)(cur) - (uint64_t)(&rack->rc_tp->t_http_info[0]);
-			log.u_bbr.use_lt_bw = (uint8_t)(off / sizeof(struct http_sendfile_track));
+			off = (uint64_t)(cur) - (uint64_t)(&rack->rc_tp->t_tcpreq_info[0]);
+			log.u_bbr.use_lt_bw = (uint8_t)(off / sizeof(struct tcp_sendfile_track));
 		} else {
 			log.u_bbr.flex2 = err;
 		}
@@ -11626,15 +11626,15 @@ rack_log_hybrid(struct tcp_rack *rack, uint32_t seq,
 static void
 rack_set_dgp_hybrid_mode(struct tcp_rack *rack, tcp_seq seq, uint32_t len)
 {
-	struct http_sendfile_track *rc_cur;
+	struct tcp_sendfile_track *rc_cur;
 	struct tcpcb *tp;
 	int err = 0;
 
-	rc_cur = tcp_http_find_req_for_seq(rack->rc_tp, seq);
+	rc_cur = tcp_req_find_req_for_seq(rack->rc_tp, seq);
 	if (rc_cur == NULL) {
 		/* If not in the beginning what about the end piece */
 		rack_log_hybrid(rack, seq, NULL, HYBRID_LOG_NO_RANGE, __LINE__, err);
-		rc_cur = tcp_http_find_req_for_seq(rack->rc_tp, (seq + len - 1));
+		rc_cur = tcp_req_find_req_for_seq(rack->rc_tp, (seq + len - 1));
 	} else {
 		err = 12345;
 	}
@@ -11728,14 +11728,14 @@ rack_set_dgp_hybrid_mode(struct tcp_rack *rack, tcp_seq seq, uint32_t len)
 #endif
 
 static void
-rack_chk_http_and_hybrid_on_out(struct tcp_rack *rack, tcp_seq seq, uint32_t len, uint64_t cts)
+rack_chk_req_and_hybrid_on_out(struct tcp_rack *rack, tcp_seq seq, uint32_t len, uint64_t cts)
 {
 #ifdef TCP_REQUEST_TRK
-	struct http_sendfile_track *ent;
+	struct tcp_sendfile_track *ent;
 
 	ent = rack->r_ctl.rc_last_sft;
 	if ((ent == NULL) ||
-	    (ent->flags == TCP_HTTP_TRACK_FLG_EMPTY) ||
+	    (ent->flags == TCP_TRK_TRACK_FLG_EMPTY) ||
 	    (SEQ_GEQ(seq, ent->end_seq))) {
 		/* Time to update the track. */
 		rack_set_dgp_hybrid_mode(rack, seq, len);
@@ -11760,8 +11760,8 @@ rack_chk_http_and_hybrid_on_out(struct tcp_rack *rack, tcp_seq seq, uint32_t len
 		rack_log_hybrid_bw(rack, seq, len, 0, 0, HYBRID_LOG_EXTEND, 0, ent);
 	}
 	/* Now validate we have set the send time of this one */
-	if ((ent->flags & TCP_HTTP_TRACK_FLG_FSND) == 0) {
-		ent->flags |= TCP_HTTP_TRACK_FLG_FSND;
+	if ((ent->flags & TCP_TRK_TRACK_FLG_FSND) == 0) {
+		ent->flags |= TCP_TRK_TRACK_FLG_FSND;
 		ent->first_send = cts;
 		ent->sent_at_fs = rack->rc_tp->t_sndbytes;
 		ent->rxt_at_fs = rack->rc_tp->t_snd_rxt_bytes;
@@ -11908,9 +11908,9 @@ rack_adjust_sendmap_head(struct tcp_rack *rack, struct sockbuf *sb)
 
 #ifdef TCP_REQUEST_TRK
 static inline void
-rack_http_check_for_comp(struct tcp_rack *rack, tcp_seq th_ack)
+rack_req_check_for_comp(struct tcp_rack *rack, tcp_seq th_ack)
 {
-	struct http_sendfile_track *ent;
+	struct tcp_sendfile_track *ent;
 	int i;
 
 	if ((rack->rc_hybrid_mode == 0) &&
@@ -11919,7 +11919,7 @@ rack_http_check_for_comp(struct tcp_rack *rack, tcp_seq th_ack)
 		 * Just do normal completions hybrid pacing is not on
 		 * and CLDL is off as well.
 		 */
-		tcp_http_check_for_comp(rack->rc_tp, th_ack);
+		tcp_req_check_for_comp(rack->rc_tp, th_ack);
 		return;
 	}
 	/*
@@ -11929,12 +11929,12 @@ rack_http_check_for_comp(struct tcp_rack *rack, tcp_seq th_ack)
 	 * need to find all entries that are completed by th_ack not
 	 * just a single entry and do our logging.
 	 */
-	ent = tcp_http_find_a_req_that_is_completed_by(rack->rc_tp, th_ack, &i);
+	ent = tcp_req_find_a_req_that_is_completed_by(rack->rc_tp, th_ack, &i);
 	while (ent != NULL) {
 		/*
 		 * We may be doing hybrid pacing or CLDL and need more details possibly
 		 * so we do it manually instead of calling
-		 * tcp_http_check_for_comp()
+		 * tcp_req_check_for_comp()
 		 */
 		uint64_t laa, tim, data, cbw, ftim;
 
@@ -11944,7 +11944,7 @@ rack_http_check_for_comp(struct tcp_rack *rack, tcp_seq th_ack)
 		/* calculate the time based on the ack arrival */
 		data = ent->end - ent->start;
 		laa = tcp_tv_to_lusectick(&rack->r_ctl.act_rcv_time);
-		if (ent->flags & TCP_HTTP_TRACK_FLG_FSND) {
+		if (ent->flags & TCP_TRK_TRACK_FLG_FSND) {
 			if (ent->first_send > ent->localtime)
 				ftim = ent->first_send;
 			else
@@ -11971,11 +11971,11 @@ rack_http_check_for_comp(struct tcp_rack *rack, tcp_seq th_ack)
 		if (ent == rack->r_ctl.rc_last_sft)
 			rack->r_ctl.rc_last_sft = NULL;
 		/* Generate the log that the tcp_netflix call would have */
-		tcp_http_log_req_info(rack->rc_tp, ent,
-				      i, TCP_HTTP_REQ_LOG_FREED, 0, 0);
+		tcp_req_log_req_info(rack->rc_tp, ent,
+				      i, TCP_TRK_REQ_LOG_FREED, 0, 0);
 		/* Free it and see if there is another one */
-		tcp_http_free_a_slot(rack->rc_tp, ent);
-		ent = tcp_http_find_a_req_that_is_completed_by(rack->rc_tp, th_ack, &i);
+		tcp_req_free_a_slot(rack->rc_tp, ent);
+		ent = tcp_req_find_a_req_that_is_completed_by(rack->rc_tp, th_ack, &i);
 	}
 }
 #endif
@@ -12126,7 +12126,7 @@ rack_process_ack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if (rack->r_ctl.rc_hpts_flags & PACE_TMR_RXT)
 			rack_timer_cancel(tp, rack, rack->r_ctl.rc_rcvtime, __LINE__);
 #ifdef TCP_REQUEST_TRK
-		rack_http_check_for_comp(rack, th->th_ack);
+		rack_req_check_for_comp(rack, th->th_ack);
 #endif
 	}
 	/*
@@ -12984,7 +12984,7 @@ rack_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			rack_timer_cancel(tp, rack, rack->r_ctl.rc_rcvtime, __LINE__);
 
 #ifdef TCP_REQUEST_TRK
-		rack_http_check_for_comp(rack, th->th_ack);
+		rack_req_check_for_comp(rack, th->th_ack);
 #endif
 	}
 	/*
@@ -15571,12 +15571,12 @@ rack_log_input_packet(struct tcpcb *tp, struct tcp_rack *rack, struct tcp_ackent
 		uint8_t xx = 0;
 
 #ifdef TCP_REQUEST_TRK
-		struct http_sendfile_track *http_req;
+		struct tcp_sendfile_track *tcp_req;
 
 		if (SEQ_GT(ae->ack, tp->snd_una)) {
-			http_req = tcp_http_find_req_for_seq(tp, (ae->ack-1));
+			tcp_req = tcp_req_find_req_for_seq(tp, (ae->ack-1));
 		} else {
-			http_req = tcp_http_find_req_for_seq(tp, ae->ack);
+			tcp_req = tcp_req_find_req_for_seq(tp, ae->ack);
 		}
 #endif
 		memset(&log.u_bbr, 0, sizeof(log.u_bbr));
@@ -15618,29 +15618,29 @@ rack_log_input_packet(struct tcpcb *tp, struct tcp_rack *rack, struct tcp_ackent
 		/* Log the rcv time */
 		log.u_bbr.delRate = ae->timestamp;
 #ifdef TCP_REQUEST_TRK
-		log.u_bbr.applimited = tp->t_http_closed;
+		log.u_bbr.applimited = tp->t_tcpreq_closed;
 		log.u_bbr.applimited <<= 8;
-		log.u_bbr.applimited |= tp->t_http_open;
+		log.u_bbr.applimited |= tp->t_tcpreq_open;
 		log.u_bbr.applimited <<= 8;
-		log.u_bbr.applimited |= tp->t_http_req;
-		if (http_req) {
+		log.u_bbr.applimited |= tp->t_tcpreq_req;
+		if (tcp_req) {
 			/* Copy out any client req info */
 			/* seconds */
-			log.u_bbr.pkt_epoch = (http_req->localtime / HPTS_USEC_IN_SEC);
+			log.u_bbr.pkt_epoch = (tcp_req->localtime / HPTS_USEC_IN_SEC);
 			/* useconds */
-			log.u_bbr.delivered = (http_req->localtime % HPTS_USEC_IN_SEC);
-			log.u_bbr.rttProp = http_req->timestamp;
-			log.u_bbr.cur_del_rate = http_req->start;
-			if (http_req->flags & TCP_HTTP_TRACK_FLG_OPEN) {
+			log.u_bbr.delivered = (tcp_req->localtime % HPTS_USEC_IN_SEC);
+			log.u_bbr.rttProp = tcp_req->timestamp;
+			log.u_bbr.cur_del_rate = tcp_req->start;
+			if (tcp_req->flags & TCP_TRK_TRACK_FLG_OPEN) {
 				log.u_bbr.flex8 |= 1;
 			} else {
 				log.u_bbr.flex8 |= 2;
-				log.u_bbr.bw_inuse = http_req->end;
+				log.u_bbr.bw_inuse = tcp_req->end;
 			}
-			log.u_bbr.flex6 = http_req->start_seq;
-			if (http_req->flags & TCP_HTTP_TRACK_FLG_COMP) {
+			log.u_bbr.flex6 = tcp_req->start_seq;
+			if (tcp_req->flags & TCP_TRK_TRACK_FLG_COMP) {
 				log.u_bbr.flex8 |= 4;
-				log.u_bbr.epoch = http_req->end_seq;
+				log.u_bbr.epoch = tcp_req->end_seq;
 			}
 		}
 #endif
@@ -16028,7 +16028,7 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 				rack_process_to_cumack(tp, rack, ae->ack, cts, to,
 						       tcp_tv_to_lusectick(&rack->r_ctl.act_rcv_time));
 #ifdef TCP_REQUEST_TRK
-				rack_http_check_for_comp(rack, high_seq);
+				rack_req_check_for_comp(rack, high_seq);
 #endif
 				if (rack->rc_dsack_round_seen) {
 					/* Is the dsack round over? */
@@ -16665,12 +16665,12 @@ rack_do_segment_nounlock(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 		union tcp_log_stackspecific log;
 		struct timeval ltv;
 #ifdef TCP_REQUEST_TRK
-		struct http_sendfile_track *http_req;
+		struct tcp_sendfile_track *tcp_req;
 
 		if (SEQ_GT(th->th_ack, tp->snd_una)) {
-			http_req = tcp_http_find_req_for_seq(tp, (th->th_ack-1));
+			tcp_req = tcp_req_find_req_for_seq(tp, (th->th_ack-1));
 		} else {
-			http_req = tcp_http_find_req_for_seq(tp, th->th_ack);
+			tcp_req = tcp_req_find_req_for_seq(tp, th->th_ack);
 		}
 #endif
 		memset(&log.u_bbr, 0, sizeof(log.u_bbr));
@@ -16711,29 +16711,29 @@ rack_do_segment_nounlock(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 		/* Log the rcv time */
 		log.u_bbr.delRate = m->m_pkthdr.rcv_tstmp;
 #ifdef TCP_REQUEST_TRK
-		log.u_bbr.applimited = tp->t_http_closed;
+		log.u_bbr.applimited = tp->t_tcpreq_closed;
 		log.u_bbr.applimited <<= 8;
-		log.u_bbr.applimited |= tp->t_http_open;
+		log.u_bbr.applimited |= tp->t_tcpreq_open;
 		log.u_bbr.applimited <<= 8;
-		log.u_bbr.applimited |= tp->t_http_req;
-		if (http_req) {
+		log.u_bbr.applimited |= tp->t_tcpreq_req;
+		if (tcp_req) {
 			/* Copy out any client req info */
 			/* seconds */
-			log.u_bbr.pkt_epoch = (http_req->localtime / HPTS_USEC_IN_SEC);
+			log.u_bbr.pkt_epoch = (tcp_req->localtime / HPTS_USEC_IN_SEC);
 			/* useconds */
-			log.u_bbr.delivered = (http_req->localtime % HPTS_USEC_IN_SEC);
-			log.u_bbr.rttProp = http_req->timestamp;
-			log.u_bbr.cur_del_rate = http_req->start;
-			if (http_req->flags & TCP_HTTP_TRACK_FLG_OPEN) {
+			log.u_bbr.delivered = (tcp_req->localtime % HPTS_USEC_IN_SEC);
+			log.u_bbr.rttProp = tcp_req->timestamp;
+			log.u_bbr.cur_del_rate = tcp_req->start;
+			if (tcp_req->flags & TCP_TRK_TRACK_FLG_OPEN) {
 				log.u_bbr.flex8 |= 1;
 			} else {
 				log.u_bbr.flex8 |= 2;
-				log.u_bbr.bw_inuse = http_req->end;
+				log.u_bbr.bw_inuse = tcp_req->end;
 			}
-			log.u_bbr.flex6 = http_req->start_seq;
-			if (http_req->flags & TCP_HTTP_TRACK_FLG_COMP) {
+			log.u_bbr.flex6 = tcp_req->start_seq;
+			if (tcp_req->flags & TCP_TRK_TRACK_FLG_COMP) {
 				log.u_bbr.flex8 |= 4;
-				log.u_bbr.epoch = http_req->end_seq;
+				log.u_bbr.epoch = tcp_req->end_seq;
 			}
 		}
 #endif
@@ -22603,7 +22603,7 @@ static int
 process_hybrid_pacing(struct tcp_rack *rack, struct tcp_hybrid_req *hybrid)
 {
 #ifdef TCP_REQUEST_TRK
-	struct http_sendfile_track *sft;
+	struct tcp_sendfile_track *sft;
 	struct timeval tv;
 	tcp_seq seq;
 	int err;
@@ -22629,7 +22629,7 @@ process_hybrid_pacing(struct tcp_rack *rack, struct tcp_hybrid_req *hybrid)
 	rack->r_ctl.rc_fixed_pacing_rate_ca = 0;
 	rack->r_ctl.rc_fixed_pacing_rate_ss = 0;
 	/* Now allocate or find our entry that will have these settings */
-	sft = tcp_http_alloc_req_full(rack->rc_tp, &hybrid->req, tcp_tv_to_lusectick(&tv), 0);
+	sft = tcp_req_alloc_req_full(rack->rc_tp, &hybrid->req, tcp_tv_to_lusectick(&tv), 0);
 	if (sft == NULL) {
 		rack->rc_tp->tcp_hybrid_error++;
 		/* no space, where would it have gone? */

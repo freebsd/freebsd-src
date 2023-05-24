@@ -452,7 +452,7 @@ struct rack_control {
 	uint64_t lt_bw_time;	/* Total time with data outstanding (lt_bw = long term bandwidth)  */
 	uint64_t lt_bw_bytes;	/* Total bytes acked */
 	uint64_t lt_timemark;	/* 64 bit timestamp when we started sending */
-	struct http_sendfile_track *rc_last_sft;
+	struct tcp_sendfile_track *rc_last_sft;
 	uint32_t lt_seq;	/* Seq at start of lt_bw gauge */
 	int32_t rc_rtt_diff;		/* Timely style rtt diff of our gp_srtt */
 	uint64_t last_sndbytes;

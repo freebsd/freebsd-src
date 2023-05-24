@@ -4304,10 +4304,10 @@ tcp_estimate_tls_overhead(struct socket *so, uint64_t tls_usr_bytes)
 extern uint32_t tcp_stale_entry_time;
 uint32_t tcp_stale_entry_time = 250000;
 SYSCTL_UINT(_net_inet_tcp, OID_AUTO, usrlog_stale, CTLFLAG_RW,
-    &tcp_stale_entry_time, 250000, "Time that a http entry without a sendfile ages out");
+    &tcp_stale_entry_time, 250000, "Time that a tcpreq entry without a sendfile ages out");
 
 void
-tcp_http_log_req_info(struct tcpcb *tp, struct http_sendfile_track *http,
+tcp_req_log_req_info(struct tcpcb *tp, struct tcp_sendfile_track *req,
     uint16_t slot, uint8_t val, uint64_t offset, uint64_t nbytes)
 {
 	if (tcp_bblogging_on(tp)) {
@@ -4319,61 +4319,61 @@ tcp_http_log_req_info(struct tcpcb *tp, struct http_sendfile_track *http,
 		log.u_bbr.inhpts = tcp_in_hpts(tp);
 #endif
 		log.u_bbr.flex8 = val;
-		log.u_bbr.rttProp = http->timestamp;
-		log.u_bbr.delRate = http->start;
-		log.u_bbr.cur_del_rate = http->end;
-		log.u_bbr.flex1 = http->start_seq;
-		log.u_bbr.flex2 = http->end_seq;
-		log.u_bbr.flex3 = http->flags;
-		log.u_bbr.flex4 = ((http->localtime >> 32) & 0x00000000ffffffff);
-		log.u_bbr.flex5 = (http->localtime & 0x00000000ffffffff);
+		log.u_bbr.rttProp = req->timestamp;
+		log.u_bbr.delRate = req->start;
+		log.u_bbr.cur_del_rate = req->end;
+		log.u_bbr.flex1 = req->start_seq;
+		log.u_bbr.flex2 = req->end_seq;
+		log.u_bbr.flex3 = req->flags;
+		log.u_bbr.flex4 = ((req->localtime >> 32) & 0x00000000ffffffff);
+		log.u_bbr.flex5 = (req->localtime & 0x00000000ffffffff);
 		log.u_bbr.flex7 = slot;
 		log.u_bbr.bw_inuse = offset;
 		/* nbytes = flex6 | epoch */
 		log.u_bbr.flex6 = ((nbytes >> 32) & 0x00000000ffffffff);
 		log.u_bbr.epoch = (nbytes & 0x00000000ffffffff);
 		/* cspr =  lt_epoch | pkts_out */
-		log.u_bbr.lt_epoch = ((http->cspr >> 32) & 0x00000000ffffffff);
-		log.u_bbr.pkts_out |= (http->cspr & 0x00000000ffffffff);
-		log.u_bbr.applimited = tp->t_http_closed;
+		log.u_bbr.lt_epoch = ((req->cspr >> 32) & 0x00000000ffffffff);
+		log.u_bbr.pkts_out |= (req->cspr & 0x00000000ffffffff);
+		log.u_bbr.applimited = tp->t_tcpreq_closed;
 		log.u_bbr.applimited <<= 8;
-		log.u_bbr.applimited |= tp->t_http_open;
+		log.u_bbr.applimited |= tp->t_tcpreq_open;
 		log.u_bbr.applimited <<= 8;
-		log.u_bbr.applimited |= tp->t_http_req;
+		log.u_bbr.applimited |= tp->t_tcpreq_req;
 		log.u_bbr.timeStamp = tcp_get_usecs(&tv);
 		TCP_LOG_EVENTP(tp, NULL,
 		    &tptosocket(tp)->so_rcv,
 		    &tptosocket(tp)->so_snd,
-		    TCP_LOG_HTTP_T, 0,
+		    TCP_LOG_REQ_T, 0,
 		    0, &log, false, &tv);
 	}
 }
 
 void
-tcp_http_free_a_slot(struct tcpcb *tp, struct http_sendfile_track *ent)
+tcp_req_free_a_slot(struct tcpcb *tp, struct tcp_sendfile_track *ent)
 {
-	if (tp->t_http_req > 0)
-		tp->t_http_req--;
-	if (ent->flags & TCP_HTTP_TRACK_FLG_OPEN) {
-		if (tp->t_http_open > 0)
-			tp->t_http_open--;
+	if (tp->t_tcpreq_req > 0)
+		tp->t_tcpreq_req--;
+	if (ent->flags & TCP_TRK_TRACK_FLG_OPEN) {
+		if (tp->t_tcpreq_open > 0)
+			tp->t_tcpreq_open--;
 	} else {
-		if (tp->t_http_closed > 0)
-			tp->t_http_closed--;
+		if (tp->t_tcpreq_closed > 0)
+			tp->t_tcpreq_closed--;
 	}
-	ent->flags = TCP_HTTP_TRACK_FLG_EMPTY;
+	ent->flags = TCP_TRK_TRACK_FLG_EMPTY;
 }
 
 static void
-tcp_http_check_for_stale_entries(struct tcpcb *tp, uint64_t ts, int rm_oldest)
+tcp_req_check_for_stale_entries(struct tcpcb *tp, uint64_t ts, int rm_oldest)
 {
-	struct http_sendfile_track *ent;
+	struct tcp_sendfile_track *ent;
 	uint64_t time_delta, oldest_delta;
 	int i, oldest, oldest_set = 0, cnt_rm = 0;
 
-	for(i = 0; i < MAX_TCP_HTTP_REQ; i++) {
-		ent = &tp->t_http_info[i];
-		if (ent->flags != TCP_HTTP_TRACK_FLG_USED) {
+	for(i = 0; i < MAX_TCP_TRK_REQ; i++) {
+		ent = &tp->t_tcpreq_info[i];
+		if (ent->flags != TCP_TRK_TRACK_FLG_USED) {
 			/*
 			 * We only care about closed end ranges
 			 * that are allocated and have no sendfile
@@ -4398,43 +4398,43 @@ tcp_http_check_for_stale_entries(struct tcpcb *tp, uint64_t ts, int rm_oldest)
 			 * time to purge it.
 			 */
 			cnt_rm++;
-			tcp_http_log_req_info(tp, &tp->t_http_info[i], i, TCP_HTTP_REQ_LOG_STALE,
+			tcp_req_log_req_info(tp, &tp->t_tcpreq_info[i], i, TCP_TRK_REQ_LOG_STALE,
 					      time_delta, 0);
-			tcp_http_free_a_slot(tp, ent);
+			tcp_req_free_a_slot(tp, ent);
 		}
 	}
 	if ((cnt_rm == 0) && rm_oldest && oldest_set) {
-		ent = &tp->t_http_info[oldest];
-		tcp_http_log_req_info(tp, &tp->t_http_info[i], i, TCP_HTTP_REQ_LOG_STALE,
+		ent = &tp->t_tcpreq_info[oldest];
+		tcp_req_log_req_info(tp, &tp->t_tcpreq_info[i], i, TCP_TRK_REQ_LOG_STALE,
 				      oldest_delta, 1);
-		tcp_http_free_a_slot(tp, ent);
+		tcp_req_free_a_slot(tp, ent);
 	}
 }
 
 int
-tcp_http_check_for_comp(struct tcpcb *tp, tcp_seq ack_point)
+tcp_req_check_for_comp(struct tcpcb *tp, tcp_seq ack_point)
 {
 	int i, ret=0;
-	struct http_sendfile_track *ent;
+	struct tcp_sendfile_track *ent;
 
 	/* Clean up any old closed end requests that are now completed */
-	if (tp->t_http_req == 0)
+	if (tp->t_tcpreq_req == 0)
 		return(0);
-	if (tp->t_http_closed == 0)
+	if (tp->t_tcpreq_closed == 0)
 		return(0);
-	for(i = 0; i < MAX_TCP_HTTP_REQ; i++) {
-		ent = &tp->t_http_info[i];
+	for(i = 0; i < MAX_TCP_TRK_REQ; i++) {
+		ent = &tp->t_tcpreq_info[i];
 		/* Skip empty ones */
-		if (ent->flags == TCP_HTTP_TRACK_FLG_EMPTY)
+		if (ent->flags == TCP_TRK_TRACK_FLG_EMPTY)
 			continue;
 		/* Skip open ones */
-		if (ent->flags & TCP_HTTP_TRACK_FLG_OPEN)
+		if (ent->flags & TCP_TRK_TRACK_FLG_OPEN)
 			continue;
 		if (SEQ_GEQ(ack_point, ent->end_seq)) {
 			/* We are past it -- free it */
-			tcp_http_log_req_info(tp, ent,
-					      i, TCP_HTTP_REQ_LOG_FREED, 0, 0);
-			tcp_http_free_a_slot(tp, ent);
+			tcp_req_log_req_info(tp, ent,
+					      i, TCP_TRK_REQ_LOG_FREED, 0, 0);
+			tcp_req_free_a_slot(tp, ent);
 			ret++;
 		}
 	}
@@ -4442,13 +4442,13 @@ tcp_http_check_for_comp(struct tcpcb *tp, tcp_seq ack_point)
 }
 
 int
-tcp_http_is_entry_comp(struct tcpcb *tp, struct http_sendfile_track *ent, tcp_seq ack_point)
+tcp_req_is_entry_comp(struct tcpcb *tp, struct tcp_sendfile_track *ent, tcp_seq ack_point)
 {
-	if (tp->t_http_req == 0)
+	if (tp->t_tcpreq_req == 0)
 		return(-1);
-	if (tp->t_http_closed == 0)
+	if (tp->t_tcpreq_closed == 0)
 		return(-1);
-	if (ent->flags == TCP_HTTP_TRACK_FLG_EMPTY)
+	if (ent->flags == TCP_TRK_TRACK_FLG_EMPTY)
 		return(-1);
 	if (SEQ_GEQ(ack_point, ent->end_seq)) {
 		return (1);
@@ -4456,26 +4456,26 @@ tcp_http_is_entry_comp(struct tcpcb *tp, struct http_sendfile_track *ent, tcp_se
 	return (0);
 }
 
-struct http_sendfile_track *
-tcp_http_find_a_req_that_is_completed_by(struct tcpcb *tp, tcp_seq th_ack, int *ip)
+struct tcp_sendfile_track *
+tcp_req_find_a_req_that_is_completed_by(struct tcpcb *tp, tcp_seq th_ack, int *ip)
 {
 	/*
 	 * Given an ack point (th_ack) walk through our entries and
 	 * return the first one found that th_ack goes past the
 	 * end_seq.
 	 */
-	struct http_sendfile_track *ent;
+	struct tcp_sendfile_track *ent;
 	int i;
 
-	if (tp->t_http_req == 0) {
+	if (tp->t_tcpreq_req == 0) {
 		/* none open */
 		return (NULL);
 	}
-	for(i = 0; i < MAX_TCP_HTTP_REQ; i++) {
-		ent = &tp->t_http_info[i];
-		if (ent->flags == TCP_HTTP_TRACK_FLG_EMPTY)
+	for(i = 0; i < MAX_TCP_TRK_REQ; i++) {
+		ent = &tp->t_tcpreq_info[i];
+		if (ent->flags == TCP_TRK_TRACK_FLG_EMPTY)
 			continue;
-		if ((ent->flags & TCP_HTTP_TRACK_FLG_OPEN) == 0) {
+		if ((ent->flags & TCP_TRK_TRACK_FLG_OPEN) == 0) {
 			if (SEQ_GEQ(th_ack, ent->end_seq)) {
 				*ip = i;
 				return (ent);
@@ -4485,24 +4485,24 @@ tcp_http_find_a_req_that_is_completed_by(struct tcpcb *tp, tcp_seq th_ack, int *
 	return (NULL);
 }
 
-struct http_sendfile_track *
-tcp_http_find_req_for_seq(struct tcpcb *tp, tcp_seq seq)
+struct tcp_sendfile_track *
+tcp_req_find_req_for_seq(struct tcpcb *tp, tcp_seq seq)
 {
-	struct http_sendfile_track *ent;
+	struct tcp_sendfile_track *ent;
 	int i;
 
-	if (tp->t_http_req == 0) {
+	if (tp->t_tcpreq_req == 0) {
 		/* none open */
 		return (NULL);
 	}
-	for(i = 0; i < MAX_TCP_HTTP_REQ; i++) {
-		ent = &tp->t_http_info[i];
-		tcp_http_log_req_info(tp, ent, i, TCP_HTTP_REQ_LOG_SEARCH,
+	for(i = 0; i < MAX_TCP_TRK_REQ; i++) {
+		ent = &tp->t_tcpreq_info[i];
+		tcp_req_log_req_info(tp, ent, i, TCP_TRK_REQ_LOG_SEARCH,
 				      (uint64_t)seq, 0);
-		if (ent->flags == TCP_HTTP_TRACK_FLG_EMPTY) {
+		if (ent->flags == TCP_TRK_TRACK_FLG_EMPTY) {
 			continue;
 		}
-		if (ent->flags & TCP_HTTP_TRACK_FLG_OPEN) {
+		if (ent->flags & TCP_TRK_TRACK_FLG_OPEN) {
 			/*
 			 * An open end request only needs to
 			 * match the beginning seq or be
@@ -4511,7 +4511,7 @@ tcp_http_find_req_for_seq(struct tcpcb *tp, tcp_seq seq)
 			 * wrap).
 			 */
 			if ((SEQ_GEQ(seq, ent->start_seq)) ||
-			    (tp->t_http_closed == 0))
+			    (tp->t_tcpreq_closed == 0))
 				return (ent);
 		} else {
 			/*
@@ -4528,28 +4528,28 @@ tcp_http_find_req_for_seq(struct tcpcb *tp, tcp_seq seq)
 	return (NULL);
 }
 
-/* Should this be in its own file tcp_http.c ? */
-struct http_sendfile_track *
-tcp_http_alloc_req_full(struct tcpcb *tp, struct http_req *req, uint64_t ts, int rec_dups)
+/* Should this be in its own file tcp_req.c ? */
+struct tcp_sendfile_track *
+tcp_req_alloc_req_full(struct tcpcb *tp, struct tcp_snd_req *req, uint64_t ts, int rec_dups)
 {
-	struct http_sendfile_track *fil;
+	struct tcp_sendfile_track *fil;
 	int i, allocated;
 
 	/* In case the stack does not check for completions do so now */
-	tcp_http_check_for_comp(tp, tp->snd_una);
+	tcp_req_check_for_comp(tp, tp->snd_una);
 	/* Check for stale entries */
-	if (tp->t_http_req)
-		tcp_http_check_for_stale_entries(tp, ts,
-		    (tp->t_http_req >= MAX_TCP_HTTP_REQ));
+	if (tp->t_tcpreq_req)
+		tcp_req_check_for_stale_entries(tp, ts,
+		    (tp->t_tcpreq_req >= MAX_TCP_TRK_REQ));
 	/* Check to see if this is a duplicate of one not started */
-	if (tp->t_http_req) {
-		for(i = 0, allocated = 0; i < MAX_TCP_HTTP_REQ; i++) {
-			fil = &tp->t_http_info[i];
-			if (fil->flags != TCP_HTTP_TRACK_FLG_USED)
+	if (tp->t_tcpreq_req) {
+		for(i = 0, allocated = 0; i < MAX_TCP_TRK_REQ; i++) {
+			fil = &tp->t_tcpreq_info[i];
+			if (fil->flags != TCP_TRK_TRACK_FLG_USED)
 				continue;
 			if ((fil->timestamp == req->timestamp) &&
 			    (fil->start == req->start) &&
-			    ((fil->flags & TCP_HTTP_TRACK_FLG_OPEN) ||
+			    ((fil->flags & TCP_TRK_TRACK_FLG_OPEN) ||
 			     (fil->end == req->end))) {
 				/*
 				 * We already have this request
@@ -4563,19 +4563,19 @@ tcp_http_alloc_req_full(struct tcpcb *tp, struct http_req *req, uint64_t ts, int
 		}
 	}
 	/* Ok if there is no room at the inn we are in trouble */
-	if (tp->t_http_req >= MAX_TCP_HTTP_REQ) {
-		tcp_trace_point(tp, TCP_TP_HTTP_LOG_FAIL);
-		for(i = 0; i < MAX_TCP_HTTP_REQ; i++) {
-			tcp_http_log_req_info(tp, &tp->t_http_info[i],
-			    i, TCP_HTTP_REQ_LOG_ALLOCFAIL, 0, 0);
+	if (tp->t_tcpreq_req >= MAX_TCP_TRK_REQ) {
+		tcp_trace_point(tp, TCP_TP_REQ_LOG_FAIL);
+		for(i = 0; i < MAX_TCP_TRK_REQ; i++) {
+			tcp_req_log_req_info(tp, &tp->t_tcpreq_info[i],
+			    i, TCP_TRK_REQ_LOG_ALLOCFAIL, 0, 0);
 		}
 		return (NULL);
 	}
-	for(i = 0, allocated = 0; i < MAX_TCP_HTTP_REQ; i++) {
-		fil = &tp->t_http_info[i];
-		if (fil->flags == TCP_HTTP_TRACK_FLG_EMPTY) {
+	for(i = 0, allocated = 0; i < MAX_TCP_TRK_REQ; i++) {
+		fil = &tp->t_tcpreq_info[i];
+		if (fil->flags == TCP_TRK_TRACK_FLG_EMPTY) {
 			allocated = 1;
-			fil->flags = TCP_HTTP_TRACK_FLG_USED;
+			fil->flags = TCP_TRK_TRACK_FLG_USED;
 			fil->timestamp = req->timestamp;
 			fil->localtime = ts;
 			fil->start = req->start;
@@ -4583,7 +4583,7 @@ tcp_http_alloc_req_full(struct tcpcb *tp, struct http_req *req, uint64_t ts, int
 				fil->end = req->end;
 			} else {
 				fil->end = 0;
-				fil->flags |= TCP_HTTP_TRACK_FLG_OPEN;
+				fil->flags |= TCP_TRK_TRACK_FLG_OPEN;
 			}
 			/*
 			 * We can set the min boundaries to the TCP Sequence space,
@@ -4602,13 +4602,13 @@ tcp_http_alloc_req_full(struct tcpcb *tp, struct http_req *req, uint64_t ts, int
 				fil->end_seq += tcp_estimate_tls_overhead(
 				    tptosocket(tp), (fil->end - fil->start));
 			}
-			tp->t_http_req++;
-			if (fil->flags & TCP_HTTP_TRACK_FLG_OPEN)
-				tp->t_http_open++;
+			tp->t_tcpreq_req++;
+			if (fil->flags & TCP_TRK_TRACK_FLG_OPEN)
+				tp->t_tcpreq_open++;
 			else
-				tp->t_http_closed++;
-			tcp_http_log_req_info(tp, fil, i,
-			    TCP_HTTP_REQ_LOG_NEW, 0, 0);
+				tp->t_tcpreq_closed++;
+			tcp_req_log_req_info(tp, fil, i,
+			    TCP_TRK_REQ_LOG_NEW, 0, 0);
 			break;
 		} else
 			fil = NULL;
@@ -4617,9 +4617,9 @@ tcp_http_alloc_req_full(struct tcpcb *tp, struct http_req *req, uint64_t ts, int
 }
 
 void
-tcp_http_alloc_req(struct tcpcb *tp, union tcp_log_userdata *user, uint64_t ts)
+tcp_req_alloc_req(struct tcpcb *tp, union tcp_log_userdata *user, uint64_t ts)
 {
-	(void)tcp_http_alloc_req_full(tp, &user->http_req, ts, 1);
+	(void)tcp_req_alloc_req_full(tp, &user->tcp_req, ts, 1);
 }
 #endif
 

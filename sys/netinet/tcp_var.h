@@ -61,14 +61,14 @@
 #define TCP_EI_STATUS_2MSL		0xb
 #define TCP_EI_STATUS_MAX_VALUE		0xb
 
-#define TCP_HTTP_REQ_LOG_NEW		0x01
-#define TCP_HTTP_REQ_LOG_COMPLETE	0x02
-#define TCP_HTTP_REQ_LOG_FREED		0x03
-#define TCP_HTTP_REQ_LOG_ALLOCFAIL	0x04
-#define TCP_HTTP_REQ_LOG_MOREYET	0x05
-#define TCP_HTTP_REQ_LOG_FORCEFREE	0x06
-#define TCP_HTTP_REQ_LOG_STALE		0x07
-#define TCP_HTTP_REQ_LOG_SEARCH		0x08
+#define TCP_TRK_REQ_LOG_NEW		0x01
+#define TCP_TRK_REQ_LOG_COMPLETE	0x02
+#define TCP_TRK_REQ_LOG_FREED		0x03
+#define TCP_TRK_REQ_LOG_ALLOCFAIL	0x04
+#define TCP_TRK_REQ_LOG_MOREYET	0x05
+#define TCP_TRK_REQ_LOG_FORCEFREE	0x06
+#define TCP_TRK_REQ_LOG_STALE		0x07
+#define TCP_TRK_REQ_LOG_SEARCH		0x08
 
 /************************************************/
 /* Status bits we track to assure no duplicates,
@@ -135,16 +135,15 @@ struct sackhint {
 
 STAILQ_HEAD(tcp_log_stailq, tcp_log_mem);
 
-#define TCP_HTTP_TRACK_FLG_EMPTY 0x00	/* Available */
-#define TCP_HTTP_TRACK_FLG_USED  0x01	/* In use */
-#define TCP_HTTP_TRACK_FLG_OPEN  0x02	/* End is not valid (open range request) */
-#define TCP_HTTP_TRACK_FLG_SEQV  0x04	/* We had a sendfile that touched it  */
-#define TCP_HTTP_TRACK_FLG_COMP  0x08	/* Sendfile as placed the last bits (range req only) */
-#define TCP_HTTP_TRACK_FLG_FSND	 0x10	/* First send has been done into the seq space */
-#define MAX_TCP_HTTP_REQ 5		/* Max we will have at once */
+#define TCP_TRK_TRACK_FLG_EMPTY 0x00	/* Available */
+#define TCP_TRK_TRACK_FLG_USED  0x01	/* In use */
+#define TCP_TRK_TRACK_FLG_OPEN  0x02	/* End is not valid (open range request) */
+#define TCP_TRK_TRACK_FLG_SEQV  0x04	/* We had a sendfile that touched it  */
+#define TCP_TRK_TRACK_FLG_COMP  0x08	/* Sendfile as placed the last bits (range req only) */
+#define TCP_TRK_TRACK_FLG_FSND	 0x10	/* First send has been done into the seq space */
+#define MAX_TCP_TRK_REQ 5		/* Max we will have at once */
 
-#ifdef TCP_REQUEST_TRK
-struct http_sendfile_track {
+struct tcp_sendfile_track {
 	uint64_t timestamp;	/* User sent timestamp */
 	uint64_t start;		/* Start of sendfile offset */
 	uint64_t end;		/* End if not open-range req */
@@ -162,7 +161,6 @@ struct http_sendfile_track {
 	uint32_t hybrid_flags;	/* Hybrid flags on this request */
 };
 
-#endif
 
 /*
  * Change Query responses for a stack switch we create a structure
@@ -490,10 +488,10 @@ struct tcpcb {
 	uint8_t _t_logpoint;	/* Used when a BB log points is enabled */
 #ifdef TCP_REQUEST_TRK
 	/* Response tracking addons. */
-	uint8_t t_http_req;	/* Request count */
-	uint8_t t_http_open;	/* Number of open range requests */
-	uint8_t t_http_closed;	/* Number of closed range requests */
-	struct http_sendfile_track t_http_info[MAX_TCP_HTTP_REQ];
+	uint8_t t_tcpreq_req;	/* Request count */
+	uint8_t t_tcpreq_open;	/* Number of open range requests */
+	uint8_t t_tcpreq_closed;	/* Number of closed range requests */
+	struct tcp_sendfile_track t_tcpreq_info[MAX_TCP_TRK_REQ];
 #endif
 };
 #endif	/* _KERNEL || _WANT_TCPCB */
@@ -1512,27 +1510,27 @@ struct mbuf *
 int	tcp_stats_init(void);
 void tcp_log_end_status(struct tcpcb *tp, uint8_t status);
 #ifdef TCP_REQUEST_TRK
-void tcp_http_free_a_slot(struct tcpcb *tp, struct http_sendfile_track *ent);
-struct http_sendfile_track *
-tcp_http_find_a_req_that_is_completed_by(struct tcpcb *tp, tcp_seq th_ack, int *ip);
-int tcp_http_check_for_comp(struct tcpcb *tp, tcp_seq ack_point);
+void tcp_req_free_a_slot(struct tcpcb *tp, struct tcp_sendfile_track *ent);
+struct tcp_sendfile_track *
+tcp_req_find_a_req_that_is_completed_by(struct tcpcb *tp, tcp_seq th_ack, int *ip);
+int tcp_req_check_for_comp(struct tcpcb *tp, tcp_seq ack_point);
 int
-tcp_http_is_entry_comp(struct tcpcb *tp, struct http_sendfile_track *ent, tcp_seq ack_point);
-struct http_sendfile_track *
-tcp_http_find_req_for_seq(struct tcpcb *tp, tcp_seq seq);
+tcp_req_is_entry_comp(struct tcpcb *tp, struct tcp_sendfile_track *ent, tcp_seq ack_point);
+struct tcp_sendfile_track *
+tcp_req_find_req_for_seq(struct tcpcb *tp, tcp_seq seq);
 void
-tcp_http_log_req_info(struct tcpcb *tp,
-    struct http_sendfile_track *http, uint16_t slot,
+tcp_req_log_req_info(struct tcpcb *tp,
+    struct tcp_sendfile_track *req, uint16_t slot,
     uint8_t val, uint64_t offset, uint64_t nbytes);
 
 uint32_t
 tcp_estimate_tls_overhead(struct socket *so, uint64_t tls_usr_bytes);
 void
-tcp_http_alloc_req(struct tcpcb *tp, union tcp_log_userdata *user,
+tcp_req_alloc_req(struct tcpcb *tp, union tcp_log_userdata *user,
     uint64_t ts);
 
-struct http_sendfile_track *
-tcp_http_alloc_req_full(struct tcpcb *tp, struct http_req *req, uint64_t ts, int rec_dups);
+struct tcp_sendfile_track *
+tcp_req_alloc_req_full(struct tcpcb *tp, struct tcp_snd_req *req, uint64_t ts, int rec_dups);
 
 
 #endif
