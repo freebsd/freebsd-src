@@ -19,6 +19,7 @@ WARNS?=		2
 .if ${MK_OPENSSL} != "no"
 SRCS+=		encrypt.c auth.c enc_des.c sra.c pk.c
 CFLAGS+=	-DENCRYPTION -DAUTHENTICATION -DSRA
+CFLAGS+=	-DOPENSSL_API_COMPAT=0x10100000L
 .endif
 
 .if ${MK_KERBEROS_SUPPORT} != "no"
