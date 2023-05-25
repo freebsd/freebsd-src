@@ -2703,12 +2703,21 @@ bc_program_globalSetting(BcProgram* p, uchar inst)
 	assert(inst >= BC_INST_LINE_LENGTH && inst <= BC_INST_LEADING_ZERO);
 #endif // DC_ENABLED
 
-	if (inst == BC_INST_LINE_LENGTH) val = (BcBigDig) vm->line_len;
+	if (inst == BC_INST_LINE_LENGTH)
+	{
+		val = (BcBigDig) vm->line_len;
+	}
 #if BC_ENABLED
-	else if (inst == BC_INST_GLOBAL_STACKS) val = (BC_G != 0);
+	else if (inst == BC_INST_GLOBAL_STACKS)
+	{
+		val = (BC_G != 0);
+	}
 #endif // BC_ENABLED
 #if DC_ENABLED
-	else if (inst == BC_INST_EXTENDED_REGISTERS) val = (DC_X != 0);
+	else if (inst == BC_INST_EXTENDED_REGISTERS)
+	{
+		val = (DC_X != 0);
+	}
 #endif // DC_ENABLED
 	else val = (BC_Z != 0);
 

@@ -517,8 +517,11 @@ bc_rand_int(BcRNG* r)
 BcRand
 bc_rand_bounded(BcRNG* r, BcRand bound)
 {
+	BcRand rand;
+	BcRand threshold;
+
 	// Calculate the threshold below which we have to try again.
-	BcRand rand, threshold = (0 - bound) % bound;
+	threshold = (0 - bound) % bound;
 
 	do
 	{

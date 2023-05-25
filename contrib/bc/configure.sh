@@ -772,7 +772,7 @@ predefined_build() {
 			dc_default_digit_clamp=0;;
 
 		GDH)
-			CFLAGS="-flto -Weverything -Wno-padded -Werror -pedantic -std=c11"
+			CFLAGS="-flto -Weverything -Wno-padded -Wno-unsafe-buffer-usage -Werror -pedantic -std=c11"
 			bc_only=0
 			dc_only=0
 			coverage=0
@@ -806,7 +806,7 @@ predefined_build() {
 			dc_default_digit_clamp=1;;
 
 		DBG)
-			CFLAGS="-Weverything -Wno-padded -Werror -pedantic -std=c11"
+			CFLAGS="-Weverything -Wno-padded -Wno-unsafe-buffer-usage -Werror -pedantic -std=c11"
 			bc_only=0
 			dc_only=0
 			coverage=0
@@ -1653,12 +1653,12 @@ else
 	# We are also setting the CFLAGS and LDFLAGS here.
 	if [ "$editline" -ne 0 ]; then
 		LDFLAGS="$LDFLAGS -ledit"
-		CFLAGS="$CFLAGS -DBC_ENABLE_EDITLINE=1 -DBC_ENABLE_READLINE=0"
+		CPPFLAGS="$CPPFLAGS -DBC_ENABLE_EDITLINE=1 -DBC_ENABLE_READLINE=0"
 	elif [ "$readline" -ne 0 ]; then
 		LDFLAGS="$LDFLAGS -lreadline"
-		CFLAGS="$CFLAGS -DBC_ENABLE_EDITLINE=0 -DBC_ENABLE_READLINE=1"
+		CPPFLAGS="$CPPFLAGS -DBC_ENABLE_EDITLINE=0 -DBC_ENABLE_READLINE=1"
 	else
-		CFLAGS="$CFLAGS -DBC_ENABLE_EDITLINE=0 -DBC_ENABLE_READLINE=0"
+		CPPFLAGS="$CPPFLAGS -DBC_ENABLE_EDITLINE=0 -DBC_ENABLE_READLINE=0"
 	fi
 
 fi
@@ -1682,6 +1682,24 @@ else
 	CPPFLAGS="$CPPFLAGS -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700"
 fi
 
+# Test Mac OSX. This is not in an if statement because regardless of whatever
+# the user says, we need to know if we are on Mac OSX. If we are, we have to set
+# _DARWIN_C_SOURCE.
+printf 'Testing for Mac OSX...\n'
+
+flags="-DBC_TEST_APPLE -DBC_ENABLE_AFL=0"
+"$CC" $CPPFLAGS $CFLAGS $flags "-I$scriptdir/include" -E "$scriptdir/src/vm.c" > /dev/null 2>&1
+
+err="$?"
+
+if [ "$err" -ne 0 ]; then
+	printf 'On Mac OSX. Using _DARWIN_C_SOURCE.\n\n'
+	apple="-D_DARWIN_C_SOURCE"
+else
+	printf 'Not on Mac OSX.\n\n'
+	apple=""
+fi
+
 # Test OpenBSD. This is not in an if statement because regardless of whatever
 # the user says, we need to know if we are on OpenBSD to activate _BSD_SOURCE.
 # No, I cannot `#define _BSD_SOURCE` in a header because OpenBSD's patched GCC
@@ -1690,7 +1708,6 @@ fi
 # we have to set it because we also set _POSIX_C_SOURCE, which OpenBSD headers
 # detect, and when they detect it, they turn off _BSD_SOURCE unless it is
 # specifically requested.
-set +e
 printf 'Testing for OpenBSD...\n'
 
 flags="-DBC_TEST_OPENBSD -DBC_ENABLE_AFL=0"
@@ -1712,6 +1729,8 @@ else
 	printf 'Not on OpenBSD.\n\n'
 	bsd=""
 fi
+
+set -e
 
 if [ "$library" -eq 1 ]; then
 	bc_lib=""
@@ -2072,6 +2091,7 @@ contents=$(replace "$contents" "CLEAN_PREREQS" "$CLEAN_PREREQS")
 contents=$(replace "$contents" "GEN_EMU" "$GEN_EMU")
 
 contents=$(replace "$contents" "BSD" "$bsd")
+contents=$(replace "$contents" "APPLE" "$apple")
 
 contents=$(replace "$contents" "BC_DEFAULT_BANNER" "$bc_default_banner")
 contents=$(replace "$contents" "BC_DEFAULT_SIGINT_RESET" "$bc_default_sigint_reset")

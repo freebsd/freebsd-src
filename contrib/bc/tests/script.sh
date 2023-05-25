@@ -190,11 +190,17 @@ else
 		exit 0
 	fi
 
-	# This sed, and the script, are to remove an incompatibility with GNU bc,
-	# where GNU bc is wrong. See the development manual
-	# (manuals/development.md#script-tests) for more information.
 	printf 'Generating %s results...' "$f"
-	printf '%s\n' "$halt" 2> /dev/null | "$d" "$s" | sed -n -f "$testdir/script.sed" > "$results"
+
+	# This particular test needs to be generated straight.
+	if [ "$d" = "dc" ] && [ "$f" = "stream.dc" ]; then
+		printf '%s\n' "$halt" 2> /dev/null | "$d" "$s" > "$results"
+	else
+		# This sed, and the script, are to remove an incompatibility with GNU
+		# bc, where GNU bc is wrong. See the development manual
+		# (manuals/development.md#script-tests) for more information.
+		printf '%s\n' "$halt" 2> /dev/null | "$d" "$s" | sed -n -f "$testdir/script.sed" > "$results"
+	fi
 	printf 'done\n'
 	res="$results"
 fi
