@@ -926,15 +926,18 @@ free_unr(struct unrhdr *uh, u_int item)
 		Free(p2);
 }
 
-#ifndef _KERNEL	/* USERLAND test driver */
+#ifdef _KERNEL
+#include "opt_ddb.h"
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
+#endif
 
-/*
- * Simple stochastic test driver for the above functions.  The code resides
- * here so that it can access static functions and structures.
- */
+#if (defined(_KERNEL) && defined(DDB)) || !defined(_KERNEL)
 
-static bool verbose;
-#define VPRINTF(...)	{if (verbose) printf(__VA_ARGS__);}
+#if !defined(_KERNEL)
+#define db_printf printf
+#endif
 
 static void
 print_unr(struct unrhdr *uh, struct unr *up)
@@ -942,21 +945,21 @@ print_unr(struct unrhdr *uh, struct unr *up)
 	u_int x;
 	struct unrb *ub;
 
-	printf("  %p len = %5u ", up, up->len);
+	db_printf("  %p len = %5u ", up, up->len);
 	if (up->ptr == NULL)
-		printf("free\n");
+		db_printf("free\n");
 	else if (up->ptr == uh)
-		printf("alloc\n");
+		db_printf("alloc\n");
 	else {
 		ub = up->ptr;
-		printf("bitmap [");
+		db_printf("bitmap [");
 		for (x = 0; x < up->len; x++) {
 			if (bit_test(ub->map, x))
-				printf("#");
+				db_printf("#");
 			else
-				printf(" ");
+				db_printf(" ");
 		}
-		printf("]\n");
+		db_printf("]\n");
 	}
 }
 
@@ -966,12 +969,12 @@ print_unrhdr(struct unrhdr *uh)
 	struct unr *up;
 	u_int x;
 
-	printf(
+	db_printf(
 	    "%p low = %u high = %u first = %u last = %u busy %u chunks = %u\n",
 	    uh, uh->low, uh->high, uh->first, uh->last, uh->busy, uh->alloc);
 	x = uh->low + uh->first;
 	TAILQ_FOREACH(up, &uh->head, list) {
-		printf("  from = %5u", x);
+		db_printf("  from = %5u", x);
 		print_unr(uh, up);
 		if (up->ptr == NULL || up->ptr == uh)
 			x += up->len;
@@ -979,6 +982,30 @@ print_unrhdr(struct unrhdr *uh)
 			x += NBITS;
 	}
 }
+
+#endif
+
+#if defined(_KERNEL) && defined(DDB)
+DB_SHOW_COMMAND(unrhdr, unrhdr_print_unrhdr)
+{
+	if (!have_addr) {
+		db_printf("show unrhdr addr\n");
+		return;
+	}
+
+	print_unrhdr((struct unrhdr *)addr);
+}
+#endif
+
+#ifndef _KERNEL	/* USERLAND test driver */
+
+/*
+ * Simple stochastic test driver for the above functions.  The code resides
+ * here so that it can access static functions and structures.
+ */
+
+static bool verbose;
+#define VPRINTF(...)	{if (verbose) printf(__VA_ARGS__);}
 
 static void
 test_alloc_unr(struct unrhdr *uh, u_int i, char a[])
