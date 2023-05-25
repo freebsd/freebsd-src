@@ -9,6 +9,7 @@ CFLAGS+=-I${SRCTOP}/usr.bin/primes
 
 .if ${MK_OPENSSL} != "no"
 CFLAGS+=-DHAVE_OPENSSL
+CFLAGS+=-DOPENSSL_API_COMPAT=0x10100000L
 LIBADD+=crypto
 .endif
 
