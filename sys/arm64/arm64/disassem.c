@@ -91,6 +91,8 @@ enum arm64_format_type {
 	/*
 	 * OP <RD>, <RN>, <RM>{, <shift [LSL, LSR, ASR]> #imm} SF32/64
 	 * OP <RD>, <RN>, #<imm>{, <shift [0, 12]>} SF32/64
+	 * OP <RD>, <RM> {, <shift> #<imm> }
+	 * OP <RN>, <RM> {, <shift> #<imm> }
 	 */
 	TYPE_01,
 
@@ -151,6 +153,10 @@ static struct arm64_insn arm64_i[] = {
 	    TYPE_01, OP_RD_SP | OP_RN_SP },	/* mov (to/from sp) */
 	{ "add", "SF(1)|0010001|SHIFT(2)|IMM(12)|RN(5)|RD(5)",
 	    TYPE_01, OP_RD_SP | OP_RN_SP },	/* add immediate */
+	{ "cmn", "SF(1)|0101011|SHIFT(2)|0|RM(5)|IMM(6)|RN(5)|11111",
+	    TYPE_01, 0 },			/* cmn shifted register */
+	{ "adds", "SF(1)|0101011|SHIFT(2)|0|RM(5)|IMM(6)|RN(5)|RD(5)",
+	    TYPE_01, 0 },			/* adds shifted register */
 	{ "ldr", "1|SF(1)|111000010|IMM(9)|OPTION(2)|RN(5)|RT(5)",
 	    TYPE_02, OP_SIGN_EXT | OP_RN_SP },	/* ldr immediate post/pre index */
 	{ "ldr", "1|SF(1)|11100101|IMM(12)|RN(5)|RT(5)",
@@ -216,6 +222,16 @@ static struct arm64_insn arm64_i[] = {
 	{ "strh", "01111000001|RM(5)|OPTION(3)|SCALE(1)|10|RN(5)|RT(5)",
 	    TYPE_02, OP_SF32 | OP_RN_SP },
 	    /* strh register */
+	{ "neg", "SF(1)|1001011|SHIFT(2)|0|RM(5)|IMM(6)|11111|RD(5)",
+	    TYPE_01, 0 },			/* neg shifted register */
+	{ "sub", "SF(1)|1001011|SHIFT(2)|0|RM(5)|IMM(6)|RN(5)|RD(5)",
+	    TYPE_01, 0 },			/* sub shifted register */
+	{ "cmp", "SF(1)|1101011|SHIFT(2)|0|RM(5)|IMM(6)|RN(5)|11111",
+	    TYPE_01, 0 },			/* cmp shifted register */
+	{ "negs", "SF(1)|1101011|SHIFT(2)|0|RM(5)|IMM(6)|11111|RD(5)",
+	    TYPE_01, 0 },			/* negs shifted register */
+	{ "subs", "SF(1)|1101011|SHIFT(2)|0|RM(5)|IMM(6)|RN(5)|RD(5)",
+	    TYPE_01, 0 },			/* subs shifted register */
 	{ NULL, NULL }
 };
 
@@ -397,7 +413,7 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 	int ret;
 	int shift, rm, rt, rd, rn, imm, sf, idx, option, scale, amount;
 	int sign_ext;
-	int rm_absent;
+	bool rm_absent, rd_absent, rn_absent;
 	/* Indicate if immediate should be outside or inside brackets */
 	int inside;
 	/* Print exclamation mark if pre-incremented */
@@ -454,27 +470,37 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 		/*
 		 * OP <RD>, <RN>, <RM>{, <shift [LSL, LSR, ASR]> #<imm>} SF32/64
 		 * OP <RD>, <RN>, #<imm>{, <shift [0, 12]>} SF32/64
+		 * OP <RD>, <RM> {, <shift> #<imm> }
+		 * OP <RN>, <RM> {, <shift> #<imm> }
 		 */
 
-		/* Mandatory tokens */
-		ret = arm64_disasm_read_token(i_ptr, insn, "RD", &rd);
-		ret |= arm64_disasm_read_token(i_ptr, insn, "RN", &rn);
-		if (ret != 0) {
-			printf("ERROR: "
-			    "Missing mandatory token for op %s type %d\n",
-			    i_ptr->name, i_ptr->type);
-			goto undefined;
-		}
-
-		/* Optional tokens */
-		arm64_disasm_read_token(i_ptr, insn, "SHIFT", &shift);
+		rd_absent = arm64_disasm_read_token(i_ptr, insn, "RD", &rd);
+		rn_absent = arm64_disasm_read_token(i_ptr, insn, "RN", &rn);
 		rm_absent = arm64_disasm_read_token(i_ptr, insn, "RM", &rm);
+		arm64_disasm_read_token(i_ptr, insn, "SHIFT", &shift);
 
-		di->di_printf("%s\t%s, %s", i_ptr->name,
-		    arm64_reg(sf, rd, rd_sp), arm64_reg(sf, rn, rn_sp));
+		di->di_printf("%s\t", i_ptr->name);
+
+		/*
+		 * If RD and RN are present, we will display the following
+		 * patterns:
+		 * - OP <RD>, <RN>, <RM>{, <shift [LSL, LSR, ASR]> #<imm>} SF32/64
+		 * - OP <RD>, <RN>, #<imm>{, <shift [0, 12]>} SF32/64
+		 * Otherwise if only RD is present:
+		 * - OP <RD>, <RM> {, <shift> #<imm> }
+		 * Otherwise if only RN is present:
+		 * - OP <RN>, <RM> {, <shift> #<imm> }
+		 */
+		if (!rd_absent && !rn_absent)
+			di->di_printf("%s, %s", arm64_reg(sf, rd, rd_sp),
+			    arm64_reg(sf, rn, rn_sp));
+		else if (!rd_absent)
+			di->di_printf("%s", arm64_reg(sf, rd, rd_sp));
+		else
+			di->di_printf("%s", arm64_reg(sf, rn, rn_sp));
 
 		/* If RM is present use it, otherwise use immediate notation */
-		if (rm_absent == 0) {
+		if (!rm_absent) {
 			di->di_printf(", %s", arm64_reg(sf, rm, rm_sp));
 			if (imm != 0)
 				di->di_printf(", %s #%d", shift_2[shift], imm);
