@@ -452,7 +452,7 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
 
 	if (p > PRIO_MAX) {
 	    rtp.type = RTP_PRIO_IDLE;
-	    p -= PRIO_MAX + 1;
+	    p += RTP_PRIO_MIN - (PRIO_MAX + 1);
 	    rtp.prio = p > RTP_PRIO_MAX ? RTP_PRIO_MAX : p;
 	    if (rtprio(RTP_SET, 0, &rtp))
 		syslog(LOG_WARNING, "rtprio '%s' (%s): %m",
@@ -460,7 +460,7 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
 		    lc ? lc->lc_class : LOGIN_DEFCLASS);
 	} else if (p < PRIO_MIN) {
 	    rtp.type = RTP_PRIO_REALTIME;
-	    p -= PRIO_MIN - RTP_PRIO_MAX;
+	    p += RTP_PRIO_MAX - (PRIO_MIN - 1);
 	    rtp.prio = p < RTP_PRIO_MIN ? RTP_PRIO_MIN : p;
 	    if (rtprio(RTP_SET, 0, &rtp))
 		syslog(LOG_WARNING, "rtprio '%s' (%s): %m",
