@@ -27,8 +27,9 @@ jobs:
             BASEB=$(git rev-list -1 HEAD^1)
             HEADB=$(git rev-list -1 HEAD^2)
           else
-            git fetch --no-tags --no-recurse-submodules --depth=500 origin main
-            BASEB=origin/main
+            git remote add freebsd https://github.com/freebsd/freebsd-src
+            git fetch --no-tags --no-recurse-submodules --depth=500 freebsd main
+            BASEB=freebsd/main
             HEADB=HEAD
           fi
           echo "BASEB: $BASEB"
