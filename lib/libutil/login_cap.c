@@ -650,10 +650,8 @@ login_getcaptime(login_cap_t *lc, const char *cap, rlim_t def, rlim_t error)
 
     if ((r = cgetstr(lc->lc_cap, cap, &res)) == -1)
 	return def;
-    else if (r < 0) {
-	errno = ERANGE;
+    else if (r < 0)
 	return error;
-    }
 
     /* "inf" and "infinity" are special cases */
     if (isinfinite(res))
@@ -735,19 +733,18 @@ login_getcapnum(login_cap_t *lc, const char *cap, rlim_t def, rlim_t error)
     /*
      * For BSDI compatibility, try for the tag=<val> first
      */
-    if ((r = cgetstr(lc->lc_cap, cap, &res)) == -1) {
+    r = cgetstr(lc->lc_cap, cap, &res);
+    if (r == -1) {
 	long	lval;
 	/* string capability not present, so try for tag#<val> as numeric */
 	if ((r = cgetnum(lc->lc_cap, cap, &lval)) == -1)
 	    return def; /* Not there, so return default */
-	else if (r >= 0)
+	else if (r < 0)
+	    return error;
+	else
 	    return (rlim_t)lval;
-    }
-
-    if (r < 0) {
-	errno = ERANGE;
+    } else if (r < 0)
 	return error;
-    }
 
     if (isinfinite(res))
 	return RLIM_INFINITY;
@@ -786,10 +783,8 @@ login_getcapsize(login_cap_t *lc, const char *cap, rlim_t def, rlim_t error)
 
     if ((r = cgetstr(lc->lc_cap, cap, &res)) == -1)
 	return def;
-    else if (r < 0) {
-	errno = ERANGE;
+    else if (r < 0)
 	return error;
-    }
 
     if (isinfinite(res))
 	return RLIM_INFINITY;
