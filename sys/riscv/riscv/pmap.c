@@ -187,8 +187,10 @@ __FBSDID("$FreeBSD$");
 
 #ifdef PV_STATS
 #define PV_STAT(x)	do { x ; } while (0)
+#define	__pv_stat_used
 #else
 #define PV_STAT(x)	do { } while (0)
+#define	__pv_stat_used	__unused
 #endif
 
 #define	pmap_l1_pindex(v)	(NUL2E + ((v) >> L1_SHIFT))
@@ -3895,7 +3897,7 @@ pmap_remove_pages(pmap_t pmap)
 	struct rwlock *lock;
 	int64_t bit;
 	uint64_t inuse, bitmask;
-	int allfree, field, freed, idx;
+	int allfree, field, freed __pv_stat_used, idx;
 	bool superpage;
 
 	lock = NULL;
