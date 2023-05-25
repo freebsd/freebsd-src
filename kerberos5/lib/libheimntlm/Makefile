@@ -9,6 +9,7 @@ SRCS=	ntlm.c ntlm_err.c ntlm_err.h
 INCS=	heimntlm.h heimntlm-protos.h ntlm_err.h
 CFLAGS+=-I${KRB5DIR}/lib/ntlm -I${KRB5DIR}/lib/roken \
 	-I${SRCTOP}/contrib/com_err
+CFLAGS+=-DOPENSSL_API_COMPAT=0x10100000L
 VERSION_MAP= ${KRB5DIR}/lib/ntlm/version-script.map
 
 MAN=	ntlm_buf.3 \
