@@ -30,6 +30,7 @@ LIB=		radius
 SRCS=		radlib.c
 INCS=		radlib.h radlib_vs.h
 CFLAGS+=	-Wall
+CFLAGS+=	-DOPENSSL_API_COMPAT=0x10100000L
 SHLIB_MAJOR=	4
 MAN=		libradius.3 radius.conf.5
 
