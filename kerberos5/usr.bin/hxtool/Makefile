@@ -10,6 +10,7 @@ CFLAGS+=	-I${KRB5DIR}/lib/hx509 \
 		-I${KRB5DIR}/lib/sl \
 		-I${SRCTOP}/contrib/com_err \
 		-I.
+CFLAGS+=	-DOPENSSL_API_COMPAT=0x10100000L
 LIBADD=	hx509 roken asn1 crypto sl vers edit
 SRCS=	hxtool.c hxtool-commands.c hxtool-commands.h
 

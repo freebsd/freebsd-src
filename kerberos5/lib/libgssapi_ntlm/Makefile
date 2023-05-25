@@ -44,6 +44,7 @@ CFLAGS+=-I${KRB5DIR}/lib/gssapi/gssapi
 CFLAGS+=-I${KRB5DIR}/lib/gssapi/ntlm
 CFLAGS+=-I${KRB5DIR}/lib/krb5
 CFLAGS+=-I${KRB5DIR}/lib/ntlm
+CFLAGS+=-DOPENSSL_API_COMPAT=0x10100000L
 
 .include <bsd.lib.mk>
 
