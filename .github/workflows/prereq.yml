@@ -2,6 +2,8 @@
 name: Quick Checker
 
 on:
+  push:
+    branches: [ 'ci-*' ]
   pull_request:
 
 permissions:
@@ -18,13 +20,24 @@ jobs:
           fetch-depth: 500
       - name: Environment
         run: |
-          echo $GITHUB_REF_NAME
-          git rev-list -1 HEAD
-          git rev-list -1 HEAD^1
-          git rev-list -1 HEAD^2
+          echo "GITHUB_REF_NAME: $GITHUB_REF_NAME"
+          echo "GITHUB_BASE_REF: $GITHUB_BASE_REF"
+          echo "HEAD: $(git rev-list -1 HEAD)"
+          if test -n "$GITHUB_BASE_REF"; then
+            BASEB=$(git rev-list -1 HEAD^1)
+            HEADB=$(git rev-list -1 HEAD^2)
+          else
+            git fetch --no-tags --no-recurse-submodules --depth=500 origin main
+            BASEB=origin/main
+            HEADB=HEAD
+          fi
+          echo "BASEB: $BASEB"
+          echo "HEADB: $HEADB"
+          echo "BASEB=$BASEB" >> "$GITHUB_ENV"
+          echo "HEADB=$HEADB" >> "$GITHUB_ENV"
       - name: Deep enough fetch?
-        run: git merge-base HEAD^1 HEAD^2
+        run: git merge-base ${{env.BASEB}} ${{env.HEADB}}
       - name: Check Email
-        run:  sh ./tools/build/check-email.sh HEAD^1..HEAD^2
+        run:  sh ./tools/build/check-email.sh ${{env.BASEB}}..${{env.HEADB}}
       - name: Check Style
-        run:  ./tools/build/checkstyle9.pl -color=always HEAD^1..HEAD^2
+        run:  ./tools/build/checkstyle9.pl -color=always ${{env.BASEB}}..${{env.HEADB}}
