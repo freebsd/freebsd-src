@@ -422,6 +422,13 @@ static struct in6_px *sin6tab_nl[] = {
 };
 
 static void
+in6_copyaddr(if_ctx *ctx, int to, int from)
+{
+	sin6tab_nl[to]->addr = sin6tab_nl[from]->addr;
+	sin6tab_nl[to]->set = sin6tab_nl[from]->set;
+}
+
+static void
 in6_getaddr(const char *addr_str, int which)
 {
         struct in6_px *px = sin6tab_nl[which];
@@ -503,6 +510,12 @@ static struct	sockaddr_in6 *sin6tab[] = {
 	&in6_ridreq.ifr_addr, &in6_addreq.ifra_addr,
 	&in6_addreq.ifra_prefixmask, &in6_addreq.ifra_dstaddr
 };
+
+static void
+in6_copyaddr(if_ctx *ctx, int to, int from)
+{
+	memcpy(sin6tab[to], sin6tab[from], sizeof(struct sockaddr_in6));
+}
 
 static void
 in6_getprefix(const char *plen, int which)
@@ -733,6 +746,7 @@ static struct afswtch af_inet6 = {
 	.af_status	= in6_status_nl,
 #endif
 	.af_getaddr	= in6_getaddr,
+	.af_copyaddr	= in6_copyaddr,
 #ifdef WITHOUT_NETLINK
 	.af_getprefix	= in6_getprefix,
 #endif

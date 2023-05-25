@@ -202,6 +202,12 @@ static struct sockaddr_in *sintab[] = {
 };
 
 static void
+in_copyaddr(if_ctx *ctx, int to, int from)
+{
+	memcpy(sintab[to], sintab[from], sizeof(struct sockaddr_in));
+}
+
+static void
 in_getaddr(const char *s, int which)
 {
 	struct sockaddr_in *sin = sintab[which];
@@ -255,6 +261,13 @@ static struct in_px *sintab_nl[] = {
 	&in_add.dst_addr,	/* DSTADDR*/
 	&in_add.brd_addr,	/* BRDADDR*/
 };
+
+static void
+in_copyaddr(if_ctx *ctx, int to, int from)
+{
+	sintab_nl[to]->addr = sintab_nl[from]->addr;
+	sintab_nl[to]->addrset = sintab_nl[from]->addrset;
+}
 
 static void
 in_getip(const char *addr_str, struct in_addr *ip)
@@ -537,6 +550,7 @@ static struct afswtch af_inet = {
 	.af_status	= in_status_nl,
 #endif
 	.af_getaddr	= in_getaddr,
+	.af_copyaddr	= in_copyaddr,
 	.af_postproc	= in_postproc,
 	.af_status_tunnel = in_status_tunnel,
 	.af_settunnel	= in_set_tunnel,

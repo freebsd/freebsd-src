@@ -1327,19 +1327,16 @@ notealias(if_ctx *ctx, const char *addr, int param)
 {
 	const struct afswtch *afp = ctx->afp;
 
-#define rqtosa(x) (&(((struct ifreq *)(afp->x))->ifr_addr))
-	if (setaddr && doalias == 0 && param < 0)
-		if (afp->af_addreq != NULL && afp->af_ridreq != NULL)
-			bcopy((caddr_t)rqtosa(af_addreq),
-			      (caddr_t)rqtosa(af_ridreq),
-			      rqtosa(af_addreq)->sa_len);
+	if (setaddr && doalias == 0 && param < 0) {
+		if (afp->af_copyaddr != NULL)
+			afp->af_copyaddr(ctx, RIDADDR, ADDR);
+	}
 	doalias = param;
 	if (param < 0) {
 		clearaddr = 1;
 		newaddr = 0;
 	} else
 		clearaddr = 0;
-#undef rqtosa
 }
 
 static void
