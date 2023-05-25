@@ -296,6 +296,10 @@ static const struct {
 	const struct sio_device	*devices;
 } superio_table[] = {
 	{
+		.vendor = SUPERIO_VENDOR_ITE, .devid = 0x8613,
+		.devices = ite_devices,
+	},
+	{
 		.vendor = SUPERIO_VENDOR_ITE, .devid = 0x8712,
 		.devices = ite_devices,
 	},
