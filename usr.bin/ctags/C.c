@@ -39,6 +39,7 @@ static char sccsid[] = "@(#)C.c	8.4 (Berkeley) 4/2/94";
 __FBSDID("$FreeBSD$");
 
 #include <limits.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -261,6 +262,9 @@ func_entry(void)
 {
 	int	c;			/* current character */
 	int	level = 0;		/* for matching '()' */
+	static char attribute[] = "__attribute__";
+	char	maybe_attribute[sizeof attribute + 1],
+		*anext;
 
 	/*
 	 * Find the end of the assumed function declaration.
@@ -298,10 +302,37 @@ fnd:
 	 * is a token character if it's a function and a non-token
 	 * character if it's a declaration.  Comments don't count...
 	 */
-	for (;;) {
+	for (anext = maybe_attribute;;) {
 		while (GETC(!=, EOF) && iswhite(c))
 			if (c == '\n')
 				SETLINE;
+		if (c == EOF)
+			return NO;
+		/*
+		 * Recognize the gnu __attribute__ extension, which would
+		 * otherwise make the heuristic test DTWT
+		 */
+		if (anext == maybe_attribute) {
+			if (intoken(c)) {
+				*anext++ = c;
+				continue;
+			}
+		} else {
+			if (intoken(c)) {
+				if (anext - maybe_attribute 
+				 < (ptrdiff_t)(sizeof attribute - 1))
+					*anext++ = c;
+				else	break;
+				continue;
+			} else {
+				*anext++ = '\0';
+				if (strcmp(maybe_attribute, attribute) == 0) {
+					(void)ungetc(c, inf);
+					return NO;
+				}
+				break;
+			}
+		}
 		if (intoken(c) || c == '{')
 			break;
 		if (c == '/' && (GETC(==, '*') || c == '/'))
