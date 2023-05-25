@@ -226,7 +226,8 @@ gic_r_read_4(device_t dev, bus_size_t offset)
 	struct resource *rdist;
 
 	sc = device_get_softc(dev);
-	rdist = &sc->gic_redists.pcpu[PCPU_GET(cpuid)]->res;
+	rdist = sc->gic_redists.pcpu[PCPU_GET(cpuid)]->res;
+	offset += sc->gic_redists.pcpu[PCPU_GET(cpuid)]->offset;
 	return (bus_read_4(rdist, offset));
 }
 
@@ -237,7 +238,8 @@ gic_r_read_8(device_t dev, bus_size_t offset)
 	struct resource *rdist;
 
 	sc = device_get_softc(dev);
-	rdist = &sc->gic_redists.pcpu[PCPU_GET(cpuid)]->res;
+	rdist = sc->gic_redists.pcpu[PCPU_GET(cpuid)]->res;
+	offset += sc->gic_redists.pcpu[PCPU_GET(cpuid)]->offset;
 	return (bus_read_8(rdist, offset));
 }
 
@@ -248,7 +250,8 @@ gic_r_write_4(device_t dev, bus_size_t offset, uint32_t val)
 	struct resource *rdist;
 
 	sc = device_get_softc(dev);
-	rdist = &sc->gic_redists.pcpu[PCPU_GET(cpuid)]->res;
+	rdist = sc->gic_redists.pcpu[PCPU_GET(cpuid)]->res;
+	offset += sc->gic_redists.pcpu[PCPU_GET(cpuid)]->offset;
 	bus_write_4(rdist, offset, val);
 }
 
@@ -259,7 +262,8 @@ gic_r_write_8(device_t dev, bus_size_t offset, uint64_t val)
 	struct resource *rdist;
 
 	sc = device_get_softc(dev);
-	rdist = &sc->gic_redists.pcpu[PCPU_GET(cpuid)]->res;
+	rdist = sc->gic_redists.pcpu[PCPU_GET(cpuid)]->res;
+	offset += sc->gic_redists.pcpu[PCPU_GET(cpuid)]->offset;
 	bus_write_8(rdist, offset, val);
 }
 
@@ -1215,6 +1219,7 @@ static void
 gic_v3_wait_for_rwp(struct gic_v3_softc *sc, enum gic_v3_xdist xdist)
 {
 	struct resource *res;
+	bus_size_t offset;
 	u_int cpuid;
 	size_t us_left = 1000000;
 
@@ -1223,16 +1228,18 @@ gic_v3_wait_for_rwp(struct gic_v3_softc *sc, enum gic_v3_xdist xdist)
 	switch (xdist) {
 	case DIST:
 		res = sc->gic_dist;
+		offset = 0;
 		break;
 	case REDIST:
-		res = &sc->gic_redists.pcpu[cpuid]->res;
+		res = sc->gic_redists.pcpu[cpuid]->res;
+		offset = sc->gic_redists.pcpu[PCPU_GET(cpuid)]->offset;
 		break;
 	default:
 		KASSERT(0, ("%s: Attempt to wait for unknown RWP", __func__));
 		return;
 	}
 
-	while ((bus_read_4(res, GICD_CTLR) & GICD_CTLR_RWP) != 0) {
+	while ((bus_read_4(res, offset + GICD_CTLR) & GICD_CTLR_RWP) != 0) {
 		DELAY(1);
 		if (us_left-- == 0)
 			panic("GICD Register write pending for too long");
@@ -1377,8 +1384,8 @@ gic_v3_redist_alloc(struct gic_v3_softc *sc)
 static int
 gic_v3_redist_find(struct gic_v3_softc *sc)
 {
-	struct resource r_res;
-	bus_space_handle_t r_bsh;
+	struct resource *r_res;
+	bus_size_t offset;
 	uint64_t aff;
 	uint64_t typer;
 	uint32_t pidr2;
@@ -1399,10 +1406,9 @@ gic_v3_redist_find(struct gic_v3_softc *sc)
 	/* Iterate through Re-Distributor regions */
 	for (i = 0; i < sc->gic_redists.nregions; i++) {
 		/* Take a copy of the region's resource */
-		r_res = *sc->gic_redists.regions[i];
-		r_bsh = rman_get_bushandle(&r_res);
+		r_res = sc->gic_redists.regions[i];
 
-		pidr2 = bus_read_4(&r_res, GICR_PIDR2);
+		pidr2 = bus_read_4(r_res, GICR_PIDR2);
 		switch (GICR_PIDR2_ARCH(pidr2)) {
 		case GICR_PIDR2_ARCH_GICv3: /* fall through */
 		case GICR_PIDR2_ARCH_GICv4:
@@ -1413,13 +1419,15 @@ gic_v3_redist_find(struct gic_v3_softc *sc)
 			return (ENODEV);
 		}
 
+		offset = 0;
 		do {
-			typer = bus_read_8(&r_res, GICR_TYPER);
+			typer = bus_read_8(r_res, offset + GICR_TYPER);
 			if ((typer >> GICR_TYPER_AFF_SHIFT) == aff) {
 				KASSERT(sc->gic_redists.pcpu[cpuid] != NULL,
 				    ("Invalid pointer to per-CPU redistributor"));
 				/* Copy res contents to its final destination */
 				sc->gic_redists.pcpu[cpuid]->res = r_res;
+				sc->gic_redists.pcpu[cpuid]->offset = offset;
 				sc->gic_redists.pcpu[cpuid]->lpi_enabled = false;
 				if (bootverbose) {
 					device_printf(sc->dev,
@@ -1429,14 +1437,13 @@ gic_v3_redist_find(struct gic_v3_softc *sc)
 				return (0);
 			}
 
-			r_bsh += (GICR_RD_BASE_SIZE + GICR_SGI_BASE_SIZE);
+			offset += (GICR_RD_BASE_SIZE + GICR_SGI_BASE_SIZE);
 			if ((typer & GICR_TYPER_VLPIS) != 0) {
-				r_bsh +=
+				offset +=
 				    (GICR_VLPI_BASE_SIZE + GICR_RESERVED_SIZE);
 			}
-
-			rman_set_bushandle(&r_res, r_bsh);
-		} while ((typer & GICR_TYPER_LAST) == 0);
+		} while (offset < rman_get_size(r_res) &&
+		    (typer & GICR_TYPER_LAST) == 0);
 	}
 
 	device_printf(sc->dev, "No Re-Distributor found for CPU%u\n", cpuid);
