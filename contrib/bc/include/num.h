@@ -71,6 +71,10 @@ typedef BclBigDig BcBigDig;
 /// An alias for portability.
 #define BC_NUM_BIGDIG_C UINT64_C
 
+/// The max number + 1 that two limbs can hold. This is used for generating
+/// numbers because the PRNG can generate a number that will fill two limbs.
+#define BC_BASE_RAND_POW (BC_NUM_BIGDIG_C(1000000000000000000))
+
 /// The actual limb type.
 typedef int_least32_t BcDig;
 
@@ -87,6 +91,10 @@ typedef int_least32_t BcDig;
 
 /// An alias for portability.
 #define BC_NUM_BIGDIG_C UINT32_C
+
+/// The max number + 1 that two limbs can hold. This is used for generating
+/// numbers because the PRNG can generate a number that will fill two limbs.
+#define BC_BASE_RAND_POW (UINT64_C(100000000))
 
 /// The actual limb type.
 typedef int_least16_t BcDig;
