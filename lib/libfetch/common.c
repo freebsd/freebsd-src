@@ -1204,6 +1204,7 @@ fetch_ssl(conn_t *conn, const struct url *URL, int verbose)
 	X509_NAME *name;
 	char *str;
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	/* Init the SSL library and context */
 	if (!SSL_library_init()){
 		fprintf(stderr, "SSL library init failed\n");
@@ -1211,6 +1212,7 @@ fetch_ssl(conn_t *conn, const struct url *URL, int verbose)
 	}
 
 	SSL_load_error_strings();
+#endif
 
 	conn->ssl_meth = SSLv23_client_method();
 	conn->ssl_ctx = SSL_CTX_new(conn->ssl_meth);
