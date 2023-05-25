@@ -430,23 +430,28 @@ setclassumask(login_cap_t *lc, const struct passwd *pwd)
 static void
 setlogincontext(login_cap_t *lc, const struct passwd *pwd, unsigned long flags)
 {
-    if (lc) {
-	/* Set resources */
-	if (flags & LOGIN_SETRESOURCES)
-	    setclassresources(lc);
-	/* See if there's a umask override */
-	if (flags & LOGIN_SETUMASK)
-	    setclassumask(lc, pwd);
-	/* Set paths */
-	if (flags & LOGIN_SETPATH)
-	    setclassenvironment(lc, pwd, 1);
-	/* Set environment */
-	if (flags & LOGIN_SETENV)
-	    setclassenvironment(lc, pwd, 0);
-	/* Set cpu affinity */
-	if (flags & LOGIN_SETCPUMASK)
-	    setclasscpumask(lc);
-    }
+	if (lc == NULL)
+		return;
+
+	/* Set resources. */
+	if ((flags & LOGIN_SETRESOURCES) != 0)
+		setclassresources(lc);
+
+	/* See if there's a umask override. */
+	if ((flags & LOGIN_SETUMASK) != 0)
+		setclassumask(lc, pwd);
+
+	/* Set paths. */
+	if ((flags & LOGIN_SETPATH) != 0)
+		setclassenvironment(lc, pwd, 1);
+
+	/* Set environment. */
+	if ((flags & LOGIN_SETENV) != 0)
+		setclassenvironment(lc, pwd, 0);
+
+	/* Set cpu affinity. */
+	if ((flags & LOGIN_SETCPUMASK) != 0)
+		setclasscpumask(lc);
 }
 
 
