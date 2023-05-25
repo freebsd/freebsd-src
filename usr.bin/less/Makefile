@@ -21,5 +21,3 @@ CLEANFILES= less.1
 
 .include "Makefile.common"
 .include <bsd.prog.mk>
-
-CWARNFLAGS+=	${NO_WDEPRECATED_NON_PROTOTYPE}
