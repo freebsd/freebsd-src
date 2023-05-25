@@ -162,7 +162,7 @@ pagetables:
 	lla	s2, pagetable_l2_devmap	/* Link to next level PN */
 	srli	s2, s2, PAGE_SHIFT
 
-	li	a5, (VM_MAX_KERNEL_ADDRESS - L2_SIZE)
+	li	a5, (VM_MAX_KERNEL_ADDRESS - PMAP_MAPDEV_EARLY_SIZE)
 	srli	a5, a5, L1_SHIFT	/* >> L1_SHIFT */
 	andi	a5, a5, Ln_ADDR_MASK	/* & Ln_ADDR_MASK */
 	li	t4, PTE_V
@@ -191,7 +191,9 @@ pagetables:
 
 	/* Store the L2 table entry for the DTB */
 	li	a6, PTE_SIZE
-	li	a5, 510
+	li	a5, VM_EARLY_DTB_ADDRESS
+	srli	a5, a5, L2_SHIFT    /* >> L2_SHIFT */
+	andi	a5, a5, Ln_ADDR_MASK    /* & Ln_ADDR_MASK */
 	mulw	a5, a5, a6
 	add	t1, s1, a5
 	sd	t0, (t1)
