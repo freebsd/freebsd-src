@@ -50,7 +50,7 @@ CWARNFLAGS+=	-Wall -Wno-format-y2k
 .endif # WARNS >= 2
 .if ${WARNS} >= 3
 CWARNFLAGS+=	-W -Wno-unused-parameter
-.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} < 150000
+.if ${COMPILER_TYPE} == "clang"
 CWARNFLAGS+=	-Wstrict-prototypes
 .endif
 CWARNFLAGS+=	-Wmissing-prototypes -Wpointer-arith
@@ -61,11 +61,6 @@ CWARNFLAGS+=	-Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wshadow\
 .if !defined(NO_WCAST_ALIGN) && !defined(NO_WCAST_ALIGN.${COMPILER_TYPE})
 CWARNFLAGS+=	-Wcast-align
 .endif # !NO_WCAST_ALIGN !NO_WCAST_ALIGN.${COMPILER_TYPE}
-.endif # WARNS >= 4
-.if ${WARNS} >= 5
-.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 150000
-CWARNFLAGS+=	-Wstrict-prototypes
-.endif
 .endif # WARNS >= 4
 .if ${WARNS} >= 6
 CWARNFLAGS+=	-Wchar-subscripts -Wnested-externs \
