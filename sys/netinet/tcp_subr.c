@@ -4660,8 +4660,9 @@ tcp_get_srtt(struct tcpcb *tp, int granularity)
 		/*
 		 * The user wants useconds and internally
 		 * its kept in ticks, convert to useconds.
+		 * Put unshift at last improves precision.
 		 */
-		srtt =  TICKS_2_USEC(srtt);
+		srtt = TICKS_2_USEC(tp->t_srtt) >> TCP_RTT_SHIFT;
 	} else if (granularity == TCP_TMR_GRANULARITY_TICKS) {
 		/*
 		 * The user wants ticks and internally its
