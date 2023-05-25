@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 26, 2023
+.Dd May 24, 2023
 .Dt BECTL 8
 .Os
 .Sh NAME
@@ -404,9 +404,10 @@ NAME			CANMOUNT	MOUNTPOINT
 zroot
 zroot/ROOT		noauto		none
 zroot/ROOT/default	noauto		none
+zroot/home		on		/home
 zroot/usr		off		/usr
-zroot/usr/home		on		/usr/home
-zroot/var		on		/var
+zroot/usr/src		on		/usr/src
+zroot/var		off		/var
 .Ed
 .Pp
 In that example,
@@ -418,9 +419,9 @@ set to
 thus files in
 .Pa /usr
 typically fall into the boot environment because this dataset is not mounted.
-.Pa zroot/usr/home
+.Pa zroot/usr/src
 is mounted, thus files in
-.Pa /usr/home
+.Pa /usr/src
 are not in the boot environment.
 .Pp
 The other style of boot environments in use, frequently called
