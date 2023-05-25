@@ -28,7 +28,7 @@
 .\"     @(#)ctags.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd May 23, 2023
 .Dt CTAGS 1
 .Os
 .Sh NAME
@@ -93,16 +93,26 @@ Place the tag descriptions in a file called
 .Ar tagsfile .
 The default behaviour is to place them in a file called
 .Pa tags .
+If
+.Ar tagsfile
+is
+.Dq - ,
+the tags will be written to standard output instead.
 .It Fl u
 Update the specified files in the
 .Pa tags
 file, that is, all
 references to them are deleted, and the new values are appended to the
 file.
-(Beware: this option is implemented in a way which is rather
+This is ignored if the tags file does not exist or is not a regular
+file (e.g.
+.Fl f Ns -
+was used to write to standard output).
+.Pp
+Beware: this option is implemented in a way which is rather
 slow; it is usually faster to simply rebuild the
 .Pa tags
-file.)
+file.
 .It Fl v
 An index of the form expected by
 .Xr vgrind 1
