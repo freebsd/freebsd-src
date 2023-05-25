@@ -52,6 +52,14 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20230509: OpenSSL 3.0.8
+
+OLD_LIBS+=lib/libcrypto.so.111
+OLD_FILES+=usr/lib/engines/capi.so
+OLD_FILES+=usr/lib/engines/padlock.so
+OLD_LIBS+=usr/lib/libssl.so.111
+OLD_DIRS+=usr/lib/engines
+
 # 20230505: md5 tests are now self-contained
 OLD_FILES+=usr/tests/sbin/md5/1.inp
 OLD_FILES+=usr/tests/sbin/md5/1.sha512-p.chk
