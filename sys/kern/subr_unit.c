@@ -1111,6 +1111,23 @@ DB_SHOW_COMMAND(unrhdr, unrhdr_print_unrhdr)
 
 	print_unrhdr((struct unrhdr *)addr);
 }
+
+static void
+print_unrhdr_iter(struct unrhdr_iter *iter)
+{
+	db_printf("iter %p unrhdr %p ipos %d upos %p ufi %d\n",
+	    iter, iter->uh, iter->ipos, iter->upos, iter->upos_first_item);
+}
+
+DB_SHOW_COMMAND(unrhdr_iter, unrhdr_print_iter)
+{
+	if (!have_addr) {
+		db_printf("show unrhdr_iter addr\n");
+		return;
+	}
+
+	print_unrhdr_iter((struct unrhdr_iter *)addr);
+}
 #endif
 
 #ifndef _KERNEL	/* USERLAND test driver */
