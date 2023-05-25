@@ -174,6 +174,7 @@ typedef void af_status_f(if_ctx *ctx, const struct ifaddrs *);
 typedef void af_other_status_f(if_ctx *ctx);
 typedef void af_postproc_f(if_ctx *ctx, int newaddr, int ifflags);
 typedef	int af_exec_f(if_ctx *ctx, unsigned long action, void *data);
+typedef void af_copyaddr_f(if_ctx *ctx, int to, int from);
 
 struct afswtch {
 	const char	*af_name;	/* as given on cmd line, e.g. "inet" */
@@ -194,6 +195,7 @@ struct afswtch {
 #endif
 	af_other_status_f	*af_other_status;
 	void		(*af_getaddr)(const char *, int);
+	af_copyaddr_f	*af_copyaddr;	/* Copy address between <RID|*>ADDR */
 					/* parse prefix method (IPv6) */
 	void		(*af_getprefix)(const char *, int);
 	af_postproc_f	*af_postproc;
