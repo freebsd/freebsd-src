@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpufunc.h>
 #include <machine/intr.h>
+#include <machine/md_var.h>
 #include <machine/sbi.h>
 
 #include <dev/ofw/openfirm.h>
@@ -84,6 +85,16 @@ get_timecount(void)
 	return (rdtime());
 }
 
+static inline void
+set_timecmp(uint64_t timecmp)
+{
+
+	if (has_sstc)
+		csr_write(stimecmp, timecmp);
+	else
+		sbi_set_timer(timecmp);
+}
+
 static u_int
 riscv_timer_tc_get_timecount(struct timecounter *tc __unused)
 {
@@ -107,7 +118,7 @@ riscv_timer_et_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 
 	if (first != 0) {
 		counts = ((uint32_t)et->et_frequency * first) >> 32;
-		sbi_set_timer(get_timecount() + counts);
+		set_timecmp(get_timecount() + counts);
 		csr_set(sie, SIE_STIE);
 
 		return (0);
