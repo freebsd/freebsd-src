@@ -32,6 +32,7 @@ CFLAGS+=	-I${KRB5DIR}/lib/roken \
 		-I${KRB5DIR}/lib/hdb \
 		-I${KRB5DIR}/kdc \
 		-I${SRCTOP}/contrib/com_err
+CFLAGS+=	-DOPENSSL_API_COMPAT=0x10100000L
 
 .include <bsd.lib.mk>
 
