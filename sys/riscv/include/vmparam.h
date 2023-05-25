@@ -250,7 +250,7 @@ extern vm_offset_t init_pt_va;
 #define	ZERO_REGION_SIZE	(64 * 1024)	/* 64KB */
 
 #define	DEVMAP_MAX_VADDR	VM_MAX_KERNEL_ADDRESS
-#define	PMAP_MAPDEV_EARLY_SIZE	(L2_SIZE * 2)
+#define	PMAP_MAPDEV_EARLY_SIZE	L2_SIZE
 
 /*
  * No non-transparent large page support in the pmap.
