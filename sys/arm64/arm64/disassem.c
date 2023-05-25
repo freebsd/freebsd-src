@@ -65,11 +65,11 @@ static const char *x_reg[] = {
 	"x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7",
 	"x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15",
 	"x16", "x17", "x18", "x19", "x20", "x21", "x22", "x23",
-	"x24", "x25", "x26", "x27", "x28", "x29", "LR"
+	"x24", "x25", "x26", "x27", "x28", "x29", "lr"
 };
 
 static const char *shift_2[] = {
-	"LSL", "LSR", "ASR", "RSV"
+	"lsl", "lsr", "asr", "rsv"
 };
 
 /*
@@ -482,7 +482,7 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 			if (imm != 0 || shift != 0)
 				di->di_printf(", #0x%x", imm);
 			if (shift != 0)
-				di->di_printf(" LSL #12");
+				di->di_printf(" lsl #12");
 		}
 		break;
 	case TYPE_02:
@@ -576,7 +576,7 @@ disasm(const struct disasm_interface *di, vm_offset_t loc, int altfmt)
 				di->di_printf(", sxtx #%d", amount);
 				break;
 			default:
-				di->di_printf(", RSVD");
+				di->di_printf(", rsv");
 				break;
 			}
 			di->di_printf("]");
