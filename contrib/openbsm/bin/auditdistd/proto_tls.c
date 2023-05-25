@@ -371,8 +371,10 @@ tls_exec_client(const char *user, int startfd, const char *srcaddr,
 	if (proto_connect(saddr, daddr, timeout, &tcp) == -1)
 		exit(EX_TEMPFAIL);
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	SSL_load_error_strings();
 	SSL_library_init();
+#endif
 
 	/*
 	 * TODO: On FreeBSD we could move this below sandbox() once libc and
@@ -663,8 +665,10 @@ tls_exec_server(const char *user, int startfd, const char *privkey,
 	sockfd = startfd;
 	tcpfd = startfd + 1;
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	SSL_load_error_strings();
 	SSL_library_init();
+#endif
 
 	sslctx = SSL_CTX_new(TLS_server_method());
 	if (sslctx == NULL)
