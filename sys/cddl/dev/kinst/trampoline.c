@@ -68,15 +68,22 @@ kinst_trampchunk_alloc(void)
 
 	sx_assert(&kinst_tramp_sx, SX_XLOCKED);
 
+#ifdef __amd64__
 	/*
-	 * Allocate virtual memory for the trampoline chunk. The returned
-	 * address is saved in "trampaddr".  To simplify population of
-	 * trampolines, we follow the amd64 kernel's code model and allocate
-	 * them above KERNBASE, i.e., in the top 2GB of the kernel's virtual
-	 * address space.  Trampolines must be executable so max_prot must
-	 * include VM_PROT_EXECUTE.
+	 * To simplify population of trampolines, we follow the amd64 kernel's
+	 * code model and allocate them above KERNBASE, i.e., in the top 2GB of
+	 * the kernel's virtual address space (not the case for other
+	 * platforms).
 	 */
 	trampaddr = KERNBASE;
+#else
+	trampaddr = VM_MIN_KERNEL_ADDRESS;
+#endif
+	/*
+	 * Allocate virtual memory for the trampoline chunk. The returned
+	 * address is saved in "trampaddr". Trampolines must be executable so
+	 * max_prot must include VM_PROT_EXECUTE.
+	 */
 	error = vm_map_find(kernel_map, NULL, 0, &trampaddr,
 	    KINST_TRAMPCHUNK_SIZE, 0, VMFS_ANY_SPACE, VM_PROT_ALL, VM_PROT_ALL,
 	    0);
