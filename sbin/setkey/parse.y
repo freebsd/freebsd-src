@@ -787,6 +787,23 @@ setkeymsg0(struct sadb_msg *msg, unsigned type, unsigned satype, size_t l)
 	return 0;
 }
 
+static int
+setkeymsg_plen(struct addrinfo *s)
+{
+	switch (s->ai_addr->sa_family) {
+#ifdef INET
+	case AF_INET:
+		return (sizeof(struct in_addr) << 3);
+#endif
+#ifdef INET6
+	case AF_INET6:
+		return (sizeof(struct in6_addr) << 3);
+#endif
+	default:
+		return (-1);
+	}
+}
+
 /* XXX NO BUFFER OVERRUN CHECK! BAD BAD! */
 static int
 setkeymsg_spdaddr(unsigned type, unsigned upper, vchar_t *policy,
@@ -825,18 +842,9 @@ setkeymsg_spdaddr(unsigned type, unsigned upper, vchar_t *policy,
 
 			if (s->ai_addr->sa_family != d->ai_addr->sa_family)
 				continue;
-			switch (s->ai_addr->sa_family) {
-			case AF_INET:
-				plen = sizeof(struct in_addr) << 3;
-				break;
-#ifdef INET6
-			case AF_INET6:
-				plen = sizeof(struct in6_addr) << 3;
-				break;
-#endif
-			default:
+			plen = setkeymsg_plen(s);
+			if (plen == -1)
 				continue;
-			}
 
 			/* set src */
 			sa = s->ai_addr;
@@ -954,18 +962,9 @@ setkeymsg_addr(unsigned type, unsigned satype, struct addrinfo *srcs,
 
 			if (s->ai_addr->sa_family != d->ai_addr->sa_family)
 				continue;
-			switch (s->ai_addr->sa_family) {
-			case AF_INET:
-				plen = sizeof(struct in_addr) << 3;
-				break;
-#ifdef INET6
-			case AF_INET6:
-				plen = sizeof(struct in6_addr) << 3;
-				break;
-#endif
-			default:
+			plen = setkeymsg_plen(s);
+			if (plen == -1)
 				continue;
-			}
 
 			/* set src */
 			sa = s->ai_addr;
@@ -1140,18 +1139,9 @@ setkeymsg_add(unsigned type, unsigned satype, struct addrinfo *srcs,
 
 			if (s->ai_addr->sa_family != d->ai_addr->sa_family)
 				continue;
-			switch (s->ai_addr->sa_family) {
-			case AF_INET:
-				plen = sizeof(struct in_addr) << 3;
-				break;
-#ifdef INET6
-			case AF_INET6:
-				plen = sizeof(struct in6_addr) << 3;
-				break;
-#endif
-			default:
+			plen = setkeymsg_plen(s);
+			if (plen == -1)
 				continue;
-			}
 
 			/* set src */
 			sa = s->ai_addr;
