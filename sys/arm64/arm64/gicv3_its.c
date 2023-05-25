@@ -723,7 +723,8 @@ its_init_cpu(device_t dev, struct gicv3_its_softc *sc)
 
 	if ((gic_its_read_8(sc, GITS_TYPER) & GITS_TYPER_PTA) != 0) {
 		/* This ITS wants the redistributor physical address */
-		target = vtophys(rman_get_virtual(&rpcpu->res));
+		target = vtophys((vm_offset_t)rman_get_virtual(rpcpu->res) +
+		    rpcpu->offset);
 	} else {
 		/* This ITS wants the unique processor number */
 		target = GICR_TYPER_CPUNUM(gic_r_read_8(gicv3, GICR_TYPER)) <<
