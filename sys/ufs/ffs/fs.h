@@ -263,7 +263,8 @@
 /* Was FFS_SET_INODE		15 */
 /* Was FFS_SET_BUFOUTPUT	16 */
 #define	FFS_SET_SIZE		17	/* set inode size */
-#define	FFS_MAXID		17	/* number of valid ffs ids */
+#define	FFS_ADJ_DEPTH		18	/* adjust directory inode depth */
+#define	FFS_MAXID		18	/* number of valid ffs ids */
 
 /*
  * Command structure passed in to the filesystem to adjust filesystem values.
