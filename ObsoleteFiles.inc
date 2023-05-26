@@ -55,6 +55,7 @@
 # 20230509: OpenSSL 3.0.8
 
 OLD_LIBS+=lib/libcrypto.so.111
+OLD_FILES+=usr/include/openssl/rand_drbg.h
 OLD_FILES+=usr/lib/engines/capi.so
 OLD_FILES+=usr/lib/engines/padlock.so
 OLD_LIBS+=usr/lib/libssl.so.111
