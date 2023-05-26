@@ -65,6 +65,56 @@ static dtrace_provider_id_t	kinst_id;
 struct kinst_probe_list	*kinst_probetab;
 static struct cdev	*kinst_cdev;
 
+int
+kinst_excluded(const char *name)
+{
+	if (kinst_md_excluded(name))
+		return (1);
+
+	/*
+	 * Anything beginning with "dtrace_" may be called from probe context
+	 * unless it explicitly indicates that it won't be called from probe
+	 * context by using the prefix "dtrace_safe_".
+	 */
+	if (strncmp(name, "dtrace_", strlen("dtrace_")) == 0 &&
+	    strncmp(name, "dtrace_safe_", strlen("dtrace_safe_")) != 0)
+		return (1);
+
+	/*
+	 * Omit instrumentation of functions that are probably in DDB.  It
+	 * makes it too hard to debug broken kinst.
+	 *
+	 * NB: kdb_enter() can be excluded, but its call to printf() can't be.
+	 * This is generally OK since we're not yet in debugging context.
+	 */
+	if (strncmp(name, "db_", strlen("db_")) == 0 ||
+	    strncmp(name, "kdb_", strlen("kdb_")) == 0)
+		return (1);
+
+	/*
+	 * Lock owner methods may be called from probe context.
+	 */
+	if (strcmp(name, "owner_mtx") == 0 ||
+	    strcmp(name, "owner_rm") == 0 ||
+	    strcmp(name, "owner_rw") == 0 ||
+	    strcmp(name, "owner_sx") == 0)
+		return (1);
+
+	/*
+	 * When DTrace is built into the kernel we need to exclude the kinst
+	 * functions from instrumentation.
+	 */
+#ifndef _KLD_MODULE
+	if (strncmp(name, "kinst_", strlen("kinst_")) == 0)
+		return (1);
+#endif
+
+	if (strcmp(name, "trap_check") == 0)
+		return (1);
+
+	return (0);
+}
+
 void
 kinst_probe_create(struct kinst_probe *kp, linker_file_t lf)
 {
