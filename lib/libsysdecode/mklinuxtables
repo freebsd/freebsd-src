@@ -94,6 +94,7 @@ gen_table "clockflags"  "LINUX_TIMER_[A-Z_]+[[:space:]]+0x[0-9]+"        "compat
 gen_table "clockcpuids" "LINUX_CPUCLOCK_[A-Z_]+[[:space:]]+[0-9]+"       "compat/linux/linux_time.h"	"_MASK|_MAX"
 gen_table "openflags"   "LINUX_O_[A-Z_]+[[:space:]]+[0-9]+"              "compat/linux/linux_file.h"	"O_RDONLY|O_RDWR|O_WRONLY|O_ACCMODE"
 gen_table "sigprocmaskhow" "LINUX_SIG_[A-Z]+[[:space:]]+[0-9]+"          "compat/linux/linux.h"
+gen_table "cloneflags"  "LINUX_CLONE_[A-Z_]+[[:space:]]+[[:alnum:]]+"    "compat/linux/linux_fork.h"	"LINUX_CLONE_LEGACY_FLAGS|LINUX_CLONE_CLEAR_SIGHAND|LINUX_CLONE_INTO_CGROUP|LINUX_CLONE_NEWTIME"
 
 # Generate a .depend file for our output file
 if [ -n "$output_file" ]; then
