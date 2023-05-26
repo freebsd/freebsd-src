@@ -62,6 +62,7 @@
 
 #define	LINUX_CSIGNAL			0x000000ff
 
+#if defined(_KERNEL)
 /*
  * User-space clone3 args layout.
  */
@@ -97,5 +98,6 @@ struct l_clone_args {
 int linux_set_upcall(struct thread *, register_t);
 int linux_set_cloned_tls(struct thread *, void *);
 void linux_thread_detach(struct thread *);
+#endif /* defined(_KERNEL) */
 
 #endif /* _LINUX_FORK_H_ */
