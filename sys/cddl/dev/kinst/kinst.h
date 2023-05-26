@@ -46,6 +46,7 @@ extern struct kinst_probe_list	*kinst_probetab;
 struct linker_file;
 struct linker_symval;
 
+volatile void	*kinst_memcpy(volatile void *, volatile const void *, size_t);
 int	kinst_excluded(const char *);
 int	kinst_md_excluded(const char *);
 int	kinst_invop(uintptr_t, struct trapframe *, uintptr_t);
