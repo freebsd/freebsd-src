@@ -4344,8 +4344,8 @@ ATF_TC_BODY(ptrace__PT_SC_REMOTE_getpid, tc)
 	ATF_REQUIRE_MSG(pscr.pscr_ret.sr_error == 0,
 	    "remote getpid failed with error %d", pscr.pscr_ret.sr_error);
 	ATF_REQUIRE_MSG(pscr.pscr_ret.sr_retval[0] == fpid,
-	    "unexpected return value %lu instead of %d",
-	    pscr.pscr_ret.sr_retval[0], fpid);
+	    "unexpected return value %jd instead of %d",
+	    (intmax_t)pscr.pscr_ret.sr_retval[0], fpid);
 
 	wpid = waitpid(fpid, &status, 0);
 	REQUIRE_EQ(wpid, fpid);
@@ -4360,8 +4360,8 @@ ATF_TC_BODY(ptrace__PT_SC_REMOTE_getpid, tc)
 	ATF_REQUIRE_MSG(pscr.pscr_ret.sr_error == 0,
 	    "remote getppid failed with error %d", pscr.pscr_ret.sr_error);
 	ATF_REQUIRE_MSG(pscr.pscr_ret.sr_retval[0] == getpid(),
-	    "unexpected return value %lu instead of %d",
-	    pscr.pscr_ret.sr_retval[0], fpid);
+	    "unexpected return value %jd instead of %d",
+	    (intmax_t)pscr.pscr_ret.sr_retval[0], fpid);
 
 	wpid = waitpid(fpid, &status, 0);
 	REQUIRE_EQ(wpid, fpid);
