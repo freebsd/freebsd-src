@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <inttypes.h>
 #include <libutil.h>
 #include <signal.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -147,23 +148,58 @@ sigalarm_handler(int signo __unused)
 	need_progress = 1;
 }
 
-void
+static void terminate(int signo) __dead2;
+static void
 terminate(int signo)
 {
-
 	kill_signal = signo;
+	summary();
+	(void)fflush(stderr);
+	raise(kill_signal);
+	/* NOT REACHED */
+	_exit(1);
+}
+
+static sig_atomic_t in_io = 0;
+static sig_atomic_t sigint_seen = 0;
+
+static void
+sigint_handler(int signo __unused)
+{
+	atomic_signal_fence(memory_order_acquire);
+	if (in_io)
+		terminate(SIGINT);
+	sigint_seen = 1;
 }
 
 void
-check_terminate(void)
+prepare_io(void)
 {
+	struct sigaction sa;
+	int error;
 
-	if (kill_signal) {
-		summary();
-		(void)fflush(stderr);
-		signal(kill_signal, SIG_DFL);
-		raise(kill_signal);
-		/* NOT REACHED */
-		_exit(128 + kill_signal);
-	}
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_flags = SA_NODEFER | SA_RESETHAND;
+	sa.sa_handler = sigint_handler;
+	error = sigaction(SIGINT, &sa, 0);
+	if (error != 0)
+		err(1, "sigaction");
+}
+
+void
+before_io(void)
+{
+	in_io = 1;
+	atomic_signal_fence(memory_order_seq_cst);
+	if (sigint_seen)
+		terminate(SIGINT);
+}
+
+void
+after_io(void)
+{
+	in_io = 0;
+	atomic_signal_fence(memory_order_seq_cst);
+	if (sigint_seen)
+		terminate(SIGINT);
 }
