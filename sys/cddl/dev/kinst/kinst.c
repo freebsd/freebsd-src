@@ -65,6 +65,27 @@ static dtrace_provider_id_t	kinst_id;
 struct kinst_probe_list	*kinst_probetab;
 static struct cdev	*kinst_cdev;
 
+/*
+ * Tracing memcpy() will crash the kernel when kinst tries to trace an instance
+ * of the memcpy() calls in kinst_invop(). To fix this, we can use
+ * kinst_memcpy() in those cases, with its arguments marked as 'volatile' to
+ * "outsmart" the compiler and avoid having it replaced by a regular memcpy().
+ */
+volatile void *
+kinst_memcpy(volatile void *dst, volatile const void *src, size_t len)
+{
+	volatile const unsigned char *src0;
+	volatile unsigned char *dst0;
+
+	src0 = src;
+	dst0 = dst;
+
+	while (len--)
+		*dst0++ = *src0++;
+
+	return (dst);
+}
+
 int
 kinst_excluded(const char *name)
 {

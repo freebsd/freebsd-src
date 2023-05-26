@@ -107,10 +107,10 @@ kinst_trampoline_populate(struct kinst_probe *kp, uint8_t *tramp)
 
 	ilen = kp->kp_md.tinstlen;
 
-	memcpy(tramp, kp->kp_md.template, ilen);
+	kinst_memcpy(tramp, kp->kp_md.template, ilen);
 	if ((kp->kp_md.flags & KINST_F_RIPREL) != 0) {
 		disp = kinst_riprel_disp(kp, tramp);
-		memcpy(&tramp[kp->kp_md.dispoff], &disp, sizeof(uint32_t));
+		kinst_memcpy(&tramp[kp->kp_md.dispoff], &disp, sizeof(uint32_t));
 	}
 
 	/*
@@ -126,7 +126,7 @@ kinst_trampoline_populate(struct kinst_probe *kp, uint8_t *tramp)
 	tramp[ilen + 4] = 0x00;
 	tramp[ilen + 5] = 0x00;
 	instr = kp->kp_patchpoint + kp->kp_md.instlen;
-	memcpy(&tramp[ilen + 6], &instr, sizeof(uintptr_t));
+	kinst_memcpy(&tramp[ilen + 6], &instr, sizeof(uintptr_t));
 }
 
 int

@@ -21,6 +21,7 @@ kinst::vm_fault: {}
 kinst::amd64_syscall: {}
 kinst::exit1: {}
 kinst::spinlock_enter: {}
+kinst::memcpy: {}
 
 tick-10s {exit(0);}
 __EOF__
