@@ -711,7 +711,10 @@ setup_bkgrdchk(struct statfs *mntp, int sbreadfailed, char **filesys)
 	}
 	free(sblock.fs_csp);
 	free(sblock.fs_si);
-	havesb = 0;
+	if (readsb() == 0) {
+		pwarn("CANNOT READ SNAPSHOT SUPERBLOCK\n");
+		return (0);
+	}
 	*filesys = snapname;
 	cmd.version = FFS_CMD_VERSION;
 	cmd.handle = fsreadfd;

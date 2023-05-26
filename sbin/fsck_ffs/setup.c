@@ -88,8 +88,12 @@ setup(char *dev)
 	 * We are expected to have an open file descriptor and a superblock.
 	 */
 	if (fsreadfd < 0 || havesb == 0) {
-		if (debug)
-			printf("setup: bad fsreadfd or missing superblock\n");
+		if (debug) {
+			if (fsreadfd < 0)
+				printf("setup: missing fsreadfd\n");
+			else
+				printf("setup: missing superblock\n");
+		}
 		return (0);
 	}
 	if (preen == 0)
