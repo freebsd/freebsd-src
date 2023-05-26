@@ -10,6 +10,17 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+0644746d5091:
+	Add a new "syskrb5" mount option for Kerberized NFSv4.1/4.2 mounts.
+	Without this patch, a Kerberized NFSv4.1/4.2 mount must provide
+	a Kerberos credential for the client at mount time.
+	This patch uses a feature of NFSv4.1/4.2 called SP4_NONE, which
+	allows the state maintenance operations to be performed by any
+	authentication mechanism, so that these operations may be done via
+	AUTH_SYS instead of RPCSEC_GSS (KerberosV).  As such, no Kerberos
+	credential is required at mount time.
+	See mount_nfs(8).
+
 b4805d577787 and many others:
 	Add support so that nfsd(8), nfsuserd(8), mountd(8), gssd(8)
 	and rpc.tlsservd(8) can be run in an appropriately configured
