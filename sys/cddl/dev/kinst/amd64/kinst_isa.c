@@ -500,7 +500,9 @@ kinst_make_probe(linker_file_t lf, int symindx, linker_symval_t *symval,
 
 	pd = opaque;
 	func = symval->name;
-	if (strcmp(func, pd->kpd_func) != 0 || strcmp(func, "trap_check") == 0)
+	if (kinst_excluded(func))
+		return (0);
+	if (strcmp(func, pd->kpd_func) != 0)
 		return (0);
 
 	instr = (uint8_t *)symval->value;
@@ -604,4 +606,13 @@ kinst_md_deinit(void)
 			DPCPU_ID_SET(cpu, intr_tramp, NULL);
 		}
 	}
+}
+
+/*
+ * Exclude machine-dependent functions that are not safe-to-trace.
+ */
+int
+kinst_md_excluded(const char *name)
+{
+	return (0);
 }

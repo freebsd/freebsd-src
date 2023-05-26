@@ -46,6 +46,8 @@ extern struct kinst_probe_list	*kinst_probetab;
 struct linker_file;
 struct linker_symval;
 
+int	kinst_excluded(const char *);
+int	kinst_md_excluded(const char *);
 int	kinst_invop(uintptr_t, struct trapframe *, uintptr_t);
 int	kinst_make_probe(struct linker_file *, int, struct linker_symval *,
 	    void *);
