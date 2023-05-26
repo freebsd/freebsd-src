@@ -274,6 +274,22 @@ nvlist_copy(const nvlist_t *nvl, char *buf, size_t sz)
 	memcpy(buf + sizeof(nvl->nv_header), nvl->nv_data, nvl->nv_size);
 }
 
+/*
+ * Avoid returning a GUID of 0, just to avoid the possibility that something
+ * will interpret that as meaning that the GUID is uninitialized.
+ */
+uint64_t
+randomguid(void)
+{
+	uint64_t ret;
+
+	do {
+		ret = ((uint64_t)random() << 32) | random();
+	} while (ret == 0);
+
+	return (ret);
+}
+
 static nvlist_t *
 pool_config_nvcreate(zfs_opt_t *zfs)
 {
@@ -529,8 +545,8 @@ pool_init(zfs_opt_t *zfs)
 {
 	uint64_t dnid;
 
-	zfs->poolguid = ((uint64_t)random() << 32) | random();
-	zfs->vdevguid = ((uint64_t)random() << 32) | random();
+	zfs->poolguid = randomguid();
+	zfs->vdevguid = randomguid();
 
 	zfs->mos = objset_alloc(zfs, DMU_OST_META);
 
