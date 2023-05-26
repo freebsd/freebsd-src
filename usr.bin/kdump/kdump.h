@@ -34,7 +34,7 @@
 
 extern bool decimal, fancy, resolv;
 
-#define	print_number64(first,i,n,c) do {				\
+#define	_print_number64(first,i,n,c,d) do {				\
 	uint64_t __v;							\
 									\
 	if (quad_align && (((ptrdiff_t)((i) - (first))) & 1) == 1) {	\
@@ -46,7 +46,7 @@ extern bool decimal, fancy, resolv;
 		    ((uint64_t)(uint32_t)(i)[1]) << 32;			\
 	else								\
 		__v = (uint64_t)*(i);					\
-	if (decimal)							\
+	if (d)								\
 		printf("%c%jd", (c), (intmax_t)__v);			\
 	else								\
 		printf("%c%#jx", (c), (uintmax_t)__v);			\
@@ -55,8 +55,8 @@ extern bool decimal, fancy, resolv;
 	(c) = ',';							\
 } while (0)
 
-#define print_number(i,n,c) do {					\
-	if (decimal)							\
+#define _print_number(i,n,c,d) do {					\
+	if (d)								\
 		printf("%c%jd", c, (intmax_t)*i);			\
 	else								\
 		printf("%c%#jx", c, (uintmax_t)(u_register_t)*i);	\
@@ -64,6 +64,11 @@ extern bool decimal, fancy, resolv;
 	n--;								\
 	c = ',';							\
 } while (0)
+
+#define	print_number(i,n,c)		_print_number(i,n,c,decimal)
+#define	print_decimal_number(i,n,c)	_print_number(i,n,c,true)
+#define	print_number64(first,i,n,c)	_print_number64(first,i,n,c,decimal)
+#define	print_decimal_number64(first,i,n,c) _print_number64(first,i,n,c,true)
 
 void	decode_filemode(int value);
 void	print_integer_arg(const char *(*decoder)(int), int value);
