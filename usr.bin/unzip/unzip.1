@@ -34,9 +34,10 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl aCcfjLlnopqtuvy
+.Op { Fl O | Fl I No } Ar encoding
 .Op Fl d Ar dir
 .Op Fl x Ar pattern
-.Op Fl P Ar password
+.Op Fl P Ar password 
 .Ar zipfile
 .Op Ar member ...
 .Sh DESCRIPTION
@@ -62,6 +63,9 @@ Update existing.
 Extract only files from the zipfile if a file with the same name
 already exists on disk and is older than the former.
 Otherwise, the file is silently skipped.
+.It Fl I Ar encoding
+.It Fl O Ar encoding
+Convert filenames from the specified encoding.
 .It Fl j
 Ignore directories stored in the zipfile; instead, extract all files
 directly into the extraction directory.
