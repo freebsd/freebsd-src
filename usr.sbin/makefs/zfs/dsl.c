@@ -602,7 +602,7 @@ dsl_dataset_alloc(zfs_opt_t *zfs, zfs_dsl_dir_t *dir)
 	ds->phys->ds_creation_txg = TXG - 1;
 	if (ds != zfs->snapds)
 		ds->phys->ds_prev_snap_txg = TXG - 1;
-	ds->phys->ds_guid = ((uint64_t)random() << 32) | random();
+	ds->phys->ds_guid = randomguid();
 	ds->dir = dir;
 
 	return (ds);
