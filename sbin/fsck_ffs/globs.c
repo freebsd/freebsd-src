@@ -68,6 +68,7 @@ int	adjnbfree[MIBSIZE];	/* MIB command to adjust number of free blocks */
 int	adjnifree[MIBSIZE];	/* MIB command to adjust number of free inodes */
 int	adjnffree[MIBSIZE];	/* MIB command to adjust number of free frags */
 int	adjnumclusters[MIBSIZE];	/* MIB command to adjust number of free clusters */
+int	adjdepth[MIBSIZE];	/* MIB cmd to adjust directory depth count */
 int	freefiles[MIBSIZE];	/* MIB command to free a set of files */
 int	freedirs[MIBSIZE];	/* MIB command to free a set of directories */
 int	freeblks[MIBSIZE];	/* MIB command to free a set of data blocks */
@@ -140,6 +141,7 @@ fsckinit(void)
 	bzero(adjnifree, sizeof(int) * MIBSIZE);
 	bzero(adjnffree, sizeof(int) * MIBSIZE);
 	bzero(adjnumclusters, sizeof(int) * MIBSIZE);
+	bzero(adjdepth, sizeof(int) * MIBSIZE);
 	bzero(freefiles, sizeof(int) * MIBSIZE);
 	bzero(freedirs, sizeof(int) * MIBSIZE);
 	bzero(freeblks, sizeof(int) * MIBSIZE);

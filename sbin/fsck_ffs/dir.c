@@ -105,6 +105,7 @@ check_dirdepth(struct inoinfo *inp)
 	struct inode ip;
 	union dinode *dp;
 	int saveresolved;
+	size_t size;
 	static int updateasked, dirdepthupdate;
 
 	if ((parentinp = getinoinfo(inp->i_parent)) == NULL) {
@@ -141,9 +142,11 @@ check_dirdepth(struct inoinfo *inp)
 		}
 	}
 	/*
-	 * If we are not converting, nothing more to do.
+	 * If we are not converting or we are running in no-write mode
+	 * there is nothing more to do.
 	 */
-	if (inp->i_depth == 0 && dirdepthupdate == 0)
+	if ((inp->i_depth == 0 && dirdepthupdate == 0) ||
+	    (fswritefd < 0 && bkgrdflag == 0))
 		return;
 	/*
 	 * Individual directory at wrong depth. Report it and correct if
@@ -174,8 +177,20 @@ check_dirdepth(struct inoinfo *inp)
 			printf(" (ADJUSTED)\n");
 	}
 	inp->i_depth = parentinp->i_depth + 1;
-	DIP_SET(dp, di_dirdepth, inp->i_depth);
-	inodirty(&ip);
+	if (bkgrdflag == 0) {
+		DIP_SET(dp, di_dirdepth, inp->i_depth);
+		inodirty(&ip);
+	} else {
+		cmd.value = inp->i_number;
+		cmd.size = (int64_t)inp->i_depth - DIP(dp, di_dirdepth);
+		if (debug)
+			printf("adjdepth ino %ld amt %jd\n", (long)cmd.value,
+			    (intmax_t)cmd.size);
+		size = MIBSIZE;
+		if (sysctlnametomib("vfs.ffs.adjdepth", adjdepth, &size) < 0 ||
+		    sysctl(adjdepth, MIBSIZE, 0, 0, &cmd, sizeof cmd) == -1)
+			rwerror("ADJUST INODE DEPTH", cmd.value);
+	}
 	irelse(&ip);
 }
 
@@ -506,7 +521,8 @@ adjust(struct inodesc *idesc, int lcnt)
 					    (long long)cmd.size);
 				if (sysctl(adjrefcnt, MIBSIZE, 0, 0,
 				    &cmd, sizeof cmd) == -1)
-					rwerror("ADJUST INODE", cmd.value);
+					rwerror("ADJUST INODE LINK COUNT",
+					    cmd.value);
 			}
 		}
 	}

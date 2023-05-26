@@ -333,6 +333,7 @@ extern int adjnbfree[MIBSIZE];	/* MIB cmd to adjust number of free blocks */
 extern int adjnifree[MIBSIZE];	/* MIB cmd to adjust number of free inodes */
 extern int adjnffree[MIBSIZE];	/* MIB cmd to adjust number of free frags */
 extern int adjnumclusters[MIBSIZE]; /* MIB cmd adjust number of free clusters */
+extern int adjdepth[MIBSIZE];	/* MIB cmd to adjust directory depth count */
 extern int freefiles[MIBSIZE];	/* MIB cmd to free a set of files */
 extern int freedirs[MIBSIZE];	/* MIB cmd to free a set of directories */
 extern int freeblks[MIBSIZE];	/* MIB cmd to free a set of data blocks */

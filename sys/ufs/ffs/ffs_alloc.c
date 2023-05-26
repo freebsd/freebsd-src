@@ -3108,6 +3108,8 @@ ffs_fserr(struct fs *fs,
  *	the count to zero will cause the inode to be freed.
  * adjblkcnt(inode, amt) - adjust the number of blocks used by the
  *	inode by the specified amount.
+ * adjdepth(inode, amt) - adjust the depth of the specified directory
+ *	inode by the specified amount.
  * setsize(inode, size) - set the size of the inode to the
  *	specified size.
  * adjndir, adjbfree, adjifree, adjffree, adjnumclusters(amt) -
@@ -3141,6 +3143,10 @@ SYSCTL_PROC(_vfs_ffs, FFS_ADJ_REFCNT, adjrefcnt,
 static SYSCTL_NODE(_vfs_ffs, FFS_ADJ_BLKCNT, adjblkcnt,
     CTLFLAG_WR | CTLFLAG_NEEDGIANT, sysctl_ffs_fsck,
     "Adjust Inode Used Blocks Count");
+
+static SYSCTL_NODE(_vfs_ffs, FFS_ADJ_DEPTH, adjdepth,
+    CTLFLAG_WR | CTLFLAG_NEEDGIANT, sysctl_ffs_fsck,
+    "Adjust Directory Inode Depth");
 
 static SYSCTL_NODE(_vfs_ffs, FFS_SET_SIZE, setsize,
     CTLFLAG_WR | CTLFLAG_NEEDGIANT, sysctl_ffs_fsck,
@@ -3294,6 +3300,28 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			break;
 		ip = VTOI(vp);
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + cmd.size);
+		UFS_INODE_SET_FLAG(ip, IN_CHANGE | IN_MODIFIED);
+		error = ffs_update(vp, 1);
+		vput(vp);
+		break;
+
+	case FFS_ADJ_DEPTH:
+#ifdef DIAGNOSTIC
+		if (fsckcmds) {
+			printf("%s: adjust directory inode %jd depth by %jd\n",
+			    mp->mnt_stat.f_mntonname, (intmax_t)cmd.value,
+			    (intmax_t)cmd.size);
+		}
+#endif /* DIAGNOSTIC */
+		if ((error = ffs_vget(mp, (ino_t)cmd.value, LK_EXCLUSIVE, &vp)))
+			break;
+		if (vp->v_type != VDIR) {
+			vput(vp);
+			error = ENOTDIR;
+			break;
+		}
+		ip = VTOI(vp);
+		DIP_SET(ip, i_dirdepth, DIP(ip, i_dirdepth) + cmd.size);
 		UFS_INODE_SET_FLAG(ip, IN_CHANGE | IN_MODIFIED);
 		error = ffs_update(vp, 1);
 		vput(vp);
