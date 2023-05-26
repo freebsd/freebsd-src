@@ -192,6 +192,13 @@ ktrsyscall_linux(struct ktr_syscall *ktr, register_t **resip,
 		ip++;
 		narg--;
 		break;
+	case LINUX_SYS_linux_clone:
+		putchar('(');
+		print_mask_arg(sysdecode_linux_clone_flags, *ip);
+		ip++;
+		narg--;
+		c = ',';
+		break;
 	case LINUX_SYS_linux_kill:
 	case LINUX_SYS_linux_tkill:
 	case LINUX_SYS_linux_rt_sigqueueinfo:
@@ -393,6 +400,13 @@ ktrsyscall_linux32(struct ktr_syscall *ktr, register_t **resip,
 		c = ',';
 		ip++;
 		narg--;
+		break;
+	case LINUX32_SYS_linux_clone:
+		putchar('(');
+		print_mask_arg(sysdecode_linux_clone_flags, *ip);
+		ip++;
+		narg--;
+		c = ',';
 		break;
 	case LINUX32_SYS_linux_kill:
 	case LINUX32_SYS_linux_tkill:
