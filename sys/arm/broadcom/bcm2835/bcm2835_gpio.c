@@ -115,11 +115,11 @@ struct bcm_gpio_softc {
 	device_t		sc_busdev;
 	struct mtx		sc_mtx;
 	struct resource *	sc_res[BCM_GPIO_IRQS + 1];
-	bool			sc_is2711;
-	u_int			sc_maxpins;
 	bus_space_tag_t		sc_bst;
 	bus_space_handle_t	sc_bsh;
 	void *			sc_intrhand[BCM_GPIO_IRQS];
+	bool			sc_is2711;
+	u_int			sc_maxpins;
 	int			sc_gpio_npins;
 	int			sc_ro_npins;
 	int			sc_ro_pins[BCM_GPIO_PINS];
@@ -311,13 +311,13 @@ bcm_gpio_set_pud(struct bcm_gpio_softc *sc, uint32_t pin, uint32_t state)
 		uint32_t reg;
 
 		switch (state) {
-		    case BCM2835_PUD_OFF:
+		case BCM2835_PUD_OFF:
 			state = BCM2711_PUD_OFF;
 			break;
-		    case BCM2835_PUD_DOWN:
+		case BCM2835_PUD_DOWN:
 			state = BCM2711_PUD_DOWN;
 			break;
-		    case BCM2835_PUD_UP:
+		case BCM2835_PUD_UP:
 			state = BCM2711_PUD_UP;
 			break;
 		}
