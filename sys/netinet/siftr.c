@@ -87,9 +87,11 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/pfil.h>
+#include <net/route.h>
 
 #include <netinet/in.h>
 #include <netinet/in_kdtrace.h>
+#include <netinet/in_fib.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
@@ -100,6 +102,7 @@ __FBSDID("$FreeBSD$");
 #ifdef SIFTR_IPV6
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
+#include <netinet6/in6_fib.h>
 #include <netinet6/in6_pcb.h>
 #endif /* SIFTR_IPV6 */
 
@@ -136,31 +139,11 @@ __FBSDID("$FreeBSD$");
 /* XXX: Make this a sysctl tunable. */
 #define SIFTR_ALQ_BUFLEN (1000*MAX_LOG_MSG_LEN)
 
-/*
- * 1 byte for IP version
- * IPv4: src/dst IP (4+4) + src/dst port (2+2) = 12 bytes
- * IPv6: src/dst IP (16+16) + src/dst port (2+2) = 36 bytes
- */
-#ifdef SIFTR_IPV6
-#define FLOW_KEY_LEN 37
-#else
-#define FLOW_KEY_LEN 13
-#endif
-
 #ifdef SIFTR_IPV6
 #define SIFTR_IPMODE 6
 #else
 #define SIFTR_IPMODE 4
 #endif
-
-/* useful macros */
-#define UPPER_SHORT(X)	(((X) & 0xFFFF0000) >> 16)
-#define LOWER_SHORT(X)	((X) & 0x0000FFFF)
-
-#define FIRST_OCTET(X)	(((X) & 0xFF000000) >> 24)
-#define SECOND_OCTET(X)	(((X) & 0x00FF0000) >> 16)
-#define THIRD_OCTET(X)	(((X) & 0x0000FF00) >> 8)
-#define FOURTH_OCTET(X)	((X) & 0x000000FF)
 
 static MALLOC_DEFINE(M_SIFTR, "siftr", "dynamic memory used by SIFTR");
 static MALLOC_DEFINE(M_SIFTR_PKTNODE, "siftr_pktnode",
@@ -177,20 +160,6 @@ struct pkt_node {
 		DIR_IN = 0,
 		DIR_OUT = 1,
 	}			direction;
-	/* IP version pkt_node relates to; either INP_IPV4 or INP_IPV6. */
-	uint8_t			ipver;
-	/* Local/foreign IP address. */
-#ifdef SIFTR_IPV6
-	uint32_t		ip_laddr[4];
-	uint32_t		ip_faddr[4];
-#else
-	uint8_t			ip_laddr[4];
-	uint8_t			ip_faddr[4];
-#endif
-	/* Local TCP port. */
-	uint16_t		tcp_localport;
-	/* Foreign TCP port. */
-	uint16_t		tcp_foreignport;
 	/* Congestion Window (bytes). */
 	uint32_t		snd_cwnd;
 	/* Sending Window (bytes). */
@@ -237,10 +206,25 @@ struct pkt_node {
 	STAILQ_ENTRY(pkt_node)	nodes;
 };
 
+struct flow_info
+{
+#ifdef SIFTR_IPV6
+	char	laddr[INET6_ADDRSTRLEN];	/* local IP address */
+	char	faddr[INET6_ADDRSTRLEN];	/* foreign IP address */
+#else
+	char	laddr[INET_ADDRSTRLEN];		/* local IP address */
+	char	faddr[INET_ADDRSTRLEN];		/* foreign IP address */
+#endif
+	uint16_t	lport;			/* local TCP port */
+	uint16_t	fport;			/* foreign TCP port */
+	uint8_t		ipver;			/* IP version */
+	uint32_t	key;			/* flowid of the connection */
+};
+
 struct flow_hash_node
 {
 	uint16_t counter;
-	uint8_t key[FLOW_KEY_LEN];
+	struct flow_info const_info;		/* constant connection info */
 	LIST_ENTRY(flow_hash_node) nodes;
 };
 
@@ -319,42 +303,10 @@ SYSCTL_UINT(_net_inet_siftr, OID_AUTO, binary, CTLFLAG_RW,
 
 /* Begin functions. */
 
-static void
-siftr_process_pkt(struct pkt_node * pkt_node)
+static inline struct flow_hash_node *
+siftr_find_flow(struct listhead *counter_list, uint32_t id)
 {
 	struct flow_hash_node *hash_node;
-	struct listhead *counter_list;
-	struct siftr_stats *ss;
-	struct ale *log_buf;
-	uint8_t key[FLOW_KEY_LEN];
-	uint8_t found_match, key_offset;
-
-	hash_node = NULL;
-	ss = DPCPU_PTR(ss);
-	found_match = 0;
-	key_offset = 1;
-
-	/*
-	 * Create the key that will be used to create a hash index
-	 * into our hash table. Our key consists of:
-	 * ipversion, localip, localport, foreignip, foreignport
-	 */
-	key[0] = pkt_node->ipver;
-	memcpy(key + key_offset, &pkt_node->ip_laddr,
-	    sizeof(pkt_node->ip_laddr));
-	key_offset += sizeof(pkt_node->ip_laddr);
-	memcpy(key + key_offset, &pkt_node->tcp_localport,
-	    sizeof(pkt_node->tcp_localport));
-	key_offset += sizeof(pkt_node->tcp_localport);
-	memcpy(key + key_offset, &pkt_node->ip_faddr,
-	    sizeof(pkt_node->ip_faddr));
-	key_offset += sizeof(pkt_node->ip_faddr);
-	memcpy(key + key_offset, &pkt_node->tcp_foreignport,
-	    sizeof(pkt_node->tcp_foreignport));
-
-	counter_list = counter_hash +
-	    (hash32_buf(key, sizeof(key), 0) & siftr_hashmask);
-
 	/*
 	 * If the list is not empty i.e. the hash index has
 	 * been used by another flow previously.
@@ -362,9 +314,7 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 	if (LIST_FIRST(counter_list) != NULL) {
 		/*
 		 * Loop through the hash nodes in the list.
-		 * There should normally only be 1 hash node in the list,
-		 * except if there have been collisions at the hash index
-		 * computed by hash32_buf().
+		 * There should normally only be 1 hash node in the list.
 		 */
 		LIST_FOREACH(hash_node, counter_list, nodes) {
 			/*
@@ -375,50 +325,60 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 			 * hash node that stores the counter for the flow
 			 * the pkt belongs to.
 			 */
-			if (memcmp(hash_node->key, key, sizeof(key)) == 0) {
-				found_match = 1;
-				break;
+			if (hash_node->const_info.key == id) {
+				return hash_node;
 			}
 		}
 	}
 
-	/* If this flow hash hasn't been seen before or we have a collision. */
-	if (hash_node == NULL || !found_match) {
-		/* Create a new hash node to store the flow's counter. */
-		hash_node = malloc(sizeof(struct flow_hash_node),
-		    M_SIFTR_HASHNODE, M_WAITOK);
+	return NULL;
+}
 
-		if (hash_node != NULL) {
-			/* Initialise our new hash node list entry. */
-			hash_node->counter = 0;
-			memcpy(hash_node->key, key, sizeof(key));
-			LIST_INSERT_HEAD(counter_list, hash_node, nodes);
-		} else {
-			/* Malloc failed. */
-			if (pkt_node->direction == DIR_IN)
-				ss->nskip_in_malloc++;
-			else
-				ss->nskip_out_malloc++;
+static inline struct flow_hash_node *
+siftr_new_hash_node(struct flow_info info, int dir,
+		    struct siftr_stats *ss)
+{
+	struct flow_hash_node *hash_node;
+	struct listhead *counter_list;
 
-			return;
-		}
-	} else if (siftr_pkts_per_log > 1) {
-		/*
-		 * Taking the remainder of the counter divided
-		 * by the current value of siftr_pkts_per_log
-		 * and storing that in counter provides a neat
-		 * way to modulate the frequency of log
-		 * messages being written to the log file.
-		 */
-		hash_node->counter = (hash_node->counter + 1) %
-		    siftr_pkts_per_log;
+	counter_list = counter_hash + (info.key & siftr_hashmask);
+	/* Create a new hash node to store the flow's constant info. */
+	hash_node = malloc(sizeof(struct flow_hash_node), M_SIFTR_HASHNODE,
+			   M_NOWAIT|M_ZERO);
 
-		/*
-		 * If we have not seen enough packets since the last time
-		 * we wrote a log message for this connection, return.
-		 */
-		if (hash_node->counter > 0)
-			return;
+	if (hash_node != NULL) {
+		/* Initialise our new hash node list entry. */
+		hash_node->counter = 0;
+		hash_node->const_info = info;
+		LIST_INSERT_HEAD(counter_list, hash_node, nodes);
+		return hash_node;
+	} else {
+		/* malloc failed */
+		if (dir == DIR_IN)
+			ss->nskip_in_malloc++;
+		else
+			ss->nskip_out_malloc++;
+
+		return NULL;
+	}
+}
+
+static void
+siftr_process_pkt(struct pkt_node * pkt_node)
+{
+	struct flow_hash_node *hash_node;
+	struct listhead *counter_list;
+	struct ale *log_buf;
+
+	if (pkt_node->flowid == 0) {
+		panic("%s: flowid not available", __func__);
+	}
+
+	counter_list = counter_hash + (pkt_node->flowid & siftr_hashmask);
+	hash_node = siftr_find_flow(counter_list, pkt_node->flowid);
+
+	if (hash_node == NULL) {
+		return;
 	}
 
 	log_buf = alq_getn(siftr_alq, MAX_LOG_MSG_LEN, ALQ_WAITOK);
@@ -426,119 +386,38 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 	if (log_buf == NULL)
 		return; /* Should only happen if the ALQ is shutting down. */
 
-#ifdef SIFTR_IPV6
-	pkt_node->ip_laddr[3] = ntohl(pkt_node->ip_laddr[3]);
-	pkt_node->ip_faddr[3] = ntohl(pkt_node->ip_faddr[3]);
-
-	if (pkt_node->ipver == INP_IPV6) { /* IPv6 packet */
-		pkt_node->ip_laddr[0] = ntohl(pkt_node->ip_laddr[0]);
-		pkt_node->ip_laddr[1] = ntohl(pkt_node->ip_laddr[1]);
-		pkt_node->ip_laddr[2] = ntohl(pkt_node->ip_laddr[2]);
-		pkt_node->ip_faddr[0] = ntohl(pkt_node->ip_faddr[0]);
-		pkt_node->ip_faddr[1] = ntohl(pkt_node->ip_faddr[1]);
-		pkt_node->ip_faddr[2] = ntohl(pkt_node->ip_faddr[2]);
-
-		/* Construct an IPv6 log message. */
-		log_buf->ae_bytesused = snprintf(log_buf->ae_data,
-		    MAX_LOG_MSG_LEN,
-		    "%c,%zd.%06ld,%x:%x:%x:%x:%x:%x:%x:%x,%u,%x:%x:%x:"
-		    "%x:%x:%x:%x:%x,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,"
-		    "%u,%u,%u,%u,%u,%u,%u,%u,%u,%u\n",
-		    direction[pkt_node->direction],
-		    pkt_node->tval.tv_sec,
-		    pkt_node->tval.tv_usec,
-		    UPPER_SHORT(pkt_node->ip_laddr[0]),
-		    LOWER_SHORT(pkt_node->ip_laddr[0]),
-		    UPPER_SHORT(pkt_node->ip_laddr[1]),
-		    LOWER_SHORT(pkt_node->ip_laddr[1]),
-		    UPPER_SHORT(pkt_node->ip_laddr[2]),
-		    LOWER_SHORT(pkt_node->ip_laddr[2]),
-		    UPPER_SHORT(pkt_node->ip_laddr[3]),
-		    LOWER_SHORT(pkt_node->ip_laddr[3]),
-		    ntohs(pkt_node->tcp_localport),
-		    UPPER_SHORT(pkt_node->ip_faddr[0]),
-		    LOWER_SHORT(pkt_node->ip_faddr[0]),
-		    UPPER_SHORT(pkt_node->ip_faddr[1]),
-		    LOWER_SHORT(pkt_node->ip_faddr[1]),
-		    UPPER_SHORT(pkt_node->ip_faddr[2]),
-		    LOWER_SHORT(pkt_node->ip_faddr[2]),
-		    UPPER_SHORT(pkt_node->ip_faddr[3]),
-		    LOWER_SHORT(pkt_node->ip_faddr[3]),
-		    ntohs(pkt_node->tcp_foreignport),
-		    pkt_node->snd_ssthresh,
-		    pkt_node->snd_cwnd,
-		    pkt_node->t_flags2,
-		    pkt_node->snd_wnd,
-		    pkt_node->rcv_wnd,
-		    pkt_node->snd_scale,
-		    pkt_node->rcv_scale,
-		    pkt_node->conn_state,
-		    pkt_node->max_seg_size,
-		    pkt_node->srtt,
-		    pkt_node->sack_enabled,
-		    pkt_node->flags,
-		    pkt_node->rto,
-		    pkt_node->snd_buf_hiwater,
-		    pkt_node->snd_buf_cc,
-		    pkt_node->rcv_buf_hiwater,
-		    pkt_node->rcv_buf_cc,
-		    pkt_node->sent_inflight_bytes,
-		    pkt_node->t_segqlen,
-		    pkt_node->flowid,
-		    pkt_node->flowtype);
-	} else { /* IPv4 packet */
-		pkt_node->ip_laddr[0] = FIRST_OCTET(pkt_node->ip_laddr[3]);
-		pkt_node->ip_laddr[1] = SECOND_OCTET(pkt_node->ip_laddr[3]);
-		pkt_node->ip_laddr[2] = THIRD_OCTET(pkt_node->ip_laddr[3]);
-		pkt_node->ip_laddr[3] = FOURTH_OCTET(pkt_node->ip_laddr[3]);
-		pkt_node->ip_faddr[0] = FIRST_OCTET(pkt_node->ip_faddr[3]);
-		pkt_node->ip_faddr[1] = SECOND_OCTET(pkt_node->ip_faddr[3]);
-		pkt_node->ip_faddr[2] = THIRD_OCTET(pkt_node->ip_faddr[3]);
-		pkt_node->ip_faddr[3] = FOURTH_OCTET(pkt_node->ip_faddr[3]);
-#endif /* SIFTR_IPV6 */
-
-		/* Construct an IPv4 log message. */
-		log_buf->ae_bytesused = snprintf(log_buf->ae_data,
-		    MAX_LOG_MSG_LEN,
-		    "%c,%jd.%06ld,%u.%u.%u.%u,%u,%u.%u.%u.%u,%u,%u,%u,"
-		    "%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u\n",
-		    direction[pkt_node->direction],
-		    (intmax_t)pkt_node->tval.tv_sec,
-		    pkt_node->tval.tv_usec,
-		    pkt_node->ip_laddr[0],
-		    pkt_node->ip_laddr[1],
-		    pkt_node->ip_laddr[2],
-		    pkt_node->ip_laddr[3],
-		    ntohs(pkt_node->tcp_localport),
-		    pkt_node->ip_faddr[0],
-		    pkt_node->ip_faddr[1],
-		    pkt_node->ip_faddr[2],
-		    pkt_node->ip_faddr[3],
-		    ntohs(pkt_node->tcp_foreignport),
-		    pkt_node->snd_ssthresh,
-		    pkt_node->snd_cwnd,
-		    pkt_node->t_flags2,
-		    pkt_node->snd_wnd,
-		    pkt_node->rcv_wnd,
-		    pkt_node->snd_scale,
-		    pkt_node->rcv_scale,
-		    pkt_node->conn_state,
-		    pkt_node->max_seg_size,
-		    pkt_node->srtt,
-		    pkt_node->sack_enabled,
-		    pkt_node->flags,
-		    pkt_node->rto,
-		    pkt_node->snd_buf_hiwater,
-		    pkt_node->snd_buf_cc,
-		    pkt_node->rcv_buf_hiwater,
-		    pkt_node->rcv_buf_cc,
-		    pkt_node->sent_inflight_bytes,
-		    pkt_node->t_segqlen,
-		    pkt_node->flowid,
-		    pkt_node->flowtype);
-#ifdef SIFTR_IPV6
-	}
-#endif
+	/* Construct a log message. */
+	log_buf->ae_bytesused = snprintf(log_buf->ae_data, MAX_LOG_MSG_LEN,
+	    "%c,%zd.%06ld,%s,%hu,%s,%hu,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,"
+	    "%u,%u,%u,%u,%u,%u,%u,%u\n",
+	    direction[pkt_node->direction],
+	    pkt_node->tval.tv_sec,
+	    pkt_node->tval.tv_usec,
+	    hash_node->const_info.laddr,
+	    hash_node->const_info.lport,
+	    hash_node->const_info.faddr,
+	    hash_node->const_info.fport,
+	    pkt_node->snd_ssthresh,
+	    pkt_node->snd_cwnd,
+	    pkt_node->t_flags2,
+	    pkt_node->snd_wnd,
+	    pkt_node->rcv_wnd,
+	    pkt_node->snd_scale,
+	    pkt_node->rcv_scale,
+	    pkt_node->conn_state,
+	    pkt_node->max_seg_size,
+	    pkt_node->srtt,
+	    pkt_node->sack_enabled,
+	    pkt_node->flags,
+	    pkt_node->rto,
+	    pkt_node->snd_buf_hiwater,
+	    pkt_node->snd_buf_cc,
+	    pkt_node->rcv_buf_hiwater,
+	    pkt_node->rcv_buf_cc,
+	    pkt_node->sent_inflight_bytes,
+	    pkt_node->t_segqlen,
+	    pkt_node->flowid,
+	    pkt_node->flowtype);
 
 	alq_post_flags(siftr_alq, log_buf, 0);
 }
@@ -708,32 +587,38 @@ siftr_findinpcb(int ipver, struct ip *ip, struct mbuf *m, uint16_t sport,
 	return (inp);
 }
 
+static inline uint32_t
+siftr_get_flowid(struct inpcb *inp, int ipver, uint32_t *phashtype)
+{
+	if (inp->inp_flowid == 0) {
+#ifdef SIFTR_IPV6
+		if (ipver == INP_IPV6) {
+			return fib6_calc_packet_hash(&inp->in6p_laddr,
+						     &inp->in6p_faddr,
+						     inp->inp_lport,
+						     inp->inp_fport,
+						     IPPROTO_TCP,
+						     phashtype);
+		} else
+#endif
+		{
+			return fib4_calc_packet_hash(inp->inp_laddr,
+						     inp->inp_faddr,
+						     inp->inp_lport,
+						     inp->inp_fport,
+						     IPPROTO_TCP,
+						     phashtype);
+		}
+	} else {
+		*phashtype = inp->inp_flowtype;
+		return inp->inp_flowid;
+	}
+}
+
 static inline void
 siftr_siftdata(struct pkt_node *pn, struct inpcb *inp, struct tcpcb *tp,
     int ipver, int dir, int inp_locally_locked)
 {
-#ifdef SIFTR_IPV6
-	if (ipver == INP_IPV4) {
-		pn->ip_laddr[3] = inp->inp_laddr.s_addr;
-		pn->ip_faddr[3] = inp->inp_faddr.s_addr;
-#else
-		*((uint32_t *)pn->ip_laddr) = inp->inp_laddr.s_addr;
-		*((uint32_t *)pn->ip_faddr) = inp->inp_faddr.s_addr;
-#endif
-#ifdef SIFTR_IPV6
-	} else {
-		pn->ip_laddr[0] = inp->in6p_laddr.s6_addr32[0];
-		pn->ip_laddr[1] = inp->in6p_laddr.s6_addr32[1];
-		pn->ip_laddr[2] = inp->in6p_laddr.s6_addr32[2];
-		pn->ip_laddr[3] = inp->in6p_laddr.s6_addr32[3];
-		pn->ip_faddr[0] = inp->in6p_faddr.s6_addr32[0];
-		pn->ip_faddr[1] = inp->in6p_faddr.s6_addr32[1];
-		pn->ip_faddr[2] = inp->in6p_faddr.s6_addr32[2];
-		pn->ip_faddr[3] = inp->in6p_faddr.s6_addr32[3];
-	}
-#endif
-	pn->tcp_localport = inp->inp_lport;
-	pn->tcp_foreignport = inp->inp_fport;
 	pn->snd_cwnd = tp->snd_cwnd;
 	pn->snd_wnd = tp->snd_wnd;
 	pn->rcv_wnd = tp->rcv_wnd;
@@ -743,7 +628,7 @@ siftr_siftdata(struct pkt_node *pn, struct inpcb *inp, struct tcpcb *tp,
 	pn->rcv_scale = tp->rcv_scale;
 	pn->conn_state = tp->t_state;
 	pn->max_seg_size = tp->t_maxseg;
-	pn->srtt = ((u_int64_t)tp->t_srtt * tick) >> TCP_RTT_SHIFT;
+	pn->srtt = ((uint64_t)tp->t_srtt * tick) >> TCP_RTT_SHIFT;
 	pn->sack_enabled = (tp->t_flags & TF_SACK_PERMIT) != 0;
 	pn->flags = tp->t_flags;
 	pn->rto = tp->t_rxtcur * tick;
@@ -753,14 +638,11 @@ siftr_siftdata(struct pkt_node *pn, struct inpcb *inp, struct tcpcb *tp,
 	pn->rcv_buf_cc = sbused(&inp->inp_socket->so_rcv);
 	pn->sent_inflight_bytes = tp->snd_max - tp->snd_una;
 	pn->t_segqlen = tp->t_segqlen;
-	pn->flowid = inp->inp_flowid;
-	pn->flowtype = inp->inp_flowtype;
 
 	/* We've finished accessing the tcb so release the lock. */
 	if (inp_locally_locked)
 		INP_RUNLOCK(inp);
 
-	pn->ipver = ipver;
 	pn->direction = (dir == PFIL_IN ? DIR_IN : DIR_OUT);
 
 	/*
@@ -770,7 +652,6 @@ siftr_siftdata(struct pkt_node *pn, struct inpcb *inp, struct tcpcb *tp,
 	 */
 	microtime(&pn->tval);
 	TCP_PROBE1(siftr, &pn);
-
 }
 
 /*
@@ -792,6 +673,9 @@ siftr_chkpkt(struct mbuf **m, struct ifnet *ifp, int flags,
 	struct siftr_stats *ss;
 	unsigned int ip_hl;
 	int inp_locally_locked, dir;
+	uint32_t hash_id, hash_type;
+	struct listhead *counter_list;
+	struct flow_hash_node *hash_node;
 
 	inp_locally_locked = 0;
 	dir = PFIL_DIR(flags);
@@ -861,9 +745,11 @@ siftr_chkpkt(struct mbuf **m, struct ifnet *ifp, int flags,
 
 	/*
 	 * If we can't find the TCP control block (happens occasionaly for a
-	 * packet sent during the shutdown phase of a TCP connection), bail
+	 * packet sent during the shutdown phase of a TCP connection), or the
+	 * TCP control block has not initialized (happens during TCPS_SYN_SENT),
+	 * bail.
 	 */
-	if (tp == NULL) {
+	if (tp == NULL || tp->t_state < TCPS_ESTABLISHED) {
 		if (dir == PFIL_IN)
 			ss->nskip_in_tcpcb++;
 		else
@@ -872,6 +758,27 @@ siftr_chkpkt(struct mbuf **m, struct ifnet *ifp, int flags,
 		goto inp_unlock;
 	}
 
+	hash_id = siftr_get_flowid(inp, INP_IPV4, &hash_type);
+	counter_list = counter_hash + (hash_id & siftr_hashmask);
+	hash_node = siftr_find_flow(counter_list, hash_id);
+
+	/* If this flow hasn't been seen before, we create a new entry. */
+	if (hash_node == NULL) {
+		struct flow_info info;
+
+		inet_ntoa_r(inp->inp_laddr, info.laddr);
+		inet_ntoa_r(inp->inp_faddr, info.faddr);
+		info.lport = ntohs(inp->inp_lport);
+		info.fport = ntohs(inp->inp_fport);
+		info.key = hash_id;
+		info.ipver = INP_IPV4;
+
+		hash_node = siftr_new_hash_node(info, dir, ss);
+	}
+
+	if (hash_node == NULL) {
+		goto inp_unlock;
+	}
 
 	pn = malloc(sizeof(struct pkt_node), M_SIFTR_PKTNODE, M_NOWAIT|M_ZERO);
 
@@ -883,6 +790,9 @@ siftr_chkpkt(struct mbuf **m, struct ifnet *ifp, int flags,
 
 		goto inp_unlock;
 	}
+
+	pn->flowid = hash_id;
+	pn->flowtype = hash_type;
 
 	siftr_siftdata(pn, inp, tp, INP_IPV4, dir, inp_locally_locked);
 
@@ -911,6 +821,9 @@ siftr_chkpkt6(struct mbuf **m, struct ifnet *ifp, int flags,
 	struct siftr_stats *ss;
 	unsigned int ip6_hl;
 	int inp_locally_locked, dir;
+	uint32_t hash_id, hash_type;
+	struct listhead *counter_list;
+	struct flow_hash_node *hash_node;
 
 	inp_locally_locked = 0;
 	dir = PFIL_DIR(flags);
@@ -982,9 +895,11 @@ siftr_chkpkt6(struct mbuf **m, struct ifnet *ifp, int flags,
 
 	/*
 	 * If we can't find the TCP control block (happens occasionaly for a
-	 * packet sent during the shutdown phase of a TCP connection), bail
+	 * packet sent during the shutdown phase of a TCP connection), or the
+	 * TCP control block has not initialized (happens during TCPS_SYN_SENT),
+	 * bail.
 	 */
-	if (tp == NULL) {
+	if (tp == NULL || tp->t_state < TCPS_ESTABLISHED) {
 		if (dir == PFIL_IN)
 			ss->nskip_in_tcpcb++;
 		else
@@ -993,6 +908,27 @@ siftr_chkpkt6(struct mbuf **m, struct ifnet *ifp, int flags,
 		goto inp_unlock6;
 	}
 
+	hash_id = siftr_get_flowid(inp, INP_IPV6, &hash_type);
+	counter_list = counter_hash + (hash_id & siftr_hashmask);
+	hash_node = siftr_find_flow(counter_list, hash_id);
+
+	/* If this flow hasn't been seen before, we create a new entry. */
+	if (!hash_node) {
+		struct flow_info info;
+
+		ip6_sprintf(info.laddr, &inp->in6p_laddr);
+		ip6_sprintf(info.faddr, &inp->in6p_faddr);
+		info.lport = ntohs(inp->inp_lport);
+		info.fport = ntohs(inp->inp_fport);
+		info.key = hash_id;
+		info.ipver = INP_IPV6;
+
+		hash_node = siftr_new_hash_node(info, dir, ss);
+	}
+
+	if (!hash_node) {
+		goto inp_unlock6;
+	}
 
 	pn = malloc(sizeof(struct pkt_node), M_SIFTR_PKTNODE, M_NOWAIT|M_ZERO);
 
@@ -1004,6 +940,9 @@ siftr_chkpkt6(struct mbuf **m, struct ifnet *ifp, int flags,
 
 		goto inp_unlock6;
 	}
+
+	pn->flowid = hash_id;
+	pn->flowtype = hash_type;
 
 	siftr_siftdata(pn, inp, tp, INP_IPV6, dir, inp_locally_locked);
 
@@ -1122,18 +1061,8 @@ siftr_manage_ops(uint8_t action)
 	struct timeval tval;
 	struct flow_hash_node *counter, *tmp_counter;
 	struct sbuf *s;
-	int i, key_index, error;
+	int i, error;
 	uint32_t bytes_to_write, total_skipped_pkts;
-	uint16_t lport, fport;
-	uint8_t *key, ipver __unused;
-
-#ifdef SIFTR_IPV6
-	uint32_t laddr[4];
-	uint32_t faddr[4];
-#else
-	uint8_t laddr[4];
-	uint8_t faddr[4];
-#endif
 
 	error = 0;
 	total_skipped_pkts = 0;
@@ -1249,77 +1178,11 @@ siftr_manage_ops(uint8_t action)
 		for (i = 0; i <= siftr_hashmask; i++) {
 			LIST_FOREACH_SAFE(counter, counter_hash + i, nodes,
 			    tmp_counter) {
-				key = counter->key;
-				key_index = 1;
-
-				ipver = key[0];
-
-				memcpy(laddr, key + key_index, sizeof(laddr));
-				key_index += sizeof(laddr);
-				memcpy(&lport, key + key_index, sizeof(lport));
-				key_index += sizeof(lport);
-				memcpy(faddr, key + key_index, sizeof(faddr));
-				key_index += sizeof(faddr);
-				memcpy(&fport, key + key_index, sizeof(fport));
-
-#ifdef SIFTR_IPV6
-				laddr[3] = ntohl(laddr[3]);
-				faddr[3] = ntohl(faddr[3]);
-
-				if (ipver == INP_IPV6) {
-					laddr[0] = ntohl(laddr[0]);
-					laddr[1] = ntohl(laddr[1]);
-					laddr[2] = ntohl(laddr[2]);
-					faddr[0] = ntohl(faddr[0]);
-					faddr[1] = ntohl(faddr[1]);
-					faddr[2] = ntohl(faddr[2]);
-
-					sbuf_printf(s,
-					    "%x:%x:%x:%x:%x:%x:%x:%x;%u-"
-					    "%x:%x:%x:%x:%x:%x:%x:%x;%u,",
-					    UPPER_SHORT(laddr[0]),
-					    LOWER_SHORT(laddr[0]),
-					    UPPER_SHORT(laddr[1]),
-					    LOWER_SHORT(laddr[1]),
-					    UPPER_SHORT(laddr[2]),
-					    LOWER_SHORT(laddr[2]),
-					    UPPER_SHORT(laddr[3]),
-					    LOWER_SHORT(laddr[3]),
-					    ntohs(lport),
-					    UPPER_SHORT(faddr[0]),
-					    LOWER_SHORT(faddr[0]),
-					    UPPER_SHORT(faddr[1]),
-					    LOWER_SHORT(faddr[1]),
-					    UPPER_SHORT(faddr[2]),
-					    LOWER_SHORT(faddr[2]),
-					    UPPER_SHORT(faddr[3]),
-					    LOWER_SHORT(faddr[3]),
-					    ntohs(fport));
-				} else {
-					laddr[0] = FIRST_OCTET(laddr[3]);
-					laddr[1] = SECOND_OCTET(laddr[3]);
-					laddr[2] = THIRD_OCTET(laddr[3]);
-					laddr[3] = FOURTH_OCTET(laddr[3]);
-					faddr[0] = FIRST_OCTET(faddr[3]);
-					faddr[1] = SECOND_OCTET(faddr[3]);
-					faddr[2] = THIRD_OCTET(faddr[3]);
-					faddr[3] = FOURTH_OCTET(faddr[3]);
-#endif
-					sbuf_printf(s,
-					    "%u.%u.%u.%u;%u-%u.%u.%u.%u;%u,",
-					    laddr[0],
-					    laddr[1],
-					    laddr[2],
-					    laddr[3],
-					    ntohs(lport),
-					    faddr[0],
-					    faddr[1],
-					    faddr[2],
-					    faddr[3],
-					    ntohs(fport));
-#ifdef SIFTR_IPV6
-				}
-#endif
+				sbuf_printf(s, "%s;%hu-%s;%hu,",
+					    counter->const_info.laddr,
+					    counter->const_info.lport,
+					    counter->const_info.faddr,
+					    counter->const_info.fport);
 
 				free(counter, M_SIFTR_HASHNODE);
 			}

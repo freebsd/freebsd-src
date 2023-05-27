@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 26, 2023
+.Dd May 27, 2023
 .Dt SIFTR 4
 .Os
 .Sh NAME
@@ -83,10 +83,7 @@ In the IPv4-only (default) mode, standard dotted decimal notation (e.g.
 "136.186.229.95") is used to format IPv4 addresses for logging.
 In IPv6 mode, standard dotted decimal notation is used to format IPv4 addresses,
 and standard colon-separated hex notation (see RFC 4291) is used to format IPv6
-addresses for logging.
-Note that SIFTR uses uncompressed notation to format IPv6 addresses.
-For example, the address "fe80::20f:feff:fea2:531b" would be logged as
-"fe80:0:0:0:20f:feff:fea2:531b".
+addresses (e.g. "fd00::2") for logging.
 .Ss Run-time Configuration
 .Nm
 utilises the
@@ -746,7 +743,4 @@ value logged by
 does not take into account bytes that have been
 .No SACK Ap ed
 by the receiving host.
-.It
-Compressed notation is not used for IPv6 address representation.
-This consumes more bytes than is necessary in log output.
 .El
