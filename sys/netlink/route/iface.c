@@ -1155,12 +1155,7 @@ handle_newaddr_inet(struct nlmsghdr *hdr, struct nl_parsed_ifa *attrs,
 	if (attrs->ifa_dst != NULL)
 		req.ifra_dstaddr = *((struct sockaddr_in *)attrs->ifa_dst);
 
-	int error = in_control(NULL, SIOCAIFADDR, &req, ifp, curthread);
-#ifdef INET6
-	if (error == 0 && !(if_flags & IFF_UP) && (if_getflags(ifp) & IFF_UP))
-		in6_if_up(ifp);
-#endif
-	return (error);
+	return (in_control(NULL, SIOCAIFADDR, &req, ifp, curthread));
 }
 
 static int
@@ -1262,6 +1257,7 @@ rtnl_handle_addr(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *npt)
 		    attrs.ifa_index);
 		return (ENOENT);
 	}
+	int if_flags = if_getflags(ifp);
 
 #if defined(INET) || defined(INET6)
 	bool new = hdr->nlmsg_type == NL_RTM_NEWADDR;
@@ -1293,6 +1289,11 @@ rtnl_handle_addr(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *npt)
 	default:
 		error = EAFNOSUPPORT;
 	}
+
+#ifdef INET6
+	if (error == 0 && !(if_flags & IFF_UP) && (if_getflags(ifp) & IFF_UP))
+		in6_if_up(ifp);
+#endif
 
 	if_rele(ifp);
 
