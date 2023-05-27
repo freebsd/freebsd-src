@@ -433,8 +433,9 @@ void
 ginode(ino_t inumber, struct inode *ip)
 {
 	ufs2_daddr_t iblk;
+	struct ufs2_dinode *dp;
 
-	if (inumber < UFS_ROOTINO || inumber > maxino)
+	if (inumber < UFS_ROOTINO || inumber >= maxino)
 		errx(EEXIT, "bad inode number %ju to ginode",
 		    (uintmax_t)inumber);
 	ip->i_number = inumber;
@@ -473,14 +474,15 @@ ginode(ino_t inumber, struct inode *ip)
 	}
 	ip->i_dp = (union dinode *)
 	    &ip->i_bp->b_un.b_dinode2[inumber - ip->i_bp->b_index];
-	if (ffs_verify_dinode_ckhash(&sblock, (struct ufs2_dinode *)ip->i_dp)) {
+	dp = (struct ufs2_dinode *)ip->i_dp;
+	/* Do not check hash of inodes being created */
+	if (dp->di_mode != 0 && ffs_verify_dinode_ckhash(&sblock, dp)) {
 		pwarn("INODE CHECK-HASH FAILED");
 		prtinode(ip);
 		if (preen || reply("FIX") != 0) {
 			if (preen)
 				printf(" (FIXED)\n");
-			ffs_update_dinode_ckhash(&sblock,
-			    (struct ufs2_dinode *)ip->i_dp);
+			ffs_update_dinode_ckhash(&sblock, dp);
 			inodirty(ip);
 		}
 	}
@@ -1292,7 +1294,7 @@ findino(struct inodesc *idesc)
 	if (dirp->d_ino == 0)
 		return (KEEPON);
 	if (strcmp(dirp->d_name, idesc->id_name) == 0 &&
-	    dirp->d_ino >= UFS_ROOTINO && dirp->d_ino <= maxino) {
+	    dirp->d_ino >= UFS_ROOTINO && dirp->d_ino < maxino) {
 		idesc->id_parent = dirp->d_ino;
 		return (STOP|FOUND);
 	}
@@ -1322,7 +1324,7 @@ prtinode(struct inode *ip)
 
 	dp = ip->i_dp;
 	printf(" I=%lu ", (u_long)ip->i_number);
-	if (ip->i_number < UFS_ROOTINO || ip->i_number > maxino)
+	if (ip->i_number < UFS_ROOTINO || ip->i_number >= maxino)
 		return;
 	printf(" OWNER=");
 	if ((pw = getpwuid((int)DIP(dp, di_uid))) != NULL)

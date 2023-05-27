@@ -371,7 +371,7 @@ chk1:
 		dirp->d_reclen = proto.d_reclen;
 	}
 	if (dirp->d_ino != 0 && strcmp(dirp->d_name, "..") == 0) {
-		if (dirp->d_ino > maxino) {
+		if (dirp->d_ino >= maxino) {
 			direrror(idesc->id_number, "BAD INODE NUMBER FOR '..'");
 			/*
 			 * If we know parent set it now, otherwise let it
@@ -471,7 +471,7 @@ chk2:
 	}
 	idesc->id_entryno++;
 	n = 0;
-	if (dirp->d_ino > maxino) {
+	if (dirp->d_ino >= maxino) {
 		fileerror(idesc->id_number, dirp->d_ino, "I OUT OF RANGE");
 		n = reply("REMOVE");
 	} else if (((dirp->d_ino == UFS_WINO && dirp->d_type != DT_WHT) ||
