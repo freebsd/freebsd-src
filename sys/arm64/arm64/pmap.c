@@ -341,7 +341,6 @@ struct pv_chunks_list __exclusive_cache_line pv_chunks[PMAP_MEMDOM];
 __exclusive_cache_line static struct pmap_large_md_page pv_dummy_large;
 #define pv_dummy pv_dummy_large.pv_page
 __read_mostly static struct pmap_large_md_page *pv_table;
-__read_mostly vm_paddr_t pmap_last_pa;
 
 vm_paddr_t dmap_phys_base;	/* The start of the dmap region */
 vm_paddr_t dmap_phys_max;	/* The limit of the dmap region */
