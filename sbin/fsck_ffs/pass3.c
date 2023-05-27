@@ -100,10 +100,10 @@ pass3(void)
 			if (linkup(orphan, inp->i_dotdot, NULL)) {
 				inp->i_parent = inp->i_dotdot = lfdir;
 				inoinfo(lfdir)->ino_linkcnt--;
+				inoinfo(orphan)->ino_state = DFOUND;
+				check_dirdepth(inp);
+				propagate();
 			}
-			inoinfo(orphan)->ino_state = DFOUND;
-			check_dirdepth(inp);
-			propagate();
 			continue;
 		}
 		pfatal("ORPHANED DIRECTORY LOOP DETECTED I=%lu",
