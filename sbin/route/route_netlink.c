@@ -533,14 +533,14 @@ print_nlmsg_route(struct nl_helper *h, struct nlmsghdr *hdr,
 		return;
 	}
 
-	if (r.rta_multipath != NULL) {
+	if (r.rta_multipath.num_nhops != 0) {
 		bool first = true;
 
 		memset(buf, ' ', sizeof(buf));
 		buf[len] = '\0';
 
-		for (int i = 0; i < r.rta_multipath->num_nhops; i++) {
-			struct rta_mpath_nh *nh = &r.rta_multipath->nhops[i];
+		for (uint32_t i = 0; i < r.rta_multipath.num_nhops; i++) {
+			struct rta_mpath_nh *nh = r.rta_multipath.nhops[i];
 
 			if (!first)
 				printf("%s", buf);
@@ -834,9 +834,9 @@ flushroute_one(struct nl_helper *h, struct snl_parsed_route *r)
 		print_nlmsg(h, hdr, &attrs);
 	}
 	else {
-		if (r->rta_multipath != NULL) {
-			for (int i = 0; i < r->rta_multipath->num_nhops; i++) {
-				struct rta_mpath_nh *nh = &r->rta_multipath->nhops[i];
+		if (r->rta_multipath.num_nhops != 0) {
+			for (uint32_t i = 0; i < r->rta_multipath.num_nhops; i++) {
+				struct rta_mpath_nh *nh = r->rta_multipath.nhops[i];
 
 				print_flushed_route(r, nh->gw);
 			}

@@ -237,11 +237,11 @@ p_rtentry_netlink(struct snl_state *ss, const char *name, struct nlmsghdr *hdr)
 	if (rt.rtax_weight == 0)
 		rt.rtax_weight = rt_default_weight;
 
-	if (rt.rta_multipath != NULL) {
+	if (rt.rta_multipath.num_nhops != 0) {
 		uint32_t orig_rtflags = rt.rta_rtflags;
 		uint32_t orig_mtu = rt.rtax_mtu;
-		for (int i = 0; i < rt.rta_multipath->num_nhops; i++) {
-			struct rta_mpath_nh *nhop = &rt.rta_multipath->nhops[i];
+		for (uint32_t i = 0; i < rt.rta_multipath.num_nhops; i++) {
+			struct rta_mpath_nh *nhop = rt.rta_multipath.nhops[i];
 
 			rt.rta_gw = nhop->gw;
 			rt.rta_oif = nhop->ifindex;
