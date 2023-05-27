@@ -90,48 +90,27 @@ SNL_DECLARE_PARSER_EXT(_mpath_nh_parser, sizeof(struct rtnexthop),
 		_cb_p_mp_nh);
 
 struct rta_mpath {
-	int num_nhops;
-	struct rta_mpath_nh nhops[0];
+	uint32_t num_nhops;
+	struct rta_mpath_nh **nhops;
 };
 
 static bool
-nlattr_get_multipath(struct snl_state *ss, struct nlattr *nla, const void *arg __unused,
+nlattr_get_multipath(struct snl_state *ss, struct nlattr *nla, const void *arg,
     void *target)
 {
-	int data_len = nla->nla_len - sizeof(struct nlattr);
-	struct rtnexthop *rtnh;
+	uint32_t start_size = 4;
 
-	int max_nhops = data_len / sizeof(struct rtnexthop);
-	size_t sz = (max_nhops + 2) * sizeof(struct rta_mpath_nh);
+	while (start_size < NLA_DATA_LEN(nla) / sizeof(struct rtnexthop))
+		start_size *= 2;
 
-	struct rta_mpath *mp = snl_allocz(ss, sz);
-	if (mp == NULL)
-		return (false);
-	mp->num_nhops = 0;
-
-	for (rtnh = (struct rtnexthop *)(void *)(nla + 1); data_len > 0; ) {
-		struct rta_mpath_nh *mpnh = &mp->nhops[mp->num_nhops++];
-
-		if (!snl_parse_header(ss, rtnh, rtnh->rtnh_len, &_mpath_nh_parser, mpnh))
-			return (false);
-
-		int len = NL_ITEM_ALIGN(rtnh->rtnh_len);
-		data_len -= len;
-		rtnh = (struct rtnexthop *)(void *)((char *)rtnh + len);
-	}
-	if (data_len != 0 || mp->num_nhops == 0) {
-		return (false);
-	}
-
-	*((struct rta_mpath **)target) = mp;
-	return (true);
+	return (snl_attr_get_parray_sz(ss, nla, start_size, &_mpath_nh_parser, target));
 }
 
 struct snl_parsed_route {
 	struct sockaddr		*rta_dst;
 	struct sockaddr		*rta_gw;
 	struct nlattr		*rta_metrics;
-	struct rta_mpath	*rta_multipath;
+	struct rta_mpath	rta_multipath;
 	uint32_t		rta_expires;
 	uint32_t		rta_oif;
 	uint32_t		rta_expire;
