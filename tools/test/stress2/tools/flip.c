@@ -131,7 +131,7 @@ main(int argc, char *argv[])
 			err(1, "lseek()");
 		if (read(fd, &c, 1) != 1)
 			err(1, "read()");
-		if (arc4random() % 100 < 80)
+		if (arc4random() % 100 < 98)
 			flip(&c, 1);
 		else
 			trash(&c);
