@@ -270,7 +270,8 @@ _genkey(const char *pubkeyfile, struct diocskerneldump_arg *kdap)
 	fclose(fp);
 	fp = NULL;
 	if (pubkey == NULL)
-		errx(1, "Unable to read data from %s.", pubkeyfile);
+		errx(1, "Unable to read data from %s: %s", pubkeyfile,
+		    ERR_error_string(ERR_get_error(), NULL));
 
 	/*
 	 * RSA keys under ~1024 bits are trivially factorable (2018).  OpenSSL
