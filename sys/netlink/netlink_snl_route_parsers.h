@@ -95,8 +95,8 @@ struct rta_mpath {
 };
 
 static bool
-nlattr_get_multipath(struct snl_state *ss, struct nlattr *nla, const void *arg,
-    void *target)
+nlattr_get_multipath(struct snl_state *ss, struct nlattr *nla,
+    const void *arg __unused, void *target)
 {
 	uint32_t start_size = 4;
 
