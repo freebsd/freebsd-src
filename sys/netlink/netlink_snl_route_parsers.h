@@ -85,7 +85,9 @@ _cb_p_mp_nh(struct snl_state *ss __unused, void *_target)
 }
 #undef _IN
 #undef _OUT
-SNL_DECLARE_PARSER_EXT(_mpath_nh_parser, struct rtnexthop, _fp_p_mp_nh, _nla_p_mp_nh, _cb_p_mp_nh);
+SNL_DECLARE_PARSER_EXT(_mpath_nh_parser, sizeof(struct rtnexthop),
+		sizeof(struct rta_mpath_nh), _fp_p_mp_nh, _nla_p_mp_nh,
+		_cb_p_mp_nh);
 
 struct rta_mpath {
 	int num_nhops;
@@ -185,7 +187,9 @@ _cb_p_route(struct snl_state *ss __unused, void *_target)
 }
 #undef _IN
 #undef _OUT
-SNL_DECLARE_PARSER_EXT(snl_rtm_route_parser, struct rtmsg, _fp_p_route, _nla_p_route, _cb_p_route);
+SNL_DECLARE_PARSER_EXT(snl_rtm_route_parser, sizeof(struct rtmsg),
+		sizeof(struct snl_parsed_route), _fp_p_route, _nla_p_route,
+		_cb_p_route);
 
 /* RTM_<NEW|DEL|GET>LINK message parser */
 struct snl_parsed_link {
@@ -299,7 +303,9 @@ _cb_p_neigh(struct snl_state *ss __unused, void *_target)
 }
 #undef _IN
 #undef _OUT
-SNL_DECLARE_PARSER_EXT(snl_rtm_neigh_parser, struct ndmsg, _fp_p_neigh_s, _nla_p_neigh_s, _cb_p_neigh);
+SNL_DECLARE_PARSER_EXT(snl_rtm_neigh_parser, sizeof(struct ndmsg),
+		sizeof(struct snl_parsed_neigh), _fp_p_neigh_s, _nla_p_neigh_s,
+		_cb_p_neigh);
 
 struct snl_parsed_addr {
 	uint8_t		ifa_family;
@@ -347,7 +353,9 @@ _cb_p_addr(struct snl_state *ss __unused, void *_target)
 }
 #undef _IN
 #undef _OUT
-SNL_DECLARE_PARSER_EXT(snl_rtm_addr_parser, struct ifaddrmsg, _fp_p_addr_s, _nla_p_addr_s, _cb_p_addr);
+SNL_DECLARE_PARSER_EXT(snl_rtm_addr_parser, sizeof(struct ifaddrmsg),
+		sizeof(struct snl_parsed_addr), _fp_p_addr_s, _nla_p_addr_s,
+		_cb_p_addr);
 
 struct snl_parsed_nhop {
 	uint32_t	nha_id;
@@ -397,7 +405,8 @@ _cb_p_nh(struct snl_state *ss __unused, void *_target)
 }
 #undef _IN
 #undef _OUT
-SNL_DECLARE_PARSER_EXT(snl_nhmsg_parser, struct nhmsg, _fp_p_nh, _nla_p_nh, _cb_p_nh);
+SNL_DECLARE_PARSER_EXT(snl_nhmsg_parser, sizeof(struct nhmsg),
+		sizeof(struct snl_parsed_nhop), _fp_p_nh, _nla_p_nh, _cb_p_nh);
 
 static const struct snl_hdr_parser *snl_all_route_parsers[] = {
 	&_metrics_mp_nh_parser, &_mpath_nh_parser, &_metrics_parser, &snl_rtm_route_parser,

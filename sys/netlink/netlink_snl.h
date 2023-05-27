@@ -149,32 +149,39 @@ struct snl_attr_parser {
 typedef bool snl_parse_post_f(struct snl_state *ss, void *target);
 
 struct snl_hdr_parser {
-	int			hdr_off; /* aligned header size */
-	int			fp_size;
-	int			np_size;
+	uint16_t			in_hdr_size; /* Input header size */
+	uint16_t			out_size; /* Output structure size */
+	uint16_t			fp_size; /* Number of items in field parser */
+	uint16_t			np_size; /* Number of items in attribute parser */
 	const struct snl_field_parser	*fp; /* array of header field parsers */
 	const struct snl_attr_parser	*np; /* array of attribute parsers */
 	snl_parse_post_f		*cb_post; /* post-parse callback */
 };
 
-#define	SNL_DECLARE_PARSER_EXT(_name, _t, _fp, _np, _cb)	\
-static const struct snl_hdr_parser _name = {		\
-	.hdr_off = sizeof(_t),				\
-	.fp = &((_fp)[0]),				\
-	.np = &((_np)[0]),				\
-	.fp_size = NL_ARRAY_LEN(_fp),			\
-	.np_size = NL_ARRAY_LEN(_np),			\
-	.cb_post = _cb,					\
+#define	SNL_DECLARE_PARSER_EXT(_name, _sz_h_in, _sz_out, _fp, _np, _cb)	\
+static const struct snl_hdr_parser _name = {				\
+	.in_hdr_size = _sz_h_in,					\
+	.out_size = _sz_out,						\
+	.fp = &((_fp)[0]),						\
+	.np = &((_np)[0]),						\
+	.fp_size = NL_ARRAY_LEN(_fp),					\
+	.np_size = NL_ARRAY_LEN(_np),					\
+	.cb_post = _cb,							\
 }
 
-#define	SNL_DECLARE_PARSER(_name, _t, _fp, _np)		\
-	SNL_DECLARE_PARSER_EXT(_name, _t, _fp, _np, NULL)
+#define	SNL_DECLARE_PARSER(_name, _t, _fp, _np)				\
+	SNL_DECLARE_PARSER_EXT(_name, sizeof(_t), 0, _fp, _np, NULL)
 
-#define	SNL_DECLARE_ATTR_PARSER(_name, _np)		\
-static const struct snl_hdr_parser _name = {		\
-	.np = &((_np)[0]),				\
-	.np_size = NL_ARRAY_LEN(_np),			\
+#define	SNL_DECLARE_ATTR_PARSER_EXT(_name, _sz_out, _np, _cb)		\
+static const struct snl_hdr_parser _name = {				\
+	.out_size = _sz_out,						\
+	.np = &((_np)[0]),						\
+	.np_size = NL_ARRAY_LEN(_np),					\
+	.cb_post = _cb,							\
 }
+
+#define	SNL_DECLARE_ATTR_PARSER(_name, _np)				\
+	SNL_DECLARE_ATTR_PARSER_EXT(_name, 0, _np, NULL)
 
 
 static inline void *
@@ -471,11 +478,13 @@ static inline bool
 snl_parse_header(struct snl_state *ss, void *hdr, int len,
     const struct snl_hdr_parser *parser, void *target)
 {
-	/* Extract fields first (if any) */
-	snl_parse_fields(ss, hdr, parser->hdr_off, parser->fp, parser->fp_size, target);
+	struct nlattr *nla_head;
 
-	struct nlattr *nla_head = (struct nlattr *)(void *)((char *)hdr + parser->hdr_off);
-	bool result = snl_parse_attrs_raw(ss, nla_head, len - parser->hdr_off,
+	/* Extract fields first (if any) */
+	snl_parse_fields(ss, hdr, parser->in_hdr_size, parser->fp, parser->fp_size, target);
+
+	nla_head = (struct nlattr *)(void *)((char *)hdr + parser->in_hdr_size);
+	bool result = snl_parse_attrs_raw(ss, nla_head, len - parser->in_hdr_size,
 	    parser->np, parser->np_size, target);
 
 	if (result && parser->cb_post != NULL)
@@ -640,6 +649,78 @@ snl_attr_get_nested(struct snl_state *ss, struct nlattr *nla, const void *arg, v
 
 	/* Assumes target points to the beginning of the structure */
 	return (snl_parse_header(ss, NLA_DATA(nla), NLA_DATA_LEN(nla), p, target));
+}
+
+struct snl_parray {
+	uint32_t count;
+	void **items;
+};
+
+static inline bool
+snl_attr_get_parray_sz(struct snl_state *ss, struct nlattr *container_nla,
+    uint32_t start_size, const void *arg, void *target)
+{
+	const struct snl_hdr_parser *p = (const struct snl_hdr_parser *)arg;
+	struct snl_parray *array = target;
+	struct nlattr *nla;
+	uint32_t count = 0, size = start_size;
+
+	if (p->out_size == 0)
+		return (false);
+
+	array->items = snl_allocz(ss, size * sizeof(void *));
+	if (array->items == NULL)
+		return (false);
+
+	/*
+	 * If the provided parser is an attribute parser, assume that each
+	 *  nla in the container nla is the container nla itself and parse
+	 *  the contents of this nla.
+	 * Otherwise, run the parser on raw data, assuming the header of this
+	 * data has u16 field with total size in the beginning.
+	 */
+	uint32_t data_off = 0;
+
+	if (p->in_hdr_size == 0)
+		data_off = sizeof(struct nlattr);
+
+	NLA_FOREACH(nla, NLA_DATA(container_nla), NLA_DATA_LEN(container_nla)) {
+		void *item = snl_allocz(ss, p->out_size);
+
+		if (item == NULL)
+			return (false);
+
+		void *data = (char *)(void *)nla + data_off;
+		int data_len = nla->nla_len - data_off;
+
+		if (!(snl_parse_header(ss, data, data_len, p, item)))
+			return (false);
+
+		if (count == size) {
+			uint32_t new_size = size * 2;
+			void **new_array = snl_allocz(ss, new_size *sizeof(void *));
+
+			memcpy(new_array, array->items, size * sizeof(void *));
+			array->items = new_array;
+			size = new_size;
+		}
+		array->items[count++] = item;
+	}
+	array->count = count;
+
+	return (true);
+}
+
+/*
+ * Parses and stores the unknown-size array.
+ * Assumes each array item is a container and the NLAs in the container are parsable
+ *  by the parser provided in @arg.
+ * Assumes @target is struct snl_parray
+ */
+static inline bool
+snl_attr_get_parray(struct snl_state *ss, struct nlattr *nla, const void *arg, void *target)
+{
+	return (snl_attr_get_parray_sz(ss, nla, 8, arg, target));
 }
 
 static inline bool
@@ -878,6 +959,7 @@ snl_realloc_msg_buffer(struct snl_writer *nw, size_t sz)
 	memcpy(new_base, nw->base, nw->offset);
 	if (nw->hdr != NULL) {
 		int hdr_off = (char *)(nw->hdr) - nw->base;
+
 		nw->hdr = (struct nlmsghdr *)(void *)((char *)new_base + hdr_off);
 	}
 	nw->base = new_base;
