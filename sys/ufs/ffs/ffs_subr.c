@@ -443,7 +443,8 @@ validate_sblock(struct fs *fs, int flags)
 		FCHK(fs->fs_csaddr, <, 0, %jd);
 		FCHK(fs->fs_cssize, !=,
 		    fragroundup(fs, fs->fs_ncg * sizeof(struct csum)), %jd);
-		FCHK(dtog(fs, fs->fs_csaddr), >, fs->fs_ncg, %jd);
+		FCHK(fs->fs_csaddr + howmany(fs->fs_cssize, fs->fs_fsize), >,
+		    fs->fs_size, %jd);
 		FCHK(fs->fs_csaddr, <, cgdmin(fs, dtog(fs, fs->fs_csaddr)),
 		    %jd);
 		FCHK(dtog(fs, fs->fs_csaddr + howmany(fs->fs_cssize,
@@ -594,7 +595,8 @@ validate_sblock(struct fs *fs, int flags)
 	FCHK(fs->fs_csaddr, <, 0, %jd);
 	FCHK(fs->fs_cssize, !=,
 	    fragroundup(fs, fs->fs_ncg * sizeof(struct csum)), %jd);
-	FCHK(dtog(fs, fs->fs_csaddr), >, fs->fs_ncg, %jd);
+	FCHK(fs->fs_csaddr + howmany(fs->fs_cssize, fs->fs_fsize), >,
+	    fs->fs_size, %jd);
 	FCHK(fs->fs_csaddr, <, cgdmin(fs, dtog(fs, fs->fs_csaddr)), %jd);
 	FCHK(dtog(fs, fs->fs_csaddr + howmany(fs->fs_cssize, fs->fs_fsize)), >,
 	    dtog(fs, fs->fs_csaddr), %jd);
