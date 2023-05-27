@@ -184,7 +184,7 @@
 #define PACKAGE_NAME "pcap"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "pcap 1.9.1"
+#define PACKAGE_STRING "pcap 1.10.4"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "pcap"
