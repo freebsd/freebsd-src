@@ -86,7 +86,7 @@ test(void) {
 	struct procctl_reaper_kill killemall;
 	pid_t pid;
 	time_t start;
-	int data[20], e, n, m;
+	int data[20], e, n __unused, m;
 
 	n = m = 0;
 	if (procctl(P_PID, getpid(), PROC_REAP_ACQUIRE, NULL) == -1)
