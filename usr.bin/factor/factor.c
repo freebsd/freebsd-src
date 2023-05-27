@@ -209,7 +209,11 @@ pr_fact(BIGNUM *val)
 			if (!BN_sqr(bnfact, bnfact, ctx))
 				errx(1, "error in BN_sqr()");
 			if (BN_cmp(bnfact, val) > 0 ||
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+			    BN_check_prime(val, NULL, NULL) == 1)
+#else
 			    BN_is_prime_ex(val, PRIME_CHECKS, NULL, NULL) == 1)
+#endif
 				pr_print(val);
 			else
 				pollard_pminus1(val);
@@ -282,7 +286,11 @@ newbase:
 			errx(1, "error in BN_gcd()");
 
 		if (!BN_is_one(x)) {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+			if (BN_check_prime(x, NULL, NULL) == 1)
+#else
 			if (BN_is_prime_ex(x, PRIME_CHECKS, NULL, NULL) == 1)
+#endif
 				pr_print(x);
 			else
 				pollard_pminus1(x);
@@ -291,8 +299,13 @@ newbase:
 			BN_div(num, NULL, val, x, ctx);
 			if (BN_is_one(num))
 				return;
-			if (BN_is_prime_ex(num, PRIME_CHECKS, NULL,
-			    NULL) == 1) {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+			if (BN_check_prime(num, NULL, NULL) == 1)
+#else
+			if (BN_is_prime_ex(num, PRIME_CHECKS, NULL, NULL)
+			    == 1)
+#endif
+			{
 				pr_print(num);
 				fflush(stdout);
 				return;
