@@ -166,6 +166,12 @@ static const struct amdtemp_product {
 #define	AMDTEMP_17H_CUR_TMP		0x59800
 #define	AMDTEMP_17H_CUR_TMP_RANGE_SEL	(1u << 19)
 /*
+ * Bits 16-17, when set, mean that CUR_TMP is read-write. When it is, the
+ * 49 degree offset should apply as well. This was revealed in a Linux
+ * patch from an AMD employee.
+ */
+#define	AMDTEMP_17H_CUR_TMP_TJ_SEL	((1u << 17) | (1u << 16))
+/*
  * The following register set was discovered experimentally by Ondrej Čerman
  * and collaborators, but is not (yet) documented in a PPR/OSRR (other than
  * the M70H PPR SMN memory map showing [0x59800, +0x314] as allocated to
@@ -731,7 +737,8 @@ amdtemp_decode_fam17h_tctl(int32_t sc_offset, uint32_t val)
 {
 	bool minus49;
 
-	minus49 = ((val & AMDTEMP_17H_CUR_TMP_RANGE_SEL) != 0);
+	minus49 = ((val & AMDTEMP_17H_CUR_TMP_RANGE_SEL) != 0)
+	    || ((val & AMDTEMP_17H_CUR_TMP_TJ_SEL) == AMDTEMP_17H_CUR_TMP_TJ_SEL);
 	return (amdtemp_decode_fam10h_to_17h(sc_offset,
 	    val >> AMDTEMP_REPTMP10H_CURTMP_SHIFT, minus49));
 }
