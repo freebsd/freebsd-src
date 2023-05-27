@@ -115,6 +115,22 @@ debugnet_get_gw_mac(const struct debugnet_pcb *pcb)
 	return (pcb->dp_gw_mac.octet);
 }
 
+const in_addr_t *
+debugnet_get_server_addr(const struct debugnet_pcb *pcb)
+{
+	MPASS(g_debugnet_pcb_inuse && pcb == &g_dnet_pcb &&
+	    pcb->dp_state >= DN_STATE_GOT_HERALD_PORT);
+	return (&pcb->dp_server);
+}
+
+const uint16_t
+debugnet_get_server_port(const struct debugnet_pcb *pcb)
+{
+	MPASS(g_debugnet_pcb_inuse && pcb == &g_dnet_pcb &&
+	    pcb->dp_state >= DN_STATE_GOT_HERALD_PORT);
+	return (pcb->dp_server_port);
+}
+
 /*
  * Start of network primitives, beginning with output primitives.
  */
@@ -365,6 +381,8 @@ debugnet_handle_rx_msg(struct debugnet_pcb *pcb, struct mbuf **mb)
 {
 	const struct debugnet_msg_hdr *dnh;
 	struct mbuf *m;
+	uint32_t hdr_type;
+	uint32_t seqno;
 	int error;
 
 	m = *mb;
@@ -383,10 +401,24 @@ debugnet_handle_rx_msg(struct debugnet_pcb *pcb, struct mbuf **mb)
 			return;
 		}
 	}
-	dnh = mtod(m, const void *);
 
+	dnh = mtod(m, const void *);
 	if (ntohl(dnh->mh_len) + sizeof(*dnh) > m->m_pkthdr.len) {
 		DNETDEBUG("Dropping short packet.\n");
+		return;
+	}
+
+	hdr_type = ntohl(dnh->mh_type);
+	if (hdr_type != DEBUGNET_DATA) {
+		if (hdr_type == DEBUGNET_FINISHED) {
+			printf("Remote shut down the connection on us!\n");
+			pcb->dp_state = DN_STATE_REMOTE_CLOSED;
+			if (pcb->dp_finish_handler != NULL) {
+				pcb->dp_finish_handler();
+			}
+		} else {
+			DNETDEBUG("Got unexpected debugnet message %u\n", hdr_type);
+		}
 		return;
 	}
 
@@ -395,21 +427,20 @@ debugnet_handle_rx_msg(struct debugnet_pcb *pcb, struct mbuf **mb)
 	 * non-transient (like driver objecting to rx -> tx from the same
 	 * thread), not much else we can do.
 	 */
-	error = debugnet_ack_output(pcb, dnh->mh_seqno);
-	if (error != 0)
+	seqno = dnh->mh_seqno; /* net endian */
+	m_adj(m, sizeof(*dnh));
+	dnh = NULL;
+	error = pcb->dp_rx_handler(m);
+	if (error != 0) {
+		DNETDEBUG("RX handler was not able to accept message, error %d. "
+		    "Skipping ack.\n", error);
 		return;
-
-	if (ntohl(dnh->mh_type) == DEBUGNET_FINISHED) {
-		printf("Remote shut down the connection on us!\n");
-		pcb->dp_state = DN_STATE_REMOTE_CLOSED;
-
-		/*
-		 * Continue through to the user handler so they are signalled
-		 * not to wait for further rx.
-		 */
 	}
 
-	pcb->dp_rx_handler(pcb, mb);
+	error = debugnet_ack_output(pcb, seqno);
+	if (error != 0) {
+		DNETDEBUG("Couldn't ACK rx packet %u; %d\n", ntohl(seqno), error);
+	}
 }
 
 static void
