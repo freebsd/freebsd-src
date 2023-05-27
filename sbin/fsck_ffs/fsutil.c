@@ -169,7 +169,7 @@ inoinfo(ino_t inum)
 	struct inostatlist *ilp;
 	int iloff;
 
-	if (inum > maxino)
+	if (inum >= maxino)
 		errx(EEXIT, "inoinfo: inumber %ju out of range",
 		    (uintmax_t)inum);
 	ilp = &inostathead[inum / sblock.fs_ipg];

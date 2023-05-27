@@ -126,7 +126,7 @@ check_dirdepth(struct inoinfo *inp)
 	if (inp->i_depth == 0 && updateasked == 0) {
 		updateasked = 1;
 		if (preen) {
-			pwarn("UPDATING FILESYSTEM TO TRACK DIRECTORY DEPTH");
+			pwarn("UPDATING FILESYSTEM TO TRACK DIRECTORY DEPTH\n");
 			dirdepthupdate = 1;
 		} else {
 			/*
@@ -437,7 +437,7 @@ fileerror(ino_t cwd, ino_t ino, const char *errmesg)
 	char pathbuf[MAXPATHLEN + 1];
 
 	pwarn("%s ", errmesg);
-	if (ino < UFS_ROOTINO || ino > maxino) {
+	if (ino < UFS_ROOTINO || ino >= maxino) {
 		pfatal("out-of-range inode number %ju", (uintmax_t)ino);
 		return;
 	}
