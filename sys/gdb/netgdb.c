@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #error "NetGDB cannot be used without DDB at this time"
 #endif
 
+#include <sys/errno.h>
 #include <sys/param.h>
 #include <sys/kdb.h>
 #include <sys/sbuf.h>
@@ -110,63 +111,26 @@ static int *netgdb_prev_kdb_inactive;
 /* TODO(CEM) disable ack mode */
 
 /*
- * Receive non-TX ACK packets on the client port.
+ * Attempt to accept the incoming packet. If we run into ENOBUFS or another
+ * error, return it.
  *
- * The mbuf chain will have all non-debugnet framing headers removed
- * (ethernet, inet, udp).  It will start with a debugnet_msg_hdr, of
- * which the header is guaranteed to be contiguous.  If m_pullup is
- * used, the supplied in-out mbuf pointer should be updated
- * appropriately.
- *
- * If the handler frees the mbuf chain, it should set the mbuf pointer
- * to NULL.  Otherwise, the debugnet input framework will free the
- * chain.
+ * The mbuf chain will have all framing headers removed (ethernet, inet, udp,
+ * debugnet).
  */
-static void
-netgdb_rx(struct debugnet_pcb *pcb, struct mbuf **mb)
+static int
+netgdb_rx(struct mbuf *m)
 {
-	const struct debugnet_msg_hdr *dnh;
-	struct mbuf *m;
 	uint32_t rlen, count;
-	int error;
 
-	m = *mb;
-	dnh = mtod(m, const void *);
-
-	if (ntohl(dnh->mh_type) == DEBUGNET_FINISHED) {
-		sbuf_putc(&netgdb_rxsb, CTRL('C'));
-		return;
-	}
-
-	if (ntohl(dnh->mh_type) != DEBUGNET_DATA) {
-		printf("%s: Got unexpected debugnet message %u\n",
-		    __func__, ntohl(dnh->mh_type));
-		return;
-	}
-
-	rlen = ntohl(dnh->mh_len);
+	rlen = m->m_pkthdr.len;
 #define	_SBUF_FREESPACE(s)	((s)->s_size - ((s)->s_len + 1))
 	if (_SBUF_FREESPACE(&netgdb_rxsb) < rlen) {
 		NETGDB_DEBUG("Backpressure: Not ACKing RX of packet that "
 		    "would overflow our buffer (%zd/%zd used).\n",
 		    netgdb_rxsb.s_len, netgdb_rxsb.s_size);
-		return;
+		return (ENOBUFS);
 	}
 #undef _SBUF_FREESPACE
-
-	error = debugnet_ack_output(pcb, dnh->mh_seqno);
-	if (error != 0) {
-		printf("%s: Couldn't ACK rx packet %u; %d\n", __func__,
-		    ntohl(dnh->mh_seqno), error);
-		/*
-		 * Sender will re-xmit, and assuming the condition is
-		 * transient, we'll process the packet's contentss later.
-		 */
-		return;
-	}
-
-	m_adj(m, sizeof(*dnh));
-	dnh = NULL;
 
 	/*
 	 * Inlined m_apply -- why isn't there a macro or inline function
@@ -181,6 +145,13 @@ netgdb_rx(struct debugnet_pcb *pcb, struct mbuf **mb)
 		rlen -= count;
 		m = m->m_next;
 	}
+	return (0);
+}
+
+static void
+netgdb_finish(void)
+{
+	sbuf_putc(&netgdb_rxsb, CTRL('C'));
 }
 
 /*
@@ -338,6 +309,7 @@ DB_COMMAND_FLAGS(netgdb, db_netgdb_cmd, CS_OWN)
 	struct debugnet_ddb_config params;
 	struct debugnet_conn_params dcp;
 	struct debugnet_pcb *pcb;
+	char proxy_buf[INET_ADDRSTRLEN];
 	int error;
 
 	if (!KERNEL_PANICKED()) {
@@ -374,6 +346,7 @@ DB_COMMAND_FLAGS(netgdb, db_netgdb_cmd, CS_OWN)
 		.dc_client_port = NETGDB_CLIENTPORT,
 		.dc_herald_aux2 = NETGDB_PROTO_V1,
 		.dc_rx_handler = netgdb_rx,
+		.dc_finish_handler = netgdb_finish,
 	};
 
 	error = debugnet_connect(&dcp, &pcb);
@@ -398,6 +371,19 @@ DB_COMMAND_FLAGS(netgdb, db_netgdb_cmd, CS_OWN)
 	db_cmd_loop_done = 1;
 	gdb_return_to_ddb = true;
 	db_printf("(detaching GDB will return control to DDB)\n");
+
+	const in_addr_t *proxy_addr = debugnet_get_server_addr(netgdb_conn);
+	const uint16_t proxy_port = debugnet_get_server_port(netgdb_conn) + 1;
+	inet_ntop(AF_INET, proxy_addr, proxy_buf, sizeof(proxy_buf));
+	if (inet_ntop(AF_INET, proxy_addr, proxy_buf, sizeof(proxy_buf)) == NULL) {
+		db_printf("Connected to proxy. "
+		    "Use target remote <proxy address>:%hu to begin debugging.\n",
+		    proxy_port);
+	} else {
+		db_printf("Connected to proxy. "
+		    "Use target remote %s:%hu to begin debugging.\n",
+		    proxy_buf, proxy_port);
+	}
 #if 0
 	/* Aspirational, but does not work reliably. */
 	db_printf("(ctrl-c will return control to ddb)\n");
