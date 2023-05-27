@@ -400,13 +400,13 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuiltcg)
 	if (mode == IFDIR) {
 		if (DIP(dp, di_size) == 0) {
 			inoinfo(inumber)->ino_state = DCLEAR;
-		} else if (DIP(dp, di_nlink) <= 0) {
+		} else if (DIP(dp, di_nlink) == 0) {
 			inoinfo(inumber)->ino_state = DZLINK;
 		} else {
 			inoinfo(inumber)->ino_state = DSTATE;
-			cacheino(dp, inumber);
-			countdirs++;
 		}
+		cacheino(dp, inumber);
+		countdirs++;
 	} else if (DIP(dp, di_nlink) <= 0)
 		inoinfo(inumber)->ino_state = FZLINK;
 	else
