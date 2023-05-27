@@ -17,4 +17,7 @@ MAN=	factor.6
 MLINKS+=factor.6 primes.6
 .PATH:	${SRCTOP}/usr.bin/primes
 
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+=	tests
+
 .include <bsd.prog.mk>
