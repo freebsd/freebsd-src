@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 26, 2018
+.Dd May 28, 2023
 .Dt RCTL 8
 .Os
 .Sh NAME
@@ -91,7 +91,8 @@ matching the
 Use unit suffixes: Byte, Kilobyte, Megabyte,
 Gigabyte, Terabyte and Petabyte.
 .It Fl n
-Display user IDs numerically rather than converting them to a user name.
+Display user and group IDs numerically rather than converting them to a user
+or group name respectively.
 .El
 .Pp
 Modifying rules affects all currently running and future processes matching
@@ -111,7 +112,8 @@ or
 .It subject-id
 identifies the
 .Em subject .
-It can be a process ID, user name, numerical user ID, login class name from
+It can be a process ID, user name, numerical user ID, group name, numerical
+group ID, login class name from
 .Xr login.conf 5 ,
 or jail name.
 .It resource
@@ -167,6 +169,7 @@ resource would be
 .Bl -column -offset 3n "pseudoterminals" ".Sy username or numerical User ID"
 .It Sy process Ta numerical Process ID
 .It Sy user Ta user name or numerical User ID
+.It Sy group Ta group name or numerical Group ID
 .It Sy loginclass Ta login class from
 .Xr login.conf 5
 .It Sy jail Ta jail name
