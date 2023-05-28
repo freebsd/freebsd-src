@@ -81,11 +81,11 @@ __RCSID("$NetBSD: factor.c,v 1.19 2009/08/12 05:54:31 dholland Exp $");
 
 #if OPENSSL_VERSION_NUMBER < 0x30000000L
 static inline int
-BN_check_prime(BN *p, BN_CTX *ctx, BN_GENCB *cb)
+BN_check_prime(BIGNUM *p, BN_CTX *ctx, BN_GENCB *cb)
 {
 	const int nchecks = 5;
 
-	return BN_is_prime_ex(val, nchecks, ctx, cb);
+	return BN_is_prime_ex(p, nchecks, ctx, cb);
 }
 #endif
 
