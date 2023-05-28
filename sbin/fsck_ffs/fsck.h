@@ -470,6 +470,7 @@ void		check_blkcnt(struct inode *ip);
 int		check_cgmagic(int cg, struct bufarea *cgbp);
 void		rebuild_cg(int cg, struct bufarea *cgbp);
 void		check_dirdepth(struct inoinfo *inp);
+int		chkfilesize(mode_t mode, u_int64_t filesize);
 int		chkrange(ufs2_daddr_t blk, int cnt);
 void		ckfini(int markclean);
 int		ckinode(union dinode *dp, struct inodesc *);

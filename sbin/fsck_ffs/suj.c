@@ -1965,6 +1965,9 @@ ino_build_trunc(struct jtrncrec *rec)
 		printf("ino_build_trunc: op %d ino %ju, size %jd\n",
 		    rec->jt_op, (uintmax_t)rec->jt_ino,
 		    (uintmax_t)rec->jt_size);
+	if (chkfilesize(IFREG, rec->jt_size) == 0)
+		err_suj("ino_build: truncation size too large %ju\n",
+		    (intmax_t)rec->jt_size);
 	sino = ino_lookup(rec->jt_ino, 1);
 	if (rec->jt_op == JOP_SYNC) {
 		sino->si_trunc = NULL;
