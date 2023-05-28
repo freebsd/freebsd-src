@@ -60,8 +60,6 @@ ENTRY(linux_rt_sigcode)
 	.cfi_offset	%rax, L_SC_RAX
 	.cfi_offset	%rcx, L_SC_RCX
 	.cfi_offset	%rip, L_SC_RIP
-	.cfi_offset	49, L_SC_RFLAGS
-	.cfi_offset	%cs, L_SC_CS
 	.cfi_offset	%rsp, L_SC_RSP
 
 	movq	%rsp, %rbx			/* rt_sigframe for rt_sigreturn */
