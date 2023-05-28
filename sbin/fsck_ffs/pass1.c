@@ -256,7 +256,6 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuiltcg)
 {
 	struct inode ip;
 	union dinode *dp;
-	off_t kernmaxfilesize;
 	ufs2_daddr_t ndb;
 	mode_t mode;
 	intmax_t size, fixsize;
@@ -293,16 +292,7 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuiltcg)
 		return (1);
 	}
 	lastino = inumber;
-	/* This should match the file size limit in ffs_mountfs(). */
-	if (sblock.fs_magic == FS_UFS1_MAGIC)
-		kernmaxfilesize = (off_t)0x40000000 * sblock.fs_bsize - 1;
-	else
-		kernmaxfilesize = sblock.fs_maxfilesize;
-	if (DIP(dp, di_size) > kernmaxfilesize ||
-	    DIP(dp, di_size) > sblock.fs_maxfilesize ||
-	    (mode == IFDIR && DIP(dp, di_size) > MAXDIRSIZE)) {
-		if (debug)
-			printf("bad size %ju:", (uintmax_t)DIP(dp, di_size));
+	if (chkfilesize(mode, DIP(dp, di_size)) == 0) {
 		pfatal("BAD FILE SIZE");
 		goto unknown;
 	}
