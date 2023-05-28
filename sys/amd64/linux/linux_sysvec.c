@@ -124,6 +124,23 @@ LINUX_VDSO_SYM_INTPTR(kern_timekeep_base);
 LINUX_VDSO_SYM_INTPTR(kern_tsc_selector);
 LINUX_VDSO_SYM_INTPTR(kern_cpu_selector);
 
+/*
+ * According to the Intel x86 ISA 64-bit syscall
+ * saves %rip to %rcx and rflags to %r11. Registers on syscall entry:
+ * %rax  system call number
+ * %rcx  return address
+ * %r11  saved rflags
+ * %rdi  arg1
+ * %rsi  arg2
+ * %rdx  arg3
+ * %r10  arg4
+ * %r8   arg5
+ * %r9   arg6
+ *
+ * Then FreeBSD fast_syscall() move registers:
+ * %rcx -> trapframe.tf_rip
+ * %r10 -> trapframe.tf_rcx
+ */
 static int
 linux_fetch_syscall_args(struct thread *td)
 {
