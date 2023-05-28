@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/module.h>
 #include <sys/queue.h>
+#include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <ctype.h>
 #include <dirent.h>
@@ -112,8 +113,9 @@ main(int argc, char **argv)
 	 * directly to us.
 	 */
 	struct sockaddr_un sun;
-	int fd, oldmask, ch, debug;
+	int fd, oldmask, ch, debug, jailed;
 	SVCXPRT *xprt;
+	size_t jailed_size;
 
 	/*
 	 * Initialize the credential cache file name substring and the
@@ -243,7 +245,27 @@ main(int argc, char **argv)
 	gss_next_id = 1;
 	gss_start_time = time(0);
 
-	gssd_syscall(_PATH_GSSDSOCK);
+	if (gssd_syscall(_PATH_GSSDSOCK) < 0) {
+		jailed = 0;
+		if (errno == EPERM) {
+			jailed_size = sizeof(jailed);
+			sysctlbyname("security.jail.jailed", &jailed,
+			    &jailed_size, NULL, 0);
+		}
+		if (debug_level == 0) {
+			if (jailed != 0)
+				syslog(LOG_ERR, "Cannot start gssd."
+				    " allow.nfsd must be configured");
+			else
+				syslog(LOG_ERR, "Cannot start gssd");
+			exit(1);
+		}
+		if (jailed != 0)
+			err(1, "Cannot start gssd."
+			    " allow.nfsd must be configured");
+		else
+			err(1, "Cannot start gssd");
+	}
 	svc_run();
 	gssd_syscall("");
 
