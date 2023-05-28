@@ -350,12 +350,6 @@ linux_ptrace_getregs_machdep(struct thread *td, pid_t pid,
 		linux_msg(td, "PT_LWPINFO failed with error %d", error);
 		return (error);
 	}
-	if ((lwpinfo.pl_flags & PL_FLAG_SCE) != 0) {
-		/*
-		 * Undo the mangling done in exception.S:fast_syscall_common().
-		 */
-		l_regset->r10 = l_regset->rcx;
-	}
 	if ((lwpinfo.pl_flags & (PL_FLAG_SCE | PL_FLAG_SCX)) != 0) {
 		/*
 		 * In Linux, the syscall number - passed to the syscall
