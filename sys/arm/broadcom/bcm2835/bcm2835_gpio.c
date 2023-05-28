@@ -64,8 +64,10 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #define	BCM_GPIO_IRQS		4
-#define	BCM_GPIO_PINS		54
 #define	BCM_GPIO_PINS_PER_BANK	32
+#define	BCM2835_GPIO_PINS	54
+#define	BCM2711_GPIO_PINS	58
+#define	BCM_GPIO_PINS		BCM2711_GPIO_PINS
 
 #define	BCM_GPIO_DEFAULT_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT |	\
     GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN | GPIO_INTR_LEVEL_LOW |		\
@@ -84,6 +86,10 @@ __FBSDID("$FreeBSD$");
 #define	BCM2835_PUD_OFF		0
 #define	BCM2835_PUD_DOWN	1
 #define	BCM2835_PUD_UP		2
+
+#define	BCM2711_PUD_OFF		0
+#define	BCM2711_PUD_DOWN	2
+#define	BCM2711_PUD_UP		1
 
 static struct resource_spec bcm_gpio_res_spec[] = {
 	{ SYS_RES_MEMORY, 0, RF_ACTIVE },
@@ -112,6 +118,8 @@ struct bcm_gpio_softc {
 	bus_space_tag_t		sc_bst;
 	bus_space_handle_t	sc_bsh;
 	void *			sc_intrhand[BCM_GPIO_IRQS];
+	bool			sc_is2711;
+	u_int			sc_maxpins;
 	int			sc_gpio_npins;
 	int			sc_ro_npins;
 	int			sc_ro_pins[BCM_GPIO_PINS];
@@ -151,8 +159,13 @@ enum bcm_gpio_pud {
 #define	BCM_GPIO_GPLEN(_bank)	(0x70 + _bank * 4)	/* Low Level irq */
 #define	BCM_GPIO_GPAREN(_bank)	(0x7c + _bank * 4)	/* Async Rising Edge */
 #define	BCM_GPIO_GPAFEN(_bank)	(0x88 + _bank * 4)	/* Async Falling Egde */
-#define	BCM_GPIO_GPPUD(_bank)	(0x94)			/* Pin Pull up/down */
-#define	BCM_GPIO_GPPUDCLK(_bank) (0x98 + _bank * 4)	/* Pin Pull up clock */
+#define	BCM2835_GPIO_GPPUD(_bank) (0x94)		/* Pin Pull up/down */
+#define	BCM2835_GPIO_GPPUDCLK(_bank) (0x98 + _bank * 4)	/* Pin Pull up clock */
+
+#define	BCM2711_GPIO_GPPUD(x)	(0x0e4 + (x) * sizeof(uint32_t)) /* Pin Pull up/down */
+#define	BCM2711_GPIO_MASK	(0x3)
+#define	BCM2711_GPIO_SHIFT(n)	(((n) % 16) * 2)
+#define	BCM2711_GPIO_REGID(n)	((n) / 16)
 
 static struct ofw_compat_data compat_data[] = {
 	{"broadcom,bcm2835-gpio",	1},
@@ -289,16 +302,39 @@ bcm_gpio_set_function(struct bcm_gpio_softc *sc, uint32_t pin, uint32_t f)
 static void
 bcm_gpio_set_pud(struct bcm_gpio_softc *sc, uint32_t pin, uint32_t state)
 {
-	uint32_t bank;
-
 	/* Must be called with lock held. */
 	BCM_GPIO_LOCK_ASSERT(sc);
 
-	bank = BCM_GPIO_BANK(pin);
-	BCM_GPIO_WRITE(sc, BCM_GPIO_GPPUD(0), state);
-	BCM_GPIO_WRITE(sc, BCM_GPIO_GPPUDCLK(bank), BCM_GPIO_MASK(pin));
-	BCM_GPIO_WRITE(sc, BCM_GPIO_GPPUD(0), 0);
-	BCM_GPIO_WRITE(sc, BCM_GPIO_GPPUDCLK(bank), 0);
+	if (sc->sc_is2711) { /* BCM2711 */
+		u_int regid = BCM2711_GPIO_REGID(pin);
+		u_int shift = BCM2711_GPIO_SHIFT(pin);
+		uint32_t reg;
+
+		switch (state) {
+		case BCM2835_PUD_OFF:
+			state = BCM2711_PUD_OFF;
+			break;
+		case BCM2835_PUD_DOWN:
+			state = BCM2711_PUD_DOWN;
+			break;
+		case BCM2835_PUD_UP:
+			state = BCM2711_PUD_UP;
+			break;
+		}
+
+		reg = BCM_GPIO_READ(sc, BCM2711_GPIO_GPPUD(regid));
+		reg &= ~(BCM2711_GPIO_MASK << shift);
+		reg |= (state << shift);
+		BCM_GPIO_WRITE(sc, BCM2711_GPIO_GPPUD(regid), reg);
+	} else { /* BCM2835 */
+		uint32_t bank;
+
+		bank = BCM_GPIO_BANK(pin);
+		BCM_GPIO_WRITE(sc, BCM2835_GPIO_GPPUD(0), state);
+		BCM_GPIO_WRITE(sc, BCM2835_GPIO_GPPUDCLK(bank), BCM_GPIO_MASK(pin));
+		BCM_GPIO_WRITE(sc, BCM2835_GPIO_GPPUD(0), 0);
+		BCM_GPIO_WRITE(sc, BCM2835_GPIO_GPPUDCLK(bank), 0);
+	}
 }
 
 static void
@@ -376,8 +412,10 @@ bcm_gpio_get_bus(device_t dev)
 static int
 bcm_gpio_pin_max(device_t dev, int *maxpin)
 {
+	struct bcm_gpio_softc *sc;
 
-	*maxpin = BCM_GPIO_PINS - 1;
+	sc = device_get_softc(dev);
+	*maxpin = sc->sc_maxpins - 1;
 	return (0);
 }
 
@@ -770,16 +808,19 @@ bcm_gpio_attach(device_t dev)
 	}
 	sc->sc_bst = rman_get_bustag(sc->sc_res[0]);
 	sc->sc_bsh = rman_get_bushandle(sc->sc_res[0]);
-	/* Setup the GPIO interrupt handler. */
-	if (bcm_gpio_intr_attach(dev)) {
-		device_printf(dev, "unable to setup the gpio irq handler\n");
-		goto fail;
-	}
 	/* Find our node. */
 	gpio = ofw_bus_get_node(sc->sc_dev);
 	if (!OF_hasprop(gpio, "gpio-controller"))
 		/* Node is not a GPIO controller. */
 		goto fail;
+	/* Guess I'm BCM2711 or not. */
+	sc->sc_is2711 = ofw_bus_node_is_compatible(gpio, "brcm,bcm2711-gpio");
+	sc->sc_maxpins = sc->sc_is2711 ? BCM2711_GPIO_PINS : BCM2835_GPIO_PINS;
+	/* Setup the GPIO interrupt handler. */
+	if (bcm_gpio_intr_attach(dev)) {
+		device_printf(dev, "unable to setup the gpio irq handler\n");
+		goto fail;
+	}
 	/*
 	 * Find the read-only pins.  These are pins we never touch or bad
 	 * things could happen.
@@ -787,7 +828,7 @@ bcm_gpio_attach(device_t dev)
 	if (bcm_gpio_get_reserved_pins(sc) == -1)
 		goto fail;
 	/* Initialize the software controlled pins. */
-	for (i = 0, j = 0; j < BCM_GPIO_PINS; j++) {
+	for (i = 0, j = 0; j < sc->sc_maxpins; j++) {
 		snprintf(sc->sc_gpio_pins[i].gp_name, GPIOMAXNAME,
 		    "pin %d", j);
 		func = bcm_gpio_get_function(sc, j);
@@ -956,7 +997,7 @@ bcm_gpio_pic_attach(struct bcm_gpio_softc *sc)
 	const char *name;
 
 	name = device_get_nameunit(sc->sc_dev);
-	for (irq = 0; irq < BCM_GPIO_PINS; irq++) {
+	for (irq = 0; irq < sc->sc_maxpins; irq++) {
 		sc->sc_isrcs[irq].bgi_irq = irq;
 		sc->sc_isrcs[irq].bgi_mask = BCM_GPIO_MASK(irq);
 		sc->sc_isrcs[irq].bgi_mode = GPIO_INTR_CONFORM;
@@ -1044,7 +1085,7 @@ bcm_gpio_pic_map_fdt(struct bcm_gpio_softc *sc, struct intr_map_data_fdt *daf,
 		return (EINVAL);
 
 	irq = daf->cells[0];
-	if (irq >= BCM_GPIO_PINS || bcm_gpio_pin_is_ro(sc, irq))
+	if (irq >= sc->sc_maxpins || bcm_gpio_pin_is_ro(sc, irq))
 		return (EINVAL);
 
 	/* Only reasonable modes are supported. */
@@ -1075,7 +1116,7 @@ bcm_gpio_pic_map_gpio(struct bcm_gpio_softc *sc, struct intr_map_data_gpio *dag,
 	uint32_t mode;
 
 	irq = dag->gpio_pin_num;
-	if (irq >= BCM_GPIO_PINS || bcm_gpio_pin_is_ro(sc, irq))
+	if (irq >= sc->sc_maxpins || bcm_gpio_pin_is_ro(sc, irq))
 		return (EINVAL);
 
 	mode = dag->gpio_intr_mode;
