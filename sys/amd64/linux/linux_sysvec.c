@@ -168,6 +168,8 @@ linux_fetch_syscall_args(struct thread *td)
 
 	/* Restore r10 earlier to avoid doing this multiply times. */
 	frame->tf_r10 = frame->tf_rcx;
+	/* Restore %rcx for machine context. */
+	frame->tf_rcx = frame->tf_rip;
 
 	td->td_retval[0] = 0;
 	return (0);
