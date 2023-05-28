@@ -736,7 +736,7 @@ indir_visit(ino_t ino, ufs_lbn_t lbn, ufs2_daddr_t blk, uint64_t *frags,
 		lbnadd *= NINDIR(fs);
 	bp = getdatablk(blk, fs->fs_bsize, BT_LEVEL1 + level);
 	if (bp->b_errs != 0)
-		err_suj("indir_visit: UNRECOVERABLE I/O ERROR");
+		err_suj("indir_visit: UNRECOVERABLE I/O ERROR\n");
 	for (i = 0; i < NINDIR(fs); i++) {
 		if ((nblk = IBLK(bp, i)) == 0)
 			continue;
@@ -1918,6 +1918,9 @@ blk_build(struct jblkrec *blkrec)
 
 	blk = blknum(fs, blkrec->jb_blkno);
 	frag = fragnum(fs, blkrec->jb_blkno);
+	if (blkrec->jb_blkno < 0 || blk + fs->fs_frag - frag > fs->fs_size)
+		err_suj("Out-of-bounds journal block number %jd\n",
+		    blkrec->jb_blkno);
 	sblk = blk_lookup(blk, 1);
 	/*
 	 * Rewrite the record using oldfrags to indicate the offset into
