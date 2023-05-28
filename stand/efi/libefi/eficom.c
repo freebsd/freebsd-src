@@ -497,7 +497,7 @@ comc_port_set(struct env_var *ev, int flags, const void *value)
 	EFI_HANDLE handle;
 	EFI_STATUS status;
 
-	if (value == NULL)
+	if (value == NULL || comc_port == NULL)
 		return (CMD_ERROR);
 
 	if (comc_parse_intval(value, &port) != CMD_OK) 
@@ -532,7 +532,7 @@ comc_speed_set(struct env_var *ev, int flags, const void *value)
 {
 	unsigned speed;
 
-	if (value == NULL)
+	if (value == NULL || comc_port == NULL)
 		return (CMD_ERROR);
 
 	if (comc_parse_intval(value, &speed) != CMD_OK) 
