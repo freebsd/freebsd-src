@@ -191,9 +191,6 @@ linux_set_syscall_retval(struct thread *td, int error)
 	 * and %r11 values are not preserved across the syscall.
 	 * Require full context restore to get all registers except
 	 * those two restored at return to usermode.
-	 *
-	 * XXX: Would be great to be able to avoid PCB_FULL_IRET
-	 *      for the error == 0 case.
 	 */
 	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 }
