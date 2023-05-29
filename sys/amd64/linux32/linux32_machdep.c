@@ -118,18 +118,10 @@ int
 linux_execve(struct thread *td, struct linux_execve_args *args)
 {
 	struct image_args eargs;
-	char *path;
 	int error;
 
-	if (!LUSECONVPATH(td)) {
-		error = freebsd32_exec_copyin_args(&eargs, args->path, UIO_USERSPACE,
-		    args->argp, args->envp);
-	} else {
-		LCONVPATHEXIST(args->path, &path);
-		error = freebsd32_exec_copyin_args(&eargs, path, UIO_SYSSPACE,
-		    args->argp, args->envp);
-		LFREEPATH(path);
-	}
+	error = freebsd32_exec_copyin_args(&eargs, args->path, UIO_USERSPACE,
+	    args->argp, args->envp);
 	if (error == 0)
 		error = linux_common_execve(td, &eargs);
 	AUDIT_SYSCALL_EXIT(error == EJUSTRETURN ? 0 : error, td);

@@ -172,16 +172,9 @@ int
 linux_newstat(struct thread *td, struct linux_newstat_args *args)
 {
 	struct stat buf;
-	char *path;
 	int error;
 
-	if (!LUSECONVPATH(td)) {
-		error = linux_kern_stat(td, args->path, UIO_USERSPACE, &buf);
-	} else {
-		LCONVPATHEXIST(args->path, &path);
-		error = linux_kern_stat(td, path, UIO_SYSSPACE, &buf);
-		LFREEPATH(path);
-	}
+	error = linux_kern_stat(td, args->path, UIO_USERSPACE, &buf);
 	if (error)
 		return (error);
 	return (newstat_copyout(&buf, args->buf));
@@ -191,16 +184,9 @@ int
 linux_newlstat(struct thread *td, struct linux_newlstat_args *args)
 {
 	struct stat sb;
-	char *path;
 	int error;
 
-	if (!LUSECONVPATH(td)) {
-		error = linux_kern_lstat(td, args->path, UIO_USERSPACE, &sb);
-	} else {
-		LCONVPATHEXIST(args->path, &path);
-		error = linux_kern_lstat(td, path, UIO_SYSSPACE, &sb);
-		LFREEPATH(path);
-	}
+	error = linux_kern_lstat(td, args->path, UIO_USERSPACE, &sb);
 	if (error)
 		return (error);
 	return (newstat_copyout(&sb, args->buf));
@@ -261,16 +247,9 @@ int
 linux_stat(struct thread *td, struct linux_stat_args *args)
 {
 	struct stat buf;
-	char *path;
 	int error;
 
-	if (!LUSECONVPATH(td)) {
-		error = linux_kern_stat(td, args->path, UIO_USERSPACE, &buf);
-	} else {
-		LCONVPATHEXIST(args->path, &path);
-		error = linux_kern_stat(td, path, UIO_SYSSPACE, &buf);
-		LFREEPATH(path);
-	}
+	error = linux_kern_stat(td, args->path, UIO_USERSPACE, &buf);
 	if (error) {
 		return (error);
 	}
@@ -281,16 +260,9 @@ int
 linux_lstat(struct thread *td, struct linux_lstat_args *args)
 {
 	struct stat buf;
-	char *path;
 	int error;
 
-	if (!LUSECONVPATH(td)) {
-		error = linux_kern_lstat(td, args->path, UIO_USERSPACE, &buf);
-	} else {
-		LCONVPATHEXIST(args->path, &path);
-		error = linux_kern_lstat(td, path, UIO_SYSSPACE, &buf);
-		LFREEPATH(path);
-	}
+	error = linux_kern_lstat(td, args->path, UIO_USERSPACE, &buf);
 	if (error) {
 		return (error);
 	}
@@ -409,18 +381,10 @@ linux_statfs(struct thread *td, struct linux_statfs_args *args)
 {
 	struct l_statfs linux_statfs;
 	struct statfs *bsd_statfs;
-	char *path;
 	int error;
 
-	if (!LUSECONVPATH(td)) {
-		bsd_statfs = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
-		error = kern_statfs(td, args->path, UIO_USERSPACE, bsd_statfs);
-	} else {
-		LCONVPATHEXIST(args->path, &path);
-		bsd_statfs = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
-		error = kern_statfs(td, path, UIO_SYSSPACE, bsd_statfs);
-		LFREEPATH(path);
-	}
+	bsd_statfs = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	error = kern_statfs(td, args->path, UIO_USERSPACE, bsd_statfs);
 	if (error == 0)
 		error = bsd_to_linux_statfs(bsd_statfs, &linux_statfs);
 	free(bsd_statfs, M_STATFS);
@@ -454,21 +418,13 @@ linux_statfs64(struct thread *td, struct linux_statfs64_args *args)
 {
 	struct l_statfs64 linux_statfs;
 	struct statfs *bsd_statfs;
-	char *path;
 	int error;
 
 	if (args->bufsize != sizeof(struct l_statfs64))
 		return (EINVAL);
 
-	if (!LUSECONVPATH(td)) {
-		bsd_statfs = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
-		error = kern_statfs(td, args->path, UIO_USERSPACE, bsd_statfs);
-	} else {
-		LCONVPATHEXIST(args->path, &path);
-		bsd_statfs = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
-		error = kern_statfs(td, path, UIO_SYSSPACE, bsd_statfs);
-		LFREEPATH(path);
-	}
+	bsd_statfs = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	error = kern_statfs(td, args->path, UIO_USERSPACE, bsd_statfs);
 	if (error == 0)
 		bsd_to_linux_statfs64(bsd_statfs, &linux_statfs);
 	free(bsd_statfs, M_STATFS);
@@ -572,16 +528,9 @@ int
 linux_stat64(struct thread *td, struct linux_stat64_args *args)
 {
 	struct stat buf;
-	char *filename;
 	int error;
 
-	if (!LUSECONVPATH(td)) {
-		error = linux_kern_stat(td, args->filename, UIO_USERSPACE, &buf);
-	} else {
-		LCONVPATHEXIST(args->filename, &filename);
-		error = linux_kern_stat(td, filename, UIO_SYSSPACE, &buf);
-		LFREEPATH(filename);
-	}
+	error = linux_kern_stat(td, args->filename, UIO_USERSPACE, &buf);
 	if (error)
 		return (error);
 	return (stat64_copyout(&buf, args->statbuf));
@@ -591,16 +540,9 @@ int
 linux_lstat64(struct thread *td, struct linux_lstat64_args *args)
 {
 	struct stat sb;
-	char *filename;
 	int error;
 
-	if (!LUSECONVPATH(td)) {
-		error = linux_kern_lstat(td, args->filename, UIO_USERSPACE, &sb);
-	} else {
-		LCONVPATHEXIST(args->filename, &filename);
-		error = linux_kern_lstat(td, filename, UIO_SYSSPACE, &sb);
-		LFREEPATH(filename);
-	}
+	error = linux_kern_lstat(td, args->filename, UIO_USERSPACE, &sb);
 	if (error)
 		return (error);
 	return (stat64_copyout(&sb, args->statbuf));
@@ -622,7 +564,6 @@ linux_fstat64(struct thread *td, struct linux_fstat64_args *args)
 int
 linux_fstatat64(struct thread *td, struct linux_fstatat64_args *args)
 {
-	char *path;
 	int error, dfd, flag, unsupported;
 	struct stat buf;
 
@@ -637,14 +578,8 @@ linux_fstatat64(struct thread *td, struct linux_fstatat64_args *args)
 	    AT_EMPTY_PATH : 0;
 
 	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
-	if (!LUSECONVPATH(td)) {
-		error = linux_kern_statat(td, flag, dfd, args->pathname,
-		    UIO_USERSPACE, &buf);
-	} else {
-		LCONVPATHEXIST_AT(args->pathname, &path, dfd);
-		error = linux_kern_statat(td, flag, dfd, path, UIO_SYSSPACE, &buf);
-		LFREEPATH(path);
-	}
+	error = linux_kern_statat(td, flag, dfd, args->pathname,
+	    UIO_USERSPACE, &buf);
 	if (error == 0)
 		error = stat64_copyout(&buf, args->statbuf);
 
@@ -656,7 +591,6 @@ linux_fstatat64(struct thread *td, struct linux_fstatat64_args *args)
 int
 linux_newfstatat(struct thread *td, struct linux_newfstatat_args *args)
 {
-	char *path;
 	int error, dfd, flag, unsupported;
 	struct stat buf;
 
@@ -672,14 +606,8 @@ linux_newfstatat(struct thread *td, struct linux_newfstatat_args *args)
 	    AT_EMPTY_PATH : 0;
 
 	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
-	if (!LUSECONVPATH(td)) {
-		error = linux_kern_statat(td, flag, dfd, args->pathname,
-		    UIO_USERSPACE, &buf);
-	} else {
-		LCONVPATHEXIST_AT(args->pathname, &path, dfd);
-		error = linux_kern_statat(td, flag, dfd, path, UIO_SYSSPACE, &buf);
-		LFREEPATH(path);
-	}
+	error = linux_kern_statat(td, flag, dfd, args->pathname,
+	    UIO_USERSPACE, &buf);
 	if (error == 0)
 		error = newstat_copyout(&buf, args->statbuf);
 
@@ -763,7 +691,6 @@ statx_copyout(struct stat *buf, void *ubuf)
 int
 linux_statx(struct thread *td, struct linux_statx_args *args)
 {
-	char *path;
 	int error, dirfd, flags, unsupported;
 	struct stat buf;
 
@@ -780,14 +707,8 @@ linux_statx(struct thread *td, struct linux_statx_args *args)
 	    AT_EMPTY_PATH : 0;
 
 	dirfd = (args->dirfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dirfd;
-	if (!LUSECONVPATH(td)) {
-		error = linux_kern_statat(td, flags, dirfd, args->pathname,
-		    UIO_USERSPACE, &buf);
-	} else {
-		LCONVPATHEXIST_AT(args->pathname, &path, dirfd);
-		error = linux_kern_statat(td, flags, dirfd, path, UIO_SYSSPACE, &buf);
-		LFREEPATH(path);
-	}
+	error = linux_kern_statat(td, flags, dirfd, args->pathname,
+	    UIO_USERSPACE, &buf);
 	if (error == 0)
 		error = statx_copyout(&buf, args->statxbuf);
 
