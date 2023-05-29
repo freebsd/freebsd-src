@@ -725,6 +725,7 @@ changeino(ino_t dir, const char *name, ino_t newnum, int depth)
 	ginode(dir, &ip);
 	if (((error = ckinode(ip.i_dp, &idesc)) & ALTERED) && newnum != 0) {
 		DIP_SET(ip.i_dp, di_dirdepth, depth);
+		inodirty(&ip);
 		getinoinfo(dir)->i_depth = depth;
 	}
 	free(idesc.id_name);
@@ -879,6 +880,7 @@ expanddir(struct inode *ip, char *name)
 			DIP_SET(dp, di_ib[0], indirblk);
 			DIP_SET(dp, di_blocks,
 			    DIP(dp, di_blocks) + btodb(sblock.fs_bsize));
+			inodirty(ip);
 		}
 		IBLK_SET(nbp, lastlbn - UFS_NDADDR, newblk);
 		dirty(nbp);
@@ -969,6 +971,7 @@ allocdir(ino_t parent, ino_t request, int mode)
 	} else {
 		inp->i_depth = parentinp->i_depth + 1; 
 		DIP_SET(dp, di_dirdepth, inp->i_depth);
+		inodirty(&ip);
 	}
 	inoinfo(ino)->ino_type = DT_DIR;
 	inoinfo(ino)->ino_state = inoinfo(parent)->ino_state;
