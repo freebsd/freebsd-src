@@ -3720,8 +3720,8 @@ DIOCCHANGERULE_error:
 	}
 
 	case DIOCADDSTATE: {
-		struct pfioc_state	*ps = (struct pfioc_state *)addr;
-		struct pfsync_state	*sp = &ps->state;
+		struct pfioc_state		*ps = (struct pfioc_state *)addr;
+		struct pfsync_state_1301	*sp = &ps->state;
 
 		if (sp->timeout >= PFTM_MAX) {
 			error = EINVAL;
@@ -3729,7 +3729,9 @@ DIOCCHANGERULE_error:
 		}
 		if (V_pfsync_state_import_ptr != NULL) {
 			PF_RULES_RLOCK();
-			error = V_pfsync_state_import_ptr(sp, PFSYNC_SI_IOCTL);
+			error = V_pfsync_state_import_ptr(
+			    (union pfsync_state_union *)sp, PFSYNC_SI_IOCTL,
+			    PFSYNC_MSG_VERSION_1301);
 			PF_RULES_RUNLOCK();
 		} else
 			error = EOPNOTSUPP;
@@ -3746,7 +3748,8 @@ DIOCCHANGERULE_error:
 			break;
 		}
 
-		pfsync_state_export(&ps->state, s);
+		pfsync_state_export((union pfsync_state_union*)&ps->state,
+		    s, PFSYNC_MSG_VERSION_1301);
 		PF_STATE_UNLOCK(s);
 		break;
 	}
@@ -3759,20 +3762,20 @@ DIOCCHANGERULE_error:
 	case DIOCGETSTATES: {
 		struct pfioc_states	*ps = (struct pfioc_states *)addr;
 		struct pf_kstate	*s;
-		struct pfsync_state	*pstore, *p;
+		struct pfsync_state_1301	*pstore, *p;
 		int			 i, nr;
 		size_t			 slice_count = 16, count;
 		void			*out;
 
 		if (ps->ps_len <= 0) {
 			nr = uma_zone_get_cur(V_pf_state_z);
-			ps->ps_len = sizeof(struct pfsync_state) * nr;
+			ps->ps_len = sizeof(struct pfsync_state_1301) * nr;
 			break;
 		}
 
 		out = ps->ps_states;
 		pstore = mallocarray(slice_count,
-		    sizeof(struct pfsync_state), M_TEMP, M_WAITOK | M_ZERO);
+		    sizeof(struct pfsync_state_1301), M_TEMP, M_WAITOK | M_ZERO);
 		nr = 0;
 
 		for (i = 0; i <= pf_hashmask; i++) {
@@ -3797,7 +3800,7 @@ DIOCGETSTATES_retry:
 				free(pstore, M_TEMP);
 				slice_count = count * 2;
 				pstore = mallocarray(slice_count,
-				    sizeof(struct pfsync_state), M_TEMP,
+				    sizeof(struct pfsync_state_1301), M_TEMP,
 				    M_WAITOK | M_ZERO);
 				goto DIOCGETSTATES_retry;
 			}
@@ -3811,19 +3814,20 @@ DIOCGETSTATES_retry:
 				if (s->timeout == PFTM_UNLINKED)
 					continue;
 
-				pfsync_state_export(p, s);
+				pfsync_state_export((union pfsync_state_union*)p,
+				    s, PFSYNC_MSG_VERSION_1301);
 				p++;
 				nr++;
 			}
 			PF_HASHROW_UNLOCK(ih);
 			error = copyout(pstore, out,
-			    sizeof(struct pfsync_state) * count);
+			    sizeof(struct pfsync_state_1301) * count);
 			if (error)
 				break;
 			out = ps->ps_states + nr;
 		}
 DIOCGETSTATES_full:
-		ps->ps_len = sizeof(struct pfsync_state) * nr;
+		ps->ps_len = sizeof(struct pfsync_state_1301) * nr;
 		free(pstore, M_TEMP);
 
 		break;
@@ -5663,64 +5667,90 @@ fail:
 }
 
 void
-pfsync_state_export(struct pfsync_state *sp, struct pf_kstate *st)
+pfsync_state_export(union pfsync_state_union *sp, struct pf_kstate *st, int msg_version)
 {
-	bzero(sp, sizeof(struct pfsync_state));
+	bzero(sp, sizeof(union pfsync_state_union));
 
 	/* copy from state key */
-	sp->key[PF_SK_WIRE].addr[0] = st->key[PF_SK_WIRE]->addr[0];
-	sp->key[PF_SK_WIRE].addr[1] = st->key[PF_SK_WIRE]->addr[1];
-	sp->key[PF_SK_WIRE].port[0] = st->key[PF_SK_WIRE]->port[0];
-	sp->key[PF_SK_WIRE].port[1] = st->key[PF_SK_WIRE]->port[1];
-	sp->key[PF_SK_STACK].addr[0] = st->key[PF_SK_STACK]->addr[0];
-	sp->key[PF_SK_STACK].addr[1] = st->key[PF_SK_STACK]->addr[1];
-	sp->key[PF_SK_STACK].port[0] = st->key[PF_SK_STACK]->port[0];
-	sp->key[PF_SK_STACK].port[1] = st->key[PF_SK_STACK]->port[1];
-	sp->proto = st->key[PF_SK_WIRE]->proto;
-	sp->af = st->key[PF_SK_WIRE]->af;
+	sp->pfs_1301.key[PF_SK_WIRE].addr[0] = st->key[PF_SK_WIRE]->addr[0];
+	sp->pfs_1301.key[PF_SK_WIRE].addr[1] = st->key[PF_SK_WIRE]->addr[1];
+	sp->pfs_1301.key[PF_SK_WIRE].port[0] = st->key[PF_SK_WIRE]->port[0];
+	sp->pfs_1301.key[PF_SK_WIRE].port[1] = st->key[PF_SK_WIRE]->port[1];
+	sp->pfs_1301.key[PF_SK_STACK].addr[0] = st->key[PF_SK_STACK]->addr[0];
+	sp->pfs_1301.key[PF_SK_STACK].addr[1] = st->key[PF_SK_STACK]->addr[1];
+	sp->pfs_1301.key[PF_SK_STACK].port[0] = st->key[PF_SK_STACK]->port[0];
+	sp->pfs_1301.key[PF_SK_STACK].port[1] = st->key[PF_SK_STACK]->port[1];
+	sp->pfs_1301.proto = st->key[PF_SK_WIRE]->proto;
+	sp->pfs_1301.af = st->key[PF_SK_WIRE]->af;
 
 	/* copy from state */
-	strlcpy(sp->ifname, st->kif->pfik_name, sizeof(sp->ifname));
-	bcopy(&st->rt_addr, &sp->rt_addr, sizeof(sp->rt_addr));
-	sp->creation = htonl(time_uptime - st->creation);
-	sp->expire = pf_state_expires(st);
-	if (sp->expire <= time_uptime)
-		sp->expire = htonl(0);
+	strlcpy(sp->pfs_1301.ifname, st->kif->pfik_name, sizeof(sp->pfs_1301.ifname));
+	bcopy(&st->rt_addr, &sp->pfs_1301.rt_addr, sizeof(sp->pfs_1301.rt_addr));
+	sp->pfs_1301.creation = htonl(time_uptime - st->creation);
+	sp->pfs_1301.expire = pf_state_expires(st);
+	if (sp->pfs_1301.expire <= time_uptime)
+		sp->pfs_1301.expire = htonl(0);
 	else
-		sp->expire = htonl(sp->expire - time_uptime);
+		sp->pfs_1301.expire = htonl(sp->pfs_1301.expire - time_uptime);
 
-	sp->direction = st->direction;
-	sp->log = st->log;
-	sp->timeout = st->timeout;
-	sp->state_flags_compat = st->state_flags;
-	sp->state_flags = htons(st->state_flags);
+	sp->pfs_1301.direction = st->direction;
+	sp->pfs_1301.log = st->log;
+	sp->pfs_1301.timeout = st->timeout;
+
+	switch (msg_version) {
+		case PFSYNC_MSG_VERSION_1301:
+			sp->pfs_1301.state_flags = st->state_flags;
+			break;
+		case PFSYNC_MSG_VERSION_1400:
+			sp->pfs_1400.state_flags = htons(st->state_flags);
+			sp->pfs_1400.qid = htons(st->qid);
+			sp->pfs_1400.pqid = htons(st->pqid);
+			sp->pfs_1400.dnpipe = htons(st->dnpipe);
+			sp->pfs_1400.dnrpipe = htons(st->dnrpipe);
+			sp->pfs_1400.rtableid = htonl(st->rtableid);
+			sp->pfs_1400.min_ttl = st->min_ttl;
+			sp->pfs_1400.set_tos = st->set_tos;
+			sp->pfs_1400.max_mss = htons(st->max_mss);
+			sp->pfs_1400.set_prio[0] = st->set_prio[0];
+			sp->pfs_1400.set_prio[1] = st->set_prio[1];
+			sp->pfs_1400.rt = st->rt;
+			if (st->rt_kif)
+				strlcpy(sp->pfs_1400.rt_ifname,
+				    st->rt_kif->pfik_name,
+				    sizeof(sp->pfs_1400.rt_ifname));
+			break;
+		default:
+			panic("%s: Unsupported pfsync_msg_version %d",
+			    __func__, msg_version);
+	}
+
 	if (st->src_node)
-		sp->sync_flags |= PFSYNC_FLAG_SRCNODE;
+		sp->pfs_1301.sync_flags |= PFSYNC_FLAG_SRCNODE;
 	if (st->nat_src_node)
-		sp->sync_flags |= PFSYNC_FLAG_NATSRCNODE;
+		sp->pfs_1301.sync_flags |= PFSYNC_FLAG_NATSRCNODE;
 
-	sp->id = st->id;
-	sp->creatorid = st->creatorid;
-	pf_state_peer_hton(&st->src, &sp->src);
-	pf_state_peer_hton(&st->dst, &sp->dst);
+	sp->pfs_1301.id = st->id;
+	sp->pfs_1301.creatorid = st->creatorid;
+	pf_state_peer_hton(&st->src, &sp->pfs_1301.src);
+	pf_state_peer_hton(&st->dst, &sp->pfs_1301.dst);
 
 	if (st->rule.ptr == NULL)
-		sp->rule = htonl(-1);
+		sp->pfs_1301.rule = htonl(-1);
 	else
-		sp->rule = htonl(st->rule.ptr->nr);
+		sp->pfs_1301.rule = htonl(st->rule.ptr->nr);
 	if (st->anchor.ptr == NULL)
-		sp->anchor = htonl(-1);
+		sp->pfs_1301.anchor = htonl(-1);
 	else
-		sp->anchor = htonl(st->anchor.ptr->nr);
+		sp->pfs_1301.anchor = htonl(st->anchor.ptr->nr);
 	if (st->nat_rule.ptr == NULL)
-		sp->nat_rule = htonl(-1);
+		sp->pfs_1301.nat_rule = htonl(-1);
 	else
-		sp->nat_rule = htonl(st->nat_rule.ptr->nr);
+		sp->pfs_1301.nat_rule = htonl(st->nat_rule.ptr->nr);
 
-	pf_state_counter_hton(st->packets[0], sp->packets[0]);
-	pf_state_counter_hton(st->packets[1], sp->packets[1]);
-	pf_state_counter_hton(st->bytes[0], sp->bytes[0]);
-	pf_state_counter_hton(st->bytes[1], sp->bytes[1]);
+	pf_state_counter_hton(st->packets[0], sp->pfs_1301.packets[0]);
+	pf_state_counter_hton(st->packets[1], sp->pfs_1301.packets[1]);
+	pf_state_counter_hton(st->bytes[0], sp->pfs_1301.bytes[0]);
+	pf_state_counter_hton(st->bytes[1], sp->pfs_1301.bytes[1]);
 }
 
 void

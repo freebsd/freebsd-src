@@ -310,6 +310,27 @@ setpfsync_defer(if_ctx *ctx, const char *val, int d)
 }
 
 static void
+setpfsync_version(if_ctx *ctx, const char *val, int dummy __unused)
+{
+	int version;
+	nvlist_t *nvl = nvlist_create(0);
+
+	/* Don't verify, kernel knows which versions are supported.*/
+	version = atoi(val);
+
+	if (pfsync_do_ioctl(ctx->io_s, SIOCGETPFSYNCNV, &nvl) == -1)
+		err(1, "SIOCGETPFSYNCNV");
+
+	nvlist_free_number(nvl, "version");
+	nvlist_add_number(nvl, "version", version);
+
+	if (pfsync_do_ioctl(ctx->io_s, SIOCSETPFSYNCNV, &nvl) == -1)
+		err(1, "SIOCSETPFSYNCNV");
+
+	nvlist_destroy(nvl);
+}
+
+static void
 pfsync_status(if_ctx *ctx)
 {
 	nvlist_t *nvl;
@@ -318,6 +339,7 @@ pfsync_status(if_ctx *ctx)
 	struct sockaddr_storage syncpeer;
 	int maxupdates = 0;
 	int flags = 0;
+	int version;
 	int error;
 
 	nvl = nvlist_create(0);
@@ -333,6 +355,8 @@ pfsync_status(if_ctx *ctx)
 		    IFNAMSIZ);
 	if (nvlist_exists_number(nvl, "maxupdates"))
 		maxupdates = nvlist_get_number(nvl, "maxupdates");
+	if (nvlist_exists_number(nvl, "version"))
+		version = nvlist_get_number(nvl, "version");
 	if (nvlist_exists_number(nvl, "flags"))
 		flags = nvlist_get_number(nvl, "flags");
 	if (nvlist_exists_nvlist(nvl, "syncpeer")) {
@@ -363,7 +387,8 @@ pfsync_status(if_ctx *ctx)
 	}
 
 	printf("maxupd: %d ", maxupdates);
-	printf("defer: %s\n", (flags & PFSYNCF_DEFER) ? "on" : "off");
+	printf("defer: %s ", (flags & PFSYNCF_DEFER) ? "on" : "off");
+	printf("version: %d\n", version);
 	printf("\tsyncok: %d\n", (flags & PFSYNCF_OK) ? 1 : 0);
 }
 
@@ -377,6 +402,7 @@ static struct cmd pfsync_cmds[] = {
 	DEF_CMD_ARG("maxupd",		setpfsync_maxupd),
 	DEF_CMD("defer",	1,	setpfsync_defer),
 	DEF_CMD("-defer",	0,	setpfsync_defer),
+	DEF_CMD_ARG("version",		setpfsync_version),
 };
 static struct afswtch af_pfsync = {
 	.af_name	= "af_pfsync",

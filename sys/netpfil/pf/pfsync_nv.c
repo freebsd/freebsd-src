@@ -130,6 +130,7 @@ pfsync_nvstatus_to_kstatus(const nvlist_t *nvl, struct pfsync_kstatus *status)
 		return (EINVAL);
 
 	status->maxupdates = nvlist_get_number(nvl, "maxupdates");
+	status->version = nvlist_get_number(nvl, "version");
 	status->flags = nvlist_get_number(nvl, "flags");
 
 	if (nvlist_exists_string(nvl, "syncdev"))

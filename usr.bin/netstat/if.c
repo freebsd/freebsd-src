@@ -81,9 +81,9 @@ static void sidewaysintpr(void);
 #ifdef PF
 static const char* pfsyncacts[] = {
 	/* PFSYNC_ACT_CLR */		"clear all request",
-	/* PFSYNC_ACT_INS */		"state insert",
+	/* PFSYNC_ACT_INS_1301 */	"13.1 state insert",
 	/* PFSYNC_ACT_INS_ACK */	"state inserted ack",
-	/* PFSYNC_ACT_UPD */		"state update",
+	/* PFSYNC_ACT_UPD_1301 */	"13.1 state update",
 	/* PFSYNC_ACT_UPD_C */		"compressed state update",
 	/* PFSYNC_ACT_UPD_REQ */	"uncompressed state request",
 	/* PFSYNC_ACT_DEL */		"state delete",
@@ -93,13 +93,15 @@ static const char* pfsyncacts[] = {
 	/* PFSYNC_ACT_BUS */		"bulk update mark",
 	/* PFSYNC_ACT_TDB */		"TDB replay counter update",
 	/* PFSYNC_ACT_EOF */		"end of frame mark",
+	/* PFSYNC_ACT_INS_1400 */	"state insert",
+	/* PFSYNC_ACT_UPD_1400 */	"state update",
 };
 
 static const char* pfsyncacts_name[] = {
 	/* PFSYNC_ACT_CLR */		"clear-all-request",
-	/* PFSYNC_ACT_INS */		"state-insert",
+	/* PFSYNC_ACT_INS_1301 */	"state-insert-1301",
 	/* PFSYNC_ACT_INS_ACK */	"state-inserted-ack",
-	/* PFSYNC_ACT_UPD */		"state-update",
+	/* PFSYNC_ACT_UPD_1301 */	"state-update-1301",
 	/* PFSYNC_ACT_UPD_C */		"compressed-state-update",
 	/* PFSYNC_ACT_UPD_REQ */	"uncompressed-state-request",
 	/* PFSYNC_ACT_DEL */		"state-delete",
@@ -109,6 +111,8 @@ static const char* pfsyncacts_name[] = {
 	/* PFSYNC_ACT_BUS */		"bulk-update-mark",
 	/* PFSYNC_ACT_TDB */		"TDB-replay-counter-update",
 	/* PFSYNC_ACT_EOF */		"end-of-frame-mark",
+	/* PFSYNC_ACT_INS_1400 */	"state-insert",
+	/* PFSYNC_ACT_UPD_1400 */	"state-update",
 };
 
 static void

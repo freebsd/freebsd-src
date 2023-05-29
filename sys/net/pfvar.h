@@ -641,6 +641,7 @@ struct pf_rule_actions {
 	uint16_t	 dnpipe;
 	uint16_t	 dnrpipe;	/* Reverse direction pipe */
 	uint32_t	 flags;
+	uint8_t		 set_prio[2];
 };
 
 union pf_keth_rule_ptr {
@@ -1057,12 +1058,14 @@ struct pf_kstate {
 	u_int8_t		 min_ttl;
 	u_int8_t		 set_tos;
 	u_int16_t		 max_mss;
+	u_int8_t		 rt;
+	u_int8_t		 set_prio[2];
 };
 
 /*
- * Size <= fits 12 objects per page on LP64. Try to not grow the struct beyond that.
+ * Size <= fits 11 objects per page on LP64. Try to not grow the struct beyond that.
  */
-_Static_assert(sizeof(struct pf_kstate) <= 336, "pf_kstate size crosses 336 bytes");
+_Static_assert(sizeof(struct pf_kstate) <= 368, "pf_kstate size crosses 368 bytes");
 #endif
 
 /*
@@ -1094,7 +1097,34 @@ struct pfsync_state_key {
 	u_int16_t	 port[2];
 };
 
-struct pfsync_state {
+struct pfsync_state_1301 {
+	u_int64_t	 id;
+	char		 ifname[IFNAMSIZ];
+	struct pfsync_state_key	key[2];
+	struct pfsync_state_peer src;
+	struct pfsync_state_peer dst;
+	struct pf_addr	 rt_addr;
+	u_int32_t	 rule;
+	u_int32_t	 anchor;
+	u_int32_t	 nat_rule;
+	u_int32_t	 creation;
+	u_int32_t	 expire;
+	u_int32_t	 packets[2][2];
+	u_int32_t	 bytes[2][2];
+	u_int32_t	 creatorid;
+	sa_family_t	 af;
+	u_int8_t	 proto;
+	u_int8_t	 direction;
+	u_int8_t	 __spare[2];
+	u_int8_t	 log;
+	u_int8_t	 state_flags;
+	u_int8_t	 timeout;
+	u_int8_t	 sync_flags;
+	u_int8_t	 updates;
+} __packed;
+
+struct pfsync_state_1400 {
+	/* The beginning of the struct is compatible with previous versions */
 	u_int64_t	 id;
 	char		 ifname[IFNAMSIZ];
 	struct pfsync_state_key	key[2];
@@ -1114,15 +1144,33 @@ struct pfsync_state {
 	u_int8_t	 direction;
 	u_int16_t	 state_flags;
 	u_int8_t	 log;
-	u_int8_t	 state_flags_compat;
+	u_int8_t	 __spare;
 	u_int8_t	 timeout;
 	u_int8_t	 sync_flags;
 	u_int8_t	 updates;
+	/* The rest is not */
+	u_int16_t	 qid;
+	u_int16_t	 pqid;
+	u_int16_t	 dnpipe;
+	u_int16_t	 dnrpipe;
+	int32_t		 rtableid;
+	u_int8_t	 min_ttl;
+	u_int8_t	 set_tos;
+	u_int16_t	 max_mss;
+	u_int8_t	 set_prio[2];
+	u_int8_t	 rt;
+	char		 rt_ifname[IFNAMSIZ];
+
+} __packed;
+
+union pfsync_state_union {
+	struct pfsync_state_1301 pfs_1301;
+	struct pfsync_state_1400 pfs_1400;
 } __packed;
 
 #ifdef _KERNEL
 /* pfsync */
-typedef int		pfsync_state_import_t(struct pfsync_state *, int);
+typedef int		pfsync_state_import_t(union pfsync_state_union *, int, int);
 typedef	void		pfsync_insert_state_t(struct pf_kstate *);
 typedef	void		pfsync_update_state_t(struct pf_kstate *);
 typedef	void		pfsync_delete_state_t(struct pf_kstate *);
@@ -1144,8 +1192,8 @@ VNET_DECLARE(pfsync_defer_t *, pfsync_defer_ptr);
 #define V_pfsync_defer_ptr		VNET(pfsync_defer_ptr)
 extern pfsync_detach_ifnet_t	*pfsync_detach_ifnet_ptr;
 
-void			pfsync_state_export(struct pfsync_state *,
-			    struct pf_kstate *);
+void			pfsync_state_export(union pfsync_state_union *,
+			    struct pf_kstate *, int);
 void			pf_state_export(struct pf_state_export *,
 			    struct pf_kstate *);
 
@@ -1665,7 +1713,7 @@ struct pfioc_natlook {
 };
 
 struct pfioc_state {
-	struct pfsync_state	state;
+	struct pfsync_state_1301	state;
 };
 
 struct pfioc_src_node_kill {
@@ -1704,8 +1752,8 @@ struct pfioc_state_kill {
 struct pfioc_states {
 	int	ps_len;
 	union {
-		void			*ps_buf;
-		struct pfsync_state	*ps_states;
+		void				*ps_buf;
+		struct pfsync_state_1301	*ps_states;
 	};
 };
 
