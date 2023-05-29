@@ -159,7 +159,7 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
  * Namei parameter descriptors.
  */
 #define	RDONLY		0x00000200 /* lookup with read-only semantics */
-/* UNUSED		0x00000400 */
+#define	ISRESTARTED	0x00000400 /* restarted namei */
 /* UNUSED		0x00000800 */
 #define	ISWHITEOUT	0x00001000 /* found whiteout */
 #define	DOWHITEOUT	0x00002000 /* do whiteouts */
@@ -187,7 +187,7 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
  */
 #define NAMEI_INTERNAL_FLAGS	\
 	(NOEXECCHECK | MAKEENTRY | ISSYMLINK | ISLASTCN | ISDOTDOT | \
-	 TRAILINGSLASH)
+	 TRAILINGSLASH | ISRESTARTED)
 
 /*
  * Namei results flags
@@ -293,6 +293,13 @@ int	namei(struct nameidata *ndp);
 int	vfs_lookup(struct nameidata *ndp);
 int	vfs_relookup(struct vnode *dvp, struct vnode **vpp,
 	    struct componentname *cnp, bool refstart);
+
+#define namei_setup_rootdir(ndp, cnp, pwd) do {					\
+	if (__predict_true((cnp->cn_flags & ISRESTARTED) == 0))			\
+		ndp->ni_rootdir = pwd->pwd_adir;				\
+	else									\
+		ndp->ni_rootdir = pwd->pwd_rdir;				\
+} while (0)
 #endif
 
 /*
