@@ -193,7 +193,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.9.1"
+#define PACKAGE_VERSION "1.10.4"
 
 /* target host supports netmap */
 #define PCAP_SUPPORT_NETMAP 1
