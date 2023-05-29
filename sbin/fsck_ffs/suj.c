@@ -2377,7 +2377,7 @@ suj_check(const char *filesys)
 {
 	struct inodesc idesc;
 	struct csum *cgsum;
-	union dinode *jip;
+	union dinode *dp, *jip;
 	struct inode ip;
 	uint64_t blocks;
 	int i, retval;
@@ -2419,7 +2419,17 @@ suj_check(const char *filesys)
 	idesc.id_func = findino;
 	idesc.id_name = SUJ_FILE;
 	ginode(UFS_ROOTINO, &ip);
-	if ((ckinode(ip.i_dp, &idesc) & FOUND) == FOUND) {
+	dp = ip.i_dp;
+	if ((DIP(dp, di_mode) & IFMT) != IFDIR) {
+		irelse(&ip);
+		err_suj("root inode is not a directory\n");
+	}
+	if (DIP(dp, di_size) < 0 || DIP(dp, di_size) > MAXDIRSIZE) {
+		irelse(&ip);
+		err_suj("negative or oversized root directory %jd\n",
+		    (uintmax_t)DIP(dp, di_size));
+	}
+	if ((ckinode(dp, &idesc) & FOUND) == FOUND) {
 		sujino = idesc.id_parent;
 		irelse(&ip);
 	} else {
