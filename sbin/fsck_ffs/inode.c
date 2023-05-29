@@ -90,6 +90,10 @@ ckinode(union dinode *dp, struct inodesc *idesc)
 		dino.dp1 = dp->dp1;
 	else
 		dino.dp2 = dp->dp2;
+	if (DIP(&dino, di_size) < 0) {
+		pfatal("NEGATIVE INODE SIZE %jd\n", DIP(&dino, di_size));
+		return (STOP);
+	}
 	ndb = howmany(DIP(&dino, di_size), sblock.fs_bsize);
 	for (i = 0; i < UFS_NDADDR; i++) {
 		idesc->id_lbn++;
@@ -116,6 +120,7 @@ ckinode(union dinode *dp, struct inodesc *idesc)
 					inodirty(&ip);
 					irelse(&ip);
 				}
+				return (STOP);
 			}
 			continue;
 		}
@@ -498,6 +503,11 @@ irelse(struct inode *ip)
 	/* Check for failed inode read */
 	if (ip->i_bp == NULL)
 		return;
+	if (debug && sblock.fs_magic == FS_UFS2_MAGIC &&
+	    ffs_verify_dinode_ckhash(&sblock, (struct ufs2_dinode *)ip->i_dp)) {
+		pwarn("irelse: releasing inode with bad check-hash");
+		prtinode(ip);
+	}
 	if (ip->i_bp->b_refcnt <= 0)
 		pfatal("irelse: releasing unreferenced ino %ju\n",
 		    (uintmax_t) ip->i_number);
@@ -1419,21 +1429,20 @@ retry:
 	cgdirty(cgbp);
 	ginode(ino, &ip);
 	dp = ip.i_dp;
+	memset(dp, 0, ((sblock.fs_magic == FS_UFS1_MAGIC) ?
+	    sizeof(struct ufs1_dinode) : sizeof(struct ufs2_dinode)));
 	DIP_SET(dp, di_db[0], allocblk(ino_to_cg(&sblock, ino), (long)1,
 	    std_checkblkavail));
 	if (DIP(dp, di_db[0]) == 0) {
 		inoinfo(ino)->ino_state = USTATE;
+		inodirty(&ip);
 		irelse(&ip);
 		return (0);
 	}
 	DIP_SET(dp, di_mode, type);
-	DIP_SET(dp, di_flags, 0);
 	DIP_SET(dp, di_atime, time(NULL));
 	DIP_SET(dp, di_ctime, DIP(dp, di_atime));
 	DIP_SET(dp, di_mtime, DIP(dp, di_ctime));
-	DIP_SET(dp, di_mtimensec, 0);
-	DIP_SET(dp, di_ctimensec, 0);
-	DIP_SET(dp, di_atimensec, 0);
 	DIP_SET(dp, di_size, sblock.fs_fsize);
 	DIP_SET(dp, di_blocks, btodb(sblock.fs_fsize));
 	n_files++;
