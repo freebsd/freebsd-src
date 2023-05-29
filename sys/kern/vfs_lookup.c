@@ -81,6 +81,13 @@ static void NDVALIDATE_impl(struct nameidata *, int);
 #define NDVALIDATE(ndp)
 #endif
 
+#define	NDRESTART(ndp) do {						\
+	NDREINIT_DBG(ndp);						\
+	ndp->ni_resflags = 0;						\
+	ndp->ni_cnd.cn_flags &= ~NAMEI_INTERNAL_FLAGS;			\
+	ndp->ni_cnd.cn_flags |= ISRESTARTED;				\
+} while (0)
+
 SDT_PROVIDER_DEFINE(vfs);
 SDT_PROBE_DEFINE4(vfs, namei, lookup, entry, "struct vnode *", "char *",
     "unsigned long", "bool");
@@ -334,7 +341,7 @@ namei_setup(struct nameidata *ndp, struct vnode **dpp, struct pwd **pwdp)
 	 * The reference on ni_rootdir is acquired in the block below to avoid
 	 * back-to-back atomics for absolute lookups.
 	 */
-	ndp->ni_rootdir = pwd->pwd_rdir;
+	namei_setup_rootdir(ndp, cnp, pwd);
 	ndp->ni_topdir = pwd->pwd_jdir;
 
 	if (cnp->cn_pnbuf[0] == '/') {
@@ -594,6 +601,7 @@ namei(struct nameidata *ndp)
 	MPASS(ndp->ni_startdir == NULL || ndp->ni_startdir->v_type == VDIR ||
 	    ndp->ni_startdir->v_type == VBAD);
 
+restart:
 	ndp->ni_lcf = 0;
 	ndp->ni_loopcnt = 0;
 	ndp->ni_vp = NULL;
@@ -628,6 +636,12 @@ namei(struct nameidata *ndp)
 	case CACHE_FPL_STATUS_HANDLED:
 		if (error == 0)
 			NDVALIDATE(ndp);
+		else if (__predict_false(pwd->pwd_adir != pwd->pwd_rdir &&
+		    (cnp->cn_flags & ISRESTARTED) == 0)) {
+			namei_cleanup_cnp(cnp);
+			NDRESTART(ndp);
+			goto restart;
+		}
 		return (error);
 	case CACHE_FPL_STATUS_PARTIAL:
 		TAILQ_INIT(&ndp->ni_cap_tracker);
@@ -668,8 +682,18 @@ namei(struct nameidata *ndp)
 	for (;;) {
 		ndp->ni_startdir = dp;
 		error = vfs_lookup(ndp);
-		if (error != 0)
-			goto out;
+		if (error != 0) {
+			if (__predict_false(pwd->pwd_adir != pwd->pwd_rdir &&
+			    error == ENOENT &&
+			    (cnp->cn_flags & ISRESTARTED) == 0)) {
+				nameicap_cleanup(ndp);
+				pwd_drop(pwd);
+				namei_cleanup_cnp(cnp);
+				NDRESTART(ndp);
+				goto restart;
+			} else
+				goto out;
+		}
 
 		/*
 		 * If not a symbolic link, we're done.
