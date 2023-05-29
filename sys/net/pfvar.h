@@ -976,7 +976,7 @@ _Static_assert(sizeof(struct pf_state_peer_export) == 32, "size incorrect");
 
 struct pf_state_export {
 	uint64_t	 version;
-#define	PF_STATE_VERSION	20210706
+#define	PF_STATE_VERSION	20230404
 	uint64_t	 id;
 	char		 ifname[IFNAMSIZ];
 	char		 orig_ifname[IFNAMSIZ];
@@ -1003,8 +1003,19 @@ struct pf_state_export {
 	uint8_t		 sync_flags;
 	uint8_t		 updates;
 	uint16_t	 state_flags;
+	uint16_t	 qid;
+	uint16_t	 pqid;
+	uint16_t	 dnpipe;
+	uint16_t	 dnrpipe;
+	int32_t		 rtableid;
+	uint8_t		 min_ttl;
+	uint8_t		 set_tos;
+	uint16_t	 max_mss;
+	uint8_t		 set_prio[2];
+	uint8_t		 rt;
+	char		 rt_ifname[IFNAMSIZ];
 
-	uint8_t		 spare[110];
+	uint8_t		 spare[72];
 };
 _Static_assert(sizeof(struct pf_state_export) == 384, "size incorrect");
 
