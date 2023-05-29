@@ -59,10 +59,18 @@
 #define	PFSYNC_VERSION		5
 #define	PFSYNC_DFLTTL		255
 
+enum pfsync_msg_versions {
+	PFSYNC_MSG_VERSION_UNSPECIFIED = 0,
+	PFSYNC_MSG_VERSION_1301 = 1301,
+	PFSYNC_MSG_VERSION_1400 = 1400,
+};
+
+#define PFSYNC_MSG_VERSION_DEFAULT PFSYNC_MSG_VERSION_1400
+
 #define	PFSYNC_ACT_CLR		0	/* clear all states */
-#define	PFSYNC_ACT_INS		1	/* insert state */
+#define	PFSYNC_ACT_INS_1301	1	/* insert state */
 #define	PFSYNC_ACT_INS_ACK	2	/* ack of inserted state */
-#define	PFSYNC_ACT_UPD		3	/* update state */
+#define	PFSYNC_ACT_UPD_1301	3	/* update state */
 #define	PFSYNC_ACT_UPD_C	4	/* "compressed" update state */
 #define	PFSYNC_ACT_UPD_REQ	5	/* request "uncompressed" state */
 #define	PFSYNC_ACT_DEL		6	/* delete state */
@@ -72,7 +80,9 @@
 #define	PFSYNC_ACT_BUS		10	/* bulk update status */
 #define	PFSYNC_ACT_TDB		11	/* TDB replay counter update */
 #define	PFSYNC_ACT_EOF		12	/* end of frame */
-#define	PFSYNC_ACT_MAX		13
+#define PFSYNC_ACT_INS_1400	13	/* insert state */
+#define PFSYNC_ACT_UPD_1400	14	/* update state */
+#define	PFSYNC_ACT_MAX		15
 
 /*
  * A pfsync frame is built from a header followed by several sections which
@@ -251,6 +261,7 @@ struct pfsync_kstatus {
 	char		 	syncdev[IFNAMSIZ];
 	struct sockaddr_storage	syncpeer;
 	int		 	maxupdates;
+	int			version;
 	int		 	flags;
 };
 
@@ -269,13 +280,13 @@ struct pfsyncioc_nv {
 
 /*
  * this shows where a pf state is with respect to the syncing.
+ * pf_kstate->sync_state
  */
 #define	PFSYNC_S_INS	0x00
 #define	PFSYNC_S_IACK	0x01
 #define	PFSYNC_S_UPD	0x02
 #define	PFSYNC_S_UPD_C	0x03
 #define	PFSYNC_S_DEL_C	0x04
-#define	PFSYNC_S_COUNT	0x05
 
 #define	PFSYNC_S_DEFER	0xfe
 #define	PFSYNC_S_NONE	0xff

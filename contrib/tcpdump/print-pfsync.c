@@ -55,7 +55,7 @@ static void	pfsync_print(netdissect_options *, struct pfsync_header *,
 static void	print_src_dst(netdissect_options *,
 		    const struct pfsync_state_peer *,
 		    const struct pfsync_state_peer *, uint8_t);
-static void	print_state(netdissect_options *, struct pfsync_state *);
+static void	print_state(netdissect_options *, union pfsync_state_union *, int);
 
 u_int
 pfsync_if_print(netdissect_options *ndo, const struct pcap_pkthdr *h,
@@ -100,7 +100,8 @@ struct pfsync_actions {
 };
 
 static void	pfsync_print_clr(netdissect_options *, const void *);
-static void	pfsync_print_state(netdissect_options *, const void *);
+static void	pfsync_print_state_1301(netdissect_options *, const void *);
+static void	pfsync_print_state_1400(netdissect_options *, const void *);
 static void	pfsync_print_ins_ack(netdissect_options *, const void *);
 static void	pfsync_print_upd_c(netdissect_options *, const void *);
 static void	pfsync_print_upd_req(netdissect_options *, const void *);
@@ -110,14 +111,16 @@ static void	pfsync_print_tdb(netdissect_options *, const void *);
 
 struct pfsync_actions actions[] = {
 	{ "clear all", sizeof(struct pfsync_clr),	pfsync_print_clr },
-	{ "insert", sizeof(struct pfsync_state),	pfsync_print_state },
+	{ "insert 13.1", sizeof(struct pfsync_state_1301),
+							pfsync_print_state_1301 },
 	{ "insert ack", sizeof(struct pfsync_ins_ack),	pfsync_print_ins_ack },
-	{ "update", sizeof(struct pfsync_ins_ack),	pfsync_print_state },
+	{ "update 13.1", sizeof(struct pfsync_state_1301),
+							pfsync_print_state_1301 },
 	{ "update compressed", sizeof(struct pfsync_upd_c),
 							pfsync_print_upd_c },
 	{ "request uncompressed", sizeof(struct pfsync_upd_req),
 							pfsync_print_upd_req },
-	{ "delete", sizeof(struct pfsync_state),	pfsync_print_state },
+	{ "delete", sizeof(struct pfsync_state_1301),	pfsync_print_state_1301 },
 	{ "delete compressed", sizeof(struct pfsync_del_c),
 							pfsync_print_del_c },
 	{ "frag insert", 0,				NULL },
@@ -126,6 +129,8 @@ struct pfsync_actions actions[] = {
 							pfsync_print_bus },
 	{ "tdb", 0,					pfsync_print_tdb },
 	{ "eof", 0,					NULL },
+	{ "insert", sizeof(struct pfsync_state_1400),	pfsync_print_state_1400 },
+	{ "update", sizeof(struct pfsync_state_1400),	pfsync_print_state_1400 },
 };
 
 static void
@@ -212,12 +217,21 @@ pfsync_print_clr(netdissect_options *ndo, const void *bp)
 }
 
 static void
-pfsync_print_state(netdissect_options *ndo, const void *bp)
+pfsync_print_state_1301(netdissect_options *ndo, const void *bp)
 {
-	struct pfsync_state *st = (struct pfsync_state *)bp;
+	struct pfsync_state_1301 *st = (struct pfsync_state_1301 *)bp;
 
 	safeputchar(ndo, '\n');
-	print_state(ndo, st);
+	print_state(ndo, (union pfsync_state_union *)st, PFSYNC_MSG_VERSION_1301);
+}
+
+static void
+pfsync_print_state_1400(netdissect_options *ndo, const void *bp)
+{
+	struct pfsync_state_1301 *st = (struct pfsync_state_1301 *)bp;
+
+	safeputchar(ndo, '\n');
+	print_state(ndo, (union pfsync_state_union *)st, PFSYNC_MSG_VERSION_1400);
 }
 
 static void
@@ -374,56 +388,56 @@ print_src_dst(netdissect_options *ndo, const struct pfsync_state_peer *src,
 }
 
 static void
-print_state(netdissect_options *ndo, struct pfsync_state *s)
+print_state(netdissect_options *ndo, union pfsync_state_union *s, int version)
 {
 	struct pfsync_state_peer *src, *dst;
 	struct pfsync_state_key *sk, *nk;
 	int min, sec;
 
-	if (s->direction == PF_OUT) {
-		src = &s->src;
-		dst = &s->dst;
-		sk = &s->key[PF_SK_STACK];
-		nk = &s->key[PF_SK_WIRE];
-		if (s->proto == IPPROTO_ICMP || s->proto == IPPROTO_ICMPV6)
+	if (s->pfs_1301.direction == PF_OUT) {
+		src = &s->pfs_1301.src;
+		dst = &s->pfs_1301.dst;
+		sk = &s->pfs_1301.key[PF_SK_STACK];
+		nk = &s->pfs_1301.key[PF_SK_WIRE];
+		if (s->pfs_1301.proto == IPPROTO_ICMP || s->pfs_1301.proto == IPPROTO_ICMPV6)
 			sk->port[0] = nk->port[0];
 	} else {
-		src = &s->dst;
-		dst = &s->src;
-		sk = &s->key[PF_SK_WIRE];
-		nk = &s->key[PF_SK_STACK];
-		if (s->proto == IPPROTO_ICMP || s->proto == IPPROTO_ICMPV6)
+		src = &s->pfs_1301.dst;
+		dst = &s->pfs_1301.src;
+		sk = &s->pfs_1301.key[PF_SK_WIRE];
+		nk = &s->pfs_1301.key[PF_SK_STACK];
+		if (s->pfs_1301.proto == IPPROTO_ICMP || s->pfs_1301.proto == IPPROTO_ICMPV6)
 			sk->port[1] = nk->port[1];
 	}
-	ND_PRINT((ndo, "\t%s ", s->ifname));
-	ND_PRINT((ndo, "proto %u ", s->proto));
+	ND_PRINT((ndo, "\t%s ", s->pfs_1301.ifname));
+	ND_PRINT((ndo, "proto %u ", s->pfs_1301.proto));
 
-	print_host(ndo, &nk->addr[1], nk->port[1], s->af, NULL);
-	if (PF_ANEQ(&nk->addr[1], &sk->addr[1], s->af) ||
+	print_host(ndo, &nk->addr[1], nk->port[1], s->pfs_1301.af, NULL);
+	if (PF_ANEQ(&nk->addr[1], &sk->addr[1], s->pfs_1301.af) ||
 	    nk->port[1] != sk->port[1]) {
 		ND_PRINT((ndo, " ("));
-		print_host(ndo, &sk->addr[1], sk->port[1], s->af, NULL);
+		print_host(ndo, &sk->addr[1], sk->port[1], s->pfs_1301.af, NULL);
 		ND_PRINT((ndo, ")"));
 	}
-	if (s->direction == PF_OUT)
+	if (s->pfs_1301.direction == PF_OUT)
 		ND_PRINT((ndo, " -> "));
 	else
 		ND_PRINT((ndo, " <- "));
-	print_host(ndo, &nk->addr[0], nk->port[0], s->af, NULL);
-	if (PF_ANEQ(&nk->addr[0], &sk->addr[0], s->af) ||
+	print_host(ndo, &nk->addr[0], nk->port[0], s->pfs_1301.af, NULL);
+	if (PF_ANEQ(&nk->addr[0], &sk->addr[0], s->pfs_1301.af) ||
 	    nk->port[0] != sk->port[0]) {
 		ND_PRINT((ndo, " ("));
-		print_host(ndo, &sk->addr[0], sk->port[0], s->af, NULL);
+		print_host(ndo, &sk->addr[0], sk->port[0], s->pfs_1301.af, NULL);
 		ND_PRINT((ndo, ")"));
 	}
 
-	print_src_dst(ndo, src, dst, s->proto);
+	print_src_dst(ndo, src, dst, s->pfs_1301.proto);
 
 	if (ndo->ndo_vflag > 1) {
 		uint64_t packets[2];
 		uint64_t bytes[2];
-		uint32_t creation = ntohl(s->creation);
-		uint32_t expire = ntohl(s->expire);
+		uint32_t creation = ntohl(s->pfs_1301.creation);
+		uint32_t expire = ntohl(s->pfs_1301.expire);
 
 		sec = creation % 60;
 		creation /= 60;
@@ -436,23 +450,23 @@ print_state(netdissect_options *ndo, struct pfsync_state *s)
 		expire /= 60;
 		ND_PRINT((ndo, ", expires in %.2u:%.2u:%.2u", expire, min, sec));
 
-		bcopy(s->packets[0], &packets[0], sizeof(uint64_t));
-		bcopy(s->packets[1], &packets[1], sizeof(uint64_t));
-		bcopy(s->bytes[0], &bytes[0], sizeof(uint64_t));
-		bcopy(s->bytes[1], &bytes[1], sizeof(uint64_t));
+		bcopy(s->pfs_1301.packets[0], &packets[0], sizeof(uint64_t));
+		bcopy(s->pfs_1301.packets[1], &packets[1], sizeof(uint64_t));
+		bcopy(s->pfs_1301.bytes[0], &bytes[0], sizeof(uint64_t));
+		bcopy(s->pfs_1301.bytes[1], &bytes[1], sizeof(uint64_t));
 		ND_PRINT((ndo, ", %ju:%ju pkts, %ju:%ju bytes",
 		    be64toh(packets[0]), be64toh(packets[1]),
 		    be64toh(bytes[0]), be64toh(bytes[1])));
-		if (s->anchor != ntohl(-1))
-			ND_PRINT((ndo, ", anchor %u", ntohl(s->anchor)));
-		if (s->rule != ntohl(-1))
-			ND_PRINT((ndo, ", rule %u", ntohl(s->rule)));
+		if (s->pfs_1301.anchor != ntohl(-1))
+			ND_PRINT((ndo, ", anchor %u", ntohl(s->pfs_1301.anchor)));
+		if (s->pfs_1301.rule != ntohl(-1))
+			ND_PRINT((ndo, ", rule %u", ntohl(s->pfs_1301.rule)));
 	}
 	if (ndo->ndo_vflag > 1) {
 		uint64_t id;
 
-		bcopy(&s->id, &id, sizeof(uint64_t));
+		bcopy(&s->pfs_1301.id, &id, sizeof(uint64_t));
 		ND_PRINT((ndo, "\n\tid: %016jx creatorid: %08x",
-		    (uintmax_t )be64toh(id), ntohl(s->creatorid)));
+		    (uintmax_t )be64toh(id), ntohl(s->pfs_1301.creatorid)));
 	}
 }

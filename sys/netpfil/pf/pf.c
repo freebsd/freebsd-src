@@ -3592,6 +3592,8 @@ pf_addr_inc(struct pf_addr *addr, sa_family_t af)
 void
 pf_rule_to_actions(struct pf_krule *r, struct pf_rule_actions *a)
 {
+	a->flags |= (r->scrub_flags & (PFSTATE_NODF|PFSTATE_RANDOMID|
+	    PFSTATE_SETTOS|PFSTATE_SCRUB_TCP|PFSTATE_SETPRIO));
 	if (r->qid)
 		a->qid = r->qid;
 	if (r->pqid)
@@ -3599,14 +3601,12 @@ pf_rule_to_actions(struct pf_krule *r, struct pf_rule_actions *a)
 	if (r->rtableid >= 0)
 		a->rtableid = r->rtableid;
 	a->log |= r->log;
-	if (r->scrub_flags & PFSTATE_SETTOS)
+	if (a->flags & PFSTATE_SETTOS)
 		a->set_tos = r->set_tos;
 	if (r->min_ttl)
 		a->min_ttl = r->min_ttl;
 	if (r->max_mss)
 		a->max_mss = r->max_mss;
-	a->flags |= (r->scrub_flags & (PFSTATE_NODF|PFSTATE_RANDOMID|
-	    PFSTATE_SETTOS|PFSTATE_SCRUB_TCP|PFSTATE_SETPRIO));
 	if (r->dnpipe)
 		a->dnpipe = r->dnpipe;
 	if (r->dnrpipe)
@@ -3616,6 +3616,10 @@ pf_rule_to_actions(struct pf_krule *r, struct pf_rule_actions *a)
 			a->flags |= PFSTATE_DN_IS_PIPE;
 		else
 			a->flags &= ~PFSTATE_DN_IS_PIPE;
+	}
+	if (a->flags & PFSTATE_SETPRIO) {
+		a->set_prio[0] = r->set_prio[0];
+		a->set_prio[1] = r->set_prio[1];
 	}
 }
 
@@ -4638,6 +4642,8 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 	s->pqid = pd->act.pqid;
 	s->dnpipe = pd->act.dnpipe;
 	s->dnrpipe = pd->act.dnrpipe;
+	s->set_prio[0] = pd->act.set_prio[0];
+	s->set_prio[1] = pd->act.set_prio[1];
 	s->state_flags |= pd->act.flags;
 	if (nr != NULL)
 		s->log |= nr->log & PF_LOG_ALL;
@@ -4706,6 +4712,7 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 			goto csfailed;
 		}
 		s->rt_kif = r->rpool.cur->kif;
+		s->rt = r->rt;
 	}
 
 	s->creation = time_uptime;
@@ -6441,9 +6448,20 @@ pf_route(struct mbuf **m, struct pf_krule *r, int dir, struct ifnet *oifp,
 	struct pf_ksrc_node	*sn = NULL;
 	int			 error = 0;
 	uint16_t		 ip_len, ip_off;
+	int			 r_rt, r_dir;
 
 	KASSERT(m && *m && r && oifp, ("%s: invalid parameters", __func__));
-	KASSERT(dir == PF_IN || dir == PF_OUT, ("%s: invalid direction",
+
+	if (s) {
+		r_rt = s->rt;
+		r_dir = s->direction;
+	} else {
+		r_rt = r->rt;
+		r_dir = r->direction;
+	}
+
+	KASSERT(dir == PF_IN || dir == PF_OUT ||
+	    r_dir == PF_IN || r_dir == PF_OUT, ("%s: invalid direction",
 	    __func__));
 
 	if ((pd->pf_mtag == NULL &&
@@ -6454,7 +6472,7 @@ pf_route(struct mbuf **m, struct pf_krule *r, int dir, struct ifnet *oifp,
 		goto bad_locked;
 	}
 
-	if (r->rt == PF_DUPTO) {
+	if (r_rt == PF_DUPTO) {
 		if ((pd->pf_mtag->flags & PF_DUPLICATED)) {
 			if (s == NULL) {
 				ifp = r->rpool.cur->kif ?
@@ -6484,7 +6502,7 @@ pf_route(struct mbuf **m, struct pf_krule *r, int dir, struct ifnet *oifp,
 			}
 		}
 	} else {
-		if ((r->rt == PF_REPLYTO) == (r->direction == dir)) {
+		if ((r_rt == PF_REPLYTO) == (r_dir == dir)) {
 			pf_dummynet(pd, dir, s, r, m);
 			if (s)
 				PF_STATE_UNLOCK(s);
@@ -6583,7 +6601,7 @@ pf_route(struct mbuf **m, struct pf_krule *r, int dir, struct ifnet *oifp,
 	if ((ip_off & IP_DF) || (m0->m_pkthdr.csum_flags & CSUM_TSO)) {
 		error = EMSGSIZE;
 		KMOD_IPSTAT_INC(ips_cantfrag);
-		if (r->rt != PF_DUPTO) {
+		if (r_rt != PF_DUPTO) {
 			if (s && pd->nat_rule != NULL)
 				PACKET_UNDO_NAT(m0, pd,
 				    (ip->ip_hl << 2) + (ip_off & IP_OFFMASK),
@@ -6619,7 +6637,7 @@ pf_route(struct mbuf **m, struct pf_krule *r, int dir, struct ifnet *oifp,
 		KMOD_IPSTAT_INC(ips_fragmented);
 
 done:
-	if (r->rt != PF_DUPTO)
+	if (r_rt != PF_DUPTO)
 		*m = NULL;
 	return;
 
@@ -6643,9 +6661,20 @@ pf_route6(struct mbuf **m, struct pf_krule *r, int dir, struct ifnet *oifp,
 	struct ifnet		*ifp = NULL;
 	struct pf_addr		 naddr;
 	struct pf_ksrc_node	*sn = NULL;
+	int			 r_rt, r_dir;
 
 	KASSERT(m && *m && r && oifp, ("%s: invalid parameters", __func__));
-	KASSERT(dir == PF_IN || dir == PF_OUT, ("%s: invalid direction",
+
+	if (s) {
+		r_rt = s->rt;
+		r_dir = s->direction;
+	} else {
+		r_rt = r->rt;
+		r_dir = r->direction;
+	}
+
+	KASSERT(dir == PF_IN || dir == PF_OUT ||
+	    r_dir == PF_IN || r_dir == PF_OUT, ("%s: invalid direction",
 	    __func__));
 
 	if ((pd->pf_mtag == NULL &&
@@ -6656,7 +6685,7 @@ pf_route6(struct mbuf **m, struct pf_krule *r, int dir, struct ifnet *oifp,
 		goto bad_locked;
 	}
 
-	if (r->rt == PF_DUPTO) {
+	if (r_rt == PF_DUPTO) {
 		if ((pd->pf_mtag->flags & PF_DUPLICATED)) {
 			if (s == NULL) {
 				ifp = r->rpool.cur->kif ?
@@ -6686,7 +6715,7 @@ pf_route6(struct mbuf **m, struct pf_krule *r, int dir, struct ifnet *oifp,
 			}
 		}
 	} else {
-		if ((r->rt == PF_REPLYTO) == (r->direction == dir)) {
+		if ((r_rt == PF_REPLYTO) == (r_dir == dir)) {
 			pf_dummynet(pd, dir, s, r, m);
 			if (s)
 				PF_STATE_UNLOCK(s);
@@ -6770,7 +6799,7 @@ pf_route6(struct mbuf **m, struct pf_krule *r, int dir, struct ifnet *oifp,
 	}
 	else {
 		in6_ifstat_inc(ifp, ifs6_in_toobig);
-		if (r->rt != PF_DUPTO) {
+		if (r_rt != PF_DUPTO) {
 			if (s && pd->nat_rule != NULL)
 				PACKET_UNDO_NAT(m0, pd,
 				    ((caddr_t)ip6 - m0->m_data) +
@@ -6782,7 +6811,7 @@ pf_route6(struct mbuf **m, struct pf_krule *r, int dir, struct ifnet *oifp,
 	}
 
 done:
-	if (r->rt != PF_DUPTO)
+	if (r_rt != PF_DUPTO)
 		*m = NULL;
 	return;
 
@@ -7102,7 +7131,18 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb *
 	struct pf_kstate	*s = NULL;
 	struct pf_kruleset	*ruleset = NULL;
 	struct pf_pdesc		 pd;
-	int			 off, dirndx, pqid = 0;
+	int			 off, dirndx;
+	uint16_t		 scrub_flags;
+#ifdef ALTQ
+	uint16_t		 qid;
+#endif
+	uint16_t		 pqid;
+	uint16_t		 tag;
+	int32_t			 rtableid;
+	uint8_t			 min_ttl;
+	uint8_t			 set_tos;
+	uint8_t			 rt;
+	uint8_t			 set_prio[2];
 
 	PF_RULES_RLOCK_TRACKER;
 	KASSERT(dir == PF_IN || dir == PF_OUT, ("%s: bad direction %d\n", __func__, dir));
@@ -7394,36 +7434,47 @@ done:
 	}
 
 	if (s) {
-		pf_scrub_ip(&m, s->state_flags, s->min_ttl, s->set_tos);
-		if (s->rtableid >= 0)
-			M_SETFIB(m, s->rtableid);
+		scrub_flags = s->state_flags;
+		min_ttl = s->min_ttl;
+		set_tos = s->set_tos;
+		rtableid = s->rtableid;
+		pqid = s->pqid;
 #ifdef ALTQ
-		if (s->qid) {
-			pd.act.pqid = s->pqid;
-			pd.act.qid = s->qid;
-		}
+		qid = s->qid;
 #endif
+		tag = s->tag;
+		rt = s->rt;
+		set_prio[0] = s->set_prio[0];
+		set_prio[1] = s->set_prio[1];
 	} else {
-		pf_scrub_ip(&m, r->scrub_flags, r->min_ttl, r->set_tos);
-		if (r->rtableid >= 0)
-			M_SETFIB(m, r->rtableid);
+		scrub_flags = r->scrub_flags;
+		min_ttl = r->min_ttl;
+		set_tos = r->set_tos;
+		rtableid = r->rtableid;
+		pqid = r->pqid;
 #ifdef ALTQ
-		if (r->qid) {
-			pd.act.pqid = r->pqid;
-			pd.act.qid = r->qid;
-		}
+		qid = r->qid;
 #endif
+		tag = r->tag;
+		rt = r->rt;
+		set_prio[0] = r->set_prio[0];
+		set_prio[1] = r->set_prio[1];
 	}
 
-	if (s && s->tag > 0 && pf_tag_packet(m, &pd, s->tag)) {
+	if (tag > 0 && pf_tag_packet(m, &pd, tag)) {
 		action = PF_DROP;
 		REASON_SET(&reason, PFRES_MEMORY);
 	}
 
-	if (r->scrub_flags & PFSTATE_SETPRIO) {
+	pf_scrub_ip(&m, scrub_flags, min_ttl, set_tos);
+
+	if (rtableid >= 0)
+		M_SETFIB(m, rtableid);
+
+	if (scrub_flags & PFSTATE_SETPRIO) {
 		if (pd.tos & IPTOS_LOWDELAY)
 			pqid = 1;
-		if (vlan_set_pcp(m, r->set_prio[pqid])) {
+		if (vlan_set_pcp(m, set_prio[pqid])) {
 			action = PF_DROP;
 			REASON_SET(&reason, PFRES_MEMORY);
 			log = PF_LOG_FORCE;
@@ -7433,6 +7484,11 @@ done:
 	}
 
 #ifdef ALTQ
+	if (qid) {
+		pd.act.pqid = pqid;
+		pd.act.qid = qid;
+	}
+
 	if (action == PF_PASS && pd.act.qid) {
 		if (pd.pf_mtag == NULL &&
 		    ((pd.pf_mtag = pf_get_mtag(m)) == NULL)) {
@@ -7604,7 +7660,7 @@ done:
 		break;
 	default:
 		/* pf_route() returns unlocked. */
-		if (r->rt) {
+		if (rt) {
 			pf_route(m0, r, dir, kif->pfik_ifp, s, &pd, inp);
 			return (action);
 		}
@@ -7637,7 +7693,18 @@ pf_test6(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb 
 	struct pf_kstate	*s = NULL;
 	struct pf_kruleset	*ruleset = NULL;
 	struct pf_pdesc		 pd;
-	int			 off, terminal = 0, dirndx, rh_cnt = 0, pqid = 0;
+	int			 off, terminal = 0, dirndx, rh_cnt = 0;
+	uint16_t		 scrub_flags;
+#ifdef ALTQ
+	uint16_t		 qid;
+#endif
+	uint16_t		 pqid;
+	uint16_t		 tag;
+	int32_t			 rtableid;
+	uint8_t			 min_ttl;
+	uint8_t			 set_tos;
+	uint8_t			 rt;
+	uint8_t			 set_prio[2];
 
 	PF_RULES_RLOCK_TRACKER;
 	KASSERT(dir == PF_IN || dir == PF_OUT, ("%s: bad direction %d\n", __func__, dir));
@@ -7925,37 +7992,48 @@ done:
 		    ("pf: dropping packet with dangerous v6 headers\n"));
 	}
 
-	if (s && s->tag > 0 && pf_tag_packet(m, &pd, s->tag)) {
+	if (s) {
+		scrub_flags = s->state_flags;
+		min_ttl = s->min_ttl;
+		set_tos = s->set_tos;
+		rtableid = s->rtableid;
+		pqid = s->pqid;
+#ifdef ALTQ
+		qid = s->qid;
+#endif
+		tag = s->tag;
+		rt = s->rt;
+		set_prio[0] = s->set_prio[0];
+		set_prio[1] = s->set_prio[1];
+	} else {
+		scrub_flags = r->scrub_flags;
+		min_ttl = r->min_ttl;
+		set_tos = r->set_tos;
+		rtableid = r->rtableid;
+		pqid = r->pqid;
+#ifdef ALTQ
+		qid = r->qid;
+#endif
+		tag = r->tag;
+		rt = r->rt;
+		set_prio[0] = r->set_prio[0];
+		set_prio[1] = r->set_prio[1];
+	}
+
+	if (tag > 0 && pf_tag_packet(m, &pd, tag)) {
 		action = PF_DROP;
 		REASON_SET(&reason, PFRES_MEMORY);
 	}
 
-	if (s) {
-		pf_scrub_ip6(&m, s->state_flags, s->min_ttl, s->set_tos);
-		if (s->rtableid >= 0)
-			M_SETFIB(m, s->rtableid);
-#ifdef ALTQ
-		if (s->qid) {
-			pd.act.pqid = s->pqid;
-			pd.act.qid = s->qid;
-		}
-#endif
-	} else {
-		pf_scrub_ip6(&m, r->scrub_flags, r->min_ttl, r->set_tos);
-		if (r->rtableid >= 0)
-			M_SETFIB(m, r->rtableid);
-#ifdef ALTQ
-		if (r->qid) {
-			pd.act.pqid = r->pqid;
-			pd.act.qid = r->qid;
-		}
-#endif
-	}
+	pf_scrub_ip6(&m, scrub_flags, min_ttl, set_tos);
 
-	if (r->scrub_flags & PFSTATE_SETPRIO) {
+	if (rtableid >= 0)
+		M_SETFIB(m, rtableid);
+
+	if (scrub_flags & PFSTATE_SETPRIO) {
 		if (pd.tos & IPTOS_LOWDELAY)
 			pqid = 1;
-		if (vlan_set_pcp(m, r->set_prio[pqid])) {
+		if (vlan_set_pcp(m, set_prio[pqid])) {
 			action = PF_DROP;
 			REASON_SET(&reason, PFRES_MEMORY);
 			log = PF_LOG_FORCE;
@@ -7965,6 +8043,11 @@ done:
 	}
 
 #ifdef ALTQ
+	if (qid) {
+		pd.act.pqid = pqid;
+		pd.act.qid = qid;
+	}
+
 	if (action == PF_PASS && pd.act.qid) {
 		if (pd.pf_mtag == NULL &&
 		    ((pd.pf_mtag = pf_get_mtag(m)) == NULL)) {
@@ -8084,7 +8167,7 @@ done:
 		break;
 	default:
 		/* pf_route6() returns unlocked. */
-		if (r->rt) {
+		if (rt) {
 			pf_route6(m0, r, dir, kif->pfik_ifp, s, &pd, inp);
 			return (action);
 		}
