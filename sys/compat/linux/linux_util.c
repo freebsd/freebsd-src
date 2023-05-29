@@ -79,23 +79,38 @@ SYSCTL_STRING(_compat_linux, OID_AUTO, emul_path, CTLFLAG_RWTUN,
     linux_emul_path, sizeof(linux_emul_path),
     "Linux runtime environment path");
 
-/*
- * Search an alternate path before passing pathname arguments on to
- * system calls. Useful for keeping a separate 'emulation tree'.
- *
- * If cflag is set, we check if an attempt can be made to create the
- * named file, i.e. we check if the directory it should be in exists.
- */
 int
-linux_emul_convpath(const char *path, enum uio_seg pathseg,
-    char **pbuf, int cflag, int dfd)
+linux_pwd_onexec(struct thread *td)
 {
-	int retval;
+	struct nameidata nd;
+	struct pwd *pwd;
+	int error;
 
-	retval = kern_alternate_path(linux_emul_path, path, pathseg, pbuf,
-	    cflag, dfd);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, linux_emul_path);
+	error = namei(&nd);
+	if (error != 0) {
+		/*
+		 * Do not bother if we are in chroot or jail.
+		 */
+		pwd = pwd_hold(td);
+		if (pwd->pwd_rdir != rootvnode) {
+			pwd_drop(pwd);
+			return (0);
+		}
+		pwd_drop(pwd);
+		return (error);
+	}
+	NDFREE_PNBUF(&nd);
+	pwd_altroot(td, nd.ni_vp);
+	vrele(nd.ni_vp);
+	return (0);
+}
 
-	return (retval);
+void
+linux_pwd_onexec_native(struct thread *td)
+{
+
+	pwd_altroot(td, NULL);
 }
 
 void
