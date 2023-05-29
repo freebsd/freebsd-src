@@ -5787,9 +5787,9 @@ pf_state_export(struct pf_state_export *sp, struct pf_kstate *st)
 	sp->direction = st->direction;
 	sp->log = st->log;
 	sp->timeout = st->timeout;
-	/* 8 bits for old peers, 16 bits for new peers */
+	/* 8 bits for the old libpfctl, 16 bits for the new libpfctl */
 	sp->state_flags_compat = st->state_flags;
-	sp->state_flags = st->state_flags;
+	sp->state_flags = htons(st->state_flags);
 	if (st->src_node)
 		sp->sync_flags |= PFSYNC_FLAG_SRCNODE;
 	if (st->nat_src_node)
@@ -5817,6 +5817,22 @@ pf_state_export(struct pf_state_export *sp, struct pf_kstate *st)
 	sp->packets[1] = st->packets[1];
 	sp->bytes[0] = st->bytes[0];
 	sp->bytes[1] = st->bytes[1];
+
+	sp->qid = htons(st->qid);
+	sp->pqid = htons(st->pqid);
+	sp->dnpipe = htons(st->dnpipe);
+	sp->dnrpipe = htons(st->dnrpipe);
+	sp->rtableid = htonl(st->rtableid);
+	sp->min_ttl = st->min_ttl;
+	sp->set_tos = st->set_tos;
+	sp->max_mss = htons(st->max_mss);
+	sp->rt = st->rt;
+	if (st->rt_kif)
+		strlcpy(sp->rt_ifname, st->rt_kif->pfik_name,
+		    sizeof(sp->rt_ifname));
+	sp->set_prio[0] = st->set_prio[0];
+	sp->set_prio[1] = st->set_prio[1];
+
 }
 
 static void
