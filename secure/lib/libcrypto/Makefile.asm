@@ -35,7 +35,7 @@ SRCS+=	chacha-armv8.pl
 SRCS+=	ecp_nistz256-armv8.pl
 
 # modes
-SRCS+=	ghashv8-armx.pl
+SRCS+=	ghashv8-armx.pl aes-gcm-armv8_64.S
 
 # poly1305
 SRCS+=	poly1305-armv8.pl
@@ -62,7 +62,7 @@ sha256-armv8.S:	sha512-armv8.pl
 	echo '/* Do not modify. This file is auto-generated from ${.IMPSRC:T:R:S/$/.pl/}. */' ;\
 	cat ${.TARGET:R:S/$/.s/}) > ${.TARGET}
 
-.elif defined(ASM_amd64)
+.elif defined(ASM_amd64) && 0
 
 .PATH:	${LCRYPTO_SRC}/crypto \
 	${LCRYPTO_SRC}/crypto/aes/asm \
@@ -86,8 +86,8 @@ SRCS=	aesni-mb-x86_64.pl aesni-sha1-x86_64.pl aesni-sha256-x86_64.pl \
 	aesni-x86_64.pl vpaes-x86_64.pl
 
 # bn
-SRCS+=	rsaz-avx2.pl rsaz-x86_64.pl x86_64-gf2m.pl x86_64-mont.pl \
-	x86_64-mont5.pl
+SRCS+=	rsaz-avx2.pl rsaz-avx512.S rsaz-x86_64.pl x86_64-gf2m.pl \
+	x86_64-mont.pl x86_64-mont5.pl
 
 # camellia
 SRCS+=	cmll-x86_64.pl
@@ -389,7 +389,7 @@ SRCS+=	chacha-ppc.pl
 SRCS+=	poly1305-ppc.pl poly1305-ppcfp.pl
 
 #ec
-SRCS+=	ecp_nistz256-ppc64.pl x25519-ppc64.pl
+SRCS+=	ecp_nistp521-ppc64.pl ecp_nistz256-ppc64.pl x25519-ppc64.pl
 
 #keccak1600
 SRCS+=	keccak1600-ppc64.pl
@@ -454,7 +454,7 @@ SRCS+=	chacha-ppc.pl
 SRCS+=	poly1305-ppc.pl poly1305-ppcfp.pl
 
 #ec
-SRCS+=	ecp_nistz256-ppc64.pl x25519-ppc64.pl
+SRCS+=	ecp_nistp521-ppc64.pl ecp_nistz256-ppc64.pl x25519-ppc64.pl
 
 #keccak1600
 SRCS+=	keccak1600-ppc64.pl
