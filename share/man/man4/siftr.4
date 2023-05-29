@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 27, 2023
+.Dd May 29, 2023
 .Dt SIFTR 4
 .Os
 .Sh NAME
@@ -120,8 +120,9 @@ The path can be changed at any time, even while the module is enabled.
 .El
 .Bl -tag -offset indent -width Va
 .It Va net.inet.siftr.port_filter
-controls on which source or destination port siftr should capture
-.Nm .
+controls on which source or destination port
+.Nm
+should capture.
 By default, the value is set to 0, which means all ports are eligible for logging.
 Set to any other value, only packets where either the source or destination
 port is equal to this number are logged.
@@ -143,9 +144,8 @@ The text below shows an example module enable log.
 The fields are tab delimited key-value
 pairs which describe some basic information about the system.
 .Bd -literal -offset indent
-enable_time_secs=1238556193    enable_time_usecs=462104 \\
-siftrver=1.2.2    hz=1000    tcp_rtt_scale=32 \\
-sysname=FreeBSD    sysver=604000    ipmode=4
+enable_time_secs=1685191807    enable_time_usecs=160752 \\
+siftrver=1.3.0    sysname=FreeBSD    sysver=1400089    ipmode=4
 .Ed
 .Pp
 Field descriptions are as follows:
@@ -187,9 +187,9 @@ The text below shows an example data log triggered by an IPv4
 TCP/IP packet.
 The data is CSV formatted.
 .Bd -literal -offset indent
-o,0xbec491a5,1238556193.463551,172.16.7.28,22,172.16.2.5,55931, \\
-1073725440,172312,34,66560,66608,8,1,4,1448,936,1,996,255, \\
-33304,208,66608,0,208,0
+o,1685191814.185109,10.1.1.2,32291,10.1.1.3,5001,1073725440, \\
+14480,2,65160,65700,7,9,4,1460,1000,1,16778209,230000,33580,0, \\
+65700,0,0,0,86707916,130
 .Ed
 .Pp
 Field descriptions are as follows:
@@ -242,8 +242,7 @@ The current state of the t_flags2 field for the flow.
 .Bl -tag -offset indent -width Va
 .It Va 10
 The current sending window for the flow, in bytes.
-The post scaled value is reported, except during the initial handshake (first
-few packets), during which time the unscaled value is reported.
+The post scaled value is reported.
 .El
 .Bl -tag -offset indent -width Va
 .It Va 11
@@ -336,13 +335,13 @@ The text below shows an example module disable log.
 The fields are tab delimited key-value pairs which provide statistics about
 operations since the module was most recently enabled.
 .Bd -literal -offset indent
-disable_time_secs=1238556197    disable_time_usecs=933607 \\
-num_inbound_tcp_pkts=356    num_outbound_tcp_pkts=627 \\
-total_tcp_pkts=983    num_inbound_skipped_pkts_malloc=0 \\
-num_outbound_skipped_pkts_malloc=0    num_inbound_skipped_pkts_tcb=0 \\
-num_outbound_skipped_pkts_tcb=0    num_inbound_skipped_pkts_icb=0 \\
-num_outbound_skipped_pkts_icb=0    total_skipped_tcp_pkts=0 \\
-flow_list=172.16.7.28;22-172.16.2.5;55931,
+disable_time_secs=1685191816    disable_time_usecs=629397 \\
+num_inbound_tcp_pkts=10    num_outbound_tcp_pkts=10 \\
+total_tcp_pkts=20    num_inbound_skipped_pkts_malloc=0 \\
+num_outbound_skipped_pkts_malloc=0    num_inbound_skipped_pkts_tcpcb=2 \\
+num_outbound_skipped_pkts_tcpcb=2    num_inbound_skipped_pkts_inpcb=0 \\
+num_outbound_skipped_pkts_inpcb=0    total_skipped_tcp_pkts=4 \\
+flow_list=10.1.1.2;32291-10.1.1.3;5001,10.1.1.2;58544-10.1.1.3;5001,
 .Ed
 .Pp
 Field descriptions are as follows:
@@ -385,22 +384,22 @@ Number of outbound packets that were not processed because of failed
 calls.
 .El
 .Bl -tag -offset indent -width Va
-.It Va num_inbound_skipped_pkts_tcb
+.It Va num_inbound_skipped_pkts_tcpcb
 Number of inbound packets that were not processed because of failure to find the
 TCP control block associated with the packet.
 .El
 .Bl -tag -offset indent -width Va
-.It Va num_outbound_skipped_pkts_tcb
+.It Va num_outbound_skipped_pkts_tcpcb
 Number of outbound packets that were not processed because of failure to find
 the TCP control block associated with the packet.
 .El
 .Bl -tag -offset indent -width Va
-.It Va num_inbound_skipped_pkts_icb
+.It Va num_inbound_skipped_pkts_inpcb
 Number of inbound packets that were not processed because of failure to find the
 IP control block associated with the packet.
 .El
 .Bl -tag -offset indent -width Va
-.It Va num_outbound_skipped_pkts_icb
+.It Va num_outbound_skipped_pkts_inpcb
 Number of outbound packets that were not processed because of failure to find
 the IP control block associated with the packet.
 .El
@@ -513,8 +512,9 @@ As a result of needing to interrogate the TCP control block, certain packets
 during the lifecycle of a connection are unable to trigger a
 .Nm
 log message.
-The initial handshake takes place without the existence of a control block and
-the final ACK is exchanged when the connection is in the TIMEWAIT state.
+The initial handshake takes place without the existence of a control block or
+the complete initialization of the control block, and the final ACK is
+exchanged when the connection is in the TIMEWAIT state.
 .Pp
 .Nm
 was designed to minimise the delay introduced to packets traversing the network
