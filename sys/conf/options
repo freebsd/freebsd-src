@@ -67,6 +67,7 @@ SYSCTL_DEBUG	opt_sysctl.h
 TEXTDUMP_PREFERRED	opt_ddb.h
 TEXTDUMP_VERBOSE	opt_ddb.h
 TSLOG	opt_global.h
+TSLOG_PAGEZERO	opt_global.h
 TSLOGSIZE	opt_global.h
 
 # Miscellaneous options.
