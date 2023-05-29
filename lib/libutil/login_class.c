@@ -474,9 +474,7 @@ setlogincontext(login_cap_t *lc, const struct passwd *pwd, unsigned long flags)
 int
 setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned int flags)
 {
-    rlim_t	p;
     login_cap_t *llc = NULL;
-    struct rtprio rtp;
     int error;
 
     if (lc == NULL) {
@@ -493,30 +491,49 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
 
     /* Set the process priority */
     if (flags & LOGIN_SETPRIORITY) {
-	p = login_getcapnum(lc, "priority", LOGIN_DEFPRI, LOGIN_DEFPRI);
+	const rlim_t def_val = LOGIN_DEFPRI, err_val = INT64_MIN;
+	rlim_t p = login_getcapnum(lc, "priority", def_val, err_val);
+	int rc;
+
+	if (p == err_val) {
+	    /* Invariant: 'lc' != NULL. */
+	    syslog(LOG_WARNING,
+		"%s%s%sLogin class '%s': "
+		"Invalid priority specification: '%s'",
+		pwd ? "Login '" : "",
+		pwd ? pwd->pw_name : "",
+		pwd ? "': " : "",
+		lc->lc_class,
+		login_getcapstr(lc, "priority", "", ""));
+	    /* Reset the priority, as if the capability was not present. */
+	    p = def_val;
+	}
 
 	if (p > PRIO_MAX) {
+	    struct rtprio rtp;
+
 	    rtp.type = RTP_PRIO_IDLE;
 	    p += RTP_PRIO_MIN - (PRIO_MAX + 1);
 	    rtp.prio = p > RTP_PRIO_MAX ? RTP_PRIO_MAX : p;
-	    if (rtprio(RTP_SET, 0, &rtp))
-		syslog(LOG_WARNING, "rtprio '%s' (%s): %m",
-		    pwd ? pwd->pw_name : "-",
-		    lc ? lc->lc_class : LOGIN_DEFCLASS);
+	    rc = rtprio(RTP_SET, 0, &rtp);
 	} else if (p < PRIO_MIN) {
+	    struct rtprio rtp;
+
 	    rtp.type = RTP_PRIO_REALTIME;
 	    p += RTP_PRIO_MAX - (PRIO_MIN - 1);
 	    rtp.prio = p < RTP_PRIO_MIN ? RTP_PRIO_MIN : p;
-	    if (rtprio(RTP_SET, 0, &rtp))
-		syslog(LOG_WARNING, "rtprio '%s' (%s): %m",
-		    pwd ? pwd->pw_name : "-",
-		    lc ? lc->lc_class : LOGIN_DEFCLASS);
-	} else {
-	    if (setpriority(PRIO_PROCESS, 0, (int)p) != 0)
-		syslog(LOG_WARNING, "setpriority '%s' (%s): %m",
-		    pwd ? pwd->pw_name : "-",
-		    lc ? lc->lc_class : LOGIN_DEFCLASS);
-	}
+	    rc = rtprio(RTP_SET, 0, &rtp);
+	} else
+	    rc = setpriority(PRIO_PROCESS, 0, (int)p);
+
+	if (rc != 0)
+	    syslog(LOG_WARNING,
+		"%s%s%sLogin class '%s': "
+		"Setting priority failed: %m",
+		pwd ? "Login '" : "",
+		pwd ? pwd->pw_name : "",
+		pwd ? "': " : "",
+		lc ? lc->lc_class : "<none>");
     }
 
     /* Setup the user's group permissions */
