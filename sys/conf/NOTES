@@ -615,6 +615,9 @@ options 	NUM_CORE_FILES=5
 # before it is possible to use more sophisticated tools like DTrace.
 # The TSLOGSIZE option controls the size of the (preallocated, fixed
 # length) buffer used for storing these events (default: 262144 records).
+# The TSLOG_PAGEZERO option enables TSLOG of pmap_zero_page; this must be
+# enabled separately since it typically generates too many records to be
+# useful.
 #
 # For security reasons the TSLOG option should not be enabled on systems
 # used in production.
