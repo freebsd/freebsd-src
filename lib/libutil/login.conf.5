@@ -181,9 +181,15 @@ are considered infinite values.
 The usual convention to interpolate capability entries using the special
 .Em tc=value
 notation may be used.
+.Pp
+Default values are specified in the
+.Ql Default
+column.
+If there is no default, the value is inherited from the process setting up the
+login environment.
 .Sh RESOURCE LIMITS
 .Bl -column pseudoterminals indent indent
-.It Sy "Name	Type	Notes	Description"
+.It Sy "Name	Type	Default	Description"
 .It "coredumpsize	size		Maximum coredump size limit."
 .It "cputime	time		CPU usage limit."
 .It "datasize	size		Maximum data size limit."
@@ -209,7 +215,7 @@ The maximum and current limits may be specified individually by appending a
 -max or -cur to the capability name.
 .Sh ENVIRONMENT
 .Bl -column ignorenologin indent xbinxxusrxbin
-.It Sy "Name	Type	Notes	Description"
+.It Sy "Name	Type	Default	Description"
 .It "charset	string		Set $MM_CHARSET environment variable to the specified"
 value.
 .It "cpumask	string		List of cpus to bind the user to."
@@ -262,7 +268,7 @@ explicitly indicates not to change the umask.
 .El
 .Sh AUTHENTICATION
 .Bl -column passwd_prompt indent indent
-.It Sy "Name	Type	Notes	Description"
+.It Sy "Name	Type	Default	Description"
 .\" .It "approve	program 	Program to approve login.
 .It "copyright	file		File containing additional copyright information"
 .It "host.allow	list		List of remote host wildcards from which users in"
@@ -406,7 +412,7 @@ The following capabilities are reserved for the purposes indicated and
 may be supported by third-party software.
 They are not implemented in the base system.
 .Bl -column host.accounted indent indent
-.It Sy "Name	Type	Notes	Description"
+.It Sy "Name	Type	Default	Description"
 .It "accounted	bool	false	Enable session time accounting for all users"
 in this class.
 .It "auth	list	passwd	Allowed authentication styles."
