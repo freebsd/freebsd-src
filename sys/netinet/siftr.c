@@ -388,7 +388,7 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 
 	/* Construct a log message. */
 	log_buf->ae_bytesused = snprintf(log_buf->ae_data, MAX_LOG_MSG_LEN,
-	    "%c,%zd.%06ld,%s,%hu,%s,%hu,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,"
+	    "%c,%jd.%06ld,%s,%hu,%s,%hu,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,"
 	    "%u,%u,%u,%u,%u,%u,%u,%u\n",
 	    direction[pkt_node->direction],
 	    pkt_node->tval.tv_sec,
