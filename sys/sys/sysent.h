@@ -117,7 +117,6 @@ struct sysentvec {
 	const char	*sv_elf_core_abi_vendor;
 	void		(*sv_elf_core_prepare_notes)(struct thread *,
 			    struct note_info_list *, size_t *);
-	int		(*sv_imgact_try)(struct image_params *);
 	int		(*sv_copyout_auxargs)(struct image_params *,
 			    uintptr_t);
 	int		sv_minsigstksz;	/* minimum signal stack size */

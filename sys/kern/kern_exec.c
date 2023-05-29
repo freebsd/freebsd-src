@@ -390,7 +390,6 @@ do_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
 	uintptr_t stack_base;
 	struct image_params image_params, *imgp;
 	struct vattr attr;
-	int (*img_first)(struct image_params *);
 	struct pargs *oldargs = NULL, *newargs = NULL;
 	struct sigacts *oldsigacts = NULL, *newsigacts = NULL;
 #ifdef KTRACE
@@ -645,24 +644,14 @@ interpret:
 	/* The new credentials are installed into the process later. */
 
 	/*
-	 *	If the current process has a special image activator it
-	 *	wants to try first, call it.   For example, emulating shell
-	 *	scripts differently.
-	 */
-	error = -1;
-	if ((img_first = imgp->proc->p_sysent->sv_imgact_try) != NULL)
-		error = img_first(imgp);
-
-	/*
 	 *	Loop through the list of image activators, calling each one.
 	 *	An activator returns -1 if there is no match, 0 on success,
 	 *	and an error otherwise.
 	 */
+	error = -1;
 	for (i = 0; error == -1 && execsw[i]; ++i) {
-		if (execsw[i]->ex_imgact == NULL ||
-		    execsw[i]->ex_imgact == img_first) {
+		if (execsw[i]->ex_imgact == NULL)
 			continue;
-		}
 		error = (*execsw[i]->ex_imgact)(imgp);
 	}
 

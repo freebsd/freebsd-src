@@ -424,7 +424,6 @@ struct sysentvec null_sysvec = {
 	.sv_szsigcode	= NULL,
 	.sv_name	= "null",
 	.sv_coredump	= NULL,
-	.sv_imgact_try	= NULL,
 	.sv_minsigstksz	= 0,
 	.sv_minuser	= VM_MIN_ADDRESS,
 	.sv_maxuser	= VM_MAXUSER_ADDRESS,
