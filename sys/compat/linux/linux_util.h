@@ -43,8 +43,6 @@ extern int linux_debug;
 MALLOC_DECLARE(M_LINUX);
 MALLOC_DECLARE(M_EPOLL);
 
-extern char linux_emul_path[];
-
 int linux_pwd_onexec(struct thread *);
 void linux_pwd_onexec_native(struct thread *);
 
