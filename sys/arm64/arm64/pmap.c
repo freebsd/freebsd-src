@@ -202,6 +202,10 @@ struct pmap_large_md_page {
 	int		pv_pad[2];
 };
 
+__exclusive_cache_line static struct pmap_large_md_page pv_dummy_large;
+#define pv_dummy pv_dummy_large.pv_page
+__read_mostly static struct pmap_large_md_page *pv_table;
+
 static struct pmap_large_md_page *
 _pa_to_pmdp(vm_paddr_t pa)
 {
@@ -252,11 +256,19 @@ page_to_pmdp(vm_page_t m)
 	_lock;							\
 })
 
-#define	CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, pa)	do {	\
+static struct rwlock *
+VM_PAGE_TO_PV_LIST_LOCK(vm_page_t m)
+{
+	if ((m->flags & PG_FICTITIOUS) == 0)
+		return (&page_to_pmdp(m)->pv_lock);
+	else
+		return (&pv_dummy_large.pv_lock);
+}
+
+#define	CHANGE_PV_LIST_LOCK(lockp, new_lock)	do {	\
 	struct rwlock **_lockp = (lockp);		\
-	struct rwlock *_new_lock;			\
+	struct rwlock *_new_lock = (new_lock);		\
 							\
-	_new_lock = PHYS_TO_PV_LIST_LOCK(pa);		\
 	if (_new_lock != *_lockp) {			\
 		if (*_lockp != NULL)			\
 			rw_wunlock(*_lockp);		\
@@ -265,8 +277,11 @@ page_to_pmdp(vm_page_t m)
 	}						\
 } while (0)
 
+#define	CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, pa)		\
+			CHANGE_PV_LIST_LOCK(lockp, PHYS_TO_PV_LIST_LOCK(pa))
+
 #define	CHANGE_PV_LIST_LOCK_TO_VM_PAGE(lockp, m)	\
-			CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, VM_PAGE_TO_PHYS(m))
+			CHANGE_PV_LIST_LOCK(lockp, VM_PAGE_TO_PV_LIST_LOCK(m))
 
 #define	RELEASE_PV_LIST_LOCK(lockp)		do {	\
 	struct rwlock **_lockp = (lockp);		\
@@ -276,9 +291,6 @@ page_to_pmdp(vm_page_t m)
 		*_lockp = NULL;				\
 	}						\
 } while (0)
-
-#define	VM_PAGE_TO_PV_LIST_LOCK(m)	\
-			PHYS_TO_PV_LIST_LOCK(VM_PAGE_TO_PHYS(m))
 
 /*
  * The presence of this flag indicates that the mapping is writeable.
@@ -337,10 +349,6 @@ struct pv_chunks_list {
 } __aligned(CACHE_LINE_SIZE);
 
 struct pv_chunks_list __exclusive_cache_line pv_chunks[PMAP_MEMDOM];
-
-__exclusive_cache_line static struct pmap_large_md_page pv_dummy_large;
-#define pv_dummy pv_dummy_large.pv_page
-__read_mostly static struct pmap_large_md_page *pv_table;
 
 vm_paddr_t dmap_phys_base;	/* The start of the dmap region */
 vm_paddr_t dmap_phys_max;	/* The limit of the dmap region */
@@ -3427,7 +3435,7 @@ pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
 	if (old_l2 & ATTR_SW_MANAGED) {
 		m = PHYS_TO_VM_PAGE(PTE_TO_PHYS(old_l2));
 		pvh = page_to_pvh(m);
-		CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, PTE_TO_PHYS(old_l2));
+		CHANGE_PV_LIST_LOCK_TO_VM_PAGE(lockp, m);
 		pmap_pvh_free(pvh, pmap, sva);
 		for (mt = m; mt < &m[L2_SIZE / PAGE_SIZE]; mt++) {
 			if (pmap_pte_dirty(pmap, old_l2))
@@ -3533,7 +3541,7 @@ pmap_remove_l3_range(pmap_t pmap, pd_entry_t l2e, vm_offset_t sva,
 				vm_page_dirty(m);
 			if ((old_l3 & ATTR_AF) != 0)
 				vm_page_aflag_set(m, PGA_REFERENCED);
-			new_lock = PHYS_TO_PV_LIST_LOCK(VM_PAGE_TO_PHYS(m));
+			new_lock = VM_PAGE_TO_PV_LIST_LOCK(m);
 			if (new_lock != *lockp) {
 				if (*lockp != NULL) {
 					/*
@@ -4560,7 +4568,7 @@ havel3:
 				pmap_invalidate_page(pmap, va, true);
 				vm_page_aflag_set(om, PGA_REFERENCED);
 			}
-			CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, opa);
+			CHANGE_PV_LIST_LOCK_TO_VM_PAGE(&lock, om);
 			pv = pmap_pvh_remove(&om->md, pmap, va);
 			if ((m->oflags & VPO_UNMANAGED) != 0)
 				free_pv_entry(pmap, pv);
@@ -4591,7 +4599,7 @@ havel3:
 			pv = get_pv_entry(pmap, &lock);
 			pv->pv_va = va;
 		}
-		CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, pa);
+		CHANGE_PV_LIST_LOCK_TO_VM_PAGE(&lock, m);
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 		m->md.pv_gen++;
 		if ((new_l3 & ATTR_SW_DBM) != 0)
@@ -6051,9 +6059,8 @@ pmap_ts_referenced(vm_page_t m)
 	    ("pmap_ts_referenced: page %p is not managed", m));
 	SLIST_INIT(&free);
 	cleared = 0;
-	pa = VM_PAGE_TO_PHYS(m);
-	lock = PHYS_TO_PV_LIST_LOCK(pa);
 	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pv_dummy : page_to_pvh(m);
+	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
 	rw_wlock(lock);
 retry:
 	not_cleared = 0;
@@ -6086,6 +6093,8 @@ retry:
 			vm_page_dirty(m);
 		}
 		if ((tpte & ATTR_AF) != 0) {
+			pa = VM_PAGE_TO_PHYS(m);
+
 			/*
 			 * Since this reference bit is shared by 512 4KB pages,
 			 * it should not be cleared every time it is tested.
