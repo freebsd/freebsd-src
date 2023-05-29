@@ -20,7 +20,12 @@
 #include <pthread_np.h>
 #endif
 #ifdef __linux__
+#ifdef __GLIBC__
+#include <gnu/libc-version.h>
+#endif
+#if !defined(__GLIBC__) || (__GLIBC__ * 100 + __GLIBC_MINOR__) < 236
 #include <bsd/stdlib.h>
+#endif
 #endif
 #include <signal.h>
 #include <stdatomic.h>
