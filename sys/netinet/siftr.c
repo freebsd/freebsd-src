@@ -391,7 +391,7 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 	    "%c,%jd.%06ld,%s,%hu,%s,%hu,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,"
 	    "%u,%u,%u,%u,%u,%u,%u,%u\n",
 	    direction[pkt_node->direction],
-	    pkt_node->tval.tv_sec,
+	    (intmax_t)pkt_node->tval.tv_sec,
 	    pkt_node->tval.tv_usec,
 	    hash_node->const_info.laddr,
 	    hash_node->const_info.lport,
