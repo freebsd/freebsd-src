@@ -36,6 +36,11 @@
 #include <string.h>
 #include <unistd.h>
 
+/* SIGALRM interval in seconds. */
+#ifndef TIMO
+#define	TIMO		5
+#endif
+
 #ifndef __unused
 #define	__unused	__attribute__((__unused__))
 #endif
@@ -79,19 +84,17 @@ sigusr1_handler(int sig __unused, siginfo_t *si __unused, void *m __unused)
 	atomic_fetch_add_explicit(&sigs, 1, memory_order_relaxed);
 }
 
-#ifdef SIGINFO
 static void
-siginfo_handler(int sig __unused)
+sigalrm_handler(int sig __unused)
 {
 	struct rusage r;
 
 	if (getrusage(RUSAGE_SELF, &r) == 0) {
-		printf("%lu vctx %lu nvctx %lu nsigs ",
-		    r.ru_nvcsw, r.ru_nivcsw, r.ru_nsignals);
+		printf("%lu vctx %lu nvctx %lu nsigs %u SIGUSR1\n",
+		    r.ru_nvcsw, r.ru_nivcsw, r.ru_nsignals, sigs);
 	}
-	printf("%u SIGUSR1\n", sigs);
+	alarm(TIMO);
 }
-#endif
 
 static struct xmm zero_xmm = {};
 
@@ -183,14 +186,12 @@ main(void)
 	struct sigaction sa;
 	int error, i, ncpu;
 
-#ifdef SIGINFO
 	bzero(&sa, sizeof(sa));
-	sa.sa_handler = siginfo_handler;
-	if (sigaction(SIGINFO, &sa, NULL) == -1) {
-		fprintf(stderr, "sigaction SIGINFO %s\n", strerror(errno));
+	sa.sa_handler = sigalrm_handler;
+	if (sigaction(SIGALRM, &sa, NULL) == -1) {
+		fprintf(stderr, "sigaction SIGALRM %s\n", strerror(errno));
 		exit(1);
 	}
-#endif
 
 	bzero(&sa, sizeof(sa));
 	sa.sa_sigaction = sigusr1_handler;
@@ -216,6 +217,7 @@ main(void)
 		}
 	}
 
+	alarm(TIMO);
 	for (;;) {
 		for (i = 0; i < ncpu; i++) {
 			my_pause();
