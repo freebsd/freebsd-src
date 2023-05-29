@@ -1763,8 +1763,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 221: {
 		struct linux_execve_args *p = params;
 		uarg[a++] = (intptr_t)p->path; /* char * */
-		uarg[a++] = (intptr_t)p->argp; /* char ** */
-		uarg[a++] = (intptr_t)p->envp; /* char ** */
+		uarg[a++] = (intptr_t)p->argp; /* l_uintptr_t * */
+		uarg[a++] = (intptr_t)p->envp; /* l_uintptr_t * */
 		*n_args = 3;
 		break;
 	}
@@ -5285,10 +5285,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland char *";
 			break;
 		case 1:
-			p = "userland char **";
+			p = "userland l_uintptr_t *";
 			break;
 		case 2:
-			p = "userland char **";
+			p = "userland l_uintptr_t *";
 			break;
 		default:
 			break;
