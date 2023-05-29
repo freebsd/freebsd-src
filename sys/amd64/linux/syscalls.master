@@ -439,8 +439,8 @@
 59	AUE_EXECVE	STD {
 		int linux_execve(
 		    char *path,
-		    char **argp,
-		    char **envp
+		    l_uintptr_t *argp,
+		    l_uintptr_t *envp
 		);
 	}
 60	AUE_EXIT	STD {

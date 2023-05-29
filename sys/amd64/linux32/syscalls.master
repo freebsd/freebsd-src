@@ -102,8 +102,8 @@
 11	AUE_EXECVE	STD {
 		int linux_execve(
 		    char *path,
-		    uint32_t *argp,
-		    uint32_t *envp
+		    l_uintptr_t *argp,
+		    l_uintptr_t *envp
 		);
 	}
 12	AUE_CHDIR	STD {

@@ -2555,7 +2555,89 @@ linux_seccomp(struct thread *td, struct linux_seccomp_args *args)
 	}
 }
 
-#ifndef COMPAT_LINUX32
+/*
+ * Custom version of exec_copyin_args(), to copy out argument and environment
+ * strings from the old process address space into the temporary string buffer.
+ * Based on freebsd32_exec_copyin_args.
+ */
+static int
+linux_exec_copyin_args(struct image_args *args, const char *fname,
+    enum uio_seg segflg, l_uintptr_t *argv, l_uintptr_t *envv)
+{
+	char *argp, *envp;
+	l_uintptr_t *ptr, arg;
+	int error;
+
+	bzero(args, sizeof(*args));
+	if (argv == NULL)
+		return (EFAULT);
+
+	/*
+	 * Allocate demand-paged memory for the file name, argument, and
+	 * environment strings.
+	 */
+	error = exec_alloc_args(args);
+	if (error != 0)
+		return (error);
+
+	/*
+	 * Copy the file name.
+	 */
+	error = exec_args_add_fname(args, fname, segflg);
+	if (error != 0)
+		goto err_exit;
+
+	/*
+	 * extract arguments first
+	 */
+	ptr = argv;
+	for (;;) {
+		error = copyin(ptr++, &arg, sizeof(arg));
+		if (error)
+			goto err_exit;
+		if (arg == 0)
+			break;
+		argp = PTRIN(arg);
+		error = exec_args_add_arg(args, argp, UIO_USERSPACE);
+		if (error != 0)
+			goto err_exit;
+	}
+
+	/*
+	 * This comment is from Linux do_execveat_common:
+	 * When argv is empty, add an empty string ("") as argv[0] to
+	 * ensure confused userspace programs that start processing
+	 * from argv[1] won't end up walking envp.
+	 */
+	if (args->argc == 0 &&
+	    (error = exec_args_add_arg(args, "", UIO_SYSSPACE) != 0))
+		goto err_exit;
+
+	/*
+	 * extract environment strings
+	 */
+	if (envv) {
+		ptr = envv;
+		for (;;) {
+			error = copyin(ptr++, &arg, sizeof(arg));
+			if (error)
+				goto err_exit;
+			if (arg == 0)
+				break;
+			envp = PTRIN(arg);
+			error = exec_args_add_env(args, envp, UIO_USERSPACE);
+			if (error != 0)
+				goto err_exit;
+		}
+	}
+
+	return (0);
+
+err_exit:
+	exec_free_args(args);
+	return (error);
+}
+
 int
 linux_execve(struct thread *td, struct linux_execve_args *args)
 {
@@ -2564,11 +2646,10 @@ linux_execve(struct thread *td, struct linux_execve_args *args)
 
 	LINUX_CTR(execve);
 
-	error = exec_copyin_args(&eargs, args->path, UIO_USERSPACE,
+	error = linux_exec_copyin_args(&eargs, args->path, UIO_USERSPACE,
 	    args->argp, args->envp);
 	if (error == 0)
 		error = linux_common_execve(td, &eargs);
 	AUDIT_SYSCALL_EXIT(error == EJUSTRETURN ? 0 : error, td);
 	return (error);
 }
-#endif
