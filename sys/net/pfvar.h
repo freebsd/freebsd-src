@@ -2230,13 +2230,15 @@ void				pf_free_rule(struct pf_krule *);
 
 int	pf_test_eth(int, int, struct ifnet *, struct mbuf **, struct inpcb *);
 #ifdef INET
-int	pf_test(int, int, struct ifnet *, struct mbuf **, struct inpcb *);
+int	pf_test(int, int, struct ifnet *, struct mbuf **, struct inpcb *,
+	    struct pf_rule_actions *);
 int	pf_normalize_ip(struct mbuf **, int, struct pfi_kkif *, u_short *,
 	    struct pf_pdesc *);
 #endif /* INET */
 
 #ifdef INET6
-int	pf_test6(int, int, struct ifnet *, struct mbuf **, struct inpcb *);
+int	pf_test6(int, int, struct ifnet *, struct mbuf **, struct inpcb *,
+	    struct pf_rule_actions *);
 int	pf_normalize_ip6(struct mbuf **, int, struct pfi_kkif *, u_short *,
 	    struct pf_pdesc *);
 void	pf_poolmask(struct pf_addr *, struct pf_addr*,
