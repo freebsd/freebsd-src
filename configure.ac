@@ -4,15 +4,15 @@ dnl First, define all of the version numbers up front.
 dnl In particular, this allows the version macro to be used in AC_INIT
 
 dnl These first two version numbers are updated automatically on each release.
-m4_define([LIBARCHIVE_VERSION_S],[3.6.2])
-m4_define([LIBARCHIVE_VERSION_N],[3006002])
+m4_define([LIBARCHIVE_VERSION_S],[3.6.3dev])
+m4_define([LIBARCHIVE_VERSION_N],[3006003])
 
 dnl bsdtar and bsdcpio versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
 m4_define([BSDCPIO_VERSION_S],LIBARCHIVE_VERSION_S())
 m4_define([BSDCAT_VERSION_S],LIBARCHIVE_VERSION_S())
 
-AC_PREREQ([2.69])
+AC_PREREQ([2.71])
 
 #
 # Now starts the "real" configure script.
@@ -99,13 +99,12 @@ AM_CONDITIONAL([INC_CYGWIN_FILES], [test $inc_cygwin_files = yes])
 dnl Defines that are required for specific platforms (e.g. -D_POSIX_SOURCE, etc)
 PLATFORMCPPFLAGS=
 case "$host_os" in
-  *mingw* ) PLATFORMCPPFLAGS=-D__USE_MINGW_ANSI_STDIO ;;
+  *mingw* ) PLATFORMCPPFLAGS=-D__USE_MINGW_ANSI_STDIO -D__MINGW_USE_VC2005_COMPAT ;;
 esac
 AC_SUBST(PLATFORMCPPFLAGS)
 
 # Checks for programs.
 AC_PROG_CC
-AC_PROG_CC_C99
 AM_PROG_CC_C_O
 AC_PROG_CPP
 AC_USE_SYSTEM_EXTENSIONS
@@ -378,7 +377,9 @@ if test "x$with_iconv" != "xno"; then
     AC_CHECK_HEADERS([localcharset.h])
     am_save_LIBS="$LIBS"
     LIBS="${LIBS} ${LIBICONV}"
-    LIBSREQUIRED="$LIBSREQUIRED${LIBSREQUIRED:+ }iconv"
+    if test -n "$LIBICONV"; then
+      LIBSREQUIRED="$LIBSREQUIRED${LIBSREQUIRED:+ }iconv"
+    fi
     AC_CHECK_FUNCS([locale_charset])
     LIBS="${am_save_LIBS}"
     if test "x$ac_cv_func_locale_charset" != "xyes"; then
@@ -655,7 +656,7 @@ AC_CHECK_TYPE([wchar_t],
 AX_COMPILE_CHECK_SIZEOF(int)
 AX_COMPILE_CHECK_SIZEOF(long)
 
-AC_HEADER_TIME
+AC_CHECK_HEADERS_ONCE([sys/time.h])
 
 # Checks for library functions.
 AC_PROG_GCC_TRADITIONAL
@@ -687,8 +688,24 @@ AC_CHECK_FUNCS([select setenv setlocale sigaction statfs statvfs])
 AC_CHECK_FUNCS([strchr strdup strerror strncpy_s strnlen strrchr symlink])
 AC_CHECK_FUNCS([timegm tzset unlinkat unsetenv utime utimensat utimes vfork])
 AC_CHECK_FUNCS([wcrtomb wcscmp wcscpy wcslen wctomb wmemcmp wmemcpy wmemmove])
-AC_CHECK_FUNCS([_ctime64_s _fseeki64])
-AC_CHECK_FUNCS([_get_timezone _gmtime64_s _localtime64_s _mkgmtime64])
+AC_CHECK_FUNCS([_fseeki64 _get_timezone])
+AC_CHECK_DECL([cmtime_s],
+		[AC_DEFINE(HAVE_CMTIME_S, 1, [cmtime_s function])],
+		[],
+		[#include <time.h>])
+AC_CHECK_DECL([gmtime_s],
+		[AC_DEFINE(HAVE_GMTIME_S, 1, [gmtime_s function])],
+		[],
+		[#include <time.h>])
+AC_CHECK_TYPE([localtime_s],
+		[AC_DEFINE(HAVE_LOCALTIME_S, 1, [localtime_s function])],
+		[],
+		[#include <time.h>])
+AC_CHECK_DECL([_mkgmtime],
+		[AC_DEFINE(HAVE__MKGMTIME, 1, [_mkgmtime function])],
+		[],
+		[#include <time.h>])
+
 # detects cygwin-1.7, as opposed to older versions
 AC_CHECK_FUNCS([cygwin_conv_path])
 
@@ -1210,7 +1227,7 @@ fi
 if test "x$with_openssl" != "xno"; then
     AC_CHECK_HEADERS([openssl/evp.h])
     saved_LIBS=$LIBS
-    LIBSREQUIRED="$LIBSREQUIRED${LIBSREQUIRED:+ }libssl libcrypto"
+    LIBSREQUIRED="$LIBSREQUIRED${LIBSREQUIRED:+ }libcrypto"
     AC_CHECK_LIB(crypto,OPENSSL_config)
     CRYPTO_CHECK(MD5, OPENSSL, md5)
     CRYPTO_CHECK(RMD160, OPENSSL, rmd160)

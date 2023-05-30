@@ -234,7 +234,7 @@
 #define HAVE_WMEMCPY 1
 #define HAVE_WMEMMOVE 1
 #define HAVE_ZLIB_H 1
-#define TIME_WITH_SYS_TIME 1
+#define HAVE_SYS_TIME_H 1
 
 #if __FreeBSD_version >= 800505
 #define HAVE_LIBLZMA 1

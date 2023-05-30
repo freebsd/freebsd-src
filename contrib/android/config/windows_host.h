@@ -905,8 +905,8 @@
 /* Define to 1 if you have the <zlib.h> header file. */
 /* #undef HAVE_ZLIB_H */
 
-/* Define to 1 if you have the `_ctime64_s' function. */
-#define HAVE__CTIME64_S 1
+/* Define to 1 if you have the `ctime_s' function. */
+#define HAVE_CTIME_S 1
 
 /* Define to 1 if you have the `_fseeki64' function. */
 #define HAVE__FSEEKI64 1
@@ -914,11 +914,11 @@
 /* Define to 1 if you have the `_get_timezone' function. */
 /* #undef HAVE__GET_TIMEZONE */
 
-/* Define to 1 if you have the `_localtime64_s' function. */
-#define HAVE__LOCALTIME64_S 1
+/* Define to 1 if you have the `localtime_s' function. */
+#define HAVE_LOCALTIME_S 1
 
-/* Define to 1 if you have the `_mkgmtime64' function. */
-/* #define HAVE__MKGMTIME64 1 */
+/* Define to 1 if you have the `_mkgmtime' function. */
+/* #define HAVE__MKGMTIME 1 */
 
 /* Define as const if the declaration of iconv() needs const. */
 /* #undef ICONV_CONST */
@@ -952,7 +952,7 @@
 /* #undef STRERROR_R_CHAR_P */
 
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
-#define TIME_WITH_SYS_TIME 1
+#define HAVE_SYS_TIME_H 1
 
 
 

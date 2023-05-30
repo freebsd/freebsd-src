@@ -231,15 +231,20 @@ static int
 __hmac_sha1_init(archive_hmac_sha1_ctx *ctx, const uint8_t *key, size_t key_len)
 {
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
-	OSSL_PARAM params[2];
+	EVP_MAC *mac;
 
-	EVP_MAC *mac = EVP_MAC_fetch(NULL, "HMAC", NULL);
+	char sha1[] = "SHA1";
+	OSSL_PARAM params[] = {
+		OSSL_PARAM_utf8_string("digest", sha1, sizeof(sha1) - 1),
+		OSSL_PARAM_END
+	};
+
+	mac = EVP_MAC_fetch(NULL, "HMAC", NULL);
 	*ctx = EVP_MAC_CTX_new(mac);
+	EVP_MAC_free(mac);
 	if (*ctx == NULL)
 		return -1;
-	EVP_MAC_free(mac);
-	params[0] = OSSL_PARAM_construct_utf8_string("digest", "SHA1", 0);
-	params[1] = OSSL_PARAM_construct_end();
+
 	EVP_MAC_init(*ctx, key, key_len, params);
 #else
 	*ctx = HMAC_CTX_new();

@@ -53,6 +53,7 @@ struct archive_write_filter {
 	    const char *key, const char *value);
 	int	(*open)(struct archive_write_filter *);
 	int	(*write)(struct archive_write_filter *, const void *, size_t);
+	int	(*flush)(struct archive_write_filter *);
 	int	(*close)(struct archive_write_filter *);
 	int	(*free)(struct archive_write_filter *);
 	void	 *data;

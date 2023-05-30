@@ -183,7 +183,7 @@
 #define SIZEOF_WCHAR_T 4
 #define STDC_HEADERS 1
 #define STRERROR_R_CHAR_P 1
-#define TIME_WITH_SYS_TIME 1
+#define HAVE_SYS_TIME_H 1
 #define _GNU_SOURCE 1
 
 #endif

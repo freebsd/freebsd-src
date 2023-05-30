@@ -77,6 +77,8 @@ typedef	struct hmac_sha1_ctx archive_hmac_sha1_ctx;
 #include <openssl/opensslv.h>
 #include <openssl/hmac.h>
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#include <openssl/params.h>
+
 typedef EVP_MAC_CTX *archive_hmac_sha1_ctx;
 
 #else

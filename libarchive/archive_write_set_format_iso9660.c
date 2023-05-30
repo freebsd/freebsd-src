@@ -289,12 +289,12 @@ struct isoent {
 		struct extr_rec	*current;
 	}			 extr_rec_list;
 
-	signed int		 virtual:1;
+	unsigned int		 virtual:1;
 	/* If set to one, this file type is a directory.
 	 * A convenience flag to be used as
 	 * "archive_entry_filetype(isoent->file->entry) == AE_IFDIR".
 	 */
-	signed int		 dir:1;
+	unsigned int		 dir:1;
 };
 
 struct hardlink {
@@ -652,7 +652,7 @@ struct iso_option {
 #define VOLUME_IDENTIFIER_SIZE		32
 
 	/*
-	 * Usage  : !zisofs [DEFAULT] 
+	 * Usage  : !zisofs [DEFAULT]
 	 *        :    Disable to generate RRIP 'ZF' extension.
 	 *        : zisofs
 	 *        :    Make files zisofs file and generate RRIP 'ZF'
@@ -689,7 +689,7 @@ struct iso9660 {
 	uint64_t		 bytes_remaining;
 	int			 need_multi_extent;
 
-	/* Temporary string buffer for Joliet extension. */ 
+	/* Temporary string buffer for Joliet extension. */
 	struct archive_string	 utf16be;
 	struct archive_string	 mbs;
 
@@ -755,9 +755,9 @@ struct iso9660 {
 
 	/* Used for making zisofs. */
 	struct {
-		signed int	 detect_magic:1;
-		signed int	 making:1;
-		signed int	 allzero:1;
+		unsigned int	 detect_magic:1;
+		unsigned int	 making:1;
+		unsigned int	 allzero:1;
 		unsigned char	 magic_buffer[64];
 		int		 magic_cnt;
 
@@ -2521,12 +2521,11 @@ get_gmoffset(struct tm *tm)
 static void
 get_tmfromtime(struct tm *tm, time_t *t)
 {
-#if HAVE_LOCALTIME_R
+#if HAVE_LOCALTIME_S
+	localtime_s(tm, t);
+#elif HAVE_LOCALTIME_R
 	tzset();
 	localtime_r(t, tm);
-#elif HAVE__LOCALTIME64_S
-	__time64_t tmp_t = (__time64_t) *t; //time_t may be shorter than 64 bits
-	_localtime64_s(tm, &tmp_t);
 #else
 	memcpy(tm, localtime(t), sizeof(*tm));
 #endif
@@ -4074,11 +4073,8 @@ write_information_block(struct archive_write *a)
 	}
 	memset(info.s, 0, info_size);
 	opt = 0;
-#if defined(HAVE__CTIME64_S)
-	{
-		__time64_t iso9660_birth_time_tmp = (__time64_t) iso9660->birth_time; //time_t may be shorter than 64 bits
-		_ctime64_s(buf, sizeof(buf), &(iso9660_birth_time_tmp));
-	}
+#if defined(HAVE_CTIME_S)
+	ctime_s(buf, sizeof(buf), &(iso9660->birth_time));
 #elif defined(HAVE_CTIME_R)
 	ctime_r(&(iso9660->birth_time), buf);
 #else
@@ -7802,8 +7798,8 @@ struct zisofs_extract {
 	uint64_t	 pz_uncompressed_size;
 	size_t		 uncompressed_buffer_size;
 
-	signed int	 initialized:1;
-	signed int	 header_passed:1;
+	unsigned int	 initialized:1;
+	unsigned int	 header_passed:1;
 
 	uint32_t	 pz_offset;
 	unsigned char	*block_pointers;

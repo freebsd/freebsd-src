@@ -149,6 +149,10 @@ typedef struct _U32_S { U32 v; } _PACKED U32_S;
 
 #if GCC_VERSION >= 409
 __attribute__((__no_sanitize_undefined__))
+#else
+#  if defined(__clang__)
+__attribute__((no_sanitize("undefined")))
+#  endif
 #endif
 #if defined(_MSC_VER)
 static __inline U32 A32(const void * x)

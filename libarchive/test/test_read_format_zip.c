@@ -746,6 +746,7 @@ DEFINE_TEST(test_read_format_zip_zstd_one_file)
 	if (ARCHIVE_OK != archive_read_support_filter_zstd(a)) {
 		skipping("zstd is not fully supported on this platform");
 		archive_read_close(a);
+		archive_read_free(a);
 		return;
 	}
 	extract_reference_file(refname);
@@ -771,6 +772,7 @@ DEFINE_TEST(test_read_format_zip_zstd_one_file_blockread)
 	if (ARCHIVE_OK != archive_read_support_filter_zstd(a)) {
 		skipping("zstd is not fully supported on this platform");
 		archive_read_close(a);
+		archive_read_free(a);
 		return;
 	}
 	extract_reference_file(refname);
@@ -796,6 +798,7 @@ DEFINE_TEST(test_read_format_zip_zstd_multi)
 	if (ARCHIVE_OK != archive_read_support_filter_zstd(a)) {
 		skipping("zstd is not fully supported on this platform");
 		archive_read_close(a);
+		archive_read_free(a);
 		return;
 	}
 	extract_reference_file(refname);
@@ -833,6 +836,7 @@ DEFINE_TEST(test_read_format_zip_zstd_multi_blockread)
 	if (ARCHIVE_OK != archive_read_support_filter_zstd(a)) {
 		skipping("zstd is not fully supported on this platform");
 		archive_read_close(a);
+		archive_read_free(a);
 		return;
 	}
 	extract_reference_file(refname);
@@ -1017,6 +1021,7 @@ DEFINE_TEST(test_read_format_zip_lzma_alone_leak)
 	if(ARCHIVE_OK != archive_read_support_filter_lzma(a)) {
 		skipping("lzma reading is not fully supported on this platform");
 		archive_read_close(a);
+		archive_read_free(a);
 		return;
 	}
 

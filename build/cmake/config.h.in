@@ -164,7 +164,7 @@ typedef unsigned char uint8_t;
 #define HAVE_UINT8_T
 #endif
 
-#if !defined(HAVE_UINT16_T)
+#if !defined(HAVE_UINT8_T)
 #error No 8-bit unsigned integer type was found.
 #endif
 
@@ -1212,8 +1212,8 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the <zstd.h> header file. */
 #cmakedefine HAVE_ZSTD_H 1
 
-/* Define to 1 if you have the `_ctime64_s' function. */
-#cmakedefine HAVE__CTIME64_S 1
+/* Define to 1 if you have the `ctime_s' function. */
+#cmakedefine HAVE_CTIME_S 1
 
 /* Define to 1 if you have the `_fseeki64' function. */
 #cmakedefine HAVE__FSEEKI64 1
@@ -1221,14 +1221,14 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `_get_timezone' function. */
 #cmakedefine HAVE__GET_TIMEZONE 1
 
-/* Define to 1 if you have the `_gmtime64_s' function. */
-#cmakedefine HAVE__GMTIME64_S 1
+/* Define to 1 if you have the `gmtime_s' function. */
+#cmakedefine HAVE_GMTIME_S 1
 
-/* Define to 1 if you have the `_localtime64_s' function. */
-#cmakedefine HAVE__LOCALTIME64_S 1
+/* Define to 1 if you have the `localtime_s' function. */
+#cmakedefine HAVE_LOCALTIME_S 1
 
-/* Define to 1 if you have the `_mkgmtime64' function. */
-#cmakedefine HAVE__MKGMTIME64 1
+/* Define to 1 if you have the `_mkgmtime' function. */
+#cmakedefine HAVE__MKGMTIME 1
 
 /* Define as const if the declaration of iconv() needs const. */
 #define ICONV_CONST @ICONV_CONST@

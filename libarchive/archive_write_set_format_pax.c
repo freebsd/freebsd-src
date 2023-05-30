@@ -45,6 +45,15 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_set_format_pax.c 201162 20
 #include "archive_write_private.h"
 #include "archive_write_set_format_private.h"
 
+	/*
+	 * Technically, the mtime field in the ustar header can
+	 * support 33 bits. We are using all of them to keep
+	 * tar/test/test_option_C_mtree.c simple and passing after 2038.
+	 * Platforms that use signed 32-bit time values need to fix
+	 * their handling of timestamps anyway.
+	 */
+#define USTAR_MAX_MTIME 0x1ffffffff
+
 struct sparse_block {
 	struct sparse_block	*next;
 	int		is_hole;
@@ -1116,16 +1125,13 @@ archive_write_pax_header(struct archive_write *a,
 	}
 
 	/*
-	 * Technically, the mtime field in the ustar header can
-	 * support 33 bits, but many platforms use signed 32-bit time
-	 * values.  The cutoff of 0x7fffffff here is a compromise.
 	 * Yes, this check is duplicated just below; this helps to
 	 * avoid writing an mtime attribute just to handle a
 	 * high-resolution timestamp in "restricted pax" mode.
 	 */
 	if (!need_extension &&
 	    ((archive_entry_mtime(entry_main) < 0)
-		|| (archive_entry_mtime(entry_main) >= 0x7fffffff)))
+		|| (archive_entry_mtime(entry_main) >= USTAR_MAX_MTIME)))
 		need_extension = 1;
 
 	/* I use a star-compatible file flag attribute. */
@@ -1190,7 +1196,7 @@ archive_write_pax_header(struct archive_write *a,
 	if (a->archive.archive_format != ARCHIVE_FORMAT_TAR_PAX_RESTRICTED ||
 	    need_extension) {
 		if (archive_entry_mtime(entry_main) < 0  ||
-		    archive_entry_mtime(entry_main) >= 0x7fffffff  ||
+		    archive_entry_mtime(entry_main) >= USTAR_MAX_MTIME  ||
 		    archive_entry_mtime_nsec(entry_main) != 0)
 			add_pax_attr_time(&(pax->pax_header), "mtime",
 			    archive_entry_mtime(entry_main),
@@ -1428,7 +1434,7 @@ archive_write_pax_header(struct archive_write *a,
 		/* Copy mtime, but clip to ustar limits. */
 		s = archive_entry_mtime(entry_main);
 		if (s < 0) { s = 0; }
-		if (s >= 0x7fffffff) { s = 0x7fffffff; }
+		if (s > USTAR_MAX_MTIME) { s = USTAR_MAX_MTIME; }
 		archive_entry_set_mtime(pax_attr_entry, s, 0);
 
 		/* Standard ustar doesn't support atime. */
