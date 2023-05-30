@@ -28,7 +28,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd May 22, 2023
+.Dd May 30, 2023
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -94,12 +94,12 @@ see
 system configuration files and scripts
 .Pp
 .Bl -tag -width "defaults/" -compact
+.It Pa bluetooth/
+bluetooth configuration files
 .It Pa defaults/
 default system configuration files;
 see
 .Xr rc 8
-.It Pa bluetooth/
-bluetooth configuration files
 .It Pa localtime
 local timezone information;
 see
@@ -118,6 +118,10 @@ scripts that are run daily, weekly, and monthly, via
 .Xr cron 8 ;
 see
 .Xr periodic 8
+.It Pa ppp/
+ppp configuration files;
+see
+.Xr ppp 8
 .It Pa rc.d/
 system and daemon startup/control scripts;
 see
@@ -126,10 +130,6 @@ see
 OpenBSM audit configuration files;
 see
 .Xr audit 8
-.It Pa ppp/
-ppp configuration files;
-see
-.Xr ppp 8
 .It Pa ssh/
 OpenSSH configuration files;
 see
