@@ -98,7 +98,7 @@ struct pmcstat_args {
 #define	FLAG_READ_LOGFILE		0x00000200	/* -R file */
 #define	FLAG_DO_GPROF			0x00000400	/* -g */
 #define	FLAG_HAS_SAMPLESDIR		0x00000800	/* -D dir */
-#define	FLAG_HAS_KERNELPATH		0x00001000	/* -k kernel */
+/* was FLAG_HAS_KERNELPATH		0x00001000 */
 #define	FLAG_DO_PRINT			0x00002000	/* -o */
 #define	FLAG_DO_CALLGRAPHS		0x00004000	/* -G or -F */
 #define	FLAG_DO_ANNOTATE		0x00008000	/* -m */
@@ -121,7 +121,6 @@ struct pmcstat_args {
 	char	*pa_outputpath;		/* path to output log */
 	void	*pa_logparser;		/* log file parser */
 	const char	*pa_fsroot;	/* FS root where executables reside */
-	char	*pa_kernel;		/* pathname of the kernel */
 	const char	*pa_samplesdir;	/* directory for profile files */
 	const char	*pa_mapfilename;/* mapfile name */
 	FILE	*pa_graphfile;		/* where to send the callgraph */

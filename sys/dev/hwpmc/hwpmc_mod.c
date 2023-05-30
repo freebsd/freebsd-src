@@ -5402,7 +5402,7 @@ pmc_kld_load(void *arg __unused, linker_file_t lf)
 	CK_LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
 		if (po->po_flags & PMC_PO_OWNS_LOGFILE)
 			pmclog_process_map_in(po, (pid_t) -1,
-			    (uintfptr_t) lf->address, lf->filename);
+			    (uintfptr_t) lf->address, lf->pathname);
 	PMC_EPOCH_EXIT();
 
 	/*

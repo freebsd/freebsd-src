@@ -383,7 +383,6 @@ pmcstat_show_usage(void)
 	    "\t -f spec\t pass \"spec\" to as plugin option\n"
 	    "\t -g\t\t produce gprof(1) compatible profiles\n"
 	    "\t -i lwp\t\t filter on thread id \"lwp\" in post-processing\n"
-	    "\t -k dir\t\t set the path to the kernel\n"
 	    "\t -l secs\t set duration time\n"
 	    "\t -m file\t print sampled PCs to \"file\"\n"
 	    "\t -n rate\t set sampling rate\n"
@@ -456,7 +455,7 @@ main(int argc, char **argv)
 	int use_cumulative_counts;
 	short cf, cb;
 	uint64_t current_sampling_count;
-	char *end, *tmp, *event;
+	char *end, *event;
 	const char *errmsg, *graphfilename;
 	enum pmcstat_state runstate;
 	struct pmc_driverstats ds_start, ds_end;
@@ -465,7 +464,6 @@ main(int argc, char **argv)
 	struct kevent kev;
 	struct winsize ws;
 	struct stat sb;
-	char buffer[PATH_MAX];
 	uint32_t caps;
 
 	check_driver_stats      = 0;
@@ -510,16 +508,6 @@ main(int argc, char **argv)
 	caps = 0;
 	CPU_ZERO(&cpumask);
 
-
-	/* Default to using the running system kernel. */
-	len = 0;
-	if (sysctlbyname("kern.bootfile", NULL, &len, NULL, 0) == -1)
-		err(EX_OSERR, "ERROR: Cannot determine path of running kernel");
-	args.pa_kernel = malloc(len);
-	if (args.pa_kernel == NULL)
-		errx(EX_SOFTWARE, "ERROR: Out of memory.");
-	if (sysctlbyname("kern.bootfile", args.pa_kernel, &len, NULL, 0) == -1)
-		err(EX_OSERR, "ERROR: Cannot determine path of running kernel");
 	len = sizeof(domains);
 	if (sysctlbyname("vm.ndomains", &domains, &len, NULL, 0) == -1)
 		err(EX_OSERR, "ERROR: Cannot get number of domains");
@@ -623,12 +611,8 @@ main(int argc, char **argv)
 			break;
 
 		case 'k':	/* pathname to the kernel */
-			free(args.pa_kernel);
-			args.pa_kernel = strdup(optarg);
-			if (args.pa_kernel == NULL)
-				errx(EX_SOFTWARE, "ERROR: Out of memory");
-			args.pa_required |= FLAG_DO_ANALYSIS;
-			args.pa_flags    |= FLAG_HAS_KERNELPATH;
+			warnx("WARNING: -k is obsolete, has no effect "
+			    "and will be removed in FreeBSD 15.");
 			break;
 
 		case 'L':
@@ -1029,12 +1013,6 @@ main(int argc, char **argv)
 "ERROR: option -O is used only with options -E, -P, -S and -W."
 		    );
 
-	/* -k kernel path require -g/-G/-m/-T or -R */
-	if ((args.pa_flags & FLAG_HAS_KERNELPATH) &&
-	    (args.pa_flags & FLAG_DO_ANALYSIS) == 0 &&
-	    (args.pa_flags & FLAG_READ_LOGFILE) == 0)
-	    errx(EX_USAGE, "ERROR: option -k is only used with -g/-R/-m/-T.");
-
 	/* -D only applies to gprof output mode (-g) */
 	if ((args.pa_flags & FLAG_HAS_SAMPLESDIR) &&
 	    (args.pa_flags & FLAG_DO_GPROF) == 0)
@@ -1057,36 +1035,6 @@ main(int argc, char **argv)
 		errx(EX_USAGE,
 "ERROR: option -O is required if counting and sampling PMCs are specified together."
 		    );
-
-	/*
-	 * Check if 'kerneldir' refers to a file rather than a
-	 * directory.  If so, use `dirname path` to determine the
-	 * kernel directory.
-	 */
-	(void) snprintf(buffer, sizeof(buffer), "%s%s", args.pa_fsroot,
-	    args.pa_kernel);
-	if (stat(buffer, &sb) < 0)
-		err(EX_OSERR, "ERROR: Cannot locate kernel \"%s\"",
-		    buffer);
-	if (!S_ISREG(sb.st_mode) && !S_ISDIR(sb.st_mode))
-		errx(EX_USAGE, "ERROR: \"%s\": Unsupported file type.",
-		    buffer);
-	if (!S_ISDIR(sb.st_mode)) {
-		tmp = args.pa_kernel;
-		args.pa_kernel = strdup(dirname(args.pa_kernel));
-		if (args.pa_kernel == NULL)
-			errx(EX_SOFTWARE, "ERROR: Out of memory");
-		free(tmp);
-		(void) snprintf(buffer, sizeof(buffer), "%s%s",
-		    args.pa_fsroot, args.pa_kernel);
-		if (stat(buffer, &sb) < 0)
-			err(EX_OSERR, "ERROR: Cannot stat \"%s\"",
-			    buffer);
-		if (!S_ISDIR(sb.st_mode))
-			errx(EX_USAGE,
-			    "ERROR: \"%s\" is not a directory.",
-			    buffer);
-	}
 
 	/*
 	 * If we have a callgraph be created, select the outputfile.
