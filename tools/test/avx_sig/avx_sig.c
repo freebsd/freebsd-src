@@ -48,33 +48,18 @@
 #define	nitems(x)	(sizeof((x)) / sizeof((x)[0]))
 #endif
 
-struct xmmreg {
-	uint8_t xmm_bytes[16];
+#define	SIMDRNAM	"xmm"
+
+struct simdreg {
+	uint8_t simd_bytes[16];
 };
 
-struct xmm {
-	struct xmmreg xmmreg[16];
+struct simd {
+	struct simdreg simdreg[16];
 };
 
-#define	X2C(r) 	asm("movdqu %0, %%xmm" #r : "=m" (xmm->xmmreg[r]))
-#define	C2X(r)	asm("movdqu %%xmm" #r ", %0" : : "m" (xmm->xmmreg[r]) : "xmm" #r)
-
-static void
-cpu_to_xmm(struct xmm *xmm)
-{
-	C2X(0);	C2X(1);	C2X(2);	C2X(3);	C2X(4);	C2X(5);	C2X(6);	C2X(7);
-	C2X(8);	C2X(9);	C2X(10); C2X(11); C2X(12); C2X(13); C2X(14); C2X(15);
-}
-
-static void
-xmm_to_cpu(struct xmm *xmm)
-{
-	X2C(0);	X2C(1);	X2C(2);	X2C(3);	X2C(4);	X2C(5);	X2C(6);	X2C(7);
-	X2C(8);	X2C(9);	X2C(10); X2C(11); X2C(12); X2C(13); X2C(14); X2C(15);
-}
-
-#undef C2X
-#undef X2C
+void cpu_to_simd(struct simd *simd);
+void simd_to_cpu(struct simd *simd);
 
 static atomic_uint sigs;
 
@@ -96,23 +81,23 @@ sigalrm_handler(int sig __unused)
 	alarm(TIMO);
 }
 
-static struct xmm zero_xmm = {};
+static struct simd zero_simd = {};
 
 static void
-fill_xmm(struct xmm *xmm)
+fill_simd(struct simd *simd)
 {
-	arc4random_buf(xmm, sizeof(*xmm));
+	arc4random_buf(simd, sizeof(*simd));
 }
 
 static void
-dump_xmm(const struct xmmreg *r)
+dump_simd(const struct simdreg *r)
 {
 	unsigned k;
 
-	for (k = 0; k < nitems(r->xmm_bytes); k++) {
+	for (k = 0; k < nitems(r->simd_bytes); k++) {
 		if (k != 0)
 			printf(" ");
-		printf("%02x", r->xmm_bytes[k]);
+		printf("%02x", r->simd_bytes[k]);
 	}
 	printf("\n");
 }
@@ -120,9 +105,9 @@ dump_xmm(const struct xmmreg *r)
 static pthread_mutex_t show_lock;
 
 static void
-show_diff(const struct xmm *xmm1, const struct xmm *xmm2)
+show_diff(const struct simd *simd1, const struct simd *simd2)
 {
-	const struct xmmreg *r1, *r2;
+	const struct simdreg *r1, *r2;
 	unsigned i, j;
 
 #if defined(__FreeBSD__)
@@ -130,14 +115,14 @@ show_diff(const struct xmm *xmm1, const struct xmm *xmm2)
 #elif defined(__linux__)
 	printf("thr %ld\n", syscall(SYS_gettid));
 #endif
-	for (i = 0; i < nitems(xmm1->xmmreg); i++) {
-		r1 = &xmm1->xmmreg[i];
-		r2 = &xmm2->xmmreg[i];
-		for (j = 0; j < nitems(r1->xmm_bytes); j++) {
-			if (r1->xmm_bytes[j] != r2->xmm_bytes[j]) {
-				printf("xmm%u\n", i);
-				dump_xmm(r1);
-				dump_xmm(r2);
+	for (i = 0; i < nitems(simd1->simdreg); i++) {
+		r1 = &simd1->simdreg[i];
+		r2 = &simd2->simdreg[i];
+		for (j = 0; j < nitems(r1->simd_bytes); j++) {
+			if (r1->simd_bytes[j] != r2->simd_bytes[j]) {
+				printf("%%%s%u\n", SIMDRNAM, i);
+				dump_simd(r1);
+				dump_simd(r2);
 				break;
 			}
 		}
@@ -153,26 +138,26 @@ my_pause(void)
 static void *
 worker_thread(void *arg __unused)
 {
-	struct xmm xmm, xmm_cpu;
+	struct simd simd, simd_cpu;
 
-	fill_xmm(&xmm);
+	fill_simd(&simd);
 	for (;;) {
-		xmm_to_cpu(&xmm);
+		simd_to_cpu(&simd);
 		my_pause();
-		cpu_to_xmm(&xmm_cpu);
-		if (memcmp(&xmm, &xmm_cpu, sizeof(struct xmm)) != 0) {
+		cpu_to_simd(&simd_cpu);
+		if (memcmp(&simd, &simd_cpu, sizeof(struct simd)) != 0) {
 			pthread_mutex_lock(&show_lock);
-			show_diff(&xmm, &xmm_cpu);
+			show_diff(&simd, &simd_cpu);
 			abort();
 			pthread_mutex_unlock(&show_lock);
 		}
 
-		xmm_to_cpu(&zero_xmm);
+		simd_to_cpu(&zero_simd);
 		my_pause();
-		cpu_to_xmm(&xmm_cpu);
-		if (memcmp(&zero_xmm, &xmm_cpu, sizeof(struct xmm)) != 0) {
+		cpu_to_simd(&simd_cpu);
+		if (memcmp(&zero_simd, &simd_cpu, sizeof(struct simd)) != 0) {
 			pthread_mutex_lock(&show_lock);
-			show_diff(&zero_xmm, &xmm_cpu);
+			show_diff(&zero_simd, &simd_cpu);
 			abort();
 			pthread_mutex_unlock(&show_lock);
 		}
