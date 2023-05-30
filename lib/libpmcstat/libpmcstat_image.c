@@ -315,7 +315,6 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image,
 	GElf_Shdr sh;
 	enum pmcstat_image_type image_type;
 	char buffer[PATH_MAX];
-	char buffer_modules[PATH_MAX];
 
 	assert(image->pi_type == PMCSTAT_IMAGE_UNKNOWN);
 
@@ -330,32 +329,19 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image,
 	assert(path != NULL);
 
 	/*
-	 * Look for kernel modules under FSROOT/KERNELPATH/NAME and
-	 * FSROOT/boot/modules/NAME, and user mode executable objects
-	 * under FSROOT/PATHNAME.
+	 * Look for files under FSROOT/PATHNAME.
 	 */
-	if (image->pi_iskernelmodule) {
-		(void) snprintf(buffer, sizeof(buffer), "%s%s/%s",
-		    args->pa_fsroot, args->pa_kernel, path);
-		(void) snprintf(buffer_modules, sizeof(buffer_modules),
-		    "%s/boot/modules/%s", args->pa_fsroot, path);
-	} else {
-		(void) snprintf(buffer, sizeof(buffer), "%s%s",
-		    args->pa_fsroot, path);
-	}
+	(void) snprintf(buffer, sizeof(buffer), "%s%s",
+	    args->pa_fsroot, path);
 
 	e = NULL;
 	fd = open(buffer, O_RDONLY, 0);
-	if (fd < 0 && !image->pi_iskernelmodule) {
+	if (fd < 0) {
 		warnx("WARNING: Cannot open \"%s\".",
 		    buffer);
 		goto done;
 	}
-	if (fd < 0 && (fd = open(buffer_modules, O_RDONLY, 0)) < 0) {
-		warnx("WARNING: Cannot open \"%s\" or \"%s\".",
-		    buffer, buffer_modules);
-		goto done;
-	}
+
 	if (elf_version(EV_CURRENT) == EV_NONE) {
 		warnx("WARNING: failed to init elf\n");
 		goto done;

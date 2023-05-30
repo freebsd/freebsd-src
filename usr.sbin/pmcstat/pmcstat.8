@@ -57,7 +57,6 @@
 .Op Fl f Ar pluginopt
 .Op Fl g
 .Op Fl i Ar lwp
-.Op Fl k Ar kerneldir
 .Op Fl l Ar secs
 .Op Fl m Ar pathname
 .Op Fl n Ar rate
@@ -336,17 +335,6 @@ which you can get from
 .Xr ps 1
 .Fl o
 .Li lwp .
-.It Fl k Ar kerneldir
-Set the pathname of the kernel directory to argument
-.Ar kerneldir .
-This directory specifies where
-.Nm
-should look for the kernel and its modules.
-The default is to use the path of the running kernel obtained from the
-.Va kern.bootfile
-sysctl.
-Modules will also be searched for in /boot/modules if not found in
-.Ar kerneldir .
 .It Fl l Ar secs
 Set system-wide performance measurement duration for
 .Ar secs
