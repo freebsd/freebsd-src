@@ -91,52 +91,6 @@ fbt_patch_tracepoint(fbt_probe_t *fbt, fbt_patchval_t val)
 	};
 }
 
-static int
-match_opcode(uint32_t insn, int match, int mask)
-{
-
-	if (((insn ^ match) & mask) == 0)
-		return (1);
-
-	return (0);
-}
-
-static int
-check_c_ret(uint32_t **instr)
-{
-	uint16_t *instr1;
-	int i;
-
-	for (i = 0; i < 2; i++) {
-		instr1 = (uint16_t *)(*instr) + i;
-		if (match_opcode(*instr1, (MATCH_C_JR | (X_RA << RD_SHIFT)),
-		    (MASK_C_JR | RD_MASK))) {
-			*instr = (uint32_t *)instr1;
-			return (1);
-		}
-	}
-
-	return (0);
-}
-
-static int
-check_c_sdsp(uint32_t **instr)
-{
-	uint16_t *instr1;
-	int i;
-
-	for (i = 0; i < 2; i++) {
-		instr1 = (uint16_t *)(*instr) + i;
-		if (match_opcode(*instr1, (MATCH_C_SDSP | RS2_C_RA),
-		    (MASK_C_SDSP | RS2_C_MASK))) {
-			*instr = (uint32_t *)instr1;
-			return (1);
-		}
-	}
-
-	return (0);
-}
-
 int
 fbt_provide_module_function(linker_file_t lf, int symindx,
     linker_symval_t *symval, void *opaque)
@@ -174,15 +128,14 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 	/* Look for sd operation */
 	for (; instr < limit; instr++) {
 		/* Look for a non-compressed store of ra to sp */
-		if (match_opcode(*instr, (MATCH_SD | RS2_RA | RS1_SP),
-		    (MASK_SD | RS2_MASK | RS1_MASK))) {
+		if (dtrace_instr_sdsp(&instr)) {
 			rval = DTRACE_INVOP_SD;
 			patchval = FBT_PATCHVAL;
 			break;
 		}
 
 		/* Look for a 'C'-compressed store of ra to sp. */
-		if (check_c_sdsp(&instr)) {
+		if (dtrace_instr_c_sdsp(&instr)) {
 			rval = DTRACE_INVOP_C_SDSP;
 			patchval = FBT_C_PATCHVAL;
 			break;
@@ -213,15 +166,14 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 again:
 	for (; instr < limit; instr++) {
 		/* Look for non-compressed return */
-		if (match_opcode(*instr, (MATCH_JALR | (X_RA << RS1_SHIFT)),
-		    (MASK_JALR | RD_MASK | RS1_MASK | IMM_MASK))) {
+		if (dtrace_instr_ret(&instr)) {
 			rval = DTRACE_INVOP_RET;
 			patchval = FBT_PATCHVAL;
 			break;
 		}
 
 		/* Look for 'C'-compressed return */
-		if (check_c_ret(&instr)) {
+		if (dtrace_instr_c_ret(&instr)) {
 			rval = DTRACE_INVOP_C_RET;
 			patchval = FBT_C_PATCHVAL;
 			break;
