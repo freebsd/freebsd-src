@@ -76,6 +76,23 @@ __FBSDID("$FreeBSD$");
 #define UMASK		0755
 #define POWEROF2(num)	(((num) & ((num) - 1)) == 0)
 
+/*
+ * The definition of "struct cg" used to contain an extra field at the end
+ * to represent the variable-length data that followed the fixed structure.
+ * This had the effect of artificially limiting the number of blocks that
+ * newfs would put in a CG, since newfs thought that the fixed-size header
+ * was bigger than it really was.  When we started validating that the CG
+ * header data actually fit into one fs block, the placeholder field caused
+ * a problem because it caused struct cg to be a different size depending on
+ * platform.  The placeholder field was later removed, but this caused a
+ * backward compatibility problem with older binaries that still thought
+ * struct cg was larger, and a new file system could fail validation if
+ * viewed by the older binaries.  To avoid this compatibility problem, we
+ * now artificially reduce the amount of space that the variable-length data
+ * can use such that new file systems will pass validation by older binaries.
+ */
+#define CGSIZEFUDGE 8
+
 static struct	csum *fscs;
 #define	sblock	disk.d_fs
 #define	acg	disk.d_cg
@@ -369,7 +386,8 @@ retry:
 			sblock.fs_fpg = minfpg;
 		sblock.fs_ipg = roundup(howmany(sblock.fs_fpg, fragsperinode),
 		    INOPB(&sblock));
-		if (CGSIZE(&sblock) < (unsigned long)sblock.fs_bsize)
+		if (CGSIZE(&sblock) < (unsigned long)sblock.fs_bsize -
+		    CGSIZEFUDGE)
 			break;
 		density -= sblock.fs_fsize;
 	}
@@ -388,9 +406,11 @@ retry:
 		if (Oflag > 1 || (Oflag == 1 && sblock.fs_ipg <= 0x7fff)) {
 			if (sblock.fs_size / sblock.fs_fpg < MINCYLGRPS)
 				break;
-			if (CGSIZE(&sblock) < (unsigned long)sblock.fs_bsize)
+			if (CGSIZE(&sblock) < (unsigned long)sblock.fs_bsize -
+			    CGSIZEFUDGE)
 				continue;
-			if (CGSIZE(&sblock) == (unsigned long)sblock.fs_bsize)
+			if (CGSIZE(&sblock) == (unsigned long)sblock.fs_bsize -
+			    CGSIZEFUDGE)
 				break;
 		}
 		sblock.fs_fpg -= sblock.fs_frag;
