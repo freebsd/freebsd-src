@@ -165,7 +165,7 @@
 
 /* Define to 1 if you have the declaration of `SSL_CTX_set_ecdh_auto', and to
    0 if you don't. */
-#define HAVE_DECL_SSL_CTX_SET_ECDH_AUTO 1
+/* #undef HAVE_DECL_SSL_CTX_SET_ECDH_AUTO */
 
 /* Define to 1 if you have the declaration of `strlcat', and to 0 if you
    don't. */
