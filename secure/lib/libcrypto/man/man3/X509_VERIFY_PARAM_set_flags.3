@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_VERIFY_PARAM_SET_FLAGS 3"
-.TH X509_VERIFY_PARAM_SET_FLAGS 3 "2023-02-07" "1.1.1t" "OpenSSL"
+.TH X509_VERIFY_PARAM_SET_FLAGS 3 "2023-05-30" "1.1.1u" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -215,8 +215,9 @@ chain, for example \s-1SSL\s0 client or \s-1SSL\s0 server.
 \&\fBX509_VERIFY_PARAM_set_time()\fR sets the verification time in \fBparam\fR to
 \&\fBt\fR. Normally the current time is used.
 .PP
-\&\fBX509_VERIFY_PARAM_add0_policy()\fR enables policy checking (it is disabled
-by default) and adds \fBpolicy\fR to the acceptable policy set.
+\&\fBX509_VERIFY_PARAM_add0_policy()\fR adds \fBpolicy\fR to the acceptable policy set.
+Contrary to preexisting documentation of this function it does not enable
+policy checking.
 .PP
 \&\fBX509_VERIFY_PARAM_set1_policies()\fR enables policy checking (it is disabled
 by default) and sets the acceptable policy set to \fBpolicies\fR. Any existing
@@ -493,9 +494,13 @@ The flag \fBX509_V_FLAG_CB_ISSUER_CHECK\fR was deprecated in OpenSSL 1.1.0
 and has no effect.
 .PP
 The \fBX509_VERIFY_PARAM_get_hostflags()\fR function was added in OpenSSL 1.1.0i.
+.PP
+The function \fBX509_VERIFY_PARAM_add0_policy()\fR was historically documented as
+enabling policy checking however the implementation has never done this.
+The documentation was changed to align with the implementation.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2009\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2009\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
