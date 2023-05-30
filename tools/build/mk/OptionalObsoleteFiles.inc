@@ -5639,6 +5639,11 @@ OLD_FILES+=var/yp/Makefile.dist
 OLD_DIRS+=var/yp
 .endif
 
+.if ${MK_NETLINK} == no
+OLD_FILES+=usr.bin/genl
+OLD_FILES+=usr/share/man/man1/genl.1.gz
+.endif
+
 .if ${MK_NLS} == no
 OLD_DIRS+=usr/share/nls/
 OLD_DIRS+=usr/share/nls/C

@@ -235,6 +235,7 @@ SUBDIR.${MK_MAIL}+=	msgs
 SUBDIR.${MK_MAKE}+=	bmake
 SUBDIR.${MK_MAN_UTILS}+=	man
 SUBDIR.${MK_NETCAT}+=	nc
+SUBDIR.${MK_NETLINK}+=	genl
 SUBDIR.${MK_NIS}+=	ypcat
 SUBDIR.${MK_NIS}+=	ypmatch
 SUBDIR.${MK_NIS}+=	ypwhich
