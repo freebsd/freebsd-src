@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from sha512-armv8.pl. */
 // Copyright 2014-2020 The OpenSSL Project Authors. All Rights Reserved.
 //
 // Licensed under the Apache License 2.0 (the "License").  You may not use

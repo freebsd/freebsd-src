@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from armv8-mont.pl. */
 #ifndef	__KERNEL__
 # include "arm_arch.h"
 

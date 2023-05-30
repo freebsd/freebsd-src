@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from aesni-gcm-x86_64.pl. */
 .text	
 
 .type	_aesni_ctr32_ghash_6x,@function

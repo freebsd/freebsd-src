@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from x25519-x86_64.pl. */
 .text	
 
 .globl	x25519_fe51_mul

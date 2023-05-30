@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from arm64cpuid.pl. */
 #include "arm_arch.h"
 
 .text

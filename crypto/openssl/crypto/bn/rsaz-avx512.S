@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from rsaz-avx512.pl. */
 
 .globl	ossl_rsaz_avx512ifma_eligible
 .type	ossl_rsaz_avx512ifma_eligible,@function

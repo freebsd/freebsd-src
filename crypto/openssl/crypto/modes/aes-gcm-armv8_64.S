@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from aes-gcm-armv8_64.pl. */
 #include "arm_arch.h"
 
 #if __ARM_MAX_ARCH__>=8

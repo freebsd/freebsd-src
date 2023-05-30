@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from sha256-mb-x86_64.pl. */
 .text	
 
 

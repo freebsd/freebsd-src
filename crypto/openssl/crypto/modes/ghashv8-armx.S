@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from ghashv8-armx.pl. */
 #include "arm_arch.h"
 
 #if __ARM_MAX_ARCH__>=7

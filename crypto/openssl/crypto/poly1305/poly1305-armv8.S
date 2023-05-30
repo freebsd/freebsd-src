@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from poly1305-armv8.pl. */
 #include "arm_arch.h"
 
 .text

@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+/* Do not modify. This file is auto-generated from keccak1600-x86_64.pl. */
 .text	
 
 .type	__KeccakF1600,@function
