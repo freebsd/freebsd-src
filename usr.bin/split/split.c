@@ -75,6 +75,7 @@ static regex_t	 rgx;
 static int	 pflag;
 static bool	 dflag;
 static long	 sufflen = 2;		/* File name suffix length. */
+static int	 autosfx = 1;		/* Whether to auto-extend the suffix length. */
 
 static void newfile(void);
 static void split1(void);
@@ -116,6 +117,7 @@ main(int argc, char **argv)
 			if ((sufflen = strtol(optarg, &ep, 10)) <= 0 || *ep)
 				errx(EX_USAGE,
 				    "%s: illegal suffix length", optarg);
+			autosfx = 0;
 			break;
 		case 'b':		/* Byte count. */
 			errno = 0;
@@ -365,6 +367,35 @@ newfile(void)
 		end = 'z';
 	}
 	pattlen = end - beg + 1;
+
+	/*
+	 * If '-a' is not specified, then we automatically expand the
+	 * suffix length to accomodate splitting all input.  We do this
+	 * by moving the suffix pointer (fpnt) forward and incrementing
+	 * sufflen by one, thereby yielding an additional two characters
+	 * and allowing all output files to sort such that 'cat *' yields
+	 * the input in order.  I.e., the order is '... xyy xyz xzaaa
+	 * xzaab ... xzyzy, xzyzz, xzzaaaa, xzzaaab' and so on.
+	 */
+	if (!dflag && autosfx && (fpnt[0] == 'y') &&
+			strspn(fpnt+1, "z") == strlen(fpnt+1)) {
+		fpnt = fname + strlen(fname) - sufflen;
+		fpnt[sufflen + 2] = '\0';
+		fpnt[0] = end;
+		fpnt[1] = beg;
+
+		/*  Basename | Suffix
+		 *  before:
+		 *  x        | yz
+		 *  after:
+		 *  xz       | a.. */
+		fpnt++;
+		sufflen++;
+
+		/* Reset so we start back at all 'a's in our extended suffix. */
+		tfnum = 0;
+		fnum = 0;
+	}
 
 	/* maxfiles = pattlen^sufflen, but don't use libm. */
 	for (maxfiles = 1, i = 0; i < sufflen; i++)
