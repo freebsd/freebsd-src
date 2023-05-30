@@ -12,10 +12,7 @@ CFLAGS+=	-DPLATFORM_CONFIG_H=\"${.CURDIR}/config_freebsd.h\"
 CFLAGS+=	-DWITH_OPENSSL
 CFLAGS+=	-DOPENSSL_API_COMPAT=0x10100000L
 LIBADD+=	crypto
-#XXX for OpenSSL 3 with GCC12
-.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 120100
-CFLAGS.archive_hmac.c+=	-Wno-error=discarded-qualifiers
-.endif
+CFLAGS.archive_hmac.c+=	-Wno-error=cast-qual
 .else
 LIBADD+=	md
 .endif
