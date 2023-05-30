@@ -61,8 +61,8 @@
  *
  * The patch version is incremented for every bug fix.
  */
-#define	PMC_VERSION_MAJOR	0x09
-#define	PMC_VERSION_MINOR	0x04
+#define	PMC_VERSION_MAJOR	0x0A
+#define	PMC_VERSION_MINOR	0x00
 #define	PMC_VERSION_PATCH	0x0000
 
 #define	PMC_VERSION		(PMC_VERSION_MAJOR << 24 |		\
