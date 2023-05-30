@@ -459,10 +459,11 @@ pmcstat_print_log(void)
 			    ev.pl_u.pl_pc.pl_pcomm);
 			break;
 		case PMCLOG_TYPE_PROCEXEC:
-			PMCSTAT_PRINT_ENTRY("exec","0x%x %d %p \"%s\"",
+			PMCSTAT_PRINT_ENTRY("exec","0x%x %d %p %p \"%s\"",
 			    ev.pl_u.pl_x.pl_pmcid,
 			    ev.pl_u.pl_x.pl_pid,
-			    (void *) ev.pl_u.pl_x.pl_entryaddr,
+			    (void *)ev.pl_u.pl_x.pl_baseaddr,
+			    (void *)ev.pl_u.pl_x.pl_dynaddr,
 			    ev.pl_u.pl_x.pl_pathname);
 			break;
 		case PMCLOG_TYPE_PROCEXIT:

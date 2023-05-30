@@ -132,7 +132,8 @@ struct pmclog_ev_proccreate {
 struct pmclog_ev_procexec {
 	pid_t		pl_pid;
 	pmc_id_t	pl_pmcid;
-	uintfptr_t	pl_entryaddr;
+	uintptr_t	pl_baseaddr;
+	uintptr_t	pl_dynaddr;
 	char		pl_pathname[PATH_MAX];
 };
 

@@ -61,11 +61,11 @@ __FBSDID("$FreeBSD$");
 
 void
 pmcstat_process_aout_exec(struct pmcstat_process *pp,
-    struct pmcstat_image *image, uintfptr_t entryaddr)
+    struct pmcstat_image *image, uintptr_t baseaddr)
 {
 	(void) pp;
 	(void) image;
-	(void) entryaddr;
+	(void) baseaddr;
 	/* TODO Implement a.out handling */
 }
 
@@ -75,18 +75,21 @@ pmcstat_process_aout_exec(struct pmcstat_process *pp,
 
 void
 pmcstat_process_elf_exec(struct pmcstat_process *pp,
-    struct pmcstat_image *image, uintfptr_t entryaddr,
+    struct pmcstat_image *image, uintptr_t baseaddr, uintptr_t dynaddr,
     struct pmcstat_args *args, struct pmc_plugins *plugins,
     struct pmcstat_stats *pmcstat_stats)
 {
-	uintmax_t libstart;
 	struct pmcstat_image *rtldimage;
 
 	assert(image->pi_type == PMCSTAT_IMAGE_ELF32 ||
 	    image->pi_type == PMCSTAT_IMAGE_ELF64);
 
-	/* Create a map entry for the base executable. */
-	pmcstat_image_link(pp, image, image->pi_vaddr);
+	/*
+	 * The exact address where the executable gets mapped in will vary for
+	 * PIEs.  The dynamic address recorded at process exec time corresponds
+	 * to the address where the executable's file object had been mapped to.
+	 */
+	pmcstat_image_link(pp, image, image->pi_vaddr + dynaddr);
 
 	/*
 	 * For dynamically linked executables we need to determine
@@ -105,16 +108,14 @@ pmcstat_process_elf_exec(struct pmcstat_process *pp,
 		 * [  TEXT DATA BSS HEAP -->*RTLD  SHLIBS   <--STACK]
 		 * ^					            ^
 		 * 0				   VM_MAXUSER_ADDRESS
-
 		 *
 		 * The exact address where the loader gets mapped in
 		 * will vary according to the size of the executable
 		 * and the limits on the size of the process'es data
-		 * segment at the time of exec().  The entry address
+		 * segment at the time of exec().  The base address
 		 * recorded at process exec time corresponds to the
-		 * 'start' address inside the dynamic linker.  From
-		 * this we can figure out the address where the
-		 * runtime loader's file object had been mapped to.
+		 * address where the runtime loader's file object had
+		 * been mapped to.
 		 */
 		rtldimage = pmcstat_image_from_path(image->pi_dynlinkerpath,
 		    0, args, plugins);
@@ -135,8 +136,7 @@ pmcstat_process_elf_exec(struct pmcstat_process *pp,
 			return;
 		}
 
-		libstart = entryaddr - rtldimage->pi_entry;
-		pmcstat_image_link(pp, rtldimage, libstart);
+		pmcstat_image_link(pp, rtldimage, baseaddr);
 	}
 }
 
@@ -146,7 +146,7 @@ pmcstat_process_elf_exec(struct pmcstat_process *pp,
 
 void
 pmcstat_process_exec(struct pmcstat_process *pp,
-    pmcstat_interned_string path, uintfptr_t entryaddr,
+    pmcstat_interned_string path, uintptr_t baseaddr, uintptr_t dynaddr,
     struct pmcstat_args *args, struct pmc_plugins *plugins,
     struct pmcstat_stats *pmcstat_stats)
 {
@@ -167,13 +167,13 @@ pmcstat_process_exec(struct pmcstat_process *pp,
 	case PMCSTAT_IMAGE_ELF32:
 	case PMCSTAT_IMAGE_ELF64:
 		pmcstat_stats->ps_exec_elf++;
-		pmcstat_process_elf_exec(pp, image, entryaddr,
+		pmcstat_process_elf_exec(pp, image, baseaddr, dynaddr,
 		    args, plugins, pmcstat_stats);
 		break;
 
 	case PMCSTAT_IMAGE_AOUT:
 		pmcstat_stats->ps_exec_aout++;
-		pmcstat_process_aout_exec(pp, image, entryaddr);
+		pmcstat_process_aout_exec(pp, image, baseaddr);
 		break;
 
 	case PMCSTAT_IMAGE_INDETERMINABLE:

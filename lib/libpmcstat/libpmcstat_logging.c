@@ -353,8 +353,8 @@ pmcstat_analyze_log(struct pmcstat_args *args,
 				ev.pl_u.pl_x.pl_pathname);
 			assert(image_path != NULL);
 			pmcstat_process_exec(pp, image_path,
-			    ev.pl_u.pl_x.pl_entryaddr, args,
-			    plugins, pmcstat_stats);
+			    ev.pl_u.pl_x.pl_baseaddr, ev.pl_u.pl_x.pl_dynaddr,
+			    args, plugins, pmcstat_stats);
 			break;
 
 		case PMCLOG_TYPE_PROCEXIT:

@@ -202,7 +202,10 @@ struct pmclog_procexec {
 	PMCLOG_ENTRY_HEADER
 	uint32_t		pl_pid;
 	uint32_t		pl_pmcid;
-	uintfptr_t		pl_start;	/* keep 8 byte aligned */
+	/* keep 8 byte aligned */
+	uintptr_t		pl_base;	/* AT_BASE */
+	/* keep 8 byte aligned */
+	uintptr_t		pl_dyn;		/* PIE load base */
 	char			pl_pathname[PATH_MAX];
 } __packed;
 
@@ -314,7 +317,7 @@ void	pmclog_process_pmcdetach(struct pmc *_pm, pid_t _pid);
 void	pmclog_process_proccsw(struct pmc *_pm, struct pmc_process *_pp,
     pmc_value_t _v, struct thread *);
 void	pmclog_process_procexec(struct pmc_owner *_po, pmc_id_t _pmid, pid_t _pid,
-    uintfptr_t _startaddr, char *_path);
+    uintfptr_t _baseaddr, uintptr_t _dynaddr, char *_path);
 void	pmclog_process_procexit(struct pmc *_pm, struct pmc_process *_pp);
 void	pmclog_process_procfork(struct pmc_owner *_po, pid_t _oldpid, pid_t _newpid);
 void	pmclog_process_sysexit(struct pmc_owner *_po, pid_t _pid);
