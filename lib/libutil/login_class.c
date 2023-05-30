@@ -622,6 +622,8 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
      */
     if (geteuid() == uid && (lc = login_getuserclass(pwd)) != NULL) {
 	setlogincontext(lc, pwd, flags);
+	if (flags & LOGIN_SETPRIORITY)
+	    setclasspriority(lc, pwd);
 	login_close(lc);
     }
 
