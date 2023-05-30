@@ -1195,6 +1195,7 @@ pmc_configure_logfile(int fd)
 {
 	struct pmc_op_configurelog cla;
 
+	cla.pm_flags = 0;
 	cla.pm_logfd = fd;
 	if (PMC_CALL(CONFIGURELOG, &cla) < 0)
 		return (-1);

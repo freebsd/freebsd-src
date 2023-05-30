@@ -598,6 +598,12 @@ An invalid CPU number was passed in for a
 .Dv PMC_OP_GETPMCINFO
 operation.
 .It Bq Er EINVAL
+The
+.Ar pm_flags
+argument to a
+.Dv PMC_OP_CONFIGURELOG
+request contained unknown flags.
+.It Bq Er EINVAL
 A
 .Dv PMC_OP_CONFIGURELOG
 request to de-configure a log file was issued without a log file

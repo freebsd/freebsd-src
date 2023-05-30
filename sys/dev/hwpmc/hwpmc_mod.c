@@ -3438,6 +3438,12 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 			break;
 		}
 
+		/* No flags currently implemented */
+		if (cl.pm_flags != 0) {
+			error = EINVAL;
+			break;
+		}
+
 		/* mark this process as owning a log file */
 		p = td->td_proc;
 		if ((po = pmc_find_owner_descriptor(p)) == NULL)
