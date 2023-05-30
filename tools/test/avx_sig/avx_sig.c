@@ -48,14 +48,20 @@
 #define	nitems(x)	(sizeof((x)) / sizeof((x)[0]))
 #endif
 
+#if defined(__amd64__)
 #define	SIMDRNAM	"xmm"
+#define	NREGS		16
+#elif defined(__aarch64__)
+#define	SIMDRNAM	"q"
+#define	NREGS		32
+#endif
 
 struct simdreg {
 	uint8_t simd_bytes[16];
 };
 
 struct simd {
-	struct simdreg simdreg[16];
+	struct simdreg simdreg[NREGS];
 };
 
 void cpu_to_simd(struct simd *simd);
