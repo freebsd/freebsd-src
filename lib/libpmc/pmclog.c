@@ -393,7 +393,8 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 		PMCLOG_GET_PATHLEN(pathlen,evlen,pmclog_procexec);
 		PMCLOG_READ32(le,ev->pl_u.pl_x.pl_pid);
 		PMCLOG_READ32(le,ev->pl_u.pl_x.pl_pmcid);
-		PMCLOG_READADDR(le,ev->pl_u.pl_x.pl_entryaddr);
+		PMCLOG_READADDR(le,ev->pl_u.pl_x.pl_baseaddr);
+		PMCLOG_READADDR(le,ev->pl_u.pl_x.pl_dynaddr);
 		PMCLOG_READSTRING(le,ev->pl_u.pl_x.pl_pathname,pathlen);
 		break;
 	case PMCLOG_TYPE_PROCEXIT:

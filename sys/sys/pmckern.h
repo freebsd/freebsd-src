@@ -76,7 +76,8 @@ typedef enum ring_type {
 
 struct pmckern_procexec {
 	int		pm_credentialschanged;
-	uintfptr_t	pm_entryaddr;
+	uintptr_t	pm_baseaddr;
+	uintptr_t	pm_dynaddr;
 };
 
 struct pmckern_map_in {

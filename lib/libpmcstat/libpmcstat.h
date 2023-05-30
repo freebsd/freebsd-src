@@ -336,7 +336,7 @@ struct pmcstat_image *
 int pmcstat_string_lookup_hash(pmcstat_interned_string _is);
 
 void pmcstat_process_elf_exec(struct pmcstat_process *_pp,
-    struct pmcstat_image *_image, uintfptr_t _entryaddr,
+    struct pmcstat_image *_image, uintptr_t _baseaddr, uintptr_t _dynaddr,
     struct pmcstat_args *args, struct pmc_plugins *plugins,
     struct pmcstat_stats *pmcstat_stats);
 
@@ -344,9 +344,9 @@ void pmcstat_image_link(struct pmcstat_process *_pp,
     struct pmcstat_image *_i, uintfptr_t _lpc);
 
 void pmcstat_process_aout_exec(struct pmcstat_process *_pp,
-    struct pmcstat_image *_image, uintfptr_t _entryaddr);
+    struct pmcstat_image *_image, uintptr_t _baseaddr);
 void pmcstat_process_exec(struct pmcstat_process *_pp,
-    pmcstat_interned_string _path, uintfptr_t _entryaddr,
+    pmcstat_interned_string _path, uintptr_t _baseaddr, uintptr_t _dynaddr,
     struct pmcstat_args *args, struct pmc_plugins *plugins,
     struct pmcstat_stats *pmcstat_stats);
 void pmcstat_image_determine_type(struct pmcstat_image *_image, struct pmcstat_args *args);

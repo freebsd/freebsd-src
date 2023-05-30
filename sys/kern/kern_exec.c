@@ -919,7 +919,8 @@ interpret:
 	if (PMC_SYSTEM_SAMPLING_ACTIVE() || PMC_PROC_IS_USING_PMCS(p)) {
 		VOP_UNLOCK(imgp->vp);
 		pe.pm_credentialschanged = credential_changing;
-		pe.pm_entryaddr = imgp->entry_addr;
+		pe.pm_baseaddr = imgp->reloc_base;
+		pe.pm_dynaddr = imgp->et_dyn_addr;
 
 		PMC_CALL_HOOK_X(td, PMC_FN_PROCESS_EXEC, (void *) &pe);
 		vn_lock(imgp->vp, LK_SHARED | LK_RETRY);

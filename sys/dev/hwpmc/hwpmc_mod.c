@@ -2126,7 +2126,8 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 		CK_LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
 		    if (po->po_flags & PMC_PO_OWNS_LOGFILE)
 			    pmclog_process_procexec(po, PMC_ID_INVALID,
-				p->p_pid, pk->pm_entryaddr, fullpath);
+				p->p_pid, pk->pm_baseaddr, pk->pm_dynaddr,
+				fullpath);
 		PMC_EPOCH_EXIT();
 
 		PROC_LOCK(p);
@@ -2170,8 +2171,8 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 				if (po->po_sscount == 0 &&
 				    po->po_flags & PMC_PO_OWNS_LOGFILE)
 					pmclog_process_procexec(po, pm->pm_id,
-					    p->p_pid, pk->pm_entryaddr,
-					    fullpath);
+					    p->p_pid, pk->pm_baseaddr,
+					    pk->pm_dynaddr, fullpath);
 			}
 
 		if (freepath)
