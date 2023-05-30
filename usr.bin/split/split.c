@@ -67,6 +67,7 @@ static const char sccsid[] = "@(#)split.c	8.2 (Berkeley) 4/16/94";
 
 static off_t	 bytecnt;		/* Byte count to split on. */
 static off_t	 chunks = 0;		/* Chunks count to split into. */
+static bool      clobber = true;        /* Whether to overwrite existing output files. */
 static long	 numlines;		/* Line count to split on. */
 static int	 file_open;		/* If a file open. */
 static int	 ifd = -1, ofd = -1;	/* Input/output file descriptors. */
@@ -93,7 +94,7 @@ main(int argc, char **argv)
 	setlocale(LC_ALL, "");
 
 	dflag = false;
-	while ((ch = getopt(argc, argv, "0123456789a:b:dl:n:p:")) != -1)
+	while ((ch = getopt(argc, argv, "0123456789a:b:cdl:n:p:")) != -1)
 		switch (ch) {
 		case '0': case '1': case '2': case '3': case '4':
 		case '5': case '6': case '7': case '8': case '9':
@@ -124,6 +125,9 @@ main(int argc, char **argv)
 			error = expand_number(optarg, &bytecnt);
 			if (error == -1)
 				errx(EX_USAGE, "%s: offset too large", optarg);
+			break;
+		case 'c':               /* Continue, don't overwrite output files. */
+			clobber = false;
 			break;
 		case 'd':		/* Decimal suffix */
 			dflag = true;
@@ -347,6 +351,10 @@ newfile(void)
 	static char *fpnt;
 	char beg, end;
 	int pattlen;
+	int flags = O_WRONLY | O_CREAT | O_TRUNC;
+
+	if (!clobber)
+		flags |= O_EXCL;
 
 	if (ofd == -1) {
 		if (fname[0] == '\0') {
@@ -355,9 +363,10 @@ newfile(void)
 		} else {
 			fpnt = fname + strlen(fname);
 		}
-		ofd = fileno(stdout);
-	}
+	} else if (close(ofd) != 0)
+		err(1, "%s", fname);
 
+	again:
 	if (dflag) {
 		beg = '0';
 		end = '9';
@@ -417,8 +426,11 @@ newfile(void)
 	fpnt[sufflen] = '\0';
 
 	++fnum;
-	if (!freopen(fname, "w", stdout))
+	if ((ofd = open(fname, flags, DEFFILEMODE)) < 0) {
+		if (!clobber && errno == EEXIST)
+			goto again;
 		err(EX_IOERR, "%s", fname);
+	}
 	file_open = 1;
 }
 
@@ -426,9 +438,9 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-"usage: split [-d] [-l line_count] [-a suffix_length] [file [prefix]]\n"
-"       split [-d] -b byte_count[K|k|M|m|G|g] [-a suffix_length] [file [prefix]]\n"
-"       split [-d] -n chunk_count [-a suffix_length] [file [prefix]]\n"
-"       split [-d] -p pattern [-a suffix_length] [file [prefix]]\n");
+"usage: split [-cd] [-l line_count] [-a suffix_length] [file [prefix]]\n"
+"       split [-cd] -b byte_count[K|k|M|m|G|g] [-a suffix_length] [file [prefix]]\n"
+"       split [-cd] -n chunk_count [-a suffix_length] [file [prefix]]\n"
+"       split [-cd] -p pattern [-a suffix_length] [file [prefix]]\n");
 	exit(EX_USAGE);
 }
