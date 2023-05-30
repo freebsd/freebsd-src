@@ -379,6 +379,22 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 
 	if (hash_node == NULL) {
 		return;
+	} else if (siftr_pkts_per_log > 1) {
+		/*
+		 * Taking the remainder of the counter divided
+		 * by the current value of siftr_pkts_per_log
+		 * and storing that in counter provides a neat
+		 * way to modulate the frequency of log
+		 * messages being written to the log file.
+		 */
+		hash_node->counter = (hash_node->counter + 1) %
+				     siftr_pkts_per_log;
+		/*
+		 * If we have not seen enough packets since the last time
+		 * we wrote a log message for this connection, return.
+		 */
+		if (hash_node->counter > 0)
+			return;
 	}
 
 	log_buf = alq_getn(siftr_alq, MAX_LOG_MSG_LEN, ALQ_WAITOK);
