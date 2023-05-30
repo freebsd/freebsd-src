@@ -451,8 +451,12 @@ kmem_malloc_domain(int domain, vm_size_t size, int flags)
 void *
 kmem_malloc(vm_size_t size, int flags)
 {
+	void * p;
 
-	return (kmem_malloc_domainset(DOMAINSET_RR(), size, flags));
+	TSENTER();
+	p = kmem_malloc_domainset(DOMAINSET_RR(), size, flags);
+	TSEXIT();
+	return (p);
 }
 
 void *
@@ -731,17 +735,21 @@ kva_import(void *unused, vmem_size_t size, int flags, vmem_addr_t *addrp)
 	vm_offset_t addr;
 	int result;
 
+	TSENTER();
 	KASSERT((size % KVA_QUANTUM) == 0,
 	    ("kva_import: Size %jd is not a multiple of %d",
 	    (intmax_t)size, (int)KVA_QUANTUM));
 	addr = vm_map_min(kernel_map);
 	result = vm_map_find(kernel_map, NULL, 0, &addr, size, 0,
 	    VMFS_SUPER_SPACE, VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
-	if (result != KERN_SUCCESS)
+	if (result != KERN_SUCCESS) {
+		TSEXIT();
                 return (ENOMEM);
+	}
 
 	*addrp = addr;
 
+	TSEXIT();
 	return (0);
 }
 

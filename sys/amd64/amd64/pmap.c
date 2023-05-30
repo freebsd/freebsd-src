@@ -5049,6 +5049,7 @@ pmap_growkernel(vm_offset_t addr)
 	pdp_entry_t *pdpe;
 	vm_offset_t end;
 
+	TSENTER();
 	mtx_assert(&kernel_map->system_mtx, MA_OWNED);
 
 	/*
@@ -5075,8 +5076,10 @@ pmap_growkernel(vm_offset_t addr)
 	 */
 	if (KERNBASE < addr) {
 		end = KERNBASE + nkpt * NBPDR;
-		if (end == 0)
+		if (end == 0) {
+			TSEXIT();
 			return;
+		}
 	} else {
 		end = kernel_vm_end;
 	}
@@ -5089,6 +5092,7 @@ pmap_growkernel(vm_offset_t addr)
 		 * The grown region is already mapped, so there is
 		 * nothing to do.
 		 */
+		TSEXIT();
 		return;
 	}
 
@@ -5136,6 +5140,7 @@ pmap_growkernel(vm_offset_t addr)
 		kernel_vm_end = end;
 	else
 		nkpt = howmany(end - KERNBASE, NBPDR);
+	TSEXIT();
 }
 
 /***************************************************

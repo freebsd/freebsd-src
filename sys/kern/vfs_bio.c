@@ -1201,6 +1201,7 @@ bufinit(void)
 	struct buf *bp;
 	int i;
 
+	TSENTER();
 	KASSERT(maxbcachebuf >= MAXBSIZE,
 	    ("maxbcachebuf (%d) must be >= MAXBSIZE (%d)\n", maxbcachebuf,
 	    MAXBSIZE));
@@ -1336,6 +1337,7 @@ bufinit(void)
 	buffreekvacnt = counter_u64_alloc(M_WAITOK);
 	bufdefragcnt = counter_u64_alloc(M_WAITOK);
 	bufkvaspace = counter_u64_alloc(M_WAITOK);
+	TSEXIT();
 }
 
 #ifdef INVARIANTS
