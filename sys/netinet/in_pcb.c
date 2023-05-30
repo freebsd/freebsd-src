@@ -2254,8 +2254,10 @@ in_pcblookup_hash_wild_smr(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 			continue;
 
 		if (__predict_true(inp_smr_lock(inp, lockflags))) {
-			if (__predict_true(in_pcblookup_wild_match(inp, laddr,
-			    lport) != INPLOOKUP_MATCH_NONE))
+			match = in_pcblookup_wild_match(inp, laddr, lport);
+			if (match != INPLOOKUP_MATCH_NONE &&
+			    prison_check_ip4_locked(inp->inp_cred->cr_prison,
+			    &laddr) == 0)
 				return (inp);
 			inp_unlock(inp, lockflags);
 		}

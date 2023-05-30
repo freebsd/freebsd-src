@@ -1021,8 +1021,10 @@ in6_pcblookup_hash_wild_smr(struct inpcbinfo *pcbinfo,
 			continue;
 
 		if (__predict_true(inp_smr_lock(inp, lockflags))) {
-			if (__predict_true(in6_pcblookup_wild_match(inp, laddr,
-			    lport) != INPLOOKUP_MATCH_NONE))
+			match = in6_pcblookup_wild_match(inp, laddr, lport);
+			if (match != INPLOOKUP_MATCH_NONE &&
+			    prison_check_ip6_locked(inp->inp_cred->cr_prison,
+			    laddr) == 0)
 				return (inp);
 			inp_unlock(inp, lockflags);
 		}
