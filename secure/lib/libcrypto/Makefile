@@ -109,11 +109,11 @@ SRCS+=	armv4-gf2m.S armv4-mont.S bn_asm.c
 .elif defined(ASM_i386)
 SRCS+=	bn-586.S co-586.S x86-gf2m.S x86-mont.S
 .elif defined(ASM_powerpc)
-SRCS+=	ppc.S ppc-mont.S
+SRCS+=	bn_ppc.c bn-ppc.S ppc-mont.S
 .elif defined(ASM_powerpc64)
-SRCS+=	ppc.S ppc-mont.S
+SRCS+=	bn_ppc.c bn-ppc.S ppc-mont.S
 .elif defined(ASM_powerpc64le)
-SRCS+=	ppc.S ppc-mont.S
+SRCS+=	bn_ppc.c bn-ppc.S ppc-mont.S
 .else
 SRCS+=	bn_asm.c
 .endif
@@ -150,11 +150,11 @@ SRCS+=	chacha-armv4.S
 .elif defined(ASM_i386)
 SRCS+=	chacha-x86.S
 .elif defined(ASM_powerpc)
-SRCS+=	chacha-ppc.S
+SRCS+=	chacha_ppc.c chacha-ppc.S
 .elif defined(ASM_powerpc64)
-SRCS+=	chacha-ppc.S
+SRCS+=	chacha_ppc.c chacha-ppc.S
 .elif defined(ASM_powerpc64le)
-SRCS+=	chacha-ppc.S
+SRCS+=	chacha_ppc.c chacha-ppc.S
 .else
 SRCS+=	chacha_enc.c
 .endif
@@ -227,9 +227,9 @@ SRCS+=	ecp_nistz256-armv4.S ecp_nistz256.c
 .elif defined(ASM_i386)
 SRCS+=	ecp_nistz256-x86.S ecp_nistz256.c
 .elif defined(ASM_powerpc64)
-SRCS+=	ecp_nistz256-ppc64.S ecp_nistz256.c x25519-ppc64.S
+SRCS+=	ecp_nistp521-ppc64.S ecp_nistz256-ppc64.S ecp_nistz256.c ecp_ppc.c x25519-ppc64.S
 .elif defined(ASM_powerpc64le)
-SRCS+=	ecp_nistz256-ppc64.S ecp_nistz256.c x25519-ppc64.S
+SRCS+=	ecp_nistp521-ppc64.S ecp_nistz256-ppc64.S ecp_nistz256.c ecp_ppc.c x25519-ppc64.S
 .endif
 
 # encode_decode
@@ -339,11 +339,11 @@ SRCS+=	poly1305-armv4.S
 .elif defined(ASM_i386)
 SRCS+=	poly1305-x86.S
 .elif defined(ASM_powerpc)
-SRCS+=	poly1305-ppc.S poly1305-ppcfp.S
+SRCS+=	poly1305_ppc.c poly1305-ppc.S poly1305-ppcfp.S
 .elif defined(ASM_powerpc64)
-SRCS+=	poly1305-ppc.S poly1305-ppcfp.S
+SRCS+=	poly1305_ppc.c poly1305-ppc.S poly1305-ppcfp.S
 .elif defined(ASM_powerpc64le)
-SRCS+=	poly1305-ppc.S poly1305-ppcfp.S
+SRCS+=	poly1305_ppc.c poly1305-ppc.S poly1305-ppcfp.S
 .endif
 
 # property
@@ -495,11 +495,11 @@ SRCS+=	keccak1600-armv4.S sha1-armv4-large.S sha256-armv4.S sha512-armv4.S
 .elif defined(ASM_i386)
 SRCS+=	keccak1600.c sha1-586.S sha256-586.S sha512-586.S
 .elif defined(ASM_powerpc)
-SRCS+=	keccak1600.c sha1-ppc.S sha256-ppc.S sha512-ppc.S sha256p8-ppc.S sha512p8-ppc.S
+SRCS+=	keccak1600.c sha_ppc.c sha1-ppc.S sha256-ppc.S sha512-ppc.S sha256p8-ppc.S sha512p8-ppc.S
 .elif defined(ASM_powerpc64)
-SRCS+=	keccak1600-ppc64.S sha1-ppc.S sha256-ppc.S sha512-ppc.S sha256p8-ppc.S sha512p8-ppc.S
+SRCS+=	keccak1600-ppc64.S sha_ppc.c sha1-ppc.S sha256-ppc.S sha512-ppc.S sha256p8-ppc.S sha512p8-ppc.S
 .elif defined(ASM_powerpc64le)
-SRCS+=	keccak1600-ppc64.S sha1-ppc.S sha256-ppc.S sha512-ppc.S sha256p8-ppc.S sha512p8-ppc.S
+SRCS+=	keccak1600-ppc64.S sha_ppc.c sha1-ppc.S sha256-ppc.S sha512-ppc.S sha256p8-ppc.S sha512p8-ppc.S
 .else
 SRCS+=	keccak1600.c
 .endif
