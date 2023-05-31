@@ -565,8 +565,10 @@ main(int argc, char *argv[])
 #ifdef HAVE_CRYPTO
 	if (cipher != KERNELDUMP_ENC_NONE && pubkeyfile == NULL) {
 		errx(EX_USAGE, "-C option requires a public key file.");
+# if OPENSSL_API_COMPAT < 0x10100000L
 	} else if (pubkeyfile != NULL) {
 		ERR_load_crypto_strings();
+# endif
 	}
 #else
 	if (pubkeyfile != NULL)
