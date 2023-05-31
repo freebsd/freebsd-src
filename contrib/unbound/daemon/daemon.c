@@ -914,11 +914,15 @@ daemon_delete(struct daemon* daemon)
 #    endif
 #  endif
 #  ifdef HAVE_OPENSSL_CONFIG
+#   ifdef HAVE_EVP_CLEANUP
 	EVP_cleanup();
+#   endif
 #  if (OPENSSL_VERSION_NUMBER < 0x10100000) && !defined(OPENSSL_NO_ENGINE) && defined(HAVE_ENGINE_CLEANUP)
 	ENGINE_cleanup();
 #  endif
+#  if OPENSSL_API_COMPAT < 0x10100000L
 	CONF_modules_free();
+#  endif
 #  endif
 #  ifdef HAVE_CRYPTO_CLEANUP_ALL_EX_DATA
 	CRYPTO_cleanup_all_ex_data(); /* safe, no more threads right now */

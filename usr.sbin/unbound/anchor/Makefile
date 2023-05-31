@@ -11,6 +11,7 @@ PROG=	local-unbound-anchor
 SRCS=	unbound-anchor.c
 CFLAGS+=	-I${UNBOUNDDIR} -I${LDNSDIR} -I${EXPATDIR}/lib
 CFLAGS+=	-I${.CURDIR:H} -I${.CURDIR}
+CFLAGS+=	-DOPENSSL_API_COMPAT=0x10100000L
 LIBADD=	unbound bsdxml ssl crypto pthread
 MAN=	local-unbound-anchor.8
 

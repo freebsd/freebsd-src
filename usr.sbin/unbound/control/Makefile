@@ -10,6 +10,7 @@ PROG=	local-unbound-control
 SRCS=	ub_event.c unbound-control.c worker_cb.c
 CFLAGS+=	-I${UNBOUNDDIR} -I${LDNSDIR}
 CFLAGS+=	-I${.CURDIR:H} -I${.CURDIR}
+CFLAGS+=	-DOPENSSL_API_COMPAT=0x10100000L
 LIBADD=	unbound crypto ssl pthread
 MAN=	local-unbound-control.8
 
