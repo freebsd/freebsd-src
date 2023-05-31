@@ -685,8 +685,8 @@ struct nl_parsed_ifa {
 	uint32_t		ifa_flags;
 	uint32_t		ifaf_vhid;
 	uint32_t		ifaf_flags;
-	struct sockaddr		*ifa_addr;
-	struct sockaddr		*ifa_dst;
+	struct sockaddr		*ifa_address;
+	struct sockaddr		*ifa_local;
 	struct sockaddr		*ifa_broadcast;
 	struct ifa_cacheinfo	*ifa_cacheinfo;
 	struct sockaddr		*f_ifa_addr;
@@ -723,8 +723,8 @@ static const struct nlattr_parser nla_p_ifa_fbsd[] = {
 NL_DECLARE_ATTR_PARSER(ifa_fbsd_parser, nla_p_ifa_fbsd);
 
 static const struct nlattr_parser nla_p_ifa[] = {
-	{ .type = IFA_ADDRESS, .off = _OUT(ifa_addr), .cb = nlattr_get_ip },
-	{ .type = IFA_LOCAL, .off = _OUT(ifa_dst), .cb = nlattr_get_ip },
+	{ .type = IFA_ADDRESS, .off = _OUT(ifa_address), .cb = nlattr_get_ip },
+	{ .type = IFA_LOCAL, .off = _OUT(ifa_local), .cb = nlattr_get_ip },
 	{ .type = IFA_BROADCAST, .off = _OUT(ifa_broadcast), .cb = nlattr_get_ip },
 	{ .type = IFA_CACHEINFO, .off = _OUT(ifa_cacheinfo), .cb = nlattr_get_cinfo },
 	{ .type = IFA_FLAGS, .off = _OUT(ifa_flags), .cb = nlattr_get_uint32 },
@@ -738,39 +738,15 @@ post_p_ifa(void *_attrs, struct nl_pstate *npt)
 {
 	struct nl_parsed_ifa *attrs = (struct nl_parsed_ifa *)_attrs;
 
-	if (!check_sa_family(attrs->ifa_addr, attrs->ifa_family, "IFA_ADDRESS", npt))
+	if (!check_sa_family(attrs->ifa_address, attrs->ifa_family, "IFA_ADDRESS", npt))
 		return (false);
-	if (!check_sa_family(attrs->ifa_dst, attrs->ifa_family, "IFA_LOCAL", npt))
+	if (!check_sa_family(attrs->ifa_local, attrs->ifa_family, "IFA_LOCAL", npt))
 		return (false);
 	if (!check_sa_family(attrs->ifa_broadcast, attrs->ifa_family, "IFA_BROADADDR", npt))
 		return (false);
 
-	set_scope6(attrs->ifa_addr, attrs->ifa_index);
-	set_scope6(attrs->ifa_dst, attrs->ifa_index);
-
-	/*
-	 * Map the Netlink attributes to FreeBSD ifa layout.
-	 * If only IFA_ADDRESS or IFA_LOCAL is set OR
-	 * both are set to the same value => ifa is not broadcast
-	 * and the attribute value contains interface address.
-	 *
-	 * Otherwise (both IFA_ADDRESS and IFA_LOCAL are set and
-	 * different), IFA_LOCAL contains an interface address and
-	 * IFA_ADDRESS contains peer address.
-	 */
-	struct sockaddr *addr, *dst;
-
-	addr = attrs->ifa_addr;
-	if ((dst = attrs->ifa_dst) != NULL) {
-		if (addr != NULL && !sa_equal(addr, dst)) {
-			/* Ptp address */
-			attrs->ifa_addr = dst;
-			attrs->ifa_dst = addr;
-		} else {
-			attrs->ifa_addr = dst;
-			attrs->ifa_dst = NULL;
-		}
-	}
+	set_scope6(attrs->ifa_address, attrs->ifa_index);
+	set_scope6(attrs->ifa_local, attrs->ifa_index);
 
 	return (true);
 }
@@ -1098,6 +1074,7 @@ handle_newaddr_inet(struct nlmsghdr *hdr, struct nl_parsed_ifa *attrs,
 {
 	int plen = attrs->ifa_prefixlen;
 	int if_flags = if_getflags(ifp);
+	struct sockaddr_in *addr, *dst;
 
 	if (plen > 32) {
 		nlmsg_report_err_msg(npt, "invalid ifa_prefixlen");
@@ -1105,29 +1082,45 @@ handle_newaddr_inet(struct nlmsghdr *hdr, struct nl_parsed_ifa *attrs,
 	};
 
 	if (if_flags & IFF_POINTOPOINT) {
-		if (attrs->ifa_addr == NULL || attrs->ifa_dst == NULL) {
+		/*
+		 * Only P2P IFAs are allowed by the implementation.
+		 */
+		if (attrs->ifa_address == NULL || attrs->ifa_local == NULL) {
 			nlmsg_report_err_msg(npt, "Empty IFA_LOCAL/IFA_ADDRESS");
 			return (EINVAL);
 		}
+		addr = (struct sockaddr_in *)attrs->ifa_local;
+		dst = (struct sockaddr_in *)attrs->ifa_address;
 	} else {
-		if (attrs->ifa_addr == NULL) {
+		/*
+		 * Map the Netlink attributes to FreeBSD ifa layout.
+		 * If only IFA_ADDRESS or IFA_LOCAL is set OR
+		 * both are set to the same value => ifa is not p2p
+		 * and the attribute value contains interface address.
+		 *
+		 * Otherwise (both IFA_ADDRESS and IFA_LOCAL are set and
+		 * different), IFA_LOCAL contains an interface address and
+		 * IFA_ADDRESS contains peer address.
+		 */
+		addr = (struct sockaddr_in *)attrs->ifa_local;
+		if (addr == NULL)
+			addr = (struct sockaddr_in *)attrs->ifa_address;
+
+		if (addr == NULL) {
 			nlmsg_report_err_msg(npt, "Empty IFA_LOCAL/IFA_ADDRESS");
 			return (EINVAL);
 		}
-		attrs->ifa_dst = attrs->ifa_broadcast;
 
 		/* Generate broadcast address if not set */
-		if ((if_flags & IFF_BROADCAST) && attrs->ifa_dst == NULL) {
+		if ((if_flags & IFF_BROADCAST) && attrs->ifa_broadcast == NULL) {
 			uint32_t s_baddr;
 			struct sockaddr_in *sin_brd;
 
 			if (plen == 31)
 				s_baddr = INADDR_BROADCAST; /* RFC 3021 */
 			else {
-				struct sockaddr_in *addr;
 				uint32_t s_mask;
 
-				addr = (struct sockaddr_in *)attrs->ifa_addr;
 				s_mask = htonl(plen ? ~((1 << (32 - plen)) - 1) : 0);
 				s_baddr = addr->sin_addr.s_addr | ~s_mask;
 			}
@@ -1138,8 +1131,9 @@ handle_newaddr_inet(struct nlmsghdr *hdr, struct nl_parsed_ifa *attrs,
 			sin_brd->sin_family = AF_INET;
 			sin_brd->sin_len = sizeof(*sin_brd);
 			sin_brd->sin_addr.s_addr = s_baddr;
-			attrs->ifa_dst = (struct sockaddr *)sin_brd;
+			attrs->ifa_broadcast = (struct sockaddr *)sin_brd;
 		}
+		dst = (struct sockaddr_in *)attrs->ifa_broadcast;
 	}
 
 	struct sockaddr_in mask = {
@@ -1148,12 +1142,12 @@ handle_newaddr_inet(struct nlmsghdr *hdr, struct nl_parsed_ifa *attrs,
 		.sin_addr.s_addr = htonl(plen ? ~((1 << (32 - plen)) - 1) : 0),
 	};
 	struct in_aliasreq req = {
-		.ifra_addr = *((struct sockaddr_in *)attrs->ifa_addr),
+		.ifra_addr = *addr,
 		.ifra_mask = mask,
 		.ifra_vhid = attrs->ifaf_vhid,
 	};
-	if (attrs->ifa_dst != NULL)
-		req.ifra_dstaddr = *((struct sockaddr_in *)attrs->ifa_dst);
+	if (dst != NULL)
+		req.ifra_dstaddr = *dst;
 
 	return (in_control(NULL, SIOCAIFADDR, &req, ifp, curthread));
 }
@@ -1162,14 +1156,17 @@ static int
 handle_deladdr_inet(struct nlmsghdr *hdr, struct nl_parsed_ifa *attrs,
     struct ifnet *ifp, struct nlpcb *nlp, struct nl_pstate *npt)
 {
-	if (attrs->ifa_addr == NULL) {
+	struct sockaddr_in *addr = (struct sockaddr_in *)attrs->ifa_local;
+
+	if (addr == NULL)
+		addr = (struct sockaddr_in *)attrs->ifa_address;
+
+	if (addr == NULL) {
 		nlmsg_report_err_msg(npt, "empty IFA_ADDRESS/IFA_LOCAL");
 		return (EINVAL);
 	}
 
-	struct in_aliasreq req = {
-		.ifra_addr = *((struct sockaddr_in *)attrs->ifa_addr),
-	};
+	struct in_aliasreq req = { .ifra_addr = *addr };
 
 	return (in_control(NULL, SIOCDIFADDR, &req, ifp, curthread));
 }
@@ -1180,17 +1177,37 @@ static int
 handle_newaddr_inet6(struct nlmsghdr *hdr, struct nl_parsed_ifa *attrs,
     struct ifnet *ifp, struct nlpcb *nlp, struct nl_pstate *npt)
 {
+	struct sockaddr_in6 *addr, *dst;
+
 	if (attrs->ifa_prefixlen > 128) {
 		nlmsg_report_err_msg(npt, "invalid ifa_prefixlen");
 		return (EINVAL);
 	}
 
-	if (attrs->ifa_addr == NULL) {
+	/*
+	 * In IPv6 implementation, adding non-P2P address to the P2P interface
+	 * is allowed.
+	 */
+	addr = (struct sockaddr_in6 *)(attrs->ifa_local);
+	dst = (struct sockaddr_in6 *)(attrs->ifa_address);
+
+	if (addr == NULL) {
+		addr = dst;
+		dst = NULL;
+	} else if (dst != NULL) {
+		if (IN6_ARE_ADDR_EQUAL(&addr->sin6_addr, &dst->sin6_addr)) {
+			/*
+			 * Sometimes Netlink users fills in both attributes
+			 * with the same address. It still means "non-p2p".
+			 */
+			dst = NULL;
+		}
+	}
+
+	if (addr == NULL) {
 		nlmsg_report_err_msg(npt, "Empty IFA_LOCAL/IFA_ADDRESS");
 		return (EINVAL);
 	}
-
-	/* TODO: Clarify addition of prefixes on p2p interfaces w/o ifa_dst */
 
 	uint32_t flags = nl_flags_to_in6(attrs->ifa_flags) | attrs->ifaf_flags;
 
@@ -1207,14 +1224,14 @@ handle_newaddr_inet6(struct nlmsghdr *hdr, struct nl_parsed_ifa *attrs,
 	ip6_writemask(&mask.sin6_addr, attrs->ifa_prefixlen);
 
 	struct in6_aliasreq req = {
-		.ifra_addr = *((struct sockaddr_in6 *)attrs->ifa_addr),
+		.ifra_addr = *addr,
 		.ifra_prefixmask = mask,
 		.ifra_flags = flags,
 		.ifra_lifetime = { .ia6t_vltime = vltime, .ia6t_pltime = pltime },
 		.ifra_vhid = attrs->ifaf_vhid,
 	};
-	if (attrs->ifa_dst != NULL)
-		req.ifra_dstaddr = *((struct sockaddr_in6 *)attrs->ifa_dst);
+	if (dst != NULL)
+		req.ifra_dstaddr = *dst;
 
 	return (in6_control(NULL, SIOCAIFADDR_IN6, &req, ifp, curthread));
 }
@@ -1223,14 +1240,17 @@ static int
 handle_deladdr_inet6(struct nlmsghdr *hdr, struct nl_parsed_ifa *attrs,
     struct ifnet *ifp, struct nlpcb *nlp, struct nl_pstate *npt)
 {
-	if (attrs->ifa_addr == NULL) {
+	struct sockaddr_in6 *addr = (struct sockaddr_in6 *)attrs->ifa_local;
+
+	if (addr == NULL)
+		addr = (struct sockaddr_in6 *)(attrs->ifa_address);
+
+	if (addr == NULL) {
 		nlmsg_report_err_msg(npt, "Empty IFA_LOCAL/IFA_ADDRESS");
 		return (EINVAL);
 	}
 
-	struct in6_aliasreq req = {
-		.ifra_addr = *((struct sockaddr_in6 *)attrs->ifa_addr),
-	};
+	struct in6_aliasreq req = { .ifra_addr = *addr };
 
 	return (in6_control(NULL, SIOCDIFADDR_IN6, &req, ifp, curthread));
 }
