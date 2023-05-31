@@ -2960,6 +2960,120 @@ pf_build_tcp(const struct pf_krule *r, sa_family_t af,
 	return (m);
 }
 
+static void
+pf_send_sctp_abort(sa_family_t af, struct pf_pdesc *pd,
+    uint8_t ttl, int rtableid)
+{
+	struct mbuf		*m;
+#ifdef INET
+	struct ip		*h = NULL;
+#endif /* INET */
+#ifdef INET6
+	struct ip6_hdr		*h6 = NULL;
+#endif /* INET6 */
+	struct sctphdr		*hdr;
+	struct sctp_chunkhdr	*chunk;
+	struct pf_send_entry	*pfse;
+	int			 off = 0;
+
+	MPASS(af == pd->af);
+
+	m = m_gethdr(M_NOWAIT, MT_DATA);
+	if (m == NULL)
+		return;
+
+	m->m_data += max_linkhdr;
+	m->m_flags |= M_SKIP_FIREWALL;
+	/* The rest of the stack assumes a rcvif, so provide one.
+	 * This is a locally generated packet, so .. close enough. */
+	m->m_pkthdr.rcvif = V_loif;
+
+	/* IPv4|6 header */
+	switch (af) {
+#ifdef INET
+	case AF_INET:
+		bzero(m->m_data, sizeof(struct ip) + sizeof(*hdr) + sizeof(*chunk));
+
+		h = mtod(m, struct ip *);
+
+		/* IP header fields included in the TCP checksum */
+
+		h->ip_p = IPPROTO_SCTP;
+		h->ip_len = htons(sizeof(*h) + sizeof(*hdr) + sizeof(*chunk));
+		h->ip_ttl = ttl ? ttl : V_ip_defttl;
+		h->ip_src = pd->dst->v4;
+		h->ip_dst = pd->src->v4;
+
+		off += sizeof(struct ip);
+		break;
+#endif /* INET */
+#ifdef INET6
+	case AF_INET6:
+		bzero(m->m_data, sizeof(struct ip6_hdr) + sizeof(*hdr) + sizeof(*chunk));
+
+		h6 = mtod(m, struct ip6_hdr *);
+
+		/* IP header fields included in the TCP checksum */
+		h6->ip6_vfc |= IPV6_VERSION;
+		h6->ip6_nxt = IPPROTO_SCTP;
+		h6->ip6_plen = htons(sizeof(*h6) + sizeof(*hdr) + sizeof(*chunk));
+		h6->ip6_hlim = ttl ? ttl : V_ip6_defhlim;
+		memcpy(&h6->ip6_src, &pd->dst->v6, sizeof(struct in6_addr));
+		memcpy(&h6->ip6_dst, &pd->src->v6, sizeof(struct in6_addr));
+
+		off += sizeof(struct ip6_hdr);
+		break;
+#endif /* INET6 */
+	}
+
+	/* SCTP header */
+	hdr = mtodo(m, off);
+
+	hdr->src_port = pd->hdr.sctp.dest_port;
+	hdr->dest_port = pd->hdr.sctp.src_port;
+	hdr->v_tag = pd->sctp_initiate_tag;
+	hdr->checksum = 0;
+
+	/* Abort chunk. */
+	off += sizeof(struct sctphdr);
+	chunk = mtodo(m, off);
+
+	chunk->chunk_type = SCTP_ABORT_ASSOCIATION;
+	chunk->chunk_length = htons(sizeof(*chunk));
+
+	/* SCTP checksum */
+	off += sizeof(*chunk);
+	m->m_pkthdr.len = m->m_len = off;
+
+	pf_sctp_checksum(m, off - sizeof(*hdr) - sizeof(*chunk));;
+
+	if (rtableid >= 0)
+		M_SETFIB(m, rtableid);
+
+	/* Allocate outgoing queue entry, mbuf and mbuf tag. */
+	pfse = malloc(sizeof(*pfse), M_PFTEMP, M_NOWAIT);
+	if (pfse == NULL) {
+		m_freem(m);
+		return;
+	}
+
+	switch (af) {
+#ifdef INET
+	case AF_INET:
+		pfse->pfse_type = PFSE_IP;
+		break;
+#endif /* INET */
+#ifdef INET6
+	case AF_INET6:
+		pfse->pfse_type = PFSE_IP6;
+		break;
+#endif /* INET6 */
+	}
+
+	pfse->pfse_m = m;
+	pf_send(pfse);
+}
+
 void
 pf_send_tcp(const struct pf_krule *r, sa_family_t af,
     const struct pf_addr *saddr, const struct pf_addr *daddr,
@@ -3063,6 +3177,9 @@ pf_return(struct pf_krule *r, struct pf_krule *nr, struct pf_pdesc *pd,
 				ntohl(th->th_ack), ack, TH_RST|TH_ACK, 0, 0,
 				r->return_ttl, true, 0, 0, rtableid);
 		}
+	} else if (pd->proto == IPPROTO_SCTP &&
+	    (r->rule_flag & PFRULE_RETURN)) {
+		pf_send_sctp_abort(af, pd, r->return_ttl, rtableid);
 	} else if (pd->proto != IPPROTO_ICMP && af == AF_INET &&
 		r->return_icmp)
 		pf_send_icmp(m, r->return_icmp >> 8,
