@@ -182,7 +182,7 @@ decrypt(int ofd, const char *privkeyfile, const char *keyfile,
 	}
 	ERR_load_crypto_strings();
 #else
-	OPENSSL_init_crypto(0, NULL);
+	OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG, NULL);
 #endif
 
 	caph_cache_catpages();
