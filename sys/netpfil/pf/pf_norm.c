@@ -2037,6 +2037,8 @@ pf_scan_sctp(struct mbuf *m, int ipoff, int off, struct pf_pdesc *pd)
 			if (pd->hdr.sctp.v_tag != 0)
 				return (PF_DROP);
 
+			pd->sctp_initiate_tag = init.init.initiate_tag;
+
 			pd->sctp_flags |= PFDESC_SCTP_INIT;
 			break;
 		}
