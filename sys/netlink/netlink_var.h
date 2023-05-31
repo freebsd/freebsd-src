@@ -36,8 +36,10 @@
 #include <sys/taskqueue.h>
 #include <net/vnet.h>
 
-#define	NLSNDQ  65536 /* Default socket sendspace */
-#define	NLRCVQ	65536 /* Default socket recvspace */
+#define	NLSNDQ  	65536 /* Default socket sendspace */
+#define	NLRCVQ		65536 /* Default socket recvspace */
+
+#define	NLMBUFSIZE	2048	/* External storage size for Netlink mbufs */
 
 struct ucred;
 
@@ -151,6 +153,10 @@ int nl_receive_async(struct mbuf *m, struct socket *so);
 void nl_process_receive_locked(struct nlpcb *nlp);
 void nl_set_source_metadata(struct mbuf *m, int num_messages);
 void nl_add_msg_info(struct mbuf *m);
+
+/* netlink_message_writer.c */
+void nl_init_msg_zone(void);
+void nl_destroy_msg_zone(void);
 
 /* netlink_generic.c */
 struct genl_family {
