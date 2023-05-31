@@ -76,7 +76,12 @@ __FBSDID("$FreeBSD$");
 #define	COMPAT_HEIMDAL
 /* #define	COMPAT_MIT */
 
-static int	verify_krb_v5_tgt(krb5_context, krb5_ccache, char *, int);
+static int	verify_krb_v5_tgt_begin(krb5_context, char *, int,
+    const char **, krb5_principal *, char[static BUFSIZ]);
+static int	verify_krb_v5_tgt(krb5_context, krb5_ccache, char *, int,
+    const char *, krb5_principal, char[static BUFSIZ]);
+static void	verify_krb_v5_tgt_cleanup(krb5_context, int,
+    const char *, krb5_principal, char[static BUFSIZ]);
 static void	cleanup_cache(pam_handle_t *, void *, int);
 static const	char *compat_princ_component(krb5_context, krb5_principal, int);
 static void	compat_free_data_contents(krb5_context, krb5_data *);
@@ -92,6 +97,7 @@ static void	compat_free_data_contents(krb5_context, krb5_data *);
 #define PAM_OPT_NO_USER_CHECK	"no_user_check"
 #define PAM_OPT_REUSE_CCACHE	"reuse_ccache"
 #define PAM_OPT_NO_USER_CHECK	"no_user_check"
+#define PAM_OPT_ALLOW_KDC_SPOOF	"allow_kdc_spoof"
 
 #define	PAM_LOG_KRB5_ERR(ctx, rv, fmt, ...)				\
 	do {								\
@@ -109,6 +115,10 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 {
 	krb5_error_code krbret;
 	krb5_context pam_context;
+	int debug;
+	const char *auth_service;
+	krb5_principal auth_princ;
+	char auth_phost[BUFSIZ];
 	krb5_creds creds;
 	krb5_principal princ;
 	krb5_ccache ccache;
@@ -139,13 +149,36 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 
 	PAM_LOG("Got service: %s", (const char *)service);
 
+	if ((srvdup = strdup(service)) == NULL) {
+		retval = PAM_BUF_ERR;
+		goto cleanup6;
+	}
+
 	krbret = krb5_init_context(&pam_context);
 	if (krbret != 0) {
 		PAM_VERBOSE_ERROR("Kerberos 5 error");
-		return (PAM_SERVICE_ERR);
+		retval = PAM_SERVICE_ERR;
+		goto cleanup5;
 	}
 
 	PAM_LOG("Context initialised");
+
+	debug = openpam_get_option(pamh, PAM_OPT_DEBUG) ? 1 : 0;
+	krbret = verify_krb_v5_tgt_begin(pam_context, srvdup, debug,
+	    &auth_service, &auth_princ, auth_phost);
+	if (krbret != 0) {      /* failed to find key */
+		/* Keytab or service key does not exist */
+		/*
+		 * Give up now because we can't authenticate the KDC
+		 * with a keytab, unless the administrator asked to
+		 * have the traditional behaviour of being vulnerable
+		 * to spoofed KDCs.
+		 */
+		if (!openpam_get_option(pamh, PAM_OPT_ALLOW_KDC_SPOOF)) {
+			retval = PAM_SERVICE_ERR;
+			goto cleanup4;
+		}
+	}
 
 	krbret = krb5_cc_register(pam_context, &krb5_mcc_ops, FALSE);
 	if (krbret != 0 && krbret != KRB5_CC_TYPE_EXISTS) {
@@ -292,13 +325,11 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	PAM_LOG("Credentials stashed");
 
 	/* Verify them */
-	if ((srvdup = strdup(service)) == NULL) {
-		retval = PAM_BUF_ERR;
-		goto cleanup;
-	}
 	krbret = verify_krb_v5_tgt(pam_context, ccache, srvdup,
-	    openpam_get_option(pamh, PAM_OPT_DEBUG) ? 1 : 0);
+	    debug,
+	    auth_service, auth_princ, auth_phost);
 	free(srvdup);
+	srvdup = NULL;
 	if (krbret == -1) {
 		PAM_VERBOSE_ERROR("Kerberos 5 error");
 		krb5_cc_destroy(pam_context, ccache);
@@ -349,8 +380,20 @@ cleanup3:
 
 	PAM_LOG("Done cleanup3");
 
+cleanup4:
+	verify_krb_v5_tgt_cleanup(pam_context, debug,
+	    auth_service, auth_princ, auth_phost);
+	PAM_LOG("Done cleanup4");
+
+cleanup5:
+	if (srvdup != NULL)
+		free(srvdup);
+	PAM_LOG("Done cleanup5");
+
+cleanup6:
 	if (retval != PAM_SUCCESS)
 		PAM_VERBOSE_ERROR("Kerberos 5 refuses you");
+	PAM_LOG("Done cleanup6");
 
 	return (retval);
 }
@@ -837,18 +880,18 @@ PAM_MODULE_ENTRY("pam_krb5");
  */
 /* ARGSUSED */
 static int
-verify_krb_v5_tgt(krb5_context context, krb5_ccache ccache,
-    char *pam_service, int debug)
+verify_krb_v5_tgt_begin(krb5_context context, char *pam_service, int debug,
+    const char **servicep, krb5_principal *princp __unused, char phost[static BUFSIZ])
 {
 	krb5_error_code retval;
 	krb5_principal princ;
 	krb5_keyblock *keyblock;
-	krb5_data packet;
-	krb5_auth_context auth_context;
-	char phost[BUFSIZ];
 	const char *services[3], **service;
 
-	packet.data = 0;
+	*servicep = NULL;
+
+	if (debug)
+		openlog("pam_krb5", LOG_PID, LOG_AUTHPRIV);
 
 	/* If possible we want to try and verify the ticket we have
 	 * received against a keytab.  We will try multiple service
@@ -906,14 +949,30 @@ verify_krb_v5_tgt(krb5_context context, krb5_ccache ccache,
 			krb5_free_error_message(context, msg);
 		}
 		retval = 0;
-		goto cleanup;
 	}
 	if (keyblock)
 		krb5_free_keyblock(context, keyblock);
 
+	return (retval);
+}
+
+static int
+verify_krb_v5_tgt(krb5_context context, krb5_ccache ccache,
+    char *pam_service __unused, int debug,
+    const char *service, krb5_principal princ, char phost[static BUFSIZ])
+{
+	krb5_error_code retval;
+	krb5_auth_context auth_context = NULL;
+	krb5_data packet;
+
+	if (service == NULL)
+		return (0);	/* uncertain, can't authenticate KDC */
+
+	packet.data = 0;
+
 	/* Talk to the kdc and construct the ticket. */
 	auth_context = NULL;
-	retval = krb5_mk_req(context, &auth_context, 0, *service, phost,
+	retval = krb5_mk_req(context, &auth_context, 0, service, phost,
 		NULL, ccache, &packet);
 	if (auth_context) {
 		krb5_auth_con_free(context, auth_context);
@@ -952,8 +1011,19 @@ verify_krb_v5_tgt(krb5_context context, krb5_ccache ccache,
 cleanup:
 	if (packet.data)
 		compat_free_data_contents(context, &packet);
-	krb5_free_principal(context, princ);
-	return retval;
+	return (retval);
+}
+
+static void
+verify_krb_v5_tgt_cleanup(krb5_context context, int debug,
+    const char *service, krb5_principal princ, char phost[static BUFSIZ] __unused)
+{
+
+	if (service)
+		krb5_free_principal(context, princ);
+	if (debug)
+		closelog();
+
 }
 
 /* Free the memory for cache_name. Called by pam_end() */

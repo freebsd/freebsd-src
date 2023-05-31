@@ -108,6 +108,21 @@ and
 .Ql %p ,
 to designate the current process ID; can be used in
 .Ar name .
+.It Cm allow_kdc_spoof
+Allow
+.Nm
+to succeed even if there is no host or service key available in a
+keytab to authenticate the Kerberos KDC's ticket.
+If there is no such key, for example on a host with no keytabs,
+.Nm
+will fail immediately without prompting the user.
+.Pp
+.Sy Warning :
+If the host has not been configured with a keytab from the KDC, setting
+this option makes it vulnerable to malicious KDCs, e.g. via DNS
+flooding, because
+.Nm
+has no way to distinguish the legitimate KDC from a spoofed KDC.
 .It Cm no_user_check
 Do not verify if a user exists on the local system. This option implies the
 .Cm no_ccache
