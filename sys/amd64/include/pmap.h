@@ -130,7 +130,7 @@
  * (PTE) page mappings have identical settings for the following fields:
  */
 #define	PG_PTE_PROMOTE	(PG_NX | PG_MANAGED | PG_W | PG_G | PG_PTE_CACHE | \
-	    PG_M | PG_A | PG_U | PG_RW | PG_V | PG_PKU_MASK)
+	    PG_M | PG_U | PG_RW | PG_V | PG_PKU_MASK)
 
 /*
  * Page Protection Exception bits

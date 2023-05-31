@@ -3394,7 +3394,7 @@ pmap_remove_kernel_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t va)
 	 * If this page table page was unmapped by a promotion, then it
 	 * contains valid mappings.  Zero it to invalidate those mappings.
 	 */
-	if (ml3->valid != 0)
+	if (vm_page_any_valid(ml3))
 		pagezero((void *)PHYS_TO_DMAP(ml3pa));
 
 	/*
@@ -3452,7 +3452,7 @@ pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
 	} else {
 		ml3 = pmap_remove_pt_page(pmap, sva);
 		if (ml3 != NULL) {
-			KASSERT(ml3->valid == VM_PAGE_BITS_ALL,
+			KASSERT(vm_page_any_valid(ml3),
 			    ("pmap_remove_l2: l3 page not promoted"));
 			pmap_resident_count_dec(pmap, 1);
 			KASSERT(ml3->ref_count == NL3PG,
@@ -4015,14 +4015,26 @@ pmap_disable_promotion(vm_offset_t sva, vm_size_t size)
  * for mapping a distinct range of virtual addresses.  The pmap's collection is
  * ordered by this virtual address range.
  *
- * If "promoted" is false, then the page table page "mpte" must be zero filled.
+ * If "promoted" is false, then the page table page "mpte" must be zero filled;
+ * "mpte"'s valid field will be set to 0.
+ *
+ * If "promoted" is true and "all_l3e_AF_set" is false, then "mpte" must
+ * contain valid mappings with identical attributes except for ATTR_AF;
+ * "mpte"'s valid field will be set to 1.
+ *
+ * If "promoted" and "all_l3e_AF_set" are both true, then "mpte" must contain
+ * valid mappings with identical attributes including ATTR_AF; "mpte"'s valid
+ * field will be set to VM_PAGE_BITS_ALL.
  */
 static __inline int
-pmap_insert_pt_page(pmap_t pmap, vm_page_t mpte, bool promoted)
+pmap_insert_pt_page(pmap_t pmap, vm_page_t mpte, bool promoted,
+    bool all_l3e_AF_set)
 {
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	mpte->valid = promoted ? VM_PAGE_BITS_ALL : 0;
+	KASSERT(promoted || !all_l3e_AF_set,
+	    ("a zero-filled PTP can't have ATTR_AF set in every PTE"));
+	mpte->valid = promoted ? (all_l3e_AF_set ? VM_PAGE_BITS_ALL : 1) : 0;
 	return (vm_radix_insert(&pmap->pm_root, mpte));
 }
 
@@ -4137,7 +4149,7 @@ static void
 pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va, vm_page_t mpte,
     struct rwlock **lockp)
 {
-	pt_entry_t *firstl3, *l3, newl2, oldl3, pa;
+	pt_entry_t all_l3e_AF, *firstl3, *l3, newl2, oldl3, pa;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	PMAP_ASSERT_STAGE1(pmap);
@@ -4185,19 +4197,17 @@ setl2:
 		if (!atomic_fcmpset_64(firstl3, &newl2, newl2 & ~ATTR_SW_DBM))
 			goto setl2;
 		newl2 &= ~ATTR_SW_DBM;
-	}
-	if ((newl2 & ATTR_AF) == 0) {
-		atomic_add_long(&pmap_l2_p_failures, 1);
-		CTR2(KTR_PMAP, "pmap_promote_l2: failure for va %#lx"
-		    " in pmap %p", va, pmap);
-		return;
+		CTR2(KTR_PMAP, "pmap_promote_l2: protect for va %#lx"
+		    " in pmap %p", va & ~L2_OFFSET, pmap);
 	}
 
 	/*
 	 * Examine each of the other L3Es in the specified PTP.  Abort if this
 	 * L3E maps an unexpected 4KB physical page or does not have identical
-	 * characteristics to the first L3E.
+	 * characteristics to the first L3E.  If ATTR_AF is not set in every
+	 * PTE, then request that the PTP be refilled on demotion.
 	 */
+	all_l3e_AF = newl2 & ATTR_AF;
 	pa = (PTE_TO_PHYS(newl2) | (newl2 & ATTR_DESCR_MASK))
 	    + L2_SIZE - PAGE_SIZE;
 	for (l3 = firstl3 + NL3PG - 1; l3 > firstl3; l3--) {
@@ -4221,14 +4231,24 @@ setl3:
 				goto setl3;
 			oldl3 &= ~ATTR_SW_DBM;
 		}
-		if ((oldl3 & ATTR_MASK) != (newl2 & ATTR_MASK)) {
+		if ((oldl3 & (ATTR_MASK & ~ATTR_AF)) != (newl2 & (ATTR_MASK &
+		    ~ATTR_AF))) {
 			atomic_add_long(&pmap_l2_p_failures, 1);
 			CTR2(KTR_PMAP, "pmap_promote_l2: failure for va %#lx"
 			    " in pmap %p", va, pmap);
 			return;
 		}
+		all_l3e_AF &= oldl3;
 		pa -= PAGE_SIZE;
 	}
+
+	/*
+	 * Unless all PTEs have ATTR_AF set, clear it from the superpage
+	 * mapping, so that promotions triggered by speculative mappings,
+	 * such as pmap_enter_quick(), don't automatically mark the
+	 * underlying pages as referenced.
+	 */
+	newl2 &= ~ATTR_AF | all_l3e_AF;
 
 	/*
 	 * Save the page table page in its current state until the L2
@@ -4242,7 +4262,7 @@ setl3:
 	    ("pmap_promote_l2: page table page is out of range"));
 	KASSERT(mpte->pindex == pmap_l2_pindex(va),
 	    ("pmap_promote_l2: page table page's pindex is wrong"));
-	if (pmap_insert_pt_page(pmap, mpte, true)) {
+	if (pmap_insert_pt_page(pmap, mpte, true, all_l3e_AF != 0)) {
 		atomic_add_long(&pmap_l2_p_failures, 1);
 		CTR2(KTR_PMAP,
 		    "pmap_promote_l2: failure for va %#lx in pmap %p", va,
@@ -4820,7 +4840,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 			 * the L2_TABLE entry.
 			 */
 			mt = PHYS_TO_VM_PAGE(PTE_TO_PHYS(pmap_load(l2)));
-			if (pmap_insert_pt_page(pmap, mt, false))
+			if (pmap_insert_pt_page(pmap, mt, false, false))
 				panic("pmap_enter_l2: trie insert failed");
 			pmap_clear(l2);
 			pmap_s1_invalidate_page(pmap, va, false);
@@ -4958,6 +4978,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	PMAP_ASSERT_STAGE1(pmap);
 	KASSERT(ADDR_IS_CANONICAL(va),
 	    ("%s: Address not in canonical form: %lx", __func__, va));
+	l2 = NULL;
 
 	CTR2(KTR_PMAP, "pmap_enter_quick_locked: %p %lx", pmap, va);
 	/*
@@ -5072,6 +5093,27 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 
 	pmap_store(l3, l3_val);
 	dsb(ishst);
+
+#if VM_NRESERVLEVEL > 0
+	/*
+	 * If both the PTP and the reservation are fully populated, then
+	 * attempt promotion.
+	 */
+	if ((mpte == NULL || mpte->ref_count == NL3PG) &&
+	    pmap_ps_enabled(pmap) && pmap->pm_stage == PM_STAGE1 &&
+	    (m->flags & PG_FICTITIOUS) == 0 &&
+	    vm_reserv_level_iffullpop(m) == 0) {
+		if (l2 == NULL)
+			l2 = pmap_pde(pmap, va, &lvl);
+		pmap_promote_l2(pmap, l2, va, mpte, lockp);
+
+		/*
+		 * If promotion succeeds, then the next call to this function
+		 * should not be given the unmapped PTP as a hint.
+		 */
+		mpte = NULL;
+	}
+#endif
 
 	return (mpte);
 }
@@ -5739,7 +5781,7 @@ pmap_remove_pages(pmap_t pmap)
 					ml3 = pmap_remove_pt_page(pmap,
 					    pv->pv_va);
 					if (ml3 != NULL) {
-						KASSERT(ml3->valid == VM_PAGE_BITS_ALL,
+						KASSERT(vm_page_any_valid(ml3),
 						    ("pmap_remove_pages: l3 page not promoted"));
 						pmap_resident_count_dec(pmap,1);
 						KASSERT(ml3->ref_count == NL3PG,
@@ -6876,6 +6918,36 @@ pmap_fill_l3(pt_entry_t *firstl3, pt_entry_t newl3)
 }
 
 static void
+pmap_demote_l2_check(pt_entry_t *firstl3p __unused, pt_entry_t newl3e __unused)
+{
+#ifdef INVARIANTS
+#ifdef DIAGNOSTIC
+	pt_entry_t *xl3p, *yl3p;
+
+	for (xl3p = firstl3p; xl3p < firstl3p + Ln_ENTRIES;
+	    xl3p++, newl3e += PAGE_SIZE) {
+		if (PTE_TO_PHYS(pmap_load(xl3p)) != PTE_TO_PHYS(newl3e)) {
+			printf("pmap_demote_l2: xl3e %zd and newl3e map "
+			    "different pages: found %#lx, expected %#lx\n",
+			    xl3p - firstl3p, pmap_load(xl3p), newl3e);
+			printf("page table dump\n");
+			for (yl3p = firstl3p; yl3p < firstl3p + Ln_ENTRIES;
+			    yl3p++) {
+				printf("%zd %#lx\n", yl3p - firstl3p,
+				    pmap_load(yl3p));
+			}
+			panic("firstpte");
+		}
+	}
+#else
+	KASSERT(PTE_TO_PHYS(pmap_load(firstl3p)) == PTE_TO_PHYS(newl3e),
+	    ("pmap_demote_l2: firstl3 and newl3e map different physical"
+	    " addresses"));
+#endif
+#endif
+}
+
+static void
 pmap_demote_l2_abort(pmap_t pmap, vm_offset_t va, pt_entry_t *l2,
     struct rwlock **lockp)
 {
@@ -6986,14 +7058,24 @@ pmap_demote_l2_locked(pmap_t pmap, pt_entry_t *l2, vm_offset_t va,
 	    ("pmap_demote_l2: L2 entry is writeable but not dirty"));
 
 	/*
-	 * If the page table page is not leftover from an earlier promotion,
-	 * or the mapping attributes have changed, (re)initialize the L3 table.
+	 * If the PTP is not leftover from an earlier promotion or it does not
+	 * have ATTR_AF set in every L3E, then fill it.  The new L3Es will all
+	 * have ATTR_AF set.
 	 *
 	 * When pmap_update_entry() clears the old L2 mapping, it (indirectly)
 	 * performs a dsb().  That dsb() ensures that the stores for filling
 	 * "l3" are visible before "l3" is added to the page table.
 	 */
-	if (ml3->valid == 0 || (l3[0] & ATTR_MASK) != (newl3 & ATTR_MASK))
+	if (!vm_page_all_valid(ml3))
+		pmap_fill_l3(l3, newl3);
+
+	pmap_demote_l2_check(l3, newl3);
+
+	/*
+	 * If the mapping has changed attributes, update the L3Es.
+	 */
+	if ((pmap_load(l3) & (ATTR_MASK & ~ATTR_AF)) != (newl3 & (ATTR_MASK &
+	    ~ATTR_AF)))
 		pmap_fill_l3(l3, newl3);
 
 	/*
