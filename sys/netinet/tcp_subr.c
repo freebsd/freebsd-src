@@ -4647,28 +4647,33 @@ tcp_get_srtt(struct tcpcb *tp, int granularity)
 {
 	uint32_t srtt;
 
-	if (tp->t_tmr_granularity == TCP_TMR_GRANULARITY_USEC)
-		srtt = tp->t_srtt;
-	else if (tp->t_tmr_granularity == TCP_TMR_GRANULARITY_TICKS) {
-		/* TICKS are stored shifted; unshift for the real TICKS */
-		srtt = tp->t_srtt >> TCP_RTT_SHIFT;
+	KASSERT(granularity == TCP_TMR_GRANULARITY_USEC ||
+	    granularity == TCP_TMR_GRANULARITY_TICKS,
+	    ("%s: called with unexpected granularity %d", __func__,
+	    granularity));
+
+	srtt = tp->t_srtt;
+
+	/*
+	 * We only support two granularities. If the stored granularity
+	 * does not match the granularity requested by the caller,
+	 * convert the stored value to the requested unit of granularity.
+	 */
+	if (tp->t_tmr_granularity != granularity) {
+		if (granularity == TCP_TMR_GRANULARITY_USEC)
+			srtt = TICKS_2_USEC(srtt);
+		else
+			srtt = USEC_2_TICKS(srtt);
 	}
-	if (tp->t_tmr_granularity == granularity)
-		return (srtt);
-	/* If we reach here they are oppsite what the caller wants */
-	if (granularity == TCP_TMR_GRANULARITY_USEC) {
-		/*
-		 * The user wants useconds and internally
-		 * its kept in ticks, convert to useconds.
-		 * Put unshift at last improves precision.
-		 */
-		srtt = TICKS_2_USEC(tp->t_srtt) >> TCP_RTT_SHIFT;
-	} else if (granularity == TCP_TMR_GRANULARITY_TICKS) {
-		/*
-		 * The user wants ticks and internally its
-		 * kept in useconds, convert to ticks.
-		 */
-		srtt = USEC_2_TICKS(srtt);
-	}
+
+	/*
+	 * If the srtt is stored with ticks granularity, we need to
+	 * unshift to get the actual value. We do this after the
+	 * conversion above (if one was necessary) in order to maximize
+	 * precision.
+	 */
+	if (tp->t_tmr_granularity == TCP_TMR_GRANULARITY_TICKS)
+		srtt = srtt >> TCP_RTT_SHIFT;
+
 	return (srtt);
 }
