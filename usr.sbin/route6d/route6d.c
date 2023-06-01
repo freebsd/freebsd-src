@@ -101,7 +101,7 @@ struct ifc {			/* Configuration of an interface */
 };
 static TAILQ_HEAD(, ifc) ifc_head = TAILQ_HEAD_INITIALIZER(ifc_head);
 
-struct ifac {			/* Adddress associated to an interface */
+struct ifac {			/* Address associated to an interface */
 	TAILQ_ENTRY(ifac) ifac_next;
 
 	struct	ifc *ifac_ifc;		/* back pointer */
