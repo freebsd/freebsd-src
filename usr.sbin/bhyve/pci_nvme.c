@@ -1914,7 +1914,7 @@ nvme_opc_format_nvm(struct pci_nvme_softc* sc, struct nvme_command* command,
 		return (1);
 	}
 
-	/* Doesn't support Protection Infomation */
+	/* Doesn't support Protection Information */
 	pi = (command->cdw10 >> 5) & 0x7;
 	if (pi != 0) {
 		pci_nvme_status_genc(&compl->status, NVME_SC_INVALID_FIELD);
@@ -2124,7 +2124,7 @@ pci_nvme_handle_admin_cmd(struct pci_nvme_softc* sc, uint64_t value)
  *
  * NVMe defines "data unit" as thousand's of 512 byte blocks and is rounded up.
  * E.g. 1 data unit is 1 - 1,000 512 byte blocks. 3 data units are 2,001 - 3,000
- * 512 byte blocks. Rounding up is acheived by initializing the remainder to 999.
+ * 512 byte blocks. Rounding up is achieved by initializing the remainder to 999.
  */
 static void
 pci_nvme_stats_write_read_update(struct pci_nvme_softc *sc, uint8_t opc,
