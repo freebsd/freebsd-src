@@ -2310,7 +2310,7 @@ compare_export(struct exportlist *ep, struct exportlist *oep)
  * "same" refers to having the same set of values in the two arrays.
  * The arrays are in no particular order and duplicates (multiple entries
  * in an array with the same value) is allowed.
- * The algorithm is inefficient, but the common case of indentical arrays is
+ * The algorithm is inefficient, but the common case of identical arrays is
  * handled first and "n" is normally fairly small.
  * Since the two functions need the same algorithm but for arrays of
  * different types (gid_t vs int), this is done as a macro.
