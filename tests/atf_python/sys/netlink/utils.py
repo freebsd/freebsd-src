@@ -34,6 +34,7 @@ class AttrDescr(NamedTuple):
     val: Enum
     cls: "NlAttr"
     child_map: Any = None
+    is_array: bool = False
 
 
 def prepare_attrs_map(attrs: List[AttrDescr]) -> Dict[str, Dict]:
@@ -42,6 +43,7 @@ def prepare_attrs_map(attrs: List[AttrDescr]) -> Dict[str, Dict]:
         ret[ad.val.value] = {"ad": ad}
         if ad.child_map:
             ret[ad.val.value]["child"] = prepare_attrs_map(ad.child_map)
+            ret[ad.val.value]["is_array"] = ad.is_array
     return ret
 
 

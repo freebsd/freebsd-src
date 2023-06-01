@@ -9,6 +9,7 @@ from enum import Enum
 from atf_python.sys.netlink.attrs import NlAttr
 from atf_python.sys.netlink.attrs import NlAttrIp4
 from atf_python.sys.netlink.attrs import NlAttrIp6
+from atf_python.sys.netlink.attrs import NlAttrNested
 from atf_python.sys.netlink.attrs import NlAttrS32
 from atf_python.sys.netlink.attrs import NlAttrStr
 from atf_python.sys.netlink.attrs import NlAttrU16
@@ -94,6 +95,16 @@ class GenlCtrlAttrType(Enum):
     CTRL_ATTR_OP = 10
 
 
+class GenlCtrlAttrOpType(Enum):
+    CTRL_ATTR_OP_ID = 1
+    CTRL_ATTR_OP_FLAGS = 2
+
+
+class GenlCtrlAttrMcastGroupsType(Enum):
+    CTRL_ATTR_MCAST_GRP_NAME = 1
+    CTRL_ATTR_MCAST_GRP_ID = 2
+
+
 genl_ctrl_attrs = prepare_attrs_map(
     [
         AttrDescr(GenlCtrlAttrType.CTRL_ATTR_FAMILY_ID, NlAttrU16),
@@ -101,6 +112,28 @@ genl_ctrl_attrs = prepare_attrs_map(
         AttrDescr(GenlCtrlAttrType.CTRL_ATTR_VERSION, NlAttrU32),
         AttrDescr(GenlCtrlAttrType.CTRL_ATTR_HDRSIZE, NlAttrU32),
         AttrDescr(GenlCtrlAttrType.CTRL_ATTR_MAXATTR, NlAttrU32),
+        AttrDescr(
+            GenlCtrlAttrType.CTRL_ATTR_OPS,
+            NlAttrNested,
+            [
+                AttrDescr(GenlCtrlAttrOpType.CTRL_ATTR_OP_ID, NlAttrU32),
+                AttrDescr(GenlCtrlAttrOpType.CTRL_ATTR_OP_FLAGS, NlAttrU32),
+            ],
+            True,
+        ),
+        AttrDescr(
+            GenlCtrlAttrType.CTRL_ATTR_MCAST_GROUPS,
+            NlAttrNested,
+            [
+                AttrDescr(
+                    GenlCtrlAttrMcastGroupsType.CTRL_ATTR_MCAST_GRP_NAME, NlAttrStr
+                ),
+                AttrDescr(
+                    GenlCtrlAttrMcastGroupsType.CTRL_ATTR_MCAST_GRP_ID, NlAttrU32
+                ),
+            ],
+            True,
+        ),
     ]
 )
 
@@ -220,13 +253,13 @@ class NlAttrTS(NlAttr):
     @staticmethod
     def _validate(data):
         assert len(data) == NlAttr.HDR_LEN + NlAttrTS.DATA_LEN
-        nla_len, nla_type = struct.unpack("@HH", data[:NlAttr.HDR_LEN])
+        nla_len, nla_type = struct.unpack("@HH", data[: NlAttr.HDR_LEN])
         assert nla_len == NlAttr.HDR_LEN + NlAttrTS.DATA_LEN
 
     @classmethod
     def _parse(cls, data):
-        nla_len, nla_type = struct.unpack("@HH", data[:NlAttr.HDR_LEN])
-        val = timespec.from_buffer_copy(data[NlAttr.HDR_LEN:])
+        nla_len, nla_type = struct.unpack("@HH", data[: NlAttr.HDR_LEN])
+        val = timespec.from_buffer_copy(data[NlAttr.HDR_LEN :])
         return cls(nla_type, val)
 
     def __bytes__(self):
