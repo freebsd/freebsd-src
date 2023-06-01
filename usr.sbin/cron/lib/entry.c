@@ -399,9 +399,9 @@ load_entry(FILE *file, void (*error_func)(const char *), struct passwd *pw,
 	if (!env_get("HOME", e->envp)) {
 		prev_env = e->envp;
 		len = snprintf(envstr, sizeof(envstr), "HOME=%s", pw->pw_dir);
-		if (len < sizeof(envstr))
+		if (len < (int)sizeof(envstr))
 			e->envp = env_set(e->envp, envstr);
-		if (len >= sizeof(envstr) || e->envp == NULL) {
+		if (len >= (int)sizeof(envstr) || e->envp == NULL) {
 			warn("env_set(%s)", envstr);
 			env_free(prev_env);
 			ecode = e_mem;
