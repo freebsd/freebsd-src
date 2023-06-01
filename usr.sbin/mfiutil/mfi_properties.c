@@ -64,7 +64,7 @@ mfi_ctrl_set_properties(int fd, struct mfi_ctrl_props *info)
 }
 
 /*
- * aquite the controller properties data structure modify the 
+ * Acquire the controller properties data structure, modify the
  * rebuild rate if requested and then return
  */
 static int
