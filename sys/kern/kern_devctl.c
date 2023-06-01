@@ -134,6 +134,10 @@ static struct filterops devctl_rfiltops = {
 static struct cdev *devctl_dev;
 static void devaddq(const char *type, const char *what, device_t dev);
 
+static struct devctlbridge {
+	send_event_f *send_f;
+} devctl_notify_hook = { .send_f = NULL };
+
 static void
 devctl_init(void)
 {
@@ -435,6 +439,8 @@ devctl_notify(const char *system, const char *subsystem, const char *type,
 
 	if (system == NULL || subsystem == NULL || type == NULL)
 		return;
+	if (devctl_notify_hook.send_f != NULL)
+		devctl_notify_hook.send_f(system, subsystem, type, data);
 	dei = devctl_alloc_dei_sb(&sb);
 	if (dei == NULL)
 		return;
@@ -478,6 +484,7 @@ devaddq(const char *type, const char *what, device_t dev)
 	struct dev_event_info *dei;
 	const char *parstr;
 	struct sbuf sb;
+	size_t beginlen;
 
 	dei = devctl_alloc_dei_sb(&sb);
 	if (dei == NULL)
@@ -485,6 +492,7 @@ devaddq(const char *type, const char *what, device_t dev)
 	sbuf_cpy(&sb, type);
 	sbuf_cat(&sb, what);
 	sbuf_cat(&sb, " at ");
+	beginlen = sbuf_len(&sb);
 
 	/* Add in the location */
 	bus_child_location(dev, &sb);
@@ -503,6 +511,23 @@ devaddq(const char *type, const char *what, device_t dev)
 	sbuf_putc(&sb, '\n');
 	if (sbuf_finish(&sb) != 0)
 		goto bad;
+	if (devctl_notify_hook.send_f != NULL) {
+		const char *t;
+
+		switch (*type) {
+		case '+':
+			t = "ATTACH";
+			break;
+		case '-':
+			t = "DETACH";
+			break;
+		default:
+			t = "NOMATCH";
+			break;
+		}
+		devctl_notify_hook.send_f("device",
+		    what, t, sbuf_data(&sb) + beginlen);
+	}
 	devctl_queue(dei);
 	return;
 bad:
@@ -568,3 +593,16 @@ devctl_safe_quote_sb(struct sbuf *sb, const char *src)
 		sbuf_putc(sb, *src++);
 	}
 }
+
+void
+devctl_set_notify_hook(send_event_f *hook)
+{
+	devctl_notify_hook.send_f = hook;
+}
+
+void
+devctl_unset_notify_hook(void)
+{
+	devctl_notify_hook.send_f = NULL;
+}
+

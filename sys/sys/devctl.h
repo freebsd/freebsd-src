@@ -12,11 +12,39 @@
  * devctl hooks.  Typically one should use the devctl_notify
  * hook to send the message.
  */
+
+static const char *devctl_systems[] = {
+	"ACPI",
+	"AEON",
+	"CAM",
+	"CARP",
+	"coretemp",
+	"DEVFS",
+	"device",
+	"ETHERNET",
+	"GEOM",
+	"HYPERV_NIC_VF",
+	"IFNET",
+	"INFINIBAND",
+	"KERNEL",
+	"nvme",
+	"PMU",
+	"RCTL",
+	"USB",
+	"VFS",
+	"VT",
+	"ZFS",
+};
+
 bool devctl_process_running(void);
 void devctl_notify(const char *__system, const char *__subsystem,
     const char *__type, const char *__data);
 struct sbuf;
 void devctl_safe_quote_sb(struct sbuf *__sb, const char *__src);
+typedef void send_event_f(const char *system, const char *subsystem,
+    const char *type, const char *data);
+void devctl_set_notify_hook(send_event_f *hook);
+void devctl_unset_notify_hook(void);
 #endif
 
 #endif /* _SYS_DEVCTL_H_ */
