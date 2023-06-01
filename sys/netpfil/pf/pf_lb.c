@@ -240,7 +240,15 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
 		 * port search; start random, step;
 		 * similar 2 portloop in in_pcbbind
 		 */
-		if (!(proto == IPPROTO_TCP || proto == IPPROTO_UDP ||
+		if (proto == IPPROTO_SCTP) {
+			key.port[1] = sport;
+			if (!pf_find_state_all_exists(&key, PF_IN)) {
+				*nport = sport;
+				return (0);
+			} else {
+				return (1); /* Fail mapping. */
+			}
+		} else if (!(proto == IPPROTO_TCP || proto == IPPROTO_UDP ||
 		    proto == IPPROTO_ICMP) || (low == 0 && high == 0)) {
 			/*
 			 * XXX bug: icmp states don't use the id on both sides.
@@ -710,6 +718,10 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 		if ((r->rpool.opts & PF_POOL_TYPEMASK) == PF_POOL_BITMASK)
 			PF_POOLMASK(naddr, naddr, &r->rpool.cur->addr.v.a.mask,
 			    daddr, pd->af);
+
+		/* Do not change SCTP ports. */
+		if (pd->proto == IPPROTO_SCTP)
+			break;
 
 		if (r->rpool.proxy_port[1]) {
 			uint32_t	tmp_nport;
