@@ -299,7 +299,6 @@ main(int argc, char **argv)
 	rpctls_syscall(RPCTLS_SYSC_CLSHUTDOWN, "");
 
 	SSL_CTX_free(rpctls_ctx);
-	EVP_cleanup();
 	return (0);
 }
 
@@ -480,17 +479,12 @@ rpctls_setupcl_ssl(void)
 	size_t len, rlen;
 	int ret;
 
-	SSL_library_init();
-	SSL_load_error_strings();
-	OpenSSL_add_all_algorithms();
-
 	ctx = SSL_CTX_new(TLS_client_method());
 	if (ctx == NULL) {
 		rpctls_verbose_out("rpctls_setupcl_ssl: SSL_CTX_new "
 		    "failed\n");
 		return (NULL);
 	}
-	SSL_CTX_set_ecdh_auto(ctx, 1);
 
 	if (rpctls_ciphers != NULL) {
 		/*
@@ -686,7 +680,11 @@ rpctls_connect(SSL_CTX *ctx, int s, char *certname, u_int certlen, X509 **certp)
 		return (NULL);
 	}
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000
+	cert = SSL_get1_peer_certificate(ssl);
+#else
 	cert = SSL_get_peer_certificate(ssl);
+#endif
 	if (cert == NULL) {
 		rpctls_verbose_out("rpctls_connect: get peer"
 		    " certificate failed\n");
