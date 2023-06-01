@@ -238,7 +238,7 @@ __hmac_sha1_init(archive_hmac_sha1_ctx *ctx, const uint8_t *key, size_t key_len)
 	if (*ctx == NULL)
 		return -1;
 	EVP_MAC_free(mac);
-	params[0] = OSSL_PARAM_construct_utf8_string("digest", "SHA1", 0);
+	params[0] = OSSL_PARAM_construct_utf8_string("digest", (char *)"SHA1", 0);
 	params[1] = OSSL_PARAM_construct_end();
 	EVP_MAC_init(*ctx, key, key_len, params);
 #else
