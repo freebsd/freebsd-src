@@ -283,7 +283,7 @@ update_sensors(void)
 			free(oid);
 			return (0);
 		}
-		/* Alocate and read the next mib. */
+		/* Allocate and read the next mib. */
 		next = (int *)malloc(nextlen);
 		if (next == NULL) {
 			syslog(LOG_ERR,
