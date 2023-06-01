@@ -520,7 +520,7 @@ play(char *arg)
 		/*
 		 * Play MSF m1:s1 [ .f1 ] [ m2:s2 [ .f2 ] ]
 		 *
-		 * Will now also undestand timed addresses relative
+		 * Will now also understand timed addresses relative
 		 * to the beginning of a track in the form...
 		 *
 		 *      tr1 m1:s1[.f1] [[tr2] [m2:s2[.f2]]]
