@@ -1,69 +1,96 @@
-/*	$FreeBSD$	*/
-
 /* Copyright 1993,1994 by Paul Vixie
  * All rights reserved
- *
- * Distribute freely, except: don't remove my name from the source or
- * documentation (don't take credit for my work), mark your changes (don't
- * get me blamed for your possible bugs), don't alter or remove this
- * notice.  May be sold if buildable source is provided to buyer.  No
- * warrantee of any kind, express or implied, is included with this
- * software; use at your own risk, responsibility for damages (if any) to
- * anyone resulting from the use of this software rests entirely with the
- * user.
- *
- * Send bug reports, bug fixes, enhancements, requests, flames, etc., and
- * I'll try to keep a version up to date.  I can be reached as follows:
- * Paul Vixie          <paul@vix.com>          uunet!decwrl!vixie!paul
  */
 
-#if defined(POSIX) || defined(ATT)
-# include <stdlib.h>
-# include <unistd.h>
-# include <string.h>
-# include <dirent.h>
-# define DIR_T	struct dirent
-# define WAIT_T	int
-# define WAIT_IS_INT 1
+/*
+ * Copyright (c) 1997 by Internet Software Consortium
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+ * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+ * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+ * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+ * SOFTWARE.
+ */
+
+/* reorder these #include's at your peril */
+
+#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/wait.h>
+#include <sys/fcntl.h>
+#include <sys/file.h>
+#include <sys/stat.h>
+
+#include <bitstring.h>
+#include <ctype.h>
+#include <dirent.h>
+#include <err.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <grp.h>
+#include <libutil.h>
+#include <locale.h>
+#include <pwd.h>
+#include <signal.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
+#include <utime.h>
+
+#if defined(SYSLOG)
+# include <syslog.h>
+#endif
+
+#if (defined(BSD)) && (BSD >= 199103) || defined(__linux) || defined(AIX)
+# include <paths.h>
+#endif /*BSD*/
+
+#if !defined(_PATH_SENDMAIL)
+# define _PATH_SENDMAIL "/usr/lib/sendmail"
+#endif /*SENDMAIL*/
+
+#if defined(__bsdi__) && (_BSDI_VERSION > 199510)
+#include <login_cap.h>
+#endif /* __bsdi__ */
+
+#define DIR_T	struct dirent
+#define WAIT_T	int
+#define SIG_T	sig_t
+#define TIME_T	time_t
+#define PID_T	pid_t
+
+#ifndef TZNAME_ALREADY_DEFINED
 extern char *tzname[2];
-# define TZONE(tm) tzname[(tm).tm_isdst]
+#endif
+#define TZONE(tm) tzname[(tm).tm_isdst]
+
+#if (BSD >= 198606)
+# define HAVE_FCHOWN
+# define HAVE_FCHMOD
 #endif
 
-#if defined(UNIXPC)
-# undef WAIT_T
-# undef WAIT_IS_INT
-# define WAIT_T	union wait
+#if (BSD >= 199103)
+# define HAVE_SAVED_UIDS
 #endif
 
-#if defined(POSIX)
-# define SIG_T	sig_t
-# define TIME_T	time_t
-# define PID_T pid_t
-#endif
+#define MY_UID(pw) getuid()
+#define MY_GID(pw) getgid()
 
-#if defined(ATT)
-# define SIG_T	void
-# define TIME_T	long
-# define PID_T int
-#endif
-
-#if !defined(POSIX) && !defined(ATT)
-/* classic BSD */
-extern	time_t		time();
-extern	unsigned	sleep();
-extern	struct tm	*localtime();
-extern	struct passwd	*getpwnam();
-extern	int		errno;
-extern	void		perror(), exit(), free();
-extern	char		*getenv(), *strcpy(), *strchr(), *strtok();
-extern	void		*malloc(), *realloc();
-# define SIG_T	void
-# define TIME_T	long
-# define PID_T int
-# define WAIT_T	union wait
-# define DIR_T	struct direct
-# include <sys/dir.h>
-# define TZONE(tm) (tm).tm_zone
+#if !defined(AIX) && !defined(UNICOS)
+# define SYS_TIME_H 1
+#else
+# define SYS_TIME_H 0
 #endif
 
 /* getopt() isn't part of POSIX.  some systems define it in <stdlib.h> anyway.
@@ -72,7 +99,7 @@ extern	void		*malloc(), *realloc();
  * in ways that we cannot predict or comprehend, yet do not define the adjunct
  * external variables needed for the interface.
  */
-#if (!defined(BSD) || (BSD < 198911)) && !defined(ATT) && !defined(UNICOS)
+#if (!defined(BSD) || (BSD < 198911))
 int	getopt(int, char * const *, const char *);
 #endif
 
@@ -81,63 +108,21 @@ extern	char *optarg;
 extern	int optind, opterr, optopt;
 #endif
 
-#if WAIT_IS_INT
-# ifndef WEXITSTATUS
-#  define WEXITSTATUS(x) (((x) >> 8) & 0xff)
-# endif
-# ifndef WTERMSIG
-#  define WTERMSIG(x)	((x) & 0x7f)
-# endif
-# ifndef WCOREDUMP
-#  define WCOREDUMP(x)	((x) & 0x80)
-# endif
-#else /*WAIT_IS_INT*/
-# ifndef WEXITSTATUS
-#  define WEXITSTATUS(x) ((x).w_retcode)
-# endif
-# ifndef WTERMSIG
-#  define WTERMSIG(x)	((x).w_termsig)
-# endif
-# ifndef WCOREDUMP
-#  define WCOREDUMP(x)	((x).w_coredump)
-# endif
-#endif /*WAIT_IS_INT*/
-
-#ifndef WIFSIGNALED
-#define WIFSIGNALED(x)	(WTERMSIG(x) != 0)
-#endif
-#ifndef WIFEXITED
-#define WIFEXITED(x)	(WTERMSIG(x) == 0)
-#endif
-
-#ifdef NEED_STRCASECMP
-extern	int		strcasecmp(char *, char *);
-#endif
-
-#ifdef NEED_STRDUP
-extern	char		*strdup(char *);
-#endif
-
-#ifdef NEED_STRERROR
-extern	char		*strerror(int);
-#endif
-
-#ifdef NEED_FLOCK
+/* digital unix needs this but does not give us a way to identify it.
+ */
 extern	int		flock(int, int);
+
+/* not all systems who provice flock() provide these definitions.
+ */
+#ifndef LOCK_SH
 # define LOCK_SH 1
+#endif
+#ifndef LOCK_EX
 # define LOCK_EX 2
+#endif
+#ifndef LOCK_NB
 # define LOCK_NB 4
+#endif
+#ifndef LOCK_UN
 # define LOCK_UN 8
-#endif
-
-#ifdef NEED_SETSID
-extern	int		setsid(void);
-#endif
-
-#ifdef NEED_GETDTABLESIZE
-extern	int		getdtablesize(void);
-#endif
-
-#ifdef NEED_SETENV
-extern	int		setenv(char *, char *, int);
 #endif

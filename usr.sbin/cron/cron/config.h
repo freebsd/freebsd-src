@@ -1,28 +1,28 @@
 /* Copyright 1988,1990,1993,1994 by Paul Vixie
  * All rights reserved
+ */
+
+/*
+ * Copyright (c) 1997 by Internet Software Consortium
  *
- * Distribute freely, except: don't remove my name from the source or
- * documentation (don't take credit for my work), mark your changes (don't
- * get me blamed for your possible bugs), don't alter or remove this
- * notice.  May be sold if buildable source is provided to buyer.  No
- * warrantee of any kind, express or implied, is included with this
- * software; use at your own risk, responsibility for damages (if any) to
- * anyone resulting from the use of this software rests entirely with the
- * user.
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
  *
- * Send bug reports, bug fixes, enhancements, requests, flames, etc., and
- * I'll try to keep a version up to date.  I can be reached as follows:
- * Paul Vixie          <paul@vix.com>          uunet!decwrl!vixie!paul
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+ * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+ * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+ * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+ * SOFTWARE.
  */
 
 /* config.h - configurables for Vixie Cron
  *
- * $FreeBSD$
+ * $Id: config.h,v 1.2 1998/08/14 00:32:36 vixie Exp $
  */
-
-#if !defined(_PATH_SENDMAIL)
-# define _PATH_SENDMAIL "/usr/lib/sendmail"
-#endif /*SENDMAIL*/
 
 /*
  * these are site-dependent
@@ -33,35 +33,35 @@
 #endif
 
 			/*
-			 * choose one of these MAILCMD commands.  I use
+			 * choose one of these mailer commands.  some use
 			 * /bin/mail for speed; it makes biff bark but doesn't
-			 * do aliasing.  /usr/lib/sendmail does aliasing but is
+			 * do aliasing.  sendmail does do aliasing but is
 			 * a hog for short messages.  aliasing is not needed
 			 * if you make use of the MAILTO= feature in crontabs.
 			 * (hint: MAILTO= was added for this reason).
 			 */
 
-#define MAILCMD _PATH_SENDMAIL					/*-*/
-#define MAILARGS "%s -FCronDaemon -odi -oem -oi -t"             /*-*/
+#define MAILFMT "%s -FCronDaemon -odi -oem -oi -t"	/*-*/
 			/* -Fx	 = set full-name of sender
 			 * -odi	 = Option Deliverymode Interactive
 			 * -oem	 = Option Errors Mailedtosender
-			 * -oi   = Option dot message terminator
-			 * -t    = read recipients from header of message
+			 * -or0s = Option Readtimeout -- don't time out
+			 * -t    = Get recipient from headers
 			 */
+#define MAILARG _PATH_SENDMAIL				/*-*/
 
-/* #define MAILCMD "/bin/mail" */		/*-*/
-/* #define MAILARGS "%s -d  %s" */		/*-*/
+/* #define MAILFMT "%s -d %s" */			/*-*/
 			/* -d = undocumented but common flag: deliver locally?
 			 */
+/* #define MAILARG "/bin/mail",mailto */
 
-/* #define MAILCMD "/usr/mmdf/bin/submit" */	/*-*/
-/* #define MAILARGS "%s -mlrxto %s" */		/*-*/
+/* #define MAILFMT "%s -mlrxto %s" */			/*-*/
+/* #define MAILARG "/usr/mmdf/bin/submit",mailto */	/*-*/
 
 /* #define MAIL_DATE */				/*-*/
 			/* should we include an ersatz Date: header in
 			 * generated mail?  if you are using sendmail
-			 * for MAILCMD, it is better to let sendmail
+			 * as the mailer, it is better to let sendmail
 			 * generate the Date: header.
 			 */
 
@@ -69,7 +69,7 @@
 			 * defined but neither exists, should crontab(1) be
 			 * usable only by root?
 			 */
-/* #define ALLOW_ONLY_ROOT */			/*-*/
+/*#define ALLOW_ONLY_ROOT */			/*-*/
 
 			/* if you want to use syslog(3) instead of appending
 			 * to CRONDIR/LOG_FILE (/var/cron/log, e.g.), define
