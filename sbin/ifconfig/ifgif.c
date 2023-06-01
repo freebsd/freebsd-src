@@ -70,7 +70,7 @@ gif_status(if_ctx *ctx)
 }
 
 static void
-setgifopts(if_ctx *ctx, const char *val, int d)
+setgifopts(if_ctx *ctx, const char *val __unused, int d)
 {
 	int opts;
 

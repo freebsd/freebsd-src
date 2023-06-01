@@ -185,7 +185,7 @@ setpfsync_syncdev(if_ctx *ctx, const char *val, int dummy __unused)
 }
 
 static void
-unsetpfsync_syncdev(if_ctx *ctx, const char *val, int dummy __unused)
+unsetpfsync_syncdev(if_ctx *ctx, const char *val __unused, int dummy __unused)
 {
 	nvlist_t *nvl = nvlist_create(0);
 
@@ -220,8 +220,7 @@ setpfsync_syncpeer(if_ctx *ctx, const char *val, int dummy __unused)
 	switch (peerres->ai_family) {
 #ifdef INET
 	case AF_INET: {
-		struct sockaddr_in *sin = (struct sockaddr_in *)
-					      peerres->ai_addr;
+		struct sockaddr_in *sin = satosin(peerres->ai_addr);
 
 		if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
 			errx(1, "syncpeer address cannot be multicast");
@@ -248,7 +247,7 @@ setpfsync_syncpeer(if_ctx *ctx, const char *val, int dummy __unused)
 }
 
 static void
-unsetpfsync_syncpeer(if_ctx *ctx, const char *val, int dummy __unused)
+unsetpfsync_syncpeer(if_ctx *ctx, const char *val __unused, int dummy __unused)
 {
 	struct sockaddr_storage addr;
 	memset(&addr, 0, sizeof(addr));
@@ -293,7 +292,7 @@ setpfsync_maxupd(if_ctx *ctx, const char *val, int dummy __unused)
 }
 
 static void
-setpfsync_defer(if_ctx *ctx, const char *val, int d)
+setpfsync_defer(if_ctx *ctx, const char *val __unused, int d)
 {
 	nvlist_t *nvl = nvlist_create(0);
 

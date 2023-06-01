@@ -263,7 +263,7 @@ static struct in_px *sintab_nl[] = {
 };
 
 static void
-in_copyaddr(if_ctx *ctx, int to, int from)
+in_copyaddr(if_ctx *ctx __unused, int to, int from)
 {
 	sintab_nl[to]->addr = sintab_nl[from]->addr;
 	sintab_nl[to]->addrset = sintab_nl[from]->addrset;

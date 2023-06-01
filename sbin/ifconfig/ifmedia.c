@@ -90,7 +90,7 @@
 
 #include "ifconfig.h"
 
-static void domediaopt(const char *, bool, int);
+static void domediaopt(const char *, bool);
 static ifmedia_t get_media_subtype(ifmedia_t, const char *);
 static ifmedia_t get_media_mode(ifmedia_t, const char *);
 static ifmedia_t get_media_options(ifmedia_t, const char *);
@@ -217,21 +217,21 @@ setmedia(if_ctx *ctx __unused, const char *val, int d __unused)
 }
 
 static void
-setmediaopt(if_ctx *ctx, const char *val, int d __unused)
+setmediaopt(if_ctx *ctx __unused, const char *val, int d __unused)
 {
 
-	domediaopt(val, false, ctx->io_s);
+	domediaopt(val, false);
 }
 
 static void
-unsetmediaopt(if_ctx *ctx, const char *val, int d __unused)
+unsetmediaopt(if_ctx *ctx __unused, const char *val, int d __unused)
 {
 
-	domediaopt(val, true, ctx->io_s);
+	domediaopt(val, true);
 }
 
 static void
-domediaopt(const char *val, bool clear, int s)
+domediaopt(const char *val, bool clear)
 {
 	struct ifmediareq *ifmr;
 	ifmedia_t options;

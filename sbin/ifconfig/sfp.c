@@ -55,13 +55,14 @@ static const char rcsid[] =
 #include "ifconfig.h"
 
 void
-sfp_status(int s, struct ifreq *ifr, int verbose)
+sfp_status(if_ctx *ctx)
 {
 	struct ifconfig_sfp_info info;
 	struct ifconfig_sfp_info_strings strings;
 	struct ifconfig_sfp_vendor_info vendor_info;
 	struct ifconfig_sfp_status status;
 	size_t channel_count;
+	int verbose = ctx->args->verbose;
 
 	if (ifconfig_sfp_get_sfp_info(lifh, name, &info) == -1)
 		return;

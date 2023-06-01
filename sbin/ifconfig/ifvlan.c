@@ -176,7 +176,7 @@ vlan_create(int s, struct ifreq *ifr)
 }
 
 static void
-vlan_cb(int s, void *arg)
+vlan_cb(int s __unused, void *arg __unused)
 {
 	if ((params.vlr_tag != NOTAG) ^ (params.vlr_parent[0] != '\0'))
 		errx(1, "both vlan and vlandev must be specified");
@@ -263,7 +263,7 @@ setvlanpcp(if_ctx *ctx, const char *val, int dummy __unused)
 }
 
 static void
-unsetvlandev(if_ctx *ctx, const char *val, int dummy __unused)
+unsetvlandev(if_ctx *ctx, const char *val __unused, int dummy __unused)
 {
 	struct vlanreq		vreq;
 
