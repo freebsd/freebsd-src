@@ -2259,7 +2259,7 @@ jblocks_add(struct jblocks *jblocks, ufs2_daddr_t daddr, int blocks)
 /*
  * Add a file block from the journal to the extent map.  We can't read
  * each file block individually because the kernel treats it as a circular
- * buffer and segments may span mutliple contiguous blocks.
+ * buffer and segments may span multiple contiguous blocks.
  */
 static void
 suj_add_block(ino_t ino, ufs_lbn_t lbn, ufs2_daddr_t blk, int frags)
