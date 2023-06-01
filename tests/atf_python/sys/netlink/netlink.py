@@ -265,6 +265,9 @@ class Nlsock:
         # k = struct.pack("@BBHII", 12, 38, 0, self.pid, mask)
         # self.sock_fd.bind(k)
 
+    def join_group(self, group_id: int):
+        self.sock_fd.setsockopt(270, 1, group_id)
+
     def write_message(self, msg, verbose=True):
         if verbose:
             print("vvvvvvvv OUT vvvvvvvv")
