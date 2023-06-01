@@ -416,7 +416,6 @@ main(int argc, char **argv)
 	rpctls_svc_run();
 
 	SSL_CTX_free(rpctls_ctx);
-	EVP_cleanup();
 	return (0);
 }
 
@@ -652,16 +651,11 @@ rpctls_setup_ssl(const char *certdir)
 	size_t len, rlen;
 	int ret;
 
-	SSL_library_init();
-	SSL_load_error_strings();
-	OpenSSL_add_all_algorithms();
-
 	ctx = SSL_CTX_new(TLS_server_method());
 	if (ctx == NULL) {
 		rpctls_verbose_out("rpctls_setup_ssl: SSL_CTX_new failed\n");
 		return (NULL);
 	}
-	SSL_CTX_set_ecdh_auto(ctx, 1);
 
 	if (rpctls_ciphers != NULL) {
 		/*
@@ -811,7 +805,11 @@ rpctls_server(SSL_CTX *ctx, int s, uint32_t *flags, uint32_t *uidp,
 		    SSL_get_cipher(ssl));
 	}
 	if (rpctls_do_mutual) {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000
+		cert = SSL_get1_peer_certificate(ssl);
+#else
 		cert = SSL_get_peer_certificate(ssl);
+#endif
 		if (cert != NULL) {
 			if (!rpctls_verbose) {
 				gethostret = rpctls_gethost(s, sad, hostnam,
