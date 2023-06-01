@@ -221,7 +221,7 @@ void t6_display_tcb_aux_0 (_TCBVAR *tvp, int aux)
 	      val("rx_flow_control_ddp"));
 
 
-  PR("MISCELANEOUS:\n");  /* *************************** */
+  PR("MISCELLANEOUS:\n");  /* *************************** */
   PR("  pend_ctl: 0x%1x, core_bypass: 0x%x,  main_slush: 0x%x\n",
 	      ((val("pend_ctl2")<<2) | (val("pend_ctl1")<<1) | 
 	       val("pend_ctl0")),
