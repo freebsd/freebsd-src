@@ -1,6 +1,6 @@
 # EDIT THIS FILE WITH CAUTION  (calc_tickadj-opts)
 #
-# It has been AutoGen-ed  April  5, 2019 at 01:12:39 AM by AutoGen 5.18.5
+# It has been AutoGen-ed  March  5, 2023 at 02:05:18 AM by AutoGen 5.18.16
 # From the definitions    calc_tickadj-opts.def
 # and the template file   perlopt
 
@@ -39,7 +39,7 @@ sub processOptions {
         'help|?', 'more-help'));
 
     $usage = <<'USAGE';
-calc_tickadj - Calculates "optimal" value for tick given ntp drift file. - Ver. 4.2.8p13
+calc_tickadj - Calculates "optimal" value for tick given ntp drift file. - Ver. 4.2.8p15
 USAGE: calc_tickadj [ -<flag> [<val>] | --<name>[{=| }<val>] ]... 
 
     -d, --drift-file=str         Ntp drift file to use

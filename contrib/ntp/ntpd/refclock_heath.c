@@ -222,7 +222,7 @@ heath_start(
 	 * Open serial port
 	 */
 	snprintf(device, sizeof(device), DEVICE, unit);
-	fd = refclock_open(device, speed[peer->ttl & 0x3],
+	fd = refclock_open(&peer->srcadr, device, speed[peer->ttl & 0x3],
 			   LDISC_REMOTE);
 	if (fd <= 0)
 		return (0);
@@ -427,7 +427,7 @@ heath_poll(
 	if (ioctl(pp->io.fd, TIOCMBIC, (char *)&bits) < 0)
 		refclock_report(peer, CEVNT_FAULT);
 	get_systime(&pp->lastrec);
-	if (write(pp->io.fd, "T", 1) != 1)
+	if (refclock_write(peer, "T", 1, "T") != 1)
 		refclock_report(peer, CEVNT_FAULT);
 	ioctl(pp->io.fd, TIOCMBIS, (char *)&bits);
 	if (pp->coderecv == pp->codeproc) {

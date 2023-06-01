@@ -6,7 +6,7 @@
 #
 # EDIT THIS FILE WITH CAUTION  (invoke-ntpsweep.texi)
 #
-# It has been AutoGen-ed  June 23, 2020 at 02:21:34 AM by AutoGen 5.18.5
+# It has been AutoGen-ed  May 31, 2023 at 08:04:26 PM by AutoGen 5.18.16
 # From the definitions    ntpsweep-opts.def
 # and the template file   agtexi-cmd.tpl
 @end ignore
@@ -45,7 +45,7 @@ with a status code of 0.
 
 @exampleindent 0
 @example
-ntpsweep - Print various informations about given ntp servers - Ver. 4.2.8p15
+ntpsweep - Print various informations about given ntp servers - Ver. 4.2.8p16
 USAGE: ntpsweep [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]... [hostfile]
 
     -l, --host-list=str          Host to execute actions on

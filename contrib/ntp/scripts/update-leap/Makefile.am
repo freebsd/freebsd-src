@@ -57,12 +57,12 @@ $(srcdir)/update-leap: $(srcdir)/update-leap-opts
 	@: do-nothing action to avoid default SCCS get
 
 $(srcdir)/update-leap-opts: update-leap-opts.def $(std_def_list)
-	$(run_ag) update-leap-opts.def
+	$(AM_V_GEN)$(run_ag) update-leap-opts.def
 
 ### Man
 
 $(srcdir)/update-leap.1update-leapman: $(srcdir)/update-leap-opts.def $(std_def_list)
-	$(run_ag) -DMAN_SECTION=1update-leapman -Tagman-cmd.tpl update-leap-opts.def
+	$(AM_V_GEN)$(run_ag) -DMAN_SECTION=1update-leapman -Tagman-cmd.tpl update-leap-opts.def
 
 $(srcdir)/update-leap.man.in: $(srcdir)/update-leap.1update-leapman $(top_srcdir)/sntp/scripts/mansec2subst.sed
 	sed -f $(top_srcdir)/sntp/scripts/mansec2subst.sed $(srcdir)/update-leap.1update-leapman > $(srcdir)/update-leap.man.in+
@@ -71,7 +71,7 @@ $(srcdir)/update-leap.man.in: $(srcdir)/update-leap.1update-leapman $(top_srcdir
 ### Mdoc
 
 $(srcdir)/update-leap.1update-leapmdoc: $(srcdir)/update-leap-opts.def $(std_def_list)
-	$(run_ag) -DMAN_SECTION=1update-leapmdoc -Tagmdoc-cmd.tpl update-leap-opts.def
+	$(AM_V_GEN)$(run_ag) -DMAN_SECTION=1update-leapmdoc -Tagmdoc-cmd.tpl update-leap-opts.def
 
 $(srcdir)/update-leap.mdoc.in: $(srcdir)/update-leap.1update-leapmdoc $(top_srcdir)/sntp/scripts/mansec2subst.sed
 	sed -f $(top_srcdir)/sntp/scripts/mansec2subst.sed $(srcdir)/update-leap.1update-leapmdoc > $(srcdir)/update-leap.mdoc.in+
@@ -89,10 +89,10 @@ $(srcdir)/invoke-update-leap.menu: $(srcdir)/invoke-update-leap.texi
 	@: do-nothing action to avoid default SCCS get, .menu built with .texi
 
 $(srcdir)/invoke-update-leap.texi: $(srcdir)/update-leap-opts.def $(std_def_list)
-	$(run_ag) -Tagtexi-cmd.tpl -DLEVEL=section update-leap-opts.def
+	$(AM_V_GEN)$(run_ag) -Tagtexi-cmd.tpl -DLEVEL=section update-leap-opts.def
 	$(top_srcdir)/scripts/build/check--help $@
 
 ### HTML
 
-$(srcdir)/update-leap.html: $(srcdir)/update-leap.texi $(top_srcdir)/sntp/include/version.texi
+$(srcdir)/update-leap.html: $(srcdir)/invoke-update-leap.texi $(srcdir)/update-leap.texi $(top_srcdir)/sntp/include/version.texi
 	cd $(srcdir) && ( makeinfo --force --html --no-split -I ../sntp -o update-leap.html update-leap.texi || true )

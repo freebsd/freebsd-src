@@ -63,6 +63,7 @@ char	*stats_drift_file;		/* frequency file name */
 static	char *stats_temp_file;		/* temp frequency file name */
 static double wander_resid;		/* last frequency update */
 double	wander_threshold = 1e-7;	/* initial frequency threshold */
+static unsigned int cmdargs_seen = 0;	/* stat options seen from command line */
 
 /*
  * Statistics file stuff
@@ -327,6 +328,27 @@ write_stats(void)
 /*
  * stats_config - configure the stats operation
  */
+static int
+allow_config(
+	unsigned int	option,
+	int/*BOOL*/	cmdopt)
+{
+	/* If an option was given on the command line, make sure it
+	 * persists and is not later changed by a corresponding option
+	 * from the config file. Done by simply remembering an option was
+	 * already seen from the command line.
+	 * 
+	 * BTW, if we ever define stats options beyond 31, this needs a
+	 * fix. Until then, simply assume the shift will not overflow.
+	 */
+	unsigned int mask = 1u << option;
+	int          retv = cmdopt || !(cmdargs_seen & mask);
+	if (cmdopt) 
+		cmdargs_seen |= mask;
+	return retv;
+}
+
+
 void
 stats_config(
 	int item,
@@ -341,9 +363,9 @@ stats_config(
 	l_fp	now;
 	time_t  ttnow;
 #ifndef VMS
-	const char temp_ext[] = ".TEMP";
+	static const char temp_ext[] = ".TEMP";
 #else
-	const char temp_ext[] = "-TEMP";
+	static const char temp_ext[] = "-TEMP";
 #endif
 
 	/*
@@ -397,40 +419,58 @@ stats_config(
 	 * Open and read frequency file.
 	 */
 	case STATS_FREQ_FILE:
-		if (!value || (len = strlen(value)) == 0)
+		if (!allow_config(STATS_FREQ_FILE, optflag))
 			break;
-
-		stats_drift_file = erealloc(stats_drift_file, len + 1);
-		stats_temp_file = erealloc(stats_temp_file,
-		    len + sizeof(".TEMP"));
-		memcpy(stats_drift_file, value, (size_t)(len+1));
-		memcpy(stats_temp_file, value, (size_t)len);
-		memcpy(stats_temp_file + len, temp_ext, sizeof(temp_ext));
-
+		
+		if (!value || (len = strlen(value)) == 0)
+		{
+			free(stats_drift_file);
+			free(stats_temp_file);
+			stats_drift_file = stats_temp_file = NULL;    
+		}
+		else
+		{
+			stats_drift_file = erealloc(stats_drift_file, len + 1);
+			stats_temp_file = erealloc(stats_temp_file,
+						   len + sizeof(".TEMP"));
+			memcpy(stats_drift_file, value, (size_t)(len+1));
+			memcpy(stats_temp_file, value, (size_t)len);
+			memcpy(stats_temp_file + len, temp_ext, sizeof(temp_ext));
+		}
+		
 		/*
 		 * Open drift file and read frequency. If the file is
 		 * missing or contains errors, tell the loop to reset.
 		 */
-		if ((fp = fopen(stats_drift_file, "r")) == NULL)
-			break;
-
-		if (fscanf(fp, "%lf", &old_drift) != 1) {
+		if (NULL == stats_drift_file) {
+			loop_config(LOOP_NOFREQ, 0.0);
+			prev_drift_comp = 0.0;
+		} else if ((fp = fopen(stats_drift_file, "r")) == NULL) {
+			if (errno != ENOENT)
+				msyslog(LOG_WARNING,
+					"cannot read frequency file %s: %s",
+					stats_drift_file, strerror(errno));
+		} else if (fscanf(fp, "%lf", &old_drift) != 1) {
 			msyslog(LOG_ERR,
 				"format error frequency file %s",
 				stats_drift_file);
 			fclose(fp);
-			break;
-
+		} else {
+			loop_config(LOOP_FREQ, old_drift);
+			prev_drift_comp = drift_comp;
+			msyslog(LOG_INFO,
+				"initial drift restored to %f",
+				old_drift);
+			fclose(fp);
 		}
-		fclose(fp);
-		loop_config(LOOP_FREQ, old_drift);
-		prev_drift_comp = drift_comp;
 		break;
 
 	/*
 	 * Specify statistics directory.
 	 */
 	case STATS_STATSDIR:
+		if (!allow_config(STATS_STATSDIR, optflag))
+			break;
 
 		/* - 1 since value may be missing the DIR_SEP. */
 		if (strlen(value) >= sizeof(statsdir) - 1) {
@@ -463,6 +503,9 @@ stats_config(
 	 * Open pid file.
 	 */
 	case STATS_PID_FILE:
+		if (!allow_config(STATS_PID_FILE, optflag))
+			break;
+		
 		if ((fp = fopen(value, "w")) == NULL) {
 			msyslog(LOG_ERR, "pid file %s: %m",
 			    value);
@@ -698,6 +741,13 @@ record_raw_stats(
 	u_long	day;
 
 	if (!stats_control)
+		return;
+
+	/*
+	 * Mode 6 and mode 7 packets do not have the format of normal
+	 * NTP packets and will log garbage.  So don't.  [Bug 3774]
+	 */
+	if (MODE_CONTROL == mode || MODE_PRIVATE == mode)
 		return;
 
 	get_systime(&now);

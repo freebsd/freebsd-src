@@ -60,7 +60,7 @@
  */
 
 #include <config.h>
-#include "ntp_machine.h"
+#include "ntp_types.h"
 
 #if !defined(HAVE_MKTIME) || ( !defined(HAVE_TIMEGM) && defined(WANT_TIMEGM) )
 
@@ -259,7 +259,7 @@ time2(
 	return t;
 }
 #else
-int mktime_bs;
+NONEMPTY_TRANSLATION_UNIT
 #endif /* !HAVE_MKTIME || !HAVE_TIMEGM */
 
 #ifndef HAVE_MKTIME

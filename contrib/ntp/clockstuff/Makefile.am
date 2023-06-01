@@ -14,7 +14,8 @@ propdelay_LDADD = $(LDADD)
 
 BUILT_SOURCES =
 CLEANFILES =
+DISTCLEANFILES =
 
-include $(top_srcdir)/sntp/check-libntp.mf
+include $(top_srcdir)/check-libntp.mf
 include $(top_srcdir)/depsver.mf
 include $(top_srcdir)/includes.mf

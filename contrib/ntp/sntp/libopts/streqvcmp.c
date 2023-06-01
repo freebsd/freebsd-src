@@ -15,7 +15,7 @@
 /*
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2018 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -37,7 +37,7 @@
  * together for a case independent comparison.  The mappings are
  * based upon ascii character sequences.
  */
-static unsigned char charmap[] = {
+  static unsigned char charmap[] = {
     NUL,  0x01, 0x02, 0x03,  0x04, 0x05, 0x06, '\a',
     '\b', '\t', NL,   '\v',  '\f', '\r', 0x0E, 0x0F,
     0x10, 0x11, 0x12, 0x13,  0x14, 0x15, 0x16, 0x17,

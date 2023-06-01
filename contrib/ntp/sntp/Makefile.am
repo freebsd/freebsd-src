@@ -16,8 +16,7 @@ AM_CPPFLAGS += $(NTP_HARD_CPPFLAGS)
 AM_LDFLAGS  = $(LDFLAGS_NTP)
 AM_LDFLAGS += $(NTP_HARD_LDFLAGS)
 
-LDADD  = version.o
-LDADD += libsntp.a
+LDADD  = libsntp.a
 LDADD += $(LIBOPTS_LDADD)
 LDADD += $(LDADD_LIBEVENT)
 LDADD += ../libntp/libntp.a $(LDADD_LIBNTP) $(LIBM)
@@ -69,8 +68,12 @@ libsntp_a_SOURCES =		\
 	utilities.c		\
 	$(NULL)
 
-sntp_SOURCES =		\
-	sntp.c		\
+sntp_SOURCES =			\
+	sntp.c			\
+	$(NULL)
+
+nodist_sntp_SOURCES =		\
+	version.c		\
 	$(NULL)
 
 noinst_HEADERS =		\
@@ -85,8 +88,6 @@ noinst_HEADERS =		\
 	$(NULL)
 
 DISTCLEANFILES =			\
-	.version			\
-	version.c			\
 	config.log			\
 	$(man_MANS)			\
 	$(NULL)
@@ -118,15 +119,15 @@ BUILT_SOURCES =				\
 	libtool				\
 	$(srcdir)/sntp-opts.c		\
 	$(srcdir)/sntp-opts.h		\
-	check-scm-rev			\
 	$(srcdir)/include/version.def	\
 	$(srcdir)/m4/version.m4		\
 	$(srcdir)/include/version.texi	\
 	$(NULL)
 
 CLEANFILES =				\
-	built-sources-only		\
 	check-COPYRIGHT-submake		\
+	.version			\
+	version.c			\
 	$(NULL)
 
 man1_MANS=
@@ -151,23 +152,16 @@ noinst_DATA=				\
 install-data-local: install-html
 
 FRC:
-	@: do-nothing action to prevent default SCCS get
-	@: FRC "force" depends on nothing and is not a file, so is
-	@: always out-of-date causing targets which depend on it to
-	@: similarly always be outdated causing their rules to fire
-	@: each time they or a dependent is built.
-
-$(PROGRAMS): version.o
+	@: FRC "force" depends on nothing and is not a file, so is always
+	@: out-of-date causing targets which depend on it to also be
+	@: outdated so their rules to fire each time they are built.
 
 ## We probably need something about libevent, too
 ## That is probably not possible since LDADD_LIBEVENT may be
 ## non-file "-levent_core".
 
-version.c: $(sntp_OBJECTS) ../libntp/libntp.a Makefile $(srcdir)/scm-rev
-	env CSET=`cat $(srcdir)/scm-rev` $(top_builddir)/../scripts/build/mkver sntp
-
-version.o: version.c
-	env CCACHE_DISABLE=1 $(COMPILE) -c version.c -o version.o
+version.c: Makefile $(srcdir)/scm-rev
+	$(AM_V_GEN)env CSET=`cat $(srcdir)/scm-rev` $(top_builddir)/../scripts/build/mkver sntp
 
 check-autogen-version.def: FRC
 	@cd $(srcdir)							\
@@ -190,11 +184,11 @@ built-sources-only: $(BUILT_SOURCES)
 check-scm-rev: $(srcdir)/scm-rev
 	@: do-nothing
 
-$(srcdir)/scm-rev:
-	-bk root $(srcdir) >/dev/null 2>&1 &&			\
-	    cd $(srcdir)/.. &&					\
-	    x=`bk -R prs -hr+ -nd:I: ChangeSet` &&		\
-	    y=`cat sntp/scm-rev 2>/dev/null` || true &&		\
+$(srcdir)/scm-rev: FRC
+	$(AM_V_at)-bk root $(srcdir) >/dev/null 2>&1 &&			\
+	    cd $(srcdir)/.. &&						\
+	    x=`bk -R prs -hr+ -nd:I: ChangeSet` &&			\
+	    y=`cat sntp/scm-rev 2>/dev/null` || true &&			\
 	    case "$$x" in ''|$$y) ;; *) echo $$x > sntp/scm-rev ;; esac
 
 $(srcdir)/m4/version.m4: $(srcdir)/../packageinfo.sh
@@ -230,12 +224,12 @@ $(srcdir)/sntp-opts.h: $(srcdir)/sntp-opts.c
 	@: do-nothing action to avoid default SCCS get, .h built with .c
 
 $(srcdir)/sntp-opts.c: $(srcdir)/sntp-opts.def $(std_def_list)
-	$(run_ag) sntp-opts.def
+	$(AM_V_GEN)$(run_ag) sntp-opts.def
 
 ###
 
 $(srcdir)/sntp.1sntpman: $(srcdir)/sntp-opts.def $(std_def_list)
-	$(run_ag) -DMAN_SECTION=1sntpman -Tagman-cmd.tpl sntp-opts.def
+	$(AM_V_GEN)$(run_ag) -DMAN_SECTION=1sntpman -Tagman-cmd.tpl sntp-opts.def
 
 $(srcdir)/sntp.man.in: $(srcdir)/sntp.1sntpman $(srcdir)/scripts/mansec2subst.sed
 	sed -f $(srcdir)/scripts/mansec2subst.sed $(srcdir)/sntp.1sntpman > $(srcdir)/sntp.man.in+
@@ -244,7 +238,7 @@ $(srcdir)/sntp.man.in: $(srcdir)/sntp.1sntpman $(srcdir)/scripts/mansec2subst.se
 ###
 
 $(srcdir)/sntp.1sntpmdoc: $(srcdir)/sntp-opts.def $(std_def_list)
-	$(run_ag) -DMAN_SECTION=1sntpmdoc -Tagmdoc-cmd.tpl sntp-opts.def
+	$(AM_V_GEN)$(run_ag) -DMAN_SECTION=1sntpmdoc -Tagmdoc-cmd.tpl sntp-opts.def
 
 $(srcdir)/sntp.mdoc.in: $(srcdir)/sntp.1sntpmdoc $(srcdir)/scripts/mansec2subst.sed
 	sed -f $(srcdir)/scripts/mansec2subst.sed $(srcdir)/sntp.1sntpmdoc > $(srcdir)/sntp.mdoc.in+
@@ -262,10 +256,10 @@ $(srcdir)/invoke-sntp.menu: $(srcdir)/invoke-sntp.texi
 	@: do-nothing action to avoid default SCCS get, .menu built with .texi
 
 $(srcdir)/invoke-sntp.texi: $(srcdir)/sntp-opts.def $(std_def_list)
-	$(run_ag) -Tagtexi-cmd.tpl -DLEVEL=section sntp-opts.def
+	$(AM_V_GEN)$(run_ag) -Tagtexi-cmd.tpl -DLEVEL=section sntp-opts.def
 	$(top_srcdir)/../scripts/build/check--help $@
 
-$(srcdir)/sntp.html: $(srcdir)/invoke-sntp.menu $(srcdir)/invoke-sntp.texi $(srcdir)/sntp.texi $(srcdir)/include/version.texi
+$(srcdir)/sntp.html: $(srcdir)/invoke-sntp.texi $(srcdir)/sntp.texi $(srcdir)/include/version.texi
 	cd $(srcdir) && ( makeinfo --force --html --no-split -o sntp.html sntp.texi || true )
 
 libtool: $(LIBTOOL_DEPS)

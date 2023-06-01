@@ -12,13 +12,6 @@
 #if defined(REFCLOCK) && defined(CLOCK_PARSE) && defined(CLOCK_WHARTON_400A)
 /*
  * Support for WHARTON 400A Series clock + 404.2 serial interface.
- *
- * Copyright (C) 1999, 2000 by Philippe De Muyter <phdm@macqel.be>
- * 
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.
- * 
  */
 
 #include "ntp_fp.h"

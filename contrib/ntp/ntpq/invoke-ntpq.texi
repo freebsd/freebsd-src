@@ -6,7 +6,7 @@
 #
 # EDIT THIS FILE WITH CAUTION  (invoke-ntpq.texi)
 #
-# It has been AutoGen-ed  June 23, 2020 at 02:20:55 AM by AutoGen 5.18.5
+# It has been AutoGen-ed  May 31, 2023 at 02:50:06 PM by AutoGen 5.18.16
 # From the definitions    ntpq-opts.def
 # and the template file   agtexi-cmd.tpl
 @end ignore
@@ -923,6 +923,7 @@ This software is released under the NTP license, <http://ntp.org/license>.
 * ntpq old-rv::                 old-rv option
 * ntpq peers::                  peers option (-p)
 * ntpq refid::                  refid option (-r)
+* ntpq unconnected::            unconnected option (-u)
 * ntpq wide::                   wide option (-w)
 * ntpq config::                 presetting/configuring ntpq
 * ntpq exit status::            exit status
@@ -944,7 +945,7 @@ with a status code of 0.
 
 @exampleindent 0
 @example
-ntpq - standard NTP query program - Ver. 4.2.8p15
+ntpq - standard NTP query program - Ver. 4.2.8p16
 Usage:  ntpq [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]... [ host ...]
   Flg Arg Option-Name    Description
    -4 no  ipv4           Force IPv4 name resolution
@@ -966,6 +967,7 @@ Usage:  ntpq [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]... [ host ...]
    -p no  peers          Print a list of the peers
                                 - prohibits the option 'interactive'
    -r KWd refid          Set default display type for S2+ refids
+   -u no  unconnected    Use unconnected UDP to communicate with ntpd (default on Windows)
    -w no  wide           Display the full 'remote' value
       opt version        output version information and exit
    -? no  help           display extended usage information and exit
@@ -987,7 +989,7 @@ The valid "refid" option keywords are:
   hash ipv4
   or an integer from 0 through 1
 
-Please send bug reports to:  <http://bugs.ntp.org, bugs@@ntp.org>
+Please send bug reports to:  <https://bugs.ntp.org, bugs@@ntp.org>
 @end example
 @exampleindent 4
 
@@ -1112,9 +1114,17 @@ The available keywords are:
     hash ipv4
 @end example
 
-or their numeric equivalent.@end itemize
+or their numeric equivalent.
+@end itemize
 
 Set the default display format for S2+ refids.
+@node ntpq unconnected
+@subsection unconnected option (-u)
+@cindex ntpq-unconnected
+
+This is the ``use unconnected udp to communicate with ntpd (default on windows)'' option.
+Open an unconnected UDP association to ntpd (the default
+on Windows).
 @node ntpq wide
 @subsection wide option (-w)
 @cindex ntpq-wide
@@ -1192,7 +1202,7 @@ The command line options relating to configuration and/or usage help are:
 
 Print the program version to standard out, optionally with licensing
 information, then exit 0.  The optional argument specifies how much licensing
-detail to provide.  The default is to print just the version.  The licensing infomation may be selected with an option argument.
+detail to provide.  The default is to print just the version.  The licensing information may be selected with an option argument.
 Only the first letter of the argument is examined:
 
 @table @samp

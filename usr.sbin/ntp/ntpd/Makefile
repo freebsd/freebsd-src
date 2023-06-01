@@ -16,9 +16,12 @@ FILESDIR=	ETC_NTP
 FILESMODE=	644
 PROG=	ntpd
 
-SRCS=	cmd_args.c ntp_config.c ntp_control.c ntp_crypto.c ntp_filegen.c \
+SRCS=	cmd_args.c \
+	ntp_clockdev.c \
+	ntp_config.c ntp_control.c ntp_crypto.c ntp_filegen.c \
 	ntp_io.c ntp_leapsec.c ntp_loopfilter.c ntp_monitor.c ntp_parser.c \
 	ntp_peer.c ntp_proto.c ntp_refclock.c ntp_request.c ntp_restrict.c \
+	ntp_ppsdev.c \
 	ntp_scanner.c ntp_signd.c ntp_timer.c ntp_util.c ntpd-opts.c ntpd.c \
 	rc_cmdlength.c \
 	refclock_acts.c refclock_arbiter.c refclock_arc.c refclock_as2201.c \
@@ -36,9 +39,9 @@ SRCS=	cmd_args.c ntp_config.c ntp_control.c ntp_crypto.c ntp_filegen.c \
 
 CFLAGS+= -I${SRCTOP}/contrib/ntp/ntpd \
 	-I${SRCTOP}/contrib/ntp/include \
-	-I${SRCTOP}/contrib/ntp/lib/isc/include \
-	-I${SRCTOP}/contrib/ntp/lib/isc/pthreads/include \
-	-I${SRCTOP}/contrib/ntp/lib/isc/unix/include \
+	-I${SRCTOP}/contrib/ntp/libntp/lib/isc/include \
+	-I${SRCTOP}/contrib/ntp/libntp/lib/isc/pthreads/include \
+	-I${SRCTOP}/contrib/ntp/libntp/lib/isc/unix/include \
 	-I${SRCTOP}/contrib/ntp/sntp/libopts \
 	-I${.CURDIR:H} \
 	-I${.CURDIR}

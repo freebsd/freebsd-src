@@ -1395,11 +1395,11 @@ crypto_xmit(
 	 * puppy; if a response, return so the sender can flame, too.
 	 */
 	if (rval != XEVNT_OK) {
-		u_int32	uint32;
+		u_int32	opcode_bits;
 
-		uint32 = CRYPTO_ERROR;
-		opcode |= uint32;
-		fp->opcode |= htonl(uint32);
+		opcode_bits = CRYPTO_ERROR;
+		opcode |= opcode_bits;
+		fp->opcode |= htonl(opcode_bits);
 		snprintf(statstr, sizeof(statstr),
 		    "%04x %d %02x %s", opcode, associd, rval,
 		    eventstr(rval));

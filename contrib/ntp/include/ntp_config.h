@@ -234,6 +234,7 @@ struct config_tree_tag {
 	restrict_fifo *	restrict_opts;
 
 	addr_opts_fifo *fudge;
+	addr_opts_fifo *device;
 	attr_val_fifo *	rlimit;
 	attr_val_fifo *	tinker;
 	attr_val_fifo *	enable_opts;

@@ -308,7 +308,7 @@ extern int UNITY_OUTPUT_CHAR(int);
 #if !defined(UNITY_NORETURN_ATTRIBUTE)
 #   ifdef __GNUC__ // includes clang
 #       if !(defined(__WIN32__) && defined(__clang__))
-#           define UNITY_NORETURN_ATTRIBUTE __attribute__((noreturn))
+#           define UNITY_NORETURN_ATTRIBUTE __attribute__((__noreturn__))
 #       endif
 #   endif
 #endif

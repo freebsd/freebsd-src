@@ -65,12 +65,12 @@ BUILT_SOURCES = $(noinst_DATA)
 calc_tickadj: $(srcdir)/calc_tickadj-opts
 
 $(srcdir)/calc_tickadj-opts: $(srcdir)/calc_tickadj-opts.def
-	$(run_ag) calc_tickadj-opts.def
+	$(AM_V_GEN)$(run_ag) calc_tickadj-opts.def
 
 ### Nroff
 
 $(srcdir)/calc_tickadj.1calc_tickadjman: $(srcdir)/calc_tickadj-opts.def $(std_def_list)
-	$(run_ag) -DMAN_SECTION=1calc_tickadjman -Tagman-cmd.tpl calc_tickadj-opts.def
+	$(AM_V_GEN)$(run_ag) -DMAN_SECTION=1calc_tickadjman -Tagman-cmd.tpl calc_tickadj-opts.def
 
 $(srcdir)/calc_tickadj.man.in: $(srcdir)/calc_tickadj.1calc_tickadjman $(top_srcdir)/sntp/scripts/mansec2subst.sed
 	sed -f $(top_srcdir)/sntp/scripts/mansec2subst.sed $(srcdir)/calc_tickadj.1calc_tickadjman > $(srcdir)/calc_tickadj.man.in+
@@ -79,7 +79,7 @@ $(srcdir)/calc_tickadj.man.in: $(srcdir)/calc_tickadj.1calc_tickadjman $(top_src
 ### Mdoc
 
 $(srcdir)/calc_tickadj.1calc_tickadjmdoc: $(srcdir)/calc_tickadj-opts.def $(std_def_list)
-	$(run_ag) -DMAN_SECTION=1calc_tickadjmdoc -Tagmdoc-cmd.tpl calc_tickadj-opts.def
+	$(AM_V_GEN)$(run_ag) -DMAN_SECTION=1calc_tickadjmdoc -Tagmdoc-cmd.tpl calc_tickadj-opts.def
 
 $(srcdir)/calc_tickadj.mdoc.in: $(srcdir)/calc_tickadj.1calc_tickadjmdoc $(top_srcdir)/sntp/scripts/mansec2subst.sed
 	sed -f $(top_srcdir)/sntp/scripts/mansec2subst.sed $(srcdir)/calc_tickadj.1calc_tickadjmdoc > $(srcdir)/calc_tickadj.mdoc.in+
@@ -97,10 +97,10 @@ $(srcdir)/invoke-calc_tickadj.menu: $(srcdir)/invoke-calc_tickadj.texi
 	@: do-nothing action to avoid default SCCS get, .menu built with .texi
 
 $(srcdir)/invoke-calc_tickadj.texi: $(srcdir)/calc_tickadj-opts $(srcdir)/calc_tickadj-opts.def $(std_def_list)
-	$(run_ag) -Tagtexi-cmd.tpl -DLEVEL=section calc_tickadj-opts.def
+	$(AM_V_GEN)$(run_ag) -Tagtexi-cmd.tpl -DLEVEL=section calc_tickadj-opts.def
 	$(top_srcdir)/scripts/build/check--help $@
 
 ### HTML
 
-$(srcdir)/calc_tickadj.html: $(srcdir)/invoke-calc_tickadj.menu $(srcdir)/invoke-calc_tickadj.texi $(srcdir)/calc_tickadj.texi
+$(srcdir)/calc_tickadj.html: $(srcdir)/invoke-calc_tickadj.texi $(srcdir)/calc_tickadj.texi  $(top_srcdir)/sntp/include/version.texi
 	cd $(srcdir) && ( makeinfo --force --html --no-split -I ../sntp -o calc_tickadj.html calc_tickadj.texi || true )
