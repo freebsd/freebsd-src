@@ -49,6 +49,11 @@ extern "C" {
 # ifndef OPENSSL_NO_CRYPTO_MDEBUG_BACKTRACE
 #  define OPENSSL_NO_CRYPTO_MDEBUG_BACKTRACE
 # endif
+# if !defined(__LP64__) || __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
+#  ifndef OPENSSL_NO_EC_NISTP_64_GCC_128
+#   define OPENSSL_NO_EC_NISTP_64_GCC_128
+#  endif
+# endif
 # ifndef OPENSSL_NO_EGD
 #  define OPENSSL_NO_EGD
 # endif
