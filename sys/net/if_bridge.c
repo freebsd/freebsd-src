@@ -2276,7 +2276,8 @@ bridge_transmit(struct ifnet *ifp, struct mbuf *m)
 	eh = mtod(m, struct ether_header *);
 
 	if (((m->m_flags & (M_BCAST|M_MCAST)) == 0) &&
-	    (dst_if = bridge_rtlookup(sc, eh->ether_dhost, 1)) != NULL) {
+	    (dst_if = bridge_rtlookup(sc, eh->ether_dhost, DOT1Q_VID_NULL)) !=
+	    NULL) {
 		error = bridge_enqueue(sc, dst_if, m);
 	} else
 		bridge_broadcast(sc, ifp, m, 0);
