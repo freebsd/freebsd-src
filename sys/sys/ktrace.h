@@ -36,6 +36,8 @@
 #define _SYS_KTRACE_H_
 
 #include <sys/caprights.h>
+#include <sys/signal.h>
+#include <sys/_uio.h>
 
 /*
  * operations to ktrace system call  (KTROP(op))
