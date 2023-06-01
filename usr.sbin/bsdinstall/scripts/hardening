@@ -48,9 +48,8 @@ FEATURES=$( bsddialog --backtitle "$OSNAME Installer" \
 	"5 random_pid" "Randomize the PID of newly created processes" ${random_pid:-off} \
 	"6 clear_tmp" "Clean the /tmp filesystem on system startup" ${clear_tmp:-off} \
 	"7 disable_syslogd" "Disable opening Syslogd network socket (disables remote logging)" ${disable_syslogd:-off} \
-	"8 disable_sendmail" "Disable Sendmail service" ${disable_sendmail:-off} \
-	"9 secure_console" "Enable console password prompt" ${secure_console:-off} \
-	"10 disable_ddtrace" "Disallow DTrace destructive-mode" ${disable_ddtrace:-off} \
+	"8 secure_console" "Enable console password prompt" ${secure_console:-off} \
+	"9 disable_ddtrace" "Disallow DTrace destructive-mode" ${disable_ddtrace:-off} \
 2>&1 1>&3 )
 retval=$?
 exec 3>&-
@@ -84,9 +83,6 @@ for feature in $FEATURES; do
 		;;
 	disable_syslogd)
 		echo 'syslogd_flags="-ss"' >> $BSDINSTALL_TMPETC/rc.conf.hardening
-		;;
-	disable_sendmail)
-		echo 'sendmail_enable="NONE"' >> $BSDINSTALL_TMPETC/rc.conf.hardening
 		;;
 	secure_console)
 		sed "s/unknown	off secure/unknown	off insecure/g" $BSDINSTALL_CHROOT/etc/ttys > $BSDINSTALL_TMPETC/ttys.hardening
