@@ -6,7 +6,7 @@
 #
 # EDIT THIS FILE WITH CAUTION  (invoke-ntpdc.texi)
 #
-# It has been AutoGen-ed  June 23, 2020 at 02:20:45 AM by AutoGen 5.18.5
+# It has been AutoGen-ed  May 31, 2023 at 02:49:52 PM by AutoGen 5.18.16
 # From the definitions    ntpdc-opts.def
 # and the template file   agtexi-cmd.tpl
 @end ignore
@@ -52,6 +52,7 @@ This software is released under the NTP license, <http://ntp.org/license>.
 * ntpdc numeric::                numeric option (-n)
 * ntpdc peers::                  peers option (-p)
 * ntpdc showpeers::              showpeers option (-s)
+* ntpdc unconnected::            unconnected option (-u)
 * ntpdc config::                 presetting/configuring ntpdc
 * ntpdc exit status::            exit status
 * ntpdc Usage::                  Usage
@@ -76,7 +77,7 @@ with a status code of 0.
 
 @exampleindent 0
 @example
-ntpdc - vendor-specific NTPD control program - Ver. 4.2.8p15
+ntpdc - vendor-specific NTPD control program - Ver. 4.2.8p16
 Usage:  ntpdc [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]... [ host ...]
   Flg Arg Option-Name    Description
    -4 no  ipv4           Force IPv4 DNS name resolution
@@ -102,6 +103,7 @@ Usage:  ntpdc [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]... [ host ...]
                                 - prohibits the option 'command'
    -s no  showpeers      Show a list of the peers
                                 - prohibits the option 'command'
+   -u no  unconnected    Use unconnected UDP to communicate with ntpd (default on Windows)
       opt version        output version information and exit
    -? no  help           display extended usage information and exit
    -! no  more-help      extended usage information passed thru pager
@@ -119,7 +121,7 @@ The following option preset mechanisms are supported:
  - reading file ./.ntprc
  - examining environment variables named NTPDC_*
 
-Please send bug reports to:  <http://bugs.ntp.org, bugs@@ntp.org>
+Please send bug reports to:  <https://bugs.ntp.org, bugs@@ntp.org>
 @end example
 @exampleindent 4
 
@@ -243,6 +245,13 @@ command.
 
 Print a list of the peers known to the server as well as a summary
 of their state. This is equivalent to the 'dmpeers' interactive command.
+@node ntpdc unconnected
+@subsection unconnected option (-u)
+@cindex ntpdc-unconnected
+
+This is the ``use unconnected udp to communicate with ntpd (default on windows)'' option.
+Open an unconnected UDP association to ntpd (the default
+on Windows).
 
 
 @node ntpdc config
@@ -312,7 +321,7 @@ The command line options relating to configuration and/or usage help are:
 
 Print the program version to standard out, optionally with licensing
 information, then exit 0.  The optional argument specifies how much licensing
-detail to provide.  The default is to print just the version.  The licensing infomation may be selected with an option argument.
+detail to provide.  The default is to print just the version.  The licensing information may be selected with an option argument.
 Only the first letter of the argument is examined:
 
 @table @samp

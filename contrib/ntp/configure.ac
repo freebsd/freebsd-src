@@ -5,9 +5,9 @@ AC_PREREQ([2.68])
 AC_INIT(
     [ntp],
     [VERSION_NUMBER],
-    [http://bugs.ntp.org./],
+    [https://bugs.ntp.org/],
     [],
-    [http://www.ntp.org./]dnl
+    [https://www.ntp.org/]dnl
 )
 AC_CONFIG_MACRO_DIR([sntp/m4])
 AC_CONFIG_AUX_DIR([sntp/libevent/build-aux])
@@ -35,14 +35,14 @@ AC_PRESERVE_HELP_ORDER
 # the date YYYYMMDD optionally with -HHMM if there is more than one
 # bump in a day.
 
-ntp_configure_cache_version=20120806
+ntp_configure_cache_version=20230326
 
 # When the cache version of config.cache and configure do not
 # match, NTP_CACHEVERSION will flush the cache.
 
 NTP_CACHEVERSION([main], [$ntp_configure_cache_version])
 
-AM_INIT_AUTOMAKE([1.15 foreign -Wall -Wno-gnu])
+AM_INIT_AUTOMAKE([1.15 foreign subdir-objects -Wall -Wno-gnu])
 
 AM_SILENT_RULES([yes])
 
@@ -64,8 +64,6 @@ ntp_jupiter_ok=${ntp_jupiter_ok=no}
 NTP_PROG_CC
 NTP_COMPILER
 
-dnl # Do we need CXX for anything besides google test?
-dnl AC_PROG_CXX
 AC_PROG_YACC
 dnl AC_PROG_CC_C_O 	# called by NTP_COMPILER
 AX_C99_STRUCT_INIT
@@ -76,11 +74,7 @@ NTP_VPATH_HACK		dnl used only by ntpd/Makefile.am
 
 NTP_LOCINFO([sntp])	dnl takes over from NTP_BINDIR, in NTP_LIBNTP
 
-dnl AM_PROG_AR req. automake 1.12
-m4_ifdef(
-    [AM_PROG_AR],
-    [AM_PROG_AR]
-)
+AM_PROG_AR
 
 # So far, the only shared library we might use is libopts.
 # It's a small library - we might as well use a static version of it.
@@ -403,7 +397,7 @@ case "$ac_cv_header_stdatomic_h" in
 		    [[
 			atomic_thread_fence(memory_order_seq_cst);
 		    ]]
-		)]
+		)],
 		[ntp_cv_func_atomic_thread_fence=yes],
 		[ntp_cv_func_atomic_thread_fence=no]
 	    )]
@@ -479,7 +473,7 @@ case "$have_adjtimex" in
 			struct nlist n;
 			n.n_un.n_name = 0;
 		    ]]
-		)]
+		)],
 		[ntp_cv_struct_nlist_n_un=yes],
 		[ntp_cv_struct_nlist_n_un=no]
 	    )]
@@ -855,7 +849,9 @@ AC_CHECK_FUNCS(
     )]
 )
 
-AC_CHECK_FUNCS([fnmatch getbootfile getuid getrusage nanosleep strsignal])
+AC_CHECK_FUNCS([fnmatch getbootfile getuid getrusage nanosleep strsignal ]dnl
+	       [strsignal closefrom getdtablesize])
+
 
 # kvm_open() is only used by tickadj.  Also see above.
 case "$ac_cv_header_kvm_h" in
@@ -900,6 +896,7 @@ case "$host" in
     ;;
 esac
 AC_CHECK_FUNCS([nice plock pututline pututxline readlink rtprio])
+NTP_FUNC_REALPATH
 case "$host" in
  *-*-aix[[4-9]]*)
     # XXX only verified thru AIX6.
@@ -1109,7 +1106,7 @@ AC_CACHE_CHECK(
 	    [[
 		extern int syscall (int, ...);
 	    ]]
-	)]
+	)],
 	[ntp_cv_decl_syscall=yes],
 	[ntp_cv_decl_syscall=no]
     )]
@@ -4211,6 +4208,24 @@ case "$ans" in
 esac
 
 
+AC_MSG_CHECKING([if we want a debug assert on an OOB KoD RATE value])
+AC_ARG_ENABLE(
+    [bug3767-fix],
+    [AS_HELP_STRING(
+	[--enable-bug3767-fix],
+	[+ Disable debug assertion on OOB KoD RATE value]
+    )],
+    [ans=$enableval],
+    [ans=yes]
+)
+AC_MSG_RESULT([$ans])
+case "$ans" in
+ no)
+    AC_DEFINE([DISABLE_BUG3767_FIX], [1],
+	[Disable debug assertion on OOB KoD RATE value?])
+esac
+
+
 AC_MSG_CHECKING([if we should use the IRIG sawtooth filter])
 
 case "$host" in
@@ -4292,6 +4307,26 @@ case "$ntp_signd_path" in
 	[Do we want support for Samba's signing daemon?])
     AC_DEFINE_UNQUOTED([NTP_SIGND_PATH], ["$ntp_signd_path"],
 	[Path to sign daemon rendezvous socket])
+    ;;
+esac
+
+dnl check for 'magic pps' for Linux
+AC_MSG_CHECKING([if we want 'magic' PPS support])
+AC_ARG_ENABLE(
+    [magicpps],
+    [AS_HELP_STRING(
+	[--enable-magicpps],
+	[+ try to auto-instantiate PPS devices on Linux]
+    )],
+    [ans=$enableval],
+    [ans=yes]
+)
+AC_MSG_RESULT([$ans])
+case "$ans" in
+ yes)
+    AC_DEFINE([ENABLE_MAGICPPS], [1],
+	[auto-instantiate missing PPS devices on Linux])
+    AC_CHECK_FUNCS([openat fdopendir fstatat])
     ;;
 esac
 
@@ -4398,11 +4433,6 @@ AC_DEFINE_UNQUOTED([DYNAMIC_INTERLEAVE], [$ntp_dynamic_interleave],
 AC_MSG_RESULT([$ntp_ok])
 
 NTP_UNITYBUILD
-
-dnl  gtest is needed for our tests subdirs. It would be nice if we could
-dnl  require a C++ compiler only if we will use gtest, but AC_PROG_CXX
-dnl  can't be conditionalized.
-NTP_GOOGLETEST
 
 NTP_PROBLEM_TESTS
 

@@ -1,11 +1,11 @@
 /*
  *  EDIT THIS FILE WITH CAUTION  (ntpsnmpd-opts.h)
  *
- *  It has been AutoGen-ed  June 23, 2020 at 02:20:57 AM by AutoGen 5.18.5
+ *  It has been AutoGen-ed  May 31, 2023 at 02:50:10 PM by AutoGen 5.18.16
  *  From the definitions    ntpsnmpd-opts.def
  *  and the template file   options
  *
- * Generated from AutoOpts 41:1:16 templates.
+ * Generated from AutoOpts 42:1:17 templates.
  *
  *  AutoOpts is a copyrighted work.  This header file is not encumbered
  *  by AutoOpts licensing, but is provided under the licensing terms chosen
@@ -18,7 +18,7 @@
  * The ntpsnmpd program is copyrighted and licensed
  * under the following terms:
  *
- *  Copyright (C) 1992-2020 The University of Delaware and Network Time Foundation, all rights reserved.
+ *  Copyright (C) 1992-2023 The University of Delaware and Network Time Foundation, all rights reserved.
  *  This is free software. It is licensed for use, modification and
  *  redistribution under the terms of the NTP License, copies of which
  *  can be seen at:
@@ -45,6 +45,8 @@
 #define AUTOOPTS_NTPSNMPD_OPTS_H_GUARD 1
 #include "config.h"
 #include <autoopts/options.h>
+#include <stdarg.h>
+#include <stdnoreturn.h>
 
 /**
  *  Ensure that the library used for compiling this generated header is at
@@ -53,11 +55,17 @@
  *  tolerable version is at least as old as what was current when the header
  *  template was released.
  */
-#define AO_TEMPLATE_VERSION 167937
+#define AO_TEMPLATE_VERSION 172033
 #if (AO_TEMPLATE_VERSION < OPTIONS_MINIMUM_VERSION) \
  || (AO_TEMPLATE_VERSION > OPTIONS_STRUCT_VERSION)
 # error option template version mismatches autoopts/options.h header
   Choke Me.
+#endif
+
+#if GCC_VERSION > 40400
+#define NOT_REACHED __builtin_unreachable();
+#else
+#define NOT_REACHED
 #endif
 
 /**
@@ -76,9 +84,9 @@ typedef enum {
 /** count of all options for ntpsnmpd */
 #define OPTION_CT    8
 /** ntpsnmpd version */
-#define NTPSNMPD_VERSION       "4.2.8p15"
+#define NTPSNMPD_VERSION       "4.2.8p16"
 /** Full ntpsnmpd version text */
-#define NTPSNMPD_FULL_VERSION  "ntpsnmpd 4.2.8p15"
+#define NTPSNMPD_FULL_VERSION  "ntpsnmpd 4.2.8p16"
 
 /**
  *  Interface defines for all options.  Replace "n" with the UPPER_CASED
@@ -234,6 +242,7 @@ static inline char* aoGetsText(char const* pz) {
 #   define _(_s)  _s
 # endif
 #endif  /* ENABLE_NLS */
+
 
 #ifdef  __cplusplus
 }

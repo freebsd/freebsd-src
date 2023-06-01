@@ -1,9 +1,9 @@
-.Dd June 23 2020
+.Dd May 31 2023
 .Dt NTP_KEYS 5mdoc File Formats
-.Os FreeBSD 11.2-RELEASE_SI
+.Os FreeBSD 12.1-RELEASE_SI
 .\"  EDIT THIS FILE WITH CAUTION  (ntp.mdoc)
 .\"
-.\"  It has been AutoGen-ed  June 23, 2020 at 02:20:28 AM by AutoGen 5.18.5
+.\"  It has been AutoGen-ed  May 31, 2023 at 02:49:28 PM by AutoGen 5.18.16
 .\"  From the definitions    ntp.keys.def
 .\"  and the template file   agmdoc-file.tpl
 .Sh NAME
@@ -163,10 +163,10 @@ it to autogen\-users@lists.sourceforge.net.  Thank you.
 .Sh "AUTHORS"
 The University of Delaware and Network Time Foundation
 .Sh "COPYRIGHT"
-Copyright (C) 1992\-2020 The University of Delaware and Network Time Foundation all rights reserved.
+Copyright (C) 1992\-2023 The University of Delaware and Network Time Foundation all rights reserved.
 This program is released under the terms of the NTP license, <http://ntp.org/license>.
 .Sh "BUGS"
-Please send bug reports to: http://bugs.ntp.org, bugs@ntp.org
+Please send bug reports to: https://bugs.ntp.org, bugs@ntp.org
 .Sh NOTES
 This document was derived from FreeBSD.
 .Pp

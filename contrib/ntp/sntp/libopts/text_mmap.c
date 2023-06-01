@@ -9,7 +9,7 @@
 /*
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2018 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -185,7 +185,11 @@ validate_mmap(char const * fname, int prot, int flags, tmap_info_t * mapinfo)
          *  then our updates will show in the file, so we must open with
          *  write access.
          */
-        int o_flag = FILE_WRITABLE(prot, flags) ? O_RDWR : O_RDONLY;
+        int o_flag =
+#ifdef _WIN32
+            _O_BINARY |
+#endif
+            FILE_WRITABLE(prot, flags) ? O_RDWR : O_RDONLY;
 
         /*
          *  If you're not sharing the file and you are writing to it,
@@ -349,16 +353,15 @@ text_munmap(tmap_info_t * mi)
 #ifdef HAVE_MMAP
     (void)munmap(mi->txt_data, mi->txt_full_size);
 
-#else  /* don't HAVE_MMAP */
+#else // don't HAVE_MMAP
     /*
      *  IF the memory is writable *AND* it is not private (copy-on-write)
      *     *AND* the memory is "sharable" (seen by other processes)
      *  THEN rewrite the data.  Emulate mmap visibility.
      */
-    if (   FILE_WRITABLE(mi->txt_prot, mi->txt_flags)
-        && (lseek(mi->txt_fd, 0, SEEK_SET) >= 0) ) {
+    if (  FILE_WRITABLE(mi->txt_prot, mi->txt_flags)
+       && (lseek(mi->txt_fd, 0, SEEK_SET) >= 0) )
         write(mi->txt_fd, mi->txt_data, mi->txt_size);
-    }
 
     free(mi->txt_data);
 #endif /* HAVE_MMAP */

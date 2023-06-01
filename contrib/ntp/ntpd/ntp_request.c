@@ -1104,7 +1104,7 @@ sys_info(
 	is->flags = 0;
 	if (sys_authenticate)
 		is->flags |= INFO_FLAG_AUTHENTICATE;
-	if (sys_bclient)
+	if (sys_bclient || sys_mclient)
 		is->flags |= INFO_FLAG_BCLIENT;
 #ifdef REFCLOCK
 	if (cal_enable)

@@ -22,7 +22,7 @@ flag = {
     ifdef     = AUTOKEY;
     descrip   = "identity modulus bits";
     doc = <<-  _EndOfDoc_
-	The number of bits in the identity modulus.  The default is 256.
+	The number of bits in the identity modulus.  The default is 512.
 	_EndOfDoc_;
 };
 

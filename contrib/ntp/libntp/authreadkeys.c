@@ -38,7 +38,7 @@ nexttok(
 	 */
 	while (*cp == ' ' || *cp == '\t')
 		cp++;
-	
+
 	/*
 	 * Save this and space to end of token
 	 */
@@ -46,19 +46,19 @@ nexttok(
 	while (*cp != '\0' && *cp != '\n' && *cp != ' '
 	       && *cp != '\t' && *cp != '#')
 		cp++;
-	
+
 	/*
 	 * If token length is zero return an error, else set end of
 	 * token to zero and return start.
 	 */
 	if (starttok == cp)
 		return NULL;
-	
+
 	if (*cp == ' ' || *cp == '\t')
 		*cp++ = '\0';
 	else
 		*cp = '\0';
-	
+
 	*str = cp;
 	return starttok;
 }
@@ -114,7 +114,7 @@ free_keydata(
 	)
 {
 	KeyAccT *kap;
-	
+
 	if (node) {
 		while (node->keyacclist) {
 			kap = node->keyacclist;
@@ -142,9 +142,8 @@ authreadkeys(
 	keyid_t	keyno;
 	int	keytype;
 	char	buf[512];		/* lots of room for line */
-	u_char	keystr[32];		/* Bug 2537 */
+	u_char	keystr[AUTHPWD_MAXSECLEN];
 	size_t	len;
-	size_t	j;
 	u_int   nerr;
 	KeyDataT *list = NULL;
 	KeyDataT *next = NULL;
@@ -172,7 +171,7 @@ authreadkeys(
 		token = nexttok(&line);
 		if (token == NULL)
 			continue;
-		
+
 		/*
 		 * First is key number.  See if it is okay.
 		 */
@@ -208,10 +207,10 @@ authreadkeys(
 		 * have to process the line completely and have to
 		 * finally throw away the result... This is a bit more
 		 * work, but it also results in better error detection.
-		 */ 
+		 */
 #ifdef OPENSSL
 		/*
-		 * The key type is the NID used by the message digest 
+		 * The key type is the NID used by the message digest
 		 * algorithm. There are a number of inconsistencies in
 		 * the OpenSSL database. We attempt to discover them
 		 * here and prevent use of inconsistent data later.
@@ -258,45 +257,33 @@ authreadkeys(
 			continue;
 		}
 		next = NULL;
-		len = strlen(token);
-		if (len <= 20) {	/* Bug 2537 */
-			next = emalloc(sizeof(KeyDataT) + len);
-			next->keyacclist = NULL;
-			next->keyid   = keyno;
-			next->keytype = keytype;
-			next->seclen  = len;
-			memcpy(next->secbuf, token, len);
-		} else {
-			static const char hex[] = "0123456789abcdef";
-			u_char	temp;
-			char	*ptr;
-			size_t	jlim;
-
-			jlim = min(len, 2 * sizeof(keystr));
-			for (j = 0; j < jlim; j++) {
-				ptr = strchr(hex, tolower((unsigned char)token[j]));
-				if (ptr == NULL)
-					break;	/* abort decoding */
-				temp = (u_char)(ptr - hex);
-				if (j & 1)
-					keystr[j / 2] |= temp;
-				else
-					keystr[j / 2] = temp << 4;
-			}
-			if (j < jlim) {
+		len = authdecodepw(keystr, sizeof(keystr), token, AUTHPWD_UNSPEC);
+		if (len > sizeof(keystr)) {
+			switch (errno) {
+			case ENOMEM:
 				log_maybe(&nerr,
-					  "authreadkeys: invalid hex digit for key %d",
+					  "authreadkeys: passwd too long for key %d",
 					  keyno);
-				continue;
+				break;
+			case EINVAL:
+				log_maybe(&nerr,
+					  "authreadkeys: passwd has bad char for key %d",
+					  keyno);
+				break;
+			default:
+				log_maybe(&nerr,
+					  "authreadkeys: unknown errno %d for key %d",
+					  errno, keyno);
+				break;
 			}
-			len = jlim/2; /* hmmmm.... what about odd length?!? */
-			next = emalloc(sizeof(KeyDataT) + len);
-			next->keyacclist = NULL;
-			next->keyid   = keyno;
-			next->keytype = keytype;
-			next->seclen  = len;
-			memcpy(next->secbuf, keystr, len);
+			continue;
 		}
+		next = emalloc(sizeof(KeyDataT) + len);
+		next->keyacclist = NULL;
+		next->keyid   = keyno;
+		next->keytype = keytype;
+		next->seclen  = len;
+		memcpy(next->secbuf, keystr, len);
 
 		token = nexttok(&line);
 		if (token != NULL) {	/* A comma-separated IP access list */
@@ -369,7 +356,7 @@ authreadkeys(
 			next = NULL;
 			continue;
 		}
-		
+
 		INSIST(NULL != next);
 		next->next = list;
 		list = next;

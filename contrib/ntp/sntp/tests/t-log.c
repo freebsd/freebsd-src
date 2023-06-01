@@ -3,7 +3,6 @@
 #include "ntp_types.h"
 
 
-//#include "log.h"
 #include "log.c"
 
 void setUp(void);

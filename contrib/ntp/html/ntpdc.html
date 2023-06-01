@@ -75,7 +75,8 @@
   <dt><tt>quit</tt></dt>
   <dd>Exit <tt>ntpdc</tt>.</dd>
   <dt><tt>passwd</tt></dt>
-  <dd>This command prompts you to type in a password (which will not be echoed) which will be used to authenticate configuration requests. The password must correspond to the key configured for use by the NTP server for this purpose if such requests are to be successful.</dd>
+  <dd>This command prompts you to type in a password (which will not be echoed) which will be used to authenticate configuration requests. The password must correspond to the key configured for use by the NTP server for this purpose if such requests are to be successful.
+  It follows the same rules as a password entry in the keys file of <tt>ntpd</tt>.</dd>
   <dt><tt>timeout <i>milliseconds</i></tt></dt>
   <dd>Specify a timeout period for responses to server queries. The default is about 8000 milliseconds. Note that since <tt>ntpdc</tt> retries each query once after a timeout, the total waiting time for a timeout will be twice the timeout value set.</dd>
 </dl>

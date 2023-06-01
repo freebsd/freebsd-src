@@ -10,6 +10,7 @@
 #include "ntp_unixtime.h"
 #include "ntp_tty.h"
 #include "ntp_refclock.h"
+#include "ntp_clockdev.h"
 #include "ntp_stdlib.h"
 #include "ntp_assert.h"
 #include "timespecops.h"
@@ -71,6 +72,8 @@ static int  refclock_cmpl_fp (const void *, const void *);
 static int  refclock_sample (struct refclockproc *);
 static int  refclock_ioctl(int, u_int);
 static void refclock_checkburst(struct peer *, struct refclockproc *);
+static int  symBaud2numBaud(int symBaud);
+static int  numBaud2symBaud(int numBaud);
 
 /* circular buffer functions
  *
@@ -583,7 +586,6 @@ refclock_sample(
 {
 	size_t	i, j, k, m, n;
 	double	off[MAXSTAGE];
-	double	offset;
 
 	/*
 	 * Copy the raw offsets and sort into ascending order. Don't do
@@ -601,12 +603,16 @@ refclock_sample(
 	/*
 	 * Reject the furthest from the median of the samples until
 	 * approximately 60 percent of the samples remain.
+	 *
+	 * [Bug 3672] The elimination is now based on the proper
+	 * definition of the median. The true median is not calculated
+	 * directly, though.
 	 */
 	i = 0; j = n;
 	m = n - (n * 4) / 10;
-	while ((j - i) > m) {
-		offset = off[(j + i) / 2];
-		if (off[j - 1] - offset < offset - off[i])
+	while ((k = j - i) > m) {
+		k = (k - 1) >> 1;
+		if ((off[j - 1] - off[j - k - 1]) < (off[i + k] - off[i]))
 			i++;	/* reject low end */
 		else
 			j--;	/* reject high end */
@@ -796,6 +802,73 @@ refclock_gtraw(
 	return (bmax);
 }
 
+/*
+ * refclock_fdwrite()
+ *
+ * Write data to a clock device. Does the necessary result checks and
+ * logging, and encapsulates OS dependencies.
+ */
+#ifdef SYS_WINNT
+extern int async_write(int fd, const void * buf, unsigned int len);
+#endif
+
+size_t
+refclock_fdwrite(
+	const struct peer *	peer,
+	int			fd,
+	const void *		buf,
+	size_t			len,
+	const char *		what
+	)
+{
+	size_t	nret, nout;
+	int	nerr;
+	
+	nout = (INT_MAX > len) ? len : INT_MAX;
+#   ifdef SYS_WINNT
+	nret = (size_t)async_write(fd, buf, (unsigned int)nout);
+#   else
+	nret = (size_t)write(fd, buf, nout);
+#   endif
+	if (NULL != what) {
+		if (nret == FDWRITE_ERROR) {
+			nerr = errno;
+			msyslog(LOG_INFO,
+				"%s: write %s failed, fd=%d, %m",
+				refnumtoa(&peer->srcadr), what,
+				fd);
+			errno = nerr;
+		} else if (nret != len) {
+			nerr = errno;
+			msyslog(LOG_NOTICE,
+				"%s: %s shortened, fd=%d, wrote %zu of %zu bytes",
+				refnumtoa(&peer->srcadr), what,
+				fd, nret, len);
+			errno = nerr;
+		}
+	}
+	return nret;
+}
+
+size_t
+refclock_write(
+	const struct peer *	peer,
+	const void *		buf,
+	size_t			len,
+	const char *		what
+	)
+{
+	if ( ! (peer && peer->procptr)) {
+		if (NULL != what)
+			msyslog(LOG_INFO,
+				"%s: write %s failed, invalid clock peer",
+				refnumtoa(&peer->srcadr), what);
+		errno = EINVAL;
+		return FDWRITE_ERROR;
+	}
+	return refclock_fdwrite(peer, peer->procptr->io.fd,
+				buf, len, what);
+}
 
 /*
  * indicate_refclock_packet()
@@ -877,13 +950,15 @@ process_refclock_packet(
  */
 int
 refclock_open(
-	const char	*dev,	/* device name pointer */
+	const sockaddr_u *srcadr,
+ 	const char	*dev,	/* device name pointer */
 	u_int		speed,	/* serial port speed (code) */
 	u_int		lflags	/* line discipline flags */
 	)
 {
+	const char *cdev;
 	int	fd;
-	int	omode;
+	int	omode;	
 #ifdef O_NONBLOCK
 	char	trash[128];	/* litter bin for old input data */
 #endif
@@ -899,6 +974,9 @@ refclock_open(
 	omode |= O_NOCTTY;
 #endif
 
+	if (NULL != (cdev = clockdev_lookup(srcadr, 0)))
+		dev = cdev;
+	
 	fd = open(dev, omode, 0777);
 	/* refclock_open() long returned 0 on failure, avoid it. */
 	if (0 == fd) {
@@ -921,6 +999,9 @@ refclock_open(
 		close(fd);
 		return -1;
 	}
+	msyslog(LOG_NOTICE, "%s serial %s open at %d bps",
+		refnumtoa(srcadr), dev, symBaud2numBaud(speed));
+
 #ifdef O_NONBLOCK
 	/*
 	 * We want to make sure there is no pending trash in the input
@@ -1769,4 +1850,47 @@ refclock_format_lcode(
 	va_end(va);
 }
 
+static const int baudTable[][2] = {
+	{B0, 0},
+	{B50, 50},
+	{B75, 75},
+	{B110, 110},
+	{B134, 134},
+	{B150, 150},
+	{B200, 200},
+	{B300, 300},
+	{B600, 600},
+	{B1200, 1200},
+	{B1800, 1800},
+	{B2400, 2400},
+	{B4800, 4800},
+	{B9600, 9600},
+	{B19200, 19200},
+	{B38400, 38400},
+#   ifdef B57600
+	{B57600, 57600 },
+#   endif
+#   ifdef B115200
+	{B115200, 115200},
+#   endif
+	{-1, -1}
+};
+    
+
+static int  symBaud2numBaud(int symBaud)
+{
+	int i;
+	for (i = 0; baudTable[i][1] >= 0; ++i)
+		if (baudTable[i][0] == symBaud)
+			break;
+	return baudTable[i][1];
+}
+static int  numBaud2symBaud(int numBaud)
+{
+	int i;
+	for (i = 0; baudTable[i][1] >= 0; ++i)
+		if (baudTable[i][1] == numBaud)
+			break;
+	return baudTable[i][0];
+}
 #endif /* REFCLOCK */

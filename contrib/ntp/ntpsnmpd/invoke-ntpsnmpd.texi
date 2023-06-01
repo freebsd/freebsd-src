@@ -6,7 +6,7 @@
 #
 # EDIT THIS FILE WITH CAUTION  (invoke-ntpsnmpd.texi)
 #
-# It has been AutoGen-ed  June 23, 2020 at 02:21:00 AM by AutoGen 5.18.5
+# It has been AutoGen-ed  May 31, 2023 at 08:02:43 PM by AutoGen 5.18.16
 # From the definitions    ntpsnmpd-opts.def
 # and the template file   agtexi-cmd.tpl
 @end ignore
@@ -47,7 +47,7 @@ with a status code of 0.
 
 @exampleindent 0
 @example
-ntpsnmpd - NTP SNMP MIB agent - Ver. 4.2.8p13
+ntpsnmpd - NTP SNMP MIB agent - Ver. 4.2.8p16
 Usage:  ntpsnmpd [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]...
   Flg Arg Option-Name    Description
    -n no  nofork         Do not fork
@@ -70,7 +70,7 @@ The following option preset mechanisms are supported:
  - reading file ./.ntprc
  - examining environment variables named NTPSNMPD_*
 
-Please send bug reports to:  <http://bugs.ntp.org, bugs@@ntp.org>
+Please send bug reports to:  <https://bugs.ntp.org, bugs@@ntp.org>
 @end example
 @exampleindent 4
 
@@ -153,7 +153,7 @@ The command line options relating to configuration and/or usage help are:
 
 Print the program version to standard out, optionally with licensing
 information, then exit 0.  The optional argument specifies how much licensing
-detail to provide.  The default is to print just the version.  The licensing infomation may be selected with an option argument.
+detail to provide.  The default is to print just the version.  The licensing information may be selected with an option argument.
 Only the first letter of the argument is examined:
 
 @table @samp

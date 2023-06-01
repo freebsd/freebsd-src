@@ -1186,6 +1186,7 @@ printassoc(
 	const char *condition = "";
 	const char *last_event;
 	char buf[128];
+	char numev[32];
 
 	if (numassoc == 0) {
 		(void) xprintf(fp, "No association ID's in list\n");
@@ -1335,8 +1336,25 @@ printassoc(
 			last_event = "clock_alarm";
 			break;
 
+		case PEVNT_AUTH:
+			last_event = "bad_auth";
+			break;
+
+		case PEVNT_POPCORN:
+			last_event = "popcorn";
+			break;
+
+		case PEVNT_XLEAVE:
+			last_event = "interleave";
+			break;
+
+		case PEVNT_XERR:
+			last_event = "xleave_err";
+			break;
+
 		default:
-			last_event = "";
+			snprintf(numev, sizeof(numev), "<?%x?>", event);
+			last_event = numev;
 			break;
 		}
 		snprintf(buf, sizeof(buf),
@@ -2004,16 +2022,17 @@ dopeers(
 	if (!dogetassoc(fp))
 		return;
 
-	for (u = 0; u < numhosts; u++) {
-		if (getnetnum(chosts[u].name, &netnum, fullname, af)) {
-			name_or_num = nntohost(&netnum);
-			sl = strlen(name_or_num);
-			maxhostlen = max(maxhostlen, sl);
+	if (numhosts > 1) {
+		for (u = 0; u < numhosts; u++) {
+			if (getnetnum(chosts[u].name, &netnum, fullname, af)) {
+				name_or_num = nntohost(&netnum);
+				sl = strlen(name_or_num);
+				maxhostlen = max(maxhostlen, sl);
+			}
 		}
-	}
-	if (numhosts > 1)
 		xprintf(fp, "%-*.*s ", (int)maxhostlen, (int)maxhostlen,
 			"server (local)");
+	}
 	xprintf(fp,
 		"     remote           refid      st t when poll reach   delay   offset  jitter\n");
 	if (numhosts > 1)
@@ -2058,16 +2077,17 @@ doapeers(
 	if (!dogetassoc(fp))
 		return;
 
-	for (u = 0; u < numhosts; u++) {
-		if (getnetnum(chosts[u].name, &netnum, fullname, af)) {
-			name_or_num = nntohost(&netnum);
-			sl = strlen(name_or_num);
-			maxhostlen = max(maxhostlen, sl);
+	if (numhosts > 1) {
+		for (u = 0; u < numhosts; u++) {
+			if (getnetnum(chosts[u].name, &netnum, fullname, af)) {
+				name_or_num = nntohost(&netnum);
+				sl = strlen(name_or_num);
+				maxhostlen = max(maxhostlen, sl);
+			}
 		}
-	}
-	if (numhosts > 1)
 		xprintf(fp, "%-*.*s ", (int)maxhostlen, (int)maxhostlen,
 			"server (local)");
+	}
 	xprintf(fp,
 		"     remote       refid   assid  st t when poll reach   delay   offset  jitter\n");
 	if (numhosts > 1)
@@ -2180,14 +2200,15 @@ doopeers(
 	if (!dogetassoc(fp))
 		return;
 
-	for (i = 0; i < numhosts; ++i) {
-		if (getnetnum(chosts[i].name, &netnum, fullname, af))
-			if (strlen(fullname) > maxhostlen)
-				maxhostlen = strlen(fullname);
+	if (numhosts > 1) {
+		for (i = 0; i < numhosts; ++i) {
+			if (getnetnum(chosts[i].name, &netnum, fullname, af)) {
+				maxhostlen = max(maxhostlen, strlen(fullname));
+			}
+			xprintf(fp, "%-*.*s ", (int)maxhostlen, (int)maxhostlen,
+				"server");
+		}
 	}
-	if (numhosts > 1)
-		xprintf(fp, "%-*.*s ", (int)maxhostlen, (int)maxhostlen,
-			"server");
 	xprintf(fp,
 	    "     remote           local      st t when poll reach   delay   offset    disp\n");
 	if (numhosts > 1)
