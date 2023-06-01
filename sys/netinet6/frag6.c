@@ -125,6 +125,10 @@ VNET_DEFINE_STATIC(volatile u_int,	frag6_nfragpackets);
 #define	V_ip6_maxfragpackets		VNET(ip6_maxfragpackets)
 #define	V_frag6_nfragpackets		VNET(frag6_nfragpackets)
 
+/* Maximum per-VNET reassembly timeout (milliseconds) */
+VNET_DEFINE_STATIC(u_int,		ip6_fraglifetime) = IPV6_DEFFRAGTTL;
+#define	V_ip6_fraglifetime		VNET(ip6_fraglifetime)
+
 /* Maximum per-VNET reassembly queues per bucket and fragments per packet. */
 VNET_DEFINE_STATIC(int,			ip6_maxfragbucketsize);
 VNET_DEFINE_STATIC(int,			ip6_maxfragsperpacket);
@@ -158,6 +162,9 @@ VNET_DEFINE_STATIC(uint32_t,		ip6qb_hashseed);
  */
 #define	IP6_MAXFRAGS		(nmbclusters / 32)
 #define	IP6_MAXFRAGPACKETS	(imin(IP6_MAXFRAGS, IP6REASS_NHASH * 50))
+
+/* Interval between periodic reassembly queue inspections */
+#define	IP6_CALLOUT_INTERVAL_MS	500
 
 /*
  * Sysctls and helper function.
@@ -212,6 +219,53 @@ SYSCTL_INT(_net_inet6_ip6, IPV6CTL_MAXFRAGSPERPACKET, maxfragsperpacket,
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_MAXFRAGBUCKETSIZE, maxfragbucketsize,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_maxfragbucketsize), 0,
 	"Maximum number of reassembly queues per hash bucket");
+
+static int
+frag6_milli_to_callout_ticks(int ms)
+{
+	return (ms / IP6_CALLOUT_INTERVAL_MS);
+}
+
+static int
+frag6_callout_ticks_to_milli(int ms)
+{
+	return (ms * IP6_CALLOUT_INTERVAL_MS);
+}
+
+_Static_assert(sizeof(((struct ip6q *)NULL)->ip6q_ttl) >= 2,
+    "ip6q_ttl field is not large enough");
+
+static int
+sysctl_ip6_fraglifetime(SYSCTL_HANDLER_ARGS)
+{
+	int error, val;
+
+	val = V_ip6_fraglifetime;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error != 0 || !req->newptr)
+		return (error);
+	if (val <= 0)
+		val = IPV6_DEFFRAGTTL;
+
+	if (frag6_milli_to_callout_ticks(val) >= 65536)
+		val = frag6_callout_ticks_to_milli(65535);
+#ifdef VIMAGE
+	if (!IS_DEFAULT_VNET(curvnet)) {
+		CURVNET_SET(vnet0);
+		int host_val = V_ip6_fraglifetime;
+		CURVNET_RESTORE();
+
+		if (val > host_val)
+			val = host_val;
+	}
+#endif
+	V_ip6_fraglifetime = val;
+	return (0);
+}
+SYSCTL_PROC(_net_inet6_ip6, OID_AUTO, fraglifetime_ms,
+	CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	NULL, 0, sysctl_ip6_fraglifetime, "I",
+	"Fragment lifetime, in milliseconds");
 
 /*
  * Remove the IPv6 fragmentation header from the mbuf.
@@ -552,7 +606,7 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 		/* ip6q_nxt will be filled afterwards, from 1st fragment. */
 		TAILQ_INIT(&q6->ip6q_frags);
 		q6->ip6q_ident	= ip6f->ip6f_ident;
-		q6->ip6q_ttl	= IPV6_FRAGTTL;
+		q6->ip6q_ttl	= frag6_milli_to_callout_ticks(V_ip6_fraglifetime);
 		q6->ip6q_src	= ip6->ip6_src;
 		q6->ip6q_dst	= ip6->ip6_dst;
 		q6->ip6q_ecn	= IPV6_ECN(ip6);
@@ -952,8 +1006,8 @@ frag6_slowtimo(void *arg __unused)
 	}
 	VNET_LIST_RUNLOCK_NOSLEEP();
 done:
-	callout_reset_sbt(&frag6_callout, SBT_1MS * 500, SBT_1MS * 10,
-	    frag6_slowtimo, NULL, 0);
+	callout_reset_sbt(&frag6_callout, SBT_1MS * IP6_CALLOUT_INTERVAL_MS,
+	    SBT_1MS * 10, frag6_slowtimo, NULL, 0);
 }
 
 static void
@@ -961,8 +1015,8 @@ frag6_slowtimo_init(void *arg __unused)
 {
 
 	callout_init(&frag6_callout, 1);
-	callout_reset_sbt(&frag6_callout, SBT_1MS * 500, SBT_1MS * 10,
-	    frag6_slowtimo, NULL, 0);
+	callout_reset_sbt(&frag6_callout, SBT_1MS * IP6_CALLOUT_INTERVAL_MS,
+	    SBT_1MS * 10, frag6_slowtimo, NULL, 0);
 }
 SYSINIT(frag6, SI_SUB_VNET_DONE, SI_ORDER_ANY, frag6_slowtimo_init, NULL);
 

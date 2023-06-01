@@ -168,7 +168,7 @@ def main():
 		sys.exit(1)
 
 	# Wait for expiry from first test run.
-	sleep(75)
+	sleep(3)
 	sniffer2.setEnd()
 	sniffer2.join()
 	if not sniffer2.foundCorrectPacket:

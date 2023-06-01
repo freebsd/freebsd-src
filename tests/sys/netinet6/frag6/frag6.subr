@@ -59,13 +59,17 @@ frag6_body()
 
 	jname="v6t-${id}-${yl}-${xl}"
 	vnet_mkjail ${jname} ${epair}b
+	jexec ${jname} sysctl net.inet6.ip6.dad_count=0
 	jexec ${jname} ifconfig ${epair}b up
 	jexec ${jname} ifconfig ${epair}b inet6 ${ip6b}/64
 
+	# Set max fragment reassembly time to 2 seconds
+	jexec ${jname} sysctl net.inet6.ip6.fraglifetime_ms=2000
+
 	# Let IPv6 ND do its thing.
-	#ping6 -q -c 1 ff02::1%${epair}a
-	#ping6 -q -c 1 ${ip6b}
-	sleep 3
+	while [ `ifconfig ${epair}a inet6 | grep -c tentative` != "0" ]; do
+		sleep 0.1
+	done
 
 	# We need to try to make sure all expiry happened, otherwise there might
 	# be global fragments queued.  (This still does not rule out that there

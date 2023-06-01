@@ -79,7 +79,7 @@ def main():
 		sp.sendp(ip6f01, iface=args.sendif[0], verbose=False)
 
 	# Wait for possible expiry to happen.
-	sleep(75)
+	sleep(3)
 	sys.exit(0)
 
 if __name__ == '__main__':

@@ -101,7 +101,7 @@ def main():
 	sp.sendp(ip6f01, iface=args.sendif[0], verbose=False)
 
 	# Wait for ICMPv6 error generation on timeout.
-	sleep(75)
+	sleep(3)
 	sniffer.setEnd()
 	sniffer.join()
 	if not sniffer.foundCorrectPacket:
