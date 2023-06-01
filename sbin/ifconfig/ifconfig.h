@@ -296,7 +296,7 @@ int	ifconfig_wrapper_nl(struct ifconfig_args *args, int iscreate,
 uint32_t if_nametoindex_nl(struct snl_state *ss, const char *ifname);
 
 /*
- * XXX expose this so modules that neeed to know of any pending
+ * XXX expose this so modules that need to know of any pending
  * operations on ifmedia can avoid cmd line ordering confusion.
  */
 struct ifmediareq *ifmedia_getstate(void);
