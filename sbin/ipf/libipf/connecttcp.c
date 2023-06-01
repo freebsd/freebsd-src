@@ -10,7 +10,7 @@
 #include <ctype.h>
 
 /*
- * Format expected is one addres per line, at the start of each line.
+ * Format expected is one address per line, at the start of each line.
  */
 int
 connecttcp(char *server, int port)
