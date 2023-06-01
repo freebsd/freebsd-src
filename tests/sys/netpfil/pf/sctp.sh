@@ -298,10 +298,116 @@ abort_v4_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "nat_v4" "cleanup"
+nat_v4_head()
+{
+	atf_set descr 'Test NAT-ing SCTP over IPv4'
+	atf_set require.user root
+}
+
+nat_v4_body()
+{
+	sctp_init
+
+	j="sctp:nat_v4"
+	epair_c=$(vnet_mkepair)
+	epair_srv=$(vnet_mkepair)
+
+	vnet_mkjail ${j}srv ${epair_srv}a
+	vnet_mkjail ${j}gw ${epair_srv}b ${epair_c}a
+	vnet_mkjail ${j}c ${epair_c}b
+
+	jexec ${j}srv ifconfig ${epair_srv}a 198.51.100.1/24 up
+	# No default route in srv jail, to ensure we're NAT-ing
+	jexec ${j}gw ifconfig ${epair_srv}b 198.51.100.2/24 up
+	jexec ${j}gw ifconfig ${epair_c}a 192.0.2.1/24 up
+	jexec ${j}gw sysctl net.inet.ip.forwarding=1
+	jexec ${j}c ifconfig ${epair_c}b 192.0.2.2/24 up
+	jexec ${j}c route add default 192.0.2.1
+
+	jexec ${j}gw pfctl -e
+	pft_set_rules ${j}gw \
+		"nat on ${epair_srv}b from 192.0.2.0/24 -> (${epair_srv}b)" \
+		"pass"
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore \
+	    jexec ${j}c ping -c 1 198.51.100.1
+
+	echo "foo" | jexec ${j}srv nc --sctp -N -l 1234 &
+
+	# Wait for the server to start
+	sleep 1
+
+	out=$(jexec ${j}c nc --sctp -N -w 3 198.51.100.1 1234)
+	if [ "$out" != "foo" ]; then
+		atf_fail "SCTP connection failed"
+	fi
+}
+
+nat_v4_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "nat_v6" "cleanup"
+nat_v6_head()
+{
+	atf_set descr 'Test NAT-ing SCTP over IPv6'
+	atf_set require.user root
+}
+
+nat_v6_body()
+{
+	sctp_init
+
+	j="sctp:nat_v6"
+	epair_c=$(vnet_mkepair)
+	epair_srv=$(vnet_mkepair)
+
+	vnet_mkjail ${j}srv ${epair_srv}a
+	vnet_mkjail ${j}gw ${epair_srv}b ${epair_c}a
+	vnet_mkjail ${j}c ${epair_c}b
+
+	jexec ${j}srv ifconfig ${epair_srv}a inet6 2001:db8::1/64 up no_dad
+	# No default route in srv jail, to ensure we're NAT-ing
+	jexec ${j}gw ifconfig ${epair_srv}b inet6 2001:db8::2/64 up no_dad
+	jexec ${j}gw ifconfig ${epair_c}a inet6 2001:db8:1::1/64 up no_dad
+	jexec ${j}gw sysctl net.inet6.ip6.forwarding=1
+	jexec ${j}c ifconfig ${epair_c}b inet6 2001:db8:1::2/64 up no_dad
+	jexec ${j}c route add -6 default 2001:db8:1::1
+
+	jexec ${j}gw pfctl -e
+	pft_set_rules ${j}gw \
+		"nat on ${epair_srv}b from 2001:db8:1::/64 -> (${epair_srv}b)" \
+		"pass"
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore \
+	    jexec ${j}c ping -6 -c 1 2001:db8::1
+
+	echo "foo" | jexec ${j}srv nc -6 --sctp -N -l 1234 &
+
+	# Wait for the server to start
+	sleep 1
+
+	out=$(jexec ${j}c nc --sctp -N -w 3 2001:db8::1 1234)
+	if [ "$out" != "foo" ]; then
+		atf_fail "SCTP connection failed"
+	fi
+}
+
+nat_v6_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic_v4"
 	atf_add_test_case "basic_v6"
 	atf_add_test_case "abort_v4"
 	atf_add_test_case "abort_v6"
+	atf_add_test_case "nat_v4"
+	atf_add_test_case "nat_v6"
 }
