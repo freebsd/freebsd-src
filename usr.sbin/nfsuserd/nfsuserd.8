@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 6, 2019
+.Dd April 22, 2023
 .Dt NFSUSERD 8
 .Os
 .Sh NAME
@@ -56,10 +56,14 @@ this is being used for any version of NFS.
 Upon startup, it loads the machines DNS domain name, plus timeout and cache size
 limit into the kernel.
 It then preloads the cache with group and user information, up to the cache size
-limit and forks off N children (default 4), that service requests from the kernel
+limit and forks off
+.Ar num_servers
+(default 4) children which are the servers
+that service requests from the kernel
 for cache misses.
-The master server is there for the sole purpose of killing off the slaves.
-To stop the nfsuserd, send a SIGUSR1 to the master server.
+The master is there for the sole purpose of terminating the
+servers.
+To stop the nfsuserd, send a SIGUSR1 to the master.
 .Pp
 The following options are available:
 .Bl -tag -width Ds
@@ -103,7 +107,7 @@ Specifies how many servers to create (max 20).
 The default of 4 may be sufficient.
 You should run enough servers, so that
 .Xr ps 1
-shows almost no running time for one or two of the slaves after the system
+shows almost no running time for one or two of the servers after the system
 has been running for a long period.
 Running too few will have a major performance impact, whereas running too many
 will only tie up some resources, such as a process table entry and swap space.
