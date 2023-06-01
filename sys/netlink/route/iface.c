@@ -1312,10 +1312,8 @@ rtnl_handle_addr(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *npt)
 		error = EAFNOSUPPORT;
 	}
 
-#ifdef INET6
 	if (error == 0 && !(if_flags & IFF_UP) && (if_getflags(ifp) & IFF_UP))
-		in6_if_up(ifp);
-#endif
+		if_up(ifp);
 
 	if_rele(ifp);
 

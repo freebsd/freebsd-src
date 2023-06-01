@@ -2049,6 +2049,20 @@ in6_if_up(struct ifnet *ifp)
 	in6_ifattach(ifp, NULL);
 }
 
+static void
+in6_ifevent(void *arg __unused, struct ifnet *ifp, int event)
+{
+	if (event == IFNET_EVENT_UP)
+		in6_if_up(ifp);
+}
+
+static void
+in6_init(void *arg __unused)
+{
+	EVENTHANDLER_REGISTER(ifnet_event, in6_ifevent, NULL, EVENTHANDLER_PRI_ANY);
+}
+SYSINIT(in6_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, in6_init, NULL);
+
 int
 in6if_do_dad(struct ifnet *ifp)
 {
