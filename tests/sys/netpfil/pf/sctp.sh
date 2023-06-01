@@ -402,6 +402,73 @@ nat_v6_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "rdr_v4" "cleanup"
+rdr_v4_head()
+{
+	atf_set descr 'Test rdr SCTP over IPv4'
+	atf_set require.user root
+}
+
+rdr_v4_body()
+{
+	sctp_init
+
+	j="sctp:rdr_v4"
+	epair_c=$(vnet_mkepair)
+	epair_srv=$(vnet_mkepair)
+
+	vnet_mkjail ${j}srv ${epair_srv}a
+	vnet_mkjail ${j}gw ${epair_srv}b ${epair_c}a
+	vnet_mkjail ${j}c ${epair_c}b
+
+	jexec ${j}srv ifconfig ${epair_srv}a 198.51.100.1/24 up
+	# No default route in srv jail, to ensure we're NAT-ing
+	jexec ${j}gw ifconfig ${epair_srv}b 198.51.100.2/24 up
+	jexec ${j}gw ifconfig ${epair_c}a 192.0.2.1/24 up
+	jexec ${j}gw sysctl net.inet.ip.forwarding=1
+	jexec ${j}c ifconfig ${epair_c}b 192.0.2.2/24 up
+	jexec ${j}c route add default 192.0.2.1
+
+	jexec ${j}gw pfctl -e
+	pft_set_rules ${j}gw \
+		"rdr pass on ${epair_srv}b proto sctp from 198.51.100.0/24 to any port 1234 -> 192.0.2.2 port 1234" \
+		"pass"
+
+	echo "foo" | jexec ${j}c nc --sctp -N -l 1234 &
+
+	# Wait for the server to start
+	sleep 1
+
+	out=$(jexec ${j}srv nc --sctp -N -w 3 198.51.100.2 1234)
+	if [ "$out" != "foo" ]; then
+		atf_fail "SCTP connection failed"
+	fi
+
+	# Despite configuring port changes pf will not do so.
+	echo "bar" | jexec ${j}c nc --sctp -N -l 1234 &
+
+	pft_set_rules ${j}gw \
+		"rdr pass on ${epair_srv}b proto sctp from 198.51.100.0/24 to any port 1234 -> 192.0.2.2 port 4321" \
+		"pass"
+
+	# This will fail
+	out=$(jexec ${j}srv nc --sctp -N -w 3 198.51.100.2 4321)
+	if [ "$out" == "bar" ]; then
+		atf_fail "Port was unexpectedly changed."
+	fi
+
+	# This succeeds
+	out=$(jexec ${j}srv nc --sctp -N -w 3 198.51.100.2 1234)
+	if [ "$out" != "bar" ]; then
+		atf_fail "Port was unexpectedly changed."
+	fi
+}
+
+rdr_v4_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic_v4"
@@ -410,4 +477,5 @@ atf_init_test_cases()
 	atf_add_test_case "abort_v6"
 	atf_add_test_case "nat_v4"
 	atf_add_test_case "nat_v6"
+	atf_add_test_case "rdr_v4"
 }
