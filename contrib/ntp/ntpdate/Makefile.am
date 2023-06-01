@@ -1,7 +1,7 @@
 NULL =
 
 BUILT_SOURCES =
-CLEANFILES =
+DISTCLEANFILES =
 
 bin_PROGRAMS = $(NTPDATE_DB)
 libexec_PROGRAMS = $(NTPDATE_DL)
@@ -20,24 +20,20 @@ AM_LDFLAGS = $(LDFLAGS_NTP)
 AM_LDFLAGS += $(NTP_HARD_LDFLAGS)
 
 # LDADD might need RESLIB and ADJLIB
-LDADD = version.o ../libntp/libntp.a
+LDADD = ../libntp/libntp.a
 ntpdate_LDADD  = $(LDADD) $(LDADD_LIBNTP) $(PTHREAD_LIBS) $(LIBOPTS_LDADD)
 ntpdate_LDADD += $(LIBM) $(LDADD_NTP)
-DISTCLEANFILES=	.version version.c stamp-v
+CLEANFILES = .version version.c
 noinst_HEADERS=	ntpdate.h
 
-$(PROGRAMS): $(LDADD)
+ntpdate_SOURCES = ntpdate.c
+nodist_ntpdate_SOURCES = version.c
 
-$(top_srcdir)/sntp/scm-rev:
-	cd ../sntp && $(MAKE) $(AM_MAKEFLAGS) check-scm-rev
-
-version.c: $(ntpdate_OBJECTS) ../libntp/libntp.a Makefile $(top_srcdir)/sntp/scm-rev
-	env CSET=`cat $(top_srcdir)/sntp/scm-rev` $(top_builddir)/scripts/build/mkver ntpdate
+version.c: Makefile $(top_srcdir)/sntp/scm-rev
+	$(AM_V_GEN)env CSET=`cat $(top_srcdir)/sntp/scm-rev` $(top_builddir)/scripts/build/mkver ntpdate
 	
-version.o: version.c
-	env CCACHE_DISABLE=1 $(COMPILE) -c version.c -o version.o
-
 include $(top_srcdir)/bincheck.mf
-include $(top_srcdir)/sntp/check-libntp.mf
+include $(top_srcdir)/check-libntp.mf
+include $(top_srcdir)/check-scm-rev.mf
 include $(top_srcdir)/depsver.mf
 include $(top_srcdir)/includes.mf

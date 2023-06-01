@@ -1,6 +1,6 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <html>
-<!-- Created by GNU Texinfo 6.5, http://www.gnu.org/software/texinfo/ -->
+<!-- Created by GNU Texinfo 6.6, http://www.gnu.org/software/texinfo/ -->
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <title>Ntptrace User&rsquo;s Manual</title>
@@ -16,23 +16,14 @@
 <!--
 a.summary-letter {text-decoration: none}
 blockquote.indentedblock {margin-right: 0em}
-blockquote.smallindentedblock {margin-right: 0em; font-size: smaller}
-blockquote.smallquotation {font-size: smaller}
 div.display {margin-left: 3.2em}
 div.example {margin-left: 3.2em}
 div.lisp {margin-left: 3.2em}
-div.smalldisplay {margin-left: 3.2em}
-div.smallexample {margin-left: 3.2em}
-div.smalllisp {margin-left: 3.2em}
 kbd {font-style: oblique}
 pre.display {font-family: inherit}
 pre.format {font-family: inherit}
 pre.menu-comment {font-family: serif}
 pre.menu-preformatted {font-family: serif}
-pre.smalldisplay {font-family: inherit; font-size: smaller}
-pre.smallexample {font-size: smaller}
-pre.smallformat {font-family: inherit; font-size: smaller}
-pre.smalllisp {font-size: smaller}
 span.nolinebreak {white-space: nowrap}
 span.roman {font-family: initial; font-weight: normal}
 span.sansserif {font-family: sans-serif; font-weight: normal}
@@ -50,44 +41,40 @@ ul.no-bullet {list-style: none}
 
 
 
-<a name="Top"></a>
-<div class="header">
+<span id="Top"></span><div class="header">
 <p>
 Previous: <a href="dir.html#Top" accesskey="p" rel="prev">(dir)</a>, Up: <a href="dir.html#Top" accesskey="u" rel="up">(dir)</a> &nbsp; </p>
 </div>
-<a name="Simple-Network-Time-Protocol-User-Manual"></a>
-<h1 class="top">Simple Network Time Protocol User Manual</h1>
+<span id="Simple-Network-Time-Protocol-User-Manual"></span><h1 class="top">Simple Network Time Protocol User Manual</h1>
 
 <p>This document describes the use of the NTP Project&rsquo;s <code>ntptrace</code> program.
-This document applies to version 4.2.8p15 of <code>ntptrace</code>.
+This document applies to version 4.2.8p16 of <code>ntptrace</code>.
 </p>
-<a name="SEC_Overview"></a>
+<span id="SEC_Overview"></span>
 <h2 class="shortcontents-heading">Short Table of Contents</h2>
 
 <div class="shortcontents">
 <ul class="no-bullet">
-<li><a name="stoc-Invoking-ntptrace" href="#toc-Invoking-ntptrace">1 Invoking ntptrace</a></li>
+<li><a id="stoc-Invoking-ntptrace" href="#toc-Invoking-ntptrace">1 Invoking ntptrace</a></li>
 </ul>
 </div>
 
 
 <table class="menu" border="0" cellspacing="0">
-<tr><td align="left" valign="top">&bull; ntptrace Description:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Description
+<tr><td align="left" valign="top">&bull; ntptrace Description</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Description
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntptrace-Invocation" accesskey="2">ntptrace Invocation</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Invoking ntptrace
+<tr><td align="left" valign="top">&bull; <a href="#ntptrace-Invocation" accesskey="2">ntptrace Invocation</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Invoking ntptrace
 </td></tr>
 </table>
 
 <hr>
-<a name="ntptrace-Invocation"></a>
-<div class="header">
+<span id="ntptrace-Invocation"></span><div class="header">
 <p>
 Up: <a href="#Top" accesskey="u" rel="up">Top</a> &nbsp; </p>
 </div>
-<a name="Invoking-ntptrace"></a>
-<h2 class="chapter">1 Invoking ntptrace</h2>
-<a name="index-ntptrace"></a>
-<a name="index-Trace-peers-of-an-NTP-server"></a>
+<span id="Invoking-ntptrace"></span><h2 class="chapter">1 Invoking ntptrace</h2>
+<span id="index-ntptrace"></span>
+<span id="index-Trace-peers-of-an-NTP-server"></span>
 
 <p><code>ntptrace</code> is a perl script that uses the ntpq utility program to follow
 the chain of NTP servers from a given host back to the primary time source. For
@@ -117,27 +104,25 @@ defined in RFC-1305.
 using the <code>agtexi-cmd</code> template and the option descriptions for the <code>ntptrace</code> program.
 </p>
 <table class="menu" border="0" cellspacing="0">
-<tr><td align="left" valign="top">&bull; <a href="#ntptrace-usage" accesskey="1">ntptrace usage</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">ntptrace help/usage (<samp>--help</samp>)
+<tr><td align="left" valign="top">&bull; <a href="#ntptrace-usage" accesskey="1">ntptrace usage</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">ntptrace help/usage (<samp>--help</samp>)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntptrace-numeric" accesskey="2">ntptrace numeric</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">numeric option (-n)
+<tr><td align="left" valign="top">&bull; <a href="#ntptrace-numeric" accesskey="2">ntptrace numeric</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">numeric option (-n)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntptrace-max_002dhosts" accesskey="3">ntptrace max-hosts</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">max-hosts option (-m)
+<tr><td align="left" valign="top">&bull; <a href="#ntptrace-max_002dhosts" accesskey="3">ntptrace max-hosts</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">max-hosts option (-m)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntptrace-host" accesskey="4">ntptrace host</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">host option (-r)
+<tr><td align="left" valign="top">&bull; <a href="#ntptrace-host" accesskey="4">ntptrace host</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">host option (-r)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntptrace-exit-status" accesskey="5">ntptrace exit status</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">exit status
+<tr><td align="left" valign="top">&bull; <a href="#ntptrace-exit-status" accesskey="5">ntptrace exit status</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">exit status
 </td></tr>
 </table>
 
 <hr>
-<a name="ntptrace-usage"></a>
-<div class="header">
+<span id="ntptrace-usage"></span><div class="header">
 <p>
 Next: <a href="#ntptrace-numeric" accesskey="n" rel="next">ntptrace numeric</a>, Up: <a href="#ntptrace-Invocation" accesskey="u" rel="up">ntptrace Invocation</a> &nbsp; </p>
 </div>
-<a name="ntptrace-help_002fusage-_0028_002d_002dhelp_0029"></a>
-<h3 class="section">1.1 ntptrace help/usage (<samp>--help</samp>)</h3>
-<a name="index-ntptrace-help"></a>
+<span id="ntptrace-help_002fusage-_0028_002d_002dhelp_0029"></span><h3 class="section">1.1 ntptrace help/usage (<samp>--help</samp>)</h3>
+<span id="index-ntptrace-help"></span>
 
 <p>This is the automatically generated usage text for ntptrace.
 </p>
@@ -150,7 +135,7 @@ used to select the program, defaulting to <samp>more</samp>.  Both will exit
 with a status code of 0.
 </p>
 <div class="example">
-<pre class="example">ntptrace - Trace peers of an NTP server - Ver. 4.2.8p15
+<pre class="example">ntptrace - Trace peers of an NTP server - Ver. 4.2.8p16
 USAGE: ntptrace [ -&lt;flag&gt; [&lt;val&gt;] | --&lt;name&gt;[{=| }&lt;val&gt;] ]... [host]
 
     -n, --numeric                Print IP addresses instead of hostnames
@@ -164,63 +149,55 @@ hyphen and the flag character.
 </pre></div>
 
 <table class="menu" border="0" cellspacing="0">
-<tr><td align="left" valign="top">&bull; <a href="#ntptrace-numeric" accesskey="1">ntptrace numeric</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntptrace-numeric" accesskey="1">numeric option (-n)</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntptrace-max_002dhosts" accesskey="2">ntptrace max-hosts</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntptrace-max_002dhosts" accesskey="2">max-hosts option (-m)</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntptrace-host" accesskey="3">ntptrace host</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntptrace-host" accesskey="3">host option (-r)</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntptrace-exit-status" accesskey="4">ntptrace exit status</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntptrace-exit-status" accesskey="4">ntptrace exit status</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
 </table>
 
 <hr>
-<a name="ntptrace-numeric"></a>
-<div class="header">
+<span id="ntptrace-numeric"></span><div class="header">
 <p>
 Next: <a href="#ntptrace-max_002dhosts" accesskey="n" rel="next">ntptrace max-hosts</a>, Previous: <a href="#ntptrace-usage" accesskey="p" rel="prev">ntptrace usage</a>, Up: <a href="#ntptrace-usage" accesskey="u" rel="up">ntptrace usage</a> &nbsp; </p>
 </div>
-<a name="numeric-option-_0028_002dn_0029"></a>
-<h4 class="subsection">1.1.1 numeric option (-n)</h4>
-<a name="index-ntptrace_002dnumeric"></a>
+<span id="numeric-option-_0028_002dn_0029"></span><h4 class="subsection">1.1.1 numeric option (-n)</h4>
+<span id="index-ntptrace_002dnumeric"></span>
 
 <p>This is the &ldquo;print ip addresses instead of hostnames&rdquo; option.
 Output hosts as dotted-quad numeric format rather than converting to
 the canonical host names.
 </p><hr>
-<a name="ntptrace-max_002dhosts"></a>
-<div class="header">
+<span id="ntptrace-max_002dhosts"></span><div class="header">
 <p>
 Next: <a href="#ntptrace-host" accesskey="n" rel="next">ntptrace host</a>, Previous: <a href="#ntptrace-numeric" accesskey="p" rel="prev">ntptrace numeric</a>, Up: <a href="#ntptrace-usage" accesskey="u" rel="up">ntptrace usage</a> &nbsp; </p>
 </div>
-<a name="max_002dhosts-option-_0028_002dm_0029"></a>
-<h4 class="subsection">1.1.2 max-hosts option (-m)</h4>
-<a name="index-ntptrace_002dmax_002dhosts"></a>
+<span id="max_002dhosts-option-_0028_002dm_0029"></span><h4 class="subsection">1.1.2 max-hosts option (-m)</h4>
+<span id="index-ntptrace_002dmax_002dhosts"></span>
 
 <p>This is the &ldquo;maximum number of peers to trace&rdquo; option.
 This option takes a number argument.
 This option has no &lsquo;<samp>doc</samp>&rsquo; documentation.
 </p><hr>
-<a name="ntptrace-host"></a>
-<div class="header">
+<span id="ntptrace-host"></span><div class="header">
 <p>
 Next: <a href="#ntptrace-exit-status" accesskey="n" rel="next">ntptrace exit status</a>, Previous: <a href="#ntptrace-max_002dhosts" accesskey="p" rel="prev">ntptrace max-hosts</a>, Up: <a href="#ntptrace-usage" accesskey="u" rel="up">ntptrace usage</a> &nbsp; </p>
 </div>
-<a name="host-option-_0028_002dr_0029"></a>
-<h4 class="subsection">1.1.3 host option (-r)</h4>
-<a name="index-ntptrace_002dhost"></a>
+<span id="host-option-_0028_002dr_0029"></span><h4 class="subsection">1.1.3 host option (-r)</h4>
+<span id="index-ntptrace_002dhost"></span>
 
 <p>This is the &ldquo;single remote host&rdquo; option.
 This option takes a string argument.
 This option has no &lsquo;<samp>doc</samp>&rsquo; documentation.
 </p><hr>
-<a name="ntptrace-exit-status"></a>
-<div class="header">
+<span id="ntptrace-exit-status"></span><div class="header">
 <p>
 Previous: <a href="#ntptrace-host" accesskey="p" rel="prev">ntptrace host</a>, Up: <a href="#ntptrace-usage" accesskey="u" rel="up">ntptrace usage</a> &nbsp; </p>
 </div>
-<a name="ntptrace-exit-status-1"></a>
-<h4 class="subsection">1.1.4 ntptrace exit status</h4>
+<span id="ntptrace-exit-status-1"></span><h4 class="subsection">1.1.4 ntptrace exit status</h4>
 
 <p>One of the following exit values will be returned:
 </p><dl compact="compact">

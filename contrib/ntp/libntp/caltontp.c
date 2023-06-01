@@ -12,18 +12,18 @@
 
 /*
  * Juergen Perlinger, 2008-11-12
- * Add support for full calendar calculatios. If the day-of-year is provided
+ * Add support for full calendar calculations. If the day-of-year is provided
  * (that is, not zero) it will be used instead of month and day-of-month;
  * otherwise a full turn through the calendar calculations will be taken.
  *
  * I know that Harlan Stenn likes to see assertions in production code, and I
- * agree there, but it would be a tricky thing here. The algorithm is quite
- * capable of producing sensible answers even to seemingly weird inputs: the
- * date <any year here>-03-00, the 0.th March of the year, will be automtically
- * treated as the last day of February, no matter whether the year is a leap
- * year or not. So adding constraints is merely for the benefit of the callers,
- * because the only thing we can check for consistency is our input, produced
- * by somebody else.
+ * agree in general. But here we set 'errno' and try to do our best instead.
+ * Also note that the bounds check is a bit sloppy: It permits off-by-one
+ * on the input quantities. That permits some simple/naive adjustments to
+ * be made before calling this function.
+ *
+ * Apart from that the calendar is perfectly capable of dealing with
+ * off-scale input values!
  *
  * BTW: A total roundtrip using 'caljulian' would be a quite shaky thing:
  * Because of the truncation of the NTP time stamp to 32 bits and the epoch
@@ -40,14 +40,18 @@ caltontp(
 	int32_t eraday;	/* CE Rata Die number	*/
 	vint64  ntptime;/* resulting NTP time	*/
 
-	REQUIRE(jt != NULL);
+	if (NULL == jt) {
+		errno = EINVAL;
+		return 0;
+	}
 
-	REQUIRE(jt->month <= 13);	/* permit month 0..13! */
-	REQUIRE(jt->monthday <= 32);
-	REQUIRE(jt->yearday <= 366);
-	REQUIRE(jt->hour <= 24);
-	REQUIRE(jt->minute <= MINSPERHR);
-	REQUIRE(jt->second <= SECSPERMIN);
+	if (   (jt->month > 13)	/* permit month 0..13! */
+	    || (jt->monthday > 32)
+	    || (jt->yearday > 366)
+	    || (jt->hour > 24)
+	    || (jt->minute > MINSPERHR)
+	    || (jt->second > SECSPERMIN))
+		errno = ERANGE;
 
 	/*
 	 * First convert the date to he corresponding RataDie

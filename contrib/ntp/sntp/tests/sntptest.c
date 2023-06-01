@@ -1,7 +1,5 @@
 
 #include "config.h"
-#include "ntp_stdlib.h"
-#include "sntp-opts.h"
 #include "sntptest.h"
 
 void
@@ -28,6 +26,6 @@ ActivateOption(const char* option, const char* argument) {
 	opts[2] = estrdup(argument);
 	opts[3] = estrdup("127.0.0.1");
 
-	optionProcess(&sntpOptions, ARGV_SIZE, opts);
+	optionProcess(&sntpOptions, COUNTOF(opts), opts);
 }
 

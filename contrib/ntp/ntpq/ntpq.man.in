@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH ntpq @NTPQ_MS@ "23 Jun 2020" "4.2.8p15" "User Commands"
+.TH ntpq @NTPQ_MS@ "31 May 2023" "4.2.8p16" "User Commands"
 .\"
 .\" EDIT THIS FILE WITH CAUTION (in-mem file)
 .\"
-.\" It has been AutoGen-ed June 23, 2020 at 02:20:56 AM by AutoGen 5.18.5
+.\" It has been AutoGen-ed May 31, 2023 at 02:50:08 PM by AutoGen 5.18.16
 .\" From the definitions ntpq-opts.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -1514,6 +1514,12 @@ for this option is:
 .sp
 Set the default display format for S2+ refids.
 .TP
+.NOP \f\*[B-Font]\-u\f[], \f\*[B-Font]\-\-unconnected\f[]
+Use unconnected UDP to communicate with ntpd (default on Windows).
+.sp
+Open an unconnected UDP association to ntpd (the default
+on Windows).
+.TP
 .NOP \f\*[B-Font]\-w\f[], \f\*[B-Font]\-\-wide\f[]
 Display the full 'remote' value.
 .sp
@@ -1579,10 +1585,10 @@ it to autogen-users@lists.sourceforge.net.  Thank you.
 .SH "AUTHORS"
 The University of Delaware and Network Time Foundation
 .SH "COPYRIGHT"
-Copyright (C) 1992-2020 The University of Delaware and Network Time Foundation all rights reserved.
+Copyright (C) 1992-2023 The University of Delaware and Network Time Foundation all rights reserved.
 This program is released under the terms of the NTP license, <http://ntp.org/license>.
 .SH "BUGS"
-Please send bug reports to: http://bugs.ntp.org, bugs@ntp.org
+Please send bug reports to: https://bugs.ntp.org, bugs@ntp.org
 .SH "NOTES"
 This manual page was \fIAutoGen\fP-erated from the \fBntpq\fP
 option definitions.

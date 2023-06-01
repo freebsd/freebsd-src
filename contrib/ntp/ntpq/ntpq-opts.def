@@ -112,6 +112,16 @@ flag = {
 };
 
 flag = {
+    name      = unconnected;
+    value     = u;
+    descrip   = "Use unconnected UDP to communicate with ntpd (default on Windows)";
+    doc = <<-  _EndOfDoc_
+	Open an unconnected UDP association to ntpd (the default
+	on Windows).
+	_EndOfDoc_;
+};
+
+flag = {
     name      = wide;
     value     = w;
     descrip   = "Display the full 'remote' value";

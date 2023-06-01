@@ -8,7 +8,7 @@
  *
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2017 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -29,7 +29,7 @@
 /** @file usage-txt.h
  *
  *  This file handles all the bookkeeping required for tracking all the little
- *  tiny strings used by the AutoOpts library.  There are 108
+ *  tiny strings used by the AutoOpts library.  There are 107
  *  of them.  This is not versioned because it is entirely internal to the
  *  library and accessed by client code only in a very well-controlled way:
  *  they may substitute translated strings using a procedure that steps through
@@ -47,7 +47,7 @@ typedef struct {
   char *        utpz_GnuKeyArg;
   char *        utpz_GnuNumArg;
   char *        utpz_GnuStrArg;
-  char const *  apz_str[104];
+  char const *  apz_str[103];
 } usage_text_t;
 
 /*
@@ -55,7 +55,7 @@ typedef struct {
  *  strings and the text array containing untranslatable strings.
  */
 extern usage_text_t option_xlateable_txt;
-extern char const option_lib_text[4285];
+extern char const option_lib_text[4267];
 
 #if defined(AUTOOPTS_INTERNAL)
 /*
@@ -110,67 +110,66 @@ extern char const option_lib_text[4285];
 #define zNoState              (option_xlateable_txt.apz_str[ 40])
 #define zNotCmdOpt            (option_xlateable_txt.apz_str[ 41])
 #define zNotDate              (option_xlateable_txt.apz_str[ 42])
-#define zNotDef               (option_xlateable_txt.apz_str[ 43])
-#define zNotDuration          (option_xlateable_txt.apz_str[ 44])
-#define zneed_more            (option_xlateable_txt.apz_str[ 45])
-#define zNotNumber            (option_xlateable_txt.apz_str[ 46])
-#define znum_too_large        (option_xlateable_txt.apz_str[ 47])
-#define zoffer_usage_fmt      (option_xlateable_txt.apz_str[ 48])
-#define zonly_one             (option_xlateable_txt.apz_str[ 49])
-#define zstdout_name          (option_xlateable_txt.apz_str[ 50])
-#define zstderr_name          (option_xlateable_txt.apz_str[ 51])
-#define zwriting              (option_xlateable_txt.apz_str[ 52])
-#define zRangeErr             (option_xlateable_txt.apz_str[ 53])
-#define zneed_fmt             (option_xlateable_txt.apz_str[ 54])
-#define zsave_warn            (option_xlateable_txt.apz_str[ 55])
-#define zalt_opt              (option_xlateable_txt.apz_str[ 56])
-#define zAuto                 (option_xlateable_txt.apz_str[ 57])
-#define zDefaultOpt           (option_xlateable_txt.apz_str[ 58])
-#define zDis                  (option_xlateable_txt.apz_str[ 59])
-#define zDisabledOpt          (option_xlateable_txt.apz_str[ 60])
-#define zDisabledWhy          (option_xlateable_txt.apz_str[ 61])
-#define zEnab                 (option_xlateable_txt.apz_str[ 62])
-#define ztoo_often_fmt        (option_xlateable_txt.apz_str[ 63])
-#define zExamineFmt           (option_xlateable_txt.apz_str[ 64])
-#define zFileCannotExist      (option_xlateable_txt.apz_str[ 65])
-#define zFileMustExist        (option_xlateable_txt.apz_str[ 66])
-#define zFlagOkay             (option_xlateable_txt.apz_str[ 67])
-#define zGenshell             (option_xlateable_txt.apz_str[ 68])
-#define zLowerBits            (option_xlateable_txt.apz_str[ 69])
-#define zMembers              (option_xlateable_txt.apz_str[ 70])
-#define zMust                 (option_xlateable_txt.apz_str[ 71])
-#define zNoFlags              (option_xlateable_txt.apz_str[ 72])
-#define zNoLim                (option_xlateable_txt.apz_str[ 73])
-#define zNoPreset             (option_xlateable_txt.apz_str[ 74])
-#define zNoRq_NoShrtTtl       (option_xlateable_txt.apz_str[ 75])
-#define zNoRq_ShrtTtl         (option_xlateable_txt.apz_str[ 76])
-#define zNrmOptFmt            (option_xlateable_txt.apz_str[ 77])
-#define zNumberOpt            (option_xlateable_txt.apz_str[ 78])
-#define zOptsOnly             (option_xlateable_txt.apz_str[ 79])
-#define zPathFmt              (option_xlateable_txt.apz_str[ 80])
-#define zPlsSendBugs          (option_xlateable_txt.apz_str[ 81])
-#define zPreset               (option_xlateable_txt.apz_str[ 82])
-#define zPresetIntro          (option_xlateable_txt.apz_str[ 83])
-#define zProhib               (option_xlateable_txt.apz_str[ 84])
-#define zProhibOne            (option_xlateable_txt.apz_str[ 85])
-#define zRange                (option_xlateable_txt.apz_str[ 86])
-#define zRangeAbove           (option_xlateable_txt.apz_str[ 87])
-#define zRangeExact           (option_xlateable_txt.apz_str[ 88])
-#define zRangeLie             (option_xlateable_txt.apz_str[ 89])
-#define zRangeOnly            (option_xlateable_txt.apz_str[ 90])
-#define zRangeOr              (option_xlateable_txt.apz_str[ 91])
-#define zRangeScaled          (option_xlateable_txt.apz_str[ 92])
-#define zRangeUpto            (option_xlateable_txt.apz_str[ 93])
-#define zReorder              (option_xlateable_txt.apz_str[ 94])
-#define zReqOne               (option_xlateable_txt.apz_str[ 95])
-#define zReqThese             (option_xlateable_txt.apz_str[ 96])
-#define zReq_NoShrtTtl        (option_xlateable_txt.apz_str[ 97])
-#define zReq_ShrtTtl          (option_xlateable_txt.apz_str[ 98])
-#define zSetMemberSettings    (option_xlateable_txt.apz_str[ 99])
-#define zUpTo                 (option_xlateable_txt.apz_str[100])
-#define zValidKeys            (option_xlateable_txt.apz_str[101])
-#define zVendIntro            (option_xlateable_txt.apz_str[102])
-#define zVendOptsAre          (option_xlateable_txt.apz_str[103])
+#define zNotDuration          (option_xlateable_txt.apz_str[ 43])
+#define zneed_more            (option_xlateable_txt.apz_str[ 44])
+#define zNotNumber            (option_xlateable_txt.apz_str[ 45])
+#define znum_too_large        (option_xlateable_txt.apz_str[ 46])
+#define zoffer_usage_fmt      (option_xlateable_txt.apz_str[ 47])
+#define zonly_one             (option_xlateable_txt.apz_str[ 48])
+#define zstdout_name          (option_xlateable_txt.apz_str[ 49])
+#define zstderr_name          (option_xlateable_txt.apz_str[ 50])
+#define zwriting              (option_xlateable_txt.apz_str[ 51])
+#define zRangeErr             (option_xlateable_txt.apz_str[ 52])
+#define zneed_fmt             (option_xlateable_txt.apz_str[ 53])
+#define zsave_warn            (option_xlateable_txt.apz_str[ 54])
+#define zalt_opt              (option_xlateable_txt.apz_str[ 55])
+#define zAuto                 (option_xlateable_txt.apz_str[ 56])
+#define zDefaultOpt           (option_xlateable_txt.apz_str[ 57])
+#define zDis                  (option_xlateable_txt.apz_str[ 58])
+#define zDisabledOpt          (option_xlateable_txt.apz_str[ 59])
+#define zDisabledWhy          (option_xlateable_txt.apz_str[ 60])
+#define zEnab                 (option_xlateable_txt.apz_str[ 61])
+#define ztoo_often_fmt        (option_xlateable_txt.apz_str[ 62])
+#define zExamineFmt           (option_xlateable_txt.apz_str[ 63])
+#define zFileCannotExist      (option_xlateable_txt.apz_str[ 64])
+#define zFileMustExist        (option_xlateable_txt.apz_str[ 65])
+#define zFlagOkay             (option_xlateable_txt.apz_str[ 66])
+#define zGenshell             (option_xlateable_txt.apz_str[ 67])
+#define zLowerBits            (option_xlateable_txt.apz_str[ 68])
+#define zMembers              (option_xlateable_txt.apz_str[ 69])
+#define zMust                 (option_xlateable_txt.apz_str[ 70])
+#define zNoFlags              (option_xlateable_txt.apz_str[ 71])
+#define zNoLim                (option_xlateable_txt.apz_str[ 72])
+#define zNoPreset             (option_xlateable_txt.apz_str[ 73])
+#define zNoRq_NoShrtTtl       (option_xlateable_txt.apz_str[ 74])
+#define zNoRq_ShrtTtl         (option_xlateable_txt.apz_str[ 75])
+#define zNrmOptFmt            (option_xlateable_txt.apz_str[ 76])
+#define zNumberOpt            (option_xlateable_txt.apz_str[ 77])
+#define zOptsOnly             (option_xlateable_txt.apz_str[ 78])
+#define zPathFmt              (option_xlateable_txt.apz_str[ 79])
+#define zPlsSendBugs          (option_xlateable_txt.apz_str[ 80])
+#define zPreset               (option_xlateable_txt.apz_str[ 81])
+#define zPresetIntro          (option_xlateable_txt.apz_str[ 82])
+#define zProhib               (option_xlateable_txt.apz_str[ 83])
+#define zProhibOne            (option_xlateable_txt.apz_str[ 84])
+#define zRange                (option_xlateable_txt.apz_str[ 85])
+#define zRangeAbove           (option_xlateable_txt.apz_str[ 86])
+#define zRangeExact           (option_xlateable_txt.apz_str[ 87])
+#define zRangeLie             (option_xlateable_txt.apz_str[ 88])
+#define zRangeOnly            (option_xlateable_txt.apz_str[ 89])
+#define zRangeOr              (option_xlateable_txt.apz_str[ 90])
+#define zRangeScaled          (option_xlateable_txt.apz_str[ 91])
+#define zRangeUpto            (option_xlateable_txt.apz_str[ 92])
+#define zReorder              (option_xlateable_txt.apz_str[ 93])
+#define zReqOne               (option_xlateable_txt.apz_str[ 94])
+#define zReqThese             (option_xlateable_txt.apz_str[ 95])
+#define zReq_NoShrtTtl        (option_xlateable_txt.apz_str[ 96])
+#define zReq_ShrtTtl          (option_xlateable_txt.apz_str[ 97])
+#define zSetMemberSettings    (option_xlateable_txt.apz_str[ 98])
+#define zUpTo                 (option_xlateable_txt.apz_str[ 99])
+#define zValidKeys            (option_xlateable_txt.apz_str[100])
+#define zVendIntro            (option_xlateable_txt.apz_str[101])
+#define zVendOptsAre          (option_xlateable_txt.apz_str[102])
 
   /*
    *  First, set up the strings.  Some of these are writable.  These are all in
@@ -181,7 +180,7 @@ static char eng_zGnuBoolArg[]  = "=T/F";
 static char eng_zGnuKeyArg[]   = "=KWd";
 static char eng_zGnuNumArg[]   = "=num";
 static char eng_zGnuStrArg[]   = "=str";
-char const option_lib_text[4285] =
+char const option_lib_text[4267] =
 /*     0 */ "allocation of %d bytes failed\n\0"
 /*    31 */ "AutoOpts function called without option descriptor\n\0"
 /*    83 */ "\tThis exceeds the compiled library version:  \0"
@@ -190,7 +189,7 @@ char const option_lib_text[4285] =
 /*   228 */ "realloc of %d bytes at 0x%p failed\n\0"
 /*   264 */ "\tThis is less than the minimum library version:  \0"
 /*   314 */ "Automated Options version %s\n"
-            "\tCopyright (C) 1999-2014 by Bruce Korb - all rights reserved\n\0"
+            "\tCopyright (C) 1999-2017 by Bruce Korb - all rights reserved\n\0"
 /*   405 */ "(AutoOpts bug):  %s.\n\0"
 /*   427 */ "optionResetOpt() called, but reset-option not configured\0"
 /*   484 */ "could not locate the 'help' option\0"
@@ -231,76 +230,75 @@ char const option_lib_text[4285] =
 /*  1771 */ "%s error: no saved option state\n\0"
 /*  1804 */ "'%s' is not a command line option.\n\0"
 /*  1840 */ "%s error:  '%s' is not a recognizable date/time.\n\0"
-/*  1890 */ "'%s' not defined\n\0"
-/*  1908 */ "%s error:  '%s' is not a recognizable time duration.\n\0"
-/*  1962 */ "%s error:  The %s option must appear %d times.\n\0"
-/*  2010 */ "%s error:  '%s' is not a recognizable number.\n\0"
-/*  2057 */ "%s error:  %s exceeds %s keyword count\n\0"
-/*  2097 */ "Try '%s %s' for more information.\n\0"
-/*  2132 */ "one %s%s option allowed\n\0"
-/*  2157 */ "standard output\0"
-/*  2173 */ "standard error\0"
-/*  2188 */ "write\0"
-/*  2194 */ "%s error:  %s option value %ld is out of range.\n\0"
-/*  2243 */ "%s error:  %s option requires the %s option\n\0"
-/*  2288 */ "%s warning:  cannot save options - %s not regular file\n\0"
-/*  2344 */ "\t\t\t\t- an alternate for '%s'\n\0"
-/*  2373 */ "Version, usage and configuration options:\0"
-/*  2415 */ "\t\t\t\t- default option for unnamed options\n\0"
-/*  2457 */ "\t\t\t\t- disabled as '--%s'\n\0"
-/*  2483 */ " --- %-14s %s\n\0"
-/*  2498 */ "This option has been disabled\0"
-/*  2528 */ "\t\t\t\t- enabled by default\n\0"
-/*  2554 */ "%s error:  only \0"
-/*  2571 */ " - examining environment variables named %s_*\n\0"
-/*  2618 */ "\t\t\t\t- file must not pre-exist\n\0"
-/*  2649 */ "\t\t\t\t- file must pre-exist\n\0"
-/*  2676 */ "Options are specified by doubled hyphens and their name or by a single\n"
+/*  1890 */ "%s error:  '%s' is not a recognizable time duration.\n\0"
+/*  1944 */ "%s error:  The %s option must appear %d times.\n\0"
+/*  1992 */ "%s error:  '%s' is not a recognizable number.\n\0"
+/*  2039 */ "%s error:  %s exceeds %s keyword count\n\0"
+/*  2079 */ "Try '%s %s' for more information.\n\0"
+/*  2114 */ "one %s%s option allowed\n\0"
+/*  2139 */ "standard output\0"
+/*  2155 */ "standard error\0"
+/*  2170 */ "write\0"
+/*  2176 */ "%s error:  %s option value %ld is out of range.\n\0"
+/*  2225 */ "%s error:  %s option requires the %s option\n\0"
+/*  2270 */ "%s warning:  cannot save options - %s not regular file\n\0"
+/*  2326 */ "\t\t\t\t- an alternate for '%s'\n\0"
+/*  2355 */ "Version, usage and configuration options:\0"
+/*  2397 */ "\t\t\t\t- default option for unnamed options\n\0"
+/*  2439 */ "\t\t\t\t- disabled as '--%s'\n\0"
+/*  2465 */ " --- %-14s %s\n\0"
+/*  2480 */ "This option has been disabled\0"
+/*  2510 */ "\t\t\t\t- enabled by default\n\0"
+/*  2536 */ "%s error:  only \0"
+/*  2553 */ " - examining environment variables named %s_*\n\0"
+/*  2600 */ "\t\t\t\t- file must not pre-exist\n\0"
+/*  2631 */ "\t\t\t\t- file must pre-exist\n\0"
+/*  2658 */ "Options are specified by doubled hyphens and their name or by a single\n"
             "hyphen and the flag character.\n\0"
-/*  2779 */ "\n"
+/*  2761 */ "\n"
             "= = = = = = = =\n\n"
             "This incarnation of genshell will produce\n"
             "a shell script to parse the options for %s:\n\n\0"
-/*  2885 */ "  or an integer mask with any of the lower %d bits set\n\0"
-/*  2941 */ "\t\t\t\t- is a set membership option\n\0"
-/*  2975 */ "\t\t\t\t- must appear between %d and %d times\n\0"
-/*  3018 */ "Options are specified by single or double hyphens and their name.\n\0"
-/*  3085 */ "\t\t\t\t- may appear multiple times\n\0"
-/*  3118 */ "\t\t\t\t- may not be preset\n\0"
-/*  3143 */ "   Arg Option-Name    Description\n\0"
-/*  3178 */ "  Flg Arg Option-Name    Description\n\0"
-/*  3216 */ " %3s %s\0"
-/*  3224 */ "The '-#<number>' option may omit the hash char\n\0"
-/*  3272 */ "All arguments are named options.\n\0"
-/*  3306 */ " - reading file %s\0"
-/*  3325 */ "\n"
+/*  2867 */ "  or an integer mask with any of the lower %d bits set\n\0"
+/*  2923 */ "\t\t\t\t- is a set membership option\n\0"
+/*  2957 */ "\t\t\t\t- must appear between %d and %d times\n\0"
+/*  3000 */ "Options are specified by single or double hyphens and their name.\n\0"
+/*  3067 */ "\t\t\t\t- may appear multiple times\n\0"
+/*  3100 */ "\t\t\t\t- may not be preset\n\0"
+/*  3125 */ "   Arg Option-Name    Description\n\0"
+/*  3160 */ "  Flg Arg Option-Name    Description\n\0"
+/*  3198 */ " %3s %s\0"
+/*  3206 */ "The '-#<number>' option may omit the hash char\n\0"
+/*  3254 */ "All arguments are named options.\n\0"
+/*  3288 */ " - reading file %s\0"
+/*  3307 */ "\n"
             "Please send bug reports to:  <%s>\n\0"
-/*  3361 */ "\t\t\t\t- may NOT appear - preset only\n\0"
-/*  3397 */ "\n"
+/*  3343 */ "\t\t\t\t- may NOT appear - preset only\n\0"
+/*  3379 */ "\n"
             "The following option preset mechanisms are supported:\n\0"
-/*  3453 */ "prohibits these options:\n\0"
-/*  3479 */ "prohibits the option '%s'\n\0"
-/*  3506 */ "%s%ld to %ld\0"
-/*  3519 */ "%sgreater than or equal to %ld\0"
-/*  3550 */ "%s%ld exactly\0"
-/*  3564 */ "%sit must lie in one of the ranges:\n\0"
-/*  3601 */ "%sit must be in the range:\n\0"
-/*  3629 */ ", or\n\0"
-/*  3635 */ "%sis scalable with a suffix: k/K/m/M/g/G/t/T\n\0"
-/*  3681 */ "%sless than or equal to %ld\0"
-/*  3709 */ "Operands and options may be intermixed.  They will be reordered.\n\0"
-/*  3775 */ "requires the option '%s'\n\0"
-/*  3801 */ "requires these options:\n\0"
-/*  3826 */ "   Arg Option-Name   Req?  Description\n\0"
-/*  3866 */ "  Flg Arg Option-Name   Req?  Description\n\0"
-/*  3909 */ "or you may use a numeric representation.  Preceding these with a '!'\n"
+/*  3435 */ "prohibits these options:\n\0"
+/*  3461 */ "prohibits the option '%s'\n\0"
+/*  3488 */ "%s%ld to %ld\0"
+/*  3501 */ "%sgreater than or equal to %ld\0"
+/*  3532 */ "%s%ld exactly\0"
+/*  3546 */ "%sit must lie in one of the ranges:\n\0"
+/*  3583 */ "%sit must be in the range:\n\0"
+/*  3611 */ ", or\n\0"
+/*  3617 */ "%sis scalable with a suffix: k/K/m/M/g/G/t/T\n\0"
+/*  3663 */ "%sless than or equal to %ld\0"
+/*  3691 */ "Operands and options may be intermixed.  They will be reordered.\n\0"
+/*  3757 */ "requires the option '%s'\n\0"
+/*  3783 */ "requires these options:\n\0"
+/*  3808 */ "   Arg Option-Name   Req?  Description\n\0"
+/*  3848 */ "  Flg Arg Option-Name   Req?  Description\n\0"
+/*  3891 */ "or you may use a numeric representation.  Preceding these with a '!'\n"
             "will clear the bits, specifying 'none' will clear all bits, and 'all'\n"
             "will set them all.  Multiple entries may be passed as an option\n"
             "argument list.\n\0"
-/*  4128 */ "\t\t\t\t- may appear up to %d times\n\0"
-/*  4161 */ "The valid \"%s\" option keywords are:\n\0"
-/*  4198 */ "The next option supports vendor supported extra options:\0"
-/*  4255 */ "These additional options are:";
+/*  4110 */ "\t\t\t\t- may appear up to %d times\n\0"
+/*  4143 */ "The valid \"%s\" option keywords are:\n\0"
+/*  4180 */ "The next option supports vendor supported extra options:\0"
+/*  4237 */ "These additional options are:";
 
 /*
  *  Now, define (and initialize) the structure that contains
@@ -308,7 +306,7 @@ char const option_lib_text[4285] =
  *  Aren't you glad you don't maintain this by hand?
  */
 usage_text_t option_xlateable_txt = {
-  108,
+  107,
   eng_zGnuBoolArg, eng_zGnuKeyArg,  eng_zGnuNumArg,  eng_zGnuStrArg,
     {
     option_lib_text +    0, option_lib_text +   31, option_lib_text +   83,
@@ -325,27 +323,27 @@ usage_text_t option_xlateable_txt = {
     option_lib_text + 1490, option_lib_text + 1528, option_lib_text + 1574,
     option_lib_text + 1619, option_lib_text + 1646, option_lib_text + 1695,
     option_lib_text + 1744, option_lib_text + 1771, option_lib_text + 1804,
-    option_lib_text + 1840, option_lib_text + 1890, option_lib_text + 1908,
-    option_lib_text + 1962, option_lib_text + 2010, option_lib_text + 2057,
-    option_lib_text + 2097, option_lib_text + 2132, option_lib_text + 2157,
-    option_lib_text + 2173, option_lib_text + 2188, option_lib_text + 2194,
-    option_lib_text + 2243, option_lib_text + 2288, option_lib_text + 2344,
-    option_lib_text + 2373, option_lib_text + 2415, option_lib_text + 2457,
-    option_lib_text + 2483, option_lib_text + 2498, option_lib_text + 2528,
-    option_lib_text + 2554, option_lib_text + 2571, option_lib_text + 2618,
-    option_lib_text + 2649, option_lib_text + 2676, option_lib_text + 2779,
-    option_lib_text + 2885, option_lib_text + 2941, option_lib_text + 2975,
-    option_lib_text + 3018, option_lib_text + 3085, option_lib_text + 3118,
-    option_lib_text + 3143, option_lib_text + 3178, option_lib_text + 3216,
-    option_lib_text + 3224, option_lib_text + 3272, option_lib_text + 3306,
-    option_lib_text + 3325, option_lib_text + 3361, option_lib_text + 3397,
-    option_lib_text + 3453, option_lib_text + 3479, option_lib_text + 3506,
-    option_lib_text + 3519, option_lib_text + 3550, option_lib_text + 3564,
-    option_lib_text + 3601, option_lib_text + 3629, option_lib_text + 3635,
-    option_lib_text + 3681, option_lib_text + 3709, option_lib_text + 3775,
-    option_lib_text + 3801, option_lib_text + 3826, option_lib_text + 3866,
-    option_lib_text + 3909, option_lib_text + 4128, option_lib_text + 4161,
-    option_lib_text + 4198, option_lib_text + 4255
+    option_lib_text + 1840, option_lib_text + 1890, option_lib_text + 1944,
+    option_lib_text + 1992, option_lib_text + 2039, option_lib_text + 2079,
+    option_lib_text + 2114, option_lib_text + 2139, option_lib_text + 2155,
+    option_lib_text + 2170, option_lib_text + 2176, option_lib_text + 2225,
+    option_lib_text + 2270, option_lib_text + 2326, option_lib_text + 2355,
+    option_lib_text + 2397, option_lib_text + 2439, option_lib_text + 2465,
+    option_lib_text + 2480, option_lib_text + 2510, option_lib_text + 2536,
+    option_lib_text + 2553, option_lib_text + 2600, option_lib_text + 2631,
+    option_lib_text + 2658, option_lib_text + 2761, option_lib_text + 2867,
+    option_lib_text + 2923, option_lib_text + 2957, option_lib_text + 3000,
+    option_lib_text + 3067, option_lib_text + 3100, option_lib_text + 3125,
+    option_lib_text + 3160, option_lib_text + 3198, option_lib_text + 3206,
+    option_lib_text + 3254, option_lib_text + 3288, option_lib_text + 3307,
+    option_lib_text + 3343, option_lib_text + 3379, option_lib_text + 3435,
+    option_lib_text + 3461, option_lib_text + 3488, option_lib_text + 3501,
+    option_lib_text + 3532, option_lib_text + 3546, option_lib_text + 3583,
+    option_lib_text + 3611, option_lib_text + 3617, option_lib_text + 3663,
+    option_lib_text + 3691, option_lib_text + 3757, option_lib_text + 3783,
+    option_lib_text + 3808, option_lib_text + 3848, option_lib_text + 3891,
+    option_lib_text + 4110, option_lib_text + 4143, option_lib_text + 4180,
+    option_lib_text + 4237
   } };
 #endif /* AUTOOPTS_INTERNAL */
 
@@ -364,234 +362,230 @@ static void dummy_func(void) {
   /* LIBOPTS-MESSAGES: */
 #line 67 "../autoopts.c"
   puts(_("allocation of %d bytes failed\n"));
-#line 93 "../autoopts.c"
+#line 89 "../autoopts.c"
   puts(_("allocation of %d bytes failed\n"));
-#line 53 "../init.c"
+#line 48 "../init.c"
   puts(_("AutoOpts function called without option descriptor\n"));
-#line 86 "../init.c"
+#line 81 "../init.c"
   puts(_("\tThis exceeds the compiled library version:  "));
-#line 84 "../init.c"
+#line 79 "../init.c"
   puts(_("Automated Options Processing Error!\n"
        "\t%s called AutoOpts function with structure version %d:%d:%d.\n"));
-#line 80 "../autoopts.c"
+#line 78 "../autoopts.c"
   puts(_("realloc of %d bytes at 0x%p failed\n"));
-#line 88 "../init.c"
+#line 83 "../init.c"
   puts(_("\tThis is less than the minimum library version:  "));
 #line 121 "../version.c"
   puts(_("Automated Options version %s\n"
-       "\tCopyright (C) 1999-2014 by Bruce Korb - all rights reserved\n"));
-#line 87 "../makeshell.c"
+       "\tCopyright (C) 1999-2017 by Bruce Korb - all rights reserved\n"));
+#line 49 "../makeshell.c"
   puts(_("(AutoOpts bug):  %s.\n"));
 #line 90 "../reset.c"
   puts(_("optionResetOpt() called, but reset-option not configured"));
-#line 292 "../usage.c"
+#line 241 "../usage.c"
   puts(_("could not locate the 'help' option"));
-#line 336 "../autoopts.c"
+#line 330 "../autoopts.c"
   puts(_("optionProcess() was called with invalid data"));
-#line 748 "../usage.c"
+#line 697 "../usage.c"
   puts(_("invalid argument type specified"));
-#line 598 "../find.c"
+#line 568 "../find.c"
   puts(_("defaulted to option with optional arg"));
 #line 76 "../alias.c"
   puts(_("aliasing option is out of range."));
-#line 234 "../enum.c"
+#line 210 "../enum.c"
   puts(_("%s error:  the keyword '%s' is ambiguous for %s\n"));
-#line 108 "../find.c"
+#line 78 "../find.c"
   puts(_("  The following options match:\n"));
-#line 293 "../find.c"
+#line 263 "../find.c"
   puts(_("%s: ambiguous option name: %s (matches %d options)\n"));
 #line 161 "../check.c"
   puts(_("%s: Command line arguments required\n"));
 #line 43 "../alias.c"
   puts(_("%d %s%s options allowed\n"));
-#line 94 "../makeshell.c"
+#line 56 "../makeshell.c"
   puts(_("%s error %d (%s) calling %s for '%s'\n"));
-#line 306 "../makeshell.c"
+#line 268 "../makeshell.c"
   puts(_("interprocess pipe"));
-#line 168 "../version.c"
+#line 171 "../version.c"
   puts(_("error: version option argument '%c' invalid.  Use:\n"
        "\t'v' - version only\n"
        "\t'c' - version and copyright\n"
        "\t'n' - version and full copyright notice\n"));
 #line 58 "../check.c"
   puts(_("%s error:  the '%s' and '%s' options conflict\n"));
-#line 217 "../find.c"
+#line 187 "../find.c"
   puts(_("%s: The '%s' option has been disabled."));
-#line 430 "../find.c"
+#line 400 "../find.c"
   puts(_("%s: The '%s' option has been disabled."));
 #line 38 "../alias.c"
   puts(_("-equivalence"));
-#line 469 "../find.c"
+#line 439 "../find.c"
   puts(_("%s: illegal option -- %c\n"));
 #line 110 "../reset.c"
   puts(_("%s: illegal option -- %c\n"));
-#line 271 "../find.c"
+#line 241 "../find.c"
   puts(_("%s: illegal option -- %s\n"));
-#line 755 "../find.c"
+#line 740 "../find.c"
   puts(_("%s: illegal option -- %s\n"));
 #line 118 "../reset.c"
   puts(_("%s: illegal option -- %s\n"));
-#line 335 "../find.c"
+#line 305 "../find.c"
   puts(_("%s: unknown vendor extension option -- %s\n"));
-#line 159 "../enum.c"
+#line 135 "../enum.c"
   puts(_("  or an integer from %d through %d\n"));
-#line 169 "../enum.c"
+#line 145 "../enum.c"
   puts(_("  or an integer from %d through %d\n"));
-#line 747 "../usage.c"
+#line 696 "../usage.c"
   puts(_("%s error:  invalid option descriptor for %s\n"));
-#line 1081 "../usage.c"
+#line 1030 "../usage.c"
   puts(_("%s error:  invalid option descriptor for %s\n"));
-#line 385 "../find.c"
+#line 355 "../find.c"
   puts(_("%s: invalid option name: %s\n"));
-#line 527 "../find.c"
+#line 497 "../find.c"
   puts(_("%s: The '%s' option requires an argument.\n"));
-#line 156 "../autoopts.c"
+#line 150 "../autoopts.c"
   puts(_("(AutoOpts bug):  Equivalenced option '%s' was equivalenced to both\n"
        "\t'%s' and '%s'."));
 #line 94 "../check.c"
   puts(_("%s error:  The %s option is required\n"));
-#line 632 "../find.c"
+#line 602 "../find.c"
   puts(_("%s: The '%s' option cannot have an argument.\n"));
 #line 151 "../check.c"
   puts(_("%s: Command line arguments are not allowed.\n"));
-#line 535 "../save.c"
+#line 568 "../save.c"
   puts(_("error %d (%s) creating %s\n"));
-#line 234 "../enum.c"
+#line 210 "../enum.c"
   puts(_("%s error:  '%s' does not match any %s keywords.\n"));
 #line 93 "../reset.c"
   puts(_("%s error: The '%s' option requires an argument.\n"));
-#line 184 "../save.c"
+#line 122 "../save.c"
   puts(_("error %d (%s) stat-ing %s\n"));
-#line 238 "../save.c"
+#line 175 "../save.c"
   puts(_("error %d (%s) stat-ing %s\n"));
 #line 143 "../restore.c"
   puts(_("%s error: no saved option state\n"));
-#line 231 "../autoopts.c"
+#line 225 "../autoopts.c"
   puts(_("'%s' is not a command line option.\n"));
-#line 111 "../time.c"
+#line 113 "../time.c"
   puts(_("%s error:  '%s' is not a recognizable date/time.\n"));
-#line 132 "../save.c"
-  puts(_("'%s' not defined\n"));
 #line 50 "../time.c"
   puts(_("%s error:  '%s' is not a recognizable time duration.\n"));
 #line 92 "../check.c"
   puts(_("%s error:  The %s option must appear %d times.\n"));
-#line 164 "../numeric.c"
+#line 165 "../numeric.c"
   puts(_("%s error:  '%s' is not a recognizable number.\n"));
-#line 200 "../enum.c"
+#line 176 "../enum.c"
   puts(_("%s error:  %s exceeds %s keyword count\n"));
-#line 330 "../usage.c"
+#line 279 "../usage.c"
   puts(_("Try '%s %s' for more information.\n"));
 #line 45 "../alias.c"
   puts(_("one %s%s option allowed\n"));
-#line 208 "../makeshell.c"
+#line 170 "../makeshell.c"
   puts(_("standard output"));
-#line 943 "../makeshell.c"
+#line 905 "../makeshell.c"
   puts(_("standard output"));
-#line 274 "../usage.c"
+#line 223 "../usage.c"
   puts(_("standard output"));
-#line 415 "../usage.c"
+#line 364 "../usage.c"
   puts(_("standard output"));
-#line 625 "../usage.c"
+#line 574 "../usage.c"
   puts(_("standard output"));
-#line 175 "../version.c"
+#line 178 "../version.c"
   puts(_("standard output"));
-#line 274 "../usage.c"
+#line 223 "../usage.c"
   puts(_("standard error"));
-#line 415 "../usage.c"
+#line 364 "../usage.c"
   puts(_("standard error"));
-#line 625 "../usage.c"
+#line 574 "../usage.c"
   puts(_("standard error"));
-#line 175 "../version.c"
+#line 178 "../version.c"
   puts(_("standard error"));
-#line 208 "../makeshell.c"
+#line 170 "../makeshell.c"
   puts(_("write"));
-#line 943 "../makeshell.c"
+#line 905 "../makeshell.c"
   puts(_("write"));
-#line 273 "../usage.c"
+#line 222 "../usage.c"
   puts(_("write"));
-#line 414 "../usage.c"
+#line 363 "../usage.c"
   puts(_("write"));
-#line 624 "../usage.c"
+#line 573 "../usage.c"
   puts(_("write"));
-#line 174 "../version.c"
+#line 177 "../version.c"
   puts(_("write"));
 #line 60 "../numeric.c"
   puts(_("%s error:  %s option value %ld is out of range.\n"));
 #line 44 "../check.c"
   puts(_("%s error:  %s option requires the %s option\n"));
-#line 131 "../save.c"
+#line 121 "../save.c"
   puts(_("%s warning:  cannot save options - %s not regular file\n"));
-#line 183 "../save.c"
+#line 174 "../save.c"
   puts(_("%s warning:  cannot save options - %s not regular file\n"));
-#line 237 "../save.c"
+#line 193 "../save.c"
   puts(_("%s warning:  cannot save options - %s not regular file\n"));
-#line 256 "../save.c"
-  puts(_("%s warning:  cannot save options - %s not regular file\n"));
-#line 534 "../save.c"
+#line 567 "../save.c"
   puts(_("%s warning:  cannot save options - %s not regular file\n"));
   /* END-LIBOPTS-MESSAGES */
 
   /* USAGE-TEXT: */
-#line 873 "../usage.c"
+#line 822 "../usage.c"
   puts(_("\t\t\t\t- an alternate for '%s'\n"));
-#line 1148 "../usage.c"
+#line 1097 "../usage.c"
   puts(_("Version, usage and configuration options:"));
-#line 924 "../usage.c"
+#line 873 "../usage.c"
   puts(_("\t\t\t\t- default option for unnamed options\n"));
-#line 837 "../usage.c"
+#line 786 "../usage.c"
   puts(_("\t\t\t\t- disabled as '--%s'\n"));
-#line 1117 "../usage.c"
+#line 1066 "../usage.c"
   puts(_(" --- %-14s %s\n"));
-#line 1115 "../usage.c"
+#line 1064 "../usage.c"
   puts(_("This option has been disabled"));
-#line 864 "../usage.c"
+#line 813 "../usage.c"
   puts(_("\t\t\t\t- enabled by default\n"));
 #line 40 "../alias.c"
   puts(_("%s error:  only "));
-#line 1194 "../usage.c"
+#line 1143 "../usage.c"
   puts(_(" - examining environment variables named %s_*\n"));
 #line 168 "../file.c"
   puts(_("\t\t\t\t- file must not pre-exist\n"));
 #line 172 "../file.c"
   puts(_("\t\t\t\t- file must pre-exist\n"));
-#line 380 "../usage.c"
+#line 329 "../usage.c"
   puts(_("Options are specified by doubled hyphens and their name or by a single\n"
        "hyphen and the flag character.\n"));
-#line 921 "../makeshell.c"
+#line 882 "../makeshell.c"
   puts(_("\n"
        "= = = = = = = =\n\n"
        "This incarnation of genshell will produce\n"
        "a shell script to parse the options for %s:\n\n"));
-#line 166 "../enum.c"
+#line 142 "../enum.c"
   puts(_("  or an integer mask with any of the lower %d bits set\n"));
-#line 897 "../usage.c"
+#line 846 "../usage.c"
   puts(_("\t\t\t\t- is a set membership option\n"));
-#line 918 "../usage.c"
+#line 867 "../usage.c"
   puts(_("\t\t\t\t- must appear between %d and %d times\n"));
-#line 382 "../usage.c"
+#line 331 "../usage.c"
   puts(_("Options are specified by single or double hyphens and their name.\n"));
-#line 904 "../usage.c"
+#line 853 "../usage.c"
   puts(_("\t\t\t\t- may appear multiple times\n"));
-#line 891 "../usage.c"
+#line 840 "../usage.c"
   puts(_("\t\t\t\t- may not be preset\n"));
-#line 1309 "../usage.c"
+#line 1258 "../usage.c"
   puts(_("   Arg Option-Name    Description\n"));
-#line 1245 "../usage.c"
+#line 1194 "../usage.c"
   puts(_("  Flg Arg Option-Name    Description\n"));
-#line 1303 "../usage.c"
+#line 1252 "../usage.c"
   puts(_("  Flg Arg Option-Name    Description\n"));
-#line 1304 "../usage.c"
+#line 1253 "../usage.c"
   puts(_(" %3s %s"));
-#line 1310 "../usage.c"
+#line 1259 "../usage.c"
   puts(_(" %3s %s"));
-#line 387 "../usage.c"
+#line 336 "../usage.c"
   puts(_("The '-#<number>' option may omit the hash char\n"));
-#line 383 "../usage.c"
+#line 332 "../usage.c"
   puts(_("All arguments are named options.\n"));
-#line 971 "../usage.c"
+#line 920 "../usage.c"
   puts(_(" - reading file %s"));
-#line 409 "../usage.c"
+#line 358 "../usage.c"
   puts(_("\n"
        "Please send bug reports to:  <%s>\n"));
 #line 100 "../version.c"
@@ -600,17 +594,17 @@ static void dummy_func(void) {
 #line 129 "../version.c"
   puts(_("\n"
        "Please send bug reports to:  <%s>\n"));
-#line 903 "../usage.c"
+#line 852 "../usage.c"
   puts(_("\t\t\t\t- may NOT appear - preset only\n"));
-#line 944 "../usage.c"
+#line 893 "../usage.c"
   puts(_("\n"
        "The following option preset mechanisms are supported:\n"));
-#line 1192 "../usage.c"
+#line 1141 "../usage.c"
   puts(_("\n"
        "The following option preset mechanisms are supported:\n"));
-#line 682 "../usage.c"
+#line 631 "../usage.c"
   puts(_("prohibits these options:\n"));
-#line 677 "../usage.c"
+#line 626 "../usage.c"
   puts(_("prohibits the option '%s'\n"));
 #line 81 "../numeric.c"
   puts(_("%s%ld to %ld"));
@@ -628,28 +622,28 @@ static void dummy_func(void) {
   puts(_("%sis scalable with a suffix: k/K/m/M/g/G/t/T\n"));
 #line 77 "../numeric.c"
   puts(_("%sless than or equal to %ld"));
-#line 390 "../usage.c"
+#line 339 "../usage.c"
   puts(_("Operands and options may be intermixed.  They will be reordered.\n"));
-#line 652 "../usage.c"
+#line 601 "../usage.c"
   puts(_("requires the option '%s'\n"));
-#line 655 "../usage.c"
+#line 604 "../usage.c"
   puts(_("requires these options:\n"));
-#line 1321 "../usage.c"
+#line 1270 "../usage.c"
   puts(_("   Arg Option-Name   Req?  Description\n"));
-#line 1315 "../usage.c"
+#line 1264 "../usage.c"
   puts(_("  Flg Arg Option-Name   Req?  Description\n"));
-#line 167 "../enum.c"
+#line 143 "../enum.c"
   puts(_("or you may use a numeric representation.  Preceding these with a '!'\n"
        "will clear the bits, specifying 'none' will clear all bits, and 'all'\n"
        "will set them all.  Multiple entries may be passed as an option\n"
        "argument list.\n"));
-#line 910 "../usage.c"
+#line 859 "../usage.c"
   puts(_("\t\t\t\t- may appear up to %d times\n"));
-#line 77 "../enum.c"
+#line 52 "../enum.c"
   puts(_("The valid \"%s\" option keywords are:\n"));
-#line 1152 "../usage.c"
+#line 1101 "../usage.c"
   puts(_("The next option supports vendor supported extra options:"));
-#line 773 "../usage.c"
+#line 722 "../usage.c"
   puts(_("These additional options are:"));
   /* END-USAGE-TEXT */
 }

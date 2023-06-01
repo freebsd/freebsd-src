@@ -37,7 +37,7 @@
 
 
 /**
-   Obsolete alias for evbuffer_readln(buffer, NULL, EOL_STYLE_ANY).
+   Obsolete alias for evbuffer_readln(buffer, NULL, EVBUFFER_EOL_ANY).
 
    @deprecated This function is deprecated because its behavior is not correct
       for almost any protocol, and also because it's wholly subsumed by
@@ -90,9 +90,10 @@ typedef void (*evbuffer_cb)(struct evbuffer *buffer, size_t old_len, size_t new_
   @param cb the callback function to invoke when the evbuffer is modified,
 	 or NULL to remove all callbacks.
   @param cbarg an argument to be provided to the callback function
+  @return 0 if successful, or -1 on error
  */
 EVENT2_EXPORT_SYMBOL
-void evbuffer_setcb(struct evbuffer *buffer, evbuffer_cb cb, void *cbarg);
+int evbuffer_setcb(struct evbuffer *buffer, evbuffer_cb cb, void *cbarg);
 
 
 /**

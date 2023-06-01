@@ -13,10 +13,10 @@ SRCS= 	ntpq.c ntpq-opts.c ntpq-subs.c version.c
 
 CFLAGS+= -I${SRCTOP}/contrib/ntp/include \
 	-I${SRCTOP}/contrib/ntp/include \
-	-I${SRCTOP}/contrib/ntp/lib/isc/include \
-	-I${SRCTOP}/contrib/ntp/lib/isc/unix/include \
-	-I${SRCTOP}/contrib/ntp/lib/isc/pthreads/include \
-	-I${SRCTOP}/contrib/ntp/lib/isc/${NTP_ATOMIC}/include \
+	-I${SRCTOP}/contrib/ntp/libntp/lib/isc/include \
+	-I${SRCTOP}/contrib/ntp/libntp/lib/isc/unix/include \
+	-I${SRCTOP}/contrib/ntp/libntp/lib/isc/pthreads/include \
+	-I${SRCTOP}/contrib/ntp/libntp/lib/isc/${NTP_ATOMIC}/include \
 	-I${SRCTOP}/contrib/ntp/sntp/libopts \
 	-I${.CURDIR:H}
 

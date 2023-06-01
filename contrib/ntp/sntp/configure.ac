@@ -5,9 +5,9 @@ AC_PREREQ([2.68])
 AC_INIT(
     [sntp],
     [VERSION_NUMBER],
-    [http://bugs.ntp.org./],
+    [https://bugs.ntp.org/],
     [],
-    [http://www.ntp.org./]dnl
+    [https://www.ntp.org/]dnl
 )
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([libevent/build-aux])
@@ -40,7 +40,7 @@ sntp_configure_cache_version=20120806
 
 NTP_CACHEVERSION([sntp], [$sntp_configure_cache_version])
 
-AM_INIT_AUTOMAKE([1.15 foreign -Wall -Wno-gnu])
+AM_INIT_AUTOMAKE([1.15 foreign subdir-objects -Wall -Wno-gnu])
 
 AM_SILENT_RULES([yes])
 
@@ -58,11 +58,7 @@ NTP_HARDEN
 
 NTP_LOCINFO()
 
-dnl AM_PROG_AR req. automake 1.12
-m4_ifdef(
-    [AM_PROG_AR],
-    [AM_PROG_AR]
-)
+AM_PROG_AR
 
 NTP_LIBNTP
 
@@ -139,9 +135,6 @@ AC_DEFINE([HAVE_TERMIOS], 1, [sntp does not care about TTY stuff])
 AC_CHECK_FUNCS([socket])
 
 NTP_UNITYBUILD
-## HMS: if we don't find c++ we should not look for gtest.
-#AC_PROG_CXX
-#NTP_GOOGLETEST
 
 SNTP_PROBLEM_TESTS
 

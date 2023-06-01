@@ -645,7 +645,7 @@ arc_start(
 	 * Open serial port. Use CLK line discipline, if available.
 	 */
 	snprintf(device, sizeof(device), DEVICE, unit);
-	temp_fd = refclock_open(device, SPEED, LDISC_CLK);
+	temp_fd = refclock_open(&peer->srcadr, device, SPEED, LDISC_CLK);
 	if (temp_fd <= 0)
 		return 0;
 	DPRINTF(1, ("arc: unit %d using tty_open().\n", unit));

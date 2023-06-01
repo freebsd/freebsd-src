@@ -140,17 +140,22 @@ tv_to_str(
 	const size_t bufsize = 48;
 	char *buf;
 	time_t gmt_time, local_time;
-	struct tm *p_tm_local;
-	int hh, mm, lto;
+	struct tm *ptm, tm_local;
+	int hh, mm, lto, isdst;
 
 	/*
 	 * convert to struct tm in UTC, then intentionally feed
 	 * that tm to mktime() which expects local time input, to
 	 * derive the offset from UTC to local time.
+	 * Need to retrieve dst flag from localtime first for mktime.
 	 */
 	gmt_time = tv->tv_sec;
-	local_time = mktime(gmtime(&gmt_time));
-	p_tm_local = localtime(&gmt_time);
+	ptm = localtime(&gmt_time);
+	memcpy (&tm_local, ptm, sizeof(tm_local));
+	isdst = ptm->tm_isdst;
+	ptm = gmtime(&gmt_time);
+	ptm->tm_isdst = isdst;
+	local_time = mktime(ptm);
 
 	/* Local timezone offsets should never cause an overflow.  Yeah. */
 	lto = difftime(local_time, gmt_time);
@@ -161,12 +166,12 @@ tv_to_str(
 	buf = emalloc(bufsize);
 	snprintf(buf, bufsize,
 		 "%d-%.2d-%.2d %.2d:%.2d:%.2d.%.6d (%+03d%02d)",
-		 p_tm_local->tm_year + 1900,
-		 p_tm_local->tm_mon + 1,
-		 p_tm_local->tm_mday,
-		 p_tm_local->tm_hour,
-		 p_tm_local->tm_min,
-		 p_tm_local->tm_sec,
+		 tm_local.tm_year + 1900,
+		 tm_local.tm_mon + 1,
+		 tm_local.tm_mday,
+		 tm_local.tm_hour,
+		 tm_local.tm_min,
+		 tm_local.tm_sec,
 		 (int)tv->tv_usec,
 		 hh,
 		 mm);

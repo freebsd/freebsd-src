@@ -6,7 +6,7 @@
 #
 # EDIT THIS FILE WITH CAUTION  (invoke-sntp.texi)
 #
-# It has been AutoGen-ed  June 23, 2020 at 02:19:36 AM by AutoGen 5.18.5
+# It has been AutoGen-ed  May 31, 2023 at 02:48:07 PM by AutoGen 5.18.16
 # From the definitions    sntp-opts.def
 # and the template file   agtexi-cmd.tpl
 @end ignore
@@ -101,7 +101,7 @@ with a status code of 0.
 
 @exampleindent 0
 @example
-sntp - standard Simple Network Time Protocol client program - Ver. 4.2.8p15
+sntp - standard Simple Network Time Protocol client program - Ver. 4.2.8p16
 Usage:  sntp [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]... \
                 [ hostname-or-IP ...]
   Flg Arg Option-Name    Description
@@ -152,7 +152,7 @@ The following option preset mechanisms are supported:
  - reading file ./.ntprc
  - examining environment variables named SNTP_*
 
-Please send bug reports to:  <http://bugs.ntp.org, bugs@@ntp.org>
+Please send bug reports to:  <https://bugs.ntp.org, bugs@@ntp.org>
 @end example
 @exampleindent 4
 
@@ -397,7 +397,7 @@ The command line options relating to configuration and/or usage help are:
 
 Print the program version to standard out, optionally with licensing
 information, then exit 0.  The optional argument specifies how much licensing
-detail to provide.  The default is to print just the version.  The licensing infomation may be selected with an option argument.
+detail to provide.  The default is to print just the version.  The licensing information may be selected with an option argument.
 Only the first letter of the argument is examined:
 
 @table @samp

@@ -477,7 +477,7 @@ ripencc_start(int unit, struct peer *peer)
 	 * Open serial port
 	 */
 	(void)snprintf(device, sizeof(device), DEVICE, unit);
-	fd = refclock_open(device, SPEED232, LDISC_RAW);
+	fd = refclock_open(&peer->srcadr, device, SPEED232, LDISC_RAW);
 	if (fd <= 0) {
 		pp->io.fd = -1;
 		return (0);

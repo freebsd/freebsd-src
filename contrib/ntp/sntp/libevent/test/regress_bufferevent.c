@@ -29,6 +29,19 @@
 /* The old tests here need assertions to work. */
 #undef NDEBUG
 
+/**
+ * - clang supports __has_feature
+ * - gcc supports __SANITIZE_ADDRESS__
+ *
+ * Let's set __SANITIZE_ADDRESS__ if __has_feature(address_sanitizer)
+ */
+#ifndef __has_feature
+#define __has_feature(x) 0
+#endif
+#if !defined(__SANITIZE_ADDRESS__) && __has_feature(address_sanitizer)
+#define __SANITIZE_ADDRESS__
+#endif
+
 #ifdef _WIN32
 #include <winsock2.h>
 #include <windows.h>
@@ -123,11 +136,12 @@ errorcb(struct bufferevent *bev, short what, void *arg)
 }
 
 static void
-test_bufferevent_impl(int use_pair)
+test_bufferevent_impl(int use_pair, int flush)
 {
 	struct bufferevent *bev1 = NULL, *bev2 = NULL;
 	char buffer[8333];
 	int i;
+	int expected = 2;
 
 	if (use_pair) {
 		struct bufferevent *pair[2];
@@ -136,14 +150,14 @@ test_bufferevent_impl(int use_pair)
 		bev2 = pair[1];
 		bufferevent_setcb(bev1, readcb, writecb, errorcb, bev1);
 		bufferevent_setcb(bev2, readcb, writecb, errorcb, NULL);
-		tt_int_op(bufferevent_getfd(bev1), ==, -1);
+		tt_fd_op(bufferevent_getfd(bev1), ==, EVUTIL_INVALID_SOCKET);
 		tt_ptr_op(bufferevent_get_underlying(bev1), ==, NULL);
 		tt_ptr_op(bufferevent_pair_get_partner(bev1), ==, bev2);
 		tt_ptr_op(bufferevent_pair_get_partner(bev2), ==, bev1);
 	} else {
 		bev1 = bufferevent_new(pair[0], readcb, writecb, errorcb, NULL);
 		bev2 = bufferevent_new(pair[1], readcb, writecb, errorcb, NULL);
-		tt_int_op(bufferevent_getfd(bev1), ==, pair[0]);
+		tt_fd_op(bufferevent_getfd(bev1), ==, pair[0]);
 		tt_ptr_op(bufferevent_get_underlying(bev1), ==, NULL);
 		tt_ptr_op(bufferevent_pair_get_partner(bev1), ==, NULL);
 		tt_ptr_op(bufferevent_pair_get_partner(bev2), ==, NULL);
@@ -171,6 +185,9 @@ test_bufferevent_impl(int use_pair)
 		buffer[i] = i;
 
 	bufferevent_write(bev1, buffer, sizeof(buffer));
+	if (flush >= 0) {
+		tt_int_op(bufferevent_flush(bev1, EV_WRITE, flush), >=, 0);
+	}
 
 	event_dispatch();
 
@@ -178,25 +195,28 @@ test_bufferevent_impl(int use_pair)
 	tt_ptr_op(bufferevent_pair_get_partner(bev1), ==, NULL);
 	bufferevent_free(bev1);
 
-	if (test_ok != 2)
+	/** Only pair call errorcb for BEV_FINISHED */
+	if (use_pair && flush == BEV_FINISHED) {
+		expected = -1;
+	}
+	if (test_ok != expected)
 		test_ok = 0;
 end:
 	;
 }
 
-static void
-test_bufferevent(void)
-{
-	test_bufferevent_impl(0);
-}
+static void test_bufferevent(void) { test_bufferevent_impl(0, -1); }
+static void test_bufferevent_pair(void) { test_bufferevent_impl(1, -1); }
 
-static void
-test_bufferevent_pair(void)
-{
-	test_bufferevent_impl(1);
-}
+static void test_bufferevent_flush_normal(void) { test_bufferevent_impl(0, BEV_NORMAL); }
+static void test_bufferevent_flush_flush(void) { test_bufferevent_impl(0, BEV_FLUSH); }
+static void test_bufferevent_flush_finished(void) { test_bufferevent_impl(0, BEV_FINISHED); }
 
-#if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED)
+static void test_bufferevent_pair_flush_normal(void) { test_bufferevent_impl(1, BEV_NORMAL); }
+static void test_bufferevent_pair_flush_flush(void) { test_bufferevent_impl(1, BEV_FLUSH); }
+static void test_bufferevent_pair_flush_finished(void) { test_bufferevent_impl(1, BEV_FINISHED); }
+
+#if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED) && !defined(__SANITIZE_ADDRESS__)
 /**
  * Trace lock/unlock/alloc/free for locks.
  * (More heavier then evthread_debug*)
@@ -233,10 +253,11 @@ static lock_wrapper *lu_find(void *lock_)
 
 static void *trace_lock_alloc(unsigned locktype)
 {
+	void *lock;
 	++lu_base.nr_locks;
 	lu_base.locks = realloc(lu_base.locks,
 		sizeof(lock_wrapper) * lu_base.nr_locks);
-	void *lock = lu_base.cbs.alloc(locktype);
+	lock = lu_base.cbs.alloc(locktype);
 	lu_base.locks[lu_base.nr_locks - 1] = (lock_wrapper){ lock, ALLOC, 0 };
 	return lock;
 }
@@ -244,7 +265,6 @@ static void trace_lock_free(void *lock_, unsigned locktype)
 {
 	lock_wrapper *lock = lu_find(lock_);
 	if (!lock || lock->status == FREE || lock->locked) {
-		__asm__("int3");
 		TT_FAIL(("lock: free error"));
 	} else {
 		lock->status = FREE;
@@ -273,9 +293,12 @@ static int trace_lock_unlock(unsigned mode, void *lock_)
 		return lu_base.cbs.unlock(mode, lock_);
 	}
 }
-static void lock_unlock_free_thread_cbs()
+static void lock_unlock_free_thread_cbs(void)
 {
 	event_base_free(NULL);
+
+	if (libevent_tests_running_in_debug_mode)
+		libevent_global_shutdown();
 
 	/** drop immutable flag */
 	evthread_set_lock_callbacks(NULL);
@@ -310,6 +333,9 @@ static int use_lock_unlock_profiler(void)
 }
 static void free_lock_unlock_profiler(struct basic_test_data *data)
 {
+	/** fix "held_by" for kqueue */
+	evthread_set_lock_callbacks(NULL);
+
 	lock_unlock_free_thread_cbs();
 	free(lu_base.locks);
 	data->base = NULL;
@@ -474,11 +500,11 @@ bufferevent_input_filter(struct evbuffer *src, struct evbuffer *dst,
 
 	buffer = evbuffer_pullup(src, evbuffer_get_length(src));
 	for (i = 0; i < evbuffer_get_length(src); i += 2) {
+		if (buffer[i] == '-')
+			continue;
+
 		assert(buffer[i] == 'x');
 		evbuffer_add(dst, buffer + i + 1, 1);
-
-		if (i + 2 > evbuffer_get_length(src))
-			break;
 	}
 
 	evbuffer_drain(src, i);
@@ -493,19 +519,35 @@ bufferevent_output_filter(struct evbuffer *src, struct evbuffer *dst,
 {
 	const unsigned char *buffer;
 	unsigned i;
+	struct bufferevent **bevp = ctx;
 
-	buffer = evbuffer_pullup(src, evbuffer_get_length(src));
-	for (i = 0; i < evbuffer_get_length(src); ++i) {
-		evbuffer_add(dst, "x", 1);
-		evbuffer_add(dst, buffer + i, 1);
+	++test_ok;
+
+	if (test_ok == 1) {
+		buffer = evbuffer_pullup(src, evbuffer_get_length(src));
+		for (i = 0; i < evbuffer_get_length(src); ++i) {
+			evbuffer_add(dst, "x", 1);
+			evbuffer_add(dst, buffer + i, 1);
+		}
+		evbuffer_drain(src, evbuffer_get_length(src));
+	} else {
+		return BEV_ERROR;
 	}
 
-	evbuffer_drain(src, evbuffer_get_length(src));
+	if (bevp && test_ok == 1) {
+		int prev = ++test_ok;
+		bufferevent_write(*bevp, "-", 1);
+		/* check that during this bufferevent_write()
+		 * bufferevent_output_filter() will not be called again */
+		assert(test_ok == prev);
+		--test_ok;
+	}
+
 	return (BEV_OK);
 }
 
 static void
-test_bufferevent_filters_impl(int use_pair)
+test_bufferevent_filters_impl(int use_pair, int disable)
 {
 	struct bufferevent *bev1 = NULL, *bev2 = NULL;
 	struct bufferevent *bev1_base = NULL, *bev2_base = NULL;
@@ -530,7 +572,8 @@ test_bufferevent_filters_impl(int use_pair)
 		buffer[i] = i;
 
 	bev1 = bufferevent_filter_new(bev1, NULL, bufferevent_output_filter,
-				      BEV_OPT_CLOSE_ON_FREE, NULL, NULL);
+				      BEV_OPT_CLOSE_ON_FREE, NULL,
+					  disable ? &bev1 : NULL);
 
 	bev2 = bufferevent_filter_new(bev2, bufferevent_input_filter,
 				      NULL, BEV_OPT_CLOSE_ON_FREE, NULL, NULL);
@@ -539,8 +582,8 @@ test_bufferevent_filters_impl(int use_pair)
 
 	tt_ptr_op(bufferevent_get_underlying(bev1), ==, bev1_base);
 	tt_ptr_op(bufferevent_get_underlying(bev2), ==, bev2_base);
-	tt_int_op(bufferevent_getfd(bev1), ==, -1);
-	tt_int_op(bufferevent_getfd(bev2), ==, -1);
+	tt_fd_op(bufferevent_getfd(bev1), ==, bufferevent_getfd(bev1_base));
+	tt_fd_op(bufferevent_getfd(bev2), ==, bufferevent_getfd(bev2_base));
 
 	bufferevent_disable(bev1, EV_READ);
 	bufferevent_enable(bev2, EV_READ);
@@ -549,7 +592,7 @@ test_bufferevent_filters_impl(int use_pair)
 
 	event_dispatch();
 
-	if (test_ok != 2)
+	if (test_ok != 3 + !!disable)
 		test_ok = 0;
 
 end:
@@ -560,17 +603,14 @@ end:
 
 }
 
-static void
-test_bufferevent_filters(void)
-{
-	test_bufferevent_filters_impl(0);
-}
-
-static void
-test_bufferevent_pair_filters(void)
-{
-	test_bufferevent_filters_impl(1);
-}
+static void test_bufferevent_filters(void)
+{ test_bufferevent_filters_impl(0, 0); }
+static void test_bufferevent_pair_filters(void)
+{ test_bufferevent_filters_impl(1, 0); }
+static void test_bufferevent_filters_disable(void)
+{ test_bufferevent_filters_impl(0, 1); }
+static void test_bufferevent_pair_filters_disable(void)
+{ test_bufferevent_filters_impl(1, 1); }
 
 
 static void
@@ -593,6 +633,7 @@ static int bufferevent_connect_test_flags = 0;
 static int bufferevent_trigger_test_flags = 0;
 static int n_strings_read = 0;
 static int n_reads_invoked = 0;
+static int n_events_invoked = 0;
 
 #define TEST_STR "Now is the time for all good events to signal for " \
 	"the good of their protocol"
@@ -610,6 +651,31 @@ listen_cb(struct evconnlistener *listener, evutil_socket_t fd,
 	bufferevent_write(bev, s, sizeof(s));
 end:
 	;
+}
+
+static evutil_socket_t
+fake_listener_create(struct sockaddr_in *localhost)
+{
+	struct sockaddr *sa = (struct sockaddr *)localhost;
+	evutil_socket_t fd = -1;
+	ev_socklen_t slen = sizeof(*localhost);
+
+	memset(localhost, 0, sizeof(*localhost));
+	localhost->sin_port = 0; /* have the kernel pick a port */
+	localhost->sin_addr.s_addr = htonl(0x7f000001L);
+	localhost->sin_family = AF_INET;
+
+	/* bind, but don't listen or accept. should trigger
+	   "Connection refused" reliably on most platforms. */
+	fd = socket(localhost->sin_family, SOCK_STREAM, 0);
+	tt_assert(fd >= 0);
+	tt_assert(bind(fd, sa, slen) == 0);
+	tt_assert(getsockname(fd, sa, &slen) == 0);
+
+	return fd;
+
+end:
+	return -1;
 }
 
 static void
@@ -639,6 +705,14 @@ reader_eventcb(struct bufferevent *bev, short what, void *ctx)
 	}
 end:
 	;
+}
+
+static void
+reader_eventcb_simple(struct bufferevent *bev, short what, void *ctx)
+{
+	TT_BLATHER(("Read eventcb simple invoked on %d.",
+		(int)bufferevent_getfd(bev)));
+	n_events_invoked++;
 }
 
 static void
@@ -727,6 +801,70 @@ end:
 }
 
 static void
+close_socket_cb(evutil_socket_t fd, short what, void *arg)
+{
+	evutil_socket_t *fdp = arg;
+	if (*fdp >= 0) {
+		evutil_closesocket(*fdp);
+		*fdp = -1;
+	}
+}
+
+static void
+test_bufferevent_connect_fail_eventcb(void *arg)
+{
+	struct basic_test_data *data = arg;
+	int flags = BEV_OPT_CLOSE_ON_FREE | (long)data->setup_data;
+	struct event close_listener_event;
+	struct bufferevent *bev = NULL;
+	struct evconnlistener *lev = NULL;
+	struct sockaddr_in localhost;
+	struct timeval close_timeout = { 0, 300000 };
+	ev_socklen_t slen = sizeof(localhost);
+	evutil_socket_t fake_listener = -1;
+	int r;
+
+	fake_listener = fake_listener_create(&localhost);
+
+	tt_int_op(n_events_invoked, ==, 0);
+
+	bev = bufferevent_socket_new(data->base, -1, flags);
+	tt_assert(bev);
+	bufferevent_setcb(bev, reader_readcb, reader_readcb,
+		reader_eventcb_simple, data->base);
+	bufferevent_enable(bev, EV_READ|EV_WRITE);
+	tt_int_op(n_events_invoked, ==, 0);
+	tt_int_op(n_reads_invoked, ==, 0);
+
+	/** @see also test_bufferevent_connect_fail() */
+	r = bufferevent_socket_connect(bev, (struct sockaddr *)&localhost, slen);
+	/* XXXX we'd like to test the '0' case everywhere, but FreeBSD tells
+	 * detects the error immediately, which is not really wrong of it. */
+	tt_want(r == 0 || r == -1);
+
+	tt_int_op(n_events_invoked, ==, 0);
+	tt_int_op(n_reads_invoked, ==, 0);
+
+	/* Close the listener socket after a delay. This should trigger
+	   "connection refused" on some other platforms, including OSX. */
+	evtimer_assign(&close_listener_event, data->base, close_socket_cb,
+	    &fake_listener);
+	event_add(&close_listener_event, &close_timeout);
+
+	event_base_dispatch(data->base);
+	tt_int_op(n_events_invoked, ==, 1);
+	tt_int_op(n_reads_invoked, ==, 0);
+
+end:
+	if (lev)
+		evconnlistener_free(lev);
+	if (bev)
+		bufferevent_free(bev);
+	if (fake_listener >= 0)
+		evutil_closesocket(fake_listener);
+}
+
+static void
 want_fail_eventcb(struct bufferevent *bev, short what, void *ctx)
 {
 	struct event_base *base = ctx;
@@ -747,57 +885,36 @@ want_fail_eventcb(struct bufferevent *bev, short what, void *ctx)
 }
 
 static void
-close_socket_cb(evutil_socket_t fd, short what, void *arg)
-{
-	evutil_socket_t *fdp = arg;
-	if (*fdp >= 0) {
-		evutil_closesocket(*fdp);
-		*fdp = -1;
-	}
-}
-
-static void
 test_bufferevent_connect_fail(void *arg)
 {
 	struct basic_test_data *data = (struct basic_test_data *)arg;
 	struct bufferevent *bev=NULL;
-	struct sockaddr_in localhost;
-	struct sockaddr *sa = (struct sockaddr*)&localhost;
-	evutil_socket_t fake_listener = -1;
-	ev_socklen_t slen = sizeof(localhost);
 	struct event close_listener_event;
 	int close_listener_event_added = 0;
-	struct timeval one_second = { 1, 0 };
+	struct timeval close_timeout = { 0, 300000 };
+	struct sockaddr_in localhost;
+	ev_socklen_t slen = sizeof(localhost);
+	evutil_socket_t fake_listener = -1;
 	int r;
 
 	test_ok = 0;
 
-	memset(&localhost, 0, sizeof(localhost));
-	localhost.sin_port = 0; /* have the kernel pick a port */
-	localhost.sin_addr.s_addr = htonl(0x7f000001L);
-	localhost.sin_family = AF_INET;
-
-	/* bind, but don't listen or accept. should trigger
-	   "Connection refused" reliably on most platforms. */
-	fake_listener = socket(localhost.sin_family, SOCK_STREAM, 0);
-	tt_assert(fake_listener >= 0);
-	tt_assert(bind(fake_listener, sa, slen) == 0);
-	tt_assert(getsockname(fake_listener, sa, &slen) == 0);
+	fake_listener = fake_listener_create(&localhost);
 	bev = bufferevent_socket_new(data->base, -1,
 		BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
 	tt_assert(bev);
 	bufferevent_setcb(bev, NULL, NULL, want_fail_eventcb, data->base);
 
-	r = bufferevent_socket_connect(bev, sa, slen);
+	r = bufferevent_socket_connect(bev, (struct sockaddr *)&localhost, slen);
 	/* XXXX we'd like to test the '0' case everywhere, but FreeBSD tells
 	 * detects the error immediately, which is not really wrong of it. */
 	tt_want(r == 0 || r == -1);
 
-	/* Close the listener socket after a second. This should trigger
+	/* Close the listener socket after a delay. This should trigger
 	   "connection refused" on some other platforms, including OSX. */
 	evtimer_assign(&close_listener_event, data->base, close_socket_cb,
 	    &fake_listener);
-	event_add(&close_listener_event, &one_second);
+	event_add(&close_listener_event, &close_timeout);
 	close_listener_event_added = 1;
 
 	event_base_dispatch(data->base);
@@ -819,18 +936,24 @@ struct timeout_cb_result {
 	struct timeval read_timeout_at;
 	struct timeval write_timeout_at;
 	struct timeval last_wrote_at;
+	struct timeval last_read_at;
 	int n_read_timeouts;
 	int n_write_timeouts;
 	int total_calls;
 };
 
 static void
+bev_timeout_read_cb(struct bufferevent *bev, void *arg)
+{
+	struct timeout_cb_result *res = arg;
+	evutil_gettimeofday(&res->last_read_at, NULL);
+}
+static void
 bev_timeout_write_cb(struct bufferevent *bev, void *arg)
 {
 	struct timeout_cb_result *res = arg;
 	evutil_gettimeofday(&res->last_wrote_at, NULL);
 }
-
 static void
 bev_timeout_event_cb(struct bufferevent *bev, short what, void *arg)
 {
@@ -858,7 +981,6 @@ test_bufferevent_timeouts(void *arg)
 	int use_pair = 0, use_filter = 0;
 	struct timeval tv_w, tv_r, started_at;
 	struct timeout_cb_result res1, res2;
-	char buf[1024];
 
 	memset(&res1, 0, sizeof(res1));
 	memset(&res2, 0, sizeof(res2));
@@ -877,7 +999,6 @@ test_bufferevent_timeouts(void *arg)
 		bev1 = bufferevent_socket_new(data->base, data->pair[0], 0);
 		bev2 = bufferevent_socket_new(data->base, data->pair[1], 0);
 	}
-
 	tt_assert(bev1);
 	tt_assert(bev2);
 
@@ -901,30 +1022,14 @@ test_bufferevent_timeouts(void *arg)
 	tv_w.tv_sec = tv_r.tv_sec = 0;
 	tv_w.tv_usec = 100*1000;
 	tv_r.tv_usec = 150*1000;
-	bufferevent_setcb(bev1, NULL, bev_timeout_write_cb,
+	bufferevent_setcb(bev1, bev_timeout_read_cb, bev_timeout_write_cb,
 	    bev_timeout_event_cb, &res1);
-	bufferevent_setwatermark(bev1, EV_WRITE, 1024*1024+10, 0);
 	bufferevent_set_timeouts(bev1, &tv_r, &tv_w);
-	if (use_pair) {
-		/* For a pair, the fact that the other side isn't reading
-		 * makes the writer stall */
-		bufferevent_write(bev1, "ABCDEFG", 7);
-	} else {
-		/* For a real socket, the kernel's TCP buffers can eat a
-		 * fair number of bytes; make sure that at some point we
-		 * have some bytes that will stall. */
-		struct evbuffer *output = bufferevent_get_output(bev1);
-		int i;
-		memset(buf, 0xbb, sizeof(buf));
-		for (i=0;i<1024;++i) {
-			evbuffer_add_reference(output, buf, sizeof(buf),
-			    NULL, NULL);
-		}
-	}
+	bufferevent_write(bev1, "ABCDEFG", 7);
 	bufferevent_enable(bev1, EV_READ|EV_WRITE);
 
 	/* bev2 has nothing to say, and isn't listening. */
-	bufferevent_setcb(bev2, NULL,  bev_timeout_write_cb,
+	bufferevent_setcb(bev2, bev_timeout_read_cb, bev_timeout_write_cb,
 	    bev_timeout_event_cb, &res2);
 	tv_w.tv_sec = tv_r.tv_sec = 0;
 	tv_w.tv_usec = 200*1000;
@@ -941,14 +1046,25 @@ test_bufferevent_timeouts(void *arg)
 	/* XXXX Test that actually reading or writing a little resets the
 	 * timeouts. */
 
-	/* Each buf1 timeout happens, and happens only once. */
-	tt_want(res1.n_read_timeouts);
-	tt_want(res1.n_write_timeouts);
+	tt_want(res1.total_calls == 2);
 	tt_want(res1.n_read_timeouts == 1);
 	tt_want(res1.n_write_timeouts == 1);
+	tt_want(res2.total_calls == !(use_pair && !use_filter));
+	tt_want(res2.n_write_timeouts == !(use_pair && !use_filter));
+	tt_want(!res2.n_read_timeouts);
 
 	test_timeval_diff_eq(&started_at, &res1.read_timeout_at, 150);
 	test_timeval_diff_eq(&started_at, &res1.write_timeout_at, 100);
+
+#define tt_assert_timeval_empty(tv) do {  \
+	tt_int_op((tv).tv_sec, ==, 0);   \
+	tt_int_op((tv).tv_usec, ==, 0);  \
+} while(0)
+	tt_assert_timeval_empty(res1.last_read_at);
+	tt_assert_timeval_empty(res2.last_read_at);
+	tt_assert_timeval_empty(res2.last_wrote_at);
+	tt_assert_timeval_empty(res2.last_wrote_at);
+#undef tt_assert_timeval_empty
 
 end:
 	if (bev1)
@@ -1083,19 +1199,182 @@ end:
 		bufferevent_free(bev);
 }
 
+static void
+test_bufferevent_socket_filter_inactive(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct bufferevent *bev = NULL, *bevf = NULL;
+
+	bev = bufferevent_socket_new(data->base, -1, 0);
+	tt_assert(bev);
+	bevf = bufferevent_filter_new(bev, NULL, NULL, 0, NULL, NULL);
+	tt_assert(bevf);
+
+end:
+	if (bevf)
+		bufferevent_free(bevf);
+	if (bev)
+		bufferevent_free(bev);
+}
+
+static void
+pair_flush_eventcb(struct bufferevent *bev, short what, void *ctx)
+{
+	int *callback_what = ctx;
+	*callback_what = what;
+}
+
+static void
+test_bufferevent_pair_flush(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct bufferevent *pair[2];
+	struct bufferevent *bev1 = NULL;
+	struct bufferevent *bev2 = NULL;
+	int callback_what = 0;
+
+	tt_assert(0 == bufferevent_pair_new(data->base, 0, pair));
+	bev1 = pair[0];
+	bev2 = pair[1];
+	tt_assert(0 == bufferevent_enable(bev1, EV_WRITE));
+	tt_assert(0 == bufferevent_enable(bev2, EV_READ));
+
+	bufferevent_setcb(bev2, NULL, NULL, pair_flush_eventcb, &callback_what);
+
+	bufferevent_flush(bev1, EV_WRITE, BEV_FINISHED);
+
+	event_base_loop(data->base, EVLOOP_ONCE);
+
+	tt_assert(callback_what == (BEV_EVENT_READING | BEV_EVENT_EOF));
+
+end:
+	if (bev1)
+		bufferevent_free(bev1);
+	if (bev2)
+		bufferevent_free(bev2);
+}
+
+struct bufferevent_filter_data_stuck {
+	size_t header_size;
+	size_t total_read;
+};
+
+static void
+bufferevent_filter_data_stuck_readcb(struct bufferevent *bev, void *arg)
+{
+	struct bufferevent_filter_data_stuck *filter_data = arg;
+	struct evbuffer *input = bufferevent_get_input(bev);
+	size_t read_size = evbuffer_get_length(input);
+	evbuffer_drain(input, read_size);
+	filter_data->total_read += read_size;
+}
+
+/**
+ * This filter prepends header once before forwarding data.
+ */
+static enum bufferevent_filter_result
+bufferevent_filter_data_stuck_inputcb(
+    struct evbuffer *src, struct evbuffer *dst, ev_ssize_t dst_limit,
+    enum bufferevent_flush_mode mode, void *ctx)
+{
+	struct bufferevent_filter_data_stuck *filter_data = ctx;
+	static int header_inserted = 0;
+	size_t payload_size;
+	size_t header_size = 0;
+
+	if (!header_inserted) {
+		char *header = calloc(filter_data->header_size, 1);
+		evbuffer_add(dst, header, filter_data->header_size);
+		free(header);
+		header_size = filter_data->header_size;
+		header_inserted = 1;
+	}
+
+	payload_size = evbuffer_get_length(src);
+	if (payload_size > dst_limit - header_size) {
+		payload_size = dst_limit - header_size;
+	}
+
+	tt_int_op(payload_size, ==, evbuffer_remove_buffer(src, dst, payload_size));
+
+end:
+	return BEV_OK;
+}
+
+static void
+test_bufferevent_filter_data_stuck(void *arg)
+{
+	const size_t read_high_wm = 4096;
+	struct bufferevent_filter_data_stuck filter_data;
+	struct basic_test_data *data = arg;
+	struct bufferevent *pair[2];
+	struct bufferevent *filter = NULL;
+
+	int options = BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS;
+
+	char payload[4096];
+	int payload_size = sizeof(payload);
+
+	memset(&filter_data, 0, sizeof(filter_data));
+	filter_data.header_size = 20;
+
+	tt_assert(bufferevent_pair_new(data->base, options, pair) == 0);
+
+	bufferevent_setwatermark(pair[0], EV_READ, 0, read_high_wm);
+	bufferevent_setwatermark(pair[1], EV_READ, 0, read_high_wm);
+
+	tt_assert(
+		filter =
+		 bufferevent_filter_new(pair[1],
+		 bufferevent_filter_data_stuck_inputcb,
+		 NULL,
+		 options,
+		 NULL,
+		 &filter_data));
+
+	bufferevent_setcb(filter,
+		bufferevent_filter_data_stuck_readcb,
+		NULL,
+		NULL,
+		&filter_data);
+
+	tt_assert(bufferevent_enable(filter, EV_READ|EV_WRITE) == 0);
+
+	bufferevent_setwatermark(filter, EV_READ, 0, read_high_wm);
+
+	tt_assert(bufferevent_write(pair[0], payload, sizeof(payload)) == 0);
+
+	event_base_dispatch(data->base);
+
+	tt_int_op(filter_data.total_read, ==, payload_size + filter_data.header_size);
+end:
+	if (pair[0])
+		bufferevent_free(pair[0]);
+	if (filter)
+		bufferevent_free(filter);
+}
+
 struct testcase_t bufferevent_testcases[] = {
 
 	LEGACY(bufferevent, TT_ISOLATED),
 	LEGACY(bufferevent_pair, TT_ISOLATED),
-#if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED)
+	LEGACY(bufferevent_flush_normal, TT_ISOLATED),
+	LEGACY(bufferevent_flush_flush, TT_ISOLATED),
+	LEGACY(bufferevent_flush_finished, TT_ISOLATED),
+	LEGACY(bufferevent_pair_flush_normal, TT_ISOLATED),
+	LEGACY(bufferevent_pair_flush_flush, TT_ISOLATED),
+	LEGACY(bufferevent_pair_flush_finished, TT_ISOLATED),
+#if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED) && !defined(__SANITIZE_ADDRESS__)
 	{ "bufferevent_pair_release_lock", test_bufferevent_pair_release_lock,
-	  TT_FORK|TT_ISOLATED|TT_NEED_THREADS|TT_NEED_BASE|TT_LEGACY,
+	  TT_FORK|TT_ISOLATED|TT_NEED_THREADS|TT_NEED_BASE|TT_LEGACY|TT_NO_LOGS,
 	  &basic_setup, NULL },
 #endif
 	LEGACY(bufferevent_watermarks, TT_ISOLATED),
 	LEGACY(bufferevent_pair_watermarks, TT_ISOLATED),
 	LEGACY(bufferevent_filters, TT_ISOLATED),
 	LEGACY(bufferevent_pair_filters, TT_ISOLATED),
+	LEGACY(bufferevent_filters_disable, TT_ISOLATED),
+	LEGACY(bufferevent_pair_filters_disable, TT_ISOLATED),
 	{ "bufferevent_connect", test_bufferevent_connect, TT_FORK|TT_NEED_BASE,
 	  &basic_setup, (void*)"" },
 	{ "bufferevent_connect_defer", test_bufferevent_connect,
@@ -1111,7 +1390,7 @@ struct testcase_t bufferevent_testcases[] = {
 	{ "bufferevent_connect_fail", test_bufferevent_connect_fail,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "bufferevent_timeout", test_bufferevent_timeouts,
-	  TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR, &basic_setup, (void*)"" },
+	  TT_FORK|TT_NEED_BASE, &basic_setup, (void*)"" },
 	{ "bufferevent_timeout_pair", test_bufferevent_timeouts,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, (void*)"pair" },
 	{ "bufferevent_timeout_filter", test_bufferevent_timeouts,
@@ -1134,29 +1413,55 @@ struct testcase_t bufferevent_testcases[] = {
 	{ "bufferevent_zlib", NULL, TT_SKIP, NULL, NULL },
 #endif
 
+	{ "bufferevent_connect_fail_eventcb_defer",
+	  test_bufferevent_connect_fail_eventcb,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, (void*)BEV_OPT_DEFER_CALLBACKS },
+	{ "bufferevent_connect_fail_eventcb",
+	  test_bufferevent_connect_fail_eventcb,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+
+	{ "bufferevent_socket_filter_inactive",
+	  test_bufferevent_socket_filter_inactive,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+	{ "bufferevent_pair_flush",
+	  test_bufferevent_pair_flush,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+	{ "bufferevent_filter_data_stuck",
+	  test_bufferevent_filter_data_stuck,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+
 	END_OF_TESTCASES,
 };
 
+#define TT_IOCP (TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP)
+#define TT_IOCP_LEGACY (TT_ISOLATED|TT_ENABLE_IOCP)
 struct testcase_t bufferevent_iocp_testcases[] = {
+	LEGACY(bufferevent, TT_IOCP_LEGACY),
+	LEGACY(bufferevent_flush_normal, TT_ISOLATED),
+	LEGACY(bufferevent_flush_flush, TT_ISOLATED),
+	LEGACY(bufferevent_flush_finished, TT_ISOLATED),
+	LEGACY(bufferevent_watermarks, TT_IOCP_LEGACY),
+	LEGACY(bufferevent_filters, TT_IOCP_LEGACY),
+	LEGACY(bufferevent_filters_disable, TT_IOCP_LEGACY),
 
-	LEGACY(bufferevent, TT_ISOLATED|TT_ENABLE_IOCP),
-	LEGACY(bufferevent_watermarks, TT_ISOLATED|TT_ENABLE_IOCP),
-	LEGACY(bufferevent_filters, TT_ISOLATED|TT_ENABLE_IOCP),
 	{ "bufferevent_connect", test_bufferevent_connect,
-	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup, (void*)"" },
+	  TT_IOCP, &basic_setup, (void*)"" },
 	{ "bufferevent_connect_defer", test_bufferevent_connect,
-	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup, (void*)"defer" },
+	  TT_IOCP, &basic_setup, (void*)"defer" },
 	{ "bufferevent_connect_lock", test_bufferevent_connect,
-	  TT_FORK|TT_NEED_BASE|TT_NEED_THREADS|TT_ENABLE_IOCP, &basic_setup,
-	  (void*)"lock" },
+	  TT_IOCP, &basic_setup, (void*)"lock" },
 	{ "bufferevent_connect_lock_defer", test_bufferevent_connect,
-	  TT_FORK|TT_NEED_BASE|TT_NEED_THREADS|TT_ENABLE_IOCP, &basic_setup,
-	  (void*)"defer lock" },
+	  TT_IOCP, &basic_setup, (void*)"defer lock" },
 	{ "bufferevent_connect_fail", test_bufferevent_connect_fail,
-	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup, NULL },
+	  TT_IOCP, &basic_setup, NULL },
 	{ "bufferevent_connect_nonblocking", test_bufferevent_connect,
-	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup,
-	  (void*)"unset_connectex" },
+	  TT_IOCP, &basic_setup, (void*)"unset_connectex" },
+
+	{ "bufferevent_connect_fail_eventcb_defer",
+	  test_bufferevent_connect_fail_eventcb,
+	  TT_IOCP, &basic_setup, (void*)BEV_OPT_DEFER_CALLBACKS },
+	{ "bufferevent_connect_fail_eventcb",
+	  test_bufferevent_connect_fail_eventcb, TT_IOCP, &basic_setup, NULL },
 
 	END_OF_TESTCASES,
 };

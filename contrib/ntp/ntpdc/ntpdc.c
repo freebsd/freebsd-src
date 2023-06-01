@@ -453,8 +453,27 @@ openhost(
 #endif
 		a_info = getaddrinfo(hname, service, &hints, &ai);	
 	}
-	/* Some older implementations don't like AI_ADDRCONFIG. */
-	if (a_info == EAI_BADFLAGS) {
+	/*
+	 * Some older implementations don't like AI_ADDRCONFIG.
+	 * Some versions of Windows return WSANO_DATA when there is no
+	 * global address and AI_ADDRCONFIG is used.  AI_ADDRCONFIG
+	 * is useful to short-circuit DNS lookups for IP protocols
+	 * for which the host has no local addresses.  Windows
+	 * unfortunately instead interprets AI_ADDRCONFIG to relate
+	 * to off-host connectivity and so fails lookup when
+	 * localhost works.
+	 * To further muddy matters, some versions of WS2tcpip.h
+	 * comment out #define EAI_NODATA WSANODATA claiming it
+	 * was removed from RFC 2553bis and mentioning a need to
+	 * contact the authors to find out why, but "helpfully"
+	 * #defines EAI_NODATA EAI_NONAME   (== WSAHOST_NOT_FOUND)
+	 * So we get more ugly platform-specific workarounds.
+	 */
+	if (
+#if defined(WIN32)
+		WSANO_DATA == a_info || EAI_NONAME == a_info ||
+#endif
+		EAI_BADFLAGS == a_info) {
 		hints.ai_flags = AI_CANONNAME;
 		a_info = getaddrinfo(hname, service, &hints, &ai);	
 	}
@@ -942,8 +961,7 @@ sendrequest(
 		reqsize = (reqsize + 3) & ~3;
 	} else
 		reqsize = req_pkt_size;
-	ptstamp = (void *)((char *)&qpkt + reqsize);
-	ptstamp--;
+	ptstamp = (void *)((char *)&qpkt + reqsize - sizeof *ptstamp);
 	get_systime(&ts);
 	L_ADD(&ts, &delay_time);
 	HTONL_FP(&ts, ptstamp);

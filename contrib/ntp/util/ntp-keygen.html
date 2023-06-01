@@ -1,6 +1,6 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <html>
-<!-- Created by GNU Texinfo 6.5, http://www.gnu.org/software/texinfo/ -->
+<!-- Created by GNU Texinfo 6.6, http://www.gnu.org/software/texinfo/ -->
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <title>Ntp-keygen User&rsquo;s Manual</title>
@@ -16,23 +16,14 @@
 <!--
 a.summary-letter {text-decoration: none}
 blockquote.indentedblock {margin-right: 0em}
-blockquote.smallindentedblock {margin-right: 0em; font-size: smaller}
-blockquote.smallquotation {font-size: smaller}
 div.display {margin-left: 3.2em}
 div.example {margin-left: 3.2em}
 div.lisp {margin-left: 3.2em}
-div.smalldisplay {margin-left: 3.2em}
-div.smallexample {margin-left: 3.2em}
-div.smalllisp {margin-left: 3.2em}
 kbd {font-style: oblique}
 pre.display {font-family: inherit}
 pre.format {font-family: inherit}
 pre.menu-comment {font-family: serif}
 pre.menu-preformatted {font-family: serif}
-pre.smalldisplay {font-family: inherit; font-size: smaller}
-pre.smallexample {font-size: smaller}
-pre.smallformat {font-family: inherit; font-size: smaller}
-pre.smalllisp {font-size: smaller}
 span.nolinebreak {white-space: nowrap}
 span.roman {font-family: initial; font-weight: normal}
 span.sansserif {font-family: sans-serif; font-weight: normal}
@@ -50,36 +41,34 @@ ul.no-bullet {list-style: none}
 
 
 
-<a name="SEC_Overview"></a>
+<span id="SEC_Overview"></span>
 <h2 class="shortcontents-heading">Short Table of Contents</h2>
 
 <div class="shortcontents">
 <ul class="no-bullet">
-<li><a name="stoc-Description-1" href="#toc-Description-1">1 Description</a></li>
+<li><a id="stoc-Description-1" href="#toc-Description-1">1 Description</a></li>
 </ul>
 </div>
 
 
 <table class="menu" border="0" cellspacing="0">
-<tr><td align="left" valign="top">&bull; <a href="#Description" accesskey="1">Description</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#Description" accesskey="1">Description</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-Invocation" accesskey="2">ntp-keygen Invocation</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Invoking ntp-keygen
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-Invocation" accesskey="2">ntp-keygen Invocation</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Invoking ntp-keygen
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#Running-the-Program" accesskey="3">Running the Program</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#Running-the-Program" accesskey="3">Running the Program</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#Random-Seed-File" accesskey="4">Random Seed File</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#Random-Seed-File" accesskey="4">Random Seed File</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#Cryptographic-Data-Files" accesskey="5">Cryptographic Data Files</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#Cryptographic-Data-Files" accesskey="5">Cryptographic Data Files</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
 </table>
 
-<a name="Top"></a>
-<div class="header">
+<span id="Top"></span><div class="header">
 <p>
 Next: <a href="#Description" accesskey="n" rel="next">Description</a>, Previous: <a href="dir.html#Top" accesskey="p" rel="prev">(dir)</a>, Up: <a href="dir.html#Top" accesskey="u" rel="up">(dir)</a> &nbsp; </p>
 </div>
-<a name="NTP-Key-Generation-Program-User-Manual"></a>
-<h1 class="top">NTP Key Generation Program User Manual</h1>
+<span id="NTP-Key-Generation-Program-User-Manual"></span><h1 class="top">NTP Key Generation Program User Manual</h1>
 
 <p>This document describes the use of the NTP Project&rsquo;s <code>ntp-keygen</code>
 program, that generates cryptographic data files used by the NTPv4
@@ -95,21 +84,19 @@ All other files are in PEM-encoded
 printable ASCII format so they can be embedded as MIME attachments in
 mail to other sites.
 </p>
-<p>This document applies to version 4.2.8p15 of <code>ntp-keygen</code>.
+<p>This document applies to version 4.2.8p16 of <code>ntp-keygen</code>.
 </p>
 <table class="menu" border="0" cellspacing="0">
-<tr><td align="left" valign="top">&bull; <a href="#Description" accesskey="1">Description</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#Description" accesskey="1">Description</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
 </table>
 
 <hr>
-<a name="Description"></a>
-<div class="header">
+<span id="Description"></span><div class="header">
 <p>
 Next: <a href="#Running-the-Program" accesskey="n" rel="next">Running the Program</a>, Previous: <a href="#Top" accesskey="p" rel="prev">Top</a>, Up: <a href="#Top" accesskey="u" rel="up">Top</a> &nbsp; </p>
 </div>
-<a name="Description-1"></a>
-<h2 class="chapter">1 Description</h2>
+<span id="Description-1"></span><h2 class="chapter">1 Description</h2>
 
 <p>This program generates cryptographic data files used by the NTPv4
 authentication and identity schemes. It can generate message digest
@@ -178,24 +165,22 @@ generating host and filestamp,
 as described in the <a href="#Cryptographic-Data-Files">Cryptographic Data Files</a> section below.
 </p>
 <table class="menu" border="0" cellspacing="0">
-<tr><td align="left" valign="top">&bull; <a href="#Running-the-Program" accesskey="1">Running the Program</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#Running-the-Program" accesskey="1">Running the Program</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-Invocation" accesskey="2">ntp-keygen Invocation</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-Invocation" accesskey="2">Invoking ntp-keygen</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#Random-Seed-File" accesskey="3">Random Seed File</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#Random-Seed-File" accesskey="3">Random Seed File</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#Cryptographic-Data-Files" accesskey="4">Cryptographic Data Files</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#Cryptographic-Data-Files" accesskey="4">Cryptographic Data Files</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
 </table>
 
 <hr>
-<a name="Running-the-Program"></a>
-<div class="header">
+<span id="Running-the-Program"></span><div class="header">
 <p>
 Next: <a href="#Random-Seed-File" accesskey="n" rel="next">Random Seed File</a>, Previous: <a href="#Description" accesskey="p" rel="prev">Description</a>, Up: <a href="#Top" accesskey="u" rel="up">Top</a> &nbsp; </p>
 </div>
-<a name="Running-the-Program-1"></a>
-<h3 class="section">1.1 Running the Program</h3>
+<span id="Running-the-Program-1"></span><h3 class="section">1.1 Running the Program</h3>
 
 <p>To test and gain experience with Autokey concepts, log in as root and
 change to the keys directory, usually <code>/usr/local/etc</code>.
@@ -243,15 +228,13 @@ certificate should be re-generated.
 Autokey Public-Key Authentication page.
 </p>
 <hr>
-<a name="ntp_002dkeygen-Invocation"></a>
-<div class="header">
+<span id="ntp_002dkeygen-Invocation"></span><div class="header">
 <p>
 Next: <a href="#Random-Seed-File" accesskey="n" rel="next">Random Seed File</a>, Previous: <a href="#Running-the-Program" accesskey="p" rel="prev">Running the Program</a>, Up: <a href="#Description" accesskey="u" rel="up">Description</a> &nbsp; </p>
 </div>
-<a name="Invoking-ntp_002dkeygen"></a>
-<h3 class="section">1.2 Invoking ntp-keygen</h3>
-<a name="index-ntp_002dkeygen"></a>
-<a name="index-Create-a-NTP-host-key"></a>
+<span id="Invoking-ntp_002dkeygen"></span><h3 class="section">1.2 Invoking ntp-keygen</h3>
+<span id="index-ntp_002dkeygen"></span>
+<span id="index-Create-a-NTP-host-key"></span>
 
 
 
@@ -364,60 +347,59 @@ as described in the
 section below.
 </p>
 <table class="menu" border="0" cellspacing="0">
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-usage" accesskey="1">ntp-keygen usage</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-usage" accesskey="1">ntp-keygen help/usage (<samp>--help</samp>)</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-imbits" accesskey="2">ntp-keygen imbits</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-imbits" accesskey="2">imbits option (-b)</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-certificate" accesskey="3">ntp-keygen certificate</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-certificate" accesskey="3">certificate option (-c)</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-cipher" accesskey="4">ntp-keygen cipher</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-cipher" accesskey="4">cipher option (-C)</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-id_002dkey" accesskey="5">ntp-keygen id-key</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-id_002dkey" accesskey="5">id-key option (-e)</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-gq_002dparams" accesskey="6">ntp-keygen gq-params</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-gq_002dparams" accesskey="6">gq-params option (-G)</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-host_002dkey" accesskey="7">ntp-keygen host-key</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-host_002dkey" accesskey="7">host-key option (-H)</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-iffkey" accesskey="8">ntp-keygen iffkey</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-iffkey" accesskey="8">iffkey option (-I)</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-ident" accesskey="9">ntp-keygen ident</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-ident" accesskey="9">ident option (-i)</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-lifetime">ntp-keygen lifetime</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-lifetime">lifetime option (-l)</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-modulus">ntp-keygen modulus</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-modulus">modulus option (-m)</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-md5key">ntp-keygen md5key</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-md5key">md5key option (-M)</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-pvt_002dcert">ntp-keygen pvt-cert</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-pvt_002dcert">pvt-cert option (-P)</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-password">ntp-keygen password</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-password">password option (-p)</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-export_002dpasswd">ntp-keygen export-passwd</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-export_002dpasswd">export-passwd option (-q)</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-subject_002dname">ntp-keygen subject-name</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-subject_002dname">subject-name option (-s)</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-sign_002dkey">ntp-keygen sign-key</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-sign_002dkey">sign-key option (-S)</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-trusted_002dcert">ntp-keygen trusted-cert</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-trusted_002dcert">trusted-cert option (-T)</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-mv_002dparams">ntp-keygen mv-params</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-mv_002dparams">mv-params option (-V)</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-mv_002dkeys">ntp-keygen mv-keys</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-mv_002dkeys">mv-keys option (-v)</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-config">ntp-keygen config</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-config">presetting/configuring ntp-keygen</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-exit-status">ntp-keygen exit status</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-exit-status">ntp-keygen exit status</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-Usage">ntp-keygen Usage</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-Usage">ntp-keygen Usage</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-Notes">ntp-keygen Notes</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-Notes">ntp-keygen Notes</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-Bugs">ntp-keygen Bugs</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-Bugs">ntp-keygen Bugs</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
 </table>
 
-<a name="Running-the-Program-2"></a>
-<h4 class="subsection">1.2.1 Running the Program</h4>
+<span id="Running-the-Program-2"></span><h4 class="subsection">1.2.1 Running the Program</h4>
 <p>The safest way to run the
 <code>ntp-keygen</code>
 program is logged in directly as root.
@@ -649,8 +631,7 @@ To further reduce the risk of misconfiguration,
 the first two lines of a file contain the file name
 and generation date and time as comments.
 </p>
-<a name="Trusted-Hosts-and-Groups"></a>
-<h4 class="subsubsection">1.2.1.1 Trusted Hosts and Groups</h4>
+<span id="Trusted-Hosts-and-Groups"></span><h4 class="subsubsection">1.2.1.1 Trusted Hosts and Groups</h4>
 <p>Each cryptographic configuration involves selection of a signature scheme
 and identification scheme, called a cryptotype,
 as explained in the
@@ -738,8 +719,7 @@ is restarted, it loads any new files and restarts the protocol.
 Other dependent hosts will continue as usual until signatures are refreshed,
 at which time the protocol is restarted.
 </p>
-<a name="Identity-Schemes"></a>
-<h4 class="subsubsection">1.2.1.2 Identity Schemes</h4>
+<span id="Identity-Schemes"></span><h4 class="subsubsection">1.2.1.2 Identity Schemes</h4>
 <p>As mentioned on the Autonomous Authentication page,
 the default
 <code>TC</code>
@@ -912,8 +892,7 @@ As the
 scheme is independent of keys and certificates,
 these files can be refreshed as needed.
 </p>
-<a name="Command-Line-Options"></a>
-<h4 class="subsubsection">1.2.1.3 Command Line Options</h4>
+<span id="Command-Line-Options"></span><h4 class="subsubsection">1.2.1.3 Command Line Options</h4>
 <dl compact="compact">
 <dt><code>-b</code> <code>--imbits</code>= <kbd>modulus</kbd></dt>
 <dd><p>Set the number of bits in the identity modulus for generating identity keys to
@@ -1132,8 +1111,7 @@ Note: support for this option should be considered a work in progress.
 </p></dd>
 </dl>
 
-<a name="Random-Seed-File-1"></a>
-<h4 class="subsubsection">1.2.1.4 Random Seed File</h4>
+<span id="Random-Seed-File-1"></span><h4 class="subsubsection">1.2.1.4 Random Seed File</h4>
 <p>All cryptographically sound key generation schemes must have means
 to randomize the entropy seed used to initialize
 the internal pseudo-random number generator used
@@ -1192,8 +1170,7 @@ If the file is not available or cannot be written,
 the daemon exits with a message to the system log and the program
 exits with a suitable error message.
 </p>
-<a name="Cryptographic-Data-Files-1"></a>
-<h4 class="subsubsection">1.2.1.5 Cryptographic Data Files</h4>
+<span id="Cryptographic-Data-Files-1"></span><h4 class="subsubsection">1.2.1.5 Cryptographic Data Files</h4>
 <p>All file formats begin with two nonencrypted lines.
 The first line contains the file name, including the generated host name
 and filestamp, in the format
@@ -1332,67 +1309,65 @@ using the <code>agtexi-cmd</code> template and the option descriptions for the <
 This software is released under the NTP license, &lt;http://ntp.org/license&gt;.
 </p>
 <table class="menu" border="0" cellspacing="0">
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-usage" accesskey="1">ntp-keygen usage</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">ntp-keygen help/usage (<samp>--help</samp>)
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-usage" accesskey="1">ntp-keygen usage</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">ntp-keygen help/usage (<samp>--help</samp>)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-imbits" accesskey="2">ntp-keygen imbits</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">imbits option (-b)
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-imbits" accesskey="2">ntp-keygen imbits</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">imbits option (-b)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-certificate" accesskey="3">ntp-keygen certificate</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">certificate option (-c)
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-certificate" accesskey="3">ntp-keygen certificate</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">certificate option (-c)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-cipher" accesskey="4">ntp-keygen cipher</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">cipher option (-C)
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-cipher" accesskey="4">ntp-keygen cipher</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">cipher option (-C)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-id_002dkey" accesskey="5">ntp-keygen id-key</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">id-key option (-e)
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-id_002dkey" accesskey="5">ntp-keygen id-key</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">id-key option (-e)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-gq_002dparams" accesskey="6">ntp-keygen gq-params</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">gq-params option (-G)
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-gq_002dparams" accesskey="6">ntp-keygen gq-params</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">gq-params option (-G)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-host_002dkey" accesskey="7">ntp-keygen host-key</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">host-key option (-H)
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-host_002dkey" accesskey="7">ntp-keygen host-key</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">host-key option (-H)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-iffkey" accesskey="8">ntp-keygen iffkey</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">iffkey option (-I)
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-iffkey" accesskey="8">ntp-keygen iffkey</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">iffkey option (-I)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-ident" accesskey="9">ntp-keygen ident</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">ident option (-i)
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-ident" accesskey="9">ntp-keygen ident</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">ident option (-i)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-lifetime">ntp-keygen lifetime</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">lifetime option (-l)
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-lifetime">ntp-keygen lifetime</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">lifetime option (-l)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-modulus">ntp-keygen modulus</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">modulus option (-m)
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-modulus">ntp-keygen modulus</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">modulus option (-m)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-md5key">ntp-keygen md5key</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">md5key option (-M)
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-md5key">ntp-keygen md5key</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">md5key option (-M)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-pvt_002dcert">ntp-keygen pvt-cert</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">pvt-cert option (-P)
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-pvt_002dcert">ntp-keygen pvt-cert</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">pvt-cert option (-P)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-password">ntp-keygen password</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">password option (-p)
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-password">ntp-keygen password</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">password option (-p)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-export_002dpasswd">ntp-keygen export-passwd</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">export-passwd option (-q)
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-export_002dpasswd">ntp-keygen export-passwd</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">export-passwd option (-q)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-subject_002dname">ntp-keygen subject-name</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">subject-name option (-s)
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-subject_002dname">ntp-keygen subject-name</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">subject-name option (-s)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-sign_002dkey">ntp-keygen sign-key</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">sign-key option (-S)
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-sign_002dkey">ntp-keygen sign-key</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">sign-key option (-S)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-trusted_002dcert">ntp-keygen trusted-cert</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">trusted-cert option (-T)
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-trusted_002dcert">ntp-keygen trusted-cert</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">trusted-cert option (-T)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-mv_002dparams">ntp-keygen mv-params</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">mv-params option (-V)
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-mv_002dparams">ntp-keygen mv-params</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">mv-params option (-V)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-mv_002dkeys">ntp-keygen mv-keys</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">mv-keys option (-v)
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-mv_002dkeys">ntp-keygen mv-keys</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">mv-keys option (-v)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-config">ntp-keygen config</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">presetting/configuring ntp-keygen
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-config">ntp-keygen config</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">presetting/configuring ntp-keygen
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-exit-status">ntp-keygen exit status</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">exit status
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-exit-status">ntp-keygen exit status</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">exit status
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-Usage">ntp-keygen Usage</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Usage
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-Usage">ntp-keygen Usage</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Usage
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-Notes">ntp-keygen Notes</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Notes
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-Notes">ntp-keygen Notes</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Notes
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-Bugs">ntp-keygen Bugs</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Bugs
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002dkeygen-Bugs">ntp-keygen Bugs</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Bugs
 </td></tr>
 </table>
 
 <hr>
-<a name="ntp_002dkeygen-usage"></a>
-<div class="header">
+<span id="ntp_002dkeygen-usage"></span><div class="header">
 <p>
 Next: <a href="#ntp_002dkeygen-imbits" accesskey="n" rel="next">ntp-keygen imbits</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
 </div>
-<a name="ntp_002dkeygen-help_002fusage-_0028_002d_002dhelp_0029"></a>
-<h4 class="subsection">1.2.2 ntp-keygen help/usage (<samp>--help</samp>)</h4>
-<a name="index-ntp_002dkeygen-help"></a>
+<span id="ntp_002dkeygen-help_002fusage-_0028_002d_002dhelp_0029"></span><h4 class="subsection">1.2.2 ntp-keygen help/usage (<samp>--help</samp>)</h4>
+<span id="index-ntp_002dkeygen-help"></span>
 
 <p>This is the automatically generated usage text for ntp-keygen.
 </p>
@@ -1405,7 +1380,7 @@ used to select the program, defaulting to <samp>more</samp>.  Both will exit
 with a status code of 0.
 </p>
 <div class="example">
-<pre class="example">ntp-keygen (ntp) - Create a NTP host key - Ver. 4.2.8p14
+<pre class="example">ntp-keygen (ntp) - Create a NTP host key - Ver. 4.2.8p16
 Usage:  ntp-keygen [ -&lt;flag&gt; [&lt;val&gt;] | --&lt;name&gt;[{=| }&lt;val&gt;] ]...
   Flg Arg Option-Name    Description
    -b Num imbits         identity modulus bits
@@ -1452,18 +1427,16 @@ The following option preset mechanisms are supported:
  - reading file ./.ntprc
  - examining environment variables named NTP_KEYGEN_*
 
-Please send bug reports to:  &lt;http://bugs.ntp.org, bugs@ntp.org&gt;
+Please send bug reports to:  &lt;https://bugs.ntp.org, bugs@ntp.org&gt;
 </pre></div>
 
 <hr>
-<a name="ntp_002dkeygen-imbits"></a>
-<div class="header">
+<span id="ntp_002dkeygen-imbits"></span><div class="header">
 <p>
 Next: <a href="#ntp_002dkeygen-certificate" accesskey="n" rel="next">ntp-keygen certificate</a>, Previous: <a href="#ntp_002dkeygen-usage" accesskey="p" rel="prev">ntp-keygen usage</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
 </div>
-<a name="imbits-option-_0028_002db_0029"></a>
-<h4 class="subsection">1.2.3 imbits option (-b)</h4>
-<a name="index-ntp_002dkeygen_002dimbits"></a>
+<span id="imbits-option-_0028_002db_0029"></span><h4 class="subsection">1.2.3 imbits option (-b)</h4>
+<span id="index-ntp_002dkeygen_002dimbits"></span>
 
 <p>This is the &ldquo;identity modulus bits&rdquo; option.
 This option takes a number argument <samp>imbits</samp>.
@@ -1473,16 +1446,14 @@ This option takes a number argument <samp>imbits</samp>.
 <li> must be compiled in by defining <code>AUTOKEY</code> during the compilation.
 </li></ul>
 
-<p>The number of bits in the identity modulus.  The default is 256.
+<p>The number of bits in the identity modulus.  The default is 512.
 </p><hr>
-<a name="ntp_002dkeygen-certificate"></a>
-<div class="header">
+<span id="ntp_002dkeygen-certificate"></span><div class="header">
 <p>
 Next: <a href="#ntp_002dkeygen-cipher" accesskey="n" rel="next">ntp-keygen cipher</a>, Previous: <a href="#ntp_002dkeygen-imbits" accesskey="p" rel="prev">ntp-keygen imbits</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
 </div>
-<a name="certificate-option-_0028_002dc_0029"></a>
-<h4 class="subsection">1.2.4 certificate option (-c)</h4>
-<a name="index-ntp_002dkeygen_002dcertificate"></a>
+<span id="certificate-option-_0028_002dc_0029"></span><h4 class="subsection">1.2.4 certificate option (-c)</h4>
+<span id="index-ntp_002dkeygen_002dcertificate"></span>
 
 <p>This is the &ldquo;certificate scheme&rdquo; option.
 This option takes a string argument <samp>scheme</samp>.
@@ -1501,14 +1472,12 @@ Note that RSA schemes must be used with a RSA sign key and DSA
 schemes must be used with a DSA sign key.  The default without
 this option is RSA-MD5.
 </p><hr>
-<a name="ntp_002dkeygen-cipher"></a>
-<div class="header">
+<span id="ntp_002dkeygen-cipher"></span><div class="header">
 <p>
 Next: <a href="#ntp_002dkeygen-id_002dkey" accesskey="n" rel="next">ntp-keygen id-key</a>, Previous: <a href="#ntp_002dkeygen-certificate" accesskey="p" rel="prev">ntp-keygen certificate</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
 </div>
-<a name="cipher-option-_0028_002dC_0029"></a>
-<h4 class="subsection">1.2.5 cipher option (-C)</h4>
-<a name="index-ntp_002dkeygen_002dcipher"></a>
+<span id="cipher-option-_0028_002dC_0029"></span><h4 class="subsection">1.2.5 cipher option (-C)</h4>
+<span id="index-ntp_002dkeygen_002dcipher"></span>
 
 <p>This is the &ldquo;privatekey cipher&rdquo; option.
 This option takes a string argument <samp>cipher</samp>.
@@ -1523,14 +1492,12 @@ private keys.  The default is three-key triple DES in CBC mode,
 equivalent to &quot;<code>-C des-ede3-cbc</code>&quot;.  The openssl tool lists ciphers
 available in &quot;<code>openssl -h</code>&quot; output.
 </p><hr>
-<a name="ntp_002dkeygen-id_002dkey"></a>
-<div class="header">
+<span id="ntp_002dkeygen-id_002dkey"></span><div class="header">
 <p>
 Next: <a href="#ntp_002dkeygen-gq_002dparams" accesskey="n" rel="next">ntp-keygen gq-params</a>, Previous: <a href="#ntp_002dkeygen-cipher" accesskey="p" rel="prev">ntp-keygen cipher</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
 </div>
-<a name="id_002dkey-option-_0028_002de_0029"></a>
-<h4 class="subsection">1.2.6 id-key option (-e)</h4>
-<a name="index-ntp_002dkeygen_002did_002dkey"></a>
+<span id="id_002dkey-option-_0028_002de_0029"></span><h4 class="subsection">1.2.6 id-key option (-e)</h4>
+<span id="index-ntp_002dkeygen_002did_002dkey"></span>
 
 <p>This is the &ldquo;write iff or gq identity keys&rdquo; option.
 </p>
@@ -1543,14 +1510,12 @@ Next: <a href="#ntp_002dkeygen-gq_002dparams" accesskey="n" rel="next">ntp-keyge
 the standard output.
 This is intended for automatic key distribution by email.
 </p><hr>
-<a name="ntp_002dkeygen-gq_002dparams"></a>
-<div class="header">
+<span id="ntp_002dkeygen-gq_002dparams"></span><div class="header">
 <p>
 Next: <a href="#ntp_002dkeygen-host_002dkey" accesskey="n" rel="next">ntp-keygen host-key</a>, Previous: <a href="#ntp_002dkeygen-id_002dkey" accesskey="p" rel="prev">ntp-keygen id-key</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
 </div>
-<a name="gq_002dparams-option-_0028_002dG_0029"></a>
-<h4 class="subsection">1.2.7 gq-params option (-G)</h4>
-<a name="index-ntp_002dkeygen_002dgq_002dparams"></a>
+<span id="gq_002dparams-option-_0028_002dG_0029"></span><h4 class="subsection">1.2.7 gq-params option (-G)</h4>
+<span id="index-ntp_002dkeygen_002dgq_002dparams"></span>
 
 <p>This is the &ldquo;generate gq parameters and keys&rdquo; option.
 </p>
@@ -1562,14 +1527,12 @@ Next: <a href="#ntp_002dkeygen-host_002dkey" accesskey="n" rel="next">ntp-keygen
 <p>Generate parameters and keys for the GQ identification scheme,
 obsoleting any that may exist.
 </p><hr>
-<a name="ntp_002dkeygen-host_002dkey"></a>
-<div class="header">
+<span id="ntp_002dkeygen-host_002dkey"></span><div class="header">
 <p>
 Next: <a href="#ntp_002dkeygen-iffkey" accesskey="n" rel="next">ntp-keygen iffkey</a>, Previous: <a href="#ntp_002dkeygen-gq_002dparams" accesskey="p" rel="prev">ntp-keygen gq-params</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
 </div>
-<a name="host_002dkey-option-_0028_002dH_0029"></a>
-<h4 class="subsection">1.2.8 host-key option (-H)</h4>
-<a name="index-ntp_002dkeygen_002dhost_002dkey"></a>
+<span id="host_002dkey-option-_0028_002dH_0029"></span><h4 class="subsection">1.2.8 host-key option (-H)</h4>
+<span id="index-ntp_002dkeygen_002dhost_002dkey"></span>
 
 <p>This is the &ldquo;generate rsa host key&rdquo; option.
 </p>
@@ -1580,14 +1543,12 @@ Next: <a href="#ntp_002dkeygen-iffkey" accesskey="n" rel="next">ntp-keygen iffke
 
 <p>Generate new host keys, obsoleting any that may exist.
 </p><hr>
-<a name="ntp_002dkeygen-iffkey"></a>
-<div class="header">
+<span id="ntp_002dkeygen-iffkey"></span><div class="header">
 <p>
 Next: <a href="#ntp_002dkeygen-ident" accesskey="n" rel="next">ntp-keygen ident</a>, Previous: <a href="#ntp_002dkeygen-host_002dkey" accesskey="p" rel="prev">ntp-keygen host-key</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
 </div>
-<a name="iffkey-option-_0028_002dI_0029"></a>
-<h4 class="subsection">1.2.9 iffkey option (-I)</h4>
-<a name="index-ntp_002dkeygen_002diffkey"></a>
+<span id="iffkey-option-_0028_002dI_0029"></span><h4 class="subsection">1.2.9 iffkey option (-I)</h4>
+<span id="index-ntp_002dkeygen_002diffkey"></span>
 
 <p>This is the &ldquo;generate iff parameters&rdquo; option.
 </p>
@@ -1599,14 +1560,12 @@ Next: <a href="#ntp_002dkeygen-ident" accesskey="n" rel="next">ntp-keygen ident<
 <p>Generate parameters for the IFF identification scheme, obsoleting
 any that may exist.
 </p><hr>
-<a name="ntp_002dkeygen-ident"></a>
-<div class="header">
+<span id="ntp_002dkeygen-ident"></span><div class="header">
 <p>
 Next: <a href="#ntp_002dkeygen-lifetime" accesskey="n" rel="next">ntp-keygen lifetime</a>, Previous: <a href="#ntp_002dkeygen-iffkey" accesskey="p" rel="prev">ntp-keygen iffkey</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
 </div>
-<a name="ident-option-_0028_002di_0029"></a>
-<h4 class="subsection">1.2.10 ident option (-i)</h4>
-<a name="index-ntp_002dkeygen_002dident"></a>
+<span id="ident-option-_0028_002di_0029"></span><h4 class="subsection">1.2.10 ident option (-i)</h4>
+<span id="index-ntp_002dkeygen_002dident"></span>
 
 <p>This is the &ldquo;set autokey group name&rdquo; option.
 This option takes a string argument <samp>group</samp>.
@@ -1626,14 +1585,12 @@ issuer names in the form <code>host@group</code> and should match the
 &rsquo;<code>crypto ident</code>&rsquo; or &rsquo;<code>server ident</code>&rsquo; configuration in the
 <code>ntpd</code> configuration file.
 </p><hr>
-<a name="ntp_002dkeygen-lifetime"></a>
-<div class="header">
+<span id="ntp_002dkeygen-lifetime"></span><div class="header">
 <p>
 Next: <a href="#ntp_002dkeygen-modulus" accesskey="n" rel="next">ntp-keygen modulus</a>, Previous: <a href="#ntp_002dkeygen-ident" accesskey="p" rel="prev">ntp-keygen ident</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
 </div>
-<a name="lifetime-option-_0028_002dl_0029"></a>
-<h4 class="subsection">1.2.11 lifetime option (-l)</h4>
-<a name="index-ntp_002dkeygen_002dlifetime"></a>
+<span id="lifetime-option-_0028_002dl_0029"></span><h4 class="subsection">1.2.11 lifetime option (-l)</h4>
+<span id="index-ntp_002dkeygen_002dlifetime"></span>
 
 <p>This is the &ldquo;set certificate lifetime&rdquo; option.
 This option takes a number argument <samp>lifetime</samp>.
@@ -1645,14 +1602,12 @@ This option takes a number argument <samp>lifetime</samp>.
 
 <p>Set the certificate expiration to lifetime days from now.
 </p><hr>
-<a name="ntp_002dkeygen-modulus"></a>
-<div class="header">
+<span id="ntp_002dkeygen-modulus"></span><div class="header">
 <p>
 Next: <a href="#ntp_002dkeygen-md5key" accesskey="n" rel="next">ntp-keygen md5key</a>, Previous: <a href="#ntp_002dkeygen-lifetime" accesskey="p" rel="prev">ntp-keygen lifetime</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
 </div>
-<a name="modulus-option-_0028_002dm_0029"></a>
-<h4 class="subsection">1.2.12 modulus option (-m)</h4>
-<a name="index-ntp_002dkeygen_002dmodulus"></a>
+<span id="modulus-option-_0028_002dm_0029"></span><h4 class="subsection">1.2.12 modulus option (-m)</h4>
+<span id="index-ntp_002dkeygen_002dmodulus"></span>
 
 <p>This is the &ldquo;prime modulus&rdquo; option.
 This option takes a number argument <samp>modulus</samp>.
@@ -1664,26 +1619,22 @@ This option takes a number argument <samp>modulus</samp>.
 
 <p>The number of bits in the prime modulus.  The default is 512.
 </p><hr>
-<a name="ntp_002dkeygen-md5key"></a>
-<div class="header">
+<span id="ntp_002dkeygen-md5key"></span><div class="header">
 <p>
 Next: <a href="#ntp_002dkeygen-pvt_002dcert" accesskey="n" rel="next">ntp-keygen pvt-cert</a>, Previous: <a href="#ntp_002dkeygen-modulus" accesskey="p" rel="prev">ntp-keygen modulus</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
 </div>
-<a name="md5key-option-_0028_002dM_0029"></a>
-<h4 class="subsection">1.2.13 md5key option (-M)</h4>
-<a name="index-ntp_002dkeygen_002dmd5key"></a>
+<span id="md5key-option-_0028_002dM_0029"></span><h4 class="subsection">1.2.13 md5key option (-M)</h4>
+<span id="index-ntp_002dkeygen_002dmd5key"></span>
 
 <p>This is the &ldquo;generate symmetric keys&rdquo; option.
 Generate symmetric keys, obsoleting any that may exist.
 </p><hr>
-<a name="ntp_002dkeygen-pvt_002dcert"></a>
-<div class="header">
+<span id="ntp_002dkeygen-pvt_002dcert"></span><div class="header">
 <p>
 Next: <a href="#ntp_002dkeygen-password" accesskey="n" rel="next">ntp-keygen password</a>, Previous: <a href="#ntp_002dkeygen-md5key" accesskey="p" rel="prev">ntp-keygen md5key</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
 </div>
-<a name="pvt_002dcert-option-_0028_002dP_0029"></a>
-<h4 class="subsection">1.2.14 pvt-cert option (-P)</h4>
-<a name="index-ntp_002dkeygen_002dpvt_002dcert"></a>
+<span id="pvt_002dcert-option-_0028_002dP_0029"></span><h4 class="subsection">1.2.14 pvt-cert option (-P)</h4>
+<span id="index-ntp_002dkeygen_002dpvt_002dcert"></span>
 
 <p>This is the &ldquo;generate pc private certificate&rdquo; option.
 </p>
@@ -1695,14 +1646,12 @@ Next: <a href="#ntp_002dkeygen-password" accesskey="n" rel="next">ntp-keygen pas
 <p>Generate a private certificate.  By default, the program generates
 public certificates.
 </p><hr>
-<a name="ntp_002dkeygen-password"></a>
-<div class="header">
+<span id="ntp_002dkeygen-password"></span><div class="header">
 <p>
 Next: <a href="#ntp_002dkeygen-export_002dpasswd" accesskey="n" rel="next">ntp-keygen export-passwd</a>, Previous: <a href="#ntp_002dkeygen-pvt_002dcert" accesskey="p" rel="prev">ntp-keygen pvt-cert</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
 </div>
-<a name="password-option-_0028_002dp_0029"></a>
-<h4 class="subsection">1.2.15 password option (-p)</h4>
-<a name="index-ntp_002dkeygen_002dpassword"></a>
+<span id="password-option-_0028_002dp_0029"></span><h4 class="subsection">1.2.15 password option (-p)</h4>
+<span id="index-ntp_002dkeygen_002dpassword"></span>
 
 <p>This is the &ldquo;local private password&rdquo; option.
 This option takes a string argument <samp>passwd</samp>.
@@ -1718,14 +1667,12 @@ must be specified to the local ntpd via the &quot;crypto pw password&quot;
 configuration command.  The default password is the local
 hostname.
 </p><hr>
-<a name="ntp_002dkeygen-export_002dpasswd"></a>
-<div class="header">
+<span id="ntp_002dkeygen-export_002dpasswd"></span><div class="header">
 <p>
 Next: <a href="#ntp_002dkeygen-subject_002dname" accesskey="n" rel="next">ntp-keygen subject-name</a>, Previous: <a href="#ntp_002dkeygen-password" accesskey="p" rel="prev">ntp-keygen password</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
 </div>
-<a name="export_002dpasswd-option-_0028_002dq_0029"></a>
-<h4 class="subsection">1.2.16 export-passwd option (-q)</h4>
-<a name="index-ntp_002dkeygen_002dexport_002dpasswd"></a>
+<span id="export_002dpasswd-option-_0028_002dq_0029"></span><h4 class="subsection">1.2.16 export-passwd option (-q)</h4>
+<span id="index-ntp_002dkeygen_002dexport_002dpasswd"></span>
 
 <p>This is the &ldquo;export iff or gq group keys with password&rdquo; option.
 This option takes a string argument <samp>passwd</samp>.
@@ -1741,14 +1688,12 @@ The same password must be specified to the remote ntpd via the
 &quot;crypto pw password&quot; configuration command.  See also the option
 &ndash;id-key (-e) for unencrypted exports.
 </p><hr>
-<a name="ntp_002dkeygen-subject_002dname"></a>
-<div class="header">
+<span id="ntp_002dkeygen-subject_002dname"></span><div class="header">
 <p>
 Next: <a href="#ntp_002dkeygen-sign_002dkey" accesskey="n" rel="next">ntp-keygen sign-key</a>, Previous: <a href="#ntp_002dkeygen-export_002dpasswd" accesskey="p" rel="prev">ntp-keygen export-passwd</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
 </div>
-<a name="subject_002dname-option-_0028_002ds_0029"></a>
-<h4 class="subsection">1.2.17 subject-name option (-s)</h4>
-<a name="index-ntp_002dkeygen_002dsubject_002dname"></a>
+<span id="subject_002dname-option-_0028_002ds_0029"></span><h4 class="subsection">1.2.17 subject-name option (-s)</h4>
+<span id="index-ntp_002dkeygen_002dsubject_002dname"></span>
 
 <p>This is the &ldquo;set host and optionally group name&rdquo; option.
 This option takes a string argument <samp>host@group</samp>.
@@ -1769,14 +1714,12 @@ subject and issuer fields, as with <code>-i group</code>.  The group name, or
 if not provided, the host name are also used in the file names
 of IFF, GQ, and MV client parameter files.
 </p><hr>
-<a name="ntp_002dkeygen-sign_002dkey"></a>
-<div class="header">
+<span id="ntp_002dkeygen-sign_002dkey"></span><div class="header">
 <p>
 Next: <a href="#ntp_002dkeygen-trusted_002dcert" accesskey="n" rel="next">ntp-keygen trusted-cert</a>, Previous: <a href="#ntp_002dkeygen-subject_002dname" accesskey="p" rel="prev">ntp-keygen subject-name</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
 </div>
-<a name="sign_002dkey-option-_0028_002dS_0029"></a>
-<h4 class="subsection">1.2.18 sign-key option (-S)</h4>
-<a name="index-ntp_002dkeygen_002dsign_002dkey"></a>
+<span id="sign_002dkey-option-_0028_002dS_0029"></span><h4 class="subsection">1.2.18 sign-key option (-S)</h4>
+<span id="index-ntp_002dkeygen_002dsign_002dkey"></span>
 
 <p>This is the &ldquo;generate sign key (rsa or dsa)&rdquo; option.
 This option takes a string argument <samp>sign</samp>.
@@ -1790,14 +1733,12 @@ This option takes a string argument <samp>sign</samp>.
 that may exist.  By default, the program uses the host key as the
 sign key.
 </p><hr>
-<a name="ntp_002dkeygen-trusted_002dcert"></a>
-<div class="header">
+<span id="ntp_002dkeygen-trusted_002dcert"></span><div class="header">
 <p>
 Next: <a href="#ntp_002dkeygen-mv_002dparams" accesskey="n" rel="next">ntp-keygen mv-params</a>, Previous: <a href="#ntp_002dkeygen-sign_002dkey" accesskey="p" rel="prev">ntp-keygen sign-key</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
 </div>
-<a name="trusted_002dcert-option-_0028_002dT_0029"></a>
-<h4 class="subsection">1.2.19 trusted-cert option (-T)</h4>
-<a name="index-ntp_002dkeygen_002dtrusted_002dcert"></a>
+<span id="trusted_002dcert-option-_0028_002dT_0029"></span><h4 class="subsection">1.2.19 trusted-cert option (-T)</h4>
+<span id="index-ntp_002dkeygen_002dtrusted_002dcert"></span>
 
 <p>This is the &ldquo;trusted certificate (tc scheme)&rdquo; option.
 </p>
@@ -1809,14 +1750,12 @@ Next: <a href="#ntp_002dkeygen-mv_002dparams" accesskey="n" rel="next">ntp-keyge
 <p>Generate a trusted certificate.  By default, the program generates
 a non-trusted certificate.
 </p><hr>
-<a name="ntp_002dkeygen-mv_002dparams"></a>
-<div class="header">
+<span id="ntp_002dkeygen-mv_002dparams"></span><div class="header">
 <p>
 Next: <a href="#ntp_002dkeygen-mv_002dkeys" accesskey="n" rel="next">ntp-keygen mv-keys</a>, Previous: <a href="#ntp_002dkeygen-trusted_002dcert" accesskey="p" rel="prev">ntp-keygen trusted-cert</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
 </div>
-<a name="mv_002dparams-option-_0028_002dV_0029"></a>
-<h4 class="subsection">1.2.20 mv-params option (-V)</h4>
-<a name="index-ntp_002dkeygen_002dmv_002dparams"></a>
+<span id="mv_002dparams-option-_0028_002dV_0029"></span><h4 class="subsection">1.2.20 mv-params option (-V)</h4>
+<span id="index-ntp_002dkeygen_002dmv_002dparams"></span>
 
 <p>This is the &ldquo;generate &lt;num&gt; mv parameters&rdquo; option.
 This option takes a number argument <samp>num</samp>.
@@ -1829,14 +1768,12 @@ This option takes a number argument <samp>num</samp>.
 <p>Generate parameters and keys for the Mu-Varadharajan (MV)
 identification scheme.
 </p><hr>
-<a name="ntp_002dkeygen-mv_002dkeys"></a>
-<div class="header">
+<span id="ntp_002dkeygen-mv_002dkeys"></span><div class="header">
 <p>
 Next: <a href="#ntp_002dkeygen-config" accesskey="n" rel="next">ntp-keygen config</a>, Previous: <a href="#ntp_002dkeygen-mv_002dparams" accesskey="p" rel="prev">ntp-keygen mv-params</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
 </div>
-<a name="mv_002dkeys-option-_0028_002dv_0029"></a>
-<h4 class="subsection">1.2.21 mv-keys option (-v)</h4>
-<a name="index-ntp_002dkeygen_002dmv_002dkeys"></a>
+<span id="mv_002dkeys-option-_0028_002dv_0029"></span><h4 class="subsection">1.2.21 mv-keys option (-v)</h4>
+<span id="index-ntp_002dkeygen_002dmv_002dkeys"></span>
 
 <p>This is the &ldquo;update &lt;num&gt; mv keys&rdquo; option.
 This option takes a number argument <samp>num</samp>.
@@ -1850,13 +1787,11 @@ This option takes a number argument <samp>num</samp>.
 </p>
 
 <hr>
-<a name="ntp_002dkeygen-config"></a>
-<div class="header">
+<span id="ntp_002dkeygen-config"></span><div class="header">
 <p>
 Next: <a href="#ntp_002dkeygen-exit-status" accesskey="n" rel="next">ntp-keygen exit status</a>, Previous: <a href="#ntp_002dkeygen-mv_002dkeys" accesskey="p" rel="prev">ntp-keygen mv-keys</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
 </div>
-<a name="presetting_002fconfiguring-ntp_002dkeygen"></a>
-<h4 class="subsection">1.2.22 presetting/configuring ntp-keygen</h4>
+<span id="presetting_002fconfiguring-ntp_002dkeygen"></span><h4 class="subsection">1.2.22 presetting/configuring ntp-keygen</h4>
 
 <p>Any option that is not marked as <i>not presettable</i> may be preset by
 loading values from configuration (&quot;rc&quot; or &quot;ini&quot;) files, and values from environment variables named <code>NTP-KEYGEN</code> and <code>NTP-KEYGEN_&lt;OPTION_NAME&gt;</code>.  <code>&lt;OPTION_NAME&gt;</code> must be one of
@@ -1912,12 +1847,11 @@ the associated name/value pair list (see: optionFindValue).
 </p>
 <p>The command line options relating to configuration and/or usage help are:
 </p>
-<a name="version-_0028_002d_0029"></a>
-<h4 class="subsubheading">version (-)</h4>
+<span id="version-_0028_002d_0029"></span><h4 class="subsubheading">version (-)</h4>
 
 <p>Print the program version to standard out, optionally with licensing
 information, then exit 0.  The optional argument specifies how much licensing
-detail to provide.  The default is to print just the version.  The licensing infomation may be selected with an option argument.
+detail to provide.  The default is to print just the version.  The licensing information may be selected with an option argument.
 Only the first letter of the argument is examined:
 </p>
 <dl compact="compact">
@@ -1933,13 +1867,11 @@ Only the first letter of the argument is examined:
 </dl>
 
 <hr>
-<a name="ntp_002dkeygen-exit-status"></a>
-<div class="header">
+<span id="ntp_002dkeygen-exit-status"></span><div class="header">
 <p>
 Next: <a href="#ntp_002dkeygen-Usage" accesskey="n" rel="next">ntp-keygen Usage</a>, Previous: <a href="#ntp_002dkeygen-config" accesskey="p" rel="prev">ntp-keygen config</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
 </div>
-<a name="ntp_002dkeygen-exit-status-1"></a>
-<h4 class="subsection">1.2.23 ntp-keygen exit status</h4>
+<span id="ntp_002dkeygen-exit-status-1"></span><h4 class="subsection">1.2.23 ntp-keygen exit status</h4>
 
 <p>One of the following exit values will be returned:
 </p><dl compact="compact">
@@ -1958,38 +1890,30 @@ it to autogen-users@lists.sourceforge.net.  Thank you.
 </p></dd>
 </dl>
 <hr>
-<a name="ntp_002dkeygen-Usage"></a>
-<div class="header">
+<span id="ntp_002dkeygen-Usage"></span><div class="header">
 <p>
 Next: <a href="#ntp_002dkeygen-Notes" accesskey="n" rel="next">ntp-keygen Notes</a>, Previous: <a href="#ntp_002dkeygen-exit-status" accesskey="p" rel="prev">ntp-keygen exit status</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
 </div>
-<a name="ntp_002dkeygen-Usage-1"></a>
-<h4 class="subsection">1.2.24 ntp-keygen Usage</h4>
+<span id="ntp_002dkeygen-Usage-1"></span><h4 class="subsection">1.2.24 ntp-keygen Usage</h4>
 <hr>
-<a name="ntp_002dkeygen-Notes"></a>
-<div class="header">
+<span id="ntp_002dkeygen-Notes"></span><div class="header">
 <p>
 Next: <a href="#ntp_002dkeygen-Bugs" accesskey="n" rel="next">ntp-keygen Bugs</a>, Previous: <a href="#ntp_002dkeygen-Usage" accesskey="p" rel="prev">ntp-keygen Usage</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
 </div>
-<a name="ntp_002dkeygen-Notes-1"></a>
-<h4 class="subsection">1.2.25 ntp-keygen Notes</h4>
+<span id="ntp_002dkeygen-Notes-1"></span><h4 class="subsection">1.2.25 ntp-keygen Notes</h4>
 <hr>
-<a name="ntp_002dkeygen-Bugs"></a>
-<div class="header">
+<span id="ntp_002dkeygen-Bugs"></span><div class="header">
 <p>
 Previous: <a href="#ntp_002dkeygen-Notes" accesskey="p" rel="prev">ntp-keygen Notes</a>, Up: <a href="#ntp_002dkeygen-Invocation" accesskey="u" rel="up">ntp-keygen Invocation</a> &nbsp; </p>
 </div>
-<a name="ntp_002dkeygen-Bugs-1"></a>
-<h4 class="subsection">1.2.26 ntp-keygen Bugs</h4>
+<span id="ntp_002dkeygen-Bugs-1"></span><h4 class="subsection">1.2.26 ntp-keygen Bugs</h4>
 
 <hr>
-<a name="Random-Seed-File"></a>
-<div class="header">
+<span id="Random-Seed-File"></span><div class="header">
 <p>
 Next: <a href="#Cryptographic-Data-Files" accesskey="n" rel="next">Cryptographic Data Files</a>, Previous: <a href="#Running-the-Program" accesskey="p" rel="prev">Running the Program</a>, Up: <a href="#Top" accesskey="u" rel="up">Top</a> &nbsp; </p>
 </div>
-<a name="Random-Seed-File-2"></a>
-<h3 class="section">1.3 Random Seed File</h3>
+<span id="Random-Seed-File-2"></span><h3 class="section">1.3 Random Seed File</h3>
 
 <p>All cryptographically sound key generation schemes must have means to
 randomize the entropy seed used to initialize the internal
@@ -2013,13 +1937,11 @@ If the file is not available or cannot be written, the program exits
 with a message to the system log.
 </p>
 <hr>
-<a name="Cryptographic-Data-Files"></a>
-<div class="header">
+<span id="Cryptographic-Data-Files"></span><div class="header">
 <p>
 Previous: <a href="#Random-Seed-File" accesskey="p" rel="prev">Random Seed File</a>, Up: <a href="#Top" accesskey="u" rel="up">Top</a> &nbsp; </p>
 </div>
-<a name="Cryptographic-Data-Files-2"></a>
-<h3 class="section">1.4 Cryptographic Data Files</h3>
+<span id="Cryptographic-Data-Files-2"></span><h3 class="section">1.4 Cryptographic Data Files</h3>
 
 <p>File and link names are in the <code>form ntpkey_key_name.fstamp</code>,
 where <code>key</code> is the key or parameter type,

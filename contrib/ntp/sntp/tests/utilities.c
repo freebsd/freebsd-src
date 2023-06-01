@@ -22,9 +22,6 @@ void test_LfpOutputBinaryFormat(void);
 void test_LfpOutputDecimalFormat(void);
 
 
-const char * Version = "stub unit test Version string";
-
-
 sockaddr_u
 CreateSockaddr4(const char* address) {
 	sockaddr_u s;

@@ -759,6 +759,7 @@ struct pkt {
 #define LOOP_CODEC		13	/* set audio codec frequency */
 #define	LOOP_LEAP		14	/* insert leap after second 23:59 */
 #define	LOOP_TICK		15	/* sim. low precision clock */
+#define LOOP_NOFREQ		16	/* undo a previos LOOP_FREQ */
 
 /*
  * Configuration items for the stats printer

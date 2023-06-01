@@ -51,9 +51,9 @@ make_mac(
 	 * was created.
 	 */
 	size_t	retlen = 0;
-	
+
 #ifdef OPENSSL
-	
+
 	INIT_SSL();
 
 	/* Check if CMAC key type specific code required */
@@ -70,7 +70,7 @@ make_mac(
 			       (AES_128_KEY_SIZE - key->len));
 			keyptr = keybuf;
 		}
-		
+
 		if (NULL == (ctx = CMAC_CTX_new())) {
 			msyslog(LOG_ERR, "MAC encrypt: CMAC %s CTX new failed.", CMAC);
 			goto cmac_fail;
@@ -100,13 +100,13 @@ make_mac(
 	{	/* generic MAC handling */
 		EVP_MD_CTX *	ctx   = EVP_MD_CTX_new();
 		u_int		uilen = 0;
-		
+
 		if ( ! ctx) {
 			msyslog(LOG_ERR, "MAC encrypt: MAC %s Digest CTX new failed.",
 				OBJ_nid2sn(ktype));
 			goto mac_fail;
 		}
-		
+
            #ifdef EVP_MD_CTX_FLAG_NON_FIPS_ALLOW
 		/* make sure MD5 is allowd */
 		EVP_MD_CTX_set_flags(ctx, EVP_MD_CTX_FLAG_NON_FIPS_ALLOW);
@@ -140,13 +140,13 @@ make_mac(
 		}
 	  mac_fail:
 		retlen = (size_t)uilen;
-		
+
 		if (ctx)
 			EVP_MD_CTX_free(ctx);
 	}
 
 #else /* !OPENSSL follows */
-	
+
 	if (ktype == NID_md5)
 	{
 		EVP_MD_CTX *	ctx   = EVP_MD_CTX_new();
@@ -158,8 +158,10 @@ make_mac(
 		else if ( ! ctx) {
 			msyslog(LOG_ERR, "%s", "MAC encrypt: MAC md5 Digest CTX new failed.");
 		}
+		else if (!EVP_DigestInit(ctx, EVP_get_digestbynid(ktype))) {
+			msyslog(LOG_ERR, "%s", "MAC encrypt: MAC md5 Digest INIT failed.");
+		}
 		else {
-			EVP_DigestInit(ctx, EVP_get_digestbynid(ktype));
 			EVP_DigestUpdate(ctx, key->buf, key->len);
 			EVP_DigestUpdate(ctx, msg->buf, msg->len);
 			EVP_DigestFinal(ctx, digest->buf, &uilen);
@@ -172,7 +174,7 @@ make_mac(
 	{
 		msyslog(LOG_ERR, "MAC encrypt: invalid key type %d"  , ktype);
 	}
-	
+
 #endif /* !OPENSSL */
 
 	return retlen;
@@ -196,7 +198,7 @@ MD5authencrypt(
 	u_char	digest[EVP_MAX_MD_SIZE];
 	rwbuffT digb = { digest, sizeof(digest) };
 	robuffT keyb = { key, klen };
-	robuffT msgb = { pkt, length };	
+	robuffT msgb = { pkt, length };
 	size_t	dlen = 0;
 
 	dlen = make_mac(&digb, type, &keyb, &msgb);
@@ -220,23 +222,25 @@ MD5authdecrypt(
 	size_t		klen,	/* key length */
 	u_int32	*	pkt,	/* packet pointer */
 	size_t		length,	/* packet length */
-	size_t		size	/* MAC size */
+	size_t		size,	/* MAC size */
+	keyid_t		keyno   /* key id (for err log) */
 	)
 {
 	u_char	digest[EVP_MAX_MD_SIZE];
 	rwbuffT digb = { digest, sizeof(digest) };
 	robuffT keyb = { key, klen };
-	robuffT msgb = { pkt, length };	
+	robuffT msgb = { pkt, length };
 	size_t	dlen = 0;
 
 	dlen = make_mac(&digb, type, &keyb, &msgb);
-	
+
 	/* If the MAC is longer than the MAX then truncate it. */
 	if (dlen > MAX_MDG_LEN)
 		dlen = MAX_MDG_LEN;
 	if (size != (size_t)dlen + KEY_MAC_LEN) {
 		msyslog(LOG_ERR,
-		    "MAC decrypt: MAC length error");
+		    "MAC decrypt: MAC length error: len=%zu key=%d",
+			size, keyno);
 		return (0);
 	}
 	return !isc_tsmemcmp(digest,

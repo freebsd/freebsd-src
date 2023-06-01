@@ -12,7 +12,7 @@
  *
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2018 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -37,7 +37,7 @@ typedef struct {
     char    xml_txt[8];
 } xml_xlate_t;
 
-static xml_xlate_t const xml_xlate[] = {
+  static xml_xlate_t const xml_xlate[] = {
     { '&', 4, "amp;"  },
     { '<', 3, "lt;"   },
     { '>', 3, "gt;"   },
@@ -48,48 +48,6 @@ static xml_xlate_t const xml_xlate[] = {
 #ifndef ENOMSG
 #define ENOMSG ENOENT
 #endif
-
-/* = = = START-STATIC-FORWARD = = = */
-static void
-remove_continuation(char * src);
-
-static char const *
-scan_q_str(char const * pzTxt);
-
-static tOptionValue *
-add_string(void ** pp, char const * name, size_t nm_len,
-           char const * val, size_t d_len);
-
-static tOptionValue *
-add_bool(void ** pp, char const * name, size_t nm_len,
-         char const * val, size_t d_len);
-
-static tOptionValue *
-add_number(void ** pp, char const * name, size_t nm_len,
-           char const * val, size_t d_len);
-
-static tOptionValue *
-add_nested(void ** pp, char const * name, size_t nm_len,
-           char * val, size_t d_len);
-
-static char const *
-scan_name(char const * name, tOptionValue * res);
-
-static char const *
-unnamed_xml(char const * txt);
-
-static char const *
-scan_xml_name(char const * name, size_t * nm_len, tOptionValue * val);
-
-static char const *
-find_end_xml(char const * src, size_t nm_len, char const * val, size_t * len);
-
-static char const *
-scan_xml(char const * xml_name, tOptionValue * res_val);
-
-static void
-sort_list(tArgList * arg_list);
-/* = = = END-STATIC-FORWARD = = = */
 
 /**
  *  Backslashes are used for line continuations.  We keep the newline
@@ -638,7 +596,7 @@ bail_scan_xml:
  *  an internal call, so it is not validated.  The caller is responsible for
  *  knowing what they are doing.
  */
-LOCAL void
+static void
 unload_arg_list(tArgList * arg_list)
 {
     int ct = arg_list->useCt;
@@ -743,7 +701,7 @@ sort_list(tArgList * arg_list)
  *  @code{ENOMSG} no configuration values were found
  *  @end itemize
 =*/
-LOCAL tOptionValue *
+static tOptionValue *
 optionLoadNested(char const * text, char const * name, size_t nm_len)
 {
     tOptionValue * res_val;
@@ -783,12 +741,23 @@ optionLoadNested(char const * text, char const * name, size_t nm_len)
             text = scan_name(text, res_val);
 
         else switch (*text) {
-        case NUL: goto scan_done;
-        case '<': text = scan_xml(text, res_val);
-                  if (text == NULL) goto woops;
-                  if (*text == ',') text++; break;
-        case '#': text = strchr(text, NL);  break;
-        default:  goto woops;
+        case NUL:
+            goto scan_done;
+
+        case '<':
+            text = scan_xml(text, res_val);
+            if (text == NULL)
+                goto woops;
+            if (*text == ',')
+                text++;
+            break;
+
+        case '#':
+            text = strchr(text, NL);
+            break;
+
+        default:
+            goto woops;
         }
     } while (text != NULL); scan_done:;
 
@@ -855,11 +824,10 @@ optionNestedVal(tOptions * opts, tOptDesc * od)
 /**
  * get_special_char
  */
-LOCAL int
+static int
 get_special_char(char const ** ppz, int * ct)
 {
     char const * pz = *ppz;
-    char *       rz;
 
     if (*ct < 3)
         return '&';
@@ -873,8 +841,7 @@ get_special_char(char const ** ppz, int * ct)
             base = 16;
             pz++;
         }
-        retch = (int)strtoul(pz, &rz, base);
-        pz = rz;
+        retch = (int)strtoul(pz, (char **)&pz, base);
         if (*pz != ';')
             return '&';
         base = (int)(++pz - *ppz);
@@ -909,7 +876,7 @@ get_special_char(char const ** ppz, int * ct)
 /**
  * emit_special_char
  */
-LOCAL void
+static void
 emit_special_char(FILE * fp, int ch)
 {
     int ctr = sizeof(xml_xlate) / sizeof(xml_xlate[0]);
