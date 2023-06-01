@@ -240,7 +240,7 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 {
 	struct cubic *cubic_data;
 	unsigned long w_tf, w_cubic_next;
-	int ticks_since_cong;
+	int usecs_since_cong;
 
 	cubic_data = ccv->cc_data;
 	cubic_record_rtt(ccv);
@@ -253,7 +253,7 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 	    (ccv->flags & CCF_CWND_LIMITED)) {
 		 /* Use the logic in NewReno ack_received() for slow start. */
 		if (CCV(ccv, snd_cwnd) <= CCV(ccv, snd_ssthresh) ||
-		    cubic_data->min_rtt_ticks == TCPTV_SRTTBASE) {
+		    cubic_data->min_rtt_usecs == TCPTV_SRTTBASE) {
 			cubic_does_slow_start(ccv, cubic_data);
 		} else {
 			if (cubic_data->flags & CUBICFLAG_HYSTART_IN_CSS) {
@@ -282,12 +282,12 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 				cubic_data->K = cubic_k(cubic_data->max_cwnd /
 							CCV(ccv, t_maxseg));
 			}
-			if ((ticks_since_cong =
-			    ticks - cubic_data->t_last_cong) < 0) {
+			usecs_since_cong = (ticks - cubic_data->t_last_cong) * tick;
+			if (usecs_since_cong < 0) {
 				/*
 				 * dragging t_last_cong along
 				 */
-				ticks_since_cong = INT_MAX;
+				usecs_since_cong = INT_MAX;
 				cubic_data->t_last_cong = ticks - INT_MAX;
 			}
 			/*
@@ -297,13 +297,14 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 			 * RTT is dominated by network buffering rather than
 			 * propagation delay.
 			 */
-			w_tf = tf_cwnd(ticks_since_cong,
-			    cubic_data->mean_rtt_ticks, cubic_data->max_cwnd,
-			    CCV(ccv, t_maxseg));
+			w_tf = tf_cwnd(usecs_since_cong, cubic_data->mean_rtt_usecs,
+				       cubic_data->max_cwnd, CCV(ccv, t_maxseg));
 
-			w_cubic_next = cubic_cwnd(ticks_since_cong +
-			    cubic_data->mean_rtt_ticks, cubic_data->max_cwnd,
-			    CCV(ccv, t_maxseg), cubic_data->K);
+			w_cubic_next = cubic_cwnd(usecs_since_cong +
+						  cubic_data->mean_rtt_usecs,
+						  cubic_data->max_cwnd,
+						  CCV(ccv, t_maxseg),
+						  cubic_data->K);
 
 			ccv->flags &= ~CCF_ABC_SENTAWND;
 
@@ -397,8 +398,8 @@ cubic_cb_init(struct cc_var *ccv, void *ptr)
 
 	/* Init some key variables with sensible defaults. */
 	cubic_data->t_last_cong = ticks;
-	cubic_data->min_rtt_ticks = TCPTV_SRTTBASE;
-	cubic_data->mean_rtt_ticks = 1;
+	cubic_data->min_rtt_usecs = TCPTV_SRTTBASE;
+	cubic_data->mean_rtt_usecs = 1;
 
 	ccv->cc_data = cubic_data;
 	cubic_data->flags = CUBICFLAG_HYSTART_ENABLED;
@@ -549,13 +550,13 @@ cubic_post_recovery(struct cc_var *ccv)
 
 	/* Calculate the average RTT between congestion epochs. */
 	if (cubic_data->epoch_ack_count > 0 &&
-	    cubic_data->sum_rtt_ticks >= cubic_data->epoch_ack_count) {
-		cubic_data->mean_rtt_ticks = (int)(cubic_data->sum_rtt_ticks /
+	    cubic_data->sum_rtt_usecs >= cubic_data->epoch_ack_count) {
+		cubic_data->mean_rtt_usecs = (int)(cubic_data->sum_rtt_usecs /
 		    cubic_data->epoch_ack_count);
 	}
 
 	cubic_data->epoch_ack_count = 0;
-	cubic_data->sum_rtt_ticks = 0;
+	cubic_data->sum_rtt_usecs = 0;
 }
 
 /*
@@ -565,13 +566,13 @@ static void
 cubic_record_rtt(struct cc_var *ccv)
 {
 	struct cubic *cubic_data;
-	int t_srtt_ticks;
+	uint32_t t_srtt_usecs;
 
 	/* Ignore srtt until a min number of samples have been taken. */
 	if (CCV(ccv, t_rttupdated) >= CUBIC_MIN_RTT_SAMPLES) {
 		cubic_data = ccv->cc_data;
-		t_srtt_ticks = tcp_get_srtt(ccv->ccvc.tcp,
-					    TCP_TMR_GRANULARITY_TICKS);
+		t_srtt_usecs = tcp_get_srtt(ccv->ccvc.tcp,
+					    TCP_TMR_GRANULARITY_USEC);
 		/*
 		 * Record the current SRTT as our minrtt if it's the smallest
 		 * we've seen or minrtt is currently equal to its initialised
@@ -579,24 +580,27 @@ cubic_record_rtt(struct cc_var *ccv)
 		 *
 		 * XXXLAS: Should there be some hysteresis for minrtt?
 		 */
-		if ((t_srtt_ticks < cubic_data->min_rtt_ticks ||
-		    cubic_data->min_rtt_ticks == TCPTV_SRTTBASE)) {
-			cubic_data->min_rtt_ticks = max(1, t_srtt_ticks);
+		if ((t_srtt_usecs < cubic_data->min_rtt_usecs ||
+		    cubic_data->min_rtt_usecs == TCPTV_SRTTBASE)) {
+			/* A minimal rtt is a single unshifted tick of a ticks
+			 * timer. */
+			cubic_data->min_rtt_usecs = max(tick >> TCP_RTT_SHIFT,
+							t_srtt_usecs);
 
 			/*
 			 * If the connection is within its first congestion
-			 * epoch, ensure we prime mean_rtt_ticks with a
+			 * epoch, ensure we prime mean_rtt_usecs with a
 			 * reasonable value until the epoch average RTT is
 			 * calculated in cubic_post_recovery().
 			 */
-			if (cubic_data->min_rtt_ticks >
-			    cubic_data->mean_rtt_ticks)
-				cubic_data->mean_rtt_ticks =
-				    cubic_data->min_rtt_ticks;
+			if (cubic_data->min_rtt_usecs >
+			    cubic_data->mean_rtt_usecs)
+				cubic_data->mean_rtt_usecs =
+				    cubic_data->min_rtt_usecs;
 		}
 
 		/* Sum samples for epoch average RTT calculation. */
-		cubic_data->sum_rtt_ticks += t_srtt_ticks;
+		cubic_data->sum_rtt_usecs += t_srtt_usecs;
 		cubic_data->epoch_ack_count++;
 	}
 }
