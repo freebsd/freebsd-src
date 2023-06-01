@@ -727,7 +727,7 @@ pmcstat_display_log(void)
 
 	pmcstat_refresh_top();
 
-	/* Reset everythings if delta mode. */
+	/* Reset everything if delta mode. */
 	if (args.pa_topmode == PMCSTAT_TOP_DELTA) {
 		if (plugins[args.pa_plugin].pl_shutdown != NULL)
 			plugins[args.pa_plugin].pl_shutdown(NULL);
