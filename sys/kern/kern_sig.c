@@ -220,7 +220,7 @@ SYSCTL_INT(_kern, OID_AUTO, coredump_devctl, CTLFLAG_RW, &coredump_devctl,
 #define	SIGPROP_IGNORE		0x10	/* ignore by default */
 #define	SIGPROP_CONT		0x20	/* continue if suspended */
 
-static int sigproptbl[NSIG] = {
+static const int sigproptbl[NSIG] = {
 	[SIGHUP] =	SIGPROP_KILL,
 	[SIGINT] =	SIGPROP_KILL,
 	[SIGQUIT] =	SIGPROP_KILL | SIGPROP_CORE,
