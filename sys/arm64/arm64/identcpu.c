@@ -47,9 +47,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/undefined.h>
 
+struct cpu_desc;
+
 static void print_cpu_midr(struct sbuf *sb, u_int cpu);
-static void print_cpu_features(u_int cpu);
-static void print_cpu_caches(struct sbuf *sb, u_int);
+static void print_cpu_features(u_int cpu, struct cpu_desc *desc,
+    struct cpu_desc *prev_desc);
+static void print_cpu_caches(struct sbuf *sb, struct cpu_desc *desc);
 #ifdef COMPAT_FREEBSD32
 static u_long parse_cpu_features_hwcap32(void);
 #endif
@@ -71,7 +74,8 @@ static int allow_idc = 1;
 SYSCTL_INT(_machdep_cache, OID_AUTO, allow_idc, CTLFLAG_RDTUN, &allow_idc, 0,
     "Allow optimizations based on the IDC cache bit");
 
-static void check_cpu_regs(u_int cpu);
+static void check_cpu_regs(u_int cpu, struct cpu_desc *desc,
+    struct cpu_desc *prev_desc);
 
 /*
  * The default implementation of I-cache sync assumes we have an
@@ -1784,6 +1788,7 @@ update_lower_register(uint64_t val, uint64_t new_val, u_int shift,
 void
 update_special_regs(u_int cpu)
 {
+	struct cpu_desc *desc;
 	struct mrs_field *fields;
 	uint64_t user_reg, kern_reg, value;
 	int i, j;
@@ -1798,8 +1803,9 @@ update_special_regs(u_int cpu)
 		user_cpu_desc.id_aa64dfr0 = ID_AA64DFR0_DebugVer_8;
 	}
 
+	desc = &cpu_desc[cpu];
 	for (i = 0; i < nitems(user_regs); i++) {
-		value = CPU_DESC_FIELD(cpu_desc[cpu], i);
+		value = CPU_DESC_FIELD(*desc, i);
 		if (cpu == 0) {
 			kern_reg = value;
 			user_reg = value;
@@ -1881,21 +1887,26 @@ parse_cpu_features(void)
 static void
 identify_cpu_sysinit(void *dummy __unused)
 {
+	struct cpu_desc *desc, *prev_desc;
 	int cpu;
 	bool dic, idc;
 
 	dic = (allow_dic != 0);
 	idc = (allow_idc != 0);
 
+	prev_desc = NULL;
 	CPU_FOREACH(cpu) {
-		check_cpu_regs(cpu);
-		if (cpu != 0)
+		desc = &cpu_desc[cpu];
+		if (cpu != 0) {
+			check_cpu_regs(cpu, desc, prev_desc);
 			update_special_regs(cpu);
+		}
 
-		if (CTR_DIC_VAL(cpu_desc[cpu].ctr) == 0)
+		if (CTR_DIC_VAL(desc->ctr) == 0)
 			dic = false;
-		if (CTR_IDC_VAL(cpu_desc[cpu].ctr) == 0)
+		if (CTR_IDC_VAL(desc->ctr) == 0)
 			idc = false;
+		prev_desc = desc;
 	}
 
 	/* Find the values to export to userspace as AT_HWCAP and AT_HWCAP2 */
@@ -1934,10 +1945,15 @@ static void
 cpu_features_sysinit(void *dummy __unused)
 {
 	struct sbuf sb;
+	struct cpu_desc *desc, *prev_desc;
 	u_int cpu;
 
-	CPU_FOREACH(cpu)
-		print_cpu_features(cpu);
+	prev_desc = NULL;
+	CPU_FOREACH(cpu) {
+		desc = &cpu_desc[cpu];
+		print_cpu_features(cpu, desc, prev_desc);
+		prev_desc = desc;
+	}
 
 	/* Fill in cpu_model for the hw.model sysctl */
 	sbuf_new(&sb, cpu_model, sizeof(cpu_model), SBUF_FIXEDLEN);
@@ -2117,8 +2133,8 @@ print_cpu_midr(struct sbuf *sb, u_int cpu)
 }
 
 static void
-print_cpu_cache(u_int cpu, struct sbuf *sb, uint64_t ccs, bool icache,
-    bool unified)
+print_cpu_cache(struct cpu_desc *desc, struct sbuf *sb, uint64_t ccs,
+    bool icache, bool unified)
 {
 	size_t cache_size;
 	size_t line_size;
@@ -2130,7 +2146,7 @@ print_cpu_cache(u_int cpu, struct sbuf *sb, uint64_t ccs, bool icache,
 	 * formats depending on the FEAT_CCIDX bit in ID_AA64MMFR2 feature
 	 * register.
 	 */
-	if ((cpu_desc[cpu].id_aa64mmfr2 & ID_AA64MMFR2_CCIDX_64))
+	if ((desc->id_aa64mmfr2 & ID_AA64MMFR2_CCIDX_64))
 		cache_size = (CCSIDR_NSETS_64(ccs) + 1) *
 		    (CCSIDR_ASSOC_64(ccs) + 1);
 	else
@@ -2142,12 +2158,12 @@ print_cpu_cache(u_int cpu, struct sbuf *sb, uint64_t ccs, bool icache,
 }
 
 static void
-print_cpu_caches(struct sbuf *sb, u_int cpu)
+print_cpu_caches(struct sbuf *sb, struct cpu_desc *desc)
 {
 	/* Print out each cache combination */
 	uint64_t clidr;
 	int i = 1;
-	clidr = cpu_desc[cpu].clidr;
+	clidr = desc->clidr;
 
 	for (i = 0; (clidr & CLIDR_CTYPE_MASK) != 0; i++, clidr >>= 3) {
 		int j = 0;
@@ -2155,15 +2171,15 @@ print_cpu_caches(struct sbuf *sb, u_int cpu)
 
 		sbuf_printf(sb, " L%d cache: ", i + 1);
 		if ((clidr & CLIDR_CTYPE_IO)) {
-			print_cpu_cache(cpu, sb, cpu_desc[cpu].ccsidr[i][j++],
-			    true, false);
+			print_cpu_cache(desc, sb, desc->ccsidr[i][j++], true,
+			    false);
 			/* If there's more, add to the line. */
 			if ((ctype_m & ~CLIDR_CTYPE_IO) != 0)
 				sbuf_printf(sb, ", ");
 		}
 		if ((ctype_m & ~CLIDR_CTYPE_IO) != 0) {
-			print_cpu_cache(cpu, sb, cpu_desc[cpu].ccsidr[i][j],
-			    false, (clidr & CLIDR_CTYPE_UNIFIED));
+			print_cpu_cache(desc, sb, desc->ccsidr[i][j], false,
+			    (clidr & CLIDR_CTYPE_UNIFIED));
 		}
 		sbuf_printf(sb, "\n");
 
@@ -2173,7 +2189,8 @@ print_cpu_caches(struct sbuf *sb, u_int cpu)
 }
 
 static void
-print_cpu_features(u_int cpu)
+print_cpu_features(u_int cpu, struct cpu_desc *desc,
+    struct cpu_desc *prev_desc)
 {
 	struct sbuf *sb;
 
@@ -2185,17 +2202,17 @@ print_cpu_features(u_int cpu)
 	switch(cpu_aff_levels) {
 	default:
 	case 4:
-		sbuf_printf(sb, " %2d", CPU_AFF3(cpu_desc[cpu].mpidr));
+		sbuf_printf(sb, " %2d", CPU_AFF3(desc->mpidr));
 		/* FALLTHROUGH */
 	case 3:
-		sbuf_printf(sb, " %2d", CPU_AFF2(cpu_desc[cpu].mpidr));
+		sbuf_printf(sb, " %2d", CPU_AFF2(desc->mpidr));
 		/* FALLTHROUGH */
 	case 2:
-		sbuf_printf(sb, " %2d", CPU_AFF1(cpu_desc[cpu].mpidr));
+		sbuf_printf(sb, " %2d", CPU_AFF1(desc->mpidr));
 		/* FALLTHROUGH */
 	case 1:
 	case 0: /* On UP this will be zero */
-		sbuf_printf(sb, " %2d", CPU_AFF0(cpu_desc[cpu].mpidr));
+		sbuf_printf(sb, " %2d", CPU_AFF0(desc->mpidr));
 		break;
 	}
 	sbuf_finish(sb);
@@ -2225,80 +2242,80 @@ print_cpu_features(u_int cpu)
 		    "atomic operations.\n");
 
 #define	SHOULD_PRINT_REG(_reg)						\
-    (cpu == 0 || cpu_desc[cpu]._reg != cpu_desc[cpu - 1]._reg)
+    (prev_desc == NULL || desc->_reg != prev_desc->_reg)
 
 	/* Cache Type Register */
 	if (SHOULD_PRINT_REG(ctr)) {
 		print_register(sb, "Cache Type",
-		    cpu_desc[cpu].ctr, print_ctr_fields, NULL);
+		    desc->ctr, print_ctr_fields, NULL);
 	}
 
 	/* AArch64 Instruction Set Attribute Register 0 */
 	if (SHOULD_PRINT_REG(id_aa64isar0))
 		print_id_register(sb, "Instruction Set Attributes 0",
-		    cpu_desc[cpu].id_aa64isar0, id_aa64isar0_fields);
+		    desc->id_aa64isar0, id_aa64isar0_fields);
 
 	/* AArch64 Instruction Set Attribute Register 1 */
 	if (SHOULD_PRINT_REG(id_aa64isar1))
 		print_id_register(sb, "Instruction Set Attributes 1",
-		    cpu_desc[cpu].id_aa64isar1, id_aa64isar1_fields);
+		    desc->id_aa64isar1, id_aa64isar1_fields);
 
 	/* AArch64 Instruction Set Attribute Register 2 */
 	if (SHOULD_PRINT_REG(id_aa64isar2))
 		print_id_register(sb, "Instruction Set Attributes 2",
-		    cpu_desc[cpu].id_aa64isar2, id_aa64isar2_fields);
+		    desc->id_aa64isar2, id_aa64isar2_fields);
 
 	/* AArch64 Processor Feature Register 0 */
 	if (SHOULD_PRINT_REG(id_aa64pfr0))
 		print_id_register(sb, "Processor Features 0",
-		    cpu_desc[cpu].id_aa64pfr0, id_aa64pfr0_fields);
+		    desc->id_aa64pfr0, id_aa64pfr0_fields);
 
 	/* AArch64 Processor Feature Register 1 */
 	if (SHOULD_PRINT_REG(id_aa64pfr1))
 		print_id_register(sb, "Processor Features 1",
-		    cpu_desc[cpu].id_aa64pfr1, id_aa64pfr1_fields);
+		    desc->id_aa64pfr1, id_aa64pfr1_fields);
 
 	/* AArch64 Memory Model Feature Register 0 */
 	if (SHOULD_PRINT_REG(id_aa64mmfr0))
 		print_id_register(sb, "Memory Model Features 0",
-		    cpu_desc[cpu].id_aa64mmfr0, id_aa64mmfr0_fields);
+		    desc->id_aa64mmfr0, id_aa64mmfr0_fields);
 
 	/* AArch64 Memory Model Feature Register 1 */
 	if (SHOULD_PRINT_REG(id_aa64mmfr1))
 		print_id_register(sb, "Memory Model Features 1",
-		    cpu_desc[cpu].id_aa64mmfr1, id_aa64mmfr1_fields);
+		    desc->id_aa64mmfr1, id_aa64mmfr1_fields);
 
 	/* AArch64 Memory Model Feature Register 2 */
 	if (SHOULD_PRINT_REG(id_aa64mmfr2))
 		print_id_register(sb, "Memory Model Features 2",
-		    cpu_desc[cpu].id_aa64mmfr2, id_aa64mmfr2_fields);
+		    desc->id_aa64mmfr2, id_aa64mmfr2_fields);
 
 	/* AArch64 Debug Feature Register 0 */
 	if (SHOULD_PRINT_REG(id_aa64dfr0))
 		print_id_register(sb, "Debug Features 0",
-		    cpu_desc[cpu].id_aa64dfr0, id_aa64dfr0_fields);
+		    desc->id_aa64dfr0, id_aa64dfr0_fields);
 
 	/* AArch64 Memory Model Feature Register 1 */
 	if (SHOULD_PRINT_REG(id_aa64dfr1))
 		print_id_register(sb, "Debug Features 1",
-		    cpu_desc[cpu].id_aa64dfr1, id_aa64dfr1_fields);
+		    desc->id_aa64dfr1, id_aa64dfr1_fields);
 
 	/* AArch64 Auxiliary Feature Register 0 */
 	if (SHOULD_PRINT_REG(id_aa64afr0))
 		print_id_register(sb, "Auxiliary Features 0",
-		    cpu_desc[cpu].id_aa64afr0, id_aa64afr0_fields);
+		    desc->id_aa64afr0, id_aa64afr0_fields);
 
 	/* AArch64 Auxiliary Feature Register 1 */
 	if (SHOULD_PRINT_REG(id_aa64afr1))
 		print_id_register(sb, "Auxiliary Features 1",
-		    cpu_desc[cpu].id_aa64afr1, id_aa64afr1_fields);
+		    desc->id_aa64afr1, id_aa64afr1_fields);
 
 	/* AArch64 SVE Feature Register 0 */
-	if (cpu_desc[cpu].have_sve) {
+	if (desc->have_sve) {
 		if (SHOULD_PRINT_REG(id_aa64zfr0) ||
-		    !cpu_desc[cpu - 1].have_sve) {
+		    !prev_desc->have_sve) {
 			print_id_register(sb, "SVE Features 0",
-			    cpu_desc[cpu].id_aa64zfr0, id_aa64zfr0_fields);
+			    desc->id_aa64zfr0, id_aa64zfr0_fields);
 		}
 	}
 
@@ -2306,20 +2323,20 @@ print_cpu_features(u_int cpu)
 	/* AArch32 Instruction Set Attribute Register 5 */
 	if (SHOULD_PRINT_REG(id_isar5))
 		print_id_register(sb, "AArch32 Instruction Set Attributes 5",
-		     cpu_desc[cpu].id_isar5, id_isar5_fields);
+		     desc->id_isar5, id_isar5_fields);
 
 	/* AArch32 Media and VFP Feature Register 0 */
 	if (SHOULD_PRINT_REG(mvfr0))
 		print_id_register(sb, "AArch32 Media and VFP Features 0",
-		     cpu_desc[cpu].mvfr0, mvfr0_fields);
+		     desc->mvfr0, mvfr0_fields);
 
 	/* AArch32 Media and VFP Feature Register 1 */
 	if (SHOULD_PRINT_REG(mvfr1))
 		print_id_register(sb, "AArch32 Media and VFP Features 1",
-		     cpu_desc[cpu].mvfr1, mvfr1_fields);
+		     desc->mvfr1, mvfr1_fields);
 #endif
 	if (bootverbose)
-		print_cpu_caches(sb, cpu);
+		print_cpu_caches(sb, desc);
 
 	sbuf_delete(sb);
 	sb = NULL;
@@ -2370,23 +2387,25 @@ identify_cache(uint64_t ctr)
 void
 identify_cpu(u_int cpu)
 {
+	struct cpu_desc *desc;
 	uint64_t clidr;
 
+	desc = &cpu_desc[cpu];
 	/* Save affinity for current CPU */
-	cpu_desc[cpu].mpidr = get_mpidr();
-	CPU_AFFINITY(cpu) = cpu_desc[cpu].mpidr & CPU_AFF_MASK;
+	desc->mpidr = get_mpidr();
+	CPU_AFFINITY(cpu) = desc->mpidr & CPU_AFF_MASK;
 
-	cpu_desc[cpu].ctr = READ_SPECIALREG(ctr_el0);
-	cpu_desc[cpu].id_aa64dfr0 = READ_SPECIALREG(id_aa64dfr0_el1);
-	cpu_desc[cpu].id_aa64dfr1 = READ_SPECIALREG(id_aa64dfr1_el1);
-	cpu_desc[cpu].id_aa64isar0 = READ_SPECIALREG(id_aa64isar0_el1);
-	cpu_desc[cpu].id_aa64isar1 = READ_SPECIALREG(id_aa64isar1_el1);
-	cpu_desc[cpu].id_aa64isar2 = READ_SPECIALREG(id_aa64isar2_el1);
-	cpu_desc[cpu].id_aa64mmfr0 = READ_SPECIALREG(id_aa64mmfr0_el1);
-	cpu_desc[cpu].id_aa64mmfr1 = READ_SPECIALREG(id_aa64mmfr1_el1);
-	cpu_desc[cpu].id_aa64mmfr2 = READ_SPECIALREG(id_aa64mmfr2_el1);
-	cpu_desc[cpu].id_aa64pfr0 = READ_SPECIALREG(id_aa64pfr0_el1);
-	cpu_desc[cpu].id_aa64pfr1 = READ_SPECIALREG(id_aa64pfr1_el1);
+	desc->ctr = READ_SPECIALREG(ctr_el0);
+	desc->id_aa64dfr0 = READ_SPECIALREG(id_aa64dfr0_el1);
+	desc->id_aa64dfr1 = READ_SPECIALREG(id_aa64dfr1_el1);
+	desc->id_aa64isar0 = READ_SPECIALREG(id_aa64isar0_el1);
+	desc->id_aa64isar1 = READ_SPECIALREG(id_aa64isar1_el1);
+	desc->id_aa64isar2 = READ_SPECIALREG(id_aa64isar2_el1);
+	desc->id_aa64mmfr0 = READ_SPECIALREG(id_aa64mmfr0_el1);
+	desc->id_aa64mmfr1 = READ_SPECIALREG(id_aa64mmfr1_el1);
+	desc->id_aa64mmfr2 = READ_SPECIALREG(id_aa64mmfr2_el1);
+	desc->id_aa64pfr0 = READ_SPECIALREG(id_aa64pfr0_el1);
+	desc->id_aa64pfr1 = READ_SPECIALREG(id_aa64pfr1_el1);
 
 	/*
 	 * ID_AA64ZFR0_EL1 is only valid when at least one of:
@@ -2394,71 +2413,65 @@ identify_cpu(u_int cpu)
 	 *  - ID_AA64PFR1_EL1.SME is non-zero
 	 * In other cases it is zero, but still safe to read
 	 */
-	cpu_desc[cpu].have_sve =
-	    (ID_AA64PFR0_SVE_VAL(cpu_desc[cpu].id_aa64pfr0) != 0);
-	cpu_desc[cpu].id_aa64zfr0 = READ_SPECIALREG(ID_AA64ZFR0_EL1_REG);
+	desc->have_sve =
+	    (ID_AA64PFR0_SVE_VAL(desc->id_aa64pfr0) != 0);
+	desc->id_aa64zfr0 = READ_SPECIALREG(ID_AA64ZFR0_EL1_REG);
 
-	cpu_desc[cpu].clidr = READ_SPECIALREG(clidr_el1);
+	desc->clidr = READ_SPECIALREG(clidr_el1);
 
-	clidr = cpu_desc[cpu].clidr;
+	clidr = desc->clidr;
 
 	for (int i = 0; (clidr & CLIDR_CTYPE_MASK) != 0; i++, clidr >>= 3) {
 		int j = 0;
 		if ((clidr & CLIDR_CTYPE_IO)) {
 			WRITE_SPECIALREG(csselr_el1,
 			    CSSELR_Level(i) | CSSELR_InD);
-			cpu_desc[cpu].ccsidr[i][j++] =
+			desc->ccsidr[i][j++] =
 			    READ_SPECIALREG(ccsidr_el1);
 		}
 		if ((clidr & ~CLIDR_CTYPE_IO) == 0)
 			continue;
 		WRITE_SPECIALREG(csselr_el1, CSSELR_Level(i));
-		cpu_desc[cpu].ccsidr[i][j] = READ_SPECIALREG(ccsidr_el1);
+		desc->ccsidr[i][j] = READ_SPECIALREG(ccsidr_el1);
 	}
 
 #ifdef COMPAT_FREEBSD32
 	/* Only read aarch32 SRs if EL0-32 is available */
-	if (ID_AA64PFR0_EL0_VAL(cpu_desc[cpu].id_aa64pfr0) ==
-	    ID_AA64PFR0_EL0_64_32) {
-		cpu_desc[cpu].id_isar5 = READ_SPECIALREG(id_isar5_el1);
-		cpu_desc[cpu].mvfr0 = READ_SPECIALREG(mvfr0_el1);
-		cpu_desc[cpu].mvfr1 = READ_SPECIALREG(mvfr1_el1);
+	if (ID_AA64PFR0_EL0_VAL(desc->id_aa64pfr0) == ID_AA64PFR0_EL0_64_32) {
+		desc->id_isar5 = READ_SPECIALREG(id_isar5_el1);
+		desc->mvfr0 = READ_SPECIALREG(mvfr0_el1);
+		desc->mvfr1 = READ_SPECIALREG(mvfr1_el1);
 	}
 #endif
 }
 
 static void
-check_cpu_regs(u_int cpu)
+check_cpu_regs(u_int cpu, struct cpu_desc *desc, struct cpu_desc *prev_desc)
 {
-
 	switch (cpu_aff_levels) {
 	case 0:
-		if (CPU_AFF0(cpu_desc[cpu].mpidr) !=
-		    CPU_AFF0(cpu_desc[0].mpidr))
+		if (CPU_AFF0(desc->mpidr) != CPU_AFF0(prev_desc->mpidr))
 			cpu_aff_levels = 1;
 		/* FALLTHROUGH */
 	case 1:
-		if (CPU_AFF1(cpu_desc[cpu].mpidr) !=
-		    CPU_AFF1(cpu_desc[0].mpidr))
+		if (CPU_AFF1(desc->mpidr) != CPU_AFF1(prev_desc->mpidr))
 			cpu_aff_levels = 2;
 		/* FALLTHROUGH */
 	case 2:
-		if (CPU_AFF2(cpu_desc[cpu].mpidr) !=
-		    CPU_AFF2(cpu_desc[0].mpidr))
+		if (CPU_AFF2(desc->mpidr) != CPU_AFF2(prev_desc->mpidr))
 			cpu_aff_levels = 3;
 		/* FALLTHROUGH */
 	case 3:
-		if (CPU_AFF3(cpu_desc[cpu].mpidr) !=
-		    CPU_AFF3(cpu_desc[0].mpidr))
+		if (CPU_AFF3(desc->mpidr) != CPU_AFF3(prev_desc->mpidr))
 			cpu_aff_levels = 4;
 		break;
 	}
 
-	if (cpu_desc[cpu].ctr != cpu_desc[0].ctr) {
+	if (desc->ctr != prev_desc->ctr) {
 		/*
 		 * If the cache type register is different we may
 		 * have a different l1 cache type.
 		 */
-		identify_cache(cpu_desc[cpu].ctr);
+		identify_cache(desc->ctr);
 	}
 }
