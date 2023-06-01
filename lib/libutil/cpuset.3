@@ -1,0 +1,80 @@
+.\" Copyright (c) 2017 Baptiste Daroussin <bapt@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 31, 2017
+.Dt CPUSET 3
+.Os
+.Sh NAME
+.Nm cpuset_parselist
+.Nd utility functions for
+.Xr cpuset 2
+handling
+.Sh LIBRARY
+.Lb libutil
+.Sh SYNOPSIS
+.In sys/cpuset.h
+.In libutil.h
+.Ft int
+.Fn cpuset_parselist "const char *cpu-list" "cpuset_t *mask"
+.Sh DESCRIPTION
+The
+.Fn cpuset_parselist
+function parses a
+.Va cpu-list
+filling the
+.Va mask .
+.Pp
+The
+.Va cpu-list
+may include numbers separated by '-' for ranges and commas separating individual
+numbers.
+A special list of
+.Dq all
+may be specified in which case the list includes all CPUs from the root set.
+.Sh RETURN VALUES
+Return values can be the following
+.Bl -tag -width Er
+.It Dv CPUSET_PARSE_OK
+The parsing was successful
+.It Dv CPUSET_PARSE_ERROR
+The
+.Va cpu-list
+format is invalid
+.It Dv CPUSET_PARSE_GETAFFINITY
+The
+.Xr cpuset_getaffinity 2
+call has failed
+.It Dv CPUSET_PARSE_INVALID_CPU
+The number of supported CPUs has been exceeded.
+The maximum number being
+.Va CPU_SETSIZE .
+.El
+.Sh SEE ALSO
+.Xr cpuset 1 ,
+.Xr cpuset 2 ,
+.Xr cpuset 9
+.Sh AUTHORS
+.An Jeffrey Roberson Aq Mt jeff@FreeBSD.org
