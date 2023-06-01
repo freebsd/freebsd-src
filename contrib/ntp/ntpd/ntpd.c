@@ -661,8 +661,7 @@ detach_from_terminal(
  * Map user name/number to user ID
 */
 static int
-map_user(
-	)
+map_user(void)
 {
 	char *endp;
 
@@ -892,6 +891,10 @@ ntpdmain(
 	msyslog(LOG_NOTICE, "corporation.  Support and training for ntp-4 are");
 	msyslog(LOG_NOTICE, "available at https://www.nwtime.org/support");
 	msyslog(LOG_NOTICE, "----------------------------------------------------");
+#ifdef DEBUG
+	msyslog(LOG_NOTICE, "DEBUG behavior is enabled - a violation of any");
+	msyslog(LOG_NOTICE, "diagnostic assertion will cause %s to abort", progname);
+#endif
 
 	/*
 	 * Install trap handlers to log errors and assertion failures.
@@ -1424,8 +1427,10 @@ int scmp_sc[] = {
 #if defined(SYS_WINNT)
 	ntservice_isup();
 #elif defined(HAVE_WORKING_FORK)
-	if (daemon_pipe[1] != -1) {
-		write(daemon_pipe[1], "R\n", 2);
+	if ((daemon_pipe[1] != -1) && (2 != write(daemon_pipe[1], "R\n", 2))) {
+		msyslog(LOG_ERR, "ntpd: daemon failed to notify parent!");
+		close(daemon_pipe[1]);
+		daemon_pipe[1] = -1;
 	}
 #endif /* HAVE_WORKING_FORK */
 

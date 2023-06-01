@@ -87,12 +87,12 @@ OPTTPL = $(std_def_list)
 plot_summary: $(srcdir)/plot_summary-opts
 
 $(srcdir)/plot_summary-opts: plot_summary-opts.def $(OPTTPL)
-	$(run_ag) plot_summary-opts.def 
+	$(AM_V_GEN)$(run_ag) plot_summary-opts.def 
 
 ### Nroff
 
 $(srcdir)/plot_summary.1plot_summaryman: $(srcdir)/plot_summary-opts.def $(std_def_list)
-	$(run_ag) -DMAN_SECTION=1plot_summaryman -Tagman-cmd.tpl plot_summary-opts.def
+	$(AM_V_GEN)$(run_ag) -DMAN_SECTION=1plot_summaryman -Tagman-cmd.tpl plot_summary-opts.def
 
 $(srcdir)/plot_summary.man.in: $(srcdir)/plot_summary.1plot_summaryman $(top_srcdir)/sntp/scripts/mansec2subst.sed
 	sed -f $(top_srcdir)/sntp/scripts/mansec2subst.sed $(srcdir)/plot_summary.1plot_summaryman > $(srcdir)/plot_summary.man.in+
@@ -101,7 +101,7 @@ $(srcdir)/plot_summary.man.in: $(srcdir)/plot_summary.1plot_summaryman $(top_src
 ### Mdoc
 
 $(srcdir)/plot_summary.1plot_summarymdoc: $(srcdir)/plot_summary-opts.def $(std_def_list)
-	$(run_ag) -DMAN_SECTION=1plot_summarymdoc -Tagmdoc-cmd.tpl plot_summary-opts.def
+	$(AM_V_GEN)$(run_ag) -DMAN_SECTION=1plot_summarymdoc -Tagmdoc-cmd.tpl plot_summary-opts.def
 
 $(srcdir)/plot_summary.mdoc.in: $(srcdir)/plot_summary.1plot_summarymdoc $(top_srcdir)/sntp/scripts/mansec2subst.sed
 	sed -f $(top_srcdir)/sntp/scripts/mansec2subst.sed $(srcdir)/plot_summary.1plot_summarymdoc > $(srcdir)/plot_summary.mdoc.in+
@@ -119,7 +119,7 @@ $(srcdir)/invoke-plot_summary.menu: $(srcdir)/invoke-plot_summary.texi
 	@: do-nothing action to avoid default SCCS get, .menu built with .texi
 
 $(srcdir)/invoke-plot_summary.texi: plot_summary-opts $(srcdir)/plot_summary-opts.def $(std_def_list)
-	$(run_ag) -Tagtexi-cmd.tpl -DLEVEL=section plot_summary-opts.def
+	$(AM_V_GEN)$(run_ag) -Tagtexi-cmd.tpl -DLEVEL=section plot_summary-opts.def
 	$(top_srcdir)/scripts/build/check--help $@
 
 ### HTML
@@ -133,12 +133,12 @@ $(srcdir)/plot_summary.html: $(srcdir)/invoke-plot_summary.menu $(srcdir)/invoke
 summary: $(srcdir)/summary-opts
 
 $(srcdir)/summary-opts: summary-opts.def $(OPTTPL)
-	$(run_ag) summary-opts.def
+	$(AM_V_GEN)$(run_ag) summary-opts.def
 
 ### Nroff
 
 $(srcdir)/summary.1summaryman: $(srcdir)/summary-opts.def $(std_def_list)
-	$(run_ag) -DMAN_SECTION=1summaryman -Tagman-cmd.tpl summary-opts.def
+	$(AM_V_GEN)$(run_ag) -DMAN_SECTION=1summaryman -Tagman-cmd.tpl summary-opts.def
 
 $(srcdir)/summary.man.in: $(srcdir)/summary.1summaryman $(top_srcdir)/sntp/scripts/mansec2subst.sed
 	sed -f $(top_srcdir)/sntp/scripts/mansec2subst.sed $(srcdir)/summary.1summaryman > $(srcdir)/summary.man.in+
@@ -147,7 +147,7 @@ $(srcdir)/summary.man.in: $(srcdir)/summary.1summaryman $(top_srcdir)/sntp/scrip
 ### Mdoc
 
 $(srcdir)/summary.1summarymdoc: $(srcdir)/summary-opts.def $(std_def_list)
-	$(run_ag) -DMAN_SECTION=1summarymdoc -Tagmdoc-cmd.tpl summary-opts.def
+	$(AM_V_GEN)$(run_ag) -DMAN_SECTION=1summarymdoc -Tagmdoc-cmd.tpl summary-opts.def
 
 $(srcdir)/summary.mdoc.in: $(srcdir)/summary.1summarymdoc $(top_srcdir)/sntp/scripts/mansec2subst.sed
 	sed -f $(top_srcdir)/sntp/scripts/mansec2subst.sed $(srcdir)/summary.1summarymdoc > $(srcdir)/summary.mdoc.in+
@@ -165,11 +165,11 @@ $(srcdir)/invoke-summary.menu: $(srcdir)/invoke-summary.texi
 	@: do-nothing action to avoid default SCCS get, .menu built with .texi
 
 $(srcdir)/invoke-summary.texi: summary-opts $(srcdir)/summary-opts.def $(std_def_list)
-	$(run_ag) -Tagtexi-cmd.tpl -DLEVEL=section summary-opts.def
+	$(AM_V_GEN)$(run_ag) -Tagtexi-cmd.tpl -DLEVEL=section summary-opts.def
 	$(top_srcdir)/scripts/build/check--help $@
 
 ### HTML
 
-$(srcdir)/summary.html: $(srcdir)/invoke-summary.menu $(srcdir)/invoke-summary.texi $(srcdir)/summary.texi $(top_srcdir)/sntp/include/version.texi
+$(srcdir)/summary.html: $(srcdir)/invoke-summary.texi $(srcdir)/summary.texi $(top_srcdir)/sntp/include/version.texi
 	cd $(srcdir) && ( makeinfo --force --html --no-split -I ../sntp -o summary.html summary.texi || true )
 

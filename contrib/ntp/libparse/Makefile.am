@@ -1,6 +1,7 @@
 NULL=
 BUILT_SOURCES = $(VPHACK) info_trimble.c $(VPHACK_AFTER)
 CLEANFILES =
+DISTCLEANFILES =
 noinst_LIBRARIES = @MAKE_LIBPARSE@ @MAKE_LIBPARSE_KERNEL@
 EXTRA_LIBRARIES = libparse.a libparse_kernel.a
 EXTRA_PROGRAMS = parsestreams parsesolaris
@@ -27,10 +28,10 @@ VPHACK_AFTER=
 endif
 
 vphack:
-	test -e info_trimble.c || ln -s $(srcdir)/info_trimble.c .
+	$(AM_V_at)test -e info_trimble.c || ln -s $(srcdir)/info_trimble.c .
 
 vphack_after:
-	test -L info_trimble.c || ( \
+	$(AM_V_at)test -L info_trimble.c || ( \
 		mv info_trimble.c $(srcdir)/info_trimble.c && \
 		ln -s $(srcdir)/info_trimble.c . \
 		)
@@ -174,6 +175,6 @@ sys/systm.h:
 check-libparse: $(noinst_LIBRARIES)
 	@: do-nothing action to avoid default SCCS get
 
-include $(top_srcdir)/sntp/check-libntp.mf
+include $(top_srcdir)/check-libntp.mf
 include $(top_srcdir)/depsver.mf
 include $(top_srcdir)/includes.mf

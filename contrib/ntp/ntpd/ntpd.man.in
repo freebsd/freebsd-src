@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH ntpd @NTPD_MS@ "23 Jun 2020" "4.2.8p15" "User Commands"
+.TH ntpd @NTPD_MS@ "31 May 2023" "4.2.8p16" "User Commands"
 .\"
 .\" EDIT THIS FILE WITH CAUTION (in-mem file)
 .\"
-.\" It has been AutoGen-ed June 23, 2020 at 02:20:39 AM by AutoGen 5.18.5
+.\" It has been AutoGen-ed May 31, 2023 at 02:49:42 PM by AutoGen 5.18.16
 .\" From the definitions ntpd-opts.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -979,7 +979,7 @@ RFC5908
 .SH "AUTHORS"
 The University of Delaware and Network Time Foundation
 .SH "COPYRIGHT"
-Copyright (C) 1992-2020 The University of Delaware and Network Time Foundation all rights reserved.
+Copyright (C) 1992-2023 The University of Delaware and Network Time Foundation all rights reserved.
 This program is released under the terms of the NTP license, <http://ntp.org/license>.
 .SH BUGS
 The
@@ -995,7 +995,7 @@ mind.
 .sp \n(Ppu
 .ne 2
 
-Please send bug reports to: http://bugs.ntp.org, bugs@ntp.org
+Please send bug reports to: https://bugs.ntp.org, bugs@ntp.org
 .SH NOTES
 Portions of this document came from FreeBSD.
 .sp \n(Ppu

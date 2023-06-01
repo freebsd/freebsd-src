@@ -183,10 +183,11 @@ leapsec_load(
 	void *         farg,
 	int            use_build_limit)
 {
-	char   *cp, *ep, linebuf[50];
-	vint64 ttime, limit;
-	long   taiof;
-	struct calendar build;
+	char const	*ep;
+	char		*cp, *endp, linebuf[50];
+	vint64		ttime, limit;
+	long		taiof;
+	struct calendar	build;
 
 	leapsec_clear(pt);
 	if (use_build_limit && ntpcal_get_build_date(&build)) {
@@ -220,9 +221,9 @@ leapsec_load(
 			if (parsefail(cp, ep))
 				goto fail_read;
 			cp = skipws(ep);
-			taiof = strtol(cp, &ep, 10);
-			if (   parsefail(cp, ep)
-			    || taiof > SHRT_MAX || taiof < SHRT_MIN)
+			taiof = strtol(cp, &endp, 10);
+			if (   parsefail(cp, endp)
+			    || taiof > INT16_MAX || taiof < INT16_MIN)
 				goto fail_read;
 			if (ucmpv64(&ttime, &limit) >= 0) {
 				if (!leapsec_raw(pt, &ttime,

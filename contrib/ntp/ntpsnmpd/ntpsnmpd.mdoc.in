@@ -1,9 +1,9 @@
-.Dd June 23 2020
+.Dd May 31 2023
 .Dt NTPSNMPD @NTPSNMPD_MS@ User Commands
 .Os
 .\"  EDIT THIS FILE WITH CAUTION  (ntpsnmpd-opts.mdoc)
 .\"
-.\"  It has been AutoGen-ed  June 23, 2020 at 02:20:59 AM by AutoGen 5.18.5
+.\"  It has been AutoGen-ed  May 31, 2023 at 02:50:11 PM by AutoGen 5.18.16
 .\"  From the definitions    ntpsnmpd-opts.def
 .\"  and the template file   agmdoc-cmd.tpl
 .Sh NAME
@@ -110,10 +110,10 @@ it to autogen\-users@lists.sourceforge.net.  Thank you.
 .Sh AUTHORS
 .An "Heiko Gerstung"
 .Sh "COPYRIGHT"
-Copyright (C) 1992\-2020 The University of Delaware and Network Time Foundation all rights reserved.
+Copyright (C) 1992\-2023 The University of Delaware and Network Time Foundation all rights reserved.
 This program is released under the terms of the NTP license, <http://ntp.org/license>.
 .Sh "BUGS"
-Please send bug reports to: http://bugs.ntp.org, bugs@ntp.org
+Please send bug reports to: https://bugs.ntp.org, bugs@ntp.org
 .Sh NOTES
 The following objects are currently supported:
 .Pp

@@ -171,9 +171,7 @@ evutil_secure_rng_init(void)
 	int val;
 
 	ARC4_LOCK_();
-	if (!arc4_seeded_ok)
-		arc4_stir();
-	val = arc4_seeded_ok ? 0 : -1;
+	val = (!arc4_stir()) ? 0 : -1;
 	ARC4_UNLOCK_();
 	return val;
 }
@@ -192,10 +190,12 @@ evutil_secure_rng_get_bytes(void *buf, size_t n)
 	ev_arc4random_buf(buf, n);
 }
 
+#if !defined(EVENT__HAVE_ARC4RANDOM) || defined(EVENT__HAVE_ARC4RANDOM_ADDRANDOM)
 void
 evutil_secure_rng_add_bytes(const char *buf, size_t n)
 {
 }
+#endif
 
 void
 evutil_free_secure_rng_globals_(void)

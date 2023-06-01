@@ -13,7 +13,7 @@
  *
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2018 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -64,8 +64,8 @@ optionBooleanVal(tOptions * opts, tOptDesc * od)
         long  val = strtol(od->optArg.argString, &pz, 0);
         if ((val != 0) || (*pz != NUL))
             break;
-        /* FALLTHROUGH */
     }
+    /* FALLTHROUGH */
     case 'N':
     case 'n':
     case 'F':

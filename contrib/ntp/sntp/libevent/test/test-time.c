@@ -25,6 +25,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "event2/event-config.h"
+#include "util-internal.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -41,7 +42,6 @@
 #include "event2/event.h"
 #include "event2/event_compat.h"
 #include "event2/event_struct.h"
-#include "util-internal.h"
 
 int called = 0;
 
@@ -81,8 +81,10 @@ time_cb(evutil_socket_t fd, short event, void *arg)
 int
 main(int argc, char **argv)
 {
+	struct event_base *base;
 	struct timeval tv;
 	int i;
+
 #ifdef _WIN32
 	WORD wVersionRequested;
 	WSADATA wsaData;
@@ -94,24 +96,28 @@ main(int argc, char **argv)
 
 	evutil_weakrand_seed_(&weakrand_state, 0);
 
-	/* Initalize the event library */
-	event_init();
+	if (getenv("EVENT_DEBUG_LOGGING_ALL")) {
+		event_enable_debug_logging(EVENT_DBG_ALL);
+	}
+
+	base = event_base_new();
 
 	for (i = 0; i < NEVENT; i++) {
-		ev[i] = malloc(sizeof(struct event));
-		assert(ev[i] != NULL);
-
-		/* Initalize one event */
-		evtimer_set(ev[i], time_cb, ev[i]);
+		ev[i] = evtimer_new(base, time_cb, event_self_cbarg());
 		tv.tv_sec = 0;
 		tv.tv_usec = rand_int(50000);
 		evtimer_add(ev[i], &tv);
 	}
 
-	event_dispatch();
+	i = event_base_dispatch(base);
 
+	printf("event_base_dispatch=%d, called=%d, EVENT=%d\n",
+		i, called, NEVENT);
 
-	printf("%d, %d\n", called, NEVENT);
-	return (called < NEVENT);
+	if (i == 1 && called >= NEVENT) {
+		return EXIT_SUCCESS;
+	} else {
+		return EXIT_FAILURE;
+	}
 }
 

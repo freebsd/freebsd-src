@@ -1,6 +1,6 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <html>
-<!-- Created by GNU Texinfo 6.5, http://www.gnu.org/software/texinfo/ -->
+<!-- Created by GNU Texinfo 6.6, http://www.gnu.org/software/texinfo/ -->
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <title>NTP Configuration File User&rsquo;s Manual</title>
@@ -16,23 +16,14 @@
 <!--
 a.summary-letter {text-decoration: none}
 blockquote.indentedblock {margin-right: 0em}
-blockquote.smallindentedblock {margin-right: 0em; font-size: smaller}
-blockquote.smallquotation {font-size: smaller}
 div.display {margin-left: 3.2em}
 div.example {margin-left: 3.2em}
 div.lisp {margin-left: 3.2em}
-div.smalldisplay {margin-left: 3.2em}
-div.smallexample {margin-left: 3.2em}
-div.smalllisp {margin-left: 3.2em}
 kbd {font-style: oblique}
 pre.display {font-family: inherit}
 pre.format {font-family: inherit}
 pre.menu-comment {font-family: serif}
 pre.menu-preformatted {font-family: serif}
-pre.smalldisplay {font-family: inherit; font-size: smaller}
-pre.smallexample {font-size: smaller}
-pre.smallformat {font-family: inherit; font-size: smaller}
-pre.smalllisp {font-size: smaller}
 span.nolinebreak {white-space: nowrap}
 span.roman {font-family: initial; font-weight: normal}
 span.sansserif {font-family: sans-serif; font-weight: normal}
@@ -50,63 +41,57 @@ ul.no-bullet {list-style: none}
 
 
 
-<a name="Top"></a>
-<div class="header">
+<span id="Top"></span><div class="header">
 <p>
 Next: <a href="#ntp_002econf-Description" accesskey="n" rel="next">ntp.conf Description</a>, Previous: <a href="dir.html#Top" accesskey="p" rel="prev">(dir)</a>, Up: <a href="dir.html#Top" accesskey="u" rel="up">(dir)</a> &nbsp; </p>
 </div>
-<a name="NTP_0027s-Configuration-File-User-Manual"></a>
-<h1 class="top">NTP&rsquo;s Configuration File User Manual</h1>
+<span id="NTP_0027s-Configuration-File-User-Manual"></span><h1 class="top">NTP&rsquo;s Configuration File User Manual</h1>
 
 <p>This document describes the configuration file for the NTP Project&rsquo;s
 <code>ntpd</code> program.
 </p>
-<p>This document applies to version 4.2.8p15 of <code>ntp.conf</code>.
+<p>This document applies to version 4.2.8p16 of <code>ntp.conf</code>.
 </p>
-<a name="SEC_Overview"></a>
+<span id="SEC_Overview"></span>
 <h2 class="shortcontents-heading">Short Table of Contents</h2>
 
 <div class="shortcontents">
 <ul class="no-bullet">
-<li><a name="stoc-Description" href="#toc-Description">1 Description</a></li>
+<li><a id="stoc-Description" href="#toc-Description">1 Description</a></li>
 </ul>
 </div>
 
 
 <table class="menu" border="0" cellspacing="0">
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002econf-Description" accesskey="1">ntp.conf Description</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002econf-Description" accesskey="1">ntp.conf Description</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002econf-Notes" accesskey="2">ntp.conf Notes</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002econf-Notes" accesskey="2">ntp.conf Notes</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
 </table>
 
 <hr>
-<a name="ntp_002econf-Description"></a>
-<div class="header">
+<span id="ntp_002econf-Description"></span><div class="header">
 <p>
 Previous: <a href="#Top" accesskey="p" rel="prev">Top</a>, Up: <a href="#Top" accesskey="u" rel="up">Top</a> &nbsp; </p>
 </div>
-<a name="Description"></a>
-<h2 class="chapter">1 Description</h2>
+<span id="Description"></span><h2 class="chapter">1 Description</h2>
 
 <p>The behavior of  <code>ntpd</code> can be changed by a configuration file,
 by default <code>ntp.conf</code>.
 </p>
 <table class="menu" border="0" cellspacing="0">
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002econf-Notes" accesskey="1">ntp.conf Notes</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002econf-Notes" accesskey="1">Notes about ntp.conf</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
 </table>
 
 <hr>
-<a name="ntp_002econf-Notes"></a>
-<div class="header">
+<span id="ntp_002econf-Notes"></span><div class="header">
 <p>
 Previous: <a href="#ntp_002econf-Bugs" accesskey="p" rel="prev">ntp.conf Bugs</a>, Up: <a href="#ntp_002econf-Description" accesskey="u" rel="up">ntp.conf Description</a> &nbsp; </p>
 </div>
-<a name="Notes-about-ntp_002econf"></a>
-<h3 class="section">1.1 Notes about ntp.conf</h3>
-<a name="index-ntp_002econf"></a>
-<a name="index-Network-Time-Protocol-_0028NTP_0029-daemon-configuration-file-format"></a>
+<span id="Notes-about-ntp_002econf"></span><h3 class="section">1.1 Notes about ntp.conf</h3>
+<span id="index-ntp_002econf"></span>
+<span id="index-Network-Time-Protocol-_0028NTP_0029-daemon-configuration-file-format"></span>
 
 
 
@@ -173,38 +158,36 @@ or
 <code>manycastclient</code>
 commands.
 </p><table class="menu" border="0" cellspacing="0">
-<tr><td align="left" valign="top">&bull; <a href="#Configuration-Support" accesskey="1">Configuration Support</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#Configuration-Support" accesskey="1">Configuration Support</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#Authentication-Support" accesskey="2">Authentication Support</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#Authentication-Support" accesskey="2">Authentication Support</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#Monitoring-Support" accesskey="3">Monitoring Support</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#Monitoring-Support" accesskey="3">Monitoring Support</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#Access-Control-Support" accesskey="4">Access Control Support</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#Access-Control-Support" accesskey="4">Access Control Support</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#Automatic-NTP-Configuration-Options" accesskey="5">Automatic NTP Configuration Options</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#Automatic-NTP-Configuration-Options" accesskey="5">Automatic NTP Configuration Options</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#Reference-Clock-Support" accesskey="6">Reference Clock Support</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#Reference-Clock-Support" accesskey="6">Reference Clock Support</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#Miscellaneous-Options" accesskey="7">Miscellaneous Options</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#Miscellaneous-Options" accesskey="7">Miscellaneous Options</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002econf-Files" accesskey="8">ntp.conf Files</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002econf-Files" accesskey="8">ntp.conf Files</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002econf-See-Also" accesskey="9">ntp.conf See Also</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002econf-See-Also" accesskey="9">ntp.conf See Also</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002econf-Bugs">ntp.conf Bugs</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002econf-Bugs">ntp.conf Bugs</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; :</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; ntp.conf Notes</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
 </table>
 
 <hr>
-<a name="Configuration-Support"></a>
-<div class="header">
+<span id="Configuration-Support"></span><div class="header">
 <p>
 Next: <a href="#Authentication-Support" accesskey="n" rel="next">Authentication Support</a>, Up: <a href="#ntp_002econf-Notes" accesskey="u" rel="up">ntp.conf Notes</a> &nbsp; </p>
 </div>
-<a name="Configuration-Support-1"></a>
-<h4 class="subsection">1.1.1 Configuration Support</h4>
+<span id="Configuration-Support-1"></span><h4 class="subsection">1.1.1 Configuration Support</h4>
 <p>Following is a description of the configuration commands in
 NTPv4.
 These commands have the same basic functions as in NTPv3 and
@@ -214,8 +197,7 @@ classes of commands, configuration commands that configure a
 persistent association with a remote server or peer or reference
 clock, and auxiliary commands that specify environmental variables
 that control various related operations.
-</p><a name="Configuration-Commands"></a>
-<h4 class="subsubsection">1.1.1.1 Configuration Commands</h4>
+</p><span id="Configuration-Commands"></span><h4 class="subsubsection">1.1.1.1 Configuration Commands</h4>
 <p>The various modes are determined by the command keyword and the
 type of the required IP address.
 Addresses are classed by type as
@@ -496,8 +478,7 @@ modes, this flag puts a random number in the packet&rsquo;s transmit timestamp.
 </p>
 </dd>
 </dl>
-<a name="Auxiliary-Commands"></a>
-<h4 class="subsubsection">1.1.1.2 Auxiliary Commands</h4>
+<span id="Auxiliary-Commands"></span><h4 class="subsubsection">1.1.1.2 Auxiliary Commands</h4>
 <dl compact="compact">
 <dt><code>broadcastclient</code></dt>
 <dd><p>This command enables reception of broadcast server messages to
@@ -558,13 +539,11 @@ is 5.
 </p></dd>
 </dl>
 <hr>
-<a name="Authentication-Support"></a>
-<div class="header">
+<span id="Authentication-Support"></span><div class="header">
 <p>
 Next: <a href="#Monitoring-Support" accesskey="n" rel="next">Monitoring Support</a>, Previous: <a href="#Configuration-Support" accesskey="p" rel="prev">Configuration Support</a>, Up: <a href="#ntp_002econf-Notes" accesskey="u" rel="up">ntp.conf Notes</a> &nbsp; </p>
 </div>
-<a name="Authentication-Support-1"></a>
-<h4 class="subsection">1.1.2 Authentication Support</h4>
+<span id="Authentication-Support-1"></span><h4 class="subsection">1.1.2 Authentication Support</h4>
 <p>Authentication support allows the NTP client to verify that the
 server is in fact known and trusted and not an intruder intending
 accidentally or on purpose to masquerade as that server.
@@ -698,8 +677,7 @@ cryptography are summarized below;
 further details are in the briefings, papers
 and reports at the NTP project page linked from
 <code>http://www.ntp.org/</code>.
-</p><a name="Symmetric_002dKey-Cryptography"></a>
-<h4 class="subsubsection">1.1.2.1 Symmetric-Key Cryptography</h4>
+</p><span id="Symmetric_002dKey-Cryptography"></span><h4 class="subsubsection">1.1.2.1 Symmetric-Key Cryptography</h4>
 <p>The original RFC-1305 specification allows any one of possibly
 65,535 keys, each distinguished by a 32-bit key identifier, to
 authenticate an association.
@@ -747,8 +725,7 @@ utility, while the
 command selects the key used as the password for the
 <code>ntpq(1ntpqmdoc)</code>
 utility.
-</p><a name="Public-Key-Cryptography"></a>
-<h4 class="subsubsection">1.1.2.2 Public Key Cryptography</h4>
+</p><span id="Public-Key-Cryptography"></span><h4 class="subsubsection">1.1.2.2 Public Key Cryptography</h4>
 <p>NTPv4 supports the original NTPv3 symmetric key scheme
 described in RFC-1305 and in addition the Autokey protocol,
 which is based on public key cryptography.
@@ -809,8 +786,7 @@ This requires the configuration file in all hosts to be
 engineered so that, even under anticipated failure conditions,
 the NTP subnet will form such that every group host can find
 a trail to at least one trusted host.
-</p><a name="Naming-and-Addressing"></a>
-<h4 class="subsubsection">1.1.2.3 Naming and Addressing</h4>
+</p><span id="Naming-and-Addressing"></span><h4 class="subsubsection">1.1.2.3 Naming and Addressing</h4>
 <p>It is important to note that Autokey does not use DNS to
 resolve addresses, since DNS can&rsquo;t be completely trusted
 until the name servers have synchronized clocks.
@@ -842,8 +818,7 @@ For this reason operation
 with network address translation schemes is not possible.
 This reflects the intended robust security model where government
 and corporate NTP servers are operated outside firewall perimeters.
-</p><a name="Operation"></a>
-<h4 class="subsubsection">1.1.2.4 Operation</h4>
+</p><span id="Operation"></span><h4 class="subsubsection">1.1.2.4 Operation</h4>
 <p>A specific combination of authentication scheme (none,
 symmetric key, public key) and identity scheme is called
 a cryptotype, although not all combinations are compatible.
@@ -932,8 +907,7 @@ servers (or the same server, although that might not be useful).
 But, wise security policy might preclude some cryptotype
 combinations; for instance, running an identity scheme
 with one server and no authentication with another might not be wise.
-</p><a name="Key-Management"></a>
-<h4 class="subsubsection">1.1.2.5 Key Management</h4>
+</p><span id="Key-Management"></span><h4 class="subsubsection">1.1.2.5 Key Management</h4>
 <p>The cryptographic values used by the Autokey protocol are
 incorporated as a set of files generated by the
 <code>ntp-keygen(1ntpkeygenmdoc)</code>
@@ -968,8 +942,7 @@ however, an extended key usage field for a trusted host must
 contain the value
 <code>trustRoot</code>;.
 Other extension fields are ignored.
-</p><a name="Authentication-Commands"></a>
-<h4 class="subsubsection">1.1.2.6 Authentication Commands</h4>
+</p><span id="Authentication-Commands"></span><h4 class="subsubsection">1.1.2.6 Authentication Commands</h4>
 <dl compact="compact">
 <dt><code>autokey</code> <code>[<kbd>logsec</kbd>]</code></dt>
 <dd><p>Specifies the interval between regenerations of the session key
@@ -1129,8 +1102,7 @@ arguments are 32-bit unsigned
 integers with values from 1 to 65,535.
 </p></dd>
 </dl>
-<a name="Error-Codes"></a>
-<h4 class="subsubsection">1.1.2.7 Error Codes</h4>
+<span id="Error-Codes"></span><h4 class="subsubsection">1.1.2.7 Error Codes</h4>
 <p>The following error codes are reported via the NTP control
 and monitoring protocol trap mechanism.
 </p><dl compact="compact">
@@ -1197,13 +1169,11 @@ The identity key is missing, corrupt or bogus.
 </p></dd>
 </dl>
 <hr>
-<a name="Monitoring-Support"></a>
-<div class="header">
+<span id="Monitoring-Support"></span><div class="header">
 <p>
 Next: <a href="#Access-Control-Support" accesskey="n" rel="next">Access Control Support</a>, Previous: <a href="#Authentication-Support" accesskey="p" rel="prev">Authentication Support</a>, Up: <a href="#ntp_002econf-Notes" accesskey="u" rel="up">ntp.conf Notes</a> &nbsp; </p>
 </div>
-<a name="Monitoring-Support-1"></a>
-<h4 class="subsection">1.1.3 Monitoring Support</h4>
+<span id="Monitoring-Support-1"></span><h4 class="subsection">1.1.3 Monitoring Support</h4>
 <p><code>ntpd(1ntpdmdoc)</code>
 includes a comprehensive monitoring facility suitable
 for continuous, long term recording of server and client
@@ -1223,8 +1193,7 @@ these facilities and
 <code>cron(8)</code>
 jobs, the data can be
 automatically summarized and archived for retrospective analysis.
-</p><a name="Monitoring-Commands"></a>
-<h4 class="subsubsection">1.1.3.1 Monitoring Commands</h4>
+</p><span id="Monitoring-Commands"></span><h4 class="subsubsection">1.1.3.1 Monitoring Commands</h4>
 <dl compact="compact">
 <dt><code>statistics</code> <kbd>name</kbd> <kbd>...</kbd></dt>
 <dd><p>Enables writing of statistics records.
@@ -1581,13 +1550,11 @@ allows the current file to be accessed by a constant name.
 </dd>
 </dl>
 <hr>
-<a name="Access-Control-Support"></a>
-<div class="header">
+<span id="Access-Control-Support"></span><div class="header">
 <p>
 Next: <a href="#Automatic-NTP-Configuration-Options" accesskey="n" rel="next">Automatic NTP Configuration Options</a>, Previous: <a href="#Monitoring-Support" accesskey="p" rel="prev">Monitoring Support</a>, Up: <a href="#ntp_002econf-Notes" accesskey="u" rel="up">ntp.conf Notes</a> &nbsp; </p>
 </div>
-<a name="Access-Control-Support-1"></a>
-<h4 class="subsection">1.1.4 Access Control Support</h4>
+<span id="Access-Control-Support-1"></span><h4 class="subsection">1.1.4 Access Control Support</h4>
 <p>The
 <code>ntpd(1ntpdmdoc)</code>
 daemon implements a general purpose address/mask based restriction
@@ -1636,8 +1603,7 @@ an indefinite period.
 When a client or network is denied access
 for an indefinite period, the only way at present to remove
 the restrictions is by restarting the server.
-</p><a name="The-Kiss_002dof_002dDeath-Packet"></a>
-<h4 class="subsubsection">1.1.4.1 The Kiss-of-Death Packet</h4>
+</p><span id="The-Kiss_002dof_002dDeath-Packet"></span><h4 class="subsubsection">1.1.4.1 The Kiss-of-Death Packet</h4>
 <p>Ordinarily, packets denied service are simply dropped with no
 further action except incrementing statistics counters.
 Sometimes a
@@ -1672,8 +1638,7 @@ to restart the protocol at both the client and server.
 This
 happens automatically at the client when the association times out.
 It will happen at the server only if the server operator cooperates.
-</p><a name="Access-Control-Commands"></a>
-<h4 class="subsubsection">1.1.4.2 Access Control Commands</h4>
+</p><span id="Access-Control-Commands"></span><h4 class="subsubsection">1.1.4.2 Access Control Commands</h4>
 <dl compact="compact">
 <dt><code>discard</code> <code>[<code>average</code> <kbd>avg</kbd>]</code> <code>[<code>minimum</code> <kbd>min</kbd>]</code> <code>[<code>monitor</code> <kbd>prob</kbd>]</code></dt>
 <dd><p>Set the parameters of the
@@ -1683,17 +1648,27 @@ client abuse.
 The
 <code>average</code>
 subcommand specifies the minimum average packet
-spacing, while the
+spacing in log2 seconds, defaulting to 3 (8s), while the
 <code>minimum</code>
-subcommand specifies the minimum packet spacing.
+subcommand specifies the minimum packet spacing
+in seconds, defaulting to 2.
 Packets that violate these minima are discarded
 and a kiss-o&rsquo;-death packet returned if enabled.
-The default
-minimum average and minimum are 5 and 2, respectively.
 The
 <code>monitor</code>
-subcommand specifies the probability of discard
-for packets that overflow the rate-control window.
+subcommand indirectly specifies the probability of
+replacing the oldest entry from the monitor (MRU)
+list of recent requests used to enforce rate controls,
+when that list is at its maximum size. The probability
+of replacing the oldest entry is the age of that entry
+in seconds divided by the
+<code>monitor</code>
+value, default 3000. For example, if the oldest entry
+in the MRU list represents a request 300 seconds ago,
+by default the probability of replacing it with an
+entry representing the client request being processed
+now is 10%. Conversely, if the oldest entry is more
+than 3000 seconds old, the probability is 100%.
 </p></dd>
 <dt><code>restrict</code> <code>address</code> <code>[<code>mask</code> <kbd>mask</kbd>]</code> <code>[<code>ippeerlimit</code> <kbd>int</kbd>]</code> <code>[<kbd>flag</kbd> <kbd>...</kbd>]</code></dt>
 <dd><p>The
@@ -1888,15 +1863,12 @@ NTP server is unrestricted).
 </p></dd>
 </dl>
 <hr>
-<a name="Automatic-NTP-Configuration-Options"></a>
-<div class="header">
+<span id="Automatic-NTP-Configuration-Options"></span><div class="header">
 <p>
 Next: <a href="#Reference-Clock-Support" accesskey="n" rel="next">Reference Clock Support</a>, Previous: <a href="#Access-Control-Support" accesskey="p" rel="prev">Access Control Support</a>, Up: <a href="#ntp_002econf-Notes" accesskey="u" rel="up">ntp.conf Notes</a> &nbsp; </p>
 </div>
-<a name="Automatic-NTP-Configuration-Options-1"></a>
-<h4 class="subsection">1.1.5 Automatic NTP Configuration Options</h4>
-<a name="Manycasting"></a>
-<h4 class="subsubsection">1.1.5.1 Manycasting</h4>
+<span id="Automatic-NTP-Configuration-Options-1"></span><h4 class="subsection">1.1.5 Automatic NTP Configuration Options</h4>
+<span id="Manycasting"></span><h4 class="subsubsection">1.1.5.1 Manycasting</h4>
 <p>Manycasting is a automatic discovery and configuration paradigm
 new to NTPv4.
 It is intended as a means for a multicast client
@@ -2176,8 +2148,7 @@ the rascals, sets the clock and then departs.
 Servers do not have to be configured in advance and
 all clients throughout the network can have the same
 configuration file.
-</p><a name="Manycast-Interactions-with-Autokey"></a>
-<h4 class="subsubsection">1.1.5.2 Manycast Interactions with Autokey</h4>
+</p><span id="Manycast-Interactions-with-Autokey"></span><h4 class="subsubsection">1.1.5.2 Manycast Interactions with Autokey</h4>
 <p>Each time a manycast client sends a client mode packet
 to a multicast group address, all manycast servers
 in scope generate a reply including the host name
@@ -2207,8 +2178,7 @@ At the same time, the manycast
 scheme starts all over from the beginning and
 the expanding ring shrinks to the minimum and increments
 from there while collecting all servers in scope.
-</p><a name="Broadcast-Options"></a>
-<h4 class="subsubsection">1.1.5.3 Broadcast Options</h4>
+</p><span id="Broadcast-Options"></span><h4 class="subsubsection">1.1.5.3 Broadcast Options</h4>
 <dl compact="compact">
 <dt><code>tos</code> <code>[<code>bcpollbstep</code> <kbd>gate</kbd>]</code></dt>
 <dd><p>This command provides a way to delay,
@@ -2225,8 +2195,7 @@ This value defaults to 0, but can be changed
 to any number of poll intervals between 0 and 4.
 </p></dd>
 </dl>
-<a name="Manycast-Options"></a>
-<h4 class="subsubsection">1.1.5.4 Manycast Options</h4>
+<span id="Manycast-Options"></span><h4 class="subsubsection">1.1.5.4 Manycast Options</h4>
 <dl compact="compact">
 <dt><code>tos</code> <code>[<code>ceiling</code> <kbd>ceiling</kbd> | <code>cohort</code> <code>{</code> <code>0</code> | <code>1</code> <code>}</code> | <code>floor</code> <kbd>floor</kbd> | <code>minclock</code> <kbd>minclock</kbd> | <code>minsane</code> <kbd>minsane</kbd>]</code></dt>
 <dd><p>This command affects the clock selection and clustering
@@ -2299,13 +2268,11 @@ multiples of 32 starting at 31.
 </p></dd>
 </dl>
 <hr>
-<a name="Reference-Clock-Support"></a>
-<div class="header">
+<span id="Reference-Clock-Support"></span><div class="header">
 <p>
 Next: <a href="#Miscellaneous-Options" accesskey="n" rel="next">Miscellaneous Options</a>, Previous: <a href="#Automatic-NTP-Configuration-Options" accesskey="p" rel="prev">Automatic NTP Configuration Options</a>, Up: <a href="#ntp_002econf-Notes" accesskey="u" rel="up">ntp.conf Notes</a> &nbsp; </p>
 </div>
-<a name="Reference-Clock-Support-1"></a>
-<h4 class="subsection">1.1.6 Reference Clock Support</h4>
+<span id="Reference-Clock-Support-1"></span><h4 class="subsection">1.1.6 Reference Clock Support</h4>
 <p>The NTP Version 4 daemon supports some three dozen different radio,
 satellite and modem reference clocks plus a special pseudo-clock
 used for backup or when no other clock source is available.
@@ -2460,8 +2427,7 @@ The
 option is used for this purpose.
 Except where noted,
 these options apply to all clock drivers.
-</p><a name="Reference-Clock-Commands"></a>
-<h4 class="subsubsection">1.1.6.1 Reference Clock Commands</h4>
+</p><span id="Reference-Clock-Commands"></span><h4 class="subsubsection">1.1.6.1 Reference Clock Commands</h4>
 <dl compact="compact">
 <dt><code>server</code> <code>127.127.</code><kbd>t</kbd>.<kbd>u</kbd> <code>[<code>prefer</code>]</code> <code>[<code>mode</code> <kbd>int</kbd>]</code> <code>[<code>minpoll</code> <kbd>int</kbd>]</code> <code>[<code>maxpoll</code> <kbd>int</kbd>]</code></dt>
 <dd><p>This command can be used to configure reference clocks in
@@ -2609,13 +2575,11 @@ command can be found in
 </dd>
 </dl>
 <hr>
-<a name="Miscellaneous-Options"></a>
-<div class="header">
+<span id="Miscellaneous-Options"></span><div class="header">
 <p>
 Next: <a href="#ntp_002econf-Files" accesskey="n" rel="next">ntp.conf Files</a>, Previous: <a href="#Reference-Clock-Support" accesskey="p" rel="prev">Reference Clock Support</a>, Up: <a href="#ntp_002econf-Notes" accesskey="u" rel="up">ntp.conf Notes</a> &nbsp; </p>
 </div>
-<a name="Miscellaneous-Options-1"></a>
-<h4 class="subsection">1.1.7 Miscellaneous Options</h4>
+<span id="Miscellaneous-Options-1"></span><h4 class="subsection">1.1.7 Miscellaneous Options</h4>
 <dl compact="compact">
 <dt><code>broadcastdelay</code> <kbd>seconds</kbd></dt>
 <dd><p>The broadcast and multicast modes require a special calibration
@@ -3087,7 +3051,7 @@ one telephone number used to dial the telephone JJY service.
 The Hayes command ATDT is normally prepended to the number.
 The number can contain other modem control codes as well.
 </p></dd>
-<dt><code>pollskewlist</code> <code>[<kbd>poll</kbd> <kbd>value</kbd> | <kbd>value</kbd>]</code> <kbd>...</kbd> <code>[<code>default</code> <kbd>value</kbd> | <kbd>value</kbd>]</code></dt>
+<dt><code>pollskewlist</code> <code>[<kbd>poll</kbd> <kbd>early</kbd> <kbd>late</kbd>]</code> <kbd>...</kbd> <code>[<code>default</code> <kbd>early</kbd> <kbd>late</kbd>]</code></dt>
 <dd><p>Enable skewing of our poll requests to our servers.
 <kbd>poll</kbd>
 is a number between 3 and 17 inclusive, identifying a specific poll interval.
@@ -3098,9 +3062,11 @@ a poll interval of 17 corresponds to
 131,072 seconds, or about a day and a half.
 The next two numbers must be between 0 and one-half of the poll interval,
 inclusive.
-The first number specifies how early the poll may start,
+Ar early
+specifies how early the poll may start,
 while
-the second number specifies how late the poll may be delayed.
+Ar late
+specifies how late the poll may be delayed.
 With no arguments, internally specified default values are chosen.
 </p></dd>
 <dt><code>reset</code> <code>[<code>allpeers</code>]</code> <code>[<code>auth</code>]</code> <code>[<code>ctl</code>]</code> <code>[<code>io</code>]</code> <code>[<code>mem</code>]</code> <code>[<code>sys</code>]</code> <code>[<code>timer</code>]</code></dt>
@@ -3357,24 +3323,22 @@ using the <code>agtexi-cmd</code> template and the option descriptions for the <
 This software is released under the NTP license, &lt;http://ntp.org/license&gt;.
 </p>
 <table class="menu" border="0" cellspacing="0">
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002econf-Files" accesskey="1">ntp.conf Files</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Files
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002econf-Files" accesskey="1">ntp.conf Files</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Files
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002econf-See-Also" accesskey="2">ntp.conf See Also</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">See Also
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002econf-See-Also" accesskey="2">ntp.conf See Also</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">See Also
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002econf-Bugs" accesskey="3">ntp.conf Bugs</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Bugs
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002econf-Bugs" accesskey="3">ntp.conf Bugs</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Bugs
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#ntp_002econf-Notes" accesskey="4">ntp.conf Notes</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Notes
+<tr><td align="left" valign="top">&bull; <a href="#ntp_002econf-Notes" accesskey="4">ntp.conf Notes</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Notes
 </td></tr>
 </table>
 
 <hr>
-<a name="ntp_002econf-Files"></a>
-<div class="header">
+<span id="ntp_002econf-Files"></span><div class="header">
 <p>
 Next: <a href="#ntp_002econf-See-Also" accesskey="n" rel="next">ntp.conf See Also</a>, Previous: <a href="#Miscellaneous-Options" accesskey="p" rel="prev">Miscellaneous Options</a>, Up: <a href="#ntp_002econf-Notes" accesskey="u" rel="up">ntp.conf Notes</a> &nbsp; </p>
 </div>
-<a name="ntp_002econf-Files-1"></a>
-<h4 class="subsection">1.1.8 ntp.conf Files</h4>
+<span id="ntp_002econf-Files-1"></span><h4 class="subsection">1.1.8 ntp.conf Files</h4>
 <dl compact="compact">
 <dt><samp>/etc/ntp.conf</samp></dt>
 <dd><p>the default name of the configuration file
@@ -3393,13 +3357,11 @@ Next: <a href="#ntp_002econf-See-Also" accesskey="n" rel="next">ntp.conf See Als
 </p></dd>
 </dl>
 <hr>
-<a name="ntp_002econf-See-Also"></a>
-<div class="header">
+<span id="ntp_002econf-See-Also"></span><div class="header">
 <p>
 Next: <a href="#ntp_002econf-Bugs" accesskey="n" rel="next">ntp.conf Bugs</a>, Previous: <a href="#ntp_002econf-Files" accesskey="p" rel="prev">ntp.conf Files</a>, Up: <a href="#ntp_002econf-Notes" accesskey="u" rel="up">ntp.conf Notes</a> &nbsp; </p>
 </div>
-<a name="ntp_002econf-See-Also-1"></a>
-<h4 class="subsection">1.1.9 ntp.conf See Also</h4>
+<span id="ntp_002econf-See-Also-1"></span><h4 class="subsection">1.1.9 ntp.conf See Also</h4>
 <p><code>ntpd(1ntpdmdoc)</code>,
 <code>ntpdc(1ntpdcmdoc)</code>,
 <code>ntpq(1ntpqmdoc)</code>
@@ -3415,13 +3377,11 @@ A snapshot of this documentation is available in HTML format in
 <br>
 <p>David L. Mills, <em>Network Time Protocol (Version 4)</em>, RFC5905
 </p><hr>
-<a name="ntp_002econf-Bugs"></a>
-<div class="header">
+<span id="ntp_002econf-Bugs"></span><div class="header">
 <p>
 Previous: <a href="#ntp_002econf-See-Also" accesskey="p" rel="prev">ntp.conf See Also</a>, Up: <a href="#ntp_002econf-Notes" accesskey="u" rel="up">ntp.conf Notes</a> &nbsp; </p>
 </div>
-<a name="ntp_002econf-Bugs-1"></a>
-<h4 class="subsection">1.1.10 ntp.conf Bugs</h4>
+<span id="ntp_002econf-Bugs-1"></span><h4 class="subsection">1.1.10 ntp.conf Bugs</h4>
 <p>The syntax checking is not picky; some combinations of
 ridiculous and even hilarious options and modes may not be
 detected.
@@ -3437,8 +3397,7 @@ services when they become universally available.
 <p>
  &nbsp; </p>
 </div>
-<a name="ntp_002econf-Notes-1"></a>
-<h4 class="subsection">1.1.11 ntp.conf Notes</h4>
+<span id="ntp_002econf-Notes-1"></span><h4 class="subsection">1.1.11 ntp.conf Notes</h4>
 <p>This document was derived from FreeBSD.
 </p><hr>
 

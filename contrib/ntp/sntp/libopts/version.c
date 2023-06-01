@@ -10,7 +10,7 @@
 /*
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2018 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -90,7 +90,7 @@ emit_copy_full(tOptions * o, FILE * fp)
 
     else
         emit_first_line(fp, o->pzUsageTitle, NULL, NULL);
-    
+
     if (HAS_pzPkgDataDir(o) && (o->pzPackager != NULL)) {
         fputc(NL, fp);
         fputs(o->pzPackager, fp);
@@ -119,7 +119,7 @@ emit_copy_note(tOptions * opts, FILE * fp)
 
     fputc(NL, fp);
     fprintf(fp, zao_ver_fmt, optionVersion());
-    
+
     if (HAS_pzPkgDataDir(opts) && (opts->pzPackager != NULL)) {
         fputc(NL, fp);
         fputs(opts->pzPackager, fp);
@@ -153,7 +153,10 @@ print_ver(tOptions * opts, tOptDesc * od, FILE * fp, bool call_exit)
 
         ch = od->optArg.argString[0];
 
-    else {
+    else if (OPTST_GET_ARGTYPE(od->fOptState) == OPARG_TYPE_STATIC) {
+        ch = od->optArg.argString[0];
+
+    } else {
         set_usage_flags(opts, NULL);
         ch = (opts->fOptSet & OPTPROC_GNUUSAGE) ? 'c' : 'v';
     }

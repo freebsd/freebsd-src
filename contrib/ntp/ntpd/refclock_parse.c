@@ -103,6 +103,7 @@
 #include "timevalops.h"		/* includes <sys/time.h> */
 #include "ntp_control.h"
 #include "ntp_string.h"
+#include "ntp_clockdev.h"
 
 #include <stdio.h>
 #include <ctype.h>
@@ -2992,6 +2993,7 @@ parse_start(
 	struct parseunit * parse;
 	char parsedev[sizeof(PARSEDEVICE)+20];
 	char parseppsdev[sizeof(PARSEPPSDEVICE)+20];
+	const char *altdev;
 	parsectl_t tmp_ctl;
 	u_int type;
 
@@ -3018,8 +3020,20 @@ parse_start(
 	/*
 	 * Unit okay, attempt to open the device.
 	 */
-	(void) snprintf(parsedev, sizeof(parsedev), PARSEDEVICE, unit);
-	(void) snprintf(parseppsdev, sizeof(parsedev), PARSEPPSDEVICE, unit);
+
+	/* see if there's a configured alternative device name: */
+	altdev = clockdev_lookup(&peer->srcadr, 0);
+	if (altdev && (strlen(altdev) < sizeof(parsedev)))
+		strcpy(parsedev, altdev);
+	else
+		(void) snprintf(parsedev, sizeof(parsedev), PARSEDEVICE, unit);
+	
+	/* likewise for a pps device: */
+	altdev = clockdev_lookup(&peer->srcadr, 1);
+	if (altdev && (strlen(altdev) < sizeof(parseppsdev)))
+		strcpy(parseppsdev, altdev);
+	else
+		(void) snprintf(parseppsdev, sizeof(parseppsdev), PARSEPPSDEVICE, unit);
 
 #ifndef O_NOCTTY
 #define O_NOCTTY 0
@@ -4285,7 +4299,7 @@ mk_utcinfo(
 	}
 	else
 	{
-		snprintf( t, size, "UTC offset parameter: %is, no leap second announced.\n", dtls );
+		snprintf( t, size, "UTC offset parameter: %is, no leap second announced.", dtls );
 	}
 
 }

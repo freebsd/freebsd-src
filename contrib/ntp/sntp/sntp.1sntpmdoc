@@ -1,9 +1,9 @@
-.Dd June 23 2020
+.Dd May 31 2023
 .Dt SNTP 1sntpmdoc User Commands
 .Os
 .\"  EDIT THIS FILE WITH CAUTION  (sntp-opts.mdoc)
 .\"
-.\"  It has been AutoGen-ed  June 23, 2020 at 02:19:35 AM by AutoGen 5.18.5
+.\"  It has been AutoGen-ed  May 31, 2023 at 02:48:05 PM by AutoGen 5.18.16
 .\"  From the definitions    sntp-opts.def
 .\"  and the template file   agmdoc-cmd.tpl
 .Sh NAME
@@ -308,10 +308,10 @@ it to autogen\-users@lists.sourceforge.net.  Thank you.
 .An "Harlan Stenn"
 .An "Dave Hart"
 .Sh "COPYRIGHT"
-Copyright (C) 1992\-2020 The University of Delaware and Network Time Foundation all rights reserved.
+Copyright (C) 1992\-2023 The University of Delaware and Network Time Foundation all rights reserved.
 This program is released under the terms of the NTP license, <http://ntp.org/license>.
 .Sh "BUGS"
-Please send bug reports to: http://bugs.ntp.org, bugs@ntp.org
+Please send bug reports to: https://bugs.ntp.org, bugs@ntp.org
 .Sh "NOTES"
 This manual page was \fIAutoGen\fP\-erated from the \fBsntp\fP
 option definitions.

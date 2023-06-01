@@ -18,9 +18,6 @@
 #define HTTP_WRITE_TIMEOUT	50
 #define HTTP_READ_TIMEOUT	50
 
-#define HTTP_PREFIX		"http://"
-#define HTTP_DEFAULTPORT	80
-
 enum message_read_status {
 	ALL_DATA_READ = 1,
 	MORE_DATA_EXPECTED = 0,
@@ -62,19 +59,23 @@ struct evhttp_connection {
 	struct event retry_ev;		/* for retrying connects */
 
 	char *bind_address;		/* address to use for binding the src */
-	u_short bind_port;		/* local port for binding the src */
+	ev_uint16_t bind_port;		/* local port for binding the src */
 
 	char *address;			/* address to connect to */
-	u_short port;
+	ev_uint16_t port;
 
 	size_t max_headers_size;
 	ev_uint64_t max_body_size;
 
 	int flags;
-#define EVHTTP_CON_INCOMING	0x0001	/* only one request on it ever */
-#define EVHTTP_CON_OUTGOING	0x0002  /* multiple requests possible */
-#define EVHTTP_CON_CLOSEDETECT  0x0004  /* detecting if persistent close */
-#define EVHTTP_CON_AUTOFREE 0x0008  /* set when we want to auto free the connection */
+#define EVHTTP_CON_INCOMING	0x0001       /* only one request on it ever */
+#define EVHTTP_CON_OUTGOING	0x0002       /* multiple requests possible */
+#define EVHTTP_CON_CLOSEDETECT	0x0004   /* detecting if persistent close */
+/* set when we want to auto free the connection */
+#define EVHTTP_CON_AUTOFREE	EVHTTP_CON_PUBLIC_FLAGS_END
+/* Installed when attempt to read HTTP error after write failed, see
+ * EVHTTP_CON_READ_ON_WRITE_ERROR */
+#define EVHTTP_CON_READING_ERROR	(EVHTTP_CON_AUTOFREE << 1)
 
 	struct timeval timeout;		/* timeout for events */
 	int retry_cnt;			/* retry count */
@@ -101,13 +102,6 @@ struct evhttp_connection {
 	struct event_base *base;
 	struct evdns_base *dns_base;
 	int ai_family;
-
-	/* Saved conn_addr, to extract IP address from it.
-	 *
-	 * Because some servers may reset/close connection without waiting clients,
-	 * in that case we can't extract IP address even in close_cb.
-	 * So we need to save it, just after we connected to remote server. */
-	struct sockaddr_storage *conn_address;
 };
 
 /* A callback for an http server */
@@ -160,6 +154,7 @@ struct evhttp {
 
 	size_t default_max_headers_size;
 	ev_uint64_t default_max_body_size;
+	int flags;
 	const char *default_content_type;
 
 	/* Bitmask of all HTTP methods that we accept and pass to user
@@ -186,21 +181,26 @@ int evhttp_connection_connect_(struct evhttp_connection *);
 
 enum evhttp_request_error;
 /* notifies the current request that it failed; resets connection */
+EVENT2_EXPORT_SYMBOL
 void evhttp_connection_fail_(struct evhttp_connection *,
     enum evhttp_request_error error);
 
 enum message_read_status;
 
+EVENT2_EXPORT_SYMBOL
 enum message_read_status evhttp_parse_firstline_(struct evhttp_request *, struct evbuffer*);
+EVENT2_EXPORT_SYMBOL
 enum message_read_status evhttp_parse_headers_(struct evhttp_request *, struct evbuffer*);
 
 void evhttp_start_read_(struct evhttp_connection *);
+void evhttp_start_write_(struct evhttp_connection *);
 
 /* response sending HTML the data in the buffer */
 void evhttp_response_code_(struct evhttp_request *, int, const char *);
 void evhttp_send_page_(struct evhttp_request *, struct evbuffer *);
 
+EVENT2_EXPORT_SYMBOL
 int evhttp_decode_uri_internal(const char *uri, size_t length,
     char *ret, int decode_plus);
 
-#endif /* _HTTP_H */
+#endif /* HTTP_INTERNAL_H_INCLUDED_ */

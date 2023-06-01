@@ -9,11 +9,11 @@
  *  This file defines all the global structures and special values
  *  used in the automated option processing library.
  *
- *  Automated Options Copyright (C) 1992-2015 by Bruce Korb
+ *  Automated Options Copyright (C) 1992-2018 by Bruce Korb
  *
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2018 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -64,7 +64,7 @@
 
 #  if defined(HAVE_STDBOOL_H)
 #    include <stdbool.h>
-#  else
+#  elif ! defined(bool)
      typedef enum { false = 0, true = 1 } _Bool;
 #    define bool _Bool
 
@@ -109,15 +109,15 @@
  * @{
  */
 /// autoopts structure version
-#define OPTIONS_STRUCT_VERSION      167937
+#define OPTIONS_STRUCT_VERSION      172033
 /// autoopts structure version string
-#define OPTIONS_VERSION_STRING      "41:0:16"
+#define OPTIONS_VERSION_STRING      "42:1:17"
 /// minimum version the autoopts library supports
 #define OPTIONS_MINIMUM_VERSION     102400
 /// minimum version the autoopts library supports as a string
 #define OPTIONS_MIN_VER_STRING      "25:0:0"
 /// the display version of the autoopts library, as a string
-#define OPTIONS_DOTTED_VERSION      "41.0"
+#define OPTIONS_DOTTED_VERSION      "42.1"
 /// convert a version/release number pair to an integer value
 #define OPTIONS_VER_TO_NUM(_v, _r)  (((_v) * 4096) + (_r))
 /// @}
@@ -140,7 +140,8 @@ typedef enum {
     OPARG_TYPE_FLOAT        =  9, ///< opt arg is a floating point num
     OPARG_TYPE_DOUBLE       = 10, ///< opt arg is a double prec. float
     OPARG_TYPE_LONG_DOUBLE  = 11, ///< opt arg is a long double prec.
-    OPARG_TYPE_LONG_LONG    = 12  ///< opt arg is a long long int
+    OPARG_TYPE_LONG_LONG    = 12, ///< opt arg is a long long int
+    OPARG_TYPE_STATIC       = 13  ///< 
 } teOptArgType;
 
 /**
@@ -641,6 +642,7 @@ struct options {
     void *                      pSavedState;
 
     /// The procedure to call to print usage text
+    /* __attribute__((__noreturn__)) */
     // coverity[+kill]
     tpUsageProc                 pUsageProc;
     /// The procedure to call to translate translatable option messages

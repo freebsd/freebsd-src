@@ -821,10 +821,6 @@ static u_char	res_async;	/* sending async trap response? */
 static	char *reqpt;
 static	char *reqend;
 
-#ifndef MIN
-#define MIN(a, b) (((a) <= (b)) ? (a) : (b))
-#endif
-
 /*
  * init_control - initialize request data
  */
@@ -3656,6 +3652,7 @@ static u_int32 derive_nonce(
 	}		d;
 	EVP_MD_CTX	*ctx;
 	u_int		len;
+	int rc;
 
 	while (!salt[0] || current_time - last_salt_update >= 3600) {
 		salt[0] = ntp_random();
@@ -3669,10 +3666,15 @@ static u_int32 derive_nonce(
 #   if defined(OPENSSL) && defined(EVP_MD_CTX_FLAG_NON_FIPS_ALLOW)
 	/* [Bug 3457] set flags and don't kill them again */
 	EVP_MD_CTX_set_flags(ctx, EVP_MD_CTX_FLAG_NON_FIPS_ALLOW);
-	EVP_DigestInit_ex(ctx, EVP_get_digestbynid(NID_md5), NULL);
+	rc = EVP_DigestInit_ex(ctx, EVP_get_digestbynid(NID_md5), NULL);
 #   else
-	EVP_DigestInit(ctx, EVP_get_digestbynid(NID_md5));
+	rc = EVP_DigestInit(ctx, EVP_get_digestbynid(NID_md5));
 #   endif
+	if (!rc) {
+		msyslog(LOG_ERR, "EVP_DigestInit failed in '%s'", __func__);
+		return (0);
+	}
+
 	EVP_DigestUpdate(ctx, salt, sizeof(salt));
 	EVP_DigestUpdate(ctx, &ts_i, sizeof(ts_i));
 	EVP_DigestUpdate(ctx, &ts_f, sizeof(ts_f));

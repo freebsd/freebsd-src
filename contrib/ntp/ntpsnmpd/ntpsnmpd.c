@@ -67,7 +67,7 @@ main (int argc, char **argv) {
     snmp_enable_stderrlog();
 
   /* Become Subagent */
-    netsnmp_ds_set_boolean(NETSNMP_DS_APPLICATION_ID, NETSNMP_DS_AGENT_ROLE, 1);
+  netsnmp_ds_set_boolean(NETSNMP_DS_APPLICATION_ID, NETSNMP_DS_AGENT_ROLE, 1);
  
   /* go into background mode, if requested */
   if (background && netsnmp_daemonize(1, !use_syslog))

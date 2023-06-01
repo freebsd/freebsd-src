@@ -90,7 +90,7 @@ main(int argc, char **argv)
 	int i;
 	int c;
 	int use_iocp = 0;
-	unsigned short port = 8080;
+	ev_uint16_t port = 8080;
 	char *endptr = NULL;
 
 #ifdef _WIN32
@@ -100,6 +100,9 @@ main(int argc, char **argv)
 	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
 		return (1);
 #endif
+
+	setbuf(stdout, NULL);
+	setbuf(stderr, NULL);
 
 	for (i = 1; i < argc; ++i) {
 		if (*argv[i] != '-')
@@ -138,7 +141,9 @@ main(int argc, char **argv)
 #ifdef _WIN32
 		case 'i':
 			use_iocp = 1;
+#ifdef EVTHREAD_USE_WINDOWS_THREADS_IMPLEMENTED
 			evthread_use_windows_threads();
+#endif
 			event_config_set_flag(cfg,EVENT_BASE_FLAG_STARTUP_IOCP);
 			break;
 #endif

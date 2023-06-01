@@ -532,7 +532,7 @@ jjy_start ( int unit, struct peer *peer )
 	}
 
 	/* Open the device */
-	fd = refclock_open ( sDeviceName, up->linespeed, up->linediscipline ) ;
+	fd = refclock_open ( &peer->srcadr, sDeviceName, up->linespeed, up->linediscipline ) ;
 	if ( fd <= 0 ) {
 		free ( (void*) up ) ;
 		return RC_START_ERROR ;

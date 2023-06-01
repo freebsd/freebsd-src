@@ -18,6 +18,7 @@
 #  as-is, without any warranty.
 
 AC_DEFUN([NTP_CRYPTO_RAND], [
+AC_REQUIRE([NTP_OPENSSL])dnl
 
 dnl check for --disable-openssl-random
 dnl if that's not specified:
@@ -42,8 +43,8 @@ LIBS="$NTPO_SAVED_LIBS $LDADD_NTP"
 dnl AC_MSG_NOTICE([LIBS is <$LIBS>])
 AC_CHECK_FUNCS([RAND_bytes RAND_poll])
 LIBS="$NTPO_SAVED_LIBS"
-case "$ntp_use_openssl_random$ac_cv_func_RAND_bytes$ac_cv_func_RAND_poll" in
- yesyesyes)
+case "$ntp_openssl$ntp_use_openssl_random$ac_cv_func_RAND_bytes$ac_cv_func_RAND_poll" in
+ yesyesyesyes)
      AC_DEFINE([USE_OPENSSL_CRYPTO_RAND], [1], [Use OpenSSL's crypto random functions])
      ;;
  *) ntp_use_openssl_random=no ;;

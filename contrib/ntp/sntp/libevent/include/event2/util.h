@@ -58,9 +58,6 @@ extern "C" {
 #endif
 #include <stdarg.h>
 #ifdef EVENT__HAVE_NETDB_H
-#if !defined(_GNU_SOURCE)
-#define _GNU_SOURCE
-#endif
 #include <netdb.h>
 #endif
 
@@ -71,8 +68,13 @@ extern "C" {
 #include <ws2tcpip.h>
 #endif
 #else
+#ifdef EVENT__HAVE_ERRNO_H
+#include <errno.h>
+#endif
 #include <sys/socket.h>
 #endif
+
+#include <time.h>
 
 /* Some openbsd autoconf versions get the name of this macro wrong. */
 #if defined(EVENT__SIZEOF_VOID__) && !defined(EVENT__SIZEOF_VOID_P)
@@ -233,6 +235,7 @@ extern "C" {
 
    @{
 */
+#ifndef EVENT__HAVE_STDINT_H
 #define EV_UINT64_MAX ((((ev_uint64_t)0xffffffffUL) << 32) | 0xffffffffUL)
 #define EV_INT64_MAX  ((((ev_int64_t) 0x7fffffffL) << 32) | 0xffffffffL)
 #define EV_INT64_MIN  ((-EV_INT64_MAX) - 1)
@@ -245,7 +248,22 @@ extern "C" {
 #define EV_UINT8_MAX  255
 #define EV_INT8_MAX   127
 #define EV_INT8_MIN   ((-EV_INT8_MAX) - 1)
+#else
+#define EV_UINT64_MAX UINT64_MAX
+#define EV_INT64_MAX  INT64_MAX
+#define EV_INT64_MIN  INT64_MIN
+#define EV_UINT32_MAX UINT32_MAX
+#define EV_INT32_MAX  INT32_MAX
+#define EV_INT32_MIN  INT32_MIN
+#define EV_UINT16_MAX UINT16_MAX
+#define EV_INT16_MIN  INT16_MIN
+#define EV_INT16_MAX  INT16_MAX
+#define EV_UINT8_MAX  UINT8_MAX
+#define EV_INT8_MAX   INT8_MAX
+#define EV_INT8_MIN   INT8_MIN
 /** @} */
+#endif
+
 
 /**
    @name Limits for SIZE_T and SSIZE_T
@@ -312,6 +330,15 @@ struct evutil_monotonic_timer
 
 #define EV_MONOT_PRECISE  1
 #define EV_MONOT_FALLBACK 2
+
+/** Format a date string using RFC 1123 format (used in HTTP).
+ * If `tm` is NULL, current system's time will be used.
+ * The number of characters written will be returned.
+ * One should check if the return value is smaller than `datelen` to check if
+ * the result is truncated or not.
+ */
+EVENT2_EXPORT_SYMBOL int
+evutil_date_rfc1123(char *date, const size_t datelen, const struct tm *tm);
 
 /** Allocate a new struct evutil_monotonic_timer for use with the
  * evutil_configure_monotonic_time() and evutil_gettime_monotonic()
@@ -396,6 +423,18 @@ int evutil_make_listen_socket_reuseable(evutil_socket_t sock);
 EVENT2_EXPORT_SYMBOL
 int evutil_make_listen_socket_reuseable_port(evutil_socket_t sock);
 
+/** Set ipv6 only bind socket option to make listener work only in ipv6 sockets.
+
+    According to RFC3493 and most Linux distributions, default value for the
+    sockets is to work in IPv4-mapped mode. In IPv4-mapped mode, it is not possible
+    to bind same port from different IPv4 and IPv6 handlers.
+
+    @param sock The socket to make in ipv6only working mode
+    @return 0 on success, -1 on failure
+ */
+EVENT2_EXPORT_SYMBOL
+int evutil_make_listen_socket_ipv6only(evutil_socket_t sock);
+
 /** Do platform-specific operations as needed to close a socket upon a
     successful execution of one of the exec*() functions.
 
@@ -409,7 +448,8 @@ int evutil_make_socket_closeonexec(evutil_socket_t sock);
     socket() or accept().
 
     @param sock The socket to be closed
-    @return 0 on success, -1 on failure
+    @return 0 on success (whether the operation is supported or not),
+            -1 on failure
  */
 EVENT2_EXPORT_SYMBOL
 int evutil_closesocket(evutil_socket_t sock);
@@ -441,6 +481,7 @@ int evutil_socket_geterror(evutil_socket_t sock);
 /** Convert a socket error to a string. */
 EVENT2_EXPORT_SYMBOL
 const char *evutil_socket_error_to_string(int errcode);
+#define EVUTIL_INVALID_SOCKET INVALID_SOCKET
 #elif defined(EVENT_IN_DOXYGEN_)
 /**
    @name Socket error functions
@@ -464,14 +505,16 @@ const char *evutil_socket_error_to_string(int errcode);
 #define evutil_socket_geterror(sock) ...
 /** Convert a socket error to a string. */
 #define evutil_socket_error_to_string(errcode) ...
+#define EVUTIL_INVALID_SOCKET -1
 /**@}*/
-#else
+#else /** !EVENT_IN_DOXYGEN_ && !_WIN32 */
 #define EVUTIL_SOCKET_ERROR() (errno)
 #define EVUTIL_SET_SOCKET_ERROR(errcode)		\
 		do { errno = (errcode); } while (0)
 #define evutil_socket_geterror(sock) (errno)
 #define evutil_socket_error_to_string(errcode) (strerror(errcode))
-#endif
+#define EVUTIL_INVALID_SOCKET -1
+#endif /** !_WIN32 */
 
 
 /**
@@ -569,6 +612,12 @@ int evutil_vsnprintf(char *buf, size_t buflen, const char *format, va_list ap)
 /** Replacement for inet_ntop for platforms which lack it. */
 EVENT2_EXPORT_SYMBOL
 const char *evutil_inet_ntop(int af, const void *src, char *dst, size_t len);
+/** Variation of inet_pton that also parses IPv6 scopes. Public for
+    unit tests. No reason to call this directly.
+ */
+EVENT2_EXPORT_SYMBOL
+int evutil_inet_pton_scope(int af, const char *src, void *dst,
+	unsigned *indexp);
 /** Replacement for inet_pton for platforms which lack it. */
 EVENT2_EXPORT_SYMBOL
 int evutil_inet_pton(int af, const char *src, void *dst);
@@ -813,6 +862,7 @@ int evutil_secure_rng_init(void);
 EVENT2_EXPORT_SYMBOL
 int evutil_secure_rng_set_urandom_device_file(char *fname);
 
+#if !defined(EVENT__HAVE_ARC4RANDOM) || defined(EVENT__HAVE_ARC4RANDOM_ADDRANDOM)
 /** Seed the random number generator with extra random bytes.
 
     You should almost never need to call this function; it should be
@@ -829,6 +879,7 @@ int evutil_secure_rng_set_urandom_device_file(char *fname);
  */
 EVENT2_EXPORT_SYMBOL
 void evutil_secure_rng_add_bytes(const char *dat, size_t datlen);
+#endif
 
 #ifdef __cplusplus
 }

@@ -1,7 +1,7 @@
-#AUTOMAKE_OPTIONS = foreign 1.9 subdir-objects
 NULL =
 BUILT_SOURCES =
 CLEANFILES =
+DISTCLEANFILES =
 
 AM_CFLAGS = $(NTP_HARD_CFLAGS)
 AM_CPPFLAGS = $(NTP_HARD_CPPFLAGS)
@@ -15,7 +15,7 @@ libunity_a_CFLAGS =                  	\
 	$(NULL)
 
 libunity_a_SOURCES =				\
-	../libpkgver/colcomp.c			\
+	libpkgver-colcomp.c			\
 	unity.c					\
 	ulib_setup.c				\
 	ulib_teardown.c				\

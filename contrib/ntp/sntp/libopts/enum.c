@@ -14,7 +14,7 @@
  *
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2018 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -32,31 +32,6 @@
  *  4379e7444a0e2ce2b12dd6f5a52a27a4d02d39d247901d3285c88cf0d37f477b  COPYING.lgplv3
  *  13aa749a5b0a454917a944ed8fffc530b784f5ead522b1aacaf4ec8aa55a6239  COPYING.mbsd
  */
-
-/* = = = START-STATIC-FORWARD = = = */
-static void
-enum_err(tOptions * pOpts, tOptDesc * pOD,
-         char const * const * paz_names, int name_ct);
-
-static uintptr_t
-find_name(char const * name, tOptions * pOpts, tOptDesc * pOD,
-          char const * const *  paz_names, unsigned int name_ct);
-
-static void
-set_memb_shell(tOptions * pOpts, tOptDesc * pOD, char const * const * paz_names,
-               unsigned int name_ct);
-
-static void
-set_memb_names(tOptions * opts, tOptDesc * od, char const * const * nm_list,
-               unsigned int nm_ct);
-
-static uintptr_t
-check_membership_start(tOptDesc * od, char const ** argp, bool * invert);
-
-static uintptr_t
-find_member_bit(tOptions * opts, tOptDesc * od, char const * pz, int len,
-                char const * const * nm_list, unsigned int nm_ct);
-/* = = = END-STATIC-FORWARD = = = */
 
 static void
 enum_err(tOptions * pOpts, tOptDesc * pOD,
@@ -130,9 +105,10 @@ enum_err(tOptions * pOpts, tOptDesc * pOD,
      */
     else {
         unsigned int ent_no = 0;
-        char  zFmt[16];  /* format for all-but-last entries on a line */
+        char fmt[16];  /* format for all-but-last entries on a line */
 
-        sprintf(zFmt, ENUM_ERR_WIDTH, (int)max_len);
+        if (snprintf(fmt, 16, ENUM_ERR_WIDTH, (int)max_len) >= 16)
+            option_exits(EXIT_FAILURE);
         max_len = 78 / max_len; /* max_len is now max entries on a line */
         fputs(TWO_SPACES_STR, option_usage_fp);
 
@@ -150,7 +126,7 @@ enum_err(tOptions * pOpts, tOptDesc * pOD,
             }
 
             else
-                fprintf(option_usage_fp, zFmt, *(paz_names++) );
+                fprintf(option_usage_fp, fmt, *(paz_names++) );
         }
         fprintf(option_usage_fp, NLSTR_FMT, *paz_names);
     }
@@ -189,12 +165,12 @@ find_name(char const * name, tOptions * pOpts, tOptDesc * pOD,
      *  The result gets stashed in a char * pointer.
      */
     uintptr_t   res = name_ct;
-    size_t      len = strlen(name);
+    size_t      len = strlen((char *)name);
     uintptr_t   idx;
 
     if (IS_DEC_DIGIT_CHAR(*name)) {
-        char * pz;
-        unsigned long val = strtoul(name, &pz, 0);
+        char * pz = VOIDP(name);
+        unsigned long val = strtoul(pz, &pz, 0);
         if ((*pz == NUL) && (val < name_ct))
             return (uintptr_t)val;
         pz_enum_err_fmt = znum_too_large;
@@ -215,7 +191,7 @@ find_name(char const * name, tOptions * pOpts, tOptDesc * pOD,
      *  Multiple partial matches means we have an ambiguous match.
      */
     for (idx = 0; idx < name_ct; idx++) {
-        if (strncmp(paz_names[idx], name, len) == 0) {
+        if (strncmp((char *)paz_names[idx], (char *)name, len) == 0) {
             if (paz_names[idx][len] == NUL)
                 return idx;  /* full match */
 
@@ -500,7 +476,7 @@ find_member_bit(tOptions * opts, tOptDesc * od, char const * pz, int len,
         if (shift_ct >= nm_ct)
             return 0UL;
 
-        return (uintptr_t)1U << shift_ct;
+        return 1UL << shift_ct;
     }
 }
 

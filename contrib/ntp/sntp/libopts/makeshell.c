@@ -11,7 +11,7 @@
 /*
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2018 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -35,45 +35,7 @@
 #define UPPER(_c) (toupper(to_uchar(_c)))
 #define LOWER(_c) (tolower(to_uchar(_c)))
 
-/* = = = START-STATIC-FORWARD = = = */
-static void
-emit_var_text(char const * prog, char const * var, int fdin);
-
-static void
-text_to_var(tOptions * opts, teTextTo which, tOptDesc * od);
-
-static void
-emit_usage(tOptions * opts);
-
-static void
-emit_wrapup(tOptions * opts);
-
-static void
-emit_setup(tOptions * opts);
-
-static void
-emit_action(tOptions * opts, tOptDesc * od);
-
-static void
-emit_inaction(tOptions * opts, tOptDesc * od);
-
-static void
-emit_flag(tOptions * opts);
-
-static void
-emit_match_expr(char const * name, tOptDesc * cod, tOptions * opts);
-
-static void
-emit_long(tOptions * opts);
-
-static char *
-load_old_output(char const * fname, char const * pname);
-
-static void
-open_out(char const * fname, char const * pname);
-/* = = = END-STATIC-FORWARD = = = */
-
-LOCAL noreturn void
+lo_noreturn static void
 option_exits(int exit_code)
 {
     if (print_exit)
@@ -81,21 +43,21 @@ option_exits(int exit_code)
     exit(exit_code);
 }
 
-LOCAL noreturn void
+lo_noreturn static void
 ao_bug(char const * msg)
 {
     fprintf(stderr, zao_bug_msg, msg);
     option_exits(EX_SOFTWARE);
 }
 
-LOCAL void
+static void
 fserr_warn(char const * prog, char const * op, char const * fname)
 {
     fprintf(stderr, zfserr_fmt, prog, errno, strerror(errno),
             op, fname);
 }
 
-LOCAL noreturn void
+lo_noreturn static void
 fserr_exit(char const * prog, char const * op, char const * fname)
 {
     fserr_warn(prog, op, fname);
@@ -322,11 +284,11 @@ text_to_var(tOptions * opts, teTextTo which, tOptDesc * od)
         switch (which) {
         case TT_LONGUSAGE:
             (*(opts->pUsageProc))(opts, EXIT_SUCCESS);
-            /* NOTREACHED */
+            /* FALLTHROUGH */ /* NOTREACHED */
 
         case TT_USAGE:
             (*(opts->pUsageProc))(opts, EXIT_FAILURE);
-            /* NOTREACHED */
+            /* FALLTHROUGH */ /* NOTREACHED */
 
         case TT_VERSION:
             if (od->fOptState & OPTST_ALLOC_ARG) {
@@ -335,13 +297,13 @@ text_to_var(tOptions * opts, teTextTo which, tOptDesc * od)
             }
             od->optArg.argString = "c";
             optionPrintVersion(opts, od);
-            /* NOTREACHED */
+            /* FALLTHROUGH */ /* NOTREACHED */
 
         default:
             option_exits(EXIT_FAILURE);
-            /* NOTREACHED */
+            /* FALLTHROUGH */ /* NOTREACHED */
         }
-        /* NOTREACHED */
+        /* FALLTHROUGH */ /* NOTREACHED */
 
     default:
         close(fdpair[1]);
@@ -401,7 +363,7 @@ emit_usage(tOptions * opts)
 
         /* Copy the program name into the time/name buffer */
         for (;;) {
-            if ((*pzPN++ = (char)tolower((unsigned char)*pz++)) == NUL)
+            if ((*pzPN++ = (char)tolower(*pz++)) == NUL)
                 break;
         }
 
@@ -671,8 +633,8 @@ emit_match_expr(char const * name, tOptDesc * cod, tOptions * opts)
                 continue;
 
             match_ct = 0;
-            while (  toupper((unsigned char)od->pz_DisableName[match_ct])
-                  == toupper((unsigned char)name[match_ct]))
+            while (  toupper(od->pz_DisableName[match_ct])
+                  == toupper(name[match_ct]))
                 match_ct++;
             if (match_ct > min_match_ct)
                 min_match_ct = match_ct;
@@ -885,13 +847,12 @@ genshelloptUsage(tOptions * opts, int exit_cd)
     switch (fork()) {
     case -1:
         optionUsage(opts, EXIT_FAILURE);
-        /* NOTREACHED */
+        /* FALLTHROUGH */ /* NOTREACHED */
 
     case 0:
         pagerState = PAGER_STATE_CHILD;
         optionUsage(opts, EXIT_SUCCESS);
-        /* NOTREACHED */
-        _exit(EXIT_FAILURE);
+        /* FALLTHROUGH */ /* NOTREACHED */
 
     default:
     {
@@ -930,6 +891,7 @@ genshelloptUsage(tOptions * opts, int exit_cd)
         /*FALLTHROUGH*/
     case -1:
         optionUsage(optionParseShellOptions, EXIT_FAILURE);
+        /* FALLTHROUGH */ /* NOTREACHED */
 
     default:
     {

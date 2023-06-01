@@ -29,6 +29,7 @@
 
 #ifdef _WIN32
 #include <winsock2.h>
+#include <winerror.h>
 #include <ws2tcpip.h>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -40,6 +41,7 @@
 /* For structs needed by GetAdaptersAddresses */
 #define _WIN32_WINNT 0x0501
 #include <iphlpapi.h>
+#include <netioapi.h>
 #endif
 
 #include <sys/types.h>
@@ -73,6 +75,9 @@
 #endif
 #include <time.h>
 #include <sys/stat.h>
+#ifndef _WIN32
+#include <net/if.h>
+#endif
 #ifdef EVENT__HAVE_IFADDRS_H
 #include <ifaddrs.h>
 #endif
@@ -226,16 +231,17 @@ evutil_ersatz_socketpair_(int family, int type, int protocol,
 	struct sockaddr_in connect_addr;
 	ev_socklen_t size;
 	int saved_errno = -1;
-
-	if (protocol
-		|| (family != AF_INET
+	int family_test;
+	
+	family_test = family != AF_INET;
 #ifdef AF_UNIX
-		    && family != AF_UNIX
+	family_test = family_test && (family != AF_UNIX);
 #endif
-		)) {
+	if (protocol || family_test) {
 		EVUTIL_SET_SOCKET_ERROR(ERR(EAFNOSUPPORT));
 		return -1;
 	}
+	
 	if (!fd) {
 		EVUTIL_SET_SOCKET_ERROR(ERR(EINVAL));
 		return -1;
@@ -257,6 +263,9 @@ evutil_ersatz_socketpair_(int family, int type, int protocol,
 	connector = socket(AF_INET, type, 0);
 	if (connector < 0)
 		goto tidy_up_and_fail;
+
+	memset(&connect_addr, 0, sizeof(connect_addr));
+
 	/* We want to find out the port number to connect to.  */
 	size = sizeof(connect_addr);
 	if (getsockname(listener, (struct sockaddr *) &connect_addr, &size) == -1)
@@ -310,7 +319,7 @@ evutil_make_socket_nonblocking(evutil_socket_t fd)
 {
 #ifdef _WIN32
 	{
-		u_long nonblocking = 1;
+		unsigned long nonblocking = 1;
 		if (ioctlsocket(fd, FIONBIO, &nonblocking) == SOCKET_ERROR) {
 			event_sock_warn(fd, "fcntl(%d, F_GETFL)", (int)fd);
 			return -1;
@@ -355,7 +364,7 @@ evutil_fast_socket_nonblocking(evutil_socket_t fd)
 int
 evutil_make_listen_socket_reuseable(evutil_socket_t sock)
 {
-#ifndef _WIN32
+#if defined(SO_REUSEADDR) && !defined(_WIN32)
 	int one = 1;
 	/* REUSEADDR on Unix means, "don't hang on to this address after the
 	 * listener is closed."  On Windows, though, it means "don't keep other
@@ -379,6 +388,17 @@ evutil_make_listen_socket_reuseable_port(evutil_socket_t sock)
 #else
 	return 0;
 #endif
+}
+
+int
+evutil_make_listen_socket_ipv6only(evutil_socket_t sock)
+{
+#if defined(IPV6_V6ONLY)
+	int one = 1;
+	return setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, (void*) &one,
+	    (ev_socklen_t)sizeof(one));
+#endif
+	return 0;
 }
 
 int
@@ -520,7 +540,7 @@ evutil_socket_geterror(evutil_socket_t sock)
 /* XXX we should use an enum here. */
 /* 2 for connection refused, 1 for connected, 0 for not yet, -1 for error. */
 int
-evutil_socket_connect_(evutil_socket_t *fd_ptr, struct sockaddr *sa, int socklen)
+evutil_socket_connect_(evutil_socket_t *fd_ptr, const struct sockaddr *sa, int socklen)
 {
 	int made_fd = 0;
 
@@ -591,44 +611,56 @@ evutil_socket_finished_connecting_(evutil_socket_t fd)
    set by evutil_check_interfaces. */
 static int have_checked_interfaces, had_ipv4_address, had_ipv6_address;
 
-/* Macro: True iff the IPv4 address 'addr', in host order, is in 127.0.0.0/8
- */
-#define EVUTIL_V4ADDR_IS_LOCALHOST(addr) (((addr)>>24) == 127)
+/* True iff the IPv4 address 'addr', in host order, is in 127.0.0.0/8 */
+static inline int evutil_v4addr_is_localhost(ev_uint32_t addr)
+{ return addr>>24 == 127; }
 
-/* Macro: True iff the IPv4 address 'addr', in host order, is a class D
- * (multiclass) address.
- */
-#define EVUTIL_V4ADDR_IS_CLASSD(addr) ((((addr)>>24) & 0xf0) == 0xe0)
+/* True iff the IPv4 address 'addr', in host order, is link-local
+ * 169.254.0.0/16 (RFC3927) */
+static inline int evutil_v4addr_is_linklocal(ev_uint32_t addr)
+{ return ((addr & 0xffff0000U) == 0xa9fe0000U); }
+
+/* True iff the IPv4 address 'addr', in host order, is a class D
+ * (multiclass) address.  */
+static inline int evutil_v4addr_is_classd(ev_uint32_t addr)
+{ return ((addr>>24) & 0xf0) == 0xe0; }
+
+int
+evutil_v4addr_is_local_(const struct in_addr *in)
+{
+	const ev_uint32_t addr = ntohl(in->s_addr);
+	return addr == INADDR_ANY ||
+		evutil_v4addr_is_localhost(addr) ||
+		evutil_v4addr_is_linklocal(addr) ||
+		evutil_v4addr_is_classd(addr);
+}
+int
+evutil_v6addr_is_local_(const struct in6_addr *in)
+{
+	static const char ZEROES[] =
+		"\x00\x00\x00\x00\x00\x00\x00\x00"
+		"\x00\x00\x00\x00\x00\x00\x00\x00";
+
+	const unsigned char *addr = (const unsigned char *)in->s6_addr;
+	return !memcmp(addr, ZEROES, 8) ||
+		((addr[0] & 0xfe) == 0xfc) ||
+		(addr[0] == 0xfe && (addr[1] & 0xc0) == 0x80) ||
+		(addr[0] == 0xfe && (addr[1] & 0xc0) == 0xc0) ||
+		(addr[0] == 0xff);
+}
 
 static void
 evutil_found_ifaddr(const struct sockaddr *sa)
 {
-	const char ZEROES[] = "\x00\x00\x00\x00\x00\x00\x00\x00"
-	    "\x00\x00\x00\x00\x00\x00\x00\x00";
-
 	if (sa->sa_family == AF_INET) {
 		const struct sockaddr_in *sin = (struct sockaddr_in *)sa;
-		ev_uint32_t addr = ntohl(sin->sin_addr.s_addr);
-		if (addr == 0 ||
-		    EVUTIL_V4ADDR_IS_LOCALHOST(addr) ||
-		    EVUTIL_V4ADDR_IS_CLASSD(addr)) {
-			/* Not actually a usable external address. */
-		} else {
+		if (!evutil_v4addr_is_local_(&sin->sin_addr)) {
 			event_debug(("Detected an IPv4 interface"));
 			had_ipv4_address = 1;
 		}
 	} else if (sa->sa_family == AF_INET6) {
 		const struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sa;
-		const unsigned char *addr =
-		    (unsigned char*)sin6->sin6_addr.s6_addr;
-		if (!memcmp(addr, ZEROES, 8) ||
-		    ((addr[0] & 0xfe) == 0xfc) ||
-		    (addr[0] == 0xfe && (addr[1] & 0xc0) == 0x80) ||
-		    (addr[0] == 0xfe && (addr[1] & 0xc0) == 0xc0) ||
-		    (addr[0] == 0xff)) {
-			/* This is a reserved, ipv4compat, ipv4map, loopback,
-			 * link-local, multicast, or unspecified address. */
-		} else {
+		if (!evutil_v6addr_is_local_(&sin6->sin6_addr)) {
 			event_debug(("Detected an IPv6 interface"));
 			had_ipv6_address = 1;
 		}
@@ -666,7 +698,7 @@ evutil_check_ifaddrs(void)
 	   "GetAdaptersInfo", but that's deprecated; let's just try
 	   GetAdaptersAddresses and fall back to connect+getsockname.
 	*/
-	HMODULE lib = evutil_load_windows_system_library_(TEXT("ihplapi.dll"));
+	HMODULE lib = evutil_load_windows_system_library_(TEXT("iphlpapi.dll"));
 	GetAdaptersAddresses_fn_t fn;
 	ULONG size, res;
 	IP_ADAPTER_ADDRESSES *addresses = NULL, *address;
@@ -723,7 +755,7 @@ done:
 /* Test whether we have an ipv4 interface and an ipv6 interface.  Return 0 if
  * the test seemed successful. */
 static int
-evutil_check_interfaces(int force_recheck)
+evutil_check_interfaces(void)
 {
 	evutil_socket_t fd = -1;
 	struct sockaddr_in sin, sin_out;
@@ -731,8 +763,11 @@ evutil_check_interfaces(int force_recheck)
 	ev_socklen_t sin_out_len = sizeof(sin_out);
 	ev_socklen_t sin6_out_len = sizeof(sin6_out);
 	int r;
-	if (have_checked_interfaces && !force_recheck)
+	if (have_checked_interfaces)
 		return 0;
+
+	/* From this point on we have done the ipv4/ipv6 interface check */
+	have_checked_interfaces = 1;
 
 	if (evutil_check_ifaddrs() == 0) {
 		/* Use a nice sane interface, if this system has one. */
@@ -959,6 +994,7 @@ evutil_getaddrinfo_common_(const char *nodename, const char *servname,
     struct evutil_addrinfo *hints, struct evutil_addrinfo **res, int *portnum)
 {
 	int port = 0;
+	unsigned int if_index;
 	const char *pname;
 
 	if (nodename == NULL && servname == NULL)
@@ -1032,10 +1068,12 @@ evutil_getaddrinfo_common_(const char *nodename, const char *servname,
 	if (hints->ai_family == PF_INET6 || hints->ai_family == PF_UNSPEC) {
 		struct sockaddr_in6 sin6;
 		memset(&sin6, 0, sizeof(sin6));
-		if (1==evutil_inet_pton(AF_INET6, nodename, &sin6.sin6_addr)) {
+		if (1 == evutil_inet_pton_scope(
+			AF_INET6, nodename, &sin6.sin6_addr, &if_index)) {
 			/* Got an ipv6 address. */
 			sin6.sin6_family = AF_INET6;
 			sin6.sin6_port = htons(port);
+			sin6.sin6_scope_id = if_index;
 			*res = evutil_new_addrinfo_((struct sockaddr*)&sin6,
 			    sizeof(sin6), hints);
 			if (!*res)
@@ -1049,7 +1087,7 @@ evutil_getaddrinfo_common_(const char *nodename, const char *servname,
 		struct sockaddr_in sin;
 		memset(&sin, 0, sizeof(sin));
 		if (1==evutil_inet_pton(AF_INET, nodename, &sin.sin_addr)) {
-			/* Got an ipv6 address. */
+			/* Got an ipv4 address. */
 			sin.sin_family = AF_INET;
 			sin.sin_port = htons(port);
 			*res = evutil_new_addrinfo_((struct sockaddr*)&sin,
@@ -1159,7 +1197,7 @@ addrinfo_from_hostent(const struct hostent *ent,
 		sin6.sin6_family = AF_INET6;
 		sin6.sin6_port = htons(port);
 		sa = (struct sockaddr *)&sin6;
-		socklen = sizeof(struct sockaddr_in);
+		socklen = sizeof(struct sockaddr_in6);
 		addrp = &sin6.sin6_addr;
 		if (ent->h_length != sizeof(sin6.sin6_addr)) {
 			event_warnx("Weird h_length from gethostbyname");
@@ -1201,8 +1239,7 @@ evutil_adjust_hints_for_addrconfig_(struct evutil_addrinfo *hints)
 		return;
 	if (hints->ai_family != PF_UNSPEC)
 		return;
-	if (!have_checked_interfaces)
-		evutil_check_interfaces(0);
+	evutil_check_interfaces();
 	if (had_ipv4_address && !had_ipv6_address) {
 		hints->ai_family = PF_INET;
 	} else if (!had_ipv4_address && had_ipv6_address) {
@@ -1234,11 +1271,20 @@ static int tested_for_getaddrinfo_hacks=0;
      field set to 0.  We test for this so we can apply an appropriate
      workaround.
 */
+static struct evutil_addrinfo *ai_find_protocol(struct evutil_addrinfo *ai)
+{
+	while (ai) {
+		if (ai->ai_protocol)
+			return ai;
+		ai = ai->ai_next;
+	}
+	return NULL;
+}
 static void
 test_for_getaddrinfo_hacks(void)
 {
 	int r, r2;
-	struct evutil_addrinfo *ai=NULL, *ai2=NULL;
+	struct evutil_addrinfo *ai=NULL, *ai2=NULL, *ai3=NULL;
 	struct evutil_addrinfo hints;
 
 	memset(&hints,0,sizeof(hints));
@@ -1252,12 +1298,13 @@ test_for_getaddrinfo_hacks(void)
 #endif
 	    0;
 	r = getaddrinfo("1.2.3.4", "80", &hints, &ai);
+	getaddrinfo("1.2.3.4", NULL, &hints, &ai3);
 	hints.ai_socktype = SOCK_STREAM;
 	r2 = getaddrinfo("1.2.3.4", "80", &hints, &ai2);
 	if (r2 == 0 && r != 0) {
 		need_numeric_port_hack_=1;
 	}
-	if (ai2 && ai2->ai_protocol == 0) {
+	if (!ai_find_protocol(ai2) || !ai_find_protocol(ai3)) {
 		need_socktype_protocol_hack_=1;
 	}
 
@@ -1265,6 +1312,8 @@ test_for_getaddrinfo_hacks(void)
 		freeaddrinfo(ai);
 	if (ai2)
 		freeaddrinfo(ai2);
+	if (ai3)
+		freeaddrinfo(ai3);
 	tested_for_getaddrinfo_hacks=1;
 }
 
@@ -1542,6 +1591,7 @@ evutil_freeaddrinfo(struct evutil_addrinfo *ai)
 }
 
 static evdns_getaddrinfo_fn evdns_getaddrinfo_impl = NULL;
+static evdns_getaddrinfo_cancel_fn evdns_getaddrinfo_cancel_impl = NULL;
 
 void
 evutil_set_evdns_getaddrinfo_fn_(evdns_getaddrinfo_fn fn)
@@ -1549,27 +1599,40 @@ evutil_set_evdns_getaddrinfo_fn_(evdns_getaddrinfo_fn fn)
 	if (!evdns_getaddrinfo_impl)
 		evdns_getaddrinfo_impl = fn;
 }
+void
+evutil_set_evdns_getaddrinfo_cancel_fn_(evdns_getaddrinfo_cancel_fn fn)
+{
+	if (!evdns_getaddrinfo_cancel_impl)
+		evdns_getaddrinfo_cancel_impl = fn;
+}
 
 /* Internal helper function: act like evdns_getaddrinfo if dns_base is set;
  * otherwise do a blocking resolve and pass the result to the callback in the
  * way that evdns_getaddrinfo would.
  */
-int
-evutil_getaddrinfo_async_(struct evdns_base *dns_base,
+struct evdns_getaddrinfo_request *evutil_getaddrinfo_async_(
+    struct evdns_base *dns_base,
     const char *nodename, const char *servname,
     const struct evutil_addrinfo *hints_in,
     void (*cb)(int, struct evutil_addrinfo *, void *), void *arg)
 {
 	if (dns_base && evdns_getaddrinfo_impl) {
-		evdns_getaddrinfo_impl(
+		return evdns_getaddrinfo_impl(
 			dns_base, nodename, servname, hints_in, cb, arg);
 	} else {
 		struct evutil_addrinfo *ai=NULL;
 		int err;
 		err = evutil_getaddrinfo(nodename, servname, hints_in, &ai);
 		cb(err, ai, arg);
+		return NULL;
 	}
-	return 0;
+}
+
+void evutil_getaddrinfo_cancel_async_(struct evdns_getaddrinfo_request *data)
+{
+	if (evdns_getaddrinfo_cancel_impl && data) {
+		evdns_getaddrinfo_cancel_impl(data);
+	}
 }
 
 const char *
@@ -1705,10 +1768,10 @@ evutil_socket_error_to_string(int errcode)
 		goto done;
 	}
 
-	if (0 != FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM |
+	if (0 != FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM |
 			       FORMAT_MESSAGE_IGNORE_INSERTS |
 			       FORMAT_MESSAGE_ALLOCATE_BUFFER,
-			       NULL, errcode, 0, (LPTSTR)&msg, 0, NULL))
+			       NULL, errcode, 0, (char *)&msg, 0, NULL))
 		chomp (msg);	/* because message has trailing newline */
 	else {
 		size_t len = 50;
@@ -1926,6 +1989,41 @@ evutil_inet_ntop(int af, const void *src, char *dst, size_t len)
 }
 
 int
+evutil_inet_pton_scope(int af, const char *src, void *dst, unsigned *indexp)
+{
+	int r;
+	unsigned if_index;
+	char *check, *cp, *tmp_src;
+
+	*indexp = 0; /* Reasonable default */
+
+	/* Bail out if not IPv6 */
+	if (af != AF_INET6)
+		return evutil_inet_pton(af, src, dst);
+
+	cp = strchr(src, '%');
+
+	/* Bail out if no zone ID */
+	if (cp == NULL)
+		return evutil_inet_pton(af, src, dst);
+
+	if_index = if_nametoindex(cp + 1);
+	if (if_index == 0) {
+		/* Could be numeric */
+		if_index = strtoul(cp + 1, &check, 10);
+		if (check[0] != '\0')
+			return 0;
+	}
+	*indexp = if_index;
+	tmp_src = mm_strdup(src);
+	cp = strchr(tmp_src, '%');
+	*cp = '\0';
+	r = evutil_inet_pton(af, tmp_src, dst);
+	free(tmp_src);
+	return r;
+}
+
+int
 evutil_inet_pton(int af, const char *src, void *dst)
 {
 #if defined(EVENT__HAVE_INET_PTON) && !defined(USE_INTERNAL_PTON)
@@ -2041,6 +2139,7 @@ int
 evutil_parse_sockaddr_port(const char *ip_as_string, struct sockaddr *out, int *outlen)
 {
 	int port;
+	unsigned int if_index;
 	char buf[128];
 	const char *cp, *addr_part, *port_part;
 	int is_ipv6;
@@ -2054,12 +2153,12 @@ evutil_parse_sockaddr_port(const char *ip_as_string, struct sockaddr *out, int *
 
 	cp = strchr(ip_as_string, ':');
 	if (*ip_as_string == '[') {
-		int len;
+		size_t len;
 		if (!(cp = strchr(ip_as_string, ']'))) {
 			return -1;
 		}
-		len = (int) ( cp-(ip_as_string + 1) );
-		if (len > (int)sizeof(buf)-1) {
+		len = ( cp-(ip_as_string + 1) );
+		if (len > sizeof(buf)-1) {
 			return -1;
 		}
 		memcpy(buf, ip_as_string+1, len);
@@ -2110,10 +2209,13 @@ evutil_parse_sockaddr_port(const char *ip_as_string, struct sockaddr *out, int *
 #endif
 		sin6.sin6_family = AF_INET6;
 		sin6.sin6_port = htons(port);
-		if (1 != evutil_inet_pton(AF_INET6, addr_part, &sin6.sin6_addr))
+		if (1 != evutil_inet_pton_scope(
+			AF_INET6, addr_part, &sin6.sin6_addr, &if_index)) {
 			return -1;
+		}
 		if ((int)sizeof(sin6) > *outlen)
 			return -1;
+		sin6.sin6_scope_id = if_index;
 		memset(out, 0, *outlen);
 		memcpy(out, &sin6, sizeof(sin6));
 		*outlen = sizeof(sin6);
@@ -2267,7 +2369,7 @@ static const unsigned char EVUTIL_TOLOWER_TABLE[256] = {
 #define IMPL_CTYPE_FN(name)						\
 	int EVUTIL_##name##_(char c) {					\
 		ev_uint8_t u = c;					\
-		return !!(EVUTIL_##name##_TABLE[(u >> 5) & 7] & (1 << (u & 31))); \
+		return !!(EVUTIL_##name##_TABLE[(u >> 5) & 7] & (1U << (u & 31))); \
 	}
 IMPL_CTYPE_FN(ISALPHA)
 IMPL_CTYPE_FN(ISALNUM)
@@ -2563,7 +2665,7 @@ evutil_accept4_(evutil_socket_t sockfd, struct sockaddr *addr,
 }
 
 /* Internal function: Set fd[0] and fd[1] to a pair of fds such that writes on
- * fd[0] get read from fd[1].  Make both fds nonblocking and close-on-exec.
+ * fd[1] get read from fd[0].  Make both fds nonblocking and close-on-exec.
  * Return 0 on success, -1 on failure.
  */
 int

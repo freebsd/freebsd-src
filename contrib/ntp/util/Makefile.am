@@ -21,10 +21,11 @@ AM_LDFLAGS += $(NTP_HARD_LDFLAGS)
 # LDADD might need RESLIB and ADJLIB
 LDADD=		../libntp/libntp.a $(LDADD_LIBNTP) $(LIBM) $(PTHREAD_LIBS)
 tg2_LDADD=	../libntp/libntp.a $(LDADD_LIBNTP) $(LIBM)
-ntp_keygen_LDADD  = version.o $(LIBOPTS_LDADD) ../libntp/libntp.a
+ntp_keygen_LDADD  = $(LIBOPTS_LDADD) ../libntp/libntp.a
 ntp_keygen_LDADD += $(LDADD_LIBEVENT)
 ntp_keygen_LDADD += $(LDADD_LIBNTP) $(PTHREAD_LIBS) $(LDADD_NTP) $(LIBM)
 ntp_keygen_SOURCES = ntp-keygen.c ntp-keygen-opts.c ntp-keygen-opts.h
+nodist_ntp_keygen_SOURCES = version.c
 
 tickadj_LDADD=	../libntp/libntp.a $(LDADD_LIBNTP) $(LIBM) $(PTHREAD_LIBS) $(LDADD_NLIST)
 
@@ -42,8 +43,8 @@ EXTRA_DIST=				\
 	$(NULL)
 
 BUILT_SOURCES=	ntp-keygen-opts.c ntp-keygen-opts.h
-CLEANFILES=
-DISTCLEANFILES=	.version version.c config.log $(man_MANS)
+CLEANFILES =	.version version.c
+DISTCLEANFILES=	config.log $(man_MANS)
 
 html_DATA=				\
 	$(srcdir)/ntp-keygen.html	\
@@ -111,7 +112,7 @@ $(srcdir)/invoke-ntp-keygen.texi: $(srcdir)/ntp-keygen-opts.def $(std_def_list)
 	$(run_ag) -Tagtexi-cmd.tpl -DLEVEL=section ntp-keygen-opts.def
 	$(top_srcdir)/scripts/build/check--help $@
 
-$(srcdir)/ntp-keygen.html: $(srcdir)/ntp-keygen.texi $(top_srcdir)/sntp/include/version.texi
+$(srcdir)/ntp-keygen.html: $(srcdir)/invoke-ntp-keygen.texi $(srcdir)/ntp-keygen.texi $(top_srcdir)/sntp/include/version.texi
 	cd $(srcdir) && ( makeinfo --force --html --no-split -o ntp-keygen.html ntp-keygen.texi || true )
 
 
@@ -121,19 +122,12 @@ jitter_LDADD=
 kern.o: kern.c
 	$(COMPILE) -DHAVE_TIMEX_H -c kern.c
 
-$(PROGRAMS): version.o
-
-$(top_srcdir)/sntp/scm-rev:
-	cd ../sntp && $(MAKE) $(AM_MAKEFLAGS) check-scm-rev
-
-version.c: $(ntp_keygen_OBJECTS) ../libntp/libntp.a Makefile $(top_srcdir)/sntp/scm-rev
-	env CSET=`cat $(top_srcdir)/sntp/scm-rev` $(top_builddir)/scripts/build/mkver ntp-keygen
-
-version.o: version.c
-	env CCACHE_DISABLE=1 $(COMPILE) -c version.c -o version.o
+version.c: Makefile $(top_srcdir)/sntp/scm-rev
+	$(AM_V_GEN)env CSET=`cat $(top_srcdir)/sntp/scm-rev` $(top_builddir)/scripts/build/mkver ntp-keygen
 
 include $(top_srcdir)/bincheck.mf
-include $(top_srcdir)/sntp/check-libntp.mf
+include $(top_srcdir)/check-libntp.mf
 include $(top_srcdir)/check-libopts.mf
+include $(top_srcdir)/check-scm-rev.mf
 include $(top_srcdir)/depsver.mf
 include $(top_srcdir)/includes.mf

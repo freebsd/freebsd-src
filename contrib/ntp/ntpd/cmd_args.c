@@ -71,7 +71,7 @@ getCmdOpts(
 	}
 
 	if (HAVE_OPT( DRIFTFILE ))
-	    stats_config(STATS_FREQ_FILE, OPT_ARG( DRIFTFILE ), 0);
+	    stats_config(STATS_FREQ_FILE, OPT_ARG( DRIFTFILE ), 1);
 
 	if (HAVE_OPT( PANICGATE ))
 		allow_panic = TRUE;
@@ -90,7 +90,7 @@ getCmdOpts(
 		getauthkeys(OPT_ARG( KEYFILE ));
 
 	if (HAVE_OPT( PIDFILE ))
-	    stats_config(STATS_PID_FILE, OPT_ARG( PIDFILE ), 0);
+	    stats_config(STATS_PID_FILE, OPT_ARG( PIDFILE ), 1);
 
 	if (HAVE_OPT( QUIT ))
 		mode_ntpdate = TRUE;
@@ -110,7 +110,7 @@ getCmdOpts(
 		} while (0);
 
 	if (HAVE_OPT( STATSDIR ))
-	    stats_config(STATS_STATSDIR, OPT_ARG( STATSDIR ), 0);
+	    stats_config(STATS_STATSDIR, OPT_ARG( STATSDIR ), 1);
 
 	if (HAVE_OPT( TRUSTEDKEY )) {
 		int		ct = STACKCT_OPT(  TRUSTEDKEY );

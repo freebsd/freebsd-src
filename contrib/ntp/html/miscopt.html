@@ -110,9 +110,7 @@
       For the JJY driver (type 40 mode 100 - 180), the argument is one telephone number used to dial the telephone JJY service.
       The Hayes command ATDT&nbsp;is normally prepended to the number, which can contain other modem control codes as well.</dd>
   <dt id="pollskewlist"
-  ><tt>pollskewlist</tt> <tt>[</tt><i>poll</i> <i>value</i><tt>
-  | </tt><i>value</i><tt>]</tt> <tt>...</tt> <tt>[default </tt><i>value</i><tt>
-  | </tt><i>value</i><tt>]</tt></dt>
+  ><tt>pollskewlist</tt> <tt>[</tt><i>poll</i> <i>early late</i><tt>]</tt> <tt>...</tt> <tt>[default </tt><i>early late</i><tt>]</tt></dt>
 <dd>Enable skewing of our poll requests to our servers. 
 <i>poll</i>
 is a number between 3 and 17 inclusive, identifying a specific poll interval. 
@@ -123,9 +121,8 @@ a poll interval of 17 corresponds to
 131,072 seconds, or about a day and a half. 
 The next two numbers must be between 0 and one-half of the poll interval,
 inclusive. 
-The first number specifies how early the poll may start,
-while
-the second number specifies how late the poll may be delayed. 
+<i>early</i> specifies how early the poll may start, while
+<i>late</i> specifies how late the poll may be delayed. 
 With no arguments, internally specified default values are chosen.</dd>
   <dt id="reset"><tt>reset [allpeers] [auth] [ctl] [io] [mem] [sys] [timer]</tt></dt>
   <dd>Reset one or more groups of counters maintained by ntpd and exposed by <tt>ntpq</tt> and <tt>ntpdc</tt>.</dd>

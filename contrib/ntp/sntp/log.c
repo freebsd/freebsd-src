@@ -2,7 +2,7 @@
 
 #include "log.h"
 
-const char *progname;		/* for msyslog use too */
+extern const char *progname;		/* for msyslog use too */
 
 static int counter = 0;
 

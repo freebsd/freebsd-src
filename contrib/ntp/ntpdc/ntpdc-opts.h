@@ -1,11 +1,11 @@
 /*
  *  EDIT THIS FILE WITH CAUTION  (ntpdc-opts.h)
  *
- *  It has been AutoGen-ed  June 23, 2020 at 02:20:41 AM by AutoGen 5.18.5
+ *  It has been AutoGen-ed  May 31, 2023 at 02:49:46 PM by AutoGen 5.18.16
  *  From the definitions    ntpdc-opts.def
  *  and the template file   options
  *
- * Generated from AutoOpts 41:1:16 templates.
+ * Generated from AutoOpts 42:1:17 templates.
  *
  *  AutoOpts is a copyrighted work.  This header file is not encumbered
  *  by AutoOpts licensing, but is provided under the licensing terms chosen
@@ -18,7 +18,7 @@
  * The ntpdc program is copyrighted and licensed
  * under the following terms:
  *
- *  Copyright (C) 1992-2020 The University of Delaware and Network Time Foundation, all rights reserved.
+ *  Copyright (C) 1992-2023 The University of Delaware and Network Time Foundation, all rights reserved.
  *  This is free software. It is licensed for use, modification and
  *  redistribution under the terms of the NTP License, copies of which
  *  can be seen at:
@@ -45,6 +45,8 @@
 #define AUTOOPTS_NTPDC_OPTS_H_GUARD 1
 #include "config.h"
 #include <autoopts/options.h>
+#include <stdarg.h>
+#include <stdnoreturn.h>
 
 /**
  *  Ensure that the library used for compiling this generated header is at
@@ -53,11 +55,17 @@
  *  tolerable version is at least as old as what was current when the header
  *  template was released.
  */
-#define AO_TEMPLATE_VERSION 167937
+#define AO_TEMPLATE_VERSION 172033
 #if (AO_TEMPLATE_VERSION < OPTIONS_MINIMUM_VERSION) \
  || (AO_TEMPLATE_VERSION > OPTIONS_STRUCT_VERSION)
 # error option template version mismatches autoopts/options.h header
   Choke Me.
+#endif
+
+#if GCC_VERSION > 40400
+#define NOT_REACHED __builtin_unreachable();
+#else
+#define NOT_REACHED
 #endif
 
 /**
@@ -74,18 +82,19 @@ typedef enum {
     INDEX_OPT_NUMERIC          =  7,
     INDEX_OPT_PEERS            =  8,
     INDEX_OPT_SHOWPEERS        =  9,
-    INDEX_OPT_VERSION          = 10,
-    INDEX_OPT_HELP             = 11,
-    INDEX_OPT_MORE_HELP        = 12,
-    INDEX_OPT_SAVE_OPTS        = 13,
-    INDEX_OPT_LOAD_OPTS        = 14
+    INDEX_OPT_UNCONNECTED      = 10,
+    INDEX_OPT_VERSION          = 11,
+    INDEX_OPT_HELP             = 12,
+    INDEX_OPT_MORE_HELP        = 13,
+    INDEX_OPT_SAVE_OPTS        = 14,
+    INDEX_OPT_LOAD_OPTS        = 15
 } teOptIndex;
 /** count of all options for ntpdc */
-#define OPTION_CT    15
+#define OPTION_CT    16
 /** ntpdc version */
-#define NTPDC_VERSION       "4.2.8p15"
+#define NTPDC_VERSION       "4.2.8p16"
 /** Full ntpdc version text */
-#define NTPDC_FULL_VERSION  "ntpdc 4.2.8p15"
+#define NTPDC_FULL_VERSION  "ntpdc 4.2.8p16"
 
 /**
  *  Interface defines for all options.  Replace "n" with the UPPER_CASED
@@ -178,6 +187,10 @@ typedef enum {
 #  warning undefining SHOWPEERS due to option name conflict
 #  undef   SHOWPEERS
 # endif
+# ifdef    UNCONNECTED
+#  warning undefining UNCONNECTED due to option name conflict
+#  undef   UNCONNECTED
+# endif
 #else  /* NO_OPTION_NAME_WARNINGS */
 # undef IPV4
 # undef IPV6
@@ -189,6 +202,7 @@ typedef enum {
 # undef NUMERIC
 # undef PEERS
 # undef SHOWPEERS
+# undef UNCONNECTED
 #endif  /*  NO_OPTION_NAME_WARNINGS */
 
 /**
@@ -207,6 +221,7 @@ typedef enum {
 #define VALUE_OPT_NUMERIC        'n'
 #define VALUE_OPT_PEERS          'p'
 #define VALUE_OPT_SHOWPEERS      's'
+#define VALUE_OPT_UNCONNECTED    'u'
 /** option flag (value) for help-value option */
 #define VALUE_OPT_HELP          '?'
 /** option flag (value) for more-help-value option */
@@ -285,6 +300,7 @@ static inline char* aoGetsText(char const* pz) {
 #   define _(_s)  _s
 # endif
 #endif  /* ENABLE_NLS */
+
 
 #ifdef  __cplusplus
 }

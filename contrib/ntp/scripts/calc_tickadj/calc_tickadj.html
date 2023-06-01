@@ -1,6 +1,6 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <html>
-<!-- Created by GNU Texinfo 6.5, http://www.gnu.org/software/texinfo/ -->
+<!-- Created by GNU Texinfo 6.6, http://www.gnu.org/software/texinfo/ -->
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <title>calc_tickadj User&rsquo;s Manual</title>
@@ -16,23 +16,14 @@
 <!--
 a.summary-letter {text-decoration: none}
 blockquote.indentedblock {margin-right: 0em}
-blockquote.smallindentedblock {margin-right: 0em; font-size: smaller}
-blockquote.smallquotation {font-size: smaller}
 div.display {margin-left: 3.2em}
 div.example {margin-left: 3.2em}
 div.lisp {margin-left: 3.2em}
-div.smalldisplay {margin-left: 3.2em}
-div.smallexample {margin-left: 3.2em}
-div.smalllisp {margin-left: 3.2em}
 kbd {font-style: oblique}
 pre.display {font-family: inherit}
 pre.format {font-family: inherit}
 pre.menu-comment {font-family: serif}
 pre.menu-preformatted {font-family: serif}
-pre.smalldisplay {font-family: inherit; font-size: smaller}
-pre.smallexample {font-size: smaller}
-pre.smallformat {font-family: inherit; font-size: smaller}
-pre.smalllisp {font-size: smaller}
 span.nolinebreak {white-space: nowrap}
 span.roman {font-family: initial; font-weight: normal}
 span.sansserif {font-family: sans-serif; font-weight: normal}
@@ -49,44 +40,40 @@ ul.no-bullet {list-style: none}
 
 
 
-<a name="Top"></a>
-<div class="header">
+<span id="Top"></span><div class="header">
 <p>
 Previous: <a href="dir.html#Top" accesskey="p" rel="prev">(dir)</a>, Up: <a href="dir.html#Top" accesskey="u" rel="up">(dir)</a> &nbsp; </p>
 </div>
-<a name="calc_005ftickadj-User_0027s-Manual"></a>
-<h1 class="top">calc_tickadj User&rsquo;s Manual</h1>
+<span id="calc_005ftickadj-User_0027s-Manual"></span><h1 class="top">calc_tickadj User&rsquo;s Manual</h1>
 
 <p>This document describes the use of the NTP Project&rsquo;s <code>calc_tickadj</code> program.
-This document applies to version 4.2.8p15 of <code>calc_tickadj</code>.
+This document applies to version 4.2.8p16 of <code>calc_tickadj</code>.
 </p>
-<a name="SEC_Overview"></a>
+<span id="SEC_Overview"></span>
 <h2 class="shortcontents-heading">Short Table of Contents</h2>
 
 <div class="shortcontents">
 <ul class="no-bullet">
-<li><a name="stoc-Invoking-calc_005ftickadj" href="#toc-Invoking-calc_005ftickadj">1 Invoking calc_tickadj</a></li>
+<li><a id="stoc-Invoking-calc_005ftickadj" href="#toc-Invoking-calc_005ftickadj">1 Invoking calc_tickadj</a></li>
 </ul>
 </div>
 
 
 <table class="menu" border="0" cellspacing="0">
-<tr><td align="left" valign="top">&bull; calc_tickadj Description:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Description
+<tr><td align="left" valign="top">&bull; calc_tickadj Description</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Description
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#calc_005ftickadj-Invocation" accesskey="2">calc_tickadj Invocation</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Invoking calc_tickadj
+<tr><td align="left" valign="top">&bull; <a href="#calc_005ftickadj-Invocation" accesskey="2">calc_tickadj Invocation</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Invoking calc_tickadj
 </td></tr>
 </table>
 
 <hr>
-<a name="calc_005ftickadj-Invocation"></a>
-<div class="header">
+<span id="calc_005ftickadj-Invocation"></span><div class="header">
 <p>
 Up: <a href="#Top" accesskey="u" rel="up">Top</a> &nbsp; </p>
 </div>
-<a name="Invoking-calc_005ftickadj"></a>
-<h2 class="chapter">1 Invoking calc_tickadj</h2>
-<a name="index-calc_005ftickadj"></a>
-<a name="index-Calculates-_0022optimal_0022-value-for-tick-given-ntp-drift-file_002e"></a>
+<span id="Invoking-calc_005ftickadj"></span><h2 class="chapter">1 Invoking calc_tickadj</h2>
+<span id="index-calc_005ftickadj"></span>
+<span id="index-Calculates-_0022optimal_0022-value-for-tick-given-ntp-drift-file_002e"></span>
 
 <p>The <code>calc_tickadj</code> script uses provided ntp drift file to generate optimal
 tick value. Generally, ntpd can do better job if the drift value is the
@@ -118,25 +105,23 @@ current tick manually on command line.
 using the <code>agtexi-cmd</code> template and the option descriptions for the <code>calc_tickadj</code> program.
 </p>
 <table class="menu" border="0" cellspacing="0">
-<tr><td align="left" valign="top">&bull; <a href="#calc_005ftickadj-usage" accesskey="1">calc_tickadj usage</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">calc_tickadj help/usage (<samp>--help</samp>)
+<tr><td align="left" valign="top">&bull; <a href="#calc_005ftickadj-usage" accesskey="1">calc_tickadj usage</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">calc_tickadj help/usage (<samp>--help</samp>)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#calc_005ftickadj-drift_002dfile" accesskey="2">calc_tickadj drift-file</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">drift-file option (-d)
+<tr><td align="left" valign="top">&bull; <a href="#calc_005ftickadj-drift_002dfile" accesskey="2">calc_tickadj drift-file</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">drift-file option (-d)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#calc_005ftickadj-tick" accesskey="3">calc_tickadj tick</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">tick option (-t)
+<tr><td align="left" valign="top">&bull; <a href="#calc_005ftickadj-tick" accesskey="3">calc_tickadj tick</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">tick option (-t)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#calc_005ftickadj-exit-status" accesskey="4">calc_tickadj exit status</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">exit status
+<tr><td align="left" valign="top">&bull; <a href="#calc_005ftickadj-exit-status" accesskey="4">calc_tickadj exit status</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">exit status
 </td></tr>
 </table>
 
 <hr>
-<a name="calc_005ftickadj-usage"></a>
-<div class="header">
+<span id="calc_005ftickadj-usage"></span><div class="header">
 <p>
 Next: <a href="#calc_005ftickadj-drift_002dfile" accesskey="n" rel="next">calc_tickadj drift-file</a>, Up: <a href="#calc_005ftickadj-Invocation" accesskey="u" rel="up">calc_tickadj Invocation</a> &nbsp; </p>
 </div>
-<a name="calc_005ftickadj-help_002fusage-_0028_002d_002dhelp_0029"></a>
-<h3 class="section">1.1 calc_tickadj help/usage (<samp>--help</samp>)</h3>
-<a name="index-calc_005ftickadj-help"></a>
+<span id="calc_005ftickadj-help_002fusage-_0028_002d_002dhelp_0029"></span><h3 class="section">1.1 calc_tickadj help/usage (<samp>--help</samp>)</h3>
+<span id="index-calc_005ftickadj-help"></span>
 
 <p>This is the automatically generated usage text for calc_tickadj.
 </p>
@@ -149,7 +134,7 @@ used to select the program, defaulting to <samp>more</samp>.  Both will exit
 with a status code of 0.
 </p>
 <div class="example">
-<pre class="example">calc_tickadj - Calculates &quot;optimal&quot; value for tick given ntp drift file. - Ver. 4.2.8p13
+<pre class="example">calc_tickadj - Calculates &quot;optimal&quot; value for tick given ntp drift file. - Ver. 4.2.8p15
 USAGE: calc_tickadj [ -&lt;flag&gt; [&lt;val&gt;] | --&lt;name&gt;[{=| }&lt;val&gt;] ]... 
 
     -d, --drift-file=str         Ntp drift file to use
@@ -162,48 +147,42 @@ hyphen and the flag character.
 </pre></div>
 
 <table class="menu" border="0" cellspacing="0">
-<tr><td align="left" valign="top">&bull; <a href="#calc_005ftickadj-drift_002dfile" accesskey="1">calc_tickadj drift-file</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#calc_005ftickadj-drift_002dfile" accesskey="1">drift-file option (-d)</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#calc_005ftickadj-tick" accesskey="2">calc_tickadj tick</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#calc_005ftickadj-tick" accesskey="2">tick option (-t)</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#calc_005ftickadj-exit-status" accesskey="3">calc_tickadj exit status</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
+<tr><td align="left" valign="top">&bull; <a href="#calc_005ftickadj-exit-status" accesskey="3">calc_tickadj exit status</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">
 </td></tr>
 </table>
 
 <hr>
-<a name="calc_005ftickadj-drift_002dfile"></a>
-<div class="header">
+<span id="calc_005ftickadj-drift_002dfile"></span><div class="header">
 <p>
 Next: <a href="#calc_005ftickadj-tick" accesskey="n" rel="next">calc_tickadj tick</a>, Previous: <a href="#calc_005ftickadj-usage" accesskey="p" rel="prev">calc_tickadj usage</a>, Up: <a href="#calc_005ftickadj-usage" accesskey="u" rel="up">calc_tickadj usage</a> &nbsp; </p>
 </div>
-<a name="drift_002dfile-option-_0028_002dd_0029"></a>
-<h4 class="subsection">1.1.1 drift-file option (-d)</h4>
-<a name="index-calc_005ftickadj_002ddrift_002dfile"></a>
+<span id="drift_002dfile-option-_0028_002dd_0029"></span><h4 class="subsection">1.1.1 drift-file option (-d)</h4>
+<span id="index-calc_005ftickadj_002ddrift_002dfile"></span>
 
 <p>This is the &ldquo;ntp drift file to use&rdquo; option.
 This option takes a string argument.
 Use the specified drift file for calculations
 </p><hr>
-<a name="calc_005ftickadj-tick"></a>
-<div class="header">
+<span id="calc_005ftickadj-tick"></span><div class="header">
 <p>
 Next: <a href="#calc_005ftickadj-exit-status" accesskey="n" rel="next">calc_tickadj exit status</a>, Previous: <a href="#calc_005ftickadj-drift_002dfile" accesskey="p" rel="prev">calc_tickadj drift-file</a>, Up: <a href="#calc_005ftickadj-usage" accesskey="u" rel="up">calc_tickadj usage</a> &nbsp; </p>
 </div>
-<a name="tick-option-_0028_002dt_0029"></a>
-<h4 class="subsection">1.1.2 tick option (-t)</h4>
-<a name="index-calc_005ftickadj_002dtick"></a>
+<span id="tick-option-_0028_002dt_0029"></span><h4 class="subsection">1.1.2 tick option (-t)</h4>
+<span id="index-calc_005ftickadj_002dtick"></span>
 
 <p>This is the &ldquo;tick value of this host&rdquo; option.
 This option takes a number argument.
 The current tick which to adjustment will be calculated
 </p><hr>
-<a name="calc_005ftickadj-exit-status"></a>
-<div class="header">
+<span id="calc_005ftickadj-exit-status"></span><div class="header">
 <p>
 Previous: <a href="#calc_005ftickadj-tick" accesskey="p" rel="prev">calc_tickadj tick</a>, Up: <a href="#calc_005ftickadj-usage" accesskey="u" rel="up">calc_tickadj usage</a> &nbsp; </p>
 </div>
-<a name="calc_005ftickadj-exit-status-1"></a>
-<h4 class="subsection">1.1.3 calc_tickadj exit status</h4>
+<span id="calc_005ftickadj-exit-status-1"></span><h4 class="subsection">1.1.3 calc_tickadj exit status</h4>
 
 <p>One of the following exit values will be returned:
 </p><dl compact="compact">

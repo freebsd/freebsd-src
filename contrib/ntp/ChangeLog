@@ -1,6 +1,113 @@
 ---
+(4.2.8p16) 2023/05/31 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Sec 3808] Assertion failure in ntpq on malformed RT-11 date <perlinger@ntp.org>
+* [Sec 3807] praecis_parse() in the Palisade refclock driver has a
+             hypothetical input buffer overflow. Reported by ... stenn@
+* [Sec 3806] libntp/mstolfp.c needs bounds checking <perlinger@ntp.org>
+  - solved numerically instead of using string manipulation
+* [Sec 3767] An OOB KoD RATE value triggers an assertion when debug is enabled.
+             <stenn@ntp.org>
+* [Bug 3819] Updated libopts/Makefile.am was missing NTP_HARD_* values. <stenn@>
+* [Bug 3817] Bounds-check "tos floor" configuration. <hart@ntp.org>
+* [Bug 3814] First poll delay of new or cleared associations miscalculated.
+             <hart@ntp.org>
+* [Bug 3802] ntp-keygen -I default identity modulus bits too small for
+             OpenSSL 3.  Reported by rmsh1216@163.com <hart@ntp.org>
+* [Bug 3801] gpsdjson refclock gps_open() device name mishandled. <hart@ntp.org>
+* [Bug 3800] libopts-42.1.17 does not compile with Microsoft C. <hart@ntp.org>
+* [Bug 3799] Enable libopts noreturn compiler advice for MSC. <hart@ntp.org>
+* [Bug 3797] Windows getaddrinfo w/AI_ADDRCONFIG fails for localhost when 
+             disconnected, breaking ntpq and ntpdc. <hart@ntp.org>
+* [Bug 3795] pollskewlist documentation uses | when it shouldn't.
+  - ntp.conf manual page and miscopt.html corrections. <hart@ntp.org>
+* [Bug 3793] Wrong variable type passed to record_raw_stats(). <hart@ntp.org>
+  - Report and patch by Yuezhen LUAN <wei6410@sina.com>.
+* [Bug 3786] Timer starvation on high-load Windows ntpd. <hart@ntp.org>
+* [Bug 3784] high-load ntpd on Windows deaf after enough ICMP TTL exceeded.
+             <hart@ntp.org>
+* [Bug 3781] log "Unable to listen for broadcasts" for IPv4 <hart@ntp.org>
+* [Bug 3774] mode 6 packets corrupted in rawstats file <hart@ntp.org>
+  - Reported by Edward McGuire, fix identified by <wei6410@sina.com>.
+* [Bug 3758] Provide a 'device' config statement for refclocks <perlinger@ntp.org> 
+* [Bug 3757] Improve handling of Linux-PPS in NTPD <perlinger@ntp.org>
+* [Bug 3741] 4.2.8p15 can't build with glibc 2.34 <perlinger@ntp.org>
+* [Bug 3725] Make copyright of clk_wharton.c compatible with Debian.
+             Philippe De Muyter <phdm@macqel.be>
+* [Bug 3724] ntp-keygen with openSSL 1.1.1 fails on Windows <perlinger@ntp.org>
+  - openssl applink needed again for openSSL-1.1.1
+* [Bug 3719] configure.ac checks for closefrom() and getdtablesize() missing.
+             Reported by Brian Utterback, broken in 2010 by <hart@ntp.org>
+* [Bug 3699] Problems handling drift file and restoring previous drifts <perlinger@ntp.org>
+  - command line options override config statements where applicable
+  - make initial frequency settings idempotent and reversible
+  - make sure kernel PLL gets a recovered drift componsation
+* [Bug 3695] Fix memory leak with ntpq on Windows Server 2019 <perlinger@ntp.org>
+* [Bug 3694] NMEA refclock seems to unnecessarily require location in messages
+  - misleading title; essentially a request to ignore the receiver status.
+    Added a mode bit for this. <perlinger@ntp.org>
+* [Bug 3693] Improvement of error handling key lengths <perlinger@ntp.org>
+  - original patch by Richard Schmidt, with mods & unit test fixes
+* [Bug 3692] /dev/gpsN requirement prevents KPPS <perlinger@ntp.org>
+  - implement/wrap 'realpath()' to resolve symlinks in device names
+* [Bug 3691] Buffer Overflow reading GPSD output
+  - original patch by matt<ntpbr@mattcorallo.com>
+  - increased max PDU size to 4k to avoid truncation
+* [Bug 3690] newline in ntp clock variable (parse) <perlinger@ntp.org>
+  - patch by Frank Kardel
+* [Bug 3689] Extension for MD5, SHA-1 and other keys <perlinger@ntp.org>
+  - ntp{q,dc} now use the same password processing as ntpd does in the key
+    file, so having a binary secret >= 11 bytes is possible for all keys.
+    (This is a different approach to the problem than suggested)
+* [Bug 3688] GCC 10 build errors in testsuite <perlinger@ntp.org>
+* [Bug 3687] ntp_crypto_rand RNG status not known <perlinger@ntp.org>
+  - patch by Gerry Garvey
+* [Bug 3682] Fixes for warnings when compiled without OpenSSL <perlinger@ntp.org>
+  - original patch by Gerry Garvey
+* [Bug 3677] additional peer events not decoded in associations listing <perlinger@ntp.org>
+  - original patch by Gerry Garvey
+* [Bug 3676] compiler warnings (CMAC, interrupt_buf, typo, fallthrough)
+  - applied patches by Gerry Garvey
+* [Bug 3675] ntpq ccmds[] stores pointer to non-persistent storage
+* [Bug 3674] ntpq command 'execute only' using '~' prefix <perlinger@ntp.org>
+  - idea+patch by Gerry Garvey
+* [Bug 3672] fix biased selection in median cut <perlinger@ntp.org>
+* [Bug 3666] avoid unlimited receive buffer allocation <perlinger@ntp.org>
+  - follow-up: fix inverted sense in check, reset shortfall counter
+* [Bug 3660] Revert 4.2.8p15 change to manycast. <hart@ntp.org>
+* [Bug 3640] document "discard monitor" and fix the code. <hart@ntp.org>
+  - fixed bug identified by Edward McGuire <perlinger@ntp.org>
+* [Bug 3626] (SNTP) UTC offset calculation needs dst flag <perlinger@ntp.org>
+  - applied patch by Gerry Garvey
+* [Bug 3428] ntpd spinning consuming CPU on Linux router with full table.
+             Reported by Israel G. Lugo. <hart@ntp.org>
+* [Bug 3103] libopts zsave_warn format string too few arguments <bkorb@gnu.org>
+* [Bug 2990] multicastclient incorrectly causes bind to broadcast address.
+             Integrated patch from Brian Utterback. <hart@ntp.org>
+* [Bug 2525] Turn on automake subdir-objects across the project. <hart@ntp.org>
+* [Bug 2410] syslog an error message on panic exceeded. <brian.utterback@oracle.com>
+* Use correct rounding in mstolfp(). perlinger/hart
+* M_ADDF should use u_int32.  <hart@ntp.org>
+* Only define tv_fmt_libbuf() if we will use it. <stenn@ntp.org>
+* Use recv_buffer instead of the longer recv_space.X_recv_buffer. hart/stenn
+* Make sure the value returned by refid_str() prints cleanly. <stenn@ntp.org>
+* If DEBUG is enabled, the startup banner now says that debug assertions
+  are in force and that ntpd will abort if any are violated. <stenn@ntp.org>
+* syslog valid incoming KoDs.  <stenn@ntp.org>
+* Rename a poorly-named variable.  <stenn@ntp.org>
+* Disable "embedded NUL in string" messages in libopts, when we can. <stenn@>
+* Use https in the AC_INIT URLs in configure.ac.  <stenn@ntp.org>
+* Implement NTP_FUNC_REALPATH.  <stenn@ntp.org>
+* Lose a gmake construct in ntpd/Makefile.am.  <stenn@ntp.org>
+* upgrade to: autogen-5.18.16
+* upgrade to: libopts-42.1.17
+* upgrade to: autoconf-2.71
+* upgrade to: automake-1.16.15
+* Upgrade to libevent-2.1.12-stable <stenn@ntp.org>
+* Support OpenSSL-3.0
+
+---
 (4.2.8p15) 2020/06/23 Released by Harlan Stenn <stenn@ntp.org>
-(4.2.8p15) 2020/06/23 Released by Harlan Stenn <stenn@ntp.or>
 
 * [Sec 3661] memory leak with AES128CMAC keys <perlinger@ntp.org>
 * [Bug 3670] Regression from bad merge of 3592 and 3596 <perlinger@ntp.org>
@@ -14,8 +121,7 @@
 * [Bug 3662] Fix build errors on Windows with VS2008 <burnicki@ntp.org>
 * [Bug 3660] Manycast orphan mode startup discovery problem. <stenn@ntp.org>
   - integrated patch from Charles Claggett
-* [Bug 3659] Move definition of psl[] from ntp_config.h to
-  ntp_config.h <perlinger@ntp.org>
+* [Bug 3659] Move definition of psl[] from ntp_config.h to ntp_config.c <perlinger@ntp.org>
 * [Bug 3657] Wrong "Autokey group mismatch" debug message <perlinger@ntp.org>
 * [Bug 3655] ntpdc memstats hash counts <perlinger@ntp.org>
   - fix by Gerry garvey
@@ -26,6 +132,8 @@
 * [Bug 3644] Unsynchronized server [...] selected as candidate <perlinger@ntp.org>
 * [Bug 3639] refclock_jjy: TS-JJY0x can skip time sync depending on the STUS reply. <abe@ntp.org>
   - applied patch by Takao Abe
+* [Bug 3432] refclocks that 'write()' should check the result <perlinger@ntp.org>
+  - plus some more work on warnings for unchecked results
 
 ---
 (4.2.8p14) 2020/03/03 Released by Harlan Stenn <stenn@ntp.org>

@@ -195,9 +195,9 @@ typedef u_int32 u_fp;
 	do { \
 		int32 add_f = (int32)(f); \
 		if (add_f >= 0) \
-			M_ADD((r_i), (r_f), 0, (uint32)( add_f)); \
+			M_ADD((r_i), (r_f), 0, (u_int32)( add_f)); \
 		else \
-			M_SUB((r_i), (r_f), 0, (uint32)(-add_f)); \
+			M_SUB((r_i), (r_f), 0, (u_int32)(-add_f)); \
 	} while(0)
 
 #define	M_ISNEG(v_i)			/* v < 0 */ \

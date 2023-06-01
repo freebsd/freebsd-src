@@ -41,19 +41,9 @@
 #ifndef THREAD_MINSTACKSIZE
 # define THREAD_MINSTACKSIZE	(64U * 1024)
 #endif
-#ifndef __sun
-#if defined(PTHREAD_STACK_MIN) && THREAD_MINSTACKSIZE < PTHREAD_STACK_MIN
-# undef THREAD_MINSTACKSIZE
-# define THREAD_MINSTACKSIZE PTHREAD_STACK_MIN
-#endif
-#endif
 
 #ifndef THREAD_MAXSTACKSIZE
 # define THREAD_MAXSTACKSIZE	(256U * 1024)
-#endif
-#if THREAD_MAXSTACKSIZE < THREAD_MINSTACKSIZE
-# undef  THREAD_MAXSTACKSIZE
-# define THREAD_MAXSTACKSIZE THREAD_MINSTACKSIZE
 #endif
 
 /* need a good integer to store a pointer... */
@@ -399,7 +389,7 @@ send_blocking_resp_internal(
 #ifndef WORK_PIPE
 
 /* --------------------------------------------------------------------
- * Check if a (Windows-)hanndle to a semaphore is actually the same we
+ * Check if a (Windows-)handle to a semaphore is actually the same we
  * are using inside the sema wrapper.
  */
 static BOOL
@@ -594,12 +584,25 @@ start_blocking_thread_internal(
 			"start_blocking_thread: pthread_attr_getstacksize() -> %s",
 			strerror(rc));
 	} else {
-		if (ostacksize < THREAD_MINSTACKSIZE)
-			nstacksize = THREAD_MINSTACKSIZE;
-		else if (ostacksize > THREAD_MAXSTACKSIZE)
+		nstacksize = ostacksize;
+		/* order is important here: first clamp on upper limit,
+		 * and the PTHREAD min stack size is ultimate override!
+		 */ 
+		if (nstacksize > THREAD_MAXSTACKSIZE)
 			nstacksize = THREAD_MAXSTACKSIZE;
-		else
-			nstacksize = ostacksize;
+#            ifdef PTHREAD_STACK_MAX
+		if (nstacksize > PTHREAD_STACK_MAX)
+			nstacksize = PTHREAD_STACK_MAX;
+#            endif
+
+		/* now clamp on lower stack limit. */
+		if (nstacksize < THREAD_MINSTACKSIZE)
+			nstacksize = THREAD_MINSTACKSIZE;
+#            ifdef PTHREAD_STACK_MIN
+		if (nstacksize < PTHREAD_STACK_MIN)
+			nstacksize = PTHREAD_STACK_MIN;
+#            endif
+
 		if (nstacksize != ostacksize)
 			rc = pthread_attr_setstacksize(&thr_attr, nstacksize);
 		if (0 != rc)

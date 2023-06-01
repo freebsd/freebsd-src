@@ -36,7 +36,7 @@ compute_mac(
 	size_t		slen = 0;
 #endif
 	int		key_type;
-	
+
 	INIT_SSL();
 	key_type = keytype_from_text(macname, NULL);
 
@@ -69,16 +69,16 @@ compute_mac(
 			slen = 0;
 		}
 		len = (u_int)slen;
-		
+
 		if (ctx)
 			CMAC_CTX_free(ctx);
 		/* Test our AES-128-CMAC implementation */
-		
+
 	} else	/* MD5 MAC handling */
 #endif
 	{
 		EVP_MD_CTX *	ctx;
-		
+
 		if (!(ctx = EVP_MD_CTX_new())) {
 			msyslog(LOG_ERR, "make_mac: MAC %s Digest CTX new failed.",
 				macname);
@@ -111,7 +111,11 @@ compute_mac(
 			len = 0;
 		}
 #else /* !OPENSSL */
-		EVP_DigestInit(ctx, EVP_get_digestbynid(key_type));
+		(void)key_type; /* unused, so try to prevent compiler from croaks */
+		if (!EVP_DigestInit(ctx, EVP_get_digestbynid(key_type))) {
+			msyslog(LOG_ERR, "make_mac: MAC MD5 Digest Init failed.");
+			goto mac_fail;
+		}
 		EVP_DigestUpdate(ctx, key_data, key_size);
 		EVP_DigestUpdate(ctx, pkt_data, pkt_size);
 		EVP_DigestFinal(ctx, digest, &len);
@@ -134,7 +138,7 @@ make_mac(
 {
 	u_int		len;
 	u_char		dbuf[EVP_MAX_MD_SIZE];
-	
+
 	if (cmp_key->key_len > 64 || mac_size <= 0)
 		return 0;
 	if (pkt_size % 4 != 0)
@@ -143,7 +147,7 @@ make_mac(
 	len = compute_mac(dbuf, cmp_key->typen,
 			  pkt_data, (u_int)pkt_size,
 			  cmp_key->key_seq, (u_int)cmp_key->key_len);
-			  
+
 
 	if (len) {
 		if (len > (u_int)mac_size)
@@ -170,10 +174,10 @@ auth_md5(
 	u_int		len       = 0;
 	u_char const *	pkt_ptr   = pkt_data;
 	u_char		dbuf[EVP_MAX_MD_SIZE];
-	
+
 	if (mac_size <= 0 || (size_t)mac_size > sizeof(dbuf))
 		return FALSE;
-	
+
 	len = compute_mac(dbuf, cmp_key->typen,
 			  pkt_ptr, (u_int)pkt_size,
 			  cmp_key->key_seq, (u_int)cmp_key->key_len);
@@ -181,7 +185,7 @@ auth_md5(
 	pkt_ptr += pkt_size + 4;
 	if (len > (u_int)mac_size)
 		len = (u_int)mac_size;
-	
+
 	/* isc_tsmemcmp will be better when its easy to link with.  sntp
 	 * is a 1-shot program, so snooping for timing attacks is
 	 * Harder.
@@ -226,7 +230,7 @@ auth_init(
 
 	/* HMS: Is it OK to do this later, after we know we have a key file? */
 	INIT_SSL();
-	
+
 	if (keyf == NULL) {
 		if (debug)
 			printf("sntp auth_init: Couldn't open key file %s for reading!\n", keyfile);

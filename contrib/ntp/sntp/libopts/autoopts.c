@@ -13,7 +13,7 @@
 /*
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2018 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -35,7 +35,7 @@
 /**
  * The number of tab characters to skip when printing continuation lines.
  */
-static unsigned int tab_skip_ct          = 0;
+  static unsigned int tab_skip_ct          = 0;
 
 #ifndef HAVE_PATHFIND
 #  define  pathfind(_p, _n, _m) option_pathfind(_p, _n, _m)
@@ -59,7 +59,7 @@ static unsigned int tab_skip_ct          = 0;
 #  include "compat/strchr.c"
 #endif
 
-LOCAL void *
+static void *
 ao_malloc(size_t sz)
 {
     void * res = malloc(sz);
@@ -69,10 +69,8 @@ ao_malloc(size_t sz)
     }
     return res;
 }
-#undef  malloc
-#define malloc(_s)        ao_malloc(_s)
 
-LOCAL void *
+static void *
 ao_realloc(void *p, size_t sz)
 {
     void * res = (p == NULL) ? malloc(sz) : realloc(p, sz);
@@ -82,10 +80,8 @@ ao_realloc(void *p, size_t sz)
     }
     return res;
 }
-#undef  realloc
-#define realloc(_p,_s)    ao_realloc(_p,_s)
 
-LOCAL char *
+static char *
 ao_strdup(char const *str)
 {
     char * res = strdup(str);
@@ -95,8 +91,6 @@ ao_strdup(char const *str)
     }
     return res;
 }
-#undef  strdup
-#define strdup(_p)        ao_strdup(_p)
 
 /**
  *  handle an option.
@@ -104,7 +98,7 @@ ao_strdup(char const *str)
  *  This routine handles equivalencing, sets the option state flags and
  *  invokes the handler procedure, if any.
  */
-LOCAL tSuccess
+static tSuccess
 handle_opt(tOptions * opts, tOptState * o_st)
 {
     /*
@@ -217,7 +211,7 @@ handle_opt(tOptions * opts, tOptState * o_st)
  * @param opts the program option descriptor
  * @param o_st  the state of the next found option
  */
-LOCAL tSuccess
+static tSuccess
 next_opt(tOptions * opts, tOptState * o_st)
 {
     {
@@ -244,7 +238,7 @@ next_opt(tOptions * opts, tOptState * o_st)
  *  @param[in,out] opts   program options descriptor
  *  @returns SUCCESS or FAILURE
  */
-LOCAL tSuccess
+static tSuccess
 regular_opts(tOptions * opts)
 {
     /* assert:  opts->fOptSet & OPTPROC_IMMEDIATE == 0 */

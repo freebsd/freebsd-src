@@ -989,7 +989,8 @@ read_drift(
 	{
 		int idrift = 0, fdrift = 0;
 
-		fscanf(df, "%4d.%03d", &idrift, &fdrift);
+		if (2 != fscanf(df, "%4d.%03d", &idrift, &fdrift))
+			LPRINTF("read_drift: trouble reading drift file");
 		fclose(df);
 		LPRINTF("read_drift: %d.%03d ppm ", idrift, fdrift);
 
@@ -1172,7 +1173,10 @@ detach(
        )
 {
 #   ifdef HAVE_DAEMON
-	daemon(0, 0);
+	if (daemon(0, 0)) {
+		fprintf(stderr, "'daemon()' fails: %d(%s)\n",
+			errno, strerror(errno));
+	}
 #   else /* not HAVE_DAEMON */
 	if (fork())
 	    exit(0);

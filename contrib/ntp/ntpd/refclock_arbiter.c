@@ -17,12 +17,6 @@
 #include <stdio.h>
 #include <ctype.h>
 
-#ifdef SYS_WINNT
-extern int async_write(int, const void *, unsigned int);
-#undef write
-#define write(fd, data, octets)	async_write(fd, data, octets)
-#endif
-
 /*
  * This driver supports the Arbiter 1088A/B Satellite Controlled Clock.
  * The claimed accuracy of this clock is 100 ns relative to the PPS
@@ -163,7 +157,7 @@ arb_start(
 	 * Open serial port. Use CLK line discipline, if available.
 	 */
 	snprintf(device, sizeof(device), DEVICE, unit);
-	fd = refclock_open(device, SPEED232, LDISC_CLK);
+	fd = refclock_open(&peer->srcadr, device, SPEED232, LDISC_CLK);
 	if (fd <= 0)
 		return (0);
 
@@ -200,7 +194,7 @@ arb_start(
 #ifdef DEBUG
 	if(debug) { printf("arbiter: mode = %d.\n", peer->MODE); }
 #endif
-	write(pp->io.fd, COMMAND_HALT_BCAST, 2);
+	refclock_write(peer, COMMAND_HALT_BCAST, 2, "HALT_BCAST");
 	return (1);
 }
 
@@ -285,33 +279,34 @@ arb_receive(
 		 */
 		if (!strncmp(tbuf, "TQ", 2)) {
 			up->qualchar = tbuf[2];
-			write(pp->io.fd, "SR", 2);
+			refclock_write(peer, "SR", 2, "SR");
 			return;
 
 		} else if (!strncmp(tbuf, "SR", 2)) {
 			strlcpy(up->status, tbuf + 2,
 				sizeof(up->status));
 			if (pp->sloppyclockflag & CLK_FLAG4)
-				write(pp->io.fd, "LA", 2);
+			    refclock_write(peer, "LA", 2, "LA");
 			else
-				write(pp->io.fd, COMMAND_START_BCAST, 2);
+			    refclock_write(peer, COMMAND_START_BCAST, 2,
+				COMMAND_START_BCAST);
 			return;
 
 		} else if (!strncmp(tbuf, "LA", 2)) {
 			strlcpy(up->latlon, tbuf + 2, sizeof(up->latlon));
-			write(pp->io.fd, "LO", 2);
+			refclock_write(peer, "LO", 2, "LO");
 			return;
 
 		} else if (!strncmp(tbuf, "LO", 2)) {
 			strlcat(up->latlon, " ", sizeof(up->latlon));
 			strlcat(up->latlon, tbuf + 2, sizeof(up->latlon));
-			write(pp->io.fd, "LH", 2);
+			refclock_write(peer, "LH", 2, "LH");
 			return;
 
 		} else if (!strncmp(tbuf, "LH", 2)) {
 			strlcat(up->latlon, " ", sizeof(up->latlon));
 			strlcat(up->latlon, tbuf + 2, sizeof(up->latlon));
-			write(pp->io.fd, "DB", 2);
+			refclock_write(peer, "DB", 2, "DB");
 			return;
 
 		} else if (!strncmp(tbuf, "DB", 2)) {
@@ -322,7 +317,8 @@ arb_receive(
 			if (debug)
 				printf("arbiter: %s\n", up->latlon);
 #endif
-			write(pp->io.fd, COMMAND_START_BCAST, 2);
+			refclock_write(peer, COMMAND_START_BCAST, 2,
+				       COMMAND_START_BCAST);
 		}
 	}
 
@@ -351,7 +347,7 @@ arb_receive(
 	    &syncchar, &pp->year, &pp->day, &pp->hour,
 	    &pp->minute, &pp->second) != 6) {
 		refclock_report(peer, CEVNT_BADREPLY);
-		write(pp->io.fd, COMMAND_HALT_BCAST, 2);
+		refclock_write(peer, COMMAND_HALT_BCAST, 2, COMMAND_HALT_BCAST);
 		return;
 	}
 
@@ -401,13 +397,15 @@ arb_receive(
 	    case 'F':		/* clock failure */
 		pp->disp = MAXDISPERSE;
 		refclock_report(peer, CEVNT_FAULT);
-		write(pp->io.fd, COMMAND_HALT_BCAST, 2);
+		refclock_write(peer, COMMAND_HALT_BCAST, 2,
+			       COMMAND_HALT_BCAST);
 		return;
 
 	    default:
 		pp->disp = MAXDISPERSE;
 		refclock_report(peer, CEVNT_BADREPLY);
-		write(pp->io.fd, COMMAND_HALT_BCAST, 2);
+		refclock_write(peer, COMMAND_HALT_BCAST, 2,
+			       COMMAND_HALT_BCAST);
 		return;
 	}
 	if (syncchar != ' ')
@@ -425,7 +423,7 @@ arb_receive(
 		refclock_receive(peer);
 
 	/* if (up->tcswitch >= MAXSTAGE) { */
-	write(pp->io.fd, COMMAND_HALT_BCAST, 2);
+	refclock_write(peer, COMMAND_HALT_BCAST, 2, COMMAND_HALT_BCAST);
 	/* } */
 }
 
@@ -454,7 +452,7 @@ arb_poll(
 	up = pp->unitptr;
 	pp->polls++;
 	up->tcswitch = 0;
-	if (write(pp->io.fd, "TQ", 2) != 2)
+	if (refclock_write(peer, "TQ", 2, "TQ") != 2)
 		refclock_report(peer, CEVNT_FAULT);
 
 	/*

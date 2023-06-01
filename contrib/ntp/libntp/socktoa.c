@@ -119,7 +119,7 @@ sock_hash(
 	/*
 	 * We can't just hash the whole thing because there are hidden
 	 * fields in sockaddr_in6 that might be filled in by recvfrom(),
-	 * so just use the family, port and address.
+	 * so just use the family and address.
 	 */
 	pch = (const void *)&AF(addr);
 	hashVal = 37 * hashVal + *pch;

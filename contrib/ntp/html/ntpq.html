@@ -75,7 +75,8 @@
   <dt id="ntpversion"><tt>ntpversion 1 | 2 | 3 | 4</tt></dt>
   <dd>Sets the NTP version number which <tt>ntpq</tt> claims in packets. Defaults to 2, Note that mode-6 control messages (and modes, for that matter) didn't exist in NTP version 1.</dd>
   <dt id="passwd"><tt>passwd</tt></dt>
-  <dd>This command prompts for a password to authenticate requests. The password must correspond to the key ID configured in <tt>ntp.conf</tt> for this purpose.</dd>
+  <dd>This command prompts for a password to authenticate requests. The password must correspond to the key ID configured in <tt>ntp.conf</tt> for this purpose.
+  It follows the same rules as a password entry in the keys file of <tt>ntpd</tt>.</dd>
   <dt id="quit"><tt>quit</tt></dt>
   <dd>Exit <tt>ntpq</tt>.</dd>
   <dt id="raw"><tt>raw</tt></dt>

@@ -12,10 +12,12 @@ AC_REQUIRE([AC_PROG_CC_STDC])
 dnl AC_REQUIRE([AC_PROG_CC_C89])
 dnl AC_REQUIRE([AC_PROG_CC_C99])
 
+CC_NOFORMAT=
 CFLAGS_NTP=
 CPPFLAGS_NTP=
 LDADD_NTP=
 LDFLAGS_NTP=
+AC_SUBST([CC_NOFORMAT])
 AC_SUBST([CFLAGS_NTP])
 AC_SUBST([CPPFLAGS_NTP])
 AC_SUBST([LDADD_NTP])
@@ -75,7 +77,7 @@ AH_VERBATIM(
 case "$GCC" in
  yes)
     SAVED_CFLAGS="$CFLAGS"
-    CFLAGS="$CFLAGS -Wstrict-overflow"
+    CFLAGS="$SAVED_CFLAGS -Wstrict-overflow"
     AC_CACHE_CHECK(
 	[if $CC can handle -Wstrict-overflow], 
 	[ntp_cv_gcc_Wstrict_overflow], 
@@ -101,6 +103,32 @@ case "$GCC" in
 	    )
 	]
     )
+    #
+    # libopts specifically builds a string with embedded NULs.
+    # This causes a bunch of distracting warnings due to -Wformat.
+    # Let's see if we can figure out how to disable these.
+    #
+    CFLAGS="$SAVED_CFLAGS -Wno-format"
+    AC_CACHE_CHECK(
+	[if $CC can handle -Wno-format], 
+	[ntp_cv_gcc_Wno_format],
+	[
+	    AC_COMPILE_IFELSE(
+		[AC_LANG_PROGRAM([[]], [[]])],
+		[ntp_cv_gcc_Wno_format=yes],
+		[ntp_cv_gcc_Wno_format=no]
+	    )
+	]
+    )
+
+    case "$ntp_cv_gcc_Wno_format" in
+     yes)
+	CC_NOFORMAT="$CC_NOFORMAT -Wno-format"
+	;;
+     no)
+	;;
+    esac
+
     CFLAGS="$SAVED_CFLAGS"
     AS_UNSET([SAVED_CFLAGS])
     #

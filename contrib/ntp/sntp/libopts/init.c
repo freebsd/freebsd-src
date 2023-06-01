@@ -9,7 +9,7 @@
 /*
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2018 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -28,11 +28,6 @@
  *  13aa749a5b0a454917a944ed8fffc530b784f5ead522b1aacaf4ec8aa55a6239  COPYING.mbsd
  */
 
-/* = = = START-STATIC-FORWARD = = = */
-static tSuccess
-do_presets(tOptions * opts);
-/* = = = END-STATIC-FORWARD = = = */
-
 /**
  *  Make sure the option descriptor is there and that we understand it.
  *  This should be called from any user entry point where one needs to
@@ -46,7 +41,7 @@ do_presets(tOptions * opts);
  *  @param[in]     pname  name of program, from argv[]
  *  @returns SUCCESS or FAILURE
  */
-LOCAL tSuccess
+static tSuccess
 validate_struct(tOptions * opts, char const * pname)
 {
     if (opts == NULL) {
@@ -97,14 +92,15 @@ validate_struct(tOptions * opts, char const * pname)
      */
     if (opts->pzProgName == NULL) {
         char const *  pz = strrchr(pname, DIRCH);
-        char const ** pp = VOIDP(&(opts->pzProgName));
+        char const ** pp =
+            (char const **)(void **)&(opts->pzProgName);
 
         if (pz != NULL)
             *pp = pz+1;
         else
             *pp = pname;
 
-        pz = pathfind(getenv("PATH"), pname, "rx");
+        pz = pathfind(getenv("PATH"), (char *)pname, "rx");
         if (pz != NULL)
             pname = VOIDP(pz);
 
@@ -141,7 +137,7 @@ validate_struct(tOptions * opts, char const * pname)
  *  @param pOpts   program options descriptor
  *  @returns SUCCESS or FAILURE
  */
-LOCAL tSuccess
+static tSuccess
 immediate_opts(tOptions * opts)
 {
     tSuccess  res;
@@ -246,7 +242,7 @@ do_presets(tOptions * opts)
  * @param[in]     a_ct  program argument count
  * @param[in]     a_v   program argument vector
  */
-LOCAL bool
+static bool
 ao_initialize(tOptions * opts, int a_ct, char ** a_v)
 {
     if ((opts->fOptSet & OPTPROC_INITDONE) != 0)

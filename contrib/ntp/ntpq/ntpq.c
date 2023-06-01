@@ -17,6 +17,9 @@
 #endif
 #ifdef SYS_WINNT
 # include <mswsock.h>
+# define PATH_DEVNULL	"NUL:"
+#else
+# define PATH_DEVNULL	"/dev/null"
 #endif
 #include <isc/net.h>
 #include <isc/result.h>
@@ -236,13 +239,15 @@ static	int	assoccmp	(const void *, const void *);
 
 #ifndef BUILD_AS_LIB
 static	char   *list_digest_names(void);
-static	char   *insert_cmac	(char *list);
 static	void	on_ctrlc	(void);
 static	int	my_easprintf	(char**, const char *, ...) NTP_PRINTF(2, 3);
-# if defined(OPENSSL) && defined(HAVE_EVP_MD_DO_ALL_SORTED)
+#ifdef OPENSSL
+static	char   *insert_cmac	(char *list);
+# ifdef HAVE_EVP_MD_DO_ALL_SORTED
 static	void	list_md_fn	(const EVP_MD *m, const char *from,
 				 const char *to, void *arg);
-# endif /* defined(OPENSSL) && defined(HAVE_EVP_MD_DO_ALL_SORTED) */
+# endif /* HAVE_EVP_MD_DO_ALL_SORTED */
+#endif /* OPENSSL */
 #endif /* !defined(BUILD_AS_LIB) */
 
 
@@ -397,8 +402,9 @@ u_int numassoc;		/* number of cached associations */
  * For commands typed on the command line (with the -c option)
  */
 size_t numcmds = 0;
-const char *ccmds[MAXCMDS];
-#define	ADDCMD(cp)	if (numcmds < MAXCMDS) ccmds[numcmds++] = (cp)
+size_t defcmds = 0;        /* Options on the command line are 'defined'! */
+char *ccmds[MAXCMDS];
+#define	ADDCMD(cp)	if (numcmds < MAXCMDS) ccmds[numcmds++] = estrdup(cp)
 
 /*
  * When multiple hosts are specified.
@@ -445,8 +451,11 @@ chost chosts[MAXHOSTS];
 # define SETJMP(x)	setjmp((x))
 # define LONGJMP(x, v)	longjmp((x),(v))
 #endif
+
+#ifndef BUILD_AS_LIB
 static	JMP_BUF		interrupt_buf;
 static	volatile int	jump = 0;
+#endif
 
 /*
  * Points at file being currently printed into
@@ -613,7 +622,7 @@ ntpqmain(
 		}
 	}
 
-	if (numcmds == 0 && interactive == 0
+	if (defcmds == 0 && interactive == 0
 	    && isatty(fileno(stdin)) && isatty(fileno(stderr))) {
 		interactive = 1;
 	}
@@ -624,10 +633,7 @@ ntpqmain(
 		push_ctrl_c_handler(abortcmd);
 #endif /* SYS_WINNT */
 
-	if (numcmds == 0) {
-		(void) openhost(chosts[0].name, chosts[0].fam);
-		getcmds();
-	} else {
+	if (numcmds > 0) {
 		for (ihost = 0; ihost < numhosts; ihost++) {
 			if (openhost(chosts[ihost].name, chosts[ihost].fam)) {
 				if (ihost && current_output)
@@ -639,6 +645,14 @@ ntpqmain(
 				}
 			}
 		}
+		/* Release memory allocated in ADDCMD */
+		for (icmd = 0; icmd < numcmds; icmd++)
+			free(ccmds[icmd]);
+	}
+
+	if (defcmds == 0) {        /* No command line commands, so go interactive */
+		(void) openhost(chosts[0].name, chosts[0].fam);
+		getcmds();
 	}
 #ifdef SYS_WINNT
 	WSACleanup();
@@ -707,8 +721,27 @@ openhost(
 		a_info = getaddrinfo(hname, svc, &hints, &ai);
 	}
 #ifdef AI_ADDRCONFIG
-	/* Some older implementations don't like AI_ADDRCONFIG. */
-	if (a_info == EAI_BADFLAGS) {
+	/*
+	 * Some older implementations don't like AI_ADDRCONFIG.
+	 * Some versions of Windows return WSANO_DATA when there is no
+	 * global address and AI_ADDRCONFIG is used.  AI_ADDRCONFIG
+	 * is useful to short-circuit DNS lookups for IP protocols
+	 * for which the host has no local addresses.  Windows
+	 * unfortunately instead interprets AI_ADDRCONFIG to relate
+	 * to off-host connectivity and so fails lookup when
+	 * localhost works.
+	 * To further muddy matters, some versions of WS2tcpip.h
+	 * comment out #define EAI_NODATA WSANODATA claiming it
+	 * was removed from RFC 2553bis and mentioning a need to
+	 * contact the authors to find out why, but "helpfully"
+	 * #defines EAI_NODATA EAI_NONAME   (== WSAHOST_NOT_FOUND)
+	 * So we get more ugly platform-specific workarounds.
+	 */
+	if (
+#if defined(WIN32)
+	    WSANO_DATA == a_info || EAI_NONAME == a_info ||
+#endif
+	    EAI_BADFLAGS == a_info) {
 		hints.ai_flags &= ~AI_ADDRCONFIG;
 		a_info = getaddrinfo(hname, svc, &hints, &ai);
 	}
@@ -845,10 +878,10 @@ dump_hex_printable(
 
 		rowlen = (len > 16) ? 16 : (int)len;
 		len -= rowlen;
-		
+
 		do {
 			ch = *cdata++;
-			
+
 			*xptr++ = s_xdig[ch >> 4  ];
 			*xptr++ = s_xdig[ch & 0x0F];
 			if (++xptr == lbuf + 3*8)
@@ -923,7 +956,7 @@ getresponse(
 
 	memset(offsets, 0, sizeof(offsets));
 	memset(counts , 0, sizeof(counts ));
-	
+
 	/*
 	 * This is pretty tricky.  We may get between 1 and MAXFRAG packets
 	 * back in response to the request.  We peel the data out of
@@ -940,7 +973,7 @@ getresponse(
 	seenlastfrag = 0;
 
 	tobase = (uint32_t)time(NULL);
-	
+
 	FD_ZERO(&fds);
 
 	/*
@@ -988,7 +1021,7 @@ getresponse(
 				 * execute RMW cycle on 'n'
 				 */
 		}
-		
+
 		if (n <= 0) {
 			/*
 			 * Timed out.  Return what we have
@@ -1256,7 +1289,7 @@ getresponse(
 		 */
 		memcpy((char *)pktdata + offset, &rpkt.u, count);
 		tobase = (uint32_t)time(NULL);
-		
+
 		/*
 		 * If we've seen the last fragment, look for holes in the sequence.
 		 * If there aren't any, we're done.
@@ -1608,6 +1641,7 @@ docmd(
 	int ntok;
 	static int i;
 	struct xcmd *xcmd;
+	int executeonly = 0;
 
 	/*
 	 * Tokenize the command line.  If nothing on it, return.
@@ -1615,6 +1649,14 @@ docmd(
 	tokenize(cmdline, tokens, &ntok);
 	if (ntok == 0)
 	    return;
+
+	/*
+	 * If command prefixed by '~', then quiet output
+	 */
+	if (*tokens[0] == '~') {
+		executeonly++;
+		tokens[0]++;
+	}
 
 	/*
 	 * Find the appropriate command description.
@@ -1672,6 +1714,13 @@ docmd(
 		current_output = fopen(fname, "w");
 		if (current_output == NULL) {
 			(void) fprintf(stderr, "***Error opening %s: ", fname);
+			perror("");
+			return;
+		}
+	} else if (executeonly) {		/* Redirect all output to null */
+		current_output = fopen(PATH_DEVNULL, "w");
+		if (current_output == NULL) {
+			(void) fprintf(stderr, "***Error redirecting output to /dev/null: ");
 			perror("");
 			return;
 		}
@@ -2158,9 +2207,11 @@ rtdatetolfp(
 	if (cal.year < 100)
 		cal.year += 1900;
 
-	lfp->l_ui = caltontp(&cal);
+	/* check for complaints from 'caltontp()'! */
 	lfp->l_uf = 0;
-	return 1;
+	errno = 0;
+	lfp->l_ui = caltontp(&cal);
+	return (errno == 0);
 }
 
 
@@ -2544,7 +2595,7 @@ showdrefid2str(void)
 
 
 /*
- * drefid - display/change "display hash" 
+ * drefid - display/change "display hash"
  */
 static void
 showdrefid(
@@ -3132,13 +3183,13 @@ static int/*BOOL*/ cp_uqchar(int ch)
 /* predicate: allowed chars inside a value name */
 static int/*BOOL*/ cp_namechar(int ch)
 {
-	return ch && (ch != ',' && ch != '=' && ch != '\r' && ch != '\n'); 
+	return ch && (ch != ',' && ch != '=' && ch != '\r' && ch != '\n');
 }
 
 /* predicate: characters *between* list items. We're relaxed here. */
 static int/*BOOL*/ cp_ivspace(int ch)
 {
-	return (ch == ',' || (ch > 0 && ch <= ' ')); 
+	return (ch == ',' || (ch > 0 && ch <= ' '));
 }
 
 /* get current character (or NUL when on end) */
@@ -3172,16 +3223,16 @@ str_strip(
 	)
 {
 	static const char empty[] = "";
-	
+
 	if (*datap && len) {
 		const char * cpl = *datap;
 		const char * cpr = cpl + len;
-		
+
 		while (cpl != cpr && *(const unsigned char*)cpl <= ' ')
 			++cpl;
 		while (cpl != cpr && *(const unsigned char*)(cpr - 1) <= ' ')
 			--cpr;
-		*datap = cpl;		
+		*datap = cpl;
 		len = (size_t)(cpr - cpl);
 	} else {
 		*datap = empty;
@@ -3198,21 +3249,21 @@ pf_error(
 	)
 {
 #   ifndef BUILD_AS_LIB
-	
+
 	FILE *	ofp = (debug > 0) ? stdout : stderr;
 	size_t	len = (size_t)(whend - where);
-	
+
 	if (len > 50) /* *must* fit into an 'int'! */
 		len = 50;
 	fprintf(ofp, "nextvar: %s: '%.*s'\n",
 		what, (int)len, where);
-	
+
 #   else  /*defined(BUILD_AS_LIB)*/
 
 	UNUSED_ARG(what);
 	UNUSED_ARG(where);
 	UNUSED_ARG(whend);
-	
+
 #   endif /*defined(BUILD_AS_LIB)*/
 }
 
@@ -3228,7 +3279,7 @@ nextvar(
 	)
 {
 	enum PState 	{ sDone, sInit, sName, sValU, sValQ };
-	
+
 	static char	name[MAXVARLEN], value[MAXVALLEN];
 
 	const char	*cp, *cpend;
@@ -3236,13 +3287,13 @@ nextvar(
 	size_t		nlen, vlen;
 	int		ch;
 	enum PState	st;
-	
+
 	cpend = *datap + *datalen;
 
   again:
 	np   = vp   = NULL;
 	nlen = vlen = 0;
-	
+
 	st = sInit;
 	ch = pf_getch(datap, cpend);
 
@@ -3261,7 +3312,7 @@ nextvar(
 				goto final_done;
 			}
 			break;
-			    
+
 		case sName:	/* collect name */
 			while (cp_namechar(ch))
 				ch = pf_nextch(datap, cpend);
@@ -3276,7 +3327,7 @@ nextvar(
 				st = sDone;
 			}
 			break;
-			
+
 		case sValU:	/* collect unquoted part(s) of value */
 			while (cp_uqchar(ch))
 				ch = pf_nextch(datap, cpend);
@@ -3290,7 +3341,7 @@ nextvar(
 				st = sDone;
 			}
 			break;
-			
+
 		case sValQ:	/* collect quoted part(s) of value */
 			while (cp_qschar(ch))
 				ch = pf_nextch(datap, cpend);
@@ -3302,7 +3353,7 @@ nextvar(
 				goto final_done;
 			}
 			break;
-			
+
 		default:
 			pf_error("state machine error, stop", *datap, cpend);
 			goto final_done;
@@ -3315,7 +3366,7 @@ nextvar(
 	 */
 	nlen = str_strip(&np, nlen);
 	vlen = str_strip(&vp, vlen);
-	
+
 	if (nlen == 0) {
 		goto again;
 	}
@@ -3332,7 +3383,7 @@ nextvar(
 	memcpy(name, np, nlen);
 	name[nlen] = '\0';
 	*vname = name;
-	
+
 	memcpy(value, vp, vlen);
 	value[vlen] = '\0';
 	*vvalue = value;
@@ -3541,7 +3592,7 @@ tstflags(
 	)
 {
 #	if CBLEN < 10
-#	 error BLEN is too small -- increase!
+#	 error CBLEN is too small -- increase!
 #	endif
 
 	char *cp, *s;
@@ -3566,7 +3617,7 @@ tstflags(
 		cb -= l;
 	} else {
 		const char *sep;
-		
+
 		sep = " ";
 		for (i = 0; i < COUNTOF(tstflagnames); i++) {
 			if (val & 0x1) {
@@ -3664,8 +3715,8 @@ cookedprint(
 			} else if (decodenetnum(value, &hval)) {
 				if (datatype == TYPE_CLOCK && IS_IPV4(&hval)) {
 					/*
-					 * Workaround to override numeric refid formats 
-					 * for refclocks received from faulty nptd servers 
+					 * Workaround to override numeric refid formats
+					 * for refclocks received from faulty nptd servers
 					 * and output them as text.
 					 */
 					int i;
@@ -3682,7 +3733,7 @@ cookedprint(
 						output(fp, name, stoa(&hval));
 					} else {
 						char refid_buf[12];
-						snprintf (refid_buf, sizeof(refid_buf), 
+						snprintf (refid_buf, sizeof(refid_buf),
 							  "0x%08x", ntohl(addr2refid(&hval)));
 						output(fp, name, refid_buf);
 					}
@@ -3819,7 +3870,7 @@ grow_assoc_cache(void)
 	if (0 == prior_sz) {
 		new_sz -= 4 * sizeof(void *);
 	}
-	assoc_cache = erealloc_zero(assoc_cache, new_sz, prior_sz); 
+	assoc_cache = erealloc_zero(assoc_cache, new_sz, prior_sz);
 	prior_sz = new_sz;
 	assoc_cache_slots = (u_int)(new_sz / sizeof(assoc_cache[0]));
 }
@@ -3848,10 +3899,14 @@ ntpq_custom_opt_handler(
 		exit(1);
 
 	case 'c':
+		if ((pOptDesc->fOptState & OPTST_SET_MASK) == OPTST_DEFINED)
+			defcmds++;
 		ADDCMD(pOptDesc->pzLastArg);
 		break;
 
 	case 'p':
+		if ((pOptDesc->fOptState & OPTST_SET_MASK) == OPTST_DEFINED)
+			defcmds++;
 		ADDCMD("peers");
 		break;
 	}
@@ -3874,7 +3929,7 @@ ntpq_custom_opt_handler(
 
 struct hstate {
 	char *list;
-	const char **seen;
+	char const **seen;
 	int idx;
 };
 
@@ -3887,7 +3942,7 @@ list_md_fn(const EVP_MD *m, const char *from, const char *to, void *arg)
 	const char    *name, **seen;
 	struct hstate *hstate = arg;
 	const char    *cp;
-	
+
 	/* m is MD obj, from is name or alias, to is base name for alias */
 	if (!m || !from || to)
 		return; /* Ignore aliases */
@@ -3896,28 +3951,28 @@ list_md_fn(const EVP_MD *m, const char *from, const char *to, void *arg)
 	/* Keep this consistent with keytype_from_text() in ssl_init.c. */
 	if (EVP_MD_size(m) > (MAX_MAC_LEN - sizeof(keyid_t)))
 		return;
-	
+
 	name = EVP_MD_name(m);
-	
+
 	/* Lowercase names aren't accepted by keytype_from_text in ssl_init.c */
-	
+
 	for (cp = name; *cp; cp++)
 		if (islower((unsigned char)*cp))
 			return;
 
 	len = (cp - name) + 1;
-	
+
 	/* There are duplicates.  Discard if name has been seen. */
-	
+
 	for (seen = hstate->seen; *seen; seen++)
 		if (!strcmp(*seen, name))
 			return;
 
 	n = (seen - hstate->seen) + 2;
-	hstate->seen = erealloc(hstate->seen, n * sizeof(*seen));
+	hstate->seen = erealloc((void *)hstate->seen, n * sizeof(*seen));
 	hstate->seen[n-2] = name;
 	hstate->seen[n-1] = NULL;
-	
+
 	if (hstate->list != NULL)
 		len += strlen(hstate->list);
 
@@ -3931,11 +3986,11 @@ list_md_fn(const EVP_MD *m, const char *from, const char *to, void *arg)
 	} else {
 		hstate->list = (char *)erealloc(hstate->list, len);
 	}
-	
+
 	sprintf(hstate->list + strlen(hstate->list), "%s%s",
 		((hstate->idx >= K_PER_LINE) ? K_NL_PFX_STR : K_DELIM_STR),
 		name);
-	
+
 	if (hstate->idx >= K_PER_LINE)
 		hstate->idx = 1;
 	else
@@ -3955,7 +4010,7 @@ insert_cmac(char *list)
 
 	/* If list empty, we need to insert CMAC on new line */
 	insert = (!list || !*list);
-	
+
 	if (insert) {
 		len = strlen(K_NL_PFX_STR) + strlen(CMAC);
 		list = (char *)erealloc(list, len + 1);
@@ -3964,41 +4019,41 @@ insert_cmac(char *list)
 		/* Check if CMAC already in list - future proofing */
 		const char *cmac_sn;
 		char *cmac_p;
-		
+
 		cmac_sn = OBJ_nid2sn(NID_cmac);
 		cmac_p = list;
 		insert = cmac_sn != NULL && *cmac_sn != '\0';
-		
+
 		/* CMAC in list if found, followed by nul char or ',' */
 		while (insert && NULL != (cmac_p = strstr(cmac_p, cmac_sn))) {
 			cmac_p += strlen(cmac_sn);
 			/* Still need to insert if not nul and not ',' */
 			insert = *cmac_p && ',' != *cmac_p;
 		}
-		
+
 		/* Find proper insertion point */
 		if (insert) {
 			char *last_nl;
 			char *point;
 			char *delim;
 			int found;
-			
+
 			/* Default to start if list empty */
 			found = 0;
 			delim = list;
 			len = strlen(list);
-			
+
 			/* While new lines */
 			while (delim < list + len && *delim &&
 			       !strncmp(K_NL_PFX_STR, delim, strlen(K_NL_PFX_STR))) {
 				point = delim + strlen(K_NL_PFX_STR);
-				
+
 				/* While digest names on line */
 				while (point < list + len && *point) {
 					/* Another digest after on same or next line? */
 					delim = strstr( point, K_DELIM_STR);
 					last_nl = strstr( point, K_NL_PFX_STR);
-					
+
 					/* No - end of list */
 					if (!delim && !last_nl) {
 						delim = list + len;
@@ -4007,13 +4062,13 @@ insert_cmac(char *list)
 						if (last_nl && (!delim || last_nl < delim)) {
 							delim = last_nl;
 						}
-					
+
 					/* Found insertion point where CMAC before entry? */
 					if (strncmp(CMAC, point, delim - point) < 0) {
 						found = 1;
 						break;
 					}
-					
+
 					if (delim < list + len && *delim &&
 					    !strncmp(K_DELIM_STR, delim, strlen(K_DELIM_STR))) {
 						point += strlen(K_DELIM_STR);
@@ -4022,7 +4077,7 @@ insert_cmac(char *list)
 					}
 				} /* While digest names on line */
 			} /* While new lines */
-			
+
 			/* If found in list */
 			if (found) {
 				/* insert cmac and delim */
@@ -4034,8 +4089,8 @@ insert_cmac(char *list)
 				/* move to handle src/dest overlap */
 				memmove(point + strlen(CMAC) + strlen(K_DELIM_STR),
 					point, strlen(point) + 1);
-				strncpy(point, CMAC, strlen(CMAC));
-				strncpy(point + strlen(CMAC), K_DELIM_STR, strlen(K_DELIM_STR));
+				memcpy(point, CMAC, strlen(CMAC));
+				memcpy(point + strlen(CMAC), K_DELIM_STR, strlen(K_DELIM_STR));
 			} else {	/* End of list */
 				/* append delim and cmac */
 				len += strlen(K_DELIM_STR) + strlen(CMAC);
@@ -4058,21 +4113,21 @@ static char *
 list_digest_names(void)
 {
 	char *list = NULL;
-	
+
 #ifdef OPENSSL
 # ifdef HAVE_EVP_MD_DO_ALL_SORTED
 	struct hstate hstate = { NULL, NULL, K_PER_LINE+1 };
-	
+
 	/* replace calloc(1, sizeof(const char *)) */
-	hstate.seen = (const char **)emalloc_zero(sizeof(const char *));
-	
+	hstate.seen = emalloc_zero(sizeof(const char*));
+
 	INIT_SSL();
 	EVP_MD_do_all_sorted(list_md_fn, &hstate);
 	list = hstate.list;
-	free(hstate.seen);
-	
+	free((void *)hstate.seen);
+
 	list = insert_cmac(list);	/* Insert CMAC into SSL digests list */
-	
+
 # else
 	list = (char *)emalloc(sizeof("md5, others (upgrade to OpenSSL-1.0 for full list)"));
 	strcpy(list, "md5, others (upgrade to OpenSSL-1.0 for full list)");
@@ -4081,7 +4136,7 @@ list_digest_names(void)
 	list = (char *)emalloc(sizeof("md5"));
 	strcpy(list, "md5");
 #endif
-	
+
 	return list;
 }
 #endif /* !defined(BUILD_AS_LIB) */
@@ -4103,7 +4158,7 @@ push_ctrl_c_handler(
 		ctrlc_stack_len = size + 1;
 		return TRUE;
 	}
-	return FALSE;	
+	return FALSE;
 }
 
 int/*BOOL*/

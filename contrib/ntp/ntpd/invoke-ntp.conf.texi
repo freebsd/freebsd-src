@@ -6,7 +6,7 @@
 #
 # EDIT THIS FILE WITH CAUTION  (invoke-ntp.conf.texi)
 #
-# It has been AutoGen-ed  June 23, 2020 at 02:20:31 AM by AutoGen 5.18.5
+# It has been AutoGen-ed  May 31, 2023 at 02:49:31 PM by AutoGen 5.18.16
 # From the definitions    ntp.conf.def
 # and the template file   agtexi-file.tpl
 @end ignore
@@ -1456,17 +1456,27 @@ client abuse.
 The
 @code{average}
 subcommand specifies the minimum average packet
-spacing, while the
+spacing in log2 seconds, defaulting to 3 (8s), while the
 @code{minimum}
-subcommand specifies the minimum packet spacing.
+subcommand specifies the minimum packet spacing
+in seconds, defaulting to 2.
 Packets that violate these minima are discarded
 and a kiss-o'-death packet returned if enabled.
-The default
-minimum average and minimum are 5 and 2, respectively.
 The
 @code{monitor}
-subcommand specifies the probability of discard
-for packets that overflow the rate-control window.
+subcommand indirectly specifies the probability of
+replacing the oldest entry from the monitor (MRU)
+list of recent requests used to enforce rate controls,
+when that list is at its maximum size. The probability
+of replacing the oldest entry is the age of that entry
+in seconds divided by the
+@code{monitor}
+value, default 3000. For example, if the oldest entry
+in the MRU list represents a request 300 seconds ago,
+by default the probability of replacing it with an
+entry representing the client request being processed
+now is 10%. Conversely, if the oldest entry is more
+than 3000 seconds old, the probability is 100%.
 @item @code{restrict} @code{address} @code{[@code{mask} @kbd{mask}]} @code{[@code{ippeerlimit} @kbd{int}]} @code{[@kbd{flag} @kbd{...}]}
 The
 @kbd{address}
@@ -2775,7 +2785,7 @@ For the JJY driver (type 40 mode 100 - 180), the argument is
 one telephone number used to dial the telephone JJY service.
 The Hayes command ATDT is normally prepended to the number.
 The number can contain other modem control codes as well.
-@item @code{pollskewlist} @code{[@kbd{poll} @kbd{value} | @kbd{value}]} @kbd{...} @code{[@code{default} @kbd{value} | @kbd{value}]}
+@item @code{pollskewlist} @code{[@kbd{poll} @kbd{early} @kbd{late}]} @kbd{...} @code{[@code{default} @kbd{early} @kbd{late}]}
 Enable skewing of our poll requests to our servers.
 @kbd{poll}
 is a number between 3 and 17 inclusive, identifying a specific poll interval.
@@ -2786,9 +2796,11 @@ a poll interval of 17 corresponds to
 131,072 seconds, or about a day and a half.
 The next two numbers must be between 0 and one-half of the poll interval,
 inclusive.
-The first number specifies how early the poll may start,
+Ar early
+specifies how early the poll may start,
 while
-the second number specifies how late the poll may be delayed.
+Ar late
+specifies how late the poll may be delayed.
 With no arguments, internally specified default values are chosen.
 @item @code{reset} @code{[@code{allpeers}]} @code{[@code{auth}]} @code{[@code{ctl}]} @code{[@code{io}]} @code{[@code{mem}]} @code{[@code{sys}]} @code{[@code{timer}]}
 Reset one or more groups of counters maintained by

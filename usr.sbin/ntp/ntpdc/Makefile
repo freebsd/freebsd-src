@@ -10,9 +10,9 @@ PROG=	ntpdc
 SRCS= 	ntpdc.c ntpdc_ops.c ntpdc-opts.c version.c
 
 CFLAGS+= -I${SRCTOP}/contrib/ntp/include \
-	-I${SRCTOP}/contrib/ntp/lib/isc/include \
-	-I${SRCTOP}/contrib/ntp/lib/isc/unix/include \
-	-I${SRCTOP}/contrib/ntp/lib/isc/pthreads/include \
+	-I${SRCTOP}/contrib/ntp/libntp/lib/isc/include \
+	-I${SRCTOP}/contrib/ntp/libntp/lib/isc/unix/include \
+	-I${SRCTOP}/contrib/ntp/libntp/lib/isc/pthreads/include \
 	-I${SRCTOP}/contrib/ntp/sntp/libopts \
 	-I${.CURDIR}/lib/libc/${MACHINE_ARCH} \
 	-I${.CURDIR:H} -I${.CURDIR}

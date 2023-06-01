@@ -68,6 +68,45 @@
       </dd>
     </dl>
   </dd>
+  <dt id="device"><tt>device 127.127.<i>t.u</i> [timedata <i>devpath</i>] [ppsdata <i>devpath</i>]</tt></dt>
+  <dd>
+    This command can be used to specify the devices a reference
+    clocks should use.  Every clock has a special hard-coded builtin
+    name to use, and while it is possible to make a symlink from the
+    expected name to the real device, doing so is not always
+    convenient.  On some platforms or setups it is much easier to
+    specify the real device name in <i>ntpd</i>'s configuration file.
+  </dd><dd>
+    Note: It is <i>not</i> necessary to specify device names
+    in the configuration file; in such a case the builtin name will be
+    used.  But once a device name is given, it will be used as
+    specified.  There's no fallback in case of errors.
+  </dd><dd>
+    The arguments are:
+    <dl>
+      <dt><tt>timedata <i>devpath</i></tt></dt>
+      <dd>
+	Defines the device that provides the time code data stream;
+	for e.g. NMEA, <i>devpath</i> could be "<tt>/dev/ttyS7</tt>" on a
+	POSIX-like system or "<tt>\\.\COM4</tt>" for another widely used OS.
+      </dd>
+      <dt><tt>ppsdata <i>devpath</i></tt></dt>
+      <dd>
+	Defines the device that provides the PPS timing stream.  By
+	default, the time data stream is expected to be able to
+	provide the PPS data, too.  (Proper wiring and hardware
+	assumed, of course.)  This is true for all OSes that implement
+	the PPS API as originally designed for BSD variants.
+	<p/>	
+	But on some hardware the PPS signal cannot not delivered to
+	the UART that handles the serial data; instead it might
+	be routed to a GPIO pin, and that means that we need a
+	way to define the device where the PPS data can be acquired
+	from.  The <tt>ppsdata</tt> definition provides support for such
+	use cases.
+      </dd>
+    </dl>
+  </dd>
 </dl>
 <hr>
 <script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>

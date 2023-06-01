@@ -31,7 +31,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "option-value-type.h"
-/* ANSI-C code produced by gperf version 3.0.4 */
+/* ANSI-C code produced by gperf version 3.1 */
 /* Command-line: gperf option-value-type.gp  */
 /* Computed positions: -k'1' */
 
@@ -64,7 +64,7 @@ typedef struct {
 /* maximum key range = 15, duplicates = 0 */
 
 static unsigned int
-option_value_type_hash (register const char *str, register unsigned int len)
+option_value_type_hash (register const char *str, register size_t len)
 {
   static const unsigned char asso_values[] =
     {
@@ -119,13 +119,13 @@ static const option_value_type_map_t option_value_type_table[] =
   };
 
 static inline const option_value_type_map_t *
-find_option_value_type_name (register const char *str, register unsigned int len)
+find_option_value_type_name (register const char *str, register size_t len)
 {
   if (len <= 14 && len >= 3)
     {
-      register int key = (int)option_value_type_hash (str, len);
+      register unsigned int key = (int)option_value_type_hash (str, len);
 
-      if (key <= 17 && key >= 0)
+      if (key <= 17)
         {
           register const char *s = option_value_type_table[key].vtp_name;
 

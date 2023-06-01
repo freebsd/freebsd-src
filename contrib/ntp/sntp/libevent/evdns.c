@@ -77,6 +77,7 @@
 #include <stdarg.h>
 #ifdef _WIN32
 #include <winsock2.h>
+#include <winerror.h>
 #include <ws2tcpip.h>
 #ifndef _WIN32_IE
 #define _WIN32_IE 0x400
@@ -345,6 +346,9 @@ struct evdns_base {
 	ev_socklen_t global_outgoing_addrlen;
 
 	struct timeval global_getaddrinfo_allow_skew;
+
+	int so_rcvbuf;
+	int so_sndbuf;
 
 	int getaddrinfo_ipv4_timeouts;
 	int getaddrinfo_ipv6_timeouts;
@@ -863,6 +867,19 @@ reply_schedule_callback(struct request *const req, u32 ttl, u32 err, struct repl
 		&d->deferred);
 }
 
+
+#define _QR_MASK    0x8000U
+#define _OP_MASK    0x7800U
+#define _AA_MASK    0x0400U
+#define _TC_MASK    0x0200U
+#define _RD_MASK    0x0100U
+#define _RA_MASK    0x0080U
+#define _Z_MASK     0x0040U
+#define _AD_MASK    0x0020U
+#define _CD_MASK    0x0010U
+#define _RCODE_MASK 0x000fU
+#define _Z_MASK_DEPRECATED 0x0070U
+
 /* this processes a parsed reply packet */
 static void
 reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply) {
@@ -876,12 +893,12 @@ reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply)
 	ASSERT_LOCKED(req->base);
 	ASSERT_VALID_REQUEST(req);
 
-	if (flags & 0x020f || !reply || !reply->have_answer) {
+	if (flags & (_RCODE_MASK | _TC_MASK) || !reply || !reply->have_answer) {
 		/* there was an error */
-		if (flags & 0x0200) {
+		if (flags & _TC_MASK) {
 			error = DNS_ERR_TRUNCATED;
-		} else if (flags & 0x000f) {
-			u16 error_code = (flags & 0x000f) - 1;
+		} else if (flags & _RCODE_MASK) {
+			u16 error_code = (flags & _RCODE_MASK) - 1;
 			if (error_code > 4) {
 				error = DNS_ERR_UNKNOWN;
 			} else {
@@ -976,7 +993,6 @@ name_parse(u8 *packet, int length, int *idx, char *name_out, int name_out_len) {
 
 	for (;;) {
 		u8 label_len;
-		if (j >= length) return -1;
 		GET8(label_len);
 		if (!label_len) break;
 		if (label_len & 0xc0) {
@@ -997,6 +1013,7 @@ name_parse(u8 *packet, int length, int *idx, char *name_out, int name_out_len) {
 			*cp++ = '.';
 		}
 		if (cp + label_len >= end) return -1;
+		if (j + label_len > length) return -1;
 		memcpy(cp, packet + j, label_len);
 		cp += label_len;
 		j += label_len;
@@ -1046,8 +1063,8 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 	memset(&reply, 0, sizeof(reply));
 
 	/* If it's not an answer, it doesn't correspond to any request. */
-	if (!(flags & 0x8000)) return -1;  /* must be an answer */
-	if ((flags & 0x020f) && (flags & 0x020f) != DNS_ERR_NOTEXIST) {
+	if (!(flags & _QR_MASK)) return -1;  /* must be an answer */
+	if ((flags & (_RCODE_MASK|_TC_MASK)) && (flags & (_RCODE_MASK|_TC_MASK)) != DNS_ERR_NOTEXIST) {
 		/* there was an error and it's not NXDOMAIN */
 		goto err;
 	}
@@ -1060,24 +1077,6 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 			sizeof(tmp_name))<0)			\
 			goto err;				\
 	} while (0)
-#define TEST_NAME							\
-	do { tmp_name[0] = '\0';					\
-		cmp_name[0] = '\0';					\
-		k = j;							\
-		if (name_parse(packet, length, &j, tmp_name,		\
-			sizeof(tmp_name))<0)				\
-			goto err;					\
-		if (name_parse(req->request, req->request_len, &k,	\
-			cmp_name, sizeof(cmp_name))<0)			\
-			goto err;					\
-		if (base->global_randomize_case) {			\
-			if (strcmp(tmp_name, cmp_name) == 0)		\
-				name_matches = 1;			\
-		} else {						\
-			if (evutil_ascii_strcasecmp(tmp_name, cmp_name) == 0) \
-				name_matches = 1;			\
-		}							\
-	} while (0)
 
 	reply.type = req->request_type;
 
@@ -1086,9 +1085,25 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 		/* the question looks like
 		 *   <label:name><u16:type><u16:class>
 		 */
-		TEST_NAME;
+		tmp_name[0] = '\0';
+		cmp_name[0] = '\0';
+		k = j;
+		if (name_parse(packet, length, &j, tmp_name, sizeof(tmp_name)) < 0)
+			goto err;
+		if (name_parse(req->request, req->request_len, &k,
+			cmp_name, sizeof(cmp_name))<0)
+			goto err;
+		if (!base->global_randomize_case) {
+			if (strcmp(tmp_name, cmp_name) == 0)
+				name_matches = 1;
+		} else {
+			if (evutil_ascii_strcasecmp(tmp_name, cmp_name) == 0)
+				name_matches = 1;
+		}
+
 		j += 4;
-		if (j > length) goto err;
+		if (j > length)
+			goto err;
 	}
 
 	if (!name_matches)
@@ -1238,8 +1253,8 @@ request_parse(u8 *packet, int length, struct evdns_server_port *port, struct soc
 	(void)additional;
 	(void)authority;
 
-	if (flags & 0x8000) return -1; /* Must not be an answer. */
-	flags &= 0x0110; /* Only RD and CD get preserved. */
+	if (flags & _QR_MASK) return -1; /* Must not be an answer. */
+	flags &= (_RD_MASK|_CD_MASK); /* Only RD and CD get preserved. */
 
 	server_req = mm_malloc(sizeof(struct server_request));
 	if (server_req == NULL) return -1;
@@ -1279,7 +1294,7 @@ request_parse(u8 *packet, int length, struct evdns_server_port *port, struct soc
 	port->refcnt++;
 
 	/* Only standard queries are supported. */
-	if (flags & 0x7800) {
+	if (flags & _OP_MASK) {
 		evdns_server_request_respond(&(server_req->base), DNS_ERR_NOTIMPL);
 		return -1;
 	}
@@ -1288,14 +1303,12 @@ request_parse(u8 *packet, int length, struct evdns_server_port *port, struct soc
 
 	return 0;
 err:
-	if (server_req) {
-		if (server_req->base.questions) {
-			for (i = 0; i < server_req->base.nquestions; ++i)
-				mm_free(server_req->base.questions[i]);
-			mm_free(server_req->base.questions);
-		}
-		mm_free(server_req);
+	if (server_req->base.questions) {
+		for (i = 0; i < server_req->base.nquestions; ++i)
+			mm_free(server_req->base.questions[i]);
+		mm_free(server_req->base.questions);
 	}
+	mm_free(server_req);
 	return -1;
 
 #undef SKIP_NAME
@@ -1753,6 +1766,7 @@ evdns_close_server_port(struct evdns_server_port *port)
 		server_port_free(port);
 	} else {
 		port->closing = 1;
+		EVDNS_UNLOCK(port);
 	}
 }
 
@@ -1906,7 +1920,7 @@ evdns_server_request_format_response(struct server_request *req, int err)
 	/* Set response bit and error code; copy OPCODE and RD fields from
 	 * question; copy RA and AA if set by caller. */
 	flags = req->base.flags;
-	flags |= (0x8000 | err);
+	flags |= (_QR_MASK | err);
 
 	dnslabel_table_init(&table);
 	APPEND16(req->trans_id);
@@ -2267,10 +2281,11 @@ evdns_request_transmit(struct request *req) {
 		nameserver_write_waiting(req->ns, 1);
 		return 1;
 	case 2:
-		/* failed to transmit the request entirely. */
+		/* failed to transmit the request entirely. we can fallthrough since
+		 * we'll set a timeout, which will time out, and make us retransmit the
+		 * request anyway. */
 		retcode = 1;
-		/* fall through: we'll set a timeout, which will time out,
-		 * and make us retransmit the request anyway. */
+		EVUTIL_FALLTHROUGH;
 	default:
 		/* all ok */
 		log(EVDNS_LOG_DEBUG,
@@ -2523,6 +2538,23 @@ evdns_nameserver_add_impl_(struct evdns_base *base, const struct sockaddr *addre
 			base->global_outgoing_addrlen) < 0) {
 			log(EVDNS_LOG_WARN,"Couldn't bind to outgoing address");
 			err = 2;
+			goto out2;
+		}
+	}
+
+	if (base->so_rcvbuf) {
+		if (setsockopt(ns->socket, SOL_SOCKET, SO_RCVBUF,
+		    (void *)&base->so_rcvbuf, sizeof(base->so_rcvbuf))) {
+			log(EVDNS_LOG_WARN, "Couldn't set SO_RCVBUF to %i", base->so_rcvbuf);
+			err = -SO_RCVBUF;
+			goto out2;
+		}
+	}
+	if (base->so_sndbuf) {
+		if (setsockopt(ns->socket, SOL_SOCKET, SO_SNDBUF,
+		    (void *)&base->so_sndbuf, sizeof(base->so_sndbuf))) {
+			log(EVDNS_LOG_WARN, "Couldn't set SO_SNDBUF to %i", base->so_sndbuf);
+			err = -SO_SNDBUF;
 			goto out2;
 		}
 	}
@@ -3177,8 +3209,11 @@ search_set_from_hostname(struct evdns_base *base) {
 static char *
 search_make_new(const struct search_state *const state, int n, const char *const base_name) {
 	const size_t base_len = strlen(base_name);
-	const char need_to_append_dot = base_name[base_len - 1] == '.' ? 0 : 1;
+	char need_to_append_dot;
 	struct search_domain *dom;
+
+	if (!base_len) return NULL;
+	need_to_append_dot = base_name[base_len - 1] == '.' ? 0 : 1;
 
 	for (dom = state->head; dom; dom = dom->next) {
 		if (!n--) {
@@ -3312,10 +3347,16 @@ search_request_finished(struct evdns_request *const handle) {
 
 static void
 evdns_resolv_set_defaults(struct evdns_base *base, int flags) {
+	int add_default = flags & DNS_OPTION_NAMESERVERS;
+	if (flags & DNS_OPTION_NAMESERVERS_NO_DEFAULT)
+		add_default = 0;
+
 	/* if the file isn't found then we assume a local resolver */
 	ASSERT_LOCKED(base);
-	if (flags & DNS_OPTION_SEARCH) search_set_from_hostname(base);
-	if (flags & DNS_OPTION_NAMESERVERS) evdns_base_nameserver_ip_add(base,"127.0.0.1");
+	if (flags & DNS_OPTION_SEARCH)
+		search_set_from_hostname(base);
+	if (add_default)
+		evdns_base_nameserver_ip_add(base, "127.0.0.1");
 }
 
 #ifndef EVENT__HAVE_STRTOK_R
@@ -3490,6 +3531,7 @@ evdns_base_set_option_impl(struct evdns_base *base,
 		base->global_max_retransmits = retries;
 	} else if (str_matches_option(option, "randomize-case:")) {
 		int randcase = strtoint(val);
+		if (randcase == -1) return -1;
 		if (!(flags & DNS_OPTION_MISC)) return 0;
 		base->global_randomize_case = randcase;
 	} else if (str_matches_option(option, "bind-to:")) {
@@ -3511,6 +3553,18 @@ evdns_base_set_option_impl(struct evdns_base *base,
 		    val);
 		memcpy(&base->global_nameserver_probe_initial_timeout, &tv,
 		    sizeof(tv));
+	} else if (str_matches_option(option, "so-rcvbuf:")) {
+		int buf = strtoint(val);
+		if (buf == -1) return -1;
+		if (!(flags & DNS_OPTION_MISC)) return 0;
+		log(EVDNS_LOG_DEBUG, "Setting SO_RCVBUF to %s", val);
+		base->so_rcvbuf = buf;
+	} else if (str_matches_option(option, "so-sndbuf:")) {
+		int buf = strtoint(val);
+		if (buf == -1) return -1;
+		if (!(flags & DNS_OPTION_MISC)) return 0;
+		log(EVDNS_LOG_DEBUG, "Setting SO_SNDBUF to %s", val);
+		base->so_sndbuf = buf;
 	}
 	return 0;
 }
@@ -3611,14 +3665,24 @@ evdns_base_resolv_conf_parse_impl(struct evdns_base *base, int flags, const char
 	char *resolv;
 	char *start;
 	int err = 0;
+	int add_default;
 
 	log(EVDNS_LOG_DEBUG, "Parsing resolv.conf file %s", filename);
+
+	add_default = flags & DNS_OPTION_NAMESERVERS;
+	if (flags & DNS_OPTION_NAMESERVERS_NO_DEFAULT)
+		add_default = 0;
 
 	if (flags & DNS_OPTION_HOSTSFILE) {
 		char *fname = evdns_get_default_hosts_filename();
 		evdns_base_load_hosts(base, fname);
 		if (fname)
 			mm_free(fname);
+	}
+
+	if (!filename) {
+		evdns_resolv_set_defaults(base, flags);
+		return 1;
 	}
 
 	if ((err = evutil_read_file_(filename, &resolv, &n, 0)) < 0) {
@@ -3644,7 +3708,7 @@ evdns_base_resolv_conf_parse_impl(struct evdns_base *base, int flags, const char
 		}
 	}
 
-	if (!base->server_head && (flags & DNS_OPTION_NAMESERVERS)) {
+	if (!base->server_head && add_default) {
 		/* no nameservers were configured. */
 		evdns_base_nameserver_ip_add(base, "127.0.0.1");
 		err = 6;
@@ -3910,6 +3974,7 @@ evdns_base_new(struct event_base *event_base, int flags)
 	 * functionality.  We can't just call evdns_getaddrinfo directly or
 	 * else libevent-core will depend on libevent-extras. */
 	evutil_set_evdns_getaddrinfo_fn_(evdns_getaddrinfo);
+	evutil_set_evdns_getaddrinfo_cancel_fn_(evdns_getaddrinfo_cancel);
 
 	base = mm_malloc(sizeof(struct evdns_base));
 	if (base == NULL)
@@ -3944,7 +4009,12 @@ evdns_base_new(struct event_base *event_base, int flags)
 
 	TAILQ_INIT(&base->hostsdb);
 
-#define EVDNS_BASE_ALL_FLAGS (0x8001)
+#define EVDNS_BASE_ALL_FLAGS ( \
+	EVDNS_BASE_INITIALIZE_NAMESERVERS | \
+	EVDNS_BASE_DISABLE_WHEN_INACTIVE  | \
+	EVDNS_BASE_NAMESERVERS_NO_DEFAULT | \
+	0)
+
 	if (flags & ~EVDNS_BASE_ALL_FLAGS) {
 		flags = EVDNS_BASE_INITIALIZE_NAMESERVERS;
 		log(EVDNS_LOG_WARN,
@@ -3955,12 +4025,17 @@ evdns_base_new(struct event_base *event_base, int flags)
 
 	if (flags & EVDNS_BASE_INITIALIZE_NAMESERVERS) {
 		int r;
+		int opts = DNS_OPTIONS_ALL;
+		if (flags & EVDNS_BASE_NAMESERVERS_NO_DEFAULT) {
+			opts |= DNS_OPTION_NAMESERVERS_NO_DEFAULT;
+		}
+
 #ifdef _WIN32
 		r = evdns_base_config_windows_nameservers(base);
 #else
-		r = evdns_base_resolv_conf_parse(base, DNS_OPTIONS_ALL, "/etc/resolv.conf");
+		r = evdns_base_resolv_conf_parse(base, opts, "/etc/resolv.conf");
 #endif
-		if (r == -1) {
+		if (r) {
 			evdns_base_free_and_unlock(base, 0);
 			return NULL;
 		}
@@ -4010,7 +4085,7 @@ static void
 evdns_nameserver_free(struct nameserver *server)
 {
 	if (server->socket >= 0)
-	evutil_closesocket(server->socket);
+		evutil_closesocket(server->socket);
 	(void) event_del(&server->event);
 	event_debug_unassign(&server->event);
 	if (server->state == 0)
@@ -4034,15 +4109,11 @@ evdns_base_free_and_unlock(struct evdns_base *base, int fail_requests)
 
 	/* TODO(nickm) we might need to refcount here. */
 
-	for (server = base->server_head; server; server = server_next) {
-		server_next = server->next;
-		evdns_nameserver_free(server);
-		if (server_next == base->server_head)
-			break;
+	while (base->req_waiting_head) {
+		if (fail_requests)
+			reply_schedule_callback(base->req_waiting_head, 0, DNS_ERR_SHUTDOWN, NULL);
+		request_finished(base->req_waiting_head, &base->req_waiting_head, 1);
 	}
-	base->server_head = NULL;
-	base->global_good_nameservers = 0;
-
 	for (i = 0; i < base->n_req_heads; ++i) {
 		while (base->req_heads[i]) {
 			if (fail_requests)
@@ -4050,13 +4121,18 @@ evdns_base_free_and_unlock(struct evdns_base *base, int fail_requests)
 			request_finished(base->req_heads[i], &REQ_HEAD(base, base->req_heads[i]->trans_id), 1);
 		}
 	}
-	while (base->req_waiting_head) {
-		if (fail_requests)
-			reply_schedule_callback(base->req_waiting_head, 0, DNS_ERR_SHUTDOWN, NULL);
-		request_finished(base->req_waiting_head, &base->req_waiting_head, 1);
-	}
 	base->global_requests_inflight = base->global_requests_waiting = 0;
 
+	for (server = base->server_head; server; server = server_next) {
+		server_next = server->next;
+		/** already done something before */
+		server->probe_request = NULL;
+		evdns_nameserver_free(server);
+		if (server_next == base->server_head)
+			break;
+	}
+	base->server_head = NULL;
+	base->global_good_nameservers = 0;
 
 	if (base->global_search_state) {
 		for (dom = base->global_search_state->head; dom; dom = dom_next) {
@@ -4406,17 +4482,23 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 		other_req = &data->ipv4_request;
 	}
 
-	EVDNS_LOCK(data->evdns_base);
-	if (evdns_result_is_answer(result)) {
-		if (req->type == DNS_IPv4_A)
-			++data->evdns_base->getaddrinfo_ipv4_answered;
-		else
-			++data->evdns_base->getaddrinfo_ipv6_answered;
+	/** Called from evdns_base_free() with @fail_requests == 1 */
+	if (result != DNS_ERR_SHUTDOWN) {
+		EVDNS_LOCK(data->evdns_base);
+		if (evdns_result_is_answer(result)) {
+			if (req->type == DNS_IPv4_A)
+				++data->evdns_base->getaddrinfo_ipv4_answered;
+			else
+				++data->evdns_base->getaddrinfo_ipv6_answered;
+		}
+		user_canceled = data->user_canceled;
+		if (other_req->r == NULL)
+			data->request_done = 1;
+		EVDNS_UNLOCK(data->evdns_base);
+	} else {
+		data->evdns_base = NULL;
+		user_canceled = data->user_canceled;
 	}
-	user_canceled = data->user_canceled;
-	if (other_req->r == NULL)
-		data->request_done = 1;
-	EVDNS_UNLOCK(data->evdns_base);
 
 	req->r = NULL;
 
@@ -4450,7 +4532,9 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 			/* The other request is still working; maybe it will
 			 * succeed. */
 			/* XXXX handle failure from set_timeout */
-			evdns_getaddrinfo_set_timeout(data->evdns_base, data);
+			if (result != DNS_ERR_SHUTDOWN) {
+				evdns_getaddrinfo_set_timeout(data->evdns_base, data);
+			}
 			data->pending_error = err;
 			return;
 		}
@@ -4625,6 +4709,7 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 	int err;
 	int port = 0;
 	int want_cname = 0;
+	int started = 0;
 
 	if (!dns_base) {
 		dns_base = current_base;
@@ -4703,6 +4788,8 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 	 * launching those requests. (XXX we don't do that yet.)
 	 */
 
+	EVDNS_LOCK(dns_base);
+
 	if (hints.ai_family != PF_INET6) {
 		log(EVDNS_LOG_DEBUG, "Sending request for %s on ipv4 as %p",
 		    nodename, &data->ipv4_request);
@@ -4729,7 +4816,11 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 	evtimer_assign(&data->timeout, dns_base->event_base,
 	    evdns_getaddrinfo_timeout_cb, data);
 
-	if (data->ipv4_request.r || data->ipv6_request.r) {
+	started = (data->ipv4_request.r || data->ipv6_request.r);
+
+	EVDNS_UNLOCK(dns_base);
+
+	if (started) {
 		return data;
 	} else {
 		mm_free(data);

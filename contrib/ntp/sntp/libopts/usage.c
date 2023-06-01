@@ -18,7 +18,7 @@
 /*
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (C) 1992-2015 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2018 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -37,60 +37,8 @@
  *  13aa749a5b0a454917a944ed8fffc530b784f5ead522b1aacaf4ec8aa55a6239  COPYING.mbsd
  */
 
-/* = = = START-STATIC-FORWARD = = = */
-static unsigned int
-parse_usage_flags(ao_flag_names_t const * fnt, char const * txt);
-
-static inline bool
-do_gnu_usage(tOptions * pOpts);
-
-static inline bool
-skip_misuse_usage(tOptions * pOpts);
-
-static void
-print_offer_usage(tOptions * opts);
-
-static void
-print_usage_details(tOptions * opts, int exit_code);
-
-static void
-print_one_paragraph(char const * text, bool plain, FILE * fp);
-
-static void
-prt_conflicts(tOptions * opts, tOptDesc * od);
-
-static void
-prt_one_vendor(tOptions *    opts,  tOptDesc *   od,
-               arg_types_t * argtp, char const * usefmt);
-
-static void
-prt_vendor_opts(tOptions * opts, char const * title);
-
-static void
-prt_extd_usage(tOptions * opts, tOptDesc * od, char const * title);
-
-static void
-prt_ini_list(char const * const * papz, char const * ini_file,
-             char const * path_nm);
-
-static void
-prt_preamble(tOptions * opts, tOptDesc * od, arg_types_t * at);
-
-static void
-prt_one_usage(tOptions * opts, tOptDesc * od, arg_types_t * at);
-
-static void
-prt_opt_usage(tOptions * opts, int ex_code, char const * title);
-
-static void
-prt_prog_detail(tOptions * opts);
-
-static int
-setGnuOptFmts(tOptions * opts, char const ** ptxt);
-
-static int
-setStdOptFmts(tOptions * opts, char const ** ptxt);
-/* = = = END-STATIC-FORWARD = = = */
+#define GRAPH_CH(_ch) \
+    ((((unsigned)_ch) <= 0x7E) && (((unsigned)_ch) > ' '))
 
 /**
  * Parse the option usage flags string.  Any parsing problems yield
@@ -151,6 +99,7 @@ parse_usage_flags(ao_flag_names_t const * fnt, char const * txt)
         case ',':
             txt = SPN_WHITESPACE_CHARS(txt + 1);
             /* Something must follow the comma */
+            /* FALLTHROUGH */
 
         default:
             continue;
@@ -167,7 +116,7 @@ parse_usage_flags(ao_flag_names_t const * fnt, char const * txt)
  *                      environment variable is parsed.
  * @param[in,out] opts  the program option descriptor
  */
-LOCAL void
+static void
 set_usage_flags(tOptions * opts, char const * flg_txt)
 {
 #   define _aof_(_n, _f)   { sizeof(#_n)-1, _f, #_n },
@@ -304,7 +253,7 @@ print_offer_usage(tOptions * opts)
             help[0] = help[1] = '-';
             strncpy(help + 2, od->pz_Name, 20);
             break;
-        
+
         case 0:
             strncpy(help, od->pz_Name, 20);
             break;
@@ -320,7 +269,7 @@ print_offer_usage(tOptions * opts)
         case (OPTPROC_LONGOPT | OPTPROC_SHORTOPT):
             strcpy(help, "--help");
             break;
-        
+
         case 0:
             strcpy(help, "help");
             break;
@@ -351,8 +300,8 @@ print_usage_details(tOptions * opts, int exit_code)
             flen = setGnuOptFmts(opts, &pOptTitle);
             sprintf(line_fmt_buf, zFmtFmt, flen);
             fputc(NL, option_usage_fp);
-        }
-        else {
+
+        } else {
             flen = setStdOptFmts(opts, &pOptTitle);
             sprintf(line_fmt_buf, zFmtFmt, flen);
 
@@ -438,7 +387,7 @@ print_one_paragraph(char const * text, bool plain, FILE * fp)
         AGFREE(t);
     }
 }
- 
+
 /*=export_func  optionPrintParagraphs
  * private:
  *
@@ -565,7 +514,7 @@ optionPrintParagraphs(char const * text, bool plain, FILE * fp)
  *  If "exitCode" is "AO_EXIT_REQ_USAGE" (normally 64), then output will to
  *  to stdout and the actual exit code will be "EXIT_SUCCESS".
 =*/
-void
+lo_noreturn void
 optionUsage(tOptions * opts, int usage_exit_code)
 {
     int exit_code = (usage_exit_code == AO_EXIT_REQ_USAGE)
@@ -617,7 +566,7 @@ optionUsage(tOptions * opts, int usage_exit_code)
         print_usage_details(opts, usage_exit_code);
     else
         print_offer_usage(opts);
-    
+
  flush_and_exit:
     fflush(option_usage_fp);
     if (ferror(option_usage_fp) != 0)
@@ -777,7 +726,7 @@ prt_vendor_opts(tOptions * opts, char const * title)
         do  {
             size_t l;
             if (  ((od->fOptState & not_vended_mask) != 0)
-               || IS_GRAPHIC_CHAR(od->optValue))
+               || GRAPH_CH(od->optValue))
                 continue;
 
             l = strlen(od->pz_Name);
@@ -795,7 +744,7 @@ prt_vendor_opts(tOptions * opts, char const * title)
 
     do  {
         if (  ((od->fOptState & not_vended_mask) != 0)
-           || IS_GRAPHIC_CHAR(od->optValue))
+           || GRAPH_CH(od->optValue))
             continue;
 
         prt_one_vendor(opts, od, &argTypes, vfmt);
@@ -1005,7 +954,7 @@ prt_preamble(tOptions * opts, tOptDesc * od, arg_types_t * at)
     if ((opts->fOptSet & OPTPROC_SHORTOPT) == 0)
         fputs(at->pzSpc, option_usage_fp);
 
-    else if (! IS_GRAPHIC_CHAR(od->optValue)) {
+    else if (! GRAPH_CH(od->optValue)) {
         if (  (opts->fOptSet & (OPTPROC_GNUUSAGE|OPTPROC_LONGOPT))
            == (OPTPROC_GNUUSAGE|OPTPROC_LONGOPT))
             fputc(' ', option_usage_fp);
@@ -1132,7 +1081,7 @@ prt_opt_usage(tOptions * opts, int ex_code, char const * title)
 
         /* Skip name only options when we have a vendor option */
         if (  ((opts->fOptSet & OPTPROC_VENDOR_OPT) != 0)
-           && (! IS_GRAPHIC_CHAR(od->optValue)))
+           && (! GRAPH_CH(od->optValue)))
             continue;
 
         /*

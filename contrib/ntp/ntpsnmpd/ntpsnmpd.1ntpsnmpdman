@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH ntpsnmpd 1ntpsnmpdman "23 Jun 2020" "4.2.8p15" "User Commands"
+.TH ntpsnmpd 1ntpsnmpdman "31 May 2023" "4.2.8p16" "User Commands"
 .\"
 .\" EDIT THIS FILE WITH CAUTION (in-mem file)
 .\"
-.\" It has been AutoGen-ed June 23, 2020 at 02:21:01 AM by AutoGen 5.18.5
+.\" It has been AutoGen-ed May 31, 2023 at 07:16:36 PM by AutoGen 5.18.16
 .\" From the definitions ntpsnmpd-opts.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -138,10 +138,10 @@ it to autogen-users@lists.sourceforge.net.  Thank you.
 .NOP  "Heiko Gerstung" 
 .br
 .SH "COPYRIGHT"
-Copyright (C) 1992-2020 The University of Delaware and Network Time Foundation all rights reserved.
+Copyright (C) 1992-2023 The University of Delaware and Network Time Foundation all rights reserved.
 This program is released under the terms of the NTP license, <http://ntp.org/license>.
 .SH "BUGS"
-Please send bug reports to: http://bugs.ntp.org, bugs@ntp.org
+Please send bug reports to: https://bugs.ntp.org, bugs@ntp.org
 .SH NOTES
 The following objects are currently supported:
 .sp \n(Ppu

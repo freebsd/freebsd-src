@@ -493,7 +493,7 @@ chu_start(
 		fd = fd_audio;
 	} else {
 		snprintf(device, sizeof(device), DEVICE, unit);
-		fd = refclock_open(device, SPEED232, LDISC_RAW);
+		fd = refclock_open(&peer->srcadr, device, SPEED232, LDISC_RAW);
 	}
 #else /* HAVE_AUDIO */
 
@@ -501,7 +501,7 @@ chu_start(
 	 * Open serial port in raw mode.
 	 */
 	snprintf(device, sizeof(device), DEVICE, unit);
-	fd = refclock_open(device, SPEED232, LDISC_RAW);
+	fd = refclock_open(&peer->srcadr, device, SPEED232, LDISC_RAW);
 #endif /* HAVE_AUDIO */
 
 	if (fd < 0)

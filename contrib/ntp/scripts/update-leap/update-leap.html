@@ -1,6 +1,6 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <html>
-<!-- Created by GNU Texinfo 6.5, http://www.gnu.org/software/texinfo/ -->
+<!-- Created by GNU Texinfo 6.6, http://www.gnu.org/software/texinfo/ -->
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <title>update-leap User&rsquo;s Manual</title>
@@ -16,23 +16,14 @@
 <!--
 a.summary-letter {text-decoration: none}
 blockquote.indentedblock {margin-right: 0em}
-blockquote.smallindentedblock {margin-right: 0em; font-size: smaller}
-blockquote.smallquotation {font-size: smaller}
 div.display {margin-left: 3.2em}
 div.example {margin-left: 3.2em}
 div.lisp {margin-left: 3.2em}
-div.smalldisplay {margin-left: 3.2em}
-div.smallexample {margin-left: 3.2em}
-div.smalllisp {margin-left: 3.2em}
 kbd {font-style: oblique}
 pre.display {font-family: inherit}
 pre.format {font-family: inherit}
 pre.menu-comment {font-family: serif}
 pre.menu-preformatted {font-family: serif}
-pre.smalldisplay {font-family: inherit; font-size: smaller}
-pre.smallexample {font-size: smaller}
-pre.smallformat {font-family: inherit; font-size: smaller}
-pre.smalllisp {font-size: smaller}
 span.nolinebreak {white-space: nowrap}
 span.roman {font-family: initial; font-weight: normal}
 span.sansserif {font-family: sans-serif; font-weight: normal}
@@ -50,8 +41,7 @@ ul.no-bullet {list-style: none}
 
 
 
-<a name="Top"></a>
-<div class="header">
+<span id="Top"></span><div class="header">
 <p>
 Previous: <a href="dir.html#Top" accesskey="p" rel="prev">(dir)</a>, Up: <a href="dir.html#Top" accesskey="u" rel="up">(dir)</a> &nbsp; </p>
 </div>
@@ -59,34 +49,32 @@ Previous: <a href="dir.html#Top" accesskey="p" rel="prev">(dir)</a>, Up: <a href
 
 <p>This document describes the use of the NTP Project&rsquo;s <code>update-leap</code> program.
 </p>
-<p>This document applies to version 4.2.8p15 of <code>update-leap</code>.
+<p>This document applies to version 4.2.8p16 of <code>update-leap</code>.
 </p>
-<a name="SEC_Overview"></a>
+<span id="SEC_Overview"></span>
 <h2 class="shortcontents-heading">Short Table of Contents</h2>
 
 <div class="shortcontents">
-<li><a name="stoc-Invoking-update_002dleap" href="#toc-Invoking-update_002dleap">1 Invoking update-leap</a></li>
+<li><a id="stoc-Invoking-update_002dleap" href="#toc-Invoking-update_002dleap">1 Invoking update-leap</a></li>
 
 </div>
 
 
 <table class="menu" border="0" cellspacing="0">
-<tr><td align="left" valign="top">&bull; update-leap Description:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Description
+<tr><td align="left" valign="top">&bull; update-leap Description</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Description
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#update_002dleap-Invocation" accesskey="2">update-leap Invocation</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Invoking update-leap
+<tr><td align="left" valign="top">&bull; <a href="#update_002dleap-Invocation" accesskey="2">update-leap Invocation</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Invoking update-leap
 </td></tr>
 </table>
 
 <hr>
-<a name="update_002dleap-Invocation"></a>
-<div class="header">
+<span id="update_002dleap-Invocation"></span><div class="header">
 <p>
 Up: <a href="#Top" accesskey="u" rel="up">Top</a> &nbsp; </p>
 </div>
-<a name="Invoking-update_002dleap"></a>
-<h3 class="section">1 Invoking update-leap</h3>
-<a name="index-update_002dleap"></a>
-<a name="index-leap_002dseconds-file-manager_002fupdater"></a>
+<span id="Invoking-update_002dleap"></span><h3 class="section">1 Invoking update-leap</h3>
+<span id="index-update_002dleap"></span>
+<span id="index-leap_002dseconds-file-manager_002fupdater"></span>
 
 
 
@@ -119,37 +107,35 @@ This script depends on$REQUIREDCMDS
 using the <code>agtexi-cmd</code> template and the option descriptions for the <code>update-leap</code> program.
 </p>
 <table class="menu" border="0" cellspacing="0">
-<tr><td align="left" valign="top">&bull; <a href="#update_002dleap-usage" accesskey="1">update-leap usage</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">update-leap help/usage (<samp>--help</samp>)
+<tr><td align="left" valign="top">&bull; <a href="#update_002dleap-usage" accesskey="1">update-leap usage</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">update-leap help/usage (<samp>--help</samp>)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#update_002dleap-source_002durl" accesskey="2">update-leap source-url</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">source-url option (-s)
+<tr><td align="left" valign="top">&bull; <a href="#update_002dleap-source_002durl" accesskey="2">update-leap source-url</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">source-url option (-s)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#update_002dleap-ipv4" accesskey="3">update-leap ipv4</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">ipv4 option (-4)
+<tr><td align="left" valign="top">&bull; <a href="#update_002dleap-ipv4" accesskey="3">update-leap ipv4</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">ipv4 option (-4)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#update_002dleap-destination" accesskey="4">update-leap destination</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">destination option (-d)
+<tr><td align="left" valign="top">&bull; <a href="#update_002dleap-destination" accesskey="4">update-leap destination</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">destination option (-d)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#update_002dleap-expiration" accesskey="5">update-leap expiration</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">expiration option (-e)
+<tr><td align="left" valign="top">&bull; <a href="#update_002dleap-expiration" accesskey="5">update-leap expiration</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">expiration option (-e)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#update_002dleap-ntp_002dconf_002dfile" accesskey="6">update-leap ntp-conf-file</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">ntp-conf-file option (-f)
+<tr><td align="left" valign="top">&bull; <a href="#update_002dleap-ntp_002dconf_002dfile" accesskey="6">update-leap ntp-conf-file</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">ntp-conf-file option (-f)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#update_002dleap-force_002dupdate" accesskey="7">update-leap force-update</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">force-update option (-F)
+<tr><td align="left" valign="top">&bull; <a href="#update_002dleap-force_002dupdate" accesskey="7">update-leap force-update</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">force-update option (-F)
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#update_002dleap-exit-status" accesskey="8">update-leap exit status</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">exit status
+<tr><td align="left" valign="top">&bull; <a href="#update_002dleap-exit-status" accesskey="8">update-leap exit status</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">exit status
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#update_002dleap-Usage" accesskey="9">update-leap Usage</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Usage
+<tr><td align="left" valign="top">&bull; <a href="#update_002dleap-Usage" accesskey="9">update-leap Usage</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Usage
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="#update_002dleap-Authors">update-leap Authors</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Authors
+<tr><td align="left" valign="top">&bull; <a href="#update_002dleap-Authors">update-leap Authors</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Authors
 </td></tr>
 </table>
 
 <hr>
-<a name="update_002dleap-usage"></a>
-<div class="header">
+<span id="update_002dleap-usage"></span><div class="header">
 <p>
 Next: <a href="#update_002dleap-source_002durl" accesskey="n" rel="next">update-leap source-url</a>, Up: <a href="#update_002dleap-Invocation" accesskey="u" rel="up">update-leap Invocation</a> &nbsp; </p>
 </div>
-<a name="update_002dleap-help_002fusage-_0028_002d_002dhelp_0029"></a>
-<h4 class="subsection">1.1 update-leap help/usage (<samp>--help</samp>)</h4>
-<a name="index-update_002dleap-help"></a>
+<span id="update_002dleap-help_002fusage-_0028_002d_002dhelp_0029"></span><h4 class="subsection">1.1 update-leap help/usage (<samp>--help</samp>)</h4>
+<span id="index-update_002dleap-help"></span>
 
 <p>This is the automatically generated usage text for update-leap.
 </p>
@@ -241,28 +227,24 @@ Version: 1.004
 </pre></div>
 
 <hr>
-<a name="update_002dleap-source_002durl"></a>
-<div class="header">
+<span id="update_002dleap-source_002durl"></span><div class="header">
 <p>
 Next: <a href="#update_002dleap-ipv4" accesskey="n" rel="next">update-leap ipv4</a>, Previous: <a href="#update_002dleap-usage" accesskey="p" rel="prev">update-leap usage</a>, Up: <a href="#update_002dleap-Invocation" accesskey="u" rel="up">update-leap Invocation</a> &nbsp; </p>
 </div>
-<a name="source_002durl-option-_0028_002ds_0029"></a>
-<h4 class="subsection">1.2 source-url option (-s)</h4>
-<a name="index-update_002dleap_002dsource_002durl"></a>
+<span id="source_002durl-option-_0028_002ds_0029"></span><h4 class="subsection">1.2 source-url option (-s)</h4>
+<span id="index-update_002dleap_002dsource_002durl"></span>
 
 <p>This is the &ldquo;the url of the master copy of the leapseconds file&rdquo; option.
 This option takes a string argument.
 Specify the URL of the master copy to download
 $LEAPSRC
 </p><hr>
-<a name="update_002dleap-ipv4"></a>
-<div class="header">
+<span id="update_002dleap-ipv4"></span><div class="header">
 <p>
 Next: <a href="#update_002dleap-destination" accesskey="n" rel="next">update-leap destination</a>, Previous: <a href="#update_002dleap-source_002durl" accesskey="p" rel="prev">update-leap source-url</a>, Up: <a href="#update_002dleap-Invocation" accesskey="u" rel="up">update-leap Invocation</a> &nbsp; </p>
 </div>
-<a name="ipv4-option-_0028_002d4_0029"></a>
-<h4 class="subsection">1.3 ipv4 option (-4)</h4>
-<a name="index-update_002dleap_002dipv4"></a>
+<span id="ipv4-option-_0028_002d4_0029"></span><h4 class="subsection">1.3 ipv4 option (-4)</h4>
+<span id="index-update_002dleap_002dipv4"></span>
 
 <p>This is the &ldquo;use only ipv4 addresses for dns name resolution&rdquo; option.
 </p>
@@ -298,28 +280,24 @@ ipv6.
     doc         = &lt;&lt;-  _EndOfDoc_
 Prefer IPv4 or IPv6 (as specified) addresses, but use either.
 </p><hr>
-<a name="update_002dleap-destination"></a>
-<div class="header">
+<span id="update_002dleap-destination"></span><div class="header">
 <p>
 Next: <a href="#update_002dleap-expiration" accesskey="n" rel="next">update-leap expiration</a>, Previous: <a href="#update_002dleap-ipv4" accesskey="p" rel="prev">update-leap ipv4</a>, Up: <a href="#update_002dleap-Invocation" accesskey="u" rel="up">update-leap Invocation</a> &nbsp; </p>
 </div>
-<a name="destination-option-_0028_002dd_0029"></a>
-<h4 class="subsection">1.4 destination option (-d)</h4>
-<a name="index-update_002dleap_002ddestination"></a>
+<span id="destination-option-_0028_002dd_0029"></span><h4 class="subsection">1.4 destination option (-d)</h4>
+<span id="index-update_002dleap_002ddestination"></span>
 
 <p>This is the &ldquo;filename on the local system&rdquo; option.
 This option takes a string argument <samp>float</samp>.
 The name to use to store the leapfile on the local system.
 $LEAPFILE
 </p><hr>
-<a name="update_002dleap-expiration"></a>
-<div class="header">
+<span id="update_002dleap-expiration"></span><div class="header">
 <p>
 Next: <a href="#update_002dleap-ntp_002dconf_002dfile" accesskey="n" rel="next">update-leap ntp-conf-file</a>, Previous: <a href="#update_002dleap-destination" accesskey="p" rel="prev">update-leap destination</a>, Up: <a href="#update_002dleap-Invocation" accesskey="u" rel="up">update-leap Invocation</a> &nbsp; </p>
 </div>
-<a name="expiration-option-_0028_002de_0029"></a>
-<h4 class="subsection">1.5 expiration option (-e)</h4>
-<a name="index-update_002dleap_002dexpiration"></a>
+<span id="expiration-option-_0028_002de_0029"></span><h4 class="subsection">1.5 expiration option (-e)</h4>
+<span id="index-update_002dleap_002dexpiration"></span>
 
 <p>This is the &ldquo;refresh the leapfile this long before it expires&rdquo; option.
 This option takes a string argument.
@@ -328,14 +306,12 @@ Units are required, e.g. &quot;-e 60 days&quot;  Note that larger values
 imply more frequent refreshes.
 &quot;$PREFETCH&quot;
 </p><hr>
-<a name="update_002dleap-ntp_002dconf_002dfile"></a>
-<div class="header">
+<span id="update_002dleap-ntp_002dconf_002dfile"></span><div class="header">
 <p>
 Next: <a href="#update_002dleap-force_002dupdate" accesskey="n" rel="next">update-leap force-update</a>, Previous: <a href="#update_002dleap-expiration" accesskey="p" rel="prev">update-leap expiration</a>, Up: <a href="#update_002dleap-Invocation" accesskey="u" rel="up">update-leap Invocation</a> &nbsp; </p>
 </div>
-<a name="ntp_002dconf_002dfile-option-_0028_002df_0029"></a>
-<h4 class="subsection">1.6 ntp-conf-file option (-f)</h4>
-<a name="index-update_002dleap_002dntp_002dconf_002dfile"></a>
+<span id="ntp_002dconf_002dfile-option-_0028_002df_0029"></span><h4 class="subsection">1.6 ntp-conf-file option (-f)</h4>
+<span id="index-update_002dleap_002dntp_002dconf_002dfile"></span>
 
 <p>This is the &ldquo;location of the ntp.conf file&rdquo; option.
 This option takes a string argument.
@@ -343,25 +319,21 @@ Specify location of ntp.conf (used to make sure leapfile directive is
 present and to default  leapfile)
 /etc/ntp.conf
 </p><hr>
-<a name="update_002dleap-force_002dupdate"></a>
-<div class="header">
+<span id="update_002dleap-force_002dupdate"></span><div class="header">
 <p>
 Next: <a href="#update_002dleap-exit-status" accesskey="n" rel="next">update-leap exit status</a>, Previous: <a href="#update_002dleap-ntp_002dconf_002dfile" accesskey="p" rel="prev">update-leap ntp-conf-file</a>, Up: <a href="#update_002dleap-Invocation" accesskey="u" rel="up">update-leap Invocation</a> &nbsp; </p>
 </div>
-<a name="force_002dupdate-option-_0028_002dF_0029"></a>
-<h4 class="subsection">1.7 force-update option (-F)</h4>
-<a name="index-update_002dleap_002dforce_002dupdate"></a>
+<span id="force_002dupdate-option-_0028_002dF_0029"></span><h4 class="subsection">1.7 force-update option (-F)</h4>
+<span id="index-update_002dleap_002dforce_002dupdate"></span>
 
 <p>This is the &ldquo;force update of the leapfile&rdquo; option.
 Force update even if current file is OK and not close to expiring.
 </p><hr>
-<a name="update_002dleap-exit-status"></a>
-<div class="header">
+<span id="update_002dleap-exit-status"></span><div class="header">
 <p>
 Next: <a href="#update_002dleap-Usage" accesskey="n" rel="next">update-leap Usage</a>, Previous: <a href="#update_002dleap-force_002dupdate" accesskey="p" rel="prev">update-leap force-update</a>, Up: <a href="#update_002dleap-Invocation" accesskey="u" rel="up">update-leap Invocation</a> &nbsp; </p>
 </div>
-<a name="update_002dleap-exit-status-1"></a>
-<h4 class="subsection">1.8 update-leap exit status</h4>
+<span id="update_002dleap-exit-status-1"></span><h4 class="subsection">1.8 update-leap exit status</h4>
 
 <p>One of the following exit values will be returned:
 </p><dl compact="compact">
@@ -373,21 +345,17 @@ Next: <a href="#update_002dleap-Usage" accesskey="n" rel="next">update-leap Usag
 </p></dd>
 </dl>
 <hr>
-<a name="update_002dleap-Usage"></a>
-<div class="header">
+<span id="update_002dleap-Usage"></span><div class="header">
 <p>
 Next: <a href="#update_002dleap-Authors" accesskey="n" rel="next">update-leap Authors</a>, Previous: <a href="#update_002dleap-exit-status" accesskey="p" rel="prev">update-leap exit status</a>, Up: <a href="#update_002dleap-Invocation" accesskey="u" rel="up">update-leap Invocation</a> &nbsp; </p>
 </div>
-<a name="update_002dleap-Usage-1"></a>
-<h4 class="subsection">1.9 update-leap Usage</h4>
+<span id="update_002dleap-Usage-1"></span><h4 class="subsection">1.9 update-leap Usage</h4>
 <hr>
-<a name="update_002dleap-Authors"></a>
-<div class="header">
+<span id="update_002dleap-Authors"></span><div class="header">
 <p>
 Previous: <a href="#update_002dleap-Usage" accesskey="p" rel="prev">update-leap Usage</a>, Up: <a href="#update_002dleap-Invocation" accesskey="u" rel="up">update-leap Invocation</a> &nbsp; </p>
 </div>
-<a name="update_002dleap-Authors-1"></a>
-<h4 class="subsection">1.10 update-leap Authors</h4>
+<span id="update_002dleap-Authors-1"></span><h4 class="subsection">1.10 update-leap Authors</h4>
 <hr>
 
 

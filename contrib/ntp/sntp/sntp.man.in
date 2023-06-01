@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH sntp @SNTP_MS@ "23 Jun 2020" "4.2.8p15" "User Commands"
+.TH sntp @SNTP_MS@ "31 May 2023" "4.2.8p16" "User Commands"
 .\"
 .\" EDIT THIS FILE WITH CAUTION (in-mem file)
 .\"
-.\" It has been AutoGen-ed June 23, 2020 at 02:19:38 AM by AutoGen 5.18.5
+.\" It has been AutoGen-ed May 31, 2023 at 02:48:09 PM by AutoGen 5.18.16
 .\" From the definitions sntp-opts.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -248,7 +248,7 @@ more than enough for a unicast response.  If \fBsntp\fP is
 only waiting for a broadcast response a longer timeout is
 likely needed.
 .TP
-.NOP \f\*[B-Font]\-\-wait\f[], \f\*[B-Font]\- Fl \-no\-wait\f[]
+.NOP \f\*[B-Font]\-\-wait\f[], \f\*[B-Font]\-\-no\-wait\f[]
 Wait for pending replies (if not setting the time).
 The \fIno\-wait\fP form will disable the option.
 This option is enabled by default.
@@ -353,10 +353,10 @@ it to autogen-users@lists.sourceforge.net.  Thank you.
 .NOP  "Dave Hart" 
 .br
 .SH "COPYRIGHT"
-Copyright (C) 1992-2020 The University of Delaware and Network Time Foundation all rights reserved.
+Copyright (C) 1992-2023 The University of Delaware and Network Time Foundation all rights reserved.
 This program is released under the terms of the NTP license, <http://ntp.org/license>.
 .SH "BUGS"
-Please send bug reports to: http://bugs.ntp.org, bugs@ntp.org
+Please send bug reports to: https://bugs.ntp.org, bugs@ntp.org
 .SH "NOTES"
 This manual page was \fIAutoGen\fP-erated from the \fBsntp\fP
 option definitions.

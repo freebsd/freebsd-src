@@ -1,0 +1,8 @@
+$(top_srcdir)/sntp/scm-rev: FRC.scm-rev
+	$(AM_V_GEN)cd $(top_builddir)/sntp && $(MAKE) $(AM_MAKEFLAGS) check-scm-rev
+
+FRC.scm-rev:
+	@: FRC.scm-rev "force" depends on nothing and is not a file, so is	\
+	   always out-of-date causing targets which depend on it to also		\
+	   be outdated so their rules to fire each time they are built.
+

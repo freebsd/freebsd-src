@@ -40,6 +40,8 @@ extern	void	setup_logfile	(const char *);
 extern	void	errno_to_str(int, char *, size_t);
 #endif
 
+extern char *	ntp_realpath(const char * fsname);
+
 extern	int	xvsbprintf(char**, char* const, char const*, va_list) NTP_PRINTF(3, 0);
 extern	int	xsbprintf(char**, char* const, char const*, ...) NTP_PRINTF(3, 4);
 
@@ -67,8 +69,17 @@ extern	int	xsbprintf(char**, char* const, char const*, ...) NTP_PRINTF(3, 4);
 typedef void (*ctrl_c_fn)(void);
 
 /* authkeys.c */
+#define AUTHPWD_MAXSECLEN	64	/* max. length of secret blob */
+
+enum AuthPwdEnc {
+	AUTHPWD_UNSPEC,	/* format unspecified, length used for discrimination */
+	AUTHPWD_PLAIN,	/* plain text, used as is */
+	AUTHPWD_HEX	/* hex-encoded string */
+};
+
 extern	void	auth_delkeys	(void);
 extern	int	auth_havekey	(keyid_t);
+extern	size_t	authdecodepw	(u_char *dst, size_t dstlen, const char *src, enum AuthPwdEnc);
 extern	int	authdecrypt	(keyid_t, u_int32 *, size_t, size_t);
 extern	size_t	authencrypt	(keyid_t, u_int32 *, size_t);
 extern	int	authhavekey	(keyid_t);
@@ -100,7 +111,7 @@ extern	void	auth_prealloc_symkeys(int);
 extern	int	ymd2yd		(int, int, int);
 
 /* a_md5encrypt.c */
-extern	int	MD5authdecrypt	(int, const u_char *, size_t, u_int32 *, size_t, size_t);
+extern	int	MD5authdecrypt	(int, const u_char *, size_t, u_int32 *, size_t, size_t, keyid_t);
 extern	size_t	MD5authencrypt	(int, const u_char *, size_t, u_int32 *, size_t);
 extern	void	MD5auth_setkey	(keyid_t, int, const u_char *, size_t, KeyAccT *c);
 extern	u_int32	addr2refid	(sockaddr_u *);
@@ -174,7 +185,7 @@ extern	int	sockaddr_masktoprefixlen(const sockaddr_u *);
 extern	const char * socktohost	(const sockaddr_u *);
 extern	int	octtoint	(const char *, u_long *);
 extern	u_long	ranp2		(int);
-extern	const char *refnumtoa	(sockaddr_u *);
+extern	const char *refnumtoa	(const sockaddr_u *);
 extern	const char *refid_str	(u_int32, int);
 
 extern	int	decodenetnum	(const char *, sockaddr_u *);

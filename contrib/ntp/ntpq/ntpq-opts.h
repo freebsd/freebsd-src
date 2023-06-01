@@ -1,11 +1,11 @@
 /*
  *  EDIT THIS FILE WITH CAUTION  (ntpq-opts.h)
  *
- *  It has been AutoGen-ed  June 23, 2020 at 02:20:48 AM by AutoGen 5.18.5
+ *  It has been AutoGen-ed  May 31, 2023 at 02:49:56 PM by AutoGen 5.18.16
  *  From the definitions    ntpq-opts.def
  *  and the template file   options
  *
- * Generated from AutoOpts 41:1:16 templates.
+ * Generated from AutoOpts 42:1:17 templates.
  *
  *  AutoOpts is a copyrighted work.  This header file is not encumbered
  *  by AutoOpts licensing, but is provided under the licensing terms chosen
@@ -18,7 +18,7 @@
  * The ntpq program is copyrighted and licensed
  * under the following terms:
  *
- *  Copyright (C) 1992-2020 The University of Delaware and Network Time Foundation, all rights reserved.
+ *  Copyright (C) 1992-2023 The University of Delaware and Network Time Foundation, all rights reserved.
  *  This is free software. It is licensed for use, modification and
  *  redistribution under the terms of the NTP License, copies of which
  *  can be seen at:
@@ -45,6 +45,8 @@
 #define AUTOOPTS_NTPQ_OPTS_H_GUARD 1
 #include "config.h"
 #include <autoopts/options.h>
+#include <stdarg.h>
+#include <stdnoreturn.h>
 
 /**
  *  Ensure that the library used for compiling this generated header is at
@@ -53,11 +55,17 @@
  *  tolerable version is at least as old as what was current when the header
  *  template was released.
  */
-#define AO_TEMPLATE_VERSION 167937
+#define AO_TEMPLATE_VERSION 172033
 #if (AO_TEMPLATE_VERSION < OPTIONS_MINIMUM_VERSION) \
  || (AO_TEMPLATE_VERSION > OPTIONS_STRUCT_VERSION)
 # error option template version mismatches autoopts/options.h header
   Choke Me.
+#endif
+
+#if GCC_VERSION > 40400
+#define NOT_REACHED __builtin_unreachable();
+#else
+#define NOT_REACHED
 #endif
 
 /**
@@ -74,19 +82,20 @@ typedef enum {
     INDEX_OPT_OLD_RV           =  7,
     INDEX_OPT_PEERS            =  8,
     INDEX_OPT_REFID            =  9,
-    INDEX_OPT_WIDE             = 10,
-    INDEX_OPT_VERSION          = 11,
-    INDEX_OPT_HELP             = 12,
-    INDEX_OPT_MORE_HELP        = 13,
-    INDEX_OPT_SAVE_OPTS        = 14,
-    INDEX_OPT_LOAD_OPTS        = 15
+    INDEX_OPT_UNCONNECTED      = 10,
+    INDEX_OPT_WIDE             = 11,
+    INDEX_OPT_VERSION          = 12,
+    INDEX_OPT_HELP             = 13,
+    INDEX_OPT_MORE_HELP        = 14,
+    INDEX_OPT_SAVE_OPTS        = 15,
+    INDEX_OPT_LOAD_OPTS        = 16
 } teOptIndex;
 /** count of all options for ntpq */
-#define OPTION_CT    16
+#define OPTION_CT    17
 /** ntpq version */
-#define NTPQ_VERSION       "4.2.8p15"
+#define NTPQ_VERSION       "4.2.8p16"
 /** Full ntpq version text */
-#define NTPQ_FULL_VERSION  "ntpq 4.2.8p15"
+#define NTPQ_FULL_VERSION  "ntpq 4.2.8p16"
 
 /**
  *  Interface defines for all options.  Replace "n" with the UPPER_CASED
@@ -179,6 +188,10 @@ typedef enum {
 #  warning undefining REFID due to option name conflict
 #  undef   REFID
 # endif
+# ifdef    UNCONNECTED
+#  warning undefining UNCONNECTED due to option name conflict
+#  undef   UNCONNECTED
+# endif
 # ifdef    WIDE
 #  warning undefining WIDE due to option name conflict
 #  undef   WIDE
@@ -194,6 +207,7 @@ typedef enum {
 # undef OLD_RV
 # undef PEERS
 # undef REFID
+# undef UNCONNECTED
 # undef WIDE
 #endif  /*  NO_OPTION_NAME_WARNINGS */
 
@@ -219,6 +233,7 @@ typedef enum {
 } te_Refid;
 #define OPT_REFID_VAL2STR(_v)    optionKeywordName(&DESC(REFID), (_v))
 #define OPT_VALUE_REFID          (DESC(REFID).optArg.argEnum)
+#define VALUE_OPT_UNCONNECTED    'u'
 #define VALUE_OPT_WIDE           'w'
 /** option flag (value) for help-value option */
 #define VALUE_OPT_HELP          '?'
@@ -298,6 +313,7 @@ static inline char* aoGetsText(char const* pz) {
 #   define _(_s)  _s
 # endif
 #endif  /* ENABLE_NLS */
+
 
 #ifdef  __cplusplus
 }

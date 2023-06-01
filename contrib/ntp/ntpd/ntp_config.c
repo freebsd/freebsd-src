@@ -39,6 +39,7 @@
 #include "ntp_io.h"
 #include "ntp_unixtime.h"
 #include "ntp_refclock.h"
+#include "ntp_clockdev.h"
 #include "ntp_filegen.h"
 #include "ntp_stdlib.h"
 #include "lib_strbuf.h"
@@ -242,11 +243,11 @@ static void free_all_config_trees(void);
 static void free_config_access(config_tree *);
 static void free_config_auth(config_tree *);
 static void free_config_fudge(config_tree *);
+static void free_config_device(config_tree *);
 static void free_config_logconfig(config_tree *);
 static void free_config_monitor(config_tree *);
 static void free_config_nic_rules(config_tree *);
 static void free_config_other_modes(config_tree *);
-static void free_config_peers(config_tree *);
 static void free_config_phone(config_tree *);
 static void free_config_reset_counters(config_tree *);
 static void free_config_rlimit(config_tree *);
@@ -256,12 +257,15 @@ static void free_config_tinker(config_tree *);
 static void free_config_tos(config_tree *);
 static void free_config_trap(config_tree *);
 static void free_config_ttl(config_tree *);
-static void free_config_unpeers(config_tree *);
 static void free_config_vars(config_tree *);
 
 #ifdef SIM
 static void free_config_sim(config_tree *);
-#endif
+#else	/* !SIM follows */
+static void free_config_peers(config_tree *);
+static void free_config_unpeers(config_tree *);
+static int is_sane_resolved_address(sockaddr_u *peeraddr, int hmode);
+#endif	/* !SIM */
 static void destroy_address_fifo(address_fifo *);
 #define FREE_ADDRESS_FIFO(pf)			\
 	do {					\
@@ -273,7 +277,6 @@ static void free_config_tree(config_tree *ptree);
 #endif	/* FREE_CFG_T */
 
 static void destroy_restrict_node(restrict_node *my_node);
-static int is_sane_resolved_address(sockaddr_u *peeraddr, int hmode);
 static void save_and_apply_config_tree(int/*BOOL*/ from_file);
 static void destroy_int_fifo(int_fifo *);
 #define FREE_INT_FIFO(pf)			\
@@ -323,7 +326,6 @@ static void config_monitor(config_tree *);
 static void config_rlimit(config_tree *);
 static void config_system_opts(config_tree *);
 static void config_tinker(config_tree *);
-static int  config_tos_clock(config_tree *);
 static void config_tos(config_tree *);
 static void config_vars(config_tree *);
 
@@ -340,16 +342,17 @@ static void config_access(config_tree *);
 static void config_mdnstries(config_tree *);
 static void config_phone(config_tree *);
 static void config_setvar(config_tree *);
+static int  config_tos_clock(config_tree *);
 static void config_ttl(config_tree *);
 static void config_trap(config_tree *);
 static void config_fudge(config_tree *);
+static void config_device(config_tree *);
 static void config_peers(config_tree *);
 static void config_unpeers(config_tree *);
 static void config_nic_rules(config_tree *, int/*BOOL*/ input_from_file);
 static void config_reset_counters(config_tree *);
 static u_char get_correct_host_mode(int token);
 static int peerflag_bits(peer_node *);
-#endif	/* !SIM */
 
 #ifdef WORKER
 static void peer_name_resolved(int, int, void *, const char *, const char *,
@@ -361,7 +364,8 @@ static void unpeer_name_resolved(int, int, void *, const char *, const char *,
 static void trap_name_resolved(int, int, void *, const char *, const char *,
 			const struct addrinfo *,
 			const struct addrinfo *);
-#endif
+#endif	/* WORKER */
+#endif	/* !SIM */
 
 enum gnn_type {
 	t_UNK,		/* Unknown */
@@ -386,7 +390,7 @@ static int getnetnum(const char *num, sockaddr_u *addr, int complain,
 #endif
 
 #if defined(__GNUC__) /* this covers CLANG, too */
-static void  __attribute__((noreturn,format(printf,1,2))) fatal_error(const char *fmt, ...)
+static void  __attribute__((__noreturn__,format(printf,1,2))) fatal_error(const char *fmt, ...)
 #elif defined(_MSC_VER)
 static void __declspec(noreturn) fatal_error(const char *fmt, ...)
 #else
@@ -483,14 +487,16 @@ free_config_tree(
 	free_config_ttl(ptree);
 	free_config_trap(ptree);
 	free_config_fudge(ptree);
+	free_config_device(ptree);
 	free_config_vars(ptree);
-	free_config_peers(ptree);
-	free_config_unpeers(ptree);
 	free_config_nic_rules(ptree);
 	free_config_reset_counters(ptree);
 #ifdef SIM
 	free_config_sim(ptree);
-#endif
+#else	/* !SIM follows */
+	free_config_peers(ptree);
+	free_config_unpeers(ptree);
+#endif	/* !SIM */
 	free_auth_node(ptree);
 
 	free(ptree);
@@ -897,6 +903,42 @@ dump_config_tree(
 						atrv->value.i);
 					break;
 
+				case T_String:
+					fprintf(df, " %s %s",
+						keyword(atrv->attr),
+						atrv->value.s);
+					break;
+				}
+			}
+			fprintf(df, "\n");
+		}
+
+		addr_opts = HEAD_PFIFO(ptree->device);
+		for ( ; addr_opts != NULL; addr_opts = addr_opts->link) {
+			peer_addr = peern->addr;
+			fudge_addr = addr_opts->addr;
+
+			s1 = peer_addr->address;
+			s2 = fudge_addr->address;
+
+			if (strcmp(s1, s2))
+				continue;
+
+			fprintf(df, "device %s", s1);
+
+			for (atrv = HEAD_PFIFO(addr_opts->options);
+			     atrv != NULL;
+			     atrv = atrv->link) {
+
+				switch (atrv->type) {
+#ifdef DEBUG
+				default:
+					fprintf(df, "\n# dump error:\n"
+						"# unknown device atrv->type %d\n"
+						"device %s", atrv->type,
+						s1);
+					break;
+#endif
 				case T_String:
 					fprintf(df, " %s %s",
 						keyword(atrv->attr),
@@ -2150,7 +2192,7 @@ free_config_auth(
 }
 #endif	/* FREE_CFG_T */
 
-
+#ifndef SIM
 /* Configure low-level clock-related parameters. Return TRUE if the
  * clock might need adjustment like era-checking after the call, FALSE
  * otherwise.
@@ -2183,12 +2225,15 @@ config_tos_clock(
 	    
 	return ret;
 }
+#endif	/* SIM */
 
 static void
 config_tos(
 	config_tree *ptree
 	)
 {
+	char const	improper_operation_msg[] = 
+				" - daemon will not operate properly!";
 	attr_val *	tos;
 	int		item;
 	double		val;
@@ -2202,9 +2247,11 @@ config_tos(
 	 * just log an error but do not stop: This might be caused by
 	 * remote config, and it might be fixed by remote config, too.
 	 */
-	int l_maxclock = sys_maxclock;
-	int l_minclock = sys_minclock;
-	int l_minsane  = sys_minsane;
+	int l_maxclock	= sys_maxclock;
+	int l_minclock	= sys_minclock;
+	int l_minsane	= sys_minsane;
+	int l_floor	= sys_floor;
+	int l_ceiling	= sys_ceiling;
 
 	/* -*- phase one: inspect / sanitize the values */
 	tos = HEAD_PFIFO(ptree->orphan_cmds);
@@ -2221,30 +2268,49 @@ config_tos(
 			val = tos->value.d;
 			if (val > 4) {
 				msyslog(LOG_WARNING,
-					"Using maximum bcpollbstep ceiling %d, %d requested",
+					"Using maximum tos bcpollbstep %d, %d requested",
 					4, (int)val);
 				tos->value.d = 4;
 			} else if (val < 0) {
 				msyslog(LOG_WARNING,
-					"Using minimum bcpollbstep floor %d, %d requested",
+					"Using minimum tos bcpollbstep %d, %d requested",
 					0, (int)val);
 				tos->value.d = 0;
 			}
 			break;
 
-		case T_Ceiling:
-			val = tos->value.d;
-			if (val > STRATUM_UNSPEC - 1) {
+		case T_Floor:
+			l_floor = (int)tos->value.d;
+			if (l_floor > STRATUM_UNSPEC - 1) {
 				msyslog(LOG_WARNING,
-					"Using maximum tos ceiling %d, %d requested",
-					STRATUM_UNSPEC - 1, (int)val);
+					"Using maximum tos floor %d, %d requested",
+					STRATUM_UNSPEC - 1, l_floor);
 				tos->value.d = STRATUM_UNSPEC - 1;
-			} else if (val < 1) {
+			}
+			else if (l_floor < 0) {
 				msyslog(LOG_WARNING,
 					"Using minimum tos floor %d, %d requested",
-					1, (int)val);
-				tos->value.d = 1;
+					0, l_floor);
+				tos->value.d = 0;
 			}
+			l_floor = (int)tos->value.d;
+			break;
+
+		case T_Ceiling:
+			l_ceiling = (int)tos->value.d;
+			if (l_ceiling > STRATUM_UNSPEC - 1) {
+				msyslog(LOG_WARNING,
+					"Using maximum tos ceiling %d, %d requested",
+					STRATUM_UNSPEC - 1, l_ceiling);
+				tos->value.d = STRATUM_UNSPEC - 1;
+			}
+			else if (l_ceiling < 0) {
+				msyslog(LOG_WARNING,
+					"Using minimum tos ceiling %d, %d requested",
+					0, l_ceiling);
+				tos->value.d = 0;
+			}
+			l_ceiling = (int)tos->value.d;
 			break;
 
 		case T_Minclock:
@@ -2271,10 +2337,16 @@ config_tos(
 	}
 
 	if ( ! (l_minsane < l_minclock && l_minclock <= l_maxclock)) {
-		msyslog(LOG_ERR,
-			"tos error: must have minsane (%d) < minclock (%d) <= maxclock (%d)"
-			" - daemon will not operate properly!",
-			l_minsane, l_minclock, l_maxclock);
+		msyslog(LOG_ERR, "Must have tos "
+			"minsane (%d) < minclock (%d) <= maxclock (%d)%s",
+			l_minsane, l_minclock, l_maxclock,
+			improper_operation_msg);
+	}
+
+	if (l_floor > l_ceiling) {
+		msyslog(LOG_ERR, "Must have tos "
+			"floor (%d) <= ceiling (%d)%s",
+			l_floor, l_ceiling, improper_operation_msg);
 	}
 
 	/* -*- phase two: forward the values to the protocol machinery */
@@ -3039,7 +3111,9 @@ get_pollskew(
 	)
 {
 
+#ifdef DISABLE_BUG3767_FIX
 	DEBUG_INSIST(3 <= p && 17 >= p);
+#endif
 	if (3 <= p && 17 >= p) {
 		*rv = psl[p - 3];
 
@@ -3545,7 +3619,6 @@ config_phone(
 		}
 	}
 }
-#endif	/* !SIM */
 
 static void
 config_mdnstries(
@@ -3557,6 +3630,7 @@ config_mdnstries(
 	mdnstries = ptree->mdnstries;
 #endif  /* HAVE_DNSREGISTRATION */
 }
+#endif	/* !SIM */
 
 #ifdef FREE_CFG_T
 static void
@@ -3845,6 +3919,7 @@ config_fudge(
 	sockaddr_u addr_sock;
 	address_node *addr_node;
 	struct refclockstat clock_stat;
+	char refid_str[5];
 	int err_flag;
 
 	curr_fudge = HEAD_PFIFO(ptree->fudge);
@@ -3900,8 +3975,10 @@ config_fudge(
 			case T_Refid:
 				clock_stat.haveflags |= CLK_HAVEVAL2;
 				/* strncpy() does exactly what we want here: */
-				strncpy((char*)&clock_stat.fudgeval2,
-					curr_opt->value.s, 4);
+				strncpy(refid_str, curr_opt->value.s, 
+					sizeof refid_str - 1);
+				memcpy(&clock_stat.fudgeval2, refid_str,
+				       sizeof clock_stat.fudgeval2);
 				break;
 
 			case T_Flag1:
@@ -3957,6 +4034,67 @@ config_fudge(
 }
 #endif	/* !SIM */
 
+#ifndef SIM
+static void
+config_device(
+	config_tree *ptree
+	)
+{
+	addr_opts_node *curr_device;
+	attr_val *curr_opt;
+	sockaddr_u addr_sock;
+	address_node *addr_node;
+	char *ttyName, *ppsName;
+
+	curr_device = HEAD_PFIFO(ptree->device);
+	for (; curr_device != NULL; curr_device = curr_device->link) {
+		/* Get the reference clock address and
+		 * ensure that it is sane
+		 */
+		addr_node = curr_device->addr;
+		ZERO_SOCK(&addr_sock);
+		if (getnetnum(addr_node->address, &addr_sock, 1, t_REF)
+		    != 1) {
+			msyslog(LOG_ERR,
+				"unrecognized device reference clock address %s, line ignored",
+				addr_node->address);
+			continue;
+		}
+		if (!ISREFCLOCKADR(&addr_sock)) {
+			msyslog(LOG_ERR,
+				"inappropriate address %s for the device command, line ignored",
+				stoa(&addr_sock));
+			continue;
+		}
+
+		ppsName = ttyName = NULL;
+		curr_opt = HEAD_PFIFO(curr_device->options);
+		for (; curr_opt != NULL; curr_opt = curr_opt->link) {
+			switch (curr_opt->attr) {
+
+			case T_TimeData:
+				ttyName = curr_opt->value.s;
+				break;
+
+			case T_PpsData:
+				ppsName = curr_opt->value.s;
+				break;
+
+			default:
+				msyslog(LOG_ERR,
+					"Unexpected device spec %s (%d) for %s",
+					token_name(curr_opt->attr),
+					curr_opt->attr, addr_node->address);
+				exit(curr_opt->attr ? curr_opt->attr : 1);
+			}
+		}
+# ifdef REFCLOCK
+		clockdev_update(&addr_sock, ttyName, ppsName);
+# endif
+	}
+}
+#endif	/* !SIM */
+
 
 #ifdef FREE_CFG_T
 static void
@@ -3965,6 +4103,14 @@ free_config_fudge(
 	)
 {
 	FREE_ADDR_OPTS_FIFO(ptree->fudge);
+}
+
+static void
+free_config_device(
+	config_tree *ptree
+	)
+{
+	FREE_ADDR_OPTS_FIFO(ptree->device);
 }
 #endif	/* FREE_CFG_T */
 
@@ -3991,11 +4137,9 @@ config_vars(
 			break;
 
 		case T_Driftfile:
-			if ('\0' == curr_var->value.s[0]) {
-				stats_drift_file = 0;
+			if ('\0' == curr_var->value.s[0])
 				msyslog(LOG_INFO, "config: driftfile disabled");
-			} else
-			    stats_config(STATS_FREQ_FILE, curr_var->value.s, 0);
+			stats_config(STATS_FREQ_FILE, curr_var->value.s, 0);
 			break;
 
 		case T_Dscp:
@@ -4088,6 +4232,7 @@ free_config_vars(
 #endif	/* FREE_CFG_T */
 
 
+#ifndef SIM
 /* Define a function to check if a resolved address is sane.
  * If yes, return 1, else return 0;
  */
@@ -4130,7 +4275,6 @@ is_sane_resolved_address(
 }
 
 
-#ifndef SIM
 static u_char
 get_correct_host_mode(
 	int token
@@ -4375,7 +4519,7 @@ config_peers(
 		}
 	}
 }
-#endif	/* !SIM */
+
 
 /*
  * peer_name_resolved()
@@ -4475,7 +4619,6 @@ free_config_peers(
 #endif	/* FREE_CFG_T */
 
 
-#ifndef SIM
 static void
 config_unpeers(
 	config_tree *ptree
@@ -4551,7 +4694,6 @@ config_unpeers(
 # endif
 	}
 }
-#endif	/* !SIM */
 
 
 /*
@@ -4631,6 +4773,7 @@ free_config_unpeers(
 	}
 }
 #endif	/* FREE_CFG_T */
+#endif	/* !SIM */
 
 
 #ifndef SIM
@@ -4848,6 +4991,7 @@ config_ntpd(
 
 	config_trap(ptree);	/* [bug 2923] dep. on io_open_sockets() */
 	config_other_modes(ptree);
+	config_device(ptree);
 	config_peers(ptree);
 	config_unpeers(ptree);
 	config_fudge(ptree);

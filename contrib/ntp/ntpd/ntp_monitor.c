@@ -82,8 +82,10 @@ static	u_int mon_mem_increments;	/* times called malloc() */
  * headway is less than the minimum, as well as if the average headway
  * is less than eight times the increment.
  */
-int	ntp_minpkt = NTP_MINPKT;	/* minimum (log 2 s) */
-u_char	ntp_minpoll = NTP_MINPOLL;	/* increment (log 2 s) */
+int	ntp_minpkt = NTP_MINPKT;	/* minimum seconds between */
+					/* requests from a client */
+u_char	ntp_minpoll = NTP_MINPOLL;	/* minimum average log2 seconds */
+					/* between client requests */
 
 /*
  * Initialization state.  We may be monitoring, we may not.  If
@@ -459,7 +461,7 @@ ntp_monitor(
 				mon_getmoremem();
 			UNLINK_HEAD_SLIST(mon, mon_free, hash_next);
 		/* Preempt from the MRU list if old enough. */
-		} else if (ntp_random() / (2. * FRAC) >
+		} else if (ntp_uurandom() >
 			   (double)oldest_age / mon_age) {
 			return ~(RES_LIMITED | RES_KOD) & flags;
 		} else {

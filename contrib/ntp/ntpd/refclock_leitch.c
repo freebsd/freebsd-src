@@ -242,7 +242,7 @@ leitch_start(
 {
 	struct leitchunit *leitch;
 	int fd232;
-	char leitchdev[20];
+	char leitchdev[32];
 
 	/*
 	 * Check configuration info.

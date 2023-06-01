@@ -2,6 +2,7 @@
 #define SNTPTEST_H
 
 #include "ntp_stdlib.h"
+#include "ntp_types.h"
 #include "sntp-opts.h"
 
 void sntptest(void);

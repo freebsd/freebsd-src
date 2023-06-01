@@ -5,31 +5,23 @@ dnl See LICENSE for copying information.
 dnl
 dnl Original version Dug Song <dugsong@monkey.org>
 
-AC_INIT(libevent,2.1.5-beta)
-AC_PREREQ(2.59)
+AC_INIT(libevent,2.1.12-stable)
+AC_PREREQ(2.67)
 AC_CONFIG_SRCDIR(event.c)
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE
 dnl AM_SILENT_RULES req. automake 1.11.  [no] defaults V=1
-m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
+AM_SILENT_RULES([yes])
 AC_CONFIG_HEADERS(config.h  evconfig-private.h:evconfig-private.h.in)
-AC_DEFINE(NUMERIC_VERSION, 0x02010500, [Numeric representation of the version])
+AC_DEFINE(NUMERIC_VERSION, 0x02010c00, [Numeric representation of the version])
 
 dnl Initialize prefix.
-if test "$prefix" = "NONE"; then
-   prefix="/usr/local"
-fi
+AC_PREFIX_DEFAULT([/usr/local])
 
 dnl Try and get a full POSIX environment on obscure systems
-ifdef([AC_USE_SYSTEM_EXTENSIONS], [
 AC_USE_SYSTEM_EXTENSIONS
-], [
-AC_AIX
-AC_GNU_SOURCE
-AC_MINIX
-])
 
 AC_CANONICAL_BUILD
 AC_CANONICAL_HOST
@@ -49,11 +41,7 @@ AC_PROG_INSTALL
 AC_PROG_LN_S
 # AC_PROG_MKDIR_P - $(MKDIR_P) should be defined by AM_INIT_AUTOMAKE
 
-# AC_PROG_SED is only available in Autoconf >= 2.59b; workaround for older
-# versions
-ifdef([AC_PROG_SED], [AC_PROG_SED], [
-AC_CHECK_PROGS(SED, [gsed sed])
-])
+AC_PROG_SED
 
 AC_PROG_GCC_TRADITIONAL
 
@@ -75,13 +63,14 @@ if test "$GCC" = "yes" ; then
 fi
 
 # OS X Lion started deprecating the system openssl. Let's just disable
-# all deprecation warnings on OS X.
-case "$host_os" in
-
- darwin*)
-    CFLAGS="$CFLAGS -Wno-deprecated-declarations"
-    ;;
-esac
+# all deprecation warnings on OS X; but do so only for gcc...
+if test "$GCC" = "yes" ; then
+	case "$host_os" in
+	 darwin*)
+	    CFLAGS="$CFLAGS -Wno-deprecated-declarations"
+	    ;;
+	esac
+fi
 
 AC_ARG_ENABLE(gcc-warnings,
      AS_HELP_STRING(--disable-gcc-warnings, disable verbose warnings with GCC))
@@ -121,9 +110,13 @@ AC_ARG_ENABLE([function-sections],
 AC_ARG_ENABLE([verbose-debug],
 		AS_HELP_STRING([--enable-verbose-debug, verbose debug logging]),
 	[], [enable_verbose_debug=no])
+AC_ARG_ENABLE([clock-gettime],
+     AS_HELP_STRING(--disable-clock-gettime, do not use clock_gettime even if it is available),
+  [], [enable_clock_gettime=yes])
 
 
-AC_PROG_LIBTOOL
+LT_PREREQ([2.4.2])
+LT_INIT
 
 dnl   Uncomment "AC_DISABLE_SHARED" to make shared libraries not get
 dnl   built by default.  You can also turn shared libs on and off from
@@ -138,33 +131,55 @@ dnl Checks for libraries.
 AC_SEARCH_LIBS([inet_ntoa], [nsl])
 AC_SEARCH_LIBS([socket], [socket])
 AC_SEARCH_LIBS([inet_aton], [resolv])
-AC_SEARCH_LIBS([clock_gettime], [rt])
+if test "x$enable_clock_gettime" = "xyes"; then
+  AC_SEARCH_LIBS([clock_gettime], [rt])
+  AC_CHECK_FUNCS([clock_gettime])
+fi
 AC_SEARCH_LIBS([sendfile], [sendfile])
 
 dnl - check if the macro _WIN32 is defined on this compiler.
 dnl - (this is how we check for a windows compiler)
 AC_MSG_CHECKING(for WIN32)
-AC_TRY_COMPILE(,
-	[
+AC_COMPILE_IFELSE(
+  [AC_LANG_PROGRAM([],
+    [
 #ifndef _WIN32
 die horribly
 #endif
-	],
-	bwin32=true; AC_MSG_RESULT(yes),
-	bwin32=false; AC_MSG_RESULT(no),
+    ]
+  )],
+	[bwin32=true; AC_MSG_RESULT(yes)],
+	[bwin32=false; AC_MSG_RESULT(no)]
+)
+
+dnl - check if the macro __midipix__ is defined on this compiler.
+dnl - (this is how we check for a midipix version of GCC)
+AC_MSG_CHECKING(for MIDIPIX)
+AC_COMPILE_IFELSE(
+  [AC_LANG_PROGRAM([],
+    [
+#ifndef __midipix__
+die horribly
+#endif
+    ]
+  )],
+	[midipix=true; AC_MSG_RESULT(yes)],
+	[midipix=false; AC_MSG_RESULT(no)]
 )
 
 dnl - check if the macro __CYGWIN__ is defined on this compiler.
 dnl - (this is how we check for a cygwin version of GCC)
 AC_MSG_CHECKING(for CYGWIN)
-AC_TRY_COMPILE(,
-	[
+AC_COMPILE_IFELSE(
+  [AC_LANG_PROGRAM([],
+    [
 #ifndef __CYGWIN__
 die horribly
 #endif
-	],
-	cygwin=true; AC_MSG_RESULT(yes),
-	cygwin=false; AC_MSG_RESULT(no),
+    ]
+  )],
+	[cygwin=true; AC_MSG_RESULT(yes)],
+	[cygwin=false; AC_MSG_RESULT(no)]
 )
 
 AC_CHECK_HEADERS([zlib.h])
@@ -207,10 +222,12 @@ AC_CHECK_HEADERS([ \
   fcntl.h \
   ifaddrs.h \
   mach/mach_time.h \
+  mach/mach.h \
   netdb.h \
   netinet/in.h \
   netinet/in6.h \
   netinet/tcp.h \
+  sys/un.h \
   poll.h \
   port.h \
   stdarg.h \
@@ -232,13 +249,21 @@ AC_CHECK_HEADERS([ \
   sys/timerfd.h \
   sys/uio.h \
   sys/wait.h \
+  sys/random.h \
+  errno.h \
+  afunix.h \
 ])
 
-AC_CHECK_HEADERS(sys/sysctl.h, [], [], [
-#ifdef HAVE_SYS_PARAM_H
-#include <sys/param.h>
-#endif
-])
+case "${host_os}" in
+    linux*) ;;
+    *)
+        AC_CHECK_HEADERS(sys/sysctl.h, [], [], [
+        #ifdef HAVE_SYS_PARAM_H
+        #include <sys/param.h>
+        #endif
+        ])
+esac
+
 if test "x$ac_cv_header_sys_queue_h" = "xyes"; then
 	AC_MSG_CHECKING(for TAILQ_FOREACH in sys/queue.h)
 	AC_EGREP_CPP(yes,
@@ -311,7 +336,7 @@ if test "x$ac_cv_header_sys_time_h" = "xyes"; then
 fi
 
 if test "x$ac_cv_header_sys_sysctl_h" = "xyes"; then
-	AC_CHECK_DECLS([CTL_KERN, KERN_RANDOM, RANDOM_UUID, KERN_ARND], [], [],
+	AC_CHECK_DECLS([CTL_KERN, KERN_ARND], [], [],
 	   [[#include <sys/types.h>
 	     #include <sys/sysctl.h>]]
 	)
@@ -319,10 +344,11 @@ fi
 
 AM_CONDITIONAL(BUILD_WIN32, test x$bwin32 = xtrue)
 AM_CONDITIONAL(BUILD_CYGWIN, test x$cygwin = xtrue)
-AM_CONDITIONAL(BUILD_WITH_NO_UNDEFINED, test x$bwin32 = xtrue || test x$cygwin = xtrue)
+AM_CONDITIONAL(BUILD_MIDIPIX, test x$midipix = xtrue)
+AM_CONDITIONAL(BUILD_WITH_NO_UNDEFINED, test x$bwin32 = xtrue || test x$cygwin = xtrue || test x$midipix = xtrue)
 
 if test x$bwin32 = xtrue; then
-   AC_SEARCH_LIBS([getservbyname],[ws2_32])
+  AC_HAVE_LIBRARY([ws2_32])
 fi
 
 dnl Checks for typedefs, structures, and compiler characteristics.
@@ -335,18 +361,14 @@ AC_CHECK_FUNCS([ \
   accept4 \
   arc4random \
   arc4random_buf \
-  clock_gettime \
+  arc4random_addrandom \
   eventfd \
   epoll_create1 \
   fcntl \
   getegid \
   geteuid \
   getifaddrs \
-  getnameinfo \
-  getprotobynumber \
   gettimeofday \
-  inet_ntop \
-  inet_pton \
   issetugid \
   mach_absolute_time \
   mmap \
@@ -370,9 +392,36 @@ AC_CHECK_FUNCS([ \
   unsetenv \
   usleep \
   vasprintf \
+  getrandom \
 ])
+
+AS_IF([test x$bwin32 = xtrue],
+  AC_CHECK_FUNCS(_gmtime64_s, , [AC_CHECK_FUNCS(_gmtime64)])
+)
+
 AM_CONDITIONAL(STRLCPY_IMPL, [test x"$ac_cv_func_strlcpy" = xno])
 
+m4_define([funcstochk],
+  [getnameinfo
+  getprotobynumber
+  getservbyname
+  inet_ntop
+  inet_pton]
+)
+
+AS_IF([test x$bwin32 = xtrue],
+  [AX_CHECK_DECLS_EX([funcstochk getaddrinfo],
+    [#ifdef _WIN32
+    #include <winsock2.h>
+    #include <ws2tcpip.h>
+    #endif])],
+  [AC_CHECK_FUNCS(m4_normalize(funcstochk))]
+)
+
+m4_undefine([funcstochk])
+
+dnl check getaddrinfo and gethostbyname_r for non-windows
+AS_IF([test x$bwin32 = xfalse], [
 AC_CACHE_CHECK(
     [for getaddrinfo],
     [libevent_cv_getaddrinfo],
@@ -395,7 +444,6 @@ if test "$libevent_cv_getaddrinfo" = "yes" ; then
     AC_DEFINE([HAVE_GETADDRINFO], [1], [Do we have getaddrinfo()?])
 else
 
-AC_CHECK_FUNCS([getservbyname])
 # Check for gethostbyname_r in all its glorious incompatible versions.
 #   (This is cut-and-pasted from Tor, which based its logic on
 #   Python's configure.in.)
@@ -419,27 +467,27 @@ AC_CHECK_FUNC(gethostbyname_r, [
      [Define this if gethostbyname_r takes 6 arguments])
     AC_MSG_RESULT(6)
   ], [
-    AC_TRY_COMPILE([
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([
 #include <netdb.h>
     ], [
       char *cp1, *cp2;
       struct hostent *h1;
       int i1, i2;
       (void)gethostbyname_r(cp1,h1,cp2,i1,&i2);
-    ], [
+    ])], [
       AC_DEFINE(HAVE_GETHOSTBYNAME_R)
       AC_DEFINE(HAVE_GETHOSTBYNAME_R_5_ARG, 1,
         [Define this if gethostbyname_r takes 5 arguments])
       AC_MSG_RESULT(5)
-   ], [
-      AC_TRY_COMPILE([
+    ], [
+      AC_COMPILE_IFELSE([AC_LANG_PROGRAM([
 #include <netdb.h>
      ], [
        char *cp1;
        struct hostent *h1;
        struct hostent_data hd;
        (void) gethostbyname_r(cp1,h1,&hd);
-     ], [
+     ])], [
        AC_DEFINE(HAVE_GETHOSTBYNAME_R)
        AC_DEFINE(HAVE_GETHOSTBYNAME_R_3_ARG, 1,
          [Define this if gethostbyname_r takes 3 arguments])
@@ -453,11 +501,12 @@ AC_CHECK_FUNC(gethostbyname_r, [
 ])
 
 fi
+]) dnl end of checking getaddrinfo and gethostbyname_r
 
 AC_MSG_CHECKING(for F_SETFD in fcntl.h)
 AC_EGREP_CPP(yes,
 [
-#define _GNU_SOURCE
+#define _GNU_SOURCE 1
 #include <fcntl.h>
 #ifdef F_SETFD
 yes
@@ -495,57 +544,64 @@ if test "x$ac_cv_header_sys_event_h" = "xyes"; then
 	AC_CHECK_FUNCS(kqueue, [havekqueue=yes], )
 	if test "x$havekqueue" = "xyes" ; then
 		AC_MSG_CHECKING(for working kqueue)
-		AC_TRY_RUN(
+		AC_RUN_IFELSE(
+      [AC_LANG_PROGRAM([
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
+#include <string.h>
+#endif
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/event.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
-
-int
-main(int argc, char **argv)
-{
+        ], [[
 	int kq;
 	int n;
-	int fd[[2]];
+	int fd[2];
 	struct kevent ev;
 	struct timespec ts;
-	char buf[[8000]];
+	char buf[80000];
 
 	if (pipe(fd) == -1)
-		exit(1);
-	if (fcntl(fd[[1]], F_SETFL, O_NONBLOCK) == -1)
-		exit(1);
+  		return 1;
+	if (fcntl(fd[1], F_SETFL, O_NONBLOCK) == -1)
+		return 1;
 
-	while ((n = write(fd[[1]], buf, sizeof(buf))) == sizeof(buf))
+	while ((n = write(fd[1], buf, sizeof(buf))) == sizeof(buf))
 		;
 
-        if ((kq = kqueue()) == -1)
-		exit(1);
+	if ((kq = kqueue()) == -1)
+		return 1;
 
 	memset(&ev, 0, sizeof(ev));
-	ev.ident = fd[[1]];
+	ev.ident = fd[1];
 	ev.filter = EVFILT_WRITE;
 	ev.flags = EV_ADD | EV_ENABLE;
 	n = kevent(kq, &ev, 1, NULL, 0, NULL);
 	if (n == -1)
-		exit(1);
+		return 1;
 
-	read(fd[[0]], buf, sizeof(buf));
+	read(fd[0], buf, sizeof(buf));
 
 	ts.tv_sec = 0;
 	ts.tv_nsec = 0;
 	n = kevent(kq, NULL, 0, &ev, 1, &ts);
 	if (n == -1 || n == 0)
-		exit(1);
+		return 1;
 
-	exit(0);
-}, [AC_MSG_RESULT(yes)
-    AC_DEFINE(HAVE_WORKING_KQUEUE, 1,
-		[Define if kqueue works correctly with pipes])
-    havekqueue=yes
-    ], AC_MSG_RESULT(no), AC_MSG_RESULT(no))
+	return 0;
+        ]]
+      )],
+      [AC_MSG_RESULT(yes)
+      AC_DEFINE(HAVE_WORKING_KQUEUE, 1,
+        [Define if kqueue works correctly with pipes])
+      havekqueue=yes
+      ], [AC_MSG_RESULT(no)], [AC_MSG_RESULT(no)]
+    )
 	fi
 fi
 AM_CONDITIONAL(KQUEUE_BACKEND, [test "x$havekqueue" = "xyes"])
@@ -561,7 +617,8 @@ fi
 if test "x$ac_cv_header_sys_epoll_h" = "xyes"; then
 	if test "x$haveepoll" = "xno" ; then
 		AC_MSG_CHECKING(for epoll system call)
-		AC_TRY_RUN(
+		AC_RUN_IFELSE(
+      [AC_LANG_PROGRAM([[
 #include <stdint.h>
 #include <sys/param.h>
 #include <sys/types.h>
@@ -574,21 +631,21 @@ epoll_create(int size)
 {
 	return (syscall(__NR_epoll_create, size));
 }
-
-int
-main(int argc, char **argv)
-{
+        ]],[[
 	int epfd;
 
 	epfd = epoll_create(256);
-	exit (epfd == -1 ? 1 : 0);
-}, [AC_MSG_RESULT(yes)
-    AC_DEFINE(HAVE_EPOLL, 1,
-	[Define if your system supports the epoll system calls])
-    needsignal=yes
-    have_epoll=yes
-    AC_LIBOBJ(epoll_sub)
-    ], AC_MSG_RESULT(no), AC_MSG_RESULT(no))
+	return (epfd == -1 ? 1 : 0);
+        ]]
+      )], 
+      [AC_MSG_RESULT(yes)
+      AC_DEFINE(HAVE_EPOLL, 1,
+	      [Define if your system supports the epoll system calls])
+      needsignal=yes
+      have_epoll=yes
+      AC_LIBOBJ(epoll_sub)
+      ], [AC_MSG_RESULT(no)], [AC_MSG_RESULT(no)]
+    )
 	fi
 fi
 AM_CONDITIONAL(EPOLL_BACKEND, [test "x$haveepoll" = "xyes"])
@@ -637,15 +694,19 @@ AC_CHECK_SIZEOF(short)
 AC_CHECK_SIZEOF(size_t)
 AC_CHECK_SIZEOF(void *)
 AC_CHECK_SIZEOF(off_t)
+AC_CHECK_SIZEOF(time_t)
 
-AC_CHECK_TYPES([struct in6_addr, struct sockaddr_in6, sa_family_t, struct addrinfo, struct sockaddr_storage], , ,
-[#define _GNU_SOURCE
+AC_CHECK_TYPES([struct in6_addr, struct sockaddr_in6, struct sockaddr_un, sa_family_t, struct addrinfo, struct sockaddr_storage], , ,
+[#define _GNU_SOURCE 1
 #include <sys/types.h>
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
 #ifdef HAVE_NETINET_IN6_H
 #include <netinet/in6.h>
+#endif
+#ifdef HAVE_SYS_UN_H
+#include <sys/un.h>
 #endif
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
@@ -689,40 +750,54 @@ AC_CHECK_MEMBERS([struct in6_addr.s6_addr32, struct in6_addr.s6_addr16, struct s
 #endif
 ])
 
-AC_CHECK_TYPES([struct so_linger],
-[#define HAVE_SO_LINGER], ,
+AC_CHECK_TYPES([struct linger],,,
 [
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
+#ifdef _WIN32
+#include <winsock2.h>
+#endif
 ])
 
 AC_MSG_CHECKING([for socklen_t])
-AC_TRY_COMPILE([
+AC_COMPILE_IFELSE(
+  [AC_LANG_PROGRAM([
  #include <sys/types.h>
- #include <sys/socket.h>],
-  [socklen_t x;],
-  AC_MSG_RESULT([yes]),
+ #ifdef _WIN32
+ #include <ws2tcpip.h>
+ #else
+ #include <sys/socket.h>
+ #endif
+    ],[socklen_t x;]
+  )],
+	[AC_MSG_RESULT([yes])],
   [AC_MSG_RESULT([no])
   AC_DEFINE(socklen_t, unsigned int,
-	[Define to unsigned int if you dont have it])]
+	  [Define to unsigned int if you dont have it])]
 )
 
+# __func__/__FUNCTION__ is not a macros in general
 AC_MSG_CHECKING([whether our compiler supports __func__])
-AC_TRY_COMPILE([],
- [ const char *cp = __func__; ],
- AC_MSG_RESULT([yes]),
- AC_MSG_RESULT([no])
- AC_MSG_CHECKING([whether our compiler supports __FUNCTION__])
- AC_TRY_COMPILE([],
-   [ const char *cp = __FUNCTION__; ],
-   AC_MSG_RESULT([yes])
-   AC_DEFINE(__func__, __FUNCTION__,
-         [Define to appropriate substitue if compiler doesnt have __func__]),
-   AC_MSG_RESULT([no])
-   AC_DEFINE(__func__, __FILE__,
-         [Define to appropriate substitue if compiler doesnt have __func__])))
-
+AC_COMPILE_IFELSE(
+  [AC_LANG_PROGRAM([],
+    [ const char *cp = __func__; ]
+  )],
+	[ AC_DEFINE(HAVE___func__, 1, [Define to 1 if compiler have __func__])
+    AC_MSG_RESULT([yes])
+  ],
+  [AC_MSG_RESULT([no])]
+)
+AC_MSG_CHECKING([whether our compiler supports __FUNCTION__])
+AC_COMPILE_IFELSE(
+  [AC_LANG_PROGRAM([],
+    [ const char *cp = __FUNCTION__; ]
+  )],
+	[ AC_DEFINE(HAVE___FUNCTION__, 1, [Define to 1 if compiler have __FUNCTION__])
+    AC_MSG_RESULT([yes])
+  ],
+  [AC_MSG_RESULT([no])]
+)
 
 # check if we can compile with pthreads
 have_pthreads=no
@@ -737,7 +812,8 @@ if test x$bwin32 != xtrue && test "$enable_thread_support" != "no"; then
       #include <pthread.h> ]
   )
 fi
-AM_CONDITIONAL([PTHREADS], [test "$have_pthreads" != "no" && test "$enable_thread_support" != "no"])
+AM_CONDITIONAL(THREADS, [test "$enable_thread_support" != "no"])
+AM_CONDITIONAL(PTHREADS, [test "$have_pthreads" != "no" && test "$enable_thread_support" != "no"])
 
 # check if we should compile locking into the library
 if test x$enable_thread_support = xno; then
@@ -789,7 +865,8 @@ if test x$enable_gcc_warnings != xno && test "$GCC" = "yes"; then
 #error
 #endif])], have_clang=yes, have_clang=no)
 
-  CFLAGS="$CFLAGS -W -Wfloat-equal -Wundef -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes -Wwrite-strings -Wredundant-decls -Wchar-subscripts -Wcomment -Wformat -Wwrite-strings -Wmissing-declarations -Wredundant-decls -Wnested-externs -Wbad-function-cast -Wswitch-enum"
+  # -W is the same as -Wextra
+  CFLAGS="$CFLAGS -W -Wfloat-equal -Wundef -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes -Wwrite-strings -Wredundant-decls -Wmissing-declarations -Wnested-externs -Wbad-function-cast"
   if test x$enable_gcc_warnings = xyes; then
     CFLAGS="$CFLAGS -Werror"
   fi
@@ -822,7 +899,7 @@ if test x$enable_gcc_warnings != xno && test "$GCC" = "yes"; then
     # for minheap-internal.h related code.
     CFLAGS="$CFLAGS -Wno-unused-function"
 
-    # clang on macosx emits warnigns for each directory specified which
+    # clang on macosx emits warnings for each directory specified which
     # isn't "used" generating a lot of build noise (typically 3 warnings
     # per file
     case "$host_os" in
@@ -912,9 +989,19 @@ AC_SUBST([LIBEVENT_GC_SECTIONS])
 
 AM_CONDITIONAL([INSTALL_LIBEVENT], [test "$enable_libevent_install" = "yes"])
 
-AC_SUBST([LEP_CFLAGS])
-AC_SUBST([LEP_CPPFLAGS])
-AC_SUBST([LEP_LDFLAGS])
+# Doxygen support
+DX_HTML_FEATURE(ON)
+DX_MAN_FEATURE(OFF)
+DX_RTF_FEATURE(OFF)
+DX_XML_FEATURE(OFF)
+DX_PDF_FEATURE(OFF)
+DX_PS_FEATURE(OFF)
+DX_CHM_FEATURE(OFF)
+DX_CHI_FEATURE(OFF)
+DX_INIT_DOXYGEN([libevent], [${top_srcdir}/Doxyfile], [doxygen])
 
-AC_CONFIG_FILES( [libevent.pc libevent_openssl.pc libevent_pthreads.pc] )
+AM_CONDITIONAL([ENABLE_DOXYGEN], [test "$DX_FLAG_doc" = "1"])
+AM_CONDITIONAL([ENABLE_DOXYGEN_MAN], [test "$DX_FLAG_man" = "1"])
+
+AC_CONFIG_FILES( [libevent.pc libevent_openssl.pc libevent_pthreads.pc libevent_core.pc libevent_extra.pc] )
 AC_OUTPUT(Makefile)

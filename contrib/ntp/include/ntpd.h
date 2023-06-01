@@ -483,6 +483,7 @@ extern struct peer *sys_peer;		/* current peer */
  * Nonspecified system state variables.
  */
 extern int	sys_bclient;		/* we set our time to broadcasts */
+extern int	sys_mclient;		/* we set our time to manycasts */
 extern double	sys_bdelay; 		/* broadcast client default delay */
 extern int	sys_authenticate;	/* requre authentication for config */
 extern l_fp	sys_authdelay;		/* authentication delay */

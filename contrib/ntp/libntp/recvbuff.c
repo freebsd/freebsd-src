@@ -109,12 +109,13 @@ create_buffers(
 	u_int i;
 	size_t abuf;
 
-	if (limit_recvbufs <= total_recvbufs)
-		return;
-	
+	/*[bug 3666]: followup -- reset shortfalls in all cases */
 	abuf = nbufs + buffer_shortfall;
 	buffer_shortfall = 0;
 
+	if (limit_recvbufs <= total_recvbufs)
+		return;
+	
 	if (abuf < nbufs || abuf > RECV_BATCH)
 		abuf = RECV_BATCH;	/* clamp on overflow */
 	else
@@ -234,7 +235,7 @@ get_free_recv_buffer(
 	recvbuf_t *buffer = NULL;
 
 	LOCK_F();
-	if (free_recvbufs > (urgent ? emerg_recvbufs : 0)) {
+	if (free_recvbufs > (urgent ? 0 : emerg_recvbufs)) {
 		UNLINK_HEAD_SLIST(buffer, free_recv_list, link);
 	}
 	

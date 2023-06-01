@@ -61,12 +61,12 @@ noinst_DATA =			\
 ntpsweep: $(srcdir)/ntpsweep-opts
 
 $(srcdir)/ntpsweep-opts: ntpsweep-opts.def $(std_def_list)
-	$(run_ag) ntpsweep-opts.def
+	$(AM_V_GEN)$(run_ag) ntpsweep-opts.def
 
 ### Nroff
 
 $(srcdir)/ntpsweep.1ntpsweepman: ntpsweep-opts.def $(std_def_list)
-	$(run_ag) -DMAN_SECTION=1ntpsweepman -Tagman-cmd.tpl ntpsweep-opts.def
+	$(AM_V_GEN)$(run_ag) -DMAN_SECTION=1ntpsweepman -Tagman-cmd.tpl ntpsweep-opts.def
 
 $(srcdir)/ntpsweep.man.in: ntpsweep.1ntpsweepman $(top_srcdir)/sntp/scripts/mansec2subst.sed
 	sed -f $(top_srcdir)/sntp/scripts/mansec2subst.sed $(srcdir)/ntpsweep.1ntpsweepman > $(srcdir)/ntpsweep.man.in+
@@ -75,7 +75,7 @@ $(srcdir)/ntpsweep.man.in: ntpsweep.1ntpsweepman $(top_srcdir)/sntp/scripts/mans
 ### Mdoc
 
 $(srcdir)/ntpsweep.1ntpsweepmdoc: ntpsweep-opts.def $(std_def_list)
-	$(run_ag) -DMAN_SECTION=1ntpsweepmdoc -Tagmdoc-cmd.tpl ntpsweep-opts.def
+	$(AM_V_GEN)$(run_ag) -DMAN_SECTION=1ntpsweepmdoc -Tagmdoc-cmd.tpl ntpsweep-opts.def
 
 $(srcdir)/ntpsweep.mdoc.in: ntpsweep.1ntpsweepmdoc $(top_srcdir)/sntp/scripts/mansec2subst.sed
 	sed -f $(top_srcdir)/sntp/scripts/mansec2subst.sed $(srcdir)/ntpsweep.1ntpsweepmdoc > $(srcdir)/ntpsweep.mdoc.in+
@@ -93,10 +93,10 @@ $(srcdir)/invoke-ntpsweep.menu: invoke-ntpsweep.texi
 	@: do-nothing action to avoid default SCCS get, .menu built with .texi
 
 $(srcdir)/invoke-ntpsweep.texi: ntpsweep-opts ntpsweep-opts.def $(std_def_list)
-	$(run_ag) -Tagtexi-cmd.tpl -DLEVEL=section ntpsweep-opts.def
+	$(AM_V_GEN)$(run_ag) -Tagtexi-cmd.tpl -DLEVEL=section ntpsweep-opts.def
 	$(top_srcdir)/scripts/build/check--help $@
 
 ### HTML
 
-$(srcdir)/ntpsweep.html: invoke-ntpsweep.menu invoke-ntpsweep.texi ntpsweep.texi $(top_srcdir)/sntp/include/version.texi
+$(srcdir)/ntpsweep.html: $(srcdir)/invoke-ntpsweep.texi $(srcdir)/ntpsweep.texi $(top_srcdir)/sntp/include/version.texi
 	cd $(srcdir) && ( makeinfo --force --html --no-split -I ../sntp -o ntpsweep.html ntpsweep.texi || true )
