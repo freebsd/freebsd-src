@@ -836,7 +836,7 @@ read_mtree_spec1(FILE *fp, bool def, const char *name)
 	 * not the '.' node of the parent directory, but the directory
 	 * node within the parent to which the child relates. However,
 	 * going up a directory means we need to find the '.' node to
-	 * which the directoy node is linked.  This we can do via the
+	 * which the directory node is linked.  This we can do via the
 	 * first * pointer, because '.' is always the first entry in a
 	 * directory.
 	 */
@@ -1016,7 +1016,7 @@ read_mtree_spec(FILE *fp)
 		}
 	}
 
-	/* Ignore absolute specfications that end with a slash. */
+	/* Ignore absolute specifications that end with a slash. */
 	if (!error && pathspec[0] != '\0')
 		error = read_mtree_spec1(fp, true, pathspec);
 
