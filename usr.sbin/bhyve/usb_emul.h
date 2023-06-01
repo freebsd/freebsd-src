@@ -91,7 +91,7 @@ struct usb_hci {
 
 /*
  * Each xfer block is mapped to the hci transfer block.
- * On input into the device handler, blen is set to the lenght of buf.
+ * On input into the device handler, blen is set to the length of buf.
  * The device handler is to update blen to reflect on the residual size
  * of the buffer, i.e. len(buf) - len(consumed).
  */
