@@ -1776,7 +1776,7 @@ status(struct ifconfig_args *args, const struct sockaddr_dl *sdl,
 
 	print_ifstatus(s);
 	if (args->verbose > 0)
-		sfp_status(s, &ifr, args->verbose);
+		sfp_status(ctx);
 
 	close(s);
 	return;

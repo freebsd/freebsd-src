@@ -294,7 +294,7 @@ lagg_status(if_ctx *ctx __unused)
 }
 
 static void
-setlaggtype(if_ctx *ctx, const char *arg, int dummy __unused)
+setlaggtype(if_ctx *ctx __unused, const char *arg, int dummy __unused)
 {
 	static const struct lagg_types lt[] = LAGG_TYPES;
 

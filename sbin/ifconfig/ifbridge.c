@@ -373,7 +373,7 @@ unsetbridge_autoptp(if_ctx *ctx, const char *val, int dummy __unused)
 }
 
 static void
-setbridge_flush(if_ctx *ctx, const char *val, int dummy __unused)
+setbridge_flush(if_ctx *ctx, const char *val __unused, int dummy __unused)
 {
 	struct ifbreq req;
 
@@ -384,7 +384,7 @@ setbridge_flush(if_ctx *ctx, const char *val, int dummy __unused)
 }
 
 static void
-setbridge_flushall(if_ctx *ctx, const char *val, int dummy __unused)
+setbridge_flushall(if_ctx *ctx, const char *val __unused, int dummy __unused)
 {
 	struct ifbreq req;
 
@@ -434,7 +434,7 @@ setbridge_deladdr(if_ctx *ctx, const char *val, int dummy __unused)
 }
 
 static void
-setbridge_addr(if_ctx *ctx, const char *val, int dummy __unused)
+setbridge_addr(if_ctx *ctx, const char *val __unused, int dummy __unused)
 {
 
 	bridge_addresses(ctx->io_s, "");

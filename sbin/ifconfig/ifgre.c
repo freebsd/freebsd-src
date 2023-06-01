@@ -91,7 +91,7 @@ setifgreport(if_ctx *ctx, const char *val, int dummy __unused)
 }
 
 static void
-setifgreopts(if_ctx *ctx, const char *val, int d)
+setifgreopts(if_ctx *ctx, const char *val __unused, int d)
 {
 	uint32_t opts;
 

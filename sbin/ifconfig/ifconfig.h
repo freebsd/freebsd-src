@@ -43,6 +43,14 @@
 
 #define	__constructor	__attribute__((constructor))
 
+#ifdef WITHOUT_NETLINK
+#define	__netlink_used		__unused
+#define	__netlink_unused
+#else
+#define	__netlink_used
+#define	__netlink_unused	__unused
+#endif
+
 struct afswtch;
 struct cmd;
 struct ifconfig_context;
@@ -267,7 +275,7 @@ typedef void clone_callback_func(int, struct ifreq *);
 void	clone_setdefcallback_prefix(const char *, clone_callback_func *);
 void	clone_setdefcallback_filter(clone_match_func *, clone_callback_func *);
 
-void	sfp_status(int s, struct ifreq *ifr, int verbose);
+void	sfp_status(if_ctx *ctx);
 
 struct sockaddr_dl;
 bool	match_ether(const struct sockaddr_dl *sdl);

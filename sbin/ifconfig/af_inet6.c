@@ -99,7 +99,7 @@ extern void nd6_status(if_ctx *);
 static	char addr_buf[NI_MAXHOST];	/*for getnameinfo()*/
 
 static void
-setifprefixlen(if_ctx *ctx, const char *addr, int dummy __unused)
+setifprefixlen(if_ctx *ctx __netlink_unused, const char *addr, int dummy __unused)
 {
 #ifdef WITHOUT_NETLINK
 	const struct afswtch *afp = ctx->afp;
@@ -385,7 +385,7 @@ show_lifetime(struct ifa_cacheinfo *ci)
 }
 
 static void
-in6_status_nl(if_ctx *ctx __unused, if_link_t *link, if_addr_t *ifa)
+in6_status_nl(if_ctx *ctx __unused, if_link_t *link __unused, if_addr_t *ifa)
 {
 	int plen = ifa->ifa_prefixlen;
 	uint32_t scopeid;
@@ -422,7 +422,7 @@ static struct in6_px *sin6tab_nl[] = {
 };
 
 static void
-in6_copyaddr(if_ctx *ctx, int to, int from)
+in6_copyaddr(if_ctx *ctx __unused, int to, int from)
 {
 	sin6tab_nl[to]->addr = sin6tab_nl[from]->addr;
 	sin6tab_nl[to]->set = sin6tab_nl[from]->set;
@@ -771,7 +771,7 @@ static struct afswtch af_inet6 = {
 };
 
 static void
-in6_Lopt_cb(const char *optarg __unused)
+in6_Lopt_cb(const char *arg __unused)
 {
 	ip6lifetime++;	/* print IPv6 address lifetime */
 }

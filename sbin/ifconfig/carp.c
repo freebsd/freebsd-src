@@ -114,7 +114,7 @@ setcarp_vhid(if_ctx *ctx, const char *val, int dummy __unused)
 }
 
 static void
-setcarp_callback(int s, void *arg __unused)
+setcarp_callback(int s __unused, void *arg __unused)
 {
 	struct ifconfig_carp carpr = { };
 
@@ -214,8 +214,7 @@ setcarp_peer6(if_ctx *ctx __unused, const char *val, int dummy __unused)
 	if (getaddrinfo(val, NULL, &hints, &res) != 0)
 		errx(1, "Invalid IPv6 address %s", val);
 
-	memcpy(&carp_addr6, &((struct sockaddr_in6 *)res->ai_addr)->sin6_addr,
-	    sizeof(carp_addr6));
+	memcpy(&carp_addr6, &(satosin6(res->ai_addr))->sin6_addr, sizeof(carp_addr6));
 	freeaddrinfo(res);
 }
 

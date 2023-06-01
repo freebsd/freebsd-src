@@ -398,7 +398,7 @@ status_nl(if_ctx *ctx, struct iface *iface)
 
 	print_ifstatus(ctx->io_s);
 	if (args->verbose > 0)
-		sfp_status(ctx->io_s, &ifr, args->verbose);
+		sfp_status(ctx);
 }
 
 static int

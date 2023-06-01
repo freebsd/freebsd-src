@@ -179,7 +179,7 @@ vxlan_check_params(void)
 #undef _REMOTE_ADDR46
 
 static void
-vxlan_cb(int s, void *arg)
+vxlan_cb(int s __unused, void *arg __unused)
 {
 
 }
@@ -554,7 +554,7 @@ setvxlan_ttl(if_ctx *ctx, const char *arg, int dummy __unused)
 }
 
 static void
-setvxlan_learn(if_ctx *ctx, const char *arg, int d)
+setvxlan_learn(if_ctx *ctx, const char *arg __unused, int d)
 {
 	struct ifvxlancmd cmd;
 

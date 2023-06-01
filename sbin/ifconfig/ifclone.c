@@ -118,7 +118,7 @@ clone_setdefcallback_filter(clone_match_func *filter, clone_callback_func *p)
  * no parameters.
  */
 static void
-ifclonecreate(int s, void *arg)
+ifclonecreate(int s, void *arg __unused)
 {
 	struct ifreq ifr;
 	struct clone_defcb *dcp;
@@ -182,7 +182,7 @@ static struct cmd clone_cmds[] = {
 };
 
 static void
-clone_Copt_cb(const char *optarg __unused)
+clone_Copt_cb(const char *arg __unused)
 {
 	list_cloners();
 	exit(exit_code);
