@@ -548,7 +548,7 @@ invalidate_swrun_entry(struct swrun_entry *entry, int commit)
 }
 
 /**
- * Popuplate the hrSWRunTable.
+ * Populate the hrSWRunTable.
  */
 void
 init_swrun_tbl(void)
@@ -575,7 +575,7 @@ fini_swrun_tbl(void)
 /*
  * This is the implementation for a generated (by a SNMP tool)
  * function prototype, see hostres_tree.h
- * It hanldes the SNMP operations for hrSWRunTable
+ * It handles the SNMP operations for hrSWRunTable
  */
 int
 op_hrSWRunTable(struct snmp_context *ctx __unused, struct snmp_value *value,
