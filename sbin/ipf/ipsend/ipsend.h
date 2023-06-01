@@ -8,7 +8,7 @@
  * conditions, enough of the TCP header is missing for unpredictable
  * results unless the filter is aware that this can happen.
  *
- * The author provides this program as-is, with no gaurantee for its
+ * The author provides this program as-is, with no guarantee for its
  * suitability for any specific purpose.  The author takes no responsibility
  * for the misuse/abuse of this program and provides it for the sole purpose
  * of testing packet filter policies.  This file maybe distributed freely
