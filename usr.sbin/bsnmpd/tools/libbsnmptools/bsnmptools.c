@@ -52,7 +52,7 @@
 #include "bsnmptc.h"
 #include "bsnmptools.h"
 
-/* Internal varibale to turn on library debugging for testing and to
+/* Internal variable to turn on library debugging for testing and to
  * find bugs. It is not exported via the header file.
  * XXX should we cover it by some #ifdef BSNMPTOOLS_DEBUG? */
 int _bsnmptools_debug = 0;
@@ -1340,7 +1340,7 @@ snmp_suboid_pop(struct asn_oid *var)
 }
 
 /*
- * Parse the command-line provided string into an OID - alocate memory for a new
+ * Parse the command-line provided string into an OID - allocate memory for a new
  * snmp object, fill in its fields and insert it in the object list. A
  * (snmp_verify_inoid_f) function must be provided to validate the input string.
  */
