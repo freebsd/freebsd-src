@@ -52,6 +52,15 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20230601: OpenSSL 3.0.9
+
+OLD_LIBS+=lib/libcrypto.so.111
+OLD_FILES+=usr/include/openssl/rand_drbg.h
+OLD_FILES+=usr/lib/engines/capi.so
+OLD_FILES+=usr/lib/engines/padlock.so
+OLD_LIBS+=usr/lib/libssl.so.111
+OLD_DIRS+=usr/lib/engines
+
 # 20230505: md5 tests are now self-contained
 OLD_FILES+=usr/tests/sbin/md5/1.inp
 OLD_FILES+=usr/tests/sbin/md5/1.sha512-p.chk
@@ -2583,8 +2592,6 @@ OLD_FILES+=usr/share/certs/blacklisted/GeoTrust_Universal_CA.pem
 OLD_FILES+=usr/share/certs/blacklisted/Global_Chambersign_Root_-_2008.pem
 OLD_FILES+=usr/share/certs/blacklisted/LuxTrust_Global_Root_2.pem
 OLD_FILES+=usr/share/certs/blacklisted/OISTE_WISeKey_Global_Root_GA_CA.pem
-OLD_FILES+=usr/share/certs/blacklisted/QuoVadis_Root_CA.pem
-OLD_FILES+=usr/share/certs/blacklisted/Sonera_Class_2_Root_CA.pem
 OLD_FILES+=usr/share/certs/blacklisted/Staat_der_Nederlanden_Root_CA_-_G2.pem
 OLD_FILES+=usr/share/certs/blacklisted/Staat_der_Nederlanden_Root_CA_-_G3.pem
 OLD_FILES+=usr/share/certs/blacklisted/SwissSign_Platinum_CA_-_G2.pem
