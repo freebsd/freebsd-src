@@ -1,53 +1,49 @@
 /* Copyright 1988,1990,1993,1994 by Paul Vixie
  * All rights reserved
+ */
+
+/*
+ * Copyright (c) 1997 by Internet Software Consortium
  *
- * Distribute freely, except: don't remove my name from the source or
- * documentation (don't take credit for my work), mark your changes (don't
- * get me blamed for your possible bugs), don't alter or remove this
- * notice.  May be sold if buildable source is provided to buyer.  No
- * warrantee of any kind, express or implied, is included with this
- * software; use at your own risk, responsibility for damages (if any) to
- * anyone resulting from the use of this software rests entirely with the
- * user.
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
  *
- * Send bug reports, bug fixes, enhancements, requests, flames, etc., and
- * I'll try to keep a version up to date.  I can be reached as follows:
- * Paul Vixie          <paul@vix.com>          uunet!decwrl!vixie!paul
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+ * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+ * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+ * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+ * SOFTWARE.
  */
 
 #if !defined(lint) && !defined(LINT)
 static const char rcsid[] =
-  "$FreeBSD$";
+    "$Id: database.c,v 1.3 1998/08/14 00:32:38 vixie Exp $";
 #endif
 
 /* vix 26jan87 [RCS has the log]
  */
 
-
 #include "cron.h"
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/file.h>
-
 
 #define TMAX(a,b) ((a)>(b)?(a):(b))
 
-
-static	void		process_crontab(char *, char *, char *,
-					     struct stat *,
-					     cron_db *, cron_db *);
-
+static	void		process_crontab(const char *, const char *,
+					const char *, struct stat *,
+					cron_db *, cron_db *);
 
 void
 load_database(cron_db *old_db)
 {
-	DIR		*dir;
-	struct stat	statbuf;
-	struct stat	syscron_stat, st;
-	time_t		maxmtime;
-	DIR_T   	*dp;
-	cron_db		new_db;
-	user		*u, *nu;
+	struct stat statbuf, syscron_stat, st;
+	cron_db new_db;
+	DIR_T *dp;
+	DIR *dir;
+	user *u, *nu;
+	time_t maxmtime;
 	struct {
 		const char *name;
 		struct stat st;
@@ -156,8 +152,7 @@ load_database(cron_db *old_db)
 	}
 
 	while (NULL != (dp = readdir(dir))) {
-		char	fname[MAXNAMLEN+1],
-			tabname[MAXNAMLEN+1];
+		char fname[MAXNAMLEN+1], tabname[MAXNAMLEN+1];
 
 		/* avoid file names beginning with ".".  this is good
 		 * because we would otherwise waste two guaranteed calls
@@ -169,7 +164,10 @@ load_database(cron_db *old_db)
 
 		(void) strncpy(fname, dp->d_name, sizeof(fname));
 		fname[sizeof(fname)-1] = '\0';
-		(void) snprintf(tabname, sizeof tabname, CRON_TAB(fname));
+
+		if (snprintf(tabname, sizeof tabname, CRON_TAB(fname))
+		    >= sizeof(tabname))
+			continue;	/* XXX log? */
 
 		process_crontab(fname, fname, tabname,
 				&statbuf, &new_db, old_db);
@@ -198,7 +196,6 @@ load_database(cron_db *old_db)
 	Debug(DLOAD, ("load_database is done\n"))
 }
 
-
 void
 link_user(cron_db *db, user *u)
 {
@@ -210,7 +207,6 @@ link_user(cron_db *db, user *u)
 	u->next = NULL;
 	db->tail = u;
 }
-
 
 void
 unlink_user(cron_db *db, user *u)
@@ -226,30 +222,28 @@ unlink_user(cron_db *db, user *u)
 		u->next->prev = u->prev;
 }
 
-
 user *
-find_user(cron_db *db, char *name)
+find_user(cron_db *db, const char *name)
 {
-	user	*u;
+	user *u;
 
 	for (u = db->head;  u != NULL;  u = u->next)
-		if (!strcmp(u->name, name))
+		if (strcmp(u->name, name) == 0)
 			break;
-	return u;
+	return (u);
 }
 
-
 static void
-process_crontab(char *uname, char *fname, char *tabname, struct stat *statbuf,
-    cron_db *new_db, cron_db *old_db)
+process_crontab(const char *uname, const char *fname, const char *tabname,
+		struct stat *statbuf, cron_db *new_db, cron_db *old_db)
 {
-	struct passwd	*pw = NULL;
-	int		crontab_fd = OK - 1;
-	user		*u;
-	entry		*e;
-	time_t		now;
+	struct passwd *pw = NULL;
+	int crontab_fd = OK - 1;
+	user *u;
+	entry *e;
+	time_t now;
 
-	if (strcmp(fname, SYS_NAME) && !(pw = getpwnam(uname))) {
+	if (strcmp(fname, SYS_NAME) != 0 && !(pw = getpwnam(uname))) {
 		/* file doesn't have a user in passwd file.
 		 */
 		log_it(fname, getpid(), "ORPHAN", "no passwd entry");
@@ -314,7 +308,7 @@ process_crontab(char *uname, char *fname, char *tabname, struct stat *statbuf,
 		link_user(new_db, u);
 	}
 
-next_crontab:
+ next_crontab:
 	if (crontab_fd >= OK) {
 		Debug(DLOAD, (" [done]\n"))
 		close(crontab_fd);

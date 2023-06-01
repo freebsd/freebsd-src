@@ -1,23 +1,26 @@
 /* Copyright 1988,1990,1993,1994 by Paul Vixie
  * All rights reserved
+ */
+
+/*
+ * Copyright (c) 1997 by Internet Software Consortium
  *
- * Distribute freely, except: don't remove my name from the source or
- * documentation (don't take credit for my work), mark your changes (don't
- * get me blamed for your possible bugs), don't alter or remove this
- * notice.  May be sold if buildable source is provided to buyer.  No
- * warrantee of any kind, express or implied, is included with this
- * software; use at your own risk, responsibility for damages (if any) to
- * anyone resulting from the use of this software rests entirely with the
- * user.
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
  *
- * Send bug reports, bug fixes, enhancements, requests, flames, etc., and
- * I'll try to keep a version up to date.  I can be reached as follows:
- * Paul Vixie          <paul@vix.com>          uunet!decwrl!vixie!paul
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+ * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+ * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+ * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+ * SOFTWARE.
  */
 
 #if !defined(lint) && !defined(LINT)
-static const char rcsid[] =
-  "$FreeBSD$";
+static const char rcsid[] = "$Id: env.c,v 1.3 1998/08/14 00:32:39 vixie Exp $";
 #endif
 
 
@@ -27,7 +30,7 @@ static const char rcsid[] =
 char **
 env_init(void)
 {
-	register char	**p = (char **) malloc(sizeof(char *));
+	char	**p = (char **) malloc(sizeof(char **));
 
 	if (p)
 		p[0] = NULL;
@@ -50,8 +53,8 @@ env_free(char **envp)
 char **
 env_copy(char **envp)
 {
-	register int	count, i;
-	register char	**p;
+	int	count, i;
+	char	**p;
 
 	for (count = 0;  envp[count] != NULL;  count++)
 		;
@@ -76,9 +79,9 @@ env_copy(char **envp)
 char **
 env_set(char **envp, char *envstr)
 {
-	register int	count, found;
-	register char	**p;
-	char		*q;
+	int	count, found;
+	char	**p;
+	char	*q;
 
 	/*
 	 * count the number of elements, including the null pointer;
@@ -237,9 +240,8 @@ load_env(char *envstr, FILE *f)
 
 	/* 2 fields from parser; looks like an env setting */
 
-	if (strlen(name) + 1 + strlen(val) >= MAX_ENVSTR-1)
+	if (snprintf(envstr, MAX_ENVSTR, "%s=%s", name, val) >= MAX_ENVSTR)
 		return (FALSE);
-	(void) sprintf(envstr, "%s=%s", name, val);
 	Debug(DPARS, ("load_env, <%s> <%s> -> <%s>\n", name, val, envstr))
 	return (TRUE);
 }
@@ -248,10 +250,10 @@ load_env(char *envstr, FILE *f)
 char *
 env_get(char *name, char **envp)
 {
-	register int	len = strlen(name);
-	register char	*p, *q;
+	int	len = strlen(name);
+	char	*p, *q;
 
-	while ((p = *envp++)) {
+	while ((p = *envp++) != NULL) {
 		if (!(q = strchr(p, '=')))
 			continue;
 		if ((q - p) == len && !strncmp(p, name, len))
