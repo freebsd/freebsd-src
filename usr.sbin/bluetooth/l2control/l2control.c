@@ -147,7 +147,7 @@ do_l2cap_command(bdaddr_p bdaddr, int argc, char **argv)
 
 		e = 0x0ffff;
 		if (setsockopt(s, SOL_SOCKET, SO_RCVBUF, &e, sizeof(e)) < 0)
-			err(3, "Coult not setsockopt(RCVBUF, %d)", e);
+			err(3, "Could not setsockopt(RCVBUF, %d)", e);
 
 		e = (c->handler)(s, -- argc, ++ argv);
 
