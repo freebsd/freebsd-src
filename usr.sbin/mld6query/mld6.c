@@ -107,7 +107,7 @@ main(int argc, char *argv[])
 		switch (ch) {
 		case 'd':
 			if (type != MLD_LISTENER_QUERY) {
-				printf("Can not specifiy -d with -r\n");
+				printf("Can not specify -d with -r\n");
 				return 1;
 			}
 			type = MLD_LISTENER_DONE;
@@ -117,7 +117,7 @@ main(int argc, char *argv[])
 			break;
 		case 'r':
 			if (type != MLD_LISTENER_QUERY) {
-				printf("Can not specifiy -r with -d\n");
+				printf("Can not specify -r with -d\n");
 				return 1;
 			}
 			type = MLD_LISTENER_REPORT;
@@ -140,7 +140,7 @@ main(int argc, char *argv[])
 	if (argc == 2 && inet_pton(AF_INET6, argv[1], &maddr) != 1)
 		usage();
 	if (type != MLD_LISTENER_QUERY && qaddr != &maddr) {
-		printf("Can not specifiy -g with -d or -r\n");
+		printf("Can not specify -g with -d or -r\n");
 		return 1;
 	}
 
@@ -270,7 +270,7 @@ make_msg(int index, struct in6_addr *addr, u_int type, struct in6_addr *qaddr)
 	pi = (struct in6_pktinfo *)CMSG_DATA(cmsgp);
 	pi->ipi6_ifindex = index;
 	memcpy(&pi->ipi6_addr, &src, sizeof(pi->ipi6_addr));
-	/* specifiy to insert router alert option in a hop-by-hop opt hdr. */
+	/* specify to insert router alert option in a hop-by-hop opt hdr. */
 	cmsgp = CMSG_NXTHDR(&m, cmsgp);
 	cmsgp->cmsg_len = CMSG_LEN(hbhlen);
 	cmsgp->cmsg_level = IPPROTO_IPV6;
