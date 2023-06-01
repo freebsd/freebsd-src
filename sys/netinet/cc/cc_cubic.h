@@ -91,8 +91,8 @@
 struct cubic {
 	/* CUBIC K in fixed point form with CUBIC_SHIFT worth of precision. */
 	int64_t		K;
-	/* Sum of RTT samples across an epoch in ticks. */
-	int64_t		sum_rtt_ticks;
+	/* Sum of RTT samples across an epoch in usecs. */
+	int64_t		sum_rtt_usecs;
 	/* cwnd at the most recent congestion event. */
 	unsigned long	max_cwnd;
 	/* cwnd at the previous congestion event. */
@@ -101,10 +101,10 @@ struct cubic {
 	unsigned long	prev_max_cwnd_cp;
 	/* various flags */
 	uint32_t	flags;
-	/* Minimum observed rtt in ticks. */
-	int		min_rtt_ticks;
+	/* Minimum observed rtt in usecs. */
+	int		min_rtt_usecs;
 	/* Mean observed rtt between congestion epochs. */
-	int		mean_rtt_ticks;
+	int		mean_rtt_usecs;
 	/* ACKs since last congestion event. */
 	int		epoch_ack_count;
 	/* Timestamp (in ticks) of arriving in congestion avoidance from last
@@ -222,14 +222,15 @@ cubic_k(unsigned long wmax_pkts)
  * XXXLAS: Characterise bounds for overflow.
  */
 static __inline unsigned long
-cubic_cwnd(int ticks_since_cong, unsigned long wmax, uint32_t smss, int64_t K)
+cubic_cwnd(int usecs_since_cong, unsigned long wmax, uint32_t smss, int64_t K)
 {
 	int64_t cwnd;
 
 	/* K is in fixed point form with CUBIC_SHIFT worth of precision. */
 
 	/* t - K, with CUBIC_SHIFT worth of precision. */
-	cwnd = (((int64_t)ticks_since_cong << CUBIC_SHIFT) - (K * hz)) / hz;
+	cwnd = (((int64_t)usecs_since_cong << CUBIC_SHIFT) - (K * hz * tick)) /
+	       (hz * tick);
 
 	if (cwnd > CUBED_ROOT_MAX_ULONG)
 		return INT_MAX;
@@ -255,15 +256,17 @@ cubic_cwnd(int ticks_since_cong, unsigned long wmax, uint32_t smss, int64_t K)
 }
 
 /*
- * Compute an approximation of the NewReno cwnd some number of ticks after a
+ * Compute an approximation of the NewReno cwnd some number of usecs after a
  * congestion event. RTT should be the average RTT estimate for the path
  * measured over the previous congestion epoch and wmax is the value of cwnd at
  * the last congestion event. The "TCP friendly" concept in the CUBIC I-D is
  * rather tricky to understand and it turns out this function is not required.
  * It is left here for reference.
+ *
+ * XXX: Not used
  */
 static __inline unsigned long
-reno_cwnd(int ticks_since_cong, int rtt_ticks, unsigned long wmax,
+reno_cwnd(int usecs_since_cong, int rtt_usecs, unsigned long wmax,
     uint32_t smss)
 {
 
@@ -272,26 +275,26 @@ reno_cwnd(int ticks_since_cong, int rtt_ticks, unsigned long wmax,
 	 * W_tcp(t) deals with cwnd/wmax in pkts, so because our cwnd is in
 	 * bytes, we have to multiply by smss.
 	 */
-	return (((wmax * RENO_BETA) + (((ticks_since_cong * smss)
-	    << CUBIC_SHIFT) / rtt_ticks)) >> CUBIC_SHIFT);
+	return (((wmax * RENO_BETA) + (((usecs_since_cong * smss)
+	    << CUBIC_SHIFT) / rtt_usecs)) >> CUBIC_SHIFT);
 }
 
 /*
- * Compute an approximation of the "TCP friendly" cwnd some number of ticks
+ * Compute an approximation of the "TCP friendly" cwnd some number of usecs
  * after a congestion event that is designed to yield the same average cwnd as
  * NewReno while using CUBIC's beta of 0.7. RTT should be the average RTT
  * estimate for the path measured over the previous congestion epoch and wmax is
  * the value of cwnd at the last congestion event.
  */
 static __inline unsigned long
-tf_cwnd(int ticks_since_cong, int rtt_ticks, unsigned long wmax,
+tf_cwnd(int usecs_since_cong, int rtt_usecs, unsigned long wmax,
     uint32_t smss)
 {
 
 	/* Equation 4 of I-D. */
 	return (((wmax * CUBIC_BETA) +
-	    (((THREE_X_PT3 * (unsigned long)ticks_since_cong *
-	    (unsigned long)smss) << CUBIC_SHIFT) / (TWO_SUB_PT3 * rtt_ticks)))
+	    (((THREE_X_PT3 * (unsigned long)usecs_since_cong *
+	    (unsigned long)smss) << CUBIC_SHIFT) / (TWO_SUB_PT3 * rtt_usecs)))
 	    >> CUBIC_SHIFT);
 }
 
