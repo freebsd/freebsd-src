@@ -528,6 +528,23 @@ pf_packet_rework_nat(struct mbuf *m, struct pf_pdesc *pd, int off,
 		m_copyback(m, off, sizeof(*uh), (caddr_t)uh);
 		break;
 	}
+	case IPPROTO_SCTP: {
+		struct sctphdr *sh = &pd->hdr.sctp;
+		uint16_t checksum = 0;
+
+		if (PF_ANEQ(pd->src, &nk->addr[pd->sidx], pd->af)) {
+			pf_change_ap(m, pd->src, &sh->src_port, pd->ip_sum,
+			    &checksum, &nk->addr[pd->sidx],
+			    nk->port[pd->sidx], 1, pd->af);
+		}
+		if (PF_ANEQ(pd->dst, &nk->addr[pd->didx], pd->af)) {
+			pf_change_ap(m, pd->dst, &sh->dest_port, pd->ip_sum,
+			    &checksum, &nk->addr[pd->didx],
+			    nk->port[pd->didx], 1, pd->af);
+		}
+
+		break;
+	}
 	case IPPROTO_ICMP: {
 		struct icmp *ih = &pd->hdr.icmp;
 
@@ -4472,6 +4489,25 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, struct pfi_kkif *kif,
 			}
 			rewrite++;
 			break;
+		case IPPROTO_SCTP: {
+			uint16_t checksum = 0;
+
+			if (PF_ANEQ(saddr, &nk->addr[pd->sidx], af) ||
+			    nk->port[pd->sidx] != sport) {
+				pf_change_ap(m, saddr, &pd->hdr.sctp.src_port,
+				    pd->ip_sum, &checksum,
+				    &nk->addr[pd->sidx],
+				    nk->port[pd->sidx], 1, af);
+			}
+			if (PF_ANEQ(daddr, &nk->addr[pd->didx], af) ||
+			    nk->port[pd->didx] != dport) {
+				pf_change_ap(m, daddr, &pd->hdr.sctp.dest_port,
+				    pd->ip_sum, &checksum,
+				    &nk->addr[pd->didx],
+				    nk->port[pd->didx], 1, af);
+			}
+			break;
+		}
 #ifdef INET
 		case IPPROTO_ICMP:
 			nk->port[0] = nk->port[1];
@@ -5855,6 +5891,26 @@ pf_test_state_sctp(struct pf_kstate **state, struct pfi_kkif *kif,
 	}
 
 	(*state)->expire = time_uptime;
+
+	/* translate source/destination address, if necessary */
+	if ((*state)->key[PF_SK_WIRE] != (*state)->key[PF_SK_STACK]) {
+		uint16_t checksum = 0;
+		struct pf_state_key *nk = (*state)->key[pd->didx];
+
+		if (PF_ANEQ(pd->src, &nk->addr[pd->sidx], pd->af) ||
+		    nk->port[pd->sidx] != pd->hdr.sctp.src_port) {
+			pf_change_ap(m, pd->src, &pd->hdr.sctp.src_port,
+			    pd->ip_sum, &checksum, &nk->addr[pd->sidx],
+			    nk->port[pd->sidx], 1, pd->af);
+		}
+
+		if (PF_ANEQ(pd->dst, &nk->addr[pd->didx], pd->af) ||
+		    nk->port[pd->didx] != pd->hdr.sctp.dest_port) {
+			pf_change_ap(m, pd->dst, &pd->hdr.sctp.dest_port,
+			    pd->ip_sum, &checksum, &nk->addr[pd->didx],
+			    nk->port[pd->didx], 1, pd->af);
+		}
+	}
 
 	return (PF_PASS);
 }
