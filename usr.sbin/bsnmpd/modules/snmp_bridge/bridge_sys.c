@@ -312,7 +312,7 @@ bridge_set_priority(struct bridge_if *bif, int32_t priority)
  * 1/256 seconds, the following algorithm should be used:
  *	b = floor( (n * 256) / 100)
  * The conversion to 1/256 of a second happens in the kernel -
- * just make sure we correctly convert the seconds to Timout
+ * just make sure we correctly convert the seconds to Timeout
  * and vice versa.
  */
 static uint32_t
