@@ -160,7 +160,7 @@ lzf_decompress (const void *const in_data,  unsigned int in_len,
 #endif
 
 /*
- * Wether to pass the LZF_STATE variable as argument, or allocate it
+ * Whether to pass the LZF_STATE variable as argument, or allocate it
  * on the stack. For small-stack environments, define this to 1.
  * NOTE: this breaks the prototype in lzf.h.
  */
@@ -169,7 +169,7 @@ lzf_decompress (const void *const in_data,  unsigned int in_len,
 #endif
 
 /*
- * Wether to add extra checks for input validity in lzf_decompress
+ * Whether to add extra checks for input validity in lzf_decompress
  * and return EINVAL if the input stream has been corrupted. This
  * only shields against overflowing the input buffer and will not
  * detect most corrupted streams.
