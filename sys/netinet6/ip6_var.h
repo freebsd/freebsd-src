@@ -81,7 +81,7 @@ struct	ip6q {
 	u_int32_t	ip6q_ident;
 	u_int8_t	ip6q_nxt;
 	u_int8_t	ip6q_ecn;
-	u_int8_t	ip6q_ttl;
+	u_int16_t	ip6q_ttl;
 	struct in6_addr ip6q_src, ip6q_dst;
 	TAILQ_ENTRY(ip6q) ip6q_tq;
 	int		ip6q_unfrglen;	/* len of unfragmentable part */

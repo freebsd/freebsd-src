@@ -105,7 +105,7 @@ def main():
 
 	# We should only need to sleep 0.10 but it seems scapy
 	# takes time for this one.
-	sleep(75)
+	sleep(3)
 	sniffer.setEnd()
 	sniffer.join()
 	if not sniffer.foundCorrectPacket:
