@@ -36,10 +36,12 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_capsicum.h"
 #include "opt_kstack_pages.h"
+#include "opt_ktrace.h"
 
 #include <sys/param.h>
 #include <sys/capsicum.h>
 #include <sys/systm.h>
+#include <sys/ktrace.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
