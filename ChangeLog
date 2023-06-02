@@ -1,3 +1,16 @@
+Spleen 2.0.0 (2023-05-28)
+
+- Add full support for CP437 (IBM PC) in the 8x16, 16x32, and 32x64 versions
+- Add a cp437 directory with BDF files using the IBM Code page 437 encoding
+- Add a DOS version, as a COM file (SPLEEN.COM) setting the font to Spleen
+- Add various arrows and triangle-headed arrows in the 8x16, 16x32, and
+  32x64 versions
+- Shift bullet character at correct position (U+2022) in the 32x64 version
+- Add union symbol in the 8x16, 16x32, and 32x64 versions
+- Do not remove specimen.png in the clean target
+
+
+
 Spleen 1.9.3 (2023-04-07)
 
 - Add a 'fon' target to generate FON files for all sizes using FontForge
