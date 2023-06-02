@@ -54,12 +54,12 @@ kernel_fpu_end(void)
 #else
 
 static inline void
-kernel_fpu_begin()
+kernel_fpu_begin(void)
 {
 }
 
 static inline void
-kernel_fpu_end()
+kernel_fpu_end(void)
 {
 }
 
