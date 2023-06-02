@@ -55,7 +55,7 @@ interface_removal_body()
 		"ipfw"	\
 			"ipfw add 1000 pipe 1 ip from any to any" \
 		"pf"	\
-			"pass dnpipe 1"
+			"pass on ${epair}b dnpipe 1"
 
 	# single ping succeeds just fine
 	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
@@ -102,7 +102,7 @@ pipe_body()
 		"ipfw"	\
 			"ipfw add 1000 pipe 1 ip from any to any" \
 		"pf"	\
-			"pass dnpipe 1"
+			"pass on ${epair}b dnpipe 1"
 
 	# single ping succeeds just fine
 	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
@@ -146,7 +146,7 @@ pipe_v6_body()
 		"ipfw"	\
 			"ipfw add 1000 pipe 1 ip6 from any to any" \
 		"pf"	\
-			"pass dnpipe 1"
+			"pass on ${epair}b dnpipe 1"
 
 	# Single ping succeeds
 	atf_check -s exit:0 -o ignore ping6 -c 1 2001:db8:42::2
