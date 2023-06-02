@@ -7446,7 +7446,7 @@ pmap_stage2_fault(pmap_t pmap, uint64_t esr, uint64_t far)
 		PMAP_LOCK(pmap);
 		pdep = pmap_pde(pmap, far, &lvl);
 		if (pdep == NULL || lvl != (dfsc - ISS_DATA_DFSC_TF_L1)) {
-			PMAP_LOCK(pmap);
+			PMAP_UNLOCK(pmap);
 			break;
 		}
 
