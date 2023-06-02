@@ -580,7 +580,7 @@ struct sadb_msghdr {
 	int extlen[SADB_EXT_MAX + 1];
 };
 
-static struct supported_ealgs {
+static const struct supported_ealgs {
 	int sadb_alg;
 	const struct enc_xform *xform;
 } supported_ealgs[] = {
@@ -591,7 +591,7 @@ static struct supported_ealgs {
 	{ SADB_X_EALG_AESGMAC,		&enc_xform_aes_nist_gmac },
 };
 
-static struct supported_aalgs {
+static const struct supported_aalgs {
 	int sadb_alg;
 	const struct auth_hash *xform;
 } supported_aalgs[] = {
@@ -605,7 +605,7 @@ static struct supported_aalgs {
 	{ SADB_X_AALG_AES256GMAC,	&auth_hash_nist_gmac_aes_256 },
 };
 
-static struct supported_calgs {
+static const struct supported_calgs {
 	int sadb_alg;
 	const struct comp_algo *xform;
 } supported_calgs[] = {
