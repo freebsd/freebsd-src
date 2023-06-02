@@ -214,6 +214,8 @@ void	update_special_regs(u_int);
 bool	extract_user_id_field(u_int, u_int, uint8_t *);
 bool	get_kernel_reg(u_int, uint64_t *);
 
+void	cpu_desc_init(void);
+
 #define	CPU_AFFINITY(cpu)	__cpu_affinity[(cpu)]
 #define	CPU_CURRENT_SOCKET				\
     (CPU_AFF2(CPU_AFFINITY(PCPU_GET(cpuid))))
