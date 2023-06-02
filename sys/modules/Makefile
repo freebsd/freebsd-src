@@ -131,6 +131,7 @@ SUBDIR=	\
 	${_glxiic} \
 	${_glxsb} \
 	gpio \
+	${_gve} \
 	hid \
 	hifn \
 	${_hpt27xx} \
@@ -552,6 +553,10 @@ _mlx5en=	mlx5en
 _mlx4ib=	mlx4ib
 _mlx5ib=	mlx5ib
 .endif
+.endif
+
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64"
+_gve=		gve
 .endif
 
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
