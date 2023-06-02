@@ -47,14 +47,14 @@ MALLOC_DEFINE(M_NLSE, "nlsysevent", "Memory used for Netlink sysevent");
 #define	NLSE_FAMILY_NAME	"nlsysevent"
 static uint32_t ctrl_family_id;
 
-#define MAX_SYSEVENTS	64
-static struct sysevent {
+#define MAX_SYSEVENT_GROUPS	64
+static struct sysevent_group {
 	char *name;
 	uint32_t id;
-} sysevents[MAX_SYSEVENTS] = {};
+} sysevent_groups[MAX_SYSEVENT_GROUPS] = {};
 
 static void
-sysevent_write(struct sysevent *se, const char *subsystem, const char *type,
+sysevent_write(struct sysevent_group *se, const char *subsystem, const char *type,
     const char *data)
 {
 	struct nl_writer nw = {};
@@ -89,18 +89,18 @@ static void
 sysevent_send(const char *system, const char *subsystem, const char *type,
     const char *data)
 {
-	struct sysevent *se = NULL;
+	struct sysevent_group *se = NULL;
 
-	for (size_t i = 0; i < MAX_SYSEVENTS; i++) {
-		if (sysevents[i].name == NULL) {
-			sysevents[i].name = strdup(system, M_NLSE);
-			sysevents[i].id = genl_register_group(NLSE_FAMILY_NAME,
+	for (size_t i = 0; i < MAX_SYSEVENT_GROUPS; i++) {
+		if (sysevent_groups[i].name == NULL) {
+			sysevent_groups[i].name = strdup(system, M_NLSE);
+			sysevent_groups[i].id = genl_register_group(NLSE_FAMILY_NAME,
 			    system);
-			se = &sysevents[i];
+			se = &sysevent_groups[i];
 			break;
 		}
-		if (strcmp(sysevents[i].name, system) == 0) {
-			se = &sysevents[i];
+		if (strcmp(sysevent_groups[i].name, system) == 0) {
+			se = &sysevent_groups[i];
 			break;
 		}
 	}
@@ -121,12 +121,12 @@ nlsysevent_load(void)
 	devctl_set_notify_hook(sysevent_send);
 	ctrl_family_id = genl_register_family(NLSE_FAMILY_NAME, 0, 2, NLSE_ATTR_MAX);
 	for (size_t i = 0; i < nitems(devctl_systems); i++) {
-		if (i >= MAX_SYSEVENTS) {
+		if (i >= MAX_SYSEVENT_GROUPS) {
 			NL_LOG(LOG_WARNING, "impossible to add the event %s, too many events\n", devctl_systems[i]);
 			continue;
 		}
-		sysevents[i].name = strdup(devctl_systems[i], M_NLSE);
-		sysevents[i].id = genl_register_group(NLSE_FAMILY_NAME, devctl_systems[i]);
+		sysevent_groups[i].name = strdup(devctl_systems[i], M_NLSE);
+		sysevent_groups[i].id = genl_register_group(NLSE_FAMILY_NAME, devctl_systems[i]);
 	}
 }
 
@@ -135,10 +135,10 @@ nlsysevent_unload(void)
 {
 	devctl_unset_notify_hook();
 	genl_unregister_family(NLSE_FAMILY_NAME);
-	for (size_t i = 0; i < MAX_SYSEVENTS; i++) {
-		if (sysevents[i].name == NULL)
+	for (size_t i = 0; i < MAX_SYSEVENT_GROUPS; i++) {
+		if (sysevent_groups[i].name == NULL)
 			break;
-		free(sysevents[i].name, M_NLSE);
+		free(sysevent_groups[i].name, M_NLSE);
 	}
 }
 
