@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 22, 2021
+.Dd June 1, 2023
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -249,20 +249,20 @@ Configure
 for this port and all its dependencies using
 .Xr dialog4ports 1 .
 .It Cm fetch-list
-Show list of files to be fetched in order to build the port.
+Show the list of files to fetch in order to build the port (but not its
+dependencies).
 .It Cm fetch-recursive
 Fetch the distfiles of the port and all its dependencies.
 .It Cm fetch-recursive-list
 Show list of files that would be retrieved by
 .Cm fetch-recursive .
-.It Cm run-depends-list , build-depends-list
-Print a list of all the compile and run dependencies, and dependencies
-of those dependencies, by port directory.
+.It Cm build-depends-list , run-depends-list
+Print a list of all the direct compile or run dependencies for this port.
 .It Cm all-depends-list
-Print a list of all dependencies for the port.
-.It Cm pretty-print-run-depends-list , pretty-print-build-depends-list
-Print a list of all the compile and run dependencies, and dependencies
-of those dependencies, by port name and version.
+Print a list of all recursive dependencies for this port.
+.It Cm pretty-print-build-depends-list , pretty-print-run-depends-list
+Print a list of all the recursive compile or run dependencies for this port by
+port name and version.
 .It Cm missing
 Print a list of missing dependencies to be installed for the port.
 .It Cm clean
