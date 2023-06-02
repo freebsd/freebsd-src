@@ -47,7 +47,7 @@
  * [0] = cpu_feature but with a few custom bits
  * [1] = cpu_feature2 but with AMD XOP in bit 11
  * [2] = cpu_stdext_feature
- * [3] = 0
+ * [3] = cpu_stdext_feature2
  */
 unsigned int OPENSSL_ia32cap_P[4];
 #define AESNI_CAPABLE	(OPENSSL_ia32cap_P[1]&(1<<(57-32)))
@@ -117,6 +117,7 @@ ossl_cpuid(struct ossl_softc *sc)
 		OPENSSL_ia32cap_P[1] &= ~(CPUID2_AVX | AMDID2_XOP | CPUID2_FMA);
 		OPENSSL_ia32cap_P[2] &= ~CPUID_STDEXT_AVX2;
 	}
+	OPENSSL_ia32cap_P[3] = cpu_stdext_feature2;
 
 	if (!AESNI_CAPABLE) {
 		sc->has_aes = false;
