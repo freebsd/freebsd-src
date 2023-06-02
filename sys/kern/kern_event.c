@@ -107,7 +107,7 @@ static int	kqueue_acquire(struct file *fp, struct kqueue **kqp);
 static void	kqueue_release(struct kqueue *kq, int locked);
 static void	kqueue_destroy(struct kqueue *kq);
 static void	kqueue_drain(struct kqueue *kq, struct thread *td);
-static int	kqueue_expand(struct kqueue *kq, struct filterops *fops,
+static int	kqueue_expand(struct kqueue *kq, const struct filterops *fops,
 		    uintptr_t ident, int mflag);
 static void	kqueue_task(void *arg, int pending);
 static int	kqueue_scan(struct kqueue *kq, int maxevents,
@@ -115,7 +115,7 @@ static int	kqueue_scan(struct kqueue *kq, int maxevents,
 		    const struct timespec *timeout,
 		    struct kevent *keva, struct thread *td);
 static void 	kqueue_wakeup(struct kqueue *kq);
-static struct filterops *kqueue_fo_find(int filt);
+static const struct filterops *kqueue_fo_find(int filt);
 static void	kqueue_fo_release(int filt);
 struct g_kevent_args;
 static int	kern_kevent_generic(struct thread *td,
@@ -341,10 +341,9 @@ extern struct filterops fs_filtops;
  * Table for all system-defined filters.
  */
 static struct mtx	filterops_lock;
-MTX_SYSINIT(kqueue_filterops, &filterops_lock, "protect sysfilt_ops",
-	MTX_DEF);
+MTX_SYSINIT(kqueue_filterops, &filterops_lock, "protect sysfilt_ops", MTX_DEF);
 static struct {
-	struct filterops *for_fop;
+	const struct filterops *for_fop;
 	int for_nolock;
 	int for_refcnt;
 } sysfilt_ops[EVFILT_SYSCOUNT] = {
@@ -1400,7 +1399,7 @@ kern_kevent_anonymous(struct thread *td, int nevents,
 }
 
 int
-kqueue_add_filteropts(int filt, struct filterops *filtops)
+kqueue_add_filteropts(int filt, const struct filterops *filtops)
 {
 	int error;
 
@@ -1448,7 +1447,7 @@ kqueue_del_filteropts(int filt)
 	return error;
 }
 
-static struct filterops *
+static const struct filterops *
 kqueue_fo_find(int filt)
 {
 
@@ -1491,7 +1490,7 @@ static int
 kqueue_register(struct kqueue *kq, struct kevent *kev, struct thread *td,
     int mflag)
 {
-	struct filterops *fops;
+	const struct filterops *fops;
 	struct file *fp;
 	struct knote *kn, *tkn;
 	struct knlist *knl;
@@ -1820,7 +1819,7 @@ kqueue_schedtask(struct kqueue *kq)
  * Return 0 on success (or no work necessary), return errno on failure.
  */
 static int
-kqueue_expand(struct kqueue *kq, struct filterops *fops, uintptr_t ident,
+kqueue_expand(struct kqueue *kq, const struct filterops *fops, uintptr_t ident,
     int mflag)
 {
 	struct klist *list, *tmp_knhash, *to_free;
