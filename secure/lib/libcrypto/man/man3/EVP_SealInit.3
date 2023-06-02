@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_SEALINIT 3"
-.TH EVP_SEALINIT 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH EVP_SEALINIT 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -166,13 +166,13 @@ using one or more public keys, this allows the same encrypted data to be
 decrypted using any of the corresponding private keys. \fBek\fR is an array of
 buffers where the public key encrypted secret key will be written, each buffer
 must contain enough room for the corresponding encrypted key: that is
-\&\fBek[i]\fR must have room for \fBEVP_PKEY_size(pubk[i])\fR bytes. The actual
+\&\fBek[i]\fR must have room for \fBEVP_PKEY_get_size(pubk[i])\fR bytes. The actual
 size of each encrypted secret key is written to the array \fBekl\fR. \fBpubk\fR is
 an array of \fBnpubk\fR public keys.
 .PP
 The \fBiv\fR parameter is a buffer where the generated \s-1IV\s0 is written to. It must
 contain enough room for the corresponding cipher's \s-1IV,\s0 as determined by (for
-example) EVP_CIPHER_iv_length(type).
+example) EVP_CIPHER_get_iv_length(type).
 .PP
 If the cipher does not require an \s-1IV\s0 then the \fBiv\fR parameter is ignored
 and can be \fB\s-1NULL\s0\fR.
@@ -215,9 +215,9 @@ with \fBtype\fR set to \s-1NULL.\s0
 \&\s-1\fBRAND\s0\fR\|(7)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

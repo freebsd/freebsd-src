@@ -133,13 +133,17 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET1_CURVES 3"
-.TH SSL_CTX_SET1_CURVES 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_CTX_SET1_CURVES 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SSL_CTX_set1_groups, SSL_CTX_set1_groups_list, SSL_set1_groups, SSL_set1_groups_list, SSL_get1_groups, SSL_get_shared_group, SSL_CTX_set1_curves, SSL_CTX_set1_curves_list, SSL_set1_curves, SSL_set1_curves_list, SSL_get1_curves, SSL_get_shared_curve \&\- EC supported curve functions
+SSL_CTX_set1_groups, SSL_CTX_set1_groups_list, SSL_set1_groups,
+SSL_set1_groups_list, SSL_get1_groups, SSL_get_shared_group,
+SSL_get_negotiated_group, SSL_CTX_set1_curves, SSL_CTX_set1_curves_list,
+SSL_set1_curves, SSL_set1_curves_list, SSL_get1_curves, SSL_get_shared_curve
+\&\- EC supported curve functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -153,6 +157,7 @@ SSL_CTX_set1_groups, SSL_CTX_set1_groups_list, SSL_set1_groups, SSL_set1_groups_
 \&
 \& int SSL_get1_groups(SSL *ssl, int *groups);
 \& int SSL_get_shared_group(SSL *s, int n);
+\& int SSL_get_negotiated_group(SSL *s);
 \&
 \& int SSL_CTX_set1_curves(SSL_CTX *ctx, int *clist, int clistlen);
 \& int SSL_CTX_set1_curves_list(SSL_CTX *ctx, char *list);
@@ -166,17 +171,27 @@ SSL_CTX_set1_groups, SSL_CTX_set1_groups_list, SSL_set1_groups, SSL_set1_groups_
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 For all of the functions below that set the supported groups there must be at
-least one group in the list.
+least one group in the list. A number of these functions identify groups via a
+unique integer \s-1NID\s0 value. However, support for some groups may be added by
+external providers. In this case there will be no \s-1NID\s0 assigned for the group.
+When setting such groups applications should use the \*(L"list\*(R" form of these
+functions (i.e. \fBSSL_CTX_set1_groups_list()\fR and SSL_set1_groups_list).
 .PP
 \&\fBSSL_CTX_set1_groups()\fR sets the supported groups for \fBctx\fR to \fBglistlen\fR
 groups in the array \fBglist\fR. The array consist of all NIDs of groups in
 preference order. For a \s-1TLS\s0 client the groups are used directly in the
 supported groups extension. For a \s-1TLS\s0 server the groups are used to
-determine the set of shared groups.
+determine the set of shared groups. Currently supported groups for
+\&\fBTLSv1.3\fR are \fBNID_X9_62_prime256v1\fR, \fBNID_secp384r1\fR, \fBNID_secp521r1\fR,
+\&\fB\s-1NID_X25519\s0\fR, \fB\s-1NID_X448\s0\fR, \fBNID_ffdhe2048\fR, \fBNID_ffdhe3072\fR,
+\&\fBNID_ffdhe4096\fR, \fBNID_ffdhe6144\fR and \fBNID_ffdhe8192\fR.
 .PP
 \&\fBSSL_CTX_set1_groups_list()\fR sets the supported groups for \fBctx\fR to
 string \fBlist\fR. The string is a colon separated list of group NIDs or
-names, for example \*(L"P\-521:P\-384:P\-256\*(R".
+names, for example \*(L"P\-521:P\-384:P\-256:X25519:ffdhe2048\*(R". Currently supported
+groups for \fBTLSv1.3\fR are \fBP\-256\fR, \fBP\-384\fR, \fBP\-521\fR, \fBX25519\fR, \fBX448\fR,
+\&\fBffdhe2048\fR, \fBffdhe3072\fR, \fBffdhe4096\fR, \fBffdhe6144\fR, \fBffdhe8192\fR. Support
+for other groups may be added by external providers.
 .PP
 \&\fBSSL_set1_groups()\fR and \fBSSL_set1_groups_list()\fR are similar except they set
 supported groups for the \s-1SSL\s0 structure \fBssl\fR.
@@ -187,14 +202,27 @@ supported groups. The \fBgroups\fR parameter can be \fB\s-1NULL\s0\fR to simply
 return the number of groups for memory allocation purposes. The
 \&\fBgroups\fR array is in the form of a set of group NIDs in preference
 order. It can return zero if the client did not send a supported groups
-extension.
+extension. If a supported group \s-1NID\s0 is unknown then the value is set to the
+bitwise \s-1OR\s0 of TLSEXT_nid_unknown (0x1000000) and the id of the group.
 .PP
-\&\fBSSL_get_shared_group()\fR returns shared group \fBn\fR for a server-side
-\&\s-1SSL\s0 \fBssl\fR. If \fBn\fR is \-1 then the total number of shared groups is
+\&\fBSSL_get_shared_group()\fR returns the \s-1NID\s0 of the shared group \fBn\fR for a
+server-side \s-1SSL\s0 \fBssl\fR. If \fBn\fR is \-1 then the total number of shared groups is
 returned, which may be zero. Other than for diagnostic purposes,
 most applications will only be interested in the first shared group
 so \fBn\fR is normally set to zero. If the value \fBn\fR is out of range,
-NID_undef is returned.
+NID_undef is returned. If the \s-1NID\s0 for the shared group is unknown then the value
+is set to the bitwise \s-1OR\s0 of TLSEXT_nid_unknown (0x1000000) and the id of the
+group.
+.PP
+\&\fBSSL_get_negotiated_group()\fR returns the \s-1NID\s0 of the negotiated group used for
+the handshake key exchange process.  For TLSv1.3 connections this typically
+reflects the state of the current connection, though in the case of PSK-only
+resumption, the returned value will be from a previous connection.  For earlier
+\&\s-1TLS\s0 versions, when a session has been resumed, it always reflects the group
+used for key exchange during the initial handshake (otherwise it is from the
+current, non-resumption, connection).  This can be called by either client or
+server. If the \s-1NID\s0 for the shared group is unknown then the value is set to the
+bitwise \s-1OR\s0 of TLSEXT_nid_unknown (0x1000000) and the id of the group.
 .PP
 All these functions are implemented as macros.
 .PP
@@ -221,18 +249,23 @@ is \-1.
 .PP
 When called on a client \fBssl\fR, \fBSSL_get_shared_group()\fR has no meaning and
 returns \-1.
+.PP
+\&\fBSSL_get_negotiated_group()\fR returns the \s-1NID\s0 of the negotiated group used for
+key exchange, or NID_undef if there was no negotiated group.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
+\&\fBssl\fR\|(7),
 \&\fBSSL_CTX_add_extra_chain_cert\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
 The curve functions were added in OpenSSL 1.0.2. The equivalent group
-functions were added in OpenSSL 1.1.1.
+functions were added in OpenSSL 1.1.1. The \fBSSL_get_negotiated_group()\fR function
+was added in OpenSSL 3.0.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2013\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2013\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

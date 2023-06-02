@@ -133,13 +133,29 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_LOOKUP_METH_NEW 3"
-.TH X509_LOOKUP_METH_NEW 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH X509_LOOKUP_METH_NEW 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-X509_LOOKUP_METHOD, X509_LOOKUP_meth_new, X509_LOOKUP_meth_free, X509_LOOKUP_meth_set_new_item, X509_LOOKUP_meth_get_new_item, X509_LOOKUP_meth_set_free, X509_LOOKUP_meth_get_free, X509_LOOKUP_meth_set_init, X509_LOOKUP_meth_get_init, X509_LOOKUP_meth_set_shutdown, X509_LOOKUP_meth_get_shutdown, X509_LOOKUP_ctrl_fn, X509_LOOKUP_meth_set_ctrl, X509_LOOKUP_meth_get_ctrl, X509_LOOKUP_get_by_subject_fn, X509_LOOKUP_meth_set_get_by_subject, X509_LOOKUP_meth_get_get_by_subject, X509_LOOKUP_get_by_issuer_serial_fn, X509_LOOKUP_meth_set_get_by_issuer_serial, X509_LOOKUP_meth_get_get_by_issuer_serial, X509_LOOKUP_get_by_fingerprint_fn, X509_LOOKUP_meth_set_get_by_fingerprint, X509_LOOKUP_meth_get_get_by_fingerprint, X509_LOOKUP_get_by_alias_fn, X509_LOOKUP_meth_set_get_by_alias, X509_LOOKUP_meth_get_get_by_alias, X509_OBJECT_set1_X509, X509_OBJECT_set1_X509_CRL \&\- Routines to build up X509_LOOKUP methods
+X509_LOOKUP_METHOD,
+X509_LOOKUP_meth_new, X509_LOOKUP_meth_free, X509_LOOKUP_meth_set_new_item,
+X509_LOOKUP_meth_get_new_item, X509_LOOKUP_meth_set_free,
+X509_LOOKUP_meth_get_free, X509_LOOKUP_meth_set_init,
+X509_LOOKUP_meth_get_init, X509_LOOKUP_meth_set_shutdown,
+X509_LOOKUP_meth_get_shutdown,
+X509_LOOKUP_ctrl_fn, X509_LOOKUP_meth_set_ctrl, X509_LOOKUP_meth_get_ctrl,
+X509_LOOKUP_get_by_subject_fn, X509_LOOKUP_meth_set_get_by_subject,
+X509_LOOKUP_meth_get_get_by_subject,
+X509_LOOKUP_get_by_issuer_serial_fn, X509_LOOKUP_meth_set_get_by_issuer_serial,
+X509_LOOKUP_meth_get_get_by_issuer_serial,
+X509_LOOKUP_get_by_fingerprint_fn, X509_LOOKUP_meth_set_get_by_fingerprint,
+X509_LOOKUP_meth_get_get_by_fingerprint,
+X509_LOOKUP_get_by_alias_fn, X509_LOOKUP_meth_set_get_by_alias,
+X509_LOOKUP_meth_get_get_by_alias,
+X509_OBJECT_set1_X509, X509_OBJECT_set1_X509_CRL
+\&\- Routines to build up X509_LOOKUP methods
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -178,7 +194,7 @@ X509_LOOKUP_METHOD, X509_LOOKUP_meth_new, X509_LOOKUP_meth_free, X509_LOOKUP_met
 \&
 \& typedef int (*X509_LOOKUP_get_by_subject_fn)(X509_LOOKUP *ctx,
 \&                                              X509_LOOKUP_TYPE type,
-\&                                              X509_NAME *name,
+\&                                              const X509_NAME *name,
 \&                                              X509_OBJECT *ret);
 \& int X509_LOOKUP_meth_set_get_by_subject(X509_LOOKUP_METHOD *method,
 \&     X509_LOOKUP_get_by_subject_fn fn);
@@ -187,8 +203,8 @@ X509_LOOKUP_METHOD, X509_LOOKUP_meth_new, X509_LOOKUP_meth_free, X509_LOOKUP_met
 \&
 \& typedef int (*X509_LOOKUP_get_by_issuer_serial_fn)(X509_LOOKUP *ctx,
 \&                                                    X509_LOOKUP_TYPE type,
-\&                                                    X509_NAME *name,
-\&                                                    ASN1_INTEGER *serial,
+\&                                                    const X509_NAME *name,
+\&                                                    const ASN1_INTEGER *serial,
 \&                                                    X509_OBJECT *ret);
 \& int X509_LOOKUP_meth_set_get_by_issuer_serial(
 \&     X509_LOOKUP_METHOD *method, X509_LOOKUP_get_by_issuer_serial_fn fn);
@@ -304,7 +320,7 @@ The functions described here were added in OpenSSL 1.1.0i.
 .IX Header "COPYRIGHT"
 Copyright 2018\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

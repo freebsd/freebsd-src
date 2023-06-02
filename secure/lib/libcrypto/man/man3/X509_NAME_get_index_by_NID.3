@@ -133,26 +133,31 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_NAME_GET_INDEX_BY_NID 3"
-.TH X509_NAME_GET_INDEX_BY_NID 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH X509_NAME_GET_INDEX_BY_NID 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-X509_NAME_get_index_by_NID, X509_NAME_get_index_by_OBJ, X509_NAME_get_entry, X509_NAME_entry_count, X509_NAME_get_text_by_NID, X509_NAME_get_text_by_OBJ \- X509_NAME lookup and enumeration functions
+X509_NAME_get_index_by_NID, X509_NAME_get_index_by_OBJ, X509_NAME_get_entry,
+X509_NAME_entry_count, X509_NAME_get_text_by_NID, X509_NAME_get_text_by_OBJ \-
+X509_NAME lookup and enumeration functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/x509.h>
 \&
-\& int X509_NAME_get_index_by_NID(X509_NAME *name, int nid, int lastpos);
-\& int X509_NAME_get_index_by_OBJ(X509_NAME *name, const ASN1_OBJECT *obj, int lastpos);
+\& int X509_NAME_get_index_by_NID(const X509_NAME *name, int nid, int lastpos);
+\& int X509_NAME_get_index_by_OBJ(const X509_NAME *name,
+\&                                const ASN1_OBJECT *obj, int lastpos);
 \&
 \& int X509_NAME_entry_count(const X509_NAME *name);
 \& X509_NAME_ENTRY *X509_NAME_get_entry(const X509_NAME *name, int loc);
 \&
-\& int X509_NAME_get_text_by_NID(X509_NAME *name, int nid, char *buf, int len);
-\& int X509_NAME_get_text_by_OBJ(X509_NAME *name, const ASN1_OBJECT *obj, char *buf, int len);
+\& int X509_NAME_get_text_by_NID(const X509_NAME *name, int nid,
+\&                               char *buf, int len);
+\& int X509_NAME_get_text_by_OBJ(const X509_NAME *name, const ASN1_OBJECT *obj,
+\&                               char *buf, int len);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -196,8 +201,8 @@ For a more general solution \fBX509_NAME_get_index_by_NID()\fR or
 various \fBX509_NAME_ENTRY\fR utility functions on the result.
 .PP
 The list of all relevant \fBNID_*\fR and \fBOBJ_* codes\fR can be found in
-the source code header files <openssl/obj_mac.h> and/or
-<openssl/objects.h>.
+the source code header files \fI<openssl/obj_mac.h>\fR and/or
+\&\fI<openssl/objects.h>\fR.
 .PP
 Applications which could pass invalid NIDs to \fBX509_NAME_get_index_by_NID()\fR
 should check for the return value of \-2. Alternatively the \s-1NID\s0 validity
@@ -209,7 +214,8 @@ return the index of the next matching entry or \-1 if not found.
 \&\fBX509_NAME_get_index_by_NID()\fR can also return \-2 if the supplied
 \&\s-1NID\s0 is invalid.
 .PP
-\&\fBX509_NAME_entry_count()\fR returns the total number of entries.
+\&\fBX509_NAME_entry_count()\fR returns the total number of entries, and 0
+for failure.
 .PP
 \&\fBX509_NAME_get_entry()\fR returns an \fBX509_NAME\fR pointer to the
 requested entry or \fB\s-1NULL\s0\fR if the index is invalid.
@@ -246,9 +252,9 @@ Process all commonName entries:
 \&\fBERR_get_error\fR\|(3), \fBd2i_X509_NAME\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2002\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

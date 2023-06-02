@@ -133,13 +133,15 @@
 .\" ========================================================================
 .\"
 .IX Title "CMS_DECRYPT 3"
-.TH CMS_DECRYPT 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH CMS_DECRYPT 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-CMS_decrypt \- decrypt content from a CMS envelopedData structure
+CMS_decrypt, CMS_decrypt_set1_pkey_and_peer,
+CMS_decrypt_set1_pkey, CMS_decrypt_set1_password
+\&\- decrypt content from a CMS envelopedData structure
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -147,23 +149,51 @@ CMS_decrypt \- decrypt content from a CMS envelopedData structure
 \&
 \& int CMS_decrypt(CMS_ContentInfo *cms, EVP_PKEY *pkey, X509 *cert,
 \&                 BIO *dcont, BIO *out, unsigned int flags);
+\& int CMS_decrypt_set1_pkey_and_peer(CMS_ContentInfo *cms,
+\&                 EVP_PKEY *pk, X509 *cert, X509 *peer);
+\& int CMS_decrypt_set1_pkey(CMS_ContentInfo *cms, EVP_PKEY *pk, X509 *cert);
+\& int CMS_decrypt_set1_password(CMS_ContentInfo *cms,
+\&                               unsigned char *pass, ossl_ssize_t passlen);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBCMS_decrypt()\fR extracts and decrypts the content from a \s-1CMS\s0 EnvelopedData
-structure. \fBpkey\fR is the private key of the recipient, \fBcert\fR is the
-recipient's certificate, \fBout\fR is a \s-1BIO\s0 to write the content to and
-\&\fBflags\fR is an optional set of flags.
-.PP
-The \fBdcont\fR parameter is used in the rare case where the encrypted content
+\&\fBCMS_decrypt()\fR extracts the decrypted content from a \s-1CMS\s0 EnvelopedData
+or AuthEnvelopedData structure.
+It uses \fBCMS_decrypt_set1_pkey()\fR to decrypt the content
+with the recipient private key \fIpkey\fR if \fIpkey\fR is not \s-1NULL.\s0
+In this case, it is recommended to provide the associated certificate
+in \fIcert\fR \- see the \s-1NOTES\s0 below.
+\&\fIout\fR is a \s-1BIO\s0 to write the content to and
+\&\fIflags\fR is an optional set of flags.
+If \fIpkey\fR is \s-1NULL\s0 the function assumes that decryption was already done
+(e.g., using \fBCMS_decrypt_set1_pkey()\fR or \fBCMS_decrypt_set1_password()\fR) and just
+provides the content unless \fIcert\fR, \fIdcont\fR, and \fIout\fR are \s-1NULL\s0 as well.
+The \fIdcont\fR parameter is used in the rare case where the encrypted content
 is detached. It will normally be set to \s-1NULL.\s0
+.PP
+\&\fBCMS_decrypt_set1_pkey_and_peer()\fR decrypts the CMS_ContentInfo structure \fIcms\fR
+using the private key \fIpkey\fR, the corresponding certificate \fIcert\fR, which is
+recommended to be supplied but may be \s-1NULL,\s0
+and the (optional) originator certificate \fIpeer\fR.
+On success, it also records in \fIcms\fR the decryption key \fIpkey\fR, and this
+should be followed by \f(CW\*(C`CMS_decrypt(cms, NULL, NULL, dcont, out, flags)\*(C'\fR.
+This call deallocates any decryption key stored in \fIcms\fR.
+.PP
+\&\fBCMS_decrypt_set1_pkey()\fR is the same as
+\&\fBCMS_decrypt_set1_pkey_and_peer()\fR with \fIpeer\fR being \s-1NULL.\s0
+.PP
+\&\fBCMS_decrypt_set1_password()\fR decrypts the CMS_ContentInfo structure \fIcms\fR
+using the secret \fIpass\fR of length \fIpasslen\fR.
+On success, it also records in \fIcms\fR the decryption key used, and this
+should be followed by \f(CW\*(C`CMS_decrypt(cms, NULL, NULL, dcont, out, flags)\*(C'\fR.
+This call deallocates any decryption key stored in \fIcms\fR.
 .SH "NOTES"
 .IX Header "NOTES"
 Although the recipients certificate is not needed to decrypt the data it is
 needed to locate the appropriate (of possible several) recipients in the \s-1CMS\s0
 structure.
 .PP
-If \fBcert\fR is set to \s-1NULL\s0 all possible recipients are tried. This case however
+If \fIcert\fR is set to \s-1NULL\s0 all possible recipients are tried. This case however
 is problematic. To thwart the \s-1MMA\s0 attack (Bleichenbacher's attack on
 \&\s-1PKCS\s0 #1 v1.5 \s-1RSA\s0 padding) all recipients are tried whether they succeed or
 not. If no recipient succeeds then a random symmetric key is used to decrypt
@@ -179,34 +209,44 @@ open to attack.
 .PP
 It is possible to determine the correct recipient key by other means (for
 example looking them up in a database) and setting them in the \s-1CMS\s0 structure
-in advance using the \s-1CMS\s0 utility functions such as \fBCMS_set1_pkey()\fR. In this
-case both \fBcert\fR and \fBpkey\fR should be set to \s-1NULL.\s0
+in advance using the \s-1CMS\s0 utility functions such as \fBCMS_set1_pkey()\fR,
+or use \fBCMS_decrypt_set1_password()\fR if the recipient has a symmetric key.
+In these cases both \fIcert\fR and \fIpkey\fR should be set to \s-1NULL.\s0
 .PP
 To process KEKRecipientInfo types \fBCMS_set1_key()\fR or \fBCMS_RecipientInfo_set0_key()\fR
 and \fBCMS_RecipientInfo_decrypt()\fR should be called before \fBCMS_decrypt()\fR and
-\&\fBcert\fR and \fBpkey\fR set to \s-1NULL.\s0
+\&\fIcert\fR and \fIpkey\fR set to \s-1NULL.\s0
 .PP
-The following flags can be passed in the \fBflags\fR parameter.
+The following flags can be passed in the \fIflags\fR parameter.
 .PP
-If the \fB\s-1CMS_TEXT\s0\fR flag is set \s-1MIME\s0 headers for type \fBtext/plain\fR are deleted
-from the content. If the content is not of type \fBtext/plain\fR then an error is
+If the \fB\s-1CMS_TEXT\s0\fR flag is set \s-1MIME\s0 headers for type \f(CW\*(C`text/plain\*(C'\fR are deleted
+from the content. If the content is not of type \f(CW\*(C`text/plain\*(C'\fR then an error is
 returned.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fBCMS_decrypt()\fR returns either 1 for success or 0 for failure.
-The error can be obtained from \fBERR_get_error\fR\|(3)
+\&\fBCMS_decrypt()\fR, \fBCMS_decrypt_set1_pkey_and_peer()\fR,
+\&\fBCMS_decrypt_set1_pkey()\fR, and \fBCMS_decrypt_set1_password()\fR
+return either 1 for success or 0 for failure.
+The error can be obtained from \fBERR_get_error\fR\|(3).
 .SH "BUGS"
 .IX Header "BUGS"
+The \fBset1_\fR part of these function names is misleading
+and should better read: \fBwith_\fR.
+.PP
 The lack of single pass processing and the need to hold all data in memory as
 mentioned in \fBCMS_verify()\fR also applies to \fBCMS_decrypt()\fR.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBERR_get_error\fR\|(3), \fBCMS_encrypt\fR\|(3)
+.SH "HISTORY"
+.IX Header "HISTORY"
+\&\fBCMS_decrypt_set1_pkey_and_peer()\fR and \fBCMS_decrypt_set1_password()\fR
+were added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2008\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2008\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

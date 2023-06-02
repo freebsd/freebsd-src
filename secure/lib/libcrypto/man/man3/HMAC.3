@@ -133,22 +133,40 @@
 .\" ========================================================================
 .\"
 .IX Title "HMAC 3"
-.TH HMAC 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH HMAC 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-HMAC, HMAC_CTX_new, HMAC_CTX_reset, HMAC_CTX_free, HMAC_Init, HMAC_Init_ex, HMAC_Update, HMAC_Final, HMAC_CTX_copy, HMAC_CTX_set_flags, HMAC_CTX_get_md, HMAC_size \&\- HMAC message authentication code
+HMAC,
+HMAC_CTX_new,
+HMAC_CTX_reset,
+HMAC_CTX_free,
+HMAC_Init,
+HMAC_Init_ex,
+HMAC_Update,
+HMAC_Final,
+HMAC_CTX_copy,
+HMAC_CTX_set_flags,
+HMAC_CTX_get_md,
+HMAC_size
+\&\- HMAC message authentication code
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/hmac.h>
 \&
-\& unsigned char *HMAC(const EVP_MD *evp_md, const void *key,
-\&                     int key_len, const unsigned char *d, size_t n,
+\& unsigned char *HMAC(const EVP_MD *evp_md, const void *key, int key_len,
+\&                     const unsigned char *data, size_t data_len,
 \&                     unsigned char *md, unsigned int *md_len);
-\&
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 2
 \& HMAC_CTX *HMAC_CTX_new(void);
 \& int HMAC_CTX_reset(HMAC_CTX *ctx);
 \&
@@ -166,13 +184,13 @@ HMAC, HMAC_CTX_new, HMAC_CTX_reset, HMAC_CTX_free, HMAC_Init, HMAC_Init_ex, HMAC
 \& size_t HMAC_size(const HMAC_CTX *e);
 .Ve
 .PP
-Deprecated:
+The following function has been deprecated since OpenSSL 1.1.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
 .PP
-.Vb 4
-\& #if OPENSSL_API_COMPAT < 0x10100000L
+.Vb 2
 \& int HMAC_Init(HMAC_CTX *ctx, const void *key, int key_len,
 \&               const EVP_MD *md);
-\& #endif
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -180,23 +198,31 @@ Deprecated:
 function used for message authentication, which is based on a hash
 function.
 .PP
-\&\s-1\fBHMAC\s0()\fR computes the message authentication code of the \fBn\fR bytes at
-\&\fBd\fR using the hash function \fBevp_md\fR and the key \fBkey\fR which is
-\&\fBkey_len\fR bytes long.
+\&\s-1\fBHMAC\s0()\fR computes the message authentication code of the \fIdata_len\fR bytes at
+\&\fIdata\fR using the hash function \fIevp_md\fR and the key \fIkey\fR which is
+\&\fIkey_len\fR bytes long. The \fIkey\fR may also be \s-1NULL\s0 with \fIkey_len\fR being 0.
 .PP
-It places the result in \fBmd\fR (which must have space for the output of
+It places the result in \fImd\fR (which must have space for the output of
 the hash function, which is no more than \fB\s-1EVP_MAX_MD_SIZE\s0\fR bytes).
-If \fBmd\fR is \s-1NULL,\s0 the digest is placed in a static array.  The size of
-the output is placed in \fBmd_len\fR, unless it is \fB\s-1NULL\s0\fR. Note: passing a \s-1NULL\s0
-value for \fBmd\fR  to use the static array is not thread safe.
+If \fImd\fR is \s-1NULL,\s0 the digest is placed in a static array.  The size of
+the output is placed in \fImd_len\fR, unless it is \s-1NULL.\s0 Note: passing a \s-1NULL\s0
+value for \fImd\fR to use the static array is not thread safe.
 .PP
-\&\fBevp_md\fR is a message digest such as \fBEVP_sha1()\fR, \fBEVP_ripemd160()\fR etc. \s-1HMAC\s0 does
-not support variable output length digests such as \fBEVP_shake128()\fR and
+\&\fIevp_md\fR is a message digest such as \fBEVP_sha1()\fR, \fBEVP_ripemd160()\fR etc.
+\&\s-1HMAC\s0 does not support variable output length digests such as \fBEVP_shake128()\fR and
 \&\fBEVP_shake256()\fR.
+.PP
+\&\s-1\fBHMAC\s0()\fR uses the default \fB\s-1OSSL_LIB_CTX\s0\fR.
+Use \fBEVP_Q_mac\fR\|(3) instead if a library context is required.
+.PP
+All of the functions described below are deprecated.
+Applications should instead use \fBEVP_MAC_CTX_new\fR\|(3), \fBEVP_MAC_CTX_free\fR\|(3),
+\&\fBEVP_MAC_init\fR\|(3), \fBEVP_MAC_update\fR\|(3) and \fBEVP_MAC_final\fR\|(3)
+or the 'quick' single-shot \s-1MAC\s0 function \fBEVP_Q_mac\fR\|(3).
 .PP
 \&\fBHMAC_CTX_new()\fR creates a new \s-1HMAC_CTX\s0 in heap memory.
 .PP
-\&\fBHMAC_CTX_reset()\fR zeros an existing \fB\s-1HMAC_CTX\s0\fR and associated
+\&\fBHMAC_CTX_reset()\fR clears an existing \fB\s-1HMAC_CTX\s0\fR and associated
 resources, making it suitable for new computations as if it was newly
 created with \fBHMAC_CTX_new()\fR.
 .PP
@@ -208,27 +234,27 @@ The following functions may be used if the message is not completely
 stored in memory:
 .PP
 \&\fBHMAC_Init_ex()\fR initializes or reuses a \fB\s-1HMAC_CTX\s0\fR structure to use the hash
-function \fBevp_md\fR and key \fBkey\fR. If both are \s-1NULL,\s0 or if \fBkey\fR is \s-1NULL\s0
-and \fBevp_md\fR is the same as the previous call, then the
+function \fIevp_md\fR and key \fIkey\fR. If both are \s-1NULL,\s0 or if \fIkey\fR is \s-1NULL\s0
+and \fIevp_md\fR is the same as the previous call, then the
 existing key is
-reused. \fBctx\fR must have been created with \fBHMAC_CTX_new()\fR before the first use
+reused. \fIctx\fR must have been created with \fBHMAC_CTX_new()\fR before the first use
 of an \fB\s-1HMAC_CTX\s0\fR in this function.
 .PP
-If \fBHMAC_Init_ex()\fR is called with \fBkey\fR \s-1NULL\s0 and \fBevp_md\fR is not the
-same as the previous digest used by \fBctx\fR then an error is returned
+If \fBHMAC_Init_ex()\fR is called with \fIkey\fR \s-1NULL\s0 and \fIevp_md\fR is not the
+same as the previous digest used by \fIctx\fR then an error is returned
 because reuse of an existing key with a different digest is not supported.
 .PP
 \&\fBHMAC_Init()\fR initializes a \fB\s-1HMAC_CTX\s0\fR structure to use the hash
-function \fBevp_md\fR and the key \fBkey\fR which is \fBkey_len\fR bytes
+function \fIevp_md\fR and the key \fIkey\fR which is \fIkey_len\fR bytes
 long.
 .PP
 \&\fBHMAC_Update()\fR can be called repeatedly with chunks of the message to
-be authenticated (\fBlen\fR bytes at \fBdata\fR).
+be authenticated (\fIlen\fR bytes at \fIdata\fR).
 .PP
-\&\fBHMAC_Final()\fR places the message authentication code in \fBmd\fR, which
+\&\fBHMAC_Final()\fR places the message authentication code in \fImd\fR, which
 must have space for the hash function output.
 .PP
-\&\fBHMAC_CTX_copy()\fR copies all of the internal state from \fBsctx\fR into \fBdctx\fR.
+\&\fBHMAC_CTX_copy()\fR copies all of the internal state from \fIsctx\fR into \fIdctx\fR.
 .PP
 \&\fBHMAC_CTX_set_flags()\fR applies the specified flags to the internal EVP_MD_CTXs.
 These flags have the same meaning as for \fBEVP_MD_CTX_set_flags\fR\|(3).
@@ -243,7 +269,7 @@ supplied \s-1HMAC_CTX.\s0
 an error occurred.
 .PP
 \&\fBHMAC_CTX_new()\fR returns a pointer to a new \fB\s-1HMAC_CTX\s0\fR on success or
-\&\fB\s-1NULL\s0\fR if an error occurred.
+\&\s-1NULL\s0 if an error occurred.
 .PP
 \&\fBHMAC_CTX_reset()\fR, \fBHMAC_Init_ex()\fR, \fBHMAC_Update()\fR, \fBHMAC_Final()\fR and
 \&\fBHMAC_CTX_copy()\fR return 1 for success or 0 if an error occurred.
@@ -258,9 +284,11 @@ or zero on error.
 \&\s-1RFC 2104\s0
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\s-1\fBSHA1\s0\fR\|(3), \fBevp\fR\|(7)
+\&\s-1\fBSHA1\s0\fR\|(3), \fBEVP_Q_mac\fR\|(3), \fBevp\fR\|(7)
 .SH "HISTORY"
 .IX Header "HISTORY"
+All functions except for \s-1\fBHMAC\s0()\fR were deprecated in OpenSSL 3.0.
+.PP
 \&\fBHMAC_CTX_init()\fR was replaced with \fBHMAC_CTX_reset()\fR in OpenSSL 1.1.0.
 .PP
 \&\fBHMAC_CTX_cleanup()\fR existed in OpenSSL before version 1.1.0.
@@ -271,9 +299,9 @@ or zero on error.
 OpenSSL before version 1.0.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

@@ -133,13 +133,14 @@
 .\" ========================================================================
 .\"
 .IX Title "DSA_SIG_NEW 3"
-.TH DSA_SIG_NEW 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH DSA_SIG_NEW 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-DSA_SIG_get0, DSA_SIG_set0, DSA_SIG_new, DSA_SIG_free \- allocate and free DSA signature objects
+DSA_SIG_get0, DSA_SIG_set0,
+DSA_SIG_new, DSA_SIG_free \- allocate and free DSA signature objects
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -177,13 +178,13 @@ to the newly allocated structure.
 \&\fBDSA_SIG_set0()\fR returns 1 on success or 0 on failure.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fBDSA_new\fR\|(3), \fBERR_get_error\fR\|(3),
-\&\fBDSA_do_sign\fR\|(3)
+\&\fBEVP_PKEY_new\fR\|(3), \fBEVP_PKEY_free\fR\|(3), \fBEVP_PKEY_get_bn_param\fR\|(3),
+\&\fBERR_get_error\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
 Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

@@ -133,13 +133,15 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_SIGNINIT 3"
-.TH EVP_SIGNINIT 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH EVP_SIGNINIT 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-EVP_SignInit, EVP_SignInit_ex, EVP_SignUpdate, EVP_SignFinal \&\- EVP signing functions
+EVP_SignInit, EVP_SignInit_ex, EVP_SignUpdate,
+EVP_SignFinal_ex, EVP_SignFinal
+\&\- EVP signing functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -147,7 +149,10 @@ EVP_SignInit, EVP_SignInit_ex, EVP_SignUpdate, EVP_SignFinal \&\- EVP signing fu
 \&
 \& int EVP_SignInit_ex(EVP_MD_CTX *ctx, const EVP_MD *type, ENGINE *impl);
 \& int EVP_SignUpdate(EVP_MD_CTX *ctx, const void *d, unsigned int cnt);
-\& int EVP_SignFinal(EVP_MD_CTX *ctx, unsigned char *sig, unsigned int *s, EVP_PKEY *pkey);
+\& int EVP_SignFinal_ex(EVP_MD_CTX *ctx, unsigned char *md, unsigned int *s,
+\&                      EVP_PKEY *pkey, OSSL_LIB_CTX *libctx, const char *propq);
+\& int EVP_SignFinal(EVP_MD_CTX *ctx, unsigned char *sig, unsigned int *s,
+\&                   EVP_PKEY *pkey);
 \&
 \& void EVP_SignInit(EVP_MD_CTX *ctx, const EVP_MD *type);
 .Ve
@@ -164,19 +169,24 @@ signatures.
 signature context \fIctx\fR. This function can be called several times on the
 same \fIctx\fR to include additional data.
 .PP
-\&\fBEVP_SignFinal()\fR signs the data in \fIctx\fR using the private key \fIpkey\fR and
-places the signature in \fIsig\fR. \fIsig\fR must be at least \f(CW\*(C`EVP_PKEY_size(pkey)\*(C'\fR
-bytes in size. \fIs\fR is an \s-1OUT\s0 parameter, and not used as an \s-1IN\s0 parameter.
+\&\fBEVP_SignFinal_ex()\fR signs the data in \fIctx\fR using the private key
+\&\fIpkey\fR and places the signature in \fIsig\fR. The library context \fIlibctx\fR and
+property query \fIpropq\fR are used when creating a context to use with the key
+\&\fIpkey\fR. \fIsig\fR must be at least \f(CW\*(C`EVP_PKEY_get_size(pkey)\*(C'\fR bytes in size.
+\&\fIs\fR is an \s-1OUT\s0 parameter, and not used as an \s-1IN\s0 parameter.
 The number of bytes of data written (i.e. the length of the signature)
-will be written to the integer at \fIs\fR, at most \f(CW\*(C`EVP_PKEY_size(pkey)\*(C'\fR bytes
-will be written.
+will be written to the integer at \fIs\fR, at most \f(CW\*(C`EVP_PKEY_get_size(pkey)\*(C'\fR
+bytes will be written.
+.PP
+\&\fBEVP_SignFinal()\fR is similar to \fBEVP_SignFinal_ex()\fR but uses default
+values of \s-1NULL\s0 for the library context \fIlibctx\fR and the property query \fIpropq\fR.
 .PP
 \&\fBEVP_SignInit()\fR initializes a signing context \fIctx\fR to use the default
 implementation of digest \fItype\fR.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fBEVP_SignInit_ex()\fR, \fBEVP_SignUpdate()\fR and \fBEVP_SignFinal()\fR return 1
-for success and 0 for failure.
+\&\fBEVP_SignInit_ex()\fR, \fBEVP_SignUpdate()\fR, \fBEVP_SignFinal_ex()\fR and
+\&\fBEVP_SignFinal()\fR return 1 for success and 0 for failure.
 .PP
 The error codes can be obtained by \fBERR_get_error\fR\|(3).
 .SH "NOTES"
@@ -185,10 +195,9 @@ The \fB\s-1EVP\s0\fR interface to digital signatures should almost always be use
 preference to the low-level interfaces. This is because the code then becomes
 transparent to the algorithm used and much more flexible.
 .PP
-When signing with \s-1DSA\s0 private keys the random number generator must be seeded.
-If the automatic seeding or reseeding of the OpenSSL \s-1CSPRNG\s0 fails due to
-external circumstances (see \s-1\fBRAND\s0\fR\|(7)), the operation will fail.
-This requirement does not hold for \s-1RSA\s0 signatures.
+When signing with some private key types the random number generator must
+be seeded. If the automatic seeding or reseeding of the OpenSSL \s-1CSPRNG\s0 fails
+due to external circumstances (see \s-1\fBRAND\s0\fR\|(7)), the operation will fail.
 .PP
 The call to \fBEVP_SignFinal()\fR internally finalizes a copy of the digest context.
 This means that calls to \fBEVP_SignUpdate()\fR and \fBEVP_SignFinal()\fR can be called
@@ -209,20 +218,24 @@ data have been passed through \fBEVP_SignUpdate()\fR.
 .PP
 It is not possible to change the signing parameters using these function.
 .PP
-The previous two bugs are fixed in the newer EVP_SignDigest*() function.
+The previous two bugs are fixed in the newer EVP_DigestSign*() functions.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fBEVP_PKEY_size\fR\|(3), \fBEVP_PKEY_bits\fR\|(3), \fBEVP_PKEY_security_bits\fR\|(3),
+\&\fBEVP_PKEY_get_size\fR\|(3), \fBEVP_PKEY_get_bits\fR\|(3),
+\&\fBEVP_PKEY_get_security_bits\fR\|(3),
 \&\fBEVP_VerifyInit\fR\|(3),
 \&\fBEVP_DigestInit\fR\|(3),
 \&\fBevp\fR\|(7), \s-1\fBHMAC\s0\fR\|(3), \s-1\fBMD2\s0\fR\|(3),
 \&\s-1\fBMD5\s0\fR\|(3), \s-1\fBMDC2\s0\fR\|(3), \s-1\fBRIPEMD160\s0\fR\|(3),
-\&\s-1\fBSHA1\s0\fR\|(3), \fBdgst\fR\|(1)
+\&\s-1\fBSHA1\s0\fR\|(3), \fBopenssl\-dgst\fR\|(1)
+.SH "HISTORY"
+.IX Header "HISTORY"
+The function \fBEVP_SignFinal_ex()\fR was added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

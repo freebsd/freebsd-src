@@ -133,13 +133,14 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_NAME_ADD_ENTRY_BY_TXT 3"
-.TH X509_NAME_ADD_ENTRY_BY_TXT 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH X509_NAME_ADD_ENTRY_BY_TXT 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-X509_NAME_add_entry_by_txt, X509_NAME_add_entry_by_OBJ, X509_NAME_add_entry_by_NID, X509_NAME_add_entry, X509_NAME_delete_entry \- X509_NAME modification functions
+X509_NAME_add_entry_by_txt, X509_NAME_add_entry_by_OBJ, X509_NAME_add_entry_by_NID,
+X509_NAME_add_entry, X509_NAME_delete_entry \- X509_NAME modification functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -201,13 +202,13 @@ RelativeDistinguishedName (\s-1RDN\s0).
 \&\fBloc\fR actually determines the index where the new entry is inserted:
 if it is \-1 it is appended.
 .PP
-\&\fBset\fR determines how the new type is added. If it is zero a
-new \s-1RDN\s0 is created.
+\&\fBset\fR determines how the new type is added.
+If it is zero a new \s-1RDN\s0 is created.
 .PP
-If \fBset\fR is \-1 or 1 it is added to the previous or next \s-1RDN\s0
-structure respectively. This will then be a multivalued \s-1RDN:\s0
-since multivalues RDNs are very seldom used \fBset\fR is almost
-always set to zero.
+If \fBset\fR is \-1 or 1 it is added as a new set member
+to the previous or next \s-1RDN\s0 structure, respectively.
+This will then become part of a multi-valued \s-1RDN\s0 (containing a set of AVAs).
+Since multi-valued RDNs are very rarely used \fBset\fR typically will be zero.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fBX509_NAME_add_entry_by_txt()\fR, \fBX509_NAME_add_entry_by_OBJ()\fR,
@@ -215,7 +216,7 @@ always set to zero.
 success of 0 if an error occurred.
 .PP
 \&\fBX509_NAME_delete_entry()\fR returns either the deleted \fBX509_NAME_ENTRY\fR
-structure of \fB\s-1NULL\s0\fR if an error occurred.
+structure or \fB\s-1NULL\s0\fR if an error occurred.
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
 Create an \fBX509_NAME\fR structure:
@@ -249,9 +250,9 @@ can result in invalid field types its use is strongly discouraged.
 \&\fBERR_get_error\fR\|(3), \fBd2i_X509_NAME\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2002\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

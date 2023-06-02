@@ -133,13 +133,16 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_PKEY_CTX_NEW 3"
-.TH EVP_PKEY_CTX_NEW 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH EVP_PKEY_CTX_NEW 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-EVP_PKEY_CTX_new, EVP_PKEY_CTX_new_id, EVP_PKEY_CTX_dup, EVP_PKEY_CTX_free \- public key algorithm context functions
+EVP_PKEY_CTX_new, EVP_PKEY_CTX_new_id, EVP_PKEY_CTX_new_from_name,
+EVP_PKEY_CTX_new_from_pkey, EVP_PKEY_CTX_dup, EVP_PKEY_CTX_free,
+EVP_PKEY_CTX_is_a
+\&\- public key algorithm context functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -147,46 +150,106 @@ EVP_PKEY_CTX_new, EVP_PKEY_CTX_new_id, EVP_PKEY_CTX_dup, EVP_PKEY_CTX_free \- pu
 \&
 \& EVP_PKEY_CTX *EVP_PKEY_CTX_new(EVP_PKEY *pkey, ENGINE *e);
 \& EVP_PKEY_CTX *EVP_PKEY_CTX_new_id(int id, ENGINE *e);
-\& EVP_PKEY_CTX *EVP_PKEY_CTX_dup(EVP_PKEY_CTX *ctx);
+\& EVP_PKEY_CTX *EVP_PKEY_CTX_new_from_name(OSSL_LIB_CTX *libctx,
+\&                                          const char *name,
+\&                                          const char *propquery);
+\& EVP_PKEY_CTX *EVP_PKEY_CTX_new_from_pkey(OSSL_LIB_CTX *libctx,
+\&                                          EVP_PKEY *pkey,
+\&                                          const char *propquery);
+\& EVP_PKEY_CTX *EVP_PKEY_CTX_dup(const EVP_PKEY_CTX *ctx);
 \& void EVP_PKEY_CTX_free(EVP_PKEY_CTX *ctx);
+\& int EVP_PKEY_CTX_is_a(EVP_PKEY_CTX *ctx, const char *keytype);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 The \fBEVP_PKEY_CTX_new()\fR function allocates public key algorithm context using
-the algorithm specified in \fBpkey\fR and \s-1ENGINE\s0 \fBe\fR.
+the \fIpkey\fR key type and \s-1ENGINE\s0 \fIe\fR.
 .PP
 The \fBEVP_PKEY_CTX_new_id()\fR function allocates public key algorithm context
-using the algorithm specified by \fBid\fR and \s-1ENGINE\s0 \fBe\fR. It is normally used
-when no \fB\s-1EVP_PKEY\s0\fR structure is associated with the operations, for example
-during parameter generation of key generation for some algorithms.
+using the key type specified by \fIid\fR and \s-1ENGINE\s0 \fIe\fR.
 .PP
-\&\fBEVP_PKEY_CTX_dup()\fR duplicates the context \fBctx\fR.
+The \fBEVP_PKEY_CTX_new_from_name()\fR function allocates a public key algorithm
+context using the library context \fIlibctx\fR (see \s-1\fBOSSL_LIB_CTX\s0\fR\|(3)), the
+key type specified by \fIname\fR and the property query \fIpropquery\fR.  None
+of the arguments are duplicated, so they  must remain unchanged for the
+lifetime of the returned \fB\s-1EVP_PKEY_CTX\s0\fR or of any of its duplicates.  Read
+further about the possible names in \*(L"\s-1NOTES\*(R"\s0 below.
 .PP
-\&\fBEVP_PKEY_CTX_free()\fR frees up the context \fBctx\fR.
-If \fBctx\fR is \s-1NULL,\s0 nothing is done.
+The \fBEVP_PKEY_CTX_new_from_pkey()\fR function allocates a public key algorithm
+context using the library context \fIlibctx\fR (see \s-1\fBOSSL_LIB_CTX\s0\fR\|(3)) and the
+algorithm specified by \fIpkey\fR and the property query \fIpropquery\fR. None of the
+arguments are duplicated, so they must remain unchanged for the lifetime of the
+returned \fB\s-1EVP_PKEY_CTX\s0\fR or any of its duplicates.
+.PP
+\&\fBEVP_PKEY_CTX_new_id()\fR and \fBEVP_PKEY_CTX_new_from_name()\fR are normally
+used when no \fB\s-1EVP_PKEY\s0\fR structure is associated with the operations,
+for example during parameter generation or key generation for some
+algorithms.
+.PP
+\&\fBEVP_PKEY_CTX_dup()\fR duplicates the context \fIctx\fR. It is not supported for a
+keygen operation.
+.PP
+\&\fBEVP_PKEY_CTX_free()\fR frees up the context \fIctx\fR.
+If \fIctx\fR is \s-1NULL,\s0 nothing is done.
+.PP
+\&\fBEVP_PKEY_is_a()\fR checks if the key type associated with \fIctx\fR is \fIkeytype\fR.
 .SH "NOTES"
 .IX Header "NOTES"
+.SS "On \fB\s-1EVP_PKEY_CTX\s0\fP"
+.IX Subsection "On EVP_PKEY_CTX"
 The \fB\s-1EVP_PKEY_CTX\s0\fR structure is an opaque public key algorithm context used
 by the OpenSSL high-level public key \s-1API.\s0 Contexts \fB\s-1MUST NOT\s0\fR be shared between
 threads: that is it is not permissible to use the same context simultaneously
 in two threads.
+.SS "On Key Types"
+.IX Subsection "On Key Types"
+We mention \*(L"key type\*(R" in this manual, which is the same
+as \*(L"algorithm\*(R" in most cases, allowing either term to be used
+interchangeably.  There are algorithms where the \fIkey type\fR and the
+\&\fIalgorithm\fR of the operations that use the keys are not the same,
+such as \s-1EC\s0 keys being used for \s-1ECDSA\s0 and \s-1ECDH\s0 operations.
+.PP
+Key types are given in two different manners:
+.IP "Legacy \s-1NID\s0 or \s-1EVP_PKEY\s0 type" 4
+.IX Item "Legacy NID or EVP_PKEY type"
+This is the \fIid\fR used with \fBEVP_PKEY_CTX_new_id()\fR.
+.Sp
+These are \fB\s-1EVP_PKEY_RSA\s0\fR, \fB\s-1EVP_PKEY_RSA_PSS\s0\fR, \fB\s-1EVP_PKEY_DSA\s0\fR,
+\&\fB\s-1EVP_PKEY_DH\s0\fR, \fB\s-1EVP_PKEY_EC\s0\fR, \fB\s-1EVP_PKEY_SM2\s0\fR, \fB\s-1EVP_PKEY_X25519\s0\fR,
+\&\fB\s-1EVP_PKEY_X448\s0\fR, and are used by legacy methods.
+.IP "Name strings" 4
+.IX Item "Name strings"
+This is the \fIname\fR used with \fBEVP_PKEY_CTX_new_from_name()\fR.
+.Sp
+These are names like \*(L"\s-1RSA\*(R", \*(L"DSA\*(R",\s0 and what's available depends on what
+providers are currently accessible.
+.Sp
+The OpenSSL providers offer a set of key types available this way, please
+see \s-1\fBOSSL_PROVIDER\-FIPS\s0\fR\|(7) and \fBOSSL_PROVIDER\-default\fR\|(7) and related
+documentation for more information.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fBEVP_PKEY_CTX_new()\fR, \fBEVP_PKEY_CTX_new_id()\fR, \fBEVP_PKEY_CTX_dup()\fR returns either
-the newly allocated \fB\s-1EVP_PKEY_CTX\s0\fR structure of \fB\s-1NULL\s0\fR if an error occurred.
+\&\fBEVP_PKEY_CTX_new()\fR, \fBEVP_PKEY_CTX_new_id()\fR and \fBEVP_PKEY_CTX_dup()\fR return either
+the newly allocated \fB\s-1EVP_PKEY_CTX\s0\fR structure or \fB\s-1NULL\s0\fR if an error occurred.
 .PP
 \&\fBEVP_PKEY_CTX_free()\fR does not return a value.
+.PP
+\&\fBEVP_PKEY_CTX_is_a()\fR returns 1 for true and 0 for false.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBEVP_PKEY_new\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
-These functions were added in OpenSSL 1.0.0.
+The \fBEVP_PKEY_CTX_new()\fR, \fBEVP_PKEY_CTX_new_id()\fR, \fBEVP_PKEY_CTX_dup()\fR and
+\&\fBEVP_PKEY_CTX_free()\fR functions were added in OpenSSL 1.0.0.
+.PP
+The \fBEVP_PKEY_CTX_new_from_name()\fR and \fBEVP_PKEY_CTX_new_from_pkey()\fR functions were
+added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2006\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

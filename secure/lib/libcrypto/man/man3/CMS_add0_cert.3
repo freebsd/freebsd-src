@@ -133,13 +133,14 @@
 .\" ========================================================================
 .\"
 .IX Title "CMS_ADD0_CERT 3"
-.TH CMS_ADD0_CERT 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH CMS_ADD0_CERT 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-CMS_add0_cert, CMS_add1_cert, CMS_get1_certs, CMS_add0_crl, CMS_add1_crl, CMS_get1_crls \&\- CMS certificate and CRL utility functions
+CMS_add0_cert, CMS_add1_cert, CMS_get1_certs, CMS_add0_crl, CMS_add1_crl, CMS_get1_crls
+\&\- CMS certificate and CRL utility functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -156,6 +157,8 @@ CMS_add0_cert, CMS_add1_cert, CMS_get1_certs, CMS_add0_crl, CMS_add1_crl, CMS_ge
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 \&\fBCMS_add0_cert()\fR and \fBCMS_add1_cert()\fR add certificate \fIcert\fR to \fIcms\fR.
+This is used by \fBCMS_sign_ex\fR\|(3) and \fBCMS_sign\fR\|(3) and may be used before
+calling \fBCMS_verify\fR\|(3) to help chain building in certificate validation.
 \&\fIcms\fR must be of type signed data or (authenticated) enveloped data.
 For signed data, such a certificate can be used when signing or verifying
 to fill in the signer certificate or to provide an extra \s-1CA\s0 certificate
@@ -165,7 +168,8 @@ that may be needed for chain building in certificate validation.
 .PP
 \&\fBCMS_add0_crl()\fR and \fBCMS_add1_crl()\fR add \s-1CRL\s0 \fIcrl\fR to \fIcms\fR.
 \&\fIcms\fR must be of type signed data or (authenticated) enveloped data.
-For signed data, such a \s-1CRL\s0 may be used in certificate validation.
+For signed data, such a \s-1CRL\s0 may be used in certificate validation
+with \fBCMS_verify\fR\|(3).
 It may be given both for inclusion when signing a \s-1CMS\s0 message
 and when verifying a signed \s-1CMS\s0 message.
 .PP
@@ -183,8 +187,7 @@ As the \fI0\fR implies \fBCMS_add0_cert()\fR adds \fIcert\fR internally to \fIcm
 must not be freed up after the call as opposed to \fBCMS_add1_cert()\fR where \fIcert\fR
 must be freed up.
 .PP
-The same certificate or \s-1CRL\s0 must not be added to the same cms structure more
-than once.
+The same certificate must not be added to the same cms structure more than once.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fBCMS_add0_cert()\fR, \fBCMS_add1_cert()\fR and \fBCMS_add0_crl()\fR and \fBCMS_add1_crl()\fR return
@@ -196,13 +199,13 @@ in practice is if the \fIcms\fR type is invalid.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBERR_get_error\fR\|(3),
-\&\fBCMS_sign\fR\|(3),
+\&\fBCMS_sign\fR\|(3), \fBCMS_sign_ex\fR\|(3), \fBCMS_verify\fR\|(3),
 \&\fBCMS_encrypt\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2008\-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2008\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

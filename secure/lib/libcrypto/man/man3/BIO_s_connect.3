@@ -133,21 +133,26 @@
 .\" ========================================================================
 .\"
 .IX Title "BIO_S_CONNECT 3"
-.TH BIO_S_CONNECT 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH BIO_S_CONNECT 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-BIO_set_conn_address, BIO_get_conn_address, BIO_s_connect, BIO_new_connect, BIO_set_conn_hostname, BIO_set_conn_port, BIO_set_conn_ip_family, BIO_get_conn_ip_family, BIO_get_conn_hostname, BIO_get_conn_port, BIO_set_nbio, BIO_do_connect \- connect BIO
+BIO_s_connect, BIO_new_connect,
+BIO_set_conn_hostname, BIO_set_conn_port,
+BIO_set_conn_address, BIO_set_conn_ip_family,
+BIO_get_conn_hostname, BIO_get_conn_port,
+BIO_get_conn_address, BIO_get_conn_ip_family,
+BIO_set_nbio, BIO_do_connect \- connect BIO
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/bio.h>
 \&
-\& const BIO_METHOD * BIO_s_connect(void);
+\& const BIO_METHOD *BIO_s_connect(void);
 \&
-\& BIO *BIO_new_connect(char *name);
+\& BIO *BIO_new_connect(const char *name);
 \&
 \& long BIO_set_conn_hostname(BIO *b, char *name);
 \& long BIO_set_conn_port(BIO *b, char *port);
@@ -160,7 +165,7 @@ BIO_set_conn_address, BIO_get_conn_address, BIO_s_connect, BIO_new_connect, BIO_
 \&
 \& long BIO_set_nbio(BIO *b, long n);
 \&
-\& int BIO_do_connect(BIO *b);
+\& long BIO_do_connect(BIO *b);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -186,20 +191,18 @@ Calling \fBBIO_reset()\fR on a connect \s-1BIO\s0 will close any active
 connection and reset the \s-1BIO\s0 into a state where it can connect
 to the same host again.
 .PP
-\&\fBBIO_get_fd()\fR places the underlying socket in \fBc\fR if it is not \s-1NULL,\s0
-it also returns the socket . If \fBc\fR is not \s-1NULL\s0 it should be of
-type (int *).
+\&\fBBIO_new_connect()\fR combines \fBBIO_new()\fR and \fBBIO_set_conn_hostname()\fR into
+a single call: that is it creates a new connect \s-1BIO\s0 with hostname \fBname\fR.
 .PP
 \&\fBBIO_set_conn_hostname()\fR uses the string \fBname\fR to set the hostname.
 The hostname can be an \s-1IP\s0 address; if the address is an IPv6 one, it
-must be enclosed with brackets. The hostname can also include the
-port in the form hostname:port.
+must be enclosed with brackets \f(CW\*(C`[\*(C'\fR and \f(CW\*(C`]\*(C'\fR.
+The hostname can also include the port in the form hostname:port;
+see \fBBIO_parse_hostserv\fR\|(3) and \fBBIO_set_conn_port()\fR for details.
 .PP
 \&\fBBIO_set_conn_port()\fR sets the port to \fBport\fR. \fBport\fR can be the
-numerical form or a string such as \*(L"http\*(R". A string will be looked
-up first using \fBgetservbyname()\fR on the host platform but if that
-fails a standard table of port names will be used. This internal
-list is http, telnet, socks, https, ssl, ftp, and gopher.
+numerical form or a service string such as \*(L"http\*(R", which
+will be mapped to a port number using the system function \fBgetservbyname()\fR.
 .PP
 \&\fBBIO_set_conn_address()\fR sets the address and port information using
 a \s-1\fBBIO_ADDR\s0\fR\|(3ssl).
@@ -224,14 +227,16 @@ is set. Blocking I/O is the default. The call to \fBBIO_set_nbio()\fR
 should be made before the connection is established because
 non blocking I/O is set during the connect process.
 .PP
-\&\fBBIO_new_connect()\fR combines \fBBIO_new()\fR and \fBBIO_set_conn_hostname()\fR into
-a single call: that is it creates a new connect \s-1BIO\s0 with \fBname\fR.
-.PP
-\&\fBBIO_do_connect()\fR attempts to connect the supplied \s-1BIO.\s0 It returns 1
-if the connection was established successfully. A zero or negative
-value is returned if the connection could not be established, the
-call \fBBIO_should_retry()\fR should be used for non blocking connect BIOs
+\&\fBBIO_do_connect()\fR attempts to connect the supplied \s-1BIO.\s0
+This performs an \s-1SSL/TLS\s0 handshake as far as supported by the \s-1BIO.\s0
+For non-SSL BIOs the connection is done typically at \s-1TCP\s0 level.
+If domain name resolution yields multiple \s-1IP\s0 addresses all of them are tried
+after \fBconnect()\fR failures.
+The function returns 1 if the connection was established successfully.
+A zero or negative value is returned if the connection could not be established.
+The call \fBBIO_should_retry()\fR should be used for non blocking connect BIOs
 to determine if the call should be retried.
+If a connection has already been established this call has no effect.
 .SH "NOTES"
 .IX Header "NOTES"
 If blocking I/O is set then a non positive return value from any
@@ -270,13 +275,10 @@ the underlying socket has connected and retry the call.
 .IX Header "RETURN VALUES"
 \&\fBBIO_s_connect()\fR returns the connect \s-1BIO\s0 method.
 .PP
-\&\fBBIO_get_fd()\fR returns the socket or \-1 if the \s-1BIO\s0 has not
-been initialized.
-.PP
 \&\fBBIO_set_conn_address()\fR, \fBBIO_set_conn_port()\fR, and \fBBIO_set_conn_ip_family()\fR
-always return 1.
+return 1 or <=0 if an error occurs.
 .PP
-\&\fBBIO_set_conn_hostname()\fR returns 1 on success and 0 on failure.
+\&\fBBIO_set_conn_hostname()\fR returns 1 on success and <=0 on failure.
 .PP
 \&\fBBIO_get_conn_address()\fR returns the address information or \s-1NULL\s0 if none
 was set.
@@ -289,10 +291,10 @@ none was set.
 \&\fBBIO_get_conn_port()\fR returns a string representing the connected
 port or \s-1NULL\s0 if not set.
 .PP
-\&\fBBIO_set_nbio()\fR always returns 1.
+\&\fBBIO_set_nbio()\fR returns 1 or <=0 if an error occurs.
 .PP
 \&\fBBIO_do_connect()\fR returns 1 if the connection was successfully
-established and 0 or \-1 if the connection failed.
+established and <=0 if the connection failed.
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
 This is example connects to a webserver on the local host and attempts
@@ -322,7 +324,7 @@ to retrieve a page and copy the result to standard output.
 .Ve
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\s-1\fBBIO_ADDR\s0\fR\|(3)
+\&\s-1\fBBIO_ADDR\s0\fR\|(3), \fBBIO_parse_hostserv\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
 \&\fBBIO_set_conn_int_port()\fR, \fBBIO_get_conn_int_port()\fR, \fBBIO_set_conn_ip()\fR, and \fBBIO_get_conn_ip()\fR
@@ -330,9 +332,9 @@ were removed in OpenSSL 1.1.0.
 Use \fBBIO_set_conn_address()\fR and \fBBIO_get_conn_address()\fR instead.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

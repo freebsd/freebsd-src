@@ -133,18 +133,30 @@
 .\" ========================================================================
 .\"
 .IX Title "DH_METH_NEW 3"
-.TH DH_METH_NEW 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH DH_METH_NEW 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-DH_meth_new, DH_meth_free, DH_meth_dup, DH_meth_get0_name, DH_meth_set1_name, DH_meth_get_flags, DH_meth_set_flags, DH_meth_get0_app_data, DH_meth_set0_app_data, DH_meth_get_generate_key, DH_meth_set_generate_key, DH_meth_get_compute_key, DH_meth_set_compute_key, DH_meth_get_bn_mod_exp, DH_meth_set_bn_mod_exp, DH_meth_get_init, DH_meth_set_init, DH_meth_get_finish, DH_meth_set_finish, DH_meth_get_generate_params, DH_meth_set_generate_params \- Routines to build up DH methods
+DH_meth_new, DH_meth_free, DH_meth_dup, DH_meth_get0_name, DH_meth_set1_name,
+DH_meth_get_flags, DH_meth_set_flags, DH_meth_get0_app_data,
+DH_meth_set0_app_data, DH_meth_get_generate_key, DH_meth_set_generate_key,
+DH_meth_get_compute_key, DH_meth_set_compute_key, DH_meth_get_bn_mod_exp,
+DH_meth_set_bn_mod_exp, DH_meth_get_init, DH_meth_set_init, DH_meth_get_finish,
+DH_meth_set_finish, DH_meth_get_generate_params,
+DH_meth_set_generate_params \- Routines to build up DH methods
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/dh.h>
-\&
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 1
 \& DH_METHOD *DH_meth_new(const char *name, int flags);
 \&
 \& void DH_meth_free(DH_METHOD *dhm);
@@ -189,6 +201,9 @@ DH_meth_new, DH_meth_free, DH_meth_dup, DH_meth_get0_name, DH_meth_set1_name, DH
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
+All of the functions described on this page are deprecated.
+Applications should instead use the provider APIs.
+.PP
 The \fB\s-1DH_METHOD\s0\fR type is a structure used for the provision of custom \s-1DH\s0
 implementations. It provides a set of functions used by OpenSSL for the
 implementation of the various \s-1DH\s0 capabilities.
@@ -283,12 +298,14 @@ set.
 \&\fBDH_set_method\fR\|(3), \fBDH_size\fR\|(3), \fBDH_get0_pqg\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
+All of these functions were deprecated in OpenSSL 3.0.
+.PP
 The functions described here were added in OpenSSL 1.1.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2016\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

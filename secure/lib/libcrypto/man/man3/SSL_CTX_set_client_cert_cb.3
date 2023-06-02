@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET_CLIENT_CERT_CB 3"
-.TH SSL_CTX_SET_CLIENT_CERT_CB 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_CTX_SET_CLIENT_CERT_CB 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -150,29 +150,28 @@ SSL_CTX_set_client_cert_cb, SSL_CTX_get_client_cert_cb \- handle client certific
 \&                                                       EVP_PKEY **pkey));
 \& int (*SSL_CTX_get_client_cert_cb(SSL_CTX *ctx))(SSL *ssl, X509 **x509,
 \&                                                 EVP_PKEY **pkey);
-\& int (*client_cert_cb)(SSL *ssl, X509 **x509, EVP_PKEY **pkey);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBSSL_CTX_set_client_cert_cb()\fR sets the \fBclient_cert_cb()\fR callback, that is
+\&\fBSSL_CTX_set_client_cert_cb()\fR sets the \fIclient_cert_cb\fR callback, that is
 called when a client certificate is requested by a server and no certificate
 was yet set for the \s-1SSL\s0 object.
 .PP
-When \fBclient_cert_cb()\fR is \s-1NULL,\s0 no callback function is used.
+When \fIclient_cert_cb\fR is \s-1NULL,\s0 no callback function is used.
 .PP
 \&\fBSSL_CTX_get_client_cert_cb()\fR returns a pointer to the currently set callback
 function.
 .PP
-\&\fBclient_cert_cb()\fR is the application defined callback. If it wants to
+\&\fIclient_cert_cb\fR is the application defined callback. If it wants to
 set a certificate, a certificate/private key combination must be set
-using the \fBx509\fR and \fBpkey\fR arguments and \*(L"1\*(R" must be returned. The
-certificate will be installed into \fBssl\fR, see the \s-1NOTES\s0 and \s-1BUGS\s0 sections.
+using the \fIx509\fR and \fIpkey\fR arguments and \*(L"1\*(R" must be returned. The
+certificate will be installed into \fIssl\fR, see the \s-1NOTES\s0 and \s-1BUGS\s0 sections.
 If no certificate should be set, \*(L"0\*(R" has to be returned and no certificate
 will be sent. A negative return value will suspend the handshake and the
 handshake function will return immediately. \fBSSL_get_error\fR\|(3)
 will return \s-1SSL_ERROR_WANT_X509_LOOKUP\s0 to indicate, that the handshake was
 suspended. The next call to the handshake function will again lead to the call
-of \fBclient_cert_cb()\fR. It is the job of the \fBclient_cert_cb()\fR to store information
+of \fIclient_cert_cb\fR. It is the job of the \fIclient_cert_cb\fR to store information
 about the state of the last call, if required to continue.
 .SH "NOTES"
 .IX Header "NOTES"
@@ -200,11 +199,11 @@ If the callback returns no certificate, the OpenSSL library will not send
 a certificate.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fBSSL_CTX_get_client_cert_cb()\fR returns function pointer of \fBclient_cert_cb()\fR or
+\&\fBSSL_CTX_get_client_cert_cb()\fR returns function pointer of \fIclient_cert_cb\fR or
 \&\s-1NULL\s0 if the callback is not set.
 .SH "BUGS"
 .IX Header "BUGS"
-The \fBclient_cert_cb()\fR cannot return a complete certificate chain, it can
+The \fIclient_cert_cb\fR cannot return a complete certificate chain, it can
 only return one client certificate. If the chain only has a length of 2,
 the root \s-1CA\s0 certificate may be omitted according to the \s-1TLS\s0 standard and
 thus a standard conforming answer can be sent to the server. For a
@@ -233,9 +232,9 @@ and create a new one to return to the previous state.
 \&\fBSSL_clear\fR\|(3), \fBSSL_free\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2002\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

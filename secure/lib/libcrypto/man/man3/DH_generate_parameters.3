@@ -133,18 +133,28 @@
 .\" ========================================================================
 .\"
 .IX Title "DH_GENERATE_PARAMETERS 3"
-.TH DH_GENERATE_PARAMETERS 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH DH_GENERATE_PARAMETERS 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-DH_generate_parameters_ex, DH_generate_parameters, DH_check, DH_check_params, DH_check_ex, DH_check_params_ex, DH_check_pub_key_ex \&\- generate and check Diffie\-Hellman parameters
+DH_generate_parameters_ex, DH_generate_parameters,
+DH_check, DH_check_params,
+DH_check_ex, DH_check_params_ex, DH_check_pub_key_ex
+\&\- generate and check Diffie\-Hellman
+parameters
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/dh.h>
-\&
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 1
 \& int DH_generate_parameters_ex(DH *dh, int prime_len, int generator, BN_GENCB *cb);
 \&
 \& int DH_check(DH *dh, int *codes);
@@ -155,16 +165,21 @@ DH_generate_parameters_ex, DH_generate_parameters, DH_check, DH_check_params, DH
 \& int DH_check_pub_key_ex(const DH *dh, const BIGNUM *pub_key);
 .Ve
 .PP
-Deprecated:
+The following functions have been deprecated since OpenSSL 0.9.8, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
 .PP
-.Vb 4
-\& #if OPENSSL_API_COMPAT < 0x00908000L
+.Vb 2
 \& DH *DH_generate_parameters(int prime_len, int generator,
 \&                            void (*callback)(int, int, void *), void *cb_arg);
-\& #endif
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
+All of the functions described on this page are deprecated.
+Applications should instead use \fBEVP_PKEY_check\fR\|(3),
+\&\fBEVP_PKEY_public_check\fR\|(3), \fBEVP_PKEY_private_check\fR\|(3) and
+\&\fBEVP_PKEY_param_check\fR\|(3).
+.PP
 \&\fBDH_generate_parameters_ex()\fR generates Diffie-Hellman parameters that can
 be shared among a group of users, and stores them in the provided \fB\s-1DH\s0\fR
 structure. The pseudo-random number generator must be
@@ -203,6 +218,12 @@ prime.
 The generator \fBg\fR is not suitable.
 Note that the lack of this bit doesn't guarantee that \fBg\fR is
 suitable, unless \fBp\fR is known to be a strong prime.
+.IP "\s-1DH_MODULUS_TOO_SMALL\s0" 4
+.IX Item "DH_MODULUS_TOO_SMALL"
+The modulus is too small.
+.IP "\s-1DH_MODULUS_TOO_LARGE\s0" 4
+.IX Item "DH_MODULUS_TOO_LARGE"
+The modulus is too large.
 .PP
 \&\fBDH_check()\fR confirms that the Diffie-Hellman parameters \fBdh\fR are valid. The
 value of \fB*codes\fR is updated with any problems found. If \fB*codes\fR is zero then
@@ -251,13 +272,15 @@ The error codes can be obtained by \fBERR_get_error\fR\|(3).
 \&\fBDH_free\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
+All of these functions were deprecated in OpenSSL 3.0.
+.PP
 \&\fBDH_generate_parameters()\fR was deprecated in OpenSSL 0.9.8; use
 \&\fBDH_generate_parameters_ex()\fR instead.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

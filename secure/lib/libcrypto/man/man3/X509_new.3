@@ -133,19 +133,22 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_NEW 3"
-.TH X509_NEW 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH X509_NEW 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-X509_chain_up_ref, X509_new, X509_free, X509_up_ref \- X509 certificate ASN1 allocation functions
+X509_new, X509_new_ex,
+X509_free, X509_up_ref,
+X509_chain_up_ref \- X509 certificate ASN1 allocation functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/x509.h>
 \&
 \& X509 *X509_new(void);
+\& X509 *X509_new_ex(OSSL_LIB_CTX *libctx, const char *propq);
 \& void X509_free(X509 *a);
 \& int X509_up_ref(X509 *a);
 \& STACK_OF(X509) *X509_chain_up_ref(STACK_OF(X509) *x);
@@ -155,8 +158,16 @@ X509_chain_up_ref, X509_new, X509_free, X509_up_ref \- X509 certificate ASN1 all
 The X509 \s-1ASN1\s0 allocation routines, allocate and free an
 X509 structure, which represents an X509 certificate.
 .PP
-\&\fBX509_new()\fR allocates and initializes a X509 structure with reference count
-\&\fB1\fR.
+\&\fBX509_new_ex()\fR allocates and initializes a X509 structure with a
+library context of \fIlibctx\fR, property query of \fIpropq\fR and a reference
+count of \fB1\fR. Many X509 functions such as \fBX509_check_purpose()\fR, and
+\&\fBX509_verify()\fR use this library context to select which providers supply the
+fetched algorithms (\s-1SHA1\s0 is used internally). This created X509 object can then
+be used when loading binary data using \fBd2i_X509()\fR.
+.PP
+\&\fBX509_new()\fR is similar to \fBX509_new_ex()\fR but sets the library context
+and property query to \s-1NULL.\s0 This results in the default (\s-1NULL\s0) library context
+being used for any X509 operations requiring algorithm fetches.
 .PP
 \&\fBX509_free()\fR decrements the reference count of \fBX509\fR structure \fBa\fR and
 frees it up if the reference count is zero. If \fBa\fR is \s-1NULL\s0 nothing is done.
@@ -164,7 +175,7 @@ frees it up if the reference count is zero. If \fBa\fR is \s-1NULL\s0 nothing is
 \&\fBX509_up_ref()\fR increments the reference count of \fBa\fR.
 .PP
 \&\fBX509_chain_up_ref()\fR increases the reference count of all certificates in
-chain \fBx\fR and returns a copy of the stack.
+chain \fBx\fR and returns a copy of the stack, or an empty stack if \fBa\fR is \s-1NULL.\s0
 .SH "NOTES"
 .IX Header "NOTES"
 The function \fBX509_up_ref()\fR if useful if a certificate structure is being
@@ -172,19 +183,18 @@ used by several different operations each of which will free it up after
 use: this avoids the need to duplicate the entire certificate structure.
 .PP
 The function \fBX509_chain_up_ref()\fR doesn't just up the reference count of
-each certificate it also returns a copy of the stack, using \fBsk_X509_dup()\fR,
+each certificate. It also returns a copy of the stack, using \fBsk_X509_dup()\fR,
 but it serves a similar purpose: the returned chain persists after the
 original has been freed.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-If the allocation fails, \fBX509_new()\fR returns \fB\s-1NULL\s0\fR and sets an error
+If the allocation fails, \fBX509_new()\fR returns \s-1NULL\s0 and sets an error
 code that can be obtained by \fBERR_get_error\fR\|(3).
 Otherwise it returns a pointer to the newly allocated structure.
 .PP
 \&\fBX509_up_ref()\fR returns 1 for success and 0 for failure.
 .PP
-\&\fBX509_chain_up_ref()\fR returns a copy of the stack or \fB\s-1NULL\s0\fR if an error
-occurred.
+\&\fBX509_chain_up_ref()\fR returns a copy of the stack or \s-1NULL\s0 if an error occurred.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBd2i_X509\fR\|(3),
@@ -203,11 +213,14 @@ occurred.
 \&\fBX509_sign\fR\|(3),
 \&\fBX509V3_get_d2i\fR\|(3),
 \&\fBX509_verify_cert\fR\|(3)
+.SH "HISTORY"
+.IX Header "HISTORY"
+The function \fBX509_new_ex()\fR was added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2002\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

@@ -133,13 +133,20 @@
 .\" ========================================================================
 .\"
 .IX Title "CMS_GET0_RECIPIENTINFOS 3"
-.TH CMS_GET0_RECIPIENTINFOS 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH CMS_GET0_RECIPIENTINFOS 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-CMS_get0_RecipientInfos, CMS_RecipientInfo_type, CMS_RecipientInfo_ktri_get0_signer_id, CMS_RecipientInfo_ktri_cert_cmp, CMS_RecipientInfo_set0_pkey, CMS_RecipientInfo_kekri_get0_id, CMS_RecipientInfo_kekri_id_cmp, CMS_RecipientInfo_set0_key, CMS_RecipientInfo_decrypt, CMS_RecipientInfo_encrypt \&\- CMS envelopedData RecipientInfo routines
+CMS_get0_RecipientInfos, CMS_RecipientInfo_type,
+CMS_RecipientInfo_ktri_get0_signer_id, CMS_RecipientInfo_ktri_cert_cmp,
+CMS_RecipientInfo_set0_pkey, CMS_RecipientInfo_kekri_get0_id,
+CMS_RecipientInfo_kari_set0_pkey_and_peer,
+CMS_RecipientInfo_kari_set0_pkey,
+CMS_RecipientInfo_kekri_id_cmp, CMS_RecipientInfo_set0_key,
+CMS_RecipientInfo_decrypt, CMS_RecipientInfo_encrypt
+\&\- CMS envelopedData RecipientInfo routines
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -154,7 +161,9 @@ CMS_get0_RecipientInfos, CMS_RecipientInfo_type, CMS_RecipientInfo_ktri_get0_sig
 \&                                           ASN1_INTEGER **sno);
 \& int CMS_RecipientInfo_ktri_cert_cmp(CMS_RecipientInfo *ri, X509 *cert);
 \& int CMS_RecipientInfo_set0_pkey(CMS_RecipientInfo *ri, EVP_PKEY *pkey);
-\&
+\& int CMS_RecipientInfo_kari_set0_pkey_and_peer(CMS_RecipientInfo *ri,
+\&                                               EVP_PKEY *pk, X509 *peer);
+\& int CMS_RecipientInfo_kari_set0_pkey(CMS_RecipientInfo *ri, EVP_PKEY *pk);
 \& int CMS_RecipientInfo_kekri_get0_id(CMS_RecipientInfo *ri, X509_ALGOR **palg,
 \&                                     ASN1_OCTET_STRING **pid,
 \&                                     ASN1_GENERALIZEDTIME **pdate,
@@ -189,6 +198,13 @@ It returns zero if the comparison is successful and non zero if not.
 \&\fBCMS_RecipientInfo_set0_pkey()\fR associates the private key \fBpkey\fR with
 the CMS_RecipientInfo structure \fBri\fR, which must be of type
 \&\s-1CMS_RECIPINFO_TRANS.\s0
+.PP
+\&\fBCMS_RecipientInfo_kari_set0_pkey_and_peer()\fR associates the private key \fBpkey\fR
+and peer certificate \fBpeer\fR with the CMS_RecipientInfo structure \fBri\fR, which
+must be of type \s-1CMS_RECIPINFO_AGREE.\s0
+.PP
+\&\fBCMS_RecipientInfo_kari_set0_pkey()\fR associates the private key \fBpkey\fR with the
+CMS_RecipientInfo structure \fBri\fR, which must be of type \s-1CMS_RECIPINFO_AGREE.\s0
 .PP
 \&\fBCMS_RecipientInfo_kekri_get0_id()\fR retrieves the key information from the
 CMS_RecipientInfo structure \fBri\fR which must be of type \s-1CMS_RECIPINFO_KEK.\s0  Any
@@ -255,11 +271,15 @@ Any error can be obtained from \fBERR_get_error\fR\|(3).
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBERR_get_error\fR\|(3), \fBCMS_decrypt\fR\|(3)
+.SH "HISTORY"
+.IX Header "HISTORY"
+\&\fBCMS_RecipientInfo_kari_set0_pkey_and_peer\fR and \fBCMS_RecipientInfo_kari_set0_pkey\fR
+were added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2008\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2008\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

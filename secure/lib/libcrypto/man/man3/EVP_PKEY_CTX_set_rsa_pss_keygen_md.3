@@ -133,13 +133,18 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_PKEY_CTX_SET_RSA_PSS_KEYGEN_MD 3"
-.TH EVP_PKEY_CTX_SET_RSA_PSS_KEYGEN_MD 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH EVP_PKEY_CTX_SET_RSA_PSS_KEYGEN_MD 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-EVP_PKEY_CTX_set_rsa_pss_keygen_md, EVP_PKEY_CTX_set_rsa_pss_keygen_mgf1_md, EVP_PKEY_CTX_set_rsa_pss_keygen_saltlen \&\- EVP_PKEY RSA\-PSS algorithm support functions
+EVP_PKEY_CTX_set_rsa_pss_keygen_md,
+EVP_PKEY_CTX_set_rsa_pss_keygen_md_name,
+EVP_PKEY_CTX_set_rsa_pss_keygen_mgf1_md,
+EVP_PKEY_CTX_set_rsa_pss_keygen_mgf1_md_name,
+EVP_PKEY_CTX_set_rsa_pss_keygen_saltlen
+\&\- EVP_PKEY RSA\-PSS algorithm support functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -147,8 +152,13 @@ EVP_PKEY_CTX_set_rsa_pss_keygen_md, EVP_PKEY_CTX_set_rsa_pss_keygen_mgf1_md, EVP
 \&
 \& int EVP_PKEY_CTX_set_rsa_pss_keygen_md(EVP_PKEY_CTX *pctx,
 \&                                        const EVP_MD *md);
+\& int EVP_PKEY_CTX_set_rsa_pss_keygen_md_name(EVP_PKEY_CTX *ctx,
+\&                                             const char *mdname,
+\&                                             const char *mdprops);
 \& int EVP_PKEY_CTX_set_rsa_pss_keygen_mgf1_md(EVP_PKEY_CTX *pctx,
 \&                                             const EVP_MD *md);
+\& int EVP_PKEY_CTX_set_rsa_pss_keygen_mgf1_md_name(EVP_PKEY_CTX *pctx,
+\&                                                  const char *mdname);
 \& int EVP_PKEY_CTX_set_rsa_pss_keygen_saltlen(EVP_PKEY_CTX *pctx,
 \&                                             int saltlen);
 .Ve
@@ -168,10 +178,10 @@ to the \fB\s-1RSA\s0\fR operation except detection of the salt length (using
 \&\s-1RSA_PSS_SALTLEN_AUTO\s0) is not supported for verification if the key has
 usage restrictions.
 .PP
-The \fBEVP_PKEY_CTX_set_signature_md()\fR and \fBEVP_PKEY_CTX_set_rsa_mgf1_md()\fR macros
-are used to set the digest and \s-1MGF1\s0 algorithms respectively. If the key has
-usage restrictions then an error is returned if an attempt is made to set the
-digest to anything other than the restricted value. Otherwise these are
+The \fBEVP_PKEY_CTX_set_signature_md\fR\|(3) and \fBEVP_PKEY_CTX_set_rsa_mgf1_md\fR\|(3)
+functions are used to set the digest and \s-1MGF1\s0 algorithms respectively. If the
+key has usage restrictions then an error is returned if an attempt is made to
+set the digest to anything other than the restricted value. Otherwise these are
 similar to the \fB\s-1RSA\s0\fR versions.
 .SS "Key Generation"
 .IX Subsection "Key Generation"
@@ -187,13 +197,17 @@ then they are reflected in the corresponding parameters of the public key
 when (for example) a certificate request is signed.
 .PP
 \&\fBEVP_PKEY_CTX_set_rsa_pss_keygen_md()\fR restricts the digest algorithm the
-generated key can use to \fBmd\fR.
+generated key can use to \fImd\fR.
+\&\fBEVP_PKEY_CTX_set_rsa_pss_keygen_md_name()\fR does the same thing, but
+passes the algorithm by name rather than by \fB\s-1EVP_MD\s0\fR.
 .PP
 \&\fBEVP_PKEY_CTX_set_rsa_pss_keygen_mgf1_md()\fR restricts the \s-1MGF1\s0 algorithm the
-generated key can use to \fBmd\fR.
+generated key can use to \fImd\fR.
+\&\fBEVP_PKEY_CTX_set_rsa_pss_keygen_mgf1_md_name()\fR does the same thing, but
+passes the algorithm by name rather than by \fB\s-1EVP_MD\s0\fR.
 .PP
 \&\fBEVP_PKEY_CTX_set_rsa_pss_keygen_saltlen()\fR restricts the minimum salt length
-to \fBsaltlen\fR.
+to \fIsaltlen\fR.
 .SH "NOTES"
 .IX Header "NOTES"
 A context for the \fBRSA-PSS\fR algorithm can be obtained by calling:
@@ -214,9 +228,9 @@ the public key algorithm.
 \&\fBEVP_PKEY_derive\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2017\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

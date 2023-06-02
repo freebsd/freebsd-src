@@ -133,18 +133,20 @@
 .\" ========================================================================
 .\"
 .IX Title "SMIME_READ_CMS 3"
-.TH SMIME_READ_CMS 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SMIME_READ_CMS 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SMIME_read_CMS \- parse S/MIME message
+SMIME_read_CMS_ex, SMIME_read_CMS \- parse S/MIME message
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/cms.h>
 \&
+\& CMS_ContentInfo *SMIME_read_CMS_ex(BIO *bio, int flags, BIO **bcont,
+\&                                    CMS_ContentInfo **cms);
 \& CMS_ContentInfo *SMIME_read_CMS(BIO *in, BIO **bcont);
 .Ve
 .SH "DESCRIPTION"
@@ -158,6 +160,15 @@ written to \fB*bcont\fR, otherwise \fB*bcont\fR is set to \s-1NULL.\s0
 .PP
 The parsed CMS_ContentInfo structure is returned or \s-1NULL\s0 if an
 error occurred.
+.PP
+\&\fBSMIME_read_CMS_ex()\fR is similar to \fBSMIME_read_CMS()\fR but optionally a previously
+created \fIcms\fR CMS_ContentInfo object can be supplied as well as some \fIflags\fR.
+To create a \fIcms\fR object use \fBCMS_ContentInfo_new_ex\fR\|(3).
+If the \fIflags\fR argument contains \fB\s-1CMS_BINARY\s0\fR then the input is assumed to be
+in binary format and is not translated to canonical form.
+If in addition \fB\s-1SMIME_ASCIICRLF\s0\fR is set then the binary input is assumed
+to be followed by \fB\s-1CR\s0\fR and \fB\s-1LF\s0\fR characters, else only by an \fB\s-1LF\s0\fR character.
+If \fIflags\fR is 0 and \fIcms\fR is \s-1NULL\s0 then it is identical to \fBSMIME_read_CMS()\fR.
 .SH "NOTES"
 .IX Header "NOTES"
 If \fB*bcont\fR is not \s-1NULL\s0 then the message is clear text signed. \fB*bcont\fR can
@@ -189,19 +200,24 @@ which can be processed due to memory restraints: a streaming single pass option
 should be available.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fBSMIME_read_CMS()\fR returns a valid \fBCMS_ContentInfo\fR structure or \fB\s-1NULL\s0\fR
-if an error occurred. The error can be obtained from \fBERR_get_error\fR\|(3).
+\&\fBSMIME_read_CMS_ex()\fR and \fBSMIME_read_CMS()\fR return a valid \fBCMS_ContentInfo\fR
+structure or \fB\s-1NULL\s0\fR if an error occurred. The error can be obtained from
+\&\fBERR_get_error\fR\|(3).
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fBERR_get_error\fR\|(3), \fBCMS_type\fR\|(3),
-\&\fBSMIME_read_CMS\fR\|(3), \fBCMS_sign\fR\|(3),
-\&\fBCMS_verify\fR\|(3), \fBCMS_encrypt\fR\|(3),
+\&\fBERR_get_error\fR\|(3),
+\&\fBCMS_sign\fR\|(3),
+\&\fBCMS_verify\fR\|(3),
+\&\fBCMS_encrypt\fR\|(3),
 \&\fBCMS_decrypt\fR\|(3)
+.SH "HISTORY"
+.IX Header "HISTORY"
+The function \fBSMIME_read_CMS_ex()\fR was added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2008\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2008\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

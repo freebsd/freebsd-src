@@ -133,22 +133,27 @@
 .\" ========================================================================
 .\"
 .IX Title "CMS_GET1_RECEIPTREQUEST 3"
-.TH CMS_GET1_RECEIPTREQUEST 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH CMS_GET1_RECEIPTREQUEST 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-CMS_ReceiptRequest_create0, CMS_add1_ReceiptRequest, CMS_get1_ReceiptRequest, CMS_ReceiptRequest_get0_values \- CMS signed receipt request functions
+CMS_ReceiptRequest_create0_ex, CMS_ReceiptRequest_create0,
+CMS_add1_ReceiptRequest, CMS_get1_ReceiptRequest, CMS_ReceiptRequest_get0_values
+\&\- CMS signed receipt request functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/cms.h>
 \&
-\& CMS_ReceiptRequest *CMS_ReceiptRequest_create0(unsigned char *id, int idlen,
-\&                                                int allorfirst,
-\&                                                STACK_OF(GENERAL_NAMES) *receiptList,
-\&                                                STACK_OF(GENERAL_NAMES) *receiptsTo);
+\& CMS_ReceiptRequest *CMS_ReceiptRequest_create0_ex(
+\&     unsigned char *id, int idlen, int allorfirst,
+\&     STACK_OF(GENERAL_NAMES) *receiptList, STACK_OF(GENERAL_NAMES) *receiptsTo,
+\&     OSSL_LIB_CTX *libctx);
+\& CMS_ReceiptRequest *CMS_ReceiptRequest_create0(
+\&     unsigned char *id, int idlen, int allorfirst,
+\&     STACK_OF(GENERAL_NAMES) *receiptList, STACK_OF(GENERAL_NAMES) *receiptsTo);
 \& int CMS_add1_ReceiptRequest(CMS_SignerInfo *si, CMS_ReceiptRequest *rr);
 \& int CMS_get1_ReceiptRequest(CMS_SignerInfo *si, CMS_ReceiptRequest **prr);
 \& void CMS_ReceiptRequest_get0_values(CMS_ReceiptRequest *rr, ASN1_STRING **pcid,
@@ -158,13 +163,18 @@ CMS_ReceiptRequest_create0, CMS_add1_ReceiptRequest, CMS_get1_ReceiptRequest, CM
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBCMS_ReceiptRequest_create0()\fR creates a signed receipt request structure. The
-\&\fBsignedContentIdentifier\fR field is set using \fBid\fR and \fBidlen\fR, or it is set
-to 32 bytes of pseudo random data if \fBid\fR is \s-1NULL.\s0 If \fBreceiptList\fR is \s-1NULL\s0
-the allOrFirstTier option in \fBreceiptsFrom\fR is used and set to the value of
-the \fBallorfirst\fR parameter. If \fBreceiptList\fR is not \s-1NULL\s0 the \fBreceiptList\fR
-option in \fBreceiptsFrom\fR is used. The \fBreceiptsTo\fR parameter specifies the
-\&\fBreceiptsTo\fR field value.
+\&\fBCMS_ReceiptRequest_create0_ex()\fR creates a signed receipt request
+structure. The \fBsignedContentIdentifier\fR field is set using \fIid\fR and \fIidlen\fR,
+or it is set to 32 bytes of pseudo random data if \fIid\fR is \s-1NULL.\s0
+If \fIreceiptList\fR is \s-1NULL\s0 the allOrFirstTier option in \fIreceiptsFrom\fR is used
+and set to the value of the \fIallorfirst\fR parameter. If \fIreceiptList\fR is not
+\&\s-1NULL\s0 the \fIreceiptList\fR option in \fIreceiptsFrom\fR is used. The \fIreceiptsTo\fR
+parameter specifies the \fIreceiptsTo\fR field value. The library context \fIlibctx\fR
+is used to find the public random generator.
+.PP
+\&\fBCMS_ReceiptRequest_create0()\fR is similar to
+\&\fBCMS_ReceiptRequest_create0_ex()\fR but uses default values of \s-1NULL\s0 for the
+library context \fIlibctx\fR.
 .PP
 The \fBCMS_add1_ReceiptRequest()\fR function adds a signed receipt request \fBrr\fR
 to SignerInfo structure \fBsi\fR.
@@ -186,8 +196,8 @@ corresponding CMS_ContentInfo structure can be successfully verified using
 \&\fBCMS_verify()\fR.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fBCMS_ReceiptRequest_create0()\fR returns a signed receipt request structure or
-\&\s-1NULL\s0 if an error occurred.
+\&\fBCMS_ReceiptRequest_create0_ex()\fR and \fBCMS_ReceiptRequest_create0()\fR return
+a signed receipt request structure or \s-1NULL\s0 if an error occurred.
 .PP
 \&\fBCMS_add1_ReceiptRequest()\fR returns 1 for success or 0 if an error occurred.
 .PP
@@ -199,11 +209,14 @@ it is present but malformed.
 \&\fBERR_get_error\fR\|(3), \fBCMS_sign\fR\|(3),
 \&\fBCMS_sign_receipt\fR\|(3), \fBCMS_verify\fR\|(3)
 \&\fBCMS_verify_receipt\fR\|(3)
+.SH "HISTORY"
+.IX Header "HISTORY"
+The function \fBCMS_ReceiptRequest_create0_ex()\fR was added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2008\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2008\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

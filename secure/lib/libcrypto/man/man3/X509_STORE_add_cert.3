@@ -133,13 +133,21 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_STORE_ADD_CERT 3"
-.TH X509_STORE_ADD_CERT 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH X509_STORE_ADD_CERT 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-X509_STORE, X509_STORE_add_cert, X509_STORE_add_crl, X509_STORE_set_depth, X509_STORE_set_flags, X509_STORE_set_purpose, X509_STORE_set_trust, X509_STORE_add_lookup, X509_STORE_load_locations, X509_STORE_set_default_paths \&\- X509_STORE manipulation
+X509_STORE,
+X509_STORE_add_cert, X509_STORE_add_crl, X509_STORE_set_depth,
+X509_STORE_set_flags, X509_STORE_set_purpose, X509_STORE_set_trust,
+X509_STORE_add_lookup,
+X509_STORE_load_file_ex, X509_STORE_load_file, X509_STORE_load_path,
+X509_STORE_load_store_ex, X509_STORE_load_store,
+X509_STORE_set_default_paths_ex, X509_STORE_set_default_paths,
+X509_STORE_load_locations_ex, X509_STORE_load_locations
+\&\- X509_STORE manipulation
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -157,9 +165,21 @@ X509_STORE, X509_STORE_add_cert, X509_STORE_add_crl, X509_STORE_set_depth, X509_
 \& X509_LOOKUP *X509_STORE_add_lookup(X509_STORE *store,
 \&                                    X509_LOOKUP_METHOD *meth);
 \&
+\& int X509_STORE_set_default_paths_ex(X509_STORE *ctx, OSSL_LIB_CTX *libctx,
+\&                                     const char *propq);
+\& int X509_STORE_set_default_paths(X509_STORE *ctx);
+\& int X509_STORE_load_file_ex(X509_STORE *ctx, const char *file,
+\&                             OSSL_LIB_CTX *libctx, const char *propq);
+\& int X509_STORE_load_file(X509_STORE *ctx, const char *file);
+\& int X509_STORE_load_path(X509_STORE *ctx, const char *dir);
+\& int X509_STORE_load_store_ex(X509_STORE *ctx, const char *uri,
+\&                              OSSL_LIB_CTX *libctx, const char *propq);
+\& int X509_STORE_load_store(X509_STORE *ctx, const char *uri);
+\& int X509_STORE_load_locations_ex(X509_STORE *ctx, const char *file,
+\&                                  const char *dir, OSSL_LIB_CTX *libctx,
+\&                                  const char *propq);
 \& int X509_STORE_load_locations(X509_STORE *ctx,
 \&                               const char *file, const char *dir);
-\& int X509_STORE_set_default_paths(X509_STORE *ctx);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -169,6 +189,10 @@ and validating chains of certificates terminating in trusted roots.
 It admits multiple lookup mechanisms and efficient scaling performance
 with large numbers of certificates, and a great deal of flexibility in
 how validation and policy checks are performed.
+.PP
+Details of the chain building and checking process are described in
+\&\*(L"Certification Path Building\*(R" in \fBopenssl\-verification\-options\fR\|(1) and
+\&\*(L"Certification Path Validation\*(R" in \fBopenssl\-verification\-options\fR\|(1).
 .PP
 \&\fBX509_STORE_new\fR\|(3) creates an empty \fBX509_STORE\fR structure, which contains
 no information about trusted certificates or where such certificates
@@ -208,22 +232,53 @@ pages, e.g., \fBX509_VERIFY_PARAM_set_depth\fR\|(3).
 \&\fIstore\fR.  This also associates the \fBX509_STORE\fR with the lookup, so
 \&\fBX509_LOOKUP\fR functions can look up objects in that store.
 .PP
-\&\fBX509_STORE_load_locations()\fR loads trusted certificate(s) into an
-\&\fBX509_STORE\fR from a given file and/or directory path.  It is permitted
-to specify just a file, just a directory, or both paths.  The certificates
-in the directory must be in hashed form, as documented in
-\&\fBX509_LOOKUP_hash_dir\fR\|(3).
+\&\fBX509_STORE_load_file_ex()\fR loads trusted certificate(s) into an
+\&\fBX509_STORE\fR from a given file. The library context \fIlibctx\fR and property
+query \fIpropq\fR are used when fetching algorithms from providers.
 .PP
-\&\fBX509_STORE_set_default_paths()\fR is somewhat misnamed, in that it does not
-set what default paths should be used for loading certificates.  Instead,
-it loads certificates into the \fBX509_STORE\fR from the hardcoded default
+\&\fBX509_STORE_load_file()\fR is similar to \fBX509_STORE_load_file_ex()\fR but
+uses \s-1NULL\s0 for the library context \fIlibctx\fR and property query \fIpropq\fR.
+.PP
+\&\fBX509_STORE_load_path()\fR loads trusted certificate(s) into an
+\&\fBX509_STORE\fR from a given directory path.
+The certificates in the directory must be in hashed form, as
+documented in \fBX509_LOOKUP_hash_dir\fR\|(3).
+.PP
+\&\fBX509_STORE_load_store_ex()\fR loads trusted certificate(s) into an
+\&\fBX509_STORE\fR from a store at a given \s-1URI.\s0 The library context \fIlibctx\fR and
+property query \fIpropq\fR are used when fetching algorithms from providers.
+.PP
+\&\fBX509_STORE_load_store()\fR is similar to \fBX509_STORE_load_store_ex()\fR but
+uses \s-1NULL\s0 for the library context \fIlibctx\fR and property query \fIpropq\fR.
+.PP
+\&\fBX509_STORE_load_locations_ex()\fR combines
+\&\fBX509_STORE_load_file_ex()\fR and \fBX509_STORE_load_path()\fR for a given file
+and/or directory path.
+It is permitted to specify just a file, just a directory, or both
 paths.
+.PP
+\&\fBX509_STORE_load_locations()\fR is similar to \fBX509_STORE_load_locations_ex()\fR
+but uses \s-1NULL\s0 for the library context \fIlibctx\fR and property query \fIpropq\fR.
+.PP
+\&\fBX509_STORE_set_default_paths_ex()\fR is somewhat misnamed, in that it does
+not set what default paths should be used for loading certificates.  Instead,
+it loads certificates into the \fBX509_STORE\fR from the hardcoded default
+paths. The library context \fIlibctx\fR and property query \fIpropq\fR are used when
+fetching algorithms from providers.
+.PP
+\&\fBX509_STORE_set_default_paths()\fR is similar to
+\&\fBX509_STORE_set_default_paths_ex()\fR but uses \s-1NULL\s0 for the library
+context \fIlibctx\fR and property query \fIpropq\fR.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fBX509_STORE_add_cert()\fR, \fBX509_STORE_add_crl()\fR, \fBX509_STORE_set_depth()\fR,
-\&\fBX509_STORE_set_flags()\fR, \fBX509_STORE_set_purpose()\fR,
-\&\fBX509_STORE_set_trust()\fR, \fBX509_STORE_load_locations()\fR, and
-\&\fBX509_STORE_set_default_paths()\fR return 1 on success or 0 on failure.
+\&\fBX509_STORE_set_flags()\fR, \fBX509_STORE_set_purpose()\fR, \fBX509_STORE_set_trust()\fR,
+\&\fBX509_STORE_load_file_ex()\fR, \fBX509_STORE_load_file()\fR,
+\&\fBX509_STORE_load_path()\fR,
+\&\fBX509_STORE_load_store_ex()\fR, \fBX509_STORE_load_store()\fR,
+\&\fBX509_STORE_load_locations_ex()\fR, \fBX509_STORE_load_locations()\fR,
+\&\fBX509_STORE_set_default_paths_ex()\fR and \fBX509_STORE_set_default_paths()\fR
+return 1 on success or 0 on failure.
 .PP
 \&\fBX509_STORE_add_lookup()\fR returns the found or created
 \&\fBX509_LOOKUP\fR\|(3), or \s-1NULL\s0 on error.
@@ -233,11 +288,16 @@ paths.
 \&\fBX509_VERIFY_PARAM_set_depth\fR\|(3).
 \&\fBX509_STORE_new\fR\|(3),
 \&\fBX509_STORE_get0_param\fR\|(3)
+.SH "HISTORY"
+.IX Header "HISTORY"
+The functions \fBX509_STORE_set_default_paths_ex()\fR,
+\&\fBX509_STORE_load_file_ex()\fR, \fBX509_STORE_load_store_ex()\fR and
+\&\fBX509_STORE_load_locations_ex()\fR were added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2017\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

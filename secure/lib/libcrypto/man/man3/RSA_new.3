@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "RSA_NEW 3"
-.TH RSA_NEW 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH RSA_NEW 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -144,7 +144,13 @@ RSA_new, RSA_free \- allocate and free RSA objects
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/rsa.h>
-\&
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 1
 \& RSA *RSA_new(void);
 \&
 \& void RSA_free(RSA *rsa);
@@ -169,11 +175,15 @@ a pointer to the newly allocated structure.
 \&\fBERR_get_error\fR\|(3),
 \&\fBRSA_generate_key\fR\|(3),
 \&\fBRSA_new_method\fR\|(3)
+.SH "HISTORY"
+.IX Header "HISTORY"
+All functions described here were deprecated in OpenSSL 3.0.
+For replacement see \s-1\fBEVP_PKEY\-RSA\s0\fR\|(7).
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

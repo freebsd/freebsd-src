@@ -133,13 +133,17 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET_CT_VALIDATION_CALLBACK 3"
-.TH SSL_CTX_SET_CT_VALIDATION_CALLBACK 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_CTX_SET_CT_VALIDATION_CALLBACK 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-ssl_ct_validation_cb, SSL_enable_ct, SSL_CTX_enable_ct, SSL_disable_ct, SSL_CTX_disable_ct, SSL_set_ct_validation_callback, SSL_CTX_set_ct_validation_callback, SSL_ct_is_enabled, SSL_CTX_ct_is_enabled \- control Certificate Transparency policy
+ssl_ct_validation_cb,
+SSL_enable_ct, SSL_CTX_enable_ct, SSL_disable_ct, SSL_CTX_disable_ct,
+SSL_set_ct_validation_callback, SSL_CTX_set_ct_validation_callback,
+SSL_ct_is_enabled, SSL_CTX_ct_is_enabled \-
+control Certificate Transparency policy
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -202,7 +206,7 @@ sufficient to allow the connection to continue.
 The \s-1TLS\s0 handshake is aborted if the verification mode is not \fB\s-1SSL_VERIFY_NONE\s0\fR
 and the callback returns a non-positive result.
 .PP
-An arbitrary callback context argument, \fBarg\fR, can be passed in when setting
+An arbitrary callback data argument, \fBarg\fR, can be passed in when setting
 the callback.
 This will be passed to the callback whenever it is invoked.
 Ownership of this context remains with the caller.
@@ -263,9 +267,9 @@ callback) is set.
 \&\fBSSL_SESSION_get_time\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2016\-2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

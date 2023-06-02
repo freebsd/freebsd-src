@@ -133,13 +133,15 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_PKEY_CTX_SET_TLS1_PRF_MD 3"
-.TH EVP_PKEY_CTX_SET_TLS1_PRF_MD 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH EVP_PKEY_CTX_SET_TLS1_PRF_MD 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-EVP_PKEY_CTX_set_tls1_prf_md, EVP_PKEY_CTX_set1_tls1_prf_secret, EVP_PKEY_CTX_add1_tls1_prf_seed \- TLS PRF key derivation algorithm
+EVP_PKEY_CTX_set_tls1_prf_md,
+EVP_PKEY_CTX_set1_tls1_prf_secret, EVP_PKEY_CTX_add1_tls1_prf_seed \-
+TLS PRF key derivation algorithm
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -179,8 +181,6 @@ The names \*(L"hexsecret\*(R" and \*(L"hexseed\*(R" are similar except they take
 which is converted to binary.
 .SH "NOTES"
 .IX Header "NOTES"
-All these functions are implemented as macros.
-.PP
 A context for the \s-1TLS PRF\s0 can be obtained by calling:
 .PP
 .Vb 1
@@ -230,11 +230,15 @@ and seed value \*(L"seed\*(R":
 \&\fBEVP_PKEY_CTX_new\fR\|(3),
 \&\fBEVP_PKEY_CTX_ctrl_str\fR\|(3),
 \&\fBEVP_PKEY_derive\fR\|(3)
+.SH "HISTORY"
+.IX Header "HISTORY"
+All of the functions described here were converted from macros to functions in
+OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2016\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

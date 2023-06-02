@@ -133,21 +133,24 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_STORE_GET0_PARAM 3"
-.TH X509_STORE_GET0_PARAM 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH X509_STORE_GET0_PARAM 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-X509_STORE_get0_param, X509_STORE_set1_param, X509_STORE_get0_objects \- X509_STORE setter and getter functions
+X509_STORE_get0_param, X509_STORE_set1_param,
+X509_STORE_get0_objects, X509_STORE_get1_all_certs
+\&\- X509_STORE setter and getter functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/x509_vfy.h>
 \&
-\& X509_VERIFY_PARAM *X509_STORE_get0_param(X509_STORE *ctx);
-\& int X509_STORE_set1_param(X509_STORE *ctx, X509_VERIFY_PARAM *pm);
-\& STACK_OF(X509_OBJECT) *X509_STORE_get0_objects(X509_STORE *ctx);
+\& X509_VERIFY_PARAM *X509_STORE_get0_param(const X509_STORE *ctx);
+\& int X509_STORE_set1_param(X509_STORE *ctx, const X509_VERIFY_PARAM *pm);
+\& STACK_OF(X509_OBJECT) *X509_STORE_get0_objects(const X509_STORE *ctx);
+\& STACK_OF(X509) *X509_STORE_get1_all_certs(X509_STORE *st);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -158,9 +161,12 @@ to \fBpm\fR for \fBctx\fR.
 parameters for \fBctx\fR. The returned pointer must not be freed by the
 calling application
 .PP
-\&\fBX509_STORE_get0_objects()\fR retrieve an internal pointer to the store's
+\&\fBX509_STORE_get0_objects()\fR retrieves an internal pointer to the store's
 X509 object cache. The cache contains \fBX509\fR and \fBX509_CRL\fR objects. The
 returned pointer must not be freed by the calling application.
+.PP
+\&\fBX509_STORE_get1_all_certs()\fR returns a list of all certificates in the store.
+The caller is responsible for freeing the returned list.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fBX509_STORE_get0_param()\fR returns a pointer to an
@@ -169,6 +175,9 @@ returned pointer must not be freed by the calling application.
 \&\fBX509_STORE_set1_param()\fR returns 1 for success and 0 for failure.
 .PP
 \&\fBX509_STORE_get0_objects()\fR returns a pointer to a stack of \fBX509_OBJECT\fR.
+.PP
+\&\fBX509_STORE_get1_all_certs()\fR returns a pointer to a stack of the retrieved
+certificates on success, else \s-1NULL.\s0
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBX509_STORE_new\fR\|(3)
@@ -176,11 +185,12 @@ returned pointer must not be freed by the calling application.
 .IX Header "HISTORY"
 \&\fBX509_STORE_get0_param\fR and \fBX509_STORE_get0_objects\fR were added in
 OpenSSL 1.1.0.
+\&\fBX509_STORE_get1_certs\fR was added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

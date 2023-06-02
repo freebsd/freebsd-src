@@ -133,13 +133,17 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL_INIT_CRYPTO 3"
-.TH OPENSSL_INIT_CRYPTO 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH OPENSSL_INIT_CRYPTO 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-OPENSSL_INIT_new, OPENSSL_INIT_set_config_filename, OPENSSL_INIT_set_config_appname, OPENSSL_INIT_set_config_file_flags, OPENSSL_INIT_free, OPENSSL_init_crypto, OPENSSL_cleanup, OPENSSL_atexit, OPENSSL_thread_stop \- OpenSSL initialisation and deinitialisation functions
+OPENSSL_INIT_new, OPENSSL_INIT_set_config_filename,
+OPENSSL_INIT_set_config_appname, OPENSSL_INIT_set_config_file_flags,
+OPENSSL_INIT_free, OPENSSL_init_crypto, OPENSSL_cleanup, OPENSSL_atexit,
+OPENSSL_thread_stop_ex, OPENSSL_thread_stop \- OpenSSL initialisation
+and deinitialisation functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -148,6 +152,7 @@ OPENSSL_INIT_new, OPENSSL_INIT_set_config_filename, OPENSSL_INIT_set_config_appn
 \& void OPENSSL_cleanup(void);
 \& int OPENSSL_init_crypto(uint64_t opts, const OPENSSL_INIT_SETTINGS *settings);
 \& int OPENSSL_atexit(void (*handler)(void));
+\& void OPENSSL_thread_stop_ex(OSSL_LIB_CTX *ctx);
 \& void OPENSSL_thread_stop(void);
 \&
 \& OPENSSL_INIT_SETTINGS *OPENSSL_INIT_new(void);
@@ -224,10 +229,12 @@ calls to \fBOPENSSL_init_crypto()\fR with the option
 .IP "\s-1OPENSSL_INIT_LOAD_CONFIG\s0" 4
 .IX Item "OPENSSL_INIT_LOAD_CONFIG"
 With this option an OpenSSL configuration file will be automatically loaded and
-used by calling \fBOPENSSL_config()\fR. This is not a default option for libcrypto.
-As of OpenSSL 1.1.1 this is a default option for libssl (see
-\&\fBOPENSSL_init_ssl\fR\|(3) for further details about libssl initialisation). See the
-description of \fBOPENSSL_INIT_new()\fR, below.
+used by calling \fBOPENSSL_config()\fR. This is a default option.
+Note that in OpenSSL 1.1.1 this was the default for libssl but not for
+libcrypto (see \fBOPENSSL_init_ssl\fR\|(3) for further details about libssl
+initialisation).
+In OpenSSL 1.1.0 this was a nondefault option for both libssl and libcrypto.
+See the description of \fBOPENSSL_INIT_new()\fR, below.
 .IP "\s-1OPENSSL_INIT_NO_LOAD_CONFIG\s0" 4
 .IX Item "OPENSSL_INIT_NO_LOAD_CONFIG"
 With this option the loading of OpenSSL configuration files will be suppressed.
@@ -240,36 +247,44 @@ sub-library (see \fBASYNC_start_job\fR\|(3)). This is a default option.
 .IP "\s-1OPENSSL_INIT_ENGINE_RDRAND\s0" 4
 .IX Item "OPENSSL_INIT_ENGINE_RDRAND"
 With this option the library will automatically load and initialise the
-\&\s-1RDRAND\s0 engine (if available). This not a default option.
+\&\s-1RDRAND\s0 engine (if available). This not a default option and is deprecated
+in OpenSSL 3.0.
 .IP "\s-1OPENSSL_INIT_ENGINE_DYNAMIC\s0" 4
 .IX Item "OPENSSL_INIT_ENGINE_DYNAMIC"
 With this option the library will automatically load and initialise the
-dynamic engine. This not a default option.
+dynamic engine. This not a default option and is deprecated
+in OpenSSL 3.0.
 .IP "\s-1OPENSSL_INIT_ENGINE_OPENSSL\s0" 4
 .IX Item "OPENSSL_INIT_ENGINE_OPENSSL"
 With this option the library will automatically load and initialise the
-openssl engine. This not a default option.
+openssl engine. This not a default option and is deprecated
+in OpenSSL 3.0.
 .IP "\s-1OPENSSL_INIT_ENGINE_CRYPTODEV\s0" 4
 .IX Item "OPENSSL_INIT_ENGINE_CRYPTODEV"
 With this option the library will automatically load and initialise the
-cryptodev engine (if available). This not a default option.
+cryptodev engine (if available). This not a default option and is deprecated
+in OpenSSL 3.0.
 .IP "\s-1OPENSSL_INIT_ENGINE_CAPI\s0" 4
 .IX Item "OPENSSL_INIT_ENGINE_CAPI"
 With this option the library will automatically load and initialise the
-\&\s-1CAPI\s0 engine (if available). This not a default option.
+\&\s-1CAPI\s0 engine (if available). This not a default option and is deprecated
+in OpenSSL 3.0.
 .IP "\s-1OPENSSL_INIT_ENGINE_PADLOCK\s0" 4
 .IX Item "OPENSSL_INIT_ENGINE_PADLOCK"
 With this option the library will automatically load and initialise the
-padlock engine (if available). This not a default option.
+padlock engine (if available). This not a default option and is deprecated
+in OpenSSL 3.0.
 .IP "\s-1OPENSSL_INIT_ENGINE_AFALG\s0" 4
 .IX Item "OPENSSL_INIT_ENGINE_AFALG"
 With this option the library will automatically load and initialise the
-\&\s-1AFALG\s0 engine. This not a default option.
+\&\s-1AFALG\s0 engine. This not a default option and is deprecated
+in OpenSSL 3.0.
 .IP "\s-1OPENSSL_INIT_ENGINE_ALL_BUILTIN\s0" 4
 .IX Item "OPENSSL_INIT_ENGINE_ALL_BUILTIN"
 With this option the library will automatically load and initialise all the
 built in engines listed above with the exception of the openssl and afalg
-engines. This not a default option.
+engines. This not a default option and is deprecated
+in OpenSSL 3.0.
 .IP "\s-1OPENSSL_INIT_ATFORK\s0" 4
 .IX Item "OPENSSL_INIT_ATFORK"
 With this option the library will register its fork handlers.
@@ -306,7 +321,7 @@ Attempts to call \fBOPENSSL_init_crypto()\fR will fail and an \s-1ERR_R_INIT_FAI
 will be added to the error stack. Note that because initialisation has failed
 OpenSSL error strings will not be available, only an error code. This code can
 be put through the openssl errstr command line application to produce a human
-readable error (see \fBerrstr\fR\|(1)).
+readable error (see \fBopenssl\-errstr\fR\|(1)).
 .PP
 The \fBOPENSSL_atexit()\fR function enables the registration of a
 function to be called during \fBOPENSSL_cleanup()\fR. Stop handlers are
@@ -314,11 +329,25 @@ called after deinitialisation of resources local to a thread, but before other
 process wide resources are freed. In the event that multiple stop handlers are
 registered, no guarantees are made about the order of execution.
 .PP
-The \fBOPENSSL_thread_stop()\fR function deallocates resources associated
-with the current thread. Typically this function will be called automatically by
-the library when the thread exits. This should only be called directly if
-resources should be freed at an earlier time, or under the circumstances
-described in the \s-1NOTES\s0 section below.
+The \fBOPENSSL_thread_stop_ex()\fR function deallocates resources associated
+with the current thread for the given \s-1OSSL_LIB_CTX\s0 \fBctx\fR. The \fBctx\fR parameter
+can be \s-1NULL\s0 in which case the default \s-1OSSL_LIB_CTX\s0 is used.
+.PP
+Typically, this function will be called automatically by the library when
+the thread exits as long as the \s-1OSSL_LIB_CTX\s0 has not been freed before the thread
+exits. If \fBOSSL_LIB_CTX_free()\fR is called OPENSSL_thread_stop_ex will be called
+automatically for the current thread (but not any other threads that may have
+used this \s-1OSSL_LIB_CTX\s0).
+.PP
+OPENSSL_thread_stop_ex should be called on all threads that will exit after the
+\&\s-1OSSL_LIB_CTX\s0 is freed.
+Typically this is not necessary for the default \s-1OSSL_LIB_CTX\s0 (because all
+resources are cleaned up on library exit) except if thread local resources
+should be freed before library exit, or under the circumstances described in
+the \s-1NOTES\s0 section below.
+.PP
+\&\fBOPENSSL_thread_stop()\fR is the same as \fBOPENSSL_thread_stop_ex()\fR except that the
+default \s-1OSSL_LIB_CTX\s0 is always used.
 .PP
 The \fB\s-1OPENSSL_INIT_LOAD_CONFIG\s0\fR flag will load a configuration file, as with
 \&\fBCONF_modules_load_file\fR\|(3) with \s-1NULL\s0 filename and application name and the
@@ -326,7 +355,7 @@ The \fB\s-1OPENSSL_INIT_LOAD_CONFIG\s0\fR flag will load a configuration file, a
 \&\fB\s-1CONF_MFLAGS_DEFAULT_SECTION\s0\fR flags.
 The filename, application name, and flags can be customized by providing a
 non-null \fB\s-1OPENSSL_INIT_SETTINGS\s0\fR object.
-The object can be allocated via \fB\fBOPENSSL_init_new()\fB\fR.
+The object can be allocated via \fB\fBOPENSSL_INIT_new()\fB\fR.
 The \fB\fBOPENSSL_INIT_set_config_filename()\fB\fR function can be used to specify a
 nondefault filename, which is copied and need not refer to persistent storage.
 Similarly, \fBOPENSSL_INIT_set_config_appname()\fR can be used to specify a
@@ -373,7 +402,7 @@ and \fBOPENSSL_INIT_free()\fR functions were added in OpenSSL 1.1.0.
 .IX Header "COPYRIGHT"
 Copyright 2016\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

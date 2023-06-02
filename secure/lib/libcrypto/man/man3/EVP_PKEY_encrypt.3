@@ -133,12 +133,13 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_PKEY_ENCRYPT 3"
-.TH EVP_PKEY_ENCRYPT 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH EVP_PKEY_ENCRYPT 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
+EVP_PKEY_encrypt_init_ex,
 EVP_PKEY_encrypt_init, EVP_PKEY_encrypt \- encrypt using a public key algorithm
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
@@ -146,6 +147,7 @@ EVP_PKEY_encrypt_init, EVP_PKEY_encrypt \- encrypt using a public key algorithm
 \& #include <openssl/evp.h>
 \&
 \& int EVP_PKEY_encrypt_init(EVP_PKEY_CTX *ctx);
+\& int EVP_PKEY_encrypt_init_ex(EVP_PKEY_CTX *ctx, const OSSL_PARAM params[]);
 \& int EVP_PKEY_encrypt(EVP_PKEY_CTX *ctx,
 \&                      unsigned char *out, size_t *outlen,
 \&                      const unsigned char *in, size_t inlen);
@@ -154,6 +156,10 @@ EVP_PKEY_encrypt_init, EVP_PKEY_encrypt \- encrypt using a public key algorithm
 .IX Header "DESCRIPTION"
 The \fBEVP_PKEY_encrypt_init()\fR function initializes a public key algorithm
 context using key \fBpkey\fR for an encryption operation.
+.PP
+The \fBEVP_PKEY_encrypt_init_ex()\fR function initializes a public key algorithm
+context using key \fBpkey\fR for an encryption operation and sets the
+algorithm specific \fBparams\fR.
 .PP
 The \fBEVP_PKEY_encrypt()\fR function performs a public key encryption operation
 using \fBctx\fR. The data to be encrypted is specified using the \fBin\fR and
@@ -166,15 +172,17 @@ before the call the \fBoutlen\fR parameter should contain the length of the
 .IX Header "NOTES"
 After the call to \fBEVP_PKEY_encrypt_init()\fR algorithm specific control
 operations can be performed to set any appropriate parameters for the
-operation.
+operation.  These operations can be included in the \fBEVP_PKEY_encrypt_init_ex()\fR
+call.
 .PP
 The function \fBEVP_PKEY_encrypt()\fR can be called more than once on the same
 context if several operations are performed using the same parameters.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fBEVP_PKEY_encrypt_init()\fR and \fBEVP_PKEY_encrypt()\fR return 1 for success and 0
-or a negative value for failure. In particular a return value of \-2
-indicates the operation is not supported by the public key algorithm.
+\&\fBEVP_PKEY_encrypt_init()\fR, \fBEVP_PKEY_encrypt_init_ex()\fR and \fBEVP_PKEY_encrypt()\fR
+return 1 for success and 0 or a negative value for failure. In particular a
+return value of \-2 indicates the operation is not supported by the public key
+algorithm.
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
 Encrypt data using \s-1OAEP\s0 (for \s-1RSA\s0 keys). See also \fBPEM_read_PUBKEY\fR\|(3) or
@@ -201,7 +209,7 @@ set 'eng = \s-1NULL\s0;' to start with the default OpenSSL \s-1RSA\s0 implementa
 \&     /* Error occurred */
 \& if (EVP_PKEY_encrypt_init(ctx) <= 0)
 \&     /* Error */
-\& if (EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_OAEP_PADDING) <= 0)
+\& if (EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_OAEP_PADDING) <= 0)
 \&     /* Error */
 \&
 \& /* Determine buffer length */
@@ -233,9 +241,9 @@ set 'eng = \s-1NULL\s0;' to start with the default OpenSSL \s-1RSA\s0 implementa
 These functions were added in OpenSSL 1.0.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2006\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

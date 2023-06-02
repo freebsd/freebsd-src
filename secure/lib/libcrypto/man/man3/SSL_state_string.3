@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_STATE_STRING 3"
-.TH SSL_STATE_STRING 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_STATE_STRING 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -150,10 +150,10 @@ SSL_state_string, SSL_state_string_long \- get textual description of state of a
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBSSL_state_string()\fR returns a 6 letter string indicating the current state
-of the \s-1SSL\s0 object \fBssl\fR.
+\&\fBSSL_state_string()\fR returns an abbreviated string indicating the current state
+of the \s-1SSL\s0 object \fBssl\fR. The returned NUL-terminated string contains 6 or fewer characters.
 .PP
-\&\fBSSL_state_string_long()\fR returns a string indicating the current state of
+\&\fBSSL_state_string_long()\fR returns a descriptive string indicating the current state of
 the \s-1SSL\s0 object \fBssl\fR.
 .SH "NOTES"
 .IX Header "NOTES"
@@ -177,9 +177,9 @@ Detailed description of possible states to be included later.
 \&\fBssl\fR\|(7), \fBSSL_CTX_set_info_callback\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2001\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

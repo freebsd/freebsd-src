@@ -133,20 +133,22 @@
 .\" ========================================================================
 .\"
 .IX Title "I2D_RE_X509_TBS 3"
-.TH I2D_RE_X509_TBS 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH I2D_RE_X509_TBS 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-d2i_X509_AUX, i2d_X509_AUX, i2d_re_X509_tbs, i2d_re_X509_CRL_tbs, i2d_re_X509_REQ_tbs \&\- X509 encode and decode functions
+d2i_X509_AUX, i2d_X509_AUX,
+i2d_re_X509_tbs, i2d_re_X509_CRL_tbs, i2d_re_X509_REQ_tbs
+\&\- X509 encode and decode functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/x509.h>
 \&
 \& X509 *d2i_X509_AUX(X509 **px, const unsigned char **in, long len);
-\& int i2d_X509_AUX(X509 *x, unsigned char **out);
+\& int i2d_X509_AUX(const X509 *x, unsigned char **out);
 \& int i2d_re_X509_tbs(X509 *x, unsigned char **out);
 \& int i2d_re_X509_CRL_tbs(X509_CRL *crl, unsigned char **pp);
 \& int i2d_re_X509_REQ_tbs(X509_REQ *req, unsigned char **pp);
@@ -189,7 +191,7 @@ TBSCertificate portion of the \fBX509\fR can be manually renewed by calling
 \&\fBi2d_X509_AUX()\fR returns the length of encoded data or \-1 on error.
 .PP
 \&\fBi2d_re_X509_tbs()\fR, \fBi2d_re_X509_CRL_tbs()\fR and \fBi2d_re_X509_REQ_tbs()\fR return the
-length of encoded data or 0 on error.
+length of encoded data or <=0 on error.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBERR_get_error\fR\|(3)
@@ -210,9 +212,9 @@ length of encoded data or 0 on error.
 \&\fBX509_verify_cert\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2002\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

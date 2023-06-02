@@ -133,22 +133,33 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_PKEY_KEYGEN 3"
-.TH EVP_PKEY_KEYGEN 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH EVP_PKEY_KEYGEN 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-EVP_PKEY_keygen_init, EVP_PKEY_keygen, EVP_PKEY_paramgen_init, EVP_PKEY_paramgen, EVP_PKEY_CTX_set_cb, EVP_PKEY_CTX_get_cb, EVP_PKEY_CTX_get_keygen_info, EVP_PKEY_CTX_set_app_data, EVP_PKEY_CTX_get_app_data, EVP_PKEY_gen_cb, EVP_PKEY_check, EVP_PKEY_public_check, EVP_PKEY_param_check \&\- key and parameter generation and check functions
+EVP_PKEY_Q_keygen,
+EVP_PKEY_keygen_init, EVP_PKEY_paramgen_init, EVP_PKEY_generate,
+EVP_PKEY_CTX_set_cb, EVP_PKEY_CTX_get_cb,
+EVP_PKEY_CTX_get_keygen_info, EVP_PKEY_CTX_set_app_data,
+EVP_PKEY_CTX_get_app_data,
+EVP_PKEY_gen_cb,
+EVP_PKEY_paramgen, EVP_PKEY_keygen
+\&\- key and parameter generation and check functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/evp.h>
 \&
+\& EVP_PKEY *EVP_PKEY_Q_keygen(OSSL_LIB_CTX *libctx, const char *propq,
+\&                             const char *type, ...);
+\&
 \& int EVP_PKEY_keygen_init(EVP_PKEY_CTX *ctx);
-\& int EVP_PKEY_keygen(EVP_PKEY_CTX *ctx, EVP_PKEY **ppkey);
 \& int EVP_PKEY_paramgen_init(EVP_PKEY_CTX *ctx);
+\& int EVP_PKEY_generate(EVP_PKEY_CTX *ctx, EVP_PKEY **ppkey);
 \& int EVP_PKEY_paramgen(EVP_PKEY_CTX *ctx, EVP_PKEY **ppkey);
+\& int EVP_PKEY_keygen(EVP_PKEY_CTX *ctx, EVP_PKEY **ppkey);
 \&
 \& typedef int EVP_PKEY_gen_cb(EVP_PKEY_CTX *ctx);
 \&
@@ -159,31 +170,54 @@ EVP_PKEY_keygen_init, EVP_PKEY_keygen, EVP_PKEY_paramgen_init, EVP_PKEY_paramgen
 \&
 \& void EVP_PKEY_CTX_set_app_data(EVP_PKEY_CTX *ctx, void *data);
 \& void *EVP_PKEY_CTX_get_app_data(EVP_PKEY_CTX *ctx);
-\&
-\& int EVP_PKEY_check(EVP_PKEY_CTX *ctx);
-\& int EVP_PKEY_public_check(EVP_PKEY_CTX *ctx);
-\& int EVP_PKEY_param_check(EVP_PKEY_CTX *ctx);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-The \fBEVP_PKEY_keygen_init()\fR function initializes a public key algorithm
-context using key \fBpkey\fR for a key generation operation.
+Generating keys is sometimes straight forward, just generate the key's
+numbers and be done with it.  However, there are certain key types that need
+key parameters, often called domain parameters but not necessarily limited
+to that, that also need to be generated.  In addition to this, the caller
+may want to set user provided generation parameters that further affect key
+parameter or key generation, such as the desired key size.
 .PP
-The \fBEVP_PKEY_keygen()\fR function performs a key generation operation, the
-generated key is written to \fBppkey\fR.
+To flexibly allow all that's just been described, key parameter and key
+generation is divided into an initialization of a key algorithm context,
+functions to set user provided parameters, and finally the key parameter or
+key generation function itself.
 .PP
-The functions \fBEVP_PKEY_paramgen_init()\fR and \fBEVP_PKEY_paramgen()\fR are similar
-except parameters are generated.
+The key algorithm context must be created using \fBEVP_PKEY_CTX_new\fR\|(3) or
+variants thereof, see that manual for details.
+.PP
+\&\fBEVP_PKEY_keygen_init()\fR initializes a public key algorithm context \fIctx\fR
+for a key generation operation.
+.PP
+\&\fBEVP_PKEY_paramgen_init()\fR is similar to \fBEVP_PKEY_keygen_init()\fR except key
+parameters are generated.
+.PP
+After initialization, generation parameters may be provided with
+\&\fBEVP_PKEY_CTX_ctrl\fR\|(3) or \fBEVP_PKEY_CTX_set_params\fR\|(3), or any other
+function described in those manuals.
+.PP
+\&\fBEVP_PKEY_generate()\fR performs the generation operation, the resulting key
+parameters or key are written to \fI*ppkey\fR.  If \fI*ppkey\fR is \s-1NULL\s0 when this
+function is called, it will be allocated, and should be freed by the caller
+when no longer useful, using \fBEVP_PKEY_free\fR\|(3).
+.PP
+\&\fBEVP_PKEY_paramgen()\fR and \fBEVP_PKEY_keygen()\fR do exactly the same thing as
+\&\fBEVP_PKEY_generate()\fR, after checking that the corresponding \fBEVP_PKEY_paramgen_init()\fR
+or \fBEVP_PKEY_keygen_init()\fR was used to initialize \fIctx\fR.
+These are older functions that are kept for backward compatibility.
+It is safe to use \fBEVP_PKEY_generate()\fR instead.
 .PP
 The function \fBEVP_PKEY_set_cb()\fR sets the key or parameter generation callback
-to \fBcb\fR. The function \fBEVP_PKEY_CTX_get_cb()\fR returns the key or parameter
+to \fIcb\fR. The function \fBEVP_PKEY_CTX_get_cb()\fR returns the key or parameter
 generation callback.
 .PP
 The function \fBEVP_PKEY_CTX_get_keygen_info()\fR returns parameters associated
-with the generation operation. If \fBidx\fR is \-1 the total number of
+with the generation operation. If \fIidx\fR is \-1 the total number of
 parameters available is returned. Any non negative value returns the value of
 that parameter. \fBEVP_PKEY_CTX_gen_keygen_info()\fR with a nonnegative value for
-\&\fBidx\fR should only be called within the generation callback.
+\&\fIidx\fR should only be called within the generation callback.
 .PP
 If the callback returns 0 then the key generation operation is aborted and an
 error occurs. This might occur during a time consuming operation where
@@ -194,17 +228,25 @@ and retrieve an opaque pointer. This can be used to set some application
 defined value which can be retrieved in the callback: for example a handle
 which is used to update a \*(L"progress dialog\*(R".
 .PP
-\&\fBEVP_PKEY_check()\fR validates the key-pair given by \fBctx\fR. This function first tries
-to use customized key check method in \fB\s-1EVP_PKEY_METHOD\s0\fR if it's present; otherwise
-it calls a default one defined in \fB\s-1EVP_PKEY_ASN1_METHOD\s0\fR.
+\&\fBEVP_PKEY_Q_keygen()\fR abstracts from the explicit use of \fB\s-1EVP_PKEY_CTX\s0\fR while
+providing a 'quick' but limited way of generating a new asymmetric key pair.
+It provides shorthands for simple and common cases of key generation.
+As usual, the library context \fIlibctx\fR and property query \fIpropq\fR
+can be given for fetching algorithms from providers.
+If \fItype\fR is \f(CW\*(C`RSA\*(C'\fR,
+a \fBsize_t\fR parameter must be given to specify the size of the \s-1RSA\s0 key.
+If \fItype\fR is \f(CW\*(C`EC\*(C'\fR,
+a string parameter must be given to specify the name of the \s-1EC\s0 curve.
+If \fItype\fR is \f(CW\*(C`X25519\*(C'\fR, \f(CW\*(C`X448\*(C'\fR, \f(CW\*(C`ED25519\*(C'\fR, \f(CW\*(C`ED448\*(C'\fR, or \f(CW\*(C`SM2\*(C'\fR
+no further parameter is needed.
+.SH "RETURN VALUES"
+.IX Header "RETURN VALUES"
+\&\fBEVP_PKEY_keygen_init()\fR, \fBEVP_PKEY_paramgen_init()\fR, \fBEVP_PKEY_keygen()\fR and
+\&\fBEVP_PKEY_paramgen()\fR return 1 for success and 0 or a negative value for failure.
+In particular a return value of \-2 indicates the operation is not supported by
+the public key algorithm.
 .PP
-\&\fBEVP_PKEY_public_check()\fR validates the public component of the key-pair given by \fBctx\fR.
-This function first tries to use customized key check method in \fB\s-1EVP_PKEY_METHOD\s0\fR
-if it's present; otherwise it calls a default one defined in \fB\s-1EVP_PKEY_ASN1_METHOD\s0\fR.
-.PP
-\&\fBEVP_PKEY_param_check()\fR validates the algorithm parameters of the key-pair given by \fBctx\fR.
-This function first tries to use customized key check method in \fB\s-1EVP_PKEY_METHOD\s0\fR
-if it's present; otherwise it calls a default one defined in \fB\s-1EVP_PKEY_ASN1_METHOD\s0\fR.
+\&\fBEVP_PKEY_Q_keygen()\fR returns an \fB\s-1EVP_PKEY\s0\fR, or \s-1NULL\s0 on failure.
 .SH "NOTES"
 .IX Header "NOTES"
 After the call to \fBEVP_PKEY_keygen_init()\fR or \fBEVP_PKEY_paramgen_init()\fR algorithm
@@ -228,16 +270,6 @@ In OpenSSL an \s-1EVP_PKEY\s0 structure containing a private key also contains t
 public key components and parameters (if any). An OpenSSL private key is
 equivalent to what some libraries call a \*(L"key pair\*(R". A private key can be used
 in functions which require the use of a public key or parameters.
-.SH "RETURN VALUES"
-.IX Header "RETURN VALUES"
-\&\fBEVP_PKEY_keygen_init()\fR, \fBEVP_PKEY_paramgen_init()\fR, \fBEVP_PKEY_keygen()\fR and
-\&\fBEVP_PKEY_paramgen()\fR return 1 for success and 0 or a negative value for failure.
-In particular a return value of \-2 indicates the operation is not supported by
-the public key algorithm.
-.PP
-\&\fBEVP_PKEY_check()\fR, \fBEVP_PKEY_public_check()\fR and \fBEVP_PKEY_param_check()\fR return 1
-for success or others for failure. They return \-2 if the operation is not supported
-for the specific algorithm.
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
 Generate a 2048 bit \s-1RSA\s0 key:
@@ -312,6 +344,7 @@ Example of generation callback for OpenSSL public key implementations:
 .Ve
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
+\&\fBEVP_RSA_gen\fR\|(3), \fBEVP_EC_gen\fR\|(3),
 \&\fBEVP_PKEY_CTX_new\fR\|(3),
 \&\fBEVP_PKEY_encrypt\fR\|(3),
 \&\fBEVP_PKEY_decrypt\fR\|(3),
@@ -321,15 +354,18 @@ Example of generation callback for OpenSSL public key implementations:
 \&\fBEVP_PKEY_derive\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
-These functions were added in OpenSSL 1.0.0.
+\&\fBEVP_PKEY_keygen_init()\fR, int \fBEVP_PKEY_paramgen_init()\fR, \fBEVP_PKEY_keygen()\fR,
+\&\fBEVP_PKEY_paramgen()\fR, \fBEVP_PKEY_gen_cb()\fR, \fBEVP_PKEY_CTX_set_cb()\fR,
+\&\fBEVP_PKEY_CTX_get_cb()\fR, \fBEVP_PKEY_CTX_get_keygen_info()\fR,
+\&\fBEVP_PKEY_CTX_set_app_data()\fR and \fBEVP_PKEY_CTX_get_app_data()\fR were added in
+OpenSSL 1.0.0.
 .PP
-\&\fBEVP_PKEY_check()\fR, \fBEVP_PKEY_public_check()\fR and \fBEVP_PKEY_param_check()\fR were added
-in OpenSSL 1.1.1.
+\&\fBEVP_PKEY_Q_keygen()\fR and \fBEVP_PKEY_generate()\fR were added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2006\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

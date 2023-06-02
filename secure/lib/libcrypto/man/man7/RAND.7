@@ -133,13 +133,14 @@
 .\" ========================================================================
 .\"
 .IX Title "RAND 7"
-.TH RAND 7 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH RAND 7 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-RAND \&\- the OpenSSL random generator
+RAND
+\&\- the OpenSSL random generator
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 Random numbers are a vital part of cryptography, they are needed to provide
@@ -168,11 +169,12 @@ is available or the trusted source(s) temporarily fail to provide sufficient
 random seed material.
 In this case the \s-1CSPRNG\s0 enters an error state and ceases to provide output,
 until it is able to recover from the error by reseeding itself.
-For more details on reseeding and error recovery, see \s-1\fBRAND_DRBG\s0\fR\|(7).
+For more details on reseeding and error recovery, see \s-1\fBEVP_RAND\s0\fR\|(7).
 .PP
 For values that should remain secret, you can use \fBRAND_priv_bytes\fR\|(3)
 instead.
-This method does not provide 'better' randomness, it uses the same type of \s-1CSPRNG.\s0
+This method does not provide 'better' randomness, it uses the same type of
+\&\s-1CSPRNG.\s0
 The intention behind using a dedicated \s-1CSPRNG\s0 exclusively for private
 values is that none of its output should be visible to an attacker (e.g.,
 used as salt value), in order to reveal as little information as
@@ -180,31 +182,31 @@ possible about its internal state, and that a compromise of the \*(L"public\*(R"
 \&\s-1CSPRNG\s0 instance will not affect the secrecy of these private values.
 .PP
 In the rare case where the default implementation does not satisfy your special
-requirements, there are two options:
-.IP "\(bu" 2
-Replace the default \s-1RAND\s0 method by your own \s-1RAND\s0 method using
-\&\fBRAND_set_rand_method\fR\|(3).
-.IP "\(bu" 2
-Modify the default settings of the OpenSSL \s-1RAND\s0 method by modifying the security
-parameters of the underlying \s-1DRBG,\s0 which is described in detail in \s-1\fBRAND_DRBG\s0\fR\|(7).
+requirements, the default \s-1RAND\s0 internals can be replaced by your own
+\&\s-1\fBEVP_RAND\s0\fR\|(3) objects.
 .PP
-Changing the default random generator or its default parameters should be necessary
-only in exceptional cases and is not recommended, unless you have a profound knowledge
-of cryptographic principles and understand the implications of your changes.
+Changing the default random generator should be necessary
+only in exceptional cases and is not recommended, unless you have a profound
+knowledge of cryptographic principles and understand the implications of your
+changes.
+.SH "DEFAULT SETUP"
+.IX Header "DEFAULT SETUP"
+The default OpenSSL \s-1RAND\s0 method is based on the \s-1EVP_RAND\s0 deterministic random
+bit generator (\s-1DRBG\s0) classes.
+A \s-1DRBG\s0 is a certain type of cryptographically-secure pseudo-random
+number generator (\s-1CSPRNG\s0), which is described in [\s-1NIST SP 800\-90A\s0 Rev. 1].
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fBRAND_add\fR\|(3),
 \&\fBRAND_bytes\fR\|(3),
 \&\fBRAND_priv_bytes\fR\|(3),
-\&\fBRAND_get_rand_method\fR\|(3),
-\&\fBRAND_set_rand_method\fR\|(3),
-\&\fBRAND_OpenSSL\fR\|(3),
-\&\s-1\fBRAND_DRBG\s0\fR\|(7)
+\&\s-1\fBEVP_RAND\s0\fR\|(3),
+\&\fBRAND_get0_primary\fR\|(3),
+\&\s-1\fBEVP_RAND\s0\fR\|(7)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2018\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2018\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

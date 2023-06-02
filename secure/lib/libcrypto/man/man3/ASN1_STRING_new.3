@@ -133,20 +133,21 @@
 .\" ========================================================================
 .\"
 .IX Title "ASN1_STRING_NEW 3"
-.TH ASN1_STRING_NEW 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH ASN1_STRING_NEW 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-ASN1_STRING_new, ASN1_STRING_type_new, ASN1_STRING_free \- ASN1_STRING allocation functions
+ASN1_STRING_new, ASN1_STRING_type_new, ASN1_STRING_free \-
+ASN1_STRING allocation functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/asn1.h>
 \&
-\& ASN1_STRING * ASN1_STRING_new(void);
-\& ASN1_STRING * ASN1_STRING_type_new(int type);
+\& ASN1_STRING *ASN1_STRING_new(void);
+\& ASN1_STRING *ASN1_STRING_type_new(int type);
 \& void ASN1_STRING_free(ASN1_STRING *a);
 .Ve
 .SH "DESCRIPTION"
@@ -155,18 +156,18 @@ ASN1_STRING_new, ASN1_STRING_type_new, ASN1_STRING_free \- ASN1_STRING allocatio
 is undefined.
 .PP
 \&\fBASN1_STRING_type_new()\fR returns an allocated \fB\s-1ASN1_STRING\s0\fR structure of
-type \fBtype\fR.
+type \fItype\fR.
 .PP
-\&\fBASN1_STRING_free()\fR frees up \fBa\fR.
-If \fBa\fR is \s-1NULL\s0 nothing is done.
+\&\fBASN1_STRING_free()\fR frees up \fIa\fR.
+If \fIa\fR is \s-1NULL\s0 nothing is done.
 .SH "NOTES"
 .IX Header "NOTES"
 Other string types call the \fB\s-1ASN1_STRING\s0\fR functions. For example
-\&\fBASN1_OCTET_STRING_new()\fR calls ASN1_STRING_type(V_ASN1_OCTET_STRING).
+\&\fBASN1_OCTET_STRING_new()\fR calls ASN1_STRING_type_new(V_ASN1_OCTET_STRING).
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fBASN1_STRING_new()\fR and \fBASN1_STRING_type_new()\fR return a valid
-\&\s-1ASN1_STRING\s0 structure or \fB\s-1NULL\s0\fR if an error occurred.
+\&\fB\s-1ASN1_STRING\s0\fR structure or \s-1NULL\s0 if an error occurred.
 .PP
 \&\fBASN1_STRING_free()\fR does not return a value.
 .SH "SEE ALSO"
@@ -174,9 +175,9 @@ Other string types call the \fB\s-1ASN1_STRING\s0\fR functions. For example
 \&\fBERR_get_error\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2002\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

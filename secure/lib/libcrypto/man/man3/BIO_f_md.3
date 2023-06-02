@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "BIO_F_MD 3"
-.TH BIO_F_MD 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH BIO_F_MD 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -202,7 +202,7 @@ if the standard calls such as \fBBIO_set_md()\fR are not sufficiently flexible.
 \&\fBBIO_f_md()\fR returns the digest \s-1BIO\s0 method.
 .PP
 \&\fBBIO_set_md()\fR, \fBBIO_get_md()\fR and \fBBIO_md_ctx()\fR return 1 for success and
-0 for failure.
+<=0 for failure.
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
 The following example creates a \s-1BIO\s0 chain containing an \s-1SHA1\s0 and \s-1MD5\s0
@@ -265,7 +265,7 @@ outputs them. This could be used with the examples above.
 \&     if (!mdtmp)
 \&         break;
 \&     BIO_get_md(mdtmp, &md);
-\&     printf("%s digest", OBJ_nid2sn(EVP_MD_type(md)));
+\&     printf("%s digest", OBJ_nid2sn(EVP_MD_get_type(md)));
 \&     mdlen = BIO_gets(mdtmp, mdbuf, EVP_MAX_MD_SIZE);
 \&     for (i = 0; i < mdlen; i++) printf(":%02X", mdbuf[i]);
 \&     printf("\en");
@@ -287,9 +287,9 @@ Before OpenSSL 1.0.0., the call to \fBBIO_get_md_ctx()\fR would only work if the
 \&\s-1BIO\s0 was initialized first.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

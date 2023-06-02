@@ -133,19 +133,25 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_ADD_EXTRA_CHAIN_CERT 3"
-.TH SSL_CTX_ADD_EXTRA_CHAIN_CERT 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_CTX_ADD_EXTRA_CHAIN_CERT 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SSL_CTX_add_extra_chain_cert, SSL_CTX_clear_extra_chain_certs \- add or clear extra chain certificates
+SSL_CTX_add_extra_chain_cert,
+SSL_CTX_get_extra_chain_certs,
+SSL_CTX_get_extra_chain_certs_only,
+SSL_CTX_clear_extra_chain_certs
+\&\- add, get or clear extra chain certificates
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/ssl.h>
 \&
 \& long SSL_CTX_add_extra_chain_cert(SSL_CTX *ctx, X509 *x509);
+\& long SSL_CTX_get_extra_chain_certs(SSL_CTX *ctx, STACK_OF(X509) **sk);
+\& long SSL_CTX_get_extra_chain_certs_only(SSL_CTX *ctx, STACK_OF(X509) **sk);
 \& long SSL_CTX_clear_extra_chain_certs(SSL_CTX *ctx);
 .Ve
 .SH "DESCRIPTION"
@@ -153,6 +159,15 @@ SSL_CTX_add_extra_chain_cert, SSL_CTX_clear_extra_chain_certs \- add or clear ex
 \&\fBSSL_CTX_add_extra_chain_cert()\fR adds the certificate \fBx509\fR to the extra chain
 certificates associated with \fBctx\fR. Several certificates can be added one
 after another.
+.PP
+\&\fBSSL_CTX_get_extra_chain_certs()\fR retrieves the extra chain certificates
+associated with \fBctx\fR, or the chain associated with the current certificate
+of \fBctx\fR if the extra chain is empty.
+The returned stack should not be freed by the caller.
+.PP
+\&\fBSSL_CTX_get_extra_chain_certs_only()\fR retrieves the extra chain certificates
+associated with \fBctx\fR.
+The returned stack should not be freed by the caller.
 .PP
 \&\fBSSL_CTX_clear_extra_chain_certs()\fR clears all extra chain certificates
 associated with \fBctx\fR.
@@ -201,9 +216,9 @@ reason for failure.
 \&\fBSSL_build_cert_chain\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2018 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

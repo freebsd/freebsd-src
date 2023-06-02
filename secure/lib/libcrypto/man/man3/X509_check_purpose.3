@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_CHECK_PURPOSE 3"
-.TH X509_CHECK_PURPOSE 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH X509_CHECK_PURPOSE 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -145,14 +145,15 @@ X509_check_purpose \- Check the purpose of a certificate
 .Vb 1
 \& #include <openssl/x509v3.h>
 \&
-\& int X509_check_purpose(X509 *x, int id, int ca)
+\& int X509_check_purpose(X509 *x, int id, int ca);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 This function checks if certificate \fIx\fR was created with the purpose
 represented by \fIid\fR. If \fIca\fR is nonzero, then certificate \fIx\fR is
 checked to determine if it's a possible \s-1CA\s0 with various levels of certainty
-possibly returned.
+possibly returned. The certificate \fIx\fR must be a complete certificate
+otherwise the function returns an error.
 .PP
 Below are the potential \s-1ID\s0's that can be checked:
 .PP
@@ -167,6 +168,9 @@ Below are the potential \s-1ID\s0's that can be checked:
 \& # define X509_PURPOSE_OCSP_HELPER       8
 \& # define X509_PURPOSE_TIMESTAMP_SIGN    9
 .Ve
+.PP
+The checks performed take into account the X.509 extensions
+keyUsage, extendedKeyUsage, and basicConstraints.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 For non-CA checks
@@ -198,7 +202,7 @@ For \s-1CA\s0 checks the below integers could be returned with the following mea
 .PD
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2019\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019\-2021 The OpenSSL Project Authors. All Rights Reserved.
 Licensed under the Apache License 2.0 (the \*(L"License\*(R"). You may not use this
 file except in compliance with the License. You can obtain a copy in the file
 \&\s-1LICENSE\s0 in the source distribution or at <https://www.openssl.org/source/license.html>.

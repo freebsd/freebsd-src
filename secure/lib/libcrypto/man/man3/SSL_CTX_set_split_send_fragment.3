@@ -133,13 +133,19 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET_SPLIT_SEND_FRAGMENT 3"
-.TH SSL_CTX_SET_SPLIT_SEND_FRAGMENT 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_CTX_SET_SPLIT_SEND_FRAGMENT 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SSL_CTX_set_max_send_fragment, SSL_set_max_send_fragment, SSL_CTX_set_split_send_fragment, SSL_set_split_send_fragment, SSL_CTX_set_max_pipelines, SSL_set_max_pipelines, SSL_CTX_set_default_read_buffer_len, SSL_set_default_read_buffer_len, SSL_CTX_set_tlsext_max_fragment_length, SSL_set_tlsext_max_fragment_length, SSL_SESSION_get_max_fragment_length \- Control fragment size settings and pipelining operations
+SSL_CTX_set_max_send_fragment, SSL_set_max_send_fragment,
+SSL_CTX_set_split_send_fragment, SSL_set_split_send_fragment,
+SSL_CTX_set_max_pipelines, SSL_set_max_pipelines,
+SSL_CTX_set_default_read_buffer_len, SSL_set_default_read_buffer_len,
+SSL_CTX_set_tlsext_max_fragment_length,
+SSL_set_tlsext_max_fragment_length,
+SSL_SESSION_get_max_fragment_length \- Control fragment size settings and pipelining operations
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -159,7 +165,7 @@ SSL_CTX_set_max_send_fragment, SSL_set_max_send_fragment, SSL_CTX_set_split_send
 \&
 \& int SSL_CTX_set_tlsext_max_fragment_length(SSL_CTX *ctx, uint8_t mode);
 \& int SSL_set_tlsext_max_fragment_length(SSL *ssl, uint8_t mode);
-\& uint8_t SSL_SESSION_get_max_fragment_length(SSL_SESSION *session);
+\& uint8_t SSL_SESSION_get_max_fragment_length(const SSL_SESSION *session);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -187,7 +193,7 @@ of pipelines that will be used at any one time. This value applies to both
 used (i.e. normal non-parallel operation). The number of pipelines set must be
 in the range 1 \- \s-1SSL_MAX_PIPELINES\s0 (32). Setting this to a value > 1 will also
 automatically turn on \*(L"read_ahead\*(R" (see \fBSSL_CTX_set_read_ahead\fR\|(3)). This is
-explained further below. OpenSSL will only every use more than one pipeline if
+explained further below. OpenSSL will only ever use more than one pipeline if
 a cipher suite is negotiated that uses a pipeline capable cipher provided by an
 engine.
 .PP
@@ -227,7 +233,10 @@ into the buffer. Without this set data is read into the read buffer one record
 at a time. The more data that can be read, the more opportunity there is for
 parallelising the processing at the cost of increased memory overhead per
 connection. Setting \fBread_ahead\fR can impact the behaviour of the \fBSSL_pending()\fR
-function (see \fBSSL_pending\fR\|(3)).
+function (see \fBSSL_pending\fR\|(3)). In addition the default size of the internal
+read buffer is multiplied by the number of pipelines available to ensure that we
+can read multiple records in one go. This can therefore have a significant
+impact on memory usage.
 .PP
 The \fBSSL_CTX_set_default_read_buffer_len()\fR and \fBSSL_set_default_read_buffer_len()\fR
 functions control the size of the read buffer that will be used. The \fBlen\fR
@@ -283,6 +292,7 @@ With the exception of \fBSSL_CTX_set_default_read_buffer_len()\fR
 all these functions are implemented using macros.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
+\&\fBssl\fR\|(7),
 \&\fBSSL_CTX_set_read_ahead\fR\|(3), \fBSSL_pending\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
@@ -295,9 +305,9 @@ The \fBSSL_CTX_set_tlsext_max_fragment_length()\fR, \fBSSL_set_tlsext_max_fragme
 and \fBSSL_SESSION_get_max_fragment_length()\fR functions were added in OpenSSL 1.1.1.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2016\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

@@ -133,13 +133,15 @@
 .\" ========================================================================
 .\"
 .IX Title "BIO_READ 3"
-.TH BIO_READ 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH BIO_READ 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-BIO_read_ex, BIO_write_ex, BIO_read, BIO_write, BIO_gets, BIO_puts \&\- BIO I/O functions
+BIO_read_ex, BIO_write_ex, BIO_read, BIO_write,
+BIO_gets, BIO_get_line, BIO_puts
+\&\- BIO I/O functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -150,42 +152,68 @@ BIO_read_ex, BIO_write_ex, BIO_read, BIO_write, BIO_gets, BIO_puts \&\- BIO I/O 
 \&
 \& int BIO_read(BIO *b, void *data, int dlen);
 \& int BIO_gets(BIO *b, char *buf, int size);
+\& int BIO_get_line(BIO *b, char *buf, int size);
 \& int BIO_write(BIO *b, const void *data, int dlen);
 \& int BIO_puts(BIO *b, const char *buf);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBBIO_read_ex()\fR attempts to read \fBdlen\fR bytes from \s-1BIO\s0 \fBb\fR and places the data
-in \fBdata\fR. If any bytes were successfully read then the number of bytes read is
-stored in \fB*readbytes\fR.
+\&\fBBIO_read_ex()\fR attempts to read \fIdlen\fR bytes from \s-1BIO\s0 \fIb\fR and places the data
+in \fIdata\fR. If any bytes were successfully read then the number of bytes read is
+stored in \fI*readbytes\fR.
 .PP
-\&\fBBIO_write_ex()\fR attempts to write \fBdlen\fR bytes from \fBdata\fR to \s-1BIO\s0 \fBb\fR. If
-successful then the number of bytes written is stored in \fB*written\fR.
+\&\fBBIO_write_ex()\fR attempts to write \fIdlen\fR bytes from \fIdata\fR to \s-1BIO\s0 \fIb\fR.
+If successful then the number of bytes written is stored in \fI*written\fR
+unless \fIwritten\fR is \s-1NULL.\s0
 .PP
-\&\fBBIO_read()\fR attempts to read \fBlen\fR bytes from \s-1BIO\s0 \fBb\fR and places
-the data in \fBbuf\fR.
+\&\fBBIO_read()\fR attempts to read \fIlen\fR bytes from \s-1BIO\s0 \fIb\fR and places
+the data in \fIbuf\fR.
 .PP
 \&\fBBIO_gets()\fR performs the BIOs \*(L"gets\*(R" operation and places the data
-in \fBbuf\fR. Usually this operation will attempt to read a line of data
-from the \s-1BIO\s0 of maximum length \fBsize\-1\fR. There are exceptions to this,
+in \fIbuf\fR. Usually this operation will attempt to read a line of data
+from the \s-1BIO\s0 of maximum length \fIsize\-1\fR. There are exceptions to this,
 however; for example, \fBBIO_gets()\fR on a digest \s-1BIO\s0 will calculate and
 return the digest and other BIOs may not support \fBBIO_gets()\fR at all.
 The returned string is always NUL-terminated and the '\en' is preserved
 if present in the input data.
+On binary input there may be \s-1NUL\s0 characters within the string;
+in this case the return value (if nonnegative) may give an incorrect length.
 .PP
-\&\fBBIO_write()\fR attempts to write \fBlen\fR bytes from \fBbuf\fR to \s-1BIO\s0 \fBb\fR.
+\&\fBBIO_get_line()\fR attempts to read from \s-1BIO\s0 \fIb\fR a line of data up to the next '\en'
+or the maximum length \fIsize\-1\fR is reached and places the data in \fIbuf\fR.
+The returned string is always NUL-terminated and the '\en' is preserved
+if present in the input data.
+On binary input there may be \s-1NUL\s0 characters within the string;
+in this case the return value (if nonnegative) gives the actual length read.
+For implementing this, unfortunately the data needs to be read byte-by-byte.
 .PP
-\&\fBBIO_puts()\fR attempts to write a NUL-terminated string \fBbuf\fR to \s-1BIO\s0 \fBb\fR.
+\&\fBBIO_write()\fR attempts to write \fIlen\fR bytes from \fIbuf\fR to \s-1BIO\s0 \fIb\fR.
+.PP
+\&\fBBIO_puts()\fR attempts to write a NUL-terminated string \fIbuf\fR to \s-1BIO\s0 \fIb\fR.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fBBIO_read_ex()\fR and \fBBIO_write_ex()\fR return 1 if data was successfully read or
-written, and 0 otherwise.
+\&\fBBIO_read_ex()\fR returns 1 if data was successfully read, and 0 otherwise.
+.PP
+\&\fBBIO_write_ex()\fR returns 1 if no error was encountered writing data, 0 otherwise.
+Requesting to write 0 bytes is not considered an error.
+.PP
+\&\fBBIO_write()\fR returns \-2 if the \*(L"write\*(R" operation is not implemented by the \s-1BIO\s0
+or \-1 on other errors.
+Otherwise it returns the number of bytes written.
+This may be 0 if the \s-1BIO\s0 \fIb\fR is \s-1NULL\s0 or \fIdlen <= 0\fR.
+.PP
+\&\fBBIO_gets()\fR returns \-2 if the \*(L"gets\*(R" operation is not implemented by the \s-1BIO\s0
+or \-1 on other errors.
+Otherwise it typically returns the amount of data read,
+but depending on the implementation it may return only the length up to
+the first \s-1NUL\s0 character contained in the data read.
+In any case the trailing \s-1NUL\s0 that is added after the data read
+is not included in the length returned.
 .PP
 All other functions return either the amount of data successfully read or
 written (if the return value is positive) or that no data was successfully
 read or written if the result is 0 or \-1. If the return value is \-2 then
-the operation is not implemented in the specific \s-1BIO\s0 type.  The trailing
-\&\s-1NUL\s0 is not included in the length returned by \fBBIO_gets()\fR.
+the operation is not implemented in the specific \s-1BIO\s0 type.
 .SH "NOTES"
 .IX Header "NOTES"
 A 0 or \-1 return is not necessarily an indication of an error. In
@@ -206,21 +234,26 @@ a retry instead of blocking.
 See \fBBIO_should_retry\fR\|(3) for details of how to
 determine the cause of a retry and other I/O issues.
 .PP
-If the \fBBIO_gets()\fR function is not supported by a \s-1BIO\s0 then it possible to
-work around this by adding a buffering \s-1BIO\s0 \fBBIO_f_buffer\fR\|(3)
-to the chain.
+If the \*(L"gets\*(R" method is not supported by a \s-1BIO\s0 then \fBBIO_get_line()\fR can be used.
+It is also possible to make \fBBIO_gets()\fR usable even if the \*(L"gets\*(R" method is not
+supported by adding a buffering \s-1BIO\s0 \fBBIO_f_buffer\fR\|(3) to the chain.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBBIO_should_retry\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
-\&\fBBIO_gets()\fR on 1.1.0 and older when called on \fBBIO_fd()\fR based \s-1BIO\s0 does not
+\&\fBBIO_gets()\fR on 1.1.0 and older when called on \fBBIO_fd()\fR based \s-1BIO\s0 did not
 keep the '\en' at the end of the line in the buffer.
+.PP
+\&\fBBIO_get_line()\fR was added in OpenSSL 3.0.
+.PP
+\&\fBBIO_write_ex()\fR returns 1 if the size of the data to write is 0 and the
+\&\fIwritten\fR parameter of the function can be \s-1NULL\s0 since OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

@@ -133,18 +133,25 @@
 .\" ========================================================================
 .\"
 .IX Title "DSA_SET_METHOD 3"
-.TH DSA_SET_METHOD 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH DSA_SET_METHOD 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-DSA_set_default_method, DSA_get_default_method, DSA_set_method, DSA_new_method, DSA_OpenSSL \- select DSA method
+DSA_set_default_method, DSA_get_default_method,
+DSA_set_method, DSA_new_method, DSA_OpenSSL \- select DSA method
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/dsa.h>
-\&
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 1
 \& void DSA_set_default_method(const DSA_METHOD *meth);
 \&
 \& const DSA_METHOD *DSA_get_default_method(void);
@@ -153,10 +160,13 @@ DSA_set_default_method, DSA_get_default_method, DSA_set_method, DSA_new_method, 
 \&
 \& DSA *DSA_new_method(ENGINE *engine);
 \&
-\& DSA_METHOD *DSA_OpenSSL(void);
+\& const DSA_METHOD *DSA_OpenSSL(void);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
+All of the functions described on this page are deprecated.
+Applications should providers instead of method overrides.
+.PP
 A \fB\s-1DSA_METHOD\s0\fR specifies the functions that OpenSSL uses for \s-1DSA\s0
 operations. By modifying the method, alternative implementations
 such as hardware accelerators may be used. \s-1IMPORTANT:\s0 See the \s-1NOTES\s0 section for
@@ -185,7 +195,7 @@ be released during the change. It is possible to have \s-1DSA\s0 keys that only
 work with certain \s-1DSA_METHOD\s0 implementations (e.g. from an \s-1ENGINE\s0 module
 that supports embedded hardware-protected keys), and in such cases
 attempting to change the \s-1DSA_METHOD\s0 for the key can have unexpected
-results. See DSA_meth_new for information on constructing custom \s-1DSA_METHOD\s0
+results. See \fBDSA_meth_new\fR\|(3) for information on constructing custom \s-1DSA_METHOD\s0
 objects;
 .PP
 \&\fBDSA_new_method()\fR allocates and initializes a \s-1DSA\s0 structure so that \fBengine\fR
@@ -209,11 +219,14 @@ fails. Otherwise it returns a pointer to the newly allocated structure.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBDSA_new\fR\|(3), \fBDSA_new\fR\|(3), \fBDSA_meth_new\fR\|(3)
+.SH "HISTORY"
+.IX Header "HISTORY"
+All of these functions were deprecated in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.
