@@ -11,6 +11,7 @@ ATF_TESTS_PYTEST +=	test_rtnl_iface.py
 ATF_TESTS_PYTEST +=	test_rtnl_ifaddr.py
 ATF_TESTS_PYTEST +=	test_rtnl_neigh.py
 ATF_TESTS_PYTEST +=	test_rtnl_route.py
+ATF_TESTS_PYTEST +=	test_netlink_message_writer.py
 
 CFLAGS+=	-I${.CURDIR:H:H:H}
 
