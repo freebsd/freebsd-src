@@ -49,6 +49,10 @@ struct ossl_aes_gcm_ops {
 	    size_t len);
 };
 
+#ifndef __SIZEOF_INT128__
+typedef	struct { uint64_t v[2]; } __uint128_t;
+#endif
+
 struct ossl_gcm_context {
 	struct {
 		union {
