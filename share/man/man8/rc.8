@@ -31,7 +31,7 @@
 .\"     @(#)rc.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd July 4, 2022
+.Dd June 1, 2023
 .Dt RC 8
 .Os
 .Sh NAME
@@ -124,10 +124,9 @@ to load various
 .Xr rc.subr 8
 shell functions to use.
 .It
-Load the configuration files.
+Load the configuration files (see below for reloading).
 .It
-Determine if booting in a jail,
-and add
+Determine if booting in a jail, and add
 .Dq Li nojail
 (no jails allowed) or
 .Dq Li nojailvnet
@@ -370,6 +369,17 @@ variable, and define their actions in a variable constructed from
 the command name (see the
 .Sx EXAMPLES
 section).
+.Pp
+The configuration files are normally read only once at the start of a boot
+sequence; if a script needs to
+.Cm enable
+or
+.Cm disable
+any other script that would run later in the sequence, it must send a
+.Dv SIGALRM
+to the rc process (identified by
+.Ev $RC_PID )
+to have it re-read the files.
 .Pp
 The following key points apply to old-style scripts in
 .Pa /usr/local/etc/rc.d/ :
