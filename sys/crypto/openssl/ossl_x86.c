@@ -58,6 +58,7 @@ ossl_cipher_setkey_t aesni_set_decrypt_key;
 
 #ifdef __amd64__
 int ossl_vaes_vpclmulqdq_capable(void);
+ossl_cipher_setkey_t ossl_aes_gcm_setkey_aesni;
 ossl_cipher_setkey_t ossl_aes_gcm_setkey_avx512;
 #endif
 
@@ -138,6 +139,12 @@ ossl_cpuid(struct ossl_softc *sc)
 		    ossl_aes_gcm_setkey_avx512;
 		ossl_cipher_aes_gcm.set_decrypt_key =
 		    ossl_aes_gcm_setkey_avx512;
+		sc->has_aes_gcm = true;
+	} else if ((cpu_feature2 &
+	    (CPUID2_AVX | CPUID2_PCLMULQDQ | CPUID2_MOVBE)) ==
+	    (CPUID2_AVX | CPUID2_PCLMULQDQ | CPUID2_MOVBE)) {
+		ossl_cipher_aes_gcm.set_encrypt_key = ossl_aes_gcm_setkey_aesni;
+		ossl_cipher_aes_gcm.set_decrypt_key = ossl_aes_gcm_setkey_aesni;
 		sc->has_aes_gcm = true;
 	} else {
 		sc->has_aes_gcm = false;
