@@ -779,6 +779,8 @@ cpu_mp_start(void)
 	mpidr = READ_SPECIALREG(mpidr_el1) & CPU_AFF_MASK;
 	cpuid_to_pcpu[0]->pc_mpidr = mpidr;
 
+	cpu_desc_init();
+
 	switch(arm64_bus_method) {
 #ifdef DEV_ACPI
 	case ARM64_BUS_ACPI:

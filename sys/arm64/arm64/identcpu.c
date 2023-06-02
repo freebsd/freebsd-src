@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/pcpu.h>
 #include <sys/sbuf.h>
 #include <sys/smp.h>
@@ -46,6 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/elf.h>
 #include <machine/md_var.h>
 #include <machine/undefined.h>
+
+static MALLOC_DEFINE(M_IDENTCPU, "CPU ID", "arm64 CPU identification memory");
 
 struct cpu_desc;
 
@@ -150,9 +153,21 @@ struct cpu_desc {
 	bool		have_sve;
 };
 
-static struct cpu_desc cpu_desc[MAXCPU];
+static struct cpu_desc cpu_desc0;
+static struct cpu_desc *cpu_desc;
 static struct cpu_desc kern_cpu_desc;
 static struct cpu_desc user_cpu_desc;
+
+static struct cpu_desc *
+get_cpu_desc(u_int cpu)
+{
+	/* The cpu_desc for CPU 0 is used before the allocator is ready. */
+	if (cpu == 0)
+		return (&cpu_desc0);
+
+	MPASS(cpu_desc != NULL);
+	return (&cpu_desc[cpu - 1]);
+}
 
 struct cpu_parts {
 	u_int		part_id;
@@ -1803,7 +1818,7 @@ update_special_regs(u_int cpu)
 		user_cpu_desc.id_aa64dfr0 = ID_AA64DFR0_DebugVer_8;
 	}
 
-	desc = &cpu_desc[cpu];
+	desc = get_cpu_desc(cpu);
 	for (i = 0; i < nitems(user_regs); i++) {
 		value = CPU_DESC_FIELD(*desc, i);
 		if (cpu == 0) {
@@ -1837,6 +1852,22 @@ update_special_regs(u_int cpu)
 		CPU_DESC_FIELD(kern_cpu_desc, i) = kern_reg;
 		CPU_DESC_FIELD(user_cpu_desc, i) = user_reg;
 	}
+}
+
+void
+cpu_desc_init(void)
+{
+	if (mp_ncpus == 1)
+		return;
+
+	/*
+	 * Allocate memory for the non-boot CPUs to store their registers.
+	 * As this is indexed by CPU ID we need to allocate space for CPUs
+	 * 1 to mp_maxid. Because of this mp_maxid is already the correct
+	 * number of elements.
+	 */
+	cpu_desc = mallocarray(mp_maxid, sizeof(*cpu_desc), M_IDENTCPU,
+	    M_ZERO | M_WAITOK);
 }
 
 /* HWCAP */
@@ -1896,7 +1927,7 @@ identify_cpu_sysinit(void *dummy __unused)
 
 	prev_desc = NULL;
 	CPU_FOREACH(cpu) {
-		desc = &cpu_desc[cpu];
+		desc = get_cpu_desc(cpu);
 		if (cpu != 0) {
 			check_cpu_regs(cpu, desc, prev_desc);
 			update_special_regs(cpu);
@@ -1950,7 +1981,7 @@ cpu_features_sysinit(void *dummy __unused)
 
 	prev_desc = NULL;
 	CPU_FOREACH(cpu) {
-		desc = &cpu_desc[cpu];
+		desc = get_cpu_desc(cpu);
 		print_cpu_features(cpu, desc, prev_desc);
 		prev_desc = desc;
 	}
@@ -1961,6 +1992,8 @@ cpu_features_sysinit(void *dummy __unused)
 
 	sbuf_finish(&sb);
 	sbuf_delete(&sb);
+
+	free(cpu_desc, M_IDENTCPU);
 }
 /* Log features before APs are released and start printing to the dmesg. */
 SYSINIT(cpu_features, SI_SUB_SMP - 1, SI_ORDER_ANY, cpu_features_sysinit, NULL);
@@ -2390,7 +2423,7 @@ identify_cpu(u_int cpu)
 	struct cpu_desc *desc;
 	uint64_t clidr;
 
-	desc = &cpu_desc[cpu];
+	desc = get_cpu_desc(cpu);
 	/* Save affinity for current CPU */
 	desc->mpidr = get_mpidr();
 	CPU_AFFINITY(cpu) = desc->mpidr & CPU_AFF_MASK;
