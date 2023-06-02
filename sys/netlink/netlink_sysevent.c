@@ -74,7 +74,7 @@ sysevent_write(struct sysevent_group *se, const char *subsystem, const char *typ
 		return;
 	}
 	ghdr->version = 0;
-	ghdr->cmd = 0;
+	ghdr->cmd = NLSE_CMD_NEWEVENT;
 	ghdr->reserved = 0;
 	nlattr_add_string(&nw, NLSE_ATTR_SYSTEM, se->name);
 	nlattr_add_string(&nw, NLSE_ATTR_SUBSYSTEM, subsystem);
