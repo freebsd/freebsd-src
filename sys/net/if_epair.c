@@ -337,6 +337,17 @@ epair_transmit(struct ifnet *ifp, struct mbuf *m)
 	M_ASSERTPKTHDR(m);
 
 	/*
+	 * We could just transmit this, but it makes testing easier if we're a
+	 * little bit more like real hardware.
+	 * Allow just that little bit extra for ethernet (and vlan) headers.
+	 */
+	if (m->m_pkthdr.len > (ifp->if_mtu + sizeof(struct ether_vlan_header))) {
+		m_freem(m);
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+		return (E2BIG);
+	}
+
+	/*
 	 * We are not going to use the interface en/dequeue mechanism
 	 * on the TX side. We are called from ether_output_frame()
 	 * and will put the packet into the receive-queue (rxq) of the
