@@ -78,6 +78,8 @@ ossl_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 
+	sc->has_aes = sc->has_aes_gcm = false;
+
 	ossl_cpuid(sc);
 	sc->sc_cid = crypto_get_driverid(dev, sizeof(struct ossl_session),
 	    CRYPTOCAP_F_SOFTWARE | CRYPTOCAP_F_SYNC |
@@ -144,6 +146,16 @@ ossl_lookup_cipher(const struct crypto_session_params *csp)
 			return (NULL);
 		}
 		return (&ossl_cipher_aes_cbc);
+	case CRYPTO_AES_NIST_GCM_16:
+		switch (csp->csp_cipher_klen * 8) {
+		case 128:
+		case 192:
+		case 256:
+			break;
+		default:
+			return (NULL);
+		}
+		return (&ossl_cipher_aes_gcm);
 	case CRYPTO_CHACHA20:
 		if (csp->csp_cipher_klen != CHACHA_KEY_SIZE)
 			return (NULL);
@@ -182,6 +194,15 @@ ossl_probesession(device_t dev, const struct crypto_session_params *csp)
 	case CSP_MODE_AEAD:
 		switch (csp->csp_cipher_alg) {
 		case CRYPTO_CHACHA20_POLY1305:
+			break;
+		case CRYPTO_AES_NIST_GCM_16:
+			if (!sc->has_aes_gcm || ossl_lookup_cipher(csp) == NULL)
+				return (EINVAL);
+			if (csp->csp_ivlen != AES_GCM_IV_LEN)
+				return (EINVAL);
+			if (csp->csp_auth_mlen != 0 &&
+			    csp->csp_auth_mlen != GMAC_DIGEST_LEN)
+				return (EINVAL);
 			break;
 		default:
 			return (EINVAL);
@@ -279,6 +300,11 @@ ossl_newsession(device_t dev, crypto_session_t cses,
 		ossl_newsession_hash(s, csp);
 		error = ossl_newsession_cipher(s, csp);
 		break;
+	case CSP_MODE_AEAD:
+		error = ossl_newsession_cipher(s, csp);
+		break;
+	default:
+		__assert_unreachable();
 	}
 
 	return (error);
@@ -353,6 +379,13 @@ out:
 }
 
 static int
+ossl_process_cipher(struct ossl_session *s, struct cryptop *crp,
+    const struct crypto_session_params *csp)
+{
+	return (s->cipher.cipher->process(&s->cipher, crp, csp));
+}
+
+static int
 ossl_process_eta(struct ossl_session *s, struct cryptop *crp,
     const struct crypto_session_params *csp)
 {
@@ -369,6 +402,20 @@ ossl_process_eta(struct ossl_session *s, struct cryptop *crp,
 	}
 
 	return (error);
+}
+
+static int
+ossl_process_aead(struct ossl_session *s, struct cryptop *crp,
+    const struct crypto_session_params *csp)
+{
+	if (csp->csp_cipher_alg == CRYPTO_CHACHA20_POLY1305) {
+		if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op))
+			return (ossl_chacha20_poly1305_encrypt(crp, csp));
+		else
+			return (ossl_chacha20_poly1305_decrypt(crp, csp));
+	} else {
+		return (s->cipher.cipher->process(&s->cipher, crp, csp));
+	}
 }
 
 static int
@@ -394,16 +441,13 @@ ossl_process(device_t dev, struct cryptop *crp, int hint)
 		error = ossl_process_hash(s, crp, csp);
 		break;
 	case CSP_MODE_CIPHER:
-		error = s->cipher.cipher->process(&s->cipher, crp, csp);
+		error = ossl_process_cipher(s, crp, csp);
 		break;
 	case CSP_MODE_ETA:
 		error = ossl_process_eta(s, crp, csp);
 		break;
 	case CSP_MODE_AEAD:
-		if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op))
-			error = ossl_chacha20_poly1305_encrypt(crp, csp);
-		else
-			error = ossl_chacha20_poly1305_decrypt(crp, csp);
+		error = ossl_process_aead(s, crp, csp);
 		break;
 	default:
 		__assert_unreachable();
