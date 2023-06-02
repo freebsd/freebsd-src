@@ -176,6 +176,7 @@ MAN=	aac.4 \
 	geom_map.4 \
 	geom_uzip.4 \
 	gif.4 \
+	${_gve.4} \
 	gpio.4 \
 	gpioiic.4 \
 	gpiokeys.4 \
@@ -893,6 +894,10 @@ _nvme.4=	nvme.4
 _ipmi.4=	ipmi.4
 _linux.4=	linux.4
 _ossl.4=	ossl.4
+.endif
+
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "aarch64"
+_gve.4=		gve.4
 .endif
 
 .if ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "aarch64" || \
