@@ -36,8 +36,7 @@
 #include <netlink/netlink.h>
 #include <netlink/netlink_ctl.h>
 #include <netlink/netlink_generic.h>
-
-#include "netlink_sysevent.h"
+#include <netlink/netlink_sysevent.h>
 
 #define DEBUG_MOD_NAME  nl_sysevent
 #define DEBUG_MAX_LEVEL LOG_DEBUG3
