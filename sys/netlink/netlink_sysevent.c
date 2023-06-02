@@ -86,27 +86,41 @@ sysevent_write(struct sysevent_group *se, const char *subsystem, const char *typ
 }
 
 static void
+sysevent_new_group(size_t index, const char *name)
+{
+	if (index >= MAX_SYSEVENT_GROUPS) {
+		NL_LOG(LOG_WARNING, "impossible to add the event %s, "
+		    "too many event groups\n", name);
+		return;
+	}
+	sysevent_groups[index].name = strdup(name, M_NLSE);
+	sysevent_groups[index].id = genl_register_group(NLSE_FAMILY_NAME, sysevent_groups[index].name);
+}
+
+static struct sysevent_group *
+sysevent_get_group(const char *system)
+{
+	for (size_t i = 0; i < MAX_SYSEVENT_GROUPS; i++) {
+		if (sysevent_groups[i].name == NULL) {
+			sysevent_new_group(i, system);
+			return (&sysevent_groups[i]);
+		}
+		if (strcmp(sysevent_groups[i].name, system) == 0)
+			return (&sysevent_groups[i]);
+	}
+
+	return (NULL);
+}
+
+static void
 sysevent_send(const char *system, const char *subsystem, const char *type,
     const char *data)
 {
-	struct sysevent_group *se = NULL;
+	struct sysevent_group *se = sysevent_get_group(system);
 
-	for (size_t i = 0; i < MAX_SYSEVENT_GROUPS; i++) {
-		if (sysevent_groups[i].name == NULL) {
-			sysevent_groups[i].name = strdup(system, M_NLSE);
-			sysevent_groups[i].id = genl_register_group(NLSE_FAMILY_NAME,
-			    system);
-			se = &sysevent_groups[i];
-			break;
-		}
-		if (strcmp(sysevent_groups[i].name, system) == 0) {
-			se = &sysevent_groups[i];
-			break;
-		}
-	}
 	if (se == NULL) {
 		NL_LOG(LOG_WARNING, "impossible to add the event %s, "
-		    "too many events\n", system);
+		    "too many event groups\n", system);
 		return;
 	}
 
@@ -125,8 +139,7 @@ nlsysevent_load(void)
 			NL_LOG(LOG_WARNING, "impossible to add the event %s, too many events\n", devctl_systems[i]);
 			continue;
 		}
-		sysevent_groups[i].name = strdup(devctl_systems[i], M_NLSE);
-		sysevent_groups[i].id = genl_register_group(NLSE_FAMILY_NAME, devctl_systems[i]);
+		sysevent_new_group(i, devctl_systems[i]);
 	}
 }
 
