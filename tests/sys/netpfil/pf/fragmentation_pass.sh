@@ -425,6 +425,49 @@ no_df_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "reassemble_slowpath" "cleanup"
+reassemble_slowpath_head()
+{
+	atf_set descr 'Test reassembly on the slow path'
+	atf_set require.user root
+}
+
+reassemble_slowpath_body()
+{
+	if ! sysctl -q kern.features.ipsec >/dev/null ; then
+		atf_skip "This test requires ipsec"
+	fi
+
+	setup_router_server_ipv4
+
+	# Now define an ipsec policy so we end up taking the slow path.
+	# We don't actually need the traffic to go through ipsec, we just don't
+	# want to go through ip_tryforward().
+	echo "flush;
+	spdflush;
+	spdadd 203.0.113.1/32 203.0.113.2/32 any -P out ipsec esp/transport//require;
+	add 203.0.113.1 203.0.113.2 esp 0x1001 -E aes-gcm-16 \"12345678901234567890\";" \
+	    | jexec router setkey -c
+
+	# Sanity check.
+	ping_server_check_reply exit:0 --ping-type=icmp
+
+	# Enable packet reassembly with clearing of the no-df flag.
+	pft_set_rules router \
+		"scrub in on ${epair_tester}b fragment no reassemble" \
+		"scrub on ${epair_server}a fragment reassemble" \
+		"pass"
+
+	# Ensure that the packet makes it through the slow path
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 -s 2000 198.51.100.2
+}
+
+reassemble_slowpath_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "too_many_fragments"
@@ -435,4 +478,5 @@ atf_init_test_cases()
 	atf_add_test_case "overlimit"
 	atf_add_test_case "reassemble"
 	atf_add_test_case "no_df"
+	atf_add_test_case "reassemble_slowpath"
 }
