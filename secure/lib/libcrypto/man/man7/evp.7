@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP 7"
-.TH EVP 7 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH EVP 7 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -166,10 +166,11 @@ The \fB\s-1EVP_PKEY\s0\fR\fI\s-1XXX\s0\fR functions provide a high-level interfa
 asymmetric algorithms. To create a new \s-1EVP_PKEY\s0 see
 \&\fBEVP_PKEY_new\fR\|(3). EVP_PKEYs can be associated
 with a private key of a particular algorithm by using the functions
-described on the \fBEVP_PKEY_set1_RSA\fR\|(3) page, or
+described on the \fBEVP_PKEY_fromdata\fR\|(3) page, or
 new keys can be generated using \fBEVP_PKEY_keygen\fR\|(3).
-EVP_PKEYs can be compared using \fBEVP_PKEY_cmp\fR\|(3), or printed using
-\&\fBEVP_PKEY_print_private\fR\|(3).
+EVP_PKEYs can be compared using \fBEVP_PKEY_eq\fR\|(3), or printed using
+\&\fBEVP_PKEY_print_private\fR\|(3). \fBEVP_PKEY_todata\fR\|(3) can be used to convert a
+key back into an \s-1\fBOSSL_PARAM\s0\fR\|(3) array.
 .PP
 The \s-1EVP_PKEY\s0 functions support the full range of asymmetric algorithm operations:
 .IP "For key agreement see \fBEVP_PKEY_derive\fR\|(3)" 4
@@ -215,7 +216,8 @@ using the high-level interface.
 \&\fBEVP_VerifyInit\fR\|(3),
 \&\fBEVP_EncodeInit\fR\|(3),
 \&\fBEVP_PKEY_new\fR\|(3),
-\&\fBEVP_PKEY_set1_RSA\fR\|(3),
+\&\fBEVP_PKEY_fromdata\fR\|(3),
+\&\fBEVP_PKEY_todata\fR\|(3),
 \&\fBEVP_PKEY_keygen\fR\|(3),
 \&\fBEVP_PKEY_print_private\fR\|(3),
 \&\fBEVP_PKEY_decrypt\fR\|(3),
@@ -228,9 +230,9 @@ using the high-level interface.
 \&\fBENGINE_by_id\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

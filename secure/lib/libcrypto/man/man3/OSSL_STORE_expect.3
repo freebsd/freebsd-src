@@ -133,13 +133,16 @@
 .\" ========================================================================
 .\"
 .IX Title "OSSL_STORE_EXPECT 3"
-.TH OSSL_STORE_EXPECT 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH OSSL_STORE_EXPECT 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-OSSL_STORE_expect, OSSL_STORE_supports_search, OSSL_STORE_find \&\- Specify what object type is expected
+OSSL_STORE_expect,
+OSSL_STORE_supports_search,
+OSSL_STORE_find
+\&\- Specify what object type is expected
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -155,18 +158,20 @@ OSSL_STORE_expect, OSSL_STORE_supports_search, OSSL_STORE_find \&\- Specify what
 .IX Header "DESCRIPTION"
 \&\fBOSSL_STORE_expect()\fR helps applications filter what \fBOSSL_STORE_load()\fR returns
 by specifying a \fB\s-1OSSL_STORE_INFO\s0\fR type.
-For example, if \f(CW\*(C`file:/foo/bar/store.pem\*(C'\fR contains several different objects
-and only the certificates are interesting, the application can simply say
+By default, no expectations on the types of objects to be loaded are made.
+\&\fIexpected_type\fR may be 0 to indicate explicitly that no expectation is made,
+or it may be any of the known object types (see
+\&\*(L"\s-1SUPPORTED OBJECTS\*(R"\s0 in \s-1\fBOSSL_STORE_INFO\s0\fR\|(3)) except for \fB\s-1OSSL_STORE_INFO_NAME\s0\fR.
+For example, if \f(CW\*(C`file:/foo/bar/store.pem\*(C'\fR contains several objects of different
+type and only certificates are interesting, the application can simply say
 that it expects the type \fB\s-1OSSL_STORE_INFO_CERT\s0\fR.
-All known object types (see \*(L"\s-1SUPPORTED OBJECTS\*(R"\s0 in \s-1\fBOSSL_STORE_INFO\s0\fR\|(3))
-except for \fB\s-1OSSL_STORE_INFO_NAME\s0\fR are supported.
 .PP
 \&\fBOSSL_STORE_find()\fR helps applications specify a criterion for a more fine
 grained search of objects.
 .PP
 \&\fBOSSL_STORE_supports_search()\fR checks if the loader of the given \s-1OSSL_STORE\s0
 context supports the given search type.
-See \*(L"\s-1SUPPORTED CRITERION TYPES\*(R"\s0 in \s-1OSSL_STORE_SEARCH\s0 for information on the
+See \*(L"\s-1SUPPORTED CRITERION TYPES\*(R"\s0 in \s-1\fBOSSL_STORE_SEARCH\s0\fR\|(3) for information on the
 supported search criterion types.
 .PP
 \&\fBOSSL_STORE_expect()\fR and OSSL_STORE_find \fImust\fR be called before the first
@@ -198,9 +203,9 @@ otherwise.
 were added in OpenSSL 1.1.1.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2018\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2018\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

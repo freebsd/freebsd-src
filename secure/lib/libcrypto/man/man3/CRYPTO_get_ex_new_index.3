@@ -133,13 +133,17 @@
 .\" ========================================================================
 .\"
 .IX Title "CRYPTO_GET_EX_NEW_INDEX 3"
-.TH CRYPTO_GET_EX_NEW_INDEX 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH CRYPTO_GET_EX_NEW_INDEX 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-CRYPTO_EX_new, CRYPTO_EX_free, CRYPTO_EX_dup, CRYPTO_free_ex_index, CRYPTO_get_ex_new_index, CRYPTO_set_ex_data, CRYPTO_get_ex_data, CRYPTO_free_ex_data, CRYPTO_new_ex_data \&\- functions supporting application\-specific data
+CRYPTO_EX_new, CRYPTO_EX_free, CRYPTO_EX_dup,
+CRYPTO_free_ex_index, CRYPTO_get_ex_new_index,
+CRYPTO_alloc_ex_data, CRYPTO_set_ex_data, CRYPTO_get_ex_data,
+CRYPTO_free_ex_data, CRYPTO_new_ex_data
+\&\- functions supporting application\-specific data
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -156,13 +160,16 @@ CRYPTO_EX_new, CRYPTO_EX_free, CRYPTO_EX_dup, CRYPTO_free_ex_index, CRYPTO_get_e
 \& typedef void CRYPTO_EX_free(void *parent, void *ptr, CRYPTO_EX_DATA *ad,
 \&                             int idx, long argl, void *argp);
 \& typedef int CRYPTO_EX_dup(CRYPTO_EX_DATA *to, const CRYPTO_EX_DATA *from,
-\&                           void *from_d, int idx, long argl, void *argp);
+\&                           void **from_d, int idx, long argl, void *argp);
 \&
-\& int CRYPTO_new_ex_data(int class_index, void *obj, CRYPTO_EX_DATA *ad)
+\& int CRYPTO_new_ex_data(int class_index, void *obj, CRYPTO_EX_DATA *ad);
+\&
+\& int CRYPTO_alloc_ex_data(int class_index, void *obj, CRYPTO_EX_DATA *ad,
+\&                          int idx);
 \&
 \& int CRYPTO_set_ex_data(CRYPTO_EX_DATA *r, int idx, void *arg);
 \&
-\& void *CRYPTO_get_ex_data(CRYPTO_EX_DATA *r, int idx);
+\& void *CRYPTO_get_ex_data(const CRYPTO_EX_DATA *r, int idx);
 \&
 \& void CRYPTO_free_ex_data(int class_index, void *obj, CRYPTO_EX_DATA *r);
 \&
@@ -175,13 +182,12 @@ known as \*(L"exdata.\*(R"
 The specific structures are:
 .PP
 .Vb 10
-\&    APP
 \&    BIO
 \&    DH
-\&    DRBG
 \&    DSA
 \&    EC_KEY
 \&    ENGINE
+\&    EVP_PKEY
 \&    RSA
 \&    SSL
 \&    SSL_CTX
@@ -193,8 +199,10 @@ The specific structures are:
 \&    X509_STORE_CTX
 .Ve
 .PP
-Each is identified by an \fBCRYPTO_EX_INDEX_xxx\fR define in the \fBcrypto.h\fR
-header file.  In addition, \fB\s-1CRYPTO_EX_INDEX_APP\s0\fR is reserved for
+In addition, the \fB\s-1APP\s0\fR name is reserved for use by application code.
+.PP
+Each is identified by an \fBCRYPTO_EX_INDEX_xxx\fR define in the header file
+\&\fI<openssl/crypto.h>\fR.  In addition, \fB\s-1CRYPTO_EX_INDEX_APP\s0\fR is reserved for
 applications to use this facility for their own structures.
 .PP
 The \s-1API\s0 described here is used by OpenSSL to manipulate exdata for specific
@@ -249,7 +257,8 @@ When a structure is initially allocated (such as \fBRSA_new()\fR) then the
 that the entire parent, or containing, structure has been set up.
 The \fBnew_func()\fR is typically used only to allocate memory to store the
 exdata, and perhaps an \*(L"initialized\*(R" flag within that memory.
-The exdata value should be set by calling \fBCRYPTO_set_ex_data()\fR.
+The exdata value may be allocated later on with \fBCRYPTO_alloc_ex_data()\fR,
+or may be set by calling \fBCRYPTO_set_ex_data()\fR.
 .PP
 When a structure is free'd (such as \fBSSL_CTX_free()\fR) then the
 \&\fBfree_func()\fR is called for every defined index.  Again, the state of the
@@ -268,10 +277,8 @@ the same callback handles different types of exdata.
 for \fB\s-1SSL\s0\fR, \fB\s-1SSL_SESSION\s0\fR, \fB\s-1EC_KEY\s0\fR objects and \fB\s-1BIO\s0\fR chains via
 \&\fBBIO_dup_chain()\fR.  The \fBto\fR and \fBfrom\fR parameters
 are pointers to the destination and source \fB\s-1CRYPTO_EX_DATA\s0\fR structures,
-respectively.  The \fBfrom_d\fR parameter needs to be cast to a \fBvoid **pptr\fR
-as the \s-1API\s0 has currently the wrong signature; that will be changed in a
-future version.  The \fB*pptr\fR is a pointer to the source exdata.
-When the \fBdup_func()\fR returns, the value in \fB*pptr\fR is copied to the
+respectively.  The \fB*from_d\fR parameter is a pointer to the source exdata.
+When the \fBdup_func()\fR returns, the value in \fB*from_d\fR is copied to the
 destination ex_data.  If the pointer contained in \fB*pptr\fR is not modified
 by the \fBdup_func()\fR, then both \fBto\fR and \fBfrom\fR will point to the same data.
 The \fBidx\fR, \fBargl\fR and \fBargp\fR parameters are as described for the other
@@ -281,18 +288,26 @@ will fail.
 .IX Header "RETURN VALUES"
 \&\fBCRYPTO_get_ex_new_index()\fR returns a new index or \-1 on failure.
 .PP
-\&\fBCRYPTO_free_ex_index()\fR and
-\&\fBCRYPTO_set_ex_data()\fR return 1 on success or 0 on failure.
+\&\fBCRYPTO_free_ex_index()\fR, \fBCRYPTO_alloc_ex_data()\fR and \fBCRYPTO_set_ex_data()\fR
+return 1 on success or 0 on failure.
 .PP
 \&\fBCRYPTO_get_ex_data()\fR returns the application data or \s-1NULL\s0 on failure;
 note that \s-1NULL\s0 may be a valid value.
 .PP
 \&\fBdup_func()\fR should return 0 for failure and 1 for success.
+.SH "HISTORY"
+.IX Header "HISTORY"
+\&\fBCRYPTO_alloc_ex_data()\fR was added in OpenSSL 3.0.
+.PP
+The signature of the \fBdup_func()\fR callback was changed in OpenSSL 3.0 to use the
+type \fBvoid **\fR for \fBfrom_d\fR.  Previously this parameter was of type \fBvoid *\fR.
+.PP
+Support for \s-1ENGINE\s0 \*(L"exdata\*(R" was deprecated in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2015\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

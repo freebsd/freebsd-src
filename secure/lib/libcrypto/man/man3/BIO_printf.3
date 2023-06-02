@@ -133,37 +133,38 @@
 .\" ========================================================================
 .\"
 .IX Title "BIO_PRINTF 3"
-.TH BIO_PRINTF 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH BIO_PRINTF 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-BIO_printf, BIO_vprintf, BIO_snprintf, BIO_vsnprintf \&\- formatted output to a BIO
+BIO_printf, BIO_vprintf, BIO_snprintf, BIO_vsnprintf
+\&\- formatted output to a BIO
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/bio.h>
 \&
-\& int BIO_printf(BIO *bio, const char *format, ...)
-\& int BIO_vprintf(BIO *bio, const char *format, va_list args)
+\& int BIO_printf(BIO *bio, const char *format, ...);
+\& int BIO_vprintf(BIO *bio, const char *format, va_list args);
 \&
-\& int BIO_snprintf(char *buf, size_t n, const char *format, ...)
-\& int BIO_vsnprintf(char *buf, size_t n, const char *format, va_list args)
+\& int BIO_snprintf(char *buf, size_t n, const char *format, ...);
+\& int BIO_vsnprintf(char *buf, size_t n, const char *format, va_list args);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 \&\fBBIO_printf()\fR is similar to the standard C \fBprintf()\fR function, except that
-the output is sent to the specified \s-1BIO,\s0 \fBbio\fR, rather than standard
+the output is sent to the specified \s-1BIO,\s0 \fIbio\fR, rather than standard
 output.  All common format specifiers are supported.
 .PP
 \&\fBBIO_vprintf()\fR is similar to the \fBvprintf()\fR function found on many platforms,
-the output is sent to the specified \s-1BIO,\s0 \fBbio\fR, rather than standard
+the output is sent to the specified \s-1BIO,\s0 \fIbio\fR, rather than standard
 output.  All common format specifiers are supported. The argument
-list \fBargs\fR is a stdarg argument list.
+list \fIargs\fR is a stdarg argument list.
 .PP
 \&\fBBIO_snprintf()\fR is for platforms that do not have the common \fBsnprintf()\fR
-function. It is like \fBsprintf()\fR except that the size parameter, \fBn\fR,
+function. It is like \fBsprintf()\fR except that the size parameter, \fIn\fR,
 specifies the size of the output buffer.
 .PP
 \&\fBBIO_vsnprintf()\fR is to \fBBIO_snprintf()\fR as \fBBIO_vprintf()\fR is to \fBBIO_printf()\fR.
@@ -172,11 +173,17 @@ specifies the size of the output buffer.
 All functions return the number of bytes written, or \-1 on error.
 For \fBBIO_snprintf()\fR and \fBBIO_vsnprintf()\fR this includes when the output
 buffer is too small.
+.SH "NOTES"
+.IX Header "NOTES"
+Except when \fIn\fR is 0, both \fBBIO_snprintf()\fR and \fBBIO_vsnprintf()\fR always
+terminate their output with \f(CW\*(Aq\e0\*(Aq\fR.  This includes cases where \-1 is
+returned, such as when there is insufficient space to output the whole
+string.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

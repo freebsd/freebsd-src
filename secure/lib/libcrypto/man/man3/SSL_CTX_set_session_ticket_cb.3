@@ -133,13 +133,17 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET_SESSION_TICKET_CB 3"
-.TH SSL_CTX_SET_SESSION_TICKET_CB 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_CTX_SET_SESSION_TICKET_CB 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SSL_CTX_set_session_ticket_cb, SSL_SESSION_get0_ticket_appdata, SSL_SESSION_set1_ticket_appdata, SSL_CTX_generate_session_ticket_fn, SSL_CTX_decrypt_session_ticket_fn \- manage session ticket application data
+SSL_CTX_set_session_ticket_cb,
+SSL_SESSION_get0_ticket_appdata,
+SSL_SESSION_set1_ticket_appdata,
+SSL_CTX_generate_session_ticket_fn,
+SSL_CTX_decrypt_session_ticket_fn \- manage session ticket application data
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -176,7 +180,7 @@ decryption has been attempted and any session ticket application data is
 available. If ticket decryption was successful then the \fBss\fR argument contains
 the session data. The \fBkeyname\fR and \fBkeyname_len\fR arguments identify the key
 used to decrypt the session ticket. The \fBstatus\fR argument is the result of the
-ticket decryption. See the \s-1NOTES\s0 section below for further details. The value
+ticket decryption. See the \*(L"\s-1NOTES\*(R"\s0 section below for further details. The value
 of \fBarg\fR is the same as that given to \fBSSL_CTX_set_session_ticket_cb()\fR. The
 \&\fBdec_cb\fR callback is defined as type \fBSSL_CTX_decrypt_session_ticket_fn\fR.
 .PP
@@ -282,7 +286,7 @@ failure.
 The \fBgen_cb\fR callback must return 1 to continue the connection. A return of 0
 will terminate the connection with an \s-1INTERNAL_ERROR\s0 alert.
 .PP
-The \fBdec_cb\fR callback must return a value as described in \s-1NOTES\s0 above.
+The \fBdec_cb\fR callback must return a value as described in \*(L"\s-1NOTES\*(R"\s0 above.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBssl\fR\|(7),
@@ -295,7 +299,7 @@ and \fBSSL_SESSION_get_ticket_appdata()\fR functions were added in OpenSSL 1.1.1
 .IX Header "COPYRIGHT"
 Copyright 2017\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

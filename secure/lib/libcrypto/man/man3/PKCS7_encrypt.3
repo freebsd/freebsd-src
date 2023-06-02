@@ -133,28 +133,33 @@
 .\" ========================================================================
 .\"
 .IX Title "PKCS7_ENCRYPT 3"
-.TH PKCS7_ENCRYPT 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH PKCS7_ENCRYPT 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-PKCS7_encrypt \- create a PKCS#7 envelopedData structure
+PKCS7_encrypt_ex, PKCS7_encrypt
+\&\- create a PKCS#7 envelopedData structure
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/pkcs7.h>
 \&
+\& PKCS7 *PKCS7_encrypt_ex(STACK_OF(X509) *certs, BIO *in,
+\&                         const EVP_CIPHER *cipher, int flags,
+\&                         OSSL_LIB_CTX *libctx, const char *propq);
 \& PKCS7 *PKCS7_encrypt(STACK_OF(X509) *certs, BIO *in, const EVP_CIPHER *cipher,
 \&                      int flags);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBPKCS7_encrypt()\fR creates and returns a PKCS#7 envelopedData structure. \fBcerts\fR
-is a list of recipient certificates. \fBin\fR is the content to be encrypted.
-\&\fBcipher\fR is the symmetric cipher to use. \fBflags\fR is an optional set of flags.
-.SH "NOTES"
-.IX Header "NOTES"
+\&\fBPKCS7_encrypt_ex()\fR creates and returns a PKCS#7 envelopedData structure.
+\&\fIcerts\fR is a list of recipient certificates. \fIin\fR is the content to be
+encrypted. \fIcipher\fR is the symmetric cipher to use. \fIflags\fR is an optional set
+of flags. The library context \fIlibctx\fR and the property query \fIpropq\fR are used
+when retrieving algorithms from providers.
+.PP
 Only \s-1RSA\s0 keys are supported in PKCS#7 and envelopedData so the recipient
 certificates supplied to this function must all contain \s-1RSA\s0 public keys, though
 they do not have to be signed using the \s-1RSA\s0 algorithm.
@@ -187,8 +192,7 @@ otherwise the translation will corrupt it. If \fB\s-1PKCS7_BINARY\s0\fR is set t
 .PP
 If the \fB\s-1PKCS7_STREAM\s0\fR flag is set a partial \fB\s-1PKCS7\s0\fR structure is output
 suitable for streaming I/O: no data is read from the \s-1BIO\s0 \fBin\fR.
-.SH "NOTES"
-.IX Header "NOTES"
+.PP
 If the flag \fB\s-1PKCS7_STREAM\s0\fR is set the returned \fB\s-1PKCS7\s0\fR structure is \fBnot\fR
 complete and outputting its contents via a function that does not
 properly finalize the \fB\s-1PKCS7\s0\fR structure will give unpredictable
@@ -198,21 +202,26 @@ Several functions including \fBSMIME_write_PKCS7()\fR, \fBi2d_PKCS7_bio_stream()
 \&\fBPEM_write_bio_PKCS7_stream()\fR finalize the structure. Alternatively finalization
 can be performed by obtaining the streaming \s-1ASN1\s0 \fB\s-1BIO\s0\fR directly using
 \&\fBBIO_new_PKCS7()\fR.
+.PP
+\&\fBPKCS7_encrypt()\fR is similar to \fBPKCS7_encrypt_ex()\fR but uses default
+values of \s-1NULL\s0 for the library context \fIlibctx\fR and the property query \fIpropq\fR.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fBPKCS7_encrypt()\fR returns either a \s-1PKCS7\s0 structure or \s-1NULL\s0 if an error occurred.
-The error can be obtained from \fBERR_get_error\fR\|(3).
+\&\fBPKCS7_encrypt_ex()\fR and \fBPKCS7_encrypt()\fR return either a \s-1PKCS7\s0 structure
+or \s-1NULL\s0 if an error occurred. The error can be obtained from \fBERR_get_error\fR\|(3).
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBERR_get_error\fR\|(3), \fBPKCS7_decrypt\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
+The function \fBPKCS7_encrypt_ex()\fR was added in OpenSSL 3.0.
+.PP
 The \fB\s-1PKCS7_STREAM\s0\fR flag was added in OpenSSL 1.0.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2002\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

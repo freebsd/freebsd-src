@@ -133,13 +133,45 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_STORE_SET_VERIFY_CB_FUNC 3"
-.TH X509_STORE_SET_VERIFY_CB_FUNC 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH X509_STORE_SET_VERIFY_CB_FUNC 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-X509_STORE_set_lookup_crls_cb, X509_STORE_set_verify_func, X509_STORE_get_cleanup, X509_STORE_set_cleanup, X509_STORE_get_lookup_crls, X509_STORE_set_lookup_crls, X509_STORE_get_lookup_certs, X509_STORE_set_lookup_certs, X509_STORE_get_check_policy, X509_STORE_set_check_policy, X509_STORE_get_cert_crl, X509_STORE_set_cert_crl, X509_STORE_get_check_crl, X509_STORE_set_check_crl, X509_STORE_get_get_crl, X509_STORE_set_get_crl, X509_STORE_get_check_revocation, X509_STORE_set_check_revocation, X509_STORE_get_check_issued, X509_STORE_set_check_issued, X509_STORE_get_get_issuer, X509_STORE_set_get_issuer, X509_STORE_CTX_get_verify, X509_STORE_set_verify, X509_STORE_get_verify_cb, X509_STORE_set_verify_cb_func, X509_STORE_set_verify_cb, X509_STORE_CTX_cert_crl_fn, X509_STORE_CTX_check_crl_fn, X509_STORE_CTX_check_issued_fn, X509_STORE_CTX_check_policy_fn, X509_STORE_CTX_check_revocation_fn, X509_STORE_CTX_cleanup_fn, X509_STORE_CTX_get_crl_fn, X509_STORE_CTX_get_issuer_fn, X509_STORE_CTX_lookup_certs_fn, X509_STORE_CTX_lookup_crls_fn \&\- set verification callback
+X509_STORE_set_lookup_crls_cb,
+X509_STORE_set_verify_func,
+X509_STORE_get_cleanup,
+X509_STORE_set_cleanup,
+X509_STORE_get_lookup_crls,
+X509_STORE_set_lookup_crls,
+X509_STORE_get_lookup_certs,
+X509_STORE_set_lookup_certs,
+X509_STORE_get_check_policy,
+X509_STORE_set_check_policy,
+X509_STORE_get_cert_crl,
+X509_STORE_set_cert_crl,
+X509_STORE_get_check_crl,
+X509_STORE_set_check_crl,
+X509_STORE_get_get_crl,
+X509_STORE_set_get_crl,
+X509_STORE_get_check_revocation,
+X509_STORE_set_check_revocation,
+X509_STORE_get_check_issued,
+X509_STORE_set_check_issued,
+X509_STORE_CTX_get1_issuer,
+X509_STORE_get_get_issuer,
+X509_STORE_set_get_issuer,
+X509_STORE_CTX_get_verify,
+X509_STORE_set_verify,
+X509_STORE_get_verify_cb,
+X509_STORE_set_verify_cb_func, X509_STORE_set_verify_cb,
+X509_STORE_CTX_cert_crl_fn, X509_STORE_CTX_check_crl_fn,
+X509_STORE_CTX_check_issued_fn, X509_STORE_CTX_check_policy_fn,
+X509_STORE_CTX_check_revocation_fn, X509_STORE_CTX_cleanup_fn,
+X509_STORE_CTX_get_crl_fn, X509_STORE_CTX_get_issuer_fn,
+X509_STORE_CTX_lookup_certs_fn, X509_STORE_CTX_lookup_crls_fn
+\&\- set verification callback
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -157,57 +189,65 @@ X509_STORE_set_lookup_crls_cb, X509_STORE_set_verify_func, X509_STORE_get_cleanu
 \&                                           X509_CRL *crl, X509 *x);
 \& typedef int (*X509_STORE_CTX_check_policy_fn)(X509_STORE_CTX *ctx);
 \& typedef STACK_OF(X509) *(*X509_STORE_CTX_lookup_certs_fn)(X509_STORE_CTX *ctx,
-\&                                                           X509_NAME *nm);
-\& typedef STACK_OF(X509_CRL) *(*X509_STORE_CTX_lookup_crls_fn)(X509_STORE_CTX *ctx,
-\&                                                              X509_NAME *nm);
+\&                                                           const X509_NAME *nm);
+\& typedef STACK_OF(X509_CRL) *(*X509_STORE_CTX_lookup_crls_fn)(const
+\&                                                              X509_STORE_CTX *ctx,
+\&                                                              const X509_NAME *nm);
 \& typedef int (*X509_STORE_CTX_cleanup_fn)(X509_STORE_CTX *ctx);
 \&
 \& void X509_STORE_set_verify_cb(X509_STORE *ctx,
 \&                               X509_STORE_CTX_verify_cb verify_cb);
-\& X509_STORE_CTX_verify_cb X509_STORE_get_verify_cb(X509_STORE_CTX *ctx);
+\& X509_STORE_CTX_verify_cb X509_STORE_get_verify_cb(const X509_STORE_CTX *ctx);
 \&
 \& void X509_STORE_set_verify(X509_STORE *ctx, X509_STORE_CTX_verify_fn verify);
-\& X509_STORE_CTX_verify_fn X509_STORE_CTX_get_verify(X509_STORE_CTX *ctx);
+\& X509_STORE_CTX_verify_fn X509_STORE_CTX_get_verify(const X509_STORE_CTX *ctx);
 \&
+\& int X509_STORE_CTX_get1_issuer(X509 **issuer, X509_STORE_CTX *ctx, X509 *x);
+\& X509_STORE_CTX_get_issuer_fn X509_STORE_get_get_issuer(const X509_STORE_CTX *ctx);
 \& void X509_STORE_set_get_issuer(X509_STORE *ctx,
 \&                                X509_STORE_CTX_get_issuer_fn get_issuer);
-\& X509_STORE_CTX_get_issuer_fn X509_STORE_get_get_issuer(X509_STORE_CTX *ctx);
 \&
 \& void X509_STORE_set_check_issued(X509_STORE *ctx,
 \&                                  X509_STORE_CTX_check_issued_fn check_issued);
-\& X509_STORE_CTX_check_issued_fn X509_STORE_get_check_issued(X509_STORE_CTX *ctx);
+\& X509_STORE_CTX_check_issued_fn
+\&     X509_STORE_get_check_issued(const X509_STORE_CTX *ctx);
 \&
 \& void X509_STORE_set_check_revocation(X509_STORE *ctx,
 \&                                      X509_STORE_CTX_check_revocation_fn check_revocation);
-\& X509_STORE_CTX_check_revocation_fn X509_STORE_get_check_revocation(X509_STORE_CTX *ctx);
+\& X509_STORE_CTX_check_revocation_fn
+\&     X509_STORE_get_check_revocation(const X509_STORE_CTX *ctx);
 \&
 \& void X509_STORE_set_get_crl(X509_STORE *ctx,
 \&                             X509_STORE_CTX_get_crl_fn get_crl);
-\& X509_STORE_CTX_get_crl_fn X509_STORE_get_get_crl(X509_STORE_CTX *ctx);
+\& X509_STORE_CTX_get_crl_fn X509_STORE_get_get_crl(const X509_STORE_CTX *ctx);
 \&
 \& void X509_STORE_set_check_crl(X509_STORE *ctx,
 \&                               X509_STORE_CTX_check_crl_fn check_crl);
-\& X509_STORE_CTX_check_crl_fn X509_STORE_get_check_crl(X509_STORE_CTX *ctx);
+\& X509_STORE_CTX_check_crl_fn
+\&     X509_STORE_get_check_crl(const X509_STORE_CTX *ctx);
 \&
 \& void X509_STORE_set_cert_crl(X509_STORE *ctx,
 \&                              X509_STORE_CTX_cert_crl_fn cert_crl);
-\& X509_STORE_CTX_cert_crl_fn X509_STORE_get_cert_crl(X509_STORE_CTX *ctx);
+\& X509_STORE_CTX_cert_crl_fn X509_STORE_get_cert_crl(const X509_STORE_CTX *ctx);
 \&
 \& void X509_STORE_set_check_policy(X509_STORE *ctx,
 \&                                  X509_STORE_CTX_check_policy_fn check_policy);
-\& X509_STORE_CTX_check_policy_fn X509_STORE_get_check_policy(X509_STORE_CTX *ctx);
+\& X509_STORE_CTX_check_policy_fn
+\&     X509_STORE_get_check_policy(const X509_STORE_CTX *ctx);
 \&
 \& void X509_STORE_set_lookup_certs(X509_STORE *ctx,
 \&                                  X509_STORE_CTX_lookup_certs_fn lookup_certs);
-\& X509_STORE_CTX_lookup_certs_fn X509_STORE_get_lookup_certs(X509_STORE_CTX *ctx);
+\& X509_STORE_CTX_lookup_certs_fn
+\&     X509_STORE_get_lookup_certs(const X509_STORE_CTX *ctx);
 \&
 \& void X509_STORE_set_lookup_crls(X509_STORE *ctx,
 \&                                 X509_STORE_CTX_lookup_crls_fn lookup_crls);
-\& X509_STORE_CTX_lookup_crls_fn X509_STORE_get_lookup_crls(X509_STORE_CTX *ctx);
+\& X509_STORE_CTX_lookup_crls_fn
+\&     X509_STORE_get_lookup_crls(const X509_STORE_CTX *ctx);
 \&
 \& void X509_STORE_set_cleanup(X509_STORE *ctx,
 \&                             X509_STORE_CTX_cleanup_fn cleanup);
-\& X509_STORE_CTX_cleanup_fn X509_STORE_get_cleanup(X509_STORE_CTX *ctx);
+\& X509_STORE_CTX_cleanup_fn X509_STORE_get_cleanup(const X509_STORE_CTX *ctx);
 \&
 \& /* Aliases */
 \& void X509_STORE_set_verify_cb_func(X509_STORE *st,
@@ -219,14 +259,14 @@ X509_STORE_set_lookup_crls_cb, X509_STORE_set_verify_func, X509_STORE_get_cleanu
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBX509_STORE_set_verify_cb()\fR sets the verification callback of \fBctx\fR to
-\&\fBverify_cb\fR overwriting the previous callback.
+\&\fBX509_STORE_set_verify_cb()\fR sets the verification callback of \fIctx\fR to
+\&\fIverify_cb\fR overwriting the previous callback.
 The callback assigned with this function becomes a default for the one
 that can be assigned directly to the corresponding \fBX509_STORE_CTX\fR,
 please see \fBX509_STORE_CTX_set_verify_cb\fR\|(3) for further information.
 .PP
 \&\fBX509_STORE_set_verify()\fR sets the final chain verification function for
-\&\fBctx\fR to \fBverify\fR.
+\&\fIctx\fR to \fIverify\fR.
 Its purpose is to go through the chain of certificates and check that
 all signatures are valid and that the current time is within the
 limits of each certificate's first and last validity time.
@@ -235,17 +275,24 @@ on success.
 \&\fIIf no chain verification function is provided, the internal default
 function will be used instead.\fR
 .PP
-\&\fBX509_STORE_set_get_issuer()\fR sets the function to get the issuer
-certificate that verifies the given certificate \fBx\fR.
-When found, the issuer certificate must be assigned to \fB*issuer\fR.
-This function must return 0 on failure and 1 on success.
-\&\fIIf no function to get the issuer is provided, the internal default
-function will be used instead.\fR
+\&\fBX509_STORE_CTX_get1_issuer()\fR tries to find a certificate from the \fIstore\fR
+component of \fIctx\fR with a subject name matching the issuer name of \fIx\fR.
+On success it assigns to \fI*issuer\fR the first match that is currently valid,
+or at least the most recently expired match if there is no currently valid one.
+If the function returns 1 the caller is responsible for freeing \fI*issuer\fR.
+.PP
+\&\fBX509_STORE_set_get_issuer()\fR sets the function \fIget_issuer\fR
+to get the \*(L"best\*(R" candidate issuer certificate of the given certificate \fIx\fR.
+When such a certificate is found, \fIget_issuer\fR must up-ref and assign it
+to \fI*issuer\fR and then return 1.
+Otherwise \fIget_issuer\fR must return 0 if not found and \-1 (or 0) on failure.
+If \fBX509_STORE_set_get_issuer()\fR is not used or \fIget_issuer\fR is \s-1NULL\s0
+then \fBX509_STORE_CTX_get1_issuer()\fR is used as the default implementation.
 .PP
 \&\fBX509_STORE_set_check_issued()\fR sets the function to check that a given
-certificate \fBx\fR is issued by the issuer certificate \fBissuer\fR.
-This function must return 0 on failure (among others if \fBx\fR hasn't
-been issued with \fBissuer\fR) and 1 on success.
+certificate \fIx\fR is issued by the issuer certificate \fIissuer\fR.
+This function must return 0 on failure (among others if \fIx\fR hasn't
+been issued with \fIissuer\fR) and 1 on success.
 \&\fIIf no function to get the issuer is provided, the internal default
 function will be used instead.\fR
 .PP
@@ -258,20 +305,20 @@ It must return 0 on failure and 1 on success.
 function will be used instead.\fR
 .PP
 \&\fBX509_STORE_set_get_crl()\fR sets the function to get the crl for a given
-certificate \fBx\fR.
-When found, the crl must be assigned to \fB*crl\fR.
+certificate \fIx\fR.
+When found, the crl must be assigned to \fI*crl\fR.
 This function must return 0 on failure and 1 on success.
 \&\fIIf no function to get the issuer is provided, the internal default
 function will be used instead.\fR
 .PP
 \&\fBX509_STORE_set_check_crl()\fR sets the function to check the validity of
-the given \fBcrl\fR.
+the given \fIcrl\fR.
 This function must return 0 on failure and 1 on success.
 \&\fIIf no function to get the issuer is provided, the internal default
 function will be used instead.\fR
 .PP
 \&\fBX509_STORE_set_cert_crl()\fR sets the function to check the revocation
-status of the given certificate \fBx\fR against the given \fBcrl\fR.
+status of the given certificate \fIx\fR against the given \fIcrl\fR.
 This function must return 0 on failure and 1 on success.
 \&\fIIf no function to get the issuer is provided, the internal default
 function will be used instead.\fR
@@ -284,7 +331,7 @@ function will be used instead.\fR
 .PP
 \&\fBX509_STORE_set_lookup_certs()\fR and \fBX509_STORE_set_lookup_crls()\fR set the
 functions to look up all the certs or all the CRLs that match the
-given name \fBnm\fR.
+given name \fInm\fR.
 These functions return \s-1NULL\s0 on failure and a pointer to a stack of
 certificates (\fBX509\fR) or to a stack of CRLs (\fBX509_CRL\fR) on
 success.
@@ -331,6 +378,9 @@ The X509_STORE_set_*() functions do not return a value.
 .PP
 The X509_STORE_get_*() functions return a pointer of the appropriate
 function type.
+.PP
+\&\fBX509_STORE_CTX_get1_issuer()\fR returns
+1 if a suitable certificate is found, 0 if not found, \-1 on other error.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBX509_STORE_CTX_set_verify_cb\fR\|(3), \fBX509_STORE_CTX_get0_chain\fR\|(3),
@@ -356,9 +406,9 @@ The functions
 were added in OpenSSL 1.1.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2009\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2009\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

@@ -133,13 +133,29 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_VERIFY_PARAM_SET_FLAGS 3"
-.TH X509_VERIFY_PARAM_SET_FLAGS 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH X509_VERIFY_PARAM_SET_FLAGS 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-X509_VERIFY_PARAM_set_flags, X509_VERIFY_PARAM_clear_flags, X509_VERIFY_PARAM_get_flags, X509_VERIFY_PARAM_set_purpose, X509_VERIFY_PARAM_get_inh_flags, X509_VERIFY_PARAM_set_inh_flags, X509_VERIFY_PARAM_set_trust, X509_VERIFY_PARAM_set_depth, X509_VERIFY_PARAM_get_depth, X509_VERIFY_PARAM_set_auth_level, X509_VERIFY_PARAM_get_auth_level, X509_VERIFY_PARAM_set_time, X509_VERIFY_PARAM_get_time, X509_VERIFY_PARAM_add0_policy, X509_VERIFY_PARAM_set1_policies, X509_VERIFY_PARAM_set1_host, X509_VERIFY_PARAM_add1_host, X509_VERIFY_PARAM_set_hostflags, X509_VERIFY_PARAM_get_hostflags, X509_VERIFY_PARAM_get0_peername, X509_VERIFY_PARAM_set1_email, X509_VERIFY_PARAM_set1_ip, X509_VERIFY_PARAM_set1_ip_asc \&\- X509 verification parameters
+X509_VERIFY_PARAM_set_flags, X509_VERIFY_PARAM_clear_flags,
+X509_VERIFY_PARAM_get_flags, X509_VERIFY_PARAM_set_purpose,
+X509_VERIFY_PARAM_get_inh_flags, X509_VERIFY_PARAM_set_inh_flags,
+X509_VERIFY_PARAM_set_trust, X509_VERIFY_PARAM_set_depth,
+X509_VERIFY_PARAM_get_depth, X509_VERIFY_PARAM_set_auth_level,
+X509_VERIFY_PARAM_get_auth_level, X509_VERIFY_PARAM_set_time,
+X509_VERIFY_PARAM_get_time,
+X509_VERIFY_PARAM_add0_policy, X509_VERIFY_PARAM_set1_policies,
+X509_VERIFY_PARAM_get0_host,
+X509_VERIFY_PARAM_set1_host, X509_VERIFY_PARAM_add1_host,
+X509_VERIFY_PARAM_set_hostflags,
+X509_VERIFY_PARAM_get_hostflags,
+X509_VERIFY_PARAM_get0_peername,
+X509_VERIFY_PARAM_get0_email, X509_VERIFY_PARAM_set1_email,
+X509_VERIFY_PARAM_set1_ip, X509_VERIFY_PARAM_get1_ip_asc,
+X509_VERIFY_PARAM_set1_ip_asc
+\&\- X509 verification parameters
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -149,7 +165,7 @@ X509_VERIFY_PARAM_set_flags, X509_VERIFY_PARAM_clear_flags, X509_VERIFY_PARAM_ge
 \&                                 unsigned long flags);
 \& int X509_VERIFY_PARAM_clear_flags(X509_VERIFY_PARAM *param,
 \&                                   unsigned long flags);
-\& unsigned long X509_VERIFY_PARAM_get_flags(X509_VERIFY_PARAM *param);
+\& unsigned long X509_VERIFY_PARAM_get_flags(const X509_VERIFY_PARAM *param);
 \&
 \& int X509_VERIFY_PARAM_set_inh_flags(X509_VERIFY_PARAM *param,
 \&                                     uint32_t flags);
@@ -173,6 +189,7 @@ X509_VERIFY_PARAM_set_flags, X509_VERIFY_PARAM_clear_flags, X509_VERIFY_PARAM_ge
 \&                                       int auth_level);
 \& int X509_VERIFY_PARAM_get_auth_level(const X509_VERIFY_PARAM *param);
 \&
+\& char *X509_VERIFY_PARAM_get0_host(X509_VERIFY_PARAM *param, int n);
 \& int X509_VERIFY_PARAM_set1_host(X509_VERIFY_PARAM *param,
 \&                                 const char *name, size_t namelen);
 \& int X509_VERIFY_PARAM_add1_host(X509_VERIFY_PARAM *param,
@@ -180,9 +197,11 @@ X509_VERIFY_PARAM_set_flags, X509_VERIFY_PARAM_clear_flags, X509_VERIFY_PARAM_ge
 \& void X509_VERIFY_PARAM_set_hostflags(X509_VERIFY_PARAM *param,
 \&                                      unsigned int flags);
 \& unsigned int X509_VERIFY_PARAM_get_hostflags(const X509_VERIFY_PARAM *param);
-\& char *X509_VERIFY_PARAM_get0_peername(X509_VERIFY_PARAM *param);
+\& char *X509_VERIFY_PARAM_get0_peername(const X509_VERIFY_PARAM *param);
+\& char *X509_VERIFY_PARAM_get0_email(X509_VERIFY_PARAM *param);
 \& int X509_VERIFY_PARAM_set1_email(X509_VERIFY_PARAM *param,
 \&                                  const char *email, size_t emaillen);
+\& char *X509_VERIFY_PARAM_get1_ip_asc(X509_VERIFY_PARAM *param);
 \& int X509_VERIFY_PARAM_set1_ip(X509_VERIFY_PARAM *param,
 \&                               const unsigned char *ip, size_t iplen);
 \& int X509_VERIFY_PARAM_set1_ip_asc(X509_VERIFY_PARAM *param, const char *ipasc);
@@ -193,7 +212,7 @@ These functions manipulate the \fBX509_VERIFY_PARAM\fR structure associated with
 a certificate verification operation.
 .PP
 The \fBX509_VERIFY_PARAM_set_flags()\fR function sets the flags in \fBparam\fR by oring
-it with \fBflags\fR. See the \fB\s-1VERIFICATION FLAGS\s0\fR section for a complete
+it with \fBflags\fR. See \*(L"\s-1VERIFICATION FLAGS\*(R"\s0 for a complete
 description of values the \fBflags\fR parameter can take.
 .PP
 \&\fBX509_VERIFY_PARAM_get_flags()\fR returns the flags in \fBparam\fR.
@@ -207,7 +226,8 @@ See the \fB\s-1INHERITANCE FLAGS\s0\fR section for a description of these bits.
 .PP
 \&\fBX509_VERIFY_PARAM_set_purpose()\fR sets the verification purpose in \fBparam\fR
 to \fBpurpose\fR. This determines the acceptable purpose of the certificate
-chain, for example \s-1SSL\s0 client or \s-1SSL\s0 server.
+chain, for example \fBX509_PURPOSE_SSL_CLIENT\fR.
+The purpose requirement is cleared if \fBpurpose\fR is 0.
 .PP
 \&\fBX509_VERIFY_PARAM_set_trust()\fR sets the trust setting in \fBparam\fR to
 \&\fBtrust\fR.
@@ -231,8 +251,8 @@ A maximal depth chain contains 2 more certificates than the limit, since
 neither the end-entity certificate nor the trust-anchor count against this
 limit.
 Thus a \fBdepth\fR limit of 0 only allows the end-entity certificate to be signed
-directly by the trust-anchor, while with a \fBdepth\fR limit of 1 there can be one
-intermediate \s-1CA\s0 certificate between the trust-anchor and the end-entity
+directly by the trust anchor, while with a \fBdepth\fR limit of 1 there can be one
+intermediate \s-1CA\s0 certificate between the trust anchor and the end-entity
 certificate.
 .PP
 \&\fBX509_VERIFY_PARAM_set_auth_level()\fR sets the authentication security level to
@@ -252,8 +272,13 @@ Security level 1 requires at least 80\-bit\-equivalent security and is broadly
 interoperable, though it will, for example, reject \s-1MD5\s0 signatures or \s-1RSA\s0 keys
 shorter than 1024 bits.
 .PP
+\&\fBX509_VERIFY_PARAM_get0_host()\fR returns the \fBn\fRth expected \s-1DNS\s0 hostname that has
+been set using \fBX509_VERIFY_PARAM_set1_host()\fR or \fBX509_VERIFY_PARAM_add1_host()\fR.
+To obtain all names start with \fBn\fR = 0 and increment \fBn\fR as long as no \s-1NULL\s0
+pointer is returned.
+.PP
 \&\fBX509_VERIFY_PARAM_set1_host()\fR sets the expected \s-1DNS\s0 hostname to
-\&\fBname\fR clearing any previously specified hostname or names.  If
+\&\fBname\fR clearing any previously specified hostname.  If
 \&\fBname\fR is \s-1NULL,\s0 or empty the list of hostnames is cleared, and
 name checks are not performed on the peer certificate.  If \fBname\fR
 is NUL-terminated, \fBnamelen\fR may be zero, otherwise \fBnamelen\fR
@@ -301,11 +326,16 @@ string is allocated by the library and is no longer valid once the
 associated \fBparam\fR argument is freed.  Applications must not free
 the return value.
 .PP
+\&\fBX509_VERIFY_PARAM_get0_email()\fR returns the expected \s-1RFC822\s0 email address.
+.PP
 \&\fBX509_VERIFY_PARAM_set1_email()\fR sets the expected \s-1RFC822\s0 email address to
 \&\fBemail\fR.  If \fBemail\fR is NUL-terminated, \fBemaillen\fR may be zero, otherwise
 \&\fBemaillen\fR must be set to the length of \fBemail\fR.  When an email address
 is specified, certificate verification automatically invokes
 \&\fBX509_check_email\fR\|(3).
+.PP
+\&\fBX509_VERIFY_PARAM_get1_ip_asc()\fR returns the expected \s-1IP\s0 address as a string.
+The caller is responsible for freeing it.
 .PP
 \&\fBX509_VERIFY_PARAM_set1_ip()\fR sets the expected \s-1IP\s0 address to \fBip\fR.
 The \fBip\fR argument is in binary format, in network byte-order and
@@ -327,6 +357,10 @@ IPv6.  The condensed \*(L"::\*(R" notation is supported for IPv6 addresses.
 \&\fBX509_VERIFY_PARAM_set1_email()\fR, \fBX509_VERIFY_PARAM_set1_ip()\fR and
 \&\fBX509_VERIFY_PARAM_set1_ip_asc()\fR return 1 for success and 0 for
 failure.
+.PP
+\&\fBX509_VERIFY_PARAM_get0_host()\fR, \fBX509_VERIFY_PARAM_get0_email()\fR, and
+\&\fBX509_VERIFY_PARAM_get1_ip_asc()\fR, return the string pointers pecified above
+or \s-1NULL\s0 if the respective value has not been set or on error.
 .PP
 \&\fBX509_VERIFY_PARAM_get_flags()\fR returns the current verification flags.
 .PP
@@ -352,8 +386,8 @@ certificate. An error occurs if a suitable \s-1CRL\s0 cannot be found.
 \&\fBX509_V_FLAG_CRL_CHECK_ALL\fR enables \s-1CRL\s0 checking for the entire certificate
 chain.
 .PP
-\&\fBX509_V_FLAG_IGNORE_CRITICAL\fR disabled critical extension checking. By default
-any unhandled critical extensions in certificates or (if checked) CRLs results
+\&\fBX509_V_FLAG_IGNORE_CRITICAL\fR disables critical extension checking. By default
+any unhandled critical extensions in certificates or (if checked) CRLs result
 in a fatal error. If this flag is set unhandled critical extensions are
 ignored. \fB\s-1WARNING\s0\fR setting this option for anything other than debugging
 purposes can be a security risk. Finer control over which extensions are
@@ -389,24 +423,24 @@ determine certificate status. If not set deltas are ignored.
 \&\fBX509_V_FLAG_CHECK_SS_SIGNATURE\fR requests checking the signature of
 the last certificate in a chain if the certificate is supposedly self-signed.
 This is prohibited and will result in an error if it is a non-conforming \s-1CA\s0
-certificate with key usage restrictions not including the keyCertSign bit.
+certificate with key usage restrictions not including the \fIkeyCertSign\fR bit.
 By default this check is disabled because it doesn't
 add any additional security but in some cases applications might want to
 check the signature anyway. A side effect of not checking the self-signature
 of such a certificate is that disabled or unsupported message digests used for
 the signature are not treated as fatal errors.
 .PP
-When \fBX509_V_FLAG_TRUSTED_FIRST\fR is set, construction of the certificate chain
-in \fBX509_verify_cert\fR\|(3) will search the trust store for issuer certificates
+When \fBX509_V_FLAG_TRUSTED_FIRST\fR is set, which is always the case since
+OpenSSL 1.1.0, construction of the certificate chain
+in \fBX509_verify_cert\fR\|(3) searches the trust store for issuer certificates
 before searching the provided untrusted certificates.
 Local issuer certificates are often more likely to satisfy local security
 requirements and lead to a locally trusted root.
 This is especially important when some certificates in the trust store have
-explicit trust settings (see \*(L"\s-1TRUST SETTINGS\*(R"\s0 in \fBx509\fR\|(1)).
-As of OpenSSL 1.1.0 this option is on by default.
+explicit trust settings (see \*(L"\s-1TRUST SETTINGS\*(R"\s0 in \fBopenssl\-x509\fR\|(1)).
 .PP
-The \fBX509_V_FLAG_NO_ALT_CHAINS\fR flag suppresses checking for alternative
-chains.
+The \fBX509_V_FLAG_NO_ALT_CHAINS\fR flag could have been used before OpenSSL 1.1.0
+to suppress checking for alternative chains.
 By default, unless \fBX509_V_FLAG_TRUSTED_FIRST\fR is set, when building a
 certificate chain, if the first certificate chain found is not trusted, then
 OpenSSL will attempt to replace untrusted certificates supplied by the peer
@@ -415,15 +449,15 @@ found that is trusted.
 As of OpenSSL 1.1.0, with \fBX509_V_FLAG_TRUSTED_FIRST\fR always set, this option
 has no effect.
 .PP
-The \fBX509_V_FLAG_PARTIAL_CHAIN\fR flag causes intermediate certificates in the
-trust store to be treated as trust-anchors, in the same way as the self-signed
+The \fBX509_V_FLAG_PARTIAL_CHAIN\fR flag causes non-self-signed certificates in the
+trust store to be treated as trust anchors, in the same way as self-signed
 root \s-1CA\s0 certificates.
-This makes it possible to trust certificates issued by an intermediate \s-1CA\s0
-without having to trust its ancestor root \s-1CA.\s0
-With OpenSSL 1.1.0 and later and <X509_V_FLAG_PARTIAL_CHAIN> set, chain
-construction stops as soon as the first certificate from the trust store is
-added to the chain, whether that certificate is a self-signed \*(L"root\*(R"
-certificate or a not self-signed intermediate certificate.
+This makes it possible to trust self-issued certificates as well as certificates
+issued by an intermediate \s-1CA\s0 without having to trust their ancestor root \s-1CA.\s0
+With OpenSSL 1.1.0 and later and \fBX509_V_FLAG_PARTIAL_CHAIN\fR set, chain
+construction stops as soon as the first certificate contained in the trust store
+is added to the chain, whether that certificate is a self-signed \*(L"root\*(R"
+certificate or a not self-signed \*(L"intermediate\*(R" or self-issued certificate.
 Thus, when an intermediate certificate is found in the trust store, the
 verified chain passed to callbacks may be shorter than it otherwise would
 be without the \fBX509_V_FLAG_PARTIAL_CHAIN\fR flag.
@@ -486,7 +520,7 @@ connections associated with an \fB\s-1SSL_CTX\s0\fR structure \fBctx\fR:
 \&\fBX509_check_host\fR\|(3),
 \&\fBX509_check_email\fR\|(3),
 \&\fBX509_check_ip\fR\|(3),
-\&\fBx509\fR\|(1)
+\&\fBopenssl\-x509\fR\|(1)
 .SH "HISTORY"
 .IX Header "HISTORY"
 The \fBX509_V_FLAG_NO_ALT_CHAINS\fR flag was added in OpenSSL 1.1.0.
@@ -495,6 +529,9 @@ and has no effect.
 .PP
 The \fBX509_VERIFY_PARAM_get_hostflags()\fR function was added in OpenSSL 1.1.0i.
 .PP
+The \fBX509_VERIFY_PARAM_get0_host()\fR, \fBX509_VERIFY_PARAM_get0_email()\fR,
+and \fBX509_VERIFY_PARAM_get1_ip_asc()\fR functions were added in OpenSSL 3.0.
+.PP
 The function \fBX509_VERIFY_PARAM_add0_policy()\fR was historically documented as
 enabling policy checking however the implementation has never done this.
 The documentation was changed to align with the implementation.
@@ -502,7 +539,7 @@ The documentation was changed to align with the implementation.
 .IX Header "COPYRIGHT"
 Copyright 2009\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

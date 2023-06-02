@@ -133,41 +133,43 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET_OPTIONS 3"
-.TH SSL_CTX_SET_OPTIONS 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_CTX_SET_OPTIONS 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SSL_CTX_set_options, SSL_set_options, SSL_CTX_clear_options, SSL_clear_options, SSL_CTX_get_options, SSL_get_options, SSL_get_secure_renegotiation_support \- manipulate SSL options
+SSL_CTX_set_options, SSL_set_options, SSL_CTX_clear_options,
+SSL_clear_options, SSL_CTX_get_options, SSL_get_options,
+SSL_get_secure_renegotiation_support \- manipulate SSL options
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/ssl.h>
 \&
-\& long SSL_CTX_set_options(SSL_CTX *ctx, long options);
-\& long SSL_set_options(SSL *ssl, long options);
+\& uint64_t SSL_CTX_set_options(SSL_CTX *ctx, uint64_t options);
+\& uint64_t SSL_set_options(SSL *ssl, uint64_t options);
 \&
-\& long SSL_CTX_clear_options(SSL_CTX *ctx, long options);
-\& long SSL_clear_options(SSL *ssl, long options);
+\& uint64_t SSL_CTX_clear_options(SSL_CTX *ctx, uint64_t options);
+\& uint64_t SSL_clear_options(SSL *ssl, uint64_t options);
 \&
-\& long SSL_CTX_get_options(SSL_CTX *ctx);
-\& long SSL_get_options(SSL *ssl);
+\& uint64_t SSL_CTX_get_options(const SSL_CTX *ctx);
+\& uint64_t SSL_get_options(const SSL *ssl);
 \&
 \& long SSL_get_secure_renegotiation_support(SSL *ssl);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBSSL_CTX_set_options()\fR adds the options set via bit mask in \fBoptions\fR to \fBctx\fR.
+\&\fBSSL_CTX_set_options()\fR adds the options set via bit-mask in \fBoptions\fR to \fBctx\fR.
 Options already set before are not cleared!
 .PP
-\&\fBSSL_set_options()\fR adds the options set via bit mask in \fBoptions\fR to \fBssl\fR.
+\&\fBSSL_set_options()\fR adds the options set via bit-mask in \fBoptions\fR to \fBssl\fR.
 Options already set before are not cleared!
 .PP
-\&\fBSSL_CTX_clear_options()\fR clears the options set via bit mask in \fBoptions\fR
+\&\fBSSL_CTX_clear_options()\fR clears the options set via bit-mask in \fBoptions\fR
 to \fBctx\fR.
 .PP
-\&\fBSSL_clear_options()\fR clears the options set via bit mask in \fBoptions\fR to \fBssl\fR.
+\&\fBSSL_clear_options()\fR clears the options set via bit-mask in \fBoptions\fR to \fBssl\fR.
 .PP
 \&\fBSSL_CTX_get_options()\fR returns the options set for \fBctx\fR.
 .PP
@@ -179,7 +181,7 @@ Note, this is implemented via a macro.
 .SH "NOTES"
 .IX Header "NOTES"
 The behaviour of the \s-1SSL\s0 library can be changed by setting several options.
-The options are coded as bit masks and can be combined by a bitwise \fBor\fR
+The options are coded as bit-masks and can be combined by a bitwise \fBor\fR
 operation (|).
 .PP
 \&\fBSSL_CTX_set_options()\fR and \fBSSL_set_options()\fR affect the (external)
@@ -193,16 +195,21 @@ option setting is copied. Changes to \fBctx\fR do not affect already created
 \&\s-1SSL\s0 objects. \fBSSL_clear()\fR does not affect the settings.
 .PP
 The following \fBbug workaround\fR options are available:
-.IP "\s-1SSL_OP_SAFARI_ECDHE_ECDSA_BUG\s0" 4
-.IX Item "SSL_OP_SAFARI_ECDHE_ECDSA_BUG"
-Don't prefer ECDHE-ECDSA ciphers when the client appears to be Safari on \s-1OS X.
-OS X 10.8..10.8.3\s0 has broken support for ECDHE-ECDSA ciphers.
+.IP "\s-1SSL_OP_CRYPTOPRO_TLSEXT_BUG\s0" 4
+.IX Item "SSL_OP_CRYPTOPRO_TLSEXT_BUG"
+Add server-hello extension from the early version of cryptopro draft
+when \s-1GOST\s0 ciphersuite is negotiated. Required for interoperability with CryptoPro
+\&\s-1CSP 3\s0.x.
 .IP "\s-1SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS\s0" 4
 .IX Item "SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS"
 Disables a countermeasure against a \s-1SSL 3.0/TLS 1.0\s0 protocol
 vulnerability affecting \s-1CBC\s0 ciphers, which cannot be handled by some
 broken \s-1SSL\s0 implementations.  This option has no effect for connections
 using other ciphers.
+.IP "\s-1SSL_OP_SAFARI_ECDHE_ECDSA_BUG\s0" 4
+.IX Item "SSL_OP_SAFARI_ECDHE_ECDSA_BUG"
+Don't prefer ECDHE-ECDSA ciphers when the client appears to be Safari on \s-1OS X.
+OS X 10.8..10.8.3\s0 has broken support for ECDHE-ECDSA ciphers.
 .IP "\s-1SSL_OP_TLSEXT_PADDING\s0" 4
 .IX Item "SSL_OP_TLSEXT_PADDING"
 Adds a padding extension to ensure the ClientHello size is never between
@@ -210,31 +217,144 @@ Adds a padding extension to ensure the ClientHello size is never between
 implementations.
 .IP "\s-1SSL_OP_ALL\s0" 4
 .IX Item "SSL_OP_ALL"
-All of the above bug workarounds plus \fB\s-1SSL_OP_LEGACY_SERVER_CONNECT\s0\fR as
-mentioned below.
+All of the above bug workarounds.
 .PP
 It is usually safe to use \fB\s-1SSL_OP_ALL\s0\fR to enable the bug workaround
 options if compatibility with somewhat broken implementations is
 desired.
 .PP
 The following \fBmodifying\fR options are available:
-.IP "\s-1SSL_OP_TLS_ROLLBACK_BUG\s0" 4
-.IX Item "SSL_OP_TLS_ROLLBACK_BUG"
-Disable version rollback attack detection.
-.Sp
-During the client key exchange, the client must send the same information
-about acceptable \s-1SSL/TLS\s0 protocol levels as during the first hello. Some
-clients violate this rule by adapting to the server's answer. (Example:
-the client sends a SSLv2 hello and accepts up to SSLv3.1=TLSv1, the server
-only understands up to SSLv3. In this case the client must still use the
-same SSLv3.1=TLSv1 announcement. Some clients step down to SSLv3 with respect
-to the server's answer and violate the version rollback protection.)
+.IP "\s-1SSL_OP_ALLOW_CLIENT_RENEGOTIATION\s0" 4
+.IX Item "SSL_OP_ALLOW_CLIENT_RENEGOTIATION"
+Client-initiated renegotiation is disabled by default. Use
+this option to enable it.
+.IP "\s-1SSL_OP_ALLOW_NO_DHE_KEX\s0" 4
+.IX Item "SSL_OP_ALLOW_NO_DHE_KEX"
+In TLSv1.3 allow a non\-(ec)dhe based key exchange mode on resumption. This means
+that there will be no forward secrecy for the resumed session.
+.IP "\s-1SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION\s0" 4
+.IX Item "SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION"
+Allow legacy insecure renegotiation between OpenSSL and unpatched clients or
+servers. See the \fB\s-1SECURE RENEGOTIATION\s0\fR section for more details.
 .IP "\s-1SSL_OP_CIPHER_SERVER_PREFERENCE\s0" 4
 .IX Item "SSL_OP_CIPHER_SERVER_PREFERENCE"
 When choosing a cipher, use the server's preferences instead of the client
 preferences. When not set, the \s-1SSL\s0 server will always follow the clients
 preferences. When set, the \s-1SSL/TLS\s0 server will choose following its
 own preferences.
+.IP "\s-1SSL_OP_CISCO_ANYCONNECT\s0" 4
+.IX Item "SSL_OP_CISCO_ANYCONNECT"
+Use Cisco's version identifier of \s-1DTLS_BAD_VER\s0 when establishing a DTLSv1
+connection. Only available when using the deprecated \fBDTLSv1_client_method()\fR \s-1API.\s0
+.IP "\s-1SSL_OP_CLEANSE_PLAINTEXT\s0" 4
+.IX Item "SSL_OP_CLEANSE_PLAINTEXT"
+By default \s-1TLS\s0 connections keep a copy of received plaintext
+application data in a static buffer until it is overwritten by the
+next portion of data. When enabling \s-1SSL_OP_CLEANSE_PLAINTEXT\s0
+deciphered application data is cleansed by calling \fBOPENSSL_cleanse\fR\|(3)
+after passing data to the application. Data is also cleansed when
+releasing the connection (e.g. \fBSSL_free\fR\|(3)).
+.Sp
+Since OpenSSL only cleanses internal buffers, the application is still
+responsible for cleansing all other buffers. Most notably, this
+applies to buffers passed to functions like \fBSSL_read\fR\|(3),
+\&\fBSSL_peek\fR\|(3) but also like \fBSSL_write\fR\|(3).
+.IP "\s-1SSL_OP_COOKIE_EXCHANGE\s0" 4
+.IX Item "SSL_OP_COOKIE_EXCHANGE"
+Turn on Cookie Exchange as described in \s-1RFC4347\s0 Section 4.2.1. Only affects
+\&\s-1DTLS\s0 connections.
+.IP "\s-1SSL_OP_DISABLE_TLSEXT_CA_NAMES\s0" 4
+.IX Item "SSL_OP_DISABLE_TLSEXT_CA_NAMES"
+Disable \s-1TLS\s0 Extension \s-1CA\s0 Names. You may want to disable it for security reasons
+or for compatibility with some Windows \s-1TLS\s0 implementations crashing when this
+extension is larger than 1024 bytes.
+.IP "\s-1SSL_OP_ENABLE_KTLS\s0" 4
+.IX Item "SSL_OP_ENABLE_KTLS"
+Enable the use of kernel \s-1TLS.\s0 In order to benefit from kernel \s-1TLS\s0 OpenSSL must
+have been compiled with support for it, and it must be supported by the
+negotiated ciphersuites and extensions. The specific ciphersuites and extensions
+that are supported may vary by platform and kernel version.
+.Sp
+The kernel \s-1TLS\s0 data-path implements the record layer, and the encryption
+algorithm. The kernel will utilize the best hardware
+available for encryption. Using the kernel data-path should reduce the memory
+footprint of OpenSSL because no buffering is required. Also, the throughput
+should improve because data copy is avoided when user data is encrypted into
+kernel memory instead of the usual encrypt then copy to kernel.
+.Sp
+Kernel \s-1TLS\s0 might not support all the features of OpenSSL. For instance,
+renegotiation, and setting the maximum fragment size is not possible as of
+Linux 4.20.
+.Sp
+Note that with kernel \s-1TLS\s0 enabled some cryptographic operations are performed
+by the kernel directly and not via any available OpenSSL Providers. This might
+be undesirable if, for example, the application requires all cryptographic
+operations to be performed by the \s-1FIPS\s0 provider.
+.IP "\s-1SSL_OP_ENABLE_MIDDLEBOX_COMPAT\s0" 4
+.IX Item "SSL_OP_ENABLE_MIDDLEBOX_COMPAT"
+If set then dummy Change Cipher Spec (\s-1CCS\s0) messages are sent in TLSv1.3. This
+has the effect of making TLSv1.3 look more like TLSv1.2 so that middleboxes that
+do not understand TLSv1.3 will not drop the connection. Regardless of whether
+this option is set or not \s-1CCS\s0 messages received from the peer will always be
+ignored in TLSv1.3. This option is set by default. To switch it off use
+\&\fBSSL_clear_options()\fR. A future version of OpenSSL may not set this by default.
+.IP "\s-1SSL_OP_IGNORE_UNEXPECTED_EOF\s0" 4
+.IX Item "SSL_OP_IGNORE_UNEXPECTED_EOF"
+Some \s-1TLS\s0 implementations do not send the mandatory close_notify alert on
+shutdown. If the application tries to wait for the close_notify alert but the
+peer closes the connection without sending it, an error is generated. When this
+option is enabled the peer does not need to send the close_notify alert and a
+closed connection will be treated as if the close_notify alert was received.
+.Sp
+You should only enable this option if the protocol running over \s-1TLS\s0
+can detect a truncation attack itself, and that the application is checking for
+that truncation attack.
+.Sp
+For more information on shutting down a connection, see \fBSSL_shutdown\fR\|(3).
+.IP "\s-1SSL_OP_LEGACY_SERVER_CONNECT\s0" 4
+.IX Item "SSL_OP_LEGACY_SERVER_CONNECT"
+Allow legacy insecure renegotiation between OpenSSL and unpatched servers
+\&\fBonly\fR. See the \fB\s-1SECURE RENEGOTIATION\s0\fR section for more details.
+.IP "\s-1SSL_OP_NO_ANTI_REPLAY\s0" 4
+.IX Item "SSL_OP_NO_ANTI_REPLAY"
+By default, when a server is configured for early data (i.e., max_early_data > 0),
+OpenSSL will switch on replay protection. See \fBSSL_read_early_data\fR\|(3) for a
+description of the replay protection feature. Anti-replay measures are required
+to comply with the TLSv1.3 specification. Some applications may be able to
+mitigate the replay risks in other ways and in such cases the built in OpenSSL
+functionality is not required. Those applications can turn this feature off by
+setting this option. This is a server-side option only. It is ignored by
+clients.
+.IP "\s-1SSL_OP_NO_COMPRESSION\s0" 4
+.IX Item "SSL_OP_NO_COMPRESSION"
+Do not use compression even if it is supported. This option is set by default.
+To switch it off use \fBSSL_clear_options()\fR.
+.IP "\s-1SSL_OP_NO_ENCRYPT_THEN_MAC\s0" 4
+.IX Item "SSL_OP_NO_ENCRYPT_THEN_MAC"
+Normally clients and servers will transparently attempt to negotiate the
+\&\s-1RFC7366\s0 Encrypt-then-MAC option on \s-1TLS\s0 and \s-1DTLS\s0 connection.
+.Sp
+If this option is set, Encrypt-then-MAC is disabled. Clients will not
+propose, and servers will not accept the extension.
+.IP "\s-1SSL_OP_NO_EXTENDED_MASTER_SECRET\s0" 4
+.IX Item "SSL_OP_NO_EXTENDED_MASTER_SECRET"
+Normally clients and servers will transparently attempt to negotiate the
+\&\s-1RFC7627\s0 Extended Master Secret option on \s-1TLS\s0 and \s-1DTLS\s0 connection.
+.Sp
+If this option is set, Extended Master Secret is disabled. Clients will
+not propose, and servers will not accept the extension.
+.IP "\s-1SSL_OP_NO_QUERY_MTU\s0" 4
+.IX Item "SSL_OP_NO_QUERY_MTU"
+Do not query the \s-1MTU.\s0 Only affects \s-1DTLS\s0 connections.
+.IP "\s-1SSL_OP_NO_RENEGOTIATION\s0" 4
+.IX Item "SSL_OP_NO_RENEGOTIATION"
+Disable all renegotiation in TLSv1.2 and earlier. Do not send HelloRequest
+messages, and ignore renegotiation requests via ClientHello.
+.IP "\s-1SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION\s0" 4
+.IX Item "SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION"
+When performing renegotiation as a server, always start a new session
+(i.e., session resumption requests are only accepted in the initial
+handshake). This option is not needed for clients.
 .IP "SSL_OP_NO_SSLv3, SSL_OP_NO_TLSv1, SSL_OP_NO_TLSv1_1, SSL_OP_NO_TLSv1_2, SSL_OP_NO_TLSv1_3, SSL_OP_NO_DTLSv1, SSL_OP_NO_DTLSv1_2" 4
 .IX Item "SSL_OP_NO_SSLv3, SSL_OP_NO_TLSv1, SSL_OP_NO_TLSv1_1, SSL_OP_NO_TLSv1_2, SSL_OP_NO_TLSv1_3, SSL_OP_NO_DTLSv1, SSL_OP_NO_DTLSv1_2"
 These options turn off the SSLv3, TLSv1, TLSv1.1, TLSv1.2 or TLSv1.3 protocol
@@ -243,21 +363,6 @@ respectively.
 As of OpenSSL 1.1.0, these options are deprecated, use
 \&\fBSSL_CTX_set_min_proto_version\fR\|(3) and
 \&\fBSSL_CTX_set_max_proto_version\fR\|(3) instead.
-.IP "\s-1SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION\s0" 4
-.IX Item "SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION"
-When performing renegotiation as a server, always start a new session
-(i.e., session resumption requests are only accepted in the initial
-handshake). This option is not needed for clients.
-.IP "\s-1SSL_OP_NO_COMPRESSION\s0" 4
-.IX Item "SSL_OP_NO_COMPRESSION"
-Do not use compression even if it is supported.
-.IP "\s-1SSL_OP_NO_QUERY_MTU\s0" 4
-.IX Item "SSL_OP_NO_QUERY_MTU"
-Do not query the \s-1MTU.\s0 Only affects \s-1DTLS\s0 connections.
-.IP "\s-1SSL_OP_COOKIE_EXCHANGE\s0" 4
-.IX Item "SSL_OP_COOKIE_EXCHANGE"
-Turn on Cookie Exchange as described in \s-1RFC4347\s0 Section 4.2.1. Only affects
-\&\s-1DTLS\s0 connections.
 .IP "\s-1SSL_OP_NO_TICKET\s0" 4
 .IX Item "SSL_OP_NO_TICKET"
 \&\s-1SSL/TLS\s0 supports two mechanisms for resuming sessions: session ids and stateless
@@ -293,30 +398,6 @@ sent. This is a server-side option only.
 In TLSv1.3 it is possible to suppress all tickets (stateful and stateless) from
 being sent by calling \fBSSL_CTX_set_num_tickets\fR\|(3) or
 \&\fBSSL_set_num_tickets\fR\|(3).
-.IP "\s-1SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION\s0" 4
-.IX Item "SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION"
-Allow legacy insecure renegotiation between OpenSSL and unpatched clients or
-servers. See the \fB\s-1SECURE RENEGOTIATION\s0\fR section for more details.
-.IP "\s-1SSL_OP_LEGACY_SERVER_CONNECT\s0" 4
-.IX Item "SSL_OP_LEGACY_SERVER_CONNECT"
-Allow legacy insecure renegotiation between OpenSSL and unpatched servers
-\&\fBonly\fR: this option is currently set by default. See the
-\&\fB\s-1SECURE RENEGOTIATION\s0\fR section for more details.
-.IP "\s-1SSL_OP_NO_ENCRYPT_THEN_MAC\s0" 4
-.IX Item "SSL_OP_NO_ENCRYPT_THEN_MAC"
-Normally clients and servers will transparently attempt to negotiate the
-\&\s-1RFC7366\s0 Encrypt-then-MAC option on \s-1TLS\s0 and \s-1DTLS\s0 connection.
-.Sp
-If this option is set, Encrypt-then-MAC is disabled. Clients will not
-propose, and servers will not accept the extension.
-.IP "\s-1SSL_OP_NO_RENEGOTIATION\s0" 4
-.IX Item "SSL_OP_NO_RENEGOTIATION"
-Disable all renegotiation in TLSv1.2 and earlier. Do not send HelloRequest
-messages, and ignore renegotiation requests via ClientHello.
-.IP "\s-1SSL_OP_ALLOW_NO_DHE_KEX\s0" 4
-.IX Item "SSL_OP_ALLOW_NO_DHE_KEX"
-In TLSv1.3 allow a non\-(ec)dhe based key exchange mode on resumption. This means
-that there will be no forward secrecy for the resumed session.
 .IP "\s-1SSL_OP_PRIORITIZE_CHACHA\s0" 4
 .IX Item "SSL_OP_PRIORITIZE_CHACHA"
 When \s-1SSL_OP_CIPHER_SERVER_PREFERENCE\s0 is set, temporarily reprioritize
@@ -325,46 +406,17 @@ ChaCha20\-Poly1305 cipher is at the top of the client cipher list. This helps
 those clients (e.g. mobile) use ChaCha20\-Poly1305 if that cipher is anywhere
 in the server cipher list; but still allows other clients to use \s-1AES\s0 and other
 ciphers. Requires \fB\s-1SSL_OP_CIPHER_SERVER_PREFERENCE\s0\fR.
-.IP "\s-1SSL_OP_ENABLE_MIDDLEBOX_COMPAT\s0" 4
-.IX Item "SSL_OP_ENABLE_MIDDLEBOX_COMPAT"
-If set then dummy Change Cipher Spec (\s-1CCS\s0) messages are sent in TLSv1.3. This
-has the effect of making TLSv1.3 look more like TLSv1.2 so that middleboxes that
-do not understand TLSv1.3 will not drop the connection. Regardless of whether
-this option is set or not \s-1CCS\s0 messages received from the peer will always be
-ignored in TLSv1.3. This option is set by default. To switch it off use
-\&\fBSSL_clear_options()\fR. A future version of OpenSSL may not set this by default.
-.IP "\s-1SSL_OP_NO_ANTI_REPLAY\s0" 4
-.IX Item "SSL_OP_NO_ANTI_REPLAY"
-By default, when a server is configured for early data (i.e., max_early_data > 0),
-OpenSSL will switch on replay protection. See \fBSSL_read_early_data\fR\|(3) for a
-description of the replay protection feature. Anti-replay measures are required
-to comply with the TLSv1.3 specification. Some applications may be able to
-mitigate the replay risks in other ways and in such cases the built in OpenSSL
-functionality is not required. Those applications can turn this feature off by
-setting this option. This is a server-side opton only. It is ignored by
-clients.
-.IP "\s-1SSL_OP_ENABLE_KTLS\s0" 4
-.IX Item "SSL_OP_ENABLE_KTLS"
-Enable the use of kernel \s-1TLS.\s0 In order to benefit from kernel \s-1TLS\s0 OpenSSL must
-have been compiled with support for it, and it must be supported by the
-negotiated ciphersuites and extensions. The specific ciphersuites and extensions
-that are supported may vary by platform and kernel version.
+.IP "\s-1SSL_OP_TLS_ROLLBACK_BUG\s0" 4
+.IX Item "SSL_OP_TLS_ROLLBACK_BUG"
+Disable version rollback attack detection.
 .Sp
-The kernel \s-1TLS\s0 data-path implements the record layer, and the encryption
-algorithm. The kernel will utilize the best hardware
-available for encryption. Using the kernel data-path should reduce the memory
-footprint of OpenSSL because no buffering is required. Also, the throughput
-should improve because data copy is avoided when user data is encrypted into
-kernel memory instead of the usual encrypt then copy to kernel.
-.Sp
-Kernel \s-1TLS\s0 might not support all the features of OpenSSL. For instance,
-renegotiation, and setting the maximum fragment size is not possible as of
-Linux 4.20.
-.Sp
-Note that with kernel \s-1TLS\s0 enabled some cryptographic operations are performed
-by the kernel directly and not via any available OpenSSL Providers. This might
-be undesirable if, for example, the application requires all cryptographic
-operations to be performed by the \s-1FIPS\s0 provider.
+During the client key exchange, the client must send the same information
+about acceptable \s-1SSL/TLS\s0 protocol levels as during the first hello. Some
+clients violate this rule by adapting to the server's answer. (Example:
+the client sends a SSLv2 hello and accepts up to SSLv3.1=TLSv1, the server
+only understands up to SSLv3. In this case the client must still use the
+same SSLv3.1=TLSv1 announcement. Some clients step down to SSLv3 with respect
+to the server's answer and violate the version rollback protection.)
 .PP
 The following options no longer have any effect but their identifiers are
 retained for compatibility purposes:
@@ -397,6 +449,10 @@ retained for compatibility purposes:
 .IX Item "SSL_OP_SINGLE_ECDH_USE"
 .IP "\s-1SSL_OP_EPHEMERAL_RSA\s0" 4
 .IX Item "SSL_OP_EPHEMERAL_RSA"
+.IP "\s-1SSL_OP_NETSCAPE_CA_DN_BUG\s0" 4
+.IX Item "SSL_OP_NETSCAPE_CA_DN_BUG"
+.IP "\s-1SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG\s0" 4
+.IX Item "SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG"
 .PD
 .SH "SECURE RENEGOTIATION"
 .IX Header "SECURE RENEGOTIATION"
@@ -426,23 +482,18 @@ unaware of the unpatched nature of the client.
 .PP
 If the option \fB\s-1SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION\s0\fR is set then
 renegotiation \fBalways\fR succeeds.
-.SS "Patched OpenSSL client and unpatched server."
-.IX Subsection "Patched OpenSSL client and unpatched server."
+.SS "Patched OpenSSL client and unpatched server"
+.IX Subsection "Patched OpenSSL client and unpatched server"
 If the option \fB\s-1SSL_OP_LEGACY_SERVER_CONNECT\s0\fR or
 \&\fB\s-1SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION\s0\fR is set then initial connections
 and renegotiation between patched OpenSSL clients and unpatched servers
 succeeds. If neither option is set then initial connections to unpatched
 servers will fail.
 .PP
-The option \fB\s-1SSL_OP_LEGACY_SERVER_CONNECT\s0\fR is currently set by default even
-though it has security implications: otherwise it would be impossible to
-connect to unpatched servers (i.e. all of them initially) and this is clearly
-not acceptable. Renegotiation is permitted because this does not add any
-additional security issues: during an attack clients do not see any
-renegotiations anyway.
-.PP
-As more servers become patched the option \fB\s-1SSL_OP_LEGACY_SERVER_CONNECT\s0\fR will
-\&\fBnot\fR be set by default in a future version of OpenSSL.
+Setting the option \fB\s-1SSL_OP_LEGACY_SERVER_CONNECT\s0\fR has security implications;
+clients that are willing to connect to servers that do not implement
+\&\s-1RFC 5746\s0 secure renegotiation are subject to attacks such as
+\&\s-1CVE\-2009\-3555.\s0
 .PP
 OpenSSL client applications wishing to ensure they can connect to unpatched
 servers should always \fBset\fR \fB\s-1SSL_OP_LEGACY_SERVER_CONNECT\s0\fR
@@ -460,22 +511,22 @@ renegotiation between OpenSSL clients and unpatched servers \fBonly\fR, while
 and renegotiation between OpenSSL and unpatched clients or servers.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fBSSL_CTX_set_options()\fR and \fBSSL_set_options()\fR return the new options bit mask
+\&\fBSSL_CTX_set_options()\fR and \fBSSL_set_options()\fR return the new options bit-mask
 after adding \fBoptions\fR.
 .PP
-\&\fBSSL_CTX_clear_options()\fR and \fBSSL_clear_options()\fR return the new options bit mask
+\&\fBSSL_CTX_clear_options()\fR and \fBSSL_clear_options()\fR return the new options bit-mask
 after clearing \fBoptions\fR.
 .PP
-\&\fBSSL_CTX_get_options()\fR and \fBSSL_get_options()\fR return the current bit mask.
+\&\fBSSL_CTX_get_options()\fR and \fBSSL_get_options()\fR return the current bit-mask.
 .PP
 \&\fBSSL_get_secure_renegotiation_support()\fR returns 1 is the peer supports
 secure renegotiation and 0 if it does not.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fBssl\fR\|(7), \fBSSL_new\fR\|(3), \fBSSL_clear\fR\|(3),
+\&\fBssl\fR\|(7), \fBSSL_new\fR\|(3), \fBSSL_clear\fR\|(3), \fBSSL_shutdown\fR\|(3)
 \&\fBSSL_CTX_set_tmp_dh_callback\fR\|(3),
 \&\fBSSL_CTX_set_min_proto_version\fR\|(3),
-\&\fBdhparam\fR\|(1)
+\&\fBopenssl\-dhparam\fR\|(1)
 .SH "HISTORY"
 .IX Header "HISTORY"
 The attempt to always try to use secure renegotiation was added in
@@ -483,11 +534,20 @@ OpenSSL 0.9.8m.
 .PP
 The \fB\s-1SSL_OP_PRIORITIZE_CHACHA\s0\fR and \fB\s-1SSL_OP_NO_RENEGOTIATION\s0\fR options
 were added in OpenSSL 1.1.1.
+.PP
+The \fB\s-1SSL_OP_NO_EXTENDED_MASTER_SECRET\s0\fR and \fB\s-1SSL_OP_IGNORE_UNEXPECTED_EOF\s0\fR
+options were added in OpenSSL 3.0.
+.PP
+The \fB\s-1SSL_OP_\s0\fR constants and the corresponding parameter and return values
+of the affected functions were changed to \f(CW\*(C`uint64_t\*(C'\fR type in OpenSSL 3.0.
+For that reason it is no longer possible use the \fB\s-1SSL_OP_\s0\fR macro values
+in preprocessor \f(CW\*(C`#if\*(C'\fR conditions. However it is still possible to test
+whether these macros are defined or not.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2001\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

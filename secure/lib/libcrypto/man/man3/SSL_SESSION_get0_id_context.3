@@ -133,20 +133,22 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_SESSION_GET0_ID_CONTEXT 3"
-.TH SSL_SESSION_GET0_ID_CONTEXT 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_SESSION_GET0_ID_CONTEXT 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SSL_SESSION_get0_id_context, SSL_SESSION_set1_id_context \&\- get and set the SSL ID context associated with a session
+SSL_SESSION_get0_id_context,
+SSL_SESSION_set1_id_context
+\&\- get and set the SSL ID context associated with a session
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/ssl.h>
 \&
 \& const unsigned char *SSL_SESSION_get0_id_context(const SSL_SESSION *s,
-\&                                                  unsigned int *len)
+\&                                                  unsigned int *len);
 \& int SSL_SESSION_set1_id_context(SSL_SESSION *s, const unsigned char *sid_ctx,
 \&                                unsigned int sid_ctx_len);
 .Ve
@@ -177,9 +179,9 @@ is given by \fBsid_ctx_len\fR which must not exceed \s-1SSL_MAX_SID_CTX_LENGTH\s
 The \fBSSL_SESSION_get0_id_context()\fR function was added in OpenSSL 1.1.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2015\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

@@ -133,19 +133,34 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_STORE_CTX_SET_VERIFY_CB 3"
-.TH X509_STORE_CTX_SET_VERIFY_CB 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH X509_STORE_CTX_SET_VERIFY_CB 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-X509_STORE_CTX_get_cleanup, X509_STORE_CTX_get_lookup_crls, X509_STORE_CTX_get_lookup_certs, X509_STORE_CTX_get_check_policy, X509_STORE_CTX_get_cert_crl, X509_STORE_CTX_get_check_crl, X509_STORE_CTX_get_get_crl, X509_STORE_CTX_get_check_revocation, X509_STORE_CTX_get_check_issued, X509_STORE_CTX_get_get_issuer, X509_STORE_CTX_get_verify_cb, X509_STORE_CTX_set_verify_cb, X509_STORE_CTX_verify_cb \&\- get and set verification callback
+X509_STORE_CTX_get_cleanup,
+X509_STORE_CTX_get_lookup_crls,
+X509_STORE_CTX_get_lookup_certs,
+X509_STORE_CTX_get_check_policy,
+X509_STORE_CTX_get_cert_crl,
+X509_STORE_CTX_get_check_crl,
+X509_STORE_CTX_get_get_crl,
+X509_STORE_CTX_get_check_revocation,
+X509_STORE_CTX_get_check_issued,
+X509_STORE_CTX_get_get_issuer,
+X509_STORE_CTX_get_verify_cb,
+X509_STORE_CTX_set_verify_cb,
+X509_STORE_CTX_verify_cb,
+X509_STORE_CTX_print_verify_cb
+\&\- get and set X509_STORE_CTX components such as verification callback
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/x509_vfy.h>
 \&
 \& typedef int (*X509_STORE_CTX_verify_cb)(int, X509_STORE_CTX *);
+\& int X509_STORE_CTX_print_verify_cb(int ok, X509_STORE_CTX *ctx);
 \&
 \& X509_STORE_CTX_verify_cb X509_STORE_CTX_get_verify_cb(X509_STORE_CTX *ctx);
 \&
@@ -169,7 +184,7 @@ X509_STORE_CTX_get_cleanup, X509_STORE_CTX_get_lookup_crls, X509_STORE_CTX_get_l
 \&\fBverify_cb\fR overwriting any existing callback.
 .PP
 The verification callback can be used to customise the operation of certificate
-verification, either by overriding error conditions or logging errors for
+verification, for instance by overriding error conditions or logging errors for
 debugging purposes.
 .PP
 However, a verification callback is \fBnot\fR essential and the default operation
@@ -186,6 +201,12 @@ is performing the verification operation. A callback can examine this
 structure and receive additional information about the error, for example
 by calling \fBX509_STORE_CTX_get_current_cert()\fR. Additional application data can
 be passed to the callback via the \fBex_data\fR mechanism.
+.PP
+\&\fBX509_STORE_CTX_print_verify_cb()\fR is a verification callback function that,
+when a certificate verification has failed, adds an entry to the error queue
+with code \fBX509_R_CERTIFICATE_VERIFICATION_FAILED\fR and with diagnostic details,
+including the most relevant fields of the target certificate that failed to
+verify and, if appropriate, of the available untrusted and trusted certificates.
 .PP
 \&\fBX509_STORE_CTX_get_verify_cb()\fR returns the value of the current callback
 for the specific \fBctx\fR.
@@ -324,11 +345,13 @@ The
 \&\fBX509_STORE_CTX_get_cert_crl()\fR, \fBX509_STORE_CTX_get_check_policy()\fR,
 \&\fBX509_STORE_CTX_get_lookup_certs()\fR, \fBX509_STORE_CTX_get_lookup_crls()\fR
 and \fBX509_STORE_CTX_get_cleanup()\fR functions were added in OpenSSL 1.1.0.
+.PP
+\&\fBX509_STORE_CTX_print_verify_cb()\fR was added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
 Copyright 2009\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

@@ -133,13 +133,19 @@
 .\" ========================================================================
 .\"
 .IX Title "BIO_ADDRINFO 3"
-.TH BIO_ADDRINFO 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH BIO_ADDRINFO 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-BIO_lookup_type, BIO_ADDRINFO, BIO_ADDRINFO_next, BIO_ADDRINFO_free, BIO_ADDRINFO_family, BIO_ADDRINFO_socktype, BIO_ADDRINFO_protocol, BIO_ADDRINFO_address, BIO_lookup_ex, BIO_lookup \&\- BIO_ADDRINFO type and routines
+BIO_lookup_type,
+BIO_ADDRINFO, BIO_ADDRINFO_next, BIO_ADDRINFO_free,
+BIO_ADDRINFO_family, BIO_ADDRINFO_socktype, BIO_ADDRINFO_protocol,
+BIO_ADDRINFO_address,
+BIO_lookup_ex,
+BIO_lookup
+\&\- BIO_ADDRINFO type and routines
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 2
@@ -154,7 +160,7 @@ BIO_lookup_type, BIO_ADDRINFO, BIO_ADDRINFO_next, BIO_ADDRINFO_free, BIO_ADDRINF
 \&
 \& int BIO_lookup_ex(const char *host, const char *service, int lookup_type,
 \&                   int family, int socktype, int protocol, BIO_ADDRINFO **res);
-\& int BIO_lookup(const char *node, const char *service,
+\& int BIO_lookup(const char *host, const char *service,
 \&                enum BIO_lookup_type lookup_type,
 \&                int family, int socktype, BIO_ADDRINFO **res);
 \&
@@ -185,8 +191,7 @@ used. \fBres\fR points at a pointer to hold the start of a \fB\s-1BIO_ADDRINFO\s
 chain.
 .PP
 For the family \fB\s-1AF_UNIX\s0\fR, \fBBIO_lookup_ex()\fR will ignore the \fBservice\fR
-parameter and expects the \fBnode\fR parameter to hold the path to the
-socket file.
+parameter and expects the \fBhost\fR parameter to hold the path to the socket file.
 .PP
 \&\fBBIO_lookup()\fR does the same as \fBBIO_lookup_ex()\fR but does not provide the ability
 to select based on the protocol (any protocol may be returned).
@@ -231,9 +236,9 @@ explicitly set to \s-1IPPROTO_SCTP.\s0 The same may be true on other platforms.
 The \fBBIO_lookup_ex()\fR function was added in OpenSSL 1.1.1.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2016\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

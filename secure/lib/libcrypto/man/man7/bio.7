@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "BIO 7"
-.TH BIO 7 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH BIO 7 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -152,7 +152,7 @@ details from an application. If an application uses a \s-1BIO\s0 for its
 I/O it can transparently handle \s-1SSL\s0 connections, unencrypted network
 connections and file I/O.
 .PP
-There are two type of \s-1BIO,\s0 a source/sink \s-1BIO\s0 and a filter \s-1BIO.\s0
+There are two types of \s-1BIO,\s0 a source/sink \s-1BIO\s0 and a filter \s-1BIO.\s0
 .PP
 As its name implies a source/sink \s-1BIO\s0 is a source and/or sink of data,
 examples include a socket \s-1BIO\s0 and a file \s-1BIO.\s0
@@ -166,7 +166,7 @@ to the I/O operation it is performing: for example an encryption
 if it is being read from.
 .PP
 BIOs can be joined together to form a chain (a single \s-1BIO\s0 is a chain
-with one component). A chain normally consist of one source/sink
+with one component). A chain normally consists of one source/sink
 \&\s-1BIO\s0 and one or more filter BIOs. Data read from or written to the
 first \s-1BIO\s0 then traverses the chain to the end (normally a source/sink
 \&\s-1BIO\s0).
@@ -181,10 +181,10 @@ in a memory leak.
 Calling \fBBIO_free_all()\fR on a single \s-1BIO\s0 has the same effect as calling
 \&\fBBIO_free()\fR on it other than the discarded return value.
 .PP
-Normally the \fBtype\fR argument is supplied by a function which returns a
+Normally the \fItype\fR argument is supplied by a function which returns a
 pointer to a \s-1BIO_METHOD.\s0 There is a naming convention for such functions:
-a source/sink \s-1BIO\s0 is normally called BIO_s_*() and a filter \s-1BIO\s0
-BIO_f_*();
+a source/sink \s-1BIO\s0 typically starts with \fIBIO_s_\fR and
+a filter \s-1BIO\s0 with \fIBIO_f_\fR.
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
 Create a memory \s-1BIO:\s0
@@ -198,6 +198,7 @@ Create a memory \s-1BIO:\s0
 \&\fBBIO_f_base64\fR\|(3), \fBBIO_f_buffer\fR\|(3),
 \&\fBBIO_f_cipher\fR\|(3), \fBBIO_f_md\fR\|(3),
 \&\fBBIO_f_null\fR\|(3), \fBBIO_f_ssl\fR\|(3),
+\&\fBBIO_f_readbuffer\fR\|(3),
 \&\fBBIO_find_type\fR\|(3), \fBBIO_new\fR\|(3),
 \&\fBBIO_new_bio_pair\fR\|(3),
 \&\fBBIO_push\fR\|(3), \fBBIO_read_ex\fR\|(3),
@@ -209,9 +210,9 @@ Create a memory \s-1BIO:\s0
 \&\fBBIO_should_retry\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

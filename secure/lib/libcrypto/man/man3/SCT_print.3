@@ -133,13 +133,14 @@
 .\" ========================================================================
 .\"
 .IX Title "SCT_PRINT 3"
-.TH SCT_PRINT 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SCT_PRINT 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SCT_print, SCT_LIST_print, SCT_validation_status_string \- Prints Signed Certificate Timestamps in a human\-readable way
+SCT_print, SCT_LIST_print, SCT_validation_status_string \-
+Prints Signed Certificate Timestamps in a human\-readable way
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -152,7 +153,7 @@ SCT_print, SCT_LIST_print, SCT_validation_status_string \- Prints Signed Certifi
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBSCT_print()\fR prints a single Signed Certificate Timestamp (\s-1SCT\s0) to a bio in
+\&\fBSCT_print()\fR prints a single Signed Certificate Timestamp (\s-1SCT\s0) to a \fB\s-1BIO\s0\fR in
 a human-readable format. \fBSCT_LIST_print()\fR prints an entire list of SCTs in a
 similar way. A separator can be specified to delimit each \s-1SCT\s0 in the output.
 .PP
@@ -166,7 +167,7 @@ a human-readable string. Call \fBSCT_validate()\fR or \fBSCT_LIST_validate()\fR
 beforehand in order to set the validation status of an \s-1SCT\s0 first.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fBSCT_validation_status_string()\fR returns a null-terminated string representing
+\&\fBSCT_validation_status_string()\fR returns a NUL-terminated string representing
 the validation status of an \fB\s-1SCT\s0\fR object.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
@@ -179,9 +180,9 @@ the validation status of an \fB\s-1SCT\s0\fR object.
 These functions were added in OpenSSL 1.1.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2016\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

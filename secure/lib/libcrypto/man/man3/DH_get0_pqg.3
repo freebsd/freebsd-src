@@ -133,18 +133,28 @@
 .\" ========================================================================
 .\"
 .IX Title "DH_GET0_PQG 3"
-.TH DH_GET0_PQG 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH DH_GET0_PQG 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-DH_get0_pqg, DH_set0_pqg, DH_get0_key, DH_set0_key, DH_get0_p, DH_get0_q, DH_get0_g, DH_get0_priv_key, DH_get0_pub_key, DH_clear_flags, DH_test_flags, DH_set_flags, DH_get0_engine, DH_get_length, DH_set_length \- Routines for getting and setting data in a DH object
+DH_get0_pqg, DH_set0_pqg, DH_get0_key, DH_set0_key,
+DH_get0_p, DH_get0_q, DH_get0_g,
+DH_get0_priv_key, DH_get0_pub_key,
+DH_clear_flags, DH_test_flags, DH_set_flags, DH_get0_engine,
+DH_get_length, DH_set_length \- Routines for getting and setting data in a DH object
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/dh.h>
-\&
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 10
 \& void DH_get0_pqg(const DH *dh,
 \&                  const BIGNUM **p, const BIGNUM **q, const BIGNUM **g);
 \& int DH_set0_pqg(DH *dh, BIGNUM *p, BIGNUM *q, BIGNUM *g);
@@ -159,37 +169,48 @@ DH_get0_pqg, DH_set0_pqg, DH_get0_key, DH_set0_key, DH_get0_p, DH_get0_q, DH_get
 \& void DH_clear_flags(DH *dh, int flags);
 \& int DH_test_flags(const DH *dh, int flags);
 \& void DH_set_flags(DH *dh, int flags);
-\& ENGINE *DH_get0_engine(DH *d);
+\&
 \& long DH_get_length(const DH *dh);
 \& int DH_set_length(DH *dh, long length);
+\&
+\& ENGINE *DH_get0_engine(DH *d);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-A \s-1DH\s0 object contains the parameters \fBp\fR, \fBq\fR and \fBg\fR. Note that the \fBq\fR
-parameter is optional. It also contains a public key (\fBpub_key\fR) and
-(optionally) a private key (\fBpriv_key\fR).
+All of the functions described on this page are deprecated.
+Applications should instead use \fBEVP_PKEY_get_bn_param\fR\|(3) for any methods that
+return a \fB\s-1BIGNUM\s0\fR. Refer to \s-1\fBEVP_PKEY\-DH\s0\fR\|(7) for more infomation.
 .PP
-The \fBp\fR, \fBq\fR and \fBg\fR parameters can be obtained by calling \fBDH_get0_pqg()\fR.
-If the parameters have not yet been set then \fB*p\fR, \fB*q\fR and \fB*g\fR will be set
+A \s-1DH\s0 object contains the parameters \fIp\fR, \fIq\fR and \fIg\fR. Note that the \fIq\fR
+parameter is optional. It also contains a public key (\fIpub_key\fR) and
+(optionally) a private key (\fIpriv_key\fR).
+.PP
+The \fIp\fR, \fIq\fR and \fIg\fR parameters can be obtained by calling \fBDH_get0_pqg()\fR.
+If the parameters have not yet been set then \fI*p\fR, \fI*q\fR and \fI*g\fR will be set
 to \s-1NULL.\s0 Otherwise they are set to pointers to their respective values. These
 point directly to the internal representations of the values and therefore
 should not be freed directly.
-Any of the out parameters \fBp\fR, \fBq\fR, and \fBg\fR can be \s-1NULL,\s0 in which case no
+Any of the out parameters \fIp\fR, \fIq\fR, and \fIg\fR can be \s-1NULL,\s0 in which case no
 value will be returned for that parameter.
 .PP
-The \fBp\fR, \fBq\fR and \fBg\fR values can be set by calling \fBDH_set0_pqg()\fR and passing
-the new values for \fBp\fR, \fBq\fR and \fBg\fR as parameters to the function. Calling
+The \fIp\fR, \fIq\fR and \fIg\fR values can be set by calling \fBDH_set0_pqg()\fR and passing
+the new values for \fIp\fR, \fIq\fR and \fIg\fR as parameters to the function. Calling
 this function transfers the memory management of the values to the \s-1DH\s0 object,
 and therefore the values that have been passed in should not be freed directly
-after this function has been called. The \fBq\fR parameter may be \s-1NULL.\s0
+after this function has been called. The \fIq\fR parameter may be \s-1NULL.\s0
+\&\fBDH_set0_pqg()\fR also checks if the parameters associated with \fIp\fR and \fIg\fR and
+optionally \fIq\fR are associated with known safe prime groups. If it is a safe
+prime group then the value of \fIq\fR will be set to q = (p \- 1) / 2 if \fIq\fR is
+\&\s-1NULL.\s0 The optional length parameter will be set to BN_num_bits(\fIq\fR) if \fIq\fR
+is not \s-1NULL.\s0
 .PP
 To get the public and private key values use the \fBDH_get0_key()\fR function. A
-pointer to the public key will be stored in \fB*pub_key\fR, and a pointer to the
-private key will be stored in \fB*priv_key\fR. Either may be \s-1NULL\s0 if they have not
+pointer to the public key will be stored in \fI*pub_key\fR, and a pointer to the
+private key will be stored in \fI*priv_key\fR. Either may be \s-1NULL\s0 if they have not
 been set yet, although if the private key has been set then the public key must
 be. The values point to the internal representation of the public key and
 private key values. This memory should not be freed directly.
-Any of the out parameters \fBpub_key\fR and \fBpriv_key\fR can be \s-1NULL,\s0 in which case
+Any of the out parameters \fIpub_key\fR and \fIpriv_key\fR can be \s-1NULL,\s0 in which case
 no value will be returned for that parameter.
 .PP
 The public and private key values can be set using \fBDH_set0_key()\fR. Either
@@ -198,25 +219,31 @@ untouched. As with \fBDH_set0_pqg()\fR this function transfers the memory manage
 of the key values to the \s-1DH\s0 object, and therefore they should not be freed
 directly after this function has been called.
 .PP
-Any of the values \fBp\fR, \fBq\fR, \fBg\fR, \fBpriv_key\fR, and \fBpub_key\fR can also be
+Any of the values \fIp\fR, \fIq\fR, \fIg\fR, \fIpriv_key\fR, and \fIpub_key\fR can also be
 retrieved separately by the corresponding function \fBDH_get0_p()\fR, \fBDH_get0_q()\fR,
 \&\fBDH_get0_g()\fR, \fBDH_get0_priv_key()\fR, and \fBDH_get0_pub_key()\fR, respectively.
 .PP
-\&\fBDH_set_flags()\fR sets the flags in the \fBflags\fR parameter on the \s-1DH\s0 object.
+\&\fBDH_set_flags()\fR sets the flags in the \fIflags\fR parameter on the \s-1DH\s0 object.
 Multiple flags can be passed in one go (bitwise ORed together). Any flags that
 are already set are left set. \fBDH_test_flags()\fR tests to see whether the flags
-passed in the \fBflags\fR parameter are currently set in the \s-1DH\s0 object. Multiple
+passed in the \fIflags\fR parameter are currently set in the \s-1DH\s0 object. Multiple
 flags can be tested in one go. All flags that are currently set are returned, or
 zero if none of the flags are set. \fBDH_clear_flags()\fR clears the specified flags
 within the \s-1DH\s0 object.
 .PP
 \&\fBDH_get0_engine()\fR returns a handle to the \s-1ENGINE\s0 that has been set for this \s-1DH\s0
-object, or \s-1NULL\s0 if no such \s-1ENGINE\s0 has been set.
+object, or \s-1NULL\s0 if no such \s-1ENGINE\s0 has been set. This function is deprecated. All
+engines should be replaced by providers.
 .PP
 The \fBDH_get_length()\fR and \fBDH_set_length()\fR functions get and set the optional
 length parameter associated with this \s-1DH\s0 object. If the length is nonzero then
-it is used, otherwise it is ignored. The \fBlength\fR parameter indicates the
-length of the secret exponent (private key) in bits.
+it is used, otherwise it is ignored. The \fIlength\fR parameter indicates the
+length of the secret exponent (private key) in bits. For safe prime groups the optional length parameter \fIlength\fR can be
+set to a value greater or equal to 2 * maximum_target_security_strength(BN_num_bits(\fIp\fR))
+as listed in SP800\-56Ar3 Table(s) 25 & 26.
+These functions are deprecated and should be replaced with
+\&\fBEVP_PKEY_CTX_set_params()\fR and \fBEVP_PKEY_get_int_param()\fR using the parameter key
+\&\fB\s-1OSSL_PKEY_PARAM_DH_PRIV_LEN\s0\fR as described in \s-1\fBEVP_PKEY\-DH\s0\fR\|(7).
 .SH "NOTES"
 .IX Header "NOTES"
 Values retrieved with \fBDH_get0_key()\fR are owned by the \s-1DH\s0 object used
@@ -244,11 +271,13 @@ or zero if no such length has been explicitly set.
 .SH "HISTORY"
 .IX Header "HISTORY"
 The functions described here were added in OpenSSL 1.1.0.
+.PP
+All of these functions were deprecated in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2016\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

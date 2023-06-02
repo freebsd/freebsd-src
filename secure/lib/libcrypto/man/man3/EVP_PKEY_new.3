@@ -133,28 +133,52 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_PKEY_NEW 3"
-.TH EVP_PKEY_NEW 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH EVP_PKEY_NEW 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-EVP_PKEY_new, EVP_PKEY_up_ref, EVP_PKEY_free, EVP_PKEY_new_raw_private_key, EVP_PKEY_new_raw_public_key, EVP_PKEY_new_CMAC_key, EVP_PKEY_new_mac_key, EVP_PKEY_get_raw_private_key, EVP_PKEY_get_raw_public_key \&\- public/private key allocation and raw key handling functions
+EVP_PKEY,
+EVP_PKEY_new,
+EVP_PKEY_up_ref,
+EVP_PKEY_dup,
+EVP_PKEY_free,
+EVP_PKEY_new_raw_private_key_ex,
+EVP_PKEY_new_raw_private_key,
+EVP_PKEY_new_raw_public_key_ex,
+EVP_PKEY_new_raw_public_key,
+EVP_PKEY_new_CMAC_key,
+EVP_PKEY_new_mac_key,
+EVP_PKEY_get_raw_private_key,
+EVP_PKEY_get_raw_public_key
+\&\- public/private key allocation and raw key handling functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/evp.h>
 \&
+\& typedef evp_pkey_st EVP_PKEY;
+\&
 \& EVP_PKEY *EVP_PKEY_new(void);
 \& int EVP_PKEY_up_ref(EVP_PKEY *key);
+\& EVP_PKEY *EVP_PKEY_dup(EVP_PKEY *key);
 \& void EVP_PKEY_free(EVP_PKEY *key);
 \&
+\& EVP_PKEY *EVP_PKEY_new_raw_private_key_ex(OSSL_LIB_CTX *libctx,
+\&                                           const char *keytype,
+\&                                           const char *propq,
+\&                                           const unsigned char *key,
+\&                                           size_t keylen);
 \& EVP_PKEY *EVP_PKEY_new_raw_private_key(int type, ENGINE *e,
 \&                                        const unsigned char *key, size_t keylen);
+\& EVP_PKEY *EVP_PKEY_new_raw_public_key_ex(OSSL_LIB_CTX *libctx,
+\&                                          const char *keytype,
+\&                                          const char *propq,
+\&                                          const unsigned char *key,
+\&                                          size_t keylen);
 \& EVP_PKEY *EVP_PKEY_new_raw_public_key(int type, ENGINE *e,
 \&                                       const unsigned char *key, size_t keylen);
-\& EVP_PKEY *EVP_PKEY_new_CMAC_key(ENGINE *e, const unsigned char *priv,
-\&                                 size_t len, const EVP_CIPHER *cipher);
 \& EVP_PKEY *EVP_PKEY_new_mac_key(int type, ENGINE *e, const unsigned char *key,
 \&                                int keylen);
 \&
@@ -163,62 +187,115 @@ EVP_PKEY_new, EVP_PKEY_up_ref, EVP_PKEY_free, EVP_PKEY_new_raw_private_key, EVP_
 \& int EVP_PKEY_get_raw_public_key(const EVP_PKEY *pkey, unsigned char *pub,
 \&                                 size_t *len);
 .Ve
+.PP
+The following function has been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 2
+\& EVP_PKEY *EVP_PKEY_new_CMAC_key(ENGINE *e, const unsigned char *priv,
+\&                                 size_t len, const EVP_CIPHER *cipher);
+.Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
+\&\fB\s-1EVP_PKEY\s0\fR is a generic structure to hold diverse types of asymmetric keys
+(also known as \*(L"key pairs\*(R"), and can be used for diverse operations, like
+signing, verifying signatures, key derivation, etc.  The asymmetric keys
+themselves are often refered to as the \*(L"internal key\*(R", and are handled by
+backends, such as providers (through \s-1\fBEVP_KEYMGMT\s0\fR\|(3)) or \fB\s-1ENGINE\s0\fRs.
+.PP
+Conceptually, an \fB\s-1EVP_PKEY\s0\fR internal key may hold a private key, a public
+key, or both (a keypair), and along with those, key parameters if the key type
+requires them.  The presence of these components determine what operations can
+be made; for example, signing normally requires the presence of a private key,
+and verifying normally requires the presence of a public key.
+.PP
+\&\fB\s-1EVP_PKEY\s0\fR has also been used for \s-1MAC\s0 algorithm that were conceived as
+producing signatures, although not being public key algorithms; \*(L"\s-1POLY1305\*(R",
+\&\*(L"SIPHASH\*(R", \*(L"HMAC\*(R", \*(L"CMAC\*(R".\s0  This usage is considered legacy and is discouraged
+in favor of the \s-1\fBEVP_MAC\s0\fR\|(3) \s-1API.\s0
+.PP
 The \fBEVP_PKEY_new()\fR function allocates an empty \fB\s-1EVP_PKEY\s0\fR structure which is
 used by OpenSSL to store public and private keys. The reference count is set to
 \&\fB1\fR.
 .PP
-\&\fBEVP_PKEY_up_ref()\fR increments the reference count of \fBkey\fR.
+\&\fBEVP_PKEY_up_ref()\fR increments the reference count of \fIkey\fR.
 .PP
-\&\fBEVP_PKEY_free()\fR decrements the reference count of \fBkey\fR and, if the reference
-count is zero, frees it up. If \fBkey\fR is \s-1NULL,\s0 nothing is done.
+\&\fBEVP_PKEY_dup()\fR duplicates the \fIkey\fR. The \fIkey\fR must not be \s-1ENGINE\s0 based or
+a raw key, otherwise the duplication will fail.
 .PP
-\&\fBEVP_PKEY_new_raw_private_key()\fR allocates a new \fB\s-1EVP_PKEY\s0\fR. If \fBe\fR is non-NULL
-then the new \fB\s-1EVP_PKEY\s0\fR structure is associated with the engine \fBe\fR. The
-\&\fBtype\fR argument indicates what kind of key this is. The value should be a \s-1NID\s0
-for a public key algorithm that supports raw private keys, i.e. one of
-\&\fB\s-1EVP_PKEY_HMAC\s0\fR, \fB\s-1EVP_PKEY_POLY1305\s0\fR, \fB\s-1EVP_PKEY_SIPHASH\s0\fR, \fB\s-1EVP_PKEY_X25519\s0\fR,
-\&\fB\s-1EVP_PKEY_ED25519\s0\fR, \fB\s-1EVP_PKEY_X448\s0\fR or \fB\s-1EVP_PKEY_ED448\s0\fR. \fBkey\fR points to the
-raw private key data for this \fB\s-1EVP_PKEY\s0\fR which should be of length \fBkeylen\fR.
-The length should be appropriate for the type of the key. The public key data
-will be automatically derived from the given private key data (if appropriate
-for the algorithm type).
+\&\fBEVP_PKEY_free()\fR decrements the reference count of \fIkey\fR and, if the reference
+count is zero, frees it up. If \fIkey\fR is \s-1NULL,\s0 nothing is done.
+.PP
+\&\fBEVP_PKEY_new_raw_private_key_ex()\fR allocates a new \fB\s-1EVP_PKEY\s0\fR. Unless an
+engine should be used for the key type, a provider for the key is found using
+the library context \fIlibctx\fR and the property query string \fIpropq\fR. The
+\&\fIkeytype\fR argument indicates what kind of key this is. The value should be a
+string for a public key algorithm that supports raw private keys, i.e one of
+\&\*(L"X25519\*(R", \*(L"\s-1ED25519\*(R", \*(L"X448\*(R"\s0 or \*(L"\s-1ED448\*(R".\s0 \fIkey\fR points to the raw private key
+data for this \fB\s-1EVP_PKEY\s0\fR which should be of length \fIkeylen\fR. The length
+should be appropriate for the type of the key. The public key data will be
+automatically derived from the given private key data (if appropriate for the
+algorithm type).
+.PP
+\&\fBEVP_PKEY_new_raw_private_key()\fR does the same as
+\&\fBEVP_PKEY_new_raw_private_key_ex()\fR except that the default library context and
+default property query are used instead. If \fIe\fR is non-NULL then the new
+\&\fB\s-1EVP_PKEY\s0\fR structure is associated with the engine \fIe\fR. The \fItype\fR argument
+indicates what kind of key this is. The value should be a \s-1NID\s0 for a public key
+algorithm that supports raw private keys, i.e. one of \fB\s-1EVP_PKEY_X25519\s0\fR,
+\&\fB\s-1EVP_PKEY_ED25519\s0\fR, \fB\s-1EVP_PKEY_X448\s0\fR or \fB\s-1EVP_PKEY_ED448\s0\fR.
+.PP
+\&\fBEVP_PKEY_new_raw_private_key_ex()\fR and \fBEVP_PKEY_new_raw_private_key()\fR may also
+be used with most MACs implemented as public key algorithms, so key types such
+as \*(L"\s-1HMAC\*(R", \*(L"POLY1305\*(R", \*(L"SIPHASH\*(R",\s0 or their \s-1NID\s0 form \fB\s-1EVP_PKEY_POLY1305\s0\fR,
+\&\fB\s-1EVP_PKEY_SIPHASH\s0\fR, \fB\s-1EVP_PKEY_HMAC\s0\fR are also accepted.  This usage is,
+as mentioned above, discouraged in favor of the \s-1\fBEVP_MAC\s0\fR\|(3) \s-1API.\s0
+.PP
+\&\fBEVP_PKEY_new_raw_public_key_ex()\fR works in the same way as
+\&\fBEVP_PKEY_new_raw_private_key_ex()\fR except that \fIkey\fR points to the raw
+public key data. The \fB\s-1EVP_PKEY\s0\fR structure will be initialised without any
+private key information. Algorithm types that support raw public keys are
+\&\*(L"X25519\*(R", \*(L"\s-1ED25519\*(R", \*(L"X448\*(R"\s0 or \*(L"\s-1ED448\*(R".\s0
 .PP
 \&\fBEVP_PKEY_new_raw_public_key()\fR works in the same way as
-\&\fBEVP_PKEY_new_raw_private_key()\fR except that \fBkey\fR points to the raw public key
+\&\fBEVP_PKEY_new_raw_private_key()\fR except that \fIkey\fR points to the raw public key
 data. The \fB\s-1EVP_PKEY\s0\fR structure will be initialised without any private key
 information. Algorithm types that support raw public keys are
 \&\fB\s-1EVP_PKEY_X25519\s0\fR, \fB\s-1EVP_PKEY_ED25519\s0\fR, \fB\s-1EVP_PKEY_X448\s0\fR or \fB\s-1EVP_PKEY_ED448\s0\fR.
 .PP
-\&\fBEVP_PKEY_new_CMAC_key()\fR works in the same way as \fBEVP_PKEY_new_raw_private_key()\fR
-except it is only for the \fB\s-1EVP_PKEY_CMAC\s0\fR algorithm type. In addition to the
-raw private key data, it also takes a cipher algorithm to be used during
-creation of a \s-1CMAC\s0 in the \fBcipher\fR argument. The cipher should be a standard
-encryption only cipher. For example \s-1AEAD\s0 and \s-1XTS\s0 ciphers should not be used.
-.PP
 \&\fBEVP_PKEY_new_mac_key()\fR works in the same way as \fBEVP_PKEY_new_raw_private_key()\fR.
 New applications should use \fBEVP_PKEY_new_raw_private_key()\fR instead.
 .PP
-\&\fBEVP_PKEY_get_raw_private_key()\fR fills the buffer provided by \fBpriv\fR with raw
-private key data. The size of the \fBpriv\fR buffer should be in \fB*len\fR on entry
-to the function, and on exit \fB*len\fR is updated with the number of bytes
-actually written. If the buffer \fBpriv\fR is \s-1NULL\s0 then \fB*len\fR is populated with
+\&\fBEVP_PKEY_get_raw_private_key()\fR fills the buffer provided by \fIpriv\fR with raw
+private key data. The size of the \fIpriv\fR buffer should be in \fI*len\fR on entry
+to the function, and on exit \fI*len\fR is updated with the number of bytes
+actually written. If the buffer \fIpriv\fR is \s-1NULL\s0 then \fI*len\fR is populated with
 the number of bytes required to hold the key. The calling application is
 responsible for ensuring that the buffer is large enough to receive the private
 key data. This function only works for algorithms that support raw private keys.
 Currently this is: \fB\s-1EVP_PKEY_HMAC\s0\fR, \fB\s-1EVP_PKEY_POLY1305\s0\fR, \fB\s-1EVP_PKEY_SIPHASH\s0\fR,
 \&\fB\s-1EVP_PKEY_X25519\s0\fR, \fB\s-1EVP_PKEY_ED25519\s0\fR, \fB\s-1EVP_PKEY_X448\s0\fR or \fB\s-1EVP_PKEY_ED448\s0\fR.
 .PP
-\&\fBEVP_PKEY_get_raw_public_key()\fR fills the buffer provided by \fBpub\fR with raw
-public key data. The size of the \fBpub\fR buffer should be in \fB*len\fR on entry
-to the function, and on exit \fB*len\fR is updated with the number of bytes
-actually written. If the buffer \fBpub\fR is \s-1NULL\s0 then \fB*len\fR is populated with
+\&\fBEVP_PKEY_get_raw_public_key()\fR fills the buffer provided by \fIpub\fR with raw
+public key data. The size of the \fIpub\fR buffer should be in \fI*len\fR on entry
+to the function, and on exit \fI*len\fR is updated with the number of bytes
+actually written. If the buffer \fIpub\fR is \s-1NULL\s0 then \fI*len\fR is populated with
 the number of bytes required to hold the key. The calling application is
 responsible for ensuring that the buffer is large enough to receive the public
 key data. This function only works for algorithms that support raw public  keys.
 Currently this is: \fB\s-1EVP_PKEY_X25519\s0\fR, \fB\s-1EVP_PKEY_ED25519\s0\fR, \fB\s-1EVP_PKEY_X448\s0\fR or
 \&\fB\s-1EVP_PKEY_ED448\s0\fR.
+.PP
+\&\fBEVP_PKEY_new_CMAC_key()\fR works in the same way as \fBEVP_PKEY_new_raw_private_key()\fR
+except it is only for the \fB\s-1EVP_PKEY_CMAC\s0\fR algorithm type. In addition to the
+raw private key data, it also takes a cipher algorithm to be used during
+creation of a \s-1CMAC\s0 in the \fBcipher\fR argument. The cipher should be a standard
+encryption-only cipher. For example \s-1AEAD\s0 and \s-1XTS\s0 ciphers should not be used.
+.PP
+Applications should use the \s-1\fBEVP_MAC\s0\fR\|(3) \s-1API\s0 instead
+and set the \fB\s-1OSSL_MAC_PARAM_CIPHER\s0\fR parameter on the \fB\s-1EVP_MAC_CTX\s0\fR object
+with the name of the cipher being used.
 .SH "NOTES"
 .IX Header "NOTES"
 The \fB\s-1EVP_PKEY\s0\fR structure is used by various OpenSSL functions which require a
@@ -226,20 +303,22 @@ general private key without reference to any particular algorithm.
 .PP
 The structure returned by \fBEVP_PKEY_new()\fR is empty. To add a private or public
 key to this empty structure use the appropriate functions described in
-\&\fBEVP_PKEY_set1_RSA\fR\|(3), EVP_PKEY_set1_DSA, EVP_PKEY_set1_DH or
-EVP_PKEY_set1_EC_KEY.
+\&\fBEVP_PKEY_set1_RSA\fR\|(3), \fBEVP_PKEY_set1_DSA\fR\|(3), \fBEVP_PKEY_set1_DH\fR\|(3) or
+\&\fBEVP_PKEY_set1_EC_KEY\fR\|(3).
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fBEVP_PKEY_new()\fR, \fBEVP_PKEY_new_raw_private_key()\fR, \fBEVP_PKEY_new_raw_public_key()\fR,
 \&\fBEVP_PKEY_new_CMAC_key()\fR and \fBEVP_PKEY_new_mac_key()\fR return either the newly
-allocated \fB\s-1EVP_PKEY\s0\fR structure or \fB\s-1NULL\s0\fR if an error occurred.
+allocated \fB\s-1EVP_PKEY\s0\fR structure or \s-1NULL\s0 if an error occurred.
+.PP
+\&\fBEVP_PKEY_dup()\fR returns the key duplicate or \s-1NULL\s0 if an error occurred.
 .PP
 \&\fBEVP_PKEY_up_ref()\fR, \fBEVP_PKEY_get_raw_private_key()\fR and
 \&\fBEVP_PKEY_get_raw_public_key()\fR return 1 for success and 0 for failure.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fBEVP_PKEY_set1_RSA\fR\|(3), EVP_PKEY_set1_DSA, EVP_PKEY_set1_DH or
-EVP_PKEY_set1_EC_KEY
+\&\fBEVP_PKEY_set1_RSA\fR\|(3), \fBEVP_PKEY_set1_DSA\fR\|(3), \fBEVP_PKEY_set1_DH\fR\|(3) or
+\&\fBEVP_PKEY_set1_EC_KEY\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
 The
@@ -251,11 +330,21 @@ The
 \&\fBEVP_PKEY_new_raw_private_key()\fR, \fBEVP_PKEY_new_raw_public_key()\fR,
 \&\fBEVP_PKEY_new_CMAC_key()\fR, \fBEVP_PKEY_new_raw_private_key()\fR and
 \&\fBEVP_PKEY_get_raw_public_key()\fR functions were added in OpenSSL 1.1.1.
+.PP
+The \fBEVP_PKEY_dup()\fR, \fBEVP_PKEY_new_raw_private_key_ex()\fR, and
+\&\fBEVP_PKEY_new_raw_public_key_ex()\fR
+functions were added in OpenSSL 3.0.
+.PP
+The \fBEVP_PKEY_new_CMAC_key()\fR was deprecated in OpenSSL 3.0.
+.PP
+The documentation of \fB\s-1EVP_PKEY\s0\fR was amended in OpenSSL 3.0 to allow there to
+be the private part of the keypair without the public part, where this was
+previously implied to be disallowed.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2002\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

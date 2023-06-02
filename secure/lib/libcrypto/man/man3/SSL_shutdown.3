@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_SHUTDOWN 3"
-.TH SSL_SHUTDOWN 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_SHUTDOWN 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -151,8 +151,7 @@ SSL_shutdown \- shut down a TLS/SSL connection
 .IX Header "DESCRIPTION"
 \&\fBSSL_shutdown()\fR shuts down an active \s-1TLS/SSL\s0 connection. It sends the
 close_notify shutdown alert to the peer.
-.SH "NOTES"
-.IX Header "NOTES"
+.PP
 \&\fBSSL_shutdown()\fR tries to send the close_notify shutdown alert to the peer.
 Whether the operation succeeds or not, the \s-1SSL_SENT_SHUTDOWN\s0 flag is set and
 a currently open session is considered closed and good and will be kept in the
@@ -187,6 +186,44 @@ synchronized.
 \&\fBSSL_shutdown()\fR only closes the write direction.
 It is not possible to call \fBSSL_write()\fR after calling \fBSSL_shutdown()\fR.
 The read direction is closed by the peer.
+.PP
+The behaviour of \fBSSL_shutdown()\fR additionally depends on the underlying \s-1BIO.\s0
+If the underlying \s-1BIO\s0 is \fBblocking\fR, \fBSSL_shutdown()\fR will only return once the
+handshake step has been finished or an error occurred.
+.PP
+If the underlying \s-1BIO\s0 is \fBnonblocking\fR, \fBSSL_shutdown()\fR will also return
+when the underlying \s-1BIO\s0 could not satisfy the needs of \fBSSL_shutdown()\fR
+to continue the handshake. In this case a call to \fBSSL_get_error()\fR with the
+return value of \fBSSL_shutdown()\fR will yield \fB\s-1SSL_ERROR_WANT_READ\s0\fR or
+\&\fB\s-1SSL_ERROR_WANT_WRITE\s0\fR. The calling process then must repeat the call after
+taking appropriate action to satisfy the needs of \fBSSL_shutdown()\fR.
+The action depends on the underlying \s-1BIO.\s0 When using a nonblocking socket,
+nothing is to be done, but \fBselect()\fR can be used to check for the required
+condition. When using a buffering \s-1BIO,\s0 like a \s-1BIO\s0 pair, data must be written
+into or retrieved out of the \s-1BIO\s0 before being able to continue.
+.PP
+After \fBSSL_shutdown()\fR returned 0, it is possible to call \fBSSL_shutdown()\fR again
+to wait for the peer's close_notify alert.
+\&\fBSSL_shutdown()\fR will return 1 in that case.
+However, it is recommended to wait for it using \fBSSL_read()\fR instead.
+.PP
+\&\fBSSL_shutdown()\fR can be modified to only set the connection to \*(L"shutdown\*(R"
+state but not actually send the close_notify alert messages,
+see \fBSSL_CTX_set_quiet_shutdown\fR\|(3).
+When \*(L"quiet shutdown\*(R" is enabled, \fBSSL_shutdown()\fR will always succeed
+and return 1.
+Note that this is not standard compliant behaviour.
+It should only be done when the peer has a way to make sure all
+data has been received and doesn't wait for the close_notify alert
+message, otherwise an unexpected \s-1EOF\s0 will be reported.
+.PP
+There are implementations that do not send the required close_notify alert.
+If there is a need to communicate with such an implementation, and it's clear
+that all data has been received, do not wait for the peer's close_notify alert.
+Waiting for the close_notify alert when the peer just closes the connection
+will result in an error being generated.
+The error can be ignored using the \fB\s-1SSL_OP_IGNORE_UNEXPECTED_EOF\s0\fR.
+For more information see \fBSSL_CTX_set_options\fR\|(3).
 .SS "First to close the connection"
 .IX Subsection "First to close the connection"
 When the application is the first party to send the close_notify
@@ -222,43 +259,6 @@ If successful, \fBSSL_shutdown()\fR will return 1.
 .PP
 Whether \s-1SSL_RECEIVED_SHUTDOWN\s0 is already set can be checked using the
 \&\fBSSL_get_shutdown()\fR (see also \fBSSL_set_shutdown\fR\|(3) call.
-.SH "NOTES"
-.IX Header "NOTES"
-The behaviour of \fBSSL_shutdown()\fR additionally depends on the underlying \s-1BIO.\s0
-If the underlying \s-1BIO\s0 is \fBblocking\fR, \fBSSL_shutdown()\fR will only return once the
-handshake step has been finished or an error occurred.
-.PP
-If the underlying \s-1BIO\s0 is \fBnonblocking\fR, \fBSSL_shutdown()\fR will also return
-when the underlying \s-1BIO\s0 could not satisfy the needs of \fBSSL_shutdown()\fR
-to continue the handshake. In this case a call to \fBSSL_get_error()\fR with the
-return value of \fBSSL_shutdown()\fR will yield \fB\s-1SSL_ERROR_WANT_READ\s0\fR or
-\&\fB\s-1SSL_ERROR_WANT_WRITE\s0\fR. The calling process then must repeat the call after
-taking appropriate action to satisfy the needs of \fBSSL_shutdown()\fR.
-The action depends on the underlying \s-1BIO.\s0 When using a nonblocking socket,
-nothing is to be done, but \fBselect()\fR can be used to check for the required
-condition. When using a buffering \s-1BIO,\s0 like a \s-1BIO\s0 pair, data must be written
-into or retrieved out of the \s-1BIO\s0 before being able to continue.
-.PP
-After \fBSSL_shutdown()\fR returned 0, it is possible to call \fBSSL_shutdown()\fR again
-to wait for the peer's close_notify alert.
-\&\fBSSL_shutdown()\fR will return 1 in that case.
-However, it is recommended to wait for it using \fBSSL_read()\fR instead.
-.PP
-\&\fBSSL_shutdown()\fR can be modified to only set the connection to \*(L"shutdown\*(R"
-state but not actually send the close_notify alert messages,
-see \fBSSL_CTX_set_quiet_shutdown\fR\|(3).
-When \*(L"quiet shutdown\*(R" is enabled, \fBSSL_shutdown()\fR will always succeed
-and return 1.
-Note that this is not standard compliant behaviour.
-It should only be done when the peer has a way to make sure all
-data has been received and doesn't wait for the close_notify alert
-message, otherwise an unexpected \s-1EOF\s0 will be reported.
-.PP
-There are implementations that do not send the required close_notify alert.
-If there is a need to communicate with such an implementation, and it's clear
-that all data has been received, do not wait for the peer's close_notify alert.
-Waiting for the close_notify alert when the peer just closes the connection will
-result in an error being generated.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 The following return values can occur:
@@ -286,14 +286,14 @@ It can also occur when not all data was read using \fBSSL_read()\fR.
 .IX Header "SEE ALSO"
 \&\fBSSL_get_error\fR\|(3), \fBSSL_connect\fR\|(3),
 \&\fBSSL_accept\fR\|(3), \fBSSL_set_shutdown\fR\|(3),
-\&\fBSSL_CTX_set_quiet_shutdown\fR\|(3),
+\&\fBSSL_CTX_set_quiet_shutdown\fR\|(3), \fBSSL_CTX_set_options\fR\|(3)
 \&\fBSSL_clear\fR\|(3), \fBSSL_free\fR\|(3),
 \&\fBssl\fR\|(7), \fBbio\fR\|(7)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
 Copyright 2000\-2020 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

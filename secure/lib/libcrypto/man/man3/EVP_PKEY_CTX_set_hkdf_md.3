@@ -133,19 +133,22 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_PKEY_CTX_SET_HKDF_MD 3"
-.TH EVP_PKEY_CTX_SET_HKDF_MD 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH EVP_PKEY_CTX_SET_HKDF_MD 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-EVP_PKEY_CTX_set_hkdf_md, EVP_PKEY_CTX_set1_hkdf_salt, EVP_PKEY_CTX_set1_hkdf_key, EVP_PKEY_CTX_add1_hkdf_info, EVP_PKEY_CTX_hkdf_mode \- HMAC\-based Extract\-and\-Expand key derivation algorithm
+EVP_PKEY_CTX_set_hkdf_md, EVP_PKEY_CTX_set1_hkdf_salt,
+EVP_PKEY_CTX_set1_hkdf_key, EVP_PKEY_CTX_add1_hkdf_info,
+EVP_PKEY_CTX_set_hkdf_mode \-
+HMAC\-based Extract\-and\-Expand key derivation algorithm
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/kdf.h>
 \&
-\& int EVP_PKEY_CTX_hkdf_mode(EVP_PKEY_CTX *pctx, int mode);
+\& int EVP_PKEY_CTX_set_hkdf_mode(EVP_PKEY_CTX *pctx, int mode);
 \&
 \& int EVP_PKEY_CTX_set_hkdf_md(EVP_PKEY_CTX *pctx, const EVP_MD *md);
 \&
@@ -167,8 +170,8 @@ and \*(L"extracts\*(R" from it a fixed-length pseudorandom key K. The second sta
 \&\*(L"expands\*(R" the key K into several additional pseudorandom keys (the output
 of the \s-1KDF\s0).
 .PP
-\&\fBEVP_PKEY_CTX_hkdf_mode()\fR sets the mode for the \s-1HKDF\s0 operation. There are three
-modes that are currently defined:
+\&\fBEVP_PKEY_CTX_set_hkdf_mode()\fR sets the mode for the \s-1HKDF\s0 operation. There
+are three modes that are currently defined:
 .IP "\s-1EVP_PKEY_HKDEF_MODE_EXTRACT_AND_EXPAND\s0" 4
 .IX Item "EVP_PKEY_HKDEF_MODE_EXTRACT_AND_EXPAND"
 This is the default mode. Calling \fBEVP_PKEY_derive\fR\|(3) on an \s-1EVP_PKEY_CTX\s0 set
@@ -220,15 +223,13 @@ The names \*(L"hexsalt\*(R", \*(L"hexkey\*(R" and \*(L"hexinfo\*(R" are similar 
 string which is converted to binary.
 .SH "NOTES"
 .IX Header "NOTES"
-All these functions are implemented as macros.
-.PP
 A context for \s-1HKDF\s0 can be obtained by calling:
 .PP
 .Vb 1
 \& EVP_PKEY_CTX *pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL);
 .Ve
 .PP
-The total length of the info buffer cannot exceed 1024 bytes in length: this
+The total length of the info buffer cannot exceed 2048 bytes in length: this
 should be more than enough for any normal use of \s-1HKDF.\s0
 .PP
 The output length of an \s-1HKDF\s0 expand operation is specified via the length
@@ -278,11 +279,15 @@ salt value \*(L"salt\*(R" and info value \*(L"label\*(R":
 \&\fBEVP_PKEY_CTX_new\fR\|(3),
 \&\fBEVP_PKEY_CTX_ctrl_str\fR\|(3),
 \&\fBEVP_PKEY_derive\fR\|(3)
+.SH "HISTORY"
+.IX Header "HISTORY"
+All of the functions described here were converted from macros to functions in
+OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2016\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016\-2022 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

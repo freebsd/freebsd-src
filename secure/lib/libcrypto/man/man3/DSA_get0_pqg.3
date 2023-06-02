@@ -133,18 +133,29 @@
 .\" ========================================================================
 .\"
 .IX Title "DSA_GET0_PQG 3"
-.TH DSA_GET0_PQG 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH DSA_GET0_PQG 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-DSA_get0_pqg, DSA_set0_pqg, DSA_get0_key, DSA_set0_key, DSA_get0_p, DSA_get0_q, DSA_get0_g, DSA_get0_pub_key, DSA_get0_priv_key, DSA_clear_flags, DSA_test_flags, DSA_set_flags, DSA_get0_engine \- Routines for getting and setting data in a DSA object
+DSA_get0_pqg, DSA_set0_pqg, DSA_get0_key, DSA_set0_key,
+DSA_get0_p, DSA_get0_q, DSA_get0_g,
+DSA_get0_pub_key, DSA_get0_priv_key,
+DSA_clear_flags, DSA_test_flags, DSA_set_flags,
+DSA_get0_engine \- Routines for getting and
+setting data in a DSA object
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/dsa.h>
-\&
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 10
 \& void DSA_get0_pqg(const DSA *d,
 \&                   const BIGNUM **p, const BIGNUM **q, const BIGNUM **g);
 \& int DSA_set0_pqg(DSA *d, BIGNUM *p, BIGNUM *q, BIGNUM *g);
@@ -163,6 +174,9 @@ DSA_get0_pqg, DSA_set0_pqg, DSA_get0_key, DSA_set0_key, DSA_get0_p, DSA_get0_q, 
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
+All of the functions described on this page are deprecated.
+Applications should instead use \fBEVP_PKEY_get_bn_param\fR\|(3).
+.PP
 A \s-1DSA\s0 object contains the parameters \fBp\fR, \fBq\fR and \fBg\fR. It also contains a
 public key (\fBpub_key\fR) and (optionally) a private key (\fBpriv_key\fR).
 .PP
@@ -223,17 +237,19 @@ duplicate.  The same applies to \fBDSA_get0_pqg()\fR and \fBDSA_set0_pqg()\fR.
 has been set.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
+\&\fBEVP_PKEY_get_bn_param\fR\|(3),
 \&\fBDSA_new\fR\|(3), \fBDSA_new\fR\|(3), \fBDSA_generate_parameters\fR\|(3), \fBDSA_generate_key\fR\|(3),
 \&\fBDSA_dup_DH\fR\|(3), \fBDSA_do_sign\fR\|(3), \fBDSA_set_method\fR\|(3), \fBDSA_SIG_new\fR\|(3),
 \&\fBDSA_sign\fR\|(3), \fBDSA_size\fR\|(3), \fBDSA_meth_new\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
-The functions described here were added in OpenSSL 1.1.0.
+The functions described here were added in OpenSSL 1.1.0 and deprecated in
+OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2016\-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

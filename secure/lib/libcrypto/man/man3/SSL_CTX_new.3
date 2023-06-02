@@ -133,18 +133,30 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_NEW 3"
-.TH SSL_CTX_NEW 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH SSL_CTX_NEW 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-TLSv1_2_method, TLSv1_2_server_method, TLSv1_2_client_method, SSL_CTX_new, SSL_CTX_up_ref, SSLv3_method, SSLv3_server_method, SSLv3_client_method, TLSv1_method, TLSv1_server_method, TLSv1_client_method, TLSv1_1_method, TLSv1_1_server_method, TLSv1_1_client_method, TLS_method, TLS_server_method, TLS_client_method, SSLv23_method, SSLv23_server_method, SSLv23_client_method, DTLS_method, DTLS_server_method, DTLS_client_method, DTLSv1_method, DTLSv1_server_method, DTLSv1_client_method, DTLSv1_2_method, DTLSv1_2_server_method, DTLSv1_2_client_method \&\- create a new SSL_CTX object as framework for TLS/SSL or DTLS enabled functions
+TLSv1_2_method, TLSv1_2_server_method, TLSv1_2_client_method,
+SSL_CTX_new, SSL_CTX_new_ex, SSL_CTX_up_ref, SSLv3_method,
+SSLv3_server_method, SSLv3_client_method, TLSv1_method, TLSv1_server_method,
+TLSv1_client_method, TLSv1_1_method, TLSv1_1_server_method,
+TLSv1_1_client_method, TLS_method, TLS_server_method, TLS_client_method,
+SSLv23_method, SSLv23_server_method, SSLv23_client_method, DTLS_method,
+DTLS_server_method, DTLS_client_method, DTLSv1_method, DTLSv1_server_method,
+DTLSv1_client_method, DTLSv1_2_method, DTLSv1_2_server_method,
+DTLSv1_2_client_method
+\&\- create a new SSL_CTX object as framework for TLS/SSL or DTLS enabled
+functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/ssl.h>
 \&
+\& SSL_CTX *SSL_CTX_new_ex(OSSL_LIB_CTX *libctx, const char *propq,
+\&                         const SSL_METHOD *method);
 \& SSL_CTX *SSL_CTX_new(const SSL_METHOD *method);
 \& int SSL_CTX_up_ref(SSL_CTX *ctx);
 \&
@@ -198,19 +210,47 @@ TLSv1_2_method, TLSv1_2_server_method, TLSv1_2_client_method, SSL_CTX_new, SSL_C
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBSSL_CTX_new()\fR creates a new \fB\s-1SSL_CTX\s0\fR object as framework to
-establish \s-1TLS/SSL\s0 or \s-1DTLS\s0 enabled connections. An \fB\s-1SSL_CTX\s0\fR object is
-reference counted. Creating an \fB\s-1SSL_CTX\s0\fR object for the first time increments
-the reference count. Freeing it (using SSL_CTX_free) decrements it. When the
-reference count drops to zero, any memory or resources allocated to the
-\&\fB\s-1SSL_CTX\s0\fR object are freed. \fBSSL_CTX_up_ref()\fR increments the reference count for
-an existing \fB\s-1SSL_CTX\s0\fR structure.
+\&\fBSSL_CTX_new_ex()\fR creates a new \fB\s-1SSL_CTX\s0\fR object, which holds various
+configuration and data relevant to \s-1SSL/TLS\s0 or \s-1DTLS\s0 session establishment.
+These are later inherited by the \fB\s-1SSL\s0\fR object representing an active session.
+The \fImethod\fR parameter specifies whether the context will be used for the
+client or server side or both \- for details see the \*(L"\s-1NOTES\*(R"\s0 below.
+The library context \fIlibctx\fR (see \s-1\fBOSSL_LIB_CTX\s0\fR\|(3)) is used to provide the
+cryptographic algorithms needed for the session. Any cryptographic algorithms
+that are used by any \fB\s-1SSL\s0\fR objects created from this \fB\s-1SSL_CTX\s0\fR will be fetched
+from the \fIlibctx\fR using the property query string \fIpropq\fR (see
+\&\*(L"\s-1ALGORITHM FETCHING\*(R"\s0 in \fBcrypto\fR\|(7). Either or both the \fIlibctx\fR or \fIpropq\fR
+parameters may be \s-1NULL.\s0
+.PP
+\&\fBSSL_CTX_new()\fR does the same as \fBSSL_CTX_new_ex()\fR except that the default
+library context is used and no property query string is specified.
+.PP
+An \fB\s-1SSL_CTX\s0\fR object is reference counted. Creating an \fB\s-1SSL_CTX\s0\fR object for the
+first time increments the reference count. Freeing the \fB\s-1SSL_CTX\s0\fR (using
+SSL_CTX_free) decrements it. When the reference count drops to zero, any memory
+or resources allocated to the \fB\s-1SSL_CTX\s0\fR object are freed. \fBSSL_CTX_up_ref()\fR
+increments the reference count for an existing \fB\s-1SSL_CTX\s0\fR structure.
+.PP
+An \fB\s-1SSL_CTX\s0\fR object should not be changed after it is used to create any \fB\s-1SSL\s0\fR
+objects or from multiple threads concurrently, since the implementation does not
+provide serialization of access for these cases.
 .SH "NOTES"
 .IX Header "NOTES"
-The \s-1SSL_CTX\s0 object uses \fBmethod\fR as connection method.
-The methods exist in a generic type (for client and server use), a server only
-type, and a client only type.
-\&\fBmethod\fR can be of the following types:
+On session estabilishment, by default, no peer credentials verification is done.
+This must be explicitly requested, typically using \fBSSL_CTX_set_verify\fR\|(3).
+For verifying peer certificates many options can be set using various functions
+such as \fBSSL_CTX_load_verify_locations\fR\|(3) and \fBSSL_CTX_set1_param\fR\|(3).
+The \fBX509_VERIFY_PARAM_set_purpose\fR\|(3) function can be used, also in conjunction
+with \fBSSL_CTX_get0_param\fR\|(3), to set the intended purpose of the session.
+The default is \fBX509_PURPOSE_SSL_SERVER\fR on the client side
+and \fBX509_PURPOSE_SSL_CLIENT\fR on the server side.
+.PP
+The \s-1SSL_CTX\s0 object uses \fImethod\fR as the connection method.
+Three method variants are available: a generic method (for either client or
+server use), a server-only method, and a client-only method.
+.PP
+The \fImethod\fR parameter of \fBSSL_CTX_new_ex()\fR and \fBSSL_CTX_new()\fR
+can be one of the following:
 .IP "\fBTLS_method()\fR, \fBTLS_server_method()\fR, \fBTLS_client_method()\fR" 4
 .IX Item "TLS_method(), TLS_server_method(), TLS_client_method()"
 These are the general-purpose \fIversion-flexible\fR \s-1SSL/TLS\s0 methods.
@@ -303,7 +343,9 @@ The return value points to an allocated \s-1SSL_CTX\s0 object.
 \&\fBSSL_CTX_up_ref()\fR returns 1 for success and 0 for failure.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fBSSL_CTX_set_options\fR\|(3), \fBSSL_CTX_free\fR\|(3), \fBSSL_accept\fR\|(3),
+\&\fBSSL_CTX_set_options\fR\|(3), \fBSSL_CTX_free\fR\|(3),
+\&\fBSSL_CTX_set_verify\fR\|(3), \fBSSL_CTX_set1_param\fR\|(3), \fBSSL_CTX_get0_param\fR\|(3),
+\&\fBSSL_connect\fR\|(3), \fBSSL_accept\fR\|(3),
 \&\fBSSL_CTX_set_min_proto_version\fR\|(3), \fBssl\fR\|(7), \fBSSL_set_connect_state\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
@@ -316,11 +358,13 @@ were deprecated and the preferred \fBTLS_method()\fR, \fBTLS_server_method()\fR
 and \fBTLS_client_method()\fR functions were added in OpenSSL 1.1.0.
 .PP
 All version-specific methods were deprecated in OpenSSL 1.1.0.
+.PP
+\&\fBSSL_CTX_new_ex()\fR was added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

@@ -133,20 +133,22 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_CHACHA20 3"
-.TH EVP_CHACHA20 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH EVP_CHACHA20 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-EVP_chacha20, EVP_chacha20_poly1305 \&\- EVP ChaCha20 stream cipher
+EVP_chacha20,
+EVP_chacha20_poly1305
+\&\- EVP ChaCha20 stream cipher
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/evp.h>
 \&
-\& const EVP_CIPHER *EVP_chacha20(void)
-\& const EVP_CIPHER *EVP_chacha20_poly1305(void)
+\& const EVP_CIPHER *EVP_chacha20(void);
+\& const EVP_CIPHER *EVP_chacha20_poly1305(void);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -168,6 +170,12 @@ Authenticated encryption with ChaCha20\-Poly1305. Like \fBEVP_chacha20()\fR, the
 is 256 bits and the \s-1IV\s0 is 96 bits. This supports additional authenticated data
 (\s-1AAD\s0) and produces a 128\-bit authentication tag. See the
 \&\*(L"\s-1AEAD\s0 Interface\*(R" in \fBEVP_EncryptInit\fR\|(3) section for more information.
+.SH "NOTES"
+.IX Header "NOTES"
+Developers should be aware of the negative performance implications of
+calling these functions multiple times and should consider using
+\&\fBEVP_CIPHER_fetch\fR\|(3) instead.
+See \*(L"Performance\*(R" in \fBcrypto\fR\|(7) for further information.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 These functions return an \fB\s-1EVP_CIPHER\s0\fR structure that contains the
@@ -180,9 +188,9 @@ details of the \fB\s-1EVP_CIPHER\s0\fR structure.
 \&\fBEVP_CIPHER_meth_new\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2017\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017\-2023 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

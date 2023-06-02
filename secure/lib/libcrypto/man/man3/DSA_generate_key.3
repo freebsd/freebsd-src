@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "DSA_GENERATE_KEY 3"
-.TH DSA_GENERATE_KEY 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH DSA_GENERATE_KEY 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -144,11 +144,21 @@ DSA_generate_key \- generate DSA key pair
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/dsa.h>
-\&
+.Ve
+.PP
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
+.PP
+.Vb 1
 \& int DSA_generate_key(DSA *a);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
+All of the functions described on this page are deprecated.
+Applications should instead use \fBEVP_PKEY_keygen_init\fR\|(3) and
+\&\fBEVP_PKEY_keygen\fR\|(3) as described in \s-1\fBEVP_PKEY\-DSA\s0\fR\|(7).
+.PP
 \&\fBDSA_generate_key()\fR expects \fBa\fR to contain \s-1DSA\s0 parameters. It generates
 a new key pair and stores it in \fBa\->pub_key\fR and \fBa\->priv_key\fR.
 .PP
@@ -163,11 +173,14 @@ The error codes can be obtained by \fBERR_get_error\fR\|(3).
 .IX Header "SEE ALSO"
 \&\fBDSA_new\fR\|(3), \fBERR_get_error\fR\|(3), \fBRAND_bytes\fR\|(3),
 \&\fBDSA_generate_parameters_ex\fR\|(3)
+.SH "HISTORY"
+.IX Header "HISTORY"
+This function was deprecated in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

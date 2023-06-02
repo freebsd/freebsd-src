@@ -133,46 +133,93 @@
 .\" ========================================================================
 .\"
 .IX Title "D2I_PRIVATEKEY 3"
-.TH D2I_PRIVATEKEY 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH D2I_PRIVATEKEY 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-d2i_PrivateKey, d2i_PublicKey, d2i_AutoPrivateKey, i2d_PrivateKey, i2d_PublicKey, d2i_PrivateKey_bio, d2i_PrivateKey_fp \&\- decode and encode functions for reading and saving EVP_PKEY structures
+d2i_PrivateKey_ex, d2i_PrivateKey, d2i_PublicKey, d2i_KeyParams,
+d2i_AutoPrivateKey_ex,  d2i_AutoPrivateKey, i2d_PrivateKey, i2d_PublicKey,
+i2d_KeyParams, i2d_KeyParams_bio, d2i_PrivateKey_ex_bio, d2i_PrivateKey_bio,
+d2i_PrivateKey_ex_fp, d2i_PrivateKey_fp, d2i_KeyParams_bio, i2d_PrivateKey_bio,
+i2d_PrivateKey_fp
+\&\- decode and encode functions for reading and saving EVP_PKEY structures
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/evp.h>
 \&
+\& EVP_PKEY *d2i_PrivateKey_ex(int type, EVP_PKEY **a, const unsigned char **pp,
+\&                             long length, OSSL_LIB_CTX *libctx,
+\&                             const char *propq);
 \& EVP_PKEY *d2i_PrivateKey(int type, EVP_PKEY **a, const unsigned char **pp,
 \&                          long length);
 \& EVP_PKEY *d2i_PublicKey(int type, EVP_PKEY **a, const unsigned char **pp,
 \&                         long length);
+\& EVP_PKEY *d2i_KeyParams(int type, EVP_PKEY **a, const unsigned char **pp,
+\&                         long length);
+\& EVP_PKEY *d2i_AutoPrivateKey_ex(EVP_PKEY **a, const unsigned char **pp,
+\&                                 long length, OSSL_LIB_CTX *libctx,
+\&                                 const char *propq);
 \& EVP_PKEY *d2i_AutoPrivateKey(EVP_PKEY **a, const unsigned char **pp,
 \&                              long length);
-\& int i2d_PrivateKey(EVP_PKEY *a, unsigned char **pp);
-\& int i2d_PublicKey(EVP_PKEY *a, unsigned char **pp);
 \&
+\& int i2d_PrivateKey(const EVP_PKEY *a, unsigned char **pp);
+\& int i2d_PublicKey(const EVP_PKEY *a, unsigned char **pp);
+\& int i2d_KeyParams(const EVP_PKEY *a, unsigned char **pp);
+\& int i2d_KeyParams_bio(BIO *bp, const EVP_PKEY *pkey);
+\& EVP_PKEY *d2i_KeyParams_bio(int type, EVP_PKEY **a, BIO *in);
+\&
+\&
+\& #include <openssl/x509.h>
+\&
+\& EVP_PKEY *d2i_PrivateKey_ex_bio(BIO *bp, EVP_PKEY **a, OSSL_LIB_CTX *libctx,
+\&                                 const char *propq);
 \& EVP_PKEY *d2i_PrivateKey_bio(BIO *bp, EVP_PKEY **a);
-\& EVP_PKEY *d2i_PrivateKey_fp(FILE *fp, EVP_PKEY **a)
+\& EVP_PKEY *d2i_PrivateKey_ex_fp(FILE *fp, EVP_PKEY **a, OSSL_LIB_CTX *libctx,
+\&                                const char *propq);
+\& EVP_PKEY *d2i_PrivateKey_fp(FILE *fp, EVP_PKEY **a);
+\&
+\& int i2d_PrivateKey_bio(BIO *bp, const EVP_PKEY *pkey);
+\& int i2d_PrivateKey_fp(FILE *fp, const EVP_PKEY *pkey);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBd2i_PrivateKey()\fR decodes a private key using algorithm \fBtype\fR. It attempts to
-use any key specific format or PKCS#8 unencrypted PrivateKeyInfo format. The
-\&\fBtype\fR parameter should be a public key algorithm constant such as
-\&\fB\s-1EVP_PKEY_RSA\s0\fR. An error occurs if the decoded key does not match \fBtype\fR.
+\&\fBd2i_PrivateKey_ex()\fR decodes a private key using algorithm \fItype\fR. It attempts
+to use any key-specific format or PKCS#8 unencrypted PrivateKeyInfo format.
+The \fItype\fR parameter should be a public key algorithm constant such as
+\&\fB\s-1EVP_PKEY_RSA\s0\fR. An error occurs if the decoded key does not match \fItype\fR. Some
+private key decoding implementations may use cryptographic algorithms (for
+example to automatically derive the public key if it is not explicitly
+included in the encoding). In this case the supplied library context \fIlibctx\fR
+and property query string \fIpropq\fR are used.
+If successful and the \fIa\fR parameter is not \s-1NULL\s0 the function assigns the
+returned \fB\s-1EVP_PKEY\s0\fR structure pointer to \fI*a\fR, overwriting any previous value.
+.PP
+\&\fBd2i_PrivateKey()\fR does the same as \fBd2i_PrivateKey_ex()\fR except that the default
+library context and property query string are used.
 \&\fBd2i_PublicKey()\fR does the same for public keys.
+\&\fBd2i_KeyParams()\fR does the same for key parameters.
 .PP
-\&\fBd2i_AutoPrivateKey()\fR is similar to \fBd2i_PrivateKey()\fR except it attempts to
-automatically detect the private key format.
+The \fBd2i_PrivateKey_ex_bio()\fR and \fBd2i_PrivateKey_bio()\fR functions are similar to
+\&\fBd2i_PrivateKey_ex()\fR and \fBd2i_PrivateKey()\fR respectively except that they decode
+the data read from the given \s-1BIO.\s0 The \fBd2i_PrivateKey_ex_fp()\fR and
+\&\fBd2i_PrivateKey_fp()\fR functions are the same except that they read the data from
+the given \s-1FILE.\s0
 .PP
-\&\fBi2d_PrivateKey()\fR encodes \fBkey\fR. It uses a key specific format or, if none is
+\&\fBd2i_AutoPrivateKey_ex()\fR and \fBd2i_AutoPrivateKey()\fR are similar to
+\&\fBd2i_PrivateKey_ex()\fR and \fBd2i_PrivateKey()\fR respectively except that they attempt
+to automatically detect the private key format.
+.PP
+\&\fBi2d_PrivateKey()\fR encodes \fIa\fR. It uses a key specific format or, if none is
 defined for that key type, PKCS#8 unencrypted PrivateKeyInfo format.
 \&\fBi2d_PublicKey()\fR does the same for public keys.
-.PP
+\&\fBi2d_KeyParams()\fR does the same for key parameters.
 These functions are similar to the \fBd2i_X509()\fR functions; see \fBd2i_X509\fR\|(3).
+\&\fBi2d_PrivateKey_bio()\fR and \fBi2d_PrivateKey_fp()\fR do the same thing except that they
+encode to a \fB\s-1BIO\s0\fR or \fB\s-1FILE\s0\fR respectively. Again, these work similarly to the
+functions described in \fBd2i_X509\fR\|(3).
 .SH "NOTES"
 .IX Header "NOTES"
 All the functions that operate on data in memory update the data pointer \fI*pp\fR
@@ -183,31 +230,36 @@ All these functions use \s-1DER\s0 format and unencrypted keys. Applications wis
 to encrypt or decrypt private keys should use other functions such as
 \&\fBd2i_PKCS8PrivateKey()\fR instead.
 .PP
-If the \fB*a\fR is not \s-1NULL\s0 when calling \fBd2i_PrivateKey()\fR or \fBd2i_AutoPrivateKey()\fR
-(i.e. an existing structure is being reused) and the key format is PKCS#8
-then \fB*a\fR will be freed and replaced on a successful call.
-.PP
-To decode a key with type \fB\s-1EVP_PKEY_EC\s0\fR, \fBd2i_PublicKey()\fR requires \fB*a\fR to be
+To decode a key with type \fB\s-1EVP_PKEY_EC\s0\fR, \fBd2i_PublicKey()\fR requires \fI*a\fR to be
 a non-NULL \s-1EVP_PKEY\s0 structure assigned an \s-1EC_KEY\s0 structure referencing the proper
 \&\s-1EC_GROUP.\s0
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-The \fBd2i_PrivateKey()\fR, \fBd2i_AutoPrivateKey()\fR, \fBd2i_PrivateKey_bio()\fR, \fBd2i_PrivateKey_fp()\fR,
-and \fBd2i_PublicKey()\fR functions return a valid \fB\s-1EVP_KEY\s0\fR structure or \fB\s-1NULL\s0\fR if an
-error occurs. The error code can be obtained by calling \fBERR_get_error\fR\|(3).
+The \fBd2i_PrivateKey_ex()\fR, \fBd2i_PrivateKey()\fR, \fBd2i_AutoPrivateKey_ex()\fR,
+\&\fBd2i_AutoPrivateKey()\fR, \fBd2i_PrivateKey_ex_bio()\fR, \fBd2i_PrivateKey_bio()\fR,
+\&\fBd2i_PrivateKey_ex_fp()\fR, \fBd2i_PrivateKey_fp()\fR, \fBd2i_PublicKey()\fR, \fBd2i_KeyParams()\fR
+and \fBd2i_KeyParams_bio()\fR functions return a valid \fB\s-1EVP_PKEY\s0\fR structure or \s-1NULL\s0 if
+an error occurs. The error code can be obtained by calling \fBERR_get_error\fR\|(3).
 .PP
-\&\fBi2d_PrivateKey()\fR and \fBi2d_PublicKey()\fR return the number of bytes successfully
-encoded or a negative value if an error occurs. The error code can be obtained
-by calling \fBERR_get_error\fR\|(3).
+\&\fBi2d_PrivateKey()\fR, \fBi2d_PublicKey()\fR and \fBi2d_KeyParams()\fR return the number of
+bytes successfully encoded or a negative value if an error occurs. The error
+code can be obtained by calling \fBERR_get_error\fR\|(3).
+.PP
+\&\fBi2d_PrivateKey_bio()\fR, \fBi2d_PrivateKey_fp()\fR and \fBi2d_KeyParams_bio()\fR return 1 if
+successfully encoded or zero if an error occurs.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBcrypto\fR\|(7),
 \&\fBd2i_PKCS8PrivateKey_bio\fR\|(3)
+.SH "HISTORY"
+.IX Header "HISTORY"
+\&\fBd2i_PrivateKey_ex()\fR, \fBd2i_PrivateKey_ex_bio()\fR, \fBd2i_PrivateKey_ex_fp()\fR, and
+\&\fBd2i_AutoPrivateKey_ex()\fR were added in OpenSSL 3.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
 Copyright 2017\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

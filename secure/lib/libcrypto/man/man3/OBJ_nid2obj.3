@@ -133,13 +133,17 @@
 .\" ========================================================================
 .\"
 .IX Title "OBJ_NID2OBJ 3"
-.TH OBJ_NID2OBJ 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH OBJ_NID2OBJ 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-i2t_ASN1_OBJECT, OBJ_length, OBJ_get0_data, OBJ_nid2obj, OBJ_nid2ln, OBJ_nid2sn, OBJ_obj2nid, OBJ_txt2nid, OBJ_ln2nid, OBJ_sn2nid, OBJ_cmp, OBJ_dup, OBJ_txt2obj, OBJ_obj2txt, OBJ_create, OBJ_cleanup \&\- ASN1 object utility functions
+i2t_ASN1_OBJECT,
+OBJ_length, OBJ_get0_data, OBJ_nid2obj, OBJ_nid2ln,
+OBJ_nid2sn, OBJ_obj2nid, OBJ_txt2nid, OBJ_ln2nid, OBJ_sn2nid, OBJ_cmp,
+OBJ_dup, OBJ_txt2obj, OBJ_obj2txt, OBJ_create, OBJ_cleanup, OBJ_add_sigid
+\&\- ASN1 object utility functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -167,21 +171,23 @@ i2t_ASN1_OBJECT, OBJ_length, OBJ_get0_data, OBJ_nid2obj, OBJ_nid2ln, OBJ_nid2sn,
 \&
 \& size_t OBJ_length(const ASN1_OBJECT *obj);
 \& const unsigned char *OBJ_get0_data(const ASN1_OBJECT *obj);
+\&
+\& int OBJ_add_sigid(int signid, int dig_id, int pkey_id);
 .Ve
 .PP
-Deprecated:
+The following function has been deprecated since OpenSSL 1.1.0, and can be
+hidden entirely by defining \fB\s-1OPENSSL_API_COMPAT\s0\fR with a suitable version value,
+see \fBopenssl_user_macros\fR\|(7):
 .PP
-.Vb 3
-\& #if OPENSSL_API_COMPAT < 0x10100000L
-\& void OBJ_cleanup(void)
-\& #endif
+.Vb 1
+\& void OBJ_cleanup(void);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 The \s-1ASN1\s0 object utility functions process \s-1ASN1_OBJECT\s0 structures which are
 a representation of the \s-1ASN1 OBJECT IDENTIFIER\s0 (\s-1OID\s0) type.
 For convenience, OIDs are usually represented in source code as numeric
-identifiers, or \fI\s-1NID\s0\fRs.  OpenSSL has an internal table of OIDs that
+identifiers, or \fB\s-1NID\s0\fRs.  OpenSSL has an internal table of OIDs that
 are generated when the library is built, and their corresponding NIDs
 are available as defined constants.  For the functions below, application
 code should treat all returned values \*(-- OIDs, NIDs, or names \*(-- as
@@ -192,7 +198,7 @@ an \s-1ASN1_OBJECT\s0 structure, its long name and its short name respectively,
 or \fB\s-1NULL\s0\fR if an error occurred.
 .PP
 \&\fBOBJ_obj2nid()\fR, \fBOBJ_ln2nid()\fR, \fBOBJ_sn2nid()\fR return the corresponding \s-1NID\s0
-for the object \fIo\fR, the long name <ln> or the short name <sn> respectively
+for the object \fIo\fR, the long name \fIln\fR or the short name \fIsn\fR respectively
 or NID_undef if an error occurred.
 .PP
 \&\fBOBJ_txt2nid()\fR returns \s-1NID\s0 corresponding to text string \fIs\fR. \fIs\fR can be
@@ -228,6 +234,14 @@ success and NID_undef in case of failure.
 .PP
 \&\fBOBJ_get0_data()\fR returns a pointer to the content octets of \fIobj\fR.
 The returned pointer is an internal pointer which \fBmust not\fR be freed.
+.PP
+\&\fBOBJ_add_sigid()\fR creates a new composite \*(L"Signature Algorithm\*(R" that associates a
+given \s-1NID\s0 with two other NIDs \- one representing the underlying signature
+algorithm and the other representing a digest algorithm to be used in
+conjunction with it. \fIsignid\fR represents the \s-1NID\s0 for the composite \*(L"Signature
+Algorithm\*(R", \fIdig_id\fR is the \s-1NID\s0 for the digest algorithm and \fIpkey_id\fR is the
+\&\s-1NID\s0 for the underlying signature algorithm. As there are signature algorithms
+that do not require a digest, NID_undef is a valid \fIdig_id\fR.
 .PP
 \&\fBOBJ_cleanup()\fR releases any resources allocated by creating new objects.
 .SH "NOTES"
@@ -311,6 +325,11 @@ Create a new object directly:
 .Vb 1
 \& obj = OBJ_txt2obj("1.2.3.4", 1);
 .Ve
+.SH "BUGS"
+.IX Header "BUGS"
+Neither \fBOBJ_create()\fR nor \fBOBJ_add_sigid()\fR do any locking and are thus not
+thread safe.  Moreover, none of the other functions should be called while
+concurrent calls to these two functions are possible.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fBERR_get_error\fR\|(3)
@@ -320,9 +339,9 @@ Create a new object directly:
 and should not be used.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2002\-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

@@ -133,13 +133,14 @@
 .\" ========================================================================
 .\"
 .IX Title "ERR_LOAD_STRINGS 3"
-.TH ERR_LOAD_STRINGS 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH ERR_LOAD_STRINGS 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-ERR_load_strings, ERR_PACK, ERR_get_next_error_library \- load arbitrary error strings
+ERR_load_strings, ERR_PACK, ERR_get_next_error_library \- load
+arbitrary error strings
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -172,7 +173,7 @@ reason code: \fBerror\fR = \s-1ERR_PACK\s0(\fBlib\fR, \fBfunc\fR, \fBreason\fR).
 The last entry in the array is {0,0}.
 .PP
 \&\fBERR_get_next_error_library()\fR can be used to assign library numbers
-to user libraries at runtime.
+to user libraries at run time.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fBERR_load_strings()\fR returns 1 for success and 0 for failure. \s-1\fBERR_PACK\s0()\fR returns the error code.
@@ -185,7 +186,7 @@ library number.
 .IX Header "COPYRIGHT"
 Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.

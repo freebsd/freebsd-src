@@ -133,13 +133,23 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_GET_EXTENSION_FLAGS 3"
-.TH X509_GET_EXTENSION_FLAGS 3 "2023-05-30" "1.1.1u" "OpenSSL"
+.TH X509_GET_EXTENSION_FLAGS 3 "2023-05-30" "3.0.9" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-X509_get0_subject_key_id, X509_get0_authority_key_id, X509_get0_authority_issuer, X509_get0_authority_serial, X509_get_pathlen, X509_get_extension_flags, X509_get_key_usage, X509_get_extended_key_usage, X509_set_proxy_flag, X509_set_proxy_pathlen, X509_get_proxy_pathlen \- retrieve certificate extension data
+X509_get0_subject_key_id,
+X509_get0_authority_key_id,
+X509_get0_authority_issuer,
+X509_get0_authority_serial,
+X509_get_pathlen,
+X509_get_extension_flags,
+X509_get_key_usage,
+X509_get_extended_key_usage,
+X509_set_proxy_flag,
+X509_set_proxy_pathlen,
+X509_get_proxy_pathlen \- retrieve certificate extension data
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -201,7 +211,7 @@ processing the X509 object, so it may not be related to the processed
 \&\s-1ASN1\s0 object itself.
 .IP "\fB\s-1EXFLAG_NO_FINGERPRINT\s0\fR" 4
 .IX Item "EXFLAG_NO_FINGERPRINT"
-Failed to compute the internal \s-1SHA1\s0 hash value of the certificate.
+Failed to compute the internal \s-1SHA1\s0 hash value of the certificate or \s-1CRL.\s0
 This may be due to malloc failure or because no \s-1SHA1\s0 implementation was found.
 .IP "\fB\s-1EXFLAG_INVALID_POLICY\s0\fR" 4
 .IX Item "EXFLAG_INVALID_POLICY"
@@ -306,7 +316,7 @@ certificate is a proxy one and has a path length set, and \-1 otherwise.
 .IX Header "COPYRIGHT"
 Copyright 2015\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
-Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
+Licensed under the Apache License 2.0 (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
 in the file \s-1LICENSE\s0 in the source distribution or at
 <https://www.openssl.org/source/license.html>.
