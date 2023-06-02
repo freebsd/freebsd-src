@@ -98,12 +98,16 @@ cddl/dev/dtrace/amd64/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
 cddl/dev/dtrace/amd64/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
 crypto/aesni/aeskeys_amd64.S	optional aesni
 crypto/des/des_enc.c		optional	netsmb
+crypto/openssl/amd64/aes-gcm-avx512.S	optional ossl
 crypto/openssl/amd64/aesni-x86_64.S	optional ossl
+crypto/openssl/amd64/aesni-gcm-x86_64.S	optional ossl
 crypto/openssl/amd64/chacha-x86_64.S	optional ossl
+crypto/openssl/amd64/ghash-x86_64.S	optional ossl
 crypto/openssl/amd64/poly1305-x86_64.S	optional ossl
 crypto/openssl/amd64/sha1-x86_64.S	optional ossl
 crypto/openssl/amd64/sha256-x86_64.S	optional ossl
 crypto/openssl/amd64/sha512-x86_64.S	optional ossl
+crypto/openssl/amd64/ossl_aes_gcm.c	optional ossl
 dev/acpi_support/acpi_wmi_if.m	standard
 dev/agp/agp_amd64.c		optional	agp
 dev/agp/agp_i810.c		optional	agp
