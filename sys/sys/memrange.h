@@ -7,6 +7,8 @@
 #ifndef _SYS_MEMRANGE_H_
 #define	_SYS_MEMRANGE_H_
 
+#include <sys/ioccom.h>
+
 /* Memory range attributes */
 #define MDF_UNCACHEABLE		(1<<0)	/* region not cached */
 #define MDF_WRITECOMBINE	(1<<1)	/* region supports "write combine" action */
