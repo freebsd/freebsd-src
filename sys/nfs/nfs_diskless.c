@@ -190,7 +190,6 @@ nfs_setup_diskless(void)
 	int cnt, fhlen, is_nfsv3;
 	uint32_t len;
 	time_t timeout_at;
-	u_int count;
 
 	if (nfs_diskless_valid != 0)
 		return;
@@ -238,20 +237,16 @@ nfs_setup_diskless(void)
 retry:
 	CURVNET_SET(TD_TO_VNET(curthread));
 	NET_EPOCH_ENTER(et);
-
 	for (ifp = if_iter_start(&iter); ifp != NULL; ifp = if_iter_next(&iter)) {
-		count = if_foreach_lladdr(ifp, nfs_setup_diskless_ifa_cb, &ourdl);
-
-		if (count > 0)
+		cnt = if_foreach_lladdr(ifp, nfs_setup_diskless_ifa_cb, &ourdl);
+		if (cnt > 0)
 			break;
-
 	}
 	if_iter_finish(&iter);
 	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
-	if (cnt > 0) {
+	if (ifp != NULL)
 		goto match_done;
-	}
 
 	if (time_uptime < timeout_at) {
 		pause("nfssdl", hz / 5);
