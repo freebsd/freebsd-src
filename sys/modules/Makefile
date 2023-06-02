@@ -133,6 +133,7 @@ SUBDIR=	\
 	${_glxiic} \
 	${_glxsb} \
 	gpio \
+	${_gve} \
 	hid \
 	hifn \
 	${_hpt27xx} \
@@ -555,6 +556,11 @@ _mthca=		mthca
 _mlx4ib=	mlx4ib
 _mlx5ib=	mlx5ib
 .endif
+
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64"
+_gve=		gve
+.endif
+
 _ossl=		ossl
 _rtw88=		rtw88
 .if ${MK_SOURCELESS_UCODE} != "no"
