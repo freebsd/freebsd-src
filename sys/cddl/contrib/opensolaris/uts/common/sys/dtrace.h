@@ -2479,6 +2479,10 @@ extern int dtrace_instr_c_ret(uint32_t **instr);
 
 #define	INSN_SIZE	4
 
+#define	BRK_INSTR	0xd4200000
+#define	BRK_IMM16_SHIFT	5
+#define	BRK_IMM16_VAL	(0x40d << BRK_IMM16_SHIFT)
+
 #define	B_MASK		0xff000000
 #define	B_DATA_MASK	0x00ffffff
 #define	B_INSTR		0x14000000
@@ -2514,6 +2518,8 @@ extern int dtrace_instr_c_ret(uint32_t **instr);
 #define	OFFSET_SHIFT	15
 #define	OFFSET_SIZE	7
 #define	OFFSET_MASK	((1 << OFFSET_SIZE) - 1)
+
+#define	DTRACE_PATCHVAL		(BRK_INSTR | BRK_IMM16_VAL)
 
 #define	DTRACE_INVOP_STP	1
 #define	DTRACE_INVOP_RET	2
