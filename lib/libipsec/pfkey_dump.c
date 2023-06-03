@@ -201,7 +201,7 @@ pfkey_sadump(struct sadb_msg *m)
 	caddr_t mhp[SADB_EXT_MAX + 1];
 	struct sadb_sa *m_sa;
 	struct sadb_x_sa2 *m_sa2;
-	struct sadb_lifetime *m_lftc, *m_lfth, *m_lfts;
+	struct sadb_lifetime *m_lftc, *m_lfth, *m_lfts, *m_lft_sw, *m_lft_hw;
 	struct sadb_address *m_saddr, *m_daddr, *m_paddr;
 	struct sadb_key *m_auth, *m_enc;
 	struct sadb_ident *m_sid, *m_did;
@@ -240,7 +240,8 @@ pfkey_sadump(struct sadb_msg *m)
 	natt_dport = (struct sadb_x_nat_t_port *)mhp[SADB_X_EXT_NAT_T_DPORT];
 	natt_oai = (struct sadb_address *)mhp[SADB_X_EXT_NAT_T_OAI];
 	natt_oar = (struct sadb_address *)mhp[SADB_X_EXT_NAT_T_OAR];
-
+	m_lft_sw = (struct sadb_lifetime *)mhp[SADB_X_EXT_LFT_CUR_SW_OFFL];
+	m_lft_hw = (struct sadb_lifetime *)mhp[SADB_X_EXT_LFT_CUR_HW_OFFL];
 
 	/* source address */
 	if (m_saddr == NULL) {
@@ -381,7 +382,23 @@ pfkey_sadump(struct sadb_msg *m)
 	/* XXX DEBUG */
 	printf("refcnt=%u\n", m->sadb_msg_reserved);
 
-	return;
+	if (m_lft_sw != NULL) {
+		printf("\tsw offl use: %s",
+		    str_time(m_lft_sw->sadb_lifetime_usetime));
+		printf("\tsw offl allocated: %lu",
+		    (unsigned long)m_lft_sw->sadb_lifetime_allocations);
+		str_lifetime_byte(m_lft_sw, "sw offl");
+		printf("\n");
+	}
+
+	if (m_lft_hw != NULL) {
+		printf("\thw offl use: %s",
+		    str_time(m_lft_hw->sadb_lifetime_usetime));
+		printf("\thw offl allocated: %lu",
+		    (unsigned long)m_lft_hw->sadb_lifetime_allocations);
+		str_lifetime_byte(m_lft_hw, "hw offl");
+		printf("\n");
+	}
 }
 
 void

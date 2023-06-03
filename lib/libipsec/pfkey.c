@@ -1713,6 +1713,8 @@ pfkey_align(struct sadb_msg *msg, caddr_t *mhp)
 		case SADB_X_EXT_SA_REPLAY:
 		case SADB_X_EXT_NEW_ADDRESS_SRC:
 		case SADB_X_EXT_NEW_ADDRESS_DST:
+		case SADB_X_EXT_LFT_CUR_SW_OFFL:
+		case SADB_X_EXT_LFT_CUR_HW_OFFL:
 			mhp[ext->sadb_ext_type] = (caddr_t)ext;
 			break;
 		default:
