@@ -1,8 +1,8 @@
 
 .include <src.opts.mk>
 
-PROG=		avx_sig
-SRCS=		avx_sig.c
+PROG=		xregs_sig
+SRCS=		xregs_sig.c
 MAN=
 
 LIBADD=		pthread
