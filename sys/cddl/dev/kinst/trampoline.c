@@ -28,7 +28,10 @@
 #include "kinst.h"
 #include "kinst_isa.h"
 
-#define KINST_TRAMPS_PER_CHUNK	(KINST_TRAMPCHUNK_SIZE / KINST_TRAMP_SIZE)
+#define KINST_TRAMP_FILL_PATTERN	((kinst_patchval_t []){KINST_PATCHVAL})
+#define KINST_TRAMP_FILL_SIZE		sizeof(kinst_patchval_t)
+
+#define KINST_TRAMPS_PER_CHUNK		(KINST_TRAMPCHUNK_SIZE / KINST_TRAMP_SIZE)
 
 struct trampchunk {
 	TAILQ_ENTRY(trampchunk) next;
