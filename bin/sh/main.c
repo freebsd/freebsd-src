@@ -100,7 +100,7 @@ static char *find_dot_file(char *);
 int
 main(int argc, char *argv[])
 {
-	struct stackmark smark, smark2;
+	struct stackmark smark = {0}, smark2;
 	volatile int state;
 	char *shinit;
 
