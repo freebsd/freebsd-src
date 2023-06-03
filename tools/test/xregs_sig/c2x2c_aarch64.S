@@ -5,9 +5,9 @@
  * $FreeBSD$
  */
 
-	.global cpu_to_simd
-	.type cpu_to_simd, @function
-cpu_to_simd:
+	.global cpu_to_xregs
+	.type cpu_to_xregs, @function
+cpu_to_xregs:
 	stp  q0,  q1, [x0, #( 0 * 16)]
 	stp  q2,  q3, [x0, #( 2 * 16)]
 	stp  q4,  q5, [x0, #( 4 * 16)]
@@ -26,12 +26,12 @@ cpu_to_simd:
 	stp q30, q31, [x0, #(30 * 16)]
 	ret
 
-	.size cpu_to_simd, . - cpu_to_simd
+	.size cpu_to_xregs, . - cpu_to_xregs
 
 
-	.global simd_to_cpu
-	.type simd_to_cpu, @function
-simd_to_cpu:
+	.global xregs_to_cpu
+	.type xregs_to_cpu, @function
+xregs_to_cpu:
 	ldp  q0,  q1, [x0, #( 0 * 16)]
 	ldp  q2,  q3, [x0, #( 2 * 16)]
 	ldp  q4,  q5, [x0, #( 4 * 16)]
@@ -50,6 +50,6 @@ simd_to_cpu:
 	ldp q30, q31, [x0, #(30 * 16)]
 	ret
 
-	.size simd_to_cpu, . - simd_to_cpu
+	.size xregs_to_cpu, . - xregs_to_cpu
 
 	.section        .note.GNU-stack,"",@progbits

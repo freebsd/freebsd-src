@@ -5,9 +5,9 @@
  * $FreeBSD$
  */
 
-	.global cpu_to_simd
-	.type cpu_to_simd, @function
-cpu_to_simd:
+	.global cpu_to_xregs
+	.type cpu_to_xregs, @function
+cpu_to_xregs:
 	movdqu	%xmm0, (%rdi)
 	movdqu	%xmm1, 1 * 16(%rdi)
 	movdqu	%xmm2, 2 * 16(%rdi)
@@ -26,12 +26,12 @@ cpu_to_simd:
 	movdqu	%xmm15, 15 * 16(%rdi)
 	retq
 
-	.size cpu_to_simd, . - cpu_to_simd
+	.size cpu_to_xregs, . - cpu_to_xregs
 
 
-	.global simd_to_cpu
-	.type simd_to_cpu, @function
-simd_to_cpu:
+	.global xregs_to_cpu
+	.type xregs_to_cpu, @function
+xregs_to_cpu:
 	movdqu	(%rdi), %xmm0
 	movdqu	1 * 16(%rdi), %xmm1
 	movdqu	2 * 16(%rdi), %xmm2
@@ -50,6 +50,6 @@ simd_to_cpu:
 	movdqu	15 * 16(%rdi), %xmm15
 	retq
 
-	.size simd_to_cpu, . - simd_to_cpu
+	.size xregs_to_cpu, . - xregs_to_cpu
 
 	.section        .note.GNU-stack,"",@progbits

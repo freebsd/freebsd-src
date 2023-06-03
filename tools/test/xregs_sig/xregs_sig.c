@@ -49,23 +49,23 @@
 #endif
 
 #if defined(__amd64__)
-#define	SIMDRNAM	"xmm"
+#define	XREGSRNAM	"xmm"
 #define	NREGS		16
 #elif defined(__aarch64__)
-#define	SIMDRNAM	"q"
+#define	XREGSRNAM	"q"
 #define	NREGS		32
 #endif
 
-struct simdreg {
-	uint8_t simd_bytes[16];
+struct xregsreg {
+	uint8_t xregs_bytes[16];
 };
 
-struct simd {
-	struct simdreg simdreg[NREGS];
+struct xregs {
+	struct xregsreg xregsreg[NREGS];
 };
 
-void cpu_to_simd(struct simd *simd);
-void simd_to_cpu(struct simd *simd);
+void cpu_to_xregs(struct xregs *xregs);
+void xregs_to_cpu(struct xregs *xregs);
 
 static atomic_uint sigs;
 
@@ -87,23 +87,23 @@ sigalrm_handler(int sig __unused)
 	alarm(TIMO);
 }
 
-static struct simd zero_simd = {};
+static struct xregs zero_xregs = {};
 
 static void
-fill_simd(struct simd *simd)
+fill_xregs(struct xregs *xregs)
 {
-	arc4random_buf(simd, sizeof(*simd));
+	arc4random_buf(xregs, sizeof(*xregs));
 }
 
 static void
-dump_simd(const struct simdreg *r)
+dump_xregs(const struct xregsreg *r)
 {
 	unsigned k;
 
-	for (k = 0; k < nitems(r->simd_bytes); k++) {
+	for (k = 0; k < nitems(r->xregs_bytes); k++) {
 		if (k != 0)
 			printf(" ");
-		printf("%02x", r->simd_bytes[k]);
+		printf("%02x", r->xregs_bytes[k]);
 	}
 	printf("\n");
 }
@@ -111,9 +111,9 @@ dump_simd(const struct simdreg *r)
 static pthread_mutex_t show_lock;
 
 static void
-show_diff(const struct simd *simd1, const struct simd *simd2)
+show_diff(const struct xregs *xregs1, const struct xregs *xregs2)
 {
-	const struct simdreg *r1, *r2;
+	const struct xregsreg *r1, *r2;
 	unsigned i, j;
 
 #if defined(__FreeBSD__)
@@ -121,14 +121,14 @@ show_diff(const struct simd *simd1, const struct simd *simd2)
 #elif defined(__linux__)
 	printf("thr %ld\n", syscall(SYS_gettid));
 #endif
-	for (i = 0; i < nitems(simd1->simdreg); i++) {
-		r1 = &simd1->simdreg[i];
-		r2 = &simd2->simdreg[i];
-		for (j = 0; j < nitems(r1->simd_bytes); j++) {
-			if (r1->simd_bytes[j] != r2->simd_bytes[j]) {
-				printf("%%%s%u\n", SIMDRNAM, i);
-				dump_simd(r1);
-				dump_simd(r2);
+	for (i = 0; i < nitems(xregs1->xregsreg); i++) {
+		r1 = &xregs1->xregsreg[i];
+		r2 = &xregs2->xregsreg[i];
+		for (j = 0; j < nitems(r1->xregs_bytes); j++) {
+			if (r1->xregs_bytes[j] != r2->xregs_bytes[j]) {
+				printf("%%%s%u\n", XREGSRNAM, i);
+				dump_xregs(r1);
+				dump_xregs(r2);
 				break;
 			}
 		}
@@ -144,26 +144,26 @@ my_pause(void)
 static void *
 worker_thread(void *arg __unused)
 {
-	struct simd simd, simd_cpu;
+	struct xregs xregs, xregs_cpu;
 
-	fill_simd(&simd);
+	fill_xregs(&xregs);
 	for (;;) {
-		simd_to_cpu(&simd);
+		xregs_to_cpu(&xregs);
 		my_pause();
-		cpu_to_simd(&simd_cpu);
-		if (memcmp(&simd, &simd_cpu, sizeof(struct simd)) != 0) {
+		cpu_to_xregs(&xregs_cpu);
+		if (memcmp(&xregs, &xregs_cpu, sizeof(struct xregs)) != 0) {
 			pthread_mutex_lock(&show_lock);
-			show_diff(&simd, &simd_cpu);
+			show_diff(&xregs, &xregs_cpu);
 			abort();
 			pthread_mutex_unlock(&show_lock);
 		}
 
-		simd_to_cpu(&zero_simd);
+		xregs_to_cpu(&zero_xregs);
 		my_pause();
-		cpu_to_simd(&simd_cpu);
-		if (memcmp(&zero_simd, &simd_cpu, sizeof(struct simd)) != 0) {
+		cpu_to_xregs(&xregs_cpu);
+		if (memcmp(&zero_xregs, &xregs_cpu, sizeof(struct xregs)) != 0) {
 			pthread_mutex_lock(&show_lock);
-			show_diff(&zero_simd, &simd_cpu);
+			show_diff(&zero_xregs, &xregs_cpu);
 			abort();
 			pthread_mutex_unlock(&show_lock);
 		}
