@@ -611,8 +611,8 @@ kinst_md_deinit(void)
 /*
  * Exclude machine-dependent functions that are not safe-to-trace.
  */
-int
+bool
 kinst_md_excluded(const char *name)
 {
-	return (0);
+	return (false);
 }

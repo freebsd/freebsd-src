@@ -86,11 +86,11 @@ kinst_memcpy(volatile void *dst, volatile const void *src, size_t len)
 	return (dst);
 }
 
-int
+bool
 kinst_excluded(const char *name)
 {
 	if (kinst_md_excluded(name))
-		return (1);
+		return (true);
 
 	/*
 	 * Anything beginning with "dtrace_" may be called from probe context
@@ -99,7 +99,7 @@ kinst_excluded(const char *name)
 	 */
 	if (strncmp(name, "dtrace_", strlen("dtrace_")) == 0 &&
 	    strncmp(name, "dtrace_safe_", strlen("dtrace_safe_")) != 0)
-		return (1);
+		return (true);
 
 	/*
 	 * Omit instrumentation of functions that are probably in DDB.  It
@@ -110,7 +110,7 @@ kinst_excluded(const char *name)
 	 */
 	if (strncmp(name, "db_", strlen("db_")) == 0 ||
 	    strncmp(name, "kdb_", strlen("kdb_")) == 0)
-		return (1);
+		return (true);
 
 	/*
 	 * Lock owner methods may be called from probe context.
@@ -119,7 +119,7 @@ kinst_excluded(const char *name)
 	    strcmp(name, "owner_rm") == 0 ||
 	    strcmp(name, "owner_rw") == 0 ||
 	    strcmp(name, "owner_sx") == 0)
-		return (1);
+		return (true);
 
 	/*
 	 * When DTrace is built into the kernel we need to exclude the kinst
@@ -127,13 +127,13 @@ kinst_excluded(const char *name)
 	 */
 #ifndef _KLD_MODULE
 	if (strncmp(name, "kinst_", strlen("kinst_")) == 0)
-		return (1);
+		return (true);
 #endif
 
 	if (strcmp(name, "trap_check") == 0)
-		return (1);
+		return (true);
 
-	return (0);
+	return (false);
 }
 
 void
