@@ -23,17 +23,17 @@
 typedef uint8_t kinst_patchval_t;
 
 struct kinst_probe_md {
-	int			flags;
-	int			instlen;	/* original instr len */
-	int			tinstlen;	/* trampoline instr len */
-	uint8_t			template[16];	/* copied into thread tramps */
-	int			dispoff;	/* offset of rip displacement */
+	int	flags;
+	int	instlen;	/* original instr len */
+	int	tinstlen;	/* trampoline instr len */
+	uint8_t	template[16];	/* copied into thread tramps */
+	int	dispoff;	/* offset of rip displacement */
 
 	/* operands to "call" instruction branch target */
-	int			reg1;
-	int			reg2;
-	int			scale;
-	int64_t			disp;
+	int	reg1;
+	int	reg2;
+	int	scale;
+	int64_t	disp;
 };
 
 #endif /* _KINST_ISA_H_ */
