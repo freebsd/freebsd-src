@@ -1668,6 +1668,7 @@ create_pagetables(vm_paddr_t *firstaddr)
 #endif
 	int i, j, ndm1g, nkpdpe, nkdmpde;
 
+	TSENTER();
 	/* Allocate page table pages for the direct map */
 	ndmpdp = howmany(ptoa(Maxmem), NBPDP);
 	if (ndmpdp < 4)		/* Minimum 4GB of dirmap */
@@ -1884,6 +1885,7 @@ create_pagetables(vm_paddr_t *firstaddr)
 	}
 
 	kernel_pml4 = (pml4_entry_t *)PHYS_TO_DMAP(KPML4phys);
+	TSEXIT();
 }
 
 /*
@@ -1906,6 +1908,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	u_long res;
 	int i;
 
+	TSENTER();
 	KERNend = *firstaddr;
 	res = atop(KERNend - (vm_paddr_t)kernphys);
 
@@ -2061,6 +2064,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 		 */
 		load_cr4(rcr4() | CR4_PCIDE);
 	}
+	TSEXIT();
 }
 
 /*

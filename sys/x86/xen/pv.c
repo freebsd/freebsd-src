@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/smp.h>
 #include <sys/efi.h>
+#include <sys/tslog.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -417,6 +418,7 @@ xen_pvh_parse_preload_data(uint64_t modulep)
 	char *envp;
 	char acpi_rsdp[19];
 
+	TSENTER();
 	if (start_info->modlist_paddr != 0) {
 		struct hvm_modlist_entry *mod;
 		const char *cmdline;
@@ -507,6 +509,7 @@ xen_pvh_parse_preload_data(uint64_t modulep)
 #ifdef DDB
 	xen_pvh_parse_symtab();
 #endif
+	TSEXIT();
 	return (kmdp);
 }
 

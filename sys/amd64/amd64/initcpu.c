@@ -276,6 +276,7 @@ initializecpu(void)
 	uint64_t msr;
 	uint32_t cr4;
 
+	TSENTER();
 	cr4 = rcr4();
 	if ((cpu_feature & CPUID_XMM) && (cpu_feature & CPUID_FXSR)) {
 		cr4 |= CR4_FXSR | CR4_XMM;
@@ -311,7 +312,9 @@ initializecpu(void)
 		if (cpu_stdext_feature & CPUID_STDEXT_SMAP)
 			cr4 |= CR4_SMAP;
 	}
+	TSENTER2("load_cr4");
 	load_cr4(cr4);
+	TSEXIT2("load_cr4");
 	/* Reload cpu ext features to reflect cr4 changes */
 	if (IS_BSP() && cold)
 		identify_cpu_ext_features();
@@ -340,6 +343,7 @@ initializecpu(void)
 
 	if (!IS_BSP())
 		cpu_init_small_core();
+	TSEXIT();
 }
 
 void
