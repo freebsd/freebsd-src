@@ -30,6 +30,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <err.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -56,6 +57,11 @@ static struct cfjail *global_jail;
 %type <p>  param name
 %type <ss> value
 %type <s>  string
+
+%pure-parser
+
+%lex-param { void *scanner }
+%parse-param { void *scanner }
 
 %%
 
@@ -221,3 +227,24 @@ string	: STR
 	;
 
 %%
+
+extern int YYLEX_DECL();
+
+extern struct cflex *yyget_extra(void *scanner);
+extern int yyget_lineno(void *scanner);
+extern char *yyget_text(void *scanner);
+
+static void
+YYERROR_DECL()
+{
+	if (!yyget_text(scanner))
+		warnx("%s line %d: %s",
+		    yyget_extra(scanner)->cfname, yyget_lineno(scanner), s);
+	else if (!yyget_text(scanner)[0])
+		warnx("%s: unexpected EOF",
+		    yyget_extra(scanner)->cfname);
+	else
+		warnx("%s line %d: %s: %s",
+		    yyget_extra(scanner)->cfname, yyget_lineno(scanner),
+		    yyget_text(scanner), s);
+}

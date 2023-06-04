@@ -38,40 +38,32 @@ __FBSDID("$FreeBSD$");
 #include "jailp.h"
 #include "y.tab.h"
 
-extern int yynerrs;
+#define YY_DECL int yylex(YYSTYPE *yylval, yyscan_t yyscanner)
+#define YY_EXTRA_TYPE struct cflex*
 
-static ssize_t text2lval(size_t triml, size_t trimr, int tovar);
+extern YY_DECL;
+
+static ssize_t text2lval(size_t triml, size_t trimr, int tovar,
+    YYSTYPE *yylval, yyscan_t scanner);
 
 static int instr;
-static int lineno = 1;
-
-#define YY_DECL int yylex(void)
 %}
 
 %option noyywrap
 %option noinput
 %option nounput
+%option reentrant
+%option yylineno
 
 %start _ DQ
 
 %%
 
 			/* Whitespace or equivalent */
-<_>[ \t]+		instr = 0;
-<_>#.*			;
-<_>\/\/.*		;
-<_>\/\*([^*]|(\*+([^*\/])))*\*+\/ {
-				const char *s;
-
-				for (s = yytext; s < yytext + yyleng; s++)
-					if (*s == '\n')
-						lineno++;
-				instr = 0;
-			}
-<_>\n			{
-				lineno++;
-				instr = 0;
-			}
+<_>[ \t\r\n]+		instr = 0;
+<_>#.*			instr = 0;
+<_>\/\/.*		instr = 0;
+<_>\/\*([^*]|(\*+([^*\/])))*\*+\/ instr = 0;
 
 			/* Reserved tokens */
 <_>\+=			{
@@ -87,13 +79,13 @@ static int lineno = 1;
 <_,DQ>[A-Za-z0-9_!%&()\-.:<>?@\[\]^`|~]+ |
 <_,DQ>\\(.|\n|[0-7]{1,3}|x[0-9A-Fa-f]{1,2}) |
 <_,DQ>[$*+/\\]		{
-				(void)text2lval(0, 0, 0);
+				(void)text2lval(0, 0, 0, yylval, yyscanner);
 				return instr ? STR1 : (instr = 1, STR);
 			}
 
 			/* Single and double quoted strings */
 <_>'([^\'\\]|\\(.|\n))*' {
-				(void)text2lval(1, 1, 0);
+				(void)text2lval(1, 1, 0, yylval, yyscanner);
 				return instr ? STR1 : (instr = 1, STR);
 			}
 <_>\"([^"\\]|\\(.|\n))*\" |
@@ -102,7 +94,8 @@ static int lineno = 1;
 				ssize_t atvar;
 
 				skip = yytext[0] == '"' ? 1 : 0;
-				atvar = text2lval(skip, 1, 1);
+				atvar = text2lval(skip, 1, 1, yylval,
+					yyscanner);
 				if (atvar < 0)
 					BEGIN _;
 				else {
@@ -120,32 +113,32 @@ static int lineno = 1;
 
 			/* Variables, single-word or bracketed */
 <_,DQ>$[A-Za-z_][A-Za-z_0-9]* {
-				(void)text2lval(1, 0, 0);
+				(void)text2lval(1, 0, 0, yylval, yyscanner);
 				return instr ? VAR1 : (instr = 1, VAR);
 			}
 <_>$\{([^\n{}]|\\(.|\n))*\} |
 <DQ>$\{([^\n\"{}]|\\(.|\n))*\} {
-				(void)text2lval(2, 1, 0);
+				(void)text2lval(2, 1, 0, yylval, yyscanner);
 				return instr ? VAR1 : (instr = 1, VAR);
 			}
 
 			/* Partially formed bits worth complaining about */
 <_>\/\*([^*]|(\*+([^*\/])))*\** {
 				warnx("%s line %d: unterminated comment",
-				    cfname, lineno);
-				yynerrs++;
+				    yyextra->cfname, yylineno);
+				yyextra->error = 1;
 			}
 <_>'([^\n'\\]|\\.)*	|
 <_>\"([^\n\"\\]|\\.)*	{
 				warnx("%s line %d: unterminated string",
-				    cfname, lineno);
-				yynerrs++;
+				    yyextra->cfname, yylineno);
+				yyextra->error = 1;
 			}
 <_>$\{([^\n{}]|\\.)*	|
 <DQ>$\{([^\n\"{}]|\\.)*	{
 				warnx("%s line %d: unterminated variable",
-				    cfname, lineno);
-				yynerrs++;
+				    yyextra->cfname, yylineno);
+				yyextra->error = 1;
 			}
 
 			/* A hack because "<0>" rules aren't allowed */
@@ -157,28 +150,19 @@ static int lineno = 1;
 
 %%
 
-void
-yyerror(const char *s)
-{
-	if (!yytext)
-		warnx("%s line %d: %s", cfname, lineno, s);
-	else if (!yytext[0])
-		warnx("%s: unexpected EOF", cfname);
-	else
-		warnx("%s line %d: %s: %s", cfname, lineno, yytext, s);
-}
-
 /*
  * Copy string from yytext to yylval, handling backslash escapes,
  * and optionally stopping at the beginning of a variable.
  */
 static ssize_t
-text2lval(size_t triml, size_t trimr, int tovar)
+text2lval(size_t triml, size_t trimr, int tovar, YYSTYPE *yylval,
+    yyscan_t scanner)
 {
 	char *d;
 	const char *s, *se;
 
-	yylval.cs = d = emalloc(yyleng - trimr - triml + 1);
+	struct yyguts_t *yyg = scanner;
+	yylval->cs = d = emalloc(yyleng - trimr - triml + 1);
 	se = yytext + (yyleng - trimr);
 	for (s = yytext + triml; s < se; s++, d++) {
 		if (*s != '\\') {
@@ -186,8 +170,6 @@ text2lval(size_t triml, size_t trimr, int tovar)
 				*d = '\0';
 				return s - yytext;
 			}
-			if (*s == '\n')
-				lineno++;
 			*d = *s;
 			continue;
 		}
@@ -209,8 +191,8 @@ text2lval(size_t triml, size_t trimr, int tovar)
 		case 'r':	*d = '\r';	break;
 		case 't':	*d = '\t';	break;
 		case 'v':	*d = '\v';	break;
-		case '\n':	d--; lineno++;	break;
 		default:	*d = *s;	break;
+		case '\n':	d--;		break;
 		case 'x':
 			*d = 0;
 			if (s + 1 >= se)

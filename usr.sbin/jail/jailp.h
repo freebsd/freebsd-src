@@ -197,6 +197,11 @@ struct cfdepend {
 	unsigned		flags;
 };
 
+struct cflex {
+	const char		*cfname;
+	int			error;
+};
+
 extern void *emalloc(size_t);
 extern void *erealloc(void *, size_t);
 extern char *estrdup(const char *);
@@ -209,7 +214,7 @@ extern int next_command(struct cfjail *j);
 extern int finish_command(struct cfjail *j);
 extern struct cfjail *next_proc(int nonblock);
 
-extern void load_config(void);
+extern void load_config(const char *cfname);
 extern struct cfjail *add_jail(void);
 extern void add_param(struct cfjail *j, const struct cfparam *p,
     enum intparam ipnum, const char *value);
@@ -232,13 +237,9 @@ extern int start_state(const char *target, int docf, unsigned state,
 extern void requeue(struct cfjail *j, struct cfjails *queue);
 extern void requeue_head(struct cfjail *j, struct cfjails *queue);
 
-extern void yyerror(const char *);
-extern int yylex(void);
-
 extern struct cfjails cfjails;
 extern struct cfjails ready;
 extern struct cfjails depend;
-extern const char *cfname;
 extern int iflag;
 extern int note_remove;
 extern int paralimit;
