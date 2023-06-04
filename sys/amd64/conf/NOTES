@@ -499,6 +499,9 @@ device		virtio_console	# VirtIO Console device
 # Linux KVM paravirtualization support
 device		kvm_clock	# KVM paravirtual clock driver
 
+# Google Virtual NIC
+device		gve		# Google Virtual NIC (gVNIC) driver
+
 # Microsoft Hyper-V enhancement support
 device 		hyperv		# HyperV drivers
 device		hvhid		# HyperV HID device
