@@ -176,6 +176,7 @@ struct cfjail {
 	struct cfparams		params;
 	struct cfdepends	dep[2];
 	struct cfjails		*queue;
+	struct cfjail		*cfparent;
 	struct cfparam		*intparams[IP_NPARAM];
 	struct cfstring		*comstring;
 	struct jailparam	*jp;
