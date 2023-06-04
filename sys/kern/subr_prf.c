@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/stddef.h>
 #include <sys/sysctl.h>
-#include <sys/tslog.h>
 #include <sys/tty.h>
 #include <sys/syslog.h>
 #include <sys/cons.h>
@@ -1038,7 +1037,6 @@ msgbufinit(void *ptr, int size)
 	static struct msgbuf *oldp = NULL;
 	bool print_boot_tag;
 
-	TSENTER();
 	size -= sizeof(*msgbufp);
 	cp = (char *)ptr;
 	print_boot_tag = !msgbufmapped;
@@ -1054,7 +1052,6 @@ msgbufinit(void *ptr, int size)
 	if (print_boot_tag && *current_boot_tag != '\0')
 		printf("%s\n", current_boot_tag);
 	oldp = msgbufp;
-	TSEXIT();
 }
 
 /* Sysctls for accessing/clearing the msgbuf */

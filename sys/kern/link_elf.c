@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/linker.h>
 #include <sys/sysctl.h>
-#include <sys/tslog.h>
 
 #include <machine/elf.h>
 
@@ -1432,7 +1431,6 @@ relocate_file1(elf_file_t ef, elf_lookup_fn lookup, elf_reloc_fn reloc,
 	const Elf_Rela *rela;
 	const char *symname;
 
-	TSENTER();
 #define	APPLY_RELOCS(iter, tbl, tblsize, type) do {			\
 	for ((iter) = (tbl); (iter) != NULL &&				\
 	    (iter) < (tbl) + (tblsize) / sizeof(*(iter)); (iter)++) {	\
@@ -1451,15 +1449,12 @@ relocate_file1(elf_file_t ef, elf_lookup_fn lookup, elf_reloc_fn reloc,
 } while (0)
 
 	APPLY_RELOCS(rel, ef->rel, ef->relsize, ELF_RELOC_REL);
-	TSENTER2("ef->rela");
 	APPLY_RELOCS(rela, ef->rela, ef->relasize, ELF_RELOC_RELA);
-	TSEXIT2("ef->rela");
 	APPLY_RELOCS(rel, ef->pltrel, ef->pltrelsize, ELF_RELOC_REL);
 	APPLY_RELOCS(rela, ef->pltrela, ef->pltrelasize, ELF_RELOC_RELA);
 
 #undef APPLY_RELOCS
 
-	TSEXIT();
 	return (0);
 }
 
@@ -1955,7 +1950,6 @@ link_elf_ireloc(caddr_t kmdp)
 	struct elf_file eff;
 	elf_file_t ef;
 
-	TSENTER();
 	ef = &eff;
 
 	bzero_early(ef, sizeof(*ef));
@@ -1972,7 +1966,6 @@ link_elf_ireloc(caddr_t kmdp)
 
 	link_elf_preload_parse_symbols(ef);
 	relocate_file1(ef, elf_lookup_ifunc, elf_reloc, true);
-	TSEXIT();
 }
 
 #if defined(__aarch64__) || defined(__amd64__)
