@@ -5,9 +5,11 @@
  * $FreeBSD$
  */
 
-	.global cpu_to_xregs
-	.type cpu_to_xregs, @function
-cpu_to_xregs:
+	.text
+
+	.globl cpu_to_xmm
+	.type cpu_to_xmm, @function
+cpu_to_xmm:
 	movdqu	%xmm0, (%rdi)
 	movdqu	%xmm1, 1 * 16(%rdi)
 	movdqu	%xmm2, 2 * 16(%rdi)
@@ -26,12 +28,12 @@ cpu_to_xregs:
 	movdqu	%xmm15, 15 * 16(%rdi)
 	retq
 
-	.size cpu_to_xregs, . - cpu_to_xregs
+	.size cpu_to_xmm, . - cpu_to_xmm
 
 
-	.global xregs_to_cpu
-	.type xregs_to_cpu, @function
-xregs_to_cpu:
+	.globl xmm_to_cpu
+	.type xmm_to_cpu, @function
+xmm_to_cpu:
 	movdqu	(%rdi), %xmm0
 	movdqu	1 * 16(%rdi), %xmm1
 	movdqu	2 * 16(%rdi), %xmm2
@@ -50,6 +52,6 @@ xregs_to_cpu:
 	movdqu	15 * 16(%rdi), %xmm15
 	retq
 
-	.size xregs_to_cpu, . - xregs_to_cpu
+	.size xmm_to_cpu, . - xmm_to_cpu
 
 	.section        .note.GNU-stack,"",@progbits
