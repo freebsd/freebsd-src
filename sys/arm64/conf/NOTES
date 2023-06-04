@@ -68,6 +68,9 @@ device		virtio_mmio
 device		virtio_blk
 device		vtnet
 
+# Google Virtual NIC
+device		gve		# Google Virtual NIC (gVNIC) driver
+
 # Microsoft Hyper-V
 device		hyperv
 

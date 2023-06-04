@@ -101,9 +101,9 @@ gve_alloc_qpl(struct gve_priv *priv, uint32_t id, int npages, bool single_kva)
 	int i;
 
 	if (npages + priv->num_registered_pages > priv->max_registered_pages) {
-		device_printf(priv->dev, "Reached max number of registered pages %lu > %lu\n",
-		    npages + priv->num_registered_pages,
-		    priv->max_registered_pages);
+		device_printf(priv->dev, "Reached max number of registered pages %ju > %ju\n",
+		    (uintmax_t)npages + priv->num_registered_pages,
+		    (uintmax_t)priv->max_registered_pages);
 		return (EINVAL);
 	}
 
