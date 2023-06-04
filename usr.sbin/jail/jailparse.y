@@ -38,11 +38,12 @@ __FBSDID("$FreeBSD$");
 #ifdef DEBUG
 #define YYDEBUG 1
 #endif
+
+static struct cfjail *current_jail;
+static struct cfjail *global_jail;
 %}
 
 %union {
-	struct cfjail		*j;
-	struct cfparams		*pp;
 	struct cfparam		*p;
 	struct cfstrings	*ss;
 	struct cfstring		*s;
@@ -52,8 +53,6 @@ __FBSDID("$FreeBSD$");
 %token      PLEQ
 %token <cs> STR STR1 VAR VAR1
 
-%type <j>  jail
-%type <pp> param_l
 %type <p>  param name
 %type <ss> value
 %type <s>  string
@@ -61,46 +60,54 @@ __FBSDID("$FreeBSD$");
 %%
 
 /*
- * A config file is a series of jails (containing parameters) and jail-less
- * parameters which really belong to a global pseudo-jail.
+ * A config file is a list of jails and parameters.  Parameters are
+ * added to the current jail, otherwise to a global pesudo-jail.
  */
 conf	:
-	;
 	| conf jail
-	;
 	| conf param ';'
 	{
-		struct cfjail *j;
+		struct cfjail *j = current_jail;
 
-		j = TAILQ_LAST(&cfjails, cfjails);
-		if (!j || strcmp(j->name, "*")) {
-			j = add_jail();
-			j->name = estrdup("*");
+		if (j == NULL) {
+			if (global_jail == NULL) {
+				global_jail = add_jail();
+				global_jail->name = estrdup("*");
+			}
+			j = global_jail;
 		}
 		TAILQ_INSERT_TAIL(&j->params, $2, tq);
 	}
 	| conf ';'
+	;
 
-jail	: STR '{' param_l '}'
+jail	: jail_name '{' conf '}'
 	{
-		$$ = add_jail();
-		$$->name = $1;
-		TAILQ_CONCAT(&$$->params, $3, tq);
-		free($3);
+		current_jail = current_jail->cfparent;
 	}
 	;
 
-param_l	:
+jail_name : STR
 	{
-		$$ = emalloc(sizeof(struct cfparams));
-		TAILQ_INIT($$);
+		struct cfjail *j = add_jail();
+
+		if (current_jail == NULL)
+			j->name = $1;
+		else {
+			/*
+			 * A nested jail definition becomes
+			 * a hierarchically-named sub-jail.
+			 */
+			size_t parentlen = strlen(current_jail->name);
+			j->name = emalloc(parentlen + strlen($1) + 2);
+			strcpy(j->name, current_jail->name);
+			j->name[parentlen++] = '.';
+			strcpy(j->name + parentlen, $1);
+			free($1);
+		}
+		j->cfparent = current_jail;
+		current_jail = j;
 	}
-	| param_l param ';'
-	{
-		$$ = $1;
-		TAILQ_INSERT_TAIL($$, $2, tq);
-	}
-	| param_l ';'
 	;
 
 /*
@@ -131,8 +138,6 @@ param	: name
 		free($2);
 	}
 	| error
-	{
-	}
 	;
 
 /*
