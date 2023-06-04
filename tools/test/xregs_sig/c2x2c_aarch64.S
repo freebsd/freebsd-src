@@ -7,6 +7,15 @@
 
 	.text
 
+	.globl xregs_banks_max
+	.type xregs_banks_max, @function
+xregs_banks_max:
+	mov  x0, #0
+	ret
+
+	.size xregs_banks_max, . - xregs_banks_max
+
+
 	.globl cpu_to_vfp
 	.type cpu_to_vfp, @function
 cpu_to_vfp:
