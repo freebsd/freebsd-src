@@ -56,7 +56,6 @@ struct permspec {
 	int		rev;
 };
 
-const char *cfname;
 int iflag;
 int note_remove;
 int verbose;
@@ -138,6 +137,7 @@ main(int argc, char **argv)
 	FILE *jfp;
 	struct cfjail *j;
 	char *JidFile;
+	const char *cfname;
 	size_t sysvallen;
 	unsigned op, pi;
 	int ch, docf, error, i, oldcl, sysval;
@@ -287,7 +287,7 @@ main(int argc, char **argv)
 	} else if (op == JF_STOP || op == JF_SHOW) {
 		/* Just print list of all configured non-wildcard jails */
 		if (op == JF_SHOW) {
-			load_config();
+			load_config(cfname);
 			show_jails();
 			exit(0);
 		}
@@ -300,7 +300,7 @@ main(int argc, char **argv)
 					usage();
 		if ((docf = !Rflag &&
 		     (!strcmp(cfname, "-") || stat(cfname, &st) == 0)))
-			load_config();
+			load_config(cfname);
 		note_remove = docf || argc > 1 || wild_jail_name(argv[0]);
 	} else if (argc > 1 || (argc == 1 && strchr(argv[0], '='))) {
 		/* Single jail specified on the command line */
@@ -348,7 +348,7 @@ main(int argc, char **argv)
 		/* From the config file, perhaps with a specified jail */
 		if (Rflag || !docf)
 			usage();
-		load_config();
+		load_config(cfname);
 	}
 
 	/* Find out which jails will be run. */

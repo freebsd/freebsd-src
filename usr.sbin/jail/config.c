@@ -51,10 +51,10 @@ struct ipspec {
 	unsigned	flags;
 };
 
-extern FILE *yyin;
-extern int yynerrs;
-
-extern int yyparse(void);
+extern int yylex_init_extra(struct cflex *extra, void *scanner);
+extern int yylex_destroy(void *scanner);
+extern int yyparse(void *scanner);
+extern int yyset_in(FILE *fp, void *scanner);
 
 struct cfjails cfjails = TAILQ_HEAD_INITIALIZER(cfjails);
 
@@ -127,7 +127,7 @@ static const struct ipspec intparams[] = {
  * Parse the jail configuration file.
  */
 void
-load_config(void)
+load_config(const char *cfname)
 {
 	struct cfjails wild;
 	struct cfparams opp;
@@ -135,19 +135,26 @@ load_config(void)
 	struct cfparam *p, *vp, *tp;
 	struct cfstring *s, *vs, *ns;
 	struct cfvar *v, *vv;
+	struct cflex cflex;
 	char *ep;
+	void *scanner;
 	int did_self, jseq, pgen;
 
+	cflex.cfname = cfname;
+	cflex.error = 0;
+	yylex_init_extra(&cflex, &scanner);
 	if (!strcmp(cfname, "-")) {
-		cfname = "STDIN";
-		yyin = stdin;
+		cflex.cfname = "STDIN";
+		yyset_in(stdin, scanner);
 	} else {
-		yyin = fopen(cfname, "r");
-		if (!yyin)
+		FILE *yfp = fopen(cfname, "r");
+		if (!yfp)
 			err(1, "%s", cfname);
+		yyset_in(yfp, scanner);
 	}
-	if (yyparse() || yynerrs)
+	if (yyparse(scanner) || cflex.error)
 		exit(1);
+	yylex_destroy(scanner);
 
 	/* Separate the wildcard jails out from the actual jails. */
 	jseq = 0;
