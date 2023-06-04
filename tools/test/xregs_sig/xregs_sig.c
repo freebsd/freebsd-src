@@ -54,9 +54,13 @@ struct xregs_bank {
 	void		(*c2x)(uint8_t *);
 };
 
+int xregs_banks_max(void);
+
 #if defined(__amd64__)
 void cpu_to_xmm(uint8_t *);
 void xmm_to_cpu(uint8_t *);
+void cpu_to_avx(uint8_t *);
+void avx_to_cpu(uint8_t *);
 
 static const struct xregs_bank xregs_banks[] = {
 	{
@@ -66,6 +70,14 @@ static const struct xregs_bank xregs_banks[] = {
 		.bytes	= 16,
 		.x2c	= xmm_to_cpu,
 		.c2x	= cpu_to_xmm,
+	},
+	{
+		.b_name	= "AVX",
+		.r_name	= "ymm",
+		.regs	= 16,
+		.bytes	= 32,
+		.x2c	= avx_to_cpu,
+		.c2x	= cpu_to_avx,
 	},
 };
 #elif defined(__aarch64__)
@@ -199,7 +211,7 @@ main(void)
 	struct sigaction sa;
 	int error, i, ncpu, bank;
 
-	max_bank_idx = 0;
+	max_bank_idx = xregs_banks_max();
 
 	bzero(&sa, sizeof(sa));
 	sa.sa_handler = sigalrm_handler;
