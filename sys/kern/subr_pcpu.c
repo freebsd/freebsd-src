@@ -103,6 +103,7 @@ dpcpu_init(void *dpcpu, int cpuid)
 {
 	struct pcpu *pcpu;
 
+	TSENTER();
 	pcpu = pcpu_find(cpuid);
 	pcpu->pc_dynamic = (uintptr_t)dpcpu - DPCPU_START;
 
@@ -115,6 +116,7 @@ dpcpu_init(void *dpcpu, int cpuid)
 	 * Place it in the global pcpu offset array.
 	 */
 	dpcpu_off[cpuid] = pcpu->pc_dynamic;
+	TSEXIT();
 }
 
 static void
