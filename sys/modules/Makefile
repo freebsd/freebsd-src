@@ -534,6 +534,7 @@ SUBDIR+=	linux_common
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
     ${MACHINE_CPUARCH} == "i386"
 _ena=		ena
+_gve=		gve
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _ibcore=	ibcore
 _ipoib=		ipoib
@@ -555,10 +556,6 @@ _mlx5en=	mlx5en
 _mthca=		mthca
 _mlx4ib=	mlx4ib
 _mlx5ib=	mlx5ib
-.endif
-
-.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64"
-_gve=		gve
 .endif
 
 _ossl=		ossl
