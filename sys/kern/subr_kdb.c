@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/stack.h>
 #include <sys/sysctl.h>
-#include <sys/tslog.h>
 
 #include <machine/kdb.h>
 #include <machine/pcb.h>
@@ -560,7 +559,6 @@ kdb_init(void)
 	struct kdb_dbbe *be, **iter;
 	int cur_pri, pri;
 
-	TSENTER();
 	kdb_active = 0;
 	kdb_dbbe = NULL;
 	cur_pri = -1;
@@ -584,7 +582,6 @@ kdb_init(void)
 		printf("KDB: current backend: %s\n",
 		    kdb_dbbe->dbbe_name);
 	}
-	TSEXIT();
 }
 
 /*

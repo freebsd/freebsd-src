@@ -171,7 +171,6 @@ void
 init_param1(void)
 {
 
-	TSENTER();
 #if !defined(__arm64__)
 	TUNABLE_INT_FETCH("kern.kstack_pages", &kstack_pages);
 #endif
@@ -246,7 +245,6 @@ init_param1(void)
 		pid_max = 300;
 
 	TUNABLE_INT_FETCH("vfs.unmapped_buf_allowed", &unmapped_buf_allowed);
-	TSEXIT();
 }
 
 /*
@@ -256,7 +254,6 @@ void
 init_param2(long physpages)
 {
 
-	TSENTER();
 	/* Base parameters */
 	maxusers = MAXUSERS;
 	TUNABLE_INT_FETCH("kern.maxusers", &maxusers);
@@ -338,7 +335,6 @@ init_param2(long physpages)
 	if (maxpipekva > (VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS) / 64)
 		maxpipekva = (VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS) /
 		    64;
-	TSEXIT();
 }
 
 /*
