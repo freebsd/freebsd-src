@@ -1291,12 +1291,12 @@ vm_phys_scan_contig(int domain, u_long npages, vm_paddr_t low, vm_paddr_t high,
 
 /*
  * Search for the given physical page "m" in the free lists.  If the search
- * succeeds, remove "m" from the free lists and return TRUE.  Otherwise, return
- * FALSE, indicating that "m" is not in the free lists.
+ * succeeds, remove "m" from the free lists and return true.  Otherwise, return
+ * false, indicating that "m" is not in the free lists.
  *
  * The free page queues must be locked.
  */
-boolean_t
+bool
 vm_phys_unfree_page(vm_page_t m)
 {
 	struct vm_freelist *fl;
@@ -1319,12 +1319,12 @@ vm_phys_unfree_page(vm_page_t m)
 		if (pa >= seg->start)
 			m_set = &seg->first_page[atop(pa - seg->start)];
 		else
-			return (FALSE);
+			return (false);
 	}
 	if (m_set->order < order)
-		return (FALSE);
+		return (false);
 	if (m_set->order == VM_NFREEORDER)
-		return (FALSE);
+		return (false);
 	KASSERT(m_set->order < VM_NFREEORDER,
 	    ("vm_phys_unfree_page: page %p has unexpected order %d",
 	    m_set, m_set->order));
@@ -1350,7 +1350,7 @@ vm_phys_unfree_page(vm_page_t m)
 		vm_freelist_add(fl, m_tmp, order, 0);
 	}
 	KASSERT(m_set == m, ("vm_phys_unfree_page: fatal inconsistency"));
-	return (TRUE);
+	return (true);
 }
 
 /*
