@@ -246,6 +246,7 @@ typedef struct Struct_Obj_Entry {
     bool jmpslots_done : 1;	/* Already have relocated the jump slots */
     bool init_done : 1;		/* Already have added object to init list */
     bool tls_static : 1;	/* Already allocated offset for static TLS */
+    bool tls_dynamic : 1;	/* A non-static DTV entry has been allocated */
     bool phdr_alloc : 1;	/* Phdr is allocated and needs to be freed. */
     bool z_origin : 1;		/* Process rpath and soname tokens */
     bool z_nodelete : 1;	/* Do not unload the object and dependencies */
