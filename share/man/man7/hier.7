@@ -60,8 +60,8 @@ mount point for the EFI System Partition (ESP) on UEFI systems
 loadable kernel modules containing binary firmware for hardware that needs
 firmware downloaded to it to function
 .It Pa kernel/
-pure kernel executable (the operating system loaded into memory
-at boot time) and kernel modules
+pure kernel executable (the operating system loaded into memory at boot time)
+and kernel modules
 .It Pa modules/
 third-party loadable kernel modules, such as the ones installed from
 .Xr ports 7
@@ -86,8 +86,7 @@ device special files managed by
 .Pp
 .Bl -tag -width "nvmecontrol/" -compact
 .It Pa fd/
-file descriptor files;
-see
+file descriptor files; see
 .Xr fd 4
 .El
 .It Pa /etc/
@@ -97,42 +96,34 @@ system configuration files and scripts
 .It Pa bluetooth/
 bluetooth configuration files
 .It Pa defaults/
-default system configuration files;
-see
+default system configuration files; see
 .Xr rc 8
 .It Pa localtime
-local timezone information;
-see
+local timezone information; see
 .Xr ctime 3
 .It Pa mail/
 sendmail control files
 .It Pa mtree/
-mtree configuration files;
-see
+mtree configuration files; see
 .Xr mtree 8
 .It Pa pam.d/
-configuration files for the Pluggable Authentication Modules (PAM)
-library
+configuration files for the Pluggable Authentication Modules (PAM) library
 .It Pa periodic/
 scripts that are run daily, weekly, and monthly, via
 .Xr cron 8 ;
 see
 .Xr periodic 8
 .It Pa ppp/
-ppp configuration files;
-see
+ppp configuration files; see
 .Xr ppp 8
 .It Pa rc.d/
-system and daemon startup/control scripts;
-see
+system and daemon startup/control scripts; see
 .Xr rc 8
 .It Pa security/
-OpenBSM audit configuration files;
-see
+OpenBSM audit configuration files; see
 .Xr audit 8
 .It Pa ssh/
-OpenSSH configuration files;
-see
+OpenSSH configuration files; see
 .Xr ssh 1
 .It Pa ssl/
 OpenSSL configuration files
@@ -169,29 +160,23 @@ critical system utilities needed for binaries in
 and
 .Pa /sbin
 .It Pa /media/
-contains subdirectories to be used as mount points
-for removable media such as USB drives, CDs and DVDs
+contains subdirectories to be used as mount points for removable media such as
+USB drives, CDs and DVDs
 .It Pa /mnt/
 empty directory commonly used by
 system administrators as a temporary mount point
 .It Pa /net/
-automounted NFS shares;
-see
+automounted NFS shares; see
 .Xr auto_master 5
 .It Pa /nonexistent/
-a non-existent directory;
-by convention, it serves as a home directory
-for special user accounts
-that need no home directory;
-see also
+a non-existent directory; by convention, it serves as a home directory for
+special user accounts that need no home directory; see also
 .Pa /var/empty/
 .It Pa /proc/
-process file system;
-see
+process file system; see
 .Xr procfs 5
 .It Pa /rescue/
-statically linked programs for emergency recovery;
-see
+statically linked programs for emergency recovery; see
 .Xr rescue 8
 .It Pa /root/
 root's HOME directory
@@ -207,13 +192,11 @@ contains the majority of user utilities and applications
 .It Pa bin/
 common utilities, programming tools, and applications
 .It Pa compat/
-files needed to support binary compatibility with other operating systems;
-see
+files needed to support binary compatibility with other operating systems; see
 .Xr linux 4
 .It Pa freebsd-dist/
 distribution files
-.Pq like base.txz ;
-see
+.Pq like base.txz ; see
 .Xr release 7
 and
 .Xr bsdinstall 8
@@ -243,13 +226,12 @@ miscellaneous utility data files
 .It Pa gcc/
 GCC configuration data
 .It Pa ldscripts/
-linker scripts;
-see
+linker scripts; see
 .Xr ld 1
 .It Pa pkgconfig/
 .Xr pc 5 Pq Pa ports/devel/pkgconf
-files: collections of compiler flags, linker flags, and other
-information relevant to library use
+files: collections of compiler flags, linker flags, and other information
+relevant to library use
 .El
 .Pp
 .It Pa libexec/
@@ -261,14 +243,12 @@ utilities to manipulate a.out executables
 .It Pa elf/
 utilities to manipulate ELF executables
 .It Pa lpr/
-utilities and filters for LP print system;
-see
+utilities and filters for LP print system; see
 .Xr lpr 1
 .It Pa sendmail/
 the
 .Xr sendmail 8
-binary;
-see
+binary; see
 .Xr mailwrapper 8
 .It Pa sm.bin/
 restricted shell for
@@ -289,8 +269,7 @@ the general layout sketched out by
 for
 .Pa /usr
 should be used.
-Exceptions are the
-ports documentation
+Exceptions are the ports documentation
 .Po in
 .Pa share/doc/<port>/ Ns Pc ,
 and
@@ -300,8 +279,7 @@ and
 .It Pa obj/
 architecture-specific target tree produced by building
 .Fx
-from source;
-see
+from source; see
 .Xr build 7
 .It Pa ports/
 .Fx
@@ -314,8 +292,7 @@ architecture-independent files
 .Pp
 .Bl -tag -width Fl -compact
 .It Pa calendar/
-a variety of pre-fab calendar files;
-see
+a variety of pre-fab calendar files; see
 .Xr calendar 1
 .It Pa dict/
 word lists; see
@@ -349,8 +326,7 @@ and
 .El
 .Pp
 .It Pa locale/
-localization files;
-see
+localization files; see
 .Xr setlocale 3
 .It Pa man/
 manual pages
@@ -361,14 +337,12 @@ miscellaneous system-wide files
 .It Pa fonts/
 ???
 .It Pa termcap
-terminal characteristics database;
-see
+terminal characteristics database; see
 .Xr termcap 5
 .El
 .Pp
 .It Pa mk/
-templates for make;
-see
+templates for make; see
 .Xr make 1
 .It Pa nls/
 national language support files
@@ -442,8 +416,7 @@ matches
 .El
 .Pp
 .It Pa tabset/
-tab description files for a variety of terminals; used in
-the termcap file;
+tab description files for a variety of terminals; used in the termcap file;
 see
 .Xr termcap 5
 .It Pa vi/
@@ -455,8 +428,7 @@ files used by vt; see
 .Pp
 .Bl -tag -width Fl -compact
 .It Pa fonts/
-console fonts;
-see
+console fonts; see
 .Xr vidcontrol 1
 and
 .Xr vidfont 1
@@ -497,14 +469,12 @@ system accounting files
 .Pp
 .Bl -tag -width "freebsd-update/" -compact
 .It Pa acct
-execution accounting file;
-see
+execution accounting file; see
 .Xr acct 5
 .El
 .Pp
 .It Pa at/
-timed command scheduling files;
-see
+timed command scheduling files; see
 .Xr at 1
 .Pp
 .Bl -tag -width Fl -compact
@@ -531,14 +501,12 @@ default directory to store kernel crash dumps; see
 and
 .Xr savecore 8
 .It Pa cron/
-files used by cron;
-see
+files used by cron; see
 .Xr cron 8
 .Pp
 .Bl -tag -width Fl -compact
 .It Pa tabs/
-crontab files;
-see
+crontab files; see
 .Xr crontab 5
 .El
 .Pp
@@ -565,20 +533,17 @@ miscellaneous system log files
 .Pp
 .Bl -tag -width Fl -compact
 .It Pa utx.lastlogin
-last login log;
-see
+last login log; see
 .Xr getutxent 3
 .It Pa utx.log
-login/logout log;
-see
+login/logout log; see
 .Xr getutxent 3
 .El
 .Pp
 .It Pa mail/
 user mailbox files
 .It Pa msgs/
-system messages database;
-see
+system messages database; see
 .Xr msgs 1
 .It Pa preserve/
 temporary storage for files following a crash of an editor; see
@@ -600,14 +565,12 @@ writable by the
 group for command connection sockets; see
 .Xr ppp 8
 .It Pa utx.active
-database of current users;
-see
+database of current users; see
 .Xr getutxent 3
 .El
 .Pp
 .It Pa rwho/
-rwho data files;
-see
+rwho data files; see
 .Xr rwhod 8 ,
 .Xr rwho 1 ,
 and
@@ -617,16 +580,13 @@ miscellaneous printer and mail system spooling directories
 .Pp
 .Bl -tag -width Fl -compact
 .It Pa clientmqueue/
-undelivered submission mail queue;
-see
+undelivered submission mail queue; see
 .Xr sendmail 8
 .It Pa ftp/
-ftp root directory;
-see
+ftp root directory; see
 .Xr ftpd 8
 .It Pa mqueue/
-undelivered mail queue;
-see
+undelivered mail queue; see
 .Xr sendmail 8
 .It Pa output/
 line printer spooling directories
@@ -649,9 +609,8 @@ the NIS maps; see
 .Sh NOTES
 This manual page documents the default
 .Fx
-file system layout, but
-the actual hierarchy on a given system is defined at the system
-administrator's discretion.
+file system layout, but the actual hierarchy on a given system is defined at
+the system administrator's discretion.
 A well-maintained installation will include a customized version of
 this document.
 .Sh SEE ALSO
