@@ -526,7 +526,7 @@ prerun(int argc, char *argv[])
 		*tmp = *avj++;
 		if (repls && strstr(*tmp, replstr) != NULL) {
 			if (strnsubst(tmp++, replstr, inpline, (size_t)Sflag)) {
-				warnx("comamnd line cannot be assembled, too long");
+				warnx("command line cannot be assembled, too long");
 				xexit(*argv, 1);
 			}
 			if (repls > 0)
