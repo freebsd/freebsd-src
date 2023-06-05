@@ -464,7 +464,7 @@ multi-purpose log, temporary, transient, and spool files
 .It Pa account/
 system accounting files
 .Pp
-.Bl -tag -width "freebsd-update/" -compact
+.Bl -tag -width Fl -compact
 .It Pa acct
 execution accounting file; see
 .Xr acct 5
@@ -510,7 +510,7 @@ crontab files; see
 .It Pa db/
 miscellaneous automatically generated system-specific database files
 .Pp
-.Bl -tag -width Fl -compact
+.Bl -tag -width "freebsd-update/" -compact
 .It Pa freebsd-update/
 .Xr freebsd-update 8
 work directory for temporary files and downloaded updates
@@ -529,7 +529,7 @@ Kerberos server databases; see
 .It Pa log/
 miscellaneous system log files
 .Pp
-.Bl -tag -width Fl -compact
+.Bl -tag -width "utx.lastlogin" -compact
 .It Pa utx.lastlogin
 last login log; see
 .Xr getutxent 3
@@ -576,7 +576,7 @@ and
 .It Pa spool/
 miscellaneous printer and mail system spooling directories
 .Pp
-.Bl -tag -width Fl -compact
+.Bl -tag -width "clientmqueue/" -compact
 .It Pa clientmqueue/
 undelivered submission mail queue; see
 .Xr sendmail 8
@@ -593,7 +593,7 @@ line printer spooling directories
 .It Pa tmp/
 temporary files that are kept between system reboots
 .Pp
-.Bl -tag -width Fl -compact
+.Bl -tag -width "vi.recover/" -compact
 .It Pa vi.recover/
 .Xr vi 1
 recovery files
