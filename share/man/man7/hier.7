@@ -581,9 +581,7 @@ system messages database;
 see
 .Xr msgs 1
 .It Pa preserve/
-temporary home of files preserved after an accidental death
-of an editor;
-see
+temporary storage for files following a crash of an editor; see
 .Xr vi 1
 .It Pa quotas/
 file system quota information files
@@ -639,7 +637,8 @@ temporary files that are kept between system reboots
 .Pp
 .Bl -tag -width Fl -compact
 .It Pa vi.recover/
-the directory where recovery files are stored
+.Xr vi 1
+recovery files
 .El
 .Pp
 .It Pa yp/
