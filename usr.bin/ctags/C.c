@@ -483,9 +483,9 @@ skip_comment(int t) /* t is comment character */
 				return;
 			break;
 		case '\n':
+			SETLINE;
 			if (t == '/')
 				return;
-			SETLINE;
 			/*FALLTHROUGH*/
 		default:
 			star = NO;
