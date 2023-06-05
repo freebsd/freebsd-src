@@ -45,7 +45,7 @@ user utilities fundamental to both single-user and multi-user environments
 .It Pa /boot/
 programs and configuration files used during operating system bootstrap
 .Pp
-.Bl -tag -width "defaults/" -compact
+.Bl -tag -width "nvmecontrol/" -compact
 .It Pa defaults/
 default bootstrapping configuration files; see
 .Xr loader.conf 5
@@ -84,7 +84,7 @@ comments apply
 device special files managed by
 .Xr devfs 5
 .Pp
-.Bl -tag -width "defaults/" -compact
+.Bl -tag -width "nvmecontrol/" -compact
 .It Pa fd/
 file descriptor files;
 see
@@ -93,7 +93,7 @@ see
 .It Pa /etc/
 system configuration files and scripts
 .Pp
-.Bl -tag -width "defaults/" -compact
+.Bl -tag -width "nvmecontrol/" -compact
 .It Pa bluetooth/
 bluetooth configuration files
 .It Pa defaults/
@@ -149,7 +149,7 @@ critical system libraries needed for binaries in
 and
 .Pa /sbin
 .Pp
-.Bl -tag -width "defaults/" -compact
+.Bl -tag -width "nvmecontrol/" -compact
 .It Pa casper/
 service-specific
 .Xr libcasper 3
@@ -319,9 +319,9 @@ a variety of pre-fab calendar files;
 see
 .Xr calendar 1
 .It Pa dict/
-word lists;
-see
+word lists; see
 .Xr look 1
+.Pp
 .Bl -tag -width Fl -compact
 .It Pa freebsd
 .Fx Ns -specific
@@ -329,6 +329,7 @@ terms, proper names, and jargon
 .It Pa web2
 words from Webster's Second International
 .El
+.Pp
 .It Pa doc/
 miscellaneous documentation
 .It Pa examples/
@@ -339,6 +340,7 @@ firmware images loaded by userland programs
 ASCII text files used by various games
 .It Pa keys/
 known trusted and revoked keys
+.Pp
 .Bl -tag -width Fl -compact
 .It Pa pkg/
 fingerprints for
@@ -346,6 +348,7 @@ fingerprints for
 and
 .Xr pkg 8
 .El
+.Pp
 .It Pa locale/
 localization files;
 see
@@ -354,6 +357,7 @@ see
 manual pages
 .It Pa misc/
 miscellaneous system-wide ASCII text files
+.Pp
 .Bl -tag -width Fl -compact
 .It Pa fonts/
 ???
@@ -362,6 +366,7 @@ terminal characteristics database;
 see
 .Xr termcap 5
 .El
+.Pp
 .It Pa mk/
 templates for make;
 see
@@ -380,6 +385,7 @@ example
 (dot) files for new accounts
 .It Pa snmp/
 MIBs, example files and tree definitions for the SNMP daemon
+.Pp
 .Bl -tag -width Fl -compact
 .It Pa defs/
 tree definition files for use with
@@ -387,29 +393,30 @@ tree definition files for use with
 .It Pa mibs/
 MIB files
 .El
+.Pp
 .It Pa syscons/
-files used by syscons;
-see
+files used by syscons; see
 .Xr syscons 4
+.Pp
 .Bl -tag -width Fl -compact
 .It Pa fonts/
-console fonts;
-see
+console fonts; see
 .Xr vidcontrol 1
 and
 .Xr vidfont 1
 .It Pa keymaps/
-console keyboard maps;
-see
+console keyboard maps; see
 .Xr kbdcontrol 1
 and
 .Xr kbdmap 1
 .It Pa scrnmaps/
 console screen maps
 .El
+.Pp
 .It Pa sysroot/
 files necessary for the -sysroot compiler/linker argument to build non-native
 binaries.
+.Pp
 .Bl -tag -width Fl -compact
 .It Pa VERSION/
 files for
@@ -420,6 +427,7 @@ By convention,
 matches
 .Xr uname 1
 .Fl r .
+.Pp
 .Bl -tag -width Fl -compact
 .It Pa MACHINE.MACHINE_ARCH/
 represent the binary ABI for these files.
@@ -433,6 +441,7 @@ matches
 .Fl p .
 .El
 .El
+.Pp
 .It Pa tabset/
 tab description files for a variety of terminals; used in
 the termcap file;
@@ -442,9 +451,9 @@ see
 localization support and utilities for
 .Xr vi 1
 .It Pa vt/
-files used by vt;
-see
+files used by vt; see
 .Xr vt 4
+.Pp
 .Bl -tag -width Fl -compact
 .It Pa fonts/
 console fonts;
@@ -453,17 +462,16 @@ see
 and
 .Xr vidfont 1
 .It Pa keymaps/
-console keyboard maps;
-see
+console keyboard maps; see
 .Xr kbdcontrol 1
 and
 .Xr kbdmap 1
 .\" .It Pa scrnmaps/
 .\" console screen maps
 .El
+.Pp
 .It Pa zoneinfo/
-timezone configuration information;
-see
+timezone configuration information; see
 .Xr tzfile 5
 .El
 .Pp
@@ -484,11 +492,11 @@ test suite; see
 .It Pa /var/
 multi-purpose log, temporary, transient, and spool files
 .Pp
-.Bl -tag -width "defaults/" -compact
+.Bl -tag -width "preserve/" -compact
 .It Pa account/
 system accounting files
 .Pp
-.Bl -tag -width Fl -compact
+.Bl -tag -width "freebsd-update/" -compact
 .It Pa acct
 execution accounting file;
 see
@@ -537,6 +545,7 @@ see
 .Pp
 .It Pa db/
 miscellaneous automatically generated system-specific database files
+.Pp
 .Bl -tag -width Fl -compact
 .It Pa freebsd-update/
 .Xr freebsd-update 8
