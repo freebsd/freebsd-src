@@ -58,7 +58,7 @@
  * The value returned from this function is suitable for installing
  * directly into the thread pointer register.
  */
-void *_rtld_allocate_tls(void* oldtls, size_t tcbsize, size_t tcbalign)
+void *_rtld_allocate_tls(void *oldtls, size_t tcbsize, size_t tcbalign)
     __exported;
 
 /*
