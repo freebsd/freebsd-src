@@ -2049,9 +2049,15 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 			ulen = tlen - sizeof(struct ip);
 			uh->uh_ulen = htons(ulen);
 		}
-		ip->ip_tos = ect;
 		ip->ip_len = htons(tlen);
-		ip->ip_ttl = V_ip_defttl;
+		if (inp != NULL) {
+			ip->ip_tos = inp->inp_ip_tos & ~IPTOS_ECN_MASK;
+			ip->ip_ttl = inp->inp_ip_ttl;
+		} else {
+			ip->ip_tos = 0;
+			ip->ip_ttl = V_ip_defttl;
+		}
+		ip->ip_tos |= ect;
 		if (port) {
 			ip->ip_p = IPPROTO_UDP;
 		} else {
@@ -2195,7 +2201,8 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 #ifdef INET6
 	if (isipv6) {
 		TCP_PROBE5(send, NULL, tp, ip6, tp, nth);
-		output_ret = ip6_output(m, NULL, NULL, 0, NULL, NULL, inp);
+		output_ret = ip6_output(m, inp ? inp->in6p_outputopts : NULL,
+		    NULL, 0, NULL, NULL, inp);
 	}
 #endif /* INET6 */
 #if defined(INET) && defined(INET6)
