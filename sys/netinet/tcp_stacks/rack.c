@@ -18826,7 +18826,7 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 	}
 #ifdef INET6
 	if (rack->r_is_v6) {
-		error = ip6_output(m, NULL,
+		error = ip6_output(m, inp->in6p_outputopts,
 				   &inp->inp_route6,
 				   ip_sendflag, NULL, NULL, inp);
 	}
@@ -19338,7 +19338,7 @@ again:
 		lgb = NULL;
 #ifdef INET6
 	if (rack->r_is_v6) {
-		error = ip6_output(m, NULL,
+		error = ip6_output(m, inp->in6p_outputopts,
 				   &inp->inp_route6,
 				   0, NULL, NULL, inp);
 	}
@@ -21792,11 +21792,7 @@ send:
 		TCP_PROBE5(send, NULL, tp, ip6, tp, th);
 		/* TODO: IPv6 IP6TOS_ECT bit on */
 		error = ip6_output(m,
-#if defined(IPSEC) || defined(IPSEC_SUPPORT)
 				   inp->in6p_outputopts,
-#else
-				   NULL,
-#endif
 				   &inp->inp_route6,
 				   ((rsm || sack_rxmit) ? IP_NO_SND_TAG_RL : 0),
 				   NULL, NULL, inp);
@@ -23448,10 +23444,6 @@ static int
 rack_set_sockopt(struct tcpcb *tp, struct sockopt *sopt)
 {
 	struct inpcb *inp = tptoinpcb(tp);
-#ifdef INET6
-	struct ip6_hdr *ip6;
-	int32_t mask, tclass;
-#endif
 #ifdef INET
 	struct ip *ip;
 #endif
@@ -23465,9 +23457,6 @@ rack_set_sockopt(struct tcpcb *tp, struct sockopt *sopt)
 		INP_WUNLOCK(inp);
 		return (EINVAL);
 	}
-#ifdef INET6
-	ip6 = (struct ip6_hdr *)rack->r_ctl.fsb.tcp_ip_hdr;
-#endif
 #ifdef INET
 	ip = (struct ip *)rack->r_ctl.fsb.tcp_ip_hdr;
 #endif
@@ -23479,18 +23468,6 @@ rack_set_sockopt(struct tcpcb *tp, struct sockopt *sopt)
 		switch (sopt->sopt_name) {
 		case IPV6_USE_MIN_MTU:
 			tcp6_use_min_mtu(tp);
-			break;
-		case IPV6_TCLASS:
-			/*
-			 * The DSCP codepoint has changed, update the fsb
-			 * by overwriting any previous traffic class.
-			 */
-			if (inp->in6p_outputopts) {
-				mask = 0xfc;
-				tclass = inp->in6p_outputopts->ip6po_tclass;
-				ip6->ip6_flow &= htonl((~mask) << 20);
-				ip6->ip6_flow |= htonl((tclass & mask) << 20);
-			}
 			break;
 		}
 		INP_WUNLOCK(inp);
