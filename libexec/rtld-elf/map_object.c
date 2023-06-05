@@ -433,7 +433,7 @@ obj_free(Obj_Entry *obj)
 {
     Objlist_Entry *elm;
 
-    if (obj->tls_done)
+    if (obj->tls_static)
 	free_tls_offset(obj);
     while (obj->needed != NULL) {
 	Needed_Entry *needed = obj->needed;

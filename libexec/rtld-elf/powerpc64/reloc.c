@@ -247,7 +247,7 @@ reloc_nonplt_object(Obj_Entry *obj_rtld __unused, Obj_Entry *obj,
 		 * modules. If we run out of space, we generate an
 		 * error.
 		 */
-		if (!defobj->tls_done) {
+		if (!defobj->tls_static) {
 			if (!allocate_tls_offset(
 				    __DECONST(Obj_Entry *, defobj))) {
 				_rtld_error("%s: No space available for static "
