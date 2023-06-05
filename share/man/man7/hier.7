@@ -50,12 +50,12 @@ programs and configuration files used during operating system bootstrap
 default bootstrapping configuration files; see
 .Xr loader.conf 5
 .It Pa dtb/
-Compiled flattened device tree (FDT) files; see
+compiled flattened device tree (FDT) files; see
 .Xr fdt 4
 and
 .Xr dtc 1
 .It Pa efi/
-Mount point for EFI System Partition (ESP) on UEFI systems
+mount point for the EFI System Partition (ESP) on UEFI systems
 .It Pa firmware/
 loadable kernel modules containing binary firmware for hardware that needs
 firmware downloaded to it to function
@@ -66,7 +66,7 @@ at boot time) and kernel modules
 third-party loadable kernel modules, such as the ones installed from
 .Xr ports 7
 .It Pa overlays/
-Compiled flattened device tree (FDT) overlays; see
+compiled flattened device tree (FDT) overlays; see
 .Xr fdt 4
 and
 .Xr dtc 1
@@ -105,7 +105,7 @@ local timezone information;
 see
 .Xr ctime 3
 .It Pa mail/
-Sendmail control files
+sendmail control files
 .It Pa mtree/
 mtree configuration files;
 see
@@ -476,7 +476,7 @@ The layout of the source tree is described by the top-level
 file.
 .Pp
 .It Pa tests/
-The
+the
 .Fx
 test suite; see
 .Xr tests 7
