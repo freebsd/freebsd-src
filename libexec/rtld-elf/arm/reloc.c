@@ -279,7 +279,7 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rel *rel, SymCache *cache,
 			if (def == NULL)
 				return -1;
 
-			if (!defobj->tls_done && !allocate_tls_offset(obj))
+			if (!defobj->tls_static && !allocate_tls_offset(obj))
 				return -1;
 
 			tmp = (Elf_Addr)def->st_value + defobj->tlsoffset;

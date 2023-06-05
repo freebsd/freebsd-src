@@ -470,7 +470,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 			 * modules. If we run out of space, we generate an
 			 * error.
 			 */
-			if (!defobj->tls_done) {
+			if (!defobj->tls_static) {
 				if (!allocate_tls_offset(
 				    __DECONST(Obj_Entry *, defobj))) {
 					_rtld_error(
