@@ -613,7 +613,7 @@ kern_socketpair(struct thread *td, int domain, int type, int protocol,
 		struct unpcb *unp, *unp2;
 		unp = sotounpcb(so1);
 		unp2 = sotounpcb(so2);
-		/* 
+		/*
 		 * No need to lock the unps, because the sockets are brand-new.
 		 * No other threads can be using them yet
 		 */
@@ -685,7 +685,7 @@ sendit(struct thread *td, int s, struct msghdr *mp, int flags)
 		to = NULL;
 	}
 
-	if (mp->msg_control) {
+	if (mp->msg_control != NULL && mp->msg_controllen > 0) {
 		if (mp->msg_controllen < sizeof(struct cmsghdr)
 #ifdef COMPAT_OLDSOCK
 		    && (mp->msg_flags != MSG_COMPAT ||
