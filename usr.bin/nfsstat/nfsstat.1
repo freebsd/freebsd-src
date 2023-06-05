@@ -28,7 +28,7 @@
 .\"     From: @(#)nfsstat.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd December 31, 2019
+.Dd June 5, 2023
 .Dt NFSSTAT 1
 .Os
 .Sh NAME
@@ -53,7 +53,7 @@ If you wish to compare RPC counts between NFSv3 and NFSv4, you must use
 statistics in the client(s).
 .Pp
 The options are as follows:
-.Bl -tag -width indent
+.Bl -tag -width "-w wait"
 .It Fl c
 Only display client side statistics.
 .It Fl d
@@ -111,7 +111,7 @@ useful when combined with
 or
 .Fl s
 and a time delay.
-.It Fl w
+.It Fl w Ar wait
 Display a shorter summary of
 .Tn NFS
 activity for both the client and server at
