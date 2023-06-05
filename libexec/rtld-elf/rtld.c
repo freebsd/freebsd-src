@@ -5520,11 +5520,11 @@ allocate_tls_offset(Obj_Entry *obj)
 {
     size_t off;
 
-    if (obj->tls_done)
+    if (obj->tls_static)
 	return (true);
 
     if (obj->tlssize == 0) {
-	obj->tls_done = true;
+	obj->tls_static = true;
 	return (true);
     }
 
@@ -5555,7 +5555,7 @@ allocate_tls_offset(Obj_Entry *obj)
 
     tls_last_offset = off;
     tls_last_size = obj->tlssize;
-    obj->tls_done = true;
+    obj->tls_static = true;
 
     return (true);
 }
@@ -5931,7 +5931,7 @@ distribute_static_tls(Objlist *list, RtldLockState *lockstate)
 		return;
 	STAILQ_FOREACH(elm, list, link) {
 		obj = elm->obj;
-		if (obj->marker || !obj->tls_done || obj->static_tls_copied)
+		if (obj->marker || !obj->tls_static || obj->static_tls_copied)
 			continue;
 		distrib(obj->tlsoffset, obj->tlsinit, obj->tlsinitsize,
 		    obj->tlssize);
