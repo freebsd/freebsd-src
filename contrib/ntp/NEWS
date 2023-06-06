@@ -1,4 +1,29 @@
 ---
+NTP 4.2.8p17 (Harlan Stenn <stenn@ntp.org>, 2023 Jun 06)
+
+Focus: Bug fixes
+
+Severity: HIGH (for people running 4.2.8p16)
+
+This release:
+
+- fixes 3 bugs, including a regression
+- adds new unit tests
+
+Details below:
+
+* [Bug 3824] Spurious "ntpd: daemon failed to notify parent!" logged at
+             event_sync.  Reported by Edward McGuire.  <hart@ntp.org>
+* [Bug 3822] ntpd significantly delays first poll of servers specified by name.
+             <hart@ntp.org>  Miroslav Lichvar identified regression in 4.2.8p16.
+* [Bug 3821] 4.2.8p16 misreads hex authentication keys, won't interop with
+             4.2.8p15 or earlier.  Reported by Matt Nordhoff, thanks to
+	     Miroslav Lichvar and Matt for rapid testing and identifying the
+	     problem. <hart@ntp.org>
+* Add tests/libntp/digests.c to catch regressions reading keys file or with
+  symmetric authentication digest output.
+
+---
 NTP 4.2.8p16 (Harlan Stenn <stenn@ntp.org>, 2023 May 30)
 
 Focus: Security, Bug fixes

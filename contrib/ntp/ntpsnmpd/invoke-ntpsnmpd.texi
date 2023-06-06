@@ -6,7 +6,7 @@
 #
 # EDIT THIS FILE WITH CAUTION  (invoke-ntpsnmpd.texi)
 #
-# It has been AutoGen-ed  May 31, 2023 at 08:02:43 PM by AutoGen 5.18.16
+# It has been AutoGen-ed  June  6, 2023 at 04:38:20 AM by AutoGen 5.18.16
 # From the definitions    ntpsnmpd-opts.def
 # and the template file   agtexi-cmd.tpl
 @end ignore
