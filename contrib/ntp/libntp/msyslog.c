@@ -583,8 +583,9 @@ setup_logfile(
 			syslog_fname);
 }
 
-/* Helper for unit tests, where stdout + stderr are piped to the same
- * stream.  This works moderately reliable only if both streams are
+/*
+ * Helper for unit tests, where stdout + stderr are piped to the same
+ * stream.  This works moderately reliably only if both streams are
  * unbuffered or line buffered.  Unfortunately stdout can be fully
  * buffered on pipes or files...
  */

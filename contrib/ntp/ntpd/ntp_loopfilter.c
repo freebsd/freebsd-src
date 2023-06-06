@@ -129,9 +129,6 @@ static int loop_started;	/* TRUE after LOOP_DRIFTINIT */
 static void rstclock (int, double); /* transition function */
 static double direct_freq(double); /* direct set frequency */
 static void set_freq(double);	/* set frequency */
-#ifndef PATH_MAX
-# define PATH_MAX MAX_PATH
-#endif
 static char relative_path[PATH_MAX + 1]; /* relative path per recursive make */
 static char *this_file = NULL;
 

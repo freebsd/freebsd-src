@@ -6,7 +6,7 @@
 #
 # EDIT THIS FILE WITH CAUTION  (invoke-ntpdc.texi)
 #
-# It has been AutoGen-ed  May 31, 2023 at 02:49:52 PM by AutoGen 5.18.16
+# It has been AutoGen-ed  June  6, 2023 at 04:37:59 AM by AutoGen 5.18.16
 # From the definitions    ntpdc-opts.def
 # and the template file   agtexi-cmd.tpl
 @end ignore
@@ -77,7 +77,7 @@ with a status code of 0.
 
 @exampleindent 0
 @example
-ntpdc - vendor-specific NTPD control program - Ver. 4.2.8p16
+ntpdc - vendor-specific NTPD control program - Ver. 4.2.8p17
 Usage:  ntpdc [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]... [ host ...]
   Flg Arg Option-Name    Description
    -4 no  ipv4           Force IPv4 DNS name resolution

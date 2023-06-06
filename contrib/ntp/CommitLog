@@ -1,3 +1,467 @@
+ChangeSet@1.4004, 2023-06-06 04:40:27-07:00, ntpreleng@ntp-build.tal1.ntfo.org
+  NTP_4_2_8P17
+  TAG: NTP_4_2_8P17
+
+  ChangeLog@1.2053 +1 -0
+    NTP_4_2_8P17
+
+  ntpd/invoke-ntp.conf.texi@1.225 +1 -1
+    NTP_4_2_8P17
+
+  ntpd/invoke-ntp.keys.texi@1.210 +1 -1
+    NTP_4_2_8P17
+
+  ntpd/invoke-ntpd.texi@1.524 +2 -2
+    NTP_4_2_8P17
+
+  ntpd/ntp.conf.5man@1.259 +2 -2
+    NTP_4_2_8P17
+
+  ntpd/ntp.conf.5mdoc@1.259 +2 -2
+    NTP_4_2_8P17
+
+  ntpd/ntp.conf.html@1.207 +1 -1
+    NTP_4_2_8P17
+
+  ntpd/ntp.conf.man.in@1.259 +2 -2
+    NTP_4_2_8P17
+
+  ntpd/ntp.conf.mdoc.in@1.259 +2 -2
+    NTP_4_2_8P17
+
+  ntpd/ntp.keys.5man@1.244 +2 -2
+    NTP_4_2_8P17
+
+  ntpd/ntp.keys.5mdoc@1.244 +2 -2
+    NTP_4_2_8P17
+
+  ntpd/ntp.keys.html@1.204 +1 -1
+    NTP_4_2_8P17
+
+  ntpd/ntp.keys.man.in@1.244 +2 -2
+    NTP_4_2_8P17
+
+  ntpd/ntp.keys.mdoc.in@1.244 +2 -2
+    NTP_4_2_8P17
+
+  ntpd/ntpd-opts.c@1.549 +7 -7
+    NTP_4_2_8P17
+
+  ntpd/ntpd-opts.h@1.548 +3 -3
+    NTP_4_2_8P17
+
+  ntpd/ntpd.1ntpdman@1.353 +2 -2
+    NTP_4_2_8P17
+
+  ntpd/ntpd.1ntpdmdoc@1.353 +2 -2
+    NTP_4_2_8P17
+
+  ntpd/ntpd.html@1.198 +2 -2
+    NTP_4_2_8P17
+
+  ntpd/ntpd.man.in@1.353 +2 -2
+    NTP_4_2_8P17
+
+  ntpd/ntpd.mdoc.in@1.353 +2 -2
+    NTP_4_2_8P17
+
+  ntpdc/invoke-ntpdc.texi@1.523 +2 -2
+    NTP_4_2_8P17
+
+  ntpdc/ntpdc-opts.c@1.544 +7 -7
+    NTP_4_2_8P17
+
+  ntpdc/ntpdc-opts.h@1.543 +3 -3
+    NTP_4_2_8P17
+
+  ntpdc/ntpdc.1ntpdcman@1.354 +2 -2
+    NTP_4_2_8P17
+
+  ntpdc/ntpdc.1ntpdcmdoc@1.354 +2 -2
+    NTP_4_2_8P17
+
+  ntpdc/ntpdc.html@1.368 +2 -2
+    NTP_4_2_8P17
+
+  ntpdc/ntpdc.man.in@1.354 +2 -2
+    NTP_4_2_8P17
+
+  ntpdc/ntpdc.mdoc.in@1.354 +2 -2
+    NTP_4_2_8P17
+
+  ntpq/invoke-ntpq.texi@1.533 +2 -2
+    NTP_4_2_8P17
+
+  ntpq/ntpq-opts.c@1.553 +7 -7
+    NTP_4_2_8P17
+
+  ntpq/ntpq-opts.h@1.551 +3 -3
+    NTP_4_2_8P17
+
+  ntpq/ntpq.1ntpqman@1.361 +2 -2
+    NTP_4_2_8P17
+
+  ntpq/ntpq.1ntpqmdoc@1.361 +2 -2
+    NTP_4_2_8P17
+
+  ntpq/ntpq.html@1.198 +2 -2
+    NTP_4_2_8P17
+
+  ntpq/ntpq.man.in@1.361 +2 -2
+    NTP_4_2_8P17
+
+  ntpq/ntpq.mdoc.in@1.361 +2 -2
+    NTP_4_2_8P17
+
+  ntpsnmpd/invoke-ntpsnmpd.texi@1.523 +1 -1
+    NTP_4_2_8P17
+
+  ntpsnmpd/ntpsnmpd-opts.c@1.544 +7 -7
+    NTP_4_2_8P17
+
+  ntpsnmpd/ntpsnmpd-opts.h@1.543 +3 -3
+    NTP_4_2_8P17
+
+  ntpsnmpd/ntpsnmpd.1ntpsnmpdman@1.352 +2 -2
+    NTP_4_2_8P17
+
+  ntpsnmpd/ntpsnmpd.1ntpsnmpdmdoc@1.352 +2 -2
+    NTP_4_2_8P17
+
+  ntpsnmpd/ntpsnmpd.html@1.190 +1 -1
+    NTP_4_2_8P17
+
+  ntpsnmpd/ntpsnmpd.man.in@1.352 +2 -2
+    NTP_4_2_8P17
+
+  ntpsnmpd/ntpsnmpd.mdoc.in@1.352 +2 -2
+    NTP_4_2_8P17
+
+  packageinfo.sh@1.550 +2 -2
+    NTP_4_2_8P17
+
+  scripts/calc_tickadj/calc_tickadj.1calc_tickadjman@1.113 +2 -2
+    NTP_4_2_8P17
+
+  scripts/calc_tickadj/calc_tickadj.1calc_tickadjmdoc@1.115 +2 -2
+    NTP_4_2_8P17
+
+  scripts/calc_tickadj/calc_tickadj.html@1.114 +1 -1
+    NTP_4_2_8P17
+
+  scripts/calc_tickadj/calc_tickadj.man.in@1.112 +2 -2
+    NTP_4_2_8P17
+
+  scripts/calc_tickadj/calc_tickadj.mdoc.in@1.115 +2 -2
+    NTP_4_2_8P17
+
+  scripts/calc_tickadj/invoke-calc_tickadj.texi@1.117 +1 -1
+    NTP_4_2_8P17
+
+  scripts/invoke-plot_summary.texi@1.135 +2 -2
+    NTP_4_2_8P17
+
+  scripts/invoke-summary.texi@1.134 +2 -2
+    NTP_4_2_8P17
+
+  scripts/ntp-wait/invoke-ntp-wait.texi@1.346 +2 -2
+    NTP_4_2_8P17
+
+  scripts/ntp-wait/ntp-wait-opts@1.82 +2 -2
+    NTP_4_2_8P17
+
+  scripts/ntp-wait/ntp-wait.1ntp-waitman@1.341 +2 -2
+    NTP_4_2_8P17
+
+  scripts/ntp-wait/ntp-wait.1ntp-waitmdoc@1.343 +2 -2
+    NTP_4_2_8P17
+
+  scripts/ntp-wait/ntp-wait.html@1.362 +2 -2
+    NTP_4_2_8P17
+
+  scripts/ntp-wait/ntp-wait.man.in@1.341 +2 -2
+    NTP_4_2_8P17
+
+  scripts/ntp-wait/ntp-wait.mdoc.in@1.343 +2 -2
+    NTP_4_2_8P17
+
+  scripts/ntpsweep/invoke-ntpsweep.texi@1.132 +2 -2
+    NTP_4_2_8P17
+
+  scripts/ntpsweep/ntpsweep-opts@1.85 +2 -2
+    NTP_4_2_8P17
+
+  scripts/ntpsweep/ntpsweep.1ntpsweepman@1.120 +2 -2
+    NTP_4_2_8P17
+
+  scripts/ntpsweep/ntpsweep.1ntpsweepmdoc@1.120 +2 -2
+    NTP_4_2_8P17
+
+  scripts/ntpsweep/ntpsweep.html@1.134 +2 -2
+    NTP_4_2_8P17
+
+  scripts/ntpsweep/ntpsweep.man.in@1.120 +2 -2
+    NTP_4_2_8P17
+
+  scripts/ntpsweep/ntpsweep.mdoc.in@1.121 +2 -2
+    NTP_4_2_8P17
+
+  scripts/ntptrace/invoke-ntptrace.texi@1.135 +2 -2
+    NTP_4_2_8P17
+
+  scripts/ntptrace/ntptrace-opts@1.85 +2 -2
+    NTP_4_2_8P17
+
+  scripts/ntptrace/ntptrace.1ntptraceman@1.120 +2 -2
+    NTP_4_2_8P17
+
+  scripts/ntptrace/ntptrace.1ntptracemdoc@1.122 +2 -2
+    NTP_4_2_8P17
+
+  scripts/ntptrace/ntptrace.html@1.135 +2 -2
+    NTP_4_2_8P17
+
+  scripts/ntptrace/ntptrace.man.in@1.120 +2 -2
+    NTP_4_2_8P17
+
+  scripts/ntptrace/ntptrace.mdoc.in@1.123 +2 -2
+    NTP_4_2_8P17
+
+  scripts/plot_summary-opts@1.86 +2 -2
+    NTP_4_2_8P17
+
+  scripts/plot_summary.1plot_summaryman@1.133 +2 -2
+    NTP_4_2_8P17
+
+  scripts/plot_summary.1plot_summarymdoc@1.133 +2 -2
+    NTP_4_2_8P17
+
+  scripts/plot_summary.html@1.137 +2 -2
+    NTP_4_2_8P17
+
+  scripts/plot_summary.man.in@1.133 +2 -2
+    NTP_4_2_8P17
+
+  scripts/plot_summary.mdoc.in@1.133 +2 -2
+    NTP_4_2_8P17
+
+  scripts/summary-opts@1.85 +2 -2
+    NTP_4_2_8P17
+
+  scripts/summary.1summaryman@1.132 +2 -2
+    NTP_4_2_8P17
+
+  scripts/summary.1summarymdoc@1.132 +2 -2
+    NTP_4_2_8P17
+
+  scripts/summary.html@1.136 +2 -2
+    NTP_4_2_8P17
+
+  scripts/summary.man.in@1.132 +2 -2
+    NTP_4_2_8P17
+
+  scripts/summary.mdoc.in@1.132 +2 -2
+    NTP_4_2_8P17
+
+  scripts/update-leap/invoke-update-leap.texi@1.33 +1 -1
+    NTP_4_2_8P17
+
+  scripts/update-leap/update-leap-opts@1.35 +2 -2
+    NTP_4_2_8P17
+
+  scripts/update-leap/update-leap.1update-leapman@1.33 +2 -2
+    NTP_4_2_8P17
+
+  scripts/update-leap/update-leap.1update-leapmdoc@1.34 +2 -2
+    NTP_4_2_8P17
+
+  scripts/update-leap/update-leap.html@1.33 +1 -1
+    NTP_4_2_8P17
+
+  scripts/update-leap/update-leap.man.in@1.33 +2 -2
+    NTP_4_2_8P17
+
+  scripts/update-leap/update-leap.mdoc.in@1.34 +2 -2
+    NTP_4_2_8P17
+
+  sntp/invoke-sntp.texi@1.523 +2 -2
+    NTP_4_2_8P17
+
+  sntp/sntp-opts.c@1.545 +7 -7
+    NTP_4_2_8P17
+
+  sntp/sntp-opts.h@1.543 +3 -3
+    NTP_4_2_8P17
+
+  sntp/sntp.1sntpman@1.358 +2 -2
+    NTP_4_2_8P17
+
+  sntp/sntp.1sntpmdoc@1.358 +2 -2
+    NTP_4_2_8P17
+
+  sntp/sntp.html@1.539 +2 -2
+    NTP_4_2_8P17
+
+  sntp/sntp.man.in@1.358 +2 -2
+    NTP_4_2_8P17
+
+  sntp/sntp.mdoc.in@1.358 +2 -2
+    NTP_4_2_8P17
+
+  util/invoke-ntp-keygen.texi@1.526 +2 -2
+    NTP_4_2_8P17
+
+  util/ntp-keygen-opts.c@1.547 +7 -7
+    NTP_4_2_8P17
+
+  util/ntp-keygen-opts.h@1.545 +3 -3
+    NTP_4_2_8P17
+
+  util/ntp-keygen.1ntp-keygenman@1.354 +2 -2
+    NTP_4_2_8P17
+
+  util/ntp-keygen.1ntp-keygenmdoc@1.354 +2 -2
+    NTP_4_2_8P17
+
+  util/ntp-keygen.html@1.199 +2 -2
+    NTP_4_2_8P17
+
+  util/ntp-keygen.man.in@1.354 +2 -2
+    NTP_4_2_8P17
+
+  util/ntp-keygen.mdoc.in@1.354 +2 -2
+    NTP_4_2_8P17
+
+ChangeSet@1.4003, 2023-06-06 04:28:11-07:00, ntpreleng@ntp-build.tal1.ntfo.org
+  p17
+
+  tests/libntp/run-digests.c@1.2 +7 -7
+    p17
+
+ChangeSet@1.4002, 2023-06-06 04:09:35-07:00, ntpreleng@ntp-build.tal1.ntfo.org
+  p17
+
+  packageinfo.sh@1.549 +1 -1
+    p17
+
+ChangeSet@1.4001, 2023-06-06 09:43:55+00:00, hart@ntp-devbuild.chi1.ntfo.org
+  Makefile.am:
+    Fix make distcheck failure with generated srcdir.c
+
+  tests/libntp/Makefile.am@1.104 +2 -2
+    Fix make distcheck failure with generated srcdir.c
+
+ChangeSet@1.4000, 2023-06-06 03:43:29-05:00, stenn@stenn.chi1.ntfo.org
+  prep for p17
+
+  ChangeLog@1.2052 +8 -6
+    prep for p17
+
+  NEWS@1.219 +25 -0
+    prep for p17
+
+ChangeSet@1.3998, 2023-06-05 00:21:10+00:00, davehart@tl.davehart.net
+  Add tests for loading and using all supported symmetric auth digests.
+
+  ChangeLog@1.2050 +2 -0
+    Add tests/libntp/digests.c to catch regressions reading keys file or with
+    symmetric authentication digest output.
+
+  include/ntp.h@1.235 +1 -1
+    move KEY_TYPE_MD5 to ntp_md5.h
+
+  include/ntp_md5.h@1.15 +4 -0
+    move a few items here where they better fit.
+
+  include/ntp_stdlib.h@1.91 +21 -18
+    Move items to ntp_md5.h, add some arg names to prototypes.
+
+  libntp/a_md5encrypt.c@1.55 +13 -10
+    %zu isn't supported by all compilers we support
+
+  libntp/authkeys.c@1.46 +11 -12
+    Get rid of magic number 4 for sizeof(u_int32), use zero_mem()
+
+  libntp/authreadkeys.c@1.36 +10 -2
+    Warn if AES128CMAC key is less than 128 bits.
+
+  libntp/msyslog.c@1.57 +3 -2
+    Comment grammar
+
+  libparse/clk_hopf6021.c@1.14 +3 -2
+    include ascii.h after ntp_stdlib.h to avoid clash with EM define
+
+  libparse/clk_wharton.c@1.13 +3 -2
+    include ascii.h after ntp_stdlib.h to avoid clash with EM define
+
+  ntpd/ntp_control.c@1.241 +0 -1
+    ntp_md5.h in ntp_stdlib.h now
+
+  ntpd/ntp_loopfilter.c@1.197 +0 -3
+    Move PATH_MAX definition to header file.
+
+  sntp/crypto.c@1.42 +0 -5
+    Remove redundancies
+
+  sntp/crypto.h@1.15 +0 -1
+    separate include of ntp_md5.h no longer needed
+
+  tests/libntp/Makefile.am@1.103 +33 -6
+    add digests.c
+
+  tests/libntp/data/ntp.keys@1.2 +1 -1
+    typo
+
+  tests/libntp/digests.c@1.1 +415 -0
+    Unit test for loading and using all supported symmetric auth methods.
+
+  tests/libntp/digests.c@1.0 +0 -0
+
+  tests/libntp/run-digests.c@1.1 +80 -0
+    Unity generated runner for digests.c
+
+  tests/libntp/run-digests.c@1.0 +0 -0
+
+ChangeSet@1.3996.2.1, 2023-06-03 22:48:12+00:00, davehart@tl.davehart.net
+  [Bug 3822] ntpd significantly delays first poll of servers specified by name.
+
+  ChangeLog@1.2048.2.1 +4 -0
+    [Bug 3822] ntpd significantly delays first poll of servers specified by name.
+
+  ntpd/ntp_config.c@1.383 +18 -0
+    Treat associations from ntp.conf with hostnames the same as those with IP addresses.
+
+ChangeSet@1.3996.1.1, 2023-06-02 23:42:10+00:00, davehart@tl.davehart.net
+  [Bug 3824] Spurious "ntpd: daemon failed to notify parent!" logged at event_sync.
+
+  ChangeLog@1.2048.1.1 +4 -0
+    [Bug 3824] Spurious "ntpd: daemon failed to notify parent!" logged at event_sync.
+
+  ntpd/ntp_proto.c@1.446 +3 -2
+    CLarify error message
+
+  ntpd/ntpd.c@1.189 +4 -2
+    Fix logic error, clarify message
+
+ChangeSet@1.3997, 2023-06-02 19:29:12+00:00, davehart@tl.davehart.net
+  [Bug 3821] 4.2.8p16 misreads hex auth keys, won't interop with 4.2.8p15.
+
+  ChangeLog@1.2049 +5 -0
+    [Bug 3821] 4.2.8p16 misreads hex auth keys, won't interop with 4.2.8p15.
+
+  libntp/authkeys.c@1.45 +2 -2
+    > typo for >>
+
+  tests/libntp/data/mills,david-03.jpg@1.1 +912 -0
+    The internet's Father Time
+
+  tests/libntp/data/mills,david-03.jpg@1.0 +0 -0
+
+  tests/libntp/data/ntp.keys@1.1 +34 -0
+    Test keys for libntp/tests/digest.c
+
+  tests/libntp/data/ntp.keys@1.0 +0 -0
+
 ChangeSet@1.3996, 2023-05-31 20:05:32-07:00, ntpreleng@ntp-build.tal1.ntfo.org
   NTP_4_2_8P16
   TAG: NTP_4_2_8P16

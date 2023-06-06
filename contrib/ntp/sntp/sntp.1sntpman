@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH sntp 1sntpman "31 May 2023" "4.2.8p16" "User Commands"
+.TH sntp 1sntpman "06 Jun 2023" "4.2.8p17" "User Commands"
 .\"
 .\" EDIT THIS FILE WITH CAUTION (in-mem file)
 .\"
-.\" It has been AutoGen-ed May 31, 2023 at 02:48:09 PM by AutoGen 5.18.16
+.\" It has been AutoGen-ed June 6, 2023 at 04:36:14 AM by AutoGen 5.18.16
 .\" From the definitions sntp-opts.def
 .\" and the template file agman-cmd.tpl
 .SH NAME

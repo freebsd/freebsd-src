@@ -6,6 +6,8 @@
 #ifndef NTP_MD5_H
 #define NTP_MD5_H
 
+# define KEY_TYPE_MD5			NID_md5
+
 #ifdef OPENSSL
 # include <openssl/evp.h>
 # include "libssl_compat.h"
@@ -30,6 +32,8 @@
 
   typedef MD5_CTX			EVP_MD_CTX;
 
+# define NID_md5			4	/* from openssl/objects.h */
+# define EVP_MAX_MD_SIZE		64	/* from openssl/evp.h */
 # define EVP_MD_CTX_free(c)		free(c)
 # define EVP_MD_CTX_new()		calloc(1, sizeof(MD5_CTX))
 # define EVP_get_digestbynid(t)		NULL

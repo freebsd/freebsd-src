@@ -131,6 +131,7 @@ typedef struct peer_resolved_ctx_tag {
 	u_char		maxpoll;
 	u_int32		ttl;
 	const char *	group;
+	int		was_initializing;
 } peer_resolved_ctx;
 
 /* Limits */
@@ -4420,6 +4421,7 @@ config_peers(
 			ctx->hmode = MODE_CLIENT;
 			ctx->version = NTP_VERSION;
 			ctx->flags = FLAG_IBURST;
+			ctx->was_initializing = initializing;
 
 			ZERO(hints);
 			hints.ai_family = (u_short)ctx->family;
@@ -4500,6 +4502,7 @@ config_peers(
 			ctx->ttl = curr_peer->ttl;
 			ctx->keyid = curr_peer->peerkey;
 			ctx->group = curr_peer->group;
+			ctx->was_initializing = initializing;
 
 			ZERO(hints);
 			hints.ai_family = ctx->family;
@@ -4574,6 +4577,16 @@ peer_name_resolved(
 					name, fam_spec,
 					stoa(&peeraddr));
 			}
+
+			/* 
+			 * peer_clear needs to know if this association was specified
+			 * in the startup configuration file to set the next poll time.
+			 */
+			if (ctx->was_initializing) {
+				INSIST(!initializing);
+				initializing = TRUE;
+			}
+
 			peer_config(
 				&peeraddr,
 				NULL,
@@ -4587,6 +4600,11 @@ peer_name_resolved(
 				ctx->ttl,
 				ctx->keyid,
 				ctx->group);
+
+			if (ctx->was_initializing) {
+				initializing = FALSE;
+			}
+
 			break;
 		}
 	}

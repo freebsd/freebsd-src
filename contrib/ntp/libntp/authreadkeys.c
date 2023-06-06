@@ -234,7 +234,7 @@ authreadkeys(
 		 * The key type is unused, but is required to be 'M' or
 		 * 'm' for compatibility.
 		 */
-		if (!(*token == 'M' || *token == 'm')) {
+		if (! (toupper(*token) == 'M')) {
 			log_maybe(NULL,
 				  "authreadkeys: invalid type for key %d",
 				  keyno);
@@ -357,13 +357,21 @@ authreadkeys(
 			continue;
 		}
 
-		INSIST(NULL != next);
+		DEBUG_INSIST(NULL != next);
+#if defined(OPENSSL) && defined(ENABLE_CMAC)
+		if (NID_cmac == keytype && len < 16) {
+			msyslog(LOG_WARNING, CMAC " keys are 128 bits, "
+				"zero-extending key %u by %u bits",
+				(u_int)keyno, 8 * (16 - (u_int)len));
+		}
+#endif	/* OPENSSL && ENABLE_CMAC */
 		next->next = list;
 		list = next;
 	}
 	fclose(fp);
 	if (nerr > 0) {
 		const char * why = "";
+
 		if (nerr > nerr_maxlimit)
 			why = " (emergency break)";
 		msyslog(LOG_ERR,

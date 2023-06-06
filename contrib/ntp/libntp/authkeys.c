@@ -284,8 +284,7 @@ init_auth(void)
 	 */
 	newalloc = authhashbuckets * sizeof(key_hash[0]);
 
-	key_hash = erealloc(key_hash, newalloc);
-	memset(key_hash, '\0', newalloc);
+	key_hash = emalloc_zero(newalloc);
 
 	INIT_DLIST(key_listhead, llink);
 
@@ -458,7 +457,7 @@ auth_resize_hashtable(void)
 	newalloc = authhashbuckets * sizeof(key_hash[0]);
 
 	key_hash = erealloc(key_hash, newalloc);
-	memset(key_hash, '\0', newalloc);
+	zero_mem(key_hash, newalloc);
 
 	ITER_DLIST_BEGIN(key_listhead, sk, llink, symkey)
 		hash = KEYHASH(sk->keyid);
@@ -528,14 +527,14 @@ freesymkey(
 
 	bucket = &key_hash[KEYHASH(sk->keyid)];
 	if (sk->secret != NULL) {
-		memset(sk->secret, '\0', sk->secretsize);
+		zero_mem(sk->secret, sk->secretsize);
 		free(sk->secret);
 	}
 	UNLINK_SLIST(unlinked, *bucket, sk, hlink, symkey);
 	DEBUG_ENSURE(sk == unlinked);
 	UNLINK_DLIST(sk, llink);
-	memset((char *)sk + offsetof(symkey, symkey_payload), '\0',
-	       sizeof(*sk) - offsetof(symkey, symkey_payload));
+	zero_mem((char *)sk + offsetof(symkey, symkey_payload),
+		 sizeof(*sk) - offsetof(symkey, symkey_payload));
 	LINK_SLIST(authfreekeys, sk, llink.f);
 	authnumkeys--;
 	authnumfreekeys++;
@@ -719,13 +718,13 @@ authistrusted(
 
 	if (keyno == cache_keyid) {
 		return (KEY_TRUSTED & cache_flags) &&
-		    keyacc_contains(cache_keyacclist, sau, TRUE);
+			keyacc_contains(cache_keyacclist, sau, TRUE);
 	}
 
 	if (NULL != (sk = auth_findkey(keyno))) {
 		authkeyuncached++;
 		return (KEY_TRUSTED & sk->flags) &&
-		    keyacc_contains(sk->keyacclist, sau, TRUE);
+			keyacc_contains(sk->keyacclist, sau, TRUE);
 	}
 
 	authkeynotfound++;
@@ -800,7 +799,7 @@ MD5auth_setkey(
 	allocsymkey(keyno, 0, (u_short)keytype, 0,
 		    secretsize, secret, ka);
 #ifdef DEBUG
-	if (debug >= 4) {
+	if (debug >= 1) {
 		size_t	j;
 
 		printf("auth_setkey: key %d type %d len %d ", (int)keyno,
@@ -816,7 +815,7 @@ MD5auth_setkey(
 
 /*
  * auth_delkeys - delete non-autokey untrusted keys, and clear all info
- *                except the trusted bit of non-autokey trusted keys, in
+ *		  except the trusted bit of non-autokey trusted keys, in
  *		  preparation for rereading the keys file.
  */
 void
@@ -835,7 +834,7 @@ auth_delkeys(void)
 		 */
 		if (KEY_TRUSTED & sk->flags) {
 			if (sk->secret != NULL) {
-				memset(sk->secret, 0, sk->secretsize);
+				zero_mem(sk->secret, sk->secretsize);
 				free(sk->secret);
 				sk->secret = NULL; /* TALOS-CAN-0054 */
 			}
@@ -886,9 +885,9 @@ authencrypt(
 	 * consists of a single word with value zero.
 	 */
 	authencryptions++;
-	pkt[length / 4] = htonl(keyno);
+	pkt[length / KEY_MAC_LEN] = htonl(keyno);
 	if (0 == keyno) {
-		return 4;
+		return KEY_MAC_LEN;
 	}
 	if (!authhavekey(keyno)) {
 		return 0;
@@ -972,7 +971,7 @@ pwdecode_hex(
 				reslen = (size_t)-1;
 				break;
 			}
-			tmp = (u_char)((ptr - hex) > 1);
+			tmp = (u_char)((ptr - hex) >> 1);
 			if (j & 1)
 				dst[j >> 1] |= tmp;
 			else

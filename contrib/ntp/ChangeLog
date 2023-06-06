@@ -1,4 +1,18 @@
 ---
+(4.2.8p17) 2023/06/06 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Bug 3824] Spurious "ntpd: daemon failed to notify parent!" logged at
+             event_sync.  Reported by Edward McGuire.  <hart@ntp.org>
+* [Bug 3822] ntpd significantly delays first poll of servers specified by name.
+             <hart@ntp.org>  Miroslav Lichvar identified regression in 4.2.8p16.
+* [Bug 3821] 4.2.8p16 misreads hex authentication keys, won't interop with
+             4.2.8p15 or earlier.  Reported by Matt Nordhoff, thanks to
+	     Miroslav Lichvar and Matt for rapid testing and identifying the
+	     problem. <hart@ntp.org>
+* Add tests/libntp/digests.c to catch regressions reading keys file or with
+  symmetric authentication digest output.
+
+---
 (4.2.8p16) 2023/05/31 Released by Harlan Stenn <stenn@ntp.org>
 
 * [Sec 3808] Assertion failure in ntpq on malformed RT-11 date <perlinger@ntp.org>

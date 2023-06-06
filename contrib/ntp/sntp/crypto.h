@@ -8,7 +8,6 @@
 #include <ntp_fp.h>
 #include <ntp.h>
 #include <ntp_stdlib.h>
-#include <ntp_md5.h>	/* provides OpenSSL digest API */
 #include "utilities.h"
 #include "sntp-opts.h"
 
