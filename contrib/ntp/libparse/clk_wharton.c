@@ -9,6 +9,8 @@
 #include <config.h>
 #endif
 
+#include <ntp_types.h>
+
 #if defined(REFCLOCK) && defined(CLOCK_PARSE) && defined(CLOCK_WHARTON_400A)
 /*
  * Support for WHARTON 400A Series clock + 404.2 serial interface.
