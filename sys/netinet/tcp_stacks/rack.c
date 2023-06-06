@@ -7445,7 +7445,7 @@ rack_timeout_persist(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 	 * the idle time (no responses to probes) reaches the maximum
 	 * backoff that we would use if retransmitting.
 	 */
-	if (tp->t_rxtshift == TCP_MAXRXTSHIFT &&
+	if (tp->t_rxtshift >= V_tcp_retries &&
 	    (ticks - tp->t_rcvtime >= tcp_maxpersistidle ||
 	     TICKS_2_USEC(ticks - tp->t_rcvtime) >= RACK_REXMTVAL(tp) * tcp_totbackoff)) {
 		KMOD_TCPSTAT_INC(tcps_persistdrop);
@@ -7491,7 +7491,7 @@ rack_timeout_persist(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 			tp->t_flags &= ~TF_DELACK;
 		free(t_template, M_TEMP);
 	}
-	if (tp->t_rxtshift < TCP_MAXRXTSHIFT)
+	if (tp->t_rxtshift < V_tcp_retries)
 		tp->t_rxtshift++;
 out:
 	rack_log_to_event(rack, RACK_TO_FRM_PERSIST, NULL);
@@ -7783,10 +7783,10 @@ rack_timeout_rxt(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 		 */
 		tp->t_rxtshift++;
 	}
-	if (tp->t_rxtshift > TCP_MAXRXTSHIFT) {
+	if (tp->t_rxtshift > V_tcp_retries) {
 		tcp_log_end_status(tp, TCP_EI_STATUS_RETRAN);
 drop_it:
-		tp->t_rxtshift = TCP_MAXRXTSHIFT;
+		tp->t_rxtshift = V_tcp_retries;
 		KMOD_TCPSTAT_INC(tcps_timeoutdrop);
 		/* XXXGL: previously t_softerror was casted to uint16_t */
 		MPASS(tp->t_softerror >= 0);

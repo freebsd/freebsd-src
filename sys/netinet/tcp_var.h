@@ -1289,6 +1289,7 @@ VNET_DECLARE(int, tcp_perconn_stats_dflt_tpl);
 VNET_DECLARE(int, tcp_perconn_stats_enable);
 #endif /* STATS */
 VNET_DECLARE(int, tcp_recvspace);
+VNET_DECLARE(int, tcp_retries);
 VNET_DECLARE(int, tcp_sack_globalholes);
 VNET_DECLARE(int, tcp_sack_globalmaxholes);
 VNET_DECLARE(int, tcp_sack_maxholes);
@@ -1335,6 +1336,7 @@ VNET_DECLARE(struct inpcbinfo, tcbinfo);
 #define	V_tcp_perconn_stats_enable	VNET(tcp_perconn_stats_enable)
 #endif /* STATS */
 #define	V_tcp_recvspace			VNET(tcp_recvspace)
+#define	V_tcp_retries			VNET(tcp_retries)
 #define	V_tcp_sack_globalholes		VNET(tcp_sack_globalholes)
 #define	V_tcp_sack_globalmaxholes	VNET(tcp_sack_globalmaxholes)
 #define	V_tcp_sack_maxholes		VNET(tcp_sack_maxholes)
