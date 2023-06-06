@@ -10,11 +10,6 @@
 #include "crypto.h"
 #include <ctype.h>
 #include "isc/string.h"
-#include "ntp_md5.h"
-
-#ifndef EVP_MAX_MD_SIZE
-# define EVP_MAX_MD_SIZE 32
-#endif
 
 struct key *key_ptr;
 size_t key_cnt = 0;

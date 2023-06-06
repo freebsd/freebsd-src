@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH ntptrace @NTPTRACE_MS@ "31 May 2023" "ntp (4.2.8p16)" "User Commands"
+.TH ntptrace @NTPTRACE_MS@ "06 Jun 2023" "ntp (4.2.8p17)" "User Commands"
 .\"
 .\" EDIT THIS FILE WITH CAUTION (in-mem file)
 .\"
-.\" It has been AutoGen-ed May 31, 2023 at 08:04:31 PM by AutoGen 5.18.16
+.\" It has been AutoGen-ed June 6, 2023 at 04:39:28 AM by AutoGen 5.18.16
 .\" From the definitions ntptrace-opts.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
