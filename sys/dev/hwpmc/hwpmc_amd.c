@@ -582,6 +582,9 @@ amd_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	if (pd->pd_class != a->pm_class)
 		return EINVAL;
 
+	if ((a->pm_flags & PMC_F_EV_PMU) == 0)
+		return (EINVAL);
+
 	caps = pm->pm_caps;
 
 	PMCDBG2(MDP,ALL,1,"amd-allocate ri=%d caps=0x%x", ri, caps);

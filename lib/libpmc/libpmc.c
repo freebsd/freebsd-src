@@ -33,7 +33,6 @@
 #include <sys/pmc.h>
 #include <sys/syscall.h>
 
-#include <assert.h>
 #include <ctype.h>
 #include <errno.h>
 #include <err.h>
@@ -1083,14 +1082,8 @@ pmc_allocate(const char *ctrspec, enum pmc_mode mode,
 	r = spec_copy = strdup(ctrspec);
 	ctrname = strsep(&r, ",");
 	if (pmc_pmu_enabled()) {
-		if (pmc_pmu_pmcallocate(ctrname, &pmc_config) == 0) {
-			/*
-			 * XXX: pmclog_get_event exploits this to disambiguate
-			 *      PMU from PMC event codes in PMCALLOCATE events.
-			 */
-			assert(pmc_config.pm_ev < PMC_EVENT_FIRST);
+		if (pmc_pmu_pmcallocate(ctrname, &pmc_config) == 0)
 			goto found;
-		}
 	}
 	free(spec_copy);
 	spec_copy = NULL;
