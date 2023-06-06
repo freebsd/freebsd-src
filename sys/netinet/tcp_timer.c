@@ -201,6 +201,28 @@ static int	per_cpu_timers = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, per_cpu_timers, CTLFLAG_RW,
     &per_cpu_timers , 0, "run tcp timers on all cpus");
 
+static int
+sysctl_net_inet_tcp_retries(SYSCTL_HANDLER_ARGS)
+{
+	int error, new;
+
+	new = V_tcp_retries;
+	error = sysctl_handle_int(oidp, &new, 0, req);
+	if (error == 0 && req->newptr) {
+		if ((new < 1) || (new > TCP_MAXRXTSHIFT))
+			error = EINVAL;
+		else
+			V_tcp_retries = new;
+	}
+	return (error);
+}
+
+VNET_DEFINE(int, tcp_retries) = TCP_MAXRXTSHIFT;
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, retries,
+    CTLTYPE_INT | CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(tcp_retries), 0, sysctl_net_inet_tcp_retries, "I",
+    "maximum number of consecutive timer based retransmissions");
+
 /*
  * Map the given inp to a CPU id.
  *
@@ -492,7 +514,7 @@ tcp_timer_persist(struct tcpcb *tp)
 	 * progress.
 	 */
 	progdrop = tcp_maxunacktime_check(tp);
-	if (progdrop || (tp->t_rxtshift == TCP_MAXRXTSHIFT &&
+	if (progdrop || (tp->t_rxtshift >= V_tcp_retries &&
 	    (ticks - tp->t_rcvtime >= tcp_maxpersistidle ||
 	     ticks - tp->t_rcvtime >= TCP_REXMTVAL(tp) * tcp_totbackoff))) {
 		if (!progdrop)
@@ -555,10 +577,10 @@ tcp_timer_rexmt(struct tcpcb *tp)
 	 * or we've gone long enough without making progress, then drop
 	 * the session.
 	 */
-	if (++tp->t_rxtshift > TCP_MAXRXTSHIFT || tcp_maxunacktime_check(tp)) {
-		if (tp->t_rxtshift > TCP_MAXRXTSHIFT)
+	if (++tp->t_rxtshift > V_tcp_retries || tcp_maxunacktime_check(tp)) {
+		if (tp->t_rxtshift > V_tcp_retries)
 			TCPSTAT_INC(tcps_timeoutdrop);
-		tp->t_rxtshift = TCP_MAXRXTSHIFT;
+		tp->t_rxtshift = V_tcp_retries;
 		tcp_log_end_status(tp, TCP_EI_STATUS_RETRAN);
 		NET_EPOCH_ENTER(et);
 		tp = tcp_drop(tp, ETIMEDOUT);

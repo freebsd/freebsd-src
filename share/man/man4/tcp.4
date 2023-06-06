@@ -34,7 +34,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd February 3, 2023
+.Dd June 6, 2023
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -843,6 +843,9 @@ Maximum size of automatic receive buffer.
 Initial
 .Tn TCP
 receive window (buffer size).
+.It Va retries
+Maximum number of consecutive timer based retransmits sent after a data
+segment is lost (default and maximum is 12).
 .It Va rexmit_drop_options
 Drop TCP options from third and later retransmitted SYN segments
 of a connection.
