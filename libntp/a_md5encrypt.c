@@ -9,7 +9,6 @@
 #include "ntp_string.h"
 #include "ntp_stdlib.h"
 #include "ntp.h"
-#include "ntp_md5.h"	/* provides OpenSSL digest API */
 #include "isc/string.h"
 
 typedef struct {
@@ -22,10 +21,12 @@ typedef struct {
 	size_t		len;
 } rwbuffT;
 
+
 #if defined(OPENSSL) && defined(ENABLE_CMAC)
 static size_t
 cmac_ctx_size(
-	CMAC_CTX *	ctx)
+	CMAC_CTX *	ctx
+	)
 {
 	size_t mlen = 0;
 
@@ -36,14 +37,16 @@ cmac_ctx_size(
 	}
 	return mlen;
 }
-#endif /*OPENSSL && ENABLE_CMAC*/
+#endif	/* OPENSSL && ENABLE_CMAC */
+
 
 static size_t
 make_mac(
 	const rwbuffT *	digest,
 	int		ktype,
 	const robuffT *	key,
-	const robuffT *	msg)
+	const robuffT *	msg
+	)
 {
 	/*
 	 * Compute digest of key concatenated with packet. Note: the
@@ -66,8 +69,8 @@ make_mac(
 		/* adjust key size (zero padded buffer) if necessary */
 		if (AES_128_KEY_SIZE > key->len) {
 			memcpy(keybuf, keyptr, key->len);
-			memset((keybuf + key->len), 0,
-			       (AES_128_KEY_SIZE - key->len));
+			zero_mem((keybuf + key->len),
+				 (AES_128_KEY_SIZE - key->len));
 			keyptr = keybuf;
 		}
 
@@ -107,10 +110,10 @@ make_mac(
 			goto mac_fail;
 		}
 
-           #ifdef EVP_MD_CTX_FLAG_NON_FIPS_ALLOW
+	   #ifdef EVP_MD_CTX_FLAG_NON_FIPS_ALLOW
 		/* make sure MD5 is allowd */
 		EVP_MD_CTX_set_flags(ctx, EVP_MD_CTX_FLAG_NON_FIPS_ALLOW);
-           #endif
+	   #endif
 		/* [Bug 3457] DON'T use plain EVP_DigestInit! It would
 		 * kill the flags! */
 		if (!EVP_DigestInit_ex(ctx, EVP_get_digestbynid(ktype), NULL)) {
@@ -239,8 +242,8 @@ MD5authdecrypt(
 		dlen = MAX_MDG_LEN;
 	if (size != (size_t)dlen + KEY_MAC_LEN) {
 		msyslog(LOG_ERR,
-		    "MAC decrypt: MAC length error: len=%zu key=%d",
-			size, keyno);
+			"MAC decrypt: MAC length error: len=%u key=%d",
+			(u_int)size, keyno);
 		return (0);
 	}
 	return !isc_tsmemcmp(digest,

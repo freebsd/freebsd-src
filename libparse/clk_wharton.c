@@ -15,7 +15,6 @@
  */
 
 #include "ntp_fp.h"
-#include "ascii.h"
 #include "parse.h"
 
 #ifndef PARSESTREAM
@@ -25,6 +24,8 @@
 #include "sys/parsestreams.h"
 extern void printf (const char *, ...);
 #endif
+
+#include "ascii.h"
 
 /*
  * In private e-mail alastair@wharton.co.uk said :
@@ -166,7 +167,7 @@ clockformat_t   clock_wharton_400a =
 };
 
 #else /* not (REFCLOCK && CLOCK_PARSE && CLOCK_WHARTON_400A) */
-int clk_wharton_400a_bs;
+NONEMPTY_TRANSLATION_UNIT
 #endif /* not (REFCLOCK && CLOCK_PARSE && CLOCK_WHARTON_400A) */
 
 /*

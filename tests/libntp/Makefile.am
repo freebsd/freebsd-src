@@ -8,10 +8,19 @@ std_unity_list =	 						\
 	$(abs_srcdir)/testconf.yml					\
 	$(NULL)
 
+#
+# Note: the rules to generate run-c_filename.c from c_filename.c below
+#	use the gmake $< construct for the first prerequisite, which
+#	does not work on FreeBSD make.  Use gmake when adding a new
+#	test source file, and check in the resulting run-*.c.
+#
+
 run_unity =	ruby $(std_unity_list)
 
 EXTRA_DIST =				\
 	testconf.yml			\
+	data/ntp.keys			\
+	data/mills,david-03.jpg		\
 	$(NULL)
 
 check_PROGRAMS =		\
@@ -26,6 +35,7 @@ check_PROGRAMS =		\
 	test-calyearstart	\
 	test-clocktime		\
 	test-decodenetnum	\
+	test-digests		\
 	test-hextoint		\
 	test-hextolfp		\
 	test-humandate		\
@@ -58,13 +68,13 @@ check_PROGRAMS =		\
 	test-ymd2yd		\
 	$(NULL)
 
-LDADD =					\
+LDADD =						\
 	$(top_builddir)/sntp/unity/libunity.a	\
-	$(top_builddir)/libntp/libntp.a	\
-	$(LDADD_LIBNTP)			\
-	$(PTHREAD_LIBS)			\
-	$(LDADD_NTP)			\
-	$(LIBM)				\
+	$(top_builddir)/libntp/libntp.a		\
+	$(LDADD_LIBNTP)				\
+	$(PTHREAD_LIBS)				\
+	$(LDADD_NTP)				\
+	$(LIBM)					\
 	$(NULL)
 
 AM_CFLAGS  = $(CFLAGS_NTP)
@@ -92,6 +102,7 @@ BUILT_SOURCES +=			\
 	$(srcdir)/run-calyearstart.c	\
 	$(srcdir)/run-clocktime.c	\
 	$(srcdir)/run-decodenetnum.c	\
+	$(srcdir)/run-digests.c		\
 	$(srcdir)/run-hextoint.c	\
 	$(srcdir)/run-hextolfp.c	\
 	$(srcdir)/run-humandate.c	\
@@ -260,6 +271,22 @@ test_decodenetnum_SOURCES =	\
 
 $(srcdir)/run-decodenetnum.c: $(srcdir)/decodenetnum.c $(std_unity_list)
 	$(run_unity) $< $@
+
+###
+
+test_digests_SOURCES =		\
+	digests.c		\
+	run-digests.c		\
+	$(NULL)
+
+$(srcdir)/run-digests.c: $(srcdir)/digests.c $(std_unity_list)
+	$(run_unity) $< $@
+
+nodist_test_digests_SOURCES = srcdir.c
+CLEANFILES += srcdir.c
+
+srcdir.c: Makefile
+	$(AM_V_GEN)echo 'const char srcdir[] = "$(srcdir)";' >$@
 
 ###
 

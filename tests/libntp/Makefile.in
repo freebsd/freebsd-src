@@ -93,11 +93,11 @@ check_PROGRAMS = test-a_md5encrypt$(EXEEXT) test-atoint$(EXEEXT) \
 	test-buftvtots$(EXEEXT) test-calendar$(EXEEXT) \
 	test-caljulian$(EXEEXT) test-caltontp$(EXEEXT) \
 	test-calyearstart$(EXEEXT) test-clocktime$(EXEEXT) \
-	test-decodenetnum$(EXEEXT) test-hextoint$(EXEEXT) \
-	test-hextolfp$(EXEEXT) test-humandate$(EXEEXT) \
-	test-lfpfunc$(EXEEXT) test-lfptostr$(EXEEXT) \
-	test-modetoa$(EXEEXT) test-msyslog$(EXEEXT) \
-	test-netof$(EXEEXT) test-numtoa$(EXEEXT) \
+	test-decodenetnum$(EXEEXT) test-digests$(EXEEXT) \
+	test-hextoint$(EXEEXT) test-hextolfp$(EXEEXT) \
+	test-humandate$(EXEEXT) test-lfpfunc$(EXEEXT) \
+	test-lfptostr$(EXEEXT) test-modetoa$(EXEEXT) \
+	test-msyslog$(EXEEXT) test-netof$(EXEEXT) test-numtoa$(EXEEXT) \
 	test-numtohost$(EXEEXT) test-octtoint$(EXEEXT) \
 	test-prettydate$(EXEEXT) test-realpath$(EXEEXT) \
 	test-recvbuff$(EXEEXT) test-refidsmear$(EXEEXT) \
@@ -273,6 +273,16 @@ test_decodenetnum_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
 	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
 	$(test_decodenetnum_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) \
 	-o $@
+am_test_digests_OBJECTS = digests.$(OBJEXT) run-digests.$(OBJEXT) \
+	$(am__objects_1)
+nodist_test_digests_OBJECTS = srcdir.$(OBJEXT)
+test_digests_OBJECTS = $(am_test_digests_OBJECTS) \
+	$(nodist_test_digests_OBJECTS)
+test_digests_LDADD = $(LDADD)
+test_digests_DEPENDENCIES = $(top_builddir)/sntp/unity/libunity.a \
+	$(top_builddir)/libntp/libntp.a $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_test_hextoint_OBJECTS = hextoint.$(OBJEXT) run-hextoint.$(OBJEXT) \
 	$(am__objects_1)
 test_hextoint_OBJECTS = $(am_test_hextoint_OBJECTS)
@@ -536,19 +546,20 @@ am__depfiles_remade = ./$(DEPDIR)/a_md5encrypt.Po \
 	./$(DEPDIR)/atoint.Po ./$(DEPDIR)/atouint.Po \
 	./$(DEPDIR)/authkeys.Po ./$(DEPDIR)/buftvtots.Po \
 	./$(DEPDIR)/calendar.Po ./$(DEPDIR)/calyearstart.Po \
-	./$(DEPDIR)/clocktime.Po ./$(DEPDIR)/hextoint.Po \
-	./$(DEPDIR)/hextolfp.Po ./$(DEPDIR)/humandate.Po \
-	./$(DEPDIR)/lfpfunc.Po ./$(DEPDIR)/lfptest.Po \
-	./$(DEPDIR)/lfptostr.Po ./$(DEPDIR)/modetoa.Po \
-	./$(DEPDIR)/msyslog.Po ./$(DEPDIR)/netof.Po \
-	./$(DEPDIR)/numtoa.Po ./$(DEPDIR)/numtohost.Po \
-	./$(DEPDIR)/octtoint.Po ./$(DEPDIR)/prettydate.Po \
-	./$(DEPDIR)/realpath.Po ./$(DEPDIR)/recvbuff.Po \
-	./$(DEPDIR)/refidsmear.Po ./$(DEPDIR)/refnumtoa.Po \
-	./$(DEPDIR)/run-a_md5encrypt.Po ./$(DEPDIR)/run-atoint.Po \
-	./$(DEPDIR)/run-atouint.Po ./$(DEPDIR)/run-authkeys.Po \
-	./$(DEPDIR)/run-buftvtots.Po ./$(DEPDIR)/run-calendar.Po \
-	./$(DEPDIR)/run-calyearstart.Po ./$(DEPDIR)/run-clocktime.Po \
+	./$(DEPDIR)/clocktime.Po ./$(DEPDIR)/digests.Po \
+	./$(DEPDIR)/hextoint.Po ./$(DEPDIR)/hextolfp.Po \
+	./$(DEPDIR)/humandate.Po ./$(DEPDIR)/lfpfunc.Po \
+	./$(DEPDIR)/lfptest.Po ./$(DEPDIR)/lfptostr.Po \
+	./$(DEPDIR)/modetoa.Po ./$(DEPDIR)/msyslog.Po \
+	./$(DEPDIR)/netof.Po ./$(DEPDIR)/numtoa.Po \
+	./$(DEPDIR)/numtohost.Po ./$(DEPDIR)/octtoint.Po \
+	./$(DEPDIR)/prettydate.Po ./$(DEPDIR)/realpath.Po \
+	./$(DEPDIR)/recvbuff.Po ./$(DEPDIR)/refidsmear.Po \
+	./$(DEPDIR)/refnumtoa.Po ./$(DEPDIR)/run-a_md5encrypt.Po \
+	./$(DEPDIR)/run-atoint.Po ./$(DEPDIR)/run-atouint.Po \
+	./$(DEPDIR)/run-authkeys.Po ./$(DEPDIR)/run-buftvtots.Po \
+	./$(DEPDIR)/run-calendar.Po ./$(DEPDIR)/run-calyearstart.Po \
+	./$(DEPDIR)/run-clocktime.Po ./$(DEPDIR)/run-digests.Po \
 	./$(DEPDIR)/run-hextoint.Po ./$(DEPDIR)/run-hextolfp.Po \
 	./$(DEPDIR)/run-humandate.Po ./$(DEPDIR)/run-lfpfunc.Po \
 	./$(DEPDIR)/run-lfptostr.Po ./$(DEPDIR)/run-modetoa.Po \
@@ -565,8 +576,9 @@ am__depfiles_remade = ./$(DEPDIR)/a_md5encrypt.Po \
 	./$(DEPDIR)/run-uglydate.Po ./$(DEPDIR)/run-vi64ops.Po \
 	./$(DEPDIR)/run-ymd2yd.Po ./$(DEPDIR)/sbprintf.Po \
 	./$(DEPDIR)/sfptostr.Po ./$(DEPDIR)/sockaddrtest.Po \
-	./$(DEPDIR)/socktoa.Po ./$(DEPDIR)/ssl_init.Po \
-	./$(DEPDIR)/statestr.Po ./$(DEPDIR)/test-libntp.Po \
+	./$(DEPDIR)/socktoa.Po ./$(DEPDIR)/srcdir.Po \
+	./$(DEPDIR)/ssl_init.Po ./$(DEPDIR)/statestr.Po \
+	./$(DEPDIR)/test-libntp.Po \
 	./$(DEPDIR)/test_caljulian-caljulian.Po \
 	./$(DEPDIR)/test_caljulian-run-caljulian.Po \
 	./$(DEPDIR)/test_caljulian-test-libntp.Po \
@@ -606,7 +618,8 @@ SOURCES = $(test_a_md5encrypt_SOURCES) $(test_atoint_SOURCES) \
 	$(test_buftvtots_SOURCES) $(test_calendar_SOURCES) \
 	$(test_caljulian_SOURCES) $(test_caltontp_SOURCES) \
 	$(test_calyearstart_SOURCES) $(test_clocktime_SOURCES) \
-	$(test_decodenetnum_SOURCES) $(test_hextoint_SOURCES) \
+	$(test_decodenetnum_SOURCES) $(test_digests_SOURCES) \
+	$(nodist_test_digests_SOURCES) $(test_hextoint_SOURCES) \
 	$(test_hextolfp_SOURCES) $(test_humandate_SOURCES) \
 	$(test_lfpfunc_SOURCES) $(test_lfptostr_SOURCES) \
 	$(test_modetoa_SOURCES) $(test_msyslog_SOURCES) \
@@ -627,22 +640,22 @@ DIST_SOURCES = $(test_a_md5encrypt_SOURCES) $(test_atoint_SOURCES) \
 	$(test_buftvtots_SOURCES) $(test_calendar_SOURCES) \
 	$(test_caljulian_SOURCES) $(test_caltontp_SOURCES) \
 	$(test_calyearstart_SOURCES) $(test_clocktime_SOURCES) \
-	$(test_decodenetnum_SOURCES) $(test_hextoint_SOURCES) \
-	$(test_hextolfp_SOURCES) $(test_humandate_SOURCES) \
-	$(test_lfpfunc_SOURCES) $(test_lfptostr_SOURCES) \
-	$(test_modetoa_SOURCES) $(test_msyslog_SOURCES) \
-	$(test_netof_SOURCES) $(test_numtoa_SOURCES) \
-	$(test_numtohost_SOURCES) $(test_octtoint_SOURCES) \
-	$(test_prettydate_SOURCES) $(test_realpath_SOURCES) \
-	$(test_recvbuff_SOURCES) $(test_refidsmear_SOURCES) \
-	$(test_refnumtoa_SOURCES) $(test_sbprintf_SOURCES) \
-	$(test_sfptostr_SOURCES) $(test_socktoa_SOURCES) \
-	$(test_ssl_init_SOURCES) $(test_statestr_SOURCES) \
-	$(test_strtolfp_SOURCES) $(test_timespecops_SOURCES) \
-	$(test_timevalops_SOURCES) $(test_tsafememcmp_SOURCES) \
-	$(test_tstotv_SOURCES) $(test_tvtots_SOURCES) \
-	$(test_uglydate_SOURCES) $(test_vi64ops_SOURCES) \
-	$(test_ymd2yd_SOURCES)
+	$(test_decodenetnum_SOURCES) $(test_digests_SOURCES) \
+	$(test_hextoint_SOURCES) $(test_hextolfp_SOURCES) \
+	$(test_humandate_SOURCES) $(test_lfpfunc_SOURCES) \
+	$(test_lfptostr_SOURCES) $(test_modetoa_SOURCES) \
+	$(test_msyslog_SOURCES) $(test_netof_SOURCES) \
+	$(test_numtoa_SOURCES) $(test_numtohost_SOURCES) \
+	$(test_octtoint_SOURCES) $(test_prettydate_SOURCES) \
+	$(test_realpath_SOURCES) $(test_recvbuff_SOURCES) \
+	$(test_refidsmear_SOURCES) $(test_refnumtoa_SOURCES) \
+	$(test_sbprintf_SOURCES) $(test_sfptostr_SOURCES) \
+	$(test_socktoa_SOURCES) $(test_ssl_init_SOURCES) \
+	$(test_statestr_SOURCES) $(test_strtolfp_SOURCES) \
+	$(test_timespecops_SOURCES) $(test_timevalops_SOURCES) \
+	$(test_tsafememcmp_SOURCES) $(test_tstotv_SOURCES) \
+	$(test_tvtots_SOURCES) $(test_uglydate_SOURCES) \
+	$(test_vi64ops_SOURCES) $(test_ymd2yd_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -1150,42 +1163,51 @@ BUILT_SOURCES = $(srcdir)/run-a_md5encrypt.c $(srcdir)/run-atoint.c \
 	$(srcdir)/run-buftvtots.c $(srcdir)/run-calendar.c \
 	$(srcdir)/run-caljulian.c $(srcdir)/run-caltontp.c \
 	$(srcdir)/run-calyearstart.c $(srcdir)/run-clocktime.c \
-	$(srcdir)/run-decodenetnum.c $(srcdir)/run-hextoint.c \
-	$(srcdir)/run-hextolfp.c $(srcdir)/run-humandate.c \
-	$(srcdir)/run-lfpfunc.c $(srcdir)/run-lfptostr.c \
-	$(srcdir)/run-modetoa.c $(srcdir)/run-msyslog.c \
-	$(srcdir)/run-netof.c $(srcdir)/run-numtoa.c \
-	$(srcdir)/run-numtohost.c $(srcdir)/run-octtoint.c \
-	$(srcdir)/run-prettydate.c $(srcdir)/run-realpath.c \
-	$(srcdir)/run-recvbuff.c $(srcdir)/run-refidsmear.c \
-	$(srcdir)/run-refnumtoa.c $(srcdir)/run-sbprintf.c \
-	$(srcdir)/run-sfptostr.c $(srcdir)/run-socktoa.c \
-	$(srcdir)/run-ssl_init.c $(srcdir)/run-statestr.c \
-	$(srcdir)/run-strtolfp.c $(srcdir)/run-timevalops.c \
-	$(srcdir)/run-timespecops.c $(srcdir)/run-tsafememcmp.c \
-	$(srcdir)/run-tstotv.c $(srcdir)/run-tvtots.c \
-	$(srcdir)/run-uglydate.c $(srcdir)/run-vi64ops.c \
-	$(srcdir)/run-ymd2yd.c $(NULL) check-libntp check-libunity \
-	.deps-ver
-CLEANFILES = check-libntp .deps-ver
+	$(srcdir)/run-decodenetnum.c $(srcdir)/run-digests.c \
+	$(srcdir)/run-hextoint.c $(srcdir)/run-hextolfp.c \
+	$(srcdir)/run-humandate.c $(srcdir)/run-lfpfunc.c \
+	$(srcdir)/run-lfptostr.c $(srcdir)/run-modetoa.c \
+	$(srcdir)/run-msyslog.c $(srcdir)/run-netof.c \
+	$(srcdir)/run-numtoa.c $(srcdir)/run-numtohost.c \
+	$(srcdir)/run-octtoint.c $(srcdir)/run-prettydate.c \
+	$(srcdir)/run-realpath.c $(srcdir)/run-recvbuff.c \
+	$(srcdir)/run-refidsmear.c $(srcdir)/run-refnumtoa.c \
+	$(srcdir)/run-sbprintf.c $(srcdir)/run-sfptostr.c \
+	$(srcdir)/run-socktoa.c $(srcdir)/run-ssl_init.c \
+	$(srcdir)/run-statestr.c $(srcdir)/run-strtolfp.c \
+	$(srcdir)/run-timevalops.c $(srcdir)/run-timespecops.c \
+	$(srcdir)/run-tsafememcmp.c $(srcdir)/run-tstotv.c \
+	$(srcdir)/run-tvtots.c $(srcdir)/run-uglydate.c \
+	$(srcdir)/run-vi64ops.c $(srcdir)/run-ymd2yd.c $(NULL) \
+	check-libntp check-libunity .deps-ver
+CLEANFILES = srcdir.c check-libntp .deps-ver
 DISTCLEANFILES = $(DEPDIR)/deps-ver
 std_unity_list = \
 	$(abs_top_srcdir)/sntp/unity/auto/generate_test_runner.rb	\
 	$(abs_srcdir)/testconf.yml					\
 	$(NULL)
 
+
+#
+# Note: the rules to generate run-c_filename.c from c_filename.c below
+#	use the gmake $< construct for the first prerequisite, which
+#	does not work on FreeBSD make.  Use gmake when adding a new
+#	test source file, and check in the resulting run-*.c.
+#
 run_unity = ruby $(std_unity_list)
 EXTRA_DIST = \
 	testconf.yml			\
+	data/ntp.keys			\
+	data/mills,david-03.jpg		\
 	$(NULL)
 
 LDADD = \
 	$(top_builddir)/sntp/unity/libunity.a	\
-	$(top_builddir)/libntp/libntp.a	\
-	$(LDADD_LIBNTP)			\
-	$(PTHREAD_LIBS)			\
-	$(LDADD_NTP)			\
-	$(LIBM)				\
+	$(top_builddir)/libntp/libntp.a		\
+	$(LDADD_LIBNTP)				\
+	$(PTHREAD_LIBS)				\
+	$(LDADD_NTP)				\
+	$(LIBM)					\
 	$(NULL)
 
 AM_CFLAGS = $(CFLAGS_NTP) $(NTP_HARD_CFLAGS)
@@ -1297,6 +1319,14 @@ test_decodenetnum_SOURCES = \
 	sockaddrtest.c		\
 	$(NULL)
 
+
+###
+test_digests_SOURCES = \
+	digests.c		\
+	run-digests.c		\
+	$(NULL)
+
+nodist_test_digests_SOURCES = srcdir.c
 
 ###
 test_hextoint_SOURCES = \
@@ -1613,6 +1643,10 @@ test-decodenetnum$(EXEEXT): $(test_decodenetnum_OBJECTS) $(test_decodenetnum_DEP
 	@rm -f test-decodenetnum$(EXEEXT)
 	$(AM_V_CCLD)$(test_decodenetnum_LINK) $(test_decodenetnum_OBJECTS) $(test_decodenetnum_LDADD) $(LIBS)
 
+test-digests$(EXEEXT): $(test_digests_OBJECTS) $(test_digests_DEPENDENCIES) $(EXTRA_test_digests_DEPENDENCIES) 
+	@rm -f test-digests$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(test_digests_OBJECTS) $(test_digests_LDADD) $(LIBS)
+
 test-hextoint$(EXEEXT): $(test_hextoint_OBJECTS) $(test_hextoint_DEPENDENCIES) $(EXTRA_test_hextoint_DEPENDENCIES) 
 	@rm -f test-hextoint$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(test_hextoint_OBJECTS) $(test_hextoint_LDADD) $(LIBS)
@@ -1747,6 +1781,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/calendar.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/calyearstart.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/clocktime.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/digests.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hextoint.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/hextolfp.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/humandate.Po@am__quote@ # am--include-marker
@@ -1772,6 +1807,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/run-calendar.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/run-calyearstart.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/run-clocktime.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/run-digests.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/run-hextoint.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/run-hextolfp.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/run-humandate.Po@am__quote@ # am--include-marker
@@ -1805,6 +1841,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sfptostr.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sockaddrtest.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/socktoa.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/srcdir.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ssl_init.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/statestr.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test-libntp.Po@am__quote@ # am--include-marker
@@ -2288,6 +2325,13 @@ test-decodenetnum.log: test-decodenetnum$(EXEEXT)
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
 	"$$tst" $(AM_TESTS_FD_REDIRECT)
+test-digests.log: test-digests$(EXEEXT)
+	@p='test-digests$(EXEEXT)'; \
+	b='test-digests'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
 test-hextoint.log: test-hextoint$(EXEEXT)
 	@p='test-hextoint$(EXEEXT)'; \
 	b='test-hextoint'; \
@@ -2604,6 +2648,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/calendar.Po
 	-rm -f ./$(DEPDIR)/calyearstart.Po
 	-rm -f ./$(DEPDIR)/clocktime.Po
+	-rm -f ./$(DEPDIR)/digests.Po
 	-rm -f ./$(DEPDIR)/hextoint.Po
 	-rm -f ./$(DEPDIR)/hextolfp.Po
 	-rm -f ./$(DEPDIR)/humandate.Po
@@ -2629,6 +2674,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/run-calendar.Po
 	-rm -f ./$(DEPDIR)/run-calyearstart.Po
 	-rm -f ./$(DEPDIR)/run-clocktime.Po
+	-rm -f ./$(DEPDIR)/run-digests.Po
 	-rm -f ./$(DEPDIR)/run-hextoint.Po
 	-rm -f ./$(DEPDIR)/run-hextolfp.Po
 	-rm -f ./$(DEPDIR)/run-humandate.Po
@@ -2662,6 +2708,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/sfptostr.Po
 	-rm -f ./$(DEPDIR)/sockaddrtest.Po
 	-rm -f ./$(DEPDIR)/socktoa.Po
+	-rm -f ./$(DEPDIR)/srcdir.Po
 	-rm -f ./$(DEPDIR)/ssl_init.Po
 	-rm -f ./$(DEPDIR)/statestr.Po
 	-rm -f ./$(DEPDIR)/test-libntp.Po
@@ -2737,6 +2784,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/calendar.Po
 	-rm -f ./$(DEPDIR)/calyearstart.Po
 	-rm -f ./$(DEPDIR)/clocktime.Po
+	-rm -f ./$(DEPDIR)/digests.Po
 	-rm -f ./$(DEPDIR)/hextoint.Po
 	-rm -f ./$(DEPDIR)/hextolfp.Po
 	-rm -f ./$(DEPDIR)/humandate.Po
@@ -2762,6 +2810,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/run-calendar.Po
 	-rm -f ./$(DEPDIR)/run-calyearstart.Po
 	-rm -f ./$(DEPDIR)/run-clocktime.Po
+	-rm -f ./$(DEPDIR)/run-digests.Po
 	-rm -f ./$(DEPDIR)/run-hextoint.Po
 	-rm -f ./$(DEPDIR)/run-hextolfp.Po
 	-rm -f ./$(DEPDIR)/run-humandate.Po
@@ -2795,6 +2844,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/sfptostr.Po
 	-rm -f ./$(DEPDIR)/sockaddrtest.Po
 	-rm -f ./$(DEPDIR)/socktoa.Po
+	-rm -f ./$(DEPDIR)/srcdir.Po
 	-rm -f ./$(DEPDIR)/ssl_init.Po
 	-rm -f ./$(DEPDIR)/statestr.Po
 	-rm -f ./$(DEPDIR)/test-libntp.Po
@@ -2887,6 +2937,12 @@ $(srcdir)/run-clocktime.c: $(srcdir)/clocktime.c $(std_unity_list)
 
 $(srcdir)/run-decodenetnum.c: $(srcdir)/decodenetnum.c $(std_unity_list)
 	$(run_unity) $< $@
+
+$(srcdir)/run-digests.c: $(srcdir)/digests.c $(std_unity_list)
+	$(run_unity) $< $@
+
+srcdir.c: Makefile
+	$(AM_V_GEN)echo 'const char srcdir[] = "$(srcdir)";' >$@
 
 $(srcdir)/run-hextoint.c: $(srcdir)/hextoint.c $(std_unity_list)
 	$(run_unity) $< $@
