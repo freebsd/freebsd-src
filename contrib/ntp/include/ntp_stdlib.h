@@ -11,12 +11,17 @@
 
 #include "declcond.h"	/* ntpd uses ntpd/declcond.h, others include/ */
 #include "l_stdlib.h"
+#include "ntp_md5.h"
 #include "ntp_net.h"
 #include "ntp_debug.h"
 #include "ntp_malloc.h"
 #include "ntp_string.h"
 #include "ntp_syslog.h"
 #include "ntp_keyacc.h"
+
+#ifndef PATH_MAX
+# define PATH_MAX MAX_PATH
+#endif
 
 #ifdef __GNUC__
 #define NTP_PRINTF(fmt, args) __attribute__((__format__(__printf__, fmt, args)))
@@ -36,24 +41,16 @@ extern	void	mvsyslog(int, const char *, va_list) NTP_PRINTF(2, 0);
 extern	void	init_logging	(const char *, u_int32, int);
 extern	int	change_logfile	(const char *, int);
 extern	void	setup_logfile	(const char *);
-#ifndef errno_to_str
+#ifndef errno_to_str		/* Windows port defines this */
 extern	void	errno_to_str(int, char *, size_t);
 #endif
 
-extern char *	ntp_realpath(const char * fsname);
+extern	char *	ntp_realpath(const char *fsname);
 
-extern	int	xvsbprintf(char**, char* const, char const*, va_list) NTP_PRINTF(3, 0);
-extern	int	xsbprintf(char**, char* const, char const*, ...) NTP_PRINTF(3, 4);
-
-/*
- * When building without OpenSSL, use a few macros of theirs to
- * minimize source differences in NTP.
- */
-#ifndef OPENSSL
-#define NID_md5	4	/* from openssl/objects.h */
-/* from openssl/evp.h */
-#define EVP_MAX_MD_SIZE	64	/* longest known is SHA512 */
-#endif
+extern	int	xvsbprintf(char **, char * const, char const *, va_list)
+				NTP_PRINTF(3, 0);
+extern	int	xsbprintf(char **, char * const, char const *, ...)
+				NTP_PRINTF(3, 4);
 
 #define SAVE_ERRNO(stmt)				\
 	{						\
@@ -111,10 +108,16 @@ extern	void	auth_prealloc_symkeys(int);
 extern	int	ymd2yd		(int, int, int);
 
 /* a_md5encrypt.c */
-extern	int	MD5authdecrypt	(int, const u_char *, size_t, u_int32 *, size_t, size_t, keyid_t);
-extern	size_t	MD5authencrypt	(int, const u_char *, size_t, u_int32 *, size_t);
-extern	void	MD5auth_setkey	(keyid_t, int, const u_char *, size_t, KeyAccT *c);
-extern	u_int32	addr2refid	(sockaddr_u *);
+extern	size_t	MD5authencrypt	(int type, const u_char *key, size_t klen,
+				 u_int32 *pkt, size_t length);
+extern	int	MD5authdecrypt	(int type, const u_char *key, size_t klen,
+				 u_int32 *pkt, size_t length, size_t size,
+				 keyid_t keyno);
+extern	u_int32	addr2refid(sockaddr_u *);
+
+/* authkeys.c */
+extern	void	MD5auth_setkey	(keyid_t, int, const u_char *, size_t,
+				 KeyAccT *c);
 
 /* emalloc.c */
 #ifndef EREALLOC_CALLSITE	/* ntp_malloc.h defines */

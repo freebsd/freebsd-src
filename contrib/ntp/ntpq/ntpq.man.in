@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH ntpq @NTPQ_MS@ "31 May 2023" "4.2.8p16" "User Commands"
+.TH ntpq @NTPQ_MS@ "06 Jun 2023" "4.2.8p17" "User Commands"
 .\"
 .\" EDIT THIS FILE WITH CAUTION (in-mem file)
 .\"
-.\" It has been AutoGen-ed May 31, 2023 at 02:50:08 PM by AutoGen 5.18.16
+.\" It has been AutoGen-ed June 6, 2023 at 04:38:15 AM by AutoGen 5.18.16
 .\" From the definitions ntpq-opts.def
 .\" and the template file agman-cmd.tpl
 .SH NAME

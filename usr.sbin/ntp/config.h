@@ -1468,7 +1468,7 @@
 #define PACKAGE_NAME "ntp"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "ntp 4.2.8p16"
+#define PACKAGE_STRING "ntp 4.2.8p17"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "ntp"
@@ -1477,7 +1477,7 @@
 #define PACKAGE_URL "http://www.ntp.org./"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "4.2.8p16"
+#define PACKAGE_VERSION "4.2.8p17"
 
 /* data dir */
 #define PERLLIBDIR "/usr/share/ntp/lib"
@@ -1648,7 +1648,7 @@ typedef unsigned int	uintptr_t;
 /* #undef USE_UDP_SIGPOLL */
 
 /* Version number of package */
-#define VERSION "4.2.8p16"
+#define VERSION "4.2.8p17"
 
 /* vsnprintf expands "%m" to strerror(errno) */
 #define VSNPRINTF_PERCENT_M 1
