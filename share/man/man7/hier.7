@@ -35,19 +35,19 @@
 .Nm hier
 .Nd layout of file systems
 .Sh SYNOPSIS
-A sketch of the file system hierarchy.
+An overview of the file system hierarchy.
 .Sh DESCRIPTION
 .Bl -tag -width "/libexec/"
 .It Pa /
-root directory of the file system
+root directory
 .It Pa /bin/
-user utilities fundamental to both single-user and multi-user environments
+user utilities that are fundamental to single-user and multi-user modes
 .It Pa /boot/
-programs and configuration files used during operating system bootstrap
+programs and configuration files used during bootstrap of the operating system
 .Pp
 .Bl -tag -width "nvmecontrol/" -compact
 .It Pa defaults/
-default bootstrapping configuration files; see
+default bootstrap configuration files; see
 .Xr loader.conf 5
 .It Pa dtb/
 compiled flattened device tree (FDT) files; see
@@ -57,13 +57,13 @@ and
 .It Pa efi/
 mount point for the EFI System Partition (ESP) on UEFI systems
 .It Pa firmware/
-loadable kernel modules containing binary firmware for hardware that needs
-firmware downloaded to it to function
+loadable kernel modules containing binary firmware, for hardware to which
+firmware must be downloaded
 .It Pa kernel/
 pure kernel executable (the operating system loaded into memory at boot time)
 and kernel modules
 .It Pa modules/
-third-party loadable kernel modules, such as the ones installed from
+third-party loadable kernel modules, such as those associated with
 .Xr ports 7
 .It Pa overlays/
 compiled flattened device tree (FDT) overlays; see
@@ -81,7 +81,7 @@ If not, then the
 .Pa /usr/compat
 comments apply
 .It Pa /dev/
-device special files managed by
+the normal mount point for
 .Xr devfs 5
 .Pp
 .Bl -tag -width "nvmecontrol/" -compact
@@ -102,14 +102,16 @@ default system configuration files; see
 local timezone information; see
 .Xr ctime 3
 .It Pa mail/
-sendmail control files
+.Xr sendmail 8
+control files
 .It Pa mtree/
-mtree configuration files; see
 .Xr mtree 8
+configuration files
 .It Pa pam.d/
-configuration files for the Pluggable Authentication Modules (PAM) library
+configuration files for the Pluggable Authentication Modules (PAM) library; see
+.Xr pam 3
 .It Pa periodic/
-scripts that are run daily, weekly, and monthly, via
+scripts that are run daily, weekly, or monthly by
 .Xr cron 8 ;
 see
 .Xr periodic 8
@@ -129,13 +131,12 @@ OpenSSH configuration files; see
 OpenSSL configuration files
 .El
 .It Pa /home/
-users' HOME directories;
-the layout is not standardized, but a typical interactive user
+users' home directories; whilst the layout is not standardized, the typical home for an interactive user
 .Dv beastie
-might receive their own directory
-.Pa /home/beastie
+would be
+.Pa /home/beastie/
 .It Pa /lib/
-critical system libraries needed for binaries in
+system libraries that are critial to binaries in
 .Pa /bin
 and
 .Pa /sbin
@@ -155,12 +156,12 @@ vendor-specific libraries to extend the
 utility
 .El
 .It Pa /libexec/
-critical system utilities needed for binaries in
+system utilities that are critial to binaries in
 .Pa /bin
 and
 .Pa /sbin
 .It Pa /media/
-contains subdirectories to be used as mount points for removable media such as
+contains subdirectories that are mount points for removable media such as
 USB drives, CDs and DVDs
 .It Pa /mnt/
 empty directory commonly used by system administrators as a temporary mount
@@ -169,17 +170,17 @@ point
 automounted NFS shares; see
 .Xr auto_master 5
 .It Pa /nonexistent/
-a non-existent directory; by convention, it serves as a home directory for
-special user accounts that need no home directory; see also
+a non-existent directory; conventionally, a home directory for special user
+accounts that do not require a home directory.  See also
 .Pa /var/empty/
 .It Pa /proc/
 process file system; see
 .Xr procfs 5
 .It Pa /rescue/
-statically linked programs for emergency recovery; see
+statically-linked programs for emergency recovery; see
 .Xr rescue 8
 .It Pa /root/
-root's HOME directory
+home directory of the root user
 .It Pa /sbin/
 system programs and administration utilities
 fundamental to both single-user and multi-user environments
@@ -229,12 +230,12 @@ linker scripts; see
 .Xr ld 1
 .It Pa pkgconfig/
 .Xr pc 5 Pq Pa ports/devel/pkgconf
-files: collections of compiler flags, linker flags, and other information
+files; collections of compiler flags, linker flags, and other information
 relevant to library use
 .El
 .Pp
 .It Pa libexec/
-system daemons & system utilities (executed by other programs)
+system daemons and system utilities that are executed by other programs
 .Pp
 .Bl -tag -width Fl -compact
 .It Pa aout/
@@ -285,7 +286,7 @@ from source; see
 ports collection; see
 .Xr ports 7
 .It Pa sbin/
-system daemons & system utilities (executed by users)
+system daemons and system utilities that are executed by users
 .It Pa share/
 architecture-independent files
 .Pp
@@ -312,7 +313,7 @@ various examples for users and programmers
 .It Pa firmware/
 firmware images loaded by userland programs
 .It Pa games/
-ASCII text files used by various games
+used by various games
 .It Pa keys/
 known trusted and revoked keys
 .Pp
@@ -365,8 +366,8 @@ MIB files
 .El
 .Pp
 .It Pa syscons/
-files used by syscons; see
 .Xr syscons 4
+files
 .Pp
 .Bl -tag -width Fl -compact
 .It Pa fonts/
@@ -420,8 +421,8 @@ see
 localization support and utilities for
 .Xr vi 1
 .It Pa vt/
-files used by vt; see
 .Xr vt 4
+files
 .Pp
 .Bl -tag -width Fl -compact
 .It Pa fonts/
@@ -458,7 +459,7 @@ test suite; see
 .Xr tests 7
 .El
 .It Pa /var/
-multi-purpose log, temporary, transient, and spool files
+log, temporary, transient, and spool files
 .Pp
 .Bl -tag -width "preserve/" -compact
 .It Pa account/
@@ -476,15 +477,15 @@ timed command scheduling files; see
 .Pp
 .Bl -tag -width Fl -compact
 .It Pa jobs/
-directory containing job files
+job files
 .It Pa spool/
-directory containing output spool files
+output spool files
 .El
 .Pp
 .It Pa backups/
 miscellaneous backup files
 .It Pa cache/
-miscellaneous cached files
+miscellaneous cache files
 .Pp
 .Bl -tag -width Fl -compact
 .It Pa pkg/
@@ -493,34 +494,33 @@ cached packages for
 .El
 .Pp
 .It Pa crash/
-default directory to store kernel crash dumps; see
+default directory for kernel crash dumps; see
 .Xr crash 8
 and
 .Xr savecore 8
 .It Pa cron/
-files used by cron; see
 .Xr cron 8
+files
 .Pp
 .Bl -tag -width Fl -compact
 .It Pa tabs/
-crontab files; see
 .Xr crontab 5
+files
 .El
 .Pp
 .It Pa db/
-miscellaneous automatically generated system-specific database files
+miscellaneous automatically-generated system-specific database files
 .Pp
 .Bl -tag -width "freebsd-update/" -compact
 .It Pa freebsd-update/
+temporary files and downloads for
 .Xr freebsd-update 8
-work directory for temporary files and downloaded updates
 .El
 .Pp
 .It Pa empty/
-empty directory for use by programs that need a specifically empty directory.
-Used for instance by
+for use by programs that require an empty directory.
+Uses include privilege separation by
 .Xr sshd 8
-for privilege separation
 .It Pa games/
 miscellaneous game status and score files
 .It Pa heimdal/
@@ -549,8 +549,7 @@ temporary storage for files following a crash of an editor; see
 .It Pa quotas/
 file system quota information files
 .It Pa run/
-system information files describing various info about
-system since it was booted
+files containing information about the operating system since it was booted
 .Pp
 .Bl -tag -width Fl -compact
 .It Pa bhyve/
@@ -591,7 +590,7 @@ line printer spooling directories
 .El
 .Pp
 .It Pa tmp/
-temporary files that are kept between system reboots
+temporary files that are not removed during boot
 .Pp
 .Bl -tag -width "vi.recover/" -compact
 .It Pa vi.recover/
@@ -607,8 +606,9 @@ the NIS maps; see
 .Sh NOTES
 This manual page documents the default
 .Fx
-file system layout, but the actual hierarchy on a given system is defined at
-the system administrator's discretion.
+file system layout.
+The actual hierarchy on a given system is defined at the system
+administrator's discretion.
 A well-maintained installation will include a customized version of
 this document.
 .Sh SEE ALSO
