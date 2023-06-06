@@ -1367,7 +1367,7 @@ static const fp_size_map_t fp_encodings[] = {
 };
 
 static uint_t
-die_base_type2enc(dwarf_t *dw, Dwarf_Off off, Dwarf_Signed enc, size_t sz)
+die_base_type2enc(dwarf_t *dw, Dwarf_Off off, Dwarf_Unsigned enc, size_t sz)
 {
 	const fp_size_map_t *map = fp_encodings;
 	uint_t szidx = dw->dw_ptrsz == sizeof (uint64_t);
@@ -1398,9 +1398,9 @@ static intr_t *
 die_base_from_dwarf(dwarf_t *dw, Dwarf_Die base, Dwarf_Off off, size_t sz)
 {
 	intr_t *intr = xcalloc(sizeof (intr_t));
-	Dwarf_Signed enc;
+	Dwarf_Unsigned enc;
 
-	(void) die_signed(dw, base, DW_AT_encoding, &enc, DW_ATTR_REQ);
+	(void) die_unsigned(dw, base, DW_AT_encoding, &enc, DW_ATTR_REQ);
 
 	switch (enc) {
 	case DW_ATE_unsigned:
