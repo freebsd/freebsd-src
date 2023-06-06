@@ -263,7 +263,7 @@ get(void)
 		 * block and set the end flag.
 		 */
 		if (!length || (ateof && !next((char **)NULL))) {
-			if (odmode && address < skip)
+			if (odmode && skip)
 				errx(1, "cannot skip past end of input");
 			if (need == blocksize)
 				return((u_char *)NULL);
