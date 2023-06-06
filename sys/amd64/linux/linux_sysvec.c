@@ -410,7 +410,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	struct proc *p;
 	struct thread *td;
 	struct sigacts *psp;
-	caddr_t sp;
+	char *sp;
 	struct trapframe *regs;
 	struct savefpu *svfp;
 	mcontext_t mc;
@@ -440,9 +440,9 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sp = (caddr_t)td->td_sigstk.ss_sp + td->td_sigstk.ss_size;
+		sp = (char *)td->td_sigstk.ss_sp + td->td_sigstk.ss_size;
 	} else
-		sp = (caddr_t)regs->tf_rsp - 128;
+		sp = (char *)regs->tf_rsp - 128;
 
 	mtx_unlock(&psp->ps_mtx);
 	PROC_UNLOCK(p);
@@ -497,7 +497,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	for (i = 0; i < nitems(svfp->sv_xmm); ++i)
 		bcopy(svfp->sv_xmm[i].xmm_bytes, &sf.sf_fs.xmm[i],
 		    sizeof(svfp->sv_xmm[i].xmm_bytes));
-	sf.sf_uc.uc_mcontext.sc_fpstate = (struct l_fpstate *)((caddr_t)sfp +
+	sf.sf_uc.uc_mcontext.sc_fpstate = (struct l_fpstate *)((char *)sfp +
 	    offsetof(struct l_rt_sigframe, sf_fs));
 
 	/* Translate the signal. */
