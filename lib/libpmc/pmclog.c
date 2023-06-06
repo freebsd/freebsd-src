@@ -357,15 +357,10 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 		PMCLOG_READ64(le,ev->pl_u.pl_a.pl_rate);
 
 		/*
-		 * Could be either a PMC event code or a PMU event index;
-		 * assume that their encodings don't overlap (i.e. no PMU event
-		 * table is more than 0x1000 entries) to distinguish them here.
-		 * Otherwise pmc_pmu_event_get_by_idx will go out of bounds if
-		 * given a PMC event code when it knows about that CPU.
-		 *
-		 * XXX: Ideally we'd have user flags to give us that context.
+		 * pl_event could contain either a PMC event code or a PMU
+		 * event index.
 		 */
-		if (ev->pl_u.pl_a.pl_event < PMC_EVENT_FIRST)
+		if ((ev->pl_u.pl_a.pl_flags & PMC_F_EV_PMU) != 0)
 			ev->pl_u.pl_a.pl_evname =
 			    pmc_pmu_event_get_by_idx(ps->ps_cpuid,
 				ev->pl_u.pl_a.pl_event);
