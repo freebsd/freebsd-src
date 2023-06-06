@@ -76,26 +76,26 @@ enum ixl_i2c_access_method_t {
 };
 
 /* Used in struct ixl_pf's state field */
-enum ixl_pf_state {
-	IXL_PF_STATE_RECOVERY_MODE	= (1 << 0),
-	IXL_PF_STATE_RESETTING		= (1 << 1),
-	IXL_PF_STATE_MDD_PENDING	= (1 << 2),
-	IXL_PF_STATE_PF_RESET_REQ	= (1 << 3),
-	IXL_PF_STATE_VF_RESET_REQ	= (1 << 4),
-	IXL_PF_STATE_PF_CRIT_ERR	= (1 << 5),
-	IXL_PF_STATE_CORE_RESET_REQ	= (1 << 6),
-	IXL_PF_STATE_GLOB_RESET_REQ	= (1 << 7),
-	IXL_PF_STATE_EMP_RESET_REQ	= (1 << 8),
-	IXL_PF_STATE_FW_LLDP_DISABLED	= (1 << 9),
-	IXL_PF_STATE_EEE_ENABLED	= (1 << 10),
-	IXL_PF_STATE_LINK_ACTIVE_ON_DOWN = (1 << 11),
+enum ixl_state {
+	IXL_STATE_RECOVERY_MODE	= 0,
+	IXL_STATE_RESETTING		= 1,
+	IXL_STATE_MDD_PENDING	= 2,
+	IXL_STATE_PF_RESET_REQ	= 3,
+	IXL_STATE_VF_RESET_REQ	= 4,
+	IXL_STATE_PF_CRIT_ERR	= 5,
+	IXL_STATE_CORE_RESET_REQ	= 6,
+	IXL_STATE_GLOB_RESET_REQ	= 7,
+	IXL_STATE_EMP_RESET_REQ	= 8,
+	IXL_STATE_FW_LLDP_DISABLED	= 9,
+	IXL_STATE_EEE_ENABLED	= 10,
+	IXL_STATE_LINK_ACTIVE_ON_DOWN = 11,
 };
 
 #define IXL_PF_IN_RECOVERY_MODE(pf)	\
-	((atomic_load_acq_32(&pf->state) & IXL_PF_STATE_RECOVERY_MODE) != 0)
+	ixl_test_state(&pf->state, IXL_STATE_RECOVERY_MODE)
 
 #define IXL_PF_IS_RESETTING(pf)	\
-	((atomic_load_acq_32(&pf->state) & IXL_PF_STATE_RESETTING) != 0)
+	ixl_test_state(&pf->state, IXL_STATE_RESETTING)
 
 struct ixl_vf {
 	struct ixl_vsi		vsi;
@@ -284,6 +284,10 @@ struct ixl_pf {
 #define ixl_dbg_iov(pf, s, ...) ixl_debug_core((pf)->dev, (pf)->dbg_mask, IXL_DBG_IOV, s, ##__VA_ARGS__)
 
 /* PF-only function declarations */
+void	ixl_set_state(volatile u32 *s, enum ixl_state bit);
+void	ixl_clear_state(volatile u32 *s, enum ixl_state bit);
+bool	ixl_test_state(volatile u32 *s, enum ixl_state bit);
+u32	ixl_testandset_state(volatile u32 *s, enum ixl_state bit);
 int	ixl_setup_interface(device_t, struct ixl_pf *);
 void	ixl_print_nvm_cmd(device_t, struct i40e_nvm_access *);
 

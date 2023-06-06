@@ -116,6 +116,71 @@ static char *ixl_fec_string[3] = {
        "None"
 };
 
+/* Functions for setting and checking driver state. Note the functions take
+ * bit positions, not bitmasks. The atomic_set_32 and atomic_clear_32
+ * operations require bitmasks. This can easily lead to programming error, so
+ * we provide wrapper functions to avoid this.
+ */
+
+/**
+ * ixl_set_state - Set the specified state
+ * @s: the state bitmap
+ * @bit: the state to set
+ *
+ * Atomically update the state bitmap with the specified bit set.
+ */
+inline void
+ixl_set_state(volatile u32 *s, enum ixl_state bit)
+{
+	/* atomic_set_32 expects a bitmask */
+	atomic_set_32(s, BIT(bit));
+}
+
+/**
+ * ixl_clear_state - Clear the specified state
+ * @s: the state bitmap
+ * @bit: the state to clear
+ *
+ * Atomically update the state bitmap with the specified bit cleared.
+ */
+inline void
+ixl_clear_state(volatile u32 *s, enum ixl_state bit)
+{
+	/* atomic_clear_32 expects a bitmask */
+	atomic_clear_32(s, BIT(bit));
+}
+
+/**
+ * ixl_test_state - Test the specified state
+ * @s: the state bitmap
+ * @bit: the bit to test
+ *
+ * Return true if the state is set, false otherwise. Use this only if the flow
+ * does not need to update the state. If you must update the state as well,
+ * prefer ixl_testandset_state.
+ */
+inline bool
+ixl_test_state(volatile u32 *s, enum ixl_state bit)
+{
+	return !!(*s & BIT(bit));
+}
+
+/**
+ * ixl_testandset_state - Test and set the specified state
+ * @s: the state bitmap
+ * @bit: the bit to test
+ *
+ * Atomically update the state bitmap, setting the specified bit. Returns the
+ * previous value of the bit.
+ */
+inline u32
+ixl_testandset_state(volatile u32 *s, enum ixl_state bit)
+{
+	/* atomic_testandset_32 expects a bit position, as opposed to bitmask
+	expected by other atomic functions */
+	return atomic_testandset_32(s, bit);
+}
+
 MALLOC_DEFINE(M_IXL, "ixl", "ixl driver allocations");
 
 /*
@@ -210,7 +275,7 @@ ixl_pf_reset(struct ixl_pf *pf)
 	fw_mode = ixl_get_fw_mode(pf);
 	ixl_dbg_info(pf, "%s: before PF reset FW mode: 0x%08x\n", __func__, fw_mode);
 	if (fw_mode == IXL_FW_MODE_RECOVERY) {
-		atomic_set_32(&pf->state, IXL_PF_STATE_RECOVERY_MODE);
+		ixl_set_state(&pf->state, IXL_STATE_RECOVERY_MODE);
 		/* Don't try to reset device if it's in recovery mode */
 		return (0);
 	}
@@ -224,7 +289,7 @@ ixl_pf_reset(struct ixl_pf *pf)
 	fw_mode = ixl_get_fw_mode(pf);
 	ixl_dbg_info(pf, "%s: after PF reset FW mode: 0x%08x\n", __func__, fw_mode);
 	if (fw_mode == IXL_FW_MODE_RECOVERY) {
-		atomic_set_32(&pf->state, IXL_PF_STATE_RECOVERY_MODE);
+		ixl_set_state(&pf->state, IXL_STATE_RECOVERY_MODE);
 		return (0);
 	}
 
@@ -387,7 +452,7 @@ retry:
 	}
 
 	/* Keep link active by default */
-	atomic_set_32(&pf->state, IXL_PF_STATE_LINK_ACTIVE_ON_DOWN);
+	ixl_set_state(&pf->state, IXL_STATE_LINK_ACTIVE_ON_DOWN);
 
 	/* Print a subset of the capability information. */
 	device_printf(dev,
@@ -1869,7 +1934,7 @@ ixl_handle_mdd_event(struct ixl_pf *pf)
 	ixl_handle_tx_mdd_event(pf);
 	ixl_handle_rx_mdd_event(pf);
 
-	atomic_clear_32(&pf->state, IXL_PF_STATE_MDD_PENDING);
+	ixl_clear_state(&pf->state, IXL_STATE_MDD_PENDING);
 
 	/* re-enable mdd interrupt cause */
 	reg = rd32(hw, I40E_PFINT_ICR0_ENA);
@@ -1937,7 +2002,7 @@ ixl_handle_empr_reset(struct ixl_pf *pf)
 
 	if (!IXL_PF_IN_RECOVERY_MODE(pf) &&
 	    ixl_get_fw_mode(pf) == IXL_FW_MODE_RECOVERY) {
-		atomic_set_32(&pf->state, IXL_PF_STATE_RECOVERY_MODE);
+		ixl_set_state(&pf->state, IXL_STATE_RECOVERY_MODE);
 		device_printf(pf->dev,
 		    "Firmware recovery mode detected. Limiting functionality. Refer to Intel(R) Ethernet Adapters and Devices User Guide for details on firmware recovery mode.\n");
 		pf->link_up = FALSE;
@@ -1946,7 +2011,7 @@ ixl_handle_empr_reset(struct ixl_pf *pf)
 
 	ixl_rebuild_hw_structs_after_reset(pf, is_up);
 
-	atomic_clear_32(&pf->state, IXL_PF_STATE_RESETTING);
+	ixl_clear_state(&pf->state, IXL_STATE_RESETTING);
 }
 
 void
@@ -4453,7 +4518,7 @@ ixl_start_fw_lldp(struct ixl_pf *pf)
 		}
 	}
 
-	atomic_clear_32(&pf->state, IXL_PF_STATE_FW_LLDP_DISABLED);
+	ixl_clear_state(&pf->state, IXL_STATE_FW_LLDP_DISABLED);
 	return (0);
 }
 
@@ -4490,7 +4555,7 @@ ixl_stop_fw_lldp(struct ixl_pf *pf)
 	}
 
 	i40e_aq_set_dcb_parameters(hw, true, NULL);
-	atomic_set_32(&pf->state, IXL_PF_STATE_FW_LLDP_DISABLED);
+	ixl_set_state(&pf->state, IXL_STATE_FW_LLDP_DISABLED);
 	return (0);
 }
 
@@ -4500,7 +4565,7 @@ ixl_sysctl_fw_lldp(SYSCTL_HANDLER_ARGS)
 	struct ixl_pf *pf = (struct ixl_pf *)arg1;
 	int state, new_state, error = 0;
 
-	state = new_state = ((pf->state & IXL_PF_STATE_FW_LLDP_DISABLED) == 0);
+	state = new_state = !ixl_test_state(&pf->state, IXL_STATE_FW_LLDP_DISABLED);
 
 	/* Read in new mode */
 	error = sysctl_handle_int(oidp, &new_state, 0, req);
@@ -4526,7 +4591,7 @@ ixl_sysctl_eee_enable(SYSCTL_HANDLER_ARGS)
 	enum i40e_status_code cmd_status;
 
 	/* Init states' values */
-	state = new_state = (!!(pf->state & IXL_PF_STATE_EEE_ENABLED));
+	state = new_state = ixl_test_state(&pf->state, IXL_STATE_EEE_ENABLED);
 
 	/* Get requested mode */
 	sysctl_handle_status = sysctl_handle_int(oidp, &new_state, 0, req);
@@ -4543,9 +4608,9 @@ ixl_sysctl_eee_enable(SYSCTL_HANDLER_ARGS)
 	/* Save new state or report error */
 	if (!cmd_status) {
 		if (new_state == 0)
-			atomic_clear_32(&pf->state, IXL_PF_STATE_EEE_ENABLED);
+			ixl_clear_state(&pf->state, IXL_STATE_EEE_ENABLED);
 		else
-			atomic_set_32(&pf->state, IXL_PF_STATE_EEE_ENABLED);
+			ixl_set_state(&pf->state, IXL_STATE_EEE_ENABLED);
 	} else if (cmd_status == I40E_ERR_CONFIG)
 		return (EPERM);
 	else
@@ -4560,17 +4625,16 @@ ixl_sysctl_set_link_active(SYSCTL_HANDLER_ARGS)
 	struct ixl_pf *pf = (struct ixl_pf *)arg1;
 	int error, state;
 
-	state = !!(atomic_load_acq_32(&pf->state) &
-	    IXL_PF_STATE_LINK_ACTIVE_ON_DOWN);
+	state = ixl_test_state(&pf->state, IXL_STATE_LINK_ACTIVE_ON_DOWN);
 
 	error = sysctl_handle_int(oidp, &state, 0, req);
 	if ((error) || (req->newptr == NULL))
 		return (error);
 
 	if (state == 0)
-		atomic_clear_32(&pf->state, IXL_PF_STATE_LINK_ACTIVE_ON_DOWN);
+		ixl_clear_state(&pf->state, IXL_STATE_LINK_ACTIVE_ON_DOWN);
 	else
-		atomic_set_32(&pf->state, IXL_PF_STATE_LINK_ACTIVE_ON_DOWN);
+		ixl_set_state(&pf->state, IXL_STATE_LINK_ACTIVE_ON_DOWN);
 
 	return (0);
 }
@@ -4617,7 +4681,7 @@ ixl_sysctl_do_pf_reset(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	/* Initiate the PF reset later in the admin task */
-	atomic_set_32(&pf->state, IXL_PF_STATE_PF_RESET_REQ);
+	ixl_set_state(&pf->state, IXL_STATE_PF_RESET_REQ);
 
 	return (error);
 }
