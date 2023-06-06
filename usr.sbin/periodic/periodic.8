@@ -183,7 +183,7 @@ and the standard
 and
 .Pa security
 scripts
-.It Pa /etc/periodic.conf
+.It Pa /etc/periodic.conf , ${LOCALBASE}/etc/periodic.conf
 this file contains local overrides for the default
 .Nm
 configuration
@@ -207,7 +207,12 @@ system registry will typically have a
 .Va local_periodic
 variable reading:
 .Pp
-.Dl local_periodic="/usr/local/etc/periodic"
+.Dl local_periodic="${_localbase}/etc/periodic"
+.Pp
+where
+.Pa ${_localbase}
+is being set from within
+.Pa /usr/sbin/periodic .
 .Pp
 To log
 .Nm
