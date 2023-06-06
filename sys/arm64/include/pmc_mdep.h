@@ -45,8 +45,6 @@
 union pmc_md_op_pmcallocate {
 	struct {
 		uint32_t	pm_md_config;
-		uint32_t	pm_md_flags;
-#define	PM_MD_RAW_EVENT		0x1
 	};
 	struct pmc_md_cmn600_pmu_op_pmcallocate	pm_cmn600;
 	struct pmc_md_dmc620_pmu_op_pmcallocate	pm_dmc620;

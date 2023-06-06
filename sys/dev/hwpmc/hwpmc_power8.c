@@ -168,6 +168,9 @@ power8_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	if (a->pm_class != PMC_CLASS_POWER8)
 		return (EINVAL);
 
+	if ((a->pm_flags & PMC_F_EV_PMU) == 0)
+		return (EINVAL);
+
 	/*
 	 * PMC5 and PMC6 are not programmable and always count instructions
 	 * completed and cycles, respectively.
