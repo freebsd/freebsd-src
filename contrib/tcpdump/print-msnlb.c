@@ -29,21 +29,21 @@
 /* \summary: MS Network Load Balancing's (NLB) heartbeat printer */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
-#include <netdissect-stdinc.h>
+#include "netdissect-stdinc.h"
 
 #include "netdissect.h"
 #include "addrtoname.h"
 #include "extract.h"
 
 struct msnlb_heartbeat_pkt {
-	uint32_t unknown1;
-	uint32_t unknown2;
-	uint32_t host_prio;	/* little-endian */
-	uint32_t virtual_ip;
-	uint32_t host_ip;
+	nd_byte     unknown1[4];
+	nd_byte     unknown2[4];
+	nd_uint32_t host_prio;	/* little-endian */
+	nd_ipv4     virtual_ip;
+	nd_ipv4     host_ip;
 	/* the protocol is undocumented so we ignore the rest */
 };
 
@@ -52,14 +52,11 @@ msnlb_print(netdissect_options *ndo, const u_char *bp)
 {
 	const struct msnlb_heartbeat_pkt *hb;
 
+	ndo->ndo_protocol = "msnlb";
 	hb = (const struct msnlb_heartbeat_pkt *)bp;
-	ND_TCHECK(*hb);
 
-	ND_PRINT((ndo, "MS NLB heartbeat, host priority: %u,",
-		EXTRACT_LE_32BITS(&(hb->host_prio))));
-	ND_PRINT((ndo, " cluster IP: %s,", ipaddr_string(ndo, &(hb->virtual_ip))));
-	ND_PRINT((ndo, " host IP: %s", ipaddr_string(ndo, &(hb->host_ip))));
-	return;
-trunc:
-	ND_PRINT((ndo, "[|MS NLB]"));
+	ND_PRINT("MS NLB heartbeat");
+	ND_PRINT(", host priority: %u", GET_LE_U_4((hb->host_prio)));
+	ND_PRINT(", cluster IP: %s", GET_IPADDR_STRING(hb->virtual_ip));
+	ND_PRINT(", host IP: %s", GET_IPADDR_STRING(hb->host_ip));
 }

@@ -57,7 +57,7 @@ static void	print_src_dst(netdissect_options *,
 		    const struct pfsync_state_peer *, uint8_t);
 static void	print_state(netdissect_options *, struct pfsync_state *);
 
-u_int
+void
 pfsync_if_print(netdissect_options *ndo, const struct pcap_pkthdr *h,
     register const u_char *p)
 {
@@ -66,7 +66,7 @@ pfsync_if_print(netdissect_options *ndo, const struct pcap_pkthdr *h,
 	ts_print(ndo, &h->ts);
 
 	if (caplen < PFSYNC_HDRLEN) {
-		ND_PRINT((ndo, "[|pfsync]"));
+		ND_PRINT("[|pfsync]");
 		goto out;
 	}
 
@@ -77,8 +77,8 @@ out:
 	if (ndo->ndo_xflag) {
 		hex_print(ndo, "\n\t", p, caplen);
 	}
-	safeputchar(ndo, '\n');
-	return (caplen);
+	fn_print_char(ndo, '\n');
+	return;
 }
 
 void
@@ -86,8 +86,8 @@ pfsync_ip_print(netdissect_options *ndo , const u_char *bp, u_int len)
 {
 	struct pfsync_header *hdr = (struct pfsync_header *)bp;
 
-	if (len < PFSYNC_HDRLEN || !ND_TTEST2(*bp, len))
-		ND_PRINT((ndo, "[|pfsync]"));
+	if (len < PFSYNC_HDRLEN || !ND_TTEST_LEN(bp, len))
+		ND_PRINT("[|pfsync]");
 	else
 		pfsync_print(ndo, hdr, bp + sizeof(struct pfsync_header),
 		    len - sizeof(struct pfsync_header));
@@ -138,7 +138,7 @@ pfsync_print(netdissect_options *ndo, struct pfsync_header *hdr,
 
 	plen = ntohs(hdr->len);
 
-	ND_PRINT((ndo, "PFSYNCv%d len %d", hdr->version, plen));
+	ND_PRINT("PFSYNCv%d len %d", hdr->version, plen);
 
 	if (hdr->version != PFSYNC_VERSION)
 		return;
@@ -155,22 +155,22 @@ pfsync_print(netdissect_options *ndo, struct pfsync_header *hdr,
 		plen -= sizeof(*subh);
 
 		if (subh->action >= PFSYNC_ACT_MAX) {
-			ND_PRINT((ndo, "\n    act UNKNOWN id %d",
-			    subh->action));
+			ND_PRINT("\n    act UNKNOWN id %d",
+			    subh->action);
 			return;
 		}
 
 		count = ntohs(subh->count);
-		ND_PRINT((ndo, "\n    %s count %d", actions[subh->action].name,
-		    count));
+		ND_PRINT("\n    %s count %d", actions[subh->action].name,
+		    count);
 		alen = actions[subh->action].len;
 
 		if (subh->action == PFSYNC_ACT_EOF)
 			return;
 
 		if (actions[subh->action].print == NULL) {
-			ND_PRINT((ndo, "\n    unimplemented action %hhu",
-			    subh->action));
+			ND_PRINT("\n    unimplemented action %hhu",
+			    subh->action);
 			return;
 		}
 
@@ -190,15 +190,15 @@ pfsync_print(netdissect_options *ndo, struct pfsync_header *hdr,
 	}
 
 	if (plen > 0) {
-		ND_PRINT((ndo, "\n    ..."));
+		ND_PRINT("\n    ...");
 		return;
 	}
 	if (plen < 0) {
-		ND_PRINT((ndo, "\n    invalid header length"));
+		ND_PRINT("\n    invalid header length");
 		return;
 	}
 	if (len > 0)
-		ND_PRINT((ndo, "\n    invalid packet length"));
+		ND_PRINT("\n    invalid packet length");
 }
 
 static void
@@ -206,9 +206,9 @@ pfsync_print_clr(netdissect_options *ndo, const void *bp)
 {
 	const struct pfsync_clr *clr = bp;
 
-	ND_PRINT((ndo, "\n\tcreatorid: %08x", htonl(clr->creatorid)));
+	ND_PRINT("\n\tcreatorid: %08x", htonl(clr->creatorid));
 	if (clr->ifname[0] != '\0')
-		ND_PRINT((ndo, " interface: %s", clr->ifname));
+		ND_PRINT(" interface: %s", clr->ifname);
 }
 
 static void
@@ -216,7 +216,7 @@ pfsync_print_state(netdissect_options *ndo, const void *bp)
 {
 	struct pfsync_state *st = (struct pfsync_state *)bp;
 
-	safeputchar(ndo, '\n');
+	ND_PRINT("\n");
 	print_state(ndo, st);
 }
 
@@ -225,8 +225,8 @@ pfsync_print_ins_ack(netdissect_options *ndo, const void *bp)
 {
 	const struct pfsync_ins_ack *iack = bp;
 
-	ND_PRINT((ndo, "\n\tid: %016jx creatorid: %08x",
-	    (uintmax_t)be64toh(iack->id), ntohl(iack->creatorid)));
+	ND_PRINT("\n\tid: %016jx creatorid: %08x",
+	    (uintmax_t)be64toh(iack->id), ntohl(iack->creatorid));
 }
 
 static void
@@ -234,10 +234,10 @@ pfsync_print_upd_c(netdissect_options *ndo, const void *bp)
 {
 	const struct pfsync_upd_c *u = bp;
 
-	ND_PRINT((ndo, "\n\tid: %016jx creatorid: %08x",
-	    (uintmax_t)be64toh(u->id), ntohl(u->creatorid)));
+	ND_PRINT("\n\tid: %016jx creatorid: %08x",
+	    (uintmax_t)be64toh(u->id), ntohl(u->creatorid));
 	if (ndo->ndo_vflag > 2) {
-		ND_PRINT((ndo, "\n\tTCP? :"));
+		ND_PRINT("\n\tTCP? :");
 		print_src_dst(ndo, &u->src, &u->dst, IPPROTO_TCP);
 	}
 }
@@ -247,8 +247,8 @@ pfsync_print_upd_req(netdissect_options *ndo, const void *bp)
 {
 	const struct pfsync_upd_req *ur = bp;
 
-	ND_PRINT((ndo, "\n\tid: %016jx creatorid: %08x",
-	    (uintmax_t)be64toh(ur->id), ntohl(ur->creatorid)));
+	ND_PRINT("\n\tid: %016jx creatorid: %08x",
+	    (uintmax_t)be64toh(ur->id), ntohl(ur->creatorid));
 }
 
 static void
@@ -256,8 +256,8 @@ pfsync_print_del_c(netdissect_options *ndo, const void *bp)
 {
 	const struct pfsync_del_c *d = bp;
 
-	ND_PRINT((ndo, "\n\tid: %016jx creatorid: %08x",
-	    (uintmax_t)be64toh(d->id), ntohl(d->creatorid)));
+	ND_PRINT("\n\tid: %016jx creatorid: %08x",
+	    (uintmax_t)be64toh(d->id), ntohl(d->creatorid));
 }
 
 static void
@@ -286,8 +286,8 @@ pfsync_print_bus(netdissect_options *ndo, const void *bp)
 		break;
 	}
 
-	ND_PRINT((ndo, "\n\tcreatorid: %08x age: %.2u:%.2u:%.2u status: %s",
-	    htonl(b->creatorid), endtime, min, sec, status));
+	ND_PRINT("\n\tcreatorid: %08x age: %.2u:%.2u:%.2u status: %s",
+	    htonl(b->creatorid), endtime, min, sec, status);
 }
 
 static void
@@ -295,9 +295,9 @@ pfsync_print_tdb(netdissect_options *ndo, const void *bp)
 {
 	const struct pfsync_tdb *t = bp;
 
-	ND_PRINT((ndo, "\n\tspi: 0x%08x rpl: %ju cur_bytes: %ju",
+	ND_PRINT("\n\tspi: 0x%08x rpl: %ju cur_bytes: %ju",
 	    ntohl(t->spi), (uintmax_t )be64toh(t->rpl),
-	    (uintmax_t )be64toh(t->cur_bytes)));
+	    (uintmax_t )be64toh(t->cur_bytes));
 }
 
 static void
@@ -307,23 +307,23 @@ print_host(netdissect_options *ndo, struct pf_addr *addr, uint16_t port,
 	char buf[48];
 
 	if (inet_ntop(af, addr, buf, sizeof(buf)) == NULL)
-		ND_PRINT((ndo, "?"));
+		ND_PRINT("?");
 	else
-		ND_PRINT((ndo, "%s", buf));
+		ND_PRINT("%s", buf);
 
 	if (port)
-		ND_PRINT((ndo, ".%hu", ntohs(port)));
+		ND_PRINT(".%hu", ntohs(port));
 }
 
 static void
 print_seq(netdissect_options *ndo, const struct pfsync_state_peer *p)
 {
 	if (p->seqdiff)
-		ND_PRINT((ndo, "[%u + %u](+%u)", ntohl(p->seqlo),
-		    ntohl(p->seqhi) - ntohl(p->seqlo), ntohl(p->seqdiff)));
+		ND_PRINT("[%u + %u](+%u)", ntohl(p->seqlo),
+		    ntohl(p->seqhi) - ntohl(p->seqlo), ntohl(p->seqdiff));
 	else
-		ND_PRINT((ndo, "[%u + %u]", ntohl(p->seqlo),
-		    ntohl(p->seqhi) - ntohl(p->seqlo)));
+		ND_PRINT("[%u + %u]", ntohl(p->seqlo),
+		    ntohl(p->seqhi) - ntohl(p->seqlo));
 }
 
 static void
@@ -334,42 +334,42 @@ print_src_dst(netdissect_options *ndo, const struct pfsync_state_peer *src,
 	if (proto == IPPROTO_TCP) {
 		if (src->state <= TCPS_TIME_WAIT &&
 		    dst->state <= TCPS_TIME_WAIT)
-			ND_PRINT((ndo, "   %s:%s", tcpstates[src->state],
-			    tcpstates[dst->state]));
+			ND_PRINT("   %s:%s", tcpstates[src->state],
+			    tcpstates[dst->state]);
 		else if (src->state == PF_TCPS_PROXY_SRC ||
 		    dst->state == PF_TCPS_PROXY_SRC)
-			ND_PRINT((ndo, "   PROXY:SRC"));
+			ND_PRINT("   PROXY:SRC");
 		else if (src->state == PF_TCPS_PROXY_DST ||
 		    dst->state == PF_TCPS_PROXY_DST)
-			ND_PRINT((ndo, "   PROXY:DST"));
+			ND_PRINT("   PROXY:DST");
 		else
-			ND_PRINT((ndo, "   <BAD STATE LEVELS %u:%u>",
-			    src->state, dst->state));
+			ND_PRINT("   <BAD STATE LEVELS %u:%u>",
+			    src->state, dst->state);
 		if (ndo->ndo_vflag > 1) {
-			ND_PRINT((ndo, "\n\t"));
+			ND_PRINT("\n\t");
 			print_seq(ndo, src);
 			if (src->wscale && dst->wscale)
-				ND_PRINT((ndo, " wscale %u",
-				    src->wscale & PF_WSCALE_MASK));
-			ND_PRINT((ndo, "  "));
+				ND_PRINT(" wscale %u",
+				    src->wscale & PF_WSCALE_MASK);
+			ND_PRINT("  ");
 			print_seq(ndo, dst);
 			if (src->wscale && dst->wscale)
-				ND_PRINT((ndo, " wscale %u",
-				    dst->wscale & PF_WSCALE_MASK));
+				ND_PRINT(" wscale %u",
+				    dst->wscale & PF_WSCALE_MASK);
 		}
 	} else if (proto == IPPROTO_UDP && src->state < PFUDPS_NSTATES &&
 	    dst->state < PFUDPS_NSTATES) {
 		const char *states[] = PFUDPS_NAMES;
 
-		ND_PRINT((ndo, "   %s:%s", states[src->state], states[dst->state]));
+		ND_PRINT("   %s:%s", states[src->state], states[dst->state]);
 	} else if (proto != IPPROTO_ICMP && src->state < PFOTHERS_NSTATES &&
 	    dst->state < PFOTHERS_NSTATES) {
 		/* XXX ICMP doesn't really have state levels */
 		const char *states[] = PFOTHERS_NAMES;
 
-		ND_PRINT((ndo, "   %s:%s", states[src->state], states[dst->state]));
+		ND_PRINT("   %s:%s", states[src->state], states[dst->state]);
 	} else {
-		ND_PRINT((ndo, "   %u:%u", src->state, dst->state));
+		ND_PRINT("   %u:%u", src->state, dst->state);
 	}
 }
 
@@ -395,26 +395,26 @@ print_state(netdissect_options *ndo, struct pfsync_state *s)
 		if (s->proto == IPPROTO_ICMP || s->proto == IPPROTO_ICMPV6)
 			sk->port[1] = nk->port[1];
 	}
-	ND_PRINT((ndo, "\t%s ", s->ifname));
-	ND_PRINT((ndo, "proto %u ", s->proto));
+	ND_PRINT("\t%s ", s->ifname);
+	ND_PRINT("proto %u ", s->proto);
 
 	print_host(ndo, &nk->addr[1], nk->port[1], s->af, NULL);
 	if (PF_ANEQ(&nk->addr[1], &sk->addr[1], s->af) ||
 	    nk->port[1] != sk->port[1]) {
-		ND_PRINT((ndo, " ("));
+		ND_PRINT((" ("));
 		print_host(ndo, &sk->addr[1], sk->port[1], s->af, NULL);
-		ND_PRINT((ndo, ")"));
+		ND_PRINT(")");
 	}
 	if (s->direction == PF_OUT)
-		ND_PRINT((ndo, " -> "));
+		ND_PRINT((" -> "));
 	else
-		ND_PRINT((ndo, " <- "));
+		ND_PRINT((" <- "));
 	print_host(ndo, &nk->addr[0], nk->port[0], s->af, NULL);
 	if (PF_ANEQ(&nk->addr[0], &sk->addr[0], s->af) ||
 	    nk->port[0] != sk->port[0]) {
-		ND_PRINT((ndo, " ("));
+		ND_PRINT((" ("));
 		print_host(ndo, &sk->addr[0], sk->port[0], s->af, NULL);
-		ND_PRINT((ndo, ")"));
+		ND_PRINT((")"));
 	}
 
 	print_src_dst(ndo, src, dst, s->proto);
@@ -429,30 +429,30 @@ print_state(netdissect_options *ndo, struct pfsync_state *s)
 		creation /= 60;
 		min = creation % 60;
 		creation /= 60;
-		ND_PRINT((ndo, "\n\tage %.2u:%.2u:%.2u", creation, min, sec));
+		ND_PRINT("\n\tage %.2u:%.2u:%.2u", creation, min, sec);
 		sec = expire % 60;
 		expire /= 60;
 		min = expire % 60;
 		expire /= 60;
-		ND_PRINT((ndo, ", expires in %.2u:%.2u:%.2u", expire, min, sec));
+		ND_PRINT(", expires in %.2u:%.2u:%.2u", expire, min, sec);
 
 		bcopy(s->packets[0], &packets[0], sizeof(uint64_t));
 		bcopy(s->packets[1], &packets[1], sizeof(uint64_t));
 		bcopy(s->bytes[0], &bytes[0], sizeof(uint64_t));
 		bcopy(s->bytes[1], &bytes[1], sizeof(uint64_t));
-		ND_PRINT((ndo, ", %ju:%ju pkts, %ju:%ju bytes",
+		ND_PRINT(", %ju:%ju pkts, %ju:%ju bytes",
 		    be64toh(packets[0]), be64toh(packets[1]),
-		    be64toh(bytes[0]), be64toh(bytes[1])));
+		    be64toh(bytes[0]), be64toh(bytes[1]));
 		if (s->anchor != ntohl(-1))
-			ND_PRINT((ndo, ", anchor %u", ntohl(s->anchor)));
+			ND_PRINT(", anchor %u", ntohl(s->anchor));
 		if (s->rule != ntohl(-1))
-			ND_PRINT((ndo, ", rule %u", ntohl(s->rule)));
+			ND_PRINT(", rule %u", ntohl(s->rule));
 	}
 	if (ndo->ndo_vflag > 1) {
 		uint64_t id;
 
 		bcopy(&s->id, &id, sizeof(uint64_t));
-		ND_PRINT((ndo, "\n\tid: %016jx creatorid: %08x",
-		    (uintmax_t )be64toh(id), ntohl(s->creatorid)));
+		ND_PRINT("\n\tid: %016jx creatorid: %08x",
+		    (uintmax_t )be64toh(id), ntohl(s->creatorid));
 	}
 }

@@ -41,15 +41,18 @@
  */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
-#include <netdissect-stdinc.h>
+#include "netdissect-stdinc.h"
 
 #include <stdio.h>
 #include <string.h>
 
+#include "netdissect-ctype.h"
+
 #include "netdissect.h"
+#include "extract.h"
 #include "nfsfh.h"
 
 /*
@@ -76,42 +79,16 @@
 #define	FHT_HPUX9	11
 #define	FHT_BSD44	12
 
-#ifdef	ultrix
-/* Nasty hack to keep the Ultrix C compiler from emitting bogus warnings */
-#define	XFF(x)	((uint32_t)(x))
-#else
-#define	XFF(x)	(x)
-#endif
-
-#define	make_uint32(msb,b,c,lsb)\
-	(XFF(lsb) + (XFF(c)<<8) + (XFF(b)<<16) + (XFF(msb)<<24))
-
-#define	make_uint24(msb,b, lsb)\
-	(XFF(lsb) + (XFF(b)<<8) + (XFF(msb)<<16))
-
-#define	make_uint16(msb,lsb)\
-	(XFF(lsb) + (XFF(msb)<<8))
-
-#ifdef	__alpha
-	/* or other 64-bit systems */
-#define	make_uint48(msb,b,c,d,e,lsb)\
-	((lsb) + ((e)<<8) + ((d)<<16) + ((c)<<24) + ((b)<<32) + ((msb)<<40))
-#else
-	/* on 32-bit systems ignore high-order bits */
-#define	make_uint48(msb,b,c,d,e,lsb)\
-	((lsb) + ((e)<<8) + ((d)<<16) + ((c)<<24))
-#endif
-
-static int is_UCX(const unsigned char *, u_int);
+static int is_UCX(netdissect_options *, const unsigned char *, u_int);
 
 void
-Parse_fh(register const unsigned char *fh, u_int len, my_fsid *fsidp,
-	 uint32_t *inop,
+Parse_fh(netdissect_options *ndo, const unsigned char *fh, u_int len,
+	 my_fsid *fsidp, uint32_t *inop,
 	 const char **osnamep, /* if non-NULL, return OS name here */
 	 const char **fsnamep, /* if non-NULL, return server fs name here (for VMS) */
 	 int ourself)	/* true if file handle was generated on this host */
 {
-	register const unsigned char *fhp = fh;
+	const unsigned char *fhp = fh;
 	uint32_t temp;
 	int fhtype = FHT_UNKNOWN;
 	u_int i;
@@ -154,10 +131,10 @@ Parse_fh(register const unsigned char *fh, u_int len, my_fsid *fsidp,
 		/*
 		 * This is basically a big decision tree
 		 */
-		else if ((fhp[0] == 0) && (fhp[1] == 0)) {
+		else if ((GET_U_1(fhp) == 0) && (GET_U_1(fhp + 1) == 0)) {
 		    /* bytes[0,1] == (0,0); rules out Ultrix, IRIX5, SUNOS5 */
 		    /* probably rules out HP-UX, AIX unless they allow major=0 */
-		    if ((fhp[2] == 0) && (fhp[3] == 0)) {
+		    if ((GET_U_1(fhp + 2) == 0) && (GET_U_1(fhp + 3) == 0)) {
 			/* bytes[2,3] == (0,0); must be Auspex */
 			/* XXX or could be Ultrix+MASSBUS "hp" disk? */
 			fhtype = FHT_AUSPEX;
@@ -167,16 +144,16 @@ Parse_fh(register const unsigned char *fh, u_int len, my_fsid *fsidp,
 			 * bytes[2,3] != (0,0); rules out Auspex, could be
 			 * DECOSF, SUNOS4, or IRIX4
 			 */
-			if ((fhp[4] != 0) && (fhp[5] == 0) &&
-				(fhp[8] == 12) && (fhp[9] == 0)) {
+			if ((GET_U_1(fhp + 4) != 0) && (GET_U_1(fhp + 5) == 0) &&
+				(GET_U_1(fhp + 8) == 12) && (GET_U_1(fhp + 9) == 0)) {
 			    /* seems to be DECOSF, with minor == 0 */
 			    fhtype = FHT_DECOSF;
 			}
 			else {
 			    /* could be SUNOS4 or IRIX4 */
 			    /* XXX the test of fhp[5] == 8 could be wrong */
-			    if ((fhp[4] == 0) && (fhp[5] == 8) && (fhp[6] == 0) &&
-			        (fhp[7] == 0)) {
+			    if ((GET_U_1(fhp + 4) == 0) && (GET_U_1(fhp + 5) == 8) && (GET_U_1(fhp + 6) == 0) &&
+			        (GET_U_1(fhp + 7) == 0)) {
 				/* looks like a length, not a file system typecode */
 				fhtype = FHT_IRIX4;
 			    }
@@ -193,24 +170,24 @@ Parse_fh(register const unsigned char *fh, u_int len, my_fsid *fsidp,
 		     * could be IRIX5, DECOSF, UCX, Ultrix, SUNOS5
 		     * could be AIX, HP-UX
 		     */
-		    if ((fhp[2] == 0) && (fhp[3] == 0)) {
+		    if ((GET_U_1(fhp + 2) == 0) && (GET_U_1(fhp + 3) == 0)) {
 			/*
 			 * bytes[2,3] == (0,0); rules out OSF, probably not UCX
 			 * (unless the exported device name is just one letter!),
 			 * could be Ultrix, IRIX5, AIX, or SUNOS5
 			 * might be HP-UX (depends on their values for minor devs)
 			 */
-			if ((fhp[6] == 0) && (fhp[7] == 0)) {
+			if ((GET_U_1(fhp + 6) == 0) && (GET_U_1(fhp + 7) == 0)) {
 			    fhtype = FHT_BSD44;
 			}
 			/*XXX we probably only need to test of these two bytes */
-			else if ((len >= 24/4) && (fhp[21] == 0) && (fhp[23] == 0)) {
+			else if ((len >= 24/4) && (GET_U_1(fhp + 21) == 0) && (GET_U_1(fhp + 23) == 0)) {
 			    fhtype = FHT_ULTRIX;
 			}
 			else {
 			    /* Could be SUNOS5/IRIX5, maybe AIX */
 			    /* XXX no obvious difference between SUNOS5 and IRIX5 */
-			    if (fhp[9] == 10)
+			    if (GET_U_1(fhp + 9) == 10)
 				fhtype = FHT_SUNOS5;
 			    /* XXX what about AIX? */
 			}
@@ -220,17 +197,17 @@ Parse_fh(register const unsigned char *fh, u_int len, my_fsid *fsidp,
 			 * bytes[2,3] != (0,0); rules out Ultrix, could be
 			 * DECOSF, SUNOS5, IRIX5, AIX, HP-UX, or UCX
 			 */
-			if ((fhp[8] == 12) && (fhp[9] == 0)) {
+			if ((GET_U_1(fhp + 8) == 12) && (GET_U_1(fhp + 9) == 0)) {
 			    fhtype = FHT_DECOSF;
 			}
-			else if ((fhp[8] == 0) && (fhp[9] == 10)) {
+			else if ((GET_U_1(fhp + 8) == 0) && (GET_U_1(fhp + 9) == 10)) {
 			    /* could be SUNOS5/IRIX5, AIX, HP-UX */
-			    if ((fhp[7] == 0) && (fhp[6] == 0) &&
-				(fhp[5] == 0) && (fhp[4] == 0)) {
+			    if ((GET_U_1(fhp + 7) == 0) && (GET_U_1(fhp + 6) == 0) &&
+				(GET_U_1(fhp + 5) == 0) && (GET_U_1(fhp + 4) == 0)) {
 				/* XXX is this always true of HP-UX? */
 				fhtype = FHT_HPUX9;
 			    }
-			    else if (fhp[7] == 2) {
+			    else if (GET_U_1(fhp + 7) == 2) {
 				/* This would be MNT_NFS on AIX, which is impossible */
 				fhtype = FHT_SUNOS5;	/* or maybe IRIX5 */
 			    }
@@ -245,7 +222,7 @@ Parse_fh(register const unsigned char *fh, u_int len, my_fsid *fsidp,
 			    }
 		        }
 			else {
-			    if (is_UCX(fhp, len)) {
+			    if (is_UCX(ndo, fhp, len)) {
 				fhtype = FHT_VMSUCX;
 			    }
 			    else {
@@ -260,57 +237,57 @@ Parse_fh(register const unsigned char *fh, u_int len, my_fsid *fsidp,
 
 	switch (fhtype) {
 	case FHT_AUSPEX:
-	    fsidp->Fsid_dev.Minor = fhp[7];
-	    fsidp->Fsid_dev.Major = fhp[6];
+	    fsidp->Fsid_dev.Minor = GET_U_1(fhp + 7);
+	    fsidp->Fsid_dev.Major = GET_U_1(fhp + 6);
 	    fsidp->fsid_code = 0;
 
-	    *inop = make_uint32(fhp[12], fhp[13], fhp[14], fhp[15]);
+	    *inop = GET_BE_U_4(fhp + 12);
 
 	    if (osnamep)
 		*osnamep = "Auspex";
 	    break;
 
 	case FHT_BSD44:
-	    fsidp->Fsid_dev.Minor = fhp[0];
-	    fsidp->Fsid_dev.Major = fhp[1];
+	    fsidp->Fsid_dev.Minor = GET_U_1(fhp);
+	    fsidp->Fsid_dev.Major = GET_U_1(fhp + 1);
 	    fsidp->fsid_code = 0;
 
-	    *inop = make_uint32(fhp[15], fhp[14], fhp[13], fhp[12]);
+	    *inop = GET_LE_U_4(fhp + 12);
 
 	    if (osnamep)
 		*osnamep = "BSD 4.4";
 	    break;
 
 	case FHT_DECOSF:
-	    fsidp->fsid_code = make_uint32(fhp[7], fhp[6], fhp[5], fhp[4]);
+	    fsidp->fsid_code = GET_LE_U_4(fhp + 4);
 			/* XXX could ignore 3 high-order bytes */
 
-	    temp = make_uint32(fhp[3], fhp[2], fhp[1], fhp[0]);
+	    temp = GET_LE_U_4(fhp);
 	    fsidp->Fsid_dev.Minor = temp & 0xFFFFF;
 	    fsidp->Fsid_dev.Major = (temp>>20) & 0xFFF;
 
-	    *inop = make_uint32(fhp[15], fhp[14], fhp[13], fhp[12]);
+	    *inop = GET_LE_U_4(fhp + 12);
 	    if (osnamep)
 		*osnamep = "OSF";
 	    break;
 
 	case FHT_IRIX4:
-	    fsidp->Fsid_dev.Minor = fhp[3];
-	    fsidp->Fsid_dev.Major = fhp[2];
+	    fsidp->Fsid_dev.Minor = GET_U_1(fhp + 3);
+	    fsidp->Fsid_dev.Major = GET_U_1(fhp + 2);
 	    fsidp->fsid_code = 0;
 
-	    *inop = make_uint32(fhp[8], fhp[9], fhp[10], fhp[11]);
+	    *inop = GET_BE_U_4(fhp + 8);
 
 	    if (osnamep)
 		*osnamep = "IRIX4";
 	    break;
 
 	case FHT_IRIX5:
-	    fsidp->Fsid_dev.Minor = make_uint16(fhp[2], fhp[3]);
-	    fsidp->Fsid_dev.Major = make_uint16(fhp[0], fhp[1]);
-	    fsidp->fsid_code = make_uint32(fhp[4], fhp[5], fhp[6], fhp[7]);
+	    fsidp->Fsid_dev.Minor = GET_BE_U_2(fhp + 2);
+	    fsidp->Fsid_dev.Major = GET_BE_U_2(fhp);
+	    fsidp->fsid_code = GET_BE_U_4(fhp + 4);
 
-	    *inop = make_uint32(fhp[12], fhp[13], fhp[14], fhp[15]);
+	    *inop = GET_BE_U_4(fhp + 12);
 
 	    if (osnamep)
 		*osnamep = "IRIX5";
@@ -328,24 +305,24 @@ Parse_fh(register const unsigned char *fh, u_int len, my_fsid *fsidp,
 #endif
 
 	case FHT_SUNOS4:
-	    fsidp->Fsid_dev.Minor = fhp[3];
-	    fsidp->Fsid_dev.Major = fhp[2];
-	    fsidp->fsid_code = make_uint32(fhp[4], fhp[5], fhp[6], fhp[7]);
+	    fsidp->Fsid_dev.Minor = GET_U_1(fhp + 3);
+	    fsidp->Fsid_dev.Major = GET_U_1(fhp + 2);
+	    fsidp->fsid_code = GET_BE_U_4(fhp + 4);
 
-	    *inop = make_uint32(fhp[12], fhp[13], fhp[14], fhp[15]);
+	    *inop = GET_BE_U_4(fhp + 12);
 
 	    if (osnamep)
 		*osnamep = "SUNOS4";
 	    break;
 
 	case FHT_SUNOS5:
-	    temp = make_uint16(fhp[0], fhp[1]);
+	    temp = GET_BE_U_2(fhp);
 	    fsidp->Fsid_dev.Major = (temp>>2) &  0x3FFF;
-	    temp = make_uint24(fhp[1], fhp[2], fhp[3]);
+	    temp = GET_BE_U_3(fhp + 1);
 	    fsidp->Fsid_dev.Minor = temp & 0x3FFFF;
-	    fsidp->fsid_code = make_uint32(fhp[4], fhp[5], fhp[6], fhp[7]);
+	    fsidp->fsid_code = GET_BE_U_4(fhp + 4);
 
-	    *inop = make_uint32(fhp[12], fhp[13], fhp[14], fhp[15]);
+	    *inop = GET_BE_U_4(fhp + 12);
 
 	    if (osnamep)
 		*osnamep = "SUNOS5";
@@ -353,10 +330,10 @@ Parse_fh(register const unsigned char *fh, u_int len, my_fsid *fsidp,
 
 	case FHT_ULTRIX:
 	    fsidp->fsid_code = 0;
-	    fsidp->Fsid_dev.Minor = fhp[0];
-	    fsidp->Fsid_dev.Major = fhp[1];
+	    fsidp->Fsid_dev.Minor = GET_U_1(fhp);
+	    fsidp->Fsid_dev.Major = GET_U_1(fhp + 1);
 
-	    temp = make_uint32(fhp[7], fhp[6], fhp[5], fhp[4]);
+	    temp = GET_LE_U_4(fhp + 4);
 	    *inop = temp;
 	    if (osnamep)
 		*osnamep = "Ultrix";
@@ -381,34 +358,36 @@ Parse_fh(register const unsigned char *fh, u_int len, my_fsid *fsidp,
 	    }
 
 	    /* VMS file ID is: (RVN, FidHi, FidLo) */
-	    *inop = make_uint32(fhp[26], fhp[27], fhp[23], fhp[22]);
+	    *inop = (((uint32_t) GET_U_1(fhp + 26)) << 24) |
+		    (((uint32_t) GET_U_1(fhp + 27)) << 16) |
+		    (GET_LE_U_2(fhp + 22) << 0);
 
 	    /* Caller must save (and null-terminate?) this value */
 	    if (fsnamep)
-		*fsnamep = (const char *)&(fhp[1]);
+		*fsnamep = (const char *)(fhp + 1);
 
 	    if (osnamep)
 		*osnamep = "VMS";
 	    break;
 
 	case FHT_AIX32:
-	    fsidp->Fsid_dev.Minor = make_uint16(fhp[2], fhp[3]);
-	    fsidp->Fsid_dev.Major = make_uint16(fhp[0], fhp[1]);
-	    fsidp->fsid_code = make_uint32(fhp[4], fhp[5], fhp[6], fhp[7]);
+	    fsidp->Fsid_dev.Minor = GET_BE_U_2(fhp + 2);
+	    fsidp->Fsid_dev.Major = GET_BE_U_2(fhp);
+	    fsidp->fsid_code = GET_BE_U_4(fhp + 4);
 
-	    *inop = make_uint32(fhp[12], fhp[13], fhp[14], fhp[15]);
+	    *inop = GET_BE_U_4(fhp + 12);
 
 	    if (osnamep)
 		*osnamep = "AIX32";
 	    break;
 
 	case FHT_HPUX9:
-	    fsidp->Fsid_dev.Major = fhp[0];
-	    temp = make_uint24(fhp[1], fhp[2], fhp[3]);
+	    fsidp->Fsid_dev.Major = GET_U_1(fhp);
+	    temp = GET_BE_U_3(fhp + 1);
 	    fsidp->Fsid_dev.Minor = temp;
-	    fsidp->fsid_code = make_uint32(fhp[4], fhp[5], fhp[6], fhp[7]);
+	    fsidp->fsid_code = GET_BE_U_4(fhp + 4);
 
-	    *inop = make_uint32(fhp[12], fhp[13], fhp[14], fhp[15]);
+	    *inop = GET_BE_U_4(fhp + 12);
 
 	    if (osnamep)
 		*osnamep = "HPUX9";
@@ -418,12 +397,13 @@ Parse_fh(register const unsigned char *fh, u_int len, my_fsid *fsidp,
 #ifdef DEBUG
 	    /* XXX debugging */
 	    for (i = 0; i < len*4; i++)
-		(void)fprintf(stderr, "%x.", fhp[i]);
+		(void)fprintf(stderr, "%x.", GET_U_1(fhp + i));
 	    (void)fprintf(stderr, "\n");
 #endif
 	    /* Save the actual handle, so it can be display with -u */
 	    for (i = 0; i < len*4 && i*2 < sizeof(fsidp->Opaque_Handle) - 1; i++)
-	    	(void)snprintf(&(fsidp->Opaque_Handle[i*2]), 3, "%.2X", fhp[i]);
+		(void)snprintf(&(fsidp->Opaque_Handle[i*2]), 3, "%.2X",
+			       GET_U_1(fhp + i));
 	    fsidp->Opaque_Handle[i*2] = '\0';
 
 	    /* XXX for now, give "bogus" values to aid debugging */
@@ -451,9 +431,9 @@ Parse_fh(register const unsigned char *fh, u_int len, my_fsid *fsidp,
  *	(3) followed by string of nulls
  */
 static int
-is_UCX(const unsigned char *fhp, u_int len)
+is_UCX(netdissect_options *ndo, const unsigned char *fhp, u_int len)
 {
-	register u_int i;
+	u_int i;
 	int seen_null = 0;
 
 	/*
@@ -464,13 +444,13 @@ is_UCX(const unsigned char *fhp, u_int len)
 		return(0);
 
 	for (i = 1; i < 14; i++) {
-	    if (ND_ISPRINT(fhp[i])) {
+	    if (ND_ASCII_ISPRINT(GET_U_1(fhp + i))) {
 		if (seen_null)
 		   return(0);
 		else
 		   continue;
 	    }
-	    else if (fhp[i] == 0) {
+	    else if (GET_U_1(fhp + i) == 0) {
 		seen_null = 1;
 		continue;
 	    }

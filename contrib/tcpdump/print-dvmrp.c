@@ -22,10 +22,10 @@
 /* \summary: Distance Vector Multicast Routing Protocol printer */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
-#include <netdissect-stdinc.h>
+#include "netdissect-stdinc.h"
 
 #include "netdissect.h"
 #include "extract.h"
@@ -47,6 +47,18 @@
 #define DVMRP_PRUNE		7	/* prune message */
 #define DVMRP_GRAFT		8	/* graft message */
 #define DVMRP_GRAFT_ACK		9	/* graft acknowledgement */
+static const struct tok dvmrp_msgtype_str[] = {
+	{ DVMRP_PROBE,          "Probe"              },
+	{ DVMRP_REPORT,         "Report"             },
+	{ DVMRP_ASK_NEIGHBORS,  "Ask-neighbors(old)" },
+	{ DVMRP_NEIGHBORS,      "Neighbors(old)"     },
+	{ DVMRP_ASK_NEIGHBORS2, "Ask-neighbors2"     },
+	{ DVMRP_NEIGHBORS2,     "Neighbors2"         },
+	{ DVMRP_PRUNE,          "Prune"              },
+	{ DVMRP_GRAFT,          "Graft"              },
+	{ DVMRP_GRAFT_ACK,      "Graft-ACK"          },
+	{ 0, NULL }
+};
 
 /*
  * 'flags' byte values in DVMRP_NEIGHBORS2 reply.
@@ -57,311 +69,264 @@
 #define DVMRP_NF_DISABLED	0x20	/* administratively disabled */
 #define DVMRP_NF_QUERIER	0x40	/* I am the subnet's querier */
 
-static int print_probe(netdissect_options *, const u_char *, const u_char *, u_int);
-static int print_report(netdissect_options *, const u_char *, const u_char *, u_int);
-static int print_neighbors(netdissect_options *, const u_char *, const u_char *, u_int);
-static int print_neighbors2(netdissect_options *, const u_char *, const u_char *, u_int, uint8_t, uint8_t);
-static int print_prune(netdissect_options *, const u_char *);
-static int print_graft(netdissect_options *, const u_char *);
-static int print_graft_ack(netdissect_options *, const u_char *);
+static void print_probe(netdissect_options *, const u_char *, u_int);
+static void print_report(netdissect_options *, const u_char *, u_int);
+static void print_neighbors(netdissect_options *, const u_char *, u_int);
+static void print_neighbors2(netdissect_options *, const u_char *, u_int, uint8_t, uint8_t);
 
 void
 dvmrp_print(netdissect_options *ndo,
-            register const u_char *bp, register u_int len)
+            const u_char *bp, u_int len)
 {
-	register const u_char *ep;
-	register u_char type;
+	u_char type;
 	uint8_t major_version, minor_version;
 
-	ep = (const u_char *)ndo->ndo_snapend;
-	if (bp >= ep)
-		return;
+	ndo->ndo_protocol = "dvmrp";
+	if (len < 8) {
+		ND_PRINT(" [length %u < 8]", len);
+		goto invalid;
+	}
 
-	ND_TCHECK(bp[1]);
-	type = bp[1];
+	type = GET_U_1(bp + 1);
 
 	/* Skip IGMP header */
 	bp += 8;
 	len -= 8;
 
+	ND_PRINT(" %s", tok2str(dvmrp_msgtype_str, "[type %u]", type));
 	switch (type) {
 
 	case DVMRP_PROBE:
-		ND_PRINT((ndo, " Probe"));
 		if (ndo->ndo_vflag) {
-			if (print_probe(ndo, bp, ep, len) < 0)
-				goto trunc;
+			print_probe(ndo, bp, len);
 		}
 		break;
 
 	case DVMRP_REPORT:
-		ND_PRINT((ndo, " Report"));
 		if (ndo->ndo_vflag > 1) {
-			if (print_report(ndo, bp, ep, len) < 0)
-				goto trunc;
+			print_report(ndo, bp, len);
 		}
 		break;
 
-	case DVMRP_ASK_NEIGHBORS:
-		ND_PRINT((ndo, " Ask-neighbors(old)"));
-		break;
-
 	case DVMRP_NEIGHBORS:
-		ND_PRINT((ndo, " Neighbors(old)"));
-		if (print_neighbors(ndo, bp, ep, len) < 0)
-			goto trunc;
-		break;
-
-	case DVMRP_ASK_NEIGHBORS2:
-		ND_PRINT((ndo, " Ask-neighbors2"));
+		print_neighbors(ndo, bp, len);
 		break;
 
 	case DVMRP_NEIGHBORS2:
-		ND_PRINT((ndo, " Neighbors2"));
 		/*
 		 * extract version from IGMP group address field
 		 */
 		bp -= 4;
-		ND_TCHECK2(bp[0], 4);
-		major_version = *(bp + 3);
-		minor_version = *(bp + 2);
+		major_version = GET_U_1(bp + 3);
+		minor_version = GET_U_1(bp + 2);
 		bp += 4;
-		if (print_neighbors2(ndo, bp, ep, len, major_version,
-		    minor_version) < 0)
-			goto trunc;
+		print_neighbors2(ndo, bp, len, major_version, minor_version);
 		break;
 
 	case DVMRP_PRUNE:
-		ND_PRINT((ndo, " Prune"));
-		if (print_prune(ndo, bp) < 0)
-			goto trunc;
+		ND_PRINT(" src %s grp %s", GET_IPADDR_STRING(bp), GET_IPADDR_STRING(bp + 4));
+		ND_PRINT(" timer ");
+		unsigned_relts_print(ndo, GET_BE_U_4(bp + 8));
 		break;
 
 	case DVMRP_GRAFT:
-		ND_PRINT((ndo, " Graft"));
-		if (print_graft(ndo, bp) < 0)
-			goto trunc;
+		ND_PRINT(" src %s grp %s", GET_IPADDR_STRING(bp), GET_IPADDR_STRING(bp + 4));
 		break;
 
 	case DVMRP_GRAFT_ACK:
-		ND_PRINT((ndo, " Graft-ACK"));
-		if (print_graft_ack(ndo, bp) < 0)
-			goto trunc;
-		break;
-
-	default:
-		ND_PRINT((ndo, " [type %d]", type));
+		ND_PRINT(" src %s grp %s", GET_IPADDR_STRING(bp), GET_IPADDR_STRING(bp + 4));
 		break;
 	}
 	return;
 
-trunc:
-	ND_PRINT((ndo, "[|dvmrp]"));
-	return;
+invalid:
+	nd_print_invalid(ndo);
 }
 
-static int
+static void
 print_report(netdissect_options *ndo,
-             register const u_char *bp, register const u_char *ep,
-             register u_int len)
+             const u_char *bp,
+             u_int len)
 {
-	register uint32_t mask, origin;
-	register int metric, done;
-	register u_int i, width;
+	uint32_t mask, origin;
+	u_int metric, done;
+	u_int i, width;
 
 	while (len > 0) {
 		if (len < 3) {
-			ND_PRINT((ndo, " [|]"));
-			return (0);
+			ND_PRINT(" [length %u < 3]", len);
+			goto invalid;
 		}
-		ND_TCHECK2(bp[0], 3);
-		mask = (uint32_t)0xff << 24 | bp[0] << 16 | bp[1] << 8 | bp[2];
+		mask = (uint32_t)0xff << 24 | GET_U_1(bp) << 16 |
+			GET_U_1(bp + 1) << 8 | GET_U_1(bp + 2);
 		width = 1;
-		if (bp[0])
+		if (GET_U_1(bp))
 			width = 2;
-		if (bp[1])
+		if (GET_U_1(bp + 1))
 			width = 3;
-		if (bp[2])
+		if (GET_U_1(bp + 2))
 			width = 4;
 
-		ND_PRINT((ndo, "\n\tMask %s", intoa(htonl(mask))));
+		ND_PRINT("\n\tMask %s", intoa(htonl(mask)));
 		bp += 3;
 		len -= 3;
 		do {
-			if (bp + width + 1 > ep) {
-				ND_PRINT((ndo, " [|]"));
-				return (0);
-			}
 			if (len < width + 1) {
-				ND_PRINT((ndo, "\n\t  [Truncated Report]"));
-				return (0);
+				ND_PRINT("\n\t  [Truncated Report]");
+				goto invalid;
 			}
 			origin = 0;
 			for (i = 0; i < width; ++i) {
-				ND_TCHECK(*bp);
-				origin = origin << 8 | *bp++;
+				origin = origin << 8 | GET_U_1(bp);
+				bp++;
 			}
 			for ( ; i < 4; ++i)
 				origin <<= 8;
 
-			ND_TCHECK(*bp);
-			metric = *bp++;
+			metric = GET_U_1(bp);
+			bp++;
 			done = metric & 0x80;
 			metric &= 0x7f;
-			ND_PRINT((ndo, "\n\t  %s metric %d", intoa(htonl(origin)),
-				metric));
+			ND_PRINT("\n\t  %s metric %u", intoa(htonl(origin)),
+				metric);
 			len -= width + 1;
 		} while (!done);
 	}
-	return (0);
-trunc:
-	return (-1);
+	return;
+
+invalid:
+	nd_print_invalid(ndo);
 }
 
-static int
+static void
 print_probe(netdissect_options *ndo,
-            register const u_char *bp, register const u_char *ep,
-            register u_int len)
+            const u_char *bp,
+            u_int len)
 {
-	register uint32_t genid;
-
-	ND_TCHECK2(bp[0], 4);
-	if ((len < 4) || ((bp + 4) > ep)) {
-		/* { (ctags) */
-		ND_PRINT((ndo, " [|}"));
-		return (0);
+	if (len < 4) {
+		ND_PRINT(" [full length %u < 4]", len);
+		goto invalid;
 	}
-	genid = EXTRACT_32BITS(bp);
+	ND_PRINT(ndo->ndo_vflag > 1 ? "\n\t" : " ");
+	ND_PRINT("genid %u", GET_BE_U_4(bp));
+	if (ndo->ndo_vflag < 2)
+		return;
+
 	bp += 4;
 	len -= 4;
-	ND_PRINT((ndo, ndo->ndo_vflag > 1 ? "\n\t" : " "));
-	ND_PRINT((ndo, "genid %u", genid));
-	if (ndo->ndo_vflag < 2)
-		return (0);
-
-	while ((len > 0) && (bp < ep)) {
-		ND_TCHECK2(bp[0], 4);
-		ND_PRINT((ndo, "\n\tneighbor %s", ipaddr_string(ndo, bp)));
+	while (len > 0) {
+		if (len < 4) {
+			ND_PRINT("[remaining length %u < 4]", len);
+			goto invalid;
+		}
+		ND_PRINT("\n\tneighbor %s", GET_IPADDR_STRING(bp));
 		bp += 4; len -= 4;
 	}
-	return (0);
-trunc:
-	return (-1);
+	return;
+
+invalid:
+	nd_print_invalid(ndo);
 }
 
-static int
+static void
 print_neighbors(netdissect_options *ndo,
-                register const u_char *bp, register const u_char *ep,
-                register u_int len)
+                const u_char *bp,
+                u_int len)
 {
 	const u_char *laddr;
-	register u_char metric;
-	register u_char thresh;
-	register int ncount;
+	u_char metric;
+	u_char thresh;
+	int ncount;
 
-	while (len > 0 && bp < ep) {
-		ND_TCHECK2(bp[0], 7);
+	while (len > 0) {
+		if (len < 7) {
+			ND_PRINT(" [length %u < 7]", len);
+			goto invalid;
+		}
 		laddr = bp;
 		bp += 4;
-		metric = *bp++;
-		thresh = *bp++;
-		ncount = *bp++;
+		metric = GET_U_1(bp);
+		bp++;
+		thresh = GET_U_1(bp);
+		bp++;
+		ncount = GET_U_1(bp);
+		bp++;
 		len -= 7;
 		while (--ncount >= 0) {
-			ND_TCHECK2(bp[0], 4);
-			ND_PRINT((ndo, " [%s ->", ipaddr_string(ndo, laddr)));
-			ND_PRINT((ndo, " %s, (%d/%d)]",
-				   ipaddr_string(ndo, bp), metric, thresh));
+			if (len < 4) {
+				ND_PRINT(" [length %u < 4]", len);
+				goto invalid;
+			}
+			ND_PRINT(" [%s ->", GET_IPADDR_STRING(laddr));
+			ND_PRINT(" %s, (%u/%u)]",
+				   GET_IPADDR_STRING(bp), metric, thresh);
 			bp += 4;
 			len -= 4;
 		}
 	}
-	return (0);
-trunc:
-	return (-1);
+	return;
+
+invalid:
+	nd_print_invalid(ndo);
 }
 
-static int
+static void
 print_neighbors2(netdissect_options *ndo,
-                 register const u_char *bp, register const u_char *ep,
-                 register u_int len, uint8_t major_version,
+                 const u_char *bp,
+                 u_int len, uint8_t major_version,
                  uint8_t minor_version)
 {
 	const u_char *laddr;
-	register u_char metric, thresh, flags;
-	register int ncount;
+	u_char metric, thresh, flags;
+	int ncount;
 
-	ND_PRINT((ndo, " (v %d.%d):", major_version, minor_version));
+	ND_PRINT(" (v %u.%u):", major_version, minor_version);
 
-	while (len > 0 && bp < ep) {
-		ND_TCHECK2(bp[0], 8);
+	while (len > 0) {
+		if (len < 8) {
+			ND_PRINT(" [length %u < 8]", len);
+			goto invalid;
+		}
 		laddr = bp;
 		bp += 4;
-		metric = *bp++;
-		thresh = *bp++;
-		flags = *bp++;
-		ncount = *bp++;
+		metric = GET_U_1(bp);
+		bp++;
+		thresh = GET_U_1(bp);
+		bp++;
+		flags = GET_U_1(bp);
+		bp++;
+		ncount = GET_U_1(bp);
+		bp++;
 		len -= 8;
-		while (--ncount >= 0 && (len >= 4) && (bp + 4) <= ep) {
-			ND_PRINT((ndo, " [%s -> ", ipaddr_string(ndo, laddr)));
-			ND_PRINT((ndo, "%s (%d/%d", ipaddr_string(ndo, bp),
-				     metric, thresh));
+		while (--ncount >= 0 && len > 0) {
+			if (len < 4) {
+				ND_PRINT(" [length %u < 4]", len);
+				goto invalid;
+			}
+			ND_PRINT(" [%s -> ", GET_IPADDR_STRING(laddr));
+			ND_PRINT("%s (%u/%u", GET_IPADDR_STRING(bp),
+				     metric, thresh);
 			if (flags & DVMRP_NF_TUNNEL)
-				ND_PRINT((ndo, "/tunnel"));
+				ND_PRINT("/tunnel");
 			if (flags & DVMRP_NF_SRCRT)
-				ND_PRINT((ndo, "/srcrt"));
+				ND_PRINT("/srcrt");
 			if (flags & DVMRP_NF_QUERIER)
-				ND_PRINT((ndo, "/querier"));
+				ND_PRINT("/querier");
 			if (flags & DVMRP_NF_DISABLED)
-				ND_PRINT((ndo, "/disabled"));
+				ND_PRINT("/disabled");
 			if (flags & DVMRP_NF_DOWN)
-				ND_PRINT((ndo, "/down"));
-			ND_PRINT((ndo, ")]"));
+				ND_PRINT("/down");
+			ND_PRINT(")]");
 			bp += 4;
 			len -= 4;
 		}
 		if (ncount != -1) {
-			ND_PRINT((ndo, " [|]"));
-			return (0);
+			ND_PRINT(" [invalid ncount]");
+			goto invalid;
 		}
 	}
-	return (0);
-trunc:
-	return (-1);
-}
+	return;
 
-static int
-print_prune(netdissect_options *ndo,
-            register const u_char *bp)
-{
-	ND_TCHECK2(bp[0], 12);
-	ND_PRINT((ndo, " src %s grp %s", ipaddr_string(ndo, bp), ipaddr_string(ndo, bp + 4)));
-	bp += 8;
-	ND_PRINT((ndo, " timer "));
-	unsigned_relts_print(ndo, EXTRACT_32BITS(bp));
-	return (0);
-trunc:
-	return (-1);
-}
-
-static int
-print_graft(netdissect_options *ndo,
-            register const u_char *bp)
-{
-	ND_TCHECK2(bp[0], 8);
-	ND_PRINT((ndo, " src %s grp %s", ipaddr_string(ndo, bp), ipaddr_string(ndo, bp + 4)));
-	return (0);
-trunc:
-	return (-1);
-}
-
-static int
-print_graft_ack(netdissect_options *ndo,
-                register const u_char *bp)
-{
-	ND_TCHECK2(bp[0], 8);
-	ND_PRINT((ndo, " src %s grp %s", ipaddr_string(ndo, bp), ipaddr_string(ndo, bp + 4)));
-	return (0);
-trunc:
-	return (-1);
+invalid:
+	nd_print_invalid(ndo);
 }

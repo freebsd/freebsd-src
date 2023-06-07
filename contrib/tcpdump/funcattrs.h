@@ -35,28 +35,12 @@
 #ifndef lib_funcattrs_h
 #define lib_funcattrs_h
 
+#include "compiler-tests.h"
+
 /*
  * Attributes to apply to functions and their arguments, using various
  * compiler-specific extensions.
  */
-
-/*
- * This was introduced by Clang:
- *
- *     http://clang.llvm.org/docs/LanguageExtensions.html#has-attribute
- *
- * in some version (which version?); it has been picked up by GCC 5.0.
- */
-#ifndef __has_attribute
-  /*
-   * It's a macro, so you can check whether it's defined to check
-   * whether it's supported.
-   *
-   * If it's not, define it to always return 0, so that we move on to
-   * the fallback checks.
-   */
-  #define __has_attribute(x) 0
-#endif
 
 /*
  * NORETURN, before a function declaration, means "this function
@@ -65,24 +49,55 @@
  * declaration, as the MSVC version has to go before the declaration.)
  */
 #if __has_attribute(noreturn) \
-    || (defined(__GNUC__) && ((__GNUC__ * 100 + __GNUC_MINOR__) >= 205)) \
-    || (defined(__SUNPRO_C) && (__SUNPRO_C >= 0x590)) \
-    || (defined(__xlC__) && __xlC__ >= 0x0A01) \
-    || (defined(__HP_aCC) && __HP_aCC >= 61000)
+    || ND_IS_AT_LEAST_GNUC_VERSION(2,5) \
+    || ND_IS_AT_LEAST_SUNC_VERSION(5,9) \
+    || ND_IS_AT_LEAST_XL_C_VERSION(10,1) \
+    || ND_IS_AT_LEAST_HP_C_VERSION(6,10)
   /*
    * Compiler with support for __attribute((noreturn)), or GCC 2.5 and
+   * later, or some compiler asserting compatibility with GCC 2.5 and
    * later, or Solaris Studio 12 (Sun C 5.9) and later, or IBM XL C 10.1
-   * and later (do any earlier versions of XL C support this?), or
-   * HP aCC A.06.10 and later.
+   * and later (do any earlier versions of XL C support this?), or HP aCC
+   * A.06.10 and later.
    */
   #define NORETURN __attribute((noreturn))
+
+  /*
+   * However, GCC didn't support that for function *pointers* until GCC
+   * 4.1.0; see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=3481.
+   *
+   * Sun C/Oracle Studio C doesn't seem to support it, either.
+   */
+  #if (defined(__GNUC__) && ((__GNUC__ * 100 + __GNUC_MINOR__) < 401)) \
+      || (defined(__SUNPRO_C))
+    #define NORETURN_FUNCPTR
+  #else
+    #define NORETURN_FUNCPTR __attribute((noreturn))
+  #endif
 #elif defined(_MSC_VER)
   /*
    * MSVC.
+   * It doesn't allow __declspec(noreturn) to be applied to function
+   * pointers.
    */
   #define NORETURN __declspec(noreturn)
+  #define NORETURN_FUNCPTR
 #else
   #define NORETURN
+  #define NORETURN_FUNCPTR
+#endif
+
+/*
+ * WARN_UNUSED_RESULT, before a function declaration, means "the caller
+ * should use the result of this function" (even if it's just a success/
+ * failure indication).
+ */
+#if __has_attribute(warn_unused_result) \
+    || ND_IS_AT_LEAST_GNUC_VERSION(3,4) \
+    || ND_IS_AT_LEAST_HP_C_VERSION(6,25)
+  #define WARN_UNUSED_RESULT __attribute((warn_unused_result))
+#else
+  #define WARN_UNUSED_RESULT
 #endif
 
 /*
@@ -92,29 +107,52 @@
  * string".
  */
 #if __has_attribute(__format__) \
-    || (defined(__GNUC__) && ((__GNUC__ * 100 + __GNUC_MINOR__) >= 203)) \
-    || (defined(__xlC__) && __xlC__ >= 0x0A01) \
-    || (defined(__HP_aCC) && __HP_aCC >= 61000)
+    || ND_IS_AT_LEAST_GNUC_VERSION(2,3) \
+    || ND_IS_AT_LEAST_XL_C_VERSION(10,1) \
+    || ND_IS_AT_LEAST_HP_C_VERSION(6,10)
   /*
-   * Compiler with support for it, or GCC 2.3 and later, or IBM XL C 10.1
+   * Compiler with support for it, or GCC 2.3 and later, or some compiler
+   * asserting compatibility with GCC 2.3 and later, or IBM XL C 10.1
    * and later (do any earlier versions of XL C support this?),
    * or HP aCC A.06.10 and later.
    */
   #define PRINTFLIKE(x,y) __attribute__((__format__(__printf__,x,y)))
-#else
-  #define PRINTFLIKE(x,y)
+
+  /*
+   * However, GCC didn't support that for function *pointers* until GCC
+   * 4.1.0; see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=3481.
+   * XL C 16.1 (and possibly some earlier versions, but not 12.1 or 13.1) has
+   * a similar bug, the bugfix for which was made in:
+   * * version 16.1.1.8 for Linux (25 June 2020), which fixes
+   *   https://www.ibm.com/support/pages/apar/LI81402
+   * * version 16.1.0.5 for AIX (5 May 2020), which fixes
+   *   https://www.ibm.com/support/pages/apar/IJ24678
+   *
+   * When testing versions, keep in mind that XL C 16.1 pretends to be both
+   * GCC 4.2 and Clang 4.0 at once.
+   */
+  #if (ND_IS_AT_LEAST_GNUC_VERSION(4,1) \
+       && !ND_IS_AT_LEAST_XL_C_VERSION(10,1)) \
+      || (ND_IS_AT_LEAST_XL_C_VERSION(16,1) \
+          && (ND_IS_AT_LEAST_XL_C_MODFIX(1, 8) && defined(__linux__)) \
+              || (ND_IS_AT_LEAST_XL_C_MODFIX(0, 5) && defined(_AIX)))
+    #define PRINTFLIKE_FUNCPTR(x,y) __attribute__((__format__(__printf__,x,y)))
+  #endif
+#endif
+
+#if !defined(PRINTFLIKE)
+#define PRINTFLIKE(x,y)
+#endif
+#if !defined(PRINTFLIKE_FUNCPTR)
+#define PRINTFLIKE_FUNCPTR(x,y)
 #endif
 
 /*
  * For flagging arguments as format strings in MSVC.
  */
-#if _MSC_VER >= 1400
+#ifdef _MSC_VER
  #include <sal.h>
- #if _MSC_VER > 1400
-  #define FORMAT_STRING(p) _Printf_format_string_ p
- #else
-  #define FORMAT_STRING(p) __format_string p
- #endif
+ #define FORMAT_STRING(p) _Printf_format_string_ p
 #else
  #define FORMAT_STRING(p) p
 #endif

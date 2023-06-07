@@ -57,6 +57,8 @@
 #include <string.h>
 #include <stdarg.h>
 
+#include "diag-control.h"
+
 #define GNU_COMPATIBLE		/* Be more compatible, configure's use us! */
 
 #define PRINT_ERROR	((opterr) && (*options != ':'))
@@ -68,7 +70,7 @@
 /* return values */
 #define	BADCH		(int)'?'
 #define	BADARG		((*options == ':') ? (int)':' : (int)'?')
-#define	INORDER 	(int)1
+#define	INORDER		(int)1
 
 #define	EMSG		""
 
@@ -158,11 +160,29 @@ permute_args(int panonopt_start, int panonopt_end, int opt_end,
 				pos -= nnonopts;
 			else
 				pos += nopts;
+			/*
+			 * This is annoying - I guess the
+			 * "char * const argv[]" in the declaration
+			 * of getopt() - and thus getopt_long() -
+			 * means that it makes a promise not to
+			 * shuffle the arguments, but here we are,
+			 * shuffling the arguments.
+			 *
+			 * (No, it's not a promise that it won't
+			 * modify any of the argument strings.
+			 * It's a promise that it won't modify
+			 * the array of pointers to the argument
+			 * strings.)
+			 *
+			 * So squelch the cast warnings.
+			 */
 			swap = nargv[pos];
+DIAG_OFF_CAST_QUAL
 			/* LINTED const cast */
 			((char **) nargv)[pos] = nargv[cstart];
 			/* LINTED const cast */
 			((char **)nargv)[cstart] = swap;
+DIAG_ON_CAST_QUAL
 		}
 	}
 }
@@ -291,6 +311,7 @@ parse_long_options(char * const *nargv, const char *options,
 		}
 		if (long_options[match].has_arg == required_argument ||
 		    long_options[match].has_arg == optional_argument) {
+DIAG_OFF_CAST_QUAL
 			if (has_equal)
 				optarg = (char *)has_equal;
 			else if (long_options[match].has_arg ==
@@ -300,6 +321,7 @@ parse_long_options(char * const *nargv, const char *options,
 				 */
 				optarg = nargv[optind++];
 			}
+DIAG_ON_CAST_QUAL
 		}
 		if ((long_options[match].has_arg == required_argument)
 		    && (optarg == NULL)) {
@@ -543,9 +565,11 @@ start:
 			++optind;
 	} else {				/* takes (optional) argument */
 		optarg = NULL;
-		if (*place)			/* no white space */
+		if (*place) {			/* no white space */
+DIAG_OFF_CAST_QUAL
 			optarg = (char *)place;
-		else if (oli[1] != ':') {	/* arg not optional */
+DIAG_ON_CAST_QUAL
+		} else if (oli[1] != ':') {	/* arg not optional */
 			if (++optind >= nargc) {	/* no arg */
 				place = EMSG;
 				if (PRINT_ERROR)
