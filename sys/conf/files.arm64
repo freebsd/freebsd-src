@@ -338,6 +338,7 @@ dev/iicbus/twsi/twsi.c				optional twsi fdt
 
 dev/ipmi/ipmi.c					optional ipmi
 dev/ipmi/ipmi_acpi.c				optional ipmi acpi
+dev/ipmi/ipmi_bt.c				optional ipmi
 dev/ipmi/ipmi_kcs.c				optional ipmi
 dev/ipmi/ipmi_smic.c				optional ipmi
 

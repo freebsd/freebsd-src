@@ -188,16 +188,17 @@ ipmi_isa_attach(device_t dev)
 
 	switch (info.iface_type) {
 	case KCS_MODE:
-		count = 2;
+		count = IPMI_IF_KCS_NRES;
 		mode = "KCS";
 		break;
 	case SMIC_MODE:
-		count = 3;
+		count = IPMI_IF_SMIC_NRES;
 		mode = "SMIC";
 		break;
 	case BT_MODE:
-		device_printf(dev, "BT mode is unsupported\n");
-		return (ENXIO);
+		count = IPMI_IF_BT_NRES;
+		mode = "BT";
+		break;
 	default:
 		return (ENXIO);
 	}
@@ -248,19 +249,21 @@ ipmi_isa_attach(device_t dev)
 		    RF_SHAREABLE | RF_ACTIVE);
 	}
 
+	error = ENXIO;
 	switch (info.iface_type) {
 	case KCS_MODE:
 		error = ipmi_kcs_attach(sc);
-		if (error)
-			goto bad;
 		break;
 	case SMIC_MODE:
 		error = ipmi_smic_attach(sc);
-		if (error)
-			goto bad;
+		break;
+	case BT_MODE:
+		error = ipmi_bt_attach(sc);
 		break;
 	}
 
+	if (error)
+		goto bad;
 	error = ipmi_attach(dev);
 	if (error)
 		goto bad;
