@@ -100,7 +100,13 @@ static char *find_dot_file(char *);
 int
 main(int argc, char *argv[])
 {
-	struct stackmark smark = {0}, smark2;
+	/*
+	 * As smark is accessed after a longjmp, it cannot be a local in main().
+	 * The C standard specifies that the values of non-volatile local
+	 * variables are unspecified after a jump if modified between the
+	 * setjmp and longjmp.
+	 */
+	static struct stackmark smark, smark2;
 	volatile int state;
 	char *shinit;
 
