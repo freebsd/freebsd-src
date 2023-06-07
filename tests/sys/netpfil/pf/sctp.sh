@@ -469,6 +469,193 @@ rdr_v4_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "pfsync" "cleanup"
+pfsync_head()
+{
+	atf_set descr 'Test pfsync-ing SCTP connections'
+	atf_set require.user root
+}
+
+pfsync_body()
+{
+	# + Builds bellow topology and initiate an SCTP connection
+	#   from client to server.
+	# + Tests that the connection remains open when we fail over from
+	#   router one to router two.
+	#
+	#                   ┌──────┐
+	#                   │client│
+	#                   └───┬──┘
+	#                       │
+	#                   ┌───┴───┐
+	#                   │bridge0│
+	#                   └┬─────┬┘
+	#                    │     │
+	#   ┌────────────────┴─┐ ┌─┴────────────────┐
+	#   │        one       ├─┤       two        │
+	#   └────────────────┬─┘ └─┬────────────────┘
+	#                    │     │
+	#                   ┌┴─────┴┐
+	#                   │bridge1│
+	#                   └───┬───┘
+	#                       │
+	#                   ┌───┴──┐
+	#                   │server│
+	#                   └──────┘
+
+	sctp_init
+	pfsynct_init
+	if ! kldstat -q -m carp
+	then
+		atf_skip "This test requires carp"
+	fi
+
+	j="sctp:pfsync"
+
+	tmp=`pwd`
+
+	bridge0=$(vnet_mkbridge)
+	bridge1=$(vnet_mkbridge)
+
+	epair_c=$(vnet_mkepair)
+	epair_one0=$(vnet_mkepair)
+	epair_two0=$(vnet_mkepair)
+	epair_sync=$(vnet_mkepair)
+	epair_one1=$(vnet_mkepair)
+	epair_two1=$(vnet_mkepair)
+	epair_srv=$(vnet_mkepair)
+
+	ifconfig ${bridge0} addm ${epair_c}a addm ${epair_one0}a addm ${epair_two0}a
+	ifconfig ${epair_one0}a up
+	ifconfig ${epair_two0}a up
+	ifconfig ${epair_c}a up
+	ifconfig ${bridge0} up
+
+	ifconfig ${bridge1} addm ${epair_srv}a addm ${epair_one1}a addm ${epair_two1}a
+	ifconfig ${epair_one1}a up
+	ifconfig ${epair_two1}a up
+	ifconfig ${epair_srv}a up
+	ifconfig ${bridge1} up
+
+	vnet_mkjail ${j}c ${epair_c}b
+	jexec ${j}c ifconfig ${epair_c}b 192.0.2.2/24 up
+	jexec ${j}c route add default 192.0.2.1
+
+	vnet_mkjail ${j}one ${epair_one0}b ${epair_one1}b ${epair_sync}a
+	jexec ${j}one ifconfig ${epair_one0}b 192.0.2.3/24 up
+	jexec ${j}one ifconfig ${epair_one0}b \
+	    alias 192.0.2.1/32 vhid 1 pass 1234
+	jexec ${j}one ifconfig ${epair_one1}b 198.51.100.3/24 up
+	jexec ${j}one ifconfig ${epair_one1}b \
+	    alias 198.51.100.2/32 vhid 2 pass 4321
+	jexec ${j}one ifconfig ${epair_sync}a 203.0.113.1/24 up
+	jexec ${j}one ifconfig pfsync0 \
+		syncdev ${epair_sync}a \
+		maxupd 1 \
+		up
+	jexec ${j}one sysctl net.inet.ip.forwarding=1
+
+	vnet_mkjail ${j}two ${epair_two0}b ${epair_two1}b ${epair_sync}b
+	jexec ${j}two ifconfig ${epair_two0}b 192.0.2.4/24 up
+	jexec ${j}two ifconfig ${epair_two0}b \
+	    alias 192.0.2.1/32 vhid 1 pass 1234
+	jexec ${j}two ifconfig ${epair_two1}b 198.51.100.4/24 up
+	jexec ${j}two ifconfig ${epair_two1}b \
+	    alias 198.51.100.2/32 vhid 2 pass 4321
+	jexec ${j}two ifconfig ${epair_sync}b 203.0.113.2/24 up
+	jexec ${j}two ifconfig pfsync0 \
+		syncdev ${epair_sync}b \
+		maxupd 1 \
+		up
+	jexec ${j}two sysctl net.inet.ip.forwarding=1
+
+	vnet_mkjail ${j}srv ${epair_srv}b
+	jexec ${j}srv ifconfig ${epair_srv}b 198.51.100.1/24 up
+	jexec ${j}srv route add default 198.51.100.2
+
+	# Demote two, to avoid dealing with asymmetric routing
+	jexec ${j}two sysctl net.inet.carp.demotion=50
+
+	jexec ${j}one pfctl -e
+	pft_set_rules ${j}one \
+		"block all" \
+		"pass proto { icmp, pfsync, carp }" \
+		"pass proto sctp to port 1234" \
+		"pass proto tcp to port 1234"
+
+	jexec ${j}two pfctl -e
+	pft_set_rules ${j}two \
+		"block all" \
+		"pass proto { icmp, pfsync, carp }" \
+		"pass proto sctp to port 1234" \
+		"pass proto tcp to port 1234"
+
+	# Give carp time to get set up
+	sleep 2
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore \
+	    jexec ${j}c ping -c 1 198.51.100.1
+
+	# Now start up an SCTP connection
+	touch ${tmp}/input
+	tail -F ${tmp}/input | jexec ${j}srv nc --sctp -l 1234 &
+	sleep 1
+
+	jexec ${j}c nc --sctp 198.51.100.1 1234 > ${tmp}/output &
+	echo "1" >> ${tmp}/input
+
+	# Give time for the traffic to arrive
+	sleep 1
+	line=$(tail -n -1 ${tmp}/output)
+	if [ "${line}" != "1" ];
+	then
+		echo "Found ${line}"
+		cat ${tmp}/output
+		atf_fail "Initial SCTP connection failed"
+	fi
+
+	# Verify that two has the connection too
+	state=$(jexec ${j}two pfctl -ss | grep sctp)
+	if [ -z "${state}" ];
+	then
+		jexec ${j}two pfctl -ss
+		atf_fail "Failed to find SCTP state on secondary pfsync host"
+	fi
+
+	# Now fail over (both carp IPs should switch here)
+	jexec ${j}one sysctl net.inet.carp.demotion=100
+
+	while ! jexec ${j}one ifconfig ${epair_one0}b | grep MASTER;
+	do
+		sleep 1
+	done
+	while ! jexec ${j}one ifconfig ${epair_one1}b | grep MASTER;
+	do
+		sleep 1
+	done
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore \
+	    jexec ${j}c ping -c 1 198.51.100.1
+
+	# And check that the connection is still live
+	echo "2" >> ${tmp}/input
+	sleep 1
+	line=$(tail -n -1 ${tmp}/output)
+	if [ "${line}" != "2" ];
+	then
+		echo "Found ${line}"
+		cat ${tmp}/output
+		atf_fail "SCTP failover failed"
+	fi
+}
+
+pfsync_cleanup()
+{
+	pfsynct_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic_v4"
@@ -478,4 +665,5 @@ atf_init_test_cases()
 	atf_add_test_case "nat_v4"
 	atf_add_test_case "nat_v6"
 	atf_add_test_case "rdr_v4"
+	atf_add_test_case "pfsync"
 }
