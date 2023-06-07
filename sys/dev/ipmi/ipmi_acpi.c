@@ -95,16 +95,17 @@ ipmi_acpi_attach(device_t dev)
 
 	switch (interface_type) {
 	case KCS_MODE:
-		count = 2;
+		count = IPMI_IF_KCS_NRES;
 		mode = "KCS";
 		break;
 	case SMIC_MODE:
-		count = 3;
+		count = IPMI_IF_SMIC_NRES;
 		mode = "SMIC";
 		break;
 	case BT_MODE:
-		device_printf(dev, "BT interface not supported\n");
-		return (ENXIO);
+		count = IPMI_IF_BT_NRES;
+		mode = "BT";
+		break;
 	case SSIF_MODE:
 		if (ACPI_FAILURE(acpi_GetInteger(devh, "_ADR", &flags)))
 			return (ENXIO);
@@ -174,18 +175,20 @@ ipmi_acpi_attach(device_t dev)
 	 * We assume an alignment of 1 byte as currently the IPMI spec
 	 * doesn't provide any way to determine the alignment via ACPI.
 	 */
+	error = ENXIO;
 	switch (interface_type) {
 	case KCS_MODE:
 		error = ipmi_kcs_attach(sc);
-		if (error)
-			goto bad;
 		break;
 	case SMIC_MODE:
 		error = ipmi_smic_attach(sc);
-		if (error)
-			goto bad;
+		break;
+	case BT_MODE:
+		error = ipmi_bt_attach(sc);
 		break;
 	}
+	if (error)
+		goto bad;
 	error = ipmi_attach(dev);
 	if (error)
 		goto bad;
