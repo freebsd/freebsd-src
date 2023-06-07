@@ -59,6 +59,10 @@ struct ipmi_request {
 	uint8_t		ir_ipmb_command;
 };
 
+#define	IPMI_IF_KCS_NRES		2
+#define	IPMI_IF_SMIC_NRES		3
+#define	IPMI_IF_BT_NRES			3
+
 #define	MAX_RES				3
 #define KCS_DATA			0
 #define KCS_CTL_STS			1
@@ -80,6 +84,10 @@ struct ipmi_device {
 	u_char			ipmi_lun;
 };
 
+struct ipmi_bt {
+	uint8_t	seq;
+};
+
 struct ipmi_kcs {
 };
 
@@ -94,6 +102,7 @@ struct ipmi_ssif {
 struct ipmi_softc {
 	device_t		ipmi_dev;
 	union {
+		struct ipmi_bt bt;
 		struct ipmi_kcs kcs;
 		struct ipmi_smic smic;
 		struct ipmi_ssif ssif;
@@ -131,11 +140,12 @@ struct ipmi_softc {
 
 #define	ipmi_ssif_smbus_address		_iface.ssif.smbus_address
 #define	ipmi_ssif_smbus			_iface.ssif.smbus
+#define	ipmi_bt_seq			_iface.bt.seq
 
-#define KCS_MODE		0x01
-#define SMIC_MODE		0x02
-#define	BT_MODE			0x03
-#define SSIF_MODE		0x04
+#define	KCS_MODE			0x01
+#define	SMIC_MODE			0x02
+#define	BT_MODE				0x03
+#define	SSIF_MODE			0x04
 
 /* KCS status flags */
 #define KCS_STATUS_OBF			0x01 /* Data Out ready from BMC */
@@ -252,6 +262,7 @@ const char *ipmi_pci_match(uint16_t, uint16_t);
 int	ipmi_kcs_attach(struct ipmi_softc *);
 int	ipmi_kcs_probe_align(struct ipmi_softc *);
 int	ipmi_smic_attach(struct ipmi_softc *);
+int	ipmi_bt_attach(struct ipmi_softc *);
 int	ipmi_ssif_attach(struct ipmi_softc *, device_t, int);
 
 extern int ipmi_attached;

@@ -104,6 +104,7 @@ smbios_ipmi_info(struct smbios_structure_header *h, void *arg)
 	switch (s->interface_type) {
 	case KCS_MODE:
 	case SMIC_MODE:
+	case BT_MODE:
 		info->address = IPMI_BAR_ADDR(s->base_address) |
 		    IPMI_BAM_ADDR_LSB(s->base_address_modifier);
 		info->io_mode = IPMI_BAR_MODE(s->base_address);

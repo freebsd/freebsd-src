@@ -153,6 +153,7 @@ dev/iommu/iommu_gas.c		optional	acpi iommu pci
 dev/ipmi/ipmi.c			optional	ipmi
 dev/ipmi/ipmi_acpi.c		optional	ipmi acpi
 dev/ipmi/ipmi_isa.c		optional	ipmi isa
+dev/ipmi/ipmi_bt.c		optional	ipmi
 dev/ipmi/ipmi_kcs.c		optional	ipmi
 dev/ipmi/ipmi_smic.c		optional	ipmi
 dev/ipmi/ipmi_smbus.c		optional	ipmi smbus
