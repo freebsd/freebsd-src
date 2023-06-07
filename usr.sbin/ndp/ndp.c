@@ -97,6 +97,7 @@
 
 #include <arpa/inet.h>
 
+#include <assert.h>
 #include <ctype.h>
 #include <netdb.h>
 #include <errno.h>
@@ -105,11 +106,12 @@
 #include <string.h>
 #include <paths.h>
 #include <err.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <libxo/xo.h>
-#include "gmt2local.h"
+#include <time.h>
 
 #define	NEXTADDR(w, s)					\
 	if (rtm->rtm_addrs & (w)) {			\
@@ -160,6 +162,20 @@ static const char *rtpref_str[] = {
 
 #define NDP_XO_VERSION	"1"
 
+static int32_t
+utc_offset(void)
+{
+	time_t t;
+	struct tm *tm;
+
+	t = time(NULL);
+	tm = localtime(&t);
+
+	assert(tm->tm_gmtoff > INT32_MIN && tm->tm_gmtoff < INT32_MAX);
+
+	return (tm->tm_gmtoff);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -167,7 +183,7 @@ main(int argc, char **argv)
 	char *arg = NULL;
 
 	pid = getpid();
-	thiszone = gmt2local(0);
+	thiszone = utc_offset();
 
 	argc = xo_parse_args(argc, argv);
 	if (argc < 0)
