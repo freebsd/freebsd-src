@@ -33,7 +33,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <libxo/xo.h>
-#include "gmt2local.h"
 
 
 #include <netlink/netlink.h>
