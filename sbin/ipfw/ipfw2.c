@@ -3937,6 +3937,53 @@ add_dst(ipfw_insn *cmd, char *av, u_char proto, int cblen, struct tidx *tstate)
 	return ret;
 }
 
+static inline int
+arg_or_targ_relaxed(const char *arg, const char *action)
+{
+	uint32_t arg1 = (uint32_t)(-1);
+
+	if (arg == NULL)
+		errx(EX_USAGE, "missing argument for %s", action);
+	if (isdigit(arg[0])) {
+		arg1 = strtoul(arg, NULL, 10);
+		if (arg1 <= 0 || arg1 >= IP_FW_TABLEARG)
+			errx(EX_DATAERR, "illegal argument %s(%u) for %s",
+			    arg, arg1, action);
+	} else if (_substrcmp(arg, "tablearg") == 0)
+		arg1 = IP_FW_TARG;
+	return (arg1);
+}
+
+static inline uint16_t
+arg_or_targ(const char *arg, const char *action)
+{
+	uint32_t arg1 = arg_or_targ_relaxed(arg, action);
+
+	if (arg1 == (uint32_t)(-1))
+		errx(EX_DATAERR, "illegal argument %s(%u) for %s",
+		    arg, arg1, action);
+	return (arg1);
+}
+
+static void
+fill_divert_port(ipfw_insn *cmd, char *arg, const char *action)
+{
+	uint32_t arg1 = arg_or_targ_relaxed(arg, action);
+
+	if (arg1 != (uint32_t)(-1)) {
+		cmd->arg1 = arg1;
+		return;
+	}
+
+	struct servent *s;
+	setservent(1);
+	s = getservbyname(arg, "divert");
+	if (s != NULL)
+		cmd->arg1 = ntohs(s->s_port);
+	else
+		errx(EX_DATAERR, "illegal divert/tee port");
+}
+
 /*
  * Parse arguments and assemble the microinstructions which make up a rule.
  * Rules are added into the 'rulebuf' and then copied in the correct order
@@ -4126,55 +4173,50 @@ compile_rule(char *av[], uint32_t *rbuf, int *rbufsize, struct tidx *tstate)
 		action->opcode = O_NAT;
 		action->len = F_INSN_SIZE(ipfw_insn_nat);
 		CHECK_ACTLEN;
-		if (*av != NULL && _substrcmp(*av, "global") == 0) {
+		if (*av != NULL && _substrcmp(*av, "global") == 0)
 			action->arg1 = IP_FW_NAT44_GLOBAL;
-			av++;
-			break;
-		} else
-			goto chkarg;
+		else
+			action->arg1 = arg_or_targ(av[0], *(av - 1));
+		av++;
+		break;
 	case TOK_QUEUE:
 		action->opcode = O_QUEUE;
-		goto chkarg;
+		action->arg1 = arg_or_targ(av[0], *(av - 1));
+		av++;
+		break;
 	case TOK_PIPE:
 		action->opcode = O_PIPE;
-		goto chkarg;
+		action->arg1 = arg_or_targ(av[0], *(av - 1));
+		av++;
+		break;
 	case TOK_SKIPTO:
 		action->opcode = O_SKIPTO;
-		goto chkarg;
+		action->arg1 = arg_or_targ(av[0], *(av - 1));
+		av++;
+		break;
 	case TOK_NETGRAPH:
 		action->opcode = O_NETGRAPH;
-		goto chkarg;
+		action->arg1 = arg_or_targ(av[0], *(av - 1));
+		av++;
+		break;
 	case TOK_NGTEE:
 		action->opcode = O_NGTEE;
-		goto chkarg;
+		action->arg1 = arg_or_targ(av[0], *(av - 1));
+		av++;
+		break;
 	case TOK_DIVERT:
 		action->opcode = O_DIVERT;
-		goto chkarg;
+		fill_divert_port(action, av[0], *(av - 1));
+		av++;
+		break;
 	case TOK_TEE:
 		action->opcode = O_TEE;
-		goto chkarg;
+		fill_divert_port(action, av[0], *(av - 1));
+		av++;
+		break;
 	case TOK_CALL:
 		action->opcode = O_CALLRETURN;
-chkarg:
-		if (!av[0])
-			errx(EX_USAGE, "missing argument for %s", *(av - 1));
-		if (isdigit(**av)) {
-			action->arg1 = strtoul(*av, NULL, 10);
-			if (action->arg1 <= 0 || action->arg1 >= IP_FW_TABLEARG)
-				errx(EX_DATAERR, "illegal argument for %s",
-				    *(av - 1));
-		} else if (_substrcmp(*av, "tablearg") == 0) {
-			action->arg1 = IP_FW_TARG;
-		} else if (i == TOK_DIVERT || i == TOK_TEE) {
-			struct servent *s;
-			setservent(1);
-			s = getservbyname(av[0], "divert");
-			if (s != NULL)
-				action->arg1 = ntohs(s->s_port);
-			else
-				errx(EX_DATAERR, "illegal divert/tee port");
-		} else
-			errx(EX_DATAERR, "illegal argument for %s", *(av - 1));
+		action->arg1 = arg_or_targ(av[0], *(av - 1));
 		av++;
 		break;
 
