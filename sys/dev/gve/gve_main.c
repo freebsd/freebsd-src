@@ -46,7 +46,6 @@ static struct gve_dev {
 } gve_devs[] = {
 	{ PCI_VENDOR_ID_GOOGLE, PCI_DEV_ID_GVNIC, "gVNIC" }
 };
-#define GVE_DEVS_COUNT nitems(gve_devs)
 
 struct sx gve_global_lock;
 
@@ -717,7 +716,7 @@ gve_probe(device_t dev)
 	vendorid = pci_get_vendor(dev);
 	deviceid = pci_get_device(dev);
 
-	for (i = 0; i < GVE_DEVS_COUNT; i++) {
+	for (i = 0; i < nitems(gve_devs); i++) {
 		if (vendorid == gve_devs[i].vendor_id &&
 		    deviceid == gve_devs[i].device_id) {
 			device_set_desc(dev, gve_devs[i].name);
@@ -869,5 +868,5 @@ DRIVER_MODULE(gve, pci, gve_driver, gve_devclass, 0, 0);
 #else
 DRIVER_MODULE(gve, pci, gve_driver, 0, 0);
 #endif
-MODULE_PNP_INFO("U16:vendor;U16:device", pci, gve, gve_devs,
-    GVE_DEVS_COUNT);
+MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, gve, gve_devs,
+    nitems(gve_devs));
