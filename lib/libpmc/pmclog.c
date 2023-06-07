@@ -356,12 +356,27 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 		PMCLOG_READ32(le,ev->pl_u.pl_a.pl_flags);
 		PMCLOG_READ32(le,noop);
 		PMCLOG_READ64(le,ev->pl_u.pl_a.pl_rate);
-		ev->pl_u.pl_a.pl_evname = pmc_pmu_event_get_by_idx(ps->ps_cpuid, ev->pl_u.pl_a.pl_event);
-		if (ev->pl_u.pl_a.pl_evname != NULL)
-			break;
-		else if ((ev->pl_u.pl_a.pl_evname =
-		    _pmc_name_of_event(ev->pl_u.pl_a.pl_event, ps->ps_arch))
-		    == NULL) {
+
+		/*
+		 * Could be either a PMC event code or a PMU event index;
+		 * assume that their encodings don't overlap (i.e. no PMU event
+		 * table is more than 0x1000 entries) to distinguish them here.
+		 * Otherwise pmc_pmu_event_get_by_idx will go out of bounds if
+		 * given a PMC event code when it knows about that CPU.
+		 *
+		 * XXX: Ideally we'd have user flags to give us that context.
+		 */
+		if (ev->pl_u.pl_a.pl_event < PMC_EVENT_FIRST)
+			ev->pl_u.pl_a.pl_evname =
+			    pmc_pmu_event_get_by_idx(ps->ps_cpuid,
+				ev->pl_u.pl_a.pl_event);
+		else if (ev->pl_u.pl_a.pl_event <= PMC_EVENT_LAST)
+			ev->pl_u.pl_a.pl_evname =
+			    _pmc_name_of_event(ev->pl_u.pl_a.pl_event,
+				ps->ps_arch);
+		else
+			ev->pl_u.pl_a.pl_evname = NULL;
+		if (ev->pl_u.pl_a.pl_evname == NULL) {
 			printf("unknown event\n");
 			goto error;
 		}
