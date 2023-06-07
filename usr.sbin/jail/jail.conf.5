@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 8, 2022
+.Dd Jun 3, 2023
 .Dt JAIL.CONF 5
 .Os
 .Sh NAME
@@ -163,6 +163,14 @@ would apply to jails with names like
 .Dq foo.bar
 and
 .Dq foo.bar.baz .
+.Ss Includes
+A line of the form
+.Bd -literal -offset ident
+.include "filename";
+.Ed
+.Pp
+will include another file in the configuration.  The filename must be
+a literal string, and cannot contain variable expansions.
 .Ss Comments
 The configuration file may contain comments in the common C, C++, and
 shell formats:
@@ -212,6 +220,13 @@ bar {
 	mount.nodevfs;
 	persist;	// Required because there are no processes
 }
+
+# Include configurations from standard locations.
+\[char46]include "/etc/jail.conf.d/*.conf";
+\[char46]include "/etc/jail.*.conf";
+\[char46]include "/usr/local/etc/jail[.]conf";
+\[char46]include "/usr/local/etc/jail.conf.d/*.conf";
+\[char46]include "/usr/local/etc/jail.*.conf";
 .Ed
 .Sh SEE ALSO
 .Xr jail_set 2 ,

@@ -73,16 +73,18 @@ conf	:
 	| conf jail
 	| conf param ';'
 	{
-		struct cfjail *j = current_jail;
+		if (!special_param($2, scanner)) {
+			struct cfjail *j = current_jail;
 
-		if (j == NULL) {
-			if (global_jail == NULL) {
-				global_jail = add_jail();
-				global_jail->name = estrdup("*");
+			if (j == NULL) {
+				if (global_jail == NULL) {
+					global_jail = add_jail();
+					global_jail->name = estrdup("*");
+				}
+				j = global_jail;
 			}
-			j = global_jail;
+			TAILQ_INSERT_TAIL(&j->params, $2, tq);
 		}
-		TAILQ_INSERT_TAIL(&j->params, $2, tq);
 	}
 	| conf ';'
 	;
@@ -141,6 +143,7 @@ param	: name
 	{
 		$$ = $1;
 		TAILQ_CONCAT(&$$->val, $2, tq);
+		$$->flags |= PF_NAMEVAL;
 		free($2);
 	}
 	| error
@@ -230,10 +233,6 @@ string	: STR
 
 extern int YYLEX_DECL();
 
-extern struct cflex *yyget_extra(void *scanner);
-extern int yyget_lineno(void *scanner);
-extern char *yyget_text(void *scanner);
-
 static void
 YYERROR_DECL()
 {
@@ -247,4 +246,30 @@ YYERROR_DECL()
 		warnx("%s line %d: %s: %s",
 		    yyget_extra(scanner)->cfname, yyget_lineno(scanner),
 		    yyget_text(scanner), s);
+}
+
+/* Handle special parameters (i.e. the include directive).
+ * Return true if the parameter was specially handled.
+ */
+static int
+special_param(struct cfparam *p, void *scanner)
+{
+	if ((p->flags & (PF_VAR | PF_APPEND | PF_NAMEVAL)) != PF_NAMEVAL
+	    || strcmp(p->name, ".include"))
+		return 0;
+	struct cfstring *s;
+	TAILQ_FOREACH(s, &p->val, tq) {
+		if (STAILQ_EMPTY(&s->vars))
+			include_config(scanner, s->s);
+		else {
+			warnx("%s line %d: "
+			    "variables not permitted in '.include' filename",
+			    yyget_extra(scanner)->cfname,
+			    yyget_lineno(scanner));
+			yyget_extra(scanner)->error = 1;
+		}
+	}
+	free_param_strings(p);
+	free(p);
+	return 1;
 }

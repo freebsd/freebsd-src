@@ -35,6 +35,7 @@
 #include <sys/time.h>
 
 #include <jail.h>
+#include <stdio.h>
 
 #define CONF_FILE	"/etc/jail.conf"
 
@@ -45,15 +46,16 @@
 #define DF_LIGHT	0x02	/* Implied dependency on jail existence only */
 #define DF_NOFAIL	0x04	/* Don't propagate failed jails */
 
-#define PF_VAR		0x01	/* This is a variable, not a true parameter */
-#define PF_APPEND	0x02	/* Append to existing parameter list */
-#define PF_BAD		0x04	/* Unable to resolve parameter value */
-#define PF_INTERNAL	0x08	/* Internal parameter, not passed to kernel */
-#define PF_BOOL		0x10	/* Boolean parameter */
-#define PF_INT		0x20	/* Integer parameter */
-#define PF_CONV		0x40	/* Parameter duplicated in converted form */
-#define PF_REV		0x80	/* Run commands in reverse order on stopping */
-#define	PF_IMMUTABLE	0x100	/* Immutable parameter */
+#define PF_VAR		0x0001	/* This is a variable, not a true parameter */
+#define PF_APPEND	0x0002	/* Append to existing parameter list */
+#define PF_BAD		0x0004	/* Unable to resolve parameter value */
+#define PF_INTERNAL	0x0008	/* Internal parameter, not passed to kernel */
+#define PF_BOOL		0x0010	/* Boolean parameter */
+#define PF_INT		0x0020	/* Integer parameter */
+#define PF_CONV		0x0040	/* Parameter duplicated in converted form */
+#define PF_REV		0x0080	/* Run commands in reverse order on stopping */
+#define	PF_IMMUTABLE	0x0100	/* Immutable parameter */
+#define	PF_NAMEVAL	0x0200	/* Parameter is in "name value" form */
 
 #define JF_START	0x0001	/* -c */
 #define JF_SET		0x0002	/* -m */
@@ -215,6 +217,7 @@ extern int finish_command(struct cfjail *j);
 extern struct cfjail *next_proc(int nonblock);
 
 extern void load_config(const char *cfname);
+extern void include_config(void *scanner, const char *cfname);
 extern struct cfjail *add_jail(void);
 extern void add_param(struct cfjail *j, const struct cfparam *p,
     enum intparam ipnum, const char *value);
@@ -226,6 +229,7 @@ extern int import_params(struct cfjail *j);
 extern int equalopts(const char *opt1, const char *opt2);
 extern int wild_jail_name(const char *wname);
 extern int wild_jail_match(const char *jname, const char *wname);
+extern void free_param_strings(struct cfparam *p);
 
 extern void dep_setup(int docf);
 extern int dep_check(struct cfjail *j);
@@ -236,6 +240,11 @@ extern int start_state(const char *target, int docf, unsigned state,
     int running);
 extern void requeue(struct cfjail *j, struct cfjails *queue);
 extern void requeue_head(struct cfjail *j, struct cfjails *queue);
+
+extern struct cflex *yyget_extra(void *scanner);
+extern FILE *yyget_in(void *scanner);
+extern int yyget_lineno(void *scanner);
+extern char *yyget_text(void *scanner);
 
 extern struct cfjails cfjails;
 extern struct cfjails ready;
