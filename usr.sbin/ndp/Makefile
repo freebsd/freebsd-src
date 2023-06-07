@@ -15,15 +15,13 @@
 
 .include <src.opts.mk>
 
-.PATH: ${SRCTOP}/contrib/tcpdump
-
 PROG=	ndp
 MAN=	ndp.8
-SRCS=	ndp.c gmt2local.c
+SRCS=	ndp.c
 
 LIBADD=	xo
 
-CFLAGS+= -I. -I${.CURDIR} -I${SRCTOP}/contrib/tcpdump
+CFLAGS+= -I. -I${.CURDIR}
 CFLAGS+= -D_U_=""
 
 .if ${MK_EXPERIMENTAL} != "no"
