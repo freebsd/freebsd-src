@@ -182,10 +182,15 @@ statically-linked programs for emergency recovery; see
 .It Pa /root/
 home directory of the root user
 .It Pa /sbin/
-system programs and administration utilities
-fundamental to both single-user and multi-user environments
+system programs and administration utilities that are fundamental to
+single-user and multi-user modes
 .It Pa /tmp/
-temporary files that are not guaranteed to persist across system reboots
+temporary files that may be removed by
+.Xr rc 8 ;
+see the
+.It Va clear_tmp_enable
+variable of
+.Xr rc.conf 5
 .It Pa /usr/
 contains the majority of user utilities and applications
 .Pp
@@ -590,7 +595,8 @@ line printer spooling directories
 .El
 .Pp
 .It Pa tmp/
-temporary files that are not removed during boot
+temporary files that are not removed by
+.Xr rc 8
 .Pp
 .Bl -tag -width "vi.recover/" -compact
 .It Pa vi.recover/
