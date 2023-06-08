@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/un.h>
 
 #include <machine/atomic.h>
-#include <machine/segments.h>
 
 #ifndef WITHOUT_CAPSICUM
 #include <capsicum_helpers.h>
