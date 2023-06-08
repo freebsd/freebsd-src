@@ -1482,7 +1482,7 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 	@# the relevant mtree line.
 	cd ${DESTDIR}/${DISTDIR}; \
 	find ./${dist} | ${METALOG_SORT_CMD} -u ${METALOG} - | \
-	awk 'BEGIN { print "#${MTREE_MAGIC}" } !/ type=/ { file = $$1 } / type=/ { if ($$1 == file) { sub(/^\.\/${dist}\//, "./"); print } }' > \
+	awk 'BEGIN { print "#${MTREE_MAGIC}" } !/ type=/ { file = $$1 } / type=/ { if ($$1 == file) { sub(/^\.\/${dist}/, "."); print } }' > \
 	${DESTDIR}/${DISTDIR}/${dist}.meta
 .endfor
 .for dist in ${DEBUG_DISTRIBUTIONS}
@@ -1492,7 +1492,7 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 	@# the relevant mtree line.
 	cd ${DESTDIR}/${DISTDIR}; \
 	find ./${dist}/usr/lib/debug | ${METALOG_SORT_CMD} -u ${METALOG} - | \
-	awk 'BEGIN { print "#${MTREE_MAGIC}" } !/ type=/ { file = $$1 } / type=/ { if ($$1 == file) { sub(/^\.\/${dist}\//, "./"); print } }' > \
+	awk 'BEGIN { print "#${MTREE_MAGIC}" } !/ type=/ { file = $$1 } / type=/ { if ($$1 == file) { sub(/^\.\/${dist}/, "."); print } }' > \
 	${DESTDIR}/${DISTDIR}/${dist}.debug.meta
 .endfor
 .endif
