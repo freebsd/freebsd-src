@@ -13,29 +13,6 @@
  * hook to send the message.
  */
 
-static const char *devctl_systems[] = {
-	"ACPI",
-	"AEON",
-	"CAM",
-	"CARP",
-	"coretemp",
-	"DEVFS",
-	"device",
-	"ETHERNET",
-	"GEOM",
-	"HYPERV_NIC_VF",
-	"IFNET",
-	"INFINIBAND",
-	"KERNEL",
-	"nvme",
-	"PMU",
-	"RCTL",
-	"USB",
-	"VFS",
-	"VT",
-	"ZFS",
-};
-
 bool devctl_process_running(void);
 void devctl_notify(const char *__system, const char *__subsystem,
     const char *__type, const char *__data);
