@@ -63,9 +63,6 @@
 #include <contrib/xen/event_channel.h>
 #include <contrib/xen/hvm/params.h>
 
-DPCPU_DEFINE(struct vcpu_info, vcpu_local_info);
-DPCPU_DEFINE(struct vcpu_info *, vcpu_info);
-
 int
 xen_dt_probe(void)
 {
