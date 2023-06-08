@@ -41,6 +41,9 @@ characters. Please also note that there is no OpenType version for this size.
 As of Spleen 1.8.0, there is now a 6x12 version containing the same Unicode
 blocks as the 5x8 version and the Latin-1 Supplement Unicode block.
 
+As of Spleen 2.0.0, the 8x16, 16x32 and 32x64 versions have full support for
+Code page 437 (IBM PC).
+
 Spleen also has support for Powerline symbols out of the box.
 
 The font name is a reference to Baudelaire.
@@ -114,6 +117,13 @@ Alternatively, release tarballs provide PCF files for each size.
 ### macOS
 
 macOS users should use the `.dfont` files provided in the release tarballs.
+
+### DOS
+
+DOS users should run the **SPLEEN.COM** executable provided in the release
+tarballs to enable the font.
+
+This has been tested in DOSBox and FreeDOS on real hardware.
 
 ### Windows
 
@@ -201,13 +211,18 @@ GitHub: https://github.com/fcambus/spleen
 
 ## Trivia
 
-- Spleen is the default font for OpenBSD consoles since January 2019
-- Spleen was imported in the NetBSD src tree in March 2019
-- Spleen 12x24 was used in the Haiku [kernel debugger][23] (on high resolution
+- Spleen was imported in the OpenBSD src tree in [September 2018][23]
+- Spleen is the default font for OpenBSD consoles since [January 2019][24]
+- Spleen was imported in the NetBSD src tree in [March 2019][25]
+- Spleen 12x24 was used in the Haiku [kernel debugger][26] (on high resolution
   displays) from May 2021 to June 2022
-- [msTERM][24], a Terminal program for MailStation devices uses Spleen 5x8
-- [FBInk][25], a library to print text & images to an eInk Linux framebuffer
+- Spleen was imported in the FreeBSD base system in [May 2023][27]
+- [msTERM][28], a Terminal program for MailStation devices uses Spleen 5x8
+- [FBInk][29], a library to print text & images to an eInk Linux framebuffer
   embeds Spleen 16x32
+- [U8g2][30], a monochrome graphics library for embedded devices includes
+  all Spleen sizes
+- [Ansilove][31], an ANSI and ASCII art to PNG converter includes Spleen
 
 [1]: https://www.cambus.net/content/2018/09/spleen-hello.png
 [2]: https://www.cambus.net/content/2018/09/spleen-etranger.png
@@ -231,6 +246,12 @@ GitHub: https://github.com/fcambus/spleen
 [20]: https://www.cambus.net/spleen-monospaced-bitmap-fonts/
 [21]: https://undeadly.org/cgi?action=article;sid=20190110064857
 [22]: https://www.cambus.net/netbsd-ctwm-and-spleen/
-[23]: https://git.haiku-os.org/haiku/commit/?id=29a109bd6c01ce71bb61177ee9ff0417e74c1e18
-[24]: https://github.com/jcs/msTERM
-[25]: https://github.com/NiLuJe/FBInk
+[23]: https://freshbsd.org/openbsd/src/commit/5raMrDMpYlPYW01H
+[24]: https://freshbsd.org/openbsd/src/commit/MoBCxKiAlFajRvSm
+[25]: https://freshbsd.org/netbsd/src/commit/TAJuMl9caBpVjGfB
+[26]: https://git.haiku-os.org/haiku/commit/?id=29a109bd6c01ce71bb61177ee9ff0417e74c1e18
+[27]: https://cgit.freebsd.org/src/commit/?id=0d66206fff44
+[28]: https://github.com/jcs/msTERM
+[29]: https://github.com/NiLuJe/FBInk
+[30]: https://github.com/olikraus/u8g2/wiki/fntgrpspleen
+[31]: https://www.ansilove.org
