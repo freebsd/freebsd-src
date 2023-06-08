@@ -146,7 +146,6 @@ distrib-dirs: ${MTREES:N/*} distrib-cleanup .PHONY
 	d=${_d}; \
 	test "$$d" = "/" && d=""; \
 	d=${DISTBASE}$$d; \
-	test -d ${DESTDIR}/$$d || mkdir -p ${DESTDIR}/$$d; \
 	${ECHO} "${MTREE_CMD:N-W} -C -f $$m -K all | " \
 	    "sed s#^\.#.$$d# | ${METALOG.add}" ; \
 	${MTREE_FILTER} $$m | \
