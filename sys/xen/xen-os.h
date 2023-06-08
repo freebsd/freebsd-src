@@ -44,6 +44,11 @@
 #include <xen/hvm.h>
 #include <contrib/xen/event_channel.h>
 
+/*
+ * Setup function which needs to be called on each processor by architecture
+ */
+extern void xen_setup_vcpu_info(void);
+
 static inline vm_paddr_t
 xen_get_xenstore_mfn(void)
 {

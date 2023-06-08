@@ -88,8 +88,7 @@ int xen_vector_callback_enabled;
 bool xen_evtchn_needs_ack;
 
 /*------------------------------- Per-CPU Data -------------------------------*/
-DPCPU_DEFINE(struct vcpu_info, vcpu_local_info);
-DPCPU_DEFINE(struct vcpu_info *, vcpu_info);
+DPCPU_DECLARE(struct vcpu_info *, vcpu_info);
 
 /*------------------------------ Sysctl tunables -----------------------------*/
 int xen_disable_pv_disks = 0;
@@ -416,10 +415,8 @@ SYSINIT(xen_hvm_init, SI_SUB_HYPERVISOR, SI_ORDER_FIRST, xen_hvm_sysinit, NULL);
 static void
 xen_hvm_cpu_init(void)
 {
-	struct vcpu_register_vcpu_info info;
-	struct vcpu_info *vcpu_info;
 	uint32_t regs[4];
-	int cpu, rc;
+	int rc;
 
 	if (!xen_domain())
 		return;
@@ -459,23 +456,7 @@ xen_hvm_cpu_init(void)
 			    rc);
 	}
 
-	/*
-	 * Set the vCPU info.
-	 *
-	 * NB: the vCPU info for vCPUs < 32 can be fetched from the shared info
-	 * page, but in order to make sure the mapping code is correct always
-	 * attempt to map the vCPU info at a custom place.
-	 */
-	vcpu_info = DPCPU_PTR(vcpu_local_info);
-	cpu = PCPU_GET(vcpu_id);
-	info.mfn = vtophys(vcpu_info) >> PAGE_SHIFT;
-	info.offset = vtophys(vcpu_info) - trunc_page(vtophys(vcpu_info));
-
-	rc = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_info, cpu, &info);
-	if (rc != 0)
-		DPCPU_SET(vcpu_info, &HYPERVISOR_shared_info->vcpu_info[cpu]);
-	else
-		DPCPU_SET(vcpu_info, vcpu_info);
+	xen_setup_vcpu_info();
 }
 SYSINIT(xen_hvm_cpu_init, SI_SUB_INTR, SI_ORDER_FIRST, xen_hvm_cpu_init, NULL);
 
