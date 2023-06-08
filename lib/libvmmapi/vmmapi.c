@@ -41,9 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/_iovec.h>
 #include <sys/cpuset.h>
 
-#include <x86/segments.h>
-#include <machine/specialreg.h>
-
 #include <capsicum_helpers.h>
 #include <errno.h>
 #include <stdbool.h>
