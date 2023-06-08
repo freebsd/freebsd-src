@@ -170,7 +170,13 @@ struct l_sigcontext {
 	l_ulong		sc_trapno;
 	l_sigset_t	sc_mask;
 	l_ulong		sc_cr2;
-	struct l_fpstate *sc_fpstate;
+	/*
+	 * On Linux sc_fpstate is (struct l_fpstate *) or (struct l_xstate *)
+	 * depending on the FP_XSTATE_MAGIC1 encoded in the sw_reserved
+	 * bytes of (struct l_fpstate) and FP_XSTATE_MAGIC2 present at the end
+	 * of extended memory layout.
+	 */
+	l_uintptr_t	sc_fpstate;
 	l_ulong		sc_reserved1[8];
 };
 
@@ -189,7 +195,6 @@ struct l_ucontext {
 struct l_rt_sigframe {
 	struct l_ucontext	sf_uc;
 	struct l_siginfo	sf_si;
-	struct l_fpstate 	sf_fs;
 };
 
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
