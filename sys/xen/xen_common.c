@@ -33,10 +33,15 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h> /* required by xen/xen-os.h */
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 #include <machine/atomic.h> /* required by xen/xen-os.h */
 
 #include <xen/xen-os.h>
 #include <xen/hvm.h>
+
+#include <contrib/xen/vcpu.h>
 
 /*-------------------------------- Global Data -------------------------------*/
 enum xen_domain_type xen_domain_type = XEN_NATIVE;
@@ -49,3 +54,51 @@ uint32_t hvm_start_flags;
 
 /*------------------ Hypervisor Access Shared Memory Regions -----------------*/
 shared_info_t *HYPERVISOR_shared_info;
+
+/*------------------------------- Per-CPU Data -------------------------------*/
+DPCPU_DEFINE(struct vcpu_info *, vcpu_info);
+
+void
+xen_setup_vcpu_info(void)
+{
+	/* This isn't directly accessed outside this function */
+	DPCPU_DEFINE_STATIC(vcpu_info_t, vcpu_local_info)
+	    __attribute__((aligned(64)));
+
+	vcpu_info_t *vcpu_info = DPCPU_PTR(vcpu_local_info);
+	vcpu_register_vcpu_info_t info = {
+		.mfn = vtophys(vcpu_info) >> PAGE_SHIFT,
+		.offset = vtophys(vcpu_info) & PAGE_MASK,
+	};
+	unsigned int cpu = XEN_VCPUID();
+	int rc;
+
+	KASSERT(xen_domain(), ("%s(): invoked when not on Xen?", __func__));
+
+	_Static_assert(sizeof(struct vcpu_info) <= 64,
+	    "struct vcpu_info is larger than supported limit of 64 bytes");
+
+	/*
+	 * Set the vCPU info.
+	 *
+	 * NB: the vCPU info for some vCPUs can be fetched from the shared info
+	 * page, but in order to make sure the mapping code is correct always
+	 * attempt to map the vCPU info at a custom place.
+	 */
+	rc = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_info, cpu, &info);
+	if (rc == 0)
+		DPCPU_SET(vcpu_info, vcpu_info);
+	else if (cpu < nitems(HYPERVISOR_shared_info->vcpu_info)) {
+		static bool warned = false;
+
+		DPCPU_SET(vcpu_info, &HYPERVISOR_shared_info->vcpu_info[cpu]);
+
+		if (bootverbose && !warned) {
+			warned = true;
+			printf(
+		"WARNING: Xen vCPU %u failed to setup vcpu_info rc = %d\n",
+			    cpu, rc);
+		}
+	} else
+		panic("Unable to register vCPU %u, rc=%d\n", cpu, rc);
+}
