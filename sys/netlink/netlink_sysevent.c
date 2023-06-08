@@ -53,6 +53,29 @@ static struct sysevent_group {
 	uint32_t id;
 } sysevent_groups[MAX_SYSEVENT_GROUPS] = {};
 
+static const char *devctl_systems[] = {
+	"ACPI",
+	"AEON",
+	"CAM",
+	"CARP",
+	"coretemp",
+	"DEVFS",
+	"device",
+	"ETHERNET",
+	"GEOM",
+	"HYPERV_NIC_VF",
+	"IFNET",
+	"INFINIBAND",
+	"KERNEL",
+	"nvme",
+	"PMU",
+	"RCTL",
+	"USB",
+	"VFS",
+	"VT",
+	"ZFS",
+};
+
 static void
 sysevent_write(struct sysevent_group *se, const char *subsystem, const char *type,
     const char *data)
