@@ -4,8 +4,7 @@ SUBDIR=	intel_ipw \
 	intel_iwlwififw \
 	intel_iwn \
 	intel_wpi \
-	realtek \
-	realtek_rtw88
+	realtek
 
 SUBDIR_PARALLEL=
 
