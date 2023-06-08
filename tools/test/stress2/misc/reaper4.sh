@@ -59,14 +59,13 @@ flip(void *ap, size_t len)
 {
 	unsigned char *cp;
 	int byte;
-	unsigned char bit, buf, mask, old __unused;
+	unsigned char bit, buf, mask;
 
 	cp = (unsigned char *)ap;
 	byte = random_long(0, len);
 	bit = random_long(0,7);
 	mask = ~(1 << bit);
 	buf = cp[byte];
-	old = cp[byte];
 	buf = (buf & mask) | (~buf & ~mask);
 	cp[byte] = buf;
 }
@@ -85,8 +84,9 @@ test(void) {
 	struct procctl_reaper_kill killemall;
 	pid_t pid;
 	time_t start;
-	int data[20], e, n __unused, m;
+	int data[20], debug, e, n, m;
 
+	debug = 0; /* set to 1 for debug output */
 	n = m = 0;
 	if (procctl(P_PID, getpid(), PROC_REAP_ACQUIRE, NULL) == -1)
 		err(EXIT_FAILURE, "Fail to acquire the reaper");
@@ -117,9 +117,8 @@ test(void) {
 		if (waitpid(pid, NULL, 0) != pid)
 			err(1, "waitpid()");
 	}
-#if defined(DEBUG)
-	fprintf(stderr, "n = %d out of %d\n", n, m);
-#endif
+	if (debug == 1)
+		fprintf(stderr, "n = %d out of %d\n", n, m);
 	_exit(0);
 }
 
