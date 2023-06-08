@@ -296,6 +296,54 @@ linux_fxrstor(struct thread *td, mcontext_t *mcp, struct l_sigcontext *sc)
 }
 
 static int
+linux_xrstor(struct thread *td, mcontext_t *mcp, struct l_sigcontext *sc)
+{
+	struct savefpu *fp = (struct savefpu *)&mcp->mc_fpstate[0];
+	char *xfpustate;
+	struct proc *p;
+	uint32_t magic2;
+	int error;
+
+	p = td->td_proc;
+	mcp->mc_xfpustate_len = cpu_max_ext_state_size - sizeof(struct savefpu);
+
+	/* Legacy region of an xsave area. */
+	error = copyin(PTRIN(sc->sc_fpstate), fp, sizeof(mcp->mc_fpstate));
+	if (error != 0)
+		return (error);
+	bzero(&fp->sv_pad[0], sizeof(fp->sv_pad));
+
+	/* Extended region of an xsave area. */
+	sc->sc_fpstate += sizeof(mcp->mc_fpstate);
+	xfpustate = (char *)fpu_save_area_alloc();
+	error = copyin(PTRIN(sc->sc_fpstate), xfpustate, mcp->mc_xfpustate_len);
+	if (error != 0) {
+		fpu_save_area_free((struct savefpu *)xfpustate);
+		uprintf("pid %d (%s): linux xrstor failed\n", p->p_pid,
+		    td->td_name);
+		return (error);
+	}
+
+	/* Linux specific end of xsave area marker. */
+	sc->sc_fpstate += mcp->mc_xfpustate_len;
+	error = copyin(PTRIN(sc->sc_fpstate), &magic2, LINUX_FP_XSTATE_MAGIC2_SIZE);
+	if (error != 0 || magic2 != LINUX_FP_XSTATE_MAGIC2) {
+		fpu_save_area_free((struct savefpu *)xfpustate);
+		uprintf("pid %d (%s): sigreturn magic2 0x%x error %d\n",
+		    p->p_pid, td->td_name, magic2, error);
+		return (error);
+	}
+
+	error = set_fpcontext(td, mcp, xfpustate, mcp->mc_xfpustate_len);
+	fpu_save_area_free((struct savefpu *)xfpustate);
+	if (error != 0) {
+		uprintf("pid %d (%s): sigreturn set_fpcontext error %d\n",
+		    p->p_pid, td->td_name, error);
+	}
+	return (error);
+}
+
+static int
 linux_copyin_fpstate(struct thread *td, struct l_ucontext *uc)
 {
 	mcontext_t mc;
@@ -304,7 +352,10 @@ linux_copyin_fpstate(struct thread *td, struct l_ucontext *uc)
 	mc.mc_ownedfp = _MC_FPOWNED_FPU;
 	mc.mc_fpformat = _MC_FPFMT_XMM;
 
-	return (linux_fxrstor(td, &mc, &uc->uc_mcontext));
+	if ((uc->uc_flags & LINUX_UC_FP_XSTATE) != 0)
+		return (linux_xrstor(td, &mc, &uc->uc_mcontext));
+	else
+		return (linux_fxrstor(td, &mc, &uc->uc_mcontext));
 }
 
 /*
@@ -412,19 +463,59 @@ linux_fxsave(mcontext_t *mcp, void *ufp)
 }
 
 static int
+linux_xsave(mcontext_t *mcp, char *xfpusave, char *ufp)
+{
+	struct l_fpstate *fx = (struct l_fpstate *)&mcp->mc_fpstate[0];
+	uint32_t magic2;
+	int error;
+
+	/* Legacy region of an xsave area. */
+	fx->sw_reserved.magic1 = LINUX_FP_XSTATE_MAGIC1;
+	fx->sw_reserved.xstate_size = mcp->mc_xfpustate_len + sizeof(*fx);
+	fx->sw_reserved.extended_size = fx->sw_reserved.xstate_size +
+	    LINUX_FP_XSTATE_MAGIC2_SIZE;
+	fx->sw_reserved.xfeatures = xsave_mask;
+
+	error = copyout(fx, ufp, sizeof(*fx));
+	if (error != 0)
+		return (error);
+	ufp += sizeof(*fx);
+
+	/* Extended region of an xsave area. */
+	error = copyout(xfpusave, ufp, mcp->mc_xfpustate_len);
+	if (error != 0)
+		return (error);
+
+	/* Linux specific end of xsave area marker. */
+	ufp += mcp->mc_xfpustate_len;
+	magic2 = LINUX_FP_XSTATE_MAGIC2;
+	return (copyout(&magic2, ufp, LINUX_FP_XSTATE_MAGIC2_SIZE));
+}
+
+static int
 linux_copyout_fpstate(struct thread *td, struct l_ucontext *uc, char **sp)
 {
+	size_t xfpusave_len;
+	char *xfpusave;
 	mcontext_t mc;
 	char *ufp = *sp;
 
-	get_fpcontext(td, &mc, NULL, NULL);
+	get_fpcontext(td, &mc, &xfpusave, &xfpusave_len);
 	KASSERT(mc.mc_fpformat != _MC_FPFMT_NODEV, ("fpu not present"));
 
-	/* fxsave area */
+	/* Room for fxsave area. */
 	ufp -= sizeof(struct l_fpstate);
+	if (xfpusave != NULL) {
+		/* Room for xsave area. */
+		ufp -= (xfpusave_len + LINUX_FP_XSTATE_MAGIC2_SIZE);
+		uc->uc_flags |= LINUX_UC_FP_XSTATE;
+	}
 	*sp = ufp = (char *)((unsigned long)ufp & ~0x3Ful);
 
-	return (linux_fxsave(&mc, ufp));
+	if (xfpusave != NULL)
+		return (linux_xsave(&mc, xfpusave, ufp));
+	else
+		return (linux_fxsave(&mc, ufp));
 }
 
 /*

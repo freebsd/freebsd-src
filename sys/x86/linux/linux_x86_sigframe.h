@@ -35,6 +35,20 @@
 #ifndef _X86_LINUX_SIGFRAME_H_
 #define	_X86_LINUX_SIGFRAME_H_
 
+#define	LINUX_UC_FP_XSTATE		0x1
+
+#define	LINUX_FP_XSTATE_MAGIC1		0x46505853U
+#define	LINUX_FP_XSTATE_MAGIC2		0x46505845U
+#define	LINUX_FP_XSTATE_MAGIC2_SIZE	sizeof(uint32_t)
+
+struct l_fpx_sw_bytes {
+	uint32_t	magic1;
+	uint32_t	extended_size;
+	uint64_t	xfeatures;
+	uint32_t	xstate_size;
+	uint32_t	padding[7];
+};
+
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
 
 /* The Linux sigcontext, pretty much a standard 386 trapframe. */
@@ -140,7 +154,11 @@ struct l_fpstate {
 	u_int32_t mxcsr_mask;
 	u_int8_t st[8][16];
 	u_int8_t xmm[16][16];
-	u_int32_t reserved2[24];
+	u_int32_t reserved2[12];
+	union {
+		u_int32_t		reserved3[12];
+		struct l_fpx_sw_bytes	sw_reserved;
+	};
 } __aligned(16);
 
 struct l_sigcontext {
