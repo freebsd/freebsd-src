@@ -18,12 +18,14 @@
 /* \summary: Communication access for land mobiles (CALM) printer */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
-#include <netdissect-stdinc.h>
+#include "netdissect-stdinc.h"
 
+#define ND_LONGJMP_FROM_TCHECK
 #include "netdissect.h"
+#include "extract.h"
 #include "addrtoname.h"
 
 /*
@@ -39,37 +41,31 @@
 void
 calm_fast_print(netdissect_options *ndo, const u_char *bp, u_int length, const struct lladdr_info *src)
 {
-	int srcNwref;
-	int dstNwref;
+	ndo->ndo_protocol = "calm_fast";
 
-	ND_TCHECK2(*bp, 2);
-	if (length < 2)
-		goto trunc;
-	srcNwref = bp[0];
-	dstNwref = bp[1];
-	length -= 2;
-	bp += 2;
-
-	ND_PRINT((ndo, "CALM FAST"));
+	ND_PRINT("CALM FAST");
 	if (src != NULL)
-		ND_PRINT((ndo, " src:%s", (src->addr_string)(ndo, src->addr)));
-	ND_PRINT((ndo, "; "));
-	ND_PRINT((ndo, "SrcNwref:%d; ", srcNwref));
-	ND_PRINT((ndo, "DstNwref:%d; ", dstNwref));
+		ND_PRINT(" src:%s", (src->addr_string)(ndo, src->addr));
+	ND_PRINT("; ");
+
+	if (length < 2) {
+		ND_PRINT(" (length %u < 2)", length);
+		goto invalid;
+	}
+
+	ND_PRINT("SrcNwref:%u; ", GET_U_1(bp));
+	length -= 1;
+	bp += 1;
+
+	ND_PRINT("DstNwref:%u; ", GET_U_1(bp));
+	length -= 1;
+	bp += 1;
 
 	if (ndo->ndo_vflag)
 		ND_DEFAULTPRINT(bp, length);
 	return;
 
-trunc:
-	ND_PRINT((ndo, "[|calm fast]"));
-	return;
+invalid:
+	nd_print_invalid(ndo);
+	ND_TCHECK_LEN(bp, length);
 }
-
-
-/*
- * Local Variables:
- * c-style: whitesmith
- * c-basic-offset: 8
- * End:
- */

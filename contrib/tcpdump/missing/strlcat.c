@@ -1,5 +1,5 @@
 /*	$NetBSD: strlcat.c,v 1.5 1999/09/20 04:39:47 lukem Exp $	*/
-/*	from OpenBSD: strlcat.c,v 1.2 1999/06/17 16:28:58 millert Exp 	*/
+/*	from OpenBSD: strlcat.c,v 1.2 1999/06/17 16:28:58 millert Exp	*/
 
 /*
  * Copyright (c) 1998 Todd C. Miller <Todd.Miller@courtesan.com>
@@ -47,9 +47,9 @@
 size_t
 strlcat(char *dst, const char *src, size_t siz)
 {
-	register char *d = dst;
-	register const char *s = src;
-	register size_t n = siz;
+	char *d = dst;
+	const char *s = src;
+	size_t n = siz;
 	size_t dlen;
 
 	/* Find the end of dst and adjust bytes left but don't go past end */

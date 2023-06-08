@@ -20,6 +20,13 @@
  */
 
 /*
+ * Maximum length of the length field in an Ethernet header; any value
+ * greater than this is not a length value, so it's either an Ethernet
+ * type or an invalid value.
+ */
+#define	MAX_ETHERNET_LENGTH_VAL	1500
+
+/*
  * Ethernet types.
  *
  * We wrap the declarations with #ifdef, so that if a file includes
@@ -106,8 +113,8 @@
 #endif
 
 /* see:
-        http://en.wikipedia.org/wiki/IEEE_802.1Q
-    and http://en.wikipedia.org/wiki/QinQ
+        https://en.wikipedia.org/wiki/IEEE_802.1Q
+    and https://en.wikipedia.org/wiki/QinQ
 */
 #ifndef	ETHERTYPE_8021Q9100
 #define	ETHERTYPE_8021Q9100	0x9100
@@ -117,6 +124,9 @@
 #endif
 #ifndef	ETHERTYPE_8021QinQ
 #define	ETHERTYPE_8021QinQ      0x88a8
+#endif
+#ifndef ETHERTYPE_MACSEC
+#define ETHERTYPE_MACSEC	0x88e5
 #endif
 #ifndef ETHERTYPE_IPX
 #define ETHERTYPE_IPX		0x8137
@@ -145,6 +155,9 @@
 #ifndef ETHERTYPE_PPPOES
 #define ETHERTYPE_PPPOES	0x8864
 #endif
+#ifndef ETHERTYPE_NSH
+#define ETHERTYPE_NSH		0x894F
+#endif
 #ifndef ETHERTYPE_PPPOED2
 #define ETHERTYPE_PPPOED2	0x3c12
 #endif
@@ -161,13 +174,16 @@
 #define ETHERTYPE_LLDP          0x88cc
 #endif
 #ifndef ETHERTYPE_EAPOL
-#define ETHERTYPE_EAPOL  	0x888e
+#define ETHERTYPE_EAPOL		0x888e
 #endif
-#ifndef ETHERTYPE_RRCP
-#define ETHERTYPE_RRCP  	0x8899
+#ifndef ETHERTYPE_REALTEK
+#define ETHERTYPE_REALTEK	0x8899	/* Realtek layer 2 protocols and switch tags */
 #endif
 #ifndef ETHERTYPE_AOE
-#define ETHERTYPE_AOE  		0x88a2
+#define ETHERTYPE_AOE		0x88a2
+#endif
+#ifndef ETHERTYPE_PTP
+#define ETHERTYPE_PTP		0x88f7
 #endif
 #ifndef	ETHERTYPE_LOOPBACK
 #define	ETHERTYPE_LOOPBACK	0x9000
@@ -196,8 +212,8 @@
 #ifndef	ETHERTYPE_GEONET
 #define	ETHERTYPE_GEONET        0x8947  /* ETSI GeoNetworking (Official IEEE registration from Jan 2013) */
 #endif
-#ifndef	ETHERTYPE_MEDSA
-#define	ETHERTYPE_MEDSA		0xdada	/* Marvel Distributed Switch Architecture */
+#ifndef	ETHERTYPE_ARISTA
+#define	ETHERTYPE_ARISTA        0xd28b /*  Arista Networks vendor specific EtherType */
 #endif
 
 extern const struct tok ethertype_values[];

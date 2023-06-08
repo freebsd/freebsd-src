@@ -13,14 +13,16 @@ SRCS=	addrtoname.c \
 	ascii_strcasecmp.c \
 	checksum.c \
 	cpack.c \
+	fptype.c \
 	gmpls.c \
-	gmt2local.c \
 	in_cksum.c \
 	ipproto.c \
 	l2vpn.c \
 	machdep.c \
 	netdissect.c \
+	netdissect-alloc.c \
 	nlpid.c \
+	ntp.c \
 	oui.c \
 	parsenfsfh.c \
 	print.c \
@@ -99,7 +101,6 @@ SRCS=	addrtoname.c \
 	print-lwapp.c \
 	print-lwres.c \
 	print-m3ua.c \
-	print-medsa.c \
 	print-mobile.c \
 	print-mobility.c \
 	print-mpcp.c \
@@ -107,6 +108,7 @@ SRCS=	addrtoname.c \
 	print-mptcp.c \
 	print-msdp.c \
 	print-msnlb.c \
+	print-nflog.c \
 	print-nfs.c \
 	print-nsh.c \
 	print-ntp.c \
@@ -130,7 +132,6 @@ SRCS=	addrtoname.c \
 	print-rip.c \
 	print-ripng.c \
 	print-rpki-rtr.c \
-	print-rrcp.c \
 	print-rsvp.c \
 	print-rt6.c \
 	print-rtsp.c \
@@ -157,6 +158,7 @@ SRCS=	addrtoname.c \
 	print-token.c \
 	print-udld.c \
 	print-udp.c \
+	print-usb.c \
 	print-vjc.c \
 	print-vqp.c \
 	print-vrrp.c \
@@ -166,12 +168,27 @@ SRCS=	addrtoname.c \
 	print-wb.c \
 	print-zephyr.c \
 	print-zeromq.c \
-	setsignal.c \
 	signature.c \
 	smbutil.c \
 	strtoaddr.c \
 	tcpdump.c \
 	util-print.c \
+	print-arista.c \
+	print-bcm-li.c \
+	print-brcmtag.c \
+	print-dsa.c \
+	print-ip-demux.c \
+	print-ipoib.c \
+	print-macsec.c \
+	print-openflow-1.3.c \
+	print-ptp.c \
+	print-realtek.c \
+	print-someip.c \
+	print-ssh.c \
+	print-unsupported.c \
+	print-vsock.c \
+	print-whois.c \
+	print-zep.c \
 	version.c
 CLEANFILES+=	version.c ${MAN}
 

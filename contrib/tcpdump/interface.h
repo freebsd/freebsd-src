@@ -26,29 +26,13 @@
 #include "os-proto.h"
 #endif
 
-/* snprintf et al */
+#include "funcattrs.h"
 
 #include <stdarg.h>
 
 #if HAVE_STDINT_H
 #include <stdint.h>
 #endif
-
-#if !defined(HAVE_SNPRINTF)
-int snprintf(char *, size_t, const char *, ...)
-#ifdef __ATTRIBUTE___FORMAT_OK
-     __attribute__((format(printf, 3, 4)))
-#endif /* __ATTRIBUTE___FORMAT_OK */
-     ;
-#endif /* !defined(HAVE_SNPRINTF) */
-
-#if !defined(HAVE_VSNPRINTF)
-int vsnprintf(char *, size_t, const char *, va_list)
-#ifdef __ATTRIBUTE___FORMAT_OK
-     __attribute__((format(printf, 3, 0)))
-#endif /* __ATTRIBUTE___FORMAT_OK */
-     ;
-#endif /* !defined(HAVE_VSNPRINTF) */
 
 #ifndef HAVE_STRLCAT
 extern size_t strlcat(char *, const char *, size_t);

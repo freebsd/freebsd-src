@@ -30,8 +30,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _GETOPT_LONG_H_
-#define _GETOPT_LONG_H_
+#ifndef ND_GETOPT_LONG_H_
+#define ND_GETOPT_LONG_H_
 
 /*
  * GNU-like getopt_long()/getopt_long_only() with 4.4BSD optreset extension.
@@ -63,4 +63,4 @@ int	getopt_long_only(int, char * const *, const char *,
 extern char *optarg;			/* getopt(3) external variables */
 extern int optind, opterr, optopt;
 
-#endif /* !_GETOPT_LONG_H_ */
+#endif /* ! ND_GETOPT_LONG_H_ */
