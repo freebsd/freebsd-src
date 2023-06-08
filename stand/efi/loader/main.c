@@ -250,9 +250,9 @@ sanity_check_currdev(void)
 static bool
 probe_zfs_currdev(uint64_t guid)
 {
+	char buf[VDEV_PAD_SIZE];
 	char *devname;
 	struct zfs_devdesc currdev;
-	bool bootable;
 
 	currdev.dd.d_dev = &zfs_dev;
 	currdev.dd.d_unit = 0;
@@ -262,19 +262,14 @@ probe_zfs_currdev(uint64_t guid)
 	devname = devformat(&currdev.dd);
 	init_zfs_boot_options(devname);
 
-	bootable = sanity_check_currdev();
-	if (bootable) {
-		char buf[VDEV_PAD_SIZE];
-
-		if (zfs_get_bootonce(&currdev, OS_BOOTONCE, buf, sizeof(buf)) == 0) {
-			printf("zfs bootonce: %s\n", buf);
-			set_currdev(buf);
-			setenv("zfs-bootonce", buf, 1);
-		}
+	if (zfs_get_bootonce(&currdev, OS_BOOTONCE, buf, sizeof(buf)) == 0) {
+		printf("zfs bootonce: %s\n", buf);
+		set_currdev(buf);
+		setenv("zfs-bootonce", buf, 1);
 		(void)zfs_attach_nvstore(&currdev);
 	}
 
-	return (bootable);
+	return (sanity_check_currdev());
 }
 #endif
 
