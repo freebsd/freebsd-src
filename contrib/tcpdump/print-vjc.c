@@ -24,12 +24,13 @@
 /* specification: RFC 1144 */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
-#include <netdissect-stdinc.h>
+#include "netdissect-stdinc.h"
 
 #include "netdissect.h"
+#include "extract.h"
 #include "slcompress.h"
 #include "ppp.h"
 
@@ -76,45 +77,46 @@
  * unused argument remind us that we should fix this some day.
  *
  * XXX - also, it fetches the TCP checksum field in COMPRESSED_TCP
- * packets directly, rather than with EXTRACT_16BITS(); RFC 1144 says
+ * packets with GET_HE_U_2, rather than with GET_BE_U_2(); RFC 1144 says
  * it's "the unmodified TCP checksum", which would imply that it's
  * big-endian, but perhaps, on the platform where this was developed,
  * the packets were munged by the networking stack before being handed
  * to the packet capture mechanism.
  */
 int
-vjc_print(netdissect_options *ndo, register const char *bp, u_short proto _U_)
+vjc_print(netdissect_options *ndo, const u_char *bp, u_short proto _U_)
 {
 	int i;
 
-	switch (bp[0] & 0xf0) {
+	ndo->ndo_protocol = "vjc";
+	switch (GET_U_1(bp) & 0xf0) {
 	case TYPE_IP:
 		if (ndo->ndo_eflag)
-			ND_PRINT((ndo, "(vjc type=IP) "));
+			ND_PRINT("(vjc type=IP) ");
 		return PPP_IP;
 	case TYPE_UNCOMPRESSED_TCP:
 		if (ndo->ndo_eflag)
-			ND_PRINT((ndo, "(vjc type=raw TCP) "));
+			ND_PRINT("(vjc type=raw TCP) ");
 		return PPP_IP;
 	case TYPE_COMPRESSED_TCP:
 		if (ndo->ndo_eflag)
-			ND_PRINT((ndo, "(vjc type=compressed TCP) "));
+			ND_PRINT("(vjc type=compressed TCP) ");
 		for (i = 0; i < 8; i++) {
-			if (bp[1] & (0x80 >> i))
-				ND_PRINT((ndo, "%c", "?CI?SAWU"[i]));
+			if (GET_U_1(bp + 1) & (0x80 >> i))
+				ND_PRINT("%c", "?CI?SAWU"[i]);
 		}
-		if (bp[1])
-			ND_PRINT((ndo, " "));
-		ND_PRINT((ndo, "C=0x%02x ", bp[2]));
-		ND_PRINT((ndo, "sum=0x%04x ", *(const u_short *)&bp[3]));
+		if (GET_U_1(bp + 1))
+			ND_PRINT(" ");
+		ND_PRINT("C=0x%02x ", GET_U_1(bp + 2));
+		ND_PRINT("sum=0x%04x ", GET_HE_U_2(bp + 3));
 		return -1;
 	case TYPE_ERROR:
 		if (ndo->ndo_eflag)
-			ND_PRINT((ndo, "(vjc type=error) "));
+			ND_PRINT("(vjc type=error) ");
 		return -1;
 	default:
 		if (ndo->ndo_eflag)
-			ND_PRINT((ndo, "(vjc type=0x%02x) ", bp[0] & 0xf0));
+			ND_PRINT("(vjc type=0x%02x) ", GET_U_1(bp) & 0xf0);
 		return -1;
 	}
 }

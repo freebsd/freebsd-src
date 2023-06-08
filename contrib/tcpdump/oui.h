@@ -40,12 +40,15 @@ extern const struct tok smi_values[];
 #define OUI_ONLAB             0xa42305  /* Open Networking Lab */
 #define OUI_FREESCALE         0x00049f  /* Freescale */
 #define OUI_NETRONOME         0x0015ad  /* Netronome */
+#define OUI_BROADCOM          0x001018  /* Broadcom */
+#define OUI_PMC_SIERRA        0x00e004  /* PMC-Sierra */
+#define OUI_ERICSSON          0xd0f0db  /* Ericsson */
 
 /*
  * These are SMI Network Management Private Enterprise Codes for
  * organizations; see
  *
- *	http://www.iana.org/assignments/enterprise-numbers
+ *	https://www.iana.org/assignments/enterprise-numbers
  *
  * for a list.
  *
@@ -57,6 +60,8 @@ extern const struct tok smi_values[];
 #define SMI_HEWLETT_PACKARD          11
 #define SMI_SUN_MICROSYSTEMS         42
 #define SMI_MERIT                    61
+#define SMI_AT_AND_T                 74
+#define SMI_MOTOROLA                 161
 #define SMI_SHIVA                    166
 #define SMI_ERICSSON                 193
 #define SMI_CISCO_VPN5000            255
@@ -70,22 +75,45 @@ extern const struct tok smi_values[];
 #define SMI_REDBACK                  2352
 #define SMI_JUNIPER                  2636
 #define SMI_APTIS                    2637
+#define SMI_DT_AG                    2937
+#define SMI_IXIA                     3054
 #define SMI_CISCO_VPN3000            3076
 #define SMI_COSINE                   3085
 #define SMI_SHASTA                   3199
 #define SMI_NETSCREEN                3224
 #define SMI_NOMADIX                  3309
+#define SMI_T_MOBILE                 3414
+#define SMI_BROADBAND_FORUM          3561
+#define SMI_ZTE                      3902
 #define SMI_SIEMENS                  4329
 #define SMI_CABLELABS                4491
 #define SMI_UNISPHERE                4874
 #define SMI_CISCO_BBSM               5263
 #define SMI_THE3GPP2                 5535
+#define SMI_SKT_TELECOM              5806
 #define SMI_IP_UNPLUGGED             5925
 #define SMI_ISSANNI                  5948
+#define SMI_NETSCALER                5951
+#define SMI_DE_TE_MOBIL              6490
 #define SMI_QUINTUM                  6618
 #define SMI_INTERLINK                6728
+#define SMI_CNCTC                    7951
+#define SMI_STARENT_NETWORKS         8164
 #define SMI_COLUBRIS                 8744
-#define SMI_COLUMBIA_UNIVERSITY      11862
 #define SMI_THE3GPP                  10415
 #define SMI_GEMTEK_SYSTEMS           10529
+#define SMI_BARRACUDA                10704
+#define SMI_ERICSSON_PKT_CORE        10923
+#define SMI_DACOM                    11665
+#define SMI_COLUMBIA_UNIVERSITY      11862
+#define SMI_FORTINET                 12356
+#define SMI_VERIZON                  12951
+#define SMI_PLIXER                   13745
 #define SMI_WIFI_ALLIANCE            14122
+#define SMI_T_SYSTEMS_NOVA           16787
+#define SMI_CHINATELECOM_GUANZHOU    20942
+#define SMI_GIGAMON                  26866
+#define SMI_CACE                     32622
+/* Greater than 32,767 need to be tagged unsigned. */
+#define SMI_NTOP                     35632u
+#define SMI_ERICSSON_CANADA_INC      46098u

@@ -22,10 +22,10 @@
 /* \summary: AppleTalk printer */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
-#include <netdissect-stdinc.h>
+#include "netdissect-stdinc.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -36,7 +36,6 @@
 #include "extract.h"
 #include "appletalk.h"
 
-static const char tstr[] = "[|atalk]";
 
 static const struct tok type2str[] = {
 	{ ddpRTMP,		"rtmp" },
@@ -49,12 +48,12 @@ static const struct tok type2str[] = {
 };
 
 struct aarp {
-	uint16_t	htype, ptype;
-	uint8_t		halen, palen;
-	uint16_t	op;
-	uint8_t		hsaddr[6];
+	nd_uint16_t	htype, ptype;
+	nd_uint8_t	halen, palen;
+	nd_uint16_t	op;
+	nd_mac_addr	hsaddr;
 	uint8_t		psaddr[4];
-	uint8_t		hdaddr[6];
+	nd_mac_addr	hdaddr;
 	uint8_t		pdaddr[4];
 };
 
@@ -67,24 +66,26 @@ static const struct atNBPtuple *nbp_tuple_print(netdissect_options *ndo, const s
 static const struct atNBPtuple *nbp_name_print(netdissect_options *, const struct atNBPtuple *,
 					       const u_char *);
 static const char *ataddr_string(netdissect_options *, u_short, u_char);
-static void ddp_print(netdissect_options *, const u_char *, u_int, int, u_short, u_char, u_char);
-static const char *ddpskt_string(netdissect_options *, int);
+static void ddp_print(netdissect_options *, const u_char *, u_int, u_int, u_short, u_char, u_char);
+static const char *ddpskt_string(netdissect_options *, u_int);
 
 /*
  * Print LLAP packets received on a physical LocalTalk interface.
  */
-u_int
+void
 ltalk_if_print(netdissect_options *ndo,
                const struct pcap_pkthdr *h, const u_char *p)
 {
 	u_int hdrlen;
 
+	ndo->ndo_protocol = "ltalk";
 	hdrlen = llap_print(ndo, p, h->len);
 	if (hdrlen == 0) {
 		/* Cut short by the snapshot length. */
-		return (h->caplen);
+		ndo->ndo_ll_hdr_len += h->caplen;
+		return;
 	}
-	return (hdrlen);
+	ndo->ndo_ll_hdr_len += hdrlen;
 }
 
 /*
@@ -92,68 +93,74 @@ ltalk_if_print(netdissect_options *ndo,
  */
 u_int
 llap_print(netdissect_options *ndo,
-           register const u_char *bp, u_int length)
+           const u_char *bp, u_int length)
 {
-	register const struct LAP *lp;
-	register const struct atDDP *dp;
-	register const struct atShortDDP *sdp;
+	const struct LAP *lp;
+	const struct atDDP *dp;
+	const struct atShortDDP *sdp;
 	u_short snet;
 	u_int hdrlen;
 
+	ndo->ndo_protocol = "llap";
 	if (length < sizeof(*lp)) {
-		ND_PRINT((ndo, " [|llap %u]", length));
+		ND_PRINT(" [|llap %u]", length);
 		return (length);
 	}
-	if (!ND_TTEST2(*bp, sizeof(*lp))) {
-		ND_PRINT((ndo, " [|llap]"));
+	if (!ND_TTEST_LEN(bp, sizeof(*lp))) {
+		nd_print_trunc(ndo);
 		return (0);	/* cut short by the snapshot length */
 	}
 	lp = (const struct LAP *)bp;
 	bp += sizeof(*lp);
 	length -= sizeof(*lp);
 	hdrlen = sizeof(*lp);
-	switch (lp->type) {
+	switch (GET_U_1(lp->type)) {
 
 	case lapShortDDP:
 		if (length < ddpSSize) {
-			ND_PRINT((ndo, " [|sddp %u]", length));
+			ND_PRINT(" [|sddp %u]", length);
 			return (length);
 		}
-		if (!ND_TTEST2(*bp, ddpSSize)) {
-			ND_PRINT((ndo, " [|sddp]"));
+		if (!ND_TTEST_LEN(bp, ddpSSize)) {
+			ND_PRINT(" [|sddp]");
 			return (0);	/* cut short by the snapshot length */
 		}
 		sdp = (const struct atShortDDP *)bp;
-		ND_PRINT((ndo, "%s.%s",
-		    ataddr_string(ndo, 0, lp->src), ddpskt_string(ndo, sdp->srcSkt)));
-		ND_PRINT((ndo, " > %s.%s:",
-		    ataddr_string(ndo, 0, lp->dst), ddpskt_string(ndo, sdp->dstSkt)));
+		ND_PRINT("%s.%s",
+		    ataddr_string(ndo, 0, GET_U_1(lp->src)),
+		    ddpskt_string(ndo, GET_U_1(sdp->srcSkt)));
+		ND_PRINT(" > %s.%s:",
+		    ataddr_string(ndo, 0, GET_U_1(lp->dst)),
+		    ddpskt_string(ndo, GET_U_1(sdp->dstSkt)));
 		bp += ddpSSize;
 		length -= ddpSSize;
 		hdrlen += ddpSSize;
-		ddp_print(ndo, bp, length, sdp->type, 0, lp->src, sdp->srcSkt);
+		ddp_print(ndo, bp, length, GET_U_1(sdp->type), 0,
+			  GET_U_1(lp->src), GET_U_1(sdp->srcSkt));
 		break;
 
 	case lapDDP:
 		if (length < ddpSize) {
-			ND_PRINT((ndo, " [|ddp %u]", length));
+			ND_PRINT(" [|ddp %u]", length);
 			return (length);
 		}
-		if (!ND_TTEST2(*bp, ddpSize)) {
-			ND_PRINT((ndo, " [|ddp]"));
+		if (!ND_TTEST_LEN(bp, ddpSize)) {
+			ND_PRINT(" [|ddp]");
 			return (0);	/* cut short by the snapshot length */
 		}
 		dp = (const struct atDDP *)bp;
-		snet = EXTRACT_16BITS(&dp->srcNet);
-		ND_PRINT((ndo, "%s.%s", ataddr_string(ndo, snet, dp->srcNode),
-		    ddpskt_string(ndo, dp->srcSkt)));
-		ND_PRINT((ndo, " > %s.%s:",
-		    ataddr_string(ndo, EXTRACT_16BITS(&dp->dstNet), dp->dstNode),
-		    ddpskt_string(ndo, dp->dstSkt)));
+		snet = GET_BE_U_2(dp->srcNet);
+		ND_PRINT("%s.%s",
+			 ataddr_string(ndo, snet, GET_U_1(dp->srcNode)),
+			 ddpskt_string(ndo, GET_U_1(dp->srcSkt)));
+		ND_PRINT(" > %s.%s:",
+		    ataddr_string(ndo, GET_BE_U_2(dp->dstNet), GET_U_1(dp->dstNode)),
+		    ddpskt_string(ndo, GET_U_1(dp->dstSkt)));
 		bp += ddpSize;
 		length -= ddpSize;
 		hdrlen += ddpSize;
-		ddp_print(ndo, bp, length, dp->type, snet, dp->srcNode, dp->srcSkt);
+		ddp_print(ndo, bp, length, GET_U_1(dp->type), snet,
+			  GET_U_1(dp->srcNode), GET_U_1(dp->srcSkt));
 		break;
 
 #ifdef notdef
@@ -163,8 +170,9 @@ llap_print(netdissect_options *ndo,
 #endif
 
 	default:
-		ND_PRINT((ndo, "%d > %d at-lap#%d %u",
-		    lp->src, lp->dst, lp->type, length));
+		ND_PRINT("%u > %u at-lap#%u %u",
+		    GET_U_1(lp->src), GET_U_1(lp->dst), GET_U_1(lp->type),
+		    length);
 		break;
 	}
 	return (hdrlen);
@@ -177,74 +185,77 @@ llap_print(netdissect_options *ndo,
  */
 void
 atalk_print(netdissect_options *ndo,
-            register const u_char *bp, u_int length)
+            const u_char *bp, u_int length)
 {
-	register const struct atDDP *dp;
+	const struct atDDP *dp;
 	u_short snet;
 
+	ndo->ndo_protocol = "atalk";
         if(!ndo->ndo_eflag)
-            ND_PRINT((ndo, "AT "));
+            ND_PRINT("AT ");
 
 	if (length < ddpSize) {
-		ND_PRINT((ndo, " [|ddp %u]", length));
+		ND_PRINT(" [|ddp %u]", length);
 		return;
 	}
-	if (!ND_TTEST2(*bp, ddpSize)) {
-		ND_PRINT((ndo, " [|ddp]"));
+	if (!ND_TTEST_LEN(bp, ddpSize)) {
+		ND_PRINT(" [|ddp]");
 		return;
 	}
 	dp = (const struct atDDP *)bp;
-	snet = EXTRACT_16BITS(&dp->srcNet);
-	ND_PRINT((ndo, "%s.%s", ataddr_string(ndo, snet, dp->srcNode),
-	       ddpskt_string(ndo, dp->srcSkt)));
-	ND_PRINT((ndo, " > %s.%s: ",
-	       ataddr_string(ndo, EXTRACT_16BITS(&dp->dstNet), dp->dstNode),
-	       ddpskt_string(ndo, dp->dstSkt)));
+	snet = GET_BE_U_2(dp->srcNet);
+	ND_PRINT("%s.%s", ataddr_string(ndo, snet, GET_U_1(dp->srcNode)),
+		 ddpskt_string(ndo, GET_U_1(dp->srcSkt)));
+	ND_PRINT(" > %s.%s: ",
+	       ataddr_string(ndo, GET_BE_U_2(dp->dstNet), GET_U_1(dp->dstNode)),
+	       ddpskt_string(ndo, GET_U_1(dp->dstSkt)));
 	bp += ddpSize;
 	length -= ddpSize;
-	ddp_print(ndo, bp, length, dp->type, snet, dp->srcNode, dp->srcSkt);
+	ddp_print(ndo, bp, length, GET_U_1(dp->type), snet,
+		  GET_U_1(dp->srcNode), GET_U_1(dp->srcSkt));
 }
 
 /* XXX should probably pass in the snap header and do checks like arp_print() */
 void
 aarp_print(netdissect_options *ndo,
-           register const u_char *bp, u_int length)
+           const u_char *bp, u_int length)
 {
-	register const struct aarp *ap;
+	const struct aarp *ap;
 
 #define AT(member) ataddr_string(ndo, (ap->member[1]<<8)|ap->member[2],ap->member[3])
 
-	ND_PRINT((ndo, "aarp "));
+	ndo->ndo_protocol = "aarp";
+	ND_PRINT("aarp ");
 	ap = (const struct aarp *)bp;
-	if (!ND_TTEST(*ap)) {
+	if (!ND_TTEST_SIZE(ap)) {
 		/* Just bail if we don't have the whole chunk. */
-		ND_PRINT((ndo, " [|aarp]"));
+		nd_print_trunc(ndo);
 		return;
 	}
 	if (length < sizeof(*ap)) {
-		ND_PRINT((ndo, " [|aarp %u]", length));
+		ND_PRINT(" [|aarp %u]", length);
 		return;
 	}
-	if (EXTRACT_16BITS(&ap->htype) == 1 &&
-	    EXTRACT_16BITS(&ap->ptype) == ETHERTYPE_ATALK &&
-	    ap->halen == 6 && ap->palen == 4 )
-		switch (EXTRACT_16BITS(&ap->op)) {
+	if (GET_BE_U_2(ap->htype) == 1 &&
+	    GET_BE_U_2(ap->ptype) == ETHERTYPE_ATALK &&
+	    GET_U_1(ap->halen) == MAC_ADDR_LEN && GET_U_1(ap->palen) == 4)
+		switch (GET_BE_U_2(ap->op)) {
 
 		case 1:				/* request */
-			ND_PRINT((ndo, "who-has %s tell %s", AT(pdaddr), AT(psaddr)));
+			ND_PRINT("who-has %s tell %s", AT(pdaddr), AT(psaddr));
 			return;
 
 		case 2:				/* response */
-			ND_PRINT((ndo, "reply %s is-at %s", AT(psaddr), etheraddr_string(ndo, ap->hsaddr)));
+			ND_PRINT("reply %s is-at %s", AT(psaddr), GET_ETHERADDR_STRING(ap->hsaddr));
 			return;
 
 		case 3:				/* probe (oy!) */
-			ND_PRINT((ndo, "probe %s tell %s", AT(pdaddr), AT(psaddr)));
+			ND_PRINT("probe %s tell %s", AT(pdaddr), AT(psaddr));
 			return;
 		}
-	ND_PRINT((ndo, "len %u op %u htype %u ptype %#x halen %u palen %u",
-	    length, EXTRACT_16BITS(&ap->op), EXTRACT_16BITS(&ap->htype),
-	    EXTRACT_16BITS(&ap->ptype), ap->halen, ap->palen));
+	ND_PRINT("len %u op %u htype %u ptype %#x halen %u palen %u",
+	    length, GET_BE_U_2(ap->op), GET_BE_U_2(ap->htype),
+	    GET_BE_U_2(ap->ptype), GET_U_1(ap->halen), GET_U_1(ap->palen));
 }
 
 /*
@@ -252,8 +263,8 @@ aarp_print(netdissect_options *ndo,
  */
 static void
 ddp_print(netdissect_options *ndo,
-          register const u_char *bp, register u_int length, register int t,
-          register u_short snet, register u_char snode, u_char skt)
+          const u_char *bp, u_int length, u_int t,
+          u_short snet, u_char snode, u_char skt)
 {
 
 	switch (t) {
@@ -271,114 +282,114 @@ ddp_print(netdissect_options *ndo,
 		break;
 
 	default:
-		ND_PRINT((ndo, " at-%s %d", tok2str(type2str, NULL, t), length));
+		ND_PRINT(" at-%s %u", tok2str(type2str, NULL, t), length);
 		break;
 	}
 }
 
 static void
 atp_print(netdissect_options *ndo,
-          register const struct atATP *ap, u_int length)
+          const struct atATP *ap, u_int length)
 {
-	char c;
+	uint8_t control;
 	uint32_t data;
 
 	if ((const u_char *)(ap + 1) > ndo->ndo_snapend) {
 		/* Just bail if we don't have the whole chunk. */
-		ND_PRINT((ndo, "%s", tstr));
+		nd_print_trunc(ndo);
 		return;
 	}
 	if (length < sizeof(*ap)) {
-		ND_PRINT((ndo, " [|atp %u]", length));
+		ND_PRINT(" [|atp %u]", length);
 		return;
 	}
 	length -= sizeof(*ap);
-	switch (ap->control & 0xc0) {
+	control = GET_U_1(ap->control);
+	switch (control & 0xc0) {
 
 	case atpReqCode:
-		ND_PRINT((ndo, " atp-req%s %d",
-			     ap->control & atpXO? " " : "*",
-			     EXTRACT_16BITS(&ap->transID)));
+		ND_PRINT(" atp-req%s %u",
+			     control & atpXO? " " : "*",
+			     GET_BE_U_2(ap->transID));
 
-		atp_bitmap_print(ndo, ap->bitmap);
+		atp_bitmap_print(ndo, GET_U_1(ap->bitmap));
 
 		if (length != 0)
-			ND_PRINT((ndo, " [len=%u]", length));
+			ND_PRINT(" [len=%u]", length);
 
-		switch (ap->control & (atpEOM|atpSTS)) {
+		switch (control & (atpEOM|atpSTS)) {
 		case atpEOM:
-			ND_PRINT((ndo, " [EOM]"));
+			ND_PRINT(" [EOM]");
 			break;
 		case atpSTS:
-			ND_PRINT((ndo, " [STS]"));
+			ND_PRINT(" [STS]");
 			break;
 		case atpEOM|atpSTS:
-			ND_PRINT((ndo, " [EOM,STS]"));
+			ND_PRINT(" [EOM,STS]");
 			break;
 		}
 		break;
 
 	case atpRspCode:
-		ND_PRINT((ndo, " atp-resp%s%d:%d (%u)",
-			     ap->control & atpEOM? "*" : " ",
-			     EXTRACT_16BITS(&ap->transID), ap->bitmap, length));
-		switch (ap->control & (atpXO|atpSTS)) {
+		ND_PRINT(" atp-resp%s%u:%u (%u)",
+			     control & atpEOM? "*" : " ",
+			     GET_BE_U_2(ap->transID), GET_U_1(ap->bitmap),
+			     length);
+		switch (control & (atpXO|atpSTS)) {
 		case atpXO:
-			ND_PRINT((ndo, " [XO]"));
+			ND_PRINT(" [XO]");
 			break;
 		case atpSTS:
-			ND_PRINT((ndo, " [STS]"));
+			ND_PRINT(" [STS]");
 			break;
 		case atpXO|atpSTS:
-			ND_PRINT((ndo, " [XO,STS]"));
+			ND_PRINT(" [XO,STS]");
 			break;
 		}
 		break;
 
 	case atpRelCode:
-		ND_PRINT((ndo, " atp-rel  %d", EXTRACT_16BITS(&ap->transID)));
+		ND_PRINT(" atp-rel  %u", GET_BE_U_2(ap->transID));
 
-		atp_bitmap_print(ndo, ap->bitmap);
+		atp_bitmap_print(ndo, GET_U_1(ap->bitmap));
 
 		/* length should be zero */
 		if (length)
-			ND_PRINT((ndo, " [len=%u]", length));
+			ND_PRINT(" [len=%u]", length);
 
 		/* there shouldn't be any control flags */
-		if (ap->control & (atpXO|atpEOM|atpSTS)) {
-			c = '[';
-			if (ap->control & atpXO) {
-				ND_PRINT((ndo, "%cXO", c));
+		if (control & (atpXO|atpEOM|atpSTS)) {
+			char c = '[';
+			if (control & atpXO) {
+				ND_PRINT("%cXO", c);
 				c = ',';
 			}
-			if (ap->control & atpEOM) {
-				ND_PRINT((ndo, "%cEOM", c));
+			if (control & atpEOM) {
+				ND_PRINT("%cEOM", c);
 				c = ',';
 			}
-			if (ap->control & atpSTS) {
-				ND_PRINT((ndo, "%cSTS", c));
-				c = ',';
+			if (control & atpSTS) {
+				ND_PRINT("%cSTS", c);
 			}
-			ND_PRINT((ndo, "]"));
+			ND_PRINT("]");
 		}
 		break;
 
 	default:
-		ND_PRINT((ndo, " atp-0x%x  %d (%u)", ap->control,
-			     EXTRACT_16BITS(&ap->transID), length));
+		ND_PRINT(" atp-0x%x  %u (%u)", control,
+			     GET_BE_U_2(ap->transID), length);
 		break;
 	}
-	data = EXTRACT_32BITS(&ap->userData);
+	data = GET_BE_U_4(ap->userData);
 	if (data != 0)
-		ND_PRINT((ndo, " 0x%x", data));
+		ND_PRINT(" 0x%x", data);
 }
 
 static void
 atp_bitmap_print(netdissect_options *ndo,
-                 register u_char bm)
+                 u_char bm)
 {
-	register char c;
-	register int i;
+	u_int i;
 
 	/*
 	 * The '& 0xff' below is needed for compilers that want to sign
@@ -386,59 +397,62 @@ atp_bitmap_print(netdissect_options *ndo,
 	 * (gcc is smart enough to eliminate it, at least on the Sparc).
 	 */
 	if ((bm + 1) & (bm & 0xff)) {
-		c = '<';
+		char c = '<';
 		for (i = 0; bm; ++i) {
 			if (bm & 1) {
-				ND_PRINT((ndo, "%c%d", c, i));
+				ND_PRINT("%c%u", c, i);
 				c = ',';
 			}
 			bm >>= 1;
 		}
-		ND_PRINT((ndo, ">"));
+		ND_PRINT(">");
 	} else {
 		for (i = 0; bm; ++i)
 			bm >>= 1;
 		if (i > 1)
-			ND_PRINT((ndo, "<0-%d>", i - 1));
+			ND_PRINT("<0-%u>", i - 1);
 		else
-			ND_PRINT((ndo, "<0>"));
+			ND_PRINT("<0>");
 	}
 }
 
 static void
 nbp_print(netdissect_options *ndo,
-          register const struct atNBP *np, u_int length, register u_short snet,
-          register u_char snode, register u_char skt)
+          const struct atNBP *np, u_int length, u_short snet,
+          u_char snode, u_char skt)
 {
-	register const struct atNBPtuple *tp =
+	const struct atNBPtuple *tp =
 		(const struct atNBPtuple *)((const u_char *)np + nbpHeaderSize);
-	int i;
+	uint8_t control;
+	u_int i;
 	const u_char *ep;
 
 	if (length < nbpHeaderSize) {
-		ND_PRINT((ndo, " truncated-nbp %u", length));
+		ND_PRINT(" truncated-nbp %u", length);
 		return;
 	}
 
 	length -= nbpHeaderSize;
 	if (length < 8) {
 		/* must be room for at least one tuple */
-		ND_PRINT((ndo, " truncated-nbp %u", length + nbpHeaderSize));
+		ND_PRINT(" truncated-nbp %u", length + nbpHeaderSize);
 		return;
 	}
 	/* ep points to end of available data */
 	ep = ndo->ndo_snapend;
 	if ((const u_char *)tp > ep) {
-		ND_PRINT((ndo, "%s", tstr));
+		nd_print_trunc(ndo);
 		return;
 	}
-	switch (i = np->control & 0xf0) {
+	control = GET_U_1(np->control);
+	switch (i = (control & 0xf0)) {
 
 	case nbpBrRq:
 	case nbpLkUp:
-		ND_PRINT((ndo, i == nbpLkUp? " nbp-lkup %d:":" nbp-brRq %d:", np->id));
+		ND_PRINT(i == nbpLkUp? " nbp-lkup %u:":" nbp-brRq %u:",
+			 GET_U_1(np->id));
 		if ((const u_char *)(tp + 1) > ep) {
-			ND_PRINT((ndo, "%s", tstr));
+			nd_print_trunc(ndo);
 			return;
 		}
 		(void)nbp_name_print(ndo, tp, ep);
@@ -447,106 +461,113 @@ nbp_print(netdissect_options *ndo,
 		 * be one tuple, the address must match the source
 		 * address and the enumerator should be zero.
 		 */
-		if ((np->control & 0xf) != 1)
-			ND_PRINT((ndo, " [ntup=%d]", np->control & 0xf));
-		if (tp->enumerator)
-			ND_PRINT((ndo, " [enum=%d]", tp->enumerator));
-		if (EXTRACT_16BITS(&tp->net) != snet ||
-		    tp->node != snode || tp->skt != skt)
-			ND_PRINT((ndo, " [addr=%s.%d]",
-			    ataddr_string(ndo, EXTRACT_16BITS(&tp->net),
-			    tp->node), tp->skt));
+		if ((control & 0xf) != 1)
+			ND_PRINT(" [ntup=%u]", control & 0xf);
+		if (GET_U_1(tp->enumerator))
+			ND_PRINT(" [enum=%u]", GET_U_1(tp->enumerator));
+		if (GET_BE_U_2(tp->net) != snet ||
+		    GET_U_1(tp->node) != snode ||
+		    GET_U_1(tp->skt) != skt)
+			ND_PRINT(" [addr=%s.%u]",
+			    ataddr_string(ndo, GET_BE_U_2(tp->net),
+					  GET_U_1(tp->node)),
+			    GET_U_1(tp->skt));
 		break;
 
 	case nbpLkUpReply:
-		ND_PRINT((ndo, " nbp-reply %d:", np->id));
+		ND_PRINT(" nbp-reply %u:", GET_U_1(np->id));
 
 		/* print each of the tuples in the reply */
-		for (i = np->control & 0xf; --i >= 0 && tp; )
+		for (i = control & 0xf; i != 0 && tp; i--)
 			tp = nbp_tuple_print(ndo, tp, ep, snet, snode, skt);
 		break;
 
 	default:
-		ND_PRINT((ndo, " nbp-0x%x  %d (%u)", np->control, np->id, length));
+		ND_PRINT(" nbp-0x%x  %u (%u)", control, GET_U_1(np->id),
+			 length);
 		break;
 	}
 }
 
 /* print a counted string */
-static const char *
+static const u_char *
 print_cstring(netdissect_options *ndo,
-              register const char *cp, register const u_char *ep)
+              const u_char *cp, const u_char *ep)
 {
-	register u_int length;
+	u_int length;
 
-	if (cp >= (const char *)ep) {
-		ND_PRINT((ndo, "%s", tstr));
+	if (cp >= ep) {
+		nd_print_trunc(ndo);
 		return (0);
 	}
-	length = *cp++;
+	length = GET_U_1(cp);
+	cp++;
 
 	/* Spec says string can be at most 32 bytes long */
 	if (length > 32) {
-		ND_PRINT((ndo, "[len=%u]", length));
+		ND_PRINT("[len=%u]", length);
 		return (0);
 	}
-	while ((int)--length >= 0) {
-		if (cp >= (const char *)ep) {
-			ND_PRINT((ndo, "%s", tstr));
+	while (length != 0) {
+		if (cp >= ep) {
+			nd_print_trunc(ndo);
 			return (0);
 		}
-		ND_PRINT((ndo, "%c", *cp++));
+		fn_print_char(ndo, GET_U_1(cp));
+		cp++;
+		length--;
 	}
 	return (cp);
 }
 
 static const struct atNBPtuple *
 nbp_tuple_print(netdissect_options *ndo,
-                register const struct atNBPtuple *tp, register const u_char *ep,
-                register u_short snet, register u_char snode, register u_char skt)
+                const struct atNBPtuple *tp, const u_char *ep,
+                u_short snet, u_char snode, u_char skt)
 {
-	register const struct atNBPtuple *tpn;
+	const struct atNBPtuple *tpn;
 
 	if ((const u_char *)(tp + 1) > ep) {
-		ND_PRINT((ndo, "%s", tstr));
+		nd_print_trunc(ndo);
 		return 0;
 	}
 	tpn = nbp_name_print(ndo, tp, ep);
 
 	/* if the enumerator isn't 1, print it */
-	if (tp->enumerator != 1)
-		ND_PRINT((ndo, "(%d)", tp->enumerator));
+	if (GET_U_1(tp->enumerator) != 1)
+		ND_PRINT("(%u)", GET_U_1(tp->enumerator));
 
 	/* if the socket doesn't match the src socket, print it */
-	if (tp->skt != skt)
-		ND_PRINT((ndo, " %d", tp->skt));
+	if (GET_U_1(tp->skt) != skt)
+		ND_PRINT(" %u", GET_U_1(tp->skt));
 
 	/* if the address doesn't match the src address, it's an anomaly */
-	if (EXTRACT_16BITS(&tp->net) != snet || tp->node != snode)
-		ND_PRINT((ndo, " [addr=%s]",
-		    ataddr_string(ndo, EXTRACT_16BITS(&tp->net), tp->node)));
+	if (GET_BE_U_2(tp->net) != snet ||
+	    GET_U_1(tp->node) != snode)
+		ND_PRINT(" [addr=%s]",
+		    ataddr_string(ndo, GET_BE_U_2(tp->net), GET_U_1(tp->node)));
 
 	return (tpn);
 }
 
 static const struct atNBPtuple *
 nbp_name_print(netdissect_options *ndo,
-               const struct atNBPtuple *tp, register const u_char *ep)
+               const struct atNBPtuple *tp, const u_char *ep)
 {
-	register const char *cp = (const char *)tp + nbpTupleSize;
+	const u_char *cp = (const u_char *)tp + nbpTupleSize;
 
-	ND_PRINT((ndo, " "));
+	ND_PRINT(" ");
 
 	/* Object */
-	ND_PRINT((ndo, "\""));
+	ND_PRINT("\"");
 	if ((cp = print_cstring(ndo, cp, ep)) != NULL) {
 		/* Type */
-		ND_PRINT((ndo, ":"));
+		ND_PRINT(":");
 		if ((cp = print_cstring(ndo, cp, ep)) != NULL) {
 			/* Zone */
-			ND_PRINT((ndo, "@"));
+			ND_PRINT("@");
 			if ((cp = print_cstring(ndo, cp, ep)) != NULL)
-				ND_PRINT((ndo, "\""));
+				ND_PRINT("\"");
 		}
 	}
 	return ((const struct atNBPtuple *)cp);
@@ -556,7 +577,7 @@ nbp_name_print(netdissect_options *ndo,
 #define HASHNAMESIZE 4096
 
 struct hnamemem {
-	int addr;
+	u_int addr;
 	char *name;
 	struct hnamemem *nxt;
 };
@@ -567,46 +588,64 @@ static const char *
 ataddr_string(netdissect_options *ndo,
               u_short atnet, u_char athost)
 {
-	register struct hnamemem *tp, *tp2;
-	register int i = (atnet << 8) | athost;
+	struct hnamemem *tp, *tp2;
+	u_int i = (atnet << 8) | athost;
 	char nambuf[256+1];
 	static int first = 1;
 	FILE *fp;
 
 	/*
-	 * if this is the first call, see if there's an AppleTalk
-	 * number to name map file.
+	 * Are we doing address to name resolution?
 	 */
-	if (first && (first = 0, !ndo->ndo_nflag)
-	    && (fp = fopen("/etc/atalk.names", "r"))) {
-		char line[256];
-		int i1, i2;
+	if (!ndo->ndo_nflag) {
+		/*
+		 * Yes.  Have we tried to open and read an AppleTalk
+		 * number to name map file?
+		 */
+		if (!first) {
+			/*
+			 * No; try to do so.
+			 */
+			first = 0;
+			fp = fopen("/etc/atalk.names", "r");
+			if (fp != NULL) {
+				char line[256];
+				u_int i1, i2;
 
-		while (fgets(line, sizeof(line), fp)) {
-			if (line[0] == '\n' || line[0] == 0 || line[0] == '#')
-				continue;
-			if (sscanf(line, "%d.%d %256s", &i1, &i2, nambuf) == 3)
-				/* got a hostname. */
-				i2 |= (i1 << 8);
-			else if (sscanf(line, "%d %256s", &i1, nambuf) == 2)
-				/* got a net name */
-				i2 = (i1 << 8) | 255;
-			else
-				continue;
+				while (fgets(line, sizeof(line), fp)) {
+					if (line[0] == '\n' || line[0] == 0 ||
+					    line[0] == '#')
+						continue;
+					if (sscanf(line, "%u.%u %256s", &i1,
+					    &i2, nambuf) == 3)
+						/* got a hostname. */
+						i2 |= (i1 << 8);
+					else if (sscanf(line, "%u %256s", &i1,
+					    nambuf) == 2)
+						/* got a net name */
+						i2 = (i1 << 8) | 255;
+					else
+						continue;
 
-			for (tp = &hnametable[i2 & (HASHNAMESIZE-1)];
-			     tp->nxt; tp = tp->nxt)
-				;
-			tp->addr = i2;
-			tp->nxt = newhnamemem(ndo);
-			tp->name = strdup(nambuf);
-			if (tp->name == NULL)
-				(*ndo->ndo_error)(ndo,
-						  "ataddr_string: strdup(nambuf)");
+					for (tp = &hnametable[i2 & (HASHNAMESIZE-1)];
+					     tp->nxt; tp = tp->nxt)
+						;
+					tp->addr = i2;
+					tp->nxt = newhnamemem(ndo);
+					tp->name = strdup(nambuf);
+					if (tp->name == NULL)
+						(*ndo->ndo_error)(ndo,
+						    S_ERR_ND_MEM_ALLOC,
+						    "%s: strdup(nambuf)", __func__);
+				}
+				fclose(fp);
+			}
 		}
-		fclose(fp);
 	}
 
+	/*
+	 * Now try to look up the address in the table.
+	 */
 	for (tp = &hnametable[i & (HASHNAMESIZE-1)]; tp->nxt; tp = tp->nxt)
 		if (tp->addr == i)
 			return (tp->name);
@@ -617,24 +656,25 @@ ataddr_string(netdissect_options *ndo,
 		if (tp2->addr == i) {
 			tp->addr = (atnet << 8) | athost;
 			tp->nxt = newhnamemem(ndo);
-			(void)snprintf(nambuf, sizeof(nambuf), "%s.%d",
+			(void)snprintf(nambuf, sizeof(nambuf), "%s.%u",
 			    tp2->name, athost);
 			tp->name = strdup(nambuf);
 			if (tp->name == NULL)
-				(*ndo->ndo_error)(ndo,
-						  "ataddr_string: strdup(nambuf)");
+				(*ndo->ndo_error)(ndo, S_ERR_ND_MEM_ALLOC,
+					"%s: strdup(nambuf)", __func__);
 			return (tp->name);
 		}
 
 	tp->addr = (atnet << 8) | athost;
 	tp->nxt = newhnamemem(ndo);
 	if (athost != 255)
-		(void)snprintf(nambuf, sizeof(nambuf), "%d.%d", atnet, athost);
+		(void)snprintf(nambuf, sizeof(nambuf), "%u.%u", atnet, athost);
 	else
-		(void)snprintf(nambuf, sizeof(nambuf), "%d", atnet);
+		(void)snprintf(nambuf, sizeof(nambuf), "%u", atnet);
 	tp->name = strdup(nambuf);
 	if (tp->name == NULL)
-		(*ndo->ndo_error)(ndo, "ataddr_string: strdup(nambuf)");
+		(*ndo->ndo_error)(ndo, S_ERR_ND_MEM_ALLOC,
+				  "%s: strdup(nambuf)", __func__);
 
 	return (tp->name);
 }
@@ -649,13 +689,13 @@ static const struct tok skt2str[] = {
 
 static const char *
 ddpskt_string(netdissect_options *ndo,
-              register int skt)
+              u_int skt)
 {
 	static char buf[8];
 
 	if (ndo->ndo_nflag) {
-		(void)snprintf(buf, sizeof(buf), "%d", skt);
+		(void)snprintf(buf, sizeof(buf), "%u", skt);
 		return (buf);
 	}
-	return (tok2str(skt2str, "%d", skt));
+	return (tok2str(skt2str, "%u", skt));
 }

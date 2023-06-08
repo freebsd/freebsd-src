@@ -26,10 +26,10 @@
 /* \summary: Virtual Router Redundancy Protocol (VRRP) printer */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
-#include <netdissect-stdinc.h>
+#include "netdissect-stdinc.h"
 
 #include "netdissect.h"
 #include "extract.h"
@@ -104,84 +104,87 @@ static const struct tok auth2str[] = {
 
 void
 vrrp_print(netdissect_options *ndo,
-           register const u_char *bp, register u_int len,
-           register const u_char *bp2, int ttl)
+           const u_char *bp, u_int len,
+           const u_char *bp2, int ttl,
+	   int ver)
 {
 	int version, type, auth_type = VRRP_AUTH_NONE; /* keep compiler happy */
 	const char *type_s;
 
-	ND_TCHECK(bp[0]);
-	version = (bp[0] & 0xf0) >> 4;
-	type = bp[0] & 0x0f;
+	ndo->ndo_protocol = "vrrp";
+	nd_print_protocol_caps(ndo);
+	version = (GET_U_1(bp) & 0xf0) >> 4;
+	type = GET_U_1(bp) & 0x0f;
 	type_s = tok2str(type2str, "unknown type (%u)", type);
-	ND_PRINT((ndo, "VRRPv%u, %s", version, type_s));
+	ND_PRINT("v%u, %s", version, type_s);
 	if (ttl != 255)
-		ND_PRINT((ndo, ", (ttl %u)", ttl));
+		ND_PRINT(", (ttl %u)", ttl);
 	if (version < 2 || version > 3 || type != VRRP_TYPE_ADVERTISEMENT)
 		return;
-	ND_TCHECK(bp[2]);
-	ND_PRINT((ndo, ", vrid %u, prio %u", bp[1], bp[2]));
-	ND_TCHECK(bp[5]);
+	ND_PRINT(", vrid %u, prio %u", GET_U_1(bp + 1), GET_U_1(bp + 2));
 
 	if (version == 2) {
-		auth_type = bp[4];
-		ND_PRINT((ndo, ", authtype %s", tok2str(auth2str, NULL, auth_type)));
-		ND_PRINT((ndo, ", intvl %us, length %u", bp[5], len));
+		auth_type = GET_U_1(bp + 4);
+		ND_PRINT(", authtype %s", tok2str(auth2str, NULL, auth_type));
+		ND_PRINT(", intvl %us, length %u", GET_U_1(bp + 5), len);
 	} else { /* version == 3 */
-		uint16_t intvl = (bp[4] & 0x0f) << 8 | bp[5];
-		ND_PRINT((ndo, ", intvl %ucs, length %u", intvl, len));
+		uint16_t intvl = (GET_U_1(bp + 4) & 0x0f) << 8 | GET_U_1(bp + 5);
+		ND_PRINT(", intvl %ucs, length %u", intvl, len);
 	}
 
 	if (ndo->ndo_vflag) {
-		int naddrs = bp[3];
-		int i;
+		u_int naddrs = GET_U_1(bp + 3);
+		u_int i;
 		char c;
 
-		if (version == 2 && ND_TTEST2(bp[0], len)) {
+		if (version == 2 && ND_TTEST_LEN(bp, len)) {
 			struct cksum_vec vec[1];
 
 			vec[0].ptr = bp;
 			vec[0].len = len;
-			if (in_cksum(vec, 1)) {
-				ND_TCHECK_16BITS(&bp[6]);
-				ND_PRINT((ndo, ", (bad vrrp cksum %x)",
-					EXTRACT_16BITS(&bp[6])));
-			}
+			if (in_cksum(vec, 1))
+				ND_PRINT(", (bad vrrp cksum %x)",
+					GET_BE_U_2(bp + 6));
 		}
 
-		if (version == 3 && ND_TTEST2(bp[0], len)) {
-			uint16_t cksum = nextproto4_cksum(ndo, (const struct ip *)bp2, bp,
-				len, len, IPPROTO_VRRP);
-			if (cksum) {
-				ND_TCHECK_16BITS(&bp[6]);
-				ND_PRINT((ndo, ", (bad vrrp cksum %x)",
-					EXTRACT_16BITS(&bp[6])));
-			}
+		if (version == 3 && ND_TTEST_LEN(bp, len)) {
+			uint16_t cksum;
+
+			if (ver == 4)
+				cksum = nextproto4_cksum(ndo, (const struct ip *)bp2, bp,
+					len, len, IPPROTO_VRRP);
+			else
+				cksum = nextproto6_cksum(ndo, (const struct ip6_hdr *)bp2, bp,
+					len, len, IPPROTO_VRRP);
+			if (cksum)
+				ND_PRINT(", (bad vrrp cksum %x)",
+					GET_BE_U_2(bp + 6));
 		}
 
-		ND_PRINT((ndo, ", addrs"));
+		ND_PRINT(", addrs");
 		if (naddrs > 1)
-			ND_PRINT((ndo, "(%d)", naddrs));
-		ND_PRINT((ndo, ":"));
+			ND_PRINT("(%u)", naddrs);
+		ND_PRINT(":");
 		c = ' ';
 		bp += 8;
 		for (i = 0; i < naddrs; i++) {
-			ND_TCHECK(bp[3]);
-			ND_PRINT((ndo, "%c%s", c, ipaddr_string(ndo, bp)));
+			if (ver == 4) {
+				ND_PRINT("%c%s", c, GET_IPADDR_STRING(bp));
+				bp += 4;
+			} else {
+				ND_PRINT("%c%s", c, GET_IP6ADDR_STRING(bp));
+				bp += 16;
+			}
 			c = ',';
-			bp += 4;
 		}
 		if (version == 2 && auth_type == VRRP_AUTH_SIMPLE) { /* simple text password */
-			ND_TCHECK(bp[7]);
-			ND_PRINT((ndo, " auth \""));
-			if (fn_printn(ndo, bp, 8, ndo->ndo_snapend)) {
-				ND_PRINT((ndo, "\""));
-				goto trunc;
-			}
-			ND_PRINT((ndo, "\""));
+			ND_PRINT(" auth \"");
+			/*
+			 * RFC 2338 Section 5.3.10: "If the configured authentication string
+			 * is shorter than 8 bytes, the remaining space MUST be zero-filled.
+			 */
+			nd_printjnp(ndo, bp, 8);
+			ND_PRINT("\"");
 		}
 	}
-	return;
-trunc:
-	ND_PRINT((ndo, "[|vrrp]"));
 }
