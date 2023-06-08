@@ -29,29 +29,22 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)if_ether.h	8.3 (Berkeley) 5/2/95
  */
 
-#define	ETHERMTU	1500
+#include <stdio.h>
 
-/*
- * The number of bytes in an ethernet (MAC) address.
- */
-#define	ETHER_ADDR_LEN		6
+#include "netdissect-stdinc.h"
 
-/*
- * Structure of an Ethernet header.
- */
-struct	ether_header {
-	uint8_t		ether_dhost[ETHER_ADDR_LEN];
-	uint8_t		ether_shost[ETHER_ADDR_LEN];
-	uint16_t	ether_length_type;
-};
+#include "fptype.h"
 
-/*
- * Length of an Ethernet header; note that some compilers may pad
- * "struct ether_header" to a multiple of 4 bytes, for example, so
- * "sizeof (struct ether_header)" may not give the right answer.
- */
-#define ETHER_HDRLEN		14
+void
+float_type_check(uint32_t in)
+{
+	union { /* int to float conversion buffer */
+		float f;
+		uint32_t i;
+	} f;
+
+	f.i = in;
+	printf("%.3f\n", f.f*8/1000000);
+}

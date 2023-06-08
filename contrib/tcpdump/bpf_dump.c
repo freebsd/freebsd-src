@@ -20,14 +20,15 @@
  */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
-#include <netdissect-stdinc.h>
+#include "netdissect-stdinc.h"
 
 #include <stdio.h>
 
 #include "netdissect.h"
+#include "interface.h"
 
 void
 bpf_dump(const struct bpf_program *p, int option)

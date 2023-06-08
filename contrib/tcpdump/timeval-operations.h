@@ -30,19 +30,14 @@
 
 /* Operations on timevals. */
 
-#ifndef _MICRO_PER_SEC
-#define _MICRO_PER_SEC 1000000
-#endif
-
-#ifndef _NANO_PER_SEC
-#define _NANO_PER_SEC 1000000000
-#endif
+#define ND_MICRO_PER_SEC 1000000
+#define ND_NANO_PER_SEC 1000000000
 
 #define netdissect_timevalclear(tvp) ((tvp)->tv_sec = (tvp)->tv_usec = 0)
 
 #define netdissect_timevalisset(tvp) ((tvp)->tv_sec || (tvp)->tv_usec)
 
-#define netdissect_timevalcmp(tvp, uvp, cmp)      \
+#define netdissect_timevalcmp(tvp, uvp, cmp)   \
 	(((tvp)->tv_sec == (uvp)->tv_sec) ?    \
 	 ((tvp)->tv_usec cmp (uvp)->tv_usec) : \
 	 ((tvp)->tv_sec cmp (uvp)->tv_sec))
@@ -52,14 +47,14 @@
 		(vvp)->tv_sec = (tvp)->tv_sec + (uvp)->tv_sec;    \
 		(vvp)->tv_usec = (tvp)->tv_usec + (uvp)->tv_usec; \
 		if (nano_prec) {                                  \
-			if ((vvp)->tv_usec >= _NANO_PER_SEC) {    \
+			if ((vvp)->tv_usec >= ND_NANO_PER_SEC) {  \
 				(vvp)->tv_sec++;                  \
-				(vvp)->tv_usec -= _NANO_PER_SEC;  \
+				(vvp)->tv_usec -= ND_NANO_PER_SEC; \
 			}                                         \
 		} else {                                          \
-			if ((vvp)->tv_usec >= _MICRO_PER_SEC) {   \
+			if ((vvp)->tv_usec >= ND_MICRO_PER_SEC) { \
 				(vvp)->tv_sec++;                  \
-				(vvp)->tv_usec -= _MICRO_PER_SEC; \
+				(vvp)->tv_usec -= ND_MICRO_PER_SEC; \
 			}                                         \
 		}                                                 \
 	} while (0)
@@ -70,8 +65,8 @@
 		(vvp)->tv_usec = (tvp)->tv_usec - (uvp)->tv_usec;  \
 		if ((vvp)->tv_usec < 0) {                          \
 		    (vvp)->tv_sec--;                               \
-		    (vvp)->tv_usec += (nano_prec ? _NANO_PER_SEC : \
-				       _MICRO_PER_SEC);            \
+		    (vvp)->tv_usec += (nano_prec ? ND_NANO_PER_SEC : \
+				       ND_MICRO_PER_SEC);          \
 		}                                                  \
 	} while (0)
 

@@ -19,18 +19,25 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#ifndef EXTRACT_H
+#define EXTRACT_H
+
+#include <string.h>
+
 /*
- * For 8-bit values; provided for the sake of completeness.  Byte order
+ * For 8-bit values; needed to fetch a one-byte value.  Byte order
  * isn't relevant, and alignment isn't an issue.
  */
-#define EXTRACT_8BITS(p)	(*(p))
-#define EXTRACT_LE_8BITS(p)	(*(p))
+#define EXTRACT_U_1(p)	((uint8_t)(*(p)))
+#define EXTRACT_S_1(p)	((int8_t)(*(p)))
 
 /*
  * Inline functions or macros to extract possibly-unaligned big-endian
  * integral values.
  */
 #include "funcattrs.h"
+#include "netdissect.h"
+#include "diag-control.h"
 
 /*
  * If we have versions of GCC or Clang that support an __attribute__
@@ -62,29 +69,91 @@
 #define UNALIGNED_OK
 #endif
 
-#ifdef LBL_ALIGN
+#if (defined(__i386__) || defined(_M_IX86) || defined(__X86__) || defined(__x86_64__) || defined(_M_X64)) || \
+    (defined(__m68k__) && (!defined(__mc68000__) && !defined(__mc68010__))) || \
+    (defined(__ppc__) || defined(__ppc64__) || defined(_M_PPC) || defined(_ARCH_PPC) || defined(_ARCH_PPC64)) || \
+    (defined(__s390__) || defined(__s390x__) || defined(__zarch__))
 /*
- * The processor doesn't natively handle unaligned loads.
+ * The processor natively handles unaligned loads, so we can just
+ * cast the pointer and fetch through it.
+ *
+ * XXX - are those all the x86 tests we need?
+ * XXX - are those the only 68k tests we need not to generated
+ * unaligned accesses if the target is the 68000 or 68010?
+ * XXX - are there any tests we don't need, because some definitions are for
+ * compilers that also predefine the GCC symbols?
+ * XXX - do we need to test for both 32-bit and 64-bit versions of those
+ * architectures in all cases?
  */
-#if defined(__GNUC__) && defined(HAVE___ATTRIBUTE__) && \
-    (defined(__alpha) || defined(__alpha__) || \
-     defined(__mips) || defined(__mips__))
+UNALIGNED_OK static inline uint16_t
+EXTRACT_BE_U_2(const void *p)
+{
+	return ((uint16_t)ntohs(*(const uint16_t *)(p)));
+}
+
+UNALIGNED_OK static inline int16_t
+EXTRACT_BE_S_2(const void *p)
+{
+	return ((int16_t)ntohs(*(const int16_t *)(p)));
+}
+
+UNALIGNED_OK static inline uint32_t
+EXTRACT_BE_U_4(const void *p)
+{
+	return ((uint32_t)ntohl(*(const uint32_t *)(p)));
+}
+
+UNALIGNED_OK static inline int32_t
+EXTRACT_BE_S_4(const void *p)
+{
+	return ((int32_t)ntohl(*(const int32_t *)(p)));
+}
+
+UNALIGNED_OK static inline uint64_t
+EXTRACT_BE_U_8(const void *p)
+{
+	return ((uint64_t)(((uint64_t)ntohl(*((const uint32_t *)(p) + 0))) << 32 |
+		((uint64_t)ntohl(*((const uint32_t *)(p) + 1))) << 0));
+
+}
+
+UNALIGNED_OK static inline int64_t
+EXTRACT_BE_S_8(const void *p)
+{
+	return ((int64_t)(((int64_t)ntohl(*((const uint32_t *)(p) + 0))) << 32 |
+		((uint64_t)ntohl(*((const uint32_t *)(p) + 1))) << 0));
+
+}
 
 /*
-* This is a GCC-compatible compiler and we have __attribute__, which
- * we assume that mean we have __attribute__((packed)), and this is
- * MIPS or Alpha, which has instructions that can help when doing
- * unaligned loads.
+ * Extract an IPv4 address, which is in network byte order, and not
+ * necessarily aligned, and provide the result in host byte order.
+ */
+UNALIGNED_OK static inline uint32_t
+EXTRACT_IPV4_TO_HOST_ORDER(const void *p)
+{
+	return ((uint32_t)ntohl(*(const uint32_t *)(p)));
+}
+#elif ND_IS_AT_LEAST_GNUC_VERSION(2,0) && \
+    (defined(__alpha) || defined(__alpha__) || \
+     defined(__mips) || defined(__mips__))
+/*
+ * This is MIPS or Alpha, which don't natively handle unaligned loads,
+ * but which have instructions that can help when doing unaligned
+ * loads, and this is GCC 2.0 or later or a compiler that claims to
+ * be GCC 2.0 or later, which we assume that mean we have
+ * __attribute__((packed)), which we can use to convince the compiler
+ * to generate those instructions.
  *
  * Declare packed structures containing a uint16_t and a uint32_t,
  * cast the pointer to point to one of those, and fetch through it;
  * the GCC manual doesn't appear to explicitly say that
  * __attribute__((packed)) causes the compiler to generate unaligned-safe
- * code, but it apppears to do so.
+ * code, but it appears to do so.
  *
  * We do this in case the compiler can generate code using those
  * instructions to do an unaligned load and pass stuff to "ntohs()" or
- * "ntohl()", which might be better than than the code to fetch the
+ * "ntohl()", which might be better than the code to fetch the
  * bytes one at a time and assemble them.  (That might not be the
  * case on a little-endian platform, such as DEC's MIPS machines and
  * Alpha machines, where "ntohs()" and "ntohl()" might not be done
@@ -125,45 +194,100 @@ typedef struct {
 } __attribute__((packed)) unaligned_uint16_t;
 
 typedef struct {
+	int16_t		val;
+} __attribute__((packed)) unaligned_int16_t;
+
+typedef struct {
 	uint32_t	val;
 } __attribute__((packed)) unaligned_uint32_t;
 
+typedef struct {
+	int32_t		val;
+} __attribute__((packed)) unaligned_int32_t;
+
 UNALIGNED_OK static inline uint16_t
-EXTRACT_16BITS(const void *p)
+EXTRACT_BE_U_2(const void *p)
 {
 	return ((uint16_t)ntohs(((const unaligned_uint16_t *)(p))->val));
 }
 
+UNALIGNED_OK static inline int16_t
+EXTRACT_BE_S_2(const void *p)
+{
+	return ((int16_t)ntohs(((const unaligned_int16_t *)(p))->val));
+}
+
 UNALIGNED_OK static inline uint32_t
-EXTRACT_32BITS(const void *p)
+EXTRACT_BE_U_4(const void *p)
 {
 	return ((uint32_t)ntohl(((const unaligned_uint32_t *)(p))->val));
 }
 
+UNALIGNED_OK static inline int32_t
+EXTRACT_BE_S_4(const void *p)
+{
+	return ((int32_t)ntohl(((const unaligned_int32_t *)(p))->val));
+}
+
 UNALIGNED_OK static inline uint64_t
-EXTRACT_64BITS(const void *p)
+EXTRACT_BE_U_8(const void *p)
 {
 	return ((uint64_t)(((uint64_t)ntohl(((const unaligned_uint32_t *)(p) + 0)->val)) << 32 |
 		((uint64_t)ntohl(((const unaligned_uint32_t *)(p) + 1)->val)) << 0));
 }
 
-#else /* have to do it a byte at a time */
+UNALIGNED_OK static inline int64_t
+EXTRACT_BE_S_8(const void *p)
+{
+	return ((int64_t)(((uint64_t)ntohl(((const unaligned_uint32_t *)(p) + 0)->val)) << 32 |
+		((uint64_t)ntohl(((const unaligned_uint32_t *)(p) + 1)->val)) << 0));
+}
+
 /*
- * This isn't a GCC-compatible compiler, we don't have __attribute__,
+ * Extract an IPv4 address, which is in network byte order, and not
+ * necessarily aligned, and provide the result in host byte order.
+ */
+UNALIGNED_OK static inline uint32_t
+EXTRACT_IPV4_TO_HOST_ORDER(const void *p)
+{
+	return ((uint32_t)ntohl(((const unaligned_uint32_t *)(p))->val));
+}
+#else
+/*
+ * This architecture doesn't natively support unaligned loads, and either
+ * this isn't a GCC-compatible compiler, we don't have __attribute__,
  * or we do but we don't know of any better way with this instruction
  * set to do unaligned loads, so do unaligned loads of big-endian
  * quantities the hard way - fetch the bytes one at a time and
  * assemble them.
+ *
+ * XXX - ARM is a special case.  ARMv1 through ARMv5 didn't suppory
+ * unaligned loads; ARMv6 and later support it *but* have a bit in
+ * the system control register that the OS can set and that causes
+ * unaligned loads to fault rather than succeeding.
+ *
+ * At least some OSes may set that flag, so we do *not* treat ARM
+ * as supporting unaligned loads.  If your OS supports them on ARM,
+ * and you want to use them, please update the tests in the #if above
+ * to check for ARM *and* for your OS.
  */
-#define EXTRACT_16BITS(p) \
+#define EXTRACT_BE_U_2(p) \
 	((uint16_t)(((uint16_t)(*((const uint8_t *)(p) + 0)) << 8) | \
 	            ((uint16_t)(*((const uint8_t *)(p) + 1)) << 0)))
-#define EXTRACT_32BITS(p) \
+#define EXTRACT_BE_S_2(p) \
+	((int16_t)(((uint16_t)(*((const uint8_t *)(p) + 0)) << 8) | \
+	           ((uint16_t)(*((const uint8_t *)(p) + 1)) << 0)))
+#define EXTRACT_BE_U_4(p) \
 	((uint32_t)(((uint32_t)(*((const uint8_t *)(p) + 0)) << 24) | \
 	            ((uint32_t)(*((const uint8_t *)(p) + 1)) << 16) | \
 	            ((uint32_t)(*((const uint8_t *)(p) + 2)) << 8) | \
 	            ((uint32_t)(*((const uint8_t *)(p) + 3)) << 0)))
-#define EXTRACT_64BITS(p) \
+#define EXTRACT_BE_S_4(p) \
+	((int32_t)(((uint32_t)(*((const uint8_t *)(p) + 0)) << 24) | \
+	           ((uint32_t)(*((const uint8_t *)(p) + 1)) << 16) | \
+	           ((uint32_t)(*((const uint8_t *)(p) + 2)) << 8) | \
+	           ((uint32_t)(*((const uint8_t *)(p) + 3)) << 0)))
+#define EXTRACT_BE_U_8(p) \
 	((uint64_t)(((uint64_t)(*((const uint8_t *)(p) + 0)) << 56) | \
 	            ((uint64_t)(*((const uint8_t *)(p) + 1)) << 48) | \
 	            ((uint64_t)(*((const uint8_t *)(p) + 2)) << 40) | \
@@ -172,47 +296,133 @@ EXTRACT_64BITS(const void *p)
 	            ((uint64_t)(*((const uint8_t *)(p) + 5)) << 16) | \
 	            ((uint64_t)(*((const uint8_t *)(p) + 6)) << 8) | \
 	            ((uint64_t)(*((const uint8_t *)(p) + 7)) << 0)))
-#endif /* must special-case unaligned accesses */
-#else /* LBL_ALIGN */
+#define EXTRACT_BE_S_8(p) \
+	((int64_t)(((uint64_t)(*((const uint8_t *)(p) + 0)) << 56) | \
+	           ((uint64_t)(*((const uint8_t *)(p) + 1)) << 48) | \
+	           ((uint64_t)(*((const uint8_t *)(p) + 2)) << 40) | \
+	           ((uint64_t)(*((const uint8_t *)(p) + 3)) << 32) | \
+	           ((uint64_t)(*((const uint8_t *)(p) + 4)) << 24) | \
+	           ((uint64_t)(*((const uint8_t *)(p) + 5)) << 16) | \
+	           ((uint64_t)(*((const uint8_t *)(p) + 6)) << 8) | \
+	           ((uint64_t)(*((const uint8_t *)(p) + 7)) << 0)))
+
 /*
- * The processor natively handles unaligned loads, so we can just
- * cast the pointer and fetch through it.
+ * Extract an IPv4 address, which is in network byte order, and not
+ * necessarily aligned, and provide the result in host byte order.
  */
-static inline uint16_t UNALIGNED_OK
-EXTRACT_16BITS(const void *p)
+#define EXTRACT_IPV4_TO_HOST_ORDER(p) \
+	((uint32_t)(((uint32_t)(*((const uint8_t *)(p) + 0)) << 24) | \
+	            ((uint32_t)(*((const uint8_t *)(p) + 1)) << 16) | \
+	            ((uint32_t)(*((const uint8_t *)(p) + 2)) << 8) | \
+	            ((uint32_t)(*((const uint8_t *)(p) + 3)) << 0)))
+#endif /* unaligned access checks */
+
+/*
+ * Extract numerical values in *host* byte order.  (Some metadata
+ * headers are in the byte order of the host that wrote the file,
+ * and libpcap translate them to the byte order of the host
+ * reading the file.  This means that if a program on that host
+ * reads with libpcap and writes to a new file, the new file will
+ * be written in the byte order of the host writing the file.  Thus,
+ * the magic number in pcap files and byte-order magic in pcapng
+ * files can be used to determine the byte order in those metadata
+ * headers.)
+ *
+ * XXX - on platforms that can do unaligned accesses, just cast and
+ * dereference the pointer.
+ */
+static inline uint16_t
+EXTRACT_HE_U_2(const void *p)
 {
-	return ((uint16_t)ntohs(*(const uint16_t *)(p)));
+	uint16_t val;
+
+	UNALIGNED_MEMCPY(&val, p, sizeof(uint16_t));
+	return val;
 }
 
-static inline uint32_t UNALIGNED_OK
-EXTRACT_32BITS(const void *p)
+static inline int16_t
+EXTRACT_HE_S_2(const void *p)
 {
-	return ((uint32_t)ntohl(*(const uint32_t *)(p)));
+	int16_t val;
+
+	UNALIGNED_MEMCPY(&val, p, sizeof(int16_t));
+	return val;
 }
 
-static inline uint64_t UNALIGNED_OK
-EXTRACT_64BITS(const void *p)
+static inline uint32_t
+EXTRACT_HE_U_4(const void *p)
 {
-	return ((uint64_t)(((uint64_t)ntohl(*((const uint32_t *)(p) + 0))) << 32 |
-		((uint64_t)ntohl(*((const uint32_t *)(p) + 1))) << 0));
+	uint32_t val;
 
+	UNALIGNED_MEMCPY(&val, p, sizeof(uint32_t));
+	return val;
 }
 
-#endif /* LBL_ALIGN */
+static inline int32_t
+EXTRACT_HE_S_4(const void *p)
+{
+	int32_t val;
 
-#define EXTRACT_24BITS(p) \
+	UNALIGNED_MEMCPY(&val, p, sizeof(int32_t));
+	return val;
+}
+
+/*
+ * Extract an IPv4 address, which is in network byte order, and which
+ * is not necessarily aligned on a 4-byte boundary, and provide the
+ * result in network byte order.
+ *
+ * This works the same way regardless of the host's byte order.
+ */
+static inline uint32_t
+EXTRACT_IPV4_TO_NETWORK_ORDER(const void *p)
+{
+	uint32_t addr;
+
+	UNALIGNED_MEMCPY(&addr, p, sizeof(uint32_t));
+	return addr;
+}
+
+/*
+ * Non-power-of-2 sizes.
+ */
+#define EXTRACT_BE_U_3(p) \
 	((uint32_t)(((uint32_t)(*((const uint8_t *)(p) + 0)) << 16) | \
 	            ((uint32_t)(*((const uint8_t *)(p) + 1)) << 8) | \
 	            ((uint32_t)(*((const uint8_t *)(p) + 2)) << 0)))
 
-#define EXTRACT_40BITS(p) \
+#define EXTRACT_BE_S_3(p) \
+	(((*((const uint8_t *)(p) + 0)) & 0x80) ? \
+	  ((int32_t)(((uint32_t)(*((const uint8_t *)(p) + 0)) << 16) | \
+	             ((uint32_t)(*((const uint8_t *)(p) + 1)) << 8) | \
+	             ((uint32_t)(*((const uint8_t *)(p) + 2)) << 0))) : \
+	  ((int32_t)(0xFF000000U | \
+	             ((uint32_t)(*((const uint8_t *)(p) + 0)) << 16) | \
+	             ((uint32_t)(*((const uint8_t *)(p) + 1)) << 8) | \
+	             ((uint32_t)(*((const uint8_t *)(p) + 2)) << 0))))
+
+#define EXTRACT_BE_U_5(p) \
 	((uint64_t)(((uint64_t)(*((const uint8_t *)(p) + 0)) << 32) | \
 	            ((uint64_t)(*((const uint8_t *)(p) + 1)) << 24) | \
 	            ((uint64_t)(*((const uint8_t *)(p) + 2)) << 16) | \
 	            ((uint64_t)(*((const uint8_t *)(p) + 3)) << 8) | \
 	            ((uint64_t)(*((const uint8_t *)(p) + 4)) << 0)))
 
-#define EXTRACT_48BITS(p) \
+#define EXTRACT_BE_S_5(p) \
+	(((*((const uint8_t *)(p) + 0)) & 0x80) ? \
+	  ((int64_t)(((uint64_t)(*((const uint8_t *)(p) + 0)) << 32) | \
+	             ((uint64_t)(*((const uint8_t *)(p) + 1)) << 24) | \
+	             ((uint64_t)(*((const uint8_t *)(p) + 2)) << 16) | \
+	             ((uint64_t)(*((const uint8_t *)(p) + 3)) << 8) | \
+	             ((uint64_t)(*((const uint8_t *)(p) + 4)) << 0))) : \
+	  ((int64_t)(INT64_T_CONSTANT(0xFFFFFF0000000000U) | \
+	             ((uint64_t)(*((const uint8_t *)(p) + 0)) << 32) | \
+	             ((uint64_t)(*((const uint8_t *)(p) + 1)) << 24) | \
+	             ((uint64_t)(*((const uint8_t *)(p) + 2)) << 16) | \
+	             ((uint64_t)(*((const uint8_t *)(p) + 3)) << 8) | \
+	             ((uint64_t)(*((const uint8_t *)(p) + 4)) << 0))))
+
+#define EXTRACT_BE_U_6(p) \
 	((uint64_t)(((uint64_t)(*((const uint8_t *)(p) + 0)) << 40) | \
 	            ((uint64_t)(*((const uint8_t *)(p) + 1)) << 32) | \
 	            ((uint64_t)(*((const uint8_t *)(p) + 2)) << 24) | \
@@ -220,7 +430,23 @@ EXTRACT_64BITS(const void *p)
 	            ((uint64_t)(*((const uint8_t *)(p) + 4)) << 8) | \
 	            ((uint64_t)(*((const uint8_t *)(p) + 5)) << 0)))
 
-#define EXTRACT_56BITS(p) \
+#define EXTRACT_BE_S_6(p) \
+	(((*((const uint8_t *)(p) + 0)) & 0x80) ? \
+	   ((int64_t)(((uint64_t)(*((const uint8_t *)(p) + 0)) << 40) | \
+	              ((uint64_t)(*((const uint8_t *)(p) + 1)) << 32) | \
+	              ((uint64_t)(*((const uint8_t *)(p) + 2)) << 24) | \
+	              ((uint64_t)(*((const uint8_t *)(p) + 3)) << 16) | \
+	              ((uint64_t)(*((const uint8_t *)(p) + 4)) << 8) | \
+	              ((uint64_t)(*((const uint8_t *)(p) + 5)) << 0))) : \
+	  ((int64_t)(INT64_T_CONSTANT(0xFFFFFFFF00000000U) | \
+	              ((uint64_t)(*((const uint8_t *)(p) + 0)) << 40) | \
+	              ((uint64_t)(*((const uint8_t *)(p) + 1)) << 32) | \
+	              ((uint64_t)(*((const uint8_t *)(p) + 2)) << 24) | \
+	              ((uint64_t)(*((const uint8_t *)(p) + 3)) << 16) | \
+	              ((uint64_t)(*((const uint8_t *)(p) + 4)) << 8) | \
+	              ((uint64_t)(*((const uint8_t *)(p) + 5)) << 0))))
+
+#define EXTRACT_BE_U_7(p) \
 	((uint64_t)(((uint64_t)(*((const uint8_t *)(p) + 0)) << 48) | \
 	            ((uint64_t)(*((const uint8_t *)(p) + 1)) << 40) | \
 	            ((uint64_t)(*((const uint8_t *)(p) + 2)) << 32) | \
@@ -229,23 +455,45 @@ EXTRACT_64BITS(const void *p)
 	            ((uint64_t)(*((const uint8_t *)(p) + 5)) << 8) | \
 	            ((uint64_t)(*((const uint8_t *)(p) + 6)) << 0)))
 
+#define EXTRACT_BE_S_7(p) \
+	(((*((const uint8_t *)(p) + 0)) & 0x80) ? \
+	  ((int64_t)(((uint64_t)(*((const uint8_t *)(p) + 0)) << 48) | \
+	             ((uint64_t)(*((const uint8_t *)(p) + 1)) << 40) | \
+	             ((uint64_t)(*((const uint8_t *)(p) + 2)) << 32) | \
+	             ((uint64_t)(*((const uint8_t *)(p) + 3)) << 24) | \
+	             ((uint64_t)(*((const uint8_t *)(p) + 4)) << 16) | \
+	             ((uint64_t)(*((const uint8_t *)(p) + 5)) << 8) | \
+	             ((uint64_t)(*((const uint8_t *)(p) + 6)) << 0))) : \
+	    ((int64_t)(INT64_T_CONSTANT(0xFFFFFFFFFF000000U) | \
+	             ((uint64_t)(*((const uint8_t *)(p) + 0)) << 48) | \
+	             ((uint64_t)(*((const uint8_t *)(p) + 1)) << 40) | \
+	             ((uint64_t)(*((const uint8_t *)(p) + 2)) << 32) | \
+	             ((uint64_t)(*((const uint8_t *)(p) + 3)) << 24) | \
+	             ((uint64_t)(*((const uint8_t *)(p) + 4)) << 16) | \
+	             ((uint64_t)(*((const uint8_t *)(p) + 5)) << 8) | \
+	             ((uint64_t)(*((const uint8_t *)(p) + 6)) << 0))))
+
 /*
  * Macros to extract possibly-unaligned little-endian integral values.
  * XXX - do loads on little-endian machines that support unaligned loads?
  */
-#define EXTRACT_LE_16BITS(p) \
+#define EXTRACT_LE_U_2(p) \
 	((uint16_t)(((uint16_t)(*((const uint8_t *)(p) + 1)) << 8) | \
 	            ((uint16_t)(*((const uint8_t *)(p) + 0)) << 0)))
-#define EXTRACT_LE_32BITS(p) \
+#define EXTRACT_LE_S_2(p) \
+	((int16_t)(((uint16_t)(*((const uint8_t *)(p) + 1)) << 8) | \
+	           ((uint16_t)(*((const uint8_t *)(p) + 0)) << 0)))
+#define EXTRACT_LE_U_4(p) \
 	((uint32_t)(((uint32_t)(*((const uint8_t *)(p) + 3)) << 24) | \
 	            ((uint32_t)(*((const uint8_t *)(p) + 2)) << 16) | \
 	            ((uint32_t)(*((const uint8_t *)(p) + 1)) << 8) | \
 	            ((uint32_t)(*((const uint8_t *)(p) + 0)) << 0)))
-#define EXTRACT_LE_24BITS(p) \
-	((uint32_t)(((uint32_t)(*((const uint8_t *)(p) + 2)) << 16) | \
-	            ((uint32_t)(*((const uint8_t *)(p) + 1)) << 8) | \
-	            ((uint32_t)(*((const uint8_t *)(p) + 0)) << 0)))
-#define EXTRACT_LE_64BITS(p) \
+#define EXTRACT_LE_S_4(p) \
+	((int32_t)(((uint32_t)(*((const uint8_t *)(p) + 3)) << 24) | \
+	           ((uint32_t)(*((const uint8_t *)(p) + 2)) << 16) | \
+	           ((uint32_t)(*((const uint8_t *)(p) + 1)) << 8) | \
+	           ((uint32_t)(*((const uint8_t *)(p) + 0)) << 0)))
+#define EXTRACT_LE_U_8(p) \
 	((uint64_t)(((uint64_t)(*((const uint8_t *)(p) + 7)) << 56) | \
 	            ((uint64_t)(*((const uint8_t *)(p) + 6)) << 48) | \
 	            ((uint64_t)(*((const uint8_t *)(p) + 5)) << 40) | \
@@ -254,33 +502,409 @@ EXTRACT_64BITS(const void *p)
 	            ((uint64_t)(*((const uint8_t *)(p) + 2)) << 16) | \
 	            ((uint64_t)(*((const uint8_t *)(p) + 1)) << 8) | \
 	            ((uint64_t)(*((const uint8_t *)(p) + 0)) << 0)))
+#define EXTRACT_LE_S_8(p) \
+	((int64_t)(((uint64_t)(*((const uint8_t *)(p) + 7)) << 56) | \
+	           ((uint64_t)(*((const uint8_t *)(p) + 6)) << 48) | \
+	           ((uint64_t)(*((const uint8_t *)(p) + 5)) << 40) | \
+	           ((uint64_t)(*((const uint8_t *)(p) + 4)) << 32) | \
+	           ((uint64_t)(*((const uint8_t *)(p) + 3)) << 24) | \
+	           ((uint64_t)(*((const uint8_t *)(p) + 2)) << 16) | \
+	           ((uint64_t)(*((const uint8_t *)(p) + 1)) << 8) | \
+	           ((uint64_t)(*((const uint8_t *)(p) + 0)) << 0)))
+
+/*
+ * Non-power-of-2 sizes.
+ */
+
+#define EXTRACT_LE_U_3(p) \
+	((uint32_t)(((uint32_t)(*((const uint8_t *)(p) + 2)) << 16) | \
+	            ((uint32_t)(*((const uint8_t *)(p) + 1)) << 8) | \
+	            ((uint32_t)(*((const uint8_t *)(p) + 0)) << 0)))
+#define EXTRACT_LE_S_3(p) \
+	((int32_t)(((uint32_t)(*((const uint8_t *)(p) + 2)) << 16) | \
+	           ((uint32_t)(*((const uint8_t *)(p) + 1)) << 8) | \
+	           ((uint32_t)(*((const uint8_t *)(p) + 0)) << 0)))
+#define EXTRACT_LE_U_5(p) \
+	((uint64_t)(((uint64_t)(*((const uint8_t *)(p) + 4)) << 32) |	\
+		    ((uint64_t)(*((const uint8_t *)(p) + 3)) << 24) |	\
+		    ((uint64_t)(*((const uint8_t *)(p) + 2)) << 16) |	\
+		    ((uint64_t)(*((const uint8_t *)(p) + 1)) << 8) |	\
+		    ((uint64_t)(*((const uint8_t *)(p) + 0)) << 0)))
+#define EXTRACT_LE_U_6(p) \
+	((uint64_t)(((uint64_t)(*((const uint8_t *)(p) + 5)) << 40) |	\
+		    ((uint64_t)(*((const uint8_t *)(p) + 4)) << 32) |	\
+		    ((uint64_t)(*((const uint8_t *)(p) + 3)) << 24) |	\
+		    ((uint64_t)(*((const uint8_t *)(p) + 2)) << 16) |	\
+		    ((uint64_t)(*((const uint8_t *)(p) + 1)) << 8) |	\
+		    ((uint64_t)(*((const uint8_t *)(p) + 0)) << 0)))
+#define EXTRACT_LE_U_7(p) \
+	((uint64_t)(((uint64_t)(*((const uint8_t *)(p) + 6)) << 48) |	\
+		    ((uint64_t)(*((const uint8_t *)(p) + 5)) << 40) |	\
+		    ((uint64_t)(*((const uint8_t *)(p) + 4)) << 32) |	\
+		    ((uint64_t)(*((const uint8_t *)(p) + 3)) << 24) |	\
+		    ((uint64_t)(*((const uint8_t *)(p) + 2)) << 16) |	\
+		    ((uint64_t)(*((const uint8_t *)(p) + 1)) << 8) |	\
+		    ((uint64_t)(*((const uint8_t *)(p) + 0)) << 0)))
 
 /*
  * Macros to check the presence of the values in question.
  */
-#define ND_TTEST_8BITS(p) ND_TTEST2(*(p), 1)
-#define ND_TCHECK_8BITS(p) ND_TCHECK2(*(p), 1)
+#define ND_TTEST_1(p) ND_TTEST_LEN((p), 1)
+#define ND_TCHECK_1(p) ND_TCHECK_LEN((p), 1)
 
-#define ND_TTEST_16BITS(p) ND_TTEST2(*(p), 2)
-#define ND_TCHECK_16BITS(p) ND_TCHECK2(*(p), 2)
+#define ND_TTEST_2(p) ND_TTEST_LEN((p), 2)
+#define ND_TCHECK_2(p) ND_TCHECK_LEN((p), 2)
 
-#define ND_TTEST_24BITS(p) ND_TTEST2(*(p), 3)
-#define ND_TCHECK_24BITS(p) ND_TCHECK2(*(p), 3)
+#define ND_TTEST_3(p) ND_TTEST_LEN((p), 3)
+#define ND_TCHECK_3(p) ND_TCHECK_LEN((p), 3)
 
-#define ND_TTEST_32BITS(p) ND_TTEST2(*(p), 4)
-#define ND_TCHECK_32BITS(p) ND_TCHECK2(*(p), 4)
+#define ND_TTEST_4(p) ND_TTEST_LEN((p), 4)
+#define ND_TCHECK_4(p) ND_TCHECK_LEN((p), 4)
 
-#define ND_TTEST_40BITS(p) ND_TTEST2(*(p), 5)
-#define ND_TCHECK_40BITS(p) ND_TCHECK2(*(p), 5)
+#define ND_TTEST_5(p) ND_TTEST_LEN((p), 5)
+#define ND_TCHECK_5(p) ND_TCHECK_LEN((p), 5)
 
-#define ND_TTEST_48BITS(p) ND_TTEST2(*(p), 6)
-#define ND_TCHECK_48BITS(p) ND_TCHECK2(*(p), 6)
+#define ND_TTEST_6(p) ND_TTEST_LEN((p), 6)
+#define ND_TCHECK_6(p) ND_TCHECK_LEN((p), 6)
 
-#define ND_TTEST_56BITS(p) ND_TTEST2(*(p), 7)
-#define ND_TCHECK_56BITS(p) ND_TCHECK2(*(p), 7)
+#define ND_TTEST_7(p) ND_TTEST_LEN((p), 7)
+#define ND_TCHECK_7(p) ND_TCHECK_LEN((p), 7)
 
-#define ND_TTEST_64BITS(p) ND_TTEST2(*(p), 8)
-#define ND_TCHECK_64BITS(p) ND_TCHECK2(*(p), 8)
+#define ND_TTEST_8(p) ND_TTEST_LEN((p), 8)
+#define ND_TCHECK_8(p) ND_TCHECK_LEN((p), 8)
 
-#define ND_TTEST_128BITS(p) ND_TTEST2(*(p), 16)
-#define ND_TCHECK_128BITS(p) ND_TCHECK2(*(p), 16)
+#define ND_TTEST_16(p) ND_TTEST_LEN((p), 16)
+#define ND_TCHECK_16(p) ND_TCHECK_LEN((p), 16)
+
+/* get_u_1 and get_s_1 */
+
+static inline uint8_t
+get_u_1(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_1(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_U_1(p);
+}
+
+static inline int8_t
+get_s_1(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_1(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_S_1(p);
+}
+
+/* get_be_u_N */
+
+static inline uint16_t
+get_be_u_2(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_2(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_BE_U_2(p);
+}
+
+static inline uint32_t
+get_be_u_3(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_3(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_BE_U_3(p);
+}
+
+static inline uint32_t
+get_be_u_4(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_4(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_BE_U_4(p);
+}
+
+static inline uint64_t
+get_be_u_5(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_5(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_BE_U_5(p);
+}
+
+static inline uint64_t
+get_be_u_6(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_6(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_BE_U_6(p);
+}
+
+static inline uint64_t
+get_be_u_7(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_7(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_BE_U_7(p);
+}
+
+static inline uint64_t
+get_be_u_8(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_8(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_BE_U_8(p);
+}
+
+/* get_be_s_N  */
+
+static inline int16_t
+get_be_s_2(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_2(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_BE_S_2(p);
+}
+
+static inline int32_t
+get_be_s_3(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_3(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_BE_S_3(p);
+}
+
+static inline int32_t
+get_be_s_4(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_4(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_BE_S_4(p);
+}
+
+static inline int64_t
+get_be_s_5(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_5(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_BE_S_5(p);
+}
+
+static inline int64_t
+get_be_s_6(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_6(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_BE_S_6(p);
+}
+
+static inline int64_t
+get_be_s_7(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_7(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_BE_S_7(p);
+}
+
+static inline int64_t
+get_be_s_8(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_8(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_BE_S_8(p);
+}
+
+/* get_he_u_N */
+
+static inline uint16_t
+get_he_u_2(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_2(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_HE_U_2(p);
+}
+
+static inline uint32_t
+get_he_u_4(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_4(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_HE_U_4(p);
+}
+
+/* get_he_s_N */
+
+static inline int16_t
+get_he_s_2(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_2(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_HE_S_2(p);
+}
+
+static inline int32_t
+get_he_s_4(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_4(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_HE_S_4(p);
+}
+
+/* get_le_u_N */
+
+static inline uint16_t
+get_le_u_2(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_2(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_LE_U_2(p);
+}
+
+static inline uint32_t
+get_le_u_3(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_3(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_LE_U_3(p);
+}
+
+static inline uint32_t
+get_le_u_4(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_4(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_LE_U_4(p);
+}
+
+static inline uint64_t
+get_le_u_5(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_5(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_LE_U_5(p);
+}
+
+static inline uint64_t
+get_le_u_6(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_6(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_LE_U_6(p);
+}
+
+static inline uint64_t
+get_le_u_7(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_7(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_LE_U_7(p);
+}
+
+static inline uint64_t
+get_le_u_8(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_8(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_LE_U_8(p);
+}
+
+/* get_le_s_N */
+
+static inline int16_t
+get_le_s_2(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_2(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_LE_S_2(p);
+}
+
+static inline int32_t
+get_le_s_3(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_3(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_LE_S_3(p);
+}
+
+static inline int32_t
+get_le_s_4(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_4(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_LE_S_4(p);
+}
+
+static inline int64_t
+get_le_s_8(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_8(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_LE_S_8(p);
+}
+
+/* get_ipv4_to_{host|network]_order */
+
+static inline uint32_t
+get_ipv4_to_host_order(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_4(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_IPV4_TO_HOST_ORDER(p);
+}
+
+static inline uint32_t
+get_ipv4_to_network_order(netdissect_options *ndo, const u_char *p)
+{
+	if (!ND_TTEST_4(p))
+		nd_trunc_longjmp(ndo);
+	return EXTRACT_IPV4_TO_NETWORK_ORDER(p);
+}
+
+static inline void
+get_cpy_bytes(netdissect_options *ndo, u_char *dst, const u_char *p, size_t len)
+{
+	if (!ND_TTEST_LEN(p, len))
+		nd_trunc_longjmp(ndo);
+	UNALIGNED_MEMCPY(dst, p, len);
+}
+
+#define GET_U_1(p) get_u_1(ndo, (const u_char *)(p))
+#define GET_S_1(p) get_s_1(ndo, (const u_char *)(p))
+
+#define GET_BE_U_2(p) get_be_u_2(ndo, (const u_char *)(p))
+#define GET_BE_U_3(p) get_be_u_3(ndo, (const u_char *)(p))
+#define GET_BE_U_4(p) get_be_u_4(ndo, (const u_char *)(p))
+#define GET_BE_U_5(p) get_be_u_5(ndo, (const u_char *)(p))
+#define GET_BE_U_6(p) get_be_u_6(ndo, (const u_char *)(p))
+#define GET_BE_U_7(p) get_be_u_7(ndo, (const u_char *)(p))
+#define GET_BE_U_8(p) get_be_u_8(ndo, (const u_char *)(p))
+
+#define GET_BE_S_2(p) get_be_s_2(ndo, (const u_char *)(p))
+#define GET_BE_S_3(p) get_be_s_3(ndo, (const u_char *)(p))
+#define GET_BE_S_4(p) get_be_s_4(ndo, (const u_char *)(p))
+#define GET_BE_S_5(p) get_be_s_5(ndo, (const u_char *)(p))
+#define GET_BE_S_6(p) get_be_s_6(ndo, (const u_char *)(p))
+#define GET_BE_S_7(p) get_be_s_7(ndo, (const u_char *)(p))
+#define GET_BE_S_8(p) get_be_s_8(ndo, (const u_char *)(p))
+
+#define GET_HE_U_2(p) get_he_u_2(ndo, (const u_char *)(p))
+#define GET_HE_U_4(p) get_he_u_4(ndo, (const u_char *)(p))
+
+#define GET_HE_S_2(p) get_he_s_2(ndo, (const u_char *)(p))
+#define GET_HE_S_4(p) get_he_s_4(ndo, (const u_char *)(p))
+
+#define GET_LE_U_2(p) get_le_u_2(ndo, (const u_char *)(p))
+#define GET_LE_U_3(p) get_le_u_3(ndo, (const u_char *)(p))
+#define GET_LE_U_4(p) get_le_u_4(ndo, (const u_char *)(p))
+#define GET_LE_U_5(p) get_le_u_5(ndo, (const u_char *)(p))
+#define GET_LE_U_6(p) get_le_u_6(ndo, (const u_char *)(p))
+#define GET_LE_U_7(p) get_le_u_7(ndo, (const u_char *)(p))
+#define GET_LE_U_8(p) get_le_u_8(ndo, (const u_char *)(p))
+
+#define GET_LE_S_2(p) get_le_s_2(ndo, (const u_char *)(p))
+#define GET_LE_S_3(p) get_le_s_3(ndo, (const u_char *)(p))
+#define GET_LE_S_4(p) get_le_s_4(ndo, (const u_char *)(p))
+#define GET_LE_S_8(p) get_le_s_8(ndo, (const u_char *)(p))
+
+#define GET_IPV4_TO_HOST_ORDER(p) get_ipv4_to_host_order(ndo, (const u_char *)(p))
+#define GET_IPV4_TO_NETWORK_ORDER(p) get_ipv4_to_network_order(ndo, (const u_char *)(p))
+
+#define GET_CPY_BYTES(dst, p, len) get_cpy_bytes(ndo, (u_char *)(dst), (const u_char *)(p), len)
+
+#endif /* EXTRACT_H */

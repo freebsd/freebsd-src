@@ -12,10 +12,10 @@
 /* \summary: Blocks Extensible Exchange Protocol (BEEP) printer */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
-#include <netdissect-stdinc.h>
+#include "netdissect-stdinc.h"
 
 #include <string.h>
 
@@ -31,7 +31,7 @@ static int
 l_strnstart(netdissect_options *ndo, const char *tstr1, u_int tl1,
     const char *str2, u_int l2)
 {
-	if (!ND_TTEST2(*str2, tl1)) {
+	if (!ND_TTEST_LEN(str2, tl1)) {
 		/*
 		 * We don't have tl1 bytes worth of captured data
 		 * for the string, so we can't check for this
@@ -49,20 +49,21 @@ void
 beep_print(netdissect_options *ndo, const u_char *bp, u_int length)
 {
 
+	ndo->ndo_protocol = "beep";
 	if (l_strnstart(ndo, "MSG", 4, (const char *)bp, length)) /* A REQuest */
-		ND_PRINT((ndo, " BEEP MSG"));
+		ND_PRINT(" BEEP MSG");
 	else if (l_strnstart(ndo, "RPY ", 4, (const char *)bp, length))
-		ND_PRINT((ndo, " BEEP RPY"));
+		ND_PRINT(" BEEP RPY");
 	else if (l_strnstart(ndo, "ERR ", 4, (const char *)bp, length))
-		ND_PRINT((ndo, " BEEP ERR"));
+		ND_PRINT(" BEEP ERR");
 	else if (l_strnstart(ndo, "ANS ", 4, (const char *)bp, length))
-		ND_PRINT((ndo, " BEEP ANS"));
+		ND_PRINT(" BEEP ANS");
 	else if (l_strnstart(ndo, "NUL ", 4, (const char *)bp, length))
-		ND_PRINT((ndo, " BEEP NUL"));
+		ND_PRINT(" BEEP NUL");
 	else if (l_strnstart(ndo, "SEQ ", 4, (const char *)bp, length))
-		ND_PRINT((ndo, " BEEP SEQ"));
+		ND_PRINT(" BEEP SEQ");
 	else if (l_strnstart(ndo, "END", 4, (const char *)bp, length))
-		ND_PRINT((ndo, " BEEP END"));
+		ND_PRINT(" BEEP END");
 	else
-		ND_PRINT((ndo, " BEEP (payload or undecoded)"));
+		ND_PRINT(" BEEP (payload or undecoded)");
 }

@@ -24,13 +24,15 @@
 /* \summary: OpenBSD IPsec encapsulation BPF layer printer */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
-#include <netdissect-stdinc.h>
+#include "netdissect-stdinc.h"
 
+#define ND_LONGJMP_FROM_TCHECK
 #include "netdissect.h"
 #include "extract.h"
+#include "af.h"
 
 /* From $OpenBSD: if_enc.h,v 1.8 2001/06/25 05:14:00 angelos Exp $ */
 /*
@@ -74,65 +76,83 @@
 #define M_AUTH		0x0800  /* packet was authenticated (AH) */
 
 struct enchdr {
-	uint32_t af;
-	uint32_t spi;
-	uint32_t flags;
+	nd_uint32_t af;
+	nd_uint32_t spi;
+	nd_uint32_t flags;
 };
 
-#define ENC_PRINT_TYPE(wh, xf, nam) \
+#define ENC_PRINT_TYPE(wh, xf, name) \
 	if ((wh) & (xf)) { \
-		ND_PRINT((ndo, "%s%s", nam, (wh) == (xf) ? "): " : ",")); \
+		ND_PRINT("%s%s", name, (wh) == (xf) ? "): " : ","); \
 		(wh) &= ~(xf); \
 	}
 
-u_int
+/*
+ * Byte-swap a 32-bit number.
+ * ("htonl()" or "ntohl()" won't work - we want to byte-swap even on
+ * big-endian platforms.)
+ */
+#define	SWAPLONG(y) \
+((((y)&0xff)<<24) | (((y)&0xff00)<<8) | (((y)&0xff0000)>>8) | (((y)>>24)&0xff))
+
+void
 enc_if_print(netdissect_options *ndo,
-             const struct pcap_pkthdr *h, register const u_char *p)
+             const struct pcap_pkthdr *h, const u_char *p)
 {
-	register u_int length = h->len;
-	register u_int caplen = h->caplen;
-	int flags;
+	u_int length = h->len;
+	u_int af, flags;
 	const struct enchdr *hdr;
 
-	if (caplen < ENC_HDRLEN) {
-		ND_PRINT((ndo, "[|enc]"));
-		goto out;
-	}
+	ndo->ndo_protocol = "enc";
+	ND_TCHECK_LEN(p, ENC_HDRLEN);
+	ndo->ndo_ll_hdr_len += ENC_HDRLEN;
 
 	hdr = (const struct enchdr *)p;
-	flags = hdr->flags;
+	/*
+	 * The address family and flags fields are in the byte order
+	 * of the host that originally captured the traffic.
+	 *
+	 * To determine that, look at the address family.  It's 32-bit,
+	 * it is not likely ever to be > 65535 (I doubt there will
+	 * ever be > 65535 address families and, so far, AF_ values have
+	 * not been allocated very sparsely) so it should not have the
+	 * upper 16 bits set, and it is not likely ever to be AF_UNSPEC,
+	 * i.e. it's not likely ever to be 0, so if it's byte-swapped,
+	 * it should have at least one of the upper 16 bits set.
+	 *
+	 * So if any of the upper 16 bits are set, we assume it, and
+	 * the flags field, are byte-swapped.
+	 *
+	 * The SPI field is always in network byte order, i.e. big-
+	 * endian.
+	 */
+	UNALIGNED_MEMCPY(&af, &hdr->af, sizeof (af));
+	UNALIGNED_MEMCPY(&flags, &hdr->flags, sizeof (flags));
+	if ((af & 0xFFFF0000) != 0) {
+		af = SWAPLONG(af);
+		flags = SWAPLONG(flags);
+	}
+
 	if (flags == 0)
-		ND_PRINT((ndo, "(unprotected): "));
+		ND_PRINT("(unprotected): ");
 	else
-		ND_PRINT((ndo, "("));
+		ND_PRINT("(");
 	ENC_PRINT_TYPE(flags, M_AUTH, "authentic");
 	ENC_PRINT_TYPE(flags, M_CONF, "confidential");
 	/* ENC_PRINT_TYPE(flags, M_TUNNEL, "tunnel"); */
-	ND_PRINT((ndo, "SPI 0x%08x: ", EXTRACT_32BITS(&hdr->spi)));
+	ND_PRINT("SPI 0x%08x: ", GET_BE_U_4(hdr->spi));
 
 	length -= ENC_HDRLEN;
-	caplen -= ENC_HDRLEN;
 	p += ENC_HDRLEN;
 
-	switch (hdr->af) {
-	case AF_INET:
+	switch (af) {
+	case BSD_AFNUM_INET:
 		ip_print(ndo, p, length);
 		break;
-#ifdef AF_INET6
-	case AF_INET6:
+	case BSD_AFNUM_INET6_BSD:
+	case BSD_AFNUM_INET6_FREEBSD:
+	case BSD_AFNUM_INET6_DARWIN:
 		ip6_print(ndo, p, length);
 		break;
-#endif
 	}
-
-out:
-	return (ENC_HDRLEN);
 }
-
-
-/*
- * Local Variables:
- * c-style: whitesmith
- * c-basic-offset: 8
- * End:
- */

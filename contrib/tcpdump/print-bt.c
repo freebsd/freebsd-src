@@ -20,52 +20,52 @@
 /* \summary: Bluetooth printer */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
-#include <netdissect-stdinc.h>
+#include "netdissect-stdinc.h"
 
+#define ND_LONGJMP_FROM_TCHECK
 #include "netdissect.h"
 #include "extract.h"
 
-#if defined(DLT_BLUETOOTH_HCI_H4_WITH_PHDR) && defined(HAVE_PCAP_BLUETOOTH_H)
-#include <pcap/bluetooth.h>
+#ifdef DLT_BLUETOOTH_HCI_H4_WITH_PHDR
 
-#define	BT_HDRLEN sizeof(pcap_bluetooth_h4_header)
+/*
+ * Header prepended by libpcap to each bluetooth h4 frame;
+ * the direction field is in network byte order.
+ */
+typedef struct _bluetooth_h4_header {
+	nd_uint32_t direction; /* if first bit is set direction is incoming */
+} bluetooth_h4_header;
+
+#define	BT_HDRLEN sizeof(bluetooth_h4_header)
+
 /*
  * This is the top level routine of the printer.  'p' points
  * to the bluetooth header of the packet, 'h->ts' is the timestamp,
  * 'h->len' is the length of the packet off the wire, and 'h->caplen'
  * is the number of bytes actually captured.
  */
-u_int
+void
 bt_if_print(netdissect_options *ndo, const struct pcap_pkthdr *h, const u_char *p)
 {
 	u_int length = h->len;
 	u_int caplen = h->caplen;
-	const pcap_bluetooth_h4_header* hdr = (const pcap_bluetooth_h4_header*)p;
+	const bluetooth_h4_header *hdr = (const bluetooth_h4_header *)p;
 
-	if (caplen < BT_HDRLEN) {
-		ND_PRINT((ndo, "[|bt]"));
-		return (BT_HDRLEN);
-	}
+	ndo->ndo_protocol = "bluetooth";
+	nd_print_protocol(ndo);
+	ND_TCHECK_LEN(p, BT_HDRLEN);
+	ndo->ndo_ll_hdr_len += BT_HDRLEN;
 	caplen -= BT_HDRLEN;
 	length -= BT_HDRLEN;
 	p += BT_HDRLEN;
 	if (ndo->ndo_eflag)
-		ND_PRINT((ndo, "hci length %d, direction %s, ", length, (EXTRACT_32BITS(&hdr->direction)&0x1)?"in":"out"));
+		ND_PRINT(", hci length %u, direction %s", length,
+			 (GET_BE_U_4(hdr->direction)&0x1) ? "in" : "out");
 
 	if (!ndo->ndo_suppress_default_print)
 		ND_DEFAULTPRINT(p, caplen);
-
-	return (BT_HDRLEN);
 }
 #endif
-
-
-/*
- * Local Variables:
- * c-style: whitesmith
- * c-basic-offset: 8
- * End:
- */

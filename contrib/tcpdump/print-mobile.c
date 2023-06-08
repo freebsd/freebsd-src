@@ -39,10 +39,10 @@
 /* \summary: IPv4 mobility printer */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
-#include <netdissect-stdinc.h>
+#include "netdissect-stdinc.h"
 
 #include "netdissect.h"
 #include "addrtoname.h"
@@ -51,10 +51,10 @@
 #define MOBILE_SIZE (8)
 
 struct mobile_ip {
-	uint16_t proto;
-	uint16_t hcheck;
-	uint32_t odst;
-	uint32_t osrc;
+	nd_uint16_t proto;
+	nd_uint16_t hcheck;
+	nd_uint32_t odst;
+	nd_uint32_t osrc;
 };
 
 #define OSRC_PRES	0x0080	/* old source is present */
@@ -70,34 +70,35 @@ mobile_print(netdissect_options *ndo, const u_char *bp, u_int length)
 	u_short proto,crc;
 	u_char osp =0;			/* old source address present */
 
+	ndo->ndo_protocol = "mobile";
 	mob = (const struct mobile_ip *)bp;
 
-	if (length < MOBILE_SIZE || !ND_TTEST(*mob)) {
-		ND_PRINT((ndo, "[|mobile]"));
+	if (length < MOBILE_SIZE || !ND_TTEST_SIZE(mob)) {
+		nd_print_trunc(ndo);
 		return;
 	}
-	ND_PRINT((ndo, "mobile: "));
+	ND_PRINT("mobile: ");
 
-	proto = EXTRACT_16BITS(&mob->proto);
-	crc =  EXTRACT_16BITS(&mob->hcheck);
+	proto = GET_BE_U_2(mob->proto);
+	crc =  GET_BE_U_2(mob->hcheck);
 	if (proto & OSRC_PRES) {
 		osp=1;
 	}
 
 	if (osp)  {
-		ND_PRINT((ndo, "[S] "));
+		ND_PRINT("[S] ");
 		if (ndo->ndo_vflag)
-			ND_PRINT((ndo, "%s ", ipaddr_string(ndo, &mob->osrc)));
+			ND_PRINT("%s ", GET_IPADDR_STRING(mob->osrc));
 	} else {
-		ND_PRINT((ndo, "[] "));
+		ND_PRINT("[] ");
 	}
 	if (ndo->ndo_vflag) {
-		ND_PRINT((ndo, "> %s ", ipaddr_string(ndo, &mob->odst)));
-		ND_PRINT((ndo, "(oproto=%d)", proto>>8));
+		ND_PRINT("> %s ", GET_IPADDR_STRING(mob->odst));
+		ND_PRINT("(oproto=%u)", proto>>8);
 	}
 	vec[0].ptr = (const uint8_t *)(const void *)mob;
 	vec[0].len = osp ? 12 : 8;
 	if (in_cksum(vec, 1)!=0) {
-		ND_PRINT((ndo, " (bad checksum %d)", crc));
+		ND_PRINT(" (bad checksum %u)", crc);
 	}
 }

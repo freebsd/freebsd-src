@@ -1,4 +1,4 @@
-$6 ~ /^ack/ && $5 !~ /[SFR]/ 	{
+$6 ~ /^ack/ && $5 !~ /[SFR]/	{
 	# given a tcpdump ftp trace, output one line for each ack
 	# in the form
 	#   <ack time> <seq no>

@@ -31,27 +31,37 @@
  */
 
 /*
- * RFC1826/2402 authentication header.
+ * RFC4302 authentication header.
  */
 
-#ifndef _NETINET6_AH_H_
-#define _NETINET6_AH_H_
+#ifndef ND_AH_H_
+#define ND_AH_H_
+
+/*
+ *     0                   1                   2                   3
+ *     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ *   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *   | Next Header   |  Payload Len  |          RESERVED             |
+ *   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *   |                 Security Parameters Index (SPI)               |
+ *   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *   |                    Sequence Number Field                      |
+ *   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *   |                                                               |
+ *   +                Integrity Check Value-ICV (variable)           |
+ *   |                                                               |
+ *   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *
+ *                          Figure 1.  AH Format
+ */
 
 struct ah {
-	uint8_t		ah_nxt;		/* Next Header */
-	uint8_t		ah_len;		/* Length of data, in 32bit */
-	uint16_t	ah_reserve;	/* Reserved for future use */
-	uint32_t	ah_spi;		/* Security parameter index */
-	/* variable size, 32bit bound*/	/* Authentication data */
+	nd_uint8_t	ah_nxt;		/* Next Header */
+	nd_uint8_t	ah_len;		/* Payload Len in 32bit words minus 2 */
+	nd_uint16_t	ah_reserved;	/* Reserved for future use */
+	nd_uint32_t	ah_spi;		/* Security Parameters Index */
+	nd_uint32_t	ah_seq;		/* Sequence Number Field */
+	/* variable size, 32bit bound*/	/* Integrity Check Value-ICV */
 };
 
-struct newah {
-	uint8_t		ah_nxt;		/* Next Header */
-	uint8_t		ah_len;		/* Length of data + 1, in 32bit */
-	uint16_t	ah_reserve;	/* Reserved for future use */
-	uint32_t	ah_spi;		/* Security parameter index */
-	uint32_t	ah_seq;		/* Sequence number field */
-	/* variable size, 32bit bound*/	/* Authentication data */
-};
-
-#endif /*_NETINET6_AH_H_*/
+#endif /* ND_AH_H_ */

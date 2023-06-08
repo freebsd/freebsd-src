@@ -1,79 +1,79 @@
-# tcpdump
+# TCPDUMP 4.x.y by [The Tcpdump Group](https://www.tcpdump.org/)
 
-[![Build
-Status](https://travis-ci.org/the-tcpdump-group/tcpdump.png)](https://travis-ci.org/the-tcpdump-group/tcpdump)
-
-To report a security issue please send an e-mail to security@tcpdump.org.
+**To report a security issue please send an e-mail to security@tcpdump.org.**
 
 To report bugs and other problems, contribute patches, request a
-feature, provide generic feedback etc please see the file
-CONTRIBUTING in the tcpdump source tree root.
+feature, provide generic feedback etc please see the
+[guidelines for contributing](CONTRIBUTING.md) in the tcpdump source tree root.
 
-TCPDUMP 4.x.y
-Now maintained by "The Tcpdump Group"
-See 		www.tcpdump.org
+Anonymous Git is available via
 
-Anonymous Git is available via:
-
-	git clone git://bpf.tcpdump.org/tcpdump
-
-formerly from 	Lawrence Berkeley National Laboratory
-		Network Research Group <tcpdump@ee.lbl.gov>  
-		ftp://ftp.ee.lbl.gov/old/tcpdump.tar.Z (3.4)
+	https://github.com/the-tcpdump-group/tcpdump.git
 
 This directory contains source code for tcpdump, a tool for network
-monitoring and data acquisition.  This software was originally
-developed by the Network Research Group at the Lawrence Berkeley
-National Laboratory.  The original distribution is available via
-anonymous ftp to `ftp.ee.lbl.gov`, in `tcpdump.tar.Z`.  More recent
-development is performed at tcpdump.org, http://www.tcpdump.org/
+monitoring and data acquisition.
 
+Over the past few years, tcpdump has been steadily improved by the
+excellent contributions from the Internet community (just browse
+through the [change log](CHANGES)).  We are grateful for all the input.
+
+### Supported platforms
+In many operating systems tcpdump is available as a native package or port,
+which simplifies installation of updates and long-term maintenance. However,
+the native packages are sometimes a few versions behind and to try a more
+recent snapshot it will take to compile tcpdump from the source code.
+
+tcpdump compiles and works on at least the following platforms:
+
+* AIX
+* DragonFly BSD
+* FreeBSD
+* Haiku
+* HP-UX 11i
+* illumos (OmniOS, OpenIndiana)
+* GNU/Linux
+* {Mac} OS X / macOS
+* NetBSD
+* OpenBSD
+* OpenWrt
+* Solaris
+* Windows (requires WinPcap or Npcap, and Visual Studio with CMake)
+
+### Dependency on libpcap
 Tcpdump uses libpcap, a system-independent interface for user-level
 packet capture.  Before building tcpdump, you must first retrieve and
-build libpcap, also originally from LBL and now being maintained by
-tcpdump.org; see http://www.tcpdump.org/ .
+build libpcap.
 
 Once libpcap is built (either install it or make sure it's in
-`../libpcap`), you can build tcpdump using the procedure in the `INSTALL.txt`
-file.
+`../libpcap`), you can build tcpdump using the procedure in the
+[installation notes](INSTALL.md).
 
+### Origins of tcpdump
 The program is loosely based on SMI's "etherfind" although none of the
 etherfind code remains.  It was originally written by Van Jacobson as
-part of an ongoing research project to investigate and improve tcp and
-internet gateway performance.  The parts of the program originally
+part of an ongoing research project to investigate and improve TCP and
+Internet gateway performance.  The parts of the program originally
 taken from Sun's etherfind were later re-written by Steven McCanne of
 LBL.  To insure that there would be no vestige of proprietary code in
 tcpdump, Steve wrote these pieces from the specification given by the
 manual entry, with no access to the source of tcpdump or etherfind.
+```text
+formerly from	Lawrence Berkeley National Laboratory
+		Network Research Group <tcpdump@ee.lbl.gov>
+		ftp://ftp.ee.lbl.gov/old/tcpdump.tar.Z (3.4)
+```
 
-Over the past few years, tcpdump has been steadily improved by the
-excellent contributions from the Internet community (just browse
-through the `CHANGES` file).  We are grateful for all the input.
-
+### See also
 Richard Stevens gives an excellent treatment of the Internet protocols
 in his book *"TCP/IP Illustrated, Volume 1"*. If you want to learn more
 about tcpdump and how to interpret its output, pick up this book.
 
-Some tools for viewing and analyzing tcpdump trace files are available
-from the Internet Traffic Archive:
-
-* http://www.sigcomm.org/ITA/
-
-Another tool that tcpdump users might find useful is tcpslice:
-
-* https://github.com/the-tcpdump-group/tcpslice
-
+Another tool that tcpdump users might find useful is
+[tcpslice](https://github.com/the-tcpdump-group/tcpslice).
 It is a program that can be used to extract portions of tcpdump binary
-trace files. See the above distribution for further details and
-documentation.
+trace files.
 
-Current versions can be found at www.tcpdump.org.
-
- - The TCPdump team
-
-original text by: Steve McCanne, Craig Leres, Van Jacobson
-
--------------------------------------
+### The original LBL README by Steve McCanne, Craig Leres and Van Jacobson
 ```
 This directory also contains some short awk programs intended as
 examples of ways to reduce tcpdump data when you're tracking

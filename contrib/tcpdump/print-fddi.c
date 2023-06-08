@@ -22,25 +22,25 @@
 /* \summary: Fiber Distributed Data Interface (FDDI) printer */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
-#include <netdissect-stdinc.h>
+#include "netdissect-stdinc.h"
 
 #include <string.h>
 
 #include "netdissect.h"
+#include "extract.h"
 #include "addrtoname.h"
-#include "ether.h"
 
 /*
  * Based on Ultrix if_fddi.h
  */
 
 struct fddi_header {
-	u_char  fddi_fc;		/* frame control */
-	u_char  fddi_dhost[6];
-	u_char  fddi_shost[6];
+	nd_uint8_t  fddi_fc;		/* frame control */
+	nd_mac_addr fddi_dhost;
+	nd_mac_addr fddi_shost;
 };
 
 /*
@@ -158,78 +158,78 @@ static const u_char fddi_bit_swap[] = {
 /*
  * Print FDDI frame-control bits
  */
-static inline void
+static void
 print_fddi_fc(netdissect_options *ndo, u_char fc)
 {
 	switch (fc) {
 
 	case FDDIFC_VOID:                         /* Void frame */
-		ND_PRINT((ndo, "void "));
+		ND_PRINT("void ");
 		break;
 
 	case FDDIFC_NRT:                          /* Nonrestricted token */
-		ND_PRINT((ndo, "nrt "));
+		ND_PRINT("nrt ");
 		break;
 
 	case FDDIFC_RT:                           /* Restricted token */
-		ND_PRINT((ndo, "rt "));
+		ND_PRINT("rt ");
 		break;
 
 	case FDDIFC_SMT_INFO:                     /* SMT Info */
-		ND_PRINT((ndo, "info "));
+		ND_PRINT("info ");
 		break;
 
 	case FDDIFC_SMT_NSA:                      /* SMT Next station adrs */
-		ND_PRINT((ndo, "nsa "));
+		ND_PRINT("nsa ");
 		break;
 
 	case FDDIFC_MAC_BEACON:                   /* MAC Beacon frame */
-		ND_PRINT((ndo, "beacon "));
+		ND_PRINT("beacon ");
 		break;
 
 	case FDDIFC_MAC_CLAIM:                    /* MAC Claim frame */
-		ND_PRINT((ndo, "claim "));
+		ND_PRINT("claim ");
 		break;
 
 	default:
 		switch (fc & FDDIFC_CLFF) {
 
 		case FDDIFC_MAC:
-			ND_PRINT((ndo, "mac%1x ", fc & FDDIFC_ZZZZ));
+			ND_PRINT("mac%1x ", fc & FDDIFC_ZZZZ);
 			break;
 
 		case FDDIFC_SMT:
-			ND_PRINT((ndo, "smt%1x ", fc & FDDIFC_ZZZZ));
+			ND_PRINT("smt%1x ", fc & FDDIFC_ZZZZ);
 			break;
 
 		case FDDIFC_LLC_ASYNC:
-			ND_PRINT((ndo, "async%1x ", fc & FDDIFC_ZZZZ));
+			ND_PRINT("async%1x ", fc & FDDIFC_ZZZZ);
 			break;
 
 		case FDDIFC_LLC_SYNC:
-			ND_PRINT((ndo, "sync%1x ", fc & FDDIFC_ZZZZ));
+			ND_PRINT("sync%1x ", fc & FDDIFC_ZZZZ);
 			break;
 
 		case FDDIFC_IMP_ASYNC:
-			ND_PRINT((ndo, "imp_async%1x ", fc & FDDIFC_ZZZZ));
+			ND_PRINT("imp_async%1x ", fc & FDDIFC_ZZZZ);
 			break;
 
 		case FDDIFC_IMP_SYNC:
-			ND_PRINT((ndo, "imp_sync%1x ", fc & FDDIFC_ZZZZ));
+			ND_PRINT("imp_sync%1x ", fc & FDDIFC_ZZZZ);
 			break;
 
 		default:
-			ND_PRINT((ndo, "%02x ", fc));
+			ND_PRINT("%02x ", fc);
 			break;
 		}
 	}
 }
 
 /* Extract src, dst addresses */
-static inline void
+static void
 extract_fddi_addrs(const struct fddi_header *fddip, char *fsrc, char *fdst)
 {
-	register int i;
+	int i;
 
 	if (fddi_bitswap) {
 		/*
@@ -250,10 +250,10 @@ extract_fddi_addrs(const struct fddi_header *fddip, char *fsrc, char *fdst)
 /*
  * Print the FDDI MAC header
  */
-static inline void
+static void
 fddi_hdr_print(netdissect_options *ndo,
-               register const struct fddi_header *fddip, register u_int length,
-               register const u_char *fsrc, register const u_char *fdst)
+               const struct fddi_header *fddip, u_int length,
+               const u_char *fsrc, const u_char *fdst)
 {
 	const char *srcname, *dstname;
 
@@ -261,42 +261,46 @@ fddi_hdr_print(netdissect_options *ndo,
 	dstname = etheraddr_string(ndo, fdst);
 
 	if (!ndo->ndo_qflag)
-		print_fddi_fc(ndo, fddip->fddi_fc);
-	ND_PRINT((ndo, "%s > %s, length %u: ",
+		print_fddi_fc(ndo, GET_U_1(fddip->fddi_fc));
+	ND_PRINT("%s > %s, length %u: ",
 	       srcname, dstname,
-	       length));
+	       length);
 }
 
-static inline void
+static void
 fddi_smt_print(netdissect_options *ndo, const u_char *p _U_, u_int length _U_)
 {
-	ND_PRINT((ndo, "<SMT printer not yet implemented>"));
+	ND_PRINT("<SMT printer not yet implemented>");
 }
 
 u_int
 fddi_print(netdissect_options *ndo, const u_char *p, u_int length, u_int caplen)
 {
 	const struct fddi_header *fddip = (const struct fddi_header *)p;
-	struct ether_header ehdr;
+	uint8_t fc;
+	nd_mac_addr srcmac, dstmac;
 	struct lladdr_info src, dst;
 	int llc_hdrlen;
 
+	ndo->ndo_protocol = "fddi";
 	if (caplen < FDDI_HDRLEN) {
-		ND_PRINT((ndo, "[|fddi]"));
+		nd_print_trunc(ndo);
 		return (caplen);
 	}
+
+	fc = GET_U_1(fddip->fddi_fc);
 
 	/*
 	 * Get the FDDI addresses into a canonical form
 	 */
-	extract_fddi_addrs(fddip, (char *)ESRC(&ehdr), (char *)EDST(&ehdr));
+	extract_fddi_addrs(fddip, (char *)srcmac, (char *)dstmac);
 
 	if (ndo->ndo_eflag)
-		fddi_hdr_print(ndo, fddip, length, ESRC(&ehdr), EDST(&ehdr));
+		fddi_hdr_print(ndo, fddip, length, srcmac, dstmac);
 
-	src.addr = ESRC(&ehdr);
+	src.addr = srcmac;
 	src.addr_string = etheraddr_string;
-	dst.addr = EDST(&ehdr);
+	dst.addr = dstmac;
 	dst.addr_string = etheraddr_string;
 
 	/* Skip over FDDI MAC header */
@@ -305,7 +309,7 @@ fddi_print(netdissect_options *ndo, const u_char *p, u_int length, u_int caplen)
 	caplen -= FDDI_HDRLEN;
 
 	/* Frame Control field determines interpretation of packet */
-	if ((fddip->fddi_fc & FDDIFC_CLFF) == FDDIFC_LLC_ASYNC) {
+	if ((fc & FDDIFC_CLFF) == FDDIFC_LLC_ASYNC) {
 		/* Try to print the LLC-layer header & higher layers */
 		llc_hdrlen = llc_print(ndo, p, length, caplen, &src, &dst);
 		if (llc_hdrlen < 0) {
@@ -317,14 +321,14 @@ fddi_print(netdissect_options *ndo, const u_char *p, u_int length, u_int caplen)
 				ND_DEFAULTPRINT(p, caplen);
 			llc_hdrlen = -llc_hdrlen;
 		}
-	} else if ((fddip->fddi_fc & FDDIFC_CLFF) == FDDIFC_SMT) {
+	} else if ((fc & FDDIFC_CLFF) == FDDIFC_SMT) {
 		fddi_smt_print(ndo, p, caplen);
 		llc_hdrlen = 0;
 	} else {
 		/* Some kinds of FDDI packet we cannot handle intelligently */
 		if (!ndo->ndo_eflag)
-			fddi_hdr_print(ndo, fddip, length + FDDI_HDRLEN, ESRC(&ehdr),
-			    EDST(&ehdr));
+			fddi_hdr_print(ndo, fddip, length + FDDI_HDRLEN, srcmac,
+			    dstmac);
 		if (!ndo->ndo_suppress_default_print)
 			ND_DEFAULTPRINT(p, caplen);
 		llc_hdrlen = 0;
@@ -338,8 +342,9 @@ fddi_print(netdissect_options *ndo, const u_char *p, u_int length, u_int caplen)
  * 'h->len' is the length of the packet off the wire, and 'h->caplen'
  * is the number of bytes actually captured.
  */
-u_int
-fddi_if_print(netdissect_options *ndo, const struct pcap_pkthdr *h, register const u_char *p)
+void
+fddi_if_print(netdissect_options *ndo, const struct pcap_pkthdr *h, const u_char *p)
 {
-	return (fddi_print(ndo, p, h->len, h->caplen));
+	ndo->ndo_protocol = "fddi";
+	ndo->ndo_ll_hdr_len += fddi_print(ndo, p, h->len, h->caplen);
 }
