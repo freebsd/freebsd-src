@@ -151,26 +151,14 @@ static int
 xen_attach(device_t dev)
 {
 	struct xen_softc *sc;
-	struct vcpu_register_vcpu_info info;
-	struct vcpu_info *vcpu_info;
-	vm_paddr_t phys;
-	int rc, cpu;
 
 	if (xen_sc != NULL)
 		return (ENXIO);
 
 	sc = device_get_softc(dev);
 
-	/* TODO: Move to a proper function */
-	vcpu_info = DPCPU_PTR(vcpu_local_info);
-	cpu = PCPU_GET(cpuid);
-	phys = vtophys(vcpu_info);
-	info.mfn = phys >> PAGE_SHIFT_4K;
-	info.offset = phys & (PAGE_SIZE_4K - 1);
-
-	rc = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_info, cpu, &info);
-	KASSERT(rc == 0, ("Unable to register cpu %u\n", cpu));
-	DPCPU_SET(vcpu_info, vcpu_info);
+	/* setup vCPU #0 so events work on first processor */
+	xen_setup_vcpu_info();
 
 
 	/* Resources */
