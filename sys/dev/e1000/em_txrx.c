@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2016 Nicole Graziano <nicole@nextbsd.org>
  * Copyright (c) 2017 Matthew Macy <mmacy@mattmacy.io>
  * All rights reserved.
