@@ -53,6 +53,14 @@ task:
       TARGET_ARCH: amd64
       TOOLCHAIN: amd64-gcc12
       TOOLCHAIN_PKG: ${TOOLCHAIN}
+  - name: aarch64-gcc12 World and kernel build and boot smoke test (manual)
+    only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src'
+    trigger_type: manual
+    env:
+      TARGET: arm64
+      TARGET_ARCH: aarch64
+      TOOLCHAIN: aarch64-gcc12
+      TOOLCHAIN_PKG: ${TOOLCHAIN}
   - name: amd64-gcc12 World and kernel build and boot smoke test (FreeBSD repo)
     only_if: $CIRRUS_REPO_FULL_NAME == 'freebsd/freebsd-src'
     env:
