@@ -458,6 +458,7 @@ struct rack_control {
 	uint64_t last_sndbytes;
 	uint64_t last_snd_rxt_bytes;
 	uint64_t rxt_threshold;
+	uint64_t last_tmit_time_acked;	/* Holds the last cumack point's last send time */
 	uint32_t last_rnd_rxt_clamped;
 	uint32_t num_of_clamps_applied;
 	uint32_t clamp_options;
@@ -526,6 +527,7 @@ struct rack_control {
 	uint8_t rc_no_push_at_mrtt;	/* No push when we exceed max rtt */
 	uint8_t num_measurements;	/* Number of measurements (up to 0xff, we freeze at 0xff)  */
 	uint8_t req_measurements;	/* How many measurements are required? */
+	uint8_t saved_hibeta;
 	uint8_t rc_tlp_cwnd_reduce;	/* Socket option value Lock(a) */
 	uint8_t rc_prr_sendalot;/* Socket option value Lock(a) */
 	uint8_t rc_rate_sample_method;
@@ -577,6 +579,7 @@ struct rack_control {
 #define HYBRID_LOG_OUTOFTIME	12	/* We are past the deadline DGP */
 #define HYBRID_LOG_CAPERROR	13	/* Hit one of the TSNH cases */
 #define HYBRID_LOG_EXTEND	14	/* We extended the end */
+#define HYBRID_LOG_SENT_LOST	15	/* A closing sent/lost report */
 
 #define RACK_TIMELY_CNT_BOOST 5	/* At 5th increase boost */
 #define RACK_MINRTT_FILTER_TIM 10 /* Seconds */
@@ -588,6 +591,8 @@ struct rack_control {
 					 * Conservative ssthresh and
 					 * +Slam cwnd
 					 */
+
+#define MAX_USER_SET_SEG 0x3f	/* The max we can set is 63 which is probably too many */
 
 #ifdef _KERNEL
 
@@ -659,7 +664,8 @@ struct tcp_rack {
 		 r_via_fill_cw : 1,
 		 r_fill_less_agg : 1;
 
-	uint8_t rc_user_set_max_segs;	/* Socket option value Lock(a) */
+	uint8_t rc_user_set_max_segs : 7,	/* Socket option value Lock(a) */
+		rc_fillcw_apply_discount;
 	uint8_t rc_labc;		/* Appropriate Byte Counting Value */
 	uint16_t forced_ack : 1,
 		rc_gp_incr : 1,
