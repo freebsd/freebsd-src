@@ -42,7 +42,7 @@ local generated_tag = "@" .. "generated"
 -- Default configuration; any of these may get replaced by a configuration file
 -- optionally specified.
 local config = {
-	os_id_keyword = "FreeBSD",
+	os_id_keyword = "FreeBSD",		-- obsolete, ignored on input, not generated
 	abi_func_prefix = "",
 	sysnames = "syscalls.c",
 	sysproto = "../sys/sysproto.h",
@@ -486,6 +486,7 @@ local process_syscall_def
 -- These patterns are processed in order on any line that isn't empty.
 local pattern_table = {
 	{
+		-- To be removed soon
 		pattern = "%s*$" .. config.os_id_keyword,
 		process = function(_, _)
 			-- Ignore... ID tag
@@ -1409,16 +1410,14 @@ write_line("syssw", string.format([[/*
  * System call switch table.
  *
  * DO NOT EDIT-- this file is automatically %s.
- * $%s$
  */
 
-]], generated_tag, config.os_id_keyword))
+]], generated_tag))
 
 write_line("sysarg", string.format([[/*
  * System call prototypes.
  *
  * DO NOT EDIT-- this file is automatically %s.
- * $%s$
  */
 
 #ifndef %s
@@ -1450,8 +1449,7 @@ struct thread;
 #define	PADR_(t)	0
 #endif
 
-]], generated_tag, config.os_id_keyword, config.sysproto_h,
-    config.sysproto_h))
+]], generated_tag, config.sysproto_h, config.sysproto_h))
 if abi_changes("pair_64bit") then
 	write_line("sysarg", string.format([[
 #if !defined(PAD64_REQUIRED) && !defined(__amd64__)
@@ -1474,31 +1472,27 @@ write_line("sysnames", string.format([[/*
  * System call names.
  *
  * DO NOT EDIT-- this file is automatically %s.
- * $%s$
  */
 
 const char *%s[] = {
-]], generated_tag, config.os_id_keyword, config.namesname))
+]], generated_tag, config.namesname))
 
 write_line("syshdr", string.format([[/*
  * System call numbers.
  *
  * DO NOT EDIT-- this file is automatically %s.
- * $%s$
  */
 
-]], generated_tag, config.os_id_keyword))
+]], generated_tag))
 
 write_line("sysmk", string.format([[# FreeBSD system call object files.
 # DO NOT EDIT-- this file is automatically %s.
-# $%s$
-MIASM = ]], generated_tag, config.os_id_keyword))
+MIASM = ]], generated_tag))
 
 write_line("systrace", string.format([[/*
  * System call argument to DTrace register array converstion.
  *
  * DO NOT EDIT-- this file is automatically %s.
- * $%s$
  * This file is part of the DTrace syscall provider.
  */
 
@@ -1508,7 +1502,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	int64_t *iarg = (int64_t *)uarg;
 	int a = 0;
 	switch (sysnum) {
-]], generated_tag, config.os_id_keyword))
+]], generated_tag))
 
 write_line("systracetmp", [[static void
 systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
