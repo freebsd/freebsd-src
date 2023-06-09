@@ -237,22 +237,19 @@ protopr(u_long off, const char *name, int af1, int proto)
 	if (!pcblist_sysctl(proto, name, &buf))
 		return;
 
-	if (cflag || Cflag) {
+	if (istcp && (cflag || Cflag)) {
 		fnamelen = strlen("Stack");
 		cnamelen = strlen("CC");
 		oxig = xig = (struct xinpgen *)buf;
 		for (xig = (struct xinpgen*)((char *)xig + xig->xig_len);
 		    xig->xig_len > sizeof(struct xinpgen);
 		    xig = (struct xinpgen *)((char *)xig + xig->xig_len)) {
-			if (istcp) {
-				tp = (struct xtcpcb *)xig;
-				inp = &tp->xt_inp;
-			} else {
-				continue;
-			}
-			if (so->xso_protocol != proto)
-				continue;
+			tp = (struct xtcpcb *)xig;
+			inp = &tp->xt_inp;
 			if (inp->inp_gencnt > oxig->xig_gen)
+				continue;
+			so = &inp->xi_socket;
+			if (so->xso_protocol != proto)
 				continue;
 			fnamelen = max(fnamelen, (int)strlen(tp->xt_stack));
 			cnamelen = max(cnamelen, (int)strlen(tp->xt_cc));
