@@ -1103,6 +1103,13 @@ gic_v3_init_secondary(device_t dev, uint32_t rootnum)
 	u_int cpu, irq;
 	int err, i;
 
+	if (rootnum >= INTR_ROOT_COUNT) {
+		/*
+		 * Per-processor setup for devices with PPI interrupts?
+		 */
+		return;
+	}
+
 	sc = device_get_softc(dev);
 	cpu = PCPU_GET(cpuid);
 

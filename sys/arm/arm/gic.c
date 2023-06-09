@@ -205,6 +205,13 @@ arm_gic_init_secondary(device_t dev, uint32_t rootnum)
 	struct arm_gic_softc *sc = device_get_softc(dev);
 	u_int irq, cpu;
 
+	if (rootnum >= INTR_ROOT_COUNT) {
+		/*
+		 * Per-processor setup for devices with PPI interrupts?
+		 */
+		return;
+	}
+
 	/* Set the mask so we can find this CPU to send it IPIs */
 	cpu = PCPU_GET(cpuid);
 	MPASS(cpu < GIC_MAXCPU);

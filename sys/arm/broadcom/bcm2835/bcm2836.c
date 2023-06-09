@@ -543,6 +543,13 @@ bcm_lintc_init_secondary(device_t dev, uint32_t rootnum)
 	u_int cpu;
 	struct bcm_lintc_softc *sc;
 
+	if (rootnum >= INTR_ROOT_COUNT) {
+		/*
+		 * Per-processor setup for devices with PPI interrupts?
+		 */
+		return;
+	}
+
 	cpu = PCPU_GET(cpuid);
 	sc = device_get_softc(dev);
 

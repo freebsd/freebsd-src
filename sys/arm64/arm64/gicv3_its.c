@@ -1297,6 +1297,13 @@ gicv3_its_init_secondary(device_t dev, uint32_t rootnum)
 {
 	struct gicv3_its_softc *sc;
 
+	if (rootnum >= INTR_ROOT_COUNT) {
+		/*
+		 * Per-processor setup for devices with PPI interrupts?
+		 */
+		return;
+	}
+
 	sc = device_get_softc(dev);
 
 	/*

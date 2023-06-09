@@ -1570,12 +1570,10 @@ dosoftints(void)
 void
 intr_pic_init_secondary(void)
 {
+	struct intr_pic *pic;
 	device_t dev;
 	uint32_t rootnum;
 
-	/*
-	 * QQQ: Only root PICs are aware of other CPUs ???
-	 */
 	//mtx_lock(&isrc_table_lock);
 	for (rootnum = 0; rootnum < INTR_ROOT_COUNT; rootnum++) {
 		dev = intr_irq_roots[rootnum].dev;
@@ -1583,6 +1581,9 @@ intr_pic_init_secondary(void)
 			PIC_INIT_SECONDARY(dev, rootnum);
 		}
 	}
+
+	SLIST_FOREACH(pic, &pic_list, pic_next)
+		PIC_INIT_SECONDARY(pic->pic_dev, INTR_ROOT_COUNT);
 	//mtx_unlock(&isrc_table_lock);
 }
 #endif
