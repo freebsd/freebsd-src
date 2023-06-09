@@ -1619,10 +1619,15 @@ struct mrs_user_reg {
 		.fields = field_name##_fields,				\
 	}
 static struct mrs_user_reg user_regs[] = {
+	USER_REG(ID_AA64AFR0_EL1, id_aa64afr0),
+	USER_REG(ID_AA64AFR1_EL1, id_aa64afr1),
+
 	USER_REG(ID_AA64DFR0_EL1, id_aa64dfr0),
+	USER_REG(ID_AA64DFR1_EL1, id_aa64dfr1),
 
 	USER_REG(ID_AA64ISAR0_EL1, id_aa64isar0),
 	USER_REG(ID_AA64ISAR1_EL1, id_aa64isar1),
+	USER_REG(ID_AA64ISAR2_EL1, id_aa64isar2),
 
 	USER_REG(ID_AA64MMFR0_EL1, id_aa64mmfr0),
 	USER_REG(ID_AA64MMFR1_EL1, id_aa64mmfr1),
@@ -1630,6 +1635,9 @@ static struct mrs_user_reg user_regs[] = {
 
 	USER_REG(ID_AA64PFR0_EL1, id_aa64pfr0),
 	USER_REG(ID_AA64PFR1_EL1, id_aa64pfr1),
+
+	USER_REG(ID_AA64ZFR0_EL1, id_aa64zfr0),
+
 #ifdef COMPAT_FREEBSD32
 	USER_REG(ID_ISAR5_EL1, id_isar5),
 
