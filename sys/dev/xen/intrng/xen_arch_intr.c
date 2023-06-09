@@ -204,7 +204,6 @@ static driver_t xen_driver = {
 	sizeof(struct xen_softc),
 };
 
-DRIVER_MODULE(xen, simplebus, xen_driver, 0, 0);
 DRIVER_MODULE(xen, ofwbus, xen_driver, 0, 0);
 
 
