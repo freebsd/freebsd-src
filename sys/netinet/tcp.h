@@ -499,6 +499,8 @@ struct tcp_log_user {
 #define TCP_HYBRID_PACING_ENABLE	0x0010		/* We are enabling hybrid pacing else disable */
 #define TCP_HYBRID_PACING_S_MSS		0x0020		/* Clent wants us to set the mss overriding gp est in CU */
 #define TCP_HYBRID_PACING_SETMSS	0x1000		/* Internal flag that tellsus we set the mss on this entry */
+#define TCP_HYBRID_PACING_WASSET	0x2000		/* We init to this to know if a hybrid command was issued */
+
 
 struct tcp_hybrid_req {
 	struct tcp_snd_req req;
