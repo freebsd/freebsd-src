@@ -1541,15 +1541,12 @@ dosoftints(void)
 void
 intr_pic_init_secondary(void)
 {
+	struct intr_pic *pic;
 
-	/*
-	 * QQQ: Only root PIC is aware of other CPUs ???
-	 */
-	KASSERT(intr_irq_root_dev != NULL, ("%s: no root attached", __func__));
-
-	//mtx_lock(&isrc_table_lock);
-	PIC_INIT_SECONDARY(intr_irq_root_dev);
-	//mtx_unlock(&isrc_table_lock);
+	//mtx_lock(&pic_list_lock);
+	STAILQ_FOREACH(pic, &pic_list, pic_next)
+		PIC_INIT_SECONDARY(pic->pic_dev);
+	//mtx_unlock(&pic_list_lock);
 }
 #endif
 
