@@ -1222,6 +1222,14 @@
 #define	MDSCR_MDE_SHIFT			15
 #define	MDSCR_MDE			(UL(0x1) << MDSCR_MDE_SHIFT)
 
+/* MIDR_EL1 - Main ID Register */
+#define	MIDR_EL1			MRS_REG(MIDR_EL1)
+#define	MIDR_EL1_op0			3
+#define	MIDR_EL1_op1			0
+#define	MIDR_EL1_CRn			0
+#define	MIDR_EL1_CRm			0
+#define	MIDR_EL1_op2			0
+
 /* MPIDR_EL1 - Multiprocessor Affinity Register */
 #define	MPIDR_EL1			MRS_REG(MPIDR_EL1)
 #define	MPIDR_EL1_op0			3
@@ -1860,6 +1868,14 @@
 /* PSR fields that can be set from 32-bit and 64-bit processes */
 #define	PSR_SETTABLE_32	PSR_FLAGS
 #define	PSR_SETTABLE_64	(PSR_FLAGS | PSR_SS)
+
+/* REVIDR_EL1 - Revision ID Register */
+#define	REVIDR_EL1			MRS_REG(REVIDR_EL1)
+#define	REVIDR_EL1_op0			3
+#define	REVIDR_EL1_op1			0
+#define	REVIDR_EL1_CRn			0
+#define	REVIDR_EL1_CRm			0
+#define	REVIDR_EL1_op2			6
 
 /* TCR_EL1 - Translation Control Register */
 /* Bits 63:59 are reserved */
