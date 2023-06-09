@@ -1,11 +1,11 @@
 /*
  * strrchr - find the last of a character in a string
  *
- * Copyright (c) 2019-2021, Arm Limited.
- * SPDX-License-Identifier: MIT
+ * Copyright (c) 2019-2022, Arm Limited.
+ * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
-#include "../asmdefs.h"
+#include "asmdefs.h"
 
 #if __ARM_FEATURE_SVE
 /* Assumptions:

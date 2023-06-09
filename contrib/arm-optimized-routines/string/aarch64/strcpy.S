@@ -1,8 +1,8 @@
 /*
  * strcpy/stpcpy - copy a string returning pointer to start/end.
  *
- * Copyright (c) 2020-2022, Arm Limited.
- * SPDX-License-Identifier: MIT
+ * Copyright (c) 2020-2023, Arm Limited.
+ * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 /* Assumptions:
@@ -11,7 +11,7 @@
  * MTE compatible.
  */
 
-#include "../asmdefs.h"
+#include "asmdefs.h"
 
 #define dstin		x0
 #define srcin		x1
@@ -22,7 +22,6 @@
 #define len		x4
 #define synd		x4
 #define	tmp		x5
-#define wtmp		w5
 #define shift		x5
 #define data1		x6
 #define dataw1		w6
@@ -32,9 +31,8 @@
 #define dataq		q0
 #define vdata		v0
 #define vhas_nul	v1
-#define vrepmask	v2
-#define vend		v3
-#define dend		d3
+#define vend		v2
+#define dend		d2
 #define dataq2		q1
 
 #ifdef BUILD_STPCPY
@@ -45,34 +43,29 @@
 # define IFSTPCPY(X,...)
 #endif
 
-/* Core algorithm:
-
-   For each 16-byte chunk we calculate a 64-bit syndrome value with four bits
-   per byte. For even bytes, bits 0-3 are set if the relevant byte matched the
-   requested character or the byte is NUL. Bits 4-7 must be zero. Bits 4-7 are
-   set likewise for odd bytes so that adjacent bytes can be merged. Since the
-   bits in the syndrome reflect the order in which things occur in the original
-   string, counting trailing zeros identifies exactly which byte matched.  */
+/*
+   Core algorithm:
+   For each 16-byte chunk we calculate a 64-bit nibble mask value with four bits
+   per byte. We take 4 bits of every comparison byte with shift right and narrow
+   by 4 instruction. Since the bits in the nibble mask reflect the order in
+   which things occur in the original string, counting leading zeros identifies
+   exactly which byte matched.  */
 
 ENTRY (STRCPY)
 	PTR_ARG (0)
 	PTR_ARG (1)
 	bic	src, srcin, 15
-	mov	wtmp, 0xf00f
 	ld1	{vdata.16b}, [src]
-	dup	vrepmask.8h, wtmp
 	cmeq	vhas_nul.16b, vdata.16b, 0
 	lsl	shift, srcin, 2
-	and	vhas_nul.16b, vhas_nul.16b, vrepmask.16b
-	addp	vend.16b, vhas_nul.16b, vhas_nul.16b
+	shrn	vend.8b, vhas_nul.8h, 4
 	fmov	synd, dend
 	lsr	synd, synd, shift
 	cbnz	synd, L(tail)
 
 	ldr	dataq, [src, 16]!
 	cmeq	vhas_nul.16b, vdata.16b, 0
-	and	vhas_nul.16b, vhas_nul.16b, vrepmask.16b
-	addp	vend.16b, vhas_nul.16b, vhas_nul.16b
+	shrn	vend.8b, vhas_nul.8h, 4
 	fmov	synd, dend
 	cbz	synd, L(start_loop)
 
@@ -91,13 +84,10 @@ ENTRY (STRCPY)
 	IFSTPCPY (add result, dstin, len)
 	ret
 
-	.p2align 4,,8
 L(tail):
 	rbit	synd, synd
 	clz	len, synd
 	lsr	len, len, 2
-
-	.p2align 4
 L(less16):
 	tbz	len, 3, L(less8)
 	sub	tmp, len, 7
@@ -130,32 +120,37 @@ L(zerobyte):
 
 	.p2align 4
 L(start_loop):
-	sub	len, src, srcin
+	sub	tmp, srcin, dstin
 	ldr	dataq2, [srcin]
-	add	dst, dstin, len
+	sub	dst, src, tmp
 	str	dataq2, [dstin]
-
-	.p2align 5
 L(loop):
-	str	dataq, [dst], 16
-	ldr	dataq, [src, 16]!
+	str	dataq, [dst], 32
+	ldr	dataq, [src, 16]
+	cmeq	vhas_nul.16b, vdata.16b, 0
+	umaxp	vend.16b, vhas_nul.16b, vhas_nul.16b
+	fmov	synd, dend
+	cbnz	synd, L(loopend)
+	str	dataq, [dst, -16]
+	ldr	dataq, [src, 32]!
 	cmeq	vhas_nul.16b, vdata.16b, 0
 	umaxp	vend.16b, vhas_nul.16b, vhas_nul.16b
 	fmov	synd, dend
 	cbz	synd, L(loop)
-
-	and	vhas_nul.16b, vhas_nul.16b, vrepmask.16b
-	addp	vend.16b, vhas_nul.16b, vhas_nul.16b		/* 128->64 */
+	add	dst, dst, 16
+L(loopend):
+	shrn	vend.8b, vhas_nul.8h, 4		/* 128->64 */
 	fmov	synd, dend
+	sub	dst, dst, 31
 #ifndef __AARCH64EB__
 	rbit	synd, synd
 #endif
 	clz	len, synd
 	lsr	len, len, 2
-	sub	tmp, len, 15
-	ldr	dataq, [src, tmp]
-	str	dataq, [dst, tmp]
-	IFSTPCPY (add result, dst, len)
+	add	dst, dst, len
+	ldr	dataq, [dst, tmp]
+	str	dataq, [dst]
+	IFSTPCPY (add result, dst, 15)
 	ret
 
 END (STRCPY)

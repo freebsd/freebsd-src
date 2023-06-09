@@ -1,8 +1,8 @@
 /*
  * memcpy benchmark.
  *
- * Copyright (c) 2020-2021, Arm Limited.
- * SPDX-License-Identifier: MIT
+ * Copyright (c) 2020-2022, Arm Limited.
+ * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 #define _GNU_SOURCE

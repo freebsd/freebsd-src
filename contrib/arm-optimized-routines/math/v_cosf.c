@@ -1,8 +1,8 @@
 /*
  * Single-precision vector cos function.
  *
- * Copyright (c) 2019, Arm Limited.
- * SPDX-License-Identifier: MIT
+ * Copyright (c) 2019-2022, Arm Limited.
+ * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 #include "mathlib.h"
@@ -46,6 +46,14 @@ V_NAME(cosf) (v_f32_t x)
 
   r = v_as_f32_u32 (v_as_u32_f32 (x) & AbsMask);
   cmp = v_cond_u32 (v_as_u32_f32 (r) >= v_as_u32_f32 (RangeVal));
+
+#if WANT_SIMD_EXCEPT
+  if (unlikely (v_any_u32 (cmp)))
+    /* If fenv exceptions are to be triggered correctly, set any special lanes
+       to 1 (which is neutral w.r.t. fenv). These lanes will be fixed by
+       specialcase later.  */
+    r = v_sel_f32 (cmp, v_f32 (1.0f), r);
+#endif
 
   /* n = rint((|x|+pi/2)/pi) - 0.5 */
   n = v_fma_f32 (InvPi, r + HalfPi, Shift);

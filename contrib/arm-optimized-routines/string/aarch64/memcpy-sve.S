@@ -1,8 +1,8 @@
 /*
  * memcpy - copy memory area
  *
- * Copyright (c) 2019-2022, Arm Limited.
- * SPDX-License-Identifier: MIT
+ * Copyright (c) 2019-2023, Arm Limited.
+ * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 /* Assumptions:
@@ -11,9 +11,11 @@
  *
  */
 
-#if __ARM_FEATURE_SVE
+#include "asmdefs.h"
 
-#include "../asmdefs.h"
+#ifdef HAVE_SVE
+
+.arch armv8-a+sve
 
 #define dstin	x0
 #define src	x1
@@ -55,14 +57,16 @@ ENTRY (__memcpy_aarch64_sve)
 
 	cmp	count, 128
 	b.hi	L(copy_long)
-	cmp	count, 32
+	cntb	vlen
+	cmp	count, vlen, lsl 1
 	b.hi	L(copy32_128)
 
 	whilelo p0.b, xzr, count
-	cntb	vlen
-	tbnz	vlen, 4, L(vlen128)
-	ld1b	z0.b, p0/z, [src]
-	st1b	z0.b, p0, [dstin]
+	whilelo p1.b, vlen, count
+	ld1b	z0.b, p0/z, [src, 0, mul vl]
+	ld1b	z1.b, p1/z, [src, 1, mul vl]
+	st1b	z0.b, p0, [dstin, 0, mul vl]
+	st1b	z1.b, p1, [dstin, 1, mul vl]
 	ret
 
 	/* Medium copies: 33..128 bytes.  */
@@ -131,14 +135,6 @@ L(copy64_from_end):
 	stp	A_q, B_q, [dstend, -32]
 	ret
 
-L(vlen128):
-	whilelo p1.b, vlen, count
-	ld1b	z0.b, p0/z, [src, 0, mul vl]
-	ld1b	z1.b, p1/z, [src, 1, mul vl]
-	st1b	z0.b, p0, [dstin, 0, mul vl]
-	st1b	z1.b, p1, [dstin, 1, mul vl]
-	ret
-
 	/* Large backwards copy for overlapping copies.
 	   Copy 16 bytes and then align srcend to 16-byte alignment.  */
 L(copy_long_backwards):
@@ -177,4 +173,5 @@ L(return):
 	ret
 
 END (__memcpy_aarch64_sve)
+
 #endif

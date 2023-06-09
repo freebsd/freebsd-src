@@ -1,0 +1,23 @@
+Code in this sub-directory should follow the GNU Coding Standard, but it is
+not expected to be upstreamed into glibc without modification, so
+glibc-specific conventions need not be followed.
+
+The requirements for portable code apply to non-portable code with the
+following differences:
+
+
+1. Worst-case ULP error should be encoded in filenames (e.g. sin_u35.c). There
+   are no specific restrictions on acceptable ULP error, but if functions
+   provide significantly less accuracy than portable equivalents then a clear
+   justification for inclusion should be stated in comments at the top of the
+   source file. Error bounds of the approximation should be clearly documented
+   in comments.
+
+2. Functions are assumed to support round-to-nearest mode by default, unless
+   stated; other rounding modes are not required to be provided.
+
+3. Handling of special cases may be relaxed for vector functions. Checking
+   whether each vector lane contains special values such as NaN, Inf or
+   denormal numbers can prove too costly for vector functions. This is often
+   not required since vector functions are typically used along with aggressive
+   compiler optimization flags.

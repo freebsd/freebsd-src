@@ -2,7 +2,7 @@
  * Single-precision vector powf function.
  *
  * Copyright (c) 2019, Arm Limited.
- * SPDX-License-Identifier: MIT
+ * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 #include "mathlib.h"

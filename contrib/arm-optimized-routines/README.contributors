@@ -1,0 +1,44 @@
+GENERIC CONTRIBUTION GUIDELINES
+===============================
+
+1. Sub-projects are maintained independently and thus have independent
+   contribution rules. If there exists a README.contributors in the
+   sub-directory to which the contribution is made, it must be followed.
+
+2. Legal:
+   - Contributors who are not employed by Arm must sign an Assignment Agreement.
+     See contributor-agreement.pdf.
+   - All code must be copyright owned by Arm Limited and the appropriate
+     copyright notice and license identifier must be present in every source
+     file.
+
+3. Build:
+   - Build should only depend on GNU make and posix utilities (shell, awk, sed,
+     etc) and on a C toolchain.
+   - Build should pass with the default configuration (see config.mk.dist)
+     and other supported configurations, with both gcc and clang based
+     toolchains. (The build should not depend on a recent toolchain, the use
+     of a new feature should be possible to disable.)
+   - Currently there is no automated configuration, target specific configuration
+     should be done via make variables in config.mk. This is the user interface
+     to the build system, so it should be documented in sufficient detail and
+     kept reasonably stable.
+
+4. Testing:
+   - On aarch64 the tests must pass. If the code may behave differently under
+     some supported configurations (e.g. CFLAGS) those should be tested.
+   - New symbols are expected to have new associated test code and ideally
+     benchmark code too.
+
+4. Commits:
+   - Commit message should be descriptive and should not refer to Arm internal
+     information (such as Jira tickets, or internal discussions). Non-obvious
+     decisions should be recorded or explained in the commit message if they are
+     not explained in source comments.
+   - Ideally tools and scripts used to write the code should be added to the
+     repository or at least mentioned in the commit.
+   - Logically independent changes should not be mixed into the same commit.
+
+5. Style:
+   - Unless otherwise required differently by the sub-project, follow the
+     clang-format tool using the style from the gcc contrib/ directory.

@@ -1,7 +1,7 @@
 ; Directed test cases for pow
 ;
 ; Copyright (c) 2018-2019, Arm Limited.
-; SPDX-License-Identifier: MIT
+; SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
 
 func=pow op1=00000000.00000000 op2=00000000.00000000 result=3ff00000.00000000 errno=0
 func=pow op1=00000000.00000000 op2=00000000.00000001 result=00000000.00000000 errno=0

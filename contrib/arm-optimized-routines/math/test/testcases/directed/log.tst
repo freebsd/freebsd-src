@@ -1,7 +1,7 @@
 ; Directed test cases for log
 ;
 ; Copyright (c) 2018-2019, Arm Limited.
-; SPDX-License-Identifier: MIT
+; SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
 
 func=log op1=7ff80000.00000001 result=7ff80000.00000001 errno=0
 func=log op1=fff80000.00000001 result=7ff80000.00000001 errno=0

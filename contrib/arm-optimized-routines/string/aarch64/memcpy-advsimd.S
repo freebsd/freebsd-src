@@ -1,8 +1,8 @@
 /*
  * memcpy - copy memory area
  *
- * Copyright (c) 2019-2020, Arm Limited.
- * SPDX-License-Identifier: MIT
+ * Copyright (c) 2019-2022, Arm Limited.
+ * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 /* Assumptions:
@@ -11,7 +11,7 @@
  *
  */
 
-#include "../asmdefs.h"
+#include "asmdefs.h"
 
 #define dstin	x0
 #define src	x1

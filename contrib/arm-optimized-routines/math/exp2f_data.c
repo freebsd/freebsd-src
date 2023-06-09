@@ -2,7 +2,7 @@
  * Shared data between expf, exp2f and powf.
  *
  * Copyright (c) 2017-2018, Arm Limited.
- * SPDX-License-Identifier: MIT
+ * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 #include "math_config.h"

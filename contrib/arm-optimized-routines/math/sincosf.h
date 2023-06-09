@@ -1,8 +1,8 @@
 /*
  * Header for sinf, cosf and sincosf.
  *
- * Copyright (c) 2018, Arm Limited.
- * SPDX-License-Identifier: MIT
+ * Copyright (c) 2018-2021, Arm Limited.
+ * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 #include <stdint.h>

@@ -1,7 +1,7 @@
 ; erf.tst - Directed test cases for erf
 ;
 ; Copyright (c) 2007-2020, Arm Limited.
-; SPDX-License-Identifier: MIT
+; SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
 
 func=erf op1=7ff80000.00000001 result=7ff80000.00000001 errno=0
 func=erf op1=fff80000.00000001 result=7ff80000.00000001 errno=0

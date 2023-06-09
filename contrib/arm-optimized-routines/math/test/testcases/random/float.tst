@@ -1,7 +1,7 @@
 !! single.tst - Random test case specification for SP functions
 !!
 !! Copyright (c) 1999-2019, Arm Limited.
-!! SPDX-License-Identifier: MIT
+!! SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
 
 test sinf 10000
 test cosf 10000

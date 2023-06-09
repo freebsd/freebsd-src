@@ -2,7 +2,7 @@
  * Ones' complement checksum test & benchmark
  *
  * Copyright (c) 2016-2020, Arm Limited.
- * SPDX-License-Identifier: MIT
+ * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 #define _GNU_SOURCE

@@ -1,7 +1,7 @@
 /* memcmp - compare memory
  *
- * Copyright (c) 2013-2021, Arm Limited.
- * SPDX-License-Identifier: MIT
+ * Copyright (c) 2013-2022, Arm Limited.
+ * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 /* Assumptions:
@@ -9,7 +9,7 @@
  * ARMv8-a, AArch64, Advanced SIMD, unaligned accesses.
  */
 
-#include "../asmdefs.h"
+#include "asmdefs.h"
 
 #define src1	x0
 #define src2	x1

@@ -2,7 +2,7 @@
  * AArch64-specific checksum implementation using NEON
  *
  * Copyright (c) 2020, Arm Limited.
- * SPDX-License-Identifier: MIT
+ * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 #include "networking.h"

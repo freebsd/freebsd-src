@@ -2,7 +2,7 @@
  * strcpy
  *
  * Copyright (c) 2008-2020, Arm Limited.
- * SPDX-License-Identifier: MIT
+ * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 #if defined (__thumb2__) && !defined (__thumb__)

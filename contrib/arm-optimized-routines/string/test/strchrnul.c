@@ -2,7 +2,7 @@
  * strchrnul test.
  *
  * Copyright (c) 2019-2020, Arm Limited.
- * SPDX-License-Identifier: MIT
+ * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 #ifndef _GNU_SOURCE

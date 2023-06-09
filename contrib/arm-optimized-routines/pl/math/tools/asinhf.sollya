@@ -1,0 +1,29 @@
+// polynomial for approximating asinh(x)
+//
+// Copyright (c) 2022-2023, Arm Limited.
+// SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
+
+deg = 9;
+
+a = 0x1.0p-12;
+b = 1.0;
+
+f = proc(y) {
+  return asinh(x);
+};
+
+approx = proc(poly, d) {
+  return remez(1 - poly(x)/f(x), deg-d, [a;b], x^d/f(x), 1e-10);
+};
+
+poly = x;
+for i from 2 to deg do {
+  p = roundcoefficients(approx(poly,i), [|SG ...|]);
+  poly = poly + x^i*coeff(p,0);
+};
+
+display = hexadecimal;
+print("rel error:", accurateinfnorm(1-poly(x)/f(x), [a;b], 30));
+print("in [",a,b,"]");
+print("coeffs:");
+for i from 2 to deg do coeff(poly,i);

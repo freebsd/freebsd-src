@@ -1,8 +1,8 @@
 /*
  * Double-precision vector sin function.
  *
- * Copyright (c) 2019, Arm Limited.
- * SPDX-License-Identifier: MIT
+ * Copyright (c) 2019-2022, Arm Limited.
+ * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 #include "mathlib.h"
@@ -34,8 +34,14 @@ static const double Poly[] = {
 #define Pi2 v_f64 (0x1.1a62633145c06p-53)
 #define Pi3 v_f64 (0x1.c1cd129024e09p-106)
 #define Shift v_f64 (0x1.8p52)
-#define RangeVal v_f64 (0x1p23)
 #define AbsMask v_u64 (0x7fffffffffffffff)
+
+#if WANT_SIMD_EXCEPT
+#define TinyBound 0x202 /* top12 (asuint64 (0x1p-509)).  */
+#define Thresh 0x214	/* top12 (asuint64 (RangeVal)) - TinyBound.  */
+#else
+#define RangeVal v_f64 (0x1p23)
+#endif
 
 VPCS_ATTR
 __attribute__ ((noinline)) static v_f64_t
@@ -49,11 +55,22 @@ v_f64_t
 V_NAME(sin) (v_f64_t x)
 {
   v_f64_t n, r, r2, y;
-  v_u64_t sign, odd, cmp;
+  v_u64_t sign, odd, cmp, ir;
 
-  r = v_as_f64_u64 (v_as_u64_f64 (x) & AbsMask);
+  ir = v_as_u64_f64 (x) & AbsMask;
+  r = v_as_f64_u64 (ir);
   sign = v_as_u64_f64 (x) & ~AbsMask;
-  cmp = v_cond_u64 (v_as_u64_f64 (r) >= v_as_u64_f64 (RangeVal));
+
+#if WANT_SIMD_EXCEPT
+  /* Detect |x| <= 0x1p-509 or |x| >= RangeVal. If fenv exceptions are to be
+     triggered correctly, set any special lanes to 1 (which is neutral w.r.t.
+     fenv). These lanes will be fixed by specialcase later.  */
+  cmp = v_cond_u64 ((ir >> 52) - TinyBound >= Thresh);
+  if (unlikely (v_any_u64 (cmp)))
+    r = v_sel_f64 (cmp, v_f64 (1), r);
+#else
+  cmp = v_cond_u64 (ir >= v_as_u64_f64 (RangeVal));
+#endif
 
   /* n = rint(|x|/pi).  */
   n = v_fma_f64 (InvPi, r, Shift);
