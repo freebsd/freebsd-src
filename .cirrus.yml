@@ -73,8 +73,11 @@ task:
   - mkdir -p /usr/obj/$(pwd -P)
   - chown user:user /usr/obj/$(pwd -P)
 
-  script:
-  - su user -c "make -j$(sysctl -n hw.ncpu) CROSS_TOOLCHAIN=${TOOLCHAIN} WITHOUT_TOOLCHAIN=yes buildworld buildkernel"
+  build_world_script:
+  - su user -c "make -j$(sysctl -n hw.ncpu) CROSS_TOOLCHAIN=${TOOLCHAIN} WITHOUT_TOOLCHAIN=yes buildworld"
+
+  build_kernel_script:
+  - su user -c "make -j$(sysctl -n hw.ncpu) CROSS_TOOLCHAIN=${TOOLCHAIN} WITHOUT_TOOLCHAIN=yes buildkernel"
 
   package_script:
   - su user -c "make CROSS_TOOLCHAIN=${TOOLCHAIN} WITHOUT_TOOLCHAIN=yes packages"
