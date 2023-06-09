@@ -22,14 +22,16 @@
 /* Should we define BN_DIV2W here? */
 
 /* Only one for the following should be defined */
-#ifdef __LP64__
-#define SIXTY_FOUR_BIT_LONG
-#undef SIXTY_FOUR_BIT
-#undef THIRTY_TWO_BIT
-#else
-#undef SIXTY_FOUR_BIT_LONG
-#undef SIXTY_FOUR_BIT
-#define THIRTY_TWO_BIT
-#endif
+# if __SIZEOF_LONG__ == 8
+#  define SIXTY_FOUR_BIT_LONG
+#  undef SIXTY_FOUR_BIT
+#  undef THIRTY_TWO_BIT
+# elif __SIZEOF_LONG__ == 4
+#  undef SIXTY_FOUR_BIT_LONG
+#  undef SIXTY_FOUR_BIT
+#  define THIRTY_TWO_BIT
+# else
+#  error Unsupported size of long
+# endif
 
 #endif
