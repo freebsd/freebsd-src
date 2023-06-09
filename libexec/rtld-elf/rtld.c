@@ -5511,7 +5511,7 @@ allocate_module_tls(int index)
 
 	if (obj->tls_static) {
 #ifdef TLS_VARIANT_I
-		p = (char *)_tcb_get() + obj->tlsoffset;
+		p = (char *)_tcb_get() + obj->tlsoffset + TLS_TCB_SIZE;
 #else
 		p = (char *)_tcb_get() - obj->tlsoffset;
 #endif
