@@ -1,7 +1,7 @@
 // polynomial for approximating 2^x
 //
 // Copyright (c) 2019, Arm Limited.
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
 
 // exp2f parameters
 deg = 3; // poly degree

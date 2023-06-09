@@ -1,8 +1,8 @@
 /*
  * Vector math abstractions.
  *
- * Copyright (c) 2019-2020, Arm Limited.
- * SPDX-License-Identifier: MIT
+ * Copyright (c) 2019-2022, Arm Limited.
+ * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 #ifndef _V_MATH_H
@@ -191,6 +191,11 @@ v_round_s32 (v_f32_t x)
 {
   return __builtin_lroundf (x); /* relies on -fno-math-errno.  */
 }
+static inline v_f32_t
+v_sel_f32 (v_u32_t p, v_f32_t x, v_f32_t y)
+{
+  return p ? x : y;
+}
 /* convert to type1 from type2.  */
 static inline v_f32_t
 v_to_f32_s32 (v_s32_t x)
@@ -310,6 +315,11 @@ static inline v_s64_t
 v_round_s64 (v_f64_t x)
 {
   return __builtin_lround (x); /* relies on -fno-math-errno.  */
+}
+static inline v_f64_t
+v_sel_f64 (v_u64_t p, v_f64_t x, v_f64_t y)
+{
+  return p ? x : y;
 }
 /* convert to type1 from type2.  */
 static inline v_f64_t
@@ -460,6 +470,11 @@ v_round_s32 (v_f32_t x)
 {
   return vcvtaq_s32_f32 (x);
 }
+static inline v_f32_t
+v_sel_f32 (v_u32_t p, v_f32_t x, v_f32_t y)
+{
+  return vbslq_f32 (p, x, y);
+}
 /* convert to type1 from type2.  */
 static inline v_f32_t
 v_to_f32_s32 (v_s32_t x)
@@ -583,6 +598,11 @@ static inline v_s64_t
 v_round_s64 (v_f64_t x)
 {
   return vcvtaq_s64_f64 (x);
+}
+static inline v_f64_t
+v_sel_f64 (v_u64_t p, v_f64_t x, v_f64_t y)
+{
+  return vbslq_f64 (p, x, y);
 }
 /* convert to type1 from type2.  */
 static inline v_f64_t

@@ -1,7 +1,7 @@
 # Makefile fragment - requires GNU make
 #
-# Copyright (c) 2019, Arm Limited.
-# SPDX-License-Identifier: MIT
+# Copyright (c) 2019-2022, Arm Limited.
+# SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
 
 S := $(srcdir)/math
 B := build/math
@@ -15,6 +15,7 @@ math-test-srcs := \
 math-test-host-srcs := $(wildcard $(S)/test/rtest/*.[cS])
 
 math-includes := $(patsubst $(S)/%,build/%,$(wildcard $(S)/include/*.h))
+math-test-includes := $(patsubst $(S)/%,build/include/%,$(wildcard $(S)/test/*.h))
 
 math-libs := \
 	build/lib/libmathlib.so \
@@ -42,10 +43,11 @@ math-files := \
 	$(math-tools) \
 	$(math-host-tools) \
 	$(math-includes) \
+	$(math-test-includes) \
 
-all-math: $(math-libs) $(math-tools) $(math-includes)
+all-math: $(math-libs) $(math-tools) $(math-includes) $(math-test-includes)
 
-$(math-objs): $(math-includes)
+$(math-objs): $(math-includes) $(math-test-includes)
 $(math-objs): CFLAGS_ALL += $(math-cflags)
 $(B)/test/mathtest.o: CFLAGS_ALL += -fmath-errno
 $(math-host-objs): CC = $(HOST_CC)
@@ -83,6 +85,9 @@ build/bin/ulp: $(B)/test/ulp.o build/lib/libmathlib.a
 build/include/%.h: $(S)/include/%.h
 	cp $< $@
 
+build/include/test/%.h: $(S)/test/%.h
+	cp $< $@
+
 build/bin/%.sh: $(S)/test/%.sh
 	cp $< $@
 
@@ -96,7 +101,7 @@ check-math-rtest: $(math-host-tools) $(math-tools)
 	cat $(math-rtests) | build/bin/rtest | $(EMULATOR) build/bin/mathtest $(math-testflags)
 
 check-math-ulp: $(math-tools)
-	ULPFLAGS="$(math-ulpflags)" build/bin/runulp.sh $(EMULATOR)
+	ULPFLAGS="$(math-ulpflags)" WANT_SIMD_EXCEPT="$(WANT_SIMD_EXCEPT)" build/bin/runulp.sh $(EMULATOR)
 
 check-math: check-math-test check-math-rtest check-math-ulp
 

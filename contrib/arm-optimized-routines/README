@@ -2,14 +2,17 @@ Arm Optimized Routines
 ----------------------
 
 This repository contains implementations of library functions
-provided by Arm under MIT License (See LICENSE). Contributions
-to this project are accepted, but Contributors have to sign an
-Assignment Agreement, please follow the instructions in
+provided by Arm. The outbound license is available under a dual
+license, at the user’s election, as reflected in the LICENSE file.
+Contributions to this project are accepted, but Contributors have
+to sign an Assignment Agreement, please follow the instructions in
 contributor-agreement.pdf. This is needed so upstreaming code
-to projects that require copyright assignment is possible.
+to projects that require copyright assignment is possible. Further
+contribution requirements are documented in README.contributors of
+the appropriate subdirectory.
 
 Regular quarterly releases are tagged as vYY.MM, the latest
-release is v21.02.
+release is v23.01.
 
 Source code layout:
 
@@ -24,6 +27,7 @@ networking/test/ - networking test and benchmark related sources.
 string/         - string routines subproject sources.
 string/include/ - string library public headers.
 string/test/    - string test and benchmark related sources.
+pl/...          - separately maintained performance library code.
 
 The steps to build the target libraries and run the tests:
 

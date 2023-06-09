@@ -2,7 +2,7 @@
  * __mtag_tag_zero_region test.
  *
  * Copyright (c) 2021, Arm Limited.
- * SPDX-License-Identifier: MIT
+ * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 #if __ARM_FEATURE_MEMORY_TAGGING && WANT_MTE_TEST

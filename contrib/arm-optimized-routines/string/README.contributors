@@ -1,0 +1,30 @@
+STYLE REQUIREMENTS
+==================
+
+1. Most code in this sub-directory is expected to be upstreamed into glibc so
+   the GNU Coding Standard and glibc specific conventions should be followed
+   to ease upstreaming.
+
+2. ABI and symbols: the code should be written so it is suitable for inclusion
+   into a libc with minimal changes. This e.g. means that internal symbols
+   should be hidden and in the implementation reserved namespace according to
+   ISO C and POSIX rules. If possible the built shared libraries and static
+   library archives should be usable to override libc symbols at link time (or
+   at runtime via LD_PRELOAD). This requires the symbols to follow the glibc ABI
+   (other than symbol versioning), this cannot be done reliably for static
+   linking so this is a best effort requirement.
+
+3. API: include headers should be suitable for benchmarking and testing code
+   and should not conflict with libc headers.
+
+
+CONTRIBUTION GUIDELINES FOR string SUB-DIRECTORY
+================================================
+1. Code:
+   - The assumptions of the code must be clearly documented.
+
+   - Assembly style should be consistent across different implementations.
+
+
+2. Performance:
+   - Benchmarking is needed on several microarchitectures.

@@ -2,7 +2,7 @@
  * Shared data between erf and erfc.
  *
  * Copyright (c) 2019-2020, Arm Limited.
- * SPDX-License-Identifier: MIT
+ * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 #include "math_config.h"
