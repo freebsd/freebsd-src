@@ -392,6 +392,8 @@ xen_arch_intr_add_handler(const char *name, driver_filter_t filter,
 	if (error != 0)
 		return (error);
 
+	++isrc->xi_arch.isrc_handlers;
+
 	/* Enable the event channel */
 	xen_intr_enable_intr(isrc);
 	xen_intr_enable_source(isrc);
