@@ -75,6 +75,10 @@ C_flag_body()
 	    hexdump -C "$(atf_get_srcdir)/d_hexdump_b.in"
 	atf_check -o file:"$(atf_get_srcdir)/d_hexdump_UCflag_c.out" \
 	    hexdump -C "$(atf_get_srcdir)/d_hexdump_c.in"
+	atf_check -o file:"$(atf_get_srcdir)/d_hexdump_UCflag_bug118723.out" \
+	    hexdump -C "$(atf_get_srcdir)/d_hexdump_bug118723.in"
+	atf_check -o file:"$(atf_get_srcdir)/d_hexdump_UCvflag_bug118723.out" \
+	    hexdump -Cv "$(atf_get_srcdir)/d_hexdump_bug118723.in"
 }
 
 atf_test_case hd_name
@@ -90,6 +94,10 @@ hd_name_body()
 	    hd "$(atf_get_srcdir)/d_hexdump_b.in"
 	atf_check -o file:"$(atf_get_srcdir)/d_hexdump_UCflag_c.out" \
 	    hd "$(atf_get_srcdir)/d_hexdump_c.in"
+	atf_check -o file:"$(atf_get_srcdir)/d_hexdump_UCflag_bug118723.out" \
+	    hd "$(atf_get_srcdir)/d_hexdump_bug118723.in"
+	atf_check -o file:"$(atf_get_srcdir)/d_hexdump_UCvflag_bug118723.out" \
+	    hd -v "$(atf_get_srcdir)/d_hexdump_bug118723.in"
 }
 
 atf_test_case d_flag

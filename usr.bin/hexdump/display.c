@@ -271,7 +271,7 @@ get(void)
 			 * XXX bcmp() is not quite right in the presence
 			 * of multibyte characters.
 			 */
-			if (vflag != ALL && 
+			if (need == 0 && vflag != ALL &&
 			    valid_save && 
 			    bcmp(curp, savp, nread) == 0) {
 				if (vflag != DUP) {
