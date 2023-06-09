@@ -118,7 +118,7 @@ struct intr_pic_child {
 
 /* Interrupt controller definition. */
 struct intr_pic {
-	SLIST_ENTRY(intr_pic)	pic_next;
+	STAILQ_ENTRY(intr_pic)	pic_next;
 	intptr_t		pic_xref;	/* hardware identification */
 	device_t		pic_dev;
 /* Only one of FLAG_PIC or FLAG_MSI may be set */
@@ -147,7 +147,7 @@ static bool intr_ipi_dev_frozen;
 #endif
 
 static struct mtx pic_list_lock;
-static SLIST_HEAD(, intr_pic) pic_list;
+static STAILQ_HEAD(, intr_pic) pic_list;
 
 static struct intr_pic *pic_lookup(device_t dev, intptr_t xref, u_int flags);
 
@@ -191,7 +191,7 @@ static void
 intr_irq_init(void *dummy __unused)
 {
 
-	SLIST_INIT(&pic_list);
+	STAILQ_INIT(&pic_list);
 	mtx_init(&pic_list_lock, "intr pic list", NULL, MTX_DEF);
 
 	mtx_init(&isrc_table_lock, "intr isrc table", NULL, MTX_DEF);
@@ -754,7 +754,7 @@ pic_lookup_locked(device_t dev, intptr_t xref, u_int flags)
 		return (NULL);
 
 	/* Note that pic->pic_dev is never NULL on registered PIC. */
-	SLIST_FOREACH(pic, &pic_list, pic_next) {
+	STAILQ_FOREACH(pic, &pic_list, pic_next) {
 		if ((pic->pic_flags & flags & FLAG_TYPE_MASK) !=
 		    (flags & FLAG_TYPE_MASK))
 			continue;
@@ -828,7 +828,7 @@ pic_create(device_t dev, intptr_t xref, u_int flags)
 	pic->pic_dev = dev;
 	pic->pic_flags = flags;
 	mtx_init(&pic->pic_child_lock, "pic child lock", NULL, MTX_SPIN);
-	SLIST_INSERT_HEAD(&pic_list, pic, pic_next);
+	STAILQ_INSERT_TAIL(&pic_list, pic, pic_next);
 	mtx_unlock(&pic_list_lock);
 
 	return (pic);
@@ -848,7 +848,7 @@ pic_destroy(device_t dev, intptr_t xref, u_int flags)
 		mtx_unlock(&pic_list_lock);
 		return;
 	}
-	SLIST_REMOVE(&pic_list, pic, intr_pic, pic_next);
+	STAILQ_REMOVE(&pic_list, pic, intr_pic, pic_next);
 	mtx_unlock(&pic_list_lock);
 
 	free(pic, M_INTRNG);
