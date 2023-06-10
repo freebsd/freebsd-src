@@ -63,7 +63,7 @@ struct mhi_device {
 };
 
 struct mhi_controller_config {
-	struct mhi_channel_config	*ch_cfg;
+	const struct mhi_channel_config	*ch_cfg;
 	struct mhi_event_config		*event_cfg;
 
 	int	buf_len, max_channels, num_channels, num_events, use_bounce_buf;
@@ -102,7 +102,7 @@ struct mhi_controller {
 struct mhi_controller *linuxkpi_mhi_alloc_controller(void);
 void linuxkpi_mhi_free_controller(struct mhi_controller *);
 int linuxkpi_mhi_register_controller(struct mhi_controller *,
-    struct mhi_controller_config *);
+    const struct mhi_controller_config *);
 void linuxkpi_mhi_unregister_controller(struct mhi_controller *);
 
 /* -------------------------------------------------------------------------- */
@@ -124,7 +124,7 @@ mhi_free_controller(struct mhi_controller *mhi_ctrl)
 
 static inline int
 mhi_register_controller(struct mhi_controller *mhi_ctrl,
-    struct mhi_controller_config *cfg)
+    const struct mhi_controller_config *cfg)
 {
 
 	return (linuxkpi_mhi_register_controller(mhi_ctrl, cfg));
@@ -191,6 +191,13 @@ mhi_unprepare_after_power_down(struct mhi_controller *mhi_ctrl)
 
 static __inline int
 mhi_pm_suspend(struct mhi_controller *mhi_ctrl)
+{
+	/* XXX TODO */
+	return (0);
+}
+
+static __inline int
+mhi_pm_resume(struct mhi_controller *mhi_ctrl)
 {
 	/* XXX TODO */
 	return (0);
