@@ -43,8 +43,9 @@ __FBSDID("$FreeBSD$");
 #ifdef LINUXKPI_DEBUG_80211
 #define	LKPI_80211_TRACE_MO(fmt, ...)					\
     if (linuxkpi_debug_80211 & D80211_TRACE_MO)				\
-	printf("LKPI_80211_TRACE_MO %s:%d:_" fmt "\n",			\
-	    __func__, __LINE__, __VA_ARGS__)
+	printf("LKPI_80211_TRACE_MO %s:%d: %d %d %u_" fmt "\n",		\
+	    __func__, __LINE__, curcpu, curthread->td_tid,		\
+	    (unsigned int)ticks, __VA_ARGS__)
 #else
 #define	LKPI_80211_TRACE_MO(...)	do { } while(0)
 #endif
@@ -215,18 +216,22 @@ lkpi_80211_mo_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct lkpi_hw *lhw;
 	int error;
 
+	/*
+	 * MUST NOT return EPERM as that is a "magic number 1" based on rtw88
+	 * driver indicating hw_scan is not supported despite the ops call
+	 * being available.
+	 */
+
 	lhw = HW_TO_LHW(hw);
 	if (lhw->ops->hw_scan == NULL) {
-		/* XXX-BZ can we hide other scans like we can for sta_add..? */
-		error = EOPNOTSUPP;
+		/* Return magic number to use sw scan. */
+		error = 1;
 		goto out;
 	}
 
-	lhw->scan_flags |= LKPI_LHW_SCAN_RUNNING;
-	LKPI_80211_TRACE_MO("hw %p vif %p sr %p", hw, vif, sr);
+	LKPI_80211_TRACE_MO("CALLING hw %p vif %p sr %p", hw, vif, sr);
 	error = lhw->ops->hw_scan(hw, vif, sr);
-	if (error != 0)
-		lhw->scan_flags &= ~LKPI_LHW_SCAN_RUNNING;
+	LKPI_80211_TRACE_MO("RETURNING hw %p vif %p sr %p error %d", hw, vif, sr, error);
 
 out:
 	return (error);
