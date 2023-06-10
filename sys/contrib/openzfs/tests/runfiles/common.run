@@ -128,7 +128,7 @@ tests = ['zdb_002_pos', 'zdb_003_pos', 'zdb_004_pos', 'zdb_005_pos',
     'zdb_block_size_histogram', 'zdb_checksum', 'zdb_decompress',
     'zdb_display_block', 'zdb_encrypted', 'zdb_label_checksum',
     'zdb_object_range_neg', 'zdb_object_range_pos', 'zdb_objset_id',
-    'zdb_decompress_zstd', 'zdb_recover', 'zdb_recover_2']
+    'zdb_decompress_zstd', 'zdb_recover', 'zdb_recover_2', 'zdb_backup']
 pre =
 post =
 tags = ['functional', 'cli_root', 'zdb']
@@ -472,7 +472,8 @@ tests = ['zpool_replace_001_neg', 'replace-o_ashift', 'replace_prop_ashift']
 tags = ['functional', 'cli_root', 'zpool_replace']
 
 [tests/functional/cli_root/zpool_resilver]
-tests = ['zpool_resilver_bad_args', 'zpool_resilver_restart']
+tests = ['zpool_resilver_bad_args', 'zpool_resilver_restart',
+    'zpool_resilver_concurrent']
 tags = ['functional', 'cli_root', 'zpool_resilver']
 
 [tests/functional/cli_root/zpool_scrub]

@@ -653,6 +653,9 @@
 /* qat is enabled and existed */
 /* #undef HAVE_QAT */
 
+/* struct reclaim_state has reclaimed */
+/* #undef HAVE_RECLAIM_STATE_RECLAIMED */
+
 /* register_shrinker is vararg */
 /* #undef HAVE_REGISTER_SHRINKER_VARARG */
 
@@ -1048,7 +1051,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_gad0a55461"
+#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_gfeff9dfed"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -1057,7 +1060,7 @@
 /* #undef ZFS_META_DATA */
 
 /* Define the maximum compatible kernel version. */
-#define ZFS_META_KVER_MAX "6.2"
+#define ZFS_META_KVER_MAX "6.3"
 
 /* Define the minimum compatible kernel version. */
 #define ZFS_META_KVER_MIN "3.10"
@@ -1078,7 +1081,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_gad0a55461"
+#define ZFS_META_RELEASE "FreeBSD_gfeff9dfed"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.1.99"

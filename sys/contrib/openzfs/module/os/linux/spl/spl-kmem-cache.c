@@ -182,8 +182,11 @@ kv_free(spl_kmem_cache_t *skc, void *ptr, int size)
 	 * of that infrastructure we are responsible for incrementing it.
 	 */
 	if (current->reclaim_state)
+#ifdef	HAVE_RECLAIM_STATE_RECLAIMED
+		current->reclaim_state->reclaimed += size >> PAGE_SHIFT;
+#else
 		current->reclaim_state->reclaimed_slab += size >> PAGE_SHIFT;
-
+#endif
 	vfree(ptr);
 }
 
@@ -1012,8 +1015,18 @@ spl_cache_grow(spl_kmem_cache_t *skc, int flags, void **obj)
 	ASSERT0(flags & ~KM_PUBLIC_MASK);
 	ASSERT(skc->skc_magic == SKC_MAGIC);
 	ASSERT((skc->skc_flags & KMC_SLAB) == 0);
-	might_sleep();
+
 	*obj = NULL;
+
+	/*
+	 * Since we can't sleep attempt an emergency allocation to satisfy
+	 * the request.  The only alterative is to fail the allocation but
+	 * it's preferable try.  The use of KM_NOSLEEP is expected to be rare.
+	 */
+	if (flags & KM_NOSLEEP)
+		return (spl_emergency_alloc(skc, flags, obj));
+
+	might_sleep();
 
 	/*
 	 * Before allocating a new slab wait for any reaping to complete and

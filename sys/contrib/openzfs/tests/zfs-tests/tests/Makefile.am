@@ -572,6 +572,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/cli_root/zdb/zdb_006_pos.ksh \
 	functional/cli_root/zdb/zdb_args_neg.ksh \
 	functional/cli_root/zdb/zdb_args_pos.ksh \
+	functional/cli_root/zdb/zdb_backup.ksh \
 	functional/cli_root/zdb/zdb_block_size_histogram.ksh \
 	functional/cli_root/zdb/zdb_checksum.ksh \
 	functional/cli_root/zdb/zdb_decompress.ksh \
@@ -1142,6 +1143,7 @@ nobase_dist_datadir_zfs_tests_tests_SCRIPTS += \
 	functional/cli_root/zpool_resilver/setup.ksh \
 	functional/cli_root/zpool_resilver/zpool_resilver_bad_args.ksh \
 	functional/cli_root/zpool_resilver/zpool_resilver_restart.ksh \
+	functional/cli_root/zpool_resilver/zpool_resilver_concurrent.ksh \
 	functional/cli_root/zpool_scrub/cleanup.ksh \
 	functional/cli_root/zpool_scrub/setup.ksh \
 	functional/cli_root/zpool_scrub/zpool_scrub_001_neg.ksh \

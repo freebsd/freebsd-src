@@ -965,7 +965,7 @@ static void l2arc_hdr_restore(const l2arc_log_ent_phys_t *le,
     l2arc_dev_t *dev);
 
 /* L2ARC persistence write I/O routines. */
-static void l2arc_log_blk_commit(l2arc_dev_t *dev, zio_t *pio,
+static uint64_t l2arc_log_blk_commit(l2arc_dev_t *dev, zio_t *pio,
     l2arc_write_callback_t *cb);
 
 /* L2ARC persistence auxiliary routines. */
@@ -6106,8 +6106,7 @@ top:
 				    asize, abd,
 				    ZIO_CHECKSUM_OFF,
 				    l2arc_read_done, cb, priority,
-				    zio_flags | ZIO_FLAG_DONT_CACHE |
-				    ZIO_FLAG_CANFAIL |
+				    zio_flags | ZIO_FLAG_CANFAIL |
 				    ZIO_FLAG_DONT_PROPAGATE |
 				    ZIO_FLAG_DONT_RETRY, B_FALSE);
 				acb->acb_zio_head = rzio;
@@ -7866,8 +7865,7 @@ arc_fini(void)
 	taskq_destroy(arc_prune_taskq);
 
 	mutex_enter(&arc_prune_mtx);
-	while ((p = list_head(&arc_prune_list)) != NULL) {
-		list_remove(&arc_prune_list, p);
+	while ((p = list_remove_head(&arc_prune_list)) != NULL) {
 		zfs_refcount_remove(&p->p_refcnt, &arc_prune_list);
 		zfs_refcount_destroy(&p->p_refcnt);
 		kmem_free(p, sizeof (*p));
@@ -8175,7 +8173,7 @@ l2arc_write_eligible(uint64_t spa_guid, arc_buf_hdr_t *hdr)
 static uint64_t
 l2arc_write_size(l2arc_dev_t *dev)
 {
-	uint64_t size, dev_size, tsize;
+	uint64_t size;
 
 	/*
 	 * Make sure our globals have meaningful values in case the user
@@ -8192,35 +8190,45 @@ l2arc_write_size(l2arc_dev_t *dev)
 	if (arc_warm == B_FALSE)
 		size += l2arc_write_boost;
 
-	/*
-	 * Make sure the write size does not exceed the size of the cache
-	 * device. This is important in l2arc_evict(), otherwise infinite
-	 * iteration can occur.
-	 */
-	dev_size = dev->l2ad_end - dev->l2ad_start;
-
 	/* We need to add in the worst case scenario of log block overhead. */
-	tsize = size + l2arc_log_blk_overhead(size, dev);
+	size += l2arc_log_blk_overhead(size, dev);
 	if (dev->l2ad_vdev->vdev_has_trim && l2arc_trim_ahead > 0) {
 		/*
 		 * Trim ahead of the write size 64MB or (l2arc_trim_ahead/100)
 		 * times the writesize, whichever is greater.
 		 */
-		tsize += MAX(64 * 1024 * 1024,
-		    (tsize * l2arc_trim_ahead) / 100);
+		size += MAX(64 * 1024 * 1024,
+		    (size * l2arc_trim_ahead) / 100);
 	}
 
-	if (tsize >= dev_size) {
+	/*
+	 * Make sure the write size does not exceed the size of the cache
+	 * device. This is important in l2arc_evict(), otherwise infinite
+	 * iteration can occur.
+	 */
+	if (size > dev->l2ad_end - dev->l2ad_start) {
 		cmn_err(CE_NOTE, "l2arc_write_max or l2arc_write_boost "
 		    "plus the overhead of log blocks (persistent L2ARC, "
 		    "%llu bytes) exceeds the size of the cache device "
 		    "(guid %llu), resetting them to the default (%d)",
 		    (u_longlong_t)l2arc_log_blk_overhead(size, dev),
 		    (u_longlong_t)dev->l2ad_vdev->vdev_guid, L2ARC_WRITE_SIZE);
+
 		size = l2arc_write_max = l2arc_write_boost = L2ARC_WRITE_SIZE;
+
+		if (l2arc_trim_ahead > 1) {
+			cmn_err(CE_NOTE, "l2arc_trim_ahead set to 1");
+			l2arc_trim_ahead = 1;
+		}
 
 		if (arc_warm == B_FALSE)
 			size += l2arc_write_boost;
+
+		size += l2arc_log_blk_overhead(size, dev);
+		if (dev->l2ad_vdev->vdev_has_trim && l2arc_trim_ahead > 0) {
+			size += MAX(64 * 1024 * 1024,
+			    (size * l2arc_trim_ahead) / 100);
+		}
 	}
 
 	return (size);
@@ -8319,20 +8327,14 @@ out:
 static void
 l2arc_do_free_on_write(void)
 {
-	list_t *buflist;
-	l2arc_data_free_t *df, *df_prev;
+	l2arc_data_free_t *df;
 
 	mutex_enter(&l2arc_free_on_write_mtx);
-	buflist = l2arc_free_on_write;
-
-	for (df = list_tail(buflist); df; df = df_prev) {
-		df_prev = list_prev(buflist, df);
+	while ((df = list_remove_head(l2arc_free_on_write)) != NULL) {
 		ASSERT3P(df->l2df_abd, !=, NULL);
 		abd_free(df->l2df_abd);
-		list_remove(buflist, df);
 		kmem_free(df, sizeof (l2arc_data_free_t));
 	}
-
 	mutex_exit(&l2arc_free_on_write_mtx);
 }
 
@@ -8845,7 +8847,7 @@ l2arc_evict(l2arc_dev_t *dev, uint64_t distance, boolean_t all)
 
 top:
 	rerun = B_FALSE;
-	if (dev->l2ad_hand >= (dev->l2ad_end - distance)) {
+	if (dev->l2ad_hand + distance > dev->l2ad_end) {
 		/*
 		 * When there is no space to accommodate upcoming writes,
 		 * evict to the end. Then bump the write and evict hands
@@ -9039,7 +9041,7 @@ out:
 		 */
 		ASSERT3U(dev->l2ad_hand + distance, <, dev->l2ad_end);
 		if (!dev->l2ad_first)
-			ASSERT3U(dev->l2ad_hand, <, dev->l2ad_evict);
+			ASSERT3U(dev->l2ad_hand, <=, dev->l2ad_evict);
 	}
 }
 
@@ -9299,7 +9301,13 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz)
 			uint64_t asize = vdev_psize_to_asize(dev->l2ad_vdev,
 			    psize);
 
-			if ((write_asize + asize) > target_sz) {
+			/*
+			 * If the allocated size of this buffer plus the max
+			 * size for the pending log block exceeds the evicted
+			 * target size, terminate writing buffers for this run.
+			 */
+			if (write_asize + asize +
+			    sizeof (l2arc_log_blk_phys_t) > target_sz) {
 				full = B_TRUE;
 				mutex_exit(hash_lock);
 				break;
@@ -9413,8 +9421,14 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz)
 			 * arcstat_l2_{size,asize} kstats are updated
 			 * internally.
 			 */
-			if (l2arc_log_blk_insert(dev, hdr))
-				l2arc_log_blk_commit(dev, pio, cb);
+			if (l2arc_log_blk_insert(dev, hdr)) {
+				/*
+				 * l2ad_hand will be adjusted in
+				 * l2arc_log_blk_commit().
+				 */
+				write_asize +=
+				    l2arc_log_blk_commit(dev, pio, cb);
+			}
 
 			zio_nowait(wzio);
 		}
@@ -10173,8 +10187,7 @@ l2arc_dev_hdr_read(l2arc_dev_t *dev)
 	err = zio_wait(zio_read_phys(NULL, dev->l2ad_vdev,
 	    VDEV_LABEL_START_SIZE, l2dhdr_asize, abd,
 	    ZIO_CHECKSUM_LABEL, NULL, NULL, ZIO_PRIORITY_SYNC_READ,
-	    ZIO_FLAG_DONT_CACHE | ZIO_FLAG_CANFAIL |
-	    ZIO_FLAG_DONT_PROPAGATE | ZIO_FLAG_DONT_RETRY |
+	    ZIO_FLAG_CANFAIL | ZIO_FLAG_DONT_PROPAGATE | ZIO_FLAG_DONT_RETRY |
 	    ZIO_FLAG_SPECULATIVE, B_FALSE));
 
 	abd_free(abd);
@@ -10494,11 +10507,10 @@ l2arc_log_blk_fetch(vdev_t *vd, const l2arc_log_blkptr_t *lbp,
 	cb = kmem_zalloc(sizeof (l2arc_read_callback_t), KM_SLEEP);
 	cb->l2rcb_abd = abd_get_from_buf(lb, asize);
 	pio = zio_root(vd->vdev_spa, l2arc_blk_fetch_done, cb,
-	    ZIO_FLAG_DONT_CACHE | ZIO_FLAG_CANFAIL | ZIO_FLAG_DONT_PROPAGATE |
-	    ZIO_FLAG_DONT_RETRY);
+	    ZIO_FLAG_CANFAIL | ZIO_FLAG_DONT_PROPAGATE | ZIO_FLAG_DONT_RETRY);
 	(void) zio_nowait(zio_read_phys(pio, vd, lbp->lbp_daddr, asize,
 	    cb->l2rcb_abd, ZIO_CHECKSUM_OFF, NULL, NULL,
-	    ZIO_PRIORITY_ASYNC_READ, ZIO_FLAG_DONT_CACHE | ZIO_FLAG_CANFAIL |
+	    ZIO_PRIORITY_ASYNC_READ, ZIO_FLAG_CANFAIL |
 	    ZIO_FLAG_DONT_PROPAGATE | ZIO_FLAG_DONT_RETRY, B_FALSE));
 
 	return (pio);
@@ -10564,7 +10576,7 @@ l2arc_dev_hdr_update(l2arc_dev_t *dev)
  * This function allocates some memory to temporarily hold the serialized
  * buffer to be written. This is then released in l2arc_write_done.
  */
-static void
+static uint64_t
 l2arc_log_blk_commit(l2arc_dev_t *dev, zio_t *pio, l2arc_write_callback_t *cb)
 {
 	l2arc_log_blk_phys_t	*lb = &dev->l2ad_log_blk;
@@ -10675,6 +10687,8 @@ l2arc_log_blk_commit(l2arc_dev_t *dev, zio_t *pio, l2arc_write_callback_t *cb)
 	dev->l2ad_log_ent_idx = 0;
 	dev->l2ad_log_blk_payload_asize = 0;
 	dev->l2ad_log_blk_payload_start = 0;
+
+	return (asize);
 }
 
 /*

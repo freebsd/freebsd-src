@@ -1955,7 +1955,7 @@ setup_featureflags(struct dmu_send_params *dspp, objset_t *os,
 {
 	dsl_dataset_t *to_ds = dspp->to_ds;
 	dsl_pool_t *dp = dspp->dp;
-#ifdef _KERNEL
+
 	if (dmu_objset_type(os) == DMU_OST_ZFS) {
 		uint64_t version;
 		if (zfs_get_zplprop(os, ZFS_PROP_VERSION, &version) != 0)
@@ -1964,7 +1964,6 @@ setup_featureflags(struct dmu_send_params *dspp, objset_t *os,
 		if (version >= ZPL_VERSION_SA)
 			*featureflags |= DMU_BACKUP_FEATURE_SA_SPILL;
 	}
-#endif
 
 	/* raw sends imply large_block_ok */
 	if ((dspp->rawok || dspp->large_block_ok) &&
@@ -2793,6 +2792,7 @@ dmu_send(const char *tosnap, const char *fromsnap, boolean_t embedok,
 			}
 
 			if (err == 0) {
+				owned = B_TRUE;
 				err = zap_lookup(dspp.dp->dp_meta_objset,
 				    dspp.to_ds->ds_object,
 				    DS_FIELD_RESUME_TOGUID, 8, 1,
@@ -2806,21 +2806,24 @@ dmu_send(const char *tosnap, const char *fromsnap, boolean_t embedok,
 				    sizeof (dspp.saved_toname),
 				    dspp.saved_toname);
 			}
-			if (err != 0)
+			/* Only disown if there was an error in the lookups */
+			if (owned && (err != 0))
 				dsl_dataset_disown(dspp.to_ds, dsflags, FTAG);
 
 			kmem_strfree(name);
 		} else {
 			err = dsl_dataset_own(dspp.dp, tosnap, dsflags,
 			    FTAG, &dspp.to_ds);
+			if (err == 0)
+				owned = B_TRUE;
 		}
-		owned = B_TRUE;
 	} else {
 		err = dsl_dataset_hold_flags(dspp.dp, tosnap, dsflags, FTAG,
 		    &dspp.to_ds);
 	}
 
 	if (err != 0) {
+		/* Note: dsl dataset is not owned at this point */
 		dsl_pool_rele(dspp.dp, FTAG);
 		return (err);
 	}
