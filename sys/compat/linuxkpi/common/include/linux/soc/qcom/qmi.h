@@ -54,6 +54,7 @@ struct qmi_handle;
 
 enum soc_qcom_qmi_array_type {
 	NO_ARRAY,
+	STATIC_ARRAY,
 	VAR_LEN_ARRAY,
 };
 
