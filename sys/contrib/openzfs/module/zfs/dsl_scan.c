@@ -234,7 +234,7 @@ static int zfs_resilver_disable_defer = B_FALSE;
 static int zfs_free_bpobj_enabled = 1;
 
 /* Error blocks to be scrubbed in one txg. */
-uint_t zfs_scrub_error_blocks_per_txg = 1 << 12;
+static uint_t zfs_scrub_error_blocks_per_txg = 1 << 12;
 
 /* the order has to match pool_scan_type */
 static scan_cb_t *scan_funcs[POOL_SCAN_FUNCS] = {
@@ -3437,10 +3437,8 @@ scan_io_queues_run_one(void *arg)
 	 * If we were suspended in the middle of processing,
 	 * requeue any unfinished sios and exit.
 	 */
-	while ((sio = list_head(&sio_list)) != NULL) {
-		list_remove(&sio_list, sio);
+	while ((sio = list_remove_head(&sio_list)) != NULL)
 		scan_io_queue_insert_impl(queue, sio);
-	}
 
 	queue->q_zio = NULL;
 	mutex_exit(q_lock);
@@ -4877,6 +4875,7 @@ scan_exec_io(dsl_pool_t *dp, const blkptr_t *bp, int zio_flags,
  * with single operation.  Plus it makes scrubs more sequential and reduces
  * chances that minor extent change move it within the B-tree.
  */
+__attribute__((always_inline)) inline
 static int
 ext_size_compare(const void *x, const void *y)
 {
@@ -4885,13 +4884,17 @@ ext_size_compare(const void *x, const void *y)
 	return (TREE_CMP(*a, *b));
 }
 
+ZFS_BTREE_FIND_IN_BUF_FUNC(ext_size_find_in_buf, uint64_t,
+    ext_size_compare)
+
 static void
 ext_size_create(range_tree_t *rt, void *arg)
 {
 	(void) rt;
 	zfs_btree_t *size_tree = arg;
 
-	zfs_btree_create(size_tree, ext_size_compare, sizeof (uint64_t));
+	zfs_btree_create(size_tree, ext_size_compare, ext_size_find_in_buf,
+	    sizeof (uint64_t));
 }
 
 static void

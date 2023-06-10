@@ -88,14 +88,11 @@ zfs_refcount_destroy_many(zfs_refcount_t *rc, uint64_t number)
 	reference_t *ref;
 
 	ASSERT3U(rc->rc_count, ==, number);
-	while ((ref = list_head(&rc->rc_list))) {
-		list_remove(&rc->rc_list, ref);
+	while ((ref = list_remove_head(&rc->rc_list)))
 		kmem_cache_free(reference_cache, ref);
-	}
 	list_destroy(&rc->rc_list);
 
-	while ((ref = list_head(&rc->rc_removed))) {
-		list_remove(&rc->rc_removed, ref);
+	while ((ref = list_remove_head(&rc->rc_removed))) {
 		kmem_cache_free(reference_history_cache, ref->ref_removed);
 		kmem_cache_free(reference_cache, ref);
 	}
@@ -151,6 +148,15 @@ zfs_refcount_add(zfs_refcount_t *rc, const void *holder)
 	return (zfs_refcount_add_many(rc, 1, holder));
 }
 
+void
+zfs_refcount_add_few(zfs_refcount_t *rc, uint64_t number, const void *holder)
+{
+	if (!rc->rc_tracked)
+		(void) zfs_refcount_add_many(rc, number, holder);
+	else for (; number > 0; number--)
+		(void) zfs_refcount_add(rc, holder);
+}
+
 int64_t
 zfs_refcount_remove_many(zfs_refcount_t *rc, uint64_t number,
     const void *holder)
@@ -202,6 +208,15 @@ int64_t
 zfs_refcount_remove(zfs_refcount_t *rc, const void *holder)
 {
 	return (zfs_refcount_remove_many(rc, 1, holder));
+}
+
+void
+zfs_refcount_remove_few(zfs_refcount_t *rc, uint64_t number, const void *holder)
+{
+	if (!rc->rc_tracked)
+		(void) zfs_refcount_remove_many(rc, number, holder);
+	else for (; number > 0; number--)
+		(void) zfs_refcount_remove(rc, holder);
 }
 
 void
