@@ -3521,6 +3521,7 @@ linuxkpi_ieee80211_alloc_hw(size_t priv_len, const struct ieee80211_ops *ops)
 	struct ieee80211_hw *hw;
 	struct lkpi_hw *lhw;
 	struct wiphy *wiphy;
+	int ac;
 
 	/* Get us and the driver data also allocated. */
 	wiphy = wiphy_new(&linuxkpi_mac80211cfgops, sizeof(*lhw) + priv_len);
@@ -3534,6 +3535,10 @@ linuxkpi_ieee80211_alloc_hw(size_t priv_len, const struct ieee80211_ops *ops)
 	LKPI_80211_LHW_SCAN_LOCK_INIT(lhw);
 	sx_init_flags(&lhw->lvif_sx, "lhw-lvif", SX_RECURSE | SX_DUPOK);
 	TAILQ_INIT(&lhw->lvif_head);
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+		lhw->txq_generation[ac] = 1;
+		TAILQ_INIT(&lhw->scheduled_txqs[ac]);
+	}
 
 	/*
 	 * XXX-BZ TODO make sure there is a "_null" function to all ops
