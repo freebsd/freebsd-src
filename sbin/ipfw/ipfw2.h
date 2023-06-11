@@ -48,6 +48,7 @@ struct cmdline_opts {
 	int	test_only;	/* only check syntax */
 	int	comment_only;	/* only print action and comment */
 	int	verbose;	/* be verbose on some commands */
+	int	debug_only;	/* output ioctl i/o on stdout */
 
 	/* The options below can have multiple values. */
 

@@ -587,6 +587,13 @@ stringnum_cmp(const char *a, const char *b)
 	return (strcmp(a, b));
 }
 
+struct debug_header {
+	uint16_t cmd_type;
+	uint16_t spare1;
+	uint32_t opt_name;
+	uint32_t total_len;
+	uint32_t spare2;
+};
 
 /*
  * conditionally runs the command.
@@ -597,8 +604,18 @@ do_cmd(int optname, void *optval, uintptr_t optlen)
 {
 	int i;
 
+	if (g_co.debug_only) {
+		struct debug_header dbg = {
+			.cmd_type = 1,
+			.opt_name = optname,
+			.total_len = optlen + sizeof(struct debug_header),
+		};
+		write(1, &dbg, sizeof(dbg));
+		write(1, optval, optlen);
+	}
+
 	if (g_co.test_only)
-		return 0;
+		return (0);
 
 	if (ipfw_socket == -1)
 		ipfw_socket = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
@@ -617,7 +634,7 @@ do_cmd(int optname, void *optval, uintptr_t optlen)
 	} else {
 		i = setsockopt(ipfw_socket, IPPROTO_IP, optname, optval, optlen);
 	}
-	return i;
+	return (i);
 }
 
 /*
@@ -634,6 +651,18 @@ int
 do_set3(int optname, ip_fw3_opheader *op3, size_t optlen)
 {
 
+	op3->opcode = optname;
+
+	if (g_co.debug_only) {
+		struct debug_header dbg = {
+			.cmd_type = 2,
+			.opt_name = optname,
+			.total_len = optlen, sizeof(struct debug_header),
+		};
+		write(1, &dbg, sizeof(dbg));
+		write(1, op3, optlen);
+	}
+
 	if (g_co.test_only)
 		return (0);
 
@@ -642,7 +671,6 @@ do_set3(int optname, ip_fw3_opheader *op3, size_t optlen)
 	if (ipfw_socket < 0)
 		err(EX_UNAVAILABLE, "socket");
 
-	op3->opcode = optname;
 
 	return (setsockopt(ipfw_socket, IPPROTO_IP, IP_FW3, op3, optlen));
 }
@@ -663,6 +691,18 @@ do_get3(int optname, ip_fw3_opheader *op3, size_t *optlen)
 	int error;
 	socklen_t len;
 
+	op3->opcode = optname;
+
+	if (g_co.debug_only) {
+		struct debug_header dbg = {
+			.cmd_type = 3,
+			.opt_name = optname,
+			.total_len = *optlen + sizeof(struct debug_header),
+		};
+		write(1, &dbg, sizeof(dbg));
+		write(1, op3, *optlen);
+	}
+
 	if (g_co.test_only)
 		return (0);
 
@@ -671,7 +711,6 @@ do_get3(int optname, ip_fw3_opheader *op3, size_t *optlen)
 	if (ipfw_socket < 0)
 		err(EX_UNAVAILABLE, "socket");
 
-	op3->opcode = optname;
 
 	len = *optlen;
 	error = getsockopt(ipfw_socket, IPPROTO_IP, IP_FW3, op3, &len);
