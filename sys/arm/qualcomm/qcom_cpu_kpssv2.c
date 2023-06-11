@@ -72,7 +72,7 @@ loop_delay(int usec)
  * This is the KPSSv2 (eg IPQ4018) regulator path for CPU
  * and shared L2 cache power-on.
  */
-boolean_t
+bool
 qcom_cpu_kpssv2_regulator_start(u_int id, phandle_t node)
 {
 	phandle_t acc_phandle, l2_phandle, saw_phandle;
