@@ -450,6 +450,8 @@
         ..
         ifconfig
         ..
+        ipfw
+        ..
         md5
         ..
         mdconfig
