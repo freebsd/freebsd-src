@@ -33,7 +33,7 @@
 .\"     @(#)mount_null.8	8.6 (Berkeley) 5/1/95
 .\" $FreeBSD$
 .\"
-.Dd December 19, 2022
+.Dd June 11, 2023
 .Dt MOUNT_NULLFS 8
 .Os
 .Sh NAME
@@ -48,7 +48,8 @@
 The
 .Nm
 utility creates a
-null layer, duplicating a sub-tree of the file system
+.Xr nullfs 5
+layer, duplicating a sub-tree of the file system
 name space under another part of the global file system namespace.
 This allows existing files and directories to be accessed
 using a different pathname.
@@ -253,6 +254,7 @@ is that vnode arguments must be manually mapped.
 .\"
 .\"
 .Sh SEE ALSO
+.Xr nullfs 5 ,
 .Xr mount 8
 .Pp
 UCLA Technical Report CSD-910056,
