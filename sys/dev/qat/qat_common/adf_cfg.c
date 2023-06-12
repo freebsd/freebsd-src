@@ -5,6 +5,8 @@
 #include "adf_cfg.h"
 #include "adf_common_drv.h"
 #include "adf_cfg_dev_dbg.h"
+#include "adf_cfg_device.h"
+#include "adf_cfg_sysctl.h"
 #include "adf_heartbeat_dbg.h"
 #include "adf_ver_dbg.h"
 #include "adf_fw_counters.h"
@@ -30,8 +32,54 @@ adf_cfg_dev_add(struct adf_accel_dev *accel_dev)
 	sx_init(&dev_cfg_data->lock, "qat cfg data");
 	accel_dev->cfg = dev_cfg_data;
 
+	/* Default device configuration initialization */
+	if (!accel_dev->is_vf) {
+
+		if (IS_QAT_GEN4(pci_get_device(GET_DEV(accel_dev)))) {
+			dev_cfg_data->num_user_processes =
+			    ADF_CFG_STATIC_CONF_USER_PROCESSES_NUM;
+
+			strncpy(dev_cfg_data->cfg_mode,
+				ADF_CFG_KERNEL_USER,
+				ADF_CFG_MAX_VAL);
+
+			if (accel_dev->accel_id % 2 == 0) {
+				strncpy(dev_cfg_data->cfg_services,
+					ADF_CFG_SYM_ASYM,
+					ADF_CFG_MAX_VAL);
+			} else {
+				strncpy(dev_cfg_data->cfg_services,
+					ADF_CFG_DC,
+					ADF_CFG_MAX_VAL);
+			}
+		} else {
+			strncpy(dev_cfg_data->cfg_mode,
+				ADF_CFG_KERNEL,
+				ADF_CFG_MAX_VAL);
+			dev_cfg_data->num_user_processes = 0;
+			strncpy(dev_cfg_data->cfg_services,
+				ADF_CFG_SYM_DC,
+				ADF_CFG_MAX_VAL);
+		}
+	} else {
+		dev_cfg_data->num_user_processes =
+		    ADF_CFG_STATIC_CONF_USER_PROCESSES_NUM;
+
+		strncpy(dev_cfg_data->cfg_mode,
+			ADF_CFG_KERNEL,
+			ADF_CFG_MAX_VAL);
+
+		strncpy(dev_cfg_data->cfg_services,
+			"sym;asym",
+			ADF_CFG_MAX_VAL);
+	}
+
+	if (adf_cfg_sysctl_add(accel_dev))
+		goto err;
+
 	if (adf_cfg_dev_dbg_add(accel_dev))
 		goto err;
+
 	if (!accel_dev->is_vf) {
 		if (adf_heartbeat_dbg_add(accel_dev))
 			goto err;
@@ -94,6 +142,7 @@ adf_cfg_dev_remove(struct adf_accel_dev *accel_dev)
 	adf_cfg_section_del_all(&dev_cfg_data->sec_list);
 	sx_xunlock(&dev_cfg_data->lock);
 
+	adf_cfg_sysctl_remove(accel_dev);
 	adf_cfg_dev_dbg_remove(accel_dev);
 	if (!accel_dev->is_vf) {
 		adf_ver_dbg_del(accel_dev);

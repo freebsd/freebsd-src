@@ -172,3 +172,19 @@ cpaDcDeflateCompressBound(const CpaInstanceHandle dcInstance,
 		return dcDeflateBoundGen2(huffType, inputSize, outputSize);
 	}
 }
+
+CpaStatus
+cpaDcLZ4CompressBound(const CpaInstanceHandle dcInstance,
+		      Cpa32U inputSize,
+		      Cpa32U *outputSize)
+{
+	return CPA_STATUS_UNSUPPORTED;
+}
+
+CpaStatus
+cpaDcLZ4SCompressBound(const CpaInstanceHandle dcInstance,
+		       Cpa32U inputSize,
+		       Cpa32U *outputSize)
+{
+	return CPA_STATUS_UNSUPPORTED;
+}

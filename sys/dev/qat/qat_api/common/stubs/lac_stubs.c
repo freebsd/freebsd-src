@@ -29,6 +29,9 @@
 #include "cpa_cy_rsa.h"
 #include "cpa_cy_ln.h"
 #include "cpa_dc.h"
+#include "cpa_dc_chain.h"
+#include "cpa_cy_ecsm2.h"
+#include "cpa_cy_kpt.h"
 #include "icp_accel_devices.h"
 #include "icp_adf_init.h"
 #include "icp_adf_transport.h"
@@ -279,6 +282,194 @@ cpaCyEcMontEdwdsPointMultiply(
     CpaBoolean *pMultiplyStatus,
     CpaFlatBuffer *pXk,
     CpaFlatBuffer *pYk)
+{
+	return CPA_STATUS_UNSUPPORTED;
+}
+
+CpaStatus
+cpaCyEcGenericPointVerify(const CpaInstanceHandle instanceHandle,
+			  const CpaCyEcPointVerifyCbFunc pCb,
+			  void *pCallbackTag,
+			  const CpaCyEcGenericPointVerifyOpData *pOpData,
+			  CpaBoolean *pVerifyStatus)
+{
+	return CPA_STATUS_UNSUPPORTED;
+}
+
+CpaStatus
+cpaCyEcGenericPointMultiply(const CpaInstanceHandle instanceHandle,
+			    const CpaCyEcPointMultiplyCbFunc pCb,
+			    void *pCallbackTag,
+			    const CpaCyEcGenericPointMultiplyOpData *pOpData,
+			    CpaBoolean *pMultiplyStatus,
+			    CpaFlatBuffer *pOutX,
+			    CpaFlatBuffer *pOutY)
+{
+	return CPA_STATUS_UNSUPPORTED;
+}
+
+CpaStatus
+cpaCyEcsm2PointMultiply(
+    const CpaInstanceHandle instanceHandle_in,
+    const CpaCyEcPointMultiplyCbFunc pEcsm2PointMulCb,
+    void *pCallbackTag,
+    const CpaCyEcsm2PointMultiplyOpData *pEcsm2PointMulOpData,
+    CpaBoolean *pMultiplyStatus,
+    CpaFlatBuffer *pXk,
+    CpaFlatBuffer *pYk)
+{
+	return CPA_STATUS_UNSUPPORTED;
+}
+
+CpaStatus
+cpaCyEcsm2GeneratorMultiply(
+    const CpaInstanceHandle instanceHandle_in,
+    const CpaCyEcPointMultiplyCbFunc pEcsm2GenMulCb,
+    void *pCallbackTag,
+    const CpaCyEcsm2GeneratorMultiplyOpData *pEcsm2GenMulOpData,
+    CpaBoolean *pMultiplyStatus,
+    CpaFlatBuffer *pXk,
+    CpaFlatBuffer *pYk)
+{
+	return CPA_STATUS_UNSUPPORTED;
+}
+
+CpaStatus
+cpaCyEcsm2PointVerify(
+    const CpaInstanceHandle instanceHandle_in,
+    const CpaCyEcPointVerifyCbFunc pEcsm2PointVeirfyCb,
+    void *pCallbackTag,
+    const CpaCyEcsm2PointVerifyOpData *pEcsm2PointVerifyOpData,
+    CpaBoolean *pPointVerifyStatus)
+{
+	return CPA_STATUS_UNSUPPORTED;
+}
+
+CpaStatus
+cpaCyEcsm2Sign(const CpaInstanceHandle instanceHandle_in,
+	       const CpaCyEcsm2SignCbFunc pEcsm2SignCb,
+	       void *pCallbackTag,
+	       const CpaCyEcsm2SignOpData *pEcsm2SignOpData,
+	       CpaBoolean *pSignStatus,
+	       CpaFlatBuffer *pR,
+	       CpaFlatBuffer *pS)
+{
+	return CPA_STATUS_UNSUPPORTED;
+}
+
+CpaStatus
+cpaCyEcsm2Verify(const CpaInstanceHandle instanceHandle_in,
+		 const CpaCyEcsm2VerifyCbFunc pEcsm2VerifyCb,
+		 void *pCallbackTag,
+		 const CpaCyEcsm2VerifyOpData *pEcsm2VerifyOpData,
+		 CpaBoolean *pVerifyStatus)
+{
+	return CPA_STATUS_UNSUPPORTED;
+}
+
+CpaStatus
+cpaCyEcsm2Encrypt(const CpaInstanceHandle instanceHandle_in,
+		  const CpaCyGenFlatBufCbFunc pEcsm2EncCb,
+		  void *pCallbackTag,
+		  const CpaCyEcsm2EncryptOpData *pEcsm2EncOpData,
+		  CpaCyEcsm2EncryptOutputData *pEcsm2EncOutputData)
+{
+	return CPA_STATUS_UNSUPPORTED;
+}
+
+CpaStatus
+cpaCyEcsm2Decrypt(const CpaInstanceHandle instanceHandle_in,
+		  const CpaCyGenFlatBufCbFunc pEcsm2DecCb,
+		  void *pCallbackTag,
+		  const CpaCyEcsm2DecryptOpData *pEcsm2DecOpData,
+		  CpaCyEcsm2DecryptOutputData *pEcsm2DecOutputData)
+{
+	return CPA_STATUS_UNSUPPORTED;
+}
+
+CpaStatus
+cpaCyEcsm2KeyExPhase1(
+    const CpaInstanceHandle instanceHandle_in,
+    const CpaCyGenFlatBufCbFunc pEcsm2KeyExPhase1Cb,
+    void *pCallbackTag,
+    const CpaCyEcsm2KeyExPhase1OpData *pEcsm2KeyExPhase1OpData,
+    CpaCyEcsm2KeyExOutputData *pEcsm2KeyExPhase1OutputData)
+{
+	return CPA_STATUS_UNSUPPORTED;
+}
+
+CpaStatus
+cpaCyEcsm2KeyExPhase2(
+    const CpaInstanceHandle instanceHandle_in,
+    const CpaCyGenFlatBufCbFunc pEcsm2KeyExPhase2Cb,
+    void *pCallbackTag,
+    const CpaCyEcsm2KeyExPhase2OpData *pEcsm2KeyExPhase2OpData,
+    CpaCyEcsm2KeyExOutputData *pEcsm2KeyExPhase2OutputData)
+{
+	return CPA_STATUS_UNSUPPORTED;
+}
+
+CpaStatus
+cpaCyEcsm2QueryStats64(const CpaInstanceHandle instanceHandle_in,
+		       CpaCyEcsm2Stats64 *pEcsm2Stats)
+{
+	return CPA_STATUS_UNSUPPORTED;
+}
+
+CpaStatus
+cpaCyKptEcdsaSignRS(const CpaInstanceHandle instanceHandle,
+		    const CpaCyEcdsaSignRSCbFunc pCb,
+		    void *pCallbackTag,
+		    const CpaCyKptEcdsaSignRSOpData *pOpData,
+		    CpaBoolean *pSignStatus,
+		    CpaFlatBuffer *pR,
+		    CpaFlatBuffer *pS,
+		    CpaCyKptUnwrapContext *pKptUnwrapContext)
+{
+	return CPA_STATUS_UNSUPPORTED;
+}
+
+CpaStatus
+cpaCyKptRsaDecrypt(const CpaInstanceHandle instanceHandle,
+		   const CpaCyGenFlatBufCbFunc pRsaDecryptCb,
+		   void *pCallbackTag,
+		   const CpaCyKptRsaDecryptOpData *pDecryptOpData,
+		   CpaFlatBuffer *pOutputData,
+		   CpaCyKptUnwrapContext *pKptUnwrapContext)
+
+{
+	return CPA_STATUS_UNSUPPORTED;
+}
+
+CpaStatus
+cpaCyKptQueryIssuingKeys(const CpaInstanceHandle instanceHandle_in,
+			 CpaFlatBuffer *pPublicX509IssueCert,
+			 CpaCyKptKeyManagementStatus *pKptStatus)
+{
+	return CPA_STATUS_UNSUPPORTED;
+}
+
+CpaStatus
+cpaCyKptQueryDeviceCredentials(const CpaInstanceHandle instanceHandle,
+			       CpaCyKptValidationKey *pDevCredential,
+			       CpaCyKptKeyManagementStatus *pKptStatus)
+{
+	return CPA_STATUS_UNSUPPORTED;
+}
+
+CpaStatus
+cpaCyKptLoadKey(CpaInstanceHandle instanceHandle,
+		CpaCyKptLoadKey *pSWK,
+		CpaCyKptHandle *keyHandle,
+		CpaCyKptKeyManagementStatus *pKptStatus)
+{
+	return CPA_STATUS_UNSUPPORTED;
+}
+
+CpaStatus
+cpaCyKptDeleteKey(CpaInstanceHandle instanceHandle,
+		  CpaCyKptHandle keyHandle,
+		  CpaCyKptKeyManagementStatus *pKptStatus)
 {
 	return CPA_STATUS_UNSUPPORTED;
 }

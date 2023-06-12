@@ -23,6 +23,7 @@
 #define ADF_RING_CSR_INT_COL_CTL 0x180
 #define ADF_RING_CSR_INT_FLAG_AND_COL 0x184
 #define ADF_RING_CSR_INT_COL_CTL_ENABLE 0x80000000
+#define ADF_RING_CSR_ADDR_OFFSET 0x0
 #define ADF_RING_BUNDLE_SIZE 0x1000
 #define ADF_GEN2_RX_RINGS_OFFSET 8
 #define ADF_GEN2_TX_RINGS_MASK 0xFF
@@ -45,6 +46,29 @@
 		   (ADF_RING_BUNDLE_SIZE * (bank)) +                           \
 		       ADF_RING_CSR_RING_CONFIG + ((ring) << 2),               \
 		   value)
+
+static inline uint64_t
+read_base(struct resource *csr_base_addr, u32 bank, u32 ring)
+{
+	u32 l_base, u_base;
+	u64 addr;
+
+	l_base = ADF_CSR_RD(csr_base_addr,
+			    (ADF_RING_BUNDLE_SIZE * bank) +
+				ADF_RING_CSR_RING_LBASE + (ring << 2));
+	u_base = ADF_CSR_RD(csr_base_addr,
+			    (ADF_RING_BUNDLE_SIZE * bank) +
+				ADF_RING_CSR_RING_UBASE + (ring << 2));
+
+	addr = (uint64_t)l_base & 0x00000000FFFFFFFFULL;
+	addr |= (uint64_t)u_base << 32 & 0xFFFFFFFF00000000ULL;
+
+	return addr;
+}
+
+#define READ_CSR_RING_BASE(csr_base_addr, bank, ring)                          \
+	read_base(csr_base_addr, bank, ring)
+
 #define WRITE_CSR_RING_BASE(csr_base_addr, bank, ring, value)                  \
 	do {                                                                   \
 		u32 l_base = 0, u_base = 0;                                    \

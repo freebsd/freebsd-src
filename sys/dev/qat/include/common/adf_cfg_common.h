@@ -88,7 +88,10 @@ enum adf_device_type {
 	DEV_200XXVF,
 	DEV_C4XXX,
 	DEV_C4XXXVF,
-	DEV_4XXX
+	DEV_D15XX,
+	DEV_D15XXVF,
+	DEV_4XXX,
+	DEV_4XXXVF
 };
 
 enum adf_cfg_fw_image_type {
@@ -196,9 +199,23 @@ struct adf_cfg_instance {
 #define ADF_CFG_DEF_ASYM_MASK 0x03
 #define ADF_CFG_MAX_SERVICES 4
 
+#define ADF_CTL_IOC_MAGIC 'a'
+#define IOCTL_STATUS_ACCEL_DEV                                                 \
+	_IOWR(ADF_CTL_IOC_MAGIC, 3, struct adf_dev_status_info)
+#define IOCTL_RESERVE_RING                                                     \
+	_IOWR(ADF_CTL_IOC_MAGIC, 10, struct adf_user_reserve_ring)
+#define IOCTL_RELEASE_RING                                                     \
+	_IOWR(ADF_CTL_IOC_MAGIC, 11, struct adf_user_reserve_ring)
+#define IOCTL_ENABLE_RING                                                      \
+	_IOWR(ADF_CTL_IOC_MAGIC, 12, struct adf_user_reserve_ring)
+#define IOCTL_DISABLE_RING                                                     \
+	_IOWR(ADF_CTL_IOC_MAGIC, 13, struct adf_user_reserve_ring)
+#define IOCTL_GET_NUM_DEVICES _IOR(ADF_CTL_IOC_MAGIC, 4, int32_t)
 #define ADF_CFG_HB_DEFAULT_VALUE 500
 #define ADF_CFG_HB_COUNT_THRESHOLD 3
 #define ADF_MIN_HB_TIMER_MS 100
+#define IOCTL_GET_CFG_VAL                                                      \
+	_IOW(ADF_CTL_IOC_MAGIC, 5, struct adf_user_cfg_ctl_data)
 
 enum adf_device_heartbeat_status {
 	DEV_HB_UNRESPONSIVE = 0,
@@ -210,4 +227,6 @@ struct adf_dev_heartbeat_status_ctl {
 	uint16_t device_id;
 	enum adf_device_heartbeat_status status;
 };
+#define IOCTL_HEARTBEAT_ACCEL_DEV                                              \
+	_IOWR(ADF_CTL_IOC_MAGIC, 9, struct adf_dev_heartbeat_status_ctl)
 #endif

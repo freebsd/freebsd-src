@@ -9,6 +9,8 @@
 #include "adf_cfg_common.h"
 #include "adf_cfg_strings.h"
 
+#define ADF_CFG_MAX_VAL 16
+
 struct adf_cfg_key_val {
 	char key[ADF_CFG_MAX_KEY_LEN_IN_BYTES];
 	char val[ADF_CFG_MAX_VAL_LEN_IN_BYTES];
@@ -29,6 +31,9 @@ struct adf_cfg_device_data {
 	struct list_head sec_list;
 	struct sysctl_oid *debug;
 	struct sx lock;
+	char cfg_services[ADF_CFG_MAX_VAL];
+	char cfg_mode[ADF_CFG_MAX_VAL];
+	u16 num_user_processes;
 };
 
 struct adf_cfg_depot_list {

@@ -4,9 +4,10 @@
 #include <adf_accel_devices.h>
 #include <adf_common_drv.h>
 #include <adf_cfg.h>
-#include <adf_pf2vf_msg.h>
+#include <adf_pfvf_msg.h>
 #include <adf_dev_err.h>
 #include <adf_gen2_hw_data.h>
+#include <adf_gen2_pfvf.h>
 #include "adf_c62x_hw_data.h"
 #include "icp_qat_hw.h"
 #include "adf_cfg.h"
@@ -144,18 +145,6 @@ adf_get_arbiter_mapping(struct adf_accel_dev *accel_dev,
 				     thrd_to_arb_map_gen,
 				     ADF_C62X_MAX_ACCELENGINES);
 	*arb_map_config = thrd_to_arb_map_gen;
-}
-
-static u32
-get_pf2vf_offset(u32 i)
-{
-	return ADF_C62X_PF2VF_OFFSET(i);
-}
-
-static u32
-get_vintmsk_offset(u32 i)
-{
-	return ADF_C62X_VINTMSK_OFFSET(i);
 }
 
 static void
@@ -367,8 +356,6 @@ adf_init_hw_data_c62x(struct adf_hw_device_data *hw_data)
 	hw_data->get_sram_bar_id = get_sram_bar_id;
 	hw_data->get_etr_bar_id = get_etr_bar_id;
 	hw_data->get_misc_bar_id = get_misc_bar_id;
-	hw_data->get_pf2vf_offset = get_pf2vf_offset;
-	hw_data->get_vintmsk_offset = get_vintmsk_offset;
 	hw_data->get_arb_info = get_arb_info;
 	hw_data->get_admin_info = get_admin_info;
 	hw_data->get_errsou_offset = get_errsou_offset;
@@ -387,11 +374,8 @@ adf_init_hw_data_c62x(struct adf_hw_device_data *hw_data)
 	hw_data->enable_ints = adf_enable_ints;
 	hw_data->set_ssm_wdtimer = adf_set_ssm_wdtimer;
 	hw_data->check_slice_hang = adf_check_slice_hang;
-	hw_data->enable_vf2pf_comms = adf_pf_enable_vf2pf_comms;
-	hw_data->disable_vf2pf_comms = adf_pf_disable_vf2pf_comms;
 	hw_data->restore_device = adf_dev_restore;
 	hw_data->reset_device = adf_reset_flr;
-	hw_data->min_iov_compat_ver = ADF_PFVF_COMPATIBILITY_VERSION;
 	hw_data->get_objs_num = get_objs_num;
 	hw_data->get_obj_name = get_obj_name;
 	hw_data->get_obj_cfg_ae_mask = get_obj_cfg_ae_mask;
@@ -415,6 +399,7 @@ adf_init_hw_data_c62x(struct adf_hw_device_data *hw_data)
 	hw_data->post_reset = adf_dev_post_reset;
 
 	adf_gen2_init_hw_csr_info(&hw_data->csr_info);
+	adf_gen2_init_pf_pfvf_ops(&hw_data->csr_info.pfvf_ops);
 }
 
 void

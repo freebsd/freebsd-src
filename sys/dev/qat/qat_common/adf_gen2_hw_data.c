@@ -55,6 +55,12 @@ write_csr_ring_config(struct resource *csr_base_addr,
 	WRITE_CSR_RING_CONFIG(csr_base_addr, bank, ring, value);
 }
 
+static dma_addr_t
+read_csr_ring_base(struct resource *csr_base_addr, u32 bank, u32 ring)
+{
+	return READ_CSR_RING_BASE(csr_base_addr, bank, ring);
+}
+
 static void
 write_csr_ring_base(struct resource *csr_base_addr,
 		    u32 bank,
@@ -106,12 +112,21 @@ write_csr_ring_srv_arb_en(struct resource *csr_base_addr, u32 bank, u32 value)
 	WRITE_CSR_RING_SRV_ARB_EN(csr_base_addr, bank, value);
 }
 
+static u32
+get_int_col_ctl_enable_mask(void)
+{
+	return ADF_RING_CSR_INT_COL_CTL_ENABLE;
+}
+
 void
 adf_gen2_init_hw_csr_info(struct adf_hw_csr_info *csr_info)
 {
 	struct adf_hw_csr_ops *csr_ops = &csr_info->csr_ops;
 
 	csr_info->arb_enable_mask = 0xFF;
+
+	csr_info->csr_addr_offset = ADF_RING_CSR_ADDR_OFFSET;
+	csr_info->ring_bundle_size = ADF_RING_BUNDLE_SIZE;
 
 	csr_ops->build_csr_ring_base_addr = build_csr_ring_base_addr;
 	csr_ops->read_csr_ring_head = read_csr_ring_head;
@@ -120,6 +135,7 @@ adf_gen2_init_hw_csr_info(struct adf_hw_csr_info *csr_info)
 	csr_ops->write_csr_ring_tail = write_csr_ring_tail;
 	csr_ops->read_csr_e_stat = read_csr_e_stat;
 	csr_ops->write_csr_ring_config = write_csr_ring_config;
+	csr_ops->read_csr_ring_base = read_csr_ring_base;
 	csr_ops->write_csr_ring_base = write_csr_ring_base;
 	csr_ops->write_csr_int_flag = write_csr_int_flag;
 	csr_ops->write_csr_int_srcsel = write_csr_int_srcsel;
@@ -128,5 +144,5 @@ adf_gen2_init_hw_csr_info(struct adf_hw_csr_info *csr_info)
 	csr_ops->write_csr_int_flag_and_col = write_csr_int_flag_and_col;
 	csr_ops->read_csr_ring_srv_arb_en = read_csr_ring_srv_arb_en;
 	csr_ops->write_csr_ring_srv_arb_en = write_csr_ring_srv_arb_en;
+	csr_ops->get_int_col_ctl_enable_mask = get_int_col_ctl_enable_mask;
 }
-EXPORT_SYMBOL_GPL(adf_gen2_init_hw_csr_info);

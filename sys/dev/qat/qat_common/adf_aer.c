@@ -284,8 +284,6 @@ adf_notify_fatal_error_work(struct work_struct *work)
 
 	adf_error_notifier((uintptr_t)accel_dev);
 	if (!accel_dev->is_vf) {
-		if (accel_dev->u1.pf.vf_info)
-			adf_pf2vf_notify_fatal_error(accel_dev);
 		adf_dev_autoreset(accel_dev);
 	}
 

@@ -5,11 +5,12 @@
 #include <linux/compiler.h>
 #include <adf_accel_devices.h>
 #include <adf_common_drv.h>
-#include <adf_pf2vf_msg.h>
+#include <adf_pfvf_msg.h>
 #include <adf_dev_err.h>
 #include <adf_cfg.h>
 #include <adf_fw_counters.h>
 #include <adf_gen2_hw_data.h>
+#include <adf_gen2_pfvf.h>
 #include "adf_c4xxx_hw_data.h"
 #include "adf_c4xxx_reset.h"
 #include "adf_c4xxx_inline.h"
@@ -606,18 +607,6 @@ adf_enable_mmp_error_correction(struct resource *csr,
 				     ADF_C4XXX_SLICEPWRDOWN(accel),
 				     ADF_C4XXX_MMP_PWR_UP_MSK);
 	}
-}
-
-static u32
-get_pf2vf_offset(u32 i)
-{
-	return ADF_C4XXX_PF2VF_OFFSET(i);
-}
-
-static u32
-get_vintmsk_offset(u32 i)
-{
-	return ADF_C4XXX_VINTMSK_OFFSET(i);
 }
 
 static void
@@ -2154,8 +2143,6 @@ adf_init_hw_data_c4xxx(struct adf_hw_device_data *hw_data)
 	hw_data->get_sram_bar_id = get_sram_bar_id;
 	hw_data->get_etr_bar_id = get_etr_bar_id;
 	hw_data->get_misc_bar_id = get_misc_bar_id;
-	hw_data->get_pf2vf_offset = get_pf2vf_offset;
-	hw_data->get_vintmsk_offset = get_vintmsk_offset;
 	hw_data->get_arb_info = get_arb_info;
 	hw_data->get_admin_info = get_admin_info;
 	hw_data->get_errsou_offset = get_errsou_offset;
@@ -2180,11 +2167,8 @@ adf_init_hw_data_c4xxx(struct adf_hw_device_data *hw_data)
 	hw_data->enable_ints = adf_enable_ints;
 	hw_data->set_ssm_wdtimer = c4xxx_set_ssm_wdtimer;
 	hw_data->check_slice_hang = c4xxx_check_slice_hang;
-	hw_data->enable_vf2pf_comms = adf_pf_enable_vf2pf_comms;
-	hw_data->disable_vf2pf_comms = adf_pf_disable_vf2pf_comms;
 	hw_data->reset_device = adf_reset_flr;
 	hw_data->restore_device = adf_c4xxx_dev_restore;
-	hw_data->min_iov_compat_ver = ADF_PFVF_COMPATIBILITY_VERSION;
 	hw_data->init_accel_units = adf_init_accel_units;
 	hw_data->reset_hw_units = adf_c4xxx_reset_hw_units;
 	hw_data->exit_accel_units = adf_exit_accel_units;
@@ -2210,6 +2194,7 @@ adf_init_hw_data_c4xxx(struct adf_hw_device_data *hw_data)
 	hw_data->set_asym_rings_mask = adf_cfg_set_asym_rings_mask;
 
 	adf_gen2_init_hw_csr_info(&hw_data->csr_info);
+	adf_gen2_init_pf_pfvf_ops(&hw_data->csr_info.pfvf_ops);
 	hw_data->csr_info.arb_enable_mask = 0xF;
 }
 

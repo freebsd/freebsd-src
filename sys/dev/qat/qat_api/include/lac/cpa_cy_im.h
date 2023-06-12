@@ -2,7 +2,7 @@
  *
  *   BSD LICENSE
  * 
- *   Copyright(c) 2007-2022 Intel Corporation. All rights reserved.
+ *   Copyright(c) 2007-2023 Intel Corporation. All rights reserved.
  *   All rights reserved.
  * 
  *   Redistribution and use in source and binary forms, with or without
@@ -242,6 +242,9 @@ typedef struct _CpaCyCapabilitiesInfo
   /**< CPA_TRUE if instance supports the Edwards and Montgomery elliptic
    * curves of the EC API.
    * See @ref cpaCyEc */
+  CpaBoolean ecSm2Supported;
+  /**< CPA_TRUE if instance supports the EcSM2 API.
+   * See @ref cpaCyEcsm2. */
 } CpaCyCapabilitiesInfo;
 
 /**

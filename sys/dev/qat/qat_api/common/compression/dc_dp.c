@@ -274,6 +274,14 @@ cpaDcDpRemoveSession(const CpaInstanceHandle dcInstance,
 }
 
 CpaStatus
+cpaDcDpUpdateSession(const CpaInstanceHandle dcInstance,
+		     CpaDcSessionHandle pSessionHandle,
+		     CpaDcSessionUpdateData *pUpdateSessionData)
+{
+	return CPA_STATUS_UNSUPPORTED;
+}
+
+CpaStatus
 cpaDcDpRegCbFunc(const CpaInstanceHandle dcInstance,
 		 const CpaDcDpCallbackFn pNewCb)
 {

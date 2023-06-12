@@ -7,6 +7,7 @@ KMOD= qat_hw
 SRCS+= qat_c62x/adf_c62x_hw_data.c qat_c62x/adf_drv.c
 SRCS+= qat_200xx/adf_200xx_hw_data.c qat_200xx/adf_drv.c
 SRCS+= qat_4xxx/adf_4xxx_hw_data.c qat_4xxx/adf_drv.c
+SRCS+= qat_4xxxvf/adf_4xxxvf_hw_data.c qat_4xxxvf/adf_drv.c
 SRCS+= qat_c3xxx/adf_c3xxx_hw_data.c qat_c3xxx/adf_drv.c
 SRCS+= qat_dh895xcc/adf_dh895xcc_hw_data.c qat_dh895xcc/adf_drv.c
 SRCS+= qat_c4xxx/adf_c4xxx_hw_data.c qat_c4xxx/adf_drv.c qat_c4xxx/adf_c4xxx_ae_config.c qat_c4xxx/adf_c4xxx_misc_error_stats.c

@@ -91,12 +91,12 @@ adf_attach(device_t dev)
 	int ret, rid;
 	struct adf_cfg_device *cfg_dev = NULL;
 
-	/* Set pci MaxPayLoad to 256. Implemented to avoid the issue of
+	/* Set pci MaxPayLoad to 512. Implemented to avoid the issue of
 	 * Pci-passthrough causing Maxpayload to be reset to 128 bytes
 	 * when the device is reset.
 	 */
-	if (pci_get_max_payload(dev) != 256)
-		pci_set_max_payload(dev, 256);
+	if (pci_get_max_payload(dev) != 512)
+		pci_set_max_payload(dev, 512);
 
 	accel_dev = device_get_softc(dev);
 
@@ -119,7 +119,7 @@ adf_attach(device_t dev)
 	hw_data = malloc(sizeof(*hw_data), M_QAT_4XXX, M_WAITOK | M_ZERO);
 
 	accel_dev->hw_device = hw_data;
-	adf_init_hw_data_4xxx(accel_dev->hw_device);
+	adf_init_hw_data_4xxx(accel_dev->hw_device, pci_get_device(dev));
 	accel_pci_dev->revid = pci_get_revid(dev);
 	hw_data->fuses = pci_read_config(dev, ADF_4XXX_FUSECTL4_OFFSET, 4);
 	if (accel_pci_dev->revid == 0x00) {
@@ -154,7 +154,7 @@ adf_attach(device_t dev)
 	if (ret)
 		goto out_err;
 
-	pci_set_max_read_req(dev, 1024);
+	pci_set_max_read_req(dev, 4096);
 
 	ret = bus_dma_tag_create(bus_get_dma_tag(dev),
 				 1,

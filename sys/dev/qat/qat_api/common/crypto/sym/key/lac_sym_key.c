@@ -2449,20 +2449,12 @@ LacSymKey_KeyGenSslTls(const CpaInstanceHandle instanceHandle_in,
 {
 	CpaStatus status = CPA_STATUS_FAIL;
 	CpaInstanceHandle instanceHandle = LacKey_GetHandle(instanceHandle_in);
-	CpaCyCapabilitiesInfo cyCapInfo;
 
 	LAC_CHECK_INSTANCE_HANDLE(instanceHandle);
 	SAL_CHECK_INSTANCE_TYPE(instanceHandle,
 				(SAL_SERVICE_TYPE_CRYPTO |
 				 SAL_SERVICE_TYPE_CRYPTO_SYM));
-
 	SAL_RUNNING_CHECK(instanceHandle);
-	SalCtrl_CyQueryCapabilities(instanceHandle, &cyCapInfo);
-
-	if (IS_HKDF_UNSUPPORTED(cmdId, cyCapInfo.hkdfSupported)) {
-		LAC_LOG_ERROR("The device does not support HKDF");
-		return CPA_STATUS_UNSUPPORTED;
-	}
 
 	status = LacSymKey_CheckParamSslTls(pKeyGenOpData,
 					    hashAlgorithm,

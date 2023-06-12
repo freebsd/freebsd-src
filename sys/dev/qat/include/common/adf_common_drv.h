@@ -9,7 +9,10 @@
 #include "icp_qat_fw_loader_handle.h"
 #include "icp_qat_hal.h"
 #include "adf_cfg_user.h"
+#include "adf_uio.h"
+#include "adf_uio_control.h"
 
+#define QAT_UIO_IOC_MAGIC 'b'
 #define ADF_MAJOR_VERSION 0
 #define ADF_MINOR_VERSION 6
 #define ADF_BUILD_VERSION 0
@@ -17,6 +20,10 @@
 	__stringify(ADF_MAJOR_VERSION) "." __stringify(                        \
 	    ADF_MINOR_VERSION) "." __stringify(ADF_BUILD_VERSION)
 
+#define IOCTL_GET_BUNDLE_SIZE _IOR(QAT_UIO_IOC_MAGIC, 0, int32_t)
+#define IOCTL_ALLOC_BUNDLE _IOW(QAT_UIO_IOC_MAGIC, 1, int)
+#define IOCTL_GET_ACCEL_TYPE _IOR(QAT_UIO_IOC_MAGIC, 2, uint32_t)
+#define IOCTL_ADD_MEM_FD _IOW(QAT_UIO_IOC_MAGIC, 3, int)
 #define ADF_STATUS_RESTARTING 0
 #define ADF_STATUS_STARTING 1
 #define ADF_STATUS_CONFIGURED 2
@@ -81,43 +88,7 @@ int adf_dev_aer_schedule_reset(struct adf_accel_dev *accel_dev,
 void adf_error_notifier(uintptr_t arg);
 int adf_init_fatal_error_wq(void);
 void adf_exit_fatal_error_wq(void);
-int adf_iov_putmsg(struct adf_accel_dev *accel_dev, u32 msg, u8 vf_nr);
-int adf_iov_notify(struct adf_accel_dev *accel_dev, u32 msg, u8 vf_nr);
-void adf_pf2vf_notify_restarting(struct adf_accel_dev *accel_dev);
 int adf_notify_fatal_error(struct adf_accel_dev *accel_dev);
-void adf_pf2vf_notify_fatal_error(struct adf_accel_dev *accel_dev);
-void adf_pf2vf_notify_uncorrectable_error(struct adf_accel_dev *accel_dev);
-void adf_pf2vf_notify_heartbeat_error(struct adf_accel_dev *accel_dev);
-typedef int (*adf_iov_block_provider)(struct adf_accel_dev *accel_dev,
-				      u8 **buffer,
-				      u8 *length,
-				      u8 *block_version,
-				      u8 compatibility,
-				      u8 byte_num);
-int adf_iov_block_provider_register(u8 block_type,
-				    const adf_iov_block_provider provider);
-u8 adf_iov_is_block_provider_registered(u8 block_type);
-int adf_iov_block_provider_unregister(u8 block_type,
-				      const adf_iov_block_provider provider);
-int adf_iov_block_get(struct adf_accel_dev *accel_dev,
-		      u8 block_type,
-		      u8 *block_version,
-		      u8 *buffer,
-		      u8 *length);
-u8 adf_pfvf_crc(u8 start_crc, u8 *buf, u8 len);
-int adf_iov_init_compat_manager(struct adf_accel_dev *accel_dev,
-				struct adf_accel_compat_manager **cm);
-int adf_iov_shutdown_compat_manager(struct adf_accel_dev *accel_dev,
-				    struct adf_accel_compat_manager **cm);
-int adf_iov_register_compat_checker(struct adf_accel_dev *accel_dev,
-				    const adf_iov_compat_checker_t cc);
-int adf_iov_unregister_compat_checker(struct adf_accel_dev *accel_dev,
-				      const adf_iov_compat_checker_t cc);
-int adf_pf_enable_vf2pf_comms(struct adf_accel_dev *accel_dev);
-int adf_pf_disable_vf2pf_comms(struct adf_accel_dev *accel_dev);
-int adf_enable_vf2pf_comms(struct adf_accel_dev *accel_dev);
-int adf_disable_vf2pf_comms(struct adf_accel_dev *accel_dev);
-void adf_vf2pf_req_hndl(struct adf_accel_vf_info *vf_info);
 void adf_devmgr_update_class_index(struct adf_hw_device_data *hw_data);
 void adf_clean_vf_map(bool);
 int adf_sysctl_add_fw_versions(struct adf_accel_dev *accel_dev);
@@ -125,19 +96,12 @@ int adf_sysctl_remove_fw_versions(struct adf_accel_dev *accel_dev);
 
 int adf_ctl_dev_register(void);
 void adf_ctl_dev_unregister(void);
-int adf_pf_vf_capabilities_init(struct adf_accel_dev *accel_dev);
-int adf_pf_ext_dc_cap_msg_provider(struct adf_accel_dev *accel_dev,
-				   u8 **buffer,
-				   u8 *length,
-				   u8 *block_version,
-				   u8 compatibility);
-int adf_pf_vf_ring_to_svc_init(struct adf_accel_dev *accel_dev);
-int adf_pf_ring_to_svc_msg_provider(struct adf_accel_dev *accel_dev,
-				    u8 **buffer,
-				    u8 *length,
-				    u8 *block_version,
-				    u8 compatibility,
-				    u8 byte_num);
+int adf_register_ctl_device_driver(void);
+void adf_unregister_ctl_device_driver(void);
+int adf_processes_dev_register(void);
+void adf_processes_dev_unregister(void);
+void adf_state_init(void);
+void adf_state_destroy(void);
 int adf_devmgr_add_dev(struct adf_accel_dev *accel_dev,
 		       struct adf_accel_dev *pf);
 void adf_devmgr_rm_dev(struct adf_accel_dev *accel_dev,
@@ -212,6 +176,7 @@ void adf_disable_ring_arb(struct adf_accel_dev *accel_dev,
 			  unsigned int bank_nr,
 			  unsigned int mask);
 int adf_set_ssm_wdtimer(struct adf_accel_dev *accel_dev);
+void adf_update_uio_ring_arb(struct adf_uio_control_bundle *bundle);
 struct adf_accel_dev *adf_devmgr_get_dev_by_bdf(struct adf_pci_address *addr);
 struct adf_accel_dev *adf_devmgr_get_dev_by_pci_bus(u8 bus);
 int adf_get_vf_nr(struct adf_pci_address *vf_pci_addr, int *vf_nr);
@@ -239,7 +204,7 @@ int adf_isr_resource_alloc(struct adf_accel_dev *accel_dev);
 void adf_isr_resource_free(struct adf_accel_dev *accel_dev);
 int adf_vf_isr_resource_alloc(struct adf_accel_dev *accel_dev);
 void adf_vf_isr_resource_free(struct adf_accel_dev *accel_dev);
-
+int adf_pfvf_comms_disabled(struct adf_accel_dev *accel_dev);
 int qat_hal_init(struct adf_accel_dev *accel_dev);
 void qat_hal_deinit(struct icp_qat_fw_loader_handle *handle);
 int qat_hal_start(struct icp_qat_fw_loader_handle *handle);
@@ -334,13 +299,13 @@ int qat_uclo_map_obj(struct icp_qat_fw_loader_handle *handle,
 void qat_hal_get_scs_neigh_ae(unsigned char ae, unsigned char *ae_neigh);
 int qat_uclo_set_cfg_ae_mask(struct icp_qat_fw_loader_handle *handle,
 			     unsigned int cfg_ae_mask);
-void adf_enable_pf2vf_interrupts(struct adf_accel_dev *accel_dev);
-void adf_disable_pf2vf_interrupts(struct adf_accel_dev *accel_dev);
 int adf_init_vf_wq(void);
 void adf_exit_vf_wq(void);
-void adf_flush_vf_wq(void);
-int adf_vf2pf_init(struct adf_accel_dev *accel_dev);
-void adf_vf2pf_shutdown(struct adf_accel_dev *accel_dev);
+void adf_flush_vf_wq(struct adf_accel_dev *accel_dev);
+int adf_pf2vf_handle_pf_restarting(struct adf_accel_dev *accel_dev);
+int adf_pf2vf_handle_pf_rp_reset(struct adf_accel_dev *accel_dev,
+				 struct pfvf_message msg);
+bool adf_recv_and_handle_pf2vf_msg(struct adf_accel_dev *accel_dev);
 static inline int
 adf_sriov_configure(device_t *pdev, int numvfs)
 {

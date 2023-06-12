@@ -6,6 +6,7 @@
 
 #include "qat_freebsd.h"
 #include "adf_cfg_common.h"
+#include "adf_pfvf_msg.h"
 
 #define ADF_CFG_NUM_SERVICES 4
 
@@ -20,6 +21,7 @@
 #define ADF_C4XXX_DEVICE_NAME "c4xxx"
 #define ADF_C4XXXVF_DEVICE_NAME "c4xxxvf"
 #define ADF_4XXX_DEVICE_NAME "4xxx"
+#define ADF_4XXXVF_DEVICE_NAME "4xxxvf"
 #define ADF_DH895XCC_PCI_DEVICE_ID 0x435
 #define ADF_DH895XCCIOV_PCI_DEVICE_ID 0x443
 #define ADF_C62X_PCI_DEVICE_ID 0x37c8
@@ -33,13 +35,17 @@
 #define ADF_C4XXX_PCI_DEVICE_ID 0x18a0
 #define ADF_C4XXXIOV_PCI_DEVICE_ID 0x18a1
 #define ADF_4XXX_PCI_DEVICE_ID 0x4940
+#define ADF_4XXXIOV_PCI_DEVICE_ID 0x4941
 #define ADF_401XX_PCI_DEVICE_ID 0x4942
+#define ADF_401XXIOV_PCI_DEVICE_ID 0x4943
 
 #define IS_QAT_GEN3(ID) ({ (ID == ADF_C4XXX_PCI_DEVICE_ID); })
 static inline bool
 IS_QAT_GEN4(const unsigned int id)
 {
-	return (id == ADF_4XXX_PCI_DEVICE_ID || id == ADF_401XX_PCI_DEVICE_ID);
+	return (id == ADF_4XXX_PCI_DEVICE_ID || id == ADF_401XX_PCI_DEVICE_ID ||
+		id == ADF_4XXXIOV_PCI_DEVICE_ID ||
+		id == ADF_401XXIOV_PCI_DEVICE_ID);
 }
 
 #define IS_QAT_GEN3_OR_GEN4(ID) (IS_QAT_GEN3(ID) || IS_QAT_GEN4(ID))
@@ -85,7 +91,7 @@ IS_QAT_GEN4(const unsigned int id)
 	(((ena_srv_mask) >> (ADF_SRV_TYPE_BIT_LEN * (srv))) & ADF_SRV_TYPE_MASK)
 
 #define GET_CSR_OPS(accel_dev) (&(accel_dev)->hw_device->csr_info.csr_ops)
-
+#define GET_PFVF_OPS(accel_dev) (&(accel_dev)->hw_device->csr_info.pfvf_ops)
 #define ADF_DEFAULT_RING_TO_SRV_MAP                                            \
 	(CRYPTO | CRYPTO << ADF_CFG_SERV_RING_PAIR_1_SHIFT |                   \
 	 NA << ADF_CFG_SERV_RING_PAIR_2_SHIFT |                                \
@@ -266,6 +272,9 @@ struct adf_hw_csr_ops {
 				      u32 bank,
 				      u32 ring,
 				      u32 value);
+	bus_addr_t (*read_csr_ring_base)(struct resource *csr_base_addr,
+					 u32 bank,
+					 u32 ring);
 	void (*write_csr_ring_base)(struct resource *csr_base_addr,
 				    u32 bank,
 				    u32 ring,
@@ -288,21 +297,42 @@ struct adf_hw_csr_ops {
 	void (*write_csr_ring_srv_arb_en)(struct resource *csr_base_addr,
 					  u32 bank,
 					  u32 value);
-};
-
-struct adf_hw_csr_info {
-	struct adf_hw_csr_ops csr_ops;
-	u32 csr_addr_offset;
-	u32 ring_bundle_size;
-	u32 bank_int_flag_clear_mask;
-	u32 num_rings_per_int_srcsel;
-	u32 arb_enable_mask;
+	u32 (*get_src_sel_mask)(void);
+	u32 (*get_int_col_ctl_enable_mask)(void);
+	u32 (*get_bank_irq_mask)(u32 irq_mask);
 };
 
 struct adf_cfg_device_data;
 struct adf_accel_dev;
 struct adf_etr_data;
 struct adf_etr_ring_data;
+
+struct adf_pfvf_ops {
+	int (*enable_comms)(struct adf_accel_dev *accel_dev);
+	u32 (*get_pf2vf_offset)(u32 i);
+	u32 (*get_vf2pf_offset)(u32 i);
+	void (*enable_vf2pf_interrupts)(struct resource *pmisc_addr,
+					u32 vf_mask);
+	void (*disable_all_vf2pf_interrupts)(struct resource *pmisc_addr);
+	u32 (*disable_pending_vf2pf_interrupts)(struct resource *pmisc_addr);
+	int (*send_msg)(struct adf_accel_dev *accel_dev,
+			struct pfvf_message msg,
+			u32 pfvf_offset,
+			struct mutex *csr_lock);
+	struct pfvf_message (*recv_msg)(struct adf_accel_dev *accel_dev,
+					u32 pfvf_offset,
+					u8 compat_ver);
+};
+
+struct adf_hw_csr_info {
+	struct adf_hw_csr_ops csr_ops;
+	struct adf_pfvf_ops pfvf_ops;
+	u32 csr_addr_offset;
+	u32 ring_bundle_size;
+	u32 bank_int_flag_clear_mask;
+	u32 num_rings_per_int_srcsel;
+	u32 arb_enable_mask;
+};
 
 struct adf_hw_device_data {
 	struct adf_hw_device_class *dev_class;
@@ -315,9 +345,6 @@ struct adf_hw_device_data {
 	uint32_t (*get_num_accels)(struct adf_hw_device_data *self);
 	void (*notify_and_wait_ethernet)(struct adf_accel_dev *accel_dev);
 	bool (*get_eth_doorbell_msg)(struct adf_accel_dev *accel_dev);
-	uint32_t (*get_pf2vf_offset)(uint32_t i);
-	uint32_t (*get_vintmsk_offset)(uint32_t i);
-	u32 (*get_vintsou_offset)(void);
 	void (*get_arb_info)(struct arb_info *arb_csrs_info);
 	void (*get_admin_info)(struct admin_info *admin_csrs_info);
 	void (*get_errsou_offset)(u32 *errsou3, u32 *errsou5);
@@ -352,6 +379,8 @@ struct adf_hw_device_data {
 				const uint32_t **cfg);
 	int (*init_device)(struct adf_accel_dev *accel_dev);
 	int (*get_heartbeat_status)(struct adf_accel_dev *accel_dev);
+	int (*int_timer_init)(struct adf_accel_dev *accel_dev);
+	void (*int_timer_exit)(struct adf_accel_dev *accel_dev);
 	uint32_t (*get_ae_clock)(struct adf_hw_device_data *self);
 	uint32_t (*get_hb_clock)(struct adf_hw_device_data *self);
 	void (*disable_iov)(struct adf_accel_dev *accel_dev);
@@ -360,8 +389,10 @@ struct adf_hw_device_data {
 	void (*enable_ints)(struct adf_accel_dev *accel_dev);
 	bool (*check_slice_hang)(struct adf_accel_dev *accel_dev);
 	int (*set_ssm_wdtimer)(struct adf_accel_dev *accel_dev);
-	int (*enable_vf2pf_comms)(struct adf_accel_dev *accel_dev);
-	int (*disable_vf2pf_comms)(struct adf_accel_dev *accel_dev);
+	void (*enable_pf2vf_interrupt)(struct adf_accel_dev *accel_dev);
+	void (*disable_pf2vf_interrupt)(struct adf_accel_dev *accel_dev);
+	int (*interrupt_active_pf2vf)(struct adf_accel_dev *accel_dev);
+	int (*get_int_active_bundles)(struct adf_accel_dev *accel_dev);
 	void (*reset_device)(struct adf_accel_dev *accel_dev);
 	void (*reset_hw_units)(struct adf_accel_dev *accel_dev);
 	int (*measure_clock)(struct adf_accel_dev *accel_dev);
@@ -378,6 +409,11 @@ struct adf_hw_device_data {
 			       char *aeidstr);
 	void (*remove_misc_error)(struct adf_accel_dev *accel_dev);
 	int (*configure_accel_units)(struct adf_accel_dev *accel_dev);
+	int (*ring_pair_reset)(struct adf_accel_dev *accel_dev,
+			       u32 bank_number);
+	void (*config_ring_irq)(struct adf_accel_dev *accel_dev,
+				u32 bank_number,
+				u16 ring_mask);
 	uint32_t (*get_objs_num)(struct adf_accel_dev *accel_dev);
 	const char *(*get_obj_name)(struct adf_accel_dev *accel_dev,
 				    enum adf_accel_unit_services services);
@@ -411,7 +447,6 @@ struct adf_hw_device_data {
 	uint8_t num_accel;
 	uint8_t num_logical_accel;
 	uint8_t num_engines;
-	uint8_t min_iov_compat_ver;
 	int (*get_storage_enabled)(struct adf_accel_dev *accel_dev,
 				   uint32_t *storage_enabled);
 	u8 query_storage_cap;
@@ -419,6 +454,7 @@ struct adf_hw_device_data {
 	u8 storage_enable;
 	u32 extended_dc_capabilities;
 	int (*config_device)(struct adf_accel_dev *accel_dev);
+	u32 asym_ae_active_thd_mask;
 	u16 asym_rings_mask;
 	int (*get_fw_image_type)(struct adf_accel_dev *accel_dev,
 				 enum adf_cfg_fw_image_type *fw_image_type);
@@ -603,6 +639,15 @@ struct adf_fw_versions {
 	u8 mmp_version_patch;
 };
 
+struct adf_int_timer {
+	struct adf_accel_dev *accel_dev;
+	struct workqueue_struct *timer_irq_wq;
+	struct timer_list timer;
+	u32 timeout_val;
+	u32 int_cnt;
+	bool enabled;
+};
+
 #define ADF_COMPAT_CHECKER_MAX 8
 typedef int (*adf_iov_compat_checker_t)(struct adf_accel_dev *accel_dev,
 					u8 vf_compat_ver);
@@ -620,7 +665,9 @@ struct adf_accel_dev {
 	struct adf_cfg_device_data *cfg;
 	struct adf_fw_loader_data *fw_loader;
 	struct adf_admin_comms *admin;
+	struct adf_uio_control_accel *accel;
 	struct adf_heartbeat *heartbeat;
+	struct adf_int_timer *int_timer;
 	struct adf_fw_versions fw_versions;
 	unsigned int autoreset_on_error;
 	struct adf_fw_counters_data *fw_counters_data;
@@ -648,17 +695,18 @@ struct adf_accel_dev {
 			int num_vfs;
 		} pf;
 		struct {
+			bool irq_enabled;
 			struct resource *irq;
 			void *cookie;
-			char *irq_name;
 			struct task pf2vf_bh_tasklet;
 			struct mutex vf2pf_lock; /* protect CSR access */
-			int iov_msg_completion;
-			uint8_t compatible;
-			uint8_t pf_version;
-			u8 pf2vf_block_byte;
-			u8 pf2vf_block_resp_type;
+			struct completion msg_received;
+			struct pfvf_message
+			    response; /* temp field holding pf2vf response */
+			enum ring_reset_result rpreset_sts;
+			struct mutex rpreset_lock; /* protect rpreset_sts */
 			struct pfvf_stats pfvf_counters;
+			u8 pf_compat_ver;
 		} vf;
 	} u1;
 	bool is_vf;

@@ -2,7 +2,7 @@
  *
  *   BSD LICENSE
  * 
- *   Copyright(c) 2007-2022 Intel Corporation. All rights reserved.
+ *   Copyright(c) 2007-2023 Intel Corporation. All rights reserved.
  *   All rights reserved.
  * 
  *   Redistribution and use in source and binary forms, with or without
@@ -132,21 +132,6 @@ typedef int64_t Cpa64S;
  * NULL definition. */
 #endif
 
-#ifndef TRUE
-#define TRUE (1==1)
-/**<
- * @file cpa_types.h
- * @ingroup cpa_Types
- * True value definition. */
-#endif
-#ifndef FALSE
-#define FALSE (0==1)
-/**<
- * @file cpa_types.h
- * @ingroup cpa_Types
- * False value definition. */
-#endif
-
 /**
  *****************************************************************************
  * @ingroup cpa_Types
@@ -159,8 +144,8 @@ typedef int64_t Cpa64S;
  *****************************************************************************/
 typedef enum _CpaBoolean
 {
-    CPA_FALSE = FALSE, /**< False value */
-    CPA_TRUE = TRUE /**< True value */
+    CPA_FALSE = (0==1), /**< False value */
+    CPA_TRUE = (1==1) /**< True value */
 } CpaBoolean;
 
 
