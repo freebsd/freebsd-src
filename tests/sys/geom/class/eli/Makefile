@@ -37,6 +37,9 @@ SRCS.pbkdf2_test=	\
 
 LIBADD.pbkdf2_test= crypto
 
+PROGS+= unaligned_io
+BINDIR?= ${TESTSDIR}
+
 testvect.h:
 	python gentestvect.py > ${.TARGET}
 
