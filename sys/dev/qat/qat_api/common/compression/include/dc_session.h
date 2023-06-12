@@ -208,8 +208,6 @@ typedef struct dc_session_desc_s {
 	/**< Session direction */
 	CpaDcSessionState sessState;
 	/**< Session state */
-	Cpa32U deflateWindowSize;
-	/**< Window size */
 	CpaDcCompLvl compLevel;
 	/**< Compression level */
 	CpaDcCallbackFn pCompressionCb;

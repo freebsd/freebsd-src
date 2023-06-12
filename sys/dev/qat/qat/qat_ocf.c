@@ -10,6 +10,7 @@
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/sysctl.h>
 
 /* Cryptodev headers */
 #include <opencrypto/cryptodev.h>
@@ -44,6 +45,8 @@ MALLOC_DEFINE(M_QAT_OCF, "qat_ocf", "qat_ocf(4) memory allocations");
 /* QAT OCF internal structures */
 struct qat_ocf_softc {
 	device_t sc_dev;
+	struct sysctl_oid *rc;
+	uint32_t enabled;
 	int32_t cryptodev_id;
 	struct qat_ocf_instance cyInstHandles[QAT_OCF_MAX_INSTANCES];
 	int32_t numCyInstances;
@@ -560,17 +563,22 @@ qat_ocf_newsession(device_t dev,
 
 	/* Create cryptodev session */
 	qat_softc = device_get_softc(dev);
-	qat_instance =
-	    &qat_softc->cyInstHandles[cpu_id % qat_softc->numCyInstances];
-	qat_dsession = crypto_get_driver_session(cses);
-	if (NULL == qat_dsession) {
-		device_printf(dev, "Unable to create new session\n");
-		return (EINVAL);
-	}
+	if (qat_softc->numCyInstances > 0) {
+		qat_instance =
+		    &qat_softc
+			 ->cyInstHandles[cpu_id % qat_softc->numCyInstances];
+		qat_dsession = crypto_get_driver_session(cses);
+		if (NULL == qat_dsession) {
+			device_printf(dev, "Unable to create new session\n");
+			return (EINVAL);
+		}
 
-	/* Add only instance at this point remaining operations moved to
-	 * lazy session init */
-	qat_dsession->qatInstance = qat_instance;
+		/* Add only instance at this point remaining operations moved to
+		 * lazy session init */
+		qat_dsession->qatInstance = qat_instance;
+	} else {
+		return ENXIO;
+	}
 
 	return 0;
 }
@@ -988,6 +996,10 @@ qat_ocf_get_irq_instances(CpaInstanceHandle *cyInstHandles,
 		if (NULL == baseAddr)
 			continue;
 		listTemp = baseAddr->sym_services;
+		if (NULL == listTemp) {
+			listTemp = baseAddr->crypto_services;
+		}
+
 		while (NULL != listTemp) {
 			cyInstHandle = SalList_getObject(listTemp);
 			status = cpaCyInstanceGetInfo2(cyInstHandle, &info);
@@ -1023,8 +1035,6 @@ qat_ocf_start_instances(struct qat_ocf_softc *qat_softc, device_t dev)
 					   &numInstances);
 	if (CPA_STATUS_SUCCESS != status)
 		return status;
-	if (0 == numInstances)
-		return CPA_STATUS_RESOURCE;
 
 	for (i = 0; i < numInstances; i++) {
 		struct qat_ocf_instance *qat_ocf_instance;
@@ -1041,11 +1051,18 @@ qat_ocf_start_instances(struct qat_ocf_softc *qat_softc, device_t dev)
 			continue;
 		}
 
+		qat_ocf_instance = &qat_softc->cyInstHandles[startedInstances];
+		qat_ocf_instance->cyInstHandle = cyInstHandle;
+		mtx_init(&qat_ocf_instance->cyInstMtx,
+			 "Instance MTX",
+			 NULL,
+			 MTX_DEF);
+
 		status =
 		    cpaCySetAddressTranslation(cyInstHandle, qatVirtToPhys);
 		if (CPA_STATUS_SUCCESS != status) {
 			device_printf(qat_softc->sc_dev,
-				      "unable to add virt to phys callback");
+				      "unable to add virt to phys callback\n");
 			goto fail;
 		}
 
@@ -1055,13 +1072,6 @@ qat_ocf_start_instances(struct qat_ocf_softc *qat_softc, device_t dev)
 				      "unable to add user callback\n");
 			goto fail;
 		}
-
-		qat_ocf_instance = &qat_softc->cyInstHandles[startedInstances];
-		qat_ocf_instance->cyInstHandle = cyInstHandle;
-		mtx_init(&qat_ocf_instance->cyInstMtx,
-			 "Instance MTX",
-			 NULL,
-			 MTX_DEF);
 
 		/* Initialize cookie pool */
 		status = qat_ocf_cookie_pool_init(qat_ocf_instance, dev);
@@ -1085,18 +1095,15 @@ qat_ocf_start_instances(struct qat_ocf_softc *qat_softc, device_t dev)
 		startedInstances++;
 		continue;
 	fail:
+		mtx_destroy(&qat_ocf_instance->cyInstMtx);
+
 		/* Stop instance */
 		status = cpaCyStopInstance(cyInstHandle);
 		if (CPA_STATUS_SUCCESS != status)
 			device_printf(qat_softc->sc_dev,
 				      "unable to stop the instance\n");
-		continue;
 	}
 	qat_softc->numCyInstances = startedInstances;
-
-	/* Success if at least one instance has been set */
-	if (!qat_softc->numCyInstances)
-		return CPA_STATUS_FAIL;
 
 	return CPA_STATUS_SUCCESS;
 }
@@ -1114,14 +1121,98 @@ qat_ocf_stop_instances(struct qat_ocf_softc *qat_softc)
 		status = cpaCyStopInstance(qat_instance->cyInstHandle);
 		if (CPA_STATUS_SUCCESS != status) {
 			pr_err("QAT: stopping instance id: %d failed\n", i);
-			mtx_unlock(&qat_instance->cyInstMtx);
 			continue;
 		}
 		qat_ocf_cookie_pool_deinit(qat_instance);
 		mtx_destroy(&qat_instance->cyInstMtx);
 	}
 
+	qat_softc->numCyInstances = 0;
+
 	return status;
+}
+
+static int
+qat_ocf_deinit(struct qat_ocf_softc *qat_softc)
+{
+	int status = 0;
+	CpaStatus cpaStatus;
+
+	if (qat_softc->cryptodev_id >= 0) {
+		crypto_unregister_all(qat_softc->cryptodev_id);
+		qat_softc->cryptodev_id = -1;
+	}
+
+	/* Stop QAT instances */
+	cpaStatus = qat_ocf_stop_instances(qat_softc);
+	if (CPA_STATUS_SUCCESS != cpaStatus) {
+		device_printf(qat_softc->sc_dev, "unable to stop instances\n");
+		status = EIO;
+	}
+
+	return status;
+}
+
+static int
+qat_ocf_init(struct qat_ocf_softc *qat_softc)
+{
+	int32_t cryptodev_id;
+
+	/* Starting instances for OCF */
+	if (qat_ocf_start_instances(qat_softc, qat_softc->sc_dev)) {
+		device_printf(qat_softc->sc_dev,
+			      "unable to get QAT IRQ instances\n");
+		goto fail;
+	}
+
+	/* Register only if instances available */
+	if (qat_softc->numCyInstances) {
+		cryptodev_id =
+		    crypto_get_driverid(qat_softc->sc_dev,
+					sizeof(struct qat_ocf_dsession),
+					CRYPTOCAP_F_HARDWARE);
+		if (cryptodev_id < 0) {
+			device_printf(qat_softc->sc_dev,
+				      "cannot initialize!\n");
+			goto fail;
+		}
+		qat_softc->cryptodev_id = cryptodev_id;
+	}
+
+	return 0;
+fail:
+	qat_ocf_deinit(qat_softc);
+
+	return ENXIO;
+}
+
+static int qat_ocf_sysctl_handle(SYSCTL_HANDLER_ARGS)
+{
+	struct qat_ocf_softc *qat_softc = NULL;
+	int ret = 0;
+	device_t dev = arg1;
+	u_int enabled;
+
+	qat_softc = device_get_softc(dev);
+	enabled = qat_softc->enabled;
+
+	ret = sysctl_handle_int(oidp, &enabled, 0, req);
+	if (ret || !req->newptr)
+		return (ret);
+
+	if (qat_softc->enabled != enabled) {
+		if (enabled) {
+			ret = qat_ocf_init(qat_softc);
+
+		} else {
+			ret = qat_ocf_deinit(qat_softc);
+		}
+
+		if (!ret)
+			qat_softc->enabled = enabled;
+	}
+
+	return ret;
 }
 
 static int
@@ -1129,30 +1220,37 @@ qat_ocf_attach(device_t dev)
 {
 	int status;
 	struct qat_ocf_softc *qat_softc;
-	int32_t cryptodev_id;
 
 	qat_softc = device_get_softc(dev);
 	qat_softc->sc_dev = dev;
+	qat_softc->cryptodev_id = -1;
+	qat_softc->enabled = 1;
 
-	cryptodev_id = crypto_get_driverid(dev,
-					   sizeof(struct qat_ocf_dsession),
-					   CRYPTOCAP_F_HARDWARE);
-	if (cryptodev_id < 0) {
-		device_printf(dev, "cannot initialize!\n");
-		goto fail;
-	}
-	qat_softc->cryptodev_id = cryptodev_id;
+	qat_softc->rc =
+	    SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+			    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+			    OID_AUTO,
+			    "enable",
+			    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+			    dev,
+			    0,
+			    qat_ocf_sysctl_handle,
+			    "I",
+			    "QAT OCF support enablement");
 
-	/* Starting instances for OCF */
-	status = qat_ocf_start_instances(qat_softc, dev);
-	if (status) {
-		device_printf(dev, "no QAT IRQ instances available\n");
-		goto fail;
+	if (!qat_softc->rc)
+		return ENOMEM;
+	if (qat_softc->enabled) {
+		status = qat_ocf_init(qat_softc);
+		if (status) {
+			device_printf(dev, "qat_ocf init failed\n");
+			goto fail;
+		}
 	}
 
 	return 0;
 fail:
-	qat_ocf_detach(dev);
+	qat_ocf_deinit(qat_softc);
 
 	return (ENXIO);
 }
@@ -1160,27 +1258,9 @@ fail:
 static int
 qat_ocf_detach(device_t dev)
 {
-	struct qat_ocf_softc *qat_softc = NULL;
-	CpaStatus cpaStatus;
-	int status = 0;
+	struct qat_ocf_softc *qat_softc = device_get_softc(dev);
 
-	qat_softc = device_get_softc(dev);
-
-	if (qat_softc->cryptodev_id >= 0) {
-		status = crypto_unregister_all(qat_softc->cryptodev_id);
-		if (status)
-			device_printf(dev,
-				      "unable to unregister QAt backend\n");
-	}
-
-	/* Stop QAT instances */
-	cpaStatus = qat_ocf_stop_instances(qat_softc);
-	if (CPA_STATUS_SUCCESS != cpaStatus) {
-		device_printf(dev, "unable to stop instances\n");
-		status = EIO;
-	}
-
-	return status;
+	return qat_ocf_deinit(qat_softc);
 }
 
 static device_method_t qat_ocf_methods[] =

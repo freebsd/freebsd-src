@@ -6,8 +6,10 @@
 #include <adf_cfg.h>
 #include <adf_common_drv.h>
 #include <adf_dev_err.h>
-#include <adf_pf2vf_msg.h>
+#include <adf_pfvf_msg.h>
 #include <adf_gen4_hw_data.h>
+#include <adf_gen4_pfvf.h>
+#include <adf_gen4_timer.h>
 #include "adf_4xxx_hw_data.h"
 #include "adf_heartbeat.h"
 #include "icp_qat_fw_init_admin.h"
@@ -85,17 +87,17 @@ struct adf_enabled_services {
 	u16 rng_to_svc_msk;
 };
 
-static struct adf_enabled_services adf_4xxx_svcs[] = {
-	{ "dc", ADF_4XXX_DC },
-	{ "sym", ADF_4XXX_SYM },
-	{ "asym", ADF_4XXX_ASYM },
-	{ "dc;asym", ADF_4XXX_ASYM_DC },
-	{ "asym;dc", ADF_4XXX_ASYM_DC },
-	{ "sym;dc", ADF_4XXX_SYM_DC },
-	{ "dc;sym", ADF_4XXX_SYM_DC },
-	{ "asym;sym", ADF_4XXX_ASYM_SYM },
-	{ "sym;asym", ADF_4XXX_ASYM_SYM },
-};
+static struct adf_enabled_services adf_4xxx_svcs[] =
+    { { "dc", ADF_4XXX_DC },
+      { "sym", ADF_4XXX_SYM },
+      { "asym", ADF_4XXX_ASYM },
+      { "dc;asym", ADF_4XXX_ASYM_DC },
+      { "asym;dc", ADF_4XXX_ASYM_DC },
+      { "sym;dc", ADF_4XXX_SYM_DC },
+      { "dc;sym", ADF_4XXX_SYM_DC },
+      { "asym;sym", ADF_4XXX_ASYM_SYM },
+      { "sym;asym", ADF_4XXX_ASYM_SYM },
+      { "cy", ADF_4XXX_ASYM_SYM } };
 
 static struct adf_hw_device_class adf_4xxx_class = {
 	.name = ADF_4XXX_DEVICE_NAME,
@@ -115,6 +117,12 @@ get_ae_mask(struct adf_accel_dev *accel_dev)
 	u32 fusectl4 = accel_dev->hw_device->fuses;
 
 	return ~fusectl4 & ADF_4XXX_ACCELENGINES_MASK;
+}
+
+static void
+adf_set_asym_rings_mask(struct adf_accel_dev *accel_dev)
+{
+	accel_dev->hw_device->asym_rings_mask = ADF_4XXX_DEF_ASYM_MASK;
 }
 
 static int
@@ -216,28 +224,45 @@ adf_4xxx_get_hw_cap(struct adf_accel_dev *accel_dev)
 	    ICP_ACCEL_CAPABILITIES_COMPRESSION |
 	    ICP_ACCEL_CAPABILITIES_LZ4_COMPRESSION |
 	    ICP_ACCEL_CAPABILITIES_LZ4S_COMPRESSION |
-	    ICP_ACCEL_CAPABILITIES_HKDF | ICP_ACCEL_CAPABILITIES_SHA3_EXT |
-	    ICP_ACCEL_CAPABILITIES_SM3 | ICP_ACCEL_CAPABILITIES_SM4 |
-	    ICP_ACCEL_CAPABILITIES_CHACHA_POLY |
-	    ICP_ACCEL_CAPABILITIES_AESGCM_SPC |
-	    ICP_ACCEL_CAPABILITIES_AES_V2 | ICP_ACCEL_CAPABILITIES_RL;
+	    ICP_ACCEL_CAPABILITIES_SHA3 | ICP_ACCEL_CAPABILITIES_HKDF |
+	    ICP_ACCEL_CAPABILITIES_SHA3_EXT | ICP_ACCEL_CAPABILITIES_SM3 |
+	    ICP_ACCEL_CAPABILITIES_SM4 | ICP_ACCEL_CAPABILITIES_CHACHA_POLY |
+	    ICP_ACCEL_CAPABILITIES_AESGCM_SPC | ICP_ACCEL_CAPABILITIES_AES_V2 |
+	    ICP_ACCEL_CAPABILITIES_RL | ICP_ACCEL_CAPABILITIES_ECEDMONT |
+	    ICP_ACCEL_CAPABILITIES_CNV_INTEGRITY64;
 
 	if (fusectl1 & ICP_ACCEL_4XXX_MASK_CIPHER_SLICE) {
 		capabilities &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC;
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_HKDF;
 		capabilities &= ~ICP_ACCEL_CAPABILITIES_CIPHER;
 	}
-	if (fusectl1 & ICP_ACCEL_4XXX_MASK_AUTH_SLICE)
+	if (fusectl1 & ICP_ACCEL_4XXX_MASK_AUTH_SLICE) {
 		capabilities &= ~ICP_ACCEL_CAPABILITIES_AUTHENTICATION;
-	if (fusectl1 & ICP_ACCEL_4XXX_MASK_PKE_SLICE)
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_SHA3;
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_SHA3_EXT;
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_CIPHER;
+	}
+	if (fusectl1 & ICP_ACCEL_MASK_PKE_SLICE) {
 		capabilities &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC;
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_ECEDMONT;
+	}
 	if (fusectl1 & ICP_ACCEL_4XXX_MASK_COMPRESS_SLICE) {
 		capabilities &= ~ICP_ACCEL_CAPABILITIES_COMPRESSION;
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_LZ4_COMPRESSION;
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_LZ4S_COMPRESSION;
 		capabilities &= ~ICP_ACCEL_CAPABILITIES_CNV_INTEGRITY64;
 	}
 	if (fusectl1 & ICP_ACCEL_4XXX_MASK_SMX_SLICE) {
 		capabilities &= ~ICP_ACCEL_CAPABILITIES_SM3;
 		capabilities &= ~ICP_ACCEL_CAPABILITIES_SM4;
 	}
+	if (fusectl1 & ICP_ACCEL_4XXX_MASK_UCS_SLICE) {
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_CHACHA_POLY;
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_AESGCM_SPC;
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_AES_V2;
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_CIPHER;
+	}
+
 	return capabilities;
 }
 
@@ -388,15 +413,18 @@ get_accel_unit_config(struct adf_accel_dev *accel_dev,
 	if (!*num_sym_au || !(service_mask & ADF_ACCEL_CRYPTO)) {
 		disabled_caps = ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC |
 		    ICP_ACCEL_CAPABILITIES_CIPHER |
+		    ICP_ACCEL_CAPABILITIES_SHA3 |
 		    ICP_ACCEL_CAPABILITIES_SHA3_EXT |
-		    ICP_ACCEL_CAPABILITIES_SM3 | ICP_ACCEL_CAPABILITIES_SM4 |
+		    ICP_ACCEL_CAPABILITIES_HKDF | ICP_ACCEL_CAPABILITIES_SM3 |
+		    ICP_ACCEL_CAPABILITIES_SM4 |
 		    ICP_ACCEL_CAPABILITIES_CHACHA_POLY |
 		    ICP_ACCEL_CAPABILITIES_AESGCM_SPC |
-		    ICP_ACCEL_CAPABILITIES_AES_V2;
+		    ICP_ACCEL_CAPABILITIES_AES_V2 |
+		    ICP_ACCEL_CAPABILITIES_AUTHENTICATION;
 	}
 	if (!*num_asym_au || !(service_mask & ADF_ACCEL_ASYM)) {
 		disabled_caps |= ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC |
-		    ICP_ACCEL_CAPABILITIES_AUTHENTICATION;
+		    ICP_ACCEL_CAPABILITIES_ECEDMONT;
 	}
 	if (!*num_dc_au || !(service_mask & ADF_ACCEL_COMPRESSION)) {
 		disabled_caps |= ICP_ACCEL_CAPABILITIES_COMPRESSION |
@@ -771,6 +799,7 @@ adf_4xxx_cfg_gen_dispatch_arbiter(struct adf_accel_dev *accel_dev,
 	u16 service_type;
 	u32 service_mask;
 	unsigned long thd_srv_mask = default_active_thd_mask;
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 
 	ena_srv_mask = accel_dev->hw_device->ring_to_svc_map;
 	/* If ring_to_svc_map is not changed, return default arbiter value */
@@ -798,6 +827,8 @@ adf_4xxx_cfg_gen_dispatch_arbiter(struct adf_accel_dev *accel_dev,
 
 		if (au->services == ADF_ACCEL_COMPRESSION)
 			thd_srv_mask = dc_me_active_thd_mask;
+		else if (au->services == ADF_ACCEL_ASYM)
+			thd_srv_mask = hw_data->asym_ae_active_thd_mask;
 		else
 			thd_srv_mask = default_active_thd_mask;
 
@@ -901,7 +932,7 @@ adf_init_device(struct adf_accel_dev *accel_dev)
 }
 
 void
-adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data)
+adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data, u32 id)
 {
 	hw_data->dev_class = &adf_4xxx_class;
 	hw_data->instance_id = adf_4xxx_class.instances++;
@@ -954,16 +985,28 @@ adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data)
 	hw_data->set_msix_rttable = set_msix_default_rttable;
 	hw_data->set_ssm_wdtimer = adf_gen4_set_ssm_wdtimer;
 	hw_data->disable_iov = adf_disable_sriov;
-	hw_data->min_iov_compat_ver = ADF_PFVF_COMPATIBILITY_VERSION;
 	hw_data->config_device = adf_config_device;
-	hw_data->set_asym_rings_mask = adf_cfg_set_asym_rings_mask;
+	hw_data->set_asym_rings_mask = adf_set_asym_rings_mask;
 	hw_data->get_hb_clock = get_hb_clock;
+	hw_data->int_timer_init = adf_int_timer_init;
+	hw_data->int_timer_exit = adf_int_timer_exit;
 	hw_data->get_heartbeat_status = adf_get_heartbeat_status;
 	hw_data->get_ae_clock = get_ae_clock;
 	hw_data->measure_clock = measure_clock;
 	hw_data->query_storage_cap = 1;
+	hw_data->ring_pair_reset = adf_gen4_ring_pair_reset;
+
+	switch (id) {
+	case ADF_401XX_PCI_DEVICE_ID:
+		hw_data->asym_ae_active_thd_mask = DEFAULT_401XX_ASYM_AE_MASK;
+		break;
+	case ADF_4XXX_PCI_DEVICE_ID:
+	default:
+		hw_data->asym_ae_active_thd_mask = DEFAULT_4XXX_ASYM_AE_MASK;
+	}
 
 	adf_gen4_init_hw_csr_info(&hw_data->csr_info);
+	adf_gen4_init_pf_pfvf_ops(&hw_data->csr_info.pfvf_ops);
 }
 
 void

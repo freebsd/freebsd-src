@@ -2,7 +2,7 @@
  *
  *   BSD LICENSE
  * 
- *   Copyright(c) 2007-2022 Intel Corporation. All rights reserved.
+ *   Copyright(c) 2007-2023 Intel Corporation. All rights reserved.
  *   All rights reserved.
  * 
  *   Redistribution and use in source and binary forms, with or without
@@ -372,17 +372,17 @@ typedef enum _CpaCySymHashAlgorithm
      * CPA_CY_SYM_HASH_MODE_AUTH. Only 128-bit keys are supported. */
     CPA_CY_SYM_HASH_ZUC_EIA3,
     /**< ZUC algorithm in EIA3 mode */
-    CPA_CY_SYM_HASH_SHA3_224,
-    /**< 224 bit SHA-3 algorithm. Only CPA_CY_SYM_HASH_MODE_PLAIN and
-     * CPA_CY_SYM_HASH_MODE_AUTH are supported, that is, the hash
-     * mode CPA_CY_SYM_HASH_MODE_NESTED is not supported for this algorithm.
-     */
     CPA_CY_SYM_HASH_SHA3_256,
     /**< 256 bit SHA-3 algorithm. Only CPA_CY_SYM_HASH_MODE_PLAIN and
      * CPA_CY_SYM_HASH_MODE_AUTH are supported, that is, the hash
      * mode CPA_CY_SYM_HASH_MODE_NESTED is not supported for this algorithm.
      * Partial requests are not supported, that is, only requests
      * of CPA_CY_SYM_PACKET_TYPE_FULL are supported. */
+    CPA_CY_SYM_HASH_SHA3_224,
+    /**< 224 bit SHA-3 algorithm. Only CPA_CY_SYM_HASH_MODE_PLAIN and
+     * CPA_CY_SYM_HASH_MODE_AUTH are supported, that is, the hash
+     * mode CPA_CY_SYM_HASH_MODE_NESTED is not supported for this algorithm.
+     */
     CPA_CY_SYM_HASH_SHA3_384,
     /**< 384 bit SHA-3 algorithm. Only CPA_CY_SYM_HASH_MODE_PLAIN and
      * CPA_CY_SYM_HASH_MODE_AUTH are supported, that is, the hash
@@ -1453,7 +1453,7 @@ cpaCySymUpdateSession(CpaCySymSessionCtx sessionCtx,
 *****************************************************************************/
 CpaStatus
 cpaCySymSessionInUse(CpaCySymSessionCtx sessionCtx,
-	      CpaBoolean* pSessionInUse);
+          CpaBoolean* pSessionInUse);
 
 /**
  *****************************************************************************
@@ -1518,6 +1518,9 @@ cpaCySymSessionInUse(CpaCySymSessionCtx sessionCtx,
  *
  *      - The cipher algorithm is not CPA_CY_SYM_CIPHER_CHACHA and the hash
  *        algorithm is not CPA_CY_SYM_HASH_POLY.
+ *
+ *      - The cipher algorithm is not CPA_CY_SYM_CIPHER_AES_GCM and the hash
+ *        algorithm is not CPA_CY_SYM_HASH_AES_GCM.
  *
  *      - The instance/implementation supports partial packets as one of
  *        its capabilities (see @ref CpaCySymCapabilitiesInfo).

@@ -478,7 +478,8 @@ selectGeneration(device_type_t deviceType, sal_service_t *pInst)
 		pInst->gen = GEN3;
 		break;
 
-	case DEVICE_GEN4:
+	case DEVICE_4XXX:
+	case DEVICE_4XXXVF:
 		pInst->gen = GEN4;
 		break;
 
@@ -715,6 +716,28 @@ SalCtrl_ServiceStop(icp_accel_dev_t *device, sal_list_t *services)
 
 	/* Call Stop function for each service instance */
 	SAL_FOR_EACH(services, sal_service_t, device, stop, status);
+
+	return status;
+}
+
+static CpaStatus
+SalCtrl_ServiceError(icp_accel_dev_t *device, sal_list_t *services)
+{
+	CpaStatus status = CPA_STATUS_SUCCESS;
+
+	/* Calling error handling functions */
+	sal_list_t *curr_element = services;
+	sal_service_t *service = NULL;
+	while (NULL != curr_element) {
+		service = (sal_service_t *)SalList_getObject(curr_element);
+		if (service->notification_cb) {
+			service->notification_cb(
+			    service,
+			    service->cb_tag,
+			    CPA_INSTANCE_EVENT_FATAL_ERROR);
+		}
+		curr_element = SalList_next(curr_element);
+	}
 
 	return status;
 }
@@ -1167,6 +1190,78 @@ SalCtrl_ServiceEventStop(icp_accel_dev_t *device, Cpa32U enabled_services)
 /**************************************************************************
  * @ingroup SalCtrl
  * @description
+ *      This function calls the error function on all the service instances.
+ *
+ * @context
+ *      This function is called from the SalCtrl_ServiceEventHandler function.
+ *
+ * @assumptions
+ *      None
+ * @sideEffects
+ *      None
+ * @reentrant
+ *      No
+ * @threadSafe
+ *      Yes
+ *
+ * @param[in] device              An icp_accel_dev_t* type
+ * @param[in] enabled_services    Enabled services by user
+ *
+ **************************************************************************/
+static CpaStatus
+SalCtrl_ServiceEventError(icp_accel_dev_t *device, Cpa32U enabled_services)
+{
+	CpaStatus status = CPA_STATUS_SUCCESS;
+	CpaStatus ret_status = CPA_STATUS_SUCCESS;
+	sal_t *service_container = device->pSalHandle;
+
+	if (service_container == NULL) {
+		QAT_UTILS_LOG("Private data is NULL\n");
+		return CPA_STATUS_FATAL;
+	}
+	if (SalCtrl_IsServiceEnabled(enabled_services,
+				     SAL_SERVICE_TYPE_CRYPTO_ASYM)) {
+		status = SalCtrl_ServiceError(device,
+					      service_container->asym_services);
+		if (CPA_STATUS_SUCCESS != status) {
+			ret_status = status;
+		}
+	}
+
+	if (SalCtrl_IsServiceEnabled(enabled_services,
+				     SAL_SERVICE_TYPE_CRYPTO_SYM)) {
+		status = SalCtrl_ServiceError(device,
+					      service_container->sym_services);
+		if (CPA_STATUS_SUCCESS != status) {
+			ret_status = status;
+		}
+	}
+
+	if (SalCtrl_IsServiceEnabled(enabled_services,
+				     SAL_SERVICE_TYPE_CRYPTO)) {
+		status =
+		    SalCtrl_ServiceError(device,
+					 service_container->crypto_services);
+		if (CPA_STATUS_SUCCESS != status) {
+			ret_status = status;
+		}
+	}
+
+	if (SalCtrl_IsServiceEnabled(enabled_services,
+				     SAL_SERVICE_TYPE_COMPRESSION)) {
+		status = SalCtrl_ServiceError(
+		    device, service_container->compression_services);
+		if (CPA_STATUS_SUCCESS != status) {
+			ret_status = status;
+		}
+	}
+
+	return ret_status;
+}
+
+/**************************************************************************
+ * @ingroup SalCtrl
+ * @description
  *      This function calls the start function on all the service instances.
  *
  * @context
@@ -1305,6 +1400,10 @@ SalCtrl_ServiceEventHandler(icp_accel_dev_t *device,
 		    CPA_STATUS_SUCCESS != stats_status) {
 			return CPA_STATUS_FAIL;
 		}
+		break;
+	}
+	case ICP_ADF_EVENT_ERROR: {
+		status = SalCtrl_ServiceEventError(device, enabled_services);
 		break;
 	}
 	default:

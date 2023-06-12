@@ -2,7 +2,7 @@
  *
  *   BSD LICENSE
  * 
- *   Copyright(c) 2007-2022 Intel Corporation. All rights reserved.
+ *   Copyright(c) 2007-2023 Intel Corporation. All rights reserved.
  *   All rights reserved.
  * 
  *   Redistribution and use in source and binary forms, with or without
@@ -66,7 +66,7 @@
  *           1. Montgomery 25519 Curve         | scalar point Multiplication
  *              Input:  Montgomery affine coordinate X of point P
  *                      Scalar k
- *              Output: Montgomery affine coordinate X of point [k/P
+ *              Output: Montgomery affine coordinate X of point [k]P
  *              Decode: Scalar k always decoded by implementation
  *
  *           2. Montgomery 25519 Curve         | generator point Multiplication
@@ -80,13 +80,17 @@
  *                      Scalar k
  *              Output: Twisted Edwards affine coordinate X of point [k]P
  *                      Twisted Edwards affine coordinate Y of point [k]P
- *              Decode: Caller must specify if decoding is required
+ *              Decode: Caller must supply parameters in MSB order, the
+ *                      implementation will not explicitly decode according
+ *                      to RFC#7748 Section 5
  *
  *           4. Twisted Edwards 25519 Curve    | generator point Multiplication
  *              Input:  Scalar k
  *              Output: Twisted Edwards affine coordinate X of point [k]G
  *                      Twisted Edwards affine coordinate Y of point [k]G
- *              Decode: Caller must specify if decoding is required
+ *              Decode: Caller must supply parameters in MSB order, the
+ *                      implementation will not explicitly decode according
+ *                      to RFC#7748 Section 5
  *
  *           5. Montgomery 448 Curve           | scalar point Multiplication
  *              Input:  Montgomery affine coordinate X of point P
@@ -105,13 +109,17 @@
  *                      Scalar k
  *              Output: Edwards affine coordinate X of point [k]P
  *                      Edwards affine coordinate Y of point [k]P
- *              Decode: Caller must specify if decoding is required
+ *              Decode: Caller must supply parameters in MSB order, the
+ *                      implementation will not explicitly decode according
+ *                      to RFC#7748 Section 5
  *
  *           8. Edwards 448 Curve              | generator point Multiplication
  *              Input:  Scalar k
  *              Output: Edwards affine coordinate X of point [k]G
  *                      Edwards affine coordinate Y of point [k]G
- *              Decode: Caller must specify if decoding is required
+ *              Decode: Caller must supply parameters in MSB order, the
+ *                      implementation will not explicitly decode according
+ *                      to RFC#7748 Section 5
  *
  * @note
  *      Large numbers are represented on the QuickAssist API as described
@@ -161,6 +169,35 @@ typedef enum _CpaCyEcFieldType
 /**
  *****************************************************************************
  * @ingroup cpaCyEc
+ *      Enumeration listing curve types to use with generic multiplication
+ *      and verification routines.
+ *
+ * @description
+ *      This structure contains a list of different elliptic curve types.
+ *      EC Point multiplication and other operations depend on the type of
+ *      the curve.
+ *
+ * @see
+ *      cpaCyEcGenericPointMultiply()
+ *      cpaCyEcGenericPointVerify()
+ *
+ *****************************************************************************/
+typedef enum _CpaCyEcCurveType
+{
+    CPA_CY_EC_CURVE_TYPE_WEIERSTRASS_PRIME = 1,
+    /**< A Weierstrass curve with arithmetic in terms of the
+     *   arithmetic of integers modulo p over a prime field. */
+    CPA_CY_EC_CURVE_TYPE_WEIERSTRASS_BINARY,
+    /**< A Weierstrass curve with arithmetic in terms of operations on bits
+     *   over a binary field. */
+    CPA_CY_EC_CURVE_TYPE_WEIERSTRASS_KOBLITZ_BINARY,
+    /**< A Weierstrass-koblitz curve with arithmetic in terms of operations on
+     *   the bits over a binary field. */
+} CpaCyEcCurveType;
+
+/**
+ *****************************************************************************
+ * @ingroup cpaCyEc
  *      Curve types for Elliptic Curves defined in RFC#7748
 
  * @description
@@ -175,16 +212,112 @@ typedef enum _CpaCyEcMontEdwdsCurveType
     CPA_CY_EC_MONTEDWDS_CURVE25519_TYPE = 1,
     /**< Montgomery 25519 curve */
     CPA_CY_EC_MONTEDWDS_ED25519_TYPE,
-    /**< Twisted Edwards 25519 curve */
+    /**< Edwards 25519 curve */
     CPA_CY_EC_MONTEDWDS_CURVE448_TYPE,
     /**< Montgomery 448 curve */
     CPA_CY_EC_MONTEDWDS_ED448_TYPE,
-    /**< Twisted Edwards 448 curve */
+    /**< Edwards 448 curve */
 } CpaCyEcMontEdwdsCurveType;
 
 /**
  *****************************************************************************
- * @file cpa_cy_ec.h
+ * @ingroup cpaCyEc
+ *      Curve parameters for a Weierstrass type curve.
+ *
+ * @description
+ *      This structure contains curve parameters for Weierstrass type
+ *      curve: y^2 = x^3 + ax + b
+ *      The client MUST allocate the memory for this structure
+ *      When the structure is passed into the function, ownership of the memory
+ *      passes to the function. Ownership of the memory returns to the client
+ *      when this structure is returned in the callback function.
+ *
+ *      For optimal performance all data buffers SHOULD be 8-byte aligned.
+ *      The legend used in this structure is borrowed from RFC7748
+ *
+ * @note
+ *      If the client modifies or frees the memory referenced in this
+ *      structure after it has been submitted to the function, and before it
+ *      has been returned in the callback, undefined behavior will result.
+ *
+ * @see
+ *      CpaCyEcCurveParameters
+ *      CpaCyEcFieldType
+ *
+ *****************************************************************************/
+typedef struct _CpaCyEcCurveParametersWeierstrass
+{
+    CpaCyEcFieldType fieldType;
+    /**< Prime or Binary */
+    CpaFlatBuffer p;
+    /**< Prime modulus or irreducible polynomial over GF(2^m) */
+    CpaFlatBuffer a;
+    /**< a coefficient */
+    CpaFlatBuffer b;
+    /**< b coefficient */
+    CpaFlatBuffer h;
+    /**< Cofactor */
+} CpaCyEcCurveParametersWeierstrass;
+
+/**
+ *****************************************************************************
+ * @ingroup cpaCyEc
+ *      Union characterised by a specific curve.
+ *
+ * @description
+ *      This union allows for the characterisation of different curve types
+ *      encapsulted in one data type. The intention is that new curve types
+ *      will be added in the future.
+ *
+ * @note
+ *
+ * @see
+ *      CpaCyEcCurveParametersWeierstrass
+ *
+ *****************************************************************************/
+typedef union _CpaCyEcCurveParameters
+{
+    CpaCyEcCurveParametersWeierstrass weierstrassParameters;
+} CpaCyEcCurveParameters;
+
+/**
+ *****************************************************************************
+ * @ingroup cpaCyEc
+ *      Unified curve parameters.
+ *
+ * @description
+ *      This structure provides a single data type that can describe a number
+ *      of different curve types. The intention is to add further
+ *      curve types in the future, thus the union field will allow for that
+ *      expansion.
+ *
+ *      The client MUST allocate the memory for this structure and the
+ *      items pointed to by this structure. When the structure is passed into
+ *      the function, ownership of the memory passes to the function. Ownership
+ *      of the memory returns to the client when this structure is returned in
+ *      the callback function.
+ *
+ *      For optimal performance all data buffers SHOULD be 8-byte aligned.
+ *
+ * @note
+ *      If the client modifies or frees the memory referenced in this
+ *      structure after it has been submitted to the function, and before it
+ *      has been returned in the callback, undefined behavior will result.
+ *
+ * @see
+ *      CpaCyEcCurveParameters
+ *      cpaCyEcGenericPointMultiply
+ *      cpaCyEcGenericPointVerify
+ *
+ *****************************************************************************/
+typedef struct _CpaCyEcCurve
+{
+    CpaCyEcCurveType curveType;
+    CpaCyEcCurveParameters parameters;
+} CpaCyEcCurve;
+
+/**
+ *****************************************************************************
  * @ingroup cpaCyEc
  *      EC Point Multiplication Operation Data.
  *
@@ -230,8 +363,144 @@ typedef struct _CpaCyEcPointMultiplyOpData {
      * data pointer of the Flat Buffer to NULL. */
     CpaCyEcFieldType fieldType;
     /**< field type for the operation */
-} CpaCyEcPointMultiplyOpData;
+} CpaCyEcPointMultiplyOpData CPA_DEPRECATED;
 
+/**
+ *****************************************************************************
+ * @ingroup cpaCyEc
+ *      Generic EC Point Multiplication Operation Data.
+ *
+ * @description
+ *      This structure contains a generic EC point and a multiplier for use with
+ *      cpaCyEcGenericPointMultiply. This is common for representing all EC
+ *      points, irrespective of curve type: Weierstrass, Montgomery and Twisted
+ *      Edwards (at this time only Weierstrass are supported). The same
+ *      point + multiplier format can be used when performing generator
+ *      multiplication, in which case the xP, yP supplied in this structure will
+ *      be ignored by QAT API library & a generator point will be inserted in
+ *      their place.
+ *
+ *      For optimal performance all data buffers SHOULD be 8-byte aligned.
+ *
+ *      All values in this structure are required to be in Most Significant Byte
+ *      first order, e.g. a.pData[0] = MSB.
+ *
+ * @note
+ *      If the client modifies or frees the memory referenced in this
+ *      structure after it has been submitted to the cpaCyEcGenericPointMultiply
+ *      function, and before it has been returned in the callback, undefined
+ *      behavior will result.
+ *
+ * @see
+ *      cpaCyEcGenericPointMultiply()
+ *
+ *****************************************************************************/
+typedef struct _CpaCyEcGenericPointMultiplyOpData {
+    CpaFlatBuffer  k;
+    /** <scalar multiplier  (k > 0 and k < n) */
+    CpaFlatBuffer  xP;
+    /** <x coordinate of public key */
+    CpaFlatBuffer  yP;
+    /** <y coordinate of public key */
+    CpaCyEcCurve *pCurve;
+    /** <curve type specific parameters */
+    CpaBoolean generator;
+    /** <if TRUE xP and yP are the generator points */
+} CpaCyEcGenericPointMultiplyOpData;
+
+/**
+ *****************************************************************************
+ * @ingroup cpaCyEc
+ *      Generic EC Point Verify Operation Data.
+ *
+ * @description
+ *      This structure contains the operation data for the
+ *      cpaCyEcGenericPointVerify function. This is common for representing
+ *      all EC points, irrespective of curve type: Weierstrass, Montgomery and
+ *      Twisted Edwards (at this time only Weierstrass are supported).
+ *
+ *      This structure contains a generic EC point, irrespective of curve type.
+ *      It is used to verify when the <x,y> pair specified in the structure
+ *      lies on the curve indicated in the cpaCyEcGenericPointVerify API.
+ *
+ *      For optimal performance all data buffers SHOULD be 8-byte aligned.
+ *
+ *      All values in this structure are required to be in Most Significant Byte
+ *      first order, e.g. a.pData[0] = MSB.
+ *
+ * @note
+ *      If the client modifies or frees the memory referenced in this
+ *      structure after it has been submitted to the cpaCyEcGenericPointVerify
+ *      function, and before it has been returned in the callback, undefined
+ *      behavior will result.
+ *
+ * @see
+ *      cpaCyEcGenericPointVerify()
+ *
+ *****************************************************************************/
+typedef struct _CpaCyEcGenericPointVerifyOpData {
+    CpaFlatBuffer  xP;
+    /** <x coordinate of public key */
+    CpaFlatBuffer  yP;
+    /** <y coordinate of public key */
+    CpaCyEcCurve *pCurve;
+    /** <curve type specific parameters */
+} CpaCyEcGenericPointVerifyOpData;
+
+/**
+ *****************************************************************************
+ * @ingroup cpaCyEc
+ *      EC Point Multiplication Operation Data for Edwards or
+ *      Montgomery curves as specificied in RFC#7748.
+ *
+ * @description
+ *      This structure contains the operation data for the
+ *      cpaCyEcMontEdwdsPointMultiply function.
+ *      The client MUST allocate the memory for this structure and the
+ *      items pointed to by this structure. When the structure is passed into
+ *      the function, ownership of the memory passes to the function. Ownership
+ *      of the memory returns to the client when this structure is returned in
+ *      the callback function.
+ *
+ *      For optimal performance all data buffers SHOULD be 8-byte aligned.
+ *
+ *      All values in this structure are required to be in Most Significant Byte
+ *      first order, e.g. a.pData[0] = MSB.
+ *
+ * @note
+ *      If the client modifies or frees the memory referenced in this
+ *      structure after it has been submitted to the
+ *      cpaCyEcMontEdwdsPointMultiply function, and before it has been returned
+ *      in the callback, undefined behavior will result.
+ *
+ *       All buffers in this structure need to be:
+ *       - 32 bytes in size for 25519 curves
+ *       - 64 bytes in size for 448 curves
+ *
+ * @see
+ *      cpaCyEcMontEdwdsPointMultiply()
+ *
+ *****************************************************************************/
+typedef struct _CpaCyEcMontEdwdsPointMultiplyOpData {
+    CpaCyEcMontEdwdsCurveType curveType;
+    /**< field type for the operation */
+    CpaBoolean  generator;
+    /**< True if the operation is a generator multiplication (kG)
+     *   False if it is a variable point multiplcation (kP). */
+    CpaFlatBuffer  k;
+    /**< k scalar multiplier for the operation */
+    CpaFlatBuffer  x;
+    /**< x value.  Used in scalar varable point multiplication operations.
+     * Not required if the generator is True. Must be NULL if not required.
+     * The size of the buffer MUST be 32B for 25519 curves and 64B for 448
+     * curves */
+    CpaFlatBuffer  y;
+   /**< y value.  Used in variable point multiplication of operations.
+     * Not required if the generator is True.
+     * Must be NULL if not required.
+     * The size of the buffer MUST be 32B for 25519 curves and 64B for 448
+     * curves */
+} CpaCyEcMontEdwdsPointMultiplyOpData;
 
 /**
  *****************************************************************************
@@ -272,67 +541,9 @@ typedef struct _CpaCyEcPointVerifyOpData {
     /**< a elliptic curve coefficient */
     CpaFlatBuffer b;
     /**< b elliptic curve coefficient */
-
     CpaCyEcFieldType fieldType;
     /**< field type for the operation */
-} CpaCyEcPointVerifyOpData;
-
-/**
- *****************************************************************************
- * @file cpa_cy_ec.h
- * @ingroup cpaCyEc
- *      EC Point Multiplication Operation Data for Edwards or
- 8      Montgomery curves as specificied in RFC#7748.
- *
- * @description
- *      This structure contains the operation data for the
- *      cpaCyEcMontEdwdsPointMultiply function.
- *      The client MUST allocate the memory for this structure and the
- *      items pointed to by this structure. When the structure is passed into
- *      the function, ownership of the memory passes to the function. Ownership
- *      of the memory returns to the client when this structure is returned in
- *      the callback function.
- *
- *      For optimal performance all data buffers SHOULD be 8-byte aligned.
- *
- *      All values in this structure are required to be in Most Significant Byte
- *      first order, e.g. a.pData[0] = MSB.
- *
- * @note
- *      If the client modifies or frees the memory referenced in this
- *      structure after it has been submitted to the cpaCyEcPointMultiply
- *      function, and before it has been returned in the callback, undefined
- *      behavior will result.
- *
- *       All buffers in this structure need to be:
- *       - 32 bytes in size for 25519 curves
- *       - 64 bytes in size for 448 curves
- *
- * @see
- *      cpaCyEcMontEdwdsPointMultiply()
- *
- *****************************************************************************/
-typedef struct _CpaCyEcMontEdwdsPointMultiplyOpData {
-    CpaCyEcMontEdwdsCurveType curveType;
-    /**< field type for the operation */
-    CpaBoolean  generator;
-    /**< True if the operation is a generator multiplication (kG)
-     *   False if it is a variable point multiplcation (kP). */
-    CpaFlatBuffer  k;
-    /**< k or generator for the operation */
-    CpaFlatBuffer  x;
-    /**< x value.  Used in scalar varable point multiplication operations.
-     * Not required if the generator is True. Must be NULL if not required.
-     * The size of the buffer MUST be 32B for 25519 curves and 64B for 448
-     * curves */
-    CpaFlatBuffer  y;
-    /**< y value.  Used in variable point multiplication of operations.
-     * Not required for curves defined only on scalar operations.
-     * Not required if the generator is True.
-     * Must be NULL if not required.
-     * The size of the buffer MUST be 32B for 25519 curves and 64B for 448
-     * curves */
-} CpaCyEcMontEdwdsPointMultiplyOpData;
+} CpaCyEcPointVerifyOpData CPA_DEPRECATED;
 
 /**
  *****************************************************************************
@@ -414,7 +625,7 @@ typedef struct _CpaCyEcStats64 {
  * @note
  *      None
  * @see
- *      cpaCyEcPointMultiply()
+ *      cpaCyEcGenericPointMultiply()
  *
  *****************************************************************************/
 typedef void (*CpaCyEcPointMultiplyCbFunc)(void *pCallbackTag,
@@ -428,7 +639,7 @@ typedef void (*CpaCyEcPointMultiplyCbFunc)(void *pCallbackTag,
 /**
  *****************************************************************************
  * @ingroup cpaCyEc
- *      Definition of callback function invoked for cpaCyEcPointVerify
+ *      Definition of callback function invoked for cpaCyEcGenericPointVerify
  *      requests.
  * @context
  *      This callback function can be executed in a context that DOES NOT
@@ -460,7 +671,7 @@ typedef void (*CpaCyEcPointMultiplyCbFunc)(void *pCallbackTag,
  * @note
  *      None
  * @see
- *      cpaCyEcPointVerify()
+ *      cpaCyEcGenericPointVerify()
  *
  *****************************************************************************/
 typedef void (*CpaCyEcPointVerifyCbFunc)(void *pCallbackTag,
@@ -473,6 +684,9 @@ typedef void (*CpaCyEcPointVerifyCbFunc)(void *pCallbackTag,
  *****************************************************************************
  * @ingroup cpaCyEc
  *      Perform EC Point Multiplication.
+ *
+ * @deprecated
+ *      This function is replaced with @ref cpaCyEcGenericPointMultiply
  *
  * @description
  *      This function performs Elliptic Curve Point Multiplication as per
@@ -534,7 +748,7 @@ typedef void (*CpaCyEcPointVerifyCbFunc)(void *pCallbackTag,
  *      CpaCyEcPointMultiplyCbFunc
  *
  *****************************************************************************/
-CpaStatus
+CpaStatus CPA_DEPRECATED
 cpaCyEcPointMultiply(const CpaInstanceHandle instanceHandle,
         const CpaCyEcPointMultiplyCbFunc pCb,
         void *pCallbackTag,
@@ -548,6 +762,9 @@ cpaCyEcPointMultiply(const CpaInstanceHandle instanceHandle,
  *****************************************************************************
  * @ingroup cpaCyEc
  *      Verify that a point is on an elliptic curve.
+ *
+ * @deprecated
+ *      This function is replaced with @ref cpaCyEcGenericPointVerify
  *
  * @description
  *      This function performs Elliptic Curve Point Verification, as per
@@ -620,7 +837,7 @@ cpaCyEcPointMultiply(const CpaInstanceHandle instanceHandle,
  *      CpaCyEcPointVerifyCbFunc
  *
  *****************************************************************************/
-CpaStatus
+CpaStatus CPA_DEPRECATED
 cpaCyEcPointVerify(const CpaInstanceHandle instanceHandle,
         const CpaCyEcPointVerifyCbFunc pCb,
         void *pCallbackTag,
@@ -629,7 +846,148 @@ cpaCyEcPointVerify(const CpaInstanceHandle instanceHandle,
 
 /**
  *****************************************************************************
- * @file cpa_cy_ec.h
+ * @ingroup cpaCyEc
+ *      Generic ECC point multiplication operation.
+ *
+ * @description
+ *      This is the generic ECC point multiplication operation, which is
+ *      agnostic to the type of the curve used.
+ *
+ * @context
+ *
+ * @assumptions
+ *      None
+ * @sideEffects
+ *      None
+ * @blocking
+ *      Yes when configured to operate in synchronous mode.
+ * @reentrant
+ *      No
+ * @threadSafe
+ *      Yes
+ *
+ * @param[in]  instanceHandle       Instance handle.
+ * @param[in]  pCb                  Callback function pointer. If this is set
+ *                                  to a NULL value, the function will operate
+ *                                  synchronously.
+ * @param[in]  pCallbackTag         User-supplied value to help identify
+ *                                  request.
+ * @param[in]  pOpData              Structure containing all the data needed to
+ *                                  perform the operation. The client code
+ *                                  allocates the memory for this structure.
+ *                                  This component takes ownership of the
+ *                                  memory until it is returned in the
+ *                                  callback.
+ * @param[out] pMultiplyStatus      In synchronous mode, the multiply output is
+ *                                  valid (CPA_TRUE) or the output is invalid
+ *                                  (CPA_FALSE).
+ *
+ * @param[out] pXk                  Pointer to xk flat buffer.
+ * @param[out] pYk                  Pointer to yk flat buffer.
+ *
+ * @retval CPA_STATUS_SUCCESS       Function executed successfully.
+ * @retval CPA_STATUS_FAIL          Function failed.
+ * @retval CPA_STATUS_INVALID_PARAM Invalid parameter passed in.
+ * @retval CPA_STATUS_RESOURCE      Error related to system resources.
+ * @retval CPA_STATUS_RESTARTING    API implementation is restarting. Resubmit
+ *                                  the request.
+ * @retval CPA_STATUS_UNSUPPORTED   Function is not supported.
+ *
+ * @pre
+ *      Component has been initialized.
+ * @post
+ *      None
+ * @note
+ *      When pCb is non-NULL an asynchronous callback of type
+ *      CpaCyEcPointMultiplyCbFunc is generated in response to this function
+ *      call.
+ *      For optimal performance, data pointers SHOULD be 8-byte aligned.
+ * @see
+ *      CpaCyEcPointMultiplyOpData,
+ *      CpaCyEcPointMultiplyCbFunc
+ *      CpaCyEcCurveType
+ *      CpaCyEcCurveParameters
+ *****************************************************************************/
+CpaStatus
+cpaCyEcGenericPointMultiply(
+    const CpaInstanceHandle instanceHandle,
+    const CpaCyEcPointMultiplyCbFunc pCb,
+    void *pCallbackTag,
+    const CpaCyEcGenericPointMultiplyOpData *pOpData,
+    CpaBoolean *pMultiplyStatus,
+    CpaFlatBuffer *pXk,
+    CpaFlatBuffer *pYk);
+
+/**
+ *****************************************************************************
+ * @ingroup cpaCyEc
+ *      Generic ECC point verification operation.
+ *
+ * @description
+ *      This is the generic ECC point verification operation, which is
+ *      agnostic to the type of the curve used.
+ *
+ * @context
+ *
+ * @assumptions
+ *      None
+ * @sideEffects
+ *      None
+ * @blocking
+ *      Yes when configured to operate in synchronous mode.
+ * @reentrant
+ *      No
+ * @threadSafe
+ *      Yes
+ *
+ * @param[in]  instanceHandle       Instance handle.
+ * @param[in]  pCb                  Callback function pointer. If this is set
+ *                                  to a NULL value the function will operate
+ *                                  synchronously.
+ * @param[in]  pCallbackTag         User-supplied value to help identify
+ *                                  request.
+ * @param[in]  pOpData              Structure containing all the data needed to
+ *                                  perform the operation. The client code
+ *                                  allocates the memory for this structure.
+ *                                  This component takes ownership of the
+ *                                  memory until it is returned in the
+ *                                  callback.
+ * @param[out] pVerifyStatus        In synchronous mode, the verification
+ *                                  output is valid (CPA_TRUE) or the output is
+ *                                  invalid (CPA_FALSE).
+
+ * @retval CPA_STATUS_SUCCESS       Function executed successfully.
+ * @retval CPA_STATUS_FAIL          Function failed.
+ * @retval CPA_STATUS_INVALID_PARAM Invalid parameter passed in.
+ * @retval CPA_STATUS_RESOURCE      Error related to system resources.
+ * @retval CPA_STATUS_RESTARTING    API implementation is restarting. Resubmit
+ *                                  the request.
+ * @retval CPA_STATUS_UNSUPPORTED   Function is not supported.
+ *
+ * @pre
+ *      Component has been initialized.
+ * @post
+ *      None
+ * @note
+ *      When pCb is non-NULL an asynchronous callback of type
+ *      CpaCyEcPointVerifyCbFunc is generated in response to this function call.
+ *      For optimal performance, data pointers SHOULD be 8-byte aligned.
+ * @see
+ *      CpaCyEcGenericPointVerifyOpData,
+ *      CpaCyEcPointVerifyCbFunc
+ *      CpaCyEcCurveType
+ *      CpaCyEcCurveParameters
+ *****************************************************************************/
+CpaStatus
+cpaCyEcGenericPointVerify (
+    const CpaInstanceHandle instanceHandle,
+    const CpaCyEcPointVerifyCbFunc pCb,
+    void *pCallbackTag,
+    const CpaCyEcGenericPointVerifyOpData *pOpData,
+    CpaBoolean *pVerifyStatus);
+
+/**
+ *****************************************************************************
  * @ingroup cpaCyEc
  *      Perform EC Point Multiplication on an Edwards or Montgomery curve as
  *      defined in RFC#7748.

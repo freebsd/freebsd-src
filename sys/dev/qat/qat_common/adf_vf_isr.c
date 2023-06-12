@@ -6,6 +6,7 @@
 #include <sys/systm.h>
 #include <sys/cdefs.h>
 #include <sys/types.h>
+#include <sys/interrupt.h>
 #include <dev/pci/pcivar.h>
 #include <sys/param.h>
 #include <linux/workqueue.h>
@@ -16,19 +17,17 @@
 #include "adf_cfg_common.h"
 #include "adf_transport_access_macros.h"
 #include "adf_transport_internal.h"
-#include "adf_pf2vf_msg.h"
-
-#define ADF_VINTSOU_BUN BIT(0)
-#define ADF_VINTSOU_PF2VF BIT(1)
+#include "adf_pfvf_utils.h"
 
 static TASKQUEUE_DEFINE_THREAD(qat_vf);
+static TASKQUEUE_DEFINE_THREAD(qat_bank_handler);
 
 static struct workqueue_struct *adf_vf_stop_wq;
 static DEFINE_MUTEX(vf_stop_wq_lock);
 
 struct adf_vf_stop_data {
 	struct adf_accel_dev *accel_dev;
-	struct work_struct vf_stop_work;
+	struct work_struct work;
 };
 
 static int
@@ -57,16 +56,72 @@ static void
 adf_dev_stop_async(struct work_struct *work)
 {
 	struct adf_vf_stop_data *stop_data =
-	    container_of(work, struct adf_vf_stop_data, vf_stop_work);
+	    container_of(work, struct adf_vf_stop_data, work);
 	struct adf_accel_dev *accel_dev = stop_data->accel_dev;
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 
 	adf_dev_restarting_notify(accel_dev);
 	adf_dev_stop(accel_dev);
 	adf_dev_shutdown(accel_dev);
 
 	/* Re-enable PF2VF interrupts */
-	adf_enable_pf2vf_interrupts(accel_dev);
+	hw_data->enable_pf2vf_interrupt(accel_dev);
 	kfree(stop_data);
+}
+
+int
+adf_pf2vf_handle_pf_restarting(struct adf_accel_dev *accel_dev)
+{
+	struct adf_vf_stop_data *stop_data;
+
+	clear_bit(ADF_STATUS_PF_RUNNING, &accel_dev->status);
+	stop_data = kzalloc(sizeof(*stop_data), GFP_ATOMIC);
+	if (!stop_data) {
+		device_printf(GET_DEV(accel_dev),
+			      "Couldn't schedule stop for vf_%d\n",
+			      accel_dev->accel_id);
+		return -ENOMEM;
+	}
+	stop_data->accel_dev = accel_dev;
+	INIT_WORK(&stop_data->work, adf_dev_stop_async);
+	queue_work(adf_vf_stop_wq, &stop_data->work);
+
+	return 0;
+}
+
+int
+adf_pf2vf_handle_pf_rp_reset(struct adf_accel_dev *accel_dev,
+			     struct pfvf_message msg)
+{
+	accel_dev->u1.vf.rpreset_sts = msg.data;
+	if (accel_dev->u1.vf.rpreset_sts == RPRESET_SUCCESS)
+		device_printf(
+		    GET_DEV(accel_dev),
+		    "rpreset resp(success) from PF type:0x%x data:0x%x\n",
+		    msg.type,
+		    msg.data);
+	else if (accel_dev->u1.vf.rpreset_sts == RPRESET_NOT_SUPPORTED)
+		device_printf(
+		    GET_DEV(accel_dev),
+		    "rpreset resp(not supported) from PF type:0x%x data:0x%x\n",
+		    msg.type,
+		    msg.data);
+	else if (accel_dev->u1.vf.rpreset_sts == RPRESET_INVAL_BANK)
+		device_printf(
+		    GET_DEV(accel_dev),
+		    "rpreset resp(invalid bank) from PF type:0x%x data:0x%x\n",
+		    msg.type,
+		    msg.data);
+	else
+		device_printf(
+		    GET_DEV(accel_dev),
+		    "rpreset resp(timeout) from PF type:0x%x data:0x%x\nn",
+		    msg.type,
+		    msg.data);
+
+	complete(&accel_dev->u1.vf.msg_received);
+
+	return 0;
 }
 
 static void
@@ -74,118 +129,11 @@ adf_pf2vf_bh_handler(void *data, int pending)
 {
 	struct adf_accel_dev *accel_dev = data;
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	struct adf_bar *pmisc =
-	    &GET_BARS(accel_dev)[hw_data->get_misc_bar_id(hw_data)];
-	struct resource *pmisc_bar_addr = pmisc->virt_addr;
-	u32 msg;
-	bool is_notification = false;
 
-	/* Read the message from PF */
-	msg = ADF_CSR_RD(pmisc_bar_addr, hw_data->get_pf2vf_offset(0));
-	if (!(msg & ADF_PF2VF_INT)) {
-		device_printf(GET_DEV(accel_dev),
-			      "Spurious PF2VF interrupt. msg %X. Ignored\n",
-			      msg);
-		accel_dev->u1.vf.pfvf_counters.spurious++;
-		goto out;
-	}
-	accel_dev->u1.vf.pfvf_counters.rx++;
+	if (adf_recv_and_handle_pf2vf_msg(accel_dev))
+		/* Re-enable PF2VF interrupts */
+		hw_data->enable_pf2vf_interrupt(accel_dev);
 
-	if (!(msg & ADF_PF2VF_MSGORIGIN_SYSTEM)) {
-		device_printf(GET_DEV(accel_dev),
-			      "Ignore non-system PF2VF message(0x%x)\n",
-			      msg);
-		/*
-		 * To ack, clear the VF2PFINT bit.
-		 * Because this must be a legacy message, the far side
-		 * must clear the in-use pattern.
-		 */
-		msg &= ~ADF_PF2VF_INT;
-		ADF_CSR_WR(pmisc_bar_addr, hw_data->get_pf2vf_offset(0), msg);
-		goto out;
-	}
-
-	switch ((msg & ADF_PF2VF_MSGTYPE_MASK) >> ADF_PF2VF_MSGTYPE_SHIFT) {
-	case ADF_PF2VF_MSGTYPE_RESTARTING: {
-		struct adf_vf_stop_data *stop_data;
-
-		is_notification = true;
-
-		device_printf(GET_DEV(accel_dev),
-			      "Restarting msg received from PF 0x%x\n",
-			      msg);
-
-		clear_bit(ADF_STATUS_PF_RUNNING, &accel_dev->status);
-		stop_data = kzalloc(sizeof(*stop_data), GFP_ATOMIC);
-		if (!stop_data) {
-			device_printf(GET_DEV(accel_dev),
-				      "Couldn't schedule stop for vf_%d\n",
-				      accel_dev->accel_id);
-			goto out;
-		}
-		stop_data->accel_dev = accel_dev;
-		INIT_WORK(&stop_data->vf_stop_work, adf_dev_stop_async);
-		queue_work(adf_vf_stop_wq, &stop_data->vf_stop_work);
-		break;
-	}
-	case ADF_PF2VF_MSGTYPE_VERSION_RESP:
-		device_printf(GET_DEV(accel_dev),
-			      "Version resp received from PF 0x%x\n",
-			      msg);
-		is_notification = false;
-		accel_dev->u1.vf.pf_version =
-		    (msg & ADF_PF2VF_VERSION_RESP_VERS_MASK) >>
-		    ADF_PF2VF_VERSION_RESP_VERS_SHIFT;
-		accel_dev->u1.vf.compatible =
-		    (msg & ADF_PF2VF_VERSION_RESP_RESULT_MASK) >>
-		    ADF_PF2VF_VERSION_RESP_RESULT_SHIFT;
-		accel_dev->u1.vf.iov_msg_completion = 1;
-		wakeup(&accel_dev->u1.vf.iov_msg_completion);
-		break;
-	case ADF_PF2VF_MSGTYPE_BLOCK_RESP:
-		is_notification = false;
-		accel_dev->u1.vf.pf2vf_block_byte =
-		    (msg & ADF_PF2VF_BLOCK_RESP_DATA_MASK) >>
-		    ADF_PF2VF_BLOCK_RESP_DATA_SHIFT;
-		accel_dev->u1.vf.pf2vf_block_resp_type =
-		    (msg & ADF_PF2VF_BLOCK_RESP_TYPE_MASK) >>
-		    ADF_PF2VF_BLOCK_RESP_TYPE_SHIFT;
-		accel_dev->u1.vf.iov_msg_completion = 1;
-		wakeup(&accel_dev->u1.vf.iov_msg_completion);
-		break;
-	case ADF_PF2VF_MSGTYPE_FATAL_ERROR:
-		device_printf(GET_DEV(accel_dev),
-			      "Fatal error received from PF 0x%x\n",
-			      msg);
-		is_notification = true;
-		if (adf_notify_fatal_error(accel_dev))
-			device_printf(GET_DEV(accel_dev),
-				      "Couldn't notify fatal error\n");
-		break;
-	default:
-		device_printf(GET_DEV(accel_dev),
-			      "Unknown PF2VF message(0x%x)\n",
-			      msg);
-	}
-
-	/* To ack, clear the PF2VFINT bit */
-	msg &= ~ADF_PF2VF_INT;
-	/*
-	 * Clear the in-use pattern if the sender won't do it.
-	 * Because the compatibility version must be the first message
-	 * exchanged between the VF and PF, the pf.version must be
-	 * set at this time.
-	 * The in-use pattern is not cleared for notifications so that
-	 * it can be used for collision detection.
-	 */
-	if (accel_dev->u1.vf.pf_version >= ADF_PFVF_COMPATIBILITY_FAST_ACK &&
-	    !is_notification)
-		msg &= ~ADF_PF2VF_IN_USE_BY_PF_MASK;
-	ADF_CSR_WR(pmisc_bar_addr, hw_data->get_pf2vf_offset(0), msg);
-
-out:
-	/* Re-enable PF2VF interrupts */
-	adf_enable_pf2vf_interrupts(accel_dev);
 	return;
 }
 
@@ -212,45 +160,85 @@ adf_cleanup_pf2vf_bh(struct adf_accel_dev *accel_dev)
 }
 
 static void
+adf_bh_handler(void *data, int pending)
+{
+	struct adf_etr_bank_data *bank = (void *)data;
+
+	adf_response_handler((uintptr_t)bank);
+
+	return;
+}
+
+static int
+adf_setup_bh(struct adf_accel_dev *accel_dev)
+{
+	int i = 0;
+	struct adf_etr_data *priv_data = accel_dev->transport;
+
+	for (i = 0; i < GET_MAX_BANKS(accel_dev); i++) {
+		TASK_INIT(&priv_data->banks[i].resp_handler,
+			  0,
+			  adf_bh_handler,
+			  &priv_data->banks[i]);
+	}
+
+	return 0;
+}
+
+static void
+adf_cleanup_bh(struct adf_accel_dev *accel_dev)
+{
+	int i = 0;
+	struct adf_etr_data *transport;
+
+	if (!accel_dev || !accel_dev->transport)
+		return;
+
+	transport = accel_dev->transport;
+	for (i = 0; i < GET_MAX_BANKS(accel_dev); i++) {
+		taskqueue_cancel(taskqueue_qat_bank_handler,
+				 &transport->banks[i].resp_handler,
+				 NULL);
+		taskqueue_drain(taskqueue_qat_bank_handler,
+				&transport->banks[i].resp_handler);
+	}
+}
+
+static void
 adf_isr(void *privdata)
 {
 	struct adf_accel_dev *accel_dev = privdata;
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	struct adf_bar *pmisc =
-	    &GET_BARS(accel_dev)[hw_data->get_misc_bar_id(hw_data)];
-	struct resource *pmisc_bar_addr = pmisc->virt_addr;
-	u32 v_int, v_mask;
-	int handled = 0;
-
-	/* Read VF INT source CSR to determine the source of VF interrupt */
-	v_int = ADF_CSR_RD(pmisc_bar_addr, hw_data->get_vintsou_offset());
-	v_mask = ADF_CSR_RD(pmisc_bar_addr, hw_data->get_vintmsk_offset(0));
+	struct adf_hw_csr_ops *csr_ops = &hw_data->csr_info.csr_ops;
+	int int_active_bundles = 0;
+	int i = 0;
 
 	/* Check for PF2VF interrupt */
-	if ((v_int & ~v_mask) & ADF_VINTSOU_PF2VF) {
+	if (hw_data->interrupt_active_pf2vf(accel_dev)) {
 		/* Disable PF to VF interrupt */
-		adf_disable_pf2vf_interrupts(accel_dev);
-
+		hw_data->disable_pf2vf_interrupt(accel_dev);
 		/* Schedule tasklet to handle interrupt BH */
 		taskqueue_enqueue(taskqueue_qat_vf,
 				  &accel_dev->u1.vf.pf2vf_bh_tasklet);
-		handled = 1;
 	}
 
-	if ((v_int & ~v_mask) & ADF_VINTSOU_BUN) {
-		struct adf_etr_data *etr_data = accel_dev->transport;
-		struct adf_etr_bank_data *bank = &etr_data->banks[0];
+	if (hw_data->get_int_active_bundles)
+		int_active_bundles = hw_data->get_int_active_bundles(accel_dev);
 
-		/* Disable Flag and Coalesce Ring Interrupts */
-		WRITE_CSR_INT_FLAG_AND_COL(bank->csr_addr,
-					   bank->bank_number,
-					   0);
-		adf_response_handler((uintptr_t)&etr_data->banks[0]);
-		handled = 1;
+	for (i = 0; i < GET_MAX_BANKS(accel_dev); i++) {
+		if (int_active_bundles & BIT(i)) {
+			struct adf_etr_data *etr_data = accel_dev->transport;
+			struct adf_etr_bank_data *bank = &etr_data->banks[i];
+
+			/* Disable Flag and Coalesce Ring Interrupts */
+			csr_ops->write_csr_int_flag_and_col(bank->csr_addr,
+							    bank->bank_number,
+							    0);
+			/* Schedule tasklet to handle interrupt BH */
+			taskqueue_enqueue(taskqueue_qat_bank_handler,
+					  &bank->resp_handler);
+		}
 	}
-
-	if (handled)
-		return;
 }
 
 static int
@@ -259,6 +247,8 @@ adf_request_msi_irq(struct adf_accel_dev *accel_dev)
 	device_t pdev = accel_to_pci_dev(accel_dev);
 	int ret;
 	int rid = 1;
+	int cpu;
+
 	accel_dev->u1.vf.irq =
 	    bus_alloc_resource_any(pdev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (accel_dev->u1.vf.irq == NULL) {
@@ -273,23 +263,24 @@ adf_request_msi_irq(struct adf_accel_dev *accel_dev)
 			     accel_dev,
 			     &accel_dev->u1.vf.cookie);
 	if (ret) {
-		device_printf(GET_DEV(accel_dev),
-			      "failed to enable irq for %s\n",
-			      accel_dev->u1.vf.irq_name);
-		return ret;
+		device_printf(GET_DEV(accel_dev), "failed to enable irq\n");
+		goto errout;
 	}
+
+	cpu = accel_dev->accel_id % num_online_cpus();
+	ret = bus_bind_intr(pdev, accel_dev->u1.vf.irq, cpu);
+	if (ret) {
+		device_printf(GET_DEV(accel_dev),
+			      "failed to bind IRQ handler to cpu core\n");
+		goto errout;
+	}
+	accel_dev->u1.vf.irq_enabled = true;
+
 	return ret;
-}
+errout:
+	bus_free_resource(pdev, SYS_RES_IRQ, accel_dev->u1.vf.irq);
 
-static int
-adf_setup_bh(struct adf_accel_dev *accel_dev)
-{
-	return 0;
-}
-
-static void
-adf_cleanup_bh(struct adf_accel_dev *accel_dev)
-{
+	return ret;
 }
 
 /**
@@ -302,8 +293,13 @@ void
 adf_vf_isr_resource_free(struct adf_accel_dev *accel_dev)
 {
 	device_t pdev = accel_to_pci_dev(accel_dev);
-	bus_teardown_intr(pdev, accel_dev->u1.vf.irq, accel_dev->u1.vf.cookie);
-	bus_free_resource(pdev, SYS_RES_IRQ, accel_dev->u1.vf.irq);
+
+	if (accel_dev->u1.vf.irq_enabled) {
+		bus_teardown_intr(pdev,
+				  accel_dev->u1.vf.irq,
+				  accel_dev->u1.vf.cookie);
+		bus_free_resource(pdev, SYS_RES_IRQ, accel_dev->u1.vf.irq);
+	}
 	adf_cleanup_bh(accel_dev);
 	adf_cleanup_pf2vf_bh(accel_dev);
 	adf_disable_msi(accel_dev);
@@ -324,30 +320,39 @@ adf_vf_isr_resource_alloc(struct adf_accel_dev *accel_dev)
 		goto err_out;
 
 	if (adf_setup_pf2vf_bh(accel_dev))
-		goto err_out;
+		goto err_disable_msi;
 
 	if (adf_setup_bh(accel_dev))
 		goto err_out;
 
 	if (adf_request_msi_irq(accel_dev))
-		goto err_out;
+		goto err_disable_msi;
 
 	return 0;
+
+err_disable_msi:
+	adf_disable_msi(accel_dev);
+
 err_out:
-	adf_vf_isr_resource_free(accel_dev);
-	return EFAULT;
+	return -EFAULT;
 }
 
 /**
  * adf_flush_vf_wq() - Flush workqueue for VF
+ * @accel_dev:  Pointer to acceleration device.
  *
- * Function flushes workqueue 'adf_vf_stop_wq' for VF.
+ * Function disables the PF/VF interrupts on the VF so that no new messages
+ * are received and flushes the workqueue 'adf_vf_stop_wq'.
  *
  * Return: void.
  */
 void
-adf_flush_vf_wq(void)
+adf_flush_vf_wq(struct adf_accel_dev *accel_dev)
 {
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+
+	hw_data->disable_pf2vf_interrupt(accel_dev);
+
 	if (adf_vf_stop_wq)
 		flush_workqueue(adf_vf_stop_wq);
 }
@@ -376,18 +381,11 @@ adf_init_vf_wq(void)
 	return ret;
 }
 
-/**
- * adf_exit_vf_wq() - Destroy workqueue for VF
- *
- * Function destroy workqueue 'adf_vf_stop_wq' for VF.
- *
- * Return: void.
- */
 void
 adf_exit_vf_wq(void)
 {
-	if (adf_vf_stop_wq) {
+	if (adf_vf_stop_wq)
 		destroy_workqueue(adf_vf_stop_wq);
-		adf_vf_stop_wq = NULL;
-	}
+
+	adf_vf_stop_wq = NULL;
 }
