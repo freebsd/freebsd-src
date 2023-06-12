@@ -1447,8 +1447,8 @@ sub process {
 			$is_patch = 1;
 		}
 
-		if ($line =~ /^(Author|From): .* via .*<qemu-devel\@nongnu.org>/) {
-		    ERROR("Author email address is mangled by the mailing list\n" . $herecurr);
+		if ($line =~ /^(Author|From): .*noreply.*/) {
+		    ERROR("Real email adress is needed\n" . $herecurr);
 		}
 
 #check the patch for a signoff:
