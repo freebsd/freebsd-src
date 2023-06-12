@@ -90,6 +90,8 @@ LDADD+=		${LIBEFI} ${LIBSA}
 
 DPADD+=		${LDSCRIPT}
 
+CLEANFILES+=	${BOOT1}.efi
+
 ${BOOT1}.efi: ${PROG}
 	if ${NM} ${.ALLSRC} | grep ' U '; then \
 		echo "Undefined symbols in ${.ALLSRC}"; \
