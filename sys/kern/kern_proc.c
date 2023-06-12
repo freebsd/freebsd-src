@@ -310,6 +310,7 @@ pgrp_init(void *mem, int size, int flags)
 
 	pg = mem;
 	mtx_init(&pg->pg_mtx, "process group", NULL, MTX_DEF | MTX_DUPOK);
+	sx_init(&pg->pg_killsx, "killpg racer");
 	return (0);
 }
 
@@ -573,6 +574,7 @@ errout:
 int
 enterpgrp(struct proc *p, pid_t pgid, struct pgrp *pgrp, struct session *sess)
 {
+	struct pgrp *old_pgrp;
 
 	sx_assert(&proctree_lock, SX_XLOCKED);
 
@@ -583,6 +585,11 @@ enterpgrp(struct proc *p, pid_t pgid, struct pgrp *pgrp, struct session *sess)
 	    ("enterpgrp: pgrp with pgid exists"));
 	KASSERT(!SESS_LEADER(p),
 	    ("enterpgrp: session leader attempted setpgrp"));
+
+	old_pgrp = p->p_pgrp;
+	if (!sx_try_xlock(&old_pgrp->pg_killsx))
+		return (ERESTART);
+	MPASS(old_pgrp == p->p_pgrp);
 
 	if (sess != NULL) {
 		/*
@@ -625,6 +632,7 @@ enterpgrp(struct proc *p, pid_t pgid, struct pgrp *pgrp, struct session *sess)
 
 	doenterpgrp(p, pgrp);
 
+	sx_xunlock(&old_pgrp->pg_killsx);
 	return (0);
 }
 
@@ -634,6 +642,7 @@ enterpgrp(struct proc *p, pid_t pgid, struct pgrp *pgrp, struct session *sess)
 int
 enterthispgrp(struct proc *p, struct pgrp *pgrp)
 {
+	struct pgrp *old_pgrp;
 
 	sx_assert(&proctree_lock, SX_XLOCKED);
 	PROC_LOCK_ASSERT(p, MA_NOTOWNED);
@@ -646,8 +655,19 @@ enterthispgrp(struct proc *p, struct pgrp *pgrp)
 	KASSERT(pgrp != p->p_pgrp,
 	    ("%s: p %p belongs to pgrp %p", __func__, p, pgrp));
 
+	old_pgrp = p->p_pgrp;
+	if (!sx_try_xlock(&old_pgrp->pg_killsx))
+		return (ERESTART);
+	MPASS(old_pgrp == p->p_pgrp);
+	if (!sx_try_xlock(&pgrp->pg_killsx)) {
+		sx_xunlock(&old_pgrp->pg_killsx);
+		return (ERESTART);
+	}
+
 	doenterpgrp(p, pgrp);
 
+	sx_xunlock(&pgrp->pg_killsx);
+	sx_xunlock(&old_pgrp->pg_killsx);
 	return (0);
 }
 
