@@ -811,7 +811,9 @@ _ixl=		ixl
 _nvdimm=	nvdimm
 _pms=		pms
 _qat=		qat
+.if ${MK_SOURCELESS_UCODE} != "no"
 _qatfw=		qatfw
+.endif
 _qlxge=		qlxge
 _qlxgb=		qlxgb
 _sume=		sume
