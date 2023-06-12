@@ -85,6 +85,8 @@ __FBSDID("$FreeBSD$");
 #define	AMD_10H_11H_CUR_DID(msr)		(((msr) >> 6) & 0x07)
 #define	AMD_10H_11H_CUR_FID(msr)		((msr) & 0x3F)
 
+#define	AMD_17H_CUR_IDIV(msr)			(((msr) >> 30) & 0x03)
+#define	AMD_17H_CUR_IDD(msr)			(((msr) >> 22) & 0xFF)
 #define	AMD_17H_CUR_VID(msr)			(((msr) >> 14) & 0xFF)
 #define	AMD_17H_CUR_DID(msr)			(((msr) >> 8) & 0x3F)
 #define	AMD_17H_CUR_FID(msr)			((msr) & 0xFF)
@@ -446,6 +448,9 @@ hwpstate_get_info_from_msr(device_t dev)
 		did = AMD_10H_11H_CUR_DID(msr);
 		fid = AMD_10H_11H_CUR_FID(msr);
 
+		hwpstate_set[i].volts = CPUFREQ_VAL_UNKNOWN;
+		hwpstate_set[i].power = CPUFREQ_VAL_UNKNOWN;
+		hwpstate_set[i].lat = CPUFREQ_VAL_UNKNOWN;
 		/* Convert fid/did to frequency. */
 		switch (family) {
 		case 0x11:
@@ -466,6 +471,29 @@ hwpstate_get_info_from_msr(device_t dev)
 			}
 			fid = AMD_17H_CUR_FID(msr);
 			hwpstate_set[i].freq = (200 * fid) / did;
+			/* Vid step is 6.25mV, so scale by 100. */
+			hwpstate_set[i].volts =
+			    (155000 - (625 * AMD_17H_CUR_VID(msr))) / 100;
+			/*
+			 * Calculate current first.
+			 * This equation is mentioned in
+			 * "BKDG for AMD Family 15h Models 70h-7fh Processors",
+			 * section 2.5.2.1.6.
+			 */
+			hwpstate_set[i].power = AMD_17H_CUR_IDD(msr) * 1000;
+			switch (AMD_17H_CUR_IDIV(msr)) {
+			case 3: /* divide by 1000 */
+				hwpstate_set[i].power /= 10;
+			case 2: /* divide by 100 */
+				hwpstate_set[i].power /= 10;
+			case 1: /* divide by 10 */
+				hwpstate_set[i].power /= 10;
+			case 0:	/* divide by 1 */
+				;
+			}
+			hwpstate_set[i].power *= hwpstate_set[i].volts;
+			/* Milli amps * milli volts to milli watts. */
+			hwpstate_set[i].power /= 1000;
 			break;
 		default:
 			HWPSTATE_DEBUG(dev, "get_info_from_msr: %s family"
@@ -475,10 +503,6 @@ hwpstate_get_info_from_msr(device_t dev)
 			return (ENXIO);
 		}
 		hwpstate_set[i].pstate_id = i;
-		/* There was volts calculation, but deleted it. */
-		hwpstate_set[i].volts = CPUFREQ_VAL_UNKNOWN;
-		hwpstate_set[i].power = CPUFREQ_VAL_UNKNOWN;
-		hwpstate_set[i].lat = CPUFREQ_VAL_UNKNOWN;
 	}
 	return (0);
 }
