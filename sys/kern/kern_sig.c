@@ -1769,6 +1769,7 @@ killpg1(struct thread *td, int sig, int pgid, int all, ksiginfo_t *ksi)
 		}
 		sx_sunlock(&allproc_lock);
 	} else {
+again:
 		sx_slock(&proctree_lock);
 		if (pgid == 0) {
 			/*
@@ -1784,10 +1785,17 @@ killpg1(struct thread *td, int sig, int pgid, int all, ksiginfo_t *ksi)
 			}
 		}
 		sx_sunlock(&proctree_lock);
+		if (!sx_try_xlock(&pgrp->pg_killsx)) {
+			PGRP_UNLOCK(pgrp);
+			sx_xlock(&pgrp->pg_killsx);
+			sx_xunlock(&pgrp->pg_killsx);
+			goto again;
+		}
 		LIST_FOREACH(p, &pgrp->pg_members, p_pglist) {
 			killpg1_sendsig(p, false, &arg);
 		}
 		PGRP_UNLOCK(pgrp);
+		sx_xunlock(&pgrp->pg_killsx);
 	}
 	MPASS(arg.ret != 0 || arg.found || !arg.sent);
 	if (arg.ret == 0 && !arg.sent)
