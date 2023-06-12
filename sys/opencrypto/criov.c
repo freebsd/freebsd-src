@@ -607,7 +607,7 @@ crypto_cursor_copydata(struct crypto_buffer_cursor *cc, int size, void *vdst)
 			remain = MIN(PAGE_SIZE - cc->cc_offset, cc->cc_buf_len);
 			todo = MIN(remain, size);
 			memcpy(dst, src, todo);
-			src += todo;
+			dst += todo;
 			cc->cc_buf_len -= todo;
 			if (todo < remain) {
 				cc->cc_offset += todo;
