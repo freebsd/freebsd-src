@@ -320,6 +320,7 @@ crypto_cursor_init(struct crypto_buffer_cursor *cc,
 		break;
 	case CRYPTO_BUF_UIO:
 		cc->cc_iov = cb->cb_uio->uio_iov;
+		cc->cc_buf_len = cb->cb_uio->uio_resid;
 		break;
 	default:
 #ifdef INVARIANTS
@@ -385,6 +386,7 @@ crypto_cursor_advance(struct crypto_buffer_cursor *cc, size_t amount)
 				cc->cc_offset += amount;
 				break;
 			}
+			cc->cc_buf_len -= remain;
 			amount -= remain;
 			cc->cc_iov++;
 			cc->cc_offset = 0;
@@ -405,14 +407,34 @@ crypto_cursor_segment(struct crypto_buffer_cursor *cc, size_t *len)
 {
 	switch (cc->cc_type) {
 	case CRYPTO_BUF_CONTIG:
-		*len = cc->cc_buf_len;
-		return (cc->cc_buf);
+	case CRYPTO_BUF_UIO:
+	case CRYPTO_BUF_VMPAGE:
+		if (cc->cc_buf_len == 0) {
+			*len = 0;
+			return (NULL);
+		}
+		break;
 	case CRYPTO_BUF_MBUF:
 	case CRYPTO_BUF_SINGLE_MBUF:
 		if (cc->cc_mbuf == NULL) {
 			*len = 0;
 			return (NULL);
 		}
+		break;
+	default:
+#ifdef INVARIANTS
+		panic("%s: invalid buffer type %d", __func__, cc->cc_type);
+#endif
+		*len = 0;
+		return (NULL);
+	}
+
+	switch (cc->cc_type) {
+	case CRYPTO_BUF_CONTIG:
+		*len = cc->cc_buf_len;
+		return (cc->cc_buf);
+	case CRYPTO_BUF_MBUF:
+	case CRYPTO_BUF_SINGLE_MBUF:
 		if (cc->cc_mbuf->m_flags & M_EXTPG)
 			return (m_epg_segment(cc->cc_mbuf, cc->cc_offset, len));
 		*len = cc->cc_mbuf->m_len - cc->cc_offset;
@@ -425,11 +447,7 @@ crypto_cursor_segment(struct crypto_buffer_cursor *cc, size_t *len)
 		*len = cc->cc_iov->iov_len - cc->cc_offset;
 		return ((char *)cc->cc_iov->iov_base + cc->cc_offset);
 	default:
-#ifdef INVARIANTS
-		panic("%s: invalid buffer type %d", __func__, cc->cc_type);
-#endif
-		*len = 0;
-		return (NULL);
+		__assert_unreachable();
 	}
 }
 
@@ -520,6 +538,7 @@ crypto_cursor_copyback(struct crypto_buffer_cursor *cc, int size,
 			todo = MIN(remain, size);
 			memcpy(dst, src, todo);
 			src += todo;
+			cc->cc_buf_len -= todo;
 			if (todo < remain) {
 				cc->cc_offset += todo;
 				break;
@@ -609,6 +628,7 @@ crypto_cursor_copydata(struct crypto_buffer_cursor *cc, int size, void *vdst)
 			todo = MIN(remain, size);
 			memcpy(dst, src, todo);
 			dst += todo;
+			cc->cc_buf_len -= todo;
 			if (todo < remain) {
 				cc->cc_offset += todo;
 				break;
