@@ -30,6 +30,7 @@
 #include <sys/proc.h>
 #include <sys/kernel.h>
 
+#if defined(__aarch64__) || defined(__amd64__) || defined(__i386__)
 #include <machine/fpu.h>
 
 struct fpu_kern_ctx *__lkpi_fpu_ctx;
@@ -48,3 +49,4 @@ linux_fpu_uninit(void *arg __unused)
 	fpu_kern_free_ctx(__lkpi_fpu_ctx);
 }
 SYSUNINIT(linux_fpu, SI_SUB_EVENTHANDLER, SI_ORDER_SECOND, linux_fpu_uninit, NULL);
+#endif
