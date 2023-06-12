@@ -282,10 +282,6 @@ topology_parse(const char *opt)
 			set_config_value("cores", cp + strlen("cores="));
 		else if (strncmp(cp, "threads=", strlen("threads=")) == 0)
 			set_config_value("threads", cp + strlen("threads="));
-#ifdef notyet  /* Do not expose this until vmm.ko implements it */
-		else if (strncmp(cp, "maxcpus=", strlen("maxcpus=")) == 0)
-			set_config_value("maxcpus", cp + strlen("maxcpus="));
-#endif
 		else if (strchr(cp, '=') != NULL)
 			goto out;
 		else
@@ -1135,8 +1131,7 @@ do_open(const char *vmname)
 			exit(4);
 		}
 	}
-	error = vm_set_topology(ctx, cpu_sockets, cpu_cores, cpu_threads,
-	    0 /* maxcpus, unimplemented */);
+	error = vm_set_topology(ctx, cpu_sockets, cpu_cores, cpu_threads, 0);
 	if (error)
 		errx(EX_OSERR, "vm_set_topology");
 	return (ctx);
