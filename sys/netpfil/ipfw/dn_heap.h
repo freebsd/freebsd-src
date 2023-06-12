@@ -102,7 +102,7 @@ enum {
 #define SET_HEAP_OFS(h, n)	do { (h)->ofs = n; } while (0)
 int     heap_init(struct dn_heap *h, int size, int ofs);
 int     heap_insert(struct dn_heap *h, uint64_t key1, void *p);
-void    heap_extract(struct dn_heap *h, void *obj);
+bool    heap_extract(struct dn_heap *h, void *obj);
 void heap_free(struct dn_heap *h);
 int heap_scan(struct dn_heap *, int (*)(void *, uintptr_t), uintptr_t);
 
