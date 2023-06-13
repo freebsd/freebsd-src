@@ -490,7 +490,7 @@ in_postproc(if_ctx *ctx __unused, int newaddr, int ifflags)
 }
 
 static void
-in_status_tunnel(int s)
+in_status_tunnel(if_ctx *ctx)
 {
 	char src[NI_MAXHOST];
 	char dst[NI_MAXHOST];
@@ -500,14 +500,14 @@ in_status_tunnel(int s)
 	memset(&ifr, 0, sizeof(ifr));
 	strlcpy(ifr.ifr_name, name, IFNAMSIZ);
 
-	if (ioctl(s, SIOCGIFPSRCADDR, (caddr_t)&ifr) < 0)
+	if (ioctl_ctx(ctx, SIOCGIFPSRCADDR, (caddr_t)&ifr) < 0)
 		return;
 	if (sa->sa_family != AF_INET)
 		return;
 	if (getnameinfo(sa, sa->sa_len, src, sizeof(src), 0, 0, NI_NUMERICHOST) != 0)
 		src[0] = '\0';
 
-	if (ioctl(s, SIOCGIFPDSTADDR, (caddr_t)&ifr) < 0)
+	if (ioctl_ctx(ctx, SIOCGIFPDSTADDR, (caddr_t)&ifr) < 0)
 		return;
 	if (sa->sa_family != AF_INET)
 		return;
@@ -518,7 +518,7 @@ in_status_tunnel(int s)
 }
 
 static void
-in_set_tunnel(int s, struct addrinfo *srcres, struct addrinfo *dstres)
+in_set_tunnel(if_ctx *ctx, struct addrinfo *srcres, struct addrinfo *dstres)
 {
 	struct in_aliasreq addreq;
 
@@ -527,7 +527,7 @@ in_set_tunnel(int s, struct addrinfo *srcres, struct addrinfo *dstres)
 	memcpy(&addreq.ifra_addr, srcres->ai_addr, srcres->ai_addr->sa_len);
 	memcpy(&addreq.ifra_dstaddr, dstres->ai_addr, dstres->ai_addr->sa_len);
 
-	if (ioctl(s, SIOCSIFPHYADDR, &addreq) < 0)
+	if (ioctl_ctx(ctx, SIOCSIFPHYADDR, &addreq) < 0)
 		warn("SIOCSIFPHYADDR");
 }
 

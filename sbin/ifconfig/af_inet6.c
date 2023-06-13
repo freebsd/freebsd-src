@@ -647,7 +647,7 @@ in6_postproc(if_ctx *ctx, int newaddr __unused,
 }
 
 static void
-in6_status_tunnel(int s)
+in6_status_tunnel(if_ctx *ctx)
 {
 	char src[NI_MAXHOST];
 	char dst[NI_MAXHOST];
@@ -657,7 +657,7 @@ in6_status_tunnel(int s)
 	memset(&in6_ifr, 0, sizeof(in6_ifr));
 	strlcpy(in6_ifr.ifr_name, name, sizeof(in6_ifr.ifr_name));
 
-	if (ioctl(s, SIOCGIFPSRCADDR_IN6, (caddr_t)&in6_ifr) < 0)
+	if (ioctl_ctx(ctx, SIOCGIFPSRCADDR_IN6, (caddr_t)&in6_ifr) < 0)
 		return;
 	if (sa->sa_family != AF_INET6)
 		return;
@@ -665,7 +665,7 @@ in6_status_tunnel(int s)
 	    NI_NUMERICHOST) != 0)
 		src[0] = '\0';
 
-	if (ioctl(s, SIOCGIFPDSTADDR_IN6, (caddr_t)&in6_ifr) < 0)
+	if (ioctl_ctx(ctx, SIOCGIFPDSTADDR_IN6, (caddr_t)&in6_ifr) < 0)
 		return;
 	if (sa->sa_family != AF_INET6)
 		return;
@@ -677,7 +677,7 @@ in6_status_tunnel(int s)
 }
 
 static void
-in6_set_tunnel(int s, struct addrinfo *srcres, struct addrinfo *dstres)
+in6_set_tunnel(if_ctx *ctx, struct addrinfo *srcres, struct addrinfo *dstres)
 {
 	struct in6_aliasreq in6_addreq; 
 
@@ -687,7 +687,7 @@ in6_set_tunnel(int s, struct addrinfo *srcres, struct addrinfo *dstres)
 	memcpy(&in6_addreq.ifra_dstaddr, dstres->ai_addr,
 	    dstres->ai_addr->sa_len);
 
-	if (ioctl(s, SIOCSIFPHYADDR_IN6, &in6_addreq) < 0)
+	if (ioctl_ctx(ctx, SIOCSIFPHYADDR_IN6, &in6_addreq) < 0)
 		warn("SIOCSIFPHYADDR_IN6");
 }
 
