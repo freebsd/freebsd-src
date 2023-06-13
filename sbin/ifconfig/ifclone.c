@@ -148,15 +148,6 @@ ifclonecreate(if_ctx *ctx, void *arg __unused)
 	} else {
 		dcp->clone_cb(ctx, &ifr);
 	}
-
-	/*
-	 * If we get a different name back than we put in, update record and
-	 * indicate it should be printed later.
-	 */
-	if (strncmp(name, ifr.ifr_name, sizeof(name)) != 0) {
-		strlcpy(name, ifr.ifr_name, sizeof(name));
-		printifname = 1;
-	}
 }
 
 static void

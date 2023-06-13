@@ -58,10 +58,12 @@ struct ifconfig_args;
 struct ifconfig_context {
 	struct ifconfig_args	*args;
 	const struct afswtch	*afp;
-	int			io_s;	/* fd to use for ioctl() */
-	struct snl_state	*io_ss;	/* NETLINK_ROUTE socket */
+	int			io_s;		/* fd to use for ioctl() */
+	struct snl_state	*io_ss;		/* NETLINK_ROUTE socket */
+	char			*ifname;	/* Current interface name */
+	char			_ifname_storage_ioctl[IFNAMSIZ];
 };
-typedef const struct ifconfig_context if_ctx;
+typedef struct ifconfig_context if_ctx;
 
 typedef	void c_func(if_ctx *ctx, const char *cmd, int arg);
 typedef	void c_func2(if_ctx *ctx, const char *arg1, const char *arg2);
@@ -251,7 +253,6 @@ extern	struct ifreq ifr;
 extern	char name[IFNAMSIZ];	/* name of interface */
 extern	int allmedia;
 extern	int newaddr;
-extern	int printifname;
 extern	int exit_code;
 extern struct ifconfig_args global_args;
 extern	char *f_inet, *f_inet6, *f_ether, *f_addr;

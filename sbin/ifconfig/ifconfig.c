@@ -102,11 +102,12 @@ static int	setmask;
 static int	doalias;
 static int	clearaddr;
 int	newaddr = 1;
-int	printifname = 0;
 
 struct ifconfig_args global_args;
 
 int	exit_code = 0;
+
+static char ifname_to_print[IFNAMSIZ]; /* Helper for printifnamemaybe() */
 
 /* Formatter Strings */
 char	*f_inet, *f_inet6, *f_ether, *f_addr;
@@ -198,9 +199,22 @@ usage(void)
 	exit(1);
 }
 
+static void
+ifname_update(if_ctx *ctx, const char *name)
+{
+	strlcpy(ctx->_ifname_storage_ioctl, name, sizeof(ctx->_ifname_storage_ioctl));
+	ctx->ifname = ctx->_ifname_storage_ioctl;
+
+	strlcpy(ifname_to_print, name, sizeof(ifname_to_print));
+}
+
 void
 ifcreate_ioctl(if_ctx *ctx, struct ifreq *ifr)
 {
+	char ifname_orig[IFNAMSIZ];
+
+	strlcpy(ifname_orig, ifr->ifr_name, sizeof(ifname_orig));
+
 	if (ioctl(ctx->io_s, SIOCIFCREATE2, ifr) < 0) {
 		switch (errno) {
 		case EEXIST:
@@ -209,6 +223,9 @@ ifcreate_ioctl(if_ctx *ctx, struct ifreq *ifr)
 			err(1, "SIOCIFCREATE2 (%s)", ifr->ifr_name);
 		}
 	}
+
+	if (strncmp(ifname_orig, ifr->ifr_name, sizeof(ifname_orig)) != 0)
+		ifname_update(ctx, ifr->ifr_name);
 }
 
 #ifdef WITHOUT_NETLINK
@@ -402,8 +419,8 @@ sortifaddrs(struct ifaddrs *list,
 static void
 printifnamemaybe(void)
 {
-	if (printifname)
-		printf("%s\n", name);
+	if (ifname_to_print[0] != '\0')
+		printf("%s\n", ifname_to_print);
 }
 
 static void
@@ -1520,8 +1537,7 @@ setifname(if_ctx *ctx, const char *val, int dummy __unused)
 		free(newname);
 		err(1, "ioctl SIOCSIFNAME (set name)");
 	}
-	printifname = 1;
-	strlcpy(name, newname, sizeof(name));
+	ifname_update(ctx, newname);
 	free(newname);
 }
 
