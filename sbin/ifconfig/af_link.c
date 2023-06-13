@@ -62,11 +62,28 @@ print_ether(const struct ether_addr *addr, const char *prefix)
 {
 	char *ether_format = ether_ntoa(addr);
 
-	if (f_ether != NULL && strcmp(f_ether, "dash") == 0) {
-		char *format_char;
+	if (f_ether != NULL) {
+		if (strcmp(f_ether, "dash") == 0) {
+			char *format_char;
 
-		while ((format_char = strchr(ether_format, ':')) != NULL) {
-			*format_char = '-';
+			while ((format_char = strchr(ether_format, ':')) != NULL) {
+				*format_char = '-';
+			}
+		} else if (strcmp(f_ether, "dotted") == 0) {
+			/* Indices 0 and 1 is kept as is. */
+			ether_format[ 2] = ether_format[ 3];
+			ether_format[ 3] = ether_format[ 4];
+			ether_format[ 4] = '.';
+			ether_format[ 5] = ether_format[ 6];
+			ether_format[ 6] = ether_format[ 7];
+			ether_format[ 7] = ether_format[ 9];
+			ether_format[ 8] = ether_format[10];
+			ether_format[ 9] = '.';
+			ether_format[10] = ether_format[12];
+			ether_format[11] = ether_format[13];
+			ether_format[12] = ether_format[15];
+			ether_format[13] = ether_format[16];
+			ether_format[14] = '\0';
 		}
 	}
 	printf("\t%s %s\n", prefix, ether_format);
