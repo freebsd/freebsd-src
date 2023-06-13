@@ -215,7 +215,7 @@ lacp_format_peer(struct lacp_opreq *req, const char *sep)
 }
 
 static void
-lagg_status(if_ctx *ctx __unused)
+lagg_status(if_ctx *ctx)
 {
 	struct lagg_protos protos[] = LAGG_PROTOS;
 	struct ifconfig_lagg_status *lagg;
@@ -225,6 +225,7 @@ lagg_status(if_ctx *ctx __unused)
 	struct lagg_reqport *ports;
 	struct lacp_opreq *lp;
 	const char *proto;
+	const int verbose = ctx->args->verbose;
 
 	if (ifconfig_lagg_get_lagg_status(lifh, name, &lagg) == -1)
 		return;

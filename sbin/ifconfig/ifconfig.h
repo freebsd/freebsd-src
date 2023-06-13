@@ -250,9 +250,7 @@ extern	ifconfig_handle_t *lifh;
 extern	struct ifreq ifr;
 extern	char name[IFNAMSIZ];	/* name of interface */
 extern	int allmedia;
-extern	int printkeys;
 extern	int newaddr;
-extern	int verbose;
 extern	int printifname;
 extern	int exit_code;
 extern struct ifconfig_args global_args;

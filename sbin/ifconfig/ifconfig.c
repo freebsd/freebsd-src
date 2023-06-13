@@ -102,12 +102,10 @@ static int	setmask;
 static int	doalias;
 static int	clearaddr;
 int	newaddr = 1;
-int	verbose;
 int	printifname = 0;
 
 struct ifconfig_args global_args;
 
-int	printkeys = 0;		/* Print keying material for interfaces. */
 int	exit_code = 0;
 
 /* Formatter Strings */
@@ -555,10 +553,6 @@ args_parse(struct ifconfig_args *args, int argc, char *argv[])
 
 	args->argc = argc;
 	args->argv = argv;
-
-	/* Sync global variables */
-	printkeys = args->printkeys;
-	verbose = args->verbose;
 }
 
 static int
