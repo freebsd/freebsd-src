@@ -28,7 +28,7 @@
 .\"     @(#)route.8	8.3 (Berkeley) 3/19/94
 .\" $FreeBSD$
 .\"
-.Dd March 14, 2023
+.Dd June 13, 2023
 .Dt ROUTE 8
 .Os
 .Sh NAME
@@ -36,6 +36,7 @@
 .Nd manually manipulate the routing tables
 .Sh SYNOPSIS
 .Nm
+.Op Fl j Ar jail
 .Op Fl dnqtv
 .Ar command
 .Oo
@@ -91,6 +92,8 @@ Suppress all output from the
 and
 .Cm flush
 commands.
+.It Fl j Ar jail
+Run inside a jail.
 .El
 .Pp
 The

@@ -48,6 +48,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/file.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
+#ifdef JAIL
+#include <sys/jail.h>
+#endif
 #include <sys/sysctl.h>
 #include <sys/types.h>
 #include <sys/queue.h>
@@ -63,6 +66,9 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#ifdef JAIL
+#include <jail.h>
+#endif
 #include <paths.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -91,6 +97,9 @@ static struct keytab {
 };
 
 int	verbose, debugonly;
+#ifdef JAIL
+char * jail_name;
+#endif
 static struct sockaddr_storage so[RTAX_MAX];
 static int	pid, rtm_addrs;
 static int	nflag, af, aflen, qflag, tflag;
@@ -172,7 +181,7 @@ usage(const char *cp)
 {
 	if (cp != NULL)
 		warnx("bad keyword: %s", cp);
-	errx(EX_USAGE, "usage: route [-46dnqtv] command [[modifiers] args]");
+	errx(EX_USAGE, "usage: route [-j jail] [-46dnqtv] command [[modifiers] args]");
 	/* NOTREACHED */
 }
 
@@ -180,12 +189,15 @@ int
 main(int argc, char **argv)
 {
 	int ch;
+#ifdef JAIL
+	int jid;
+#endif
 	size_t len;
 
 	if (argc < 2)
 		usage(NULL);
 
-	while ((ch = getopt(argc, argv, "46nqdtv")) != -1)
+	while ((ch = getopt(argc, argv, "46nqdtvj:")) != -1)
 		switch(ch) {
 		case '4':
 #ifdef INET
@@ -218,6 +230,15 @@ main(int argc, char **argv)
 		case 'd':
 			debugonly = 1;
 			break;
+		case 'j':
+#ifdef JAIL
+			if (optarg == NULL)
+				usage(NULL);
+			jail_name = optarg;
+#else
+			errx(1, "Jail support is not compiled in");
+#endif
+			break;
 		case '?':
 		default:
 			usage(NULL);
@@ -227,6 +248,17 @@ main(int argc, char **argv)
 
 	pid = getpid();
 	uid = geteuid();
+
+#ifdef JAIL
+	if (jail_name != NULL) {
+		jid = jail_getid(jail_name);
+		if (jid == -1)
+			errx(1, "Jail not found");
+		if (jail_attach(jid) != 0)
+			errx(1, "Cannot attach to jail");
+	}
+#endif
+
 #ifdef WITHOUT_NETLINK
 	if (tflag)
 		s = open(_PATH_DEVNULL, O_WRONLY, 0);
