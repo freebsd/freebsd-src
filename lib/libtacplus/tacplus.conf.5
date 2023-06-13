@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 29, 1998
+.Dd June 13, 2023
 .Dt TACPLUS.CONF 5
 .Os
 .Sh NAME
@@ -46,23 +46,9 @@ Leading
 white space is ignored, as are empty lines and lines containing
 only comments.
 .Pp
-A TACACS+ server is described by two to four fields on a line.
-The
-fields are separated by white space.
-The
-.Ql #
-character at the beginning of a field begins a comment, which extends
-to the end of the line.
-A field may be enclosed in double quotes,
-in which case it may contain white space and/or begin with the
-.Ql #
-character.
-Within a quoted string, the double quote character can
-be represented by
-.Ql \e\&" ,
-and the backslash can be represented by
-.Ql \e\e .
-No other escape sequences are supported.
+A TACACS+ server is described by a minimum of two fields on a line.
+The fields are separated by whitespace and follow the same rules for
+comments, quoting, escaping, and line continuation as the POSIX shell.
 .Pp
 The first field specifies
 the server host, either as a fully qualified domain name or as a
@@ -83,12 +69,11 @@ An empty secret disables the
 normal encryption mechanism, causing all data to cross the network in
 cleartext.
 .Pp
-The third field contains a decimal integer specifying the timeout
-in seconds for communicating with the server.
+The optional third field may contain a decimal integer specifying the
+timeout in seconds for communicating with the server.
 The timeout applies
 separately to each connect, write, and read operation.
-If this field
-is omitted, it defaults to 3 seconds.
+If this field is omitted, it defaults to 3 seconds.
 .Pp
 The optional fourth field may contain the string
 .Ql single-connection .
@@ -97,6 +82,11 @@ with the server to keep the TCP connection open for multiple
 sessions.
 Some older TACACS+ servers become confused if this option
 is specified.
+.Pp
+Any subsequent fields must be of the form
+.Ar attribute Ns = Ns Ar value
+and will be appended to authorization responses as if they had been
+sent by the server.
 .Pp
 Up to 10 TACACS+ servers may be specified.
 The servers are tried in
@@ -120,11 +110,13 @@ shared secrets, it should not be readable except by root.
 tacserver.domain.com	OurLittleSecret
 
 # A server using a non-standard port, with an increased timeout and
-# the "single-connection" option.
-auth.domain.com:4333	"Don't tell!!"	15	single-connection
+# the "single-connection" option, and overrides for the for uid, gid
+# and shell attributes.
+auth.domain.com:4333	"Don't tell!!"	15	single-connection \e
+    uid=1001 gid=20 shell="/usr/local/bin/zsh"
 
 # A server specified by its IP address:
-192.168.27.81		$X*#..38947ax-+=
+192.168.27.81		$X*#..38947ax-+=	shell="/sbin/nologin"
 .Ed
 .Sh SEE ALSO
 .Xr libtacplus 3

@@ -60,30 +60,8 @@
 #define TAC_UNENCRYPTED		0x01
 #define TAC_SINGLE_CONNECT	0x04
 
-struct tac_server {
-	struct sockaddr_in addr;	/* Address of server */
-	char		*secret;	/* Shared secret */
-	int		 timeout;	/* Timeout in seconds */
-	int		 flags;
-};
-
-/*
- * An optional string of bytes specified by the client for inclusion in
- * a request.  The data is always a dynamically allocated copy that
- * belongs to the library.  It is copied into the request packet just
- * before sending the request.
- */
-struct clnt_str {
-	void		*data;
-	size_t		 len;
-};
-
-/*
- * An optional string of bytes from a server response.  The data resides
- * in the response packet itself, and must not be freed.
- */
-struct srvr_str {
-	const void	*data;
+struct tac_str {
+	char		*data;
 	size_t		 len;
 };
 
@@ -173,6 +151,15 @@ struct tac_msg {
 	} u;
 };
 
+struct tac_server {
+	struct sockaddr_in addr;	/* Address of server */
+	char		*secret;	/* Shared secret */
+	int		 timeout;	/* Timeout in seconds */
+	int		 flags;
+	unsigned int	 navs;
+	struct tac_str	 avs[MAXAVPAIRS];
+};
+
 struct tac_handle {
 	int		 fd;		/* Socket file descriptor */
 	struct tac_server servers[MAXSERVERS];	/* Servers to contact */
@@ -182,20 +169,30 @@ struct tac_handle {
 	int		 last_seq_no;
 	char		 errmsg[ERRSIZE];	/* Most recent error message */
 
-	struct clnt_str	 user;
-	struct clnt_str	 port;
-	struct clnt_str	 rem_addr;
-	struct clnt_str	 data;
-	struct clnt_str	 user_msg;
-	struct clnt_str  avs[MAXAVPAIRS];
+	struct tac_str	 user;
+	struct tac_str	 port;
+	struct tac_str	 rem_addr;
+	struct tac_str	 data;
+	struct tac_str	 user_msg;
+	struct tac_str	 avs[MAXAVPAIRS];
 
 	struct tac_msg	 request;
 	struct tac_msg	 response;
 
 	int		 srvr_pos;	/* Scan position in response body */
-	struct srvr_str	 srvr_msg;
-	struct srvr_str	 srvr_data;
-	struct srvr_str  srvr_avs[MAXAVPAIRS];
+	unsigned int	 srvr_navs;
+	struct tac_str	 srvr_msg;
+	struct tac_str	 srvr_data;
+	struct tac_str	 srvr_avs[MAXAVPAIRS];
 };
+
+#define is_alpha(ch) /* alphabetical */					\
+	(((ch) >= 'A' && (ch) <= 'Z') || ((ch) >= 'a' && (ch) <= 'z'))
+#define is_num(ch) /* numerical */					\
+	((ch) >= '0' && (ch) <= '9')
+#define is_alnum(ch) /* alphanumerical */				\
+	(is_alpha(ch) || is_num(ch))
+#define is_arg(ch) /* valid in an argument name */			\
+	(is_alnum(ch) || (ch) == '_' || (ch) == '-')
 
 #endif
