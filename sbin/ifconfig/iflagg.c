@@ -41,10 +41,9 @@ static char lacpbuf[120];	/* LACP peer '[(a,a,a),(p,p,p)]' */
 static void
 setlaggport(if_ctx *ctx, const char *val, int dummy __unused)
 {
-	struct lagg_reqport rp;
+	struct lagg_reqport rp = {};
 
-	bzero(&rp, sizeof(rp));
-	strlcpy(rp.rp_ifname, name, sizeof(rp.rp_ifname));
+	strlcpy(rp.rp_ifname, ctx->ifname, sizeof(rp.rp_ifname));
 	strlcpy(rp.rp_portname, val, sizeof(rp.rp_portname));
 
 	/*
@@ -55,7 +54,7 @@ setlaggport(if_ctx *ctx, const char *val, int dummy __unused)
 	 */
 	if (ioctl_ctx(ctx, SIOCSLAGGPORT, &rp) && errno != EEXIST) {
 		warnx("%s %s: SIOCSLAGGPORT: %s",
-		    name, val, strerror(errno));
+		    ctx->ifname, val, strerror(errno));
 		exit_code = 1;
 	}
 }
@@ -63,10 +62,9 @@ setlaggport(if_ctx *ctx, const char *val, int dummy __unused)
 static void
 unsetlaggport(if_ctx *ctx, const char *val, int dummy __unused)
 {
-	struct lagg_reqport rp;
+	struct lagg_reqport rp = {};
 
-	bzero(&rp, sizeof(rp));
-	strlcpy(rp.rp_ifname, name, sizeof(rp.rp_ifname));
+	strlcpy(rp.rp_ifname, ctx->ifname, sizeof(rp.rp_ifname));
 	strlcpy(rp.rp_portname, val, sizeof(rp.rp_portname));
 
 	if (ioctl_ctx(ctx, SIOCSLAGGDELPORT, &rp))
@@ -91,7 +89,7 @@ setlaggproto(if_ctx *ctx, const char *val, int dummy __unused)
 	if (ra.ra_proto == LAGG_PROTO_MAX)
 		errx(1, "Invalid aggregation protocol: %s", val);
 
-	strlcpy(ra.ra_ifname, name, sizeof(ra.ra_ifname));
+	strlcpy(ra.ra_ifname, ctx->ifname, sizeof(ra.ra_ifname));
 	if (ioctl_ctx(ctx, SIOCSLAGG, &ra) != 0)
 		err(1, "SIOCSLAGG");
 }
@@ -99,11 +97,10 @@ setlaggproto(if_ctx *ctx, const char *val, int dummy __unused)
 static void
 setlaggflowidshift(if_ctx *ctx, const char *val, int dummy __unused)
 {
-	struct lagg_reqopts ro;
+	struct lagg_reqopts ro = {};
 
-	bzero(&ro, sizeof(ro));
 	ro.ro_opts = LAGG_OPT_FLOWIDSHIFT;
-	strlcpy(ro.ro_ifname, name, sizeof(ro.ro_ifname));
+	strlcpy(ro.ro_ifname, ctx->ifname, sizeof(ro.ro_ifname));
 	ro.ro_flowid_shift = (int)strtol(val, NULL, 10);
 	if (ro.ro_flowid_shift & ~LAGG_OPT_FLOWIDSHIFT_MASK)
 		errx(1, "Invalid flowid_shift option: %s", val);
@@ -115,10 +112,9 @@ setlaggflowidshift(if_ctx *ctx, const char *val, int dummy __unused)
 static void
 setlaggrr_limit(if_ctx *ctx, const char *val, int dummy __unused)
 {
-	struct lagg_reqopts ro;
+	struct lagg_reqopts ro = {};
 	
-	bzero(&ro, sizeof(ro));
-	strlcpy(ro.ro_ifname, name, sizeof(ro.ro_ifname));
+	strlcpy(ro.ro_ifname, ctx->ifname, sizeof(ro.ro_ifname));
 	ro.ro_opts = LAGG_OPT_RR_LIMIT;
 	ro.ro_bkt = (uint32_t)strtoul(val, NULL, 10);
 	if (ro.ro_bkt == 0)
@@ -131,9 +127,8 @@ setlaggrr_limit(if_ctx *ctx, const char *val, int dummy __unused)
 static void
 setlaggsetopt(if_ctx *ctx, const char *val __unused, int d)
 {
-	struct lagg_reqopts ro;
+	struct lagg_reqopts ro = {};
 
-	bzero(&ro, sizeof(ro));
 	ro.ro_opts = d;
 	switch (ro.ro_opts) {
 	case LAGG_OPT_USE_FLOWID:
@@ -152,7 +147,7 @@ setlaggsetopt(if_ctx *ctx, const char *val __unused, int d)
 	default:
 		err(1, "Invalid lagg option");
 	}
-	strlcpy(ro.ro_ifname, name, sizeof(ro.ro_ifname));
+	strlcpy(ro.ro_ifname, ctx->ifname, sizeof(ro.ro_ifname));
 	
 	if (ioctl_ctx(ctx, SIOCSLAGGOPTS, &ro) != 0)
 		err(1, "SIOCSLAGGOPTS");
@@ -181,7 +176,7 @@ setlagghash(if_ctx *ctx, const char *val, int dummy __unused)
 	if (rf.rf_flags == 0)
 		errx(1, "No lagghash options supplied");
 
-	strlcpy(rf.rf_ifname, name, sizeof(rf.rf_ifname));
+	strlcpy(rf.rf_ifname, ctx->ifname, sizeof(rf.rf_ifname));
 	if (ioctl_ctx(ctx, SIOCSLAGGHASH, &rf))
 		err(1, "SIOCSLAGGHASH");
 }
@@ -227,7 +222,7 @@ lagg_status(if_ctx *ctx)
 	const char *proto;
 	const int verbose = ctx->args->verbose;
 
-	if (ifconfig_lagg_get_lagg_status(lifh, name, &lagg) == -1)
+	if (ifconfig_lagg_get_lagg_status(lifh, ctx->ifname, &lagg) == -1)
 		return;
 
 	ra = lagg->ra;

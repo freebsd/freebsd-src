@@ -51,13 +51,13 @@ fib_status(if_ctx *ctx)
 	struct ifreq ifr;
 
 	memset(&ifr, 0, sizeof(ifr));
-	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	strlcpy(ifr.ifr_name, ctx->ifname, sizeof(ifr.ifr_name));
 	if (ioctl_ctx(ctx, SIOCGIFFIB, (caddr_t)&ifr) == 0 &&
 	    ifr.ifr_fib != RT_DEFAULT_FIB)
 		printf("\tfib: %u\n", ifr.ifr_fib);
 
 	memset(&ifr, 0, sizeof(ifr));
-	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	strlcpy(ifr.ifr_name, ctx->ifname, sizeof(ifr.ifr_name));
 	if (ioctl_ctx(ctx, SIOCGTUNFIB, (caddr_t)&ifr) == 0 &&
 	    ifr.ifr_fib != RT_DEFAULT_FIB)
 		printf("\ttunnelfib: %u\n", ifr.ifr_fib);
@@ -75,7 +75,7 @@ setiffib(if_ctx *ctx, const char *val, int dummy __unused)
 		return;
 	}
 
-	strlcpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
+	strlcpy(ifr.ifr_name, ctx->ifname, sizeof (ifr.ifr_name));
 	ifr.ifr_fib = fib;
 	if (ioctl(ctx->io_s, SIOCSIFFIB, (caddr_t)&ifr) < 0)
 		warn("ioctl (SIOCSIFFIB)");
@@ -93,7 +93,7 @@ settunfib(if_ctx *ctx, const char *val, int dummy __unused)
 		return;
 	}
 
-	strlcpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
+	strlcpy(ifr.ifr_name, ctx->ifname, sizeof (ifr.ifr_name));
 	ifr.ifr_fib = fib;
 	if (ioctl(ctx->io_s, SIOCSTUNFIB, (caddr_t)&ifr) < 0)
 		warn("ioctl (SIOCSTUNFIB)");

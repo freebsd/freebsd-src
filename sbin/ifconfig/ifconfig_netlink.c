@@ -123,19 +123,15 @@ nl_init_socket(struct snl_state *ss)
 }
 
 int
-ifconfig_wrapper_nl(struct ifconfig_args *args, int iscreate,
+ifconfig_wrapper_nl(if_ctx *ctx, int iscreate,
     const struct afswtch *uafp)
 {
 	struct snl_state ss = {};
-	struct ifconfig_context ctx = {
-		.args = args,
-		.io_s = -1,
-		.io_ss = &ss,
-	};
 
 	nl_init_socket(&ss);
+	ctx->io_ss = &ss;
 
-	int error = ifconfig(&ctx, iscreate, uafp);
+	int error = ifconfig(ctx, iscreate, uafp);
 
 	snl_free(&ss);
 
@@ -396,7 +392,7 @@ status_nl(if_ctx *ctx, struct iface *iface)
 	else if (args->afp->af_other_status != NULL)
 		args->afp->af_other_status(ctx);
 
-	print_ifstatus(ctx->io_s);
+	print_ifstatus(ctx);
 	if (args->verbose > 0)
 		sfp_status(ctx);
 }
@@ -409,16 +405,6 @@ get_local_socket(void)
 	if (s < 0)
 		err(1, "socket(family %u,SOCK_DGRAM)", AF_LOCAL);
 	return (s);
-}
-
-static void
-set_global_ifname(if_link_t *link)
-{
-	size_t iflen = strlcpy(name, link->ifla_ifname, sizeof(name));
-
-	if (iflen >= sizeof(name))
-		errx(1, "%s: cloning name too long", link->ifla_ifname);
-	strlcpy(ifr.ifr_name, link->ifla_ifname, sizeof(ifr.ifr_name));
 }
 
 void
@@ -452,7 +438,7 @@ list_interfaces_nl(struct ifconfig_args *args)
 		if (!match_iface(args, iface))
 			continue;
 
-		set_global_ifname(&iface->link);
+		ctx->ifname = iface->link.ifla_ifname;
 
 		if (args->namesonly) {
 			if (num++ != 0)

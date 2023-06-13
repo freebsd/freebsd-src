@@ -60,7 +60,7 @@ struct ifconfig_context {
 	const struct afswtch	*afp;
 	int			io_s;		/* fd to use for ioctl() */
 	struct snl_state	*io_ss;		/* NETLINK_ROUTE socket */
-	char			*ifname;	/* Current interface name */
+	const char		*ifname;	/* Current interface name */
 	char			_ifname_storage_ioctl[IFNAMSIZ];
 };
 typedef struct ifconfig_context if_ctx;
@@ -251,7 +251,6 @@ void	opt_register(struct option *);
 
 extern	ifconfig_handle_t *lifh;
 extern	struct ifreq ifr;
-extern	char name[IFNAMSIZ];	/* name of interface */
 extern	int allmedia;
 extern	int newaddr;
 extern	int exit_code;
@@ -282,12 +281,12 @@ void	print_ifcap(struct ifconfig_args *args, int s);
 void	tunnel_status(if_ctx *ctx);
 struct afswtch	*af_getbyfamily(int af);
 void	af_other_status(if_ctx *ctx);
-void	print_ifstatus(int s);
+void	print_ifstatus(if_ctx *ctx);
 void	print_metric(int s);
 
 /* Netlink-related functions */
 void	list_interfaces_nl(struct ifconfig_args *args);
-int	ifconfig_wrapper_nl(struct ifconfig_args *args, int iscreate,
+int	ifconfig_wrapper_nl(if_ctx *ctx, int iscreate,
 		const struct afswtch *uafp);
 uint32_t if_nametoindex_nl(struct snl_state *ss, const char *ifname);
 
@@ -295,7 +294,7 @@ uint32_t if_nametoindex_nl(struct snl_state *ss, const char *ifname);
  * XXX expose this so modules that need to know of any pending
  * operations on ifmedia can avoid cmd line ordering confusion.
  */
-struct ifmediareq *ifmedia_getstate(void);
+struct ifmediareq *ifmedia_getstate(if_ctx *ctx);
 
 void print_vhid(const struct ifaddrs *, const char *);
 

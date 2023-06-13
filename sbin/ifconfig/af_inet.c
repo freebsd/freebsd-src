@@ -347,7 +347,7 @@ in_delete_first_nl(if_ctx *ctx)
 	struct snl_state *ss = ctx->io_ss;
 	bool found = false;
 
-	uint32_t ifindex = if_nametoindex_nl(ss, name);
+	uint32_t ifindex = if_nametoindex_nl(ss, ctx->ifname);
 	if (ifindex == 0) {
 		/* No interface with the desired name, nothing to delete */
 		return (EADDRNOTAVAIL);
@@ -417,7 +417,7 @@ in_exec_nl(if_ctx *ctx, unsigned long action, void *data)
 
 	ifahdr->ifa_family = AF_INET;
 	ifahdr->ifa_prefixlen = pdata->addr.plen;
-	ifahdr->ifa_index = if_nametoindex_nl(ctx->io_ss, name);
+	ifahdr->ifa_index = if_nametoindex_nl(ctx->io_ss, ctx->ifname);
 
 	snl_add_msg_attr_ip4(&nw, IFA_LOCAL, &pdata->addr.addr);
 	if (action == NL_RTM_NEWADDR && pdata->dst_addr.addrset)
@@ -498,7 +498,7 @@ in_status_tunnel(if_ctx *ctx)
 	const struct sockaddr *sa = (const struct sockaddr *) &ifr.ifr_addr;
 
 	memset(&ifr, 0, sizeof(ifr));
-	strlcpy(ifr.ifr_name, name, IFNAMSIZ);
+	strlcpy(ifr.ifr_name, ctx->ifname, IFNAMSIZ);
 
 	if (ioctl_ctx(ctx, SIOCGIFPSRCADDR, (caddr_t)&ifr) < 0)
 		return;
@@ -523,7 +523,7 @@ in_set_tunnel(if_ctx *ctx, struct addrinfo *srcres, struct addrinfo *dstres)
 	struct in_aliasreq addreq;
 
 	memset(&addreq, 0, sizeof(addreq));
-	strlcpy(addreq.ifra_name, name, IFNAMSIZ);
+	strlcpy(addreq.ifra_name, ctx->ifname, IFNAMSIZ);
 	memcpy(&addreq.ifra_addr, srcres->ai_addr, srcres->ai_addr->sa_len);
 	memcpy(&addreq.ifra_dstaddr, dstres->ai_addr, dstres->ai_addr->sa_len);
 

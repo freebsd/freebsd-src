@@ -92,7 +92,7 @@ ifconfig_handle_t *lifh;
  */
 struct	ifreq ifr;
 
-char	name[IFNAMSIZ];
+//char	name[IFNAMSIZ];
 #ifdef WITHOUT_NETLINK
 static char	*descr = NULL;
 static size_t	descrlen = 64;
@@ -576,15 +576,16 @@ static int
 ifconfig_wrapper(struct ifconfig_args *args, int iscreate,
     const struct afswtch *uafp)
 {
-#ifdef WITHOUT_NETLINK
 	struct ifconfig_context ctx = {
 		.args = args,
 		.io_s = -1,
+		.ifname = args->ifname,
 	};
 
+#ifdef WITHOUT_NETLINK
 	return (ifconfig(&ctx, iscreate, uafp));
 #else
-	return (ifconfig_wrapper_nl(args, iscreate, uafp));
+	return (ifconfig_wrapper_nl(&ctx, iscreate, uafp));
 #endif
 }
 
@@ -600,11 +601,16 @@ isargcreate(const char *arg)
 	return (false);
 }
 
+static bool
+isnametoolong(const char *ifname)
+{
+	return (strlen(ifname) >= IFNAMSIZ);
+}
+
 int
 main(int ac, char *av[])
 {
 	char *envformat;
-	size_t iflen;
 	int flags;
 #ifdef JAIL
 	int jid;
@@ -654,8 +660,7 @@ main(int ac, char *av[])
 			 * to find the interface.
 			 */
 			if (isargcreate(arg)) {
-				iflen = strlcpy(name, args->ifname, sizeof(name));
-				if (iflen >= sizeof(name))
+				if (isnametoolong(args->ifname))
 					errx(1, "%s: cloning name too long",
 					    args->ifname);
 				ifconfig_wrapper(args, 1, NULL);
@@ -668,8 +673,7 @@ main(int ac, char *av[])
 			 * to find the interface as it lives in another vnet.
 			 */
 			if (arg != NULL && (strcmp(arg, "-vnet") == 0)) {
-				iflen = strlcpy(name, args->ifname, sizeof(name));
-				if (iflen >= sizeof(name))
+				if (isnametoolong(args->ifname))
 					errx(1, "%s: interface name too long",
 					    args->ifname);
 				ifconfig_wrapper(args, 0, NULL);
@@ -704,11 +708,10 @@ main(int ac, char *av[])
 	 * system address list
 	 */
 	if ((args->argc > 0) && (args->ifname != NULL)) {
-		iflen = strlcpy(name, args->ifname, sizeof(name));
-		if (iflen >= sizeof(name)) {
+		if (isnametoolong(args->ifname))
 			warnx("%s: interface name too long, skipping", args->ifname);
-		} else {
-			flags = getifflags(name, -1, false);
+		else {
+			flags = getifflags(args->ifname, -1, false);
 			if (!(((flags & IFF_CANTCONFIG) != 0) ||
 				(args->downonly && (flags & IFF_UP) != 0) ||
 				(args->uponly && (flags & IFF_UP) == 0)))
@@ -776,7 +779,6 @@ list_interfaces_ioctl(struct ifconfig_args *args)
 	struct ifa_order_elt *cur, *tmp;
 	char *namecp = NULL;
 	int ifindex;
-	size_t iflen;
 
 	if (getifaddrs(&ifap) != 0)
 		err(EXIT_FAILURE, "getifaddrs");
@@ -810,8 +812,7 @@ list_interfaces_ioctl(struct ifconfig_args *args)
 			sdl = NULL;
 		if (cp != NULL && strcmp(cp, ifa->ifa_name) == 0 && !args->namesonly)
 			continue;
-		iflen = strlcpy(name, ifa->ifa_name, sizeof(name));
-		if (iflen >= sizeof(name)) {
+		if (isnametoolong(ifa->ifa_name)) {
 			warnx("%s: interface name too long, skipping",
 			    ifa->ifa_name);
 			continue;
@@ -834,7 +835,7 @@ list_interfaces_ioctl(struct ifconfig_args *args)
 			ifindex++;
 			if (ifindex > 1)
 				printf(" ");
-			fputs(name, stdout);
+			fputs(cp, stdout);
 			continue;
 		}
 		ifindex++;
@@ -1044,7 +1045,7 @@ af_exec_ioctl(if_ctx *ctx, unsigned long action, void *data)
 {
 	struct ifreq *req = (struct ifreq *)data;
 
-	strlcpy(req->ifr_name, name, sizeof(req->ifr_name));
+	strlcpy(req->ifr_name, ctx->ifname, sizeof(req->ifr_name));
 	if (ioctl_ctx(ctx, action, req) == 0)
 		return (0);
 	return (errno);
@@ -1057,7 +1058,7 @@ delifaddr(if_ctx *ctx, const struct afswtch *afp)
 
 	if (afp->af_exec == NULL) {
 		warnx("interface %s cannot change %s addresses!",
-		    name, afp->af_name);
+		    ctx->ifname, afp->af_name);
 		clearaddr = 0;
 		return;
 	}
@@ -1076,7 +1077,7 @@ addifaddr(if_ctx *ctx, const struct afswtch *afp)
 {
 	if (afp->af_exec == NULL) {
 		warnx("interface %s cannot change %s addresses!",
-		      name, afp->af_name);
+		      ctx->ifname, afp->af_name);
 		newaddr = 0;
 		return;
 	}
@@ -1100,10 +1101,11 @@ ifconfig(if_ctx *orig_ctx, int iscreate, const struct afswtch *uafp)
 	struct ifconfig_context _ctx = {
 		.args = orig_ctx->args,
 		.io_ss = orig_ctx->io_ss,
+		.ifname = orig_ctx->ifname,
 	};
 	struct ifconfig_context *ctx = &_ctx;
 
-	strlcpy(ifr.ifr_name, name, sizeof ifr.ifr_name);
+	strlcpy(ifr.ifr_name, ctx->ifname, sizeof ifr.ifr_name);
 	afp = NULL;
 	if (uafp != NULL)
 		afp = uafp;
@@ -1209,7 +1211,7 @@ top:
 	 * Do any post argument processing required by the address family.
 	 */
 	if (afp->af_postproc != NULL)
-		afp->af_postproc(ctx, newaddr, getifflags(name, s, true));
+		afp->af_postproc(ctx, newaddr, getifflags(ctx->ifname, s, true));
 	/*
 	 * Do deferred callbacks registered while processing
 	 * command-line arguments.
@@ -1394,14 +1396,14 @@ setifflags(if_ctx *ctx, const char *vname, int value)
 	struct ifreq		my_ifr;
 	int flags;
 
-	flags = getifflags(name, ctx->io_s, false);
+	flags = getifflags(ctx->ifname, ctx->io_s, false);
 	if (value < 0) {
 		value = -value;
 		flags &= ~value;
 	} else
 		flags |= value;
 	memset(&my_ifr, 0, sizeof(my_ifr));
-	(void) strlcpy(my_ifr.ifr_name, name, sizeof(my_ifr.ifr_name));
+	strlcpy(my_ifr.ifr_name, ctx->ifname, sizeof(my_ifr.ifr_name));
 	my_ifr.ifr_flags = flags & 0xffff;
 	my_ifr.ifr_flagshigh = flags >> 16;
 	if (ioctl(ctx->io_s, SIOCSIFFLAGS, (caddr_t)&my_ifr) < 0)
@@ -1482,7 +1484,7 @@ setifcapnv(if_ctx *ctx, const char *vname, const char *arg)
 static void
 setifmetric(if_ctx *ctx, const char *val, int dummy __unused)
 {
-	strlcpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
+	strlcpy(ifr.ifr_name, ctx->ifname, sizeof (ifr.ifr_name));
 	ifr.ifr_metric = atoi(val);
 	if (ioctl(ctx->io_s, SIOCSIFMETRIC, (caddr_t)&ifr) < 0)
 		err(1, "ioctl SIOCSIFMETRIC (set metric)");
@@ -1491,7 +1493,7 @@ setifmetric(if_ctx *ctx, const char *val, int dummy __unused)
 static void
 setifmtu(if_ctx *ctx, const char *val, int dummy __unused)
 {
-	strlcpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
+	strlcpy(ifr.ifr_name, ctx->ifname, sizeof (ifr.ifr_name));
 	ifr.ifr_mtu = atoi(val);
 	if (ioctl(ctx->io_s, SIOCSIFMTU, (caddr_t)&ifr) < 0)
 		err(1, "ioctl SIOCSIFMTU (set mtu)");
@@ -1527,7 +1529,7 @@ setifname(if_ctx *ctx, const char *val, int dummy __unused)
 {
 	char *newname;
 	
-	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	strlcpy(ifr.ifr_name, ctx->ifname, sizeof(ifr.ifr_name));
 
 	newname = strdup(val);
 	if (newname == NULL)
@@ -1546,7 +1548,7 @@ setifdescr(if_ctx *ctx, const char *val, int dummy __unused)
 {
 	char *newdescr;
 
-	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	strlcpy(ifr.ifr_name, ctx->ifname, sizeof(ifr.ifr_name));
 	
 	ifr.ifr_buffer.length = strlen(val) + 1;
 	if (ifr.ifr_buffer.length == 1) {
@@ -1663,12 +1665,12 @@ print_ifcap(struct ifconfig_args *args, int s)
 }
 
 void
-print_ifstatus(int s)
+print_ifstatus(if_ctx *ctx)
 {
 	struct ifstat ifs;
 
-	strlcpy(ifs.ifs_name, name, sizeof ifs.ifs_name);
-	if (ioctl(s, SIOCGIFSTATUS, &ifs) == 0)
+	strlcpy(ifs.ifs_name, ctx->ifname, sizeof ifs.ifs_name);
+	if (ioctl_ctx(ctx, SIOCGIFSTATUS, &ifs) == 0)
 		printf("%s", ifs.ascii);
 }
 
@@ -1722,22 +1724,26 @@ status(struct ifconfig_args *args, const struct sockaddr_dl *sdl,
 	struct ifaddrs *ift;
 	int s;
 	bool allfamilies = args->afp == NULL;
+	char *ifname = ifa->ifa_name;
 
 	if (args->afp == NULL)
 		ifr.ifr_addr.sa_family = AF_LOCAL;
 	else
 		ifr.ifr_addr.sa_family =
 		   args->afp->af_af == AF_LINK ? AF_LOCAL : args->afp->af_af;
-	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	strlcpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
 
 	s = socket(ifr.ifr_addr.sa_family, SOCK_DGRAM, 0);
 	if (s < 0)
 		err(1, "socket(family %u,SOCK_DGRAM)", ifr.ifr_addr.sa_family);
 
-	struct ifconfig_context _ctx = { .io_s = s }, *ctx;
-	ctx = &_ctx;
+	struct ifconfig_context _ctx = {
+		.io_s = s,
+		.ifname = ifname,
+	};
+	struct ifconfig_context *ctx = &_ctx;
 
-	printf("%s: ", name);
+	printf("%s: ", ifname);
 	printb("flags", ifa->ifa_flags, IFFBITS);
 	print_metric(s);
 	print_mtu(s);
@@ -1784,7 +1790,7 @@ status(struct ifconfig_args *args, const struct sockaddr_dl *sdl,
 	else if (args->afp->af_other_status != NULL)
 		args->afp->af_other_status(ctx);
 
-	print_ifstatus(s);
+	print_ifstatus(ctx);
 	if (args->verbose > 0)
 		sfp_status(ctx);
 

@@ -85,28 +85,26 @@ get_val(const char *cp, u_long *valp)
 }
 
 static int
-do_cmd(int sock, u_long op, void *arg, size_t argsize, int set)
+do_cmd(if_ctx *ctx, u_long op, void *arg, size_t argsize, int set)
 {
-	struct ifdrv ifd;
+	struct ifdrv ifd = {};
 
-	memset(&ifd, 0, sizeof(ifd));
-
-	strlcpy(ifd.ifd_name, name, sizeof(ifd.ifd_name));
+	strlcpy(ifd.ifd_name, ctx->ifname, sizeof(ifd.ifd_name));
 	ifd.ifd_cmd = op;
 	ifd.ifd_len = argsize;
 	ifd.ifd_data = arg;
 
-	return (ioctl(sock, set ? SIOCSDRVSPEC : SIOCGDRVSPEC, &ifd));
+	return (ioctl_ctx(ctx, set ? SIOCSDRVSPEC : SIOCGDRVSPEC, &ifd));
 }
 
 static void
-do_bridgeflag(int sock, const char *ifs, int flag, int set)
+do_bridgeflag(if_ctx *ctx, const char *ifs, int flag, int set)
 {
 	struct ifbreq req;
 
 	strlcpy(req.ifbr_ifsname, ifs, sizeof(req.ifbr_ifsname));
 
-	if (do_cmd(sock, BRDGGIFFLGS, &req, sizeof(req), 0) < 0)
+	if (do_cmd(ctx, BRDGGIFFLGS, &req, sizeof(req), 0) < 0)
 		err(1, "unable to get bridge flags");
 
 	if (set)
@@ -114,12 +112,12 @@ do_bridgeflag(int sock, const char *ifs, int flag, int set)
 	else
 		req.ifbr_ifsflags &= ~flag;
 
-	if (do_cmd(sock, BRDGSIFFLGS, &req, sizeof(req), 1) < 0)
+	if (do_cmd(ctx, BRDGSIFFLGS, &req, sizeof(req), 1) < 0)
 		err(1, "unable to set bridge flags");
 }
 
 static void
-bridge_addresses(int s, const char *prefix)
+bridge_addresses(if_ctx *ctx, const char *prefix)
 {
 	struct ifbaconf ifbac;
 	struct ifbareq *ifba;
@@ -133,7 +131,7 @@ bridge_addresses(int s, const char *prefix)
 			err(1, "unable to allocate address buffer");
 		ifbac.ifbac_len = len;
 		ifbac.ifbac_buf = inbuf = ninbuf;
-		if (do_cmd(s, BRDGRTS, &ifbac, sizeof(ifbac), 0) < 0)
+		if (do_cmd(ctx, BRDGRTS, &ifbac, sizeof(ifbac), 0) < 0)
 			err(1, "unable to get address cache");
 		if ((ifbac.ifbac_len + sizeof(*ifba)) < len)
 			break;
@@ -154,7 +152,7 @@ bridge_addresses(int s, const char *prefix)
 }
 
 static void
-bridge_status(if_ctx *ctx __unused)
+bridge_status(if_ctx *ctx)
 {
 	struct ifconfig_bridge_status *bridge;
 	struct ifbropreq *params;
@@ -162,7 +160,7 @@ bridge_status(if_ctx *ctx __unused)
 	uint8_t lladdr[ETHER_ADDR_LEN];
 	uint16_t bprio;
 
-	if (ifconfig_bridge_get_bridge_status(lifh, name, &bridge) == -1)
+	if (ifconfig_bridge_get_bridge_status(lifh, ctx->ifname, &bridge) == -1)
 		return;
 
 	params = bridge->params;
@@ -231,7 +229,7 @@ setbridge_add(if_ctx *ctx, const char *val, int dummy __unused)
 
 	memset(&req, 0, sizeof(req));
 	strlcpy(req.ifbr_ifsname, val, sizeof(req.ifbr_ifsname));
-	if (do_cmd(ctx->io_s, BRDGADD, &req, sizeof(req), 1) < 0)
+	if (do_cmd(ctx, BRDGADD, &req, sizeof(req), 1) < 0)
 		err(1, "BRDGADD %s",  val);
 }
 
@@ -242,7 +240,7 @@ setbridge_delete(if_ctx *ctx, const char *val, int dummy __unused)
 
 	memset(&req, 0, sizeof(req));
 	strlcpy(req.ifbr_ifsname, val, sizeof(req.ifbr_ifsname));
-	if (do_cmd(ctx->io_s, BRDGDEL, &req, sizeof(req), 1) < 0)
+	if (do_cmd(ctx, BRDGDEL, &req, sizeof(req), 1) < 0)
 		err(1, "BRDGDEL %s",  val);
 }
 
@@ -250,42 +248,42 @@ static void
 setbridge_discover(if_ctx *ctx, const char *val, int dummy __unused)
 {
 
-	do_bridgeflag(ctx->io_s, val, IFBIF_DISCOVER, 1);
+	do_bridgeflag(ctx, val, IFBIF_DISCOVER, 1);
 }
 
 static void
 unsetbridge_discover(if_ctx *ctx, const char *val, int dummy __unused)
 {
 
-	do_bridgeflag(ctx->io_s, val, IFBIF_DISCOVER, 0);
+	do_bridgeflag(ctx, val, IFBIF_DISCOVER, 0);
 }
 
 static void
 setbridge_learn(if_ctx *ctx, const char *val, int dummy __unused)
 {
 
-	do_bridgeflag(ctx->io_s, val, IFBIF_LEARNING,  1);
+	do_bridgeflag(ctx, val, IFBIF_LEARNING,  1);
 }
 
 static void
 unsetbridge_learn(if_ctx *ctx, const char *val, int dummy __unused)
 {
 
-	do_bridgeflag(ctx->io_s, val, IFBIF_LEARNING,  0);
+	do_bridgeflag(ctx, val, IFBIF_LEARNING,  0);
 }
 
 static void
 setbridge_sticky(if_ctx *ctx, const char *val, int dummy __unused)
 {
 
-	do_bridgeflag(ctx->io_s, val, IFBIF_STICKY,  1);
+	do_bridgeflag(ctx, val, IFBIF_STICKY,  1);
 }
 
 static void
 unsetbridge_sticky(if_ctx *ctx, const char *val, int dummy __unused)
 {
 
-	do_bridgeflag(ctx->io_s, val, IFBIF_STICKY,  0);
+	do_bridgeflag(ctx, val, IFBIF_STICKY,  0);
 }
 
 static void
@@ -295,7 +293,7 @@ setbridge_span(if_ctx *ctx, const char *val, int dummy __unused)
 
 	memset(&req, 0, sizeof(req));
 	strlcpy(req.ifbr_ifsname, val, sizeof(req.ifbr_ifsname));
-	if (do_cmd(ctx->io_s, BRDGADDS, &req, sizeof(req), 1) < 0)
+	if (do_cmd(ctx, BRDGADDS, &req, sizeof(req), 1) < 0)
 		err(1, "BRDGADDS %s",  val);
 }
 
@@ -306,7 +304,7 @@ unsetbridge_span(if_ctx *ctx, const char *val, int dummy __unused)
 
 	memset(&req, 0, sizeof(req));
 	strlcpy(req.ifbr_ifsname, val, sizeof(req.ifbr_ifsname));
-	if (do_cmd(ctx->io_s, BRDGDELS, &req, sizeof(req), 1) < 0)
+	if (do_cmd(ctx, BRDGDELS, &req, sizeof(req), 1) < 0)
 		err(1, "BRDGDELS %s",  val);
 }
 
@@ -314,62 +312,62 @@ static void
 setbridge_stp(if_ctx *ctx, const char *val, int dummy __unused)
 {
 
-	do_bridgeflag(ctx->io_s, val, IFBIF_STP, 1);
+	do_bridgeflag(ctx, val, IFBIF_STP, 1);
 }
 
 static void
 unsetbridge_stp(if_ctx *ctx, const char *val, int dummy __unused)
 {
 
-	do_bridgeflag(ctx->io_s, val, IFBIF_STP, 0);
+	do_bridgeflag(ctx, val, IFBIF_STP, 0);
 }
 
 static void
 setbridge_edge(if_ctx *ctx, const char *val, int dummy __unused)
 {
-	do_bridgeflag(ctx->io_s, val, IFBIF_BSTP_EDGE, 1);
+	do_bridgeflag(ctx, val, IFBIF_BSTP_EDGE, 1);
 }
 
 static void
 unsetbridge_edge(if_ctx *ctx, const char *val, int dummy __unused)
 {
-	do_bridgeflag(ctx->io_s, val, IFBIF_BSTP_EDGE, 0);
+	do_bridgeflag(ctx, val, IFBIF_BSTP_EDGE, 0);
 }
 
 static void
 setbridge_autoedge(if_ctx *ctx, const char *val, int dummy __unused)
 {
-	do_bridgeflag(ctx->io_s, val, IFBIF_BSTP_AUTOEDGE, 1);
+	do_bridgeflag(ctx, val, IFBIF_BSTP_AUTOEDGE, 1);
 }
 
 static void
 unsetbridge_autoedge(if_ctx *ctx, const char *val, int dummy __unused)
 {
-	do_bridgeflag(ctx->io_s, val, IFBIF_BSTP_AUTOEDGE, 0);
+	do_bridgeflag(ctx, val, IFBIF_BSTP_AUTOEDGE, 0);
 }
 
 static void
 setbridge_ptp(if_ctx *ctx, const char *val, int dummy __unused)
 {
-	do_bridgeflag(ctx->io_s, val, IFBIF_BSTP_PTP, 1);
+	do_bridgeflag(ctx, val, IFBIF_BSTP_PTP, 1);
 }
 
 static void
 unsetbridge_ptp(if_ctx *ctx, const char *val, int dummy __unused)
 {
-	do_bridgeflag(ctx->io_s, val, IFBIF_BSTP_PTP, 0);
+	do_bridgeflag(ctx, val, IFBIF_BSTP_PTP, 0);
 }
 
 static void
 setbridge_autoptp(if_ctx *ctx, const char *val, int dummy __unused)
 {
-	do_bridgeflag(ctx->io_s, val, IFBIF_BSTP_AUTOPTP, 1);
+	do_bridgeflag(ctx, val, IFBIF_BSTP_AUTOPTP, 1);
 }
 
 static void
 unsetbridge_autoptp(if_ctx *ctx, const char *val, int dummy __unused)
 {
-	do_bridgeflag(ctx->io_s, val, IFBIF_BSTP_AUTOPTP, 0);
+	do_bridgeflag(ctx, val, IFBIF_BSTP_AUTOPTP, 0);
 }
 
 static void
@@ -379,7 +377,7 @@ setbridge_flush(if_ctx *ctx, const char *val __unused, int dummy __unused)
 
 	memset(&req, 0, sizeof(req));
 	req.ifbr_ifsflags = IFBF_FLUSHDYN;
-	if (do_cmd(ctx->io_s, BRDGFLUSH, &req, sizeof(req), 1) < 0)
+	if (do_cmd(ctx, BRDGFLUSH, &req, sizeof(req), 1) < 0)
 		err(1, "BRDGFLUSH");
 }
 
@@ -390,7 +388,7 @@ setbridge_flushall(if_ctx *ctx, const char *val __unused, int dummy __unused)
 
 	memset(&req, 0, sizeof(req));
 	req.ifbr_ifsflags = IFBF_FLUSHALL;
-	if (do_cmd(ctx->io_s, BRDGFLUSH, &req, sizeof(req), 1) < 0)
+	if (do_cmd(ctx, BRDGFLUSH, &req, sizeof(req), 1) < 0)
 		err(1, "BRDGFLUSH");
 }
 
@@ -411,7 +409,7 @@ setbridge_static(if_ctx *ctx, const char *val, const char *mac)
 	req.ifba_flags = IFBAF_STATIC;
 	req.ifba_vlan = 1; /* XXX allow user to specify */
 
-	if (do_cmd(ctx->io_s, BRDGSADDR, &req, sizeof(req), 1) < 0)
+	if (do_cmd(ctx, BRDGSADDR, &req, sizeof(req), 1) < 0)
 		err(1, "BRDGSADDR %s",  val);
 }
 
@@ -429,7 +427,7 @@ setbridge_deladdr(if_ctx *ctx, const char *val, int dummy __unused)
 
 	memcpy(req.ifba_dst, ea->octet, sizeof(req.ifba_dst));
 
-	if (do_cmd(ctx->io_s, BRDGDADDR, &req, sizeof(req), 1) < 0)
+	if (do_cmd(ctx, BRDGDADDR, &req, sizeof(req), 1) < 0)
 		err(1, "BRDGDADDR %s",  val);
 }
 
@@ -437,7 +435,7 @@ static void
 setbridge_addr(if_ctx *ctx, const char *val __unused, int dummy __unused)
 {
 
-	bridge_addresses(ctx->io_s, "");
+	bridge_addresses(ctx, "");
 }
 
 static void
@@ -451,7 +449,7 @@ setbridge_maxaddr(if_ctx *ctx, const char *arg, int dummy __unused)
 
 	param.ifbrp_csize = val & 0xffffffff;
 
-	if (do_cmd(ctx->io_s, BRDGSCACHE, &param, sizeof(param), 1) < 0)
+	if (do_cmd(ctx, BRDGSCACHE, &param, sizeof(param), 1) < 0)
 		err(1, "BRDGSCACHE %s",  arg);
 }
 
@@ -466,7 +464,7 @@ setbridge_hellotime(if_ctx *ctx, const char *arg, int dummy __unused)
 
 	param.ifbrp_hellotime = val & 0xff;
 
-	if (do_cmd(ctx->io_s, BRDGSHT, &param, sizeof(param), 1) < 0)
+	if (do_cmd(ctx, BRDGSHT, &param, sizeof(param), 1) < 0)
 		err(1, "BRDGSHT %s",  arg);
 }
 
@@ -481,7 +479,7 @@ setbridge_fwddelay(if_ctx *ctx, const char *arg, int dummy __unused)
 
 	param.ifbrp_fwddelay = val & 0xff;
 
-	if (do_cmd(ctx->io_s, BRDGSFD, &param, sizeof(param), 1) < 0)
+	if (do_cmd(ctx, BRDGSFD, &param, sizeof(param), 1) < 0)
 		err(1, "BRDGSFD %s",  arg);
 }
 
@@ -496,7 +494,7 @@ setbridge_maxage(if_ctx *ctx, const char *arg, int dummy __unused)
 
 	param.ifbrp_maxage = val & 0xff;
 
-	if (do_cmd(ctx->io_s, BRDGSMA, &param, sizeof(param), 1) < 0)
+	if (do_cmd(ctx, BRDGSMA, &param, sizeof(param), 1) < 0)
 		err(1, "BRDGSMA %s",  arg);
 }
 
@@ -511,7 +509,7 @@ setbridge_priority(if_ctx *ctx, const char *arg, int dummy __unused)
 
 	param.ifbrp_prio = val & 0xffff;
 
-	if (do_cmd(ctx->io_s, BRDGSPRI, &param, sizeof(param), 1) < 0)
+	if (do_cmd(ctx, BRDGSPRI, &param, sizeof(param), 1) < 0)
 		err(1, "BRDGSPRI %s",  arg);
 }
 
@@ -528,7 +526,7 @@ setbridge_protocol(if_ctx *ctx, const char *arg, int dummy __unused)
 		errx(1, "unknown stp protocol");
 	}
 
-	if (do_cmd(ctx->io_s, BRDGSPROTO, &param, sizeof(param), 1) < 0)
+	if (do_cmd(ctx, BRDGSPROTO, &param, sizeof(param), 1) < 0)
 		err(1, "BRDGSPROTO %s",  arg);
 }
 
@@ -543,7 +541,7 @@ setbridge_holdcount(if_ctx *ctx, const char *arg, int dummy __unused)
 
 	param.ifbrp_txhc = val & 0xff;
 
-	if (do_cmd(ctx->io_s, BRDGSTXHC, &param, sizeof(param), 1) < 0)
+	if (do_cmd(ctx, BRDGSTXHC, &param, sizeof(param), 1) < 0)
 		err(1, "BRDGSTXHC %s",  arg);
 }
 
@@ -561,7 +559,7 @@ setbridge_ifpriority(if_ctx *ctx, const char *ifn, const char *pri)
 	strlcpy(req.ifbr_ifsname, ifn, sizeof(req.ifbr_ifsname));
 	req.ifbr_priority = val & 0xff;
 
-	if (do_cmd(ctx->io_s, BRDGSIFPRIO, &req, sizeof(req), 1) < 0)
+	if (do_cmd(ctx, BRDGSIFPRIO, &req, sizeof(req), 1) < 0)
 		err(1, "BRDGSIFPRIO %s",  pri);
 }
 
@@ -579,7 +577,7 @@ setbridge_ifpathcost(if_ctx *ctx, const char *ifn, const char *cost)
 	strlcpy(req.ifbr_ifsname, ifn, sizeof(req.ifbr_ifsname));
 	req.ifbr_path_cost = val;
 
-	if (do_cmd(ctx->io_s, BRDGSIFCOST, &req, sizeof(req), 1) < 0)
+	if (do_cmd(ctx, BRDGSIFCOST, &req, sizeof(req), 1) < 0)
 		err(1, "BRDGSIFCOST %s",  cost);
 }
 
@@ -597,7 +595,7 @@ setbridge_ifmaxaddr(if_ctx *ctx, const char *ifn, const char *arg)
 	strlcpy(req.ifbr_ifsname, ifn, sizeof(req.ifbr_ifsname));
 	req.ifbr_addrmax = val & 0xffffffff;
 
-	if (do_cmd(ctx->io_s, BRDGSIFAMAX, &req, sizeof(req), 1) < 0)
+	if (do_cmd(ctx, BRDGSIFAMAX, &req, sizeof(req), 1) < 0)
 		err(1, "BRDGSIFAMAX %s",  arg);
 }
 
@@ -612,7 +610,7 @@ setbridge_timeout(if_ctx *ctx, const char *arg, int dummy __unused)
 
 	param.ifbrp_ctime = val & 0xffffffff;
 
-	if (do_cmd(ctx->io_s, BRDGSTO, &param, sizeof(param), 1) < 0)
+	if (do_cmd(ctx, BRDGSTO, &param, sizeof(param), 1) < 0)
 		err(1, "BRDGSTO %s",  arg);
 }
 
@@ -620,14 +618,14 @@ static void
 setbridge_private(if_ctx *ctx, const char *val, int dummy __unused)
 {
 
-	do_bridgeflag(ctx->io_s, val, IFBIF_PRIVATE, 1);
+	do_bridgeflag(ctx, val, IFBIF_PRIVATE, 1);
 }
 
 static void
 unsetbridge_private(if_ctx *ctx, const char *val, int dummy __unused)
 {
 
-	do_bridgeflag(ctx->io_s, val, IFBIF_PRIVATE, 0);
+	do_bridgeflag(ctx, val, IFBIF_PRIVATE, 0);
 }
 
 static struct cmd bridge_cmds[] = {

@@ -98,15 +98,15 @@ static void print_media(ifmedia_t, bool);
 static void print_media_ifconfig(ifmedia_t);
 
 static void
-media_status(if_ctx *ctx __unused)
+media_status(if_ctx *ctx)
 {
 	struct ifmediareq *ifmr;
 
-	if (ifconfig_media_get_mediareq(lifh, name, &ifmr) == -1)
+	if (ifconfig_media_get_mediareq(lifh, ctx->ifname, &ifmr) == -1)
 		return;
 
 	if (ifmr->ifm_count == 0) {
-		warnx("%s: no media types?", name);
+		warnx("%s: no media types?", ctx->ifname);
 		goto free;
 	}
 
@@ -128,7 +128,7 @@ media_status(if_ctx *ctx __unused)
 		status = ifconfig_media_get_status(ifmr);
 		printf("\tstatus: %s", status);
 		if (strcmp(status, "no carrier") == 0 &&
-		    ifconfig_media_get_downreason(lifh, name, &ifdr) == 0) {
+		    ifconfig_media_get_downreason(lifh, ctx->ifname, &ifdr) == 0) {
 			switch (ifdr.ifdr_reason) {
 			case IFDR_REASON_MSG:
 				printf(" (%s)", ifdr.ifdr_msg);
@@ -157,19 +157,19 @@ free:
 }
 
 struct ifmediareq *
-ifmedia_getstate(void)
+ifmedia_getstate(if_ctx *ctx)
 {
 	static struct ifmediareq *ifmr = NULL;
 
 	if (ifmr != NULL)
 		return (ifmr);
 
-	if (ifconfig_media_get_mediareq(lifh, name, &ifmr) == -1)
+	if (ifconfig_media_get_mediareq(lifh, ctx->ifname, &ifmr) == -1)
 		errc(1, ifconfig_err_errno(lifh),
-		    "%s: ifconfig_media_get_mediareq", name);
+		    "%s: ifconfig_media_get_mediareq", ctx->ifname);
 
 	if (ifmr->ifm_count == 0)
-		errx(1, "%s: no media types?", name);
+		errx(1, "%s: no media types?", ctx->ifname);
 
 	return (ifmr);
 }
@@ -195,7 +195,7 @@ setmedia(if_ctx *ctx, const char *val, int d __unused)
 	struct ifmediareq *ifmr;
 	int subtype;
 
-	ifmr = ifmedia_getstate();
+	ifmr = ifmedia_getstate(ctx);
 
 	/*
 	 * We are primarily concerned with the top-level type.
@@ -208,7 +208,7 @@ setmedia(if_ctx *ctx, const char *val, int d __unused)
 	 */
 	subtype = get_media_subtype(ifmr->ifm_ulist[0], val);
 
-	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	strlcpy(ifr.ifr_name, ctx->ifname, sizeof(ifr.ifr_name));
 	ifr.ifr_media = (ifmr->ifm_current & IFM_IMASK) |
 	    IFM_TYPE(ifmr->ifm_ulist[0]) | subtype;
 
@@ -236,11 +236,11 @@ domediaopt(if_ctx *ctx, const char *val, bool clear)
 	struct ifmediareq *ifmr;
 	ifmedia_t options;
 
-	ifmr = ifmedia_getstate();
+	ifmr = ifmedia_getstate(ctx);
 
 	options = get_media_options(ifmr->ifm_ulist[0], val);
 
-	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	strlcpy(ifr.ifr_name, ctx->ifname, sizeof(ifr.ifr_name));
 	ifr.ifr_media = ifmr->ifm_current;
 	if (clear)
 		ifr.ifr_media &= ~options;
@@ -261,13 +261,13 @@ setmediainst(if_ctx *ctx, const char *val, int d __unused)
 	struct ifmediareq *ifmr;
 	int inst;
 
-	ifmr = ifmedia_getstate();
+	ifmr = ifmedia_getstate(ctx);
 
 	inst = atoi(val);
 	if (inst < 0 || inst > (int)IFM_INST_MAX)
 		errx(1, "invalid media instance: %s", val);
 
-	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	strlcpy(ifr.ifr_name, ctx->ifname, sizeof(ifr.ifr_name));
 	ifr.ifr_media = (ifmr->ifm_current & ~IFM_IMASK) | inst << IFM_ISHIFT;
 
 	ifmr->ifm_current = ifr.ifr_media;
@@ -280,11 +280,11 @@ setmediamode(if_ctx *ctx, const char *val, int d __unused)
 	struct ifmediareq *ifmr;
 	int mode;
 
-	ifmr = ifmedia_getstate();
+	ifmr = ifmedia_getstate(ctx);
 
 	mode = get_media_mode(ifmr->ifm_ulist[0], val);
 
-	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	strlcpy(ifr.ifr_name, ctx->ifname, sizeof(ifr.ifr_name));
 	ifr.ifr_media = (ifmr->ifm_current & ~IFM_MMASK) | mode;
 
 	ifmr->ifm_current = ifr.ifr_media;

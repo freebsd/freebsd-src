@@ -50,10 +50,9 @@ static const char rcsid[] =
 static void
 setifgroup(if_ctx *ctx, const char *group_name, int dummy __unused)
 {
-	struct ifgroupreq ifgr;
+	struct ifgroupreq ifgr = {};
 
-	memset(&ifgr, 0, sizeof(ifgr));
-	strlcpy(ifgr.ifgr_name, name, IFNAMSIZ);
+	strlcpy(ifgr.ifgr_name, ctx->ifname, IFNAMSIZ);
 
 	if (group_name[0] && isdigit(group_name[strlen(group_name) - 1]))
 		errx(1, "setifgroup: group names may not end in a digit");
@@ -67,10 +66,9 @@ setifgroup(if_ctx *ctx, const char *group_name, int dummy __unused)
 static void
 unsetifgroup(if_ctx *ctx, const char *group_name, int dummy __unused)
 {
-	struct ifgroupreq ifgr;
+	struct ifgroupreq ifgr = {};
 
-	memset(&ifgr, 0, sizeof(ifgr));
-	strlcpy(ifgr.ifgr_name, name, IFNAMSIZ);
+	strlcpy(ifgr.ifgr_name, ctx->ifname, IFNAMSIZ);
 
 	if (group_name[0] && isdigit(group_name[strlen(group_name) - 1]))
 		errx(1, "unsetifgroup: group names may not end in a digit");
@@ -82,12 +80,12 @@ unsetifgroup(if_ctx *ctx, const char *group_name, int dummy __unused)
 }
 
 static void
-getifgroups(if_ctx *ctx __unused)
+getifgroups(if_ctx *ctx)
 {
 	struct ifgroupreq ifgr;
 	size_t cnt;
 
-	if (ifconfig_get_groups(lifh, name, &ifgr) == -1)
+	if (ifconfig_get_groups(lifh, ctx->ifname, &ifgr) == -1)
 		return;
 
 	cnt = 0;
