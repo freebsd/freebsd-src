@@ -199,7 +199,7 @@ setip6eui64(if_ctx *ctx, const char *cmd, int dummy __unused)
 		err(EXIT_FAILURE, "getifaddrs");
 	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
 		if (ifa->ifa_addr->sa_family == AF_INET6 &&
-		    strcmp(ifa->ifa_name, name) == 0) {
+		    strcmp(ifa->ifa_name, ctx->ifname) == 0) {
 			sin6 = (const struct sockaddr_in6 *)satosin6(ifa->ifa_addr);
 			if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
 				lladdr = &sin6->sin6_addr;
@@ -477,7 +477,7 @@ in6_exec_nl(if_ctx *ctx, unsigned long action, void *data)
 
 	ifahdr->ifa_family = AF_INET6;
 	ifahdr->ifa_prefixlen = pdata->addr.plen;
-	ifahdr->ifa_index = if_nametoindex_nl(ctx->io_ss, name);
+	ifahdr->ifa_index = if_nametoindex_nl(ctx->io_ss, ctx->ifname);
 
 	snl_add_msg_attr_ip6(&nw, IFA_LOCAL, &pdata->addr.addr);
 	if (action == NL_RTM_NEWADDR && pdata->dst_addr.set)
@@ -655,7 +655,7 @@ in6_status_tunnel(if_ctx *ctx)
 	const struct sockaddr *sa = (const struct sockaddr *) &in6_ifr.ifr_addr;
 
 	memset(&in6_ifr, 0, sizeof(in6_ifr));
-	strlcpy(in6_ifr.ifr_name, name, sizeof(in6_ifr.ifr_name));
+	strlcpy(in6_ifr.ifr_name, ctx->ifname, sizeof(in6_ifr.ifr_name));
 
 	if (ioctl_ctx(ctx, SIOCGIFPSRCADDR_IN6, (caddr_t)&in6_ifr) < 0)
 		return;
@@ -682,7 +682,7 @@ in6_set_tunnel(if_ctx *ctx, struct addrinfo *srcres, struct addrinfo *dstres)
 	struct in6_aliasreq in6_addreq; 
 
 	memset(&in6_addreq, 0, sizeof(in6_addreq));
-	strlcpy(in6_addreq.ifra_name, name, sizeof(in6_addreq.ifra_name));
+	strlcpy(in6_addreq.ifra_name, ctx->ifname, sizeof(in6_addreq.ifra_name));
 	memcpy(&in6_addreq.ifra_addr, srcres->ai_addr, srcres->ai_addr->sa_len);
 	memcpy(&in6_addreq.ifra_dstaddr, dstres->ai_addr,
 	    dstres->ai_addr->sa_len);

@@ -59,7 +59,7 @@ maclabel_status(if_ctx *ctx)
 	char *label_text;
 
 	memset(&ifr, 0, sizeof(ifr));
-	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	strlcpy(ifr.ifr_name, ctx->ifname, sizeof(ifr.ifr_name));
 
 	if (mac_prepare_ifnet_label(&label) == -1)
 		return;
@@ -92,7 +92,7 @@ setifmaclabel(if_ctx *ctx, const char *val, int d __unused)
 	}
 
 	memset(&ifr, 0, sizeof(ifr));
-	strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	strlcpy(ifr.ifr_name, ctx->ifname, sizeof(ifr.ifr_name));
 	ifr.ifr_ifru.ifru_data = (void *)label;
 
 	error = ioctl(ctx->io_s, SIOCSIFMAC, &ifr);

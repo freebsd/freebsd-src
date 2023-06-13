@@ -73,7 +73,7 @@ setifgrekey(if_ctx *ctx, const char *val, int dummy __unused)
 {
 	uint32_t grekey = strtol(val, NULL, 0);
 
-	strlcpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
+	strlcpy(ifr.ifr_name, ctx->ifname, sizeof (ifr.ifr_name));
 	ifr.ifr_data = (caddr_t)&grekey;
 	if (ioctl(ctx->io_s, GRESKEY, (caddr_t)&ifr) < 0)
 		warn("ioctl (set grekey)");
@@ -84,7 +84,7 @@ setifgreport(if_ctx *ctx, const char *val, int dummy __unused)
 {
 	uint32_t udpport = strtol(val, NULL, 0);
 
-	strlcpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
+	strlcpy(ifr.ifr_name, ctx->ifname, sizeof (ifr.ifr_name));
 	ifr.ifr_data = (caddr_t)&udpport;
 	if (ioctl(ctx->io_s, GRESPORT, (caddr_t)&ifr) < 0)
 		warn("ioctl (set udpport)");
