@@ -19,6 +19,11 @@ CFLAGS+= -DINET6
 .endif
 CFLAGS+= -I.
 
+.if ${MK_JAIL} != "no" && !defined(RESCUE)
+CFLAGS+= -DJAIL
+LIBADD+= jail
+.endif
+
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
