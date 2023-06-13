@@ -967,7 +967,7 @@ af_other_status(if_ctx *ctx)
 }
 
 static void
-af_all_tunnel_status(int s)
+af_all_tunnel_status(if_ctx *ctx)
 {
 	struct afswtch *afp;
 	uint8_t afmask[howmany(AF_MAX, NBBY)];
@@ -978,7 +978,7 @@ af_all_tunnel_status(int s)
 			continue;
 		if (afp->af_af != AF_UNSPEC && isset(afmask, afp->af_af))
 			continue;
-		afp->af_status_tunnel(s);
+		afp->af_status_tunnel(ctx);
 		setbit(afmask, afp->af_af);
 	}
 }
@@ -1271,7 +1271,7 @@ settunnel(if_ctx *ctx, const char *src, const char *dst)
 		errx(1,
 		    "source and destination address families do not match");
 
-	afp->af_settunnel(ctx->io_s, srcres, dstres);
+	afp->af_settunnel(ctx, srcres, dstres);
 
 	freeaddrinfo(srcres);
 	freeaddrinfo(dstres);
@@ -1747,7 +1747,7 @@ status(struct ifconfig_args *args, const struct sockaddr_dl *sdl,
 
 	print_ifcap(args, s);
 
-	tunnel_status(s);
+	tunnel_status(ctx);
 
 	for (ift = ifa; ift != NULL; ift = ift->ifa_next) {
 		if (ift->ifa_addr == NULL)
@@ -1794,9 +1794,9 @@ status(struct ifconfig_args *args, const struct sockaddr_dl *sdl,
 #endif
 
 void
-tunnel_status(int s)
+tunnel_status(if_ctx *ctx)
 {
-	af_all_tunnel_status(s);
+	af_all_tunnel_status(ctx);
 }
 
 static void

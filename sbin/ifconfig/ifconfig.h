@@ -181,6 +181,8 @@ typedef void af_other_status_f(if_ctx *ctx);
 typedef void af_postproc_f(if_ctx *ctx, int newaddr, int ifflags);
 typedef	int af_exec_f(if_ctx *ctx, unsigned long action, void *data);
 typedef void af_copyaddr_f(if_ctx *ctx, int to, int from);
+typedef void af_status_tunnel_f(if_ctx *ctx);
+typedef void af_settunnel_f(if_ctx *ctx, struct addrinfo *srcres, struct addrinfo *dstres);
 
 struct afswtch {
 	const char	*af_name;	/* as given on cmd line, e.g. "inet" */
@@ -214,9 +216,8 @@ struct afswtch {
 	struct afswtch	*af_next;
 
 	/* XXX doesn't fit model */
-	void		(*af_status_tunnel)(int);
-	void		(*af_settunnel)(int s, struct addrinfo *srcres,
-				struct addrinfo *dstres);
+	af_status_tunnel_f	*af_status_tunnel;
+	af_settunnel_f	*af_settunnel;
 };
 void	af_register(struct afswtch *);
 int	af_exec_ioctl(if_ctx *ctx, unsigned long action, void *data);
@@ -278,7 +279,7 @@ bool	match_if_flags(struct ifconfig_args *args, int if_flags);
 int	ifconfig(if_ctx *ctx, int iscreate, const struct afswtch *uafp);
 bool	group_member(const char *ifname, const char *match, const char *nomatch);
 void	print_ifcap(struct ifconfig_args *args, int s);
-void	tunnel_status(int s);
+void	tunnel_status(if_ctx *ctx);
 struct afswtch	*af_getbyfamily(int af);
 void	af_other_status(if_ctx *ctx);
 void	print_ifstatus(int s);

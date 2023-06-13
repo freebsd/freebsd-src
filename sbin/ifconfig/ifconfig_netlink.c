@@ -366,7 +366,7 @@ status_nl(if_ctx *ctx, struct iface *iface)
 	/* TODO: convert to netlink */
 	strlcpy(ifr.ifr_name, link->ifla_ifname, sizeof(ifr.ifr_name));
 	print_ifcap(args, ctx->io_s);
-	tunnel_status(ctx->io_s);
+	tunnel_status(ctx);
 
 	if (args->allfamilies | (args->afp != NULL && args->afp->af_af == AF_LINK)) {
 		/* Start with link-level */
