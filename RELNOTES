@@ -10,6 +10,16 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+bdc81eeda05d:
+
+	nda is now the default nvme device on all platforms. While nda creates
+	nvd links by default so fstab, etc continues to work, configuration
+	should be updated to the new nda devices.
+
+	To restore the old behavior, add hw.nvme.use_nvd=1 to loader.conf or
+	`options NVME_USE_NVD=1` to the kernel config.  To disable the nvd
+	compatibility aliases, add kern.cam.nda.nvd_compat=0 to loader.conf.
+
 bbb2d2ce4220:
 	Change pw (hence bsdinstall) not to move /home to /usr/home.
 	Previously, when creating the path to home directories, pw
