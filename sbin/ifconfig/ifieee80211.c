@@ -5800,7 +5800,6 @@ static void
 wlan_create(if_ctx *ctx, struct ifreq *ifr)
 {
 	static const uint8_t zerobssid[IEEE80211_ADDR_LEN];
-	char orig_name[IFNAMSIZ];
 
 	if (params.icp_parent[0] == '\0')
 		errx(1, "must specify a parent device (wlandev) when creating "
@@ -5811,13 +5810,7 @@ wlan_create(if_ctx *ctx, struct ifreq *ifr)
 	ifr->ifr_data = (caddr_t) &params;
 	ifcreate_ioctl(ctx, ifr);
 
-	/* XXX preserve original name for ifclonecreate(). */
-	strlcpy(orig_name, name, sizeof(orig_name));
-	strlcpy(name, ifr->ifr_name, sizeof(name));
-
 	setdefregdomain(ctx);
-
-	strlcpy(name, orig_name, sizeof(name));
 }
 
 static void
