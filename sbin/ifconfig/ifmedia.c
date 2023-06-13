@@ -90,7 +90,7 @@
 
 #include "ifconfig.h"
 
-static void domediaopt(const char *, bool);
+static void domediaopt(if_ctx *, const char *, bool);
 static ifmedia_t get_media_subtype(ifmedia_t, const char *);
 static ifmedia_t get_media_mode(ifmedia_t, const char *);
 static ifmedia_t get_media_options(ifmedia_t, const char *);
@@ -175,14 +175,14 @@ ifmedia_getstate(void)
 }
 
 static void
-setifmediacallback(int s, void *arg)
+setifmediacallback(if_ctx *ctx, void *arg)
 {
 	struct ifmediareq *ifmr = (struct ifmediareq *)arg;
 	static bool did_it = false;
 
 	if (!did_it) {
 		ifr.ifr_media = ifmr->ifm_current;
-		if (ioctl(s, SIOCSIFMEDIA, (caddr_t)&ifr) < 0)
+		if (ioctl_ctx(ctx, SIOCSIFMEDIA, (caddr_t)&ifr) < 0)
 			err(1, "SIOCSIFMEDIA (media)");
 		free(ifmr);
 		did_it = true;
@@ -190,7 +190,7 @@ setifmediacallback(int s, void *arg)
 }
 
 static void
-setmedia(if_ctx *ctx __unused, const char *val, int d __unused)
+setmedia(if_ctx *ctx, const char *val, int d __unused)
 {
 	struct ifmediareq *ifmr;
 	int subtype;
@@ -217,21 +217,21 @@ setmedia(if_ctx *ctx __unused, const char *val, int d __unused)
 }
 
 static void
-setmediaopt(if_ctx *ctx __unused, const char *val, int d __unused)
+setmediaopt(if_ctx *ctx, const char *val, int d __unused)
 {
 
-	domediaopt(val, false);
+	domediaopt(ctx, val, false);
 }
 
 static void
-unsetmediaopt(if_ctx *ctx __unused, const char *val, int d __unused)
+unsetmediaopt(if_ctx *ctx, const char *val, int d __unused)
 {
 
-	domediaopt(val, true);
+	domediaopt(ctx, val, true);
 }
 
 static void
-domediaopt(const char *val, bool clear)
+domediaopt(if_ctx *ctx, const char *val, bool clear)
 {
 	struct ifmediareq *ifmr;
 	ifmedia_t options;
@@ -256,7 +256,7 @@ domediaopt(const char *val, bool clear)
 }
 
 static void
-setmediainst(if_ctx *ctx __unused, const char *val, int d __unused)
+setmediainst(if_ctx *ctx, const char *val, int d __unused)
 {
 	struct ifmediareq *ifmr;
 	int inst;
@@ -275,7 +275,7 @@ setmediainst(if_ctx *ctx __unused, const char *val, int d __unused)
 }
 
 static void
-setmediamode(if_ctx *ctx __unused, const char *val, int d __unused)
+setmediamode(if_ctx *ctx, const char *val, int d __unused)
 {
 	struct ifmediareq *ifmr;
 	int mode;

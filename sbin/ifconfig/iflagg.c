@@ -308,10 +308,10 @@ setlaggtype(if_ctx *ctx __unused, const char *arg, int dummy __unused)
 }
 
 static void
-lagg_create(int s, struct ifreq *ifr)
+lagg_create(if_ctx *ctx, struct ifreq *ifr)
 {
 	ifr->ifr_data = (caddr_t) &params;
-	ioctl_ifcreate(s, ifr);
+	ifcreate_ioctl(ctx, ifr);
 }
 
 static struct cmd lagg_cmds[] = {

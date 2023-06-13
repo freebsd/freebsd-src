@@ -53,13 +53,19 @@
 
 struct afswtch;
 struct cmd;
-struct ifconfig_context;
+struct snl_state;
+struct ifconfig_args;
+struct ifconfig_context {
+	struct ifconfig_args	*args;
+	const struct afswtch	*afp;
+	int			io_s;	/* fd to use for ioctl() */
+	struct snl_state	*io_ss;	/* NETLINK_ROUTE socket */
+};
+typedef const struct ifconfig_context if_ctx;
 
-typedef	void c_func(const struct ifconfig_context *ctx, const char *cmd, int arg);
-typedef	void c_func2(const struct ifconfig_context *ctx, const char *arg1,
-    const char *arg2);
-typedef	void c_func3(const struct ifconfig_context *ctx, const char *cmd,
-    const char *arg);
+typedef	void c_func(if_ctx *ctx, const char *cmd, int arg);
+typedef	void c_func2(if_ctx *ctx, const char *arg1, const char *arg2);
+typedef	void c_func3(if_ctx *ctx, const char *cmd, const char *arg);
 
 struct cmd {
 	const char *c_name;
@@ -79,7 +85,7 @@ struct cmd {
 };
 void	cmd_register(struct cmd *);
 
-typedef	void callback_func(int s, void *);
+typedef	void callback_func(if_ctx *, void *);
 void	callback_register(callback_func *, void *);
 
 /*
@@ -143,16 +149,6 @@ void	callback_register(callback_func *, void *);
     .c_iscloneop = 1,				\
     .c_next = NULL,				\
 }
-
-struct snl_state;
-struct ifconfig_args;
-struct ifconfig_context {
-	struct ifconfig_args	*args;
-	const struct afswtch	*afp;
-	int			io_s;	/* fd to use for ioctl() */
-	struct snl_state	*io_ss;	/* NETLINK_ROUTE socket */
-};
-typedef const struct ifconfig_context if_ctx;
 
 #define	ioctl_ctx(ctx, _req, ...)	ioctl((ctx)->io_s, _req, ## __VA_ARGS__)
 
@@ -271,7 +267,7 @@ void	printb(const char *s, unsigned value, const char *bits);
 void	ifmaybeload(struct ifconfig_args *args, const char *name);
 
 typedef int  clone_match_func(const char *);
-typedef void clone_callback_func(int, struct ifreq *);
+typedef void clone_callback_func(if_ctx *, struct ifreq *);
 void	clone_setdefcallback_prefix(const char *, clone_callback_func *);
 void	clone_setdefcallback_filter(clone_match_func *, clone_callback_func *);
 
@@ -303,7 +299,7 @@ struct ifmediareq *ifmedia_getstate(void);
 
 void print_vhid(const struct ifaddrs *, const char *);
 
-void ioctl_ifcreate(int s, struct ifreq *);
+void ifcreate_ioctl(if_ctx *ctx, struct ifreq *ifr);
 
 /* Helpers */
 struct sockaddr_in;

@@ -201,9 +201,9 @@ usage(void)
 }
 
 void
-ioctl_ifcreate(int s, struct ifreq *ifr)
+ifcreate_ioctl(if_ctx *ctx, struct ifreq *ifr)
 {
-	if (ioctl(s, SIOCIFCREATE2, ifr) < 0) {
+	if (ioctl(ctx->io_s, SIOCIFCREATE2, ifr) < 0) {
 		switch (errno) {
 		case EEXIST:
 			errx(1, "interface %s already exists", ifr->ifr_name);
@@ -1143,7 +1143,7 @@ top:
 			if (cb == NULL)
 				errx(1, "internal error, no callback");
 			callbacks = cb->cb_next;
-			cb->cb_func(s, cb->cb_arg);
+			cb->cb_func(ctx, cb->cb_arg);
 			iscreate = 0;
 			/*
 			 * Handle any address family spec that
@@ -1204,7 +1204,7 @@ top:
 	 * command-line arguments.
 	 */
 	for (cb = callbacks; cb != NULL; cb = cb->cb_next)
-		cb->cb_func(s, cb->cb_arg);
+		cb->cb_func(ctx, cb->cb_arg);
 	/*
 	 * Do deferred operations.
 	 */
