@@ -32,8 +32,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	nda created nvd compatibility links by default, so this should be a
 	nop. If this causes problems for your application, set hw.nvme.use_nvd=1
 	in your loader.conf or add `options NVME_USE_NVD=1` to your kernel
-	config. The default has been nda on all non-x86 platforms for some time
-	now. If you need to fall back, please email imp@freebsd.org about why.
+	config. To disable the nvd compatibility aliases, add
+	kern.cam.nda.nvd_compat=0 to loader.conf.  The default has been nda on
+	all non-x86 platforms for some time now. If you need to fall back,
+	please email imp@freebsd.org about why.
 
 20230422:
 	Remove portsnap(8).  Users are encouraged to obtain the ports tree
