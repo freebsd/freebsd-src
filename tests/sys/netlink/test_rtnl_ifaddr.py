@@ -698,7 +698,7 @@ class TestRtNlAddIfaddrLo(RtnlIfaOps):
         self.send_check_success(msg)
 
         lst = self.get_ifa_list(iface.ifindex, self.get_family_from_ip(ifa.ip))
-        assert len(lst) == 1
+        assert len(lst) == 2  # link-local should be auto-created as well
         rx_msg = self.find_msg_by_ifa(lst, ifa.ip)
         assert rx_msg is not None
 
