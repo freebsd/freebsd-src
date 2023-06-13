@@ -141,7 +141,7 @@ vxlan_status(if_ctx *ctx)
 	printf(" %s %s%s%s:%s", mc ? "group" : "remote", ipv6 ? "[" : "",
 	    dst, ipv6 ? "]" : "", dstport);
 
-	if (verbose) {
+	if (ctx->args->verbose) {
 		printf("\n\t\tconfig: ");
 		printf("%slearning portrange %d-%d ttl %d",
 		    cfg.vxlc_learn ? "" : "no", cfg.vxlc_port_min,

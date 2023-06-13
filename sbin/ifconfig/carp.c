@@ -71,7 +71,7 @@ static struct in6_addr carp_addr6;
 static unsigned char const *carpr_key;
 
 static void
-carp_status(if_ctx *ctx __unused)
+carp_status(if_ctx *ctx)
 {
 	struct ifconfig_carp carpr[CARP_MAXVHID];
 	char addr_buf[NI_MAXHOST];
@@ -83,7 +83,7 @@ carp_status(if_ctx *ctx __unused)
 		printf("\tcarp: %s vhid %d advbase %d advskew %d",
 		    carp_states[carpr[i].carpr_state], carpr[i].carpr_vhid,
 		    carpr[i].carpr_advbase, carpr[i].carpr_advskew);
-		if (printkeys && carpr[i].carpr_key[0] != '\0')
+		if (ctx->args->printkeys && carpr[i].carpr_key[0] != '\0')
 			printf(" key \"%s\"\n", carpr[i].carpr_key);
 		else
 			printf("\n");
