@@ -18,7 +18,6 @@
  * to 16 bytes, 32 bytes is enough to cover even the worst case scenario.
  */
 #define	KINST_TRAMP_SIZE	32
-#define	KINST_TRAMPCHUNK_SIZE	PAGE_SIZE
 
 typedef uint8_t kinst_patchval_t;
 
