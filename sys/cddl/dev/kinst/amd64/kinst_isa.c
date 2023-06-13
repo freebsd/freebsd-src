@@ -197,7 +197,7 @@ kinst_invop(uintptr_t addr, struct trapframe *frame, uintptr_t scratch)
 		if ((frame->tf_rflags & PSL_I) == 0)
 			tramp = DPCPU_GET(intr_tramp);
 		else
-			tramp = curthread->t_kinst;
+			tramp = curthread->t_kinst_tramp;
 		if (tramp == NULL) {
 			/*
 			 * A trampoline allocation failed, so this probe is
