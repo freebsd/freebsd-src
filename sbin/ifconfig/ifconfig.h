@@ -254,7 +254,6 @@ extern	struct ifreq ifr;
 extern	int allmedia;
 extern	int newaddr;
 extern	int exit_code;
-extern struct ifconfig_args global_args;
 extern	char *f_inet, *f_inet6, *f_ether, *f_addr;
 
 void	setifcap(if_ctx *ctx, const char *, int value);
