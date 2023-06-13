@@ -12,6 +12,13 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20230913:
+	Improvements to libtacplus(8) mean that tacplus.conf(5) now
+	follows POSIX shell syntax rules. This may cause TACACS+
+	authentication to fail if the shared secret contains a single
+	quote, double quote, or backslash character which isn't
+	already properly quoted or escaped.
+
 20230619:
 	To enable pf rdr rules for connections initiated from the host, pf
 	filter rules can be optionally enabled for packets delivered
