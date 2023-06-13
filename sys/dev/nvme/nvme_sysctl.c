@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #include "nvme_private.h"
 
 #ifndef NVME_USE_NVD
-#define NVME_USE_NVD 1
+#define NVME_USE_NVD 0
 #endif
 
 int nvme_use_nvd = NVME_USE_NVD;
