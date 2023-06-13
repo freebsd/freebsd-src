@@ -447,10 +447,10 @@ getroam(int s)
 }
 
 static void
-setroam_cb(int s, void *arg)
+setroam_cb(if_ctx *ctx, void *arg)
 {
 	struct ieee80211_roamparams_req *roam = arg;
-	set80211(s, IEEE80211_IOC_ROAM, 0, sizeof(*roam), roam);
+	set80211(ctx->io_s, IEEE80211_IOC_ROAM, 0, sizeof(*roam), roam);
 }
 
 static void
@@ -465,10 +465,10 @@ gettxparams(int s)
 }
 
 static void
-settxparams_cb(int s, void *arg)
+settxparams_cb(if_ctx *ctx, void *arg)
 {
 	struct ieee80211_txparams_req *txp = arg;
-	set80211(s, IEEE80211_IOC_TXPARAMS, 0, sizeof(*txp), txp);
+	set80211(ctx->io_s, IEEE80211_IOC_TXPARAMS, 0, sizeof(*txp), txp);
 }
 
 static void
@@ -491,7 +491,7 @@ getdevcaps(int s, struct ieee80211_devcaps_req *dc)
 }
 
 static void
-setregdomain_cb(int s, void *arg)
+setregdomain_cb(if_ctx *ctx, void *arg)
 {
 	struct ieee80211_regdomain_req *req;
 	struct ieee80211_regdomain *rd = arg;
@@ -545,7 +545,7 @@ setregdomain_cb(int s, void *arg)
 	if (dc == NULL)
 		errx(1, "no space for device capabilities");
 	dc->dc_chaninfo.ic_nchans = MAXCHAN;
-	getdevcaps(s, dc);
+	getdevcaps(ctx->io_s, dc);
 #if 0
 	if (verbose) {
 		printf("drivercaps: 0x%x\n", dc->dc_drivercaps);
@@ -576,11 +576,11 @@ setregdomain_cb(int s, void *arg)
 			errx(1, "no space for channel list");
 		memcpy(chaninfo, &req->chaninfo,
 		    IEEE80211_CHANINFO_SPACE(&req->chaninfo));
-		print_channels(s, &req->chaninfo, 1/*allchans*/, 1/*verbose*/);
+		print_channels(ctx->io_s, &req->chaninfo, 1/*allchans*/, 1/*verbose*/);
 	}
 	if (req->chaninfo.ic_nchans == 0)
 		errx(1, "no channels calculated");
-	set80211(s, IEEE80211_IOC_REGDOMAIN, 0,
+	set80211(ctx->io_s, IEEE80211_IOC_REGDOMAIN, 0,
 	    IEEE80211_REGDOMAIN_SPACE(req), req);
 	free(req);
 	free(dc);
@@ -5739,7 +5739,7 @@ print_string(const u_int8_t *buf, int len)
 }
 
 static void
-setdefregdomain(int s)
+setdefregdomain(if_ctx *ctx)
 {
 	struct regdata *rdp = getregdata();
 	const struct regdomain *rd;
@@ -5750,7 +5750,7 @@ setdefregdomain(int s)
 	    regdomain.country != CTRY_DEFAULT)
 		return;
 
-	getregdomain(s);
+	getregdomain(ctx->io_s);
 
 	/* Check if it was already set by the driver. */
 	if (regdomain.regdomain != 0 ||
@@ -5767,7 +5767,7 @@ setdefregdomain(int s)
 		defaultcountry(rd);
 
 	/* Send changes to net80211. */
-	setregdomain_cb(s, &regdomain);
+	setregdomain_cb(ctx, &regdomain);
 
 	/* Cleanup (so it can be overridden by subsequent parameters). */
 	regdomain.regdomain = 0;
@@ -5784,7 +5784,7 @@ static struct ieee80211_clone_params params = {
 };
 
 static void
-wlan_create(int s, struct ifreq *ifr)
+wlan_create(if_ctx *ctx, struct ifreq *ifr)
 {
 	static const uint8_t zerobssid[IEEE80211_ADDR_LEN];
 	char orig_name[IFNAMSIZ];
@@ -5796,13 +5796,13 @@ wlan_create(int s, struct ifreq *ifr)
 	    memcmp(params.icp_bssid, zerobssid, sizeof(zerobssid)) == 0)
 		errx(1, "no bssid specified for WDS (use wlanbssid)");
 	ifr->ifr_data = (caddr_t) &params;
-	ioctl_ifcreate(s, ifr);
+	ifcreate_ioctl(ctx, ifr);
 
 	/* XXX preserve original name for ifclonecreate(). */
 	strlcpy(orig_name, name, sizeof(orig_name));
 	strlcpy(name, ifr->ifr_name, sizeof(name));
 
-	setdefregdomain(s);
+	setdefregdomain(ctx);
 
 	strlcpy(name, orig_name, sizeof(name));
 }

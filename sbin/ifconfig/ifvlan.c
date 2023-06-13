@@ -158,7 +158,7 @@ vlan_parse_ethervid(const char *name)
 }
 
 static void
-vlan_create(int s, struct ifreq *ifr)
+vlan_create(if_ctx *ctx, struct ifreq *ifr)
 {
 	vlan_parse_ethervid(ifr->ifr_name);
 
@@ -172,11 +172,11 @@ vlan_create(int s, struct ifreq *ifr)
 			errx(1, "must specify a parent device for vlan create");
 		ifr->ifr_data = (caddr_t) &params;
 	}
-	ioctl_ifcreate(s, ifr);
+	ifcreate_ioctl(ctx, ifr);
 }
 
 static void
-vlan_cb(int s __unused, void *arg __unused)
+vlan_cb(if_ctx *ctx __unused, void *arg __unused)
 {
 	if ((params.vlr_tag != NOTAG) ^ (params.vlr_parent[0] != '\0'))
 		errx(1, "both vlan and vlandev must be specified");

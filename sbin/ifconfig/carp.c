@@ -60,7 +60,7 @@
 
 static const char *carp_states[] = { CARP_STATES };
 
-static void setcarp_callback(int, void *);
+static void setcarp_callback(if_ctx *, void *);
 
 static int carpr_vhid = -1;
 static int carpr_advskew = -1;
@@ -114,7 +114,7 @@ setcarp_vhid(if_ctx *ctx, const char *val, int dummy __unused)
 }
 
 static void
-setcarp_callback(int s __unused, void *arg __unused)
+setcarp_callback(if_ctx *ctx __unused, void *arg __unused)
 {
 	struct ifconfig_carp carpr = { };
 
