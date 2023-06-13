@@ -27,6 +27,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20230613:
+	Improvements to libtacplus(8) mean that tacplus.conf(5) now
+	follows POSIX shell syntax rules. This may cause TACACS+
+	authentication to fail if the shared secret contains a single
+	quote, double quote, or backslash character which isn't
+	already properly quoted or escaped.
+
 20230612:
 	Belatedly switch the default nvme block device on x86 from nvd to nda.
 	nda created nvd compatibility links by default, so this should be a

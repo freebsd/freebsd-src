@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <arpa/inet.h>
 
 #include <assert.h>
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <md5.h>
@@ -47,32 +48,34 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+#include <security/pam_appl.h>
+#include <security/openpam.h>
+
 #include "taclib_private.h"
 
 static int		 add_str_8(struct tac_handle *, u_int8_t *,
-			    struct clnt_str *);
+			    struct tac_str *);
 static int		 add_str_16(struct tac_handle *, u_int16_t *,
-			    struct clnt_str *);
+			    struct tac_str *);
 static int		 protocol_version(int, int, int);
 static void		 close_connection(struct tac_handle *);
 static int		 conn_server(struct tac_handle *);
 static void		 crypt_msg(struct tac_handle *, struct tac_msg *);
-static void		*dup_str(struct tac_handle *, const struct srvr_str *,
+static void		*dup_str(struct tac_handle *, const struct tac_str *,
 			    size_t *);
 static int		 establish_connection(struct tac_handle *);
-static void		 free_str(struct clnt_str *);
+static void		 free_str(struct tac_str *);
 static void		 generr(struct tac_handle *, const char *, ...)
 			    __printflike(2, 3);
 static void		 gen_session_id(struct tac_msg *);
 static int		 get_srvr_end(struct tac_handle *);
-static int		 get_srvr_str(struct tac_handle *, const char *,
-				      struct srvr_str *, size_t);
-static void		 init_clnt_str(struct clnt_str *);
-static void		 init_srvr_str(struct srvr_str *);
+static int		 get_str(struct tac_handle *, const char *,
+				      struct tac_str *, size_t);
+static void		 init_str(struct tac_str *);
 static int		 read_timed(struct tac_handle *, void *, size_t,
 			    const struct timeval *);
 static int		 recv_msg(struct tac_handle *);
-static int		 save_str(struct tac_handle *, struct clnt_str *,
+static int		 save_str(struct tac_handle *, struct tac_str *,
 			    const void *, size_t);
 static int		 send_msg(struct tac_handle *);
 static int		 split(char *, char *[], int, char *, size_t);
@@ -90,7 +93,7 @@ static void              create_msg(struct tac_handle *, int, int, int);
  * for the next time.
  */
 static int
-add_str_8(struct tac_handle *h, u_int8_t *fld, struct clnt_str *cs)
+add_str_8(struct tac_handle *h, u_int8_t *fld, struct tac_str *cs)
 {
 	u_int16_t len;
 
@@ -114,7 +117,7 @@ add_str_8(struct tac_handle *h, u_int8_t *fld, struct clnt_str *cs)
  * for the next time.
  */
 static int
-add_str_16(struct tac_handle *h, u_int16_t *fld, struct clnt_str *cs)
+add_str_16(struct tac_handle *h, u_int16_t *fld, struct tac_str *cs)
 {
 	size_t len;
 
@@ -236,7 +239,7 @@ close_connection(struct tac_handle *h)
 static int
 conn_server(struct tac_handle *h)
 {
-	const struct tac_server *srvp = &h->servers[h->cur_server];
+	struct tac_server *srvp = &h->servers[h->cur_server];
 	int flags;
 
 	if ((h->fd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
@@ -357,7 +360,7 @@ crypt_msg(struct tac_handle *h, struct tac_msg *msg)
  * though they have no content.
  */
 static void *
-dup_str(struct tac_handle *h, const struct srvr_str *ss, size_t *len)
+dup_str(struct tac_handle *h, const struct tac_str *ss, size_t *len)
 {
 	unsigned char *p;
 
@@ -404,10 +407,10 @@ establish_connection(struct tac_handle *h)
  * Free a client string, obliterating its contents first for security.
  */
 static void
-free_str(struct clnt_str *cs)
+free_str(struct tac_str *cs)
 {
 	if (cs->data != NULL) {
-		memset(cs->data, 0, cs->len);
+		memset_s(cs->data, cs->len, 0, cs->len);
 		free(cs->data);
 		cs->data = NULL;
 		cs->len = 0;
@@ -458,8 +461,8 @@ get_srvr_end(struct tac_handle *h)
 }
 
 static int
-get_srvr_str(struct tac_handle *h, const char *field,
-	     struct srvr_str *ss, size_t len)
+get_str(struct tac_handle *h, const char *field,
+    struct tac_str *ss, size_t len)
 {
 	if (h->srvr_pos + len > ntohl(h->response.length)) {
 		generr(h, "Invalid length field in %s response from server "
@@ -474,17 +477,10 @@ get_srvr_str(struct tac_handle *h, const char *field,
 }
 
 static void
-init_clnt_str(struct clnt_str *cs)
+init_str(struct tac_str *cs)
 {
 	cs->data = NULL;
 	cs->len = 0;
-}
-
-static void
-init_srvr_str(struct srvr_str *ss)
-{
-	ss->data = NULL;
-	ss->len = 0;
 }
 
 static int
@@ -599,7 +595,7 @@ recv_msg(struct tac_handle *h)
 }
 
 static int
-save_str(struct tac_handle *h, struct clnt_str *cs, const void *data,
+save_str(struct tac_handle *h, struct tac_str *cs, const void *data,
     size_t len)
 {
 	free_str(cs);
@@ -689,84 +685,14 @@ send_msg(struct tac_handle *h)
 	return 0;
 }
 
-/*
- * Destructively split a string into fields separated by white space.
- * `#' at the beginning of a field begins a comment that extends to the
- * end of the string.  Fields may be quoted with `"'.  Inside quoted
- * strings, the backslash escapes `\"' and `\\' are honored.
- *
- * Pointers to up to the first maxfields fields are stored in the fields
- * array.  Missing fields get NULL pointers.
- *
- * The return value is the actual number of fields parsed, and is always
- * <= maxfields.
- *
- * On a syntax error, places a message in the msg string, and returns -1.
- */
 static int
-split(char *str, char *fields[], int maxfields, char *msg, size_t msglen)
-{
-	char *p;
-	int i;
-	static const char ws[] = " \t";
-
-	for (i = 0;  i < maxfields;  i++)
-		fields[i] = NULL;
-	p = str;
-	i = 0;
-	while (*p != '\0') {
-		p += strspn(p, ws);
-		if (*p == '#' || *p == '\0')
-			break;
-		if (i >= maxfields) {
-			snprintf(msg, msglen, "line has too many fields");
-			return -1;
-		}
-		if (*p == '"') {
-			char *dst;
-
-			dst = ++p;
-			fields[i] = dst;
-			while (*p != '"') {
-				if (*p == '\\') {
-					p++;
-					if (*p != '"' && *p != '\\' &&
-					    *p != '\0') {
-						snprintf(msg, msglen,
-						    "invalid `\\' escape");
-						return -1;
-					}
-				}
-				if (*p == '\0') {
-					snprintf(msg, msglen,
-					    "unterminated quoted string");
-					return -1;
-				}
-				*dst++ = *p++;
-			}
-			*dst = '\0';
-			p++;
-			if (*p != '\0' && strspn(p, ws) == 0) {
-				snprintf(msg, msglen, "quoted string not"
-				    " followed by white space");
-				return -1;
-			}
-		} else {
-			fields[i] = p;
-			p += strcspn(p, ws);
-			if (*p != '\0')
-				*p++ = '\0';
-		}
-		i++;
-	}
-	return i;
-}
-
-int
-tac_add_server(struct tac_handle *h, const char *host, int port,
-    const char *secret, int timeout, int flags)
+tac_add_server_av(struct tac_handle *h, const char *host, int port,
+    const char *secret, int timeout, int flags, const char *const *avs)
 {
 	struct tac_server *srvp;
+	const char *p;
+	size_t len;
+	int i;
 
 	if (h->num_servers >= MAXSERVERS) {
 		generr(h, "Too many TACACS+ servers specified");
@@ -792,8 +718,46 @@ tac_add_server(struct tac_handle *h, const char *host, int port,
 		return -1;
 	srvp->timeout = timeout;
 	srvp->flags = flags;
+	srvp->navs = 0;
+	for (i = 0; avs[i] != NULL; i++) {
+		if (i >= MAXAVPAIRS) {
+			generr(h, "too many AV pairs");
+			goto fail;
+		}
+		for (p = avs[i], len = 0; is_arg(*p); p++)
+			len++;
+		if (p == avs[i] || *p != '=') {
+			generr(h, "invalid AV pair %d", i);
+			goto fail;
+		}
+		while (*p++ != '\0')
+			len++;
+		if ((srvp->avs[i].data = xstrdup(h, avs[i])) == NULL)
+			goto fail;
+		srvp->avs[i].len = len;
+		srvp->navs++;
+	}
 	h->num_servers++;
 	return 0;
+fail:
+	memset_s(srvp->secret, strlen(srvp->secret), 0, strlen(srvp->secret));
+	free(srvp->secret);
+	srvp->secret = NULL;
+	for (i = 0; i < srvp->navs; i++) {
+		free(srvp->avs[i].data);
+		srvp->avs[i].data = NULL;
+		srvp->avs[i].len = 0;
+	}
+	return -1;
+}
+
+int
+tac_add_server(struct tac_handle *h, const char *host, int port,
+    const char *secret, int timeout, int flags)
+{
+	const char *const *avs = { NULL };
+
+	return tac_add_server_av(h, host, port, secret, timeout, flags, avs);
 }
 
 void
@@ -821,12 +785,22 @@ tac_close(struct tac_handle *h)
 	free(h);
 }
 
+static void
+freev(char **fields, int nfields)
+{
+	if (fields != NULL) {
+		while (nfields-- > 0)
+			free(fields[nfields]);
+		free(fields);
+	}
+}
+
 int
 tac_config(struct tac_handle *h, const char *path)
 {
 	FILE *fp;
-	char buf[MAXCONFLINE];
-	int linenum;
+	char **fields;
+	int linenum, nfields;
 	int retval;
 
 	if (path == NULL)
@@ -836,46 +810,23 @@ tac_config(struct tac_handle *h, const char *path)
 		return -1;
 	}
 	retval = 0;
-	linenum = 0;
-	while (fgets(buf, sizeof buf, fp) != NULL) {
-		int len;
-		char *fields[4];
-		int nfields;
-		char msg[ERRSIZE];
+	linenum = nfields = 0;
+	fields = NULL;
+	while ((fields = openpam_readlinev(fp, &linenum, &nfields)) != NULL) {
 		char *host, *res;
 		char *port_str;
 		char *secret;
 		char *timeout_str;
-		char *options_str;
 		char *end;
 		unsigned long timeout;
 		int port;
 		int options;
+		int i;
 
-		linenum++;
-		len = strlen(buf);
-		/* We know len > 0, else fgets would have returned NULL. */
-		if (buf[len - 1] != '\n') {
-			if (len >= sizeof buf - 1)
-				generr(h, "%s:%d: line too long", path,
-				    linenum);
-			else
-				generr(h, "%s:%d: missing newline", path,
-				    linenum);
-			retval = -1;
-			break;
-		}
-		buf[len - 1] = '\0';
-
-		/* Extract the fields from the line. */
-		nfields = split(buf, fields, 4, msg, sizeof msg);
-		if (nfields == -1) {
-			generr(h, "%s:%d: %s", path, linenum, msg);
-			retval = -1;
-			break;
-		}
-		if (nfields == 0)
+		if (nfields == 0) {
+			freev(fields, nfields);
 			continue;
+		}
 		if (nfields < 2) {
 			generr(h, "%s:%d: missing shared secret", path,
 			    linenum);
@@ -884,8 +835,6 @@ tac_config(struct tac_handle *h, const char *path)
 		}
 		host = fields[0];
 		secret = fields[1];
-		timeout_str = fields[2];
-		options_str = fields[3];
 
 		/* Parse and validate the fields. */
 		res = host;
@@ -901,7 +850,10 @@ tac_config(struct tac_handle *h, const char *path)
 			}
 		} else
 			port = 0;
-		if (timeout_str != NULL) {
+		i = 2;
+		if (nfields > i && strlen(fields[i]) > 0 &&
+		    strspn(fields[i], "0123456789") == strlen(fields[i])) {
+			timeout_str = fields[i];
 			timeout = strtoul(timeout_str, &end, 10);
 			if (timeout_str[0] == '\0' || *end != '\0') {
 				generr(h, "%s:%d: invalid timeout", path,
@@ -909,22 +861,17 @@ tac_config(struct tac_handle *h, const char *path)
 				retval = -1;
 				break;
 			}
+			i++;
 		} else
 			timeout = TIMEOUT;
 		options = 0;
-		if (options_str != NULL) {
-			if (strcmp(options_str, "single-connection") == 0)
-				options |= TAC_SRVR_SINGLE_CONNECT;
-			else {
-				generr(h, "%s:%d: invalid option \"%s\"",
-				    path, linenum, options_str);
-				retval = -1;
-				break;
-			}
-		};
-
-		if (tac_add_server(h, host, port, secret, timeout,
-		    options) == -1) {
+		if (nfields > i &&
+		    strcmp(fields[i], "single-connection") == 0) {
+			options |= TAC_SRVR_SINGLE_CONNECT;
+			i++;
+		}
+		if (tac_add_server_av(h, host, port, secret, timeout,
+		    options, (const char *const *)(fields + i)) == -1) {
 			char msg[ERRSIZE];
 
 			strcpy(msg, h->errmsg);
@@ -932,9 +879,10 @@ tac_config(struct tac_handle *h, const char *path)
 			retval = -1;
 			break;
 		}
+		memset_s(secret, strlen(secret), 0, strlen(secret));
+		freev(fields, nfields);
 	}
-	/* Clear out the buffer to wipe a possible copy of a shared secret */
-	memset(buf, 0, sizeof buf);
+	freev(fields, nfields);
 	fclose(fp);
 	return retval;
 }
@@ -1040,17 +988,17 @@ tac_open(void)
 		h->num_servers = 0;
 		h->cur_server = 0;
 		h->errmsg[0] = '\0';
-		init_clnt_str(&h->user);
-		init_clnt_str(&h->port);
-		init_clnt_str(&h->rem_addr);
-		init_clnt_str(&h->data);
-		init_clnt_str(&h->user_msg);
+		init_str(&h->user);
+		init_str(&h->port);
+		init_str(&h->rem_addr);
+		init_str(&h->data);
+		init_str(&h->user_msg);
 		for (i=0; i<MAXAVPAIRS; i++) {
-			init_clnt_str(&(h->avs[i]));
-			init_srvr_str(&(h->srvr_avs[i]));
+			init_str(&(h->avs[i]));
+			init_str(&(h->srvr_avs[i]));
 		}
-		init_srvr_str(&h->srvr_msg);
-		init_srvr_str(&h->srvr_data);
+		init_str(&h->srvr_msg);
+		init_str(&h->srvr_data);
 	}
 	return h;
 }
@@ -1093,8 +1041,8 @@ tac_send_authen(struct tac_handle *h)
 	/* Scan the optional fields in the reply. */
 	ar = &h->response.u.authen_reply;
 	h->srvr_pos = offsetof(struct tac_authen_reply, rest[0]);
-	if (get_srvr_str(h, "msg", &h->srvr_msg, ntohs(ar->msg_len)) == -1 ||
-	    get_srvr_str(h, "data", &h->srvr_data, ntohs(ar->data_len)) == -1 ||
+	if (get_str(h, "msg", &h->srvr_msg, ntohs(ar->msg_len)) == -1 ||
+	    get_str(h, "data", &h->srvr_data, ntohs(ar->data_len)) == -1 ||
 	    get_srvr_end(h) == -1)
 		return -1;
 
@@ -1114,6 +1062,7 @@ tac_send_author(struct tac_handle *h)
 	char dbgstr[64];
 	struct tac_author_request *areq = &h->request.u.author_request;
 	struct tac_author_response *ares = &h->response.u.author_response;
+	struct tac_server *srvp;
 
 	h->request.length =
 		htonl(offsetof(struct tac_author_request, rest[0]));
@@ -1147,23 +1096,25 @@ tac_send_author(struct tac_handle *h)
 	/* Send the message and retrieve the reply. */
 	if (send_msg(h) == -1 || recv_msg(h) == -1)
 		return -1;
+	srvp = &h->servers[h->cur_server];
 
 	/* Update the offset in the response packet based on av pairs count */
 	h->srvr_pos = offsetof(struct tac_author_response, rest[0]) +
 		ares->av_cnt;
 
 	/* Scan the optional fields in the response. */
-	if (get_srvr_str(h, "msg", &h->srvr_msg, ntohs(ares->msg_len)) == -1 ||
-	    get_srvr_str(h, "data", &h->srvr_data, ntohs(ares->data_len)) ==-1)
+	if (get_str(h, "msg", &h->srvr_msg, ntohs(ares->msg_len)) == -1 ||
+	    get_str(h, "data", &h->srvr_data, ntohs(ares->data_len)) ==-1)
 		return -1;
 
 	/* Get each AV pair (just setting pointers, not malloc'ing) */
 	clear_srvr_avs(h);
 	for (i=0; i<ares->av_cnt; i++) {
 		snprintf(dbgstr, sizeof dbgstr, "av-pair-%d", i);
-		if (get_srvr_str(h, dbgstr, &(h->srvr_avs[i]),
+		if (get_str(h, dbgstr, &(h->srvr_avs[i]),
 				 ares->rest[i]) == -1)
 			return -1;
+		h->srvr_navs++;
 	}
 
 	/* Should have ended up at the end */
@@ -1174,7 +1125,7 @@ tac_send_author(struct tac_handle *h)
 	if (!h->single_connect)
 		close_connection(h);
 
-	return ares->av_cnt << 8 | ares->status;
+	return (h->srvr_navs + srvp->navs) << 8 | ares->status;
 }
 
 int
@@ -1208,8 +1159,8 @@ tac_send_acct(struct tac_handle *h)
 
 	/* reply */
 	h->srvr_pos = offsetof(struct tac_acct_reply, rest[0]);
-	if (get_srvr_str(h, "msg", &h->srvr_msg, ntohs(ar->msg_len)) == -1 ||
-	    get_srvr_str(h, "data", &h->srvr_data, ntohs(ar->data_len)) == -1 ||
+	if (get_str(h, "msg", &h->srvr_msg, ntohs(ar->msg_len)) == -1 ||
+	    get_str(h, "data", &h->srvr_data, ntohs(ar->data_len)) == -1 ||
 	    get_srvr_end(h) == -1)
 		return -1;
 
@@ -1272,41 +1223,41 @@ tac_set_av(struct tac_handle *h, u_int index, const char *av)
 char *
 tac_get_av(struct tac_handle *h, u_int index)
 {
-	if (index >= MAXAVPAIRS)
-		return NULL;
-	return dup_str(h, &(h->srvr_avs[index]), NULL);
+	struct tac_server *srvp;
+
+	if (index < h->srvr_navs)
+		return dup_str(h, &h->srvr_avs[index], NULL);
+	index -= h->srvr_navs;
+	srvp = &h->servers[h->cur_server];
+	if (index < srvp->navs)
+		return xstrdup(h, srvp->avs[index].data);
+	return NULL;
 }
 
 char *
 tac_get_av_value(struct tac_handle *h, const char *attribute)
 {
-	int i, len;
-	const char *ch, *end;
-	const char *candidate;
-	int   candidate_len;
+	int i, attr_len;
 	int   found_seperator;
-	struct srvr_str srvr;
+	char *ch, *end;
+	struct tac_str *candidate;
+	struct tac_str value;
+	struct tac_server *srvp = &h->servers[h->cur_server];
 
-	if (attribute == NULL || ((len = strlen(attribute)) == 0))
+	if (attribute == NULL || (attr_len = strlen(attribute)) == 0)
 		return NULL;
 
-	for (i=0; i<MAXAVPAIRS; i++) {
-		candidate = h->srvr_avs[i].data;
-		candidate_len = h->srvr_avs[i].len;
+	for (i = 0; i < h->srvr_navs + srvp->navs; i++) {
+		if (i < h->srvr_navs)
+			candidate = &h->srvr_avs[i];
+		else
+			candidate = &srvp->avs[i - h->srvr_navs];
 
-		/*
-		 * Valid 'srvr_avs' guaranteed to be contiguous starting at 
-		 * index 0 (not necessarily the case with 'avs').  Break out
-		 * when the "end" of the list has been reached.
-		 */
-		if (!candidate)
-			break;
+		if (attr_len < candidate->len &&
+		    strncmp(candidate->data, attribute, attr_len) == 0) {
 
-		if (len < candidate_len && 
-		    !strncmp(candidate, attribute, len)) {
-
-			ch = candidate + len;
-			end = candidate + candidate_len;
+			ch = candidate->data + attr_len;
+			end = candidate->data + candidate->len;
 
 			/*
 			 * Sift out the white space between A and V (should not
@@ -1333,9 +1284,9 @@ tac_get_av_value(struct tac_handle *h, const char *attribute)
 			 * dup_str() will handle srvr.len == 0 correctly.
 			 */
 			if (found_seperator == 1) {
-				srvr.len = end - ch;
-				srvr.data = ch;
-				return dup_str(h, &srvr, NULL);
+				value.len = end - ch;
+				value.data = ch;
+				return dup_str(h, &value, NULL);
 			}
 		}
 	}
@@ -1354,8 +1305,10 @@ static void
 clear_srvr_avs(struct tac_handle *h)
 {
 	int i;
-	for (i=0; i<MAXAVPAIRS; i++)
-		init_srvr_str(&(h->srvr_avs[i]));
+
+	for (i = 0; i < h->srvr_navs; i++)
+		init_str(&(h->srvr_avs[i]));
+	h->srvr_navs = 0;
 }
 
 
