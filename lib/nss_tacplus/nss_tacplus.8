@@ -3,7 +3,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd May 17, 2023
+.Dd June 13, 2023
 .Dt NSS_TACPLUS 8
 .Os
 .Sh NAME
@@ -57,6 +57,9 @@ Numeric primary group ID.
 Must be between 0 and
 .Dv GID_MAX .
 Defaults to 65534.
+.It Va CLASS
+Login class.
+Left blank if not provided.
 .It Va GECOS
 Display name.
 If not provided, the user name is used instead.
