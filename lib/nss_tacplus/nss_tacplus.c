@@ -24,6 +24,7 @@ extern int __isthreaded;
 
 #define	DEF_UID		65534
 #define	DEF_GID		65534
+#define	DEF_CLASS	""
 #define	DEF_DIR		"/"
 #define	DEF_SHELL	"/bin/sh"
 
@@ -192,6 +193,13 @@ tacplus_getpwnam_r(const char *name, struct passwd *pwd, char *buffer,
 				return (NS_RETURN);
 			}
 			pwd->pw_gid = num;
+		} else if (strcasecmp(av, "class") == 0) {
+			pwd->pw_class = tacplus_copystr(value, &buffer,
+			    &bufsize);
+			if (pwd->pw_class == NULL) {
+				free(av);
+				return (NS_RETURN);
+			}
 		} else if (strcasecmp(av, "gecos") == 0) {
 			pwd->pw_gecos = tacplus_copystr(value, &buffer,
 			    &bufsize);
@@ -216,6 +224,10 @@ tacplus_getpwnam_r(const char *name, struct passwd *pwd, char *buffer,
 		}
 		free(av);
 	}
+
+	/* default class if none was provided */
+	if (pwd->pw_class == NULL)
+		pwd->pw_class = tacplus_copystr(DEF_CLASS, &buffer, &bufsize);
 
 	/* gecos equal to name if none was provided */
 	if (pwd->pw_gecos == NULL)
