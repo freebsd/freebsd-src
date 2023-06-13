@@ -103,8 +103,6 @@ static int	doalias;
 static int	clearaddr;
 int	newaddr = 1;
 
-struct ifconfig_args global_args;
-
 int	exit_code = 0;
 
 static char ifname_to_print[IFNAMSIZ]; /* Helper for printifnamemaybe() */
@@ -615,7 +613,8 @@ main(int ac, char *av[])
 #ifdef JAIL
 	int jid;
 #endif
-	struct ifconfig_args *args = &global_args;
+	struct ifconfig_args _args = {};
+	struct ifconfig_args *args = &_args;
 
 	f_inet = f_inet6 = f_ether = f_addr = NULL;
 
