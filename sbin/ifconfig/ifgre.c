@@ -49,10 +49,9 @@ __FBSDID("$FreeBSD$");
 static void
 gre_status(if_ctx *ctx)
 {
-	uint32_t opts, port;
+	uint32_t opts = 0, port;
+	struct ifreq ifr = { .ifr_data = (caddr_t)&opts };
 
-	opts = 0;
-	ifr.ifr_data = (caddr_t)&opts;
 	if (ioctl_ctx(ctx, GREGKEY, &ifr) == 0)
 		if (opts != 0)
 			printf("\tgrekey: 0x%x (%u)\n", opts, opts);
@@ -62,7 +61,7 @@ gre_status(if_ctx *ctx)
 
 	port = 0;
 	ifr.ifr_data = (caddr_t)&port;
-	if (ioctl_ctx(ctx, GREGPORT, &ifr) == 0 && port != 0)
+	if (ioctl_ctx_ifr(ctx, GREGPORT, &ifr) == 0 && port != 0)
 		printf("\tudpport: %u\n", port);
 	printb("\toptions", opts, GREBITS);
 	putchar('\n');
@@ -72,10 +71,10 @@ static void
 setifgrekey(if_ctx *ctx, const char *val, int dummy __unused)
 {
 	uint32_t grekey = strtol(val, NULL, 0);
+	struct ifreq ifr = { .ifr_data = (caddr_t)&grekey };
 
-	strlcpy(ifr.ifr_name, ctx->ifname, sizeof (ifr.ifr_name));
 	ifr.ifr_data = (caddr_t)&grekey;
-	if (ioctl(ctx->io_s, GRESKEY, (caddr_t)&ifr) < 0)
+	if (ioctl_ctx_ifr(ctx, GRESKEY, &ifr) < 0)
 		warn("ioctl (set grekey)");
 }
 
@@ -83,10 +82,9 @@ static void
 setifgreport(if_ctx *ctx, const char *val, int dummy __unused)
 {
 	uint32_t udpport = strtol(val, NULL, 0);
+	struct ifreq ifr = { .ifr_data = (caddr_t)&udpport };
 
-	strlcpy(ifr.ifr_name, ctx->ifname, sizeof (ifr.ifr_name));
-	ifr.ifr_data = (caddr_t)&udpport;
-	if (ioctl(ctx->io_s, GRESPORT, (caddr_t)&ifr) < 0)
+	if (ioctl_ctx_ifr(ctx, GRESPORT, &ifr) < 0)
 		warn("ioctl (set udpport)");
 }
 
@@ -94,9 +92,9 @@ static void
 setifgreopts(if_ctx *ctx, const char *val __unused, int d)
 {
 	uint32_t opts;
+	struct ifreq ifr = { .ifr_data = (caddr_t)&opts };
 
-	ifr.ifr_data = (caddr_t)&opts;
-	if (ioctl(ctx->io_s, GREGOPTS, &ifr) == -1) {
+	if (ioctl_ctx_ifr(ctx, GREGOPTS, &ifr) == -1) {
 		warn("ioctl(GREGOPTS)");
 		return;
 	}
@@ -106,7 +104,7 @@ setifgreopts(if_ctx *ctx, const char *val __unused, int d)
 	else
 		opts |= d;
 
-	if (ioctl(ctx->io_s, GRESOPTS, &ifr) == -1) {
+	if (ioctl_ctx(ctx, GRESOPTS, &ifr) == -1) {
 		warn("ioctl(GIFSOPTS)");
 		return;
 	}

@@ -69,7 +69,7 @@ static const char rcsid[] =
 		"\007NO_RADR\010NO_PREFER_IFACE\011NO_DAD\020DEFAULTIF"
 #endif
 
-static int isnd6defif(int);
+static int isnd6defif(if_ctx *ctx, int s);
 void setnd6flags(if_ctx *, const char *, int);
 void setnd6defif(if_ctx *,const char *, int);
 void nd6_status(if_ctx *);
@@ -77,11 +77,10 @@ void nd6_status(if_ctx *);
 void
 setnd6flags(if_ctx *ctx, const char *dummyaddr __unused, int d)
 {
-	struct in6_ndireq nd;
+	struct in6_ndireq nd = {};
 	int error;
 
-	memset(&nd, 0, sizeof(nd));
-	strlcpy(nd.ifname, ifr.ifr_name, sizeof(nd.ifname));
+	strlcpy(nd.ifname, ctx->ifname, sizeof(nd.ifname));
 	error = ioctl_ctx(ctx, SIOCGIFINFO_IN6, &nd);
 	if (error) {
 		warn("ioctl(SIOCGIFINFO_IN6)");
@@ -99,15 +98,14 @@ setnd6flags(if_ctx *ctx, const char *dummyaddr __unused, int d)
 void
 setnd6defif(if_ctx *ctx, const char *dummyaddr __unused, int d)
 {
-	struct in6_ndifreq ndifreq;
+	struct in6_ndifreq ndifreq = {};
 	int ifindex;
 	int error;
 
-	memset(&ndifreq, 0, sizeof(ndifreq));
-	strlcpy(ndifreq.ifname, ifr.ifr_name, sizeof(ndifreq.ifname));
+	strlcpy(ndifreq.ifname, ctx->ifname, sizeof(ndifreq.ifname));
 
 	if (d < 0) {
-		if (isnd6defif(ctx->io_s)) {
+		if (isnd6defif(ctx, ctx->io_s)) {
 			/* ifindex = 0 means to remove default if */
 			ifindex = 0;
 		} else
@@ -124,14 +122,13 @@ setnd6defif(if_ctx *ctx, const char *dummyaddr __unused, int d)
 }
 
 static int
-isnd6defif(int s)
+isnd6defif(if_ctx *ctx, int s)
 {
-	struct in6_ndifreq ndifreq;
+	struct in6_ndifreq ndifreq = {};
 	unsigned int ifindex;
 	int error;
 
-	memset(&ndifreq, 0, sizeof(ndifreq));
-	strlcpy(ndifreq.ifname, ifr.ifr_name, sizeof(ndifreq.ifname));
+	strlcpy(ndifreq.ifname, ctx->ifname, sizeof(ndifreq.ifname));
 
 	ifindex = if_nametoindex(ndifreq.ifname);
 	error = ioctl(s, SIOCGDEFIFACE_IN6, (caddr_t)&ndifreq);
@@ -143,15 +140,14 @@ isnd6defif(int s)
 }
 
 void
-nd6_status(if_ctx *ctx __unused)
+nd6_status(if_ctx *ctx)
 {
-	struct in6_ndireq nd;
+	struct in6_ndireq nd = {};
 	int s6;
 	int error;
 	int isdefif;
 
-	memset(&nd, 0, sizeof(nd));
-	strlcpy(nd.ifname, ifr.ifr_name, sizeof(nd.ifname));
+	strlcpy(nd.ifname, ctx->ifname, sizeof(nd.ifname));
 	if ((s6 = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
 		if (errno != EAFNOSUPPORT && errno != EPROTONOSUPPORT)
 			warn("socket(AF_INET6, SOCK_DGRAM)");
@@ -164,7 +160,7 @@ nd6_status(if_ctx *ctx __unused)
 		close(s6);
 		return;
 	}
-	isdefif = isnd6defif(s6);
+	isdefif = isnd6defif(ctx, s6);
 	close(s6);
 	if (nd.ndi.flags == 0 && !isdefif)
 		return;

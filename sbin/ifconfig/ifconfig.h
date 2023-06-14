@@ -153,6 +153,7 @@ void	callback_register(callback_func *, void *);
 }
 
 #define	ioctl_ctx(ctx, _req, ...)	ioctl((ctx)->io_s, _req, ## __VA_ARGS__)
+int ioctl_ctx_ifr(if_ctx *ctx, unsigned long cmd, struct ifreq *ifr);
 
 struct ifaddrs;
 struct addrinfo;
@@ -275,12 +276,12 @@ bool	match_ether(const struct sockaddr_dl *sdl);
 bool	match_if_flags(struct ifconfig_args *args, int if_flags);
 int	ifconfig_ioctl(if_ctx *ctx, int iscreate, const struct afswtch *uafp);
 bool	group_member(const char *ifname, const char *match, const char *nomatch);
-void	print_ifcap(struct ifconfig_args *args, int s);
+void	print_ifcap(if_ctx *ctx);
 void	tunnel_status(if_ctx *ctx);
 struct afswtch	*af_getbyfamily(int af);
 void	af_other_status(if_ctx *ctx);
 void	print_ifstatus(if_ctx *ctx);
-void	print_metric(int s);
+void	print_metric(if_ctx *ctx);
 
 /* Netlink-related functions */
 void	list_interfaces_nl(struct ifconfig_args *args);

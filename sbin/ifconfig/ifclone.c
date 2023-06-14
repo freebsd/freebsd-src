@@ -159,8 +159,9 @@ clone_create(if_ctx *ctx __unused, const char *cmd __unused, int d __unused)
 static void
 clone_destroy(if_ctx *ctx, const char *cmd __unused, int d __unused)
 {
-	strlcpy(ifr.ifr_name, ctx->ifname, sizeof(ifr.ifr_name));
-	if (ioctl(ctx->io_s, SIOCIFDESTROY, &ifr) < 0)
+	struct ifreq ifr = {};
+
+	if (ioctl_ctx_ifr(ctx, SIOCIFDESTROY, &ifr) < 0)
 		err(1, "SIOCIFDESTROY");
 }
 
