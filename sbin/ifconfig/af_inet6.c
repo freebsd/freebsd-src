@@ -299,7 +299,7 @@ in6_status(if_ctx *ctx, const struct ifaddrs *ifa)
 	u_int32_t flags6;
 	struct in6_addrlifetime lifetime;
 
-	sin = (struct sockaddr_in6 *)ifa->ifa_addr;
+	sin = satosin6(ifa->ifa_addr);
 	if (sin == NULL)
 		return;
 
@@ -328,7 +328,7 @@ in6_status(if_ctx *ctx, const struct ifaddrs *ifa)
 	print_addr(sin);
 
 	if (ifa->ifa_flags & IFF_POINTOPOINT) {
-		sin = (struct sockaddr_in6 *)ifa->ifa_dstaddr;
+		sin = satosin6(ifa->ifa_dstaddr);
 		/*
 		 * some of the interfaces do not have valid destination
 		 * address.
@@ -337,16 +337,16 @@ in6_status(if_ctx *ctx, const struct ifaddrs *ifa)
 			print_p2p(sin);
 	}
 
-	sin = (struct sockaddr_in6 *)ifa->ifa_netmask;
+	sin = satosin6(ifa->ifa_netmask);
 	if (sin == NULL)
 		sin = &null_sin;
 	print_mask(prefix(&sin->sin6_addr, sizeof(struct in6_addr)));
 
 	print_flags(flags6);
 
-	if (((struct sockaddr_in6 *)(ifa->ifa_addr))->sin6_scope_id)
+	if ((satosin6(ifa->ifa_addr))->sin6_scope_id)
 		printf(" scopeid 0x%x",
-		    ((struct sockaddr_in6 *)(ifa->ifa_addr))->sin6_scope_id);
+		    (satosin6(ifa->ifa_addr))->sin6_scope_id);
 
 	if (ip6lifetime && (lifetime.ia6t_preferred || lifetime.ia6t_expire)) {
 		struct timespec now;
@@ -510,7 +510,7 @@ static struct	sockaddr_in6 *sin6tab[] = {
 };
 
 static void
-in6_copyaddr(if_ctx *ctx, int to, int from)
+in6_copyaddr(if_ctx *ctx __unused, int to, int from)
 {
 	memcpy(sin6tab[to], sin6tab[from], sizeof(struct sockaddr_in6));
 }
@@ -675,15 +675,14 @@ in6_status_tunnel(if_ctx *ctx)
 static void
 in6_set_tunnel(if_ctx *ctx, struct addrinfo *srcres, struct addrinfo *dstres)
 {
-	struct in6_aliasreq in6_addreq; 
+	struct in6_aliasreq in6_req = {}; 
 
-	memset(&in6_addreq, 0, sizeof(in6_addreq));
-	strlcpy(in6_addreq.ifra_name, ctx->ifname, sizeof(in6_addreq.ifra_name));
-	memcpy(&in6_addreq.ifra_addr, srcres->ai_addr, srcres->ai_addr->sa_len);
-	memcpy(&in6_addreq.ifra_dstaddr, dstres->ai_addr,
+	strlcpy(in6_req.ifra_name, ctx->ifname, sizeof(in6_req.ifra_name));
+	memcpy(&in6_req.ifra_addr, srcres->ai_addr, srcres->ai_addr->sa_len);
+	memcpy(&in6_req.ifra_dstaddr, dstres->ai_addr,
 	    dstres->ai_addr->sa_len);
 
-	if (ioctl_ctx(ctx, SIOCSIFPHYADDR_IN6, &in6_addreq) < 0)
+	if (ioctl_ctx(ctx, SIOCSIFPHYADDR_IN6, &in6_req) < 0)
 		warn("SIOCSIFPHYADDR_IN6");
 }
 

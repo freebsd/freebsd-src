@@ -811,7 +811,7 @@ list_interfaces_ioctl(if_ctx *ctx)
 		if (args->ifname != NULL && strcmp(args->ifname, ifa->ifa_name) != 0)
 			continue;
 		if (ifa->ifa_addr->sa_family == AF_LINK)
-			sdl = (const struct sockaddr_dl *) ifa->ifa_addr;
+			sdl = satosdl_c(ifa->ifa_addr);
 		else
 			sdl = NULL;
 		if (cp != NULL && strcmp(cp, ifa->ifa_name) == 0 && !args->namesonly)
@@ -1737,8 +1737,7 @@ print_description(if_ctx *ctx)
  * specified, show only it; otherwise, show them all.
  */
 static void
-status(if_ctx *ctx, const struct sockaddr_dl *sdl,
-	struct ifaddrs *ifa)
+status(if_ctx *ctx, const struct sockaddr_dl *sdl __unused, struct ifaddrs *ifa)
 {
 	struct ifaddrs *ift;
 	int s, old_s;

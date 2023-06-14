@@ -120,7 +120,7 @@ link_status(if_ctx *ctx, const struct ifaddrs *ifa)
 	int rc, sock_hw;
 	static const u_char laggaddr[6] = {0};
 
-	sdl = (struct sockaddr_dl *) ifa->ifa_addr;
+	sdl = satosdl(ifa->ifa_addr);
 	if (sdl == NULL || sdl->sdl_alen == 0)
 		return;
 

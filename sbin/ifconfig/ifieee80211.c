@@ -196,7 +196,7 @@ static struct ieee80211_txparams_req txparams;
 static int gottxparams = 0;
 static struct ieee80211_channel curchan;
 static int gotcurchan = 0;
-static struct ifmediareq *ifmr;
+static struct ifmediareq *global_ifmr;
 static int htconf = 0;
 static	int gothtconf = 0;
 
@@ -239,7 +239,7 @@ getchaninfo(if_ctx *ctx)
 	if (get80211(ctx, IEEE80211_IOC_CHANINFO, chaninfo,
 	    IEEE80211_CHANINFO_SIZE(MAXCHAN)) < 0)
 		err(1, "unable to get channel information");
-	ifmr = ifmedia_getstate(ctx);
+	global_ifmr = ifmedia_getstate(ctx);
 	gethtconf(ctx);
 	getvhtconf(ctx);
 }
@@ -317,7 +317,7 @@ promote(unsigned int i)
 	 *     the socket descriptor down to here so we can make
 	 *     the ifmedia_getstate call ourselves.
 	 */
-	int chanmode = ifmr != NULL ? IFM_MODE(ifmr->ifm_current) : IFM_AUTO;
+	int chanmode = global_ifmr != NULL ? IFM_MODE(global_ifmr->ifm_current) : IFM_AUTO;
 
 	/* when ambiguous promote to ``best'' */
 	/* NB: we abitrarily pick HT40+ over HT40- */
