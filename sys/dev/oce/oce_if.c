@@ -375,6 +375,8 @@ oce_attach(device_t dev)
 	}
 	softc_tail = sc;
 
+	gone_in_dev(dev, 15, "relatively uncommon 10GbE NIC");
+
 	return 0;
 
 stats_free:
