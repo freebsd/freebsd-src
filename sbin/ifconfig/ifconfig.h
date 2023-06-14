@@ -314,3 +314,15 @@ satosin(struct sockaddr *sa)
 {
 	return ((struct sockaddr_in *)(void *)sa);
 }
+
+static inline struct sockaddr_dl *
+satosdl(struct sockaddr *sa)
+{
+	return ((struct sockaddr_dl *)(void *)sa);
+}
+
+static inline const struct sockaddr_dl *
+satosdl_c(const struct sockaddr *sa)
+{
+	return ((const struct sockaddr_dl *)(const void *)sa);
+}

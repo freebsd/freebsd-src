@@ -105,20 +105,20 @@ in_status(if_ctx *ctx __unused, const struct ifaddrs *ifa)
 {
 	struct sockaddr_in *sin, null_sin = {};
 
-	sin = (struct sockaddr_in *)ifa->ifa_addr;
+	sin = satosin(ifa->ifa_addr);
 	if (sin == NULL)
 		return;
 
 	print_addr(sin);
 
 	if (ifa->ifa_flags & IFF_POINTOPOINT) {
-		sin = (struct sockaddr_in *)ifa->ifa_dstaddr;
+		sin = satosin(ifa->ifa_dstaddr);
 		if (sin == NULL)
 			sin = &null_sin;
 		printf(" --> %s", inet_ntoa(sin->sin_addr));
 	}
 
-	sin = (struct sockaddr_in *)ifa->ifa_netmask;
+	sin = satosin(ifa->ifa_netmask);
 	if (sin == NULL)
 		sin = &null_sin;
 	if (f_inet != NULL && strcmp(f_inet, "cidr") == 0) {
@@ -139,7 +139,7 @@ in_status(if_ctx *ctx __unused, const struct ifaddrs *ifa)
 		printf(" netmask 0x%lx", (unsigned long)ntohl(sin->sin_addr.s_addr));
 
 	if (ifa->ifa_flags & IFF_BROADCAST) {
-		sin = (struct sockaddr_in *)ifa->ifa_broadaddr;
+		sin = satosin(ifa->ifa_broadaddr);
 		if (sin != NULL && sin->sin_addr.s_addr != 0)
 			printf(" broadcast %s", inet_ntoa(sin->sin_addr));
 	}
@@ -202,7 +202,7 @@ static struct sockaddr_in *sintab[] = {
 };
 
 static void
-in_copyaddr(if_ctx *ctx, int to, int from)
+in_copyaddr(if_ctx *ctx __unused, int to, int from)
 {
 	memcpy(sintab[to], sintab[from], sizeof(struct sockaddr_in));
 }
