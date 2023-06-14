@@ -433,8 +433,6 @@ in6_getaddr(const char *addr_str, int which)
 {
         struct in6_px *px = sin6tab_nl[which];
 
-        newaddr &= 1;
-
         px->set = true;
         px->plen = 128;
         if (which == ADDR) {
@@ -545,8 +543,6 @@ in6_getaddr(const char *s, int which)
 	struct sockaddr_in6 *sin = sin6tab[which];
 	struct addrinfo hints, *res;
 	int error = -1;
-
-	newaddr &= 1;
 
 	sin->sin6_len = sizeof(*sin);
 	if (which != MASK)
