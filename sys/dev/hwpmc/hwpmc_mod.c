@@ -241,6 +241,8 @@ static void	pmc_post_callchain_callback(void);
 static void	pmc_process_allproc(struct pmc *pm);
 static void	pmc_process_csw_in(struct thread *td);
 static void	pmc_process_csw_out(struct thread *td);
+static void	pmc_process_exec(struct thread *td,
+    struct pmckern_procexec *pk);
 static void	pmc_process_exit(void *arg, struct proc *p);
 static void	pmc_process_fork(void *arg, struct proc *p1,
     struct proc *p2, int n);
@@ -1319,6 +1321,122 @@ done:
 }
 
 /*
+ * Handle events after an exec() for a process:
+ *  - Inform log owners of the new exec() event
+ *  - Release any PMCs owned by the process before the exec()
+ *  - Detach PMCs from the target if required
+ */
+static void
+pmc_process_exec(struct thread *td, struct pmckern_procexec *pk)
+{
+	struct pmc *pm;
+	struct pmc_owner *po;
+	struct pmc_process *pp;
+	struct proc *p;
+	char *fullpath, *freepath;
+	u_int ri;
+	bool is_using_hwpmcs;
+
+	sx_assert(&pmc_sx, SX_XLOCKED);
+
+	p = td->td_proc;
+	pmc_getfilename(p->p_textvp, &fullpath, &freepath);
+
+	PMC_EPOCH_ENTER();
+	/* Inform owners of SS mode PMCs of the exec event. */
+	CK_LIST_FOREACH(po, &pmc_ss_owners, po_ssnext) {
+		if ((po->po_flags & PMC_PO_OWNS_LOGFILE) != 0) {
+			pmclog_process_procexec(po, PMC_ID_INVALID, p->p_pid,
+			    pk->pm_baseaddr, pk->pm_dynaddr, fullpath);
+		}
+	}
+	PMC_EPOCH_EXIT();
+
+	PROC_LOCK(p);
+	is_using_hwpmcs = (p->p_flag & P_HWPMC) != 0;
+	PROC_UNLOCK(p);
+
+	if (!is_using_hwpmcs) {
+		if (freepath != NULL)
+			free(freepath, M_TEMP);
+		return;
+	}
+
+	/*
+	 * PMCs are not inherited across an exec(): remove any PMCs that this
+	 * process is the owner of.
+	 */
+	if ((po = pmc_find_owner_descriptor(p)) != NULL) {
+		pmc_remove_owner(po);
+		pmc_destroy_owner_descriptor(po);
+	}
+
+	/*
+	 * If the process being exec'ed is not the target of any PMC, we are
+	 * done.
+	 */
+	if ((pp = pmc_find_process_descriptor(p, 0)) == NULL) {
+		if (freepath != NULL)
+			free(freepath, M_TEMP);
+		return;
+	}
+
+	/*
+	 * Log the exec event to all monitoring owners. Skip owners who have
+	 * already received the event because they had system sampling PMCs
+	 * active.
+	 */
+	for (ri = 0; ri < md->pmd_npmc; ri++) {
+		if ((pm = pp->pp_pmcs[ri].pp_pmc) == NULL)
+			continue;
+
+		po = pm->pm_owner;
+		if (po->po_sscount == 0 &&
+		    (po->po_flags & PMC_PO_OWNS_LOGFILE) != 0) {
+			pmclog_process_procexec(po, pm->pm_id, p->p_pid,
+			    pk->pm_baseaddr, pk->pm_dynaddr, fullpath);
+		}
+	}
+
+	if (freepath != NULL)
+		free(freepath, M_TEMP);
+
+	PMCDBG4(PRC,EXC,1, "exec proc=%p (%d, %s) cred-changed=%d",
+	    p, p->p_pid, p->p_comm, pk->pm_credentialschanged);
+
+	if (pk->pm_credentialschanged == 0) /* no change */
+		return;
+
+	/*
+	 * If the newly exec()'ed process has a different credential
+	 * than before, allow it to be the target of a PMC only if
+	 * the PMC's owner has sufficient privilege.
+	 */
+	for (ri = 0; ri < md->pmd_npmc; ri++) {
+		if ((pm = pp->pp_pmcs[ri].pp_pmc) != NULL) {
+			if (pmc_can_attach(pm, td->td_proc) != 0) {
+				pmc_detach_one_process(td->td_proc, pm,
+				    PMC_FLAG_NONE);
+			}
+		}
+	}
+
+	KASSERT(pp->pp_refcnt >= 0 && pp->pp_refcnt <= md->pmd_npmc,
+	    ("[pmc,%d] Illegal ref count %u on pp %p", __LINE__,
+		pp->pp_refcnt, pp));
+
+	/*
+	 * If this process is no longer the target of any
+	 * PMCs, we can remove the process entry and free
+	 * up space.
+	 */
+	if (pp->pp_refcnt == 0) {
+		pmc_remove_process_descriptor(pp);
+		pmc_destroy_process_descriptor(pp);
+	}
+}
+
+/*
  * Thread context switch IN.
  */
 static void
@@ -2045,119 +2163,9 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 	    pmc_hooknames[function], arg);
 
 	switch (function) {
-
-	/*
-	 * Process exec()
-	 */
 	case PMC_FN_PROCESS_EXEC:
-	{
-		char *fullpath, *freepath;
-		unsigned int ri;
-		int is_using_hwpmcs;
-		struct pmc *pm;
-		struct proc *p;
-		struct pmc_owner *po;
-		struct pmc_process *pp;
-		struct pmckern_procexec *pk;
-
-		sx_assert(&pmc_sx, SX_XLOCKED);
-
-		p = td->td_proc;
-		pmc_getfilename(p->p_textvp, &fullpath, &freepath);
-
-		pk = (struct pmckern_procexec *) arg;
-
-		PMC_EPOCH_ENTER();
-		/* Inform owners of SS mode PMCs of the exec event. */
-		CK_LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
-		    if (po->po_flags & PMC_PO_OWNS_LOGFILE)
-			    pmclog_process_procexec(po, PMC_ID_INVALID,
-				p->p_pid, pk->pm_baseaddr, pk->pm_dynaddr,
-				fullpath);
-		PMC_EPOCH_EXIT();
-
-		PROC_LOCK(p);
-		is_using_hwpmcs = p->p_flag & P_HWPMC;
-		PROC_UNLOCK(p);
-
-		if (!is_using_hwpmcs) {
-			if (freepath)
-				free(freepath, M_TEMP);
-			break;
-		}
-
-		/*
-		 * PMCs are not inherited across an exec():  remove any
-		 * PMCs that this process is the owner of.
-		 */
-
-		if ((po = pmc_find_owner_descriptor(p)) != NULL) {
-			pmc_remove_owner(po);
-			pmc_destroy_owner_descriptor(po);
-		}
-
-		/*
-		 * If the process being exec'ed is not the target of any
-		 * PMC, we are done.
-		 */
-		if ((pp = pmc_find_process_descriptor(p, 0)) == NULL) {
-			if (freepath)
-				free(freepath, M_TEMP);
-			break;
-		}
-
-		/*
-		 * Log the exec event to all monitoring owners.  Skip
-		 * owners who have already received the event because
-		 * they had system sampling PMCs active.
-		 */
-		for (ri = 0; ri < md->pmd_npmc; ri++)
-			if ((pm = pp->pp_pmcs[ri].pp_pmc) != NULL) {
-				po = pm->pm_owner;
-				if (po->po_sscount == 0 &&
-				    po->po_flags & PMC_PO_OWNS_LOGFILE)
-					pmclog_process_procexec(po, pm->pm_id,
-					    p->p_pid, pk->pm_baseaddr,
-					    pk->pm_dynaddr, fullpath);
-			}
-
-		if (freepath)
-			free(freepath, M_TEMP);
-
-
-		PMCDBG4(PRC,EXC,1, "exec proc=%p (%d, %s) cred-changed=%d",
-		    p, p->p_pid, p->p_comm, pk->pm_credentialschanged);
-
-		if (pk->pm_credentialschanged == 0) /* no change */
-			break;
-
-		/*
-		 * If the newly exec()'ed process has a different credential
-		 * than before, allow it to be the target of a PMC only if
-		 * the PMC's owner has sufficient privilege.
-		 */
-		for (ri = 0; ri < md->pmd_npmc; ri++)
-			if ((pm = pp->pp_pmcs[ri].pp_pmc) != NULL)
-				if (pmc_can_attach(pm, td->td_proc) != 0)
-					pmc_detach_one_process(td->td_proc,
-					    pm, PMC_FLAG_NONE);
-
-		KASSERT(pp->pp_refcnt >= 0 && pp->pp_refcnt <= md->pmd_npmc,
-		    ("[pmc,%d] Illegal ref count %u on pp %p", __LINE__,
-			pp->pp_refcnt, pp));
-
-		/*
-		 * If this process is no longer the target of any
-		 * PMCs, we can remove the process entry and free
-		 * up space.
-		 */
-		if (pp->pp_refcnt == 0) {
-			pmc_remove_process_descriptor(pp);
-			pmc_destroy_process_descriptor(pp);
-			break;
-		}
-	}
-	break;
+		pmc_process_exec(td, (struct pmckern_procexec *)arg);
+		break;
 
 	case PMC_FN_CSW_IN:
 		pmc_process_csw_in(td);
